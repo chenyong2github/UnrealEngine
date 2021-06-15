@@ -241,6 +241,8 @@ public:
 	virtual int32 GetNumberOfSelectedNodes() const override;
 	virtual void AnalyticsTrackNodeEvent(UBlueprint* Blueprint, UEdGraphNode *GraphNode, bool bNodeDelete = false) const override;
 	void AnalyticsTrackCompileEvent(UBlueprint* Blueprint, int32 NumErrors, int32 NumWarnings) const;
+	virtual TSharedPtr<class IClassViewerFilter> GetImportedClassViewerFilter() const override { return ImportedClassViewerFilter; }
+	virtual TSharedPtr<class IPinTypeSelectorFilter> GetImportedPinTypeSelectorFilter() const override { return ImportedPinTypeSelectorFilter; }
 	//~ End IBlueprintEditor Interface
 
 	//~ Begin FTickableEditorObject Interface
@@ -1346,6 +1348,12 @@ protected:
 
 	/** Cached set of instanced namespace helper objects */
 	TMap<TWeakObjectPtr<const UBlueprint>, TSharedRef<FBlueprintNamespaceHelper>> CachedNamespaceHelpers;
+
+	/** Filter used to restrict class viewer widgets in the editor context to imported namespaces only */
+	TSharedPtr<class IClassViewerFilter> ImportedClassViewerFilter;
+
+	/** Filter used to restrict pin type selector widgets in the editor context to imported namespaces only */
+	TSharedPtr<class IPinTypeSelectorFilter> ImportedPinTypeSelectorFilter;
 
 	FOnSetPinVisibility OnSetPinVisibility;
 

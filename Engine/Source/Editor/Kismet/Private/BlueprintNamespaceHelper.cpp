@@ -12,6 +12,7 @@
 #include "SPinTypeSelector.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Text/STextBlock.h"
+#include "ClassViewerFilter.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintNamespaceHelper"
 
@@ -91,46 +92,55 @@ static FAutoConsoleVariableSink CVarUpdateNamespaceFeatureSettingsSink(
 
 // ---
 
-class FPinTypeSelectorNamespaceFilter : public IPinTypeSelectorFilter, public TSharedFromThis<FPinTypeSelectorNamespaceFilter>
+class FClassViewerNamespaceFilter : public IClassViewerFilter
+{
+public:
+	FClassViewerNamespaceFilter(const FBlueprintNamespaceHelper* InNamespaceHelper)
+		: CachedNamespaceHelper(InNamespaceHelper)
+	{
+	}
+
+	virtual bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef<FClassViewerFilterFuncs> InFilterFuncs) override
+	{
+		if (!CachedNamespaceHelper)
+		{
+			return true;
+		}
+
+		return CachedNamespaceHelper->IsImportedObject(InClass);
+	}
+
+	virtual bool IsUnloadedClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const TSharedRef<const IUnloadedBlueprintData> InBlueprint, TSharedRef<FClassViewerFilterFuncs> InFilterFuncs) override
+	{
+		if (!CachedNamespaceHelper)
+		{
+			return true;
+		}
+
+		FSoftObjectPath ClassPath(InBlueprint->GetClassPath());
+		return CachedNamespaceHelper->IsImportedObject(ClassPath);
+	}
+
+private:
+	/** Associated namespace helper object. */
+	const FBlueprintNamespaceHelper* CachedNamespaceHelper;
+};
+
+// ---
+
+class FPinTypeSelectorNamespaceFilter : public IPinTypeSelectorFilter
 {
 	DECLARE_MULTICAST_DELEGATE(FOnFilterChanged);
 
 public:
 	FPinTypeSelectorNamespaceFilter(const FBlueprintNamespaceHelper* InNamespaceHelper)
 		: CachedNamespaceHelper(InNamespaceHelper)
-		, bIsFilterEnabled(true)
 	{
-	}
-
-	virtual FDelegateHandle RegisterOnFilterChanged(FSimpleDelegate InOnFilterChanged) override
-	{
-		return OnFilterChanged.Add(InOnFilterChanged);
-	}
-
-	virtual void UnregisterOnFilterChanged(FDelegateHandle InDelegateHandle) override
-	{
-		OnFilterChanged.Remove(InDelegateHandle);
-	}
-
-	virtual TSharedPtr<SWidget> GetFilterOptionsWidget() override
-	{
-		if (!FilterOptionsWidget.IsValid())
-		{
-			SAssignNew(FilterOptionsWidget, SCheckBox)
-			.IsChecked(this, &FPinTypeSelectorNamespaceFilter::IsFilterToggleChecked)
-			.OnCheckStateChanged(this, &FPinTypeSelectorNamespaceFilter::OnToggleFilter)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("PinTypeNamespaceFilterToggleOptionLabel", "Hide Non-Imported Types"))
-			];
-		}
-
-		return FilterOptionsWidget;
 	}
 
 	virtual bool ShouldShowPinTypeTreeItem(FPinTypeTreeItem InItem) const override
 	{
-		if (!CachedNamespaceHelper || !InItem.IsValid() || !bIsFilterEnabled)
+		if (!CachedNamespaceHelper)
 		{
 			return true;
 		}
@@ -156,32 +166,9 @@ public:
 		return true;
 	}
 
-protected:
-	ECheckBoxState IsFilterToggleChecked() const
-	{
-		return bIsFilterEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-	}
-
-	void OnToggleFilter(ECheckBoxState NewState)
-	{
-		bIsFilterEnabled = (NewState == ECheckBoxState::Checked);
-
-		// Notify any listeners that the filter has been changed.
-		OnFilterChanged.Broadcast();
-	}
-
 private:
 	/** Associated namespace helper object. */
 	const FBlueprintNamespaceHelper* CachedNamespaceHelper;
-
-	/** Cached filter options widget. */
-	TSharedPtr<SWidget> FilterOptionsWidget;
-
-	/** Delegate that's called whenever filter options are changed. */
-	FOnFilterChanged OnFilterChanged;
-
-	/** Whether or not the filter is enabled. */
-	bool bIsFilterEnabled;
 };
 
 // ---
@@ -218,6 +205,7 @@ FBlueprintNamespaceHelper::FBlueprintNamespaceHelper(const UBlueprint* InBluepri
 		}
 	}
 
+	ClassViewerFilter = MakeShared<FClassViewerNamespaceFilter>(this);
 	PinTypeSelectorFilter = MakeShared<FPinTypeSelectorNamespaceFilter>(this);
 }
 

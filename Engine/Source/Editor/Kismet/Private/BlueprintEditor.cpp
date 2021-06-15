@@ -135,6 +135,7 @@
 
 #include "AssetRegistryModule.h"
 #include "BlueprintEditorTabFactories.h"
+#include "ClassViewerFilter.h"
 #include "SPinTypeSelector.h"
 #include "Animation/AnimBlueprint.h"
 #include "AnimStateConduitNode.h"
@@ -228,6 +229,200 @@ TSharedRef<SDockTab> FSelectionDetailsSummoner::SpawnTab(const FWorkflowTabSpawn
 namespace BlueprintEditorImpl
 {
 	static const float InstructionFadeDuration = 0.5f;
+
+	/** Consolidates the class viewer filters for each edited BP asset into a single filter option */
+	class FImportedClassViewerFilter : public IClassViewerFilter, public TSharedFromThis<FImportedClassViewerFilter>
+	{
+	public:
+		FImportedClassViewerFilter(const TArray<TSharedRef<FBlueprintNamespaceHelper>>& InNamespaceHelpers)
+		{
+			bIsFilterEnabled = true;
+
+			ClassViewerFilters.Reserve(InNamespaceHelpers.Num());
+			for (const TSharedRef<FBlueprintNamespaceHelper>& NamespaceHelper : InNamespaceHelpers)
+			{
+				TSharedPtr<IClassViewerFilter> Filter = NamespaceHelper->GetClassViewerFilter();
+				if (Filter.IsValid())
+				{
+					ClassViewerFilters.Add(Filter.ToSharedRef());
+				}
+			}
+		}
+
+		// IClassViewerFilter interface
+		virtual bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef<FClassViewerFilterFuncs> InFilterFuncs) override
+		{
+			if (!GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceFilteringFeatures)
+			{
+				return true;
+			}
+
+			if(bIsFilterEnabled)
+			{
+				for (const TSharedRef<IClassViewerFilter>& Filter : ClassViewerFilters)
+				{
+					if (!Filter->IsClassAllowed(InInitOptions, InClass, InFilterFuncs))
+					{
+						return false;
+					}
+				}
+			}
+
+			return true;
+		}
+
+		virtual bool IsUnloadedClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const TSharedRef< const IUnloadedBlueprintData > InBlueprint, TSharedRef< FClassViewerFilterFuncs > InFilterFuncs) override
+		{
+			if (!GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceFilteringFeatures)
+			{
+				return true;
+			}
+
+			if (bIsFilterEnabled)
+			{
+				for (const TSharedRef<IClassViewerFilter>& Filter : ClassViewerFilters)
+				{
+					if (!Filter->IsUnloadedClassAllowed(InInitOptions, InBlueprint, InFilterFuncs))
+					{
+						return false;
+					}
+				}
+			}
+
+			return true;
+		}
+
+		virtual void GetFilterOptions(TArray<TSharedRef<FClassViewerFilterOption>>& OutFilterOptions)
+		{
+			if (!GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceFilteringFeatures)
+			{
+				return;
+			}
+
+			TSharedRef<FClassViewerFilterOption> FilterOption = MakeShared<FClassViewerFilterOption>();
+			FilterOption->bEnabled = bIsFilterEnabled;
+			FilterOption->LabelText = LOCTEXT("ClassViewerNamespaceFilterMenuOptionLabel", "Show Only Imported Types");
+			FilterOption->ToolTipText = LOCTEXT("ClassViewerNamespaceFilterMenuOptionToolTip", "Don't include non-imported class types.");
+			FilterOption->OnOptionChanged = FOnClassViewerFilterOptionChanged::CreateSP(this, &FImportedClassViewerFilter::OnFilterOptionChanged);
+
+			OutFilterOptions.Add(FilterOption);
+		}
+
+	protected:
+		void OnFilterOptionChanged(bool bIsEnabled)
+		{
+			bIsFilterEnabled = bIsEnabled;
+		}
+
+	private:
+		/** Class viewer filters (one per edited BP asset). */
+		TArray<TSharedRef<IClassViewerFilter>> ClassViewerFilters;
+
+		/** Whether or not the filter is enabled. */
+		bool bIsFilterEnabled;
+	};
+
+	/** Consolidates the pin type selector filters for each edited BP asset into a singular construct */
+	class FImportedPinTypeSelectorFilter : public IPinTypeSelectorFilter, public TSharedFromThis<FImportedPinTypeSelectorFilter>
+	{
+		DECLARE_MULTICAST_DELEGATE(FOnFilterChanged);
+	
+	public:
+		FImportedPinTypeSelectorFilter(const TArray<TSharedRef<FBlueprintNamespaceHelper>>& InNamespaceHelpers)
+		{
+			bIsFilterEnabled = true;
+
+			PinTypeSelectorFilters.Reserve(InNamespaceHelpers.Num());
+			for (const TSharedRef<FBlueprintNamespaceHelper>& NamespaceHelper : InNamespaceHelpers)
+			{
+				TSharedPtr<IPinTypeSelectorFilter> Filter = NamespaceHelper->GetPinTypeSelectorFilter();
+				if (Filter.IsValid())
+				{
+					PinTypeSelectorFilters.Add(Filter.ToSharedRef());
+				}
+			}
+		}
+
+		// IPinTypeSelectorFilter interface
+		virtual bool ShouldShowPinTypeTreeItem(FPinTypeTreeItem InItem) const override
+		{
+			if (!GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceFilteringFeatures)
+			{
+				return true;
+			}
+
+			if (bIsFilterEnabled)
+			{
+				for (const TSharedRef<IPinTypeSelectorFilter>& Filter : PinTypeSelectorFilters)
+				{
+					if (!Filter->ShouldShowPinTypeTreeItem(InItem))
+					{
+						return false;
+					}
+				}
+			}
+
+			return true;
+		}
+
+		virtual FDelegateHandle RegisterOnFilterChanged(FSimpleDelegate InOnFilterChanged) override
+		{
+			return OnFilterChanged.Add(InOnFilterChanged);
+		}
+
+		virtual void UnregisterOnFilterChanged(FDelegateHandle InDelegateHandle) override
+		{
+			OnFilterChanged.Remove(InDelegateHandle);
+		}
+
+		virtual TSharedPtr<SWidget> GetFilterOptionsWidget() override
+		{
+			if (!GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceFilteringFeatures)
+			{
+				return nullptr;
+			}
+
+			if (!FilterOptionsWidget.IsValid())
+			{
+				SAssignNew(FilterOptionsWidget, SCheckBox)
+					.IsChecked(this, &FImportedPinTypeSelectorFilter::IsFilterToggleChecked)
+					.OnCheckStateChanged(this, &FImportedPinTypeSelectorFilter::OnToggleFilter)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("PinTypeNamespaceFilterToggleOptionLabel", "Hide Non-Imported Types"))
+					];
+			}
+
+			return FilterOptionsWidget;
+		}
+
+	protected:
+		ECheckBoxState IsFilterToggleChecked() const
+		{
+			return bIsFilterEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		}
+
+		void OnToggleFilter(ECheckBoxState NewState)
+		{
+			bIsFilterEnabled = (NewState == ECheckBoxState::Checked);
+
+			// Notify any listeners that the filter has been changed.
+			OnFilterChanged.Broadcast();
+		}
+
+	private:
+		/** Pin type filters (one per edited BP asset). */
+		TArray<TSharedRef<IPinTypeSelectorFilter>> PinTypeSelectorFilters;
+
+		/** Cached filter options widget. */
+		TSharedPtr<SWidget> FilterOptionsWidget;
+
+		/** Delegate that's called whenever filter options are changed. */
+		FOnFilterChanged OnFilterChanged;
+
+		/** Whether or not the filter is enabled. */
+		bool bIsFilterEnabled;
+	};
 
 	/**
 	 * Utility function that will check to see if the specified graph has any 
@@ -1643,6 +1838,16 @@ void FBlueprintEditor::CommonInitialization(const TArray<UBlueprint*>& InitBluep
 		GraphEditorTabFactoryPtr = GraphEditorFactory;
 		DocumentManager->RegisterDocumentFactory(GraphEditorFactory);
 	}
+
+	// Create imported namespace type filters for value editing.
+	TArray<TSharedRef<FBlueprintNamespaceHelper>> LocalNamespaceHelpersArray;
+	LocalNamespaceHelpersArray.Reserve(InitBlueprints.Num());
+	for (const UBlueprint* BP : InitBlueprints)
+	{
+		LocalNamespaceHelpersArray.Add(GetOrCreateNamespaceHelperForBlueprint(BP));
+	}
+	ImportedClassViewerFilter = MakeShared<BlueprintEditorImpl::FImportedClassViewerFilter>(LocalNamespaceHelpersArray);
+	ImportedPinTypeSelectorFilter = MakeShared<BlueprintEditorImpl::FImportedPinTypeSelectorFilter>(LocalNamespaceHelpersArray);
 
 	// Make sure we know when tabs become active to update details tab
 	OnActiveTabChangedDelegateHandle = FGlobalTabmanager::Get()->OnActiveTabChanged_Subscribe( FOnActiveTabChanged::FDelegate::CreateRaw(this, &FBlueprintEditor::OnActiveTabChanged) );

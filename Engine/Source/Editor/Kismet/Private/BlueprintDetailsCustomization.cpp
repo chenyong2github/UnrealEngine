@@ -290,9 +290,9 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 	TSharedPtr<SToolTip> VarTypeTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("VarTypeTooltip", "The type of the variable."), NULL, DocLink, TEXT("VariableType"));
 
 	TSharedPtr<IPinTypeSelectorFilter> CustomPinTypeFilter;
-	if (BlueprintEditor.IsValid() && GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceFilteringFeatures)
+	if (BlueprintEditor.IsValid())
 	{
-		CustomPinTypeFilter = BlueprintEditor.Pin()->GetOrCreateNamespaceHelperForBlueprint(GetBlueprintObj())->GetPinTypeSelectorFilter();
+		CustomPinTypeFilter = BlueprintEditor.Pin()->GetImportedPinTypeSelectorFilter();
 	}
 	
 	const UEdGraphSchema* Schema = GetDefault<UEdGraphSchema_K2>();
@@ -2823,9 +2823,9 @@ void FBlueprintGraphArgumentLayout::GenerateHeaderRowContent( FDetailWidgetRow& 
 		if (MyBlueprintPtr.IsValid())
 		{
 			TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = MyBlueprintPtr->GetBlueprintEditor().Pin();
-			if (BlueprintEditorPtr.IsValid() && GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceFilteringFeatures)
+			if (BlueprintEditorPtr.IsValid())
 			{
-				CustomPinTypeFilter = BlueprintEditorPtr->GetOrCreateNamespaceHelperForBlueprint(MyBlueprintPtr->GetBlueprintObj())->GetPinTypeSelectorFilter();
+				CustomPinTypeFilter = BlueprintEditorPtr->GetImportedPinTypeSelectorFilter();
 			}
 		}
 	}
