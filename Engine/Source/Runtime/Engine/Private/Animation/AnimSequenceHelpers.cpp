@@ -396,7 +396,7 @@ void Retargeting::RetargetPose(FCompactPose& InOutPose, const FName& RetargetSou
 
 
 #if WITH_EDITOR
-bool CopyNotifies(const UAnimSequenceBase* SourceAnimSeq, UAnimSequenceBase* DestAnimSeq, bool bShowDialogs)
+bool CopyNotifies(const UAnimSequenceBase* SourceAnimSeq, UAnimSequenceBase* DestAnimSeq, bool bShowDialogs, bool bDeleteNotifies)
 {
 	// Abort if source == destination.
 	if (SourceAnimSeq == DestAnimSeq)
@@ -407,7 +407,7 @@ bool CopyNotifies(const UAnimSequenceBase* SourceAnimSeq, UAnimSequenceBase* Des
 	// If the destination sequence is shorter than the source sequence, we'll be dropping notifies that
 	// occur at later times than the dest sequence is long.  Give the user a chance to abort if we
 	// find any notifies that won't be copied over.
-	if (bShowDialogs && DestAnimSeq->GetPlayLength() < SourceAnimSeq->GetPlayLength())
+	if (DestAnimSeq->GetPlayLength() < SourceAnimSeq->GetPlayLength())
 	{
 		for (int32 NotifyIndex = 0; NotifyIndex < SourceAnimSeq->Notifies.Num(); ++NotifyIndex)
 		{
@@ -415,7 +415,9 @@ bool CopyNotifies(const UAnimSequenceBase* SourceAnimSeq, UAnimSequenceBase* Des
 			const FAnimNotifyEvent& SrcNotifyEvent = SourceAnimSeq->Notifies[NotifyIndex];
 			if (SrcNotifyEvent.GetTriggerTime() > DestAnimSeq->GetPlayLength())
 			{
-				const bool bProceed = EAppReturnType::Yes == FMessageDialog::Open(EAppMsgType::YesNo, NSLOCTEXT("UnrealEd", "SomeNotifiesWillNotBeCopiedQ", "Some notifies will not be copied because the destination sequence is not long enough.  Proceed?"));
+				UE_LOG(LogAnimation, Warning, TEXT("Animation Notify trigger time %f falls outside of the destination animation sequence its length %f, notify will not be copied."), SrcNotifyEvent.GetTriggerTime(), DestAnimSeq->GetPlayLength());
+				
+				const bool bProceed = !bShowDialogs || EAppReturnType::Yes == FMessageDialog::Open(EAppMsgType::YesNo, NSLOCTEXT("UnrealEd", "SomeNotifiesWillNotBeCopiedQ", "Some notifies will not be copied because the destination sequence is not long enough.  Proceed?"));
 				if (!bProceed)
 				{
 					return false;
@@ -430,14 +432,16 @@ bool CopyNotifies(const UAnimSequenceBase* SourceAnimSeq, UAnimSequenceBase* Des
 
 	// If the destination sequence contains any notifies, ask the user if they'd like
 	// to delete the existing notifies before copying over from the source sequence.
-	if (bShowDialogs && DestAnimSeq->Notifies.Num() > 0)
+	if (DestAnimSeq->Notifies.Num() > 0)
 	{
-		const bool bDeleteExistingNotifies = EAppReturnType::Yes == FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(
-			NSLOCTEXT("UnrealEd", "DestSeqAlreadyContainsNotifiesMergeQ", "The destination sequence already contains {0} notifies.  Delete these before copying?"), FText::AsNumber(DestAnimSeq->Notifies.Num())));
+		const bool bDeleteExistingNotifies = bDeleteNotifies || (bShowDialogs && EAppReturnType::Yes == FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(
+			NSLOCTEXT("UnrealEd", "DestSeqAlreadyContainsNotifiesMergeQ", "The destination sequence already contains {0} notifies.  Delete these before copying?"), FText::AsNumber(DestAnimSeq->Notifies.Num()))));
+
 		if (bDeleteExistingNotifies)
 		{
 			DestAnimSeq->Notifies.Empty();
 			DestAnimSeq->MarkPackageDirty();
+			DestAnimSeq->RefreshCacheData();
 		}
 	}
 
