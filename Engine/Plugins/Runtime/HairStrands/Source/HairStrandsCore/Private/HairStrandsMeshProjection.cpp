@@ -768,6 +768,12 @@ void AddHairStrandUpdateMeshTrianglesPass(
 
 			const FHairStrandsProjectionMeshData::Section& MeshSectionData = MeshData.Sections[SectionIndex];
 
+			// If a skel. mesh is not streaming yet, its SRV will be null
+			if (MeshSectionData.IndexBuffer == nullptr)
+			{
+				continue;
+			}
+
 			const FMeshSectionBuffers* Buffers = nullptr;
 			if (MeshSectionData.PositionBuffer)
 			{
