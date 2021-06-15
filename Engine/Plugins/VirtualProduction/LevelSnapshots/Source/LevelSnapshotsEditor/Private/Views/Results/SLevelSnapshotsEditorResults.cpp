@@ -73,6 +73,8 @@ FPropertyHandleHierarchy::FPropertyHandleHierarchy(
 				if (ParentHierarchy.IsValid())
 				{
 					const TSharedPtr<FPropertyHandleHierarchy> PinnedParent = ParentHierarchy.Pin();
+
+					TempIdentifierChain = PinnedParent->TempIdentifierChain.MakeAppended(Property);
 				}
 				else
 				{
