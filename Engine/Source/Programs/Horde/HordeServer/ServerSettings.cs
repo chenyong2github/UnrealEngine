@@ -86,6 +86,16 @@ namespace HordeServer
 		/// List of pool IDs this instance can be scheduled in
 		/// </summary>
 		public List<string>? PoolFilter { get; set; }
+
+		/// <summary>
+		/// Max time to wait for an agent to become available for serving a remote execution request (in milliseconds)
+		/// </summary>
+		public int AgentQueueTimeout { get; set; } = 5000;
+
+		public TimeSpan AgentQueueTimeoutAsTimeSpan()
+		{
+			return TimeSpan.FromMilliseconds(AgentQueueTimeout);
+		}
 	}
 	
 	/// <summary>
@@ -97,6 +107,11 @@ namespace HordeServer
 		/// Mapping instance names to instance settings
 		/// </summary>
 		public Dictionary<string, RemoteExecInstanceSettings> Instances { get; set; } = new Dictionary<string, RemoteExecInstanceSettings>();
+
+		/// <summary>
+		/// Max number of concurrent leases per agent
+		/// </summary>
+		public int MaxConcurrentLeasesPerAgent = 2;
 	}
 
 	/// <summary>

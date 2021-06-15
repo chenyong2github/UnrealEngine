@@ -411,35 +411,21 @@ namespace HordeServer.Tasks.Impl
 			{
 				Operation.SetStatus(ExecutionStage.Types.Value.Queued, null);
 
-				List<string>? PoolFilter = null;
-				
 				ActionTask ActionTask = new ActionTask();
 				ActionTask.InstanceName = Request.InstanceName;
 				ActionTask.Digest = Request.ActionDigest;
 				ActionTask.QueueTime = Timestamp.FromDateTimeOffset(QueueTime);
-				
-				if (Request.InstanceName != null && RemoteExecSettings.Instances.TryGetValue(Request.InstanceName, out var InstanceSettings))
-				{
-					PoolFilter = InstanceSettings.PoolFilter;
+
+				RemoteExecInstanceSettings InstanceSettings =
+					RemoteExecSettings.Instances.GetValueOrDefault(Request.InstanceName ?? "") ??
+					new RemoteExecInstanceSettings();
 					
-					if (InstanceSettings.CasUrl != null)
-					{
-						ActionTask.CasUrl = InstanceSettings.CasUrl.ToString();
-					}
-					
-					if (InstanceSettings.ActionCacheUrl != null)
-					{
-						ActionTask.ActionCacheUrl = InstanceSettings.ActionCacheUrl.ToString();
-					}
-					
-					if (InstanceSettings.ServiceAccountToken != null)
-					{
-						ActionTask.ServiceAccountToken = InstanceSettings.ServiceAccountToken;
-					}
-				}
+				if (InstanceSettings.CasUrl != null) ActionTask.CasUrl = InstanceSettings.CasUrl.ToString();
+				if (InstanceSettings.ActionCacheUrl != null) ActionTask.ActionCacheUrl = InstanceSettings.ActionCacheUrl.ToString();
+				if (InstanceSettings.ServiceAccountToken != null) ActionTask.ServiceAccountToken = InstanceSettings.ServiceAccountToken;
 				
 				// Get a new subscription
-				Subscription? Subscription = await WaitForSubscriberAsync(TimeSpan.FromSeconds(20.0), PoolFilter);
+				Subscription? Subscription = await WaitForSubscriberAsync(InstanceSettings.AgentQueueTimeoutAsTimeSpan(), InstanceSettings.PoolFilter);
 				if (Subscription == null)
 				{
 					ExecuteResponse FailedResponse = new ExecuteResponse();
@@ -596,7 +582,7 @@ namespace HordeServer.Tasks.Impl
 		/// <inheritdoc/>
 		public Task<ITaskListener?> SubscribeAsync(IAgent Agent)
 		{
-			if (Agent.Leases.Count > 0)
+			if (Agent.Leases.Count >= RemoteExecSettings.MaxConcurrentLeasesPerAgent)
 			{
 				Logger.LogDebug("Cannot subscribe agent {AgentId} as it already has one or more leases. Num leases {Leases}", Agent.Id, Agent.Leases.Count);
 				return Task.FromResult<ITaskListener?>(null);
