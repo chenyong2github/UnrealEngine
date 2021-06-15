@@ -45,6 +45,9 @@ namespace SceneOutliner
 			/** Actor's internal name (FName) */
 			InternalName,
 
+			/** Actor's package short name */
+			PackageShortName,
+
 			/** Actor's number of uncached lights */
 			UncachedLights,
 

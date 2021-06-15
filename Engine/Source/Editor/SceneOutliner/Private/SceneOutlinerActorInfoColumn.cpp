@@ -54,6 +54,9 @@ struct FGetInfo
 			case SceneOutliner::ECustomColumnMode::InternalName:
 				return Actor->GetFName().ToString();
 
+			case SceneOutliner::ECustomColumnMode::PackageShortName:
+				return FPackageName::GetShortName(Actor->GetPackage()->GetName());
+
 			case SceneOutliner::ECustomColumnMode::UncachedLights:
 				return FString::Printf(TEXT("%7d"), Actor->GetNumUncachedStaticLightingInteractions());
 
@@ -169,6 +172,9 @@ struct FGetInfo
 				return ActorDesc->GetActorClass()->GetName();
 			case SceneOutliner::ECustomColumnMode::InternalName:
 				return ActorDesc->GetActorName().ToString();
+			case SceneOutliner::ECustomColumnMode::PackageShortName:
+				return FPackageName::GetShortName(ActorDesc->GetActorPackage());
+			}
 			default:
 				return FString();
 			}
@@ -431,6 +437,10 @@ FText FActorInfoColumn::MakeComboText( const SceneOutliner::ECustomColumnMode::T
 		ModeName = LOCTEXT("CustomColumnMode_InternalName", "ID Name");
 		break;
 
+	case SceneOutliner::ECustomColumnMode::PackageShortName:
+		ModeName = LOCTEXT("CustomColumnMode_PackageShortName", "Package Short Name");
+		break;
+
 	case SceneOutliner::ECustomColumnMode::UncachedLights:
 		ModeName = LOCTEXT("CustomColumnMode_UncachedLights", "# Uncached Lights");
 		break;
@@ -480,6 +490,10 @@ FText FActorInfoColumn::MakeComboToolTipText( const SceneOutliner::ECustomColumn
 
 	case SceneOutliner::ECustomColumnMode::InternalName:
 		ToolTipText = LOCTEXT("CustomColumnModeToolTip_InternalName", "Shows the internal name of the actor (for diagnostics)");
+		break;
+
+	case SceneOutliner::ECustomColumnMode::PackageShortName:
+		ToolTipText = LOCTEXT("CustomColumnModeToolTip_PackageShortName", "Shows the short name of the actor's package (for diagnostics)");
 		break;
 
 	case SceneOutliner::ECustomColumnMode::UncachedLights:
