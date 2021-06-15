@@ -277,6 +277,14 @@ static TAutoConsoleVariable<int32> CVarVsmUseFarShadowRules(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarClipmapUseConservativeCulling(
+	TEXT("r.Shadow.Virtual.Clipmap.UseConservativeCulling"),
+	1,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
+
 CSV_DECLARE_CATEGORY_EXTERN(LightCount);
 
 #if !UE_BUILD_SHIPPING
@@ -1049,8 +1057,19 @@ void FProjectedShadowInfo::SetupClipmapProjection(FLightSceneInfo* InLightSceneI
 	GetViewFrustumBounds(CasterOuterFrustum, CasterMatrix, true);
 	ReceiverInnerFrustum = CasterOuterFrustum;
 
-	// Magically get the accurate shadow bounds set up - ka-ching!
-	ShadowBounds = InLightSceneInfo->Proxy->GetShadowSplitBoundsDepthRange(*DependentView, DependentView->ViewMatrices.GetViewOrigin(), 10.0f, VirtualShadowMapClipmap->GetMaxRadius(), &CascadeSettings);
+	if (CVarClipmapUseConservativeCulling.GetValueOnRenderThread() != 0)
+	{
+		ShadowBounds = VirtualShadowMapClipmap->GetBoundingSphere();
+		CascadeSettings.ShadowBoundsAccurate = VirtualShadowMapClipmap->GetViewFrustumBounds();
+	}
+	else
+	{
+		// NOTE: Only here for debug! This version causes issues with VSM caching as it may cull objects
+		// that are outside the current camera frustum but overlap a page that will then be cached. We need
+		// all cached pages to be complete.
+		ShadowBounds = InLightSceneInfo->Proxy->GetShadowSplitBoundsDepthRange(*DependentView, DependentView->ViewMatrices.GetViewOrigin(), 10.0f, VirtualShadowMapClipmap->GetMaxRadius(), &CascadeSettings);
+	}
+	
 	// Um... it's checked in IsWholeSceneDirectionalShadow()
 	CascadeSettings.ShadowSplitIndex = 1000;
 

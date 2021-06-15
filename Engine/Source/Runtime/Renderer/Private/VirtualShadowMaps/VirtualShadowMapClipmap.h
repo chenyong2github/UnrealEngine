@@ -59,6 +59,8 @@ public:
 	// Returns the max radius the clipmap is guaranteed to cover (i.e. the radius of the last clipmap level)
 	// Note that this is not a conservative radius of the level projection, which is snapped
 	float GetMaxRadius() const;
+	FSphere GetBoundingSphere() const { return BoundingSphere; }
+	FConvexVolume GetViewFrustumBounds() const { return ViewFrustumBounds; }
 
 	const FViewInfo* GetDependentView() const { return DependentView; }
 
@@ -67,6 +69,8 @@ public:
 	static uint32 GetCoarsePageClipmapIndexMask();
 
 private:
+	void ComputeBoundingVolumes(const FViewMatrices& CameraViewMatrices);
+
 	const FLightSceneInfo& LightSceneInfo;
 
 	/**
@@ -82,7 +86,7 @@ private:
 	FVector WorldOrigin;
 
 	/** Directional light rotation matrix (no translation) */
-	FMatrix WorldToViewRotationMatrix;
+	FMatrix WorldToLightViewRotationMatrix;
 
 	int32 FirstLevel;
 	float ResolutionLodBias;
@@ -95,6 +99,8 @@ private:
 		FVector WorldCenter;
 		FIntPoint CornerOffset;
 	};
+	TArray< FLevelData, TInlineAllocator<32> > LevelData;
 
-	TArray< FLevelData, TInlineAllocator<16> > LevelData;
+	FSphere BoundingSphere;
+	FConvexVolume ViewFrustumBounds;
 };
