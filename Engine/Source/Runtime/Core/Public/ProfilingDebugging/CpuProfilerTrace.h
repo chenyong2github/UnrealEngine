@@ -19,6 +19,8 @@
 
 UE_TRACE_CHANNEL_EXTERN(CpuChannel, CORE_API);
 
+class FName;
+
 /*
  * Facilities for tracing timed cpu events. Two types of events are supported, static events where the identifier is
  * known at compile time, and dynamic event were identifiers can be constructed in runtime. Static events have lower overhead
@@ -66,7 +68,7 @@ struct FCpuProfilerTrace
 	 * that receives ANSICHAR* / TCHAR* name. Must always be matched with an end event.
 	 * @param Name Name of event
 	 */
-	CORE_API static void OutputBeginDynamicEvent(const FName Name);
+	CORE_API static void OutputBeginDynamicEvent(const FName& Name);
 	/*
 	 * Output end event marker for static or dynamic event for the currently open scope.
 	 */
