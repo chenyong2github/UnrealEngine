@@ -457,51 +457,6 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 		return Result;
 	}
 
-	Progress.EnterProgressFrame(1.f, LOCTEXT("RemoveHidden", "Removing Hidden Geometry..."));
-
-	if (Options.OcclusionPolicy == IGeometryProcessing_ApproximateActors::EOcclusionPolicy::VisibilityBased)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Occlusion);
-		TRemoveOccludedTriangles<FDynamicMesh3> Remover(CurResultMesh);
-		Remover.InsideMode = EOcclusionCalculationMode::SimpleOcclusionTest;
-		Remover.TriangleSamplingMethod = EOcclusionTriangleSampling::Centroids;
-		Remover.AddTriangleSamples = 5;
-		FDynamicMeshAABBTree3 CurResultMeshSpatial(CurResultMesh, false);
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Occlusion_Spatial);
-			CurResultMeshSpatial.Build();
-		}
-
-		TArray<FTransform3d> NoTransforms;
-		NoTransforms.Add(FTransform3d::Identity());
-		TArray<FDynamicMeshAABBTree3*> Spatials;
-		Spatials.Add(&CurResultMeshSpatial);
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Occlusion_Compute);
-			Remover.Select(NoTransforms, Spatials, {}, NoTransforms);
-		}
-		if (Remover.RemovedT.Num() > 0)
-		{
-			FMeshFaceSelection Selection(CurResultMesh);
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Occlusion_Clean);
-				Selection.Select(Remover.RemovedT);
-				Selection.ExpandToOneRingNeighbours(1);
-				Selection.ContractBorderByOneRingNeighbours(4);
-			}
-			FDynamicMeshEditor Editor(CurResultMesh);
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Occlusion_Delete);
-				Editor.RemoveTriangles(Selection.AsArray(), true);
-			}
-		}
-
-		if (Options.bVerbose)
-		{
-			UE_LOG(LogApproximateActors, Warning, TEXT("Occlusion-Filtered mesh has %d triangles"), CurResultMesh->TriangleCount());
-		}
-	}
-
 	Progress.EnterProgressFrame(1.f, LOCTEXT("SimplifyingMesh", "Simplifying Mesh..."));
 
 	FVolPresMeshSimplification Simplifier(CurResultMesh);
@@ -561,6 +516,55 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 			UE_LOG(LogApproximateActors, Warning, TEXT("Simplified mesh from %d to %d triangles"), BeforeCount, AfterCount);
 		}
 	}
+
+
+	Progress.EnterProgressFrame(1.f, LOCTEXT("RemoveHidden", "Removing Hidden Geometry..."));
+
+	if (Options.OcclusionPolicy == IGeometryProcessing_ApproximateActors::EOcclusionPolicy::VisibilityBased)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Occlusion);
+		TRemoveOccludedTriangles<FDynamicMesh3> Remover(CurResultMesh);
+		Remover.InsideMode = EOcclusionCalculationMode::SimpleOcclusionTest;
+		Remover.TriangleSamplingMethod = EOcclusionTriangleSampling::VerticesAndCentroids;
+		Remover.AddTriangleSamples = 50;
+		Remover.AddRandomRays = 50;
+		FDynamicMeshAABBTree3 CurResultMeshSpatial(CurResultMesh, false);
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Occlusion_Spatial);
+			CurResultMeshSpatial.Build();
+		}
+
+		TArray<FTransform3d> NoTransforms;
+		NoTransforms.Add(FTransform3d::Identity());
+		TArray<FDynamicMeshAABBTree3*> Spatials;
+		Spatials.Add(&CurResultMeshSpatial);
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Occlusion_Compute);
+			Remover.Select(NoTransforms, Spatials, {}, NoTransforms);
+		}
+		if (Remover.RemovedT.Num() > 0)
+		{
+			FMeshFaceSelection Selection(CurResultMesh);
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Occlusion_Clean);
+				Selection.Select(Remover.RemovedT);
+				Selection.ExpandToOneRingNeighbours(1);
+				Selection.ContractBorderByOneRingNeighbours(2);
+			}
+			FDynamicMeshEditor Editor(CurResultMesh);
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_Occlusion_Delete);
+				Editor.RemoveTriangles(Selection.AsArray(), true);
+			}
+		}
+
+		if (Options.bVerbose)
+		{
+			UE_LOG(LogApproximateActors, Warning, TEXT("Occlusion-Filtered mesh has %d triangles"), CurResultMesh->TriangleCount());
+		}
+	}
+
+
 
 	// re-enable attributes
 	CurResultMesh->EnableAttributes();
@@ -734,6 +738,9 @@ IGeometryProcessing_ApproximateActors::FOptions FApproximateActorsImpl::Construc
 	{
 		Options.MeshSimplificationPolicy = IGeometryProcessing_ApproximateActors::ESimplificationPolicy::FixedTriangleCount;
 	}
+
+	Options.bCalculateHardNormals = UseSettings.bEstimateHardNormals;
+	Options.HardNormalsAngleDeg = FMath::Clamp(UseSettings.HardNormalAngle, 0.001f, 89.99f);
 
 	Options.TextureImageSize = UseSettings.MaterialSettings.TextureSize.X;
 	Options.AntiAliasMultiSampling = FMath::Max(1, UseSettings.MultiSamplingAA);

@@ -717,7 +717,7 @@ struct FMeshApproximationSettings
 	EMeshApproximationType OutputType = EMeshApproximationType::MeshAndMaterials;
 
 	/** Approximation Accuracy in Meters, will determine (eg) voxel resolution */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings, meta = (ClampMin = "0.1"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Approximation Accuracy (meters)", ClampMin = "0.001"))
 	float ApproximationAccuracy = 1.0;
 
 	/** Maximum allowable voxel count along main directions. This is a limit on ApproximationAccuracy */
@@ -729,7 +729,7 @@ struct FMeshApproximationSettings
 	bool bAttemptAutoThickening = true;
 
 	/** Multiplier on Approximation Accuracy used for auto-thickening */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings, meta = (ClampMin = "0.1", EditCondition = "bAttemptAutoThickening"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings, meta = (ClampMin = "0.001", EditCondition = "bAttemptAutoThickening"))
 	float TargetMinThicknessMultiplier = 1.5;
 
 	/** Optional methods to attempt to close off the bottom of open meshes */
@@ -737,15 +737,17 @@ struct FMeshApproximationSettings
 	EMeshApproximationBaseCappingType BaseCapping = EMeshApproximationBaseCappingType::NoBaseCapping;
 
 
-	/** */
+	/** Winding Threshold controls hole filling at open mesh borders. Smaller value means "more/rounder" filling */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings, meta = (ClampMin = "0.01", ClampMax = "0.99"))
 	float WindingThreshold = 0.5;
 
+
+	/** If true, topological expand/contract is used to try to fill small gaps between objects. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings)
 	bool bFillGaps = true;
 
-	/** Distance in Meters to expand approximation to fill gaps */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings, meta = (ClampMin = "0.1", EditCondition = "bFillGaps"))
+	/** Distance in Meters to expand/contract to fill gaps */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Gap Filling Distance (meters)", ClampMin = "0.001", EditCondition = "bFillGaps"))
 	float GapDistance = 0.1;
 
 
@@ -765,8 +767,18 @@ struct FMeshApproximationSettings
 	float TrianglesPerM = 2.0f;
 
 	/** Allowable Geometric Deviation in Meters when SimplifyMethod incorporates a Geometric Tolerance */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SimplifySettings, meta = (ClampMin = "0.0001", EditCondition = "SimplifyMethod == EMeshApproximationSimplificationPolicy::GeometricTolerance"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SimplifySettings, meta = (DisplayName = "Geometric Deviation (meters)", ClampMin = "0.0001", EditCondition = "SimplifyMethod == EMeshApproximationSimplificationPolicy::GeometricTolerance"))
 	float GeometricDeviation = 0.1f;
+
+
+	/** If true, normal angle will be used to estimate hard normals */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NormalsSettings)
+	bool bEstimateHardNormals = true;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = NormalsSettings, meta = (ClampMin = "0.0", ClampMax = "90.0", EditCondition = "bEstimateHardNormals"))
+	float HardNormalAngle = 60.0f;
+
+
 
 	/** Whether to generate a nanite-enabled mesh */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = MeshSettings)
@@ -774,7 +786,7 @@ struct FMeshApproximationSettings
 
 	/** Percentage of triangles to reduce down to for generating a coarse proxy mesh from the Nanite mesh */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = MeshSettings, meta = (EditConditionHides, EditCondition = "bGenerateNaniteEnabledMesh", ClampMin = 0, ClampMax = 100))
-	float NaniteProxyTrianglePercent = 100;
+	float NaniteProxyTrianglePercent = 0;
 
 	/** Whether ray tracing will be supported on this mesh. Disable this to save memory if the generated mesh will only be rendered in the distance. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = MeshSettings)
@@ -783,6 +795,7 @@ struct FMeshApproximationSettings
 	/** Whether to allow distance field to be computed for this mesh. Disable this to save memory if the generated mesh will only be rendered in the distance. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = MeshSettings)
 	bool bAllowDistanceField = true;
+
 
 	/** If Value is > 1, Multisample output baked textures by this amount in each direction (eg 4 == 16x supersampling) */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = MaterialSettings, meta = (ClampMin = "0", ClampMax = "8", UIMin = "0", UIMax = "4"))
