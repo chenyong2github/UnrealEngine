@@ -9,6 +9,9 @@
 namespace UE {
 namespace Trace {
 
+struct FAuxDataCollector;
+struct FDispatch;
+class FDispatchBuilder;
 class FStreamReader;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -57,9 +60,6 @@ class FAnalysisEngine
 	: public IAnalyzer
 {
 public:
-	struct				FDispatch;
-	struct				FAuxDataCollector;
-	struct				FEventDataInfo;
 						FAnalysisEngine(TArray<IAnalyzer*>&& InAnalyzers);
 						~FAnalysisEngine();
 	bool				OnData(FStreamReader& Reader);
@@ -85,7 +85,6 @@ private:
 		};
 	};
 
-	class				FDispatchBuilder;
 	void				Begin();
 	virtual bool		OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
 	virtual void		OnAnalysisBegin(const FOnAnalysisContext& Context) override;
