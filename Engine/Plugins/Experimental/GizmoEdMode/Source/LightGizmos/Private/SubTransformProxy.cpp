@@ -16,12 +16,11 @@ FTransform USubTransformProxy::AddSubTransformProxy(USubTransformProxy* InProxy,
 	// Add each object to the proxy
 	for (FRelativeObject& Object : InProxy->Objects)
 	{
-		FRelativeObject NewObj;
+		FRelativeObject& NewObj = Objects.Emplace_GetRef();
 		NewObj.Component = Object.Component;
 		NewObj.bModifyComponentOnTransform = Object.bModifyComponentOnTransform;
 		NewObj.StartTransform = Object.Component->GetComponentToWorld();
 		NewObj.RelativeTransform = FTransform::Identity;
-		Objects.Add(NewObj);
 	}
 
 	UpdateSharedTransform();

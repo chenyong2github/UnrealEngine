@@ -16,6 +16,7 @@ class UDragAlignmentMechanic;
 class UTransformGizmo;
 class UTransformProxy;
 
+
 /**
  *
  */
@@ -96,25 +97,47 @@ class MESHMODELINGTOOLS_API UTransformMeshesToolProperties : public UInteractive
 	GENERATED_BODY()
 public:
 
+	/** Transformation Mode controls the overall behavior of the Gizmos in the Tool */
 	UPROPERTY(EditAnywhere, Category = Options)
 	ETransformMeshesTransformMode TransformMode = ETransformMeshesTransformMode::SharedGizmo;
 
+	/** When true, transformations are applied to the Instances of any Instanced Components (eg InstancedStaticMeshComponent) instead of to the Components */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (HideEditConditionToggle, EditCondition = "bHaveInstances"))
+	bool bApplyToInstances = true;
 
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bSetPivot = false;
+
+	/** Snap to World Space grid during translation with World Axes */
+	UPROPERTY(EditAnywhere, Category = Snapping)
+	bool bSnapToGrid = false;
+
+	/** Snap to fixed rotation angles during axis rotation */
+	UPROPERTY(EditAnywhere, Category = Snapping)
+	bool bSnapToRotation = false;
 
 
-	/** Click-drag starting on the target objects to reposition them on the rest of the scene */
-	UPROPERTY(EditAnywhere, Category = Options)
+	/** When true, the Gizmo can be moved independently without affecting objects. This allows the Gizmo to be repositioned before transforming. */
+	UPROPERTY(EditAnywhere, Category = Pivot, meta = (TransientToolProperty, EditCondition = "TransformMode != ETransformMeshesTransformMode::PerObjectGizmo") )
+	bool bSetPivotMode = false;
+
+
+	/** When Snap-Dragging is enabled, you can Click-drag starting on the target objects to reposition them relative to the rest of the scene */
+	UPROPERTY(EditAnywhere, Category = SnapDragging, meta = (TransientToolProperty, DisplayName = "Enable"))
 	bool bEnableSnapDragging = false;
 
-
-	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bEnableSnapDragging == true"))
+	/** Which point on the object being Snap-Dragged to use as the "Source" point */
+	UPROPERTY(EditAnywhere, Category = SnapDragging, meta = (EditCondition = "bEnableSnapDragging == true"))
 	ETransformMeshesSnapDragSource SnapDragSource = ETransformMeshesSnapDragSource::ClickPoint;
 
-	/** When Snap-Dragging, align source and target normals */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bEnableSnapDragging == true"))
+	/** How the object being Snap-Dragged should be rotated relative to the Source point location and Hit Surface normal  */
+	UPROPERTY(EditAnywhere, Category = SnapDragging, meta = (EditCondition = "bEnableSnapDragging == true"))
 	ETransformMeshesSnapDragRotationMode RotationMode = ETransformMeshesSnapDragRotationMode::AlignFlipped;
+
+
+public:
+
+	// internal, used to control visibility of Instance settings
+	UPROPERTY(meta = (TransientToolProperty))
+	bool bHaveInstances = false;
 };
 
 
@@ -149,14 +172,11 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
-	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return false; }
 	virtual bool HasAccept() const override { return false; }
 	virtual bool CanAccept() const override { return false; }
-
-	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
 
 	// ICLickDragBehaviorTarget interface
@@ -182,7 +202,6 @@ protected:
 
 	ETransformMeshesTransformMode CurTransformMode;
 	void UpdateTransformMode(ETransformMeshesTransformMode NewMode);
-	bool bCurSetPivotMode;
 	void UpdateSetPivotModes(bool bEnableSetPivot);
 
 	void SetActiveGizmos_Single(bool bLocalRotations);
@@ -195,4 +214,6 @@ protected:
 	int ActiveSnapDragIndex = -1;
 
 	void OnParametersUpdated();
+
+	void OnSnappingSettingsUpdated();
 };
