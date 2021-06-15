@@ -237,49 +237,59 @@ public:
 	// Setting saving/serialization
 	//
 	/**
-	 * Save and restore values of current Tool Properties between tool invocations
+	 * Save and restore values of current Tool Properties between tool invocations. The standard usage of
+	 * this setup is to call PropertySet->RestoreProperties() in the UInteractiveTool::Setup() implementation,
+	 * and PropertySet->SaveProperties() in the UInteractiveTool::Shutdown() implementation.
 	 *
 	 * The default behaviour of these functions is to Save or Restore every property in the property set.  It is not
 	 * necessary to save/restore all possible Properties (in many cases this would not make sense), so individual
-	 * properties may be skipped by adding the "TransientToolProperty" tag to their metadata on a property by property
-	 * basis.
+	 * properties may be skipped by adding the "TransientToolProperty" tag to their metadata on a property by property basis.
 	 *
 	 * Property sets which need more exotic behaviour upon Save and Restore may override these routines
 	 *
-	 * GetPropertyCache() and GetDynamicPropertyCache() can be used to return an instance of either the static or the
-	 * dynamic type of the specified property set subclass which may be used as a place to save/restore these properties
-	 * by customized Save/Restore functions
+	 * GetDynamicPropertyCache() can be used to return an instance of the specified property set subclass which 
+	 * may be used as a place to save/restore these properties by customized Save/Restore functions
+	 * 
+	 * Note: the current design of this system assumes that the CDO will keep the referenced objects alive.
+	 * This assumption is incorrect in Runtime builds, and some external mechanism must be used to keep
+	 * the elements in the CachedPropertiesMap alive.
 	 */
-	virtual void SaveProperties(UInteractiveTool* SaveFromTool);
-	virtual void RestoreProperties(UInteractiveTool* RestoreToTool);
-private:
 
-	// Utility func used to implement the default Save/RestoreProperties funcs
-	void SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving);
-protected:
 	/**
-	 * GetPropertyCache returns a class-internal object that subclasses can use to save/restore properties.
-	 * If the subclass is UMyPropertySet, this function should only ever be called as GetPropertyCache<UMyPropertySet>().
+	 * Save the values of this PropertySet with the given CacheIdentifier.
+	 * The Tool parameter is currently ignored.
 	 */
-	template<typename ObjType>
-	static ObjType* GetPropertyCache()
-	{
-		ObjType* CDO = GetMutableDefault<ObjType>();
-		if (CDO->CachedProperties == nullptr)
-		{
-			CDO->CachedProperties = NewObject<ObjType>();
-		}
-		return CastChecked<ObjType>(CDO->CachedProperties);
-	}
+	virtual void SaveProperties(UInteractiveTool* SaveFromTool, const FString& CacheIdentifier = TEXT(""));
 
-	UInteractiveToolPropertySet* GetDynamicPropertyCache()
+	/**
+	 * Restore the values of the Property Set with the given CacheIdentifier.
+	 * The Tool parameter is currently ignored.
+	 */
+	virtual void RestoreProperties(UInteractiveTool* RestoreToTool, const FString& CacheIdentifier = TEXT(""));
+
+protected:
+	// Utility func used to implement the default Save/RestoreProperties funcs
+	virtual void SaveRestoreProperties(UInteractiveTool* RestoreToTool, const FString& CacheIdentifier, bool bSaving);
+
+	/**
+	 * GetDynamicPropertyCache return class-internal objects that subclasses can use to save/restore properties.
+	 * @param CacheIdentifier multiple versions of the UInteractiveToolPropertySet can be stored, CacheIdentifier indicates which one to use
+	 * @param bWasCreatedOut true is returned here if this is the first time the object was seen
+	 * @return instance of the current subclass that can be used to save/restore values
+	 */
+	TObjectPtr<UInteractiveToolPropertySet> GetDynamicPropertyCache(const FString& CacheIdentifier, bool& bWasCreatedOut)
 	{
+		bWasCreatedOut = false;
 		UInteractiveToolPropertySet* CDO = GetMutableDefault<UInteractiveToolPropertySet>(GetClass());
-		if (CDO->CachedProperties == nullptr)
+		TObjectPtr<UInteractiveToolPropertySet>* Found = CDO->CachedPropertiesMap.Find(CacheIdentifier);
+		if (Found == nullptr)
 		{
-			CDO->CachedProperties = NewObject<UInteractiveToolPropertySet>((UObject*)GetTransientPackage(), GetClass());
+			TObjectPtr<UInteractiveToolPropertySet> NewPropCache = NewObject<UInteractiveToolPropertySet>((UObject*)GetTransientPackage(), GetClass());
+			CDO->CachedPropertiesMap.Add(CacheIdentifier, NewPropCache);
+			bWasCreatedOut = true;
+			return NewPropCache;
 		}
-		return CDO->CachedProperties;
+		return *Found;
 	}
 
 public:
@@ -293,9 +303,8 @@ public:
 #endif
 
 protected:
-	// CachedProperties should only ever be set to an instance of the subclass, ideally via GetPropertyCache().
 	UPROPERTY()
-	TObjectPtr<UInteractiveToolPropertySet> CachedProperties = nullptr;
+	TMap<FString, TObjectPtr<UInteractiveToolPropertySet>> CachedPropertiesMap;
 
 	// Controls whether a property set is shown in the UI.  Transient so that disabling a PropertySet in one tool doesn't disable it in others.
 	UPROPERTY(meta=(TransientToolProperty))

@@ -168,21 +168,25 @@ TArray<UObject*> UInteractiveTool::GetToolProperties(bool bEnabledOnly) const
 	return Properties;
 }
 
-void
-UInteractiveToolPropertySet::SaveProperties(UInteractiveTool* SaveFromTool)
+void UInteractiveToolPropertySet::SaveProperties(UInteractiveTool* SaveFromTool, const FString& CacheIdentifier)
 {
-	SaveRestoreProperties(SaveFromTool, true);
+	SaveRestoreProperties(SaveFromTool, CacheIdentifier, true);
 }
 
-void
-UInteractiveToolPropertySet::RestoreProperties(UInteractiveTool* RestoreToTool)
+void UInteractiveToolPropertySet::RestoreProperties(UInteractiveTool* RestoreToTool, const FString& CacheIdentifier)
 {
-	SaveRestoreProperties(RestoreToTool, false);
+	SaveRestoreProperties(RestoreToTool, CacheIdentifier, false);
 }
 
-void UInteractiveToolPropertySet::SaveRestoreProperties(UInteractiveTool* RestoreToTool, bool bSaving)
+void UInteractiveToolPropertySet::SaveRestoreProperties(UInteractiveTool* RestoreToTool, const FString& CacheIdentifier, bool bSaving)
 {
-	UInteractiveToolPropertySet* PropertyCache = GetDynamicPropertyCache();
+	bool bWasCreated = false;
+	UInteractiveToolPropertySet* PropertyCache = GetDynamicPropertyCache(CacheIdentifier, bWasCreated);
+	if (bWasCreated && !bSaving)
+	{
+		// if this is the first time we have seen this property set, then we don't have any values to Restore
+		return;
+	}
 	for ( FProperty* Prop : TFieldRange<FProperty>(GetClass()) )
 	{
 #if WITH_EDITOR
