@@ -340,7 +340,7 @@ void FDeferredShadingSceneRenderer::CommitIndirectLightingState()
 		IScreenSpaceDenoiser::EMode DiffuseIndirectDenoiser = IScreenSpaceDenoiser::EMode::Disabled;
 		bool bUseLumenProbeHierarchy = false;
 
-		if (ShouldRenderLumenDiffuseGI(Scene, View, true))
+		if (ShouldRenderLumenDiffuseGI(Scene, View))
 		{
 			DiffuseIndirectMethod = EDiffuseIndirectMethod::Lumen;
 			bUseLumenProbeHierarchy = CVarLumenProbeHierarchy.GetValueOnRenderThread() != 0;
@@ -382,7 +382,7 @@ void FDeferredShadingSceneRenderer::CommitIndirectLightingState()
 			}
 		}
 
-		if (ShouldRenderLumenReflections(View, true))
+		if (ShouldRenderLumenReflections(View))
 		{
 			if (DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
 			{

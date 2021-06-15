@@ -1056,7 +1056,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	RDG_EVENT_SCOPE(GraphBuilder, "LumenScreenProbeGather");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, LumenScreenProbeGather);
 
-	check(ShouldRenderLumenDiffuseGI(Scene, View, true));
+	check(ShouldRenderLumenDiffuseGI(Scene, View));
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
 	if (!LightingChannelsTexture)

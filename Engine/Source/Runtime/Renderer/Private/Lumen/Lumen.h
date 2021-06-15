@@ -4,8 +4,8 @@
 
 #include "HAL/LowLevelMemTracker.h"
 
-extern bool ShouldRenderLumenDiffuseGI(const FScene* Scene, const FViewInfo& View, bool bRequireSoftwareTracing);
-extern bool ShouldRenderLumenReflections(const FViewInfo& View, bool bRequireSoftwareTracing);
+extern bool ShouldRenderLumenDiffuseGI(const FScene* Scene, const FViewInfo& View, bool bSkipTracingDataCheck = false);
+extern bool ShouldRenderLumenReflections(const FViewInfo& View, bool bSkipTracingDataCheck = false);
 
 inline double BoxSurfaceArea(FVector Extent)
 {
@@ -41,7 +41,8 @@ namespace Lumen
 	bool AnyLumenHardwareRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
 	int32 GetGlobalDFResolution();
 	float GetGlobalDFClipmapExtent();
-	bool IsLumenFeatureAllowedForView(const FScene* Scene, const FViewInfo& View, bool bRequireSoftwareTracing);
+	bool IsSoftwareRayTracingAllowed();
+	bool IsLumenFeatureAllowedForView(const FScene* Scene, const FViewInfo& View, bool bSkipTracingDataCheck = false);
 	bool ShouldVisualizeHardwareRayTracing();
 	bool ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);
 	bool UseLumenSceneLightingForceFullUpdate();

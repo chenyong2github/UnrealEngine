@@ -371,15 +371,16 @@ class FReflectionPassthroughCopyCS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FReflectionPassthroughCopyCS, "/Engine/Private/Lumen/LumenReflections.usf", "ReflectionPassthroughCopyCS", SF_Compute);
 
 
-bool ShouldRenderLumenReflections(const FViewInfo& View, bool bRequireSoftwareTracing)
+bool ShouldRenderLumenReflections(const FViewInfo& View, bool bSkipTracingDataCheck)
 {
 	const FScene* Scene = (const FScene*)View.Family->Scene;
 	if (Scene)
 	{
-		return Lumen::IsLumenFeatureAllowedForView(Scene, View, bRequireSoftwareTracing) 
+		return Lumen::IsLumenFeatureAllowedForView(Scene, View, bSkipTracingDataCheck) 
 			&& View.FinalPostProcessSettings.ReflectionMethod == EReflectionMethod::Lumen
 			&& View.Family->EngineShowFlags.LumenReflections 
-			&& GAllowLumenReflections;
+			&& GAllowLumenReflections
+			&& (bSkipTracingDataCheck || Lumen::UseHardwareRayTracedReflections() || Lumen::IsSoftwareRayTracingAllowed());
 	}
 	
 	return false;
@@ -559,7 +560,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	OutCompositeParameters.MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
 	OutCompositeParameters.InvRoughnessFadeLength = 1.0f / GLumenReflectionRoughnessFadeLength;
 
-	check(ShouldRenderLumenReflections(View, true));
+	check(ShouldRenderLumenReflections(View));
 
 	LLM_SCOPE_BYTAG(Lumen);
 	RDG_EVENT_SCOPE(GraphBuilder, "LumenReflections");

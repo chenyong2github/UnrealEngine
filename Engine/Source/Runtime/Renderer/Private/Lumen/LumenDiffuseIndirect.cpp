@@ -217,13 +217,14 @@ void FHemisphereDirectionSampleGenerator::GenerateSamples(int32 TargetNumSamples
 	}
 }
 
-bool ShouldRenderLumenDiffuseGI(const FScene* Scene, const FViewInfo& View, bool bRequireSoftwareTracing) 
+bool ShouldRenderLumenDiffuseGI(const FScene* Scene, const FViewInfo& View, bool bSkipTracingDataCheck) 
 {
-	return Lumen::IsLumenFeatureAllowedForView(Scene, View, bRequireSoftwareTracing) 
+	return Lumen::IsLumenFeatureAllowedForView(Scene, View, bSkipTracingDataCheck)
 		&& View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::Lumen
 		&& GAllowLumenDiffuseIndirect != 0
 		&& View.Family->EngineShowFlags.GlobalIllumination 
-		&& View.Family->EngineShowFlags.LumenGlobalIllumination;
+		&& View.Family->EngineShowFlags.LumenGlobalIllumination
+		&& (bSkipTracingDataCheck || Lumen::UseHardwareRayTracedScreenProbeGather() || Lumen::IsSoftwareRayTracingAllowed());
 }
 
 void SetupLumenDiffuseTracingParameters(FLumenIndirectTracingParameters& OutParameters)
