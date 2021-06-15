@@ -65,7 +65,7 @@ namespace AssetUtils
 		// Whether to generate a nanite-enabled mesh
 		bool bGenerateNaniteEnabledMesh = false;
 		// Percentage of triangles to reduce down to for generating a coarse proxy mesh from the Nanite mesh
-		float NaniteProxyTrianglePercent = 100;
+		float NaniteProxyTrianglePercent = 0;
 
 		// Whether ray tracing will be supported on this mesh. Disable this to save memory if the generated mesh will only be rendered in the distance
 		bool bSupportRayTracing = true;
