@@ -10,6 +10,7 @@
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopeLock.h"
 #include "Sockets.h"
 #include "SocketSubsystem.h"
 
