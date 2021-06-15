@@ -76,7 +76,7 @@ bool UInterchangeDDSTranslator::CanImportSourceData(const UInterchangeSourceData
 	}
 
 	FDDSLoadHelper  DDSLoadHelper(HeaderDataBuffer.GetData(), HeaderDataBuffer.Num());
-	return DDSLoadHelper.IsValid2DTexture() || DDSLoadHelper.IsValidCubemapTexture();
+	return DDSLoadHelper.IsValid2DTexture() || DDSLoadHelper.IsValidCubemapTexture() || DDSLoadHelper.IsValidArrayTexture();
 }
 
 bool UInterchangeDDSTranslator::Translate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer) const
@@ -241,7 +241,7 @@ TOptional<UE::Interchange::FImportSlicedImage> UInterchangeDDSTranslator::GetSli
 	//
 	FDDSLoadHelper DDSLoadHelper(DDSSourceData.GetData(), DDSSourceData.Num());
 
-	if (!DDSLoadHelper.IsValidCubemapTexture())
+	if (!DDSLoadHelper.IsValidCubemapTexture() && !DDSLoadHelper.IsValidArrayTexture() )
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import DDS, unsupported format. [%s]"), *Filename);
 		return TOptional<UE::Interchange::FImportSlicedImage>();
