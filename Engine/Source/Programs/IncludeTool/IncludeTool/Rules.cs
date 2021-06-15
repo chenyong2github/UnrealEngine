@@ -65,6 +65,8 @@ namespace IncludeTool
 		/// </summary>
 		static readonly string[] ExternalFileIncludePaths =
 		{
+			"binkplugin.h",
+			"egttypes.h",
 			"oodle.h",
 			"oodle2.h",
 			"xg.h",
