@@ -48,8 +48,8 @@ echo
 echo === Making Linux artifacts writeable ===
 chmod -R u+w $DIR/Linux
 
-echo === Making LinuxAArch64 artifacts writeable ===
-chmod -R u+w $DIR/LinuxAArch64
+echo === Making LinuxArm64 artifacts writeable ===
+chmod -R u+w $DIR/LinuxArm64
 
 echo
 echo === Running vcpkg in manifest mode ===
@@ -67,11 +67,11 @@ ${TMPDIR-/tmp}/vcpkg-${VCPKG_SYSTEM}/vcpkg install \
 ${TMPDIR-/tmp}/vcpkg-${VCPKG_SYSTEM}/vcpkg install \
 	--overlay-ports=$DIR/overlay-ports \
 	--overlay-triplets=$DIR/overlay-triplets \
-	--x-manifest-root=$DIR/LinuxAArch64/aarch64-unknown-linux-gnueabi \
-	--x-packages-root=$DIR/LinuxAArch64/aarch64-unknown-linux-gnueabi \
+	--x-manifest-root=$DIR/LinuxArm64/aarch64-unknown-linux-gnueabi \
+	--x-packages-root=$DIR/LinuxArm64/aarch64-unknown-linux-gnueabi \
 	--triplet=aarch64-unknown-linux-gnueabi
 
 echo
 echo === Reconciling $VCPKG_SYSTEM artifacts ===
 p4 reconcile $DIR/Linux/...
-p4 reconcile $DIR/LinuxAArch64/...
+p4 reconcile $DIR/LinuxArm64/...
