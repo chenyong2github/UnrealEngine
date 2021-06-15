@@ -1706,7 +1706,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 		const TRefCountPtr<IPooledRenderTarget> PrevHZBPhysical = bVSMUseHZB ? CacheManager->PrevBuffers.HZBPhysical : nullptr;
 		
 		{
-			RDG_EVENT_SCOPE(GraphBuilder, "RenderVirtualShadowMaps");
+			RDG_EVENT_SCOPE(GraphBuilder, "RenderVirtualShadowMaps(Nanite)");
 
 			const FIntPoint VirtualShadowSize = VirtualShadowMapArray.GetPhysicalPoolSize();
 			const FIntRect VirtualShadowViewRect = FIntRect(0, 0, VirtualShadowSize.X, VirtualShadowSize.Y);
@@ -1906,13 +1906,13 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 			};
 
 			{
-				RDG_EVENT_SCOPE(GraphBuilder, "Directional Lights");
+				RDG_EVENT_SCOPE(GraphBuilder, "DirectionalLights");
 				static FString VirtualFilterName = TEXT("VSM_Directional");
 				FilterAndRenderVirtualShadowMaps(true, VirtualFilterName);
 			}
 
 			{
-				RDG_EVENT_SCOPE(GraphBuilder, "Perspective Lights (DepthClip)");
+				RDG_EVENT_SCOPE(GraphBuilder, "LocalLights");
 				static FString VirtualFilterName = TEXT("VSM_Perspective");
 				FilterAndRenderVirtualShadowMaps(false, VirtualFilterName);
 			}

@@ -1694,7 +1694,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 		return;
 	}
 
-	RDG_EVENT_SCOPE(GraphBuilder, "RenderVirtualShadowMapsHw");
+	RDG_EVENT_SCOPE(GraphBuilder, "RenderVirtualShadowMaps(Non-Nanite)");
 
 	const bool bAllocatePageRectAtlas = CVarAllocatePagesUsingRects.GetValueOnRenderThread() != 0;
 	const bool bAtomicWrites = GVirtualShadowMapAtomicWrites != 0;

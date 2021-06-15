@@ -75,9 +75,9 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 		FPlane(-1, 0, 0, 0 ),
 		FPlane( 0, 0, 0, 1 ));
 
-	WorldToViewRotationMatrix = WorldToLightRotationMatrix * FaceMatrix;
+	WorldToLightViewRotationMatrix = WorldToLightRotationMatrix * FaceMatrix;
 	// Pure rotation matrix
-	FMatrix ViewToWorldRotationMatrix = WorldToViewRotationMatrix.GetTransposed();
+	FMatrix ViewToWorldRotationMatrix = WorldToLightViewRotationMatrix.GetTransposed();
 	
 	// NOTE: Rotational (roll) invariance of the directional light depends on square pixels so we just base everything on the camera X scales/resolution
 	// NOTE: 0.5 because we double the size of the clipmap region below to handle snapping
@@ -116,7 +116,7 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 		float HalfLevelDim = 2.0f * RawLevelRadius;
 		float SnapSize = RawLevelRadius;
 
-		FVector ViewCenter = WorldToViewRotationMatrix.TransformPosition(WorldOrigin);
+		FVector ViewCenter = WorldToLightViewRotationMatrix.TransformPosition(WorldOrigin);
 		FIntPoint CenterSnapUnits(
 			FMath::RoundToInt(ViewCenter.X / SnapSize),
 			FMath::RoundToInt(ViewCenter.Y / SnapSize));
@@ -174,6 +174,26 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 		const float ZOffset = ViewRadiusZ + ViewCenterDeltaZ;
 		Level.ViewToClip = FReversedZOrthoMatrix(HalfLevelDim, HalfLevelDim, ZScale, ZOffset);
 	}
+
+	ComputeBoundingVolumes(CameraViewMatrices);
+}
+
+void FVirtualShadowMapClipmap::ComputeBoundingVolumes(const FViewMatrices& CameraViewMatrices)
+{
+	// We don't really do much CPU culling with clipmaps. After various testing the fact that we are culling
+	// a single frustum that goes out and basically the entire map, and we have to extrude towards (and away!) from
+	// the light, and dilate to cover full pages at every clipmap level (to avoid culling something that will go
+	// into a page that then gets cached with incomplete geometry), in many situations there is effectively no
+	// culling that happens. For instance, as soon as the camera looks vaguely towards or away from the light direction,
+	// the extruded frustum effectively covers the whole world.
+
+	const FVector CameraOrigin = CameraViewMatrices.GetViewOrigin();
+	const FVector CameraDirection = CameraViewMatrices.GetViewMatrix().GetColumn(2);
+
+	// Thus we don't spend a lot of time trying to optimize for the easy cases and instead just pick an extremely
+	// conservative frustum.
+	ViewFrustumBounds = FConvexVolume();
+	BoundingSphere = FSphere(CameraOrigin, GetMaxRadius());
 }
 
 float FVirtualShadowMapClipmap::GetMaxRadius() const
@@ -191,7 +211,7 @@ FViewMatrices FVirtualShadowMapClipmap::GetViewMatrices(int32 ClipmapIndex) cons
 	// NOTE: Be careful here! There's special logic in FViewMatrices around ViewOrigin for ortho projections we need to bypass...
 	// There's also the fact that some of this data is going to be "wrong", due to the "overridden" matrix thing that shadows do
 	Initializer.ViewOrigin = Level.WorldCenter;
-	Initializer.ViewRotationMatrix = WorldToViewRotationMatrix;
+	Initializer.ViewRotationMatrix = WorldToLightViewRotationMatrix;
 	Initializer.ProjectionMatrix = Level.ViewToClip;
 
 	// TODO: This is probably unused in the shadows/nanite path, but coupling here is not ideal
@@ -207,10 +227,10 @@ FVirtualShadowMapProjectionShaderData FVirtualShadowMapClipmap::GetProjectionSha
 	
 	// NOTE: Some shader logic (projection, etc) assumes some of these parameters are constant across all levels in a clipmap
 	FVirtualShadowMapProjectionShaderData Data;
-	Data.TranslatedWorldToShadowViewMatrix = WorldToViewRotationMatrix;
+	Data.TranslatedWorldToShadowViewMatrix = WorldToLightViewRotationMatrix;
 	Data.ShadowViewToClipMatrix = Level.ViewToClip;
-	Data.TranslatedWorldToShadowUVMatrix = CalcTranslatedWorldToShadowUVMatrix(WorldToViewRotationMatrix, Level.ViewToClip);
-	Data.TranslatedWorldToShadowUVNormalMatrix = CalcTranslatedWorldToShadowUVNormalMatrix(WorldToViewRotationMatrix, Level.ViewToClip);
+	Data.TranslatedWorldToShadowUVMatrix = CalcTranslatedWorldToShadowUVMatrix(WorldToLightViewRotationMatrix, Level.ViewToClip);
+	Data.TranslatedWorldToShadowUVNormalMatrix = CalcTranslatedWorldToShadowUVNormalMatrix(WorldToLightViewRotationMatrix, Level.ViewToClip);
 	Data.ShadowPreViewTranslation = -Level.WorldCenter;
 	Data.VirtualShadowMapId = Level.VirtualShadowMap->ID;
 	Data.LightType = ELightComponentType::LightType_Directional;
