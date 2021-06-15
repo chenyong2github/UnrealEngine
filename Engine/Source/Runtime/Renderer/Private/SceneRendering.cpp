@@ -2957,14 +2957,14 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 		const bool bShowPointLightWarning = UsedWholeScenePointLightNames.Num() > 0 && !ReadOnlyCVARCache.bEnablePointLightShadows;
 		const bool bShowShadowedLightOverflowWarning = Scene->OverflowingDynamicShadowedLights.Num() > 0;
 
-		bool bLumenEnabledButNoSoftwareTracing = false;
+		bool bLumenEnabledButHasNoDataForTracing = false;
 
 		for (int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
 		{	
 			FViewInfo& View = Views[ViewIndex];
-			bLumenEnabledButNoSoftwareTracing = bLumenEnabledButNoSoftwareTracing 
-				|| (ShouldRenderLumenDiffuseGI(Scene, View, false) && !ShouldRenderLumenDiffuseGI(Scene, View, true))
-				|| (ShouldRenderLumenReflections(View, false) && !ShouldRenderLumenReflections(View, true));	
+			bLumenEnabledButHasNoDataForTracing = bLumenEnabledButHasNoDataForTracing
+				|| (!ShouldRenderLumenDiffuseGI(Scene, View) && ShouldRenderLumenDiffuseGI(Scene, View, /*bSkipTracingDataCheck*/ true))
+				|| (!ShouldRenderLumenReflections(View) && ShouldRenderLumenReflections(View, /*bSkipTracingDataCheck*/ true));
 		}
 
 		bool bNaniteEnabledButNoAtomics = false;
@@ -3022,7 +3022,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 		const bool bAnyWarning = bShowPrecomputedVisibilityWarning || bShowDemotedLocalMemoryWarning || bShowGlobalClipPlaneWarning || bShowSkylightWarning || bShowPointLightWarning
 			|| bShowDFAODisabledWarning || bShowShadowedLightOverflowWarning || bShowMobileDynamicCSMWarning || bShowMobileLowQualityLightmapWarning || bShowMobileMovableDirectionalLightWarning
 			|| bMobileShowVertexFogWarning || bMobileMissingSkyMaterial || bShowSkinCacheOOM || bSingleLayerWaterWarning || bShowDFDisabledWarning || bShowNoSkyAtmosphereComponentWarning || bFxDebugDraw 
-			|| bLumenEnabledButNoSoftwareTracing || bNaniteEnabledButNoAtomics || bRealTimeSkyCaptureButNothingToCapture || bShowWaitingSkylight;
+			|| bLumenEnabledButHasNoDataForTracing || bNaniteEnabledButNoAtomics || bRealTimeSkyCaptureButNothingToCapture || bShowWaitingSkylight;
 
 		for(int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
 		{	
@@ -3045,7 +3045,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 						bViewParentOrFrozen, bShowSkylightWarning, bShowPointLightWarning, bShowShadowedLightOverflowWarning,
 						bShowMobileLowQualityLightmapWarning, bShowMobileMovableDirectionalLightWarning, bShowMobileDynamicCSMWarning, bMobileShowVertexFogWarning, bMobileMissingSkyMaterial, 
 						bShowSkinCacheOOM, bSingleLayerWaterWarning, bShowNoSkyAtmosphereComponentWarning, bFxDebugDraw, FXInterface, 
-						bLumenEnabledButNoSoftwareTracing, bNaniteEnabledButNoAtomics, bNaniteRequireAtomics, bRealTimeSkyCaptureButNothingToCapture, bShowWaitingSkylight]
+						bLumenEnabledButHasNoDataForTracing, bNaniteEnabledButNoAtomics, bNaniteRequireAtomics, bRealTimeSkyCaptureButNothingToCapture, bShowWaitingSkylight]
 						(FCanvas& Canvas)
 					{
 						// so it can get the screen size
@@ -3184,9 +3184,12 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 							Y += 14;
 						}
 
-						if (bLumenEnabledButNoSoftwareTracing)
+						if (bLumenEnabledButHasNoDataForTracing)
 						{
-							static const FText Message = NSLOCTEXT("Renderer", "LumenCantDisplay", "Lumen is enabled but the project does not have 'Generate Mesh Distancefields' enabled.  Lumen will not operate correctly.");
+							static const FText Message = NSLOCTEXT("Renderer", "LumenCantDisplay", 
+								"Lumen is enable, but has no ray tracing data and won't operate correctly.\n"
+								"Either configure Lumen to use software distance field ray tracing and enable 'Generate Mesh Distancefields' in project settings\n"
+								"or configure Lumen to use Hardware Ray Tracing and enable 'Support Hardware Ray Tracing' in project settings.");
 							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
 							Y += 14;
 						}

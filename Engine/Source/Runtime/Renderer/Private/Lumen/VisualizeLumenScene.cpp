@@ -383,8 +383,9 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 	const bool bAnyLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
 
-	if (Lumen::IsLumenFeatureAllowedForView(Scene, View, /*bRequireSoftwareTracing*/ false)
-		&& bAnyLumenActive)
+	if (Lumen::IsLumenFeatureAllowedForView(Scene, View) 
+		&& bAnyLumenActive 
+		&& (Lumen::ShouldVisualizeHardwareRayTracing() || Lumen::IsSoftwareRayTracingAllowed()))
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "VisualizeLumenScene");
 
@@ -588,8 +589,8 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 		GLumenSceneDumpStats = 0;
 	}
 
-	const bool bAnyLumenEnabled = ShouldRenderLumenDiffuseGI(Scene, Views[0], true)
-		|| ShouldRenderLumenReflections(Views[0], true);
+	const bool bAnyLumenEnabled = ShouldRenderLumenDiffuseGI(Scene, Views[0])
+		|| ShouldRenderLumenReflections(Views[0]);
 
 	if (bAnyLumenEnabled && GVisualizeLumenCardPlacement != 0)
 	{

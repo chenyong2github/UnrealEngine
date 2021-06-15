@@ -262,10 +262,14 @@ bool ShouldRenderLumenForViewFamily(const FScene* Scene, const FSceneViewFamily&
 		&& DoesPlatformSupportLumenGI(Scene->GetShaderPlatform());
 }
 
-bool Lumen::IsLumenFeatureAllowedForView(const FScene* Scene, const FViewInfo& View, bool bRequireSoftwareTracing)
+bool Lumen::IsSoftwareRayTracingAllowed()
 {
 	static const auto CMeshSDFVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
+	return CMeshSDFVar->GetValueOnRenderThread() != 0;
+}
 
+bool Lumen::IsLumenFeatureAllowedForView(const FScene* Scene, const FViewInfo& View, bool bSkipTracingDataCheck)
+{
 	return View.Family
 		&& ShouldRenderLumenForViewFamily(Scene, *View.Family)
 		// Don't update scene lighting for secondary views
@@ -273,7 +277,7 @@ bool Lumen::IsLumenFeatureAllowedForView(const FScene* Scene, const FViewInfo& V
 		&& !View.bIsSceneCapture
 		&& !View.bIsReflectionCapture
 		&& View.ViewState
-		&& (!bRequireSoftwareTracing || CMeshSDFVar->GetValueOnRenderThread() != 0);
+		&& (bSkipTracingDataCheck || Lumen::UseHardwareRayTracing() || IsSoftwareRayTracingAllowed());
 }
 
 int32 Lumen::GetGlobalDFResolution()
@@ -1559,8 +1563,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 	LLM_SCOPE_BYTAG(Lumen);
 
 	const FViewInfo& View = Views[0];
-	const bool bAnyLumenActive = ShouldRenderLumenDiffuseGI(Scene, View, true)
-		|| ShouldRenderLumenReflections(View, true);
+	const bool bAnyLumenActive = ShouldRenderLumenDiffuseGI(Scene, View) || ShouldRenderLumenReflections(View);
 
 	LumenCardRenderer.Reset();
 
