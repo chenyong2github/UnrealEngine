@@ -111,6 +111,13 @@ void UDisplayClusterViewportClient::Init(struct FWorldContext& WorldContext, UGa
 		{
 			MaximumFrameLatencyCVar->Set(int32(1));
 		}
+
+		// vr.AllowMotionBlurInVR
+		IConsoleVariable* const AllowMotionBlurInVR = IConsoleManager::Get().FindConsoleVariable(TEXT("vr.AllowMotionBlurInVR"));
+		if (AllowMotionBlurInVR)
+		{
+			AllowMotionBlurInVR->Set(int32(1));
+		}
 	}
 
 	Super::Init(WorldContext, OwningGameInstance, bCreateNewAudioDevice);
