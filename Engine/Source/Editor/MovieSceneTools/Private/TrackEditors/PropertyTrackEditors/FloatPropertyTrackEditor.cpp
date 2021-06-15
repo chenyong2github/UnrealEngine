@@ -33,30 +33,6 @@ void CopyInterpFloatTrack(TSharedRef<ISequencer> Sequencer, UInterpTrackFloatBas
 	}
 }
 
-void FFloatPropertyTrackEditor::BuildTrackContextMenu( FMenuBuilder& MenuBuilder, UMovieSceneTrack* Track )
-{
-	UInterpTrackFloatBase* MatineeFloatTrack = nullptr;
-	for ( UObject* CopyPasteObject : GUnrealEd->MatineeCopyPasteBuffer )
-	{
-		MatineeFloatTrack = Cast<UInterpTrackFloatBase>( CopyPasteObject );
-		if ( MatineeFloatTrack != nullptr )
-		{
-			break;
-		}
-	}
-	UMovieSceneFloatTrack* FloatTrack = Cast<UMovieSceneFloatTrack>( Track );
-	MenuBuilder.AddMenuEntry(
-		NSLOCTEXT( "Sequencer", "PasteMatineeFloatTrack", "Paste Matinee Float Track" ),
-		NSLOCTEXT( "Sequencer", "PasteMatineeFloatTrackTooltip", "Pastes keys from a Matinee float track into this track." ),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateStatic( &CopyInterpFloatTrack, GetSequencer().ToSharedRef(), MatineeFloatTrack, FloatTrack ),
-			FCanExecuteAction::CreateLambda( [=]()->bool { return MatineeFloatTrack != nullptr && MatineeFloatTrack->GetNumKeys() > 0 && FloatTrack != nullptr; } ) ) );
-
-	MenuBuilder.AddMenuSeparator();
-	FKeyframeTrackEditor::BuildTrackContextMenu(MenuBuilder, Track);
-}
-
 
 float FFloatPropertyTrackEditor::RecomposeFloat(float InCurrentValue, UObject* AnimatedObject, UMovieSceneSection* Section)
 {

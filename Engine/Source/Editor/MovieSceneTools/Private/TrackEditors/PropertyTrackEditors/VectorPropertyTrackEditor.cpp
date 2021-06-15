@@ -107,31 +107,6 @@ void CopyInterpVectorTrack(TSharedRef<ISequencer> Sequencer, UInterpTrackVectorP
 	}
 }
 
-void FVectorPropertyTrackEditor::BuildTrackContextMenu( FMenuBuilder& MenuBuilder, UMovieSceneTrack* Track )
-{
-	UInterpTrackVectorProp* MatineeVectorTrack = nullptr;
-	for ( UObject* CopyPasteObject : GUnrealEd->MatineeCopyPasteBuffer )
-	{
-		MatineeVectorTrack = Cast<UInterpTrackVectorProp>( CopyPasteObject );
-		if ( MatineeVectorTrack != nullptr )
-		{
-			break;
-		}
-	}
-	UMovieSceneVectorTrack* VectorTrack = Cast<UMovieSceneVectorTrack>( Track );
-	MenuBuilder.AddMenuEntry(
-		NSLOCTEXT( "Sequencer", "PasteMatineeVectorTrack", "Paste Matinee Vector Track" ),
-		NSLOCTEXT( "Sequencer", "PasteMatineeVectorTrackTooltip", "Pastes keys from a Matinee vector track into this track." ),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateStatic( &CopyInterpVectorTrack, GetSequencer().ToSharedRef(), MatineeVectorTrack, VectorTrack ),
-			FCanExecuteAction::CreateLambda( [=]()->bool { return MatineeVectorTrack != nullptr && MatineeVectorTrack->GetNumKeys() > 0 && VectorTrack != nullptr && VectorTrack->GetNumChannelsUsed() == 3; } ) ) );
-
-	MenuBuilder.AddMenuSeparator();
-	FKeyframeTrackEditor::BuildTrackContextMenu(MenuBuilder, Track);
-}
-
-
 bool FVectorPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *Object, UMovieSceneTrack *Track, UMovieSceneSection* SectionToKey, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedTotalKeys, float Weight) const
 {
 	using namespace UE::MovieScene;

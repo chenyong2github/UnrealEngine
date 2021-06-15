@@ -305,26 +305,6 @@ void CopyInterpParticleTrack(TSharedRef<ISequencer> Sequencer, UInterpTrackToggl
 	}
 }
 
-void FParticleTrackEditor::BuildTrackContextMenu( FMenuBuilder& MenuBuilder, UMovieSceneTrack* Track )
-{
-	UInterpTrackToggle* MatineeToggleTrack = nullptr;
-	for ( UObject* CopyPasteObject : GUnrealEd->MatineeCopyPasteBuffer )
-	{
-		MatineeToggleTrack = Cast<UInterpTrackToggle>( CopyPasteObject );
-		if ( MatineeToggleTrack != nullptr )
-		{
-			break;
-		}
-	}
-	UMovieSceneParticleTrack* ParticleTrack = Cast<UMovieSceneParticleTrack>( Track );
-	MenuBuilder.AddMenuEntry(
-		NSLOCTEXT( "Sequencer", "PasteMatineeToggleTrack", "Paste Matinee Particle Track" ),
-		NSLOCTEXT( "Sequencer", "PasteMatineeToggleTrackTooltip", "Pastes keys from a Matinee particle track into this track." ),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateStatic( &CopyInterpParticleTrack, GetSequencer().ToSharedRef(), MatineeToggleTrack, ParticleTrack ),
-			FCanExecuteAction::CreateLambda( [=]()->bool { return MatineeToggleTrack != nullptr && MatineeToggleTrack->ToggleTrack.Num() > 0 && ParticleTrack != nullptr; } ) ) );
-}
 
 
 #undef LOCTEXT_NAMESPACE
