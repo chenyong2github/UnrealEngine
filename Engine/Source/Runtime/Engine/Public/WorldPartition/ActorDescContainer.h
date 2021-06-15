@@ -29,6 +29,13 @@ public:
 	virtual void OnPackageDeleted(UPackage* Package);
 	virtual void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewObjectMap);
 
+	void SetContainerPackage(const FName& InContainerPackageName)
+	{
+		// Should only be called on empty container
+		check(GetActorDescCount() == 0);
+		ContainerPackageName = InContainerPackageName;
+	}
+
 	FName GetContainerPackage() const { return ContainerPackageName; }
 
 	/** Removes an actor desc without the need to load a package */
