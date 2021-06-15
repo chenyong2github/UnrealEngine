@@ -217,7 +217,12 @@ void FSteamSharedModule::LoadSteamModules()
 	if (SteamDLLHandle == nullptr)
 	{
 		// try bundled one
-		UE_LOG(LogSteamShared, Warning, TEXT("Could not find system one, loading bundled %s."), *SteamModuleFileName);
+#if PLATFORM_MAC
+		if (FParse::Param(FCommandLine::Get(), TEXT("dllerrors")))
+#endif // PLATFORM_MAC
+		{
+			UE_LOG(LogSteamShared, Warning, TEXT("Could not find system one, loading bundled %s."), *SteamModuleFileName);
+		}
 		FString RootSteamPath = GetSteamModulePath();
 		SteamDLLHandle = FPlatformProcess::GetDllHandle(*(RootSteamPath + SteamModuleFileName));
 	}

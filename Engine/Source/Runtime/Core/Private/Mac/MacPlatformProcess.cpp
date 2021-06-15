@@ -60,7 +60,7 @@ static void* GetDllHandleImpl(NSString* DylibPath, NSString* ExecutableFolder)
 		Handle = dlopen([DylibPath fileSystemRepresentation], RTLD_LAZY | RTLD_LOCAL);
 	}
 	
-	if (!Handle)
+	if (!Handle && FParse::Param(FCommandLine::Get(), TEXT("dllerrors")))
 	{
 		UE_LOG(LogMac, Warning, TEXT("dlopen failed: %s"), ANSI_TO_TCHAR(dlerror()));
 	}
