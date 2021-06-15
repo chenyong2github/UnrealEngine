@@ -5,7 +5,7 @@
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "EditorSupportDelegates.h"
 
-void FFractureSelectionTools::ToggleSelectedBones(UGeometryCollectionComponent* GeometryCollectionComponent, TArray<int32>& BoneIndices, bool bClearCurrentSelection)
+void FFractureSelectionTools::ToggleSelectedBones(UGeometryCollectionComponent* GeometryCollectionComponent, TArray<int32>& BoneIndices, bool bClearCurrentSelection, bool bAdd)
 {
 	if (GeometryCollectionComponent)
 	{
@@ -24,7 +24,7 @@ void FFractureSelectionTools::ToggleSelectedBones(UGeometryCollectionComponent* 
 					EditBoneColor.ResetBoneSelection();
 				}
 		
-				EditBoneColor.ToggleSelectedBones(BoneIndices);
+				EditBoneColor.ToggleSelectedBones(BoneIndices, bAdd);
 
 				// The actual selection made is based on the hierarchy and the view mode
 				if (GeometryCollection)

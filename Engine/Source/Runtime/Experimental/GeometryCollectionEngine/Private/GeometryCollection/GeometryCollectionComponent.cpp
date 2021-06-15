@@ -2147,18 +2147,34 @@ void FScopedColorEdit::AppendSelectedBones(const TArray<int32>& SelectedBonesIn)
 	Component->SelectedBones.Append(SelectedBonesIn);
 }
 
-void FScopedColorEdit::ToggleSelectedBones(const TArray<int32>& SelectedBonesIn)
+void FScopedColorEdit::ToggleSelectedBones(const TArray<int32>& SelectedBonesIn, bool bAdd)
 {
 	bUpdated = true;
-	for (int32 BoneIndex : SelectedBonesIn)
-	{
-		if (Component->SelectedBones.Contains(BoneIndex))
+	
+	const UGeometryCollection* GeometryCollection = Component->GetRestCollection();
+	if (GeometryCollection)
+	{ 
+		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollection->GetGeometryCollection();
+		for (int32 BoneIndex : SelectedBonesIn)
 		{
-			Component->SelectedBones.Remove(BoneIndex);
-		}
-		else
-		{
-			Component->SelectedBones.Add(BoneIndex);
+		
+			int32 ContextBoneIndex = (GetViewLevel() > -1) ? FGeometryCollectionClusteringUtility::GetParentOfBoneAtSpecifiedLevel(GeometryCollectionPtr.Get(), BoneIndex, GetViewLevel()) : BoneIndex;
+		
+			if (bAdd) // shift select
+			{
+				Component->SelectedBones.Add(BoneIndex);
+			}
+			else // ctrl select (toggle)
+			{ 
+				if (Component->SelectedBones.Contains(ContextBoneIndex))
+				{
+					Component->SelectedBones.Remove(ContextBoneIndex);
+				}
+				else
+				{
+					Component->SelectedBones.Add(ContextBoneIndex);
+				}
+			}
 		}
 	}
 }
@@ -2230,19 +2246,39 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 			TArray<int32> Roots;
 			FGeometryCollectionClusteringUtility::GetRootBones(GeometryCollectionPtr.Get(), Roots);
 			TArray<int32> NewSelection;
+
 			for (int32 RootElement : Roots)
 			{
-				TArray<int32> LeafBones;
-				FGeometryCollectionClusteringUtility::GetLeafBones(GeometryCollectionPtr.Get(), RootElement, true, LeafBones);
-
-				for (int32 Element : LeafBones)
+				if (GetViewLevel() == -1)
 				{
-					if (!IsBoneSelected(Element))
+					TArray<int32> LeafBones;
+					FGeometryCollectionClusteringUtility::GetLeafBones(GeometryCollectionPtr.Get(), RootElement, true, LeafBones);
+
+					for (int32 Element : LeafBones)
 					{
-						NewSelection.Push(Element);
+						if (!IsBoneSelected(Element))
+						{
+							NewSelection.Push(Element);
+						}
+					}
+				}
+				else
+				{
+					TArray<int32> ViewLevelBones;
+					FGeometryCollectionClusteringUtility::GetChildBonesAtLevel(GeometryCollectionPtr.Get(), RootElement, GetViewLevel(), ViewLevelBones);
+					for (int32 ViewLevelBone : ViewLevelBones)
+					{
+						if (!IsBoneSelected(ViewLevelBone))
+						{
+							NewSelection.Push(ViewLevelBone);
+							TArray<int32> ChildBones;
+							FGeometryCollectionClusteringUtility::GetChildBonesFromLevel(GeometryCollectionPtr.Get(), ViewLevelBone, GetViewLevel(), ChildBones);
+							NewSelection.Append(ChildBones);
+						}
 					}
 				}
 			}
+			
 			ResetBoneSelection();
 			AppendSelectedBones(NewSelection);
 		}

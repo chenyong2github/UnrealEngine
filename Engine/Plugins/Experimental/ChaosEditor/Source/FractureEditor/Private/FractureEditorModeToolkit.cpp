@@ -1348,7 +1348,7 @@ void FFractureEditorModeToolkit::OnOutlinerBoneSelectionChanged(UGeometryCollect
 		if (SelectedBones.Num())
 		{
 
-			FFractureSelectionTools::ToggleSelectedBones(RootComponent, SelectedBones, true);
+			FFractureSelectionTools::ToggleSelectedBones(RootComponent, SelectedBones, true, false);
 			OutlinerView->SetBoneSelection(RootComponent, SelectedBones, true);
 		}
 		else
