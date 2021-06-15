@@ -4,20 +4,16 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "SingleSelectionTool.h"
-#include "InteractiveToolBuilder.h"
-#include "DynamicMesh/DynamicMesh3.h"
-#include "DynamicMesh/DynamicMeshAABBTree3.h"
-#include "MeshOpPreviewHelpers.h"
-#include "CleaningOps/SimplifyMeshOp.h"
-#include "Properties/MeshStatisticsProperties.h"
-#include "Properties/RemeshProperties.h"
 #include "BaseTools/SingleSelectionMeshEditingTool.h"
+#include "MeshOpPreviewHelpers.h"
+#include "Properties/RemeshProperties.h"
+#include "CleaningOps/SimplifyMeshOp.h"		// required in header for enum types
 #include "SimplifyMeshTool.generated.h"
 
-
-
-
+class UMeshStatisticsProperties;
+class UMeshElementsVisualizer;
+PREDECLARE_GEOMETRY(class FDynamicMesh3);
+PREDECLARE_GEOMETRY(typedef TMeshAABBTree3<FDynamicMesh3> FDynamicMeshAABBTree3);
 
 /**
  *
@@ -75,18 +71,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0.0", UIMax = "10.0", ClampMin = "0.0", ClampMax = "10000000.0", EditCondition = "bGeometricConstraint && SimplifierType != ESimplifyType::UEStandard"))
 	float GeometricTolerance;
 
-	/** If true, display wireframe */
-	UPROPERTY(EditAnywhere, Category = Display)
-	bool bShowWireframe;
-
 	/** Display colors corresponding to the mesh's polygon groups */
 	UPROPERTY(EditAnywhere, Category = Display)
 	bool bShowGroupColors = false;
 
-	/** Display seams in first UV channel */
-	UPROPERTY(EditAnywhere, Category = Display, DisplayName ="Show UV Seams")
-	bool bShowUVSeams = false;
-	
 	/** Enable projection back to input mesh */
 	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
 	bool bReproject;
@@ -108,7 +96,6 @@ public:
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
 	virtual void OnTick(float DeltaTime) override;
-	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
@@ -129,11 +116,13 @@ private:
 	UPROPERTY()
 	UMeshOpPreviewWithBackgroundCompute* Preview;
 
+	UPROPERTY()
+	UMeshElementsVisualizer* MeshElementsDisplay;
+
 	TSharedPtr<FMeshDescription, ESPMode::ThreadSafe> OriginalMeshDescription;
 	// Dynamic Mesh versions precomputed in Setup (rather than recomputed for every simplify op)
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 	TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3, ESPMode::ThreadSafe> OriginalMeshSpatial;
 
-	void GenerateAsset(const FDynamicMeshOpResult& Result);
 	void UpdateVisualization();
 };

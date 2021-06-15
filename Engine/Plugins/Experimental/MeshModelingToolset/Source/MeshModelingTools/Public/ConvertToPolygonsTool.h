@@ -3,20 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
-#include "SingleSelectionTool.h"
-#include "InteractiveToolBuilder.h"
-#include "DynamicMesh/DynamicMesh3.h"
-#include "FindPolygonsAlgorithm.h"
+#include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "PreviewMesh.h"
 #include "ModelingOperators.h"
 #include "MeshOpPreviewHelpers.h"
-#include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "ConvertToPolygonsTool.generated.h"
 
 // predeclaration
 class UConvertToPolygonsTool;
 class FConvertToPolygonsOp;
+class UPreviewGeometry;
+PREDECLARE_GEOMETRY(class FDynamicMesh3);
 
 /**
  *
@@ -25,7 +22,6 @@ UCLASS()
 class MESHMODELINGTOOLS_API UConvertToPolygonsToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
-
 public:
 	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState & SceneState) const override;
 };
@@ -96,7 +92,6 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
-	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 	virtual void OnTick(float DeltaTime) override;
 
 	virtual bool HasCancel() const override { return true; }
@@ -115,7 +110,10 @@ protected:
 	UConvertToPolygonsToolProperties* Settings;
 
 	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* PreviewWithBackgroundCompute = nullptr;
+	UMeshOpPreviewWithBackgroundCompute* PreviewCompute = nullptr;
+
+	UPROPERTY()
+	UPreviewGeometry* PreviewGeometry = nullptr;
 
 protected:
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalDynamicMesh;
@@ -124,6 +122,4 @@ protected:
 	TArray<int> PolygonEdges;
 	
 	void UpdateVisualization();
-	void GenerateAsset(const FDynamicMeshOpResult& Result);
-
 };

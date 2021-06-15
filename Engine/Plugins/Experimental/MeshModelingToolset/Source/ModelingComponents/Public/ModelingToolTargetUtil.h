@@ -79,7 +79,14 @@ MODELINGCOMPONENTS_API bool CommitMaterialSetUpdate(
 MODELINGCOMPONENTS_API const FMeshDescription* GetMeshDescription(UToolTarget* Target);
 
 /**
- * Fetch a DynamicMesh3 representing the given ToolTarget. This may be a conersion of the output of GetMeshDescription().
+ * @return a copy of the MeshDescription underlying a ToolTarget
+ * @param bWantMeshTangents if true, tangents will be returned if the target has them available. This may require that they be auto-calculated in some cases (which may be expensive)
+ * @return a new MeshDescription, which may be empty if the Target doesn't have a mesh  
+ */
+MODELINGCOMPONENTS_API FMeshDescription GetMeshDescriptionCopy(UToolTarget* Target, bool bWantMeshTangents = false);
+
+/**
+ * Fetch a DynamicMesh3 representing the given ToolTarget. This may be a conversion of the output of GetMeshDescription().
  * This function returns a copy, so the caller can take ownership of this Mesh.
  * @param bWantMeshTangents if true, tangents will be returned if the target has them available. This may require that they be auto-calculated in some cases (which may be expensive)
  * @return a created DynamicMesh3, which may be empty if the Target doesn't have a mesh 

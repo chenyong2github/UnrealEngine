@@ -3,17 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
 #include "MultiSelectionTool.h"
 #include "InteractiveToolBuilder.h"
-#include "DynamicMesh/DynamicMesh3.h"
-#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "MeshOpPreviewHelpers.h"
 #include "CleaningOps/RemeshMeshOp.h"
-#include "Properties/MeshStatisticsProperties.h"
 #include "Properties/RemeshProperties.h"
-#include "UObject/UObjectGlobals.h"
 #include "RemeshMeshTool.generated.h"
+
+class UMeshStatisticsProperties;
+class UMeshElementsVisualizer;
+PREDECLARE_GEOMETRY(class FDynamicMesh3);
+PREDECLARE_GEOMETRY(typedef TMeshAABBTree3<FDynamicMesh3> FDynamicMeshAABBTree3);
 
 /**
  *
@@ -59,18 +59,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Remeshing)
 	bool bDiscardAttributes;
 
-	/** If true, display wireframe */
-	UPROPERTY(EditAnywhere, Category = Display)
-	bool bShowWireframe = true;
-
 	/** Display colors corresponding to the mesh's polygon groups */
 	UPROPERTY(EditAnywhere, Category = Display)
 	bool bShowGroupColors = false;
-
-	/** Display constrained edges */
-	UPROPERTY(EditAnywhere, Category = Display)
-	bool bShowConstraintEdges = false;
-
 
 	/** Remeshing type */
 	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay)
@@ -125,7 +116,6 @@ public:
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
 	virtual void OnTick(float DeltaTime) override;
-	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
@@ -145,6 +135,9 @@ public:
 	UPROPERTY()
 	UMeshOpPreviewWithBackgroundCompute* Preview;
 
+	UPROPERTY()
+	UMeshElementsVisualizer* MeshElementsDisplay;
+
 protected:
 
 	UWorld* TargetWorld;
@@ -154,6 +147,5 @@ protected:
 	double InitialMeshArea;
 
 	double CalculateTargetEdgeLength(int TargetTriCount);
-	void GenerateAsset(const FDynamicMeshOpResult& Result);
 	void UpdateVisualization();
 };
