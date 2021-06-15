@@ -41,6 +41,7 @@ public:
 		ViewModel = InViewModel;
 
 		SetHover(TAttribute<bool>::CreateSP(this, &SRichTextHyperlink::ShouldAppearHovered));
+		SetAppearPressed(TAttribute<bool>::CreateSP(this, &SRichTextHyperlink::ShouldAppearPressed));
 
 		SHyperlink::Construct(
 			SHyperlink::FArguments()
@@ -56,19 +57,19 @@ public:
 	virtual void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override
 	{
 		SHyperlink::OnMouseEnter( MyGeometry, MouseEvent );
-		ViewModel->SetIsHovered( true );
+		ViewModel->SetIsHovered( IsHovered() );
 	}
 
 	virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override
 	{
 		SHyperlink::OnMouseLeave( MouseEvent );
-		ViewModel->SetIsHovered( false );
+		ViewModel->SetIsHovered( IsHovered() );
 	}
 
 	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override
 	{
 		FReply Reply = SHyperlink::OnMouseButtonDown( MyGeometry, MouseEvent );
-		ViewModel->SetIsPressed( bIsPressed );
+		ViewModel->SetIsPressed( IsPressed() );
 
 		return Reply;
 	}
@@ -76,20 +77,19 @@ public:
 	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override
 	{
 		FReply Reply = SHyperlink::OnMouseButtonUp( MyGeometry, MouseEvent );
-		ViewModel->SetIsPressed( bIsPressed );
+		ViewModel->SetIsPressed( IsPressed() );
 
 		return Reply;
-	}
-
-	virtual bool IsPressed() const override
-	{
-		return ViewModel->IsPressed();
 	}
 
 private:
 	bool ShouldAppearHovered() const
 	{
 		return ViewModel->IsHovered();
+	}
+	bool ShouldAppearPressed() const
+	{
+		return ViewModel->IsPressed();
 	}
 
 private:

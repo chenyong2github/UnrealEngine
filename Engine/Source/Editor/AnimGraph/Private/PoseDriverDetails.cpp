@@ -54,18 +54,14 @@ public:
 			.OnReleased(this, &FSoloToggleButton::OnButtonReleased)
 			.IsFocusable(false)
 		);
+
+		SetAppearPressed(SoloState);
 	}
 
 	FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override
 	{
 		OnSoloStartAction.ExecuteIfBound();
 		return FReply::Handled();
-	}
-
-protected:
-	bool IsPressed() const override
-	{
-		return SButton::IsPressed() || SoloState.Get(false);
 	}
 
 private:

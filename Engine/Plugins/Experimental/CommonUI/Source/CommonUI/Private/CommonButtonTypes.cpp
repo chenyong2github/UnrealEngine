@@ -116,9 +116,12 @@ FReply SCommonButton::OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKe
 	return SButton::OnKeyUp(MyGeometry, InKeyEvent);
 }
 
-bool SCommonButton::IsPressed() const
+void SCommonButton::Press()
 {
-	return IsInteractable() ? SButton::IsPressed() : false;
+	if (IsInteractable())
+	{
+		SButton::Press();
+	}
 }
 
 void SCommonButton::SetIsButtonEnabled(bool bInIsButtonEnabled)
@@ -128,7 +131,7 @@ void SCommonButton::SetIsButtonEnabled(bool bInIsButtonEnabled)
 
 void SCommonButton::SetIsButtonFocusable(bool bInIsButtonFocusable)
 {
-	bIsFocusable = bInIsButtonFocusable;
+	SetIsFocusable(bInIsButtonFocusable);
 }
 
 void SCommonButton::SetIsInteractionEnabled(bool bInIsInteractionEnabled)
@@ -147,14 +150,7 @@ void SCommonButton::SetIsInteractionEnabled(bool bInIsInteractionEnabled)
 	if (bWasHovered != bIsHoveredNow)
 	{
 		SetHover(bIsHoveredNow);
-		if (bIsHoveredNow)
-		{
-			OnHovered.ExecuteIfBound();
-		}
-		else
-		{
-			OnUnhovered.ExecuteIfBound();
-		}
+		ExecuteHoverStateChanged(false);
 	}
 }
 
