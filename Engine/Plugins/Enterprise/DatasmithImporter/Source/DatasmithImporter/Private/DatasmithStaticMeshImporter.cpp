@@ -198,8 +198,8 @@ UStaticMesh* FDatasmithStaticMeshImporter::ImportStaticMesh(const TSharedRef< ID
 
 	// 2. find the destination
 	UStaticMesh* ResultStaticMesh = nullptr;
-	FString StaticMeshName = AssetsContext.StaticMeshNameProvider.GenerateUniqueName( MeshElement->GetLabel() );
-	UPackage* Outer = AssetsContext.StaticMeshesImportPackage.Get();
+	int32 MaxNameCharCount = FDatasmithImporterUtils::GetAssetNameMaxCharCount(AssetsContext.StaticMeshesFinalPackage.Get());
+	FString StaticMeshName = AssetsContext.StaticMeshNameProvider.GenerateUniqueName( MeshElement->GetLabel(), MaxNameCharCount );
 
 	// Verify that the static mesh could be created in final package
 	FText FailReason;
@@ -209,6 +209,7 @@ UStaticMesh* FDatasmithStaticMeshImporter::ImportStaticMesh(const TSharedRef< ID
 		return nullptr;
 	}
 
+	UPackage* Outer = AssetsContext.StaticMeshesImportPackage.Get();
 	if ( ExistingMesh )
 	{
 		if ( ExistingMesh->GetOuter() != Outer )

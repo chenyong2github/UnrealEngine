@@ -282,12 +282,16 @@ UMaterialInterface* FDatasmithMaterialImporter::ImportMasterMaterial( FDatasmith
 
 	if ( ParentMaterial && ParentMaterial->IsValid() )
 	{
+		UPackage* DestinationPackage = ImportContext.AssetsContext.MaterialsFinalPackage.Get();
+		int32 CharBudget = FDatasmithImporterUtils::GetAssetNameMaxCharCount(DestinationPackage);
+
 		const FString MaterialLabel = MaterialElement->GetLabel();
-		const FString MaterialName = MaterialLabel.Len() > 0 ? ImportContext.AssetsContext.MaterialNameProvider.GenerateUniqueName(MaterialLabel) : MaterialElement->GetName();
+		const TCHAR* NameSource = MaterialLabel.Len() > 0 ? MaterialElement->GetLabel(): MaterialElement->GetName();
+		const FString MaterialName = ImportContext.AssetsContext.MaterialNameProvider.GenerateUniqueName(NameSource, CharBudget);
 
 		// Verify that the material could be created in final package
 		FText FailReason;
-		if (!FDatasmithImporterUtils::CanCreateAsset<UMaterialInstanceConstant>( ImportContext.AssetsContext.MaterialsFinalPackage.Get(), MaterialName, FailReason ))
+		if (!FDatasmithImporterUtils::CanCreateAsset<UMaterialInstanceConstant>( DestinationPackage, MaterialName, FailReason ))
 		{
 			ImportContext.LogError(FailReason);
 			return nullptr;
@@ -393,12 +397,16 @@ UMaterialInterface* FDatasmithMaterialImporter::ImportDecalMaterial( FDatasmithI
 
 	if ( DecalMaterial )
 	{
+		UPackage* DestinationPackage = AssetsContext.MaterialsFinalPackage.Get();
+		int32 CharBudget = FDatasmithImporterUtils::GetAssetNameMaxCharCount(DestinationPackage);
+
 		const FString MaterialLabel = MaterialElement->GetLabel();
-		const FString MaterialName = MaterialLabel.Len() > 0 ? AssetsContext.MaterialNameProvider.GenerateUniqueName(MaterialLabel) : MaterialElement->GetName();
+		const TCHAR* NameSource = MaterialLabel.Len() > 0 ? MaterialElement->GetLabel(): MaterialElement->GetName();
+		const FString MaterialName = AssetsContext.MaterialNameProvider.GenerateUniqueName(NameSource, CharBudget);
 
 		// Verify that the material could be created in final package
 		FText FailReason;
-		if (!FDatasmithImporterUtils::CanCreateAsset<UMaterialInstanceConstant>( AssetsContext.MaterialsFinalPackage.Get(), MaterialName, FailReason ))
+		if (!FDatasmithImporterUtils::CanCreateAsset<UMaterialInstanceConstant>( DestinationPackage, MaterialName, FailReason ))
 		{
 			ImportContext.LogError(FailReason);
 			return nullptr;
