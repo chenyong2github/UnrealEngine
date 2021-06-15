@@ -635,6 +635,13 @@ void UStaticMeshComponent::PostDuplicate(bool bDuplicateForPIE)
 	Super::PostDuplicate(bDuplicateForPIE);
 }
 
+void UStaticMeshComponent::PostEditImport()
+{
+	NotifyIfStaticMeshChanged();
+
+	Super::PostEditImport();
+}
+
 #endif // #if WITH_EDITOR
 
 void UStaticMeshComponent::OnRegister()
