@@ -298,7 +298,10 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 	const UEdGraphSchema* Schema = GetDefault<UEdGraphSchema_K2>();
 	if (BlueprintEditor.IsValid())
 	{
-		Schema = BlueprintEditor.Pin()->GetFocusedGraph()->GetSchema();
+		if (BlueprintEditor.Pin()->GetFocusedGraph())
+		{
+			Schema = BlueprintEditor.Pin()->GetFocusedGraph()->GetSchema();
+		}
 	}
 
 	Category.AddCustomRow(LOCTEXT("VariableTypeLabel", "Variable Type"))
