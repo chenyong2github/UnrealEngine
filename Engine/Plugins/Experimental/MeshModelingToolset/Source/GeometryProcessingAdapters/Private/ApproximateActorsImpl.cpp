@@ -812,6 +812,9 @@ void FApproximateActorsImpl::GenerateApproximationForActorSet(const TArray<AActo
 	FMeshSceneAdapterBuildOptions SceneBuildOptions;
 	SceneBuildOptions.bThickenThinMeshes = Options.bAutoThickenThinParts;
 	SceneBuildOptions.DesiredMinThickness = Options.AutoThickenThicknessMeters * 100.0;		// convert to cm (UE Units)
+	// filter out objects smaller than 10% of voxel size
+	SceneBuildOptions.bFilterTinyObjects = true;
+	SceneBuildOptions.TinyObjectBoxMaxDimension = ApproxAccuracy * 0.1;
 	SceneBuildOptions.bPrintDebugMessages = Options.bVerbose;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_BuildScene);

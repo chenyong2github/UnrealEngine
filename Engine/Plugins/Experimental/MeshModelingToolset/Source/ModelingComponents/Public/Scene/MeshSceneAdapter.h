@@ -71,6 +71,11 @@ struct FMeshSceneAdapterBuildOptions
 	/** Thickness used for bThickenThinMeshes processing */
 	double DesiredMinThickness = 0.1;
 
+	/** If true, tiny objects will be discarded from the mesh scene. This can improve performance when (eg) voxelizing huge scenes */
+	bool bFilterTinyObjects = false;
+	/** If bFilterTinyObjects is enabled, then a tiny object is identified by having a maximum (transformed) bounding-box dimension below this size */
+	double TinyObjectBoxMaxDimension = 0.001;
+
 
 	bool bBuildSpatialDataStructures = true;
 };
@@ -245,7 +250,6 @@ public:
 	virtual void GetAccumulatedMesh(FDynamicMesh3& AccumMesh);
 
 protected:
-
 	// top-level list of ActorAdapters, which represent each Actor and set of Components
 	TArray<TUniquePtr<FActorAdapter>> SceneActors;
 
