@@ -77,27 +77,27 @@ protected:
 	TArray<FDebugRenderSceneProxy*> ChildProxies;
 };
 
-void FGameplayDebuggerDebugDrawDelegateHelper::RegisterDebugDrawDelgate()
+void FGameplayDebuggerDebugDrawDelegateHelper::RegisterDebugDrawDelegate()
 {
-	ensureMsgf(State != RegisteredState, TEXT("RegisterDebugDrawDelgate is already Registered!"));
+	ensureMsgf(State != RegisteredState, TEXT("RegisterDebugDrawDelegate is already Registered!"));
 	if (State == InitializedState)
 	{
 		for (int32 Idx = 0; Idx < DebugDrawDelegateHelpers.Num(); Idx++)
 		{
-			DebugDrawDelegateHelpers[Idx]->RegisterDebugDrawDelgate();
+			DebugDrawDelegateHelpers[Idx]->RegisterDebugDrawDelegate();
 		}
 		State = RegisteredState;
 	}
 }
 
-void FGameplayDebuggerDebugDrawDelegateHelper::UnregisterDebugDrawDelgate()
+void FGameplayDebuggerDebugDrawDelegateHelper::UnregisterDebugDrawDelegate()
 {
-	ensureMsgf(State != InitializedState, TEXT("UnegisterDebugDrawDelgate is in an invalid State: %i !"), State);
+	ensureMsgf(State != InitializedState, TEXT("UnregisterDebugDrawDelegate is in an invalid State: %i !"), State);
 	if (State == RegisteredState)
 	{
 		for (int32 Idx = 0; Idx < DebugDrawDelegateHelpers.Num(); Idx++)
 		{
-			DebugDrawDelegateHelpers[Idx]->UnregisterDebugDrawDelgate();
+			DebugDrawDelegateHelpers[Idx]->UnregisterDebugDrawDelegate();
 		}
 		State = InitializedState;
 	}
@@ -164,7 +164,7 @@ FPrimitiveSceneProxy* UGameplayDebuggerRenderingComponent::CreateSceneProxy()
 	if (CompositeProxy)
 	{
 		GameplayDebuggerDebugDrawDelegateHelper.InitDelegateHelper(CompositeProxy);
-		GameplayDebuggerDebugDrawDelegateHelper.ReregisterDebugDrawDelgate();
+		GameplayDebuggerDebugDrawDelegateHelper.ReregisterDebugDrawDelegate();
 	}
 	return CompositeProxy;
 }
@@ -178,12 +178,12 @@ void UGameplayDebuggerRenderingComponent::CreateRenderState_Concurrent(FRegister
 {
 	Super::CreateRenderState_Concurrent(Context);
 
-	GameplayDebuggerDebugDrawDelegateHelper.RegisterDebugDrawDelgate();
+	GameplayDebuggerDebugDrawDelegateHelper.RegisterDebugDrawDelegate();
 }
 
 void UGameplayDebuggerRenderingComponent::DestroyRenderState_Concurrent()
 {
-	GameplayDebuggerDebugDrawDelegateHelper.UnregisterDebugDrawDelgate();
+	GameplayDebuggerDebugDrawDelegateHelper.UnregisterDebugDrawDelegate();
 
 	Super::DestroyRenderState_Concurrent();
 }

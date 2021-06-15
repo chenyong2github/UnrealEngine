@@ -1132,9 +1132,9 @@ FNavMeshSceneProxy::~FNavMeshSceneProxy()
 }
 
 #if WITH_RECAST && UE_ENABLE_DEBUG_DRAWING
-void FNavMeshDebugDrawDelegateHelper::RegisterDebugDrawDelgate()
+void FNavMeshDebugDrawDelegateHelper::RegisterDebugDrawDelegate()
 {
-	ensureMsgf(State != RegisteredState, TEXT("RegisterDebugDrawDelgate is already Registered!"));
+	ensureMsgf(State != RegisteredState, TEXT("RegisterDebugDrawDelegate is already Registered!"));
 	if (State == InitializedState)
 	{
 		DebugTextDrawingDelegate = FDebugDrawDelegate::CreateRaw(this, &FNavMeshDebugDrawDelegateHelper::DrawDebugLabels);
@@ -1143,9 +1143,9 @@ void FNavMeshDebugDrawDelegateHelper::RegisterDebugDrawDelgate()
 	}
 }
 
-void FNavMeshDebugDrawDelegateHelper::UnregisterDebugDrawDelgate()
+void FNavMeshDebugDrawDelegateHelper::UnregisterDebugDrawDelegate()
 {
-	ensureMsgf(State != InitializedState, TEXT("UnegisterDebugDrawDelgate is in an invalid State: %i !"), State);
+	ensureMsgf(State != InitializedState, TEXT("UnegisterDebugDrawDelegate is in an invalid State: %i !"), State);
 	if (State == RegisteredState)
 	{
 		check(DebugTextDrawingDelegate.IsBound());
@@ -1560,8 +1560,8 @@ FPrimitiveSceneProxy* UNavMeshRenderingComponent::CreateSceneProxy()
 
 	if (NavMeshSceneProxy)
 	{
-		NavMeshDebugDrawDelgateManager.InitDelegateHelper(NavMeshSceneProxy);
-		NavMeshDebugDrawDelgateManager.ReregisterDebugDrawDelgate();
+		NavMeshDebugDrawDelegateManager.InitDelegateHelper(NavMeshSceneProxy);
+		NavMeshDebugDrawDelegateManager.ReregisterDebugDrawDelegate();
 	}
 	return NavMeshSceneProxy;
 #else
@@ -1574,14 +1574,14 @@ void UNavMeshRenderingComponent::CreateRenderState_Concurrent(FRegisterComponent
 	Super::CreateRenderState_Concurrent(Context);
 
 #if WITH_RECAST && !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	NavMeshDebugDrawDelgateManager.RegisterDebugDrawDelgate();
+	NavMeshDebugDrawDelegateManager.RegisterDebugDrawDelegate();
 #endif
 }
 
 void UNavMeshRenderingComponent::DestroyRenderState_Concurrent()
 {
 #if WITH_RECAST && !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	NavMeshDebugDrawDelgateManager.UnregisterDebugDrawDelgate();
+	NavMeshDebugDrawDelegateManager.UnregisterDebugDrawDelegate();
 #endif
 
 	Super::DestroyRenderState_Concurrent();

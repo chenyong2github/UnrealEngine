@@ -35,15 +35,13 @@ public:
 
 	/** 
 	 * Draw the scene proxy as a dynamic element
-	 *
-	 * @param	PDI - draw interface to render to
-	 * @param	View - current view
 	 */
 	ENGINE_API virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
 
 	/**
 	 * Draws a line with an arrow at the end.
 	 *
+	 * @param PDI		Draw interface to render to
 	 * @param Start		Starting point of the line.
 	 * @param End		Ending point of the line.
 	 * @param Color		Color of the line.
@@ -265,7 +263,7 @@ protected:
 public:
 	virtual void InitDelegateHelper(const FDebugRenderSceneProxy* InSceneProxy)
 	{
-		check(IsInGameThread());
+		check(IsInParallelGameThread() || IsInGameThread());
 
 		Texts.Reset();
 		Texts.Append(InSceneProxy->Texts);
@@ -274,12 +272,19 @@ public:
 		State = (State == UndefinedState) ? InitializedState : State;
 	}
 
-	/** called to set up debug drawing delegate in UDebugDrawService if you want to draw labels */
-	ENGINE_API virtual void RegisterDebugDrawDelgate();
-	/** called to clean up debug drawing delegate in UDebugDrawService */
-	ENGINE_API virtual void UnregisterDebugDrawDelgate();
+	UE_DEPRECATED(5.0, "This method is deprecated. Use RegisterDebugDrawDelegate instead.")
+	ENGINE_API virtual void RegisterDebugDrawDelgate() { RegisterDebugDrawDelegate(); }
+	UE_DEPRECATED(5.0, "This method is deprecated. Use UnregisterDebugDrawDelegate instead.")
+	ENGINE_API virtual void UnregisterDebugDrawDelgate() { UnregisterDebugDrawDelegate(); }
+	UE_DEPRECATED(5.0, "This method is deprecated. Use ReregisterDebugDrawDelegate instead.")
+	ENGINE_API void ReregisterDebugDrawDelgate() { ReregisterDebugDrawDelegate(); }
 
-	ENGINE_API void ReregisterDebugDrawDelgate();
+	/** called to set up debug drawing delegate in UDebugDrawService if you want to draw labels */
+	ENGINE_API virtual void RegisterDebugDrawDelegate();
+	/** called to clean up debug drawing delegate in UDebugDrawService */
+	ENGINE_API virtual void UnregisterDebugDrawDelegate();
+
+	ENGINE_API void ReregisterDebugDrawDelegate();
 
 protected:
 	ENGINE_API virtual void DrawDebugLabels(UCanvas* Canvas, APlayerController*);

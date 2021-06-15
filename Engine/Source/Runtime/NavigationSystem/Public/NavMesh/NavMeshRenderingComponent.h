@@ -176,8 +176,8 @@ public:
 		bNeedsNewData = InSceneProxy->ProxyData.bNeedsNewData;
 	}
 
-	NAVIGATIONSYSTEM_API virtual void RegisterDebugDrawDelgate() override;
-	NAVIGATIONSYSTEM_API virtual void UnregisterDebugDrawDelgate() override;
+	NAVIGATIONSYSTEM_API virtual void RegisterDebugDrawDelegate() override;
+	NAVIGATIONSYSTEM_API virtual void UnregisterDebugDrawDelegate() override;
 
 protected:
 	NAVIGATIONSYSTEM_API virtual void DrawDebugLabels(UCanvas* Canvas, APlayerController*) override;
@@ -230,7 +230,7 @@ protected:
 
 protected:
 #if WITH_RECAST && UE_ENABLE_DEBUG_DRAWING
-	FNavMeshDebugDrawDelegateHelper NavMeshDebugDrawDelgateManager;
+	FNavMeshDebugDrawDelegateHelper NavMeshDebugDrawDelegateManager;
 #endif
 };
 
