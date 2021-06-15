@@ -29,14 +29,14 @@
 
 #include "binkplugin_ue4.h"
 
+#include "AudioDeviceManager.h"
+#include "AudioMixer.h"
+#include "AudioMixerDevice.h"
+
 extern BINKMEDIAPLAYER_API unsigned bink_gpu_api;
 extern BINKMEDIAPLAYER_API unsigned bink_gpu_api_hdr;
 extern BINKMEDIAPLAYER_API EPixelFormat bink_force_pixel_format;
 extern BINKMEDIAPLAYER_API FString BinkUE4CookOnTheFlyPath(FString path, const TCHAR *filename);
-
-#include "AudioDeviceManager.h"
-#include "AudioMixer.h"
-#include "AudioMixerDevice.h"
 
 static int GetNumSpeakers() 
 {
