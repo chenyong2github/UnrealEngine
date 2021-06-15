@@ -702,6 +702,7 @@ bool UWidgetBlueprint::DetectSlateWidgetLeaks(TArray<FText>& ValidationErrors)
 		}
 	});
 
+	DummyWorld->MarkObjectsPendingKill();
 	return bFoundLeak;
 }
 
