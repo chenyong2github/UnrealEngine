@@ -36,6 +36,8 @@ class BINKMEDIAPLAYER_API UBinkMediaTexture : public UTexture
 	virtual EMaterialValueType GetMaterialType() const override { return MCT_Texture2D; }
 	virtual float GetSurfaceWidth() const override { return CachedDimensions.X; }
 	virtual float GetSurfaceHeight() const override { return CachedDimensions.Y; }
+	virtual float GetSurfaceDepth() const override { return 0; }
+	virtual uint32 GetSurfaceArraySize() const override { return 0; }
 
 	// UObject overrides.
 
