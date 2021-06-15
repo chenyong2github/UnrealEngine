@@ -197,6 +197,8 @@ protected:
 public:
 	/** IXRTrackingSystem interface */
 	virtual bool DoesSupportLateProjectionUpdate() const override { return true; }
+	virtual FString GetVersionString() const override;
+	virtual bool HasValidTrackingPosition() override { return IsTracking(HMDDeviceId); }
 
 	/** IHeadMountedDisplay interface */
 	virtual bool IsHMDConnected() override { return true; }
@@ -219,6 +221,7 @@ public:
 	virtual void OnBeginRendering_GameThread() override;
 	virtual void OnLateUpdateApplied_RenderThread(FRHICommandListImmediate& RHICmdList, const FTransform& NewRelativeTransform) override;
 	virtual bool OnStartGameFrame(FWorldContext& WorldContext) override;
+	virtual EHMDWornState::Type GetHMDWornState() override { return bIsReady ? EHMDWornState::Worn : EHMDWornState::NotWorn; }
 
 	/** IStereoRendering interface */
 	virtual bool IsStereoEnabled() const override;
@@ -322,6 +325,7 @@ private:
 	XrReferenceSpaceType	TrackingSpaceType;
 	XrViewConfigurationType SelectedViewConfigurationType;
 	XrEnvironmentBlendMode  SelectedEnvironmentBlendMode;
+	XrInstanceProperties    InstanceProperties;
 	XrSystemProperties      SystemProperties;
 
 	FPipelinedFrameState	PipelinedFrameStateGame;

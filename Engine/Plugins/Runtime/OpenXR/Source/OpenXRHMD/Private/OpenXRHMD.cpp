@@ -952,6 +952,15 @@ FName FOpenXRHMD::GetHMDName() const
 	return SystemProperties.systemName;
 }
 
+FString FOpenXRHMD::GetVersionString() const
+{
+	return FString::Printf(TEXT("%s: %d.%d.%d"),
+		UTF8_TO_TCHAR(InstanceProperties.runtimeName),
+		XR_VERSION_MAJOR(InstanceProperties.runtimeVersion),
+		XR_VERSION_MINOR(InstanceProperties.runtimeVersion),
+		XR_VERSION_PATCH(InstanceProperties.runtimeVersion));
+}
+
 bool FOpenXRHMD::IsHMDEnabled() const
 {
 	return true;
@@ -1035,8 +1044,8 @@ bool FOpenXRHMD::GetIsTracked(int32 DeviceId)
 	}
 
 	const XrSpaceLocation& Location = PipelineState.DeviceLocations[DeviceId];
-	return Location.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT &&
-		Location.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT;
+	return Location.locationFlags & XR_SPACE_LOCATION_ORIENTATION_TRACKED_BIT &&
+		Location.locationFlags & XR_SPACE_LOCATION_POSITION_TRACKED_BIT;
 }
 
 bool FOpenXRHMD::GetCurrentPose(int32 DeviceId, FQuat& CurrentOrientation, FVector& CurrentPosition)
@@ -1163,6 +1172,7 @@ bool FOpenXRHMD::EnableStereo(bool stereo)
 		{
 			StartSession();
 
+			FApp::SetUseVRFocus(true);
 			FApp::SetHasVRFocus(true);
 
 			return true;
@@ -1173,6 +1183,7 @@ bool FOpenXRHMD::EnableStereo(bool stereo)
 	{
 		GEngine->bForceDisableFrameRateSmoothing = false;
 
+		FApp::SetUseVRFocus(false);
 		FApp::SetHasVRFocus(false);
 
 #if WITH_EDITOR
@@ -1503,13 +1514,13 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	, LastRequestedSwapchainFormat(0)
 	, LastRequestedDepthSwapchainFormat(0)
 {
-	XrInstanceProperties InstanceProps = { XR_TYPE_INSTANCE_PROPERTIES, nullptr };
-	XR_ENSURE(xrGetInstanceProperties(Instance, &InstanceProps));
+	InstanceProperties = { XR_TYPE_INSTANCE_PROPERTIES, nullptr };
+	XR_ENSURE(xrGetInstanceProperties(Instance, &InstanceProperties));
 
-	bDepthExtensionSupported = IsExtensionEnabled(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME) && CheckPlatformDepthExtensionSupport(InstanceProps);
+	bDepthExtensionSupported = IsExtensionEnabled(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME) && CheckPlatformDepthExtensionSupport(InstanceProperties);
 
 	bHiddenAreaMaskSupported = IsExtensionEnabled(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME) &&
-		!FCStringAnsi::Strstr(InstanceProps.runtimeName, "Oculus");
+		!FCStringAnsi::Strstr(InstanceProperties.runtimeName, "Oculus");
 	bViewConfigurationFovSupported = IsExtensionEnabled(XR_EPIC_VIEW_CONFIGURATION_FOV_EXTENSION_NAME);
 
 	// Retrieve system properties and check for hand tracking support
@@ -2565,7 +2576,7 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 				}
 			}
 
-			FApp::SetUseVRFocus(SessionState.state == XR_SESSION_STATE_FOCUSED);
+			FApp::SetHasVRFocus(SessionState.state == XR_SESSION_STATE_FOCUSED);
 
 			if (SessionState.state != XR_SESSION_STATE_EXITING && SessionState.state != XR_SESSION_STATE_LOSS_PENDING)
 			{
