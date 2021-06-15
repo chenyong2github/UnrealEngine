@@ -45,6 +45,14 @@ public:
 	{
 	}
 
+	/** Construct for the given DeviceId */
+	FRemoteControlMIDIDevice(const int32 DeviceId)
+		: DeviceSelector(ERemoteControlMIDIDeviceSelector::DeviceId)
+		, ResolvedDeviceId(DeviceId)
+		, DeviceId(DeviceId)
+	{
+	}
+
 	/** Midi Device Selector */
 	UPROPERTY(EditAnywhere, Category = Mapping)
 	ERemoteControlMIDIDeviceSelector DeviceSelector;

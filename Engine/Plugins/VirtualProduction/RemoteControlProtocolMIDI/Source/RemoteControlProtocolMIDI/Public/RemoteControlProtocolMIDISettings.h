@@ -21,12 +21,12 @@ public:
 	URemoteControlProtocolMIDISettings()
 	{
 		// The DeviceSelector shouldn't be the project settings - this IS the project settings!
-		DefaultDevice.DeviceSelector = ERemoteControlMIDIDeviceSelector::DeviceName;
+		DefaultDevice.DeviceSelector = ERemoteControlMIDIDeviceSelector::DeviceId;
 	}
 	
 	/** Midi Default Device */
 	UPROPERTY(Config, EditAnywhere, Category = MIDI)
-	FRemoteControlMIDIDevice DefaultDevice;
+	FRemoteControlMIDIDevice DefaultDevice = {1};
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

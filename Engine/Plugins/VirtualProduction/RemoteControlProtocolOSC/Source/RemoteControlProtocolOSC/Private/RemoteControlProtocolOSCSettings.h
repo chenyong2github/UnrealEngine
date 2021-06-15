@@ -29,7 +29,7 @@ public:
 	* The format is IP_ADDRESS:PORT_NUMBER.
 	*/
 	UPROPERTY(EditAnywhere, category = OSC);
-	FString ServerAddress = "0.0.0.0:0";
+	FString ServerAddress = "127.0.0.1:8001";
 
 	/** Running OSC server instance */
 	TStrongObjectPtr<UOSCServer> OSCServer;
@@ -56,5 +56,5 @@ public:
 public:
 	/** OSC server pair of server ip and server port */
 	UPROPERTY(Config, EditAnywhere, category = Mapping)
-	TArray<FRemoteControlOSCServerSettings> ServersSettings;
+	TArray<FRemoteControlOSCServerSettings> ServersSettings = { FRemoteControlOSCServerSettings() };
 };
