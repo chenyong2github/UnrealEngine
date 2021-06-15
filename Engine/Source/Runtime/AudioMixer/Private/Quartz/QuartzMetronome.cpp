@@ -420,6 +420,7 @@ namespace Audio
 		FQuartzMetronomeDelegateData Data;
 		Data.Bar = (CurrentTimeStamp.Bars);
 		Data.Beat = (CurrentTimeStamp.Beat);
+		Data.BeatFraction = (CurrentTimeStamp.BeatFraction);
 
 		if (!(EventFlags &= ListenerFlags))
 		{
