@@ -414,8 +414,12 @@ export namespace UnrealEngine {
   async function pullPresetValues(Preset: IPreset): Promise<IPayload> {
     const updatedPayloads: IPayloads = {};
     for (const property of Preset.ExposedProperties) {
-      const value = await get<UnrealApi.PropertyValues>(`/remote/preset/${Preset.Name}/property/${property.ID}`);
-      setPayloadValueInternal(updatedPayloads, [Preset.Name, property.ID], value?.PropertyValues?.[0]?.PropertyValue);
+      try {
+        const value = await get<UnrealApi.PropertyValues>(`/remote/preset/${Preset.Name}/property/${property.ID}`);
+        setPayloadValueInternal(updatedPayloads, [Preset.Name, property.ID], value?.PropertyValues?.[0]?.PropertyValue);
+      } catch (error) {
+        console.log(`Failed to get value of Preset: ${Preset.Name}, Property: ${property.ID}`);
+      }
     }
 
     return updatedPayloads[Preset.Name];
@@ -553,5 +557,9 @@ export namespace UnrealEngine {
     return request.put(`http://localhost:${Program.ueHttpPort}/remote/object/thumbnail`)
                   .send({ ObjectPath: asset })
                   .then(res => res.body);
+/*
+    const res = await put<UnrealApi.Response>('/remote/object/thumbnail', { ObjectPath: asset });
+    return Buffer.from(res.ResponseBody, 'base64');
+*/
   }
 }
