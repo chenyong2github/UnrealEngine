@@ -671,7 +671,14 @@ private:
 	void CollectFilesToCook(TArray<FName>& FilesInPath, 
 		const TArray<FString>& CookMaps, const TArray<FString>& CookDirectories, 
 		const TArray<FString>& IniMapSections, ECookByTheBookOptions FilesToCookFlags,
-		const TArrayView<const ITargetPlatform* const>& TargetPlatforms);
+		const TArrayView<const ITargetPlatform* const>& TargetPlatforms,
+		const TMap<FName, TArray<FName>>& GameDefaultObjects);
+
+	/**
+	* Gets all game default objects for all platforms.
+	*/
+	static void GetGameDefaultObjects(const TArray<ITargetPlatform*>& TargetPlatforms, TMap<FName, TArray<FName>>& GameDefaultObjectsOut);
+
 	/* Collect filespackages that should not be cooked from ini settings and commandline. Does not include checking UAssetManager, which has to be queried later */
 	TArray<FName> GetNeverCookPackageFileNames(TArrayView<const FString> ExtraNeverCookDirectories = TArrayView<const FString>());
 
