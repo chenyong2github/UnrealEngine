@@ -7,6 +7,11 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
+class UInterchangeTextureNode;
+
+template <class T>
+class TSubclassOf;
+
 namespace UE
 {
 	namespace Interchange
@@ -16,7 +21,9 @@ namespace UE
 		public:
 			static bool Generic2DTextureTranslate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer);
 
-			static bool GenericCubeTextureTranslate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer);
+			static bool GenericTextureCubeTranslate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer);
+
+			static bool GenericTexture2DArrayTranslate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer);
 		};
 	}//ns Interchange
 }//ns UE

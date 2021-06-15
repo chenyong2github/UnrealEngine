@@ -8,6 +8,7 @@
 #include "FbxInclude.h"
 #include "InterchangeMaterialNode.h"
 #include "InterchangeSceneNode.h"
+#include "InterchangeTexture2DNode.h"
 #include "InterchangeTextureNode.h"
 #include "Misc/Paths.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
@@ -33,10 +34,10 @@ namespace UE
 				return MaterialNode;
 			}
 
-			UInterchangeTextureNode* FFbxMaterial::CreateTexture2DNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUid, const FString& TextureFilePath, TArray<FString>& JSonErrorMessages)
+			UInterchangeTexture2DNode* FFbxMaterial::CreateTexture2DNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUid, const FString& TextureFilePath, TArray<FString>& JSonErrorMessages)
 			{
 				FString DisplayLabel = FPaths::GetBaseFilename(TextureFilePath);
-				UInterchangeTextureNode* TextureNode = NewObject<UInterchangeTextureNode>(&NodeContainer, NAME_None);
+				UInterchangeTexture2DNode* TextureNode = NewObject<UInterchangeTexture2DNode>(&NodeContainer, NAME_None);
 				if (!ensure(TextureNode))
 				{
 					JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot allocate a node when importing fbx\"}}"));
@@ -95,7 +96,7 @@ namespace UE
 									//Create a texture node and make it child of the material node
 									TArray<FString> JsonErrorMessage;
 									FString NodeUid = TEXT("\\Texture\\") + TextureFilename;
-									UInterchangeTextureNode* TextureNode = Cast<UInterchangeTextureNode>(NodeContainer.GetNode(NodeUid));
+									UInterchangeTexture2DNode* TextureNode = Cast<UInterchangeTexture2DNode>(NodeContainer.GetNode(NodeUid));
 									if (!TextureNode)
 									{
 										TextureNode = CreateTexture2DNode(NodeContainer, NodeUid, TextureFilename, JsonErrorMessage);
@@ -187,7 +188,7 @@ namespace UE
 					//Create a texture node and make it child of the material node
 					TArray<FString> JsonErrorMessage;
 					FString NodeUid = TEXT("\\Texture\\") + TextureFilename;
-					UInterchangeTextureNode* TextureNode = Cast<UInterchangeTextureNode>(NodeContainer.GetNode(NodeUid));
+					UInterchangeTexture2DNode* TextureNode = Cast<UInterchangeTexture2DNode>(NodeContainer.GetNode(NodeUid));
 					if (!TextureNode)
 					{
 						TextureNode = CreateTexture2DNode(NodeContainer, NodeUid, TextureFilename, JsonErrorMessage);

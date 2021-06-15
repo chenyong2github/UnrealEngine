@@ -3,7 +3,7 @@
 #include "Texture/InterchangeUDIMTranslator.h"
 
 #include "InterchangeManager.h"
-#include "InterchangeTextureNode.h"
+#include "InterchangeTexture2DNode.h"
 #include "Texture/InterchangeTexturePayloadInterface.h"
 
 
@@ -168,7 +168,7 @@ bool UInterchangeUDIMTranslator::Translate(const UInterchangeSourceData* SourceD
 		return false;
 	}
 
-	UInterchangeTextureNode* TextureNode = NewObject<UInterchangeTextureNode>(&BaseNodeContainer, NAME_None);
+	UInterchangeTexture2DNode* TextureNode = NewObject<UInterchangeTexture2DNode>(&BaseNodeContainer, NAME_None);
 
 	if (!ensure(TextureNode))
 	{

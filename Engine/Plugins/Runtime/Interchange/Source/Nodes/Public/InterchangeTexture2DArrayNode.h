@@ -5,11 +5,13 @@
 #include "CoreMinimal.h"
 #include "InterchangeTextureNode.h"
 
-#include "InterchangeTextureCubeNode.generated.h"
+#include "InterchangeTexture2DArrayNode.generated.h"
+
+
 
 
 UCLASS(BlueprintType)
-class INTERCHANGENODES_API UInterchangeTextureCubeNode : public UInterchangeTextureNode
+class INTERCHANGENODES_API UInterchangeTexture2DArrayNode : public UInterchangeTextureNode
 {
 	GENERATED_BODY()
 
@@ -20,7 +22,7 @@ public:
 	 */
 	virtual FString GetTypeName() const override
 	{
-		const FString TypeName = TEXT("TextureCubeNode");
+		const FString TypeName = TEXT("Texture2DArrayNode");
 		return TypeName;
 	}
 };
