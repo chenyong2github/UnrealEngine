@@ -98,7 +98,7 @@ FPrimitiveSceneProxy* UVisualLoggerRenderingComponent::CreateSceneProxy()
 	if (VLogSceneProxy)
 	{
 		DebugDrawDelegateHelper.InitDelegateHelper(VLogSceneProxy);
-		DebugDrawDelegateHelper.ReregisterDebugDrawDelgate();
+		DebugDrawDelegateHelper.ReregisterDebugDrawDelegate();
 	}
 #endif
 	return VLogSceneProxy;
@@ -119,14 +119,14 @@ void UVisualLoggerRenderingComponent::CreateRenderState_Concurrent(FRegisterComp
 	Super::CreateRenderState_Concurrent(Context);
 
 #if WITH_EDITOR
-	DebugDrawDelegateHelper.RegisterDebugDrawDelgate();
+	DebugDrawDelegateHelper.RegisterDebugDrawDelegate();
 #endif
 }
 
 void UVisualLoggerRenderingComponent::DestroyRenderState_Concurrent()
 {
 #if WITH_EDITOR
-	DebugDrawDelegateHelper.UnregisterDebugDrawDelgate();
+	DebugDrawDelegateHelper.UnregisterDebugDrawDelegate();
 #endif
 
 	Super::DestroyRenderState_Concurrent();

@@ -289,15 +289,8 @@ FPrimitiveSceneProxy* UEQSRenderingComponent::CreateSceneProxy()
 #if  USE_EQS_DEBUGGER
 	if (NewSceneProxy)
 	{
-		if (IsInGameThread())
-		{
-			EQSRenderingDebugDrawDelegateHelper.InitDelegateHelper(NewSceneProxy);
-			EQSRenderingDebugDrawDelegateHelper.ReregisterDebugDrawDelgate();
-		}
-		else
-		{
-			UE_LOG(LogEQS, Warning, TEXT("Couldn't register delegate helper on non-game thread"));
-		}
+		EQSRenderingDebugDrawDelegateHelper.InitDelegateHelper(NewSceneProxy);
+		EQSRenderingDebugDrawDelegateHelper.ReregisterDebugDrawDelegate();
 	}
 #endif
 
@@ -363,14 +356,14 @@ void UEQSRenderingComponent::CreateRenderState_Concurrent(FRegisterComponentCont
 	Super::CreateRenderState_Concurrent(Context);
 
 #if USE_EQS_DEBUGGER
-	EQSRenderingDebugDrawDelegateHelper.RegisterDebugDrawDelgate();
+	EQSRenderingDebugDrawDelegateHelper.RegisterDebugDrawDelegate();
 #endif
 }
 
 void UEQSRenderingComponent::DestroyRenderState_Concurrent()
 {
 #if USE_EQS_DEBUGGER
-	EQSRenderingDebugDrawDelegateHelper.UnregisterDebugDrawDelgate();
+	EQSRenderingDebugDrawDelegateHelper.UnregisterDebugDrawDelegate();
 #endif
 
 	Super::DestroyRenderState_Concurrent();

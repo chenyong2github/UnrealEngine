@@ -25,7 +25,7 @@ FDebugRenderSceneProxy::FDebugRenderSceneProxy(const UPrimitiveComponent* InComp
 {
 }
 
-void FDebugDrawDelegateHelper::RegisterDebugDrawDelgate()
+void FDebugDrawDelegateHelper::RegisterDebugDrawDelegate()
 {
 	ensureMsgf(State != RegisteredState, TEXT("RegisterDebugDrawDelegate is already Registered!"));
 	if (State == InitializedState)
@@ -36,7 +36,7 @@ void FDebugDrawDelegateHelper::RegisterDebugDrawDelgate()
 	}
 }
 
-void FDebugDrawDelegateHelper::UnregisterDebugDrawDelgate()
+void FDebugDrawDelegateHelper::UnregisterDebugDrawDelegate()
 {
 	ensureMsgf(State != InitializedState, TEXT("UnregisterDebugDrawDelegate is in an invalid State: %i !"), State);
 	if (State == RegisteredState)
@@ -47,13 +47,13 @@ void FDebugDrawDelegateHelper::UnregisterDebugDrawDelgate()
 	}
 }
 
-void  FDebugDrawDelegateHelper::ReregisterDebugDrawDelgate()
+void  FDebugDrawDelegateHelper::ReregisterDebugDrawDelegate()
 {
 	ensureMsgf(State != UndefinedState, TEXT("ReregisterDebugDrawDelgeate is in an invalid State: %i !"), State);
 	if (State == RegisteredState)
 	{
-		UnregisterDebugDrawDelgate();
-		RegisterDebugDrawDelgate();
+		UnregisterDebugDrawDelegate();
+		RegisterDebugDrawDelegate();
 	}
 }
 

@@ -101,8 +101,8 @@ public:
 
 	void InitDelegateHelper(const FNavTestSceneProxy* InSceneProxy);
 
-	virtual void RegisterDebugDrawDelgate() override;
-	virtual void UnregisterDebugDrawDelgate() override;
+	virtual void RegisterDebugDrawDelegate() override;
+	virtual void UnregisterDebugDrawDelegate() override;
 
 protected:
 	void DrawDebugLabels(UCanvas* Canvas, APlayerController*) override;

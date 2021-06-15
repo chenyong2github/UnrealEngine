@@ -24,8 +24,8 @@ public:
 
 	void AddDelegateHelper(FDebugDrawDelegateHelper* InDebugDrawDelegateHelper);
 
-	virtual void RegisterDebugDrawDelgate() override;
-	virtual void UnregisterDebugDrawDelgate() override;
+	virtual void RegisterDebugDrawDelegate() override;
+	virtual void UnregisterDebugDrawDelegate() override;
 
 private:
 	TArray<FDebugDrawDelegateHelper*> DebugDrawDelegateHelpers;

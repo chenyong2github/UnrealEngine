@@ -331,9 +331,9 @@ void FNavTestDebugDrawDelegateHelper::InitDelegateHelper(const FNavTestSceneProx
 	bShowDiff = InSceneProxy->bShowDiff;
 }
 
-void FNavTestDebugDrawDelegateHelper::RegisterDebugDrawDelgate()
+void FNavTestDebugDrawDelegateHelper::RegisterDebugDrawDelegate()
 {
-	ensureMsgf(State != RegisteredState, TEXT("RegisterDebugDrawDelgate is already Registered!"));
+	ensureMsgf(State != RegisteredState, TEXT("RegisterDebugDrawDelegate is already Registered!"));
 	if (State == InitializedState)
 	{
 		DebugTextDrawingDelegate = FDebugDrawDelegate::CreateRaw(this, &FNavTestDebugDrawDelegateHelper::DrawDebugLabels);
@@ -342,9 +342,9 @@ void FNavTestDebugDrawDelegateHelper::RegisterDebugDrawDelgate()
 	}
 }
 
-void FNavTestDebugDrawDelegateHelper::UnregisterDebugDrawDelgate()
+void FNavTestDebugDrawDelegateHelper::UnregisterDebugDrawDelegate()
 {
-	ensureMsgf(State != InitializedState, TEXT("UnegisterDebugDrawDelgate is in an invalid State: %i !"), State);
+	ensureMsgf(State != InitializedState, TEXT("UnegisterDebugDrawDelegate is in an invalid State: %i !"), State);
 	if (State == RegisteredState)
 	{
 		check(DebugTextDrawingDelegate.IsBound());
@@ -420,7 +420,7 @@ FPrimitiveSceneProxy* UNavTestRenderingComponent::CreateSceneProxy()
 	FNavTestSceneProxy* SceneProxy2 = new FNavTestSceneProxy(this);
 #if WITH_RECAST && WITH_EDITOR
 	NavTestDebugDrawDelegateHelper.InitDelegateHelper(SceneProxy2);
-	NavTestDebugDrawDelegateHelper.ReregisterDebugDrawDelgate();
+	NavTestDebugDrawDelegateHelper.ReregisterDebugDrawDelegate();
 #endif
 	return SceneProxy2;
 }
@@ -466,14 +466,14 @@ void UNavTestRenderingComponent::CreateRenderState_Concurrent(FRegisterComponent
 	Super::CreateRenderState_Concurrent(Context);
 
 #if WITH_RECAST && WITH_EDITOR
-	NavTestDebugDrawDelegateHelper.RegisterDebugDrawDelgate();
+	NavTestDebugDrawDelegateHelper.RegisterDebugDrawDelegate();
 #endif
 }
 
 void UNavTestRenderingComponent::DestroyRenderState_Concurrent()
 {
 #if WITH_RECAST && WITH_EDITOR
-	NavTestDebugDrawDelegateHelper.UnregisterDebugDrawDelgate();
+	NavTestDebugDrawDelegateHelper.UnregisterDebugDrawDelegate();
 #endif
 
 	Super::DestroyRenderState_Concurrent();
