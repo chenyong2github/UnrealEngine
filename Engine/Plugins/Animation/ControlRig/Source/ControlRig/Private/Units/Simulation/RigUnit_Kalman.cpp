@@ -147,7 +147,6 @@ FRigUnit_KalmanTransform_Execute()
 			Location += F.GetLocation();
 			AxisX += F.TransformVectorNoScale(FVector(1.f, 0.f, 0.f));
 			AxisY += F.TransformVectorNoScale(FVector(0.f, 1.f, 0.f));
-			AxisY += F.GetLocation();
 			Scale += F.GetScale3D();
 			NumberValidEntries++;
 		}
