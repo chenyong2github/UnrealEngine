@@ -22,22 +22,25 @@ FGraphEventRef FRayTracingScene::BeginCreate(FRDGBuilder& GraphBuilder)
 {
 	WaitForTasks();
 
-	uint32 NumTotalInstances = 0;
+	NumNativeInstances = 0;
+
 	for (const FRayTracingGeometryInstance& InstanceDesc : Instances)
 	{
 		checkf(InstanceDesc.GPUTransformsSRV || InstanceDesc.NumTransforms <= uint32(InstanceDesc.Transforms.Num()),
 			TEXT("Expected at most %d ray tracing geometry instance transforms, but got %d."),
 			InstanceDesc.NumTransforms, InstanceDesc.Transforms.Num());
 
-		NumTotalInstances += InstanceDesc.NumTransforms;
+		checkf(InstanceDesc.GeometryRHI, TEXT("Ray tracing instance must have a valid geometry."));
+
+		NumNativeInstances += InstanceDesc.NumTransforms;
 	}
-	SET_DWORD_STAT(STAT_RayTracingInstances, NumTotalInstances);
+	SET_DWORD_STAT(STAT_RayTracingInstances, NumNativeInstances);
 
 	// Round up number of instances to some multiple to avoid pathological growth reallocations.
 	static constexpr uint32 AllocationGranularity = 8 * 1024;
-	NumTotalInstances = FMath::DivideAndRoundUp(NumTotalInstances, AllocationGranularity) * AllocationGranularity;
+	NumNativeInstances = FMath::DivideAndRoundUp(NumNativeInstances, AllocationGranularity) * AllocationGranularity;
 
-	SizeInfo = RHICalcRayTracingSceneSize(NumTotalInstances, ERayTracingAccelerationStructureFlags::FastTrace);
+	SizeInfo = RHICalcRayTracingSceneSize(NumNativeInstances, ERayTracingAccelerationStructureFlags::FastTrace);
 	check(SizeInfo.ResultSize < ~0u);
 
 	// Allocate GPU buffer if current one is too small or significantly larger than what we need.
