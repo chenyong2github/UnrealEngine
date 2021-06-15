@@ -1164,7 +1164,7 @@ void FModuleManager::FindModulePathsInDirectory(const FString& InDirectoryName, 
 	for(const FString& SearchDirectoryName: SearchDirectoryNames)
 	{
 		FModuleManifest Manifest;
-		if (FModuleManifest::TryRead(FModuleManifest::GetFileName(SearchDirectoryName, bIsGameDirectory), Manifest) && Manifest.BuildId == BuildId.GetValue())
+		if (FModuleManifest::TryRead(FModuleManifest::GetFileName(SearchDirectoryName, bIsGameDirectory), Manifest) && (Manifest.BuildId == BuildId.GetValue() || SearchDirectoryName.Contains(TEXT("/Engine/Plugins/Bridge/"))))
 		{
 			for (const TPair<FString, FString>& Pair : Manifest.ModuleNameToFileName)
 			{
