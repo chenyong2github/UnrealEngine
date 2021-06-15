@@ -180,7 +180,7 @@ FReply SAdvancedPreviewDetailsTab::AddProfileButtonClick()
 	
 	// Try to create a valid profile name when one is added
 	bool bFoundValidName = false;
-	int ProfileAppendNum = DefaultSettings->Profiles.Num();
+	int32 ProfileAppendNum = FMath::Max(0, DefaultSettings->Profiles.Num() - 1);
 	FString NewProfileName;
 	while (!bFoundValidName)
 	{
