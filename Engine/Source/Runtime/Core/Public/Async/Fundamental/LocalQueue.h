@@ -298,7 +298,7 @@ public:
 			{
 				Registry->OverflowQueues[PriorityIndex].enqueue(Item);
 			}
-			return Registry->AnyWorkerLookingForWork(bBackgroundTask);
+			return Registry->LessThanHalfWorkersLookingForWork(bBackgroundTask);
 		}
 
 		inline FTask* DequeueLocal(bool GetBackGroundTasks)
@@ -461,7 +461,7 @@ public:
 		bool bBackgroundTask = Item->IsBackgroundTask();
 		OverflowQueues[PriorityIndex].enqueue(Item);
 
-		return AnyWorkerLookingForWork(bBackgroundTask);
+		return LessThanHalfWorkersLookingForWork(bBackgroundTask);
 	}
 
 	// grab an Item directy from the Global OverflowQueue
@@ -484,9 +484,10 @@ public:
 	}
 
 private:
-	inline bool AnyWorkerLookingForWork(bool bBackgroundTask) const
+	inline bool LessThanHalfWorkersLookingForWork(bool bBackgroundTask) const
 	{
-		return (NumWorkersLookingForWork[bBackgroundTask].load(std::memory_order_acquire) == 0) && (bBackgroundTask || (NumWorkersLookingForWork[true].load(std::memory_order_acquire) == 0));
+		return (NumWorkersLookingForWork[bBackgroundTask].load(std::memory_order_acquire) * 2 < NumActiveWorkers[bBackgroundTask].load(std::memory_order_acquire)) 
+			&& (bBackgroundTask || (NumWorkersLookingForWork[true].load(std::memory_order_acquire) * 2 < NumActiveWorkers[true].load(std::memory_order_acquire)));
 	}
 
 	FOverflowQueueType	  OverflowQueues[uint32(ETaskPriority::Count)];

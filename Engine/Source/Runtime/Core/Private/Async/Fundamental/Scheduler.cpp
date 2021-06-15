@@ -220,7 +220,11 @@ namespace LowLevelTasks
 					QueueRegistry.Enqueue(Task, uint32(Task->GetPriority()));
 					continue;
 				}
-				OutOfWork.Stop();		
+				if (OutOfWork.Stop())
+				{
+					//if we are ramping up work again we start waking up workers that might not have been woken while a lot of work might have been queued
+					WakeUpWorker(bPermitBackgroundWork);
+				}
 				FTask* OldTask = FSchedulerTls::ActiveTask;
 				FSchedulerTls::ActiveTask = Task;
 				{
