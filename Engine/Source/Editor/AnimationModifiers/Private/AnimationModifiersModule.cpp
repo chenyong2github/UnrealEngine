@@ -103,6 +103,7 @@ void FAnimationModifiersModule::ApplyAnimationModifiers(const TArray<UAnimSequen
 	const FScopedTransaction Transaction(LOCTEXT("UndoAction_ApplyModifiers", "Applying Animation Modifier(s) to Animation Sequence(s)"));
 	
 	// Iterate over each Animation Sequence and all of its contained modifiers, applying each one
+	UE::Anim::FApplyModifiersScope Scope;
 	TArray<UAnimationModifiersAssetUserData*> AssetUserData;
 	for (UAnimSequence* AnimationSequence : InSequences)
 	{

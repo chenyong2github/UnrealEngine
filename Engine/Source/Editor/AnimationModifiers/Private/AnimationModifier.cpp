@@ -18,6 +18,22 @@
 
 #define LOCTEXT_NAMESPACE "AnimationModifier"
 
+int32 UE::Anim::FApplyModifiersScope::ScopesOpened = 0;
+TMap<FObjectKey, TOptional<EAppReturnType::Type>>  UE::Anim::FApplyModifiersScope::PerClassReturnTypeValues;
+
+TOptional<EAppReturnType::Type> UE::Anim::FApplyModifiersScope::GetReturnType(const UAnimationModifier* InModifier)
+{
+	TOptional<EAppReturnType::Type>* ReturnTypePtr = PerClassReturnTypeValues.Find(FObjectKey(InModifier->GetClass()));
+	return ReturnTypePtr ? *ReturnTypePtr : TOptional<EAppReturnType::Type>();
+}
+
+void UE::Anim::FApplyModifiersScope::SetReturnType(const UAnimationModifier* InModifier, EAppReturnType::Type InReturnType)
+{
+	const FObjectKey Key(InModifier->GetClass());
+	ensure(!PerClassReturnTypeValues.Contains(Key));
+	PerClassReturnTypeValues.Add(Key, InReturnType);
+}
+
 UAnimationModifier::UAnimationModifier()
 	: PreviouslyAppliedModifier(nullptr)
 {
@@ -35,6 +51,7 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* InAnimati
 	FCategoryLogOutputFilter OutputLog;
 	OutputLog.SetAutoEmitLineTerminator(true);
 	OutputLog.AddCategoryName("LogAnimationBlueprintLibrary");
+	OutputLog.AddCategoryName("LogAnimation");
 
 	GLog->AddOutputDevice(&OutputLog);
 		
@@ -69,17 +86,50 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* InAnimati
 	GLog->RemoveOutputDevice(&OutputLog);
 
 	// Check if warnings or errors have occurred and show dialog to user to inform her about this
-	const bool bWarningsOrErrors = OutputLog.ContainsWarnings() || OutputLog.ContainsErrors();
-	bool bShouldRevert = false;
-	if (bWarningsOrErrors)
-	{
-		static const FText WarningMessageFormat = FText::FromString("Modifier has generated warnings during a test run:\n\n{0}\nAre you sure you want to Apply it?");
-		static const FText ErrorMessageFormat = FText::FromString("Modifier has generated errors (and warnings) during a test run:\n\n{0}\nResolve the Errors before trying to Apply!");
+	const bool bWarnings = OutputLog.ContainsWarnings();
+	const bool bErrors = OutputLog.ContainsErrors();
+	bool bShouldRevert = bErrors;
+	
+	// If errors have occured - prompt user with OK and revert
+	TOptional<EAppReturnType::Type> ScopeReturnType = UE::Anim::FApplyModifiersScope::GetReturnType(this);	
+	static const FText MessageTitle = LOCTEXT("ModifierDialogTitle", "Modifier has generated errors during test run.");
+	if (bErrors)
+	{		
+		if (UE::Anim::FApplyModifiersScope::ScopesOpened == 0 || !ScopeReturnType.IsSet() || ScopeReturnType.GetValue() != EAppReturnType::Type::Ok)
+		{
+			const FText ErrorMessageFormat = FText::FormatOrdered(LOCTEXT("ModifierErrorDescription", "Modifier: {0}\nAsset: {1}\n{2}\nResolve the errors before trying to apply again."), FText::FromString(GetClass()->GetPathName()),
+				FText::FromString(CurrentAnimSequence ? CurrentAnimSequence->GetPathName() : CurrentSkeleton->GetPathName()), FText::FromString(OutputLog));
+			
+			EAppReturnType::Type ReturnValue = FMessageDialog::Open(EAppMsgType::Ok, ErrorMessageFormat, &MessageTitle);
+			UE::Anim::FApplyModifiersScope::SetReturnType(this, ReturnValue);
+		}
+	}
 
-		EAppMsgType::Type MessageType = OutputLog.ContainsErrors() ? EAppMsgType::Ok : EAppMsgType::YesNo;
-		const FText& MessageFormat = OutputLog.ContainsErrors() ? ErrorMessageFormat : WarningMessageFormat;
-		const FText MessageTitle = FText::FromString("Modifier has Generated Warnings/Errors");
-		bShouldRevert = (FMessageDialog::Open(MessageType, FText::FormatOrdered(MessageFormat, FText::FromString(OutputLog)), &MessageTitle) != EAppReturnType::Yes);
+	// If _only_ warnings have occured - check if user has previously said YesAll / NoAll and process the result
+	if (bWarnings && !bShouldRevert)
+	{
+		if (UE::Anim::FApplyModifiersScope::ScopesOpened == 0 || !ScopeReturnType.IsSet())
+		{
+			const FText WarningMessage = FText::FormatOrdered(LOCTEXT("ModifierWarningDescription", "Modifier: {0}\nAsset: {1}\n{2}\nAre you sure you want to apply it?"), FText::FromString(GetClass()->GetPathName()),
+				FText::FromString(CurrentAnimSequence ? CurrentAnimSequence->GetPathName() : CurrentSkeleton->GetPathName()), FText::FromString(OutputLog));
+
+			EAppReturnType::Type ReturnValue = FMessageDialog::Open(EAppMsgType::YesNoYesAllNoAll, WarningMessage, &MessageTitle);
+			bShouldRevert = ReturnValue == EAppReturnType::No || ReturnValue == EAppReturnType::NoAll;
+
+			// check if user response should be stored for further modifier applications
+			if(UE::Anim::FApplyModifiersScope::ScopesOpened > 0)
+			{
+				if (ReturnValue == EAppReturnType::Type::YesAll || ReturnValue == EAppReturnType::Type::NoAll)
+				{
+					UE::Anim::FApplyModifiersScope::SetReturnType(this, ReturnValue);
+				}
+			}
+		}
+		else
+		{
+			// Revert if previous user prompt return NoAll or if any errors occured previously 
+			bShouldRevert = ScopeReturnType.GetValue() == EAppReturnType::NoAll || ScopeReturnType.GetValue() == EAppReturnType::Ok;
+		}
 	}
 
 	// Revert changes if necessary, otherwise post edit and refresh animation data

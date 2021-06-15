@@ -446,6 +446,7 @@ void SAnimationModifiersTab::ApplyModifiers(const TArray<UAnimationModifier*>& M
 
 	if (bApply)
 	{
+		UE::Anim::FApplyModifiersScope Scope;
 		for (UAnimSequence* AnimSequence : AnimSequences)
 		{
 			AnimSequence->Modify();

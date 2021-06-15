@@ -4,6 +4,7 @@
 
 #include "Animation/AnimEnums.h"
 #include "Animation/AnimCurveTypes.h"
+#include "Misc/MessageDialog.h"
 #include "AnimationBlueprintLibrary.h"
 
 #include "AnimationModifier.generated.h"
@@ -85,3 +86,37 @@ private:
 	UPROPERTY()
 	TObjectPtr<UAnimationModifier> PreviouslyAppliedModifier;
 };
+
+namespace UE
+{
+	namespace Anim
+	{
+		struct FApplyModifiersScope
+		{
+			FApplyModifiersScope()
+			{
+				if (ScopesOpened == 0)
+				{				
+					PerClassReturnTypeValues.Empty();
+				}
+				++ScopesOpened;
+			}
+
+			~FApplyModifiersScope()
+			{
+				--ScopesOpened;
+				check(ScopesOpened >= 0);
+				if(ScopesOpened == 0)
+				{
+					PerClassReturnTypeValues.Empty();
+				}
+			}
+
+			static TOptional<EAppReturnType::Type> GetReturnType(const UAnimationModifier* InModifier);			
+			static void SetReturnType(const class UAnimationModifier* InModifier, EAppReturnType::Type InReturnType);
+
+			static TMap<FObjectKey, TOptional<EAppReturnType::Type>> PerClassReturnTypeValues;
+			static int32 ScopesOpened;
+		};
+	}
+}
