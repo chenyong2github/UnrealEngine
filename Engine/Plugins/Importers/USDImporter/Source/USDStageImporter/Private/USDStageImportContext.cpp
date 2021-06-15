@@ -32,7 +32,7 @@ bool FUsdStageImportContext::Init(const FString& InName, const FString& InFilePa
 	ObjectName = InName;
 	FilePath = InFilePath;
 	bIsAutomated = bInIsAutomated;
-	ImportObjectFlags = InFlags | RF_Public | RF_Standalone | RF_Transactional;
+	ImportObjectFlags = InFlags | RF_Transactional;
 	World = GEditor->GetEditorWorldContext().World();
 	PackagePath = InInitialPackagePath;
 

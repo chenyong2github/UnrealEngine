@@ -161,7 +161,7 @@ namespace UsdStageImporterImpl
 		}
 
 		FActorSpawnParameters SpawnParameters;
-		SpawnParameters.ObjectFlags = ImportContext.ImportObjectFlags;
+		SpawnParameters.ObjectFlags = ImportContext.ImportObjectFlags & ~RF_Standalone;
 		SpawnParameters.OverrideLevel = Level;
 
 		// We always spawn another scene actor regardless of collision or whether the level already has one,
@@ -581,7 +581,7 @@ namespace UsdStageImporterImpl
 		}
 
 		// Important as some assets (e.g. material instances) are created with no flags
-		MovedAsset->SetFlags(ImportContext.ImportObjectFlags);
+		MovedAsset->SetFlags(ImportContext.ImportObjectFlags | EObjectFlags::RF_Public | EObjectFlags::RF_Standalone );
 		MovedAsset->ClearFlags(EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient | EObjectFlags::RF_NonPIEDuplicateTransient);
 
 		// We need to make sure that "dirtying the final package" is not added to the transaction, because if we undo this transaction
