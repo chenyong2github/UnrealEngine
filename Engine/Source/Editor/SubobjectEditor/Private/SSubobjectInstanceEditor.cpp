@@ -254,7 +254,19 @@ void SSubobjectInstanceEditor::PasteNodes()
 	if(USubobjectDataSubsystem* System = USubobjectDataSubsystem::Get())
 	{
 		TArray<FSubobjectDataHandle> OutHandles;
-		System->PasteSubobjects(GetObjectContextHandle(), GetSelectedHandles(), nullptr, OutHandles);
+		TArray<FSubobjectDataHandle> HandlesToPasteOnto = GetSelectedHandles();
+		if (HandlesToPasteOnto.IsEmpty())
+		{
+			if (FSubobjectEditorTreeNodePtrType RootPtr = GetSceneRootNode())
+			{
+				if (RootPtr.IsValid())
+				{
+					HandlesToPasteOnto.Emplace(RootPtr->GetDataHandle());
+				}
+			}
+		}
+
+		System->PasteSubobjects(GetObjectContextHandle(), HandlesToPasteOnto, nullptr, OutHandles);
 
 		if(OutHandles.Num() > 0)
 		{
