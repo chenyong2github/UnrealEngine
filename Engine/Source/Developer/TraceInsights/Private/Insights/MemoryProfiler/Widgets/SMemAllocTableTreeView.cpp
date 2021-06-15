@@ -3,8 +3,10 @@
 #include "SMemAllocTableTreeView.h"
 
 #include "EditorStyleSet.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ISourceCodeAccessModule.h"
 #include "ISourceCodeAccessor.h"
+#include "Modules/ModuleManager.h"
 #include "SlateOptMacros.h"
 #include "Styling/CoreStyle.h"
 #include "TraceServices/AnalysisService.h"
