@@ -9,6 +9,7 @@
 #include "Containers/Map.h"
 #include "Misc/MemStack.h"
 #include "Misc/Crc.h"
+#include "UObject/NameTypes.h"
 
 #if CPUPROFILERTRACE_ENABLED
 
@@ -175,7 +176,7 @@ void FCpuProfilerTrace::OutputBeginDynamicEvent(const TCHAR* Name)
 	CPUPROFILERTRACE_OUTPUTBEGINEVENT_EPILOGUE();
 }
 
-void FCpuProfilerTrace::OutputBeginDynamicEvent(const FName Name)
+void FCpuProfilerTrace::OutputBeginDynamicEvent(const FName& Name)
 {
 	CPUPROFILERTRACE_OUTPUTBEGINEVENT_PROLOGUE();
 	uint32 SpecId = ThreadBuffer->DynamicFNameScopeNamesMap.FindRef(Name.GetComparisonIndex());
