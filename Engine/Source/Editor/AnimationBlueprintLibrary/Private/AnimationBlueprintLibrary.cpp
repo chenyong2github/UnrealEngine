@@ -916,7 +916,7 @@ void UAnimationBlueprintLibrary::ReplaceAnimNotifies(UAnimSequenceBase* Animatio
 	ReplaceAnimNotifies_Helper(AnimationSequenceBase, OldNotifyClass.Get(), NewNotifyClass.Get(), OnNotifyReplaced, FOnNotifyStateReplaced());
 }
 
-void UAnimationBlueprintLibrary::CopyAnimNotifiesFromSequence(UAnimSequenceBase* SourceAnimationSequenceBase, UAnimSequenceBase* DestinationAnimSequenceBase)
+void UAnimationBlueprintLibrary::CopyAnimNotifiesFromSequence(UAnimSequenceBase* SourceAnimationSequenceBase, UAnimSequenceBase* DestinationAnimSequenceBase, bool bDeleteExistingNotifies)
 {
 	if (SourceAnimationSequenceBase == nullptr)
 	{
@@ -933,7 +933,7 @@ void UAnimationBlueprintLibrary::CopyAnimNotifiesFromSequence(UAnimSequenceBase*
 	else
 	{
 		const bool bShowDialogs = false;
-		UE::Anim::CopyNotifies(SourceAnimationSequenceBase, DestinationAnimSequenceBase, bShowDialogs);
+		UE::Anim::CopyNotifies(SourceAnimationSequenceBase, DestinationAnimSequenceBase, bShowDialogs, bDeleteExistingNotifies);
 	}
 }
 

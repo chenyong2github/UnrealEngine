@@ -90,13 +90,14 @@ namespace Anim {
 	/**
 	* Copies over any individual curve from FRawCurveTracks to a UAnimDataModel instance targeted by the provided controller.
 	*
-	* @param	SourceAnimSeq		Animation Sequence to copy the notifies from
-	* @param	Skeleton			Animation Sequence to copy the notifies to
-	* @param	bShowDialogs		Whether or not to show any user-facing dialogs for confirmation of the copy
+	* @param	SourceAnimSeq				Animation Sequence to copy the notifies from
+	* @param	DestAnimSeq					Animation Sequence to copy the notifies to
+	* @param	bShowDialogs				Whether or not to show any user-facing dialogs for confirmation of the copy
+	* @param	bDeleteExistingNotifies		Whether or not to delete all notifies found on the destination sequence
 	*
 	* @return Whether or not the copy was succesful
 	*/
-	ENGINE_API bool CopyNotifies(const UAnimSequenceBase* SourceAnimSeq, UAnimSequenceBase* DestAnimSeq, bool bShowDialogs = true);
+	ENGINE_API bool CopyNotifies(const UAnimSequenceBase* SourceAnimSeq, UAnimSequenceBase* DestAnimSeq, bool bShowDialogs = true, bool bDeleteExistingNotifies = false);
 
 	namespace AnimationData
 	{
