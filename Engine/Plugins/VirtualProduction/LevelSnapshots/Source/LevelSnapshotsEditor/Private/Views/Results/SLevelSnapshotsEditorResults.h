@@ -103,9 +103,9 @@ struct FPropertyHandleHierarchy
 	TSharedPtr<IPropertyHandle> Handle;
 	TArray<TSharedRef<FPropertyHandleHierarchy>> DirectChildren;
 
-	// Used to identify counterparts
 	TWeakPtr<FPropertyHandleHierarchy> ParentHierarchy;
-	FLevelSnapshotPropertyChain PropertyChain;
+	// This chain is only used to identify counterparts. It may not accurately reflect the property chain used to apply this property the world.
+	FLevelSnapshotPropertyChain TempIdentifierChain;
 };
 
 struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEditorResultsRow>
@@ -224,7 +224,6 @@ struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEd
 	
 	FProperty* GetProperty() const;
 	FLevelSnapshotPropertyChain GetPropertyChain() const;
-	void SetPropertyChain(const FLevelSnapshotPropertyChain& InChain);
 
 	TSharedPtr<IDetailTreeNode> GetSnapshotPropertyNode() const;
 	TSharedPtr<IDetailTreeNode> GetWorldPropertyNode() const;

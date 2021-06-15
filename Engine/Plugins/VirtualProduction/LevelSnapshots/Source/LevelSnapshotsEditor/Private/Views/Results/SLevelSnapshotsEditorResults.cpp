@@ -73,12 +73,10 @@ FPropertyHandleHierarchy::FPropertyHandleHierarchy(
 				if (ParentHierarchy.IsValid())
 				{
 					const TSharedPtr<FPropertyHandleHierarchy> PinnedParent = ParentHierarchy.Pin();
-
-					PropertyChain = PinnedParent->PropertyChain.MakeAppended(Property);
 				}
 				else
 				{
-					PropertyChain.AppendInline(Property);
+					TempIdentifierChain.AppendInline(Property);
 				}
 			}
 		}
@@ -331,7 +329,7 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 			{
 				bool bFoundMatch = false;
 				FoundHierarchy = FindCorrespondingHandle(
-					PinnedHierarchy->PropertyChain, InHierarchyToSearchForCounterparts, bFoundMatch);
+					PinnedHierarchy->TempIdentifierChain, InHierarchyToSearchForCounterparts, bFoundMatch);
 
 				if (bFoundMatch && FoundHierarchy.IsValid() && FoundHierarchy.Pin()->Handle.IsValid() &&
 					(InRowType == FLevelSnapshotsEditorResultsRow::SinglePropertyInMap || 
@@ -398,7 +396,7 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 
 			for (TSharedRef<FPropertyHandleHierarchy> ChildHierarchy : HierarchyToSearch.Pin()->DirectChildren)
 			{
-				const bool bIsChainSame = ChildHierarchy->PropertyChain == InPropertyChain;
+				const bool bIsChainSame = ChildHierarchy->TempIdentifierChain == InPropertyChain;
 
 				if (bIsChainSame)
 				{
@@ -1183,19 +1181,32 @@ FLevelSnapshotPropertyChain FLevelSnapshotsEditorResultsRow::GetPropertyChain() 
 {
 	struct Local
 	{
-		static void RecursiveCreateChain(const FLevelSnapshotsEditorResultsRow& This, FLevelSnapshotPropertyChain& Result)
+		static void LoopThroughParentHandlesRecursivelyAndAddPropertiesToStack(const TSharedPtr<IPropertyHandle> InHandle, TArray<FProperty*>& PropertyStack)
 		{
-			const TWeakPtr<FLevelSnapshotsEditorResultsRow>& Parent = This.GetDirectParentRow();
-			
-			if (Parent.IsValid())
+			if (InHandle.IsValid())
 			{
-				if (Parent.Pin()->GetProperty())
+				if (FProperty* Property = InHandle->GetProperty())
 				{
-					RecursiveCreateChain(*Parent.Pin(), Result);
+					PropertyStack.Insert(Property, 0);
+				}
+
+				if (const TSharedPtr<IPropertyHandle> ParentHandle = InHandle->GetParentHandle())
+				{
+					LoopThroughParentHandlesRecursivelyAndAddPropertiesToStack(ParentHandle, PropertyStack);
 				}
 			}
+		}
+		
+		static void CreateChain(const FLevelSnapshotsEditorResultsRow& This, FLevelSnapshotPropertyChain& Result)
+		{
+			TArray<FProperty*> PropertyStack;
 
-			if (FProperty* Property = This.GetProperty())
+			TSharedPtr<IPropertyHandle> OutHandle;
+			This.GetFirstValidPropertyHandle(OutHandle);
+
+			LoopThroughParentHandlesRecursivelyAndAddPropertiesToStack(OutHandle, PropertyStack);
+
+			for (const FProperty* Property : PropertyStack)
 			{
 				Result.AppendInline(Property);
 			}
@@ -1203,34 +1214,10 @@ FLevelSnapshotPropertyChain FLevelSnapshotsEditorResultsRow::GetPropertyChain() 
 	};
 	
 	FLevelSnapshotPropertyChain Result;
-	
-	if (WorldPropertyHandleHierarchy)
-	{
-		Result = WorldPropertyHandleHierarchy->PropertyChain;
-	}
-	else if (SnapshotPropertyHandleHierarchy)
-	{
-		Result = SnapshotPropertyHandleHierarchy->PropertyChain;
-	}
 
-	if (Result.IsEmpty())
-	{
-		Local::RecursiveCreateChain(*this, Result);
-	}
+	Local::CreateChain(*this, Result);
 	
 	return Result;
-}
-
-void FLevelSnapshotsEditorResultsRow::SetPropertyChain(const FLevelSnapshotPropertyChain& InChain)
-{
-	if (WorldPropertyHandleHierarchy)
-	{
-		WorldPropertyHandleHierarchy->PropertyChain = InChain;
-	}
-	else if (SnapshotPropertyHandleHierarchy)
-	{
-		SnapshotPropertyHandleHierarchy->PropertyChain = InChain;
-	}
 }
 
 TSharedPtr<IDetailTreeNode> FLevelSnapshotsEditorResultsRow::GetSnapshotPropertyNode() const
@@ -2115,36 +2102,6 @@ void SLevelSnapshotsEditorResults::BuildSelectionSetFromSelectedPropertiesInEach
 			}
 
 			SelectionMap.RemoveObjectPropertiesFromMap(WorldObject);
-
-			// Hack for Post Process Volume
-			if (WorldObject->GetClass() == APostProcessVolume::StaticClass())
-			{
-				if (CheckedNodeFieldPaths.GetSelectedProperties().Num())
-				{
-					if (const FProperty* BaseProperty = CheckedNodeFieldPaths.GetSelectedProperties()[0].GetPropertyFromRoot(0))
-					{
-						for (const TSharedPtr<FLevelSnapshotsEditorResultsRow>& Node : UncheckedChildPropertyNodes)
-						{
-							// We only want to execute this hack on properties that are isnide the Settings struct.
-							// Properties on the Volume actor should not be modified.
-							if (Node->GetProperty() && Node->GetProperty()->GetOwner<UScriptStruct>())
-							{
-								FLevelSnapshotPropertyChain NewChain;
-								FLevelSnapshotPropertyChain OldChain = Node->GetPropertyChain();
-								
-								NewChain.AppendInline(BaseProperty);
-
-								for (int32 ChainItr = 0; ChainItr < OldChain.GetNumProperties(); ChainItr++)
-								{
-									NewChain.AppendInline(OldChain.GetPropertyFromRoot(ChainItr));
-								}
-
-								Node->SetPropertyChain(NewChain);
-							}
-						}
-					}
-				}
-			}
 
 			for (const FLevelSnapshotsEditorResultsRowPtr& ChildRow : UncheckedChildPropertyNodes)
 			{
