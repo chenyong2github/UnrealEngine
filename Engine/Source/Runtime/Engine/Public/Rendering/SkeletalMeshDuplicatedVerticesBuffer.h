@@ -38,7 +38,14 @@ public:
 
     bool bHasOverlappingVertices;
 
-    FDuplicatedVerticesBuffer() : DupVertData(true), DupVertIndexData(true), bHasOverlappingVertices(false) {}
+    FDuplicatedVerticesBuffer() 
+#if WITH_EDITOR
+	// Keep CPU copy in editor for geometry operations
+	: DupVertData(true), DupVertIndexData(true)
+#else
+	: DupVertData(false), DupVertIndexData(false)
+#endif
+	, bHasOverlappingVertices(false) {}
 	
     /** Destructor. */
 	virtual ~FDuplicatedVerticesBuffer() {}
@@ -91,6 +98,12 @@ public:
             FMemory::Memzero(VertData, sizeof(uint32));
         }
     }
+
+	void ReleaseCPUResources()
+	{
+		DupVertData.Discard();
+		DupVertIndexData.Discard();
+	}
 
     virtual void InitRHI() override
     {
