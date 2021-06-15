@@ -12,7 +12,6 @@ namespace UE
 {
 	namespace Interchange
 	{
-
 		struct FTextureNodeStaticData : public FBaseNodeStaticData
 		{
 			static const FAttributeKey& PayloadSourceFileKey()
@@ -20,33 +19,16 @@ namespace UE
 				static FAttributeKey AttributeKey(TEXT("__PayloadSourceFile__"));
 				return AttributeKey;
 			}
-
-			static const FString& GetBaseSourceBlocksKey()
-			{
-				static FString StringKey(TEXT("SourceBlocks"));
-				return StringKey;
-			}
 		};
 	}//ns Interchange
 }//ns UE
 
-UCLASS(BlueprintType)
+UCLASS(BlueprintType, Abstract)
 class INTERCHANGENODES_API UInterchangeTextureNode : public UInterchangeBaseNode
 {
 	GENERATED_BODY()
 
 public:
-	UInterchangeTextureNode()
-	:UInterchangeBaseNode()
-	{
-	}
-
-	virtual void PostInitProperties()
-	{
-		Super::PostInitProperties();
-		SourceBlocks.Initialize(Attributes.ToSharedRef(), UE::Interchange::FTextureNodeStaticData::GetBaseSourceBlocksKey());
-	}
-
 	/**
 	 * Return the node type name of the class, we use this when reporting error
 	 */
@@ -102,48 +84,4 @@ public:
 			LogAttributeStorageErrors(Result, TEXT("UInterchangeTextureNode.SetPayLoadKey"), UE::Interchange::FTextureNodeStaticData::PayloadSourceFileKey());
 		}
 	}
-
-	//////////////////////////////////////////////////////////////////////////
-	// UDIMs begin here
-	// UDIM base texture use a different model for the source data
-
-	/**
-	 * Get the source blocks for the texture
-	 * If the map is empty then the texture will be simply be imported as normal texture using the payload key
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture | UDIMs")
-	TMap<int32, FString> GetSourceBlocks() const
-	{
-		return SourceBlocks.ToMap();
-	}
-
-	/**
-	 * Set the source blocks
-	 * Using this will force the texture factory to consider this texture as UDIM.
-	 * @param InSourceBlocks The blocks and their source image that compose the whole texture.
-	 * The textures must be of the same format and use the same pixel format
-	 * The first block inserted in the map be used to determine the accepted texture format and pixel format
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture | UDIMs")
-	void SetSourceBlocks(const TMap<int32, FString>& InSourceBlocks)
-	{
-		SourceBlocks = InSourceBlocks;
-	}
-
-	/**
-	 * Remove the source block data from texture node
-	 * This is a easy way to stop a texture from being imported as a UDIM
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture | UDIMs")
-	void ClearSourceBlocksData()
-	{
-		SourceBlocks.Empty();
-	}
-
-	// UDIMs ends here
-	//////////////////////////////////////////////////////////////////////////
-
-protected:
-
-	UE::Interchange::TMapAttributeHelper<int32, FString> SourceBlocks;
 };

@@ -3,60 +3,61 @@
 
 #include "CoreMinimal.h"
 #include "InterchangeSourceData.h"
+#include "InterchangeTexture2DArrayNode.h"
+#include "InterchangeTexture2DNode.h"
 #include "InterchangeTextureCubeNode.h"
 #include "InterchangeTextureNode.h"
 #include "Misc/Paths.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
+#include "Templates/SubclassOf.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
-bool UE::Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer)
+namespace UE::Interchange::Private
 {
-	FString Filename = SourceData->GetFilename();
-	FPaths::NormalizeFilename(Filename);
-	if (!FPaths::FileExists(Filename))
+	bool GenericTextureTranslate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer, const TSubclassOf<UInterchangeTextureNode>& TextureNodeClass)
 	{
-		return false;
+		FString Filename = SourceData->GetFilename();
+		FPaths::NormalizeFilename(Filename);
+		if (!FPaths::FileExists(Filename))
+		{
+			return false;
+		}
+
+		UClass* Class = TextureNodeClass.Get();
+		if (!ensure(Class))
+		{
+			return false;
+		}
+
+		FString DisplayLabel = FPaths::GetBaseFilename(Filename);
+		FString NodeUID(Filename);
+		UInterchangeTextureNode* TextureNode = NewObject<UInterchangeTextureNode>(&BaseNodeContainer, Class);
+		if (!ensure(TextureNode))
+		{
+			return false;
+		}
+
+		TextureNode->InitializeNode(NodeUID, DisplayLabel, EInterchangeNodeContainerType::NodeContainerType_TranslatedAsset);
+		TextureNode->SetPayLoadKey(Filename);
+
+		BaseNodeContainer.AddNode(TextureNode);
+
+		return true;
 	}
-
-	FString DisplayLabel = FPaths::GetBaseFilename(Filename);
-	FString NodeUID(Filename);
-	UInterchangeTextureNode* TextureNode = NewObject<UInterchangeTextureNode>(&BaseNodeContainer, NAME_None);
-	if (!ensure(TextureNode))
-	{
-		return false;
-	}
-	//Creating a UTexture2D
-	TextureNode->InitializeNode(NodeUID, DisplayLabel, EInterchangeNodeContainerType::NodeContainerType_TranslatedAsset);
-	TextureNode->SetPayLoadKey(Filename);
-
-	BaseNodeContainer.AddNode(TextureNode);
-
-	return true;
 }
 
-bool UE::Interchange::FTextureTranslatorUtilities::GenericCubeTextureTranslate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer)
+bool UE::Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer)
 {
-	FString Filename = SourceData->GetFilename();
-	FPaths::NormalizeFilename(Filename);
-	if (!FPaths::FileExists(Filename))
-	{
-		return false;
-	}
+	return Private::GenericTextureTranslate(SourceData, BaseNodeContainer, UInterchangeTexture2DNode::StaticClass());
+}
 
-	FString DisplayLabel = FPaths::GetBaseFilename(Filename);
-	FString NodeUID(Filename);
-	UInterchangeTextureCubeNode* TextureCubeNode = NewObject<UInterchangeTextureCubeNode>(&BaseNodeContainer, NAME_None);
-	if (!ensure(TextureCubeNode))
-	{
-		return false;
-	}
+bool UE::Interchange::FTextureTranslatorUtilities::GenericTextureCubeTranslate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer)
+{
+	return Private::GenericTextureTranslate(SourceData, BaseNodeContainer, UInterchangeTextureCubeNode::StaticClass());
+}
 
-	//Creating a Cube Texture
-	TextureCubeNode->InitializeNode(NodeUID, DisplayLabel, EInterchangeNodeContainerType::NodeContainerType_TranslatedAsset);
-	TextureCubeNode->SetPayLoadKey(Filename);
-
-	BaseNodeContainer.AddNode(TextureCubeNode);
-
-	return true;
+bool UE::Interchange::FTextureTranslatorUtilities::GenericTexture2DArrayTranslate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer)
+{
+	return Private::GenericTextureTranslate(SourceData, BaseNodeContainer, UInterchangeTexture2DArrayNode::StaticClass());
 }

@@ -19,10 +19,13 @@ class UInterchangeSceneNode;
 class UInterchangeSkeletalMeshFactoryNode;
 class UInterchangeSkeletalMeshLodDataNode;
 class UInterchangeSkeletonFactoryNode;
+class UInterchangeTexture2DArrayFactoryNode;
+class UInterchangeTexture2DArrayNode;
 class UInterchangeTextureCubeFactoryNode;
 class UInterchangeTextureCubeNode;
 class UInterchangeTextureFactoryNode;
 class UInterchangeTextureNode;
+template<class T> class TSubclassOf;
 
 #define COMMON_CATEGORY "Common"
 #define COMMON_MESHES_CATEGORY "Common Meshes"
@@ -161,17 +164,7 @@ private:
 	/** Texture factory assets nodes */
 	TArray<UInterchangeTextureFactoryNode*> TextureFactoryNodes;
 
-
-	/** Texture cube translated assets nodes*/
-	TArray<UInterchangeTextureCubeNode*> TextureCubeNodes;
-
-	/** Texture cube factory translated assets nodes */
-	TArray<UInterchangeTextureCubeFactoryNode*> TextureCubeFactoryNodes;
-
-
-	UInterchangeTextureFactoryNode* CreateTexture2DFactoryNode(const UInterchangeTextureNode* TextureNode);
-
-	UInterchangeTextureCubeFactoryNode* CreateTextureCubeFactoryNode(const UInterchangeTextureCubeNode* TextureCubeNode);
+	UInterchangeTextureFactoryNode* CreateTextureFactoryNode(const UInterchangeTextureNode* TextureNode, const TSubclassOf<UInterchangeTextureFactoryNode>& FactorySubclass);
 	
 	/** Material translated assets nodes */
 	TArray<UInterchangeMaterialNode*> MaterialNodes;

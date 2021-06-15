@@ -97,7 +97,7 @@ bool UInterchangeDDSTranslator::Translate(const UInterchangeSourceData* SourceDa
 	}
 
 
-	FDDSLoadHelper  DDSLoadHelper(HeaderDataBuffer.GetData(), HeaderDataBuffer.Num());
+	FDDSLoadHelper DDSLoadHelper(HeaderDataBuffer.GetData(), HeaderDataBuffer.Num());
 	if (DDSLoadHelper.IsValid2DTexture())
 	{
 		return UE::Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(SourceData, BaseNodeContainer);
@@ -105,7 +105,12 @@ bool UInterchangeDDSTranslator::Translate(const UInterchangeSourceData* SourceDa
 
 	if (DDSLoadHelper.IsValidCubemapTexture())
 	{
-		return UE::Interchange::FTextureTranslatorUtilities::GenericCubeTextureTranslate(SourceData, BaseNodeContainer);
+		return UE::Interchange::FTextureTranslatorUtilities::GenericTextureCubeTranslate(SourceData, BaseNodeContainer);
+	}
+
+	if (DDSLoadHelper.IsValidArrayTexture())
+	{
+		return UE::Interchange::FTextureTranslatorUtilities::GenericTexture2DArrayTranslate(SourceData, BaseNodeContainer);
 	}
 
 	return false;

@@ -561,26 +561,26 @@ public:
 
 	/** Return false if the Attribute was not set previously.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
-	bool GetCustomAddressX(uint8& AttributeValue) const
+	virtual bool GetCustomAddressX(uint8& AttributeValue) const
 	{
 		IMPLEMENT_NODE_ATTRIBUTE_GETTER(AddressX, uint8);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
-	bool SetCustomAddressX(const uint8& AttributeValue, bool bAddApplyDelegate = true)
+	virtual bool SetCustomAddressX(const uint8 AttributeValue, bool bAddApplyDelegate = true)
 	{
 		IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeTextureFactoryNode, AddressX, uint8, UTexture2D)
 	}
 
 	/** Return false if the Attribute was not set previously.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
-	bool GetCustomAddressY(uint8& AttributeValue) const
+	virtual bool GetCustomAddressY(uint8& AttributeValue) const
 	{
 		IMPLEMENT_NODE_ATTRIBUTE_GETTER(AddressY, uint8);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture")
-	bool SetCustomAddressY(const uint8& AttributeValue, bool bAddApplyDelegate = true)
+	virtual bool SetCustomAddressY(const uint8 AttributeValue, bool bAddApplyDelegate = true)
 	{
 		IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeTextureFactoryNode, AddressY, uint8, UTexture2D)
 	}
