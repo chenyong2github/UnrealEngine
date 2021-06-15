@@ -49,7 +49,7 @@ void FDebugDrawDelegateHelper::UnregisterDebugDrawDelegate()
 
 void  FDebugDrawDelegateHelper::ReregisterDebugDrawDelegate()
 {
-	ensureMsgf(State != UndefinedState, TEXT("ReregisterDebugDrawDelgeate is in an invalid State: %i !"), State);
+	ensureMsgf(State != UndefinedState, TEXT("ReregisterDebugDrawDelegate is in an invalid State: %i !"), State);
 	if (State == RegisteredState)
 	{
 		UnregisterDebugDrawDelegate();
