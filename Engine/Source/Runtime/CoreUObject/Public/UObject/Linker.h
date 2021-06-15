@@ -4,14 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectResource.h"
-#include "Internationalization/GatherableTextData.h"
 #include "UObject/PackageFileSummary.h"
 #include "UObject/LinkerInstancingContext.h"
-#include "UObject/SavePackage.h"
 #include "Templates/RefCounting.h"
 
 class FReferenceCollector;
 class FPackagePath;
+struct FPackageSaveInfo;
+struct FGatherableTextData;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogLinker, Log, All);
 
@@ -623,7 +623,7 @@ COREUOBJECT_API void ResetLinkerExports(UPackage* InPackage);
  * Can be called after the package has finished loading.
  * Flushes async loading.
  */
-COREUOBJECT_API void ResetLoaders( UObject* InOuter );
+COREUOBJECT_API void ResetLoaders(UObject* InOuter);
 
 /** Deletes all linkers that have finished loading */
 COREUOBJECT_API void DeleteLoaders();

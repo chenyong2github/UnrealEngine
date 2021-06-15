@@ -13,7 +13,7 @@
 #include "BulkDataCommon.h"
 #include "BulkData2.h"
 #if WITH_IOSTORE_IN_EDITOR
-#include "UObject/PackageId.h"
+#include "IO/PackageId.h"
 #endif
 
 #if WITH_EDITOR == 0 && WITH_EDITORONLY_DATA == 0 //Runtime

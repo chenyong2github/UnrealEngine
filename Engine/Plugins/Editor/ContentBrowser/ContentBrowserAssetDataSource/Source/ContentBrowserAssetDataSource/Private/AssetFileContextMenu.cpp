@@ -77,6 +77,7 @@
 
 #include "Commandlets/TextAssetCommandlet.h"
 #include "Misc/FileHelper.h"
+#include "Internationalization/GatherableTextData.h"
 
 #include "ContentBrowserDataMenuContexts.h"
 

@@ -67,6 +67,11 @@ public:
 			return false;
 		}
 
+		if (!SCCProvider.IsAvailable())
+		{
+			SCCProvider.Init();
+		}
+
 		// When a source control depot is set up a file named 'payload_metainfo.txt' should be submitted to it's root.
 		// This allows us to check for the existence of the file to confirm that the depot root is indeed valid.
 		const FString PayloadMetaInfoPath = FString::Printf(TEXT("%spayload_metainfo.txt"), *DepotRoot);

@@ -630,7 +630,7 @@ namespace Cook
 		UE::Cook::FCompletionCallback LocalCompletionCallback(MoveTemp(GetCompletionCallback()));
 		if (LocalCompletionCallback)
 		{
-			LocalCompletionCallback();
+			LocalCompletionCallback(this);
 		}
 		ClearInProgressData();
 	}

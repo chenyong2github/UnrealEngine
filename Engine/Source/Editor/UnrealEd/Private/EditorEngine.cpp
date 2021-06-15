@@ -14,6 +14,7 @@
 #include "UObject/MetaData.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/ConstructorHelpers.h"
+#include "UObject/SavePackage.h"
 #include "Application/ThrottleManager.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"

@@ -7,8 +7,8 @@
 #include "Containers/Set.h"
 #include "CookRequests.h"
 #include "CookTypes.h"
+#include "CookOnTheFlyServerInterface.h"
 #include "HAL/CriticalSection.h"
-#include "INetworkFileSystemModule.h"
 #include "Misc/ScopeLock.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/NameTypes.h"
@@ -21,16 +21,7 @@ namespace UE
 {
 namespace Cook
 {
-
 	struct FPackageDatas;
-	struct FRecompileRequest;
-
-	/** Helper to pass a recompile request to game thread */
-	struct FRecompileRequest
-	{
-		struct FShaderRecompileData RecompileData;
-		volatile bool bComplete = false;
-	};
 
 	template<typename Type>
 	struct FThreadSafeQueue
@@ -43,6 +34,12 @@ namespace Cook
 		{
 			FScopeLock ScopeLock(&SynchronizationObject);
 			Items.Add(Item);
+		}
+		
+		void Enqueue(Type&& Item)
+		{
+			FScopeLock ScopeLock(&SynchronizationObject);
+			Items.Add(MoveTempIfPossible(Item));
 		}
 
 		void EnqueueUnique(const Type& Item)
@@ -201,7 +198,7 @@ namespace Cook
 		FPackageDatas& PackageDatas;
 
 		FThreadSafeUnsolicitedPackagesList UnsolicitedCookedPackages;
-		FThreadSafeQueue<FRecompileRequest*> RecompileRequests;
+		FThreadSafeQueue<FRecompileShaderRequest> RecompileRequests;
 
 		FThreadSafeSet<FName> NeverCookPackageList;
 		FThreadSafeSet<FName> UncookedEditorOnlyPackages; // set of packages that have been rejected due to being referenced by editor-only properties

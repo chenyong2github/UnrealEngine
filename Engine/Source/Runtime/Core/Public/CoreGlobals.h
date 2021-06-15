@@ -734,3 +734,6 @@ extern CORE_API TArray<FMinimalName, TInlineAllocator<3>>* GCoreComplexObjectPat
 /** Array to help visualize object handles in the debugger */
 struct FObjectHandlePackageDebugData;
 extern CORE_API FObjectHandlePackageDebugData* GCoreObjectHandlePackageDebug;
+
+/** @return True if running cook-on-the-fly. */
+bool CORE_API IsRunningCookOnTheFly();

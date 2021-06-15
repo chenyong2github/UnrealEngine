@@ -65,6 +65,11 @@ public partial class Project : CommandUtils
 					COTFCommandLine += " -ddc=" + Params.DDCGraph;
 				}
 
+				if (Params.IoStore)
+				{
+					COTFCommandLine += " -iostore";
+				}
+
 				var ServerLogFile = CombinePaths(LogFolderOutsideOfSandbox, "Server.log");
 				Platform ClientPlatformInst = Params.ClientTargetPlatformInstances[0];
 				string TargetCook = ClientPlatformInst.GetCookPlatform(false, false); // cook on he fly doesn't support server cook platform... 

@@ -203,7 +203,10 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 
 			CookServer = NewObject<UCookOnTheFlyServer>();
 			CookServer->Initialize(ECookMode::CookOnTheFlyFromTheEditor, BaseCookingFlags);
-			CookServer->StartNetworkFileServer(false);
+
+			UCookOnTheFlyServer::FCookOnTheFlyOptions CookOnTheFlyStartupOptions;
+			CookOnTheFlyStartupOptions.bBindAnyPort = false;
+			CookServer->StartCookOnTheFly(CookOnTheFlyStartupOptions);
 		}
 		else if (!ExperimentalSettings->bDisableCookInEditor)
 		{

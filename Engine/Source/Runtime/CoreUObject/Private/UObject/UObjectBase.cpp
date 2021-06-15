@@ -1044,9 +1044,7 @@ void UObjectBaseInit()
 	// FPlatformProperties::RequiresCookedData() will be false. Please note that GIsEditor and FApp::IsGame() are not valid at this point.
 	if (FPlatformProperties::RequiresCookedData())
 	{
-		FString Value;
-		bool bIsCookOnTheFly = FParse::Value(FCommandLine::Get(), TEXT("-filehostip="), Value);
-		if (bIsCookOnTheFly)
+		if (IsRunningCookOnTheFly())
 		{
 			GCreateGCClusters = false;
 		}

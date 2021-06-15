@@ -68,6 +68,7 @@
 #include "Misc/ScopeExit.h"
 #include "Misc/PackageAccessTracking.h"
 #include "Misc/PackageAccessTrackingOps.h"
+#include "IO/PackageStoreWriter.h"
 
 #if ENABLE_COOK_STATS
 #include "ProfilingDebugging/ScopedTimers.h"
@@ -4515,10 +4516,13 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 									PackageInfo.LooseFilePath	= Filename;
 									PackageInfo.HeaderSize		= HeaderSize;
 
-									SavePackageContext->PackageStoreWriter->WritePackage(PackageInfo, IoBuffer, Linker->FileRegions);
+									FPackageId PackageId = FPackageId::FromName(PackageInfo.PackageName);
+									PackageInfo.ChunkId = CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::ExportBundleData);
+
+									SavePackageContext->PackageStoreWriter->WritePackageData(PackageInfo, IoBuffer, Linker->FileRegions);
 								}
 								else
-								{
+								{		
 									EAsyncWriteOptions WriteOptions(EAsyncWriteOptions::WriteFileToDisk);
 									if (bComputeHash)
 									{
@@ -4763,12 +4767,6 @@ bool UPackage::SavePackage(UPackage* InOuter, UObject* Base, EObjectFlags TopLev
 		bWarnOfLongFilename, SaveFlags, TargetPlatform, FinalTimeStamp, bSlowTask);
 	return Result == ESavePackageResult::Success;
 }
-
-//////////////////////////////////////////////////////////////////////////
-// TODO: this should go elsewhere, this file is big enough as it is already
-//
-
-IPackageStoreWriter::~IPackageStoreWriter() = default;
 
 FSavePackageContext::~FSavePackageContext()
 {

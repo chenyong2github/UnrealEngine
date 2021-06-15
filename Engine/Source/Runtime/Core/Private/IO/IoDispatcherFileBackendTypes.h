@@ -539,10 +539,8 @@ private:
 		FCachedBlock* LruNext = nullptr;
 		uint64 Key = 0;
 		uint8* Buffer = nullptr;
-		bool bLocked = false;
 	};
 
-	FCriticalSection CriticalSection;
 	uint8* CacheMemory = nullptr;
 	TMap<uint64, FCachedBlock*> CachedBlocks;
 	FCachedBlock CacheLruHead;

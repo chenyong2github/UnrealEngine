@@ -9,6 +9,7 @@
 #include "Containers/Map.h"
 #include "IO/IoDispatcher.h"
 #include "IO/IoDispatcherFileBackendTypes.h"
+#include "ProfilingDebugging/CountersTrace.h"
 
 class FGenericFileIoStoreEventQueue
 {
@@ -48,5 +49,8 @@ private:
 
 	FCriticalSection CompletedRequestsCritical;
 	FFileIoStoreReadRequestList CompletedRequests;
+#if COUNTERSTRACE_ENABLED
+	uint64 PreviousFileHandle = 0;
+#endif
 };
 

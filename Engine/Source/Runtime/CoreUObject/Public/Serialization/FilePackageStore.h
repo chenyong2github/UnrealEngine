@@ -3,16 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/PackageId.h"
+#include "IO/PackageId.h"
 
+class IPackageStore;
 class FIoDispatcher;
-struct FPackageStoreEntry;
 
 /**
  * Package store entry array view.
  */
 template<typename T>
-class TPackageStoreEntryCArrayView
+class TFilePackageStoreEntryCArrayView
 {
 	const uint32 ArrayNum = 0;
 	const uint32 OffsetToDataFromThis = 0;
@@ -34,42 +34,17 @@ public:
 };
 
 /**
- * Package store entry.
+ * File based package store entry
  */
-struct FPackageStoreEntry
+struct FFilePackageStoreEntry
 {
 	uint64 ExportBundlesSize;
 	int32 ExportCount;
 	int32 ExportBundleCount;
 	uint32 LoadOrder;
 	uint32 Pad;
-	TPackageStoreEntryCArrayView<FPackageId> ImportedPackages;
-	TPackageStoreEntryCArrayView<FSHAHash> ShaderMapHashes;
-};
-
-/**
- * Stores information about available packages that can be loaded.
- */
-class IPackageStore
-{
-public:
-	/* Destructor. */
-	virtual ~IPackageStore() { }
-
-	/* Initialize the package store. */
-	virtual void Initialize() = 0;
-
-	/* Returns whether the package exists. */
-	virtual bool DoesPackageExist(FPackageId PackageId) = 0;
-
-	/* Get the package information for the specified package ID. */
-	virtual const FPackageStoreEntry* GetPackageEntry(FPackageId PackageId) = 0;
-
-	/* Returns the redirected package ID for the specified package ID. */
-	virtual FPackageId GetRedirectedPackageId(FPackageId PackageId) = 0;
-
-	/* Returns whether the package ID is a redirect. */
-	virtual bool IsRedirect(FPackageId PackageId) = 0;
+	TFilePackageStoreEntryCArrayView<FPackageId> ImportedPackages;
+	TFilePackageStoreEntryCArrayView<FSHAHash> ShaderMapHashes;
 };
 
 TUniquePtr<IPackageStore> MakeFilePackageStore(FIoDispatcher& IoDispatcher);

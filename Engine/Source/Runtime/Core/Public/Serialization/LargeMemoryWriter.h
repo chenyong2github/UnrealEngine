@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/UnrealString.h"
+#include "Memory/MemoryView.h"
 #include "UObject/NameTypes.h"
 #include "Serialization/MemoryArchive.h"
 #include "Serialization/LargeMemoryData.h"
@@ -39,6 +40,15 @@ public:
 	 * Returns the written data. To release this archive's ownership of the data, call ReleaseOwnership()
 	 */
 	uint8* GetData() const;
+
+	/**
+	 * Returns a view on the written data
+	 * 
+	 * The view does not own the memory, so you must make sure you keep the memory writer
+	 * alive while you are using the returned view.
+	 * 
+	 */
+	inline FMemoryView GetView() const { return MakeMemoryView(GetData(), Data.GetSize()); }
 
 	/** 
 	 * Releases ownership of the written data

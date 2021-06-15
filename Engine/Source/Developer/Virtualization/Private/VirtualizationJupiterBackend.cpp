@@ -1246,13 +1246,13 @@ struct FJupiterServiceStatus : public FJsonSerializable
 	{
 		UE_LOG(LogVirtualization, Log, TEXT("Jupiter Service Status:"));
 		UE_LOG(LogVirtualization, Log, TEXT("Version: %s"), *Version);
+		UE_LOG(LogVirtualization, Log, TEXT("Site Id: %s"), *SiteIdentifier);
 		UE_LOG(LogVirtualization, Log, TEXT("GitHash: %s"), *GitHash);		
 		UE_LOG(LogVirtualization, Log, TEXT("Capabilities:"));
 		for (const FString& Capability : Capabilities)
 		{
 			UE_LOG(LogVirtualization, Log, TEXT("\t%s"), *Capability);
-		}
-		UE_LOG(LogVirtualization, Log, TEXT("Site Id: %s"), *SiteIdentifier);
+		}	
 	}
 
 private:

@@ -528,7 +528,7 @@ public partial class Project : CommandUtils
 				if (ClientProcess == null && !String.IsNullOrEmpty(Output))
 				{
 					AllClientOutput += Output;
-					if (AllClientOutput.Contains("Game Engine Initialized") || AllClientOutput.Contains("Unreal Network File Server is ready"))
+					if (AllClientOutput.Contains("Game Engine Initialized") || AllClientOutput.Contains("Unreal Network File Server is ready") || AllClientOutput.Contains("COTF server is ready"))
 					{
 						LogInformation("Starting Client....");
 						var SC = DeployContextList[0];
@@ -629,7 +629,15 @@ public partial class Project : CommandUtils
 
 			if (Params.CookOnTheFly || Params.FileServer)
 			{
-				TempCmdLine += "-filehostip=";
+				if (Params.IoStore)
+				{
+					TempCmdLine += "-cookontheflyhost=";
+				}
+				else
+				{
+					TempCmdLine += "-filehostip=";
+				}
+
 				// add localhost first for platforms using redirection
 				const string LocalHost = "127.0.0.1";
 				if (!IsNullOrEmpty(Params.Port))
@@ -744,7 +752,15 @@ public partial class Project : CommandUtils
 						}
 					}
 				}
-				TempCmdLine += " ";
+
+				if (Params.IoStore)
+				{
+					TempCmdLine += string.Format(" -storageserverhost={0} ", Params.StorageServerHost);
+				}
+				else
+				{
+					TempCmdLine += " ";
+				}
 
 				if (Params.CookOnTheFlyStreaming)
 				{

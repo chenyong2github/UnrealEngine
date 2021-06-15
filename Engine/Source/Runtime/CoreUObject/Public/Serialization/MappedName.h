@@ -105,7 +105,7 @@ public:
 		return NameEntries.Num();
 	}
 
-	void Load(TArrayView<const uint8> NameBuffer, TArrayView<const uint8> HashBuffer, FMappedName::EType NameMapType);
+	void Load(FArchive& Ar, FMappedName::EType NameMapType);
 
 	FName GetName(const FMappedName& MappedName) const
 	{

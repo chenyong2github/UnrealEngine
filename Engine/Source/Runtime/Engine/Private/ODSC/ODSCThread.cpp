@@ -7,6 +7,7 @@
 #include "HAL/PlatformProcess.h"
 #include "HAL/RunnableThread.h"
 #include "ShaderCompiler.h"
+#include "CookOnTheFly.h"
 
 FODSCRequestPayload::FODSCRequestPayload(EShaderPlatform InShaderPlatform, const FString& InMaterialName, const FString& InVertexFactoryName, const FString& InPipelineName, const TArray<FString>& InShaderTypeNames, const FString& InRequestHash)
 	: ShaderPlatform(InShaderPlatform), MaterialName(InMaterialName), VertexFactoryName(InVertexFactoryName), PipelineName(InPipelineName), ShaderTypeNames(std::move(InShaderTypeNames)), RequestHash(InRequestHash)
@@ -197,7 +198,17 @@ void FODSCThread::Process()
 	for (FODSCMessageHandler* NextRequest : RequestsToStart)
 	{
 		// send the info, the handler will process the response (and update shaders, etc)
-		IFileManager::Get().SendMessageToServer(TEXT("RecompileShaders"), NextRequest);
+		UE::Cook::SendCookOnTheFlyRequest(
+			UE::Cook::ECookOnTheFlyMessage::RecompileShaders,
+			[NextRequest](FArchive& Request)
+			{
+				NextRequest->FillPayload(Request);
+			},
+			[NextRequest](FArchive& Response)
+			{
+				NextRequest->ProcessResponse(Response);
+				return true;
+			});
 
 		CompletedThreadedRequests.Enqueue(NextRequest);
 	}
@@ -205,18 +216,27 @@ void FODSCThread::Process()
 	// process any specific mesh material shader requests.
 	if (PayloadsToAggregate.Num())
 	{
-		FODSCMessageHandler* requestHandler = new FODSCMessageHandler(PayloadsToAggregate[0].ShaderPlatform);
+		FODSCMessageHandler* RequestHandler = new FODSCMessageHandler(PayloadsToAggregate[0].ShaderPlatform);
 		for (const FODSCRequestPayload& payload : PayloadsToAggregate)
 		{
-			requestHandler->AddPayload(payload);
+			RequestHandler->AddPayload(payload);
 		}
 
 		// send the info, the handler will process the response (and update shaders, etc)
-		IFileManager::Get().SendMessageToServer(TEXT("RecompileShaders"), requestHandler);
+		UE::Cook::SendCookOnTheFlyRequest(
+			UE::Cook::ECookOnTheFlyMessage::RecompileShaders,
+			[RequestHandler](FArchive& Request)
+			{
+				RequestHandler->FillPayload(Request);
+			},
+			[RequestHandler](FArchive& Response)
+			{
+				RequestHandler->ProcessResponse(Response);
+				return true;
+			});
 
-		CompletedThreadedRequests.Enqueue(requestHandler);
+		CompletedThreadedRequests.Enqueue(RequestHandler);
 	}
 
 	WakeupEvent->Reset();
 }
-

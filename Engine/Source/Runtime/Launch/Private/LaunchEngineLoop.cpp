@@ -74,6 +74,10 @@
 #include "IO/IoDispatcher.h"
 #endif
 
+#if WITH_COTF
+#include "CookOnTheFly.h"
+#endif
+
 #if WITH_COREUOBJECT
 	#include "Internationalization/PackageLocalizationManager.h"
 	#include "Misc/PackageName.h"
@@ -795,7 +799,22 @@ bool LaunchCheckForFileOverride(const TCHAR* CmdLine, bool& OutFileOverrideFound
 	// Get the physical platform file.
 	IPlatformFile* CurrentPlatformFile = &FPlatformFileManager::Get().GetPlatformFile();
 
+	// Try to create storage server wrapper
+	bool bIsUsingStorageServer = false;
+#if !UE_BUILD_SHIPPING
+	{
+		IPlatformFile* PlatformFile = ConditionallyCreateFileWrapper(TEXT("StorageServerClient"), CurrentPlatformFile, CmdLine);
+		if (PlatformFile)
+		{
+			CurrentPlatformFile = PlatformFile;
+			FPlatformFileManager::Get().SetPlatformFile(*CurrentPlatformFile);
+			bIsUsingStorageServer = true;
+		}
+	}
+#endif
+
 	// Try to create pak file wrapper
+	if (!bIsUsingStorageServer)
 	{
 		IPlatformFile* PlatformFile = ConditionallyCreateFileWrapper(TEXT("PakFile"), CurrentPlatformFile, CmdLine);
 		if (PlatformFile)
@@ -812,6 +831,7 @@ bool LaunchCheckForFileOverride(const TCHAR* CmdLine, bool& OutFileOverrideFound
 	}
 
 	// Try to create sandbox wrapper
+	if (!bIsUsingStorageServer)
 	{
 		IPlatformFile* PlatformFile = ConditionallyCreateFileWrapper(TEXT("SandboxFile"), CurrentPlatformFile, CmdLine);
 		if (PlatformFile)
@@ -1792,6 +1812,24 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		FShaderCodeLibrary::PreInit();
 	}
 #endif // WITH_ENGINE
+
+#if WITH_COTF
+	if (IsRunningCookOnTheFly())
+	{
+		UE::Cook::FCookOnTheFlyHostOptions CookOnTheFlyHostOptions;
+		if (GetCookOnTheFlyHost(CookOnTheFlyHostOptions))
+		{
+			using namespace UE::Cook;
+			ICookOnTheFlyModule& CookOnTheFlyModule = FModuleManager::LoadModuleChecked<ICookOnTheFlyModule>(TEXT("CookOnTheFly"));
+			const bool bConnected = CookOnTheFlyModule.ConnectToServer(CookOnTheFlyHostOptions);
+			if (!bConnected)
+			{
+				UE_LOG(LogInit, Error, TEXT("Failed to connect to cook on the fly server"));
+				return 1;
+			}
+		}
+	}
+#endif // WITH_COTF
 
 	// allow the command line to override the platform file singleton
 	bool bFileOverrideFound = false;
@@ -3913,7 +3951,7 @@ void FEngineLoop::LoadPreInitModules()
 	// Load audio editor module before engine class CDOs are loaded
 	FModuleManager::Get().LoadModule(TEXT("AudioEditor"));
 	FModuleManager::Get().LoadModule(TEXT("AnimationModifiers"));
-#endif
+#endif	
 }
 
 

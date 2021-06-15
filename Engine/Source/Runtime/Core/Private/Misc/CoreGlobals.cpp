@@ -713,3 +713,22 @@ DEFINE_LOG_CATEGORY(LogVirtualization);
 #endif
 
 #undef LOCTEXT_NAMESPACE
+
+bool IsRunningCookOnTheFly()
+{
+#if WITH_COTF
+	static struct FCookOnTheFlyCommandline
+	{
+		bool bParsed;
+		FCookOnTheFlyCommandline()
+		{
+			FString Host;
+			bParsed = FParse::Value(FCommandLine::Get(), TEXT("-CookOnTheFlyHost="), Host) || FParse::Value(FCommandLine::Get(), TEXT("-FileHostIP="), Host);
+		}
+	} CookOnTheFlyCommandline;
+	
+	return CookOnTheFlyCommandline.bParsed;
+#else
+	return false;
+#endif
+}

@@ -21,6 +21,19 @@
 TRACE_DECLARE_INT_COUNTER(IoDispatcherLatencyCircuitBreaks, TEXT("IoDispatcher/LatencyCircuitBreaks"));
 TRACE_DECLARE_INT_COUNTER(IoDispatcherSeekDistanceCircuitBreaks, TEXT("IoDispatcher/SeekDistanceCircuitBreaks"));
 TRACE_DECLARE_INT_COUNTER(IoDispatcherNumPriorityQueues, TEXT("IoDispatcher/NumPriorityQueues"));
+TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherFileBackendTotalBytesRead, TEXT("IoDispatcherFileBackend/TotalBytesRead"));
+TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherFileBackendFileSystemTotalBytesRead, TEXT("IoDispatcherFileBackend/TotalBytesReadFromFileSystem"));
+TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherFileBackendTotalBytesScattered, TEXT("IoDispatcherFileBackend/TotalBytesScattered"));
+TRACE_DECLARE_INT_COUNTER(IoDispatcherFileBackendFileSystemRequests, TEXT("IoDispatcherFileBackend/FileSystemRequests"));
+TRACE_DECLARE_INT_COUNTER(IoDispatcherFileBackendCacheHits, TEXT("IoDispatcherFileBackend/CacheHits"));
+TRACE_DECLARE_INT_COUNTER(IoDispatcherFileBackendCacheMisses, TEXT("IoDispatcherFileBackend/CacheMisses"));
+TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherFileBackendTotalBytesCached, TEXT("IoDispatcherFileBackend/CacheTotalBytesStored"));
+TRACE_DECLARE_INT_COUNTER(IoDispatcherFileBackendQueueLength, TEXT("IoDispatcherFileBackend/QueueLength"));
+TRACE_DECLARE_INT_COUNTER(IoDispatcherFileBackendSequentialReads, TEXT("IoDispatcherFileBackend/SequentialReads"));
+TRACE_DECLARE_INT_COUNTER(IoDispatcherFileBackendForwardSeeks, TEXT("IoDispatcherFileBackend/ForwardSeeks"));
+TRACE_DECLARE_INT_COUNTER(IoDispatcherFileBackendBackwardSeeks, TEXT("IoDispatcherFileBackend/BackwardSeeks"));
+TRACE_DECLARE_INT_COUNTER(IoDispatcherFileBackendSwitchContainerSeeks, TEXT("IoDispatcherFileBackend/SwitchContainerSeeks"));
+TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherFileBackendTotalSeekDistance, TEXT("IoDispatcherFileBackend/TotalSeekDistance"));
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -197,37 +210,30 @@ bool FFileIoStoreBlockCache::Read(FFileIoStoreReadRequest* Block)
 		return false;
 	}
 	check(Block->Buffer);
-	FCachedBlock* CachedBlock = nullptr;
+	FCachedBlock* CachedBlock = CachedBlocks.FindRef(Block->Key.Hash);
+	if (CachedBlock)
 	{
-		FScopeLock Lock(&CriticalSection);
-		CachedBlock = CachedBlocks.FindRef(Block->Key.Hash);
-		if (CachedBlock)
-		{
-			CachedBlock->bLocked = true;
+		CachedBlock->LruPrev->LruNext = CachedBlock->LruNext;
+		CachedBlock->LruNext->LruPrev = CachedBlock->LruPrev;
 
-			CachedBlock->LruPrev->LruNext = CachedBlock->LruNext;
-			CachedBlock->LruNext->LruPrev = CachedBlock->LruPrev;
+		CachedBlock->LruPrev = &CacheLruHead;
+		CachedBlock->LruNext = CacheLruHead.LruNext;
 
-			CachedBlock->LruPrev = &CacheLruHead;
-			CachedBlock->LruNext = CacheLruHead.LruNext;
-
-			CachedBlock->LruPrev->LruNext = CachedBlock;
-			CachedBlock->LruNext->LruPrev = CachedBlock;
-		}
+		CachedBlock->LruPrev->LruNext = CachedBlock;
+		CachedBlock->LruNext->LruPrev = CachedBlock;
 	}
 
 	if (!CachedBlock)
 	{
 		FFileIoStats::OnBlockCacheMiss(ReadBufferSize);
+		TRACE_COUNTER_INCREMENT(IoDispatcherFileBackendCacheMisses);
 		return false;
 	}
 	check(CachedBlock->Buffer);
 	FFileIoStats::OnBlockCacheHit(ReadBufferSize);
 	FMemory::Memcpy(Block->Buffer->Memory, CachedBlock->Buffer, ReadBufferSize);
-	{
-		FScopeLock Lock(&CriticalSection);
-		CachedBlock->bLocked = false;
-	}
+	TRACE_COUNTER_INCREMENT(IoDispatcherFileBackendCacheHits);
+
 	return true;
 }
 
@@ -240,40 +246,29 @@ void FFileIoStoreBlockCache::Store(const FFileIoStoreReadRequest* Block)
 	}
 	check(Block->Buffer);
 	check(Block->Buffer->Memory);
-	FCachedBlock* BlockToReplace = nullptr;
+	FCachedBlock* BlockToReplace = CacheLruTail.LruPrev;
+	if (BlockToReplace == &CacheLruHead)
 	{
-		FScopeLock Lock(&CriticalSection);
-		BlockToReplace = CacheLruTail.LruPrev;
-		while (BlockToReplace != &CacheLruHead && BlockToReplace->bLocked)
-		{
-			BlockToReplace = BlockToReplace->LruPrev;
-		}
-		if (BlockToReplace == &CacheLruHead)
-		{
-			return;
-		}
-		CachedBlocks.Remove(BlockToReplace->Key);
-		BlockToReplace->bLocked = true;
-		BlockToReplace->Key = Block->Key.Hash;
-
-		BlockToReplace->LruPrev->LruNext = BlockToReplace->LruNext;
-		BlockToReplace->LruNext->LruPrev = BlockToReplace->LruPrev;
-
-		BlockToReplace->LruPrev = &CacheLruHead;
-		BlockToReplace->LruNext = CacheLruHead.LruNext;
-
-		BlockToReplace->LruPrev->LruNext = BlockToReplace;
-		BlockToReplace->LruNext->LruPrev = BlockToReplace;
+		return;
 	}
 	check(BlockToReplace);
+	CachedBlocks.Remove(BlockToReplace->Key);
+	BlockToReplace->Key = Block->Key.Hash;
+
+	BlockToReplace->LruPrev->LruNext = BlockToReplace->LruNext;
+	BlockToReplace->LruNext->LruPrev = BlockToReplace->LruPrev;
+
+	BlockToReplace->LruPrev = &CacheLruHead;
+	BlockToReplace->LruNext = CacheLruHead.LruNext;
+
+	BlockToReplace->LruPrev->LruNext = BlockToReplace;
+	BlockToReplace->LruNext->LruPrev = BlockToReplace;
+	
 	check(BlockToReplace->Buffer);
 	FMemory::Memcpy(BlockToReplace->Buffer, Block->Buffer->Memory, ReadBufferSize);
 	FFileIoStats::OnBlockCacheStore(ReadBufferSize);
-	{
-		FScopeLock Lock(&CriticalSection);
-		BlockToReplace->bLocked = false;
-		CachedBlocks.Add(BlockToReplace->Key, BlockToReplace);
-	}
+	CachedBlocks.Add(BlockToReplace->Key, BlockToReplace);
+	TRACE_COUNTER_ADD(IoDispatcherFileBackendTotalBytesCached, ReadBufferSize);
 }
 
 bool FFileIoStoreOffsetSortedRequestQueue::RequestSortPredicate(const FFileIoStoreReadRequestSortKey& A, const FFileIoStoreReadRequestSortKey& B)
@@ -516,6 +511,7 @@ FFileIoStoreReadRequest* FFileIoStoreRequestQueue::Pop()
 	
 	check(Result->QueueStatus == FFileIoStoreReadRequest::QueueStatus_InQueue);
 	Result->QueueStatus = FFileIoStoreReadRequest::QueueStatus_Started;
+	TRACE_COUNTER_SET(IoDispatcherFileBackendQueueLength, Heap.Num());
 	return Result;
 }
 
@@ -549,6 +545,7 @@ void FFileIoStoreRequestQueue::Push(FFileIoStoreReadRequest& Request)
 	else
 	{
 		Heap.HeapPush(&Request, QueueSortFunc);
+		TRACE_COUNTER_SET(IoDispatcherFileBackendQueueLength, Heap.Num());
 	}
 }
 
@@ -573,6 +570,7 @@ void FFileIoStoreRequestQueue::Push(FFileIoStoreReadRequestList& Requests)
 		}
 	}
 
+	TRACE_COUNTER_SET(IoDispatcherFileBackendQueueLength, Heap.Num());
 }
 
 void FFileIoStoreRequestQueue::UpdateOrder()
@@ -1395,6 +1393,7 @@ void FFileIoStore::FinalizeCompressedBlock(FFileIoStoreCompressedBlock* Compress
 	{
 		FFileIoStoreBlockScatter& Scatter = CompressedBlock->ScatterList[ScatterIndex];
 		FFileIoStats::OnBytesScattered(Scatter.Size);
+		TRACE_COUNTER_ADD(IoDispatcherFileBackendTotalBytesScattered, Scatter.Size);
 		Scatter.Request->bFailed |= CompressedBlock->bFailed;
 		check(!CompressedBlock->bCancelled || !Scatter.Request->DispatcherRequest || Scatter.Request->DispatcherRequest->IsCancelled());
 		check(Scatter.Request->UnfinishedReadsCount > 0);
@@ -1426,6 +1425,7 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 		FFileIoStoreReadRequest* CompletedRequest = *It;
 
 		FFileIoStats::OnReadComplete(CompletedRequest->Size);
+		TRACE_COUNTER_ADD(IoDispatcherFileBackendTotalBytesRead, CompletedRequest->Size);
 
 		if (!CompletedRequest->ImmediateScatter.Request)
 		{
@@ -1501,6 +1501,8 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 		else
 		{
 			FFileIoStats::OnBytesScattered(CompletedRequest->ImmediateScatter.Size);
+			TRACE_COUNTER_ADD(IoDispatcherFileBackendTotalBytesScattered, CompletedRequest->ImmediateScatter.Size);
+
 
 			check(!CompletedRequest->Buffer);
 			FFileIoStoreResolvedRequest* CompletedResolvedRequest = CompletedRequest->ImmediateScatter.Request;
@@ -1856,22 +1858,15 @@ TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherFileBackendQueuedFilesystemReadBytes,	T
 // These are long term totals that grow forever and may be less useful?
 
 // IoDispatcher thread 
-// Total bytes read returned from backend whether read from disk or returned from cache 
-TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherFileBackendTotalBytesRead,				TEXT("IoDispatcherFileBackend/TotalBytesRead"));			
 // Total bytes passing through the decompression stage, even if they were not compressed
 TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherFileBackendTotalBytesUncompressedIn,	TEXT("IoDispatcherFileBackend/TotalBytesUncompressedIn"));
 // Total bytes passing through the decompression stage, even if they were not compressed
 TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherFileBackendTotalBytesUncompressedOut,	TEXT("IoDispatcherFileBackend/TotalBytesUncompressedOut"));
-// Total bytes provided into IoBuffers for users 
-TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherFileBackendTotalBytesScattered,		TEXT("IoDispatcherFileBackend/TotalBytesScattered"));
-
 // FileIoStore thread
 // Total number of reads executed through filesystem API layer (useful for calculating ratios of seeks vs sequential reads)
 TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherFileBackendTotalFilesystemReads,		TEXT("IoDispatcherFileBackend/TotalFilesystemReads"));		
 // Total bytes read from platform uncompressed or decompressed for us below the API layer
 TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherFileBackendTotalFilesystemBytesRead,	TEXT("IoDispatcherFileBackend/TotalFilesystemBytesRead"));
-// Total distance in bytes from seeks backwards and forwards
-TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherFileBackendTotalSeekDistance,			TEXT("IoDispatcherFileBackend/TotalSeekDistance"));
 // Total bytes stored in block cache including replacements
 TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherFileBackendTotalBlockCacheBytesStored,	TEXT("IoDispatcherFileBackend/TotalBlockCacheBytesStored"));
 // Total bytes retrieved from block cache

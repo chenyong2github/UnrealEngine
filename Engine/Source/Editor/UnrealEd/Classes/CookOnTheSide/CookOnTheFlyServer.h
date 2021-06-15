@@ -73,6 +73,7 @@ enum class ECookByTheBookOptions
 	IoStore =							0x00008000, // Cook for IoStore
 	CookAgainstFixedBase =				0x00010000, // If cooking DLC, assume that the base content can not be modified. 
 	DlcLoadMainAssetRegistry =			0x00020000, // If cooking DLC, populate the main game asset registry
+	ZenStore =							0x00040000, // Store cooked data in Zen Store
 
 	// Deprecated flags
 	DisableUnsolicitedPackages UE_DEPRECATED(4.26, "Use SkipSoftReferences and/or SkipHardReferences instead") = SkipSoftReferences | SkipHardReferences,
@@ -123,6 +124,7 @@ namespace Cook
 	struct FPlatformManager;
 	struct FTickStackData;
 	struct FPopulatePackageContext;
+	class ICookOnTheFlyRequestManager;
 }
 }
 
@@ -137,7 +139,25 @@ class UNREALED_API UCookOnTheFlyServer : public UObject, public FTickableEditorO
 public:
 	struct FCookByTheBookOptions;
 
+	//////////////////////////////////////////////////////////////////////////
+	// Cook on the fly startup options
+	struct FCookOnTheFlyOptions
+	{
+		/** Wether the network file server or the I/O store connection server should bind to any port */
+		bool bBindAnyPort = false;
+		/** Wether to cook for I/O store */
+		bool bIoStore = false;
+		/** Target platforms */
+		TArray<ITargetPlatform*> TargetPlatforms;
+	};
+
 private:
+	//////////////////////////////////////////////////////////////////////////
+	// Cook on the fly server interface adapter
+	class FCookOnTheFlyServerInterface;
+	friend class FCookOnTheFlyServerInterface;
+	TUniquePtr<FCookOnTheFlyServerInterface> CookOnTheFlyServerInterface;
+
 	/** Current cook mode the cook on the fly server is running in */
 	ECookMode::Type CurrentCookMode = ECookMode::CookOnTheFly;
 	/** Directory to output to instead of the default should be empty in the case of DLC cooking */ 
@@ -149,9 +169,11 @@ private:
 	//////////////////////////////////////////////////////////////////////////
 	// Cook on the fly options
 
+	FCookOnTheFlyOptions CookOnTheFlyOptions;
 	/** Cook on the fly server uses the NetworkFileServer */
 	TArray<class INetworkFileServer*> NetworkFileServers;
 	FOnFileModifiedDelegate FileModifiedDelegate;
+	TUniquePtr<UE::Cook::ICookOnTheFlyRequestManager> CookOnTheFlyRequestManager;
 
 	//////////////////////////////////////////////////////////////////////////
 	// General cook options
@@ -264,7 +286,7 @@ private:
 	void OnTargetPlatformChangedSupportedFormats(const ITargetPlatform* TargetPlatform);
 
 	/* Version of AddCookOnTheFlyPlatform that takes the Platform name instead of an ITargetPlatform*.  Returns the Platform if found */
-	const ITargetPlatform* AddCookOnTheFlyPlatform(const FString& PlatformName);
+	const ITargetPlatform* AddCookOnTheFlyPlatform(const FName& PlatformName);
 	/* Internal helper for AddCookOnTheFlyPlatform.  Initializing Platforms must be done on the tickloop thread; Platform data is read only on other threads */
 	void AddCookOnTheFlyPlatformFromGameThread(ITargetPlatform* TargetPlatform);
 
@@ -381,25 +403,23 @@ public:
 	void Initialize( ECookMode::Type DesiredCookMode, ECookInitializationFlags InCookInitializationFlags, const FString& OutputDirectoryOverride = FString() );
 
 	/**
-	* Cook on the side, cooks while also running the editor...
+	* Initialize cook on the fly server
 	*
-	* @param BindAnyPort					Whether to bind on any port or the default port.
-	* @param TargetPlatforms				If nonempty, cooking will be prepared (generate AssetRegistry, etc) for each platform in the array
+	* @param InCookOnTheFlyOptions Cook on the fly startup options
 	*
 	* @return true on success, false otherwise.
 	*/
-	bool StartNetworkFileServer( bool BindAnyPort, const TArray<ITargetPlatform*>& TargetPlatforms = TArray<ITargetPlatform*>() );
+	bool StartCookOnTheFly(FCookOnTheFlyOptions InCookOnTheFlyOptions); 
 
 	/**
 	* Broadcast our the fileserver presence on the network
 	*/
 	bool BroadcastFileserverPresence( const FGuid &InstanceId );
+	
 	/** 
-	* Stop the network file server
-	*
+	* Shutdown cook on the fly server
 	*/
-	void EndNetworkFileServer();
-
+	void ShutdownCookOnTheFly();
 
 	struct FCookByTheBookStartupOptions
 	{
@@ -552,6 +572,7 @@ public:
 	bool IsUsingShaderCodeLibrary() const;
 
 	bool IsUsingIoStore() const;
+	bool IsUsingZenStore() const;
 
 	/**
 	* Helper function returns if we are in any cook on the fly mode
@@ -732,47 +753,7 @@ private:
 	//////////////////////////////////////////////////////////////////////////
 	// cook on the fly specific functions
 
-	/**
-	 * When we get a new connection from the network make sure the version is compatible 
-	 *		Will terminate the connection if return false
-	 * 
-	 * @return return false if not compatible, true if it is
-	 */
-	bool HandleNetworkFileServerNewConnection( const FString& VersionInfo, const FString& PlatformName );
-
 	void GetCookOnTheFlyUnsolicitedFiles(const ITargetPlatform* TargetPlatform, const FString& PlatformName, TArray<FString>& UnsolicitedFiles, const FString& Filename, bool bIsCookable);
-
-	/**
-	* Cook requests for a package from network
-	*  blocks until cook is complete
-	* 
-	* @param  Filename	requested file to cook. This can be altered if cooking produces a primary output asset with a different name as with uasset/umap extension changes.
-	* @param  PlatformName platform to cook for
-	* @param  out UnsolicitedFiles return a list of files which were cooked as a result of cooking the requested package
-	*/
-	void HandleNetworkFileServerFileRequest( FString& Filename, const FString& PlatformName, TArray<FString>& UnsolicitedFiles );
-
-	/**
-	* Shader recompile request from network
-	*  blocks until shader recompile complete
-	*
-	* @param  RecompileData input params for shader compile and compiled shader output
-	*/
-	void HandleNetworkFileServerRecompileShaders(const struct FShaderRecompileData& RecompileData);
-
-	/**
-	 * Get the sandbox path we want the network file server to use
-	 */
-	FString HandleNetworkGetSandboxPath();
-
-	/**
-	 * HandleNetworkGetPrecookedList 
-	 * this is used specifically for cook on the fly with shared cooked builds
-	 * returns the list of files which are still valid in the pak file which was initially loaded
-	 * 
-	 * @param PrecookedFileList all the files which are still valid in the client pak file
-	 */
-	void HandleNetworkGetPrecookedList( const FString& PlatformName, TMap<FString, FDateTime>& PrecookedFileList );
 
 	//////////////////////////////////////////////////////////////////////////
 	// general functions
@@ -827,6 +808,11 @@ private:
 	* Initialize platforms in @param NewTargetPlatforms
 	*/
 	void InitializeTargetPlatforms(const TArrayView<ITargetPlatform* const>& NewTargetPlatforms);
+
+	/**
+	* Initialize shaders for the specified platforms when running cook on the fly.
+	*/
+	void InitializeShadersForCookOnTheFly(const TArrayView<ITargetPlatform* const>& NewTargetPlatforms);
 
 	/**
 	* Some content plugins does not support all target platforms.
