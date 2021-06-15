@@ -18,6 +18,7 @@ class UDamageType;
 UDELEGATE(BlueprintAuthorityOnly)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams( FInstigatedAnyDamageSignature, float, Damage, const UDamageType*, DamageType, AActor*, DamagedActor, AActor*, DamageCauser );
 DECLARE_MULTICAST_DELEGATE_OneParam(FPawnChangedSignature, APawn* /*NewPawn*/);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPossessedPawnChanged, APawn*, OldPawn, APawn*, NewPawn);
 
 /**
  * Controllers are non-physical actors that can possess a Pawn to control
@@ -56,6 +57,10 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FInstigatedAnyDamageSignature OnInstigatedAnyDamage;
 
+	/** Called on both authorities and clients when the possessed pawn changes (either OldPawn or NewPawn might be nullptr) */
+	UPROPERTY(BlueprintAssignable, Category=Pawn)
+	FOnPossessedPawnChanged OnPossessedPawnChanged;
+
 	/** Current gameplay state this controller is in */
 	UPROPERTY()
 	FName StateName;
@@ -80,7 +85,7 @@ private:
 	TObjectPtr<USceneComponent> TransformComponent;
 
 protected:
-	/** Delegate broadcasted when possessing a new pawn or unpossessing one */
+	/** Delegate broadcast on authorities when possessing a new pawn or unpossessing one */
 	FPawnChangedSignature OnNewPawn;
 
 	/** The control rotation of the Controller. See GetControlRotation. */
