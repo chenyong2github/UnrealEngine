@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+class IClassViewerFilter;
 class IPinTypeSelectorFilter;
 
 // Utility class for extracting namespace info from a specified Blueprint context.
@@ -39,6 +40,11 @@ public:
 	bool IsImportedObject(const UObject* InObject) const;
 	bool IsImportedObject(const FSoftObjectPath& InObjectPath) const;
 
+	TSharedPtr<IClassViewerFilter> GetClassViewerFilter() const
+	{
+		return ClassViewerFilter;
+	}
+
 	TSharedPtr<IPinTypeSelectorFilter> GetPinTypeSelectorFilter() const
 	{
 		return PinTypeSelectorFilter;
@@ -47,6 +53,9 @@ public:
 private:
 	// Complete list of all fully-qualified namespace path identifiers for the associated Blueprint.
 	TSet<FString> FullyQualifiedListOfNamespaces;
+
+	// For use with the class viewer widget in order to filter class type items by namespace.
+	TSharedPtr<IClassViewerFilter> ClassViewerFilter;
 
 	// For use with the pin type selector widget in order to filter pin type items by namespace.
 	TSharedPtr<IPinTypeSelectorFilter> PinTypeSelectorFilter;

@@ -755,9 +755,9 @@ private:
 	void ConstructInternal(const FArguments& InArgs)
 	{
 		TSharedPtr<IPinTypeSelectorFilter> CustomPinTypeFilter;
-		if (BlueprintEditorPtr.IsValid() && GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceFilteringFeatures)
+		if (BlueprintEditorPtr.IsValid())
 		{
-			CustomPinTypeFilter = BlueprintEditorPtr.Pin()->GetOrCreateNamespaceHelperForBlueprint(BlueprintObj)->GetPinTypeSelectorFilter();
+			CustomPinTypeFilter = BlueprintEditorPtr.Pin()->GetImportedPinTypeSelectorFilter();
 		}
 
 		const UEdGraphSchema* Schema = GetDefault<UEdGraphSchema_K2>();

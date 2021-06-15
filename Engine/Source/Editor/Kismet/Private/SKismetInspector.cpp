@@ -43,6 +43,7 @@
 #include "BitmaskLiteralDetails.h"
 #include "FormatTextDetails.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "ClassViewerFilter.h"
 
 #define LOCTEXT_NAMESPACE "KismetInspector"
 
@@ -349,6 +350,14 @@ void SKismetInspector::Construct(const FArguments& InArgs)
 	DetailsViewArgs.bHideSelectionTip = true;
 	DetailsViewArgs.NotifyHook = NotifyHook;
 	DetailsViewArgs.ViewIdentifier = InArgs._ViewIdentifier;
+	if (Kismet2.IsValid())
+	{
+		TSharedPtr<IClassViewerFilter> ImportedClassFilter = Kismet2->GetImportedClassViewerFilter();
+		if (ImportedClassFilter.IsValid())
+		{
+			DetailsViewArgs.ClassViewerFilters.Add(ImportedClassFilter.ToSharedRef());
+		}
+	}
 
 	PropertyView = EditModule.CreateDetailView( DetailsViewArgs );
 		
