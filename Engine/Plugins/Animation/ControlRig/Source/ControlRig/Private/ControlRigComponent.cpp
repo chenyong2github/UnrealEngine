@@ -55,6 +55,7 @@ UControlRigComponent::UControlRigComponent(const FObjectInitializer& ObjectIniti
 	bDrawBones = true;
 	bShowDebugDrawing = false;
 	bIsInsideInitializeBracket = false;
+	bWantsInitializeComponent = true;
 }
 
 #if WITH_EDITOR
@@ -80,6 +81,11 @@ void UControlRigComponent::BeginDestroy()
 
 	FScopeLock Lock(&gPendingSkeletalMeshesLock);
 	gPendingSkeletalMeshes.Remove(this);
+}
+
+void UControlRigComponent::InitializeComponent()
+{
+	Initialize();
 }
 
 void UControlRigComponent::OnRegister()
