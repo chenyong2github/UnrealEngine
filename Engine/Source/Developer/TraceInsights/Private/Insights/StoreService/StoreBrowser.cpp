@@ -101,7 +101,7 @@ void FStoreBrowser::UpdateTraces()
 	// Check if the list of trace sessions has changed.
 	{
 		const UE::Trace::FStoreClient::FStatus* Status = StoreClient->GetStatus();
-		if (StoreChangeSerial != Status->GetChangeSerial())
+		if (Status != nullptr && StoreChangeSerial != Status->GetChangeSerial())
 		{
 			StoreChangeSerial = Status->GetChangeSerial();
 
