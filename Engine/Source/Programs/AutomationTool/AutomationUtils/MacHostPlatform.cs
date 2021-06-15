@@ -175,7 +175,7 @@ namespace AutomationTool
 			// @todo: add more unsupported modules here
 			List<string> UnsupportedModules = new List<string>()
 			{
-				"GauntletExtras", "GDK", "WinGDK", "XboxCommonGDK", "XboxOneGDK", "XSX",
+				"GauntletExtras", "GDK", "WinGDK", "XboxCommon", "XboxCommonGDK", "XboxOneGDK", "XSX",
 				"FortniteGame", "PS4", "PS5", "Switch",
 			};
 			foreach (string UnsupportedModule in UnsupportedModules)
