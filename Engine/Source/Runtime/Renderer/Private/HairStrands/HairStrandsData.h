@@ -41,6 +41,8 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 struct FHairStrandsTiles
 {
+	enum class ETileType : uint8 { Hair, Other };
+
 	FIntPoint			Resolution = FIntPoint(0, 0);
 	static const uint32 GroupSize = 64;
 	static const uint32	TileSize = 8;
@@ -55,6 +57,10 @@ struct FHairStrandsTiles
 	FRDGBufferRef		TileIndirectDrawBuffer = nullptr;
 	FRDGBufferRef		TileIndirectDispatchBuffer = nullptr;
 	FRDGBufferRef		TilePerThreadIndirectDispatchBuffer = nullptr;
+
+	FRDGBufferSRVRef	TileClearSRV = nullptr;
+	FRDGBufferRef		TileClearBuffer = nullptr;
+	FRDGBufferRef		TileClearIndirectDrawBuffer = nullptr;
 
 	bool IsValid() const { return TileCount > 0 && TileDataBuffer != nullptr; }
 };

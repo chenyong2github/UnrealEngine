@@ -16,18 +16,18 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FHairStrandsTilePassVS::FParameters GetHairStrandsTileParameters(const FHairStrandsTiles& In)
+FHairStrandsTilePassVS::FParameters GetHairStrandsTileParameters(const FHairStrandsTiles& In, FHairStrandsTiles::ETileType TileType)
 {
-	return GetHairStrandsTileParameters(In, In.Resolution);
+	return GetHairStrandsTileParameters(In, In.Resolution, TileType);
 }
 
-FHairStrandsTilePassVS::FParameters GetHairStrandsTileParameters(const FHairStrandsTiles& In, const FIntPoint& InOutputResolution)
+FHairStrandsTilePassVS::FParameters GetHairStrandsTileParameters(const FHairStrandsTiles& In, const FIntPoint& InOutputResolution, FHairStrandsTiles::ETileType TileType)
 {
 	FHairStrandsTilePassVS::FParameters Out;
 	Out.bRectPrimitive			= In.bRectPrimitive ? 1 : 0;
 	Out.TileOutputResolution	= InOutputResolution;
-	Out.TileDataBuffer			= In.TileDataSRV;
-	Out.TileIndirectBuffer		= In.TileIndirectDrawBuffer;
+	Out.TileDataBuffer			= TileType == FHairStrandsTiles::ETileType::Hair ? In.TileDataSRV : In.TileClearSRV;
+	Out.TileIndirectBuffer		= TileType == FHairStrandsTiles::ETileType::Hair ? In.TileIndirectDrawBuffer : In.TileClearIndirectDrawBuffer;
 	return Out;
 }
 
@@ -50,6 +50,7 @@ class FHairStrandsTileCopyArgsPassCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileIndirectDrawBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileIndirectDispatchBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TilePerThreadIndirectDispatchBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileClearIndirectDrawBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -81,6 +82,8 @@ void AddHairStrandsCopyArgsTilesPass(
 	PassParameters->TileIndirectDispatchBuffer = GraphBuilder.CreateUAV(TileData.TileIndirectDispatchBuffer, PF_R32_UINT);
 	PassParameters->TilePerThreadIndirectDispatchBuffer = GraphBuilder.CreateUAV(TileData.TilePerThreadIndirectDispatchBuffer, PF_R32_UINT);
 
+	PassParameters->TileClearIndirectDrawBuffer = GraphBuilder.CreateUAV(TileData.TileClearIndirectDrawBuffer, PF_R32_UINT);
+
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("HairStrandsTileCopyArgs"),
@@ -105,6 +108,7 @@ class FHairStrandsTileGenerationPassCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint4>, InputTexture)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileCountBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileDataBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileClearBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -134,11 +138,14 @@ FHairStrandsTiles AddHairStrandsGenerateTilesPass(
 	Out.TileCount = Out.TileCountXY.X * Out.TileCountXY.Y;
 	Out.Resolution = InputResolution;
 	Out.bRectPrimitive = GRHISupportsRectTopology;
-	Out.TileCountBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, 1), TEXT("Hair.TileCountBuffer"));
+	Out.TileCountBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, 2), TEXT("Hair.TileCountBuffer"));
 	Out.TileIndirectDrawBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(1), TEXT("Hair.TileIndirectDrawBuffer"));
 	Out.TileIndirectDispatchBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Hair.TileIndirectDispatchBuffer"));
 	Out.TilePerThreadIndirectDispatchBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Hair.TilePerThreadIndirectDispatchBuffer"));
 	Out.TileDataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), Out.TileCount), TEXT("Hair.TileDataBuffer"));
+
+	Out.TileClearIndirectDrawBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(1), TEXT("Hair.TileClearIndirectDrawBuffer"));
+	Out.TileClearBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), Out.TileCount), TEXT("Hair.TileClearBuffer"));
 
 	FRDGBufferUAVRef TileCountUAV = GraphBuilder.CreateUAV(Out.TileCountBuffer, PF_R32_UINT);
 	AddClearUAVPass(GraphBuilder, TileCountUAV, 0u);
@@ -148,6 +155,7 @@ FHairStrandsTiles AddHairStrandsGenerateTilesPass(
 	PassParameters->ViewResolution = View.ViewRect.Size();
 	PassParameters->InputTexture = InputTexture;
 	PassParameters->TileDataBuffer = GraphBuilder.CreateUAV(Out.TileDataBuffer, PF_R16G16_UINT);
+	PassParameters->TileClearBuffer = GraphBuilder.CreateUAV(Out.TileClearBuffer, PF_R16G16_UINT);
 	PassParameters->TileCountBuffer = TileCountUAV;
 
 	FComputeShaderUtils::AddPass(
@@ -158,6 +166,7 @@ FHairStrandsTiles AddHairStrandsGenerateTilesPass(
 		FComputeShaderUtils::GetGroupCount(InputResolution, FHairStrandsTiles::TileSize));
 
 	Out.TileDataSRV = GraphBuilder.CreateSRV(Out.TileDataBuffer, PF_R16G16_UINT);
+	Out.TileClearSRV = GraphBuilder.CreateSRV(Out.TileClearBuffer, PF_R16G16_UINT);
 
 	// Initialize indirect dispatch buffer, based on the indirect draw bugger
 	AddHairStrandsCopyArgsTilesPass(GraphBuilder, View, Out);
