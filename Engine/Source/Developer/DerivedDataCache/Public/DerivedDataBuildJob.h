@@ -46,11 +46,6 @@ public:
 	/** Returns the priority of this job. */
 	virtual EPriority GetPriority() const = 0;
 
-	/** Returns the key, or null if the job was created directly from an action. */
-	virtual const FBuildKey& GetKey() const = 0;
-	/** Returns the action key, or null if the action has not been resolved yet. */
-	virtual const FBuildActionKey& GetActionKey() const = 0;
-
 	/** Returns the cache associated with this job. */
 	virtual ICache& GetCache() const = 0;
 	/** Returns the build system associated with this job. */
@@ -67,6 +62,9 @@ public:
 	virtual void BeginResolveInputData() = 0;
 	virtual void BeginExecuteRemote() = 0;
 	virtual void BeginExecuteLocal() = 0;
+
+	/** Called by the scheduler to skip remote execution and fall back to local execution if permitted. */
+	virtual void SkipExecuteRemote() = 0;
 
 	/** Called by the scheduler if it has cached output compatible with the build policy. */
 	virtual void SetOutput(const FBuildOutput& Output) = 0;
