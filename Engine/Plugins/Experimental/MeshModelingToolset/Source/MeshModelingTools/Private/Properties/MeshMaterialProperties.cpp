@@ -17,9 +17,9 @@ UNewMeshMaterialProperties::UNewMeshMaterialProperties()
 	Material = CreateDefaultSubobject<UMaterialInterface>(TEXT("MATERIAL"));
 }
 
-void UExistingMeshMaterialProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
+void UExistingMeshMaterialProperties::RestoreProperties(UInteractiveTool* RestoreToTool, const FString& CacheIdentifier)
 {
-	Super::RestoreProperties(RestoreToTool);
+	Super::RestoreProperties(RestoreToTool, CacheIdentifier);
 	Setup();
 }
 

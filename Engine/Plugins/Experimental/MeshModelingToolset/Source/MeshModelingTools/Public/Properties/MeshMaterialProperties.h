@@ -82,7 +82,7 @@ public:
 	UMaterialInstanceDynamic* CheckerMaterial = nullptr;
 
 	// Needs custom restore in order to call setup
-	virtual void RestoreProperties(UInteractiveTool* RestoreToTool) override;
+	virtual void RestoreProperties(UInteractiveTool* RestoreToTool, const FString& CacheIdentifier = TEXT("")) override;
 
 	void Setup();
 
