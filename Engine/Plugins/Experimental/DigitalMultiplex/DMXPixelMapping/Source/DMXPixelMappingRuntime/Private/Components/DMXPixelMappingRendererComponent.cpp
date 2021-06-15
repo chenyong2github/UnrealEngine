@@ -94,7 +94,7 @@ void UDMXPixelMappingRendererComponent::PostEditChangeChainProperty(FPropertyCha
 		const uint32 MaxTextureDimensions = GetMax2DTextureDimension();
 
 		if (SizeX > MaxTextureDimensions ||
-			SizeX > MaxTextureDimensions)
+			SizeY > MaxTextureDimensions)
 		{
 			SizeX = FMath::Clamp(SizeX, 0.0f, static_cast<float>(MaxTextureDimensions));
 			SizeY = FMath::Clamp(SizeY, 0.0f, static_cast<float>(MaxTextureDimensions));
@@ -106,7 +106,7 @@ void UDMXPixelMappingRendererComponent::PostEditChangeChainProperty(FPropertyCha
 	} 
 	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, InputWidget))
 	{
-		if (InputWidget && InputWidget->GetClass() != UserWidget->GetClass())
+		if (InputWidget && UserWidget && InputWidget->GetClass() != UserWidget->GetClass())
 		{
 			// UMG just tries to expand to the max possible size. Instead of using that we set a smaller, reasonable size here. 
 			// This doesn't offer a solution to the adaptive nature of UMG, but implies to the user how to deal with the issue.

@@ -6,6 +6,8 @@
 #include "DMXPixelMapping.h"
 #include "DMXPixelMappingRuntimeCommon.h"
 
+#include "UObject/Package.h"
+
 
 UDMXPixelMappingBaseComponent::UDMXPixelMappingBaseComponent()
 {}
@@ -155,7 +157,7 @@ void UDMXPixelMappingBaseComponent::AddChild(UDMXPixelMappingBaseComponent* InCo
 void UDMXPixelMappingBaseComponent::RemoveChild(UDMXPixelMappingBaseComponent* ChildComponent)
 {
 #if WITH_EDITOR
-	ensureMsgf(!ChildComponent || !Children.Contains(ChildComponent), TEXT("Trying to remove child, but %s is not a child of %s."), *ChildComponent->GetUserFriendlyName(), *GetUserFriendlyName());
+	ensureMsgf(ChildComponent || Children.Contains(ChildComponent), TEXT("Trying to remove child, but %s is not a child of %s."), *ChildComponent->GetUserFriendlyName(), *GetUserFriendlyName());
 #endif
 
 	if (ChildComponent)

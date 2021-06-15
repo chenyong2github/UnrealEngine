@@ -9,16 +9,17 @@
 #include "Layout/Visibility.h"
 
 class FDMXPixelMappingToolkit;
-class IPropertyHandle;
+struct FDMXCellAttributeGroup;
 class UDMXPixelMappingMatrixComponent;
 class UDMXEntityFixturePatch;
-class ITableRow;
-class STableViewBase;
-struct FDMXCellAttributeGroup;
-enum class EDMXColorMode : uint8;
 
-template <typename ItemType>
-class SListView;
+enum class EDMXColorMode : uint8;
+class ITableRow;
+class IPropertyHandle;
+class IPropertyUtilities;
+class STableViewBase;
+template <typename ItemType> class SListView;
+
 
 class FDMXPixelMappingDetailCustomization_Matrix
 	: public IDetailCustomization

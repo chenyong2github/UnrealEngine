@@ -2,11 +2,15 @@
 
 #pragma once
 
+#include "Components/DMXPixelMappingFixtureGroupComponent.h"
+#include "Components/DMXPixelMappingOutputComponent.h"
+
 #include "CoreMinimal.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class FDMXPixelMappingDragDropOp;
-class UDMXPixelMappingFixtureGroupComponent;
-class UDMXPixelMappingOutputComponent;
+
+class FDragDropOperation;
 
 
 /** Helper class that manages to layout group items while being dragged. Can return what is over the parent */

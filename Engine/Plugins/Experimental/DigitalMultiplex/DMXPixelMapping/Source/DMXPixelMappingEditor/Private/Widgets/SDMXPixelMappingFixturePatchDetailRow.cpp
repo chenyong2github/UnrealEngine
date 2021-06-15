@@ -6,6 +6,7 @@
 
 #include "EditorStyleSet.h"
 #include "PropertyHandle.h"
+#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 
 

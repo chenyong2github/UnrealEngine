@@ -2,9 +2,10 @@
 
 #include "SDMXPixelMappingComponentLabel.h"
 
-#include "Widgets/Layout/SScaleBox.h"
-
 #include "EditorStyleSet.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SScaleBox.h"
+#include "Widgets/Text/STextBlock.h"
 
 
 #if WITH_EDITOR

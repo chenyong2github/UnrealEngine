@@ -17,12 +17,10 @@ class FReply;
 struct FPointerEvent;
 struct FGeometry;
 class IDetailLayoutBuilder;
+class IPropertyHandle;
+class IPropertyUtilities;
 class SBorder;
-
-
-template <typename ItemType>
-class SListView;
-
+template <typename ItemType> class SListView;
 
 
 class FDMXPixelMappingDetailCustomization_FixtureGroup

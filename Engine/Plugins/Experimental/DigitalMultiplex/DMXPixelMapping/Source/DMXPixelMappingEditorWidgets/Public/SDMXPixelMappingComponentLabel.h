@@ -2,12 +2,12 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-#include "CoreMinimal.h"
-
 class SBox;
-
+class STextBlock;
 
 /** A box in pixel mapping designer. Ment to be used with DMXPixelMapingComponentWidgetWrapper */
 class DMXPIXELMAPPINGEDITORWIDGETS_API SDMXPixelMappingComponentLabel

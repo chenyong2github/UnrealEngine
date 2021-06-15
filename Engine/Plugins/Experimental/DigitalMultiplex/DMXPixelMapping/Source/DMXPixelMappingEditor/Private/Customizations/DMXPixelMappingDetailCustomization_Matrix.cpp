@@ -16,8 +16,10 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "IPropertyUtilities.h"
-#include "Misc/Attribute.h"
+#include "PropertyEditorModule.h"
 #include "Layout/Visibility.h"
+#include "Misc/Attribute.h"
+#include "Modules/ModuleManager.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingDetailCustomization_Matrix"

@@ -2,7 +2,10 @@
 
 #include "SDMXPixelMappingComponentBox.h"
 
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScaleBox.h"
+#include "Widgets/Text/STextBlock.h"
 
 
 void SDMXPixelMappingComponentBox::Construct(const FArguments& InArgs)

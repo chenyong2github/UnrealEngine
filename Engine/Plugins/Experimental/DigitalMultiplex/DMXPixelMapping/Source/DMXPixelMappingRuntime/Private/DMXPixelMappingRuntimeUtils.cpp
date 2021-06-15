@@ -8,6 +8,8 @@
 #include "Library/DMXEntityFixturePatch.h"
 #include "Modulators/DMXModulator.h"
 
+#include "UObject/UnrealType.h"
+
 
 void FDMXPixelMappingRuntimeUtils::ConvertNormalizedAttributeValueToChannelValue(UDMXEntityFixturePatch* InFixturePatch, const FDMXAttributeName& InAttributeName, float InNormalizedValue, TMap<int32, uint8>& InOutChannelToValueMap)
 {

@@ -2,11 +2,13 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-#include "CoreMinimal.h"
 
 class SBox;
+class STextBlock;
 
 
 /** A label component label in pixelmapping designer. Ment to be used with DMXPixelMapingComponentWidgetWrapper */

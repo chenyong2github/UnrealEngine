@@ -3,12 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Templates/SubclassOf.h"
 
 struct FDMXAttributeName;
 class UDMXEntityFixturePatch;
 class UDMXModulator;
 class UDMXPixelMappingBaseComponent;
 
+#if WITH_EDITOR
+struct FPropertyChangedChainEvent;
+#endif
 
 class DMXPIXELMAPPINGRUNTIME_API FDMXPixelMappingRuntimeUtils
 {

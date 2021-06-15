@@ -156,12 +156,12 @@ UDMXPixelMappingOutputComponent* UDMXPixelMapping::FindComponent(TSharedPtr<SWid
 
 void UDMXPixelMapping::RemoveComponent(UDMXPixelMappingBaseComponent* InComponent)
 {
-	ensureMsgf(!InComponent, TEXT("Trying to remove invalid component."));
+	ensureMsgf(InComponent, TEXT("Trying to remove invalid component."));
 
 	if (InComponent)
 	{
 #if WITH_EDITOR
-		ensureMsgf(!InComponent->Parent, TEXT("Trying to remove component %s but it has no valid parent."), *InComponent->GetUserFriendlyName());
+		ensureMsgf(InComponent->Parent, TEXT("Trying to remove component %s but it has no valid parent."), *InComponent->GetUserFriendlyName());
 #endif
 
 		if (UDMXPixelMappingBaseComponent* Parent = InComponent->Parent)

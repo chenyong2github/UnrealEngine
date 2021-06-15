@@ -15,6 +15,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "PropertyHandle.h"
 #include "IPropertyUtilities.h"
 #include "Layout/Visibility.h"
 #include "Widgets/Views/SListView.h"

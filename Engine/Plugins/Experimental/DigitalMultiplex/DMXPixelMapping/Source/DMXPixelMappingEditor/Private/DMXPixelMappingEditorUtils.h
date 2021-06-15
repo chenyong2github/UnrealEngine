@@ -4,6 +4,8 @@
 
 #include "DMXPixelMappingRuntimeCommon.h"
 
+#include "Layout/ArrangedWidget.h"
+
 class FDMXPixelMappingToolkit;
 class UDMXPixelMappingBaseComponent;
 class UDMXPixelMapping;
@@ -12,7 +14,7 @@ class FDMXPixelMappingComponentReference;
 class FMenuBuilder;
 
 class FDragDropEvent;
-
+class SWidget;
 
 /**
  * Shared Pixel Mapping editor functions
