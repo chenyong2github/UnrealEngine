@@ -2,10 +2,6 @@
 
 #include "DatasmithC4DDynamicImporterModule.h"
 
-#include "DatasmithC4DImporter.h"
-#include "DatasmithC4DUtils.h"
-#include "IDatasmithC4DImporter.h"
-
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"
 #include "Logging/LogMacros.h"
@@ -19,9 +15,9 @@
 #include "Widgets/Notifications/SNotificationList.h" 
 #include "Widgets/Notifications/GlobalNotification.h"
 
+#include "DatasmithC4DImporter.h"
 #ifdef _CINEWARE_SDK_
 DATASMITH_C4D_PUSH_WARNINGS
-#include "cineware.h"
 #include "cineware_api.h"
 DATASMITH_C4D_POP_WARNINGS
 #endif
@@ -34,37 +30,54 @@ DEFINE_LOG_CATEGORY(LogDatasmithC4DImport)
 
 #define TOAST_MESSAGE "Improved Cineware Import available: maxon.net/unreal"
 
+class IDatasmithC4DImporter;
+
 class FDatasmithC4DDynamicImporterModule : public IDatasmithC4DDynamicImporterModule
 {
 
 public:
-	FDatasmithC4DDynamicImporterModule() : DynanmicAvailable(-1)
+	FDatasmithC4DDynamicImporterModule() : CinewareAvailable(-1)
 	{
 	}
 
 	bool TryLoadingCineware() override
 	{
-#ifdef _CINEWARE_SDK_
-		// loading the modules happens async
-		if (!cineware::LoadCineware())
-		{
-			ShowNotification(TOAST_MESSAGE);
-			DynanmicAvailable = 0;
-			return false;
-		}
+		CinewareAvailable = 0;
 
-		// cineware::WaitForCinewareInit has to return true before calling Cineware methods
-		if (!cineware::WaitForCinewareInit())
+#ifdef _CINEWARE_SDK_
+		// Verify Cineware Dll exists before starting its initialization
+		FString CinewareDllPath = CINEWARE_LOCATION;
+		FString CinewareDllDir = FPaths::GetPath(CinewareDllPath);
+
+		FPlatformProcess::PushDllDirectory( *CinewareDllDir );
+		void* CinewareDllHandle = FPlatformProcess::GetDllHandle( *CinewareDllPath );
+		FPlatformProcess::PopDllDirectory( *CinewareDllDir );
+
+		if (CinewareDllHandle)
+		{
+			// loading the Cineware modules happens async
+			if (!cineware::LoadCineware())
+			{
+				ShowNotification(TOAST_MESSAGE);
+				return false;
+			}
+
+			// cineware::WaitForCinewareInit has to return true before calling Cineware methods
+			if (!cineware::WaitForCinewareInit())
+			{
+				ShowNotification(TOAST_MESSAGE);
+				return false;
+			}
+		}
+		else
 		{
 			ShowNotification(TOAST_MESSAGE);
-			DynanmicAvailable = 0;
 			return false;
 		}
 		
-		DynanmicAvailable = 1;
+		CinewareAvailable = 1;
 		return true;
 #else
-		DynanmicAvailable = 0;
 		return false;
 #endif
 	}
@@ -96,18 +109,21 @@ public:
 	void ShowNotification(const FString& Msg) override
 	{
 #ifdef _CINEWARE_SDK_
-		FText InfoMsg = FText::Format(LOCTEXT("DatasmithC4DImporterLoaded", "{0}"), FText::FromString(Msg));
-		UE_LOG(LogDatasmithC4DImport, Warning, TEXT("%s"), *InfoMsg.ToString());
-		
-		FNotificationInfo NotificationInfo(InfoMsg);
-		NotificationInfo.ExpireDuration = 8.0f;
-		NotificationInfo.bUseLargeFont = false;
-		auto NotificationIem = FSlateNotificationManager::Get().AddNotification(NotificationInfo);
-		
-		FPointerEvent PointerEvent;
-		FPointerEventHandler LinkEventHandler;
-		LinkEventHandler.BindRaw(this, &FDatasmithC4DDynamicImporterModule::RedirectToEndpoint);
-		NotificationIem->SetOnMouseButtonUp(LinkEventHandler);
+		if (!IsRunningCommandlet())
+		{
+			FText InfoMsg = FText::Format(LOCTEXT("DatasmithC4DImporterLoaded", "{0}"), FText::FromString(Msg));
+			UE_LOG(LogDatasmithC4DImport, Warning, TEXT("%s"), *InfoMsg.ToString());
+
+			FNotificationInfo NotificationInfo(InfoMsg);
+			NotificationInfo.ExpireDuration = 8.0f;
+			NotificationInfo.bUseLargeFont = false;
+			auto NotificationIem = FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+
+			FPointerEvent PointerEvent;
+			FPointerEventHandler LinkEventHandler;
+			LinkEventHandler.BindRaw(this, &FDatasmithC4DDynamicImporterModule::RedirectToEndpoint);
+			NotificationIem->SetOnMouseButtonUp(LinkEventHandler);
+		}
 #endif
 	}
 
@@ -118,7 +134,7 @@ private:
 	bool bDebugMode;
 
 	/** Check if can load cineware once */
-	int32 DynanmicAvailable;
+	int32 CinewareAvailable;
 };
 
 #undef LOCTEXT_NAMESPACE
