@@ -174,7 +174,6 @@ struct FGetInfo
 				return ActorDesc->GetActorName().ToString();
 			case SceneOutliner::ECustomColumnMode::PackageShortName:
 				return FPackageName::GetShortName(ActorDesc->GetActorPackage());
-			}
 			default:
 				return FString();
 			}
