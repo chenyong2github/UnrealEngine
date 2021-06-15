@@ -25,21 +25,21 @@ static TAutoConsoleVariable<float> CVarLumenHardwareRayTracingPullbackBias(
 	ECVF_RenderThreadSafe
 );
 
+bool Lumen::UseHardwareRayTracing()
+{
+#if RHI_RAYTRACING
+	return (IsRayTracingEnabled() && CVarLumenUseHardwareRayTracing.GetValueOnRenderThread() != 0);
+#else
+	return false;
+#endif
+}
+
 #if RHI_RAYTRACING
 
 #include "LumenHardwareRayTracingCommon.h"
 
 namespace Lumen
 {
-	bool UseHardwareRayTracing()
-	{
-#if RHI_RAYTRACING
-		return (IsRayTracingEnabled() && CVarLumenUseHardwareRayTracing.GetValueOnRenderThread() != 0);
-#else
-		return false;
-#endif
-	}
-
 	const TCHAR* GetRayTracedNormalModeName(int NormalMode)
 	{
 		if (NormalMode == 0)
