@@ -95,35 +95,6 @@ void CopyInterpLinearColorTrack(TSharedRef<ISequencer> Sequencer, UInterpTrackLi
 	}
 }
 
-void FColorPropertyTrackEditor::BuildTrackContextMenu( FMenuBuilder& MenuBuilder, UMovieSceneTrack* Track )
-{
-	UInterpTrackColorProp* ColorPropTrack = nullptr;
-	UInterpTrackLinearColorProp* LinearColorPropTrack = nullptr;
-	for ( UObject* CopyPasteObject : GUnrealEd->MatineeCopyPasteBuffer )
-	{
-		ColorPropTrack = Cast<UInterpTrackColorProp>( CopyPasteObject );
-		LinearColorPropTrack = Cast<UInterpTrackLinearColorProp>( CopyPasteObject );
-		if ( ColorPropTrack != nullptr || LinearColorPropTrack != nullptr )
-		{
-			break;
-		}
-	}
-	UMovieSceneColorTrack* ColorTrack = Cast<UMovieSceneColorTrack>( Track );
-	MenuBuilder.AddMenuEntry(
-		NSLOCTEXT( "Sequencer", "PasteMatineeColorTrack", "Paste Matinee Color Track" ),
-		NSLOCTEXT( "Sequencer", "PasteMatineeColorTrackTooltip", "Pastes keys from a Matinee color track into this track." ),
-		FSlateIcon(),
-		FUIAction(
-			ColorPropTrack != nullptr ? 
-			FExecuteAction::CreateStatic( &CopyInterpColorTrack, GetSequencer().ToSharedRef(), ColorPropTrack, ColorTrack ) : 
-			FExecuteAction::CreateStatic( &CopyInterpLinearColorTrack, GetSequencer().ToSharedRef(), LinearColorPropTrack, ColorTrack ),			
-			FCanExecuteAction::CreateLambda( [=]()->bool { return ((ColorPropTrack != nullptr && ColorPropTrack->GetNumKeys() > 0) || (LinearColorPropTrack != nullptr && LinearColorPropTrack->GetNumKeys() > 0)) && ColorTrack != nullptr; } ) ) );
-
-	MenuBuilder.AddMenuSeparator();
-	FKeyframeTrackEditor::BuildTrackContextMenu(MenuBuilder, Track);
-}
-
-
 bool FColorPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *Object, UMovieSceneTrack *Track, UMovieSceneSection* SectionToKey, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedTotalKeys, float Weight) const
 {
 	using namespace UE::MovieScene;

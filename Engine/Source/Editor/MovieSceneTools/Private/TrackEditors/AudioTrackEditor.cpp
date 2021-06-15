@@ -960,28 +960,6 @@ void CopyInterpSoundTrack(TSharedRef<ISequencer> Sequencer, UInterpTrackSound* M
 	}
 }
 
-void FAudioTrackEditor::BuildTrackContextMenu( FMenuBuilder& MenuBuilder, UMovieSceneTrack* Track )
-{
-	UInterpTrackSound* MatineeSoundTrack = nullptr;
-	for ( UObject* CopyPasteObject : GUnrealEd->MatineeCopyPasteBuffer )
-	{
-		MatineeSoundTrack = Cast<UInterpTrackSound>( CopyPasteObject );
-		if ( MatineeSoundTrack != nullptr )
-		{
-			break;
-		}
-	}
-	UMovieSceneAudioTrack* AudioTrack = Cast<UMovieSceneAudioTrack>( Track );
-	MenuBuilder.AddMenuEntry(
-		NSLOCTEXT( "Sequencer", "PasteMatineeSoundTrack", "Paste Matinee Sound Track" ),
-		NSLOCTEXT( "Sequencer", "PasteMatineeSoundTrackTooltip", "Pastes keys from a Matinee sound track into this track." ),
-		FSlateIcon(),
-		FUIAction(
-		FExecuteAction::CreateStatic( &CopyInterpSoundTrack, GetSequencer().ToSharedRef(), MatineeSoundTrack, AudioTrack ),
-		FCanExecuteAction::CreateLambda( [=]()->bool { return MatineeSoundTrack != nullptr && MatineeSoundTrack->Sounds.Num() > 0 && AudioTrack != nullptr; } ) ) );
-}
-
-
 const FSlateBrush* FAudioTrackEditor::GetIconBrush() const
 {
 	return FEditorStyle::GetBrush("Sequencer.Tracks.Audio");
