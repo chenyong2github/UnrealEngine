@@ -261,7 +261,7 @@ public:
 		}
 		else
 		{
-			PlatformInfo = PlatformInfo::FindPlatformInfo(AllPlatformPackagingSettings->GetTargetFlavorForPlatform(IniPlatformName));
+			PlatformInfo = PlatformInfo::FindPlatformInfo(AllPlatformPackagingSettings->GetTargetPlatformForPlatform(IniPlatformName));
 		}
 		// this is unexpected to be able to happen, but it could if there was a bad value saved in the UProjectPackagingSettings - if this trips, we should handle errors
 		check(PlatformInfo != nullptr);
@@ -441,38 +441,14 @@ public:
 			}
 
 			// use AllPlatformPackagingSettings because these are user settings, and not checked in for all users to use
-			FString BuildTarget = AllPlatformPackagingSettings->GetBuildTargetForPlatform(IniPlatformName);
-			if (BuildTarget.IsEmpty())
+			const UProjectPackagingSettings::FConfigurationInfo& ConfigurationInfo = UProjectPackagingSettings::ConfigurationInfo[(int)AllPlatformPackagingSettings->GetBuildConfigurationForPlatform(IniPlatformName)];
+			if (PlatformInfo->PlatformType == EBuildTargetType::Server)
 			{
-				BuildTarget = AllPlatformPackagingSettings->BuildTarget;
-			}
-			
-
-			EProjectPackagingBuildConfigurations BuildConfig = AllPlatformPackagingSettings->GetBuildConfigurationForPlatform(IniPlatformName);
-			// if PPBC_MAX is set, then the project default should be used instead of the per platform build config
-			if (BuildConfig == EProjectPackagingBuildConfigurations::PPBC_MAX)
-			{
-				BuildConfig = AllPlatformPackagingSettings->BuildConfiguration;
-			}
-
-			// when distribution is set, always package in shipping, which overrides the per platform build config
-			if (PackagingSettings->ForDistribution)
-			{
-				BuildConfig = EProjectPackagingBuildConfigurations::PPBC_Shipping;
-			}
-			
-			const UProjectPackagingSettings::FConfigurationInfo& ConfigurationInfo = UProjectPackagingSettings::ConfigurationInfo[(int)BuildConfig];
-			if (BuildTarget.IsEmpty())
-			{
-				BuildCookRunParams += FString::Printf(TEXT(" -clientconfig=%s"), LexToString(ConfigurationInfo.Configuration));
-			}
-			else if (PlatformInfo->PlatformType == EBuildTargetType::Server)
-			{
-				BuildCookRunParams += FString::Printf(TEXT(" -target=%s -serverconfig=%s"), *BuildTarget, LexToString(ConfigurationInfo.Configuration));
+				BuildCookRunParams += FString::Printf(TEXT(" -serverconfig=%s"), LexToString(ConfigurationInfo.Configuration));
 			}
 			else
 			{
-				BuildCookRunParams += FString::Printf(TEXT(" -target=%s -clientconfig=%s"), *BuildTarget, LexToString(ConfigurationInfo.Configuration));
+				BuildCookRunParams += FString::Printf(TEXT(" -clientconfig=%s"), LexToString(ConfigurationInfo.Configuration));
 			}
 		}
 // 		else if (Mode == EPrepareContentMode::PrepareForDebugging)
@@ -530,7 +506,7 @@ public:
 
 	static void ExecuteCustomBuild(FName IniPlatformName, FProjectBuildSettings Build)
 	{
-		const PlatformInfo::FTargetPlatformInfo* PlatformInfo = PlatformInfo::FindPlatformInfo(GetDefault<UProjectPackagingSettings>()->GetTargetFlavorForPlatform(IniPlatformName));
+		const PlatformInfo::FTargetPlatformInfo* PlatformInfo = PlatformInfo::FindPlatformInfo(GetDefault<UProjectPackagingSettings>()->GetTargetPlatformForPlatform(IniPlatformName));
 		const FString ProjectPath = GetProjectPathForTurnkey();
 
 		FString CommandLine;
@@ -560,48 +536,26 @@ public:
 		return true;
 	}
 
-	static bool DefaultPackageBuildConfigurationIsChecked(EProjectPackagingBuildConfigurations BuildConfiguration)
+	static bool PackageBuildConfigurationIsChecked(const PlatformInfo::FTargetPlatformInfo* Info, EProjectPackagingBuildConfigurations BuildConfiguration)
 	{
-		return BuildConfiguration == EProjectPackagingBuildConfigurations::PPBC_MAX;
+		return GetDefault<UProjectPackagingSettings>()->GetBuildConfigurationForPlatform(Info->IniPlatformName) == BuildConfiguration;
 	}
 
-	static bool PackageBuildConfigurationIsChecked(const PlatformInfo::FTargetPlatformInfo* Info, EProjectPackagingBuildConfigurations BuildConfiguration, EProjectPackagingBuildConfigurations DefaultBuildConfiguration)
-	{
-		return DefaultBuildConfiguration != EProjectPackagingBuildConfigurations::PPBC_MAX && GetDefault<UProjectPackagingSettings>()->GetBuildConfigurationForPlatform(Info->IniPlatformName) == BuildConfiguration;
-	}	
-	
-	static void SetActiveFlavor(const PlatformInfo::FTargetPlatformInfo* Info)
+	static void SetActiveTargetPlatform(const PlatformInfo::FTargetPlatformInfo* Info)
 	{
 		UProjectPackagingSettings* PackagingSettings = GetMutableDefault<UProjectPackagingSettings>();
-		PackagingSettings->SetTargetFlavorForPlatform(Info->IniPlatformName, Info->Name);
+		PackagingSettings->SetTargetPlatformForPlatform(Info->IniPlatformName, Info->Name);
 		PackagingSettings->SaveConfig();
 	}
 
-	static bool CanSetActiveFlavor(const PlatformInfo::FTargetPlatformInfo* Info)
+	static bool CanSetActiveTargetPlatform(const PlatformInfo::FTargetPlatformInfo* Info)
 	{
 		return true;
 	}
 
-	static bool SetActiveFlavorIsChecked(const PlatformInfo::FTargetPlatformInfo* Info)
+	static bool SetActiveTargetPlatformIsChecked(const PlatformInfo::FTargetPlatformInfo* Info)
 	{
-		return GetDefault<UProjectPackagingSettings>()->GetTargetFlavorForPlatform(Info->IniPlatformName) == Info->Name;
-	}
-
-	static void PackageBuildTarget(const PlatformInfo::FTargetPlatformInfo* Info, FString TargetName)
-	{
-		UProjectPackagingSettings* PackagingSettings = GetMutableDefault<UProjectPackagingSettings>();
-		PackagingSettings->SetBuildTargetForPlatform(Info->IniPlatformName, TargetName);
-		PackagingSettings->SaveConfig();
-	}
-	
-	static bool PackageBuildTargetIsChecked(const PlatformInfo::FTargetPlatformInfo* Info, FString TargetName, FString DefaultTargetName)
-	{
-		return !DefaultTargetName.IsEmpty() && GetDefault<UProjectPackagingSettings>()->GetBuildTargetForPlatform(Info->IniPlatformName) == TargetName;
-	}
-
-	static bool DefaultPackageBuildTargetIsChecked(FString TargetName)
-	{
-		return TargetName.IsEmpty();
+		return GetDefault<UProjectPackagingSettings>()->GetTargetPlatformForPlatform(Info->IniPlatformName) == Info->Name;
 	}
 
 	static void SetCookOnTheFly()
@@ -954,157 +908,63 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatform
 
 		MenuBuilder.EndSection();
 
-		UProjectPackagingSettings* AllPlatformPackagingSettings = GetMutableDefault<UProjectPackagingSettings>();
 
-		// Flavor Selection exists for Android to be able to package ASTC, DXT, ETC2, etc
-		{
-			// gather all valid flavors
-			const TArray<const PlatformInfo::FTargetPlatformInfo*> ValidFlavors = VanillaInfo->Flavors.FilterByPredicate([](const PlatformInfo::FTargetPlatformInfo* Target)
-				{
-					// Editor isn't a valid platform type that users can target
-					// The Build Target will choose client or server, so no need to show them as well
-					return Target->PlatformType != EBuildTargetType::Editor && Target->PlatformType != EBuildTargetType::Client && Target->PlatformType != EBuildTargetType::Server;
-				});
+		MenuBuilder.BeginSection("BuildConfig", LOCTEXT("TurnkeySection_BuildConfig", "Binary Configuration"));
+			EProjectType ProjectType = FTurnkeyEditorSupport::DoesProjectHaveCode() ? EProjectType::Code : EProjectType::Content;
+			TArray<EProjectPackagingBuildConfigurations> PackagingConfigurations = UProjectPackagingSettings::GetValidPackageConfigurations();
 
-			if (ValidFlavors.Num() > 1)
+			for (EProjectPackagingBuildConfigurations PackagingConfiguration : PackagingConfigurations)
 			{
-				// Set the first flavor as the default if it hasn't been set
-				FName CurrentFlavor = AllPlatformPackagingSettings->GetTargetFlavorForPlatform(IniPlatformName);
-				if (CurrentFlavor == VanillaInfo->Name)
-				{
-					FTurnkeySupportCallbacks::SetActiveFlavor(ValidFlavors[0]);
-				}
-				
-				MenuBuilder.BeginSection("FlavorSelection", LOCTEXT("TurnkeySection_FlavorSelection", "Flavor Selection"));
-				
-				for (const PlatformInfo::FTargetPlatformInfo* Info : ValidFlavors)
+				const UProjectPackagingSettings::FConfigurationInfo& ConfigurationInfo = UProjectPackagingSettings::ConfigurationInfo[(int)PackagingConfiguration];
+				if (FInstalledPlatformInfo::Get().IsValid(TOptional<EBuildTargetType>(), TOptional<FString>(), ConfigurationInfo.Configuration, ProjectType, EInstalledPlatformState::Downloaded))
 				{
 					MenuBuilder.AddMenuEntry(
-						Info->DisplayName,
-						FText(),
+						ConfigurationInfo.Name,
+						ConfigurationInfo.ToolTip,
 						FSlateIcon(),
 						FUIAction(
-							FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::SetActiveFlavor, Info),
-							FCanExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CanSetActiveFlavor, Info),
-							FIsActionChecked::CreateStatic(&FTurnkeySupportCallbacks::SetActiveFlavorIsChecked, Info)
+							FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::PackageBuildConfiguration, VanillaInfo, PackagingConfiguration),
+							FCanExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CanPackageBuildConfiguration, VanillaInfo, PackagingConfiguration),
+							FIsActionChecked::CreateStatic(&FTurnkeySupportCallbacks::PackageBuildConfigurationIsChecked, VanillaInfo, PackagingConfiguration)
 						),
 						NAME_None,
 						EUserInterfaceActionType::RadioButton
 					);
 				}
-				MenuBuilder.EndSection();
 			}
-		}
+		MenuBuilder.EndSection();
 
-		MenuBuilder.BeginSection("BuildConfig", LOCTEXT("TurnkeySection_BuildConfig", "Binary Configuration"));
-
-		// Get the enum metadata to display the correct menu name
-		EProjectPackagingBuildConfigurations DefaultBuildConfiguration = AllPlatformPackagingSettings->GetBuildConfigurationForPlatform(IniPlatformName);
-
-		UEnum* Enum = StaticEnum<EProjectPackagingBuildConfigurations>();
-		check(Enum);
-		FString Metadata = Enum->GetMetaData(TEXT("DisplayName"), (int32)AllPlatformPackagingSettings->BuildConfiguration);
-
-		MenuBuilder.AddMenuEntry(
-			FText::Format(LOCTEXT("DefaultConfiguration",  "Use Project Setting ({0})"), FText::FromString(Metadata)),
-			FText::Format(LOCTEXT("DefaultConfigurationTooltip", "Package the game in {0} configuration"), FText::FromString(Metadata)),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::PackageBuildConfiguration, VanillaInfo, EProjectPackagingBuildConfigurations::PPBC_MAX),
-				FCanExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CanPackageBuildConfiguration, VanillaInfo, DefaultBuildConfiguration),
-				FIsActionChecked::CreateStatic(&FTurnkeySupportCallbacks::DefaultPackageBuildConfigurationIsChecked, DefaultBuildConfiguration)
-			),
-			NAME_None,
-			EUserInterfaceActionType::RadioButton
-		);
-
-		EProjectType ProjectType = FTurnkeyEditorSupport::DoesProjectHaveCode() ? EProjectType::Code : EProjectType::Content;
-		TArray<EProjectPackagingBuildConfigurations> PackagingConfigurations = UProjectPackagingSettings::GetValidPackageConfigurations();
-
-		for (EProjectPackagingBuildConfigurations PackagingConfiguration : PackagingConfigurations)
+		// Binary builds can't compile for Client, Server or Editor so that leaves only the default option. No point creating a section for one option. 
+		if (!FApp::IsEngineInstalled())
 		{
-			const UProjectPackagingSettings::FConfigurationInfo& ConfigurationInfo = UProjectPackagingSettings::ConfigurationInfo[(int)PackagingConfiguration];
-			if (FInstalledPlatformInfo::Get().IsValid(TOptional<EBuildTargetType>(), TOptional<FString>(), ConfigurationInfo.Configuration, ProjectType, EInstalledPlatformState::Downloaded))
+			MenuBuilder.BeginSection("TargetSelection", LOCTEXT("TurnkeySection_TargetSelection", "Target Selection"));
+			
+			// gather all platform infos
+			TArray<const PlatformInfo::FTargetPlatformInfo*> AllTargets = { VanillaInfo };
+			AllTargets.Append(VanillaInfo->Flavors);
+			
+			for (const PlatformInfo::FTargetPlatformInfo* Info : AllTargets)
 			{
+				// Editor isn't a valid platform type that users can target
+				if (Info->PlatformType == EBuildTargetType::Editor)
+				{
+					continue;
+				}
+				
 				MenuBuilder.AddMenuEntry(
-					ConfigurationInfo.Name,
-					ConfigurationInfo.ToolTip,
+					Info->DisplayName,
+					FText(),
 					FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::PackageBuildConfiguration, VanillaInfo, PackagingConfiguration),
-						FCanExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CanPackageBuildConfiguration, VanillaInfo, PackagingConfiguration),
-						FIsActionChecked::CreateStatic(&FTurnkeySupportCallbacks::PackageBuildConfigurationIsChecked, VanillaInfo, PackagingConfiguration, DefaultBuildConfiguration)
+						FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::SetActiveTargetPlatform, Info),
+						FCanExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::CanSetActiveTargetPlatform, Info),
+						FIsActionChecked::CreateStatic(&FTurnkeySupportCallbacks::SetActiveTargetPlatformIsChecked, Info)
 					),
 					NAME_None,
 					EUserInterfaceActionType::RadioButton
 				);
 			}
-		}
-		MenuBuilder.EndSection();
-
-		IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
-		// Remove empty "Build Targets" menu item for content projects.
-		if (DesktopPlatform->GetTargetsForCurrentProject().Num() > 0)
-		{
-			TArray<FTargetInfo> Targets = DesktopPlatform->GetTargetsForCurrentProject();
-
-			Targets.Sort([](const FTargetInfo& A, const FTargetInfo& B) { return A.Name < B.Name; });
-			
-			const TArray<FTargetInfo> ValidTargets = Targets.FilterByPredicate([](const FTargetInfo& Target)
-				{
-					return Target.Type == EBuildTargetType::Game || Target.Type == EBuildTargetType::Client || Target.Type == EBuildTargetType::Server;
-				});
-
-			if (ValidTargets.Num() > 1)
-			{
-				// Set BuildTarget to default to Game if it hasn't been set
-				if(AllPlatformPackagingSettings->BuildTarget.IsEmpty())
-				{
-					const TArray<FTargetInfo> GameTarget = ValidTargets.FilterByPredicate([](const FTargetInfo& Target)
-						{
-							return Target.Type == EBuildTargetType::Game;
-						});
-					check(GameTarget.Num() > 0);
-
-					AllPlatformPackagingSettings->BuildTarget = GameTarget[0].Name;
-					AllPlatformPackagingSettings->SaveConfig();
-				}
-
-				FText DefaultTarget = FText::FromString(AllPlatformPackagingSettings->GetBuildTargetForPlatform(IniPlatformName));
-
-				MenuBuilder.BeginSection("BuildTarget", LOCTEXT("TurnkeySection_BuildTarget", "Build Target"));
-
-				MenuBuilder.AddMenuEntry(
-					FText::Format(LOCTEXT("DefaultPackageTarget",  "Use Project Setting ({0})"), FText::FromString(AllPlatformPackagingSettings->BuildTarget)),
-					FText::Format(LOCTEXT("DefaultPackageTargetTooltip", "Package the {0} target"), FText::FromString(AllPlatformPackagingSettings->BuildTarget)),
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::PackageBuildTarget, VanillaInfo, FString("")),
-						FCanExecuteAction(),
-						FIsActionChecked::CreateStatic(&FTurnkeySupportCallbacks::DefaultPackageBuildTargetIsChecked, DefaultTarget.ToString())
-						),
-					NAME_None,
-					EUserInterfaceActionType::RadioButton
-				);
-
-				for (const FTargetInfo& Target : ValidTargets)
-				{
-					MenuBuilder.AddMenuEntry(
-						FText::FromString(Target.Name),
-						FText::Format(LOCTEXT("PackageTargetName", "Package the '{0}' target."), FText::FromString(Target.Name)),
-						FSlateIcon(),
-						FUIAction(
-							FExecuteAction::CreateStatic(&FTurnkeySupportCallbacks::PackageBuildTarget, VanillaInfo, Target.Name),
-							FCanExecuteAction(),
-							FIsActionChecked::CreateStatic(&FTurnkeySupportCallbacks::PackageBuildTargetIsChecked, VanillaInfo, Target.Name, DefaultTarget.ToString())
-						),
-						NAME_None,
-						EUserInterfaceActionType::RadioButton
-					);
-				}
-				
-				MenuBuilder.EndSection();
-			}
+			MenuBuilder.EndSection();
 		}
 
 		MenuBuilder.BeginSection("AllDevices", LOCTEXT("TurnkeySection_AllDevices", "All Devices"));

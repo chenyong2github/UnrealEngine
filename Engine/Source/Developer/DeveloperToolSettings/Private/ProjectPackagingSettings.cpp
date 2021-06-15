@@ -219,8 +219,7 @@ EProjectPackagingBuildConfigurations UProjectPackagingSettings::GetBuildConfigur
 {
 	const EProjectPackagingBuildConfigurations* Value = PerPlatformBuildConfig.Find(PlatformName);
 
-	// PPBC_MAX defines the default project setting case and should be handled accordingly.
-	return Value == nullptr ? EProjectPackagingBuildConfigurations::PPBC_MAX : *Value;
+	return Value == nullptr ? EProjectPackagingBuildConfigurations::PPBC_Development : *Value;
 }
 
 void UProjectPackagingSettings::SetBuildConfigurationForPlatform(FName PlatformName, EProjectPackagingBuildConfigurations Configuration)
@@ -228,38 +227,17 @@ void UProjectPackagingSettings::SetBuildConfigurationForPlatform(FName PlatformN
 	PerPlatformBuildConfig.Add(PlatformName, Configuration);
 }
 
-void UProjectPackagingSettings::SetBuildConfigurationForAllPlatforms(EProjectPackagingBuildConfigurations Configuration)
+FName UProjectPackagingSettings::GetTargetPlatformForPlatform(FName PlatformName) const
 {
-	for (auto& Config : PerPlatformBuildConfig)
-	{
-		Config.Value = Configuration;
-	}
+	const FName* Value = PerPlatformTargetPlatformName.Find(PlatformName);
+
+	// the platform name is also the name of the vanilla info
+	return Value == nullptr ? PlatformName : *Value;
 }
 
-FName UProjectPackagingSettings::GetTargetFlavorForPlatform(FName FlavorName) const
+void UProjectPackagingSettings::SetTargetPlatformForPlatform(FName PlatformName, FName TargetPlatformName)
 {
-	const FName* Value = PerPlatformTargetFlavorName.Find(FlavorName);
-
-	// the flavor name is also the name of the vanilla info
-	return Value == nullptr ? FlavorName : *Value;
-}
-
-void UProjectPackagingSettings::SetTargetFlavorForPlatform(FName PlatformName, FName TargetFlavorName)
-{
-	PerPlatformTargetFlavorName.Add(PlatformName, TargetFlavorName);
-}
-
-FString UProjectPackagingSettings::GetBuildTargetForPlatform(FName PlatformName) const
-{
-	const FString* Value = PerPlatformBuildTarget.Find(PlatformName);
-
-	// empty string defines the default project setting case and should be handled accordingly.
-	return Value == nullptr ? "" : *Value;
-}
-
-void UProjectPackagingSettings::SetBuildTargetForPlatform(FName PlatformName, FString BuildTargetName)
-{
-	PerPlatformBuildTarget.Add(PlatformName, BuildTargetName);
+	PerPlatformTargetPlatformName.Add(PlatformName, TargetPlatformName);
 }
 
 #undef LOCTEXT_NAMESPACE
