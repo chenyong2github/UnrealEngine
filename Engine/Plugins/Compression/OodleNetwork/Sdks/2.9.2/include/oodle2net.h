@@ -26,12 +26,12 @@
 //  the DLL is incompatible when MAJOR is bumped
 //  MINOR is for internal revs and bug fixes that don't affect API compatibility
 #define OODLE2NET_VERSION_MAJOR         9
-#define OODLE2NET_VERSION_MINOR         1
+#define OODLE2NET_VERSION_MINOR         2
 
 // OodleNetworkVersion string is 1 . MAJOR . MINOR
 //  don't make it from macros cuz the doc tool has to parse the string literal
 
-#define OodleNetworkVersion "2.9.1"    /*
+#define OodleNetworkVersion "2.9.2"    /*
 */
 
 // function pointers to mallocs needed :
