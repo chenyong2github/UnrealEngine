@@ -676,6 +676,7 @@ void FContentBrowserSingleton::DockContentBrowserDrawer()
 	
 	// Dont summon a content browser if a content browser already exists in the tab manager
 	bool bExistingTab = false;
+	if(ForTabManager)
 	{
 		for (int32 BrowserIdx = 0; BrowserIdx < UE_ARRAY_COUNT(ContentBrowserTabIDs); BrowserIdx++)
 		{
