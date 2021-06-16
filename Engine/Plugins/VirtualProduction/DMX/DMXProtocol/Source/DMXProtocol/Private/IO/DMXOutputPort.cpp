@@ -187,6 +187,7 @@ void FDMXOutputPort::SendDMX(int32 LocalUniverseID, const TMap<int32, uint8>& Ch
 
 			Signal->ExternUniverseID = ExternUniverseID;
 			Signal->Timestamp = FPlatformTime::Seconds();
+			Signal->Priority = Priority;
 
 			// Send DMX
 			if (bNeedsSendDMX)

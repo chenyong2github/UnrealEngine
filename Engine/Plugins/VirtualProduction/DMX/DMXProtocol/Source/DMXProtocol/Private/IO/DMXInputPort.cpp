@@ -52,6 +52,39 @@ FDMXInputPort::~FDMXInputPort()
 	UE_LOG(LogDMXProtocol, VeryVerbose, TEXT("Destroyed input port %s"), *PortName);
 }
 
+bool FDMXInputPort::CheckPriority(const int32 InPriority)
+{
+	if (InPriority > HighestReceivedPriority)
+	{
+		HighestReceivedPriority = InPriority;
+	}
+	
+	if (InPriority < LowestReceivedPriority)
+	{
+		LowestReceivedPriority = InPriority;
+	}
+	
+	switch (PriorityStrategy)
+	{
+	case(EDMXPortPriorityStrategy::None):
+		return true;
+	case(EDMXPortPriorityStrategy::HigherThan):
+		return InPriority > Priority;
+	case(EDMXPortPriorityStrategy::Equal):
+		return InPriority == Priority;
+	case(EDMXPortPriorityStrategy::LowerThan):
+		return InPriority < Priority;
+	case(EDMXPortPriorityStrategy::Highest):
+		return InPriority >= HighestReceivedPriority;
+	case(EDMXPortPriorityStrategy::Lowest):
+		return InPriority <= LowestReceivedPriority;
+	default:
+		break;
+	}
+
+	return false;
+}
+
 void FDMXInputPort::UpdateFromConfig(FDMXInputPortConfig& InputPortConfig)
 {
 	// Need a valid config for the port
@@ -98,6 +131,8 @@ void FDMXInputPort::UpdateFromConfig(FDMXInputPortConfig& InputPortConfig)
 	LocalUniverseStart = InputPortConfig.GetLocalUniverseStart();
 	NumUniverses = InputPortConfig.GetNumUniverses();
 	PortName = InputPortConfig.GetPortName();
+	PriorityStrategy = InputPortConfig.GetPortPriorityStrategy();
+	Priority = InputPortConfig.GetPriority();
 
 	// Re-register the port if required
 	if (bNeedsUpdateRegistration)

@@ -14,6 +14,27 @@ class FDMXPort;
 
 struct FGuid;
 
+/**
+ * Strategy for priority system (when receiving packets)
+ * 
+ * Not: Not all protocols have a use for this
+*/
+UENUM()
+enum class EDMXPortPriorityStrategy : uint8
+{
+	/** Always manage the packet */
+	None,
+	/** Manage the packet only if the priority is equal to the specified value */
+	Equal,
+	/** Manage the packet only if the priority is higher than the specified value */
+	HigherThan,
+	/** Manage the packet only if the priority is lower than the specified value */
+	LowerThan,
+	/** Manage the packet only if it matches the highest received priority */
+	Highest,
+	/** Manage the packet only if it matches the lowest received priority */
+	Lowest
+};
 
 /** Data to create a new input port config with related constructor. */
 struct DMXPROTOCOL_API FDMXInputPortConfigParams
@@ -61,6 +82,8 @@ public:
 	FORCEINLINE int32 GetNumUniverses() const { return NumUniverses; }
 	FORCEINLINE int32 GetExternUniverseStart() const { return ExternUniverseStart; }
 	FORCEINLINE const FGuid& GetPortGuid() const { return PortGuid; }
+	FORCEINLINE const EDMXPortPriorityStrategy GetPortPriorityStrategy() const { return PriorityStrategy; }
+	FORCEINLINE const int32 GetPriority() const { return Priority; }
 
 #if WITH_EDITOR
 	static FName GetProtocolNamePropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, ProtocolName); }
@@ -100,6 +123,14 @@ protected:
 	 */
 	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config")
 	int32 ExternUniverseStart;
+
+	/** How to deal with the priority value */
+	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config")
+	EDMXPortPriorityStrategy PriorityStrategy = EDMXPortPriorityStrategy::None;
+
+	/** Priority value, can act as a filter or a threshold */
+	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config")
+	int32 Priority = 0;
 
 protected:
 	/** Generates a unique port name (unique for those stored in project settings) */

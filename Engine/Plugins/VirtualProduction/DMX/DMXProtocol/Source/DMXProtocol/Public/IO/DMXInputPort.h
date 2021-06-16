@@ -15,7 +15,8 @@
 struct FDMXInputPortConfig;
 class FDMXPortManager;
 class FDMXRawListener;
-class IDMXInputPortTickedBufferOverride;
+
+enum class EDMXPortPriorityStrategy : uint8;
 
 /**  
  * Higher level abstraction of a DMX input hiding networking specific and protocol specific complexity from the game. 
@@ -52,6 +53,9 @@ public:
 
 	/** Returns the Guid of the Port */
 	virtual const FGuid& GetPortGuid() const override;
+
+	/** Returns true if the priority matches the configured rule */
+	virtual bool CheckPriority(const int32 InPriority);
 
 protected:
 	/**
@@ -122,6 +126,18 @@ protected:
 
 	/** According to DMXProtcolSettings, true if DMX should be received */
 	bool bReceiveDMXEnabled;
+
+	/** How to manage priority */
+	EDMXPortPriorityStrategy PriorityStrategy;
+    
+	/** the Priority value, used by the PriorityStrategy */
+	int32 Priority;
+
+	/** The highest priority received */
+	int32 HighestReceivedPriority = 0;
+
+	/** The highest priority received */
+	int32 LowestReceivedPriority = 0;
 
 private:
 	/** The default buffer, which is being read on tick */
