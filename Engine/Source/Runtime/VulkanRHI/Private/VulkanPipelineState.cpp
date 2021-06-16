@@ -168,34 +168,30 @@ bool FVulkanComputePipelineDescriptorState::InternalUpdateDescriptorSets(FVulkan
 		PackedUniformBuffersDirty = 0;
 	}
 
-	if (UseVulkanDescriptorCache())
-	{
-		Device->GetDescriptorSetCache().GetDescriptorSets(GetDSetsKey(), *DescriptorSetsLayout, DSWriter, DescriptorSetHandles.GetData());
-	}
-	else
-	{
-		if (!CmdBuffer->AcquirePoolSetAndDescriptorsIfNeeded(*DescriptorSetsLayout, true, DescriptorSetHandles.GetData()))
-		{
-			return false;
-		}
+	// We are not using UseVulkanDescriptorCache() for compute pipelines
+	// Compute tend to use volatile resources that polute descriptor cache
 
-		const VkDescriptorSet DescriptorSet = DescriptorSetHandles[0];
-		DSWriter[0].SetDescriptorSet(DescriptorSet);
+	if (!CmdBuffer->AcquirePoolSetAndDescriptorsIfNeeded(*DescriptorSetsLayout, true, DescriptorSetHandles.GetData()))
+	{
+		return false;
+	}
+
+	const VkDescriptorSet DescriptorSet = DescriptorSetHandles[0];
+	DSWriter[0].SetDescriptorSet(DescriptorSet);
 #if VULKAN_VALIDATE_DESCRIPTORS_WRITTEN
-		for(FVulkanDescriptorSetWriter& Writer : DSWriter)
-		{
-			Writer.CheckAllWritten();
-		}
+	for(FVulkanDescriptorSetWriter& Writer : DSWriter)
+	{
+		Writer.CheckAllWritten();
+	}
 #endif
 
-		{
-	#if VULKAN_ENABLE_AGGRESSIVE_STATS
-			INC_DWORD_STAT_BY(STAT_VulkanNumUpdateDescriptors, DSWriteContainer.DescriptorWrites.Num());
-			INC_DWORD_STAT(STAT_VulkanNumDescSets);
-			SCOPE_CYCLE_COUNTER(STAT_VulkanVkUpdateDS);
-	#endif
-			VulkanRHI::vkUpdateDescriptorSets(Device->GetInstanceHandle(), DSWriteContainer.DescriptorWrites.Num(), DSWriteContainer.DescriptorWrites.GetData(), 0, nullptr);
-		}
+	{
+#if VULKAN_ENABLE_AGGRESSIVE_STATS
+		INC_DWORD_STAT_BY(STAT_VulkanNumUpdateDescriptors, DSWriteContainer.DescriptorWrites.Num());
+		INC_DWORD_STAT(STAT_VulkanNumDescSets);
+		SCOPE_CYCLE_COUNTER(STAT_VulkanVkUpdateDS);
+#endif
+		VulkanRHI::vkUpdateDescriptorSets(Device->GetInstanceHandle(), DSWriteContainer.DescriptorWrites.Num(), DSWriteContainer.DescriptorWrites.GetData(), 0, nullptr);
 	}
 
 	return true;
@@ -288,7 +284,7 @@ bool FVulkanGraphicsPipelineDescriptorState::InternalUpdateDescriptorSets(FVulka
 		}
 	}
 
-	if (UseVulkanDescriptorCache())
+	if (UseVulkanDescriptorCache() && !HasVolatileResources())
 	{
 		if (bIsResourcesDirty)
 		{
@@ -372,35 +368,34 @@ template bool FVulkanComputePipelineDescriptorState::InternalUpdateDescriptorSet
 template bool FVulkanComputePipelineDescriptorState::InternalUpdateDescriptorSets<false>(FVulkanCommandListContext* CmdListContext, FVulkanCmdBuffer* CmdBuffer);
 
 
-#if VULKAN_VALIDATE_DESCRIPTORS_WRITTEN
-
-
 void FVulkanDescriptorSetWriter::CheckAllWritten()
 {
-auto GetVkDescriptorTypeString = [](VkDescriptorType Type)
-{
-	switch (Type)
+#if VULKAN_VALIDATE_DESCRIPTORS_WRITTEN
+	auto GetVkDescriptorTypeString = [](VkDescriptorType Type)
 	{
-		// + 19 to skip "VK_DESCRIPTOR_TYPE_"
-#define VKSWITCHCASE(x)	case x: return FString(&TEXT(#x)[19]);
-		VKSWITCHCASE(VK_DESCRIPTOR_TYPE_SAMPLER)
-			VKSWITCHCASE(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-			VKSWITCHCASE(VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE)
-			VKSWITCHCASE(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
-			VKSWITCHCASE(VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER)
-			VKSWITCHCASE(VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER)
-			VKSWITCHCASE(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-			VKSWITCHCASE(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
-			VKSWITCHCASE(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
-			VKSWITCHCASE(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC)
-			VKSWITCHCASE(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT)
-#undef VKSWITCHCASE
-	default:
-		break;
-	}
+		switch (Type)
+		{
+			// + 19 to skip "VK_DESCRIPTOR_TYPE_"
+	#define VKSWITCHCASE(x)	case x: return FString(&TEXT(#x)[19]);
+			VKSWITCHCASE(VK_DESCRIPTOR_TYPE_SAMPLER)
+				VKSWITCHCASE(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+				VKSWITCHCASE(VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE)
+				VKSWITCHCASE(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
+				VKSWITCHCASE(VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER)
+				VKSWITCHCASE(VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER)
+				VKSWITCHCASE(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+				VKSWITCHCASE(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
+				VKSWITCHCASE(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
+				VKSWITCHCASE(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC)
+				VKSWITCHCASE(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT)
+	#undef VKSWITCHCASE
+		default:
+			break;
+		}
 
-	return FString::Printf(TEXT("Unknown VkDescriptorType %d"), (int32)Type);
-};
+		return FString::Printf(TEXT("Unknown VkDescriptorType %d"), (int32)Type);
+	};
+
 	const uint32 Writes = NumWrites;
 	if (Writes == 0)
 		return;
@@ -441,32 +436,41 @@ auto GetVkDescriptorTypeString = [](VkDescriptorType Type)
 		UE_LOG(LogVulkanRHI, Warning, TEXT("Not All descriptors where filled out. this can/will cause a driver crash\n%s\n"), *Descriptors);
 		ensureMsgf(false, TEXT("Not All descriptors where filled out. this can/will cause a driver crash\n%s\n"), *Descriptors);
 	}
+#endif
 }
 
 void FVulkanDescriptorSetWriter::Reset()
 {
+	bHasVolatileResources = false;
+
+#if VULKAN_VALIDATE_DESCRIPTORS_WRITTEN
 	WrittenMask = BaseWrittenMask;
+#endif
 }
 void FVulkanDescriptorSetWriter::SetWritten(uint32 DescriptorIndex)
 {
+#if VULKAN_VALIDATE_DESCRIPTORS_WRITTEN
 	uint32 Index = DescriptorIndex / 32;
 	uint32 Mask = DescriptorIndex % 32;
 	WrittenMask[Index] |= (1<<Mask);
+#endif
 }
 void FVulkanDescriptorSetWriter::SetWrittenBase(uint32 DescriptorIndex)
 {
+#if VULKAN_VALIDATE_DESCRIPTORS_WRITTEN	
 	uint32 Index = DescriptorIndex / 32;
 	uint32 Mask = DescriptorIndex % 32;
 	BaseWrittenMask[Index] |= (1<<Mask);
+#endif
 }
 
 void FVulkanDescriptorSetWriter::InitWrittenMasks(uint32 NumDescriptorWrites)
 {
+#if VULKAN_VALIDATE_DESCRIPTORS_WRITTEN	
 	uint32 Size = (NumDescriptorWrites + 31) / 32;
 	WrittenMask.Empty(Size);
 	WrittenMask.SetNumZeroed(Size);
 	BaseWrittenMask.Empty(Size);
 	BaseWrittenMask.SetNumZeroed(Size);
-}
 #endif
-
+}

@@ -40,6 +40,18 @@ public:
 		}
 		return DSetsKey;
 	}
+	
+	bool HasVolatileResources() const
+	{
+		for (const FVulkanDescriptorSetWriter& Writer : DSWriter)
+		{
+			if (Writer.bHasVolatileResources)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
 
 	inline void MarkDirty(bool bDirty)
 	{

@@ -1163,11 +1163,9 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 	{
 		DescriptorSetCache = new FVulkanDescriptorSetCache(this);
 	}
-	else
-	{
-		DescriptorPoolsManager = new FVulkanDescriptorPoolsManager();
-		DescriptorPoolsManager->Init(this);
-	}
+	
+	DescriptorPoolsManager = new FVulkanDescriptorPoolsManager();
+	DescriptorPoolsManager->Init(this);
 
 	PipelineStateCache = new FVulkanPipelineStateCacheManager(this);
 

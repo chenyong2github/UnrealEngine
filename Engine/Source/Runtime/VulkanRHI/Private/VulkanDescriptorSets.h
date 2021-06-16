@@ -1154,8 +1154,11 @@ protected:
 		SetWritten(DescriptorIndex);
 		WriteDescriptors[DescriptorIndex].pTexelBufferView = &View->View;
 		BufferViewReferences[DescriptorIndex] = View;
-		
-		if (UseVulkanDescriptorCache())
+		const bool bVolatile = View->bVolatile;
+
+		bHasVolatileResources|= bVolatile;
+				
+		if (!bVolatile && UseVulkanDescriptorCache())
 		{
 			bool bChanged = false;
 			FVulkanHashableDescriptorInfo& HashableInfo = HashableDescriptorInfos[DescriptorIndex];
@@ -1190,6 +1193,7 @@ protected:
 	FVulkanHashableDescriptorInfo* HashableDescriptorInfos;
 	mutable FVulkanDSetKey Key;
 	mutable bool bIsKeyDirty;
+	bool bHasVolatileResources = false;
 
 	uint32 SetupDescriptorWrites(const TArray<VkDescriptorType>& Types,
 		FVulkanHashableDescriptorInfo* InHashableDescriptorInfos,
@@ -1204,26 +1208,18 @@ protected:
 #if VULKAN_VALIDATE_DESCRIPTORS_WRITTEN
 	TArray<uint32, TInlineAllocator<2> > WrittenMask;
 	TArray<uint32, TInlineAllocator<2> > BaseWrittenMask;
-
+#endif
 	void CheckAllWritten();
 	void Reset();
 	void SetWritten(uint32 DescriptorIndex);
 	void SetWrittenBase(uint32 DescriptorIndex);
 	void InitWrittenMasks(uint32 NumDescriptorWrites);
-#else
-	void Reset(){}
-	void CheckAllWritten() {}
-	void SetWritten(uint32 DescriptorIndex) {}
-	void SetWrittenBase(uint32 DescriptorIndex){}
-	void InitWrittenMasks(uint32 NumDescriptorWrites){}
-#endif
-
 };
 
 class FVulkanGenericDescriptorPool : FNoncopyable
 {
 public:
-	FVulkanGenericDescriptorPool(FVulkanDevice* InDevice, uint32 InMaxDescriptorSets);
+	FVulkanGenericDescriptorPool(FVulkanDevice* InDevice, uint32 InMaxDescriptorSets, const float PoolSizes[VK_DESCRIPTOR_TYPE_RANGE_SIZE]);
 	~FVulkanGenericDescriptorPool();
 
 	FVulkanDevice* GetDevice() const
@@ -1243,6 +1239,8 @@ private:
 	FVulkanDevice* const Device;
 	const uint32 MaxDescriptorSets;
 	VkDescriptorPool DescriptorPool;
+	// information for debugging
+	uint32 PoolSizes[VK_DESCRIPTOR_TYPE_RANGE_SIZE];
 };
 
 class FVulkanDescriptorSetCache : FNoncopyable
@@ -1269,31 +1267,22 @@ private:
 	class FCachedPool : FNoncopyable
 	{
 	public:
-		FCachedPool(FVulkanDevice* InDevice, uint32 InMaxDescriptorSets)
-			: SetCapacity(FMath::RoundToZero(InMaxDescriptorSets * MaxAllocRatio))
-			, Pool(InDevice, InMaxDescriptorSets)
-			, RecentFrame(0)
-		{
-		}
+		FCachedPool(FVulkanDevice* InDevice, uint32 InMaxDescriptorSets, const float PoolSizesRatio[VK_DESCRIPTOR_TYPE_RANGE_SIZE]);
 
 		uint32 GetMaxDescriptorSets() const
 		{
 			return Pool.GetMaxDescriptorSets();
 		}
-
-		void Reset()
-		{
-			Pool.Reset();
-			SetsCache.Reset();
-			SetCache.Reset();
-		}
-
+			
+		void Reset();
 		bool CanGC() const;
 		float CalcAllocRatio() const;
 
 		bool FindDescriptorSets(const FVulkanDSetsKey& DSetsKey, VkDescriptorSet* OutSets);
 		bool CreateDescriptorSets(const FVulkanDSetsKey& DSetsKey, const FVulkanDescriptorSetsLayout& SetsLayout,
 			TArray<FVulkanDescriptorSetWriter>& DSWriters, VkDescriptorSet* OutSets);
+
+		void CalcPoolSizesRatio(float PoolSizesRatio[VK_DESCRIPTOR_TYPE_RANGE_SIZE]);
 
 	private:
 		static const float MinAllocRatio;
@@ -1305,6 +1294,9 @@ private:
 		TMap<FVulkanDSetsKey, FSetsEntry> SetsCache;
 		TMap<FVulkanDSetKey, VkDescriptorSet> SetCache;
 		uint32 RecentFrame;
+	
+	public:
+		uint32 PoolSizesStatistic[VK_DESCRIPTOR_TYPE_RANGE_SIZE];
 	};
 
 private:

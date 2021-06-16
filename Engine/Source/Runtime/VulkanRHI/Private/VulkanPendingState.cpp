@@ -643,73 +643,39 @@ FAutoConsoleVariableRef CVarDSetCacheMaxPoolLookups(
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
-FVulkanGenericDescriptorPool::FVulkanGenericDescriptorPool(FVulkanDevice* InDevice, uint32 InMaxDescriptorSets)
+const float DefaultPoolSizes[VK_DESCRIPTOR_TYPE_RANGE_SIZE] = 
+{
+	2,		// VK_DESCRIPTOR_TYPE_SAMPLER
+	2,		// VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+	2,		// VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE
+	1/8.0,	// VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
+	1/2.0,	// VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER
+	1/8.0,	// VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER
+	1/8.0,	// VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
+	1/8.0,	// VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+	4,		// VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC
+	1/8.0,	// VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC
+	1/8.0	// VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT
+};
+
+FVulkanGenericDescriptorPool::FVulkanGenericDescriptorPool(FVulkanDevice* InDevice, uint32 InMaxDescriptorSets, const float PoolSizesRatio[VK_DESCRIPTOR_TYPE_RANGE_SIZE])
 	: Device(InDevice)
 	, MaxDescriptorSets(InMaxDescriptorSets)
 	, DescriptorPool(VK_NULL_HANDLE)
 {
-	// Based on statisticts of runing BR_50v50.replay
-	// TODO Need a better solution
-	const uint32 LimitMaxUniformBuffers = MaxDescriptorSets * 2;
-	const uint32 LimitMaxSamplers = MaxDescriptorSets / 2;
-	const uint32 LimitMaxCombinedImageSamplers = MaxDescriptorSets * 3;
-	const uint32 LimitMaxUniformTexelBuffers = MaxDescriptorSets / 2;
-	const uint32 LimitMaxStorageTexelBuffers = MaxDescriptorSets / 4;
-	const uint32 LimitMaxStorageBuffers = MaxDescriptorSets / 4;
-	const uint32 LimitMaxStorageImage = MaxDescriptorSets / 4;
-	const uint32 LimitMaxSampledImages = MaxDescriptorSets * 2;
-	const uint32 LimitMaxInputAttachments = MaxDescriptorSets / 16;
-
 	TArray<VkDescriptorPoolSize> Types;
-	VkDescriptorPoolSize* Type = new(Types) VkDescriptorPoolSize;
-	FMemory::Memzero(*Type);
-	Type->type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	Type->descriptorCount = LimitMaxUniformBuffers;
+	Types.Reserve(VK_DESCRIPTOR_TYPE_RANGE_SIZE);
 
-	Type = new(Types) VkDescriptorPoolSize;
-	FMemory::Memzero(*Type);
-	Type->type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-	Type->descriptorCount = LimitMaxUniformBuffers;
+	for (uint32 i = 0; i < VK_DESCRIPTOR_TYPE_RANGE_SIZE; ++i)
+	{
+		float MinSize = FMath::Max(DefaultPoolSizes[i]*InMaxDescriptorSets, 4.0f);
+		PoolSizes[i] = (uint32)FMath::Max(PoolSizesRatio[i]*InMaxDescriptorSets, MinSize);
 
-	Type = new(Types) VkDescriptorPoolSize;
-	FMemory::Memzero(*Type);
-	Type->type = VK_DESCRIPTOR_TYPE_SAMPLER;
-	Type->descriptorCount = LimitMaxSamplers;
-
-	Type = new(Types) VkDescriptorPoolSize;
-	FMemory::Memzero(*Type);
-	Type->type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	Type->descriptorCount = LimitMaxCombinedImageSamplers;
-
-	Type = new(Types) VkDescriptorPoolSize;
-	FMemory::Memzero(*Type);
-	Type->type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-	Type->descriptorCount = LimitMaxSampledImages;
-
-	Type = new(Types) VkDescriptorPoolSize;
-	FMemory::Memzero(*Type);
-	Type->type = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
-	Type->descriptorCount = LimitMaxUniformTexelBuffers;
-
-	Type = new(Types) VkDescriptorPoolSize;
-	FMemory::Memzero(*Type);
-	Type->type = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
-	Type->descriptorCount = LimitMaxStorageTexelBuffers;
-
-	Type = new(Types) VkDescriptorPoolSize;
-	FMemory::Memzero(*Type);
-	Type->type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	Type->descriptorCount = LimitMaxStorageBuffers;
-
-	Type = new(Types) VkDescriptorPoolSize;
-	FMemory::Memzero(*Type);
-	Type->type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	Type->descriptorCount = LimitMaxStorageImage;
-
-	Type = new(Types) VkDescriptorPoolSize;
-	FMemory::Memzero(*Type);
-	Type->type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	Type->descriptorCount = LimitMaxInputAttachments;
+		VkDescriptorPoolSize* Type = new(Types) VkDescriptorPoolSize;
+		FMemory::Memzero(*Type);
+		Type->type = (VkDescriptorType)i;
+		Type->descriptorCount = PoolSizes[i];
+	}
 
 	VkDescriptorPoolCreateInfo PoolInfo;
 	ZeroVulkanStruct(PoolInfo, VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO);
@@ -761,7 +727,7 @@ FVulkanDescriptorSetCache::FVulkanDescriptorSetCache(FVulkanDevice* InDevice)
 	, PoolAllocRatio(0.0f)
 {
 	constexpr uint32 ProbePoolMaxNumSets = 128; // Used for initial estimation of the Allocation Ratio
-	CachedPools.Add(MakeUnique<FCachedPool>(Device, ProbePoolMaxNumSets));
+	CachedPools.Add(MakeUnique<FCachedPool>(Device, ProbePoolMaxNumSets, DefaultPoolSizes));
 }
 
 FVulkanDescriptorSetCache::~FVulkanDescriptorSetCache()
@@ -782,20 +748,24 @@ void FVulkanDescriptorSetCache::AddCachedPool()
 	{
 		constexpr float MinErrorTolerance = -0.10f;
 		constexpr float MaxErrorTolerance = 0.50f;
-		const float Error = ((static_cast<float>(FreePool->GetMaxDescriptorSets()) -
-			static_cast<float>(MaxDescriptorSets)) / static_cast<float>(MaxDescriptorSets));
+		const float Error = ((static_cast<float>(FreePool->GetMaxDescriptorSets()) - static_cast<float>(MaxDescriptorSets)) / static_cast<float>(MaxDescriptorSets));
 		if ((Error >= MinErrorTolerance) && (Error <= MaxErrorTolerance))
 		{
 			FreePool->Reset();
 			CachedPools.EmplaceAt(0, MoveTemp(FreePool));
 			return;
 		}
+
 		// Don't write 'error' as it confuses reporting; it's a perf warning more than an actual error
-		UE_LOG(LogVulkanRHI, Display, TEXT("FVulkanDescriptorSetCache::AddCachedPool() MaxDescriptorSets Delta/Err: %f. Tolerance: [%f..%f]."),
-			static_cast<double>(Error), static_cast<double>(MinErrorTolerance), static_cast<double>(MaxErrorTolerance));
+		UE_LOG(LogVulkanRHI, Display, TEXT("FVulkanDescriptorSetCache::AddCachedPool() MaxDescriptorSets Delta/Err: %f. Tolerance: [%f..%f]."),	Error, MinErrorTolerance, MaxErrorTolerance);
 		FreePool.Reset();
 	}
-	CachedPools.EmplaceAt(0, MakeUnique<FCachedPool>(Device, MaxDescriptorSets));
+	
+	// use current pool sizes statistic for a new pool
+	float PoolSizesRatio[VK_DESCRIPTOR_TYPE_RANGE_SIZE];
+	CachedPools[0]->CalcPoolSizesRatio(PoolSizesRatio);
+
+	CachedPools.EmplaceAt(0, MakeUnique<FCachedPool>(Device, MaxDescriptorSets, PoolSizesRatio));
 }
 
 void FVulkanDescriptorSetCache::GetDescriptorSets(const FVulkanDSetsKey& DSetsKey, const FVulkanDescriptorSetsLayout& SetsLayout,
@@ -839,6 +809,14 @@ void FVulkanDescriptorSetCache::GC()
 const float FVulkanDescriptorSetCache::FCachedPool::MinAllocRatio = 0.5f;
 const float FVulkanDescriptorSetCache::FCachedPool::MaxAllocRatio = 16.0f;
 
+FVulkanDescriptorSetCache::FCachedPool::FCachedPool(FVulkanDevice* InDevice, uint32 InMaxDescriptorSets, const float PoolSizes[VK_DESCRIPTOR_TYPE_RANGE_SIZE])
+	: SetCapacity(FMath::RoundToZero(InMaxDescriptorSets * MaxAllocRatio))
+	, Pool(InDevice, InMaxDescriptorSets, PoolSizes)
+	, RecentFrame(0)
+{
+	FMemory::Memzero(PoolSizesStatistic, sizeof(PoolSizesStatistic));
+}
+
 bool FVulkanDescriptorSetCache::FCachedPool::FindDescriptorSets(const FVulkanDSetsKey& DSetsKey, VkDescriptorSet* OutSets)
 {
 	FSetsEntry* SetsEntry = SetsCache.Find(DSetsKey);
@@ -853,8 +831,11 @@ bool FVulkanDescriptorSetCache::FCachedPool::FindDescriptorSets(const FVulkanDSe
 	return true;
 }
 
-bool FVulkanDescriptorSetCache::FCachedPool::CreateDescriptorSets(const FVulkanDSetsKey& DSetsKey, const FVulkanDescriptorSetsLayout& SetsLayout,
-	TArray<FVulkanDescriptorSetWriter>& DSWriters, VkDescriptorSet* OutSets)
+bool FVulkanDescriptorSetCache::FCachedPool::CreateDescriptorSets(
+	const FVulkanDSetsKey& DSetsKey, 
+	const FVulkanDescriptorSetsLayout& SetsLayout,
+	TArray<FVulkanDescriptorSetWriter>& DSWriters, 
+	VkDescriptorSet* OutSets)
 {
 	FSetsEntry NewSetEntry{};
 
@@ -885,6 +866,12 @@ bool FVulkanDescriptorSetCache::FCachedPool::CreateDescriptorSets(const FVulkanD
 
 		DSWriter.SetDescriptorSet(NewSetEntry.Sets[Index]);
 
+		const uint32* LayoutTypes = SetsLayout.GetLayoutTypes();
+		for (int32 i = 0; i < VK_DESCRIPTOR_TYPE_RANGE_SIZE; ++i)
+		{
+			PoolSizesStatistic[i]+= LayoutTypes[i];
+		}
+
 #if VULKAN_ENABLE_AGGRESSIVE_STATS
 		INC_DWORD_STAT_BY(STAT_VulkanNumUpdateDescriptors, DSWriter.GetNumWrites());
 		INC_DWORD_STAT(STAT_VulkanNumDescSets);
@@ -902,6 +889,14 @@ bool FVulkanDescriptorSetCache::FCachedPool::CreateDescriptorSets(const FVulkanD
 	return true;
 }
 
+void FVulkanDescriptorSetCache::FCachedPool::Reset()
+{
+	Pool.Reset();
+	SetsCache.Reset();
+	SetCache.Reset();
+	FMemory::Memzero(PoolSizesStatistic, sizeof(PoolSizesStatistic));
+}
+
 bool FVulkanDescriptorSetCache::FCachedPool::CanGC() const
 {
 	constexpr uint32 FramesBeforeGC = NUM_FRAMES_TO_WAIT_BEFORE_RELEASING_TO_OS;
@@ -913,12 +908,21 @@ float FVulkanDescriptorSetCache::FCachedPool::CalcAllocRatio() const
 	float AllocRatio = (static_cast<float>(SetCache.Num()) / static_cast<float>(Pool.GetMaxDescriptorSets()));
 	if (AllocRatio < MinAllocRatio)
 	{
-		UE_LOG(LogVulkanRHI, Warning, TEXT("FVulkanDescriptorSetCache::FCachedPool::CalcAllocRatio() Pool Allocation Ratio is too low: %f. Using: %f."),
-			static_cast<double>(AllocRatio), static_cast<double>(MinAllocRatio));
+		UE_LOG(LogVulkanRHI, Warning, TEXT("FVulkanDescriptorSetCache::FCachedPool::CalcAllocRatio() Pool Allocation Ratio is too low: %f. Using: %f."), AllocRatio, MinAllocRatio);
 		AllocRatio = MinAllocRatio;
 	}
 	return AllocRatio;
 }
+
+void FVulkanDescriptorSetCache::FCachedPool::CalcPoolSizesRatio(float PoolSizesRatio[VK_DESCRIPTOR_TYPE_RANGE_SIZE])
+{
+	int32 NumSets = FMath::Max(SetCache.Num(), 1);
+	for (uint32 i = 0; i < VK_DESCRIPTOR_TYPE_RANGE_SIZE; ++i)
+	{
+		PoolSizesRatio[i] = PoolSizesStatistic[i]/(float)NumSets;
+	}
+}
+
 bool FVulkanPendingGfxState::SetGfxPipeline(FVulkanRHIGraphicsPipelineState* InGfxPipeline, bool bForceReset)
 {
 	bool bChanged = bForceReset;

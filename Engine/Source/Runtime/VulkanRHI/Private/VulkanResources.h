@@ -903,6 +903,7 @@ struct FVulkanBufferView : public FRHIResource, public VulkanRHI::FDeviceChild
 		, Flags(0)
 		, Offset(0)
 		, Size(0)
+		, bVolatile(false)
 	{
 	}
 
@@ -920,6 +921,8 @@ struct FVulkanBufferView : public FRHIResource, public VulkanRHI::FDeviceChild
 	VkFlags Flags;
 	uint32 Offset;
 	uint32 Size;
+	// Whether source buffer is volatile
+	bool bVolatile;
 };
 
 struct FVulkanRingBuffer : public FVulkanEvictable, public VulkanRHI::FDeviceChild
