@@ -38,6 +38,7 @@ public class MovieSceneTools : ModuleRules
                 "ActorPickerMode",
 				"AppFramework",
 				"CinematicCamera",
+				"DataLayerEditor",
                 "CurveEditor",
                 "DesktopPlatform",
                 "Json",

@@ -38,6 +38,7 @@ public class MovieSceneTracks : ModuleRules
 				});
 			PrivateDependencyModuleNames.AddRange(new string[]
 				{
+					"DataLayerEditor",
 					"EditorFramework",
 					"UnrealEd"
 				});
