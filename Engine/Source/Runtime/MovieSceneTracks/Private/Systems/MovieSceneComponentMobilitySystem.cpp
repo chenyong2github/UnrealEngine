@@ -231,25 +231,5 @@ void UMovieSceneComponentMobilitySystem::SavePreAnimatedState(const FPreAnimatio
 
 void UMovieSceneComponentMobilitySystem::RestorePreAnimatedState(const FPreAnimationParameters& InParameters)
 {
-	using namespace UE::MovieScene;
 
-	FPreAnimatedEntityCaptureSource* EntityMetaData = InParameters.CacheExtension->GetOrCreateEntityMetaData();
-	if (!EntityMetaData)
-	{
-		return;
-	}
-
-	auto CleanupExpiredObjects = [EntityMetaData](FMovieSceneEntityID EntityID)
-	{
-		EntityMetaData->StopTrackingEntity(EntityID, FPreAnimatedComponentMobilityStorage::StorageID);
-	};
-
-	FBuiltInComponentTypes*          BuiltInComponents = FBuiltInComponentTypes::Get();
-	FMovieSceneTracksComponentTypes* TrackComponents   = FMovieSceneTracksComponentTypes::Get();
-
-	FEntityTaskBuilder()
-	.ReadEntityIDs()
-	.FilterAll({ BuiltInComponents->BoundObject, BuiltInComponents->Tags.NeedsUnlink })
-	.FilterAny({ TrackComponents->ComponentTransform.PropertyTag, TrackComponents->AttachParent })
-	.Iterate_PerEntity(&Linker->EntityManager, CleanupExpiredObjects);
 }

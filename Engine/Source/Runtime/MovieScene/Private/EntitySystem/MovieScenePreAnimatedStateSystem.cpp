@@ -3,10 +3,13 @@
 #include "EntitySystem/MovieScenePreAnimatedStateSystem.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
+#include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "IMovieScenePlayer.h"
 
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateExtension.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateStorage.h"
+#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedEntityCaptureSource.h"
+
 
 
 namespace UE
@@ -190,6 +193,20 @@ void UMovieSceneRestorePreAnimatedStateSystem::OnRun(FSystemTaskPrerequisites& I
 	for (int32 Index = Interfaces.Num()-1; Index >= 0; --Index)
 	{
 		Interfaces[Index]->RestorePreAnimatedState(Params);
+	}
+
+	FPreAnimatedEntityCaptureSource* EntityMetaData = PreAnimatedStateRef->GetEntityMetaData();
+	if (EntityMetaData)
+	{
+		auto CleanupExpiredObjects = [EntityMetaData](FMovieSceneEntityID EntityID)
+		{
+			EntityMetaData->StopTrackingEntity(EntityID);
+		};
+
+		FEntityTaskBuilder()
+		.ReadEntityIDs()
+		.FilterAll({ FBuiltInComponentTypes::Get()->Tags.NeedsUnlink })
+		.Iterate_PerEntity(&Linker->EntityManager, CleanupExpiredObjects);
 	}
 
 	Params.CacheExtension->ResetEntryInvalidation();

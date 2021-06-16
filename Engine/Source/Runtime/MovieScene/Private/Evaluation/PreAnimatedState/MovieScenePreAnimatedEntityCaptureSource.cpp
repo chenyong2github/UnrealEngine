@@ -62,6 +62,21 @@ void FPreAnimatedEntityCaptureSource::StopTrackingEntity(FMovieSceneEntityID Ent
 	}
 }
 
+void FPreAnimatedEntityCaptureSource::StopTrackingEntity(FMovieSceneEntityID EntityID)
+{
+	FPreAnimatedStateMetaDataArray* Array = KeyToMetaData.Find(EntityID);
+	if (Array)
+	{
+		for (int32 Index = Array->Num()-1; Index >= 0; --Index)
+		{
+			const FPreAnimatedStateMetaData& MetaData = (*Array)[Index];
+			Owner->RemoveMetaData(MetaData);
+		}
+
+		KeyToMetaData.Remove(EntityID);
+	}
+}
+
 void FPreAnimatedEntityCaptureSource::GatherAndRemoveExpiredMetaData(const FRestoreStateParams& Params, TArray<FPreAnimatedStateMetaData>& OutExpiredMetaData)
 {
 	FInstanceHandle InstanceHandle = Params.TerminalInstanceHandle;

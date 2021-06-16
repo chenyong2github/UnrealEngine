@@ -31,6 +31,7 @@ struct FPreAnimatedEntityCaptureSource
 
 	MOVIESCENE_API void BeginTrackingEntity(const FPreAnimatedStateEntry& Entry, FMovieSceneEntityID EntityID, FInstanceHandle RootInstanceHandle, bool bWantsRestoreState);
 	MOVIESCENE_API void StopTrackingEntity(FMovieSceneEntityID EntityID, FPreAnimatedStorageID StorageID);
+	MOVIESCENE_API void StopTrackingEntity(FMovieSceneEntityID EntityID);
 
 	bool ContainsInstanceHandle(FInstanceHandle RootInstanceHandle) const;
 	void GatherAndRemoveExpiredMetaData(const FRestoreStateParams& Params, TArray<FPreAnimatedStateMetaData>& OutExpiredMetaData);
