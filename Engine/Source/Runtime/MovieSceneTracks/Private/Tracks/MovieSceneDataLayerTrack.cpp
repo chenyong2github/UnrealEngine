@@ -8,6 +8,7 @@
 UMovieSceneDataLayerTrack::UMovieSceneDataLayerTrack(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	EvalOptions.bEvaluateInPreroll = EvalOptions.bEvaluateInPostroll = true;
 }
 
 bool UMovieSceneDataLayerTrack::IsEmpty() const
