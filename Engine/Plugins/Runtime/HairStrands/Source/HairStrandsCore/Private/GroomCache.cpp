@@ -243,7 +243,7 @@ FGroomCacheProcessor::FGroomCacheProcessor(EGroomCacheType InType, EGroomCacheAt
 {
 }
 
-void FGroomCacheProcessor::AddGroomSample(TArray<FHairGroupData>&& GroupData)
+void FGroomCacheProcessor::AddGroomSample(TArray<FHairDescriptionGroup>&& GroupData)
 {
 	TArray<uint8> TempBytes;
 	FMemoryWriter Ar(TempBytes, true);

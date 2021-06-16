@@ -89,7 +89,7 @@ class HAIRSTRANDSCORE_API FGroomCacheProcessor
 public:
 	FGroomCacheProcessor(EGroomCacheType InType, EGroomCacheAttributes InAttributes);
 
-	void AddGroomSample(TArray<FHairGroupData>&& GroomData);
+	void AddGroomSample(TArray<FHairDescriptionGroup>&& GroomData);
 	void TransferChunks(UGroomCache* GroomCache);
 	EGroomCacheType GetType() const { return Type; }
 
