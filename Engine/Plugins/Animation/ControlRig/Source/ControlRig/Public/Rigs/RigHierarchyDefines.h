@@ -231,6 +231,56 @@ public:
 		return Value;
 	}
 
+	FORCEINLINE_DEBUGGABLE FString ToPythonString(ERigControlType InControlType) const
+	{
+		FString ValueStr;
+		
+		switch (InControlType)
+		{
+			case ERigControlType::Bool: ValueStr = FString::Printf(TEXT("unreal.RigHierarchy.make_control_value_from_bool(%s)"), Get<bool>() ? TEXT("True") : TEXT("False")); break;							
+			case ERigControlType::Float: ValueStr = FString::Printf(TEXT("unreal.RigHierarchy.make_control_value_from_float(%.6f)"), Get<float>()); break;
+			case ERigControlType::Integer: ValueStr = FString::Printf(TEXT("unreal.RigHierarchy.make_control_value_from_int(%d)"), Get<int>()); break;
+			case ERigControlType::Position: ValueStr = FString::Printf(TEXT("unreal.RigHierarchy.make_control_value_from_vector(unreal.Vector(%.6f, %.6f, %.6f))"),
+				Get<FVector>().X, Get<FVector>().Y, Get<FVector>().Z); break;
+			case ERigControlType::Rotator: ValueStr = FString::Printf(TEXT("unreal.RigHierarchy.make_control_value_from_rotator(unreal.Rotator(pitch=%.6f, roll=%.6f, yaw=%.6f))"),
+				Get<FRotator>().Pitch, Get<FRotator>().Roll, Get<FRotator>().Yaw); break;
+			case ERigControlType::Scale: ValueStr = FString::Printf(TEXT("unreal.RigHierarchy.make_control_value_from_vector(unreal.Vector(%.6f, %.6f, %.6f))"),
+				Get<FVector>().X, Get<FVector>().Y, Get<FVector>().Z); break;
+			case ERigControlType::Transform: ValueStr = FString::Printf(TEXT("unreal.RigHierarchy.make_control_value_from_transform(unreal.Transform(location=[%.6f,%.6f,%.6f],rotation=[%.6f,%.6f,%.6f],scale=[%.6f,%.6f,%.6f]))"),
+				Get<FTransform>().GetLocation().X,
+				Get<FTransform>().GetLocation().Y,
+				Get<FTransform>().GetLocation().Z,
+				Get<FTransform>().Rotator().Pitch,
+				Get<FTransform>().Rotator().Yaw,
+				Get<FTransform>().Rotator().Roll,
+				Get<FTransform>().GetScale3D().X,
+				Get<FTransform>().GetScale3D().Y,
+				Get<FTransform>().GetScale3D().Z); break;
+			case ERigControlType::EulerTransform: ValueStr = FString::Printf(TEXT("unreal.RigHierarchy.make_control_value_from_euler_transform(unreal.EulerTransform(location=[%.6f,%.6f,%.6f],rotation=[%.6f,%.6f,%.6f],scale=[%.6f,%.6f,%.6f]))"),
+				Get<FEulerTransform>().Location.X,
+				Get<FEulerTransform>().Location.Y,
+				Get<FEulerTransform>().Location.Z,
+				Get<FEulerTransform>().Rotation.Euler().X,
+				Get<FEulerTransform>().Rotation.Euler().Y,
+				Get<FEulerTransform>().Rotation.Euler().Z,
+				Get<FEulerTransform>().Scale.X,
+				Get<FEulerTransform>().Scale.Y,
+				Get<FEulerTransform>().Scale.Z); break;
+			case ERigControlType::Vector2D: ValueStr = FString::Printf(TEXT("unreal.RigHierarchy.make_control_value_from_vector2d(unreal.Vector2D(%.6f, %.6f))"),
+				Get<FVector2D>().X, Get<FVector2D>().Y); break;
+			case ERigControlType::TransformNoScale: ValueStr = FString::Printf(TEXT("unreal.RigHierarchy.make_control_value_from_transform_no_scale(unreal.TransformNoScale(location=[%.6f,%.6f,%.6f],rotation=[%.6f,%.6f,%.6f]))"),
+				Get<FTransform>().GetLocation().X,
+				Get<FTransform>().GetLocation().Y,
+				Get<FTransform>().GetLocation().Z,
+				Get<FTransform>().Rotator().Pitch,
+				Get<FTransform>().Rotator().Yaw,
+				Get<FTransform>().Rotator().Roll); break;
+			default: ensure(false);
+		}
+
+		return ValueStr;
+	}
+
 	template<class T>
 	FORCEINLINE_DEBUGGABLE static FRigControlValue Make(T InValue)
 	{
@@ -909,6 +959,14 @@ public:
 			}
 		}
 		return FString();
+	}
+
+	FORCEINLINE_DEBUGGABLE FString ToPythonString() const
+	{
+		FString TypeStr = StaticEnum<ERigElementType>()->GetDisplayNameTextByIndex((int32)Type).ToUpper().ToString();
+		return FString::Printf(TEXT("unreal.RigElementKey(type=unreal.RigElementType.%s, name='%s')"),
+			*TypeStr,
+			*Name.ToString());
 	}
 };
 

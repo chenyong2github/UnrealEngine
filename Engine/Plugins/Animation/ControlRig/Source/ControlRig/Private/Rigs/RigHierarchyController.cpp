@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rigs/RigHierarchyController.h"
+#include "RigVMCore/RigVMPythonUtils.h"
 
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
@@ -1113,6 +1114,271 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromHierarchyContainer(con
 	TArray<FRigElementKey> AddedKeys;
 	KeyMap.GenerateValueArray(AddedKeys);
 	return AddedKeys;
+}
+
+TArray<FString> URigHierarchyController::GeneratePythonCommands()
+{
+	TArray<FString> Commands;
+	Hierarchy->ForEach([&](FRigBaseElement* Element) -> bool
+	{
+		Commands.Append(GetAddElementPythonCommands(Element));
+		
+		return true;
+	});
+
+	return Commands;
+}
+
+TArray<FString> URigHierarchyController::GetAddElementPythonCommands(FRigBaseElement* Element) const
+{
+	if(FRigBoneElement* BoneElement = Cast<FRigBoneElement>(Element))
+	{
+		return GetAddBonePythonCommands(BoneElement);		
+	}
+	else if(FRigNullElement* NullElement = Cast<FRigNullElement>(Element))
+	{
+		return GetAddNullPythonCommands(NullElement);
+	}
+	else if(FRigControlElement* ControlElement = Cast<FRigControlElement>(Element))
+	{
+		return GetAddControlPythonCommands(ControlElement);
+	}
+	else if(FRigCurveElement* CurveElement = Cast<FRigCurveElement>(Element))
+	{
+		return GetAddCurvePythonCommands(CurveElement);
+	}
+	else if(FRigRigidBodyElement* RigidBodyElement = Cast<FRigRigidBodyElement>(Element))
+	{
+		return GetAddRigidBodyPythonCommands(RigidBodyElement);
+	}
+	else if(FRigSocketElement* SocketElement = Cast<FRigSocketElement>(Element))
+	{
+		ensure(false);
+	}
+	return TArray<FString>();
+}
+
+TArray<FString> URigHierarchyController::GetAddBonePythonCommands(FRigBoneElement* Bone) const
+{
+	TArray<FString> Commands;
+	if (!Bone)
+	{
+		return Commands;
+	}
+	
+	FString TransformStr = RigVMPythonUtils::TransformToPythonString(Bone->Pose.Initial.Local.Transform);
+	FString ParentKeyStr = "''";
+	if (Bone->ParentElement)
+	{
+		ParentKeyStr = Bone->ParentElement->GetKey().ToPythonString();
+	}
+	
+	if (Bone->BoneType == ERigBoneType::Imported)
+	{
+		// AddBone(FName InName, FRigElementKey InParent, FTransform InTransform, bool bTransformInGlobal = true, ERigBoneType InBoneType = ERigBoneType::User, bool bSetupUndo = false);
+		Commands.Add(FString::Printf(TEXT("hierarchy_controller.add_bone('%s', %s, %s, False, unreal.RigBoneType.%s)"),
+			*Bone->GetName().ToString(),
+			*ParentKeyStr,
+			*TransformStr,
+			Bone->BoneType == ERigBoneType::Imported ? TEXT("IMPORTED") : TEXT("USER")));
+	}
+
+	return Commands;
+}
+
+TArray<FString> URigHierarchyController::GetAddNullPythonCommands(FRigNullElement* Null) const
+{
+	FString TransformStr = RigVMPythonUtils::TransformToPythonString(Null->Pose.Initial.Local.Transform);
+
+	FString ParentKeyStr = "''";
+	if (Null->ParentElements.Num() > 0)
+	{
+		ParentKeyStr = Null->ParentElements[0]->GetKey().ToPythonString();		
+	}
+		
+	// AddNull(FName InName, FRigElementKey InParent, FTransform InTransform, bool bTransformInGlobal = true, bool bSetupUndo = false);
+	return {FString::Printf(TEXT("hierarchy_controller.add_null('%s', %s, %s, False)"),
+		*Null->GetName().ToString(),
+		*ParentKeyStr,
+		*TransformStr)};
+}
+
+TArray<FString> URigHierarchyController::GetAddControlPythonCommands(FRigControlElement* Control) const
+{
+	TArray<FString> Commands;
+	FString TransformStr = RigVMPythonUtils::TransformToPythonString(Control->Pose.Initial.Local.Transform);
+
+	FString ParentKeyStr = "''";
+	if (Control->ParentElements.Num() > 0)
+	{
+		ParentKeyStr = Control->ParentElements[0]->GetKey().ToPythonString();
+	}
+
+	FRigControlSettings& Settings = Control->Settings;
+	FString SettingsStr;
+	{
+		FString ControlNamePythonized = RigVMPythonUtils::NameToPep8(Control->GetName().ToString());
+		SettingsStr = FString::Printf(TEXT("control_settings_%s"),
+			*ControlNamePythonized);
+			
+		Commands.Add(FString::Printf(TEXT("control_settings_%s = unreal.RigControlSettings()"),
+			*ControlNamePythonized));
+		FString TypeStr;
+		switch (Settings.ControlType)
+		{
+			case ERigControlType::Bool: TypeStr = TEXT("BOOL"); break;							
+			case ERigControlType::Float: TypeStr = TEXT("FLOAT"); break;
+			case ERigControlType::Integer: TypeStr = TEXT("INTEGER"); break;
+			case ERigControlType::Position: TypeStr = TEXT("POSITION"); break;
+			case ERigControlType::Rotator: TypeStr = TEXT("POSITION"); break;
+			case ERigControlType::Scale: TypeStr = TEXT("SCALE"); break;
+			case ERigControlType::Transform: TypeStr = TEXT("TRANSFORM"); break;
+			case ERigControlType::EulerTransform: TypeStr = TEXT("EULER_TRANSFORM"); break;
+			case ERigControlType::Vector2D: TypeStr = TEXT("VECTOR2D"); break;
+			case ERigControlType::TransformNoScale: TypeStr = TEXT("TRANSFORM_NO_SCALE"); break;
+			default: ensure(false);
+		}
+		Commands.Add(FString::Printf(TEXT("control_settings_%s.control_type = unreal.RigControlType.%s"),
+										*ControlNamePythonized,
+										*TypeStr));
+		Commands.Add(FString::Printf(TEXT("control_settings_%s.animatable = %s"),
+			*ControlNamePythonized,
+			Settings.bAnimatable ? TEXT("True") : TEXT("False")));
+		Commands.Add(FString::Printf(TEXT("control_settings_%s.display_name = '%s'"),
+			*ControlNamePythonized,
+			*Settings.DisplayName.ToString()));
+		Commands.Add(FString::Printf(TEXT("control_settings_%s.draw_limits = %s"),
+			*ControlNamePythonized,
+			Settings.bDrawLimits ? TEXT("True") : TEXT("False")));
+		Commands.Add(FString::Printf(TEXT("control_settings_%s.gizmo_color = %s"),
+			*ControlNamePythonized,
+			*RigVMPythonUtils::LinearColorToPythonString(Settings.GizmoColor)));
+		Commands.Add(FString::Printf(TEXT("control_settings_%s.gizmo_enabled = %s"),
+			*ControlNamePythonized,
+			Settings.bGizmoEnabled ? TEXT("True") : TEXT("False")));
+		Commands.Add(FString::Printf(TEXT("control_settings_%s.gizmo_name = '%s'"),
+			*ControlNamePythonized,
+			*Settings.GizmoName.ToString()));
+		Commands.Add(FString::Printf(TEXT("control_settings_%s.gizmo_visible = %s"),
+			*ControlNamePythonized,
+			Settings.bGizmoVisible ? TEXT("True") : TEXT("False")));
+		Commands.Add(FString::Printf(TEXT("control_settings_%s.is_transient_control = %s"),
+			*ControlNamePythonized,
+			Settings.bIsTransientControl ? TEXT("True") : TEXT("False")));
+		Commands.Add(FString::Printf(TEXT("control_settings_%s.limit_rotation = %s"),
+				*ControlNamePythonized,
+				Settings.bLimitRotation ? TEXT("True") : TEXT("False")));
+		Commands.Add(FString::Printf(TEXT("control_settings_%s.limit_translation = %s"),
+				*ControlNamePythonized,
+				Settings.bLimitTranslation ? TEXT("True") : TEXT("False")));
+		Commands.Add(FString::Printf(TEXT("control_settings_%s.limit_scale = %s"),
+				*ControlNamePythonized,
+				Settings.bLimitScale ? TEXT("True") : TEXT("False")));
+		Commands.Add(FString::Printf(TEXT("control_settings_%s.primary_axis = unreal.RigControlAxis.%s"),
+			*ControlNamePythonized,
+			Settings.PrimaryAxis == ERigControlAxis::X ? TEXT("X") : Settings.PrimaryAxis == ERigControlAxis::Y ? TEXT("Y") : TEXT("Z")));				
+	}
+		
+	FRigControlValue Value = Hierarchy->GetControlValue(Control->GetKey(), ERigControlValueType::Initial);
+	FString ValueStr = Value.ToPythonString(Settings.ControlType);
+	
+	// AddControl(FName InName, FRigElementKey InParent, FRigControlSettings InSettings, FRigControlValue InValue, bool bSetupUndo = true);
+	Commands.Add(FString::Printf(TEXT("hierarchy_controller.add_control('%s', %s, %s, %s)"),
+		*Control->GetName().ToString(),
+		*ParentKeyStr,
+		*SettingsStr,
+		*ValueStr));
+
+	Commands.Append(GetSetControlValuePythonCommands(Control, Value, ERigControlValueType::Initial));
+	Commands.Append(GetSetControlValuePythonCommands(Control, Settings.MinimumValue, ERigControlValueType::Minimum));
+	Commands.Append(GetSetControlValuePythonCommands(Control, Settings.MaximumValue, ERigControlValueType::Maximum));
+	Commands.Append(GetSetControlOffsetTransformPythonCommands(Control, Control->Offset.Initial.Local.Transform, true, true));
+	Commands.Append(GetSetControlGizmoTransformPythonCommands(Control, Control->Gizmo.Initial.Local.Transform, true));
+
+	return Commands;
+}
+
+TArray<FString> URigHierarchyController::GetAddCurvePythonCommands(FRigCurveElement* Curve) const
+{
+	// FRigElementKey AddCurve(FName InName, float InValue = 0.f, bool bSetupUndo = true);
+	return {FString::Printf(TEXT("hierarchy_controller.add_curve('%s', %f)"),
+		*Curve->GetName().ToString(),
+		Hierarchy->GetCurveValue(Curve))};
+}
+
+TArray<FString> URigHierarchyController::GetAddRigidBodyPythonCommands(FRigRigidBodyElement* RigidBody) const
+{
+	TArray<FString> Commands;
+	FString TransformStr = RigVMPythonUtils::TransformToPythonString(RigidBody->Pose.Initial.Local.Transform);
+	
+	FString ParentKeyStr = "''";
+	if (RigidBody->ParentElement)
+	{
+		ParentKeyStr = RigidBody->ParentElement->GetKey().ToPythonString();
+	}
+
+	FString RigidBodyNamePythonized = RigVMPythonUtils::NameToPep8(RigidBody->GetName().ToString());
+	FRigRigidBodySettings& Settings = RigidBody->Settings;
+	FString SettingsStr;
+	{
+		SettingsStr =FString::Printf(TEXT("rigid_body_settings_%s"),
+			*RigidBodyNamePythonized);
+			
+		Commands.Add(FString::Printf(TEXT("rigid_body_settings_%s = unreal.RigRigidBodySettings()"),
+			*RigidBodyNamePythonized));
+
+		Commands.Add(FString::Printf(TEXT("control_settings_%s.mass = %f"),
+			*RigidBodyNamePythonized,
+			Settings.Mass));	
+	}
+	
+	// FRigElementKey AddRigidBody(FName InName, FRigElementKey InParent, FRigRigidBodySettings InSettings, FTransform InLocalTransform, bool bSetupUndo = false);
+	Commands.Add(FString::Printf(TEXT("hierarchy_controller.add_rigid_body('%s', %s, %s, %s)"),
+		*RigidBody->GetName().ToString(),
+		*ParentKeyStr,
+		*SettingsStr,
+		*TransformStr));
+
+	return Commands;
+}
+
+TArray<FString> URigHierarchyController::GetSetControlValuePythonCommands(const FRigControlElement* Control, const FRigControlValue& Value,
+                                                                          const ERigControlValueType& Type) const
+{
+	FString TypeStr;
+	switch (Type)
+	{
+		case ERigControlValueType::Initial: TypeStr = TEXT("INITIAL"); break;
+		case ERigControlValueType::Current: TypeStr = TEXT("CURRENT"); break;
+		case ERigControlValueType::Minimum: TypeStr = TEXT("MINIMUM"); break;
+		case ERigControlValueType::Maximum: TypeStr = TEXT("MAXIMUM"); break;
+		default: ensure(false);
+	}
+	return {FString::Printf(TEXT("hierarchy.set_control_value(%s, %s, unreal.RigControlValueType.%s)"),
+		*Control->GetKey().ToPythonString(),
+		*Value.ToPythonString(Control->Settings.ControlType),
+		*TypeStr)};
+}
+
+TArray<FString> URigHierarchyController::GetSetControlOffsetTransformPythonCommands(const FRigControlElement* Control,
+                                                                                    const FTransform& Offset, bool bInitial, bool bAffectChildren) const
+{
+	//SetControlOffsetTransform(FRigElementKey InKey, FTransform InTransform, bool bInitial = false, bool bAffectChildren = true, bool bSetupUndo = false)
+	return {FString::Printf(TEXT("hierarchy.set_control_offset_transform(%s, %s, %s, %s)"),
+		*Control->GetKey().ToPythonString(),
+		*RigVMPythonUtils::TransformToPythonString(Offset),
+		bInitial ? TEXT("True") : TEXT("False"),
+		bAffectChildren ? TEXT("True") : TEXT("False"))};
+}
+
+TArray<FString> URigHierarchyController::GetSetControlGizmoTransformPythonCommands(const FRigControlElement* Control,
+	const FTransform& InTransform, bool bInitial) const
+{
+	//SetControlGizmoTransform(FRigElementKey InKey, FTransform InTransform, bool bInitial = false, bool bSetupUndo = false)
+	return {FString::Printf(TEXT("hierarchy.set_control_gizmo_transform(%s, %s, %s)"),
+		*Control->GetKey().ToPythonString(),
+		*RigVMPythonUtils::TransformToPythonString(InTransform),
+		bInitial ? TEXT("True") : TEXT("False"))};
 }
 
 void URigHierarchyController::Notify(ERigHierarchyNotification InNotifType, const FRigBaseElement* InElement)

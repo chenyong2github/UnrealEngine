@@ -84,6 +84,18 @@ void FRigVMCompileSettingsDetails::CustomizeChildren(TSharedRef<IPropertyHandle>
 						.Text(LOCTEXT("CopyByteCodeToClipboard", "Copy ByteCode"))
 					]
 				]
+				+ SVerticalBox::Slot()
+				[
+					SNew(SButton)
+					.OnClicked(this, &FRigVMCompileSettingsDetails::OnCopyPythonScriptClicked)
+					.ContentPadding(FMargin(2))
+					.Content()
+					[
+						SNew(STextBlock)
+						.Justification(ETextJustify::Center)
+						.Text(LOCTEXT("CopyPythonScript", "Copy Python Script"))
+					]
+				]
 			];
 	}
 }
@@ -113,6 +125,24 @@ FReply FRigVMCompileSettingsDetails::OnCopyByteCodeClicked()
 				FPlatformApplicationMisc::ClipboardCopy(*ByteCodeContent);
 			}
 		}
+	}
+	return FReply::Handled();
+}
+
+FReply FRigVMCompileSettingsDetails::OnCopyPythonScriptClicked()
+{
+	if (BlueprintBeingCustomized)
+	{
+		FString NewName = BlueprintBeingCustomized->GetPathName();
+		int32 DotIndex = NewName.Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+		if (DotIndex != INDEX_NONE)
+		{
+			NewName = NewName.Left(DotIndex);
+		}
+		
+		TArray<FString> Commands = BlueprintBeingCustomized->GeneratePythonCommands(NewName);
+		FString FullScript = FString::Join(Commands, TEXT("\n"));
+		FPlatformApplicationMisc::ClipboardCopy(*FullScript);
 	}
 	return FReply::Handled();
 }

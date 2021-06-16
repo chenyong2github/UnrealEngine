@@ -122,6 +122,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = RigVMController)
 	bool IsReportingEnabled() const { return bReportWarningsAndErrors; }
 
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	TArray<FString> GeneratePythonCommands();
+
+	TArray<FString> GetAddNodePythonCommands(URigVMNode* Node) const;
+
 #if WITH_EDITOR
 	// Note: The functions below are scoped with WITH_EDITOR since we are considering
 	// to move this code into the runtime in the future. Right now there's a dependency
@@ -595,6 +600,10 @@ public:
 	// Add a local variable to the graph
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	FRigVMGraphVariableDescription AddLocalVariable(const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, const FString& InDefaultValue, bool bSetupUndoRedo = true);
+
+	// Add a local variable to the graph given a struct object path name.
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	FRigVMGraphVariableDescription AddLocalVariableFromObjectPath(const FName& InVariableName, const FString& InCPPType, const FString& InCPPTypeObjectPath, const FString& InDefaultValue, bool bSetupUndoRedo = true);
 
 	// Remove a local variable from the graph
 	UFUNCTION(BlueprintCallable, Category = RigVMController)

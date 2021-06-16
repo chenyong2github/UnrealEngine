@@ -26,6 +26,7 @@ protected:
 
 	FReply OnCopyASTClicked();
 	FReply OnCopyByteCodeClicked();
+	FReply OnCopyPythonScriptClicked();
 
 	UControlRigBlueprint* BlueprintBeingCustomized;
 };

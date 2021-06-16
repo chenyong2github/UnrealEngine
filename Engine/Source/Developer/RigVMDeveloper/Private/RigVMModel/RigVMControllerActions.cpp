@@ -720,6 +720,10 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 	{
 		InverseAction.AddAction(FRigVMImportNodeFromTextAction(LibraryNode, InController));
 	}
+	else if (InNode->IsA<URigVMFunctionEntryNode>() || InNode->IsA<URigVMFunctionReturnNode>())
+	{
+		// Do nothing
+	}
 	else
 	{
 		ensure(false);

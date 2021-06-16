@@ -13,6 +13,7 @@
 #include "UObject/Package.h"
 #include "Misc/CoreMisc.h"
 #include "Algo/Sort.h"
+#include "RigVMCore/RigVMPythonUtils.h"
 
 #if WITH_EDITOR
 #include "Exporters/Exporter.h"
@@ -264,6 +265,352 @@ void URigVMController::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 	{
 		ModifiedEventDynamic.Broadcast(InNotifType, InGraph, InSubject);
 	}
+}
+
+TArray<FString> URigVMController::GeneratePythonCommands() 
+{
+	TArray<FString> Commands;
+
+	// Add local variables
+	for (const FRigVMGraphVariableDescription& Variable : GetGraph()->LocalVariables)
+	{
+		if (Variable.CPPTypeObject)
+		{
+			// FRigVMGraphVariableDescription AddLocalVariable(const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, const FString& InDefaultValue, bool bSetupUndoRedo = true);
+			Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_local_variable_from_object_path('%s', '%s', '%s', '%s')"),
+						*GetGraph()->GetGraphName(),
+						*Variable.Name.ToString(),
+						*Variable.CPPType,
+						Variable.CPPTypeObject ? *Variable.CPPTypeObject->GetPathName() : TEXT(""),
+						*Variable.DefaultValue));
+		}
+		else
+		{
+			// FRigVMGraphVariableDescription AddLocalVariable(const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, const FString& InDefaultValue, bool bSetupUndoRedo = true);
+			Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_local_variable('%s', '%s', None, '%s')"),
+						*GetGraph()->GetGraphName(),
+						*Variable.Name.ToString(),
+						*Variable.CPPType,
+						*Variable.DefaultValue));
+		}
+	}
+	
+	
+	// All nodes (except reroutes)
+	for (URigVMNode* Node : GetGraph()->GetNodes())
+	{
+		Commands.Append(GetAddNodePythonCommands(Node));
+	}
+
+	// All links
+	for (URigVMLink* Link : GetGraph()->GetLinks())
+	{
+		URigVMPin* SourcePin = Link->GetSourcePin();
+		URigVMPin* TargetPin = Link->GetTargetPin();
+		
+		if (TargetPin->GetNode()->IsA<URigVMRerouteNode>())
+		{
+			continue;
+		}
+
+		if (SourcePin->GetInjectedNodes().Num() > 0 || TargetPin->GetInjectedNodes().Num() > 0)
+		{
+			continue;
+		}
+
+		// Iterate upstream until the source pin is not on a reroute node
+		while (SourcePin && SourcePin->GetNode()->IsA<URigVMRerouteNode>())
+		{
+			const URigVMNode* Node = SourcePin->GetNode();
+			if (Node->Pins.Num() > 0)
+			{
+				const TArray<URigVMLink*>& Links = Node->Pins[0]->GetSourceLinks();
+				if (Links.Num() > 0)
+				{
+					SourcePin = Links[0]->GetSourcePin();
+				}
+			}
+		}
+
+		//bool AddLink(const FString& InOutputPinPath, const FString& InInputPinPath, bool bSetupUndoRedo = true);
+		Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_link('%s', '%s')"),
+					*GetGraph()->GetGraphName(),
+					*SourcePin->GetPinPath(),
+					*TargetPin->GetPinPath()));
+	}
+
+	// Reroutes
+	{
+		TArray<URigVMRerouteNode*> Reroutes;
+		for (URigVMNode* Node : GetGraph()->GetNodes())
+		{
+			if (URigVMRerouteNode* Reroute = Cast<URigVMRerouteNode>(Node))
+			{
+				Reroutes.Add(Reroute);
+			}
+		}
+
+		TArray<FString> ReroutesAdded;
+		while (ReroutesAdded.Num() < Reroutes.Num())
+		{
+			for (URigVMRerouteNode* Reroute : Reroutes)
+			{
+				if (Reroute->Pins.IsEmpty() || Reroute->Pins[0]->GetTargetLinks().IsEmpty())
+				{
+					continue;
+				}
+				
+				URigVMPin* TargetPin = Reroute->Pins[0]->GetTargetLinks()[0]->GetTargetPin();
+				if (!TargetPin->GetNode()->IsA<URigVMRerouteNode>() ||
+					ReroutesAdded.Contains(TargetPin->GetNode()->GetName()))
+				{
+					// Iterate upstream until the source pin is not on a reroute node
+					URigVMPin* SourcePin = Reroute->Pins[0]->GetSourceLinks()[0]->GetSourcePin();
+					while (SourcePin && SourcePin->GetNode()->IsA<URigVMRerouteNode>())
+					{
+						const URigVMNode* Node = SourcePin->GetNode();
+						if (Node->Pins.Num() > 0)
+						{
+							const TArray<URigVMLink*>& Links = Node->Pins[0]->GetSourceLinks();
+							if (Links.Num() > 0)
+							{
+								SourcePin = Links[0]->GetSourcePin();
+							}
+						}
+					}
+
+					if(SourcePin)
+					{
+						// AddRerouteNodeOnLinkPath(const FString& InLinkPinPathRepresentation, bool bShowAsFullNode, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+						Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_reroute_node_on_link_path('%s', %s, unreal.Vector2D(%f, %f), '%s')"),
+								*GetGraph()->GetGraphName(),
+								*FString::Printf(TEXT("%s -> %s"), *SourcePin->GetPinPath(), *TargetPin->GetPinPath()),
+								Reroute->GetShowsAsFullNode() ? TEXT("True") : TEXT("False"),
+								Reroute->GetPosition().X, 
+								Reroute->GetPosition().Y,
+								*Reroute->GetName()));
+
+						ReroutesAdded.Add(Reroute->GetName());
+					}
+				}
+			}
+		}
+	}
+
+	return Commands;
+}
+
+TArray<FString> URigVMController::GetAddNodePythonCommands(URigVMNode* Node) const
+{
+	TArray<FString> Commands;
+	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Node))
+	{
+		if (URigVMInjectionInfo* InjectionInfo = Cast<URigVMInjectionInfo>(UnitNode->GetOuter()))
+		{
+			//URigVMInjectionInfo* AddInjectedNodeFromStructPath(const FString& InPinPath, bool bAsInput, const FString& InScriptStructPath, const FName& InMethodName, const FName& InInputPinName, const FName& InOutputPinName, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+			Commands.Add(FString::Printf(TEXT("%s_info = blueprint.get_controller_by_name('%s').add_injected_node_from_struct_path('%s', %s, '%s', '%s', '%s', '%s', '%s')"),
+					*UnitNode->GetName(), 
+					*GetGraph()->GetGraphName(), 
+					*InjectionInfo->GetPin()->GetPinPath(), 
+					InjectionInfo->GetPin()->GetDirection() == ERigVMPinDirection::Input ? TEXT("True") : TEXT("False"), 
+					*UnitNode->GetScriptStruct()->GetPathName(), 
+					*UnitNode->GetMethodName().ToString(), 
+					*InjectionInfo->InputPin->GetName(), 
+					*InjectionInfo->OutputPin->GetName(), 
+					*UnitNode->GetName()));
+		}
+		else
+		{
+			// add_struct_node_from_struct_path(script_struct_path, method_name, position=[0.0, 0.0], node_name='', undo=True)
+			Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_unit_node_from_struct_path('%s', 'Execute', unreal.Vector2D(%f, %f), '%s')"),
+					*GetGraph()->GetGraphName(),
+					*UnitNode->GetScriptStruct()->GetPathName(),
+					UnitNode->GetPosition().X, 
+					UnitNode->GetPosition().Y,
+					*UnitNode->GetName()));
+		}
+	}
+	else if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
+	{
+		// add_variable_node(variable_name, cpp_type, cpp_type_object, is_getter, default_value, position=[0.0, 0.0], node_name='', undo=True)
+		if (VariableNode->GetVariableDescription().CPPTypeObject)
+		{
+			Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_variable_node_from_object_path('%s', '%s', '%s', %s, '%s', unreal.Vector2D(%f, %f), '%s')"),
+					*GetGraph()->GetGraphName(),
+					*VariableNode->GetVariableName().ToString(),
+					*VariableNode->GetVariableDescription().CPPType,
+					*VariableNode->GetVariableDescription().CPPTypeObject->GetPathName(),
+					VariableNode->IsGetter() ? TEXT("True") : TEXT("False"),
+					*VariableNode->GetVariableDescription().DefaultValue,
+					VariableNode->GetPosition().X, 
+					VariableNode->GetPosition().Y,
+					*VariableNode->GetName()));	
+		}
+		else
+		{
+			Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_variable_node('%s', '%s', None, %s, '%s', unreal.Vector2D(%f, %f), '%s')"),
+					*GetGraph()->GetGraphName(),
+					*VariableNode->GetVariableName().ToString(),
+					*VariableNode->GetVariableDescription().CPPType,
+					VariableNode->IsGetter() ? TEXT("True") : TEXT("False"),
+					*VariableNode->GetVariableDescription().DefaultValue,
+					VariableNode->GetPosition().X, 
+					VariableNode->GetPosition().Y,
+					*VariableNode->GetName()));	
+		}
+	}
+	else if (URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(Node))
+	{
+		// add_parameter_node_from_object_path(parameter_name, cpp_type, cpp_type_object_path, is_input, default_value, position=[0.0, 0.0], node_name='', undo=True)
+		if (ParameterNode->GetParameterDescription().CPPTypeObject)
+		{
+			Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_parameter_node_from_object_path('%s', '%s', '%s', %s, '%s', unreal.Vector2D(%f, %f), '%s')"),
+					*GetGraph()->GetGraphName(),
+					*ParameterNode->GetParameterName().ToString(),
+					*ParameterNode->GetParameterDescription().CPPType,
+					*ParameterNode->GetParameterDescription().CPPTypeObject->GetPathName(),
+					ParameterNode->IsInput() ? TEXT("True") : TEXT("False"),
+					*ParameterNode->GetParameterDescription().DefaultValue,
+					ParameterNode->GetPosition().X, 
+					ParameterNode->GetPosition().Y,
+					*ParameterNode->GetName()));	
+		}
+		else
+		{
+			Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_parameter_node('%s', '%s', None, %s, str(%s), unreal.Vector2D(%f, %f), '%s')"),
+					*GetGraph()->GetGraphName(),
+					*ParameterNode->GetParameterName().ToString(),
+					*ParameterNode->GetParameterDescription().CPPType,
+					ParameterNode->IsInput() ? TEXT("True") : TEXT("False"),
+					*ParameterNode->GetParameterDescription().DefaultValue,
+					ParameterNode->GetPosition().X, 
+					ParameterNode->GetPosition().Y,
+					*ParameterNode->GetName()));	
+		}
+	}
+	else if (URigVMCommentNode* CommentNode = Cast<URigVMCommentNode>(Node))
+	{
+		// add_comment_node(comment_text, position=[0.0, 0.0], size=[400.0, 300.0], color=[0.0, 0.0, 0.0, 0.0], node_name='', undo=True)
+		Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_comment_node('%s', unreal.Vector2D(%f, %f), unreal.Vector2D(%f, %f), unreal.LinearColor(%f, %f, %f, %f), '%s')"),
+					*GetGraph()->GetGraphName(),
+					*CommentNode->GetCommentText(),
+					CommentNode->GetPosition().X, 
+					CommentNode->GetPosition().Y,
+					CommentNode->GetSize().X, 
+					CommentNode->GetSize().Y,
+					CommentNode->GetNodeColor().R, 
+					CommentNode->GetNodeColor().G,
+					CommentNode->GetNodeColor().B,
+					CommentNode->GetNodeColor().A,
+					*CommentNode->GetName()));	
+	}
+	else if (URigVMBranchNode* BranchNode = Cast<URigVMBranchNode>(Node))
+	{
+		// add_branch_node(position=[0.0, 0.0], node_name='', undo=True)
+		Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_branch_node(unreal.Vector2D(%f, %f), '%s')"),
+						*GetGraph()->GetGraphName(),
+						BranchNode->GetPosition().X, 
+						BranchNode->GetPosition().Y,
+						*BranchNode->GetName()));	
+	}
+	else if (URigVMIfNode* IfNode = Cast<URigVMIfNode>(Node))
+	{
+		// add_if_node(cpp_type, cpp_type_object_path, position=[0.0, 0.0], node_name='', undo=True)
+		URigVMPin* ResultPin = IfNode->FindPin(URigVMIfNode::ResultName);
+		Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_if_node('%s', '%s', unreal.Vector2D(%f, %f), '%s')"),
+						*GetGraph()->GetGraphName(),
+						*ResultPin->GetCPPType(),
+						*ResultPin->CPPTypeObject->GetPathName(),
+						IfNode->GetPosition().X, 
+						IfNode->GetPosition().Y,
+						*IfNode->GetName()));
+	}
+	else if (URigVMSelectNode* SelectNode = Cast<URigVMSelectNode>(Node))
+	{
+		// add_select_node(cpp_type, cpp_type_object_path, position=[0.0, 0.0], node_name='', undo=True)
+		URigVMPin* ResultPin = SelectNode->FindPin(URigVMSelectNode::ResultName);
+		Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_select_node('%s', '%s', unreal.Vector2D(%f, %f), '%s')"),
+						*GetGraph()->GetGraphName(),
+						*ResultPin->GetCPPType(),
+						*ResultPin->CPPTypeObject->GetPathName(),
+						SelectNode->GetPosition().X, 
+						SelectNode->GetPosition().Y,
+						*SelectNode->GetName()));
+	}
+	else if (URigVMPrototypeNode* PrototypeNode = Cast<URigVMPrototypeNode>(Node))
+	{
+		// add_prototype_node(notation, position=[0.0, 0.0], node_name='', undo=True)
+		Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_prototype_node('%s', unreal.Vector2D(%f, %f), '%s')"),
+						*GetGraph()->GetGraphName(),
+						*PrototypeNode->GetNotation().ToString(),
+						PrototypeNode->GetPosition().X, 
+						PrototypeNode->GetPosition().Y,
+						*PrototypeNode->GetName()));
+	}
+	else if (URigVMEnumNode* EnumNode = Cast<URigVMEnumNode>(Node))
+	{
+		// add_enum_node(cpp_type_object_path, position=[0.0, 0.0], node_name='', undo=True)
+		Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_enum_node('%s', unreal.Vector2D(%f, %f), '%s')"),
+						*GetGraph()->GetGraphName(),
+						*EnumNode->GetCPPTypeObject()->GetPathName(),
+						EnumNode->GetPosition().X, 
+						EnumNode->GetPosition().Y,
+						*EnumNode->GetName()));
+	}
+	else if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Node))
+	{
+		// AddFunctionReferenceNode(URigVMLibraryNode* InFunctionDefinition, const FVector2D& InNodePosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+		Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_function_reference_node(function_%s, unreal.Vector2D(%f, %f), '%s')"),
+						*GetGraph()->GetGraphName(),
+						*RigVMPythonUtils::NameToPep8(LibraryNode->GetContainedGraph()->GetGraphName()),
+						LibraryNode->GetPosition().X, 
+						LibraryNode->GetPosition().Y,
+						*LibraryNode->GetName()));
+
+		if (Node->IsA<URigVMCollapseNode>())
+		{
+			Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').promote_function_reference_node_to_collapse_node('%s')"),
+					*GetGraph()->GetGraphName(),
+					*Node->GetName()));
+			Commands.Add(FString::Printf(TEXT("library_controller.remove_function_from_library('%s')"),
+					*LibraryNode->GetContainedGraph()->GetGraphName()));
+		}
+	}
+	else if (URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(Node))
+	{
+		// Do nothing, we need to create the links first
+	}
+	else if (Node->IsA<URigVMFunctionEntryNode>() || Node->IsA<URigVMFunctionReturnNode>())
+	{
+		
+		
+	}
+	else
+	{
+		ensure(false);
+	}
+
+	if (!Commands.IsEmpty())
+	{
+		for (const URigVMPin* Pin : Node->GetPins())
+		{
+			if (Pin->GetDirection() == ERigVMPinDirection::Output)
+			{
+				continue;
+			}
+			
+			const FString DefaultValue =Pin->GetDefaultValue();
+			if (!DefaultValue.IsEmpty())
+			{
+				Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_pin_default_value('%s', '%s')"),
+							*GetGraph()->GetGraphName(),
+							*Pin->GetPinPath(),
+							*Pin->GetDefaultValue()));
+			}
+		}
+	}
+
+	return Commands;
 }
 
 #if WITH_EDITOR
@@ -3637,8 +3984,8 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 	if (bSetupUndoRedo)
 	{
 		// don't allow deletion of function entry / return nodes
-		if (Cast<URigVMFunctionEntryNode>(InNode) != nullptr ||
-			Cast<URigVMFunctionReturnNode>(InNode) != nullptr)
+		if ((Cast<URigVMFunctionEntryNode>(InNode) != nullptr && InNode->GetName() == TEXT("Entry")) ||
+			(Cast<URigVMFunctionReturnNode>(InNode) != nullptr && InNode->GetName() == TEXT("Return")))
 		{
 			return false;
 		}
@@ -6768,6 +7115,28 @@ FRigVMGraphVariableDescription URigVMController::AddLocalVariable(const FName& I
 	}
 
 	return NewVariable;
+}
+
+FRigVMGraphVariableDescription URigVMController::AddLocalVariableFromObjectPath(const FName& InVariableName, const FString& InCPPType, const FString& InCPPTypeObjectPath, const FString& InDefaultValue, bool bSetupUndoRedo)
+{
+	FRigVMGraphVariableDescription Description;
+	if (!IsValidGraph())
+	{
+		return Description;
+	}
+
+	UObject* CPPTypeObject = nullptr;
+	if (!InCPPTypeObjectPath.IsEmpty())
+	{
+		CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPTypeObjectPath);
+		if (CPPTypeObject == nullptr)
+		{
+			ReportErrorf(TEXT("Cannot find cpp type object for path '%s'."), *InCPPTypeObjectPath);
+			return Description;
+		}
+	}
+
+	return AddLocalVariable(InVariableName, InCPPType, CPPTypeObject, InDefaultValue, bSetupUndoRedo);
 }
 
 bool URigVMController::RemoveLocalVariable(const FName& InVariableName, bool bSetupUndoRedo)

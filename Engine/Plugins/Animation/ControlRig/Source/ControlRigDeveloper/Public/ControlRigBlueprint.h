@@ -230,10 +230,16 @@ public:
 	URigVMController* GetController(URigVMGraph* InGraph = nullptr) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
+	URigVMController* GetControllerByName(const FString InGraphName) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	URigVMController* GetOrCreateController(URigVMGraph* InGraph = nullptr);
 
 	URigVMController* GetController(const UEdGraph* InEdGraph) const;
 	URigVMController* GetOrCreateController(const UEdGraph* InGraph);
+
+	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
+	TArray<FString> GeneratePythonCommands(const FString InNewBlueprintName);
 
 	URigVMGraph* GetTemplateModel();
 	URigVMController* GetTemplateController();
