@@ -24,7 +24,6 @@ struct FCustomPropertyIndex;
 struct FPreAnimatedStateExtension;
 
 struct IPreAnimatedObjectEntityStorage;
-struct IPreAnimatedMasterStorage;
 struct IPreAnimatedObjectPropertyStorage;
 
 struct IPreAnimatedStorage : TSharedFromThis<IPreAnimatedStorage>
@@ -41,7 +40,6 @@ struct IPreAnimatedStorage : TSharedFromThis<IPreAnimatedStorage>
 
 	virtual IPreAnimatedObjectPropertyStorage* AsPropertyStorage() { return nullptr; }
 	virtual IPreAnimatedObjectEntityStorage*   AsObjectStorage()   { return nullptr; }
-	virtual IPreAnimatedMasterStorage*         AsMasterStorage()   { return nullptr; }
 };
 
 

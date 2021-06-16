@@ -125,18 +125,5 @@ void UMovieScenePropertySystem::SavePreAnimatedState(const FPreAnimationParamete
 
 void UMovieScenePropertySystem::RestorePreAnimatedState(const FPreAnimationParameters& InParameters)
 {
-	using namespace UE::MovieScene;
 
-	FPreAnimatedEntityCaptureSource* EntityMetaData = InParameters.CacheExtension->GetEntityMetaData();
-
-	if (EntityMetaData)
-	{
-		FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
-		const FPropertyDefinition& Definition = BuiltInComponents->PropertyRegistry.GetDefinition(CompositePropertyID);
-
-		FEntityTaskBuilder()
-		.ReadEntityIDs()
-		.FilterAll({ BuiltInComponents->BoundObject, Definition.PropertyType, BuiltInComponents->Tags.NeedsUnlink })
-		.Iterate_PerEntity(&Linker->EntityManager, [this, EntityMetaData](FMovieSceneEntityID EntityID) { EntityMetaData->StopTrackingEntity(EntityID, this->PreAnimatedStorageID); });
-	}
 }
