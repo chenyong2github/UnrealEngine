@@ -686,6 +686,7 @@ VALUE on_load(VALUE self, VALUE enable_ui, VALUE engine_path) {
 }
 
 VALUE on_unload() {
+	FDatasmithDirectLink::Shutdown();
 	FDatasmithExporterManager::Shutdown();
 	return Qtrue;
 }
