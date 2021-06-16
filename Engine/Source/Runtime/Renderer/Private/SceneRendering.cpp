@@ -2211,27 +2211,6 @@ void FDisplayInternalsData::Setup(UWorld *World)
 
 	if(IsValid())
 	{
-		MatineeTime = -1.0f;
-		uint32 Count = 0;
-
-		for (TObjectIterator<AMatineeActor> It; It; ++It)
-		{
-			AMatineeActor* MatineeActor = *It;
-
-			if(MatineeActor->GetWorld() == World && MatineeActor->bIsPlaying)
-			{
-				MatineeTime = MatineeActor->InterpPosition;
-				++Count;
-			}
-		}
-
-		if(Count > 1)
-		{
-			MatineeTime = -2;
-		}
-
-		check(IsValid());
-		
 		extern ENGINE_API uint32 GStreamAllResourcesStillInFlight;
 		NumPendingStreamingRequests = GStreamAllResourcesStillInFlight;
 	}
@@ -4385,7 +4364,6 @@ static void DisplayInternals(FRHICommandListImmediate& RHICmdList, FViewInfo& In
 
 		CANVAS_HEADER(TEXT("Family:"))
 		CANVAS_LINE(false, TEXT("  Time (Real/World/DeltaWorld): %.2f/%.2f/%.2f"), Family->CurrentRealTime, Family->CurrentWorldTime, Family->DeltaWorldTime)
-		CANVAS_LINE(false, TEXT("  MatineeTime: %f"), Family->DisplayInternalsData.MatineeTime)
 		CANVAS_LINE(false, TEXT("  FrameNumber: %u"), Family->FrameNumber)
 		CANVAS_LINE(false, TEXT("  ExposureSettings: %s"), *Family->ExposureSettings.ToString())
 		CANVAS_LINE(false, TEXT("  GammaCorrection: %.2f"), Family->GammaCorrection)
