@@ -51,6 +51,13 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	    FName(TEXT("float")), {}, 
 	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
 
+	// double -> float 
+	Registry.RegisterType(
+	    *FDoubleProperty::StaticClass(),
+	    FShaderValueType::Get(EShaderFundamentalType::Float),
+	    FName(TEXT("float")), {}, 
+	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
+
 	// FVector2D -> float2
 	Registry.RegisterType(
 	    TBaseStructure<FVector2D>::Get(),
