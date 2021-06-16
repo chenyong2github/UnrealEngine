@@ -352,6 +352,8 @@ private:
 
 	void UpdateCapsules();
 
+	void FrameSelection();
+
 protected:
 
 	/** Toolbox hosting widget */
