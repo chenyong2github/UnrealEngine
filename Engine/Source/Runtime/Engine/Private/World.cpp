@@ -5243,15 +5243,8 @@ void UWorld::SetWorldDataLayers(AWorldDataLayers* NewWorldDataLayers)
 
 FString UWorld::GetDebugDisplayName() const
 {
-#if WITH_EDITOR
-	if (GIsEditor)
-	{
-		extern ENGINE_API FString GPlayInEditorContextString;
-
-		return FString::Printf(TEXT("%s (%s)"), *GPlayInEditorContextString, *GetPathNameSafe(this));
-	}
-#endif
-	return GetPathNameSafe(this);
+	extern ENGINE_API FString GetDebugStringForWorld(const UWorld* World);
+	return FString::Printf(TEXT("%s (%s)"), *GetDebugStringForWorld(this), *GetPathNameSafe(this));
 }
 
 UWorldPartition* UWorld::GetWorldPartition() const

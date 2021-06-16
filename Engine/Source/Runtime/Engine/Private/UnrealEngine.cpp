@@ -419,6 +419,50 @@ bool GIsPrepareMapChangeBroken = false;
 ENGINE_API FString GPlayInEditorContextString(TEXT("invalid"));
 #endif
 
+ENGINE_API FString GetDebugStringForWorld(const UWorld* World)
+{
+	FString WorldName;
+
+	if (World == nullptr)
+	{
+		WorldName = NSLOCTEXT("Engine", "PlayWorldBeingCreated", "(World Being Created)").ToString();
+	}
+	else
+	{
+		FWorldContext* WorldContext = GEngine->GetWorldContextFromWorld(World);
+
+		switch (World->GetNetMode())
+		{
+		case NM_Standalone:
+			WorldName = NSLOCTEXT("Engine", "PlayWorldIsStandalone", "Standalone").ToString();
+			break;
+
+		case NM_ListenServer:
+			WorldName = NSLOCTEXT("Engine", "PlayWorldIsListenServer", "Listen Server").ToString();
+			break;
+
+		case NM_DedicatedServer:
+			WorldName = NSLOCTEXT("Engine", "PlayWorldIsDedicatedServer", "Dedicated Server").ToString();
+			break;
+
+		case NM_Client:
+			// 0 is always the server, use PIEInstance so it matches the in-editor UI
+			WorldName = FText::Format(NSLOCTEXT("Engine", "PlayWorldIsClient", "Client {0}"), FText::AsNumber(WorldContext ? WorldContext->PIEInstance : 0)).ToString();
+			break;
+
+		default:
+			unimplemented();
+		};
+
+		if ((WorldContext != nullptr) && !WorldContext->CustomDescription.IsEmpty())
+		{
+			WorldName += TEXT(" ") + WorldContext->CustomDescription;
+		}
+	}
+
+	return WorldName;
+}
+
 ENGINE_API void UpdatePlayInEditorWorldDebugString(const FWorldContext* WorldContext)
 {
 #if WITH_EDITOR
@@ -434,43 +478,7 @@ ENGINE_API void UpdatePlayInEditorWorldDebugString(const FWorldContext* WorldCon
 	}
 	else
 	{
-		FString WorldName;
-		if (UWorld* World = WorldContext->World())
-		{
-			switch (World->GetNetMode())
-			{
-			case NM_Standalone:
-				WorldName = NSLOCTEXT("Engine", "PlayWorldIsStandalone", "Standalone").ToString();
-				break;
-
-			case NM_ListenServer:
-				WorldName = NSLOCTEXT("Engine", "PlayWorldIsListenServer", "Listen Server").ToString();
-				break;
-
-			case NM_DedicatedServer:
-				WorldName = NSLOCTEXT("Engine", "PlayWorldIsDedicatedServer", "Dedicated Server").ToString();
-				break;
-
-			case NM_Client:
-				// 0 is always the server, use PIEInstance so it matches the in-editor UI
-				WorldName = FText::Format(NSLOCTEXT("Engine", "PlayWorldIsClient", "Client {0}"), FText::AsNumber(WorldContext->PIEInstance)).ToString();
-				break;
-
-			default:
-				unimplemented();
-			};
-		}
-		else
-		{
-			WorldName = NSLOCTEXT("Engine", "PlayWorldBeingCreated", "(World Being Created)").ToString();
-		}
-
-		if (!WorldContext->CustomDescription.IsEmpty())
-		{
-			WorldName += TEXT(" ") + WorldContext->CustomDescription;
-		}
-
-		GPlayInEditorContextString = WorldName;
+		GPlayInEditorContextString = GetDebugStringForWorld(WorldContext->World());
 	}
 #endif
 }
