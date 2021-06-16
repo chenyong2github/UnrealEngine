@@ -97,6 +97,9 @@ DECLARE_DELEGATE_RetVal_OneParam(bool, FOnGotoBinding, FName /*InPropertyName*/)
 /** Delegate used to se if we can open a binding (e.g. a function) */
 DECLARE_DELEGATE_RetVal_OneParam(bool, FOnCanGotoBinding, FName /*InPropertyName*/);
 
+/** Delegate used to check whether a property is considered for binding. Returning false will discard the property and all child properties. */
+DECLARE_DELEGATE_RetVal_OneParam(bool, FOnCanAcceptPropertyOrChildren, FProperty* /*InProperty*/);
+
 /** Delegate used to check whether a property can be bound to the property in question */
 DECLARE_DELEGATE_RetVal_OneParam(bool, FOnCanBindProperty, FProperty* /*InProperty*/);
 
@@ -139,6 +142,9 @@ struct FPropertyBindingWidgetArgs
 	/** Delegate used to see if we can open a binding (e.g. a function) */
 	FOnCanGotoBinding OnCanGotoBinding;
 
+	/** Delegate used to check whether a property is considered for binding. Returning false will discard the property and all child properties. */
+	FOnCanAcceptPropertyOrChildren OnCanAcceptPropertyOrChildren;
+	
 	/** Delegate used to check whether a property can be bound to the property in question */
 	FOnCanBindProperty OnCanBindProperty;
 
