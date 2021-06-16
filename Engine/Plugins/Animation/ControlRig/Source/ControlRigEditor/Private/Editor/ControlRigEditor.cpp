@@ -2161,6 +2161,17 @@ void FControlRigEditor::PostUndo(bool bSuccess)
 			GetPersonaToolkit()->SetPreviewMesh(PreviewMesh, true);
 		}
 
+		if (UControlRig* DebuggedControlRig = Cast<UControlRig>(RigBlueprint->GetObjectBeingDebugged()))
+		{
+			if(URigHierarchy* Hierarchy = DebuggedControlRig->GetHierarchy())
+			{
+				if(Hierarchy->Num() == 0)
+				{
+					OnHierarchyChanged();
+				}
+			}
+		}
+
 		if (FControlRigEditMode* EditMode = GetEditMode())
 		{
 			EditMode->RequestToRecreateGizmoActors();
