@@ -221,7 +221,7 @@ void URigHierarchy::Reset()
 	}
 	Elements.Reset();
 	ElementsPerType.Reset();
-	for(int32 TypeIndex=0;TypeIndex<(int32)ERigElementType::All;TypeIndex++)
+	for(int32 TypeIndex=0;TypeIndex<(int32)ERigElementType::Last;TypeIndex++)
 	{
 		ElementsPerType.Add(TArray<FRigBaseElement*>());
 	}
