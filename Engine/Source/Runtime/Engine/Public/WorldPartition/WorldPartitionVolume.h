@@ -22,6 +22,10 @@ public:
 
 #if WITH_EDITOR
 	void LoadIntersectingCells();
+	void UnloadIntersectingCells();
 	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::AlwaysLoaded; }
+
+private:
+	FBox GetIntersectingBounds() const;
 #endif
 };

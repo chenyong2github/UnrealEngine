@@ -18,12 +18,24 @@ void AWorldPartitionVolume::LoadIntersectingCells()
 {
 	if (UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition())
 	{
-		FVector Origin;
-		FVector Extent;
-		GetActorBounds(false, Origin, Extent);
-
-		WorldPartition->LoadEditorCells(FBox(Origin - Extent, Origin + Extent));
+		WorldPartition->LoadEditorCells(GetIntersectingBounds());
 	}
+}
+
+void AWorldPartitionVolume::UnloadIntersectingCells()
+{
+	if (UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition())
+	{
+		WorldPartition->UnloadEditorCells(GetIntersectingBounds());
+	}
+}
+
+FBox AWorldPartitionVolume::GetIntersectingBounds() const
+{
+	FVector Origin;
+	FVector Extent;
+	GetActorBounds(false, Origin, Extent);
+	return FBox(Origin - Extent, Origin + Extent);
 }
 #endif
 
