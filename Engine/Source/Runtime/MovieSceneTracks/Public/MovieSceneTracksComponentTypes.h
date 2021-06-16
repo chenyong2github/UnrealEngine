@@ -15,6 +15,7 @@
 #include "Styling/SlateColor.h"
 #include "MovieSceneTracksComponentTypes.generated.h"
 
+class UMovieSceneDataLayerSection;
 class UMovieSceneLevelVisibilitySection;
 struct FMovieSceneObjectBindingID;
 
@@ -26,6 +27,16 @@ struct FLevelVisibilityComponentData
 
 	UPROPERTY()
 	TObjectPtr<const UMovieSceneLevelVisibilitySection> Section = nullptr;
+};
+
+/** Component data for the data layer system */
+USTRUCT()
+struct FMovieSceneDataLayerComponentData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TObjectPtr<const UMovieSceneDataLayerSection> Section = nullptr;
 };
 
 namespace UE
@@ -255,6 +266,7 @@ struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes
 	} Accessors;
 
 	TComponentTypeID<FLevelVisibilityComponentData> LevelVisibility;
+	TComponentTypeID<FMovieSceneDataLayerComponentData> DataLayer;
 
 	static void Destroy();
 

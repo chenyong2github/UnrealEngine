@@ -21,6 +21,7 @@
 #include "Tracks/MovieSceneEventTrack.h"
 #include "Tracks/MovieSceneFadeTrack.h"
 #include "Tracks/MovieSceneLevelVisibilityTrack.h"
+#include "Tracks/MovieSceneDataLayerTrack.h"
 #include "Tracks/MovieSceneMaterialParameterCollectionTrack.h"
 #include "Tracks/MovieSceneSlomoTrack.h"
 #include "Tracks/MovieSceneSpawnTrack.h"
@@ -133,6 +134,7 @@ ETrackSupport ULevelSequence::IsTrackSupported(TSubclassOf<class UMovieSceneTrac
 		InTrackClass == UMovieSceneEventTrack::StaticClass() ||
 		InTrackClass == UMovieSceneFadeTrack::StaticClass() ||
 		InTrackClass == UMovieSceneLevelVisibilityTrack::StaticClass() ||
+		InTrackClass == UMovieSceneDataLayerTrack::StaticClass() ||
 		InTrackClass == UMovieSceneMaterialParameterCollectionTrack::StaticClass() ||
 		InTrackClass == UMovieSceneSlomoTrack::StaticClass() ||
 		InTrackClass == UMovieSceneSpawnTrack::StaticClass() ||

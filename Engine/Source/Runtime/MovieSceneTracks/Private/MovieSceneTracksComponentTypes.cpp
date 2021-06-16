@@ -444,6 +444,7 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 	ComponentRegistry->NewComponentType(&AttachParentBinding, TEXT("Attach Parent Binding"));
 
 	ComponentRegistry->NewComponentType(&LevelVisibility, TEXT("Level Visibility"));
+	ComponentRegistry->NewComponentType(&DataLayer, TEXT("Data Layer"));
 
 	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 
