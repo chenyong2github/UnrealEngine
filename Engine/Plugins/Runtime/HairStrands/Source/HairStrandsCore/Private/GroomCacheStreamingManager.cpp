@@ -36,7 +36,7 @@ private:
 	void RegisterGroomCache(UGroomCache* GroomCache, UGroomComponent* GroomComponent);
 	void UnregisterGroomCache(UGroomCache* GroomCache, UGroomComponent* GroomComponent);
 	void PrefetchDataInternal(UGroomComponent* GroomComponent);
-	void DeleteStreamingData();
+	void DeleteStreamingData(bool bAsyncDeletionAllowed);
 
 	// StreamingData for registered GroomCaches
 	TMap<UGroomCache*, FGroomCacheStreamingData*> StreamingGroomCaches;
@@ -75,7 +75,7 @@ void FGroomCacheStreamingManager::Shutdown()
 	// Delete the StreamingData that were already queued for deletion
 	while (StreamingGroomCachesToDelete.Num() > 0)
 	{
-		DeleteStreamingData();
+		DeleteStreamingData(false);
 	}
 
 	FScopeLock Lock(&CriticalSection);
@@ -131,19 +131,19 @@ void FGroomCacheStreamingManager::UpdateResourceStreaming(float DeltaTime, bool 
 		// Update the internal state of the StreamingData
 		for (TMap<UGroomCache*, FGroomCacheStreamingData*>::TIterator Iter = StreamingGroomCaches.CreateIterator(); Iter; ++Iter)
 		{
-			Iter.Value()->UpdateStreamingStatus();
+			Iter.Value()->UpdateStreamingStatus(true);
 		}
 	}
 
-	DeleteStreamingData();
+	DeleteStreamingData(true);
 }
 
-void FGroomCacheStreamingManager::DeleteStreamingData()
+void FGroomCacheStreamingManager::DeleteStreamingData(bool bAsyncDeletionAllowed)
 {
 	TSet<FGroomCacheStreamingData*> ReadyForDeletion;
 	for (FGroomCacheStreamingData* StreamingData : StreamingGroomCachesToDelete)
 	{
-		StreamingData->UpdateStreamingStatus();
+		StreamingData->UpdateStreamingStatus(bAsyncDeletionAllowed);
 		if (!StreamingData->IsStreamingInProgress())
 		{
 			ReadyForDeletion.Add(StreamingData);

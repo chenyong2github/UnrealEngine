@@ -22,13 +22,10 @@ FGroomCacheStreamingData::~FGroomCacheStreamingData()
 
 	// Delete the read requests in the background as it can be time-consuming
 	TSet<IBulkDataIORequest*> ReadyForDeletion(DelayedDeleteReadRequests);
-	Async(EAsyncExecution::ThreadPool, [ReadyForDeletion]()
+	for (IBulkDataIORequest* ReadRequest : ReadyForDeletion)
 	{
-		for (IBulkDataIORequest* ReadRequest : ReadyForDeletion)
-		{
-			delete ReadRequest;
-		}
-	});
+		delete ReadRequest;
+	}
 
 	// Delete AnimData buffers that are resident in memory
 	for (TMap<int32, FResidentGroomCacheChunk>::TIterator Iter = Chunks.CreateIterator(); Iter; ++Iter)
@@ -137,10 +134,10 @@ void FGroomCacheStreamingData::PrefetchData(UGroomComponent *Component)
 	}
 
 	// Schedule the rest of the needed frames to be loaded asynchronously
-	UpdateStreamingStatus();
+	UpdateStreamingStatus(true);
 }
 
-void FGroomCacheStreamingData::UpdateStreamingStatus()
+void FGroomCacheStreamingData::UpdateStreamingStatus(bool bAsyncDeletionAllowed)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FGroomCacheStreamingData::UpdateStreamingStatus);
 
@@ -269,14 +266,27 @@ void FGroomCacheStreamingData::UpdateStreamingStatus()
 	}
 	DelayedDeleteReadRequests = DelayedDeleteReadRequests.Difference(ReadyForDeletion);
 	
-	// Delete the read requests in the background as it can be time-consuming
-	Async(EAsyncExecution::ThreadPool, [ReadyForDeletion]()
+	if (ReadyForDeletion.Num() > 0)
 	{
-		for (IBulkDataIORequest* ReadRequest : ReadyForDeletion)
+		if (bAsyncDeletionAllowed)
 		{
-			delete ReadRequest;
+			// Delete the read requests in the background as it can be time-consuming
+			Async(EAsyncExecution::ThreadPool, [ReadyForDeletion]()
+			{
+				for (IBulkDataIORequest* ReadRequest : ReadyForDeletion)
+				{
+					delete ReadRequest;
+				}
+			});
 		}
-	});
+		else
+		{
+			for (IBulkDataIORequest* ReadRequest : ReadyForDeletion)
+			{
+				delete ReadRequest;
+			}
+		}
+	}
 }
 
 bool FGroomCacheStreamingData::BlockTillAllRequestsFinished(float TimeLimit)
