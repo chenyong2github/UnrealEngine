@@ -467,11 +467,6 @@ protected:
 		}
 	}
 
-	template <typename TShader> D3D12_STATE_CACHE_INLINE void GetShader(TShader** Shader)
-	{
-		*Shader = StateCacheShaderTraits<TShader>::GetShader(GetGraphicsPipelineState());
-	}
-
 	template <ED3D12PipelineType PipelineType>
 	D3D12_STATE_CACHE_INLINE void InternalSetPipelineState()
 	{
@@ -723,6 +718,18 @@ public:
 	
 	void SetStencilRef(uint32 StencilRef);
 	uint32 GetStencilRef() const { return PipelineState.Graphics.CurrentReferenceStencil; }
+
+	template <typename TShader>
+	D3D12_STATE_CACHE_INLINE TShader* GetShader()
+	{
+		return StateCacheShaderTraits<TShader>::GetShader(GetGraphicsPipelineState());
+	}
+
+	template <typename TShader>
+	D3D12_STATE_CACHE_INLINE void GetShader(TShader** Shader)
+	{
+		*Shader = GetShader<TShader>();
+	}
 
 	D3D12_STATE_CACHE_INLINE void GetVertexShader(FD3D12VertexShader** Shader)
 	{
