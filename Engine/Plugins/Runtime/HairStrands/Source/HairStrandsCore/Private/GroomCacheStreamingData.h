@@ -42,7 +42,7 @@ public:
 	~FGroomCacheStreamingData();
 
 	/** Updates the internal state of the streaming data. */
-	void UpdateStreamingStatus();
+	void UpdateStreamingStatus(bool bAsyncDeletionAllowed);
 
 	/** Returns a pointer to the cache data for ChunkIndex if it's loaded; nullptr otherwise. */
 	const FGroomCacheAnimationData* MapAnimationData(uint32 ChunkIndex);
