@@ -378,6 +378,20 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraP
 	FDisplayClusterConfigurationViewport_PerViewportSettings ViewportSettings;
 };
 
+USTRUCT(Blueprintable)
+struct FDisplayClusterConfigurationICVFX_CameraPostProcessProfile
+{
+	GENERATED_BODY()
+
+	// Post process settings
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PostProcess Settings", Meta = (EditCondition = "bIsEnabled"))
+	FDisplayClusterConfigurationICVFX_CameraPostProcessSettings PostProcessSettings;
+
+	/** The data to receive the profile information. This will either be viewports or nodes. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PostProcess Settings")
+	TArray<FString> ApplyPostProcessToObjects;
+};
+
 USTRUCT(BlueprintType)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraSoftEdge
 {
@@ -433,11 +447,19 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "All Nodes"))
 	FDisplayClusterConfigurationICVFX_CameraPostProcessSettings PostProcessSettings;
 
+	// Enable cluster node postprocess configuration for this camera
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable cluster nodes Post Process"))
+	bool bEnableInnerFrustumPostprocess = false;
+
+	// Define special postprocess for cluster nodes for this camera
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Cluster nodes Post Process Configurations", ConfigurationMode = "ClusterNodes", EditCondition = "bEnableInnerFrustumPostprocess"))
+	TArray<FDisplayClusterConfigurationICVFX_CameraPostProcessProfile> InnerFrustumPostProcessConfigurations;
+
 	// OCIO Display look configuration for this camera
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO")
 	FOpenColorIODisplayConfiguration OCIO_Configuration;
 
-	// Enable cluster node configuration for this camera
+	// Enable cluster node OCIO configuration for this camera
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "Enable cluster nodes OCIO"))
 	bool bEnableInnerFrustumOCIO = false;
 

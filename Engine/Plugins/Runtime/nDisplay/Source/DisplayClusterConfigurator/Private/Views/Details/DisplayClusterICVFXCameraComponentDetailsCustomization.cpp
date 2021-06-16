@@ -143,6 +143,8 @@ void FDisplayClusterICVFXCameraComponentDetailsCustomization::CustomizeDetails(I
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::CameraColorGradingCategory)
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.bUseCameraComponentPostprocess)
 		ADD_EXPANDED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.PostProcessSettings)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnableInnerFrustumPostprocess)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.InnerFrustumPostProcessConfigurations)
 	END_CATEGORY();
 
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ChromaKeyCategory)

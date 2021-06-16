@@ -465,4 +465,28 @@ private:
 };
 
 
+/**
+* Postprocess Profiles
+*/
+class FDisplayClusterConfiguratorCameraPostProcessProfileCustomization final
+	: public FDisplayClusterConfiguratorTypeCustomization
+{
+public:
+	virtual ~FDisplayClusterConfiguratorCameraPostProcessProfileCustomization() override
+	{
+		NodeSelection.Reset();
+	}
+
+protected:
+	//~ IPropertyTypeCustomization interface begin
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
+	//~ IPropertyTypeCustomization interface end
+
+private:
+	TSharedPtr<FDisplayClusterConfiguratorNodeSelection> NodeSelection;
+	FDisplayClusterConfiguratorNodeSelection::EOperationMode Mode = FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports;
+};
+
+
 #undef CONSTRUCT_CUSTOMIZATION

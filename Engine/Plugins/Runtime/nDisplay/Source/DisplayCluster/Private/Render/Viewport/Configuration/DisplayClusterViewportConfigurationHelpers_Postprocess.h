@@ -24,4 +24,8 @@ public:
 	static void BlendPostProcessSettings(FPostProcessSettings& OutputPP, const FDisplayClusterConfigurationViewport_PerViewportSettings& ClusterPPSettings, const FDisplayClusterConfigurationViewport_PerViewportSettings& ViewportPPSettings);
 	static void CopyPPSStructConditional(FDisplayClusterConfigurationViewport_PerViewportSettings* OutViewportPPSettings, FPostProcessSettings* InPPS);
 	static void CopyPPSStruct(FDisplayClusterConfigurationViewport_PerViewportSettings* OutViewportPPSettings, FPostProcessSettings* InPPS);
+
+private:
+	static bool ImplUpdateInnerFrustumPerViewportPostProcessSettings(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent);
+
 };

@@ -289,6 +289,14 @@ void FDisplayClusterConfiguratorModule::RegisterCustomLayouts()
 		PropertyModule.RegisterCustomPropertyTypeLayout(LayoutName,
 			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorOCIOProfileCustomization::MakeInstance<FDisplayClusterConfiguratorOCIOProfileCustomization>));
 	}
+
+	{
+		const FName LayoutName = FDisplayClusterConfigurationICVFX_CameraPostProcessProfile::StaticStruct()->GetFName();
+		RegisteredPropertyLayoutNames.Add(LayoutName);
+
+		PropertyModule.RegisterCustomPropertyTypeLayout(LayoutName,
+			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorCameraPostProcessProfileCustomization::MakeInstance<FDisplayClusterConfiguratorCameraPostProcessProfileCustomization>));
+	}
 }
 
 void FDisplayClusterConfiguratorModule::UnregisterCustomLayouts()

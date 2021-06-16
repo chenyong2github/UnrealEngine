@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayClusterViewportConfigurationHelpers_Postprocess.h"
-
+#include "DisplayClusterViewportConfiguration.h"
 #include "DisplayClusterConfigurationTypes.h"
 #include "Render/Viewport/DisplayClusterViewport.h"
+#include "Render/Viewport/DisplayClusterViewportManager.h"
 
 #include "DisplayClusterRootActor.h"
 #include "Components/DisplayClusterICVFXCameraComponent.h"
@@ -101,6 +102,41 @@ static void ImplUpdatePerViewportPostProcessSettings(FDisplayClusterViewport& Ds
 	}
 }
 
+bool FDisplayClusterViewportConfigurationHelpers_Postprocess::ImplUpdateInnerFrustumPerViewportPostProcessSettings(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent)
+{
+	const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings = InCameraComponent.GetCameraSettingsICVFX();
+
+	// Find camera postprocess settings for current cluster node:
+	if (CameraSettings.bEnableInnerFrustumPostprocess)
+	{
+		const FDisplayClusterRenderFrameSettings& RenderFrameSettings = DstViewport.Owner.Configuration->GetRenderFrameSettings();
+
+		const FString& ClusterNodeId = RenderFrameSettings.ClusterNodeId;
+		if (!ClusterNodeId.IsEmpty())
+		{
+			for (const FDisplayClusterConfigurationICVFX_CameraPostProcessProfile& PostProcessProfileIt : CameraSettings.InnerFrustumPostProcessConfigurations)
+			{
+				for (const FString& ClusterNodeIt : PostProcessProfileIt.ApplyPostProcessToObjects)
+				{
+					if (ClusterNodeIt.Compare(ClusterNodeId, ESearchCase::IgnoreCase) == 0)
+					{
+						// Use cluster node Post Process
+						ImplUpdatePerViewportPostProcessSettings(DstViewport, RootActor, PostProcessProfileIt.PostProcessSettings.bExcludeFromOverallClusterPostProcess, PostProcessProfileIt.PostProcessSettings.bIsEnabled, PostProcessProfileIt.PostProcessSettings.ViewportSettings);
+						return true;
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+
+	// Use global camera per-viewport postprocess
+	ImplUpdatePerViewportPostProcessSettings(DstViewport, RootActor, CameraSettings.PostProcessSettings.bExcludeFromOverallClusterPostProcess, CameraSettings.PostProcessSettings.bIsEnabled, CameraSettings.PostProcessSettings.ViewportSettings);
+
+	return true;
+}
+
 void FDisplayClusterViewportConfigurationHelpers_Postprocess::UpdateCameraPostProcessSettings(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent)
 {
 	const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings = InCameraComponent.GetCameraSettingsICVFX();
@@ -138,7 +174,7 @@ void FDisplayClusterViewportConfigurationHelpers_Postprocess::UpdateCameraPostPr
 
 	ImplUpdateCustomPostprocess(DstViewport, CameraPPS.bIsEnabled, CameraPPS, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Override);
 
-	ImplUpdatePerViewportPostProcessSettings(DstViewport, RootActor, CameraSettings.PostProcessSettings.bExcludeFromOverallClusterPostProcess, CameraSettings.PostProcessSettings.bIsEnabled, CameraSettings.PostProcessSettings.ViewportSettings);
+	ImplUpdateInnerFrustumPerViewportPostProcessSettings(DstViewport, RootActor, InCameraComponent);
 }
 
 void FDisplayClusterViewportConfigurationHelpers_Postprocess::UpdateCustomPostProcessSettings(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, const FDisplayClusterConfigurationViewport_CustomPostprocess& InCustomPostprocessConfiguration)

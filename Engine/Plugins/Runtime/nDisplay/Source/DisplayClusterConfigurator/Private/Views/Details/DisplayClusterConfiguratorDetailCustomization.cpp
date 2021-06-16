@@ -4,6 +4,7 @@
 
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "DisplayClusterConfigurationTypes.h"
+#include "DisplayClusterConfigurationTypes_ICVFX.h"
 #include "Views/Details/DisplayClusterConfiguratorDetailCustomizationUtils.h"
 #include "Views/Details/Widgets/SDisplayClusterConfigurationSearchableComboBox.h"
 #include "Views/OutputMapping/Widgets/SDisplayClusterConfiguratorExternalImagePicker.h"
@@ -1401,4 +1402,50 @@ void FDisplayClusterConfiguratorOCIOProfileCustomization::CustomizeChildren(TSha
 	NodeSelection->CreateArrayBuilder(ArrayHandle.ToSharedRef(), ChildBuilder);
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////
+// Post Process Profile Customization
+//////////////////////////////////////////////////////////////////////////////////////////////
+
+void FDisplayClusterConfiguratorCameraPostProcessProfileCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle,
+	FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
+{
+	FDisplayClusterConfiguratorTypeCustomization::CustomizeHeader(PropertyHandle, HeaderRow, CustomizationUtils);
+
+	Mode = FDisplayClusterConfiguratorNodeSelection::GetOperationModeFromProperty(PropertyHandle->GetProperty()->GetOwnerProperty());
+	NodeSelection = MakeShared<FDisplayClusterConfiguratorNodeSelection>(Mode, FindRootActor(), FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(EditingObject));
+
+	HeaderRow.NameContent()
+		[
+			PropertyHandle->CreatePropertyNameWidget()
+		];
+}
+
+void FDisplayClusterConfiguratorCameraPostProcessProfileCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle,
+	IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
+{
+	const TSharedPtr<IPropertyHandle> PostProcessSettingsHandle = PropertyHandle->GetChildHandle(
+		GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_CameraPostProcessProfile, PostProcessSettings));
+	check(PostProcessSettingsHandle->IsValidHandle());
+
+	const TSharedPtr<IPropertyHandle> EnablePostProcessHandle = PostProcessSettingsHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOpenColorIODisplayConfiguration, bIsEnabled));
+	check(EnablePostProcessHandle->IsValidHandle());
+
+	EnablePostProcessHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
+		LOCTEXT("EnablePostProcessViewportsDisplayName", "Enable Inner Frustum PostProcess Configuration") : LOCTEXT("EnablePostProcessClusterDisplayName", "Enable Inner Frustum PostProcess Configuration"));
+
+	const TSharedPtr<IPropertyHandle> ArrayHandle = PropertyHandle->GetChildHandle(
+		GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_CameraPostProcessProfile, ApplyPostProcessToObjects));
+	check(ArrayHandle->IsValidHandle());
+
+	PostProcessSettingsHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
+		LOCTEXT("PostProcessViewportsModeDisplayName", "Outer Viewport PostProcess Configuration") : LOCTEXT("PostProcessClusterModeDisplayName", "Inner Frustum PostProcess Configuration"));
+	ArrayHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
+		LOCTEXT("PostProcessDataViewportsModeDisplayName", "Apply PostProcess to Viewports") : LOCTEXT("PostProcessDataClusterModeDisplayName", "Apply PostProcess to Nodes"));
+	ArrayHandle->SetToolTipText(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
+		LOCTEXT("PostProcessDataViewportsModeToolTip", "Select viewports to receive this PostProcess profile.") :
+		LOCTEXT("PostProcessDataClusterModeToolTip", "Select cluster nodes to receive this PostProcess profile."));
+
+	ChildBuilder.AddProperty(PostProcessSettingsHandle.ToSharedRef());
+	NodeSelection->CreateArrayBuilder(ArrayHandle.ToSharedRef(), ChildBuilder);
+}
 #undef LOCTEXT_NAMESPACE
