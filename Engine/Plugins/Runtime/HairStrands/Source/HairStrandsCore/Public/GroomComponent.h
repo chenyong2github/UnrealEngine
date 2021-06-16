@@ -219,6 +219,8 @@ public:
 	void TickAtThisTime(const float Time, bool bInIsRunning, bool bInBackwards, bool bInIsLooping);
 
 	void ResetAnimationTime();
+	float GetAnimationTime() const;
+	bool IsLooping() const { return bLooping; }
 
 private:
 	void UpdateGroomCache(float Time);
