@@ -18,8 +18,9 @@ namespace UnrealBuildTool.Rules
 				"ChaosCore",
                 "IntelISPC",
 				"TraceLog",
-                "Voronoi"
-                }
+                "Voronoi",
+				"GeometryCore"
+				}
             );
 
             PublicDefinitions.Add("COMPILE_WITHOUT_UNREAL_SUPPORT=0");

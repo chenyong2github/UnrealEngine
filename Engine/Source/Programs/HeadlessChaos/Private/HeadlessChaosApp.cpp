@@ -62,6 +62,7 @@
 #include "GeometryCollection/GeometryCollectionTestSkeletalMeshPhysicsProxy.h"
 #include "GeometryCollection/GeometryCollectionTestSerialization.h"
 
+#include "CompGeom/ExactPredicates.h"
 
 IMPLEMENT_APPLICATION(HeadlessChaos, "HeadlessChaos");
 
@@ -432,7 +433,9 @@ class UEGTestPrinter : public ::testing::EmptyTestEventListener
 
 INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 {
-    // start up the main loop
+	UE::Geometry::ExactPredicates::GlobalInit();
+
+	// start up the main loop
 	GEngineLoop.PreInit(ArgC, ArgV);
 	FModuleManager::Get().StartProcessingNewlyLoadedObjects();
 	
