@@ -691,7 +691,7 @@ namespace HordeServer.Controllers
 
 			const string DevBuild = "//UE4/Dev-Build";
 			// a test CL I have setup in Dev-Build
-			const int TestCL = 16242697;
+			const int TestCL = 16687685;
 
 			string? PerforceUser = User.GetPerforceUser();
 
