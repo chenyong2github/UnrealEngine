@@ -406,6 +406,11 @@ namespace HordeServer
 		public string? P4BridgeServicePassword { get; set; }
 
 		/// <summary>
+		/// Whether the p4 bridge service account can impersonate other users
+		/// </summary>
+		public bool P4BridgeCanImpersonate { get; set; } = false;
+
+		/// <summary>
 		/// Whether to use the (temporary) P4 router while transitioning to p4 api 
 		/// </summary>
 		public bool P4UseRouter { get; set; } = false;
