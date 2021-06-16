@@ -25,6 +25,7 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "Misc/CoreDelegates.h"
 #include "AssetRegistryModule.h"
+#include "RigVMCore/RigVMPythonUtils.h"
 
 #if WITH_EDITOR
 #include "IControlRigEditorModule.h"
@@ -1071,6 +1072,19 @@ URigVMController* UControlRigBlueprint::GetController(URigVMGraph* InGraph) cons
 	return nullptr;
 }
 
+URigVMController* UControlRigBlueprint::GetControllerByName(const FString InGraphName) const
+{
+	for (URigVMGraph* Graph : GetAllModels())
+	{
+		if (Graph->GetGraphName() == InGraphName)
+		{
+			return GetController(Graph);
+		}
+	}
+	
+	return nullptr;
+}
+
 URigVMController* UControlRigBlueprint::GetOrCreateController(URigVMGraph* InGraph)
 {
 	if (URigVMController* ExistingController = GetController(InGraph))
@@ -1253,6 +1267,168 @@ URigVMController* UControlRigBlueprint::GetOrCreateController(const UEdGraph* In
 {
 	return GetOrCreateController(GetModel(InEdGraph));
 }
+
+TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNewBlueprintName)
+{
+	TArray<FString> Commands;
+	Commands.Add(FString::Printf(TEXT("import unreal\n"
+			"unreal.load_module('ControlRigDeveloper')\n"
+			"factory = unreal.ControlRigBlueprintFactory\n"
+			"blueprint = factory.create_new_control_rig_asset(desired_package_path = '%s')\n"
+			"library = blueprint.get_local_function_library()\n"
+			"library_controller = blueprint.get_controller(library)\n"
+			"hierarchy = blueprint.hierarchy\n"
+			"hierarchy_controller = hierarchy.get_controller()\n")
+			, *InNewBlueprintName));
+
+	// Hierarchy
+	Commands.Append(HierarchyController->GeneratePythonCommands());
+		
+	// Add variables
+	for (const FBPVariableDescription& Variable : NewVariables)
+	{
+		const FRigVMExternalVariable ExternalVariable = UControlRig::GetExternalVariableFromDescription(Variable);
+
+		// FName AddMemberVariable(const FName& InName, const FString& InCPPType, bool bIsPublic = false, bool bIsReadOnly = false, FString InDefaultValue = TEXT(""));
+		Commands.Add(FString::Printf(TEXT("blueprint.add_member_variable('%s', '%s', %s, %s)"),
+					*ExternalVariable.Name.ToString(),
+					ExternalVariable.TypeObject ? *ExternalVariable.TypeObject->GetPathName() : *ExternalVariable.TypeName.ToString(),
+					ExternalVariable.bIsPublic ? TEXT("True") : TEXT("False"),
+					ExternalVariable.bIsReadOnly ? TEXT("True") : TEXT("False")));	
+	}
+	
+	// Create graphs
+	{
+		// Find all graphs to process and sort them by dependencies
+		TArray<URigVMGraph*> ProcessedGraphs;
+		while (ProcessedGraphs.Num() < GetAllModels().Num())
+		{
+			for (URigVMGraph* Graph : GetAllModels())
+			{
+				if (ProcessedGraphs.Contains(Graph))
+				{
+					continue;
+				}
+
+				bool bFoundUnprocessedReference = false;
+				for (auto Node : Graph->GetNodes())
+				{
+					if (URigVMFunctionReferenceNode* Reference = Cast<URigVMFunctionReferenceNode>(Node))
+					{
+						if (Reference->GetContainedGraph()->GetPackage() != GetPackage())
+						{
+							continue;
+						}
+				
+						if (!ProcessedGraphs.Contains(Reference->GetContainedGraph()))
+						{
+							bFoundUnprocessedReference = true;
+							break;
+						}
+					}
+					else if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
+					{
+						if (!ProcessedGraphs.Contains(CollapseNode->GetContainedGraph()))
+						{
+							bFoundUnprocessedReference = true;
+							break;
+						}
+					}
+				}
+
+				if (!bFoundUnprocessedReference)
+				{
+					ProcessedGraphs.Add(Graph);
+				}
+			}
+		}	
+
+		// Dump python commands for each graph
+		for (URigVMGraph* Graph : ProcessedGraphs)
+		{
+			if (Graph->IsA<URigVMFunctionLibrary>())
+			{
+				continue;
+			}
+
+			URigVMController* Controller = GetController(Graph);
+			if (Graph->GetParentGraph()) 
+			{
+				// Add them all as functions (even collapsed graphs)
+				// The controller will deal with deleting collapsed graph function when it creates the collapse node
+				{						
+					// Add Function
+					Commands.Add(FString::Printf(TEXT("function_%s = library_controller.add_function_to_library('%s', mutable=%s)\ngraph = function_%s.get_contained_graph()"),
+							*RigVMPythonUtils::NameToPep8(Graph->GetGraphName()),
+							*Graph->GetGraphName(),
+							Graph->GetEntryNode()->IsMutable() ? TEXT("True") : TEXT("False"),
+							*RigVMPythonUtils::NameToPep8(Graph->GetGraphName())));
+					
+					URigVMFunctionEntryNode* EntryNode = Graph->GetEntryNode();
+					URigVMFunctionReturnNode* ReturnNode = Graph->GetReturnNode();
+					
+					// Set Entry and Return nodes in the correct position
+					{
+						//bool SetNodePositionByName(const FName& InNodeName, const FVector2D& InPosition, bool bSetupUndoRedo = true, bool bMergeUndoAction = false);
+						Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_node_position_by_name('Entry', unreal.Vector2D(%f, %f))"),
+								*Graph->GetGraphName(),
+								EntryNode->GetPosition().X, 
+								EntryNode->GetPosition().Y));
+
+						Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_node_position_by_name('Return', unreal.Vector2D(%f, %f))"),
+								*Graph->GetGraphName(),
+								ReturnNode->GetPosition().X, 
+								ReturnNode->GetPosition().Y));
+					}
+					
+					// Add Exposed Pins
+					{
+						for (auto Pin : EntryNode->GetPins())
+						{
+							if (Pin->GetDirection() != ERigVMPinDirection::Output)
+							{
+								continue;
+							}
+
+							// FName AddExposedPin(const FName& InPinName, ERigVMPinDirection InDirection, const FString& InCPPType, const FName& InCPPTypeObjectPath, const FString& InDefaultValue, bool bSetupUndoRedo = true);
+							Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_exposed_pin('%s', unreal.RigVMPinDirection.INPUT, '%s', '%s', '%s')"),
+									*Graph->GetGraphName(),
+									*Pin->GetName(),
+									*Pin->GetCPPType(),
+									Pin->GetCPPTypeObject() ? *Pin->GetCPPTypeObject()->GetPathName() : TEXT(""),
+									*Pin->GetDefaultValue()));
+						}
+
+						for (auto Pin : ReturnNode->GetPins())
+						{
+							if (Pin->GetDirection() != ERigVMPinDirection::Input)
+							{
+								continue;
+							}
+
+							// FName AddExposedPin(const FName& InPinName, ERigVMPinDirection InDirection, const FString& InCPPType, const FName& InCPPTypeObjectPath, const FString& InDefaultValue, bool bSetupUndoRedo = true);
+							Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_exposed_pin('%s', unreal.RigVMPinDirection.OUTPUT, '%s', '%s', '%s')"),
+									*Graph->GetGraphName(),
+									*Pin->GetName(), 
+									*Pin->GetCPPType(),
+									Pin->GetCPPTypeObject() ? *Pin->GetCPPTypeObject()->GetPathName() : TEXT("''"),
+									*Pin->GetDefaultValue()));
+						}
+					}
+				}
+			}
+								
+			Commands.Append(Controller->GeneratePythonCommands());
+		}
+	}
+
+	FString PreviewMeshPath = GetPreviewMesh()->GetPathName();
+	Commands.Add(FString::Printf(TEXT("blueprint.set_preview_mesh(unreal.load_object(name='%s', outer=None))"),
+		*PreviewMeshPath));
+
+	return Commands;
+}
+
 
 URigVMGraph* UControlRigBlueprint::GetTemplateModel()
 {

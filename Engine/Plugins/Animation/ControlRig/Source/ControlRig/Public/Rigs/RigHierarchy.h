@@ -648,20 +648,20 @@ public:
 	}
 
 	/**
-	 * Returns all Space elements
+	 * Returns all Null elements
 	 * @param bTraverse Returns the elements in order of a depth first traversal
 	 */
-	FORCEINLINE TArray<FRigNullElement*> GetSpaces(bool bTraverse = false) const
+	FORCEINLINE TArray<FRigNullElement*> GetNulls(bool bTraverse = false) const
 	{
 		return GetElementsOfType<FRigNullElement>(bTraverse);
 	}
 
 	/**
-	 * Returns all Space elements
-	 * @param bTraverse Returns the elements in order of a depth first traversal
-	 */
-	UFUNCTION(BlueprintCallable, Category = URigHierarchy, meta = (DisplayName = "Get Spaces", ScriptName = "GetSpaces"))
-	FORCEINLINE TArray<FRigElementKey> GetSpaceKeys(bool bTraverse = true) const
+	* Returns all Null elements
+	* @param bTraverse Returns the elements in order of a depth first traversal
+	*/
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy, meta = (DisplayName = "Get Nulls", ScriptName = "GetNulls"))
+	FORCEINLINE TArray<FRigElementKey> GetNullKeys(bool bTraverse = true) const
 	{
 		return GetKeysOfType<FRigNullElement>(bTraverse);
 	}

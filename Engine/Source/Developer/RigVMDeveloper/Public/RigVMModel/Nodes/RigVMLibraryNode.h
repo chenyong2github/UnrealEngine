@@ -33,8 +33,13 @@ public:
 	virtual FString GetNodeCategory() const { return FString(); }
 	virtual FString GetNodeKeywords() const { return FString(); }
 	virtual FString GetNodeDescription() const { return FString(); }
+	
+	UFUNCTION(BlueprintCallable, Category = RigVMLibraryNode)
 	virtual URigVMFunctionLibrary* GetLibrary() const { return nullptr; }
+
+	UFUNCTION(BlueprintCallable, Category = RigVMLibraryNode)
 	virtual URigVMGraph* GetContainedGraph() const { return nullptr; }
+	
 	virtual const TArray<URigVMNode*>& GetContainedNodes() const;
 	virtual const TArray<URigVMLink*>& GetContainedLinks() const;
 	virtual URigVMFunctionEntryNode* GetEntryNode() const;

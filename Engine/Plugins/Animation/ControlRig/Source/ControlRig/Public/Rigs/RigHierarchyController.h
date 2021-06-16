@@ -464,7 +464,29 @@ public:
 	/**
 	 * Returns a reference to the suspend notifications flag
 	 */
-	FORCEINLINE bool& GetSuspendNotificationsFlag() { return bSuspendNotifications; } 
+	FORCEINLINE bool& GetSuspendNotificationsFlag() { return bSuspendNotifications; }
+
+
+	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
+	TArray<FString> GeneratePythonCommands();
+
+	TArray<FString> GetAddElementPythonCommands(FRigBaseElement* Element) const;
+
+	TArray<FString> GetAddBonePythonCommands(FRigBoneElement* Bone) const;
+
+	TArray<FString> GetAddNullPythonCommands(FRigNullElement* Null) const;
+
+	TArray<FString> GetAddControlPythonCommands(FRigControlElement* Control) const;
+
+	TArray<FString> GetAddCurvePythonCommands(FRigCurveElement* Curve) const;
+
+	TArray<FString> GetAddRigidBodyPythonCommands(FRigRigidBodyElement* RigidBody) const;
+
+	TArray<FString> GetSetControlValuePythonCommands(const FRigControlElement* Control, const FRigControlValue& Value, const ERigControlValueType& Type) const;
+	
+	TArray<FString> GetSetControlOffsetTransformPythonCommands(const FRigControlElement* Control, const FTransform& Offset, bool bInitial = false, bool bAffectChildren = true) const;
+	
+	TArray<FString> GetSetControlGizmoTransformPythonCommands(const FRigControlElement* Control, const FTransform& Transform, bool bInitial = false) const;
 
 private:
 
