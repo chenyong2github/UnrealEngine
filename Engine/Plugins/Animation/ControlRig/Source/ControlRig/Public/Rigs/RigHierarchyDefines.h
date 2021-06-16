@@ -24,6 +24,7 @@ enum class ERigElementType : uint8
 	Curve = 0x008,
 	RigidBody = 0x010,
 	Socket = 0x020,
+	Last = 0x040 UMETA(Hidden),
 	All = Bone | Null | Control | Curve | RigidBody | Socket,
 };
 
