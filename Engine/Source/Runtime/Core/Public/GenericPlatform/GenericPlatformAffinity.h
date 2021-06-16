@@ -80,7 +80,9 @@ public:
 		return 0xFFFFFFFFFFFFFFFF;
 	}
 
+#if UE_STATS_THREAD_AS_PIPE
 	UE_DEPRECATED(5.0, "This parameter is obsolete as StatsThread was removed and the affinity mask has no effect anymore. Please remove the call.")
+#endif
 	static const CORE_API uint64 GetStatsThreadMask()
 	{
 		return 0xFFFFFFFFFFFFFFFF;
