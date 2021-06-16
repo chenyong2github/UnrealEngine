@@ -2471,7 +2471,7 @@ void SLevelViewport::OnCompactBookmarks()
 
 void SLevelViewport::OnToggleAllowCinematicPreview()
 {
-	// Reset the FOV of Viewport for cases where we have been previewing the matinee with a changing FOV
+	// Reset the FOV of Viewport for cases where we have been previewing the cinematic with a changing FOV
 	LevelViewportClient->ViewFOV = LevelViewportClient->AllowsCinematicControl() ? LevelViewportClient->ViewFOV : LevelViewportClient->FOVAngle;
 
 	LevelViewportClient->SetAllowCinematicControl( !LevelViewportClient->AllowsCinematicControl() );
@@ -3627,7 +3627,7 @@ void SLevelViewport::PreviewActors( const TArray< AActor* >& InActorsToPreview, 
 				// User should never be able to interact with this viewport
 				ActorPreviewLevelViewportClient->bDisableInput = true;
 
-				// Never allow Matinee to possess these views
+				// Never allow cinematics to possess these views
 				ActorPreviewLevelViewportClient->SetAllowCinematicControl( false );
 
 				// Our preview viewport is always visible if our owning SLevelViewport is visible, so we hook up

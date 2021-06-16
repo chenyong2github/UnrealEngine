@@ -962,7 +962,7 @@ private:
 	/** Caching for expensive FindViewComponentForActor. Invalidated once per Tick. */
 	static TMap<TObjectKey<AActor>, TWeakObjectPtr<UActorComponent>> ViewComponentForActorCache;
 
-	/** If true, we switched between two different cameras. Set by matinee, used by the motion blur to invalidate this frames motion vectors */
+	/** If true, we switched between two different cameras. Set by cinematics, used by the motion blur to invalidate this frames motion vectors */
 	bool					bEditorCameraCut;
 
 	/** Stores the previous frame's value of bEditorCameraCut in order to reset it back to false on the next frame */

@@ -77,7 +77,7 @@ static TAutoConsoleVariable<int32> CVarAlignedOrthoZoom(
 static TAutoConsoleVariable<int32> CVarEditorViewportTest(
 	TEXT("r.Test.EditorConstrainedView"),
 	0,
-	TEXT("Allows to test different viewport rectangle configuations (in game only) as they can happen when using Matinee/Editor.\n")
+	TEXT("Allows to test different viewport rectangle configuations (in game only) as they can happen when using cinematics/Editor.\n")
 	TEXT("0: off(default)\n")
 	TEXT("1..7: Various Configuations"),
 	ECVF_RenderThreadSafe);
@@ -5098,7 +5098,7 @@ void FEditorViewportClient::MoveViewportPerspectiveCamera( const FVector& InDrag
 	}
 	else
 	{
-		//when not constraining the pitch (matinee feature) we need to rotate differently to avoid a gimbal lock
+		//when not constraining the pitch we need to rotate differently to avoid a gimbal lock
 		const FRotator PitchRot(InRot.Pitch, 0, 0);
 		const FRotator LateralRot(0, InRot.Yaw, InRot.Roll);
 
