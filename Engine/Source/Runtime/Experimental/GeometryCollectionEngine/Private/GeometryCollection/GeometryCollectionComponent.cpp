@@ -858,6 +858,58 @@ void UGeometryCollectionComponent::RefreshEmbeddedGeometry()
 	}
 }
 
+void UGeometryCollectionComponent::SetRestState(TArray<FTransform>&& InRestTransforms)
+{
+	// This method should never be called on a simulating component.
+	if (!PhysicsProxy)
+	{ 
+		RestTransforms = InRestTransforms;
+	
+		CalculateGlobalMatrices();
+
+		if (DynamicCollection)
+		{
+			SetInitialTransforms(RestTransforms);
+		}
+
+		FGeometryCollectionDynamicData* DynamicData = GDynamicDataPool.Allocate();
+		DynamicData->SetAllTransforms(GlobalMatrices);
+		DynamicData->IsDynamic = true;
+
+		if (SceneProxy)
+		{
+			if (SceneProxy->IsNaniteMesh())
+			{
+
+	#if WITH_EDITOR
+				// We need to do this in case we're controlled by Sequencer in editor, which doesn't invoke PostEditChangeProperty
+				SendRenderTransform_Concurrent();
+	#endif
+
+				FNaniteGeometryCollectionSceneProxy* GeometryCollectionSceneProxy = static_cast<FNaniteGeometryCollectionSceneProxy*>(SceneProxy);
+				ENQUEUE_RENDER_COMMAND(SendRenderDynamicData)(
+					[GeometryCollectionSceneProxy, DynamicData](FRHICommandListImmediate& RHICmdList)
+					{
+						GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
+					}
+				);
+			}
+			else
+			{
+				FGeometryCollectionSceneProxy* GeometryCollectionSceneProxy = static_cast<FGeometryCollectionSceneProxy*>(SceneProxy);
+				ENQUEUE_RENDER_COMMAND(SendRenderDynamicData)(
+					[GeometryCollectionSceneProxy, DynamicData](FRHICommandListImmediate& RHICmdList)
+					{
+						GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
+					}
+				);
+			}
+		}
+
+		RefreshEmbeddedGeometry();
+	}
+}
+
 void UGeometryCollectionComponent::InitializeComponent()
 {
 	Super::InitializeComponent();
@@ -1152,6 +1204,53 @@ void UGeometryCollectionComponent::UpdateRepData()
 	}
 }
 
+void UGeometryCollectionComponent::SetDynamicState(const Chaos::EObjectStateType& NewDynamicState)
+{
+	if (DynamicCollection)
+	{
+		TManagedArray<int32>& DynamicState = DynamicCollection->DynamicState;
+		for (int i = 0; i < DynamicState.Num(); i++)
+		{
+			DynamicState[i] = static_cast<int32>(NewDynamicState);
+		}
+	}
+}
+
+void UGeometryCollectionComponent::SetInitialTransforms(const TArray<FTransform>& InitialTransforms)
+{
+	if (DynamicCollection)
+	{
+		TManagedArray<FTransform>& Transform = DynamicCollection->Transform;
+		int32 MaxIdx = FMath::Min(Transform.Num(), InitialTransforms.Num());
+		for (int32 Idx = 0; Idx < MaxIdx; ++Idx)
+		{
+			Transform[Idx] = InitialTransforms[Idx];
+		}
+	}
+}
+
+void UGeometryCollectionComponent::SetInitialClusterBreaks(const TArray<int32>& ReleaseIndices)
+{
+	if (DynamicCollection)
+	{
+		TManagedArray<int32>& Parent = DynamicCollection->Parent;
+		TManagedArray <TSet<int32>>& Children = DynamicCollection->Children;
+		const int32 NumTransforms = Parent.Num();
+
+		for (int32 ReleaseIndex : ReleaseIndices)
+		{
+			if (ReleaseIndex < NumTransforms)
+			{
+				if (Parent[ReleaseIndex] > INDEX_NONE)
+				{
+					Children[Parent[ReleaseIndex]].Remove(ReleaseIndex);
+					Parent[ReleaseIndex] = INDEX_NONE;
+				}
+			}
+		}
+	}
+}
+
 void SetHierarchyStrain(Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>* P, TMap<Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>*, TArray<Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3>*>>& Map, float Strain)
 {
 	TArray<Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3>*>* Children = Map.Find(P);
@@ -1299,6 +1398,8 @@ void UGeometryCollectionComponent::InitConstantData(FGeometryCollectionConstantD
 
 			ConstantData->Sections[SectionIndex] = MoveTemp(Section);
 		}
+		
+		
 		ConstantData->NumTransforms = Collection->NumElements(FGeometryCollection::TransformGroup);
 		ConstantData->LocalBounds = LocalBounds;
 
@@ -1347,183 +1448,7 @@ FGeometryCollectionDynamicData* UGeometryCollectionComponent::InitDynamicData(bo
 	const bool bEditorMode = bShowBoneColors || bEnableBoneSelection;
 	const bool bIsDynamic  = GetIsObjectDynamic() || bEditorMode || bInitialization;
 
-	if (CachePlayback && CacheParameters.TargetCache)
-	{
-		// If we are already on the current cached frame, return
-		if (FMath::IsNearlyEqual(CurrentCacheTime, DesiredCacheTime) && GlobalMatrices.Num() != 0)
-		{
-			return DynamicData;
-		}
-
-		// #todo(dmp): find a better place to calculate and store this
-		float CacheDt = CacheParameters.TargetCache->GetData()->GetDt();
-
-		// If we want the state before the first cached frame, then the collection doesn't need to be dynamic since it'll render the pre-fractured geometry
-		const bool bIsCacheDynamic = DesiredCacheTime > CacheDt;
-
-		// Bad case here.  Sequencer starts at non zero position  We cannot correctly reconstruct the current frame, so give a warning
-		const bool bOutOfSync = GlobalMatrices.Num() == 0;
-
-		// If the input simulation time to playback is the first frame, reset simulation time.
-		if (bOutOfSync || DesiredCacheTime <= CacheDt ||  FMath::IsNearlyEqual(CurrentCacheTime, FLT_MAX))
-		{
-			GeometryCollectionAlgo::GlobalMatrices(GetTransformArray(), GetParentArray(), GlobalMatrices);
-
-			DynamicData = GDynamicDataPool.Allocate();
-			DynamicData->SetAllTransforms(GlobalMatrices);
-			DynamicData->IsDynamic = bIsCacheDynamic;
-			DynamicData->IsLoading = GetIsObjectLoading();
-
-			EventsPlayed.Reset();
-			EventsPlayed.AddDefaulted(CacheParameters.TargetCache->GetData()->Records.Num());
-
-			if (bOutOfSync)
-			{
-				UE_LOG(UGCC_LOG, Warning, TEXT("Cache out of sync - must rewind sequencer to start frame"));
-			}
-			else
-			{
-				CurrentCacheTime = DesiredCacheTime;
-			}
-		}
-		else if (DesiredCacheTime >= CurrentCacheTime)
-		{
-			const TManagedArray<FTransform>& Transform = RestCollection->GetGeometryCollection()->Transform;
-			const TManagedArray<TSet<int32>>& Children = GetChildrenArray();
-			const TManagedArray<FTransform>& MassToLocal = RestCollection->GetGeometryCollection()->GetAttribute<FTransform>("MassToLocal", FGeometryCollection::TransformGroup);
-
-			int32 NumSteps = floor((DesiredCacheTime - CurrentCacheTime) / CacheDt);
-			float LastDt = FMath::Fmod(DesiredCacheTime - CurrentCacheTime, CacheDt);
-			NumSteps += LastDt > SMALL_NUMBER ? 1 : 0;
-			
-			FTransform ActorToWorld = GetComponentTransform();
-
-			DynamicData = GDynamicDataPool.Allocate();
-			DynamicData->ChangedCount = 0;
-			DynamicData->IsDynamic = bIsCacheDynamic;
-			DynamicData->IsLoading = GetIsObjectLoading();
-
-			bool HasAnyActiveTransforms = false;
-
-			// Jump ahead in increments of CacheDt evaluating the cache until we reach our desired time
-			for (int32 Step = 0; Step < NumSteps; ++Step)
-			{
-				float TimeIncrement = Step == NumSteps - 1 ? LastDt : CacheDt;
-				CurrentCacheTime += TimeIncrement;
-			
-				DynamicData->SetPrevTransforms(GlobalMatrices);
-
-				const FRecordedFrame* FirstFrame = nullptr;
-				const FRecordedFrame* SecondFrame = nullptr;
-				CacheParameters.TargetCache->GetData()->GetFramesForTime(CurrentCacheTime, FirstFrame, SecondFrame);
-
-				if (FirstFrame && !SecondFrame)
-				{
-					const TArray<FTransform>& FirstFrameTransforms = FirstFrame->Transforms;
-					const TArray<int32>& TransformIndices = FirstFrame->TransformIndices;
-
-					const int32 NumActives = TransformIndices.Num();
-					
-					if (NumActives > 0)
-					{
-						HasAnyActiveTransforms = true;
-					}
-
-					for (int32 TransformIndex = 0; TransformIndex < NumActives; ++TransformIndex)
-					{
-						const int32 InternalIndexTmp = TransformIndices[TransformIndex];
-						
-						if (InternalIndexTmp >= GlobalMatrices.Num())
-						{
-							UE_LOG
-							(
-								UGCC_LOG, Error,
-								TEXT("%s: TargetCache (%s) is out of sync with GeometryCollection.  Regenerate the cache."),
-								*RestCollection->GetName(), *CacheParameters.TargetCache->GetName()
-							);
-
-							DynamicData->SetAllTransforms(GlobalMatrices);
-							return DynamicData;
-						}
-
-						// calculate global matrix for current
-						FTransform ParticleToWorld = FirstFrameTransforms[TransformIndex];
-
-						FTransform CurrGlobalTransform = MassToLocal[InternalIndexTmp].GetRelativeTransformReverse(ParticleToWorld).GetRelativeTransform(ActorToWorld);
-						CurrGlobalTransform.NormalizeRotation();
-						GlobalMatrices[InternalIndexTmp] = CurrGlobalTransform.ToMatrixWithScale();
-						
-						// Traverse from active parent node down to all children and set global transforms
-						GeometryCollectionAlgo::GlobalMatricesFromRoot(InternalIndexTmp, Transform, Children, GlobalMatrices);
-					}
-				}
-				else if (FirstFrame && SecondFrame && CurrentCacheTime > FirstFrame->Timestamp)
-				{
-					const float Alpha = (CurrentCacheTime - FirstFrame->Timestamp) / (SecondFrame->Timestamp - FirstFrame->Timestamp);
-					checkSlow(0 <= Alpha && Alpha <= 1.0f);
-
-					const int32 NumActives = SecondFrame->TransformIndices.Num();
-
-					if (NumActives > 0)
-					{
-						HasAnyActiveTransforms = true;
-					}
-
-					for (int32 Index = 0; Index < NumActives; ++Index)
-					{
-						const int32 InternalIndexTmp = SecondFrame->TransformIndices[Index];
-						
-						// Check if transform index is valid
-						if (InternalIndexTmp >= GlobalMatrices.Num())
-						{
-							UE_LOG
-							(
-								UGCC_LOG, Error,
-								TEXT("%s: TargetCache (%s) is out of sync with GeometryCollection.  Regenerate the cache."), 
-								*RestCollection->GetName(), *CacheParameters.TargetCache->GetName()
-							);
-							DynamicData->SetAllTransforms(GlobalMatrices);
-							return DynamicData;
-						}
-
-						const int32 PreviousIndexSlot = Index < SecondFrame->PreviousTransformIndices.Num() ? SecondFrame->PreviousTransformIndices[Index] : INDEX_NONE;
-
-						if (PreviousIndexSlot != INDEX_NONE)
-						{
-							FTransform ParticleToWorld;
-							ParticleToWorld.Blend(FirstFrame->Transforms[PreviousIndexSlot], SecondFrame->Transforms[Index], Alpha);
-							
-							FTransform CurrGlobalTransform = MassToLocal[InternalIndexTmp].GetRelativeTransformReverse(ParticleToWorld).GetRelativeTransform(ActorToWorld);
-							CurrGlobalTransform.NormalizeRotation();
-							GlobalMatrices[InternalIndexTmp] = CurrGlobalTransform.ToMatrixWithScale();
-
-							// Traverse from active parent node down to all children and set global transforms
-							GeometryCollectionAlgo::GlobalMatricesFromRoot(InternalIndexTmp, Transform, Children, GlobalMatrices);
-						}
-						else
-						{
-							FTransform ParticleToWorld = SecondFrame->Transforms[Index];
-							
-							FTransform CurrGlobalTransform = MassToLocal[InternalIndexTmp].GetRelativeTransformReverse(ParticleToWorld).GetRelativeTransform(ActorToWorld);
-							CurrGlobalTransform.NormalizeRotation();
-							GlobalMatrices[InternalIndexTmp] = CurrGlobalTransform.ToMatrixWithScale();
-
-							// Traverse from active parent node down to all children and set global transforms
-							GeometryCollectionAlgo::GlobalMatricesFromRoot(InternalIndexTmp, Transform, Children, GlobalMatrices);
-						}
-					}
-				}
-				DynamicData->SetTransforms(GlobalMatrices);
-			}
-
-			// Check if transforms at start of this tick are the same as what is calculated from the cache
-			if (HasAnyActiveTransforms)
-			{
-				DynamicData->DetermineChanges();
-			}
-		}
-	}
-	else if (bIsDynamic)
+	if (bIsDynamic)
 	{
 		DynamicData = GDynamicDataPool.Allocate();
 		DynamicData->IsDynamic = true;
@@ -1737,6 +1662,11 @@ void UGeometryCollectionComponent::ResetDynamicCollection()
 		SetRenderStateDirty();
 	}
 
+	if (RestTransforms.Num() > 0)
+	{
+		SetInitialTransforms(RestTransforms);
+	}
+
 	if (RestCollection)
 	{
 		CalculateGlobalMatrices();
@@ -1808,13 +1738,24 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 				}
 			}
 
-			TManagedArray<bool> & Active = DynamicCollection->Active;
+			TManagedArray<bool>& Active = DynamicCollection->Active;
+			if (RestCollection->GetGeometryCollection()->HasAttribute(FGeometryCollection::SimulatableParticlesAttribute, FTransformCollection::TransformGroup))
 			{
+				TManagedArray<bool>* SimulatableParticles = RestCollection->GetGeometryCollection()->FindAttribute<bool>(FGeometryCollection::SimulatableParticlesAttribute, FTransformCollection::TransformGroup);
 				for (int i = 0; i < Active.Num(); i++)
 				{
-					Active[i] = true;
+					Active[i] = (*SimulatableParticles)[i];
 				}
 			}
+			else
+			{
+				// If no simulation data is available then default to the simulation of just the rigid geometry.
+				for (int i = 0; i < Active.Num(); i++)
+				{
+					Active[i] = RestCollection->GetGeometryCollection()->IsRigid(i);
+				}
+			}
+			
 			TManagedArray<int32> & CollisionGroupArray = DynamicCollection->CollisionGroup;
 			{
 				for (int i = 0; i < CollisionGroupArray.Num(); i++)
@@ -2023,6 +1964,13 @@ void UGeometryCollectionComponent::SetRestCollection(const UGeometryCollection* 
 	if (RestCollectionIn)
 	{
 		RestCollection = RestCollectionIn;
+
+		const int32 NumTransforms = RestCollection->GetGeometryCollection()->NumElements(FGeometryCollection::TransformGroup);
+		RestTransforms.SetNum(NumTransforms);
+		for (int32 Idx = 0; Idx < NumTransforms; ++Idx)
+		{
+			RestTransforms[Idx] = RestCollection->GetGeometryCollection()->Transform[Idx];
+		}
 
 		CalculateGlobalMatrices();
 		CalculateLocalBounds();
@@ -2641,11 +2589,24 @@ void UGeometryCollectionComponent::CalculateGlobalMatrices()
 		GlobalMatrices.Append(Results->GlobalTransforms);	
 	}
 	else
-	{
-		// Have to fully rebuild
-		GeometryCollectionAlgo::GlobalMatrices(GetTransformArray(), GetParentArray(), GlobalMatrices);
+	{	
+		// If hierarchy topology has changed, the RestTransforms is invalidated.
+		if (RestTransforms.Num() != GetTransformArray().Num())
+		{
+			RestTransforms.Empty();
+		}
+		
+		if (!DynamicCollection && RestTransforms.Num() > 0)
+		{
+			GeometryCollectionAlgo::GlobalMatrices(RestTransforms, GetParentArray(), GlobalMatrices);
+		}
+		else
+		{
+			// Have to fully rebuild
+			GeometryCollectionAlgo::GlobalMatrices(GetTransformArray(), GetParentArray(), GlobalMatrices);
+		}
 	}
-
+	
 #if WITH_EDITOR
 	if (GlobalMatrices.Num() > 0)
 	{
@@ -2779,7 +2740,7 @@ void UGeometryCollectionComponent::ClearEmbeddedGeometry()
 
 	for (UActorComponent* TargetComponent : TargetComponents)
 	{
-		if (TargetComponent->GetOuter() == this)
+		if ((TargetComponent->GetOuter() == this) || (TargetComponent->GetOuter()->IsPendingKill()))
 		{
 			if (UInstancedStaticMeshComponent* ISMComponent = Cast<UInstancedStaticMeshComponent>(TargetComponent))
 			{
@@ -2815,6 +2776,7 @@ void UGeometryCollectionComponent::InitializeEmbeddedGeometry()
 					ISMC->SetCastShadow(false);
 					ISMC->SetMobility(EComponentMobility::Stationary);
 					ISMC->SetupAttachment(this);
+					ActorOwner->AddInstanceComponent(ISMC);
 					ISMC->RegisterComponent();
 
 					EmbeddedGeometryComponents.Add(ISMC);
@@ -2824,7 +2786,6 @@ void UGeometryCollectionComponent::InitializeEmbeddedGeometry()
 
 		CalculateGlobalMatrices();
 		RefreshEmbeddedGeometry();
-
 	}
 }
 

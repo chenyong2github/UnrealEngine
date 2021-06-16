@@ -47,8 +47,6 @@ private:
 	void RegisterCachingSubMenu(UToolMenu* InMenu, FToolMenuSection* InSection);
 	
 	void OnCreateCacheManager();
-	void OnSetAllPlay();
-	void OnSetAllRecord();
 
 	FAssetTypeActions_ChaosCacheCollection* AssetTypeActions_ChaosCacheCollection;
 	FDelegateHandle StartupHandle;

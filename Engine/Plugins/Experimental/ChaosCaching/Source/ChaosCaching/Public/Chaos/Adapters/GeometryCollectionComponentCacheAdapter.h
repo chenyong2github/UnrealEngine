@@ -241,13 +241,14 @@ namespace Chaos
 		Chaos::FPhysicsSolver* GetComponentSolver(UPrimitiveComponent* InComponent) const override;
 		bool                   ValidForPlayback(UPrimitiveComponent* InComponent, UChaosCache* InCache) const override;
 		void				   Initialize() override;
+		void				   SetRestState(UPrimitiveComponent* InComponent, UChaosCache* InCache, const FTransform& InRootTransform, Chaos::FReal InTime) const override;
 		bool                   InitializeForRecord(UPrimitiveComponent* InComponent, UChaosCache* InCache) override;
-		bool                   InitializeForPlayback(UPrimitiveComponent* InComponent, UChaosCache* InCache) const override;
+		bool                   InitializeForPlayback(UPrimitiveComponent* InComponent, UChaosCache* InCache, float InTime) override;
 		void                   Record_PostSolve(UPrimitiveComponent* InComp, const FTransform& InRootTransform, FPendingFrameWrite& OutFrame, Chaos::FReal InTime) const override;
-		void                   Playback_PreSolve(UPrimitiveComponent*                               InComponent,
-												 UChaosCache*                                       InCache,
+		void                   Playback_PreSolve(UPrimitiveComponent*								InComponent,
+												 UChaosCache*										InCache,
 												 Chaos::FReal                                       InTime,
-												 FPlaybackTickRecord&                               TickRecord,
+												 FPlaybackTickRecord&								TickRecord,
 												 TArray<TPBDRigidParticleHandle<Chaos::FReal, 3>*>& OutUpdatedRigids) const override;
 
 		// End FComponentCacheAdapter interface
@@ -258,6 +259,12 @@ namespace Chaos
 		void HandleTrailingEvents(const Chaos::FTrailingEventData& Event);
 	
 	private:
+		TArray<int32> GatherAllBreaksUpToTime(UChaosCache* InCache, float InTime) const;
+
+		bool bHandleBreaks;
+		bool bHandleCollisions;
+		bool bHandleTrailing;
+
 		TMap<IPhysicsProxyBase*, FCachedEventData> CachedData;
 		const FBreakingDataArray* BreakingDataArray;
 		const FCollisionDataArray* CollisionDataArray;

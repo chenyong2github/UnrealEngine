@@ -102,24 +102,6 @@ void IChaosCachingEditorPlugin::RegisterCachingSubMenu(UToolMenu* InMenu, FToolM
 									  FCanExecuteAction(),
 									  FIsActionChecked(),
 									  FIsActionButtonVisible::CreateStatic(&IsCreateCacheManagerVisible)));
-
-	InSection->AddMenuEntry("SetRecordAll",
-							LOCTEXT("MenuItem_SetRecordAll", "Set All Record"),
-							LOCTEXT("MenuItem_SetRecordAll_ToolTip", "Sets selected cache managers to record all of their observed components."),
-							FSlateIcon(),
-							FUIAction(FExecuteAction::CreateRaw(this, &IChaosCachingEditorPlugin::OnSetAllRecord),
-									  FCanExecuteAction(),
-									  FIsActionChecked(),
-									  FIsActionButtonVisible::CreateStatic(&IsSetAllRecordVisible)));
-
-	InSection->AddMenuEntry("SetPlayAll",
-							LOCTEXT("MenuItem_SetPlayAll", "Set All Play"),
-							LOCTEXT("MenuItem_SetPlayAll_ToolTip", "Sets selected cache managers to playback all of their observed components."),
-							FSlateIcon(),
-							FUIAction(FExecuteAction::CreateRaw(this, &IChaosCachingEditorPlugin::OnSetAllPlay),
-									  FCanExecuteAction(),
-									  FIsActionChecked(),
-									  FIsActionButtonVisible::CreateStatic(&IsSetAllPlayVisible)));
 }
 
 void IChaosCachingEditorPlugin::OnCreateCacheManager()
@@ -179,6 +161,7 @@ void IChaosCachingEditorPlugin::OnCreateCacheManager()
 				if(!Existing)
 				{
 					FObservedComponent& NewEntry = Manager->AddNewObservedComponent(PrimitiveComp);
+					NewEntry.bIsSimulating = PrimitiveComp->BodyInstance.bSimulatePhysics;
 				}
 			}
 		}
@@ -198,6 +181,9 @@ void IChaosCachingEditorPlugin::OnCreateCacheManager()
 				Manager->CacheCollection = NewAsset;
 			}
 		}
+
+		// Initialize observed components according to mode
+		Manager->SetObservedComponentProperties(Manager->CacheMode);
 	}
 }
 
@@ -244,22 +230,6 @@ bool IsCreateCacheManagerVisible()
 	return false;
 }
 
-void IChaosCachingEditorPlugin::OnSetAllPlay()
-{
-	USelection* SelectedActors = GEditor->GetSelectedActors();
-
-	TArray<AChaosCacheManager*> CacheManagers;
-	SelectedActors->GetSelectedObjects<AChaosCacheManager>(CacheManagers);
-
-	for(AChaosCacheManager* Manager : CacheManagers)
-	{
-		if(Manager)
-		{
-			Manager->SetAllMode(ECacheMode::Play);
-		}
-	}
-}
-
 template<typename T>
 bool SelectionContains()
 {
@@ -276,22 +246,6 @@ bool SelectionContains()
 bool IsSetAllPlayVisible()
 {
 	return SelectionContains<AChaosCacheManager>();
-}
-
-void IChaosCachingEditorPlugin::OnSetAllRecord()
-{
-	USelection* SelectedActors = GEditor->GetSelectedActors();
-
-	TArray<AChaosCacheManager*> CacheManagers;
-	SelectedActors->GetSelectedObjects<AChaosCacheManager>(CacheManagers);
-
-	for(AChaosCacheManager* Manager : CacheManagers)
-	{
-		if(Manager)
-		{
-			Manager->SetAllMode(ECacheMode::Record);
-		}
-	}
 }
 
 bool IsSetAllRecordVisible()

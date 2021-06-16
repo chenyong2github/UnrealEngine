@@ -466,8 +466,14 @@ void FGeometryCollectionPhysicsProxy::InitializeDynamicCollection(FGeometryDynam
 	//
 
 	TMap<FName, TSet<FName>> SkipList;
-	TSet<FName>& TransformGroupSkipList = SkipList.Emplace(FTransformCollection::TransformGroup);
-	TransformGroupSkipList.Add(DynamicCollection.SimplicialsAttribute);
+	TSet<FName>& KeepFromDynamicCollection = SkipList.Emplace(FTransformCollection::TransformGroup);
+	KeepFromDynamicCollection.Add(FTransformCollection::TransformAttribute);
+	KeepFromDynamicCollection.Add(FTransformCollection::ParentAttribute);
+	KeepFromDynamicCollection.Add(FTransformCollection::ChildrenAttribute);
+	KeepFromDynamicCollection.Add(FGeometryCollection::SimulationTypeAttribute);
+	KeepFromDynamicCollection.Add(DynamicCollection.SimplicialsAttribute);
+	KeepFromDynamicCollection.Add(DynamicCollection.ActiveAttribute);
+	KeepFromDynamicCollection.Add(DynamicCollection.CollisionGroupAttribute);
 	DynamicCollection.CopyMatchingAttributesFrom(RestCollection, &SkipList);
 
 
@@ -511,25 +517,11 @@ void FGeometryCollectionPhysicsProxy::InitializeDynamicCollection(FGeometryDynam
 	}
 
 	// Process Activity
+	const int32 NumTransforms = DynamicCollection.SimulatableParticles.Num();
+	for (int32 TransformIdx = 0; TransformIdx < NumTransforms; TransformIdx++)
 	{
-		const int32 NumTransforms = DynamicCollection.SimulatableParticles.Num();
-		if (!RestCollection.HasAttribute(FGeometryCollection::SimulatableParticlesAttribute, FTransformCollection::TransformGroup))
-		{
-			// If no simulation data is available then default to the simulation of just the rigid geometry.
-			for (int32 TransformIdx = 0; TransformIdx < NumTransforms; TransformIdx++)
-			{
-				if (DynamicCollection.Children[TransformIdx].Num())
-				{
-					DynamicCollection.SimulatableParticles[TransformIdx] = false;
-				}
-				else
-				{
-					DynamicCollection.SimulatableParticles[TransformIdx] = DynamicCollection.Active[TransformIdx];
-				}
-			}
-		}
+		DynamicCollection.SimulatableParticles[TransformIdx] = DynamicCollection.Active[TransformIdx];
 	}
-
 }
 
 int32 ReportTooManyChildrenNum = -1;
@@ -544,8 +536,6 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 	{
 		const TManagedArray<int32>& TransformIndex = RestCollection->TransformIndex;
 		const TManagedArray<int32>& BoneMap = RestCollection->BoneMap;
-		const TManagedArray<int32>& Parent = RestCollection->Parent;
-		const TManagedArray<TSet<int32>>& Children = RestCollection->Children;
 		const TManagedArray<int32>& SimulationType = RestCollection->SimulationType;
 		const TManagedArray<FVector3f>& Vertex = RestCollection->Vertex;
 		const TManagedArray<float>& Mass = RestCollection->GetAttribute<float>("Mass", FTransformCollection::TransformGroup);
@@ -560,9 +550,11 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 		const TManagedArray<FVector3f>& InitialLinearVelocity = DynamicCollection.InitialLinearVelocity;
 		const TManagedArray<FGeometryDynamicCollection::FSharedImplicit>& Implicits = DynamicCollection.Implicits;
 		const TManagedArray<TUniquePtr<FCollisionStructureManager::FSimplicial>>& Simplicials = DynamicCollection.Simplicials;
+		const TManagedArray<TSet<int32>>& Children = DynamicCollection.Children;
+		const TManagedArray<int32>& Parent = DynamicCollection.Parent;
 
 		TArray<FTransform> Transform;
-		GeometryCollectionAlgo::GlobalMatrices(DynamicCollection.Transform, DynamicCollection.Parent, Transform);
+		GeometryCollectionAlgo::GlobalMatrices(DynamicCollection.Transform, Parent, Transform);
 
 		//const int NumRigids = 0; // ryan - Since we're doing SOA, we start at zero?
 		int NumRigids = 0;

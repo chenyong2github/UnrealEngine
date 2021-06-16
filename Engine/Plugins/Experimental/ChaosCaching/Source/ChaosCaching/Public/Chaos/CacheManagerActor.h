@@ -22,8 +22,8 @@ class FComponentCacheAdapter;
 UENUM()
 enum class ECacheMode : uint8
 {
-	None,
-	Play,
+	None		UMETA(DisplayName = "Static Pose"),
+	Play,		
 	Record
 };
 
@@ -44,13 +44,12 @@ struct CHAOSCACHING_API FObservedComponent
 {
 	GENERATED_BODY()
 
-	FObservedComponent()
+		FObservedComponent()
 		: CacheName(NAME_None)
-		, CacheMode(ECacheMode::None)
-		, StartMode(EStartMode::Timed)
-		, TimedDuration(0.0f)
+		, bIsSimulating(true)
+		, Cache(nullptr)
+		, BestFitAdapter(nullptr)
 	{
-		ResetRuntimeData();
 	}
 
 	/** Unique name for the cache, used as a key into the cache collection */
@@ -61,27 +60,12 @@ struct CHAOSCACHING_API FObservedComponent
 	UPROPERTY(EditAnywhere, Category = "Caching", meta = (UseComponentPicker, AllowAnyActor))
 	FComponentReference ComponentRef;
 
-	/** How to use the cache - playback or record */
+	/** Capture of the initial state of the component before cache manager takes control. */
 	UPROPERTY(EditAnywhere, Category = "Caching")
-	ECacheMode CacheMode;
-
-	/**
-	 * How to trigger the cache record or playback, timed will start counting at BeginPlay, Triggered will begin
-	 * counting from when the owning cache manager is requested to trigger the cache action
-	 * @see AChaosCacheManager::TriggerObservedComponent
-	 */
-	UPROPERTY(EditAnywhere, Category = "Caching")
-	EStartMode StartMode;
-
-	/**
-	 * The time after BeginPlay or a call to AChaosCacheManager::TriggerObservedComponent to wait before beginning
-	 * the playback or recording of the component
-	 */
-	UPROPERTY(EditAnywhere, Category = "Caching")
-	float TimedDuration;
+	bool bIsSimulating;				  
 
 	/** Prepare runtime tick data for a new run */
-	void ResetRuntimeData();
+	void ResetRuntimeData(const EStartMode ManagerStartMode);
 
 	/** Gets the component from the internal component ref */
 	UPrimitiveComponent* GetComponent();
@@ -95,6 +79,8 @@ private:
 	Chaos::FReal TimeSinceTrigger;    // Time since our trigger happened
 	UChaosCache* Cache;               // Cache to play - picked up in BeginPlay on the manager.
 	FPlaybackTickRecord TickRecord;   // Tick record to track where we are in playback
+
+	Chaos::FComponentCacheAdapter* BestFitAdapter; // Cache a pointer to the best adapter, required for cache random access handling.
 };
 
 struct FPerSolverData
@@ -129,6 +115,25 @@ public:
 	UPROPERTY(EditInstanceOnly, Category = "Caching")
 	UChaosCacheCollection* CacheCollection;
 
+	/** How to use the cache - playback or record */
+	UPROPERTY(EditAnywhere, Category = "Caching")
+	ECacheMode CacheMode;
+
+	/**
+	* How to trigger the cache record or playback, timed will start counting at BeginPlay, Triggered will begin
+	* counting from when the owning cache manager is requested to trigger the cache action
+	* @see AChaosCacheManager::TriggerObservedComponent
+	*/
+	UPROPERTY(EditAnywhere, Category = "Caching")
+	EStartMode StartMode;
+
+	/**
+	* Defines the (random access) time that represents the rest pose of the components managed by this cache.
+	* When in Play mode, the components are set to the state provided by the caches at this evaluated time.
+	*/
+	UPROPERTY(EditAnywhere, Interp, BlueprintReadWrite, Category = "Caching", meta=(SequencerTrackClass="MovieSceneFloatTrack"))
+	float StartTime;
+
 	/** AActor interface */
 	void TickActor(float DeltaTime, enum ELevelTick TickType, FActorTickFunction& ThisTickFunction) override;
 	/** end AActor interface */
@@ -136,23 +141,14 @@ public:
 	/** UObject interface */
 #if WITH_EDITOR
 	friend class IChaosCachingEditorPlugin;
-	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
+
+	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	/** end UObject interface */
 
-	/**
-	 * Sets the playback mode of every observed component to the specified mode
-	 * @param InMode Mode to set
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Caching")
-	void SetAllMode(ECacheMode InMode);
-
-	/**
-	 * Sets the start mode of every observed component to the specified mode
-	 * @param InMode Mode to set
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Caching")
-	void SetAllStartMode(EStartMode InMode);
+	/** Expose StartTime property to Sequencer. GetStartTime will be called on keys. */
+	UFUNCTION(CallInEditor)
+	void SetStartTime(float InStartTime);
 
 	/** 
 	 * Resets all components back to the world space transform they had when the cache for them was originally recorded
@@ -177,6 +173,9 @@ public:
 	void SelectComponent(int32 InIndex);
 #endif
 
+	/** Returns true if this cache manager is allowed to record caches. */
+	bool CanRecord() const { return bCanRecord; }
+
 protected:
 	/** AActor interface */
 	void BeginPlay() override;
@@ -191,6 +190,9 @@ protected:
 
 	/** Handles physics thread post-solve (record data for components under record) */
 	void HandlePostSolve(Chaos::FReal InDt, Chaos::FPhysicsSolver* InSolver);
+
+	/** Evaluates and sets state for all observed components at the specified time. */
+	void OnStartFrameChanged(Chaos::FReal InT);
 
 	/**
 	 * Triggers a component to play or record.
@@ -219,7 +221,17 @@ protected:
 	FObservedComponent& FindOrAddObservedComponent(UPrimitiveComponent* InComponent);
 	void ClearObservedComponents();
 
+	// Determines if the actor is allowed to record a cache.
+	bool bCanRecord;
+
+	// true if observed components are actively simulating, dynamically or kinematically.
+	bool bIsSimulating;
+
 private:
+#if WITH_EDITOR
+	void SetObservedComponentProperties(const ECacheMode& NewCacheMode);
+#endif
+	
 	friend class UActorFactoryCacheManager; // Allows the actor factory to set up the observed list. See UActorFactoryCacheManager::PostSpawnActor
 
 	using FTickObservedFunction = TUniqueFunction<void(UChaosCache*, FObservedComponent&, Chaos::FComponentCacheAdapter*)>;
@@ -246,4 +258,14 @@ private:
 	/** Lists of currently open caches that need to be closed when complete */
 	TArray<TTuple<FCacheUserToken, UChaosCache*>> OpenRecordCaches;
 	TArray<TTuple<FCacheUserToken, UChaosCache*>> OpenPlaybackCaches;
+};
+
+UCLASS(Experimental)
+class CHAOSCACHING_API AChaosCachePlayer : public AChaosCacheManager
+{
+	GENERATED_BODY()
+
+public:
+	AChaosCachePlayer(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
 };

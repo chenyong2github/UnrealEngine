@@ -19,6 +19,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Kismet2/ComponentEditorUtils.h"
+#include "GeometryCollection/GeometryCollectionComponent.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "ChaosCacheManager"
@@ -28,9 +29,9 @@ FName GetComponentCacheName(UPrimitiveComponent* InComponent)
 	return FName(InComponent->GetPathName(InComponent->GetWorld()));
 }
 
-void FObservedComponent::ResetRuntimeData()
+void FObservedComponent::ResetRuntimeData(const EStartMode ManagerStartMode)
 {
-	bTriggered       = StartMode == EStartMode::Timed;
+	bTriggered       = ManagerStartMode == EStartMode::Timed;
 	AbsoluteTime     = 0;
 	TimeSinceTrigger = 0;
 	Cache            = nullptr;
@@ -50,6 +51,10 @@ UPrimitiveComponent* FObservedComponent::GetComponent() const
 
 AChaosCacheManager::AChaosCacheManager(const FObjectInitializer& ObjectInitializer /*= FObjectInitializer::Get()*/)
 	: Super(ObjectInitializer)
+	, CacheMode(ECacheMode::Record)
+	, StartMode(EStartMode::Timed)
+	, bCanRecord(true)
+	, bIsSimulating(false)
 {
 	// This actor will tick, just not normally. There needs to be a tick-like event both before physics simulation
 	// and after physics simulation, we bind to some physics scene events in BeginPlay to handle this.
@@ -99,27 +104,46 @@ void AChaosCacheManager::TickActor(float DeltaTime, enum ELevelTick TickType, FA
 	}
 }
 
-#if WITH_EDITOR
 void AChaosCacheManager::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-}
+
+	FName PropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(AChaosCacheManager, CacheMode))
+	{
+		if ((CacheMode == ECacheMode::Record) && !CanRecord())
+		{
+			// If we're not allowed to record but have somehow been set to record mode, revert to default
+			CacheMode = ECacheMode::None;
+		}
+
+#if WITH_EDITOR
+		SetObservedComponentProperties(CacheMode);
 #endif
-
-void AChaosCacheManager::SetAllMode(ECacheMode InMode)
-{
-	for(FObservedComponent& Observed : ObservedComponents)
+		
+		if (CacheMode != ECacheMode::Record)
+		{
+			OnStartFrameChanged(StartTime);
+		}
+		else
+		{
+			OnStartFrameChanged(0.0);
+		}
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AChaosCacheManager, StartTime)) 
 	{
-		Observed.CacheMode = InMode;
+		if (CacheMode != ECacheMode::Record)
+		{
+			OnStartFrameChanged(StartTime);
+		}
 	}
 }
 
-void AChaosCacheManager::SetAllStartMode(EStartMode InMode)
+void AChaosCacheManager::SetStartTime(float InStartTime)
 {
-	for (FObservedComponent& Observed : ObservedComponents)
-	{
-		Observed.StartMode = InMode;
-	}
+	StartTime = InStartTime;
+	OnStartFrameChanged(InStartTime);
 }
 
 void AChaosCacheManager::ResetAllComponentTransforms()
@@ -184,11 +208,13 @@ void AChaosCacheManager::BeginPlay()
 
 	Super::BeginPlay();
 
+	bIsSimulating = !(CacheMode == ECacheMode::None);
+	
 	if(!CacheCollection)
 	{
 		UE_LOG(LogChaosCache, Warning, TEXT("%s has no valid cache asset. Components will revert to dynamic simulation."), *GetName());
 		
-		// without a collection the cache manager can't do anything, no reason to inialise the observed array
+		// without a collection the cache manager can't do anything, no reason to initialise the observed array
 		SetActorTickEnabled(false);
 		return;
 	}
@@ -262,7 +288,7 @@ void AChaosCacheManager::BeginPlay()
 		}
 
 		// Reset timers and last cache
-		Observed.ResetRuntimeData();
+		Observed.ResetRuntimeData(StartMode);
 
 		bool                    bRequiresRecord = false;
 		FComponentCacheAdapter* CurrAdapter     = ActiveAdapters[Index];
@@ -280,85 +306,76 @@ void AChaosCacheManager::BeginPlay()
 				SolverData->PostSolveHandle = Solver->AddPostAdvanceCallback(FSolverPostAdvance::FDelegate::CreateUObject(this, &AChaosCacheManager::HandlePostSolve, Solver));
 			}
 
-			switch(Observed.CacheMode)
+			if (CacheMode == ECacheMode::Play || CacheMode == ECacheMode::None || !CanRecord())
 			{
-				case ECacheMode::Play:
-				{
-					UChaosCache*    PlayCache = CacheCollection->FindCache(Observed.CacheName);
+				UChaosCache*    PlayCache = CacheCollection->FindCache(Observed.CacheName);
 					
-					if(PlayCache)
+				if(PlayCache)
+				{
+					FCacheUserToken Token = PlayCache->BeginPlayback();
+
+					if(Token.IsOpen() && CurrAdapter->ValidForPlayback(Comp, PlayCache))
 					{
-						FCacheUserToken Token = PlayCache->BeginPlayback();
-
-						if(Token.IsOpen() && CurrAdapter->ValidForPlayback(Comp, PlayCache))
-						{
-							SolverData->PlaybackIndices.Add(Index);
-							SolverData->PlaybackTickRecords.AddDefaulted();
-							SolverData->PlaybackTickRecords.Last().SetSpaceTransform(GetTransform());
-							Observed.Cache = PlayCache;
-							Observed.TickRecord.SetSpaceTransform(GetTransform());
-							OpenPlaybackCaches.Add(TTuple<FCacheUserToken, UChaosCache*>(MoveTemp(Token), Observed.Cache));
-							CurrAdapter->InitializeForPlayback(Comp, Observed.Cache);
-						}
-						else
-						{
-							if(Token.IsOpen())
-							{
-								UE_LOG(LogChaosCache,
-									   Warning,
-									   TEXT("Failed playback for component %s, Selected cache adapter unable to handle the cache (the cache is incompatible)"),
-									   *Comp->GetPathName());
-
-								// The cache session was valid so make sure to end it
-								PlayCache->EndPlayback(Token);
-							}
-							else    // Already open for record somewhere
-							{
-								UE_LOG(LogChaosCache,
-									   Warning,
-									   TEXT("Failed playback for component %s using cache %s, cache already open for record"),
-									   *Comp->GetName(),
-									   *PlayCache->GetPathName());
-							}
-
-							++NumFailedPlaybackEntries;
-						}
+						SolverData->PlaybackIndices.Add(Index);
+						SolverData->PlaybackTickRecords.AddDefaulted();
+						SolverData->PlaybackTickRecords.Last().SetSpaceTransform(GetTransform());
+						Observed.Cache = PlayCache;
+						Observed.TickRecord.SetSpaceTransform(GetTransform());
+						Observed.TickRecord.SetLastTime(StartTime);
+						OpenPlaybackCaches.Add(TTuple<FCacheUserToken, UChaosCache*>(MoveTemp(Token), Observed.Cache));
+						CurrAdapter->InitializeForPlayback(Comp, Observed.Cache, StartTime);
 					}
 					else
 					{
-						UE_LOG(LogChaosCache, Log, TEXT("Skipping playback for component %s, no available cache."), *Comp->GetName());
+						if(Token.IsOpen())
+						{
+							UE_LOG(LogChaosCache,
+									Warning,
+									TEXT("Failed playback for component %s, Selected cache adapter unable to handle the cache (the cache is incompatible)"),
+									*Comp->GetPathName());
+
+							// The cache session was valid so make sure to end it
+							PlayCache->EndPlayback(Token);
+						}
+						else    // Already open for record somewhere
+						{
+							UE_LOG(LogChaosCache,
+									Warning,
+									TEXT("Failed playback for component %s using cache %s, cache already open for record"),
+									*Comp->GetName(),
+									*PlayCache->GetPathName());
+						}
+
+						++NumFailedPlaybackEntries;
 					}
-
-					break;
 				}
-				case ECacheMode::Record:
+				else
 				{
-					// Make sure there's a cache available if we're going to record.
-					UPrimitiveComponent* Component = Observed.GetComponent();
-					FName CacheName = (Observed.CacheName == NAME_None) ? MakeUniqueObjectName(CacheCollection, UChaosCache::StaticClass(), "Cache") : Observed.CacheName;
+					UE_LOG(LogChaosCache, Log, TEXT("Skipping playback for component %s, no available cache."), *Comp->GetName());
+				}
+			}
+			else // CacheMode == ECacheMode::Record
+			{
+				// Make sure there's a cache available if we're going to record.
+				UPrimitiveComponent* Component = Observed.GetComponent();
+				FName CacheName = (Observed.CacheName == NAME_None) ? MakeUniqueObjectName(CacheCollection, UChaosCache::StaticClass(), "Cache") : Observed.CacheName;
 
-					UChaosCache*    RecordCache = CacheCollection->FindOrAddCache(CacheName);
-					FCacheUserToken Token       = RecordCache->BeginRecord(Observed.GetComponent(), CurrAdapter->GetGuid(), GetTransform());
+				UChaosCache*    RecordCache = CacheCollection->FindOrAddCache(CacheName);
+				FCacheUserToken Token       = RecordCache->BeginRecord(Observed.GetComponent(), CurrAdapter->GetGuid(), GetTransform());
 
-					if(Token.IsOpen())
-					{
-						SolverData->RecordIndices.Add(Index);
+				if(Token.IsOpen())
+				{
+					SolverData->RecordIndices.Add(Index);
 
-						Observed.Cache = CacheCollection->FindOrAddCache(CacheName);
+					Observed.Cache = CacheCollection->FindOrAddCache(CacheName);
 						
-						// We'll record the observed component in Cache Manager's local space.
-						Observed.TickRecord.SetSpaceTransform(GetTransform());
-						OpenRecordCaches.Add(TTuple<FCacheUserToken, UChaosCache*>(MoveTemp(Token), Observed.Cache));
-						CurrAdapter->InitializeForRecord(Component, Observed.Cache);
+					// We'll record the observed component in Cache Manager's local space.
+					Observed.TickRecord.SetSpaceTransform(GetTransform());
+					OpenRecordCaches.Add(TTuple<FCacheUserToken, UChaosCache*>(MoveTemp(Token), Observed.Cache));
+					CurrAdapter->InitializeForRecord(Component, Observed.Cache);
 
-						// Ensure we enable the actor tick to flush out the pending record writes
-						bRequiresRecord = true;
-					}
-					break;
-				}
-				default:
-				{
-					break;
+					// Ensure we enable the actor tick to flush out the pending record writes
+					bRequiresRecord = true;
 				}
 			}
 		}
@@ -386,6 +403,8 @@ void AChaosCacheManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
 
+	bIsSimulating = false;
+	
 	FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 	check(Module);
 
@@ -484,10 +503,10 @@ void AChaosCacheManager::HandlePostSolve(Chaos::FReal InDt, Chaos::FPhysicsSolve
 
 	TickObservedComponents(Data->RecordIndices, InDt, [](UChaosCache* InCache, FObservedComponent& Observed, Chaos::FComponentCacheAdapter* InAdapter) {
 		UPrimitiveComponent* Comp = Observed.GetComponent();
-		if(ensure(Comp && InCache))
+		if (ensure(Comp && InCache))
 		{
 			// If we haven't advanced since the last record, don't push another frame
-			if(Observed.TimeSinceTrigger > InCache->GetDuration())
+			if (Observed.TimeSinceTrigger > InCache->GetDuration())
 			{
 				FPendingFrameWrite NewFrame;
 				NewFrame.Time = Observed.TimeSinceTrigger;
@@ -499,6 +518,49 @@ void AChaosCacheManager::HandlePostSolve(Chaos::FReal InDt, Chaos::FPhysicsSolve
 	});
 }
 
+void AChaosCacheManager::OnStartFrameChanged(Chaos::FReal InTime)
+{
+	if (bIsSimulating)
+	{
+		return;
+	}
+	
+	if (!CacheCollection)
+	{
+		return;
+	}
+	
+	for (int32 ObservedIdx = 0; ObservedIdx < ObservedComponents.Num(); ++ObservedIdx)
+	{
+		FObservedComponent& Observed = ObservedComponents[ObservedIdx];
+		if (UPrimitiveComponent* Comp = Observed.GetComponent())
+		{
+			if (!Observed.BestFitAdapter)
+			{
+				// Cache the best fit adapater so that we don't need to look it up each time we evaluate a start time.
+				Observed.BestFitAdapter = Chaos::FAdapterUtil::GetBestAdapterForClass(Comp->GetClass(), false);
+			}
+
+			if (!Observed.Cache)
+			{
+				Observed.Cache = CacheCollection->FindCache(Observed.CacheName);
+			}
+
+			if (!Observed.Cache || !Observed.BestFitAdapter || Observed.Cache->GetDuration()==0.0)
+			{
+				continue;
+			}
+
+			FCacheUserToken Token = Observed.Cache->BeginPlayback();
+			if (Token.IsOpen() && Observed.BestFitAdapter->ValidForPlayback(Comp, Observed.Cache))
+			{
+				Observed.BestFitAdapter->SetRestState(Comp, Observed.Cache, GetTransform(), InTime);
+				Observed.Cache->EndPlayback(Token);
+			}
+		}
+	}
+}
+
 void AChaosCacheManager::TriggerComponent(UPrimitiveComponent* InComponent)
 {
 	// #BGTODO Maybe not totally thread-safe, probably safer with an atomic or condition var rather than the bTriggered flag
@@ -506,7 +568,7 @@ void AChaosCacheManager::TriggerComponent(UPrimitiveComponent* InComponent)
 		return Test.GetComponent() == InComponent;
 	});
 
-	if(Found && Found->StartMode == EStartMode::Triggered)
+	if (Found && StartMode == EStartMode::Triggered)
 	{
 		Found->bTriggered = true;
 	}
@@ -518,7 +580,7 @@ void AChaosCacheManager::TriggerComponentByCache(FName InCacheName)
 		return Test.CacheName == InCacheName && Test.GetComponent();
 	});
 
-	if(Found && Found->StartMode == EStartMode::Triggered)
+	if (Found && StartMode == EStartMode::Triggered)
 	{
 		Found->bTriggered = true;
 	}
@@ -528,7 +590,7 @@ void AChaosCacheManager::TriggerAll()
 {
 	for(FObservedComponent& Observed : ObservedComponents)
 	{
-		if(Observed.StartMode == EStartMode::Triggered && Observed.GetComponent())
+		if (StartMode == EStartMode::Triggered && Observed.GetComponent())
 		{
 			Observed.bTriggered = true;
 		}
@@ -550,7 +612,8 @@ FObservedComponent& AChaosCacheManager::AddNewObservedComponent(UPrimitiveCompon
 
 	NewEntry.ComponentRef.PathToComponent = InComponent->GetPathName(InComponent->GetOwner());
 	NewEntry.ComponentRef.OtherActor      = InComponent->GetOwner();
-	NewEntry.CacheName                    = MakeUniqueObjectName(CacheCollection, UChaosCache::StaticClass(), "Cache");
+
+	NewEntry.CacheName                    = MakeUniqueObjectName(CacheCollection, UChaosCache::StaticClass(), FName(InComponent->GetOwner()->GetActorLabel()));
 
 	return NewEntry;
 }
@@ -593,22 +656,41 @@ void AChaosCacheManager::TickObservedComponents(const TArray<int32>& InIndices, 
 		// (happens if a plugin implemented it but is no longer loaded)
 		if(Observed.bTriggered && Adapter)
 		{
-			if(Observed.CacheMode == ECacheMode::Play)
+			if (CacheMode == ECacheMode::Play)
 			{
 				Observed.TickRecord.SetDt(InDt);
 			}
 
-			if(Observed.TimedDuration == 0.0f)
+			Observed.TimeSinceTrigger += InDt;
+			InCallable(Observed.Cache, Observed, Adapter);
+		}
+	}
+}
+
+#if WITH_EDITOR
+void AChaosCacheManager::SetObservedComponentProperties(const ECacheMode& NewCacheMode)
+{
+	for (FObservedComponent& ObservedComponent : ObservedComponents)
+	{
+		if (UPrimitiveComponent* PrimComp = ObservedComponent.GetComponent())
+		{
+			if (NewCacheMode == ECacheMode::Record)
 			{
-				Observed.TimeSinceTrigger += InDt;
-				InCallable(Observed.Cache, Observed, Adapter);
+				PrimComp->BodyInstance.bSimulatePhysics = ObservedComponent.bIsSimulating;	
 			}
 			else
 			{
-				Observed.TimedDuration = FMath::Max(Observed.TimedDuration - InDt, 0.0f);
+				PrimComp->BodyInstance.bSimulatePhysics = false;
 			}
 		}
 	}
+}
+#endif
+
+AChaosCachePlayer::AChaosCachePlayer(const FObjectInitializer& ObjectInitializer /*= FObjectInitializer::Get()*/)
+	: Super(ObjectInitializer)
+{
+	bCanRecord = false;
 }
 
 #undef LOCTEXT_NAMESPACE
