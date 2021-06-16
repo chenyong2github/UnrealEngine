@@ -143,7 +143,9 @@ public:
 	friend class IChaosCachingEditorPlugin;
 #endif
 
-	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 	/** end UObject interface */
 
 	/** Expose StartTime property to Sequencer. GetStartTime will be called on keys. */

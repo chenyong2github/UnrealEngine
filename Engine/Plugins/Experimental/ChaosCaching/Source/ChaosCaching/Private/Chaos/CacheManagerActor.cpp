@@ -104,6 +104,7 @@ void AChaosCacheManager::TickActor(float DeltaTime, enum ELevelTick TickType, FA
 	}
 }
 
+#if WITH_EDITOR
 void AChaosCacheManager::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -118,9 +119,7 @@ void AChaosCacheManager::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 			CacheMode = ECacheMode::None;
 		}
 
-#if WITH_EDITOR
 		SetObservedComponentProperties(CacheMode);
-#endif
 		
 		if (CacheMode != ECacheMode::Record)
 		{
@@ -139,6 +138,7 @@ void AChaosCacheManager::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 		}
 	}
 }
+#endif
 
 void AChaosCacheManager::SetStartTime(float InStartTime)
 {
@@ -613,7 +613,12 @@ FObservedComponent& AChaosCacheManager::AddNewObservedComponent(UPrimitiveCompon
 	NewEntry.ComponentRef.PathToComponent = InComponent->GetPathName(InComponent->GetOwner());
 	NewEntry.ComponentRef.OtherActor      = InComponent->GetOwner();
 
-	NewEntry.CacheName                    = MakeUniqueObjectName(CacheCollection, UChaosCache::StaticClass(), FName(InComponent->GetOwner()->GetActorLabel()));
+	FName CacheName = NAME_None;
+#if WITH_EDITOR
+	CacheName = FName(InComponent->GetOwner()->GetActorLabel());
+#endif
+
+	NewEntry.CacheName = MakeUniqueObjectName(CacheCollection, UChaosCache::StaticClass(), CacheName);
 
 	return NewEntry;
 }
