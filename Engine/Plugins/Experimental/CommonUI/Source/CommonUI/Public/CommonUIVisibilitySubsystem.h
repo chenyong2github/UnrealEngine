@@ -36,8 +36,12 @@ public:
 	/** Get the hardware visibility tags currently in play.  These can change over time, if input mode changes, or other groups are removed/added. */
 	const FGameplayTagContainer& GetVisibilityTags() const { return ComputedVisibilityTags; }
 
-	void AddUserVisibilityCondition(const FGameplayTag& UserTag);
-	void RemoveUserVisibilityCondition(const FGameplayTag& UserTag);
+	void AddUserVisibilityCondition(const FGameplayTag UserTag);
+	void RemoveUserVisibilityCondition(const FGameplayTag UserTag);
+
+#if WITH_EDITOR
+	static void SetDebugVisibilityConditions(const FGameplayTagContainer& TagsToEnable, const FGameplayTagContainer& TagsToSuppress);
+#endif
 
 protected:
 	void RefreshVisibilityTags();
@@ -47,4 +51,8 @@ protected:
 private:
 	FGameplayTagContainer ComputedVisibilityTags;
 	FGameplayTagContainer UserVisibilityTags;
+#if WITH_EDITOR
+	static FGameplayTagContainer DebugTagsToEnable;
+	static FGameplayTagContainer DebugTagsToSuppress;
+#endif
 };

@@ -23,7 +23,7 @@ public:
 
 protected:
 
-	UPROPERTY(EditAnywhere, Category = "Visibility", meta=(Categories="Input,Hardware.Feature"))
+	UPROPERTY(EditAnywhere, Category = "Visibility", meta=(Categories="Input,Platform.Trait"))
 	FGameplayTagQuery VisibilityQuery;
 
 	UPROPERTY(EditAnywhere, Category = "Visibility")
