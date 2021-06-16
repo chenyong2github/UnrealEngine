@@ -169,6 +169,11 @@ public:
 	{
 		return ViewportManager.IsValid() ? ViewportManager.Get() : nullptr;
 	}
+	
+	static FName GetCurrentConfigDataMemberName()
+	{
+		return GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, CurrentConfigData);
+	}
 
 protected:
 	// Unique viewport manager for this configuration
