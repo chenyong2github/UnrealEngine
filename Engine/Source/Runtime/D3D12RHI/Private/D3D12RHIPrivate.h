@@ -56,6 +56,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogD3D12GapRecorder, Log, All);
 #include "GFSDK_Aftermath.h"
 #include "GFSDK_Aftermath_GpuCrashdump.h"
 #undef GFSDK_Aftermath_WITH_DX12
+extern bool GDX12NVAfterMathModuleLoaded;
 extern int32 GDX12NVAfterMathEnabled;
 extern int32 GDX12NVAfterMathTrackResources;
 extern int32 GDX12NVAfterMathMarkers;

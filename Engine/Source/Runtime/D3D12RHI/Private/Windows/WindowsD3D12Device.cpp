@@ -67,6 +67,7 @@ static FAutoConsoleVariableRef CVarValidateInternalTransitions(
 );
 
 #if NV_AFTERMATH
+bool GDX12NVAfterMathModuleLoaded = false;
 // Disabled by default since introduces stalls between render and driver threads
 int32 GDX12NVAfterMathEnabled = 0;
 static FAutoConsoleVariableRef CVarDX12NVAfterMathBufferSize(
@@ -714,17 +715,22 @@ void FD3D12DynamicRHIModule::StartupModule()
 {
 #if NV_AFTERMATH
 	// Note - can't check device type here, we'll check for that before actually initializing Aftermath
-	FString AftermathBinariesRoot = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/NVIDIA/NVaftermath/Win64/");
-	if (LoadLibraryW(*(AftermathBinariesRoot + "GFSDK_Aftermath_Lib.x64.dll")) == nullptr)
+	const FString AftermathBinariesRoot = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/NVIDIA/NVaftermath/Win64/");
+	
+	FPlatformProcess::PushDllDirectory(*AftermathBinariesRoot);
+	void* Handle = FPlatformProcess::GetDllHandle(TEXT("GFSDK_Aftermath_Lib.x64.dll"));
+	FPlatformProcess::PopDllDirectory(*AftermathBinariesRoot);
+
+	if (Handle == nullptr)
 	{
 		UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to load GFSDK_Aftermath_Lib.x64.dll"));
-		GDX12NVAfterMathEnabled = 0;
+		GDX12NVAfterMathModuleLoaded = false;
 		return;
 	}
 	else
 	{
 		UE_LOG(LogD3D12RHI, Log, TEXT("Aftermath initialized"));
-		GDX12NVAfterMathEnabled = 1;
+		GDX12NVAfterMathModuleLoaded = true;
 	}
 #endif
 

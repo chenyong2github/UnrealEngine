@@ -767,8 +767,13 @@ void FD3D11DynamicRHIModule::StartupModule()
 	{
 		// Note - can't check device type here, we'll check for that before actually initializing Aftermath
 
-		FString AftermathBinariesRoot = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/NVIDIA/NVaftermath/Win64/");
-		if (LoadLibraryW(*(AftermathBinariesRoot + "GFSDK_Aftermath_Lib.x64.dll")) == nullptr)
+		const FString AftermathBinariesRoot = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/NVIDIA/NVaftermath/Win64/");
+
+		FPlatformProcess::PushDllDirectory(*AftermathBinariesRoot);
+		void* Handle = FPlatformProcess::GetDllHandle(TEXT("GFSDK_Aftermath_Lib.x64.dll"));
+		FPlatformProcess::PopDllDirectory(*AftermathBinariesRoot);
+
+		if (Handle == nullptr)
 		{
 			UE_LOG(LogD3D11RHI, Warning, TEXT("Failed to load GFSDK_Aftermath_Lib.x64.dll"));
 			GNVAftermathModuleLoaded = false;
