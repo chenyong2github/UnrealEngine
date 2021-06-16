@@ -16,6 +16,11 @@ UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_INPUT_MOUSEANDKEYBOARD, "Input.MouseAndKeyboar
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_INPUT_GAMEPAD, "Input.Gamepad");
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_INPUT_TOUCH, "Input.Touch");
 
+#if WITH_EDITOR
+FGameplayTagContainer UCommonUIVisibilitySubsystem::DebugTagsToEnable;
+FGameplayTagContainer UCommonUIVisibilitySubsystem::DebugTagsToSuppress;
+#endif
+
 UCommonUIVisibilitySubsystem* UCommonUIVisibilitySubsystem::Get(const ULocalPlayer* LocalPlayer)
 {
 	return LocalPlayer ? LocalPlayer->GetSubsystem<UCommonUIVisibilitySubsystem>() : nullptr;
@@ -57,17 +62,30 @@ void UCommonUIVisibilitySubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-void UCommonUIVisibilitySubsystem::AddUserVisibilityCondition(const FGameplayTag& UserTag)
+void UCommonUIVisibilitySubsystem::AddUserVisibilityCondition(const FGameplayTag UserTag)
 {
 	UserVisibilityTags.AddTag(UserTag);
 	RefreshVisibilityTags();
 }
 
-void UCommonUIVisibilitySubsystem::RemoveUserVisibilityCondition(const FGameplayTag& UserTag)
+void UCommonUIVisibilitySubsystem::RemoveUserVisibilityCondition(const FGameplayTag UserTag)
 {
 	UserVisibilityTags.RemoveTag(UserTag);
 	RefreshVisibilityTags();
 }
+
+#if WITH_EDITOR
+void UCommonUIVisibilitySubsystem::SetDebugVisibilityConditions(const FGameplayTagContainer& TagsToEnable, const FGameplayTagContainer& TagsToSuppress)
+{
+	DebugTagsToEnable = TagsToEnable;
+	DebugTagsToSuppress = TagsToSuppress;
+
+	for (TObjectIterator<UCommonUIVisibilitySubsystem> SubsystemIt; SubsystemIt; ++SubsystemIt)
+	{
+		SubsystemIt->RefreshVisibilityTags();
+	}
+}
+#endif
 
 void UCommonUIVisibilitySubsystem::RefreshVisibilityTags()
 {
@@ -96,7 +114,17 @@ FGameplayTagContainer UCommonUIVisibilitySubsystem::ComputeVisibilityTags() cons
 		}
 	}
 
-	ComputedTags.AppendTags(ICommonUIModule::GetSettings().GetPlatformHardwareFeatures());
+	ComputedTags.AppendTags(ICommonUIModule::GetSettings().GetPlatformTraits());
+
+#if WITH_EDITOR
+	ComputedTags.AppendTags(DebugTagsToEnable);
+	ComputedTags.RemoveTags(DebugTagsToSuppress);
+#endif
+
+	// Debug printing
+#if 0
+	UE_LOG(LogInit, Log, TEXT("UCommonUIVisibilitySubsystem::ComputeVisibilityTags() -> %s"), *ComputedTags.ToString());
+#endif
 
 	return ComputedTags;
 }

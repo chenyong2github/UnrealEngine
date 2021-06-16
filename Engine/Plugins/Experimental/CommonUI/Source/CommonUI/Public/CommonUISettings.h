@@ -27,9 +27,13 @@ public:
 	// Called to load CommonUISetting data, if bAutoLoadData if set to false then game code must call LoadData().
 	void LoadData();
 
+	//~UObject interface
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostReloadConfig(FProperty* PropertyThatWasLoaded) override;
+	virtual void PostInitProperties() override;
 #endif
+	//~End of UObject interface
 
 	// Called by the module startup to auto load CommonUISetting data if bAutoLoadData is true.
 	void AutoLoadData();
@@ -37,7 +41,7 @@ public:
 	UCommonUIRichTextData* GetRichTextData() const;
 	const FSlateBrush& GetDefaultThrobberBrush() const;
 	UObject* GetDefaultImageResourceObject() const;
-	const FGameplayTagContainer& GetPlatformHardwareFeatures() const { return PlatformHardwareFeatures; }
+	const FGameplayTagContainer& GetPlatformTraits() const { return PlatformTraitContainer; }
 
 private:
 
@@ -59,14 +63,20 @@ private:
 	UPROPERTY(config, EditAnywhere, Category = "RichText", meta=(AllowAbstract=false))
 	TSoftClassPtr<UCommonUIRichTextData> DefaultRichTextDataClass;
 
-	/** The Default Data for rich text to show inline icon and others. */
-	UPROPERTY(config, EditAnywhere, Category = "Visibility", meta=(Categories="Hardware.Feature", ConfigHierarchyEditable))
-	FGameplayTagContainer PlatformHardwareFeatures;
+	/** The set of traits defined per-platform (e.g., the default input mode, whether or not you can exit the application, etc...) */
+	UPROPERTY(config, EditAnywhere, Category = "Visibility", meta=(Categories="Platform.Trait", ConfigHierarchyEditable))
+	TArray<FGameplayTag> PlatformTraits;
 
 private:
 	void LoadEditorData();
+	void RebuildTraitContainer();
 
 	bool bDefaultDataLoaded;
+
+	// Merged version of PlatformTraits
+	// This is not the config property because there is no direct ini inheritance for structs
+	// (even ones like tag containers that represent a set), unlike arrays
+	FGameplayTagContainer PlatformTraitContainer;
 
 	UPROPERTY(Transient)
 	UObject* DefaultImageResourceObjectInstance;

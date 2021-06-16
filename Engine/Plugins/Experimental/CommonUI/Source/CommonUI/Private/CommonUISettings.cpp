@@ -19,9 +19,27 @@ void UCommonUISettings::LoadData()
 #if WITH_EDITOR
 void UCommonUISettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
 	bDefaultDataLoaded = false;
 	AutoLoadData();
+	RebuildTraitContainer();
 }
+
+void UCommonUISettings::PostReloadConfig(FProperty* PropertyThatWasLoaded)
+{
+	Super::PostReloadConfig(PropertyThatWasLoaded);
+
+	RebuildTraitContainer();
+}
+
+void UCommonUISettings::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	RebuildTraitContainer();
+}
+
 #endif
 
 void UCommonUISettings::LoadEditorData()
@@ -56,6 +74,15 @@ void UCommonUISettings::LoadEditorData()
 		DefaultThrobberBrush.DrawAs = DefaultThrobberMaterialInstance ? ESlateBrushDrawType::Image : ESlateBrushDrawType::NoDrawType;
 
 		bDefaultDataLoaded = true;
+	}
+}
+
+void UCommonUISettings::RebuildTraitContainer()
+{
+	PlatformTraitContainer.Reset();
+	for (FGameplayTag Trait : PlatformTraits)
+	{
+		PlatformTraitContainer.AddTag(Trait);
 	}
 }
 
