@@ -1314,15 +1314,14 @@ namespace DatasmithRevitExporter
 				{
 					if (!CurrentElement.WorldTransform.IsIdentity)
 					{
-						CurrentElement.WorldTransform = CurrentElement.WorldTransform * InstanceData.WorldTransform;
-					} 
+						CurrentElement.MeshPointsTransform = (CurrentElement.WorldTransform.Inverse * InstanceData.WorldTransform).Inverse;
+					}
 					else
 					{
-						CurrentElement.WorldTransform = InstanceData.WorldTransform;
+						CurrentElement.MeshPointsTransform = InstanceData.WorldTransform.Inverse;
 					}
 
-					CurrentElement.MeshPointsTransform = InstanceData.WorldTransform.Inverse;
-
+					CurrentElement.WorldTransform = InstanceData.WorldTransform;
 					SetActorTransform(CurrentElement.WorldTransform, CurrentElement.ElementActor);
 				}
 			}
