@@ -118,7 +118,4 @@ private:
 
 	/** A binding ID picker that allows us to create a new section from an existing binding */
 	TSharedPtr<FTrackEditorBindingIDPicker> BindingIDPicker;
-
-	/** Weakptr to the camera cut sections */
-	TArray<TWeakPtr<FCameraCutSection>> CameraCutSections;
 };
