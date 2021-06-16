@@ -37,6 +37,26 @@ FRigUnit_ItemReplace_Execute()
 	FRigUnit_NameReplace::StaticExecute(RigVMExecuteContext, Item.Name, Old, New, Result.Name, Context);
 }
 
+FRigUnit_ItemEquals_Execute()
+{
+	Result = (A == B);
+}
+
+FRigUnit_ItemNotEquals_Execute()
+{
+	Result = (A != B);
+}
+
+FRigUnit_ItemTypeEquals_Execute()
+{
+	Result = (A.Type == B.Type);
+}
+
+FRigUnit_ItemTypeNotEquals_Execute()
+{
+	Result = (A.Type != B.Type);
+}
+
 #if WITH_DEV_AUTOMATION_TESTS
 #include "Units/RigUnitTest.h"
 
