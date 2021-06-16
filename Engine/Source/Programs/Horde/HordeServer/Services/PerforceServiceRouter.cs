@@ -79,27 +79,27 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc/>
-		override public Task<int> CreateNewChangeAsync(string StreamName, string Path)
-		{
-			return PythonBridgeService.CreateNewChangeAsync(StreamName, Path);
-		}
-
-		/// <inheritdoc/>
 		override public Task<(int? Change, string Message)> SubmitShelvedChangeAsync(int ShelvedChange, int OriginalChange)
 		{
-			return PythonBridgeService.SubmitShelvedChangeAsync(ShelvedChange, OriginalChange);
-		}
-
-		/// <inheritdoc/>
-		override public Task DeleteShelvedChangeAsync(int ShelvedChange)
-		{
-			return PythonBridgeService.DeleteShelvedChangeAsync(ShelvedChange);
+			return P4APIService.SubmitShelvedChangeAsync(ShelvedChange, OriginalChange);
 		}
 
 		/// <inheritdoc/>
 		override public Task UpdateChangelistDescription(int Change, string Description)
 		{
-			return PythonBridgeService.UpdateChangelistDescription(Change, Description );
+			return P4APIService.UpdateChangelistDescription(Change, Description);
+		}
+
+		/// <inheritdoc/>
+		override public Task DeleteShelvedChangeAsync(int ShelvedChange)
+		{
+			return P4APIService.DeleteShelvedChangeAsync(ShelvedChange);
+		}
+
+		/// <inheritdoc/>
+		override public Task<int> CreateNewChangeAsync(string StreamName, string Path)
+		{
+			return P4APIService.CreateNewChangeAsync(StreamName, Path);
 		}
 
 		/// <inheritdoc/>

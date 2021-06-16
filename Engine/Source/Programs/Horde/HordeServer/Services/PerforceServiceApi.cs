@@ -923,7 +923,6 @@ namespace HordeServer.Services
 							return (null, $"No shelved file for change: {Change} and original change: {OriginalChange}");
 					   }
 
-						// todo, test straight up delete
 						foreach (P4.ShelvedFile ShelvedFile in Changelist.ShelvedFiles)
 					   {
 						   P4.ShelvedFile? Found = OriginalChangelist.ShelvedFiles.FirstOrDefault(Original => Original.Digest == ShelvedFile.Digest && Original.Action == ShelvedFile.Action);
@@ -1026,8 +1025,7 @@ namespace HordeServer.Services
 			get
 			{
 				ServerSettings Settings = this.Settings.CurrentValue;
-				// Todo: we need a better way of identifying we're using a service account
-				return Settings.P4BridgeServiceUsername == "SVC-P4-HordeProxy-P";
+				return Settings.P4BridgeCanImpersonate;
 			}
 		}
 
