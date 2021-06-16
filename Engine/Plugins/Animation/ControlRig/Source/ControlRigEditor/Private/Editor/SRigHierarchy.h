@@ -245,7 +245,7 @@ private:
 	UToolMenu* GetOrCreateContextMenu();
 	TSharedPtr<FUICommandList> GetContextMenuCommands() const;
 
-
+	UToolMenu* GetOrCreateDragDropMenu(const TArray<FRigElementKey>& DraggedKeys, FRigElementKey TargetKey);
 
 	/** Our owning control rig editor */
 	TWeakPtr<FControlRigEditor> ControlRigEditor;
@@ -330,6 +330,10 @@ private:
 	void HandleControlBoneOrSpaceTransform();
 	void HandleUnparent();
 	bool FindClosestBone(const FVector& Point, FName& OutRigElementName, FTransform& OutGlobalTransform) const;
+
+	void HandleParent(const FToolMenuContext& Context);
+	void HandleAlign(const FToolMenuContext& Context);
+	FReply ReparentOrMatchTransform(const TArray<FRigElementKey>& DraggedKeys, FRigElementKey TargetKey, bool bReparentItems);
 
 	FName CreateUniqueName(const FName& InBaseName, ERigElementType InElementType) const;
 

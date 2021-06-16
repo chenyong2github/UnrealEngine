@@ -1402,6 +1402,51 @@ void SRigHierarchy::OnSetExpansionRecursive(TSharedPtr<FRigTreeElement> InItem, 
 	SetExpansionRecursive(InItem, false, bShouldBeExpanded);
 }
 
+UToolMenu* SRigHierarchy::GetOrCreateDragDropMenu(const TArray<FRigElementKey>& DraggedKeys, FRigElementKey TargetKey)
+{
+	const FName MenuName = TEXT("ControlRigEditor.RigHierarchy.DragDropMenu");
+	UToolMenus* ToolMenus = UToolMenus::Get();
+
+	if (!ToolMenus->IsMenuRegistered(MenuName))
+	{
+		UToolMenu* Menu = ToolMenus->RegisterMenu(MenuName);
+
+		FToolMenuEntry ParentEntry = FToolMenuEntry::InitMenuEntry(
+			TEXT("Parent"),
+			LOCTEXT("DragDropMenu_Parent", "Parent"),
+			LOCTEXT("DragDropMenu_Parent_ToolTip", "Parent Selected Items to the Target Item"),
+			FSlateIcon(),
+			FToolMenuExecuteAction::CreateSP(this, &SRigHierarchy::HandleParent)
+		);
+		Menu->AddMenuEntry(NAME_None, ParentEntry);
+
+		UToolMenu* AlignMenu = Menu->AddSubMenu(
+			ToolMenus->CurrentOwner(),
+			NAME_None,
+			TEXT("Align"),
+			LOCTEXT("DragDropMenu_Align", "Align"),
+			LOCTEXT("DragDropMenu_Align_ToolTip", "Align Selected Items' Transforms to Target Item's Transform")
+		);
+
+		FToolMenuEntry AlignAllEntry = FToolMenuEntry::InitMenuEntry(
+			TEXT("All"),
+			LOCTEXT("DragDropMenu_Align_All", "All"),
+			LOCTEXT("DragDropMenu_Align_All_ToolTip", "Align Selected Items' Transforms to Target Item's Transform"),
+			FSlateIcon(),
+			FToolMenuExecuteAction::CreateSP(this, &SRigHierarchy::HandleAlign)
+		);
+
+		AlignMenu->AddMenuEntry(NAME_None, AlignAllEntry);
+	}
+
+	UControlRigContextMenuContext* MenuContext = NewObject<UControlRigContextMenuContext>();
+	MenuContext->Init(ControlRigEditor, FControlRigRigHierarchyDragAndDropContext(DraggedKeys, TargetKey));
+	
+	UToolMenu* Menu = ToolMenus->GenerateMenu(MenuName, FToolMenuContext(MenuContext));
+
+	return Menu;
+}
+
 UToolMenu* SRigHierarchy::GetOrCreateContextMenu()
 {
 	const FName MenuName = TEXT("ControlRigEditor.RigHierarchy.ContextMenu");
@@ -1488,7 +1533,7 @@ UToolMenu* SRigHierarchy::GetOrCreateContextMenu()
 
 	// individual entries in this menu can access members of this context, particularly useful for editor scripting
 	UControlRigContextMenuContext* ContextMenuContext = NewObject<UControlRigContextMenuContext>();
-	ContextMenuContext->ControlRigEditor = ControlRigEditor;
+	ContextMenuContext->Init(ControlRigEditor);
 	
 	FToolMenuContext MenuContext(CommandList);
 	MenuContext.AddObject(ContextMenuContext);
@@ -2253,137 +2298,34 @@ TOptional<EItemDropZone> SRigHierarchy::OnCanAcceptDrop(const FDragDropEvent& Dr
 
 FReply SRigHierarchy::OnAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FRigTreeElement> TargetItem)
 {
+	bool bSummonDragDropMenu = DragDropEvent.GetModifierKeys().IsAltDown() && DragDropEvent.GetModifierKeys().IsShiftDown(); 
 	bool bMatchTransforms = DragDropEvent.GetModifierKeys().IsAltDown();
 	bool bReparentItems = !bMatchTransforms;
 
 	TSharedPtr<FRigElementHierarchyDragDropOp> RigDragDropOp = DragDropEvent.GetOperationAs<FRigElementHierarchyDragDropOp>();
 	if (RigDragDropOp.IsValid())
 	{
-		URigHierarchy* Hierarchy = GetHierarchy();
-		URigHierarchy* DebuggedHierarchy = GetDebuggedHierarchy();
-
-		if (Hierarchy && ControlRigBlueprint.IsValid())
+		if (bSummonDragDropMenu)
 		{
-			URigHierarchyController* Controller = Hierarchy->GetController(true);
-			if(Controller == nullptr)
+			const FVector2D& SummonLocation = DragDropEvent.GetScreenSpacePosition();
+
+			// Get the context menu content. If NULL, don't open a menu.
+			UToolMenu* DragDropMenu = GetOrCreateDragDropMenu(RigDragDropOp->GetElements(), TargetItem->Key);
+			const TSharedPtr<SWidget> MenuContent = UToolMenus::Get()->GenerateWidget(DragDropMenu);
+
+			if (MenuContent.IsValid())
 			{
-				return FReply::Unhandled();
+				const FWidgetPath WidgetPath = DragDropEvent.GetEventPath() != nullptr ? *DragDropEvent.GetEventPath() : FWidgetPath();
+				FSlateApplication::Get().PushMenu(AsShared(), WidgetPath, MenuContent.ToSharedRef(), SummonLocation, FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
 			}
-
-			TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
-			TGuardValue<bool> SuspendBlueprintNotifs(ControlRigBlueprint->bSuspendAllNotifications, true);
-			FScopedTransaction Transaction(LOCTEXT("HierarchyDragAndDrop", "Drag & Drop"));
-
-			FTransform TargetGlobalTransform = DebuggedHierarchy->GetGlobalTransform(TargetItem->Key);
-
-			for (const FRigElementKey& DraggedKey : RigDragDropOp->GetElements())
-			{
-				if (DraggedKey == TargetItem->Key)
-				{
-					return FReply::Unhandled();
-				}
-
-				if (bReparentItems)
-				{
-					if(Hierarchy->IsParentedTo(TargetItem->Key, DraggedKey))
-					{
-						return FReply::Unhandled();
-					}
-				}
-
-				if (DraggedKey.Type == ERigElementType::Bone)
-				{
-					if(FRigBoneElement* BoneElement = Hierarchy->Find<FRigBoneElement>(DraggedKey))
-					{
-						if (BoneElement->BoneType == ERigBoneType::Imported && BoneElement->ParentElement != nullptr)
-						{
-							FText ConfirmText = bMatchTransforms ?
-								LOCTEXT("ConfirmMatchTransform", "Matching transforms of imported(white) bones can cause issues with animation - are you sure ?") :
-								LOCTEXT("ConfirmReparentBoneHierarchy", "Reparenting imported(white) bones can cause issues with animation - are you sure ?");
-
-							FText TitleText = bMatchTransforms ?
-								LOCTEXT("MatchTransformImportedBone", "Match Transform on Imported Bone") :
-								LOCTEXT("ReparentImportedBone", "Reparent Imported Bone");
-
-							FSuppressableWarningDialog::FSetupInfo Info(ConfirmText, TitleText, "SRigHierarchy_Warning");
-							Info.ConfirmText = LOCTEXT("SRigHierarchy_Warning_Yes", "Yes");
-							Info.CancelText = LOCTEXT("SRigHierarchy_Warning_No", "No");
-
-							FSuppressableWarningDialog ChangeImportedBonesInHierarchy(Info);
-							if (ChangeImportedBonesInHierarchy.ShowModal() == FSuppressableWarningDialog::Cancel)
-							{
-								return FReply::Unhandled();
-							}
-						}
-					}
-				}
-			}
-
-			for (const FRigElementKey& DraggedKey : RigDragDropOp->GetElements())
-			{
-				if (bMatchTransforms)
-				{
-					if (DraggedKey.Type == ERigElementType::Control)
-					{
-						int32 ControlIndex = DebuggedHierarchy->GetIndex(DraggedKey);
-						if (ControlIndex == INDEX_NONE)
-						{
-							continue;
-						}
-
-						FTransform ParentTransform = DebuggedHierarchy->GetParentTransformByIndex(ControlIndex, false);
-						FTransform OffsetTransform = TargetGlobalTransform.GetRelativeTransform(ParentTransform);
-
-						Hierarchy->SetControlOffsetTransformByIndex(ControlIndex, OffsetTransform, ERigTransformType::InitialLocal, true, true);
-						Hierarchy->SetControlOffsetTransformByIndex(ControlIndex, OffsetTransform, ERigTransformType::CurrentLocal, true, true);
-						Hierarchy->SetLocalTransform(DraggedKey, FTransform::Identity, true, true, true);
-						Hierarchy->SetInitialLocalTransform(DraggedKey, FTransform::Identity, true, true);
-						DebuggedHierarchy->SetControlOffsetTransformByIndex(ControlIndex, OffsetTransform, ERigTransformType::InitialLocal, true, true);
-						DebuggedHierarchy->SetControlOffsetTransformByIndex(ControlIndex, OffsetTransform, ERigTransformType::CurrentLocal, true, true);
-						DebuggedHierarchy->SetLocalTransform(DraggedKey, FTransform::Identity, true, true, true);
-						DebuggedHierarchy->SetInitialLocalTransform(DraggedKey, FTransform::Identity, true, true);
-					}
-					else
-					{
-						Hierarchy->SetInitialGlobalTransform(DraggedKey, TargetGlobalTransform, true, true);
-						Hierarchy->SetGlobalTransform(DraggedKey, TargetGlobalTransform, false, true, true);
-						DebuggedHierarchy->SetInitialGlobalTransform(DraggedKey, TargetGlobalTransform, true, true);
-						DebuggedHierarchy->SetGlobalTransform(DraggedKey, TargetGlobalTransform, false, true, true);
-					}
-					continue;
-				}
-
-				FRigElementKey ParentKey = TargetItem->Key;
-
-				FTransform InitialTransform = DebuggedHierarchy->GetInitialGlobalTransform(DraggedKey);
-				FTransform GlobalTransform = DebuggedHierarchy->GetGlobalTransform(DraggedKey);
-
-				if(ParentKey.IsValid())
-				{
-					Controller->SetParent(DraggedKey, ParentKey, true, true);
-				}
-				else
-				{
-					Controller->RemoveAllParents(DraggedKey, true, true);
-				}
-
-				DebuggedHierarchy->SetInitialGlobalTransform(DraggedKey, InitialTransform, true, true);
-				DebuggedHierarchy->SetGlobalTransform(DraggedKey, GlobalTransform, false, true, true);
-				Hierarchy->SetInitialGlobalTransform(DraggedKey, InitialTransform, true, true);
-				Hierarchy->SetGlobalTransform(DraggedKey, GlobalTransform, false, true, true);
-			}
+			
+			return FReply::Handled();
+		}
+		else
+		{
+			return ReparentOrMatchTransform(RigDragDropOp->GetElements(), TargetItem->Key, bReparentItems);
 		}
 
-		ControlRigBlueprint->PropagateHierarchyFromBPToInstances();
-
-		if(bReparentItems)
-		{
-			TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
-			ControlRigBlueprint->BroadcastRefreshEditor();
-			RefreshTreeView();
-		}
-
-		return FReply::Handled();
 	}
 
 	return FReply::Unhandled();
@@ -2703,6 +2645,157 @@ bool SRigHierarchy::FindClosestBone(const FVector& Point, FName& OutRigElementNa
 		return (OutRigElementName != NAME_None);
 	}
 	return false;
+}
+
+void SRigHierarchy::HandleParent(const FToolMenuContext& Context)
+{
+	if (UControlRigContextMenuContext* MenuContext = Cast<UControlRigContextMenuContext>(Context.FindByClass(UControlRigContextMenuContext::StaticClass())))
+	{
+		const FControlRigRigHierarchyDragAndDropContext DragAndDropContext = MenuContext->GetDragAndDropContext();
+		ReparentOrMatchTransform(DragAndDropContext.DraggedElementKeys, DragAndDropContext.TargetElementKey, true);
+	}
+}
+
+void SRigHierarchy::HandleAlign(const FToolMenuContext& Context)
+{
+	if (UControlRigContextMenuContext* MenuContext = Cast<UControlRigContextMenuContext>(Context.FindByClass(UControlRigContextMenuContext::StaticClass())))
+	{
+		const FControlRigRigHierarchyDragAndDropContext DragAndDropContext = MenuContext->GetDragAndDropContext();
+		ReparentOrMatchTransform(DragAndDropContext.DraggedElementKeys, DragAndDropContext.TargetElementKey, false);
+	}
+}
+
+FReply SRigHierarchy::ReparentOrMatchTransform(const TArray<FRigElementKey>& DraggedKeys, FRigElementKey TargetKey, bool bReparentItems)
+{
+	bool bMatchTransforms = !bReparentItems;
+
+	URigHierarchy* Hierarchy = GetHierarchy();
+	URigHierarchy* DebuggedHierarchy = GetDebuggedHierarchy();
+
+	if (Hierarchy && ControlRigBlueprint.IsValid())
+	{
+		URigHierarchyController* Controller = Hierarchy->GetController(true);
+		if(Controller == nullptr)
+		{
+			return FReply::Unhandled();
+		}
+
+		TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
+		TGuardValue<bool> SuspendBlueprintNotifs(ControlRigBlueprint->bSuspendAllNotifications, true);
+		FScopedTransaction Transaction(LOCTEXT("HierarchyDragAndDrop", "Drag & Drop"));
+
+		FTransform TargetGlobalTransform = DebuggedHierarchy->GetGlobalTransform(TargetKey);
+
+		for (const FRigElementKey& DraggedKey : DraggedKeys)
+		{
+			if (DraggedKey == TargetKey)
+			{
+				return FReply::Unhandled();
+			}
+
+			if (bReparentItems)
+			{
+				if(Hierarchy->IsParentedTo(TargetKey, DraggedKey))
+				{
+					return FReply::Unhandled();
+				}
+			}
+
+			if (DraggedKey.Type == ERigElementType::Bone)
+			{
+				if(FRigBoneElement* BoneElement = Hierarchy->Find<FRigBoneElement>(DraggedKey))
+				{
+					if (BoneElement->BoneType == ERigBoneType::Imported && BoneElement->ParentElement != nullptr)
+					{
+						FText ConfirmText = bMatchTransforms ?
+							LOCTEXT("ConfirmMatchTransform", "Matching transforms of imported(white) bones can cause issues with animation - are you sure ?") :
+							LOCTEXT("ConfirmReparentBoneHierarchy", "Reparenting imported(white) bones can cause issues with animation - are you sure ?");
+
+						FText TitleText = bMatchTransforms ?
+							LOCTEXT("MatchTransformImportedBone", "Match Transform on Imported Bone") :
+							LOCTEXT("ReparentImportedBone", "Reparent Imported Bone");
+
+						FSuppressableWarningDialog::FSetupInfo Info(ConfirmText, TitleText, "SRigHierarchy_Warning");
+						Info.ConfirmText = LOCTEXT("SRigHierarchy_Warning_Yes", "Yes");
+						Info.CancelText = LOCTEXT("SRigHierarchy_Warning_No", "No");
+
+						FSuppressableWarningDialog ChangeImportedBonesInHierarchy(Info);
+						if (ChangeImportedBonesInHierarchy.ShowModal() == FSuppressableWarningDialog::Cancel)
+						{
+							return FReply::Unhandled();
+						}
+					}
+				}
+			}
+		}
+
+		for (const FRigElementKey& DraggedKey : DraggedKeys)
+		{
+			if (bMatchTransforms)
+			{
+				if (DraggedKey.Type == ERigElementType::Control)
+				{
+					int32 ControlIndex = DebuggedHierarchy->GetIndex(DraggedKey);
+					if (ControlIndex == INDEX_NONE)
+					{
+						continue;
+					}
+
+					FTransform ParentTransform = DebuggedHierarchy->GetParentTransformByIndex(ControlIndex, false);
+					FTransform OffsetTransform = TargetGlobalTransform.GetRelativeTransform(ParentTransform);
+
+					Hierarchy->SetControlOffsetTransformByIndex(ControlIndex, OffsetTransform, ERigTransformType::InitialLocal, true, true);
+					Hierarchy->SetControlOffsetTransformByIndex(ControlIndex, OffsetTransform, ERigTransformType::CurrentLocal, true, true);
+					Hierarchy->SetLocalTransform(DraggedKey, FTransform::Identity, true, true, true);
+					Hierarchy->SetInitialLocalTransform(DraggedKey, FTransform::Identity, true, true);
+					DebuggedHierarchy->SetControlOffsetTransformByIndex(ControlIndex, OffsetTransform, ERigTransformType::InitialLocal, true, true);
+					DebuggedHierarchy->SetControlOffsetTransformByIndex(ControlIndex, OffsetTransform, ERigTransformType::CurrentLocal, true, true);
+					DebuggedHierarchy->SetLocalTransform(DraggedKey, FTransform::Identity, true, true, true);
+					DebuggedHierarchy->SetInitialLocalTransform(DraggedKey, FTransform::Identity, true, true);
+				}
+				else
+				{
+					Hierarchy->SetInitialGlobalTransform(DraggedKey, TargetGlobalTransform, true, true);
+					Hierarchy->SetGlobalTransform(DraggedKey, TargetGlobalTransform, false, true, true);
+					DebuggedHierarchy->SetInitialGlobalTransform(DraggedKey, TargetGlobalTransform, true, true);
+					DebuggedHierarchy->SetGlobalTransform(DraggedKey, TargetGlobalTransform, false, true, true);
+				}
+				continue;
+			}
+
+			FRigElementKey ParentKey = TargetKey;
+
+			FTransform InitialTransform = DebuggedHierarchy->GetInitialGlobalTransform(DraggedKey);
+			FTransform GlobalTransform = DebuggedHierarchy->GetGlobalTransform(DraggedKey);
+
+			if(ParentKey.IsValid())
+			{
+				Controller->SetParent(DraggedKey, ParentKey, true, true);
+			}
+			else
+			{
+				Controller->RemoveAllParents(DraggedKey, true, true);
+			}
+
+			DebuggedHierarchy->SetInitialGlobalTransform(DraggedKey, InitialTransform, true, true);
+			DebuggedHierarchy->SetGlobalTransform(DraggedKey, GlobalTransform, false, true, true);
+			Hierarchy->SetInitialGlobalTransform(DraggedKey, InitialTransform, true, true);
+			Hierarchy->SetGlobalTransform(DraggedKey, GlobalTransform, false, true, true);
+		}
+	}
+
+	ControlRigBlueprint->PropagateHierarchyFromBPToInstances();
+
+	if(bReparentItems)
+	{
+		TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
+		ControlRigBlueprint->BroadcastRefreshEditor();
+		RefreshTreeView();
+	}
+
+		
+	return FReply::Handled();
+
 }
 
 void SRigHierarchy::HandleSetInitialTransformFromClosestBone()
