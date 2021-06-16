@@ -69,7 +69,6 @@
 #include "Factories/BlueprintFunctionLibraryFactory.h"
 #include "Factories/BlueprintMacroFactory.h"
 #include "Factories/BlueprintInterfaceFactory.h"
-#include "Factories/CameraAnimFactory.h"
 #include "Factories/CurveFactory.h"
 #include "Factories/CurveImportFactory.h"
 #include "Factories/DataAssetFactory.h"
@@ -85,7 +84,6 @@
 #include "Factories/HapticFeedbackEffectCurveFactory.h"
 #include "Factories/HapticFeedbackEffectBufferFactory.h"
 #include "Factories/HapticFeedbackEffectSoundWaveFactory.h"
-#include "Factories/InterpDataFactoryNew.h"
 #include "Factories/LevelFactory.h"
 #include "Factories/MaterialFactoryNew.h"
 #include "Factories/MaterialFunctionFactoryNew.h"
@@ -179,8 +177,6 @@
 #include "Engine/UserDefinedStruct.h"
 #include "Internationalization/StringTable.h"
 #include "Editor.h"
-#include "Matinee/InterpData.h"
-#include "Matinee/InterpGroupCamera.h"
 #include "Materials/MaterialExpressionTextureSample.h"
 #include "Sound/SoundNodeWavePlayer.h"
 #include "Sound/SoundNodeAttenuation.h"
@@ -2113,23 +2109,6 @@ EReimportResult::Type UPhysicalMaterialMaskFactory::Reimport( UObject* Obj )
 int32 UPhysicalMaterialMaskFactory::GetPriority() const
 {
 	return ImportPriority;
-}
-
-/*------------------------------------------------------------------------------
-	UInterpDataFactoryNew.
-------------------------------------------------------------------------------*/
-UInterpDataFactoryNew::UInterpDataFactoryNew(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-
-	SupportedClass = UInterpData::StaticClass();
-	bCreateNew = true;
-	bEditAfterNew = true;
-}
-
-UObject* UInterpDataFactoryNew::FactoryCreateNew(UClass* Class,UObject* InParent,FName Name,EObjectFlags Flags,UObject* Context,FFeedbackContext* Warn)
-{
-	return NewObject<UObject>(InParent, Class, Name, Flags);
 }
 
 /*-----------------------------------------------------------------------------
@@ -7648,40 +7627,6 @@ UTouchInterfaceFactory::UTouchInterfaceFactory(const FObjectInitializer& ObjectI
 UObject* UTouchInterfaceFactory::FactoryCreateNew( UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn )
 {
 	return NewObject<UTouchInterface>(InParent, InName, Flags);
-}
-
-/*------------------------------------------------------------------------------
-	UCameraAnimFactory implementation.
-------------------------------------------------------------------------------*/
-
-UCameraAnimFactory::UCameraAnimFactory(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	SupportedClass = UCameraAnim::StaticClass();
-	bCreateNew = true;
-}
-
-FText UCameraAnimFactory::GetDisplayName() const
-{
-	return LOCTEXT("CameraAnimFactoryDescription", "Camera Anim");
-}
-
-FName UCameraAnimFactory::GetNewAssetThumbnailOverride() const
-{
-	return TEXT("ClassThumbnail.CameraAnim");
-}
-
-uint32 UCameraAnimFactory::GetMenuCategories() const
-{
-	return EAssetTypeCategories::Misc;
-}
-
-UObject* UCameraAnimFactory::FactoryCreateNew(UClass* Class,UObject* InParent,FName Name,EObjectFlags Flags,UObject* Context,FFeedbackContext* Warn)
-{
-	UCameraAnim* NewCamAnim = NewObject<UCameraAnim>(InParent, Class, Name, Flags);
-	NewCamAnim->CameraInterpGroup = NewObject<UInterpGroupCamera>(NewCamAnim);
-	NewCamAnim->CameraInterpGroup->GroupName = Name;
-	return NewCamAnim;
 }
 
 /*------------------------------------------------------------------------------

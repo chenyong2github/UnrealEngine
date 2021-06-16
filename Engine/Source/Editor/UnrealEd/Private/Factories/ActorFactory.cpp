@@ -30,7 +30,6 @@ ActorFactory.cpp:
 #include "ActorFactories/ActorFactoryEmptyActor.h"
 #include "ActorFactories/ActorFactoryPawn.h"
 #include "ActorFactories/ActorFactoryExponentialHeightFog.h"
-#include "ActorFactories/ActorFactoryMatineeActor.h"
 #include "ActorFactories/ActorFactoryNote.h"
 #include "ActorFactories/ActorFactoryPhysicsAsset.h"
 #include "ActorFactories/ActorFactoryPlaneReflectionCapture.h"
@@ -102,8 +101,6 @@ ActorFactory.cpp:
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "BSPOps.h"
-#include "Matinee/MatineeActor.h"
-#include "Matinee/InterpData.h"
 #include "InteractiveFoliageActor.h"
 #include "VT/RuntimeVirtualTextureVolume.h"
 
@@ -1652,69 +1649,6 @@ bool UActorFactoryBlueprint::PreSpawnActor( UObject* Asset, FTransform& InOutLoc
 
 	return true;
 }
-
-
-
-/*-----------------------------------------------------------------------------
-UActorFactoryMatineeActor
------------------------------------------------------------------------------*/
-UActorFactoryMatineeActor::UActorFactoryMatineeActor(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	DisplayName = LOCTEXT("MatineeDisplayName", "Matinee");
-	NewActorClass = AMatineeActor::StaticClass();
-}
-
-bool UActorFactoryMatineeActor::CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg )
-{
-	//We allow creating AMatineeActors without an existing asset
-	if ( UActorFactory::CanCreateActorFrom( AssetData, OutErrorMsg ) )
-	{
-		return true;
-	}
-
-	if ( AssetData.IsValid() && !AssetData.GetClass()->IsChildOf( UInterpData::StaticClass() ) )
-	{
-		OutErrorMsg = NSLOCTEXT("CanCreateActor", "NoInterpData", "A valid InterpData must be specified.");
-		return false;
-	}
-
-	return true;
-}
-
-void UActorFactoryMatineeActor::PostSpawnActor( UObject* Asset, AActor* NewActor )
-{
-	Super::PostSpawnActor(Asset, NewActor);
-
-	UInterpData* MatineeData = Cast<UInterpData>( Asset );
-	AMatineeActor* MatineeActor = CastChecked<AMatineeActor>( NewActor );
-
-	if( MatineeData )
-	{
-		MatineeActor->MatineeData = MatineeData;
-	}
-	else
-	{
-		// if MatineeData isn't set yet, create default one
-		UInterpData* NewMatineeData = NewObject<UInterpData>(NewActor);
-		MatineeActor->MatineeData = NewMatineeData;
-	}
-}
-
-void UActorFactoryMatineeActor::PostCreateBlueprint( UObject* Asset, AActor* CDO )
-{
-	if (Asset != nullptr && CDO != nullptr)
-	{
-		UInterpData* MatineeData = Cast<UInterpData>(Asset);
-		AMatineeActor* MatineeActor = CastChecked<AMatineeActor>(CDO);
-
-		// @todo sequencer: Don't ever need or want InterpData for Sequencer.  We will probably get rid of this after old Matinee goes away.
-		// also note the PostSpawnActor() code above creates an UInterpData and puts it in the actor's outermost package.  Definitely do not
-		// want that for Sequencer.
-		MatineeActor->MatineeData = MatineeData;
-	}
-}
-
 
 /*-----------------------------------------------------------------------------
 UActorFactoryDirectionalLight
