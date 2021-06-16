@@ -7,6 +7,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "DetailWidgetRow.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Input/SSegmentedControl.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
