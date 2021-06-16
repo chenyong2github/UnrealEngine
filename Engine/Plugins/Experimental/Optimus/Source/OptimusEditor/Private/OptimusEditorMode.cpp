@@ -1,4 +1,6 @@
-﻿#include "OptimusEditorMode.h"
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "OptimusEditorMode.h"
 
 #include "OptimusEditor.h"
 #include "OptimusEditorTabSummoners.h"
@@ -62,7 +64,7 @@ TSharedRef<FTabManager::FLayout> FOptimusEditorMode::CreatePaneLayout()
 			->Split(							// - Main work area
 				FTabManager::NewSplitter()->SetOrientation(Orient_Horizontal)->SetSizeCoefficient(0.9f)
 				->Split(						// -- Preview + palette
-					FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)->SetSizeCoefficient(0.2f)
+					FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)->SetSizeCoefficient(0.3f)
 					->Split(					// --- Preview widget
 						FTabManager::NewStack()
 						->SetHideTabWell(true)
