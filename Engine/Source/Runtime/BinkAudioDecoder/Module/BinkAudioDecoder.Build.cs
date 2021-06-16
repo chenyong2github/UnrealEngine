@@ -12,23 +12,23 @@ public class BinkAudioDecoder : ModuleRules
     {
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
-            return Path.Combine(Target.UEThirdPartySourceDirectory, "BinkAudio", "Lib", "binka_ue_decode_win64_static.lib");
+            return Path.Combine(ModuleDirectory, "..", "SDK", "BinkAudio", "Lib", "binka_ue_decode_win64_static.lib");
         }
         if (Target.Platform == UnrealTargetPlatform.Linux)
         {
-            return Path.Combine(Target.UEThirdPartySourceDirectory, "BinkAudio", "Lib", "libbinka_ue_decode_lnx64_static.a");
+            return Path.Combine(ModuleDirectory, "..", "SDK", "BinkAudio", "Lib", "libbinka_ue_decode_lnx64_static.a");
         }
         if (Target.Platform == UnrealTargetPlatform.Mac)
         {
-            return Path.Combine(Target.UEThirdPartySourceDirectory, "BinkAudio", "Lib", "libbinka_ue_decode_osx64_static.a");
+            return Path.Combine(ModuleDirectory, "..", "SDK", "BinkAudio", "Lib", "libbinka_ue_decode_osx64_static.a");
         }
         if (Target.Platform == UnrealTargetPlatform.IOS)
         {
-            return Path.Combine(Target.UEThirdPartySourceDirectory, "BinkAudio", "Lib", "libbinka_ue_decode_ios_static.a");
+            return Path.Combine(ModuleDirectory, "..", "SDK", "BinkAudio", "Lib", "libbinka_ue_decode_ios_static.a");
         }
         if (Target.Platform == UnrealTargetPlatform.Android)
         {
-            return Path.Combine(Target.UEThirdPartySourceDirectory, "BinkAudio", "Lib", "libbinka_ue_decode_androidarm64_static.a");
+            return Path.Combine(ModuleDirectory, "..", "SDK", "BinkAudio", "Lib", "libbinka_ue_decode_androidarm64_static.a");
         }        
         return null;
     }
@@ -46,7 +46,7 @@ public class BinkAudioDecoder : ModuleRules
             }
         );
 
-        PublicSystemIncludePaths.Add(Path.Combine(Target.UEThirdPartySourceDirectory, "BinkAudio", "Include"));
+        PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, "..", "SDK", "BinkAudio", "Include"));
 
         string Library = GetLibrary(Target);
         if (Library != null)
