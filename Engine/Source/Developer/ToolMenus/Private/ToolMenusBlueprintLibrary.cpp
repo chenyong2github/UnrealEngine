@@ -44,9 +44,9 @@ void UToolMenuEntryExtensions::BreakToolMenuOwner(const FToolMenuOwner& InValue,
 	Name = InValue.TryGetName();
 }
 
-UObject* UToolMenuContextExtensions::FindByClass(const FToolMenuContext& Context, UClass* InClass)
+UObject* UToolMenuContextExtensions::FindByClass(const FToolMenuContext& Context, TSubclassOf<UObject> InClass)
 {
-	return Context.FindByClass(InClass);
+	return Context.FindByClass(*InClass);
 }
 
 void UToolMenuEntryExtensions::SetLabel(UPARAM(ref) FToolMenuEntry& Target, const FText& Label)
