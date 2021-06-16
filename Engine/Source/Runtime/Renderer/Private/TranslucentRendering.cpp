@@ -670,6 +670,7 @@ void SetupTranslucentBasePassUniformParameters(
 	SetupSceneTextureUniformParameters(GraphBuilder, View.FeatureLevel, SceneRenderTargets, SceneTextureSetupMode, BasePassParameters.SceneTextures);
 
 	FRDGTextureRef BlackDummyTexture = GetRDG(GSystemTextures.BlackDummy);
+	FRDGTextureRef WhiteDummyTexture = GetRDG(GSystemTextures.WhiteDummy);
 
 	// Material SSR
 	{
@@ -798,7 +799,7 @@ void SetupTranslucentBasePassUniformParameters(
 		BasePassParameters.SceneColorCopyTexture = SceneColorCopyTexture;
 	}
 
-	BasePassParameters.EyeAdaptationTexture = BlackDummyTexture;
+	BasePassParameters.EyeAdaptationTexture = WhiteDummyTexture;
 
 	// Setup by passes that support it
 	if (View.HasValidEyeAdaptationTexture())
