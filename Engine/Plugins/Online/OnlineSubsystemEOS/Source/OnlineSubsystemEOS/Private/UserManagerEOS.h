@@ -307,6 +307,8 @@ public:
 	virtual void DumpRecentPlayers() const override;
 // ~IOnlineFriends Interface
 
+	bool HandleFriendsExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar);
+
 // IOnlinePresence Interface
 	virtual void SetPresence(const FUniqueNetId& User, const FOnlineUserPresenceStatus& Status, const FOnPresenceTaskCompleteDelegate& Delegate = FOnPresenceTaskCompleteDelegate()) override;
 	virtual void QueryPresence(const FUniqueNetId& User, const FOnPresenceTaskCompleteDelegate& Delegate = FOnPresenceTaskCompleteDelegate()) override;
@@ -387,6 +389,8 @@ private:
 
 	IOnlineSubsystem* GetPlatformOSS();
 	void GetPlatformAuthToken(int32 LocalUserNum, const FOnGetLinkedAccountAuthTokenCompleteDelegate& Delegate);
+
+	void HandleExec_OnReadFriendsComplete(int32 LocalPlayer, bool bWasSuccessful, const FString& ListName, const FString& ErrorStr);
 
 	/** Cached pointer to owning subsystem */
 	FOnlineSubsystemEOS* EOSSubsystem;

@@ -334,21 +334,28 @@ bool FOnlineSubsystemEOS::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice&
 	}
 
 	bool bWasHandled = false;
-	if (FParse::Command(&Cmd, TEXT("EOS")))
+	if (UserManager != nullptr && FParse::Command(&Cmd, TEXT("FRIENDS")))
 	{
-		if (StoreInterfacePtr != nullptr && FParse::Command(&Cmd, TEXT("ECOM")))
-		{
-			bWasHandled = StoreInterfacePtr->HandleEcomExec(InWorld, Cmd, Ar);
-		}
-		else if (TitleFileInterfacePtr != nullptr && FParse::Command(&Cmd, TEXT("TITLEFILE")))
-		{
-			bWasHandled = TitleFileInterfacePtr->HandleTitleFileExec(InWorld, Cmd, Ar);
-		}
-		else if (UserCloudInterfacePtr != nullptr && FParse::Command(&Cmd, TEXT("USERCLOUD")))
-		{
-			bWasHandled = UserCloudInterfacePtr->HandleUserCloudExec(InWorld, Cmd, Ar);
-		}
+		bWasHandled = UserManager->HandleFriendsExec(InWorld, Cmd, Ar);
 	}
+	else if (StoreInterfacePtr != nullptr && FParse::Command(&Cmd, TEXT("ECOM")))
+	{
+		bWasHandled = StoreInterfacePtr->HandleEcomExec(InWorld, Cmd, Ar);
+	}
+	else if (TitleFileInterfacePtr != nullptr && FParse::Command(&Cmd, TEXT("TITLEFILE")))
+	{
+		bWasHandled = TitleFileInterfacePtr->HandleTitleFileExec(InWorld, Cmd, Ar);
+	}
+	else if (UserCloudInterfacePtr != nullptr && FParse::Command(&Cmd, TEXT("USERCLOUD")))
+	{
+		bWasHandled = UserCloudInterfacePtr->HandleUserCloudExec(InWorld, Cmd, Ar);
+	}
+	else
+	{
+		UE_LOG_ONLINE(Warning, TEXT("Unknown EOS command: %s"), *FParse::Token(Cmd, true));
+		bWasHandled = false;
+	}
+
 	return bWasHandled;
 }
 

@@ -6,7 +6,21 @@
 
 bool FOnlineSubsystemEOSPlus::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	return false;
+	if (FOnlineSubsystemImpl::Exec(InWorld, Cmd, Ar))
+	{
+		return true;
+	}
+
+	bool bWasHandled = false;
+	if (FParse::Command(&Cmd, TEXT("EOS")))
+	{
+		if (EosOSS != nullptr)
+		{
+			bWasHandled = EosOSS->Exec(InWorld, Cmd, Ar);
+		}
+	}
+
+	return bWasHandled;
 }
 
 FString FOnlineSubsystemEOSPlus::GetAppId() const
