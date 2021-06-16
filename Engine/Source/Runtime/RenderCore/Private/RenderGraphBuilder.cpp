@@ -419,12 +419,17 @@ bool FRDGBuilder::IsTransient(FRDGBufferRef Buffer) const
 		return false;
 	}
 
+	if (GRDGTransientAllocator == 2 && !EnumHasAnyFlags(Buffer->Desc.Usage, BUF_FastVRAM))
+	{
+		return false;
+	}
+
 	return EnumHasAnyFlags(Buffer->Desc.Usage, BUF_UnorderedAccess);
 }
 
 bool FRDGBuilder::IsTransient(FRDGTextureRef Texture) const
 {
-	return IsTransientInternal(Texture);
+	return IsTransientInternal(Texture) && (GRDGTransientAllocator != 2 || EnumHasAnyFlags(Texture->Desc.Flags, TexCreate_FastVRAM));
 }
 
 bool FRDGBuilder::IsTransientInternal(FRDGParentResourceRef Resource) const

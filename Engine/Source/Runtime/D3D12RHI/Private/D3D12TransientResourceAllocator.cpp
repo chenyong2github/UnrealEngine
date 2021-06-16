@@ -145,8 +145,10 @@ FRHITransientTexture* FD3D12TransientResourceAllocator::CreateTexture(const FRHI
 			InitialState = ERHIAccess::DSVWrite;
 		}
 
+		ED3D12ResourceTransientMode TransientMode = ED3D12ResourceTransientMode::Transient;
 		FResourceAllocatorAdapter ResourceAllocatorAdapter(GetParentAdapter(), static_cast<FD3D12TransientHeap&>(Initializer.Heap), Initializer.Allocation, Desc);
-		FRHITexture* Texture = DynamicRHI->CreateTexture(InCreateInfo, InDebugName, InitialState, &ResourceAllocatorAdapter);
+		
+		FRHITexture* Texture = DynamicRHI->CreateTexture(InCreateInfo, InDebugName, InitialState, TransientMode, &ResourceAllocatorAdapter);
 		return new FRHITransientTexture(Texture, Initializer.Hash, InCreateInfo);
 	});
 }
@@ -195,8 +197,9 @@ FRHITransientBuffer* FD3D12TransientResourceAllocator::CreateBuffer(const FRHIBu
 	return Allocator.CreateBuffer(InCreateInfo, InDebugName, Size, Alignment,
 		[&](const FRHITransientResourceAllocator::FResourceInitializer& Initializer)
 	{
+		ED3D12ResourceTransientMode TransientMode = ED3D12ResourceTransientMode::Transient;
 		FResourceAllocatorAdapter ResourceAllocatorAdapter(GetParentAdapter(), static_cast<FD3D12TransientHeap&>(Initializer.Heap), Initializer.Allocation, Desc);
-		FRHIBuffer* Buffer = FD3D12DynamicRHI::GetD3DRHI()->CreateBuffer(InCreateInfo, InDebugName, ERHIAccess::UAVMask, &ResourceAllocatorAdapter);
+		FRHIBuffer* Buffer = FD3D12DynamicRHI::GetD3DRHI()->CreateBuffer(InCreateInfo, InDebugName, ERHIAccess::UAVMask, TransientMode, &ResourceAllocatorAdapter);
 		return new FRHITransientBuffer(Buffer, Initializer.Hash, InCreateInfo);
 	});
 }
