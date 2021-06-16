@@ -482,25 +482,36 @@ AActor* UEditorActorSubsystem::SpawnActorFromClass(TSubclassOf<class AActor> Act
 	return InternalActorUtilitiesSubsystemLibrary::SpawnActor(TEXT("SpawnActorFromClass"), ActorClass.Get(), Location, Rotation, bTransient);
 }
 
-bool UEditorActorSubsystem::DestroyActor(class AActor* ToDestroyActor)
+bool UEditorActorSubsystem::DestroyActor(AActor* ActorToDestroy)
+{
+	TArray<AActor*> ActorsToDestroy;
+	ActorsToDestroy.Add(ActorToDestroy);
+	return DestroyActors(ActorsToDestroy);
+}
+
+bool UEditorActorSubsystem::DestroyActors(const TArray<AActor*>& ActorsToDestroy)
 {
 	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
 
+	const FScopedTransaction Transaction(LOCTEXT("DeleteActors", "Delete Actors"));
+	
 	if (!EditorScriptingHelpers::CheckIfInEditorAndPIE())
 	{
 		return false;
 	}
 
-	if (!ToDestroyActor)
+	for (AActor* ActorToDestroy : ActorsToDestroy)
 	{
-		UE_LOG(LogUtils, Error, TEXT("DestroyActor. ToDestroyActor is invalid."));
-		return false;
-	}
-
-	if (!InternalActorUtilitiesSubsystemLibrary::IsEditorLevelActor(ToDestroyActor))
-	{  
-		UE_LOG(LogUtils, Error, TEXT("DestroyActor. The Actor is not part of the world editor."));
-		return false;
+		if (!ActorToDestroy)
+		{
+			UE_LOG(LogUtils, Error, TEXT("DestroyActors. An actor to destroy is invalid."));
+			return false;
+		}
+		if (!InternalActorUtilitiesSubsystemLibrary::IsEditorLevelActor(ActorToDestroy))
+		{  
+			UE_LOG(LogUtils, Error, TEXT("DestroyActors. An actor to destroy is not part of the world editor."));
+			return false;
+		}
 	}
 
 	UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>();
@@ -513,19 +524,40 @@ bool UEditorActorSubsystem::DestroyActor(class AActor* ToDestroyActor)
 	UWorld* World = UnrealEditorSubsystem->GetEditorWorld();
 	if (!World)
 	{
-		UE_LOG(LogUtils, Error, TEXT("DestroyActor. Can't destroy the actor because there is no world."));
+		UE_LOG(LogUtils, Error, TEXT("DestroyActors. Can't destroy actors because there is no world."));
 		return false;
 	}
 
-	//To avoid dangling gizmo after actor has been destroyed
-	FTypedElementHandle ActorHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(ToDestroyActor);
+	FEditorDelegates::OnDeleteActorsBegin.Broadcast();
+	
+	TArray<FTypedElementHandle> ActorHandles;
+	ActorHandles.Reserve(ActorsToDestroy.Num());
+	for (AActor* ActorToDestroy : ActorsToDestroy)
+	{
+		ActorHandles.Add(UEngineElementsLibrary::AcquireEditorActorElementHandle(ActorToDestroy));
+	}
+
+	//To avoid dangling gizmo after actors have been destroyed
 	USelection* ActorSelection = GEditor->GetSelectedActors();
 	UTypedElementSelectionSet* SelectionSet = ActorSelection->GetElementSelectionSet();
-	SelectionSet->DeselectElement(ActorHandle, FTypedElementSelectionOptions());
+	SelectionSet->DeselectElements(ActorHandles, FTypedElementSelectionOptions());
 
 	ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
-	Layers->DisassociateActorFromLayers(ToDestroyActor);
-	return World->EditorDestroyActor(ToDestroyActor, true);
+	Layers->DisassociateActorsFromLayers(ActorsToDestroy);
+
+	bool SuccessfullyDestroyedAll = true;
+	
+	for (AActor* ActorToDestroy : ActorsToDestroy)
+	{
+		if (!World->EditorDestroyActor(ActorToDestroy, true))
+		{
+			SuccessfullyDestroyedAll = false;
+		}
+	}
+
+	FEditorDelegates::OnDeleteActorsEnd.Broadcast();
+	
+	return SuccessfullyDestroyedAll;
 }
 
 TArray<class AActor*> UEditorActorSubsystem::ConvertActors(const TArray<class AActor*>& Actors, TSubclassOf<class AActor> ActorClass, const FString& StaticMeshPackagePath)

@@ -192,6 +192,14 @@ public:
 	virtual bool AddActorsToLayers(const TArray< TWeakObjectPtr< AActor > >& Actors, const TArray< FName >& LayerNames) final;
 
 	/**
+	*	Disassociates actors from the layer system, generally used before deleting the Actors
+	*
+	*	@param	Actors	The actors to disassociate from the layer system
+	*/
+	UFUNCTION(BlueprintCallable, Category = Layers)
+	virtual bool DisassociateActorsFromLayers(const TArray< AActor* >& Actors) final;
+	
+	/**
 	 * Removes the actors from the specified layer.
 	 *
 	 * @param	Actors			The actors to remove from the provided layer

@@ -78,6 +78,7 @@ public:
 	 * Duplicate an actor from the world editor.
 	 * @param	ActorToDuplicate	Actor to duplicate.
 	 * @param	ToWorld				World to place the duplicated actor in.
+	 * @param	Offset				Translation to offset duplicated actor by.
 	 * @return	The duplicated actor, or none if it didn't succeed
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (AdvancedDisplay = 1))
@@ -87,6 +88,7 @@ public:
 	 * Duplicate actors from the world editor.
 	 * @param	ActorsToDuplicate	Actors to duplicate.
 	 * @param	ToWorld				World to place the duplicated actors in.
+	 * * @param	Offset				Translation to offset duplicated actors by.
 	 * @return	The duplicated actors, or empty if it didn't succeed
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (AdvancedDisplay = 1))
@@ -199,11 +201,19 @@ public:
 
 	/**
 	 * Destroy the actor from the world editor. Notify the Editor that the actor got destroyed.
-	 * @param	ToDestroyActor	Actor to destroy.
+	 * @param	ActorToDestroy	Actor to destroy.
 	 * @return	True if the operation succeeds.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
-	bool DestroyActor(class AActor* ActorToDestroy);
+	bool DestroyActor(AActor* ActorToDestroy);
+
+	/**
+	* Destroy the actors from the world editor. Notify the Editor that the actor got destroyed.
+	* @param	ActorsToDestroy		Actors to destroy.
+	* @return	True if the operation succeeds.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	bool DestroyActors(const TArray<AActor*>& ActorsToDestroy);
 
 	/**
 	 * Replace in the level all Actors provided with a new actor of type ActorClass. Destroy all Actors provided.
