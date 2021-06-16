@@ -78,7 +78,7 @@ namespace CrossCompiler
 		/** Identifier for vertex input attributes: "in.var.ATTRIBUTE". */
 		const ANSICHAR* InputAttribute;
 
-		/** Identifier for globals unifrom buffers: "$Globals". */
+		/** Identifier for globals uniform buffers: "$Globals". */
 		const ANSICHAR* GlobalsUniformBuffer;
 
 		/** Identifier for the intermediate output variable in a tessellation-control shader. */

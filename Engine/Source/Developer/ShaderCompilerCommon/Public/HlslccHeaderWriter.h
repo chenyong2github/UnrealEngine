@@ -17,6 +17,9 @@ namespace CrossCompiler
 	{
 	public:
 
+		void WriteSourceInfo(const TCHAR* SourceName, const TCHAR* EntryPointName, const TCHAR* DebugGroupName = nullptr);
+		void WriteCompilerInfo(const TCHAR* CompilerName = TEXT("ShaderConductor"));
+
 		void WriteInputAttribute(const SpvReflectInterfaceVariable& Attribute);
 		void WriteInputAttribute(const TCHAR* AttributeName, const TCHAR* TypeSpecifier, int32 Location, bool bLocationPrefix, bool bLocationSuffix);
 		void WriteOutputAttribute(const SpvReflectInterfaceVariable& Attribute);
@@ -46,6 +49,8 @@ namespace CrossCompiler
 	private:
 		struct FMetaDataStrings
 		{
+			FString SourceInfo;
+			FString CompilerInfo;
 			FString InputAttributes;
 			FString OutputAttributes;
 			FString UniformBlocks;

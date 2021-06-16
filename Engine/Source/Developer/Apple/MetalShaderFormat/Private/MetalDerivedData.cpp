@@ -423,8 +423,6 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 		
 		CrossCompiler::FHlslccHeaderWriter CCHeaderWriter;
 
-		FString MetaData = FString::Printf(TEXT("// ! %s/%s.usf:%s\n"), *Input.DebugGroupName, *Input.GetSourceFilename(), *Input.EntryPointName);
-		//FString EntryPoint = Input.EntryPointName;
 		EHlslShaderFrequency Freq = Frequency;
 		FString ALNString;
 		uint32 IABOffsetIndex = 0;
@@ -1181,8 +1179,10 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 				CCHeaderWriter.WriteSideTable(TEXT("spvBufferSizeConstants"), SideTableIndex);
 			}
 
-			MetaData += TEXT("// Compiled by ShaderConductor\n");
-			MetaData += CCHeaderWriter.ToString();
+			CCHeaderWriter.WriteSourceInfo(*Input.GetSourceFilename(), *Input.EntryPointName, *Input.DebugGroupName);
+			CCHeaderWriter.WriteCompilerInfo();
+
+			FString MetaData = CCHeaderWriter.ToString();
 			MetaData += TEXT("\n\n");
 			if (ALNString.Len())
 			{

@@ -1353,8 +1353,6 @@ static bool CompileToGlslWithShaderConductor(
 
 	if (!bCompilationFailed)
 	{
-		FString MetaData;
-
 		const ANSICHAR* FrequencyPrefix = GetFrequencyPrefix(Frequency);
 
 		// Now perform reflection on the SPIRV and tweak any decorations that we need to.
@@ -2090,8 +2088,11 @@ static bool CompileToGlslWithShaderConductor(
 					TextureIndex += SamplerCount;
 				}
 
-				MetaData += TEXT("// Compiled by ShaderConductor\n");
-				MetaData += CCHeaderWriter.ToString();
+				// Generate meta data for CCHeader
+				CCHeaderWriter.WriteSourceInfo(*Input.GetSourceFilename(), *Input.EntryPointName, *Input.DebugGroupName);
+				CCHeaderWriter.WriteCompilerInfo();
+
+				const FString MetaData = CCHeaderWriter.ToString();
 
 				// Merge meta data and GLSL source to output string
 				const int32 GlslShaderSourceLen = MetaData.Len() + static_cast<int32>(GlslSource.size()) + 1;
