@@ -2,6 +2,7 @@
 
 #include "UncontrolledChangelistsModule.h"
 
+#include "Algo/AnyOf.h"
 #include "Algo/Copy.h"
 #include "Algo/Find.h"
 #include "Algo/Transform.h"
@@ -108,6 +109,8 @@ void FUncontrolledChangelistsModule::UpdateStatus()
 		bHasStateChanged |= UncontrolledChangelistState->UpdateStatus();
 	}
 
+	CleanLoadedAssetsCache();
+
 	if (bHasStateChanged)
 	{
 		OnStateChanged();
@@ -128,7 +131,6 @@ void FUncontrolledChangelistsModule::OnReconcileLoadedAssets()
 
 	CleanAssetsCaches();
 	AddFilesToDefaultUncontrolledChangelist(LoadedFilesCache.Array(), FUncontrolledChangelistState::ECheckFlags::All);
-	LoadedFilesCache.Reset();
 }
 
 void FUncontrolledChangelistsModule::OnReconcileSavedAssets()
@@ -160,16 +162,6 @@ void FUncontrolledChangelistsModule::OnReconcileAllAssets()
 	AddFilesToDefaultUncontrolledChangelist(FilenamesToCheck, FUncontrolledChangelistState::ECheckFlags::All);
 
 	LoadedFilesCache.Reset();
-	SavedFilesCache.Reset();
-}
-
-void FUncontrolledChangelistsModule::OnClearLoadedAssetsCache()
-{
-	LoadedFilesCache.Reset();
-}
-
-void FUncontrolledChangelistsModule::OnClearSavedAssetsCache()
-{
 	SavedFilesCache.Reset();
 }
 
@@ -372,6 +364,40 @@ void FUncontrolledChangelistsModule::CleanAssetsCaches()
 	{
 		FUncontrolledChangelistsStateCache::ValueType& UncontrolledChangelistState = Pair.Value;
 		UncontrolledChangelistState->RemoveDuplicates(LoadedFilesCache, SavedFilesCache);
+	}
+}
+
+void FUncontrolledChangelistsModule::CleanLoadedAssetsCache()
+{
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
+	for (auto It = LoadedFilesCache.CreateIterator(); It; ++It)
+	{
+		FString& Filename = *It;
+		FString PackageName;
+		TArray<FAssetData> AssetData;
+
+		FPackageName::TryConvertFilenameToLongPackageName(Filename, PackageName);
+
+		if (PackageName.IsEmpty())
+		{
+			continue;
+		}
+
+		AssetRegistry.GetAssetsByPackageName(*PackageName, AssetData);
+
+		if (AssetData.IsEmpty())
+		{
+			continue;
+		}
+
+		bool bIsLoaded = Algo::AnyOf(AssetData, [](const FAssetData& InAssetData) { return InAssetData.IsAssetLoaded(); });
+
+		if (!bIsLoaded)
+		{
+			It.RemoveCurrent();
+		}
 	}
 }
 
