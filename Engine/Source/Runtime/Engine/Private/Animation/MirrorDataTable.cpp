@@ -57,16 +57,7 @@ UMirrorDataTable::UMirrorDataTable(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	OnDataTableChanged().AddUObject(this, &UMirrorDataTable::FillMirrorArrays);
 #endif 
-}
 
-void UMirrorDataTable::GetPreloadDependencies(TArray<UObject*>& OutDeps)
-{
-	Super::GetPreloadDependencies(OutDeps);
-}
-
-void UMirrorDataTable::Serialize(FArchive& Ar)
-{
-	Super::Serialize(Ar); 
 }
 
 void UMirrorDataTable::PostLoad()
@@ -80,20 +71,7 @@ void UMirrorDataTable::PostLoad()
 	}
 }
 
-void UMirrorDataTable::EmptyTable()
-{
-}
-
 #if WITH_EDITOR
-void UMirrorDataTable::CleanBeforeStructChange()
-{
-	Super::CleanBeforeStructChange();
-}
-
-void UMirrorDataTable::RestoreAfterStructChange()
-{
-	Super::RestoreAfterStructChange();
-}
 
 void UMirrorDataTable::PreEditChange(FProperty* PropertyThatWillChange)
 {
@@ -121,13 +99,7 @@ void UMirrorDataTable::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 	}
 }
 
-void UMirrorDataTable::PostEditUndo()
-{
-	Super::PostEditUndo();
-}
-
 #endif // WITH_EDITOR
-
 
 FName UMirrorDataTable::GetSettingsMirrorName(FName InName)
 {
@@ -461,7 +433,5 @@ void UMirrorDataTable::FillMirrorArrays()
 		CurveMirrorTargetUIDArray.Shrink();
 	}
 }
-
-
 
 #undef LOCTEXT_NAMESPACE
