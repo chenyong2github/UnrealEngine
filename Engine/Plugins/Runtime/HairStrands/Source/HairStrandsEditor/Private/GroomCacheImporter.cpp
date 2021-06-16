@@ -124,26 +124,13 @@ TArray<UGroomCache*> FGroomCacheImporter::ImportGroomCache(const FString& Source
 				const uint32 GroupCount = HairDescriptionGroups.HairGroups.Num();
 
 				TArray<FHairGroupInfoWithVisibility> HairGroupsInfo = GroomAssetForCache->HairGroupsInfo;
-				TArray<FHairGroupData> HairGroupsData;
+				TArray<FHairDescriptionGroup> HairGroupsData;
 				HairGroupsData.SetNum(GroupCount);
 				for (uint32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
 				{
-					//FGroomBuilder::BuildHairGroupData(ProcessedHairDescription, GroomAssetForCache->HairGroupsInterpolation[GroupIndex], GroupIndex, HairGroupsData[GroupIndex]);
-
 					const FHairDescriptionGroup& HairGroup = HairDescriptionGroups.HairGroups[GroupIndex];
-
-					FHairStrandsDatas StrandsData;
-					FHairStrandsDatas GuidesData;
-					FGroomBuilder::BuildData(HairGroup, GroomAssetForCache->HairGroupsInterpolation[GroupIndex], HairGroupsInfo[GroupIndex], StrandsData, GuidesData);
-
-					FGroomBuilder::BuildBulkData(HairGroup.Info, GuidesData, HairGroupsData[GroupIndex].Guides.BulkData);
-					FGroomBuilder::BuildBulkData(HairGroup.Info, StrandsData, HairGroupsData[GroupIndex].Strands.BulkData);
-
-					FHairStrandsInterpolationDatas InterpolationData;
-					FGroomBuilder::BuildInterplationData(HairGroup.Info, StrandsData, GuidesData, GroomAssetForCache->HairGroupsInterpolation[GroupIndex].InterpolationSettings, InterpolationData);
-					FGroomBuilder::BuildInterplationBulkData(GuidesData, InterpolationData, HairGroupsData[GroupIndex].Strands.InterpolationBulkData);
-
-					FGroomBuilder::BuildClusterBulkData(StrandsData, HairDescriptionGroups.BoundRadius, GroomAssetForCache->HairGroupsLOD[GroupIndex], HairGroupsData[GroupIndex].Strands.ClusterCullingBulkData);
+					FHairDescriptionGroup& HairGroupData = HairGroupsData[GroupIndex];
+					FGroomBuilder::BuildData(HairGroup, GroomAssetForCache->HairGroupsInterpolation[GroupIndex], HairGroupsInfo[GroupIndex], HairGroupData.Strands, HairGroupData.Guides);
 				}
 
 				// The HairGroupData is converted into animated groom data by the GroomCacheProcessor

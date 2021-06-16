@@ -129,7 +129,7 @@ struct FGroomCacheGroupData
 struct FGroomCacheAnimationData
 {
 	FGroomCacheAnimationData() = default;
-	FGroomCacheAnimationData(TArray<struct FHairGroupData>&& HairGroupData, int32 Version, EGroomCacheType Type, EGroomCacheAttributes Attributes);
+	FGroomCacheAnimationData(TArray<struct FHairDescriptionGroup>&& HairGroupData, int32 Version, EGroomCacheType Type, EGroomCacheAttributes Attributes);
 
 	TArray<FGroomCacheGroupData> GroupsData;
 	EGroomCacheAttributes Attributes;

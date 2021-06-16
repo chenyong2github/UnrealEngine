@@ -2274,7 +2274,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		// * Physics simulation
 		// * RBF deformation.
 		// Therefore, even if simulation is disabled, we need to run partially the update if the binding system is enabled (skin deformation + RBF correction)
-		const bool bNeedGuides = GroupData.Guides.HasValidData() && (bHasNeedSimulation || bHasNeedGlobalDeformation || bPreviewMode);
+		const bool bNeedGuides = GroupData.Guides.HasValidData() && (bHasNeedSimulation || bHasNeedGlobalDeformation || bPreviewMode) || HairGroupInstance->Debug.GroomCacheType == EGroomCacheType::Guides;
 		if (bNeedGuides)
 		{
 			HairGroupInstance->Guides.Data = &GroupData.Guides.BulkData;
@@ -2355,6 +2355,9 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 					}
 				}
 			}
+
+			// The strands GroomCache needs the Strands.DeformedResource, but the guides GroomCache also needs it for the HairTangentPass
+			bNeedDynamicResources = bNeedDynamicResources || HairGroupInstance->Debug.GroomCacheType != EGroomCacheType::None;
 
 			#if RHI_RAYTRACING
 			if (IsHairRayTracingEnabled() && HairGroupInstance->Strands.Modifier.bUseHairRaytracingGeometry)
