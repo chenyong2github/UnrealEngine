@@ -981,10 +981,7 @@ void FVulkanCommandListContext::RHIEndFrame()
 	{
 		Device->GetDescriptorSetCache().GC();
 	}
-	else
-	{
-		Device->GetDescriptorPoolsManager().GC();
-	}
+	Device->GetDescriptorPoolsManager().GC();
 
 	Device->ReleaseUnusedOcclusionQueryPools();
 
@@ -1490,7 +1487,8 @@ void FVulkanBufferView::Create(VkFormat Format, FVulkanResourceMultiBuffer* Buff
 
 	VERIFYVULKANRESULT(VulkanRHI::vkCreateBufferView(GetParent()->GetInstanceHandle(), &ViewInfo, VULKAN_CPU_ALLOCATOR, &View));
 	
-	if (UseVulkanDescriptorCache())
+	bVolatile = Buffer->IsVolatile();
+	if (!bVolatile && UseVulkanDescriptorCache())
 	{
 		ViewId = ++GVulkanBufferViewHandleIdCounter;
 	}
@@ -1506,6 +1504,7 @@ void FVulkanBufferView::Destroy()
 		Device->GetDeferredDeletionQueue().EnqueueResource(FDeferredDeletionQueue2::EType::BufferView, View);
 		View = VK_NULL_HANDLE;
 		ViewId = 0;
+		bVolatile = false;
 	}
 }
 

@@ -135,7 +135,7 @@ void FVulkanCommandListContext::RHISetComputePipelineState(FRHIComputePipelineSt
 		}
 	}
 
-	if (!UseVulkanDescriptorCache() && CmdBuffer->CurrentDescriptorPoolSetContainer == nullptr)
+	if (CmdBuffer->CurrentDescriptorPoolSetContainer == nullptr)
 	{
 		CmdBuffer->CurrentDescriptorPoolSetContainer = &Device->GetDescriptorPoolsManager().AcquirePoolSetContainer();
 	}
