@@ -24,6 +24,7 @@
 #define LIGHT_SOURCE_MODE 0
 #endif
 
+// must match CapsuleShadowRendering.cpp
 #define LIGHT_SOURCE_PUNCTUAL 0
 #define LIGHT_SOURCE_FROM_CAPSULE 1
 #define LIGHT_SOURCE_FROM_RECEIVER 2
