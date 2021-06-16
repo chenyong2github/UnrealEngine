@@ -376,7 +376,7 @@ private:
 protected:
 	FString GeneratePreviewComponentName(const FString& NodeId, const FString& ViewportId) const;
 	void RenderPreview_Editor();
-	bool UpdatePreviewConfiguration_Editor();
+	bool UpdatePreviewConfiguration_Editor(bool bUpdateAllViewports);
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditMove(bool bFinished) override;

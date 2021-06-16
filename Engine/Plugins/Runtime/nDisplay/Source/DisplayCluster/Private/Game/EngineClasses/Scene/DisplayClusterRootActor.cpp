@@ -479,8 +479,6 @@ void ADisplayClusterRootActor::InitializeRootActor()
 	// Initialize from file property by default in Editor
 	else
 	{
-		UpdatePreviewConfiguration_Editor();
-
 		if (CurrentConfigData)
 		{
 			ResetHierarchyMap();

@@ -280,7 +280,7 @@ IDisplayClusterViewport* ADisplayClusterRootActor::FindPreviewViewport(const FSt
 	return nullptr;
 }
 
-bool ADisplayClusterRootActor::UpdatePreviewConfiguration_Editor()
+bool ADisplayClusterRootActor::UpdatePreviewConfiguration_Editor(bool bUpdateAllViewports)
 {
 	if (ViewportManager.IsValid())
 	{
@@ -290,7 +290,7 @@ bool ADisplayClusterRootActor::UpdatePreviewConfiguration_Editor()
 		if(bPreviewEnable)
 		{
 			PreviewSettings.bEnable = bPreviewEnable;
-			PreviewSettings.PreviewNodeId = PreviewNodeId;
+			PreviewSettings.PreviewNodeId = bUpdateAllViewports ? DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll : PreviewNodeId;
 			PreviewSettings.TickPerFrame = TickPerFrame;
 			PreviewSettings.PreviewRenderTargetRatioMult = PreviewRenderTargetRatioMult;
 
@@ -303,7 +303,7 @@ bool ADisplayClusterRootActor::UpdatePreviewConfiguration_Editor()
 
 void ADisplayClusterRootActor::RenderPreview_Editor()
 {
-	if (UpdatePreviewConfiguration_Editor())
+	if (UpdatePreviewConfiguration_Editor(false))
 	{
 		// Update all preview components resources before render
 		for (const TTuple<FString, UDisplayClusterPreviewComponent*>& PreviewKeyVal : PreviewComponents)
@@ -413,9 +413,11 @@ void ADisplayClusterRootActor::UpdatePreviewComponents()
 		return;
 	}
 
+	UpdatePreviewConfiguration_Editor(true);
+
 	TArray<UDisplayClusterPreviewComponent*> IteratedPreviewComponents;
 	
-	if (CurrentConfigData != nullptr)
+	if (CurrentConfigData != nullptr && bPreviewEnable)
 	{
 		const bool bAllComponentsVisible = PreviewNodeId.Equals(DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll, ESearchCase::IgnoreCase);
 
@@ -425,29 +427,33 @@ void ADisplayClusterRootActor::UpdatePreviewComponents()
 			{
 				continue;
 			}
-			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& Viewport : Node.Value->Viewports)
+
+			if (bAllComponentsVisible || Node.Key.Equals(PreviewNodeId, ESearchCase::IgnoreCase))
 			{
-				if (bAllComponentsVisible || Node.Key.Equals(PreviewNodeId, ESearchCase::IgnoreCase))
+				for (const TPair<FString, UDisplayClusterConfigurationViewport*>& Viewport : Node.Value->Viewports)
 				{
-					const FString PreviewCompId = GeneratePreviewComponentName(Node.Key, Viewport.Key);
-					UDisplayClusterPreviewComponent* PreviewComp = PreviewComponents.FindRef(PreviewCompId);
-					if (!PreviewComp)
+					if (bAllComponentsVisible || Node.Key.Equals(PreviewNodeId, ESearchCase::IgnoreCase))
 					{
-						PreviewComp = NewObject<UDisplayClusterPreviewComponent>(this, FName(*PreviewCompId), RF_DuplicateTransient | RF_Transactional | RF_NonPIEDuplicateTransient);
-						check(PreviewComp);
+						const FString PreviewCompId = GeneratePreviewComponentName(Node.Key, Viewport.Key);
+						UDisplayClusterPreviewComponent* PreviewComp = PreviewComponents.FindRef(PreviewCompId);
+						if (!PreviewComp)
+						{
+							PreviewComp = NewObject<UDisplayClusterPreviewComponent>(this, FName(*PreviewCompId), RF_DuplicateTransient | RF_Transactional | RF_NonPIEDuplicateTransient);
+							check(PreviewComp);
 						
-						PreviewComponents.Emplace(PreviewCompId, PreviewComp);
+							PreviewComponents.Emplace(PreviewCompId, PreviewComp);
+						}
+
+						if (GetWorld() && !PreviewComp->IsRegistered())
+						{
+							PreviewComp->RegisterComponent();
+						}
+
+						// Always reinitialize so changes impact the preview component.
+						PreviewComp->InitializePreviewComponent(this, Viewport.Key, Viewport.Value);
+
+						IteratedPreviewComponents.Add(PreviewComp);
 					}
-
-					if (GetWorld() && !PreviewComp->IsRegistered())
-					{
-						PreviewComp->RegisterComponent();
-					}
-
-					// Always reinitialize so changes impact the preview component.
-					PreviewComp->InitializePreviewComponent(this, Viewport.Key, Viewport.Value);
-
-					IteratedPreviewComponents.Add(PreviewComp);
 				}
 			}
 		}
