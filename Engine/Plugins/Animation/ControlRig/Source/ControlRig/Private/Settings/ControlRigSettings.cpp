@@ -22,6 +22,7 @@ UControlRigEditorSettings::UControlRigEditorSettings(const FObjectInitializer& O
 #endif
 {
 #if WITH_EDITORONLY_DATA
+	bAutoLinkMutableNodes = false;
 	bResetControlsOnCompile = true;
 	bResetControlsOnPinValueInteraction = false;
 	bEnableUndoForPoseInteraction = true;

@@ -58,6 +58,12 @@ public:
 	virtual FName GetCategoryName() const override { return TEXT("ContentEditors"); }
 	
 #if WITH_EDITORONLY_DATA
+
+	// When this is checked mutable nodes (nodes with an execute pin)
+	// will be hooked up automatically.
+	UPROPERTY(EditAnywhere, config, Category = Interaction)
+	bool bAutoLinkMutableNodes;
+
 	// When this is checked all controls will return to their initial
 	// value as the user hits the Compile button.
 	UPROPERTY(EditAnywhere, config, Category = Interaction)
