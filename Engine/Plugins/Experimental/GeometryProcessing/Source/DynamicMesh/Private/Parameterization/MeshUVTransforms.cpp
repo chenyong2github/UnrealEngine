@@ -142,6 +142,10 @@ void UE::MeshUVTransforms::MakeSeamsDisjoint(FDynamicMeshUVOverlay* UVOverlay)
 	for (int32 elemid : UVOverlay->ElementIndicesItr())
 	{
 		int32 ParentVtxID = UVOverlay->GetParentVertex(elemid);
+		if (ParentVtxID == -1)
+		{
+			continue;
+		}
 		int32 SeamListIndex = SeamVerticesMap[ParentVtxID];
 		if (SeamListIndex == -1)
 		{
