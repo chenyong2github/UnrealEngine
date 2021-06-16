@@ -292,7 +292,7 @@ float2 GetScreenUVFromScreenGrid(uint2 OutputCoordinate)
 	return GetScreenUVFromScreenGrid(OutputCoordinate, 1);
 }
 
-Buffer<uint> CulledTilesStartOffsetArray;
+StructuredBuffer<uint> CulledTilesStartOffsetArray;
 
 #define INVALID_TILE_INDEX 0xFFFF
 

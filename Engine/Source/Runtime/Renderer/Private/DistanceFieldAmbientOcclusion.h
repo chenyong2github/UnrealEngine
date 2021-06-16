@@ -39,21 +39,20 @@ public:
 };
 
 BEGIN_SHADER_PARAMETER_STRUCT(FTileIntersectionParameters, )
-	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<FVector4>, RWTileConeAxisAndCos)
-	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<FVector4>, RWTileConeDepthRanges)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FVector4>, RWTileConeAxisAndCos)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FVector4>, RWTileConeDepthRanges)
 
-	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWNumCulledTilesArray)
-	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCulledTilesStartOffsetArray)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWNumCulledTilesArray)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWCulledTilesStartOffsetArray)
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCulledTileDataArray)
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWObjectTilesIndirectArguments)
 
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<FVector4>, TileConeAxisAndCos)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<FVector4>, TileConeDepthRanges)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FVector4>, TileConeAxisAndCos)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FVector4>, TileConeDepthRanges)
 
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, NumCulledTilesArray)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CulledTilesStartOffsetArray)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, NumCulledTilesArray)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CulledTilesStartOffsetArray)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CulledTileDataArray)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ObjectTilesIndirectArguments)
 
 	SHADER_PARAMETER(FIntPoint, TileListGroupSize)
 END_SHADER_PARAMETER_STRUCT()

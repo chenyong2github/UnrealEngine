@@ -623,33 +623,34 @@ void AllocateTileIntersectionBuffers(
 	const bool b16BitObjectIndices = MaxSceneObjects < (1 << 16);
 	const bool b16BitCulledTileIndexBuffer = bAllow16BitIndices && b16BitObjectIndices && (TileListGroupSize.X * TileListGroupSize.Y < (1 << 16));
 
-	FRDGBufferRef TileConeAxisAndCos = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FVector4), TileListGroupSize.X * TileListGroupSize.Y), TEXT("TileConeAxisAndCos"));
-	OutParameters.RWTileConeAxisAndCos = GraphBuilder.CreateUAV(TileConeAxisAndCos, PF_A32B32G32R32F);
-	OutParameters.TileConeAxisAndCos = GraphBuilder.CreateSRV(TileConeAxisAndCos, PF_A32B32G32R32F);
+	int32 TileCount = TileListGroupSize.X * TileListGroupSize.Y;
 
-	FRDGBufferRef TileConeDepthRanges = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FVector4), TileListGroupSize.X * TileListGroupSize.Y), TEXT("TileConeDepthRanges"));
-	OutParameters.RWTileConeDepthRanges = GraphBuilder.CreateUAV(TileConeDepthRanges, PF_A32B32G32R32F);
-	OutParameters.TileConeDepthRanges = GraphBuilder.CreateSRV(TileConeDepthRanges, PF_A32B32G32R32F);
+	FRDGBufferRef TileConeAxisAndCos = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4), TileCount), TEXT("TileConeAxisAndCos"));
+	OutParameters.RWTileConeAxisAndCos = GraphBuilder.CreateUAV(TileConeAxisAndCos);
+	OutParameters.TileConeAxisAndCos = GraphBuilder.CreateSRV(TileConeAxisAndCos);
 
-	FRDGBufferRef NumCulledTilesArray = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxSceneObjects), TEXT("NumCulledTilesArray"));
-	OutParameters.RWNumCulledTilesArray = GraphBuilder.CreateUAV(NumCulledTilesArray, PF_R32_UINT);
-	OutParameters.NumCulledTilesArray = GraphBuilder.CreateSRV(NumCulledTilesArray, PF_R32_UINT);
+	FRDGBufferRef TileConeDepthRanges = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4), TileCount), TEXT("TileConeDepthRanges"));
+	OutParameters.RWTileConeDepthRanges = GraphBuilder.CreateUAV(TileConeDepthRanges);
+	OutParameters.TileConeDepthRanges = GraphBuilder.CreateSRV(TileConeDepthRanges);
 
-	FRDGBufferRef CulledTilesStartOffsetArray = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxSceneObjects), TEXT("CulledTilesStartOffsetArray"));
-	OutParameters.RWCulledTilesStartOffsetArray = GraphBuilder.CreateUAV(CulledTilesStartOffsetArray, PF_R32_UINT);
-	OutParameters.CulledTilesStartOffsetArray = GraphBuilder.CreateSRV(CulledTilesStartOffsetArray, PF_R32_UINT);
+	FRDGBufferRef NumCulledTilesArray = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxSceneObjects), TEXT("NumCulledTilesArray"));
+	OutParameters.RWNumCulledTilesArray = GraphBuilder.CreateUAV(NumCulledTilesArray);
+	OutParameters.NumCulledTilesArray = GraphBuilder.CreateSRV(NumCulledTilesArray);
+
+	FRDGBufferRef CulledTilesStartOffsetArray = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxSceneObjects), TEXT("CulledTilesStartOffsetArray"));
+	OutParameters.RWCulledTilesStartOffsetArray = GraphBuilder.CreateUAV(CulledTilesStartOffsetArray);
+	OutParameters.CulledTilesStartOffsetArray = GraphBuilder.CreateSRV(CulledTilesStartOffsetArray);
 
 	extern int32 GAverageDistanceFieldObjectsPerCullTile;
 
 	FRDGBufferRef CulledTileDataArray = GraphBuilder.CreateBuffer(
-		FRDGBufferDesc::CreateBufferDesc(b16BitCulledTileIndexBuffer ? sizeof(uint16) : sizeof(uint32), GAverageDistanceFieldObjectsPerCullTile * TileListGroupSize.X * TileListGroupSize.Y * CulledTileDataStride),
+		FRDGBufferDesc::CreateBufferDesc(b16BitCulledTileIndexBuffer ? sizeof(uint16) : sizeof(uint32), GAverageDistanceFieldObjectsPerCullTile * TileCount * CulledTileDataStride),
 		TEXT("CulledTileDataArray"));
 	OutParameters.RWCulledTileDataArray = GraphBuilder.CreateUAV(CulledTileDataArray, b16BitCulledTileIndexBuffer ? PF_R16_UINT : PF_R32_UINT);
 	OutParameters.CulledTileDataArray = GraphBuilder.CreateSRV(CulledTileDataArray, b16BitCulledTileIndexBuffer ? PF_R16_UINT : PF_R32_UINT);
 
 	OutObjectTilesIndirectArguments = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(), TEXT("ObjectTilesIndirectArguments"));
 	OutParameters.RWObjectTilesIndirectArguments = GraphBuilder.CreateUAV(OutObjectTilesIndirectArguments, PF_R32_UINT);
-	OutParameters.ObjectTilesIndirectArguments = GraphBuilder.CreateSRV(OutObjectTilesIndirectArguments, PF_R32_UINT);
 
 	OutParameters.TileListGroupSize = TileListGroupSize;
 }
@@ -809,7 +810,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 	}
 
 	const FIntPoint TileListGroupSize = GetTileListGroupSizeForView(View);
-	const int32 MaxSceneObjects = Scene->DistanceFieldSceneData.NumObjectsInBuffer;
+	const int32 MaxSceneObjects = FMath::DivideAndRoundUp(Scene->DistanceFieldSceneData.NumObjectsInBuffer, 256) * 256;
 	const bool bAllow16BitIndices = !IsMetalPlatform(GShaderPlatformForFeatureLevel[View.FeatureLevel]);
 
 	FRDGBufferRef ObjectTilesIndirectArguments = nullptr;
@@ -825,7 +826,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 		AllocateDistanceFieldCulledObjectBuffers(
 			GraphBuilder,
 			false,
-			FMath::DivideAndRoundUp(MaxSceneObjects, 256) * 256,
+			MaxSceneObjects,
 			DFPT_SignedDistanceField,
 			ObjectIndirectArguments,
 			CulledObjectBufferParameters);
