@@ -42,6 +42,15 @@ void UChaosCache::FlushPendingFrames()
 			{
 				// Initial write to this particle
 				PTrack.BeginOffset = NewData.Time;
+
+				// Particle will hold at end of recording.
+				PTrack.bDeactivateOnEnd = false;
+			}
+
+			if (ParticleData.bPendingDeactivate)
+			{
+				// Signals that this is the final keyframe and that the particle then deactivates.
+				PTrack.bDeactivateOnEnd = true;
 			}
 
 			// Make sure we're actually appending to the track - shouldn't be adding data from the past
@@ -302,6 +311,12 @@ FCacheEvaluationResult UChaosCache::Evaluate(const FCacheEvaluationContext& InCo
 				continue;
 			}
 
+			if (ParticleTracks[Index].TransformData.bDeactivateOnEnd && ParticleTracks[Index].TransformData.GetEndTime() < InContext.TickRecord.GetTime())
+			{
+				// Particle has deactivated so skip evaluation
+				continue;
+			}
+
 			FTransform* EvalTransform = nullptr;
 			TMap<FName, float>* EvalCurves = nullptr;
 
@@ -361,11 +376,13 @@ void UChaosCache::EvaluateSingle(int32 InIndex, FPlaybackTickRecord& InTickRecor
 	checkSlow(ParticleTracks.IsValidIndex(InIndex));
 	FPerParticleCacheData& Data = ParticleTracks[InIndex];
 
+	
 	if(OutOptTransform)
 	{
 		EvaluateTransform(Data, InTickRecord.GetTime(), *OutOptTransform);
-		(*OutOptTransform) = (*OutOptTransform) * InTickRecord.SpaceTransform;
+		(*OutOptTransform) = (*OutOptTransform) *InTickRecord.SpaceTransform;
 	}
+	
 
 	if(OutOptCurves)
 	{

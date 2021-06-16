@@ -508,6 +508,10 @@ public:
 	UPROPERTY()
 	FGeomComponentCacheParameters CacheParameters;
 
+	/** Optional transforms to initialize scene proxy if difference from the RestCollection. */
+	UPROPERTY()
+	TArray<FTransform> RestTransforms;
+
 	/**
 	*  SetDynamicState
 	*    This function will dispatch a command to the physics thread to apply
@@ -638,6 +642,18 @@ public:
 	/** Update instanced static mesh components to reflect internal embedded geometry state. */
 	void RefreshEmbeddedGeometry();
 
+	// #todo should this only be available in editor?
+	void SetRestState(TArray<FTransform>&& InRestTransforms);
+
+	/** Set the dynamic state for all bodies in the DynamicCollection. */
+	void SetDynamicState(const Chaos::EObjectStateType& NewDynamicState);
+
+	/** Set transforms for all bodies in the DynamicCollection. */
+	void SetInitialTransforms(const TArray<FTransform>& InitialTransforms);
+
+	/** Modify DynamicCollection transform hierarchy to effect cluster breaks releasing the specified indices. */
+	void SetInitialClusterBreaks(const TArray<int32>& ReleaseIndices);
+
 public:
 	UPROPERTY(BlueprintAssignable, Category = "Collision")
 	FOnChaosPhysicsCollision OnChaosPhysicsCollision;
@@ -647,17 +663,20 @@ public:
 
 	// IChaosNotifyHandlerInterface
 	virtual void DispatchChaosPhysicsCollisionBlueprintEvents(const FChaosPhysicsCollisionInfo& CollisionInfo) override;
-
-protected:
 	
-	/** Call SetNotifyBreaks to set this at runtime. */
+	/** If true, this component will generate breaking events that other systems may subscribe to. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|General")
 	bool bNotifyBreaks;
 
-	/** If true, this component will get Chaos-specific collision notification events (@see IChaosNotifyHandlerInterface) */
+	/** If true, this component will generate collision events that other systems may subscribe to. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|General")
 	bool bNotifyCollisions;
 
+	/** If true, this component will generate trailing events that other systems may subscribe to. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|General")
+	bool bNotifyTrailing;
+
+protected:
 	/** Display Bone Colors instead of assigned materials */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|General")
 	bool bShowBoneColors;

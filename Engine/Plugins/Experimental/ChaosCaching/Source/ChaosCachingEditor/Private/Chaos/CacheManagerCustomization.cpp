@@ -12,32 +12,6 @@
 
 #define LOCTEXT_NAMESPACE "CacheManagerDetails"
 
-FReply OnClickSetAllButton(TArray<AChaosCacheManager*> Managers, ECacheMode NewMode)
-{
-	for(AChaosCacheManager* Manager : Managers)
-	{
-		if(Manager)
-		{
-			Manager->SetAllMode(NewMode);
-		}
-	}
-
-	return FReply::Handled();
-}
-
-FReply OnClickSetAllStartButton(TArray<AChaosCacheManager*> Managers, EStartMode NewMode)
-{
-	for (AChaosCacheManager* Manager : Managers)
-	{
-		if (Manager)
-		{
-			Manager->SetAllStartMode(NewMode);
-		}
-	}
-
-	return FReply::Handled();
-}
-
 FReply OnClickResetTransforms(TArray<AChaosCacheManager*> Managers)
 {
 	for(AChaosCacheManager* Manager : Managers)
@@ -61,11 +35,14 @@ void FCacheManagerDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	TArray<TWeakObjectPtr<UObject>> Selected = DetailBuilder.GetSelectedObjects();
 	TArray<AChaosCacheManager*> CacheManagersInSelection;
 
+	bool bCanRecord = true;
+
 	for(TWeakObjectPtr<UObject> Ptr : Selected)
 	{
 		if(AChaosCacheManager* Manager = Cast<AChaosCacheManager>(Ptr.Get()))
 		{
 			CacheManagersInSelection.Add(Manager);
+			bCanRecord &= Manager->CanRecord();
 		}
 	}
 
@@ -74,96 +51,36 @@ void FCacheManagerDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 		return;
 	}
 
+	SetCacheModeOptions(bCanRecord);
+
+	// Hide the Record mode
+	CacheModeHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(AChaosCacheManager, CacheMode), AChaosCacheManager::StaticClass());
+	check(CacheModeHandle->IsValidHandle());
+
+	DetailBuilder.EditDefaultProperty(CacheModeHandle)->CustomWidget()
+		.NameContent()
+		[
+			CacheModeHandle->CreatePropertyNameWidget()
+		]
+		.ValueContent()
+		.MaxDesiredWidth(250.0f)			
+		[
+			SNew(SComboBox<TSharedPtr<FText>>)
+			.OptionsSource(&CacheModeComboList)
+			.OnGenerateWidget(this, &FCacheManagerDetails::GenerateCacheModeWidget)
+			.OnSelectionChanged(this, &FCacheManagerDetails::OnCacheModeChanged)
+			.InitiallySelectedItem(GetCurrentCacheMode())	
+			[
+				SNew(STextBlock)
+				.Text(this, &FCacheManagerDetails::GetCacheModeComboBoxContent)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.ColorAndOpacity(this, &FCacheManagerDetails::GetCacheModeTextColor)
+				.ToolTipText(this, &FCacheManagerDetails::GetCacheModeComboBoxContent)
+			] 
+		];
+
+	
 	IDetailCategoryBuilder& CachingCategory = DetailBuilder.EditCategory("Caching");
-	FDetailWidgetRow&       SetAllRow       = CachingCategory.AddCustomRow(FText::GetEmpty());
-
-	SetAllRow.NameContent()
-	[
-		SNew(STextBlock)
-		.Font(DetailBuilder.GetDetailFont())
-		.Text(LOCTEXT("SetAllLabel", "Set All"))
-	];
-
-	SetAllRow.ValueContent()
-	.MinDesiredWidth(300.0f)
-	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.Padding(0.0f, 0.0f, 3.0f, 0.0f)
-		[
-			SNew(SButton)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked_Static(&OnClickSetAllButton, CacheManagersInSelection, ECacheMode::Record)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("SetAllRecord", "Record"))
-			]
-		]
-		+ SHorizontalBox::Slot()
-		.Padding(0.0f, 0.0f, 3.0f, 0.0f)
-		[
-			SNew(SButton)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked_Static(&OnClickSetAllButton, CacheManagersInSelection, ECacheMode::Play)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("SetAllPlay", "Play"))
-			]
-		]
-		+ SHorizontalBox::Slot()
-		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
-		[
-			SNew(SButton)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked_Static(&OnClickSetAllButton, CacheManagersInSelection, ECacheMode::None)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("SetAllNone", "None"))
-			]
-		]
-	];
-
-	FDetailWidgetRow& SetTriggerRow = CachingCategory.AddCustomRow(FText::GetEmpty());
-	SetTriggerRow.NameContent()
-	[
-		SNew(STextBlock)
-		.Font(DetailBuilder.GetDetailFont())
-		.Text(LOCTEXT("SetTriggerLabel", "Set Triggers"))
-	];
-
-	SetTriggerRow.ValueContent()
-	.MinDesiredWidth(300.0f)
-	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.Padding(0.0f, 0.0f, 3.0f, 0.0f)
-		[
-			SNew(SButton)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked_Static(&OnClickSetAllStartButton, CacheManagersInSelection, EStartMode::Triggered)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("SetAllTriggered", "Triggered"))
-			]
-		]
-		+ SHorizontalBox::Slot()
-		.Padding(0.0f, 0.0f, 3.0f, 0.0f)
-		[
-			SNew(SButton)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked_Static(&OnClickSetAllStartButton, CacheManagersInSelection, EStartMode::Timed)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("SetAllTimed", "Timed"))
-			]
-		]
-	];
-
 	FDetailWidgetRow& ResetPositionsRow = CachingCategory.AddCustomRow(FText::GetEmpty());
 
 	ResetPositionsRow.ValueContent()
@@ -180,9 +97,84 @@ void FCacheManagerDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	];
 }
 
+void FCacheManagerDetails::SetCacheModeOptions(bool bRecord)
+{
+	CacheModeComboList.Empty(3);
+	CacheModeColor.Empty(3);
+
+	CacheModeComboList.Add(MakeShareable(new FText(LOCTEXT("StaticPose","Static Pose"))));
+	CacheModeColor.Add(FSlateColor::UseForeground());
+
+	CacheModeComboList.Add(MakeShareable(new FText(LOCTEXT("Play","Play"))));
+	CacheModeColor.Add(FSlateColor::UseForeground());
+
+	if (bRecord)
+	{
+		CacheModeComboList.Add(MakeShareable(new FText(LOCTEXT("Record", "RECORD"))));
+		CacheModeColor.Add(FLinearColor::Red);
+	}
+}
+
 void FCacheManagerDetails::GenerateCacheArrayElementWidget(TSharedRef<IPropertyHandle> PropertyHandle, int32 ArrayIndex, IDetailChildrenBuilder& ChildrenBuilder, IDetailLayoutBuilder* DetailLayout)
 {
 }
+
+TSharedRef<SWidget> FCacheManagerDetails::GenerateCacheModeWidget(TSharedPtr<FText> InItem)
+{
+	FSlateColor ItemColor = FSlateColor::UseForeground();
+	if (InItem->EqualTo(LOCTEXT("Record","RECORD"), ETextComparisonLevel::Default))
+	{
+		ItemColor = FLinearColor::Red;
+	}
+
+	return
+		SNew(STextBlock)
+		.Text(*InItem)
+		.ColorAndOpacity(ItemColor)
+		.Font(IDetailLayoutBuilder::GetDetailFont());
+}
+
+void FCacheManagerDetails::OnCacheModeChanged(TSharedPtr<FText> NewSelection, ESelectInfo::Type SelectInfo)
+{
+	FText const NewCacheModeName = *NewSelection.Get();
+	for (int32 Idx = 0; Idx < CacheModeComboList.Num(); ++Idx)
+	{
+		if (NewCacheModeName.EqualTo(*CacheModeComboList[Idx].Get(), ETextComparisonLevel::Default))
+		{
+			CacheModeHandle->SetValue(static_cast<uint8>(Idx));
+			return;
+		}
+	}
+	
+	// should not get here
+	check(false);
+}
+
+FText FCacheManagerDetails::GetCacheModeComboBoxContent() const
+{
+	return *CacheModeComboList[GetClampedCacheModeIndex()].Get();
+}
+
+TSharedPtr<FText> FCacheManagerDetails::GetCurrentCacheMode() const
+{
+	return CacheModeComboList[GetClampedCacheModeIndex()];
+}
+
+FSlateColor FCacheManagerDetails::GetCacheModeTextColor() const
+{
+	return CacheModeColor[GetClampedCacheModeIndex()];
+}
+
+int32  FCacheManagerDetails::GetClampedCacheModeIndex() const
+{
+	// A CacheManager may have a CacheMode (ie. Record) that we won't provide option for,
+	// since other Managers without that option may also be selected.
+	uint8 CacheMode;
+	CacheModeHandle->GetValue(CacheMode);
+
+	return FMath::Min(static_cast<int32>(CacheMode), CacheModeComboList.Num() - 1);
+}
+
 
 TSharedRef<IPropertyTypeCustomization> FObservedComponentDetails::MakeInstance()
 {

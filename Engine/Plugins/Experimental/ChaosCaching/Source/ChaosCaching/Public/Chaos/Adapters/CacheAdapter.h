@@ -117,6 +117,11 @@ namespace Chaos
 		 * Called from the game thread to perform any global setup that the adapter may need to perform.
 		 */
 		virtual void Initialize() {}
+
+		/**
+		* Called from the game thread to set rest state from an evaluated time in the cache.
+		*/
+		virtual void SetRestState(UPrimitiveComponent* InComponent, UChaosCache* InCache, const FTransform& InRootTransform, Chaos::FReal InTime) const = 0;
 		
 		/**
 		 * Called from the game thread to initialize a component and cache ready to record a cache
@@ -129,8 +134,9 @@ namespace Chaos
 		 * Called from the game thread to initialize a component and cache ready to playback a cache
 		 * @param InComponent Target component to initialize
 		 * @param InCache Target cache to initialize
+		 * @param InTime Time from cache start to evaluate initial conditions
 		 */
-		virtual bool InitializeForPlayback(UPrimitiveComponent* InComponent, UChaosCache* InCache) const = 0;
+		virtual bool InitializeForPlayback(UPrimitiveComponent* InComponent, UChaosCache* InCache, float InTime) = 0;
 
 		/**
 		 * Called by a cache observer when a component should be recorded to a cache through this adapter.

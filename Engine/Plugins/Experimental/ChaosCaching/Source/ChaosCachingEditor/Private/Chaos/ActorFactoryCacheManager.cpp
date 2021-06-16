@@ -6,6 +6,7 @@
 #include "Chaos/CacheManagerActor.h"
 #include "Chaos/ChaosCache.h"
 #include "Components/PrimitiveComponent.h"
+#include "GeometryCollection/GeometryCollectionComponent.h"
 #include "Kismet2/ComponentEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "CacheManagerActorFactory"
@@ -13,7 +14,7 @@
 UActorFactoryCacheManager::UActorFactoryCacheManager()
 {
 	DisplayName            = LOCTEXT("DisplayName", "Chaos Cache Manager");
-	NewActorClass          = AChaosCacheManager::StaticClass();
+	NewActorClass          = AChaosCachePlayer::StaticClass();
 	bUseSurfaceOrientation = false;
 }
 
@@ -30,12 +31,14 @@ bool UActorFactoryCacheManager::CanCreateActorFrom(const FAssetData& AssetData, 
 
 void UActorFactoryCacheManager::PostSpawnActor(UObject* Asset, AActor* NewActor)
 {
-	AChaosCacheManager*    Manager    = Cast<AChaosCacheManager>(NewActor);
+	AChaosCachePlayer*    Manager    = Cast<AChaosCachePlayer>(NewActor);
 	UChaosCacheCollection* Collection = Cast<UChaosCacheCollection>(Asset);
 	
 	// The cachemanager exists now, start adding our spawnables
 	if (Manager && Collection)
 	{
+		Manager->CacheCollection = Collection;
+
 		if (!Manager->bIsEditorPreviewActor)
 		{
 			if (UWorld* World = Manager->GetWorld())
@@ -43,7 +46,6 @@ void UActorFactoryCacheManager::PostSpawnActor(UObject* Asset, AActor* NewActor)
 				// Remove any pre-existing components
 				Manager->ClearObservedComponents();
 				
-				Manager->CacheCollection = Collection;
 				for (UChaosCache* Cache : Collection->GetCaches())
 				{
 					if (!Cache)
@@ -66,18 +68,24 @@ void UActorFactoryCacheManager::PostSpawnActor(UObject* Asset, AActor* NewActor)
 						NewComponent->SetRelativeTransform(Template.ComponentTransform);
 						Manager->AddInstanceComponent(NewComponent);
 						NewComponent->RegisterComponent();
+						
+						if (UGeometryCollectionComponent* GCComp = Cast<UGeometryCollectionComponent>(NewComponent))
+						{
+							GCComp->ObjectType = EObjectStateTypeEnum::Chaos_Object_Kinematic;
+						}
+
+						NewComponent->BodyInstance.bSimulatePhysics = false;
 
 						FObservedComponent& Observed = Manager->AddNewObservedComponent(NewComponent);
-						// AddNewObservedComponent will have given this a unique name as if it was going to build a new cache, override to the actual cache name
 						Observed.CacheName = Cache->GetFName();
-						Observed.CacheMode = ECacheMode::Play;
-						Observed.StartMode = EStartMode::Timed;
-						Observed.TimedDuration = 0.0f;
 					}
 				}
 			}
 		}
-	}
+		// Caches placed in this fashion are for Playback, not recording.
+		Manager->CacheMode = ECacheMode::Play;
+		Manager->OnStartFrameChanged(0.0);
+	}	
 }
 
 UObject* UActorFactoryCacheManager::GetAssetFromActorInstance(AActor* ActorInstance)

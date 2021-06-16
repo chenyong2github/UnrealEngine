@@ -28,6 +28,10 @@ struct FParticleTransformTrack
 	UPROPERTY()
 	float BeginOffset;
 
+	/** If this flag is set true, the particle represented by this track deactives on the final keyframe. */
+	UPROPERTY()
+	bool bDeactivateOnEnd;
+
 	/**
 	 * The above raw track is just the key data and doesn't know at which time those keys are placed, this is
 	 * a list of the timestamps for each entry in TransformTrack
@@ -101,6 +105,11 @@ struct FPlaybackTickRecord
 		LastEventPerTrack.Reset();
 	}
 
+	void SetLastTime(float InTime)
+	{
+		LastTime = InTime;
+	}
+
 	float GetTime() const
 	{
 		return LastTime + CurrentDt;
@@ -161,6 +170,7 @@ struct FPendingParticleWrite
 {
 	int32                       ParticleIndex;
 	FTransform                  PendingTransform;
+	bool						bPendingDeactivate = false;
 	TArray<TPair<FName, float>> PendingCurveData;
 };
 
@@ -337,6 +347,14 @@ public:
 	/** Per component/cache curve data, any continuous data that isn't per-particle can be stored here */
 	UPROPERTY()
 	TMap<FName, FRichCurve> CurveData;
+
+	// Version for introducing new features to caches. If cache recording changes content or format of any caches,
+	// the version should be incremented and cache playback should accommodate older cache versions.
+	// The cache version is during InitializeForRecord in the appropriate adapter.
+	// 0
+	// 1 : Removed MassToLocal transform for GeometryCollection caches
+	UPROPERTY()
+	int32 Version;
 
 	template<typename T>
 	FCacheEventTrack& FindOrAddEventTrack(FName InName)
