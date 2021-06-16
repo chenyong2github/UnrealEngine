@@ -9,11 +9,7 @@
 #define LOCTEXT_NAMESPACE "UMG"
 
 void FTextJustifyCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
-{
-	const FMargin OuterPadding(2);
-	const FMargin ContentPadding(2);
-
-	
+{	
 	HeaderRow
 	.IsEnabled(TAttribute<bool>(PropertyHandle, &IPropertyHandle::IsEditable))
 	.NameContent()
@@ -22,55 +18,18 @@ void FTextJustifyCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> Prop
 	]
 	.ValueContent()
 	[
-		SNew(SHorizontalBox)
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(OuterPadding)
-		[
-			SNew( SCheckBox )
-			.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
-			.ToolTipText(LOCTEXT("AlignTextLeft", "Align Text Left"))
-			.Padding(ContentPadding)
-			.OnCheckStateChanged(this, &FTextJustifyCustomization::HandleCheckStateChanged, PropertyHandle, ETextJustify::Left)
-			.IsChecked(this, &FTextJustifyCustomization::GetCheckState, PropertyHandle, ETextJustify::Left)
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("HorizontalAlignment_Left"))
-			]
-		]
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(OuterPadding)
-		[
-			SNew(SCheckBox)
-			.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
-			.ToolTipText(LOCTEXT("AlignTextCenter", "Align Text Center"))
-			.Padding(ContentPadding)
-			.OnCheckStateChanged(this, &FTextJustifyCustomization::HandleCheckStateChanged, PropertyHandle, ETextJustify::Center)
-			.IsChecked(this, &FTextJustifyCustomization::GetCheckState, PropertyHandle, ETextJustify::Center)
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("HorizontalAlignment_Center"))
-			]
-		]
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(OuterPadding)
-		[
-			SNew(SCheckBox)
-			.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
-			.ToolTipText(LOCTEXT("AlignTextRight", "Align Text Right"))
-			.Padding(ContentPadding)
-			.OnCheckStateChanged(this, &FTextJustifyCustomization::HandleCheckStateChanged, PropertyHandle, ETextJustify::Right)
-			.IsChecked(this, &FTextJustifyCustomization::GetCheckState, PropertyHandle, ETextJustify::Right)
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::GetBrush("HorizontalAlignment_Right"))
-			]
-		]
+		SNew(SSegmentedControl<ETextJustify::Type>)
+		.Value(this, &FTextJustifyCustomization::GetCurrentJustification, PropertyHandle)
+		.OnValueChanged(this, &FTextJustifyCustomization::OnJustificationChanged, PropertyHandle)
+		+ SSegmentedControl<ETextJustify::Type>::Slot(ETextJustify::Left)
+		.Icon(FEditorStyle::GetBrush("HorizontalAlignment_Left"))
+		.ToolTip(LOCTEXT("AlignTextLeft", "Align Text Left"))
+		+ SSegmentedControl<ETextJustify::Type>::Slot(ETextJustify::Center)
+		.Icon(FEditorStyle::GetBrush("HorizontalAlignment_Center"))
+		.ToolTip(LOCTEXT("AlignTextCenter", "Align Text Center"))
+		+ SSegmentedControl<ETextJustify::Type>::Slot(ETextJustify::Right)
+		.Icon(FEditorStyle::GetBrush("HorizontalAlignment_Right"))
+		.ToolTip(LOCTEXT("AlignTextRight", "Align Text Right"))
 	];
 }
 
@@ -78,20 +37,20 @@ void FTextJustifyCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> Pr
 {
 }
 
-void FTextJustifyCustomization::HandleCheckStateChanged(ECheckBoxState InCheckboxState, TSharedRef<IPropertyHandle> PropertyHandle, ETextJustify::Type ToAlignment)
+void FTextJustifyCustomization::OnJustificationChanged(ETextJustify::Type NewState, TSharedRef<IPropertyHandle> PropertyHandle)
 {
-	PropertyHandle->SetValue((uint8)ToAlignment);
+	PropertyHandle->SetValue((uint8)NewState);
 }
 
-ECheckBoxState FTextJustifyCustomization::GetCheckState(TSharedRef<IPropertyHandle> PropertyHandle, ETextJustify::Type ForAlignment) const
+ETextJustify::Type FTextJustifyCustomization::GetCurrentJustification(TSharedRef<IPropertyHandle> PropertyHandle) const
 {
 	uint8 Value;
 	if ( PropertyHandle->GetValue(Value) == FPropertyAccess::Result::Success)
 	{
-		return Value == ForAlignment ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		return ETextJustify::Type(Value);
 	}
 
-	return ECheckBoxState::Unchecked;
+	return ETextJustify::Left;
 }
 
 #undef LOCTEXT_NAMESPACE

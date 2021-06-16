@@ -32,51 +32,26 @@ void FSlateChildSizeCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> P
 	.MaxDesiredWidth(TOptional<float>())
 	[
 		SNew(SHorizontalBox)
-
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.Padding(OuterPadding)
 		[
-			SNew(SUniformGridPanel)
-			.SlotPadding(OuterPadding)
-
-			+ SUniformGridPanel::Slot(0, 0)
-			[
-				SNew(SCheckBox)
-				.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
-				.ToolTipText(LOCTEXT("Auto_ToolTip", "Only requests as much room as it needs based on the widgets desired size."))
-				.Padding(ContentPadding)
-				.OnCheckStateChanged(this, &FSlateChildSizeCustomization::HandleCheckStateChanged, RuleHandle, ESlateSizeRule::Automatic)
-				.IsChecked(this, &FSlateChildSizeCustomization::GetCheckState, RuleHandle, ESlateSizeRule::Automatic)
-				.HAlign(HAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("Auto", "Auto"))
-				]
-			]
-
-			+ SUniformGridPanel::Slot(1, 0)
-			[
-				SNew(SCheckBox)
-				.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
-				.ToolTipText(LOCTEXT("Fill_ToolTip", "Greedily attempts to fill all available room based on the percentage value 0..1"))
-				.Padding(ContentPadding)
-				.OnCheckStateChanged(this, &FSlateChildSizeCustomization::HandleCheckStateChanged, RuleHandle, ESlateSizeRule::Fill)
-				.IsChecked(this, &FSlateChildSizeCustomization::GetCheckState, RuleHandle, ESlateSizeRule::Fill)
-				.HAlign(HAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("Fill", "Fill"))
-				]
-			]
+			SNew(SSegmentedControl<ESlateSizeRule::Type>)
+			.Value(this, &FSlateChildSizeCustomization::GetCurrentSizeRule, RuleHandle)
+			.OnValueChanged(this, &FSlateChildSizeCustomization::OnSizeRuleChanged, RuleHandle)
+			+ SSegmentedControl<ESlateSizeRule::Type>::Slot(ESlateSizeRule::Automatic)
+			.Text(LOCTEXT("Auto", "Auto"))
+			.ToolTip(LOCTEXT("Auto_ToolTip", "Only requests as much room as it needs based on the widgets desired size."))
+			+ SSegmentedControl<ESlateSizeRule::Type>::Slot(ESlateSizeRule::Fill)
+			.Text(LOCTEXT("Fill", "Fill"))
+			.ToolTip(LOCTEXT("Fill_ToolTip", "Greedily attempts to fill all available room based on the percentage value 0..1"))
 		]
-
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.Padding(OuterPadding)
 		[
 			SNew(SBox)
-			.WidthOverride(40)
+			.WidthOverride(45)
 			[
 				SNew( SNumericEntryBox<float> )
 				.LabelVAlign(VAlign_Center)
@@ -94,20 +69,20 @@ void FSlateChildSizeCustomization::CustomizeChildren(TSharedRef<IPropertyHandle>
 	
 }
 
-void FSlateChildSizeCustomization::HandleCheckStateChanged(ECheckBoxState InCheckboxState, TSharedPtr<IPropertyHandle> PropertyHandle, ESlateSizeRule::Type ToRule)
+void FSlateChildSizeCustomization::OnSizeRuleChanged(ESlateSizeRule::Type ToRule, TSharedPtr<IPropertyHandle> PropertyHandle)
 {
 	PropertyHandle->SetValue((uint8)ToRule);
 }
 
-ECheckBoxState FSlateChildSizeCustomization::GetCheckState(TSharedPtr<IPropertyHandle> PropertyHandle, ESlateSizeRule::Type ForRule) const
+ESlateSizeRule::Type FSlateChildSizeCustomization::GetCurrentSizeRule(TSharedPtr<IPropertyHandle> PropertyHandle) const
 {
 	uint8 Value;
-	if ( PropertyHandle->GetValue(Value) == FPropertyAccess::Result::Success )
+	if (PropertyHandle->GetValue(Value) == FPropertyAccess::Result::Success)
 	{
-		return Value == ForRule ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		return (ESlateSizeRule::Type)Value;
 	}
 
-	return ECheckBoxState::Unchecked;
+	return ESlateSizeRule::Automatic;
 }
 
 TOptional<float> FSlateChildSizeCustomization::GetValue(TSharedPtr<IPropertyHandle> ValueHandle) const
