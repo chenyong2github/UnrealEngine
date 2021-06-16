@@ -47,6 +47,7 @@ namespace Lumen
 	bool ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);
 	bool UseLumenSceneLightingForceFullUpdate();
 	bool UseVirtualShadowMaps();
+	void ExpandDistanceFieldUpdateTrackingBounds(const FSceneViewState* ViewState, DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds);
 
 	// Hardware ray tracing
 	bool UseHardwareRayTracing();

@@ -105,7 +105,7 @@ public:
 	FVector VoxelCoordToUVScale = FVector(0.0f);
 	FVector VoxelCoordToUVBias = FVector(0.0f);
 
-	TArray<FBox> PrimitiveModifiedBounds;
+	TArray<FRenderBounds> PrimitiveModifiedBounds;
 };
 
 class FLumenViewState
@@ -116,7 +116,7 @@ public:
 	FReflectionTemporalState ReflectionState;
 
 	// Voxel clipmaps
-	int32 NumClipmapLevels;
+	int32 NumClipmapLevels = 0;
 	FLumenVoxelLightingClipmapState VoxelLightingClipmapState[MaxVoxelClipmapLevels];
 	TRefCountPtr<IPooledRenderTarget> VoxelLighting;
 	TRefCountPtr<IPooledRenderTarget> VoxelVisBuffer;
