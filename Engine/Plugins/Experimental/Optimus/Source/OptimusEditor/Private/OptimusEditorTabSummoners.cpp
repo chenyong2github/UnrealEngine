@@ -1,4 +1,6 @@
-﻿#include "OptimusEditorTabSummoners.h"
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "OptimusEditorTabSummoners.h"
 
 #include "OptimusEditor.h"
 #include "SOptimusEditorGraphExplorer.h"
