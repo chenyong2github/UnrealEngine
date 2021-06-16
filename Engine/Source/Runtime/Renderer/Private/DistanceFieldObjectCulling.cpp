@@ -110,8 +110,8 @@ class FBuildTileConesCS : public FGlobalShader
 public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<FVector4>, RWTileConeAxisAndCos)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<FVector4>, RWTileConeDepthRanges)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FVector4>, RWTileConeAxisAndCos)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FVector4>, RWTileConeDepthRanges)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DistanceFieldNormalTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, DistanceFieldNormalSampler)
