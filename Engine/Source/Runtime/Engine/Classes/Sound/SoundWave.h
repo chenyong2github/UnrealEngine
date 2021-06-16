@@ -343,6 +343,7 @@ public:
 
 	void ReleaseCompressedAudio();
 
+	bool UseBinkAudio() const { return *bUseBinkAudioPtr; }
 	bool IsStreaming() const { return *bIsStreamingPtr; }
 	bool IsSeekableStreaming() const { return *bIsStreamingPtr && *bSeekableStreamingPtr; }
 	bool IsRetainingAudio() const { return FirstChunk.IsValid(); }
@@ -386,10 +387,14 @@ private:
 	FAudioChunkHandle FirstChunk;
 	ESoundWaveLoadingBehavior LoadingBehavior;
 
+	// These hold a reference to shared memory containing flags that need to get
+	// routed from the SoundWave. Whenever the relevant bool changes on the SoundWave,
+	// the ProxyPtr on the sound wave should get updated so we can see them.
 	TSharedPtr<FThreadSafeBool, ESPMode::ThreadSafe> bLoadingBehaviorOverriddenPtr;
 	TSharedPtr<FThreadSafeBool, ESPMode::ThreadSafe> bIsStreamingPtr;
 	TSharedPtr<FThreadSafeBool, ESPMode::ThreadSafe> bSeekableStreamingPtr;
 	TSharedPtr<FThreadSafeBool, ESPMode::ThreadSafe> bShouldUseStreamCachingPtr;
+	TSharedPtr<FThreadSafeBool, ESPMode::ThreadSafe> bUseBinkAudioPtr;
 
 #if WITH_EDITOR
 	TSharedPtr<FThreadSafeCounter> CurrentChunkRevision{ nullptr };
@@ -438,6 +443,14 @@ public:
 private:
 	// updated to reflect bSeekableStreaming in PostEditChangeProperty()
 	TSharedPtr<FThreadSafeBool, ESPMode::ThreadSafe> bIsSeekableStreamingProxyFlag{ MakeShared<FThreadSafeBool, ESPMode::ThreadSafe>() };
+public:
+
+	/** If true, the sound will compress to the Bink Audio format whenever available. */
+	UPROPERTY(EditAnywhere, Category = "Format")
+	uint8 bUseBinkAudio : 1;
+private:
+	// updated to reflect bUseBinkAudio in PostEditChangeProperty()
+	TSharedPtr<FThreadSafeBool, ESPMode::ThreadSafe> bUseBinkAudioProxyFlag{ MakeShared<FThreadSafeBool, ESPMode::ThreadSafe>() };
 public:
 
 	// Loading behavior members are lazily initialized in const getters

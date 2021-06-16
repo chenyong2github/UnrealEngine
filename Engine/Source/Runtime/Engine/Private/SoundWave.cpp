@@ -1811,8 +1811,10 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	static const FName SampleRateFName = GET_MEMBER_NAME_CHECKED(USoundWave,SampleRateQuality);
 	static const FName StreamingFName = GET_MEMBER_NAME_CHECKED(USoundWave, bStreaming);
 	static const FName SeekableStreamingFName = GET_MEMBER_NAME_CHECKED(USoundWave, bSeekableStreaming);
+	static const FName UseBinkAudioFName = GET_MEMBER_NAME_CHECKED(USoundWave, bUseBinkAudio);
 
 	// force proxy flags to be up to date
+	*bUseBinkAudioProxyFlag = bUseBinkAudio;
 	*bIsSeekableStreamingProxyFlag = bSeekableStreaming;
 	*bIsStreamingProxyFlag = IsStreaming(nullptr);
 	*bShouldUseStreamCachingProxyFlag = ShouldUseStreamCaching();
@@ -1824,7 +1826,7 @@ void USoundWave::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 		if (FProperty* PropertyThatChanged = PropertyChangedEvent.Property)
 		{
 			const FName& Name = PropertyThatChanged->GetFName();
-			if (Name == CompressionQualityFName || Name == SampleRateFName || Name == StreamingFName || Name == SeekableStreamingFName)
+			if (Name == CompressionQualityFName || Name == SampleRateFName || Name == StreamingFName || Name == SeekableStreamingFName || Name == UseBinkAudioFName)
 			{
 				InvalidateCompressedData();
 				FreeResources();
@@ -2492,6 +2494,7 @@ FSoundWaveProxyPtr USoundWave::CreateSoundWaveProxy()
 	EnsureZerothChunkIsLoaded();
 #endif // #if WITH_EDITORONLY_DATA
 
+	*bUseBinkAudioProxyFlag = bUseBinkAudio;
 	*bIsSeekableStreamingProxyFlag = bSeekableStreaming;
 	*bIsStreamingProxyFlag = IsStreaming(nullptr);
 	*bShouldUseStreamCachingProxyFlag = ShouldUseStreamCaching();
@@ -2505,6 +2508,7 @@ TUniquePtr<Audio::IProxyData> USoundWave::CreateNewProxyData(const Audio::FProxy
 	EnsureZerothChunkIsLoaded();
 #endif // #if WITH_EDITORONLY_DATA
 
+	*bUseBinkAudioProxyFlag = bUseBinkAudio;
 	*bIsSeekableStreamingProxyFlag = bSeekableStreaming;
 	*bIsStreamingProxyFlag = IsStreaming(nullptr);
 	*bShouldUseStreamCachingProxyFlag = ShouldUseStreamCaching();
@@ -3145,6 +3149,7 @@ FSoundWaveProxy::FSoundWaveProxy(USoundWave* InWave)
 	, bIsStreamingPtr(InWave->bIsStreamingProxyFlag)
 	, bSeekableStreamingPtr(InWave->bIsSeekableStreamingProxyFlag)
 	, bShouldUseStreamCachingPtr(InWave->bShouldUseStreamCachingProxyFlag)
+	, bUseBinkAudioPtr(InWave->bUseBinkAudioProxyFlag)
 #if WITH_EDITOR
 	, CurrentChunkRevision(InWave->CurrentChunkRevision)
 #endif // #if WITH_EDITOR

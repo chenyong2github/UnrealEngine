@@ -58,6 +58,7 @@ public class TargetPlatform : ModuleRules
 					DynamicallyLoadedModuleNames.Add("AudioFormatADPCM");
 					DynamicallyLoadedModuleNames.Add("AudioFormatOgg");
 					DynamicallyLoadedModuleNames.Add("AudioFormatOpus");
+					DynamicallyLoadedModuleNames.Add("AudioFormatBink");
 				}
 
 				if (Target.Type == TargetType.Editor || Target.Type == TargetType.Program)
@@ -78,6 +79,7 @@ public class TargetPlatform : ModuleRules
 					DynamicallyLoadedModuleNames.Add("AudioFormatADPCM");
 					DynamicallyLoadedModuleNames.Add("AudioFormatOgg");
 					DynamicallyLoadedModuleNames.Add("AudioFormatOpus");
+					DynamicallyLoadedModuleNames.Add("AudioFormatBink");
 				}
 
 			}
@@ -92,6 +94,7 @@ public class TargetPlatform : ModuleRules
 					DynamicallyLoadedModuleNames.Add("AudioFormatADPCM");
 					DynamicallyLoadedModuleNames.Add("AudioFormatOgg");
 					DynamicallyLoadedModuleNames.Add("AudioFormatOpus");
+					DynamicallyLoadedModuleNames.Add("AudioFormatBink");
 				}
 			}
 		}

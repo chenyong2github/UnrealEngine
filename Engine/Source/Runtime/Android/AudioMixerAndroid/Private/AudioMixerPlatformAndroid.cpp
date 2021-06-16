@@ -10,6 +10,7 @@
 #if WITH_ENGINE
 #include "VorbisAudioInfo.h"
 #include "ADPCMAudioInfo.h"
+#include "BinkAudioInfo.h"
 #include "AudioPluginUtilities.h"
 #endif
 
@@ -427,6 +428,12 @@ namespace Audio
 	{
 #if WITH_ENGINE
 		static FName NAME_ADPCM(TEXT("ADPCM"));
+		static const FName NAME_BINKA(TEXT("BINKA"));
+
+		if (InSoundWave->bUseBinkAudio)
+		{
+			return NAME_BINKA;
+		}
 
 		if (InSoundWave->IsSeekableStreaming())
 		{
@@ -454,8 +461,10 @@ namespace Audio
 	ICompressedAudioInfo* FMixerPlatformAndroid::CreateCompressedAudioInfo(USoundWave* InSoundWave)
 	{
 #if WITH_ENGINE
-		static FName NAME_OGG(TEXT("OGG"));
-		static FName NAME_ADPCM(TEXT("ADPCM"));
+		if (InSoundWave->bUseBinkAudio)
+		{
+			return new FBinkAudioInfo();
+		}
 
 		if (InSoundWave->IsSeekableStreaming())
 		{
@@ -476,8 +485,10 @@ namespace Audio
 		}
 
 #if WITH_ENGINE
-		static FName NAME_OGG(TEXT("OGG"));
-		static FName NAME_ADPCM(TEXT("ADPCM"));
+		if (InSoundWave->UseBinkAudio())
+		{
+			return new FBinkAudioInfo();
+		}
 
 		if (InSoundWave->IsSeekableStreaming())
 		{

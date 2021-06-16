@@ -10,7 +10,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreDelegates.h"
 #include "ADPCMAudioInfo.h"
-
+#include "BinkAudioInfo.h"
 
 /*
  This implementation only depends on the audio units API which allows it to run on MacOS, iOS and tvOS.
@@ -390,6 +390,12 @@ namespace Audio
 	
 	FName FMixerPlatformAudioUnit::GetRuntimeFormat(USoundWave* InSoundWave)
 	{
+		if (InSoundWave->bUseBinkAudio)
+		{
+			static const FName NAME_BINKA(TEXT("BINKA"));
+			return NAME_BINKA;
+		}
+
 		static FName NAME_ADPCM(TEXT("ADPCM"));
 		return NAME_ADPCM;
 	}
@@ -401,11 +407,20 @@ namespace Audio
 	
 	ICompressedAudioInfo* FMixerPlatformAudioUnit::CreateCompressedAudioInfo(USoundWave* InSoundWave)
 	{
+		if (InSoundWave->bUseBinkAudio)
+		{
+			return new FBinkAudioInfo();
+		}
 		return new FADPCMAudioInfo();
 	}
 
 	ICompressedAudioInfo* FMixerPlatformAudioUnit::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave)
 	{
+		if (InSoundWave->UseBinkAudio())
+		{
+			return new FBinkAudioInfo();
+		}
+
 		return new FADPCMAudioInfo();
 	}
 	

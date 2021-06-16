@@ -22,10 +22,16 @@ public class AudioMixerAudioUnit : ModuleRules
 
         if (Target.bCompileAgainstEngine)
         {
-            // Engine module is required for CompressedAudioInfo implementations.
-            PrivateDependencyModuleNames.Add("Engine");
+			// Engine module is required for CompressedAudioInfo implementations.
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"Engine",
+					"BinkAudioDecoder"
+				}
+			);
 
-            AddEngineThirdPartyPrivateStaticDependencies(Target,
+			AddEngineThirdPartyPrivateStaticDependencies(Target,
                 "UEOgg",
                 "Vorbis",
                 "VorbisFile"

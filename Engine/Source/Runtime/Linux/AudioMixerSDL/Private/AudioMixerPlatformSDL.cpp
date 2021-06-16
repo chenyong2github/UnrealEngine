@@ -12,6 +12,10 @@
 #include "OpusAudioInfo.h"
 #include "VorbisAudioInfo.h"
 #include "ADPCMAudioInfo.h"
+#if WITH_BINK_AUDIO
+#include "BinkAudioInfo.h"
+#endif // WITH_BINK_AUDIO
+
 #endif // WITH_ENGINE
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAudioMixerSDL, Log, All);
@@ -332,7 +336,14 @@ namespace Audio
 		static FName NAME_OGG(TEXT("OGG"));
 		static FName NAME_OPUS(TEXT("OPUS"));
 		static FName NAME_ADPCM(TEXT("ADPCM"));
-
+		
+#if WITH_BINK_AUDIO
+		static FName NAME_BINKA(TEXT("BINKA"));
+		if (InSoundWave->bUseBinkAudio)
+		{
+			return NAME_BINKA;
+		}
+#endif // WITH_BINK_AUDIO
 		if (InSoundWave->IsStreaming(nullptr))
 		{
 			if (InSoundWave->IsSeekableStreaming())
@@ -358,6 +369,13 @@ namespace Audio
 	{
 #if WITH_ENGINE
 		check(InSoundWave);
+
+#if WITH_BINK_AUDIO
+		if (InSoundWave->bUseBinkAudio)
+		{
+			return new FBinkAudioInfo();
+		}
+#endif // WITH_BINK_AUDIO
 
 		if (InSoundWave->IsStreaming())
 		{
@@ -385,6 +403,14 @@ namespace Audio
 	ICompressedAudioInfo* FMixerPlatformSDL::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave)
 	{
 #if WITH_ENGINE
+
+#if WITH_BINK_AUDIO
+		if (InSoundWave->UseBinkAudio())
+		{
+			return new FBinkAudioInfo();
+		}
+#endif // WITH_BINK_AUDIO
+
 		if (InSoundWave->IsStreaming())
 		{
 			if (InSoundWave->IsSeekableStreaming())
