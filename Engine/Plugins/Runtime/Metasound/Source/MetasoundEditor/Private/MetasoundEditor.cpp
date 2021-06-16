@@ -351,6 +351,7 @@ namespace Metasound
 			FString AssetPath = Metasound->GetPathName();
 			if (Frontend::FVersionDocument(AssetName, AssetPath).Transform(Document))
 			{
+				MetasoundAsset->RegisterGraphWithFrontend();
 				Metasound->MarkPackageDirty();
 			}
 			FGraphBuilder::SynchronizeGraph(*Metasound);
@@ -623,8 +624,8 @@ namespace Metasound
 				FToolBarExtensionDelegate::CreateLambda([this](FToolBarBuilder& ToolbarBuilder)
 				{
 				// TODO: Add OS SVD and clean this up post UE5.0 - Early Access
-// 					ToolbarBuilder.BeginSection("Utilities");
-// 					{
+ 					ToolbarBuilder.BeginSection("Utilities");
+ 					{
 // 						ToolbarBuilder.AddToolBarButton
 // 						(
 // 							FEditorCommands::Get().Import,
@@ -644,8 +645,21 @@ namespace Metasound
 // 							TAttribute<FSlateIcon>::Create([this]() { return GetExportStatusImage(); }),
 // 							"ExportMetasound"
 // 						);
-// 					}
-// 					ToolbarBuilder.EndSection();
+
+						if (!IsGraphEditable())
+						{
+							ToolbarBuilder.AddToolBarButton
+ 							(
+ 								FEditorCommands::Get().ConvertFromPreset,
+ 								NAME_None,
+ 								TAttribute<FText>(),
+ 								TAttribute<FText>(),
+ 								TAttribute<FSlateIcon>::Create([this]() { return GetExportStatusImage(); }),
+ 								"ConvertFromPreset"
+							);
+						}
+ 					}
+ 					ToolbarBuilder.EndSection();
 
 					if (Metasound->IsA<USoundBase>())
 					{
@@ -656,16 +670,20 @@ namespace Metasound
 						}
 						ToolbarBuilder.EndSection();
 					}
+
 					ToolbarBuilder.BeginSection("Utilities");
 					{
-						ToolbarBuilder.AddToolBarButton(
-							FEditorCommands::Get().EditGeneralSettings,
-							NAME_None,
-							TAttribute<FText>(),
-							TAttribute<FText>(),
-							TAttribute<FSlateIcon>::Create([this]() { return GetSettingsImage(); }),
-							"EditGeneralSettings"
-						);
+						if (Metasound->IsA<USoundBase>())
+						{
+							ToolbarBuilder.AddToolBarButton(
+								FEditorCommands::Get().EditSourceSettings,
+								NAME_None,
+								TAttribute<FText>(),
+								TAttribute<FText>(),
+								TAttribute<FSlateIcon>::Create([this]() { return GetSettingsImage(); }),
+								"EditSourceSettings"
+							);
+						}
 
 						ToolbarBuilder.AddToolBarButton(
 							FEditorCommands::Get().EditMetasoundSettings,
@@ -743,8 +761,12 @@ namespace Metasound
 				FExecuteAction::CreateSP(this, &FEditor::EditMetasoundSettings));
 
 			ToolkitCommands->MapAction(
-				Commands.EditGeneralSettings,
-				FExecuteAction::CreateSP(this, &FEditor::EditGeneralSettings));
+				Commands.EditSourceSettings,
+				FExecuteAction::CreateSP(this, &FEditor::EditSourceSettings));
+
+			ToolkitCommands->MapAction(
+				Commands.ConvertFromPreset,
+				FExecuteAction::CreateSP(this, &FEditor::ConvertFromPreset));
 
 			ToolkitCommands->MapAction(
 				FGenericCommands::Get().Delete,
@@ -923,24 +945,47 @@ namespace Metasound
 			}
 		}
 
-		void FEditor::ExecuteNode(UEdGraphNode* Node)
+		void FEditor::ExecuteNode(UEdGraphNode* InNode)
 		{
-			if (!IsPlaying())
+			using namespace Metasound;
+			using namespace Metasound::Frontend;
+
+			if (!GEditor)
 			{
 				return;
 			}
 
-			if (UMetasoundEditorGraphInputNode* InputNode = Cast<UMetasoundEditorGraphInputNode>(Node))
+			if (UMetasoundEditorGraphInputNode* InputNode = Cast<UMetasoundEditorGraphInputNode>(InNode))
 			{
-				if (UAudioComponent* PreviewComponent = GEditor->GetPreviewAudioComponent())
+				if (IsPlaying())
 				{
-					// TODO: fix how identifying the parameter to update is determined. It should not be done
-					// with a "DisplayName" but rather the vertex Guid.
-					if (TScriptInterface<IAudioParameterInterface> ParamInterface = PreviewComponent->GetParameterInterface())
+					if (UAudioComponent* PreviewComponent = GEditor->GetPreviewAudioComponent())
 					{
-						Metasound::Frontend::FConstNodeHandle NodeHandle = InputNode->GetConstNodeHandle();
-						Metasound::FVertexKey VertexKey = Metasound::FVertexKey(NodeHandle->GetDisplayName().ToString());
-						ParamInterface->Trigger(*VertexKey);
+						// TODO: fix how identifying the parameter to update is determined. It should not be done
+						// with a "DisplayName" but rather the vertex Guid.
+						if (TScriptInterface<IAudioParameterInterface> ParamInterface = PreviewComponent->GetParameterInterface())
+						{
+							FConstNodeHandle NodeHandle = InputNode->GetConstNodeHandle();
+							FVertexKey VertexKey = Metasound::FVertexKey(NodeHandle->GetDisplayName().ToString());
+							ParamInterface->Trigger(*VertexKey);
+						}
+					}
+				}
+			}
+			else if (UMetasoundEditorGraphExternalNode* ExternalNode = Cast<UMetasoundEditorGraphExternalNode>(InNode))
+			{
+				FConstNodeHandle NodeHandle = ExternalNode->GetConstNodeHandle();
+				FNodeRegistryKey Key = FMetasoundFrontendRegistryContainer::Get()->GetRegistryKey(NodeHandle->GetClassMetadata());
+
+				FNodeClassInfo ClassInfo;
+				if (FMetasoundFrontendRegistryContainer::Get()->FindNodeClassInfoFromRegistered(Key, ClassInfo))
+				{
+					if (ClassInfo.AssetClassID.IsValid())
+					{
+						if (UObject* AssetObject = ClassInfo.LoadAsset())
+						{
+							GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AssetObject);
+						}
 					}
 				}
 			}
@@ -967,7 +1012,25 @@ namespace Metasound
 			SetSelection({ Metasound });
 		}
 
-		void FEditor::EditGeneralSettings()
+		void FEditor::ConvertFromPreset()
+		{
+			check(GEditor);
+
+			if (Metasound)
+			{
+				FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
+				check(MetasoundAsset);
+				MetasoundAsset->ConvertFromPreset();
+
+				// Hack until toolbar is polished up & corner text properly dynamically updates
+				if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
+				{
+					AssetEditorSubsystem->CloseAllEditorsForAsset(Metasound);
+				}
+			}
+		}
+
+		void FEditor::EditSourceSettings()
 		{
 			if (UMetasoundEditorSettings* EditorSettings = GetMutableDefault<UMetasoundEditorSettings>())
 			{
@@ -1048,8 +1111,11 @@ namespace Metasound
 				GraphEditorCommands->MapAction(FEditorCommands::Get().EditMetasoundSettings,
 					FExecuteAction::CreateSP(this, &FEditor::EditMetasoundSettings));
 
-				GraphEditorCommands->MapAction(FEditorCommands::Get().EditGeneralSettings,
-					FExecuteAction::CreateSP(this, &FEditor::EditGeneralSettings));
+				if (Metasound->IsA<UMetaSoundSource>())
+				{
+					GraphEditorCommands->MapAction(FEditorCommands::Get().EditSourceSettings,
+						FExecuteAction::CreateSP(this, &FEditor::EditSourceSettings));
+				}
 
 				GraphEditorCommands->MapAction(FEditorCommands::Get().AddInput,
 					FExecuteAction::CreateSP(this, &FEditor::AddInput),

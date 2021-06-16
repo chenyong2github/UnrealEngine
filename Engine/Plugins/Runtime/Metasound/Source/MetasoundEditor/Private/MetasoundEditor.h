@@ -232,10 +232,13 @@ namespace Metasound
 			/** Sync the content browser to the current selection of nodes */
 			void SyncInBrowser();
 
-			/** Show the Metasound object's General settings in the Inspector */
-			void EditGeneralSettings();
+			/** Converts the MetaSound from a preset to a fully modifiable MetaSound. */
+			void ConvertFromPreset();
 
-			/** Show the Metasound object's Metasound-specific settings in the Inspector */
+			/** Show the Metasound object's Source settings in the Inspector */
+			void EditSourceSettings();
+
+			/** Show the Metasound object's settings in the Inspector */
 			void EditMetasoundSettings();
 
 			/** Add an input to the currently selected node */

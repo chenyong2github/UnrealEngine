@@ -26,6 +26,8 @@
 #endif // WITH_EDITORONLY_DATA
 
 #define LOCTEXT_NAMESPACE "MetaSound"
+
+
 UMetaSound::UMetaSound(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, FMetasoundAssetBase()
@@ -36,8 +38,9 @@ UMetaSound::UMetaSound(const FObjectInitializer& ObjectInitializer)
 void UMetaSound::PreSave(FObjectPreSaveContext SaveContext)
 {
 	Super::PreSave(SaveContext);
-	UpdateAssetTags(AssetTags);
-	RegisterGraphWithFrontend();
+
+	// TODO: Enable Composition
+	// RegisterGraphWithFrontend();
 }
 
 void UMetaSound::PostEditUndo()
@@ -53,6 +56,7 @@ void UMetaSound::PostEditUndo()
 void UMetaSound::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 {
 	Super::PostEditChangeProperty(InEvent);
+	Metasound::PostEditChangeProperty(*this, InEvent);
 }
 
 #endif // WITHEDITOR
@@ -85,15 +89,16 @@ FText UMetaSound::GetDisplayName() const
 	FString TypeName = UMetaSound::StaticClass()->GetName();
 	return FMetasoundAssetBase::GetDisplayName(MoveTemp(TypeName));
 }
+
+void UMetaSound::SetRegistryAssetClassInfo(const Metasound::Frontend::FNodeClassInfo& InNodeInfo)
+{
+	Metasound::SetMetaSoundRegistryAssetClassInfo(*this, InNodeInfo);
+}
 #endif // WITH_EDITORONLY_DATA
 
-void UMetaSound::ConvertFromPreset()
+Metasound::Frontend::FNodeClassInfo UMetaSound::GetAssetClassInfo() const
 {
-	using namespace Metasound::Frontend;
-	FGraphHandle GraphHandle = GetRootGraphHandle();
-	FMetasoundFrontendGraphStyle Style = GraphHandle->GetGraphStyle();
-	Style.bIsGraphEditable = true;
-	GraphHandle->SetGraphStyle(Style);
+	return { GetDocumentChecked().RootGraph, *GetPathName() };
 }
 
 const FMetasoundFrontendArchetype& UMetaSound::GetArchetype() const
@@ -140,7 +145,7 @@ const FMetasoundFrontendArchetype& UMetaSound::GetBaseArchetype()
 	auto CreateBaseArchetype = []() -> FMetasoundFrontendArchetype
 	{
 		FMetasoundFrontendArchetype Archetype;
-		
+
 		FMetasoundFrontendEnvironmentVariable AudioDeviceHandle;
 		AudioDeviceHandle.Name = GetAudioDeviceHandleVariableName();
 		AudioDeviceHandle.Metadata.DisplayName = FText::FromString(AudioDeviceHandle.Name);

@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundFrontendTransform.h"
 
+#include "CoreMinimal.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundLog.h"
+#include "Misc/App.h"
+
 
 namespace Metasound
 {
@@ -182,7 +185,7 @@ namespace Metasound
 
 			FMetasoundFrontendVersionNumber GetTargetVersion() const override
 			{
-				return FVersionDocument::GetMaxVersion();
+				return { 1, 2 };
 			}
 
 			void TransformInternal(FDocumentHandle InDocument) const override
@@ -192,7 +195,29 @@ namespace Metasound
 
 				Metadata.ClassName = FMetasoundFrontendClassName { "GraphAsset", Name, *Path };
 				Metadata.DisplayName = FText::FromString(Name.ToString());
+				GraphHandle->SetGraphMetadata(Metadata);
+			}
+		};
 
+		/** Versions document from 1.1 to 1.3. */
+		class FVersionDocument_1_3 : public FVersionDocumentTransform
+		{
+		public:
+			FVersionDocument_1_3()
+			{
+			}
+
+			FMetasoundFrontendVersionNumber GetTargetVersion() const override
+			{
+				return FVersionDocument::GetMaxVersion();
+			}
+
+			void TransformInternal(FDocumentHandle InDocument) const override
+			{
+				FGraphHandle GraphHandle = InDocument->GetRootGraph();
+				FMetasoundFrontendClassMetadata Metadata = GraphHandle->GetGraphMetadata();
+
+				Metadata.ClassName = FMetasoundFrontendClassName { FName(), *FGuid::NewGuid().ToString(), FName() };
 				GraphHandle->SetGraphMetadata(Metadata);
 			}
 		};
@@ -215,6 +240,8 @@ namespace Metasound
 			// Add additional transforms here after defining them above, example below.
 			bWasUpdated |= FVersionDocument_1_1().Transform(InDocument);
 			bWasUpdated |= FVersionDocument_1_2(Name, Path).Transform(InDocument);
+			bWasUpdated |= FVersionDocument_1_3().Transform(InDocument);
+
 			return bWasUpdated;
 		}
 	} // namespace Frontend

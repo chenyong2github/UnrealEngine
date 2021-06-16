@@ -136,7 +136,7 @@ namespace Metasound
 
 			// Initializes a MetaSound Preset using the provided ReferencedMetaSound asset's
 			// root graph as the sole, encapsulated topology.
-			static void InitMetaSoundPreset(const UObject& InMetaSoundReferenced, UObject& InMetaSoundPreset);
+			static void InitMetaSoundPreset(UObject& InMetaSoundReferenced, UObject& InMetaSoundPreset);
 
 			// Rebuilds all editor node pins based on the provided node handle's class definition.
 			static void RebuildNodePins(UMetasoundEditorGraphNode& InGraphNode);

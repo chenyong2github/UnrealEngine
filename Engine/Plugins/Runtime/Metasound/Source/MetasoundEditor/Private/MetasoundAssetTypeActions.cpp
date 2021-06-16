@@ -153,6 +153,7 @@ namespace Metasound
 		void FAssetTypeActions_MetaSoundSource::RegisterMenuActions()
 		{
 			using namespace AssetTypeActionsPrivate;
+			// TODO: Enable Composition
 			// RegisterPresetAction<UMetaSoundSource, UMetaSoundSourceFactory>(SourcePresetLabel, SourcePresetToolTip);
 			// RegisterPresetAction<UMetaSound, UMetaSoundFactory, UMetaSoundSource>(PresetLabel, PresetToolTip);
 		}

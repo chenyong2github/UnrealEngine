@@ -170,7 +170,7 @@ namespace Metasound
 					if (DataTypeEntry.IsValid())
 					{
 						FrontendClass = DataTypeEntry->GetFrontendInputClass();
-						ClassInfo = FNodeClassInfo(FrontendClass);
+						ClassInfo = FNodeClassInfo(FrontendClass.Metadata);
 					}
 				}
 
@@ -233,7 +233,7 @@ namespace Metasound
 					if (DataTypeEntry.IsValid())
 					{
 						FrontendClass = DataTypeEntry->GetFrontendOutputClass();
-						ClassInfo = FNodeClassInfo(FrontendClass);
+						ClassInfo = FNodeClassInfo(FrontendClass.Metadata);
 					}
 				}
 
@@ -296,7 +296,7 @@ namespace Metasound
 					if (DataTypeEntry.IsValid())
 					{
 						FrontendClass = DataTypeEntry->GetFrontendVariableClass();
-						ClassInfo = FNodeClassInfo(FrontendClass);
+						ClassInfo = FNodeClassInfo(FrontendClass.Metadata);
 					}
 				}
 
@@ -985,20 +985,30 @@ namespace Metasound
 		}
 
 		FNodeClassInfo::FNodeClassInfo(const FMetasoundFrontendClassMetadata& InMetadata)
-		: ClassName(InMetadata.ClassName)
-		, Type(InMetadata.Type)
-		, Version(InMetadata.Version)
+			: ClassName(InMetadata.ClassName)
+			, Type(InMetadata.Type)
+			, Version(InMetadata.Version)
 		{
 		}
 
-		FNodeClassInfo::FNodeClassInfo(const FMetasoundFrontendClass& InClass)
-		: FNodeClassInfo(InClass.Metadata)
+		FNodeClassInfo::FNodeClassInfo(const FMetasoundFrontendGraphClass& InClass, FName InAssetPath)
+			: ClassName(InClass.Metadata.ClassName)
+			, Type(EMetasoundFrontendClassType::External) // Overridden as it is considered the same as an external class in the registry
+			, AssetClassID(FGuid(ClassName.Name.ToString()))
+			, AssetPath(InAssetPath)
+			, Version(InClass.Metadata.Version)
 		{
-		}
+			ensure(!AssetPath.IsNone());
 
-		FNodeClassInfo::FNodeClassInfo(const FNodeClassMetadata& InMetadata)
-		: FNodeClassInfo(FMetasoundFrontendClassMetadata(InMetadata))
-		{
+			for (const FMetasoundFrontendClassInput& Input : InClass.Interface.Inputs)
+			{
+				InputTypes.Add(Input.TypeName);
+			}
+
+			for (const FMetasoundFrontendClassOutput& Output : InClass.Interface.Outputs)
+			{
+				OutputTypes.Add(Output.TypeName);
+			}
 		}
 	} // namespace Frontend
 } // namespace Metasound

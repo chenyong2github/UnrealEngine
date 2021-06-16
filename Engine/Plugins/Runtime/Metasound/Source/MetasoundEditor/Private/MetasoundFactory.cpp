@@ -22,16 +22,6 @@ namespace Metasound
 
 			if (InReferencedMetaSoundObject)
 			{
-				// Ensure referenced MetaSound is up-to-date
-				FMetasoundAssetBase* RefMetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(InReferencedMetaSoundObject);
-				check(RefMetasoundAsset);
-				FName Name = InReferencedMetaSoundObject->GetFName();
-				FString Path = InReferencedMetaSoundObject->GetPathName();
-				if (Frontend::FVersionDocument(Name, Path).Transform(RefMetasoundAsset->GetDocumentHandle()))
-				{
-					InReferencedMetaSoundObject->MarkPackageDirty();
-				}
-
 				FGraphBuilder::InitMetaSound(*MetaSoundObject, UKismetSystemLibrary::GetPlatformUserName(), false /* bConformToArchetype */);
 				FGraphBuilder::InitMetaSoundPreset(*InReferencedMetaSoundObject, *MetaSoundObject);
 			}

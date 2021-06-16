@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundEditorModule.h"
 
+
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistryModule.h"
 #include "AssetTypeActions_Base.h"
 #include "Brushes/SlateImageBrush.h"
@@ -12,8 +15,8 @@
 #include "IDetailCustomization.h"
 #include "ISettingsModule.h"
 #include "Metasound.h"
-#include "MetasoundAudioBuffer.h"
 #include "MetasoundAssetTypeActions.h"
+#include "MetasoundAudioBuffer.h"
 #include "MetasoundDetailCustomization.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphBuilder.h"
@@ -21,11 +24,13 @@
 #include "MetasoundEditorGraphNodeFactory.h"
 #include "MetasoundEditorGraphSchema.h"
 #include "MetasoundEditorSettings.h"
+#include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundNodeDetailCustomization.h"
 #include "MetasoundSource.h"
 #include "MetasoundTime.h"
 #include "MetasoundTrigger.h"
+#include "MetasoundUObjectRegistry.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorDelegates.h"
@@ -45,7 +50,7 @@ namespace Metasound
 {
 	namespace Editor
 	{
-		static const FName AssetToolName = TEXT("AssetTools");
+		static const FName AssetToolName { "AssetTools" };
 
 		template <typename T>
 		void AddAssetAction(IAssetTools& AssetTools, TArray<TSharedPtr<FAssetTypeActions_Base>>& AssetArray)
@@ -134,6 +139,52 @@ namespace Metasound
 
 		class FModule : public IMetasoundEditorModule
 		{
+			void AddOrUpdateClassRegistryAsset(const FAssetData& InAssetData)
+			{
+				using namespace Metasound;
+				using namespace Metasound::Frontend;
+
+				if (IsMetaSoundAssetClass(InAssetData.AssetClass))
+				{
+					UMetaSoundAssetSubsystem::Get().AddOrUpdateAsset(InAssetData);
+				}
+			}
+
+			void InitializeAssetClassRegistry()
+			{
+				FARFilter Filter;
+				Filter.ClassNames = MetaSoundClassNames;
+
+				FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+				AssetRegistryModule.Get().EnumerateAssets(Filter, [this](const FAssetData& AssetData) { AddOrUpdateClassRegistryAsset(AssetData); return true; });
+				AssetRegistryModule.Get().OnAssetAdded().AddRaw(this, &FModule::AddOrUpdateClassRegistryAsset);
+				AssetRegistryModule.Get().OnAssetUpdated().AddRaw(this, &FModule::AddOrUpdateClassRegistryAsset);
+				AssetRegistryModule.Get().OnAssetRemoved().AddRaw(this, &FModule::RemoveAssetFromClassRegistry);
+				AssetRegistryModule.Get().OnAssetRenamed().AddRaw(this, &FModule::RenameAssetInClassRegistry);
+			}
+
+			void RemoveAssetFromClassRegistry(const FAssetData& InAssetData)
+			{
+				using namespace Metasound;
+				using namespace Metasound::Frontend;
+
+				if (IsMetaSoundAssetClass(InAssetData.AssetClass))
+				{
+					UMetaSoundAssetSubsystem::Get().RemoveAsset(InAssetData);
+				}
+			}
+
+			void RenameAssetInClassRegistry(const FAssetData& InAssetData, const FString& InOldObjectPath)
+			{
+				using namespace Metasound;
+				using namespace Metasound::Frontend;
+
+				if (IsMetaSoundAssetClass(InAssetData.AssetClass))
+				{
+					UMetaSoundAssetSubsystem::Get().AddOrUpdateAsset(InAssetData);
+				}
+			}
+
 			void RegisterNodeInputClasses()
 			{
 				TSubclassOf<UMetasoundEditorGraphInputLiteral> NodeClass;
@@ -160,49 +211,6 @@ namespace Metasound
 						NodeInputClassRegistry.Add(InputCDO->GetLiteralType(), InputCDO->GetClass());
 					}
 				}
-			}
-
-			const TSubclassOf<UMetasoundEditorGraphInputLiteral> FindInputLiteralClass(EMetasoundFrontendLiteralType InLiteralType) const override
-			{
-				return NodeInputClassRegistry.FindRef(InLiteralType);
-			}
-
-			virtual const FEditorDataType& FindDataType(FName InDataTypeName) const override
-			{
-				return DataTypeInfo.FindChecked(InDataTypeName);
-			}
-
-			virtual bool IsRegisteredDataType(FName InDataTypeName) const override
-			{
-				return DataTypeInfo.Contains(InDataTypeName);
-			}
-
-			virtual void IterateDataTypes(TUniqueFunction<void(const FEditorDataType&)> InDataTypeFunction) const override
-			{
-				for (const TPair<FName, FEditorDataType>& Pair : DataTypeInfo)
-				{
-					InDataTypeFunction(Pair.Value);
-				}
-			}
-
-			virtual void RegisterDataType(FName InPinCategoryName, FName InPinSubCategoryName, const FDataTypeRegistryInfo& InRegistryInfo) override
-			{
-				const bool bIsArray = InRegistryInfo.IsArrayType();
-				const EPinContainerType ContainerType = bIsArray ? EPinContainerType::Array : EPinContainerType::None;
-				FEdGraphPinType PinType(InPinCategoryName, InPinSubCategoryName, nullptr, ContainerType, false, FEdGraphTerminalType());
-				DataTypeInfo.Emplace(InRegistryInfo.DataTypeName, Editor::FEditorDataType(MoveTemp(PinType), InRegistryInfo));
-			}
-
-			static bool GetClassAssetData(const FAssetData& InAssetData, FMetasoundFrontendClassAssetTags& OutTags)
-			{
-				bool bSuccess = false;
-				bSuccess |= InAssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassAssetTags, ID), OutTags.ID);
-				bSuccess |= InAssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassAssetTags, Namespace), OutTags.Namespace);
-				bSuccess |= InAssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassAssetTags, Name), OutTags.Name);
-				bSuccess |= InAssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassAssetTags, MajorVersion), OutTags.MajorVersion);
-				bSuccess |= InAssetData.GetTagValue(GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassAssetTags, MinorVersion), OutTags.MinorVersion);
-
-				return bSuccess;
 			}
 
 			void RegisterCoreDataTypes()
@@ -309,54 +317,59 @@ namespace Metasound
 				}
 			}
 
-			//void AddOrUpdateAssetTags(const FAssetData& InAssetData)
-			//{
-			//	FMetasoundFrontendClassAssetTags TagData;
-			//	if (GetClassAssetData(InAssetData, TagData))
-			//	{
-			//		AssetTagData.FindOrAdd(TagData.ID) = MoveTemp(TagData);
-			//	}
-			//}
-
-			//void RemoveAssetTags(const FAssetData& InAssetData)
-			//{
-			//	FMetasoundFrontendClassAssetTags TagData;
-			//	if (!GetClassAssetData(InAssetData, TagData))
-			//	{
-			//		AssetTagData.Remove(TagData.ID);
-			//	}
-			//}
-
-			void RegisterAssetData()
+			void ShutdownAssetClassRegistry()
 			{
-				//FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-
-				//FARFilter Filter;
-				//Filter.ClassNames.Add(UMetaSound::StaticClass()->GetFName());
-				//Filter.ClassNames.Add(UMetaSoundSource::StaticClass()->GetFName());
-
-				//AssetRegistryModule.Get().EnumerateAssets(Filter, [this](const FAssetData& AssetData) { AddOrUpdateAssetTags(AssetData); return true; });
-				//AssetRegistryModule.Get().OnAssetAdded().AddRaw(this, &FModule::AddOrUpdateAssetTags);
-				//AssetRegistryModule.Get().OnAssetUpdated().AddRaw(this, &FModule::AddOrUpdateAssetTags);
-				//AssetRegistryModule.Get().OnAssetRemoved().AddRaw(this, &FModule::RemoveAssetTags);
+				if (FAssetRegistryModule* AssetRegistryModule = static_cast<FAssetRegistryModule*>(FModuleManager::Get().GetModule("AssetRegistry")))
+				{
+					AssetRegistryModule->Get().OnAssetAdded().RemoveAll(this);
+					AssetRegistryModule->Get().OnAssetUpdated().RemoveAll(this);
+					AssetRegistryModule->Get().OnAssetRemoved().RemoveAll(this);
+					AssetRegistryModule->Get().OnAssetRenamed().RemoveAll(this);
+				}
 			}
 
-			void UnregisterAssetData()
+			virtual const TSubclassOf<UMetasoundEditorGraphInputLiteral> FindInputLiteralClass(EMetasoundFrontendLiteralType InLiteralType) const override
 			{
-				//AssetTagData.Reset();
+				return NodeInputClassRegistry.FindRef(InLiteralType);
+			}
 
-				//if (FAssetRegistryModule* AssetRegistryModule = static_cast<FAssetRegistryModule*>(FModuleManager::Get().GetModule("AssetRegistry")))
-				//{
-				//	AssetRegistryModule->Get().OnAssetAdded().RemoveAll(this);
-				//	AssetRegistryModule->Get().OnAssetUpdated().RemoveAll(this);
-				//	AssetRegistryModule->Get().OnAssetRemoved().RemoveAll(this);
-				//}
+			virtual const FEditorDataType& FindDataType(FName InDataTypeName) const override
+			{
+				return DataTypeInfo.FindChecked(InDataTypeName);
+			}
+
+			virtual bool IsRegisteredDataType(FName InDataTypeName) const override
+			{
+				return DataTypeInfo.Contains(InDataTypeName);
+			}
+
+			virtual void IterateDataTypes(TUniqueFunction<void(const FEditorDataType&)> InDataTypeFunction) const override
+			{
+				for (const TPair<FName, FEditorDataType>& Pair : DataTypeInfo)
+				{
+					InDataTypeFunction(Pair.Value);
+				}
+			}
+
+			virtual void RegisterDataType(FName InPinCategoryName, FName InPinSubCategoryName, const FDataTypeRegistryInfo& InRegistryInfo) override
+			{
+				const bool bIsArray = InRegistryInfo.IsArrayType();
+				const EPinContainerType ContainerType = bIsArray ? EPinContainerType::Array : EPinContainerType::None;
+				FEdGraphPinType PinType(InPinCategoryName, InPinSubCategoryName, nullptr, ContainerType, false, FEdGraphTerminalType());
+				DataTypeInfo.Emplace(InRegistryInfo.DataTypeName, Editor::FEditorDataType(MoveTemp(PinType), InRegistryInfo));
+			}
+
+			virtual bool IsMetaSoundAssetClass(const FName InClassName) const override
+			{
+				return MetaSoundClassNames.Contains(InClassName);
 			}
 
 			virtual void StartupModule() override
 			{
 				// Register Metasound asset type actions
 				IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(AssetToolName).Get();
+
+				// TODO: Enable Composition
 				//AddAssetAction<FAssetTypeActions_MetaSound>(AssetTools, AssetActions);
 				AddAssetAction<FAssetTypeActions_MetaSoundSource>(AssetTools, AssetActions);
 
@@ -392,7 +405,6 @@ namespace Metasound
 
 				StyleSet = MakeShared<FSlateStyle>();
 
-				RegisterAssetData();
 				RegisterCoreDataTypes();
 				RegisterNodeInputClasses();
 
@@ -413,8 +425,13 @@ namespace Metasound
 					GetMutableDefault<UMetasoundEditorSettings>()
 				);
 
+				MetaSoundClassNames.Add(UMetaSound::StaticClass()->GetFName());
+				MetaSoundClassNames.Add(UMetaSoundSource::StaticClass()->GetFName());
+
+				//  TODO: Enable Composition
 				//FAssetTypeActions_MetaSound::RegisterMenuActions();
 				//FAssetTypeActions_MetaSoundSource::RegisterMenuActions();
+				// InitializeAssetClassRegistry();
 			}
 
 			virtual void ShutdownModule() override
@@ -450,13 +467,15 @@ namespace Metasound
 					GraphPanelPinFactory.Reset();
 				}
 
-				UnregisterAssetData();
+				//  TODO: Enable Composition
+				// ShutdownAssetClassRegistry();
 
 				AssetActions.Reset();
 				DataTypeInfo.Reset();
+				MetaSoundClassNames.Reset();
 			}
 
-			//TMap<FGuid, FMetasoundFrontendClassAssetTags> AssetTagData;
+			TArray<FName> MetaSoundClassNames;
 
 			TArray<TSharedPtr<FAssetTypeActions_Base>> AssetActions;
 			TMap<FName, FEditorDataType> DataTypeInfo;

@@ -1,5 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -11,6 +10,7 @@
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundRouter.h"
+
 
 namespace Metasound
 {
@@ -64,14 +64,46 @@ namespace Metasound
 		 */
 		struct METASOUNDFRONTEND_API FNodeClassInfo
 		{
+			// ClassName of the given class
 			FMetasoundFrontendClassName ClassName;
+
+			// The type of this node class
 			EMetasoundFrontendClassType Type = EMetasoundFrontendClassType::Invalid;
+
+			// The ID used for the Asset Classes. If zero, class is natively defined.
+			FGuid AssetClassID;
+
+			// Path to asset containing graph if external type and references asset class.
+			FName AssetPath;
+
+			// Version of the registered class
 			FMetasoundFrontendVersionNumber Version;
 
+			// Types of class inputs
+			TArray<FName> InputTypes;
+
+			// Types of class outputs
+			TArray<FName> OutputTypes;
+
 			FNodeClassInfo() = default;
+
+			// Constructor used to generate NodeClassInfo from a native class' Metadata.
 			FNodeClassInfo(const FMetasoundFrontendClassMetadata& InMetadata);
-			FNodeClassInfo(const FMetasoundFrontendClass& InClass);
-			FNodeClassInfo(const FNodeClassMetadata& InMetadata);
+
+			// Constructor used to generate NodeClassInfo from an asset
+			FNodeClassInfo(const FMetasoundFrontendGraphClass& InClass, FName InAssetPath);
+
+			// Loads the asset from the provided path, ensuring that the class is of type graph.
+			UObject* LoadAsset() const
+			{
+				if (ensure(Type == EMetasoundFrontendClassType::External))
+				{
+					FSoftObjectPath SoftObjectPath(AssetPath);
+					return SoftObjectPath.TryLoad();
+				}
+
+				return nullptr;
+			}
 		};
 
 		/** INodeRegistryEntry declares the interface for a node registry entry.
@@ -434,7 +466,7 @@ public:
 	 *
 	 * @param InKey - The registration key for the node.
 	 *
-	 * @return True on success, false on failer.
+	 * @return True on success, false on failure.
 	 */
 	virtual bool UnregisterNode(const FNodeRegistryKey& InKey) = 0;
 

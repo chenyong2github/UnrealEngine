@@ -773,7 +773,7 @@ namespace Metasound
 			FMetasoundFrontendClassMetadata Metadata;
 
 			// 1. Set default class Metadata
-			Metadata.ClassName = FMetasoundFrontendClassName("GraphAsset", InMetaSound.GetFName(), *InMetaSound.GetPathName());
+			Metadata.ClassName = FMetasoundFrontendClassName(FName(), *FGuid::NewGuid().ToString(), FName());
 			Metadata.Version.Major = 1;
 			Metadata.Version.Minor = 0;
 			Metadata.DisplayName = FText::FromString(InMetaSound.GetName());
@@ -784,7 +784,7 @@ namespace Metasound
 			check(MetaSoundAsset);
 			MetaSoundAsset->SetMetadata(Metadata);
 
-			// 2. Set default version Metadata
+			// 2. Set default doc version Metadata
 			FDocumentHandle DocumentHandle = MetaSoundAsset->GetDocumentHandle();
 			FMetasoundFrontendDocumentMetadata DocMetadata = DocumentHandle->GetMetadata();
 			DocMetadata.Version.Number = FVersionDocument::GetMaxVersion();
@@ -824,14 +824,16 @@ namespace Metasound
 				Style.Display.Locations.Add(FGuid::NewGuid(), NewLocation);
 				NodeHandle->SetNodeStyle(Style);
 			}
+
+			MetaSoundAsset->RegisterGraphWithFrontend();
 		}
 
-		void FGraphBuilder::InitMetaSoundPreset(const UObject& InMetaSoundReferenced, UObject& InMetaSoundPreset)
+		void FGraphBuilder::InitMetaSoundPreset(UObject& InMetaSoundReferenced, UObject& InMetaSoundPreset)
 		{
 			using namespace Frontend;
 			using namespace GraphBuilderPrivate;
 
-			const FMetasoundAssetBase* MetaSoundReferencedAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSoundReferenced);
+			FMetasoundAssetBase* MetaSoundReferencedAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSoundReferenced);
 			check(MetaSoundReferencedAsset);
 
 			FConstGraphHandle ReferencedGraphHandle = MetaSoundReferencedAsset->GetRootGraphHandle();
@@ -847,6 +849,20 @@ namespace Metasound
 			{
 				return;
 			}
+
+			// Ensure referenced MetaSound is up-to-date
+			check(MetaSoundReferencedAsset);
+			FName Name = InMetaSoundReferenced.GetFName();
+			FString Path = InMetaSoundReferenced.GetPathName();
+			if (Frontend::FVersionDocument(Name, Path).Transform(MetaSoundReferencedAsset->GetDocumentHandle()))
+			{
+				InMetaSoundReferenced.MarkPackageDirty();
+			}
+
+			// Ensure asset is registered with frontend so the class
+			// can be queried when reference is added. This may modify
+			// registry properties, so must be non-const.
+			MetaSoundReferencedAsset->RegisterGraphWithFrontend();
 
 			// Initialize EdGraph, but don't conform to archetype as this would provide the
 			// default interface (inputs/outputs), which will be added below when duplicating
@@ -872,71 +888,82 @@ namespace Metasound
 			FVector2D ExternalNodeLocation = InputNodeLocation + NodeLayout::BufferX;
 			FVector2D OutputNodeLocation = ExternalNodeLocation + NodeLayout::BufferX;
 
-			ReferencedGraphHandle->IterateConstNodes([&](FConstNodeHandle InputNode)
+			TMap<FString, FString> PresetInputToReferenceInputMap;
+			TMap<FString, FString> PresetOutputToReferenceOutputMap;
+
+			ReferencedGraphHandle->IterateConstNodes([&](FConstNodeHandle RefGraphInputNode)
 			{
 				// Required inputs are added via the prior step (archetype conformation).
 				// For these, find the corrisponding input & create an editor node only.
-				const bool bIsRequired = InputNode->IsRequired(Archetype);
+				const bool bIsRequired = RefGraphInputNode->IsRequired(Archetype);
 
-				const FText& DisplayName = InputNode->GetDisplayName();
-				const FText& Description = InputNode->GetDescription();
+				const FText& DisplayName = RefGraphInputNode->GetDisplayName();
+				const FText& Description = RefGraphInputNode->GetDescription();
 
 				// Should only ever be one
-				ensure(InputNode->GetNumInputs() == 1);
-				InputNode->IterateConstInputs([&](FConstInputHandle InputHandle)
+				ensure(RefGraphInputNode->GetNumInputs() == 1);
+				RefGraphInputNode->IterateConstInputs([&](FConstInputHandle RefGraphInputHandle)
 				{
 					FNodeHandle NodeHandle = INodeController::GetInvalidHandle();
 					if (bIsRequired)
 					{
-						NodeHandle = PresetGraphHandle->GetInputNodeWithName(InputHandle->GetName());
+						NodeHandle = PresetGraphHandle->GetInputNodeWithName(RefGraphInputHandle->GetName());
 					}
 					else
 					{
-						FGuid InputID = ReferencedGraphHandle->GetVertexIDForInputVertex(InputHandle->GetName());
+						FGuid InputID = ReferencedGraphHandle->GetVertexIDForInputVertex(RefGraphInputHandle->GetName());
 						const FMetasoundFrontendLiteral DefaultLiteral = ReferencedGraphHandle->GetDefaultInput(InputID);
 
-						const FName DataTypeName = InputHandle->GetDataType();
+						const FName DataTypeName = RefGraphInputHandle->GetDataType();
 						NodeHandle = AddInputNodeHandle(InMetaSoundPreset, DataTypeName, Description, &DefaultLiteral);
 						NodeHandle->SetDisplayName(DisplayName);
 					}
 
 					if (ensure(NodeHandle->IsValid()))
 					{
-						AddInputNode(InMetaSoundPreset, NodeHandle, InputNodeLocation, false /* bSelectNewNode */);
+						UMetasoundEditorGraphInputNode* InputNode = AddInputNode(InMetaSoundPreset, NodeHandle, InputNodeLocation, false /* bSelectNewNode */);
+						if (ensure(InputNode))
+						{
+							PresetInputToReferenceInputMap.Add(NodeHandle->GetNodeName(), RefGraphInputHandle->GetName());
+						}
 						InputNodeLocation += NodeLayout::BufferY;
 					}
 				});
 			},
 			EMetasoundFrontendClassType::Input);
 
-			ReferencedGraphHandle->IterateConstNodes([&](FConstNodeHandle OutputNode)
+			ReferencedGraphHandle->IterateConstNodes([&](FConstNodeHandle RefGraphOutputNode)
 			{
 				// Required inputs are added via the prior step (archetype conformation).
 				// For these, find the corrisponding input & create an editor node only.
-				const bool bIsRequired = OutputNode->IsRequired(Archetype);
+				const bool bIsRequired = RefGraphOutputNode->IsRequired(Archetype);
 
-				const FText& DisplayName = OutputNode->GetDisplayName();
-				const FText& Description = OutputNode->GetDescription();
+				const FText& DisplayName = RefGraphOutputNode->GetDisplayName();
+				const FText& Description = RefGraphOutputNode->GetDescription();
 
 				// Should only ever be one
-				ensure(OutputNode->GetNumOutputs() == 1);
-				OutputNode->IterateConstOutputs([&](FConstOutputHandle OutputHandle)
+				ensure(RefGraphOutputNode->GetNumOutputs() == 1);
+				RefGraphOutputNode->IterateConstOutputs([&](FConstOutputHandle RefGraphOutputHandle)
 				{
 					Frontend::FNodeHandle NodeHandle = Frontend::INodeController::GetInvalidHandle();
 					if (bIsRequired)
 					{
-						NodeHandle = PresetGraphHandle->GetOutputNodeWithName(OutputHandle->GetName());
+						NodeHandle = PresetGraphHandle->GetOutputNodeWithName(RefGraphOutputHandle->GetName());
 					}
 					else
 					{
-						const FName DataTypeName = OutputHandle->GetDataType();
+						const FName DataTypeName = RefGraphOutputHandle->GetDataType();
 						NodeHandle = AddOutputNodeHandle(InMetaSoundPreset, DataTypeName, Description);
 						NodeHandle->SetDisplayName(DisplayName);
 					}
 
 					if (ensure(NodeHandle->IsValid()))
 					{
-						AddOutputNode(InMetaSoundPreset, NodeHandle, OutputNodeLocation, false /* bSelectNewNode */);
+						UMetasoundEditorGraphOutputNode* OutputNode = AddOutputNode(InMetaSoundPreset, NodeHandle, OutputNodeLocation, false /* bSelectNewNode */);
+						if (ensure(OutputNode))
+						{
+							PresetOutputToReferenceOutputMap.Add(OutputNode->GetNodeHandle()->GetNodeName(), RefGraphOutputHandle->GetName());
+						}
 						OutputNodeLocation += NodeLayout::BufferY;
 					}
 				});
@@ -944,7 +971,10 @@ namespace Metasound
 			EMetasoundFrontendClassType::Output);
 
 			// 3. Generate a referencing node to the given referenced MetaSound.
-			const FMetasoundFrontendClassMetadata ReferencedClassMetadata = ReferencedGraphHandle->GetGraphMetadata();
+			FMetasoundFrontendClassMetadata ReferencedClassMetadata = ReferencedGraphHandle->GetGraphMetadata();
+
+			// Swap type on look-up as it will be referenced as an externally defined class relative to the new Preset asset
+			ReferencedClassMetadata.Type = EMetasoundFrontendClassType::External;
 			UMetasoundEditorGraphExternalNode* ReferencedNode = AddExternalNode(InMetaSoundPreset, ReferencedClassMetadata, ExternalNodeLocation, false /* bSelectNewNode */);
 			FNodeHandle ReferencedNodeHandle = ReferencedNode->GetNodeHandle();
 
@@ -957,7 +987,8 @@ namespace Metasound
 				ensure(InputNode->GetNumOutputs() == 1);
 				InputNode->IterateOutputs([&](FOutputHandle OutputHandle)
 				{
-					const TArray<FInputHandle> ReferenceInputs = ReferencedNodeHandle->GetInputsWithVertexName(Name);
+					const FString& InputName = PresetInputToReferenceInputMap.FindChecked(Name);
+					const TArray<FInputHandle> ReferenceInputs = ReferencedNodeHandle->GetInputsWithVertexName(InputName);
 					if (ensure(ReferenceInputs.Num() == 1))
 					{
 						ensure(ReferenceInputs[0]->Connect(*OutputHandle));
@@ -974,7 +1005,8 @@ namespace Metasound
 				ensure(OutputNode->GetNumInputs() == 1);
 				OutputNode->IterateInputs([&](FInputHandle InputHandle)
 				{
-					const TArray<FOutputHandle> ReferenceInputs = ReferencedNodeHandle->GetOutputsWithVertexName(Name);
+					const FString& OutputName = PresetOutputToReferenceOutputMap.FindChecked(Name);
+					const TArray<FOutputHandle> ReferenceInputs = ReferencedNodeHandle->GetOutputsWithVertexName(OutputName);
 					if (ensure(ReferenceInputs.Num() == 1))
 					{
 						ensure(InputHandle->Connect(*ReferenceInputs[0]));

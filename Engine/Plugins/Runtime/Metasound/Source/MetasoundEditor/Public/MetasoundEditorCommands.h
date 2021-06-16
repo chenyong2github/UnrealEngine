@@ -46,14 +46,17 @@ namespace Metasound
 			/** Removes an input from the node */
 			TSharedPtr<FUICommandInfo> DeleteInput;
 
-			/** Shows the Metasound's top-level Metasound-specific settings in the Inspector */
-			TSharedPtr<FUICommandInfo> EditGeneralSettings;
+			/** Shows the MetasoundSource's specific settings in the Inspector (if of respective type) */
+			TSharedPtr<FUICommandInfo> EditSourceSettings;
 
 			/** Shows the Metasound's top-level general object settings in the Inspector */
 			TSharedPtr<FUICommandInfo> EditMetasoundSettings;
 
 			// Run updates on selected nodes if required by any subset of selected nodes
 			TSharedPtr<FUICommandInfo> UpdateNodes;
+
+			// Converts a MetaSound from a restricted, preset edit state to a fully accessible MetaSound.
+			TSharedPtr<FUICommandInfo> ConvertFromPreset;
 
 			/** Initialize commands */
 			virtual void RegisterCommands() override;

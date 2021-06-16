@@ -38,7 +38,7 @@ namespace Metasound
 	 *
 	 * FNodeClassName is used for lookup and declaring interoperability.
 	 *
-	 * Namespaces are provided as a convenience to simply name collisions.
+	 * Namespaces are provided as a convenience to avoid name collisions.
 	 *
 	 * Nodes with equal Namespace and Name, but different Variants are considered
 	 * to be interoperable. They can be used to define nodes that perform the same
