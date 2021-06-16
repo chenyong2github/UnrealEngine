@@ -58,7 +58,7 @@ uint NumSamples;
 uint EnergyLUTResolution;
 int2 SliceXYCount;
 
-RWTexture3D<float2> OutLUT3D;
+RWTexture3D<float3> OutLUT3D;
 RWTexture2D<float4> OutLUT2D;
 
 void MainPS(
@@ -84,6 +84,9 @@ void MainPS(
 	float E_T = 0.0f; // Directional albedo for 'specular' transmission
 	float E_D = 0.0f; // Directional albedo for 'diffuse'  term
 
+	float E_RChan = 0.0f; // Directional albedo for 'specular' reflection assuming F0=0.04 (to inverse the transmittance baked into the Chan diffuse model)
+	float E_TChan = 0.0f; // Idem but for transmission
+
 	// Roughness
 	const float Roughness = float(Coord.y + 0.5f) / LUTResolution.y;
 	const float m = Roughness * Roughness;
@@ -92,6 +95,11 @@ void MainPS(
 	// Incident angle
 	const float NoV = float(Coord.x + 0.5f) / LUTResolution.x;
 	const float3 V = float3(sqrt(1.0f - NoV * NoV),	0.0f, NoV);
+
+	// F0. TODO: parametrize with something which preserve precision in the lower part e.g., sqrt(F0)
+	const float F0 = float(Coord.z) / LUTResolution.z;
+	const float F0Chan = 0.04f;
+	const float F90 = 1;
 
 	LOOP
 	for (uint i = 0; i < NumSamples; i++)
@@ -147,33 +155,48 @@ void MainPS(
 		//  f_ss(wo,wi) = F(wo,wi) . D(wo,wi) . G(wo,wi)
 		//  f_ms(wo,wi) = F_ss . (1 +  F0 (1-E_R)/ E_R)
 
-		// TODO: parametrize F0 with something which preserve precision in the lower part e.g., sqrt(F0)
-		const float F0 = float(Coord.z) / LUTResolution.z;
-		const float F90 = 1;
 		{
 			float4 GGXSample = ImportanceSampleVisibleGGX(UniformSampleDisk(E), m2, V);
 			const float3 H  = GGXSample.xyz;
 			const float VoH = saturate(dot(V, H));
-			const float F	= F_Schlick(F0, F90, VoH).x;
+			
+			const float F		= F_Schlick(F0,     F90, VoH).x;
+			const float Fchan	= F_Schlick(F0Chan, F90, VoH).x;
 			
 			const float Eta_Incident = 1.0f;
-			const float Eta_Outgoing = DielectricF0ToIor(F0);
-			const float Eta = Eta_Outgoing / Eta_Incident;
 
-			const FDirectionResult Sample_Lr = ComputeDirection(-V, H, F, Eta, false);
-			const FDirectionResult Sample_Lt = ComputeDirection(-V, H, F, Eta, true);
+			const float Eta_Outgoing	= DielectricF0ToIor(F0);
+			const float Eta_OutgoingChan= DielectricF0ToIor(F0Chan);
 
-			const float NoL_r = Sample_Lr.Direction.z;
-			const float NoL_t = Sample_Lt.Direction.z;
+			const float Eta		= Eta_Outgoing     / Eta_Incident;
+			const float EtaChan = Eta_OutgoingChan / Eta_Incident;
+
+			const FDirectionResult Sample_Lr	= ComputeDirection(-V, H, F,     Eta, false);
+			const FDirectionResult Sample_LrChan= ComputeDirection(-V, H, Fchan, EtaChan, false);
+
+			const FDirectionResult Sample_Lt	= ComputeDirection(-V, H, F,     Eta, true);
+			const FDirectionResult Sample_LtChan= ComputeDirection(-V, H, Fchan, EtaChan, true);
+
+			const float NoL_r		= Sample_Lr.Direction.z;
+			const float NoL_rChan	= Sample_LrChan.Direction.z;
+
+			const float NoL_t		= Sample_Lt.Direction.z;
+			const float NoL_tChan	= Sample_LtChan.Direction.z;
 
 			// Schlick's Fresnel sub-term: Fc = (1-VoH)^5 
 			const float Fc = Pow5(1.0f - VoH);
 
-			const float R_WeightPdf = GGXEvalReflection(Sample_Lr.Direction, V, H, float2(m, m)).x;
-			const float T_WeightPdf = GGXEvalRefraction(Sample_Lt.Direction, V, H, float2(m, m), Eta).x;
+			const float R_WeightPdf		= GGXEvalReflection(Sample_Lr.Direction,     V, H, float2(m, m)).x;
+			const float R_WeightPdfChan = GGXEvalReflection(Sample_LrChan.Direction, V, H, float2(m, m)).x;
+
+			const float T_WeightPdf		= GGXEvalRefraction(Sample_Lt.Direction,     V, H, float2(m, m), Eta).x;
+			const float T_WeightPdfChan = GGXEvalRefraction(Sample_LtChan.Direction, V, H, float2(m, m), EtaChan).x;
 
 			E_R += Sample_Lr.Fresnel * R_WeightPdf;
 			E_T += Sample_Lt.Fresnel * T_WeightPdf;
+
+			E_RChan += Sample_LrChan.Fresnel * R_WeightPdfChan;
+			E_TChan += Sample_LtChan.Fresnel * T_WeightPdfChan;
 
 			A_R += R_WeightPdf;
 			B_R += R_WeightPdf * Fc;
@@ -187,7 +210,10 @@ void MainPS(
 	E_T /= NumSamples;
 	E_D /= NumSamples;
 
-	const float2 Out3D = float2(E_R, E_T);
+	E_RChan /= NumSamples;
+	E_TChan /= NumSamples;
+
+	const float3 Out3D = float3(E_R, E_T, E_TChan);
 	const float4 Out2D = float4(A_R, B_R, E_D, 0.0f);
 
 	// At the moment ouput 2 LUTs:
