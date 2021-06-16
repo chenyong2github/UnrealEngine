@@ -32,6 +32,27 @@ AControlRigControlActor::AControlRigControlActor(const FObjectInitializer& Objec
 	Refresh();
 }
 
+
+AControlRigControlActor::~AControlRigControlActor()
+{
+	RemoveUnbindDelegate();
+}
+
+void AControlRigControlActor::RemoveUnbindDelegate()
+{
+	if (ControlRig)
+	{
+		if (TSharedPtr<IControlRigObjectBinding> Binding = ControlRig->GetObjectBinding())
+		{
+			if (OnUnbindDelegate.IsValid())
+			{
+				Binding->OnControlRigUnbind().Remove(OnUnbindDelegate);
+				OnUnbindDelegate.Reset();
+			}
+		}
+	}
+}
+
 #if WITH_EDITOR
 
 void AControlRigControlActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -65,27 +86,36 @@ void AControlRigControlActor::Tick(float DeltaSeconds)
 void AControlRigControlActor::Clear()
 {
 	TArray<USceneComponent*> ChildComponents;
-	ActorRootComponent->GetChildrenComponents(true, ChildComponents);
-	for (USceneComponent* Child : ChildComponents)
+	if (ActorRootComponent)
 	{
-		if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Child))
+		ActorRootComponent->GetChildrenComponents(true, ChildComponents);
+		for (USceneComponent* Child : ChildComponents)
 		{
-			Components.AddUnique(StaticMeshComponent);
+			if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Child))
+			{
+				Components.AddUnique(StaticMeshComponent);
+			}
+		}
+
+		for (UStaticMeshComponent* Component : Components)
+		{
+			Component->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
+			Component->UnregisterComponent();
+			Component->DestroyComponent();
 		}
 	}
 
-	for (UStaticMeshComponent* Component : Components)
-	{
-		Component->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
-		Component->UnregisterComponent();
-		Component->DestroyComponent();
-	}
-
-	ControlRig = nullptr;
 	ControlNames.Reset();
 	GizmoTransforms.Reset();
 	Components.Reset();
 	Materials.Reset();
+}
+
+void AControlRigControlActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	RemoveUnbindDelegate();
+	ControlRig = nullptr;
+	Super::EndPlay(EndPlayReason);
 }
 
 void AControlRigControlActor::Refresh()
@@ -109,7 +139,8 @@ void AControlRigControlActor::Refresh()
 						if (Actor == ActorToTrack)
 						{
 							ControlRig = RigInstance;
-							Binding->OnControlRigUnbind().AddLambda([ this ]( ) { this->Clear(); this->Refresh(); });
+							RemoveUnbindDelegate();
+							OnUnbindDelegate =Binding->OnControlRigUnbind().AddLambda([ this ]( ) { this->Clear(); this->Refresh(); });
 							break;
 						}
 					}
