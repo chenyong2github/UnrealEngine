@@ -302,7 +302,8 @@ FAutoConsoleVariableRef CVarRDGUseTransientAllocator(
 	TEXT("r.RDG.TransientAllocator"), GRDGTransientAllocator,
 	TEXT("RDG will use the RHITransientResourceAllocator to allocate all transient resources.")
 	TEXT(" 0: disables the transient allocator;")
-	TEXT(" 1: enables the transient allocator (default)"),
+	TEXT(" 1: enables the transient allocator (default);")
+	TEXT(" 2: enables the transient allocator for resources with FastVRAM flag only"),
 	ECVF_RenderThreadSafe);
 
 // Fix for random GPU crashes on draw indirects on multiple IHVs. Force all indirect arg buffers as non transient (see UE-115982)

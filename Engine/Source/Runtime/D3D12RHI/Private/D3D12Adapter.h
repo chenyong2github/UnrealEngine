@@ -315,6 +315,7 @@ public:
 		D3D12_RESOURCE_STATES InCreateState,
 		bool bHasInitialData,
 		const FRHIGPUMask& InGPUMask,
+		ED3D12ResourceTransientMode TransientMode,
 		ID3D12ResourceAllocator* ResourceAllocator,
 		const TCHAR* InDebugName);
 
@@ -401,6 +402,7 @@ protected:
 		uint32 Alignment,
 		FD3D12Buffer* Buffer,
 		FD3D12ResourceLocation& ResourceLocation,
+		ED3D12ResourceTransientMode TransientMode,
 		ID3D12ResourceAllocator* ResourceAllocator,
 		const TCHAR* InDebugName);
 

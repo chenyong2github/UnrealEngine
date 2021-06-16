@@ -292,6 +292,7 @@ void FD3D12Adapter::AllocateBuffer(FD3D12Device* Device,
 	uint32 Alignment,
 	FD3D12Buffer* Buffer,
 	FD3D12ResourceLocation& ResourceLocation,
+	ED3D12ResourceTransientMode TransientMode,
 	ID3D12ResourceAllocator* ResourceAllocator,
 	const TCHAR* InDebugName)
 {
@@ -335,6 +336,7 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(
 	D3D12_RESOURCE_STATES InCreateState,
 	bool bHasInitialData,
 	const FRHIGPUMask& InGPUMask,
+	ED3D12ResourceTransientMode TransientMode,
 	ID3D12ResourceAllocator* ResourceAllocator,
 	const TCHAR* InDebugName)
 {
@@ -364,7 +366,7 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(
 
 			if (Device->GetGPUIndex() == FirstGPUIndex)
 			{
-				AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, InCreateState, Alignment, NewBuffer, NewBuffer->ResourceLocation, ResourceAllocator, InDebugName);
+				AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, InCreateState, Alignment, NewBuffer, NewBuffer->ResourceLocation, TransientMode, ResourceAllocator, InDebugName);
 				NewBuffer0 = NewBuffer;
 			}
 			else
@@ -389,7 +391,7 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(
 				NewBuffer->SetName(InDebugName);
 			}
 
-			AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, InCreateState, Alignment, NewBuffer, NewBuffer->ResourceLocation, ResourceAllocator, InDebugName);
+			AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, InCreateState, Alignment, NewBuffer, NewBuffer->ResourceLocation, TransientMode, ResourceAllocator, InDebugName);
 			
 			// Unlock immediately if there is no initial data
 			if (!bHasInitialData)
@@ -508,11 +510,10 @@ FBufferRHIRef FD3D12DynamicRHI::CreateBuffer(FRHICommandListImmediate* RHICmdLis
 			});
 	}
 
-	ID3D12ResourceAllocator* ResourceAllocator = nullptr;
-	return CreateD3D12Buffer(RHICmdList, Size, Usage, Stride, InResourceState, CreateInfo, ResourceAllocator);
+	return CreateD3D12Buffer(RHICmdList, Size, Usage, Stride, InResourceState, CreateInfo);
 }
 
-FD3D12Buffer* FD3D12DynamicRHI::CreateD3D12Buffer(class FRHICommandListImmediate* RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo, ID3D12ResourceAllocator* ResourceAllocator)
+FD3D12Buffer* FD3D12DynamicRHI::CreateD3D12Buffer(class FRHICommandListImmediate* RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo, ED3D12ResourceTransientMode TransientMode, ID3D12ResourceAllocator* ResourceAllocator)
 {
 	D3D12_RESOURCE_DESC Desc;
 	uint32 Alignment;
@@ -537,7 +538,7 @@ FD3D12Buffer* FD3D12DynamicRHI::CreateD3D12Buffer(class FRHICommandListImmediate
 	bool bHasInitialData = CreateInfo.ResourceArray != nullptr;
 
 	FD3D12SyncPoint CopyQueueSyncPoint;
-	FD3D12Buffer* Buffer = GetAdapter().CreateRHIBuffer(Desc, Alignment, Stride, Size, Usage, StateMode, CreateState, bHasInitialData, CreateInfo.GPUMask, ResourceAllocator, CreateInfo.DebugName);
+	FD3D12Buffer* Buffer = GetAdapter().CreateRHIBuffer(Desc, Alignment, Stride, Size, Usage, StateMode, CreateState, bHasInitialData, CreateInfo.GPUMask, TransientMode, ResourceAllocator, CreateInfo.DebugName);
 	check(Buffer->ResourceLocation.IsValid());
 
 	// Copy the resource data if available 
@@ -549,10 +550,10 @@ FD3D12Buffer* FD3D12DynamicRHI::CreateD3D12Buffer(class FRHICommandListImmediate
 	return Buffer;
 }
 
-FRHIBuffer* FD3D12DynamicRHI::CreateBuffer(const FRHIBufferCreateInfo& CreateInfo, const TCHAR* DebugName, ERHIAccess InitialState, ID3D12ResourceAllocator* ResourceAllocator)
+FRHIBuffer* FD3D12DynamicRHI::CreateBuffer(const FRHIBufferCreateInfo& CreateInfo, const TCHAR* DebugName, ERHIAccess InitialState, ED3D12ResourceTransientMode TransientMode, ID3D12ResourceAllocator* ResourceAllocator)
 {
 	FRHIResourceCreateInfo ResourceCreateInfo(DebugName);
-	return CreateD3D12Buffer(nullptr, CreateInfo.Size, CreateInfo.Usage, CreateInfo.Stride, InitialState, ResourceCreateInfo, ResourceAllocator);
+	return CreateD3D12Buffer(nullptr, CreateInfo.Size, CreateInfo.Usage, CreateInfo.Stride, InitialState, ResourceCreateInfo, TransientMode, ResourceAllocator);
 }
 
 void* FD3D12DynamicRHI::LockBuffer(FRHICommandListImmediate* RHICmdList, FD3D12Buffer* Buffer, uint32 BufferSize, uint32 BufferUsage, uint32 Offset, uint32 Size, EResourceLockMode LockMode)

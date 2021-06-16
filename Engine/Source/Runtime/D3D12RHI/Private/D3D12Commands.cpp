@@ -25,11 +25,19 @@ static FAutoConsoleVariableRef CVarSyncTemporalResources(
 	ECVF_RenderThreadSafe
 	);
 
-static int32 GD3D12TransientAllocatorFullAliasingBarrier = 0;
+// TODO test and enable overlap tracking
+static int32 GD3D12TransientAllocatorFullAliasingBarrier = 1;
 static FAutoConsoleVariableRef CVarD3D12TransientAllocatorFullAliasingBarrier(
 	TEXT("d3d12.TransientAllocator.FullAliasingBarrier"),
 	GD3D12TransientAllocatorFullAliasingBarrier,
 	TEXT("Inserts a full aliasing barrier on an transient acquire operation. Useful to debug if an aliasing barrier is missing."),
+	ECVF_RenderThreadSafe);
+
+static int32 GD3D12AllowDiscardResources = 1;
+static FAutoConsoleVariableRef CVarD3D12AllowDiscardResources(
+	TEXT("d3d12.AllowDiscardResources"),
+	GD3D12AllowDiscardResources,
+	TEXT("Wheter to call DiscardResources after transient aliasing acquire. This is not needed on some platforms if newly acquired resources are cleared before use."),
 	ECVF_RenderThreadSafe);
 
 using namespace D3D12RHI;
@@ -354,6 +362,11 @@ static void HandleDiscardResources(
 		const FD3D12TransitionData* Data = Transition->GetPrivateData<FD3D12TransitionData>();
 
 		HandleResourceDiscardTransitions(Context, Data, SkipFastClearEliminateState, ResourcesToDiscard);
+	}
+
+	if (!GD3D12AllowDiscardResources)
+	{
+		return;
 	}
 
 	Context.CommandListHandle.FlushResourceBarriers();

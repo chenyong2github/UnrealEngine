@@ -42,6 +42,12 @@ enum class ED3D12ResourceStateMode
 	MultiState,					//< Force enable state tracking of resource
 };
 
+enum class ED3D12ResourceTransientMode
+{
+	NonTransient,				//< Resource is not transient
+	Transient,					//< Resource is transient
+};
+
 class FD3D12PendingResourceBarrier
 {
 public:
@@ -840,8 +846,8 @@ public:
 
 	void Swap(FD3D12BaseShaderResource& Other)
 	{
-		// assume RHI thread when swapping listeners and resources
-		check(IsInRHIThread());
+		// assume RHI thread when swapping listeners and resources unless RHI thread is disabled
+		check(IsInRHIThread() || IsInRenderingThread());
 
 		::Swap(Parent, Other.Parent);
 		ResourceLocation.Swap(Other.ResourceLocation);
