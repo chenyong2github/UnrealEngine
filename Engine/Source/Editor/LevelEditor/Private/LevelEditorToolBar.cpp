@@ -1235,7 +1235,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 				FOnGetContent::CreateStatic(&FLevelEditorToolBar::GenerateCinematicsMenuContent, InCommandList, TWeakPtr<SLevelEditor>(InLevelEditor)),
 				LOCTEXT("EditCinematics_Label", "Cinematics"),
 				LOCTEXT("EditCinematics_Tooltip", "Displays a list of Level Sequence objects to open in their respective editors"),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.EditMatinee")
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "LevelEditor.OpenCinematic")
 			);
 			CinematicsEntry.StyleNameOverride = "CalloutToolbar";
 			Section.AddEntry(CinematicsEntry);

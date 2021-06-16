@@ -66,7 +66,6 @@ public:
 		void SetupContentBrowserStyle();
 		void SetupLandscapeEditorStyle();
 		void SetupToolkitStyles();
-		void SetupMatineeStyle();
 		void SetupSourceControlStyles();
 		void SetupAutomationStyles();
 		void SetupUMGEditorStyles();
