@@ -1804,7 +1804,7 @@ void AddHairStrandUpdatePositionOffsetPass(
 	FHairStrandsDeformedRootResource* DeformedRootResources,
 	FHairStrandsDeformedResource* DeformedResources)
 {
-	if (LODIndex < 0 || DeformedResources == nullptr)
+	if ((DeformedRootResources && LODIndex < 0) || DeformedResources == nullptr)
 	{
 		return;
 	}
