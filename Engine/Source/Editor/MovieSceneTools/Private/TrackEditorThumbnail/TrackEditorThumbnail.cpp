@@ -107,6 +107,8 @@ void FTrackEditorThumbnail::AssignFrom(TSharedRef<FSlateTextureData, ESPMode::Th
 
 void FTrackEditorThumbnail::DestroyTexture_Latent()
 {
+	return; ////
+	
 	// UE-114425: Defer the destroy until the next tick to work around the RHI getting destroyed before the render command completes.
 	bHasLatentDestroy = true;
 	GEditor->GetTimerManager()->SetTimerForNextTick([this]()
