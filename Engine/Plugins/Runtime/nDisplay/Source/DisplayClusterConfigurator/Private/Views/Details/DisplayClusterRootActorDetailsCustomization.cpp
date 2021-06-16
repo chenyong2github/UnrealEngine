@@ -132,37 +132,43 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 		}
 
 		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ICVFXCategory)
-			const TSharedPtr<IPropertyHandle> EnableICVFXPropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable));
-			check(EnableICVFXPropertyHandle->IsValidHandle());
-			CurrentCategory.AddProperty(EnableICVFXPropertyHandle);
-
-			const TAttribute<bool> AllowICVFXEditCondition = TAttribute<bool>::Create([this, EnableICVFXPropertyHandle]()
+			if (bIsCDO)
 			{
-				bool bFrustumEnabled = false;
-				EnableICVFXPropertyHandle->GetValue(bFrustumEnabled);
-				return bFrustumEnabled;
-			});
-		
-			if (ViewportNames.Num() > 0)
-			{
-				TArray<TSharedPtr<IPropertyHandle>> AllowICVFXHandles;
-				NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.Cluster.Nodes.Viewports.ICVFX.bAllowICVFX"), AllowICVFXHandles);
-
-				BEGIN_GROUP("InnerFrustumEnabledInViewports", LOCTEXT("InnerFrustumEnabledInViewports", "Inner Frustum Enabled in Viewports"))
-					for (int32 VPIdx = 0; VPIdx < AllowICVFXHandles.Num(); ++VPIdx)
-					{
-						TSharedPtr<IPropertyHandle>& Handle = AllowICVFXHandles[VPIdx];
-
-						Handle->SetPropertyDisplayName(FText::FromString(ViewportNames[VPIdx]));
-						IDetailPropertyRow& PropertyRow = CurrentGroup.AddPropertyRow(Handle.ToSharedRef());
-						PropertyRow.EditCondition(AllowICVFXEditCondition, nullptr);
-					}
-				END_GROUP();
-
+				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable);
+				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnableInnerFrustums);
+				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.DefaultFrameSize);
 			}
-
-			if (!bIsCDO)
+			else
 			{
+				const TSharedPtr<IPropertyHandle> EnableInnerFrustumsPropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnableInnerFrustums));
+				check(EnableInnerFrustumsPropertyHandle->IsValidHandle());
+				CurrentCategory.AddProperty(EnableInnerFrustumsPropertyHandle);
+
+				const TAttribute<bool> EnableInnerFrustumsEditCondition = TAttribute<bool>::Create([this, EnableInnerFrustumsPropertyHandle]()
+				{
+					bool bFrustumEnabled = false;
+					EnableInnerFrustumsPropertyHandle->GetValue(bFrustumEnabled);
+					return bFrustumEnabled;
+				});
+		
+				if (ViewportNames.Num() > 0)
+				{
+					TArray<TSharedPtr<IPropertyHandle>> AllowICVFXHandles;
+					NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.Cluster.Nodes.Viewports.ICVFX.bAllowInnerFrustum"), AllowICVFXHandles);
+
+					BEGIN_GROUP("InnerFrustumEnabledInViewports", LOCTEXT("InnerFrustumEnabledInViewports", "Inner Frustum Enabled in Viewports"))
+						for (int32 VPIdx = 0; VPIdx < AllowICVFXHandles.Num(); ++VPIdx)
+						{
+							TSharedPtr<IPropertyHandle>& Handle = AllowICVFXHandles[VPIdx];
+
+							Handle->SetPropertyDisplayName(FText::FromString(ViewportNames[VPIdx]));
+							IDetailPropertyRow& PropertyRow = CurrentGroup.AddPropertyRow(Handle.ToSharedRef());
+							PropertyRow.EditCondition(EnableInnerFrustumsEditCondition, nullptr);
+						}
+					END_GROUP();
+
+				}
+
 				ADD_PROPERTY(ADisplayClusterRootActor, InnerFrustumPriority);
 			}
 		END_CATEGORY();

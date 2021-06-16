@@ -190,7 +190,15 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateBaseViewportSetting(FDis
 		{
 			TargetFlags |= ViewportICVFX_Enable;
 
-			switch (InConfigurationViewport.ICVFX.CameraRenderMode)
+			EDisplayClusterConfigurationICVFX_OverrideCameraRenderMode CameraRenderMode = InConfigurationViewport.ICVFX.CameraRenderMode;
+
+			const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings = RootActor.GetStageSettings();
+			if (InConfigurationViewport.ICVFX.bAllowInnerFrustum == false || StageSettings.bEnableInnerFrustums == false)
+			{
+				CameraRenderMode = EDisplayClusterConfigurationICVFX_OverrideCameraRenderMode::Disabled;
+			}
+
+			switch (CameraRenderMode)
 			{
 				// Disable camera frame render for this viewport
 			case EDisplayClusterConfigurationICVFX_OverrideCameraRenderMode::Disabled:

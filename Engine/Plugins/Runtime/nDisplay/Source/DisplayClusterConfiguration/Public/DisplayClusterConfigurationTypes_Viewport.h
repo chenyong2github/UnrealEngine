@@ -54,6 +54,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "In Camera VFX")
 	bool bAllowICVFX = true;
 
+	// Allow use innner frustum for this viewport (when disabled, the CameraRenderMode = 'Disabled')
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "In Camera VFX")
+	bool bAllowInnerFrustum = true;
+
 	// Disable incamera render to this viewport
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "In Camera VFX")
 	EDisplayClusterConfigurationICVFX_OverrideCameraRenderMode CameraRenderMode = EDisplayClusterConfigurationICVFX_OverrideCameraRenderMode::Default;

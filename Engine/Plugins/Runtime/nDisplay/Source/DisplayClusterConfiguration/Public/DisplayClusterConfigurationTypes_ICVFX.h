@@ -460,8 +460,12 @@ public:
 
 public:
 	// Allow ICVFX features
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Inner Frustums"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable ICVFX"))
 	bool bEnable = true;
+
+	// Allow Inner frustums rendering
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Inner Frustums"))
+	bool bEnableInnerFrustums = true;
 
 	// Default incameras RTT texture size.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)

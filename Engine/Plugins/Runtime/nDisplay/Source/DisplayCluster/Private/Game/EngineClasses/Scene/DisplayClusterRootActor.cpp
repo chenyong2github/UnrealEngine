@@ -237,13 +237,13 @@ UDisplayClusterConfigurationData* ADisplayClusterRootActor::GetConfigData() cons
 
 bool ADisplayClusterRootActor::IsInnerFrustumEnabled(const FString& InnerFrustumID) const
 {
-	if (EnableInnerFrustum)
-	{
-		// add more GUI rules here
-		return true;
-	}
+	// add more GUI rules here
+	// Inner Frustum Enabled
+	//  Camera_1  [ ]
+	//  Camera_2  [X]
+	//  Camera_3  [X]
 
-	return false;
+	return true;
 }
 
 int ADisplayClusterRootActor::GetInnerFrustumPriority(const FString& InnerFrustumID) const

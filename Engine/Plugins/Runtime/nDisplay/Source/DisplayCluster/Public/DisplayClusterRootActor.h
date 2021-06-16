@@ -234,9 +234,6 @@ private:
 	void GetTypedComponents(TMap<FString, TComp*>& OutTypedMap, const TMap<FString, FDisplayClusterSceneComponentRef*>& InTypedMap) const;
 
 public:
-	UPROPERTY(EditInstanceOnly, Category = NDisplay)
-	bool EnableInnerFrustum = true;
-
 	UPROPERTY(EditInstanceOnly, EditFixedSize, Category = "In Camera ICVFX", meta = (TitleProperty = "Name"))
 	TArray<FDisplayClusterComponentRef> InnerFrustumPriority;
 
