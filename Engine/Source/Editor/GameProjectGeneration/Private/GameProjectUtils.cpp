@@ -153,12 +153,6 @@ namespace
 		WindowsSettings.Settings.NumBuffers = 7;
 		DefaultProjectSettings.Add(TEXT("Windows"), WindowsSettings);
 
-		FAudioDefaultPlatformSettings XBoxSettings(TEXT("/Script/XboxOnePlatformEditor.XboxOneTargetSettings"));
-		XBoxSettings.Settings.CallbackBufferFrameSize = 256;
-		XBoxSettings.Settings.NumBuffers = 7;
-		DefaultProjectSettings.Add(TEXT("XboxOne"), XBoxSettings);
-
-
 		return MoveTemp(DefaultProjectSettings);
 	}
 
@@ -712,12 +706,6 @@ bool GameProjectUtils::IsValidProjectFileForCreation(const FString& ProjectFile,
 		return false;
 	}
 
-	if (NameContainsUnderscoreAndXB1Installed(BaseProjectFile))
-	{
-		OutFailReason = LOCTEXT( "ProjectNameContainsIllegalCharactersOnXB1", "Project names may not contain an underscore when the Xbox One XDK is installed." );
-		return false;
-	}
-
 	if ( !FPaths::ValidatePath(FPaths::GetPath(ProjectFile), &OutFailReason) )
 	{
 		return false;
@@ -799,12 +787,6 @@ bool GameProjectUtils::OpenProject(const FString& ProjectFile, FText& OutFailRea
 		FFormatNamedArguments Args;
 		Args.Add( TEXT("IllegalNameCharacters"), FText::FromString( IllegalNameCharacters ) );
 		OutFailReason = FText::Format( LOCTEXT( "ProjectNameContainsIllegalCharacters", "Project names may not contain the following characters: {IllegalNameCharacters}" ), Args );
-		return false;
-	}
-
-	if (NameContainsUnderscoreAndXB1Installed(BaseProjectFile))
-	{
-		OutFailReason = LOCTEXT( "ProjectNameContainsIllegalCharactersOnXB1", "Project names may not contain an underscore when the Xbox One XDK is installed." );
 		return false;
 	}
 
@@ -2002,34 +1984,6 @@ bool GameProjectUtils::NameContainsOnlyLegalCharacters(const FString& TestName, 
 	}
 
 	return !bContainsIllegalCharacters;
-}
-
-bool GameProjectUtils::NameContainsUnderscoreAndXB1Installed(const FString& TestName)
-{
-	// disabled for now so people with the SDK installed can use the editor
-	return false;
-
-	bool bContainsIllegalCharacters = false;
-
-	// Only allow alphanumeric characters in the project name
-	for ( int32 CharIdx = 0 ; CharIdx < TestName.Len() ; ++CharIdx )
-	{
-		const FString& Char = TestName.Mid( CharIdx, 1 );
-		if ( Char == TEXT("_") )
-		{
-			const ITargetPlatform* Platform = GetTargetPlatformManager()->FindTargetPlatform(TEXT("XboxOne"));
-			if (Platform)
-			{
-				FString NotInstalledDocLink;
-				if (Platform->IsSdkInstalled(true, NotInstalledDocLink))
-				{
-					bContainsIllegalCharacters = true;
-				}
-			}
-		}
-	}
-
-	return bContainsIllegalCharacters;
 }
 
 bool GameProjectUtils::ProjectFileExists(const FString& ProjectFile)
