@@ -2119,14 +2119,53 @@ void FSceneRenderer::RenderShadowProjections(
 			{
 				for (int32 ShadowIndex = 0; ShadowIndex < DistanceFieldShadows.Num(); ShadowIndex++)
 				{
-					const FProjectedShadowInfo* ProjectedShadowInfo = DistanceFieldShadows[ShadowIndex];
-					ProjectedShadowInfo->RenderRayTracedDistanceFieldProjection(
-						GraphBuilder,
-						SceneTextures,
-						ScreenShadowMaskTexture,
-						View,
-						ScissorRect,
-						bProjectingForForwardShading);
+					FProjectedShadowInfo* ProjectedShadowInfo = DistanceFieldShadows[ShadowIndex];
+
+					if (Views.Num() == 1 || ProjectedShadowInfo->DependentView == &View || !ProjectedShadowInfo->DependentView)
+					{
+						ProjectedShadowInfo->RenderRayTracedDistanceFieldProjection(
+							GraphBuilder,
+							SceneTextures,
+							ScreenShadowMaskTexture,
+							View,
+							ScissorRect,
+							bProjectingForForwardShading);
+					}
+				}
+			}
+		}
+	}
+}
+
+void FSceneRenderer::BeginAsyncDistanceFieldShadowProjections(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures) const
+{
+	extern int32 GDFShadowAsyncCompute;
+
+	if (!!GDFShadowAsyncCompute && ViewFamily.EngineShowFlags.DynamicShadows && GetShadowQuality() > 0 && ProjectedDistanceFieldShadows.Num() > 0)
+	{
+		RDG_EVENT_SCOPE(GraphBuilder, "DistanceFieldShadows");
+
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			const FViewInfo& View = Views[ViewIndex];
+			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
+
+			for (int32 DFShadowIndex = 0; DFShadowIndex < ProjectedDistanceFieldShadows.Num(); ++DFShadowIndex)
+			{
+				FProjectedShadowInfo* ProjectedShadowInfo = ProjectedDistanceFieldShadows[DFShadowIndex];
+
+				check(ProjectedShadowInfo->bIncludeInScreenSpaceShadowMask);
+
+				FIntRect ScissorRect;
+				if (ProjectedShadowInfo->bDirectionalLight || !ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetScissorRect(ScissorRect, View, View.ViewRect))
+				{
+					ScissorRect = View.ViewRect;
+				}
+
+				if (ScissorRect.Area() > 0 && (Views.Num() == 1 || ProjectedShadowInfo->DependentView == &View || !ProjectedShadowInfo->DependentView))
+				{
+					ProjectedShadowInfo->BeginRenderRayTracedDistanceFieldProjection(GraphBuilder, SceneTextures, View);
 				}
 			}
 		}

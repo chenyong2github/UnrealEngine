@@ -546,10 +546,10 @@ public:
 		FRDGTextureRef ShadowDepthTexture,
 		bool bDoParallelDispatch);
 
-	FRDGTextureRef BeginRenderRayTracedDistanceFieldProjection(
+	void BeginRenderRayTracedDistanceFieldProjection(
 		FRDGBuilder& GraphBuilder,
 		const FMinimalSceneTextures& SceneTextures,
-		const FViewInfo& View) const;
+		const FViewInfo& View);
 
 	/** Renders ray traced distance field shadows. */
 	void RenderRayTracedDistanceFieldProjection(
@@ -558,7 +558,7 @@ public:
 		FRDGTextureRef ScreenShadowMaskTexture,
 		const FViewInfo& View,
 		FIntRect ScissorRect,
-		bool bProjectingForForwardShading) const;
+		bool bProjectingForForwardShading);
 
 	/** Render one pass point light shadow projections. */
 	void RenderOnePassPointLightProjection(
@@ -757,6 +757,9 @@ private:
 	float ShaderDepthBias;
 	float ShaderSlopeDepthBias;
 	float ShaderMaxSlopeDepthBias;
+
+	/** Ray traced DF shadow intermediate output. Populated by BeginRenderRayTracedDistanceFieldProjection and consumed by RenderRayTracedDistanceFieldProjection. */
+	FRDGTextureRef RayTracedShadowsTexture;
 
 	void CopyCachedShadowMap(
 		FRDGBuilder& GraphBuilder,

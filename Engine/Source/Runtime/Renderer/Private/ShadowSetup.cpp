@@ -708,6 +708,7 @@ FProjectedShadowInfo::FProjectedShadowInfo()
 	, NumSubjectMeshCommandBuildRequestElements(0)
 	, ShaderDepthBias(0.0f)
 	, ShaderSlopeDepthBias(0.0f)
+	, RayTracedShadowsTexture(nullptr)
 {
 }
 
@@ -4841,12 +4842,17 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 					&& (!bMobile || ProjectedShadowInfo->bPerObjectOpaqueShadow || ProjectedShadowInfo->bRayTracedDistanceField);
 
 				if (bNeedsProjection)
-				{if (ProjectedShadowInfo->bCapsuleShadow)
+				{
+					if (ProjectedShadowInfo->bCapsuleShadow)
 					{
 						VisibleLightInfo.CapsuleShadowsToProject.Add(ProjectedShadowInfo);
 					}
 					else
 					{
+						if (ProjectedShadowInfo->bRayTracedDistanceField)
+						{
+							ProjectedDistanceFieldShadows.Add(ProjectedShadowInfo);
+						}
 						VisibleLightInfo.ShadowsToProject.Add(ProjectedShadowInfo);
 					}
 				}
