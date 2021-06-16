@@ -1,10 +1,35 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "MetasoundAssetBase.h"
 #include "UObject/Object.h"
+#include "MetasoundUObjectRegistry.generated.h"
+
+
+/** The subsystem in charge of the MetaSound asset registry */
+UCLASS()
+class METASOUNDENGINE_API UMetaSoundAssetSubsystem : public UEngineSubsystem
+{
+	GENERATED_BODY()
+
+public:
+	virtual void Initialize(FSubsystemCollectionBase& InCollection) override;
+	virtual void Deinitialize() override;
+
+	static UMetaSoundAssetSubsystem& Get()
+	{
+		check(GEngine);
+		return *GEngine->GetEngineSubsystem<UMetaSoundAssetSubsystem>();
+	}
+
+	void AddOrUpdateAsset(const FAssetData& InAssetData);
+	void RemoveAsset(const FAssetData& InAssetData);
+
+protected:
+	void PostEngineInit();
+	void PostInitAssetScan();
+};
 
 namespace Metasound
 {
@@ -195,4 +220,4 @@ namespace Metasound
 			 */
 			virtual const FMetasoundAssetBase* GetObjectAsAssetBase(const UObject* InObject) const = 0;
 	};
-}
+} // namespace Metasound

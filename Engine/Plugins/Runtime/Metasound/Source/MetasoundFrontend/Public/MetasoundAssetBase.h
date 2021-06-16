@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
 #include "MetasoundAccessPtr.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
@@ -12,8 +13,24 @@
 #include "UObject/WeakObjectPtrTemplates.h"
 
 
-
 class UEdGraph;
+
+namespace Metasound
+{
+	namespace AssetTags
+	{
+		extern const FString METASOUNDFRONTEND_API ArrayDelim;
+
+		extern const FName METASOUNDFRONTEND_API AssetClassID;
+		extern const FName METASOUNDFRONTEND_API RegistryVersionMajor;
+		extern const FName METASOUNDFRONTEND_API RegistryVersionMinor;
+
+#if WITH_EDITORONLY_DATA
+		extern const FName METASOUNDFRONTEND_API RegistryInputTypes;
+		extern const FName METASOUNDFRONTEND_API RegistryOutputTypes;
+#endif // WITH_EDITORONLY_DATA
+	} // namespace AssetTags
+} // namespace Metasound
 
 /** FMetasoundAssetBase is intended to be a mix-in subclass for UObjects which utilize
  * Metasound assets.  It provides consistent access to FMetasoundFrontendDocuments, control
@@ -44,6 +61,9 @@ public:
 	// @param Editor graph associated with this metasound object.
 	virtual void SetGraph(UEdGraph* InGraph) = 0;
 
+	// Only required for editor builds. Adds metadata to properties available when the object is
+	// not loaded for use by the Asset Registry.
+	virtual void SetRegistryAssetClassInfo(const Metasound::Frontend::FNodeClassInfo& InClassInfo) = 0;
 #endif // WITH_EDITORONLY_DATA
 
 	// Registers the root graph of the given asset with the MetaSound Frontend.
@@ -66,12 +86,14 @@ public:
 	// Returns the preferred archetype for the given document.
 	virtual const FMetasoundFrontendArchetype& GetPreferredArchetypes(const FMetasoundFrontendDocument& InDocument, const FMetasoundFrontendArchetype& InDefaultArchetype) const;
 
-	// Returns the root class metadata
-	FMetasoundFrontendClassMetadata GetMetadata();
-
 	// TODO:
 	//virtual void OnMetaSoundDependencyAdded(const FMetasoundFrontendClassMetadata& InMetadata) = 0;
 	//virtual void OnMetaSoundDependencyRemoved(const FMetasoundFrontendClassMetadata& InMetadata) = 0;
+
+	// Gets the asset class info.
+	virtual Metasound::Frontend::FNodeClassInfo GetAssetClassInfo() const = 0;
+
+	void ConvertFromPreset();
 
 	// Imports data from a JSON string directly
 	bool ImportFromJSON(const FString& InJSON);
@@ -86,7 +108,6 @@ public:
 	// Returns handle for the root metasound graph of this asset.
 	Metasound::Frontend::FGraphHandle GetRootGraphHandle();
 	Metasound::Frontend::FConstGraphHandle GetRootGraphHandle() const;
-
 
 	// Overwrites the existing document. If the document's archetype is not supported,
 	// the FMetasoundAssetBase be while queried for a new one using `GetPreferredArchetype`. If `bForceUpdateArchetype`
@@ -116,7 +137,6 @@ protected:
 	FText GetDisplayName(FString&& InTypeName) const;
 #endif // WITH_EDITORONLY_DATA
 
-	void UpdateAssetTags(FMetasoundFrontendClassAssetTags& OutTags);
 
 	// Returns an access pointer to the document.
 	virtual Metasound::Frontend::FDocumentAccessPtr GetDocument() = 0;
@@ -132,10 +152,10 @@ protected:
 
 
 private:
+	bool bHasRegistered = false;
+
 	bool GetReceiveNodeMetadataForDataType(const FName& InTypeName, FMetasoundFrontendClassMetadata& OutMetadata) const;
 	TArray<FString> GetTransmittableInputVertexNames() const;
 	Metasound::FSendAddress CreateSendAddress(uint64 InInstanceID, const FString& InVertexName, const FName& InDataTypeName) const;
 	Metasound::Frontend::FNodeHandle AddInputPinForSendAddress(const Metasound::FMetasoundInstanceTransmitter::FSendInfo& InSendInfo, Metasound::Frontend::FGraphHandle InGraph) const;
-
-	Metasound::Frontend::FNodeRegistryKey RegistryKey;
 };

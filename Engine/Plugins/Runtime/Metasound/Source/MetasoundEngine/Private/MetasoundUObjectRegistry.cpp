@@ -3,14 +3,218 @@
 #include "MetasoundUObjectRegistry.h"
 
 #include "Algo/Copy.h"
+#include "AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Async/Async.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "CoreMinimal.h"
+#include "Engine/AssetManager.h"
+#include "Metasound.h"
+#include "MetasoundAssetBase.h"
+#include "MetasoundFrontendRegistries.h"
+#include "MetasoundFrontendTransform.h"
+#include "MetasoundSource.h"
 #include "UObject/Object.h"
+
 
 namespace Metasound
 {
+	namespace AssetSubsystemPrivate
+	{
+		static bool GetAssetClassInfo(const FAssetData& InAssetData, Frontend::FNodeClassInfo& OutInfo)
+		{
+			using namespace Metasound;
+			using namespace Metasound::Frontend;
+
+			bool bSuccess = true;
+
+			OutInfo.Type = EMetasoundFrontendClassType::External;
+			OutInfo.AssetPath = InAssetData.ObjectPath;
+
+			FString AssetClassID;
+			bSuccess &= InAssetData.GetTagValue(AssetTags::AssetClassID, AssetClassID);
+			OutInfo.AssetClassID = FGuid(AssetClassID);
+			OutInfo.ClassName = FMetasoundFrontendClassName(FName(), *AssetClassID, FName());
+
+			int32 RegistryVersionMajor = 0;
+			bSuccess &= InAssetData.GetTagValue(AssetTags::RegistryVersionMajor, RegistryVersionMajor);
+			OutInfo.Version.Major = RegistryVersionMajor;
+
+			int32 RegistryVersionMinor = 0;
+			bSuccess &= InAssetData.GetTagValue(AssetTags::RegistryVersionMinor, RegistryVersionMinor);
+			OutInfo.Version.Minor = RegistryVersionMinor;
+
+#if WITH_EDITORONLY_DATA
+			auto ParseTypesString = [&](const FName AssetTag, TArray<FName>& OutTypes)
+			{
+				FString TypesString;
+				if (InAssetData.GetTagValue(AssetTag, TypesString))
+				{
+					TArray<FString> DataTypeStrings;
+					TypesString.ParseIntoArray(DataTypeStrings, *AssetTags::ArrayDelim);
+					Algo::Transform(DataTypeStrings, OutTypes, [](const FString& DataType) { return *DataType; });
+					return true;
+				}
+
+				return false;
+			};
+
+			OutInfo.InputTypes.Reset();
+			bSuccess &= ParseTypesString(AssetTags::RegistryInputTypes, OutInfo.InputTypes);
+
+			OutInfo.OutputTypes.Reset();
+			bSuccess &= ParseTypesString(AssetTags::RegistryOutputTypes, OutInfo.OutputTypes);
+#endif // WITH_EDITORONLY_DATA
+
+			return bSuccess;
+		}
+	}
+}
+
+void UMetaSoundAssetSubsystem::Initialize(FSubsystemCollectionBase& InCollection)
+{
+//  TODO: Enable Composition
+//	FCoreDelegates::OnPostEngineInit.AddUObject(this, &UMetaSoundAssetSubsystem::PostEngineInit);
+}
+
+void UMetaSoundAssetSubsystem::PostEngineInit()
+{
+	if (UAssetManager* AssetManager = UAssetManager::GetIfValid())
+	{
+		AssetManager->CallOrRegister_OnCompletedInitialScan(FSimpleMulticastDelegate::FDelegate::CreateUObject(this, &UMetaSoundAssetSubsystem::PostInitAssetScan));
+	}
+	else
+	{
+		UE_LOG(LogMetaSound, Error, TEXT("Cannot initialize MetaSoundAssetSubsystem: Enable AssetManager or disable MetaSound plugin"));
+	}
+}
+
+void UMetaSoundAssetSubsystem::PostInitAssetScan()
+{
+	UAssetManager& AssetManager = UAssetManager::Get();
+
+	FAssetManagerSearchRules Rules;
+	Rules.AssetScanPaths.Add(TEXT("/Game"));
+
+	Rules.AssetBaseClass = UMetaSound::StaticClass();
+	TArray<FAssetData> MetaSoundAssets;
+	AssetManager.SearchAssetRegistryPaths(MetaSoundAssets, Rules);
+	for (const FAssetData& AssetData : MetaSoundAssets)
+	{
+		AddOrUpdateAsset(AssetData);
+	}
+
+	Rules.AssetBaseClass = UMetaSoundSource::StaticClass();
+	TArray<FAssetData> MetaSoundSourceAssets;
+	AssetManager.SearchAssetRegistryPaths(MetaSoundSourceAssets, Rules);
+	for (const FAssetData& AssetData : MetaSoundSourceAssets)
+	{
+		AddOrUpdateAsset(AssetData);
+	}
+}
+
+void UMetaSoundAssetSubsystem::Deinitialize()
+{
+}
+
+void UMetaSoundAssetSubsystem::AddOrUpdateAsset(const FAssetData& InAssetData)
+{
+	using namespace Metasound;
+	using namespace Metasound::AssetSubsystemPrivate;
+	using namespace Metasound::Frontend;
+
+	// TODO: Set to false for editor data only builds once registering
+	// without loading asset is supported.
+	static const bool bLoadRequiredToRegisterAssetClasses = true;
+
+	FNodeClassInfo ClassInfo;
+	bool bClassInfoFound = GetAssetClassInfo(InAssetData, ClassInfo);
+	if (!bClassInfoFound || bLoadRequiredToRegisterAssetClasses)
+	{
+		UObject* Object = nullptr;
+
+		FSoftObjectPath Path(InAssetData.ObjectPath);
+		if (InAssetData.IsAssetLoaded())
+		{
+			Object = Path.ResolveObject();
+		}
+		else
+		{
+			if (!bLoadRequiredToRegisterAssetClasses)
+			{
+				UE_LOG(LogMetaSound, Warning,
+					TEXT("Failed to find serialized MetaSound asset registry data for asset '%s'. "
+						"Forcing synchronous load which increases load times. Re-save asset to avoid this."),
+					*InAssetData.ObjectPath.ToString());
+			}
+			Object = Path.TryLoad();
+		}
+
+		if (ensure(Object))
+		{
+			FMetasoundAssetBase* MetaSoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Object);
+			check(MetaSoundAsset);
+
+			FDocumentHandle Document = MetaSoundAsset->GetDocumentHandle();
+
+			// Must version to ensure registration uses the correct key,
+			// which must be based off of most up-to-date document model
+			// for safety.
+			const FName AssetName = Object->GetFName();
+			const FString AssetPath = Object->GetPathName();
+			FVersionDocument(AssetName, AssetPath).Transform(Document);
+
+			MetaSoundAsset->RegisterGraphWithFrontend();
+		}
+	}
+}
+
+void UMetaSoundAssetSubsystem::RemoveAsset(const FAssetData& InAssetData)
+{
+	using namespace Metasound;
+	using namespace Metasound::AssetSubsystemPrivate;
+	using namespace Metasound::Frontend;
+
+	FNodeClassInfo ClassInfo;
+	if (!GetAssetClassInfo(InAssetData, ClassInfo))
+	{
+		UObject* Object = nullptr;
+
+		FSoftObjectPath Path(InAssetData.ObjectPath);
+		if (InAssetData.IsAssetLoaded())
+		{
+			Object = Path.ResolveObject();
+		}
+		else
+		{
+			Object = Path.TryLoad();
+		}
+
+		if (ensure(Object))
+		{
+			FMetasoundAssetBase* MetaSoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Object);
+			check(MetaSoundAsset);
+
+			FDocumentHandle Document = MetaSoundAsset->GetDocumentHandle();
+
+			// Must version to ensure registration uses the correct key,
+			// which must be based off of most up-to-date document model
+			// for safety.
+			const FName AssetName = Object->GetFName();
+			const FString AssetPath = Object->GetPathName();
+			FVersionDocument(AssetName, AssetPath).Transform(Document);
+
+			ClassInfo = MetaSoundAsset->GetAssetClassInfo();
+		}
+	}
+
+	const FNodeRegistryKey RegistryKey = FMetasoundFrontendRegistryContainer::Get()->GetRegistryKey(ClassInfo);
+	FMetasoundFrontendRegistryContainer::Get()->UnregisterNode(RegistryKey);
+}
+
+namespace Metasound
+{
+
 	class FMetasoundUObjectRegistry : public IMetasoundUObjectRegistry
 	{
 		public:

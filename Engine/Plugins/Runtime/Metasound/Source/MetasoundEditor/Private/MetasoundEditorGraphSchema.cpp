@@ -24,6 +24,7 @@
 #include "MetasoundEditorModule.h"
 #include "MetasoundEditorSettings.h"
 #include "MetasoundFrontend.h"
+#include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendSearchEngine.h"
 #include "ScopedTransaction.h"
 #include "Toolkits/ToolkitManager.h"
@@ -742,11 +743,30 @@ FText UMetasoundEditorGraphSchema::GetPinDisplayName(const UEdGraphPin* Pin) con
 			}
 		}
 
+		case EMetasoundFrontendClassType::External:
+		{
+			if (Pin->Direction == EGPD_Input)
+			{
+				TArray<FInputHandle> InputHandles = NodeHandle->GetInputsWithVertexName(Pin->GetName());
+				if (ensure(InputHandles.Num() > 0))
+				{
+					return InputHandles[0]->GetDisplayName();
+				}
+			}
+			else
+			{
+				TArray<FOutputHandle> OutputHandles = NodeHandle->GetOutputsWithVertexName(Pin->GetName());
+				if (ensure(OutputHandles.Num() > 0))
+				{
+					return OutputHandles[0]->GetDisplayName();
+				}
+			}
+		}
+
 		case EMetasoundFrontendClassType::Variable:
 		case EMetasoundFrontendClassType::Graph:
 			// TODO: Implement above
 
-		case EMetasoundFrontendClassType::External:
 		case EMetasoundFrontendClassType::Invalid:
 		default:
 		{
@@ -799,21 +819,77 @@ void UMetasoundEditorGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSe
 	Super::BreakPinLinks(TargetPin, bSendsNodeNotifcation);
 }
 
-void UMetasoundEditorGraphSchema::GetAssetsGraphHoverMessage(const TArray<FAssetData>& Assets, const UEdGraph* HoverGraph, FString& OutTooltipText, bool& bOutOkIcon) const
+void UMetasoundEditorGraphSchema::GetAssetsGraphHoverMessage(const TArray<FAssetData>& Assets, const UEdGraph* HoverGraph, FString& OutTooltipText, bool& OutOkIcon) const
 {
-	bOutOkIcon = false;
+	// Enable Composition
+	//using namespace Metasound::Editor;
 
-	// TODO: Implement
+	//OutOkIcon = true;
+
+	//if (!HoverGraph)
+	//{
+	//	OutOkIcon = false;
+	//	return;
+	//}
+
+	//OutTooltipText = TEXT("Add MetaSound reference to Graph.");
+
+	//IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
+	//for (const FAssetData& Data : Assets)
+	//{
+	//	if (!EditorModule.IsMetaSoundAssetClass(Data.GetClass()->GetFName()))
+	//	{
+	//		OutOkIcon = false;
+	//		OutTooltipText = TEXT("Asset(s) must all be MetaSounds.");
+	//		break;
+	//	}
+	//}
 }
 
 void UMetasoundEditorGraphSchema::DroppedAssetsOnGraph(const TArray<FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraph* Graph) const
 {
-	// TODO: Implement
+	// Enable Composition
+	//using namespace Metasound;
+	//using namespace Metasound::Frontend;
+
+	//const FScopedTransaction Transaction(LOCTEXT("DropMetaSoundOnGraph", "Drop MetaSound On Graph"));
+
+	//UMetasoundEditorGraph* MetaSoundGraph = CastChecked<UMetasoundEditorGraph>(Graph);
+	//UObject& MetaSound = MetaSoundGraph->GetMetasoundChecked();
+	//MetaSound.Modify();
+	//Graph->Modify();
+
+	//for (const FAssetData& DroppedAsset : Assets)
+	//{
+	//	if (UObject* DroppedMetaSound = DroppedAsset.GetAsset())
+	//	{
+	//		FMetasoundAssetBase* DroppedMetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&DroppedMetaSound);
+	//		check(DroppedMetaSoundAsset);
+
+	//		const FNodeClassInfo ClassInfo = DroppedMetaSoundAsset->GetAssetClassInfo();
+	//		const FNodeRegistryKey RegistryKey = FMetasoundFrontendRegistryContainer::Get()->GetRegistryKey(ClassInfo);
+	//		if (ensure(IsValidNodeRegistryKey(RegistryKey)))
+	//		{
+	//			if (!FMetasoundFrontendRegistryContainer::Get()->IsNodeRegistered(RegistryKey))
+	//			{
+	//				DroppedMetaSoundAsset->RegisterGraphWithFrontend();
+	//			}
+	//		}
+
+	//		const FMetasoundFrontendClassName ClassName = MetaSoundAsset->GetAssetClassInfo().ClassName;
+
+	//		FMetasoundFrontendClass Class;
+	//		if (ensure(ISearchEngine::Get().FindClassWithHighestVersion(ClassName.ToNodeClassName(), Class)))
+	//		{
+	//			Metasound::Editor::FGraphBuilder::AddExternalNode(MetaSound, Class.Metadata, GraphPosition);
+	//		}
+	//	}
+	//}
 }
 
 void UMetasoundEditorGraphSchema::DroppedAssetsOnNode(const TArray<FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraphNode* Node) const
 {
-	// TODO: Implement for metasound references
+	// Still needed?
 }
 
 void UMetasoundEditorGraphSchema::GetConversionActions(FGraphActionMenuBuilder& ActionMenuBuilder, Metasound::Editor::FActionClassFilters InFilters, bool bShowSelectedActions) const
@@ -835,7 +911,7 @@ void UMetasoundEditorGraphSchema::GetConversionActions(FGraphActionMenuBuilder& 
 			continue;
 		}
 
-		const FMetasoundFrontendClassMetadata& Metadata = FrontendClass.Metadata;
+		FMetasoundFrontendClassMetadata Metadata = FrontendClass.Metadata;
 		const FText Tooltip = Metadata.Author.IsEmpty()
 			? Metadata.Description
 			: FText::Format(LOCTEXT("MetasoundTooltipAuthorFormat", "{0}\nAuthor: {1}"), Metadata.Description, Metadata.Author);
@@ -850,6 +926,7 @@ void UMetasoundEditorGraphSchema::GetConversionActions(FGraphActionMenuBuilder& 
 				0
 			);
 
+			Metadata.Type = EMetasoundFrontendClassType::External;
 			NewNodeAction->ClassMetadata = Metadata;
 			ActionMenuBuilder.AddAction(NewNodeAction);
 
@@ -934,7 +1011,7 @@ void UMetasoundEditorGraphSchema::GetFunctionActions(FGraphActionMenuBuilder& Ac
 			continue;
 		}
 
-		const FMetasoundFrontendClassMetadata& Metadata = FrontendClass.Metadata;
+		FMetasoundFrontendClassMetadata Metadata = FrontendClass.Metadata;
 		const FText Tooltip = Metadata.Author.IsEmpty()
 			? Metadata.Description
 			: FText::Format(LOCTEXT("MetasoundTooltipAuthorFormat", "{0}\nAuthor: {1}"), Metadata.Description, Metadata.Author);
@@ -950,6 +1027,7 @@ void UMetasoundEditorGraphSchema::GetFunctionActions(FGraphActionMenuBuilder& Ac
 				0
 			);
 
+			Metadata.Type = EMetasoundFrontendClassType::External;
 			NewNodeAction->ClassMetadata = Metadata;
 			ActionMenuBuilder.AddAction(NewNodeAction);
 		}

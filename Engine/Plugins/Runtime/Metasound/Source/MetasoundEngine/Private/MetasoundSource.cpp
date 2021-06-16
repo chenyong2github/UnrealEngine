@@ -37,8 +37,6 @@ FAutoConsoleVariableRef CVarMetaSoundBlockRate(
 	TEXT("Default: 100.0f"),
 	ECVF_Default);
 
-static const FName MetasoundSourceArchetypeName = "Metasound Source";
-
 UMetaSoundSource::UMetaSoundSource(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, FMetasoundAssetBase()
@@ -60,13 +58,9 @@ void UMetaSoundSource::PreSave(FObjectPreSaveContext SaveContext)
 
 	// TODO: Move these to be run anytime the interface changes or
 	// the node is versioned
-	UpdateAssetTags(AssetTags);
+
+	//  TODO: Enable Composition
 	// RegisterGraphWithFrontend();
-	// TODO: Post re-register, determine if interface changed and
-	// test/figure out when we should run updates on referencing
-	// assets (presets only and on breaking changes? pop-up dialog?
-	// Only done through an action user can run and just let other
-	// be broken? Fail on cook if so?)
 }
 
 void UMetaSoundSource::PostEditUndo()
@@ -85,6 +79,7 @@ void UMetaSoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 	using namespace Metasound::Frontend;
 
 	Super::PostEditChangeProperty(InEvent);
+	Metasound::PostEditChangeProperty(*this, InEvent);
 
 	if (InEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UMetaSoundSource, OutputFormat))
 	{
@@ -147,15 +142,16 @@ FText UMetaSoundSource::GetDisplayName() const
 	FString TypeName = UMetaSoundSource::StaticClass()->GetName();
 	return FMetasoundAssetBase::GetDisplayName(MoveTemp(TypeName));
 }
+
+void UMetaSoundSource::SetRegistryAssetClassInfo(const Metasound::Frontend::FNodeClassInfo& InNodeInfo)
+{
+	Metasound::SetMetaSoundRegistryAssetClassInfo(*this, InNodeInfo);
+}
 #endif // WITH_EDITORONLY_DATA
 
-void UMetaSoundSource::ConvertFromPreset()
+Metasound::Frontend::FNodeClassInfo UMetaSoundSource::GetAssetClassInfo() const
 {
-	using namespace Metasound::Frontend;
-	FGraphHandle GraphHandle = GetRootGraphHandle();
-	FMetasoundFrontendGraphStyle Style = GraphHandle->GetGraphStyle();
-	Style.bIsGraphEditable = true;
-	GraphHandle->SetGraphStyle(Style);
+	return { GetDocumentChecked().RootGraph, *GetPathName() };
 }
 
 bool UMetaSoundSource::IsPlayable() const

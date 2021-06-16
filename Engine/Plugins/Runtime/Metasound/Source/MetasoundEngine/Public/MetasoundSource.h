@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraph.h"
+#include "Metasound.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendDocument.h"
@@ -10,17 +11,10 @@
 #include "MetasoundOperatorSettings.h"
 #include "MetasoundRouter.h"
 #include "Sound/SoundWaveProcedural.h"
+#include "UObject/MetaData.h"
 
 #include "MetasoundSource.generated.h"
 
-
-namespace Metasound
-{
-	namespace ConsoleVariables
-	{
-		static float BlockRate = 100.f;
-	}
-} // namespace Metasound
 
 /** Declares the output audio format of the UMetaSoundSource */
 UENUM()
@@ -35,17 +29,6 @@ enum class EMetasoundSourceAudioFormat : uint8
 	COUNT UMETA(Hidden)
 };
 
-UCLASS()
-class METASOUNDENGINE_API UMetasoundEditorGraphBase : public UEdGraph
-{
-	GENERATED_BODY()
-
-public:
-	virtual bool IsEditorOnly() const override { return true; }
-	virtual bool NeedsLoadForEditorGame() const override { return false; }
-
-	virtual void Synchronize() { }
-};
 
 /**
  * This Metasound type can be played as an audio source.
@@ -60,9 +43,6 @@ protected:
 	FMetasoundFrontendDocument RootMetasoundDocument;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(AssetRegistrySearchable)
-	FMetasoundFrontendClassAssetTags AssetTags;
-
 	UPROPERTY()
 	UMetasoundEditorGraphBase* Graph;
 #endif // WITH_EDITORONLY_DATA
@@ -74,7 +54,25 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Metasound)
 	EMetasoundSourceAudioFormat OutputFormat;
 
+	UPROPERTY(AssetRegistrySearchable)
+	FGuid AssetClassID;
+
 #if WITH_EDITORONLY_DATA
+	UPROPERTY(AssetRegistrySearchable)
+	FString RegistryInputTypes;
+
+	UPROPERTY(AssetRegistrySearchable)
+	FString RegistryOutputTypes;
+
+	UPROPERTY(AssetRegistrySearchable)
+	int32 RegistryVersionMajor = 0;
+
+	UPROPERTY(AssetRegistrySearchable)
+	int32 RegistryVersionMinor = 0;
+
+	// Sets Asset Registry Metadata associated with this MetaSoundSource
+	virtual void SetRegistryAssetClassInfo(const Metasound::Frontend::FNodeClassInfo& InNodeInfo) override;
+
 	// Returns document name (for editor purposes, and avoids making document public for edit
 	// while allowing editor to reference directly)
 	static FName GetDocumentPropertyName()
@@ -123,13 +121,10 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& InEvent) override;
 #endif // WITH_EDITOR
 
-	virtual const FMetasoundFrontendArchetype& GetArchetype() const override;
+	// Returns Asset Metadata associated with this MetaSoundSource
+	virtual Metasound::Frontend::FNodeClassInfo GetAssetClassInfo() const override;
 
-	// If set to be a preset, converts to a full-access MetaSound,
-	// removing edit restrictions and excluding it from automatic
-	// interface versioning.
-	UFUNCTION(Category = Metasound, meta = (CallInEditor = "true"))
-	void ConvertFromPreset();
+	virtual const FMetasoundFrontendArchetype& GetArchetype() const override;
 
 	UObject* GetOwningAsset() override
 	{

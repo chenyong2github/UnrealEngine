@@ -2,15 +2,83 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
 #include "EdGraph/EdGraph.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundOperatorSettings.h"
 #include "MetasoundRouter.h"
-#include "MetasoundSource.h"
 
 #include "Metasound.generated.h"
+
+
+namespace Metasound
+{
+	namespace ConsoleVariables
+	{
+		static float BlockRate = 100.f;
+	} // namespace ConsoleVariables
+
+	template <typename TMetaSoundObject>
+	void PostEditChangeProperty(TMetaSoundObject& InMetaSound, FPropertyChangedEvent& InEvent)
+	{
+		// TODO: Update registry info here if interface has changed,
+		// potentially enabling removal of PreSave registration
+	}
+
+#if WITH_EDITORONLY_DATA
+	template <typename TMetaSoundObject>
+	void SetMetaSoundRegistryAssetClassInfo(TMetaSoundObject& InMetaSound, const Metasound::Frontend::FNodeClassInfo& InClassInfo)
+	{
+		using namespace Metasound;
+
+		check(AssetTags::AssetClassID == GET_MEMBER_NAME_CHECKED(TMetaSoundObject, AssetClassID));
+		check(AssetTags::RegistryInputTypes == GET_MEMBER_NAME_CHECKED(TMetaSoundObject, RegistryInputTypes));
+		check(AssetTags::RegistryOutputTypes == GET_MEMBER_NAME_CHECKED(TMetaSoundObject, RegistryOutputTypes));
+		check(AssetTags::RegistryVersionMajor == GET_MEMBER_NAME_CHECKED(TMetaSoundObject, RegistryVersionMajor));
+		check(AssetTags::RegistryVersionMinor == GET_MEMBER_NAME_CHECKED(TMetaSoundObject, RegistryVersionMinor));
+
+		bool bMarkDirty = InMetaSound.AssetClassID != InClassInfo.AssetClassID;
+		bMarkDirty |= InMetaSound.RegistryVersionMajor != InClassInfo.Version.Major;
+		bMarkDirty |= InMetaSound.RegistryVersionMinor != InClassInfo.Version.Minor;
+
+		InMetaSound.AssetClassID = InClassInfo.AssetClassID;
+		InMetaSound.RegistryVersionMajor = InClassInfo.Version.Major;
+		InMetaSound.RegistryVersionMinor = InClassInfo.Version.Minor;
+
+		{
+			TArray<FString> InputTypes;
+			Algo::Transform(InClassInfo.InputTypes, InputTypes, [](const FName& Name) { return Name.ToString(); });
+
+			const FString TypeString = FString::Join(InputTypes, *AssetTags::ArrayDelim);
+			bMarkDirty |= InMetaSound.RegistryInputTypes != TypeString;
+			InMetaSound.RegistryInputTypes = TypeString;
+		}
+
+		{
+			TArray<FString> OutputTypes;
+			Algo::Transform(InClassInfo.OutputTypes, OutputTypes, [](const FName& Name) { return Name.ToString(); });
+
+			const FString TypeString = FString::Join(OutputTypes, *AssetTags::ArrayDelim);
+			bMarkDirty |= InMetaSound.RegistryOutputTypes != TypeString;
+			InMetaSound.RegistryOutputTypes = TypeString;
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
+} // namespace Metasound
+
+UCLASS()
+class METASOUNDENGINE_API UMetasoundEditorGraphBase : public UEdGraph
+{
+	GENERATED_BODY()
+
+public:
+	virtual bool IsEditorOnly() const override { return true; }
+	virtual bool NeedsLoadForEditorGame() const override { return false; }
+
+	virtual void Synchronize() { }
+};
 
 
 /**
@@ -27,9 +95,6 @@ protected:
 	FMetasoundFrontendDocument RootMetaSoundDocument;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(AssetRegistrySearchable)
-	FMetasoundFrontendClassAssetTags AssetTags;
-
 	UPROPERTY()
 	UMetasoundEditorGraphBase* Graph;
 #endif // WITH_EDITORONLY_DATA
@@ -37,7 +102,25 @@ protected:
 public:
 	UMetaSound(const FObjectInitializer& ObjectInitializer);
 
+	UPROPERTY(AssetRegistrySearchable)
+	FGuid AssetClassID;
+
 #if WITH_EDITORONLY_DATA
+	UPROPERTY(AssetRegistrySearchable)
+	FString RegistryInputTypes;
+
+	UPROPERTY(AssetRegistrySearchable)
+	FString RegistryOutputTypes;
+
+	UPROPERTY(AssetRegistrySearchable)
+	int32 RegistryVersionMajor = 0;
+
+	UPROPERTY(AssetRegistrySearchable)
+	int32 RegistryVersionMinor = 0;
+
+	// Sets Asset Registry Metadata associated with this MetaSound
+	virtual void SetRegistryAssetClassInfo(const Metasound::Frontend::FNodeClassInfo& InClassInfo) override;
+
 	// Returns document name (for editor purposes, and avoids making document public for edit
 	// while allowing editor to reference directly)
 	static FName GetDocumentPropertyName()
@@ -71,13 +154,10 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& InEvent) override;
 #endif // WITH_EDITOR
 
-	virtual const FMetasoundFrontendArchetype& GetArchetype() const override;
+	// Returns Asset Metadata associated with this MetaSound
+	virtual Metasound::Frontend::FNodeClassInfo GetAssetClassInfo() const override;
 
-	// If set to be a preset, converts to a full-access MetaSound,
-	// removing edit restrictions and excluding it from automatic
-	// interface versioning.
-	UFUNCTION(Category = Metasound, meta = (CallInEditor = "true"))
-	void ConvertFromPreset();
+	virtual const FMetasoundFrontendArchetype& GetArchetype() const override;
 
 	UObject* GetOwningAsset() override
 	{
