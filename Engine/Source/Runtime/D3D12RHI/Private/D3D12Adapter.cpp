@@ -358,7 +358,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	FGenericCrashContext::SetEngineData(TEXT("RHI.Breadcrumbs"), bBreadcrumbs ? TEXT("true") : TEXT("false"));
 
 #if NV_AFTERMATH
-	if (IsRHIDeviceNVIDIA())
+	if (IsRHIDeviceNVIDIA() && GDX12NVAfterMathModuleLoaded)
 	{
 		// GPUcrash dump handler must be attached prior to device creation
 		if (EnumHasAnyFlags(GPUCrashDebuggingModes, ED3D12GPUCrashDebuggingModes::NvAftermath))
