@@ -3,7 +3,9 @@
 
 #include "CoreMinimal.h"
 #include "MetasoundAssetBase.h"
+#include "Subsystems/EngineSubsystem.h"
 #include "UObject/Object.h"
+
 #include "MetasoundUObjectRegistry.generated.h"
 
 

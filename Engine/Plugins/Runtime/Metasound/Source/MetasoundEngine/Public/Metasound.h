@@ -10,6 +10,10 @@
 #include "MetasoundOperatorSettings.h"
 #include "MetasoundRouter.h"
 
+#if WITH_EDITORONLY_DATA
+#include "Algo/Transform.h"
+#endif // WITH_EDITORONLY_DATA
+
 #include "Metasound.generated.h"
 
 
