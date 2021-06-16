@@ -7,10 +7,12 @@
 #include "Framework/Docking/TabManager.h"
 #include "Misc/NotifyHook.h"
 
+class IPersonaPreviewScene;
+class IPersonaViewport;
+class IPersonaToolkit;
 class FUICommandList;
 class IOptimusNodeGraphCollectionOwner;
 class SGraphEditor;
-class SOptimusEditorGraphExplorer;
 class SOptimusEditorViewport;
 class SOptimusGraphTitleBar;
 class SOptimusNodePalette;
@@ -45,6 +47,11 @@ public:
 	IOptimusNodeGraphCollectionOwner* GetGraphCollectionRoot() const;
 	UOptimusDeformer* GetDeformer() const;
 
+	TSharedRef<IPersonaToolkit> GetPersonaToolkit() const override
+	{
+		return PersonaToolkit.ToSharedRef();
+	}
+	
 	FText GetGraphCollectionRootName() const;
 
 	UOptimusActionStack* GetActionStack() const;
@@ -75,6 +82,9 @@ private:
 	void Compile();
 
 	bool CanCompile() const;
+
+	void CompileBegin(UOptimusDeformer* InDeformer);
+	void CompileEnd(UOptimusDeformer* InDeformer);
 	
 	// ----------------------------------------------------------------------------------------
 	// Graph commands
@@ -107,21 +117,15 @@ private:
 	void BindCommands();
 
 public:
-	// IToolkit overrides
-	void RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager) override;
-	void UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager) override;
+	// Handlers for created tabs
+	void HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPreviewScene);
+	void HandleDetailsCreated(const TSharedRef<IDetailsView>& InDetailsView);
+	void HandleViewportCreated(const TSharedRef<IPersonaViewport>& InPersonaViewport);
+	
+	// KILL ME
+	TSharedPtr<SGraphEditor> GetGraphEditorWidget() const { return GraphEditorWidget; }
 
 private:
-	TSharedRef<SDockTab> SpawnTab_Preview(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTab_Palette(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTab_Explorer(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTab_GraphArea(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTab_PropertyDetails(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTab_PreviewSettings(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTab_Output(const FSpawnTabArgs& Args);
-
-	TSharedRef<FTabManager::FLayout> CreatePaneLayout() const;
-
 	void CreateWidgets();
 	TSharedRef<SGraphEditor> CreateGraphEditorWidget();
 	FGraphAppearanceInfo GetGraphAppearance() const;
@@ -135,20 +139,10 @@ private:
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 
 private:
-	// Tab Ids for the Optimus editor
-	static const FName PreviewTabId;
-	static const FName PaletteTabId;
-	static const FName ExplorerTabId;
-	static const FName GraphAreaTabId;
-	static const FName PropertyDetailsTabId;
-	static const FName PreviewSettingsTabId;
-	static const FName OutputTabId;
-
+	// Persona toolkit for the skelmesh preview
+	TSharedPtr<IPersonaToolkit> PersonaToolkit;
+	
 	// -- Widgets
-
-	TSharedPtr<SOptimusEditorViewport> EditorViewportWidget;
-	TSharedPtr<SOptimusNodePalette> NodePaletteWidget;
-	TSharedPtr<SOptimusEditorGraphExplorer> GraphExplorerWidget;
 	TSharedPtr<SGraphEditor> GraphEditorWidget;
 	TSharedPtr<IDetailsView> PropertyDetailsWidget;
 	TSharedPtr<IDetailsView> PreviewDetailsWidget;
