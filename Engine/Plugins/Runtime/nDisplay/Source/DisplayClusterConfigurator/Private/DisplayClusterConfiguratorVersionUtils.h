@@ -12,7 +12,7 @@ class UDisplayClusterConfigurationViewport;
 class UBlueprint;
 class FDisplayClusterConfiguratorBlueprintEditor;
 
-#define DISPLAYCLUSTER_BP_VERSION 1
+#define DISPLAYCLUSTER_BP_VERSION 2
 
 /**
  * The original format of the DisplayCluster config data UAsset, used only for importing 4.26 assets.
