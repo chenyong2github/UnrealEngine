@@ -149,6 +149,13 @@ namespace CADKernel
 			MeshEntity((TSharedRef<FTopologicalEntity>&) InModel);
 		}
 
+		void MeshEntity(TSharedRef<FTopologicalEntity>& InEntity)
+		{
+			TArray<TSharedPtr<FEntity>> Entities;
+			Entities.Add(InEntity);
+			MeshEntities(Entities);
+		}
+
 		void Mesh(TSharedRef<FTopologicalFace> Face);
 		void Mesh(TSharedRef<FTopologicalEdge> InEdge, TSharedRef<FTopologicalFace> CarrierFace);
 		void Mesh(TSharedRef<FTopologicalVertex> Vertex);
@@ -165,12 +172,6 @@ namespace CADKernel
 
 		void MeshEntities();
 
-		void MeshEntity(TSharedRef<FTopologicalEntity>& InEntity)
-		{
-			TArray<TSharedPtr<FEntity>> Entities;
-			Entities.Add(InEntity);
-			MeshEntities(Entities);
-		}
 
 		void IsolateQuadFace(TArray<FCostToFace>& QuadSurfaces, TArray<TSharedPtr<FTopologicalFace>>& OtherSurfaces) const;
 
