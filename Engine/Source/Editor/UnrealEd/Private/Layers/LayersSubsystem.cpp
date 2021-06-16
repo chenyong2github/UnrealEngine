@@ -221,23 +221,10 @@ bool ULayersSubsystem::InitializeNewActorLayers(AActor* Actor)
 
 bool ULayersSubsystem::DisassociateActorFromLayers(AActor* Actor)
 {
-	if(	!IsActorValidForLayer( Actor ) )
-	{
-		return false;
-	}
+	TArray< AActor* > Actors;
+	Actors.Add(Actor);
 
-	bool bChangeOccurred = false;
-	for( auto LayerNameIt = Actor->Layers.CreateConstIterator(); LayerNameIt; ++LayerNameIt )
-	{
-		const FName LayerName = *LayerNameIt;
-		ULayer* Layer = EnsureLayerExists( LayerName );
-
-		Layer->Modify();
-		RemoveActorFromStats( Layer, Actor);
-		bChangeOccurred = true;
-	}
-
-	return bChangeOccurred;
+	return DisassociateActorsFromLayers(Actors);
 }
 
 
@@ -357,6 +344,29 @@ bool ULayersSubsystem::AddActorsToLayers(const TArray< TWeakObjectPtr< AActor > 
 	return AddActorsToLayers(ActorsRawPtr, LayerNames);
 }
 
+bool ULayersSubsystem::DisassociateActorsFromLayers(const TArray<AActor*>& Actors)
+{
+	bool bChangesOccurred = false;
+	
+	for(AActor* Actor : Actors)
+	{
+		if (!IsActorValidForLayer(Actor))
+		{
+			continue;
+		}
+
+		for(const FName& LayerName : Actor->Layers)
+		{
+			ULayer* Layer = EnsureLayerExists(LayerName);
+
+			Layer->Modify();
+			RemoveActorFromStats(Layer, Actor);
+			bChangesOccurred = true;
+		}
+	}
+
+	return bChangesOccurred;
+}
 
 bool ULayersSubsystem::RemoveActorFromLayer(AActor* Actor, const FName& LayerName, const bool bUpdateStats)
 {
