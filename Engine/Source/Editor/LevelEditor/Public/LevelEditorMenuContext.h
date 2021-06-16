@@ -25,7 +25,8 @@ public:
 
 
 /** Enum to describe what a level editor context menu should be built for */
-enum class ELevelEditorMenuContext
+UENUM()
+enum class ELevelEditorMenuContext : uint8
 {
 	/** This context menu is applicable to a viewport */
 	Viewport,
@@ -41,6 +42,7 @@ public:
 
 	TWeakPtr<SLevelEditor> LevelEditor;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="LevelEditor|Menu")
 	ELevelEditorMenuContext ContextType;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="LevelEditor|Menu")
@@ -49,6 +51,9 @@ public:
 	/** If the ContextType is Viewport this property can be set to the HitProxy element that triggered the ContextMenu. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="LevelEditor|Menu")
 	FTypedElementHandle HitProxyElement;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="LevelEditor|Menu")
+	FVector CursorWorldLocation;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UActorComponent>> SelectedComponents;
