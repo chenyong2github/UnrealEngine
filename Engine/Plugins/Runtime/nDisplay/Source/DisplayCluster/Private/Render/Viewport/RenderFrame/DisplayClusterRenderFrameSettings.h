@@ -21,14 +21,26 @@ struct FDisplayClusterRenderFrameSettings
 	// Preview RTT size multiplier
 	float PreviewRenderTargetRatioMult = 1.f;
 
-	// Multiply all downscale ratio inside all viewports settings for whole cluster
+
+	// Multiply all viewports RTT size's for whole cluster by this value
 	float ClusterRenderTargetRatioMult = 1.f;
 
-	// Multiply all downscale ratio inside all viewports settings for whole cluster
+	// Multiply inner frustum RTT size's for whole cluster by this value
+	float ClusterICVFXInnerViewportRenderTargetRatioMult = 1.f;
+
+	// Multiply outer viewports RTT size's for whole cluster by this value
 	float ClusterICVFXOuterViewportRenderTargetRatioMult = 1.f;
+
 
 	// Multiply all buffer ratios for whole cluster by this value
 	float ClusterBufferRatioMult = 1.f;
+
+	// Multiply inner frustums buffer ratios for whole cluster by this value
+	float ClusterICVFXInnerFrustumBufferRatioMult = 1.f;
+
+	// Multiply outer viewports buffer ratios for whole cluster by this value
+	float ClusterICVFXOuterViewportBufferRatioMult = 1.f;
+
 
 	// Allow warpblend render
 	bool bAllowWarpBlend = true;

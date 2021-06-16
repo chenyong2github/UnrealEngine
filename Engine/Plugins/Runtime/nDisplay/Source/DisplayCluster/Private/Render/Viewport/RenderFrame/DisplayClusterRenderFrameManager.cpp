@@ -131,10 +131,28 @@ bool FDisplayClusterRenderFrameManager::BuildSimpleFrame(FViewport* InViewport, 
 					}
 				}
 
+					float CustomBufferRatio = ViewportIt->GetRenderSettings().BufferRatio;
+					{
+						// Global multiplier
+						CustomBufferRatio *= InRenderFrameSettings.ClusterBufferRatioMult;
+
+						if ((ViewportIt->RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_ICVFXTarget) != 0)
+						{
+							// Outer viewport
+							CustomBufferRatio *= InRenderFrameSettings.ClusterICVFXOuterViewportBufferRatioMult;
+						}
+						else
+						if ((ViewportIt->RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_ICVFXIncamera) != 0)
+						{
+							// Inner Frustum
+							CustomBufferRatio *= InRenderFrameSettings.ClusterICVFXInnerFrustumBufferRatioMult;
+						}
+					}
+
 				FDisplayClusterRenderFrame::FFrameViewFamily FrameViewFamily;
 				{
 					FrameViewFamily.Views.Add(FrameView);
-					FrameViewFamily.CustomBufferRatio = ViewportIt->GetRenderSettings().BufferRatio * InRenderFrameSettings.ClusterBufferRatioMult;
+					FrameViewFamily.CustomBufferRatio = CustomBufferRatio;
 					FrameViewFamily.ViewExtensions = ViewportIt->GatherActiveExtensions(InViewport);
 				}
 
@@ -160,9 +178,9 @@ bool FDisplayClusterRenderFrameManager::FindFrameTargetRect(const TArray<FDispla
 	// Calculate Backbuffer frame
 	bool bIsUsed = false;
 
-	for (const auto& ViewportIt : InOutViewports)
+	for (const FDisplayClusterViewport* ViewportIt : InOutViewports)
 	{
-		if (ViewportIt && ViewportIt->GetRenderSettings().bVisible)
+		if (ViewportIt && ViewportIt->RenderSettings.bEnable && ViewportIt->RenderSettings.bVisible)
 		{
 			for (const auto& ContextIt : ViewportIt->GetContexts())
 			{
