@@ -227,6 +227,22 @@ public:
 
 	int32 NumBones () const { return BoneIndices.Num(); }
 
+	// Returns farthest future sample time >= 0.0f.
+	// Returns a negative value when there are no future sample times.
+	float GetTrajectoryFutureTimeHorizon () const;
+
+	// Returns farthest past sample time <= 0.0f.
+	// Returns a positive value when there are no past sample times.
+	float GetTrajectoryPastTimeHorizon () const;
+
+	// Returns farthest future sample distance >= 0.0f.
+	// Returns a negative value when there are no future sample distances.
+	float GetTrajectoryFutureDistanceHorizon () const;
+
+	// Returns farthest path sample distance <= 0.0f.
+	// Returns a positive value when there are no past sample distances.
+	float GetTrajectoryPastDistanceHorizon () const;
+
 public: // UObject
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	virtual void PostLoad() override;
@@ -462,6 +478,7 @@ struct POSESEARCH_API FPoseSearchFeatureVectorBuilder
 	GENERATED_BODY()
 public:
 	void Init(const UPoseSearchSchema* Schema);
+	void Reset();
 	void ResetFeatures();
 
 	const UPoseSearchSchema* GetSchema() const { return Schema; }
