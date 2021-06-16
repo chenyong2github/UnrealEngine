@@ -111,10 +111,17 @@ FReply FControlRigDrawContainerDetails::OnImportCurvesFromFBXClicked()
 		TSharedRef<SKismetInspector> KismetInspector = SNew(SKismetInspector);
 		KismetInspector->ShowSingleStruct(StructToDisplay);
 
-		SGenericDialogWidget::OpenDialog(LOCTEXT("ControlRigEditorImportFBXCurves", "Import FBX Curves"), KismetInspector, SGenericDialogWidget::FArguments(), true);
+		SGenericDialogWidget::FArguments DialogArguments;
+		DialogArguments.OnOkPressed_Lambda([&Settings, this, &OutFilenames] ()
+		{
+			if(OutFilenames.Num() > 0)
+			{
+				ImportCurvesFromFBX(OutFilenames[0], BlueprintBeingCustomized, Settings);
+			}
+		});
+	
+		SGenericDialogWidget::OpenDialog(LOCTEXT("ControlRigEditorImportFBXCurves", "Import FBX Curves"), KismetInspector, DialogArguments, true);
 
-		// todo: show dialog for settings
-		ImportCurvesFromFBX(OutFilenames[0], BlueprintBeingCustomized, Settings);
 	}
 	return FReply::Handled();
 }
