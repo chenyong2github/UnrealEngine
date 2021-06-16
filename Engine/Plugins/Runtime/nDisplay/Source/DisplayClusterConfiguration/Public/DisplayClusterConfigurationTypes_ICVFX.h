@@ -365,16 +365,16 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraP
 {
 	GENERATED_BODY()
 
-	// Exclude this viewport from the global cluster post process
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PostProcess Settings")
-	bool bExcludeFromOverallClusterPostProcess = true;
-
 	// Allow using a separate post process for this viewport
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PostProcess Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PostProcess Settings", meta = (DisplayName = "Enable Inner Frustum Color Grading"))
 	bool bIsEnabled = false;
 
+	// Exclude this viewport from the global cluster post process
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PostProcess Settings", meta = (DisplayName = "Ignore Entire Cluster Color Grading"))
+	bool bExcludeFromOverallClusterPostProcess = true;
+
 	// Post process settings
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PostProcess Settings", Meta = (EditCondition = "bIsEnabled"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PostProcess Settings", Meta = (DisplayName = "Color Grading Settings", EditCondition = "bIsEnabled"))
 	FDisplayClusterConfigurationViewport_PerViewportSettings ViewportSettings;
 };
 
@@ -430,7 +430,7 @@ public:
 	FDisplayClusterConfigurationICVFX_ChromakeySettings Chromakey;
 
 	// Per viewport post processing for camera
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "All Nodes"))
 	FDisplayClusterConfigurationICVFX_CameraPostProcessSettings PostProcessSettings;
 
 	// OCIO Display look configuration for this camera
@@ -460,7 +460,7 @@ public:
 
 public:
 	// Allow ICVFX features
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable ICVFX"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Inner Frustums"))
 	bool bEnable = true;
 
 	// Default incameras RTT texture size.

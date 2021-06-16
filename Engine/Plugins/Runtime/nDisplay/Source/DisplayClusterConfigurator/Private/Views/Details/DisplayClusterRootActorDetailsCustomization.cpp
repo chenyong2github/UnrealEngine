@@ -28,13 +28,14 @@ namespace DisplayClusterRootActorDetailsCustomizationUtils
 		static const TArray<FName> CategoryOrder =
 		{
 			TEXT("TransformCommon"),
-			DisplayClusterConfigurationStrings::categories::ConfigurationCategory,
+			DisplayClusterConfigurationStrings::categories::ViewportsCategory,
 			DisplayClusterConfigurationStrings::categories::ICVFXCategory,
 			DisplayClusterConfigurationStrings::categories::LightcardCategory,
 			DisplayClusterConfigurationStrings::categories::OCIOCategory,
-			DisplayClusterConfigurationStrings::categories::ClusterPostprocessCategory,
+			DisplayClusterConfigurationStrings::categories::ColorGradingCategory,
 			DisplayClusterConfigurationStrings::categories::OverrideCategory,
-			DisplayClusterConfigurationStrings::categories::PreviewCategory
+			DisplayClusterConfigurationStrings::categories::PreviewCategory,
+			DisplayClusterConfigurationStrings::categories::ConfigurationCategory
 		};
 
 		for (const TPair<FName, IDetailCategoryBuilder*>& Pair : AllCategoryMap)
@@ -131,18 +132,14 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 		}
 
 		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ICVFXCategory)
-			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable)
+			const TSharedPtr<IPropertyHandle> EnableICVFXPropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable));
+			check(EnableICVFXPropertyHandle->IsValidHandle());
+			CurrentCategory.AddProperty(EnableICVFXPropertyHandle);
 
-			const TSharedRef<IPropertyHandle> EnableInnerFrustumPropertyHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, EnableInnerFrustum));
-			{
-				check(EnableInnerFrustumPropertyHandle->IsValidHandle());
-				CurrentCategory.AddProperty(EnableInnerFrustumPropertyHandle);
-			}
-
-			const TAttribute<bool> AllowICVFXEditCondition = TAttribute<bool>::Create([this, EnableInnerFrustumPropertyHandle]()
+			const TAttribute<bool> AllowICVFXEditCondition = TAttribute<bool>::Create([this, EnableICVFXPropertyHandle]()
 			{
 				bool bFrustumEnabled = false;
-				EnableInnerFrustumPropertyHandle->GetValue(bFrustumEnabled);
+				EnableICVFXPropertyHandle->GetValue(bFrustumEnabled);
 				return bFrustumEnabled;
 			});
 		
@@ -168,8 +165,9 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 			{
 				ADD_PROPERTY(ADisplayClusterRootActor, InnerFrustumPriority);
 			}
+		END_CATEGORY();
 
-			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->RenderFrameSettings.ClusterRenderTargetRatioMult)
+		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ViewportsCategory)
 			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->RenderFrameSettings.ClusterICVFXOuterViewportRenderTargetRatioMult)
 				
 			if (ViewportNames.Num() > 0)
@@ -177,7 +175,7 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 				TArray<TSharedPtr<IPropertyHandle>> ScreenPercentageHandles;
 				NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.Cluster.Nodes.Viewports.RenderSettings.BufferRatio"), ScreenPercentageHandles);
 
-				BEGIN_GROUP("OuterViewportScreenPercentage", LOCTEXT("OuterViewportScreenPercentage", "Outer Viewport Screen Percentage"))
+				BEGIN_GROUP("OuterViewportScreenPercentage", LOCTEXT("OuterViewportScreenPercentage", "Viewport Screen Percentage"))
 					for (int32 VPIdx = 0; VPIdx < ScreenPercentageHandles.Num(); ++VPIdx)
 					{
 						TSharedPtr<IPropertyHandle>& Handle = ScreenPercentageHandles[VPIdx];
@@ -232,6 +230,35 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 			ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.RenderSettings)
 		END_CATEGORY();
 	
+		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ColorGradingCategory)
+			BEGIN_GROUP(TEXT("GlobalPostProcess"), LOCTEXT("GlobalPostprocessLabel", "Entire Cluster"))
+				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->Cluster->bUseOverallClusterPostProcess);
+				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->Cluster->OverallClusterPostProcessSettings);
+			END_GROUP();
+
+			if (!bIsCDO)
+			{
+				//TArray<FString> ViewportNames;
+				//NestedPropertyHelper.GetNestedPropertyKeys(TEXT("CurrentConfigData.Cluster.Nodes.Viewports"), ViewportNames);
+
+				TArray<TSharedPtr<IPropertyHandle>> ViewportPostProcessSettings;
+				NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.Cluster.Nodes.Viewports.PostProcessSettings"), ViewportPostProcessSettings);
+
+				// This number could mismatch temporarily on an undo after a viewport is deleted.
+				if (ViewportNames.Num() == ViewportPostProcessSettings.Num())
+				{
+					for (int32 Index = 0; Index < ViewportNames.Num(); ++Index)
+					{
+						BEGIN_GROUP(FName(*ViewportNames[Index]), FText::FromString(ViewportNames[Index]))
+							CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, bIsEnabled)).ToSharedRef());
+							CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, bExcludeFromOverallClusterPostProcess)).ToSharedRef());
+							CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, ViewportSettings)).ToSharedRef()).ShouldAutoExpand(true);
+						END_GROUP();
+					}
+				}
+			}
+		END_CATEGORY();
+
 		// Add custom properties and lay out/order properties into their correct categories.
 		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::PreviewCategory)
 			if (RebuildNodeIdOptionsList())

@@ -27,7 +27,7 @@ UDisplayClusterCameraComponent::UDisplayClusterCameraComponent(const FObjectInit
 
 			SpriteComponent->Sprite = RootTextureObject.Get();
 			SpriteComponent->SetRelativeScale3D_Direct(FVector(0.5f));
-			SpriteComponent->bHiddenInGame = false;
+			SpriteComponent->bHiddenInGame = true;
 			SpriteComponent->SpriteInfo.Category = TEXT("NDisplayViewOrigin");
 			SpriteComponent->SpriteInfo.DisplayName = NSLOCTEXT("DisplayClusterCameraComponent", "NDisplayViewOriginSpriteInfo", "nDisplay View Origin");
 			SpriteComponent->bIsScreenSizeScaled = true;

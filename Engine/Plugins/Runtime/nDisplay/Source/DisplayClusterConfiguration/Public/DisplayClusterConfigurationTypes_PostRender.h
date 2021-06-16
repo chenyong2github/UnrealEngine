@@ -79,6 +79,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render")
 	bool bShouldUseMaxNumMips = false;
 
-	UPROPERTY(EditAnywhere, Category = "NDisplay Render")
+	UPROPERTY(EditAnywhere, Category = "NDisplay Render", meta = (DisplayName = "Maximum Number of Mips"))
 	int MaxNumMips = 0;
 };

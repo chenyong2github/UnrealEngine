@@ -23,12 +23,12 @@ namespace DisplayClusterICVFXCameraComponentDetailsCustomizationUtils
 		{
 			TEXT("Variable"),
 			TEXT("TransformCommon"),
-			DisplayClusterConfigurationStrings::categories::ConfigurationCategory,
 			DisplayClusterConfigurationStrings::categories::ICVFXCategory,
+			DisplayClusterConfigurationStrings::categories::CameraColorGradingCategory,
 			DisplayClusterConfigurationStrings::categories::ChromaKeyCategory,
 			DisplayClusterConfigurationStrings::categories::OCIOCategory,
-			DisplayClusterConfigurationStrings::categories::CameraPostprocessCategory,
-			DisplayClusterConfigurationStrings::categories::OverrideCategory
+			DisplayClusterConfigurationStrings::categories::OverrideCategory,
+			DisplayClusterConfigurationStrings::categories::ConfigurationCategory
 		};
 
 		for (const TPair<FName, IDetailCategoryBuilder*>& Pair : AllCategoryMap)
@@ -126,8 +126,10 @@ void FDisplayClusterICVFXCameraComponentDetailsCustomization::CustomizeDetails(I
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.SoftEdge)
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.FrustumRotation)
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.FrustumOffset)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.GenerateMips.MaxNumMips)
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CameraMotionBlur)
 
+		ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CameraMotionBlur.OverrideMotionBlurPPS)
 		ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.PostprocessBlur)
 		ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.GenerateMips)
 
@@ -138,7 +140,7 @@ void FDisplayClusterICVFXCameraComponentDetailsCustomization::CustomizeDetails(I
 
 	END_CATEGORY();
 
-	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::CameraPostprocessCategory)
+	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::CameraColorGradingCategory)
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.bUseCameraComponentPostprocess)
 		ADD_EXPANDED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.PostProcessSettings)
 	END_CATEGORY();

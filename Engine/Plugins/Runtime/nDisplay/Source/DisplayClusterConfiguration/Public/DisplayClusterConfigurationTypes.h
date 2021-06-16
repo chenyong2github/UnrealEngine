@@ -427,25 +427,25 @@ class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationCluster
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration")
 	FDisplayClusterConfigurationMasterNode MasterNode;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration")
 	FDisplayClusterConfigurationClusterSync Sync;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration")
 	FDisplayClusterConfigurationNetworkSettings Network;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, EditFixedSize, Instanced, Category = NDisplay, meta = (DisplayThumbnail = false, nDisplayInstanceOnly, ShowInnerProperties))
 	TMap<FString, UDisplayClusterConfigurationClusterNode*> Nodes;
 
 	// Apply the global cluster post process settings to all viewports
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Viewport Post Process"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Post Process", meta = (DisplayName = "Enable Enitre Cluster Color Grading"))
 	bool bUseOverallClusterPostProcess = true;
 
 	//!
 	// Global cluster post process settings
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = NDisplay, meta = (EditCondition = "bUseOverallClusterPostProcess"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Post Process", meta = (DisplayName = "Cluster Color Grading Settings", EditCondition = "bUseOverallClusterPostProcess"))
 	FDisplayClusterConfigurationViewport_PerViewportSettings OverallClusterPostProcessSettings;
 
 

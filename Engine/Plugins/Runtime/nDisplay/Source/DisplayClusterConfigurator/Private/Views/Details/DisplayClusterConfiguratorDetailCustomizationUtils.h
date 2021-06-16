@@ -10,6 +10,9 @@ class IPropertyHandle;
 #define BEGIN_CATEGORY(CategoryName) { \
 	IDetailCategoryBuilder& CurrentCategory = InLayoutBuilder.EditCategory(CategoryName);
 
+#define BEGIN_LABELED_CATEGORY(CategoryName, CategoryLabel) { \
+	IDetailCategoryBuilder& CurrentCategory = InLayoutBuilder.EditCategory(CategoryName, CategoryLabel);
+
 #define END_CATEGORY() }
 
 #define ADD_PROPERTY(ClassName, PropertyName) { \
@@ -88,7 +91,7 @@ class IPropertyHandle;
 	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ClassName, PropertyPath)); \
 	check(PropertyHandle.IsValid()); \
 	check(PropertyHandle->IsValidHandle()); \
-	CurrentGroup.AddPropertyRow(PropertyHandle.ToSharedRef()); \
+	CurrentGroup.AddPropertyRow(PropertyHandle.ToSharedRef()).ShouldAutoExpand(true); \
 }
 
 struct FDisplayClusterConfiguratorNestedPropertyHelper

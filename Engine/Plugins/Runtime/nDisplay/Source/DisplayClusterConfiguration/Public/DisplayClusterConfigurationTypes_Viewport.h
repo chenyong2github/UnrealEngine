@@ -226,7 +226,7 @@ public:
 	float ClusterRenderTargetRatioMult = 1.f;
 
 	// Multiply all downscale ratio inside icvfx outer viewports settings for whole cluster
-	UPROPERTY(EditAnywhere, Category = NDisplay, BlueprintReadWrite, meta = (DisplayName = "Outer Viewport Screen Percentage Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1"))
+	UPROPERTY(EditAnywhere, Category = NDisplay, BlueprintReadWrite, meta = (DisplayName = "Viewport Screen Percentage Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1"))
 	float ClusterICVFXOuterViewportRenderTargetRatioMult = 1.f;
 
 	// Multiply all buffer ratios for whole cluster by this value

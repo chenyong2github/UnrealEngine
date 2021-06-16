@@ -172,16 +172,8 @@ void FDisplayClusterConfiguratorClusterDetailCustomization::CustomizeDetails(IDe
 	// Store the Nodes property handle for use later
 	ClusterNodesHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationCluster, Nodes));
 	check(ClusterNodesHandle->IsValidHandle());
-
-	FDisplayClusterConfiguratorNestedPropertyHelper NestedPropertyHelper(InLayoutBuilder);
 	
-	
-
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ConfigurationCategory)
-		ADD_PROPERTY(UDisplayClusterConfigurationCluster, MasterNode);
-		ADD_PROPERTY(UDisplayClusterConfigurationCluster, Sync);
-		ADD_PROPERTY(UDisplayClusterConfigurationCluster, Network);
-
 		if (!IsRunningForBlueprintEditor())
 		{
 			ADD_CUSTOM_PROPERTY(LOCTEXT("ResetClusterNodesButton_Label", "Reset Cluster Nodes"))
@@ -205,34 +197,11 @@ void FDisplayClusterConfiguratorClusterDetailCustomization::CustomizeDetails(IDe
 		}
 	END_CATEGORY();
 
-	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ClusterPostprocessCategory)
-		BEGIN_GROUP(TEXT("GlobalPostProcess"), LOCTEXT("GlobalPostprocessLabel", "All Viewports"))
-			ADD_GROUP_PROPERTY(UDisplayClusterConfigurationCluster, bUseOverallClusterPostProcess);
-			ADD_GROUP_EXPANDED_PROPERTY(UDisplayClusterConfigurationCluster, OverallClusterPostProcessSettings);
-		END_GROUP();
-
-		if (!IsRunningForBlueprintEditor())
-		{
-			TArray<FString> ViewportNames;
-			NestedPropertyHelper.GetNestedPropertyKeys(TEXT("Nodes.Viewports"), ViewportNames);
-
-			TArray<TSharedPtr<IPropertyHandle>> ViewportPostProcessSettings;
-			NestedPropertyHelper.GetNestedProperties(TEXT("Nodes.Viewports.PostProcessSettings"), ViewportPostProcessSettings);
-
-			// This number could mismatch temporarily on an undo after a viewport is deleted.
-			if (ViewportNames.Num() == ViewportPostProcessSettings.Num())
-			{
-				for (int32 Index = 0; Index < ViewportNames.Num(); ++Index)
-				{
-					BEGIN_GROUP(FName(*ViewportNames[Index]), FText::FromString(ViewportNames[Index]))
-						CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, bIsEnabled)).ToSharedRef());
-					CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, bExcludeFromOverallClusterPostProcess)).ToSharedRef());
-					CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, ViewportSettings)).ToSharedRef()).ShouldAutoExpand(true);
-					END_GROUP();
-				}
-			}
-		}
-	END_CATEGORY();
+	if (IsRunningForBlueprintEditor())
+	{
+		// Hide the Post Process category since these properties will be denested and displayed on the root actor's details panel
+		InLayoutBuilder.HideCategory(DisplayClusterConfigurationStrings::categories::ClusterPostprocessCategory);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
