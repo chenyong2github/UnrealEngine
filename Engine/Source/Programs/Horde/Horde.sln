@@ -32,6 +32,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "p4api.net", "..\..\ThirdPar
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.IoHash", "..\Shared\EpicGames.IoHash\EpicGames.IoHash.csproj", "{247D346A-DADE-4806-B5E5-DCEFFF920592}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Horde.Common", "..\Shared\EpicGames.Horde.Common\EpicGames.Horde.Common.csproj", "{815E5D2C-6A25-464B-9D30-D9742BD42DAA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -99,6 +101,12 @@ Global
 		{247D346A-DADE-4806-B5E5-DCEFFF920592}.Development|Any CPU.Build.0 = Development|Any CPU
 		{247D346A-DADE-4806-B5E5-DCEFFF920592}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{247D346A-DADE-4806-B5E5-DCEFFF920592}.Release|Any CPU.Build.0 = Release|Any CPU
+		{815E5D2C-6A25-464B-9D30-D9742BD42DAA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{815E5D2C-6A25-464B-9D30-D9742BD42DAA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{815E5D2C-6A25-464B-9D30-D9742BD42DAA}.Development|Any CPU.ActiveCfg = Development|Any CPU
+		{815E5D2C-6A25-464B-9D30-D9742BD42DAA}.Development|Any CPU.Build.0 = Development|Any CPU
+		{815E5D2C-6A25-464B-9D30-D9742BD42DAA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{815E5D2C-6A25-464B-9D30-D9742BD42DAA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -109,6 +117,7 @@ Global
 		{D140C598-152C-4955-8517-5B3EAF3DAA7D} = {84144B9A-C142-4656-96C8-1D23B9A1C63D}
 		{5F7BD78C-EC56-4D4F-83A0-B4CBC8FC5FDD} = {473FEAEF-AAFF-420B-9684-66476B36239E}
 		{247D346A-DADE-4806-B5E5-DCEFFF920592} = {84144B9A-C142-4656-96C8-1D23B9A1C63D}
+		{815E5D2C-6A25-464B-9D30-D9742BD42DAA} = {84144B9A-C142-4656-96C8-1D23B9A1C63D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F06D2583-1509-4254-BEE6-5921340022BF}
