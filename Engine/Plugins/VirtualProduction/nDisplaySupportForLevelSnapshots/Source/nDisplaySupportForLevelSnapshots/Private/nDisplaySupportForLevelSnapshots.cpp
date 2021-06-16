@@ -15,7 +15,7 @@
 
 void FnDisplaySupportForLevelSnapshotsModule::StartupModule()
 {
-	ILevelSnapshotsModule& LevelSnapshotsModule = ILevelSnapshotsModule::Get();
+	ILevelSnapshotsModule& LevelSnapshotsModule = static_cast<ILevelSnapshotsModule&>(FModuleManager::Get().LoadModuleChecked("LevelSnapshots"));
 
 	// Need to blacklist properties through which subobjects can be found
 	FDisplayClusterRootActorSerializer::BlacklistCustomProperties(LevelSnapshotsModule);
