@@ -82,12 +82,6 @@ public:
 	 */
 	void OnReconcileAllAssets();
 
-	/** Clears the cache containing unchecked loaded assets. */
-	void OnClearLoadedAssetsCache();
-
-	/** Clears the cache containing unchecked saved assets. */
-	void OnClearSavedAssetsCache();
-
 	/**
 	 * Delegate callback called when assets are added to AssetRegistry.
 	 * @param 	AssetData 	The asset just added.
@@ -165,6 +159,9 @@ private:
 
 	/** Removes from asset caches files already present in Uncontrolled Changelists */
 	void CleanAssetsCaches();
+
+	/** Removes files not currently loaded from loaded asset cache */
+	void CleanLoadedAssetsCache();
 
 	/**
 	 * Try to add the provided filenames to the default Uncontrolled Changelist.

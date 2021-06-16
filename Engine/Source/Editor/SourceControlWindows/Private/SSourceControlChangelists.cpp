@@ -1347,13 +1347,6 @@ TSharedPtr<SWidget> SSourceControlChangelistsWidget::OnOpenContextMenu()
 			SubSection.AddMenuEntry("Reconcile saved assets", LOCTEXT("SourceControl_ReconcileSavedAssets", "Reconcile saved assets"), LOCTEXT("SourceControl_ReconcileSavedAssets_Tooltip", "Look for uncontrolled modification in previously saved assets."), FSlateIcon(),
 									FUIAction(FExecuteAction::CreateLambda([]() { FUncontrolledChangelistsModule::Get().OnReconcileSavedAssets(); })));
 
-			SubSection.AddSeparator("ReconcileClearCacheSeparator");
-
-			SubSection.AddMenuEntry("Clear loaded assets cache", LOCTEXT("SourceControl_ClearLoadedAssetsCache", "Clear loaded assets cache"), LOCTEXT("SourceControl_ClearLoadedAssetsCache_Tooltip", "Clears the cache containing unchecked loaded assets."), FSlateIcon(),
-									FUIAction(FExecuteAction::CreateLambda([]() { FUncontrolledChangelistsModule::Get().OnClearLoadedAssetsCache(); })));
-
-			SubSection.AddMenuEntry("Clear saved assets cache", LOCTEXT("SourceControl_ClearSavedAssetsCache", "Clear saved assets cache"), LOCTEXT("SourceControl_ClearSavedAssetsCache_Tooltip", "Clears the cache containing unchecked saved assets."), FSlateIcon(),
-									FUIAction(FExecuteAction::CreateLambda([]() { FUncontrolledChangelistsModule::Get().OnClearSavedAssetsCache(); })));
 		}));
 	}
 
