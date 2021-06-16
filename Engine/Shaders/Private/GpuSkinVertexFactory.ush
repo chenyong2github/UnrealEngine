@@ -710,6 +710,8 @@ float3x3 SkinTangents( FVertexFactoryInput Input, FVertexFactoryIntermediates In
 	        }
         }
 
+		SimulWeight /= NUM_INFLUENCES_PER_VERTEX;
+	
         if ( NumInfluences > 0 && SumWeights > 1e-4f )
         {
 		    float InvWeight = 1.0f / SumWeights; 
