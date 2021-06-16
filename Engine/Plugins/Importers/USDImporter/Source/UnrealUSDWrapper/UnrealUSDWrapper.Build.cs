@@ -18,6 +18,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"IntelTBB",
+					"Projects", // For plugin manager within UnrealUSDWrapper.cpp
 					"USDClasses"
 				}
 			);
@@ -110,10 +111,10 @@ namespace UnrealBuildTool.Rules
 						RuntimeDependencies.Add(LibPath);
 					}
 					// Redirect plugInfo.json to Plugin/Binaries for the editor, but leave them pointing at the executable folder otherwise
-					// (which is the default when USD_DLL_LOCATION_OVERRIDE is not defined)
+					// (which is the default when USE_LIBRARIES_FROM_PLUGIN_FOLDER is not defined)
 					if (Target.Type == TargetType.Editor && (Target.BuildEnvironment != TargetBuildEnvironment.Unique))
 					{
-						PublicDefinitions.Add("USD_DLL_LOCATION_OVERRIDE=TEXT(\"" + USDBinDir.Replace("\\", "/") + "\")");
+						PublicDefinitions.Add("USE_LIBRARIES_FROM_PLUGIN_FOLDER=1");
 					}
 				}
 				else if (Target.Platform == UnrealTargetPlatform.Mac)
@@ -153,10 +154,10 @@ namespace UnrealBuildTool.Rules
 						RuntimeDependencies.Add(RuntimeModulePath);
 					}
 					// Redirect plugInfo.json to Plugin/Binaries for the editor, but leave them pointing at the executable folder otherwise
-					// (which is the default when USD_DLL_LOCATION_OVERRIDE is not defined)
+					// (which is the default when USE_LIBRARIES_FROM_PLUGIN_FOLDER is not defined)
 					if (Target.Type == TargetType.Editor && (Target.BuildEnvironment != TargetBuildEnvironment.Unique))
 					{
-						PublicDefinitions.Add("USD_DLL_LOCATION_OVERRIDE=TEXT(\"" + USDBinDir.Replace("\\", "/") + "\")");
+						PublicDefinitions.Add("USE_LIBRARIES_FROM_PLUGIN_FOLDER=1");
 					}
 				}
 

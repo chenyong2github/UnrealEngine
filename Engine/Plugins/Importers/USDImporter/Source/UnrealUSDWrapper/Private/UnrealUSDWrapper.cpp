@@ -11,6 +11,7 @@
 #include "UsdWrappers/UsdStage.h"
 #include "UsdWrappers/SdfLayer.h"
 
+#include "Interfaces/IPluginManager.h"
 #include "Internationalization/Regex.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
@@ -1130,8 +1131,19 @@ public:
 		UsdPluginsPath /= TEXT("Mac/plugins");
 #endif
 
-#ifdef USD_DLL_LOCATION_OVERRIDE
-		FString TargetDllFolder = USD_DLL_LOCATION_OVERRIDE;
+#ifdef USE_LIBRARIES_FROM_PLUGIN_FOLDER
+		// e.g. "../../../Engine/Plugins/Importers/USDImporter/Source/ThirdParty"
+		FString TargetDllFolder = FPaths::Combine( IPluginManager::Get().FindPlugin( TEXT( "USDImporter" ) )->GetBaseDir(), TEXT( "Source" ), TEXT( "ThirdParty" ) );
+
+#if PLATFORM_WINDOWS
+		TargetDllFolder /= TEXT( "USD" );
+#elif PLATFORM_LINUX
+		TargetDllFolder /= TEXT( "Linux" );
+#elif PLATFORM_MAC
+		TargetDllFolder /= TEXT( "Mac" );
+#endif // PLATFORM_WINDOWS
+
+		TargetDllFolder /= TEXT( "bin" );
 #else
 		FString TargetDllFolder = FPlatformProcess::BaseDir();
 #endif // USD_DLL_LOCATION_OVERRIDE
