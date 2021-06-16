@@ -172,7 +172,7 @@ protected:
 protected:
 
 	/** Returns the first calibrator object in the scene that it can find */
-	AActor* FindFirstCalibrator() const;
+	virtual AActor* FindFirstCalibrator() const;
 
 	/** Sets the calibrator object to be used. Updates the selection picker. */
 	void SetCalibrator(AActor* InCalibrator);
@@ -186,14 +186,14 @@ protected:
 	/** Retrieves by name the UCalibrationPointComponent of the currently selected calibrator */
 	const UCalibrationPointComponent* GetCalibrationPointComponentFromName(const FString& Name) const;
 
-	/** Returns the world 3d location of the currently selected */
+	/** Returns the world 3d location of the currently selected calibrator */
 	bool GetCurrentCalibratorPointLocation(FVector& OutLocation);
 
 	/** Selects the next available UCalibrationPointComponent of the currently selected calibrator object. Returns true when it wraps around */
 	bool AdvanceCalibratorPoint();
 
 	/** Validates a new calibration point to determine if it should be added as a new sample row */
-	bool ValidateNewRow(TSharedPtr<FCalibrationRowData>& Row, FText& OutErrorMessage) const;
+	virtual bool ValidateNewRow(TSharedPtr<FCalibrationRowData>& Row, FText& OutErrorMessage) const;
 
 	/** Applies the nodal offset to the calibrator */
 	bool ApplyNodalOffsetToCalibrator();
