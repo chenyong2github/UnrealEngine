@@ -26,12 +26,12 @@
 //  the DLL is incompatible when MAJOR is bumped
 //  MINOR is for internal revs and bug fixes that don't affect API compatibility
 #define OODLE2TEX_VERSION_MAJOR         9
-#define OODLE2TEX_VERSION_MINOR         1
+#define OODLE2TEX_VERSION_MINOR         2
 
 // OodleTextureVersion string is 1 . MAJOR . MINOR
 //  don't make it from macros cuz the doc tool has to parse the string literal
 
-#define OodleTextureVersion "2.9.1"    /*
+#define OodleTextureVersion "2.9.2"    /*
 */
 
 typedef enum OodleTex_Err
@@ -911,6 +911,13 @@ OOFUNC1 OodleTex_Err OOFUNC2 OodleTex_EncodeBCN_RDO(
     _num_job_threads_ should typically be set to $OODLETEX_JOBS_DEFAULT to use all workers installed, but a different
     number can be passed here to override what was set in SetJobSystemAndCount, or single-threaded execution
     on the current thread can be forced by passing $OODLETEX_JOBS_DISABLE.
+
+    _OodleTex_EncodeBCN_RDO_ is equivalent to calling _OodleTex_EncodeBCN_RDO_Ex_ with OodleTex_EncodeEffortLevel_High and
+    all other OodleTex_RDO_Options as default.
+    
+    _OodleTex_EncodeBCN_RDO_ uses OodleTex_EncodeEffortLevel_High to maintain previous behavior.  We recommend the new
+    default OodleTex_EncodeEffortLevel_Normal for faster encodings and only slightly lower quality.
+
 */  
 
 OOFUNC1 OodleTex_Err OOFUNC2 OodleTex_EncodeBCN_RDO_Ex(
