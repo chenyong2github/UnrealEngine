@@ -319,6 +319,26 @@ bool UPoseSearchSchema::IsValid() const
 	return bValid;
 }
 
+float UPoseSearchSchema::GetTrajectoryFutureTimeHorizon () const
+{
+	return TrajectorySampleTimes.Num() ? TrajectorySampleTimes.Last() : -1.0f;
+}
+
+float UPoseSearchSchema::GetTrajectoryPastTimeHorizon () const
+{
+	return TrajectorySampleTimes.Num() ? TrajectorySampleTimes[0] : 1.0f;
+}
+
+float UPoseSearchSchema::GetTrajectoryFutureDistanceHorizon () const
+{
+	return TrajectorySampleDistances.Num() ? TrajectorySampleDistances.Last() : -1.0f;
+}
+
+float UPoseSearchSchema::GetTrajectoryPastDistanceHorizon () const
+{
+	return TrajectorySampleDistances.Num() ? TrajectorySampleDistances[0] : 1.0f;
+}
+
 void UPoseSearchSchema::GenerateLayout()
 {
 	Layout.Reset();
@@ -678,6 +698,15 @@ void FPoseSearchFeatureVectorBuilder::Init(const UPoseSearchSchema* InSchema)
 	check(InSchema && InSchema->IsValid());
 	Schema = InSchema;
 	ResetFeatures();
+}
+
+void FPoseSearchFeatureVectorBuilder::Reset()
+{
+	Schema = nullptr;
+	Values.Reset(0);
+	ValuesNormalized.Reset(0);
+	NumFeaturesAdded = 0;
+	FeaturesAdded.Reset();
 }
 
 void FPoseSearchFeatureVectorBuilder::ResetFeatures()
