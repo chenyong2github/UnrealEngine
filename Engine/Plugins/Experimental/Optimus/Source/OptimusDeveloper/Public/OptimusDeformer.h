@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "ComputeFramework/ComputeGraph.h"
+#include "Interfaces/Interface_PreviewMeshProvider.h"
 
 #include "OptimusDeformer.generated.h"
 
@@ -23,7 +24,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusCompileEnd, UOptimusDeformer *);
 
 UCLASS()
 class OPTIMUSDEVELOPER_API UOptimusDeformer :
-	public UComputeGraph, 
+	public UComputeGraph,
+	public IInterface_PreviewMeshProvider,
 	public IOptimusNodeGraphCollectionOwner
 {
 	GENERATED_BODY()
@@ -154,6 +156,12 @@ public:
 	FOptimusCompileEnd& GetCompileEndDelegate() { return CompileEndDelegate; }
 
 	TArray<TSubclassOf<UComputeDataProvider>> GetDataProviderClasses() const;
+
+	/// IInterface_PreviewMeshProvider overrides
+	void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true) override;
+
+	/** Get the preview mesh for this asset */
+	USkeletalMesh* GetPreviewMesh() const override;
 
 	/// IOptimusNodeGraphCollectionOwner overrides
 	FOptimusGlobalNotifyDelegate& GetNotifyDelegate() override { return GlobalNotifyDelegate; }

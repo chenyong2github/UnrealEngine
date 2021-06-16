@@ -802,6 +802,20 @@ TArray<TSubclassOf<UComputeDataProvider>> UOptimusDeformer::GetDataProviderClass
 }
 
 
+void UOptimusDeformer::SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty)
+{
+	Mesh = PreviewMesh;
+	
+	// FIXME: Notify upstream so the viewport can react.
+}
+
+
+USkeletalMesh* UOptimusDeformer::GetPreviewMesh() const
+{
+	return Mesh;
+}
+
+
 UOptimusNodeGraph* UOptimusDeformer::ResolveGraphPath(const FString& InGraphPath)
 {
 	FString PathRemainder;
