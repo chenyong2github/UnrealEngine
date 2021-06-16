@@ -12,9 +12,10 @@
 
 struct FStrataGGXDirectionalAlbedo
 {
-	float3 SpecularR;	// Specular Directional albedo with multiple scattering (reflection)
-	float3 SpecularT;	// Specular Directional albedo with multiple scattering (transmission)
-	float3 Diffuse;		// Diffuse  Directional albedo with multiple scattering (embedded into Chan's model itself)
+	float3 SpecularR;		// Specular Directional albedo with multiple scattering (reflection)
+	float3 SpecularT;		// Specular Directional albedo with multiple scattering (transmission)
+	float3 SpecularTChan;	// Specular Directional albedo with multiple scattering (transmission) for the Chan model which has a hardcoded F0=0.04 for the diffuse interactions
+	float3 Diffuse;			// Diffuse  Directional albedo with multiple scattering (embedded into Chan's model itself)
 };
 
 struct FStrataGGXLUTResult
@@ -27,6 +28,8 @@ struct FStrataGGXLUTResult
 	float E_R;
 	float E_T;
 	float E_D;
+
+	float E_TChan;
 
 	// Derived terms
 	float3 SpecularMultipleScatteringScale;			// Multiple scattering scale factor for specular reflection
@@ -67,7 +70,7 @@ float3 StrataEvaluateDiffuseGGXDirectionalAlbedo(float3 Albedo, FStrataGGXLUTRes
 	return Albedo * LUT.E_D;
 }
 
-FStrataGGXLUTResult StrataSampleGGXLUT(Texture2D<float4> LUT2D, Texture3D<float2> LUT3D, SamplerState LUTSampler, float2 LUTScaleBias, float NoV, float RoughnessX, float RoughnessY, float3 F0, float3 F90, float Metallic, float3 DiffuseAlbedo)
+FStrataGGXLUTResult StrataSampleGGXLUT(Texture2D<float4> LUT2D, Texture3D<float3> LUT3D, SamplerState LUTSampler, float2 LUTScaleBias, float NoV, float RoughnessX, float RoughnessY, float3 F0, float3 F90, float Metallic, float3 DiffuseAlbedo)
 {
 	// Use the main Roughness term to drive the energy compensation.
 	// "Revisiting Physically Based Shading at Imageworks" Kulla 2017
@@ -90,9 +93,10 @@ FStrataGGXLUTResult StrataSampleGGXLUT(Texture2D<float4> LUT2D, Texture3D<float2
 	// 3D LUT sampling
 	{
 		const float3 UVW = float3(saturate(NoV), saturate(LUTRoughness), LUTF0) * LUTScaleBias.x + LUTScaleBias.yyy;
-		const float2 S = LUT3D.SampleLevel(LUTSampler, UVW, 0);
+		const float3 S = LUT3D.SampleLevel(LUTSampler, UVW, 0);
 		Out.E_R = S.x;
 		Out.E_T = S.y;
+		Out.E_TChan = S.z;
 	}
 
 	// Derived MS scales
@@ -106,6 +110,7 @@ FStrataGGXLUTResult StrataSampleGGXLUT(Texture2D<float4> LUT2D, Texture3D<float2
 		Out.SpecularMultipleScatteringScale = MSScale;
 		Out.DirectionalAlbedo.SpecularR		= MSScale * lerp(Out.E_R.xxx, DA_ConductorSS, Metallic);
 		Out.DirectionalAlbedo.SpecularT		= MSScale * lerp(Out.E_T, 0.f, Metallic);
+		Out.DirectionalAlbedo.SpecularTChan	= MSScale * lerp(Out.E_TChan, 0.f, Metallic);
 		Out.DirectionalAlbedo.Diffuse		= StrataEvaluateDiffuseGGXDirectionalAlbedo(DiffuseAlbedo, Out);
 	}
 	return Out;

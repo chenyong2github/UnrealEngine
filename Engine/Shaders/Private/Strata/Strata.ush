@@ -53,6 +53,24 @@
 #define STRATA_SIMPLEVOLUME_THICKNESS_M		(STRATA_SIMPLEVOLUME_THICKNESS_CM * CENTIMETER_TO_METER)
 
 ///////////////////////////////////////////////////////////////////////////////
+// Utilities
+
+float F0ToMetallic(float F0)
+{
+	// Approximate the metallic input from F0 with a small lerp region
+	const float DiamondF0 = 0.24f;
+	const float CondutorMinF0 = 0.4f;	// roughly the end of semi-conductor
+	// This is compatible with UE shading model mapping allowing F0 to take a value up to 0.08 for dielectric.
+
+	return saturate((F0 - DiamondF0) / (CondutorMinF0 - DiamondF0));
+}
+
+float F0RGBToMetallic(float3 F0)
+{
+	return F0ToMetallic(max(F0.r, max(F0.g, F0.b)));
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // BSDFs representation
 struct FStrataBSDF
 {
@@ -553,16 +571,10 @@ FStrataData GetStrataSlabBSDF(
 		// See how UMaterialExpressionStrataSlabBSDF node interface is changed
 		BSDF_SETHASF90(StrataData.Layers[0].BSDFs[0], any(F90 < 1.0f));
 
-		// Approximate the metallic input from F0.
-		const float DiamondF0 = 0.24f;
-		const float CondutorMinF0 = 0.4f; // roughly the end of semi-conductor
-		const float MaxF0 = max(F0.r, max(F0.g, F0.b));
-
 		SLAB_DIFFUSEALBEDO(StrataData.Layers[0].BSDFs[0])	= DiffuseAlbedo;
 		SLAB_F0(StrataData.Layers[0].BSDFs[0])				= F0;
 		SLAB_F90(StrataData.Layers[0].BSDFs[0])				= F90;
-		// Metalness cannot be recovered from F0 so we use a simple heuristic mapping (based on MaxF0 which should better represent the state of the material)
-		SLAB_METALLIC(StrataData.Layers[0].BSDFs[0])		= saturate((MaxF0 - DiamondF0) / (CondutorMinF0 - DiamondF0));
+		SLAB_METALLIC(StrataData.Layers[0].BSDFs[0])		= F0RGBToMetallic(F0);
 	}
 
 	SLAB_ROUGHNESSX			(StrataData.Layers[0].BSDFs[0])		= RoughnessXY.x;
