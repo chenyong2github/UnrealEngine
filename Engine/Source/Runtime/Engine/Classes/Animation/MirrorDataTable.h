@@ -104,25 +104,14 @@ class UMirrorDataTable : public UDataTable
 public:
 	UMirrorDataTable(const FObjectInitializer& ObjectInitializer);
 
-	ENGINE_API virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
-
-	ENGINE_API virtual void Serialize(FArchive& Ar) override;
-
 	ENGINE_API virtual void PostLoad() override;
 
-	ENGINE_API virtual void EmptyTable() override;
-
 #if WITH_EDITOR
-
-	ENGINE_API virtual void CleanBeforeStructChange() override;
-
-	ENGINE_API virtual void RestoreAfterStructChange() override;
 
 	ENGINE_API virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
 
 	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
-	ENGINE_API virtual void PostEditUndo() override;
 
 #endif // WITH_EDITOR
 
@@ -209,7 +198,5 @@ protected:
 
 	// Fill BoneToMirrorBoneIndex, CurveMirrorSourceUIDArray, CurveMirrorTargetUIDArray and NotifyToMirrorNotifyIndex based on the Skeleton and Table Contents
 	ENGINE_API void FillMirrorArrays();
-
-	void HandleDataTableChanged();
 };
 
