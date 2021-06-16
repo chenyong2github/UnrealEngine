@@ -239,7 +239,7 @@ public:
 	URigVMController* GetTemplateController();
 
 #if WITH_EDITOR
-	UEdGraph* GetEdGraph(URigVMGraph* InModel = nullptr) const;
+	UEdGraph* GetEdGraph(URigVMGraph* InModel) const;
 	UEdGraph* GetEdGraph(const FString& InNodePath) const;
 #endif
 
