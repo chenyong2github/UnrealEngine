@@ -6,6 +6,7 @@
 #include "InterchangeTexture2DArrayNode.h"
 #include "InterchangeTexture2DNode.h"
 #include "InterchangeTextureCubeNode.h"
+#include "InterchangeTextureLightProfileNode.h"
 #include "InterchangeTextureNode.h"
 #include "Misc/Paths.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
@@ -60,4 +61,9 @@ bool UE::Interchange::FTextureTranslatorUtilities::GenericTextureCubeTranslate(c
 bool UE::Interchange::FTextureTranslatorUtilities::GenericTexture2DArrayTranslate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer)
 {
 	return Private::GenericTextureTranslate(SourceData, BaseNodeContainer, UInterchangeTexture2DArrayNode::StaticClass());
+}
+
+bool UE::Interchange::FTextureTranslatorUtilities::GenericTextureLightProfileTranslate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer)
+{
+	return Private::GenericTextureTranslate(SourceData, BaseNodeContainer, UInterchangeTextureLightProfileNode::StaticClass());
 }

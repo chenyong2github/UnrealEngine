@@ -6,6 +6,7 @@
 #include "Engine/Texture2D.h"
 #include "Engine/Texture2DArray.h"
 #include "Engine/TextureCube.h"
+#include "Engine/TextureLightProfile.h"
 #include "InterchangeAssetImportData.h"
 #include "InterchangeImportCommon.h"
 #include "InterchangeImportLog.h"
@@ -15,12 +16,16 @@
 #include "InterchangeTextureCubeFactoryNode.h"
 #include "InterchangeTextureCubeNode.h"
 #include "InterchangeTextureFactoryNode.h"
+#include "InterchangeTextureLightProfileFactoryNode.h"
+#include "InterchangeTextureLightProfileNode.h"
 #include "InterchangeTextureNode.h"
 #include "InterchangeTranslatorBase.h"
 #include "Misc/TVariant.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Texture/InterchangeBlockedTexturePayloadInterface.h"
 #include "Texture/InterchangeSlicedTexturePayloadInterface.h"
+#include "Texture/InterchangeTextureLightProfilePayloadData.h"
+#include "Texture/InterchangeTextureLightProfilePayloadInterface.h"
 #include "Texture/InterchangeTexturePayloadInterface.h"
 #include "TextureCompiler.h"
 #include "UObject/ObjectMacros.h"
@@ -43,26 +48,32 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		UClass* TextureCubeFactoryClass = UInterchangeTextureCubeFactoryNode::StaticClass();
 		UClass* TextureFactoryClass = UInterchangeTextureFactoryNode::StaticClass();
 		UClass* Texture2DArrayFactoryClass = UInterchangeTexture2DArrayFactoryNode::StaticClass();
+		UClass* TextureLightProfileFactoryClass = UInterchangeTextureLightProfileFactoryNode::StaticClass();
 		UClass* AssetClass = AssetNode->GetClass();
 #if USTRUCT_FAST_ISCHILDOF_IMPL == USTRUCT_ISCHILDOF_STRUCTARRAY
 		if (AssetClass->IsChildOf(Texture2DArrayFactoryClass))
 		{
 			return Texture2DArrayFactoryClass;
 		}
-		else if (AssetClass->IsChildOf(TextureFactoryClass))
-		{
-			return TextureFactoryClass;
-		}
 		else if (AssetClass->IsChildOf(TextureCubeFactoryClass))
 		{
 			return TextureCubeFactoryClass;
+		}
+		else if (AssetClass->IsChildOf(TextureLightProfileFactoryClass))
+		{
+			return TextureLightProfileFactoryClass;
+		}
+		else if (AssetClass->IsChildOf(TextureFactoryClass))
+		{
+			return TextureFactoryClass;
 		}
 #else
 		while (AssetClass)
 		{
 			if (AssetClass == TextureCubeFactoryClass
 				|| AssetClass == TextureFactoryClass
-				|| AssetClass == Texture2DArrayFactoryClass)
+				|| AssetClass == Texture2DArrayFactoryClass
+				|| AssetClass == TextureLightProfileFactoryClass)
 			{
 				return AssetClass;
 			}
@@ -77,7 +88,8 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 	using FTextureFactoryNodeVariant = TVariant<FEmptyVariantState
 		, UInterchangeTextureFactoryNode*
 		, UInterchangeTextureCubeFactoryNode*
-		, UInterchangeTexture2DArrayFactoryNode*>; 
+		, UInterchangeTexture2DArrayFactoryNode*
+		,UInterchangeTextureLightProfileFactoryNode* >;
 
 	FTextureFactoryNodeVariant GetAsTextureFactoryNodeVariant(UInterchangeBaseNode* AssetNode, UClass* SupportedFactoryNodeClass)
 	{
@@ -102,6 +114,11 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			{
 				return FTextureFactoryNodeVariant(TInPlaceType<UInterchangeTexture2DArrayFactoryNode*>(), static_cast<UInterchangeTexture2DArrayFactoryNode*>(AssetNode));
 			}
+
+			if (SupportedFactoryNodeClass == UInterchangeTextureLightProfileFactoryNode::StaticClass())
+			{
+				return FTextureFactoryNodeVariant(TInPlaceType<UInterchangeTextureLightProfileFactoryNode*>(), static_cast<UInterchangeTextureLightProfileFactoryNode*>(AssetNode));
+			}
 		}
 
 		return {};
@@ -110,7 +127,8 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 	using FTextureNodeVariant = TVariant<FEmptyVariantState
 		, const UInterchangeTexture2DNode*
 		, const UInterchangeTextureCubeNode*
-		, const UInterchangeTexture2DArrayNode*>; 
+		, const UInterchangeTexture2DArrayNode*
+		, const UInterchangeTextureLightProfileNode* >;
 
 	FTextureNodeVariant GetTextureNodeVariantFromFactoryVariant(const FTextureFactoryNodeVariant& FactoryVariant, const UInterchangeBaseNodeContainer* NodeContainer)
 	{
@@ -118,39 +136,41 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 
 		if (UInterchangeTextureFactoryNode* const* TextureFactoryNode = FactoryVariant.TryGet<UInterchangeTextureFactoryNode*>())
 		{
-			if ((*TextureFactoryNode)->GetCustomTranslatedTextureNodeUid(TextureNodeUniqueID))
-			{
-				if (const UInterchangeTexture2DNode* TextureTranslatedNode = Cast<UInterchangeTexture2DNode>(NodeContainer->GetNode(TextureNodeUniqueID)))
-				{
-					return FTextureNodeVariant(TInPlaceType<const UInterchangeTexture2DNode*>(), TextureTranslatedNode);
-				}
-			}
+			(*TextureFactoryNode)->GetCustomTranslatedTextureNodeUid(TextureNodeUniqueID);
 		}
 		else if (UInterchangeTextureCubeFactoryNode* const* TextureCubeFactoryNode = FactoryVariant.TryGet<UInterchangeTextureCubeFactoryNode*>())
 		{
-			if ((*TextureCubeFactoryNode)->GetCustomTranslatedTextureNodeUid(TextureNodeUniqueID))
-			{
-				if (const UInterchangeBaseNode* Node = NodeContainer->GetNode(TextureNodeUniqueID))
-				{
-					if (const UInterchangeTextureCubeNode* TextureCubeTranslatedNode = Cast<UInterchangeTextureCubeNode>(Node))
-					{
-						return FTextureNodeVariant(TInPlaceType<const UInterchangeTextureCubeNode*>(), TextureCubeTranslatedNode);
-					}
-					else if (const UInterchangeTexture2DNode* TextureTranslatedNode = Cast<UInterchangeTexture2DNode>(Node))
-					{
-						return FTextureNodeVariant(TInPlaceType<const UInterchangeTexture2DNode*>(), TextureTranslatedNode);
-					}
-				}
-			}
+			(*TextureCubeFactoryNode)->GetCustomTranslatedTextureNodeUid(TextureNodeUniqueID);
 		}
 		else if (UInterchangeTexture2DArrayFactoryNode* const* Texture2DArrayFactoryNode = FactoryVariant.TryGet<UInterchangeTexture2DArrayFactoryNode*>())
 		{
-			if ((*Texture2DArrayFactoryNode)->GetCustomTranslatedTextureNodeUid(TextureNodeUniqueID))
+			(*Texture2DArrayFactoryNode)->GetCustomTranslatedTextureNodeUid(TextureNodeUniqueID);
+		}
+		else if (UInterchangeTextureLightProfileFactoryNode* const* TextureLightProfileFactoryNode = FactoryVariant.TryGet<UInterchangeTextureLightProfileFactoryNode*>())
+		{
+			(*TextureLightProfileFactoryNode)->GetCustomTranslatedTextureNodeUid(TextureNodeUniqueID);
+		}
+
+		if (const UInterchangeBaseNode* TranslatedNode = NodeContainer->GetNode(TextureNodeUniqueID))
+		{
+			if (const UInterchangeTextureCubeNode* TextureCubeTranslatedNode = Cast<UInterchangeTextureCubeNode>(TranslatedNode))
 			{
-				if (const UInterchangeTexture2DArrayNode* Texture2DArrayTranslatedNode = Cast<UInterchangeTexture2DArrayNode>(NodeContainer->GetNode(TextureNodeUniqueID)))
-				{
-					return FTextureNodeVariant(TInPlaceType<const UInterchangeTexture2DArrayNode*>(), Texture2DArrayTranslatedNode);
-				}
+				return FTextureNodeVariant(TInPlaceType<const UInterchangeTextureCubeNode*>(), TextureCubeTranslatedNode);
+			}
+
+			if (const UInterchangeTexture2DArrayNode* Texture2DArrayTranslatedNode = Cast<UInterchangeTexture2DArrayNode>(TranslatedNode))
+			{
+				return FTextureNodeVariant(TInPlaceType<const UInterchangeTexture2DArrayNode*>(), Texture2DArrayTranslatedNode);
+			}
+
+			if (const UInterchangeTextureLightProfileNode* TextureLightProfileTranslatedNode = Cast<UInterchangeTextureLightProfileNode>(TranslatedNode))
+			{
+				return FTextureNodeVariant(TInPlaceType<const UInterchangeTextureLightProfileNode*>(), TextureLightProfileTranslatedNode);
+			}
+
+			if (const UInterchangeTexture2DNode* TextureTranslatedNode = Cast<UInterchangeTexture2DNode>(TranslatedNode))
+			{
+				return FTextureNodeVariant(TInPlaceType<const UInterchangeTexture2DNode*>(), TextureTranslatedNode);
 			}
 		}
 
@@ -174,7 +194,12 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			return (*Texture2DArrayNode)->GetPayLoadKey().IsSet();
 		}
 
-	return false;
+		if (const UInterchangeTextureLightProfileNode* const* TextureLightProfileNode = TextureNodeVariant.TryGet<const UInterchangeTextureLightProfileNode*>())
+		{
+			return (*TextureLightProfileNode)->GetPayLoadKey().IsSet();
+		}
+
+		return false;
 	}
 
 	TOptional<FString> GetPayloadKey(const FTextureNodeVariant& TextureNodeVariant)
@@ -194,10 +219,19 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			return (*Texture2DArrayNode)->GetPayLoadKey();
 		}
 
+		if (const UInterchangeTextureLightProfileNode* const* TextureLightProfileNode = TextureNodeVariant.TryGet<const UInterchangeTextureLightProfileNode*>())
+		{
+			return (*TextureLightProfileNode)->GetPayLoadKey();
+		}
+
 		return {};
 	}
 
-	using FTexturePayloadVariant = TVariant<FEmptyVariantState, TOptional<FImportImage>,  TOptional<FImportBlockedImage>,  TOptional<FImportSlicedImage>>;
+	using FTexturePayloadVariant = TVariant<FEmptyVariantState
+		, TOptional<FImportImage>
+		, TOptional<FImportBlockedImage>
+		, TOptional<FImportSlicedImage>
+		, TOptional<FImportLightProfile>>;
 
 	FTexturePayloadVariant GetTexturePayload(const UInterchangeSourceData* SourceData, const FString& PayloadKey, const FTextureNodeVariant& TextureNodeVariant, const UInterchangeTranslatorBase* Translator)
 	{
@@ -220,6 +254,15 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			if (const IInterchangeSlicedTexturePayloadInterface* SlicedTextureTranslator = Cast<IInterchangeSlicedTexturePayloadInterface>(Translator))
 			{
 				return FTexturePayloadVariant(TInPlaceType<TOptional<FImportSlicedImage>>(), SlicedTextureTranslator->GetSlicedTexturePayloadData(SourceData, PayloadKey));
+			}
+		}
+
+		// Light Profile
+		if (TextureNodeVariant.IsType<const UInterchangeTextureLightProfileNode*>())
+		{
+			if (const IInterchangeTextureLightProfilePayloadInterface* LightProfileTranslator = Cast<IInterchangeTextureLightProfilePayloadInterface>(Translator))
+			{
+				return FTexturePayloadVariant(TInPlaceType<TOptional<FImportLightProfile>>(), LightProfileTranslator->GetLightProfilePayloadData(SourceData, PayloadKey));
 			}
 		}
 
@@ -300,27 +343,6 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		return false;
 	}
 
-	bool SetupTexture2DSourceData(UTexture2D* Texture2D, const FTexturePayloadVariant& TexturePayload)
-	{
-		if (const TOptional<FImportBlockedImage>* BlockedImage = TexturePayload.TryGet<TOptional<FImportBlockedImage>>())
-		{
-			if (BlockedImage->IsSet())
-			{
-				return SetupTexture2DSourceData(Texture2D, BlockedImage->GetValue());
-			}
-		}
-		else if (const TOptional<FImportImage>* Image = TexturePayload.TryGet<TOptional<FImportImage>>())
-		{
-			if (Image->IsSet())
-			{
-				SetupTextureSourceData(Texture2D, Image->GetValue());
-				return true;
-			}
-		}
-
-		return false;
-	}
-
 	void SetupTextureSourceData(UTexture* Texture, const FImportSlicedImage& SlicedImage)
 	{
 		Texture->Source.Init(
@@ -365,6 +387,51 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		}
 	}
 
+	void SetupTextureSourceData(UTextureLightProfile* TextureLightProfile, const FImportLightProfile& LightProfile)
+	{
+		const FImportImage& ImportImage = LightProfile;
+		SetupTextureSourceData(TextureLightProfile, ImportImage);
+
+		TextureLightProfile->Brightness = LightProfile.Brightness;
+		TextureLightProfile->TextureMultiplier = LightProfile.TextureMultiplier;
+	}
+
+	bool SetupTexture2DSourceData(UTexture2D* Texture2D, const FTexturePayloadVariant& TexturePayload)
+	{
+		if (const TOptional<FImportBlockedImage>* BlockedImage = TexturePayload.TryGet<TOptional<FImportBlockedImage>>())
+		{
+			if (BlockedImage->IsSet())
+			{
+				return SetupTexture2DSourceData(Texture2D, BlockedImage->GetValue());
+			}
+		}
+		else if (const TOptional<FImportImage>* Image = TexturePayload.TryGet<TOptional<FImportImage>>())
+		{
+			if (Image->IsSet())
+			{
+				SetupTextureSourceData(Texture2D, Image->GetValue());
+				return true;
+			}
+		}
+		else if (const TOptional<FImportLightProfile>* OptionalLightProfile = TexturePayload.TryGet<TOptional<FImportLightProfile>>())
+		{
+			const FImportLightProfile& LightProfile = OptionalLightProfile->GetValue();
+
+			if (UTextureLightProfile* TextureLightProfile = Cast<UTextureLightProfile>(Texture2D))
+			{
+				SetupTextureSourceData(TextureLightProfile, LightProfile);
+			}
+			else
+			{
+				SetupTextureSourceData(Texture2D, LightProfile);
+			}
+
+			return true;
+		}
+
+		return false;
+	}
+
 	bool SetupTextureCubeSourceData(UTextureCube* TextureCube, const FTexturePayloadVariant& TexturePayload)
 	{
 		if (const TOptional<FImportSlicedImage>* OptionalSlicedImage = TexturePayload.TryGet<TOptional<FImportSlicedImage>>())
@@ -387,6 +454,15 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			{
 				const FImportImage& Image = OptionalImage->GetValue();
 				SetupTextureSourceData(TextureCube, Image);
+				return true;
+			}
+		}
+		else if (const TOptional<FImportLightProfile>* OptionalLightProfile = TexturePayload.TryGet<TOptional<FImportLightProfile>>())
+		{
+			if (OptionalLightProfile->IsSet())
+			{
+				const FImportLightProfile& LightProfile = OptionalLightProfile->GetValue();
+				SetupTextureSourceData(TextureCube, LightProfile);
 				return true;
 			}
 		}
@@ -415,9 +491,16 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 				return true;
 			}
 		}
+		else if (const TOptional<FImportLightProfile>* OptionalLightProfile = TexturePayload.TryGet<TOptional<FImportLightProfile>>())
+		{
+			const FImportLightProfile& LightProfile = OptionalLightProfile->GetValue();
+			SetupTextureSourceData(Texture2DArray, LightProfile);
+			return true;
+		}
 
 		return false;
 	}
+
 #endif // WITH_EDITORONLY_DATA
  }
 
@@ -582,7 +665,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 	{
 		if (!SetupTexture2DSourceData(Texture2D, TexturePayload))
 		{
-			UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: The Payload was invalid for a 2D Texture"), *Arguments.AssetName);
+			UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: The Payload was invalid for a %s. (%s)"), *(TextureClass->GetName()), *Arguments.AssetName);
 			return nullptr;
 		}
 	}
@@ -590,7 +673,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 	{
 		if (!SetupTextureCubeSourceData(TextureCube, TexturePayload))
 		{
-			UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: The Payload was invalid for a TextureCube"), *Arguments.AssetName);
+			UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: The Payload was invalid for a TextureCube. (%s)"), *Arguments.AssetName);
 			return nullptr;
 		}
 	}
@@ -598,7 +681,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 	{
 		if (!SetupTexture2DArraySourceData(Texture2DArray, TexturePayload))
 		{
-			UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: The Payload was invalid for a TextureCube"), *Arguments.AssetName);
+			UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: The Payload was invalid for a TextureArray. (%s)"), *Arguments.AssetName);
 			return nullptr;
 		}
 	}
