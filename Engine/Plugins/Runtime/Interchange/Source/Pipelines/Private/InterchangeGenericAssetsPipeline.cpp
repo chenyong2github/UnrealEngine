@@ -4,6 +4,7 @@
 #include "Animation/Skeleton.h"
 #include "CoreMinimal.h"
 #include "Engine/TextureCube.h"
+#include "Engine/TextureLightProfile.h"
 #include "InterchangeMaterialFactoryNode.h"
 #include "InterchangeMaterialNode.h"
 #include "InterchangeMeshNode.h"
@@ -20,6 +21,8 @@
 #include "InterchangeTextureCubeFactoryNode.h"
 #include "InterchangeTextureCubeNode.h"
 #include "InterchangeTextureFactoryNode.h"
+#include "InterchangeTextureLightProfileFactoryNode.h"
+#include "InterchangeTextureLightProfileNode.h"
 #include "InterchangeTextureNode.h"
 #include "Misc/Paths.h"
 #include "Nodes/InterchangeBaseNode.h"
@@ -47,6 +50,11 @@ namespace UE::Interchange::Private
 			return UInterchangeTexture2DArrayFactoryNode::StaticClass();
 		}
 
+		if (UInterchangeTextureLightProfileNode::StaticClass() == NodeClass)
+		{
+			return UInterchangeTextureLightProfileFactoryNode::StaticClass();
+		}
+
 		return nullptr;
 	}
 
@@ -65,6 +73,11 @@ namespace UE::Interchange::Private
 		if (UInterchangeTexture2DArrayFactoryNode::StaticClass() == NodeClass)
 		{
 			return UTexture2DArray::StaticClass();
+		}
+
+		if (UInterchangeTextureLightProfileFactoryNode::StaticClass() == NodeClass)
+		{
+			return UTextureLightProfile::StaticClass();
 		}
 
 		return nullptr;

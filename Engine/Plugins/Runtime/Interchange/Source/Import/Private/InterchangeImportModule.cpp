@@ -15,6 +15,7 @@
 #include "Texture/InterchangeDDSTranslator.h"
 #include "Texture/InterchangeEXRTranslator.h"
 #include "Texture/InterchangeHDRTranslator.h"
+#include "Texture/InterchangeIESTranslator.h"
 #include "Texture/InterchangeJPGTranslator.h"
 #include "Texture/InterchangePCXTranslator.h"
 #include "Texture/InterchangePNGTranslator.h"
@@ -51,7 +52,6 @@ void FInterchangeImportModule::StartupModule()
 		// UDIM must be registered before the other texture translators
 		InterchangeManager.RegisterTranslator(UInterchangeUDIMTranslator::StaticClass());
 
-
 		InterchangeManager.RegisterTranslator(UInterchangeBMPTranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangeDDSTranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangeEXRTranslator::StaticClass());
@@ -61,6 +61,7 @@ void FInterchangeImportModule::StartupModule()
 		InterchangeManager.RegisterTranslator(UInterchangePSDTranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangeTGATranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangeHDRTranslator::StaticClass());
+		InterchangeManager.RegisterTranslator(UInterchangeIESTranslator::StaticClass());
 
 		//Register the factories
 		InterchangeManager.RegisterFactory(UInterchangeTextureFactory::StaticClass());
