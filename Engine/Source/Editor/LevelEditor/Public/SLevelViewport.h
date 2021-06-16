@@ -580,7 +580,7 @@ private:
 	void OnToggleAllowCinematicPreview();
 
 	/**
-	 * @return true if this viewport allows matinee to be previewed in it                   
+	 * @return true if this viewport allows cinematics to be previewed in it                   
 	 */
 	bool AllowsCinematicPreview() const;
 
