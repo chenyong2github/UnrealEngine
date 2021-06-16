@@ -13,7 +13,8 @@ public class AudioMixerAndroid : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"AudioMixerCore"
+				"AudioMixerCore",
+				"BinkAudioDecoder"
 			}
 			);
 			

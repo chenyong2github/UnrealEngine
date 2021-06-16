@@ -11,6 +11,7 @@
 #include "VorbisAudioInfo.h"
 #include "OpusAudioInfo.h"
 #include "ADPCMAudioInfo.h"
+#include "BinkAudioInfo.h"
 #endif
 /**
 * CoreAudio System Headers
@@ -365,6 +366,12 @@ namespace Audio
 		static const FName NAME_ADPCM(TEXT("ADPCM"));
 		static const FName NAME_OGG(TEXT("OGG"));
 		static const FName NAME_OPUS(TEXT("OPUS"));
+		static const FName NAME_BINKA(TEXT("BINKA"));
+
+		if (InSoundWave->bUseBinkAudio)
+		{
+			return NAME_BINKA;
+		}
 
 		if (InSoundWave->IsSeekableStreaming())
 		{
@@ -391,6 +398,11 @@ namespace Audio
 	{
 #if WITH_ENGINE
 		check(InSoundWave);
+
+		if (InSoundWave->bUseBinkAudio)
+		{
+			return new FBinkAudioInfo();
+		}
 
 		if (InSoundWave->IsSeekableStreaming())
 		{
@@ -424,6 +436,11 @@ namespace Audio
 		if (!ensure(InSoundWave.IsValid()))
 		{
 			return nullptr;
+		}
+
+		if (InSoundWave->UseBinkAudio())
+		{
+			return new FBinkAudioInfo();
 		}
 
 		if (InSoundWave->IsSeekableStreaming())

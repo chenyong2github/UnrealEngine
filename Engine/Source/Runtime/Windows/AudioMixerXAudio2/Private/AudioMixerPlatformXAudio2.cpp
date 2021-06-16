@@ -25,6 +25,9 @@
 #include "VorbisAudioInfo.h"
 #include "ADPCMAudioInfo.h"
 #include "AudioPluginUtilities.h"
+#if WITH_BINK_AUDIO
+#include "BinkAudioInfo.h"
+#endif // WITH_BINK_AUDIO
 #endif //WITH_ENGINE
 
 #include "CoreGlobals.h"
@@ -1468,8 +1471,17 @@ namespace Audio
 		static FName NAME_OPUS(TEXT("OPUS"));
 		static FName NAME_XMA(TEXT("XMA"));
 		static FName NAME_ADPCM(TEXT("ADPCM"));
+		static FName NAME_BINKA(TEXT("BINKA"));
 
 #if WITH_ENGINE
+
+#if WITH_BINK_AUDIO
+		if (InSoundWave->bUseBinkAudio)
+		{
+			return NAME_BINKA;
+		}
+#endif	// WITH_BINK_AUDIO	
+
 		if (InSoundWave->IsStreaming(nullptr))
 		{
 			if (InSoundWave->IsSeekableStreaming())
@@ -1508,6 +1520,13 @@ namespace Audio
 	{
 #if WITH_ENGINE
 		check(InSoundWave);
+
+#if WITH_BINK_AUDIO
+		if (InSoundWave->bUseBinkAudio)
+		{
+			return new FBinkAudioInfo();
+		}
+#endif // WITH_BINK_AUDIO
 
 		if (InSoundWave->IsStreaming(nullptr))
 		{
@@ -1558,6 +1577,14 @@ namespace Audio
 		}
 
 #if WITH_ENGINE
+
+#if WITH_BINK_AUDIO
+		if (InSoundWave->UseBinkAudio())
+		{
+			return new FBinkAudioInfo();
+		}
+#endif // WITH_BINK_AUDIO		
+
 		// Decoding with FSoundWaveProxy is only supported ot streaming audio at the moment
 		if (false == InSoundWave->IsStreaming())
 		{

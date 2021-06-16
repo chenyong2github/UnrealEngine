@@ -123,6 +123,12 @@ private:
 		static const FName NAME_OGG(TEXT("OGG"));
 		static const FName NAME_OPUS(TEXT("OPUS"));
 		static const FName NAME_XMA(TEXT("XMA"));
+		static const FName NAME_BINKA(TEXT("BINKA"));
+
+		if (SoundWave->bUseBinkAudio)
+		{
+			return NAME_BINKA;
+		}
 
 		if (SoundWave->IsStreaming(nullptr))
 		{

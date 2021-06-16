@@ -326,6 +326,12 @@ return TSuper::SupportsFeature(Feature);
 		static const FName NAME_ADPCM(TEXT("ADPCM"));
 		static const FName NAME_OGG(TEXT("OGG"));
 		static const FName NAME_OPUS(TEXT("OPUS"));
+		static const FName NAME_BINKA(TEXT("BINKA"));
+
+		if (Wave->bUseBinkAudio)
+		{
+			return NAME_BINKA;
+		}
 
 		if (Wave->IsSeekableStreaming())
 		{
@@ -345,10 +351,12 @@ return TSuper::SupportsFeature(Feature);
 		static const FName NAME_ADPCM(TEXT("ADPCM"));
 		static const FName NAME_OGG(TEXT("OGG"));
 		static const FName NAME_OPUS(TEXT("OPUS"));
+		static const FName NAME_BINKA(TEXT("BINKA"));
 
 		OutFormats.Add(NAME_ADPCM);
 		OutFormats.Add(NAME_OGG);
 		OutFormats.Add(NAME_OPUS);
+		OutFormats.Add(NAME_BINKA);
 	}
 
 #endif //WITH_ENGINE

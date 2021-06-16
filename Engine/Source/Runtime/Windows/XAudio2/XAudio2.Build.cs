@@ -13,6 +13,7 @@ public class XAudio2 : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
+				"BinkAudioDecoder",
                 "AudioMixerCore" // for AudioPlatformSettings::GetPlatformSettings() in AudioMixerTypes.h.
 			}
 			);

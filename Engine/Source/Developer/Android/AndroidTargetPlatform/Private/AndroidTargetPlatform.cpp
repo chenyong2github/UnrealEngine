@@ -616,6 +616,7 @@ FName FAndroidTargetPlatform::GetWaveFormat( const class USoundWave* Wave ) cons
 {
 	static const FName NAME_ADPCM(TEXT("ADPCM"));
 	static const FName NAME_OGG(TEXT("OGG"));
+	static const FName NAME_BINKA(TEXT("BINKA"));
 
 	static bool bFormatRead = false;
 	static FName NAME_FORMAT;
@@ -650,6 +651,11 @@ FName FAndroidTargetPlatform::GetWaveFormat( const class USoundWave* Wave ) cons
 		}
 	}
 
+	if (Wave->bUseBinkAudio)
+	{
+		return NAME_BINKA;
+	}
+
 	if (Wave->IsSeekableStreaming())
 	{
 		return NAME_ADPCM;
@@ -661,9 +667,11 @@ FName FAndroidTargetPlatform::GetWaveFormat( const class USoundWave* Wave ) cons
 
 void FAndroidTargetPlatform::GetAllWaveFormats(TArray<FName>& OutFormats) const
 {
-	static FName NAME_OGG(TEXT("OGG"));
-	static FName NAME_ADPCM(TEXT("ADPCM"));
+	static const FName NAME_OGG(TEXT("OGG"));
+	static const FName NAME_ADPCM(TEXT("ADPCM"));
+	static const FName NAME_BINKA(TEXT("BINKA"));
 
+	OutFormats.Add(NAME_BINKA);
 	OutFormats.Add(NAME_OGG);
 	OutFormats.Add(NAME_ADPCM);
 }

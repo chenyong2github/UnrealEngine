@@ -416,6 +416,12 @@ public:
 		static const FName NAME_ADPCM(TEXT("ADPCM"));
 		static const FName NAME_OGG(TEXT("OGG"));
 		static const FName NAME_OPUS(TEXT("OPUS"));
+		static const FName NAME_BINKA(TEXT("BINKA"));
+
+		if (Wave->bUseBinkAudio)
+		{
+			return NAME_BINKA;
+		}
 
 		// Seekable streams need to pick a codec which allows fixed-sized frames so we can compute stream chunk index to load
 		if (Wave->IsSeekableStreaming())
@@ -436,9 +442,11 @@ public:
 	virtual void GetAllWaveFormats(TArray<FName>& OutFormats) const override
 	{
 		static const FName NAME_ADPCM(TEXT("ADPCM"));
-		static FName NAME_OGG(TEXT("OGG"));
-		static FName NAME_OPUS(TEXT("OPUS"));
+		static const FName NAME_OGG(TEXT("OGG"));
+		static const FName NAME_OPUS(TEXT("OPUS"));
+		static const FName NAME_BINKA(TEXT("BINKA"));
 
+		OutFormats.Add(NAME_BINKA);
 		OutFormats.Add(NAME_ADPCM);
 		OutFormats.Add(NAME_OGG);
 		OutFormats.Add(NAME_OPUS);

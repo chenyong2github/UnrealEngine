@@ -39,6 +39,7 @@ THIRD_PARTY_INCLUDES_END
 #endif
 
 #include "ADPCMAudioInfo.h"
+#include "BinkAudioInfo.h"
 
 DEFINE_LOG_CATEGORY(LogXAudio2);
 
@@ -382,6 +383,11 @@ bool FXAudio2Device::HasCompressedAudioInfoClass(USoundWave* SoundWave)
 class ICompressedAudioInfo* FXAudio2Device::CreateCompressedAudioInfo(USoundWave* SoundWave)
 {
 	check(SoundWave);
+
+	if (SoundWave->bUseBinkAudio)
+	{
+		return new FBinkAudioInfo();
+	}
 
 	if (SoundWave->IsStreaming(nullptr))
 	{
