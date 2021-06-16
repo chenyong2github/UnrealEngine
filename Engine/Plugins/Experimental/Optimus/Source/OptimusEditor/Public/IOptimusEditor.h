@@ -2,15 +2,15 @@
 
 #pragma once
 
-#include "Toolkits/AssetEditorToolkit.h"
+#include "PersonaAssetEditorToolkit.h"
+#include "IHasPersonaToolkit.h"
 
-class UOptimusNode;
-
-class IOptimusEditor 
-	: public FAssetEditorToolkit
+class IOptimusEditor :
+	public FPersonaAssetEditorToolkit,
+	public IHasPersonaToolkit
 //	, public IHasMenuExtensibility
 //	, public IHasToolBarExtensibility
 {
 public:
-	virtual ~IOptimusEditor() {}
+	virtual ~IOptimusEditor() override = default;
 };
