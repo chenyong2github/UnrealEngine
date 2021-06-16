@@ -359,26 +359,8 @@ FText FDisplayClusterConfiguratorViewportDetailCustomization::GetSelectedCameraT
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// Base Scene Component Detail Customization
-//////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterConfiguratorSceneComponentDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder)
-{
-	Super::CustomizeDetails(InLayoutBuilder);
-	SceneComponenPtr = nullptr;
-
-	// Get the Editing object
-	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = InLayoutBuilder.GetSelectedObjects();
-	if (SelectedObjects.Num())
-	{
-		SceneComponenPtr = Cast<UDisplayClusterSceneComponent>(SelectedObjects[0]);
-	}
-	check(SceneComponenPtr != nullptr);
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////
 // Screen Component Detail Customization
 //////////////////////////////////////////////////////////////////////////////////////////////
-
 const TArray<FDisplayClusterConfiguratorAspectRatioPresetSize> FDisplayClusterConfiguratorAspectRatioPresetSize::CommonPresets =
 {
 	FDisplayClusterConfiguratorAspectRatioPresetSize(LOCTEXT("3x2", "3:2"), FVector2D(100.f, 66.67f)),
@@ -419,7 +401,7 @@ void FDisplayClusterConfiguratorScreenDetailCustomization::CustomizeDetails(IDet
 	
 	const FText RowName = LOCTEXT("DisplayClusterConfiguratorResolution", "Aspect Ratio Preset");
 	
-	SizeHandlePtr = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterScreenComponent, SizeCm));
+	SizeHandlePtr = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterScreenComponent, Size));
 	SizeHandlePtr->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateRaw(this, &FDisplayClusterConfiguratorScreenDetailCustomization::OnSizePropertyChanged));
 	SizeHandlePtr->SetOnPropertyResetToDefault(FSimpleDelegate::CreateRaw(this, &FDisplayClusterConfiguratorScreenDetailCustomization::OnSizePropertyChanged));
 
@@ -519,19 +501,16 @@ void FDisplayClusterConfiguratorScreenDetailCustomization::OnSelectedPresetChang
 void FDisplayClusterConfiguratorScreenDetailCustomization::GetAspectRatioAndSetDefaultValueForPreset(
 	const FDisplayClusterConfiguratorAspectRatioPresetSize& Preset, FVector2D* OutAspectRatio)
 {
-	const FVector2D NewValueCm = Preset.Size;
-	const FVector2D NewValue(NewValueCm / 100.f);
-	
 	if (UDisplayClusterScreenComponent* Archetype = Cast<UDisplayClusterScreenComponent>(ScreenComponentPtr->GetArchetype()))
 	{
 		// Set the DEFAULT value here, that way user can always reset to default for the current preset.
 		Archetype->Modify();
-		Archetype->SetScreenSize(NewValue);
+		Archetype->SetScreenSize(Preset.Size);
 	}
 
 	if (OutAspectRatio)
 	{
-		*OutAspectRatio = NewValueCm;
+		*OutAspectRatio = Preset.Size;
 	}
 }
 

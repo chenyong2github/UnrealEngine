@@ -35,7 +35,7 @@ void UDisplayClusterBlueprint::UpdateConfigExportProperty()
 
 	if (UDisplayClusterConfigurationData* Config = GetOrLoadConfig())
 	{
-		Config->Meta.ExportAssetPath = GetPathName();
+		Config->Info.AssetPath = GetPathName();
 
 		FString PrettyConfig;
 

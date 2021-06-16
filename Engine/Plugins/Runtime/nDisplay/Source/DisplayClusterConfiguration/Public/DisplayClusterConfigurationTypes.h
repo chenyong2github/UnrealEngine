@@ -11,6 +11,8 @@
 #include "DisplayClusterConfigurationTypes_ICVFX.h"
 #include "DisplayClusterConfigurationTypes_Viewport.h"
 
+#include "DisplayClusterConfigurationVersion.h"
+
 #include "DisplayClusterConfigurationTypes.generated.h"
 
 class UStaticMesh;
@@ -23,11 +25,19 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationInfo
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = NDisplay)
+	FDisplayClusterConfigurationInfo()
+		: Version(DisplayClusterConfiguration::GetCurrentConfigurationSchemeMarker())
+	{ }
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
 	FString Description;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = NDisplay)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = NDisplay)
 	FString Version;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = NDisplay)
+	FString AssetPath;
 };
 
 // Scene hierarchy
@@ -39,15 +49,13 @@ class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationSceneComponent
 
 public:
 	UDisplayClusterConfigurationSceneComponent()
-		: UDisplayClusterConfigurationSceneComponent(FString(), FVector::ZeroVector, FRotator::ZeroRotator, FString(), -1)
+		: UDisplayClusterConfigurationSceneComponent(FString(), FVector::ZeroVector, FRotator::ZeroRotator)
 	{ }
 
-	UDisplayClusterConfigurationSceneComponent(const FString& InParentId, const FVector& InLocation, const FRotator& InRotation, const FString& InTrackerId, const int32& InTrackerCh)
+	UDisplayClusterConfigurationSceneComponent(const FString& InParentId, const FVector& InLocation, const FRotator& InRotation)
 		: ParentId(InParentId)
 		, Location(InLocation)
 		, Rotation(InRotation)
-		, TrackerId(InTrackerId)
-		, TrackerChannel(InTrackerCh)
 	{ }
 
 public:
@@ -59,12 +67,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = NDisplay)
 	FRotator Rotation;
-
-	UPROPERTY(EditAnywhere, Category = NDisplay)
-	FString TrackerId;
-
-	UPROPERTY(EditAnywhere, Category = NDisplay)
-	int32 TrackerChannel;
 };
 
 UCLASS()
@@ -75,11 +77,11 @@ class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationSceneComponent
 
 public:
 	UDisplayClusterConfigurationSceneComponentXform()
-		: UDisplayClusterConfigurationSceneComponentXform(FString(), FVector::ZeroVector, FRotator::ZeroRotator, FString(), -1)
+		: UDisplayClusterConfigurationSceneComponentXform(FString(), FVector::ZeroVector, FRotator::ZeroRotator)
 	{ }
 
-	UDisplayClusterConfigurationSceneComponentXform(const FString& InParentId, const FVector& InLocation, const FRotator& InRotation, const FString& InTrackerId, int32 InTrackerCh)
-		: UDisplayClusterConfigurationSceneComponent(InParentId , InLocation, InRotation, InTrackerId, InTrackerCh)
+	UDisplayClusterConfigurationSceneComponentXform(const FString& InParentId, const FVector& InLocation, const FRotator& InRotation)
+		: UDisplayClusterConfigurationSceneComponent(InParentId , InLocation, InRotation)
 	{ }
 };
 
@@ -91,11 +93,11 @@ class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationSceneComponent
 
 public:
 	UDisplayClusterConfigurationSceneComponentScreen()
-		: UDisplayClusterConfigurationSceneComponentScreen(FString(), FVector::ZeroVector, FRotator::ZeroRotator, FString(), -1, FVector2D(100.f, 100.f))
+		: UDisplayClusterConfigurationSceneComponentScreen(FString(), FVector::ZeroVector, FRotator::ZeroRotator, FVector2D(100.f, 100.f))
 	{ }
 
-	UDisplayClusterConfigurationSceneComponentScreen(const FString& InParentId, const FVector& InLocation, const FRotator& InRotation, const FString& InTrackerId, int32 InTrackerCh, const FVector2D& InSize)
-		: UDisplayClusterConfigurationSceneComponent(InParentId, InLocation, InRotation, InTrackerId, InTrackerCh)
+	UDisplayClusterConfigurationSceneComponentScreen(const FString& InParentId, const FVector& InLocation, const FRotator& InRotation, const FVector2D& InSize)
+		: UDisplayClusterConfigurationSceneComponent(InParentId, InLocation, InRotation)
 		, Size(InSize)
 	{ }
 
@@ -112,12 +114,12 @@ class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationSceneComponent
 
 public:
 	UDisplayClusterConfigurationSceneComponentCamera()
-		: UDisplayClusterConfigurationSceneComponentCamera(FString(), FVector::ZeroVector, FRotator::ZeroRotator, FString(), -1, 6.4f, false, EDisplayClusterConfigurationEyeStereoOffset::None)
+		: UDisplayClusterConfigurationSceneComponentCamera(FString(), FVector::ZeroVector, FRotator::ZeroRotator, 6.4f, false, EDisplayClusterConfigurationEyeStereoOffset::None)
 	{ }
 
-	UDisplayClusterConfigurationSceneComponentCamera(const FString& InParentId, const FVector& InLocation, const FRotator& InRotation, const FString& InTrackerId, int32 InTrackerCh,
+	UDisplayClusterConfigurationSceneComponentCamera(const FString& InParentId, const FVector& InLocation, const FRotator& InRotation,
 		float InInterpupillaryDistance, bool bInSwapEyes, EDisplayClusterConfigurationEyeStereoOffset InStereoOffset)
-		: UDisplayClusterConfigurationSceneComponent(InParentId, InLocation, InRotation, InTrackerId, InTrackerCh)
+		: UDisplayClusterConfigurationSceneComponent(InParentId, InLocation, InRotation)
 		, InterpupillaryDistance(InInterpupillaryDistance)
 		, bSwapEyes(bInSwapEyes)
 		, StereoOffset(InStereoOffset)
@@ -135,40 +137,6 @@ public:
 };
 
 UCLASS()
-class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationSceneComponentMesh
-	: public UDisplayClusterConfigurationSceneComponent
-{
-	GENERATED_BODY()
-
-public:
-	UDisplayClusterConfigurationSceneComponentMesh()
-		: UDisplayClusterConfigurationSceneComponentMesh(FString(), FVector::ZeroVector, FRotator::ZeroRotator, FString(), -1, FString())
-	{ }
-
-	UDisplayClusterConfigurationSceneComponentMesh(const FString& InParentId, const FVector& InLocation, const FRotator& InRotation, const FString& InTrackerId, int32 InTrackerCh, const FString& InAssetPath)
-		: UDisplayClusterConfigurationSceneComponent(InParentId, InLocation, InRotation, InTrackerId, InTrackerCh)
-		, AssetPath(InAssetPath)
-#if WITH_EDITOR
-		, Asset(nullptr)
-#endif
-	{ }
-
-#if WITH_EDITOR
-	/** Load static mesh from AssetPath */
-	void LoadAssets();
-#endif
-
-public:
-	UPROPERTY()
-	FString AssetPath;
-
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category = NDisplay)
-	UStaticMesh* Asset;
-#endif
-};
-
-UCLASS()
 class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationScene
 	: public UDisplayClusterConfigurationData_Base
 {
@@ -183,9 +151,6 @@ public:
 
 	UPROPERTY()
 	TMap<FString, UDisplayClusterConfigurationSceneComponentCamera*> Cameras;
-
-	UPROPERTY()
-	TMap<FString, UDisplayClusterConfigurationSceneComponentMesh*> Meshes;
 
 protected:
 	virtual void GetObjectsToExport(TArray<UObject*>& OutObjects) override;
@@ -482,7 +447,6 @@ struct FDisplayClusterConfigurationDataMetaInfo
 {
 	EDisplayClusterConfigurationDataSource ImportDataSource;
 	FString ImportFilePath;
-	FString ExportAssetPath;
 };
 
 ////////////////////////////////////////////////////////////////

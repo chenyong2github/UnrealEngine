@@ -119,9 +119,6 @@ TSharedRef< FSlateStyleSet > FDisplayClusterConfiguratorStyle::Create()
 	
 	Style->Set("ClassIcon.DisplayClusterICVFXCameraComponent", new IMAGE_BRUSH(TEXT("Components/ICVFXCamera/nDisplayCamera_x16"), Icon16x16));
 
-	Style->Set("ClassIcon.DisplayClusterMeshComponent", new IMAGE_BRUSH(TEXT("TreeItems/SceneComponentMesh_16x"), Icon16x16));
-	Style->Set("ClassThumbnail.DisplayClusterMeshComponent", new IMAGE_BRUSH(TEXT("TreeItems/SceneComponentMesh_16x8"), Icon16x16));
-	
 	// Cluster
 	Style->Set("DisplayClusterConfigurator.TreeItems.Host", new IMAGE_BRUSH("TreeItems/ClusterNode_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.TreeItems.ClusterNode", new IMAGE_BRUSH("TreeItems/Viewport_16x", Icon16x16));

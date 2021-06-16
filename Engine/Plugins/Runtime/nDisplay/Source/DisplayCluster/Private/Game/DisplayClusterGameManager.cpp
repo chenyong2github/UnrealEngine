@@ -14,7 +14,6 @@
 
 #include "Components/SceneComponent.h"
 #include "Components/DisplayClusterCameraComponent.h"
-#include "Components/DisplayClusterSceneComponent.h"
 #include "Components/DisplayClusterScreenComponent.h"
 
 #include "Misc/DisplayClusterGlobals.h"
@@ -27,6 +26,9 @@
 
 
 FDisplayClusterGameManager::FDisplayClusterGameManager()
+	: ConfigData(nullptr)
+	, CurrentOperationMode(EDisplayClusterOperationMode::Disabled)
+	, CurrentWorld(nullptr)
 {
 }
 
@@ -52,6 +54,7 @@ void FDisplayClusterGameManager::Release()
 bool FDisplayClusterGameManager::StartSession(UDisplayClusterConfigurationData* InConfigData, const FString& InNodeId)
 {
 	ClusterNodeId = InNodeId;
+	ConfigData = InConfigData;
 	return true;
 }
 
@@ -63,40 +66,28 @@ void FDisplayClusterGameManager::EndSession()
 bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 {
 	check(InWorld);
+	check(ConfigData);
 	CurrentWorld = InWorld;
 
-	// Find nDisplay root actor
-	ADisplayClusterRootActor* RootActor = FindDisplayClusterRootActor(InWorld);
-	if (!RootActor)
-	{
-		// Also search inside streamed levels
-		const TArray<ULevelStreaming*>& StreamingLevels = InWorld->GetStreamingLevels();
-		for (const ULevelStreaming* const StreamingLevel : StreamingLevels)
-		{
-			if (StreamingLevel && StreamingLevel->GetCurrentState() == ULevelStreaming::ECurrentState::LoadedVisible)
-			{
-				// Look for the actor in those sub-levels that have been loaded already
-				const TSoftObjectPtr<UWorld>& SubWorldAsset = StreamingLevel->GetWorldAsset();
-				RootActor = FindDisplayClusterRootActor(SubWorldAsset.Get());
-			}
+	// Find the first DCRA instance that matches to the specified configuration
+	ADisplayClusterRootActor* RootActor = FindRootActor(InWorld, ConfigData);
 
-			if (RootActor)
-			{
-				// Ok, we found it in a sublevel
-				break;
-			}
-		}
-	}
-
-	// In cluster mode we spawn root actor if no actors found
+	// In cluster mode, spawn an empty DCRA instance and initialize it with specified configuration data.
 	if (GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Cluster)
 	{
 		if (!RootActor)
 		{
+			// Spawn the DCRA
 			RootActor = Cast<ADisplayClusterRootActor>(CurrentWorld->SpawnActor(ADisplayClusterRootActor::StaticClass()));
 		}
 	}
 
+	// Regardless of the DCRA nature, either it was spawned as an empty DCRA instance or was found as a BP instance,
+	// we need to initialize it with the config data. In case it's a BP instance, the configuration data will be overwritten.
+	RootActor->InitializeFromConfig(ConfigData);
+
+	// Store the DCRA instance. It's now considered as an 'active' root actor, so any nDisplay subsystem
+	// or some user game logic can refer it using game manager API
 	DisplayClusterRootActorRef.SetSceneActor(RootActor);
 
 	return true;
@@ -122,7 +113,40 @@ ADisplayClusterRootActor* FDisplayClusterGameManager::GetRootActor() const
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterGameManager
 //////////////////////////////////////////////////////////////////////////////////////////////
-ADisplayClusterRootActor* FDisplayClusterGameManager::FindDisplayClusterRootActor(UWorld* InWorld)
+ADisplayClusterRootActor* FDisplayClusterGameManager::FindRootActor(UWorld* InWorld, UDisplayClusterConfigurationData* InConfigData)
+{
+	TArray<ADisplayClusterRootActor*> FoundActors;
+	FoundActors.Reserve(16);
+
+	// Find all DCRA instances in the persistent level
+	FindRootActorsInWorld(InWorld, FoundActors);
+
+	// Also search inside streamed levels
+	const TArray<ULevelStreaming*>& StreamingLevels = InWorld->GetStreamingLevels();
+	for (const ULevelStreaming* const StreamingLevel : StreamingLevels)
+	{
+		if (StreamingLevel && StreamingLevel->GetCurrentState() == ULevelStreaming::ECurrentState::LoadedVisible)
+		{
+			// Look for the actor in those sub-levels that have been loaded already
+			const TSoftObjectPtr<UWorld>& SubWorldAsset = StreamingLevel->GetWorldAsset();
+			FindRootActorsInWorld(SubWorldAsset.Get(), FoundActors);
+		}
+	}
+
+	// Now iterate over all DCRA instances we have found to pick the one that corresponds to the config data
+	for (ADisplayClusterRootActor* Actor : FoundActors)
+	{
+		// Check if it matches the config data
+		if (DoesRootActorMatchTheAsset(Actor, InConfigData->Info.AssetPath))
+		{
+			return Actor;
+		}
+	}
+
+	return nullptr;
+}
+
+void FDisplayClusterGameManager::FindRootActorsInWorld(UWorld* InWorld, TArray<ADisplayClusterRootActor*>& OutActors)
 {
 	if (InWorld && InWorld->PersistentLevel)
 	{
@@ -135,11 +159,37 @@ ADisplayClusterRootActor* FDisplayClusterGameManager::FindDisplayClusterRootActo
 				if (RootActor != nullptr && !RootActor->IsTemplate())
 				{
 					UE_LOG(LogDisplayClusterGame, Log, TEXT("Found root actor - %s"), *RootActor->GetName());
-					return RootActor;
+					OutActors.Add(RootActor);
+				}
+			}
+		}
+	}
+}
+
+bool FDisplayClusterGameManager::DoesRootActorMatchTheAsset(ADisplayClusterRootActor* RootActor, const FString& AssetReference)
+{
+	// We only interested in DCRA blueprints
+	if (RootActor->IsBlueprint())
+	{
+		// Iterate over class hierarchy
+		for (UClass* Class = RootActor->GetClass(); Class; Class = Class->GetSuperClass())
+		{
+			// Get BP interface
+			if (UBlueprintGeneratedClass* BPClass = Cast<UBlueprintGeneratedClass>(Class))
+			{
+				// Get asset path
+				FString AssetPath = BPClass->GetPathName();
+				AssetPath.RemoveFromEnd(TEXT("_C"));
+
+				// Check if this BP was made of a specific asset
+				if (AssetPath.Equals(AssetReference, ESearchCase::IgnoreCase))
+				{
+					// This DCRA instance matches our search criteria
+					return true;
 				}
 			}
 		}
 	}
 
-	return nullptr;
+	return false;
 }

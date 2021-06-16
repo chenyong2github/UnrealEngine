@@ -21,8 +21,6 @@
 
 #include "DisplayClusterRootActor.h"
 #include "Components/DisplayClusterCameraComponent.h"
-#include "Components/DisplayClusterMeshComponent.h"
-#include "Components/DisplayClusterSceneComponent.h"
 #include "Components/DisplayClusterScreenComponent.h"
 
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
@@ -36,6 +34,7 @@
 
 #include "Render/Viewport/IDisplayClusterViewportManager.h"
 #include "Render/Viewport/IDisplayClusterViewport.h"
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // DisplayCluster module API

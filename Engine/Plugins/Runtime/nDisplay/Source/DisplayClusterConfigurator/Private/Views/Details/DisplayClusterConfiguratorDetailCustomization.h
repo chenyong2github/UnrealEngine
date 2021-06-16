@@ -124,23 +124,6 @@ private:
 	TSharedPtr<SDisplayClusterConfigurationSearchableComboBox> CameraComboBox;
 };
 
-/**
- * Base Scene Component Detail Customization
- */
-class FDisplayClusterConfiguratorSceneComponentDetailCustomization
-	: public FDisplayClusterConfiguratorDetailCustomization
-{
-public:
-	using Super = FDisplayClusterConfiguratorDetailCustomization;
-
-	/** IDetailCustomization interface */
-	virtual void CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder) override;
-	/** End IDetailCustomization interface */
-
-protected:
-	TWeakObjectPtr<class UDisplayClusterSceneComponent> SceneComponenPtr;
-};
-
 struct FDisplayClusterConfiguratorAspectRatioPresetSize
 {
 public:

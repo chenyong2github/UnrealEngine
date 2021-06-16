@@ -72,7 +72,7 @@ void FDisplayClusterPostprocessOutputRemap::InitializePostProcess(class IDisplay
 		}
 
 		// Get mesh component
-		UStaticMeshComponent* MeshComponent = RootActor->GetMeshById(RootActorMeshComponentName);
+		UStaticMeshComponent* MeshComponent = RootActor->GetComponentByName<UStaticMeshComponent>(RootActorMeshComponentName);
 		if (MeshComponent == nullptr)
 		{
 			UE_LOG(LogDisplayClusterPostprocessOutputRemap, Error, TEXT("Static mesh component '%s' not found in RootActor"), *RootActorMeshComponentName);

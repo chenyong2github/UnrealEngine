@@ -27,16 +27,12 @@
 class IDisplayClusterConfiguratorBlueprintEditor;
 #endif
 
-class UMaterial;
-class UCameraComponent;
+class USceneComponent;
 class UDisplayClusterConfigurationData;
 class UDisplayClusterCameraComponent;
-class UDisplayClusterMeshComponent;
-class UDisplayClusterSceneComponent;
-class UDisplayClusterScreenComponent;
-class UDisplayClusterXformComponent;
-class UDisplayClusterSyncTickComponent;
+class UDisplayClusterOriginComponent;
 class UDisplayClusterPreviewComponent;
+class UDisplayClusterSyncTickComponent;
 
 
 /**
@@ -56,8 +52,6 @@ public:
 
 public:
 	void InitializeFromConfig(UDisplayClusterConfigurationData* ConfigData);
-	void InitializeFromConfig(const FString& ConfigFile);
-	void ApplyConfigDataToComponents();
 
 	/**
 	 * Update or create the config data object. The config sub object is only instantiated once.
@@ -79,7 +73,10 @@ public:
 
 	bool IsBlueprint() const;
 
-	UDisplayClusterSyncTickComponent* GetSyncTickComponent() const { return SyncTickComponent; }
+	UDisplayClusterSyncTickComponent* GetSyncTickComponent() const
+	{
+		return SyncTickComponent;
+	}
 
 	const FDisplayClusterConfigurationICVFX_StageSettings& GetStageSettings() const;
 	const FDisplayClusterConfigurationRenderFrame& GetRenderFrameSettings() const;
@@ -92,17 +89,10 @@ protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void PostLoad() override;
 	virtual void PostActorCreated() override;
 	virtual void BeginDestroy() override;
 	virtual void RerunConstructionScripts() override;
-
-	virtual void Destroyed() override;
-
-	// Cleans current hierarchy
-	virtual void CleanupHierarchy();
-	virtual void ResetHierarchyMap();
 
 	// Initializes the actor on spawn and load
 	void InitializeRootActor();
@@ -111,58 +101,28 @@ protected:
 	bool BuildHierarchy();
 
 public:
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Screens Amount"), Category = "NDisplay|Components")
-	int32 GetScreensAmount() const;
-
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Screen By ID"), Category = "NDisplay|Components")
-	UDisplayClusterScreenComponent* GetScreenById(const FString& ScreenId) const;
-
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get All Screens"), Category = "NDisplay|Components")
-	void GetAllScreens(TMap<FString, UDisplayClusterScreenComponent*>& OutScreens) const;
-
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Cameras Amount"), Category = "NDisplay|Components")
-	int32 GetCamerasAmount() const;
-
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Cameras By ID"), Category = "NDisplay|Components")
-	UDisplayClusterCameraComponent* GetCameraById(const FString& CameraId) const;
-
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get All Cameras"), Category = "NDisplay|Components")
-	void GetAllCameras(TMap<FString, UDisplayClusterCameraComponent*>& OutCameras) const;
-
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Default Camera"), Category = "NDisplay|Components")
 	UDisplayClusterCameraComponent* GetDefaultCamera() const;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Default Camera"), Category = "NDisplay|Components")
-	void SetDefaultCamera(const FString& CameraId);
+	template <typename TComp>
+	TComp* GetComponentByName(const FString& ComponentName) const
+	{
+		static_assert(std::is_base_of<UActorComponent, TComp>::value, "TComp is not derived from UActorComponent");
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Meshes Amount"), Category = "NDisplay|Components")
-	int32 GetMeshesAmount() const;
+		TArray<TComp*> FoundComponents;
+		this->GetComponents<TComp>(FoundComponents, false);
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Mesh By ID"), Category = "NDisplay|Components")
-	UStaticMeshComponent* GetMeshById(const FString& MeshId) const;
+		for (TComp* Component : FoundComponents)
+		{
+			// Search for the one that has a specified name
+			if (Component->GetName().Equals(ComponentName, ESearchCase::IgnoreCase))
+			{
+				return Component;
+			}
+		}
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get All Meshes"), Category = "NDisplay|Components")
-	void GetAllMeshes(TMap<FString, UDisplayClusterMeshComponent*>& OutMeshes) const;
-
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Xforms Amount"), Category = "NDisplay|Components")
-	int32 GetXformsAmount() const;
-
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Xform By ID"), Category = "NDisplay|Components")
-	UDisplayClusterXformComponent* GetXformById(const FString& XformId) const;
-
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get All Xforms"), Category = "NDisplay|Components")
-	void GetAllXforms(TMap<FString, UDisplayClusterXformComponent*>& OutXforms) const;
-
-	UE_DEPRECATED(4.27, "Use 'GetComponentsByClass' instead and retrieve the length")
-	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "Use 'GetComponentsByClass' instead and retrieve the length", DisplayName = "Get All Components Amount"), Category = "NDisplay|Components")
-	int32 GetComponentsAmount() const;
-
-	UE_DEPRECATED(4.27, "Use 'GetComponentsByClass' instead")
-	UFUNCTION(BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "Use 'GetComponentsByClass' instead", DisplayName = "Get All Components"), Category = "NDisplay|Components")
-	void GetAllComponents(TMap<FString, UDisplayClusterSceneComponent*>& OutComponents) const;
-
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Component By ID"), Category = "NDisplay|Components")
-	UDisplayClusterSceneComponent* GetComponentById(const FString& ComponentId) const;
+		return nullptr;
+	}
 
 public:
 	IDisplayClusterViewportManager* GetViewportManager() const
@@ -198,25 +158,24 @@ private:
 	 * Must have CPF_Edit(such as VisibleDefaultsOnly) on property for Live Link.
 	 * nDisplay details panel will hide this from actually being visible.
 	 */
-	UPROPERTY(VisibleDefaultsOnly, Category = "NDisplay")
+	UPROPERTY(EditAnywhere, Category = "NDisplay")
 	USceneComponent* DisplayClusterRootComponent;
-	
+
+	/**
+	 * Default camera component. It's an outer camera in VP/ICVFX terminology. Always exists on a DCRA instance.
+	 */
+	UPROPERTY(VisibleAnywhere, Category = "NDisplay")
+	UDisplayClusterCameraComponent* DefaultViewPoint;
+
+	/**
+	 * Helper sync component. Performs sync procedure during Tick phase.
+	 */
 	UPROPERTY()
 	UDisplayClusterSyncTickComponent* SyncTickComponent;
 
 private:
 	// Current operation mode
 	EDisplayClusterOperationMode OperationMode;
-	mutable FCriticalSection InternalsSyncScope;
-
-	TMap<FString, FDisplayClusterSceneComponentRef*> AllComponents;
-	TMap<FString, FDisplayClusterSceneComponentRef*> XformComponents;
-	TMap<FString, FDisplayClusterSceneComponentRef*> CameraComponents;
-	TMap<FString, FDisplayClusterSceneComponentRef*> ScreenComponents;
-	TMap<FString, FDisplayClusterSceneComponentRef*> MeshComponents;
-	FDisplayClusterSceneComponentRef DefaultCameraComponent;
-
-	bool bHasRerunConstructionScripts = false;
 
 	float LastDeltaSecondsValue = 0.f;
 
@@ -224,17 +183,8 @@ private:
 	template <typename TComp>
 	void GetTypedPrimitives(TSet<FPrimitiveComponentId>& OutPrimitives, const TArray<FString>* InCompNames = nullptr, bool bCollectChildrenVisualizationComponent = true) const;
 
-	template <typename TComp, typename TCfgData>
-	void SpawnComponents(const TMap<FString, TCfgData*>& InConfigData, TMap<FString, FDisplayClusterSceneComponentRef*>& OutTypedMap, TMap<FString, FDisplayClusterSceneComponentRef*>& OutAllMap);
-
-	template <typename TComp>
-	TComp* GetTypedComponentById(const FString& ComponentId, const TMap<FString, FDisplayClusterSceneComponentRef*>& InTypedMap) const;
-
-	template <typename TComp>
-	void GetTypedComponents(TMap<FString, TComp*>& OutTypedMap, const TMap<FString, FDisplayClusterSceneComponentRef*>& InTypedMap) const;
-
 public:
-	UPROPERTY(EditInstanceOnly, EditFixedSize, Category = "In Camera ICVFX", meta = (TitleProperty = "Name"))
+	UPROPERTY(EditInstanceOnly, EditFixedSize, Category = "In Camera VFX", meta = (TitleProperty = "Name"))
 	TArray<FDisplayClusterComponentRef> InnerFrustumPriority;
 
 	UPROPERTY(EditInstanceOnly, Category = "OCIO")
@@ -262,7 +212,7 @@ public:
 //////////////////////////////////////////////////////////////////////////////////////////////
 // EDITOR STUFF
 //////////////////////////////////////////////////////////////////////////////////////////////
-#if WITH_EDITORONLY_DATA 
+#if WITH_EDITORONLY_DATA
 public:
 	// Allow preview render
 	UPROPERTY(EditAnywhere, Category = "Editor Preview")
@@ -287,12 +237,6 @@ public:
 	/* Enable the on-screen camera preview widget when selecting this actor. Changing this value requires reselecting the actor. */
 	UPROPERTY(EditAnywhere, Category = "Editor Preview")
 	bool bEnableICVFXCameraPreview = false;
-	
-	UPROPERTY(EditAnywhere, Category = "Editor Preview")
-	float XformGizmoScale = 1.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Editor Preview")
-	bool bAreXformGizmosVisible = true;
 
 private:
 	UPROPERTY(Transient)
@@ -305,20 +249,6 @@ private:
 #if WITH_EDITOR
 public:
 	DECLARE_DELEGATE(FOnPreviewUpdated);
-
-	/** If the root actor is being displayed in an editor viewport, this variable allows the viewport to scale the xform gizmos independently of the actor's gizmo scale property. */
-	float EditorViewportXformGizmoScale = 1.0f;
-
-	/** If the root actor is being displayed in an editor viewport, this variable allows the viewport to hide the xform gizmos independently of the actor's gizmo visibility flag. */
-	bool bEditorViewportXformGizmoVisibility = true;
-
-private:
-	TWeakPtr<IDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
-
-	int32 TickPerFrameCounter = 0;
-
-	FOnPreviewUpdated OnPreviewGenerated;
-	FOnPreviewUpdated OnPreviewDestroyed;
 
 public:
 	// We need tick in Editor
@@ -338,29 +268,19 @@ public:
 	void BeginDestroy_Editor();
 	void RerunConstructionScripts_Editor();
 
-	void Destroyed_Editor();
-
-	TWeakPtr<IDisplayClusterConfiguratorBlueprintEditor> GetToolkit() const { return ToolkitPtr; }
-
-	void SetToolkit(TWeakPtr<IDisplayClusterConfiguratorBlueprintEditor> Toolkit) { ToolkitPtr = Toolkit; }
-
 	UDisplayClusterPreviewComponent* GetPreviewComponent(const FString& NodeId, const FString& ViewportId);
-	TSharedPtr<TMap<UObject*, FString>> GenerateObjectsNamingMap() const;
-	void SelectComponent(const FString& SelectedComponent);
 
 	void UpdatePreviewComponents();
 	void ReleasePreviewComponents();
 
-	float GetPreviewRenderTargetRatioMult() const { return PreviewRenderTargetRatioMult; };
+	float GetPreviewRenderTargetRatioMult() const
+	{
+		return PreviewRenderTargetRatioMult;
+	};
 
 	IDisplayClusterViewport* FindPreviewViewport(const FString& InViewportId) const;
 
 	void GetPreviewRenderTargetableTextures(const TArray<FString>& InViewportNames, TArray<FTextureRHIRef>& OutTextures);
-
-	float GetXformGizmoScale() const;
-	bool GetXformGizmoVisibility() const;
-
-	void UpdateXformGizmos();
 
 	void UpdateInnerFrustumPriority();
 	void ResetInnerFrustumPriority();
@@ -368,11 +288,6 @@ public:
 	virtual bool IsSelectedInEditor() const override;
 	void SetIsSelectedInEditor(bool bValue);
 
-private:
-	/** The number of times to update the render target via deferred update. */
-	int32 PreviewRenderTargetUpdatesRequired = 0;
-	bool bIsSelectedInEditor = false;
-	
 protected:
 	FString GeneratePreviewComponentName(const FString& NodeId, const FString& ViewportId) const;
 	void RenderPreview_Editor();
@@ -381,5 +296,17 @@ protected:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditMove(bool bFinished) override;
 
+private:
+	/** The number of times to update the render target via deferred update. */
+	int32 PreviewRenderTargetUpdatesRequired = 0;
+	bool bIsSelectedInEditor = false;
+	
+private:
+	TWeakPtr<IDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
+
+	int32 TickPerFrameCounter = 0;
+
+	FOnPreviewUpdated OnPreviewGenerated;
+	FOnPreviewUpdated OnPreviewDestroyed;
 #endif
 };

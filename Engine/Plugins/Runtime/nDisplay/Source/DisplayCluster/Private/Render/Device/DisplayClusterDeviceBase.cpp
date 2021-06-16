@@ -266,7 +266,10 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscop
 	const FString& CameraId = ViewportPtr->GetRenderSettings().CameraId;
 
 	// Get camera component assigned to the viewport (or default camera if nothing assigned)
-	UDisplayClusterCameraComponent* const ViewCamera = (CameraId.IsEmpty() ? RootActor->GetDefaultCamera() : RootActor->GetCameraById(CameraId));
+	UDisplayClusterCameraComponent* const ViewCamera = (CameraId.IsEmpty() ?
+		RootActor->GetDefaultCamera() :
+		RootActor->GetComponentByName<UDisplayClusterCameraComponent>(CameraId));
+
 	if (!ViewCamera)
 	{
 		UE_LOG(LogDisplayClusterRender, Warning, TEXT("No camera found for viewport '%s'"), *ViewportPtr->GetId());
@@ -285,9 +288,8 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscop
 	const EDisplayClusterEyeStereoOffset CfgEyeOffset = ViewCamera->GetStereoOffset();
 
 	// Calculate eye offset considering the world scale
-	const float ScaledEyeDist     = CfgEyeDist * WorldToMeters;
-	const float ScaledEyeOffset   = ScaledEyeDist / 2.f;
-	const float EyeOffsetValues[] = { -ScaledEyeOffset, 0.f, ScaledEyeOffset };
+	const float EyeOffset = CfgEyeDist / 2.f;
+	const float EyeOffsetValues[] = { -EyeOffset, 0.f, EyeOffset };
 
 	auto DecodeEyeType = [](const EStereoscopicPass EyePass)
 	{

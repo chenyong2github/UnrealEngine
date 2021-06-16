@@ -16,7 +16,10 @@
 #include "DisplayClusterProjectionStrings.h"
 #include "Blueprints/DisplayClusterBlueprint.h"
 #include "Components/DisplayClusterCameraComponent.h"
+#include "Components/DisplayClusterOriginComponent.h"
+#include "Components/DisplayClusterPreviewComponent.h"
 #include "Components/DisplayClusterScreenComponent.h"
+#include "Components/DisplayClusterXformComponent.h"
 
 #include "ClusterConfiguration/DisplayClusterConfiguratorClusterUtils.h"
 #include "DisplayClusterConfiguratorPropertyUtils.h"
@@ -27,7 +30,6 @@
 #include "Views/Viewport/DisplayClusterConfiguratorSCSEditorViewportClient.h"
 #include "Views/SCSEditor/SDisplayClusterConfiguratorComponentCombo.h"
 #include "Views/DisplayClusterConfiguratorToolbar.h"
-#include "Components/DisplayClusterPreviewComponent.h"
 #include "Settings/DisplayClusterConfiguratorSettings.h"
 
 #include "Components/ActorComponent.h"
@@ -503,9 +505,16 @@ void FDisplayClusterConfiguratorBlueprintEditor::UpdateXformGizmos()
 	{
 		const UDisplayClusterConfiguratorEditorSettings* Settings = GetDefault<UDisplayClusterConfiguratorEditorSettings>();
 
-		RootActor->EditorViewportXformGizmoScale = Settings->VisXformScale;
-		RootActor->bEditorViewportXformGizmoVisibility = Settings->bShowVisXforms;
-		RootActor->UpdateXformGizmos();
+		// Get all Xform components
+		TInlineComponentArray<UDisplayClusterXformComponent*> Xforms;
+		RootActor->GetComponents(Xforms);
+
+		// And apply new gizmo settings
+		for (UDisplayClusterXformComponent* Xform : Xforms)
+		{
+			Xform->SetVisualizationScale(Settings->VisXformScale);
+			Xform->SetVisualizationEnabled(Settings->bShowVisXforms);
+		}
 	}
 }
 
@@ -599,7 +608,7 @@ bool FDisplayClusterConfiguratorBlueprintEditor::SaveToFile(const FString& InFil
 	UDisplayClusterConfigurationData* Data = GetEditorData();
 	if (EditorSubsystem && Data)
 	{
-		Data->Meta.ExportAssetPath = LoadedBlueprint->GetPathName();
+		Data->Info.AssetPath = LoadedBlueprint->GetPathName();
 
 		if (EditorSubsystem->SaveConfig(Data, InFilePath))
 		{

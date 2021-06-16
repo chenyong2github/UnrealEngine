@@ -21,7 +21,6 @@ namespace DisplayClusterStrings
 		static constexpr auto Cluster    = TEXT("dc_cluster");
 		static constexpr auto Node       = TEXT("dc_node");
 		static constexpr auto Config     = TEXT("dc_cfg");
-		static constexpr auto Camera     = TEXT("dc_camera");
 
 		// Stereo device types (command line values)
 		namespace dev

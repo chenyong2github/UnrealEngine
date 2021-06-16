@@ -99,7 +99,7 @@ bool FDisplayClusterProjectionMeshPolicy::GetWarpMeshAndOrigin(class IDisplayClu
 	}
 
 	// Get mesh component
-	UStaticMeshComponent* MeshComponent = Root->GetMeshById(ComponentId);
+	UStaticMeshComponent* MeshComponent = Root->GetComponentByName<UStaticMeshComponent>(ComponentId);
 	if (!MeshComponent)
 	{
 		UE_LOG(LogDisplayClusterProjectionMesh, Warning, TEXT("Couldn't initialize mesh component '%s'"), *ComponentId);

@@ -33,14 +33,15 @@ void FDisplayClusterConfigurationModule::StartupModule()
 	}
 }
 
-void FDisplayClusterConfigurationModule::ShutdownModule()
-{
-}
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterConfiguration
 //////////////////////////////////////////////////////////////////////////////////////////////
+EDisplayClusterConfigurationVersion FDisplayClusterConfigurationModule::GetConfigVersion(const FString& FilePath)
+{
+	return FDisplayClusterConfigurationMgr::Get().GetConfigVersion(FilePath);
+}
+
 UDisplayClusterConfigurationData* FDisplayClusterConfigurationModule::LoadConfig(const FString& FilePath, UObject* Owner)
 {
 	return FDisplayClusterConfigurationMgr::Get().LoadConfig(FilePath, Owner);
