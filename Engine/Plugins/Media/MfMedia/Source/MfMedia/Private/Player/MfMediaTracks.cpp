@@ -238,6 +238,12 @@ void FMfMediaTracks::Initialize(IMFMediaSource* InMediaSource, IMFSourceReaderCa
 
 	UE_LOG(LogMfMedia, Verbose, TEXT("Tracks %p: Found %i streams"), this, StreamIndex);
 
+	// Do platform-specific initialization, if required
+#if MFMEDIATRACKS_HAS_PLATFORM_INITIALIZE
+	PlatformInitialize();
+#endif
+
+
 	Algo::Reverse(AudioTracks);
 	Algo::Reverse(CaptionTracks);
 	Algo::Reverse(VideoTracks);

@@ -23,6 +23,10 @@
 	#include "XboxCommonAllowPlatformTypes.h"
 #endif
 
+#if !defined(MFMEDIATRACKS_HAS_PLATFORM_INITIALIZE)
+	#define MFMEDIATRACKS_HAS_PLATFORM_INITIALIZE 0
+#endif
+
 class FMediaSamples;
 class FMfMediaAudioSamplePool;
 class FMfMediaTextureSamplePool; 
@@ -287,6 +291,13 @@ protected:
 	 */
 	void UpdateVideo();
 
+	/** 
+	 * Platform-specific initialization, if requested
+	 */
+#if MFMEDIATRACKS_HAS_PLATFORM_INITIALIZE
+	void PlatformInitialize();
+#endif
+	
 private:
 
 	/** Whether the audio track has reached the end. */
