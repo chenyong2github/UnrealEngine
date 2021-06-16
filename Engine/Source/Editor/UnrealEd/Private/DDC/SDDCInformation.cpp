@@ -86,7 +86,9 @@ FText SDDCInformation::GetSimpleCacheInformation() const
 {
 	TStringBuilder<1024> Builder;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TSharedRef<FDerivedDataCacheStatsNode> RootUsage = GetDerivedDataCache()->GatherUsageStats();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	TArray<TSharedRef<const FDerivedDataCacheStatsNode>> LeafUsageStats;
 	RootUsage->ForEachDescendant([&LeafUsageStats](TSharedRef<const FDerivedDataCacheStatsNode> Node) {
 		if (Node->Children.Num() == 0)
@@ -156,7 +158,9 @@ FText SDDCInformation::GetSimpleCacheInformation() const
 
 TSharedRef<SWidget> SDDCInformation::GetComplexDataGrid()
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TSharedRef<FDerivedDataCacheStatsNode> RootUsage = GetDerivedDataCache()->GatherUsageStats();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	TArray<TSharedRef<const FDerivedDataCacheStatsNode>> LeafUsageStats;
 	RootUsage->ForEachDescendant([&LeafUsageStats](TSharedRef<const FDerivedDataCacheStatsNode> Node) {
 		if (Node->Children.Num() == 0)

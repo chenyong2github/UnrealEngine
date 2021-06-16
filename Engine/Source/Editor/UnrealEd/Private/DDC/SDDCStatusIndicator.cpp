@@ -143,7 +143,9 @@ double SDDCStatusIndicator::GetDDCTime(bool bGet) const
 {
 	int64 TotalCycles = 0;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TSharedRef<FDerivedDataCacheStatsNode> RootUsage = GetDerivedDataCache()->GatherUsageStats();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	for (const auto& KVP : RootUsage->Stats)
 	{
 		const FDerivedDataCacheUsageStats& Stats = KVP.Value;

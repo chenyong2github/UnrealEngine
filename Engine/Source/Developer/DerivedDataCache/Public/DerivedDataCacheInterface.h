@@ -252,6 +252,12 @@ public:
 	/**
 	 * Retrieve usage stats by the DDC
 	 */
+	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStats) = 0;
+
+	/**
+	 * Retrieve usage stats by the DDC
+	 */
+	UE_DEPRECATED(4.27, "This overload of GatherUsageStats is temporary. Please use other overload.")
 	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const = 0;
 
 	//-----------------------
