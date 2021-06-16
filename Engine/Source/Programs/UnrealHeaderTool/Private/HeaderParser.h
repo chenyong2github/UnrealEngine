@@ -277,10 +277,26 @@ protected:
 	 */
 	TArray<uint32> CompilerDirectiveStack;
 
-	// Pushes the Directive specified to the CompilerDirectiveStack according to the rules described above
-	void FORCEINLINE PushCompilerDirective(ECompilerDirective::Type Directive)
+	// Return the top level compiler directive state
+	uint32 GetCurrentCompilerDirective() const
 	{
-		CompilerDirectiveStack.Push(CompilerDirectiveStack.Num()>0 ? (CompilerDirectiveStack[CompilerDirectiveStack.Num()-1] | Directive) : Directive);
+		return CompilerDirectiveStack.IsEmpty() ? 0 : CompilerDirectiveStack.Last();
+	}
+
+	// Pushes the Directive specified to the CompilerDirectiveStack according to the rules described above
+	void PushCompilerDirective(ECompilerDirective::Type Directive)
+	{
+		CompilerDirectiveStack.Push(Directive | GetCurrentCompilerDirective());
+	}
+
+	// Removes the top most compiler directive stack entry
+	void PopCompilerDirective()
+	{
+		if (CompilerDirectiveStack.Num() < 1)
+		{
+			Throwf(TEXT("Unmatched '#endif' in class or global scope"));
+		}
+		CompilerDirectiveStack.Pop();
 	}
 
 	/**
