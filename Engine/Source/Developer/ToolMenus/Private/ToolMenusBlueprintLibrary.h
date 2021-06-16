@@ -10,6 +10,7 @@
 #include "ToolMenuMisc.h"
 #include "ToolMenuEntryScript.h"
 #include "Misc/Attribute.h"
+#include "Templates/SubclassOf.h"
 
 #include "ToolMenusBlueprintLibrary.generated.h"
 
@@ -20,8 +21,8 @@ class UToolMenuContextExtensions : public UObject
 
 public:
 
-	UFUNCTION(BlueprintCallable, Category = "Tool Menus", meta = (ScriptMethod))
-	static UObject* FindByClass(const FToolMenuContext& Context, UClass* InClass);
+	UFUNCTION(BlueprintCallable, Category = "Tool Menus", meta = (ScriptMethod, DeterminesOutputType = "InClass"))
+	static UObject* FindByClass(const FToolMenuContext& Context, TSubclassOf<UObject> InClass);
 };
 
 UCLASS()
