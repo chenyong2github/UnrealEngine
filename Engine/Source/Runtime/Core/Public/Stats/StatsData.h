@@ -488,7 +488,7 @@ struct IItemFilter
  */
 class CORE_API FStatsThreadState
 {
-	friend class FStatsProcessor;
+	friend class FStatsThread;
 	friend struct FStatPacketArray;
 	friend struct FStatsReadFile;
 

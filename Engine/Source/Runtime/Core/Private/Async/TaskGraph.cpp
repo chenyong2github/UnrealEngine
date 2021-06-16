@@ -1323,13 +1323,15 @@ public:
 
 			int32 StackSize;
 
-#if WITH_EDITOR
+//#if WITH_EDITOR
+//			StackSize = 1024 * 1024;
+//#elif (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
+//			StackSize = 512 * 1024;
+//#else
+//			StackSize = 384 * 1024;
+//#endif
+
 			StackSize = 1024 * 1024;
-#elif (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
-			StackSize = 512 * 1024;
-#else
-			StackSize = 384 * 1024;
-#endif
 
 			// GConfig is not initialized yet, the only solution for now is to hardcode desired values
 			//GConfig->GetInt(TEXT("Core.System"), TEXT("TaskThreadStackSize"), StackSize, GEngineIni);
@@ -1445,7 +1447,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		TASKGRAPH_SCOPE_CYCLE_COUNTER(2, STAT_TaskGraph_QueueTask);
 
+#if UE_STATS_THREAD_AS_PIPE
 		RedirectStatsTasksToPipe(Task);
+#endif
 #if UE_AUDIO_THREAD_AS_PIPE
 		RedirectAudioTasksToPipe(Task);
 #endif
@@ -1948,7 +1952,12 @@ public:
 private:
 	void QueueTask(class FBaseGraphTask* Task, bool bWakeUpWorker, ENamedThreads::Type InThreadToExecuteOn, ENamedThreads::Type InCurrentThreadIfKnown) override
 	{
+#if UE_STATS_THREAD_AS_PIPE
 		FTaskGraphImplementation::RedirectStatsTasksToPipe(Task);
+#endif
+#if UE_AUDIO_THREAD_AS_PIPE
+		FTaskGraphImplementation::RedirectAudioTasksToPipe(Task);
+#endif
 
 		if (ENamedThreads::GetThreadIndex(InThreadToExecuteOn) == ENamedThreads::AnyThread)
 		{
