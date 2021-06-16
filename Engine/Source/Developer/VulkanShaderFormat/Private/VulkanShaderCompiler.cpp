@@ -2223,9 +2223,10 @@ static bool BuildShaderOutputFromSpirv(
 	// Build final shader output with meta data
 	FString DebugName = Input.DumpDebugInfoPath.Right(Input.DumpDebugInfoPath.Len() - Input.DumpDebugInfoRootPath.Len());
 
-	FString MetaData;// = FString::Printf(TEXT("// ! %s/%s:%s\n"), *Input.DebugGroupName, *Input.GetSourceFilename(), *Input.EntryPointName);
-	MetaData += TEXT("// Compiled by ShaderConductor\n");
-	MetaData += CCHeaderWriter.ToString();
+	CCHeaderWriter.WriteSourceInfo(*Input.GetSourceFilename(), *Input.EntryPointName, *Input.DebugGroupName);
+	CCHeaderWriter.WriteCompilerInfo();
+
+	const FString MetaData = CCHeaderWriter.ToString();
 
 	Output.Target = Input.Target;
 

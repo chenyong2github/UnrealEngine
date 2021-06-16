@@ -21,6 +21,26 @@ namespace CrossCompiler
 		MetaData += FString::Printf(Fmt, Args...);
 	}
 
+	void FHlslccHeaderWriter::WriteSourceInfo(const TCHAR* SourceName, const TCHAR* EntryPointName, const TCHAR* DebugGroupName)
+	{
+		check(SourceName != nullptr);
+		check(EntryPointName != nullptr);
+		if (DebugGroupName != nullptr)
+		{
+			Strings.SourceInfo = FString::Printf(TEXT("%s/%s:%s"), DebugGroupName, SourceName, EntryPointName);
+		}
+		else
+		{
+			Strings.SourceInfo = FString::Printf(TEXT("%s:%s"), SourceName, EntryPointName);
+		}
+	}
+
+	void FHlslccHeaderWriter::WriteCompilerInfo(const TCHAR* CompilerName)
+	{
+		check(CompilerName != nullptr);
+		Strings.CompilerInfo = CompilerName;
+	}
+
 	void FHlslccHeaderWriter::WriteInputAttribute(const SpvReflectInterfaceVariable& Attribute)
 	{
 		WriteIOAttribute(Strings.InputAttributes, Attribute, /*bIsInput:*/ true);
@@ -499,6 +519,16 @@ namespace CrossCompiler
 	FString FHlslccHeaderWriter::ToString() const
 	{
 		FString MetaData;
+
+		if (!Strings.SourceInfo.IsEmpty())
+		{
+			MetaData += FString::Printf(TEXT("// ! %s\n"), *Strings.SourceInfo);
+		}
+
+		if (!Strings.CompilerInfo.IsEmpty())
+		{
+			MetaData += FString::Printf(TEXT("// Compiled by %s\n"), *Strings.CompilerInfo);
+		}
 
 		auto PrintAttributes = [&MetaData](const TCHAR* Name, const FString& Value)
 		{
