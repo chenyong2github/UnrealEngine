@@ -589,6 +589,11 @@ void FControlRigEditor::BindCommands()
 		FControlRigBlueprintCommands::Get().StepOut,
 		FExecuteAction::CreateSP(this, &FControlRigEditor::HandleBreakpointActionRequested, ERigVMBreakpointAction::StepOut),
 		FIsActionChecked::CreateSP(this, &FControlRigEditor::IsHaltedAtBreakpoint));
+
+	GetToolkitCommands()->MapAction(
+		FControlRigBlueprintCommands::Get().FrameSelection,
+		FExecuteAction::CreateSP(this, &FControlRigEditor::FrameSelection),
+		FCanExecuteAction());
 }
 
 void FControlRigEditor::ToggleExecuteGraph()
@@ -5613,6 +5618,18 @@ void FControlRigEditor::UpdateCapsules()
 					break;
 				}						
 			}
+		}
+	}
+}
+
+void FControlRigEditor::FrameSelection()
+{
+	if (SGraphEditor* GraphEd = FocusedGraphEdPtr.Pin().Get())
+	{
+		if(URigVMGraph* Model = GetFocusedModel())
+		{
+			const bool bFrameAll = Model->GetSelectNodes().Num() == 0;
+			GraphEd->ZoomToFit(!bFrameAll);
 		}
 	}
 }

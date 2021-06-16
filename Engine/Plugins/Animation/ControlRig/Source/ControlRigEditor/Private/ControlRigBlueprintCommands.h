@@ -93,6 +93,9 @@ public:
 	/** Stores the selected node(s) into snippet 0. */
 	TSharedPtr< FUICommandInfo > StoreNodeSnippet0;
 
+	/** Frames the selected nodes */
+	TSharedPtr< FUICommandInfo > FrameSelection;
+
 	/**
 	 * Initialize commands
 	 */
