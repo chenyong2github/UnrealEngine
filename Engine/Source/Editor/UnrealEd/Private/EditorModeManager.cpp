@@ -1452,10 +1452,19 @@ bool FEditorModeTools::ProcessCapturedMouseMoves( FEditorViewportClient* InViewp
 /** Notifies all active modes of keyboard input via a viewport client */
 bool FEditorModeTools::InputKey(FEditorViewportClient* InViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event, bool bRouteToToolsContext)
 {
-	bool bHandled = bRouteToToolsContext && InteractiveToolsContext->InputKey(InViewportClient, Viewport, Key, Event);
+	const bool bWasHandledByToolsContext = bRouteToToolsContext && InteractiveToolsContext->InputKey(InViewportClient, Viewport, Key, Event);
+	if (bWasHandledByToolsContext && !bIsTracking && GetInteractiveToolsContext()->InputRouter->HasActiveMouseCapture())
+	{
+		StartTracking(InViewportClient, Viewport);
+	}
+	else if (bRouteToToolsContext && bIsTracking && !GetInteractiveToolsContext()->InputRouter->HasActiveMouseCapture())
+	{
+		EndTracking(InViewportClient, Viewport);
+	}
 
 	// If the toolkit should process the command, it should not have been handled by ITF, or be tracked elsewhere.
-	const bool bPassToToolkitCommands = bRouteToToolsContext && !bHandled;
+	const bool bPassToToolkitCommands = bRouteToToolsContext && !bWasHandledByToolsContext;
+	bool bHandled = bWasHandledByToolsContext;
 	ForEachEdMode([&bHandled, bPassToToolkitCommands, Event, Key, InViewportClient, Viewport](UEdMode* Mode)
 	{
 		// First, always give the legacy viewport interface a chance to process they key press. This is to support any of the FModeTools that may still exist.

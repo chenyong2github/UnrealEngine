@@ -1120,6 +1120,10 @@ bool UEdModeInteractiveToolsContext::EndTracking(FEditorViewportClient* InViewpo
 {
 	if (bIsTrackingMouse)
 	{
+		// If the input router captured the mouse input, we need to invalidate the viewport client here, since the mouse delta tracker's end tracking will not be called.
+		constexpr bool bForceChildViewportRedraw = true;
+		constexpr bool bInvalidateHitProxies = true;
+		InViewportClient->Invalidate(bForceChildViewportRedraw, bInvalidateHitProxies);
 		bIsTrackingMouse = false;
 		return true;
 	}
