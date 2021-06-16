@@ -2402,6 +2402,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	// End early occlusion queries
 
+	BeginAsyncDistanceFieldShadowProjections(GraphBuilder, SceneTextures);
+
 	// Early Shadow depth rendering
 	if (!bHasRayTracedOverlay && bOcclusionBeforeBasePass)
 	{

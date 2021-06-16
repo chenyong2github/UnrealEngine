@@ -86,6 +86,13 @@ FAutoConsoleVariableRef CVarAverageObjectsPerShadowCullTile(
 	ECVF_RenderThreadSafe | ECVF_ReadOnly
 	);
 
+int32 GDFShadowAsyncCompute = 0;
+static FAutoConsoleVariableRef CVarDFShadowAsyncCompute(
+	TEXT("r.DFShadowAsyncCompute"),
+	GDFShadowAsyncCompute,
+	TEXT("Whether render distance field shadows using async compute if possible"),
+	ECVF_RenderThreadSafe);
+
 static int32 GHeightFieldShadowing = 0;
 FAutoConsoleVariableRef CVarHeightFieldShadowing(
 	TEXT("r.HeightFieldShadowing"),
@@ -768,22 +775,26 @@ void RayTraceShadows(
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("DistanceFieldShadowing %ux%u", GroupSizeX * GDistanceFieldShadowTileSizeX, GroupSizeY * GDistanceFieldShadowTileSizeY),
+			!!GDFShadowAsyncCompute ? ERDGPassFlags::AsyncCompute : ERDGPassFlags::Compute,
 			ComputeShader,
 			PassParameters,
 			FIntVector(GroupSizeX, GroupSizeY, 1));
 	}
 }
 
-FRDGTextureRef FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
+void FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
-	const FViewInfo& View) const
+	const FViewInfo& View)
 {
+	if (RayTracedShadowsTexture)
+	{
+		return;
+	}
+
 	const bool bDFShadowSupported = SupportsDistanceFieldShadows(View.GetFeatureLevel(), View.GetShaderPlatform());
 	const bool bHFShadowSupported = SupportsHeightFieldShadows(View.GetFeatureLevel(), View.GetShaderPlatform());
 	const FScene* Scene = (const FScene*)(View.Family->Scene);
-
-	FRDGTextureRef RayTracedShadowsTexture = nullptr;
 
 	if (bDFShadowSupported && View.Family->EngineShowFlags.RayTracedDistanceFieldShadows)
 	{
@@ -909,8 +920,6 @@ FRDGTextureRef FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection
 
 		RayTraceShadows(GraphBuilder, SceneTextures, RayTracedShadowsTexture, View, Scene->DistanceFieldSceneData, this, DFPT_HeightField, bHasPrevOutput, PrevOutputTexture, ObjectBufferParameters, CulledObjectBufferParameters, LightTileIntersectionParameters);
 	}
-
-	return RayTracedShadowsTexture;
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldShadowingUpsample, )
@@ -924,11 +933,11 @@ void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 	FRDGTextureRef ScreenShadowMaskTexture,
 	const FViewInfo& View,
 	FIntRect ScissorRect,
-	bool bProjectingForForwardShading) const
+	bool bProjectingForForwardShading)
 {
 	check(ScissorRect.Area() > 0);
 
-	FRDGTextureRef RayTracedShadowsTexture = BeginRenderRayTracedDistanceFieldProjection(GraphBuilder, SceneTextures, View);
+	BeginRenderRayTracedDistanceFieldProjection(GraphBuilder, SceneTextures, View);
 
 	if (RayTracedShadowsTexture)
 	{

@@ -1990,6 +1990,10 @@ protected:
 		const FLightSceneInfo* LightSceneInfo,
 		bool bProjectingForForwardShading);
 
+	void BeginAsyncDistanceFieldShadowProjections(
+		FRDGBuilder& GraphBuilder,
+		const FMinimalSceneTextures& SceneTextures) const;
+
 	/** Finds a matching cached preshadow, if one exists. */
 	TRefCountPtr<FProjectedShadowInfo> GetCachedPreshadow(
 		const FLightPrimitiveInteraction* InParentInteraction,
@@ -2177,6 +2181,9 @@ private:
 	void DumpPrimitives(const FViewCommands& ViewCommands);
 #endif
 	bool bShadowDepthRenderCompleted;
+
+	/** Distance field shadows to project. Used to avoid iterating through the scene lights array. */
+	TArray<FProjectedShadowInfo*, TInlineAllocator<2, SceneRenderingAllocator>> ProjectedDistanceFieldShadows;
 
 	/**
 	 * Projected shadows allocated on the scene rendering mem stack.
