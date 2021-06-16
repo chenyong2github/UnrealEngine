@@ -34,6 +34,11 @@ namespace DatasmithRhino
 			//Initialize DirectLink framework.
 			DirectLinkManager = new DatasmithRhinoDirectLinkManager();
 			DirectLinkManager.Initialize();
+
+			int LangageIdentifier = Rhino.ApplicationSettings.AppearanceSettings.LanguageIdentifier;
+			System.Globalization.CultureInfo Culture = new System.Globalization.CultureInfo(LangageIdentifier);
+			System.Globalization.CultureInfo.DefaultThreadCurrentCulture = Culture;
+			System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = Culture;
 		}
 
 		///<summary>Gets the only instance of the DatasmithRhino plug-in.</summary>
