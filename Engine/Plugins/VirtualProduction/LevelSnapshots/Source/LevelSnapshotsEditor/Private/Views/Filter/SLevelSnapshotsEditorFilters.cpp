@@ -56,6 +56,7 @@ public:
 		const bool bIsFirstAndRow = EditorData->GetUserDefinedFilters()->GetChildren().Find(InManagedFilter) == 0;
 		const bool bShouldShowOrTextInFrontOfRow = !bIsFirstAndRow;
 		
+		const TWeakPtr<SLevelSnapshotsEditorFilters> WeakOwner = InOwnerPanel;
 		ChildSlot
 		[
 			SNew(SHorizontalBox)
@@ -63,9 +64,12 @@ public:
 			.Padding(FMargin(3.0f, 2.0f))
 			[
 				SNew(SLevelSnapshotsEditorFilterRow, EditorData, InManagedFilter, bShouldShowOrTextInFrontOfRow)
-					.OnClickRemoveRow_Lambda([InOwnerPanel, InManagedFilter](auto)
+					.OnClickRemoveRow_Lambda([WeakOwner, InManagedFilter](auto)
 					{
-						InOwnerPanel->RemoveFilter(InManagedFilter);
+						if (ensure(WeakOwner.IsValid()))
+						{
+							WeakOwner.Pin()->RemoveFilter(InManagedFilter);
+						}
 					})
 			]
 		];
@@ -266,7 +270,7 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 		{
 			OldFilter->OnFilterModified.Remove(OnFilterModifiedHandle);
 		}
-		OnFilterModifiedHandle = NewFilter->OnFilterModified.AddSP(this, &SLevelSnapshotsEditorFilters::OnFilterModified);
+		OnFilterModifiedHandle = NewFilter->OnFilterModified.AddRaw(this, &SLevelSnapshotsEditorFilters::OnFilterModified);
 		
 		GetEditorData()->SetEditedFilter(TOptional<UNegatableFilter*>());
 		RefreshGroups();
@@ -276,7 +280,7 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 	{
 		FilterDetailsView->SetObject(ActiveFilter.IsSet() ? ActiveFilter.GetValue() : nullptr);
 	});
-	OnFilterModifiedHandle = GetEditorData()->GetUserDefinedFilters()->OnFilterModified.AddSP(this, &SLevelSnapshotsEditorFilters::OnFilterModified);
+	OnFilterModifiedHandle = GetEditorData()->GetUserDefinedFilters()->OnFilterModified.AddRaw(this, &SLevelSnapshotsEditorFilters::OnFilterModified);
 	
 	RefreshGroups();
 }
