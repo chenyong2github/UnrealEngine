@@ -616,6 +616,25 @@ FName FLevelEditorContextMenu::InitMenuContext(FToolMenuContext& Context, TWeakP
 	{
 		ContextObject->SelectedComponents.Add(CastChecked<UActorComponent>(*It));
 	}
+
+	// obtain the world location of the cursor
+	if (GCurrentLevelEditingViewportClient)
+	{
+		FHitResult HitResult;
+		FViewportCursorLocation CursorLocation = GCurrentLevelEditingViewportClient->GetCursorWorldLocationFromMousePos();
+		FCollisionQueryParams LineParams(SCENE_QUERY_STAT(FocusOnPoint), true);
+
+		if (GCurrentLevelEditingViewportClient->GetWorld()->LineTraceSingleByObjectType(
+			HitResult,
+			CursorLocation.GetOrigin(),
+			CursorLocation.GetOrigin() + CursorLocation.GetDirection() * HALF_WORLD_MAX,
+			FCollisionObjectQueryParams(FCollisionObjectQueryParams::InitType::AllObjects),
+			LineParams))
+		{
+			ContextObject->CursorWorldLocation = HitResult.ImpactPoint;
+		}
+	}
+	
 	Context.AddObject(ContextObject, [](UObject* InContext)
 	{
 		ULevelEditorContextMenuContext* CastContext = CastChecked<ULevelEditorContextMenuContext>(InContext);
