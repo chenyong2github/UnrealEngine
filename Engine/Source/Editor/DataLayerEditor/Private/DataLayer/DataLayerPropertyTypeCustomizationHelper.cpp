@@ -11,7 +11,7 @@
 
 TSharedRef<SWidget> FDataLayerPropertyTypeCustomizationHelper::CreateDataLayerMenu(TFunction<void(const UDataLayer* DataLayer)> OnDataLayerSelectedFunction)
 {
-	FMenuBuilder MenuBuilder(true, nullptr);
+	FMenuBuilder MenuBuilder(true, nullptr, nullptr, true);
 
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("OpenDataLayersBrowser", "Browse Data Layers..."),
