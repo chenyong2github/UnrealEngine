@@ -660,12 +660,16 @@ FReply SRigHierarchy::OnImportSkeletonClicked()
 	TSharedRef<SKismetInspector> KismetInspector = SNew(SKismetInspector);
 	KismetInspector->ShowSingleStruct(StructToDisplay);
 
-	SGenericDialogWidget::OpenDialog(LOCTEXT("ControlRigHierarchyImport", "Import Hierarchy"), KismetInspector, SGenericDialogWidget::FArguments(), true);
-
-	if (Settings.Mesh != nullptr)
+	SGenericDialogWidget::FArguments DialogArguments;
+	DialogArguments.OnOkPressed_Lambda([&Settings, this] ()
 	{
-		ImportHierarchy(FAssetData(Settings.Mesh));
-	}
+		if (Settings.Mesh != nullptr)
+		{
+			ImportHierarchy(FAssetData(Settings.Mesh));
+		}
+	});
+	
+	SGenericDialogWidget::OpenDialog(LOCTEXT("ControlRigHierarchyImport", "Import Hierarchy"), KismetInspector, DialogArguments, true);
 
 	return FReply::Handled();
 }

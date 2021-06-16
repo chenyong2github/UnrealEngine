@@ -910,6 +910,8 @@ void SGenericDialogWidget::Construct( const FArguments& InArgs )
 			.OnClicked(this, &SGenericDialogWidget::OnOK_Clicked)
 		]
 	];
+
+	OkPressedDelegate = InArgs._OnOkPressed;
 }
 
 void SGenericDialogWidget::OpenDialog(const FText& InDialogTitle, const TSharedRef< SWidget >& DisplayContent, const FArguments& InArgs, bool bAsModalDialog)
@@ -930,6 +932,7 @@ void SGenericDialogWidget::OpenDialog(const FText& InDialogTitle, const TSharedR
 				SAssignNew(GenericDialogWidget, SGenericDialogWidget)
 				.UseScrollBox(InArgs._UseScrollBox)
 				.ScrollBoxMaxHeight(InArgs._ScrollBoxMaxHeight)
+				.OnOkPressed(InArgs._OnOkPressed)
 				[
 					DisplayContent
 				]
@@ -950,6 +953,8 @@ void SGenericDialogWidget::OpenDialog(const FText& InDialogTitle, const TSharedR
 
 FReply SGenericDialogWidget::OnOK_Clicked(void)
 {
+	OkPressedDelegate.ExecuteIfBound();
+	
 	MyWindow.Pin()->RequestDestroyWindow();
 
 	return FReply::Handled();

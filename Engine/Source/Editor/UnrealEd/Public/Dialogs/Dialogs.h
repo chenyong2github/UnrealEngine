@@ -189,6 +189,9 @@ public:
 		/** Content for the dialog */
 		SLATE_DEFAULT_SLOT( FArguments, Content )
 
+		/** Called when the OK button is pressed */
+		SLATE_EVENT( FSimpleDelegate, OnOkPressed )
+
 	SLATE_END_ARGS()
 
 	void Construct( const FArguments& InArgs );
@@ -207,6 +210,8 @@ private:
 private:
 	/** Pointer to the containing window. */
 	TWeakPtr< SWindow > MyWindow;
+
+	FSimpleDelegate OkPressedDelegate;
 };
 
 UE_DEPRECATED(4.26, "Creating groups (nested packages) is no longer supported. Use PromptUserIfExistingObject overload that does not take the Group paramater.")
