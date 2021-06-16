@@ -452,7 +452,51 @@ public:
 	{
 		return Get<T>(GetIndex(InKey));
 	}
+	
+private:
+	/**
+	* Returns bone element for a given key, for scripting purpose only, for cpp usage, use Find<FRigBoneElement>()
+	* @param InKey The key of the bone element to retrieve. 
+	*/
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy, meta = (DisplayName = "Find Bone", ScriptName = "FindBone"))
+    FRigBoneElement FindBone_ForBlueprintOnly(const FRigElementKey& InKey) const
+	{
+		if (const FRigBoneElement* Bone = Find<FRigBoneElement>(InKey))
+		{
+			return *Bone;
+		}
+		return FRigBoneElement();
+	}	
+	
+	/**
+	* Returns control element for a given key, for scripting purpose only, for cpp usage, use Find<FRigControlElement>()
+	* @param InKey The key of the control element to retrieve. 
+	*/
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy, meta = (DisplayName = "Find Control", ScriptName = "FindControl"))
+    FRigControlElement FindControl_ForBlueprintOnly(const FRigElementKey& InKey) const
+	{
+		if (const FRigControlElement* Control = Find<FRigControlElement>(InKey))
+		{
+			return *Control;
+		}
+		return FRigControlElement();
+	}	
 
+	/**
+	* Returns null element for a given key, for scripting purpose only, for cpp usage, use Find<FRigControlElement>()
+	* @param InKey The key of the null element to retrieve. 
+	*/
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy, meta = (DisplayName = "Find Null", ScriptName = "FindNull"))
+    FRigNullElement FindNull_ForBlueprintOnly(const FRigElementKey& InKey) const
+	{
+		if (const FRigNullElement* Null = Find<FRigNullElement>(InKey))
+		{
+			return *Null;
+		}
+		return FRigNullElement();
+	}
+	
+public:	
 	/**
 	 * Returns an element for a given key.
 	 * This templated method also casts to the chosen
