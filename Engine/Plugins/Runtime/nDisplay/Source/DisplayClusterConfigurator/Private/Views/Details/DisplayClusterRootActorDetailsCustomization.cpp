@@ -135,12 +135,10 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 			if (bIsCDO)
 			{
 				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable);
-				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnableInnerFrustums);
-				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.DefaultFrameSize);
 			}
 			else
 			{
-				const TSharedPtr<IPropertyHandle> EnableInnerFrustumsPropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnableInnerFrustums));
+				const TSharedPtr<IPropertyHandle> EnableInnerFrustumsPropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable));
 				check(EnableInnerFrustumsPropertyHandle->IsValidHandle());
 				CurrentCategory.AddProperty(EnableInnerFrustumsPropertyHandle);
 
