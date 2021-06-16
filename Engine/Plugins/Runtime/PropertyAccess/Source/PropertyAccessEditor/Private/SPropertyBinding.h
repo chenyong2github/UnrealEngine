@@ -73,7 +73,8 @@ protected:
 private:
 	bool IsClassBlackListed(UClass* OwnerClass) const;
 	bool IsFieldFromBlackListedClass(FFieldVariant Field) const;
-
+	bool HasBindableProperties(UStruct* InStruct) const;
+	
 	template <typename Predicate>
 	void ForEachBindableProperty(UStruct* InStruct, Predicate Pred) const;
 
