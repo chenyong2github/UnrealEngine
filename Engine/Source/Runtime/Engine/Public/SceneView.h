@@ -1380,14 +1380,11 @@ struct FDisplayInternalsData
 {
 	//
 	int32 DisplayInternalsCVarValue;
-	// current time Matinee location (in seconds) of the single playing playing actor, -1 if none is playing, -2 if multiple are playing
-	float MatineeTime;
 	// -1 if not set, from IStreamingManager::Get().StreamAllResources(Duration) in FStreamAllResourcesLatentCommand
 	uint32 NumPendingStreamingRequests;
 
 	FDisplayInternalsData()
 		: DisplayInternalsCVarValue(0)
-		, MatineeTime(-1.0f)
 		, NumPendingStreamingRequests(-1)
 	{
 		check(!IsValid());
