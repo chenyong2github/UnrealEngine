@@ -2,6 +2,7 @@
 
 #include "EditorDialogLibrary.h"
 #include "Misc/MessageDialog.h"
+#include "Dialogs/Dialogs.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Application/SlateApplication.h"
@@ -20,6 +21,24 @@
 TEnumAsByte<EAppReturnType::Type> UEditorDialogLibrary::ShowMessage(const FText& Title, const FText& Message, TEnumAsByte<EAppMsgType::Type> MessageType, TEnumAsByte<EAppReturnType::Type> DefaultValue)
 {
 	return FMessageDialog::Open(MessageType, DefaultValue, Message, &Title);
+}
+
+bool UEditorDialogLibrary::ShowSuppressableWarningDialog(const FText& Title, const FText& Message, const FString& InIniSettingName, const FString& InIniSettingFileNameOverride, bool bDefaultValue)
+{
+	const FString& IniSettingFileName = InIniSettingFileNameOverride.IsEmpty()? GEditorPerProjectIni : InIniSettingFileNameOverride;
+	FSuppressableWarningDialog::FSetupInfo Info(Message, Title, InIniSettingName, IniSettingFileName);
+	Info.ConfirmText = LOCTEXT("SuppressableWarning_Yes", "Yes");
+	Info.CancelText = LOCTEXT("SuppressableWarning_No", "No");
+
+	const FSuppressableWarningDialog WarningDialog(Info);
+	const FSuppressableWarningDialog::EResult Result = WarningDialog.ShowModal();
+	
+	if (Result == FSuppressableWarningDialog::Suppressed)
+	{
+		return bDefaultValue;
+	}
+	
+	return Result == FSuppressableWarningDialog::Confirm? true : false;
 }
 
 /** Dialog widget used to display an object its properties */
