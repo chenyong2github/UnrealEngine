@@ -3699,6 +3699,18 @@ void FSceneRenderer::WaitForTasksAndClearSnapshots(FParallelMeshDrawCommandPass:
 	FViewInfo::DestroyAllSnapshots(WaitThread);
 }
 
+void ResetAndShrinkModifiedBounds(TArray<FRenderBounds>& Bounds)
+{
+	const int32 MaxAllocatedSize = FMath::RoundUpToPowerOfTwo(FMath::Max<uint32>(DistanceField::MinPrimitiveModifiedBoundsAllocation, Bounds.Num()));
+
+	if (Bounds.Max() > MaxAllocatedSize)
+	{
+		Bounds.Empty(MaxAllocatedSize);
+	}
+
+	Bounds.Reset();
+}
+
 /**
  * Helper function performing actual work in render thread.
  *
@@ -3758,11 +3770,12 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 			// Only reset per-frame scene state once all views have processed their frame, including those in planar reflections
 			for (int32 CacheType = 0; CacheType < UE_ARRAY_COUNT(SceneRenderer->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds); CacheType++)
 			{
-				SceneRenderer->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Empty(DistanceField::MinPrimitiveModifiedBoundsAllocation);
+				ResetAndShrinkModifiedBounds(SceneRenderer->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType]);
 			}
+
 			if (SceneRenderer->Scene->LumenSceneData)
 			{
-				SceneRenderer->Scene->LumenSceneData->PrimitiveModifiedBounds.Empty(DistanceField::MinPrimitiveModifiedBoundsAllocation);
+				ResetAndShrinkModifiedBounds(SceneRenderer->Scene->LumenSceneData->PrimitiveModifiedBounds);
 			}
 
 			// Immediately issue EndFrame() for all extensions in case any of the outstanding tasks they issued getting out of this frame

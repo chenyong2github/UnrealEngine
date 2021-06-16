@@ -427,7 +427,7 @@ public:
 class FGlobalDistanceFieldCacheTypeState
 {
 public:
-	TArray<FBox> PrimitiveModifiedBounds;
+	TArray<FRenderBounds> PrimitiveModifiedBounds;
 };
 
 class FGlobalDistanceFieldClipmapState
@@ -438,15 +438,20 @@ public:
 	{
 		FullUpdateOriginInPages = FIntVector::ZeroValue;
 		LastPartialUpdateOriginInPages = FIntVector::ZeroValue;
+		CachedClipmapCenter = FVector3f(0.0f, 0.0f, 0.0f);
 		CachedClipmapExtent = 0.0f;
+		CacheClipmapInfluenceRadius = 0.0f;
 		CacheMostlyStaticSeparately = 1;
 		LastUsedSceneDataForFullUpdate = nullptr;
 	}
 
 	FIntVector FullUpdateOriginInPages;
 	FIntVector LastPartialUpdateOriginInPages;
-	float CachedClipmapExtent;
 	uint32 CacheMostlyStaticSeparately;
+
+	FVector3f CachedClipmapCenter;
+	float CachedClipmapExtent;
+	float CacheClipmapInfluenceRadius;
 
 	FGlobalDistanceFieldCacheTypeState Cache[GDF_Num];
 
@@ -1902,6 +1907,7 @@ public:
 	void UpdateDistanceFieldObjectBuffers(
 		FRDGBuilder& GraphBuilder, 
 		FScene* Scene,
+		const DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds,
 		TArray<FDistanceFieldAssetMipId>& DistanceFieldAssetAdds,
 		TArray<FSetElementId>& DistanceFieldAssetRemoves);
 
@@ -2013,7 +2019,7 @@ public:
 	TArray<FPrimitiveSceneInfo*> PendingThrottledOperations;
 	TSet<FPrimitiveSceneInfo*> PendingUpdateOperations;
 	TArray<FPrimitiveRemoveInfo> PendingRemoveOperations;
-	TArray<FBox> PrimitiveModifiedBounds[GDF_Num];
+	TArray<FRenderBounds> PrimitiveModifiedBounds[GDF_Num];
 
 	TArray<FPrimitiveSceneInfo*> PendingHeightFieldAddOps;
 	TArray<FPrimitiveSceneInfo*> PendingHeightFieldUpdateOps;

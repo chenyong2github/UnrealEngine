@@ -379,7 +379,7 @@ public:
 	FRWBufferStructured CardBuffer;
 
 	// Modified bounds for caching voxel lighting
-	TArray<FBox> PrimitiveModifiedBounds;
+	TArray<FRenderBounds> PrimitiveModifiedBounds;
 
 	// Primitive groups
 	TSparseElementArray<FLumenPrimitiveGroup> PrimitiveGroups;

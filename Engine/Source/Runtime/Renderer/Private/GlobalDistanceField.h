@@ -34,6 +34,7 @@ namespace GlobalDistanceField
 	uint32 GetPageTableClipmapResolution(bool bLumenEnabled);
 	FIntVector GetPageTableTextureResolution(bool bLumenEnabled);
 	int32 GetMaxPageNum(bool bLumenEnabled);
+	void ExpandDistanceFieldUpdateTrackingBounds(const FSceneViewState* ViewState, DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds);
 };
 
 /** 

@@ -762,7 +762,7 @@ void UpdateVoxelVisBuffer(
 	// Copy scene modified primitives into clipmap state
 	for (int32 ClipmapIndex = 0; ClipmapIndex < MaxVoxelClipmapLevels; ++ClipmapIndex)
 	{
-		TArray<FBox>& PrimitiveModifiedBounds = View.ViewState->Lumen.VoxelLightingClipmapState[ClipmapIndex].PrimitiveModifiedBounds;
+		TArray<FRenderBounds>& PrimitiveModifiedBounds = View.ViewState->Lumen.VoxelLightingClipmapState[ClipmapIndex].PrimitiveModifiedBounds;
 		if (ClipmapIndex < ClampedNumClipmapLevels)
 		{
 			PrimitiveModifiedBounds.Append(Scene->LumenSceneData->PrimitiveModifiedBounds);
@@ -811,7 +811,7 @@ void UpdateVoxelVisBuffer(
 		TracingInputs.ClipmapWorldExtent[ClipmapIndex] = Clipmap.Extent;
 		TracingInputs.ClipmapWorldSamplingExtent[ClipmapIndex] = Clipmap.Extent - 0.5f * Clipmap.VoxelSize;
 		
-		TArray<FBox>& PrimitiveModifiedBounds = Clipmap.PrimitiveModifiedBounds;
+		TArray<FRenderBounds>& PrimitiveModifiedBounds = Clipmap.PrimitiveModifiedBounds;
 		PrimitiveModifiedBounds.Append(Scene->LumenSceneData->PrimitiveModifiedBounds);
 
 		const FBox ClipmapBounds(Clipmap.Center - Clipmap.Extent, Clipmap.Center + Clipmap.Extent);
@@ -829,7 +829,7 @@ void UpdateVoxelVisBuffer(
 
 			for (int32 BoundsIndex = 0; BoundsIndex < PrimitiveModifiedBounds.Num(); BoundsIndex++)
 			{
-				const FBox PrimBounds = PrimitiveModifiedBounds[BoundsIndex];
+				const FRenderBounds PrimBounds = PrimitiveModifiedBounds[BoundsIndex];
 				const FVector PrimWorldCenter = PrimBounds.GetCenter();
 				const FVector PrimWorldExtent = PrimBounds.GetExtent();
 				const FBox ModifiedBounds(PrimWorldCenter - PrimWorldExtent, PrimWorldCenter + PrimWorldExtent);
@@ -1151,4 +1151,16 @@ void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 	}
 
 	View.ViewState->Lumen.VoxelVisBuffer = GraphBuilder.ConvertToExternalTexture(VoxelVisBuffer);
+}
+
+void Lumen::ExpandDistanceFieldUpdateTrackingBounds(const FSceneViewState* ViewState, DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds)
+{
+	// Lumen is interested in any updates inside it's voxel lighting clipmaps
+
+	for (int32 ClipmapIndex = 0; ClipmapIndex < ViewState->Lumen.NumClipmapLevels; ++ClipmapIndex)
+	{
+		const FLumenVoxelLightingClipmapState& Clipmap = ViewState->Lumen.VoxelLightingClipmapState[ClipmapIndex];
+		const FBox TrackingBounds(Clipmap.Center - Clipmap.Extent, Clipmap.Center + Clipmap.Extent);
+		UpdateTrackingBounds.LumenBounds += TrackingBounds;
+	}
 }
