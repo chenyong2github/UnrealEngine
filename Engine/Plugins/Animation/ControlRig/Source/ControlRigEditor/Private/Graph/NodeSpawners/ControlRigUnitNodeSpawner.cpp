@@ -231,6 +231,11 @@ UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGrap
 
 void UControlRigUnitNodeSpawner::HookupMutableNode(URigVMNode* InModelNode, UControlRigBlueprint* InRigBlueprint)
 {
+	if(!UControlRigEditorSettings::Get()->bAutoLinkMutableNodes)
+	{
+		return;
+	}
+	
 	URigVMController* Controller = InRigBlueprint->GetController(InModelNode->GetGraph());
 
 	Controller->ClearNodeSelection(true);
