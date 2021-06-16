@@ -70,7 +70,7 @@ int32 UGroomCache::GetFrameIndexAtTime(const float Time, bool bLooping) const
 	return NormalizedFrame; 
 }
 
-void UGroomCache::FindSampleIndexesFromTime(float Time, bool bLooping, bool bIsPlayingBackwards, int32 &OutFrameIndex, int32 &OutNextFrameIndex, float &InterpolationFactor)
+void UGroomCache::GetFrameIndicesAtTime(float Time, bool bLooping, bool bIsPlayingBackwards, int32 &OutFrameIndex, int32 &OutNextFrameIndex, float &InterpolationFactor)
 {
 	const int32 NumFrames = GroomCacheInfo.AnimationInfo.NumFrames;
 	const float Duration = GroomCacheInfo.AnimationInfo.Duration;
@@ -114,6 +114,61 @@ void UGroomCache::FindSampleIndexesFromTime(float Time, bool bLooping, bool bIsP
 	{
 		Swap(OutFrameIndex, OutNextFrameIndex);
 		InterpolationFactor = 1.0f - InterpolationFactor;
+	}
+}
+
+void UGroomCache::GetFrameIndicesForTimeRange(float StartTime, float EndTime, bool bLooping, TArray<int32>& OutFrameIndices)
+{
+	// Sanity check
+	if (StartTime > EndTime)
+	{
+		EndTime = StartTime;
+	}
+
+	// Ensure the time range covers at least one frame
+	if (EndTime - StartTime < GroomCacheInfo.AnimationInfo.SecondsPerFrame)
+	{
+		EndTime = StartTime + GroomCacheInfo.AnimationInfo.SecondsPerFrame;
+	}
+
+	int32 StartIndex = GetFrameIndexAtTime(StartTime, bLooping);
+	int32 EndIndex = GetFrameIndexAtTime(EndTime, bLooping);
+
+	if (bLooping)
+	{
+		// Special cases to handle with looping enabled
+		if (((EndTime - StartTime) >= GroomCacheInfo.AnimationInfo.Duration) || 
+			(StartIndex == EndIndex))
+		{
+			// Requested time range is longer than the animation or exactly matches the duration so include all the frames
+			for (int32 FrameIndex = 0; FrameIndex < Chunks.Num(); ++FrameIndex)
+			{
+				OutFrameIndices.Add(FrameIndex);
+			}
+			return;
+		}
+
+		if (EndIndex < StartIndex)
+		{
+			// The requested time range is wrapping so add as two intervals
+			// From start index to end of animation
+			for (int32 FrameIndex = StartIndex; FrameIndex < (int32)GroomCacheInfo.AnimationInfo.NumFrames; ++FrameIndex)
+			{
+				OutFrameIndices.Add(FrameIndex);
+			}
+			// From 0 to end index
+			for (int32 FrameIndex = 0; FrameIndex <= EndIndex; ++FrameIndex)
+			{
+				OutFrameIndices.Add(FrameIndex);
+			}
+			return;
+		}
+	}
+
+	// Time range is a simple interval within the animation
+	for (int32 FrameIndex = StartIndex; FrameIndex <= EndIndex; ++FrameIndex)
+	{
+		OutFrameIndices.Add(FrameIndex);
 	}
 }
 

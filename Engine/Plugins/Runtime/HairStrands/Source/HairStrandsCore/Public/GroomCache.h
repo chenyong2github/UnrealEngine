@@ -29,18 +29,22 @@ public:
 	float GetDuration() const;
 
 	/** Get the frame number at the specified time within the animation range which might not start at 0 */
-	int32  GetFrameNumberAtTime(const float Time, bool bLooping) const;
+	int32 GetFrameNumberAtTime(const float Time, bool bLooping) const;
 
 	/** Get the (floored) frame index at the specified time with the index 0 being the start of the animation */
-	int32  GetFrameIndexAtTime(const float Time, bool bLooping) const;
+	int32 GetFrameIndexAtTime(const float Time, bool bLooping) const;
 
 	/** Get the frame indices and interpolation factor between them that correspond to the specified time */
-	void FindSampleIndexesFromTime(float Time, bool bLooping, bool bIsPlayingBackwards, int32 &OutFrameIndex, int32 &OutNextFrameIndex, float &InterpolationFactor);
+	void GetFrameIndicesAtTime(float Time, bool bLooping, bool bIsPlayingBackwards, int32 &OutFrameIndex, int32 &OutNextFrameIndex, float &InterpolationFactor);
+
+	/** Get the frame indices that correspond to the specified time range */
+	void GetFrameIndicesForTimeRange(float StartTime, float EndTime, bool Looping, TArray<int32>& OutFrameIndices);
 
 	bool GetGroomDataAtTime(float Time, bool bLooping, FGroomCacheAnimationData& AnimData);
 	bool GetGroomDataAtFrameIndex(int32 FrameIndex, FGroomCacheAnimationData& AnimData);
 
 	void SetGroomAnimationInfo(const FGroomAnimationInfo& AnimInfo);
+	const FGroomAnimationInfo& GetGroomAnimationInfo() const { return GroomCacheInfo.AnimationInfo; }
 
 	EGroomCacheType GetType() const;
 
