@@ -270,7 +270,7 @@ void UDMXPixelMappingRendererComponent::Render()
 	CreateOrUpdateDownsampleBufferTarget();
 
 	// 4. reserve enough space for pixels params
-	DownsamplePixelParams.Reserve(DownsamplePixelCount);
+	DownsamplePixelParams.Reset(DownsamplePixelCount);
 
 	// 5. Loop through all child pixels in order to get pixels downsample params for rendering
 	ForEachChild([&](UDMXPixelMappingBaseComponent* InComponent) {
@@ -292,7 +292,7 @@ void UDMXPixelMappingRendererComponent::Render()
 		DownsampleInputTexture->Resource,
 		DownsampleBufferTarget->Resource,
 		DownsampleBufferTarget->GameThread_GetRenderTargetResource(),
-		MoveTemp(DownsamplePixelParams), // Move Set to GPU thread, no empty function call needed
+		DownsamplePixelParams, // Copy Set to GPU thread, no empty function call needed
 		[this](TArray<FLinearColor>&& InDownsampleBuffer, FIntRect InRect) { SetDownsampleBuffer(MoveTemp(InDownsampleBuffer), InRect); }
 	);
 }
@@ -302,7 +302,6 @@ void UDMXPixelMappingRendererComponent::RenderAndSendDMX()
 	Render();
 	SendDMX();
 }
-
 
 FIntPoint UDMXPixelMappingRendererComponent::GetPixelPosition(int32 InPosition) const
 {

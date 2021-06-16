@@ -122,14 +122,14 @@ void FDMXPixelMappingRenderer::DownsampleRender(
 	const FTextureResource* InputTexture,
 	const FTextureResource* DstTexture,
 	const FTextureRenderTargetResource* DstTextureTargetResource,
-	TArray<FDMXPixelMappingDownsamplePixelParam>&& InDownsamplePixelPass,
+	const TArray<FDMXPixelMappingDownsamplePixelParam>& InDownsamplePixelPass,
 	DownsampleReadCallback InCallback
 ) const
 {
 	check(IsInGameThread());
 	
 	ENQUEUE_RENDER_COMMAND(DownsampleRenderRDG)(
-		[this, InputTexture, DstTexture, DstTextureTargetResource, InCallback, DownsamplePixelPass = MoveTemp(InDownsamplePixelPass)]
+		[this, InputTexture, DstTexture, DstTextureTargetResource, InCallback, DownsamplePixelPass = InDownsamplePixelPass]
 		(FRHICommandListImmediate& RHICmdList)
 		{
 			SCOPED_GPU_STAT(RHICmdList, DMXPixelMappingShadersStat);
@@ -219,7 +219,7 @@ void FDMXPixelMappingRenderer::DownsampleRender(
 				const FIntRect Rect(0, 0, OutputTextureSize.X, OutputTextureSize.Y);
 
 				// Read surface without flush rendering thread
-				GDynamicRHI->RHIReadSurfaceData(ResolveRenderTarget, Rect, ColorArray, FReadSurfaceDataFlags());
+				RHICmdList.ReadSurfaceData(ResolveRenderTarget, Rect, ColorArray, FReadSurfaceDataFlags());
 
 				// Fire the callback after drawing and copying texture to CPU buffer
 				InCallback(MoveTemp(ColorArray), Rect);
