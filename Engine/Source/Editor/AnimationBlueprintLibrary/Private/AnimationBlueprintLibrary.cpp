@@ -1495,7 +1495,7 @@ bool UAnimationBlueprintLibrary::RemoveCurveInternal(UAnimSequence* AnimationSeq
 				if (ContainerName == USkeleton::AnimTrackCurveMappingName)
 				{
 					// Make sure we do not remove bone names
-					bValidToRemove = DoesBoneNameExistInternal(Skeleton, CurveName);
+					bValidToRemove = DoesBoneCurveNameExistInternal(Skeleton, CurveName);
 				}
 
 				if (bValidToRemove)
@@ -1544,6 +1544,12 @@ void UAnimationBlueprintLibrary::DoesBoneNameExist(UAnimSequence* AnimationSeque
 }
 
 bool UAnimationBlueprintLibrary::DoesBoneNameExistInternal(USkeleton* Skeleton, FName BoneName)
+{
+	checkf(Skeleton != nullptr, TEXT("Invalid Skeleton ptr"));
+	return Skeleton->GetReferenceSkeleton().FindBoneIndex(BoneName) != INDEX_NONE;
+}
+
+bool UAnimationBlueprintLibrary::DoesBoneCurveNameExistInternal(USkeleton* Skeleton, FName BoneName)
 {
 	checkf(Skeleton != nullptr, TEXT("Invalid Skeleton ptr"));
 	return Skeleton->GetUIDByName(USkeleton::AnimTrackCurveMappingName, BoneName) != SmartName::MaxUID;
