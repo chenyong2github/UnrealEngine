@@ -28,39 +28,44 @@ void UMoviePipeline::ProcessOutstandingFutures()
 	TArray<int32> CompletedOutputFutures;
 	for (int32 Index = 0; Index < OutputFutures.Num(); ++Index)
 	{
+		// Output futures are pushed in order to the OutputFutures array. However they are
+		// completed asyncronously, so we don't process any futures after a not-yet-ready one
+		// otherwise we push into the GeneratedShotOutputData array out of order.
 		const FMoviePipelineOutputFuture& OutputFuture = OutputFutures[Index];
-		if (OutputFuture.Get<0>().IsReady())
+		if (!OutputFuture.Get<0>().IsReady())
 		{
-			CompletedOutputFutures.Add(Index);
+			break;
+		}
 
-			const MoviePipeline::FMoviePipelineOutputFutureData& FutureData = OutputFuture.Get<1>();
+		CompletedOutputFutures.Add(Index);
 
-			// The future was completed, time to add it to our shot output data.
-			FMoviePipelineShotOutputData* ShotOutputData = nullptr;
-			for (int32 OutputDataIndex = 0; OutputDataIndex < GeneratedShotOutputData.Num(); OutputDataIndex++)
+		const MoviePipeline::FMoviePipelineOutputFutureData& FutureData = OutputFuture.Get<1>();
+
+		// The future was completed, time to add it to our shot output data.
+		FMoviePipelineShotOutputData* ShotOutputData = nullptr;
+		for (int32 OutputDataIndex = 0; OutputDataIndex < GeneratedShotOutputData.Num(); OutputDataIndex++)
+		{
+			if (FutureData.Shot == GeneratedShotOutputData[OutputDataIndex].Shot)
 			{
-				if (FutureData.Shot == GeneratedShotOutputData[OutputDataIndex].Shot)
-				{
-					ShotOutputData = &GeneratedShotOutputData[OutputDataIndex];
-				}
+				ShotOutputData = &GeneratedShotOutputData[OutputDataIndex];
 			}
+		}
 
-			if (!ShotOutputData)
-			{
-				GeneratedShotOutputData.Add(FMoviePipelineShotOutputData());
-				ShotOutputData = &GeneratedShotOutputData.Last();
-				ShotOutputData->Shot = FutureData.Shot;
-			}
+		if (!ShotOutputData)
+		{
+			GeneratedShotOutputData.Add(FMoviePipelineShotOutputData());
+			ShotOutputData = &GeneratedShotOutputData.Last();
+			ShotOutputData->Shot = FutureData.Shot;
+		}
 
-			// Add the filepath to the renderpass data.
-			ShotOutputData->RenderPassData.FindOrAdd(FutureData.PassIdentifier).FilePaths.Add(FutureData.FilePath);
+		// Add the filepath to the renderpass data.
+		ShotOutputData->RenderPassData.FindOrAdd(FutureData.PassIdentifier).FilePaths.Add(FutureData.FilePath);
 
-			if (!OutputFuture.Get<0>().Get())
-			{
-				UE_LOG(LogMovieRenderPipeline, Error, TEXT("Error exporting frame, canceling movie export."));
-				RequestShutdown(true);
-				break;
-			}
+		if (!OutputFuture.Get<0>().Get())
+		{
+			UE_LOG(LogMovieRenderPipeline, Error, TEXT("Error exporting frame, canceling movie export."));
+			RequestShutdown(true);
+			break;
 		}
 	}
 
