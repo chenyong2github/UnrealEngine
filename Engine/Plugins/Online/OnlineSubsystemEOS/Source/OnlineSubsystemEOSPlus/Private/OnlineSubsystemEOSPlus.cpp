@@ -75,6 +75,9 @@ bool FOnlineSubsystemEOSPlus::Init()
 	UserInterfacePtr = MakeShareable(new FOnlineUserEOSPlus(this));
 	SessionInterfacePtr = MakeShareable(new FOnlineSessionEOSPlus(this));
 	LeaderboardsInterfacePtr = MakeShareable(new FOnlineLeaderboardsEOSPlus(this));
+	StoreInterfacePtr = MakeShareable(new FOnlineStoreEOSPlus(this));
+
+	StoreInterfacePtr->Initialize();
 
 	return true;
 }
@@ -95,6 +98,7 @@ void FOnlineSubsystemEOSPlus::PreUnload()
 	DESTRUCT_INTERFACE(UserInterfacePtr);
 	DESTRUCT_INTERFACE(SessionInterfacePtr);
 	DESTRUCT_INTERFACE(LeaderboardsInterfacePtr);
+	DESTRUCT_INTERFACE(StoreInterfacePtr);
 
 #undef DESTRUCT_INTERFACE
 }
@@ -174,12 +178,12 @@ IOnlineTitleFilePtr FOnlineSubsystemEOSPlus::GetTitleFileInterface() const
 
 IOnlineStoreV2Ptr FOnlineSubsystemEOSPlus::GetStoreV2Interface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetStoreV2Interface() : nullptr;
+	return StoreInterfacePtr;
 }
 
 IOnlinePurchasePtr FOnlineSubsystemEOSPlus::GetPurchaseInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetPurchaseInterface() : nullptr;
+	return StoreInterfacePtr;
 }
 
 IOnlineEventsPtr FOnlineSubsystemEOSPlus::GetEventsInterface() const
