@@ -68,9 +68,6 @@ public:
 	// Called when ending playing a map
 	DEFINE_GAME_DELEGATE_TYPED(EndPlayMapDelegate, FSimpleMulticastDelegate);
 
-	// Called when a matinee is canceled 
-	DEFINE_GAME_DELEGATE_TYPED(MatineeCancelledDelegate, FSimpleMulticastDelegate);
-
 	// Called when a pending connection has been lost 
 	DEFINE_GAME_DELEGATE_TYPED(PendingConnectionLostDelegate, FPendingConnectionLostDelegate);
 
