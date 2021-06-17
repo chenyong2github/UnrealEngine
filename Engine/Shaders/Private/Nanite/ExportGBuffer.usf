@@ -83,8 +83,8 @@ void EmitMaterialDepthPS(
 
 void EmitSceneDepthPS(
 	in float4  SvPosition		: SV_Position,
-#if VELOCITY_EXPORT
 	out uint   OutNaniteMask	: SV_Target0,
+#if VELOCITY_EXPORT
 	out float4 OutVelocity		: SV_Target1,
 #endif
 	out float  OutDepth			: SV_Depth
@@ -117,8 +117,9 @@ void EmitSceneDepthPS(
 		
 		const float3 Velocity = Calculate3DVelocity(ScreenPos, ScreenPosPrev);
 		OutVelocity = EncodeVelocityToTexture(Velocity);
-		OutNaniteMask = 0x1;
 #endif
+
+		OutNaniteMask = 0x1;
 		OutDepth = asfloat(DepthInt);
 	}
 	else
@@ -168,7 +169,9 @@ void EmitSceneDepthStencilPS
 (
 	in float4  SvPosition		: SV_Position,
 	out uint   OutNaniteMask	: SV_Target0,
+#if VELOCITY_EXPORT
 	out float4 OutVelocity		: SV_Target1,
+#endif
 	out float  OutDepth			: SV_Depth,
 	out uint   OutStencil		: SV_StencilRef // Requires GRHISupportsStencilRefFromPixelShader
 )
@@ -187,6 +190,8 @@ void EmitSceneDepthStencilPS
 	{
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
 		FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster.InstanceId);
+		
+#if VELOCITY_EXPORT
 		FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
 		const float4 ScreenPos = SvPositionToScreenPosition(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
@@ -197,6 +202,8 @@ void EmitSceneDepthStencilPS
 		
 		const float3 Velocity = Calculate3DVelocity(ScreenPos, ScreenPosPrev);
 		OutVelocity = EncodeVelocityToTexture(Velocity);
+#endif
+
 		OutDepth = asfloat(DepthInt);
 		OutNaniteMask = 0x1;
 

@@ -526,7 +526,6 @@ struct FRasterResults
 
 	FRDGTextureRef	MaterialDepth{};
 	FRDGTextureRef	NaniteMask{};
-	FRDGTextureRef	VelocityBuffer{};
 
 	TArray<FVisualizeResult, TInlineAllocator<32>> Visualizations;
 };
@@ -677,9 +676,9 @@ void EmitDepthTargets(
 	FRDGBufferRef ViewsBuffer,
 	FRDGTextureRef SceneDepth,
 	FRDGTextureRef VisBuffer64,
+	FRDGTextureRef VelocityBuffer,
 	FRDGTextureRef& OutMaterialDepth,
 	FRDGTextureRef& OutNaniteMask,
-	FRDGTextureRef& OutVelocityBuffer,
 	bool bPrePass
 );
 
