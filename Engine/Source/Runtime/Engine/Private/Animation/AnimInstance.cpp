@@ -3067,6 +3067,29 @@ void UAnimInstance::RemoveExternalNotifyHandler(UObject* ExternalHandlerObject, 
 	}
 }
 
+FAnimSubsystemInstance* UAnimInstance::FindSubsystem(UScriptStruct* InSubsystemType)
+{
+	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
+	{
+		FAnimSubsystemInstance* Subsystem = nullptr;
+		
+		AnimBlueprintClass->ForEachSubsystem(this, [&Subsystem, InSubsystemType](const FAnimSubsystemInstanceContext& InContext)
+		{
+			if(InContext.SubsystemInstanceStruct == InSubsystemType)
+			{
+				Subsystem = &InContext.SubsystemInstance;
+				return EAnimSubsystemEnumeration::Stop;
+			}
+			
+			return EAnimSubsystemEnumeration::Continue;
+		});
+
+		return Subsystem;
+	}
+
+	return nullptr;
+}
+
 UAnimInstance* UAnimInstance::GetLinkedAnimLayerInstanceByGroup(FName InGroup) const
 {
 	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))

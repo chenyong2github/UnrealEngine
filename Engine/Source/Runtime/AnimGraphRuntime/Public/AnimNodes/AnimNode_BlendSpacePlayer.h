@@ -101,10 +101,10 @@ public:
 	virtual EAnimGroupRole::Type GetGroupRole() const override;
 	virtual EAnimSyncMethod GetGroupMethod() const override;
 	virtual bool GetIgnoreForRelevancyTest() const override;
-	virtual void SetGroupName(FName InGroupName) override;
-	virtual void SetGroupRole(EAnimGroupRole::Type InRole) override;
-	virtual void SetGroupMethod(EAnimSyncMethod InMethod) override;
-	virtual void SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override;
+	virtual bool SetGroupName(FName InGroupName) override;
+	virtual bool SetGroupRole(EAnimGroupRole::Type InRole) override;
+	virtual bool SetGroupMethod(EAnimSyncMethod InMethod) override;
+	virtual bool SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override;
 	// End of FAnimNode_AssetPlayerBase interface
 
 	// FAnimNode_Base interface
@@ -117,10 +117,8 @@ public:
 
 	float GetTimeFromEnd(float CurrentTime) const;
 
-#if WITH_EDITORONLY_DATA
 	// Set the blendspace asset to play
-	void SetBlendSpace(UBlendSpace* InBlendSpace);
-#endif
+	bool SetBlendSpace(UBlendSpace* InBlendSpace);
 
 	// Get the coordinates that are currently being sampled by the blendspace
 	virtual FVector GetPosition() const;

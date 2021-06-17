@@ -45,10 +45,10 @@ public:
 
 protected:
 	// Set the animation sequence asset to play
-	virtual void SetSequence(UAnimSequenceBase* InSequence) {}
+	virtual bool SetSequence(UAnimSequenceBase* InSequence) { return false; }
 
 	// Set the animation to continue looping when it reaches the end
-	virtual void SetLoopAnimation(bool bInLoopAnimation) {}
+	virtual bool SetLoopAnimation(bool bInLoopAnimation) { return false; }
 	
 	// The Basis in which the PlayRate is expressed in. This is used to rescale PlayRate inputs.
 	// For example a Basis of 100 means that the PlayRate input will be divided by 100.
@@ -70,6 +70,14 @@ protected:
 
 	// Use pose matching to choose the start position. Requires experimental PoseSearch plugin.
 	virtual bool GetStartFromMatchingPose() const { return false; }
+
+	// Set the start time of this node.
+	// @return true if the value was set (it is dynamic), or false if it could not (it is not dynamic or pin exposed)
+	virtual bool SetStartPosition(float InStartPosition) { return false; }
+
+	// Set the play rate of this node.
+	// @return true if the value was set (it is dynamic), or false if it could not (it is not dynamic or pin exposed)	
+	virtual bool SetPlayRate(float InPlayRate) { return false; }
 };
 
 // Sequence player node that can be used with constant folding
@@ -135,8 +143,8 @@ protected:
 
 public:
 	// FAnimNode_SequencePlayerBase interface
-	virtual void SetSequence(UAnimSequenceBase* InSequence) override;
-	virtual void SetLoopAnimation(bool bInLoopAnimation) override;
+	virtual bool SetSequence(UAnimSequenceBase* InSequence) override;
+	virtual bool SetLoopAnimation(bool bInLoopAnimation) override;
 	virtual UAnimSequenceBase* GetSequence() const override;
 	virtual float GetPlayRateBasis() const override;
 	virtual float GetPlayRate() const override;
@@ -144,16 +152,18 @@ public:
 	virtual float GetStartPosition() const override;
 	virtual bool GetLoopAnimation() const override;
 	virtual bool GetStartFromMatchingPose() const override;
+	virtual bool SetStartPosition(float InStartPosition) override;
+	virtual bool SetPlayRate(float InPlayRate) override;
 
 	// FAnimNode_AssetPlayerBase interface
 	virtual FName GetGroupName() const override;
 	virtual EAnimGroupRole::Type GetGroupRole() const override;
 	virtual EAnimSyncMethod GetGroupMethod() const override;
 	virtual bool GetIgnoreForRelevancyTest() const override;
-	virtual void SetGroupName(FName InGroupName) override;
-	virtual void SetGroupRole(EAnimGroupRole::Type InRole) override;
-	virtual void SetGroupMethod(EAnimSyncMethod InMethod) override;
-	virtual void SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override;	
+	virtual bool SetGroupName(FName InGroupName) override;
+	virtual bool SetGroupRole(EAnimGroupRole::Type InRole) override;
+	virtual bool SetGroupMethod(EAnimSyncMethod InMethod) override;
+	virtual bool SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override;
 };
 
 // Sequence player node that can be used standalone (without constant folding)
@@ -212,8 +222,8 @@ protected:
 
 public:
 	// FAnimNode_SequencePlayerBase interface
-	virtual void SetSequence(UAnimSequenceBase* InSequence) override { Sequence = InSequence; }
-	virtual void SetLoopAnimation(bool bInLoopAnimation) override { bLoopAnimation = bInLoopAnimation; }
+	virtual bool SetSequence(UAnimSequenceBase* InSequence) override { Sequence = InSequence; return true; }
+	virtual bool SetLoopAnimation(bool bInLoopAnimation) override { bLoopAnimation = bInLoopAnimation; return true; }
 	virtual UAnimSequenceBase* GetSequence() const override { return Sequence; }
 	virtual float GetPlayRateBasis() const override { return PlayRateBasis; }
 	virtual float GetPlayRate() const override { return PlayRate; }
@@ -227,8 +237,10 @@ public:
 	virtual EAnimGroupRole::Type GetGroupRole() const override { return GroupRole; }
 	virtual EAnimSyncMethod GetGroupMethod() const override { return Method; }
 	virtual bool GetIgnoreForRelevancyTest() const override { return bIgnoreForRelevancyTest; }
-	virtual void SetGroupName(FName InGroupName) override { GroupName = InGroupName; }
-	virtual void SetGroupRole(EAnimGroupRole::Type InRole) override { GroupRole = InRole; }
-	virtual void SetGroupMethod(EAnimSyncMethod InMethod) override { Method = InMethod; }
-	virtual void SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override { bIgnoreForRelevancyTest = bInIgnoreForRelevancyTest; }
+	virtual bool SetGroupName(FName InGroupName) override { GroupName = InGroupName; return true; }
+	virtual bool SetGroupRole(EAnimGroupRole::Type InRole) override { GroupRole = InRole; return true; }
+	virtual bool SetGroupMethod(EAnimSyncMethod InMethod) override { Method = InMethod; return true; }
+	virtual bool SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override { bIgnoreForRelevancyTest = bInIgnoreForRelevancyTest; return true; }
+	virtual bool SetStartPosition(float InStartPosition) override { StartPosition = InStartPosition; return  true; }
+	virtual bool SetPlayRate(float InPlayRate) override { PlayRate = InPlayRate; return true; }
 };

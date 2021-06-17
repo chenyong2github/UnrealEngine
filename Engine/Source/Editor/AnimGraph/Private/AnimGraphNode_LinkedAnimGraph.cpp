@@ -3,11 +3,14 @@
 #include "AnimGraphNode_LinkedAnimGraph.h"
 
 #include "AnimGraphNode_AssetPlayerBase.h"
+#include "AnimGraphNode_CallFunction.h"
 #include "BlueprintNodeSpawner.h"
 #include "Animation/AnimBlueprint.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Blueprint.h"
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "IAnimBlueprintCopyTermDefaultsContext.h"
+#include "KismetCompiler.h"
 
 #define LOCTEXT_NAMESPACE "UAnimGraphNode_LinkedAnimGraph"
 
@@ -20,7 +23,7 @@ void UAnimGraphNode_LinkedAnimGraph::PostPasteNode()
 		{
 			if(UAnimBlueprint* ThisBlueprint = GetAnimBlueprint())
 			{
-				if(LinkedBlueprint->TargetSkeleton != ThisBlueprint->TargetSkeleton)
+				if(!LinkedBlueprint->bIsTemplate && !ThisBlueprint->bIsTemplate && LinkedBlueprint->TargetSkeleton != ThisBlueprint->TargetSkeleton)
 				{
 					Node.InstanceClass = nullptr;
 				}
@@ -29,22 +32,45 @@ void UAnimGraphNode_LinkedAnimGraph::PostPasteNode()
 	}
 }
 
+TArray<UEdGraph*> UAnimGraphNode_LinkedAnimGraph::GetExternalGraphs() const
+{
+	if(UClass* InstanceClass = GetTargetClass())
+	{
+		if(UAnimBlueprint* LinkedBlueprint = Cast<UAnimBlueprint>(UBlueprint::GetBlueprintFromClass(InstanceClass)))
+		{
+			for(UEdGraph* Graph : LinkedBlueprint->FunctionGraphs)
+			{
+				if(Graph->GetFName() == UEdGraphSchema_K2::GN_AnimGraph)
+				{
+					return { Graph };
+				}
+			}
+		}
+	}
+
+	return TArray<UEdGraph*>();
+}
+
 void UAnimGraphNode_LinkedAnimGraph::SetupFromAsset(const FAssetData& InAssetData, bool bInIsTemplateNode)
 {
-	InAssetData.GetTagValue("TargetSkeleton", SkeletonName);
-	
-	if(!bInIsTemplateNode)
+	if(InAssetData.IsValid())
 	{
-		UAnimBlueprint* AnimBlueprint = CastChecked<UAnimBlueprint>(InAssetData.GetAsset());
-		Node.InstanceClass = AnimBlueprint->GeneratedClass.Get();
+		InAssetData.GetTagValue("TargetSkeleton", SkeletonName);
+		if(SkeletonName == TEXT("None"))
+		{
+			SkeletonName.Empty();
+		}
+
+		if(!bInIsTemplateNode)
+		{
+			UAnimBlueprint* AnimBlueprint = CastChecked<UAnimBlueprint>(InAssetData.GetAsset());
+			Node.InstanceClass = AnimBlueprint->GeneratedClass.Get();
+		}	
 	}
 }
 
 void UAnimGraphNode_LinkedAnimGraph::GetMenuActions(FBlueprintActionDatabaseRegistrar& InActionRegistrar) const
 {
-	// Anim graph node base class will allow us to spawn an 'empty' node
-	UAnimGraphNode_Base::GetMenuActions(InActionRegistrar);
-
 	UAnimGraphNode_AssetPlayerBase::GetMenuActionsHelper(
 		InActionRegistrar,
 		GetClass(),
@@ -52,11 +78,25 @@ void UAnimGraphNode_LinkedAnimGraph::GetMenuActions(FBlueprintActionDatabaseRegi
 		{ },
 		[](const FAssetData& InAssetData)
 		{
-			return FText::Format(LOCTEXT("MenuDescFormat", "{0} - Linked Anim Graph"), FText::FromName(InAssetData.AssetName));
+			if(InAssetData.IsValid())
+			{
+				return FText::Format(LOCTEXT("MenuDescFormat", "{0} - Linked Anim Graph"), FText::FromName(InAssetData.AssetName));
+			}
+			else
+			{
+				return LOCTEXT("MenuDesc", "Linked Anim Graph");
+			}
 		},
 		[](const FAssetData& InAssetData)
 		{
-			return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Linked Anim Graph\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+			if(InAssetData.IsValid())
+			{
+				return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Linked Anim Graph\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
+			}
+			else
+			{
+				return LOCTEXT("MenuDescTooltip", "Linked Anim Graph");
+			}
 		},
 		[](UEdGraphNode* InNewNode, bool bInIsTemplateNode, const FAssetData InAssetData)
 		{
@@ -77,7 +117,7 @@ bool UAnimGraphNode_LinkedAnimGraph::IsActionFilteredOut(class FBlueprintActionF
 		{
 			if (UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Blueprint))
 			{
-				if(!AnimBlueprint->TargetSkeleton->IsCompatibleSkeletonByAssetString(SkeletonName))
+				if(AnimBlueprint->TargetSkeleton != nullptr && !AnimBlueprint->TargetSkeleton->IsCompatibleSkeletonByAssetString(SkeletonName))
 				{
 					bIsFilteredOut = true;
 					break;

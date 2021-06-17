@@ -143,40 +143,7 @@ void UAnimGraphNode_SequenceEvaluator::ValidateAnimNodeDuringCompilation(class U
 {
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 
-	UAnimSequenceBase* SequenceToCheck = Node.GetSequence();
-	UEdGraphPin* SequencePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_SequenceEvaluator, Sequence));
-	if (SequencePin != nullptr && SequenceToCheck == nullptr)
-	{
-		SequenceToCheck = Cast<UAnimSequenceBase>(SequencePin->DefaultObject);
-	}
-
-	if (SequenceToCheck == nullptr)
-	{
-		// Check for bindings
-		bool bHasBinding = false;
-		if(SequencePin != nullptr)
-		{
-			if (FAnimGraphNodePropertyBinding* BindingPtr = PropertyBindings.Find(SequencePin->GetFName()))
-			{
-				bHasBinding = true;
-			}
-		}
-
-		// we may have a connected node or binding
-		if (SequencePin == nullptr || (SequencePin->LinkedTo.Num() == 0 && !bHasBinding))
-		{
-			MessageLog.Error(TEXT("@@ references an unknown sequence"), this);
-		}
-	}
-	else
-	{
-		USkeleton* SeqSkeleton = SequenceToCheck->GetSkeleton();
-		if (SeqSkeleton && // if anim sequence doesn't have skeleton, it might be due to anim sequence not loaded yet, @todo: wait with anim blueprint compilation until all assets are loaded?
-			!ForSkeleton->IsCompatible(SeqSkeleton))
-		{
-			MessageLog.Error(TEXT("@@ references sequence that uses an incompatible skeleton @@"), this, SeqSkeleton);
-		}
-	}
+	ValidateAnimNodeDuringCompilationHelper(ForSkeleton, MessageLog, Node.GetSequence(), UAnimSequenceBase::StaticClass(), FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_SequenceEvaluator, Sequence)));
 }
 
 void UAnimGraphNode_SequenceEvaluator::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const

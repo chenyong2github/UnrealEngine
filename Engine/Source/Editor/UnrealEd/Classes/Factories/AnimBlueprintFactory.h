@@ -34,6 +34,10 @@ class UAnimBlueprintFactory : public UFactory
 	UPROPERTY(EditAnywhere, Category=AnimBlueprintFactory)
 	TObjectPtr<class USkeletalMesh> PreviewSkeletalMesh;
 
+	// Whether the created blueprint should be a template with no target skeleton
+	UPROPERTY(EditAnywhere, Category=AnimBlueprintFactory)
+	bool bTemplate;
+	
 	//~ Begin UFactory Interface
 	virtual bool ConfigureProperties() override;
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn, FName CallingContext) override;

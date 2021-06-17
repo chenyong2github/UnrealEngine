@@ -20,7 +20,7 @@ void SGraphNodeBlendSpaceGraph::Construct(const FArguments& InArgs, UAnimGraphNo
 
 	UpdateGraphNode();
 
-	SAnimationGraphNode::ReconfigurePinWidgetsForPropertyBindings(CastChecked<UAnimGraphNode_Base>(GraphNode), [this](UEdGraphPin* InPin){ return FindWidgetForPin(InPin); });
+	SAnimationGraphNode::ReconfigurePinWidgetsForPropertyBindings(CastChecked<UAnimGraphNode_Base>(GraphNode), SharedThis(this), [this](UEdGraphPin* InPin){ return FindWidgetForPin(InPin); });
 }
 
 UEdGraph* SGraphNodeBlendSpaceGraph::GetInnerGraph() const

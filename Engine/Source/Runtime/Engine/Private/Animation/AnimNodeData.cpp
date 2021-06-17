@@ -64,6 +64,28 @@ void* FAnimNodeData::GetMutableData(UE::Anim::FNodeDataId InId, FAnimNode_Base* 
 }
 #endif
 
+void* FAnimNodeData::GetInstanceData(UE::Anim::FNodeDataId InId, FAnimNode_Base* InNode, UObject* InCurrentObject) const
+{
+	check(Entries.IsValidIndex(InId.Index));
+	
+	const uint32 Entry = Entries[InId.Index];
+	check(Entry != ANIM_NODE_DATA_INVALID_ENTRY);
+	
+	uint32 EntryIndex = (Entry & ANIM_NODE_DATA_INSTANCE_DATA_MASK);
+	if((Entry & ANIM_NODE_DATA_INSTANCE_DATA_FLAG) != 0)
+	{
+		// Use the supplied object or find the object ptr by walking the property chain from this node
+		const UObject* CurrentObject = InCurrentObject ? InCurrentObject : IAnimClassInterface::GetObjectPtrFromAnimNode(&(*AnimClassInterface), InNode);
+
+		// Check the current context is expected
+		check(CurrentObject && CurrentObject->GetClass()->IsChildOf(IAnimClassInterface::GetActualAnimClass(&(*AnimClassInterface))));
+
+		return const_cast<void*>(AnimClassInterface->GetMutableNodeValueRaw(EntryIndex, CurrentObject));
+	}
+
+	return nullptr;
+}
+
 FAnimNodeStructData::FAnimNodeStructData(const UScriptStruct* InNodeType)
 {
 	// Iterated properties are not in the same order they are laid out in memory, so we extract and sort them here.

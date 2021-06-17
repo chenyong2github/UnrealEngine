@@ -348,10 +348,12 @@ void UAnimGraphNode_LinkedInputPose::PostPlacedNewNode()
 			if(UAnimGraphNode_LinkedInputPose* LinkedInputPoseNode = WeakThis.Get())
 			{
 				// refresh the BP editor's details panel in case we are viewing the graph
-				IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(LinkedInputPoseNode->GetAnimBlueprint(), false);
-				check(AssetEditor->GetEditorName() == "AnimationBlueprintEditor");
-				IAnimationBlueprintEditor* AnimationBlueprintEditor = static_cast<IAnimationBlueprintEditor*>(AssetEditor);
-				AnimationBlueprintEditor->RefreshInspector();
+				if(IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(LinkedInputPoseNode->GetAnimBlueprint(), false))
+				{
+					check(AssetEditor->GetEditorName() == "AnimationBlueprintEditor");
+					IAnimationBlueprintEditor* AnimationBlueprintEditor = static_cast<IAnimationBlueprintEditor*>(AssetEditor);
+					AnimationBlueprintEditor->RefreshInspector();
+				}
 			}
 			return false;
 		}));

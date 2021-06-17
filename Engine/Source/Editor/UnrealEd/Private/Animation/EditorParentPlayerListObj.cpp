@@ -53,7 +53,7 @@ void UEditorParentPlayerListObj::InitialiseFromBlueprint(UAnimBlueprint* Bluepri
 			for(UEdGraphNode* Node : Graph->Nodes)
 			{
 				UAnimGraphNode_Base* AnimNode = Cast<UAnimGraphNode_Base>(Node);
-				if(AnimNode && AnimNode->GetAnimationAsset())
+				if(AnimNode && (AnimNode->GetAnimationAsset() || AnimNode->GetAnimationAssetClass()))
 				{
 					FAnimParentNodeAssetOverride& Override = AddOverridableNode(AnimNode);
 

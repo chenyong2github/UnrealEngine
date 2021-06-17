@@ -84,18 +84,21 @@ class FAnimBlueprintNodeCopyTermDefaultsContext : public IAnimBlueprintNodeCopyT
 private:
 	friend class FAnimBlueprintCompilerContext;
 
-	FAnimBlueprintNodeCopyTermDefaultsContext(const FProperty* InTargetProperty, uint8* InDestinationPtr, const uint8* InSourcePtr, int32 InNodePropertyIndex)
-		: TargetProperty(InTargetProperty)
+	FAnimBlueprintNodeCopyTermDefaultsContext(UObject* InCDO, const FProperty* InTargetProperty, uint8* InDestinationPtr, const uint8* InSourcePtr, int32 InNodePropertyIndex)
+		: CDO(InCDO)
+		, TargetProperty(InTargetProperty)
 		, DestinationPtr(InDestinationPtr)
 		, SourcePtr(InSourcePtr)
 		, NodePropertyIndex(InNodePropertyIndex)
 	{}
 
+	virtual UObject* GetClassDefaultObjectImpl() const override { return CDO; }
 	virtual const FProperty* GetTargetPropertyImpl() const override { return TargetProperty; }
 	virtual uint8* GetDestinationPtrImpl() const override { return DestinationPtr; }
 	virtual const uint8* GetSourcePtrImpl() const override { return SourcePtr; }
 	virtual int32 GetNodePropertyIndexImpl() const override { return NodePropertyIndex; }
 
+	UObject* CDO;
 	const FProperty* TargetProperty;
 	uint8* DestinationPtr;
 	const uint8* SourcePtr;
@@ -107,18 +110,21 @@ class FAnimBlueprintExtensionCopyTermDefaultsContext : public IAnimBlueprintExte
 private:
 	friend class FAnimBlueprintCompilerContext;
 
-	FAnimBlueprintExtensionCopyTermDefaultsContext(const FProperty* InTargetProperty, uint8* InDestinationPtr, const uint8* InSourcePtr, int32 InNodePropertyIndex)
-        : TargetProperty(InTargetProperty)
-        , DestinationPtr(InDestinationPtr)
-        , SourcePtr(InSourcePtr)
-        , NodePropertyIndex(InNodePropertyIndex)
+	FAnimBlueprintExtensionCopyTermDefaultsContext(UObject* InCDO, const FProperty* InTargetProperty, uint8* InDestinationPtr, const uint8* InSourcePtr, int32 InNodePropertyIndex)
+		: CDO(InCDO)
+		, TargetProperty(InTargetProperty)
+		, DestinationPtr(InDestinationPtr)
+		, SourcePtr(InSourcePtr)
+		, NodePropertyIndex(InNodePropertyIndex)
 	{}
 
+	virtual UObject* GetClassDefaultObjectImpl() const override { return CDO; }
 	virtual const FProperty* GetTargetPropertyImpl() const override { return TargetProperty; }
 	virtual uint8* GetDestinationPtrImpl() const override { return DestinationPtr; }
 	virtual const uint8* GetSourcePtrImpl() const override { return SourcePtr; }
 	virtual int32 GetNodePropertyIndexImpl() const override { return NodePropertyIndex; }
 
+	UObject* CDO;
 	const FProperty* TargetProperty;
 	uint8* DestinationPtr;
 	const uint8* SourcePtr;

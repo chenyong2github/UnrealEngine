@@ -5,11 +5,6 @@
 
 void FAnimNode_CallFunction::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
 {
-	if(FunctionName != NAME_None)
-	{
-		Function = InAnimInstance->FindFunction(FunctionName);
-	}
-	
 	Counter.Reset();
 	CurrentWeight = 0.0f;
 }
@@ -23,10 +18,9 @@ void FAnimNode_CallFunction::GatherDebugData(FNodeDebugData& DebugData)
 
 void FAnimNode_CallFunction::CallFunctionFromCallSite(EAnimFunctionCallSite InCallSite, const FAnimationBaseContext& InContext) const
 {
-	if(CallSite == InCallSite && Function != nullptr)
+	if(CallSite == InCallSite)
 	{
-		UObject* AnimInstanceObject = InContext.AnimInstanceProxy->GetAnimInstanceObject();
-		AnimInstanceObject->ProcessEvent(Function, nullptr);
+		GetFunction().Call(InContext.AnimInstanceProxy->GetAnimInstanceObject());
 	}
 }
 
@@ -89,4 +83,9 @@ void FAnimNode_CallFunction::Initialize_AnyThread(const FAnimationInitializeCont
 	Source.Initialize(InContext);
 
 	CallFunctionFromCallSite(EAnimFunctionCallSite::OnInitializePostRecursion, InContext);
+}
+
+const FAnimNodeFunctionRef& FAnimNode_CallFunction::GetFunction() const
+{
+	return GET_ANIM_NODE_DATA(FAnimNodeFunctionRef, Function);
 }

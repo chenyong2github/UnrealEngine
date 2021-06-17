@@ -411,7 +411,7 @@ void FPersonaAssetFamily::FindCounterpartAssets(const UObject* InAsset, const US
 		const UAnimBlueprint* AnimBlueprint = CastChecked<const UAnimBlueprint>(InAsset);
 		OutSkeleton = AnimBlueprint->TargetSkeleton;
 		OutMesh = AnimBlueprint->GetPreviewMesh();
-		check(AnimBlueprint->BlueprintType == BPTYPE_Interface || AnimBlueprint->TargetSkeleton != nullptr);
+		check(AnimBlueprint->BlueprintType == BPTYPE_Interface || AnimBlueprint->bIsTemplate || AnimBlueprint->TargetSkeleton != nullptr);
 		if(OutMesh == nullptr && AnimBlueprint->TargetSkeleton)
 		{
 			OutMesh = AnimBlueprint->TargetSkeleton->GetPreviewMesh();

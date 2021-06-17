@@ -282,6 +282,8 @@ void FAnimInstanceProxy::InitializeRootNode(bool bInDeferRootNodeInitialization)
 	{
 		bDeferRootNodeInitialization = true;
 	}
+
+	bInitializeSubsystems = true;
 }
 
 void FAnimInstanceProxy::InitializeRootNode_WithRoot(FAnimNode_Base* InRootNode)
@@ -303,8 +305,8 @@ void FAnimInstanceProxy::InitializeRootNode_WithRoot(FAnimNode_Base* InRootNode)
 		}
 		else
 		{
-		InRootNode->Initialize_AnyThread(InitContext);
-	}
+			InRootNode->Initialize_AnyThread(InitContext);
+		}
 	}
 }
 
@@ -1065,6 +1067,16 @@ void FAnimInstanceProxy::UpdateAnimation_WithRoot(const FAnimationUpdateContext&
 
 	if(InRootNode == RootNode)
 	{
+		if(bInitializeSubsystems && AnimClassInterface)
+		{
+			AnimClassInterface->ForEachSubsystem(GetAnimInstanceObject(), [this](const FAnimSubsystemInstanceContext& InContext)
+			{
+				InContext.SubsystemInstance.Initialize_WorkerThread();
+				return EAnimSubsystemEnumeration::Continue;
+			});
+			bInitializeSubsystems = false;
+		}
+		
 		if(bDeferRootNodeInitialization)
 		{
 			InitializeRootNode_WithRoot(RootNode);

@@ -878,6 +878,12 @@ void UAnimBlueprintGeneratedClass::BuildConstantProperties()
 				{
 					ConstantSubsystemProperties.Add(StructProp);
 				}
+				// Initialize any anim node functions held in sparse data
+				else if(StructProp->Struct == FAnimNodeFunctionRef::StaticStruct())
+				{
+					FAnimNodeFunctionRef& AnimNodeFunction = *StructProp->ContainerPtrToValuePtr<FAnimNodeFunctionRef>(SparseClassData);
+					AnimNodeFunction.Initialize(this);
+				}
 			}
 			
 			ConstantProperties.Add(*It);

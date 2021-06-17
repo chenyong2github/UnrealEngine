@@ -6,8 +6,11 @@
 #include "Animation/AnimTrace.h"
 #include "UObject/CoreObjectVersion.h"
 #include "Animation/AnimAttributes.h"
+#include "Animation/AnimNode_LinkedAnimGraph.h"
 #include "Animation/AnimSubsystem_Base.h"
 #include "Animation/AnimRootMotionProvider.h"
+#include "Animation/AnimSubsystem_NodeRelevancy.h"
+#include "Animation/AnimNodeContext.h"
 
 /////////////////////////////////////////////////////
 // FAnimationBaseContext
@@ -150,6 +153,81 @@ void FAnimNode_Base::ResetDynamics(ETeleportType InTeleportType)
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
+const FAnimNodeFunctionRef& FAnimNode_Base::GetInitializeFunction() const
+{
+	return GET_ANIM_NODE_DATA(FAnimNodeFunctionRef, InitializeFunction);
+}
+
+const FAnimNodeFunctionRef& FAnimNode_Base::GetBecomeRelevantFunction() const
+{
+	return GET_ANIM_NODE_DATA(FAnimNodeFunctionRef, BecomeRelevantFunction);
+}
+
+const FAnimNodeFunctionRef& FAnimNode_Base::GetUpdateFunction() const
+{
+	return GET_ANIM_NODE_DATA(FAnimNodeFunctionRef, UpdateFunction);
+}
+
+const FAnimNodeFunctionRef& FAnimNode_Base::GetEvaluateFunction() const
+{
+	return GET_ANIM_NODE_DATA(FAnimNodeFunctionRef, EvaluateFunction);
+}
+
+// Private impl used to call anim node functions from pose links
+struct FAnimNodeFunctionCaller
+{
+private:
+	template<typename ContextType>
+	static void CallFunctionHelper(const FAnimNodeFunctionRef& InFunction, ContextType InContext, FAnimNode_Base& InNode)
+	{
+		if(InFunction.IsValid())
+		{
+			IAnimClassInterface* AnimBlueprintClass = InContext.GetAnimClass();
+			check(AnimBlueprintClass);
+
+			const TArray<FStructProperty*>& AnimNodeProperties = AnimBlueprintClass->GetAnimNodeProperties();
+			UScriptStruct* ScriptStruct = AnimNodeProperties[InNode.GetNodeIndex()]->Struct;
+			TSharedRef<FAnimNodeContext::FData> ContextData = MakeShared<FAnimNodeContext::FData>(InContext, InNode, ScriptStruct);
+			FAnimNodeContext NodeContext(ContextData);
+			InFunction.Call(InContext.GetAnimInstanceObject(), &NodeContext);
+		}
+	}
+
+public:
+	static void Initialize(const FAnimationInitializeContext& InContext, FAnimNode_Base& InNode)
+	{
+		CallFunctionHelper(InNode.GetInitializeFunction(), InContext, InNode);
+	}
+	
+	static void BecomeRelevant(const FAnimationUpdateContext& InContext, FAnimNode_Base& InNode)
+	{
+		const FAnimNodeFunctionRef& Function = InNode.GetBecomeRelevantFunction();
+		if(Function.IsValid())
+		{
+			FAnimSubsystemInstance_NodeRelevancy& RelevancySubsystem = CastChecked<UAnimInstance>(InContext.GetAnimInstanceObject())->GetSubsystem<FAnimSubsystemInstance_NodeRelevancy>();
+			FAnimNodeRelevancyStatus Status = RelevancySubsystem.UpdateNodeRelevancy(InContext, InNode);
+			if(Status.HasJustBecomeRelevant())
+			{
+				CallFunctionHelper(Function, InContext, InNode);
+			}
+		}
+	}
+	
+	static void Update(const FAnimationUpdateContext& InContext, FAnimNode_Base& InNode)
+	{
+		CallFunctionHelper(InNode.GetUpdateFunction(), InContext, InNode);
+	}
+	
+	static void Evaluate(FPoseContext& InContext, FAnimNode_Base& InNode)
+	{
+		CallFunctionHelper(InNode.GetEvaluateFunction(), InContext, InNode);
+	}
+
+	static void EvaluateComponentSpace(FComponentSpacePoseContext& InContext, FAnimNode_Base& InNode)
+	{
+		CallFunctionHelper(InNode.GetEvaluateFunction(), InContext, InNode);
+	}
+};
 
 /////////////////////////////////////////////////////
 // FPoseLinkBase
@@ -196,6 +274,7 @@ void FPoseLinkBase::Initialize(const FAnimationInitializeContext& InContext)
 		FAnimationInitializeContext LinkContext(InContext);
 		LinkContext.SetNodeId(LinkID);
 		TRACE_SCOPED_ANIM_NODE(LinkContext);
+		FAnimNodeFunctionCaller::Initialize(LinkContext, *LinkedNode);
 		LinkedNode->Initialize_AnyThread(LinkContext);
 	}
 }
@@ -306,6 +385,8 @@ void FPoseLinkBase::Update(const FAnimationUpdateContext& InContext)
 	{
 		FAnimationUpdateContext LinkContext(InContext.WithNodeId(LinkID));
 		TRACE_SCOPED_ANIM_NODE(LinkContext);
+		FAnimNodeFunctionCaller::BecomeRelevant(LinkContext, *LinkedNode);
+		FAnimNodeFunctionCaller::Update(LinkContext, *LinkedNode);
 		LinkedNode->Update_AnyThread(LinkContext);
 	}
 }
@@ -355,6 +436,7 @@ void FPoseLink::Evaluate(FPoseContext& Output)
 		{
 			Output.SetNodeId(LinkID);
 			TRACE_SCOPED_ANIM_NODE(Output);
+			FAnimNodeFunctionCaller::Evaluate(Output, *LinkedNode);
 			LinkedNode->Evaluate_AnyThread(Output);
 			TRACE_ANIM_NODE_BLENDABLE_ATTRIBUTES(Output, SourceID, LinkID);
 		}
@@ -465,6 +547,7 @@ void FComponentSpacePoseLink::EvaluateComponentSpace(FComponentSpacePoseContext&
 		{
 			Output.SetNodeId(LinkID);
 			TRACE_SCOPED_ANIM_NODE(Output);
+			FAnimNodeFunctionCaller::EvaluateComponentSpace(Output, *LinkedNode);
 			LinkedNode->EvaluateComponentSpace_AnyThread(Output);
 			TRACE_ANIM_NODE_BLENDABLE_ATTRIBUTES(Output, SourceID, LinkID);
 		}

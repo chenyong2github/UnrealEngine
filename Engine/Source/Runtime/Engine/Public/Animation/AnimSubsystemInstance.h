@@ -9,4 +9,9 @@ USTRUCT()
 struct FAnimSubsystemInstance
 {
 	GENERATED_BODY()
+
+	virtual ~FAnimSubsystemInstance() {}
+
+	// Override point used to initialize per-instance data. Called on a worker thread.
+	virtual void Initialize_WorkerThread() {}
 };

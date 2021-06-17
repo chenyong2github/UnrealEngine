@@ -90,6 +90,11 @@ class ENGINE_API UAnimBlueprint : public UBlueprint, public IInterface_PreviewMe
 	UPROPERTY()
 	TArray<FAnimGroupInfo> Groups;
 
+	// This is an anim blueprint that acts as a set of template functionality without being tied to a specific skeleton.
+	// Implies a null TargetSkeleton.
+	UPROPERTY(AssetRegistrySearchable)
+	bool bIsTemplate;
+	
 	/**
 	 * Allows this anim Blueprint to update its native update, blend tree, montages and asset players on
 	 * a worker thread. The compiler will attempt to pick up any issues that may occur with threaded update.
@@ -168,6 +173,7 @@ class ENGINE_API UAnimBlueprint : public UBlueprint, public IInterface_PreviewMe
 
 	virtual void PostLoad() override;
 	virtual bool FindDiffs(const UBlueprint* OtherBlueprint, FDiffResults& Results) const override;
+	virtual void SetObjectBeingDebugged(UObject* NewObject) override;
 	
 protected:
 	// Broadcast when an override is changed, allowing derived blueprints to be updated

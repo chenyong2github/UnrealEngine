@@ -66,6 +66,7 @@
 #include "Widgets/Input/SButton.h"
 #include "EditorFontGlyphs.h"
 #include "AnimationBlueprintInterfaceEditorMode.h"
+#include "AnimationBlueprintTemplateEditorMode.h"
 #include "ToolMenus.h"
 
 #include "PersonaToolMenuContext.h"
@@ -94,6 +95,7 @@ const FName AnimationBlueprintEditorAppName(TEXT("AnimationBlueprintEditorApp"))
 
 const FName FAnimationBlueprintEditorModes::AnimationBlueprintEditorMode("GraphName");	// For backwards compatibility we keep the old mode name here
 const FName FAnimationBlueprintEditorModes::AnimationBlueprintInterfaceEditorMode("Interface");
+const FName FAnimationBlueprintEditorModes::AnimationBlueprintTemplateEditorMode("Template");
 
 namespace AnimationBlueprintEditorTabs
 {
@@ -262,7 +264,7 @@ void FAnimationBlueprintEditor::InitAnimationBlueprintEditor(const EToolkitMode:
 	TSharedRef<IAssetFamily> AssetFamily = PersonaModule.CreatePersonaAssetFamily(InAnimBlueprint);
 	AssetFamily->RecordAssetOpened(FAssetData(InAnimBlueprint));
 
-	if(InAnimBlueprint->BlueprintType != BPTYPE_Interface)
+	if(InAnimBlueprint->BlueprintType != BPTYPE_Interface && !InAnimBlueprint->bIsTemplate)
 	{
 		// create the skeleton tree
 		FSkeletonTreeArgs SkeletonTreeArgs;
@@ -312,6 +314,19 @@ void FAnimationBlueprintEditor::InitAnimationBlueprintEditor(const EToolkitMode:
 
 		// Activate the initial mode (which will populate with a real layout)
 		SetCurrentMode(FAnimationBlueprintEditorModes::AnimationBlueprintInterfaceEditorMode);
+	}
+	else if(InAnimBlueprint->bIsTemplate)
+	{
+		AddApplicationMode(
+			FAnimationBlueprintEditorModes::AnimationBlueprintTemplateEditorMode,
+			MakeShareable(new FAnimationBlueprintTemplateEditorMode(SharedThis(this))));
+		
+		ExtendMenu();
+		ExtendToolbar();
+		RegenerateMenusAndToolbars();
+
+		// Activate the initial mode (which will populate with a real layout)
+		SetCurrentMode(FAnimationBlueprintEditorModes::AnimationBlueprintTemplateEditorMode);
 	}
 	else
 	{
@@ -393,7 +408,7 @@ void FAnimationBlueprintEditor::ExtendToolbar()
 	}
 
 	UAnimBlueprint* AnimBlueprint = PersonaToolkit->GetAnimBlueprint();
-	if(AnimBlueprint && AnimBlueprint->BlueprintType != BPTYPE_Interface)
+	if(AnimBlueprint && AnimBlueprint->BlueprintType != BPTYPE_Interface && !AnimBlueprint->bIsTemplate)
 	{
 		ToolbarExtender->AddToolBarExtension(
 			"Asset",
@@ -1553,7 +1568,7 @@ FText FAnimationBlueprintEditor::GetGraphDecorationString(UEdGraph* InGraph) con
 {
 	if (!IsGraphInCurrentBlueprint(InGraph))
 	{
-		return LOCTEXT("PersonaExternalGraphDecoration", " Parent Graph Preview");
+		return LOCTEXT("PersonaExternalGraphDecoration", " External Graph Preview");
 	}
 	return FText::GetEmpty();
 }

@@ -168,19 +168,35 @@ float FAnimNode_SequencePlayerBase::GetEffectiveStartPosition(const FAnimationBa
 	return GetStartPosition();
 }
 
-void FAnimNode_SequencePlayer::SetSequence(UAnimSequenceBase* InSequence)
+bool FAnimNode_SequencePlayer::SetSequence(UAnimSequenceBase* InSequence)
 {
 #if WITH_EDITORONLY_DATA
-	TObjectPtr<UAnimSequenceBase>& SequenceToSet = GET_MUTABLE_ANIM_NODE_DATA(TObjectPtr<UAnimSequenceBase>, Sequence);
-	SequenceToSet = InSequence;
+	Sequence = InSequence;
+	GET_MUTABLE_ANIM_NODE_DATA(TObjectPtr<UAnimSequenceBase>, Sequence) = InSequence;
 #endif
+	
+	if(TObjectPtr<UAnimSequenceBase>* SequencePtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(TObjectPtr<UAnimSequenceBase>, Sequence))
+	{
+		*SequencePtr = InSequence;
+		return true;
+	}
+
+	return false;
 }
 
-void FAnimNode_SequencePlayer::SetLoopAnimation(bool bInLoopAnimation)
+bool FAnimNode_SequencePlayer::SetLoopAnimation(bool bInLoopAnimation)
 {
 #if WITH_EDITORONLY_DATA
-	bLoopAnimation = bInLoopAnimation; 
+	bLoopAnimation = bInLoopAnimation;
 #endif
+	
+	if(bool* bLoopAnimationPtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(bool, bLoopAnimation))
+	{
+		*bLoopAnimationPtr = bInLoopAnimation;
+		return true;
+	}
+
+	return false;
 }
 
 UAnimSequenceBase* FAnimNode_SequencePlayer::GetSequence() const
@@ -238,32 +254,87 @@ bool FAnimNode_SequencePlayer::GetIgnoreForRelevancyTest() const
 	return GET_ANIM_NODE_DATA(bool, bIgnoreForRelevancyTest);
 }
 
-void FAnimNode_SequencePlayer::SetGroupName(FName InGroupName)
+bool FAnimNode_SequencePlayer::SetGroupName(FName InGroupName)
 {
 #if WITH_EDITORONLY_DATA
 	GroupName = InGroupName;
 #endif
+
+	if(FName* GroupNamePtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(FName, GroupName))
+	{
+		*GroupNamePtr = InGroupName;
+		return true;
+	}
+
+	return false;
 }
 
-void FAnimNode_SequencePlayer::SetGroupRole(EAnimGroupRole::Type InRole)
+bool FAnimNode_SequencePlayer::SetGroupRole(EAnimGroupRole::Type InRole)
 {
 #if WITH_EDITORONLY_DATA
 	GroupRole = InRole;
 #endif
+
+	if(TEnumAsByte<EAnimGroupRole::Type>* GroupRolePtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(TEnumAsByte<EAnimGroupRole::Type>, GroupRole))
+	{
+		*GroupRolePtr = InRole;
+		return true;
+	}
+
+	return false;
 }
 
-void FAnimNode_SequencePlayer::SetGroupMethod(EAnimSyncMethod InMethod)
+bool FAnimNode_SequencePlayer::SetGroupMethod(EAnimSyncMethod InMethod)
 {
 #if WITH_EDITORONLY_DATA
 	Method = InMethod;
 #endif
+
+	if(EAnimSyncMethod* MethodPtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(EAnimSyncMethod, Method))
+	{
+		*MethodPtr = InMethod;
+		return true;
+	}
+
+	return false;
 }
 
-void FAnimNode_SequencePlayer::SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest)
+bool FAnimNode_SequencePlayer::SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest)
 {
 #if WITH_EDITORONLY_DATA
 	bIgnoreForRelevancyTest = bInIgnoreForRelevancyTest;
 #endif
+
+	if(bool* bIgnoreForRelevancyTestPtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(bool, bIgnoreForRelevancyTest))
+	{
+		*bIgnoreForRelevancyTestPtr = bInIgnoreForRelevancyTest;
+		return true;
+	}
+
+	return false;
+}
+
+bool FAnimNode_SequencePlayer::SetStartPosition(float InStartPosition)
+{
+	if(float* StartPositionPtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(float, StartPosition))
+	{
+		*StartPositionPtr = InStartPosition;
+		return true;
+	}
+
+	return false;
+}
+
+
+bool FAnimNode_SequencePlayer::SetPlayRate(float InPlayRate)
+{
+	if(float* PlayRatePtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(float, PlayRate))
+	{
+		*PlayRatePtr = InPlayRate;
+		return true;
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

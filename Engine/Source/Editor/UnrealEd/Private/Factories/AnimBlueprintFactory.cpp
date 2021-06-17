@@ -35,6 +35,8 @@
 #include "ClassViewerModule.h"
 #include "ClassViewerFilter.h"
 #include "Animation/AnimLayerInterface.h"
+#include "Widgets/Input/SSegmentedControl.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
 
 #define LOCTEXT_NAMESPACE "AnimBlueprintFactory"
 
@@ -44,7 +46,7 @@ static bool CanCreateAnimBlueprint(const FAssetData& Skeleton, UClass const * Pa
 	{
 		if (UAnimBlueprintGeneratedClass const * GeneratedParent = Cast<const UAnimBlueprintGeneratedClass>(ParentClass))
 		{
-			if (Skeleton.GetExportTextName() != FAssetData(GeneratedParent->GetTargetSkeleton()).GetExportTextName())
+			if (GeneratedParent->GetTargetSkeleton() != nullptr && Skeleton.GetExportTextName() != FAssetData(GeneratedParent->GetTargetSkeleton()).GetExportTextName())
 			{
 				return false;
 			}
@@ -73,35 +75,89 @@ public:
 		[
 			SNew(SBorder)
 			.Visibility(EVisibility::Visible)
-			.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+			.BorderImage(FEditorStyle::GetBrush("ChildWindow.Background"))
 			[
 				SNew(SBox)
 				.Visibility(EVisibility::Visible)
-				.WidthOverride(500.0f)
+				.WidthOverride(800.0f)
+				.HeightOverride(500.0f)
 				[
 					SNew(SVerticalBox)
 					+SVerticalBox::Slot()
-					.FillHeight(1)
+					.FillHeight(1.0f)
 					[
-						SNew(SBorder)
-						.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
-						.Content()
+						SNew(SHorizontalBox)
+						+SHorizontalBox::Slot()
+						.FillWidth(0.5f)
+						.Padding(10.0f)
 						[
-							SAssignNew(ParentClassContainer, SVerticalBox)
+							SNew(SBorder)
+							.BorderImage(FEditorStyle::GetBrush("NewAnimBlueprintDialog.AreaBorder"))
+							[
+								MakeParentClassPicker()
+							]
+						]
+						+SHorizontalBox::Slot()
+						.FillWidth(0.5f)
+						.Padding(10.0f)
+						[
+							SNew(SBorder)
+							.BorderImage(FEditorStyle::GetBrush("NewAnimBlueprintDialog.AreaBorder"))
+							[	
+								SNew(SVerticalBox)
+								+SVerticalBox::Slot()
+								.AutoHeight()
+								.Padding(0.0f, 0.0f, 0.0f, 5.0f)
+								[
+									SNew(SSegmentedControl<bool>)
+									.UniformPadding(FMargin(25.0f,5.0f))
+									.OnValueChanged_Lambda([this](bool bInNewValue)
+									{
+										bTemplate = bInNewValue;
+										if(bTemplate)
+										{
+											TargetSkeleton = FAssetData(); 
+										}
+										RefreshSkeletonPicker();
+									})
+									.Value_Lambda([this](){ return bTemplate; })	
+									+SSegmentedControl<bool>::Slot(false)
+									[
+										SNew(STextBlock)
+										.Text(LOCTEXT("SpecificSkeleton", "SPECIFIC SKELETON"))
+										.TextStyle( FEditorStyle::Get(), "NormalText" )
+									]
+									+SSegmentedControl<bool>::Slot(true)
+									[
+										SNew(STextBlock)
+										.Text(LOCTEXT("Template", "TEMPLATE"))
+										.TextStyle(FEditorStyle::Get(), "NormalText")
+									]
+								]
+								+SVerticalBox::Slot()
+								.FillHeight(1.0f)
+								[
+									SNew(SWidgetSwitcher)
+									.WidgetIndex_Lambda([this](){ return bTemplate ? 1 : 0; })
+									+SWidgetSwitcher::Slot()
+									[
+										MakeSkeletonPickerArea()
+									]
+									+SWidgetSwitcher::Slot()
+									.Padding(5.0f)
+									.VAlign(VAlign_Center)
+									[
+										SNew(STextBlock)
+										.Justification(ETextJustify::Center)
+										.AutoWrapText(true)
+										.Text(LOCTEXT("TemplateDesc", "A Template Animation Blueprint has no target skeleton.\nTemplates cannot have direct references to animation assets placed inside of their animation graphs."))
+										.TextStyle(FEditorStyle::Get(), "NormalText")
+									]
+								]
+							]
 						]
 					]
-					+SVerticalBox::Slot()
-					.FillHeight(1)
-					.Padding(0.0f, 10.0f, 0.0f, 0.0f)
-					[
-						SNew(SBorder)
-						.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
-						.Content()
-						[
-							SAssignNew(SkeletonContainer, SVerticalBox)
-						]
-					]
-
+					
 					// Ok/Cancel buttons
 					+SVerticalBox::Slot()
 					.AutoHeight()
@@ -116,10 +172,14 @@ public:
 						+SUniformGridPanel::Slot(0,0)
 						[
 							SNew(SButton)
+							.IsEnabled_Lambda([this]()
+							{
+								return ParentClass.Get() != nullptr && (bTemplate || TargetSkeleton.IsValid());
+							})
 							.HAlign(HAlign_Center)
 							.ContentPadding( FEditorStyle::GetMargin("StandardDialog.ContentPadding") )
-							.OnClicked(this, &SAnimBlueprintCreateDialog::OkClicked)	
-							.Text(LOCTEXT("CreateAnimBlueprintOk", "OK"))
+							.OnClicked(this, &SAnimBlueprintCreateDialog::OkClicked)
+							.Text(LOCTEXT("CreateAnimBlueprintCreate", "Create"))
 						]
 						+SUniformGridPanel::Slot(1,0)
 						[
@@ -134,8 +194,7 @@ public:
 			]
 		];
 
-		MakeParentClassPicker();
-		MakeSkeletonPicker();
+		RefreshSkeletonPicker();
 	}
 	
 	/** Sets properties for the supplied AnimBlueprintFactory */
@@ -145,7 +204,7 @@ public:
 
 		TSharedRef<SWindow> Window = SNew(SWindow)
 		.Title( LOCTEXT("CreateAnimBlueprintOptions", "Create Animation Blueprint") )
-		.ClientSize(FVector2D(400, 700))
+		.ClientSize(FVector2D(800, 500))
 		.SupportsMinimize(false) .SupportsMaximize(false)
 		[
 			AsShared()
@@ -165,18 +224,11 @@ private:
 	public:
 		/** All children of these classes will be included unless filtered out by another setting. */
 		TSet< const UClass* > AllowedChildrenOfClasses;
-		const FAssetData& ShouldBeCompatibleWithSkeleton;
-
-		FAnimBlueprintParentFilter(const FAssetData& Skeleton) : ShouldBeCompatibleWithSkeleton(Skeleton) {}
 
 		virtual bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef< FClassViewerFilterFuncs > InFilterFuncs ) override
 		{
 			// If it appears on the allowed child-of classes list (or there is nothing on that list)
-			if (InFilterFuncs->IfInChildOfClassesSet( AllowedChildrenOfClasses, InClass) != EFilterReturn::Failed)
-			{
-				return CanCreateAnimBlueprint(ShouldBeCompatibleWithSkeleton, InClass);
-			}
-			return false;
+			return InFilterFuncs->IfInChildOfClassesSet( AllowedChildrenOfClasses, InClass) != EFilterReturn::Failed;
 		}
 
 		virtual bool IsUnloadedClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const TSharedRef< const IUnloadedBlueprintData > InUnloadedClassData, TSharedRef< FClassViewerFilterFuncs > InFilterFuncs) override
@@ -187,7 +239,7 @@ private:
 	};
 
 	/** Creates the combo menu for the parent class */
-	void MakeParentClassPicker()
+	TSharedRef<SWidget> MakeParentClassPicker()
 	{
 		// Load the classviewer module to display a class picker
 		FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
@@ -195,40 +247,45 @@ private:
 		// Fill in options
 		FClassViewerInitializationOptions Options;
 		Options.Mode = EClassViewerMode::ClassPicker;
+		Options.DisplayMode = EClassViewerDisplayMode::TreeView;
+		Options.InitiallySelectedClass = UAnimInstance::StaticClass();
 		
 		// Only allow parenting to base blueprints.
 		Options.bIsBlueprintBaseOnly = true;
 
-		TSharedPtr<FAnimBlueprintParentFilter> Filter = MakeShareable(new FAnimBlueprintParentFilter(TargetSkeleton));
+		TSharedPtr<FAnimBlueprintParentFilter> Filter = MakeShared<FAnimBlueprintParentFilter>();
 		Options.ClassFilters.Add(Filter.ToSharedRef());
 
 		// All child child classes of UAnimInstance are valid.
 		Filter->AllowedChildrenOfClasses.Add(UAnimInstance::StaticClass());
 
-		ParentClassContainer->ClearChildren();
-		ParentClassContainer->AddSlot()
-		.AutoHeight()
-		[
-			SNew( STextBlock )
-			.Text( LOCTEXT("ParentClass", "Parent Class:") )
-			.ShadowOffset( FVector2D(1.0f, 1.0f) )
-		];
-
-		ParentClassContainer->AddSlot()
-		[
-			ClassViewerModule.CreateClassViewer(Options, FOnClassPicked::CreateSP(this, &SAnimBlueprintCreateDialog::OnClassPicked))
-		];
+		return SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(5.0f)
+			.HAlign(HAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("ParentClass", "PARENT CLASS"))
+				.TextStyle( FEditorStyle::Get(), "NormalText" )
+			]
+			+SVerticalBox::Slot()
+			.FillHeight(1.0f)
+			.Padding(5.0f)
+			[
+				ClassViewerModule.CreateClassViewer(Options, FOnClassPicked::CreateSP(this, &SAnimBlueprintCreateDialog::OnClassPicked))
+			];
 	}
 
 	/** Handler for when a parent class is selected */
 	void OnClassPicked(UClass* ChosenClass)
 	{
 		ParentClass = ChosenClass;
-		MakeSkeletonPicker();
+		RefreshSkeletonPicker();
 	}
 
 	/** Creates the combo menu for the target skeleton */
-	void MakeSkeletonPicker()
+	void RefreshSkeletonPicker()
 	{
 		FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 
@@ -236,23 +293,35 @@ private:
 		AssetPickerConfig.Filter.ClassNames.Add(USkeleton::StaticClass()->GetFName());
 		AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SAnimBlueprintCreateDialog::OnSkeletonSelected);
 		AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateSP(this, &SAnimBlueprintCreateDialog::FilterSkeletonBasedOnParentClass);
-		AssetPickerConfig.bAllowNullSelection = true;
+		AssetPickerConfig.bAllowNullSelection = false;
 		AssetPickerConfig.InitialAssetViewType = EAssetViewType::Column;
 		AssetPickerConfig.InitialAssetSelection = TargetSkeleton;
+		AssetPickerConfig.HiddenColumnNames =
+		{
+			"DiskSize",
+			"AdditionalPreviewSkeletalMeshes",
+			"PreviewSkeletalMesh"
+		};
+		AssetPickerConfig.bShowPathInColumnView = false;
+		AssetPickerConfig.bShowTypeInColumnView = false;
 
 		SkeletonContainer->ClearChildren();
-		SkeletonContainer->AddSlot()
-		.AutoHeight()
-		[
-			SNew( STextBlock )
-			.Text( LOCTEXT("TargetSkeleton", "Target Skeleton:") )
-			.ShadowOffset( FVector2D(1.0f, 1.0f) )
-		];
-
 		SkeletonContainer->AddSlot()
 		[
 			ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
 		];
+	}
+	
+	/** Creates the widgets for the target skeleton area */
+	TSharedRef<SWidget> MakeSkeletonPickerArea()
+	{
+		return SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			.FillHeight(1.0f)
+			.Padding(5.0f)
+			[
+				SAssignNew(SkeletonContainer, SVerticalBox)
+			];
 	}
 
 	bool FilterSkeletonBasedOnParentClass(const FAssetData& AssetData)
@@ -273,14 +342,8 @@ private:
 		{
 			AnimBlueprintFactory->BlueprintType = BPTYPE_Normal;
 			AnimBlueprintFactory->ParentClass = ParentClass.Get();
+			AnimBlueprintFactory->bTemplate = bTemplate;
 			AnimBlueprintFactory->TargetSkeleton = Cast<USkeleton>(TargetSkeleton.GetAsset());
-		}
-
-		if ( !TargetSkeleton.IsValid() )
-		{
-			// if TargetSkeleton is not valid
-			FMessageDialog::Open( EAppMsgType::Ok, LOCTEXT("NeedValidSkeleton", "Must specify a valid skeleton for the Anim Blueprint to target."));			
-			return FReply::Handled();
 		}
 
 		if (! CanCreateAnimBlueprint(TargetSkeleton, ParentClass.Get()))
@@ -338,6 +401,9 @@ private:
 	/** The selected skeleton */
 	FAssetData TargetSkeleton;
 
+	/** Whether we have a template selected or not */
+	bool bTemplate = false;
+	
 	/** True if Ok was clicked */
 	bool bOkClicked;
 };
@@ -367,13 +433,6 @@ UObject* UAnimBlueprintFactory::FactoryCreateNew(UClass* Class, UObject* InParen
 	// Make sure we are trying to factory a Anim Blueprint, then create and init one
 	check(Class->IsChildOf(UAnimBlueprint::StaticClass()));
 
-	// If they selected an interface, we dont need a target skeleton
-	if (BlueprintType != BPTYPE_Interface && TargetSkeleton == nullptr)
-	{
-		FMessageDialog::Open( EAppMsgType::Ok, LOCTEXT("NeedValidSkeleton", "Must specify a valid skeleton for the Anim Blueprint to target."));
-		return nullptr;
-	}
-
 	if (BlueprintType != BPTYPE_Interface && ((ParentClass == nullptr) || !FKismetEditorUtilities::CanCreateBlueprintOfClass(ParentClass) || !ParentClass->IsChildOf(UAnimInstance::StaticClass())))
 	{
 		FFormatNamedArguments Args;
@@ -393,7 +452,16 @@ UObject* UAnimBlueprintFactory::FactoryCreateNew(UClass* Class, UObject* InParen
 			FKismetEditorUtilities::CompileBlueprint(NewBP);
 		}
 		
-		NewBP->TargetSkeleton = TargetSkeleton;
+		if(bTemplate)
+		{
+			NewBP->bIsTemplate = true;
+			NewBP->TargetSkeleton = nullptr;
+		}
+		else
+		{
+			NewBP->bIsTemplate = false;
+			NewBP->TargetSkeleton = TargetSkeleton;
+		}
 
 		// Because the BP itself didn't have the skeleton set when the initial compile occured, it's not set on the generated classes either
 		if (UAnimBlueprintGeneratedClass* TypedNewClass = Cast<UAnimBlueprintGeneratedClass>(NewBP->GeneratedClass))
@@ -405,7 +473,7 @@ UObject* UAnimBlueprintFactory::FactoryCreateNew(UClass* Class, UObject* InParen
 			TypedNewClass_SKEL->TargetSkeleton = TargetSkeleton;
 		}
 
-		if (PreviewSkeletalMesh)
+		if (TargetSkeleton && PreviewSkeletalMesh)
 		{
 			NewBP->SetPreviewMesh(PreviewSkeletalMesh);
 		}

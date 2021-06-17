@@ -35,40 +35,7 @@ void UAnimGraphNode_BlendSpacePlayer::ValidateAnimNodeDuringCompilation(class US
 {
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 
-	UBlendSpace* BlendSpaceToCheck = Node.GetBlendSpace();
-	UEdGraphPin* BlendSpacePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_BlendSpacePlayer, BlendSpace));
-	if (BlendSpacePin != nullptr && BlendSpaceToCheck == nullptr)
-	{
-		BlendSpaceToCheck = Cast<UBlendSpace>(BlendSpacePin->DefaultObject);
-	}
-
-	if (BlendSpaceToCheck == nullptr)
-	{
-		// Check for bindings
-		bool bHasBinding = false;
-		if(BlendSpacePin != nullptr)
-		{
-			if (FAnimGraphNodePropertyBinding* BindingPtr = PropertyBindings.Find(BlendSpacePin->GetFName()))
-			{
-				bHasBinding = true;
-			}
-		}
-
-		// we may have a connected node or binding
-		if (BlendSpacePin == nullptr || (BlendSpacePin->LinkedTo.Num() == 0 && !bHasBinding))
-		{
-			MessageLog.Error(TEXT("@@ references an unknown blend space"), this);
-		}		
-	}
-	else
-	{
-		USkeleton* BlendSpaceSkeleton = BlendSpaceToCheck->GetSkeleton();
-		if (BlendSpaceSkeleton && // if blend space doesn't have skeleton, it might be due to blend space not loaded yet, @todo: wait with anim blueprint compilation until all assets are loaded?
-			!ForSkeleton->IsCompatible(BlendSpaceSkeleton))
-		{
-			MessageLog.Error(TEXT("@@ references blendspace that uses an incompatible skeleton @@"), this, BlendSpaceSkeleton);
-		}
-	}
+	ValidateAnimNodeDuringCompilationHelper(ForSkeleton, MessageLog, Node.GetBlendSpace(), UBlendSpace::StaticClass(), FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_BlendSpacePlayer, BlendSpace)));
 }
 
 void UAnimGraphNode_BlendSpacePlayer::BakeDataDuringCompilation(class FCompilerResultsLog& MessageLog)

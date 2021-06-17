@@ -216,6 +216,14 @@ bool UAnimBlueprint::FindDiffs(const UBlueprint* OtherBlueprint, FDiffResults& R
 	return true;
 }
 
+void UAnimBlueprint::SetObjectBeingDebugged(UObject* NewObject)
+{
+	// Look for any linked instances and set them up too if they are not already open in an editor
+	AnimationEditorUtils::SetupDebugLinkedAnimInstances(this, NewObject);
+
+	Super::SetObjectBeingDebugged(NewObject);
+}
+
 #endif
 
 USkeletalMesh* UAnimBlueprint::GetPreviewMesh(bool bFindIfNotSet/*=false*/)

@@ -65,16 +65,16 @@ struct ENGINE_API FAnimNode_AssetPlayerBase : public FAnimNode_Base
 	virtual bool GetIgnoreForRelevancyTest() const { return false; }
 
 	// Set the sync group name we are using
-	virtual void SetGroupName(FName InGroupName) { }
+	virtual bool SetGroupName(FName InGroupName) { return false; }
 
 	// Set the sync group role we are using
-	virtual void SetGroupRole(EAnimGroupRole::Type InRole) { }
+	virtual bool SetGroupRole(EAnimGroupRole::Type InRole) { return false; }
 
 	// Set the sync group method we are using
-	virtual void SetGroupMethod(EAnimSyncMethod InMethod) { }
+	virtual bool SetGroupMethod(EAnimSyncMethod InMethod) { return false; }
 
 	// Set whether this node should be ignored when testing for relevancy in state machines
-	virtual void SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) { }
+	virtual bool SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) { return false; }
 
 private:
 #if WITH_EDITORONLY_DATA
