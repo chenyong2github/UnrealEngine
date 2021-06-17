@@ -15,7 +15,7 @@
 #include "Interfaces/IProjectManager.h"
 #include "ProjectDescriptor.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogNativeClassHierarchy, Verbose, All);
+DEFINE_LOG_CATEGORY_STATIC(LogNativeClassHierarchy, Log, All);
 
 TSharedRef<FNativeClassHierarchyNode> FNativeClassHierarchyNode::MakeFolderEntry(FName InEntryName, FString InEntryPath)
 {
