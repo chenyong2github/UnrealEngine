@@ -16,7 +16,7 @@ namespace Trace {
 namespace Private {
 
 ////////////////////////////////////////////////////////////////////////////////
-bool	Writer_SendTo(const ANSICHAR*, uint32);
+bool	Writer_SendTo(const ANSICHAR*, uint32=0);
 bool	Writer_WriteTo(const ANSICHAR*);
 bool	Writer_Stop();
 
@@ -290,7 +290,7 @@ void Writer_InitializeControl()
 		{
 			if (ArgC > 0)
 			{
-				Writer_SendTo(ArgV[0], 1980);
+				Writer_SendTo(ArgV[0]);
 			}
 		}
 	);

@@ -113,7 +113,7 @@ void FTraceInsightsModule::CreateDefaultStore()
 	// Create the Store Service.
 	UE::Trace::FStoreService::FDesc StoreServiceDesc;
 	StoreServiceDesc.StoreDir = *StoreDir;
-	StoreServiceDesc.RecorderPort = 1980;
+	StoreServiceDesc.RecorderPort = 1981;
 	StoreServiceDesc.ThreadCount = 2;
 	StoreService = TUniquePtr<UE::Trace::FStoreService>(UE::Trace::FStoreService::Create(StoreServiceDesc));
 

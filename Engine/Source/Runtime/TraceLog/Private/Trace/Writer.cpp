@@ -632,7 +632,7 @@ bool Writer_SendTo(const ANSICHAR* Host, uint32 Port)
 
 	Writer_InternalInitialize();
 
-	Port = Port ? Port : 1980;
+	Port = Port ? Port : 1981;
 	UPTRINT DataHandle = TcpSocketConnect(Host, Port);
 	if (!DataHandle)
 	{
