@@ -737,7 +737,17 @@ bool FOpenEditorForAssetCommand::Update()
 	UObject* Object = StaticLoadObject(UObject::StaticClass(), NULL, *AssetName);
 	if ( Object )
 	{
+		// Some assets (like UWorlds) may be destroyed and recreated as part of opening. To protect against this, keep the path to the asset and try to re-find it if it disappeared.
+		TWeakObjectPtr<UObject> WeakObject = Object;
+
 		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Object);
+
+		// If the object was destroyed, attempt to find it if it was recreated
+		if (!WeakObject.IsValid() && !AssetName.IsEmpty())
+		{
+			Object = FindObject<UObject>(nullptr, *AssetName);
+		}
+
 		//This checks to see if the asset sub editor is loaded.
 		if ( GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(Object, true) != NULL )
 		{
