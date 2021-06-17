@@ -208,6 +208,12 @@ namespace CrossCompiler
 			int32 Count;
 		};
 
+		struct FAccelerationStructure
+		{
+			FString Name;
+			int32 Offset = 0;
+		};
+
 		FString Name;
 		TArray<FInOut> Inputs;
 		TArray<FInOut> Outputs;
@@ -220,6 +226,7 @@ namespace CrossCompiler
 		TArray<FSampler> Samplers;
 		TArray<FUAV> UAVs;
 		TArray<FAttribute> SamplerStates;
+		TArray<FAccelerationStructure> AccelerationStructures;
 		uint32 NumThreads[3];
 
 		static bool ReadInOut(const ANSICHAR*& ShaderSource, TArray<FInOut>& OutAttributes);

@@ -713,6 +713,30 @@ public:
 	explicit FRHIRayTracingShader(EShaderFrequency InFrequency) : FRHIShader(RRT_RayTracingShader, InFrequency) {}
 };
 
+class FRHIRayGenShader : public FRHIRayTracingShader
+{
+public:
+	FRHIRayGenShader() : FRHIRayTracingShader(SF_RayGen) {}
+};
+
+class FRHIRayMissShader : public FRHIRayTracingShader
+{
+public:
+	FRHIRayMissShader() : FRHIRayTracingShader(SF_RayMiss) {}
+};
+
+class FRHIRayCallableShader : public FRHIRayTracingShader
+{
+public:
+	FRHIRayCallableShader() : FRHIRayTracingShader(SF_RayCallable) {}
+};
+
+class FRHIRayHitGroupShader : public FRHIRayTracingShader
+{
+public:
+	FRHIRayHitGroupShader() : FRHIRayTracingShader(SF_RayHitGroup) {}
+};
+
 class RHI_API FRHIComputeShader : public FRHIShader
 {
 public:

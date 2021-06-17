@@ -495,6 +495,11 @@ namespace CrossCompiler
 		MetaDataPrintf(Strings.NumThreads, TEXT("%u, %u, %u"), NumThreadsX, NumThreadsY, NumThreadsZ);
 	}
 
+	void FHlslccHeaderWriter::WriteAccelerationStructures(const TCHAR* ResourceName, uint32 BindingIndex)
+	{
+		MetaDataPrintf(Strings.AccelerationStructures, TEXT("%u:%s"), BindingIndex, ResourceName);
+	}
+
 	void FHlslccHeaderWriter::WriteSideTable(const TCHAR* ResourceName, uint32 SideTableIndex)
 	{
 		MetaDataPrintf(Strings.SideTable, TEXT("%s(%d)"), ResourceName, SideTableIndex);
@@ -548,6 +553,7 @@ namespace CrossCompiler
 		PrintAttributes(TEXT("UAVs"), Strings.UAVs);
 		PrintAttributes(TEXT("SamplerStates"), Strings.SamplerStates);
 		PrintAttributes(TEXT("NumThreads"), Strings.NumThreads);
+		PrintAttributes(TEXT("AccelerationStructures"), Strings.AccelerationStructures);
 		PrintAttributes(TEXT("SideTable"), Strings.SideTable);
 		PrintAttributes(TEXT("ArgumentBuffers"), Strings.ArgumentBuffers);
 

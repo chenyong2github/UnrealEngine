@@ -243,6 +243,7 @@ namespace CrossCompiler
 		uint8					NumSamplers;
 		uint8					NumUniformBuffers;
 		uint8					NumUAVs;
+		uint8					NumAccelerationStructures;
 		bool					bHasRegularUniformBuffers;
 	};
 

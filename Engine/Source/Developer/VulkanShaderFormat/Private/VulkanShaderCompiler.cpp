@@ -366,6 +366,7 @@ public:
 		NumSamplers = 0;
 		NumUniformBuffers = 0;
 		NumUAVs = 0;
+		NumAccelerationStructures = 0;
 		bHasRegularUniformBuffers = 0;
 	}
 };
@@ -473,7 +474,7 @@ static int32 AddGlobal(FOLDVulkanCodeHeader& OLDHeader,
 	}
 	else
 	{
-		int32 GlobalDescriptorTypeIndex = OutHeader.GlobalDescriptorTypes.Add(DescriptorType);
+		int32 GlobalDescriptorTypeIndex = OutHeader.GlobalDescriptorTypes.Add(DescriptorTypeToBinding(DescriptorType));
 		GlobalInfo.TypeIndex = GlobalDescriptorTypeIndex;
 		check(GetCombinedSamplerStateAlias(ParameterName, DescriptorType, BindingTable, CCHeader, GlobalNames) == UINT16_MAX);
 		GlobalInfo.CombinedSamplerStateAliasIndex = UINT16_MAX;
@@ -996,7 +997,7 @@ static void ConvertToNEWHeader(FOLDVulkanCodeHeader& OLDHeader,
 				VkDescriptorType DescriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 				GlobalInfo.OriginalBindingIndex = Entry->Binding;
 				OutHeader.GlobalSpirvInfos[HeaderGlobalIndex] = FVulkanShaderHeader::FSpirvInfo(Entry->WordDescriptorSetIndex, Entry->WordBindingIndex);
-				int32 GlobalDescriptorTypeIndex = OutHeader.GlobalDescriptorTypes.Add(DescriptorType);
+				int32 GlobalDescriptorTypeIndex = OutHeader.GlobalDescriptorTypes.Add(DescriptorTypeToBinding(DescriptorType));
 				GlobalInfo.TypeIndex = GlobalDescriptorTypeIndex;
 				GlobalInfo.CombinedSamplerStateAliasIndex = UINT16_MAX;
 #if VULKAN_ENABLE_BINDING_DEBUG_NAMES
@@ -1405,6 +1406,26 @@ static void BuildShaderOutput(
 		OLDHeader.SerializedBindings.NumUAVs = FMath::Max<uint8>(
 			OLDHeader.SerializedBindings.NumUAVs,
 			UAV.Offset + UAV.Count
+			);
+	}
+
+	for (auto& AccelerationStructure : CCHeader.AccelerationStructures)
+	{
+		int32 VulkanBindingIndex = Spirv.FindBinding(AccelerationStructure.Name);
+		check(VulkanBindingIndex != -1);
+
+		ParameterMap.AddParameterAllocation(
+			*AccelerationStructure.Name,
+			AccelerationStructure.Offset,
+			VulkanBindingIndex,
+			1,
+			EShaderParameterType::SRV
+		);
+		NEWEntryTypes.Add(AccelerationStructure.Name, FVulkanShaderHeader::Global);
+
+		OLDHeader.SerializedBindings.NumAccelerationStructures = FMath::Max<uint8>(
+			OLDHeader.SerializedBindings.NumAccelerationStructures,
+			AccelerationStructure.Offset + 1
 			);
 	}
 
@@ -2213,9 +2234,7 @@ static bool BuildShaderOutputFromSpirv(
 
 		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
 		
-		// VKRT Do we need a WriteAS our should we use reflection directly here?
-		//CCHeaderWriter.WriteAS(*ResourceName, ASBindings++);
-		ASBindings++;
+		CCHeaderWriter.WriteAccelerationStructures(*ResourceName, ASBindings++);
 
 		Spirv.ReflectionInfo.Add(FVulkanSpirv::FEntry(ResourceName, BindingIndex));
 	}
@@ -2358,7 +2377,7 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 
 	const bool bIsSM5 = (Version == EVulkanShaderVersion::SM5);
 	const bool bIsMobile = (Version == EVulkanShaderVersion::ES3_1 || Version == EVulkanShaderVersion::ES3_1_ANDROID);
-	const bool bStripReflect = (IsVulkanMobilePlatform(ShaderPlatform) || IsVulkanMobileSM5Platform(ShaderPlatform));
+	const bool bStripReflect = (IsVulkanMobilePlatform(ShaderPlatform) || IsVulkanMobileSM5Platform(ShaderPlatform)) || Input.IsRayTracingShader();
 	const bool bForceDXC = Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC);
 
 	const EHlslShaderFrequency FrequencyTable[] =

@@ -2002,6 +2002,7 @@ namespace CrossCompiler
 		DEF_PREFIX_STR(Samplers);
 		DEF_PREFIX_STR(UAVs);
 		DEF_PREFIX_STR(SamplerStates);
+		DEF_PREFIX_STR(AccelerationStructures);
 		DEF_PREFIX_STR(NumThreads);
 #undef DEF_PREFIX_STR
 
@@ -2509,6 +2510,45 @@ namespace CrossCompiler
 
 				//#todo-rco: Need a log here
 				//UE_LOG(ShaderCompilerCommon, Warning, TEXT("Invalid char '%c'"), *ShaderSource);
+				return false;
+			}
+		}
+
+		if (FCStringAnsi::Strncmp(ShaderSource, AccelerationStructuresPrefix, AccelerationStructuresPrefixLen) == 0)
+		{
+			ShaderSource += AccelerationStructuresPrefixLen;
+
+			while (*ShaderSource && *ShaderSource != '\n')
+			{
+				FAccelerationStructure AccelerationStructure;
+
+				if (!ParseIntegerNumber(ShaderSource, AccelerationStructure.Offset))
+				{
+					return false;
+				}
+
+				if (!Match(ShaderSource, ':'))
+				{
+					return false;
+				}
+
+				if (!ParseIdentifier(ShaderSource, AccelerationStructure.Name))
+				{
+					return false;
+				}
+
+				AccelerationStructures.Add(AccelerationStructure);
+
+				if (Match(ShaderSource, '\n'))
+				{
+					break;
+				}
+
+				if (Match(ShaderSource, ','))
+				{
+					continue;
+				}
+
 				return false;
 			}
 		}

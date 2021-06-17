@@ -288,7 +288,7 @@ void FVulkanCommandListContext::RHISetShaderParameter(FRHIComputeShader* Compute
 }
 
 template <typename TState>
-inline void SetShaderUniformBufferResources(FVulkanCommandListContext* Context, TState* State, const FVulkanShader* Shader, const TArray<FVulkanShaderHeader::FGlobalInfo>& GlobalInfos, const TArray<TEnumAsByte<VkDescriptorType>>& DescriptorTypes, const FVulkanShaderHeader::FUniformBufferInfo& HeaderUBInfo, const FVulkanUniformBuffer* UniformBuffer, const TArray<FDescriptorSetRemappingInfo::FRemappingInfo>& GlobalRemappingInfo)
+inline void SetShaderUniformBufferResources(FVulkanCommandListContext* Context, TState* State, const FVulkanShader* Shader, const TArray<FVulkanShaderHeader::FGlobalInfo>& GlobalInfos, const TArray<TEnumAsByte<EVulkanBindingType::EType>>& DescriptorTypes, const FVulkanShaderHeader::FUniformBufferInfo& HeaderUBInfo, const FVulkanUniformBuffer* UniformBuffer, const TArray<FDescriptorSetRemappingInfo::FRemappingInfo>& GlobalRemappingInfo)
 {
 #if ENABLE_RHI_VALIDATION
 	static_assert(TIsSame<TState, FVulkanPendingGfxState>::Value || TIsSame<TState, FVulkanPendingComputeState>::Value, "TState must be FVulkanPendingGfxState or FVulkanPendingComputeState");
@@ -309,7 +309,7 @@ inline void SetShaderUniformBufferResources(FVulkanCommandListContext* Context, 
 		{
 			uint16 CombinedAlias = GlobalInfos[ResourceInfo.GlobalIndex].CombinedSamplerStateAliasIndex;
 			uint32 GlobalIndex = CombinedAlias == UINT16_MAX ? ResourceInfo.GlobalIndex : CombinedAlias;
-			const VkDescriptorType DescriptorType = DescriptorTypes[GlobalInfos[GlobalIndex].TypeIndex];
+			const VkDescriptorType DescriptorType = BindingToDescriptorType(DescriptorTypes[GlobalInfos[GlobalIndex].TypeIndex]);
 			ensure(DescriptorType == VK_DESCRIPTOR_TYPE_SAMPLER || DescriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 			FVulkanSamplerState* CurrSampler = static_cast<FVulkanSamplerState*>(ResourceArray[ResourceInfo.SourceUBResourceIndex].GetReference());
 			if (CurrSampler)
@@ -329,7 +329,7 @@ inline void SetShaderUniformBufferResources(FVulkanCommandListContext* Context, 
 		case UBMT_TEXTURE:
 		case UBMT_RDG_TEXTURE:
 		{
-			const VkDescriptorType DescriptorType = DescriptorTypes[GlobalInfos[ResourceInfo.GlobalIndex].TypeIndex];
+			const VkDescriptorType DescriptorType = BindingToDescriptorType(DescriptorTypes[GlobalInfos[ResourceInfo.GlobalIndex].TypeIndex]);
 			ensure(DescriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE || DescriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 			FRHITexture* TexRef = (FRHITexture*)(ResourceArray[ResourceInfo.SourceUBResourceIndex].GetReference());
 			if (TexRef)
@@ -361,7 +361,7 @@ inline void SetShaderUniformBufferResources(FVulkanCommandListContext* Context, 
 		case UBMT_SRV:
 		case UBMT_RDG_BUFFER_SRV:
 		{
-			const VkDescriptorType DescriptorType = DescriptorTypes[GlobalInfos[ResourceInfo.GlobalIndex].TypeIndex];
+			const VkDescriptorType DescriptorType = BindingToDescriptorType(DescriptorTypes[GlobalInfos[ResourceInfo.GlobalIndex].TypeIndex]);
 			ensure(DescriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER 
 				|| DescriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
 				|| DescriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE
@@ -389,7 +389,7 @@ inline void SetShaderUniformBufferResources(FVulkanCommandListContext* Context, 
 		case UBMT_UAV:
 		case UBMT_RDG_BUFFER_UAV:
 		{
-			const VkDescriptorType DescriptorType = DescriptorTypes[GlobalInfos[ResourceInfo.GlobalIndex].TypeIndex];
+			const VkDescriptorType DescriptorType = BindingToDescriptorType(DescriptorTypes[GlobalInfos[ResourceInfo.GlobalIndex].TypeIndex]);
 			ensure(DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
 				|| DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
 				|| DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER);

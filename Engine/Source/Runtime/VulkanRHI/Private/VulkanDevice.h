@@ -579,6 +579,7 @@ private:
 
 #if VULKAN_RHI_RAYTRACING
 	FRayTracingProperties RayTracingProperties;
+	FVulkanBasicRaytracingPipeline* BasicRayTracingPipeline = nullptr;
 #endif // VULKAN_RHI_RAYTRACING
 #endif // VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 

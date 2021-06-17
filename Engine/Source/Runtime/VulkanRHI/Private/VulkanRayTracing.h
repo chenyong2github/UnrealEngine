@@ -7,6 +7,7 @@
 class FVulkanCommandListContext;
 class FVulkanResourceMultiBuffer;
 class FVulkanAccelerationStructureBuffer;
+class FVulkanRayTracingLayout;
 
 #define ENUM_VK_ENTRYPOINTS_RAYTRACING(EnumMacro) \
 	EnumMacro(PFN_vkCreateAccelerationStructureKHR, vkCreateAccelerationStructureKHR) \
@@ -140,4 +141,33 @@ private:
 	const FVulkanDevice* Device = nullptr;
 };
 
-#endif // #if VULKAN_RHI_RAYTRACING
+class FVulkanRayTracingPipelineState : public FRHIRayTracingPipelineState
+{
+public:
+
+	UE_NONCOPYABLE(FVulkanRayTracingPipelineState);
+	FVulkanRayTracingPipelineState(FVulkanDevice* const InDevice, const FRayTracingPipelineStateInitializer& Initializer);
+	~FVulkanRayTracingPipelineState();
+
+private:
+
+	FVulkanRayTracingLayout* Layout = nullptr;
+	VkPipeline Pipeline = VK_NULL_HANDLE;
+	FVkRtAllocation RayGenShaderBindingTable;
+	FVkRtAllocation MissShaderBindingTable;
+	FVkRtAllocation HitShaderBindingTable;
+};
+
+class FVulkanBasicRaytracingPipeline
+{
+public:
+
+	UE_NONCOPYABLE(FVulkanBasicRaytracingPipeline);
+	FVulkanBasicRaytracingPipeline(FVulkanDevice* const InDevice);
+	~FVulkanBasicRaytracingPipeline();
+
+private:
+
+	FVulkanRayTracingPipelineState* Occlusion = nullptr;
+};
+#endif // VULKAN_RHI_RAYTRACING

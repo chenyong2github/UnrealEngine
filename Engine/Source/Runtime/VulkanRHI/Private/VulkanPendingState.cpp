@@ -866,10 +866,9 @@ bool FVulkanDescriptorSetCache::FCachedPool::CreateDescriptorSets(
 
 		DSWriter.SetDescriptorSet(NewSetEntry.Sets[Index]);
 
-		const uint32* LayoutTypes = SetsLayout.GetLayoutTypes();
-		for (int32 i = 0; i < VK_DESCRIPTOR_TYPE_RANGE_SIZE; ++i)
+		for (int32 i = VK_DESCRIPTOR_TYPE_BEGIN_RANGE; i <= VK_DESCRIPTOR_TYPE_END_RANGE; ++i)
 		{
-			PoolSizesStatistic[i]+= LayoutTypes[i];
+			PoolSizesStatistic[i] += SetsLayout.GetTypesUsed(static_cast<VkDescriptorType>(i));
 		}
 
 #if VULKAN_ENABLE_AGGRESSIVE_STATS

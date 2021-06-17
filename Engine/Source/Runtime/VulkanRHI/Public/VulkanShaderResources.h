@@ -130,7 +130,7 @@ struct FVulkanShaderHeader
 #endif
 	};
 	TArray<FGlobalInfo>						Globals;
-	TArray<TEnumAsByte<VkDescriptorType>>	GlobalDescriptorTypes;
+	TArray<TEnumAsByte<EVulkanBindingType::EType>>	GlobalDescriptorTypes;
 
 	struct FPackedGlobalInfo
 	{

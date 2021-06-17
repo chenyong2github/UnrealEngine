@@ -748,7 +748,8 @@ void FVulkanDynamicRHI::InitInstance()
 		GSupportsMobileMultiView = Device->GetMultiviewFeatures().multiview == VK_TRUE ? true : false;
 #endif
 #if VULKAN_RHI_RAYTRACING
-		GRHISupportsRayTracing = Device->GetOptionalExtensions().HasRaytracingExtensions();
+		GRHISupportsRayTracing = false; // Disable runtime hwrt on vk during development.
+		//GRHISupportsRayTracing = Device->GetOptionalExtensions().HasRaytracingExtensions();
 #endif
 #if VULKAN_ENABLE_DUMP_LAYER
 		// Disable RHI thread by default if the dump layer is enabled
@@ -1253,7 +1254,14 @@ FVulkanDescriptorSetsLayout::~FVulkanDescriptorSetsLayout()
 void FVulkanDescriptorSetsLayoutInfo::AddDescriptor(int32 DescriptorSetIndex, const VkDescriptorSetLayoutBinding& Descriptor)
 {
 	// Increment type usage
-	LayoutTypes[Descriptor.descriptorType]++;
+	if (LayoutTypes.Contains(Descriptor.descriptorType))
+	{
+		LayoutTypes[Descriptor.descriptorType]++;
+	}
+	else
+	{
+		LayoutTypes.Add(Descriptor.descriptorType, 1);
+	}
 
 	if (DescriptorSetIndex >= SetLayouts.Num())
 	{
@@ -1283,7 +1291,12 @@ void FVulkanDescriptorSetsLayoutInfo::AddDescriptor(int32 DescriptorSetIndex, co
 		break;
 	case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
 	case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+
+#if VULKAN_RHI_RAYTRACING
+	case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
 		break;
+#endif
+
 	default:
 		checkf(0, TEXT("Unsupported descriptor type %d"), (int32)Descriptor.descriptorType);
 		break;
@@ -1337,7 +1350,16 @@ void FVulkanDescriptorSetsLayoutInfo::CompileTypesUsageID()
 	static TMap<uint32, uint32> GTypesUsageHashMap;
 	static uint32 GUniqueID = 1;
 
-	const uint32 TypesUsageHash = FCrc::MemCrc32(LayoutTypes, sizeof(LayoutTypes));
+	LayoutTypes.KeySort([](VkDescriptorType A, VkDescriptorType B)
+	{
+		return static_cast<uint32>(A) < static_cast<uint32>(B);
+	});
+
+	uint32 TypesUsageHash = 0;
+	for (const auto& Elem : LayoutTypes)
+	{
+		TypesUsageHash = FCrc::MemCrc32(&Elem.Value, sizeof(uint32), TypesUsageHash);
+	}
 
 	uint32* UniqueID = GTypesUsageHashMap.Find(TypesUsageHash);
 	if (UniqueID == nullptr)
@@ -1397,6 +1419,10 @@ void FVulkanDescriptorSetsLayout::Compile(FVulkanDescriptorSetLayoutMap& DSetLay
 			<	Limits.maxDescriptorSetStorageImages);
 
 	check(LayoutTypes[VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT] <= Limits.maxDescriptorSetInputAttachments);
+
+#if VULKAN_RHI_RAYTRACING
+	check(LayoutTypes[VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR] < Device->GetRayTracingProperties().AccelerationStructure.maxDescriptorSetAccelerationStructures);
+#endif
 	
 	LayoutHandles.Empty(SetLayouts.Num());
 
