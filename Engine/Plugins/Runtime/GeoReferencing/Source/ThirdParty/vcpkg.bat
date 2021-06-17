@@ -31,10 +31,11 @@ echo === Bootstrapping vcpkg ===
 call %~dp0vcpkg\bootstrap-vcpkg.bat -disableMetrics
 
 :: build for each triplet
-for %%x in (overlay-x64-windows overlay-x64-uwp overlay-arm64-uwp x86-android x64-android arm-android arm64-android) do (
+:: --editable leaves the source in the buildtree for easy local debugging and patch generation
+for %%x in (overlay-x64-windows overlay-x64-uwp overlay-arm64-uwp x64-android arm64-android) do (
     echo:
     echo === Running vcpkg ===
-    %~dp0vcpkg\vcpkg.exe install --x-install-root=%~dp0%VCPKG_INSTALLED% --overlay-ports=./overlay-ports --overlay-triplets=./overlay-triplets --triplet=%%x "proj4[core,database]"
+    %~dp0vcpkg\vcpkg.exe install --editable --x-install-root=%~dp0%VCPKG_INSTALLED% --overlay-ports=./overlay-ports --overlay-triplets=./overlay-triplets --triplet=%%x "proj4[core,database]"
     if ERRORLEVEL 1 exit /b 1
 
     echo:
