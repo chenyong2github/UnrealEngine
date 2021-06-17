@@ -4,6 +4,7 @@
 #include "../SceneData.ush"
 #include "../DeferredShadingCommon.ush"
 #include "../HTileEncoding.ush"
+#include "../VelocityCommon.ush"
 
 #if PLATFORM_SUPPORTS_HTILE_LOOKUP
 
@@ -70,8 +71,7 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 	// for both depth exports as an optimization.
 	const uint TileIndex = ToScalarMemory(ComputeTileOffset(PixelPos.xy, PixelsWide, PlatformConfig));
 
-// TODO: Velocity
-#if 0
+#if VELOCITY_EXPORT
 	FNaniteView NaniteView = GetNaniteView(0);
 #endif
 
@@ -118,12 +118,11 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 				OutStencil |= 1 << LIGHTING_CHANNELS_TEXTURE_DISTANCE_FIELD_REPRESENTATION_BIT;
 				SceneStencil[PixelPos.xy] = OutStencil;
 
-				// TODO: Velocity
-			#if 0
+			#if VELOCITY_EXPORT
 				FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
-				const float4 ScreenPos = SvPositionToScreenPosition(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
-				const float3 WorldPos  = SvPositionToWorld(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
+				const float4 ScreenPos = SvPositionToScreenPosition(float4(PixelPos.xy, asfloat(DepthInt), 1.0f));
+				const float3 WorldPos  = SvPositionToWorld(float4(PixelPos.xy, asfloat(DepthInt), 1.0f));
 				const float4 LocalPos  = mul(float4(WorldPos.xyz, 1.0f), InstanceData.WorldToLocal);
 
 				const float4 ScreenPosPrev = mul(float4(LocalPos.xyz, 1), InstanceDynamicData.PrevLocalToClip);
