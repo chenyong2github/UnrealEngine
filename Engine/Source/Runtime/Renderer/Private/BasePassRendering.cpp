@@ -173,6 +173,11 @@ void SetTranslucentRenderState(FMeshPassProcessorRenderState& DrawRenderState, c
 				// Alpha we will leave unchanged.
 				DrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_Zero, BF_Source1Color, BO_Add, BF_Zero, BF_One>::GetRHI());
 			}
+			else if (InTranslucencyPassType == ETranslucencyPass::TPT_TranslucencyAfterMotionBlur)
+			{
+				// We don't actually currently support color modulation in the post-motion blur pass at the moment, so just do the same as post-DOF for now
+				DrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Source1Color, BO_Add, BF_Zero, BF_One>::GetRHI());
+			}
 		}
 		else
 		{
