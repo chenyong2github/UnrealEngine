@@ -45,7 +45,7 @@ void MainPS(float2 UV : TEXCOORD0, out float4 OutColor : SV_Target0)
 	half4 LinearColor = Texture2DSample(SceneColorTexture, SceneColorTextureSampler, UV);
 	half3 LDRColor = TonemapAndGammaCorrect(LinearColor.rgb);
 	
-	// blend with custom LDR color, used for Fade track in Matinee
+	// blend with custom LDR color, used for Fade track in Cinematics
 	LDRColor = lerp(LDRColor * ColorScale, OverlayColor.rgb, OverlayColor.a);
 	
 	// RETURN_COLOR not needed unless writing to SceneColor

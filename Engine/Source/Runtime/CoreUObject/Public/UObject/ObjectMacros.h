@@ -403,7 +403,7 @@ enum EPropertyFlags : uint64
 	CPF_IsPlainOldData					= 0x0000000040000000,	///< If this is set, then the property can be memcopied instead of CopyCompleteValue / CopySingleValue
 	CPF_RepSkip							= 0x0000000080000000,	///< Not replicated. For non replicated properties in replicated structs 
 	CPF_RepNotify						= 0x0000000100000000,	///< Notify actors when a property is replicated
-	CPF_Interp							= 0x0000000200000000,	///< interpolatable property for use with matinee
+	CPF_Interp							= 0x0000000200000000,	///< interpolatable property for use with cinematics
 	CPF_NonTransactional				= 0x0000000400000000,	///< Property isn't transacted
 	CPF_EditorOnly						= 0x0000000800000000,	///< Property should only be loaded in the editor
 	CPF_NoDestructor					= 0x0000001000000000,	///< No destructor
@@ -943,7 +943,7 @@ namespace UP
 		/// Skip replication (only for struct members and parameters in service request functions).
 		NotReplicated,
 
-		/// Interpolatable property for use with matinee. Always user-settable in the editor.
+		/// Interpolatable property for use with cinematics. Always user-settable in the editor.
 		Interp,
 
 		/// Property isn't transacted.

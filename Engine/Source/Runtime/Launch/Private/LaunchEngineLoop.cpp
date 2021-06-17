@@ -3777,9 +3777,7 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 
 	FEmbeddedCommunication::ForceTick(8);
 
-	FString MatineeName;
-
-	if(FParse::Param(FCommandLine::Get(),TEXT("DUMPMOVIE")) || FParse::Value(FCommandLine::Get(), TEXT("-MATINEESSCAPTURE="), MatineeName))
+	if(FParse::Param(FCommandLine::Get(),TEXT("DUMPMOVIE")))
 	{
 		// -1: remain on
 		GIsDumpingMovie = -1;

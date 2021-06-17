@@ -1597,7 +1597,7 @@ void FLinuxApplication::RemoveRevertFocusWindow(SDL_HWindow HWnd)
 			{
 				ActivateWindow(Window->GetParent());
 			}
-			// Was the deleted window a Blueprint, Cascade, Matinee etc. window?
+			// Was the deleted window a Blueprint, Cascade etc. window?
 			else if (Window->IsNotificationWindow())
 			{
 				// Do not revert focus if the root window of the destroyed window is another one.

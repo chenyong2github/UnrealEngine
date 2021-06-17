@@ -369,7 +369,7 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 	// apply math color correction on top to texture based solution
 	FilmColor = ColorCorrection( FilmColor );
 
-	// blend with custom LDR color, used for Fade track in Matinee
+	// blend with custom LDR color, used for Fade track in Cinematics
 	float3 FilmColorNoGamma = lerp( FilmColor * ColorScale, OverlayColor.rgb, OverlayColor.a );
 	// Apply Fade track to linear outputs also
 	GradedColor = lerp(GradedColor * ColorScale, OverlayColor.rgb, OverlayColor.a);

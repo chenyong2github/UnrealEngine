@@ -421,7 +421,7 @@ void FDestructibleMeshEditorViewportClient::ImportFBXChunks()
 	{
 		bOpened = DesktopPlatform->OpenFileDialog(
 			NULL, 
-			NSLOCTEXT("UnrealEd", "ImportMatineeSequence", "Import UnrealMatinee Sequence").ToString(),
+			NSLOCTEXT("UnrealEd", "ImportDestructableMeshFBXSequence", "Import FBX File").ToString(),
 			*(FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_IMPORT)),
 			TEXT(""),
 			TEXT("FBX document|*.fbx"),

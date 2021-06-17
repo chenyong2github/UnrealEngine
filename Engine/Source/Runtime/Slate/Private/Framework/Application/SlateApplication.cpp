@@ -1639,8 +1639,7 @@ void FSlateApplication::ThrottleApplicationBasedOnMouseMovement()
 		const double TimeSinceLastMouseMove = CurrentTime - LastMouseMoveTime;
 		if( TimeSinceLastMouseMove < TimeToThrottleAfterMouseStops )
 		{
-			// Only throttle if a Slate window is currently active.  If a Wx window (such as Matinee) is
-			// being used, we don't want to throttle
+			// Only throttle if a Slate window is currently active.
 			if( this->GetActiveTopLevelWindow().IsValid() )
 			{
 				// Only throttle if the user hasn't pressed a button in awhile
