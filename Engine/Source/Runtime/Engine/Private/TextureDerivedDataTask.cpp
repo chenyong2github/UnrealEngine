@@ -445,11 +445,8 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 			FString TexturePath = Texture.GetPathName();
 			FBuildDefinitionBuilder DefinitionBuilder = Build.CreateDefinition(TexturePath, BuildFunctionName);
 
-			ComposeTextureBuildFunctionConstants(KeySuffix, Texture, BuildSettingsPerLayer[0], 0, NUM_INLINE_DERIVED_MIPS, 
-				[&DefinitionBuilder] (FStringView Key, const FCbObject& Value)
-				{
-					DefinitionBuilder.AddConstant(Key, Value);
-				});
+			DefinitionBuilder.AddConstant(TEXT("Settings"_SV),
+				SaveTextureBuildSettings(KeySuffix, Texture, BuildSettingsPerLayer[0], 0, NUM_INLINE_DERIVED_MIPS));
 
 			for (const FBuildInputRecord& InputRecord : BuildInputRecords)
 			{

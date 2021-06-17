@@ -18,6 +18,7 @@
 #include "Serialization/FileRegions.h"
 #include "Serialization/MemoryWriter.h"
 #include "TextureCompressorModule.h"
+#include "TextureFormatManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogTextureBuildFunction, Log, All);
 
@@ -35,104 +36,119 @@ static const TCHAR* GetPixelFormatString(EPixelFormat InPixelFormat)
 	}
 }
 
-static void ReadCbField(FCbFieldView FieldView, FColor& OutColor)
+static void ReadCbField(FCbFieldView Field, bool& OutValue) { OutValue = Field.AsBool(OutValue); }
+static void ReadCbField(FCbFieldView Field, int32& OutValue) { OutValue = Field.AsInt32(OutValue); }
+static void ReadCbField(FCbFieldView Field, uint8& OutValue) { OutValue = Field.AsUInt8(OutValue); }
+static void ReadCbField(FCbFieldView Field, uint32& OutValue) { OutValue = Field.AsUInt32(OutValue); }
+static void ReadCbField(FCbFieldView Field, float& OutValue) { OutValue = Field.AsFloat(OutValue); }
+
+static void ReadCbField(FCbFieldView Field, FName& OutValue)
 {
-	// Choosing the big endian ordering
-	FCbFieldViewIterator ColorCbArrayIt = FieldView.AsArrayView().CreateViewIterator();
-	OutColor.A = ColorCbArrayIt->AsUInt8(); ++ColorCbArrayIt;
-	OutColor.R = ColorCbArrayIt->AsUInt8(); ++ColorCbArrayIt;
-	OutColor.G = ColorCbArrayIt->AsUInt8(); ++ColorCbArrayIt;
-	OutColor.B = ColorCbArrayIt->AsUInt8(); ++ColorCbArrayIt;
+	if (Field.IsString())
+	{
+		OutValue = FName(FUTF8ToTCHAR(Field.AsString()));
+	}
 }
 
-static void ReadCbField(FCbFieldView FieldView, FVector4& OutVec4)
+static void ReadCbField(FCbFieldView Field, FColor& OutValue)
 {
-	FCbFieldViewIterator Vec4CbArrayIt = FieldView.AsArrayView().CreateViewIterator();
-	OutVec4.X = Vec4CbArrayIt->AsFloat(); ++Vec4CbArrayIt;
-	OutVec4.Y = Vec4CbArrayIt->AsFloat(); ++Vec4CbArrayIt;
-	OutVec4.Z = Vec4CbArrayIt->AsFloat(); ++Vec4CbArrayIt;
-	OutVec4.W = Vec4CbArrayIt->AsFloat(); ++Vec4CbArrayIt;
+	FCbFieldViewIterator It = Field.AsArrayView().CreateViewIterator();
+	OutValue.A = It++->AsUInt8(OutValue.A);
+	OutValue.R = It++->AsUInt8(OutValue.R);
+	OutValue.G = It++->AsUInt8(OutValue.G);
+	OutValue.B = It++->AsUInt8(OutValue.B);
 }
 
-static void ReadCbField(FCbFieldView FieldView, FIntPoint& OutIntPoint)
+static void ReadCbField(FCbFieldView Field, FVector4& OutValue)
 {
-	FCbFieldViewIterator IntPointCbArrayIt = FieldView.AsArrayView().CreateViewIterator();
-	OutIntPoint.X = IntPointCbArrayIt->AsInt32(); ++IntPointCbArrayIt;
-	OutIntPoint.Y = IntPointCbArrayIt->AsInt32(); ++IntPointCbArrayIt;
+	FCbFieldViewIterator It = Field.AsArrayView().CreateViewIterator();
+	OutValue.X = It++->AsFloat(OutValue.X);
+	OutValue.Y = It++->AsFloat(OutValue.Y);
+	OutValue.Z = It++->AsFloat(OutValue.Z);
+	OutValue.W = It++->AsFloat(OutValue.W);
 }
 
-static void ReadBuildSettingsFromCompactBinary(const FCbObject& Object, FTextureBuildSettings& OutBuildSettings)
+static void ReadCbField(FCbFieldView Field, FIntPoint& OutValue)
 {
-	OutBuildSettings.FormatConfigOverride = Object.FindView("FormatConfigOverride").AsObjectView();
-	FCbObjectView ColorAdjustmentCbObj = Object.FindView("ColorAdjustment").AsObjectView();
-	FColorAdjustmentParameters& ColorAdjustment = OutBuildSettings.ColorAdjustment;
-	ColorAdjustment.AdjustBrightness = ColorAdjustmentCbObj.FindView("AdjustBrightness").AsFloat();
-	ColorAdjustment.AdjustBrightnessCurve = ColorAdjustmentCbObj.FindView("AdjustBrightnessCurve").AsFloat();
-	ColorAdjustment.AdjustSaturation = ColorAdjustmentCbObj.FindView("AdjustSaturation").AsFloat();
-	ColorAdjustment.AdjustVibrance = ColorAdjustmentCbObj.FindView("AdjustVibrance").AsFloat();
-	ColorAdjustment.AdjustRGBCurve = ColorAdjustmentCbObj.FindView("AdjustRGBCurve").AsFloat();
-	ColorAdjustment.AdjustHue = ColorAdjustmentCbObj.FindView("AdjustHue").AsFloat();
-	ColorAdjustment.AdjustMinAlpha = ColorAdjustmentCbObj.FindView("AdjustMinAlpha").AsFloat();
-	ColorAdjustment.AdjustMaxAlpha = ColorAdjustmentCbObj.FindView("AdjustMaxAlpha").AsFloat();
-	ReadCbField(Object.FindView("AlphaCoverageThresholds"), OutBuildSettings.AlphaCoverageThresholds);
-	OutBuildSettings.MipSharpening = Object.FindView("MipSharpening").AsFloat();
-	OutBuildSettings.DiffuseConvolveMipLevel = Object.FindView("DiffuseConvolveMipLevel").AsUInt32();
-	OutBuildSettings.SharpenMipKernelSize = Object.FindView("SharpenMipKernelSize").AsUInt32();
-	OutBuildSettings.MaxTextureResolution = Object.FindView("MaxTextureResolution").AsUInt32();
-	OutBuildSettings.TextureFormatName = FName(Object.FindView("TextureFormatName").AsString());
-	OutBuildSettings.bHDRSource = Object.FindView("bHDRSource").AsBool();
-	OutBuildSettings.MipGenSettings = Object.FindView("MipGenSettings").AsUInt8();
-	OutBuildSettings.bCubemap = Object.FindView("bCubemap").AsBool();
-	OutBuildSettings.bTextureArray = Object.FindView("bTextureArray").AsBool();
-	OutBuildSettings.bVolume = Object.FindView("bVolume").AsBool();
-	OutBuildSettings.bLongLatSource = Object.FindView("bLongLatSource").AsBool();
-	OutBuildSettings.bSRGB = Object.FindView("bSRGB").AsBool();
-	OutBuildSettings.bUseLegacyGamma = Object.FindView("bUseLegacyGamma").AsBool();
-	OutBuildSettings.bPreserveBorder = Object.FindView("bPreserveBorder").AsBool();
-	OutBuildSettings.bForceNoAlphaChannel = Object.FindView("bForceNoAlphaChannel").AsBool();
-	OutBuildSettings.bForceAlphaChannel = Object.FindView("bForceAlphaChannel").AsBool();
-	OutBuildSettings.bDitherMipMapAlpha = Object.FindView("bDitherMipMapAlpha").AsBool();
-	OutBuildSettings.bComputeBokehAlpha = Object.FindView("bComputeBokehAlpha").AsBool();
-	OutBuildSettings.bReplicateRed = Object.FindView("bReplicateRed").AsBool();
-	OutBuildSettings.bReplicateAlpha = Object.FindView("bReplicateAlpha").AsBool();
-	OutBuildSettings.bDownsampleWithAverage = Object.FindView("bDownsampleWithAverage").AsBool();
-	OutBuildSettings.bSharpenWithoutColorShift = Object.FindView("bSharpenWithoutColorShift").AsBool();
-	OutBuildSettings.bBorderColorBlack = Object.FindView("bBorderColorBlack").AsBool();
-	OutBuildSettings.bFlipGreenChannel = Object.FindView("bFlipGreenChannel").AsBool();
-	OutBuildSettings.bApplyYCoCgBlockScale = Object.FindView("bApplyYCoCgBlockScale").AsBool();
-	OutBuildSettings.bApplyKernelToTopMip = Object.FindView("bApplyKernelToTopMip").AsBool();
-	OutBuildSettings.bRenormalizeTopMip = Object.FindView("bRenormalizeTopMip").AsBool();
-	OutBuildSettings.CompositeTextureMode = Object.FindView("CompositeTextureMode").AsUInt8();
-	OutBuildSettings.CompositePower = Object.FindView("CompositePower").AsFloat();
-	OutBuildSettings.LODBias = Object.FindView("LODBias").AsUInt32();
-	OutBuildSettings.LODBiasWithCinematicMips = Object.FindView("LODBiasWithCinematicMips").AsUInt32();
-	ReadCbField(Object.FindView("TopMipSize"), OutBuildSettings.TopMipSize);
-	OutBuildSettings.VolumeSizeZ = Object.FindView("VolumeSizeZ").AsInt32();
-	OutBuildSettings.ArraySlices = Object.FindView("ArraySlices").AsInt32();
-	OutBuildSettings.bStreamable = Object.FindView("bStreamable").AsBool();
-	OutBuildSettings.bVirtualStreamable = Object.FindView("bVirtualStreamable").AsBool();
-	OutBuildSettings.bChromaKeyTexture = Object.FindView("bChromaKeyTexture").AsBool();
-	OutBuildSettings.PowerOfTwoMode = Object.FindView("PowerOfTwoMode").AsUInt8();
-	ReadCbField(Object.FindView("PaddingColor"), OutBuildSettings.PaddingColor);
-	ReadCbField(Object.FindView("ChromaKeyColor"), OutBuildSettings.ChromaKeyColor);
-	OutBuildSettings.ChromaKeyThreshold = Object.FindView("ChromaKeyThreshold").AsFloat();
-	OutBuildSettings.CompressionQuality = Object.FindView("CompressionQuality").AsInt32();
-	OutBuildSettings.LossyCompressionAmount = Object.FindView("LossyCompressionAmount").AsInt32();
-	OutBuildSettings.Downscale = Object.FindView("Downscale").AsFloat();
-	OutBuildSettings.DownscaleOptions = Object.FindView("DownscaleOptions").AsUInt8();
-	OutBuildSettings.VirtualAddressingModeX = Object.FindView("VirtualAddressingModeX").AsInt32();
-	OutBuildSettings.VirtualAddressingModeY = Object.FindView("VirtualAddressingModeY").AsInt32();
-	OutBuildSettings.VirtualTextureTileSize = Object.FindView("VirtualTextureTileSize").AsInt32();
-	OutBuildSettings.VirtualTextureBorderSize = Object.FindView("VirtualTextureBorderSize").AsInt32();
-	OutBuildSettings.bVirtualTextureEnableCompressZlib = Object.FindView("bVirtualTextureEnableCompressZlib").AsBool();
-	OutBuildSettings.bVirtualTextureEnableCompressCrunch = Object.FindView("bVirtualTextureEnableCompressCrunch").AsBool();
-	OutBuildSettings.bHasEditorOnlyData = Object.FindView("bHasEditorOnlyData").AsBool();
+	FCbFieldViewIterator It = Field.AsArrayView().CreateViewIterator();
+	OutValue.X = It++->AsInt32(OutValue.X);
+	OutValue.Y = It++->AsInt32(OutValue.Y);
 }
 
-static void ReadOutputSettingsFromCompactBinary(const FCbObject& Object, int32& NumInlineMips, FString& MipKeyPrefix)
+static FTextureBuildSettings ReadBuildSettingsFromCompactBinary(const FCbObjectView& Object)
 {
-	NumInlineMips = Object.FindView("NumInlineMips").AsInt32();
-	MipKeyPrefix = FString(Object.FindView("MipKeyPrefix").AsString());
+	FTextureBuildSettings BuildSettings;
+	BuildSettings.FormatConfigOverride = Object["FormatConfigOverride"].AsObjectView();
+	FCbObjectView ColorAdjustmentCbObj = Object["ColorAdjustment"].AsObjectView();
+	FColorAdjustmentParameters& ColorAdjustment = BuildSettings.ColorAdjustment;
+	ReadCbField(ColorAdjustmentCbObj["AdjustBrightness"], ColorAdjustment.AdjustBrightness);
+	ReadCbField(ColorAdjustmentCbObj["AdjustBrightnessCurve"], ColorAdjustment.AdjustBrightnessCurve);
+	ReadCbField(ColorAdjustmentCbObj["AdjustSaturation"], ColorAdjustment.AdjustSaturation);
+	ReadCbField(ColorAdjustmentCbObj["AdjustVibrance"], ColorAdjustment.AdjustVibrance);
+	ReadCbField(ColorAdjustmentCbObj["AdjustRGBCurve"], ColorAdjustment.AdjustRGBCurve);
+	ReadCbField(ColorAdjustmentCbObj["AdjustHue"], ColorAdjustment.AdjustHue);
+	ReadCbField(ColorAdjustmentCbObj["AdjustMinAlpha"], ColorAdjustment.AdjustMinAlpha);
+	ReadCbField(ColorAdjustmentCbObj["AdjustMaxAlpha"], ColorAdjustment.AdjustMaxAlpha);
+	ReadCbField(Object["AlphaCoverageThresholds"], BuildSettings.AlphaCoverageThresholds);
+	ReadCbField(Object["MipSharpening"], BuildSettings.MipSharpening);
+	ReadCbField(Object["DiffuseConvolveMipLevel"], BuildSettings.DiffuseConvolveMipLevel);
+	ReadCbField(Object["SharpenMipKernelSize"], BuildSettings.SharpenMipKernelSize);
+	ReadCbField(Object["MaxTextureResolution"], BuildSettings.MaxTextureResolution);
+	ReadCbField(Object["TextureFormatName"], BuildSettings.TextureFormatName);
+	ReadCbField(Object["bHDRSource"], BuildSettings.bHDRSource);
+	ReadCbField(Object["MipGenSettings"], BuildSettings.MipGenSettings);
+	BuildSettings.bCubemap = Object["bCubemap"].AsBool(BuildSettings.bCubemap);
+	BuildSettings.bTextureArray = Object["bTextureArray"].AsBool(BuildSettings.bTextureArray);
+	BuildSettings.bVolume = Object["bVolume"].AsBool(BuildSettings.bVolume);
+	BuildSettings.bLongLatSource = Object["bLongLatSource"].AsBool(BuildSettings.bLongLatSource);
+	BuildSettings.bSRGB = Object["bSRGB"].AsBool(BuildSettings.bSRGB);
+	BuildSettings.bUseLegacyGamma = Object["bUseLegacyGamma"].AsBool(BuildSettings.bUseLegacyGamma);
+	BuildSettings.bPreserveBorder = Object["bPreserveBorder"].AsBool(BuildSettings.bPreserveBorder);
+	BuildSettings.bForceNoAlphaChannel = Object["bForceNoAlphaChannel"].AsBool(BuildSettings.bForceNoAlphaChannel);
+	BuildSettings.bForceAlphaChannel = Object["bForceAlphaChannel"].AsBool(BuildSettings.bForceAlphaChannel);
+	BuildSettings.bDitherMipMapAlpha = Object["bDitherMipMapAlpha"].AsBool(BuildSettings.bDitherMipMapAlpha);
+	BuildSettings.bComputeBokehAlpha = Object["bComputeBokehAlpha"].AsBool(BuildSettings.bComputeBokehAlpha);
+	BuildSettings.bReplicateRed = Object["bReplicateRed"].AsBool(BuildSettings.bReplicateRed);
+	BuildSettings.bReplicateAlpha = Object["bReplicateAlpha"].AsBool(BuildSettings.bReplicateAlpha);
+	BuildSettings.bDownsampleWithAverage = Object["bDownsampleWithAverage"].AsBool(BuildSettings.bDownsampleWithAverage);
+	BuildSettings.bSharpenWithoutColorShift = Object["bSharpenWithoutColorShift"].AsBool(BuildSettings.bSharpenWithoutColorShift);
+	BuildSettings.bBorderColorBlack = Object["bBorderColorBlack"].AsBool(BuildSettings.bBorderColorBlack);
+	BuildSettings.bFlipGreenChannel = Object["bFlipGreenChannel"].AsBool(BuildSettings.bFlipGreenChannel);
+	BuildSettings.bApplyYCoCgBlockScale = Object["bApplyYCoCgBlockScale"].AsBool(BuildSettings.bApplyYCoCgBlockScale);
+	BuildSettings.bApplyKernelToTopMip = Object["bApplyKernelToTopMip"].AsBool(BuildSettings.bApplyKernelToTopMip);
+	BuildSettings.bRenormalizeTopMip = Object["bRenormalizeTopMip"].AsBool(BuildSettings.bRenormalizeTopMip);
+	ReadCbField(Object["CompositeTextureMode"], BuildSettings.CompositeTextureMode);
+	ReadCbField(Object["CompositePower"], BuildSettings.CompositePower);
+	ReadCbField(Object["LODBias"], BuildSettings.LODBias);
+	ReadCbField(Object["LODBiasWithCinematicMips"], BuildSettings.LODBiasWithCinematicMips);
+	ReadCbField(Object["TopMipSize"], BuildSettings.TopMipSize);
+	ReadCbField(Object["VolumeSizeZ"], BuildSettings.VolumeSizeZ);
+	ReadCbField(Object["ArraySlices"], BuildSettings.ArraySlices);
+	BuildSettings.bStreamable = Object["bStreamable"].AsBool(BuildSettings.bStreamable);
+	BuildSettings.bVirtualStreamable = Object["bVirtualStreamable"].AsBool(BuildSettings.bVirtualStreamable);
+	BuildSettings.bChromaKeyTexture = Object["bChromaKeyTexture"].AsBool(BuildSettings.bChromaKeyTexture);
+	ReadCbField(Object["PowerOfTwoMode"], BuildSettings.PowerOfTwoMode);
+	ReadCbField(Object["PaddingColor"], BuildSettings.PaddingColor);
+	ReadCbField(Object["ChromaKeyColor"], BuildSettings.ChromaKeyColor);
+	ReadCbField(Object["ChromaKeyThreshold"], BuildSettings.ChromaKeyThreshold);
+	ReadCbField(Object["CompressionQuality"], BuildSettings.CompressionQuality);
+	ReadCbField(Object["LossyCompressionAmount"], BuildSettings.LossyCompressionAmount);
+	ReadCbField(Object["Downscale"], BuildSettings.Downscale);
+	ReadCbField(Object["DownscaleOptions"], BuildSettings.DownscaleOptions);
+	ReadCbField(Object["VirtualAddressingModeX"], BuildSettings.VirtualAddressingModeX);
+	ReadCbField(Object["VirtualAddressingModeY"], BuildSettings.VirtualAddressingModeY);
+	ReadCbField(Object["VirtualTextureTileSize"], BuildSettings.VirtualTextureTileSize);
+	ReadCbField(Object["VirtualTextureBorderSize"], BuildSettings.VirtualTextureBorderSize);
+	BuildSettings.bVirtualTextureEnableCompressZlib = Object["bVirtualTextureEnableCompressZlib"].AsBool(BuildSettings.bVirtualTextureEnableCompressZlib);
+	BuildSettings.bVirtualTextureEnableCompressCrunch = Object["bVirtualTextureEnableCompressCrunch"].AsBool(BuildSettings.bVirtualTextureEnableCompressCrunch);
+	BuildSettings.bHasEditorOnlyData = Object["bHasEditorOnlyData"].AsBool(BuildSettings.bHasEditorOnlyData);
+	return BuildSettings;
+}
+
+static void ReadOutputSettingsFromCompactBinary(const FCbObjectView& Object, int32& NumInlineMips, FString& MipKeyPrefix)
+{
+	NumInlineMips = Object["NumInlineMips"].AsInt32();
+	MipKeyPrefix = FUTF8ToTCHAR(Object["MipKeyPrefix"].AsString());
 }
 
 static ERawImageFormat::Type ComputeRawImageFormat(ETextureSourceFormat SourceFormat)
@@ -151,20 +167,24 @@ static ERawImageFormat::Type ComputeRawImageFormat(ETextureSourceFormat SourceFo
 	}
 }
 
-static void ReadTextureSourceFromCompactBinary(const FCbObject& Object, UE::DerivedData::FBuildContext& Context, TArray<FImage>& OutMips)
+static bool TryReadTextureSourceFromCompactBinary(const FCbObjectView& Object, UE::DerivedData::FBuildContext& Context, TArray<FImage>& OutMips)
 {
-	FAnsiStringView InputKey = Object.FindView("Input").AsString();
-	FSharedBuffer InputBuffer = Context.FindInput(FUTF8ToTCHAR(InputKey));
+	FSharedBuffer InputBuffer = Context.FindInput(Object["Input"].AsUuid().ToString());
+	if (!InputBuffer)
+	{
+		UE_LOG(LogTextureBuildFunction, Error, TEXT("Missing input %s."), *Object["Input"].AsUuid().ToString());
+		return false;
+	}
 
-	ETextureSourceCompressionFormat CompressionFormat = (ETextureSourceCompressionFormat)Object.FindView("CompressionFormat").AsUInt8();
-	ETextureSourceFormat SourceFormat = (ETextureSourceFormat)Object.FindView("SourceFormat").AsUInt8();
+	ETextureSourceCompressionFormat CompressionFormat = (ETextureSourceCompressionFormat)Object["CompressionFormat"].AsUInt8();
+	ETextureSourceFormat SourceFormat = (ETextureSourceFormat)Object["SourceFormat"].AsUInt8();
 
 	ERawImageFormat::Type RawImageFormat = ComputeRawImageFormat(SourceFormat);
 
-	EGammaSpace GammaSpace = (EGammaSpace)Object.FindView("GammaSpace").AsUInt8();
-	int32 NumSlices = Object.FindView("NumSlices").AsInt32();
-	int32 SizeX = Object.FindView("SizeX").AsInt32();
-	int32 SizeY = Object.FindView("SizeY").AsInt32();
+	EGammaSpace GammaSpace = (EGammaSpace)Object["GammaSpace"].AsUInt8();
+	int32 NumSlices = Object["NumSlices"].AsInt32();
+	int32 SizeX = Object["SizeX"].AsInt32();
+	int32 SizeY = Object["SizeY"].AsInt32();
 	int32 MipSizeX = SizeX;
 	int32 MipSizeY = SizeY;
 
@@ -190,20 +210,20 @@ static void ReadTextureSourceFromCompactBinary(const FCbObject& Object, UE::Deri
 		}
 		break;
 		default:
-			checkf(false, TEXT("Unexpected source compression format encountered while attempting to build a texture."));
-			break;
+			UE_LOG(LogTextureBuildFunction, Error, TEXT("Unexpected source compression format encountered while attempting to build a texture."));
+			return false;
 		}
 		DecompressedSourceData = IntermediateDecompressedData.GetData();
 		InputBuffer.Reset();
 	}
 
-	FCbArrayView MipsCbArrayView = Object.FindView("Mips").AsArrayView();
+	FCbArrayView MipsCbArrayView = Object["Mips"].AsArrayView();
 	OutMips.Reserve(MipsCbArrayView.Num());
-	for (FCbFieldViewIterator MipsCbArrayIt = MipsCbArrayView.CreateViewIterator(); MipsCbArrayIt; ++MipsCbArrayIt)
+	for (FCbFieldView MipsCbArrayIt : MipsCbArrayView)
 	{
-		FCbObjectView MipCbObjectView = MipsCbArrayIt->AsObjectView();
-		int64 MipOffset = MipCbObjectView.FindView("Offset").AsInt64();
-		int64 MipSize = MipCbObjectView.FindView("Size").AsInt64();
+		FCbObjectView MipCbObjectView = MipsCbArrayIt.AsObjectView();
+		int64 MipOffset = MipCbObjectView["Offset"].AsInt64();
+		int64 MipSize = MipCbObjectView["Size"].AsInt64();
 
 		FImage* SourceMip = new(OutMips) FImage(
 			MipSizeX, MipSizeY,
@@ -231,32 +251,53 @@ static void ReadTextureSourceFromCompactBinary(const FCbObject& Object, UE::Deri
 		MipSizeY = FMath::Max(MipSizeY / 2, 1);
 	}
 
+	return true;
 }
 
 void FTextureBuildFunction::Configure(UE::DerivedData::FBuildConfigContext& Context) const
 {
-	Context.SetCacheBucket(Context.CreateCacheBucket(TEXT("Texture")));
+	Context.SetCacheBucket(Context.CreateCacheBucket(TEXT("Texture"_SV)));
 }
 
 void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 {
-	ITextureCompressorModule& Compressor = FModuleManager::LoadModuleChecked<ITextureCompressorModule>(TEXTURE_COMPRESSOR_MODULENAME);
+	const FCbObject Settings = Context.FindConstant(TEXT("Settings"_SV));
+	if (!Settings)
+	{
+		UE_LOG(LogTextureBuildFunction, Error, TEXT("Settings are not available."));
+		return;
+	}
 
-	const FCbObject BuildSettingsCbObj = Context.FindConstant(TEXT("TextureBuildSettings"));
-	FTextureBuildSettings BuildSettings;
-	ReadBuildSettingsFromCompactBinary(Context.FindConstant(TEXT("TextureBuildSettings")), BuildSettings);
+	const FTextureBuildSettings BuildSettings = ReadBuildSettingsFromCompactBinary(Settings["Build"].AsObjectView());
+
+	const uint16 RequiredTextureFormatVersion = Settings["FormatVersion"].AsUInt16();
+	if (ITextureFormatManagerModule* TFM = GetTextureFormatManager())
+	{
+		const ITextureFormat* TextureFormat = TFM->FindTextureFormat(BuildSettings.TextureFormatName);
+		const uint16 CurrentTextureFormatVersion = TextureFormat ? TextureFormat->GetVersion(BuildSettings.TextureFormatName, &BuildSettings) : 0;
+		if (CurrentTextureFormatVersion != RequiredTextureFormatVersion)
+		{
+			UE_LOG(LogTextureBuildFunction, Error, TEXT("%s has version %hu when version %hu is required."),
+				*BuildSettings.TextureFormatName.ToString(), CurrentTextureFormatVersion, RequiredTextureFormatVersion);;
+			return;
+		}
+	}
+
 	int32 NumInlineMips;
 	FString MipKeyPrefix;
-	ReadOutputSettingsFromCompactBinary(Context.FindConstant(TEXT("TextureOutputSettings")), NumInlineMips, MipKeyPrefix);
+	ReadOutputSettingsFromCompactBinary(Settings["Output"].AsObjectView(), NumInlineMips, MipKeyPrefix);
 
 	TArray<FImage> SourceMips;
-	ReadTextureSourceFromCompactBinary(Context.FindConstant(TEXT("TextureSource")), Context, SourceMips);
+	if (!TryReadTextureSourceFromCompactBinary(Settings["Source"].AsObjectView(), Context, SourceMips))
+	{
+		return;
+	}
 
 	TArray<FImage> AssociatedNormalSourceMips;
-	const FCbObject AssociatedNormalSourceMipsCbObj = Context.FindConstant(TEXT("CompositeTextureSource"));
-	if (AssociatedNormalSourceMipsCbObj)
+	if (const FCbObjectView CompositeSource = Settings["CompositeSource"].AsObjectView();
+		CompositeSource && !TryReadTextureSourceFromCompactBinary(CompositeSource, Context, AssociatedNormalSourceMips))
 	{
-		ReadTextureSourceFromCompactBinary(AssociatedNormalSourceMipsCbObj, Context, AssociatedNormalSourceMips);
+		return;
 	}
 
 	UE_LOG(LogTextureBuildFunction, Display, TEXT("Compressing %d source mip(s) (%dx%d) to %s..."), SourceMips.Num(), SourceMips[0].SizeX, SourceMips[0].SizeY, *BuildSettings.TextureFormatName.ToString());
@@ -265,7 +306,8 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 	uint32 NumMipsInTail;
 	uint32 ExtData;
 
-	Compressor.BuildTexture(SourceMips,
+	FModuleManager::LoadModuleChecked<ITextureCompressorModule>(TEXTURE_COMPRESSOR_MODULENAME).BuildTexture(
+		SourceMips,
 		AssociatedNormalSourceMips,
 		BuildSettings,
 		CompressedMips,
@@ -373,7 +415,7 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 			EFileRegionType FileRegion = FFileRegion::SelectType(EPixelFormat(CompressedMip.PixelFormat));
 			MipFooterWriter << FileRegion;
 
-			TStringBuilder<128> DerivedDataKey;
+			TStringBuilder<512> DerivedDataKey;
 			if (!bIsInlineMip)
 			{
 				// This has to match the behavior in GetTextureDerivedMipKey in TextureDerivedData.cpp
@@ -393,6 +435,6 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 
 
 		FCompositeBuffer CompositeResult(OrderedBuffers);
-		Context.AddPayload(UE::DerivedData::FPayloadId::FromName(TEXT("Texture")), FCompressedBuffer::Compress(NAME_Default, CompositeResult));
+		Context.AddPayload(UE::DerivedData::FPayloadId::FromName(TEXT("Texture"_SV)), FCompressedBuffer::Compress(NAME_Default, CompositeResult));
 	}
 }
