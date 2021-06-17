@@ -1700,6 +1700,14 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 					Operand.RegisterOffset = WorkData.VM->GetWorkMemory().GetOrAddRegisterOffset(Operand.GetRegisterIndex(), ScriptStruct, SegmentPath, 0 /*ArrayIndex */);
 				}
 			}
+
+			ExistingOperand = WorkData.PinPathToOperand->Find(FString::Printf(TEXT("LocalVariable::%s"), *VariableName));
+			if (ExistingOperand)
+			{
+				Operand = *ExistingOperand;
+				Operand.RegisterOffset = INDEX_NONE;
+				check(SegmentPath.IsEmpty());
+			}
 		}
 	}
 
