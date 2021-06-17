@@ -25,6 +25,10 @@
 			"SupportedTargetPlatforms": [
 				"Win64"
 			]
+		},
+		{
+			"Name": "Switchboard",
+			"Enabled": true
 		}
 	],
 	"TargetPlatforms": [
