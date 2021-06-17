@@ -31,11 +31,6 @@ namespace HordeServer.Models
 	public class AgentWorkspace
 	{
 		/// <summary>
-		/// Identifier for the AutoSDK workspace
-		/// </summary>
-		public const string AutoSdkIdentifier = "AutoSDK";
-
-		/// <summary>
 		/// Name of the Perforce cluster to use
 		/// </summary>
 		public string? Cluster { get; set; }
@@ -755,28 +750,49 @@ namespace HordeServer.Models
 		}
 
 		/// <summary>
+		/// Gets all the autosdk workspaces required for an agent
+		/// </summary>
+		/// <param name="Agent"></param>
+		/// <param name="Globals"></param>
+		/// <param name="Workspaces"></param>
+		/// <returns></returns>
+		public static HashSet<AgentWorkspace> GetAutoSdkWorkspaces(this IAgent Agent, Globals Globals, List<AgentWorkspace> Workspaces)
+		{
+			HashSet<AgentWorkspace> AutoSdkWorkspaces = new HashSet<AgentWorkspace>();
+			foreach (string? ClusterName in Workspaces.Select(x => x.Cluster).Distinct())
+			{
+				PerforceCluster? Cluster = Globals.FindPerforceCluster(ClusterName);
+				if (Cluster != null)
+				{
+					AgentWorkspace? AutoSdkWorkspace = GetAutoSdkWorkspace(Agent, Cluster);
+					if (AutoSdkWorkspace != null)
+					{
+						AutoSdkWorkspaces.Add(AutoSdkWorkspace);
+					}
+				}
+			}
+			return AutoSdkWorkspaces;
+		}
+
+		/// <summary>
 		/// Get the AutoSDK workspace required for an agent
 		/// </summary>
 		/// <param name="Agent"></param>
+		/// <param name="Cluster">The perforce cluster to get a workspace for</param>
 		/// <returns></returns>
-		public static AgentWorkspace? GetAutoSdkWorkspace(this IAgent Agent)
+		public static AgentWorkspace? GetAutoSdkWorkspace(this IAgent Agent, PerforceCluster Cluster)
 		{
 			if (Agent.Capabilities.Devices.Count > 0)
 			{
 				DeviceCapabilities PrimaryDevice = Agent.Capabilities.Devices[0];
 				if (PrimaryDevice.Properties != null)
 				{
-					if (PrimaryDevice.Properties.Contains("OSFamily=Windows"))
+					foreach (AutoSdkWorkspace AutoSdk in Cluster.AutoSdk)
 					{
-						return new AgentWorkspace(null, null, AgentWorkspace.AutoSdkIdentifier, "//UE4/Private-AutoSDK-Windows", null, true);
-					}
-					else if (PrimaryDevice.Properties.Contains("OSFamily=Linux"))
-					{
-						return new AgentWorkspace(null, null, AgentWorkspace.AutoSdkIdentifier, "//UE4/Private-AutoSDK-Linux", null, true);
-					}
-					else if (PrimaryDevice.Properties.Contains("OSFamily=MacOS"))
-					{
-						return new AgentWorkspace(null, null, AgentWorkspace.AutoSdkIdentifier, "//UE4/Private-AutoSDK-Mac", null, true);
+						if (AutoSdk.Stream != null && AutoSdk.Properties.All(x => PrimaryDevice.Properties.Contains(x)))
+						{
+							return new AgentWorkspace(Cluster.Name, AutoSdk.UserName, AutoSdk.Name ?? "AutoSDK", AutoSdk.Stream!, null, true);
+						}
 					}
 				}
 			}
@@ -784,59 +800,26 @@ namespace HordeServer.Models
 		}
 
 		/// <summary>
-		/// Check that an agent has the required workspaces to execute a task
-		/// </summary>
-		/// <param name="Agent"></param>
-		/// <param name="Workspace"></param>
-		/// <returns></returns>
-		public static bool HasRequiredWorkspaces(this IAgent Agent, AgentWorkspace Workspace)
-		{
-			if (!Agent.Workspaces.Contains(Workspace))
-			{
-				return false;
-			}
-
-			AgentWorkspace? AutoSdkWorkspace = Agent.GetAutoSdkWorkspace();
-			if (AutoSdkWorkspace != null && !Agent.Workspaces.Contains(AutoSdkWorkspace))
-			{
-				return false;
-			}
-
-			return true;
-		}
-
-		/// <summary>
 		/// Converts this workspace to an RPC message
 		/// </summary>
 		/// <param name="Agent">The agent to get a workspace for</param>
 		/// <param name="Workspace">The workspace definition</param>
-		/// <param name="Globals">The global state</param>
+		/// <param name="Cluster">The global state</param>
 		/// <param name="LoadBalancer">The Perforce load balancer</param>
 		/// <param name="WorkspaceMessages">List of messages</param>
 		/// <returns>The RPC message</returns>
-		public static async Task<bool> TryAddWorkspaceMessage(this IAgent Agent, AgentWorkspace Workspace, Globals Globals, PerforceLoadBalancer LoadBalancer, IList<HordeCommon.Rpc.Messages.AgentWorkspace> WorkspaceMessages)
+		public static async Task<bool> TryAddWorkspaceMessage(this IAgent Agent, AgentWorkspace Workspace, PerforceCluster Cluster, PerforceLoadBalancer LoadBalancer, IList<HordeCommon.Rpc.Messages.AgentWorkspace> WorkspaceMessages)
 		{
-			// Find the matching Perforce cluster
-			PerforceCluster? ClusterInfo;
-			if (Workspace.Cluster == null)
-			{
-				ClusterInfo = Globals.PerforceClusters.FirstOrDefault();
-			}
-			else
-			{
-				ClusterInfo = Globals.PerforceClusters.FirstOrDefault(x => String.Equals(x.Name, Workspace.Cluster, StringComparison.OrdinalIgnoreCase));
-			}
-
 			// Find a matching server, trying to use a previously selected one if possible
 			string? ServerAndPort = WorkspaceMessages.FirstOrDefault(x => x.ConfiguredCluster == Workspace.Cluster)?.ServerAndPort;
 			if (ServerAndPort == null)
 			{
-				if (ClusterInfo == null)
+				if (Cluster == null)
 				{
 					return false;
 				}
 
-				IPerforceServer? Server = await LoadBalancer.SelectServerAsync(ClusterInfo, Agent);
+				IPerforceServer? Server = await LoadBalancer.SelectServerAsync(Cluster, Agent);
 				if (Server == null)
 				{
 					return false;
@@ -846,15 +829,15 @@ namespace HordeServer.Models
 
 			// Find the matching credentials for the desired user
 			PerforceCredentials? Credentials = null;
-			if (ClusterInfo != null)
+			if (Cluster != null)
 			{
 				if (Workspace.UserName == null)
 				{
-					Credentials = ClusterInfo.Credentials.FirstOrDefault();
+					Credentials = Cluster.Credentials.FirstOrDefault();
 				}
 				else
 				{
-					Credentials = ClusterInfo.Credentials.FirstOrDefault(x => String.Equals(x.UserName, Workspace.UserName, StringComparison.OrdinalIgnoreCase));
+					Credentials = Cluster.Credentials.FirstOrDefault(x => String.Equals(x.UserName, Workspace.UserName, StringComparison.OrdinalIgnoreCase));
 				}
 			}
 
@@ -862,7 +845,7 @@ namespace HordeServer.Models
 			HordeCommon.Rpc.Messages.AgentWorkspace Result = new HordeCommon.Rpc.Messages.AgentWorkspace();
 			Result.ConfiguredCluster = Workspace.Cluster;
 			Result.ConfiguredUserName = Workspace.UserName;
-			Result.Cluster = ClusterInfo?.Name;
+			Result.Cluster = Cluster?.Name;
 			Result.ServerAndPort = ServerAndPort;
 			Result.UserName = Credentials?.UserName ?? Workspace.UserName;
 			Result.Password = Credentials?.Password;

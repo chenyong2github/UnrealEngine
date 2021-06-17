@@ -877,17 +877,23 @@ namespace HordeServer.Tasks.Impl
 
 			List<HordeCommon.Rpc.Messages.AgentWorkspace> Workspaces = new List<HordeCommon.Rpc.Messages.AgentWorkspace>();
 
-			AgentWorkspace? AutoSdkWorkspace = Agent.GetAutoSdkWorkspace();
+			PerforceCluster? Cluster = Globals.FindPerforceCluster(Workspace.Cluster);
+			if (Cluster == null)
+			{
+				return null;
+			}
+
+			AgentWorkspace? AutoSdkWorkspace = Agent.GetAutoSdkWorkspace(Cluster);
 			if (AutoSdkWorkspace != null)
 			{
-				if (!await Agent.TryAddWorkspaceMessage(AutoSdkWorkspace, Globals, PerforceLoadBalancer, Workspaces))
+				if (!await Agent.TryAddWorkspaceMessage(AutoSdkWorkspace, Cluster, PerforceLoadBalancer, Workspaces))
 				{
 					return null;
 				}
 				Task.AutoSdkWorkspace = Workspaces.Last();
 			}
 
-			if (!await Agent.TryAddWorkspaceMessage(Workspace, Globals, PerforceLoadBalancer, Workspaces))
+			if (!await Agent.TryAddWorkspaceMessage(Workspace, Cluster, PerforceLoadBalancer, Workspaces))
 			{
 				return null;
 			}

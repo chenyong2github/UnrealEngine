@@ -179,6 +179,33 @@ namespace HordeServer.Models
 	}
 
 	/// <summary>
+	/// Path to a platform and stream to use for syncing AutoSDK
+	/// </summary>
+	public class AutoSdkWorkspace
+	{
+		/// <summary>
+		/// Name of this workspace
+		/// </summary>
+		public string? Name { get; set; }
+
+		/// <summary>
+		/// The agent properties to check (eg. "OSFamily=Windows")
+		/// </summary>
+		public List<string> Properties { get; set; } = new List<string>();
+
+		/// <summary>
+		/// Username for logging in to the server
+		/// </summary>
+		public string? UserName { get; set; }
+
+		/// <summary>
+		/// Stream to use
+		/// </summary>
+		[Required]
+		public string? Stream { get; set; }
+	}
+
+	/// <summary>
 	/// Information about an individual Perforce server
 	/// </summary>
 	public class PerforceServer
@@ -245,6 +272,11 @@ namespace HordeServer.Models
 		/// List of server credentials
 		/// </summary>
 		public List<PerforceCredentials> Credentials { get; set; } = new List<PerforceCredentials>();
+
+		/// <summary>
+		/// List of autosdk streams
+		/// </summary>
+		public List<AutoSdkWorkspace> AutoSdk { get; set; } = new List<AutoSdkWorkspace>();
 	}
 
 	/// <summary>
@@ -320,6 +352,23 @@ namespace HordeServer.Models
 			{
 				JwtSigningKey = new byte[128];
 				Generator.GetBytes(JwtSigningKey);
+			}
+		}
+
+		/// <summary>
+		/// Finds a perforce cluster with the given name
+		/// </summary>
+		/// <param name="Name">Name of the cluster</param>
+		/// <returns></returns>
+		public PerforceCluster? FindPerforceCluster(string? Name)
+		{
+			if (Name == null)
+			{
+				return PerforceClusters.FirstOrDefault();
+			}
+			else
+			{
+				return PerforceClusters.FirstOrDefault(x => String.Equals(x.Name, Name, StringComparison.OrdinalIgnoreCase));
 			}
 		}
 

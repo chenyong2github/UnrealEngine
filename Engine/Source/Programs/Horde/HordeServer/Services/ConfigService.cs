@@ -33,7 +33,7 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Config file version number
 		/// </summary>
-		const int Version = 3;
+		const int Version = 4;
 
 		/// <summary>
 		/// Database service

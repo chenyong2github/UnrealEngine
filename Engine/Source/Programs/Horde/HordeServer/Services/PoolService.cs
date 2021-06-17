@@ -25,6 +25,11 @@ namespace HordeServer.Services
 	public class PoolService
 	{
 		/// <summary>
+		/// The database service instance
+		/// </summary>
+		DatabaseService DatabaseService;
+
+		/// <summary>
 		/// Collection of pool documents
 		/// </summary>
 		IPoolCollection Pools;
@@ -42,10 +47,12 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		/// <param name="DatabaseService"></param>
 		/// <param name="Pools">Collection of pool documents</param>
 		/// <param name="Clock"></param>
-		public PoolService(IPoolCollection Pools, IClock Clock)
+		public PoolService(DatabaseService DatabaseService, IPoolCollection Pools, IClock Clock)
 		{
+			this.DatabaseService = DatabaseService;
 			this.Pools = Pools;
 			this.Clock = Clock;
 		}
@@ -128,14 +135,12 @@ namespace HordeServer.Services
 		{
 			HashSet<AgentWorkspace> Workspaces = new HashSet<AgentWorkspace>();
 
-			AgentWorkspace? AutoSdkWorkspace = Agent.GetAutoSdkWorkspace();
-			if(AutoSdkWorkspace != null)
-			{
-				Workspaces.Add(AutoSdkWorkspace);
-			}
-
 			Dictionary<PoolId, IPool> PoolMapping = await GetPoolLookupAsync(ValidAtTime);
 			Workspaces.UnionWith(Agent.GetPools(PoolMapping.Values).SelectMany(x => x.Workspaces));
+
+			Globals Globals = await DatabaseService.GetGlobalsAsync();
+			Workspaces.UnionWith(Agent.GetAutoSdkWorkspaces(Globals, Workspaces.ToList()));
+
 			return Workspaces;
 		}
 
