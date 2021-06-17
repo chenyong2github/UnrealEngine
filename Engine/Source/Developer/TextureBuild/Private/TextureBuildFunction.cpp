@@ -167,24 +167,24 @@ static ERawImageFormat::Type ComputeRawImageFormat(ETextureSourceFormat SourceFo
 	}
 }
 
-static bool TryReadTextureSourceFromCompactBinary(const FCbObjectView& Object, UE::DerivedData::FBuildContext& Context, TArray<FImage>& OutMips)
+static bool TryReadTextureSourceFromCompactBinary(FCbFieldView Source, UE::DerivedData::FBuildContext& Context, TArray<FImage>& OutMips)
 {
-	FSharedBuffer InputBuffer = Context.FindInput(Object["Input"].AsUuid().ToString());
+	FSharedBuffer InputBuffer = Context.FindInput(FUTF8ToTCHAR(Source.GetName()));
 	if (!InputBuffer)
 	{
-		UE_LOG(LogTextureBuildFunction, Error, TEXT("Missing input %s."), *Object["Input"].AsUuid().ToString());
+		UE_LOG(LogTextureBuildFunction, Error, TEXT("Missing input %.*s."), Source.GetName().Len(), Source.GetName().GetData());
 		return false;
 	}
 
-	ETextureSourceCompressionFormat CompressionFormat = (ETextureSourceCompressionFormat)Object["CompressionFormat"].AsUInt8();
-	ETextureSourceFormat SourceFormat = (ETextureSourceFormat)Object["SourceFormat"].AsUInt8();
+	ETextureSourceCompressionFormat CompressionFormat = (ETextureSourceCompressionFormat)Source["CompressionFormat"].AsUInt8();
+	ETextureSourceFormat SourceFormat = (ETextureSourceFormat)Source["SourceFormat"].AsUInt8();
 
 	ERawImageFormat::Type RawImageFormat = ComputeRawImageFormat(SourceFormat);
 
-	EGammaSpace GammaSpace = (EGammaSpace)Object["GammaSpace"].AsUInt8();
-	int32 NumSlices = Object["NumSlices"].AsInt32();
-	int32 SizeX = Object["SizeX"].AsInt32();
-	int32 SizeY = Object["SizeY"].AsInt32();
+	EGammaSpace GammaSpace = (EGammaSpace)Source["GammaSpace"].AsUInt8();
+	int32 NumSlices = Source["NumSlices"].AsInt32();
+	int32 SizeX = Source["SizeX"].AsInt32();
+	int32 SizeY = Source["SizeY"].AsInt32();
 	int32 MipSizeX = SizeX;
 	int32 MipSizeY = SizeY;
 
@@ -217,7 +217,7 @@ static bool TryReadTextureSourceFromCompactBinary(const FCbObjectView& Object, U
 		InputBuffer.Reset();
 	}
 
-	FCbArrayView MipsCbArrayView = Object["Mips"].AsArrayView();
+	FCbArrayView MipsCbArrayView = Source["Mips"].AsArrayView();
 	OutMips.Reserve(MipsCbArrayView.Num());
 	for (FCbFieldView MipsCbArrayIt : MipsCbArrayView)
 	{
@@ -288,13 +288,13 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 	ReadOutputSettingsFromCompactBinary(Settings["Output"].AsObjectView(), NumInlineMips, MipKeyPrefix);
 
 	TArray<FImage> SourceMips;
-	if (!TryReadTextureSourceFromCompactBinary(Settings["Source"].AsObjectView(), Context, SourceMips))
+	if (!TryReadTextureSourceFromCompactBinary(Settings["Source"], Context, SourceMips))
 	{
 		return;
 	}
 
 	TArray<FImage> AssociatedNormalSourceMips;
-	if (const FCbObjectView CompositeSource = Settings["CompositeSource"].AsObjectView();
+	if (FCbFieldView CompositeSource = Settings["CompositeSource"];
 		CompositeSource && !TryReadTextureSourceFromCompactBinary(CompositeSource, Context, AssociatedNormalSourceMips))
 	{
 		return;

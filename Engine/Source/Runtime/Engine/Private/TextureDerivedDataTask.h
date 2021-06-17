@@ -108,12 +108,6 @@ struct FTextureSourceData
  */
 class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 {
-	struct FBuildInputRecord
-	{
-		FGuid Id;
-		FCompressedBuffer Data;
-	};
-
 	/** Texture compressor module, must be loaded in the game thread. see FModuleManager::WarnIfItWasntSafeToLoadHere() */
 	ITextureCompressorModule* Compressor;
 	/** Image wrapper module, must be loaded in the game thread. see FModuleManager::WarnIfItWasntSafeToLoadHere() */
@@ -132,8 +126,6 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 	FTextureSourceData CompositeTextureData;
 	/** DDC2 build function name to use to build this texture (if DDC2 is enabled and the target texture type has a DDC2 build function, empty otherwise) */
 	FString BuildFunctionName;
-	/** DDC2 build input records for putting on the action (if DDC2 is enabled and the target texture type has a DDC2 build function, empty otherwise) */
-	TArray<FBuildInputRecord> BuildInputRecords;
 	/** Exporter that can optionally write out build actions and reference outputs for the purpose of testing remote execution of builds */
 	FTextureDerivedDataBuildExporter BuildExporter;
 	/** Texture cache flags. */
@@ -150,19 +142,6 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 
 	/** Build the texture. This function is safe to call from any thread. */
 	void BuildTexture(bool bReplaceExistingDDC = false);
-
-	void ConditionalAddBuildFunctionInput(FTextureSource& Source)
-	{
-		if (!BuildFunctionName.IsEmpty())
-		{
-			FBuildInputRecord& NewRef = BuildInputRecords.AddDefaulted_GetRef();
-			NewRef.Id = Source.GetId();
-			Source.OperateOnLoadedBulkData([&NewRef](const FSharedBuffer& BulkDataBuffer)
-			{
-				NewRef.Data = FCompressedBuffer::Compress(NAME_Default, BulkDataBuffer);
-			});
-		}
-	}
 
 	void ConsumeBuildFunctionOutput(const UE::DerivedData::FBuildOutput& BuildOutput, const FString& TexturePath, bool bReplaceExistingDDC);
 

@@ -447,18 +447,34 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 
 			DefinitionBuilder.AddConstant(TEXT("Settings"_SV),
 				SaveTextureBuildSettings(KeySuffix, Texture, BuildSettingsPerLayer[0], 0, NUM_INLINE_DERIVED_MIPS));
-
-			for (const FBuildInputRecord& InputRecord : BuildInputRecords)
+			DefinitionBuilder.AddInputBulkData(TEXT("Source"_SV), Texture.Source.GetId());
+			if (Texture.CompositeTexture)
 			{
-				DefinitionBuilder.AddInputBulkData(InputRecord.Id.ToString(), InputRecord.Id);
+				DefinitionBuilder.AddInputBulkData(TEXT("CompositeSource"_SV), Texture.CompositeTexture->Source.GetId());
 			}
 
 			class FTextureBuildInputResolver final : public IBuildInputResolver
 			{
 			public:
-				explicit FTextureBuildInputResolver(TConstArrayView<FBuildInputRecord> InRecords)
-					: Records(InRecords)
+				explicit FTextureBuildInputResolver(UTexture& InTexture)
+					: Texture(InTexture)
 				{
+				}
+
+				const FCompressedBuffer& FindSource(FCompressedBuffer& Buffer, FTextureSource& Source, const FGuid& BulkDataId)
+				{
+					if (Source.GetId() != BulkDataId)
+					{
+						return FCompressedBuffer::Null;
+					}
+					if (!Buffer)
+					{
+						Source.OperateOnLoadedBulkData([&Buffer](const FSharedBuffer& BulkDataBuffer)
+						{
+							Buffer = FCompressedBuffer::Compress(NAME_Default, BulkDataBuffer);
+						});
+					}
+					return Buffer;
 				}
 
 				FRequest ResolveInputMeta(
@@ -471,10 +487,13 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 					TArray<FBuildInputMetaByKey> Inputs;
 					Definition.IterateInputBulkData([this, &Status, &InputKeys, &Inputs](FStringView Key, const FGuid& BulkDataId)
 					{
-						if (const FBuildInputRecord* Match = Algo::FindBy(Records, BulkDataId, &FBuildInputRecord::Id))
+						const FCompressedBuffer& Buffer = Key == TEXT("Source"_SV)
+							? FindSource(SourceBuffer, Texture.Source, BulkDataId)
+							: FindSource(CompositeSourceBuffer, Texture.CompositeTexture->Source, BulkDataId);
+						if (Buffer)
 						{
 							InputKeys.Emplace(Key);
-							Inputs.Add({InputKeys.Last(), Match->Data.GetRawHash(), Match->Data.GetRawSize()});
+							Inputs.Add({InputKeys.Last(), Buffer.GetRawHash(), Buffer.GetRawSize()});
 						}
 						else
 						{
@@ -498,10 +517,13 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 					{
 						if (!Filter || Filter(Key))
 						{
-							if (const FBuildInputRecord* Match = Algo::FindBy(Records, BulkDataId, &FBuildInputRecord::Id))
+							const FCompressedBuffer& Buffer = Key == TEXT("Source"_SV)
+								? FindSource(SourceBuffer, Texture.Source, BulkDataId)
+								: FindSource(CompositeSourceBuffer, Texture.CompositeTexture->Source, BulkDataId);
+							if (Buffer)
 							{
 								InputKeys.Emplace(Key);
-								Inputs.Add({InputKeys.Last(), Match->Data});
+								Inputs.Add({InputKeys.Last(), Buffer});
 							}
 							else
 							{
@@ -514,10 +536,12 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 				}
 
 			private:
-				TConstArrayView<FBuildInputRecord> Records;
+				UTexture& Texture;
+				FCompressedBuffer SourceBuffer;
+				FCompressedBuffer CompositeSourceBuffer;
 			};
 
-			FTextureBuildInputResolver InputResolver(BuildInputRecords);
+			FTextureBuildInputResolver InputResolver(Texture);
 			FBuildSession Session = Build.CreateSession(TexturePath, &InputResolver);
 			Session.Build(DefinitionBuilder.Build(), EBuildPolicy::Default, EPriority::Blocking,
 				[this, &TexturePath, bReplaceExistingDDC] (FBuildCompleteParams&& Params)
@@ -846,7 +870,6 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		{
 			TextureData.GetSourceMips(Texture.Source, ImageWrapper);
 			BuildExporter.ExportTextureSourceBulkData(Texture.Source);
-			ConditionalAddBuildFunctionInput(Texture.Source);
 			bHasTextureSourceMips = true;
 		}
 
@@ -855,7 +878,6 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		{
 			CompositeTextureData.GetSourceMips(Texture.CompositeTexture->Source, ImageWrapper);
 			BuildExporter.ExportCompositeTextureSourceBulkData(Texture.CompositeTexture->Source);
-			ConditionalAddBuildFunctionInput(Texture.CompositeTexture->Source);
 			bHasCompositeTextureSourceMips = true;
 		}
 
@@ -863,7 +885,6 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		{
 			TextureData.GetAsyncSourceMips(ImageWrapper);
 			BuildExporter.ExportTextureSourceBulkData(TextureData.AsyncSource);
-			ConditionalAddBuildFunctionInput(TextureData.AsyncSource);
 			TextureData.AsyncSource.RemoveBulkData();
 		}
 
@@ -873,7 +894,6 @@ void FTextureCacheDerivedDataWorker::DoWork()
 			if ((bool)Texture.CompositeTexture)
 			{
 				BuildExporter.ExportCompositeTextureSourceBulkData(CompositeTextureData.AsyncSource);
-				ConditionalAddBuildFunctionInput(CompositeTextureData.AsyncSource);
 			}
 			CompositeTextureData.AsyncSource.RemoveBulkData();
 		}
