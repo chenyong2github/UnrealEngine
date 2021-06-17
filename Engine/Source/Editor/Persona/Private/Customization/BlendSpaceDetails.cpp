@@ -53,6 +53,9 @@ FReply FBlendSpaceDetails::HandleAnalyzeSamples()
 {
 	if(BlendSpace->IsAsset())
 	{
+		FScopedTransaction ScopedTransaction(LOCTEXT("AnalyzeBlendSpaceSamples", "Applying Blend Space sample analysis"));
+		BlendSpace->Modify();
+
 		FSlateApplication::Get().DismissAllMenus();
 		bool bChangedOne = false;
 
@@ -86,9 +89,12 @@ FReply FBlendSpaceDetails::HandleAnalyzeSamples()
 
 		if (bChangedOne)
 		{
-			BlendSpace->Modify();
 			FPropertyChangedEvent ChangedEvent(nullptr, EPropertyChangeType::ArrayClear);
 			BlendSpace->PostEditChangeProperty(ChangedEvent);
+		}
+		else
+		{
+			ScopedTransaction.Cancel();
 		}
 	}
 	return FReply::Handled();

@@ -465,6 +465,8 @@ TSharedPtr<SWidget> SBlendSpaceGridWidget::CreateGridEntryBox(const int32 BoxInd
 		.UndeterminedString(LOCTEXT("MultipleValues", "Multiple Values"))
 		.OnValueCommitted(this, &SBlendSpaceGridWidget::OnInputBoxValueCommited, BoxIndex)
 		.OnValueChanged(this, &SBlendSpaceGridWidget::OnInputBoxValueChanged, BoxIndex, true)
+		.OnBeginSliderMovement(this, &SBlendSpaceGridWidget::OnInputSliderBegin, BoxIndex)
+		.OnEndSliderMovement(this, &SBlendSpaceGridWidget::OnInputSliderEnd, BoxIndex)
 		.LabelVAlign(VAlign_Center)
 		.AllowSpin(true)
 		.MinValue(this, &SBlendSpaceGridWidget::GetInputBoxMinValue, BoxIndex)
@@ -681,7 +683,7 @@ void SBlendSpaceGridWidget::PaintSampleKeys(
 			FVector2D GridPosition = SampleValueToScreenPosition(PreviewFilteredPosition) - (PreviewSize * .5f);
 			FSlateDrawElement::MakeBox(
 				OutDrawElements, FilteredPositionLayer, AllottedGeometry.ToPaintGeometry(GridPosition, PreviewSize), 
-				PreviewBrush, ESlateDrawEffect::None, PreviewKeyColor.GetSpecifiedColor() * 0.7);
+				PreviewBrush, ESlateDrawEffect::None, PreviewKeyColor.GetSpecifiedColor() * 0.7f);
 		}
 
 		// Always draw the preview position
@@ -1187,6 +1189,7 @@ FReply SBlendSpaceGridWidget::OnMouseButtonUp(const FGeometry& MyGeometry, const
 			{
 				// Process drag ending			
 				ResetToolTip();
+				OnSampleMoved.ExecuteIfBound(DraggedSampleIndex, LastDragPosition, false);
 			}
 
 			// Reset drag state and index
@@ -2246,6 +2249,12 @@ void SBlendSpaceGridWidget::OnInputBoxValueCommited(const float NewValue, ETextC
 
 void SBlendSpaceGridWidget::OnInputBoxValueChanged(const float NewValue, const int32 ParameterIndex, bool bIsInteractive)
 {
+	// Ignore any SNumericEntryBox.OnValueChanged broadcasts if sliding has finished and OnInputBoxValueCommited will have been broadcasted already
+	if (bIsInteractive && !bSliderMovement[ParameterIndex])
+	{
+		return;
+	}
+	
 	checkf(ParameterIndex < 2, TEXT("Invalid parameter index, suppose to be within FVector array range"));
 
 	if (SelectedSampleIndex != INDEX_NONE && BlendSpaceBase.Get() != nullptr)
@@ -2273,6 +2282,18 @@ void SBlendSpaceGridWidget::OnInputBoxValueChanged(const float NewValue, const i
 
 		OnSampleMoved.ExecuteIfBound(SelectedSampleIndex, SampleValue, bIsInteractive);
 	}
+}
+
+void SBlendSpaceGridWidget::OnInputSliderBegin(const int32 ParameterIndex)
+{
+	ensure(bSliderMovement[ParameterIndex] == false);
+	bSliderMovement[ParameterIndex] = true;
+}
+
+void SBlendSpaceGridWidget::OnInputSliderEnd(const float NewValue, const int32 ParameterIndex)
+{
+	ensure(bSliderMovement[ParameterIndex] == true);
+	bSliderMovement[ParameterIndex] = false;
 }
 
 EVisibility SBlendSpaceGridWidget::GetSampleToolTipVisibility() const
@@ -2415,6 +2436,11 @@ void SBlendSpaceGridWidget::OnMouseLeave(const FPointerEvent& MouseEvent)
 void SBlendSpaceGridWidget::OnFocusLost(const FFocusEvent& InFocusEvent)
 {
 	SCompoundWidget::OnFocusLost(InFocusEvent);
+
+	if (DragState == EDragState::DragSample)
+	{
+		OnSampleMoved.ExecuteIfBound(DraggedSampleIndex, LastDragPosition, false);
+	}	
 	HighlightedSampleIndex = DraggedSampleIndex = INDEX_NONE;
 	DragState = EDragState::None;
 	bSamplePreviewing = false;
@@ -2495,7 +2521,7 @@ void SBlendSpaceGridWidget::Tick(const FGeometry& AllottedGeometry, const double
 				if (SampleValue != LastDragPosition)
 				{
 					LastDragPosition = SampleValue;
-					OnSampleMoved.ExecuteIfBound(DraggedSampleIndex, SampleValue, false);
+					OnSampleMoved.ExecuteIfBound(DraggedSampleIndex, SampleValue, true);
 				}
 			}
 			else if (DragState == EDragState::DragDrop || DragState == EDragState::InvalidDragDrop || DragState == EDragState::DragDropOverride)
