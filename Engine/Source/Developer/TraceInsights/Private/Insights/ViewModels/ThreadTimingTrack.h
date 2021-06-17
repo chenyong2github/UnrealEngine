@@ -45,6 +45,7 @@ public:
 	TSharedPtr<FGpuTimingTrack> GetGpuTrack() { return GpuTrack; }
 	TSharedPtr<FGpuTimingTrack> GetGpu2Track() { return Gpu2Track; }
 	TSharedPtr<FCpuTimingTrack> GetCpuTrack(uint32 InThreadId);
+	const TMap<uint32, TSharedPtr<FCpuTimingTrack>> GetAllCpuTracks() { return CpuTracks; }
 
 	bool IsGpuTrackVisible() const;
 	bool IsCpuTrackVisible(uint32 InThreadId) const;

@@ -255,6 +255,13 @@ public:
 	// Called back from the timing view when an event is copied to the clipboard with Ctrl+C.
 	virtual void OnClipboardCopyEvent(const ITimingEvent& InSelectedEvent) const {}
 
+	TSharedPtr<FBaseTimingTrack> GetChildTrack() const { return ChildTrack; }
+	void SetChildTrack(TSharedPtr<FBaseTimingTrack> InTrack) { ChildTrack = InTrack; };
+
+	void SetParentTrack(TWeakPtr<FBaseTimingTrack> InTrack) { ParentTrack = InTrack; }
+	TWeakPtr<FBaseTimingTrack> GetParentTrack() const { return ParentTrack; }
+	bool IsChildTrack() const { return ParentTrack.IsValid(); }
+
 	// Returns number of text lines needed to display the debug string.
 	//TODO: virtual int GetDebugStringLineCount() const { return 0; }
 
@@ -264,6 +271,10 @@ public:
 protected:
 	void SetValidLocations(ETimingTrackLocation InValidLocations) { ValidLocations = InValidLocations; }
 	static uint64 GenerateId() { return IdGenerator++; }
+
+protected:
+	TSharedPtr<FBaseTimingTrack> ChildTrack;
+	TWeakPtr<FBaseTimingTrack> ParentTrack;
 
 private:
 	const uint64 Id;

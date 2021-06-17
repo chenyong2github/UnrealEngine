@@ -706,7 +706,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	float TopOffset = 0.0f;
 	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : TopDockedTracks)
 	{
-		TrackPtr->SetPosY(TopOffset);
+		SetTrackPosY(TrackPtr, TopOffset);
 		if (TrackPtr->IsVisible())
 		{
 			TopOffset += TrackPtr->GetHeight();
@@ -740,7 +740,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	int32 NumVisibleBottomDockedTracks = 0;
 	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : BottomDockedTracks)
 	{
-		TrackPtr->SetPosY(BottomOffsetY);
+		SetTrackPosY(TrackPtr, BottomOffsetY);
 		if (TrackPtr->IsVisible())
 		{
 			BottomOffsetY += TrackPtr->GetHeight();
@@ -1030,11 +1030,22 @@ void STimingView::UpdatePositionForScrollableTracks()
 	float ScrollableTrackPosY = Viewport.GetTopOffset() - Viewport.GetScrollPosY();
 	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : ScrollableTracks)
 	{
-		TrackPtr->SetPosY(ScrollableTrackPosY); // set pos y also for the hidden tracks
+		SetTrackPosY(TrackPtr, ScrollableTrackPosY);
 		if (TrackPtr->IsVisible())
 		{
 			ScrollableTrackPosY += TrackPtr->GetHeight();
 		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::SetTrackPosY(TSharedPtr<FBaseTimingTrack>& TrackPtr, float TopOffsetY) const
+{
+	TrackPtr->SetPosY(TopOffsetY);
+	if (TrackPtr->GetChildTrack().IsValid())
+	{
+		TrackPtr->GetChildTrack()->SetPosY(TopOffsetY + this->GetViewport().GetLayout().TimelineDY + 1.0f);
 	}
 }
 
@@ -3478,7 +3489,7 @@ void STimingView::UpdateHoveredTimingEvent(float InMousePosX, float InMousePosY)
 			Stopwatch.Start();
 
 			HoveredEvent = NewHoveredEvent;
-			ensure(HoveredTrack == HoveredEvent->GetTrack());
+			ensure(HoveredTrack == HoveredEvent->GetTrack() || HoveredTrack->GetChildTrack() == HoveredEvent->GetTrack());
 			HoveredTrack->UpdateEventStats(const_cast<ITimingEvent&>(*HoveredEvent));
 
 			Stopwatch.Update();

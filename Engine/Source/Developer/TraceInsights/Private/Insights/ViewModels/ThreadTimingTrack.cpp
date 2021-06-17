@@ -1220,11 +1220,37 @@ const TSharedPtr<const ITimingEvent> FThreadTimingTrack::GetEvent(float InPosX, 
 	TSharedPtr<FThreadTrackEvent> TimingEvent;
 
 	const FTimingViewLayout& Layout = Viewport.GetLayout();
-	const float TopLaneY = GetPosY() + 1.0f + Layout.TimelineDY; // +1.0f is for horizontal line between timelines
+
+	float TopLaneY = 0.0f;
+	float TrackLanesHeight = 0.0f;
+	if (ChildTrack.IsValid())
+	{
+		const float HeaderDY = InPosY - ChildTrack->GetPosY();
+		if (HeaderDY >= 0 && HeaderDY < ChildTrack->GetHeight())
+		{
+			return ChildTrack->GetEvent(InPosX, InPosY, Viewport);
+		}
+		TopLaneY = GetPosY() + 1.0f + Layout.TimelineDY + ChildTrack->GetHeight() + Layout.ChildTimelineDY;
+		TrackLanesHeight = GetHeight() - ChildTrack->GetHeight() - 1.0f - 2 * Layout.TimelineDY - Layout.ChildTimelineDY;
+	}
+	else
+	{
+		if (IsChildTrack())
+		{
+			TopLaneY = GetPosY();
+			TrackLanesHeight = GetHeight();
+		}
+		else
+		{
+			TopLaneY = GetPosY() + 1.0f + Layout.TimelineDY;
+			TrackLanesHeight = GetHeight() - 1.0f - 2 * Layout.TimelineDY;
+		}
+	}
+
 	const float DY = InPosY - TopLaneY;
 
 	// If mouse is not above first sub-track or below last sub-track...
-	if (DY >= 0 && DY < GetHeight() - 1.0f - 2 * Layout.TimelineDY)
+	if (DY >= 0 && DY < TrackLanesHeight)
 	{
 		const int32 Depth = DY / (Layout.EventH + Layout.EventDY);
 

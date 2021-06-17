@@ -13,6 +13,7 @@
 #include "TraceServices/ITraceServicesModule.h"
 
 // Insights
+#include "Insights/ContextSwitches/ContextSwitchesProfilerManager.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/IUnrealInsightsModule.h"
@@ -54,6 +55,7 @@ void FTraceInsightsModule::StartupModule()
 	RegisterComponent(FNetworkingProfilerManager::CreateInstance());
 	RegisterComponent(FMemoryProfilerManager::CreateInstance());
 	RegisterComponent(Insights::FTaskGraphProfilerManager::CreateInstance());
+	RegisterComponent(Insights::FContextSwitchesProfilerManager::CreateInstance());
 
 	UnrealInsightsLayoutIni = FConfigCacheIni::GetDestIniFilename(TEXT("UnrealInsightsLayout"), nullptr, *FPaths::GeneratedConfigDir());
 }
