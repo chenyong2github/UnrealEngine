@@ -125,7 +125,7 @@ void FLevelRenderAssetManager::IncrementalBuild(FDynamicRenderAssetInstanceManag
 		BuildStep = EStaticBuildStep::ProcessActors;
 
 		// Update the level context with the texture guid map. This is required in case the incremental build runs more steps.
-		LevelContext = FStreamingTextureLevelContext(EMaterialQualityLevel::Num, Level, &TextureGuidToLevelIndex);
+		LevelContext.UpdateContext(EMaterialQualityLevel::Num, Level, &TextureGuidToLevelIndex);
 		break;
 	}
 	case EStaticBuildStep::ProcessActors:

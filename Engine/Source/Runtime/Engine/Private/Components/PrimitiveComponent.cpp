@@ -338,6 +338,7 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	bUseMaxLODAsImposter_DEPRECATED = false;
 	bBatchImpostersAsInstances_DEPRECATED = false;
 #endif
+	bIsValidTextureStreamingBuiltData = false;
 	bNeverDistanceCull = false;
 
 	bUseEditorCompositing = false;
@@ -444,7 +445,7 @@ void UPrimitiveComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCont
 				if (MaterialInterface)
 				{
 					MaterialData.Material = MaterialInterface;
-					LevelContext.ProcessMaterial(Bounds, MaterialData, Bounds.SphereRadius, OutStreamingRenderAssets);
+					LevelContext.ProcessMaterial(Bounds, MaterialData, Bounds.SphereRadius, OutStreamingRenderAssets, bIsValidTextureStreamingBuiltData, this);
 				}
 				// Remove all instances of this material in case there were duplicates.
 				UsedMaterials.RemoveSwap(MaterialInterface);
@@ -453,6 +454,37 @@ void UPrimitiveComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCont
 	}
 }
 
+bool UPrimitiveComponent::BuildTextureStreamingDataImpl(ETextureStreamingBuildType BuildType, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel, TSet<FGuid>& DependentResources, bool& bOutSupportsBuildTextureStreamingData)
+{
+	// Default implementation marks component as having invalid texture streaming built data
+	bOutSupportsBuildTextureStreamingData = false;
+	return true;
+}
+
+bool UPrimitiveComponent::BuildTextureStreamingData(ETextureStreamingBuildType BuildType, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel, TSet<FGuid>& DependentResources)
+{
+	bool bSupportsBuildTextureStreamingData = false;
+	bIsValidTextureStreamingBuiltData = false;
+	if (!FApp::CanEverRender())
+	{
+		return false;
+	}
+	bool Result = BuildTextureStreamingDataImpl(BuildType, QualityLevel, FeatureLevel, DependentResources, bSupportsBuildTextureStreamingData);
+	if (Result && bSupportsBuildTextureStreamingData)
+	{
+		if (BuildType == TSB_MapBuild)
+		{
+			bIsValidTextureStreamingBuiltData = true;
+		}
+#if WITH_EDITOR
+		else if (BuildType == TSB_ActorBuild)
+		{
+			bIsActorTextureStreamingBuiltData = true;
+		}
+#endif
+	}
+	return Result;
+}
 
 void UPrimitiveComponent::GetStreamingRenderAssetInfoWithNULLRemoval(FStreamingTextureLevelContext& LevelContext, TArray<struct FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const
 {

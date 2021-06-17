@@ -3427,12 +3427,12 @@ bool UInstancedStaticMeshComponent::GetMaterialStreamingData(int32 MaterialIndex
 	return MaterialData.IsValid();
 }
 
-bool UInstancedStaticMeshComponent::BuildTextureStreamingData(ETextureStreamingBuildType BuildType, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel, TSet<FGuid>& DependentResources)
+bool UInstancedStaticMeshComponent::BuildTextureStreamingDataImpl(ETextureStreamingBuildType BuildType, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel, TSet<FGuid>& DependentResources, bool& bOutSupportsBuildTextureStreamingData)
 {
 #if WITH_EDITORONLY_DATA // Only rebuild the data in editor 
 	if (GetInstanceCount() > 0)
 	{
-		return Super::BuildTextureStreamingData(BuildType, QualityLevel, FeatureLevel, DependentResources);
+		return Super::BuildTextureStreamingDataImpl(BuildType, QualityLevel, FeatureLevel, DependentResources, bOutSupportsBuildTextureStreamingData);
 	}
 #endif
 	return true;

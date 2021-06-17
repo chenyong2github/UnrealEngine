@@ -28,6 +28,7 @@
 #include "IHierarchicalLODUtilities.h"
 #include "HierarchicalLODUtilitiesModule.h"
 #include "Rendering/StaticLightingSystemInterface.h"
+#include "Streaming/ActorTextureStreamingBuildDataComponent.h"
 #endif
 #include "LightMap.h"
 #include "ShadowMap.h"
@@ -745,12 +746,12 @@ static int32 GetNumberOfElements(const TIndirectArray<FStaticMeshLODResources>& 
 /**
  *	Pack the texture into data ready for saving. Also ensures a single entry per texture.
  *
- *	@param	LevelTextures			[in,out]	The list of textures referred by all component of a level. The array index maps to UTexture2D::LevelIndex.
- *	@param	UnpackedData			[in,out]	The unpacked data, emptied after the function executes.
- *	@param	StreamingTextureData	[out]		The resulting packed data.
- *	@param	RefBounds				[in]		The reference bounds used to packed the relative bounds.
+ *	@param	TextureStreamingContainer [in,out]	Contains the list of textures referred by all components. The array index maps to UTexture2D::LevelIndex.
+ *	@param	UnpackedData			  [in,out]	The unpacked data, emptied after the function executes.
+ *	@param	StreamingTextureData	  [out]		The resulting packed data.
+ *	@param	RefBounds				  [in]		The reference bounds used to packed the relative bounds.
  */
-static void PackStreamingTextureData(ULevel* Level, TArray<FStreamingRenderAssetPrimitiveInfo>& UnpackedData, TArray<FStreamingTextureBuildInfo>& StreamingTextureData, const FBoxSphereBounds& RefBounds)
+static void PackStreamingTextureData(ITextureStreamingContainer* TextureStreamingContainer, TArray<FStreamingRenderAssetPrimitiveInfo>& UnpackedData, TArray<FStreamingTextureBuildInfo>& StreamingTextureData, const FBoxSphereBounds& RefBounds)
 {
 	StreamingTextureData.Empty();
 
@@ -776,7 +777,7 @@ static void PackStreamingTextureData(ULevel* Level, TArray<FStreamingRenderAsset
 		}
 
 		FStreamingTextureBuildInfo PackedInfo;
-		PackedInfo.PackFrom(Level, RefBounds, Info);
+		PackedInfo.PackFrom(TextureStreamingContainer, RefBounds, Info);
 		StreamingTextureData.Push(PackedInfo);
 	}
 }
@@ -798,8 +799,37 @@ bool UStaticMeshComponent::GetMaterialStreamingData(int32 MaterialIndex, FPrimit
 	return MaterialData.IsValid();
 }
 
-bool UStaticMeshComponent::BuildTextureStreamingData(ETextureStreamingBuildType BuildType, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel, TSet<FGuid>& DependentResources)
+#if WITH_EDITOR
+bool UStaticMeshComponent::RemapActorTextureStreamingBuiltDataToLevel(const UActorTextureStreamingBuildDataComponent* InActorTextureBuildData)
 {
+	check(InActorTextureBuildData);
+	check(InActorTextureBuildData->GetOwner() == GetOwner())
+
+	ULevel* Level = GetOwner()->GetLevel();
+	if (!Level || !bIsActorTextureStreamingBuiltData)
+	{
+		return false;
+	}
+
+	FString TextureName;
+	FGuid TextureGuid;
+	for (FStreamingTextureBuildInfo& BuildInfo : StreamingTextureData)
+	{
+		if (!InActorTextureBuildData->GetStreamableTexture(BuildInfo.TextureLevelIndex, TextureName, TextureGuid))
+		{
+			return false;
+		}
+		// Update BuildInfo's TextureLevelIndex
+		BuildInfo.TextureLevelIndex = Level->RegisterStreamableTexture(TextureName, TextureGuid);
+	}
+	return true;
+}
+#endif
+
+bool UStaticMeshComponent::BuildTextureStreamingDataImpl(ETextureStreamingBuildType BuildType, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel, TSet<FGuid>& DependentResources, bool& bOutSupportsBuildTextureStreamingData)
+{
+	bOutSupportsBuildTextureStreamingData = false;
+
 	bool bBuildDataValid = true;
 
 #if WITH_EDITORONLY_DATA // Only rebuild the data in editor 
@@ -813,7 +843,7 @@ bool UStaticMeshComponent::BuildTextureStreamingData(ETextureStreamingBuildType 
 			const int32 NumMaterials = GetNumMaterials();
 
 			// Build the material bounds if in full rebuild or if the data is incomplete.
-			if (BuildType == TSB_MapBuild || (BuildType == TSB_ViewMode && MaterialStreamingRelativeBoxes.Num() != NumMaterials))
+			if ((BuildType == TSB_MapBuild) || (BuildType == TSB_ActorBuild) || (BuildType == TSB_ViewMode && MaterialStreamingRelativeBoxes.Num() != NumMaterials))
 			{
 				// Build the material bounds.
 				MaterialStreamingRelativeBoxes.Empty(NumMaterials);
@@ -831,16 +861,28 @@ bool UStaticMeshComponent::BuildTextureStreamingData(ETextureStreamingBuildType 
 			}
 
 			// The texture build data can only be recomputed on a map build because of how the the level StreamingTextureGuids are handled.
-			if (BuildType == TSB_MapBuild)
+			if ((BuildType == TSB_MapBuild) || (BuildType == TSB_ActorBuild))
 			{
-				ULevel* Level = ComponentActor ? ComponentActor->GetLevel() : nullptr;
-				if (Level)
+				ITextureStreamingContainer* TextureStreamingContainer = nullptr;
+				if (ComponentActor)
+				{
+					if (BuildType == TSB_ActorBuild)
+					{
+						TextureStreamingContainer = ComponentActor->FindComponentByClass<UActorTextureStreamingBuildDataComponent>();
+					}
+					else
+					{
+						TextureStreamingContainer = ComponentActor->GetLevel();
+					}
+				}
+				if (TextureStreamingContainer)
 				{
 					// Get the data without any component scaling as the built data does not include scale.
 					FStreamingTextureLevelContext LevelContext(QualityLevel, FeatureLevel, true); // Use the boxes that were just computed!
 					TArray<FStreamingRenderAssetPrimitiveInfo> UnpackedData;
 					GetStreamingTextureInfoInner(LevelContext, nullptr, 1.f, UnpackedData);
-					PackStreamingTextureData(Level, UnpackedData, StreamingTextureData, Bounds);
+					PackStreamingTextureData(TextureStreamingContainer, UnpackedData, StreamingTextureData, Bounds);
+					bOutSupportsBuildTextureStreamingData = true;
 				}
 			}
 			else if (StreamingTextureData.Num() == 0)

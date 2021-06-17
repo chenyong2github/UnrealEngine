@@ -4,6 +4,7 @@
 #include "WorldPartition/HLOD/HLODSubsystem.h"
 #include "Components/PrimitiveComponent.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "UObject/ObjectSaveContext.h"
 
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartition.h"
@@ -14,6 +15,7 @@
 #include "Modules/ModuleManager.h"
 #include "IWorldPartitionHLODUtilities.h"
 #include "WorldPartitionHLODUtilitiesModule.h"
+#include "Engine/TextureStreamingTypes.h"
 #endif
 
 AWorldPartitionHLOD::AWorldPartitionHLOD(const FObjectInitializer& ObjectInitializer)
@@ -68,6 +70,22 @@ void AWorldPartitionHLOD::Serialize(FArchive& Ar)
 
 void AWorldPartitionHLOD::RerunConstructionScripts()
 {}
+
+void AWorldPartitionHLOD::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
+
+#if WITH_EDITOR
+	// When generating WorldPartition HLODs, we have the renderer initialized.
+	// Take advantage of this and generate texture streaming built data (local to the actor).
+	// This built data will be used by the cooking (it will convert it to level texture streaming built data).
+	if (!ObjectSaveContext.IsCooking())
+	{
+		// Use same quality level and feature level as FEditorBuildUtils::EditorBuildTextureStreaming
+		BuildActorTextureStreamingData(this, EMaterialQualityLevel::High, GMaxRHIFeatureLevel);
+	}
+#endif
+}
 
 #if WITH_EDITOR
 

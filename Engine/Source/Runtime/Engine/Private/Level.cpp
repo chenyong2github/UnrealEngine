@@ -774,6 +774,11 @@ void ULevel::PreSave(FObjectPreSaveContext ObjectSaveContext)
 				Actor->ClearCrossLevelReferences();
 			}
 		}
+
+		if (ObjectSaveContext.IsCooking())
+		{
+			BuildLevelTextureStreamingComponentDataFromActors(this);
+		}
 	}
 #endif // WITH_EDITOR
 }
@@ -1669,6 +1674,38 @@ void ULevel::CreateModelComponents()
 		ModelComp->InvalidateCollisionData();
 	}
 }
+
+void ULevel::InitializeTextureStreamingContainer(uint32 InPackedTextureStreamingQualityLevelFeatureLevel)
+{
+	PackedTextureStreamingQualityLevelFeatureLevel = InPackedTextureStreamingQualityLevelFeatureLevel;
+	bTextureStreamingRotationChanged = false;
+	StreamingTextureGuids.Empty();
+	StreamingTextures.Empty();
+	TextureStreamingResourceGuids.Empty();
+	NumTextureStreamingDirtyResources = 0; // This is persistent in order to be able to notify if a rebuild is required when running a cooked build.
+}
+
+uint16 ULevel::RegisterStreamableTexture(UTexture* InTexture)
+{
+	if (InTexture->LevelIndex == INDEX_NONE)
+	{
+		// If this is the first time this texture gets processed in the packing process, encode it.
+		InTexture->LevelIndex = (int32)RegisterStreamableTexture(InTexture->GetPathName(), InTexture->GetLightingGuid());
+	}
+	check(StreamingTextureGuids.IsValidIndex(InTexture->LevelIndex));
+	check(StreamingTextureGuids[InTexture->LevelIndex] == InTexture->GetLightingGuid());
+	return (uint16)InTexture->LevelIndex;
+}
+
+uint16 ULevel::RegisterStreamableTexture(const FString& InTextureName, const FGuid& InTextureGuid)
+{
+	check(StreamingTextures.Num() == StreamingTextureGuids.Num());
+	uint16 Index = StreamingTextureGuids.AddUnique(InTextureGuid);
+	StreamingTextures.AddUnique(FName(*InTextureName));
+	check(StreamingTextures.Num() == StreamingTextureGuids.Num());
+	return Index;
+}
+
 #endif
 
 void ULevel::UpdateModelComponents()

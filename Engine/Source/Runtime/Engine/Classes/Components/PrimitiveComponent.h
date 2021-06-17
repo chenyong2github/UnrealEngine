@@ -281,7 +281,16 @@ public:
 	/** Determines how the geometry of a component will be incorporated in proxy (simplified) HLODs. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = HLOD, meta = (DisplayName = "HLOD Batching Policy", EditConditionHides, EditCondition = "bEnableAutoLODGeneration"))
 	EHLODBatchingPolicy HLODBatchingPolicy;
+
+
+	/** Indicates that the texture streaming built data is local to the Actor (see UActorTextureStreamingBuildDataComponent). */
+	UPROPERTY()
+	uint8 bIsActorTextureStreamingBuiltData : 1;
 #endif 
+
+	/** Indicates to the texture streaming wether it can use the pre-built texture streaming data (even if empty). */
+	UPROPERTY()
+	uint8 bIsValidTextureStreamingBuiltData : 1;
 
 	/**
 	 * When enabled this object will not be culled by distance. This is ignored if a child of a HLOD.
@@ -1752,6 +1761,12 @@ public:
 
 	/** Add the used GUIDs from UMapBuildDataRegistry::MeshBuildData. Used to preserve hidden level data in lighting scenario. */
 	virtual void AddMapBuildDataGUIDs(TSet<FGuid>& InGUIDs) const {}
+
+	/**
+	 *	Remaps the texture streaming built data that was built for the actor back to the level.
+	 *	
+	 */
+	virtual bool RemapActorTextureStreamingBuiltDataToLevel(const class UActorTextureStreamingBuildDataComponent* InActorTextureBuildData) { return false; }
 #endif // WITH_EDITOR
 
 	/**
@@ -1783,7 +1798,18 @@ public:
 	 *	@param	DependentResources [out]	The resource the build depends on.
 	 *	@return								Returns false if some data needs rebuild but couldn't be rebuilt (because of the build type).
 	 */
-	virtual bool BuildTextureStreamingData(ETextureStreamingBuildType BuildType, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel, TSet<FGuid>& DependentResources) { return true; }
+	bool BuildTextureStreamingData(ETextureStreamingBuildType BuildType, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel, TSet<FGuid>& DependentResources);
+
+	/**
+	 *	Component type implementation of updating the streaming data of this component.
+	 *
+	 *	@param	BuildType		[in]		The type of build. Affects what the build is allowed to do.
+	 *	@param	QualityLevel	[in]		The quality level being used in the texture streaming build.
+	 *	@param	FeatureLevel	[in]		The feature level being used in the texture streaming build.
+	 *	@param	DependentResources [out]	The resource the build depends on.
+	 *	@return								Returns false if some data needs rebuild but couldn't be rebuilt (because of the build type).
+	 */
+	virtual bool BuildTextureStreamingDataImpl(ETextureStreamingBuildType BuildType, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel, TSet<FGuid>& DependentResources, bool& bOutSupportsBuildTextureStreamingData);
 
 	/**
 	 * Determines the DPG the primitive's primary elements are drawn in.

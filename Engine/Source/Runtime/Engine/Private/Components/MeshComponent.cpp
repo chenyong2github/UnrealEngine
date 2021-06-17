@@ -453,7 +453,7 @@ void UMeshComponent::GetStreamingTextureInfoInner(FStreamingTextureLevelContext&
 		FPrimitiveMaterialInfo MaterialData;
 		if (GetMaterialStreamingData(MaterialIndex, MaterialData))
 		{
-			LevelContext.ProcessMaterial(Bounds, MaterialData, ComponentScaling, OutStreamingTextures);
+			LevelContext.ProcessMaterial(Bounds, MaterialData, ComponentScaling, OutStreamingTextures, bIsValidTextureStreamingBuiltData, this);
 		}
 	}
 }
