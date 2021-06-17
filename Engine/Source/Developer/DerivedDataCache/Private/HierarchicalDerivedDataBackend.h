@@ -254,11 +254,16 @@ public:
 				TBitArray<> Hits = Interface->CachedDataProbablyExistsBatch(SearchKeys);
 				TArray<FString, TInlineAllocator<16>>::TIterator It = SearchKeys.CreateIterator();
 				It.SetToEnd();
-				for (--It; It; --It)
+				for (--It; It; )
 				{
 					if (Hits[It.GetIndex()])
 					{
+						// RemoveCurrent will decrement the iterator
 						It.RemoveCurrent();
+					}
+					else
+					{
+						--It;
 					}
 				}
 
