@@ -3840,21 +3840,26 @@ EMouseCursor::Type FLevelEditorViewportClient::GetCursor(FViewport* InViewport,i
 {
 	EMouseCursor::Type CursorType = FEditorViewportClient::GetCursor(InViewport,X,Y);
 
-	// Allow the viewport interaction to override any previously set mouse cursor
-	UViewportWorldInteraction* WorldInteraction = Cast<UViewportWorldInteraction>(GEditor->GetEditorWorldExtensionsManager()->GetEditorWorldExtensions(GetWorld())->FindExtension(UViewportWorldInteraction::StaticClass()));
-	if (WorldInteraction != nullptr)
+	UWorld* ViewportWorld = GetWorld();
+
+	if (ViewportWorld != nullptr)
 	{
-		if (WorldInteraction->ShouldForceCursor())
+		// Allow the viewport interaction to override any previously set mouse cursor
+		UViewportWorldInteraction* WorldInteraction = Cast<UViewportWorldInteraction>(GEditor->GetEditorWorldExtensionsManager()->GetEditorWorldExtensions(GetWorld())->FindExtension(UViewportWorldInteraction::StaticClass()));
+		if (WorldInteraction != nullptr)
 		{
-			CursorType = EMouseCursor::Crosshairs;
-			SetRequiredCursor(false, true);
-			UpdateRequiredCursorVisibility();
-		}
-		else if (WorldInteraction->ShouldSuppressExistingCursor())
-		{
-			CursorType = EMouseCursor::None;
-			SetRequiredCursor(false, false);
-			UpdateRequiredCursorVisibility();
+			if (WorldInteraction->ShouldForceCursor())
+			{
+				CursorType = EMouseCursor::Crosshairs;
+				SetRequiredCursor(false, true);
+				UpdateRequiredCursorVisibility();
+			}
+			else if (WorldInteraction->ShouldSuppressExistingCursor())
+			{
+				CursorType = EMouseCursor::None;
+				SetRequiredCursor(false, false);
+				UpdateRequiredCursorVisibility();
+			}
 		}
 	}
 

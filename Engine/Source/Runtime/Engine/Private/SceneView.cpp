@@ -2691,20 +2691,25 @@ const FSceneView& FSceneViewFamily::GetStereoEyeView(const EStereoscopicPass Eye
 
 bool FSceneViewFamily::SupportsScreenPercentage() const
 {
-	EShadingPath ShadingPath = Scene->GetShadingPath();
-
-	// The deferred shading renderer supports screen percentage when used normally
-	if (Scene->GetShadingPath() == EShadingPath::Deferred)
+	if (Scene != nullptr)
 	{
+		EShadingPath ShadingPath = Scene->GetShadingPath();
+
+		// The deferred shading renderer supports screen percentage when used normally
+		if (Scene->GetShadingPath() == EShadingPath::Deferred)
+		{
+			return true;
+		}
+
+		// Mobile renderer does not support screen percentage with LDR.
+		if ((GetFeatureLevel() <= ERHIFeatureLevel::ES3_1 && !IsMobileHDR()))
+		{
+			return false;
+		}
 		return true;
 	}
 
-	// Mobile renderer does not support screen percentage with LDR.
-	if ((GetFeatureLevel() <= ERHIFeatureLevel::ES3_1 && !IsMobileHDR()))
-	{
-		return false;
-	}
-	return true;
+	return false;
 }
 
 FSceneViewFamilyContext::~FSceneViewFamilyContext()
