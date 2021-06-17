@@ -1609,10 +1609,25 @@ void UEditorEngine::GiveFocusToLastClientPIEViewport()
 
 void UEditorEngine::RequestLateJoin()
 {
+	if (PlayInEditorSessionInfo.IsSet())
+	{
+		PlayInEditorSessionInfo->bLateJoinRequested = true;
+	}
+}
+
+void UEditorEngine::AddPendingLateJoinClient()
+{
 	if (!ensureMsgf(PlayInEditorSessionInfo.IsSet(), TEXT("RequestLateJoin shouldn't be called if no session is in progress!")))
 	{
 		return;
 	}
+	
+	if(!ensureMsgf(PlayInEditorSessionInfo->bLateJoinRequested, TEXT("AddPendingLateJoinClient() shouldn't be called directly, use RequestLateJoin() instead!")))
+	{
+		return;
+	}
+
+	PlayInEditorSessionInfo->bLateJoinRequested = false;
 
 	if (!ensureMsgf(PlayInEditorSessionInfo->OriginalRequestParams.WorldType != EPlaySessionWorldType::SimulateInEditor, TEXT("RequestLateJoin shouldn't be called for SIE!")))
 	{

@@ -2895,6 +2895,9 @@ protected:
 
 	/** Start a Play in New Process session with the given parameters. Called by StartQueuedPlaySessionRequestImpl based on request settings. */
 	virtual void StartPlayInNewProcessSession(FRequestPlaySessionParams& InRequestParams);
+
+	/** Does the actual late join process. Don't call this directly, use RequestLateJoin() which will defer it to the next frame. */
+	void AddPendingLateJoinClient();
 	
 	// This chunk is used for Play Via Launcher settings.
 public:

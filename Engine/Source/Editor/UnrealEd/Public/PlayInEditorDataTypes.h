@@ -243,6 +243,7 @@ public:
 		, bUsingOnlinePlatform(false)
 		, bAnyBlueprintErrors(false)
 		, bServerWasLaunched(false)
+		, bLateJoinRequested(false)
 	{
 	}
 
@@ -288,6 +289,9 @@ public:
 
 	/** Have we launched a server for this PIE session yet? */
 	bool bServerWasLaunched;
+
+	/** If true, a late join client will be added on the next tick. */
+	bool bLateJoinRequested;
 
 	/** Transient information about window sizes/positions. This gets loaded from settings at start and saved at end. */
 	TArray<FWindowSizeAndPos> CachedWindowInfo;
