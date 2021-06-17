@@ -1411,8 +1411,18 @@ public:
 	 *
 	 * @return Local space reference position 
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
-	FVector GetRefPosePosition(int32 BoneIndex);
+	UFUNCTION(BlueprintPure, Category = "Components|SkinnedMesh")
+	FVector GetRefPosePosition(int32 BoneIndex) const;
+
+	/** 
+	 * Gets the local-space transform of a bone in the reference pose. 
+	 *
+	 * @param BoneIndex Index of the bone
+	 *
+	 * @return Local space reference transform 
+	 */
+	UFUNCTION(BlueprintPure, Category = "Components|SkinnedMesh")
+	FTransform GetRefPoseTransform(int32 BoneIndex) const;
 
 	/** finds a vector pointing along the given axis of the given bone
 	 *
