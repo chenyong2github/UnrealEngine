@@ -212,8 +212,10 @@ class FSyncDatabase
 	// Return the cache path
 	static GS::UniString GetCachePath();
 
+#if defined(macintosh)
 	// Change the cache path
 	static void SetCachePath(GS::UniString& InCacheDirectory);
+#endif
 
 	FMeshCacheIndexor& GetMeshIndexor() { return MeshIndexor; }
 

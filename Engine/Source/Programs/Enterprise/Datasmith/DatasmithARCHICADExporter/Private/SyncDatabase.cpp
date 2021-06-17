@@ -24,6 +24,9 @@ DISABLE_SDK_WARNINGS_START
 #include "IDatasmithExporterUIModule.h"
 #include "FileManager.h"
 #include "Paths.h"
+#if defined(macintosh)
+	#include "Misc/ConfigCacheIni.h"
+#endif
 
 DISABLE_SDK_WARNINGS_END
 
@@ -167,7 +170,7 @@ void FMeshCacheIndexor::SaveToFile()
 			{
 				utf8_string MeshName(TCHAR_TO_UTF8(*ItName2Dimensions.Key));
 				GS::USize	MeshNameSize = (GS::USize)MeshName.size();
-				NoErrorCall(GSErr, Writer.Write(MeshName.size()));
+				NoErrorCall(GSErr, Writer.Write(MeshNameSize));
 				NoErrorCall(GSErr, Writer.WriteBin(MeshName.c_str(), MeshNameSize));
 				NoErrorCall(GSErr, Writer.Write(ItName2Dimensions.Value->Area));
 				NoErrorCall(GSErr, Writer.Write(ItName2Dimensions.Value->Depth));
@@ -513,6 +516,12 @@ FLibPartInfo* FSyncDatabase::GetLibPartInfo(const char* InUnID)
 	return *LibPartInfoPtr;
 }
 
+#if defined(macintosh)
+static const TCHAR* DirectLinkExporter = TEXT("DirectLinkExporter");
+static const TCHAR* DirectLinkCacheSectionAndValue = TEXT("DLCacheFolder");
+static FString		DirectLinkCacheDirectory;
+#endif
+
 // Return the cache path
 GS::UniString FSyncDatabase::GetCachePath()
 {
@@ -532,9 +541,36 @@ GS::UniString FSyncDatabase::GetCachePath()
 	}
 	else
 	{
+#if defined(macintosh)
+		if (DirectLinkCacheDirectory.IsEmpty())
+		{
+			FString ConfigPath(FPaths::Combine(FPaths::GeneratedConfigDir(), DirectLinkExporter).Append(TEXT(".ini")));
+			if (!GConfig->GetString(DirectLinkCacheSectionAndValue, DirectLinkCacheSectionAndValue,
+									DirectLinkCacheDirectory, ConfigPath))
+			{
+				DirectLinkCacheDirectory = FPaths::Combine(FPlatformProcess::UserTempDir(), TEXT("DLExporter"));
+				GConfig->SetString(DirectLinkCacheSectionAndValue, DirectLinkCacheSectionAndValue,
+								   *DirectLinkCacheDirectory, ConfigPath);
+			}
+		}
+		return UEToGSString(*DirectLinkCacheDirectory);
+#else
 		return GetAddonDataDirectory();
+#endif
 	}
 }
+
+#if defined(macintosh)
+// Change the cache path
+void FSyncDatabase::SetCachePath(GS::UniString& InCacheDirectory)
+{
+	// Save to config file
+	DirectLinkCacheDirectory = GSStringToUE(InCacheDirectory);
+	FString ConfigPath(FPaths::Combine(FPaths::GeneratedConfigDir(), DirectLinkExporter).Append(TEXT(".ini")));
+	GConfig->SetString(DirectLinkCacheSectionAndValue, DirectLinkCacheSectionAndValue, *DirectLinkCacheDirectory,
+					   ConfigPath);
+}
+#endif
 
 // SetSceneInfo
 void FSyncDatabase::SetSceneInfo()
