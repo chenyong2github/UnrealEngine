@@ -13,7 +13,7 @@
 #include "Synchronizer.h"
 #include "Exporter.h"
 #include "ReportWindow.h"
-#if defined(macintosh)
+#if PLATFORM_MAC
 	#include "ConnectionWindow.h"
 #endif
 
@@ -101,7 +101,7 @@ void FCommander::CopySelection2Clipboard()
 
 void FCommander::ShowConnectionsDialog()
 {
-#if defined(WIN32)
+#if PLATFORM_WINDOWS
 	IDatasmithExporterUIModule* DsExporterUIModule = IDatasmithExporterUIModule::Get();
 	if (DsExporterUIModule != nullptr)
 	{

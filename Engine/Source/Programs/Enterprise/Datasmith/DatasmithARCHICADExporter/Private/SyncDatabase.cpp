@@ -24,7 +24,7 @@ DISABLE_SDK_WARNINGS_START
 #include "IDatasmithExporterUIModule.h"
 #include "FileManager.h"
 #include "Paths.h"
-#if defined(macintosh)
+#if PLATFORM_MAC
 	#include "Misc/ConfigCacheIni.h"
 #endif
 
@@ -516,7 +516,7 @@ FLibPartInfo* FSyncDatabase::GetLibPartInfo(const char* InUnID)
 	return *LibPartInfoPtr;
 }
 
-#if defined(macintosh)
+#if PLATFORM_MAC
 static const TCHAR* DirectLinkExporter = TEXT("DirectLinkExporter");
 static const TCHAR* DirectLinkCacheSectionAndValue = TEXT("DLCacheFolder");
 static FString		DirectLinkCacheDirectory;
@@ -541,7 +541,7 @@ GS::UniString FSyncDatabase::GetCachePath()
 	}
 	else
 	{
-#if defined(macintosh)
+#if PLATFORM_MAC
 		if (DirectLinkCacheDirectory.IsEmpty())
 		{
 			FString ConfigPath(FPaths::Combine(FPaths::GeneratedConfigDir(), DirectLinkExporter).Append(TEXT(".ini")));
@@ -560,7 +560,7 @@ GS::UniString FSyncDatabase::GetCachePath()
 	}
 }
 
-#if defined(macintosh)
+#if PLATFORM_MAC
 // Change the cache path
 void FSyncDatabase::SetCachePath(GS::UniString& InCacheDirectory)
 {

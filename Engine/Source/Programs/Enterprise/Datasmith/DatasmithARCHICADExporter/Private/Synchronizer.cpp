@@ -40,7 +40,7 @@ class FThreadUpdateSnapshotRunner : public GS::Runnable
 	void Run() override
 	{
 		TryFunctionCatchAndLog("FThreadUpdateSnapshotRunner::Run", [this]() -> GSErrCode {
-#ifdef WIN32
+#if PLATFORM_WINDOWS
 			SetThreadName("UpdateSceneRunner");
 #else
 			pthread_setname_np("UpdateSceneRunner");

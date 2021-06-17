@@ -29,7 +29,7 @@ DISABLE_SDK_WARNINGS_END
 	#include "Win32Interface.hpp"
 #endif
 
-#if defined(macintosh)
+#if PLATFORM_MAC
 	#include <CoreServices/CoreServices.h>
 #endif
 
@@ -49,7 +49,7 @@ typedef std::string utf8_string;
 
 END_NAMESPACE_UE_AC
 
-#if defined(WIN32)
+#if PLATFORM_WINDOWS
 	#define UE_AC_DirSep "\\"
 	#define __printflike(fmtarg, firstvararg)
 #else

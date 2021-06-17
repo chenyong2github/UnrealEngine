@@ -669,7 +669,7 @@ class FConvertGeometry2MeshElement : public FTaskMgr::FTask
 	void Run()
 	{
 		/*
-		 #ifdef WIN32
+		 #if PLATFORM_WINDOWS
 		 SetThreadName(GS::Thread::GetCurrent().GetName().ToUtf8());
 		 #else
 		 pthread_setname_np(GS::Thread::GetCurrent().GetName().ToUtf8());

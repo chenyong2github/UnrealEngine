@@ -212,7 +212,7 @@ class FSyncDatabase
 	// Return the cache path
 	static GS::UniString GetCachePath();
 
-#if defined(macintosh)
+#if PLATFORM_MAC
 	// Change the cache path
 	static void SetCachePath(GS::UniString& InCacheDirectory);
 #endif

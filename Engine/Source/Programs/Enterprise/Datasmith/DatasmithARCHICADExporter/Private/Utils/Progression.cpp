@@ -8,7 +8,7 @@
 
 #include "Guard.hpp"
 
-#ifdef WIN32
+#if PLATFORM_WINDOWS
 #else
 	#include <sys/time.h>
 #endif
@@ -36,7 +36,7 @@ FProgression::FProgression(int InResID, EPhaseStrId InTitle, short InNbPhases, E
 	, NextCurrentValue(0)
 	, mCV(AccessControl)
 {
-#ifdef WIN32
+#if PLATFORM_WINDOWS
 	LARGE_INTEGER freq;
 	QueryPerformanceFrequency(&freq);
 	InvFreq = 1.0 / freq.QuadPart;
@@ -252,7 +252,7 @@ GS::UniString FProgression::GetText(int InIndex)
 // Return time value in sec with hi resolution
 double FProgression::GetHiResTime()
 {
-#ifdef WIN32
+#if PLATFORM_WINDOWS
 	LARGE_INTEGER tick;
 	QueryPerformanceCounter(&tick);
 	return tick.QuadPart * InvFreq;

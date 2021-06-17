@@ -4,7 +4,7 @@
 
 // clang-format off
 
-#ifdef WIN32
+#if PLATFORM_WINDOWS
 
 #define DISABLE_SDK_WARNINGS_START \
 	__pragma(warning(push)) \

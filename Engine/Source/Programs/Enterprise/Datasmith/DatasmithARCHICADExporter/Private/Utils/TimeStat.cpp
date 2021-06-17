@@ -2,7 +2,7 @@
 
 #include "TimeStat.h"
 
-#ifndef WIN32
+#if PLATFORM_MAC
 	#include <sys/time.h>
 	#include <sys/times.h>
 #endif
@@ -43,7 +43,7 @@ void FTimeStat::PrintDiff(const char* InStatLabel, const FTimeStat& InStart)
 // Tool get current real time clock
 double FTimeStat::RealTimeClock()
 {
-#ifdef WIN32
+#if PLATFORM_WINDOWS
 	LARGE_INTEGER Time, Freq;
 	if (QueryPerformanceFrequency(&Freq) && QueryPerformanceCounter(&Time))
 	{
@@ -62,7 +62,7 @@ double FTimeStat::RealTimeClock()
 // Tool get process CPU real time clock
 double FTimeStat::CpuTimeClock()
 {
-#ifdef WIN32
+#if PLATFORM_WINDOWS
 	FILETIME A, B, C, D;
 	if (GetProcessTimes(GetCurrentProcess(), &A, &B, &C, &D) != 0)
 	{

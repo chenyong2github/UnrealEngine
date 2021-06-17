@@ -10,7 +10,7 @@
 #include <cstdarg>
 #include <time.h>
 
-#if defined(WIN32) && (__cplusplus < 201103L)
+#if PLATFORM_WINDOWS && (__cplusplus < 201103L)
 	#define va_copy(destination, source) ((destination) = (source))
 #endif
 
@@ -256,7 +256,7 @@ utf8_string GetCurrentLocalDateTime()
 	struct tm timeinfo;
 	utf8_t	  Buffer[256];
 	time(&CurrentTime);
-#if defined(WIN32)
+#if PLATFORM_WINDOWS
 	UE_AC_Assert(localtime_s(&timeinfo, &CurrentTime) == 0);
 	UE_AC_Assert(asctime_s(Buffer, &timeinfo) == 0);
 	return Buffer;
