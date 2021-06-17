@@ -72,9 +72,7 @@ public class PROJ : ModuleRules
 			PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, VcPkgInstalled, "overlay-x64-windows", "include"));
 
 			string[] Triplets = new string[] {
-				"arm-android",
 				"arm64-android",
-				"x86-android",
 				"x64-android",
 			};
  
