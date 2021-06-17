@@ -17,6 +17,11 @@ namespace EpicGames.Core
 		static sbyte[] HexDigits;
 
 		/// <summary>
+		/// Hex digits to utf8 byte
+		/// </summary>
+		static byte[] HexDigitToUtf8Byte = Encoding.UTF8.GetBytes("0123456789abcdef");
+
+		/// <summary>
 		/// Array mapping human readable size of bytes, 1024^x. long max is within the range of Exabytes.
 		/// </summary>
 		static string[] ByteSizes = { "B", "KB", "MB", "GB", "TB", "PB", "EB" };
@@ -398,6 +403,22 @@ namespace EpicGames.Core
 				Characters[Idx * 2 + 1] = HexDigits[Bytes[Idx] & 15];
 			}
 			return new string(Characters);
+		}
+
+		/// <summary>
+		/// Formats an array of bytes as a hexadecimal string
+		/// </summary>
+		/// <param name="Bytes">An array of bytes</param>
+		/// <returns>String representation of the array</returns>
+		public static ReadOnlyUtf8String FormatUtf8HexString(ReadOnlySpan<byte> Bytes)
+		{
+			byte[] Characters = new byte[Bytes.Length * 2];
+			for (int Idx = 0; Idx < Bytes.Length; Idx++)
+			{
+				Characters[Idx * 2 + 0] = HexDigitToUtf8Byte[Bytes[Idx] >> 4];
+				Characters[Idx * 2 + 1] = HexDigitToUtf8Byte[Bytes[Idx] & 15];
+			}
+			return new ReadOnlyUtf8String(Characters);
 		}
 
 		/// <summary>
