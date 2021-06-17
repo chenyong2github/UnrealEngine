@@ -677,6 +677,9 @@ struct INPUTCORE_API EKeys
 	static const int32 NUM_TOUCH_KEYS = 11;
 	static const FKey TouchKeys[NUM_TOUCH_KEYS];
 
+	// XR key names are parseable into exactly 4 tokens
+	static const int32 NUM_XR_KEY_TOKENS = 4;
+
 	static EConsoleForGamepadLabels::Type ConsoleForGamepadLabels;
 
 	static const FName NAME_KeyboardCategory;

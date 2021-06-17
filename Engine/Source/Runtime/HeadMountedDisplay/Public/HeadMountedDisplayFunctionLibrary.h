@@ -378,4 +378,8 @@ class HEADMOUNTEDDISPLAY_API UHeadMountedDisplayFunctionLibrary : public UBluepr
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Input|XRTracking")
 	static FVector2D GetPlayAreaBounds(TEnumAsByte<EHMDTrackingOrigin::Type> Origin = EHMDTrackingOrigin::Stage);
+
+	/** Breaks an XR key apart into the interaction profile, handedness, motion source, indentifier and component. */
+	UFUNCTION(BlueprintPure, Category = "Input|XRTracking", meta = (NativeBreakFunc))
+	static void BreakKey(FKey InKey, FString& InteractionProfile, EControllerHand& Hand, FName& MotionSource, FString& Indentifier, FString& Component);
 };

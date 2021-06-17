@@ -429,7 +429,7 @@ int32 FOpenXRInputPlugin::FOpenXRInput::SuggestBindings(XrInstance Instance, FOp
 	{
 		// Key names that are parseable into an OpenXR path have exactly 4 tokens
 		TArray<FString> Tokens;
-		if (InputKey.Key.ToString().ParseIntoArray(Tokens, TEXT("_")) != 4)
+		if (InputKey.Key.ToString().ParseIntoArray(Tokens, TEXT("_")) != EKeys::NUM_XR_KEY_TOKENS)
 		{
 			continue;
 		}
