@@ -158,105 +158,6 @@ struct FSharedSimulationParameters
 	int32 MaximumCollisionParticleCount;
 };
 
-struct FCollisionDataSimulationParameters
-{
-	FCollisionDataSimulationParameters()
-		: DoGenerateCollisionData(false)
-		, SaveCollisionData(false)
-
-		, CollisionDataSizeMax(512)
-		, DoCollisionDataSpatialHash(false)
-		, CollisionDataSpatialHashRadius(50.f)
-		, MaxCollisionPerCell(1)
-	{}
-
-	FCollisionDataSimulationParameters(bool InDoGenerateCollisionData
-		, bool InSaveCollisionData
-		, int32 InCollisionDataSizeMax
-		, bool InDoCollisionDataSpatialHash
-		, float InCollisionDataSpatialHashRadius
-		, int32 InMaxCollisionPerCell)
-		: DoGenerateCollisionData(InDoGenerateCollisionData)
-		, SaveCollisionData(InSaveCollisionData)
-		, CollisionDataSizeMax(InCollisionDataSizeMax)
-		, DoCollisionDataSpatialHash(InDoCollisionDataSpatialHash)
-		, CollisionDataSpatialHashRadius(InCollisionDataSpatialHashRadius)
-		, MaxCollisionPerCell(InMaxCollisionPerCell)
-	{}
-
-	bool DoGenerateCollisionData;
-	bool SaveCollisionData;
-	int32 CollisionDataSizeMax;
-	bool DoCollisionDataSpatialHash;
-	float CollisionDataSpatialHashRadius;
-	int32 MaxCollisionPerCell;
-
-	FCollisionFilterData QueryData;
-	FCollisionFilterData SimData;
-};
-
-struct FBreakingDataSimulationParameters
-{
-	FBreakingDataSimulationParameters()
-		: DoGenerateBreakingData(false)
-		, SaveBreakingData(false)
-		, BreakingDataSizeMax(512)
-		, DoBreakingDataSpatialHash(false)
-		, BreakingDataSpatialHashRadius(15.f)
-		, MaxBreakingPerCell(1)
-	{}
-
-	FBreakingDataSimulationParameters(bool InDoGenerateBreakingData
-		, bool InSaveBreakingData
-		, int32 InBreakingDataSizeMax
-		, bool InDoBreakingDataSpatialHash
-		, float InBreakingDataSpatialHashRadius
-		, int32 InMaxBreakingPerCell)
-		: DoGenerateBreakingData(InDoGenerateBreakingData)
-		, SaveBreakingData(InSaveBreakingData)
-		, BreakingDataSizeMax(InBreakingDataSizeMax)
-		, DoBreakingDataSpatialHash(InDoBreakingDataSpatialHash)
-		, BreakingDataSpatialHashRadius(InBreakingDataSpatialHashRadius)
-		, MaxBreakingPerCell(InMaxBreakingPerCell)
-	{}
-
-	bool DoGenerateBreakingData;
-	bool SaveBreakingData;
-	int32 BreakingDataSizeMax;
-	bool DoBreakingDataSpatialHash;
-	float BreakingDataSpatialHashRadius;
-	int32 MaxBreakingPerCell;
-};
-
-struct FTrailingDataSimulationParameters
-{
-	FTrailingDataSimulationParameters()
-		: DoGenerateTrailingData(false)
-		, SaveTrailingData(false)
-		, TrailingDataSizeMax(512)
-		, TrailingMinSpeedThreshold(200.f)
-		, TrailingMinVolumeThreshold(10000.f)
-	{}
-
-	FTrailingDataSimulationParameters(bool InDoGenerateTrailingData
-		, bool InSaveTrailingData
-		, int32 InTrailingDataSizeMax
-		, float InTrailingMinSpeedThreshold
-		, float InTrailingMinVolumeThreshold)
-		: DoGenerateTrailingData(InDoGenerateTrailingData)
-		, SaveTrailingData(InSaveTrailingData)
-		, TrailingDataSizeMax(InTrailingDataSizeMax)
-		, TrailingMinSpeedThreshold(InTrailingMinSpeedThreshold)
-		, TrailingMinVolumeThreshold(InTrailingMinVolumeThreshold)
-	{}
-
-	bool DoGenerateTrailingData;
-	bool SaveTrailingData;
-	int32 TrailingDataSizeMax;
-	float TrailingMinSpeedThreshold;
-	float TrailingMinVolumeThreshold;
-};
-
 struct FSimulationParameters
 {
 	FSimulationParameters()
@@ -281,6 +182,9 @@ struct FSimulationParameters
 		, CacheBeginTime(0.0f)
 		, ReverseCacheBeginTime(0.0f)
 		, bClearCache(false)
+		, bGenerateBreakingData(false)
+		, bGenerateCollisionData(false)
+		, bGenerateTrailingData(false)
 		, RemoveOnFractureEnabled(false)
 		, SimulationFilterData()
 		, QueryFilterData()
@@ -311,9 +215,9 @@ struct FSimulationParameters
 		, ReverseCacheBeginTime(Other.ReverseCacheBeginTime)
 		, bClearCache(Other.bClearCache)
 		, PhysicalMaterialHandle(Other.PhysicalMaterialHandle)
-		, CollisionData(Other.CollisionData)
-		, BreakingData(Other.BreakingData)
-		, TrailingData(Other.TrailingData)
+		, bGenerateBreakingData(Other.bGenerateBreakingData)
+		, bGenerateCollisionData(Other.bGenerateCollisionData)
+		, bGenerateTrailingData(Other.bGenerateTrailingData)
 		, Shared(Other.Shared)
 		, RemoveOnFractureEnabled(false)
 		, SimulationFilterData(Other.SimulationFilterData)
@@ -366,9 +270,9 @@ struct FSimulationParameters
 
 	Chaos::FMaterialHandle PhysicalMaterialHandle;
 
-	FCollisionDataSimulationParameters CollisionData;
-	FBreakingDataSimulationParameters BreakingData;
-	FTrailingDataSimulationParameters TrailingData;
+	bool bGenerateBreakingData;
+	bool bGenerateCollisionData;
+	bool bGenerateTrailingData;
 
 	FSharedSimulationParameters Shared;
 

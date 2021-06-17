@@ -52,7 +52,7 @@ namespace Chaos
 
 		UGeometryCollectionComponent*    Comp  = CastChecked<UGeometryCollectionComponent>(InComp);
 		FGeometryCollectionPhysicsProxy* Proxy = Comp->GetPhysicsProxy();
-		const FTransform WorldToComponent = Comp->GetComponentTransform().Inverse();
+		const FTransform WorldToComponent = Proxy->GetSimParameters().WorldTransform.Inverse();
 
 		FPhysScene_Chaos& Scene = *(Comp->GetWorld()->GetPhysicsScene());
 		
@@ -79,8 +79,6 @@ namespace Chaos
 		FGeometryDynamicCollection&            Collection       = Proxy->GetPhysicsCollection();
 		const TManagedArray<FTransform>&       MassToLocal		= Collection.MassToLocal;
 		const TManagedArray<int32>&            Parents			= RestCollection->Parent;
-		const TManagedArray<int32>&            TransformIndices = RestCollection->TransformIndex;
-		const TManagedArray<FTransform>&       Transforms       = Collection.Transform;
 		const TArray<FBreakingData>&		   Breaks           = Solver->GetEvolution()->GetRigidClustering().GetAllClusterBreakings();
 		const FTransform					   WorldToActor		= InRootTransform.Inverse();
 
@@ -172,7 +170,7 @@ namespace Chaos
 			}
 		}
 
-		if (bHandleBreaks && BreakingDataArray && ProxyCachedEventData.ProxyBreakingDataIndices)
+		if (Proxy->GetSimParameters().bGenerateBreakingData && BreakingDataArray && ProxyCachedEventData.ProxyBreakingDataIndices)
 		{
 			for (int32 Index : *ProxyCachedEventData.ProxyBreakingDataIndices)
 			{
@@ -188,7 +186,7 @@ namespace Chaos
 			}
 		}
 		
-		if (bHandleCollisions && CollisionDataArray && ProxyCachedEventData.ProxyCollisionDataIndices)
+		if (Proxy->GetSimParameters().bGenerateCollisionData && CollisionDataArray && ProxyCachedEventData.ProxyCollisionDataIndices)
 		{
 			for (int32 Index : *ProxyCachedEventData.ProxyCollisionDataIndices)
 			{
@@ -201,7 +199,7 @@ namespace Chaos
 			}
 		}
 		
-		if (bHandleTrailing && TrailingDataArray && ProxyCachedEventData.ProxyTrailingDataIndices)
+		if (Proxy->GetSimParameters().bGenerateTrailingData && TrailingDataArray && ProxyCachedEventData.ProxyTrailingDataIndices)
 		{
 			for (int32 Index : *ProxyCachedEventData.ProxyTrailingDataIndices)
 			{
@@ -234,7 +232,7 @@ namespace Chaos
 
 		UGeometryCollectionComponent*    Comp  = CastChecked<UGeometryCollectionComponent>(InComponent);
 		FGeometryCollectionPhysicsProxy* Proxy = Comp->GetPhysicsProxy();
-		const FTransform ComponentToWorld = Comp->GetComponentTransform();
+		const FTransform ComponentToWorld = Proxy->GetSimParameters().WorldTransform;
 
 		if(!Proxy)
 		{
@@ -251,8 +249,6 @@ namespace Chaos
 
 		FGeometryDynamicCollection&      Collection       = Proxy->GetPhysicsCollection();
 		const TManagedArray<FTransform>& MassToLocal	  = Collection.MassToLocal;
-		const TManagedArray<int32>&      TransformIndices = RestCollection->TransformIndex;
-		const TManagedArray<FTransform>& Transforms       = Collection.Transform;
 		TArray<FClusterParticle*>        Particles        = Proxy->GetParticles();
 
 		FCacheEvaluationContext Context(TickRecord);
@@ -337,7 +333,7 @@ namespace Chaos
 			}
 		}
 
-		if (bHandleBreaks && BreakingEvents)
+		if (Proxy->GetSimParameters().bGenerateBreakingData && BreakingEvents)
 		{
 			const FSolverBreakingEventFilter* SolverBreakingEventFilter = Solver->GetEventFilters()->GetBreakingFilter();
 
@@ -385,7 +381,7 @@ namespace Chaos
 			}
 		}
 
-		if (bHandleTrailing && TrailingEvents)
+		if (Proxy->GetSimParameters().bGenerateTrailingData && TrailingEvents)
 		{
 			const FSolverTrailingEventFilter* SolverTrailingEventFilter = Solver->GetEventFilters()->GetTrailingFilter();
 
@@ -432,7 +428,7 @@ namespace Chaos
 			}
 		}
 
-		if (bHandleCollisions && CollisionEvents)
+		if (Proxy->GetSimParameters().bGenerateCollisionData && CollisionEvents)
 		{
 
 			const FSolverCollisionEventFilter* SolverCollisionEventFilter = Solver->GetEventFilters()->GetCollisionFilter();
@@ -673,6 +669,8 @@ namespace Chaos
 		UGeometryCollectionComponent*    Comp     = CastChecked<UGeometryCollectionComponent>(InComponent);
 		FGeometryCollectionPhysicsProxy* Proxy    = Comp->GetPhysicsProxy();
 
+		const FSimulationParameters& SimulationParameters = Proxy->GetSimParameters();
+
 		if (!Proxy)
 		{
 			return false;
@@ -685,10 +683,6 @@ namespace Chaos
 			return false;
 		}
 
-		bHandleBreaks = Comp->bNotifyBreaks;
-		bHandleCollisions = Comp->bNotifyCollisions;
-		bHandleTrailing = Comp->bNotifyTrailing;
-		
 		// We need secondary event data to record event information into the cache
 		Solver->SetGenerateBreakingData(true);
 		Solver->SetGenerateCollisionData(true);
@@ -700,17 +694,17 @@ namespace Chaos
 			Chaos::FEventManager* EventManager = Solver->GetEventManager();
 			if (EventManager)
 			{
-				if (bHandleBreaks)
+				if (SimulationParameters.bGenerateBreakingData)
 				{ 
 					EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, const_cast<FGeometryCollectionCacheAdapter*>(this), &FGeometryCollectionCacheAdapter::HandleBreakingEvents);
 				}
 
-				if (bHandleCollisions)
+				if (SimulationParameters.bGenerateCollisionData)
 				{ 
 					EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, const_cast<FGeometryCollectionCacheAdapter*>(this), &FGeometryCollectionCacheAdapter::HandleCollisionEvents);
 				}
 
-				if (bHandleTrailing)
+				if (SimulationParameters.bGenerateTrailingData)
 				{ 
 					EventManager->RegisterHandler<Chaos::FTrailingEventData>(Chaos::EEventType::Trailing, const_cast<FGeometryCollectionCacheAdapter*>(this), &FGeometryCollectionCacheAdapter::HandleTrailingEvents);
 				}
@@ -732,10 +726,6 @@ namespace Chaos
 
 		if (UGeometryCollectionComponent* Comp = CastChecked<UGeometryCollectionComponent>(InComponent))
 		{
-			bHandleBreaks = Comp->bNotifyBreaks;
-			bHandleCollisions = Comp->bNotifyCollisions;
-			bHandleTrailing = Comp->bNotifyTrailing;
-			
 			if (const UGeometryCollection* RestCollection = Comp->GetRestCollection())
 			{
 				// Set up initial conditions... 
