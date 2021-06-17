@@ -538,16 +538,10 @@ public:
 	// Return the version for the DX11 formats BC6H and BC7 (not ASTC)
 	virtual uint16 GetVersion(
 		FName Format,
-		const struct FTextureBuildSettings* BuildSettings = nullptr
+		const FTextureBuildSettings* BuildSettings = nullptr
 	) const override
 	{
 		return BASE_ISPC_DX11_FORMAT_VERSION;
-	}
-
-	// Since we want to have per texture [group] compression settings, we need to have the key based on the texture
-	virtual FString GetDerivedDataKeyString(const class UTexture& Texture, const FTextureBuildSettings* BuildSettings) const override
-	{
-		return TEXT("");
 	}
 
 	virtual void GetSupportedFormats(TArray<FName>& OutFormats) const override
@@ -661,7 +655,7 @@ public:
 		}
 	}
 
-	virtual EPixelFormat GetPixelFormatForImage(const struct FTextureBuildSettings& BuildSettings, const struct FImage& Image, bool bImageHasAlphaChannel) const override
+	virtual EPixelFormat GetPixelFormatForImage(const FTextureBuildSettings& BuildSettings, const struct FImage& Image, bool bImageHasAlphaChannel) const override
 	{
 		if (BuildSettings.TextureFormatName == GTextureFormatNameBC6H)
 		{
@@ -687,7 +681,7 @@ public:
 
 	virtual bool CompressImage(
 		const FImage& InImage,
-		const struct FTextureBuildSettings& BuildSettings,
+		const FTextureBuildSettings& BuildSettings,
 		bool bImageHasAlphaChannel,
 		FCompressedImage2D& OutCompressedImage
 		) const override
