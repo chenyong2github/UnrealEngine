@@ -13,6 +13,7 @@
 #include "Misc/App.h"
 #include "Misc/MonitoredProcess.h"
 #include "Logging/MessageLog.h"
+#include "Sound/SoundWave.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"
@@ -672,7 +673,7 @@ const UTextureLODSettings& FIOSTargetPlatform::GetTextureLODSettings() const
 }
 
 
-FName FIOSTargetPlatform::GetWaveFormat( const class USoundWave* Wave ) const
+FName FIOSTargetPlatform::GetWaveFormat( const USoundWave* Wave ) const
 {
 	if (Wave->bUseBinkAudio)
 	{
