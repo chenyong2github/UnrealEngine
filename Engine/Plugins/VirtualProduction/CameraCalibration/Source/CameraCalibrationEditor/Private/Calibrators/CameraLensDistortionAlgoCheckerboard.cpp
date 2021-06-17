@@ -4,12 +4,12 @@
 
 #include "AssetEditor/CameraCalibrationStepsController.h"
 #include "AssetEditor/LensDistortionTool.h"
+#include "AssetEditor/SSimulcamViewport.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
 #include "CameraCalibrationCheckerboard.h"
 #include "CameraCalibrationEditorLog.h"
 #include "CameraCalibrationUtils.h"
-#include "Dialogs/CustomDialog.h"
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -26,7 +26,6 @@
 #include "Misc/MessageDialog.h"
 #include "PropertyCustomizationHelpers.h"
 #include "SphericalLensDistortionModelHandler.h"
-#include "AssetEditor/SSimulcamViewport.h"
 #include "UI/CameraCalibrationWidgetHelpers.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -35,16 +34,19 @@
 #include "Widgets/SNullWidget.h"
 #include "Widgets/SWidget.h"
 
-#include <vector>
 
 #if WITH_OPENCV
+
+#include <vector>
+
 #include "OpenCVHelper.h"
 OPENCV_INCLUDES_START
 #undef check 
 #include "opencv2/opencv.hpp"
 #include "opencv2/calib3d.hpp"
 OPENCV_INCLUDES_END
-#endif
+
+#endif //WITH_OPENCV
 
 #define LOCTEXT_NAMESPACE "CameraLensDistortionAlgoCheckerboard"
 
@@ -321,120 +323,13 @@ bool UCameraLensDistortionAlgoCheckerboard::AddCalibrationRow(FText& OutErrorMes
 		cv::drawChessboardCorners(CvFrame, CheckerboardSize, Corners, bCornersFound);
 	}
 
-	auto TextureFromMat = [&](cv::Mat& Mat) -> UTexture2D*
-	{
-		// Currently we only support the pixel format below
-		if (Mat.depth() != CV_8U)
-		{
-			return nullptr;
-		}
-
-		if (Mat.channels() != 4)
-		{
-			return nullptr;
-		}
-
-		UTexture2D* Texture = UTexture2D::CreateTransient(Mat.cols, Mat.rows, PF_B8G8R8A8);
-
-		if (!Texture)
-		{
-			return nullptr;
-		}
-
-#if WITH_EDITORONLY_DATA
-		Texture->MipGenSettings = TMGS_NoMipmaps;
-#endif
-		Texture->NeverStream = true;
-		Texture->SRGB = 0;
-
-		FTexture2DMipMap& Mip0 = Texture->PlatformData->Mips[0];
-		void* TextureData = Mip0.BulkData.Lock(LOCK_READ_WRITE);
-
-		const int32 PixelStride = 4;
-		FMemory::Memcpy(TextureData, Mat.data, SIZE_T(Mat.cols * Mat.rows * PixelStride));
-
-		Mip0.BulkData.Unlock();
-		Texture->UpdateResource();
-
-		return Texture;
-	};
-
 	// Show the detection to the user
 	if (bShouldShowDetectionWindow)
 	{
-		if (UTexture2D* FullTexture = TextureFromMat(CvFrame))
-		{
-			// Display the full resolution image a large as possible but clamped to the size of the primary display
-			// and preserving the aspect ratio of the image.
-
-			FDisplayMetrics Display;
-			FDisplayMetrics::RebuildDisplayMetrics(Display);
-
-			float DetectionWindowMaxWidth = FullTexture->GetSurfaceWidth();
-			float DetectionWindowMaxHeight = FullTexture->GetSurfaceHeight();
-
-			float MarginFactor = 0.85f; // Some margin off of full screen.
-
-			float FactorWidth = MarginFactor * Display.PrimaryDisplayWidth / DetectionWindowMaxWidth;
-			float FactorHeight = MarginFactor * Display.PrimaryDisplayHeight / DetectionWindowMaxHeight;
-
-			if (FactorWidth < FactorHeight)
-			{
-				DetectionWindowMaxWidth *= FactorWidth;
-				DetectionWindowMaxHeight *= FactorWidth;
-			}
-			else
-			{
-				DetectionWindowMaxWidth *= FactorHeight;
-				DetectionWindowMaxHeight *= FactorHeight;
-			}
-
-			TSharedPtr<SBox> ViewportWrapper;
-
-			TSharedRef<SCustomDialog> DetectionWindow =
-				SNew(SCustomDialog)
-				.Title(LOCTEXT("Detection", "Detection"))
-				.ScrollBoxMaxHeight(DetectionWindowMaxHeight)
-				.DialogContent
-				(
-					SAssignNew(ViewportWrapper, SBox)
-					.MinDesiredWidth(DetectionWindowMaxWidth)
-					.MinDesiredHeight(DetectionWindowMaxHeight)
-					[
-						SNew(SSimulcamViewport, FullTexture)
-					]
-			)
-				.Buttons
-				({
-					SCustomDialog::FButton(LOCTEXT("Ok", "Ok")),
-					});
-
-			DetectionWindow->Show();
-
-			// Compensate for DPI scale the window size and its location
-			{
-				const float DPIScale = DetectionWindow->GetDPIScaleFactor();
-
-				if (!FMath::IsNearlyEqual(DPIScale, 1.0f))
-				{
-					check(DPIScale > KINDA_SMALL_NUMBER);
-
-					const int32 DetectionWindowMaxWidthScaled = DetectionWindowMaxWidth / DPIScale;
-					const int32 DetectionWindowMaxHeightScaled = DetectionWindowMaxHeight / DPIScale;
-
-					ViewportWrapper->SetMaxDesiredWidth(DetectionWindowMaxWidthScaled);
-					ViewportWrapper->SetMaxDesiredHeight(DetectionWindowMaxHeightScaled);
-
-					const int32 DisplayWidthScaled = Display.PrimaryDisplayWidth / DPIScale;
-					const int32 DisplayHeightScaled = Display.PrimaryDisplayHeight / DPIScale;
-
-					DetectionWindow->MoveWindowTo(FVector2D(
-						(DisplayWidthScaled - DetectionWindowMaxWidthScaled) / 2,
-						(DisplayHeightScaled - DetectionWindowMaxHeightScaled) / 2
-					));
-				}
-			}
-		}
+		FCameraCalibrationWidgetHelpers::DisplayTextureInWindowAlmostFullScreen(
+			FCameraCalibrationUtils::TextureFromCvMat(CvFrame),
+			LOCTEXT("CheckerboardDetection", "Checkerboard Detection")
+		);
 	}
 
 	// Create thumbnail and add it to the row
@@ -445,7 +340,7 @@ bool UCameraLensDistortionAlgoCheckerboard::AddCalibrationRow(FText& OutErrorMes
 		const int32 ResolutionDivider = 4;
 		cv::resize(CvFrame, CvThumbnail, cv::Size(CvFrame.cols / ResolutionDivider, CvFrame.rows / ResolutionDivider));
 
-		if (UTexture2D* ThumbnailTexture = TextureFromMat(CvThumbnail))
+		if (UTexture2D* ThumbnailTexture = FCameraCalibrationUtils::TextureFromCvMat(CvThumbnail))
 		{
 			Row->Thumbnail = SNew(SSimulcamViewport, ThumbnailTexture);
 		}

@@ -6,6 +6,13 @@
 
 struct FTransform;
 
+class UTexture2D;
+
+namespace cv
+{
+	class Mat;
+}
+
 /**
  * Helper class for commonly used functions for camera calibration.
  */
@@ -30,4 +37,10 @@ public:
 
 	/** Converts in-place an FTransform in OpenCV coordinates to Unreal coordinates */
 	static void ConvertOpenCVToUnreal(FTransform& Transform);
+
+	/** Compares two transforms and returns true if they are nearly equal in distance and angle */
+	static bool IsNearlyEqual(const FTransform& A, const FTransform& B, float MaxLocationDelta = 2.0f, float MaxAngleDegrees = 2.0f);
+
+	/** Returns a new transient texture for the given cv::Mat */
+	static UTexture2D* TextureFromCvMat(cv::Mat& Mat);
 };
