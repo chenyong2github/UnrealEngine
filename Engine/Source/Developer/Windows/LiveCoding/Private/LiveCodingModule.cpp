@@ -231,6 +231,7 @@ void FLiveCodingModule::StartupModule()
 	}
 
 	bEnabledLastTick = Settings->bEnabled;
+	bEnableReinstancingLastTick = IsReinstancingEnabled();
 }
 
 void FLiveCodingModule::ShutdownModule()
@@ -357,6 +358,11 @@ void FLiveCodingModule::Tick()
 		{
 			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NoEnableLiveCodingAfterHotReload", "Live Coding cannot be enabled while hot-reloaded modules are active. Please close the editor and build from your IDE before restarting."));
 		}
+	}
+	else if (IsEnabledForSession() && IsReinstancingEnabled() != bEnableReinstancingLastTick)
+	{
+		bEnableReinstancingLastTick = IsReinstancingEnabled();
+		LppSetReinstancingFlow(bEnableReinstancingLastTick);
 	}
 
 	if (bUpdateModulesInTick)
@@ -627,9 +633,7 @@ bool FLiveCodingModule::StartLiveCoding()
 		LppSetBuildArguments(*Arguments);
 
 #if WITH_EDITOR
-		bool bEnableReinstancing = true;
-		GConfig->GetBool(TEXT("LiveCoding"), TEXT("bEnableReinstancing"), bEnableReinstancing, GEngineIni);
-		if (bEnableReinstancing)
+		if (IsReinstancingEnabled())
 		{
 			LppSetReinstancingFlow(true);
 		}
@@ -813,16 +817,34 @@ void FLiveCodingModule::BeginReload()
 			GLiveCodingModule->bHasPatchBeenLoaded = false;
 			GPostCompileResult = commands::PostCompileResult::Success;
 #if WITH_EDITOR
-			bool bEnableReinstancing = true;
-			GConfig->GetBool(TEXT("LiveCoding"), TEXT("bEnableReinstancing"), bEnableReinstancing, GEngineIni);
 			GLiveCodingModule->Reload.Reset(new FReload(EActiveReloadType::LiveCoding, TEXT("LIVECODING"), *GLog));
-			GLiveCodingModule->Reload->SetEnableReinstancing(bEnableReinstancing);
+			GLiveCodingModule->Reload->SetEnableReinstancing(GLiveCodingModule->IsReinstancingEnabled());
 			GLiveCodingModule->Reload->SetSendReloadCompleteNotification(false);
 #else
 			GLiveCodingModule->Reload.Reset(new FNullReload(*GLiveCodingModule));
 #endif
 		}
 	}
+}
+
+bool FLiveCodingModule::IsReinstancingEnabled() const
+{
+#if WITH_EDITOR
+	if (Settings->bEnableReinstancing)
+	{
+		return true;
+	}
+	bool bEnableReinstancing = true;
+	GConfig->GetBool(TEXT("LiveCoding"), TEXT("bEnableReinstancing"), bEnableReinstancing, GEngineIni);
+	return bEnableReinstancing;
+#else
+	return false;
+#endif
+}
+
+bool FLiveCodingModule::AutomaticallyCompileNewClasses() const
+{
+	return Settings->bAutomaticallyCompileNewClasses;
 }
 
 // Invoked from LC_ClientCommandActions
