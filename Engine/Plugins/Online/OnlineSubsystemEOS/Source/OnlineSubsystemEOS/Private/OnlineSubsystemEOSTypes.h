@@ -145,6 +145,7 @@ private:
 	FUniqueNetIdEOS()
 		: FUniqueNetIdString(EMPTY_EASID EOS_ID_SEPARATOR EMPTY_PUID)
 	{
+		Type = FName("EOS");
 	}
 	
 	explicit FUniqueNetIdEOS(uint8* Bytes, int32 Size)
@@ -154,10 +155,11 @@ private:
 		EpicAccountIdStr = BytesToHex(Bytes, ID_HALF_BYTE_SIZE);
 		ProductUserIdStr = BytesToHex(Bytes + ID_HALF_BYTE_SIZE, ID_HALF_BYTE_SIZE);
 		UniqueNetIdStr = EpicAccountIdStr + EOS_ID_SEPARATOR + ProductUserIdStr;
+		Type = FName("EOS");
 	}
 
 	explicit FUniqueNetIdEOS(const FString& InUniqueNetId)
-		: FUniqueNetIdString(InUniqueNetId)
+		: FUniqueNetIdString(InUniqueNetId, FName("EOS"))
 	{
 		ParseAccountIds();
 	}
@@ -166,12 +168,14 @@ private:
 		: FUniqueNetIdString(MoveTemp(InUniqueNetId))
 	{
 		ParseAccountIds();
+		Type = FName("EOS");
 	}
 
 	explicit FUniqueNetIdEOS(const FUniqueNetId& Src)
 		: FUniqueNetIdString(Src)
 	{
 		ParseAccountIds();
+		Type = FName("EOS");
 	}
 };
 
