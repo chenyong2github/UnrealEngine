@@ -14,7 +14,7 @@ namespace cv
 		/** Signature of free that Unreal may replace using SetMallocAndFree */
 		typedef void (*TUnrealFree)(void*);
 
-		/** Replaces the malloc and free functions used in the operator new overrides */
+		/** Replaces the malloc and free functions used in the operator new/delete overrides */
 		CV_EXPORTS_W void SetMallocAndFree(TUnrealMalloc, TUnrealFree);
 	}
 }

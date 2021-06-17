@@ -3,8 +3,8 @@
 :: Specifies the version of opencv to download
 set opencv_version=3.3.1
 
-:: Uncomment to include opencv_contrib in the build
-::set use_opencv_contrib=""
+:: Comment the line below to exclude opencv_contrib from the build
+set use_opencv_contrib=""
 
 set opencv_url=https://github.com/opencv/opencv/archive/%opencv_version%.zip
 set opencv_src=opencv-%opencv_version%
