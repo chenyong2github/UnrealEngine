@@ -1043,6 +1043,14 @@ protected:
 	virtual int32 PerInstanceCustomData(int32 DataIndex, int32 DefaultValueIndex) override;
 
 	/**
+	 * Returns a custom data on a per-instance basis when instancing
+	 * @DataIndex - index in array that represents custom data
+	 *
+	 * @return	Code index
+	 */
+	virtual int32 PerInstanceCustomData3Vector(int32 DataIndex, int32 DefaultValueIndex) override;
+
+	/**
 	 * Returns a float2 texture coordinate after 2x2 transform and offset applied
 	 *
 	 * @return	Code index

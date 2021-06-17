@@ -959,6 +959,34 @@ float GetPerInstanceCustomData(FMaterialVertexParameters Parameters, int Index, 
 #endif
 }
 
+// Per Instance Custom Data Getter (Vertex Shader Only)
+/** Get the per-instance custom data when instancing */
+MaterialFloat3 GetPerInstanceCustomData3Vector(FMaterialVertexParameters Parameters, int Index, MaterialFloat3 DefaultValue)
+{
+#if (USE_INSTANCING || USE_INSTANCE_CULLING) && USES_PER_INSTANCE_CUSTOM_DATA
+	if (InstanceVF.NumCustomDataFloats > 0 && Index + 2 < InstanceVF.NumCustomDataFloats)
+	{
+	#if USE_INSTANCE_CULLING
+		int InstanceDataIndex = Parameters.PrimitiveLocalInstanceIndex;
+	#else
+		int InstanceDataIndex = Parameters.InstanceId + Parameters.InstanceOffset;
+	#endif
+
+		int BufferStartIndex = InstanceDataIndex * InstanceVF.NumCustomDataFloats;
+		int FloatIndex = clamp(Index, 0, InstanceVF.NumCustomDataFloats - 1);
+		return float3(InstanceVF.InstanceCustomDataBuffer[BufferStartIndex + FloatIndex], 
+		              InstanceVF.InstanceCustomDataBuffer[BufferStartIndex + FloatIndex + 1],
+					  InstanceVF.InstanceCustomDataBuffer[BufferStartIndex + FloatIndex + 2]);
+	}
+	else
+	{
+		return DefaultValue;
+	}
+#else
+	return DefaultValue;
+#endif
+}
+
 /** Transforms a vector from tangent space to world space, prescaling by an amount calculated previously */
 MaterialFloat3 TransformTangentVectorToWorld_PreScaled(FMaterialTessellationParameters Parameters, MaterialFloat3 InTangentVector)
 {
