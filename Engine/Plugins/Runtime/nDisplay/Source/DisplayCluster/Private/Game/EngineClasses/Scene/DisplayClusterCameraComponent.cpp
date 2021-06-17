@@ -69,9 +69,9 @@ void UDisplayClusterCameraComponent::OnRegister()
 			}
 		}
 	}
-#endif
 
 	RefreshVisualRepresentation();
+#endif
 
 	Super::OnRegister();
 }

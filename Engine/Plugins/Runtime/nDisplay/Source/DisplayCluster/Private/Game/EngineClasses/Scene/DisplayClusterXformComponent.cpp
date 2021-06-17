@@ -59,9 +59,9 @@ void UDisplayClusterXformComponent::OnRegister()
 			ProxyMeshComponent->RegisterComponentWithWorld(GetWorld());
 		}
 	}
-#endif
 
 	RefreshVisualRepresentation();
+#endif
 
 	Super::OnRegister();
 }

@@ -45,7 +45,7 @@ void UDisplayClusterScreenComponent::SetScreenSize(const FVector2D& InSize)
 {
 	SetWorldScale3D(FVector(1.f, InSize.X, InSize.Y));
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	Size = InSize;
 #endif
 }
@@ -58,9 +58,11 @@ void UDisplayClusterScreenComponent::Serialize(FArchive& Ar)
 	{
 		USceneComponent::Serialize(Ar);
 
+#if WITH_EDITOR
 		// Filtering by GetOwner() allows to avoid double upscaling for many cases. But it's not enough unfortunately.
 		// There are still some cases where screens get upscaled repeatedly and get x10000 in the end.
 		SetScreenSize(Size * (GetOwner() ? 1.f : 100.f));
+#endif
 	}
 	else
 	{
