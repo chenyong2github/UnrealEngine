@@ -33,5 +33,10 @@ namespace EpicGames.Core
 		/// The current runtime platform
 		/// </summary>
 		public static readonly Type Current = IsWindows ? Type.Windows : IsMac ? Type.Mac : Type.Linux;
+
+		/// <summary>
+		/// The extension executables have on the current platform
+		/// </summary>
+		public static readonly string ExeExtension = IsWindows ? ".exe" : "";
 	}
 }
