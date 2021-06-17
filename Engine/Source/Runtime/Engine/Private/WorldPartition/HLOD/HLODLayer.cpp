@@ -68,7 +68,7 @@ uint32 UHLODLayer::GetCRC() const
 
 	uint32 Hash = Ar.GetCrc();
 
-	const bool bUseHLODMaterial = LayerType == EHLODLayerType::MeshMerge || LayerType == EHLODLayerType::MeshSimplify;
+	const bool bUseHLODMaterial = LayerType != EHLODLayerType::Instancing;
 	if (bUseHLODMaterial && !HLODMaterial.IsNull())
 	{
 		UMaterialInterface* Material = HLODMaterial.LoadSynchronous();
