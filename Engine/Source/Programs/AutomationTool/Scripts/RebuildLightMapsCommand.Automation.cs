@@ -9,6 +9,7 @@ using System.Net.Mail;
 using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 /// <summary>
 /// Helper command used for rebuilding a projects light maps.

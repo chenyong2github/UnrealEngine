@@ -14,6 +14,7 @@ using Newtonsoft.Json;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace Gauntlet
 {

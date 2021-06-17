@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using AutomationTool;
+using UnrealBuildBase;
 
 [Help(@"Creates an IPA from an xarchive file")]
 [Help("method=<method>", @"Purpose of the IPA. (Development, Adhoc, Store)")]

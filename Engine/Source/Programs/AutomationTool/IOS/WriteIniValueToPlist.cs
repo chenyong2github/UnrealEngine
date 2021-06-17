@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
 using AutomationTool;
+using UnrealBuildBase;
 
 [Help(@"Pulls a value from an ini file and inserts it into a plist.")]
 [Help(@"Note currently only looks at values irrespective of sections!")]

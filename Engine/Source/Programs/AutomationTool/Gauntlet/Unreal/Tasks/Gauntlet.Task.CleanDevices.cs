@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using UnrealBuildBase;
 using UnrealBuildTool;
 
 namespace Gauntlet
@@ -30,7 +31,7 @@ namespace Gauntlet
 		public int MaxDays;
 
 
-		public override AutomationTool.ExitCode Execute()
+		public override ExitCode Execute()
 		{
 			AutoParam.ApplyParamsAndDefaults(this, Environment.GetCommandLineArgs());
 
@@ -67,7 +68,7 @@ namespace Gauntlet
 			DevicePool.Instance.Dispose();
 
 
-			return AutomationTool.ExitCode.Success;
+			return ExitCode.Success;
 		}
 
 		protected void CleanDevice(ITargetDevice Device)

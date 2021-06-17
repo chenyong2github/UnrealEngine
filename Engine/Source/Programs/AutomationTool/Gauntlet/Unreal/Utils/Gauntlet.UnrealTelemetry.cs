@@ -5,7 +5,7 @@ using System.IO;
 using System.Collections.Generic;
 using AutomationTool;
 using UnrealBuildTool;
-
+using UnrealBuildBase;
 
 namespace Gauntlet
 {

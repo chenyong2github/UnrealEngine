@@ -35,7 +35,7 @@ namespace Turnkey
 		}
 
 		static bool bHasBeenInitialized = false;
-		public static AutomationTool.ExitCode Execute(IOProvider IOProvider, BuildCommand CommandUtilHelper)
+		public static ExitCode Execute(IOProvider IOProvider, BuildCommand CommandUtilHelper)
 		{
 			if (!bHasBeenInitialized)
 			{

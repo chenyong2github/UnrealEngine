@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using EpicGames.Core;
 using UnrealBuildTool;
+using UnrealBuildBase;
 
 namespace AutomationTool
 {

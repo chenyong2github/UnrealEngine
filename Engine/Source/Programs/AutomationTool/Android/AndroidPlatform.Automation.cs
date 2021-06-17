@@ -11,6 +11,7 @@ using AutomationTool;
 using UnrealBuildTool;
 using Ionic.Zip;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 public class AndroidPlatform : Platform
 {
