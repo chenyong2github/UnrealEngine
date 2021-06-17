@@ -642,7 +642,7 @@ void FDistanceFieldAsyncQueue::BlockUntilBuildComplete(UStaticMesh* StaticMesh, 
 void FDistanceFieldAsyncQueue::BlockUntilAllBuildsComplete()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldAsyncQueue::BlockUntilAllBuildsComplete)
-	do 
+	while (true)
 	{
 #if WITH_EDITOR
 		FStaticMeshCompilingManager::Get().FinishAllCompilation();
@@ -657,9 +657,14 @@ void FDistanceFieldAsyncQueue::BlockUntilAllBuildsComplete()
 		}
 
 		ProcessAsyncTasks();
+
+		if (GetNumOutstandingTasks() <= 0)
+		{
+			break;
+		}
+
 		FPlatformProcess::Sleep(.01f);
 	} 
-	while (GetNumOutstandingTasks() > 0);
 }
 
 void FDistanceFieldAsyncQueue::Build(FAsyncDistanceFieldTask* Task, FQueuedThreadPool& BuildThreadPool)

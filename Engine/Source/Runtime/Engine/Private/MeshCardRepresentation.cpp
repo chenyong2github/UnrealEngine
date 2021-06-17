@@ -499,7 +499,7 @@ void FCardRepresentationAsyncQueue::BlockUntilBuildComplete(UStaticMesh* StaticM
 void FCardRepresentationAsyncQueue::BlockUntilAllBuildsComplete()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FCardRepresentationAsyncQueue::BlockUntilAllBuildsComplete)
-	do 
+	while (true)
 	{
 #if WITH_EDITOR
 		FStaticMeshCompilingManager::Get().FinishAllCompilation();
@@ -514,9 +514,14 @@ void FCardRepresentationAsyncQueue::BlockUntilAllBuildsComplete()
 		}
 
 		ProcessAsyncTasks();
+
+		if (GetNumOutstandingTasks() <= 0)
+		{
+			break;
+		}
+
 		FPlatformProcess::Sleep(.01f);
 	} 
-	while (GetNumOutstandingTasks() > 0);
 }
 
 void FCardRepresentationAsyncQueue::Build(FAsyncCardRepresentationTask* Task, FQueuedThreadPool& BuildThreadPool)
