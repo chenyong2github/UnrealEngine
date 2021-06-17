@@ -1280,10 +1280,18 @@ void FDisplayClusterConfiguratorSCSEditorViewportClient::DisplayViewportInformat
 					const FLinearColor Color = FLinearColor::Red;
 					const FString DisplayText = ConfigViewport->GetName();
 					
-					// Display at center of mesh. It might be nice to display on the bottom,
-					// but it's not as simple as offsetting by half scale since a screen could be rotated.
+					// Display at center of bounding box of mesh with support for various pivot points.
 					FVector WorldLocation = PreviewMesh->GetComponentLocation();
-
+					if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(PreviewMesh))
+					{
+						if(UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
+						{
+							FVector MeshOrigin = StaticMesh->GetBounds().Origin * StaticMeshComponent->GetComponentScale();
+							FRotator ComponentRotation = StaticMeshComponent->GetComponentRotation();
+							WorldLocation += ComponentRotation.RotateVector(MeshOrigin);
+						}
+					}
+					
 					const FPlane Proj = SceneView.Project(WorldLocation);
 					if (Proj.W > 0.0f)
 					{
