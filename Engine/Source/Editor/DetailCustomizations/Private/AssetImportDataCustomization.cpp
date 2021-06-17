@@ -32,78 +32,29 @@ void FAssetImportDataCustomization::CustomizeChildren( TSharedRef<IPropertyHandl
 {
 	PropertyHandle = InPropertyHandle;
 
-	FAssetImportInfo* Info = GetEditStruct();
-	if (!Info)
-	{
-		return;
-	}
-
 	auto Font = IDetailLayoutBuilder::GetDetailFont();
 
-	const FText SourceFileText = LOCTEXT("SourceFile", "Source File");
-	int32 NumSourceFiles = Info->SourceFiles.Num() ? Info->SourceFiles.Num() : 1;
-
-	for (int32 Index = 0; Index < NumSourceFiles; ++Index)
+	FAssetImportInfo* Info = GetEditStruct();
+	if (Info)
 	{
-		FText SourceFileLabel = SourceFileText;
-		if (Info->SourceFiles.IsValidIndex(Index) && Info->SourceFiles[Index].DisplayLabelName.Len() > 0)
-		{
-			SourceFileLabel = FText::FromString(SourceFileText.ToString() + TEXT(" (") + Info->SourceFiles[Index].DisplayLabelName + TEXT(")"));
-		}
+		const FText SourceFileText = LOCTEXT("SourceFile", "Source File");
+		int32 NumSourceFiles = Info->SourceFiles.Num() ? Info->SourceFiles.Num() : 1;
 
-		ChildBuilder.AddCustomRow(SourceFileLabel)
-		.NameContent()
-		[
-			SNew(STextBlock)
-			.Text(SourceFileLabel)
-			.Font(Font)
-		]
-		.ValueContent()
-		.HAlign(HAlign_Fill)
-		.MaxDesiredWidth(TOptional<float>())
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
+		for (int32 Index = 0; Index < NumSourceFiles; ++Index)
+		{
+			FText SourceFileLabel = SourceFileText;
+			if (Info->SourceFiles.IsValidIndex(Index) && Info->SourceFiles[Index].DisplayLabelName.Len() > 0)
+			{
+				SourceFileLabel = FText::FromString(SourceFileText.ToString() + TEXT(" (") + Info->SourceFiles[Index].DisplayLabelName + TEXT(")"));
+			}
+
+			ChildBuilder.AddCustomRow(SourceFileLabel)
+			.NameContent()
 			[
-				SNew(SEditableText)
-				.IsReadOnly(true)
-				.Text(this, &FAssetImportDataCustomization::GetFilenameText, Index)
-				.ToolTipText(this, &FAssetImportDataCustomization::GetFilenameText, Index)
+				SNew(STextBlock)
+				.Text(SourceFileLabel)
 				.Font(Font)
 			]
-
-			+SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				SNew(SButton)
-				.OnClicked(this, &FAssetImportDataCustomization::OnChangePathClicked, Index)
-				.ToolTipText(LOCTEXT("ChangePath_Tooltip", "Browse for a new source file path"))
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("...", "..."))
-					.Font(Font)
-				]
-			]
-
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(SButton)
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Center)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.OnClicked(this, &FAssetImportDataCustomization::OnClearPathClicked, Index)
-				.ToolTipText(LOCTEXT("ClearPath_Tooltip", "Clear this source file information from the asset"))
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Cross"))
-				]
-			]
-		];
-
-		ChildBuilder.AddCustomRow(SourceFileText)
 			.ValueContent()
 			.HAlign(HAlign_Fill)
 			.MaxDesiredWidth(TOptional<float>())
@@ -111,46 +62,117 @@ void FAssetImportDataCustomization::CustomizeChildren( TSharedRef<IPropertyHandl
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
-				.FillWidth(1.0f)
 				[
 					SNew(SEditableText)
 					.IsReadOnly(true)
-					.Text(this, &FAssetImportDataCustomization::GetTimestampText, Index)
+					.Text(this, &FAssetImportDataCustomization::GetFilenameText, Index)
+					.ToolTipText(this, &FAssetImportDataCustomization::GetFilenameText, Index)
 					.Font(Font)
 				]
-				+ SHorizontalBox::Slot()
+
+				+SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Center)
 				.AutoWidth()
 				[
 					SNew(SButton)
-					.VAlign(VAlign_Center)
-					.HAlign(HAlign_Center)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-					.IsEnabled(this, &FAssetImportDataCustomization::IsPropagateFromAbovePathEnable, Index)
-					.OnClicked(this, &FAssetImportDataCustomization::OnPropagateFromAbovePathClicked, Index)
-					.ToolTipText(LOCTEXT("PropagateFromAbovePath_Tooltip", "Use the above source path to set this path."))
+					.OnClicked(this, &FAssetImportDataCustomization::OnChangePathClicked, Index)
+					.ToolTipText(LOCTEXT("ChangePath_Tooltip", "Browse for a new source file path"))
 					[
-						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("ArrowDown"))
+						SNew(STextBlock)
+						.Text(LOCTEXT("...", "..."))
+						.Font(Font)
 					]
 				]
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Center)
+
+				+SHorizontalBox::Slot()
 				.AutoWidth()
 				[
 					SNew(SButton)
 					.VAlign(VAlign_Center)
 					.HAlign(HAlign_Center)
 					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-					.IsEnabled(this, &FAssetImportDataCustomization::IsPropagateFromBelowPathEnable, Index)
-					.OnClicked(this, &FAssetImportDataCustomization::OnPropagateFromBelowPathClicked, Index)
-					.ToolTipText(LOCTEXT("PropagateFromBelowPath_Tooltip", "Use the below source path to set this path."))
+					.OnClicked(this, &FAssetImportDataCustomization::OnClearPathClicked, Index)
+					.ToolTipText(LOCTEXT("ClearPath_Tooltip", "Clear this source file information from the asset"))
 					[
 						SNew(SImage)
-						.Image(FEditorStyle::GetBrush("ArrowUp"))
+						.Image(FEditorStyle::GetBrush("Cross"))
 					]
+				]
+			];
+
+			ChildBuilder.AddCustomRow(SourceFileText)
+				.ValueContent()
+				.HAlign(HAlign_Fill)
+				.MaxDesiredWidth(TOptional<float>())
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.FillWidth(1.0f)
+					[
+						SNew(SEditableText)
+						.IsReadOnly(true)
+						.Text(this, &FAssetImportDataCustomization::GetTimestampText, Index)
+						.Font(Font)
+					]
+					+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Center)
+					.AutoWidth()
+					[
+						SNew(SButton)
+						.VAlign(VAlign_Center)
+						.HAlign(HAlign_Center)
+						.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+						.IsEnabled(this, &FAssetImportDataCustomization::IsPropagateFromAbovePathEnable, Index)
+						.OnClicked(this, &FAssetImportDataCustomization::OnPropagateFromAbovePathClicked, Index)
+						.ToolTipText(LOCTEXT("PropagateFromAbovePath_Tooltip", "Use the above source path to set this path."))
+						[
+							SNew(SImage)
+							.Image(FEditorStyle::GetBrush("ArrowDown"))
+						]
+					]
+					+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Center)
+					.AutoWidth()
+					[
+						SNew(SButton)
+						.VAlign(VAlign_Center)
+						.HAlign(HAlign_Center)
+						.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+						.IsEnabled(this, &FAssetImportDataCustomization::IsPropagateFromBelowPathEnable, Index)
+						.OnClicked(this, &FAssetImportDataCustomization::OnPropagateFromBelowPathClicked, Index)
+						.ToolTipText(LOCTEXT("PropagateFromBelowPath_Tooltip", "Use the below source path to set this path."))
+						[
+							SNew(SImage)
+							.Image(FEditorStyle::GetBrush("ArrowUp"))
+						]
+					]
+				];
+		}
+	}
+	else
+	{
+		ChildBuilder.AddCustomRow(FText::GetEmpty())
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("ClearAllSourceData", "Clear all the source file information from the asset."))
+				.Font(Font)
+			]
+			.ValueContent()
+			.HAlign(HAlign_Left)
+			[
+				SNew(SButton)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Center)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.OnClicked(this, &FAssetImportDataCustomization::OnClearAllPathsClicked)
+				.ToolTipText(LOCTEXT("ClearAllSourceData_Tooltip", "Clear all the source file information from the asset."))
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::GetBrush("Cross"))
 				]
 			];
 	}
@@ -185,8 +207,7 @@ FText FAssetImportDataCustomization::GetTimestampText(int32 Index) const
 
 FAssetImportInfo* FAssetImportDataCustomization::GetEditStruct() const
 {
-	static TArray<FAssetImportInfo*> AssetImportInfo;
-	AssetImportInfo.Reset();
+	TArray<FAssetImportInfo*> AssetImportInfo;
 
 	if(PropertyHandle->IsValidHandle())
 	{
@@ -200,6 +221,18 @@ FAssetImportInfo* FAssetImportDataCustomization::GetEditStruct() const
 	return nullptr;
 }
 
+TArray<FAssetImportInfo*> FAssetImportDataCustomization::GetEditStructs() const
+{
+	TArray<FAssetImportInfo*> AssetImportInfo;
+
+	if (PropertyHandle->IsValidHandle())
+	{
+		PropertyHandle->AccessRawData(reinterpret_cast<TArray<void*>&>(AssetImportInfo));
+	}
+
+	return AssetImportInfo;
+}
+
 UAssetImportData* FAssetImportDataCustomization::GetOuterClass() const
 {
 	static TArray<UObject*> OuterObjects;
@@ -208,6 +241,20 @@ UAssetImportData* FAssetImportDataCustomization::GetOuterClass() const
 	PropertyHandle->GetOuterObjects(OuterObjects);
 
 	return OuterObjects.Num() ? Cast<UAssetImportData>(OuterObjects[0]) : nullptr;
+}
+
+TArray<UAssetImportData*> FAssetImportDataCustomization::GetAllAssetImportData() const
+{
+	TArray<UObject*> OuterObjects;
+	PropertyHandle->GetOuterObjects(OuterObjects);
+
+	TArray<UAssetImportData*> AllAssetImportData;
+	for (UObject* Data : OuterObjects)
+	{
+		AllAssetImportData.Add(Cast<UAssetImportData>(Data));
+	}
+
+	return AllAssetImportData;
 }
 
 class FImportDataSourceFileTransactionScope
@@ -280,6 +327,27 @@ FReply FAssetImportDataCustomization::OnClearPathClicked(int32 Index) const
 		ImportData->SourceData.SourceFiles[Index].RelativeFilename = FString();
 		ImportData->SourceData.SourceFiles[Index].FileHash = FMD5Hash();
 		ImportData->SourceData.SourceFiles[Index].Timestamp = 0;
+	}
+
+	return FReply::Handled();
+}
+
+FReply FAssetImportDataCustomization::OnClearAllPathsClicked() const
+{
+	TArray<UAssetImportData*> ImportDatas = GetAllAssetImportData();
+
+	FScopedTransaction Transaction(LOCTEXT("ClearAllSourceFilePaths", "Clear all source file paths"));
+	for (UAssetImportData* ImportData : ImportDatas)
+	{
+		FImportDataSourceFileTransactionScope TransactionScope(LOCTEXT("SourceReimportClearPath", "Clear Source file path"), ImportData);
+		
+		//Clear the filename, Hash and timestamp. Leave the Display label.
+		for (FAssetImportInfo::FSourceFile& SourceFile : ImportData->SourceData.SourceFiles)
+		{
+			SourceFile.RelativeFilename = FString();
+			SourceFile.FileHash = FMD5Hash();
+			SourceFile.Timestamp = 0;
+		}
 	}
 
 	return FReply::Handled();
