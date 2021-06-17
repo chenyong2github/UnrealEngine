@@ -415,7 +415,7 @@ void RenderLumenHardwareRayTracingDirectLighting(
 		PassParameters->MaxTranslucentSkipCount = 1; // TODO: CVarLumenReflectionsHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
 		PassParameters->AtlasSize = LumenSceneData.GetPhysicalAtlasSize();
 		PassParameters->GroupCount = FMath::Max(CVarLumenSceneDirectLightingHardwareRayTracingGroupCount.GetValueOnRenderThread(), 1);
-		PassParameters->MaxTraceDistance = 15000; // TODO: Align with global off-screen tracing distance?
+		PassParameters->MaxTraceDistance = Lumen::GetSurfaceCacheOffscreenShadowingMaxTraceDistance();
 
 		PassParameters->VirtualShadowMapSamplingParameters = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 		PassParameters->VirtualShadowMapIds = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(VirtualShadowMapIdsBuffer));
