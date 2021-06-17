@@ -101,6 +101,7 @@ void UDynamicMeshSculptTool::Setup()
 
 	// create dynamic mesh component to use for live preview
 	DynamicMeshComponent = NewObject<UOctreeDynamicMeshComponent>(UE::ToolTarget::GetTargetActor(Target));
+	DynamicMeshComponent->SetShadowsEnabled(false);
 	DynamicMeshComponent->SetupAttachment(UE::ToolTarget::GetTargetActor(Target)->GetRootComponent());
 	DynamicMeshComponent->RegisterComponent();
 
@@ -2448,8 +2449,8 @@ void UDynamicMeshSculptTool::UpdateMaterialMode(EMeshEditingMaterialModes Materi
 	if (MaterialMode == EMeshEditingMaterialModes::ExistingMaterial)
 	{
 		DynamicMeshComponent->ClearOverrideRenderMaterial();
-		DynamicMeshComponent->bCastDynamicShadow = UE::ToolTarget::GetTargetComponent(Target)->bCastDynamicShadow;
-		ActiveOverrideMaterial = nullptr;
+		DynamicMeshComponent->SetShadowsEnabled(UE::ToolTarget::GetTargetComponent(Target)->bCastDynamicShadow);
+		ActiveOverrideMaterial = nullptr; 
 	}
 	else 
 	{
@@ -2511,7 +2512,7 @@ void UDynamicMeshSculptTool::UpdateMaterialMode(EMeshEditingMaterialModes Materi
 			ActiveOverrideMaterial->SetScalarParameterValue(TEXT("FlatShading"), (ViewProperties->bFlatShading) ? 1.0f : 0.0f);
 		}
 
-		DynamicMeshComponent->bCastDynamicShadow = false;
+		DynamicMeshComponent->SetShadowsEnabled(false);
 	}
 }
 

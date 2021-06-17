@@ -97,6 +97,11 @@ public:
 	void EnableWireframe(bool bEnable);
 
 	/**
+	 * Enable/disable shadow rendering
+	 */
+	void SetShadowsEnabled(bool bEnable);
+
+	/**
 	 * Set material on the preview mesh
 	 */
 	void SetMaterial(UMaterialInterface* Material);

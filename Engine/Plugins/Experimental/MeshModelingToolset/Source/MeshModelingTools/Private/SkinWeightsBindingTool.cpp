@@ -858,7 +858,7 @@ void USkinWeightsBindingTool::Setup()
 
 	Preview->PreviewMesh->SetTransform(TargetComponent->GetWorldTransform());
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
-	Preview->PreviewMesh->GetRootComponent()->bCastDynamicShadow = false;
+	Preview->PreviewMesh->SetShadowsEnabled(false);
 	Preview->PreviewMesh->UpdatePreview(OriginalMesh.Get());
 
 	Occupancy = MakeShared<FOccupancyGrid>(*OriginalMesh, Properties->VoxelResolution);

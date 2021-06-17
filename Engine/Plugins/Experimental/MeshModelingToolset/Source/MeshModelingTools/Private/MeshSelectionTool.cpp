@@ -86,7 +86,7 @@ void UMeshSelectionTool::Setup()
 	PreviewMesh->EnableWireframe(SelectionProps->bShowWireframe);
 
 	// disable shadows
-	PreviewMesh->GetRootComponent()->bCastDynamicShadow = false;
+	PreviewMesh->SetShadowsEnabled(false);
 
 	// configure secondary render material
 	UMaterialInterface* SelectionMaterial = ToolSetupUtil::GetSelectionMaterial(FLinearColor(0.9f, 0.1f, 0.1f), GetToolManager());

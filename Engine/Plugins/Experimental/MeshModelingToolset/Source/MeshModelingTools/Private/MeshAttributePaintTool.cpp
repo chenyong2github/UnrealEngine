@@ -165,7 +165,7 @@ void UMeshAttributePaintTool::Setup()
 	// configure preview mesh
 	PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 	//PreviewMesh->EnableWireframe(SelectionProps->bShowWireframe);
-	PreviewMesh->GetRootComponent()->bCastDynamicShadow = false;
+	PreviewMesh->SetShadowsEnabled(false);
 
 	// enable vtx colors on preview mesh
 	PreviewMesh->EditMesh([](FDynamicMesh3& Mesh)
