@@ -44,8 +44,22 @@ bool FOpenAssetEditors::RunTest(const FString& LongAssetPath)
 
 	AddCommand(new FOpenEditorForAssetCommand(LongAssetPath));
 	AddCommand(new FWaitLatentCommand(0.5f));
-	AddCommand(new FDelayedFunctionLatentCommand([=] {
-		if ( Object->GetOutermost()->IsDirty() )
+	AddCommand(new FDelayedFunctionLatentCommand([WeakObjPtr=TWeakObjectPtr<UObject>(Object),LongAssetPath] {
+		UObject* Obj = WeakObjPtr.Get();
+		if (Obj == nullptr)
+		{		
+			// If the object was destroyed, attempt to find it if it was recreated
+			if (!LongAssetPath.IsEmpty())
+			{
+				Obj = FindObject<UObject>(nullptr, *LongAssetPath);
+			}
+
+			if (Obj == nullptr)
+			{
+				UE_LOG(LogEditorAutomationTests, Error, TEXT("Asset '%s' did not exist when evaluating."), *LongAssetPath);
+			}
+		}
+		if (Obj && Obj->GetOutermost()->IsDirty() )
 		{
 			UE_LOG(LogEditorAutomationTests, Error, TEXT("Asset '%s' was dirty after opening it."), *LongAssetPath);
 		}
