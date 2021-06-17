@@ -169,19 +169,15 @@ void UMoviePipelineWaveOutput::BeginFinalizeImpl()
 		TPromise<bool> Completed;
 		GetPipeline()->AddOutputFuture(Completed.GetFuture(), OutputData);
 
-		OutstandingWrites++;
 		TUniquePtr<Audio::FSoundWavePCMWriter> Writer = MakeUnique<Audio::FSoundWavePCMWriter>();
-		bool bSuccess = Writer->BeginWriteToWavFile(Segment.SampleBuffer, FileName, FileFolder, [this]()
-		{
-			this->OutstandingWrites--;
-		});
+		bool bSuccess = Writer->BeginWriteToWavFile(Segment.SampleBuffer, FileName, FileFolder, [this](){});
 
 		Completed.SetValue(bSuccess);
 		ActiveWriters.Add(MoveTemp(Writer));
 	}
 
 	// The FSoundWavePCMWriter is unfortunately async, and the completion callbacks don't work unless the main thread
-	// can be spun (as it enqueus a callback onto the main thread). We're going to just cheat here and stall the main thread
+	// can be spun (as it enqueues a callback onto the main thread). We're going to just cheat here and stall the main thread
 	// for 0.5s to give it a chance to write to disk. It'll only potentially be an issue with command line encoding if it takes
 	// longer than 0.5s to write to disk.
 	FPlatformProcess::Sleep(0.5f);
@@ -202,15 +198,9 @@ void UMoviePipelineWaveOutput::OnShotFinishedImpl(const UMoviePipelineExecutorSh
 	}
 }
 
-void UMoviePipelineWaveOutput::FinalizeImpl()
-{
-	// Finalize won't get called until HasFinishedProcessingImpl returns true.
-	ActiveWriters.Empty();
-}
-
 bool UMoviePipelineWaveOutput::HasFinishedProcessingImpl()
 {
-	return OutstandingWrites == 0;
+	return true;
 }
 
 void UMoviePipelineWaveOutput::ValidateStateImpl()

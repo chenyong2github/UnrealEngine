@@ -11,7 +11,6 @@ class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineWaveOutput : public UMov
 	GENERATED_BODY()
 
 	UMoviePipelineWaveOutput()
-		: OutstandingWrites(0)
 	{
 	}
 
@@ -20,8 +19,6 @@ public:
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "AudioSettingDisplayName", ".wav Audio"); }
 #endif
 	virtual void OnShotFinishedImpl(const UMoviePipelineExecutorShot* InShot, const bool bFlushToDisk) override;
-	virtual void FinalizeImpl() override;
-
 
 protected:
 	virtual void BeginFinalizeImpl() override;
@@ -36,7 +33,6 @@ public:
 private:
 	/** Kept alive during finalization because the writer writes async to disk but doesn't expect to fall out of scope */
 	TArray<TUniquePtr<Audio::FSoundWavePCMWriter>> ActiveWriters;
-	TAtomic<int32> OutstandingWrites;
 
 	/** Keep track of segments that we've already written to disk to avoid re-writing them (and generating new Output Futures) */
 	TSet<FGuid> AlreadyWrittenSegments;
