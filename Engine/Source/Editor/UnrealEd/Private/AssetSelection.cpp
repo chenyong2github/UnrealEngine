@@ -294,11 +294,6 @@ namespace AssetSelectionUtils
 						ActorInfo.bHaveEmitter = true;
 					}
 
-					if ( CurrentActor->IsA( AMatineeActor::StaticClass() ) )
-					{
-						ActorInfo.bHaveMatinee = true;
-					}
-
 					if ( CurrentActor->IsTemporarilyHiddenInEditor() )
 					{
 						ActorInfo.bHaveHidden = true;

@@ -210,29 +210,6 @@ namespace FileDialogHelpers
 	}
 }
 
-
-
-/**
- * Queries the user if they want to quit out of interpolation editing before save.
- *
- * @return		true if in interpolation editing mode, false otherwise.
- */
-static bool InInterpEditMode()
-{
-	// Must exit Interpolation Editing mode before you can save - so it can reset everything to its initial state.
-	if( GLevelEditorModeTools().IsModeActive( FBuiltinEditorModes::EM_InterpEdit ) )
-	{
-		const bool ExitInterp = EAppReturnType::Yes == FMessageDialog::Open( EAppMsgType::YesNo, EAppReturnType::Yes, NSLOCTEXT("UnrealEd", "Prompt_21", "You must close Matinee before saving level.\nDo you wish to do this now and continue?") );
-		if(!ExitInterp)
-		{
-			return true;
-		}
-
-		GLevelEditorModeTools().DeactivateMode( FBuiltinEditorModes::EM_InterpEdit );
-	}
-	return false;
-}
-
 /**
 * Prompts user with a confirmation dialog if there are checkouts or modifications in other branches
 *
@@ -2754,21 +2731,17 @@ bool FEditorFileUtils::SaveMap(UWorld* InWorld, const FString& Filename )
 {
 	bool bLevelWasSaved = false;
 
-	// Disallow the save if in interpolation editing mode and the user doesn't want to exit interpolation mode.
-	if ( !InInterpEditMode() )
-	{
-		const double SaveStartTime = FPlatformTime::Seconds();
+	const double SaveStartTime = FPlatformTime::Seconds();
 
-		FString FinalFilename;
-		bLevelWasSaved = SaveWorld( InWorld, &Filename,
-									nullptr, nullptr,
-									true, false,
-									FinalFilename,
-									false, false );
+	FString FinalFilename;
+	bLevelWasSaved = SaveWorld( InWorld, &Filename,
+								nullptr, nullptr,
+								true, false,
+								FinalFilename,
+								false, false );
 
-		// Track time spent saving map.
-		UE_LOG(LogFileHelpers, Log, TEXT("Saving map '%s' took %.3f"), *FPaths::GetBaseFilename(Filename), FPlatformTime::Seconds() - SaveStartTime );
-	}
+	// Track time spent saving map.
+	UE_LOG(LogFileHelpers, Log, TEXT("Saving map '%s' took %.3f"), *FPaths::GetBaseFilename(Filename), FPlatformTime::Seconds() - SaveStartTime );
 
 	return bLevelWasSaved;
 }
@@ -3559,8 +3532,7 @@ bool FEditorFileUtils::SaveLevel(ULevel* Level, const FString& DefaultFilename, 
 {
 	bool bLevelWasSaved = false;
 
-	// Disallow the save if in interpolation editing mode and the user doesn't want to exit interpolation mode.
-	if ( Level && !InInterpEditMode() )
+	if (Level)
 	{
 		// Check and see if this is a new map.
 		const bool bIsPersistentLevelCurrent = Level->IsPersistentLevel();

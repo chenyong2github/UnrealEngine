@@ -125,8 +125,6 @@ const static FName NAME_CategoryPIE("PIE");
 
 // Forward declare local utility functions
 FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFeatureLevel::Type InFeatureLevel, const FRequestPlaySessionParams& InSessionParams, const int32 ClientIndex, const float FixedTick);
-bool PromptMatineeClose();
-
 
 // This class listens to output log messages, and forwards warnings and errors to the message log
 class FOutputLogErrorsToMessageLogProxy : public FOutputDevice
@@ -188,13 +186,6 @@ void UEditorEngine::EndPlayMap()
 	if (GEngine->XRSystem.IsValid() && !bIsSimulatingInEditor)
 	{
 		GEngine->XRSystem->OnEndPlay(*GEngine->GetWorldContextFromWorld(PlayWorld));
-	}
-
-	// Matinee must be closed before PIE can stop - matinee during PIE will be editing a PIE-world actor
-	if( GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_InterpEdit) )
-	{
-		FMessageDialog::Open( EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "PIENeedsToCloseMatineeMessage", "Closing 'Play in Editor' must close UnrealMatinee.") );
-		GLevelEditorModeTools().DeactivateMode( FBuiltinEditorModes::EM_InterpEdit );
 	}
 
 	EndPlayOnLocalPc();
@@ -2473,14 +2464,6 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 		UE_LOG(LogPlayLevel, Warning, TEXT("Cancelling Open Transaction '%s' to start PIE session."), *TransactionName.ToString());
 	}
 
-	// Prompt the user that Matinee must be closed before PIE can occur. If they don't want
-	// to close Matinee, we can't PIE.
-	if (!PromptMatineeClose())
-	{
-		CancelRequestPlaySession();
-		return;
-	}
-
 	TArray<IPIEAuthorizer*> PlayAuthorizers = IModularFeatures::Get().GetModularFeatureImplementations<IPIEAuthorizer>(IPIEAuthorizer::GetModularFeatureName());
 	for (const IPIEAuthorizer* Authority : PlayAuthorizers)
 	{
@@ -3404,21 +3387,6 @@ void UEditorEngine::StoreWindowSizeAndPositionForInstanceIndex(const int32 InIns
 		NewInfo.Size = InSize;
 		NewInfo.Position = InPosition;
 	}
-}
-
-bool PromptMatineeClose()
-{
-	if (GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_InterpEdit))
-	{
-		const bool bContinuePIE = EAppReturnType::Yes == FMessageDialog::Open(EAppMsgType::YesNo, NSLOCTEXT("UnrealEd", "PIENeedsToCloseMatineeQ", "'Play in Editor' must close UnrealMatinee.  Continue?"));
-		if (!bContinuePIE)
-		{
-			return false;
-		}
-		GLevelEditorModeTools().DeactivateMode(FBuiltinEditorModes::EM_InterpEdit);
-	}
-
-	return true;
 }
 
 // Deprecated Stubs

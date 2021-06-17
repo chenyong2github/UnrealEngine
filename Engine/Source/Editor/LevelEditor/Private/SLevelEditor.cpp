@@ -1548,23 +1548,6 @@ void SLevelEditor::ToggleEditorMode( FEditorModeID ModeID )
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 	TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 
-	// Prompt the user if Matinee must be closed before activating new mode
-	if (ModeID != FBuiltinEditorModes::EM_InterpEdit)
-	{
-		FEdMode* MatineeMode = GetEditorModeManager().GetActiveMode(FBuiltinEditorModes::EM_InterpEdit);
-		if (MatineeMode && !MatineeMode->IsCompatibleWith(ModeID))
-		{
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("ModeName"), MatineeMode->GetModeInfo().Name);
-			FText Msg = FText::Format(NSLOCTEXT("LevelEditor", "ModeSwitchCloseMatineeQ", "Activating '{ModeName}' editor mode will close UnrealMatinee.  Continue?"), Args);
-
-			if (EAppReturnType::Yes != FMessageDialog::Open(EAppMsgType::YesNo, Msg))
-			{
-				return;
-			}
-		}
-	}
-
 	// Abort viewport tracking when switching editor mode
 	if (GCurrentLevelEditingViewportClient)
 	{

@@ -39,11 +39,6 @@
 #include "ShadowMap.h"
 #include "LandscapeProxy.h"
 #include "LandscapeComponent.h"
-#include "Matinee/MatineeActor.h"
-#include "Matinee/InterpGroup.h"
-#include "Matinee/InterpGroupInst.h"
-#include "Matinee/InterpTrackMove.h"
-#include "Matinee/InterpTrackInstMove.h"
 #include "Components/SplineMeshComponent.h"
 #include "Lightmass/PrecomputedVisibilityVolume.h"
 #include "Lightmass/PrecomputedVisibilityOverrideVolume.h"
@@ -929,71 +924,9 @@ void FLightmassExporter::WriteVisibilityData( int32 Channel )
 
 	const float CellSize = World->GetWorldSettings()->VisibilityCellSize;
 
+	// This used to walk along Matinee sequences and write the positions for pre-computed visibility.
+	// Leaving the swarm channel code here for fear of breaking swarm.
 	TArray<FVector4> CameraTrackPositions;
-	if (World->GetWorldSettings()->bPrecomputeVisibility)
-	{
-		// Export positions along matinee camera tracks
-		// Lightmass needs to know these positions in order to place visibility cells containing them, since they may be outside any visibility volumes
-		for( TObjectIterator<ACameraActor> CameraIt; CameraIt; ++CameraIt )
-		{
-			ACameraActor* Camera = *CameraIt;
-			if (World->ContainsActor(Camera) && !Camera->IsPendingKill())
-			{
-				for( TActorIterator<AMatineeActor> It(World); It; ++It )
-				{
-					AMatineeActor* MatineeActor = *It;
-
-					bool bNeedsTermInterp = false;
-					if (MatineeActor->GroupInst.Num() == 0)
-					{
-						// If matinee is closed, GroupInst will be empty, so we need to populate it
-						bNeedsTermInterp = true;
-						MatineeActor->InitInterp();
-					}
-					UInterpGroupInst* GroupInstance = MatineeActor->FindGroupInst(Camera);
-					if (GroupInstance && GroupInstance->Group)
-					{
-						for (int32 TrackIndex = 0; TrackIndex < GroupInstance->Group->InterpTracks.Num(); TrackIndex++)
-						{
-							UInterpTrackMove* MoveTrack = Cast<UInterpTrackMove>(GroupInstance->Group->InterpTracks[TrackIndex]);
-							if (MoveTrack)
-							{
-								float StartTime;
-								float EndTime;
-								//@todo - look at the camera cuts to only process time ranges where the camera is actually active
-								MoveTrack->GetTimeRange(StartTime, EndTime);
-								for (int32 TrackInstanceIndex = 0; TrackInstanceIndex < GroupInstance->TrackInst.Num(); TrackInstanceIndex++)
-								{
-									UInterpTrackInst* TrackInstance = GroupInstance->TrackInst[TrackInstanceIndex];
-									UInterpTrackInstMove* MoveTrackInstance = Cast<UInterpTrackInstMove>(TrackInstance);
-									if (MoveTrackInstance)
-									{
-										//@todo - handle long camera paths
-										for (float Time = StartTime; Time < EndTime; Time += FMath::Max((EndTime - StartTime) * .001f, .001f))
-										{
-											const FVector RelativePosition = MoveTrack->EvalPositionAtTime(TrackInstance, Time);
-											FVector CurrentPosition;
-											FRotator CurrentRotation;
-											MoveTrack->ComputeWorldSpaceKeyTransform(MoveTrackInstance, RelativePosition, FRotator::ZeroRotator, CurrentPosition, CurrentRotation);
-											if (CameraTrackPositions.Num() == 0 || !CurrentPosition.Equals(CameraTrackPositions.Last(), CellSize * .1f))
-											{
-												CameraTrackPositions.Add(CurrentPosition);
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-					if (bNeedsTermInterp)
-					{
-						MatineeActor->TermInterp();
-					}
-				}
-			}
-		}
-	}
-	
 	int32 NumCameraPositions = CameraTrackPositions.Num();
 	Swarm.WriteChannel( Channel, &NumCameraPositions, sizeof(NumCameraPositions) );
 	Swarm.WriteChannel( Channel, CameraTrackPositions.GetData(), CameraTrackPositions.Num() * CameraTrackPositions.GetTypeSize() );

@@ -123,10 +123,6 @@ public:
 	UPROPERTY()
 	TObjectPtr<class UMaterial> MaterialCopyPasteBuffer;
 
-	/** A buffer for implementing matinee track/group copy/paste. */
-	UPROPERTY()
-	TArray<TObjectPtr<class UObject>> MatineeCopyPasteBuffer;
-
 	/** A buffer for implementing sound cue nodes copy/paste. */
 	UPROPERTY()
 	TObjectPtr<class USoundCue> SoundCueCopyPasteBuffer;
@@ -826,7 +822,8 @@ public:
 	virtual bool CanSavePackage( UPackage* PackageToSave );
 
 	/** Converts kismet based matinees in the current level to matinees controlled via matinee actors */
-	void ConvertMatinees();
+	UE_DEPRECATED(5.0, "Matinee is no longer part of the editor.")
+	void ConvertMatinees() {}
 
 	/**
 	 * Updates the volume actor visibility for all viewports based on the passed in volume class
@@ -909,11 +906,7 @@ public:
 	bool HandleBuildPathsCommand( const TCHAR* Str, FOutputDevice& Ar, UWorld* InWorld );
 	bool HandleRecreateLandscapeCollisionCommand(const TCHAR* Str, FOutputDevice& Ar, UWorld* InWorld);
 	bool HandleRemoveLandscapeXYOffsetsCommand(const TCHAR* Str, FOutputDevice& Ar, UWorld* InWorld);
-	bool HandleConvertMatineesCommand( const TCHAR* Str, FOutputDevice& Ar, UWorld* InWorld );
 	bool HandleDisasmScriptCommand( const TCHAR* Str, FOutputDevice& Ar );	
-
-	/** OnEditorModeChanged delegate which looks for Matinee editor closing */
-	void UpdateEdModeOnMatineeClose(const FEditorModeID& EditorModeID, bool IsEntering);
 
 	bool IsComponentSelected(const UPrimitiveComponent* PrimComponent);
 
