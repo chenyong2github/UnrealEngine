@@ -21,6 +21,14 @@ public:
 		HHitProxy* HitProxy = nullptr;
 	#endif
 		int32 MaterialIndex = INDEX_NONE;
+		uint8 bHasAnyError : 1;
+		uint8 bHasNullMaterial : 1;
+		uint8 bHasInvalidRelevance : 1;
+		uint8 bHasInvalidStaticLighting : 1;
+		uint8 bHasNonOpaqueBlendMode : 1;
+		uint8 bHasVertexInterpolator : 1;
+		uint8 bHasPerInstanceRandomID : 1;
+		uint8 bHasPerInstanceCustomData : 1;
 	};
 
 public:

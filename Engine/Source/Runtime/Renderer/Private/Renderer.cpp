@@ -185,6 +185,7 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 					FRenderTransform::Identity, /* PrevLocalToPrimitive */
 					FVector4(ForceInitToZero), /* Lightmap and Shadowmap UV Bias */
 					0.0f, /* Per instance Random ID */
+					0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
 					INVALID_LAST_UPDATE_FRAME
 				);
 

@@ -10,6 +10,14 @@
 	#define USE_GLOBAL_GPU_SCENE_DATA_RW 0
 #endif
 
+#ifndef USES_PER_INSTANCE_CUSTOM_DATA
+	#define USES_PER_INSTANCE_CUSTOM_DATA 0
+#endif
+
+#ifndef USES_PER_INSTANCE_RANDOM
+	#define USES_PER_INSTANCE_RANDOM 0
+#endif
+
 // Whether to fetch primitive values (eg LocalToWorld) by dynamically indexing a scene-wide buffer, or to reference a single Primitive uniform buffer
 #define VF_USE_PRIMITIVE_SCENE_DATA ((FEATURE_LEVEL >= FEATURE_LEVEL_SM5 || FEATURE_LEVEL == FEATURE_LEVEL_ES3_1) && VF_SUPPORTS_PRIMITIVE_SCENE_DATA)
 
@@ -249,8 +257,15 @@ struct FInstanceSceneData
 	uint     NaniteRuntimeResourceID;
 	uint     NaniteHierarchyOffset;
 	bool     NaniteHasImposter;
+#if USES_PER_INSTANCE_RANDOM
 	float    PerInstanceRandom;
+#endif
 	float4   LightMapAndShadowMapUVBias;
+#if USES_PER_INSTANCE_CUSTOM_DATA
+	float    CustomDataFloat0;
+	uint     CustomDataOffset;
+	uint     NumCustomDataFloats;
+#endif
 	bool     ValidInstance;
 	bool     HasRandomID;
 	bool     HasCustomData;
@@ -323,7 +338,10 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride)
 
 		InstanceData.LocalBoundsExtent.yz						= LoadInstanceDataElement(8 * SOAStride + InstanceId).xy;
 		InstanceData.PayloadDataOffset							= asuint(LoadInstanceDataElement(8 * SOAStride + InstanceId).z);
+
+	#if USES_PER_INSTANCE_RANDOM
 		InstanceData.PerInstanceRandom							= LoadInstanceDataElement(8 * SOAStride + InstanceId).w;
+	#endif
 
 		InstanceData.LightMapAndShadowMapUVBias					= LoadInstanceDataElement(9 * SOAStride + InstanceId);
 
@@ -356,6 +374,15 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride)
 		InstanceData.HasDynamicData								= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA);
 		InstanceData.HasLightShadowUVBias						= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS);
 
+		// TODO: Temporary hack!
+	#if USES_PER_INSTANCE_CUSTOM_DATA
+		// Payload data offset it not used yet, so temporarily repurpose it for a single float of custom instance data..
+		InstanceData.CustomDataFloat0 = CondMask(InstanceData.HasCustomData, asfloat(InstanceData.PayloadDataOffset), 0.0f);
+		InstanceData.CustomDataOffset = CondMask(InstanceData.HasCustomData, 0u, 0xFFFFFFFF);
+		InstanceData.NumCustomDataFloats = CondMask(InstanceData.HasCustomData, 1u, 0u);
+	#endif
+
+		// TODO: Only do this for primitive types that require per instance hierarchy offsets (i.e. geometry collections)
 		InstanceData.NaniteRuntimeResourceID = GetPrimitiveData(InstanceData.PrimitiveId).NaniteResourceID;
 		if (InstanceData.NaniteRuntimeResourceID != 0xFFFFFFFFu)
 		{

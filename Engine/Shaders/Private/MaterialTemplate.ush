@@ -273,9 +273,9 @@ struct FMaterialPixelParameters
 	/** Post projection position reconstructed from SvPosition, before the divide by W. left..top -1..1, bottom..top -1..1  within the viewport, W is the SceneDepth */
 	float4 ScreenPosition;
 
-	#if VF_NANITE
+#if VF_NANITE
 	float4 PrevScreenPosition;
-	#endif
+#endif
 
 	half UnMirrored;
 
@@ -331,7 +331,6 @@ struct FMaterialPixelParameters
 	float2 TexCoords_DDY[NUM_TEX_COORD_INTERPOLATORS];
 #endif
 
-
 	float AOMaterialMask;
 
 #if LIGHTMAP_UV_ACCESS
@@ -346,6 +345,12 @@ struct FMaterialPixelParameters
 
 	// Index into View.PrimitiveSceneData
 	uint PrimitiveId;
+
+#if VF_NANITE && USES_PER_INSTANCE_CUSTOM_DATA
+	uint CustomDataOffset;
+	uint NumCustomDataFloats;
+	float CustomDataFloat0; // TODO: Temporary hack!
+#endif
 
 	// Actual primitive Id
 #if IS_HAIR_FACTORY
@@ -908,6 +913,25 @@ MaterialFloat2 GetDefaultSceneTextureUV(FMaterialPixelParameters Parameters, con
 		return 0.0f;
 	}
 #endif // DECAL_PRIMITIVE
+
+/** Per Instance Custom Data Getter (Pixel Shader Variant - Visibility Buffer) */
+float GetPerInstanceCustomData(FMaterialPixelParameters Parameters, int Index, float DefaultValue)
+{
+#if VF_NANITE && USES_PER_INSTANCE_CUSTOM_DATA
+	// TODO: Temporary hack!
+	//if (Parameters.NumCustomDataFloats > 0)
+	if (Parameters.NumCustomDataFloats == 1 && Index == 0)
+	{
+		return Parameters.CustomDataFloat0;
+	}
+	else
+	{
+		return DefaultValue;
+	}
+#else
+	return DefaultValue;
+#endif
+}
 
 // Per Instance Custom Data Getter (Vertex Shader Only)
 /** Get the per-instance custom data when instancing */

@@ -9676,7 +9676,10 @@ int32 FHLSLMaterialTranslator::PerInstanceCustomData(int32 DataIndex, int32 Defa
 {
 	if (ShaderFrequency != SF_Vertex)
 	{
-		return NonVertexShaderExpressionError();
+		//return NonVertexShaderExpressionError();
+		// Only works with Nanite - TODO: Edge case the error
+		MaterialCompilationOutput.bUsesPerInstanceCustomData = true;
+		return AddInlinedCodeChunkZeroDeriv(MCT_Float, TEXT("GetPerInstanceCustomData(Parameters, %d, %s)"), DataIndex, *GetParameterCode(DefaultValueIndex));
 	}
 	else
 	{
