@@ -729,6 +729,11 @@ void UControlRigBlueprint::HandleReportFromCompiler(EMessageSeverity::Type InSev
 
 void UControlRigBlueprint::ClearBreakpoints()
 {
+	for(URigVMNode* Node : RigVMBreakpointNodes)
+	{
+		Node->SetHasBreakpoint(false);		
+	}
+	
 	RigVMBreakpointNodes.Empty();
 	RefreshControlRigBreakpoints();
 }
