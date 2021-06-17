@@ -76,6 +76,7 @@ void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionPa
 {
 	UE_LOG(LogDisplayClusterEditorEngine, VeryVerbose, TEXT("UDisplayClusterEditorEngine::StartPlayInEditorSession"));
 
+#if 0
 	UWorld* EditorWorldPreDup = GetEditorWorldContext().World();
 
 	if (DisplayClusterModule)
@@ -139,10 +140,14 @@ void UDisplayClusterEditorEngine::StartPlayInEditorSession(FRequestPlaySessionPa
 			}
 		}
 	}
+#else
+	Super::StartPlayInEditorSession(InRequestParams);
+#endif
 }
 
 bool UDisplayClusterEditorEngine::LoadMap(FWorldContext& WorldContext, FURL URL, class UPendingNetGame* Pending, FString& Error)
 {
+#if 0
 	if (bIsNDisplayPIE)
 	{
 		// Finish previous scene
@@ -163,10 +168,14 @@ bool UDisplayClusterEditorEngine::LoadMap(FWorldContext& WorldContext, FURL URL,
 	}
 
 	return true;
+#else
+	return Super::LoadMap(WorldContext, URL, Pending, Error);
+#endif
 }
 
 void UDisplayClusterEditorEngine::Tick(float DeltaSeconds, bool bIdleMode)
 {
+#if 0
 	if (DisplayClusterModule && bIsActivePIE && bIsNDisplayPIE)
 	{
 		DisplayClusterModule->StartFrame(GFrameCounter);
@@ -175,6 +184,7 @@ void UDisplayClusterEditorEngine::Tick(float DeltaSeconds, bool bIdleMode)
 		DisplayClusterModule->PostTick(DeltaSeconds);
 		DisplayClusterModule->EndFrame(GFrameCounter);
 	}
+#endif
 
 	Super::Tick(DeltaSeconds, bIdleMode);
 }
@@ -183,16 +193,20 @@ void UDisplayClusterEditorEngine::OnBeginPIE(const bool bSimulate)
 {
 	UE_LOG(LogDisplayClusterEditorEngine, VeryVerbose, TEXT("UDisplayClusterEditorEngine::OnBeginPIE"));
 
+#if 0
 	bIsActivePIE = true;
+#endif
 }
 
 void UDisplayClusterEditorEngine::OnEndPIE(const bool bSimulate)
 {
 	UE_LOG(LogDisplayClusterEditorEngine, VeryVerbose, TEXT("UDisplayClusterEditorEngine::OnEndPIE"));
 
+#if 0
 	bIsActivePIE   = false;
 	bIsNDisplayPIE = false;
 
 	DisplayClusterModule->EndScene();
 	DisplayClusterModule->EndSession();
+#endif
 }
