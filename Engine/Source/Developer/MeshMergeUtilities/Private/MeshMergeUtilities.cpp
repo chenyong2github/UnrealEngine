@@ -3537,7 +3537,8 @@ void FMeshMergeUtilities::MergeComponentsToInstances(const TArray<UPrimitiveComp
 
 						if (NewComponent == nullptr)
 						{
-							NewComponent = NewObject<UInstancedStaticMeshComponent>(ActorEntry.MergedActor, InSettings.ISMComponentToUse.Get());
+							NewComponent = NewObject<UInstancedStaticMeshComponent>(ActorEntry.MergedActor, InSettings.ISMComponentToUse.Get(), NAME_None, RF_Transactional);
+							NewComponent->bHasPerInstanceHitProxies = true;
 						
 							if (ActorEntry.MergedActor->GetRootComponent())
 							{
