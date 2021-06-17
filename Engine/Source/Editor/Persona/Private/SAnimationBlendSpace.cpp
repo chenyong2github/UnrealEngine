@@ -115,18 +115,30 @@ void SBlendSpaceEditor::Construct(const FArguments& InArgs, const TSharedRef<cla
 void SBlendSpaceEditor::OnSampleMoved(const int32 SampleIndex, const FVector& NewValue, bool bIsInteractive)
 {
 	bool bMoveSuccessful = true;
+
+	// If this is an interactive operation and a transaction has not been opened yet, or if it's a non-interactive operation setup a transaction
+	if (!bIsInteractive || !SampleMoveTransaction.IsValid())
+	{
+		SampleMoveTransaction = MakeUnique<FScopedTransaction>(LOCTEXT("MoveSample", "Moving Blend Grid Sample"));		
+		BlendSpace->Modify();
+	}
+	
 	if (BlendSpace->IsValidBlendSampleIndex(SampleIndex) && BlendSpace->GetBlendSample(SampleIndex).SampleValue != NewValue && !BlendSpace->IsTooCloseToExistingSamplePoint(NewValue, SampleIndex))
 	{
-		FScopedTransaction ScopedTransaction(LOCTEXT("MoveSample", "Moving Blend Grid Sample"));
-
 		bMoveSuccessful = BlendSpace->EditSampleValue(SampleIndex, NewValue);
 		if (bMoveSuccessful)
 		{
-			BlendSpace->Modify();
 			BlendSpace->ValidateSampleData();
 			BlendSpace->PostEditChange();
 			ResampleData();
 		}
+	}
+
+	// If this was non-interactive operation, either a single change or final change at the end of an interactive operation close out the transaction	
+	if (!bIsInteractive)
+	{
+		ensure(SampleMoveTransaction.IsValid());
+		SampleMoveTransaction.Reset();
 	}
 }
 

@@ -212,6 +212,8 @@ protected:
 	float GetInputBoxDelta(const int32 ParameterIndex) const;
 	void OnInputBoxValueCommited(const float NewValue, ETextCommit::Type CommitType, const int32 ParameterIndex);
 	void OnInputBoxValueChanged(const float NewValue, const int32 ParameterIndex, bool bIsInteractive);
+	void OnInputSliderBegin(const int32 ParameterIndex);
+	void OnInputSliderEnd(const float NewValue, const int32 ParameterIndex);
 
 	/** Returns whether or not the sample tool tips should be visible */
 	EVisibility GetSampleToolTipVisibility() const;
@@ -291,6 +293,7 @@ private:
 
 	/** Cached values for the grid input boxes */
 	float CachedInputBoxValues[2];
+	bool bSliderMovement[2] = {false, false};
 
 	// Cached grid data (derived from the blend space)
 	FSlateRect CachedGridRectangle;

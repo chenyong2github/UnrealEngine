@@ -119,4 +119,7 @@ protected:
 
 	/** Flag to check whether or not the preview value should be (re-)set on the next tick */
 	bool bShouldSetPreviewPosition = true;
+
+	/** Cross-framed boundary scoped transaction, used for sticking to single transaction for interactive operations (dragging sample or spinbox)*/
+	TUniquePtr<FScopedTransaction> SampleMoveTransaction;
 };
