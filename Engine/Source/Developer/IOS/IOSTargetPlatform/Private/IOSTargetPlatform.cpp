@@ -13,13 +13,13 @@
 #include "Misc/App.h"
 #include "Misc/MonitoredProcess.h"
 #include "Logging/MessageLog.h"
-#include "Sound/SoundWave.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"
 #endif
 #if WITH_ENGINE
 #include "Engine/TextureCube.h"
+#include "Sound/SoundWave.h"
 #include "TextureResource.h"
 #include "AudioCompressionSettings.h"
 #endif
