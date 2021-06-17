@@ -1671,6 +1671,12 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 		ToggleBetweenPIEandSIE();
 	}
 
+	// Deferred until here so it doesn't happen mid iteration of worlds.
+	if (PlayInEditorSessionInfo.IsSet() && PlayInEditorSessionInfo->bLateJoinRequested)
+	{
+		AddPendingLateJoinClient();
+	}
+
 	static bool bFirstTick = true;
 
 	// Skip updating reflection captures on the first update as the level will not be ready to display
