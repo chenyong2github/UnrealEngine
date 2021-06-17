@@ -13,20 +13,15 @@ using System.Collections.Generic;
 using System.Text;
 using UnrealBuildBase;
 
-namespace AutomationTool
+namespace AutomationToolDriver
 {
 	public class Program
 	{
-		/// <summary>
-		/// Keep a persistent reference to the delegate for handling Ctrl-C events. Since it's passed to non-managed code, we have to prevent it from being garbage collected.
-		/// </summary>
-		static ProcessManager.CtrlHandlerDelegate CtrlHandlerDelegateInstance = CtrlHandler;
-
 		// Do not add [STAThread] here. It will cause deadlocks in platform automation code.
 		public static int Main(string[] Arguments)
 		{
 			// Wait for a debugger to be attached
-			if (CommandUtils.ParseParam(Arguments, "-WaitForDebugger"))
+			if (ParseParam(Arguments, "-WaitForDebugger"))
 			{
 				Console.WriteLine("Waiting for debugger to be attached...");
 				while (Debugger.IsAttached == false)
@@ -39,17 +34,17 @@ namespace AutomationTool
 			Stopwatch Timer = Stopwatch.StartNew();
 			
 			// Ensure UTF8Output flag is respected, since we are initializing logging early in the program.
-			if (CommandUtils.ParseParam(Arguments, "-Utf8output"))
+			if (ParseParam(Arguments, "-Utf8output"))
             {
                 Console.OutputEncoding = new System.Text.UTF8Encoding(false, false);
             }
 
 			// Parse the log level argument
-			if(CommandUtils.ParseParam(Arguments, "-Verbose"))
+			if(ParseParam(Arguments, "-Verbose"))
 			{
 				Log.OutputLevel = LogEventType.Verbose;
 			}
-			if(CommandUtils.ParseParam(Arguments, "-VeryVerbose"))
+			if(ParseParam(Arguments, "-VeryVerbose"))
 			{
 				Log.OutputLevel = LogEventType.VeryVerbose;
 			}
@@ -59,7 +54,7 @@ namespace AutomationTool
 			Trace.Listeners.Add(StartupListener);
 
 			// Configure log timestamps
-			Log.IncludeTimestamps = CommandUtils.ParseParam(Arguments, "-Timestamps");
+			Log.IncludeTimestamps = ParseParam(Arguments, "-Timestamps");
 
 			// Enter the main program section
             ExitCode ReturnCode = ExitCode.Success;
@@ -74,11 +69,8 @@ namespace AutomationTool
 				AssemblyUtils.InstallAssemblyResolver(PathToBinariesDotNET);
 				AssemblyUtils.InstallRecursiveAssemblyResolver(PathToBinariesDotNET);
 
-				// Initialize the host platform layer
-				HostPlatform.Initialize();
-
 				// Log the operating environment. Since we usually compile to AnyCPU, we may be executed using different system paths under WOW64.
-				Log.TraceVerbose("{2}: Running on {0} as a {1}-bit process.", HostPlatform.Current.GetType().Name, Environment.Is64BitProcess ? 64 : 32, DateTime.UtcNow.ToString("o"));
+				Log.TraceVerbose("{2}: Running on {0} as a {1}-bit process.", RuntimePlatform.Current.ToString(), Environment.Is64BitProcess ? 64 : 32, DateTime.UtcNow.ToString("o"));
 
 				// Log if we're running from the launcher
 				string ExecutingAssemblyLocation = Assembly.GetExecutingAssembly().Location;
@@ -88,55 +80,22 @@ namespace AutomationTool
 				}
 				Log.TraceVerbose("CWD={0}", Environment.CurrentDirectory);
 
-				// Hook up exit callbacks
-				AppDomain Domain = AppDomain.CurrentDomain;
-				Domain.ProcessExit += Domain_ProcessExit;
-				Domain.DomainUnload += Domain_ProcessExit;
-				HostPlatform.Current.SetConsoleCtrlHandler(CtrlHandlerDelegateInstance);
-
 				// Log the application version
 				FileVersionInfo Version = AssemblyUtils.ExecutableVersion;
 				Log.TraceVerbose("{0} ver. {1}", Version.ProductName, Version.ProductVersion);
 
-				// Don't allow simultaneous execution of AT (in the same branch)
-				ReturnCode = InternalUtils.RunSingleInstance(Arguments, () => MainProc(Arguments, StartupListener));
-			}
-			catch (AutomationException Ex)
-			{
-				// Output the message in the desired format
-				if(Ex.OutputFormat == AutomationExceptionOutputFormat.Silent)
-				{
-					Log.TraceLog("{0}", ExceptionUtils.FormatExceptionDetails(Ex));
-				}
-				else if(Ex.OutputFormat == AutomationExceptionOutputFormat.Minimal)
-				{
-					Log.TraceInformation("{0}", Ex.ToString().Replace("\n", "\n  "));
-					Log.TraceLog("{0}", ExceptionUtils.FormatExceptionDetails(Ex));
-				}
-				else
-				{
-					Log.WriteException(Ex, LogUtils.FinalLogFileName);
-				}
+				bool bWaitForUATMutex = ParseParam(Arguments, "-WaitForUATMutex");
 
-				// Take the exit code from the exception
-				ReturnCode = Ex.ErrorCode;
+				// Don't allow simultaneous execution of AT (in the same branch)
+
+				ReturnCode = ProcessSingleton.RunSingleInstance(() => MainProc(Arguments, StartupListener), bWaitForUATMutex);
 			}
 			catch (Exception Ex)
-			{
-				// Use a default exit code
-				Log.WriteException(Ex, LogUtils.FinalLogFileName);
-				ReturnCode = ExitCode.Error_Unknown;
-			}
+            {
+				Log.TraceError("Exception occurred between AutomationToolDriver.Main() and Automation.Process()" + ExceptionUtils.FormatException(Ex));
+            }
             finally
             {
-                // In all cases, do necessary shut down stuff, but don't let any additional exceptions leak out while trying to shut down.
-
-                // Make sure there's no directories on the stack.
-                NoThrow(() => CommandUtils.ClearDirStack(), "Clear Dir Stack");
-
-                // Try to kill process before app domain exits to leave the other KillAll call to extreme edge cases
-                NoThrow(() => { if (ShouldKillProcesses && RuntimePlatform.IsWindows) ProcessManager.KillAll(); }, "Kill All Processes");
-
 				// Write the exit code
                 Log.TraceInformation("AutomationTool executed for {0}", Timer.Elapsed.ToString("h'h 'm'm 's's'"));
                 Log.TraceInformation("AutomationTool exiting with ExitCode={0} ({1})", (int)ReturnCode, ReturnCode);
@@ -147,52 +106,35 @@ namespace AutomationTool
             return (int)ReturnCode;
         }
 
-		/// <summary>
-		/// Wraps an action in an exception block.
-		/// Ensures individual actions can be performed and exceptions won't prevent further actions from being executed.
-		/// Useful for shutdown code where shutdown may be in several stages and it's important that all stages get a chance to run.
-		/// </summary>
-		/// <param name="Action"></param>
-		private static void NoThrow(System.Action Action, string ActionDesc)
-        {
-            try
-            {
-                Action();
-            }
-            catch (Exception Ex)
-            {
-                Log.TraceError("Exception performing nothrow action \"{0}\": {1}", ActionDesc, LogUtils.FormatException(Ex));
-            }
-        }
-
-        static bool CtrlHandler(CtrlTypes EventType)
-		{
-			Domain_ProcessExit(null, null);
-			if (EventType == CtrlTypes.CTRL_C_EVENT)
-			{
-				// Force exit
-				Environment.Exit(3);
-			}			
-			return true;
-		}
-
-		static void Domain_ProcessExit(object sender, EventArgs e)
-		{
-			// Kill all spawned processes (Console instead of Log because logging is closed at this time anyway)
-			if (ShouldKillProcesses && RuntimePlatform.IsWindows)
-			{			
-				ProcessManager.KillAll();
-			}
-			Trace.Close();
-		}
-
 		static ExitCode MainProc(string[] Arguments, StartupTraceListener StartupListener)
 		{
-			ExitCode Result = Automation.Process(Arguments, StartupListener);
-			ShouldKillProcesses = Automation.ShouldKillProcesses;
+			ExitCode Result = AutomationTool.Automation.Process(Arguments, StartupListener);
 			return Result;
 		}
 
-		static bool ShouldKillProcesses = true;
+		// Code duplicated from CommandUtils.cs
+		/// <summary>
+		/// Parses the argument list for a parameter and returns whether it is defined or not.
+		/// </summary>
+		/// <param name="ArgList">Argument list.</param>
+		/// <param name="Param">Param to check for.</param>
+		/// <returns>True if param was found, false otherwise.</returns>
+		public static bool ParseParam(string[] ArgList, string Param)
+		{
+            string ValueParam = Param;
+            if (!ValueParam.EndsWith("="))
+            {
+                ValueParam += "=";
+            }
+
+            foreach (string ArgStr in ArgList)
+			{
+                if (ArgStr.Equals(Param, StringComparison.InvariantCultureIgnoreCase) || ArgStr.StartsWith(ValueParam, StringComparison.InvariantCultureIgnoreCase))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
 	}
 }

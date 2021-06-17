@@ -15,43 +15,23 @@ namespace AutomationTool
 	/// </summary>
 	public abstract class HostPlatform
 	{
-		private static HostPlatform RunningPlatform;
 		/// <summary>
 		/// Current running host platform.
 		/// </summary>
-		public static HostPlatform Current
-		{
-			get 
-			{ 
-				if (RunningPlatform == null)
-				{
-					throw new AutomationException("UnrealAutomationTool host platform not initialized.");
-				}
-				return RunningPlatform; 
-			}
-		}
+		public static readonly HostPlatform Current = Initialize();
 
 		/// <summary>
 		/// Initializes the current platform.
 		/// </summary>
-		public static void Initialize()
+		private static HostPlatform Initialize()
 		{
-			if (RuntimePlatform.IsWindows)
+			switch (RuntimePlatform.Current)
 			{
-				RunningPlatform = new WindowsHostPlatform();
+				case RuntimePlatform.Type.Windows: return new WindowsHostPlatform();
+				case RuntimePlatform.Type.Mac:     return new MacHostPlatform();
+				case RuntimePlatform.Type.Linux:   return new LinuxHostPlatform();
 			}
-			else if (RuntimePlatform.IsMac)
-			{
-				RunningPlatform = new MacHostPlatform();
-			}
-			else if (RuntimePlatform.IsLinux)
-			{
-				RunningPlatform = new LinuxHostPlatform();
-			}
-			else
-			{
-				throw new Exception ("Unhandled runtime platform " + Environment.OSVersion.Platform);
-			}
+			throw new Exception ("Unhandled runtime platform " + Environment.OSVersion.Platform);
 		}
 
 		/// <summary>
