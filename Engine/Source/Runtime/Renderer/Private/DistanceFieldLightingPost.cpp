@@ -109,7 +109,7 @@ public:
 		);
 
 		extern FVector2D GetJitterOffset(int32 SampleIndex);
-		FVector2D const JitterOffsetValue = GetJitterOffset(View.ViewState->GetDistanceFieldTemporalSampleIndex());
+		FVector2D const JitterOffsetValue = GetJitterOffset(View.GetDistanceFieldTemporalSampleIndex());
 
 		const FIntPoint DownsampledBufferSize = GetBufferSizeForAO();
 		const FVector2D BaseLevelTexelSizeValue(1.0f / DownsampledBufferSize.X, 1.0f / DownsampledBufferSize.Y);

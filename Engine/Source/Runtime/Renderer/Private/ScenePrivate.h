@@ -1148,7 +1148,7 @@ public:
 		}
 	}
 
-	int32 GetDistanceFieldTemporalSampleIndex() const
+	uint32 GetDistanceFieldTemporalSampleIndex() const
 	{
 		return DistanceFieldTemporalSampleIndex;
 	}

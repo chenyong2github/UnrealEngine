@@ -1284,6 +1284,11 @@ public:
 	 */
 	float GetTemporalLODTransition() const;
 
+	/**
+	 * returns the distance field temporal sample index or 0 if there is no view state
+	 */
+	uint32 GetDistanceFieldTemporalSampleIndex() const;
+
 	/** 
 	 * returns a unique key for the view state if one exists, otherwise returns zero
 	 */

@@ -212,6 +212,11 @@ public:
 	//
 	virtual uint32 GetCurrentTemporalAASampleIndex() const = 0;
 
+	/**
+	 * returns the distance field temporal sample index
+	 */
+	virtual uint32 GetDistanceFieldTemporalSampleIndex() const = 0;
+
 	/** Tells if the eye adaptation texture / buffer exists without attempting to allocate it. */
 	bool HasValidEyeAdaptationTexture() const { return bValidEyeAdaptationTexture; }
 	bool HasValidEyeAdaptationBuffer() const { return bValidEyeAdaptationBuffer; }
