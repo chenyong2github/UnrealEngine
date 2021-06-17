@@ -139,6 +139,28 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 			StreamingSources.Add(StreamingSource);
 		}
 	}
+
+	// Update streaming sources velocity
+	const float CurrentTime = WorldPartition->GetWorld()->GetTimeSeconds();
+	TSet<FName, DefaultKeyFuncs<FName>, TInlineSetAllocator<8>> ValidStreamingSources;
+	for (FWorldPartitionStreamingSource& StreamingSource : StreamingSources)
+	{
+		if (!StreamingSource.Name.IsNone())
+		{
+			ValidStreamingSources.Add(StreamingSource.Name);
+			FStreamingSourceVelocity& SourceVelocity = StreamingSourcesVelocity.FindOrAdd(StreamingSource.Name);
+			StreamingSource.Velocity = SourceVelocity.GetAverageVelocity(StreamingSource.Location, CurrentTime);
+		}
+	}
+
+	// Cleanup StreamingSourcesVelocity
+	for (auto It(StreamingSourcesVelocity.CreateIterator()); It; ++It)
+	{
+		if (!ValidStreamingSources.Contains(It.Key()))
+		{
+			It.RemoveCurrent();
+		}
+	}
 }
 
 #define WORLDPARTITION_LOG_UPDATESTREAMINGSTATE(Verbosity)\
@@ -572,6 +594,53 @@ void UWorldPartitionStreamingPolicy::DrawRuntimeHash3D()
 	{
 		WorldPartition->RuntimeHash->Draw3D(StreamingSources);
 	}
+}
+
+/*
+ * FStreamingSourceVelocity Implementation
+ */
+
+FStreamingSourceVelocity::FStreamingSourceVelocity()
+: LastIndex(INDEX_NONE)
+, LastUpdateTime(-1.0)
+, VelocitiesHistorySum(0.f)
+{
+	VelocitiesHistory.SetNumZeroed(VELOCITY_HISTORY_SAMPLE_COUNT);
+}
+
+float FStreamingSourceVelocity::GetAverageVelocity(const FVector& NewPosition, const float CurrentTime)
+{
+	const float TeleportDistance = 100.f;
+	const float MaxDeltaSeconds = 5.f;
+	const bool bIsFirstCall = (LastIndex == INDEX_NONE);
+	const float DeltaSeconds = bIsFirstCall ? 0.f : (CurrentTime - LastUpdateTime);
+	const float Distance = bIsFirstCall ? 0.f : ((NewPosition - LastPosition) * 0.01f).Size();
+	if (bIsFirstCall)
+	{
+		LastIndex = 0;
+	}
+
+	ON_SCOPE_EXIT
+	{
+		LastUpdateTime = CurrentTime;
+		LastPosition = NewPosition;
+	};
+
+	// Handle invalid cases
+	if (bIsFirstCall || (DeltaSeconds <= 0.f) || (DeltaSeconds > MaxDeltaSeconds) || (Distance > TeleportDistance))
+	{
+		return 0.f;
+	}
+
+	// Compute velocity (m/s)
+	const float Velocity = Distance / DeltaSeconds;
+	// Update velocities history buffer and sum
+	LastIndex = (LastIndex + 1) % VELOCITY_HISTORY_SAMPLE_COUNT;
+	VelocitiesHistorySum = FMath::Max<float>(0.f, (VelocitiesHistorySum + Velocity - VelocitiesHistory[LastIndex]));
+	VelocitiesHistory[LastIndex] = Velocity;
+
+	// return average
+	return (VelocitiesHistorySum / VELOCITY_HISTORY_SAMPLE_COUNT);
 }
 
 #undef LOCTEXT_NAMESPACE
