@@ -266,7 +266,7 @@ bool UNiagaraNodeDataSetBase::GetSupportedNiagaraTypeDef(const FProperty* Proper
 	}
 	else if (StructProp && StructProp->Struct)
 	{
-		TypeDef = FNiagaraTypeDefinition(StructProp->Struct);
+		TypeDef = FNiagaraTypeDefinition(FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProp->Struct));
 		return FNiagaraTypeRegistry::GetRegisteredPayloadTypes().Contains(TypeDef);
 	}
 	return false;

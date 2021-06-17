@@ -2268,17 +2268,18 @@ void FHlslNiagaraTranslator::GatherComponentsForDataSetAccess(UScriptStruct* Str
 
 		if (const FStructProperty* StructProp = CastField<const FStructProperty>(Property))
 		{
-			if (bMatrixRoot && FNiagaraTypeDefinition(StructProp->Struct) == FNiagaraTypeDefinition::GetFloatDef())
+			UScriptStruct* NiagaraStruct = FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProp->Struct);
+			if (bMatrixRoot && FNiagaraTypeDefinition(NiagaraStruct) == FNiagaraTypeDefinition::GetFloatDef())
 			{
-				GatherComponentsForDataSetAccess(StructProp->Struct, VariableSymbol + ComputeMatrixColumnAccess(Property->GetName()), bMatrixRoot, Components, Types);
+				GatherComponentsForDataSetAccess(NiagaraStruct, VariableSymbol + ComputeMatrixColumnAccess(Property->GetName()), bMatrixRoot, Components, Types);
 			}
-			else if (bMatrixRoot &&  FNiagaraTypeDefinition(StructProp->Struct) == FNiagaraTypeDefinition::GetVec4Def())
+			else if (bMatrixRoot &&  FNiagaraTypeDefinition(NiagaraStruct) == FNiagaraTypeDefinition::GetVec4Def())
 			{
-				GatherComponentsForDataSetAccess(StructProp->Struct, VariableSymbol + ComputeMatrixRowAccess(Property->GetName()), bMatrixRoot, Components, Types);
+				GatherComponentsForDataSetAccess(NiagaraStruct, VariableSymbol + ComputeMatrixRowAccess(Property->GetName()), bMatrixRoot, Components, Types);
 			}
 			else
 			{
-				GatherComponentsForDataSetAccess(StructProp->Struct, VariableSymbol + TEXT(".") + Property->GetName(), bMatrixRoot, Components, Types);
+				GatherComponentsForDataSetAccess(NiagaraStruct, VariableSymbol + TEXT(".") + Property->GetName(), bMatrixRoot, Components, Types);
 			}
 		}
 		else
@@ -3664,10 +3665,11 @@ void FHlslNiagaraTranslator::DecomposeVariableAccess(UStruct* Struct, bool bRead
 
 		if (FStructProperty* StructProp = CastFieldChecked<FStructProperty>(Property))
 		{
-			FNiagaraTypeDefinition PropDef(StructProp->Struct);
+			UScriptStruct* NiagaraStruct = FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProp->Struct);
+			FNiagaraTypeDefinition PropDef(NiagaraStruct);
 			if (!IsHlslBuiltinVector(PropDef))
 			{
-				DecomposeVariableAccess(StructProp->Struct, bRead, IndexSymbol, AccessStr);
+				DecomposeVariableAccess(NiagaraStruct, bRead, IndexSymbol, AccessStr);
 				return;
 			}
 		}
@@ -5053,7 +5055,7 @@ bool FHlslNiagaraTranslator::HandleBoundConstantVariableToDataSetRead(FNiagaraVa
 		}
 		else
 		{
-			InVariable.SetValue(FVector(EForceInit::ForceInitToZero));
+			InVariable.SetValue(FVector3f(EForceInit::ForceInitToZero));
 			float* ValuePtr = (float*)InVariable.GetData();
 			const FString ConstantStr = FString::Printf(TEXT("float3(%g,%g,%g)"), *ValuePtr, *(ValuePtr + 1), *(ValuePtr + 2));
 			Output = AddBodyChunk(GetUniqueSymbolName(TEXT("Constant")), ConstantStr, InVariable.GetType()); 
@@ -7603,7 +7605,7 @@ FNiagaraTypeDefinition FHlslNiagaraTranslator::GetChildType(const FNiagaraTypeDe
 				}
 				else if (const FStructProperty* StructProp = CastFieldChecked<const FStructProperty>(Property))
 				{
-					return FNiagaraTypeDefinition(StructProp->Struct);
+					return FNiagaraTypeDefinition(FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProp->Struct));
 				}
 			}
 		}
@@ -8488,7 +8490,7 @@ FString FHlslNiagaraTranslator::GetPropertyHlslTypeName(const FProperty* Propert
 	else if (Property->IsA(FStructProperty::StaticClass()))
 	{
 		const FStructProperty* StructProp = CastField<const FStructProperty>(Property);
-		return GetStructHlslTypeName(StructProp->Struct);
+		return GetStructHlslTypeName(FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProp->Struct));
 	}
 	else if (Property->IsA(FEnumProperty::StaticClass()))
 	{
@@ -8580,7 +8582,7 @@ bool FHlslNiagaraTranslator::AddStructToDefinitionSet(const FNiagaraTypeDefiniti
 			const FStructProperty* StructProp = CastField<const FStructProperty>(Property);
 			if (StructProp)
 			{
-				if (!AddStructToDefinitionSet(StructProp->Struct))
+				if (!AddStructToDefinitionSet(FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProp->Struct)))
 				{
 					return false;
 				}
@@ -8640,7 +8642,7 @@ TArray<FName> FHlslNiagaraTranslator::ConditionPropertyPath(const FNiagaraTypeDe
 						ReturnPath.Add(InPath[0]);
 						TArray<FName> Subset = InPath;
 						Subset.RemoveAt(0);
-						TArray<FName> Children = ConditionPropertyPath(StructProp->Struct, Subset);
+						TArray<FName> Children = ConditionPropertyPath(FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProp->Struct), Subset);
 						for (const FName& Child : Children)
 						{
 							ReturnPath.Add(Child);

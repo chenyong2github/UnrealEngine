@@ -598,7 +598,7 @@ void UNiagaraDataInterfaceAudioPlayer::UpdateLocation(FVectorVMContext& Context)
 	VectorVM::FUserPtrHandler<FAudioPlayerInterface_InstanceData> InstData(Context);
 
 	FNDIInputParam<int32> AudioHandleInParam(Context);
-	FNDIInputParam<FVector> LocationParam(Context);
+	FNDIInputParam<FVector3f> LocationParam(Context);
 	checkfSlow(InstData.Get(), TEXT("Audio player interface has invalid instance data. %s"), *GetPathName());
 
 	InstData->bHadPersistentAudioUpdateThisTick = true;
@@ -628,7 +628,7 @@ void UNiagaraDataInterfaceAudioPlayer::UpdateRotation(FVectorVMContext& Context)
 	VectorVM::FUserPtrHandler<FAudioPlayerInterface_InstanceData> InstData(Context);
 
 	FNDIInputParam<int32> AudioHandleInParam(Context);
-	FNDIInputParam<FVector> RotationParam(Context);
+	FNDIInputParam<FVector3f> RotationParam(Context);
 	checkfSlow(InstData.Get(), TEXT("Audio player interface has invalid instance data. %s"), *GetPathName());
 
 	InstData->bHadPersistentAudioUpdateThisTick = true;
@@ -732,8 +732,8 @@ void UNiagaraDataInterfaceAudioPlayer::PlayPersistentAudio(FVectorVMContext& Con
 
 	FNDIInputParam<FNiagaraBool> PlayAudioParam(Context);
 	FNDIInputParam<int32> AudioHandleInParam(Context);
-	FNDIInputParam<FVector> PositionParam(Context);
-	FNDIInputParam<FVector> RotationParam(Context);
+	FNDIInputParam<FVector3f> PositionParam(Context);
+	FNDIInputParam<FVector3f> RotationParam(Context);
 	FNDIInputParam<float> VolumeParam(Context);
 	FNDIInputParam<float> PitchParam(Context);
 	FNDIInputParam<float> StartTimeParam(Context);

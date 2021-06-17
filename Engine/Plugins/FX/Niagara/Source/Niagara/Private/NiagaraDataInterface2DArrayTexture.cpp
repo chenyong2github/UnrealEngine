@@ -129,7 +129,7 @@ bool UNiagaraDataInterface2DArrayTexture::PerInstanceTick(void* PerInstanceData,
 
 void UNiagaraDataInterface2DArrayTexture::GetTextureDimensions(FVectorVMContext& Context)
 {
-	FNDIOutputParam<FVector> DimensionsOut(Context);
+	FNDIOutputParam<FVector3f> DimensionsOut(Context);
 
 	const FVector FloatTextureSize(TextureSize.X, TextureSize.Y, TextureSize.Z);
 	for (int32 i = 0; i < Context.NumInstances; ++i)

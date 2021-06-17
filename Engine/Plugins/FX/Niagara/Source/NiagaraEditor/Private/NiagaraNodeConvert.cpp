@@ -107,9 +107,9 @@ struct FNiagaraConvertEntry
 
 			const FStructProperty* StructProperty = CastField<FStructProperty>(Property);
 
-			if (StructProperty != nullptr)
+			 if (StructProperty != nullptr)
 			{
-				CreateEntries(Schema, InPinId, InPin, StructProperty->Struct, OutEntries[Index].Children);				
+				CreateEntries(Schema, InPinId, InPin, FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProperty->Struct), OutEntries[Index].Children);
 			}
 		}
 	}

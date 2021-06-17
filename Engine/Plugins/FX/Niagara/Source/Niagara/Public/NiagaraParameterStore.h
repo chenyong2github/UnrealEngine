@@ -657,6 +657,12 @@ protected:
 	friend struct FNiagaraParameterStoreToDataSetBinding;    // this should be the only class calling SetParameterByOffset
 };
 
+template<>
+FORCEINLINE bool FNiagaraParameterStore::SetParameterValue(const FVector3d& InValue, const FNiagaraVariable& Param, bool bAdd)
+{
+	return SetParameterValue((FVector3f)InValue, Param, bAdd);
+}
+
 FORCEINLINE_DEBUGGABLE void FNiagaraParameterStore::Tick()
 {
 #if NIAGARA_NAN_CHECKING
@@ -961,9 +967,9 @@ struct FNiagaraParameterDirectBinding
 };
 
 template<>
-struct FNiagaraParameterDirectBinding<FMatrix>
+struct FNiagaraParameterDirectBinding<FMatrix44f>
 {
-	mutable FMatrix* ValuePtr;
+	mutable FMatrix44f* ValuePtr;
 #if NIAGARA_VALIDATE_DIRECT_BINDINGS
 	FNiagaraParameterStore* BoundStore;
 	FNiagaraVariable BoundVariable;
@@ -977,40 +983,40 @@ struct FNiagaraParameterDirectBinding<FMatrix>
 #endif
 	{}
 
-	FMatrix* Init(FNiagaraParameterStore& InStore, const FNiagaraVariable& DestVariable)
+	FMatrix44f* Init(FNiagaraParameterStore& InStore, const FNiagaraVariable& DestVariable)
 	{
 #if NIAGARA_VALIDATE_DIRECT_BINDINGS
 		BoundStore = &InStore;
 		BoundVariable = DestVariable;
 		LayoutVersion = BoundStore->GetLayoutVersion();
 #endif
-		check(DestVariable.GetSizeInBytes() == sizeof(FMatrix));
-		ValuePtr = (FMatrix*)InStore.GetParameterData(DestVariable);
+		check(DestVariable.GetSizeInBytes() == sizeof(FMatrix44f));
+		ValuePtr = (FMatrix44f*)InStore.GetParameterData(DestVariable);
 		return ValuePtr;
 	}
 
-	FORCEINLINE void SetValue(const FMatrix& InValue)
+	FORCEINLINE void SetValue(const FMatrix44f& InValue)
 	{
 #if NIAGARA_VALIDATE_DIRECT_BINDINGS
-		checkSlow(BoundVariable.GetSizeInBytes() == sizeof(FMatrix));
+		checkSlow(BoundVariable.GetSizeInBytes() == sizeof(FMatrix44f));
 		checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
 #endif
 		if (ValuePtr)
 		{
-			FMemory::Memcpy(ValuePtr, &InValue, sizeof(FMatrix));//Temp annoyance until we fix the alignment issues with parameter stores.
+			FMemory::Memcpy(ValuePtr, &InValue, sizeof(FMatrix44f));//Temp annoyance until we fix the alignment issues with parameter stores.
 		}
 	}
 
-	FORCEINLINE FMatrix GetValue()const
+	FORCEINLINE FMatrix44f GetValue()const
 	{
 #if NIAGARA_VALIDATE_DIRECT_BINDINGS
-		checkSlow(BoundVariable.GetSizeInBytes() == sizeof(FMatrix));
+		checkSlow(BoundVariable.GetSizeInBytes() == sizeof(FMatrix44f));
 		checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
 #endif
-		FMatrix Ret;
+		FMatrix44f Ret;
 		if (ValuePtr)
 		{
-			FMemory::Memcpy(&Ret, ValuePtr, sizeof(FMatrix));//Temp annoyance until we fix the alignment issues with parameter stores.
+			FMemory::Memcpy(&Ret, ValuePtr, sizeof(FMatrix44f));//Temp annoyance until we fix the alignment issues with parameter stores.
 		}
 		return Ret;
 	}

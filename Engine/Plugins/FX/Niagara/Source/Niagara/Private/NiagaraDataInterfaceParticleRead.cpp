@@ -1577,7 +1577,7 @@ void UNiagaraDataInterfaceParticleRead::ReadVector2(FVectorVMContext& Context, F
 
 void UNiagaraDataInterfaceParticleRead::ReadVector3(FVectorVMContext& Context, FName AttributeToRead)
 {
-	ReadWithCheck<FVector>(Context, AttributeToRead, FVector::ZeroVector);
+	ReadWithCheck<FVector3f>(Context, AttributeToRead, FVector3f::ZeroVector);
 }
 
 void UNiagaraDataInterfaceParticleRead::ReadVector4(FVectorVMContext& Context, FName AttributeToRead)
@@ -1697,7 +1697,7 @@ void UNiagaraDataInterfaceParticleRead::ReadVector2ByIndex(FVectorVMContext& Con
 
 void UNiagaraDataInterfaceParticleRead::ReadVector3ByIndex(FVectorVMContext& Context, FName AttributeToRead)
 {
-	ReadByIndexWithCheck<FVector>(Context, AttributeToRead, FVector::ZeroVector);
+	ReadByIndexWithCheck<FVector3f>(Context, AttributeToRead, FVector3f::ZeroVector);
 }
 
 void UNiagaraDataInterfaceParticleRead::ReadVector4ByIndex(FVectorVMContext& Context, FName AttributeToRead)

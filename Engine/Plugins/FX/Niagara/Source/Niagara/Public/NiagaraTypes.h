@@ -248,6 +248,18 @@ FORCEINLINE uint32 GetTypeHash(const FNiagaraID& ID)
 	return HashCombine(GetTypeHash(ID.Index), GetTypeHash(ID.AcquireTag));
 }
 
+/*
+*  Can convert a UStruct with fields of base types only (float, int... - will likely add native vector types here as well)
+*	to an FNiagaraTypeDefinition (internal representation)
+*/
+class NIAGARA_API FNiagaraTypeHelper
+{
+public:
+	static FString ToString(const uint8* ValueData, const UObject* StructOrEnum);
+	static UScriptStruct* FindNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct);
+	static bool IsNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct);
+};
+
 /** Information about how this type should be laid out in an FNiagaraDataSet */
 USTRUCT()
 struct FNiagaraTypeLayoutInfo
@@ -317,7 +329,7 @@ private:
 			//Should be able to support double easily enough
 			else if (FStructProperty* StructProp = CastFieldChecked<FStructProperty>(Property))
 			{
-				GenerateLayoutInfoInternal(Layout, StructProp->Struct, PropOffset);
+				GenerateLayoutInfoInternal(Layout, FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProp->Struct), PropOffset);
 			}
 			else
 			{
@@ -327,15 +339,6 @@ private:
 	}
 };
 
-/*
-*  Can convert a UStruct with fields of base types only (float, int... - will likely add native vector types here as well)
-*	to an FNiagaraTypeDefinition (internal representation)
-*/
-class NIAGARA_API FNiagaraTypeHelper
-{
-public:
-	static FString ToString(const uint8* ValueData, const UObject* StructOrEnum);
-};
 
 /** Defines different modes for selecting the output numeric type of a function or operation based on the types of the inputs. */
 UENUM()
@@ -672,14 +675,17 @@ public:
 		checkSlow(ClassStructOrEnum != nullptr);
 	}
 
-	FORCEINLINE FNiagaraTypeDefinition(UScriptStruct *StructDef)
+	enum class EAllowUnfriendlyStruct : uint8 { Deny, Allow };
+	FORCEINLINE FNiagaraTypeDefinition(UScriptStruct* StructDef, EAllowUnfriendlyStruct AllowUnfriendlyStruct)
 		: ClassStructOrEnum(StructDef), UnderlyingType(UT_Struct), Size(INDEX_NONE), Alignment(INDEX_NONE)
 #if WITH_EDITORONLY_DATA
 		, Struct_DEPRECATED(nullptr), Enum_DEPRECATED(nullptr)
 #endif
 	{
 		checkSlow(ClassStructOrEnum != nullptr);
+		ensure(AllowUnfriendlyStruct == EAllowUnfriendlyStruct::Allow || FNiagaraTypeHelper::IsNiagaraFriendlyTopLevelStruct(StructDef));
 	}
+	FORCEINLINE FNiagaraTypeDefinition(UScriptStruct* StructDef) : FNiagaraTypeDefinition(StructDef, EAllowUnfriendlyStruct::Deny) {}
 
 	FORCEINLINE FNiagaraTypeDefinition(const FNiagaraTypeDefinition &Other)
 		: ClassStructOrEnum(Other.ClassStructOrEnum), UnderlyingType(Other.UnderlyingType), Size(INDEX_NONE), Alignment(INDEX_NONE)
@@ -937,6 +943,9 @@ public:
 
 	static const TArray<FNiagaraTypeDefinition>& GetNumericTypes() { return OrderedNumericTypes; }
 	static bool IsValidNumericInput(const FNiagaraTypeDefinition& TypeDef);
+
+	
+
 private:
 
 	static FNiagaraTypeDefinition FloatDef;
@@ -1030,12 +1039,12 @@ const FNiagaraTypeDefinition& FNiagaraTypeDefinition::Get()
 {
 	if (TIsSame<T, float>::Value) { return FNiagaraTypeDefinition::GetFloatDef(); }
 	if (TIsSame<T, FVector2D>::Value) { return FNiagaraTypeDefinition::GetVec2Def(); }
-	if (TIsSame<T, FVector>::Value) { return FNiagaraTypeDefinition::GetVec3Def(); }
+	if (TIsSame<T, FVector3f>::Value) { return FNiagaraTypeDefinition::GetVec3Def(); }	
 	if (TIsSame<T, FVector4>::Value) { return FNiagaraTypeDefinition::GetVec4Def(); }
 	if (TIsSame<T, int32>::Value) { return FNiagaraTypeDefinition::GetIntDef(); }
 	if (TIsSame<T, FNiagaraBool>::Value) { return FNiagaraTypeDefinition::GetBoolDef(); }
 	if (TIsSame<T, FQuat>::Value) { return FNiagaraTypeDefinition::GetQuatDef(); }
-	if (TIsSame<T, FMatrix>::Value) { return FNiagaraTypeDefinition::GetMatrix4Def(); }
+	if (TIsSame<T, FMatrix44f>::Value) { return FNiagaraTypeDefinition::GetMatrix4Def(); }
 	if (TIsSame<T, FLinearColor>::Value) { return FNiagaraTypeDefinition::GetColorDef(); }
 	if (TIsSame<T, FNiagaraID>::Value) { return FNiagaraTypeDefinition::GetIDDef(); }
 }
@@ -1637,6 +1646,8 @@ inline void FNiagaraVariable::SetValue<bool>(const bool& Data)
 	BoolStruct->SetValue(Data);
 }
 
+
+
 // Any change to this structure, or it's GetVariables implementation will require a bump in the CustomNiagaraVersion so that we
 // properly rebuild the scripts
 // You must pad this struct and the results of GetVariables() to a 16 byte boundry.
@@ -1690,12 +1701,12 @@ struct alignas(16) FNiagaraOwnerParameters
 	NIAGARA_API static const TArray<FNiagaraVariable>& GetVariables();
 #endif
 
-	FMatrix EngineLocalToWorld = FMatrix::Identity;
-	FMatrix EngineWorldToLocal = FMatrix::Identity;
-	FMatrix EngineLocalToWorldTransposed = FMatrix::Identity;
-	FMatrix EngineWorldToLocalTransposed = FMatrix::Identity;
-	FMatrix EngineLocalToWorldNoScale = FMatrix::Identity;
-	FMatrix EngineWorldToLocalNoScale = FMatrix::Identity;
+	FMatrix44f EngineLocalToWorld = FMatrix44f::Identity;
+	FMatrix44f EngineWorldToLocal = FMatrix44f::Identity;
+	FMatrix44f EngineLocalToWorldTransposed = FMatrix44f::Identity;
+	FMatrix44f EngineWorldToLocalTransposed = FMatrix44f::Identity;
+	FMatrix44f EngineLocalToWorldNoScale = FMatrix44f::Identity;
+	FMatrix44f EngineWorldToLocalNoScale = FMatrix44f::Identity;
 	FQuat EngineRotation = FQuat::Identity;
 	FVector4 EnginePosition = FVector4(EForceInit::ForceInitToZero);
 	FVector4 EngineVelocity = FVector4(EForceInit::ForceInitToZero);

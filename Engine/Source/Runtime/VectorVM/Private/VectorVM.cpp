@@ -703,7 +703,7 @@ struct TUnaryKernel
 template<typename Kernel>
 struct TUnaryScalarKernel : public TUnaryKernel<Kernel, FRegisterHandler<float>, FConstantHandler<float>, FRegisterHandler<float>, 1> {};
 template<typename Kernel>
-struct TUnaryVectorKernel : public TUnaryKernel<Kernel, FRegisterHandler<VectorRegister>, FConstantHandler<VectorRegister>, FRegisterHandler<VectorRegister>, VECTOR_WIDTH_FLOATS> {};
+struct TUnaryVectorKernel : public TUnaryKernel<Kernel, FRegisterHandler<VectorRegister4Float>, FConstantHandler<VectorRegister4Float>, FRegisterHandler<VectorRegister4Float>, VECTOR_WIDTH_FLOATS> {};
 template<typename Kernel>
 struct TUnaryScalarIntKernel : public TUnaryKernel<Kernel, FRegisterHandler<int32>, FConstantHandler<int32>, FRegisterHandler<int32>, 1> {};
 template<typename Kernel>
@@ -742,7 +742,7 @@ struct TBinaryKernel
 template<typename Kernel>
 struct TBinaryScalarKernel : public TBinaryKernel<Kernel, FRegisterHandler<float>, FConstantHandler<float>, FRegisterHandler<float>, 1> {};
 template<typename Kernel>
-struct TBinaryVectorKernel : public TBinaryKernel<Kernel, FRegisterHandler<VectorRegister>, FConstantHandler<VectorRegister>, FRegisterHandler<VectorRegister>, VECTOR_WIDTH_FLOATS> {};
+struct TBinaryVectorKernel : public TBinaryKernel<Kernel, FRegisterHandler<VectorRegister4Float>, FConstantHandler<VectorRegister4Float>, FRegisterHandler<VectorRegister4Float>, VECTOR_WIDTH_FLOATS> {};
 template<typename Kernel>
 struct TBinaryVectorIntKernel : public TBinaryKernel<Kernel, FRegisterHandler<VectorRegister4Int>, FConstantHandler<VectorRegister4Int>, FRegisterHandler<VectorRegister4Int>, VECTOR_WIDTH_FLOATS> {};
 
@@ -788,7 +788,7 @@ struct TTrinaryKernel
 template<typename Kernel>
 struct TTrinaryScalarKernel : public TTrinaryKernel<Kernel, FRegisterHandler<float>, FConstantHandler<float>, FRegisterHandler<float>, 1> {};
 template<typename Kernel>
-struct TTrinaryVectorKernel : public TTrinaryKernel<Kernel, FRegisterHandler<VectorRegister>, FConstantHandler<VectorRegister>, FRegisterHandler<VectorRegister>, VECTOR_WIDTH_FLOATS> {};
+struct TTrinaryVectorKernel : public TTrinaryKernel<Kernel, FRegisterHandler<VectorRegister4Float>, FConstantHandler<VectorRegister4Float>, FRegisterHandler<VectorRegister4Float>, VECTOR_WIDTH_FLOATS> {};
 template<typename Kernel>
 struct TTrinaryVectorIntKernel : public TTrinaryKernel<Kernel, FRegisterHandler<VectorRegister4Int>, FConstantHandler<VectorRegister4Int>, FRegisterHandler<VectorRegister4Int>, VECTOR_WIDTH_FLOATS> {};
 
@@ -799,7 +799,7 @@ struct TTrinaryVectorIntKernel : public TTrinaryKernel<Kernel, FRegisterHandler<
 
 struct FVectorKernelAdd : public TBinaryVectorKernel<FVectorKernelAdd>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst,VectorRegister Src0,VectorRegister Src1)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst,VectorRegister4Float Src0,VectorRegister4Float Src1)
 	{
 		*Dst = VectorAdd(Src0, Src1);
 	}
@@ -807,7 +807,7 @@ struct FVectorKernelAdd : public TBinaryVectorKernel<FVectorKernelAdd>
 
 struct FVectorKernelSub : public TBinaryVectorKernel<FVectorKernelSub>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst,VectorRegister Src0,VectorRegister Src1)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst,VectorRegister4Float Src0,VectorRegister4Float Src1)
 	{
 		*Dst = VectorSubtract(Src0, Src1);
 	}
@@ -815,7 +815,7 @@ struct FVectorKernelSub : public TBinaryVectorKernel<FVectorKernelSub>
 
 struct FVectorKernelMul : public TBinaryVectorKernel<FVectorKernelMul>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst,VectorRegister Src0,VectorRegister Src1)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst,VectorRegister4Float Src0,VectorRegister4Float Src1)
 	{
 		*Dst = VectorMultiply(Src0, Src1);
 	}
@@ -823,7 +823,7 @@ struct FVectorKernelMul : public TBinaryVectorKernel<FVectorKernelMul>
 
 struct FVectorKernelDiv : public TBinaryVectorKernel<FVectorKernelDiv>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0, VectorRegister4Float Src1)
 	{
 		*Dst = VectorDivide(Src0, Src1);
 	}
@@ -831,16 +831,16 @@ struct FVectorKernelDiv : public TBinaryVectorKernel<FVectorKernelDiv>
 
 struct FVectorKernelDivSafe : public TBinaryVectorKernel<FVectorKernelDivSafe>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0, VectorRegister4Float Src1)
 	{
-		VectorRegister ValidMask = VectorCompareGT(VectorAbs(Src1), GlobalVectorConstants::SmallNumber);
+		VectorRegister4Float ValidMask = VectorCompareGT(VectorAbs(Src1), GlobalVectorConstants::SmallNumber);
 		*Dst = VectorSelect(ValidMask, VectorDivide(Src0, Src1), GlobalVectorConstants::FloatZero);
 	}
 };
 
 struct FVectorKernelMad : public TTrinaryVectorKernel<FVectorKernelMad>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst,VectorRegister Src0,VectorRegister Src1,VectorRegister Src2)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst,VectorRegister4Float Src0,VectorRegister4Float Src1,VectorRegister4Float Src2)
 	{
 		*Dst = VectorMultiplyAdd(Src0, Src1, Src2);
 	}
@@ -848,17 +848,17 @@ struct FVectorKernelMad : public TTrinaryVectorKernel<FVectorKernelMad>
 
 struct FVectorKernelLerp : public TTrinaryVectorKernel<FVectorKernelLerp>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst,VectorRegister Src0,VectorRegister Src1,VectorRegister Src2)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst,VectorRegister4Float Src0,VectorRegister4Float Src1,VectorRegister4Float Src2)
 	{
-		const VectorRegister OneMinusAlpha = VectorSubtract(GlobalVectorConstants::FloatOne, Src2);
-		const VectorRegister Tmp = VectorMultiply(Src0, OneMinusAlpha);
+		const VectorRegister4Float OneMinusAlpha = VectorSubtract(GlobalVectorConstants::FloatOne, Src2);
+		const VectorRegister4Float Tmp = VectorMultiply(Src0, OneMinusAlpha);
 		*Dst = VectorMultiplyAdd(Src1, Src2, Tmp);
 	}
 };
 
 struct FVectorKernelRcp : public TUnaryVectorKernel<FVectorKernelRcp>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst,VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst,VectorRegister4Float Src0)
 	{
 		*Dst = VectorReciprocal(Src0);
 	}
@@ -867,16 +867,16 @@ struct FVectorKernelRcp : public TUnaryVectorKernel<FVectorKernelRcp>
 // if the magnitude of the value is too small, then the result will be 0 (not NaN/Inf)
 struct FVectorKernelRcpSafe : public TUnaryVectorKernel<FVectorKernelRcpSafe>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0)
 	{
-		VectorRegister ValidMask = VectorCompareGT(VectorAbs(Src0), GlobalVectorConstants::SmallNumber);
+		VectorRegister4Float ValidMask = VectorCompareGT(VectorAbs(Src0), GlobalVectorConstants::SmallNumber);
 		*Dst = VectorSelect(ValidMask, VectorReciprocal(Src0), GlobalVectorConstants::FloatZero);
 	}
 };
 
 struct FVectorKernelRsq : public TUnaryVectorKernel<FVectorKernelRsq>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst,VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst,VectorRegister4Float Src0)
 	{
 		*Dst = VectorReciprocalSqrt(Src0);
 	}
@@ -885,16 +885,16 @@ struct FVectorKernelRsq : public TUnaryVectorKernel<FVectorKernelRsq>
 // if the value is very small or negative, then the result will be 0 (not NaN/Inf/imaginary)
 struct FVectorKernelRsqSafe : public TUnaryVectorKernel<FVectorKernelRsqSafe>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0)
 	{
-		VectorRegister ValidMask = VectorCompareGT(Src0, GlobalVectorConstants::SmallNumber);
+		VectorRegister4Float ValidMask = VectorCompareGT(Src0, GlobalVectorConstants::SmallNumber);
 		*Dst = VectorSelect(ValidMask, VectorReciprocalSqrt(Src0), GlobalVectorConstants::FloatZero);
 	}
 };
 
 struct FVectorKernelSqrt : public TUnaryVectorKernel<FVectorKernelSqrt>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst,VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst,VectorRegister4Float Src0)
 	{
 		// TODO: Need a SIMD sqrt!
 		*Dst = VectorReciprocal(VectorReciprocalSqrt(Src0));
@@ -903,16 +903,16 @@ struct FVectorKernelSqrt : public TUnaryVectorKernel<FVectorKernelSqrt>
 
 struct FVectorKernelSqrtSafe : public TUnaryVectorKernel<FVectorKernelSqrtSafe>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0)
 	{
-		VectorRegister ValidMask = VectorCompareGT(Src0, GlobalVectorConstants::SmallNumber);
+		VectorRegister4Float ValidMask = VectorCompareGT(Src0, GlobalVectorConstants::SmallNumber);
 		*Dst = VectorSelect(ValidMask, VectorReciprocal(VectorReciprocalSqrt(Src0)), GlobalVectorConstants::FloatZero);
 	}
 };
 
 struct FVectorKernelNeg : public TUnaryVectorKernel<FVectorKernelNeg>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst,VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst,VectorRegister4Float Src0)
 	{
 		*Dst = VectorNegate(Src0);
 	}
@@ -920,7 +920,7 @@ struct FVectorKernelNeg : public TUnaryVectorKernel<FVectorKernelNeg>
 
 struct FVectorKernelAbs : public TUnaryVectorKernel<FVectorKernelAbs>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst,VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst,VectorRegister4Float Src0)
 	{
 		*Dst = VectorAbs(Src0);
 	}
@@ -928,7 +928,7 @@ struct FVectorKernelAbs : public TUnaryVectorKernel<FVectorKernelAbs>
 
 struct FVectorKernelExp : public TUnaryVectorKernel<FVectorKernelExp>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0)
 	{
 		*Dst = VectorExp(Src0);
 	}
@@ -936,7 +936,7 @@ struct FVectorKernelExp : public TUnaryVectorKernel<FVectorKernelExp>
 
 struct FVectorKernelExp2 : public TUnaryVectorKernel<FVectorKernelExp2>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0)
 	{
 		*Dst = VectorExp2(Src0);
 	}
@@ -944,7 +944,7 @@ struct FVectorKernelExp2 : public TUnaryVectorKernel<FVectorKernelExp2>
 
 struct FVectorKernelLog : public TUnaryVectorKernel<FVectorKernelLog>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0)
 	{
 		*Dst = VectorLog(Src0);
 	}
@@ -952,9 +952,9 @@ struct FVectorKernelLog : public TUnaryVectorKernel<FVectorKernelLog>
 
 struct FVectorKernelLogSafe : public TUnaryVectorKernel<FVectorKernelLogSafe>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0)
 	{
-		VectorRegister ValidMask = VectorCompareGT(Src0, GlobalVectorConstants::FloatZero);
+		VectorRegister4Float ValidMask = VectorCompareGT(Src0, GlobalVectorConstants::FloatZero);
 
 		*Dst = VectorSelect(ValidMask, VectorLog(Src0), GlobalVectorConstants::FloatZero);
 	}
@@ -962,7 +962,7 @@ struct FVectorKernelLogSafe : public TUnaryVectorKernel<FVectorKernelLogSafe>
 
 struct FVectorKernelLog2 : public TUnaryVectorKernel<FVectorKernelLog2>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0)
 	{
 		*Dst = VectorLog2(Src0);
 	}
@@ -970,7 +970,7 @@ struct FVectorKernelLog2 : public TUnaryVectorKernel<FVectorKernelLog2>
 
 struct FVectorKernelStep : public TBinaryVectorKernel<FVectorKernelStep>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0, VectorRegister4Float Src1)
 	{
 		*Dst = VectorStep(VectorSubtract(Src1, Src0));
 	}
@@ -978,16 +978,16 @@ struct FVectorKernelStep : public TBinaryVectorKernel<FVectorKernelStep>
 
 struct FVectorKernelClamp : public TTrinaryVectorKernel<FVectorKernelClamp>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst,VectorRegister Src0,VectorRegister Src1,VectorRegister Src2)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst,VectorRegister4Float Src0,VectorRegister4Float Src1,VectorRegister4Float Src2)
 	{
-		const VectorRegister Tmp = VectorMax(Src0, Src1);
+		const VectorRegister4Float Tmp = VectorMax(Src0, Src1);
 		*Dst = VectorMin(Tmp, Src2);
 	}
 };
 
 struct FVectorKernelSin : public TUnaryVectorKernel<FVectorKernelSin>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0)
 	{
 		*Dst = VectorSin(Src0);
 	}
@@ -995,7 +995,7 @@ struct FVectorKernelSin : public TUnaryVectorKernel<FVectorKernelSin>
 
 struct FVectorKernelCos : public TUnaryVectorKernel<FVectorKernelCos>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0)
  	{
 		*Dst = VectorCos(Src0);
 	}
@@ -1003,7 +1003,7 @@ struct FVectorKernelCos : public TUnaryVectorKernel<FVectorKernelCos>
 
 struct FVectorKernelTan : public TUnaryVectorKernel<FVectorKernelTan>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0)
 	{
 		*Dst = VectorTan(Src0);
 	}
@@ -1011,7 +1011,7 @@ struct FVectorKernelTan : public TUnaryVectorKernel<FVectorKernelTan>
 
 struct FVectorKernelASin : public TUnaryVectorKernel<FVectorKernelASin>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0)
 	{
 		*Dst = VectorASin(Src0);
 	}
@@ -1019,7 +1019,7 @@ struct FVectorKernelASin : public TUnaryVectorKernel<FVectorKernelASin>
 
 struct FVectorKernelACos : public TUnaryVectorKernel<FVectorKernelACos>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0)
 	{
 		*Dst = VectorACos(Src0);
 	}
@@ -1027,7 +1027,7 @@ struct FVectorKernelACos : public TUnaryVectorKernel<FVectorKernelACos>
 
 struct FVectorKernelATan : public TUnaryVectorKernel<FVectorKernelATan>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0)
 	{
 		*Dst = VectorATan(Src0);
 	}
@@ -1035,7 +1035,7 @@ struct FVectorKernelATan : public TUnaryVectorKernel<FVectorKernelATan>
 
 struct FVectorKernelATan2 : public TBinaryVectorKernel<FVectorKernelATan2>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0, VectorRegister4Float Src1)
 	{
 		*Dst = VectorATan2(Src0, Src1);
 	}
@@ -1043,7 +1043,7 @@ struct FVectorKernelATan2 : public TBinaryVectorKernel<FVectorKernelATan2>
 
 struct FVectorKernelCeil : public TUnaryVectorKernel<FVectorKernelCeil>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0)
 	{
 		*Dst = VectorCeil(Src0);
 	}
@@ -1051,7 +1051,7 @@ struct FVectorKernelCeil : public TUnaryVectorKernel<FVectorKernelCeil>
 
 struct FVectorKernelFloor : public TUnaryVectorKernel<FVectorKernelFloor>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0)
 	{
 		*Dst = VectorFloor(Src0);
 	}
@@ -1059,17 +1059,17 @@ struct FVectorKernelFloor : public TUnaryVectorKernel<FVectorKernelFloor>
 
 struct FVectorKernelRound : public TUnaryVectorKernel<FVectorKernelRound>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0)
 	{
 		//TODO: >SSE4 has direct ops for this.		
-		VectorRegister Trunc = VectorTruncate(Src0);
+		VectorRegister4Float Trunc = VectorTruncate(Src0);
 		*Dst = VectorAdd(Trunc, VectorTruncate(VectorMultiply(VectorSubtract(Src0, Trunc), GlobalVectorConstants::FloatAlmostTwo)));
 	}
 };
 
 struct FVectorKernelMod : public TBinaryVectorKernel<FVectorKernelMod>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0, VectorRegister4Float Src1)
 	{
 		*Dst = VectorMod(Src0, Src1);
 	}
@@ -1077,7 +1077,7 @@ struct FVectorKernelMod : public TBinaryVectorKernel<FVectorKernelMod>
 
 struct FVectorKernelFrac : public TUnaryVectorKernel<FVectorKernelFrac>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0)
 	{
 		*Dst = VectorFractional(Src0);
 	}
@@ -1085,7 +1085,7 @@ struct FVectorKernelFrac : public TUnaryVectorKernel<FVectorKernelFrac>
 
 struct FVectorKernelTrunc : public TUnaryVectorKernel<FVectorKernelTrunc>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0)
 	{
 		*Dst = VectorTruncate(Src0);
 	}
@@ -1093,7 +1093,7 @@ struct FVectorKernelTrunc : public TUnaryVectorKernel<FVectorKernelTrunc>
 
 struct FVectorKernelCompareLT : public TBinaryVectorKernel<FVectorKernelCompareLT>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0, VectorRegister4Float Src1)
 	{
 		*Dst = VectorCompareLT(Src0, Src1);
 	}
@@ -1101,7 +1101,7 @@ struct FVectorKernelCompareLT : public TBinaryVectorKernel<FVectorKernelCompareL
 
 struct FVectorKernelCompareLE : public TBinaryVectorKernel<FVectorKernelCompareLE>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0, VectorRegister4Float Src1)
 	{
 		*Dst = VectorCompareLE(Src0, Src1);
 	}
@@ -1109,7 +1109,7 @@ struct FVectorKernelCompareLE : public TBinaryVectorKernel<FVectorKernelCompareL
 
 struct FVectorKernelCompareGT : public TBinaryVectorKernel<FVectorKernelCompareGT>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0, VectorRegister4Float Src1)
 	{
 		*Dst = VectorCompareGT(Src0, Src1);
 	}
@@ -1117,7 +1117,7 @@ struct FVectorKernelCompareGT : public TBinaryVectorKernel<FVectorKernelCompareG
 
 struct FVectorKernelCompareGE : public TBinaryVectorKernel<FVectorKernelCompareGE>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0, VectorRegister4Float Src1)
 	{
 		*Dst = VectorCompareGE(Src0, Src1);
 	}
@@ -1125,7 +1125,7 @@ struct FVectorKernelCompareGE : public TBinaryVectorKernel<FVectorKernelCompareG
 
 struct FVectorKernelCompareEQ : public TBinaryVectorKernel<FVectorKernelCompareEQ>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0, VectorRegister4Float Src1)
 	{
 		*Dst = VectorCompareEQ(Src0, Src1);
 	}
@@ -1133,7 +1133,7 @@ struct FVectorKernelCompareEQ : public TBinaryVectorKernel<FVectorKernelCompareE
 
 struct FVectorKernelCompareNEQ : public TBinaryVectorKernel<FVectorKernelCompareNEQ>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0, VectorRegister4Float Src1)
 	{		
 		*Dst = VectorCompareNE(Src0, Src1);
 	}
@@ -1141,7 +1141,7 @@ struct FVectorKernelCompareNEQ : public TBinaryVectorKernel<FVectorKernelCompare
 
 struct FVectorKernelSelect : public TTrinaryVectorKernel<FVectorKernelSelect>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Mask, VectorRegister A, VectorRegister B)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Mask, VectorRegister4Float A, VectorRegister4Float B)
 	{
 		*Dst = VectorSelect(Mask, A, B);
 	}
@@ -1249,10 +1249,10 @@ struct FVectorKernelExitStatScope
 
 struct FVectorKernelRandom : public TUnaryVectorKernel<FVectorKernelRandom>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0)
 	{
 		//EEK!. Improve this. Implement GPU style seeded rand instead of this.
-		VectorRegister Result = MakeVectorRegister(Context.RandStream.GetFraction(),
+		VectorRegister4Float Result = MakeVectorRegister(Context.RandStream.GetFraction(),
 			Context.RandStream.GetFraction(),
 			Context.RandStream.GetFraction(),
 			Context.RandStream.GetFraction());
@@ -1263,9 +1263,9 @@ struct FVectorKernelRandom : public TUnaryVectorKernel<FVectorKernelRandom>
 /* gaussian distribution random number (not working yet) */
 struct FVectorKernelRandomGauss : public TBinaryVectorKernel<FVectorKernelRandomGauss>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0, VectorRegister4Float Src1)
 	{
-		VectorRegister Result = MakeVectorRegister(Context.RandStream.GetFraction(),
+		VectorRegister4Float Result = MakeVectorRegister(Context.RandStream.GetFraction(),
 			Context.RandStream.GetFraction(),
 			Context.RandStream.GetFraction(),
 			Context.RandStream.GetFraction());
@@ -1274,9 +1274,9 @@ struct FVectorKernelRandomGauss : public TBinaryVectorKernel<FVectorKernelRandom
 		Result = VectorMultiply(MakeVectorRegister(3.0f, 3.0f, 3.0f, 3.0f), Result);
 
 		// taylor series gaussian approximation
-		const VectorRegister SPi2 = VectorReciprocal(VectorReciprocalSqrt(MakeVectorRegister(2 * PI, 2 * PI, 2 * PI, 2 * PI)));
-		VectorRegister Gauss = VectorReciprocal(SPi2);
-		VectorRegister Div = VectorMultiply(GlobalVectorConstants::FloatTwo, SPi2);
+		const VectorRegister4Float SPi2 = VectorReciprocal(VectorReciprocalSqrt(MakeVectorRegister(2 * PI, 2 * PI, 2 * PI, 2 * PI)));
+		VectorRegister4Float Gauss = VectorReciprocal(SPi2);
+		VectorRegister4Float Div = VectorMultiply(GlobalVectorConstants::FloatTwo, SPi2);
 		Gauss = VectorSubtract(Gauss, VectorDivide(VectorMultiply(Result, Result), Div));
 		Div = VectorMultiply(MakeVectorRegister(8.0f, 8.0f, 8.0f, 8.0f), SPi2);
 		Gauss = VectorAdd(Gauss, VectorDivide(VectorPow(MakeVectorRegister(4.0f, 4.0f, 4.0f, 4.0f), Result), Div));
@@ -1291,7 +1291,7 @@ struct FVectorKernelRandomGauss : public TBinaryVectorKernel<FVectorKernelRandom
 
 struct FVectorKernelMin : public TBinaryVectorKernel<FVectorKernelMin>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst,VectorRegister Src0,VectorRegister Src1)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst,VectorRegister4Float Src0,VectorRegister4Float Src1)
 	{
 		*Dst = VectorMin(Src0, Src1);
 	}
@@ -1299,7 +1299,7 @@ struct FVectorKernelMin : public TBinaryVectorKernel<FVectorKernelMin>
 
 struct FVectorKernelMax : public TBinaryVectorKernel<FVectorKernelMax>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst,VectorRegister Src0,VectorRegister Src1)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst,VectorRegister4Float Src0,VectorRegister4Float Src1)
 	{
 		*Dst = VectorMax(Src0, Src1);
 	}
@@ -1307,7 +1307,7 @@ struct FVectorKernelMax : public TBinaryVectorKernel<FVectorKernelMax>
 
 struct FVectorKernelPow : public TBinaryVectorKernel<FVectorKernelPow>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst,VectorRegister Src0,VectorRegister Src1)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst,VectorRegister4Float Src0,VectorRegister4Float Src1)
 	{
 		*Dst = VectorPow(Src0, Src1);
 	}
@@ -1316,16 +1316,16 @@ struct FVectorKernelPow : public TBinaryVectorKernel<FVectorKernelPow>
 // if the base is small, then the result will be 0
 struct FVectorKernelPowSafe : public TBinaryVectorKernel<FVectorKernelPowSafe>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0, VectorRegister Src1)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0, VectorRegister4Float Src1)
 	{
-		VectorRegister ValidMask = VectorCompareGT(Src0, GlobalVectorConstants::SmallNumber);
+		VectorRegister4Float ValidMask = VectorCompareGT(Src0, GlobalVectorConstants::SmallNumber);
 		*Dst = VectorSelect(ValidMask, VectorPow(Src0, Src1), GlobalVectorConstants::FloatZero);
 	}
 };
 
 struct FVectorKernelSign : public TUnaryVectorKernel<FVectorKernelSign>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0)
 	{
 		*Dst = VectorSign(Src0);
 	}
@@ -1461,48 +1461,48 @@ namespace VectorVMNoise
 //Possibly needs to be a data interface as the VM can't output Vectors?
 struct FVectorKernelNoise : public TUnaryVectorKernel<FVectorKernelNoise>
 {
-	static VectorRegister RandomTable[17][17][17];
+	static VectorRegister4Float RandomTable[17][17][17];
 
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* RESTRICT Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* RESTRICT Dst, VectorRegister4Float Src0)
 	{
-		const VectorRegister VecSize = MakeVectorRegister(16.0f, 16.0f, 16.0f, 16.0f);
+		const VectorRegister4Float VecSize = MakeVectorRegister(16.0f, 16.0f, 16.0f, 16.0f);
 
 		*Dst = GlobalVectorConstants::FloatZero;
 		
 		for (uint32 i = 1; i < 2; i++)
 		{
 			float Di = 0.2f * (1.0f/(1<<i));
-			VectorRegister Div = MakeVectorRegister(Di, Di, Di, Di);
-			VectorRegister Coords = VectorMod( VectorAbs( VectorMultiply(Src0, Div) ), VecSize );
+			VectorRegister4Float Div = MakeVectorRegister(Di, Di, Di, Di);
+			VectorRegister4Float Coords = VectorMod( VectorAbs( VectorMultiply(Src0, Div) ), VecSize );
 			const float *CoordPtr = reinterpret_cast<float const*>(&Coords);
 			const int32 Cx = CoordPtr[0];
 			const int32 Cy = CoordPtr[1];
 			const int32 Cz = CoordPtr[2];
 
-			VectorRegister Frac = VectorFractional(Coords);
-			VectorRegister Alpha = VectorReplicate(Frac, 0);
-			VectorRegister OneMinusAlpha = VectorSubtract(GlobalVectorConstants::FloatOne, Alpha);
+			VectorRegister4Float Frac = VectorFractional(Coords);
+			VectorRegister4Float Alpha = VectorReplicate(Frac, 0);
+			VectorRegister4Float OneMinusAlpha = VectorSubtract(GlobalVectorConstants::FloatOne, Alpha);
 			
-			VectorRegister XV1 = VectorMultiplyAdd(RandomTable[Cx][Cy][Cz], Alpha, VectorMultiply(RandomTable[Cx+1][Cy][Cz], OneMinusAlpha));
-			VectorRegister XV2 = VectorMultiplyAdd(RandomTable[Cx][Cy+1][Cz], Alpha, VectorMultiply(RandomTable[Cx+1][Cy+1][Cz], OneMinusAlpha));
-			VectorRegister XV3 = VectorMultiplyAdd(RandomTable[Cx][Cy][Cz+1], Alpha, VectorMultiply(RandomTable[Cx+1][Cy][Cz+1], OneMinusAlpha));
-			VectorRegister XV4 = VectorMultiplyAdd(RandomTable[Cx][Cy+1][Cz+1], Alpha, VectorMultiply(RandomTable[Cx+1][Cy+1][Cz+1], OneMinusAlpha));
+			VectorRegister4Float XV1 = VectorMultiplyAdd(RandomTable[Cx][Cy][Cz], Alpha, VectorMultiply(RandomTable[Cx+1][Cy][Cz], OneMinusAlpha));
+			VectorRegister4Float XV2 = VectorMultiplyAdd(RandomTable[Cx][Cy+1][Cz], Alpha, VectorMultiply(RandomTable[Cx+1][Cy+1][Cz], OneMinusAlpha));
+			VectorRegister4Float XV3 = VectorMultiplyAdd(RandomTable[Cx][Cy][Cz+1], Alpha, VectorMultiply(RandomTable[Cx+1][Cy][Cz+1], OneMinusAlpha));
+			VectorRegister4Float XV4 = VectorMultiplyAdd(RandomTable[Cx][Cy+1][Cz+1], Alpha, VectorMultiply(RandomTable[Cx+1][Cy+1][Cz+1], OneMinusAlpha));
 
 			Alpha = VectorReplicate(Frac, 1);
 			OneMinusAlpha = VectorSubtract(GlobalVectorConstants::FloatOne, Alpha);
-			VectorRegister YV1 = VectorMultiplyAdd(XV1, Alpha, VectorMultiply(XV2, OneMinusAlpha));
-			VectorRegister YV2 = VectorMultiplyAdd(XV3, Alpha, VectorMultiply(XV4, OneMinusAlpha));
+			VectorRegister4Float YV1 = VectorMultiplyAdd(XV1, Alpha, VectorMultiply(XV2, OneMinusAlpha));
+			VectorRegister4Float YV2 = VectorMultiplyAdd(XV3, Alpha, VectorMultiply(XV4, OneMinusAlpha));
 
 			Alpha = VectorReplicate(Frac, 2);
 			OneMinusAlpha = VectorSubtract(GlobalVectorConstants::FloatOne, Alpha);
-			VectorRegister ZV = VectorMultiplyAdd(YV1, Alpha, VectorMultiply(YV2, OneMinusAlpha));
+			VectorRegister4Float ZV = VectorMultiplyAdd(YV1, Alpha, VectorMultiply(YV2, OneMinusAlpha));
 
 			*Dst = VectorAdd(*Dst, ZV);
 		}
 	}
 };
 
-VectorRegister FVectorKernelNoise::RandomTable[17][17][17];
+VectorRegister4Float FVectorKernelNoise::RandomTable[17][17][17];
 
 //////////////////////////////////////////////////////////////////////////
 //Special Kernels.
@@ -1636,15 +1636,15 @@ struct FVectorKernelReadInput
 
 	static VM_FORCEINLINE void Exec(FVectorVMContext& Context)
 	{
-		static const int32 InstancesPerVector = sizeof(VectorRegister) / sizeof(SourceType);
+		static const int32 InstancesPerVector = sizeof(VectorRegister4Float ) / sizeof(SourceType);
 
 		const int32 DataSetIndex = Context.DecodeU16();
 		const int32 InputRegisterIdx = Context.DecodeU16();
 		const int32 DestRegisterIdx = Context.DecodeU16();
 		int32 Loops = Context.GetNumLoops<InstancesPerVector>();
 
-		VectorRegister* DestReg = (VectorRegister*)(Context.GetTempRegister(DestRegisterIdx));
-		VectorRegister* InputReg = (VectorRegister*)(Context.GetInputRegister<SourceType, TypeOffset>(DataSetIndex, InputRegisterIdx) + Context.GetStartInstance());
+		VectorRegister4Float* DestReg = (VectorRegister4Float*)(Context.GetTempRegister(DestRegisterIdx));
+		VectorRegister4Float* InputReg = (VectorRegister4Float*)(Context.GetInputRegister<SourceType, TypeOffset>(DataSetIndex, InputRegisterIdx) + Context.GetStartInstance());
 
 		//TODO: We can actually do some scalar loads into the first and final vectors to get around alignment issues and then use the aligned load for all others.
 		while(Loops > 0)
@@ -1715,15 +1715,15 @@ struct FVectorKernelReadInputNoAdvance
 
 	static VM_FORCEINLINE void Exec(FVectorVMContext& Context)
 	{
-		static const int32 InstancesPerVector = sizeof(VectorRegister) / sizeof(T);
+		static const int32 InstancesPerVector = sizeof(VectorRegister4Float) / sizeof(T);
 
 		const int32 DataSetIndex = Context.DecodeU16();
 		const int32 InputRegisterIdx = Context.DecodeU16();
 		const int32 DestRegisterIdx = Context.DecodeU16();
 		const int32 Loops = Context.GetNumLoops<InstancesPerVector>();
 
-		VectorRegister* DestReg = (VectorRegister*)(Context.GetTempRegister(DestRegisterIdx));
-		VectorRegister* InputReg = (VectorRegister*)(Context.GetInputRegister<T, TypeOffset>(DataSetIndex, InputRegisterIdx));
+		VectorRegister4Float* DestReg = (VectorRegister4Float*)(Context.GetTempRegister(DestRegisterIdx));
+		VectorRegister4Float* InputReg = (VectorRegister4Float*)(Context.GetInputRegister<T, TypeOffset>(DataSetIndex, InputRegisterIdx));
 
 		//TODO: We can actually do some scalar loads into the first and final vectors to get around alignment issues and then use the aligned load for all others.
 		for (int32 i = 0; i < Loops; ++i)
@@ -1752,7 +1752,7 @@ struct FVectorKernelReadInputNoAdvance<FFloat16, 2>
 		const int32 DestRegisterIdx = Context.DecodeU16();
 		const int32 Loops = Context.GetNumLoops<4>();
 
-		VectorRegister* DestReg = (VectorRegister*)(Context.GetTempRegister(DestRegisterIdx));
+		VectorRegister4Float* DestReg = (VectorRegister4Float*)(Context.GetTempRegister(DestRegisterIdx));
 		uint16* InputReg = (uint16*)(Context.GetInputRegister<FFloat16, 2>(DataSetIndex, InputRegisterIdx));
 
 		//TODO: We can actually do some scalar loads into the first and final vectors to get around alignment issues and then use the aligned load for all others.
@@ -2348,36 +2348,36 @@ struct FVectorIntKernelLogicNot : TUnaryVectorIntKernel<FVectorIntKernelLogicNot
 
 //conversions
 //f2i,
-struct FVectorKernelFloatToInt : TUnaryKernel<FVectorKernelFloatToInt, FRegisterHandler<VectorRegister4Int>, FConstantHandler<VectorRegister>, FRegisterHandler<VectorRegister>, VECTOR_WIDTH_FLOATS>
+struct FVectorKernelFloatToInt : TUnaryKernel<FVectorKernelFloatToInt, FRegisterHandler<VectorRegister4Int>, FConstantHandler<VectorRegister4Float>, FRegisterHandler<VectorRegister4Float>, VECTOR_WIDTH_FLOATS>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Int* Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Int* Dst, VectorRegister4Float Src0)
 	{
 		*Dst = VectorFloatToInt(Src0);
 	}
 };
 
 //i2f,
-struct FVectorKernelIntToFloat : TUnaryKernel<FVectorKernelIntToFloat, FRegisterHandler<VectorRegister>, FConstantHandler<VectorRegister4Int>, FRegisterHandler<VectorRegister4Int>, VECTOR_WIDTH_FLOATS>
+struct FVectorKernelIntToFloat : TUnaryKernel<FVectorKernelIntToFloat, FRegisterHandler<VectorRegister4Float>, FConstantHandler<VectorRegister4Int>, FRegisterHandler<VectorRegister4Int>, VECTOR_WIDTH_FLOATS>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* Dst, VectorRegister4Int Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* Dst, VectorRegister4Int Src0)
 	{
 		*Dst = VectorIntToFloat(Src0);
 	}
 };
 
 //f2b,
-struct FVectorKernelFloatToBool : TUnaryKernel<FVectorKernelFloatToBool, FRegisterHandler<VectorRegister>, FConstantHandler<VectorRegister>, FRegisterHandler<VectorRegister>, VECTOR_WIDTH_FLOATS>
+struct FVectorKernelFloatToBool : TUnaryKernel<FVectorKernelFloatToBool, FRegisterHandler<VectorRegister4Float>, FConstantHandler<VectorRegister4Float>, FRegisterHandler<VectorRegister4Float>, VECTOR_WIDTH_FLOATS>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* Dst, VectorRegister4Float Src0)
 	{		
 		*Dst = VectorCompareGT(Src0, GlobalVectorConstants::FloatZero);
 	}
 };
 
 //b2f,
-struct FVectorKernelBoolToFloat : TUnaryKernel<FVectorKernelBoolToFloat, FRegisterHandler<VectorRegister>, FConstantHandler<VectorRegister>, FRegisterHandler<VectorRegister>, VECTOR_WIDTH_FLOATS>
+struct FVectorKernelBoolToFloat : TUnaryKernel<FVectorKernelBoolToFloat, FRegisterHandler<VectorRegister4Float>, FConstantHandler<VectorRegister4Float>, FRegisterHandler<VectorRegister4Float>, VECTOR_WIDTH_FLOATS>
 {
-	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister* Dst, VectorRegister Src0)
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* Dst, VectorRegister4Float Src0)
 	{
 		*Dst = VectorSelect(Src0, GlobalVectorConstants::FloatOne, GlobalVectorConstants::FloatZero);
 	}
@@ -2851,7 +2851,7 @@ struct FBatchedWriteIndexedOutput
 	static void HandleRegisterValidIndices(FVectorVMContext& Context)
 	{
 		FDataSetCounterHandler CounterHandler(Context);
-		FRegisterHandler<VectorRegister> ValidReader(Context);
+		FRegisterHandler<VectorRegister4Float> ValidReader(Context);
 		FRegisterHandler<int8> Dst(Context);
 
 		int8* DestAddr = Dst.GetDest();
@@ -3141,7 +3141,7 @@ struct FBatchedWriteIndexedOutput
 			//						our output buffers padded out to 16 bytes!
 			//	VectorIntShuffle(	- swizzle our source register to pack the valid entries at the beginning, with 0s at the end
 			//    Source,			- source data
-			//    ShuffleMask),		- result of the VectorMaskBits done in the acquireindex, int8/VectorRegister of input
+			//    ShuffleMask),		- result of the VectorMaskBits done in the acquireindex, int8/VectorRegister4Float of input
 			//  Destination);
 			VectorIntStore(VectorIntShuffle(SourceVectors[SourceIt], VectorVMConstants::RegisterShuffleMask[ShuffleMask]), OutputElements);
 
@@ -3172,7 +3172,7 @@ struct FBatchedWriteIndexedOutput
 			//						our output buffers padded out to 16 bytes!
 			//	VectorIntShuffle(	- swizzle our source register to pack the valid entries at the beginning, with 0s at the end
 			//    Source,			- source data
-			//    ShuffleMask),		- result of the VectorMaskBits done in the acquireindex, int8/VectorRegister of input
+			//    ShuffleMask),		- result of the VectorMaskBits done in the acquireindex, int8/VectorRegister4Float of input
 			//  Destination);
 
 			const VectorRegister4Int ShuffledFloats = VectorIntShuffle(SourceVectors[SourceIt], VectorVMConstants::RegisterShuffleMask[ShuffleMask]);

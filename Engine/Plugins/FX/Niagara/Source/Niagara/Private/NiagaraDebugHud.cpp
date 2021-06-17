@@ -58,7 +58,7 @@ namespace NiagaraDebugLocal
 		TArray<FNiagaraVariableWithOffset> UserVariables;						// Exposed user parameters which will pull from the component
 
 		TArray<TArray<FNiagaraDataSetDebugAccessor>> ParticleVariables;			// Per Emitter Particle variables
-		TArray<FNiagaraDataSetAccessor<FVector>> ParticlePositionAccessors;		// Only valid if we have particle attributes
+		TArray<FNiagaraDataSetAccessor<FVector3f>> ParticlePositionAccessors;		// Only valid if we have particle attributes
 	};
 
 	static TMap<TWeakObjectPtr<UNiagaraSystem>, FCachedVariables> GCachedSystemVariables;

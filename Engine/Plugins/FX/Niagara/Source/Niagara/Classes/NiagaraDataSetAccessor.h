@@ -242,15 +242,17 @@ struct FNiagaraDataSetAccessorTypeInfo<FVector2D>
 };
 
 template<>
-struct FNiagaraDataSetAccessorTypeInfo<FVector>
+struct FNiagaraDataSetAccessorTypeInfo<FVector3f>
 {
-	using TAccessorBaseClass = FNiagaraDataSetAccessorFloat<FVector>;
+	using TAccessorBaseClass = FNiagaraDataSetAccessorFloat<FVector3f>;
 
 	static constexpr bool bSupportsHalf = true;
 	static constexpr int32 NumElements = 3;
 	static const FNiagaraTypeDefinition& GetFloatType() { return FNiagaraTypeDefinition::GetVec3Def(); }
 	static const FNiagaraTypeDefinition& GetHalfType() { return FNiagaraTypeDefinition::GetHalfVec3Def(); }
 };
+
+
 
 template<>
 struct FNiagaraDataSetAccessorTypeInfo<FVector4>

@@ -270,8 +270,8 @@ struct FSkeletalMeshUvMappingHandle
 	FSkeletalMeshUvMappingUsage Usage;
 
 	void FindOverlappingTriangles(const FVector2D& InUv, float Tolerance, TArray<int32>& TriangleIndices) const;
-	int32 FindFirstTriangle(const FVector2D& InUv, float Tolerance, FVector& BarycentricCoord) const;
-	int32 FindFirstTriangle(const FBox2D& InUvBox, FVector& BarycentricCoord) const;
+	int32 FindFirstTriangle(const FVector2D& InUv, float Tolerance, FVector3f& BarycentricCoord) const;
+	int32 FindFirstTriangle(const FBox2D& InUvBox, FVector3f& BarycentricCoord) const;
 	const FSkeletalMeshUvMappingBufferProxy* GetQuadTreeProxy() const;
 	int32 GetUvSetIndex() const;
 	int32 GetLodIndex() const;

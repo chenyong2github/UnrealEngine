@@ -102,7 +102,7 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
 	FNiagaraVariableAttributeBinding RendererVisibilityTagBinding;
 
-	FNiagaraDataSetAccessor<FVector> PositionDataSetAccessor;
+	FNiagaraDataSetAccessor<FVector3f> PositionDataSetAccessor;
 	FNiagaraDataSetAccessor<FLinearColor> ColorDataSetAccessor;
 	FNiagaraDataSetAccessor<float> RadiusDataSetAccessor;
 	FNiagaraDataSetAccessor<float> ExponentDataSetAccessor;

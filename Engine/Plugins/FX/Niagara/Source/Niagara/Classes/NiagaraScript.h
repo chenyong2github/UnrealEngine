@@ -895,6 +895,11 @@ public:
 		return TOptional<T>();
 	}
 
+	TOptional<FVector3d> GetCompilerTag(const FNiagaraVariableBase& InVar, const FNiagaraParameterStore* FallbackParameterStore) const
+	{
+		return TOptional<FVector3d>(*GetCompilerTag<FVector3f>(InVar, FallbackParameterStore));
+	}
+
 #if WITH_EDITORONLY_DATA
 	NIAGARA_API void InvalidateCompileResults(const FString& Reason);
 	NIAGARA_API FText GetDescription(const FGuid& VersionGuid);

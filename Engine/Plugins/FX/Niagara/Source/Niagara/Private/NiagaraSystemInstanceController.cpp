@@ -183,7 +183,7 @@ bool FNiagaraSystemInstanceController::GetParticleValueVec3_DebugOnly(TArray<FVe
 				int32 NumParticles = ParticleData.GetNumInstances();
 				OutValues.SetNum(NumParticles);
 
-				const auto Reader = FNiagaraDataSetAccessor<FVector>::CreateReader(Sim->GetData(), ValueName);
+				const auto Reader = FNiagaraDataSetAccessor<FVector3f>::CreateReader(Sim->GetData(), ValueName);
 				if (!Reader.IsValid())
 				{
 					return false;
@@ -367,7 +367,7 @@ void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, FVector
 	}
 }
 
-void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, FVector InValue)
+void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, FVector3f InValue)
 {
 	if (OverrideParameters)
 	{

@@ -315,7 +315,7 @@ void FNiagaraConstants::Init()
 		
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_VELOCITY, TEXT("0.0,0.0,0.0"));
 		Var = SYS_PARAM_PARTICLES_VELOCITY;
-		Var.SetValue<FVector>(FVector(0.0f, 0.0f, 0.0f));
+		Var.SetValue<FVector3f>(FVector3f(0.0f, 0.0f, 0.0f));
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_VELOCITY, Var);
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_COLOR, FLinearColor(1.0f, 1.0f, 1.0f, 1.0f).ToString());
@@ -340,12 +340,12 @@ void FNiagaraConstants::Init()
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_SPRITE_FACING, TEXT("1.0,0.0,0.0"));
 		Var = SYS_PARAM_PARTICLES_SPRITE_FACING;
-		Var.SetValue<FVector>(FVector(1.0f, 0.0f, 0.0f));
+		Var.SetValue<FVector3f>(FVector3f(1.0f, 0.0f, 0.0f));
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_SPRITE_FACING, Var);
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_SPRITE_ALIGNMENT, TEXT("1.0,0.0,0.0"));
 		Var = SYS_PARAM_PARTICLES_SPRITE_ALIGNMENT;
-		Var.SetValue<FVector>(FVector(1.0f, 0.0f, 0.0f));
+		Var.SetValue<FVector3f>(FVector3f(1.0f, 0.0f, 0.0f));
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_SPRITE_ALIGNMENT, Var);
 		
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_SUB_IMAGE_INDEX, TEXT("0.0"));
@@ -375,7 +375,7 @@ void FNiagaraConstants::Init()
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_SCALE, TEXT("1.0,1.0,1.0"));
 		Var = SYS_PARAM_PARTICLES_SCALE;
-		Var.SetValue<FVector>(FVector(1.0f, 1.0f, 1.0f));
+		Var.SetValue<FVector3f>(FVector3f(1.0f, 1.0f, 1.0f));
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_SCALE, Var);
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_LIFETIME, TEXT("5.0"));
@@ -460,7 +460,7 @@ void FNiagaraConstants::Init()
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_RIBBONFACING, TEXT("0.0, 0.0, 1.0"));
 		Var = SYS_PARAM_PARTICLES_RIBBONFACING;
-		Var.SetValue<FVector>(FVector(0.0f, 0.0f, 1.0f));
+		Var.SetValue<FVector3f>(FVector3f(0.0f, 0.0f, 1.0f));
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_RIBBONFACING, Var);
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_RIBBONLINKORDER, TEXT("0"));

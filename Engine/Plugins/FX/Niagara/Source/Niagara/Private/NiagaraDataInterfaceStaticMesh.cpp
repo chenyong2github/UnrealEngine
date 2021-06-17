@@ -1920,7 +1920,7 @@ void UNiagaraDataInterfaceStaticMesh::RandomTriCoord(FVectorVMContext& Context)
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 
 	FNDIOutputParam<int32> OutTri(Context);
-	FNDIOutputParam<FVector> OutBary(Context);
+	FNDIOutputParam<FVector3f> OutBary(Context);
 
 	const FStaticMeshLODResources* Res = InstData->CachedLOD;
 	check(Res && InstData->StaticMesh.IsValid()); // sanity check - should have bound the invalid specialization below
@@ -1939,7 +1939,7 @@ void UNiagaraDataInterfaceStaticMesh::RandomTriCoord<TSampleModeInvalid>(FVector
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 
 	FNDIOutputParam<int32> OutTri(Context);
-	FNDIOutputParam<FVector> OutBary(Context);
+	FNDIOutputParam<FVector3f> OutBary(Context);
 
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
@@ -1955,7 +1955,7 @@ void UNiagaraDataInterfaceStaticMesh::RandomTriCoordVertexColorFiltered(FVectorV
 	VectorVM::FExternalFuncRegisterHandler<int32> RangeValue(Context);
 
 	FNDIOutputParam<int32> OutTri(Context);
-	FNDIOutputParam<FVector> OutBary(Context);
+	FNDIOutputParam<FVector3f> OutBary(Context);
 	
 	// Handle no mesh case
 	//TODO: Maybe figure out a good way to stub this in bindings to prevent the branch
@@ -2034,7 +2034,7 @@ void UNiagaraDataInterfaceStaticMesh::RandomTriCoordOnSection(FVectorVMContext& 
 	FNDIInputParam<int32> SectionIdxParam(Context);
 
 	FNDIOutputParam<int32> OutTri(Context);
-	FNDIOutputParam<FVector> OutBary(Context);
+	FNDIOutputParam<FVector3f> OutBary(Context);
 
 	const FStaticMeshLODResources* Res = InstData->CachedLOD;
 	check(Res && InstData->bMeshValid); // sanity check - should have bound the invalid specialization below
@@ -2069,7 +2069,7 @@ void UNiagaraDataInterfaceStaticMesh::RandomTriCoordOnSection<TSampleModeInvalid
 	FNDIInputParam<int32> SectionIdxParam(Context);
 
 	FNDIOutputParam<int32> OutTri(Context);
-	FNDIOutputParam<FVector> OutBary(Context);
+	FNDIOutputParam<FVector3f> OutBary(Context);
 
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
@@ -2084,9 +2084,9 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordPosition(FVectorVMContext& Cont
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 	TransformHandlerType TransformHandler;
 	FNDIInputParam<int32> TriParam(Context);
-	FNDIInputParam<FVector> BaryParam(Context);
+	FNDIInputParam<FVector3f> BaryParam(Context);
 
-	FNDIOutputParam<FVector> OutPos(Context);
+	FNDIOutputParam<FVector3f> OutPos(Context);
 
 	if (InstData->bMeshValid)
 	{
@@ -2133,9 +2133,9 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordNormal(FVectorVMContext& Contex
 	TransformHandlerType TransformHandler;
 
 	FNDIInputParam<int32> TriParam(Context);
-	FNDIInputParam<FVector> BaryParam(Context);
+	FNDIInputParam<FVector3f> BaryParam(Context);
 
-	FNDIOutputParam<FVector> OutNorm(Context);
+	FNDIOutputParam<FVector3f> OutNorm(Context);
 
 	if (InstData->bMeshValid)
 	{
@@ -2179,11 +2179,11 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordTangents(FVectorVMContext& Cont
 	TransformHandlerType TransformHandler;
 
 	FNDIInputParam<int32> TriParam(Context);
-	FNDIInputParam<FVector> BaryParam(Context);
+	FNDIInputParam<FVector3f> BaryParam(Context);
 
-	FNDIOutputParam<FVector> OutTangent(Context);
-	FNDIOutputParam<FVector> OutBinorm(Context);
-	FNDIOutputParam<FVector> OutNorm(Context);
+	FNDIOutputParam<FVector3f> OutTangent(Context);
+	FNDIOutputParam<FVector3f> OutBinorm(Context);
+	FNDIOutputParam<FVector3f> OutNorm(Context);
 
 	if (InstData->bMeshValid)
 	{
@@ -2228,7 +2228,7 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordColor(FVectorVMContext& Context
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 
 	FNDIInputParam<int32> TriParam(Context);
-	FNDIInputParam<FVector> BaryParam(Context);
+	FNDIInputParam<FVector3f> BaryParam(Context);
 
 	FNDIOutputParam<FLinearColor> OutColor(Context);
 
@@ -2274,7 +2274,7 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordUV(FVectorVMContext& Context)
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 
 	FNDIInputParam<int32> TriParam(Context);
-	FNDIInputParam<FVector> BaryParam(Context);
+	FNDIInputParam<FVector3f> BaryParam(Context);
 	FNDIInputParam<int32> UVSetParam(Context);
 
 	FNDIOutputParam<FVector2D> OutUV(Context);
@@ -2318,10 +2318,10 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordPositionAndVelocity(FVectorVMCo
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 
 	FNDIInputParam<int32> TriParam(Context);
-	FNDIInputParam<FVector> BaryParam(Context);
+	FNDIInputParam<FVector3f> BaryParam(Context);
 
-	FNDIOutputParam<FVector> OutPos(Context);
-	FNDIOutputParam<FVector> OutVel(Context);
+	FNDIOutputParam<FVector3f> OutPos(Context);
+	FNDIOutputParam<FVector3f> OutVel(Context);
 
 	if (InstData->bMeshValid)
 	{
@@ -2428,7 +2428,7 @@ void UNiagaraDataInterfaceStaticMesh::GetWorldVelocity(FVectorVMContext& Context
 {
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 
-	FNDIOutputParam<FVector> OutVel(Context);
+	FNDIOutputParam<FVector3f> OutVel(Context);
 
 	FVector Velocity(0.0f, 0.0f, 0.0f);
 	if (InstData->bUsePhysicsVelocity)
@@ -2459,7 +2459,7 @@ void UNiagaraDataInterfaceStaticMesh::GetVertexPosition(FVectorVMContext& Contex
 	TransformHandlerType TransformHandler;
 	FNDIInputParam<int32> VertexIndexParam(Context);
 
-	FNDIOutputParam<FVector> OutPos(Context);
+	FNDIOutputParam<FVector3f> OutPos(Context);
 
 	if (InstData->bMeshValid)
 	{
@@ -2535,9 +2535,9 @@ void UNiagaraDataInterfaceStaticMesh::GetSocketTransform(FVectorVMContext& Conte
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 	FNDIInputParam<int32> InSocketIndex(Context);
 
-	FNDIOutputParam<FVector> OutTranslate(Context);
+	FNDIOutputParam<FVector3f> OutTranslate(Context);
 	FNDIOutputParam<FQuat> OutRotate(Context);
-	FNDIOutputParam<FVector> OutScale(Context);
+	FNDIOutputParam<FVector3f> OutScale(Context);
 
 	const FQuat InstRotation = bWorldSpace ? InstData->Rotation : FQuat::Identity;
 
@@ -2573,9 +2573,9 @@ void UNiagaraDataInterfaceStaticMesh::GetFilteredSocketTransform(FVectorVMContex
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 	FNDIInputParam<int32> InSocketIndex(Context);
 
-	FNDIOutputParam<FVector> OutTranslate(Context);
+	FNDIOutputParam<FVector3f> OutTranslate(Context);
 	FNDIOutputParam<FQuat> OutRotate(Context);
-	FNDIOutputParam<FVector> OutScale(Context);
+	FNDIOutputParam<FVector3f> OutScale(Context);
 
 	const FQuat InstRotation = bWorldSpace ? InstData->Rotation : FQuat::Identity;
 
@@ -2611,9 +2611,9 @@ void UNiagaraDataInterfaceStaticMesh::GetUnfilteredSocketTransform(FVectorVMCont
 	VectorVM::FUserPtrHandler<FNDIStaticMesh_InstanceData> InstData(Context);
 	FNDIInputParam<int32> InSocketIndex(Context);
 
-	FNDIOutputParam<FVector> OutTranslate(Context);
+	FNDIOutputParam<FVector3f> OutTranslate(Context);
 	FNDIOutputParam<FQuat> OutRotate(Context);
-	FNDIOutputParam<FVector> OutScale(Context);
+	FNDIOutputParam<FVector3f> OutScale(Context);
 
 	const FQuat InstRotation = bWorldSpace ? InstData->Rotation : FQuat::Identity;
 

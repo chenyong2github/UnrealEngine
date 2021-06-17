@@ -2299,8 +2299,8 @@ void FDynamicBeam2EmitterData::Init( bool bInSelected )
 
 	check(Source.ActiveParticleCount < (MaxBeams));	// TTP #33330 - Max of 2048 beams from a single emitter
 	check(Source.ParticleStride < 
-		((MaxInterpolationPoints + 2) * (sizeof(FVector) + sizeof(float))) + 
-		(MaxNoiseFrequency * (sizeof(FVector) + sizeof(FVector) + sizeof(float) + sizeof(float)))
+		((MaxInterpolationPoints + 2) * (sizeof(FVector3f) + sizeof(float))) + 
+		(MaxNoiseFrequency * (sizeof(FVector3f) + sizeof(FVector3f) + sizeof(float) + sizeof(float)))
 		);	// TTP #33330 - Max of 10k per beam (includes interpolation points, noise, etc.)
 
 	MaterialResource = Source.MaterialInterface->GetRenderProxy();

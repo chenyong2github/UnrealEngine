@@ -156,7 +156,7 @@ void UNiagaraDataInterfaceCubeTexture::GetTextureDimensions(FVectorVMContext& Co
 
 void UNiagaraDataInterfaceCubeTexture::SampleCubeTexture(FVectorVMContext& Context)
 {
-	FNDIInputParam<FVector> InCoord(Context);
+	FNDIInputParam<FVector3f> InCoord(Context);
 	FNDIInputParam<float> InMipLevel(Context);
 	FNDIOutputParam<FVector4> OutColor(Context);
 

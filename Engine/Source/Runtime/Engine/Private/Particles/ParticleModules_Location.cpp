@@ -355,7 +355,7 @@ void UParticleModuleLocationDirect::Update(FParticleEmitterInstance* Owner, int3
 
 uint32 UParticleModuleLocationDirect::RequiredBytes(UParticleModuleTypeDataBase* TypeData)
 {
-	return sizeof(FVector);
+	return sizeof(FVector3f);
 }
 
 /*-----------------------------------------------------------------------------
@@ -1757,7 +1757,7 @@ uint32 UParticleModuleLocationBoneSocket::RequiredBytesPerInstance()
 
 	//Have to take the max of all variants as lots of code assumes all LODs use the same memory and prep it the same way :(
 	int32 ArraySize = FMath::Max(SourceLocations.Num(), NumPreSelectedIndices);
-	int32 ElemSize = (sizeof(FVector)* 2) + sizeof(int32);
+	int32 ElemSize = (sizeof(FVector3f)* 2) + sizeof(int32);
 	
 	int32 BoneArraySize = ArraySize * ElemSize;
 	

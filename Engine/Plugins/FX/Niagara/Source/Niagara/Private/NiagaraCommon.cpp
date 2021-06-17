@@ -97,6 +97,10 @@ FString FNiagaraTypeHelper::ToString(const uint8* ValueData, const UObject* Stru
 				{
 					Ret += FString::Printf(TEXT("%s: %g "), *Property->GetNameCPP(), *(float*)PropPtr);
 				}
+				else if (Property->IsA(FDoubleProperty::StaticClass()))
+				{
+					Ret += FString::Printf(TEXT("%s: %g "), *Property->GetNameCPP(), *(double*)PropPtr);
+				}
 				else if (Property->IsA(FUInt16Property::StaticClass()))
 				{
 					FFloat16 Val = *(FFloat16*)PropPtr;
@@ -125,6 +129,32 @@ FString FNiagaraTypeHelper::ToString(const uint8* ValueData, const UObject* Stru
 		}
 	}
 	return Ret;
+}
+
+UScriptStruct* FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct)
+{
+	if (!InStruct)
+		return nullptr;
+
+	// Note: UE core types are converted to the float variant as Niagara only works with float types.
+	if (InStruct->GetFName() == NAME_Vector || InStruct->GetFName() == NAME_Vector3d) // LWC support
+	{
+		return FNiagaraTypeDefinition::GetVec3Struct();
+	}
+
+	return InStruct;
+}
+
+bool FNiagaraTypeHelper::IsNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct)
+{
+	if (FindNiagaraFriendlyTopLevelStruct(InStruct) == InStruct)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 //////////////////////////////////////////////////////////////////////////
 

@@ -201,14 +201,14 @@ public:
 
 	virtual void UpdateInternalValueFromStruct(TSharedRef<FStructOnScope> Struct) override
 	{
-		checkf(Struct->GetStruct() == FNiagaraTypeDefinition::GetVec3Struct(), TEXT("Struct type not supported."));
-		VectorValue = *((FVector*)Struct->GetStructMemory());
+		checkf(Struct->GetStruct() == FNiagaraTypeDefinition::GetVec3Struct(), TEXT("Struct type not supported."));	// LWC_TODO: Support for FVector3d likely required here.
+		VectorValue = *((FVector3f*)Struct->GetStructMemory());
 	}
 
 	virtual void UpdateStructFromInternalValue(TSharedRef<FStructOnScope> Struct) override
 	{
 		checkf(Struct->GetStruct() == FNiagaraTypeDefinition::GetVec3Struct(), TEXT("Struct type not supported."));
-		*((FVector*)Struct->GetStructMemory()) = VectorValue;
+		*((FVector3f*)Struct->GetStructMemory()) = VectorValue;
 	}
 
 protected:
@@ -223,7 +223,7 @@ protected:
 	}
 
 private:
-	FVector VectorValue;
+	FVector3f VectorValue;
 };
 
 TSharedPtr<SNiagaraParameterEditor> FNiagaraEditorVector3TypeUtilities::CreateParameterEditor(const FNiagaraTypeDefinition& ParameterType) const
@@ -241,7 +241,7 @@ FString FNiagaraEditorVector3TypeUtilities::GetPinDefaultStringFromValue(const F
 	checkf(AllocatedVariable.IsDataAllocated(), TEXT("Can not generate a default value string for an unallocated variable."));
 
 	// NOTE: We can not use ToString() here since the vector pin control doesn't use the standard 'X=0,Y=0,Z=0' syntax.
-	FVector Value = AllocatedVariable.GetValue<FVector>();
+	FVector Value = AllocatedVariable.GetValue<FVector3f>();
 	return FString::Printf(TEXT("%3.3f,%3.3f,%3.3f"), Value.X, Value.Y, Value.Z);
 }
 
@@ -251,7 +251,7 @@ bool FNiagaraEditorVector3TypeUtilities::SetValueFromPinDefaultString(const FStr
 	FVector Value = FVector::ZeroVector;
 	if (FDefaultValueHelper::ParseVector(StringValue, Value) || !Variable.IsDataAllocated())
 	{
-		Variable.SetValue<FVector>(Value);
+		Variable.SetValue<FVector3f>((FVector3f)Value);
 		return true;
 	}
 	return false;
@@ -264,7 +264,7 @@ FText FNiagaraEditorVector3TypeUtilities::GetSearchTextFromValue(const FNiagaraV
 
 FText FNiagaraEditorVector3TypeUtilities::GetStackDisplayText(FNiagaraVariable& Variable) const
 {
-	FVector Value = Variable.GetValue<FVector>();
+	FVector Value = Variable.GetValue<FVector3f>();
 	return FText::Format(FText::FromString("({0}, {1}, {2})"), Value.X, Value.Y, Value.Z);
 }
 

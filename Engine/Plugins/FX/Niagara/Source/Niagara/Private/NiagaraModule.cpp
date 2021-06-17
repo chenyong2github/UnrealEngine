@@ -636,7 +636,7 @@ void FNiagaraTypeDefinition::Init()
 	FNiagaraTypeDefinition::HalfVec4Struct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraHalfVector4"));
 
 	FNiagaraTypeDefinition::Vec2Struct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Vector2D"));
-	FNiagaraTypeDefinition::Vec3Struct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Vector"));
+	FNiagaraTypeDefinition::Vec3Struct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Vector3f"));
 	FNiagaraTypeDefinition::Vec4Struct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Vector4"));
 	FNiagaraTypeDefinition::ColorStruct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("LinearColor"));
 	FNiagaraTypeDefinition::QuatStruct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Quat"));
@@ -1033,15 +1033,15 @@ bool FNiagaraTypeDefinition::TypesAreAssignable(const FNiagaraTypeDefinition& Ty
 		bIsSupportedConversion = (TypeA == ColorDef && TypeB == Vec4Def) || (TypeB == ColorDef && TypeA == Vec4Def);
 	}
 
-	if (bIsSupportedConversion)
-	{
-		return true;
-	}
+if (bIsSupportedConversion)
+{
+	return true;
+}
 
-	return	(TypeA == NumericDef && NumericStructs.Contains(TypeB.GetScriptStruct())) ||
-			(TypeB == NumericDef && NumericStructs.Contains(TypeA.GetScriptStruct())) ||
-			(TypeA == NumericDef && (TypeB.GetStruct() == GetIntStruct()) && TypeB.GetEnum() != nullptr) ||
-			(TypeB == NumericDef && (TypeA.GetStruct() == GetIntStruct()) && TypeA.GetEnum() != nullptr);
+return	(TypeA == NumericDef && NumericStructs.Contains(TypeB.GetScriptStruct())) ||
+(TypeB == NumericDef && NumericStructs.Contains(TypeA.GetScriptStruct())) ||
+(TypeA == NumericDef && (TypeB.GetStruct() == GetIntStruct()) && TypeB.GetEnum() != nullptr) ||
+(TypeB == NumericDef && (TypeA.GetStruct() == GetIntStruct()) && TypeA.GetEnum() != nullptr);
 }
 
 bool FNiagaraTypeDefinition::IsLossyConversion(const FNiagaraTypeDefinition& TypeA, const FNiagaraTypeDefinition& TypeB)
@@ -1081,11 +1081,11 @@ FNiagaraTypeDefinition FNiagaraTypeDefinition::GetNumericOutputType(const TArray
 
 	TArray<FNiagaraTypeDefinition> SortedTypeDefinitions = TypeDefinintions;
 	SortedTypeDefinitions.Sort([&](const FNiagaraTypeDefinition& TypeA, const FNiagaraTypeDefinition& TypeB)
-	{
-		int32 AIndex = OrderedNumericTypes.IndexOfByKey(TypeA);
-		int32 BIndex = OrderedNumericTypes.IndexOfByKey(TypeB);
-		return AIndex < BIndex;
-	});
+		{
+			int32 AIndex = OrderedNumericTypes.IndexOfByKey(TypeA);
+			int32 BIndex = OrderedNumericTypes.IndexOfByKey(TypeB);
+			return AIndex < BIndex;
+		});
 
 	if (SelectionMode == ENiagaraNumericOutputTypeSelectionMode::Largest)
 	{
@@ -1127,6 +1127,11 @@ void FNiagaraTypeDefinition::PostSerialize(const FArchive& Ar)
 			UnderlyingType = UT_None;
 			ClassStructOrEnum = nullptr;
 		}
+	}
+	if (Ar.IsLoading() && ClassStructOrEnum != nullptr)
+	{
+		if (ClassStructOrEnum.GetClass()->IsChildOf(UScriptStruct::StaticClass()))
+			ClassStructOrEnum = FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct((UScriptStruct*)ClassStructOrEnum);
 	}
 #endif
 }

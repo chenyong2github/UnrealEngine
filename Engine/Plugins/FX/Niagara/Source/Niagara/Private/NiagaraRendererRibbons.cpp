@@ -874,13 +874,13 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 			// Update the tangents for the first and last vertex, apply a reflect vector logic so that the initial and final curvature is continuous.
 			if (NumSegments > 1)
 			{
-				FVector& FirstTangent = reinterpret_cast<FVector&>(DynamicData->TangentAndDistances[StartIndex]);
-				FVector& NextToFirstTangent = reinterpret_cast<FVector&>(DynamicData->TangentAndDistances[StartIndex + 1]);
-				FirstTangent = (2.f * FVector::DotProduct(FirstTangent, NextToFirstTangent)) * FirstTangent - NextToFirstTangent;
+				FVector3f& FirstTangent =  reinterpret_cast<FVector3f&>(DynamicData->TangentAndDistances[StartIndex]);
+				FVector3f& NextToFirstTangent = reinterpret_cast<FVector3f&>(DynamicData->TangentAndDistances[StartIndex + 1]);
+				FirstTangent = (2.f * FVector3f::DotProduct(FirstTangent, NextToFirstTangent)) * FirstTangent - NextToFirstTangent;
 
-				FVector& LastTangent = reinterpret_cast<FVector&>(DynamicData->TangentAndDistances[EndIndex]);
-				FVector& PrevToLastTangent = reinterpret_cast<FVector&>(DynamicData->TangentAndDistances[EndIndex - 1]);
-				LastTangent = (2.f * FVector::DotProduct(LastTangent, PrevToLastTangent)) * LastTangent - PrevToLastTangent;
+				FVector3f& LastTangent = reinterpret_cast<FVector3f&>(DynamicData->TangentAndDistances[EndIndex]);
+				FVector3f& PrevToLastTangent = reinterpret_cast<FVector3f&>(DynamicData->TangentAndDistances[EndIndex - 1]);
+				LastTangent = (2.f * FVector3f::DotProduct(LastTangent, PrevToLastTangent)) * LastTangent - PrevToLastTangent;
 			}
 
 			// Add segment data
@@ -1464,7 +1464,7 @@ void FNiagaraRendererRibbons::GetDynamicRayTracingInstances(FRayTracingMaterialG
 			RayTracingInstance.Materials,
 			false,
 			VertexCount,
-			VertexCount * (uint32)sizeof(FVector),
+			VertexCount * (uint32)sizeof(FVector3f),
 			MeshBatch.Elements[0].NumPrimitives,
 			&RayTracingGeometry,
 			VertexBuffer,

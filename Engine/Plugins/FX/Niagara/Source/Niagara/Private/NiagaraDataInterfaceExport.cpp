@@ -511,9 +511,9 @@ void UNiagaraDataInterfaceExport::StoreData(FVectorVMContext& Context)
 	VectorVM::FUserPtrHandler<FNDIExportInstanceData_GameThread> InstData(Context);
 
 	FNDIInputParam<FNiagaraBool> StoreDataParam(Context);
-	FNDIInputParam<FVector> PositionParam(Context);
+	FNDIInputParam<FVector3f> PositionParam(Context);
 	FNDIInputParam<float> SizeParam(Context);
-	FNDIInputParam<FVector> VelocityParam(Context);
+	FNDIInputParam<FVector3f> VelocityParam(Context);
 
 	FNDIOutputParam<FNiagaraBool> OutSample(Context);
 
@@ -543,9 +543,9 @@ void UNiagaraDataInterfaceExport::ExportData(FVectorVMContext& Context)
 	VectorVM::FUserPtrHandler<FNDIExportInstanceData_GameThread> InstData(Context);
 
 	FNDIInputParam<FNiagaraBool> StoreDataParam(Context);
-	FNDIInputParam<FVector> PositionParam(Context);
+	FNDIInputParam<FVector3f> PositionParam(Context);
 	FNDIInputParam<float> SizeParam(Context);
-	FNDIInputParam<FVector> VelocityParam(Context);
+	FNDIInputParam<FVector3f> VelocityParam(Context);
 
 	FNDIOutputParam<FNiagaraBool> OutWasExported(Context);
 

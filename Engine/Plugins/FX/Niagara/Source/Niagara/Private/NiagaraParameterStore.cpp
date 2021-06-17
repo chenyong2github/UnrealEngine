@@ -427,7 +427,7 @@ void FNiagaraParameterStore::CheckForNaNs()const
 		else if (Var.GetType() == FNiagaraTypeDefinition::GetMatrix4Def())
 		{
 			FMatrix Val;
-			FMemory::Memcpy(&Val, GetParameterData(Offset), sizeof(FMatrix));
+			FMemory::Memcpy(&Val, GetParameterData(Offset), sizeof(FMatrix44f));
 			bContainsNans = Val.ContainsNaN();
 		}
 
