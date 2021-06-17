@@ -2,9 +2,30 @@
 
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Interfaces/TypedElementHierarchyInterface.h"
 
+#include "UObject/GCObjectScopeGuard.h"
 #include "Serialization/ObjectReader.h"
 #include "Serialization/ObjectWriter.h"
+
+void FTypedElementSelectionCustomization::GetNormalizedElements(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const UTypedElementList* InSelectionSet, const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, UTypedElementList* OutNormalizedElements)
+{
+	// Don't include this element in the normalized selection if it has a parent element that is also selected
+	{
+		FTypedElementHandle ElementToTest = InElementSelectionHandle;
+		while (TTypedElement<UTypedElementHierarchyInterface> ElementHierarchyHandle = InSelectionSet->GetElement<UTypedElementHierarchyInterface>(ElementToTest))
+		{
+			ElementToTest = ElementHierarchyHandle.GetParentElement();
+			if (ElementToTest && InSelectionSet->Contains(ElementToTest))
+			{
+				return;
+			}
+		}
+	}
+
+	OutNormalizedElements->Add(InElementSelectionHandle);
+}
+
 
 UTypedElementSelectionSet::UTypedElementSelectionSet()
 {
@@ -144,8 +165,33 @@ bool UTypedElementSelectionSet::CanDeselectElement(const FTypedElementHandle& In
 
 bool UTypedElementSelectionSet::SelectElement(const FTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions)
 {
-	FTypedElementSelectionSetElement SelectionSetElement = ResolveSelectionSetElement(InElementHandle);
-	return SelectionSetElement && SelectionSetElement.CanSelectElement(InSelectionOptions) && SelectionSetElement.SelectElement(InSelectionOptions);
+	bool bSelectionChanged = false;
+
+	if (FTypedElementSelectionSetElement SelectionSetElement = ResolveSelectionSetElement(InElementHandle))
+	{
+		if (SelectionSetElement.CanSelectElement(InSelectionOptions))
+		{
+			bSelectionChanged |= SelectionSetElement.SelectElement(InSelectionOptions);
+		}
+	}
+
+	if (InSelectionOptions.GetChildElementInclusionMethod() != ETypedElementChildInclusionMethod::None)
+	{
+		if (TTypedElement<UTypedElementHierarchyInterface> ElementHierarchyHandle = ElementList->GetElement<UTypedElementHierarchyInterface>(InElementHandle))
+		{
+			const FTypedElementSelectionOptions ChildSelectionOptions = FTypedElementSelectionOptions(InSelectionOptions)
+				.SetChildElementInclusionMethod(InSelectionOptions.GetChildElementInclusionMethod() == ETypedElementChildInclusionMethod::Immediate ? ETypedElementChildInclusionMethod::None : InSelectionOptions.GetChildElementInclusionMethod());
+
+			TArray<FTypedElementHandle> ChildElementHandles;
+			ElementHierarchyHandle.GetChildElements(ChildElementHandles, /*bAllowCreate*/true);
+			for (const FTypedElementHandle& ChildElementHandle : ChildElementHandles)
+			{
+				SelectElement(ChildElementHandle, ChildSelectionOptions);
+			}
+		}
+	}
+
+	return bSelectionChanged;
 }
 
 bool UTypedElementSelectionSet::SelectElements(const TArray<FTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions)
@@ -169,8 +215,33 @@ bool UTypedElementSelectionSet::SelectElements(TArrayView<const FTypedElementHan
 
 bool UTypedElementSelectionSet::DeselectElement(const FTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions)
 {
-	FTypedElementSelectionSetElement SelectionSetElement = ResolveSelectionSetElement(InElementHandle);
-	return SelectionSetElement && SelectionSetElement.CanDeselectElement(InSelectionOptions) && SelectionSetElement.DeselectElement(InSelectionOptions);
+	bool bSelectionChanged = false;
+
+	if (FTypedElementSelectionSetElement SelectionSetElement = ResolveSelectionSetElement(InElementHandle))
+	{
+		if (SelectionSetElement.CanDeselectElement(InSelectionOptions))
+		{
+			bSelectionChanged |= SelectionSetElement.DeselectElement(InSelectionOptions);
+		}
+	}
+
+	if (InSelectionOptions.GetChildElementInclusionMethod() != ETypedElementChildInclusionMethod::None)
+	{
+		if (TTypedElement<UTypedElementHierarchyInterface> ElementHierarchyHandle = ElementList->GetElement<UTypedElementHierarchyInterface>(InElementHandle))
+		{
+			const FTypedElementSelectionOptions ChildSelectionOptions = FTypedElementSelectionOptions(InSelectionOptions)
+				.SetChildElementInclusionMethod(InSelectionOptions.GetChildElementInclusionMethod() == ETypedElementChildInclusionMethod::Immediate ? ETypedElementChildInclusionMethod::None : InSelectionOptions.GetChildElementInclusionMethod());
+
+			TArray<FTypedElementHandle> ChildElementHandles;
+			ElementHierarchyHandle.GetChildElements(ChildElementHandles, /*bAllowCreate*/false);
+			for (const FTypedElementHandle& ChildElementHandle : ChildElementHandles)
+			{
+				DeselectElement(ChildElementHandle, ChildSelectionOptions);
+			}
+		}
+	}
+
+	return bSelectionChanged;
 }
 
 bool UTypedElementSelectionSet::DeselectElements(const TArray<FTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions)
@@ -249,6 +320,37 @@ FTypedElementHandle UTypedElementSelectionSet::GetSelectionElement(const FTypedE
 {
 	FTypedElementSelectionSetElement SelectionSetElement = ResolveSelectionSetElement(InElementHandle);
 	return SelectionSetElement ? SelectionSetElement.GetSelectionElement(InSelectionMethod) : FTypedElementHandle();
+}
+
+UTypedElementList* UTypedElementSelectionSet::GetNormalizedSelection(const FTypedElementSelectionNormalizationOptions InNormalizationOptions) const
+{
+	return GetNormalizedElementList(ElementList, InNormalizationOptions);
+}
+
+void UTypedElementSelectionSet::GetNormalizedSelection(const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, UTypedElementList* OutNormalizedElements) const
+{
+	GetNormalizedElementList(ElementList, InNormalizationOptions, OutNormalizedElements);
+}
+
+UTypedElementList* UTypedElementSelectionSet::GetNormalizedElementList(const UTypedElementList* InElementList, const FTypedElementSelectionNormalizationOptions InNormalizationOptions) const
+{
+	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
+	TGCObjectScopeGuard<UTypedElementList> NormalizedElementList(Registry->CreateElementList());
+	GetNormalizedElementList(InElementList, InNormalizationOptions, NormalizedElementList.Get());
+	return NormalizedElementList.Get();
+}
+
+void UTypedElementSelectionSet::GetNormalizedElementList(const UTypedElementList* InElementList, const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, UTypedElementList* OutNormalizedElements) const
+{
+	OutNormalizedElements->Reset();
+	InElementList->ForEachElement<UTypedElementSelectionInterface>([this, InElementList, &InNormalizationOptions, OutNormalizedElements](const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle)
+	{
+		// Note: FTypedElementSelectionSetElement needs a non-const UTypedElementList, but we won't call anything that will modify it...
+		FTypedElementSelectionSetElement SelectionSetElement(InElementSelectionHandle, const_cast<UTypedElementList*>(InElementList), GetInterfaceCustomizationByTypeId(InElementSelectionHandle.GetId().GetTypeId()));
+		check(SelectionSetElement.IsSet());
+		SelectionSetElement.GetNormalizedElements(InNormalizationOptions, OutNormalizedElements);
+		return true;
+	});
 }
 
 FTypedElementSelectionSetState UTypedElementSelectionSet::GetCurrentSelectionState() const

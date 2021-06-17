@@ -37,6 +37,30 @@ bool UActorElementWorldInterface::GetBounds(const FTypedElementHandle& InElement
 	return false;
 }
 
+bool UActorElementWorldInterface::CanMoveElement(const FTypedElementHandle& InElementHandle, const ETypedElementWorldType InWorldType)
+{
+	if (const AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementHandle))
+	{
+#if WITH_EDITOR
+		// The actor cannot be location locked
+		if (InWorldType == ETypedElementWorldType::Editor && Actor->IsLockLocation())
+		{
+			return false;
+		}
+#endif	// WITH_EDITOR
+
+		// If the actor has a root component, but it cannot be moved, then the actor cannot move.
+		if (InWorldType == ETypedElementWorldType::Game && Actor->GetRootComponent() && !Actor->IsRootComponentMovable())
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 bool UActorElementWorldInterface::GetWorldTransform(const FTypedElementHandle& InElementHandle, FTransform& OutTransform)
 {
 	if (const AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementHandle))

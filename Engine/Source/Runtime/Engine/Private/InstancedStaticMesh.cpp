@@ -36,6 +36,7 @@
 
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/SMInstance/SMInstanceElementData.h"
+#include "Elements/Interfaces/TypedElementWorldInterface.h"
 
 #if RHI_RAYTRACING
 #include "RayTracingInstance.h"
@@ -1911,6 +1912,19 @@ TStructOnScope<FActorComponentInstanceData> UInstancedStaticMeshComponent::GetCo
 	StaticMeshInstanceData->InstancingRandomSeed = InstancingRandomSeed;
 #endif
 	return InstanceData;
+}
+
+void UInstancedStaticMeshComponent::GetComponentChildElements(TArray<FTypedElementHandle>& OutElementHandles, const bool bAllowCreate)
+{
+#if WITH_EDITOR
+	for (int32 InstanceIndex = 0; InstanceIndex < PerInstanceSMData.Num(); ++InstanceIndex)
+	{
+		if (FTypedElementHandle ElementHandle = UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(this, InstanceIndex, bAllowCreate))
+		{
+			OutElementHandles.Add(MoveTemp(ElementHandle));
+		}
+	}
+#endif	// WITH_EDITOR
 }
 
 void UInstancedStaticMeshComponent::ApplyComponentInstanceData(FInstancedStaticMeshComponentInstanceData* InstancedMeshData)
@@ -3958,6 +3972,12 @@ bool UInstancedStaticMeshComponent::CanEditSMInstance(const FSMInstanceId& Insta
 {
 	check(InstanceId.ISMComponent == this);
 	return IsEditableWhenInherited();
+}
+
+bool UInstancedStaticMeshComponent::CanMoveSMInstance(const FSMInstanceId& InstanceId, const ETypedElementWorldType InWorldType) const
+{
+	check(InstanceId.ISMComponent == this);
+	return InWorldType == ETypedElementWorldType::Editor || InstanceId.ISMComponent->Mobility == EComponentMobility::Movable;
 }
 
 bool UInstancedStaticMeshComponent::GetSMInstanceTransform(const FSMInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace) const

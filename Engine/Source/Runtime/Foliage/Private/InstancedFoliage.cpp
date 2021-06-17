@@ -5196,6 +5196,18 @@ bool AInstancedFoliageActor::CanEditSMInstance(const FSMInstanceId& InstanceId) 
 #endif
 }
 
+bool AInstancedFoliageActor::CanMoveSMInstance(const FSMInstanceId& InstanceId, const ETypedElementWorldType InWorldType) const
+{
+#if WITH_EDITOR
+	const FFoliageInfo* FoliageInfo = GetFoliageInfoForSMInstance(InstanceId);
+	check(FoliageInfo);
+
+	return true;
+#else
+	return false;
+#endif
+}
+
 bool AInstancedFoliageActor::GetSMInstanceTransform(const FSMInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace) const
 {
 #if WITH_EDITOR

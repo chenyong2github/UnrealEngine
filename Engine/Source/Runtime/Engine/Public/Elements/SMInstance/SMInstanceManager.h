@@ -8,6 +8,8 @@
 #include "Elements/SMInstance/SMInstanceElementId.h"
 #include "SMInstanceManager.generated.h"
 
+enum class ETypedElementWorldType : uint8;
+
 /**
  * An interface for actors that manage static mesh instances.
  * This exists so that actors that directly manage instances can inject custom logic around the manipulation of the underlying ISM component.
@@ -28,6 +30,12 @@ public:
 	 * @return True if it can be edited, false otherwise.
 	 */
 	virtual bool CanEditSMInstance(const FSMInstanceId& InstanceId) const = 0;
+
+	/**
+	 * Can the given static mesh instance be moved in the world?
+	 * @return True if it can be moved, false otherwise.
+	 */
+	virtual bool CanMoveSMInstance(const FSMInstanceId& InstanceId, const ETypedElementWorldType InWorldType) const = 0;
 
 	/**
 	 * Attempt to get the transform of the given static mesh instance.
@@ -164,6 +172,7 @@ public:
 
 	//~ ISMInstanceManager interface
 	bool CanEditSMInstance() const { return InstanceManager->CanEditSMInstance(InstanceId); }
+	bool CanMoveSMInstance(const ETypedElementWorldType InWorldType) const { return InstanceManager->CanMoveSMInstance(InstanceId, InWorldType); }
 	bool GetSMInstanceTransform(FTransform& OutInstanceTransform, bool bWorldSpace = false) const { return InstanceManager->GetSMInstanceTransform(InstanceId, OutInstanceTransform, bWorldSpace); }
 	bool SetSMInstanceTransform(const FTransform& InstanceTransform, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false) const { return InstanceManager->SetSMInstanceTransform(InstanceId, InstanceTransform, bWorldSpace, bMarkRenderStateDirty, bTeleport); }
 	void NotifySMInstanceMovementStarted() { return InstanceManager->NotifySMInstanceMovementStarted(InstanceId); }

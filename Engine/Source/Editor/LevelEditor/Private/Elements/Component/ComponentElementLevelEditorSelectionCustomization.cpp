@@ -2,8 +2,10 @@
 
 #include "Elements/Component/ComponentElementLevelEditorSelectionCustomization.h"
 #include "Elements/Component/ComponentElementData.h"
-#include "GameFramework/Actor.h"
 #include "Components/ActorComponent.h"
+
+#include "Elements/Actor/ActorElementLevelEditorSelectionCustomization.h"
+#include "GameFramework/Actor.h"
 
 #include "Elements/Framework/TypedElementList.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
@@ -79,6 +81,49 @@ FTypedElementHandle FComponentElementLevelEditorSelectionCustomization::GetSelec
 		}
 	}
 	return InElementSelectionHandle;
+}
+
+void FComponentElementLevelEditorSelectionCustomization::GetNormalizedElements(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const UTypedElementList* InSelectionSet, const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, UTypedElementList* OutNormalizedElements)
+{
+	UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementSelectionHandle);
+
+	if (USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
+	{
+		if (AActor* ComponentOwner = SceneComponent->GetOwner())
+		{
+#if DO_CHECK
+			{
+				FTypedElementHandle ComponentOwnerElementHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(ComponentOwner, /*bAllowCreate*/false);
+				const bool bIsOwnerSelected = ComponentOwnerElementHandle && InSelectionSet->Contains(ComponentOwnerElementHandle);
+				ensureMsgf(bIsOwnerSelected, TEXT("Owner(%s) of %s is not selected"), *ComponentOwner->GetFullName(), *Component->GetFullName());
+			}
+#endif	// DO_CHECK
+
+			if (InNormalizationOptions.FollowAttachment())
+			{
+				if (ComponentOwner->GetRootComponent() == SceneComponent)
+				{
+					// If it is a root component, use the parent actor instead
+					FActorElementLevelEditorSelectionCustomization::AppendNormalizedActors(ComponentOwner, InSelectionSet, InNormalizationOptions, OutNormalizedElements);
+					return;
+				}
+				else
+				{
+					// Check to see if any parent is selected
+					for (USceneComponent* Parent = SceneComponent->GetAttachParent(); Parent; Parent = Parent->GetAttachParent())
+					{
+						FTypedElementHandle ParentElementHandle = UEngineElementsLibrary::AcquireEditorComponentElementHandle(Parent, /*bAllowCreate*/false);
+						if (ParentElementHandle && InSelectionSet->Contains(ParentElementHandle))
+						{
+							return;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	OutNormalizedElements->Add(InElementSelectionHandle);
 }
 
 bool FComponentElementLevelEditorSelectionCustomization::CanSelectComponentElement(const TTypedElement<UTypedElementSelectionInterface>& InComponentSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions) const

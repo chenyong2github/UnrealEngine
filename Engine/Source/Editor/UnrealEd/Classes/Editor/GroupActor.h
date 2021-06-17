@@ -13,6 +13,7 @@
 
 class FLevelEditorViewportClient;
 class FViewport;
+class UTypedElementList;
 class UTypedElementSelectionSet;
 
 UCLASS(hidedropdown,MinimalAPI, notplaceable, NotBlueprintable)
@@ -57,14 +58,14 @@ class AGroupActor : public AActor
 	 * Enumerate all actors and subgroups for this group (includes this).
 	 * @param InCallback		The function to call for each actor
 	 */
-	UNREALED_API void ForEachActorInGroup(TFunctionRef<void(AActor*)> InCallback);
+	UNREALED_API void ForEachActorInGroup(TFunctionRef<void(AActor*, AGroupActor*)> InCallback);
 
 	/**
 	 * Enumerate all actors and subgroups for this group that should be moved alongside this actor (includes this).
 	 * @param InSelectionSet	The selection set to use, or null to use the global selection set
 	 * @param InCallback		The function to call for each movable actor
 	 */
-	UNREALED_API void ForEachMovableActorInGroup(const UTypedElementSelectionSet* InSelectionSet, TFunctionRef<void(AActor*)> InCallback);
+	UNREALED_API void ForEachMovableActorInGroup(const UTypedElementSelectionSet* InSelectionSet, TFunctionRef<void(AActor*, AGroupActor*)> InCallback);
 	
 	/**
 	 * Apply given deltas to all actors and subgroups for this group.
@@ -223,5 +224,10 @@ private:
 	void PostRemove();
 };
 
+namespace GroupActorHelpers
+{
 
+UNREALED_API bool ActorHasParentInGroup(const AActor* Actor, const AGroupActor* GroupActor);
+UNREALED_API bool ActorHasParentInSelection(const AActor* Actor, const UTypedElementList* SelectionSet);
 
+} // namespace GroupActorHelpers

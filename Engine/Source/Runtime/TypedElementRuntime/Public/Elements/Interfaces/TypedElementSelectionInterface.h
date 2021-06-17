@@ -10,10 +10,21 @@ class UTypedElementList;
 UENUM()
 enum class ETypedElementSelectionMethod : uint8
 {
-	/** Select the "primary" element (eg, a component favor selecting its owner actor) */
+	/** Select the "primary" element (eg, a component would favor selecting its owner actor) */
 	Primary,
 	/** Select the "secondary" element (eg, a component would favor selecting itself) */
 	Secondary,
+};
+
+UENUM()
+enum class ETypedElementChildInclusionMethod : uint8
+{
+	/** Do not include child elements */
+	None,
+	/** Include the immediate child elements, but do not recurse */
+	Immediate,
+	/** Include the immediate child elements, and recurse into their children too */
+	Recursive,
 };
 
 USTRUCT(BlueprintType)
@@ -47,6 +58,9 @@ public:
 
 	FTypedElementSelectionOptions& SetWarnIfLocked(const bool InWarnIfLocked) { bWarnIfLocked = InWarnIfLocked; return *this; }
 	bool WarnIfLocked() const { return bWarnIfLocked; }
+
+	FTypedElementSelectionOptions& SetChildElementInclusionMethod(const ETypedElementChildInclusionMethod InChildElementInclusionMethod) { ChildElementInclusionMethod = InChildElementInclusionMethod; return *this; }
+	ETypedElementChildInclusionMethod GetChildElementInclusionMethod() const { return ChildElementInclusionMethod; }
 	
 private:
 	UPROPERTY(BlueprintReadWrite, Category="TypedElementInterfaces|Selection|SelectionOptions", meta=(AllowPrivateAccess=true))
@@ -60,6 +74,9 @@ private:
 
 	UPROPERTY(BlueprintReadWrite, Category="TypedElementInterfaces|Selection|SelectionOptions", meta=(AllowPrivateAccess=true))
 	bool bWarnIfLocked = false;
+
+	UPROPERTY(BlueprintReadWrite, Category="TypedElementInterfaces|Selection|SelectionOptions", meta=(AllowPrivateAccess=true))
+	ETypedElementChildInclusionMethod ChildElementInclusionMethod = ETypedElementChildInclusionMethod::None;
 };
 
 class ITypedElementTransactedElement

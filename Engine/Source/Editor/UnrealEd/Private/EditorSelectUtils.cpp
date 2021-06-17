@@ -332,8 +332,8 @@ void UUnrealEdEngine::UpdatePivotLocationForSelection( bool bOnChange )
 	ElementsToManipulate->ForEachElement<UTypedElementWorldInterface>([&SingleWorldElement](const TTypedElement<UTypedElementWorldInterface>& InWorldElement)
 	{
 #if DO_CHECK
+		if (ULevel* OwnerLevel = InWorldElement.GetOwnerLevel())
 		{
-			ULevel* OwnerLevel = InWorldElement.GetOwnerLevel();
 			const bool bIsTemplate = InWorldElement.IsTemplateElement();
 			const bool bLevelLocked = FLevelUtils::IsLevelLocked(OwnerLevel);
 			check(bIsTemplate || !bLevelLocked);

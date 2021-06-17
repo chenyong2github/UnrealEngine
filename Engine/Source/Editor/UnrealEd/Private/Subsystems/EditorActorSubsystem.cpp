@@ -530,17 +530,28 @@ bool UEditorActorSubsystem::DestroyActors(const TArray<AActor*>& ActorsToDestroy
 
 	FEditorDelegates::OnDeleteActorsBegin.Broadcast();
 	
-	TArray<FTypedElementHandle> ActorHandles;
-	ActorHandles.Reserve(ActorsToDestroy.Num());
-	for (AActor* ActorToDestroy : ActorsToDestroy)
-	{
-		ActorHandles.Add(UEngineElementsLibrary::AcquireEditorActorElementHandle(ActorToDestroy));
-	}
-
-	//To avoid dangling gizmo after actors have been destroyed
+	// Make sure these actors are no longer selected
 	USelection* ActorSelection = GEditor->GetSelectedActors();
-	UTypedElementSelectionSet* SelectionSet = ActorSelection->GetElementSelectionSet();
-	SelectionSet->DeselectElements(ActorHandles, FTypedElementSelectionOptions());
+	if (UTypedElementSelectionSet* SelectionSet = ActorSelection->GetElementSelectionSet())
+	{
+		TArray<FTypedElementHandle> ActorHandles;
+		ActorHandles.Reserve(ActorsToDestroy.Num());
+		for (AActor* ActorToDestroy : ActorsToDestroy)
+		{
+			if (FTypedElementHandle ActorHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(ActorToDestroy, /*bAllowCreate*/false))
+			{
+				ActorHandles.Add(ActorHandle);
+			}
+		}
+	
+		const FTypedElementSelectionOptions SelectionOptions = FTypedElementSelectionOptions()
+			.SetAllowHidden(true)
+			.SetAllowGroups(false)
+			.SetWarnIfLocked(false)
+			.SetChildElementInclusionMethod(ETypedElementChildInclusionMethod::Recursive);
+
+		SelectionSet->DeselectElements(ActorHandles, SelectionOptions);
+	}
 
 	ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
 	Layers->DisassociateActorsFromLayers(ActorsToDestroy);

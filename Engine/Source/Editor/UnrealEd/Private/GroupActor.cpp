@@ -103,13 +103,13 @@ bool AGroupActor::IsSelected() const
 	return (IsLocked() && HasSelectedActors()) || Super::IsSelected();
 }
 
-void AGroupActor::ForEachActorInGroup(TFunctionRef<void(AActor*)> InCallback)
+void AGroupActor::ForEachActorInGroup(TFunctionRef<void(AActor*, AGroupActor*)> InCallback)
 {
 	for (AActor* Actor : GroupActors)
 	{
 		if (Actor)
 		{
-			InCallback(Actor);
+			InCallback(Actor, this);
 		}
 	}
 	for (AGroupActor* SubGroup : SubGroups)
@@ -119,19 +119,19 @@ void AGroupActor::ForEachActorInGroup(TFunctionRef<void(AActor*)> InCallback)
 			SubGroup->ForEachActorInGroup(InCallback);
 		}
 	}
-	InCallback(this);
+	InCallback(this, this);
 }
 
 namespace GroupActorHelpers
 {
 
-bool ActorHasParentInGroup(const TArray<AActor*>& GroupActors, const AActor* Actor)
+bool ActorHasParentInGroup(const AActor* Actor, const AGroupActor* GroupActor)
 {
-	check(Actor);
+	check(Actor && GroupActor);
 	// Check that we've not got a parent attachment within the group.
 	if (USceneComponent* RootComponent = Actor->GetRootComponent())
 	{
-		for (const AActor* OtherActor : GroupActors)
+		for (const AActor* OtherActor : GroupActor->GroupActors)
 		{
 			if (OtherActor && OtherActor != Actor)
 			{
@@ -147,7 +147,7 @@ bool ActorHasParentInGroup(const TArray<AActor*>& GroupActors, const AActor* Act
 	return false;
 }
 
-bool ActorHasParentInSelection(const AActor* Actor, const UTypedElementSelectionSet* SelectionSet)
+bool ActorHasParentInSelection(const AActor* Actor, const UTypedElementList* SelectionSet)
 {
 	check(Actor);
 	if (SelectionSet)
@@ -155,7 +155,7 @@ bool ActorHasParentInSelection(const AActor* Actor, const UTypedElementSelection
 		for (const AActor* ParentActor = Actor->GetAttachParentActor(); ParentActor; ParentActor = ParentActor->GetAttachParentActor())
 		{
 			FTypedElementHandle ParentActorElementHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(ParentActor, /*bAllowCreate*/false);
-			if (ParentActorElementHandle && SelectionSet->IsElementSelected(ParentActorElementHandle, FTypedElementIsSelectedOptions()))
+			if (ParentActorElementHandle && SelectionSet->Contains(ParentActorElementHandle))
 			{
 				return true;
 			}
@@ -166,7 +166,7 @@ bool ActorHasParentInSelection(const AActor* Actor, const UTypedElementSelection
 
 } // namespace GroupActorHelpers
 
-void AGroupActor::ForEachMovableActorInGroup(const UTypedElementSelectionSet* InSelectionSet, TFunctionRef<void(AActor*)> InCallback)
+void AGroupActor::ForEachMovableActorInGroup(const UTypedElementSelectionSet* InSelectionSet, TFunctionRef<void(AActor*, AGroupActor*)> InCallback)
 {
 	const UTypedElementSelectionSet* SelectionSet = InSelectionSet ? InSelectionSet : GEditor->GetSelectedActors()->GetElementSelectionSet();
 	for (AActor* Actor : GroupActors)
@@ -174,10 +174,10 @@ void AGroupActor::ForEachMovableActorInGroup(const UTypedElementSelectionSet* In
 		if (Actor)
 		{
 			// Check that we've not got a parent attachment within the group/selection
-			const bool bCanApplyDelta = !GroupActorHelpers::ActorHasParentInGroup(GroupActors, Actor) && !GroupActorHelpers::ActorHasParentInSelection(Actor, SelectionSet);
+			const bool bCanApplyDelta = !GroupActorHelpers::ActorHasParentInGroup(Actor, this) && !GroupActorHelpers::ActorHasParentInSelection(Actor, SelectionSet->GetElementList());
 			if (bCanApplyDelta)
 			{
-				InCallback(Actor);
+				InCallback(Actor, this);
 			}
 		}
 	}
@@ -188,14 +188,14 @@ void AGroupActor::ForEachMovableActorInGroup(const UTypedElementSelectionSet* In
 			SubGroup->ForEachMovableActorInGroup(SelectionSet, InCallback);
 		}
 	}
-	InCallback(this);
+	InCallback(this, this);
 }
 
 void AGroupActor::GroupApplyDelta(const FVector& InDrag, const FRotator& InRot, const FVector& InScale )
 {
-	ForEachMovableActorInGroup(nullptr, [&InDrag, &InRot, &InScale](AActor* InActor)
+	ForEachMovableActorInGroup(nullptr, [&InDrag, &InRot, &InScale](AActor* InGroupedActor, AGroupActor* InGroupActor)
 	{
-		GEditor->ApplyDeltaToActor(InActor, true, &InDrag, &InRot, &InScale);
+		GEditor->ApplyDeltaToActor(InGroupActor, true, &InDrag, &InRot, &InScale);
 	});
 }
 

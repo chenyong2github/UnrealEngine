@@ -10,6 +10,13 @@ class UWorld;
 class UTypedElementSelectionSet;
 struct FCollisionShape;
 
+UENUM()
+enum class ETypedElementWorldType : uint8
+{
+	Game,
+	Editor,
+};
+
 USTRUCT(BlueprintType)
 struct FTypedElementDeletionOptions
 {
@@ -71,6 +78,12 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|World")
 	virtual bool GetBounds(const FTypedElementHandle& InElementHandle, FBoxSphereBounds& OutBounds) { return false; }
+
+	/**
+	 * Can the given element be moved within the world?
+	 */
+	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|World")
+	virtual bool CanMoveElement(const FTypedElementHandle& InElementHandle, const ETypedElementWorldType InWorldType) { return false; }
 
 	/**
 	 * Get the transform of this element within its owner world, if any.
@@ -161,7 +174,7 @@ public:
 
 	/**
 	 * Delete the given set of elements.
-	 * @note If you want to delete an array of elements that are potentially different types, you probably want to use the higher-level UTypedElementCommonActions::DeleteElements function instead.
+	 * @note If you want to delete an array of elements that are potentially different types, you probably want to use the higher-level UTypedElementCommonActions::DeleteNormalizedElements function instead.
 	 */
 	virtual bool DeleteElements(TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions) { return false; }
 
@@ -185,7 +198,7 @@ public:
 
 	/**
 	 * Duplicate the given set of elements.
-	 * @note If you want to duplicate an array of elements that are potentially different types, you probably want to use the higher-level UTypedElementCommonActions::DuplicateElements function instead.
+	 * @note If you want to duplicate an array of elements that are potentially different types, you probably want to use the higher-level UTypedElementCommonActions::DuplicateNormalizedElements function instead.
 	 */
 	virtual void DuplicateElements(TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, const FVector& InLocationOffset, TArray<FTypedElementHandle>& OutNewElements)
 	{
@@ -200,6 +213,7 @@ struct TTypedElement<UTypedElementWorldInterface> : public TTypedElementBase<UTy
 	ULevel* GetOwnerLevel() const { return InterfacePtr->GetOwnerLevel(*this); }
 	UWorld* GetOwnerWorld() const { return InterfacePtr->GetOwnerWorld(*this); }
 	bool GetBounds(FBoxSphereBounds& OutBounds) const { return InterfacePtr->GetBounds(*this, OutBounds); }
+	bool CanMoveElement(const ETypedElementWorldType InWorldType) const { return InterfacePtr->CanMoveElement(*this, InWorldType); }
 	bool GetWorldTransform(FTransform& OutTransform) const { return InterfacePtr->GetWorldTransform(*this, OutTransform); }
 	bool SetWorldTransform(const FTransform& InTransform) const { return InterfacePtr->SetWorldTransform(*this, InTransform); }
 	bool GetRelativeTransform(FTransform& OutTransform) const { return InterfacePtr->GetRelativeTransform(*this, OutTransform); }
