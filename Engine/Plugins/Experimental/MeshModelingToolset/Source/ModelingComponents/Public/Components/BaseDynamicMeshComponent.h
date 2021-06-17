@@ -18,6 +18,7 @@
 struct FMeshDescription;
 class FMeshVertexChange;
 class FMeshChange;
+class FBaseDynamicMeshSceneProxy;
 using UE::Geometry::FDynamicMesh3;
 
 /**
@@ -57,7 +58,7 @@ enum class EDynamicMeshComponentTangentsMode : uint8
 /**
  * UBaseDynamicMeshComponent is a base interface for a UMeshComponent based on a UDynamicMesh.
  */
-UCLASS(Abstract, hidecategories = (LOD, Physics, Collision), ClassGroup = Rendering)
+UCLASS(Abstract, hidecategories = (LOD), ClassGroup = Rendering)
 class MODELINGCOMPONENTS_API UBaseDynamicMeshComponent : 
 	public UMeshComponent, 
 	public IToolFrameworkComponent, 
@@ -160,6 +161,16 @@ public:
 
 
 protected:
+
+	/**
+	 * Subclass must implement this to return scene proxy if available, or nullptr
+	 */
+	virtual FBaseDynamicMeshSceneProxy* GetBaseSceneProxy()
+	{
+		unimplemented();
+		return nullptr;
+	}
+
 	/**
 	 * Subclass must implement this to notify allocated proxies of updated materials
 	 */
@@ -167,7 +178,6 @@ protected:
 	{
 		unimplemented();
 	}
-
 
 
 
@@ -180,7 +190,7 @@ public:
 	 * if true, we always show the wireframe on top of the shaded mesh, even when not in wireframe mode
 	 * @todo: this should not be public, access via Set/Get once all usage is cleaned up
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Mesh Component")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Mesh Component", meta = (DisplayName = "Wireframe Overlay") )
 	bool bExplicitShowWireframe = false;
 
 	/**
@@ -196,6 +206,19 @@ public:
 	virtual bool GetEnableWireframeRenderPass() const { return bExplicitShowWireframe; }
 
 
+
+	//===============================================================================================================
+	// API for changing Rendering settings. Although some of these settings are available publicly
+	// on the Component (in some cases as public members), generally changing them requires more complex 
+	// Rendering invalidation.
+	//
+public:
+
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
+	virtual void SetShadowsEnabled(bool bEnabled);
+
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
+	virtual bool GetShadowsEnabled() const { return CastShadow; }
 
 
 

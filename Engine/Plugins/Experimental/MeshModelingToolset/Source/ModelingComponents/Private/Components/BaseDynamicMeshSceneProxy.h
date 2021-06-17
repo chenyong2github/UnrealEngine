@@ -7,6 +7,10 @@
 #include "VertexFactory.h"
 #include "LocalVertexFactory.h"
 #include "PrimitiveViewRelevance.h"
+#include "Rendering/StaticMeshVertexBuffer.h"
+#include "Rendering/PositionVertexBuffer.h"
+#include "Rendering/ColorVertexBuffer.h"
+#include "DynamicMeshBuilder.h"
 #include "Components/BaseDynamicMeshComponent.h"
 
 using UE::Geometry::FDynamicMesh3;

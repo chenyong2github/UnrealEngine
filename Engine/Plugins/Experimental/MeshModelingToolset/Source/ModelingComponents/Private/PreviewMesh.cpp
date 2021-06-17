@@ -187,6 +187,12 @@ void UPreviewMesh::EnableWireframe(bool bEnable)
 	DynamicMeshComponent->bExplicitShowWireframe = bEnable;
 }
 
+void UPreviewMesh::SetShadowsEnabled(bool bEnable)
+{
+	check(DynamicMeshComponent);
+	DynamicMeshComponent->SetShadowsEnabled(bEnable);
+}
+
 
 FTransform UPreviewMesh::GetTransform() const
 {

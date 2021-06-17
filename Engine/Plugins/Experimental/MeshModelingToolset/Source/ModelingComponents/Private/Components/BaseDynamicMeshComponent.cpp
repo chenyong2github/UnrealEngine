@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 
 #include "Components/BaseDynamicMeshComponent.h"
+#include "Components/BaseDynamicMeshSceneProxy.h"
 
 using namespace UE::Geometry;
 
@@ -9,6 +10,28 @@ UBaseDynamicMeshComponent::UBaseDynamicMeshComponent(const FObjectInitializer& O
 {
 }
 
+
+
+void UBaseDynamicMeshComponent::SetShadowsEnabled(bool bEnabled)
+{
+	// finish any drawing so that we can be certain our SceneProxy is no longer in use before we rebuild it below
+	FlushRenderingCommands();
+
+	SetCastShadow(bEnabled);
+	//bCastDynamicShadow = bEnabled;
+
+	// apparently SceneProxy has to be fully rebuilt to change shadow state
+
+	// this marks the SceneProxy for rebuild, but not immediately, and possibly allows bad things to happen
+	// before the end of the frame
+	//MarkRenderStateDirty();
+
+	// force immediate rebuild of the SceneProxy
+	if (IsRegistered())
+	{
+		ReregisterComponent();
+	}
+}
 
 
 void UBaseDynamicMeshComponent::SetOverrideRenderMaterial(UMaterialInterface* Material)

@@ -235,6 +235,9 @@ void UMeshSculptToolBase::Render(IToolsContextRenderAPI* RenderAPI)
 
 void UMeshSculptToolBase::InitializeSculptMeshComponent(UBaseDynamicMeshComponent* Component)
 {
+	// disable shadows initially, as changing shadow settings invalidates the SceneProxy
+	Component->SetShadowsEnabled(false);
+
 	Component->SetupAttachment(UE::ToolTarget::GetTargetActor(Target)->GetRootComponent());
 	Component->RegisterComponent();
 
@@ -957,7 +960,7 @@ void UMeshSculptToolBase::UpdateMaterialMode(EMeshEditingMaterialModes MaterialM
 	if (MaterialMode == EMeshEditingMaterialModes::ExistingMaterial)
 	{
 		GetSculptMeshComponent()->ClearOverrideRenderMaterial();
-		GetSculptMeshComponent()->bCastDynamicShadow = UE::ToolTarget::GetTargetComponent(Target)->bCastDynamicShadow;
+		GetSculptMeshComponent()->SetShadowsEnabled(UE::ToolTarget::GetTargetComponent(Target)->bCastDynamicShadow);
 		ActiveOverrideMaterial = nullptr;
 	}
 	else
@@ -1021,7 +1024,7 @@ void UMeshSculptToolBase::UpdateMaterialMode(EMeshEditingMaterialModes MaterialM
 			ActiveOverrideMaterial->SetScalarParameterValue(TEXT("FlatShading"), (ViewProperties->bFlatShading) ? 1.0f : 0.0f);
 		}
 
-		GetSculptMeshComponent()->bCastDynamicShadow = false;
+		GetSculptMeshComponent()->SetShadowsEnabled(false);
 	}
 }
 
