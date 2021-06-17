@@ -166,11 +166,8 @@ void FTextureDerivedDataBuildExporter::ExportTextureBuild(const UTexture& Textur
 
 	UE::DerivedData::FBuildActionBuilder ActionBuilder = DerivedDataBuild->CreateAction(TexturePath, BuildFunctionName);
 
-	ComposeTextureBuildFunctionConstants(KeySuffix, Texture, BuildSettings, LayerIndex, NumInlineMips, 
-		[&ActionBuilder] (FStringView Key, const FCbObject& Value)
-		{
-			ActionBuilder.AddConstant(Key, Value);
-		});
+	ActionBuilder.AddConstant(TEXT("Settings"_SV),
+		SaveTextureBuildSettings(KeySuffix, Texture, BuildSettings, LayerIndex, NumInlineMips));
 
 	ActionBuilder.AddInput(Texture.Source.GetId().ToString(), ExportedTextureBulkDataHash, ExportedTextureBulkDataSize);
 	if ((bool)Texture.CompositeTexture && !ExportedCompositeTextureBulkDataHash.IsZero())

@@ -269,6 +269,15 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 }
 
 /**
+ * Returns the texture derived data version.
+ */
+const FGuid& GetTextureDerivedDataVersion()
+{
+	static FGuid Version(TEXTURE_DERIVEDDATA_VER);
+	return Version;
+}
+
+/**
  * Constructs a derived data key from the key suffix.
  * @param KeySuffix - The key suffix.
  * @param OutKey - The full derived data key.
