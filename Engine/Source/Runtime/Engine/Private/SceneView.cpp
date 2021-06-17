@@ -951,6 +951,15 @@ float FSceneView::GetTemporalLODTransition() const
 	return 0.0f;
 }
 
+uint32 FSceneView::GetDistanceFieldTemporalSampleIndex() const
+{
+	if (State)
+	{
+		return State->GetDistanceFieldTemporalSampleIndex();
+	}
+	return 0;
+}
+
 uint32 FSceneView::GetViewKey() const
 {
 	if (State)
