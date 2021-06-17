@@ -202,6 +202,9 @@ public:
 	/** Invalidates pages in a runtime virtual texture object. */
 	virtual void InvalidateRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component, FBoxSphereBounds const& WorldBounds) {}
 
+	/** Mark scene as needing to restart path tracer accumulation. */
+	virtual void InvalidatePathTracedOutput() {}
+
 	/** 
 	 * Retrieves primitive uniform shader parameters that are internal to the renderer.
 	 */

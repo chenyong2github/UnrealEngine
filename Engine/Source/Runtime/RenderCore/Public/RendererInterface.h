@@ -834,5 +834,8 @@ public:
 	 * The intended use is for stand-alone rendering that involves Scene proxies (that then may need the machinery to render GPU-Scene aware primitives.
 	 */
 	virtual IScenePrimitiveRenderingContext* BeginScenePrimitiveRendering(FRDGBuilder& GraphBuilder, FSceneViewFamily* ViewFamily) = 0;
+
+	/** Mark all the current scenes as needing to restart path tracer accumulation */
+	virtual void InvalidatePathTracedOutput() = 0;
 };
 

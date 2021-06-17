@@ -415,6 +415,12 @@ void GameThread_UpdateMIParameter(const UMaterialInstance* Instance, const Param
 	}
 }
 
+void FMaterialInstanceResource::RenderThread_SignalParameterChange() const
+{
+	// a material parameter changed - path tracer accumulation should be reset
+	GetRendererModule().InvalidatePathTracedOutput();
+}
+
 #if WITH_EDITOR
 template<typename ParameterType>
 static void RemapLayerParameterIndicesArray(TArray<ParameterType>& Parameters, const TArray<int32>& RemapLayerIndices)
