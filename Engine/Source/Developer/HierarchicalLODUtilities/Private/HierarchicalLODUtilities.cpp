@@ -436,7 +436,7 @@ bool FHierarchicalLODUtilities::BuildStaticMeshForLODActor(ALODActor* LODActor, 
 		return false;
 	}
 
-	TArray<UStaticMeshComponent*> AllImposters;
+	TArray<UStaticMeshComponent*> AllInstances;
 	if (LODSetup.MergeSetting.bIncludeImposters)
 	{			
 		// Retrieve all imposters.
@@ -446,13 +446,13 @@ bool FHierarchicalLODUtilities::BuildStaticMeshForLODActor(ALODActor* LODActor, 
 			{
 				if (LODActor->ShouldUseInstancing(StaticMeshComponent))
 				{
-					AllImposters.Add(StaticMeshComponent);
+					AllInstances.Add(StaticMeshComponent);
 				}
 			}
 		}
 
-		// Imposters won't be merged in the HLOD mesh
-		AllComponents.RemoveAll([&](UPrimitiveComponent* Component) { return AllImposters.Contains(Component); });
+		// Instances won't be merged in the HLOD mesh
+		AllComponents.RemoveAll([&](UPrimitiveComponent* Component) { return AllInstances.Contains(Component); });
 	}
 
 	if (AllComponents.Num() > 0)
@@ -598,54 +598,54 @@ bool FHierarchicalLODUtilities::BuildStaticMeshForLODActor(ALODActor* LODActor, 
 
 	// Add imposters
 	LODActor->ClearInstances();
-	if (AllImposters.Num() > 0)
+	if (AllInstances.Num() > 0)
 	{
-		struct FLODImposterBatch
+		struct FLODInstanceBatch
 		{
 			UStaticMesh*		StaticMesh;
 			TArray<FTransform>	Transforms;
 		};
 
-		// Get all meshes + transforms for all imposters type (per material)
-		TMap<FHLODInstancingKey, FLODImposterBatch> ImposterBatches;
-		for (UStaticMeshComponent* Imposter : AllImposters)
+		// Get all meshes + transforms for all instances type (per material)
+		TMap<FHLODInstancingKey, FLODInstanceBatch> InstancesBatches;
+		for (UStaticMeshComponent* SMC : AllInstances)
 		{
-			UStaticMesh* StaticMesh = Imposter->GetStaticMesh();
+			UStaticMesh* StaticMesh = SMC->GetStaticMesh();
 			check(StaticMesh);
 
-			UMaterialInterface* ImposterMaterial = GetImposterMaterial(Imposter);
+			UMaterialInterface* InstanceMaterial = GetImposterMaterial(SMC);
 
-			FHLODInstancingKey Key(Imposter->GetStaticMesh(), ImposterMaterial);
+			FHLODInstancingKey Key(SMC->GetStaticMesh(), InstanceMaterial);
 			check(Key.IsValid());
 
-			FLODImposterBatch& LODImposterBatch = ImposterBatches.FindOrAdd(Key);
+			FLODInstanceBatch& LODInstanceBatch = InstancesBatches.FindOrAdd(Key);
 
 			// If we have an ISMC, ensure we include all its instances
-			if (UInstancedStaticMeshComponent* InstancedSMC = Cast<UInstancedStaticMeshComponent>(Imposter))
+			if (UInstancedStaticMeshComponent* InstancedSMC = Cast<UInstancedStaticMeshComponent>(SMC))
 			{
 				FTransform ActorTransformWS = InstancedSMC->GetOwner()->GetActorTransform();
 
-				LODImposterBatch.Transforms.Reserve(LODImposterBatch.Transforms.Num() + InstancedSMC->GetInstanceCount());
+				LODInstanceBatch.Transforms.Reserve(LODInstanceBatch.Transforms.Num() + InstancedSMC->GetInstanceCount());
 				for (const FInstancedStaticMeshInstanceData& InstanceData : InstancedSMC->PerInstanceSMData)
 				{
 					FTransform InstanceTransformWS = FTransform(InstanceData.Transform) * ActorTransformWS;
-					LODImposterBatch.Transforms.Add(InstanceTransformWS);
+					LODInstanceBatch.Transforms.Add(InstanceTransformWS);
 				}
 			}
 			else
 			{
-				LODImposterBatch.Transforms.Add(Imposter->GetOwner()->GetActorTransform());
+				LODInstanceBatch.Transforms.Add(SMC->GetOwner()->GetActorTransform());
 			}
 
 			// The static mesh hasn't been created yet, do it.
-			if (LODImposterBatch.StaticMesh == nullptr)
+			if (LODInstanceBatch.StaticMesh == nullptr)
 			{
-				LODImposterBatch.StaticMesh = CreateImposterStaticMesh(Imposter, LODSetup.ProxySetting);
+				LODInstanceBatch.StaticMesh = CreateImposterStaticMesh(SMC, LODSetup.ProxySetting);
 			}
 		}
 
 		// Add imposters to the LODActor
-		for (const auto& ImposterBatch : ImposterBatches)
+		for (const auto& ImposterBatch : InstancesBatches)
 		{
 			LODActor->AddInstances(ImposterBatch.Value.StaticMesh, ImposterBatch.Key.Material, ImposterBatch.Value.Transforms);
 		}
