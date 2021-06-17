@@ -63,6 +63,12 @@ bool USMInstanceElementWorldInterface::GetBounds(const FTypedElementHandle& InEl
 	return false;
 }
 
+bool USMInstanceElementWorldInterface::CanMoveElement(const FTypedElementHandle& InElementHandle, const ETypedElementWorldType InWorldType)
+{
+	const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
+	return SMInstance && SMInstance.CanMoveSMInstance(InWorldType);
+}
+
 bool USMInstanceElementWorldInterface::GetWorldTransform(const FTypedElementHandle& InElementHandle, FTransform& OutTransform)
 {
 	const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);

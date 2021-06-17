@@ -17,6 +17,8 @@
 #include "ComponentInstanceDataCache.h"
 #include "ActorComponent.generated.h"
 
+struct FTypedElementHandle;
+
 class AActor;
 class UActorComponent;
 class UAssetUserData;
@@ -858,6 +860,12 @@ public:
 
 	/** Called after ApplyToComponent has run. */
 	virtual void PostApplyToComponent();
+
+	/**
+	 * Get the logical child elements of this component, if any.
+	 * @see UTypedElementHierarchyInterface.
+	 */
+	virtual void GetComponentChildElements(TArray<FTypedElementHandle>& OutElementHandles, const bool bAllowCreate = true) {}
 
 	//~ Begin UObject Interface.
 	virtual void BeginDestroy() override;

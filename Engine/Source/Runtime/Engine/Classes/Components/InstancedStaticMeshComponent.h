@@ -333,6 +333,7 @@ public:
 
 	//~ Begin UActorComponent Interface
 	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
+	virtual void GetComponentChildElements(TArray<FTypedElementHandle>& OutElementHandles, const bool bAllowCreate = true) override;
 	virtual bool IsHLODRelevant() const override;
 	//~ End UActorComponent Interface
 
@@ -457,6 +458,7 @@ protected:
 
 	//~ ISMInstanceManager interface
 	virtual bool CanEditSMInstance(const FSMInstanceId& InstanceId) const override;
+	virtual bool CanMoveSMInstance(const FSMInstanceId& InstanceId, const ETypedElementWorldType InWorldType) const override;
 	virtual bool GetSMInstanceTransform(const FSMInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace = false) const override;
 	virtual bool SetSMInstanceTransform(const FSMInstanceId& InstanceId, const FTransform& InstanceTransform, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false) override;
 	virtual void NotifySMInstanceMovementStarted(const FSMInstanceId& InstanceId) override;

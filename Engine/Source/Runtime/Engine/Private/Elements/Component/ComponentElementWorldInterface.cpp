@@ -51,6 +51,19 @@ bool UComponentElementWorldInterface::GetBounds(const FTypedElementHandle& InEle
 	return false;
 }
 
+bool UComponentElementWorldInterface::CanMoveElement(const FTypedElementHandle& InElementHandle, const ETypedElementWorldType InWorldType)
+{
+	if (const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandle(InElementHandle))
+	{
+		if (const USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
+		{
+			return InWorldType == ETypedElementWorldType::Editor || SceneComponent->Mobility == EComponentMobility::Movable;
+		}
+	}
+
+	return false;
+}
+
 bool UComponentElementWorldInterface::GetWorldTransform(const FTypedElementHandle& InElementHandle, FTransform& OutTransform)
 {
 	if (const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandle(InElementHandle))

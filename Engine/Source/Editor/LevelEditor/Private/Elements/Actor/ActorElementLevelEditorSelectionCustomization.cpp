@@ -59,6 +59,20 @@ FTypedElementHandle FActorElementLevelEditorSelectionCustomization::GetSelection
 	return InElementSelectionHandle;
 }
 
+void FActorElementLevelEditorSelectionCustomization::GetNormalizedElements(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const UTypedElementList* InSelectionSet, const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, UTypedElementList* OutNormalizedElements)
+{
+	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementSelectionHandle);
+
+	if (InSelectionSet->HasElementsOfType(NAME_Components))
+	{
+		// If we have components selected then we will use those rather than the actors
+		// The component may still choose to use its owner actor rather than itself
+		return;
+	}
+
+	FActorElementLevelEditorSelectionCustomization::AppendNormalizedActors(Actor, InSelectionSet, InNormalizationOptions, OutNormalizedElements);
+}
+
 bool FActorElementLevelEditorSelectionCustomization::CanSelectActorElement(const TTypedElement<UTypedElementSelectionInterface>& InActorSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions) const
 {
 	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InActorSelectionHandle);
@@ -332,4 +346,53 @@ bool FActorElementLevelEditorSelectionCustomization::DeselectActorGroup(AGroupAc
 	}
 
 	return bSelectionChanged;
+}
+
+void FActorElementLevelEditorSelectionCustomization::AppendNormalizedActors(AActor* InActor, const UTypedElementList* InSelectionSet, const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, UTypedElementList* OutNormalizedElements)
+{
+	if (InNormalizationOptions.FollowAttachment())
+	{
+		// Ensure that only parent-most actors are included if we were asked to follow attachments
+		for (AActor* Parent = InActor->GetAttachParentActor(); Parent; Parent = Parent->GetAttachParentActor())
+		{
+			FTypedElementHandle ParentHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(Parent, /*bAllowCreate*/false);
+			if (ParentHandle && InSelectionSet->Contains(ParentHandle))
+			{
+				return;
+			}
+		}
+	}
+
+	if (InNormalizationOptions.ExpandGroups())
+	{
+		AGroupActor* ParentGroup = AGroupActor::GetRootForActor(InActor, true, true);
+		if (ParentGroup && UActorGroupingUtils::IsGroupingActive())
+		{
+			// Skip if the group is already in the normalized list, since this logic will have already run
+			FTypedElementHandle ParentGroupElementHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(ParentGroup);
+			if (ParentGroupElementHandle && !OutNormalizedElements->Contains(ParentGroupElementHandle))
+			{
+				ParentGroup->ForEachActorInGroup([InSelectionSet, &InNormalizationOptions, OutNormalizedElements](AActor* InGroupedActor, AGroupActor* InGroupActor)
+				{
+					// Check that we've not got a parent attachment within the group/selection
+					if (InNormalizationOptions.FollowAttachment() && (GroupActorHelpers::ActorHasParentInGroup(InGroupedActor, InGroupActor) || GroupActorHelpers::ActorHasParentInSelection(InGroupedActor, InSelectionSet)))
+					{
+						return;
+					}
+
+					if (FTypedElementHandle GroupedActorElementHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(InGroupedActor))
+					{
+						OutNormalizedElements->Add(MoveTemp(GroupedActorElementHandle));
+					}
+				});
+
+				check(OutNormalizedElements->Contains(ParentGroupElementHandle));
+			}
+		}
+	}
+
+	if (FTypedElementHandle ActorElementHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(InActor))
+	{
+		OutNormalizedElements->Add(MoveTemp(ActorElementHandle));
+	}
 }

@@ -204,6 +204,14 @@ bool ALightWeightInstanceStaticMeshManager::CanEditSMInstance(const FSMInstanceI
 	return InstanceManager->CanEditSMInstance(InstanceId);
 }
 
+bool ALightWeightInstanceStaticMeshManager::CanMoveSMInstance(const FSMInstanceId& InstanceId, const ETypedElementWorldType InWorldType) const
+{
+	check(InstanceId.ISMComponent == InstancedStaticMeshComponent);
+
+	ISMInstanceManager* InstanceManager = InstancedStaticMeshComponent;
+	return InstanceManager->CanMoveSMInstance(InstanceId, InWorldType);
+}
+
 bool ALightWeightInstanceStaticMeshManager::GetSMInstanceTransform(const FSMInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace) const
 {
 	check(InstanceId.ISMComponent == InstancedStaticMeshComponent);

@@ -811,7 +811,8 @@ bool UUnrealEdEngine::DeleteComponents(const TArray<UActorComponent*>& InCompone
 	const FTypedElementSelectionOptions SelectionOptions = FTypedElementSelectionOptions()
 		.SetAllowHidden(true)
 		.SetAllowGroups(false)
-		.SetWarnIfLocked(false);
+		.SetWarnIfLocked(false)
+		.SetChildElementInclusionMethod(ETypedElementChildInclusionMethod::Recursive);
 
 	// Clear the selection of any components we may delete
 	for (UActorComponent* ComponentToDelete : EditableComponentsToDelete)
@@ -944,7 +945,8 @@ bool UUnrealEdEngine::DeleteActors(const TArray<AActor*>& InActorsToDelete, UWor
 	const FTypedElementSelectionOptions SelectionOptions = FTypedElementSelectionOptions()
 		.SetAllowHidden(true)
 		.SetAllowGroups(false)
-		.SetWarnIfLocked(false);
+		.SetWarnIfLocked(false)
+		.SetChildElementInclusionMethod(ETypedElementChildInclusionMethod::Recursive);
 
 	ULayersSubsystem* LayersSubsystem = GEditor->GetEditorSubsystem<ULayersSubsystem>();
 	for (AActor* Actor : ActorsToDelete)

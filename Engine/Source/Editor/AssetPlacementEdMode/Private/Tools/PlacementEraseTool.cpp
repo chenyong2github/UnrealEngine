@@ -60,6 +60,12 @@ void UPlacementModeEraseTool::OnTick(float DeltaTime)
 		return;
 	}
 
+	UTypedElementSelectionSet* SelectionSet = AssetEditorContext->GetMutableSelectionSet();
+	if (!SelectionSet)
+	{
+		return;
+	}
+
 	TGCObjectScopeGuard<UTypedElementList> ElementsToDelete(UTypedElementRegistry::GetInstance()->CreateElementList());
 
 	TArray<FTypedElementHandle> HitElements = GetElementsInBrushRadius();
@@ -92,10 +98,9 @@ void UPlacementModeEraseTool::OnTick(float DeltaTime)
 
 	if (ElementsToDelete.Get()->HasElements())
 	{
-		UTypedElementSelectionSet* SelectionSet = AssetEditorContext->GetMutableSelectionSet();
-		if (SelectionSet)
-		{
-			ElementCommonActions->DeleteElementsInList(ElementsToDelete.Get(), AssetEditorContext->GetEditingWorld(), SelectionSet, FTypedElementDeletionOptions());
-		}
+		TGCObjectScopeGuard<UTypedElementList> NormalizedElementsToDelete(SelectionSet->GetNormalizedElementList(ElementsToDelete.Get(), FTypedElementSelectionNormalizationOptions()));
+		ElementCommonActions->DeleteNormalizedElements(NormalizedElementsToDelete.Get(), AssetEditorContext->GetEditingWorld(), SelectionSet, FTypedElementDeletionOptions());
+		NormalizedElementsToDelete.Get()->Empty();
+		ElementsToDelete.Get()->Empty();
 	}
 }

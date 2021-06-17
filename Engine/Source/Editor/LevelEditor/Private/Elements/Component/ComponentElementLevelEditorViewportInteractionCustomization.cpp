@@ -12,51 +12,6 @@
 #include "LevelEditorViewport.h"
 #include "Kismet2/ComponentEditorUtils.h"
 
-void FComponentElementLevelEditorViewportInteractionCustomization::GetElementsToMove(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const ETypedElementViewportInteractionWorldType InWorldType, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToMove)
-{
-	UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementWorldHandle);
-
-	if (USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
-	{
-		if (AActor* ComponentOwner = SceneComponent->GetOwner())
-		{
-#if DO_CHECK
-			{
-				FTypedElementHandle ComponentOwnerElementHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(ComponentOwner, /*bAllowCreate*/false);
-				const bool bIsOwnerSelected = ComponentOwnerElementHandle && InSelectionSet->IsElementSelected(ComponentOwnerElementHandle, FTypedElementIsSelectedOptions());
-				ensureMsgf(bIsOwnerSelected, TEXT("Owner(%s) of %s is not selected"), *ComponentOwner->GetFullName(), *Component->GetFullName());
-			}
-#endif	// DO_CHECK
-
-			if (ComponentOwner->GetRootComponent() == SceneComponent)
-			{
-				if (FActorElementLevelEditorViewportInteractionCustomization::CanMoveActorInViewport(ComponentOwner, InWorldType))
-				{
-					// If it is a root component, use the parent actor instead
-					FActorElementLevelEditorViewportInteractionCustomization::AppendActorsToMove(ComponentOwner, InSelectionSet, OutElementsToMove);
-				}
-			}
-			else
-			{
-				// Check to see if any parent is selected
-				bool bHasSelectedParent = false;
-				for (USceneComponent* Parent = SceneComponent->GetAttachParent(); Parent && !bHasSelectedParent; Parent = Parent->GetAttachParent())
-				{
-					FTypedElementHandle ParentElementHandle = UEngineElementsLibrary::AcquireEditorComponentElementHandle(Parent, /*bAllowCreate*/false);
-					bHasSelectedParent = ParentElementHandle && InSelectionSet->IsElementSelected(ParentElementHandle, FTypedElementIsSelectedOptions());
-				}
-
-				const bool bCanMoveInEditorWorld = (InWorldType == ETypedElementViewportInteractionWorldType::Editor) || (SceneComponent->Mobility == EComponentMobility::Type::Movable);
-				if (!bHasSelectedParent && bCanMoveInEditorWorld)
-				{
-					// If no parent of this component is also in the selection set, move it
-					OutElementsToMove->Add(InElementWorldHandle);
-				}
-			}
-		}
-	}
-}
-
 void FComponentElementLevelEditorViewportInteractionCustomization::GizmoManipulationStarted(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode)
 {
 	UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandleChecked(InElementWorldHandle);

@@ -14,42 +14,6 @@
 #include "ActorGroupingUtils.h"
 #include "LevelEditorViewport.h"
 
-void FActorElementLevelEditorViewportInteractionCustomization::GetElementsToMove(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const ETypedElementViewportInteractionWorldType InWorldType, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToMove)
-{
-	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
-
-	if (InSelectionSet->GetElementList()->HasElementsOfType(NAME_Components))
-	{
-		// If we have components selected then we will move those rather than the actors
-		// The component may still choose to move its owner actor rather than itself
-		return;
-	}
-
-	// Ensure that only parent-most actor(s) are moved
-	bool bParentAlsoSelected = false;
-	AActor* Parent = Actor->GetAttachParentActor();
-	while (Parent != nullptr)
-	{
-		if (Parent->IsSelected())
-		{
-			bParentAlsoSelected = true;
-			break;
-		}
-
-		Parent = Parent->GetAttachParentActor();
-	}
-	if (bParentAlsoSelected)
-	{
-		return;
-	}
-
-
-	if (CanMoveActorInViewport(Actor, InWorldType))
-	{
-		AppendActorsToMove(Actor, InSelectionSet, OutElementsToMove);
-	}
-}
-
 void FActorElementLevelEditorViewportInteractionCustomization::GizmoManipulationStarted(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode)
 {
 	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
@@ -140,66 +104,5 @@ void FActorElementLevelEditorViewportInteractionCustomization::ModifyScale(AActo
 		{
 			ScaleDelta = FVector::ZeroVector;
 		}
-	}
-}
-
-bool FActorElementLevelEditorViewportInteractionCustomization::CanMoveActorInViewport(const AActor* InActor, const ETypedElementViewportInteractionWorldType InWorldType)
-{
-	if (!GEditor || !InActor)
-	{
-		return false;
-	}
-
-	// The actor cannot be location locked
-	if (InActor->IsLockLocation())
-	{
-		return false;
-	}
-
-	// If the actor has a root component, but it cannot be moved, then the actor cannot move.
-	const bool bIsPlayInEditorWorld = (InWorldType == ETypedElementViewportInteractionWorldType::PlayInEditor);
-	if (bIsPlayInEditorWorld && InActor->GetRootComponent() && !InActor->IsRootComponentMovable())
-	{
-		return false;
-	}
-
-	// The actor needs to be in the current viewport world
-	if (GEditor->PlayWorld)
-	{
-		const UWorld* CurrentWorld = InActor->GetWorld();
-		const UWorld* RequiredWorld = bIsPlayInEditorWorld ? GEditor->PlayWorld : GEditor->EditorWorld;
-		if (CurrentWorld != RequiredWorld)
-		{
-			return false;
-		}
-	}
-
-	return true;
-}
-
-void FActorElementLevelEditorViewportInteractionCustomization::AppendActorsToMove(AActor* InActor, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToMove)
-{
-	auto AddActorElement = [OutElementsToMove](AActor* InActorToAdd)
-	{
-		if(FTypedElementHandle ActorElementHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(InActorToAdd))
-		{
-			OutElementsToMove->Add(MoveTemp(ActorElementHandle));
-		}
-	};
-
-	AGroupActor* ParentGroup = AGroupActor::GetRootForActor(InActor, true, true);
-	if (ParentGroup && UActorGroupingUtils::IsGroupingActive())
-	{
-		// Skip if the group is already in the list of things to move, since this logic will have already run
-		FTypedElementHandle ParentGroupElementHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(ParentGroup);
-		if (ParentGroupElementHandle && !OutElementsToMove->Contains(ParentGroupElementHandle))
-		{
-			ParentGroup->ForEachMovableActorInGroup(InSelectionSet, AddActorElement);
-			check(OutElementsToMove->Contains(ParentGroupElementHandle));
-		}
-	}
-	else
-	{
-		AddActorElement(InActor);
 	}
 }

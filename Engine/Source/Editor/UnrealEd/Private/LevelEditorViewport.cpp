@@ -28,6 +28,7 @@
 #include "Components/ModelComponent.h"
 #include "Kismet2/ComponentEditorUtils.h"
 #include "Engine/Selection.h"
+#include "UObject/GCObjectScopeGuard.h"
 #include "UObject/UObjectIterator.h"
 #include "EngineUtils.h"
 #include "Editor.h"
@@ -1603,9 +1604,9 @@ void FTrackingTransaction::Begin(const FText& Description, AActor* AdditionalAct
 		// Recursively call modify on any groups, as viewport manipulation of an actor within a group tends to affect the entire group
 		for (AGroupActor* GroupPendingModify : GroupsPendingModify)
 		{
-			GroupPendingModify->ForEachActorInGroup([](AActor* InActor)
+			GroupPendingModify->ForEachActorInGroup([](AActor* InGroupedActor, AGroupActor* InGroupActor)
 			{
-				InActor->Modify();
+				InGroupedActor->Modify();
 			});
 		}
 
@@ -2604,7 +2605,12 @@ bool FLevelEditorViewportClient::InputWidgetDelta(FViewport* InViewport, EAxisLi
 							if (CommonActions)
 							{
 								const UTypedElementList* ElementsToManipulate = GetElementsToManipulate();
-								TArray<FTypedElementHandle> DuplicatedElements = CommonActions->DuplicateElementsInList(ElementsToManipulate, GetWorld(), FVector::ZeroVector);
+								TArray<FTypedElementHandle> DuplicatedElements;
+								{
+									TGCObjectScopeGuard<UTypedElementList> ElementsToDuplicate(ElementsToManipulate->Clone()); // Clone this, as the duplicate may triger construction scripts to modify the selection as we duplicate
+									DuplicatedElements = CommonActions->DuplicateNormalizedElements(ElementsToDuplicate.Get(), GetWorld(), FVector::ZeroVector);
+									ElementsToDuplicate.Get()->Empty();
+								}
 
 								// Exclusively select the new elements, so that future gizmo interaction manipulates those items instead
 								if (DuplicatedElements.Num() > 0)
@@ -3531,8 +3537,35 @@ void FLevelEditorViewportClient::CacheElementsToManipulate(const bool bForceRefr
 
 	if (!bHasCachedElementsToManipulate)
 	{
+		const FTypedElementSelectionNormalizationOptions NormalizationOptions = FTypedElementSelectionNormalizationOptions()
+			.SetExpandGroups(true)
+			.SetFollowAttachment(true);
+
 		const UTypedElementSelectionSet* SelectionSet = GetSelectionSet();
-		ViewportInteraction->GetSelectedElementsToMove(SelectionSet, bIsSimulateInEditorViewport ? ETypedElementViewportInteractionWorldType::PlayInEditor : ETypedElementViewportInteractionWorldType::Editor, CachedElementsToManipulate);
+		SelectionSet->GetNormalizedSelection(NormalizationOptions, CachedElementsToManipulate);
+
+		// Remove any elements that cannot be moved
+		CachedElementsToManipulate->RemoveAll<UTypedElementWorldInterface>([this](const TTypedElement<UTypedElementWorldInterface>& InWorldElement)
+		{
+			if (!InWorldElement.CanMoveElement(bIsSimulateInEditorViewport ? ETypedElementWorldType::Game : ETypedElementWorldType::Editor))
+			{
+				return true;
+			}
+
+			// This element must belong to the current viewport world
+			if (GEditor->PlayWorld)
+			{
+				const UWorld* CurrentWorld = InWorldElement.GetOwnerWorld();
+				const UWorld* RequiredWorld = bIsSimulateInEditorViewport ? GEditor->PlayWorld : GEditor->EditorWorld;
+				if (CurrentWorld != RequiredWorld)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		});
+
 		bHasCachedElementsToManipulate = true;
 	}
 }

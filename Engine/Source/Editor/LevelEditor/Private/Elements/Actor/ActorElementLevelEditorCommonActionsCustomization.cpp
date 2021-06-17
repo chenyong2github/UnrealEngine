@@ -9,19 +9,6 @@
 #include "EditorModeManager.h"
 #include "Toolkits/IToolkitHost.h"
 
-void FActorElementLevelEditorCommonActionsCustomization::GetElementsForAction(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UTypedElementList* InElementList, UTypedElementList* OutElementsForAction)
-{
-	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
-
-	if (InElementList->HasElementsOfType(NAME_Components))
-	{
-		// If we have components selected then we will perform the action on those rather than the actors
-		return;
-	}
-
-	FTypedElementCommonActionsCustomization::GetElementsForAction(InElementWorldHandle, InElementList, OutElementsForAction);
-}
-
 bool FActorElementLevelEditorCommonActionsCustomization::DeleteElements(UTypedElementWorldInterface* InWorldInterface, TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions)
 {
 	if (const IToolkitHost* ToolkitHostPtr = GetToolkitHost())
