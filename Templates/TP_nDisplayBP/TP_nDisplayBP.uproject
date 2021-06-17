@@ -8,8 +8,9 @@
 			"Name": "nDisplay",
 			"Enabled": true,
 			"SupportedTargetPlatforms": [
-				"Win64"
-			]			
+				"Win64",
+				"Linux"
+			]
 		},
 		{
 			"Name": "OculusVR",
