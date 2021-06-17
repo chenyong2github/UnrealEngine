@@ -337,6 +337,7 @@ bool UAnimDataController::RemoveBoneTracksMissingFromSkeleton(const USkeleton* S
 	if (Skeleton)
 	{
 		TArray<FName> TracksToBeRemoved;
+		TArray<FName> TracksUpdated;
 		const FReferenceSkeleton& ReferenceSkeleton = Skeleton->GetReferenceSkeleton();
 
 		for (FBoneAnimationTrack& Track : Model->BoneAnimationTracks)
@@ -359,6 +360,7 @@ bool UAnimDataController::RemoveBoneTracksMissingFromSkeleton(const USkeleton* S
 				{
 					// Update bone index
 					Track.BoneTreeIndex = BoneIndex;
+					TracksUpdated.Add(Track.Name);
 				}
 				else
 				{
@@ -369,16 +371,23 @@ bool UAnimDataController::RemoveBoneTracksMissingFromSkeleton(const USkeleton* S
 			}
 		}
 
-		if (TracksToBeRemoved.Num())
+		if (TracksToBeRemoved.Num() || TracksUpdated.Num())
 		{
 			CONDITIONAL_BRACKET(LOCTEXT("RemoveBoneTracksMissingFromSkeleton", "Validating Bone Animation Track Data against Skeleton"));
 			for (const FName& TrackName : TracksToBeRemoved)
 			{
 				RemoveBoneTrack(TrackName);
 			}
+
+			for (const FName& TrackName : TracksUpdated)
+			{
+				FAnimationTrackChangedPayload Payload;
+				Payload.Name = TrackName;
+				Model->Notify(EAnimDataModelNotifyType::TrackChanged, Payload);
+			}
 		}
 
-		return TracksToBeRemoved.Num() > 0;
+		return TracksToBeRemoved.Num() > 0 || TracksUpdated.Num() > 0;
 	}
 	else
 	{
