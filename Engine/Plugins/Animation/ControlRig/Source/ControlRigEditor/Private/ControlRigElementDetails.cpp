@@ -20,6 +20,9 @@
 #include "PropertyCustomizationHelpers.h"
 #include "SEnumCombo.h"
 #include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
+#include "RigVMModel/RigVMGraph.h"
+#include "RigVMModel/RigVMNode.h"
+#include "Graph/SControlRigGraphPinVariableBinding.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigElementDetails"
 
@@ -430,6 +433,24 @@ void FRigUnitDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 		return;
 	}
 
+	URigVMGraph* Model = GraphBeingCustomized->GetModel();
+	if(Model == nullptr)
+	{
+		return;
+	}
+
+	const TArray<FName> SelectedNodeNames = Model->GetSelectNodes();
+	if(SelectedNodeNames.Num() == 0)
+	{
+		return;
+	}
+
+	URigVMNode* ModelNode = Model->FindNodeByName(SelectedNodeNames[0]);
+	if(ModelNode == nullptr)
+	{
+		return;
+	}
+
 	UScriptStruct* ScriptStruct = Cast<UScriptStruct>((UStruct*)StructBeingCustomized->GetStruct());
 	check(ScriptStruct);
 
@@ -444,6 +465,29 @@ void FRigUnitDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 			continue;
 		}
 		DetailBuilder.HideProperty(PropertyHandle);
+
+		URigVMPin* ModelPin = ModelNode->FindPin(Property->GetName());
+		if(ModelPin == nullptr)
+		{
+			continue;
+		}
+
+		if(ModelPin->IsBoundToVariable())
+		{
+			CategoryBuilder.AddCustomRow(FText::FromString(Property->GetName()))
+			.NameContent()
+			[
+				PropertyHandle->CreatePropertyNameWidget()
+			]
+			.ValueContent()
+			[
+				SNew(SControlRigVariableBinding)
+					.ModelPin(ModelPin)
+					.Blueprint(BlueprintBeingCustomized)
+			];
+
+			continue;
+		}
 
 		if (FNameProperty* NameProperty = CastField<FNameProperty>(Property))
 		{

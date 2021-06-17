@@ -35,7 +35,7 @@ struct CONTROLRIG_API FRigUnit : public FRigVMStruct
 		static FName MethodName = FName(NAME_None);
 		if(MethodName.IsNone())
 		{
-			MethodName = TEXT("Execute");
+			MethodName = FRigVMStruct::ExecuteName;
 		}
 		return MethodName;
 	}

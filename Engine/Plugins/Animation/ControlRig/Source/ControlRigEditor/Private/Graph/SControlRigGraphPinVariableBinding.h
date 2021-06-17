@@ -43,6 +43,8 @@ protected:
 	void OnAddBinding(FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain);
 	bool OnCanRemoveBinding(FName InPropertyName);
 	void OnRemoveBinding(FName InPropertyName);
+	void FillLocalVariableMenu( FMenuBuilder& MenuBuilder );
+	void HandleBindToLocalVariable(FRigVMGraphVariableDescription InLocalVariable);
 
 	URigVMPin* ModelPin;
 	URigVMFunctionReferenceNode* FunctionReferenceNode;

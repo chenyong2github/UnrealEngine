@@ -176,7 +176,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 		PinInfo.bExpanded = ModelPin->IsExpanded();
 		PinInfo.ModelPinPath = ModelPin->GetPinPath();
 
-		PinInfo.bHideInputWidget = ModelPin->IsStruct() || PinInfo.bIsContainer;
+		PinInfo.bHideInputWidget = (!ModelPin->IsBoundToVariable()) && (ModelPin->IsStruct() || PinInfo.bIsContainer);
 		if (!PinInfo.bHideInputWidget)
 		{
 			if (ModelPin->GetSubPins().Num() == 0)

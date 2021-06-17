@@ -7,6 +7,8 @@
 #include "DetailLayoutBuilder.h"
 #include "RigVMModel/RigVMController.h"
 #include "ControlRigBlueprintGeneratedClass.h"
+#include "Graph/ControlRigGraphSchema.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "SControlRigGraphPinVariableBinding"
 
@@ -36,6 +38,13 @@ void SControlRigVariableBinding::Construct(const FArguments& InArgs)
 	BindingArgs.bAllowArrayElementBindings = false;
 	BindingArgs.bAllowStructMemberBindings = false;
 	BindingArgs.bAllowUObjectFunctions = false;
+
+	BindingArgs.MenuExtender = MakeShareable(new FExtender);
+	BindingArgs.MenuExtender->AddMenuExtension(
+		"Properties",
+		EExtensionHook::After,
+		nullptr,
+		FMenuExtensionDelegate::CreateSP(this, &SControlRigVariableBinding::FillLocalVariableMenu));
 
 	this->ChildSlot
 	[
@@ -72,8 +81,7 @@ FLinearColor SControlRigVariableBinding::GetBindingColor() const
 {
 	if (Blueprint)
 	{
-		const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-
+		const UControlRigGraphSchema* Schema = GetDefault<UControlRigGraphSchema>();
 		FName BoundVariable(NAME_None);
 
 		if(ModelPin)
@@ -94,6 +102,28 @@ FLinearColor SControlRigVariableBinding::GetBindingColor() const
 			if (VariableDescription.VarName == BoundVariable)
 			{
 				return Schema->GetPinTypeColor(VariableDescription.VarType);
+			}
+		}
+
+		URigVMGraph* Model = ModelPin->GetGraph();
+		if(Model == nullptr)
+		{
+			return  FLinearColor::Red;
+		}
+
+		const TArray<FRigVMGraphVariableDescription>& LocalVariables =  Model->GetLocalVariables();
+		for(const FRigVMGraphVariableDescription& LocalVariable : LocalVariables)
+		{
+			const FRigVMExternalVariable ExternalVariable = LocalVariable.ToExternalVariable();
+			if(!ExternalVariable.IsValid(true))
+			{
+				continue;
+			}
+
+			if (ExternalVariable.Name == BoundVariable)
+			{
+				const FEdGraphPinType PinType = UControlRig::GetPinTypeFromExternalVariable(ExternalVariable);
+				return Schema->GetPinTypeColor(PinType);
 			}
 		}
 	}
@@ -196,6 +226,115 @@ void SControlRigVariableBinding::OnRemoveBinding(FName InPropertyName)
 			Blueprint->GetController(FunctionReferenceNode->GetGraph())->SetRemappedVariable(FunctionReferenceNode, InnerVariableName, NAME_None);
 		}
 	}
+}
+
+void SControlRigVariableBinding::FillLocalVariableMenu(FMenuBuilder& MenuBuilder)
+{
+	if(ModelPin == nullptr)
+	{
+		return;
+	}
+
+	URigVMGraph* Model = ModelPin->GetGraph();
+	if(Model == nullptr)
+	{
+		return;
+	}
+
+	int32 ValidLocalVariables = 0;
+	const TArray<FRigVMGraphVariableDescription>& LocalVariables =  Model->GetLocalVariables();
+	for(const FRigVMGraphVariableDescription& LocalVariable : LocalVariables)
+	{
+		const FRigVMExternalVariable ExternalVariable = LocalVariable.ToExternalVariable();
+		if(!ExternalVariable.IsValid(true))
+		{
+			continue;
+		}
+
+		if(!ModelPin->CanBeBoundToVariable(ExternalVariable))
+		{
+			continue;
+		}
+
+		ValidLocalVariables++;
+	}
+
+	if(ValidLocalVariables == 0)
+	{
+		return;
+	}
+	
+	MenuBuilder.BeginSection("LocalVariables", LOCTEXT("LocalVariables", "Local Variables"));
+	{
+		static FName PropertyIcon(TEXT("Kismet.VariableList.TypeIcon"));
+		const UControlRigGraphSchema* Schema = GetDefault<UControlRigGraphSchema>();
+
+		for(const FRigVMGraphVariableDescription& LocalVariable : LocalVariables)
+		{
+			const FRigVMExternalVariable ExternalVariable = LocalVariable.ToExternalVariable();
+			if(!ExternalVariable.IsValid(true))
+			{
+				continue;
+			}
+
+			if(!ModelPin->CanBeBoundToVariable(ExternalVariable))
+			{
+				continue;
+			}
+			
+			const FEdGraphPinType PinType = UControlRig::GetPinTypeFromExternalVariable(ExternalVariable);
+
+			MenuBuilder.AddMenuEntry(
+				FUIAction(FExecuteAction::CreateSP(this, &SControlRigVariableBinding::HandleBindToLocalVariable, LocalVariable)),
+				SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(SSpacer)
+						.Size(FVector2D(18.0f, 0.0f))
+					]
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					.Padding(1.0f, 0.0f)
+					[
+						SNew(SImage)
+						.Image(FBlueprintEditorUtils::GetIconFromPin(PinType, true))
+						.ColorAndOpacity(Schema->GetPinTypeColor(PinType))
+					]
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					.Padding(4.0f, 0.0f)
+					[
+						SNew(STextBlock)
+						.Text(FText::FromName(LocalVariable.Name))
+					]);
+		}
+	}
+	MenuBuilder.EndSection(); // Local Variables
+}
+
+void SControlRigVariableBinding::HandleBindToLocalVariable(FRigVMGraphVariableDescription InLocalVariable)
+{
+	if((ModelPin == nullptr) || (Blueprint == nullptr))
+	{
+		return;
+	}
+
+	URigVMGraph* Model = ModelPin->GetGraph();
+	if(Model == nullptr)
+	{
+		return;
+	}
+
+	URigVMController* Controller = Blueprint->GetOrCreateController(Model);
+	if(Controller == nullptr)
+	{
+		return;
+	}
+
+	Controller->BindPinToVariable(ModelPin->GetPinPath(), InLocalVariable.Name.ToString());
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
