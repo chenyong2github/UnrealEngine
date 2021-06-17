@@ -158,7 +158,7 @@ UPrimitiveComponent* FOpenXRAssetManager::CreateRenderComponent(const int32 Devi
 	UPrimitiveComponent* NewRenderComponent = nullptr;
 	XrSession Session = OpenXRHMD->GetSession();
 	XrPath DevicePath = OpenXRHMD->GetTrackedDevicePath(DeviceId);
-	if (Session && DevicePath)
+	if (Session && DevicePath && OpenXRHMD->IsRunning())
 	{
 		XrInteractionProfileState Profile;
 		Profile.type = XR_TYPE_INTERACTION_PROFILE_STATE;

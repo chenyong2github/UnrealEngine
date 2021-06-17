@@ -442,11 +442,7 @@ void UMotionControllerComponent::RefreshDisplayComponent(const bool bForceDestro
 				}
 			}
 
-			if (NewDisplayComponent == nullptr)
-			{
-				UE_CLOG(!DisplayComponent, LogMotionControllerComponent, Warning, TEXT("Failed to create a display component for the MotionController - no XR system (if there were any) had a model for the specified source ('%s')"), *MotionSource.ToString());
-			}
-			else if (NewDisplayComponent != DisplayComponent)
+			if (NewDisplayComponent != DisplayComponent)
 			{
 				NewDisplayComponent->SetupAttachment(this);
 				// force disable collision - if users wish to use collision, they can setup their own sub-component
