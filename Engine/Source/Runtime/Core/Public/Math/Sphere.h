@@ -190,7 +190,10 @@ public:
 		{
 			float SW = (float)Sphere.W;
 			Ar << SW;
-			Sphere.W = SW;
+			if (Ar.IsLoading())
+			{
+				Sphere.W = SW;
+			}
 		}
 
 		return Ar;

@@ -307,7 +307,10 @@ public:
 		{
 			float Radius = (float)Bounds.SphereRadius;
 			Ar << Radius;
-			Bounds.SphereRadius = Radius;
+			if(Ar.IsLoading())
+			{
+				Bounds.SphereRadius = Radius;
+			}
 		}
 
 		return Ar;
