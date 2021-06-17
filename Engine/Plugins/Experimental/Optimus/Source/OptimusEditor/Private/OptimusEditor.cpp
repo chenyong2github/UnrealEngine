@@ -2,11 +2,11 @@
 
 #include "OptimusEditor.h"
 
+#include "AnimationEditorPreviewActor.h"
 #include "OptimusEditorGraph.h"
 #include "OptimusEditorGraphNode.h"
 #include "OptimusEditorGraphSchema.h"
 #include "OptimusEditorCommands.h"
-#include "OptimusEditorViewport.h"
 #include "OptimusNode.h"
 #include "OptimusNodeGraph.h"
 #include "SOptimusGraphTitleBar.h"
@@ -19,6 +19,7 @@
 #include "GraphEditor.h"
 #include "IPersonaViewport.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Materials/Material.h"
 #include "Modules/ModuleManager.h"
 #include "ToolMenus.h"
 #include "IAssetFamily.h"
@@ -27,6 +28,12 @@
 #include "OptimusEditorMode.h"
 #include "PersonaModule.h"
 #include "PersonaTabs.h"
+#include "Animation/DebugSkelMeshComponent.h"
+#include "ComputeFramework/ComputeGraphComponent.h"
+#include "DataInterfaces/DataInterfaceScene.h"
+#include "DataInterfaces/DataInterfaceSkeletalMeshRead.h"
+#include "DataInterfaces/DataInterfaceSkinCacheWrite.h"
+#include "Engine/StaticMeshActor.h"
 
 
 #define LOCTEXT_NAMESPACE "OptimusEditor"
@@ -44,6 +51,8 @@ FOptimusEditor::~FOptimusEditor()
 {
 	if (DeformerObject)
 	{
+		DeformerObject->GetCompileBeginDelegate().RemoveAll(this);
+		DeformerObject->GetCompileEndDelegate().RemoveAll(this);
 		DeformerObject->GetNotifyDelegate().RemoveAll(this);
 	}
 }
@@ -59,10 +68,14 @@ void FOptimusEditor::Construct(
 	FPersonaModule& PersonaModule = FModuleManager::GetModuleChecked<FPersonaModule>("Persona");
 	
 	FPersonaToolkitArgs PersonaToolkitArgs;
-	// PersonaToolkitArgs.OnPreviewSceneCreated = FOnPreviewSceneCreated::FDelegate::CreateSP(this, &FOptimusEditor::HandlePreviewSceneCreated);
+	PersonaToolkitArgs.OnPreviewSceneCreated = FOnPreviewSceneCreated::FDelegate::CreateSP(this, &FOptimusEditor::HandlePreviewSceneCreated);
 	PersonaToolkit = PersonaModule.CreatePersonaToolkit(InDeformerObject, PersonaToolkitArgs);
 
 	PersonaToolkit->GetPreviewScene()->SetDefaultAnimationMode(EPreviewSceneDefaultAnimationMode::Animation);
+
+	// Make sure we get told when a new preview scene is set so that we can update the compute
+	// graph component's scene component bindings.
+	PersonaToolkit->GetPreviewScene()->RegisterOnPreviewMeshChanged(FOnPreviewMeshChanged::CreateSP(this, &FOptimusEditor::HandlePreviewMeshChanged));
 
 	// TODO: Do we need this?
 	TSharedRef<IAssetFamily> AssetFamily = PersonaModule.CreatePersonaAssetFamily(InDeformerObject);
@@ -137,6 +150,11 @@ void FOptimusEditor::Construct(
 
 	DeformerObject->GetCompileBeginDelegate().AddRaw(this, &FOptimusEditor::CompileBegin);
 	DeformerObject->GetCompileEndDelegate().AddRaw(this, &FOptimusEditor::CompileEnd);
+
+	if (PersonaToolkit->GetPreviewMesh())
+	{
+		InstallDataProviders();
+	}
 }
 
 
@@ -206,7 +224,6 @@ FLinearColor FOptimusEditor::GetWorldCentricTabColorScale() const
 }
 
 
-
 bool FOptimusEditor::SetEditGraph(UOptimusNodeGraph* InNodeGraph)
 {
 	if (ensure(InNodeGraph))
@@ -230,6 +247,23 @@ bool FOptimusEditor::SetEditGraph(UOptimusNodeGraph* InNodeGraph)
 }
 
 
+void FOptimusEditor::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	if (SkeletalMeshReadDataProvider)
+	{
+		Collector.AddReferencedObject(SkeletalMeshReadDataProvider);
+	}
+	if (SkeletalMeshSkinCacheDataProvider)
+	{
+		Collector.AddReferencedObject(SkeletalMeshSkinCacheDataProvider);
+	}
+	if (SceneDataProvider)
+	{
+		Collector.AddReferencedObject(SceneDataProvider);
+	}
+}
+
+
 void FOptimusEditor::Compile()
 {
 	if (DeformerObject->Compile())
@@ -249,15 +283,67 @@ bool FOptimusEditor::CanCompile() const
 
 void FOptimusEditor::CompileBegin(UOptimusDeformer* InDeformer)
 {
-	// FIXMNE
-	// EditorViewportWidget->RemoveDataProviders();
+	RemoveDataProviders();
 }
 
 
 void FOptimusEditor::CompileEnd(UOptimusDeformer* InDeformer)
 {
-	// FIXME
-	// EditorViewportWidget->InstallDataProviders(InDeformer);
+	InstallDataProviders();
+}
+
+
+void FOptimusEditor::InstallDataProviders()
+{
+	if (ComputeGraphComponent)
+	{
+		ComputeGraphComponent->DataProviders.Reset();
+
+		for (UClass* DataProviderClass: DeformerObject->GetDataProviderClasses())
+		{
+			if (DataProviderClass == USkeletalMeshReadDataProvider::StaticClass())
+			{
+				ComputeGraphComponent->DataProviders.Add(SkeletalMeshReadDataProvider);
+			}
+			else if (DataProviderClass == USkeletalMeshSkinCacheDataProvider::StaticClass())
+			{
+				ComputeGraphComponent->DataProviders.Add(SkeletalMeshSkinCacheDataProvider);
+			}
+			else if (DataProviderClass == USceneDataProvider::StaticClass())
+			{
+				ComputeGraphComponent->DataProviders.Add(SceneDataProvider);
+			}
+			else
+			{
+				checkf(false, TEXT("Unknown provider class: %s"), *DataProviderClass->GetName());
+			}
+		}
+
+		UpdateDataProviderBindings();
+	}
+}
+
+
+void FOptimusEditor::UpdateDataProviderBindings()
+{
+	if (SkeletalMeshReadDataProvider)
+	{
+		SkeletalMeshReadDataProvider->SkeletalMesh = GetPersonaToolkit()->GetPreviewMeshComponent();
+	}
+	if (SkeletalMeshSkinCacheDataProvider)
+	{
+		SkeletalMeshSkinCacheDataProvider->SkeletalMesh = GetPersonaToolkit()->GetPreviewMeshComponent();
+	}
+	if (SceneDataProvider)
+	{
+		SceneDataProvider->SceneComponent = GetPersonaToolkit()->GetPreviewMeshComponent();
+	}
+}
+
+
+void FOptimusEditor::RemoveDataProviders()
+{
+	ComputeGraphComponent->DataProviders.Reset();
 }
 
 
@@ -375,16 +461,20 @@ FReply FOptimusEditor::OnSpawnGraphNodeByShortcut(FInputChord InChord, const FVe
 
 void FOptimusEditor::RegisterToolbar()
 {
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	UToolMenu* ToolBar;
 	FName ParentName;
 	const FName MenuName = GetToolMenuToolbarName(ParentName);
-	if (UToolMenus::Get()->IsMenuRegistered(MenuName))
+	if (ToolMenus->IsMenuRegistered(MenuName))
 	{
-		return;
+		ToolBar = ToolMenus->ExtendMenu(MenuName);
+	}
+	else
+	{
+		ToolBar = UToolMenus::Get()->RegisterMenu(MenuName, ParentName, EMultiBoxType::ToolBar);
 	}
 
-	UToolMenu* ToolBar = UToolMenus::Get()->RegisterMenu(MenuName, "AssetEditor.DefaultToolBar", EMultiBoxType::ToolBar);
 	const FOptimusEditorCommands& Commands = FOptimusEditorCommands::Get();
-	
 	FToolMenuInsert InsertAfterAssetSection("Asset", EToolMenuInsertType::After);
 	{
 		FToolMenuSection& Section = ToolBar->AddSection("Compile", TAttribute<FText>(), InsertAfterAssetSection);
@@ -411,6 +501,59 @@ void FOptimusEditor::BindCommands()
 
 void FOptimusEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPreviewScene)
 {
+	static const TCHAR* GroundAssetPath = TEXT("/Engine/MapTemplates/SM_Template_Map_Floor.SM_Template_Map_Floor");
+	static const TCHAR* DefaultMaterialPath = TEXT("/Engine/EngineMaterials/DefaultMaterial.DefaultMaterial");
+	UStaticMesh* FloorMesh = Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), nullptr, GroundAssetPath, nullptr, LOAD_None, nullptr));
+	UMaterial* DefaultMaterial = Cast<UMaterial>(StaticLoadObject(UMaterial::StaticClass(), nullptr, DefaultMaterialPath, nullptr, LOAD_None, nullptr));
+	check(FloorMesh);
+	check(DefaultMaterial);
+
+	// Create ground mesh actor if all the pre-requisites are available.
+	if (ensure(FloorMesh) && ensure(DefaultMaterial))
+	{
+		AStaticMeshActor* GroundActor = InPreviewScene->GetWorld()->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), FTransform::Identity);
+		GroundActor->SetFlags(RF_Transient);
+		GroundActor->GetStaticMeshComponent()->SetStaticMesh(FloorMesh);
+		GroundActor->GetStaticMeshComponent()->SetMaterial(0, DefaultMaterial);
+		GroundActor->SetMobility(EComponentMobility::Static);
+		GroundActor->GetStaticMeshComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		GroundActor->GetStaticMeshComponent()->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+		GroundActor->GetStaticMeshComponent()->bSelectable = false;
+	}
+
+	AAnimationEditorPreviewActor* Actor = InPreviewScene->GetWorld()->SpawnActor<AAnimationEditorPreviewActor>(AAnimationEditorPreviewActor::StaticClass(), FTransform::Identity);
+	Actor->SetFlags(RF_Transient);
+	InPreviewScene->SetActor(Actor);
+
+	UDebugSkelMeshComponent* SkeletalMeshComponent = NewObject<UDebugSkelMeshComponent>(Actor);
+	if (GEditor->PreviewPlatform.GetEffectivePreviewFeatureLevel() <= ERHIFeatureLevel::ES3_1)
+	{
+		SkeletalMeshComponent->SetMobility(EComponentMobility::Static);
+	}
+	InPreviewScene->AddComponent(SkeletalMeshComponent, FTransform::Identity);
+	InPreviewScene->SetPreviewMeshComponent(SkeletalMeshComponent);
+
+	// Create the compute graph component that will drive the deformation.
+	ComputeGraphComponent = NewObject<UComputeGraphComponent>(Actor);
+	ComputeGraphComponent->ComputeGraph = DeformerObject;
+
+	// Make sure we tick _after_ the skelmesh component is done.
+	// ComputeGraphComponent->AddTickPrerequisiteComponent(SkeletalMeshComponent);
+	InPreviewScene->AddComponent(ComputeGraphComponent, FTransform::Identity);
+
+	// FIXME: Use factories, and only create these on-demand.
+	// Set up the data interfaces. Those will get filled in when we set the preview asset.
+	SkeletalMeshReadDataProvider = NewObject<USkeletalMeshReadDataProvider>(GetTransientPackage(), USkeletalMeshReadDataProvider::StaticClass(), NAME_None, RF_Transient);
+	SkeletalMeshSkinCacheDataProvider = NewObject<USkeletalMeshSkinCacheDataProvider>(GetTransientPackage(), USkeletalMeshSkinCacheDataProvider::StaticClass(), NAME_None, RF_Transient);
+	SceneDataProvider = NewObject<USceneDataProvider>(GetTransientPackage(), USceneDataProvider::StaticClass(), NAME_None, RF_Transient);
+
+	InPreviewScene->RegisterOnPreTick(FSimpleDelegate::CreateSP(this, &FOptimusEditor::HandleViewportPreTick));
+}
+
+
+void FOptimusEditor::HandlePreviewMeshChanged(USkeletalMesh* InOldPreviewMesh, USkeletalMesh* InNewPreviewMesh)
+{
+	UpdateDataProviderBindings();
 }
 
 
@@ -426,10 +569,21 @@ void FOptimusEditor::HandleViewportCreated(
 	const TSharedRef<IPersonaViewport>& InPersonaViewport
 	)
 {
-	// ViewportWidget = InPersonaViewport;
-
-	// FIXME: Set up the compute component.
+	ViewportWidget = InPersonaViewport;
+	
+	// ViewportWidget->GetViewportClient().SetAdvancedShowFlagsForScene(false);
 }
+
+
+void FOptimusEditor::HandleViewportPreTick()
+{
+	if (ComputeGraphComponent)
+	{
+		ComputeGraphComponent->QueueExecute();
+	}	
+}
+
+
 
 
 void FOptimusEditor::CreateWidgets()

@@ -7,6 +7,10 @@
 #include "Framework/Docking/TabManager.h"
 #include "Misc/NotifyHook.h"
 
+class USkeletalMeshReadDataProvider;
+class USceneDataProvider;
+class USkeletalMeshSkinCacheDataProvider;
+class UComputeGraphComponent;
 class IPersonaPreviewScene;
 class IPersonaViewport;
 class IPersonaToolkit;
@@ -23,9 +27,10 @@ class UOptimusNodeGraph;
 enum class EOptimusGlobalNotifyType;
 struct FGraphAppearanceInfo;
 
-class FOptimusEditor
-	: public IOptimusEditor
-	, public FNotifyHook
+class FOptimusEditor :
+	public IOptimusEditor,
+	public FGCObject,
+	public FNotifyHook
 {
 public:
 	FOptimusEditor();
@@ -69,12 +74,15 @@ public:
 	FText GetBaseToolkitName() const override;			
 	FString GetWorldCentricTabPrefix() const override;	
 	FLinearColor GetWorldCentricTabColorScale() const override;
-
+	
 	// --
 	bool SetEditGraph(UOptimusNodeGraph *InNodeGraph);
 
 	DECLARE_EVENT( FOptimusEditor, FOnRefreshEvent );
 	FOnRefreshEvent& OnRefresh() { return RefreshEvent; }
+
+	// FGCObject overrides
+	void AddReferencedObjects( FReferenceCollector& Collector ) override;
 
 private:
 	// ----------------------------------------------------------------------------------------
@@ -85,7 +93,11 @@ private:
 
 	void CompileBegin(UOptimusDeformer* InDeformer);
 	void CompileEnd(UOptimusDeformer* InDeformer);
-	
+
+	void InstallDataProviders();
+	void UpdateDataProviderBindings();
+	void RemoveDataProviders();
+
 	// ----------------------------------------------------------------------------------------
 	// Graph commands
 
@@ -119,8 +131,10 @@ private:
 public:
 	// Handlers for created tabs
 	void HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPreviewScene);
+	void HandlePreviewMeshChanged(USkeletalMesh* InOldPreviewMesh, USkeletalMesh* InNewPreviewMesh);
 	void HandleDetailsCreated(const TSharedRef<IDetailsView>& InDetailsView);
 	void HandleViewportCreated(const TSharedRef<IPersonaViewport>& InPersonaViewport);
+	void HandleViewportPreTick();
 	
 	// KILL ME
 	TSharedPtr<SGraphEditor> GetGraphEditorWidget() const { return GraphEditorWidget; }
@@ -143,6 +157,7 @@ private:
 	TSharedPtr<IPersonaToolkit> PersonaToolkit;
 	
 	// -- Widgets
+	TSharedPtr<IPersonaViewport> ViewportWidget;
 	TSharedPtr<SGraphEditor> GraphEditorWidget;
 	TSharedPtr<IDetailsView> PropertyDetailsWidget;
 	TSharedPtr<IDetailsView> PreviewDetailsWidget;
@@ -153,5 +168,12 @@ private:
 	UOptimusNodeGraph* UpdateGraph = nullptr;
 	TSharedPtr<FUICommandList> GraphEditorCommands;
 
+	// Compute Graph Component and data providers.
+	UComputeGraphComponent* ComputeGraphComponent = nullptr;
+	// FIXME: Use factories.
+	USkeletalMeshReadDataProvider* SkeletalMeshReadDataProvider = nullptr;
+	USkeletalMeshSkinCacheDataProvider* SkeletalMeshSkinCacheDataProvider = nullptr;
+	USceneDataProvider* SceneDataProvider = nullptr;
+	
 	FOnRefreshEvent RefreshEvent;
 };

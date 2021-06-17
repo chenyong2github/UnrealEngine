@@ -20,6 +20,7 @@
 #include "Nodes/OptimusNode_ComputeKernel.h"
 #include "Nodes/OptimusNode_DataInterface.h"
 
+#include "RenderingThread.h"
 #include "UObject/Package.h"
 
 #define LOCTEXT_NAMESPACE "OptimusDeformer"
@@ -560,6 +561,9 @@ bool UOptimusDeformer::Compile()
 	}
 
 	CompileBeginDelegate.Broadcast(this);
+
+	// Wait for rendering to be done.
+	FlushRenderingCommands();
 	
 	// Clean out any existing data.
 	KernelInvocations.Reset();
@@ -604,8 +608,10 @@ bool UOptimusDeformer::Compile()
 		if (const UOptimusNode_ComputeKernel *KernelNode = Cast<const UOptimusNode_ComputeKernel>(Node))
 		{
 			FKernelWithDataBindings BoundKernel;
+
+			BoundKernel.Kernel = NewObject<UComputeKernel>(this, *KernelNode->KernelName);
 			
-			UComputeKernelSource *KernelSource = KernelNode->CreateComputeKernel(this, NodeDataInterfaceMap, BoundKernel.InputDataBindings, BoundKernel.OutputDataBindings);
+			UComputeKernelSource *KernelSource = KernelNode->CreateComputeKernel(BoundKernel.Kernel, NodeDataInterfaceMap, BoundKernel.InputDataBindings, BoundKernel.OutputDataBindings);
 			if (!KernelSource)
 			{
 				UE_LOG(LogOptimusDeveloper, Warning, TEXT("Unable to create compute kernel from kernel node. Compilation aborted."));
@@ -617,7 +623,6 @@ bool UOptimusDeformer::Compile()
 				return false;
 			}
 			
-			BoundKernel.Kernel = NewObject<UComputeKernel>(this);
 			BoundKernel.Kernel->KernelSource = KernelSource;
 
 			BoundKernels.Add(BoundKernel);
