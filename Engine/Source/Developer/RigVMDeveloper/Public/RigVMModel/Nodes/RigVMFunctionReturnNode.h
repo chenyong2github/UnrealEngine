@@ -17,6 +17,7 @@ class RIGVMDEVELOPER_API URigVMFunctionReturnNode : public URigVMNode
 public:
 
 	// Override node functions
+	virtual FLinearColor GetNodeColor() const override;
 	virtual bool IsDefinedAsVarying() const override;
 
 private:

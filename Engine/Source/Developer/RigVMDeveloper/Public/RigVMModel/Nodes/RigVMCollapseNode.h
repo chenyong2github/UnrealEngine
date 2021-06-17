@@ -17,6 +17,8 @@ class RIGVMDEVELOPER_API URigVMCollapseNode : public URigVMLibraryNode
 
 public:
 
+	URigVMCollapseNode();
+
 	// RigVM node interface
 	virtual FText GetToolTipText() const override;
 
