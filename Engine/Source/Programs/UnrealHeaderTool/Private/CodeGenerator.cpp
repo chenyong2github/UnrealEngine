@@ -3887,6 +3887,39 @@ void FNativeClassHeaderGenerator::ExportGeneratedEnumInitCode(FOutputDevice& Out
 
 	const FString& PackageSingletonName = (bIsDynamic ? EnumDef.GetTypePackageName() : GetPackageSingletonName(UHTCastChecked<FUnrealPackageDefinitionInfo>(EnumDef.GetOuter()), OutReferenceGatherers.UniqueCrossModuleReferences));
 
+	// If we don't have a zero 0 then we emit a static assert to verify we have one
+	if (!EnumDef.IsValidEnumValue(0) && EnumDef.HasMetaData(FHeaderParserNames::NAME_BlueprintType))
+	{
+		bool bHasUnparsedValue = false;
+		for (const TPair<FName, int64>& Enum : EnumDef.GetEnums())
+		{
+			if (Enum.Value == -1)
+			{
+				bHasUnparsedValue = true;
+				break;
+			}
+		}
+
+		if (bHasUnparsedValue)
+		{
+			Out.Logf(TEXT("\tstatic_assert("));
+			bool bDoneFirst = false;
+			for (const TPair<FName, int64>& Enum : EnumDef.GetEnums())
+			{
+				if (Enum.Value == -1)
+				{
+					if (bDoneFirst)
+					{
+						Out.Logf(TEXT("||"));
+					}
+					bDoneFirst = true;
+					Out.Logf(TEXT("!int64(%s)"), *Enum.Key.ToString());
+				}
+			}
+			Out.Logf(TEXT(", \"'%s' does not have a 0 entry!(This is a problem when the enum is initalized by default)\");\r\n"), *EnumDef.GetName());
+		}
+	}
+
 	if (!bIsDynamic)
 	{
 		Out.Logf(TEXT("\tstatic FEnumRegistrationInfo& Z_Registration_Info_UEnum_%s()\r\n"), *EnumNameCpp);
