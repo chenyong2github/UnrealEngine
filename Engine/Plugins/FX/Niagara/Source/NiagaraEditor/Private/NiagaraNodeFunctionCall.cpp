@@ -113,6 +113,9 @@ void UNiagaraNodeFunctionCall::PostLoad()
 	}
 	
 	// check if maybe the parameter names in the referenced module were changed and try to move over existing values
+	UNiagaraGraph* Graph = GetCalledGraph();
+	if (Graph)
+		Graph->ConditionalPostLoad();
 	FixupPinNames();
 }
 

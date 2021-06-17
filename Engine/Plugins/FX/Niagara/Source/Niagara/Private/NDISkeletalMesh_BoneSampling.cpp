@@ -711,9 +711,9 @@ struct FBoneSocketSkinnedDataOutputHandler
 	{
 	}
 
-	FNDIOutputParam<FVector> Position;
+	FNDIOutputParam<FVector3f> Position;
 	FNDIOutputParam<FQuat> Rotation;
-	FNDIOutputParam<FVector> Velocity;
+	FNDIOutputParam<FVector3f> Velocity;
 
 	//TODO: Rotation + Scale too? Use quats so we can get proper interpolation between bone and parent.
 
@@ -768,18 +768,18 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMContext& Con
 			const bool bIsSocket = Bone >= BoneCount;
 			const int32 Socket = Bone - BoneCount;
 
-			FVector Pos;
-			FVector Prev;
+			FVector3f Pos;
+			FVector3f Prev;
 
 			// Handle invalid bone indices first
 			if (Bone < 0 || Bone >= BoneAndSocketCount)
 			{
-				Pos = FVector::ZeroVector;
+				Pos = FVector3f::ZeroVector;
 				TransformHandler.TransformPosition(Pos, InstanceTransform);
 
 				if (Output.bNeedsVelocity || bInterpolated::Value)
 				{
-					Prev = FVector::ZeroVector;
+					Prev = FVector3f::ZeroVector;
 					TransformHandler.TransformPosition(Prev, PrevInstanceTransform);
 				}
 				if (Output.bNeedsRotation)
@@ -855,7 +855,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMContext& Con
 			if(Output.bNeedsVelocity)
 			{
 				//Don't have enough information to get a better interpolated velocity.
-				FVector Velocity = (Pos - Prev) * InvDt;
+				FVector3f Velocity = (Pos - Prev) * InvDt;
 				Output.Velocity.SetAndAdvance(Velocity);
 			}
 		}
@@ -868,8 +868,8 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMContext& Con
 		{
 			const float Interp = bInterpolated::Value ? InterpParam.GetAndAdvance() : 1.0f;
 
-			FVector Prev = FVector::ZeroVector;
-			FVector Pos = FVector::ZeroVector;
+			FVector3f Prev = FVector3f::ZeroVector;
+			FVector3f Pos = FVector3f::ZeroVector;
 			TransformHandler.TransformPosition(Pos, InstanceTransform);
 
 			if (Output.bNeedsVelocity || bInterpolated::Value)
@@ -894,7 +894,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMContext& Con
 
 			if (Output.bNeedsVelocity)
 			{
-				FVector Velocity = (Pos - Prev) * InvDt;
+				FVector3f Velocity = (Pos - Prev) * InvDt;
 				Output.Velocity.SetAndAdvance(Velocity);
 			}
 		}
@@ -949,9 +949,9 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFilteredSocketTransform(FVectorVMCont
 	FNDIInputParam<int32> SocketParam(Context);
 	FNDIInputParam<FNiagaraBool> ApplyWorldTransform(Context);
 
-	FNDIOutputParam<FVector> OutSocketTranslate(Context);
+	FNDIOutputParam<FVector3f> OutSocketTranslate(Context);
 	FNDIOutputParam<FQuat> OutSocketRotation(Context);
-	FNDIOutputParam<FVector> OutSocketScale(Context);
+	FNDIOutputParam<FVector3f> OutSocketScale(Context);
 
 	const TArray<FTransform>& CurrentFilteredSockets = InstData->GetFilteredSocketsCurrBuffer();
 	const int32 SocketMax = CurrentFilteredSockets.Num() - 1;
@@ -964,9 +964,9 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFilteredSocketTransform(FVectorVMCont
 		for (int32 i = 0; i < Context.NumInstances; ++i)
 		{
 			const int32 SocketIndex = FMath::Clamp(SocketParam.GetAndAdvance(), 0, SocketMax);
-			FVector SocketTranslation = CurrentFilteredSockets[SocketIndex].GetTranslation();
+			FVector3f SocketTranslation = CurrentFilteredSockets[SocketIndex].GetTranslation();
 			FQuat SocketRotation = CurrentFilteredSockets[SocketIndex].GetRotation();
-			FVector SocketScale = CurrentFilteredSockets[SocketIndex].GetScale3D();
+			FVector3f SocketScale = CurrentFilteredSockets[SocketIndex].GetScale3D();
 
 			const bool bApplyTransform = ApplyWorldTransform.GetAndAdvance();
 			if (bApplyTransform)
@@ -985,9 +985,9 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFilteredSocketTransform(FVectorVMCont
 	{
 		for (int32 i=0; i < Context.NumInstances; ++i)
 		{
-			OutSocketTranslate.SetAndAdvance(FVector::ZeroVector);
+			OutSocketTranslate.SetAndAdvance(FVector3f::ZeroVector);
 			OutSocketRotation.SetAndAdvance(FQuat::Identity);
-			OutSocketScale.SetAndAdvance(FVector::ZeroVector);
+			OutSocketScale.SetAndAdvance(FVector3f::ZeroVector);
 		}
 	}
 }

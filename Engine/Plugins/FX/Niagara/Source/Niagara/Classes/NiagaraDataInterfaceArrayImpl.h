@@ -8,7 +8,6 @@
 template<typename TArrayType>
 struct FNDIArrayImplHelperBase
 {
-	typedef TArrayType TVMArrayType;
 
 	static constexpr bool bSupportsCPU = true;
 	static constexpr bool bSupportsGPU = true;
@@ -21,6 +20,11 @@ struct FNDIArrayImplHelperBase
 
 	static void GPUGetFetchHLSL(FString& OutHLSL, const TCHAR* BufferName) { OutHLSL.Appendf(TEXT("OutValue = %s[ClampedIndex];"), BufferName); }
 	static int32 GPUGetTypeStride() { return sizeof(TArrayType); }
+	static void CopyData(void* Dest, const TArrayType* Src, int32 BufferSize)
+	{
+		FMemory::Memcpy(Dest, Src, BufferSize);
+	}
+
 };
 
 template<typename TArrayType>
@@ -424,7 +428,7 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 
 					RT_Proxy->Buffer.Initialize(TEXT("NiagaraArrayFloat"), BufferStride, BufferNumElements, FNDIArrayImplHelper<TArrayType>::PixelFormat, BUF_Static);
 					void* GPUMemory = RHICmdList.LockBuffer(RT_Proxy->Buffer.Buffer, 0, BufferSize, RLM_WriteOnly);
-					FMemory::Memcpy(GPUMemory, RT_Array.GetData(), BufferSize);
+					T::CopyData(GPUMemory, RT_Array.GetData(), BufferSize);
 					RHICmdList.UnlockBuffer(RT_Proxy->Buffer.Buffer);
 				}
 				else
@@ -438,7 +442,7 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 
 					RT_Proxy->Buffer.Initialize(TEXT("NiagaraArrayFloat"), BufferStride, BufferNumElements, FNDIArrayImplHelper<TArrayType>::PixelFormat, BUF_Static);
 					void* GPUMemory = RHICmdList.LockBuffer(RT_Proxy->Buffer.Buffer, 0, BufferSize, RLM_WriteOnly);
-					FMemory::Memcpy(GPUMemory, &DefaultValue, BufferSize);
+					T::CopyData(GPUMemory, &DefaultValue, BufferSize);
 					RHICmdList.UnlockBuffer(RT_Proxy->Buffer.Buffer);
 				}
 

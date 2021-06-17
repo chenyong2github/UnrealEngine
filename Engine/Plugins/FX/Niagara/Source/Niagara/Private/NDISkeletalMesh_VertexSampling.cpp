@@ -664,11 +664,11 @@ struct FGetVertexSkinnedDataOutputHandler
 		, bNeedsTangentZ(TangentZ.IsValid())
 	{
 	}
-	FNDIOutputParam<FVector> Position;
-	FNDIOutputParam<FVector> Velocity;
-	FNDIOutputParam<FVector> TangentZ;
-	FNDIOutputParam<FVector> TangentY;
-	FNDIOutputParam<FVector> TangentX;
+	FNDIOutputParam<FVector3f> Position;
+	FNDIOutputParam<FVector3f> Velocity;
+	FNDIOutputParam<FVector3f> TangentZ;
+	FNDIOutputParam<FVector3f> TangentY;
+	FNDIOutputParam<FVector3f> TangentX;
 
 	const bool bNeedsPosition;
 	const bool bNeedsVelocity;
@@ -708,7 +708,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexSkinnedData(FVectorVMContext& C
 			{
 				const int32 Vertex = FMath::Clamp(VertParam.GetAndAdvance(), 0, VertMax);
 
-				FVector Pos = FVector::ZeroVector;
+				FVector3f Pos = FVector3f::ZeroVector;
 				if (Output.bNeedsPosition || Output.bNeedsVelocity)
 				{
 					Pos = SkinningHandler.GetSkinnedVertexPosition(Accessor, Vertex);
@@ -718,9 +718,9 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexSkinnedData(FVectorVMContext& C
 
 				if (Output.bNeedsVelocity)
 				{
-					FVector Prev = SkinningHandler.GetSkinnedVertexPreviousPosition(Accessor, Vertex);
+					FVector3f Prev = SkinningHandler.GetSkinnedVertexPreviousPosition(Accessor, Vertex);
 					TransformHandler.TransformPosition(Prev, PrevTransform);
-					const FVector Velocity = (Pos - Prev) * InvDt;
+					const FVector3f Velocity = (Pos - Prev) * InvDt;
 					Output.Velocity.SetAndAdvance(Velocity);
 				}
 
@@ -758,16 +758,16 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexSkinnedData(FVectorVMContext& C
 	// Fall though for bad data
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
-		FVector Position = FVector::ZeroVector;
+		FVector3f Position = FVector3f::ZeroVector;
 		if (Output.bNeedsPosition || Output.bNeedsVelocity)
 		{
 			TransformHandler.TransformPosition(Position, Transform);
 		}
 		Output.Position.SetAndAdvance(Position);
-		Output.Velocity.SetAndAdvance(FVector::ZeroVector);
-		Output.TangentX.SetAndAdvance(FVector::XAxisVector);
-		Output.TangentY.SetAndAdvance(FVector::YAxisVector);
-		Output.TangentZ.SetAndAdvance(FVector::ZAxisVector);
+		Output.Velocity.SetAndAdvance(FVector3f::ZeroVector);
+		Output.TangentX.SetAndAdvance(FVector3f::XAxisVector);
+		Output.TangentY.SetAndAdvance(FVector3f::YAxisVector);
+		Output.TangentZ.SetAndAdvance(FVector3f::ZAxisVector);
 	}
 }
 

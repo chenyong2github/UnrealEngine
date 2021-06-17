@@ -717,6 +717,8 @@ struct FNDIInputParam<FVector3f>
 	FORCEINLINE FVector3f GetAndAdvance() { return FVector3f(X.GetAndAdvance(), Y.GetAndAdvance(), Z.GetAndAdvance()); }
 };
 
+
+
 template<>
 struct FNDIInputParam<FVector4>
 {
@@ -802,20 +804,21 @@ struct FNDIOutputParam<FVector2D>
 };
 
 template<>
-struct FNDIOutputParam<FVector>
+struct FNDIOutputParam<FVector3f>
 {
 	VectorVM::FExternalFuncRegisterHandler<float> X;
 	VectorVM::FExternalFuncRegisterHandler<float> Y;
 	VectorVM::FExternalFuncRegisterHandler<float> Z;
 	FNDIOutputParam(FVectorVMContext& Context) : X(Context), Y(Context), Z(Context) {}
 	FORCEINLINE bool IsValid() const { return X.IsValid() || Y.IsValid() || Z.IsValid(); }
-	FORCEINLINE void SetAndAdvance(FVector Val)
+	FORCEINLINE void SetAndAdvance(FVector3f Val)
 	{
 		*X.GetDestAndAdvance() = Val.X;
 		*Y.GetDestAndAdvance() = Val.Y;
 		*Z.GetDestAndAdvance() = Val.Z;
 	}
 };
+
 
 template<>
 struct FNDIOutputParam<FVector4>
@@ -854,7 +857,7 @@ struct FNDIOutputParam<FQuat>
 };
 
 template<>
-struct FNDIOutputParam<FMatrix>
+struct FNDIOutputParam<FMatrix44f>
 {
 	VectorVM::FExternalFuncRegisterHandler<float> Out00;
 	VectorVM::FExternalFuncRegisterHandler<float> Out01;
@@ -876,7 +879,7 @@ struct FNDIOutputParam<FMatrix>
 	FORCEINLINE FNDIOutputParam(FVectorVMContext& Context) : Out00(Context), Out01(Context), Out02(Context), Out03(Context), Out04(Context), Out05(Context),
 		Out06(Context), Out07(Context), Out08(Context), Out09(Context), Out10(Context), Out11(Context), Out12(Context), Out13(Context), Out14(Context), Out15(Context)	{}
 	FORCEINLINE bool IsValid() const { return Out00.IsValid(); }
-	FORCEINLINE void SetAndAdvance(const FMatrix& Val)
+	FORCEINLINE void SetAndAdvance(const FMatrix44f& Val)
 	{
 		*Out00.GetDestAndAdvance() = Val.M[0][0];
 		*Out01.GetDestAndAdvance() = Val.M[0][1];

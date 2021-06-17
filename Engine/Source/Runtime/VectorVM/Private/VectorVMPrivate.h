@@ -21,8 +21,8 @@ namespace VectorVM
 struct FDummyHandler
 {
 	FORCEINLINE void Advance(){ }
-	FORCEINLINE VectorRegister Get(){ return GlobalVectorConstants::FloatZero; }
-	FORCEINLINE VectorRegister GetValue(){ return GlobalVectorConstants::FloatZero; }
+	FORCEINLINE VectorRegister4Float Get(){ return GlobalVectorConstants::FloatZero; }
+	FORCEINLINE VectorRegister4Float GetValue(){ return GlobalVectorConstants::FloatZero; }
 };
 extern FDummyHandler DummyHandler;
 

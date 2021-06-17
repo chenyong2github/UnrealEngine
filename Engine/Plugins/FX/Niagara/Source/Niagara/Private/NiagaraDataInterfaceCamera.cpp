@@ -520,7 +520,7 @@ void UNiagaraDataInterfaceCamera::CalculateParticleDistances(FVectorVMContext& C
 	VectorVM::FUserPtrHandler<FCameraDataInterface_InstanceData> InstData(Context);
 
 	FNDIInputParam<FNiagaraID> IDParam(Context);
-	FNDIInputParam<FVector> ParticlePosParam(Context);
+	FNDIInputParam<FVector3f> ParticlePosParam(Context);
 
 	FVector CameraPos = InstData->CameraLocation;
 	for (int32 i = 0; i < Context.NumInstances; ++i)

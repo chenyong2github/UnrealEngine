@@ -221,21 +221,27 @@ void FSkeletalMeshUvMappingHandle::FindOverlappingTriangles(const FVector2D& InU
 	}
 }
 
-int32 FSkeletalMeshUvMappingHandle::FindFirstTriangle(const FVector2D& InUv, float Tolerance, FVector& BarycentricCoord) const
+int32 FSkeletalMeshUvMappingHandle::FindFirstTriangle(const FVector2D& InUv, float Tolerance, FVector3f& BarycentricCoord) const
 {
 	if (UvMappingData)
 	{
-		return UvMappingData->FindFirstTriangle(InUv, Tolerance, BarycentricCoord);
+		FVector BarycentricCoord3d = FVector::ZeroVector;
+		int32 Tri = UvMappingData->FindFirstTriangle(InUv, Tolerance, BarycentricCoord3d);
+		BarycentricCoord = BarycentricCoord3d;
+		return Tri;
 	}
 
 	return INDEX_NONE;
 }
 
-int32 FSkeletalMeshUvMappingHandle::FindFirstTriangle(const FBox2D& InUvBox, FVector& BarycentricCoord) const
+int32 FSkeletalMeshUvMappingHandle::FindFirstTriangle(const FBox2D& InUvBox, FVector3f& BarycentricCoord) const
 {
 	if (UvMappingData)
 	{
-		return UvMappingData->FindFirstTriangle(InUvBox, BarycentricCoord);
+		FVector BarycentricCoord3d = FVector::ZeroVector;
+		int32 Tri = UvMappingData->FindFirstTriangle(InUvBox, BarycentricCoord3d);
+		BarycentricCoord = BarycentricCoord3d;
+		return Tri;
 	}
 	return INDEX_NONE;
 }

@@ -141,6 +141,7 @@ class NIAGARAEDITOR_API UEdGraphSchema_Niagara : public UEdGraphSchema
 	  */
 	bool TryGetPinDefaultValueFromNiagaraVariable(const FNiagaraVariable& Variable, FString& OutPinDefaultValue) const;
 
+	static void ConvertIllegalPinsInPlace(UEdGraphPin* Pin);
 	static FNiagaraTypeDefinition PinToTypeDefinition(const UEdGraphPin* Pin);
 	static FNiagaraTypeDefinition PinTypeToTypeDefinition(const FEdGraphPinType& PinType) ;
 	static FEdGraphPinType TypeDefinitionToPinType(FNiagaraTypeDefinition TypeDef);

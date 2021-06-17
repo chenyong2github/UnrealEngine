@@ -43,6 +43,8 @@ void UNiagaraNode::PostLoad()
 		const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
 		check(Schema);
 
+		UEdGraphSchema_Niagara::ConvertIllegalPinsInPlace(Pin);
+
 		const FNiagaraTypeDefinition PinType = Schema->PinToTypeDefinition(Pin);
 		if (PinType.GetEnum() == FNiagaraTypeDefinition::GetCoordinateSpaceEnum())
 		{

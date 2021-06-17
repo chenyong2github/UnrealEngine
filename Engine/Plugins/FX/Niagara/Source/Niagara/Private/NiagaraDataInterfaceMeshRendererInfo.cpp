@@ -38,8 +38,8 @@ class FNDIMeshRendererInfo
 public:
 	struct FMeshData
 	{
-		FVector MinLocalBounds = FVector(ForceInitToZero);
-		FVector MaxLocalBounds = FVector(ForceInitToZero);
+		FVector3f MinLocalBounds = FVector3f(ForceInitToZero);
+		FVector3f MaxLocalBounds = FVector3f(ForceInitToZero);
 	};
 
 	using FMeshDataArray = TArray<FMeshData>;
@@ -79,13 +79,13 @@ public:
 
 	virtual void InitRHI() override final
 	{
-		uint32 SizeByte = MeshData.Num() * sizeof(FVector) * 2;
+		uint32 SizeByte = MeshData.Num() * sizeof(FVector3f) * 2;
 		
 		if (SizeByte > 0)
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("FNDIMeshRendererInfoGPUData"));
 			BufferMeshDataRHI = RHICreateBuffer(SizeByte, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
-			FVector* BufferDataVector = reinterpret_cast<FVector*>(RHILockBuffer(BufferMeshDataRHI, 0, SizeByte, RLM_WriteOnly));
+			FVector3f* BufferDataVector = reinterpret_cast<FVector3f*>(RHILockBuffer(BufferMeshDataRHI, 0, SizeByte, RLM_WriteOnly));
 			for (const auto& Mesh : MeshData)
 			{
 				*BufferDataVector++ = Mesh.MinLocalBounds;
@@ -599,14 +599,14 @@ void UNiagaraDataInterfaceMeshRendererInfo::GetNumMeshes(FVectorVMContext& Conte
 void UNiagaraDataInterfaceMeshRendererInfo::GetMeshLocalBounds(FVectorVMContext& Context)
 {
 	FNDIInputParam<int32> InMeshIdx(Context);
-	FNDIOutputParam<FVector> OutMinBounds(Context);
-	FNDIOutputParam<FVector> OutMaxBounds(Context);
-	FNDIOutputParam<FVector> OutSize(Context);
+	FNDIOutputParam<FVector3f> OutMinBounds(Context);
+	FNDIOutputParam<FVector3f> OutMaxBounds(Context);
+	FNDIOutputParam<FVector3f> OutSize(Context);
 
 	for (int32 Instance = 0; Instance < Context.GetNumInstances(); ++Instance)
 	{
-		FVector MinLocalBounds(ForceInitToZero);
-		FVector MaxLocalBounds(ForceInitToZero);
+		FVector3f MinLocalBounds(ForceInitToZero);
+		FVector3f MaxLocalBounds(ForceInitToZero);
 		if (Info.IsValid())
 		{
 			const FNDIMeshRendererInfo::FMeshDataArray& MeshData = Info->GetMeshData();

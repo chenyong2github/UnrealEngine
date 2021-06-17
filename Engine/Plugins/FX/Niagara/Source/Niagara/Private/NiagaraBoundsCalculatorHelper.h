@@ -51,8 +51,10 @@ public:
 
 		constexpr float kDefaultSize = 50.0f;
 
-		FBox Bounds(ForceInitToZero);
-		PositionAccessor.GetReader(DataSet).GetMinMax(Bounds.Min, Bounds.Max);
+		FVector3f BoundsMin(ForceInitToZero);
+		FVector3f BoundsMax(ForceInitToZero);
+		PositionAccessor.GetReader(DataSet).GetMinMax(BoundsMin, BoundsMax);
+		FBox Bounds(BoundsMin, BoundsMax);
 
 		float MaxSize = KINDA_SMALL_NUMBER;
 		if (bUsedWithMeshes)
@@ -109,9 +111,9 @@ public:
 		return Bounds.ExpandBy(MaxSize);
 	}
 
-	FNiagaraDataSetAccessor<FVector> PositionAccessor;
+	FNiagaraDataSetAccessor<FVector3f> PositionAccessor;
 	FNiagaraDataSetAccessor<FVector2D> SpriteSizeAccessor;
-	FNiagaraDataSetAccessor<FVector> ScaleAccessor;
+	FNiagaraDataSetAccessor<FVector3f> ScaleAccessor;
 	FNiagaraDataSetAccessor<float> RibbonWidthAccessor;
 
 	const FVector MeshExtents = FVector::OneVector;

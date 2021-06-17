@@ -352,7 +352,7 @@ void UNiagaraDataInterfaceNeighborGrid3D::GetWorldBBoxSize(FVectorVMContext& Con
 {
 	VectorVM::FUserPtrHandler<NeighborGrid3DRWInstanceData> InstData(Context);
 
-	FNDIOutputParam<FVector> OutWorldBounds(Context);
+	FNDIOutputParam<FVector3f> OutWorldBounds(Context);
 
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
 	{

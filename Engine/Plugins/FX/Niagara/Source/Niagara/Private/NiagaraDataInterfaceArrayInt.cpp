@@ -7,6 +7,7 @@
 template<>
 struct FNDIArrayImplHelper<int32> : public FNDIArrayImplHelperBase<int32>
 {
+	typedef int32 TVMArrayType;
 	static constexpr TCHAR const* HLSLValueTypeName = TEXT("int");
 	static constexpr TCHAR const* HLSLBufferTypeName = TEXT("int");
 	static constexpr EPixelFormat PixelFormat = PF_R32_SINT;

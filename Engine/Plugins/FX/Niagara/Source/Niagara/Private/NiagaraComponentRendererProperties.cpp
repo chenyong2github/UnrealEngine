@@ -38,6 +38,7 @@ bool UNiagaraComponentRendererProperties::IsConvertible(const FNiagaraTypeDefini
 	if ((SourceType == FNiagaraTypeDefinition::GetColorDef() && TargetType.GetStruct() == GetFColorDef().GetStruct()) ||
 		(SourceType == FNiagaraTypeDefinition::GetVec3Def() && TargetType.GetStruct() == GetFColorDef().GetStruct()) ||
 		(SourceType == FNiagaraTypeDefinition::GetVec3Def() && TargetType.GetStruct() == GetFRotatorDef().GetStruct()) ||
+		(SourceType == FNiagaraTypeDefinition::GetVec3Def() && TargetType.GetStruct() == GetFVectorDef().GetStruct()) ||
 		(SourceType == FNiagaraTypeDefinition::GetVec4Def() && TargetType.GetStruct() == GetFColorDef().GetStruct()) ||
 		(SourceType == FNiagaraTypeDefinition::GetQuatDef() && TargetType.GetStruct() == GetFRotatorDef().GetStruct()))
 	{
@@ -66,7 +67,7 @@ NIAGARA_API FNiagaraTypeDefinition UNiagaraComponentRendererProperties::ToNiagar
 		FStructProperty* StructProperty = (FStructProperty*)Property;
 		if (StructProperty->Struct)
 		{
-			return FNiagaraTypeDefinition(StructProperty->Struct);
+			return FNiagaraTypeDefinition(FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProperty->Struct));
 		}
 	}
 
@@ -102,6 +103,13 @@ FNiagaraTypeDefinition UNiagaraComponentRendererProperties::GetFRotatorDef()
 	static UPackage* CoreUObjectPkg = FindObjectChecked<UPackage>(nullptr, TEXT("/Script/CoreUObject"));
 	static UScriptStruct* RotatorStruct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Rotator"));
 	return FNiagaraTypeDefinition(RotatorStruct);
+}
+
+FNiagaraTypeDefinition UNiagaraComponentRendererProperties::GetFVectorDef()
+{
+	static UPackage* CoreUObjectPkg = FindObjectChecked<UPackage>(nullptr, TEXT("/Script/CoreUObject"));
+	static UScriptStruct* VectorStruct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Vector"));
+	return FNiagaraTypeDefinition(VectorStruct, FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Allow);
 }
 
 TArray<TWeakObjectPtr<UNiagaraComponentRendererProperties>> UNiagaraComponentRendererProperties::ComponentRendererPropertiesToDeferredInit;
@@ -289,7 +297,7 @@ void UNiagaraComponentRendererProperties::UpdateSetterFunctions()
 						FNiagaraTypeDefinition FieldType = ToNiagaraType(Property);
 						if (FieldType != PropertyBinding.PropertyType && FieldType == PropertyBinding.AttributeBinding.GetType())
 						{
-							// we can use the original Niagara value with the setter instead of converting it
+							// we can use the original Niagara value with the setter instead of converting it.
 							Setter.bIgnoreConversion = true;
 						}
 						else if (FieldType != PropertyBinding.PropertyType)

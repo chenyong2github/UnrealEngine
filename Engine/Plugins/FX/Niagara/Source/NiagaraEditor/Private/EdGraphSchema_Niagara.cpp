@@ -1386,6 +1386,22 @@ bool UEdGraphSchema_Niagara::TryGetPinDefaultValueFromNiagaraVariable(const FNia
 	return false;
 }
 
+void UEdGraphSchema_Niagara::ConvertIllegalPinsInPlace(UEdGraphPin* Pin)
+{
+	if (Pin == nullptr)
+		return;
+
+	if (Pin->PinType.PinCategory == PinCategoryType && Pin->PinType.PinSubCategoryObject.IsValid())
+	{
+		UScriptStruct* Struct = Cast<UScriptStruct>(Pin->PinType.PinSubCategoryObject.Get());
+		UScriptStruct* ConvertedStruct = FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(Struct);
+		if (Struct != ConvertedStruct)
+		{
+			Pin->PinType.PinSubCategoryObject = ConvertedStruct;
+		}
+	}
+}
+
 FNiagaraTypeDefinition UEdGraphSchema_Niagara::PinToTypeDefinition(const UEdGraphPin* Pin)
 {
 	if (Pin == nullptr)
@@ -1401,6 +1417,20 @@ FNiagaraTypeDefinition UEdGraphSchema_Niagara::PinToTypeDefinition(const UEdGrap
 			UE_LOG(LogNiagaraEditor, Error, TEXT("Pin states that it is of struct type, but is missing its struct object. This is usually the result of a registered type going away. Pin Name '%s' Owning Node '%s'."),
 				*Pin->PinName.ToString(), OwningNode ? *OwningNode->GetName() : TEXT("Invalid"));
 			return FNiagaraTypeDefinition();
+		}
+		else if (Struct && !FNiagaraTypeHelper::IsNiagaraFriendlyTopLevelStruct(Struct)) // LWC swapover support
+		{
+			if (OwningNode && OwningNode->HasAnyFlags(EObjectFlags::RF_NeedPostLoad))
+			{
+				UE_LOG(LogNiagaraEditor, Verbose, TEXT("Pin states that it is not a niagara friendly struct, but didn't get converted by PostLoad yet, it still has RF_NeedPostLoad . Pin Name '%s' Owning Node '%s'."),
+					*Pin->PinName.ToString(), OwningNode ? *OwningNode->GetPathName() : TEXT("Invalid"));
+			}
+			else 
+			{
+				UE_LOG(LogNiagaraEditor, Verbose, TEXT("Pin states that it is not a niagara friendly struct, but didn't get converted by PostLoad yet, it does not have RF_NeedPostLoad though. Pin Name '%s' Owning Node '%s'."),
+					*Pin->PinName.ToString(), OwningNode ? *OwningNode->GetPathName() : TEXT("Invalid"));
+			}
+			return FNiagaraTypeDefinition(FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(Struct));
 		}
 		return FNiagaraTypeDefinition(Struct);
 	}
@@ -1679,7 +1709,7 @@ FNiagaraTypeDefinition UEdGraphSchema_Niagara::GetTypeDefForProperty(const FProp
 	}
 	else if (const FStructProperty* StructProp = CastFieldChecked<const FStructProperty>(Property))
 	{
-		return FNiagaraTypeDefinition(StructProp->Struct);
+		return FNiagaraTypeDefinition(FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProp->Struct));
 	}
 
 	check(0);

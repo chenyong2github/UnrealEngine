@@ -7,6 +7,7 @@
 template<>
 struct FNDIArrayImplHelper<float> : public FNDIArrayImplHelperBase<float>
 {
+	typedef float TVMArrayType;
 	static constexpr TCHAR const* HLSLValueTypeName = TEXT("float");
 	static constexpr TCHAR const* HLSLBufferTypeName = TEXT("float");
 	static constexpr EPixelFormat PixelFormat = PF_R32_FLOAT;
@@ -17,6 +18,7 @@ struct FNDIArrayImplHelper<float> : public FNDIArrayImplHelperBase<float>
 template<>
 struct FNDIArrayImplHelper<FVector2D> : public FNDIArrayImplHelperBase<FVector2D>
 {
+	typedef FVector2D TVMArrayType;
 	static constexpr TCHAR const* HLSLValueTypeName = TEXT("float2");
 	static constexpr TCHAR const* HLSLBufferTypeName = TEXT("float2");
 	static constexpr EPixelFormat PixelFormat = PF_G32R32F;
@@ -25,13 +27,14 @@ struct FNDIArrayImplHelper<FVector2D> : public FNDIArrayImplHelperBase<FVector2D
 };
 
 template<>
-struct FNDIArrayImplHelper<FVector> : public FNDIArrayImplHelperBase<FVector>
+struct FNDIArrayImplHelper<FVector3f> : public FNDIArrayImplHelperBase<FVector3f>
 {
+	typedef FVector3f TVMArrayType;
 	static constexpr TCHAR const* HLSLValueTypeName = TEXT("float3");
 	static constexpr TCHAR const* HLSLBufferTypeName = TEXT("float");	//-OPT: Current we have no float3 pixel format, when we add one update this to use it
 	static constexpr EPixelFormat PixelFormat = PF_R32_FLOAT;
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetVec3Def(); }
-	static const FVector GetDefaultValue() { return FVector::ZeroVector; }
+	static const FVector3f GetDefaultValue() { return FVector3f::ZeroVector; }
 
 	static void GPUGetFetchHLSL(FString& OutHLSL, const TCHAR* BufferName)
 	{
@@ -45,9 +48,41 @@ struct FNDIArrayImplHelper<FVector> : public FNDIArrayImplHelperBase<FVector>
 	}
 };
 
+// LWC_TODO: This is represented as an FVector3f internally (array is converted to floats during PushToRenderThread)
+template<>
+struct FNDIArrayImplHelper<FVector3d> : public FNDIArrayImplHelperBase<FVector3d>
+{
+	typedef FVector3f TVMArrayType;
+	static constexpr TCHAR const* HLSLValueTypeName = TEXT("float3");
+	static constexpr TCHAR const* HLSLBufferTypeName = TEXT("float");	//-OPT: Current we have no float3 pixel format, when we add one update this to use it
+	static constexpr EPixelFormat PixelFormat = PF_R32_FLOAT;
+	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetVec3Def(); }
+	static const FVector3f GetDefaultValue() { return FVector3f::ZeroVector; }
+
+	static void GPUGetFetchHLSL(FString& OutHLSL, const TCHAR* BufferName)
+	{
+		OutHLSL.Appendf(TEXT("OutValue.x = %s[ClampedIndex * 3 + 0];"), BufferName);
+		OutHLSL.Appendf(TEXT("OutValue.y = %s[ClampedIndex * 3 + 1];"), BufferName);
+		OutHLSL.Appendf(TEXT("OutValue.z = %s[ClampedIndex * 3 + 2];"), BufferName);
+	}
+	static int32 GPUGetTypeStride()
+	{
+		return sizeof(float);
+	}
+
+	static void CopyData(void* Dest, const FVector3d* Src, int32 BufferSize)
+	{
+		FVector3f* DestFloats = (FVector3f*)Dest;
+		int32 Num = BufferSize / sizeof(FVector3d);
+		for (int32 i = 0; i < Num; i++)
+			DestFloats[i] = Src[i];
+	}
+};
+
 template<>
 struct FNDIArrayImplHelper<FVector4> : public FNDIArrayImplHelperBase<FVector4>
 {
+	typedef FVector4 TVMArrayType;
 	static constexpr TCHAR const* HLSLValueTypeName = TEXT("float4");
 	static constexpr TCHAR const* HLSLBufferTypeName = TEXT("float4");
 	static constexpr EPixelFormat PixelFormat = PF_A32B32G32R32F;
@@ -58,6 +93,7 @@ struct FNDIArrayImplHelper<FVector4> : public FNDIArrayImplHelperBase<FVector4>
 template<>
 struct FNDIArrayImplHelper<FLinearColor> : public FNDIArrayImplHelperBase<FLinearColor>
 {
+	typedef FLinearColor TVMArrayType;
 	static constexpr TCHAR const* HLSLValueTypeName = TEXT("float4");
 	static constexpr TCHAR const* HLSLBufferTypeName = TEXT("float4");
 	static constexpr EPixelFormat PixelFormat = PF_A32B32G32R32F;
@@ -68,6 +104,7 @@ struct FNDIArrayImplHelper<FLinearColor> : public FNDIArrayImplHelperBase<FLinea
 template<>
 struct FNDIArrayImplHelper<FQuat> : public FNDIArrayImplHelperBase<FQuat>
 {
+	typedef FQuat TVMArrayType;
 	static constexpr TCHAR const* HLSLValueTypeName = TEXT("float4");
 	static constexpr TCHAR const* HLSLBufferTypeName = TEXT("float4");
 	static constexpr EPixelFormat PixelFormat = PF_A32B32G32R32F;

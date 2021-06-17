@@ -683,29 +683,29 @@ struct FVectorKernelFastDot4
 
 		VectorVM::FExternalFuncRegisterHandler<float> OutValue(Context);
 
-		VectorRegister* RESTRICT AX = (VectorRegister *)InVecA[0].GetDest();
-		VectorRegister* RESTRICT AY = (VectorRegister *)InVecA[1].GetDest();
-		VectorRegister* RESTRICT AZ = (VectorRegister *)InVecA[2].GetDest();
-		VectorRegister* RESTRICT AW = (VectorRegister *)InVecA[3].GetDest();
+		VectorRegister4Float* RESTRICT AX = (VectorRegister4Float *)InVecA[0].GetDest();
+		VectorRegister4Float* RESTRICT AY = (VectorRegister4Float *)InVecA[1].GetDest();
+		VectorRegister4Float* RESTRICT AZ = (VectorRegister4Float *)InVecA[2].GetDest();
+		VectorRegister4Float* RESTRICT AW = (VectorRegister4Float *)InVecA[3].GetDest();
 
-		VectorRegister* RESTRICT BX = (VectorRegister *)InVecB[0].GetDest();
-		VectorRegister* RESTRICT BY = (VectorRegister *)InVecB[1].GetDest();
-		VectorRegister* RESTRICT BZ = (VectorRegister *)InVecB[2].GetDest();
-		VectorRegister* RESTRICT BW = (VectorRegister *)InVecB[3].GetDest();
-		VectorRegister* RESTRICT Out = (VectorRegister *)OutValue.GetDest();
+		VectorRegister4Float* RESTRICT BX = (VectorRegister4Float *)InVecB[0].GetDest();
+		VectorRegister4Float* RESTRICT BY = (VectorRegister4Float *)InVecB[1].GetDest();
+		VectorRegister4Float* RESTRICT BZ = (VectorRegister4Float *)InVecB[2].GetDest();
+		VectorRegister4Float* RESTRICT BW = (VectorRegister4Float *)InVecB[3].GetDest();
+		VectorRegister4Float* RESTRICT Out = (VectorRegister4Float *)OutValue.GetDest();
 
 		const int32 Loops = Context.GetNumLoops<4>();
 		for (int32 i = 0; i < Loops; ++i)
 		{
 
-			VectorRegister AVX0= VectorLoadAligned(&AX[i]);
-			VectorRegister AVY0= VectorLoadAligned(&AY[i]);
-			VectorRegister AVZ0= VectorLoadAligned(&AZ[i]);
-			VectorRegister AVW0= VectorLoadAligned(&AW[i]);
-			VectorRegister BVX0= VectorLoadAligned(&BX[i]);
-			VectorRegister BVY0= VectorLoadAligned(&BY[i]);
-			VectorRegister BVZ0= VectorLoadAligned(&BZ[i]);
-			VectorRegister BVW0= VectorLoadAligned(&BW[i]);
+			VectorRegister4Float AVX0= VectorLoadAligned(&AX[i]);
+			VectorRegister4Float AVY0= VectorLoadAligned(&AY[i]);
+			VectorRegister4Float AVZ0= VectorLoadAligned(&AZ[i]);
+			VectorRegister4Float AVW0= VectorLoadAligned(&AW[i]);
+			VectorRegister4Float BVX0= VectorLoadAligned(&BX[i]);
+			VectorRegister4Float BVY0= VectorLoadAligned(&BY[i]);
+			VectorRegister4Float BVZ0= VectorLoadAligned(&BZ[i]);
+			VectorRegister4Float BVW0= VectorLoadAligned(&BW[i]);
 
 			/*
 				 R[19] = :mul(R[21], R[25]);
@@ -713,10 +713,10 @@ struct FVectorKernelFastDot4
 				 R[19] = :mad(R[22], R[26], R[21]);
 				 R[20] = :mad(R[23], R[27], R[19]);
 			*/
-			VectorRegister AMBX0	= VectorMultiply(AVX0, BVX0);
-			VectorRegister AMBXY0= VectorMultiplyAdd(AVY0, BVY0, AMBX0);
-			VectorRegister AMBXYZ0= VectorMultiplyAdd(AVZ0, BVZ0, AMBXY0);
-			VectorRegister AMBXYZW0= VectorMultiplyAdd(AVW0, BVW0, AMBXYZ0);
+			VectorRegister4Float AMBX0	= VectorMultiply(AVX0, BVX0);
+			VectorRegister4Float AMBXY0= VectorMultiplyAdd(AVY0, BVY0, AMBX0);
+			VectorRegister4Float AMBXYZ0= VectorMultiplyAdd(AVZ0, BVZ0, AMBXY0);
+			VectorRegister4Float AMBXYZW0= VectorMultiplyAdd(AVW0, BVW0, AMBXYZ0);
 			VectorStoreAligned(AMBXYZW0, &Out[i]) ;
 
 			/*
@@ -1461,37 +1461,37 @@ struct FVectorKernel_SolveVelocitiesAndForces
 			*OutParticlesVelocityZ.GetDestAndAdvance() = ParticleVelocity.Z;
 		}
 #else
-		const VectorRegister EngineDeltaTime = VectorSetFloat1(InEngineDeltaTime.Get());
-		const VectorRegister MassMin = VectorSetFloat1(0.0001f);
+		const VectorRegister4Float EngineDeltaTime = VectorSetFloat1(InEngineDeltaTime.Get());
+		const VectorRegister4Float MassMin = VectorSetFloat1(0.0001f);
 
 		for (int i=0; i < Context.GetNumLoops<4>(); ++i)
 		{
 			// Gather values
-			VectorRegister PhysicsForceX		= VectorLoad(InPhysicsForceX.GetDestAndAdvance());
-			VectorRegister PhysicsForceY		= VectorLoad(InPhysicsForceY.GetDestAndAdvance());
-			VectorRegister PhysicsForceZ		= VectorLoad(InPhysicsForceZ.GetDestAndAdvance());
-			VectorRegister PhysicsDrag			= VectorLoad(InPhysicsDrag.GetDestAndAdvance());
+			VectorRegister4Float PhysicsForceX		= VectorLoad(InPhysicsForceX.GetDestAndAdvance());
+			VectorRegister4Float PhysicsForceY		= VectorLoad(InPhysicsForceY.GetDestAndAdvance());
+			VectorRegister4Float PhysicsForceZ		= VectorLoad(InPhysicsForceZ.GetDestAndAdvance());
+			VectorRegister4Float PhysicsDrag			= VectorLoad(InPhysicsDrag.GetDestAndAdvance());
 
-			VectorRegister ParticlesMass		= VectorLoad(InParticlesMass.GetDestAndAdvance());
-			VectorRegister ParticlesPositionX	= VectorLoad(InParticlesPositionX.GetDestAndAdvance());
-			VectorRegister ParticlesPositionY	= VectorLoad(InParticlesPositionY.GetDestAndAdvance());
-			VectorRegister ParticlesPositionZ	= VectorLoad(InParticlesPositionZ.GetDestAndAdvance());
-			VectorRegister ParticlesVelocityX	= VectorLoad(InParticlesVelocityX.GetDestAndAdvance());
-			VectorRegister ParticlesVelocityY	= VectorLoad(InParticlesVelocityY.GetDestAndAdvance());
-			VectorRegister ParticlesVelocityZ	= VectorLoad(InParticlesVelocityZ.GetDestAndAdvance());
+			VectorRegister4Float ParticlesMass		= VectorLoad(InParticlesMass.GetDestAndAdvance());
+			VectorRegister4Float ParticlesPositionX	= VectorLoad(InParticlesPositionX.GetDestAndAdvance());
+			VectorRegister4Float ParticlesPositionY	= VectorLoad(InParticlesPositionY.GetDestAndAdvance());
+			VectorRegister4Float ParticlesPositionZ	= VectorLoad(InParticlesPositionZ.GetDestAndAdvance());
+			VectorRegister4Float ParticlesVelocityX	= VectorLoad(InParticlesVelocityX.GetDestAndAdvance());
+			VectorRegister4Float ParticlesVelocityY	= VectorLoad(InParticlesVelocityY.GetDestAndAdvance());
+			VectorRegister4Float ParticlesVelocityZ	= VectorLoad(InParticlesVelocityZ.GetDestAndAdvance());
 
 			VectorStore(ParticlesVelocityX, OutParticlesPreviousVelocityX.GetDestAndAdvance());
 			VectorStore(ParticlesVelocityY, OutParticlesPreviousVelocityY.GetDestAndAdvance());
 			VectorStore(ParticlesVelocityZ, OutParticlesPreviousVelocityZ.GetDestAndAdvance());
 
 			// Apply velocity
-			const VectorRegister OOParticleMassDT = VectorMultiply(VectorReciprocal(VectorMax(ParticlesMass, MassMin)), EngineDeltaTime);
+			const VectorRegister4Float OOParticleMassDT = VectorMultiply(VectorReciprocal(VectorMax(ParticlesMass, MassMin)), EngineDeltaTime);
 			ParticlesVelocityX = VectorMultiplyAdd(PhysicsForceX, OOParticleMassDT, ParticlesVelocityX);
 			ParticlesVelocityY = VectorMultiplyAdd(PhysicsForceY, OOParticleMassDT, ParticlesVelocityY);
 			ParticlesVelocityZ = VectorMultiplyAdd(PhysicsForceZ, OOParticleMassDT, ParticlesVelocityZ);
 
 			// Apply Drag
-			VectorRegister ClampedDrag = VectorMultiply(PhysicsDrag, EngineDeltaTime);
+			VectorRegister4Float ClampedDrag = VectorMultiply(PhysicsDrag, EngineDeltaTime);
 			ClampedDrag = VectorMax(VectorMin(ClampedDrag, VectorOne()), VectorZero());
 			ClampedDrag = VectorNegate(ClampedDrag);
 
@@ -1526,45 +1526,45 @@ struct FVectorKernel_SolveVelocitiesAndForces
 	FORCEINLINE static void ExecOptimized(FVectorVMContext& Context)
 	{
 #if 0
-		const VectorRegister MassMin = VectorSetFloat1(0.0001f);
-		const VectorRegister EngineDeltaTime = VectorSetFloat1(VectorVM::FExternalFuncInputHandler<float>(Context).Get());
-		VectorRegister PhysicsForceX = VectorLoadFloat1(VectorVM::FExternalFuncInputHandler<VectorRegister>(Context).GetDest());
-		VectorRegister PhysicsForceY = VectorLoadFloat1(VectorVM::FExternalFuncInputHandler<VectorRegister>(Context).GetDest());
-		VectorRegister PhysicsForceZ = VectorLoadFloat1(VectorVM::FExternalFuncInputHandler<VectorRegister>(Context).GetDest());
-		VectorRegister PhysicsDrag = VectorLoadFloat1(VectorVM::FExternalFuncInputHandler<VectorRegister>(Context).GetDest());
-		VectorRegister ParticlesMass = VectorLoadFloat1(VectorVM::FExternalFuncInputHandler<VectorRegister>(Context).GetDest());
-		const VectorRegister* RESTRICT InParticlesPositionX = VectorVM::FExternalFuncInputHandler<VectorRegister>(Context).GetDest();
-		const VectorRegister* RESTRICT InParticlesPositionY = VectorVM::FExternalFuncInputHandler<VectorRegister>(Context).GetDest();
-		const VectorRegister* RESTRICT InParticlesPositionZ = VectorVM::FExternalFuncInputHandler<VectorRegister>(Context).GetDest();
-		const VectorRegister* RESTRICT InParticlesVelocityX = VectorVM::FExternalFuncInputHandler<VectorRegister>(Context).GetDest();
-		const VectorRegister* RESTRICT InParticlesVelocityY = VectorVM::FExternalFuncInputHandler<VectorRegister>(Context).GetDest();
-		const VectorRegister* RESTRICT InParticlesVelocityZ = VectorVM::FExternalFuncInputHandler<VectorRegister>(Context).GetDest();
+		const VectorRegister4Float MassMin = VectorSetFloat1(0.0001f);
+		const VectorRegister4Float EngineDeltaTime = VectorSetFloat1(VectorVM::FExternalFuncInputHandler<float>(Context).Get());
+		VectorRegister4Float PhysicsForceX = VectorLoadFloat1(VectorVM::FExternalFuncInputHandler<VectorRegister4Float>(Context).GetDest());
+		VectorRegister4Float PhysicsForceY = VectorLoadFloat1(VectorVM::FExternalFuncInputHandler<VectorRegister4Float>(Context).GetDest());
+		VectorRegister4Float PhysicsForceZ = VectorLoadFloat1(VectorVM::FExternalFuncInputHandler<VectorRegister4Float>(Context).GetDest());
+		VectorRegister4Float PhysicsDrag = VectorLoadFloat1(VectorVM::FExternalFuncInputHandler<VectorRegister4Float>(Context).GetDest());
+		VectorRegister4Float ParticlesMass = VectorLoadFloat1(VectorVM::FExternalFuncInputHandler<VectorRegister4Float>(Context).GetDest());
+		const VectorRegister4Float* RESTRICT InParticlesPositionX = VectorVM::FExternalFuncInputHandler<VectorRegister4Float>(Context).GetDest();
+		const VectorRegister4Float* RESTRICT InParticlesPositionY = VectorVM::FExternalFuncInputHandler<VectorRegister4Float>(Context).GetDest();
+		const VectorRegister4Float* RESTRICT InParticlesPositionZ = VectorVM::FExternalFuncInputHandler<VectorRegister4Float>(Context).GetDest();
+		const VectorRegister4Float* RESTRICT InParticlesVelocityX = VectorVM::FExternalFuncInputHandler<VectorRegister4Float>(Context).GetDest();
+		const VectorRegister4Float* RESTRICT InParticlesVelocityY = VectorVM::FExternalFuncInputHandler<VectorRegister4Float>(Context).GetDest();
+		const VectorRegister4Float* RESTRICT InParticlesVelocityZ = VectorVM::FExternalFuncInputHandler<VectorRegister4Float>(Context).GetDest();
 
-		VectorRegister* RESTRICT OutParticlesPositionX = VectorVM::FExternalFuncRegisterHandler<VectorRegister>(Context).GetDest();
-		VectorRegister* RESTRICT OutParticlesPositionY = VectorVM::FExternalFuncRegisterHandler<VectorRegister>(Context).GetDest();
-		VectorRegister* RESTRICT OutParticlesPositionZ = VectorVM::FExternalFuncRegisterHandler<VectorRegister>(Context).GetDest();
-		VectorRegister* RESTRICT OutParticlesVelocityX = VectorVM::FExternalFuncRegisterHandler<VectorRegister>(Context).GetDest();
-		VectorRegister* RESTRICT OutParticlesVelocityY = VectorVM::FExternalFuncRegisterHandler<VectorRegister>(Context).GetDest();
-		VectorRegister* RESTRICT OutParticlesVelocityZ = VectorVM::FExternalFuncRegisterHandler<VectorRegister>(Context).GetDest();
-		VectorRegister* RESTRICT OutParticlesPreviousVelocityX = VectorVM::FExternalFuncRegisterHandler<VectorRegister>(Context).GetDest();
-		VectorRegister* RESTRICT OutParticlesPreviousVelocityY = VectorVM::FExternalFuncRegisterHandler<VectorRegister>(Context).GetDest();
-		VectorRegister* RESTRICT OutParticlesPreviousVelocityZ = VectorVM::FExternalFuncRegisterHandler<VectorRegister>(Context).GetDest();
+		VectorRegister4Float* RESTRICT OutParticlesPositionX = VectorVM::FExternalFuncRegisterHandler<VectorRegister4Float>(Context).GetDest();
+		VectorRegister4Float* RESTRICT OutParticlesPositionY = VectorVM::FExternalFuncRegisterHandler<VectorRegister4Float>(Context).GetDest();
+		VectorRegister4Float* RESTRICT OutParticlesPositionZ = VectorVM::FExternalFuncRegisterHandler<VectorRegister4Float>(Context).GetDest();
+		VectorRegister4Float* RESTRICT OutParticlesVelocityX = VectorVM::FExternalFuncRegisterHandler<VectorRegister4Float>(Context).GetDest();
+		VectorRegister4Float* RESTRICT OutParticlesVelocityY = VectorVM::FExternalFuncRegisterHandler<VectorRegister4Float>(Context).GetDest();
+		VectorRegister4Float* RESTRICT OutParticlesVelocityZ = VectorVM::FExternalFuncRegisterHandler<VectorRegister4Float>(Context).GetDest();
+		VectorRegister4Float* RESTRICT OutParticlesPreviousVelocityX = VectorVM::FExternalFuncRegisterHandler<VectorRegister4Float>(Context).GetDest();
+		VectorRegister4Float* RESTRICT OutParticlesPreviousVelocityY = VectorVM::FExternalFuncRegisterHandler<VectorRegister4Float>(Context).GetDest();
+		VectorRegister4Float* RESTRICT OutParticlesPreviousVelocityZ = VectorVM::FExternalFuncRegisterHandler<VectorRegister4Float>(Context).GetDest();
 
-		const VectorRegister OOParticleMassDT = VectorMultiply(VectorReciprocal(VectorMax(ParticlesMass, MassMin)), EngineDeltaTime);
+		const VectorRegister4Float OOParticleMassDT = VectorMultiply(VectorReciprocal(VectorMax(ParticlesMass, MassMin)), EngineDeltaTime);
 
-		VectorRegister ClampedDrag = VectorMultiply(PhysicsDrag, EngineDeltaTime);
+		VectorRegister4Float ClampedDrag = VectorMultiply(PhysicsDrag, EngineDeltaTime);
 		ClampedDrag = VectorMax(VectorMin(ClampedDrag, VectorOne()), VectorZero());
 		ClampedDrag = VectorNegate(ClampedDrag);
 
 		for (int i = 0; i < Context.GetNumLoops<4>(); ++i)
 		{
 			// Gather values
-			VectorRegister ParticlesPositionX = VectorLoad(InParticlesPositionX + i);
-			VectorRegister ParticlesPositionY = VectorLoad(InParticlesPositionY + i);
-			VectorRegister ParticlesPositionZ = VectorLoad(InParticlesPositionZ + i);
-			VectorRegister ParticlesVelocityX = VectorLoad(InParticlesVelocityX + i);
-			VectorRegister ParticlesVelocityY = VectorLoad(InParticlesVelocityY + i);
-			VectorRegister ParticlesVelocityZ = VectorLoad(InParticlesVelocityZ + i);
+			VectorRegister4Float ParticlesPositionX = VectorLoad(InParticlesPositionX + i);
+			VectorRegister4Float ParticlesPositionY = VectorLoad(InParticlesPositionY + i);
+			VectorRegister4Float ParticlesPositionZ = VectorLoad(InParticlesPositionZ + i);
+			VectorRegister4Float ParticlesVelocityX = VectorLoad(InParticlesVelocityX + i);
+			VectorRegister4Float ParticlesVelocityY = VectorLoad(InParticlesVelocityY + i);
+			VectorRegister4Float ParticlesVelocityZ = VectorLoad(InParticlesVelocityZ + i);
 
 			VectorStore(ParticlesVelocityX, OutParticlesPreviousVelocityX + i);
 			VectorStore(ParticlesVelocityY, OutParticlesPreviousVelocityY + i);
@@ -1602,87 +1602,87 @@ struct FVectorKernel_SolveVelocitiesAndForces
 		}
 #else
 		VectorVM::FExternalFuncInputHandler<float> InEngineDeltaTime(Context);
-		VectorVM::FExternalFuncInputHandler<VectorRegister> InPhysicsForceXHandler(Context);
-		VectorVM::FExternalFuncInputHandler<VectorRegister> InPhysicsForceYHandler(Context);
-		VectorVM::FExternalFuncInputHandler<VectorRegister> InPhysicsForceZHandler(Context);
-		VectorVM::FExternalFuncInputHandler<VectorRegister> InPhysicsDragHandler(Context);
-		VectorVM::FExternalFuncInputHandler<VectorRegister> InParticlesMassHandler(Context);
-		VectorVM::FExternalFuncInputHandler<VectorRegister> InParticlesPositionXHandler(Context);
-		VectorVM::FExternalFuncInputHandler<VectorRegister> InParticlesPositionYHandler(Context);
-		VectorVM::FExternalFuncInputHandler<VectorRegister> InParticlesPositionZHandler(Context);
-		VectorVM::FExternalFuncInputHandler<VectorRegister> InParticlesVelocityXHandler(Context);
-		VectorVM::FExternalFuncInputHandler<VectorRegister> InParticlesVelocityYHandler(Context);
-		VectorVM::FExternalFuncInputHandler<VectorRegister> InParticlesVelocityZHandler(Context);
+		VectorVM::FExternalFuncInputHandler<VectorRegister4Float> InPhysicsForceXHandler(Context);
+		VectorVM::FExternalFuncInputHandler<VectorRegister4Float> InPhysicsForceYHandler(Context);
+		VectorVM::FExternalFuncInputHandler<VectorRegister4Float> InPhysicsForceZHandler(Context);
+		VectorVM::FExternalFuncInputHandler<VectorRegister4Float> InPhysicsDragHandler(Context);
+		VectorVM::FExternalFuncInputHandler<VectorRegister4Float> InParticlesMassHandler(Context);
+		VectorVM::FExternalFuncInputHandler<VectorRegister4Float> InParticlesPositionXHandler(Context);
+		VectorVM::FExternalFuncInputHandler<VectorRegister4Float> InParticlesPositionYHandler(Context);
+		VectorVM::FExternalFuncInputHandler<VectorRegister4Float> InParticlesPositionZHandler(Context);
+		VectorVM::FExternalFuncInputHandler<VectorRegister4Float> InParticlesVelocityXHandler(Context);
+		VectorVM::FExternalFuncInputHandler<VectorRegister4Float> InParticlesVelocityYHandler(Context);
+		VectorVM::FExternalFuncInputHandler<VectorRegister4Float> InParticlesVelocityZHandler(Context);
 
-		VectorVM::FExternalFuncRegisterHandler<VectorRegister> OutParticlesPositionXHandler(Context);
-		VectorVM::FExternalFuncRegisterHandler<VectorRegister> OutParticlesPositionYHandler(Context);
-		VectorVM::FExternalFuncRegisterHandler<VectorRegister> OutParticlesPositionZHandler(Context);
-		VectorVM::FExternalFuncRegisterHandler<VectorRegister> OutParticlesVelocityXHandler(Context);
-		VectorVM::FExternalFuncRegisterHandler<VectorRegister> OutParticlesVelocityYHandler(Context);
-		VectorVM::FExternalFuncRegisterHandler<VectorRegister> OutParticlesVelocityZHandler(Context);
-		VectorVM::FExternalFuncRegisterHandler<VectorRegister> OutParticlesPreviousVelocityXHandler(Context);
-		VectorVM::FExternalFuncRegisterHandler<VectorRegister> OutParticlesPreviousVelocityYHandler(Context);
-		VectorVM::FExternalFuncRegisterHandler<VectorRegister> OutParticlesPreviousVelocityZHandler(Context);
+		VectorVM::FExternalFuncRegisterHandler<VectorRegister4Float> OutParticlesPositionXHandler(Context);
+		VectorVM::FExternalFuncRegisterHandler<VectorRegister4Float> OutParticlesPositionYHandler(Context);
+		VectorVM::FExternalFuncRegisterHandler<VectorRegister4Float> OutParticlesPositionZHandler(Context);
+		VectorVM::FExternalFuncRegisterHandler<VectorRegister4Float> OutParticlesVelocityXHandler(Context);
+		VectorVM::FExternalFuncRegisterHandler<VectorRegister4Float> OutParticlesVelocityYHandler(Context);
+		VectorVM::FExternalFuncRegisterHandler<VectorRegister4Float> OutParticlesVelocityZHandler(Context);
+		VectorVM::FExternalFuncRegisterHandler<VectorRegister4Float> OutParticlesPreviousVelocityXHandler(Context);
+		VectorVM::FExternalFuncRegisterHandler<VectorRegister4Float> OutParticlesPreviousVelocityYHandler(Context);
+		VectorVM::FExternalFuncRegisterHandler<VectorRegister4Float> OutParticlesPreviousVelocityZHandler(Context);
 
-		const VectorRegister EngineDeltaTime = VectorSetFloat1(InEngineDeltaTime.Get());
-		const VectorRegister* RESTRICT InPhysicsForceX = InPhysicsForceXHandler.GetDest();
-		const VectorRegister* RESTRICT InPhysicsForceY = InPhysicsForceYHandler.GetDest();
-		const VectorRegister* RESTRICT InPhysicsForceZ = InPhysicsForceZHandler.GetDest();
-		const VectorRegister* RESTRICT InPhysicsDrag = InPhysicsDragHandler.GetDest();
-		const VectorRegister* RESTRICT InParticlesMass = InParticlesMassHandler.GetDest();
-		const VectorRegister* RESTRICT InParticlesPositionX = InParticlesPositionXHandler.GetDest();
-		const VectorRegister* RESTRICT InParticlesPositionY = InParticlesPositionYHandler.GetDest();
-		const VectorRegister* RESTRICT InParticlesPositionZ = InParticlesPositionZHandler.GetDest();
-		const VectorRegister* RESTRICT InParticlesVelocityX = InParticlesVelocityXHandler.GetDest();
-		const VectorRegister* RESTRICT InParticlesVelocityY = InParticlesVelocityYHandler.GetDest();
-		const VectorRegister* RESTRICT InParticlesVelocityZ = InParticlesVelocityZHandler.GetDest();
+		const VectorRegister4Float EngineDeltaTime = VectorSetFloat1(InEngineDeltaTime.Get());
+		const VectorRegister4Float* RESTRICT InPhysicsForceX = InPhysicsForceXHandler.GetDest();
+		const VectorRegister4Float* RESTRICT InPhysicsForceY = InPhysicsForceYHandler.GetDest();
+		const VectorRegister4Float* RESTRICT InPhysicsForceZ = InPhysicsForceZHandler.GetDest();
+		const VectorRegister4Float* RESTRICT InPhysicsDrag = InPhysicsDragHandler.GetDest();
+		const VectorRegister4Float* RESTRICT InParticlesMass = InParticlesMassHandler.GetDest();
+		const VectorRegister4Float* RESTRICT InParticlesPositionX = InParticlesPositionXHandler.GetDest();
+		const VectorRegister4Float* RESTRICT InParticlesPositionY = InParticlesPositionYHandler.GetDest();
+		const VectorRegister4Float* RESTRICT InParticlesPositionZ = InParticlesPositionZHandler.GetDest();
+		const VectorRegister4Float* RESTRICT InParticlesVelocityX = InParticlesVelocityXHandler.GetDest();
+		const VectorRegister4Float* RESTRICT InParticlesVelocityY = InParticlesVelocityYHandler.GetDest();
+		const VectorRegister4Float* RESTRICT InParticlesVelocityZ = InParticlesVelocityZHandler.GetDest();
 
-		VectorRegister* RESTRICT OutParticlesPositionX = OutParticlesPositionXHandler.GetDest();
-		VectorRegister* RESTRICT OutParticlesPositionY = OutParticlesPositionYHandler.GetDest();
-		VectorRegister* RESTRICT OutParticlesPositionZ = OutParticlesPositionZHandler.GetDest();
-		VectorRegister* RESTRICT OutParticlesVelocityX = OutParticlesVelocityXHandler.GetDest();
-		VectorRegister* RESTRICT OutParticlesVelocityY = OutParticlesVelocityYHandler.GetDest();
-		VectorRegister* RESTRICT OutParticlesVelocityZ = OutParticlesVelocityZHandler.GetDest();
-		VectorRegister* RESTRICT OutParticlesPreviousVelocityX = OutParticlesPreviousVelocityXHandler.GetDest();
-		VectorRegister* RESTRICT OutParticlesPreviousVelocityY = OutParticlesPreviousVelocityYHandler.GetDest();
-		VectorRegister* RESTRICT OutParticlesPreviousVelocityZ = OutParticlesPreviousVelocityZHandler.GetDest();
+		VectorRegister4Float* RESTRICT OutParticlesPositionX = OutParticlesPositionXHandler.GetDest();
+		VectorRegister4Float* RESTRICT OutParticlesPositionY = OutParticlesPositionYHandler.GetDest();
+		VectorRegister4Float* RESTRICT OutParticlesPositionZ = OutParticlesPositionZHandler.GetDest();
+		VectorRegister4Float* RESTRICT OutParticlesVelocityX = OutParticlesVelocityXHandler.GetDest();
+		VectorRegister4Float* RESTRICT OutParticlesVelocityY = OutParticlesVelocityYHandler.GetDest();
+		VectorRegister4Float* RESTRICT OutParticlesVelocityZ = OutParticlesVelocityZHandler.GetDest();
+		VectorRegister4Float* RESTRICT OutParticlesPreviousVelocityX = OutParticlesPreviousVelocityXHandler.GetDest();
+		VectorRegister4Float* RESTRICT OutParticlesPreviousVelocityY = OutParticlesPreviousVelocityYHandler.GetDest();
+		VectorRegister4Float* RESTRICT OutParticlesPreviousVelocityZ = OutParticlesPreviousVelocityZHandler.GetDest();
 
-		const VectorRegister MassMin = VectorSetFloat1(0.0001f);
+		const VectorRegister4Float MassMin = VectorSetFloat1(0.0001f);
 
-		const VectorRegister ConstantPhysicsForceX = bForceConstant ? VectorLoadFloat1(InPhysicsForceX) : VectorZero();
-		const VectorRegister ConstantPhysicsForceY = bForceConstant ? VectorLoadFloat1(InPhysicsForceY) : VectorZero();
-		const VectorRegister ConstantPhysicsForceZ = bForceConstant ? VectorLoadFloat1(InPhysicsForceZ) : VectorZero();
-		const VectorRegister ConstantPhysicsDrag = bDragConstant ? VectorLoadFloat1(InPhysicsDrag) : VectorZero();
-		const VectorRegister ConstantParticlesMass = bMassConstant ? VectorLoadFloat1(InParticlesMass) : VectorZero();
+		const VectorRegister4Float ConstantPhysicsForceX = bForceConstant ? VectorLoadFloat1(InPhysicsForceX) : VectorZero();
+		const VectorRegister4Float ConstantPhysicsForceY = bForceConstant ? VectorLoadFloat1(InPhysicsForceY) : VectorZero();
+		const VectorRegister4Float ConstantPhysicsForceZ = bForceConstant ? VectorLoadFloat1(InPhysicsForceZ) : VectorZero();
+		const VectorRegister4Float ConstantPhysicsDrag = bDragConstant ? VectorLoadFloat1(InPhysicsDrag) : VectorZero();
+		const VectorRegister4Float ConstantParticlesMass = bMassConstant ? VectorLoadFloat1(InParticlesMass) : VectorZero();
 
 		for (int i = 0; i < Context.GetNumLoops<4>(); ++i)
 		{
 			// Gather values
-			VectorRegister PhysicsForceX = bForceConstant ? ConstantPhysicsForceX : VectorLoad(InPhysicsForceX + i);
-			VectorRegister PhysicsForceY = bForceConstant ? ConstantPhysicsForceY : VectorLoad(InPhysicsForceY + i);
-			VectorRegister PhysicsForceZ = bForceConstant ? ConstantPhysicsForceZ : VectorLoad(InPhysicsForceZ + i);
-			VectorRegister PhysicsDrag = bDragConstant ? ConstantPhysicsDrag : VectorLoad(InPhysicsDrag + i);
+			VectorRegister4Float PhysicsForceX = bForceConstant ? ConstantPhysicsForceX : VectorLoad(InPhysicsForceX + i);
+			VectorRegister4Float PhysicsForceY = bForceConstant ? ConstantPhysicsForceY : VectorLoad(InPhysicsForceY + i);
+			VectorRegister4Float PhysicsForceZ = bForceConstant ? ConstantPhysicsForceZ : VectorLoad(InPhysicsForceZ + i);
+			VectorRegister4Float PhysicsDrag = bDragConstant ? ConstantPhysicsDrag : VectorLoad(InPhysicsDrag + i);
 
-			VectorRegister ParticlesMass = bMassConstant ? ConstantParticlesMass : VectorLoad(InParticlesMass + i);
-			VectorRegister ParticlesPositionX = VectorLoad(InParticlesPositionX + i);
-			VectorRegister ParticlesPositionY = VectorLoad(InParticlesPositionY + i);
-			VectorRegister ParticlesPositionZ = VectorLoad(InParticlesPositionZ + i);
-			VectorRegister ParticlesVelocityX = VectorLoad(InParticlesVelocityX + i);
-			VectorRegister ParticlesVelocityY = VectorLoad(InParticlesVelocityY + i);
-			VectorRegister ParticlesVelocityZ = VectorLoad(InParticlesVelocityZ + i);
+			VectorRegister4Float ParticlesMass = bMassConstant ? ConstantParticlesMass : VectorLoad(InParticlesMass + i);
+			VectorRegister4Float ParticlesPositionX = VectorLoad(InParticlesPositionX + i);
+			VectorRegister4Float ParticlesPositionY = VectorLoad(InParticlesPositionY + i);
+			VectorRegister4Float ParticlesPositionZ = VectorLoad(InParticlesPositionZ + i);
+			VectorRegister4Float ParticlesVelocityX = VectorLoad(InParticlesVelocityX + i);
+			VectorRegister4Float ParticlesVelocityY = VectorLoad(InParticlesVelocityY + i);
+			VectorRegister4Float ParticlesVelocityZ = VectorLoad(InParticlesVelocityZ + i);
 
 			VectorStore(ParticlesVelocityX, OutParticlesPreviousVelocityX + i);
 			VectorStore(ParticlesVelocityY, OutParticlesPreviousVelocityY + i);
 			VectorStore(ParticlesVelocityZ, OutParticlesPreviousVelocityZ + i);
 
 			// Apply velocity
-			const VectorRegister OOParticleMassDT = VectorMultiply(VectorReciprocal(VectorMax(ParticlesMass, MassMin)), EngineDeltaTime);
+			const VectorRegister4Float OOParticleMassDT = VectorMultiply(VectorReciprocal(VectorMax(ParticlesMass, MassMin)), EngineDeltaTime);
 			ParticlesVelocityX = VectorMultiplyAdd(PhysicsForceX, OOParticleMassDT, ParticlesVelocityX);
 			ParticlesVelocityY = VectorMultiplyAdd(PhysicsForceY, OOParticleMassDT, ParticlesVelocityY);
 			ParticlesVelocityZ = VectorMultiplyAdd(PhysicsForceZ, OOParticleMassDT, ParticlesVelocityZ);
 
 			// Apply Drag
-			VectorRegister ClampedDrag = VectorMultiply(PhysicsDrag, EngineDeltaTime);
+			VectorRegister4Float ClampedDrag = VectorMultiply(PhysicsDrag, EngineDeltaTime);
 			ClampedDrag = VectorMax(VectorMin(ClampedDrag, VectorOne()), VectorZero());
 			ClampedDrag = VectorNegate(ClampedDrag);
 

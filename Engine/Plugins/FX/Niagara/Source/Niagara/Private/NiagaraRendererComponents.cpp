@@ -46,7 +46,7 @@ void SetVariableByType(FNiagaraVariable& DataVariable, FNiagaraDataSet& Data, in
 	else if (VarType == FNiagaraTypeDefinition::GetIntDef()) { SetValueWithAccessor<int32>(DataVariable, Data, ParticleIndex); }
 	else if (VarType == FNiagaraTypeDefinition::GetBoolDef()) { SetValueWithAccessor<FNiagaraBool>(DataVariable, Data, ParticleIndex); }
 	else if (VarType == FNiagaraTypeDefinition::GetVec2Def()) { SetValueWithAccessor<FVector2D>(DataVariable, Data, ParticleIndex); }
-	else if (VarType == FNiagaraTypeDefinition::GetVec3Def()) { SetValueWithAccessor<FVector>(DataVariable, Data, ParticleIndex); }
+	else if (VarType == FNiagaraTypeDefinition::GetVec3Def()) { SetValueWithAccessor<FVector3f>(DataVariable, Data, ParticleIndex); }
 	else if (VarType == FNiagaraTypeDefinition::GetVec4Def()) { SetValueWithAccessor<FVector4>(DataVariable, Data, ParticleIndex); }
 	else if (VarType == FNiagaraTypeDefinition::GetColorDef()) { SetValueWithAccessor<FLinearColor>(DataVariable, Data, ParticleIndex); }
 	else if (VarType == FNiagaraTypeDefinition::GetQuatDef()) { SetValueWithAccessor<FQuat>(DataVariable, Data, ParticleIndex); }
@@ -59,7 +59,7 @@ void ConvertVariableToType(const FNiagaraVariable& SourceVariable, FNiagaraVaria
 
 	if (SourceType == FNiagaraTypeDefinition::GetVec3Def() && TargetType == UNiagaraComponentRendererProperties::GetFColorDef())
 	{
-		FVector Data = SourceVariable.GetValue<FVector>();
+		FVector3f Data = SourceVariable.GetValue<FVector3f>();
 		FColor ColorData((uint8)FMath::Clamp<int32>(FMath::TruncToInt(Data.X * 255.f), 0, 255),
 			(uint8)FMath::Clamp<int32>(FMath::TruncToInt(Data.Y * 255.f), 0, 255),
 			(uint8)FMath::Clamp<int32>(FMath::TruncToInt(Data.Z * 255.f), 0, 255));
@@ -81,9 +81,14 @@ void ConvertVariableToType(const FNiagaraVariable& SourceVariable, FNiagaraVaria
 	}
 	else if (SourceType == FNiagaraTypeDefinition::GetVec3Def() && TargetType == UNiagaraComponentRendererProperties::GetFRotatorDef())
 	{
-		FVector Data = SourceVariable.GetValue<FVector>();
+		FVector3f Data = SourceVariable.GetValue<FVector3f>();
 		FRotator Rotator(Data.X, Data.Y, Data.Z);
 		TargetVariable.SetValue<FRotator>(Rotator);
+	}
+	else if (SourceType == FNiagaraTypeDefinition::GetVec3Def() && TargetType == UNiagaraComponentRendererProperties::GetFVectorDef())
+	{
+		FVector3f Data = SourceVariable.GetValue<FVector3f>();
+		TargetVariable.SetValue<FVector>(FVector(Data));
 	}
 	else if (SourceType == FNiagaraTypeDefinition::GetQuatDef() && TargetType == UNiagaraComponentRendererProperties::GetFRotatorDef())
 	{
@@ -576,9 +581,28 @@ void FNiagaraRendererComponents::TickPropertyBindings(
 		}
 
 		SetVariableByType(DataVariable, Data, ParticleIndex);
-		if (PropertyBinding.PropertyType.IsValid() && DataVariable.GetType() != PropertyBinding.PropertyType && !PropertySetter->bIgnoreConversion)
+
+		FNiagaraTypeDefinition PropertyType = PropertyBinding.PropertyType;
+		// Get property type from property setter function
+		if(!PropertyType.IsValid() && PropertySetter->Function)
 		{
-			FNiagaraVariable TargetVariable(PropertyBinding.PropertyType, DataVariable.GetName());
+			for (FProperty* Property = PropertySetter->Function->PropertyLink; Property; Property = Property->PropertyLinkNext)
+			{
+				if (Property->HasAnyPropertyFlags(CPF_Parm) && !Property->HasAnyPropertyFlags(CPF_ReturnParm))
+				{
+					if (FStructProperty* StructProp = CastField<FStructProperty>(Property))
+					{
+						PropertyType = FNiagaraTypeDefinition(StructProp->Struct, FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Allow);
+						break;
+					}
+				}
+			}
+		}
+
+		bool bForceStructConversion = !UE_LARGE_WORLD_COORDINATES_DISABLED && PropertyType.GetScriptStruct() && !FNiagaraTypeHelper::IsNiagaraFriendlyTopLevelStruct(PropertyType.GetScriptStruct());
+		if (PropertyType.IsValid() && DataVariable.GetType() != PropertyType && (!PropertySetter->bIgnoreConversion || bForceStructConversion))
+		{
+			FNiagaraVariable TargetVariable(PropertyType, DataVariable.GetName());
 			ConvertVariableToType(DataVariable, TargetVariable);
 			DataVariable = TargetVariable;
 		}

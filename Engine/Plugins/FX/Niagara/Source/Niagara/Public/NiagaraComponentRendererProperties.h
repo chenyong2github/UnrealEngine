@@ -135,6 +135,7 @@ public:
 	NIAGARA_API static FNiagaraTypeDefinition ToNiagaraType(FProperty* Property);
 	static FNiagaraTypeDefinition GetFColorDef();
 	static FNiagaraTypeDefinition GetFRotatorDef();
+	static FNiagaraTypeDefinition GetFVectorDef();
 
 	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) override;
 
