@@ -42,8 +42,6 @@ DECLARE_MEMORY_STAT(TEXT("Nanite Proxy Instance Memory"), STAT_ProxyInstanceMemo
 #define MAX_CLUSTERS	(16 * 1024 * 1024)
 #define MAX_NODES		 (2 * 1024 * 1024)
 
-#define FORCE_NANITE_DEFAULT_MATERIAL 0
-
 int32 GNaniteOptimizedRelevance = 1;
 FAutoConsoleVariableRef CVarNaniteOptimizedRelevance(
 	TEXT("r.Nanite.OptimizedRelevance"),
@@ -357,13 +355,6 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 
 	const bool bHasSurfaceStaticLighting = MeshInfo.GetLightMap() != nullptr || MeshInfo.GetShadowMap() != nullptr;
 
-	// Check if the assigned material can be rendered in Nanite. If not, default.
-	const bool IsRenderable = Nanite::FSceneProxy::IsNaniteRenderable(MaterialRelevance);
-	if (!IsRenderable)
-	{
-		bHasMaterialErrors = true;
-	}
-
 	const uint32 LODIndex = 0; // Only data from LOD0 is used.
 	const FStaticMeshLODResources& MeshResources = RenderData->LODResources[LODIndex];
 	const FStaticMeshSectionArray& MeshSections = MeshResources.Sections;
@@ -376,48 +367,92 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 
 	for (int32 SectionIndex = 0; SectionIndex < MeshSections.Num(); ++SectionIndex)
 	{
+		FMaterialSection& MaterialSection = MaterialSections[SectionIndex];
 		const FStaticMeshSection& MeshSection = MeshSections[SectionIndex];
 		const bool bValidMeshSection = MeshSection.MaterialIndex != INDEX_NONE;
 
-		if (MeshSection.MaterialIndex > MaterialMaxIndex)
+		MaterialSection.MaterialIndex = MeshSection.MaterialIndex;
+
+		// Keep track of highest observed material index.
+		MaterialMaxIndex = FMath::Max(MaterialSection.MaterialIndex, MaterialMaxIndex);
+
+		MaterialSection.Material = bValidMeshSection ? Component->GetMaterial(MaterialSection.MaterialIndex) : nullptr;
+
+		if (MaterialSection.Material == nullptr)
 		{
-			// Keep track of highest observed material index.
-			MaterialMaxIndex = MeshSection.MaterialIndex;
+			MaterialSection.bHasNullMaterial = true;
+			MaterialSection.Material = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
+		else if (!Nanite::FSceneProxy::IsNaniteRenderable(MaterialRelevance))
+		{
+			MaterialSection.bHasInvalidRelevance = true;
+		}
+		else if (MaterialSection.Material->GetBlendMode() != BLEND_Opaque)
+		{
+			MaterialSection.bHasNonOpaqueBlendMode = true;
+		}
+		else if (bHasSurfaceStaticLighting && !MaterialSection.Material->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting))
+		{
+			MaterialSection.bHasInvalidStaticLighting = true;
+		}
+		// TODO: bHasVertexInterpolator
 
-		UMaterialInterface* MaterialInterface = bValidMeshSection ? Component->GetMaterial(MeshSection.MaterialIndex) : nullptr;
+		MaterialSection.bHasAnyError =
+			MaterialSection.bHasNullMaterial ||
+			MaterialSection.bHasInvalidRelevance ||
+			MaterialSection.bHasNonOpaqueBlendMode ||
+			MaterialSection.bHasVertexInterpolator || 
+			MaterialSection.bHasInvalidStaticLighting;
 
-		const bool bInvalidMaterial = !MaterialInterface || MaterialInterface->GetBlendMode() != BLEND_Opaque;
-		if (bInvalidMaterial)
+		if (MaterialSection.bHasAnyError)
 		{
 			bHasMaterialErrors = true;
-			if (MaterialInterface)
+
+			const FString StaticMeshName = StaticMesh->GetName();
+			const FString MaterialName = MaterialSection.Material->GetName();
+
+			if (MaterialSection.bHasNullMaterial)
 			{
-				UE_LOG
-				(
-					LogStaticMesh, Warning,
-					TEXT("Invalid material [%s] used on Nanite static mesh [%s] - forcing default material instead. Only opaque blend mode is currently supported, [%s] blend mode was specified."),
-					*MaterialInterface->GetName(),
-					*StaticMesh->GetName(),
-					*GetBlendModeString(MaterialInterface->GetBlendMode())
-				);
+				UE_LOG(LogStaticMesh, Warning, TEXT("Invalid material [null] used on Nanite static mesh [%s] - forcing default material instead."), *StaticMeshName);
+			}
+			else
+			{
+				// Replace invalid materials with default material
+				MaterialSection.Material = UMaterial::GetDefaultMaterial(MD_Surface);
+
+				if (MaterialSection.bHasInvalidRelevance)
+				{
+					UE_LOG(LogStaticMesh, Warning, TEXT("Invalid material relevance for Nanite static mesh [%s] - forcing default material instead."), *StaticMeshName);
+				}
+				else if (MaterialSection.bHasNonOpaqueBlendMode)
+				{
+					const FString BlendModeName = GetBlendModeString(MaterialSection.Material->GetBlendMode());
+					UE_LOG
+					(
+						LogStaticMesh, Warning,
+						TEXT("Invalid material [%s] used on Nanite static mesh [%s] - forcing default material instead. Only opaque blend mode is currently supported, [%s] blend mode was specified."),
+						*MaterialName,
+						*StaticMeshName,
+						*BlendModeName
+					);
+				}
+				else if (MaterialSection.bHasVertexInterpolator)
+				{
+					UE_LOG
+					(
+						LogStaticMesh, Warning,
+						TEXT("Invalid material [%s] used on Nanite static mesh [%s] - forcing default material instead. Vertex interpolator nodes are not supported by Nanite."),
+						*MaterialName,
+						*StaticMeshName
+					);
+				}
+				else
+				{
+					// Unimplemented error condition
+					checkNoEntry();
+				}
 			}
 		}
-
-		const bool bForceDefaultMaterial = !!FORCE_NANITE_DEFAULT_MATERIAL || bHasMaterialErrors || (bHasSurfaceStaticLighting && !MaterialInterface->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting));
-		if (bForceDefaultMaterial)
-		{
-			MaterialInterface = UMaterial::GetDefaultMaterial(MD_Surface);
-		}
-
-		// Should never be null here
-		check(MaterialInterface != nullptr);
-
-		// Should always be opaque blend mode here.
-		check(MaterialInterface->GetBlendMode() == BLEND_Opaque);
-
-		MaterialSections[SectionIndex].Material = MaterialInterface;
-		MaterialSections[SectionIndex].MaterialIndex = MeshSection.MaterialIndex;
 	}
 
 #if RHI_RAYTRACING

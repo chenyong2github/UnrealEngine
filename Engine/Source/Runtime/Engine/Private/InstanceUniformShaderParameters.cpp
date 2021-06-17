@@ -12,6 +12,7 @@ FInstanceSceneShaderData::FInstanceSceneShaderData(
 	const FRenderTransform& PrevLocalToPrimitive, // TODO: Temporary
 	const FVector4& LightMapShadowMapUVBias, // TODO: Temporary
 	float RandomID, // TODO: Temporary
+	float CustomDataFloat0, // TODO: Temporary Hack!
 	uint32 LastUpdateFrame
 )
 : Data(InPlace, NoInit)
@@ -25,6 +26,7 @@ FInstanceSceneShaderData::FInstanceSceneShaderData(
 		PrevLocalToPrimitive,
 		LightMapShadowMapUVBias,
 		RandomID,
+		CustomDataFloat0,
 		LastUpdateFrame
 	);
 }
@@ -37,6 +39,7 @@ void FInstanceSceneShaderData::Setup(
 	const FRenderTransform& PrevLocalToPrimitive, // TODO: Temporary
 	const FVector4& LightMapShadowMapUVBias, // TODO: Temporary
 	float RandomID, // TODO: Temporary
+	float CustomDataFloat0, // TODO: Temporary Hack!
 	uint32 LastUpdateFrame
 )
 {
@@ -70,7 +73,9 @@ void FInstanceSceneShaderData::Setup(
 		InstanceFlags &= ~INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN;
 	}
 
-	uint32 PayloadDataOffset = 0xFFFFFFFFu; // TODO: Implement payload data
+	// TODO: Temporary Hack!
+	float PayloadDataOffset = CustomDataFloat0;
+	//uint32 PayloadDataOffset = 0xFFFFFFFFu; // TODO: Implement payload data
 
 	Data[0].X  = *(const     float*)&InstanceFlags;
 	Data[0].Y  = *(const     float*)&PrimitiveId;
@@ -116,6 +121,7 @@ ENGINE_API const FInstanceSceneShaderData& GetDummyInstanceSceneShaderData()
 		FRenderTransform::Identity,  /* PrevLocalToPrimitive */
 		FVector4(ForceInitToZero), /* Lightmap and Shadowmap UV Bias */ // TODO: Temporary
 		0.0f, /* Per instance Random */ // TODO: Temporary
+		0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
 		INVALID_LAST_UPDATE_FRAME
 	);
 	return DummyShaderData;

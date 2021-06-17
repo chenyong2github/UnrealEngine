@@ -330,6 +330,7 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 					FRenderTransform::Identity, /* PrevLocalToPrimitive */
 					FVector4(ForceInitToZero), /* Lightmap and Shadowmap UV bias */
 					0.0f, /* Per instance Random ID */
+					0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
 					INVALID_LAST_UPDATE_FRAME
 				);
 
@@ -412,6 +413,7 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 						FRenderTransform::Identity, /* PrevLocalToPrimitive */
 						FVector4(ForceInitToZero), /* Lightmap and Shadowmap UV bias */
 						0.0f, /* Per instance Random ID */
+						0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
 						INVALID_LAST_UPDATE_FRAME
 					)
 				);
@@ -477,6 +479,7 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 				FRenderTransform::Identity, /* PrevLocalToPrimitive */
 				FVector4(ForceInitToZero), /* Lightmap and Shadowmap UV bias */
 				0.0f, /* Per instance Random ID */
+				0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
 				INVALID_LAST_UPDATE_FRAME
 			));
 

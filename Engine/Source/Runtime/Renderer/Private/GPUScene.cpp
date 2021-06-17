@@ -820,6 +820,7 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 								PrevLocalToPrimitive, // TODO: Temporary
 								LightMapAndShadowMapUVBias, // TODO: Temporary
 								RandomID, // TODO: Temporary
+								0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
 								SceneFrameNumber
 							);
 
@@ -1275,6 +1276,14 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 								FInstanceUploadInfo UploadInfo;
 								if (UploadDataSourceAdapter.GetInstanceInfo(ItemIndex, UploadInfo))
 								{
+									// TODO: Temporary hack!
+									uint32 NumCustomDataFloats = 0;
+									if (UploadInfo.PrimitiveInstances.Num() > 0 && UploadInfo.InstanceCustomData.Num() > 0)
+									{
+										NumCustomDataFloats = UploadInfo.InstanceCustomData.Num() / UploadInfo.PrimitiveInstances.Num();
+										check(UploadInfo.PrimitiveInstances.Num() * NumCustomDataFloats == UploadInfo.InstanceCustomData.Num()); // Temp sanity check
+									}
+
 									// Update each primitive instance with current data.
 									for (int32 InstanceIndex = 0; InstanceIndex < UploadInfo.PrimitiveInstances.Num(); ++InstanceIndex)
 									{
@@ -1285,6 +1294,14 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 										FVector4 LightMapShadowMapUVBias = SceneData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS ? UploadInfo.InstanceLightShadowUVBias[InstanceIndex] : FVector4(ForceInitToZero);
 										float RandomID = SceneData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM ? UploadInfo.InstanceRandomID[InstanceIndex] : 0.0f;
 
+										// TODO: Temporary hack!
+										float CustomDataFloat0 = 0.0f;
+										if (NumCustomDataFloats > 0)
+										{
+											check(SceneData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA);
+											CustomDataFloat0 = UploadInfo.InstanceCustomData[InstanceIndex * NumCustomDataFloats];
+										}
+
 										const FInstanceSceneShaderData InstanceSceneData(
 											SceneData,
 											UploadInfo.PrimitiveID,
@@ -1293,6 +1310,7 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 											PrevLocalToPrimitive, // TODO: Temporary
 											LightMapShadowMapUVBias, // TODO: Temporary
 											RandomID, // TODO: Temporary
+											CustomDataFloat0, // TODO: Temporary Hack!
 											UploadInfo.LastUpdateSceneFrameNumber
 										);
 

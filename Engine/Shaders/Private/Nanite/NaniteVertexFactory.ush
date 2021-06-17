@@ -185,8 +185,10 @@ FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inou
 		// Required for previewing materials that use ParticleColor
 		Result.Particle.Color = half4(1, 1, 1, 1);
 
+	#if USES_PER_INSTANCE_RANDOM
 		// X = per-instance random, Y = per-instance fade out amount, Z = hide/show flag, W = dither fade cutoff
 		Result.PerInstanceParams = float4(InstanceData.PerInstanceRandom, 0.0f, 0.0f, 0.0f);
+	#endif
 
 	#if NEEDS_LIGHTMAP_COORDINATE
 		float2 LightMapCoordinate = 0;
@@ -244,6 +246,14 @@ FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inou
 
 		SetLightMapCoordinate(Interpolants, LightMapCoordinate, ShadowMapCoordinate);
 		SetLightMapDataIndex(Interpolants, LightMapDataIndex);
+
+	#endif // NEEDS_LIGHTMAP_COORDINATE
+
+		// TODO: Temporary hack!
+	#if USES_PER_INSTANCE_CUSTOM_DATA
+		Result.CustomDataOffset = InstanceData.CustomDataOffset;
+		Result.NumCustomDataFloats = InstanceData.NumCustomDataFloats;
+		Result.CustomDataFloat0 = InstanceData.CustomDataFloat0;
 	#endif
 
 		Result.TwoSidedSign = 1;

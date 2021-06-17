@@ -115,6 +115,7 @@ struct FInstanceSceneShaderData
 			FRenderTransform::Identity, /* PrevLocalToPrimitive */ // TODO: Temporary
 			FVector4(ForceInitToZero), /* Lightmap and Shadowmap UV Bias */ // TODO: Temporary
 			0.0f, /* Per Instance Random */ // TODO: Temporary
+			0.0f, /* Custom Data Float0 */ // TODO: Temporary Hack!
 			INVALID_LAST_UPDATE_FRAME
 		);
 	}
@@ -127,6 +128,7 @@ struct FInstanceSceneShaderData
 		const FRenderTransform& PrevLocalToPrimitive, // TODO: Temporary
 		const FVector4& LightMapShadowMapUVBias, // TODO: Temporary
 		float RandomID, // TODO: Temporary
+		float CustomDataFloat0, // TODO: Temporary Hack!
 		uint32 LastUpdateFrame
 	);
 
@@ -138,6 +140,7 @@ struct FInstanceSceneShaderData
 		const FRenderTransform& PrevLocalToPrimitive, // TODO: Temporary
 		const FVector4& LightMapShadowMapUVBias, // TODO: Temporary
 		float RandomID, // TODO: Temporary
+		float CustomDataFloat0, // TODO: Temporary Hack!
 		uint32 LastUpdateFrame
 	);
 };
