@@ -59,6 +59,11 @@ void FTimingEventsTrack::Reset()
 
 void FTimingEventsTrack::PreUpdate(const ITimingTrackUpdateContext& Context)
 {
+	if (ChildTrack.IsValid())
+	{
+		ChildTrack->PreUpdate(Context);
+	}
+
 	if (IsDirty() || Context.GetViewport().IsHorizontalViewportDirty())
 	{
 		ClearDirtyFlag();
@@ -158,7 +163,19 @@ void FTimingEventsTrack::UpdateTrackHeight(const ITimingTrackUpdateContext& Cont
 	const FTimingTrackViewport& Viewport = Context.GetViewport();
 
 	const float CurrentTrackHeight = GetHeight();
-	const float DesiredTrackHeight = Viewport.GetLayout().ComputeTrackHeight(NumLanes);
+	float DesiredTrackHeight = 0.0f;
+	if (IsChildTrack())
+	{
+		DesiredTrackHeight = Viewport.GetLayout().ComputeChildTrackHeight(NumLanes);
+	}
+	else
+	{
+		DesiredTrackHeight = Viewport.GetLayout().ComputeTrackHeight(NumLanes);
+		if (ChildTrack.IsValid())
+		{
+			DesiredTrackHeight += ChildTrack->GetHeight();
+		}
+	}
 
 	if (CurrentTrackHeight < DesiredTrackHeight)
 	{
@@ -192,6 +209,11 @@ void FTimingEventsTrack::UpdateTrackHeight(const ITimingTrackUpdateContext& Cont
 
 void FTimingEventsTrack::PostUpdate(const ITimingTrackUpdateContext& Context)
 {
+	if (ChildTrack.IsValid())
+	{
+		ChildTrack->PostUpdate(Context);
+	}
+
 	FBaseTimingTrack::PostUpdate(Context);
 
 	constexpr float HeaderWidth = 100.0f;
@@ -215,6 +237,11 @@ void FTimingEventsTrack::PostUpdate(const ITimingTrackUpdateContext& Context)
 
 void FTimingEventsTrack::Draw(const ITimingTrackDrawContext& Context) const
 {
+	if (ChildTrack.IsValid())
+	{
+		ChildTrack->Draw(Context);
+	}
+
 	DrawEvents(Context, 1.0f);
 	DrawHeader(Context);
 }
@@ -282,6 +309,12 @@ int32 FTimingEventsTrack::GetHeaderTextLayerId(const ITimingTrackDrawContext& Co
 
 void FTimingEventsTrack::DrawHeader(const ITimingTrackDrawContext& Context) const
 {
+	if (IsChildTrack())
+	{
+		// Do not draw the header for child tracks for now
+		return;
+	}
+
 	const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
 	Helper.DrawTrackHeader(*this);
 }
@@ -290,11 +323,27 @@ void FTimingEventsTrack::DrawHeader(const ITimingTrackDrawContext& Context) cons
 
 void FTimingEventsTrack::DrawEvent(const ITimingTrackDrawContext& Context, const ITimingEvent& InTimingEvent, EDrawEventMode InDrawMode) const
 {
-	if (InTimingEvent.CheckTrack(this) && InTimingEvent.Is<FTimingEvent>())
+	if (ChildTrack.IsValid() && InTimingEvent.CheckTrack(ChildTrack.Get()))
+	{
+		ChildTrack->DrawEvent(Context, InTimingEvent, InDrawMode);
+	}
+	else if (InTimingEvent.CheckTrack(this) && InTimingEvent.Is<FTimingEvent>())
 	{
 		const FTimingEvent& TrackEvent = InTimingEvent.As<FTimingEvent>();
 		const FTimingViewLayout& Layout = Context.GetViewport().GetLayout();
-		const float Y = TrackEvent.GetTrack()->GetPosY() + Layout.GetLaneY(TrackEvent.GetDepth());
+		float Y = TrackEvent.GetTrack()->GetPosY();
+		if (ChildTrack.IsValid())
+		{
+			Y += ChildTrack->GetHeight() + Layout.ChildTimelineDY;
+		}
+		if (IsChildTrack())
+		{
+			Y += Layout.GetChildLaneY(TrackEvent.GetDepth());
+		}
+		else
+		{
+			Y += Layout.GetLaneY(TrackEvent.GetDepth());
+		}
 
 		const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
 		Helper.DrawTimingEventHighlight(TrackEvent.GetStartTime(), TrackEvent.GetEndTime(), Y, InDrawMode);
@@ -307,11 +356,36 @@ const TSharedPtr<const ITimingEvent> FTimingEventsTrack::GetEvent(float InPosX, 
 {
 	const FTimingViewLayout& Layout = Viewport.GetLayout();
 
-	const float TopLaneY = GetPosY() + 1.0f + Layout.TimelineDY; // +1.0f is for horizontal line between timelines
+	float TopLaneY = 0.0f;
+	float TrackLanesHeight = 0.0f;
+	if (ChildTrack.IsValid())
+	{
+		const float HeaderDY = InPosY - ChildTrack->GetPosY();
+		if (HeaderDY >= 0 && HeaderDY < ChildTrack->GetHeight())
+		{
+			return ChildTrack->GetEvent(InPosX, InPosY, Viewport);
+		}
+		TopLaneY = GetPosY() + 1.0f + Layout.TimelineDY + ChildTrack->GetHeight() + Layout.ChildTimelineDY;
+		TrackLanesHeight = GetHeight() - ChildTrack->GetHeight() - 1.0f - 2 * Layout.TimelineDY - Layout.ChildTimelineDY;
+	}
+	else
+	{
+		if (IsChildTrack())
+		{
+			TopLaneY = GetPosY();
+			TrackLanesHeight = GetHeight();
+		}
+		else
+		{
+			TopLaneY = GetPosY() + 1.0f + Layout.TimelineDY;
+			TrackLanesHeight = GetHeight() - 1.0f - 2 * Layout.TimelineDY;
+		}
+	}
+
 	const float DY = InPosY - TopLaneY;
 
 	// If mouse is not above first sub-track or below last sub-track...
-	if (DY >= 0 && DY < GetHeight() - 1.0f - 2 * Layout.TimelineDY)
+	if (DY >= 0 && DY < TrackLanesHeight)
 	{
 		const int32 Depth = DY / (Layout.EventH + Layout.EventDY);
 

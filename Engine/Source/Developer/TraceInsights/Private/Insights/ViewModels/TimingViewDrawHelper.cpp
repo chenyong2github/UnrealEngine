@@ -312,7 +312,15 @@ void FTimingViewDrawHelper::DrawEvents(const FTimingEventsTrackDrawState& DrawSt
 		NumEvents += DrawState.GetNumEvents();
 		NumMergedBoxes += DrawState.GetNumMergedBoxes();
 
-		const float TopLaneY = TrackY + OffsetY + Layout.TimelineDY;
+		float TopLaneY = TrackY;
+		if (!Track.IsChildTrack())
+		{
+			TopLaneY += OffsetY + Layout.TimelineDY;
+		}
+		if (Track.GetChildTrack().IsValid())
+		{
+			TopLaneY += Track.ChildTrack->GetHeight() + Layout.ChildTimelineDY;
+		}
 
 		// Draw filled boxes (merged borders).
 		//if (Layout.EventH > 0.0f)
@@ -381,7 +389,15 @@ void FTimingViewDrawHelper::DrawFadedEvents(const FTimingEventsTrackDrawState& D
 		NumEvents += DrawState.GetNumEvents();
 		NumMergedBoxes += DrawState.GetNumMergedBoxes();
 
-		const float TopLaneY = TrackY + OffsetY + Layout.TimelineDY;
+		float TopLaneY = TrackY;
+		if (!Track.IsChildTrack())
+		{
+			TopLaneY += OffsetY + Layout.TimelineDY;
+		}
+		if (Track.GetChildTrack().IsValid())
+		{
+			TopLaneY += Track.ChildTrack->GetHeight() + Layout.ChildTimelineDY;
+		}
 
 		// Draw filled boxes (merged borders).
 		//if (Layout.EventH > 0.0f)

@@ -10,6 +10,7 @@ void FTimingViewLayout::ForceNormalMode()
 	EventH = NormalLayoutEventH;
 	EventDY = NormalLayoutEventDY;
 	TimelineDY = NormalLayoutTimelineDY;
+	ChildTimelineDY = NormalLayoutChildTimelineDY;
 	MinTimelineH = NormalLayoutMinTimelineH;
 	TargetMinTimelineH = NormalLayoutMinTimelineH;
 }
@@ -22,6 +23,7 @@ void FTimingViewLayout::ForceCompactMode()
 	EventH = CompactLayoutEventH;
 	EventDY = CompactLayoutEventDY;
 	TimelineDY = CompactLayoutTimelineDY;
+	ChildTimelineDY = CompactLayoutChildTimelineDY;
 	MinTimelineH = CompactLayoutMinTimelineH;
 	TargetMinTimelineH = CompactLayoutMinTimelineH;
 }

@@ -437,6 +437,8 @@ protected:
 	bool ContextMenu_ShowTaskDependecies_CanExecute();
 	bool ContextMenu_ShowTaskDependecies_IsChecked();
 
+	void SetTrackPosY(TSharedPtr<FBaseTimingTrack>& TrackPtr, float TopOffsetY) const;
+
 protected:
 	/** The track's viewport. Encapsulates info about position and scale. */
 	FTimingTrackViewport Viewport;

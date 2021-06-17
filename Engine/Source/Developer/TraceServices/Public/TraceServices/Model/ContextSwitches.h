@@ -22,8 +22,9 @@ public:
 	virtual ~IContextSwitchProvider() = default;
 	virtual int32 GetCoreNumber(uint32 ThreadId, double Time) const = 0;
 	virtual const TPagedArray<FContextSwitch>* GetContextSwitches(uint32 ThreadId) const = 0;
+	virtual bool HasData() const = 0;
 };
 
-TRACESERVICES_API const IContextSwitchProvider& ReadContextSwitchProvider(const IAnalysisSession& Session);
+TRACESERVICES_API const IContextSwitchProvider* ReadContextSwitchProvider(const IAnalysisSession& Session);
 
 } // namespace TraceServices

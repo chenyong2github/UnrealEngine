@@ -63,8 +63,13 @@ const TPagedArray<FContextSwitch>* FContextSwitchProvider::GetContextSwitches(ui
 {
 	Session.ReadAccessCheck();
 
-	auto ContextSwitches = Threads.Find(ThreadId);
-	return ContextSwitches ? *ContextSwitches : nullptr;
+	if (ThreadIdMap.Contains(ThreadId))
+	{
+		auto ContextSwitches = Threads.Find(ThreadIdMap[ThreadId]);
+		return ContextSwitches ? *ContextSwitches : nullptr;
+	}
+
+	return nullptr;
 }
 
 void FContextSwitchProvider::Add(uint32 ThreadId, double Start, double End, uint32 CoreNumber)
@@ -83,9 +88,22 @@ void FContextSwitchProvider::Add(uint32 ThreadId, double Start, double End, uint
 	ContextSwitch.CoreNumber = CoreNumber;
 }
 
-const IContextSwitchProvider& ReadContextSwitchProvider(const IAnalysisSession& Session)
+bool FContextSwitchProvider::HasData() const
 {
-	return *Session.ReadProvider<IContextSwitchProvider>(FContextSwitchProvider::ProviderName);
+	return Threads.Num() > 0;
+}
+
+void FContextSwitchProvider::AddThreadInfo(uint32 TraceThreadId, uint32 SystemThreadId)
+{
+	if (!ThreadIdMap.Contains(TraceThreadId))
+	{
+		ThreadIdMap.Add(TraceThreadId, SystemThreadId);
+	}
+}
+
+const IContextSwitchProvider* ReadContextSwitchProvider(const IAnalysisSession& Session)
+{
+	return Session.ReadProvider<IContextSwitchProvider>(FContextSwitchProvider::ProviderName);
 }
 
 } // namespace TraceServices
