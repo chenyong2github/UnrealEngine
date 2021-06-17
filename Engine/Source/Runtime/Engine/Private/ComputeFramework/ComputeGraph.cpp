@@ -163,7 +163,7 @@ void UComputeGraph::CacheShaderMetadata()
 namespace
 {
 	/** Add HLSL code to implement an external function. */
-	void GetFunctionShimHLSL(FShaderFunctionDefinition const& FnImpl, FShaderFunctionDefinition const& FnWrap, TCHAR const* UID, FString& InOutHLSL)
+	void GetFunctionShimHLSL(FShaderFunctionDefinition const& FnImpl, FShaderFunctionDefinition const& FnWrap, TCHAR const* UID, TCHAR const *WrapNameOverride, FString& InOutHLSL)
 	{
 		const bool bHasReturn = FnWrap.bHasReturnType;
 		const int32 NumParams = FnWrap.ParamTypes.Num();
@@ -172,7 +172,7 @@ namespace
 
 		StringBuilder.Append(bHasReturn ? *FnWrap.ParamTypes[0].TypeDeclaration : TEXT("void"));
 		StringBuilder.Append(TEXT(" "));
-		StringBuilder.Append(*FnWrap.Name);
+		StringBuilder.Append(WrapNameOverride ? WrapNameOverride : *FnWrap.Name);
 		StringBuilder.Append(TEXT("("));
 		
 		for (int32 ParameterIndex = bHasReturn ? 1 : 0; ParameterIndex < NumParams; ++ParameterIndex)
@@ -236,23 +236,24 @@ FString UComputeGraph::BuildKernelSource(int32 KernelIndex) const
 			// Bind every external kernel function to the associated data input function.
 			for (int32 GraphEdgeIndex : RelevantEdgeIndices)
 			{
-				if (GraphEdges[GraphEdgeIndex].bKernelInput)
+				FComputeGraphEdge const& GraphEdge = GraphEdges[GraphEdgeIndex];
+				TCHAR const* UID = GetDataInterfaceUID(GraphEdge.DataInterfaceIndex);
+				TCHAR const* WrapNameOverride = GraphEdge.BindingFunctionNameOverride.IsEmpty() ? nullptr : *GraphEdge.BindingFunctionNameOverride; 
+				if (GraphEdge.bKernelInput)
 				{
 					TArray<FShaderFunctionDefinition> DataProviderFunctions;
-					DataInterfaces[GraphEdges[GraphEdgeIndex].DataInterfaceIndex]->GetSupportedInputs(DataProviderFunctions);
-					FShaderFunctionDefinition& DataProviderFunction = DataProviderFunctions[GraphEdges[GraphEdgeIndex].DataInterfaceBindingIndex];
-					FShaderFunctionDefinition& KernelFunction = KernelSource->ExternalInputs[GraphEdges[GraphEdgeIndex].KernelBindingIndex];
-					TCHAR const* UID = GetDataInterfaceUID(GraphEdges[GraphEdgeIndex].DataInterfaceIndex);
-					GetFunctionShimHLSL(DataProviderFunction, KernelFunction, UID, HLSL);
+					DataInterfaces[GraphEdge.DataInterfaceIndex]->GetSupportedInputs(DataProviderFunctions);
+					FShaderFunctionDefinition& DataProviderFunction = DataProviderFunctions[GraphEdge.DataInterfaceBindingIndex];
+					FShaderFunctionDefinition& KernelFunction = KernelSource->ExternalInputs[GraphEdge.KernelBindingIndex];
+					GetFunctionShimHLSL(DataProviderFunction, KernelFunction, UID, WrapNameOverride, HLSL);
 				}
 				else
 				{
 					TArray<FShaderFunctionDefinition> DataProviderFunctions;
-					DataInterfaces[GraphEdges[GraphEdgeIndex].DataInterfaceIndex]->GetSupportedOutputs(DataProviderFunctions);
-					FShaderFunctionDefinition& DataProviderFunction = DataProviderFunctions[GraphEdges[GraphEdgeIndex].DataInterfaceBindingIndex];
-					FShaderFunctionDefinition& KernelFunction = KernelSource->ExternalOutputs[GraphEdges[GraphEdgeIndex].KernelBindingIndex];
-					TCHAR const* UID = GetDataInterfaceUID(GraphEdges[GraphEdgeIndex].DataInterfaceIndex);
-					GetFunctionShimHLSL(DataProviderFunction, KernelFunction, UID, HLSL);
+					DataInterfaces[GraphEdge.DataInterfaceIndex]->GetSupportedOutputs(DataProviderFunctions);
+					FShaderFunctionDefinition& DataProviderFunction = DataProviderFunctions[GraphEdge.DataInterfaceBindingIndex];
+					FShaderFunctionDefinition& KernelFunction = KernelSource->ExternalOutputs[GraphEdge.KernelBindingIndex];
+					GetFunctionShimHLSL(DataProviderFunction, KernelFunction, UID, WrapNameOverride, HLSL);
 				}
 			}
 

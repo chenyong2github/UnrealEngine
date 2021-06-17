@@ -20,9 +20,9 @@ FString USkeletalMeshSkinCacheDataInterface::GetDisplayName() const
 TArray<FOptimusCDIPinDefinition> USkeletalMeshSkinCacheDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
-	Defs.Add({"Position", "SC_WritePosition", "SC_ReadNumVertices", "Vertex"});
-	Defs.Add({"TangentX", "SC_WriteTangentX", "SC_ReadNumVertices", "Vertex"});
-	Defs.Add({"TangentZ", "SC_WriteTangentZ", "SC_ReadNumVertices", "Vertex"});
+	Defs.Add({"Position", "WritePosition", "ReadNumVertices", "Vertex"});
+	Defs.Add({"TangentX", "WriteTangentX", "ReadNumVertices", "Vertex"});
+	Defs.Add({"TangentZ", "WriteTangentZ", "ReadNumVertices", "Vertex"});
 
 	return Defs;
 }
@@ -32,7 +32,7 @@ void USkeletalMeshSkinCacheDataInterface::GetSupportedInputs(TArray<FShaderFunct
 {
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("SC_ReadNumVertices");
+		Fn.Name = TEXT("ReadNumVertices");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
 		ReturnParam.FundamentalType = EShaderFundamentalType::Uint;
@@ -49,7 +49,7 @@ void USkeletalMeshSkinCacheDataInterface::GetSupportedOutputs(TArray<FShaderFunc
 	// todo[CF]: Make these easier to write. Maybe even get from shader code reflection?
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("SC_WritePosition");
+		Fn.Name = TEXT("WritePosition");
 		Fn.bHasReturnType = false;
 		FShaderParamTypeDefinition Param0 = {};
 		Param0.FundamentalType = EShaderFundamentalType::Uint;
@@ -64,7 +64,7 @@ void USkeletalMeshSkinCacheDataInterface::GetSupportedOutputs(TArray<FShaderFunc
 	}
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("SC_WriteTangentX");
+		Fn.Name = TEXT("WriteTangentX");
 		Fn.bHasReturnType = false;
 		FShaderParamTypeDefinition Param0 = {};
 		Param0.FundamentalType = EShaderFundamentalType::Uint;
@@ -79,7 +79,7 @@ void USkeletalMeshSkinCacheDataInterface::GetSupportedOutputs(TArray<FShaderFunc
 	}
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("SC_WriteTangentZ");
+		Fn.Name = TEXT("WriteTangentZ");
 		Fn.bHasReturnType = false;
 		FShaderParamTypeDefinition Param0 = {};
 		Param0.FundamentalType = EShaderFundamentalType::Uint;
