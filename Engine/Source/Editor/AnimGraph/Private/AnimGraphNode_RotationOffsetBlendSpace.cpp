@@ -77,7 +77,7 @@ void UAnimGraphNode_RotationOffsetBlendSpace::GetMenuActions(FBlueprintActionDat
 		GetClass(),
 		{ UAimOffsetBlendSpace::StaticClass(), UAimOffsetBlendSpace1D::StaticClass() },
 		{ },
-		[](const FAssetData& InAssetData)
+		[](const FAssetData& InAssetData, UClass* InClass)
 		{
 			if(InAssetData.IsValid())
 			{
@@ -88,7 +88,7 @@ void UAnimGraphNode_RotationOffsetBlendSpace::GetMenuActions(FBlueprintActionDat
 				return LOCTEXT("MenuDesc", "AimOffset Player");
 			}
 		},
-		[](const FAssetData& InAssetData)
+		[](const FAssetData& InAssetData, UClass* InClass)
 		{
 			if(InAssetData.IsValid())
 			{

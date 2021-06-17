@@ -65,7 +65,7 @@ void UAnimGraphNode_BlendSpacePlayer::GetMenuActions(FBlueprintActionDatabaseReg
 		GetClass(),
 		{ UBlendSpace::StaticClass() },
 		{ },
-		[](const FAssetData& InAssetData)
+		[](const FAssetData& InAssetData, UClass* InClass)
 		{
 			if(InAssetData.IsValid())
 			{
@@ -76,7 +76,7 @@ void UAnimGraphNode_BlendSpacePlayer::GetMenuActions(FBlueprintActionDatabaseReg
 				return LOCTEXT("MenuDesc", "Blendspace Player");
 			}
 		},
-		[](const FAssetData& InAssetData)
+		[](const FAssetData& InAssetData, UClass* InClass)
 		{
 			if(InAssetData.IsValid())
 			{

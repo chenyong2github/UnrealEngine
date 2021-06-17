@@ -92,7 +92,7 @@ void UAnimGraphNode_SequencePlayer::GetMenuActions(FBlueprintActionDatabaseRegis
 		GetClass(),
 		{ UAnimSequence::StaticClass() },
 		{ },
-		[](const FAssetData& InAssetData)
+		[](const FAssetData& InAssetData, UClass* InClass)
 		{
 			if(InAssetData.IsValid())
 			{
@@ -111,7 +111,7 @@ void UAnimGraphNode_SequencePlayer::GetMenuActions(FBlueprintActionDatabaseRegis
 				return LOCTEXT("PlayerDesc", "Sequence Player");
 			}
 		},
-		[](const FAssetData& InAssetData)
+		[](const FAssetData& InAssetData, UClass* InClass)
 		{
 			if(InAssetData.IsValid())
 			{

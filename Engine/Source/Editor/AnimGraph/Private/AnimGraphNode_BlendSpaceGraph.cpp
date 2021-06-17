@@ -61,23 +61,31 @@ void UAnimGraphNode_BlendSpaceGraph::GetMenuActions(FBlueprintActionDatabaseRegi
 		GetClass(),
 		{ UBlendSpace::StaticClass(), UBlendSpace1D::StaticClass() },
 		{ UAimOffsetBlendSpace::StaticClass(), UAimOffsetBlendSpace1D::StaticClass() },
-		[](const FAssetData& InAssetData)
+		[](const FAssetData& InAssetData, UClass* InClass)
 		{
 			if(InAssetData.IsValid())
 			{
 				return FText::Format(LOCTEXT("MenuDescFormat", "Blendspace '{0}'"), FText::FromName(InAssetData.AssetName));
+			}
+			else if(InClass != nullptr)
+			{
+				return InClass->GetDisplayNameText();
 			}
 			else
 			{
 				return LOCTEXT("MenuDesc", "Blendspace");
 			}
 		},
-		[](const FAssetData& InAssetData)
+		[](const FAssetData& InAssetData, UClass* InClass)
 		{
 			if(InAssetData.IsValid())
 			{
 				return FText::Format(LOCTEXT("MenuDescTooltipFormat", "Blendspace\n'{0}'"), FText::FromName(InAssetData.ObjectPath));
 			}
+			else if(InClass != nullptr)
+			{
+				return InClass->GetDisplayNameText();
+			}	
 			else
 			{
 				return LOCTEXT("MenuDesc", "Blendspace");
@@ -87,6 +95,11 @@ void UAnimGraphNode_BlendSpaceGraph::GetMenuActions(FBlueprintActionDatabaseRegi
 		{
 			UAnimGraphNode_BlendSpaceGraph* GraphNode = CastChecked<UAnimGraphNode_BlendSpaceGraph>(InNewNode);
 			GraphNode->SetupFromAsset(InAssetData, bInIsTemplateNode);
+		},
+		[](UEdGraphNode* InNewNode, bool bInIsTemplateNode, const TSubclassOf<UObject> InClass)
+		{
+			UAnimGraphNode_BlendSpaceGraph* GraphNode = CastChecked<UAnimGraphNode_BlendSpaceGraph>(InNewNode);
+			GraphNode->SetupFromClass(InClass.Get(), bInIsTemplateNode);
 		});
 }
 

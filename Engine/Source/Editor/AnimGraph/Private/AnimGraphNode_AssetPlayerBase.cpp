@@ -237,22 +237,39 @@ void UAnimGraphNode_AssetPlayerBase::SetupNewNode(UEdGraphNode* InNewNode, bool 
 	}
 }
 
-void UAnimGraphNode_AssetPlayerBase::GetMenuActionsHelper(FBlueprintActionDatabaseRegistrar& InActionRegistrar, TSubclassOf<UAnimGraphNode_Base> InNodeClass, const TArray<TSubclassOf<UObject>>& InAssetTypes, const TArray<TSubclassOf<UObject>>& InExcludedAssetTypes, const TFunctionRef<FText(const FAssetData&)>& InMenuNameFunction, const TFunctionRef<FText(const FAssetData&)>& InMenuTooltipFunction, const TFunction<void(UEdGraphNode*, bool, const FAssetData)>& InSetupNewNodeFunction)
+void UAnimGraphNode_AssetPlayerBase::GetMenuActionsHelper(FBlueprintActionDatabaseRegistrar& InActionRegistrar, TSubclassOf<UAnimGraphNode_Base> InNodeClass, const TArray<TSubclassOf<UObject>>& InAssetTypes, const TArray<TSubclassOf<UObject>>& InExcludedAssetTypes, const TFunctionRef<FText(const FAssetData&, UClass*)>& InMenuNameFunction, const TFunctionRef<FText(const FAssetData&, UClass*)>& InMenuTooltipFunction, const TFunction<void(UEdGraphNode*, bool, const FAssetData)>& InSetupNewNodeFromAssetFunction, const TFunction<void(UEdGraphNode*, bool, TSubclassOf<UObject>)>& InSetupNewNodeFromClassFunction)
 {
-	auto MakeAction = [&InActionRegistrar, &InMenuNameFunction, &InMenuTooltipFunction, InSetupNewNodeFunction, InNodeClass](const FAssetData& InAssetData)
+	auto MakeActionFromAsset = [&InActionRegistrar, &InMenuNameFunction, &InMenuTooltipFunction, InSetupNewNodeFromAssetFunction, InNodeClass](const FAssetData& InAssetData)
 	{
-		auto AssetSetup = [InSetupNewNodeFunction, InAssetData](UEdGraphNode* InNewNode, bool bInIsTemplateNode)
+		auto AssetSetup = [InSetupNewNodeFromAssetFunction, InAssetData](UEdGraphNode* InNewNode, bool bInIsTemplateNode)
 		{
-			InSetupNewNodeFunction(InNewNode, bInIsTemplateNode, InAssetData);
+			InSetupNewNodeFromAssetFunction(InNewNode, bInIsTemplateNode, InAssetData);
 		};
 
 		UBlueprintNodeSpawner* NodeSpawner = UBlueprintNodeSpawner::Create(InNodeClass.Get());
 		NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateLambda(AssetSetup);
-		NodeSpawner->DefaultMenuSignature.MenuName = InMenuNameFunction(InAssetData);
-		NodeSpawner->DefaultMenuSignature.Tooltip = InMenuTooltipFunction(InAssetData);
+		NodeSpawner->DefaultMenuSignature.MenuName = InMenuNameFunction(InAssetData, InAssetData.GetClass());
+		NodeSpawner->DefaultMenuSignature.Tooltip = InMenuTooltipFunction(InAssetData, InAssetData.GetClass());
 		InActionRegistrar.AddBlueprintAction(InAssetData, NodeSpawner);
-	};	
+	};
 
+	auto MakeActionFromClass = [&InActionRegistrar, &InMenuNameFunction, &InMenuTooltipFunction, InSetupNewNodeFromClassFunction, InNodeClass](const TSubclassOf<UObject>& InAssetClass)
+	{
+		if(InSetupNewNodeFromClassFunction != nullptr)
+		{
+			auto AssetSetup = [InSetupNewNodeFromClassFunction, InAssetClass](UEdGraphNode* InNewNode, bool bInIsTemplateNode)
+			{
+				InSetupNewNodeFromClassFunction(InNewNode, bInIsTemplateNode, InAssetClass);
+			};
+
+			UBlueprintNodeSpawner* NodeSpawner = UBlueprintNodeSpawner::Create(InNodeClass.Get());
+			NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateLambda(AssetSetup);
+			NodeSpawner->DefaultMenuSignature.MenuName = InMenuNameFunction(FAssetData(), InAssetClass.Get());
+			NodeSpawner->DefaultMenuSignature.Tooltip = InMenuTooltipFunction(FAssetData(), InAssetClass.Get());
+			InActionRegistrar.AddBlueprintAction(InAssetClass, NodeSpawner);
+		}
+	};
+	
 	const UObject* QueryObject = InActionRegistrar.GetActionKeyFilter();
 	bool bIsObjectOfAssetType = false;
 	for(const TSubclassOf<UObject>& AssetType : InAssetTypes)
@@ -286,16 +303,27 @@ void UAnimGraphNode_AssetPlayerBase::GetMenuActionsHelper(FBlueprintActionDataba
 		{
 			if(AssetData.IsUAsset())
 			{
-				MakeAction(AssetData);
+				MakeActionFromAsset(AssetData);
 			}
 		}
 
-		// Add 'empty' asset node
-		MakeAction(FAssetData());
+		if(InSetupNewNodeFromClassFunction != nullptr)
+		{
+			// Add 'class' nodes
+			for(const TSubclassOf<UObject>& AssetType : InAssetTypes)
+			{
+				MakeActionFromClass(AssetType);
+			}
+		}
+		else
+		{
+			// Add 'empty' asset node
+			MakeActionFromAsset(FAssetData());
+		}
 	}
 	else if (bIsObjectOfAssetType)
 	{
-		MakeAction(FAssetData(QueryObject));
+		MakeActionFromAsset(FAssetData(QueryObject));
 	}
 }
 
