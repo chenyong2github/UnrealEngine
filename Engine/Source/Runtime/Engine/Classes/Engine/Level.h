@@ -14,6 +14,7 @@
 #include "Templates/ScopedCallback.h"
 #include "Misc/WorldCompositionUtility.h"
 #include "Engine/MaterialMerging.h"
+#include "Engine/TextureStreamingTypes.h"
 #include <atomic>
 
 #include "Level.generated.h"
@@ -436,7 +437,7 @@ enum class EActorsLoadingStrategy: uint8
  * @see UActor
  */
 UCLASS(MinimalAPI)
-class ULevel : public UObject, public IInterface_AssetUserData
+class ULevel : public UObject, public IInterface_AssetUserData, public ITextureStreamingContainer
 {
 	GENERATED_BODY()
 
@@ -532,9 +533,17 @@ public:
 	UPROPERTY()
 	TArray<FVector> StaticNavigableGeometry;
 
-	/** The Guid of each texture refered by FStreamingTextureBuildInfo::TextureLevelIndex	*/
+	/** The Guid of each streamable texture refered by FStreamingTextureBuildInfo::TextureLevelIndex	*/
 	UPROPERTY()
 	TArray<FGuid> StreamingTextureGuids;
+
+	/** The name of each streamable texture referred by FStreamingTextureBuildInfo::TextureLevelIndex */
+	UPROPERTY()
+	TArray<FName> StreamingTextures;
+
+	/** Packed quality level and feature level used when building texture streaming data. This is used by runtime to determine if built data can be used or not. */
+	UPROPERTY()
+	uint32 PackedTextureStreamingQualityLevelFeatureLevel;
 
 	/** Data structures for holding the tick functions **/
 	class FTickTaskLevel*						TickTaskLevel;
@@ -827,6 +836,14 @@ public:
 	virtual void CreateCluster() override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	//~ End UObject Interface.
+
+#if	WITH_EDITOR
+	//~Begin ITextureStreamingContainer Interface.
+	virtual void InitializeTextureStreamingContainer(uint32 InPackedTextureStreamingQualityLevelFeatureLevel) override;
+	virtual uint16 RegisterStreamableTexture(UTexture* InTexture) override;
+	//~End ITextureStreamingContainer Interface.
+	ENGINE_API uint16 RegisterStreamableTexture(const FString& InTextureName, const FGuid& InTextureGuid);
+#endif
 
 	/**
 	 * Flag this level instance for destruction.
