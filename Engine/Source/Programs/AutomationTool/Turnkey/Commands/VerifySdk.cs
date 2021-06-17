@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using EpicGames.Core;
 using UnrealBuildTool;
+using UnrealBuildBase;
 
 namespace Turnkey.Commands
 {
@@ -42,7 +43,7 @@ namespace Turnkey.Commands
 			}
 
 			TurnkeyUtils.Log("Installed Sdk validity:");
-			TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Success;
+			TurnkeyUtils.ExitCode = ExitCode.Success;
 
 			TurnkeyContextImpl TurnkeyContext = new TurnkeyContextImpl();
 
@@ -140,7 +141,7 @@ namespace Turnkey.Commands
 					if (BestSdk == null)
 					{
 						TurnkeyUtils.Log("ERROR: {0}: Unable to find any Sdks that could be installed", Platform);
-						TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
+						TurnkeyUtils.ExitCode = ExitCode.Error_SDKNotFound;
 						continue;
 					}
 
@@ -212,7 +213,7 @@ namespace Turnkey.Commands
 									if (MatchingInstallableSdk == null)
 									{
 										TurnkeyUtils.Log("ERROR: {0}: Unable to find any Sdks that could be installed on {1}", Platform, Device.Name);
-										TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
+										TurnkeyUtils.ExitCode = ExitCode.Error_SDKNotFound;
 									}
 									else
 									{

@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using AutomationTool;
 using UnrealBuildTool;
-
+using UnrealBuildBase;
 
 namespace Gauntlet
 {

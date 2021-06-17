@@ -23,6 +23,7 @@ using Windows.ApplicationModel.Core;
 using System.Threading;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Tools.WindowsDevicePortal;
+using UnrealBuildBase;
 
 namespace HoloLens.Automation
 {

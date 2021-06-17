@@ -11,6 +11,7 @@ using System.Globalization;
 using EpicGames.Core;
 using AutomationTool;
 using UnrealBuildTool;
+using UnrealBuildBase;
 
 namespace Turnkey
 {
@@ -20,7 +21,7 @@ namespace Turnkey
 		static public BuildCommand CommandUtilHelper;
 
 		// replacement for Environment.ExitCode
-		static public AutomationTool.ExitCode ExitCode = ExitCode.Success;
+		static public ExitCode ExitCode = ExitCode.Success;
 
 		static public void Initialize(IOProvider InIOProvider, BuildCommand InCommandUtilHelper)
 		{

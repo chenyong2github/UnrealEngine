@@ -6,6 +6,7 @@ using UnrealBuildTool;
 using Gauntlet;
 using AutomationTool;
 using System.Reflection;
+using UnrealBuildBase;
 
 namespace EditorTest
 {

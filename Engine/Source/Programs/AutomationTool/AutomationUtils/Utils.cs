@@ -10,6 +10,7 @@ using System.Reflection;
 using UnrealBuildTool;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
+using UnrealBuildBase;
 
 namespace AutomationTool
 {

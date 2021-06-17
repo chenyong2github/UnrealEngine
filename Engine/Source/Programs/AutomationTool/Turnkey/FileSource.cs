@@ -553,7 +553,7 @@ namespace Turnkey
 		// 					// failed to install, nothing we can do
 		// 					if (string.IsNullOrEmpty(InstalledRoot))
 		// 					{
-		// 						TurnkeyUtils.ExitCode = AutomationTool.ExitCode.Error_SDKNotFound;
+		// 						TurnkeyUtils.ExitCode = ExitCode.Error_SDKNotFound;
 		// 						return false;
 		// 					}
 		// 

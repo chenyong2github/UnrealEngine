@@ -9,6 +9,7 @@ using UnrealBuildTool;
 using EpicGames.Core;
 using System.Text.RegularExpressions;
 using System.Threading;
+using UnrealBuildBase;
 
 abstract class SyncProjectBase : BuildCommand
 {
