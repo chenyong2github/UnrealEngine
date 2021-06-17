@@ -39,6 +39,7 @@ public:
 class UClass;
 class UObject;
 class UWorld;
+class FSceneView;
 
 struct FObjectTrace
 {
@@ -53,6 +54,9 @@ struct FObjectTrace
 
 	/** Helper function to output an object */
 	ENGINE_API static void OutputObject(const UObject* InObject);
+
+	/** Helper function to output camera information for a player */
+	ENGINE_API static void OutputView(const UObject* LocalPlayer, const FSceneView* View);
 
 	/** Helper function to output an object event */
 	ENGINE_API static void OutputObjectEvent(const UObject* InObject, const TCHAR* InEvent);
@@ -95,6 +99,9 @@ struct FObjectTrace
 #define TRACE_OBJECT(Object) \
 	FObjectTrace::OutputObject(Object);
 
+#define TRACE_VIEW(Player, View) \
+	FObjectTrace::OutputView(Player, View);
+
 #if TRACE_FILTERING_ENABLED
 
 #define TRACE_OBJECT_EVENT(Object, Event) \
@@ -119,5 +126,6 @@ struct FObjectTrace
 #define TRACE_OBJECT(Object)
 #define TRACE_OBJECT_EVENT(Object, Event)
 #define TRACE_WORLD(World)
+#define TRACE_VIEW(Player, View)
 
 #endif

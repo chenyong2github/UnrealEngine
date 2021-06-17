@@ -19,6 +19,7 @@ void FGameplayAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_Object, "Object", "Object");
 	Builder.RouteEvent(RouteId_ObjectEvent, "Object", "ObjectEvent");
 	Builder.RouteEvent(RouteId_World, "Object", "World");
+	Builder.RouteEvent(RouteId_View, "Object", "View");
 	Builder.RouteEvent(RouteId_ClassPropertyStringId, "Object", "ClassPropertyStringId");
 	Builder.RouteEvent(RouteId_ClassProperty, "Object", "ClassProperty");
 	Builder.RouteEvent(RouteId_PropertiesStart, "Object", "PropertiesStart");
@@ -82,6 +83,17 @@ bool FGameplayAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCont
 		uint64 Id = EventData.GetValue<uint64>("Id");
 		const TCHAR* Event = reinterpret_cast<const TCHAR*>(EventData.GetAttachment());
 		GameplayProvider.AppendObjectEvent(Id, Context.EventTime.AsSeconds(Cycle), Event);
+		break;
+	}
+	case RouteId_View:
+	{
+		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+		uint64 PlayerId = EventData.GetValue<uint64>("PlayerId");
+		FVector Position( EventData.GetValue<double>("PosX"), EventData.GetValue<double>("PosY"), EventData.GetValue<double>("PosZ"));
+		FRotator Rotation( EventData.GetValue<float>("Pitch"), EventData.GetValue<float>("Yaw"), EventData.GetValue<float>("Roll"));
+		float Fov = EventData.GetValue<float>("Fov");
+		float AspectRatio  = EventData.GetValue<float>("AspectRatio");
+		GameplayProvider.AppendView(PlayerId, Context.EventTime.AsSeconds(Cycle), Position, Rotation, Fov, AspectRatio);
 		break;
 	}
 	case RouteId_ClassPropertyStringId:

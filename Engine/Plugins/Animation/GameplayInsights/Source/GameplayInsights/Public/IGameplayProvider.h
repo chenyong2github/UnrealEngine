@@ -59,6 +59,14 @@ struct FRecordingInfoMessage
 	uint32 RecordingIndex;
 };
 
+struct FViewMessage
+{
+	uint64 PlayerId;
+	FVector Position;
+	FRotator Rotation;
+	float Fov;
+	float AspectRatio;
+};
 
 struct FWorldInfo
 {
@@ -102,6 +110,7 @@ public:
 	typedef TraceServices::ITimeline<FObjectEventMessage> ObjectEventsTimeline;
 	typedef TraceServices::ITimeline<FObjectPropertiesMessage> ObjectPropertiesTimeline;
 	typedef TraceServices::ITimeline<FRecordingInfoMessage> RecordingInfoTimeline;
+	typedef TraceServices::ITimeline<FViewMessage> ViewTimeline;
 
 	virtual bool ReadObjectEventsTimeline(uint64 InObjectId, TFunctionRef<void(const ObjectEventsTimeline&)> Callback) const = 0;
 	virtual bool ReadObjectEvent(uint64 InObjectId, uint64 InMessageId, TFunctionRef<void(const FObjectEventMessage&)> Callback) const = 0;
@@ -120,5 +129,6 @@ public:
 	virtual FOnObjectEndPlay& OnObjectEndPlay() = 0;
 	virtual const TCHAR* GetPropertyName(uint32 InPropertyStringId) const = 0;
 	virtual const RecordingInfoTimeline* GetRecordingInfo(uint32 RecordingId) const = 0; 
+	virtual void ReadViewTimeline(TFunctionRef<void(const ViewTimeline&)> Callback) const = 0;
 };
 

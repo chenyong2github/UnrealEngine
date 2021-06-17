@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IRewindDebugger.h"
 #include "BindableProperty.h"
 #include "UObject/WeakObjectPtr.h"
 #include "RewindDebuggerModule.h"
@@ -18,11 +19,18 @@ namespace TraceServices
 //  Start/Stop recording
 //  Keeping track of the current Debug Target actor, and outputing a list of it's Components for the UI
 
-class FRewindDebugger
+class FRewindDebugger : public IRewindDebugger
 {
 public:
 	FRewindDebugger();
-	~FRewindDebugger();
+	virtual ~FRewindDebugger();
+
+	// IRewindDebugger interface
+	virtual double CurrentTraceTime() const override { return TraceTime.Get(); }
+	virtual const TraceServices::IAnalysisSession* GetAnalysisSession() const override;
+	virtual uint64 GetTargetActorId() const override;
+	virtual bool GetTargetActorPosition(FVector& OutPosition) const override;
+	virtual UWorld* GetWorldToVisualize() const override;
 
 	// create singleton instance
 	static void Initialize();
@@ -92,8 +100,6 @@ private:
 	void OnPIEStopped(bool bSimulating);
 	void OnPIESingleStepped(bool bSimulating);
 
-	const TraceServices::IAnalysisSession* GetAnalysisSession();
-	UWorld* GetWorldToVisualize() const;
 
 	bool UpdateComponentList(uint64 ParentId, TArray<TSharedPtr<FDebugObjectInfo>>& NewComponentList);
 	void SetCurrentScrubTime(float Time);
@@ -137,6 +143,9 @@ private:
 
 	TMap<uint64, FMeshComponentResetData> MeshComponentsToReset;
 
-	class IUnrealInsightsModule *UnrealInsightsModule;
+	mutable class IUnrealInsightsModule *UnrealInsightsModule;
 	FDelegateHandle TickerHandle;
+
+	bool bTargetActorPositionValid;
+	FVector TargetActorPosition;
 };

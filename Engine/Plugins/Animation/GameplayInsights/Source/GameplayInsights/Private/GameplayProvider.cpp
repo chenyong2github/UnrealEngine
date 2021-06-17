@@ -316,6 +316,39 @@ void FGameplayProvider::AppendObjectEvent(uint64 InObjectId, double InTime, cons
 	Session.UpdateDurationSeconds(InTime);
 }
 
+void FGameplayProvider::ReadViewTimeline(TFunctionRef<void(const IGameplayProvider::ViewTimeline&)> Callback) const
+{
+	Session.ReadAccessCheck();
+
+	if (ViewTimeline.IsValid())
+	{
+		Callback(*ViewTimeline);
+	}
+}
+
+void FGameplayProvider::AppendView(uint64 InPlayerId, double InTime, const FVector& InPosition, const FRotator& InRotation, float InFov, float InAspectRatio)
+{
+	Session.WriteAccessCheck();
+
+	if (!ViewTimeline.IsValid())
+	{
+		ViewTimeline = MakeShared<TraceServices::TPointTimeline<FViewMessage>>(Session.GetLinearAllocator());
+	}
+
+	bHasAnyData = true;
+
+	FViewMessage Message;
+	Message.PlayerId = InPlayerId;
+	Message.Position = InPosition;
+	Message.Rotation = InRotation;
+	Message.Fov = InFov;
+	Message.AspectRatio = InAspectRatio;
+
+	ViewTimeline->AppendEvent(InTime, Message);
+
+	Session.UpdateDurationSeconds(InTime);
+}
+
 void FGameplayProvider::AppendWorld(uint64 InObjectId, int32 InPIEInstanceId, uint8 InType, uint8 InNetMode, bool bInIsSimulating)
 {
 	Session.WriteAccessCheck();

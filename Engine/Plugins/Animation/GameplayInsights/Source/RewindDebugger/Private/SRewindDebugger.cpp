@@ -21,6 +21,8 @@
 #include "SceneOutlinerModule.h"
 #include "Selection.h"
 #include "Styling/SlateIconFinder.h"
+#include "ToolMenu.h"
+#include "ToolMenus.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
@@ -287,6 +289,15 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 	// load saved layout if it exists
 	Layout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni, Layout);
 
+	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("RewindDebugger.MainMenu");
+
+	FToolMenuSection& Section = Menu->AddSection("ViewsSection", LOCTEXT("Views", "Views"));
+
+	Section.AddDynamicEntry("ViewsSection", FNewToolMenuDelegateLegacy::CreateLambda([this](FMenuBuilder& InMenuBuilder, UToolMenu* InMenu)
+	{
+		MakeViewsMenu(InMenuBuilder);
+	}));
+
 
 	ChildSlot
 	[
@@ -515,14 +526,11 @@ void SRewindDebugger::OnPinnedTabClosed(TSharedRef<SDockTab> Tab)
 
 TSharedRef<SWidget> SRewindDebugger::MakeMainMenu()
 {
-	FMenuBuilder MenuBuilder(true, nullptr);
-	MakeViewsMenu(MenuBuilder);
-	return MenuBuilder.MakeWidget();
+	return UToolMenus::Get()->GenerateWidget("RewindDebugger.MainMenu", FToolMenuContext());
 }
 
 void SRewindDebugger::MakeViewsMenu(FMenuBuilder& MenuBuilder)
 {
-	MenuBuilder.BeginSection("Views", LOCTEXT("Views", "Views"));
 
 	TabManager->PopulateLocalTabSpawnerMenu(MenuBuilder);
 
@@ -530,8 +538,6 @@ void SRewindDebugger::MakeViewsMenu(FMenuBuilder& MenuBuilder)
 							 LOCTEXT("Show All tooltip", "Show all debug views that are relevant to the selected object type"),
 							 FSlateIcon(),
 							 FExecuteAction::CreateLambda([this]() { ShowAllViews(); }));
-
-	MenuBuilder.EndSection();
 }
 
 void SRewindDebugger::ExtendTabMenu(FMenuBuilder& MenuBuilder, TSharedPtr<IGameplayInsightsDebugView> View)
@@ -548,8 +554,6 @@ void SRewindDebugger::ExtendTabMenu(FMenuBuilder& MenuBuilder, TSharedPtr<IGamep
 
 
 	MenuBuilder.EndSection();
-
-	MakeViewsMenu(MenuBuilder);
 }
 
 void SRewindDebugger::ShowAllViews()
@@ -629,7 +633,5 @@ FReply SRewindDebugger::OnSelectActorClicked()
 
 	return FReply::Handled();
 }
-
-
 
 #undef LOCTEXT_NAMESPACE

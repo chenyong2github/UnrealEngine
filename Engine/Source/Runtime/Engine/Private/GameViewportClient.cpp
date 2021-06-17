@@ -63,6 +63,7 @@
 #include "IImageWrapperModule.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "CustomStaticScreenPercentage.h"
+#include "ObjectTrace.h"
 
 #if WITH_EDITOR
 #include "Settings/LevelEditorPlaySettings.h"
@@ -1559,6 +1560,15 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 
 #if CSV_PROFILER
 	UpdateCsvCameraStats(PlayerViewMap);
+#endif
+
+#if OBJECT_TRACE_ENABLED 
+	for (TMap<ULocalPlayer*, FSceneView*>::TConstIterator It(PlayerViewMap); It; ++It)
+	{
+		ULocalPlayer* LocalPlayer = It.Key();
+		FSceneView* SceneView = It.Value();
+		TRACE_VIEW(LocalPlayer, SceneView);	
+	}
 #endif
 
 	FinalizeViews(&ViewFamily, PlayerViewMap);
