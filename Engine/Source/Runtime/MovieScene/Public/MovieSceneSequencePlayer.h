@@ -490,6 +490,7 @@ public:
 	 * Access the sequence this player is playing
 	 * @return the sequence currently assigned to this player
 	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
 	UMovieSceneSequence* GetSequence() const { return Sequence; }
 
 	/**
@@ -533,10 +534,12 @@ protected:
 	void QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
 	void RunLatentActions();
 
-protected:
-
+public:
 	//~ IMovieScenePlayer interface
 	virtual FMovieSceneRootEvaluationTemplateInstance& GetEvaluationTemplate() override { return RootTemplateInstance; }
+
+protected:
+	//~ IMovieScenePlayer interface
 	virtual UMovieSceneEntitySystemLinker* ConstructEntitySystemLinker() override;
 	virtual EMovieScenePlayerStatus::Type GetPlaybackStatus() const override;
 	virtual FMovieSceneSpawnRegister& GetSpawnRegister() override;

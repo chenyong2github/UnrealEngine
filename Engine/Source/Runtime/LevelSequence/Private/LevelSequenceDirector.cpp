@@ -4,7 +4,9 @@
 #include "Engine/World.h"
 #include "UObject/Stack.h"
 #include "MovieSceneObjectBindingID.h"
+#include "LevelSequencePlayer.h"
 #include "IMovieScenePlayer.h"
+#include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 
 UWorld* ULevelSequenceDirector::GetWorld() const
 {
@@ -97,5 +99,19 @@ AActor* ULevelSequenceDirector::GetBoundActor(FMovieSceneObjectBindingID ObjectB
 	}
 
 	return nullptr;
+}
+
+UMovieSceneSequence* ULevelSequenceDirector::GetSequence()
+{
+	if (IMovieScenePlayer* PlayerInterface = IMovieScenePlayer::Get(static_cast<uint16>(MovieScenePlayerIndex)))
+	{
+		return PlayerInterface->GetEvaluationTemplate().GetSequence(FMovieSceneSequenceID(SubSequenceID));
+	}
+	else
+	{		
+		FFrame::KismetExecutionMessage(TEXT("No sequence player."), ELogVerbosity::Error);
+
+		return nullptr;
+	}
 }
 
