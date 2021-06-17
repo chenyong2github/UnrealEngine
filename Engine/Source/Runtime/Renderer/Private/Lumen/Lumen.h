@@ -49,6 +49,9 @@ namespace Lumen
 	bool UseVirtualShadowMaps();
 	void ExpandDistanceFieldUpdateTrackingBounds(const FSceneViewState* ViewState, DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds);
 
+	// Surface cache
+	float GetSurfaceCacheOffscreenShadowingMaxTraceDistance();
+
 	// Hardware ray tracing
 	bool UseHardwareRayTracing();
 	bool UseHardwareRayTracedDirectLighting();

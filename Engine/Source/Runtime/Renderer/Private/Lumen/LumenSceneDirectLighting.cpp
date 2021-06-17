@@ -119,12 +119,14 @@ FAutoConsoleVariableRef CVarLumenSceneCardDirectLightingUpdateFrequencyScale(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-namespace Lumen
+bool Lumen::UseVirtualShadowMaps()
 {
-	bool UseVirtualShadowMaps()
-	{
-		return GLumenDirectLightingVirtualShadowMap != 0;
-	}
+	return GLumenDirectLightingVirtualShadowMap != 0;
+}
+
+float Lumen::GetSurfaceCacheOffscreenShadowingMaxTraceDistance()
+{
+	return FMath::Max(GOffscreenShadowingMaxTraceDistance, 0.0f);
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLightFunctionParameters, )
@@ -566,7 +568,7 @@ void RenderDirectLightIntoLumenCards(
 		PassParameters->PS.TwoSidedMeshDistanceBias = GTwoSidedMeshDistanceBias;
 
 		PassParameters->PS.TanLightSourceAngle = FMath::Tan(LightSceneInfo->Proxy->GetLightSourceAngle());
-		PassParameters->PS.MaxTraceDistance = GOffscreenShadowingMaxTraceDistance;
+		PassParameters->PS.MaxTraceDistance = Lumen::GetSurfaceCacheOffscreenShadowingMaxTraceDistance();
 		PassParameters->PS.StepFactor = FMath::Clamp(GOffscreenShadowingTraceStepFactor, .1f, 10.0f);
 		PassParameters->PS.SurfaceBias = FMath::Clamp(GShadowingSurfaceBias, .01f, 100.0f);
 		PassParameters->PS.SlopeScaledSurfaceBias = FMath::Clamp(GShadowingSlopeScaledSurfaceBias, .01f, 100.0f);
