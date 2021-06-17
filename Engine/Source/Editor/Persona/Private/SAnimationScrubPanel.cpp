@@ -85,12 +85,12 @@ FReply SAnimationScrubPanel::OnClick_Forward_Step()
 	}
 	else if (SMC)
 	{
-		// BlendSpace combines animations so there's no such thing as a frame. However, 1/30 is a sensible/common rate.
+		// BlendSpaces and Animation Blueprints combine animations so there's no such thing as a frame. However, 1/30 is a sensible/common rate.
 		const float FixedFrameRate = 30.0f;
 
 		// Advance a single frame, leaving it paused afterwards
 		SMC->GlobalAnimRateScale = 1.0f;
-		SMC->TickAnimation(1.0f / FixedFrameRate, false);
+		GetPreviewScene()->Tick(1.0f / FixedFrameRate); 
 		SMC->GlobalAnimRateScale = 0.0f;
 	}
 
