@@ -12,6 +12,8 @@ URigVMNode::URigVMNode()
 , Position(FVector2D::ZeroVector)
 , Size(FVector2D::ZeroVector)
 , NodeColor(FLinearColor::White)
+, bHasBreakpoint(false)
+, bHaltedAtThisNode(false)
 {
 
 }

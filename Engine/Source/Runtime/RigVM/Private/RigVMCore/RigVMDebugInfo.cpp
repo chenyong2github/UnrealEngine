@@ -7,6 +7,8 @@ void FRigVMDebugInfo::ResetState()
 	BreakpointHits.Empty();
 	BreakpointActivationOnHit.Empty();
 	TemporaryBreakpoint = nullptr;
+	CurrentActiveBreakpoint = nullptr;
+	CurrentActiveBreakpointCallstack.Empty();
 }
 
 void FRigVMDebugInfo::StartExecution()

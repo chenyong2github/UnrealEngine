@@ -82,6 +82,12 @@ struct RIGVM_API FRigVMDebugInfo
 	void SetBreakpoints(const TArray<TSharedRef<FRigVMBreakpoint>>& InBreakpoints)
 	{
 		Breakpoints = InBreakpoints;
+
+		if (CurrentActiveBreakpoint.IsValid() && !Breakpoints.Contains(CurrentActiveBreakpoint))
+		{
+			CurrentActiveBreakpoint = nullptr;
+			CurrentActiveBreakpointCallstack.Reset();
+		}
 	}
 
 	bool IsTemporaryBreakpoint(TSharedPtr<FRigVMBreakpoint> Breakpoint) const

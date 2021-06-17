@@ -237,6 +237,16 @@ FControlRigEditor::~FControlRigEditor()
 		RigBlueprint->OnRequestLocalizeFunctionDialog().RemoveAll(this);
 		RigBlueprint->OnRequestBulkEditDialog().Unbind();
 		RigBlueprint->OnReportCompilerMessage().RemoveAll(this);
+
+#if WITH_EDITOR
+		RigBlueprint->SetDebugMode(false);
+		RigBlueprint->ClearBreakpoints();
+		if (HaltedAtNode)
+		{
+			HaltedAtNode->SetExecutionIsHaltedAtThisNode(false);
+			HaltedAtNode = nullptr;
+		}
+#endif
 	}
 
 	if (NodeDetailBuffer.Num() > 0 && NodeDetailStruct != nullptr)
@@ -3625,6 +3635,10 @@ void FControlRigEditor::UpdateControlRig()
 
 			ControlRig->PreviewInstance = PreviewInstance;
 			ControlRig->bSetupModeEnabled = bSetupModeEnabled;
+
+#if WITH_EDITOR
+			ControlRig->bIsInDebugMode = ExecutionMode == EControlRigExecutionModeType_Debug;
+#endif
 
 			if (UControlRig* CDO = Cast<UControlRig>(Class->GetDefaultObject()))
 			{
