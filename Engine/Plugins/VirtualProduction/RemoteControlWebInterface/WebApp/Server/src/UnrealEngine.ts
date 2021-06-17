@@ -71,6 +71,9 @@ namespace UnrealApi {
 export namespace UnrealEngine {
   let connection: WebSocket;
   let quitTimout: NodeJS.Timeout;
+  let isPullingPresets: boolean;
+  let isLoadingPresets: boolean;
+  let autoPullTimeout: NodeJS.Timeout;
 
   let pendings: { [id: string]: (reply: any) => void } = {};
   let httpRequest: number = 1;
@@ -82,11 +85,21 @@ export namespace UnrealEngine {
 
   export async function initialize() {
     connect();
-    setInterval(() => pullPresets(), 1000);
+    pullTimer();
+    startQuitTimeout();
   }
 
   export function isConnected(): boolean {
     return (connection?.readyState === WebSocket.OPEN);
+  }
+
+  export function isLoading(): boolean {
+    return isLoadingPresets;
+  }
+
+  function setLoading(loading: boolean) {
+    isLoadingPresets = loading;
+    Notify.emit('loading', loading);
   }
 
   function connect() {
@@ -103,27 +116,33 @@ export namespace UnrealEngine {
       .on('close', onClose);
   }
 
-  function onConnected() {
+  async function onConnected() {
     if (connection.readyState !== WebSocket.OPEN)
       return;
 
-    if (quitTimout) {
-      clearTimeout(quitTimout);
-      quitTimout = undefined;
-    }
-    
+    clearQuiTimeout();
+
     console.log('Connected to UE Remote WebSocket');
     Notify.emit('connected', true);
-    refresh();
+    await refresh();
   }
 
-  async function refresh() {
+  async function refresh() { 
     try {
       await pullPresets(true);
     } catch (error) {
     }
   }
 
+  async function pullTimer() {
+    try {
+      await pullPresets();
+    } catch (error) {
+    }
+
+    autoPullTimeout = setTimeout(pullTimer, 1000);
+  }
+ 
   function onMessage(data: WebSocket.Data) {
     const json = data.toString();
 
@@ -178,7 +197,7 @@ export namespace UnrealEngine {
       console.log('Failed to parse answer', error?.message, json);
     }
   }
-
+ 
   function onError(error: Error) {
     console.log('UE Remote WebSocket:', error.message);
   }
@@ -191,12 +210,23 @@ export namespace UnrealEngine {
     Notify.emit('connected', false);
     setTimeout(connect, 1000);
 
-    if (Program.monitor && !quitTimout)
-      quitTimout = setTimeout(quit, 15 * 1000);
+    startQuitTimeout();
   }
 
   function quit() {
     process.exit(1);
+  }
+
+  function startQuitTimeout() {
+    if (Program.monitor && !quitTimout)
+      quitTimout = setTimeout(quit, 5 * 1000);
+  }
+
+  function clearQuiTimeout() {
+    if (quitTimout)
+      clearTimeout(quitTimout);
+
+    quitTimout = undefined;
   }
 
   function verifyConnection() {
@@ -241,7 +271,14 @@ export namespace UnrealEngine {
     return presets;
   }
 
-  async function pullPresets(pullValues?: boolean): Promise<void> {
+  async function pullPresets(bInitial?: boolean): Promise<void> {
+    if (isPullingPresets)
+      return;
+
+    isPullingPresets = true;
+    if (bInitial)
+      setLoading(true);
+
     try {
       const allPresets = [];
       const allPayloads: IPayloads = {};
@@ -254,7 +291,7 @@ export namespace UnrealEngine {
           continue;
 
         allPresets.push(Preset);
-        if (pullValues)
+        if (bInitial)
           allPayloads[Preset.Name] = await pullPresetValues(Preset);
       }
 
@@ -264,7 +301,7 @@ export namespace UnrealEngine {
         Notify.emit('presets', presets);
       }
 
-      if (pullValues && !equal(payloads, allPayloads)) {
+      if (bInitial && !equal(payloads, allPayloads)) {
         payloads = allPayloads;
         Notify.emit('payloads', payloads );
       }
@@ -272,6 +309,10 @@ export namespace UnrealEngine {
     } catch (error) {
       console.log('Failed to pull presets data');
     }
+
+    isPullingPresets = false;
+    if (bInitial)
+      setLoading(false);
   }
 
   async function pullPreset(name: string): Promise<IPreset> {
@@ -558,8 +599,8 @@ export namespace UnrealEngine {
                   .send({ ObjectPath: asset })
                   .then(res => res.body);
 /*
-    const res = await put<UnrealApi.Response>('/remote/object/thumbnail', { ObjectPath: asset });
-    return Buffer.from(res.ResponseBody, 'base64');
+    return put<UnrealApi.Response>('/remote/object/thumbnail', { ObjectPath: asset })
+            .then(res => Buffer.from(res.ResponseBody, 'base64'));
 */
   }
 }
