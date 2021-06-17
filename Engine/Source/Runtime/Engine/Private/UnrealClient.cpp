@@ -1651,8 +1651,9 @@ const TArray<FColor>& FViewport::GetRawHitProxyData(FIntRect InRect)
 	const bool bIsRenderingStereo = GEngine->IsStereoscopic3D( this ) && this->IsStereoRenderingAllowed();
 
 	bool bFetchHitProxyBytes = !bIsRenderingStereo && ( !bHitProxiesCached || (SizeY*SizeX) != CachedHitProxyData.Num() );
+	UWorld* World = ViewportClient->GetWorld();
 
-	if( bIsRenderingStereo )
+	if( bIsRenderingStereo || (World == nullptr))
 	{
 		// Stereo viewports don't support hit proxies, and we don't want to update them because it will adversely
 		// affect performance.
@@ -1677,8 +1678,8 @@ const TArray<FColor>& FViewport::GetRawHitProxyData(FIntRect InRect)
 			});
 
 		// Let the viewport client draw its hit proxies.
-		UWorld* World = ViewportClient->GetWorld();
-		FCanvas Canvas(&HitProxyMap, &HitProxyMap, World, World ? World->FeatureLevel.GetValue() : GMaxRHIFeatureLevel, FCanvas::CDM_DeferDrawing, ViewportClient->ShouldDPIScaleSceneCanvas() ? ViewportClient->GetDPIScale() : 1.0f);
+		check(World != nullptr);
+		FCanvas Canvas(&HitProxyMap, &HitProxyMap, World, World->FeatureLevel.GetValue(), FCanvas::CDM_DeferDrawing, ViewportClient->ShouldDPIScaleSceneCanvas() ? ViewportClient->GetDPIScale() : 1.0f);
 		{
 			ViewportClient->Draw(this, &Canvas);
 		}
