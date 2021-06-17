@@ -192,7 +192,7 @@ namespace Audio
 	int64 FQuartzClockTickRate::GetFramesPerDuration(EQuartzCommandQuantization InDuration) const
 	{
 		const int64 FramesPerDotted16th = FramesPerTick * 3;
-		const int64 FramesPer16thTriplet = 8.f * FramesPerTick / 3.f;
+		const int64 FramesPer16thTriplet = 4.f * FramesPerTick / 3.f;
 
 		switch (InDuration)
 		{
