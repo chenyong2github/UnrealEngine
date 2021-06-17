@@ -1107,6 +1107,7 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 	FMetaData TagMetaData;
 	TArray<TMap<FName, FString>> EntryMetaData;
 
+	bool bHasUnparsedValue = false;
 	TArray<TPair<FName, int64>> EnumNames;
 	int64 CurrentEnumValue = 0;
 	while (GetIdentifier(TagToken))
@@ -1127,6 +1128,7 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 			{
 				// We didn't parse a literal, so set an invalid value
 				NewEnumValue = -1;
+				bHasUnparsedValue = true;
 			}
 
 			// Skip tokens until we encounter a comma, a closing brace or a UMETA declaration
@@ -1157,6 +1159,7 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 				// There are tokens after the initializer so it's not a standalone literal,
 				// so set it to an invalid value.
 				NewEnumValue = -1;
+				bHasUnparsedValue = true;
 			}
 
 			CurrentEnumValue = NewEnumValue;
@@ -1252,7 +1255,7 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 
 	CheckDocumentationPolicyForEnum(EnumDef, EnumValueMetaData, EntryMetaData);
 
-	if (!EnumDef.IsValidEnumValue(0) && EnumMetaData.Contains(FHeaderParserNames::NAME_BlueprintType))
+	if (!EnumDef.IsValidEnumValue(0) && EnumMetaData.Contains(FHeaderParserNames::NAME_BlueprintType) && !bHasUnparsedValue)
 	{
 		EnumDef.LogWarning(TEXT("'%s' does not have a 0 entry! (This is a problem when the enum is initalized by default)"), *EnumDef.GetName());
 	}

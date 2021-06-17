@@ -1873,6 +1873,14 @@ public:
 	bool ContainsExistingMax() const;
 
 	/**
+	 * Return the enumeration values
+	 */
+	const TArray<TPair<FName, int64>>& GetEnums()
+	{
+		return Names;
+	}
+
+	/**
 	 * @return The number of enum names.
 	 */
 	int32 NumEnums() const
