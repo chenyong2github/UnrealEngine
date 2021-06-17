@@ -18,6 +18,23 @@
 
 class UWorldPartition;
 
+/**
+ * Helper to compute streaming source velocity based on position history.
+ */
+struct FStreamingSourceVelocity
+{
+	FStreamingSourceVelocity();
+	float GetAverageVelocity(const FVector& NewPosition, const float CurrentTime);
+
+private:
+	enum { VELOCITY_HISTORY_SAMPLE_COUNT = 16 };
+	int32 LastIndex;
+	float LastUpdateTime;
+	FVector LastPosition;
+	float VelocitiesHistorySum;
+	TArray<float, TInlineAllocator<VELOCITY_HISTORY_SAMPLE_COUNT>> VelocitiesHistory;
+};
+
 UCLASS(Abstract, Within = WorldPartition)
 class UWorldPartitionStreamingPolicy : public UObject
 {
@@ -65,7 +82,10 @@ protected:
 	const UWorldPartition* WorldPartition;
 	TSet<const UWorldPartitionRuntimeCell*> LoadedCells;
 	TSet<const UWorldPartitionRuntimeCell*> ActivatedCells;
+
+	// Streaming Sources
 	TArray<FWorldPartitionStreamingSource> StreamingSources;
+	TMap<FName, FStreamingSourceVelocity> StreamingSourcesVelocity;
 
 	UWorldPartitionRuntimeHash::FStreamingSourceCells FrameActivateCells;
 	UWorldPartitionRuntimeHash::FStreamingSourceCells FrameLoadCells;

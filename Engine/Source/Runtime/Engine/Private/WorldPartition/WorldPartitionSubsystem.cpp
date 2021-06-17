@@ -284,7 +284,7 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 			Pos = CurrentOffset + FVector2D(MaxTextWidth + 10, 0.f);
 			for (const FWorldPartitionStreamingSource& StreamingSource : *StreamingSources)
 			{
-				const FString Text = FString::Printf(TEXT("Priority: %d | Pos: %s | Rot: %s"), StreamingSource.Priority, *StreamingSource.Location.ToString(), *StreamingSource.Rotation.ToString());
+				const FString Text = FString::Printf(TEXT("Priority: %d | Pos: %s | Rot: %s | Vel: %3.2f m/s (%d mph)"), StreamingSource.Priority, *StreamingSource.Location.ToString(), *StreamingSource.Rotation.ToString(), StreamingSource.Velocity, (int32)(StreamingSource.Velocity*2.23694f));
 				FWorldPartitionDebugHelper::DrawText(Canvas, Text, GEngine->GetSmallFont(), FColor::White, Pos);
 			}
 			CurrentOffset.Y = Pos.Y;
