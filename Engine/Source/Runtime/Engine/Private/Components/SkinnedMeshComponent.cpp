@@ -1553,7 +1553,7 @@ bool USkinnedMeshComponent::BoneIsChildOf(FName BoneName, FName ParentBoneName) 
 }
 
 
-FVector USkinnedMeshComponent::GetRefPosePosition(int32 BoneIndex)
+FVector USkinnedMeshComponent::GetRefPosePosition(int32 BoneIndex) const
 {
 	if(SkeletalMesh && (BoneIndex >= 0) && (BoneIndex < SkeletalMesh->GetRefSkeleton().GetNum()))
 	{
@@ -1565,6 +1565,17 @@ FVector USkinnedMeshComponent::GetRefPosePosition(int32 BoneIndex)
 	}
 }
 
+FTransform USkinnedMeshComponent::GetRefPoseTransform(int32 BoneIndex) const
+{
+	if(SkeletalMesh && (BoneIndex >= 0) && (BoneIndex < SkeletalMesh->GetRefSkeleton().GetNum()))
+	{
+		return SkeletalMesh->GetRefSkeleton().GetRefBonePose()[BoneIndex];
+	}
+	else
+	{
+		return FTransform::Identity;
+	}
+}
 
 void USkinnedMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bReinitPose)
 {
