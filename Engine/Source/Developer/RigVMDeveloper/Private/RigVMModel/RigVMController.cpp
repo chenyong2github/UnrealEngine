@@ -3823,6 +3823,7 @@ URigVMFunctionReferenceNode* URigVMController::PromoteCollapseNodeToFunctionRefe
 
 		if (FunctionDefinition)
 		{
+			FunctionDefinition->NodeColor = FLinearColor(FColor::FromHex("005DFFFF"));
 			FunctionLibrary->Nodes.Add(FunctionDefinition);
 			Notify(ERigVMGraphNotifType::NodeAdded, FunctionDefinition);
 		}
@@ -3905,6 +3906,7 @@ URigVMCollapseNode* URigVMController::PromoteFunctionReferenceNodeToCollapseNode
 	URigVMCollapseNode* CollapseNode = DuplicateObject<URigVMCollapseNode>(FunctionDefinition, Graph, *NodeName);
 	if(CollapseNode)
 	{
+		CollapseNode->NodeColor = FLinearColor::White;
 		CollapseNode->Position = NodePosition;
 		Graph->Nodes.Add(CollapseNode);
 		Notify(ERigVMGraphNotifType::NodeAdded, CollapseNode);
