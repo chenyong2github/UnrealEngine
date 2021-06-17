@@ -50,6 +50,8 @@ ADMXFixtureActor::ADMXFixtureActor()
 	UseDynamicOcclusion = false;
 	LensRadius = 10.0f;
 	QualityLevel = EDMXFixtureQualityLevel::HighQuality;
+	MinQuality = 1.0f;
+	MaxQuality = 1.0f;
 	HasBeenInitialized = false;
 }
 
@@ -116,20 +118,35 @@ void ADMXFixtureActor::InitializeFixture(UStaticMeshComponent* StaticMeshLens, U
 
 void ADMXFixtureActor::FeedFixtureData()
 {
-	// Quality level
-	float Quality = 0.0f;
+	// Note: MinQuality and MaxQuality are used in conjonction with the zoom angle when zoom component is used
 	switch (QualityLevel)
 	{
-		case(EDMXFixtureQualityLevel::LowQuality): Quality = 0.25f; break;
-		case(EDMXFixtureQualityLevel::MediumQuality): Quality = 0.5f; break;
-		case(EDMXFixtureQualityLevel::HighQuality): Quality = 1.0f; break;
-		case(EDMXFixtureQualityLevel::UltraQuality): Quality = 3.0f; break;
-		default: Quality = 1.0f;
+		case(EDMXFixtureQualityLevel::LowQuality): MinQuality = 4.0f; MaxQuality = 4.0f; break;
+		case(EDMXFixtureQualityLevel::MediumQuality): MinQuality = 2.0f; MaxQuality = 2.0f; break;
+		case(EDMXFixtureQualityLevel::HighQuality): MinQuality = 1.0f; MaxQuality = 1.0f; break;
+		case(EDMXFixtureQualityLevel::UltraQuality): MinQuality = 0.33f; MaxQuality = 0.33f; break;
+	}
+
+	// Note:fallback when fixture doesnt use zoom component
+	float QualityFallback = 1.0f;
+	switch (QualityLevel)
+	{
+		case(EDMXFixtureQualityLevel::LowQuality): QualityFallback = 4.0f; break;
+		case(EDMXFixtureQualityLevel::MediumQuality): QualityFallback = 2.0f; break;
+		case(EDMXFixtureQualityLevel::HighQuality): QualityFallback = 1.0f; break;
+		case(EDMXFixtureQualityLevel::UltraQuality): QualityFallback = 0.33f; break;
+	}
+	
+	if (QualityLevel == EDMXFixtureQualityLevel::Custom)
+	{
+		MinQuality = FMath::Clamp(MinQuality, 0.2f, 4.0f);
+		MaxQuality = FMath::Clamp(MaxQuality, 0.2f, 4.0f);
+		QualityFallback = MaxQuality;
 	}
 
 	if (DynamicMaterialBeam)
 	{
-		DynamicMaterialBeam->SetScalarParameterValue("DMX Quality Level", Quality);
+		DynamicMaterialBeam->SetScalarParameterValue("DMX Quality Level", QualityFallback);
 		DynamicMaterialBeam->SetScalarParameterValue("DMX Max Light Distance", LightDistanceMax);
 		DynamicMaterialBeam->SetScalarParameterValue("DMX Max Light Intensity", LightIntensityMax * SpotlightIntensityScale);
 	}

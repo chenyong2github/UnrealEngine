@@ -23,7 +23,8 @@ enum EDMXFixtureQualityLevel
 	LowQuality			UMETA(DisplayName = "Low"),
 	MediumQuality		UMETA(DisplayName = "Medium"),
 	HighQuality			UMETA(DisplayName = "High"),
-	UltraQuality		UMETA(DisplayName = "Ultra")
+	UltraQuality		UMETA(DisplayName = "Ultra"),
+	Custom				UMETA(DisplayName = "Custom")
 };
 
 UCLASS()
@@ -45,11 +46,21 @@ public:
 	void FeedFixtureData();
 
 	// VISUAL QUALITY LEVEL----------------------
+
+	// Visual quality level that changes the number of samples in the volumetric beam
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture", meta = (DisplayPriority = 0))
 	TEnumAsByte<EDMXFixtureQualityLevel> QualityLevel;
 
+	// Visual quality when using smaller zoom angle (thin beam). Small value is visually better but cost more on GPU
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture", meta = (EditCondition = "QualityLevel == EDMXFixtureQualityLevel::Custom", EditConditionHides))
+	float MinQuality;
+
+	// Visual quality when using bigger zoom angle (wide beam). Small value is visually better but cost more on GPU
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture", meta = (EditCondition = "QualityLevel == EDMXFixtureQualityLevel::Custom", EditConditionHides))
+	float MaxQuality;
+
 	// HIERARCHY---------------------------------
-	UPROPERTY()
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DMX Light Fixture")
 	USceneComponent* Base;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "DMX Light Fixture")
@@ -59,6 +70,7 @@ public:
 	USceneComponent* Head;
 
 	// FUNCTIONS---------------------------------
+
 	UFUNCTION(BlueprintCallable, Category = "DMX Fixture")
 	void InitializeFixture(UStaticMeshComponent* StaticMeshLens, UStaticMeshComponent* StaticMeshBeam);
 
@@ -75,32 +87,44 @@ public:
 	void InterpolateDMXComponents(float DeltaSeconds);
 	
 	// PARAMETERS---------------------------------
+
+	// Light intensity at 1 steradian (32.77deg half angle)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
 	float LightIntensityMax;
 
+	// Sets Attenuation Radius on the spotlight and pointlight
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
 	float LightDistanceMax;
 
+	// Light color temperature on the spotlight and pointlight
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
 	float LightColorTemp;
 
+	// Scales spotlight intensity
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
 	float SpotlightIntensityScale;
 
+	// Scales pointlight intensity
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
 	float PointlightIntensityScale;
 
+	// Enable/disable cast shadow on the spotlight and pointlight
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
 	bool LightCastShadow;
 
+	// Simple solution useful for walls, 1 linetrace from the center
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DMX Light Fixture")
 	bool UseDynamicOcclusion;
 
+
+
 	// DMX COMPONENT -----------------------------
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "DMX Light Fixture")
 	class UDMXComponent* DMX;
 
 	// COMPONENTS ---------------------------------
+
 	UPROPERTY(BlueprintReadOnly, Category = "DMX Light Fixture")
 	TArray<UStaticMeshComponent*> StaticMeshComponents;
 	
@@ -115,6 +139,7 @@ public:
 
 
 	// MATERIALS ---------------------------------
+
 	UPROPERTY(EditDefaultsOnly, Category = "DMX Light Fixture")
 	UMaterialInstance* LensMaterialInstance;
 
