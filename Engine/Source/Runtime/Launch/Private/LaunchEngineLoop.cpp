@@ -1586,6 +1586,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 	// Initialize trace
 	FTraceAuxiliary::Initialize(CmdLine);
+	FTraceAuxiliary::TryAutoConnect();
 
 	// disable/enable LLM based on commandline
 	{
@@ -2090,13 +2091,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	bHasEditorToken = false;
 #endif
 #endif	//UE_EDITOR
-
-#if !UE_BUILD_SHIPPING && !IS_PROGRAM
-	if (!bHasEditorToken)
-	{
-		FTraceAuxiliary::TryAutoConnect();
-	}
-#endif
 
 #if !UE_BUILD_SHIPPING
 	// Benchmarking.
