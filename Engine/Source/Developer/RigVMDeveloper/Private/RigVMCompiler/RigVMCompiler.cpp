@@ -1688,25 +1688,27 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 			FString VariableName = VariablePath, SegmentPath;
 			VariablePath.Split(TEXT("."), &VariableName, &SegmentPath);
 
-			ExistingOperand = WorkData.PinPathToOperand->Find(FString::Printf(TEXT("Variable::%s"), *VariableName));
-			if (ExistingOperand)
-			{
-				Operand = *ExistingOperand;
-				Operand.RegisterOffset = INDEX_NONE;
-				if (!SegmentPath.IsEmpty())
-				{
-					const FRigVMExternalVariable& ExternalVariable = WorkData.VM->GetExternalVariables()[Operand.GetRegisterIndex()];
-					UScriptStruct* ScriptStruct = CastChecked<UScriptStruct>(ExternalVariable.TypeObject);
-					Operand.RegisterOffset = WorkData.VM->GetWorkMemory().GetOrAddRegisterOffset(Operand.GetRegisterIndex(), ScriptStruct, SegmentPath, 0 /*ArrayIndex */);
-				}
-			}
-
 			ExistingOperand = WorkData.PinPathToOperand->Find(FString::Printf(TEXT("LocalVariable::%s"), *VariableName));
 			if (ExistingOperand)
 			{
 				Operand = *ExistingOperand;
 				Operand.RegisterOffset = INDEX_NONE;
 				check(SegmentPath.IsEmpty());
+			}
+			else
+			{
+				ExistingOperand = WorkData.PinPathToOperand->Find(FString::Printf(TEXT("Variable::%s"), *VariableName));
+				if (ExistingOperand)
+				{
+					Operand = *ExistingOperand;
+					Operand.RegisterOffset = INDEX_NONE;
+					if (!SegmentPath.IsEmpty())
+					{
+						const FRigVMExternalVariable& ExternalVariable = WorkData.VM->GetExternalVariables()[Operand.GetRegisterIndex()];
+						UScriptStruct* ScriptStruct = CastChecked<UScriptStruct>(ExternalVariable.TypeObject);
+						Operand.RegisterOffset = WorkData.VM->GetWorkMemory().GetOrAddRegisterOffset(Operand.GetRegisterIndex(), ScriptStruct, SegmentPath, 0 /*ArrayIndex */);
+					}
+				}
 			}
 		}
 	}

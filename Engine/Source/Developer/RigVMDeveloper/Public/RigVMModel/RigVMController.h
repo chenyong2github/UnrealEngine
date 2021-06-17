@@ -797,8 +797,8 @@ private:
 
 	void DestroyObject(UObject* InObjectToDestroy);
 
-	FRigVMExternalVariable GetExternalVariableByName(const FName& InExternalVariableName);
-	TArray<FRigVMExternalVariable> GetExternalVariables();
+	FRigVMExternalVariable GetVariableByName(const FName& InExternalVariableName);
+	TArray<FRigVMExternalVariable> GetAllVariables();
 
 	void RefreshFunctionReferences(URigVMLibraryNode* InFunctionDefinition, bool bSetupUndoRedo);
 
