@@ -313,6 +313,7 @@ public:
 	static void DoesBoneNameExist(UAnimSequence* AnimationSequence, FName BoneName, bool& bExists);
 
 	static bool DoesBoneNameExistInternal(USkeleton* Skeleton, FName BoneName);
+	static bool DoesBoneCurveNameExistInternal(USkeleton* Skeleton, FName BoneName);
 
 	/** Retrieves, a multiple of, Float Key(s) from the specified Animation Curve inside of the given Animation Sequence */
 	UFUNCTION(BlueprintCallable, Category = "AnimationBlueprintLibrary|Curves")
