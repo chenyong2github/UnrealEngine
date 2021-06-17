@@ -1238,7 +1238,21 @@ public:
 		if (Handle != INVALID_HANDLE_VALUE)
 		{
 			TRACE_PLATFORMFILE_END_OPEN(Handle);
-			return new FFileHandleWindows(Handle, Access, WinFlags, FILE_FLAG_OVERLAPPED);
+
+			FFileHandleWindows* FileHandle = new FFileHandleWindows(Handle, Access, WinFlags, FILE_FLAG_OVERLAPPED);
+
+			// Some operations can fail during the handle initialization, so we
+			// double check that the handle is valid before returning it
+			if (FileHandle->IsValid())
+			{
+				return FileHandle;
+			}
+			else
+			{
+				delete FileHandle;
+
+				return nullptr;
+			}
 		}
 		else
 		{
@@ -1257,12 +1271,24 @@ public:
 		if(Handle != INVALID_HANDLE_VALUE)
 		{
 			TRACE_PLATFORMFILE_END_OPEN(Handle);
-			FFileHandleWindows *PlatformFileHandle = new FFileHandleWindows(Handle, Access, WinFlags, 0);
-			if (bAppend)
+			FFileHandleWindows* PlatformFileHandle = new FFileHandleWindows(Handle, Access, WinFlags, 0);
+
+			// Some operations can fail during the handle initialization, so we
+			// double check that the handle is valid before returning it
+			if (PlatformFileHandle->IsValid())
 			{
-				PlatformFileHandle->SeekFromEnd(0);
+				if (bAppend)
+				{
+					PlatformFileHandle->SeekFromEnd(0);
+				}
+				return PlatformFileHandle;
 			}
-			return PlatformFileHandle;
+			else
+			{
+				delete PlatformFileHandle;
+
+				return nullptr;
+			}
 		}
 		else
 		{
