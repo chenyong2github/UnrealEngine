@@ -9699,6 +9699,25 @@ int32 FHLSLMaterialTranslator::PerInstanceCustomData(int32 DataIndex, int32 Defa
 }
 
 /**
+ *	Returns a custom data on a per-instance basis when instancing
+ *	@DataIndex - index in array that represents custom data
+ *
+ *	@return	Code index
+ */
+int32 FHLSLMaterialTranslator::PerInstanceCustomData3Vector(int32 DataIndex, int32 DefaultValueIndex)
+{
+	if (ShaderFrequency != SF_Vertex)
+	{
+		return NonVertexShaderExpressionError();
+	}
+	else
+	{
+		MaterialCompilationOutput.bUsesPerInstanceCustomData = true;
+		return AddInlinedCodeChunkZeroDeriv(MCT_Float3, TEXT("GetPerInstanceCustomData3Vector(Parameters, %d, %s)"), DataIndex, *GetParameterCode(DefaultValueIndex));
+	}
+}
+
+/**
 	* Returns a float2 texture coordinate after 2x2 transform and offset applied
 	*
 	* @return	Code index

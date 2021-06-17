@@ -17373,6 +17373,45 @@ void UMaterialExpressionPerInstanceCustomData::GetCaption(TArray<FString>& OutCa
 #endif // WITH_EDITOR
 
 ///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionPerInstanceCustomData3Vector
+///////////////////////////////////////////////////////////////////////////////
+UMaterialExpressionPerInstanceCustomData3Vector::UMaterialExpressionPerInstanceCustomData3Vector(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Custom;
+		FConstructorStatics()
+			: NAME_Custom(LOCTEXT("Custom", "Custom"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	MenuCategories.Add(ConstructorStatics.NAME_Custom);
+
+	bShaderInputData = true;
+#endif
+}
+
+#if WITH_EDITOR
+
+int32 UMaterialExpressionPerInstanceCustomData3Vector::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 DefaultArgument = DefaultValue.GetTracedInput().Expression ? DefaultValue.Compile(Compiler) : Compiler->Constant3(ConstDefaultValue.R, ConstDefaultValue.G, ConstDefaultValue.B);
+	return Compiler->PerInstanceCustomData3Vector(DataIndex, DefaultArgument);
+}
+
+void UMaterialExpressionPerInstanceCustomData3Vector::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(FString::Printf(TEXT("PerInstanceCustomData[%d, %d, %d]"), DataIndex, DataIndex + 1, DataIndex + 2));
+}
+
+#endif // WITH_EDITOR
+
+///////////////////////////////////////////////////////////////////////////////
 // UMaterialExpressionAntialiasedTextureMask
 ///////////////////////////////////////////////////////////////////////////////
 
