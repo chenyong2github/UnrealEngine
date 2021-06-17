@@ -662,6 +662,37 @@ namespace ChaosTest
 			}
 			
 		}
+
+		// Test a case that failed before (with an assert)
+		{
+			FAABBTreeDirtyGridCVars::DirtyElementGridCellSize = 1000;
+			FAABBTreeDirtyGridCVars::DirtyElementMaxCellCapacity = 7;
+			
+			TUniquePtr<TBox<FReal, 3>> Box;
+			auto Boxes = BuildBoxes(Box, 100, FVec3(1, 1, 1), FVec3(-3000, -1000, -50)); // Just one box
+			TreeType Spatial{};
+			Spatial.UpdateElement(0, Boxes->WorldSpaceInflatedBounds(0), true);
+
+			// Move the Box
+			Boxes = BuildBoxes(Box, 100, FVec3(1, 1, 1), FVec3(-4000, -1000, -50)); // Change position of box
+			Spatial.UpdateElement(0, Boxes->WorldSpaceInflatedBounds(0), true); // Check for no ensures
+
+			// Move the Box
+			Boxes = BuildBoxes(Box, 100, FVec3(1, 1, 1), FVec3(3000, 1000, -50)); // Change position of box
+			Spatial.UpdateElement(0, Boxes->WorldSpaceInflatedBounds(0), true);
+
+			Boxes = BuildBoxes(Box, 100, FVec3(1, 1, 1), FVec3(4000, 1000, -50)); // Change position of box
+			Spatial.UpdateElement(0, Boxes->WorldSpaceInflatedBounds(0), true); // Check for no ensures
+
+			// Move the Box
+			Boxes = BuildBoxes(Box, 100, FVec3(1, 1, 1), FVec3(-10000003000.0f, -1000, -50)); // Change position of box
+			Spatial.UpdateElement(0, Boxes->WorldSpaceInflatedBounds(0), true); // Check for no ensures
+
+			// Move the Box
+			Boxes = BuildBoxes(Box, 100, FVec3(1, 1, 1), FVec3(-10000004000.0f, -1000, -50)); // Change position of box
+			Spatial.UpdateElement(0, Boxes->WorldSpaceInflatedBounds(0), true); // Check for no ensures
+			
+		}
 		
 
 		// Restore CVARS

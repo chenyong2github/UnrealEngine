@@ -571,16 +571,19 @@ public:
 		return true;
 	}
 
-	// Returns true if there was enough space in the cell to add the new dirty element index and if the element is not already in the cell 
+	// Returns true if there was enough space in the cell to add the new dirty element index or if the element was already added (This second condition should not happen)
 	//(The second condition should never be true for the current implementation)
 	FORCEINLINE_DEBUGGABLE bool AddNewDirtyParticleIndexToGridCell(int32 Hash, int32 NewDirtyIndex)
 	{
 		DirtyGridHashEntry* HashEntry = CellHashToFlatArray.Find(Hash);
 		if (HashEntry)
 		{
-			if (HashEntry->Count < DirtyElementMaxCellCapacity && ensure(InsertValueIntoSortedSubArray(FlattenedCellArrayOfDirtyIndices, NewDirtyIndex, HashEntry->Index, HashEntry->Count)))
+			if (HashEntry->Count < DirtyElementMaxCellCapacity)
 			{
-				++(HashEntry->Count);
+				if (ensure(InsertValueIntoSortedSubArray(FlattenedCellArrayOfDirtyIndices, NewDirtyIndex, HashEntry->Index, HashEntry->Count)))
+				{
+					++(HashEntry->Count);
+				}
 				return true;
 			}
 		}
