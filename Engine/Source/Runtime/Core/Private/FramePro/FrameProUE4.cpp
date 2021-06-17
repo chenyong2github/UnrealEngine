@@ -467,7 +467,7 @@
 				p_event = new FPThreadEvent();
 				p_event->Create(!auto_reset);
 #else
-				checkf(false,"unsupported platform for -nothreading");
+				checkf(false, TEXT("unsupported platform for -nothreading"));
 				return;
 #endif
 			}
@@ -609,7 +609,7 @@
 					pthread_t thread_id;
 					pthread_create( &thread_id, nullptr, (PthreadEntryPoint)mp_ThreadMain, mp_Context );
 #else
-					checkf(false,"unsupported platform for -nothreading");
+					checkf(false,TEXT("unsupported platform for -nothreading"));
 #endif
 				}
 //@EPIC END
