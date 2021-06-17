@@ -26,6 +26,14 @@ UCommonUIVisibilitySubsystem* UCommonUIVisibilitySubsystem::Get(const ULocalPlay
 	return LocalPlayer ? LocalPlayer->GetSubsystem<UCommonUIVisibilitySubsystem>() : nullptr;
 }
 
+UCommonUIVisibilitySubsystem* UCommonUIVisibilitySubsystem::GetChecked(const ULocalPlayer* LocalPlayer)
+{
+	check(LocalPlayer);
+	UCommonUIVisibilitySubsystem* Result = Get(LocalPlayer);
+	check(Result);
+	return Result;
+}
+
 UCommonUIVisibilitySubsystem::UCommonUIVisibilitySubsystem()
 {
 }
