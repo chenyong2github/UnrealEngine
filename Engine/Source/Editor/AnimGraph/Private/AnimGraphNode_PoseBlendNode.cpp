@@ -104,7 +104,7 @@ void UAnimGraphNode_PoseBlendNode::GetMenuActions(FBlueprintActionDatabaseRegist
 		GetClass(),
 		{ UPoseAsset::StaticClass() },
 		{ },
-		[](const FAssetData& InAssetData)
+		[](const FAssetData& InAssetData, UClass* InClass)
 		{
 			if(InAssetData.IsValid())
 			{
@@ -115,7 +115,7 @@ void UAnimGraphNode_PoseBlendNode::GetMenuActions(FBlueprintActionDatabaseRegist
 				return LOCTEXT("PlayerDesc", "Evaluate Pose");
 			}
 		},
-		[](const FAssetData& InAssetData)
+		[](const FAssetData& InAssetData, UClass* InClass)
 		{
 			if(InAssetData.IsValid())
 			{
