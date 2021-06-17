@@ -1161,7 +1161,10 @@ inline void operator<<(FStructuredArchive::FSlot Slot, TVector<double>& V)
 		Record << SA_VALUE(TEXT("X"), SX);
 		Record << SA_VALUE(TEXT("Y"), SY);
 		Record << SA_VALUE(TEXT("Z"), SZ);
-		V = TVector<double>(SX, SY, SZ);
+		if(Slot.GetUnderlyingArchive().IsLoading())
+		{
+			V = TVector<double>(SX, SY, SZ);
+		}
 	}
 	V.DiagnosticCheckNaN();
 }

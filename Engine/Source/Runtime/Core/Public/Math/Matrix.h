@@ -500,10 +500,13 @@ inline FArchive& operator<<(FArchive& Ar, TMatrix<double>& M)
 		{
 			float Col0 = (float)M.M[Row][0], Col1 = (float)M.M[Row][1], Col2 = (float)M.M[Row][2], Col3 = (float)M.M[Row][3];
 			Ar << Col0 << Col1 << Col2 << Col3;
-			M.M[Row][0] = Col0;
-			M.M[Row][1] = Col1;
-			M.M[Row][2] = Col2;
-			M.M[Row][3] = Col3;
+			if(Ar.IsLoading())
+			{
+				M.M[Row][0] = Col0;
+				M.M[Row][1] = Col1;
+				M.M[Row][2] = Col2;
+				M.M[Row][3] = Col3;
+			}
 		}
 	}
 	M.DiagnosticCheckNaN();

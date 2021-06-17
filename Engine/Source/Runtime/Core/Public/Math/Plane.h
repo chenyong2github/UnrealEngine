@@ -366,7 +366,10 @@ inline FArchive& operator<<(FArchive& Ar, TPlane<double>& P)
 		// Stored as floats, so serialize float and copy.
 		float SW = (float)P.W;
 		Ar << SW;
-		P.W = SW;
+		if(Ar.IsLoading())
+		{
+			P.W = SW;
+		}
 	}
 
 	P.DiagnosticCheckNaN();

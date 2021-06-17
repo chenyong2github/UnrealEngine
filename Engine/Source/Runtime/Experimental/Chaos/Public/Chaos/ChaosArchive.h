@@ -366,7 +366,10 @@ FORCEINLINE FChaosArchive& operator<<(FChaosArchive& Ar, Chaos::FReal& Real)
 		//ensure(Ar.IsLoading()); // this case should normally only happening when reading 
 		FRealSingle RealSingle = (FRealSingle)Real; 
 		operator<<((FArchive&)Ar, RealSingle);
-		Real = (FReal)RealSingle;
+		if(Ar.IsLoading())
+		{
+			Real = (FReal)RealSingle;
+		}
 	}
 	return Ar;
 }
