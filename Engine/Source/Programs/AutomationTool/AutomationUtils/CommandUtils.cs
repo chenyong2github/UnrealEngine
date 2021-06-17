@@ -1329,6 +1329,7 @@ namespace AutomationTool
 					}
 					throw new AutomationException("Failed to copy {0} to {1}", Source, Dest);
 				}
+				break;
 			}
 		}
 
