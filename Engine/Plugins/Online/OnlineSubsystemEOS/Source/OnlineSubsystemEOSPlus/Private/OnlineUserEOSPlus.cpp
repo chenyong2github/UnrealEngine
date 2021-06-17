@@ -532,7 +532,18 @@ void FOnlineUserEOSPlus::GetUserPrivilege(const FUniqueNetId& UserId, EUserPrivi
 	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
 	if (NetIdPlus.IsValid())
 	{
-		BaseIdentityInterface->GetUserPrivilege(*NetIdPlus->GetBaseNetId(), Privilege, Delegate);
+		FOnGetUserPrivilegeCompleteDelegate IntermediateDelegate = FOnGetUserPrivilegeCompleteDelegate::CreateLambda([this, OriginalDelegate = FOnGetUserPrivilegeCompleteDelegate(Delegate)](const FUniqueNetId& UserId, EUserPrivileges::Type Privilege, uint32 PrivilegeResults)
+		{
+			FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
+			if (!NetIdPlus.IsValid())
+			{
+				UE_LOG_ONLINE(Warning, TEXT("[FOnlineUserEOSPlus::GetUserPrivilege] User not found (%s)"), *UserId.ToString());
+			}
+
+			OriginalDelegate.ExecuteIfBound(*NetIdPlus, Privilege, PrivilegeResults);
+		});
+
+		BaseIdentityInterface->GetUserPrivilege(*NetIdPlus->GetBaseNetId(), Privilege, IntermediateDelegate);
 	}
 	else
 	{

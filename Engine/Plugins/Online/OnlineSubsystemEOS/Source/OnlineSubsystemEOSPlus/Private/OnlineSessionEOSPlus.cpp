@@ -170,7 +170,7 @@ void FOnlineSessionEOSPlus::OnSessionUserInviteAcceptedBase(const bool bWasSucce
 
 void FOnlineSessionEOSPlus::OnSessionUserInviteAcceptedEOS(const bool bWasSuccessful, const int32 ControllerId, FUniqueNetIdPtr UserId, const FOnlineSessionSearchResult& InviteResult)
 {
-	if (!bWasSuccessful || !UserId.IsValid() || !InviteResult.IsValid())
+	if (!bWasSuccessful || !UserId.IsValid() || !InviteResult.IsSessionInfoValid())
 	{
 		return;
 	}
