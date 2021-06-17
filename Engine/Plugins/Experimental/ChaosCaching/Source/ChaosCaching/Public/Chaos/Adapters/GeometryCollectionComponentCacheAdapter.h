@@ -261,10 +261,7 @@ namespace Chaos
 	private:
 		TArray<int32> GatherAllBreaksUpToTime(UChaosCache* InCache, float InTime) const;
 
-		bool bHandleBreaks;
-		bool bHandleCollisions;
-		bool bHandleTrailing;
-
+		
 		TMap<IPhysicsProxyBase*, FCachedEventData> CachedData;
 		const FBreakingDataArray* BreakingDataArray;
 		const FCollisionDataArray* CollisionDataArray;
