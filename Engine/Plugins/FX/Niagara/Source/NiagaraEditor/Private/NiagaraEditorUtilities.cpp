@@ -2693,6 +2693,26 @@ const FNiagaraNamespaceMetadata FNiagaraEditorUtilities::GetNamespaceMetaDataFor
 	return GetDefault<UNiagaraEditorSettings>()->GetMetaDataForId(NamespaceId);
 }
 
+TArray<UNiagaraParameterDefinitions*> FNiagaraEditorUtilities::GetAllParameterDefinitions()
+{
+	TArray<UNiagaraParameterDefinitions*> OutParameterDefinitions;
+
+	TArray<FAssetData> ParameterDefinitionsAssetData;
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	AssetRegistryModule.GetRegistry().GetAssetsByClass(UNiagaraParameterDefinitions::StaticClass()->GetFName(), ParameterDefinitionsAssetData);
+	for (const FAssetData& ParameterDefinitionsAssetDatum : ParameterDefinitionsAssetData)
+	{
+		UNiagaraParameterDefinitions* ParameterDefinitions = Cast<UNiagaraParameterDefinitions>(ParameterDefinitionsAssetDatum.GetAsset());
+		if (ParameterDefinitions == nullptr)
+		{
+			ensureMsgf(false, TEXT("Failed to load parameter definition from asset registry!"));
+			continue;
+		}
+		OutParameterDefinitions.Add(ParameterDefinitions);
+	}
+	return OutParameterDefinitions;
+}
+
 bool FNiagaraEditorUtilities::GetAvailableParameterDefinitions(const TArray<FString>& ExternalPackagePaths, TArray<FAssetData>& OutParameterDefinitionsAssetData)
 {
 	//@todo(ng) consider linking to out of package libraries if necessary for use with content plugins
@@ -2787,28 +2807,69 @@ void FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(FRefreshAllSc
 		{
 			continue;
 		}
+
+		bool bMatchedOriginatingParameterDefinitions = false;
+		if (bMatchOriginatingParameterDefinitions)
+		{
+			// Check if the script itself is subscribed to the originating parameter definitions, and if so, mark it as having matched.
+			bool bSkipSystemEmitterCheck = false;
+			if (const FVersionedNiagaraScriptData* VersionedScriptData = It->GetLatestScriptData())
+			{
+				FVersionedNiagaraScript TempVersionedScript = FVersionedNiagaraScript(*It, VersionedScriptData->Version.VersionGuid);
+				if (TempVersionedScript.GetIsSubscribedToParameterDefinitions(OriginatingParameterDefinitions))
+				{
+					bSkipSystemEmitterCheck = true;
+					TempVersionedScript.SynchronizeWithParameterDefinitions();
+				}
+			}
+
+			// If the script itself is not subscribed to the originating parameter definitions, check if the script is a system/emitter/particle script,
+			// and if so, check if the outer Emitter or System is subscribed to the originating parameter definitions. If so, mark the match.
+			if (bSkipSystemEmitterCheck == false)
+			{
+				UNiagaraScript* Script = *It;
+				if (Script->IsParticleScript() || Script->IsEmitterSpawnScript() || Script->IsEmitterUpdateScript())
+				{
+					UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(Script->GetOuter());
+					if (Emitter->GetIsSubscribedToParameterDefinitions(OriginatingParameterDefinitions))
+					{
+						Emitter->SynchronizeWithParameterDefinitions();
+						bMatchedOriginatingParameterDefinitions = true;
+					}
+				}
+				else if (Script->IsSystemSpawnScript() || Script->IsSystemUpdateScript())
+				{
+					UNiagaraSystem* System = Cast<UNiagaraSystem>(Script->GetOuter());
+					if(System->GetIsSubscribedToParameterDefinitions(OriginatingParameterDefinitions))
+					{
+						System->SynchronizeWithParameterDefinitions();
+						bMatchedOriginatingParameterDefinitions = true;
+					}
+				}
+			}
+		}
+
+		// Iterate over each node in the script
 		TArray<UNiagaraNode*> NiagaraNodes;
 		Source->NodeGraph->GetNodesOfClass<UNiagaraNode>(NiagaraNodes);
 		bool bRefreshed = false;
 		for (UNiagaraNode* NiagaraNode : NiagaraNodes)
 		{
+			// If the node references the originating script, refresh. Also, refresh if the originating parameter definitions were matched prior.
 			UObject* ReferencedAsset = NiagaraNode->GetReferencedAsset();
-			if (bMatchOriginatingScript && ReferencedAsset == OriginatingScript)
+			if ((bMatchOriginatingScript && ReferencedAsset == OriginatingScript) ||
+				(bMatchedOriginatingParameterDefinitions))
 			{
 				NiagaraNode->RefreshFromExternalChanges();
 				bRefreshed = true;
-
-				if (NiagaraNode->IsA<UNiagaraNodeFunctionCall>())
-				{
-					NiagaraNode->RefreshFromExternalChanges();
-					bRefreshed = true;
-				}
 			}
-			if (bMatchOriginatingParameterDefinitions && ReferencedAsset != nullptr && NiagaraNode->IsA<UNiagaraNodeFunctionCall>())
+			// If originating parameter definitions were not subscribed to the script or its potential outer emitter or system, check each node for a 
+			// function call node and check whether the function call associated script is subscribed to the originating definition. If so, refresh.
+			else if (bMatchOriginatingParameterDefinitions && ReferencedAsset != nullptr && NiagaraNode->IsA<UNiagaraNodeFunctionCall>())
 			{
 				UNiagaraScript* FunctionCallScript = CastChecked<UNiagaraScript>(ReferencedAsset);
 				FVersionedNiagaraScript VersionedNiagaraScriptAdapter = FVersionedNiagaraScript(FunctionCallScript, FunctionCallScript->GetExposedVersion().VersionGuid);
-				if (VersionedNiagaraScriptAdapter.GetSubscribedParameterDefinitions().Contains(OriginatingParameterDefinitions))
+				if (VersionedNiagaraScriptAdapter.GetIsSubscribedToParameterDefinitions(OriginatingParameterDefinitions))
 				{
 					NiagaraNode->RefreshFromExternalChanges();
 					bRefreshed = true;

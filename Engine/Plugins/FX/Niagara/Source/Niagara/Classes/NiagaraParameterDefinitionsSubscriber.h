@@ -22,12 +22,16 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	FParameterDefinitionsSubscription() 
-		: ParameterDefinitions(nullptr)
+		: ParameterDefinitions_DEPRECATED(nullptr)
+		, DefinitionsId()
 		, CachedChangeIdHash(0)
 	{};
 
+	UPROPERTY(meta = (DeprecatedProperty))
+	UNiagaraParameterDefinitionsBase* ParameterDefinitions_DEPRECATED;
+
 	UPROPERTY()
-	UNiagaraParameterDefinitionsBase* ParameterDefinitions;
+	FGuid DefinitionsId;
 
 	UPROPERTY()
 	int32 CachedChangeIdHash;
@@ -62,14 +66,13 @@ public:
 	 */
 	virtual TArray<INiagaraParameterDefinitionsSubscriber*> GetOwnedParameterDefinitionsSubscribers() { return TArray<INiagaraParameterDefinitionsSubscriber*>(); };
 
-	const TArray<UNiagaraParameterDefinitionsBase*> GetSubscribedParameterDefinitions();
-	const TArray<UNiagaraParameterDefinitionsBase*> GetSubscribedParameterDefinitionsPendingSynchronization();
+	TArray<UNiagaraParameterDefinitionsBase*> GetSubscribedParameterDefinitions() const;
+	bool GetIsSubscribedToParameterDefinitions(const UNiagaraParameterDefinitionsBase* Definition) const;
+	UNiagaraParameterDefinitionsBase* FindSubscribedParameterDefinitionsById(const FGuid& DefinitionsId) const;
 
 	void SubscribeToParameterDefinitions(UNiagaraParameterDefinitionsBase* NewParameterDefinitions, bool bDoNotAssertIfAlreadySubscribed = false);
 	void UnsubscribeFromParameterDefinitions(const FGuid& ParameterDefinitionsToRemoveId);
 	void SynchronizeWithParameterDefinitions(const FSynchronizeWithParameterDefinitionsArgs Args = FSynchronizeWithParameterDefinitionsArgs());
-
-	UNiagaraParameterDefinitionsBase* FindSubscribedParameterDefinitionsById(const FGuid& DefinitionsId);
 
 	FOnSubscribedParameterDefinitionsChanged& GetOnSubscribedParameterDefinitionsChangedDelegate() { return OnSubscribedParameterDefinitionsChangedDelegate; };
 
@@ -77,10 +80,10 @@ private:
 	FOnSubscribedParameterDefinitionsChanged OnSubscribedParameterDefinitionsChangedDelegate;
 
 private:
-	/** Get the unique Id GUID of every UNiagaraScriptVariable owned by every subscribed parameter definitions. */
-	TArray<FGuid> GetSubscribedParameterDefinitionsParameterIds();
+	/** Get all parameter definitions in the project, including all mounted plugins. */
+	TArray<UNiagaraParameterDefinitionsBase*> GetAllParameterDefinitions() const;
 
 	/** Update the cached change Id of specified Synchronized Subscribed Parameter Definition subscriptions so that they are not marked pending sync. */
-	void MarkSubscribedParameterDefinitionsSynchronized(TArray<FGuid> SynchronizedSubscribedParameterDefinitionsIds /*= TArray<FGuid>()*/);
+	void MarkParameterDefinitionSubscriptionsSynchronized(TArray<FGuid> SynchronizedParameterDefinitionsIds /*= TArray<FGuid>()*/);
 #endif
 };

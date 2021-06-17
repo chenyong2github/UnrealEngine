@@ -631,6 +631,7 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_SystemParameters(const FSpa
 		SNew(SDockTab)
 		[
 			SAssignNew(ParameterPanel, SNiagaraParameterPanel, ParameterPanelViewModel, GetToolkitCommands())
+			.ShowParameterSynchronizingWithLibraryIconExternallyReferenced(false)
 		];
 	RefreshParameters();
 

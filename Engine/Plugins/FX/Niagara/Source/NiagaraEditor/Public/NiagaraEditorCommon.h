@@ -163,3 +163,13 @@ enum class ENiagaraDataObjectChange
 	/** It's now known how the data object was changed. */
 	Unknown
 };
+
+/** Defines a relationship of an FNiagaraVariable to a set of FNiagaraVariable parameter definitions. */
+enum class EParameterDefinitionMatchState : uint8
+{
+	NoMatchingDefinitions = 0,
+	MatchingMoreThanOneDefinition,
+	MatchingOneDefinition,
+	MatchingDefinitionNameButNotType,
+};
+

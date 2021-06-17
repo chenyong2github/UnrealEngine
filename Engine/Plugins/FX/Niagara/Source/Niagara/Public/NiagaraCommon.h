@@ -1534,10 +1534,15 @@ struct NIAGARA_API FSynchronizeWithParameterDefinitionsArgs
 	 */
 	bool bForceSynchronizeDefinitions;
 
-	/** Default false; If true, set all parameters that name match parameter definitions as subscribed to the parameter definitions. */
+	/** Default false; If true, search for parameters with the same name and type as definitions, and if there is a match, subscribe to the definition. 
+	 *  If the existing parameter default value does not match the definition default value, set the parameter to override the definition default value.
+	 */
 	bool bSubscribeAllNameMatchParameters;
 
 	/** If set, the subscriber will also synchronize the additional parameter definitions in addition to those it is normally subscribed to. */
 	TArray<UNiagaraParameterDefinitionsBase*> AdditionalParameterDefinitions;
+
+	/** If set, the subscriber will rename assignment nodes and map get nodes in its underlying scripts for each Old to New name in addition to those it would during regular synchronization. */
+	TArray<TTuple<FName, FName>> AdditionalOldToNewNames;
 };
 

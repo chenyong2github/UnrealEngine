@@ -42,21 +42,6 @@ public:
 
 	FNiagaraParameterPanelItem() = default;
 
-	FNiagaraParameterPanelItem(
-		const UNiagaraScriptVariable* InScriptVariable,
-		const FNiagaraNamespaceMetadata& InNamespaceMetaData,
-		const bool bInIsExternallyReferenced,
-		const bool bInIsSourcedFromCustomStackContext,
-		const int32 InReferenceCount,
-		const bool bInNameAliasingParameterDefinitions
-	)
-		: FNiagaraParameterPanelItemBase(InScriptVariable, InNamespaceMetaData)
-		, bExternallyReferenced(bInIsExternallyReferenced)
-		, bSourcedFromCustomStackContext(bInIsSourcedFromCustomStackContext)
-		, ReferenceCount(InReferenceCount)
-		, bNameAliasingParameterDefinitions(bInNameAliasingParameterDefinitions)
-	{};
-
 public:
 	/* NOTE: Const is a lie, but necessary evil to allow binding during CreateWidget type methods where this is passed as a const ref. */
 	FOnRequestRename& GetOnRequestRename() const { return OnRequestRenameDelegate; };
@@ -76,13 +61,12 @@ public:
 	/* Count of references to the variable in graphs viewed by a parameter panel view model. */
 	int32 ReferenceCount;
 
-	/* Whether or not the name of ScriptVariable's Parameter is aliasing the name of a Parameter Definitions's Parameter. */
-	bool bNameAliasingParameterDefinitions;
+	/* The relation of this parameter item to all parameter definitions it is matching. Whether the parameter item is subscribed to a definition is tracked by the UNiagaraScriptVariable's bSubscribedToParameterDefinitions member. */
+	EParameterDefinitionMatchState DefinitionMatchState;
 
 private:
 	mutable FOnRequestRename OnRequestRenameDelegate;
 	mutable FOnRequestRenameNamespaceModifier OnRequestRenameNamespaceModifierDelegate;
-
 };
 
 struct FNiagaraParameterPanelCategory

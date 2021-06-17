@@ -1469,31 +1469,8 @@ void UNiagaraScript::PostLoad()
         	Source->ConditionalPostLoad();
 
 			// Synchronize with Definitions after source scripts have been postloaded.
-			// First force sync with all definitions in the DefaultLinkedParameterDefinitions array.
 			FVersionedNiagaraScript& VersionedScriptAdapter = VersionedScriptAdapters.Emplace_GetRef(this, Data.Version.VersionGuid);
 			VersionedScriptAdapter.PostLoadDefinitionsSubscriptions();
-			const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
-			check(Settings);
-			TArray<FGuid> DefaultDefinitionsUniqueIds;
-			for (const FSoftObjectPath& DefaultLinkedParameterDefinitionObjPath : Settings->DefaultLinkedParameterDefinitions)
-			{
-				UNiagaraParameterDefinitionsBase* DefaultLinkedParameterDefinitions = Cast<UNiagaraParameterDefinitionsBase>(DefaultLinkedParameterDefinitionObjPath.TryLoad());
-				if (!DefaultLinkedParameterDefinitions)
-				{
-					continue;
-				}
-				DefaultDefinitionsUniqueIds.Add(DefaultLinkedParameterDefinitions->GetDefinitionsUniqueId());
-				const bool bDoNotAssertIfAlreadySubscribed = true;
-				VersionedScriptAdapter.SubscribeToParameterDefinitions(DefaultLinkedParameterDefinitions, bDoNotAssertIfAlreadySubscribed);
-			}
-			FSynchronizeWithParameterDefinitionsArgs Args;
-			Args.SpecificDefinitionsUniqueIds = DefaultDefinitionsUniqueIds;
-			Args.bForceSynchronizeDefinitions = true;
-			Args.bSubscribeAllNameMatchParameters = true;
-			VersionedScriptAdapter.SynchronizeWithParameterDefinitions(Args);
-
-			// After forcing syncing all DefaultLinkedParameterDefinitions, call SynchronizeWithParameterDefinitions again to sync with all definitions the script was already subscribed to, and do not force the sync.
-			VersionedScriptAdapter.SynchronizeWithParameterDefinitions();
 
         	bool bScriptVMNeedsRebuild = false;
         	FString RebuildReason;

@@ -76,10 +76,6 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = (AllowedClasses = "NiagaraEffectType"))
 	FSoftObjectPath DefaultEffectType;
 
-	/** Default parameter definitions to subscribe all scripts/emitters/systems to. */
-	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = (AllowedClasses = "NiagaraParameterDefinitions"))
-	TArray<FSoftObjectPath> DefaultLinkedParameterDefinitions;
-
 	/** The quality levels Niagara uses. */
 	UPROPERTY(config, EditAnywhere, Category = Scalability)
 	TArray<FText> QualityLevels;

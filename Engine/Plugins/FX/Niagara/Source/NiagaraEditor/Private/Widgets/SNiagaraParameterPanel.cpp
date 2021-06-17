@@ -51,6 +51,7 @@ void FNiagaraParameterPanelCommands::RegisterCommands()
 void SNiagaraParameterPanel::Construct(const FArguments& InArgs, const TSharedPtr<INiagaraParameterPanelViewModel>& InParameterPanelViewModel, const TSharedPtr<FUICommandList>& InToolkitCommands)
 {
 	bShowParameterSynchronizingWithLibraryIcon = InArgs._ShowParameterSynchronizingWithLibraryIcon;
+	bShowParameterSynchronizingWithLibraryIconExternallyReferenced = InArgs._ShowParameterSynchronizingWithLibraryIconExternallyReferenced;
 	bShowParameterReferenceCounter = InArgs._ShowParameterReferenceCounter;
 
 	ParameterPanelViewModel = InParameterPanelViewModel;
@@ -263,13 +264,86 @@ TSharedRef<SWidget> SNiagaraParameterPanel::OnGenerateWidgetForItem(const FNiaga
 	bool bItemReadOnly = Item.NamespaceMetaData.IsValid() == false || Item.NamespaceMetaData.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingName) || Item.bExternallyReferenced;
 	
 	TSharedPtr<SHorizontalBox> ParameterNameTextBlockDecorator = SNew(SHorizontalBox);
+	if ( bShowParameterSynchronizingWithLibraryIcon && (bShowParameterSynchronizingWithLibraryIconExternallyReferenced || !Item.bExternallyReferenced) )
+	{
+		if (Item.ScriptVariable->GetIsSubscribedToParameterDefinitions())
+		{
+			if (Item.ScriptVariable->GetIsOverridingParameterDefinitionsDefaultValue())
+			{
+				ParameterNameTextBlockDecorator->AddSlot()
+				.AutoWidth()
+				[
+					SNew(SBox)
+					.MinDesiredWidth(20.0f)
+					[
+						SNew(STextBlock)
+						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
+						.Text(FEditorFontGlyphs::Share_Alt)
+						.ToolTipText(LOCTEXT("ParameterDefinitionDefaultValueOverridingToolTip", "Parameter is overriding the linked Parameter Definition default value."))
+					]
+				];
+			}
+
+			ParameterNameTextBlockDecorator->AddSlot()
+			.AutoWidth()
+			[
+				SNew(SBox)
+				.MinDesiredWidth(20.0f)
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
+					.Text(FEditorFontGlyphs::Book)
+					.ToolTipText(LOCTEXT("ParameterDefinitionSubscribedToolTip", "Parameter is linked to a Parameter Definition."))
+				]
+			];
+		}
+		else if (
+			Item.DefinitionMatchState == EParameterDefinitionMatchState::MatchingOneDefinition ||
+			Item.DefinitionMatchState == EParameterDefinitionMatchState::MatchingMoreThanOneDefinition ||
+			Item.DefinitionMatchState == EParameterDefinitionMatchState::MatchingDefinitionNameButNotType)
+		{
+			FText LinkedParameterToolTipText;
+			if (Item.DefinitionMatchState == EParameterDefinitionMatchState::MatchingOneDefinition)
+			{
+				LinkedParameterToolTipText = LOCTEXT("ParameterDefinitionMatchToolTip", "Parameter has the same name and type as a Parameter Definition, but is not linked to the Parameter Definition.");
+			}
+			else if (Item.DefinitionMatchState == EParameterDefinitionMatchState::MatchingMoreThanOneDefinition)
+			{
+				LinkedParameterToolTipText = LOCTEXT("ParameterDefinitionMultipleMatchToolTip", "Parameter has the same name and type as multiple Parameter Definitions.");
+			}
+			else if (Item.DefinitionMatchState == EParameterDefinitionMatchState::MatchingDefinitionNameButNotType)
+			{
+				LinkedParameterToolTipText = LOCTEXT("ParameterDefinitionMultipleNameAliasToolTip", "Parameter has the same name but not the same type as a Parameter Definition.");
+			}
+			else
+			{
+				ensureMsgf(false, TEXT("Encountered unexepcted definition match state when getting tooltip for linked parameter icon!"));
+			}
+
+			ParameterNameTextBlockDecorator->AddSlot()
+			.AutoWidth()
+			[
+				SNew(SBox)
+				.MinDesiredWidth(20.0f)
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
+					.Text(FEditorFontGlyphs::Book)
+					.ColorAndOpacity(FLinearColor::Red)
+					.ToolTipText(LinkedParameterToolTipText)
+					.ShadowOffset(FVector2D(1, 1))
+				]
+			];
+		}
+	}
+
 	if (Item.bExternallyReferenced)
 	{
 		ParameterNameTextBlockDecorator->AddSlot()
 		.AutoWidth()
 		[
 			SNew(SBox)
-			.MinDesiredWidth(30.0f)
+			.MinDesiredWidth(20.0f)
 			[
 				SNew(STextBlock)
 				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
@@ -284,7 +358,7 @@ TSharedRef<SWidget> SNiagaraParameterPanel::OnGenerateWidgetForItem(const FNiaga
 		.AutoWidth()
 		[
 			SNew(SBox)
-			.MinDesiredWidth(30.0f)
+			.MinDesiredWidth(20.0f)
 			[
 				SNew(STextBlock)
 				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
@@ -293,41 +367,7 @@ TSharedRef<SWidget> SNiagaraParameterPanel::OnGenerateWidgetForItem(const FNiaga
 			]
 		];
 	}
-	if (bShowParameterSynchronizingWithLibraryIcon)
-	{
-		if (Item.ScriptVariable->GetIsSubscribedToParameterDefinitions())
-		{
-			ParameterNameTextBlockDecorator->AddSlot()
-			.AutoWidth()
-			[
-				SNew(SBox)
-				.MinDesiredWidth(30.0f)
-				[
-					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
-					.Text(FEditorFontGlyphs::Book)
-					.ToolTipText(LOCTEXT("ParameterDefinitionSubscribedToolTip", "This parameter is subscribed to a Parameter Definition."))
-				]
-			];
-		}
-		else if (Item.bNameAliasingParameterDefinitions)
-		{
-			ParameterNameTextBlockDecorator->AddSlot()
-			.AutoWidth()
-			[
-				SNew(SBox)
-				.MinDesiredWidth(30.0f)
-				[
-					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
-					.Text(FEditorFontGlyphs::Book)
-					.ColorAndOpacity(FLinearColor::Yellow)
-					.ToolTipText(LOCTEXT("ParameterDefinitionNameAliasToolTip", "This parameter has the same name as a Parameter Definition, but is not subscribed to the Parameter Definition."))
-					.ShadowOffset(FVector2D(1, 1))
-				]
-			];
-		}
-	}
+
 
 	// Generate the parameter name widget.
 	TSharedPtr<SNiagaraParameterNameTextBlock> ParameterNameTextBlock = SNew(SNiagaraParameterNameTextBlock)
