@@ -9,9 +9,13 @@
 #include "Modules/ModuleManager.h"
 #include "ObjectTrace.h"
 #include "TraceServices/ITraceServicesModule.h"
+#include "LevelEditor.h"
+#include "SLevelViewport.h"
+#include "IRewindDebuggerExtension.h"
 
 
 FRewindDebugger* FRewindDebugger::InternalInstance = nullptr;
+const FName IRewindDebuggerExtension::ModularFeatureName = "RewindDebuggerExtension";
 
 FRewindDebugger::FRewindDebugger()  :
 	ControlState(FRewindDebugger::EControlState::Pause),
@@ -21,9 +25,15 @@ FRewindDebugger::FRewindDebugger()  :
 	bRecording(false),
 	PlaybackRate(1),
 	CurrentScrubTime(0),
-	RecordingIndex(0)
+	RecordingIndex(0),
+	bTargetActorPositionValid(false)
 {
 	RecordingDuration.Set(0);
+
+	if (GEditor->bIsSimulatingInEditor || GEditor->PlayWorld)
+	{
+		OnPIEStarted(true);
+	}
 
 	FEditorDelegates::PreBeginPIE.AddRaw(this, &FRewindDebugger::OnPIEStarted);
 	FEditorDelegates::PausePIE.AddRaw(this, &FRewindDebugger::OnPIEPaused);
@@ -170,7 +180,7 @@ bool FRewindDebugger::UpdateComponentList(uint64 ParentId, TArray<TSharedPtr<FDe
 		// todo: filter components based on creation/destruction frame, and the current scrubbing time (so dynamically created and destroyed components won't add up)
 
 		const FObjectInfo* ObjectInfo = &InObjectInfo;
-		if(ObjectInfo->OuterId == ParentId)
+		if (ObjectInfo->OuterId == ParentId)
 		{
 			int32 FoundIndex = ComponentList.FindLastByPredicate([ObjectInfo](const TSharedPtr<FDebugObjectInfo>& Info) { return Info->ObjectName == ObjectInfo->Name; });
 
@@ -191,6 +201,38 @@ bool FRewindDebugger::UpdateComponentList(uint64 ParentId, TArray<TSharedPtr<FDe
 	return bChanged;
 }
 
+bool FRewindDebugger::GetTargetActorPosition(FVector& OutPosition) const
+{
+	OutPosition = TargetActorPosition;
+	return bTargetActorPositionValid;
+}
+
+uint64 FRewindDebugger::GetTargetActorId() const
+{
+	if (DebugTargetActor.Get() == "")
+	{
+		return 0;
+	}
+
+	uint64 TargetActorId = 0;
+
+	if (const TraceServices::IAnalysisSession* Session = GetAnalysisSession())
+	{
+		if (const IGameplayProvider* GameplayProvider = Session->ReadProvider<IGameplayProvider>("GameplayProvider"))
+		{
+			GameplayProvider->EnumerateObjects([this,&TargetActorId](const FObjectInfo& InObjectInfo)
+			{
+				if (DebugTargetActor.Get() == InObjectInfo.Name)
+				{
+					TargetActorId = InObjectInfo.Id;
+				}
+			});
+		}
+	}
+
+	return TargetActorId;
+}
+
 void FRewindDebugger::RefreshDebugComponents()
 {
 	if (const TraceServices::IAnalysisSession* Session = GetAnalysisSession())
@@ -200,21 +242,12 @@ void FRewindDebugger::RefreshDebugComponents()
 
 		if (const IGameplayProvider* GameplayProvider = Session->ReadProvider<IGameplayProvider>("GameplayProvider"))
 		{
-			if (DebugTargetActor.Get() == "")
+			uint64 TargetActorId = GetTargetActorId();
+
+			if (TargetActorId == 0)
 			{
 				return;
 			}
-
-			uint64 TargetActorId = 0;
-
-			// find the Id of the selected actor (move this to a function or cache it)
-			GameplayProvider->EnumerateObjects([this,&TargetActorId](const FObjectInfo& InObjectInfo)
-			{
-				if (DebugTargetActor.Get() == InObjectInfo.Name)
-				{
-					TargetActorId = InObjectInfo.Id;
-				}
-			});
 
 			bool bChanged = false;
 
@@ -462,15 +495,11 @@ void FRewindDebugger::UpdateTraceTime()
 	}
 }
 
-const TraceServices::IAnalysisSession* FRewindDebugger::GetAnalysisSession()
+const TraceServices::IAnalysisSession* FRewindDebugger::GetAnalysisSession() const
 {
 	if (UnrealInsightsModule == nullptr)
 	{
 		UnrealInsightsModule = &FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
-	    if (UnrealInsightsModule == nullptr)
-		{
-			return nullptr; 
-		}
 	}
 
 	return UnrealInsightsModule->GetAnalysisSession().Get();
@@ -520,13 +549,21 @@ void FRewindDebugger::Tick(float DeltaTime)
 					}
 
 					double CurrentTraceTime = TraceTime.Get();
+					uint64 TargetActorId = GetTargetActorId();
 
-					// update pose on all SkeletalMeshComponents
+					// update pose on all SkeletalMeshComponents (todo: move pose updating into an extension)
 					ULevel* CurLevel = World->GetCurrentLevel();
 					for( AActor* LevelActor : CurLevel->Actors )
 					{
 						if (LevelActor)
 						{
+							bool bIsTargetActor = TargetActorId == FObjectTrace::GetObjectId(LevelActor);
+
+							if (bIsTargetActor)
+							{
+								bTargetActorPositionValid = false;
+							}
+
 							TInlineComponentArray<USkeletalMeshComponent*> SkeletalMeshComponents;
 							LevelActor->GetComponents(SkeletalMeshComponents);
 
@@ -534,7 +571,7 @@ void FRewindDebugger::Tick(float DeltaTime)
 							{
 								int64 ObjectId = FObjectTrace::GetObjectId(MeshComponent);
 
-								AnimationProvider->ReadSkeletalMeshPoseTimeline(ObjectId, [this, ObjectId, CurrentTraceTime, MeshComponent, AnimationProvider](const IAnimationProvider::SkeletalMeshPoseTimeline& TimelineData, bool bHasCurves)
+								AnimationProvider->ReadSkeletalMeshPoseTimeline(ObjectId, [this, bIsTargetActor, ObjectId, CurrentTraceTime, MeshComponent, AnimationProvider](const IAnimationProvider::SkeletalMeshPoseTimeline& TimelineData, bool bHasCurves)
 								{
 									double PrecedingPoseTime;
 									double FollowingPoseTime;
@@ -563,6 +600,13 @@ void FRewindDebugger::Tick(float DeltaTime)
 										// todo: we probably need to take into account tick order requirements for attached objects here
 										MeshComponent->SetWorldTransform(ComponentWorldTransform);
 										MeshComponent->SetForcedLOD(PoseMessage.LodIndex + 1);
+
+										if (bIsTargetActor && !bTargetActorPositionValid)
+										{
+											// until we have actor transforms traced out, the first skeletal mesh component transform will be used as as the actor position 
+											bTargetActorPositionValid = true;
+											TargetActorPosition = ComponentWorldTransform.GetTranslation();
+										}
 									}
 								});
 
@@ -571,6 +615,16 @@ void FRewindDebugger::Tick(float DeltaTime)
 								MeshComponent->ApplyEditedComponentSpaceTransforms();
 							}
 						}
+					}
+
+					// update extensions
+					IModularFeatures& ModularFeatures = IModularFeatures::Get();
+					
+					const int32 NumExtensions = ModularFeatures.GetModularFeatureImplementationCount( IRewindDebuggerExtension::ModularFeatureName );
+					for (int32 ExtensionIndex = 0; ExtensionIndex < NumExtensions; ++ExtensionIndex)
+					{
+						IRewindDebuggerExtension* Extension = static_cast<IRewindDebuggerExtension *>(ModularFeatures.GetModularFeatureImplementation(IRewindDebuggerExtension::ModularFeatureName, ExtensionIndex));
+						Extension->UpdatePlayback(DeltaTime, this);
 					}
 				}
 			}

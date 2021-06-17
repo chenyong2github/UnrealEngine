@@ -36,6 +36,7 @@ public:
 	virtual FOnObjectEndPlay& OnObjectEndPlay() override { return OnObjectEndPlayDelegate; }
 	virtual const TCHAR* GetPropertyName(uint32 InPropertyStringId) const override;
 	virtual const RecordingInfoTimeline* GetRecordingInfo(uint32 RecordingId) const override; 
+	virtual void ReadViewTimeline(TFunctionRef<void(const ViewTimeline&)> Callback) const override;
 
 	/** Add a class message */
 	void AppendClass(uint64 InClassId, uint64 InSuperId, const TCHAR* InClassName, const TCHAR* InClassPathName);
@@ -45,6 +46,9 @@ public:
 
 	/** Add an object event message */
 	void AppendObjectEvent(uint64 InObjectId, double InTime, const TCHAR* InEvent);
+
+	/** Add a view message */
+	void AppendView(uint64 InObjectId, double InTime, const FVector& InPosition, const FRotator& InRotation, float InFov, float InAspectRatio);
 
 	/** Add a world message */
 	void AppendWorld(uint64 InObjectId, int32 InPIEInstanceId, uint8 InType, uint8 InNetMode, bool bInIsSimulating);
@@ -110,6 +114,7 @@ private:
 	/** Message storage */
 	TArray<TSharedRef<TraceServices::TPointTimeline<FObjectEventMessage>>> EventTimelines;
 	TArray<TSharedRef<FObjectPropertiesStorage>> PropertiesStorage;
+	TSharedPtr<TraceServices::TPointTimeline<FViewMessage>> ViewTimeline;
 
 	/** Map of class path name to ClassInfo index */
 	TMap<FStringView, int32> ClassPathNameToIndexMap;

@@ -16,6 +16,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 #include "TraceFilter.h"
+#include "SceneView.h"
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
@@ -55,6 +56,22 @@ UE_TRACE_EVENT_BEGIN(Object, RecordingInfo)
 	UE_TRACE_EVENT_FIELD(uint32, RecordingIndex)
 	UE_TRACE_EVENT_FIELD(uint32, FrameIndex)
 	UE_TRACE_EVENT_FIELD(double, ElapsedTime)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(Object, View)
+	UE_TRACE_EVENT_FIELD(uint64, PlayerId)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+
+	UE_TRACE_EVENT_FIELD(double, PosX)
+	UE_TRACE_EVENT_FIELD(double, PosY)
+	UE_TRACE_EVENT_FIELD(double, PosZ)
+
+	UE_TRACE_EVENT_FIELD(float, Pitch)
+	UE_TRACE_EVENT_FIELD(float, Yaw)
+	UE_TRACE_EVENT_FIELD(float, Roll)
+
+	UE_TRACE_EVENT_FIELD(float, Fov)
+	UE_TRACE_EVENT_FIELD(float, AspectRatio)
 UE_TRACE_EVENT_END()
 
 // Object annotations used for tracing
@@ -287,6 +304,35 @@ void FObjectTrace::OutputClass(const UClass* InClass)
 		<< Class.SuperId(GetObjectId(InClass->GetSuperClass()))
 		<< Class.Attachment(StringCopyFunc);
 
+}
+
+void FObjectTrace::OutputView(const UObject* InPlayer, const FSceneView* InView)
+{
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(ObjectChannel);
+	if (!bChannelEnabled || InPlayer == nullptr)
+	{
+		return;
+	}
+
+	if (CANNOT_TRACE_OBJECT(InPlayer->GetWorld()))
+	{
+		return;
+	}
+
+	const FIntRect& ViewRect = InView->CameraConstrainedViewRect;
+	float AspectRatio = (float)ViewRect.Width()/(float)ViewRect.Height();
+
+	UE_TRACE_LOG(Object, View, ObjectChannel)
+		<< View.Cycle(FPlatformTime::Cycles64())
+		<< View.PlayerId(GetObjectId(InPlayer))
+		<< View.PosX(InView->ViewLocation.X)
+		<< View.PosY(InView->ViewLocation.Y)
+		<< View.PosZ(InView->ViewLocation.Z)
+		<< View.Pitch(InView->ViewRotation.Pitch)
+		<< View.Yaw(InView->ViewRotation.Yaw)
+		<< View.Roll(InView->ViewRotation.Roll)
+		<< View.Fov(InView->FOV)
+		<< View.AspectRatio(AspectRatio);
 }
 
 void FObjectTrace::OutputObject(const UObject* InObject)

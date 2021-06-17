@@ -126,10 +126,13 @@ void FRewindDebuggerModule::StartupModule()
 		.SetTooltipText(LOCTEXT("TooltipText", "Opens Rewind Debugger."));
 
 
+	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerExtension::ModularFeatureName, &RewindDebuggerCameraExtension);
 }
 
 void FRewindDebuggerModule::ShutdownModule()
 {
+	IModularFeatures::Get().UnregisterModularFeature(IRewindDebuggerExtension::ModularFeatureName, &RewindDebuggerCameraExtension);
+
 	FRewindDebuggerCommands::Unregister();
 	FRewindDebuggerStyle::Shutdown();
 	FRewindDebugger::Shutdown();

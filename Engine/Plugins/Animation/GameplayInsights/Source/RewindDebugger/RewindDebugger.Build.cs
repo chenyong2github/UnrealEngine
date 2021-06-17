@@ -23,6 +23,7 @@ namespace UnrealBuildTool.Rules
 				"GameplayInsightsEditor",
 				"InputCore",
 				"Kismet",
+				"LevelEditor",
 				"Persona",
 				"SceneOutliner",
 				"SequencerWidgets",
