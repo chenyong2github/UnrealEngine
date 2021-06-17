@@ -62,6 +62,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Sequencer")
 	AActor* GetBoundActor(FMovieSceneObjectBindingID ObjectBinding);
 
+	/*
+	 * Get the current sequence that this director is playing back within 
+	 */
+	UFUNCTION(BlueprintCallable, Category="Sequencer")
+	UMovieSceneSequence* GetSequence();
+
 public:
 
 	virtual UWorld* GetWorld() const override;
