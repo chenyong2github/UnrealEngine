@@ -73,6 +73,8 @@ namespace UnrealVS
 					WriteLine("Visual Studio 15 build");
 #elif VS16
 					WriteLine("Visual Studio 16 build");
+#elif VS17
+					WriteLine("Visual Studio 17 build");
 #else
 					WriteLine("UNKNOWN Visual Studio build");
 #endif
