@@ -26,7 +26,6 @@ UDisplayClusterScreenComponent::UDisplayClusterScreenComponent(const FObjectInit
 	if (GIsEditor)
 	{
 		SetVisibility(true);
-		SetIsVisualizationComponent(true);
 	}
 #endif
 
