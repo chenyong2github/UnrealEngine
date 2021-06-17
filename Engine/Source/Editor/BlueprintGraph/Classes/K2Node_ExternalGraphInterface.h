@@ -6,6 +6,8 @@
 #include "UObject/Interface.h"
 #include "K2Node_ExternalGraphInterface.generated.h"
 
+class UEdGraph;
+
 UINTERFACE(meta=(CannotImplementInterfaceInBlueprint))
 class BLUEPRINTGRAPH_API UK2Node_ExternalGraphInterface : public UInterface
 {
