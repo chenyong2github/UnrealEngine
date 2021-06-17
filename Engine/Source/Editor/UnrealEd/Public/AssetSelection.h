@@ -105,8 +105,6 @@ struct FSelectedActorInfo
 	uint32 bHaveSkeletalMesh:1;
 	/** true if an actor in the selection is an emitter */
 	uint32 bHaveEmitter:1;
-	/** true if an actor in the selection is a matinee actor */
-	uint32 bHaveMatinee:1;
 	/** true if an actor in the selection is hidden */
 	uint32 bHaveHidden:1;
 	/** true if a landscape is in the selection */
@@ -144,7 +142,6 @@ struct FSelectedActorInfo
 		, bHavePawn(false)
 		, bHaveSkeletalMesh(false)
 		, bHaveEmitter(false)
-		, bHaveMatinee(false)
 		, bHaveHidden(false)
 		, bHaveLandscape(false)
 		, bHaveExperimentalClass(false)

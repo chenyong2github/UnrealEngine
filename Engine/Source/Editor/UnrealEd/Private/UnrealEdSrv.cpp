@@ -80,8 +80,6 @@
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "AssetRegistryModule.h"
-#include "Matinee/MatineeActor.h"
-#include "MatineeExporter.h"
 #include "FbxExporter.h"
 #include "DesktopPlatformModule.h"
 #include "Elements/Framework/TypedElementList.h"
@@ -92,7 +90,6 @@
 #include "HighResScreenshot.h"
 #include "ActorEditorUtils.h"
 #include "Editor/ActorPositioning.h"
-#include "Matinee/InterpData.h"
 #include "LandscapeInfo.h"
 #include "LandscapeInfoMap.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -618,47 +615,6 @@ bool UUnrealEdEngine::HandleRemoveLandscapeXYOffsetsCommand(const TCHAR* Str, FO
 	return true;
 }
 
-bool UUnrealEdEngine::HandleConvertMatineesCommand( const TCHAR* Str, FOutputDevice& Ar, UWorld* InWorld )
-{
-	FVector StartLocation= FVector::ZeroVector;
-	if( InWorld )
-	{
-		ULevel* Level = InWorld->GetCurrentLevel();
-		if( !Level )
-		{
-			Level = InWorld->PersistentLevel;
-	}
-		check(Level);
-		for( TObjectIterator<UInterpData> It; It; ++It )
-		{
-			UInterpData* InterpData = *It;
-			if( InterpData->IsIn( Level ) ) 
-			{
-				// We dont care about renaming references or adding redirectors.  References to this will be old seqact_interps
-				GEditor->RenameObject( InterpData, Level->GetOutermost(), *InterpData->GetName() );
-
-				AMatineeActor* MatineeActor = Level->OwningWorld->SpawnActor<AMatineeActor>(StartLocation, FRotator::ZeroRotator);
-				StartLocation.Y += 50;
-
-				MatineeActor->MatineeData = InterpData;
-				FProperty* MatineeDataProp = NULL;
-				for( FProperty* Property = MatineeActor->GetClass()->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext )
-				{
-					if( Property->GetName() == TEXT("MatineeData") )
-					{
-						MatineeDataProp = Property;
-						break;
-					}
-				}
-
-				FPropertyChangedEvent PropertyChangedEvent( MatineeDataProp ); 
-				MatineeActor->PostEditChangeProperty( PropertyChangedEvent );
-			}
-		}
-	}
-		return true;
-	}
-
 bool UUnrealEdEngine::HandleDisasmScriptCommand(const TCHAR* Str, FOutputDevice& Ar)
 {
 	FString ClassName;
@@ -809,10 +765,6 @@ bool UUnrealEdEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice&
 		return HandleRemoveLandscapeXYOffsetsCommand(Str, Ar, World);
 	}
 #endif // WITH_EDITOR
-	else if( FParse::Command(&Str, TEXT("CONVERTMATINEES")) )
-	{
-		return HandleConvertMatineesCommand( Str, Ar, InWorld );
-	}
 	else if( FParse::Command(&Str, TEXT("DISASMSCRIPT")) )
 	{
 		return HandleDisasmScriptCommand( Str, Ar );

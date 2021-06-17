@@ -36,8 +36,6 @@
 #include "UnrealEdMisc.h"
 #include "UnrealEdGlobals.h"
 
-#include "Matinee/InterpData.h"
-#include "Matinee/MatineeActor.h"
 #include "Animation/AnimCompress.h"
 
 #include "EditorSupportDelegates.h"
@@ -452,7 +450,7 @@ void UUnrealEdEngine::Tick(float DeltaSeconds, bool bIdleMode)
 	// Increment the "seconds since last autosave" counter, then try to autosave.
 	if (!GSlowTaskOccurred)
 	{
-		// Don't increment autosave count while in game/pie/automation testing or while in Matinee
+		// Don't increment autosave count while in game/pie/automation testing
 		const bool PauseAutosave = (PlayWorld != nullptr) || GIsAutomationTesting;
 		if (!PauseAutosave && PackageAutoSaver.Get())
 		{
@@ -759,50 +757,6 @@ bool UUnrealEdEngine::IsAutosaving() const
 	return false;
 }
 
-
-void UUnrealEdEngine::ConvertMatinees()
-{
-	FVector StartLocation= FVector::ZeroVector;
-	UWorld* World = GWorld;
-	if( World )
-	{
-		ULevel* Level = World->GetCurrentLevel();
-		if( !Level )
-		{
-			Level = World->PersistentLevel;
-		}
-		check(Level);
-		for( TObjectIterator<UInterpData> It; It; ++It )
-		{
-			UInterpData* InterpData = *It;
-			if( InterpData->IsIn( Level ) ) 
-			{
-				// We dont care about renaming references or adding redirectors.  References to this will be old seqact_interps
-				RenameObject( InterpData, Level->GetOutermost(), *InterpData->GetName() );
-
-				AMatineeActor* MatineeActor = Level->OwningWorld->SpawnActor<AMatineeActor>(StartLocation, FRotator::ZeroRotator);
-				StartLocation.Y += 50;
-								
-				MatineeActor->MatineeData = InterpData;
-				FProperty* MatineeDataProp = NULL;
-				for( FProperty* Property = MatineeActor->GetClass()->PropertyLink; Property != NULL; Property = Property->PropertyLinkNext )
-				{
-					if( Property->GetName() == TEXT("MatineeData") )
-					{
-						MatineeDataProp = Property;
-						break;
-					}
-				}
-
-				FPropertyChangedEvent PropertyChangedEvent( MatineeDataProp ); 
-				MatineeActor->PostEditChangeProperty( PropertyChangedEvent );
-			}
-		}
-	}
-
-}
-
-
 void UUnrealEdEngine::ShowActorProperties()
 {
 	// See if we have any unlocked property windows available.  If not, create a new one.
@@ -1010,7 +964,6 @@ void UUnrealEdEngine::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 	Ar << MaterialCopyPasteBuffer;
 	Ar << AnimationCompressionAlgorithms;
-	Ar << MatineeCopyPasteBuffer;
 }
 
 void UUnrealEdEngine::DuplicateSelectedActors(UWorld* InWorld)
@@ -1528,21 +1481,6 @@ void UUnrealEdEngine::OnContentPathMounted(const FString& AssetPath, const FStri
 void UUnrealEdEngine::OnContentPathDismounted(const FString& AssetPath, const FString& /*FileSystemPath*/)
 {
 	MountPointCheckedForWritePermission.Remove(*AssetPath);
-}
-void UUnrealEdEngine::UpdateEdModeOnMatineeClose(const FEditorModeID& EditorModeID, bool IsEntering)
-{
-	// if we are closing the Matinee editor
-	if (!IsEntering && EditorModeID == FBuiltinEditorModes::EM_InterpEdit)
-	{
-		// set the autosave timer to save soon
-		if (PackageAutoSaver)
-		{
-			PackageAutoSaver->ForceMinimumTimeTillAutoSave();
-		}
-
-		// Remove this delegate. 
-		GLevelEditorModeTools().OnEditorModeIDChanged().Remove(UpdateEdModeOnMatineeCloseDelegateHandle);
-	}
 }
 
 bool IsBelowFreeDiskSpaceLimit(const TCHAR* TestDir, FText& OutAppendMessage, const FText& LocationDescriptor, const uint64 MinMB = 5120)

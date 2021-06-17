@@ -589,7 +589,6 @@
 #include "Engine/Polys.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Animation/SkeletalMeshActor.h"
-#include "Matinee/MatineeAnimInterface.h"
 #include "Engine/LevelStreaming.h"
 #include "LatentActions.h"
 #include "PreviewScene.h"

@@ -507,8 +507,7 @@ void FPackageAutoSaver::UpdateAutoSaveNotification()
 
 	if (UserAllowsAutosave && // The user has set to allow auto-save in preferences
 		TimeInSecondsUntilAutosave < LoadingSavingSettings->AutoSaveWarningInSeconds && 
-		!InGame && // we want to hide auto-save if we are simulating/playing
-		!GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_InterpEdit) // we want to hide auto-save if we are in matinee 
+		!InGame // we want to hide auto-save if we are simulating/playing
 		)
 	{		
 		if (!bAutoSaveNotificationLaunched && !bDelayingDueToFailedSave)

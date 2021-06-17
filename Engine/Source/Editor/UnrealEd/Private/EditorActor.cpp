@@ -713,15 +713,6 @@ bool UUnrealEdEngine::CanDeleteActor(const AActor* InActor, FText* OutReason) co
 
 bool UUnrealEdEngine::ShouldAbortComponentDeletion(const TArray<UActorComponent*>& InComponentsToDelete, FText* OutReason) const
 {
-	if (!GLevelEditorModeTools().EnsureNotInMode(FBuiltinEditorModes::EM_InterpEdit))
-	{
-		if (OutReason)
-		{
-			*OutReason = LOCTEXT("ShouldAbortComponentDeletion_Error_WrongModeForComponentDeletion", "Cannot delete components while Matinee is open.");
-		}
-		return true;
-	}
-
 	for (UActorComponent* Component : InComponentsToDelete)
 	{
 		AActor* OwnerActor = Component->GetOwner();
@@ -740,15 +731,6 @@ bool UUnrealEdEngine::ShouldAbortComponentDeletion(const TArray<UActorComponent*
 
 bool UUnrealEdEngine::ShouldAbortActorDeletion(const TArray<AActor*>& InActorsToDelete, FText* OutReason) const
 {
-	if (!GLevelEditorModeTools().EnsureNotInMode(FBuiltinEditorModes::EM_InterpEdit))
-	{
-		if (OutReason)
-		{
-			*OutReason = LOCTEXT("ShouldAbortActorDeletion_WrongModeForActorDeletion", "Cannot delete actors while Matinee is open.");
-		}
-		return true;
-	}
-
 	for (AActor* Actor : InActorsToDelete)
 	{
 		if (FLevelUtils::IsLevelLocked(Actor))
