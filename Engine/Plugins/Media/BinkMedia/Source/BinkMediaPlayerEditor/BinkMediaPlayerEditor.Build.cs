@@ -41,6 +41,7 @@ public class BinkMediaPlayerEditor : ModuleRules
 
         PrivatePCHHeaderFile = "Private/BinkMediaPlayerEditorPCH.h";
 
+		PublicDefinitions.Add("BUILDING_FOR_UNREAL_ONLY=1");
 		PublicDependencyModuleNames.Add("BinkMediaPlayer");
 
 		PrivateIncludePathModuleNames.AddRange(
