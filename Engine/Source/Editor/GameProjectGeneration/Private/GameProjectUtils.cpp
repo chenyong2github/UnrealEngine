@@ -1327,7 +1327,13 @@ bool GameProjectUtils::IsValidBaseClassForCreation_Internal(const UClass* InClas
 
 GameProjectUtils::EAddCodeToProjectResult GameProjectUtils::AddCodeToProject(const FString& NewClassName, const FString& NewClassPath, const FModuleContextInfo& ModuleInfo, const FNewClassInfo ParentClassInfo, const TSet<FString>& DisallowedHeaderNames, FString& OutHeaderFilePath, FString& OutCppFilePath, FText& OutFailReason)
 {
-	const EAddCodeToProjectResult Result = AddCodeToProject_Internal(NewClassName, NewClassPath, ModuleInfo, ParentClassInfo, DisallowedHeaderNames, OutHeaderFilePath, OutCppFilePath, OutFailReason);
+	EReloadStatus OutReloadStatus;
+	return AddCodeToProject(NewClassName, NewClassPath, ModuleInfo, ParentClassInfo, DisallowedHeaderNames, OutHeaderFilePath, OutCppFilePath, OutFailReason, OutReloadStatus);
+}
+
+GameProjectUtils::EAddCodeToProjectResult GameProjectUtils::AddCodeToProject(const FString& NewClassName, const FString& NewClassPath, const FModuleContextInfo& ModuleInfo, const FNewClassInfo ParentClassInfo, const TSet<FString>& DisallowedHeaderNames, FString& OutHeaderFilePath, FString& OutCppFilePath, FText& OutFailReason, EReloadStatus& OutReloadStatus)
+{
+	const EAddCodeToProjectResult Result = AddCodeToProject_Internal(NewClassName, NewClassPath, ModuleInfo, ParentClassInfo, DisallowedHeaderNames, OutHeaderFilePath, OutCppFilePath, OutFailReason, OutReloadStatus);
 
 	if( FEngineAnalytics::IsAvailable() )
 	{
@@ -3968,7 +3974,7 @@ TArray<FString> GameProjectUtils::GetRequiredAdditionalDependencies(const FNewCl
 	return Out;
 }
 
-GameProjectUtils::EAddCodeToProjectResult GameProjectUtils::AddCodeToProject_Internal(const FString& NewClassName, const FString& NewClassPath, const FModuleContextInfo& ModuleInfo, const FNewClassInfo ParentClassInfo, const TSet<FString>& DisallowedHeaderNames, FString& OutHeaderFilePath, FString& OutCppFilePath, FText& OutFailReason)
+GameProjectUtils::EAddCodeToProjectResult GameProjectUtils::AddCodeToProject_Internal(const FString& NewClassName, const FString& NewClassPath, const FModuleContextInfo& ModuleInfo, const FNewClassInfo ParentClassInfo, const TSet<FString>& DisallowedHeaderNames, FString& OutHeaderFilePath, FString& OutCppFilePath, FText& OutFailReason, EReloadStatus& OutReloadStatus)
 {
 	if ( !ParentClassInfo.IsSet() )
 	{
@@ -4133,13 +4139,18 @@ GameProjectUtils::EAddCodeToProjectResult GameProjectUtils::AddCodeToProject_Int
 
 	OutHeaderFilePath = NewHeaderFilename;
 	OutCppFilePath = NewCppFilename;
+	OutReloadStatus = EReloadStatus::NotReloaded;
 
 #if WITH_LIVE_CODING
 	ILiveCodingModule* LiveCoding = FModuleManager::GetModulePtr<ILiveCodingModule>(LIVE_CODING_MODULE_NAME);
 	if (LiveCoding != nullptr && LiveCoding->IsEnabledForSession())
 	{
-		OutFailReason = LOCTEXT("FailedToCompileLiveCodingEnabled", "Adding classes dynamically is not allowed with Live Coding enabled.");
-		return EAddCodeToProjectResult::FailedToHotReload;
+		if (bProjectHadCodeFiles && LiveCoding->AutomaticallyCompileNewClasses())
+		{
+			LiveCoding->Compile();
+			OutReloadStatus = EReloadStatus::Reloaded;
+		}
+		return EAddCodeToProjectResult::Succeeded;
 	}
 #endif
 
@@ -4163,6 +4174,7 @@ GameProjectUtils::EAddCodeToProjectResult GameProjectUtils::AddCodeToProject_Int
 
 		// Notify that we've created a brand new module
 		FSourceCodeNavigation::AccessOnNewModuleAdded().Broadcast(*GameModuleName);
+		OutReloadStatus = EReloadStatus::Reloaded;
 	}
 	else if (GetDefault<UEditorPerProjectUserSettings>()->bAutomaticallyHotReloadNewClasses)
 	{
@@ -4208,6 +4220,7 @@ GameProjectUtils::EAddCodeToProjectResult GameProjectUtils::AddCodeToProject_Int
 				}
 			}
 		}
+		OutReloadStatus = EReloadStatus::Reloaded;
 	}
 
 	return EAddCodeToProjectResult::Succeeded;

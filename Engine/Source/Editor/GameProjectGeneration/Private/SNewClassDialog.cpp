@@ -1163,9 +1163,10 @@ void SNewClassDialog::FinishClicked()
 		// Track the selected module name so we can default to this next time
 		LastSelectedModuleName = SelectedModuleInfo->ModuleName;
 
+		GameProjectUtils::EReloadStatus ReloadStatus;
 		FText FailReason;
 		const TSet<FString>& DisallowedHeaderNames = FSourceCodeNavigation::GetSourceFileDatabase().GetDisallowedHeaderNames();
-		const GameProjectUtils::EAddCodeToProjectResult AddCodeResult = GameProjectUtils::AddCodeToProject(NewClassName, NewClassPath, *SelectedModuleInfo, ParentClassInfo, DisallowedHeaderNames, HeaderFilePath, CppFilePath, FailReason);
+		const GameProjectUtils::EAddCodeToProjectResult AddCodeResult = GameProjectUtils::AddCodeToProject(NewClassName, NewClassPath, *SelectedModuleInfo, ParentClassInfo, DisallowedHeaderNames, HeaderFilePath, CppFilePath, FailReason, ReloadStatus);
 		if (AddCodeResult == GameProjectUtils::EAddCodeToProjectResult::Succeeded)
 		{
 			OnAddedToProject.ExecuteIfBound( NewClassName, NewClassPath, SelectedModuleInfo->ModuleName );
@@ -1177,8 +1178,9 @@ void SNewClassDialog::FinishClicked()
 			bPreventPeriodicValidityChecksUntilNextChange = true;
 
 			// Display a nag if we didn't automatically hot-reload for the newly added class
-			const bool bWasHotReloaded = GetDefault<UEditorPerProjectUserSettings>()->bAutomaticallyHotReloadNewClasses;
-			if( bWasHotReloaded )
+			bool bWasReloaded = ReloadStatus == GameProjectUtils::EReloadStatus::Reloaded;
+
+			if( bWasReloaded )
 			{
 				FNotificationInfo Notification( FText::Format( LOCTEXT("AddedClassSuccessNotification", "Added new class {0}"), FText::FromString(NewClassName) ) );
 				FSlateNotificationManager::Get().AddNotification( Notification );
@@ -1186,7 +1188,7 @@ void SNewClassDialog::FinishClicked()
 
 			if ( HeaderFilePath.IsEmpty() || CppFilePath.IsEmpty() || !FSlateApplication::Get().SupportsSourceAccess() )
 			{
-				if( !bWasHotReloaded )
+				if( !bWasReloaded )
 				{
 					// Code successfully added, notify the user. We are either running on a platform that does not support source access or a file was not given so don't ask about editing the file
 					const FText Message = FText::Format( 
@@ -1202,7 +1204,7 @@ void SNewClassDialog::FinishClicked()
 			else
 			{
 				bool bEditSourceFilesNow = false;
-				if( bWasHotReloaded )
+				if( bWasReloaded )
 				{
 					// Code was hot reloaded, so always edit the new classes now
 					bEditSourceFilesNow = true;

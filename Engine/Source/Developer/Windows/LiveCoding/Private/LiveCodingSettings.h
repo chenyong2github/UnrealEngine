@@ -26,6 +26,12 @@ public:
     UPROPERTY(config, EditAnywhere, Category=General, Meta=(ConfigRestartRequired=true, EditCondition="bEnabled"))
     ELiveCodingStartupMode Startup;
 
+    UPROPERTY(config, EditAnywhere, Category=General, Meta=(EditCondition="bEnabled"))
+	bool bEnableReinstancing;
+
+	UPROPERTY(config, EditAnywhere, Category=General, Meta=(EditCondition="bEnabled", DisplayName="Automatically Compile Newly Added C++ Classes"))
+	bool bAutomaticallyCompileNewClasses;
+
 	UPROPERTY(config, EditAnywhere, Category=Modules, Meta=(ConfigRestartRequired=true, EditCondition="bEnabled"))
     bool bPreloadEngineModules;
 

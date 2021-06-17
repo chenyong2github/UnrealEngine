@@ -33,6 +33,7 @@ public:
 	virtual bool IsEnabledByDefault() const override;
 	virtual void EnableForSession(bool bInEnabled) override;
 	virtual bool IsEnabledForSession() const override;
+	virtual bool AutomaticallyCompileNewClasses() const override;
 	virtual bool CanEnableForSession() const override;
 	virtual bool HasStarted() const override;
 	virtual void ShowConsole() override;
@@ -50,6 +51,7 @@ private:
 	ULiveCodingSettings* Settings;
 	TSharedPtr<ISettingsSection> SettingsSection;
 	bool bEnabledLastTick = false;
+	bool bEnableReinstancingLastTick = false;
 	bool bEnabledForSession = false;
 	bool bStarted = false;
 	bool bUpdateModulesInTick = false;
@@ -83,6 +85,8 @@ private:
 	void UpdateModules();
 
 	bool ShouldPreloadModule(const FName& Name, const FString& FullFilePath) const;
+
+	bool IsReinstancingEnabled() const;
 
 #if WITH_EDITOR
 	void ShowNotification(bool Success, const FText& Title, const FText* SubText);

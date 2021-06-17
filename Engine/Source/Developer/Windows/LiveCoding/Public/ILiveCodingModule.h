@@ -17,6 +17,7 @@ public:
 	virtual void EnableForSession(bool bEnabled) = 0;
 	virtual bool IsEnabledForSession() const = 0;
 	virtual bool CanEnableForSession() const = 0;
+	virtual bool AutomaticallyCompileNewClasses() const = 0;
 
 	virtual bool HasStarted() const = 0;
 
