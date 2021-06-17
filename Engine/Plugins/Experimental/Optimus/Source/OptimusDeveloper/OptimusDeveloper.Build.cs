@@ -6,7 +6,7 @@ namespace UnrealBuildTool.Rules
     {
         public OptimusDeveloper(ReadOnlyTargetRules Target) : base(Target)
         {
-            PrivateIncludePaths.AddRange(
+	        PrivateIncludePaths.AddRange(
                 new string[] {
 					"OptimusDeveloper/Private",
 				}
@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"OptimusCore",
+					"RenderCore",
 				}
 			);
         }

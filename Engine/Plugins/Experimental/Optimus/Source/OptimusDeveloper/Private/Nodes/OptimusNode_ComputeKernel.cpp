@@ -119,7 +119,7 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 {
 	// FIXME: Add parameter map for unconnected parameters.
 	
-	UOptimusKernelSource* KernelSource = NewObject<UOptimusKernelSource>(InKernelSourceOuter, NAME_None);
+	UOptimusKernelSource* KernelSource = NewObject<UOptimusKernelSource>(InKernelSourceOuter, FName(*(KernelName + TEXT("_Src"))));
 
 	TArray<FString> BindingFunctions;
 
@@ -333,7 +333,7 @@ void UOptimusNode_ComputeKernel::PostEditChangeProperty(
 
 			if (!InputBindings.IsEmpty())
 			{
-				BeforePin = GetPins()[Parameters.Num()];
+				BeforePin = GetPins()[Parameters.Num() - 1];
 			}
 		}
 		else if (BasePropertyName == InputBindingsName)
