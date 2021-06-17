@@ -506,11 +506,6 @@ void FGeometryCacheSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterial
 			continue;
 		}
 
-		if (!TrackProxy->VertexFactory.GetType()->SupportsRayTracingDynamicGeometry())
-		{
-			continue;
-		}
-
 		FRayTracingInstance RayTracingInstance;
 		RayTracingInstance.Geometry = &TrackProxy->RayTracingGeometry;
 		RayTracingInstance.InstanceTransforms.Add(GetLocalToWorld());
