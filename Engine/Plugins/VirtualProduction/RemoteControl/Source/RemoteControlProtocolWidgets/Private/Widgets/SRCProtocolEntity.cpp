@@ -35,13 +35,6 @@ void SRCProtocolEntity::Construct(const FArguments& InArgs, const TSharedRef<FPr
 	];
 }
 
-FVector2D SRCProtocolEntity::ComputeDesiredSize(float LayoutScaleMultiplier) const
-{
-	auto Result = SCompoundWidget::ComputeDesiredSize(LayoutScaleMultiplier);
-
-	return Result;
-}
-
 TSharedRef<SWidget> SRCProtocolEntity::CreateStructureDetailView()
 {
 	const TSharedPtr<FStructOnScope> StructOnScope = ViewModel->GetBinding()->GetStructOnScope();
