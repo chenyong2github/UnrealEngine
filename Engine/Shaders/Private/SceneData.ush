@@ -36,6 +36,11 @@
 #define INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS				0x1
 #define INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN			0x2
 #define INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER				0x4
+#define INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM					0x8
+#define INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA			0x10
+#define INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA			0x20
+#define INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS	0x40
+#define INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET		0x80
 
 #if VF_USE_PRIMITIVE_SCENE_DATA
 
@@ -247,6 +252,10 @@ struct FInstanceSceneData
 	float    PerInstanceRandom;
 	float4   LightMapAndShadowMapUVBias;
 	bool     ValidInstance;
+	bool     HasRandomID;
+	bool     HasCustomData;
+	bool     HasDynamicData;
+	bool     HasLightShadowUVBias;
 	uint     Flags;
 };
 
@@ -342,6 +351,10 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride)
 		// TODO: Uploading not fully functional
 		// InstanceData.CastShadows								= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS);
 		InstanceData.NaniteHasImposter							= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER);
+		InstanceData.HasRandomID								= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM);
+		InstanceData.HasCustomData								= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA);
+		InstanceData.HasDynamicData								= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA);
+		InstanceData.HasLightShadowUVBias						= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS);
 
 		InstanceData.NaniteRuntimeResourceID = GetPrimitiveData(InstanceData.PrimitiveId).NaniteResourceID;
 		if (InstanceData.NaniteRuntimeResourceID != 0xFFFFFFFFu)

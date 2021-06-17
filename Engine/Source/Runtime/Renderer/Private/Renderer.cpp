@@ -176,16 +176,16 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 				SinglePrimitiveStructured.InstanceSceneData = FInstanceSceneShaderData(
 					ConstructPrimitiveInstance(
 						FRenderBounds(PrimitiveParams.LocalObjectBoundsMin, PrimitiveParams.LocalObjectBoundsMax),
-						FVector4(ForceInitToZero),
 						NANITE_INVALID_HIERARCHY_OFFSET,
-						InstanceFlags,
-						0.0f
+						InstanceFlags
 					),
 					0, /* Primitive Id */
 					PrimitiveParams.LocalToWorld,
 					PrimitiveParams.PreviousLocalToWorld,
-					INVALID_LAST_UPDATE_FRAME,
-					false /* Has Previous Transform */
+					FRenderTransform::Identity, /* PrevLocalToPrimitive */
+					FVector4(ForceInitToZero), /* Lightmap and Shadowmap UV Bias */
+					0.0f, /* Per instance Random ID */
+					INVALID_LAST_UPDATE_FRAME
 				);
 
 				// Set up the parameters for the LightmapSceneData from the given LCI data 

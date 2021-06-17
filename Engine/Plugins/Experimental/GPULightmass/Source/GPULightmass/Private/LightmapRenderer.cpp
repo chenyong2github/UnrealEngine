@@ -321,16 +321,16 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 				InstanceSceneData[InstanceIndex]  = FInstanceSceneShaderData(
 					ConstructPrimitiveInstance(
 						FRenderBounds(PrimitiveUniformShaderParameters.LocalObjectBoundsMin, PrimitiveUniformShaderParameters.LocalObjectBoundsMax),
-						FVector4(ForceInitToZero),
 						NANITE_INVALID_HIERARCHY_OFFSET,
-						InstanceSceneDataFlags,
-						0.0f
+						InstanceSceneDataFlags
 					),
 					InstanceIndex, /* Primitive Id */
 					PrimitiveUniformShaderParameters.LocalToWorld,
 					PrimitiveUniformShaderParameters.PreviousLocalToWorld,
-					INVALID_LAST_UPDATE_FRAME,
-					false /* Has Previous Transform */
+					FRenderTransform::Identity, /* PrevLocalToPrimitive */
+					FVector4(ForceInitToZero), /* Lightmap and Shadowmap UV bias */
+					0.0f, /* Per instance Random ID */
+					INVALID_LAST_UPDATE_FRAME
 				);
 
 				for (int32 LODIndex = 0; LODIndex < Instance.LODLightmapRenderStates.Num(); LODIndex++)
@@ -409,8 +409,10 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 						PrimitiveId,
 						InstanceGroup.LocalToWorld,
 						InstanceGroup.LocalToWorld,
-						INVALID_LAST_UPDATE_FRAME,
-						false /* Has Previous Transform */
+						FRenderTransform::Identity, /* PrevLocalToPrimitive */
+						FVector4(ForceInitToZero), /* Lightmap and Shadowmap UV bias */
+						0.0f, /* Per instance Random ID */
+						INVALID_LAST_UPDATE_FRAME
 					)
 				);
 			}
@@ -466,16 +468,16 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 			InstanceSceneData.Add(FInstanceSceneShaderData(
 				ConstructPrimitiveInstance(
 					FRenderBounds(PrimitiveUniformShaderParameters.LocalObjectBoundsMin, PrimitiveUniformShaderParameters.LocalObjectBoundsMax),
-					FVector4(ForceInitToZero),
 					NANITE_INVALID_HIERARCHY_OFFSET,
-					InstanceSceneDataFlags,
-					0.0f
+					InstanceSceneDataFlags
 				),
 				PrimitiveId,
 				PrimitiveUniformShaderParameters.LocalToWorld,
 				PrimitiveUniformShaderParameters.PreviousLocalToWorld,
-				INVALID_LAST_UPDATE_FRAME,
-				false /* Has Previous Transform */
+				FRenderTransform::Identity, /* PrevLocalToPrimitive */
+				FVector4(ForceInitToZero), /* Lightmap and Shadowmap UV bias */
+				0.0f, /* Per instance Random ID */
+				INVALID_LAST_UPDATE_FRAME
 			));
 
 			PrimitiveSceneData.Add(FPrimitiveSceneShaderData(PrimitiveUniformShaderParameters));

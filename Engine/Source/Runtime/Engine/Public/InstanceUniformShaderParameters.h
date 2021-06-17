@@ -14,17 +14,19 @@
 #define INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS				0x1
 #define INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN			0x2
 #define INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER				0x4
+#define INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM					0x8
+#define INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA			0x10
+#define INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA			0x20
+#define INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS	0x40
+#define INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET		0x80
 
 #define INVALID_LAST_UPDATE_FRAME 0xFFFFFFFFu
 
 struct FPrimitiveInstance
 {
 	FRenderTransform		LocalToPrimitive;
-	FRenderTransform		PrevLocalToPrimitive;
-	FRenderBounds			LocalBounds;
-	float					PerInstanceRandom;
-	FVector4				LightMapAndShadowMapUVBias;
-	uint32					NaniteHierarchyOffset;
+	FRenderBounds			LocalBounds;  // TODO: Move to another data stream (only if proxies like geometry collection require it).
+	uint32					NaniteHierarchyOffset; // TODO: Move to another data stream (only if proxies like geometry collection require it).
 	uint32					Flags;
 
 	// Should always use this accessor so shearing is properly
@@ -47,6 +49,11 @@ struct FPrimitiveInstance
 
 		return LocalToWorld;
 	}
+};
+
+struct FPrimitiveInstanceDynamicData
+{
+	FRenderTransform PrevLocalToPrimitive;
 
 	// Should always use this accessor so shearing is properly
 	// removed from the concatenated transform.
@@ -72,19 +79,14 @@ struct FPrimitiveInstance
 
 FORCEINLINE FPrimitiveInstance ConstructPrimitiveInstance(
 	const FRenderBounds& LocalBounds,
-	const FVector4& LightMapAndShadowMapUVBias,
-	const uint32 NaniteHierarchyOffset,
-	uint32 Flags,
-	float PerInstanceRandom
+	uint32 NaniteHierarchyOffset,
+	uint32 Flags
 )
 {
 	FPrimitiveInstance Result;
 	Result.LocalToPrimitive.SetIdentity();
-	Result.PrevLocalToPrimitive.SetIdentity();
-	Result.LightMapAndShadowMapUVBias			= LightMapAndShadowMapUVBias;
 	Result.LocalBounds							= LocalBounds;
 	Result.NaniteHierarchyOffset				= NaniteHierarchyOffset;
-	Result.PerInstanceRandom					= PerInstanceRandom;
 	Result.Flags								= Flags;
 
 	return Result;
@@ -104,16 +106,16 @@ struct FInstanceSceneShaderData
 		Setup(
 			ConstructPrimitiveInstance(
 				FRenderBounds(FVector3f::ZeroVector, FVector3f::ZeroVector),
-				FVector4(ForceInitToZero),
 				0xFFFFFFFFu, /* Nanite Hierarchy Offset */
-				0u, /* Instance Flags */
-				0.0f /* Per Instance Random */
+				0u /* Instance Flags */
 			),
 			0, /* Primitive Id */
 			FRenderTransform::Identity,  /* LocalToWorld */
 			FRenderTransform::Identity,  /* PrevLocalToWorld */
-			INVALID_LAST_UPDATE_FRAME,
-			false /* Has Previous Transform */
+			FRenderTransform::Identity, /* PrevLocalToPrimitive */ // TODO: Temporary
+			FVector4(ForceInitToZero), /* Lightmap and Shadowmap UV Bias */ // TODO: Temporary
+			0.0f, /* Per Instance Random */ // TODO: Temporary
+			INVALID_LAST_UPDATE_FRAME
 		);
 	}
 
@@ -122,8 +124,10 @@ struct FInstanceSceneShaderData
 		uint32 PrimitiveId,
 		const FRenderTransform& PrimitiveLocalToWorld,
 		const FRenderTransform& PrimitivePrevLocalToWorld,
-		uint32 LastUpdateFrame,
-		bool bHasPreviousTransform
+		const FRenderTransform& PrevLocalToPrimitive, // TODO: Temporary
+		const FVector4& LightMapShadowMapUVBias, // TODO: Temporary
+		float RandomID, // TODO: Temporary
+		uint32 LastUpdateFrame
 	);
 
 	ENGINE_API void Setup(
@@ -131,8 +135,10 @@ struct FInstanceSceneShaderData
 		uint32 PrimitiveId,
 		const FRenderTransform& PrimitiveLocalToWorld,
 		const FRenderTransform& PrimitivePrevLocalToWorld,
-		uint32 LastUpdateFrame,
-		bool bHasPreviousTransform
+		const FRenderTransform& PrevLocalToPrimitive, // TODO: Temporary
+		const FVector4& LightMapShadowMapUVBias, // TODO: Temporary
+		float RandomID, // TODO: Temporary
+		uint32 LastUpdateFrame
 	);
 };
 

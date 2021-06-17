@@ -1091,6 +1091,9 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 	// Indicates if 1 or more materials contain settings not supported by Nanite.
 	bHasMaterialErrors = false;
 
+	// TODO: Respect this setting with de-interleaved stream data
+	bHasPerInstanceHierarchyOffset = true;
+
 	// Check if the assigned material can be rendered in Nanite. If not, default.
 	// TODO: Handle cases like geometry collections adding a "selected geometry" material with translucency.
 	const bool IsRenderable = true;// Nanite::FSceneProxy::IsNaniteRenderable(MaterialRelevance);
@@ -1198,17 +1201,20 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 	// Need to specify initial instance list, even with just identity transforms, so that the
 	// GPUScene instance data allocator reserves space for the instances early on. The instance
 	// transforms will be corrected during the first frame before any rendering occurs.
-	InstanceSceneData.SetNumZeroed(NumGeometry);
+	InstanceSceneData.SetNumUninitialized(NumGeometry);
+	InstanceDynamicData.SetNumUninitialized(NumGeometry);
+
 	for (int32 GeometryIndex = 0; GeometryIndex < NumGeometry; ++GeometryIndex)
 	{
-		FPrimitiveInstance& Instance = InstanceSceneData[GeometryIndex];
-		Instance.LocalToPrimitive.SetIdentity();
-		Instance.PrevLocalToPrimitive.SetIdentity();
-		Instance.LocalBounds = GeometryNaniteData[GeometryIndex].LocalBounds;
-		Instance.PerInstanceRandom = 0.0f;
-		Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
-		Instance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
-		Instance.Flags = 0U;
+		FPrimitiveInstance& SceneData		= InstanceSceneData[GeometryIndex];
+		SceneData.LocalToPrimitive.SetIdentity();
+		SceneData.LocalBounds				= GeometryNaniteData[GeometryIndex].LocalBounds;
+		SceneData.NaniteHierarchyOffset		= NANITE_INVALID_HIERARCHY_OFFSET;
+		SceneData.Flags						= 0u;
+		SceneData.Flags					   |= INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA;
+
+		FPrimitiveInstanceDynamicData& DynamicData = InstanceDynamicData[GeometryIndex];
+		DynamicData.PrevLocalToPrimitive.SetIdentity();
 	}
 }
 
@@ -1294,6 +1300,7 @@ void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometry
 
 	check(NewConstantData->RestTransforms.Num() == TransformToGeometryIndices.Num());
 	InstanceSceneData.Reset(NewConstantData->RestTransforms.Num());
+	InstanceDynamicData.Reset(NewConstantData->RestTransforms.Num());
 
 	for (int32 TransformIndex = 0; TransformIndex < NewConstantData->RestTransforms.Num(); ++TransformIndex)
 	{
@@ -1305,15 +1312,15 @@ void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometry
 
 		const FGeometryNaniteData& NaniteData = GeometryNaniteData[TransformToGeometryIndex];
 
-		FPrimitiveInstance& Instance = InstanceSceneData.Emplace_GetRef();
+		FPrimitiveInstance& Instance	= InstanceSceneData.Emplace_GetRef();
+		Instance.LocalToPrimitive		= NewConstantData->RestTransforms[TransformIndex];
+		Instance.LocalBounds			= NaniteData.LocalBounds;
+		Instance.NaniteHierarchyOffset	= NaniteData.HierarchyOffset;
+		Instance.Flags					= 0u;
+		Instance.Flags				   |= INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA;
 
-		Instance.LocalToPrimitive           = NewConstantData->RestTransforms[TransformIndex];
-		Instance.PrevLocalToPrimitive       = NewConstantData->RestTransforms[TransformIndex];
-		Instance.LocalBounds                = NaniteData.LocalBounds;
-		Instance.NaniteHierarchyOffset      = NaniteData.HierarchyOffset;
-		Instance.PerInstanceRandom          = 0.0f;
-		Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
-		Instance.Flags                      = 0U;
+		FPrimitiveInstanceDynamicData& DynamicData = InstanceDynamicData.Emplace_GetRef();
+		DynamicData.PrevLocalToPrimitive = Instance.LocalToPrimitive;
 	}
 
 	delete NewConstantData;
@@ -1334,6 +1341,7 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 		check(NumTransforms == TransformChildren.Num());
 		check(NumTransforms == NewDynamicData->PrevTransforms.Num());
 		InstanceSceneData.Reset(NumTransforms);
+		InstanceDynamicData.Reset(NumTransforms);
 
 		for (int32 TransformIndex = 0; TransformIndex < NumTransforms; ++TransformIndex)
 		{
@@ -1345,24 +1353,23 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 
 			const FGeometryNaniteData& NaniteData = GeometryNaniteData[TransformToGeometryIndex];
 
-			FPrimitiveInstance& Instance = InstanceSceneData.Emplace_GetRef();
+			FPrimitiveInstance& SceneData		= InstanceSceneData.Emplace_GetRef();
+			SceneData.LocalToPrimitive			= NewDynamicData->Transforms[TransformIndex];
+			SceneData.LocalBounds				= NaniteData.LocalBounds;
+			SceneData.NaniteHierarchyOffset		= NaniteData.HierarchyOffset;
+			SceneData.Flags						= 0u;
+			SceneData.Flags					   |= INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA;
 
-			Instance.LocalToPrimitive = NewDynamicData->Transforms[TransformIndex];
+			FPrimitiveInstanceDynamicData& DynamicData = InstanceDynamicData.Emplace_GetRef();
 
 			if (bCurrentlyInMotion)
 			{
-				Instance.PrevLocalToPrimitive = NewDynamicData->PrevTransforms[TransformIndex];
+				DynamicData.PrevLocalToPrimitive = NewDynamicData->PrevTransforms[TransformIndex];
 			}
 			else
 			{
-				Instance.PrevLocalToPrimitive = Instance.LocalToPrimitive;
+				DynamicData.PrevLocalToPrimitive = SceneData.LocalToPrimitive;
 			}
-			
-			Instance.LocalBounds				= NaniteData.LocalBounds;
-			Instance.NaniteHierarchyOffset		= NaniteData.HierarchyOffset;
-			Instance.PerInstanceRandom          = 0.0f;
-			Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
-			Instance.Flags                      = 0U;
 		}
 	}
 	else
@@ -1377,9 +1384,10 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 void FNaniteGeometryCollectionSceneProxy::ResetPreviousTransforms_RenderThread()
 {
 	// Reset previous transforms to avoid locked motion vectors
-	for (FPrimitiveInstance& Instance : InstanceSceneData)
+	check(InstanceSceneData.Num() == InstanceDynamicData.Num()); // Sanity check, should always have matching associated arrays
+	for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 	{
-		Instance.PrevLocalToPrimitive = Instance.LocalToPrimitive;
+		InstanceDynamicData[InstanceIndex].PrevLocalToPrimitive = InstanceSceneData[InstanceIndex].LocalToPrimitive;
 	}
 }
 

@@ -448,11 +448,8 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 
 	FPrimitiveInstance& Instance = InstanceSceneData.Emplace_GetRef();
 	Instance.LocalToPrimitive.SetIdentity();
-	Instance.PrevLocalToPrimitive.SetIdentity();
 	Instance.LocalBounds                = Component->GetStaticMesh()->GetBounds();
-	Instance.NaniteHierarchyOffset      = 0U;
-	Instance.PerInstanceRandom          = 0.0f;
-	Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
+	Instance.NaniteHierarchyOffset      = 0u;
 	Instance.Flags = bCastDynamicShadow ? INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS : 0u;
 }
 
@@ -462,34 +459,53 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 	LLM_SCOPE_BYTAG(Nanite);
 
 	InstanceSceneData.SetNum(Component->GetInstanceCount());
+
+	const bool bValidPreviousData = Component->PerInstancePrevTransform.Num() == Component->GetInstanceCount();
+	InstanceDynamicData.SetNumUninitialized(bValidPreviousData ? Component->GetInstanceCount() : 0);
+
+	InstanceRandomID.SetNumZeroed(Component->GetInstanceCount()); // TODO: Only allocate if material bound which uses this
+	InstanceLightShadowUVBias.SetNumZeroed(Component->GetInstanceCount()); // TODO: Only allocate if static lighting is enabled for the project
+	InstanceCustomData = Component->PerInstanceSMCustomData; // TODO: Only allocate if material bound which uses this
+	check(Component->NumCustomDataFloats == 0 || (InstanceCustomData.Num() / Component->NumCustomDataFloats == Component->GetInstanceCount())); // Sanity check on the data packing
+
+	bHasPerInstanceRandom = InstanceRandomID.Num() > 0; // TODO: Only allocate if material bound which uses this
+	bHasPerInstanceCustomData = InstanceCustomData.Num() > 0; // TODO: Only allocate if material bound which uses this
+	bHasPerInstanceDynamicData = InstanceDynamicData.Num() > 0;
+	bHasPerInstanceLMSMUVBias = InstanceLightShadowUVBias.Num() > 0; // TODO: Only allocate if static lighting is enabled for the project
+
+	uint32 InstanceDataFlags = 0;
+	InstanceDataFlags |= bCastDynamicShadow ? INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS : 0u;
+	InstanceDataFlags |= bHasPerInstanceLMSMUVBias ? INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS : 0u;
+	InstanceDataFlags |= bHasPerInstanceDynamicData ? INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA : 0u;
+	InstanceDataFlags |= bHasPerInstanceCustomData ? INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA : 0u;
+	InstanceDataFlags |= bHasPerInstanceRandom ? INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM : 0u;
+
 	for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 	{
+		FPrimitiveInstance& SceneData = InstanceSceneData[InstanceIndex];
+		SceneData.LocalBounds = Component->GetStaticMesh()->GetBounds();
+		SceneData.NaniteHierarchyOffset = 0U;
+		SceneData.Flags = InstanceDataFlags;
+
 		FTransform InstanceTransform;
 		Component->GetInstanceTransform(InstanceIndex, InstanceTransform);
-		
-		// TODO: KevinO cleanup
-		FTransform InstancePrevTransform;
-		const bool bHasPrevTransform = Component->GetInstancePrevTransform(InstanceIndex, InstancePrevTransform);
+		SceneData.LocalToPrimitive = InstanceTransform.ToMatrixWithScale();
 
-		FPrimitiveInstance& Instance = InstanceSceneData[InstanceIndex];
-		Instance.LocalToPrimitive = InstanceTransform.ToMatrixWithScale();
-		
-		// TODO: KevinO cleanup
-		if (bHasPrevTransform)
+		if (bHasPerInstanceDynamicData)
 		{
-			bHasPrevInstanceTransforms = true;
-			Instance.PrevLocalToPrimitive = InstancePrevTransform.ToMatrixWithScale();
-		}
-		else
-		{
-			Instance.PrevLocalToPrimitive = Instance.LocalToPrimitive;
-		}
+			FPrimitiveInstanceDynamicData& DynamicData = InstanceDynamicData[InstanceIndex];
 
-		Instance.LocalBounds = Component->GetStaticMesh()->GetBounds();
-		Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
-		Instance.PerInstanceRandom = 0.0f;
-		Instance.NaniteHierarchyOffset = 0U;
-		Instance.Flags = bCastDynamicShadow ? INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS : 0u;
+			FTransform InstancePrevTransform;
+			const bool bHasPrevTransform = Component->GetInstancePrevTransform(InstanceIndex, InstancePrevTransform);
+			if (ensure(bHasPrevTransform)) // Should always be true here
+			{
+				DynamicData.PrevLocalToPrimitive = InstanceTransform.ToMatrixWithScale();
+			}
+			else
+			{
+				DynamicData.PrevLocalToPrimitive = SceneData.LocalToPrimitive;
+			}
+		}
 	}
 
 	ENQUEUE_RENDER_COMMAND(SetNanitePerInstanceData)(
@@ -498,16 +514,31 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 		if (PerInstanceRenderData != nullptr &&
 			PerInstanceRenderData->InstanceBuffer.GetNumInstances() == InstanceSceneData.Num())
 		{
-			for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
+			if (bHasPerInstanceRandom || bHasPerInstanceLMSMUVBias)
 			{
-				FPrimitiveInstance& Instance = InstanceSceneData[InstanceIndex];
-				PerInstanceRenderData->InstanceBuffer.GetInstanceLightMapData(InstanceIndex, Instance.LightMapAndShadowMapUVBias);
-				PerInstanceRenderData->InstanceBuffer.GetInstanceRandomID(InstanceIndex, Instance.PerInstanceRandom);
+				for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
+				{
+					if (bHasPerInstanceRandom)
+					{
+						PerInstanceRenderData->InstanceBuffer.GetInstanceRandomID(InstanceIndex, InstanceRandomID[InstanceIndex]);
+					}
+
+					if (bHasPerInstanceLMSMUVBias)
+					{
+						PerInstanceRenderData->InstanceBuffer.GetInstanceLightMapData(InstanceIndex, InstanceLightShadowUVBias[InstanceIndex]);
+					}
+				}
 			}
 		}
 	});
 
+	// TODO: Should report much finer granularity than what this code is doing (i.e. dynamic vs static, per stream sizes, etc..)
+	// TODO: Also should be reporting this for all proxies, not just the Nanite ones
 	INC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceSceneData.GetAllocatedSize());
+	INC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceDynamicData.GetAllocatedSize());
+	INC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceCustomData.GetAllocatedSize());
+	INC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceRandomID.GetAllocatedSize());
+	INC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceLightShadowUVBias.GetAllocatedSize());
 	INC_DWORD_STAT_BY(STAT_NaniteInstanceCount, InstanceSceneData.Num());
 
 #if RHI_RAYTRACING
@@ -525,7 +556,13 @@ FSceneProxy::FSceneProxy(UHierarchicalInstancedStaticMeshComponent* Component)
 
 FSceneProxy::~FSceneProxy()
 {
+	// TODO: Should report much finer granularity than what this code is doing (i.e. dynamic vs static, per stream sizes, etc..)
+	// TODO: Also should be reporting this for all proxies, not just the Nanite ones
 	DEC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceSceneData.GetAllocatedSize());
+	DEC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceDynamicData.GetAllocatedSize());
+	DEC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceCustomData.GetAllocatedSize());
+	DEC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceRandomID.GetAllocatedSize());
+	DEC_MEMORY_STAT_BY(STAT_ProxyInstanceMemory, InstanceLightShadowUVBias.GetAllocatedSize());
 	DEC_DWORD_STAT_BY(STAT_NaniteInstanceCount, InstanceSceneData.Num());
 }
 
