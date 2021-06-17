@@ -325,24 +325,16 @@ public:
 	// Version for all ASTC textures, whether it's handled by the ARM encoder or the ISPC encoder.
 	virtual uint16 GetVersion(
 		FName Format,
-		const struct FTextureBuildSettings* BuildSettings = nullptr
+		const FTextureBuildSettings* BuildSettings = nullptr
 	) const override
 	{
 		return BASE_ASTC_FORMAT_VERSION;
 	}
 
-	virtual FString GetDerivedDataKeyString(const class UTexture& Texture, const FTextureBuildSettings* BuildSettings) const override
+	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& BuildSettings) const override
 	{
-		return FString::Printf(TEXT("ASTCCmpr_%d"), GetQualityVersion(BuildSettings ? BuildSettings->CompressionQuality : -1));
+		return FString::Printf(TEXT("ASTCCmpr_%d"), GetQualityVersion(BuildSettings.CompressionQuality));
 	}
-
-//	// Since we want to have per texture [group] compression settings, we need to have the key based on the texture
-//	virtual FString GetDerivedDataKeyString(const class UTexture& Texture, const FTextureBuildSettings* BuildSettings) const override
-//	{
-//		const int32 LODBias = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->CalculateLODBias(Texture.Source.GetSizeX(), Texture.Source.GetSizeY(), Texture.LODGroup, Texture.LODBias, Texture.NumCinematicMipLevels, Texture.MipGenSettings);
-//		check(LODBias >= 0);
-//		return FString::Printf(TEXT("%02u%d_"), (uint32)LODBias, CVarVirtualTextureReducedMemoryEnabled->GetValueOnGameThread());
-//	}
 
 	virtual FTextureFormatCompressorCaps GetFormatCapabilities() const override
 	{
@@ -359,7 +351,7 @@ public:
 		}
 	}
 
-	virtual EPixelFormat GetPixelFormatForImage(const struct FTextureBuildSettings& BuildSettings, const struct FImage& Image, bool bImageHasAlphaChannel) const override
+	virtual EPixelFormat GetPixelFormatForImage(const FTextureBuildSettings& BuildSettings, const struct FImage& Image, bool bImageHasAlphaChannel) const override
 	{
 		// special case for normal maps
 		if (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalAG || BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalRG)
@@ -372,7 +364,7 @@ public:
 
 	virtual bool CompressImage(
 			const FImage& InImage,
-			const struct FTextureBuildSettings& BuildSettings,
+			const FTextureBuildSettings& BuildSettings,
 			bool bImageHasAlphaChannel,
 			FCompressedImage2D& OutCompressedImage
 		) const override

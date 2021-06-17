@@ -53,27 +53,25 @@ class FTextureFormatUncompressed : public ITextureFormat
 
 	virtual uint16 GetVersion(
 		FName Format,
-		const struct FTextureBuildSettings* BuildSettings
+		const FTextureBuildSettings* BuildSettings
 	) const override
 	{
 		return 0;
 	}
 	
-	virtual FString GetDerivedDataKeyString(const class UTexture& InTexture, const struct FTextureBuildSettings* InBuildSettings) const override
+	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& InBuildSettings) const override
 	{
-		check( InBuildSettings != NULL );
-		
-		if (InBuildSettings->TextureFormatName == GTextureFormatNameRGBA16F)
+		if (InBuildSettings.TextureFormatName == GTextureFormatNameRGBA16F)
 		{
 			return TEXT("RGBA16F");
 		}
-		else if (InBuildSettings->TextureFormatName == GTextureFormatNameR16F)
+		else if (InBuildSettings.TextureFormatName == GTextureFormatNameR16F)
 		{
 			return TEXT("R16F");
 		}
 		else
 		{
-			// default implemenation of GetDerivedDataKeyString returns empty string
+			// default implementation of GetDerivedDataKeyString returns empty string
 			// match that so we don't change the DDC key
 
 			return TEXT("");
@@ -93,7 +91,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 		return FTextureFormatCompressorCaps(); // Default capabilities.
 	}
 
-	virtual EPixelFormat GetPixelFormatForImage(const struct FTextureBuildSettings& BuildSettings, const struct FImage& Image, bool bImageHasAlphaChannel) const override
+	virtual EPixelFormat GetPixelFormatForImage(const FTextureBuildSettings& BuildSettings, const struct FImage& Image, bool bImageHasAlphaChannel) const override
 	{
 		if (BuildSettings.TextureFormatName == GTextureFormatNameG8)
 		{
@@ -131,7 +129,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 
 	virtual bool CompressImage(
 		const FImage& InImage,
-		const struct FTextureBuildSettings& BuildSettings,
+		const FTextureBuildSettings& BuildSettings,
 		bool bImageHasAlphaChannel,
 		FCompressedImage2D& OutCompressedImage
 		) const override

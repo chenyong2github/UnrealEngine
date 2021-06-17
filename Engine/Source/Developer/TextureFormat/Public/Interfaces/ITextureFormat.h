@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 #include "PixelFormat.h"
 #include "Serialization/CompactBinary.h"
+
+struct FTextureBuildSettings;
+
 /**
  * Structure for texture format compressor capabilities.
  */
@@ -47,17 +50,17 @@ public:
 	 */
 	virtual uint16 GetVersion(
 		FName Format,
-		const struct FTextureBuildSettings* BuildSettings = nullptr
+		const FTextureBuildSettings* BuildSettings = nullptr
 	) const = 0;
 
 	/**
 	 * Gets an optional derived data key string, so that the compressor can
 	 * rely upon the number of mips, size of texture, etc, when compressing the image
 	 *
-	 * @param Texture Reference to the texture we are compressing.
+	 * @param BuildSettings Reference to the build settings we are compressing with.
 	 * @return A string that will be used with the DDC, the string should be in the format "<DATA>_"
 	 */
-	virtual FString GetDerivedDataKeyString( const class UTexture& Texture, const FTextureBuildSettings* BuildSettings) const
+	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& BuildSettings) const
 	{
 		return TEXT("");
 	}
@@ -81,7 +84,7 @@ public:
 	*
 	* @param OutCaps Filled with capability properties of texture format compressor.
 	*/
-	virtual FTextureFormatCompressorCaps GetFormatCapabilitiesEx(const struct FTextureBuildSettings& BuildSettings, uint32 NumMips, const struct FImage& ExampleImage, bool bImageHasAlphaChannel) const
+	virtual FTextureFormatCompressorCaps GetFormatCapabilitiesEx(const FTextureBuildSettings& BuildSettings, uint32 NumMips, const struct FImage& ExampleImage, bool bImageHasAlphaChannel) const
 	{
 		return GetFormatCapabilities();
 	}
@@ -89,7 +92,7 @@ public:
 	/**
 	 * Calculate the final/runtime pixel format for this image on this platform
 	 */
-	virtual EPixelFormat GetPixelFormatForImage(const struct FTextureBuildSettings& BuildSettings, const struct FImage& Image, bool bImageHasAlphaChannel) const = 0;
+	virtual EPixelFormat GetPixelFormatForImage(const FTextureBuildSettings& BuildSettings, const struct FImage& Image, bool bImageHasAlphaChannel) const = 0;
 
 	/**
 	 * Compresses a single image.
@@ -102,7 +105,7 @@ public:
 	 */
 	virtual bool CompressImage(
 		const struct FImage& Image,
-		const struct FTextureBuildSettings& BuildSettings,
+		const FTextureBuildSettings& BuildSettings,
 		bool bImageHasAlphaChannel,
 		struct FCompressedImage2D& OutCompressedImage
 	) const = 0;
@@ -120,7 +123,7 @@ public:
 	 */
 	virtual bool CompressImageEx(const struct FImage* Images,
 		const uint32 NumImages,
-		const struct FTextureBuildSettings& BuildSettings,
+		const FTextureBuildSettings& BuildSettings,
 		bool bImageHasAlphaChannel,
 		uint32 ExtData,
 		FCompressedImage2D& OutCompressedImage) const
@@ -154,7 +157,7 @@ public:
 	virtual bool CompressImageTiled(
 		const struct FImage* Images,
 		uint32 NumImages,
-		const struct FTextureBuildSettings& BuildSettings,
+		const FTextureBuildSettings& BuildSettings,
 		bool bImageHasAlphaChannel,
 		TSharedPtr<FTilerSettings>& TilerSettings,
 		struct FCompressedImage2D& OutCompressedImage) const
@@ -170,7 +173,7 @@ public:
 	 * @returns true if tiling is supported, false if it must be done by the caller
 	 *
 	 */
-	virtual bool SupportsTiling(const struct FTextureBuildSettings& BuildSettings) const
+	virtual bool SupportsTiling(const FTextureBuildSettings& BuildSettings) const
 	{
 		return false;
 	}
@@ -188,7 +191,7 @@ public:
 	virtual bool PrepareTiling(
 		const FImage* Images,
 		const uint32 NumImages,
-		const struct FTextureBuildSettings& BuildSettings,
+		const FTextureBuildSettings& BuildSettings,
 		bool bImageHasAlphaChannel,
 		TSharedPtr<FTilerSettings>& OutTilerSettings,
 		TArray<FCompressedImage2D>& OutCompressedImage
@@ -208,7 +211,7 @@ public:
 	 * @returns true on success, false otherwise.
 	 */
 	virtual bool SetTiling(
-		const struct FTextureBuildSettings& BuildSettings,
+		const FTextureBuildSettings& BuildSettings,
 		TSharedPtr<FTilerSettings>& TilerSettings,
 		const TArray64<uint8>& ReorderedBlocks,
 		uint32 NumBlocks
@@ -224,7 +227,7 @@ public:
 	 * @param BuildSettings Build settings.
 	 * @param TilerSettings The tiler settings object to release.
 	 */
-	virtual void ReleaseTiling(const struct FTextureBuildSettings& BuildSettings, TSharedPtr<FTilerSettings>& TilerSettings) const
+	virtual void ReleaseTiling(const FTextureBuildSettings& BuildSettings, TSharedPtr<FTilerSettings>& TilerSettings) const
 	{
 		unimplemented();
 	}
@@ -245,7 +248,7 @@ public:
 	 * @param BuildSettings Build settings.
 	 * @returns The current format config object or an empty object if no format config is defined for this texture format.
 	 */
-	virtual FCbObject ExportGlobalFormatConfig(const struct FTextureBuildSettings& BuildSettings) const
+	virtual FCbObject ExportGlobalFormatConfig(const FTextureBuildSettings& BuildSettings) const
 	{
 		return FCbObject();
 	}

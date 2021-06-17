@@ -398,7 +398,7 @@ public:
 			DefaultRDOLambda);
 	}
 
-	FCbObject ExportToCb(const struct FTextureBuildSettings& BuildSettings) const
+	FCbObject ExportToCb(const FTextureBuildSettings& BuildSettings) const
 	{
 		int RDOLambda;
 		OodleTex_EncodeEffortLevel EffortLevel;
@@ -427,7 +427,7 @@ public:
 		return Writer.Save().AsObject();
 	}
 
-	void GetOodleCompressParameters(EPixelFormat * OutCompressedPixelFormat,int * OutRDOLambda, OodleTex_EncodeEffortLevel * OutEffortLevel, bool * bOutDebugColor, const struct FTextureBuildSettings& InBuildSettings, bool bHasAlpha) const
+	void GetOodleCompressParameters(EPixelFormat * OutCompressedPixelFormat,int * OutRDOLambda, OodleTex_EncodeEffortLevel * OutEffortLevel, bool * bOutDebugColor, const FTextureBuildSettings& InBuildSettings, bool bHasAlpha) const
 	{
 		FName TextureFormatName = InBuildSettings.TextureFormatName;
 
@@ -646,7 +646,7 @@ public:
 		return true;
 	}
 
-	virtual FCbObject ExportGlobalFormatConfig(const struct FTextureBuildSettings& BuildSettings) const override
+	virtual FCbObject ExportGlobalFormatConfig(const FTextureBuildSettings& BuildSettings) const override
 	{
 		return GlobalFormatConfig.ExportToCb(BuildSettings);
 	}
@@ -661,7 +661,7 @@ public:
 	// increment this to invalidate Derived Data Cache to recompress everything
 	#define DDC_OODLE_TEXTURE_VERSION 12
 
-	virtual uint16 GetVersion(FName Format, const struct FTextureBuildSettings* InBuildSettings) const override
+	virtual uint16 GetVersion(FName Format, const FTextureBuildSettings* InBuildSettings) const override
 	{
 		// note: InBuildSettings == NULL is used by GetVersionFormatNumbersForIniVersionStrings
 		//	just to get a displayable version number
@@ -669,9 +669,8 @@ public:
 		return DDC_OODLE_TEXTURE_VERSION; 
 	}
 	
-	virtual FString GetDerivedDataKeyString(const class UTexture& InTexture, const struct FTextureBuildSettings* InBuildSettings) const override
+	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& InBuildSettings) const override
 	{
-		check( InBuildSettings != NULL );
 		// return all parameters that affect our output Texture
 		// so if any of them change, we rebuild
 		
@@ -684,9 +683,9 @@ public:
 		//	bHasAlpha is used for AutoDXT -> DXT1/5
 		//	we do have Texture.bForceNoAlphaChannel/CompressionNoAlpha but that's not quite what we want
 		// do go ahead and read bForceNoAlphaChannel/CompressionNoAlpha so that we invalidate DDC when that changes
-		bool bHasAlpha = ! InBuildSettings->bForceNoAlphaChannel; 
+		bool bHasAlpha = !InBuildSettings.bForceNoAlphaChannel;
 		
-		GlobalFormatConfig.GetOodleCompressParameters(&CompressedPixelFormat,&RDOLambda,&EffortLevel, &bDebugColor,*InBuildSettings,bHasAlpha);
+		GlobalFormatConfig.GetOodleCompressParameters(&CompressedPixelFormat, &RDOLambda, &EffortLevel, &bDebugColor, InBuildSettings, bHasAlpha);
 
 		// store the actual lambda in DDC key (rather than "LossyCompressionAmount")
 		// that way any changes in how LossyCompressionAmount maps to lambda get rebuilt
@@ -694,7 +693,7 @@ public:
 		int icpf = (int)CompressedPixelFormat;
 
 		check(RDOLambda<256);
-		if ( bDebugColor )
+		if (bDebugColor)
 		{
 			RDOLambda = 256;
 			EffortLevel = OodleTex_EncodeEffortLevel_Default;
@@ -713,7 +712,7 @@ public:
 		return FTextureFormatCompressorCaps(); // Default capabilities.
 	}
 	
-	virtual EPixelFormat GetPixelFormatForImage(const struct FTextureBuildSettings& InBuildSettings, const struct FImage& Image, bool bHasAlpha) const override
+	virtual EPixelFormat GetPixelFormatForImage(const FTextureBuildSettings& InBuildSettings, const struct FImage& Image, bool bHasAlpha) const override
 	{
 		int RDOLambda;
 		OodleTex_EncodeEffortLevel EffortLevel;		
@@ -724,7 +723,7 @@ public:
 		return CompressedPixelFormat;
 	}
 
-	virtual bool CompressImage(const FImage& InImage, const struct FTextureBuildSettings& InBuildSettings, const bool bInHasAlpha, FCompressedImage2D& OutImage) const override
+	virtual bool CompressImage(const FImage& InImage, const FTextureBuildSettings& InBuildSettings, const bool bInHasAlpha, FCompressedImage2D& OutImage) const override
 	{
 		check(InImage.SizeX > 0);
 		check(InImage.SizeY > 0);

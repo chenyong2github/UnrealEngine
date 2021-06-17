@@ -76,12 +76,12 @@ protected:
 	/**
 	 * The final version is a combination of parent and child formats, 8 bits for each
 	 */
-	virtual uint8 GetChildFormatVersion(FName Format, const struct FTextureBuildSettings* BuildSettings) const = 0;
+	virtual uint8 GetChildFormatVersion(FName Format, const FTextureBuildSettings* BuildSettings) const = 0;
 
 	/**
 	 * Make the child type think about if they need a key string or not, by making it pure virtual
 	 */
-	virtual FString GetChildDerivedDataKeyString(const class UTexture& Texture, const FTextureBuildSettings* BuildSettings) const = 0;
+	virtual FString GetChildDerivedDataKeyString(const FTextureBuildSettings& BuildSettings) const = 0;
 
 	/**
 	 * Obtains the global format config object for this texture format.
@@ -89,7 +89,7 @@ protected:
 	 * @param BuildSettings Build settings.
 	 * @returns The global format config object or an empty object if no format settings are defined for this texture format.
 	 */
-	virtual FCbObject ExportGlobalChildFormatConfig(const struct FTextureBuildSettings& BuildSettings) const
+	virtual FCbObject ExportGlobalChildFormatConfig(const FTextureBuildSettings& BuildSettings) const
 	{
 		return FCbObject();
 	}
@@ -118,7 +118,7 @@ public:
 		}
 	}
 
-	virtual uint16 GetVersion(FName Format, const struct FTextureBuildSettings* BuildSettings) const final
+	virtual uint16 GetVersion(FName Format, const FTextureBuildSettings* BuildSettings) const final
 	{
 		uint16 BaseVersion = GetBaseFormatObject(Format)->GetVersion(Format, BuildSettings);
 		checkf(BaseVersion < 256, TEXT("BaseFormat for %s had too large a version (%d), must fit in 8bits"), *Format.ToString(), BaseVersion);
@@ -129,17 +129,17 @@ public:
 		return (BaseVersion << 8) | ChildVersion;
 	}
 
-	virtual FString GetDerivedDataKeyString(const class UTexture& Texture, const FTextureBuildSettings* BuildSettings) const final
+	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& BuildSettings) const final
 	{
-		FTextureBuildSettings BaseSettings = GetBaseTextureBuildSettings(*BuildSettings);
+		FTextureBuildSettings BaseSettings = GetBaseTextureBuildSettings(BuildSettings);
 
-		FString BaseString = GetBaseFormatObject(BuildSettings->TextureFormatName)->GetDerivedDataKeyString(Texture, &BaseSettings);
-		FString ChildString = GetChildDerivedDataKeyString(Texture, BuildSettings);
+		FString BaseString = GetBaseFormatObject(BuildSettings.TextureFormatName)->GetDerivedDataKeyString(BaseSettings);
+		FString ChildString = GetChildDerivedDataKeyString(BuildSettings);
 
 		return BaseString + ChildString;
 	}
 
-	virtual EPixelFormat GetPixelFormatForImage(const struct FTextureBuildSettings& BuildSettings, const struct FImage& ExampleImage, bool bImageHasAlphaChannel) const override 
+	virtual EPixelFormat GetPixelFormatForImage(const FTextureBuildSettings& BuildSettings, const struct FImage& ExampleImage, bool bImageHasAlphaChannel) const override 
 	{
 		FTextureBuildSettings Settings = GetBaseTextureBuildSettings(BuildSettings);
 		return GetBaseFormatObject(BuildSettings.TextureFormatName)->GetPixelFormatForImage(Settings, ExampleImage, bImageHasAlphaChannel);
@@ -147,7 +147,7 @@ public:
 
 	bool CompressBaseImage(
 		const FImage& InImage,
-		const struct FTextureBuildSettings& BuildSettings,
+		const FTextureBuildSettings& BuildSettings,
 		bool bImageHasAlphaChannel,
 		FCompressedImage2D& OutCompressedImage
 	) const
@@ -166,7 +166,7 @@ public:
 	bool CompressBaseImageTiled(
 		const FImage* Images,
 		uint32 NumImages,
-		const struct FTextureBuildSettings& BuildSettings,
+		const FTextureBuildSettings& BuildSettings,
 		bool bImageHasAlphaChannel,
 		TSharedPtr<FTilerSettings>& TilerSettings,
 		FCompressedImage2D& OutCompressedImage
@@ -186,7 +186,7 @@ public:
 	bool PrepareTiling(
 		const FImage* Images,
 		const uint32 NumImages,
-		const struct FTextureBuildSettings& BuildSettings,
+		const FTextureBuildSettings& BuildSettings,
 		bool bImageHasAlphaChannel,
 		TSharedPtr<FTilerSettings>& OutTilerSettings,
 		TArray<FCompressedImage2D>& OutCompressedImages
@@ -198,7 +198,7 @@ public:
 	}
 
 	bool SetTiling(
-		const struct FTextureBuildSettings& BuildSettings,
+		const FTextureBuildSettings& BuildSettings,
 		TSharedPtr<FTilerSettings>& TilerSettings,
 		const TArray64<uint8>& ReorderedBlocks,
 		uint32 NumBlocks
@@ -209,7 +209,7 @@ public:
 		return GetBaseFormatObject(BuildSettings.TextureFormatName)->SetTiling(BaseSettings, TilerSettings, ReorderedBlocks, NumBlocks);
 	}
 
-	void ReleaseTiling(const struct FTextureBuildSettings& BuildSettings, TSharedPtr<FTilerSettings>& TilerSettings) const override
+	void ReleaseTiling(const FTextureBuildSettings& BuildSettings, TSharedPtr<FTilerSettings>& TilerSettings) const override
 	{
 		FTextureBuildSettings BaseSettings = GetBaseTextureBuildSettings(BuildSettings);
 
@@ -217,7 +217,7 @@ public:
 	}
 
 
-	virtual FCbObject ExportGlobalFormatConfig(const struct FTextureBuildSettings& BuildSettings) const override
+	virtual FCbObject ExportGlobalFormatConfig(const FTextureBuildSettings& BuildSettings) const override
 	{
 		FTextureBuildSettings BaseSettings = GetBaseTextureBuildSettings(BuildSettings);
 
