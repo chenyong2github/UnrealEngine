@@ -2105,14 +2105,7 @@ void USubobjectDataSubsystem::DuplicateSubobjects(const FSubobjectDataHandle& Co
 			FSubobjectDataHandle ParentHandle = OriginalData->GetParentHandle();
 			if(ParentHandle.IsValid())
 			{
-				if (FSubobjectData** ParentDuplicateComponent = DuplicateSceneComponentMap.Find(ParentHandle.GetData()))
-				{
-					//FSCSEditorTreeNodePtrType DuplicateParentNodePtr = FindTreeNode(*ParentDuplicateComponent);
-					//if (DuplicateParentNodePtr.IsValid())
-					{
-						//ParentNodePtr = DuplicateParentNodePtr;
-					}
-				}
+				AttachSubobject(ParentHandle, NewData->GetHandle());
 			}
 		}
 	}
