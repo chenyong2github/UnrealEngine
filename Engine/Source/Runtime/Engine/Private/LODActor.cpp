@@ -588,8 +588,9 @@ const bool ALODActor::IsBuilt(bool bInForce/*=false*/) const
 		{
 			if(SubActor)
 			{
-				UStaticMeshComponent* LODComponent = GetLODComponentForActor(SubActor, false);
-				if (LODComponent == nullptr || LODComponent->GetStaticMesh() == nullptr)
+				UStaticMeshComponent* SMComponent = SubActor->FindComponentByClass<UStaticMeshComponent>();
+				UStaticMeshComponent* LODComponent = SMComponent ? Cast<UStaticMeshComponent>(SMComponent->GetLODParentPrimitive()) : nullptr;
+				if (LODComponent == nullptr || LODComponent->GetOwner() != this || LODComponent->GetStaticMesh() == nullptr)
 				{
 					return false;
 				}
@@ -1095,15 +1096,11 @@ bool ALODActor::UpdateProxyDesc()
 	return false;
 }
 
-#endif // WITH_EDITOR
-
-#if (!(UE_BUILD_SHIPPING || UE_BUILD_TEST)) || WITH_EDITOR
-
 bool ALODActor::ShouldUseInstancing(const UStaticMeshComponent* InComponent)
 {
 	check(InComponent);
 
-	if (!InComponent->bUseMaxLODAsImposter || !InComponent->bBatchImpostersAsInstances)
+	if (InComponent->HLODBatchingPolicy != EHLODBatchingPolicy::Instancing)
 	{
 		return false;
 	}
@@ -1173,11 +1170,7 @@ static FHLODInstancingKey GetInstancingKey(const AActor* InActor, int32 InLODLev
 	InActor->GetComponents<UStaticMeshComponent>(Components);
 	Components.RemoveAll([&](UStaticMeshComponent* Val)
 	{
-#if WITH_EDITOR
 		return Val->GetStaticMesh() == nullptr || !Val->ShouldGenerateAutoLOD(InLODLevel - 1);
-#else
-		return Val->GetStaticMesh() == nullptr;
-#endif
 	});
 
 	if (Components.Num() == 1 && ALODActor::ShouldUseInstancing(Components[0]))
@@ -1263,7 +1256,7 @@ UStaticMeshComponent* ALODActor::GetOrCreateLODComponentForActor(const AActor* I
 	return LODComponent;
 }
 
-#endif // (!(UE_BUILD_SHIPPING || UE_BUILD_TEST)) || WITH_EDITOR
+#endif // WITH_EDITOR
 
 FBox ALODActor::GetComponentsBoundingBox(bool bNonColliding, bool bIncludeFromChildActors) const
 {

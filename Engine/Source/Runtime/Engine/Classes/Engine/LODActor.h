@@ -350,7 +350,7 @@ private:
 	void RegisterMeshComponents();
 	void UnregisterMeshComponents();
 
-#if (!(UE_BUILD_SHIPPING || UE_BUILD_TEST)) || WITH_EDITOR
+#if WITH_EDITOR
 	// Get/Create the LOD instanced static mesh component for a given imposter material.
 	UInstancedStaticMeshComponent* GetISMComponent(const FHLODInstancingKey& InstancingKey) const;
 	UInstancedStaticMeshComponent* GetOrCreateISMComponent(const FHLODInstancingKey& InstancingKey);

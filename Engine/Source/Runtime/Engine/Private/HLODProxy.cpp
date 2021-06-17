@@ -428,8 +428,7 @@ uint32 UHLODProxy::GetCRC(UStaticMeshComponent* InComponent, uint32 InCRC, const
 
 	// Include other relevant properties
 	Ar << InComponent->ForcedLodModel;
-	bool bUseMaxLODAsImposter = InComponent->bUseMaxLODAsImposter;
-	Ar << bUseMaxLODAsImposter;
+	Ar << InComponent->HLODBatchingPolicy;
 	bool bCastShadow = InComponent->CastShadow;
 	Ar << bCastShadow;
 	bool bCastStaticShadow = InComponent->bCastStaticShadow;

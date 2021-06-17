@@ -33,6 +33,7 @@
 #include "Algo/Copy.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "UObject/UE5PrivateFrostyStreamObjectVersion.h"
 #include "EngineModule.h"
 #include "UObject/ObjectSaveContext.h"
 
@@ -332,8 +333,11 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 
 	LDMaxDrawDistance = 0.f;
 	CachedMaxDrawDistance = 0.f;
-	bUseMaxLODAsImposter = false;
-	bBatchImpostersAsInstances = false;
+#if WITH_EDITORONLY_DATA
+	HLODBatchingPolicy = EHLODBatchingPolicy::None;
+	bUseMaxLODAsImposter_DEPRECATED = false;
+	bBatchImpostersAsInstances_DEPRECATED = false;
+#endif
 	bNeverDistanceCull = false;
 
 	bUseEditorCompositing = false;
@@ -933,6 +937,7 @@ void UPrimitiveComponent::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5PrivateFrostyStreamObjectVersion::GUID);
 
 	// as temporary fix for the bug TTP 299926
 	// permanent fix is coming
@@ -948,6 +953,21 @@ void UPrimitiveComponent::Serialize(FArchive& Ar)
 			LightmapType = ELightmapType::ForceSurface;
 		}
 	}
+
+#if WITH_EDITORONLY_DATA
+	if (Ar.CustomVer(FUE5PrivateFrostyStreamObjectVersion::GUID) < FUE5PrivateFrostyStreamObjectVersion::HLODBatchingPolicy)
+	{
+		if (bUseMaxLODAsImposter_DEPRECATED)
+		{
+			HLODBatchingPolicy = EHLODBatchingPolicy::MeshSection;
+		}
+
+		if (bBatchImpostersAsInstances_DEPRECATED)
+		{
+			HLODBatchingPolicy = EHLODBatchingPolicy::Instancing;
+		}
+	}
+#endif
 }
 
 #if WITH_EDITOR

@@ -1561,7 +1561,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 	TArray<UStaticMeshComponent*> StaticMeshComponents;
 	for (UStaticMeshComponent* StaticMeshComponent : ComponentsToMerge)
 	{
-		if (StaticMeshComponent->bUseMaxLODAsImposter)
+		if (StaticMeshComponent->HLODBatchingPolicy != EHLODBatchingPolicy::None)
 		{
 			ImposterMeshComponents.Add(StaticMeshComponent);
 		}
@@ -2168,7 +2168,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 				}
 			}
 
-			if(MeshComponent->bUseMaxLODAsImposter && InSettings.bIncludeImposters)
+			if((MeshComponent->HLODBatchingPolicy != EHLODBatchingPolicy::None) && InSettings.bIncludeImposters)
 			{
 				ImposterComponents.Add(MeshComponent);
 			}
@@ -2227,7 +2227,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 			const int32 NumLODs = [&]()
 			{
 				const int32 NumberOfLODsAvailable = Adapter.GetNumberOfLODs();
-				if (Component->bUseMaxLODAsImposter)
+				if (Component->HLODBatchingPolicy != EHLODBatchingPolicy::None)
 				{
 					return InSettings.bIncludeImposters ? NumberOfLODsAvailable : NumberOfLODsAvailable - 1;
 				}
@@ -2277,7 +2277,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 			const int32 LODIndex = [&]()
 			{
 				int32 LowestDetailLOD = Adapter.GetNumberOfLODs() - 1;
-				if (Component->bUseMaxLODAsImposter && !InSettings.bIncludeImposters)
+				if (Component->HLODBatchingPolicy != EHLODBatchingPolicy::None && !InSettings.bIncludeImposters)
 				{
 					LowestDetailLOD = FMath::Max(0, LowestDetailLOD - 1);
 				}
