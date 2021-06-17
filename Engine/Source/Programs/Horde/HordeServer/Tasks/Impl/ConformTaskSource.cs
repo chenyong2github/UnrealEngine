@@ -192,7 +192,8 @@ namespace HordeServer.Tasks.Impl
 			HashSet<AgentWorkspace> ConformWorkspaces = await PoolService.GetWorkspacesAsync(Agent, DateTime.UtcNow);
 			foreach (AgentWorkspace ConformWorkspace in ConformWorkspaces)
 			{
-				if (!await Agent.TryAddWorkspaceMessage(ConformWorkspace, Globals, PerforceLoadBalancer, Workspaces))
+				PerforceCluster? Cluster = Globals.FindPerforceCluster(ConformWorkspace.Cluster);
+				if (Cluster == null || !await Agent.TryAddWorkspaceMessage(ConformWorkspace, Cluster, PerforceLoadBalancer, Workspaces))
 				{
 					return false;
 				}

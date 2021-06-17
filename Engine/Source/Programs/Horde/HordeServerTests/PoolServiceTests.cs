@@ -25,7 +25,7 @@ namespace HordeServerTests
         public PoolServiceTests()
         {
             var PoolCollection = new PoolCollection(GetDatabaseService());
-            PoolService = new PoolService(PoolCollection, new FakeClock());
+            PoolService = new PoolService(GetDatabaseService(), PoolCollection, new FakeClock());
         }
 
         private async Task<IPool> CreatePoolFixture(String Name)
