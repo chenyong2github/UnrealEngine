@@ -141,7 +141,10 @@ protected:
 	FProtocolRangeViewModel() = default;
 	FProtocolRangeViewModel(const TSharedRef<FProtocolBindingViewModel>& InParentViewModel, const FGuid& InRangeId);
 
-	void Initialize();;
+	void Initialize();
+
+	/** Updates the input range value clamping (in case the type/precision has changed). */
+	void UpdateInputValueRange() const;
 
 	FRemoteControlProtocolMapping* GetRangesData() const { return ParentViewModel.Pin()->GetRangesMapping(RangeId); }
 	FRemoteControlProtocolBinding* GetBinding() const { return ParentViewModel.Pin()->GetBinding(); }
@@ -150,6 +153,9 @@ protected:
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
 	// End of FEditorUndoClient
+
+	/** Parent ViewModel changed. */
+	void OnParentChanged();
 
 private:
 	/** Checks if the input value is the same as that of the other provided ViewModel. */

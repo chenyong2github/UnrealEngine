@@ -35,6 +35,13 @@ void SRCProtocolEntity::Construct(const FArguments& InArgs, const TSharedRef<FPr
 	];
 }
 
+FVector2D SRCProtocolEntity::ComputeDesiredSize(float LayoutScaleMultiplier) const
+{
+	auto Result = SCompoundWidget::ComputeDesiredSize(LayoutScaleMultiplier);
+
+	return Result;
+}
+
 TSharedRef<SWidget> SRCProtocolEntity::CreateStructureDetailView()
 {
 	const TSharedPtr<FStructOnScope> StructOnScope = ViewModel->GetBinding()->GetStructOnScope();
@@ -62,6 +69,12 @@ TSharedRef<SWidget> SRCProtocolEntity::CreateStructureDetailView()
 	TSharedPtr<IStructureDetailsView> StructureDetailsView = PropertyEditorModule.CreateStructureDetailView(ViewArgs, StructViewArgs, StructOnScope, LOCTEXT("Struct", "Struct View"));
 	StructureDetailsView->GetOnFinishedChangingPropertiesDelegate().AddLambda([this](const FPropertyChangedEvent& PropertyChangedEvent)
 	{
+		// Ignore temporary interaction (dropdown opened, etc.)
+		if(PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
+		{
+			ViewModel->NotifyChanged();	
+		}
+		
 		FRemoteControlProtocolBinding* Binding = ViewModel->GetBinding();
 		
 		TSharedPtr<IRemoteControlProtocol> Protocol = IRemoteControlProtocolModule::Get().GetProtocolByName(Binding->GetProtocolName());

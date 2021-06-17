@@ -106,6 +106,9 @@ public:
 	/** Something has changed within the ViewModel. */
 	FOnChanged& OnChanged() { return OnChangedDelegate; }
 
+	/** Allows the view to notify the ViewModel of a change (ie. from SDetailsView) */
+	void NotifyChanged() const;
+
 protected:
 	template <typename FProtocolBindingViewModel>
 	friend class SharedPointerInternals::TIntrusiveReferenceController;

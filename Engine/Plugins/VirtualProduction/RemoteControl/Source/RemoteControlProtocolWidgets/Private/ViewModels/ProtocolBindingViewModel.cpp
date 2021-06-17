@@ -638,4 +638,10 @@ bool FProtocolBindingViewModel::IsValid() const
 			&& BindingId.IsValid();
 }
 
+void FProtocolBindingViewModel::NotifyChanged() const
+{
+	check(IsValid());
+	OnChangedDelegate.Broadcast();
+}
+
 #undef LOCTEXT_NAMESPACE

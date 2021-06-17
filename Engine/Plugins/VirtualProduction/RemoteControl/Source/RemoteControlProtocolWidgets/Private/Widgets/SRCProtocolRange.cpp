@@ -22,6 +22,15 @@ void SRCProtocolRange::Construct(const FArguments& InArgs, const TSharedRef<STab
 	PrimaryColumnSizeData = InArgs._PrimaryColumnSizeData;
 	SecondaryColumnSizeData = InArgs._SecondaryColumnSizeData;
 
+	ViewModel->OnChanged().AddLambda([this]()
+	{
+		// May not have been created yet
+		if(InputPropertyView.IsValid())
+		{
+			InputPropertyView->Refresh();	
+		}
+	});
+
 	const TSharedPtr<SWidget> LeftWidget =
 	SNew(SHorizontalBox)
 	+ SHorizontalBox::Slot()
