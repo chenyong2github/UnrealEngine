@@ -113,7 +113,7 @@ namespace AutomationTool
 			}
 
 			// clear the logfolder if we're the only running instance
-			if (InternalUtils.IsSoleInstance)
+			if (ProcessSingleton.IsSoleInstance)
 			{
 				ClearLogFolder(LogFolder);
 			}

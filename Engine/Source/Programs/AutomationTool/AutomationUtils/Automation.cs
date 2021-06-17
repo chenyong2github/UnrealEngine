@@ -411,113 +411,202 @@ AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 .
 		}
 
 		/// <summary>
+		/// Keep a persistent reference to the delegate for handling Ctrl-C events. Since it's passed to non-managed code, we have to prevent it from being garbage collected.
+		/// </summary>
+		static ProcessManager.CtrlHandlerDelegate CtrlHandlerDelegateInstance = CtrlHandler;
+
+        static bool CtrlHandler(CtrlTypes EventType)
+		{
+			Domain_ProcessExit(null, null);
+			if (EventType == CtrlTypes.CTRL_C_EVENT)
+			{
+				// Force exit
+				Environment.Exit(3);
+			}			
+			return true;
+		}
+
+		static void Domain_ProcessExit(object sender, EventArgs e)
+		{
+			// Kill all spawned processes (Console instead of Log because logging is closed at this time anyway)
+			if (ShouldKillProcesses && RuntimePlatform.IsWindows)
+			{			
+				ProcessManager.KillAll();
+			}
+			Trace.Close();
+		}
+
+		/// <summary>
 		/// Main method.
 		/// </summary>
 		/// <param name="Arguments">Command line</param>
 		public static ExitCode Process(string[] Arguments, StartupTraceListener StartupListener)
 		{
-			// Initial check for local or build machine runs BEFORE we parse the command line (We need this value set
-			// in case something throws the exception while parsing the command line)
-			IsBuildMachine = Arguments.Any(x => x.Equals("-BuildMachine", StringComparison.InvariantCultureIgnoreCase));
-			if (!IsBuildMachine)
-			{
-				int Value;
-				if (int.TryParse(Environment.GetEnvironmentVariable("IsBuildMachine"), out Value) && Value != 0)
-				{
-					IsBuildMachine = true;
-				}
-			}
-			Log.TraceVerbose("IsBuildMachine={0}", IsBuildMachine);
-			Environment.SetEnvironmentVariable("IsBuildMachine", IsBuildMachine ? "1" : "0");
-
-			// Scan the command line for commands to execute.
-			var CommandsToExecute = new List<CommandInfo>();
-			string OutScriptsForProjectFileName;
-			var AdditionalScriptsFolders = new List<string>();
-			ParseCommandLine(Arguments, CommandsToExecute, out OutScriptsForProjectFileName, AdditionalScriptsFolders);
-
-			// Get the path to the telemetry file, if present
-			string TelemetryFile = CommandUtils.ParseParamValue(Arguments, "-Telemetry");
-
-			// should we kill processes on exit
-			ShouldKillProcesses = !GlobalCommandLine.NoKill;
-			Log.TraceVerbose("ShouldKillProcesses={0}", ShouldKillProcesses);
-
-			if (CommandsToExecute.Count == 0 && GlobalCommandLine.Help)
-			{
-				DisplayHelp();
-				return ExitCode.Success;
-			}
-
-			// Disable AutoSDKs if specified on the command line
-			if (GlobalCommandLine.NoAutoSDK)
-			{
-				PlatformExports.PreventAutoSDKSwitching();
-			}
-
-			// Setup environment
-			Log.TraceLog("Setting up command environment.");
-			CommandUtils.InitCommandEnvironment();
-
-			// Create the log file, and flush the startup listener to it
-			TraceListener LogTraceListener = LogUtils.AddLogFileListener(CommandUtils.CmdEnv.LogFolder, CommandUtils.CmdEnv.FinalLogFolder);
-			StartupListener.CopyTo(LogTraceListener);
-			Trace.Listeners.Remove(StartupListener);
-
-			// Initialize UBT
-			if(!UnrealBuildTool.PlatformExports.Initialize())
-			{
-				Log.TraceInformation("Failed to initialize UBT");
-				return ExitCode.Error_Unknown;
-			}
-
-			// Clean rules folders up
-			ProjectUtils.CleanupFolders();
-
-			// Compile scripts.
-			using(TelemetryStopwatch ScriptCompileStopwatch = new TelemetryStopwatch("ScriptCompile"))
-			{
-				ScriptCompiler.FindAndCompileAllScripts(OutScriptsForProjectFileName, AdditionalScriptsFolders);
-			}
-
-			if (GlobalCommandLine.List)
-			{
-				ListAvailableCommands(ScriptCompiler.Commands);
-				return ExitCode.Success;
-			}
-
-			if (GlobalCommandLine.Help)
-			{
-				DisplayHelp(CommandsToExecute, ScriptCompiler.Commands);
-				return ExitCode.Success;
-			}
-
-			// Enable or disable P4 support
-			CommandUtils.InitP4Support(CommandsToExecute, ScriptCompiler.Commands);
-			if (CommandUtils.P4Enabled)
-			{
-				Log.TraceLog("Setting up Perforce environment.");
-				CommandUtils.InitP4Environment();
-				CommandUtils.InitDefaultP4Connection();
-			}
+			// Hook up exit callbacks
+			AppDomain Domain = AppDomain.CurrentDomain;
+			Domain.ProcessExit += Domain_ProcessExit;
+			Domain.DomainUnload += Domain_ProcessExit;
+			HostPlatform.Current.SetConsoleCtrlHandler(CtrlHandlerDelegateInstance);
 
 			try
 			{
-				// Find and execute commands.
-				ExitCode Result = Execute(CommandsToExecute, ScriptCompiler.Commands);
-				if (TelemetryFile != null)
+				// Initial check for local or build machine runs BEFORE we parse the command line (We need this value set
+				// in case something throws the exception while parsing the command line)
+				IsBuildMachine = Arguments.Any(x => x.Equals("-BuildMachine", StringComparison.InvariantCultureIgnoreCase));
+				if (!IsBuildMachine)
 				{
-					Directory.CreateDirectory(Path.GetDirectoryName(TelemetryFile));
-					CommandUtils.Telemetry.Write(TelemetryFile);
+					int Value;
+					if (int.TryParse(Environment.GetEnvironmentVariable("IsBuildMachine"), out Value) && Value != 0)
+					{
+						IsBuildMachine = true;
+					}
 				}
-				return Result;
+				Log.TraceVerbose("IsBuildMachine={0}", IsBuildMachine);
+				Environment.SetEnvironmentVariable("IsBuildMachine", IsBuildMachine ? "1" : "0");
+
+				// Scan the command line for commands to execute.
+				var CommandsToExecute = new List<CommandInfo>();
+				string OutScriptsForProjectFileName;
+				var AdditionalScriptsFolders = new List<string>();
+				ParseCommandLine(Arguments, CommandsToExecute, out OutScriptsForProjectFileName, AdditionalScriptsFolders);
+
+				// Get the path to the telemetry file, if present
+				string TelemetryFile = CommandUtils.ParseParamValue(Arguments, "-Telemetry");
+
+				// should we kill processes on exit
+				ShouldKillProcesses = !GlobalCommandLine.NoKill;
+				Log.TraceVerbose("ShouldKillProcesses={0}", ShouldKillProcesses);
+
+				if (CommandsToExecute.Count == 0 && GlobalCommandLine.Help)
+				{
+					DisplayHelp();
+					return ExitCode.Success;
+				}
+
+				// Disable AutoSDKs if specified on the command line
+				if (GlobalCommandLine.NoAutoSDK)
+				{
+					PlatformExports.PreventAutoSDKSwitching();
+				}
+
+				// Setup environment
+				Log.TraceLog("Setting up command environment.");
+				CommandUtils.InitCommandEnvironment();
+
+				// Create the log file, and flush the startup listener to it
+				TraceListener LogTraceListener = LogUtils.AddLogFileListener(CommandUtils.CmdEnv.LogFolder, CommandUtils.CmdEnv.FinalLogFolder);
+				StartupListener.CopyTo(LogTraceListener);
+				Trace.Listeners.Remove(StartupListener);
+
+				// Initialize UBT
+				if(!UnrealBuildTool.PlatformExports.Initialize())
+				{
+					Log.TraceInformation("Failed to initialize UBT");
+					return ExitCode.Error_Unknown;
+				}
+
+				// Clean rules folders up
+				ProjectUtils.CleanupFolders();
+
+				// Compile scripts.
+				using(TelemetryStopwatch ScriptCompileStopwatch = new TelemetryStopwatch("ScriptCompile"))
+				{
+					ScriptCompiler.FindAndCompileAllScripts(OutScriptsForProjectFileName, AdditionalScriptsFolders);
+				}
+
+				if (GlobalCommandLine.List)
+				{
+					ListAvailableCommands(ScriptCompiler.Commands);
+					return ExitCode.Success;
+				}
+
+				if (GlobalCommandLine.Help)
+				{
+					DisplayHelp(CommandsToExecute, ScriptCompiler.Commands);
+					return ExitCode.Success;
+				}
+
+				// Enable or disable P4 support
+				CommandUtils.InitP4Support(CommandsToExecute, ScriptCompiler.Commands);
+				if (CommandUtils.P4Enabled)
+				{
+					Log.TraceLog("Setting up Perforce environment.");
+					CommandUtils.InitP4Environment();
+					CommandUtils.InitDefaultP4Connection();
+				}
+
+				try
+				{
+					// Find and execute commands.
+					ExitCode Result = Execute(CommandsToExecute, ScriptCompiler.Commands);
+					if (TelemetryFile != null)
+					{
+						Directory.CreateDirectory(Path.GetDirectoryName(TelemetryFile));
+						CommandUtils.Telemetry.Write(TelemetryFile);
+					}
+					return Result;
+				}
+				finally
+				{
+					// Flush any timing data
+					TraceSpan.Flush();
+				}
 			}
-			finally
+			catch (AutomationException Ex)
 			{
-				// Flush any timing data
-				TraceSpan.Flush();
+				// Output the message in the desired format
+				if(Ex.OutputFormat == AutomationExceptionOutputFormat.Silent)
+				{
+					Log.TraceLog("{0}", ExceptionUtils.FormatExceptionDetails(Ex));
+				}
+				else if(Ex.OutputFormat == AutomationExceptionOutputFormat.Minimal)
+				{
+					Log.TraceInformation("{0}", Ex.ToString().Replace("\n", "\n  "));
+					Log.TraceLog("{0}", ExceptionUtils.FormatExceptionDetails(Ex));
+				}
+				else
+				{
+					Log.WriteException(Ex, LogUtils.FinalLogFileName);
+				}
+
+				// Take the exit code from the exception
+				return Ex.ErrorCode;
 			}
+			catch (Exception Ex)
+			{
+				// Use a default exit code
+				Log.WriteException(Ex, LogUtils.FinalLogFileName);
+				return ExitCode.Error_Unknown;
+			}
+            finally
+            {
+                // In all cases, do necessary shut down stuff, but don't let any additional exceptions leak out while trying to shut down.
+
+                // Make sure there's no directories on the stack.
+                NoThrow(() => CommandUtils.ClearDirStack(), "Clear Dir Stack");
+
+                // Try to kill process before app domain exits to leave the other KillAll call to extreme edge cases
+                NoThrow(() => { if (ShouldKillProcesses && RuntimePlatform.IsWindows) ProcessManager.KillAll(); }, "Kill All Processes");
+            }
 		}
+
+		/// <summary>
+		/// Wraps an action in an exception block.
+		/// Ensures individual actions can be performed and exceptions won't prevent further actions from being executed.
+		/// Useful for shutdown code where shutdown may be in several stages and it's important that all stages get a chance to run.
+		/// </summary>
+		/// <param name="Action"></param>
+		private static void NoThrow(System.Action Action, string ActionDesc)
+        {
+            try
+            {
+                Action();
+            }
+            catch (Exception Ex)
+            {
+                Log.TraceError("Exception performing nothrow action \"{0}\": {1}", ActionDesc, ExceptionUtils.FormatException(Ex));
+            }
+        }
 
 		/// <summary>
 		/// Execute commands specified in the command line.
@@ -636,18 +725,14 @@ AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 .
 		{
 			get
 			{
-				if (!bShouldKillProcesses.HasValue)
-				{
-					throw new AutomationException("Trying to access ShouldKillProcesses property before it was initialized.");
-				}
-				return (bool)bShouldKillProcesses;
+				return bShouldKillProcesses;
 			}
 			private set
 			{
 				bShouldKillProcesses = value;
 			}
 		}
-		private static bool? bShouldKillProcesses;
+		private static bool bShouldKillProcesses = true;
 	}
 
 }
