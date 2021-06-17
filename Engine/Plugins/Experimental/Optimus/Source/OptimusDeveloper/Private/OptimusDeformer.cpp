@@ -598,8 +598,8 @@ bool UOptimusDeformer::Compile()
 	struct FKernelWithDataBindings
 	{
 		UComputeKernel *Kernel;
-		TMap<int32 /* Kernel Index */, TPair<UOptimusComputeDataInterface *, int32 /* DI Index */>> InputDataBindings;
-		TMap<int32, TPair<UOptimusComputeDataInterface *, int32>> OutputDataBindings;
+		FOptimus_InterfaceBindingMap InputDataBindings;
+		FOptimus_InterfaceBindingMap OutputDataBindings;
 	};
 	
 	TArray<FKernelWithDataBindings> BoundKernels;
@@ -647,11 +647,13 @@ bool UOptimusDeformer::Compile()
 		const TArray<FShaderFunctionDefinition>& KernelInputs = BoundKernel.Kernel->KernelSource->ExternalInputs;
 
 		// FIXME: Hoist these two loops into a helper function/lambda.
-		for (const TPair<int32, TPair<UOptimusComputeDataInterface *, int32>>& DataBinding: BoundKernel.InputDataBindings)
+		for (const TPair<int32, FOptimus_InterfaceBinding>& DataBinding: BoundKernel.InputDataBindings)
 		{
 			const int32 KernelBindingIndex = DataBinding.Key;
-			const UOptimusComputeDataInterface* DataInterface = DataBinding.Value.Key;
-			const int32 DataInterfaceBindingIndex = DataBinding.Value.Value;
+			const FOptimus_InterfaceBinding& InterfaceBinding = DataBinding.Value;
+			const UOptimusComputeDataInterface* DataInterface = InterfaceBinding.DataInterface;
+			const int32 DataInterfaceBindingIndex = InterfaceBinding.DataInterfaceBindingIndex;
+			const FString BindingFunctionName = InterfaceBinding.BindingFunctionName;
 
 			// FIXME: Collect this beforehand.
 			TArray<FShaderFunctionDefinition> DataInterfaceFunctions;
@@ -667,16 +669,19 @@ bool UOptimusDeformer::Compile()
 				GraphEdge.KernelBindingIndex = KernelBindingIndex;
 				GraphEdge.DataInterfaceIndex = DataInterfaces.IndexOfByKey(DataInterface);
 				GraphEdge.DataInterfaceBindingIndex = DataInterfaceBindingIndex;
+				GraphEdge.BindingFunctionNameOverride = BindingFunctionName;
 				GraphEdges.Add(GraphEdge);
 			}
 		}
 
 		const TArray<FShaderFunctionDefinition>& KernelOutputs = BoundKernels[KernelIndex].Kernel->KernelSource->ExternalOutputs;
-		for (const TPair<int32, TPair<UOptimusComputeDataInterface *, int32>>& DataBinding: BoundKernel.OutputDataBindings)
+		for (const TPair<int32, FOptimus_InterfaceBinding>& DataBinding: BoundKernel.OutputDataBindings)
 		{
 			const int32 KernelBindingIndex = DataBinding.Key;
-			const UOptimusComputeDataInterface* DataInterface = DataBinding.Value.Key;
-			const int32 DataInterfaceBindingIndex = DataBinding.Value.Value;
+			const FOptimus_InterfaceBinding& InterfaceBinding = DataBinding.Value;
+			const UOptimusComputeDataInterface* DataInterface = InterfaceBinding.DataInterface;
+			const int32 DataInterfaceBindingIndex = InterfaceBinding.DataInterfaceBindingIndex;
+			const FString BindingFunctionName = InterfaceBinding.BindingFunctionName;
 
 			// FIXME: Collect this beforehand.
 			TArray<FShaderFunctionDefinition> DataInterfaceFunctions;
@@ -692,6 +697,7 @@ bool UOptimusDeformer::Compile()
 				GraphEdge.KernelBindingIndex = KernelBindingIndex;
 				GraphEdge.DataInterfaceIndex = DataInterfaces.IndexOfByKey(DataInterface);
 				GraphEdge.DataInterfaceBindingIndex = DataInterfaceBindingIndex;
+				GraphEdge.BindingFunctionNameOverride = BindingFunctionName;
 				GraphEdges.Add(GraphEdge);
 			}
 		}

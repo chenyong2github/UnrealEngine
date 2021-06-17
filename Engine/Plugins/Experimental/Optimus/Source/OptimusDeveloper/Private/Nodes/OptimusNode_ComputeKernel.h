@@ -62,6 +62,13 @@ private:
 	
 };
 
+struct FOptimus_InterfaceBinding
+{
+	UOptimusComputeDataInterface* DataInterface;
+	int32 DataInterfaceBindingIndex;
+	FString BindingFunctionName;
+};
+using FOptimus_InterfaceBindingMap = TMap<int32 /* Kernel Index */, FOptimus_InterfaceBinding>;
 
 USTRUCT()
 struct FOptimus_ShaderBinding
@@ -105,8 +112,8 @@ public:
 	UOptimusKernelSource* CreateComputeKernel(
 		UObject* InKernelSourceOuter,
 		const TMap<const UOptimusNode *, UOptimusComputeDataInterface *>& InNodeDataInterfaceMap,
-		TMap<int32, TPair<UOptimusComputeDataInterface *, int32>>& OutInputDataBindings,
-		TMap<int32, TPair<UOptimusComputeDataInterface *, int32>>& OutOutputDataBindings
+		FOptimus_InterfaceBindingMap& OutInputDataBindings,
+		FOptimus_InterfaceBindingMap& OutOutputDataBindings
 		) const;
 
 	UPROPERTY(EditAnywhere, Category=KernelConfiguration)

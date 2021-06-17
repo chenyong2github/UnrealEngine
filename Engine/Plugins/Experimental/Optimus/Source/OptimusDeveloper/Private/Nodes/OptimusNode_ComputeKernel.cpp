@@ -113,15 +113,13 @@ static FString GetShaderParamPinValueString(
 UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 	UObject *InKernelSourceOuter,
 	const TMap<const UOptimusNode *, UOptimusComputeDataInterface *>& InNodeDataInterfaceMap,
-	TMap<int32, TPair<UOptimusComputeDataInterface *, int32>>& OutInputDataBindings,
-	TMap<int32, TPair<UOptimusComputeDataInterface *, int32>>& OutOutputDataBindings
+	FOptimus_InterfaceBindingMap& OutInputDataBindings,
+	FOptimus_InterfaceBindingMap& OutOutputDataBindings
 	) const
 {
 	// FIXME: Add parameter map for unconnected parameters.
 	
 	UOptimusKernelSource* KernelSource = NewObject<UOptimusKernelSource>(InKernelSourceOuter, FName(*(KernelName + TEXT("_Src"))));
-
-	TArray<FString> BindingFunctions;
 
 	FShaderParamTypeDefinition IndexParamDef;
 	CopyValueType(FShaderValueType::Get(EShaderFundamentalType::Uint), IndexParamDef);
@@ -150,6 +148,9 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 		return InPin->GetNode()->GetPins().IndexOfByKey(InPin);
 	};
 	
+	// Wrap functions for unconnected resource pins (or value pins) that return default values
+	// (for reads) or do nothing (for writes).
+	TArray<FString> StubWrapFunctions;
 
 	for (const UOptimusNodePin* Pin: GetPins())
 	{
@@ -181,37 +182,23 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 				FuncDef.ParamTypes.Emplace(ParamDef);
 
 				// FIXME: Value connections from value nodes.
-				FString DataFunctionStr = PinDefs[DataInterfaceDefPinIndex].DataFunctionName;
-				if (Pin->GetStorageType() == EOptimusNodePinStorageType::Value)
+				if (Pin->GetStorageType() == EOptimusNodePinStorageType::Resource)
 				{
-					BindingFunctions.Add(
-						FString::Printf(TEXT("%s Read%s() { return %s(); }"),
-							*ValueType->ToString(), *Pin->GetName(), *PinDefs[DataInterfaceDefPinIndex].DataFunctionName));
-				}
-				else
-				{
-					BindingFunctions.Add(
-						FString::Printf(TEXT("%s Read%s(uint Index) { return %s(Index); }"),
-							*ValueType->ToString(), *Pin->GetName(), *PinDefs[DataInterfaceDefPinIndex].DataFunctionName));
 					FuncDef.ParamTypes.Add(IndexParamDef);
 				}
 
+				FString DataFunctionStr = PinDefs[DataInterfaceDefPinIndex].DataFunctionName;
 				TArray<FShaderFunctionDefinition> ReadFunctions;
 				DataInterface->GetSupportedInputs(ReadFunctions);
 				int32 DataInterfaceFuncIndex = ReadFunctions.IndexOfByPredicate([DataFunctionStr](const FShaderFunctionDefinition &InDef) { return DataFunctionStr == InDef.Name; });
 
-				OutInputDataBindings.Add(KernelSource->ExternalInputs.Num(), MakeTuple(DataInterface, DataInterfaceFuncIndex));
+				FString WrapFunctionName = FString::Printf(TEXT("Read%s"), *Pin->GetName());
+				OutInputDataBindings.Add(KernelSource->ExternalInputs.Num(), {DataInterface, DataInterfaceFuncIndex, WrapFunctionName});
 				
 				KernelSource->ExternalInputs.Emplace(FuncDef);
 			}
 			else if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
 			{
-				FString DataFunctionStr = PinDefs[DataInterfaceDefPinIndex].DataFunctionName;
-				
-				BindingFunctions.Add(
-					FString::Printf(TEXT("void Write%s(uint Index, %s Value) { %s(Index, Value); }"),
-						*Pin->GetName(), *ValueType->ToString(), *DataFunctionStr));
-				
 				FShaderFunctionDefinition FuncDef;
 
 				FuncDef.Name = PinDefs[DataInterfaceDefPinIndex].DataFunctionName;
@@ -222,11 +209,13 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 				FuncDef.ParamTypes.Add(IndexParamDef);
 				FuncDef.ParamTypes.Emplace(ParamDef);
 
+				FString DataFunctionStr = PinDefs[DataInterfaceDefPinIndex].DataFunctionName;
 				TArray<FShaderFunctionDefinition> WriteFunctions;
 				DataInterface->GetSupportedOutputs(WriteFunctions);
 				int32 DataInterfaceFuncIndex = WriteFunctions.IndexOfByPredicate([DataFunctionStr](const FShaderFunctionDefinition &InDef) { return DataFunctionStr == InDef.Name; });
 				
-				OutOutputDataBindings.Add(KernelSource->ExternalOutputs.Num(), MakeTuple(DataInterface, DataInterfaceFuncIndex));
+				FString WrapFunctionName = FString::Printf(TEXT("Write%s"), *Pin->GetName());
+				OutOutputDataBindings.Add(KernelSource->ExternalOutputs.Num(), {DataInterface, DataInterfaceFuncIndex, WrapFunctionName});
 				
 				KernelSource->ExternalOutputs.Emplace(FuncDef);
 			}
@@ -247,9 +236,15 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 					OptionalParamStr = "uint Index";
 				}
 
-				BindingFunctions.Add(
+				StubWrapFunctions.Add(
 					FString::Printf(TEXT("%s Read%s(%s) { return %s; }"),
 						*ValueType->ToString(), *Pin->GetName(), *OptionalParamStr, *ValueStr));
+			}
+			else if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
+			{
+				StubWrapFunctions.Add(
+					FString::Printf(TEXT("void Write%s(uint, %s) { }"),
+						*Pin->GetName(), *ValueType->ToString()));
 			}
 		}
 	}
@@ -261,7 +256,7 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 	CookedSource =
 		"#include \"/Engine/Private/Common.ush\"\n"
 		"#include \"/Engine/Private/ComputeKernelCommon.ush\"\n\n";
-	CookedSource += FString::Join(BindingFunctions, TEXT("\n"));
+	CookedSource += FString::Join(StubWrapFunctions, TEXT("\n"));
 	CookedSource += "\n\n";
 	CookedSource += WrappedSource;
 	
