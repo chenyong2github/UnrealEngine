@@ -192,6 +192,13 @@ void UQuartzClockHandle::StartOtherClock(const UObject* WorldContextObject, FNam
 void UQuartzClockHandle::SubscribeToQuantizationEvent(const UObject* WorldContextObject, EQuartzCommandQuantization InQuantizationBoundary, const FOnQuartzMetronomeEventBP& OnQuantizationEvent, UQuartzClockHandle*& ClockHandle)
 {
 	ClockHandle = this;
+
+	if (InQuantizationBoundary == EQuartzCommandQuantization::None)
+	{
+		UE_LOG(LogAudioQuartz, Warning, TEXT("Clock: (%s) is attempting to subscribe to 'NONE' as a Quantization Boundary.  Ignoring request"), *CurrentClockId.ToString());
+		return;
+	}
+
 	if (QuartzSubsystem)
 	{
 		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetManagerForClock(WorldContextObject, GetClockName());
