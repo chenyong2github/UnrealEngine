@@ -5,7 +5,13 @@ VisualStudioVersion = 16.0.28803.352
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnrealVS.2019", "UnrealVS.2019\UnrealVS.2019.csproj", "{C0EE3E24-0255-4D0E-9369-82247AD5E2DD}"
 EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "UnrealVS.Shared", "UnrealVS.Shared\UnrealVS.Shared.shproj", "{EBA9D441-80F1-4A49-87F0-4E2EC713A4F2}"
+EndProject
 Global
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		UnrealVS.Shared\UnrealVS.Shared.projitems*{c0ee3e24-0255-4d0e-9369-82247ad5e2dd}*SharedItemsImports = 4
+		UnrealVS.Shared\UnrealVS.Shared.projitems*{eba9d441-80f1-4a49-87f0-4e2ec713a4f2}*SharedItemsImports = 13
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
