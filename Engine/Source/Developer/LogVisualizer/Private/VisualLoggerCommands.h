@@ -33,6 +33,7 @@ public:
 		UI_COMMAND(SaveAllToVLog, "SaveAll", "Save all to vlog file", EUserInterfaceActionType::Button, FInputChord());
 		UI_COMMAND(ToggleGraphs, "ToggleGraphs", "Toggle graphs visualization on/off", EUserInterfaceActionType::ToggleButton, FInputChord());
 		UI_COMMAND(ResetData, "Clear", "Clear all data", EUserInterfaceActionType::Button, FInputChord());
+		UI_COMMAND(Refresh, "Refresh", "Refresh UI from memory buffer", EUserInterfaceActionType::Button, FInputChord());
 		UI_COMMAND(HideEmpty, "HideEmpty", "Hide logs without text information", EUserInterfaceActionType::ToggleButton, FInputChord());
 	}
 
@@ -48,6 +49,7 @@ public:
 	TSharedPtr<FUICommandInfo> SaveAllToVLog;
 	TSharedPtr<FUICommandInfo> ToggleGraphs;
 	TSharedPtr<FUICommandInfo> ResetData;
+	TSharedPtr<FUICommandInfo> Refresh;
 	TSharedPtr<FUICommandInfo> HideEmpty;
 };
 

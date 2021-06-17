@@ -92,6 +92,9 @@ public:
 
 	void HandleSaveCommand(bool bSaveAllData);
 
+	bool HandleRefreshCommandCanExecute() const;
+	void HandleRefreshCommandExecute();
+
 	bool HandleCameraCommandCanExecute() const;
 	void HandleCameraCommandExecute();
 	bool HandleCameraCommandIsChecked() const;

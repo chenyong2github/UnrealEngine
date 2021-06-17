@@ -208,6 +208,11 @@ void SVisualLogger::Construct(const FArguments& InArgs, const TSharedRef<SDockTa
 		FCanExecuteAction::CreateRaw(this, &SVisualLogger::HandleSaveCommandCanExecute),
 		FIsActionChecked(), 
 		FIsActionButtonVisible::CreateRaw(this, &SVisualLogger::HandleSaveCommandCanExecute));
+	ActionList.MapAction(Commands.Refresh,
+		FExecuteAction::CreateRaw(this, &SVisualLogger::HandleRefreshCommandExecute),
+		FCanExecuteAction::CreateRaw(this, &SVisualLogger::HandleRefreshCommandCanExecute),
+		FIsActionChecked(),
+		FIsActionButtonVisible::CreateRaw(this, &SVisualLogger::HandleRefreshCommandCanExecute));
 
 
 	// Tab Spawners
@@ -547,6 +552,17 @@ void SVisualLogger::HandleCameraCommandExecute()
 		// switch debug cam on
 		CameraController = AVisualLoggerCameraController::EnableCamera(World);
 	}
+}
+
+bool SVisualLogger::HandleRefreshCommandCanExecute() const
+{
+	UWorld* World = FLogVisualizer::Get().GetWorld();
+	return FVisualLogger::Get().IsRecording() && World && World->IsEditorWorld();
+}
+
+void SVisualLogger::HandleRefreshCommandExecute()
+{
+	FVisualLogger::Get().Flush();
 }
 
 bool SVisualLogger::HandleLoadCommandCanExecute() const
@@ -895,11 +911,11 @@ void SVisualLogger::OnFiltersSearchChanged(const FText& Filter)
 		}
 	} while (bAllFuturesReady != true);
 
-	for (auto Iterator = FVisualLoggerDatabase::Get().GetRowIterator(); Iterator; ++Iterator)
-	{
-		FVisualLoggerDBRow& DBRow = *Iterator;
-		FVisualLoggerDatabase::Get().SetRowVisibility(DBRow.GetOwnerName(), DBRow.GetNumberOfHiddenItems() != DBRow.GetItems().Num());
-	}
+	// for (auto Iterator = FVisualLoggerDatabase::Get().GetRowIterator(); Iterator; ++Iterator)
+	// {
+	// 	FVisualLoggerDBRow& DBRow = *Iterator;
+	// 	FVisualLoggerDatabase::Get().SetRowVisibility(DBRow.GetOwnerName(), DBRow.GetNumberOfHiddenItems() != DBRow.GetItems().Num());
+	// }
 
 	if (LogsList.IsValid())
 	{
