@@ -1,22 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using UnrealBuildTool;
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using UnrealBuildTool;
 
 [SupportedPlatforms("Win32", "Win64", "Mac", "Linux", "LinuxAArch64")]
 [SupportedConfigurations(UnrealTargetConfiguration.Debug, UnrealTargetConfiguration.Development, UnrealTargetConfiguration.Shipping)]
 public class CrashReportClientTarget : TargetRules
 {
-	[ConfigFile(ConfigHierarchyType.Engine, "CrashReportClientBuildSettings", "DataRouterUrlDefault")]
-	public string DataRouterUrlDefault;
-	
+	[ConfigFile(ConfigHierarchyType.Engine, "CrashReportClientBuildSettings", "TelemetryUrl")]
+	public string TelemetryUrl;
+
 	[ConfigFile(ConfigHierarchyType.Engine, "CrashReportClientBuildSettings", "TelemetryKey_Dev")]
 	public string TelemetryKey_Dev;
 
 	[ConfigFile(ConfigHierarchyType.Engine, "CrashReportClientBuildSettings", "TelemetryKey_Release")]
 	public string TelemetryKey_Release;
-	
+
 	public CrashReportClientTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Program;
@@ -50,15 +51,15 @@ public class CrashReportClientTarget : TargetRules
 
 		// Need to disable the bundled version of dbghelp so that CrashDebugHelper can load dbgeng.dll.
 		WindowsPlatform.bUseBundledDbgHelp = false;
-		
-		//  May fall back to using Epic data router if setting is not overriden elsewhere. Also requires
-		// "-DefaultDataRouterUrl" commandline which is only set when editor launches the crash reporter.
-		AddConfigMacro("CRC_DATAROUTER_DEFAULT=", DataRouterUrlDefault);
 
-		// Add the definitions for telemetry from config files
-		AddConfigMacro("CRC_TELEMETRY_KEY_DEV=", TelemetryKey_Dev);
-		AddConfigMacro("CRC_TELEMETRY_KEY_RELEASE=", TelemetryKey_Release);
-		
+		// Add the definitions from config files
+		if(!string.IsNullOrWhiteSpace(TelemetryUrl))
+		{
+			AddConfigMacro("CRC_TELEMETRY_URL=", string.Format("\"{0}\"", TelemetryUrl));
+		}
+		AddConfigMacro("CRC_TELEMETRY_KEY_DEV=", string.Format("\"{0}\"", TelemetryKey_Dev));
+		AddConfigMacro("CRC_TELEMETRY_KEY_RELEASE=", string.Format("\"{0}\"", TelemetryKey_Release));
+
 		GlobalDefinitions.Add("NOINITCRASHREPORTER=1");
 	}
 
@@ -66,7 +67,7 @@ public class CrashReportClientTarget : TargetRules
 	{
 		if (!string.IsNullOrEmpty(Value) && !GlobalDefinitions.Any(x => x.StartsWith(Prefix, StringComparison.Ordinal)))
 		{
-			GlobalDefinitions.Add(Prefix + string.Format("\"{0}\"", Value));
+			GlobalDefinitions.Add(Prefix + Value);
 		}
 	}
 }

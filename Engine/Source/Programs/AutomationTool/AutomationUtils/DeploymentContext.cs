@@ -272,11 +272,6 @@ public class DeploymentContext //: ProjectParams
 	public List<string> IniSectionBlacklist = null;
 
 	/// <summary>
-	/// Dictionary of Section/Key and override value.
-	/// </summary>
-	public Dictionary<Tuple<string, string>, string> IniKeyOverride = new Dictionary<Tuple<string, string>, string>();
-
-	/// <summary>
 	/// List of ini suffixes to always stage
 	/// </summary>
 	public List<string> IniSuffixWhitelist = null;
@@ -355,7 +350,6 @@ public class DeploymentContext //: ProjectParams
 		bool InServer,
 		bool InCooked,
 		bool InStageCrashReporter,
-		string InCrashReporterUrl,
 		bool InStage,
 		bool InCookOnTheFly,
 		bool InArchive,
@@ -569,11 +563,6 @@ public class DeploymentContext //: ProjectParams
 			{
 				PlatformUsesChunkManifests = bSetting;
 			}
-		}
-
-		if (bStageCrashReporter)
-		{
-			IniKeyOverride.Add(new Tuple<string, string>("CrashReporter", "DataRouterUrl"), InCrashReporterUrl);
 		}
 	}
 

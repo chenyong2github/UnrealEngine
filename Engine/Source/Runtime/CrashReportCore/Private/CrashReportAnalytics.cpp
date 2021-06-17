@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CrashReportAnalytics.h"
-#include "Misc/CommandLine.h"
 #include "Misc/Guid.h"
 #include "Misc/EngineBuildSettings.h"
 
@@ -45,7 +44,7 @@ void FCrashReportAnalytics::Initialize()
 	checkf(!bIsInitialized, TEXT("FCrashReportAnalytics::Initialize called more than once."));
 
 	// Allow build machines to force CRC to enable internal telemetry.
-	#if defined(CRC_DATAROUTER_DEFAULT) && defined(CRC_TELEMETRY_KEY_DEV) && defined(CRC_TELEMETRY_KEY_RELEASE)
+	#if defined(CRC_TELEMETRY_URL) && defined(CRC_TELEMETRY_KEY_DEV) && defined(CRC_TELEMETRY_KEY_RELEASE)
 
 		// We always use the "Release" analytics account unless we're running in analytics test mode (usually with
 		// a command-line parameter), or we're an internal Epic build
@@ -54,14 +53,7 @@ void FCrashReportAnalytics::Initialize()
 			!FEngineBuildSettings::IsInternalBuild();	// Internal Epic build
 
 		FAnalyticsET::Config Config;
-	#if defined(CRC_DATAROUTER_DEFAULT_UNCONDITIONALLY)
-		Config.APIServerET = TEXT(CRC_DATAROUTER_DEFAULT);
-	#else
-		if (FParse::Param(FCommandLine::Get(), TEXT("DefaultDataRouterUrl")))
-		{
-			Config.APIServerET = TEXT(CRC_DATAROUTER_DEFAULT);
-		}
-	#endif
+		Config.APIServerET = TEXT(CRC_TELEMETRY_URL);
 		Config.APIKeyET = bUseReleaseAccount ? TEXT(CRC_TELEMETRY_KEY_RELEASE) : TEXT(CRC_TELEMETRY_KEY_DEV);
 
 	#else
