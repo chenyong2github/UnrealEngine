@@ -40,16 +40,13 @@ def UE4TCharSummaryProvider(valobj,dict):
         ValRef = valobj.CreateValueFromExpression('string', Expr)
         Val = ValRef.GetSummary()
     elif Type.IsArrayType():
-        print "Array"
         DataVal = valobj.GetChildAtIndex(0).GetValueAsUnsigned(0)
-        print DataVal
         if DataVal == 0:
             Val = 'NULL'
         else:
             Expr = '(char16_t*)(%s)' % valobj.GetAddress()
             ValRef = valobj.CreateValueFromExpression('string', Expr)
             Val = ValRef.GetSummary()
-            print Val
     return Val
 	
 def UE4SignedCharSummaryProvider(valobj,dict):

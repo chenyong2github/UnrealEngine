@@ -18,14 +18,14 @@ if [ ! -f "$ConfigPath/SDKsRoot.xcconfig" ]; then
 fi
 
 # Remove ArchiCAD resource tool from quarantine
-pushd $UE_SDKS_ROOT/HostMac/Mac/Archicad
+pushd "$UE_SDKS_ROOT/HostMac/Mac/Archicad"
 	chmod 777 23/Support/Tools/OSX/ResConv
 	xattr -r -d com.apple.quarantine 23/Support/Tools/OSX/ResConv
 
-	chmod 777 24/Support/Tools/ResConv
+	chmod 777 24/Support/Tools/OSX/ResConv
 	xattr -r -d com.apple.quarantine 24/Support/Tools/OSX/ResConv
 
-	chmod 777 25/Support/Tools/ResConv
+	chmod 777 25/Support/Tools/OSX/ResConv
 	xattr -r -d com.apple.quarantine 25/Support/Tools/OSX/ResConv
 popd
 

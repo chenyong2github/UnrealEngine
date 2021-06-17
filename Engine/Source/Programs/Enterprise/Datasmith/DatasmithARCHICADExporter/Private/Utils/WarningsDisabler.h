@@ -32,7 +32,9 @@
     _Pragma( "clang diagnostic ignored \"-Wunused-parameter\"" ) \
     _Pragma( "clang diagnostic ignored \"-Wdocumentation\"" ) \
 	_Pragma( "clang diagnostic ignored \"-Wshorten-64-to-32\"" ) \
-	_Pragma( "clang diagnostic ignored \"-Wdefaulted-function-deleted\"" ) \
+    _Pragma( "clang diagnostic ignored \"-Wdefaulted-function-deleted\"" ) \
+    _Pragma( "clang diagnostic ignored \"-Winconsistent-missing-override\"" ) \
+    _Pragma( "clang diagnostic ignored \"-Wtautological-undefined-compare\"" ) \
 	_Pragma( "clang diagnostic ignored \"-Wcomma\"" )
 
 #if (__clang_major__ > 12) || (__clang_major__ == 12 && __clang_minor__ == 0 && __clang_patchlevel__ > 4)

@@ -173,7 +173,7 @@ class FPaletteWindow : public DG::Palette,
 		}
 		else
 #else
-		(void)ev;  // Remove warning
+		(void)ev; // Remove warning
 #endif
 		{
 			UE_AC_DebugF("FPaletteWindow::CheckItemChanged - Unknown event source\n");

@@ -13,6 +13,9 @@
 #include "Synchronizer.h"
 #include "Exporter.h"
 #include "ReportWindow.h"
+#if defined(macintosh)
+	#include "ConnectionWindow.h"
+#endif
 
 #include "DatasmithDirectLink.h"
 #include "IDirectLinkUI.h"
@@ -98,6 +101,7 @@ void FCommander::CopySelection2Clipboard()
 
 void FCommander::ShowConnectionsDialog()
 {
+#if defined(WIN32)
 	IDatasmithExporterUIModule* DsExporterUIModule = IDatasmithExporterUIModule::Get();
 	if (DsExporterUIModule != nullptr)
 	{
@@ -107,6 +111,9 @@ void FCommander::ShowConnectionsDialog()
 			DLUI->OpenDirectLinkStreamWindow();
 		}
 	}
+#else
+	FConnectionWindow::ShowWindow();
+#endif
 }
 
 void FCommander::Export3DToFile()

@@ -525,7 +525,8 @@ void FSynchronizer::DoIdle(int* IOCount)
 	else
 	{
 		// If we need to schedule an Auto Sync
-		if (AttachObservers.ProcessAttachUntil(FTimeStat::RealTimeClock() + 1.0 / 3.0))
+		if (FCommander::IsAutoSyncEnabled() &&
+			AttachObservers.ProcessAttachUntil(FTimeStat::RealTimeClock() + 1.0 / 3.0))
 		{
 			if (FCommander::IsAutoSyncEnabled())
 			{
@@ -536,7 +537,7 @@ void FSynchronizer::DoIdle(int* IOCount)
 	}
 
 	// If we need to process more
-	if (AttachObservers.NeedProcess())
+	if (FCommander::IsAutoSyncEnabled() && AttachObservers.NeedProcess())
 	{
 		*IOCount = 2;
 	}

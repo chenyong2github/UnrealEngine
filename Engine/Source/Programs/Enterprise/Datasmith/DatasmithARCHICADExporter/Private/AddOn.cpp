@@ -31,6 +31,9 @@ DISABLE_SDK_WARNINGS_END
 #include "ResourcesIDs.h"
 #include "Synchronizer.h"
 #include "ReportWindow.h"
+#if defined(macintosh)
+	#include "ConnectionWindow.h"
+#endif
 
 using namespace UE_AC;
 
@@ -142,6 +145,9 @@ GSErrCode __ACENV_CALL FreeData(void)
 {
 	UE_AC_TraceF("-> UE_AC FreeData\n");
 
+#if defined(macintosh)
+	FConnectionWindow::DeleteWindow();
+#endif
 	FPalette::Delete();
 	FPalette::Unregister();
 	FSynchronizer::DeleteSingleton();

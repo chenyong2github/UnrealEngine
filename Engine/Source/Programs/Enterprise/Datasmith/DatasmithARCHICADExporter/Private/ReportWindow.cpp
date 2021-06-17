@@ -36,6 +36,8 @@ class FReportDialog : public DG::Palette,
 	DG::Button		  CopySelectionButton;
 	size_t			  LastSize = 0;
 
+	static GS::Guid PaletteGuid;
+
   public:
 	FReportDialog();
 	~FReportDialog();
@@ -132,7 +134,7 @@ class FReportDialog : public DG::Palette,
 };
 
 FReportDialog::FReportDialog()
-	: DG::Palette(ACAPI_GetOwnResModule(), LocalizeResId(kDlgReport), ACAPI_GetOwnResModule())
+	: DG::Palette(ACAPI_GetOwnResModule(), LocalizeResId(kDlgReport), ACAPI_GetOwnResModule(), PaletteGuid)
 	, CloseButton(GetReference(), kCloseButtonId)
 	, ClearButton(GetReference(), kClearButtonId)
 	, MessagesTextEdit(GetReference(), kMessagesTextEditId)
@@ -151,6 +153,8 @@ FReportDialog::~FReportDialog()
 	DetachFromAllItems(*this);
 	Detach(*this);
 }
+
+GS::Guid FReportDialog::PaletteGuid("CA0A0905-1FDA-401B-97F7-B00EEB3254C6");
 
 static FReportWindow* ReportWindow;
 
