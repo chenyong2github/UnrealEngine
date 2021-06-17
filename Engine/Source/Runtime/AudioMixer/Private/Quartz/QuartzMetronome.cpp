@@ -143,7 +143,7 @@ namespace Audio
 
 		if (InQuantizationBoundary.Multiplier < 1.0f)
 		{
-			UE_LOG(LogAudioQuartz, Warning, TEXT("Quantizatoin Boundary being clamped to 1.0 (from %f)"), InQuantizationBoundary.Multiplier);
+			UE_LOG(LogAudioQuartz, Warning, TEXT("Quantization Boundary being clamped to 1.0 (from %f)"), InQuantizationBoundary.Multiplier);
 			InQuantizationBoundary.Multiplier = 1.f;
 		}
 

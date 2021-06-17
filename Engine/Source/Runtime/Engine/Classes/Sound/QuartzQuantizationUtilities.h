@@ -112,7 +112,7 @@ struct ENGINE_API FQuartzTimeSignature
 	FQuartzTimeSignature() {};
 
 	// numerator
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Time Signature")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Time Signature", meta = (ClampMin = "1", UIMin = "1"))
 	int32 NumBeats { 4 };
 
 	// denominator

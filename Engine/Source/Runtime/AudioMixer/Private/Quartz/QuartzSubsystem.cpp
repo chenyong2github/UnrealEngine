@@ -322,6 +322,13 @@ UQuartzClockHandle* UQuartzSubsystem::CreateNewClock(const UObject* WorldContext
 		return nullptr;
 	}
 
+	// numerator of time signature must be >= 1
+	if (InSettings.TimeSignature.NumBeats < 1)
+	{
+		UE_LOG(LogAudioQuartz, Warning, TEXT("Clock: (%s) is attempting to set a time signature with a Numerator < 1.  Clamping to 1 beat per bar"), *ClockName.ToString());
+		InSettings.TimeSignature.NumBeats = 1;
+	}
+
 	ClockManager->GetOrCreateClock(ClockName, InSettings, bOverrideSettingsIfClockExists);
 
 	UQuartzClockHandle* ClockHandlePtr = NewObject<UQuartzClockHandle>()->Init(WorldContextObject->GetWorld())->SubscribeToClock(WorldContextObject, ClockName);
