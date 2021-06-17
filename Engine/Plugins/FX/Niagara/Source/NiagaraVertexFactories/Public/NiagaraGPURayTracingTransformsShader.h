@@ -9,6 +9,7 @@ NiagaraGPURayTracingTransformsShader.h: Niagara shader to generate the ray traci
 #include "CoreMinimal.h"
 #include "GlobalShader.h"
 #include "ShaderPermutation.h"
+#include "ShaderParameterStruct.h"
 
 /**
  * Compute shader used to pass GPU instances transforms to the ray tracing TLAS.
@@ -16,8 +17,8 @@ NiagaraGPURayTracingTransformsShader.h: Niagara shader to generate the ray traci
 class NIAGARAVERTEXFACTORIES_API FNiagaraGPURayTracingTransformsCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FNiagaraGPURayTracingTransformsCS);
+	SHADER_USE_PARAMETER_STRUCT(FNiagaraGPURayTracingTransformsCS, FGlobalShader);
 
-public:
 	static constexpr uint32 ThreadGroupSize = 64;
 
 	using FPermutationDomain = TShaderPermutationDomain<>;
@@ -25,31 +26,36 @@ public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 
-	FNiagaraGPURayTracingTransformsCS() {}
-	FNiagaraGPURayTracingTransformsCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32,	ParticleDataFloatStride)
+		//SHADER_PARAMETER(uint32,	ParticleDataHalfStride)
+		SHADER_PARAMETER(uint32,	ParticleDataIntStride)
+		SHADER_PARAMETER(uint32,	CPUNumInstances)
+		SHADER_PARAMETER(uint32,	InstanceCountOffset)
 
-	void SetParameters(
-		FRHICommandList& RHICmdList, 
-		uint32 InstancesCount,
-		FRHIShaderResourceView* NiagaraFloatBuffer,
-		uint32 FloatDataOffsetValue,
-		uint32 FloatDataStrideValue,
-		uint32 GPUInstanceCountOffset,
-		FRHIShaderResourceView* GPUInstanceCountInputSRV,
-		const FUintVector4& NiagaraOffsets,
-		const FMatrix& PrimitiveLocalToWorld, 
-		FRHIUnorderedAccessView* GPUInstancesTransformsUAV);
-	void UnbindBuffers(FRHICommandList& RHICmdList);
+		SHADER_PARAMETER(uint32,	PositionDataOffset)
+		SHADER_PARAMETER(uint32,	RotationDataOffset)
+		SHADER_PARAMETER(uint32,	ScaleDataOffset)
+		SHADER_PARAMETER(uint32,	bLocalSpace)
+		SHADER_PARAMETER(uint32,	RenderVisibilityOffset)
+		SHADER_PARAMETER(uint32,	MeshIndexOffset)
 
-protected:
-	LAYOUT_FIELD(FShaderParameter, NiagaraOffsetsParam);
+		SHADER_PARAMETER(uint32,	RenderVisibilityValue)
+		SHADER_PARAMETER(uint32,	MeshIndexValue)
 
-	LAYOUT_FIELD(FShaderParameter, LocalToWorldParam);
-	LAYOUT_FIELD(FShaderResourceParameter, TLASTransformsParam);
+		SHADER_PARAMETER(FVector,	DefaultPosition)
+		SHADER_PARAMETER(FVector4,	DefaultRotation)
+		SHADER_PARAMETER(FVector,	DefaultScale)
+		SHADER_PARAMETER(FVector,	MeshScale)
 
-	LAYOUT_FIELD(FShaderResourceParameter, NiagaraParticleDataFloat);
-	LAYOUT_FIELD(FShaderParameter, FloatDataOffset);
-	LAYOUT_FIELD(FShaderParameter, FloatDataStride);
-	LAYOUT_FIELD(FShaderParameter, GPUInstanceCountParams);
-	LAYOUT_FIELD(FShaderResourceParameter, GPUInstanceCountInputBuffer);
+		SHADER_PARAMETER(FMatrix,	LocalTransform)
+
+		SHADER_PARAMETER_SRV(Buffer<float>,	ParticleDataFloatBuffer)
+		//SHADER_PARAMETER_SRV(Buffer<half>,	ParticleDataHalfBuffer)
+		SHADER_PARAMETER_SRV(Buffer<int>,	ParticleDataIntBuffer)
+		SHADER_PARAMETER_SRV(Buffer<uint>, GPUInstanceCountBuffer)
+
+		SHADER_PARAMETER_UAV(RWStructuredBuffer<float3x4>, TLASTransforms)
+	END_SHADER_PARAMETER_STRUCT()
+
 };
