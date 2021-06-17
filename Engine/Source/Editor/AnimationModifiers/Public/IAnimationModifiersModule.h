@@ -14,5 +14,5 @@ public:
 	virtual void ShowAddAnimationModifierWindow(const TArray<UAnimSequence*>& InSequences) = 0;
 
 	/** Apply animation modifiers contained by provided Animation Sequences to its respective outers */
-	virtual void ApplyAnimationModifiers(const TArray<UAnimSequence*>& InSequences) = 0;	
+	virtual void ApplyAnimationModifiers(const TArray<UAnimSequence*>& InSequences, bool bForceApply = true) = 0;
 };

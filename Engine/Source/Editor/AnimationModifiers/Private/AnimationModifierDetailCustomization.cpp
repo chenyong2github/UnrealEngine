@@ -35,14 +35,23 @@ void FAnimationModifierDetailCustomization::CustomizeDetails(IDetailLayoutBuilde
 		[
 			SNew(SHorizontalBox)
 			+SHorizontalBox::Slot()
-           .AutoWidth()
-           .Padding(2.f)
-           [
-               SNew(SButton)
-               .OnClicked(this, &FAnimationModifierDetailCustomization::OnApplyButtonClicked)
-               .ToolTipText(LOCTEXT("ApplyToolTip", "Applies any instanced modifiers of this class to their owning Animation Sequences."))
-               .Text(LOCTEXT("ApplyText", "Apply to All"))
-           ]
+			.AutoWidth()
+			.Padding(2.f)
+			[
+			   SNew(SButton)
+			   .OnClicked(this, &FAnimationModifierDetailCustomization::OnApplyButtonClicked, true)
+			   .ToolTipText(LOCTEXT("ApplyToolTip", "Applies any instanced modifiers of this class to their owning Animation Sequences."))
+			   .Text(LOCTEXT("ApplyText", "Apply to All"))
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(2.f)
+			[
+				SNew(SButton)
+				.OnClicked(this, &FAnimationModifierDetailCustomization::OnApplyButtonClicked, false)
+				.ToolTipText(LOCTEXT("ApplyOutOfDataToolTip", "Applies any instanced modifiers, if they are out-of-date, of this class to their owning Animation Sequences."))
+				.Text(LOCTEXT("ApplyToOutOfDateText", "Apply to All out-of-date"))
+			]
 			+SHorizontalBox::Slot()
 			.AutoWidth()
 			.Padding(2.f)
@@ -51,7 +60,7 @@ void FAnimationModifierDetailCustomization::CustomizeDetails(IDetailLayoutBuilde
 				.OnClicked(this, &FAnimationModifierDetailCustomization::OnUpdateRevisionButtonClicked)
 				.ToolTipText(LOCTEXT("UpdateRevisionToolTip", "Updates the stored revision GUID on all instances of this Modifier class, marking them out-of-date."))
 				.Text(LOCTEXT("UpdateRevisionText", "Update Revision"))
-            ]           
+			]           
 		];
 	}
 }
@@ -65,11 +74,11 @@ FReply FAnimationModifierDetailCustomization::OnUpdateRevisionButtonClicked()
 	return FReply::Handled();
 }
 
-FReply FAnimationModifierDetailCustomization::OnApplyButtonClicked()
+FReply FAnimationModifierDetailCustomization::OnApplyButtonClicked(bool bForceApply)
 {
 	if (ModifierInstance)
 	{
-		UAnimationModifier::ApplyToAll(ModifierInstance->GetClass());
+		UAnimationModifier::ApplyToAll(ModifierInstance->GetClass(), bForceApply);
 	}
 	return FReply::Handled();
 }

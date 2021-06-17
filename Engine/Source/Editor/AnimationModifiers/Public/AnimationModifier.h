@@ -60,7 +60,7 @@ protected:
 	void UpdateNativeRevisionGuid();
 
 	/** Applies all instances of the provided Modifier class to its outer Animation Sequence*/
-	static void ApplyToAll(TSubclassOf<UAnimationModifier> ModifierSubClass);
+	static void ApplyToAll(TSubclassOf<UAnimationModifier> ModifierSubClass, bool bForceApply = true);
 	static void LoadModifierReferencers(TSubclassOf<UAnimationModifier> ModifierSubClass);
 private:
 	UAnimSequence* CurrentAnimSequence;
@@ -85,6 +85,8 @@ private:
 	/** Serialized version of the modifier that has been previously applied to the Animation Asset */
 	UPROPERTY()
 	TObjectPtr<UAnimationModifier> PreviouslyAppliedModifier;
+
+	static const FName RevertModifierObjectName;
 };
 
 namespace UE

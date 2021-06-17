@@ -34,6 +34,8 @@ void UE::Anim::FApplyModifiersScope::SetReturnType(const UAnimationModifier* InM
 	PerClassReturnTypeValues.Add(Key, InReturnType);
 }
 
+const FName UAnimationModifier::RevertModifierObjectName("REVERT_AnimationModifier");
+
 UAnimationModifier::UAnimationModifier()
 	: PreviouslyAppliedModifier(nullptr)
 {
@@ -43,8 +45,8 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* InAnimati
 {
 	FEditorScriptExecutionGuard ScriptGuard;
 
-	checkf(InAnimationSequence, TEXT("Invalid Animation Sequence supplied"));
 	CurrentAnimSequence = InAnimationSequence;
+	checkf(CurrentAnimSequence, TEXT("Invalid Animation Sequence supplied"));
 	CurrentSkeleton = InAnimationSequence->GetSkeleton();
 
 	// Filter to check for warnings / errors thrown from animation blueprint library (rudimentary approach for now)
@@ -148,7 +150,7 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* InAnimati
 			PreviouslyAppliedModifier->MarkPendingKill();
 		}
 
-		PreviouslyAppliedModifier = DuplicateObject(this, GetOuter());
+		PreviouslyAppliedModifier = DuplicateObject(this, GetOuter(), RevertModifierObjectName);
 
 		CurrentAnimSequence->PostEditChange();
 		CurrentSkeleton->PostEditChange();
@@ -305,7 +307,7 @@ void UAnimationModifier::UpdateNativeRevisionGuid()
 	}
 }
 
-void UAnimationModifier::ApplyToAll(TSubclassOf<UAnimationModifier> ModifierSubClass)
+void UAnimationModifier::ApplyToAll(TSubclassOf<UAnimationModifier> ModifierSubClass, bool bForceApply /*= true*/)
 {
 	if (UClass* ModifierClass = ModifierSubClass.Get())
 	{
@@ -315,20 +317,25 @@ void UAnimationModifier::ApplyToAll(TSubclassOf<UAnimationModifier> ModifierSubC
 		const FScopedTransaction Transaction(LOCTEXT("UndoAction_ApplyModifiers", "Applying Animation Modifier to Animation Sequence(s)"));		
 		for (TObjectIterator<UAnimationModifier> It; It; ++It)
 		{
-			if (*It && It->GetClass() == ModifierClass)
+			// Check if valid, of the required class, not pending kill and not a modifier back-up for reverting
+			if (*It && It->GetClass() == ModifierClass && !It->IsPendingKill() && It->GetFName() != RevertModifierObjectName)
 			{
-				// Go through outer chain to find AnimSequence
-				UObject* Outer = It->GetOuter();
-				while(Outer && !Outer->IsA<UAnimSequence>())
+				if (bForceApply || !It->IsLatestRevisionApplied())
 				{
-					Outer = Outer->GetOuter();
-				}
+					// Go through outer chain to find AnimSequence
+					UObject* Outer = It->GetOuter();
 
-				if (UAnimSequence* AnimSequence = Cast<UAnimSequence>(Outer))
-				{
-					AnimSequence->Modify();
-					It->ApplyToAnimationSequence(AnimSequence);
-				}			
+					while(Outer && !Outer->IsA<UAnimSequence>())
+					{
+						Outer = Outer->GetOuter();
+					}
+
+					if (UAnimSequence* AnimSequence = Cast<UAnimSequence>(Outer))
+					{
+						AnimSequence->Modify();
+						It->ApplyToAnimationSequence(AnimSequence);
+					}	
+				}
 			}
 		}
 	}	

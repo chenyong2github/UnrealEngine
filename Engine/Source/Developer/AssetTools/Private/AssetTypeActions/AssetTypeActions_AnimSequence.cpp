@@ -99,6 +99,30 @@ void FAssetTypeActions_AnimSequence::GetActions(const TArray<UObject*>& InObject
 				}
 	        }))
 	    );
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("AnimSequence_ApplyOutOfDataAnimationModifier", "Apply out-of-date Modifiers"),
+			LOCTEXT("AnimSequence_ApplyOutOfDataAnimationModifierTooltip", "Applies all contained animation modifier(s), if they are out of date."),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimationModifier"),
+			FUIAction(FExecuteAction::CreateLambda([Sequences]()
+			{
+			TArray<UAnimSequence*> AnimSequences;
+			Algo::TransformIf(Sequences, AnimSequences, 
+			[](const TWeakObjectPtr<UAnimSequence>& WeakAnimSequence)
+			{
+			    return WeakAnimSequence.Get() && WeakAnimSequence->IsA<UAnimSequence>();
+			},
+			[](const TWeakObjectPtr<UAnimSequence>& WeakAnimSequence)
+			{
+			    return WeakAnimSequence.Get();
+			});
+
+			if (IAnimationModifiersModule* Module = FModuleManager::Get().LoadModulePtr<IAnimationModifiersModule>("AnimationModifiers"))
+			{
+			    Module->ApplyAnimationModifiers(AnimSequences, false);
+			}
+			}))
+	    );
 	});
 	
 	Section.AddSubMenu("AnimSequence_AnimationModifiers", LOCTEXT("AnimSequence_AnimationModifiers", "Animation Modifier(s)"),

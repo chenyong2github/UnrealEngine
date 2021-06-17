@@ -16,7 +16,7 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 protected:
 	FReply OnUpdateRevisionButtonClicked();
-	FReply OnApplyButtonClicked();
+	FReply OnApplyButtonClicked(bool bForceApply);
 protected:
 	TSharedPtr<SButton> UpdateRevisionButton;
 	UAnimationModifier* ModifierInstance;
