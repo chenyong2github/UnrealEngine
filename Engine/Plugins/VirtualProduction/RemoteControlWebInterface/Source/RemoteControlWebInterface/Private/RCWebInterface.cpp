@@ -10,6 +10,7 @@
 #include "Misc/Parse.h"
 
 #if WITH_EDITOR
+#include "Misc/CoreDelegates.h"
 #include "ISettingsContainer.h"
 #include "ISettingsCategory.h"
 #include "ISettingsModule.h"
