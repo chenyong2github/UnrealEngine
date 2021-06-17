@@ -136,7 +136,9 @@ UTexture2D* FCameraCalibrationUtils::TextureFromCvMat(cv::Mat& Mat)
 	if (Mat.channels() == 1)
 	{
 		Texture->CompressionSettings = TextureCompressionSettings::TC_Grayscale;
+#if WITH_EDITORONLY_DATA
 		Texture->CompressionNoAlpha = true;
+#endif
 	}
 
 	FTexture2DMipMap& Mip0 = Texture->PlatformData->Mips[0];
