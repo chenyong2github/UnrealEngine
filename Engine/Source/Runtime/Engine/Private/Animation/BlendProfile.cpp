@@ -134,7 +134,7 @@ float UBlendProfile::GetEntryBlendScale(const int32 InEntryIdx) const
 	return GetDefaultBlendScale();
 }
 
-int32 UBlendProfile::GetPerBoneInterpolationIndex(int32 BoneIndex, const FBoneContainer& RequiredBones) const
+int32 UBlendProfile::GetPerBoneInterpolationIndex(int32 BoneIndex, const FBoneContainer& RequiredBones, const IInterpolationIndexProvider::FPerBoneInterpolationData* Data) const
 {
 	// Our internal entries are skeleton bone indices, but we have pose indices here - convert to skeleton
 	int32 ActualBoneIndex = RequiredBones.GetPoseToSkeletonBoneIndexArray()[BoneIndex];

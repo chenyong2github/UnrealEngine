@@ -481,11 +481,20 @@ public:
 	//~ End UAnimationAsset Interface
 	
 	// Begin IInterpolationIndexProvider Overrides
+
+	/**
+	 * Sorts the PerBoneBlend data into a form that can be repeatedly used in GetPerBoneInterpolationIndex
+	 */
+	virtual TSharedPtr<IInterpolationIndexProvider::FPerBoneInterpolationData> GetPerBoneInterpolationData(const USkeleton* Skeleton) const override;
+
 	/**
 	* Get PerBoneInterpolationIndex for the input BoneIndex
 	* If nothing found, return INDEX_NONE
 	*/
-	virtual int32 GetPerBoneInterpolationIndex(int32 BoneIndex, const FBoneContainer& RequiredBones) const override;	
+	virtual int32 GetPerBoneInterpolationIndex(
+		int32                                                         BoneIndex, 
+		const FBoneContainer&                                         RequiredBones, 
+		const IInterpolationIndexProvider::FPerBoneInterpolationData* Data) const override;	
 	// End IInterpolationIndexProvider Overrides
 
 	/** Returns whether or not the given additive animation type is compatible with the blendspace type */
@@ -768,7 +777,6 @@ public:
 
 protected:
 
-#if WITH_EDITORONLY_DATA
 	/**
 	* Per bone sample smoothing settings, which affect the specified bone and all its descendants in the skeleton.
 	* These act as overrides to the global sample smoothing speed, which means the global sample smoothing speed does
@@ -777,13 +785,6 @@ protected:
 	*/
 	UPROPERTY(EditAnywhere, Category = SampleSmoothing, meta = (DisplayName="Per Bone Overrides"))
 	TArray<FPerBoneInterpolation> PerBoneBlend;
-#endif
-
-	/**
-	 * PerBoneBlend sorted so that we find the bones in the correct order, working back from leaf bones.
-	 */
-	UPROPERTY()
-	TArray<FPerBoneInterpolation> SortedPerBoneBlend;
 
 	/** Track index to get marker data from. Samples are tested for the suitability of marker based sync
 	    during load and if we can use marker based sync we cache an index to a representative sample here */

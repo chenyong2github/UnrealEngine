@@ -64,13 +64,26 @@ void BlendCurves(const TArrayView<const FBlendedCurve* const> SourceCurves, cons
 
 
 /////////////////////////////////////////////////////////
-/** Interface used to provide interpolation indices for per bone blends
-  *
+/** 
+  * Interface used to provide interpolation indices for per bone blends
   */
 class ENGINE_API IInterpolationIndexProvider
 {
 public:
-	virtual int32 GetPerBoneInterpolationIndex(int32 BoneIndex, const FBoneContainer& RequiredBones) const = 0;
+	struct FPerBoneInterpolationData
+	{
+		virtual ~FPerBoneInterpolationData() {}
+	};
+
+	// There may be times when the implementation can pre-calculate data needed for GetPerBoneInterpolationIndex, as the
+	// latter is often called multiple times whilst iterating over a skeleton.
+	virtual TSharedPtr<FPerBoneInterpolationData> GetPerBoneInterpolationData(const USkeleton* Skeleton) const { return nullptr; }
+
+	// Implementation should return the index into the PerBoneBlendData array that would be required when looking
+	// up/blending BoneIndex. This call will be passed the results of GetPerBoneInterpolationData, so the two functions
+	// should be matched.
+	virtual int32 GetPerBoneInterpolationIndex(
+		int32 BoneIndex, const FBoneContainer& RequiredBones, const FPerBoneInterpolationData* Data) const = 0;
 };
 
 /** In AnimationRunTime Library, we extract animation data based on Skeleton hierarchy, not ref pose hierarchy. 
