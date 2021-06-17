@@ -273,12 +273,27 @@ class FVulkanDescriptorSetsLayoutInfo
 public:
 	FVulkanDescriptorSetsLayoutInfo()
 	{
-		FMemory::Memzero(LayoutTypes);
+		// Add expected descriptor types
+		for (uint32 i = VK_DESCRIPTOR_TYPE_BEGIN_RANGE; i <= VK_DESCRIPTOR_TYPE_END_RANGE; ++i)
+		{
+			LayoutTypes.Add(static_cast<VkDescriptorType>(i), 0);
+		}
+
+#if VULKAN_RHI_RAYTRACING
+		LayoutTypes.Add(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 0);
+#endif
 	}
 
 	inline uint32 GetTypesUsed(VkDescriptorType Type) const
 	{
-		return LayoutTypes[Type];
+		if (LayoutTypes.Contains(Type))
+		{
+			return LayoutTypes[Type];
+		}
+		else
+		{
+			return 0;
+		}
 	}
 
 	struct FSetLayout
@@ -375,14 +390,14 @@ public:
 
 	void CopyFrom(const FVulkanDescriptorSetsLayoutInfo& Info)
 	{
-		FMemory::Memcpy(LayoutTypes, Info.LayoutTypes, sizeof(LayoutTypes));
+		LayoutTypes = Info.LayoutTypes;
 		Hash = Info.Hash;
 		TypesUsageID = Info.TypesUsageID;
 		SetLayouts = Info.SetLayouts;
 		RemappingInfo = Info.RemappingInfo;
 	}
 
-	inline const uint32* GetLayoutTypes() const
+	inline const TMap<VkDescriptorType, uint32>& GetLayoutTypes() const
 	{
 		return LayoutTypes;
 	}
@@ -394,11 +409,11 @@ public:
 
 	inline bool HasInputAttachments() const
 	{
-		return LayoutTypes[VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT] > 0;
+		return GetTypesUsed(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT) > 0;
 	}
 
 protected:
-	uint32 LayoutTypes[VK_DESCRIPTOR_TYPE_RANGE_SIZE];
+	TMap<VkDescriptorType, uint32> LayoutTypes;
 	TArray<FSetLayout> SetLayouts;
 
 	uint32 Hash = 0;
@@ -871,6 +886,9 @@ protected:
 	friend class FVulkanComputePipeline;
 	friend class FVulkanGfxPipeline;
 	friend class FVulkanPipelineStateCacheManager;
+#if VULKAN_RHI_RAYTRACING
+	friend class FVulkanRayTracingPipelineState;
+#endif
 };
 
 class FVulkanGfxLayout : public FVulkanLayout
@@ -920,6 +938,22 @@ protected:
 	FVulkanComputePipelineDescriptorInfo		ComputePipelineDescriptorInfo;
 	friend class FVulkanPipelineStateCacheManager;
 };
+
+#if VULKAN_RHI_RAYTRACING
+class FVulkanRayTracingLayout : public FVulkanLayout
+{
+public:
+	FVulkanRayTracingLayout(FVulkanDevice* InDevice)
+		: FVulkanLayout(InDevice)
+	{
+	}
+
+	virtual bool IsGfxLayout() const final override
+	{
+		return false;
+	}
+};
+#endif // VULKAN_RHI_RAYTRACING
 
 // This class encapsulates updating VkWriteDescriptorSet structures (but doesn't own them), and their flags for dirty ranges; it is intended
 // to be used to access a sub-region of a long array of VkWriteDescriptorSet (ie FVulkanDescriptorSetWriteContainer)

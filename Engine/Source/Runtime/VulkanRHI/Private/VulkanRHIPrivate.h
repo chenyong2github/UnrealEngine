@@ -82,10 +82,18 @@ inline VkShaderStageFlagBits UEFrequencyToVKStageBit(EShaderFrequency InStage)
 {
 	switch (InStage)
 	{
-	case SF_Vertex:		return VK_SHADER_STAGE_VERTEX_BIT;
-	case SF_Pixel:		return VK_SHADER_STAGE_FRAGMENT_BIT;
-	case SF_Geometry:	return VK_SHADER_STAGE_GEOMETRY_BIT;
-	case SF_Compute:	return VK_SHADER_STAGE_COMPUTE_BIT;
+	case SF_Vertex:			return VK_SHADER_STAGE_VERTEX_BIT;
+	case SF_Pixel:			return VK_SHADER_STAGE_FRAGMENT_BIT;
+	case SF_Geometry:		return VK_SHADER_STAGE_GEOMETRY_BIT;
+	case SF_Compute:		return VK_SHADER_STAGE_COMPUTE_BIT;
+
+#if VULKAN_RHI_RAYTRACING
+	case SF_RayGen:			return VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+	case SF_RayMiss:		return VK_SHADER_STAGE_MISS_BIT_KHR;
+	case SF_RayHitGroup:	return VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR; // vkrt todo: How to handle VK_SHADER_STAGE_ANY_HIT_BIT_KHR?
+	case SF_RayCallable:	return VK_SHADER_STAGE_CALLABLE_BIT_KHR;
+#endif // VULKAN_RHI_RAYTRACING
+
 	default:
 		checkf(false, TEXT("Undefined shader stage %d"), (int32)InStage);
 		break;
@@ -102,6 +110,19 @@ inline EShaderFrequency VkStageBitToUEFrequency(VkShaderStageFlagBits FlagBits)
 	case VK_SHADER_STAGE_FRAGMENT_BIT:					return SF_Pixel;
 	case VK_SHADER_STAGE_GEOMETRY_BIT:					return SF_Geometry;
 	case VK_SHADER_STAGE_COMPUTE_BIT:					return SF_Compute;
+
+#if VULKAN_RHI_RAYTRACING
+	case VK_SHADER_STAGE_RAYGEN_BIT_KHR:				return SF_RayGen;
+	case VK_SHADER_STAGE_MISS_BIT_KHR:					return SF_RayMiss;
+	case VK_SHADER_STAGE_CALLABLE_BIT_KHR:				return SF_RayCallable;
+
+	// Hit group frequencies
+	case VK_SHADER_STAGE_ANY_HIT_BIT_KHR:
+	case VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR:
+	case VK_SHADER_STAGE_INTERSECTION_BIT_KHR:
+		return SF_RayHitGroup;
+#endif // VULKAN_RHI_RAYTRACING
+
 	default:
 		checkf(false, TEXT("Undefined VkShaderStageFlagBits %d"), (int32)FlagBits);
 		break;

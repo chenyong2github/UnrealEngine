@@ -35,6 +35,7 @@ namespace CrossCompiler
 		void WriteUAV(const TCHAR* ResourceName, uint32 BindingIndex, uint32 Count = 1);
 		void WriteSamplerState(const TCHAR* ResourceName, uint32 BindingIndex);
 		void WriteNumThreads(uint32 NumThreadsX, uint32 NumThreadsY, uint32 NumThreadsZ);
+		void WriteAccelerationStructures(const TCHAR* ResourceName, uint32 BindingIndex);
 
 		void WriteSideTable(const TCHAR* ResourceName, uint32 SideTableIndex);
 		void WriteArgumentBuffers(uint32 BindingIndex, const TArray<uint32>& ResourceIndices);
@@ -65,6 +66,7 @@ namespace CrossCompiler
 			FString ExternalTextures; // External texture resources (Vulkan ES3.1 profile only)
 			FString SideTable; // Side table for additional indices, e.,g. "spvBufferSizeConstants(31)" (Metal only)
 			FString ArgumentBuffers; // Indirect argument buffers (Metal only)
+			FString AccelerationStructures;
 		};
 
 	private:

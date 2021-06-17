@@ -341,6 +341,29 @@ FComputeShaderRHIRef FVulkanDynamicRHI::RHICreateComputeShader(TArrayView<const 
 	return Device->GetShaderFactory().CreateShader<FVulkanComputeShader>(Code, Device);
 }
 
+#if VULKAN_RHI_RAYTRACING
+FRayTracingShaderRHIRef FVulkanDynamicRHI::RHICreateRayTracingShader(TArrayView<const uint8> Code, const FSHAHash& Hash, EShaderFrequency ShaderFrequency)
+{
+	switch (ShaderFrequency)
+	{
+	case EShaderFrequency::SF_RayGen:
+		 return Device->GetShaderFactory().CreateShader<FVulkanRayGenShader>(Code, Device);
+
+	case EShaderFrequency::SF_RayMiss:
+		return Device->GetShaderFactory().CreateShader<FVulkanRayMissShader>(Code, Device);
+
+	case EShaderFrequency::SF_RayCallable:
+		return Device->GetShaderFactory().CreateShader<FVulkanRayCallableShader>(Code, Device);
+
+	case EShaderFrequency::SF_RayHitGroup:
+		return Device->GetShaderFactory().CreateShader<FVulkanRayHitGroupShader>(Code, Device);
+
+	default:
+		check(false);
+		return nullptr;
+	}
+}
+#endif // VULKAN_RHI_RAYTRACING
 
 FVulkanLayout::FVulkanLayout(FVulkanDevice* InDevice)
 	: VulkanRHI::FDeviceChild(InDevice)
@@ -613,7 +636,7 @@ void FVulkanDescriptorSetsLayoutInfo::FinalizeBindings(const FUniformBufferGathe
 			{
 				const FVulkanShaderHeader::FGlobalInfo& GlobalInfo = ShaderHeader->Globals[Index];
 				int32 DescriptorSet = FindOrAddDescriptorSet(Stage);
-				VkDescriptorType Type = ShaderHeader->GlobalDescriptorTypes[GlobalInfo.TypeIndex];
+				VkDescriptorType Type = BindingToDescriptorType(ShaderHeader->GlobalDescriptorTypes[GlobalInfo.TypeIndex]);
 				uint16 CombinedSamplerStateAlias = GlobalInfo.CombinedSamplerStateAliasIndex;
 				uint32 NewBindingIndex = RemappingInfo.AddGlobal(Stage, Index, DescriptorSet, Type, CombinedSamplerStateAlias);
 				Binding.binding = NewBindingIndex;
@@ -647,7 +670,7 @@ void FVulkanDescriptorSetsLayoutInfo::FinalizeBindings(const FUniformBufferGathe
 				{
 					int32 OriginalGlobalIndex = ShaderHeader->InputAttachments[SrcIndex].GlobalIndex;
 					const FVulkanShaderHeader::FGlobalInfo& OriginalGlobalInfo = ShaderHeader->Globals[OriginalGlobalIndex];
-					check(ShaderHeader->GlobalDescriptorTypes[OriginalGlobalInfo.TypeIndex] == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
+					check(BindingToDescriptorType(ShaderHeader->GlobalDescriptorTypes[OriginalGlobalInfo.TypeIndex]) == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
 					int32 RemappingIndex = RemappingInfo.InputAttachmentData.AddDefaulted();
 					FInputAttachmentData& AttachmentData = RemappingInfo.InputAttachmentData[RemappingIndex];
 					AttachmentData.BindingIndex = RemappingInfo.StageInfos[Stage].Globals[OriginalGlobalIndex].NewBindingIndex;

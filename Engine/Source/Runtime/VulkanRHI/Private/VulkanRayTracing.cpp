@@ -2,6 +2,8 @@
 
 #include "VulkanRHIPrivate.h"
 #include "VulkanContext.h"
+#include "VulkanDescriptorSets.h"
+#include "BuiltInRayTracingShaders.h"
 #include "Experimental/Containers/SherwoodHashTable.h"
 
 #if VULKAN_RHI_RAYTRACING
@@ -637,15 +639,244 @@ void FVulkanCommandListContext::RHIRayTraceOcclusion(FRHIRayTracingScene* Scene,
 	return;
 }
 
+template<typename ShaderType>
+static FRHIRayTracingShader* GetBuiltInRayTracingShader()
+{
+	const FGlobalShaderMap* const ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+	auto Shader = ShaderMap->GetShader<ShaderType>();
+	return static_cast<FRHIRayTracingShader*>(Shader.GetRayTracingShader());
+}
+
 void FVulkanDevice::InitializeRayTracing()
 {
-	// todo
-	return;
+	check(BasicRayTracingPipeline == nullptr);
+	BasicRayTracingPipeline = new FVulkanBasicRaytracingPipeline(this);
 }
 
 void FVulkanDevice::CleanUpRayTracing()
 {
-	// todo
-	return;
+	if (BasicRayTracingPipeline != nullptr)
+	{
+		delete BasicRayTracingPipeline;
+		BasicRayTracingPipeline = nullptr;
+	}
 }
-#endif // #if VULKAN_RHI_RAYTRACING
+
+static uint32 GetAlignedSize(uint32 Value, uint32 Alignment)
+{
+	return (Value + Alignment - 1) & ~(Alignment - 1);
+}
+
+FVulkanRayTracingPipelineState::FVulkanRayTracingPipelineState(FVulkanDevice* const InDevice, const FRayTracingPipelineStateInitializer& Initializer)
+{	
+	check(Layout == nullptr);
+
+	TArrayView<FRHIRayTracingShader*> InitializerRayGenShaders = Initializer.GetRayGenTable();
+	TArrayView<FRHIRayTracingShader*> InitializerMissShaders = Initializer.GetMissTable();
+	TArrayView<FRHIRayTracingShader*> InitializerHitGroupShaders = Initializer.GetHitGroupTable();
+	// vkrt todo: Callable shader support
+
+	FVulkanDescriptorSetsLayoutInfo DescriptorSetLayoutInfo;
+	FUniformBufferGatherInfo UBGatherInfo;
+	
+	for (FRHIRayTracingShader* RayGenShader : InitializerRayGenShaders)
+	{
+		const FVulkanShaderHeader& Header = static_cast<FVulkanRayGenShader*>(RayGenShader)->GetCodeHeader();
+		DescriptorSetLayoutInfo.ProcessBindingsForStage(VK_SHADER_STAGE_RAYGEN_BIT_KHR, ShaderStage::RayGen, Header, UBGatherInfo);
+	}
+
+	for (FRHIRayTracingShader* MissShader : InitializerMissShaders)
+	{
+		const FVulkanShaderHeader& Header = static_cast<FVulkanRayMissShader*>(MissShader)->GetCodeHeader();
+		DescriptorSetLayoutInfo.ProcessBindingsForStage(VK_SHADER_STAGE_MISS_BIT_KHR, ShaderStage::RayMiss, Header, UBGatherInfo);
+	}
+
+	for (FRHIRayTracingShader* HitGroupShader : InitializerHitGroupShaders)
+	{
+		const FVulkanShaderHeader& Header = static_cast<FVulkanRayHitGroupShader*>(HitGroupShader)->GetCodeHeader();
+		DescriptorSetLayoutInfo.ProcessBindingsForStage(VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, ShaderStage::RayHitGroup, Header, UBGatherInfo);
+		// vkrt todo: How to handle any hit for hit group?
+	}
+
+	DescriptorSetLayoutInfo.FinalizeBindings<false>(UBGatherInfo, TArrayView<FRHISamplerState*>());
+
+	Layout = new FVulkanRayTracingLayout(InDevice);
+	Layout->DescriptorSetLayout.CopyFrom(DescriptorSetLayoutInfo);
+	FVulkanDescriptorSetLayoutMap DSetLayoutMap;
+	Layout->Compile(DSetLayoutMap);
+
+	TArray<VkPipelineShaderStageCreateInfo> ShaderStages;
+	TArray<VkRayTracingShaderGroupCreateInfoKHR> ShaderGroups;
+	TArray<ANSICHAR*> EntryPointNames;
+	const uint32 EntryPointNameMaxLength = 24;
+
+	for (FRHIRayTracingShader* const RayGenShaderRHI : InitializerRayGenShaders)
+	{
+		VkPipelineShaderStageCreateInfo ShaderStage;
+		ZeroVulkanStruct(ShaderStage, VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO);
+		ShaderStage.module = static_cast<FVulkanRayGenShader*>(RayGenShaderRHI)->GetOrCreateHandle(Layout, Layout->GetDescriptorSetLayoutHash());
+		ShaderStage.stage = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+			
+		ANSICHAR* const EntryPoint = new ANSICHAR[EntryPointNameMaxLength];
+		static_cast<FVulkanRayGenShader*>(RayGenShaderRHI)->GetEntryPoint(EntryPoint, EntryPointNameMaxLength);
+		EntryPointNames.Add(EntryPoint);
+		ShaderStage.pName = EntryPoint;
+		ShaderStages.Add(ShaderStage);
+
+		VkRayTracingShaderGroupCreateInfoKHR ShaderGroup;
+		ZeroVulkanStruct(ShaderGroup, VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR);
+		ShaderGroup.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+		ShaderGroup.generalShader = ShaderStages.Num() - 1;
+		ShaderGroup.closestHitShader = VK_SHADER_UNUSED_KHR;
+		ShaderGroup.anyHitShader = VK_SHADER_UNUSED_KHR;
+		ShaderGroup.intersectionShader = VK_SHADER_UNUSED_KHR;
+		ShaderGroups.Add(ShaderGroup);
+	}
+
+	for (FRHIRayTracingShader* const MissShaderRHI : InitializerMissShaders)
+	{
+		VkPipelineShaderStageCreateInfo ShaderStage;
+		ZeroVulkanStruct(ShaderStage, VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO);
+		ShaderStage.module = static_cast<FVulkanRayMissShader*>(MissShaderRHI)->GetOrCreateHandle(Layout, Layout->GetDescriptorSetLayoutHash());
+		ShaderStage.stage = VK_SHADER_STAGE_MISS_BIT_KHR;
+
+		ANSICHAR* const EntryPoint = new char[EntryPointNameMaxLength];
+		static_cast<FVulkanRayGenShader*>(MissShaderRHI)->GetEntryPoint(EntryPoint, EntryPointNameMaxLength);
+		EntryPointNames.Add(EntryPoint);
+		ShaderStage.pName = EntryPoint;
+		ShaderStages.Add(ShaderStage);
+
+		VkRayTracingShaderGroupCreateInfoKHR ShaderGroup;
+		ZeroVulkanStruct(ShaderGroup, VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR);
+		ShaderGroup.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+		ShaderGroup.generalShader = ShaderStages.Num() - 1;
+		ShaderGroup.closestHitShader = VK_SHADER_UNUSED_KHR;
+		ShaderGroup.anyHitShader = VK_SHADER_UNUSED_KHR;
+		ShaderGroup.intersectionShader = VK_SHADER_UNUSED_KHR;
+		ShaderGroups.Add(ShaderGroup);
+	}
+
+	for (FRHIRayTracingShader* const HitGroupShaderRHI : InitializerHitGroupShaders)
+	{
+		VkPipelineShaderStageCreateInfo ShaderStage;
+		ZeroVulkanStruct(ShaderStage, VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO);
+		ShaderStage.module = static_cast<FVulkanRayHitGroupShader*>(HitGroupShaderRHI)->GetOrCreateHandle(Layout, Layout->GetDescriptorSetLayoutHash());
+		ShaderStage.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+
+		ANSICHAR* const EntryPoint = new char[EntryPointNameMaxLength];
+		static_cast<FVulkanRayHitGroupShader*>(HitGroupShaderRHI)->GetEntryPoint(EntryPoint, EntryPointNameMaxLength);
+		EntryPointNames.Add(EntryPoint);
+		ShaderStage.pName = EntryPoint;
+		ShaderStages.Add(ShaderStage);
+
+		VkRayTracingShaderGroupCreateInfoKHR ShaderGroup;
+		ZeroVulkanStruct(ShaderGroup, VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR);
+		ShaderGroup.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
+		ShaderGroup.generalShader = VK_SHADER_UNUSED_KHR;
+		ShaderGroup.closestHitShader = ShaderStages.Num() - 1;
+		ShaderGroup.anyHitShader = VK_SHADER_UNUSED_KHR; // vkrt: todo
+		ShaderGroup.intersectionShader = VK_SHADER_UNUSED_KHR;
+		ShaderGroups.Add(ShaderGroup);
+	}
+
+	VkRayTracingPipelineCreateInfoKHR RayTracingPipelineCreateInfo;
+	ZeroVulkanStruct(RayTracingPipelineCreateInfo, VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR);
+	RayTracingPipelineCreateInfo.stageCount = ShaderStages.Num();
+	RayTracingPipelineCreateInfo.pStages = ShaderStages.GetData();
+	RayTracingPipelineCreateInfo.groupCount = ShaderGroups.Num();
+	RayTracingPipelineCreateInfo.pGroups = ShaderGroups.GetData();
+	RayTracingPipelineCreateInfo.maxPipelineRayRecursionDepth = 1;
+	RayTracingPipelineCreateInfo.layout = Layout->GetPipelineLayout();
+	
+	VERIFYVULKANRESULT(vkCreateRayTracingPipelinesKHR(
+		InDevice->GetInstanceHandle(), 
+		VK_NULL_HANDLE, // Deferred Operation 
+		VK_NULL_HANDLE, // Pipeline Cache 
+		1, 
+		&RayTracingPipelineCreateInfo, 
+		VULKAN_CPU_ALLOCATOR, 
+		&Pipeline));
+
+	for (ANSICHAR* const EntryPoint : EntryPointNames)
+	{
+		delete[] EntryPoint;
+	}
+
+	const FRayTracingProperties& Props = InDevice->GetRayTracingProperties();
+	const uint32 HandleSize = Props.RayTracingPipeline.shaderGroupHandleSize;
+	const uint32 HandleSizeAligned = GetAlignedSize(HandleSize, Props.RayTracingPipeline.shaderGroupHandleAlignment);
+	const uint32 GroupCount = ShaderGroups.Num();
+	const uint32 SBTSize = GroupCount * HandleSizeAligned;
+
+	TArray<uint8> ShaderHandleStorage;
+	ShaderHandleStorage.AddUninitialized(SBTSize);
+	VERIFYVULKANRESULT(vkGetRayTracingShaderGroupHandlesKHR(InDevice->GetInstanceHandle(), Pipeline, 0, GroupCount, SBTSize, ShaderHandleStorage.GetData()));
+
+	auto CopyHanldlesToSBT = [InDevice, HandleSize, ShaderHandleStorage](FVkRtAllocation& Allocation, uint32 Offset)
+	{
+		FVulkanRayTracingAllocator::Allocate(
+			InDevice->GetPhysicalHandle(),
+			InDevice->GetInstanceHandle(),
+			HandleSize,
+			VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			Allocation);
+
+		void* pMappedBufferMemory = nullptr;
+		VERIFYVULKANRESULT(vkMapMemory(InDevice->GetInstanceHandle(), Allocation.Memory, 0, VK_WHOLE_SIZE, 0, &pMappedBufferMemory));
+		{
+			FMemory::Memcpy(pMappedBufferMemory, ShaderHandleStorage.GetData() + Offset, HandleSize);
+		}
+		vkUnmapMemory(InDevice->GetInstanceHandle(), Allocation.Memory);
+	};
+
+	CopyHanldlesToSBT(RayGenShaderBindingTable, 0);
+	CopyHanldlesToSBT(MissShaderBindingTable, HandleSizeAligned);
+	CopyHanldlesToSBT(HitShaderBindingTable, HandleSizeAligned * 2);
+}
+
+FVulkanRayTracingPipelineState::~FVulkanRayTracingPipelineState()
+{
+	FVulkanRayTracingAllocator::Free(RayGenShaderBindingTable);
+	FVulkanRayTracingAllocator::Free(MissShaderBindingTable);
+	FVulkanRayTracingAllocator::Free(HitShaderBindingTable);
+
+	if (Layout != nullptr)
+	{
+		delete Layout;
+		Layout = nullptr;
+	}
+}
+
+FVulkanBasicRaytracingPipeline::FVulkanBasicRaytracingPipeline(FVulkanDevice* const InDevice)
+{
+	check(Occlusion == nullptr);
+
+	// Occlusion pipeline
+	{
+		FRayTracingPipelineStateInitializer OcclusionInitializer;
+
+		FRHIRayTracingShader* OcclusionRGSTable[] = { GetBuiltInRayTracingShader<FOcclusionMainRG>() };
+		OcclusionInitializer.SetRayGenShaderTable(OcclusionRGSTable);
+
+		FRHIRayTracingShader* OcclusionMSTable[] = { GetBuiltInRayTracingShader<FDefaultPayloadMS>() };
+		OcclusionInitializer.SetMissShaderTable(OcclusionMSTable);
+
+		FRHIRayTracingShader* OcclusionCHSTable[] = { GetBuiltInRayTracingShader<FDefaultMainCHS>() };
+		OcclusionInitializer.SetHitGroupTable(OcclusionCHSTable);
+
+		OcclusionInitializer.bAllowHitGroupIndexing = false;
+
+		Occlusion = new FVulkanRayTracingPipelineState(InDevice, OcclusionInitializer);
+	}
+}
+
+FVulkanBasicRaytracingPipeline::~FVulkanBasicRaytracingPipeline()
+{
+	if (Occlusion != nullptr)
+	{
+		delete Occlusion;
+		Occlusion = nullptr;
+	}
+}
+#endif // VULKAN_RHI_RAYTRACING

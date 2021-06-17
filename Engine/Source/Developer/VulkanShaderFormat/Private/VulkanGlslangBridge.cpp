@@ -179,8 +179,7 @@ void PatchSpirvReflectionEntries(FVulkanSpirv& Spirv)
 	TMap<uint32, uint32> TypePointerUniforms;
 	TMap<uint32, uint32> VariableUniformTypes;
 
-	bool bDone = false;
-	for (FSpirvConstIterator Iter = Spirv.cbegin(); Iter != Spirv.cend() && !bDone; ++Iter)
+	for (FSpirvConstIterator Iter = Spirv.cbegin(); Iter != Spirv.cend(); ++Iter)
 	{
 		switch (Iter.Opcode())
 		{
@@ -236,14 +235,15 @@ void PatchSpirvReflectionEntries(FVulkanSpirv& Spirv)
 			uint32 Type = Iter.Operand(1);
 			uint32 Id = Iter.Operand(2);
 			SpvStorageClass Storage = Iter.OperandAs<SpvStorageClass>(3);
-			if (Storage == SpvStorageClassUniform || Storage == SpvStorageClassUniformConstant)
+			if (Storage == SpvStorageClassUniform || 
+				Storage == SpvStorageClassUniformConstant || 
+				Storage == SpvStorageClassStorageBuffer)
 			{
 				VariableUniformTypes.Add(Id, Type);
 			}
 		}
 			break;
 		case SpvOpFunction:
-			bDone = true;
 			break;
 		default:
 			break;
