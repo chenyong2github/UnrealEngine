@@ -215,11 +215,11 @@ public:
 #if WITH_EDITORONLY_DATA
 public:
 	// Allow preview render
-	UPROPERTY(EditAnywhere, Category = "Editor Preview")
+	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (DisplayName = "Enable Editor Preview"))
 	bool bPreviewEnable = true;
 	
 	// Render single node preview or whole cluster
-	UPROPERTY(EditAnywhere, Category = "Editor Preview")
+	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (DisplayName = "Preview Node"))
 	FString PreviewNodeId = DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll;
 
 	// Render mode for PIE
@@ -231,11 +231,11 @@ public:
 	int TickPerFrame = 1;
 
 	// Preview texture size get from viewport, and scaled by this value
-	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1"))
+	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (DisplayName = "Preview Screen Percentage", ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1"))
 	float PreviewRenderTargetRatioMult = 0.25;
 
 	/* Enable the on-screen camera preview widget when selecting this actor. Changing this value requires reselecting the actor. */
-	UPROPERTY(EditAnywhere, Category = "Editor Preview")
+	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (DisplayName = "Enable Inner Frustum Preview"))
 	bool bEnableICVFXCameraPreview = false;
 
 private:

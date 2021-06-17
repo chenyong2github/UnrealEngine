@@ -460,11 +460,11 @@ public:
 	FOpenColorIODisplayConfiguration OCIO_Configuration;
 
 	// Enable cluster node OCIO configuration for this camera
-	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "Enable cluster nodes OCIO"))
-	bool bEnableInnerFrustumOCIO = false;
+	UPROPERTY(BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "Enable Per-Node OCIO Overrides"))
+	bool bEnableInnerFrustumOCIO = true;
 
 	// Define special OCIO for cluster nodes for this camera
-	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "Cluster nodes OCIO Configurations", ConfigurationMode = "ClusterNodes", EditCondition = "bEnableInnerFrustumOCIO"))
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "Per-Node OCIO Overrides", ConfigurationMode = "ClusterNodes"))
 	TArray<FDisplayClusterConfigurationOCIOProfile> InnerFrustumOCIOConfigurations;
 
 	// Special hide list for this camera viewport
@@ -482,7 +482,7 @@ public:
 
 public:
 	// Allow ICVFX features
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Inner Frustums"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Inner Frustum"))
 	bool bEnable = true;
 
 	// Allow Inner frustums rendering

@@ -862,7 +862,20 @@ void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::AddCustomPolicyRo
 
 TSharedRef<SWidget> FDisplayClusterConfiguratorRenderSyncPolicyCustomization::MakeRenderSyncPolicyOptionComboWidget(TSharedPtr<FString> InItem)
 {
-	return SNew(STextBlock).Text(FText::FromString(*InItem));
+	FString TypeStr = *InItem;
+	int32 TypeIndex = GetPolicyTypeIndex(TypeStr);
+
+	FText DisplayText;
+	if (TypeIndex > INDEX_NONE)
+	{
+		DisplayText = FText::Format(LOCTEXT("RenderPolicyTypeDisplayFormat", "{0} ({1})"), FText::FromString(TypeStr), FText::AsNumber(TypeIndex));
+	}
+	else
+	{
+		DisplayText = FText::FromString(TypeStr);
+	}
+
+	return SNew(STextBlock).Text(DisplayText);
 }
 
 void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::OnRenderSyncPolicySelected(TSharedPtr<FString> InPolicy, ESelectInfo::Type SelectInfo)
@@ -921,7 +934,17 @@ FText FDisplayClusterConfiguratorRenderSyncPolicyCustomization::GetSelectedRende
 		return FText::FromString(*CustomOption.Get());
 	}
 
-	return FText::FromString(ConfigurationCluster->Sync.RenderSyncPolicy.Type);
+	FString TypeStr = ConfigurationCluster->Sync.RenderSyncPolicy.Type;
+	int32 TypeIndex = GetPolicyTypeIndex(TypeStr);
+
+	if (TypeIndex > INDEX_NONE)
+	{
+		return FText::Format(LOCTEXT("RenderPolicyTypeDisplayFormat", "{0} ({1})"), FText::FromString(TypeStr), FText::AsNumber(TypeIndex));
+	}
+	else
+	{
+		return FText::FromString(TypeStr);
+	}
 }
 
 FText FDisplayClusterConfiguratorRenderSyncPolicyCustomization::GetCustomPolicyText() const
@@ -948,6 +971,26 @@ bool FDisplayClusterConfiguratorRenderSyncPolicyCustomization::IsCustomTypeInCon
 	}
 
 	return true;
+}
+
+int32 FDisplayClusterConfiguratorRenderSyncPolicyCustomization::GetPolicyTypeIndex(const FString& Type) const
+{
+	int32 TypeIndex = INDEX_NONE;
+
+	if (Type.ToLower().Equals(DisplayClusterConfigurationStrings::config::cluster::render_sync::None))
+	{
+		TypeIndex = 0;
+	}
+	else if (Type.ToLower().Equals(DisplayClusterConfigurationStrings::config::cluster::render_sync::Ethernet))
+	{
+		TypeIndex = 1;
+	}
+	else if (Type.ToLower().Equals(DisplayClusterConfigurationStrings::config::cluster::render_sync::Nvidia))
+	{
+		TypeIndex = 2;
+	}
+
+	return TypeIndex;
 }
 
 void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::OnTextCommittedInCustomPolicyText(const FText& InValue, ETextCommit::Type CommitType)
@@ -1363,14 +1406,14 @@ void FDisplayClusterConfiguratorOCIOProfileCustomization::CustomizeChildren(TSha
 	check(EnableOCIOHandle->IsValidHandle());
 	
 	EnableOCIOHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
-		LOCTEXT("EnableOCIOViewportsDisplayName", "Enable Outer Viewport OCIO Configuration") : LOCTEXT("EnableOCIOClusterDisplayName", "Enable Inner Frustum OCIO Configuration"));
+		LOCTEXT("EnableOCIOViewportsDisplayName", "Enable Per-Viewport OCIO") : LOCTEXT("EnableOCIOClusterDisplayName", "Enable Per-Node OCIO"));
 	
 	const TSharedPtr<IPropertyHandle> ArrayHandle = PropertyHandle->GetChildHandle(
 		GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationOCIOProfile, ApplyOCIOToObjects));
 	check(ArrayHandle->IsValidHandle());
 	
 	OCIOHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
-		LOCTEXT("OCIOViewportsModeDisplayName", "Outer Viewport OCIO Configuration") : LOCTEXT("OCIOClusterModeDisplayName", "Inner Frustum OCIO Configuration"));
+		LOCTEXT("OCIOViewportsModeDisplayName", "Viewport OCIO") : LOCTEXT("OCIOClusterModeDisplayName", "Inner Frustum OCIO"));
 	ArrayHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
 		LOCTEXT("DataViewportsModeDisplayName", "Apply OCIO to Viewports") : LOCTEXT("DataClusterModeDisplayName", "Apply OCIO to Nodes"));
 	ArrayHandle->SetToolTipText(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?

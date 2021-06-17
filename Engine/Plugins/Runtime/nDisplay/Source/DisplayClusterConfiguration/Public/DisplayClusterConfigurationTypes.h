@@ -191,7 +191,7 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = NDisplay)
 	FString Id;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration", meta = (DisplayName = "Master Node Ports"))
 	FDisplayClusterConfigurationMasterNodePorts Ports;
 };
 
@@ -298,16 +298,16 @@ private:
 #endif
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadonly, Category = "Configuration", meta = (DisplayName = "Host IP"))
+	UPROPERTY(EditAnywhere, BlueprintReadonly, Category = "Configuration", meta = (DisplayName = "Host IP Address"))
 	FString Host;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "Enable Sound"))
 	bool bIsSoundEnabled;
 
-	UPROPERTY(EditAnywhere, BlueprintReadonly, Category = "Configuration")
+	UPROPERTY(EditAnywhere, BlueprintReadonly, Category = "Configuration", meta = (DisplayName = "Fullscreen"))
 	bool bIsFullscreen;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "Window"))
 	FDisplayClusterConfigurationRectangle WindowRect;
 
 #if WITH_EDITORONLY_DATA
@@ -392,7 +392,7 @@ class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationCluster
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration", meta = (ShowOnlyInnerProperties))
 	FDisplayClusterConfigurationMasterNode MasterNode;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration")
@@ -405,7 +405,7 @@ public:
 	TMap<FString, UDisplayClusterConfigurationClusterNode*> Nodes;
 
 	// Apply the global cluster post process settings to all viewports
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Post Process", meta = (DisplayName = "Enable Enitre Cluster Color Grading"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Post Process", meta = (DisplayName = "Enable Entire Cluster Color Grading"))
 	bool bUseOverallClusterPostProcess = true;
 
 	//!

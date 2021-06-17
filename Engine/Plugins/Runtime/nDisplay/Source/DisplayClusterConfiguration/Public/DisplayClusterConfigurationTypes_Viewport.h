@@ -178,7 +178,7 @@ public:
 	FDisplayClusterConfigurationViewport_ICVFX ICVFX;
 
 	// OCIO Display look configuration 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO")
+	UPROPERTY(BlueprintReadWrite, Category = "OCIO")
 	FOpenColorIODisplayConfiguration OCIO_Configuration;
 
 	// Per viewport post processing
@@ -246,7 +246,7 @@ public:
 	float ClusterICVFXInnerFrustumBufferRatioMult = 1.f;
 
 	// Multiply outer viewports buffer ratios for whole cluster by this value
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Outer Viewport Screen Percentage Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Viewport Screen Percentage Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
 	float ClusterICVFXOuterViewportBufferRatioMult = 1.f;
 
 	// Allow warpblend render

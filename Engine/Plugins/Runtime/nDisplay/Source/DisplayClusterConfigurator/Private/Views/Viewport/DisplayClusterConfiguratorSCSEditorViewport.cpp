@@ -688,14 +688,9 @@ FReply SDisplayClusterConfiguratorSCSEditorViewport::OnDragOver(const FGeometry&
 			{
 				if (const UStaticMeshComponent* MeshComponent = Cast<UStaticMeshComponent>(ActorProxy->PrimComponent))
 				{
-					if (MeshComponent->GetName().EndsWith(FDisplayClusterConfiguratorUtils::GetImplSuffix()))
+					if (const UDisplayClusterScreenComponent* ScreenComponent = Cast<UDisplayClusterScreenComponent>(MeshComponent))
 					{
-						// If the mesh component is marked with an "_impl" suffix, then it is a child component of a display cluster component.
-						// Check to see if its parent component is a screen component
-						if (UDisplayClusterScreenComponent* ScreenComponent = Cast<UDisplayClusterScreenComponent>(MeshComponent->GetAttachParent()))
-						{
-							ViewportDragDropOp->SetDropAsValid(FText::Format(LOCTEXT("ViewportDragDropOp_ScreenMessage", "Project to screen {0}"), FText::FromName(ScreenComponent->GetFName())));
-						}
+						ViewportDragDropOp->SetDropAsValid(FText::Format(LOCTEXT("ViewportDragDropOp_ScreenMessage", "Project to screen {0}"), FText::FromName(ScreenComponent->GetFName())));
 					}
 					else
 					{
@@ -743,16 +738,11 @@ FReply SDisplayClusterConfiguratorSCSEditorViewport::OnDrop(const FGeometry& MyG
 					FString ParameterKey;
 					FString ComponentName;
 
-					if (MeshComponent->GetName().EndsWith(FDisplayClusterConfiguratorUtils::GetImplSuffix()))
+					if (const UDisplayClusterScreenComponent* ScreenComponent = Cast<UDisplayClusterScreenComponent>(MeshComponent))
 					{
-						// If the mesh component is marked with an "_impl" suffix, then it is a child component of a display cluster component.
-						// Check to see if its parent component is a screen component
-						if (UDisplayClusterScreenComponent* ScreenComponent = Cast<UDisplayClusterScreenComponent>(MeshComponent->GetAttachParent()))
-						{
-							PolicyType = DisplayClusterProjectionStrings::projection::Simple;
-							ParameterKey = DisplayClusterProjectionStrings::cfg::simple::Screen;
-							ComponentName = ScreenComponent->GetName();
-						}
+						PolicyType = DisplayClusterProjectionStrings::projection::Simple;
+						ParameterKey = DisplayClusterProjectionStrings::cfg::simple::Screen;
+						ComponentName = ScreenComponent->GetName();
 					}
 					else
 					{

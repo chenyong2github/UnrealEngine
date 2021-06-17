@@ -30,9 +30,9 @@ namespace DisplayClusterRootActorDetailsCustomizationUtils
 			TEXT("TransformCommon"),
 			DisplayClusterConfigurationStrings::categories::ViewportsCategory,
 			DisplayClusterConfigurationStrings::categories::ICVFXCategory,
-			DisplayClusterConfigurationStrings::categories::LightcardCategory,
-			DisplayClusterConfigurationStrings::categories::OCIOCategory,
 			DisplayClusterConfigurationStrings::categories::ColorGradingCategory,
+			DisplayClusterConfigurationStrings::categories::OCIOCategory,
+			DisplayClusterConfigurationStrings::categories::LightcardCategory,
 			DisplayClusterConfigurationStrings::categories::OverrideCategory,
 			DisplayClusterConfigurationStrings::categories::PreviewCategory,
 			DisplayClusterConfigurationStrings::categories::ConfigurationCategory
@@ -131,7 +131,8 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 			NestedPropertyHelper.GetNestedPropertyKeys(TEXT("CurrentConfigData.Cluster.Nodes.Viewports"), ViewportNames);
 		}
 
-		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ICVFXCategory)
+		// Manually labeling the ICVFX category because UE4 will automatically put a space after the dash if the label is generated automatically
+		BEGIN_LABELED_CATEGORY(DisplayClusterConfigurationStrings::categories::ICVFXCategory, LOCTEXT("ICVFXCategoryLabel", "In-Camera VFX"))
 			if (bIsCDO)
 			{
 				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable);
@@ -154,7 +155,7 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 					TArray<TSharedPtr<IPropertyHandle>> AllowICVFXHandles;
 					NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.Cluster.Nodes.Viewports.ICVFX.bAllowInnerFrustum"), AllowICVFXHandles);
 
-					BEGIN_GROUP("InnerFrustumEnabledInViewports", LOCTEXT("InnerFrustumEnabledInViewports", "Inner Frustum Enabled in Viewports"))
+					BEGIN_GROUP("InnerFrustumEnabledInViewports", LOCTEXT("InnerFrustumEnabledInViewports", "Inner Frustum Visible in Viewports"))
 						for (int32 VPIdx = 0; VPIdx < AllowICVFXHandles.Num(); ++VPIdx)
 						{
 							TSharedPtr<IPropertyHandle>& Handle = AllowICVFXHandles[VPIdx];
@@ -172,15 +173,7 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 		END_CATEGORY();
 
 		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ViewportsCategory)
-			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->RenderFrameSettings.ClusterBufferRatioMult)
 			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->RenderFrameSettings.ClusterICVFXOuterViewportBufferRatioMult)
-			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->RenderFrameSettings.ClusterICVFXInnerFrustumBufferRatioMult)
-			if (bIsCDO)
-			{
-				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->RenderFrameSettings.ClusterRenderTargetRatioMult)
-				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->RenderFrameSettings.ClusterICVFXInnerViewportRenderTargetRatioMult)
-				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->RenderFrameSettings.ClusterICVFXOuterViewportRenderTargetRatioMult)
-			}
 
 			if (ViewportNames.Num() > 0)
 			{
@@ -223,7 +216,7 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.bEnable)
 			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.Blendingmode)
 
-			BEGIN_GROUP(TEXT("LightCardActorsGroup"), LOCTEXT("LightCardActorsGroupLabel", "Content Visibile Only in Outer Viewports"))
+			BEGIN_GROUP(TEXT("LightCardActorsGroup"), LOCTEXT("LightCardActorsGroupLabel", "Content Visible Only in Viewports"))
 				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.ActorLayers)
 				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.Actors)
 
@@ -231,12 +224,6 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 				{
 					ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.RootActorComponentNames)
 				}
-			END_GROUP();
-
-			BEGIN_GROUP(TEXT("LightCardOCIOGroup"), LOCTEXT("LightCardOCIOGroupLabel", "OCIO"))
-				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.bEnableOuterViewportOCIO)
-				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.bEnableViewportOCIO)
-				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.OCIO_Configuration)
 			END_GROUP();
 
 			ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.RenderSettings)
@@ -250,9 +237,6 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 
 			if (!bIsCDO)
 			{
-				//TArray<FString> ViewportNames;
-				//NestedPropertyHelper.GetNestedPropertyKeys(TEXT("CurrentConfigData.Cluster.Nodes.Viewports"), ViewportNames);
-
 				TArray<TSharedPtr<IPropertyHandle>> ViewportPostProcessSettings;
 				NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.Cluster.Nodes.Viewports.PostProcessSettings"), ViewportPostProcessSettings);
 
@@ -273,6 +257,7 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 
 		// Add custom properties and lay out/order properties into their correct categories.
 		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::PreviewCategory)
+			ADD_PROPERTY(ADisplayClusterRootActor, bPreviewEnable)
 			if (RebuildNodeIdOptionsList())
 			{
 				REPLACE_PROPERTY_WITH_CUSTOM(ADisplayClusterRootActor, PreviewNodeId, CreateCustomNodeIdWidget());

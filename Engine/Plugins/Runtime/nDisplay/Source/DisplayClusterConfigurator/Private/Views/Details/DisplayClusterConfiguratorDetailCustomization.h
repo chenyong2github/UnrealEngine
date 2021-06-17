@@ -287,6 +287,8 @@ private:
 
 	bool IsCustomTypeInConfig() const;
 
+	int32 GetPolicyTypeIndex(const FString& Type) const;
+
 	void OnTextCommittedInCustomPolicyText(const FText& InValue, ETextCommit::Type CommitType);
 	
 	void AddToParameterMap(const FString& Key, const FString& Value);

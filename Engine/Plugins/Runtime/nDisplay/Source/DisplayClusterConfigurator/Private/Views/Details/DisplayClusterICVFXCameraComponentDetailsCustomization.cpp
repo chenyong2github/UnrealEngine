@@ -25,8 +25,8 @@ namespace DisplayClusterICVFXCameraComponentDetailsCustomizationUtils
 			TEXT("TransformCommon"),
 			DisplayClusterConfigurationStrings::categories::ICVFXCategory,
 			DisplayClusterConfigurationStrings::categories::CameraColorGradingCategory,
-			DisplayClusterConfigurationStrings::categories::ChromaKeyCategory,
 			DisplayClusterConfigurationStrings::categories::OCIOCategory,
+			DisplayClusterConfigurationStrings::categories::ChromaKeyCategory,
 			DisplayClusterConfigurationStrings::categories::OverrideCategory,
 			DisplayClusterConfigurationStrings::categories::ConfigurationCategory
 		};
@@ -117,7 +117,7 @@ void FDisplayClusterICVFXCameraComponentDetailsCustomization::CustomizeDetails(I
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.AdvancedRenderSettings.StereoMode)
 	END_CATEGORY();
 
-	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ICVFXCategory)
+	BEGIN_LABELED_CATEGORY(DisplayClusterConfigurationStrings::categories::ICVFXCategory, LOCTEXT("ICVFXCategoryLabel", "In-Camera VFX"))
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable)
 		ADD_PROPERTY(UDisplayClusterICVFXCameraComponent, ExternalCameraActor)
 		// TODO: Screen Percentage Multiplier
@@ -155,9 +155,8 @@ void FDisplayClusterICVFXCameraComponentDetailsCustomization::CustomizeDetails(I
 	END_CATEGORY();
 
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::OCIOCategory)
-		// TODO: Refactor ICVFX camera OCIO to match the DCRA OCIO refactor
-		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.OCIO_Configuration)
-		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnableInnerFrustumOCIO)
+		RENAME_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.OCIO_Configuration.bIsEnabled, LOCTEXT("OCIOIsEnabledLabel", "Enable Inner Frustum OCIO"))
+		RENAME_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.OCIO_Configuration.ColorConfiguration, LOCTEXT("OCIOColorConfigLabel", "All Nodes Color Configuration"))
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.InnerFrustumOCIOConfigurations)
 	END_CATEGORY();
 

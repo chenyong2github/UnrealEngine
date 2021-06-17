@@ -11,6 +11,7 @@
 #include "DisplayClusterRootActor.h"
 #include "DisplayClusterProjectionStrings.h"
 #include "Blueprints/DisplayClusterBlueprint.h"
+#include "Components/DisplayClusterScreenComponent.h"
 #include "Misc/DisplayClusterHelpers.h"
 #include "Misc/DisplayClusterTypesConverter.h"
 
@@ -205,8 +206,14 @@ void FPolicyParameterInfoComponentCombo::CreateParameterValues(ADisplayClusterRo
 		RootActor->GetComponents(ComponentType, ActorComponents);
 		for (UActorComponent* ActorComponent : ActorComponents)
 		{
-			if (ActorComponent->GetName().EndsWith(FDisplayClusterConfiguratorUtils::GetImplSuffix()) ||
-				(ActorComponent->IsA<UStaticMeshComponent>() && ActorComponent->IsVisualizationComponent()))
+			// Filter out components that should not be listed, including implicit components and visualization components. We must
+			// specially check for screen components since they are flagged as visualization components but we want them to show up
+			// in the list.
+			const bool bIsImplicitComponent = ActorComponent->GetName().EndsWith(FDisplayClusterConfiguratorUtils::GetImplSuffix());
+			const bool bIsVisualizationComponent = ActorComponent->IsA<UStaticMeshComponent>() && ActorComponent->IsVisualizationComponent();
+			const bool bIsScreenComponent = ActorComponent->IsA<UDisplayClusterScreenComponent>();
+
+			if (bIsImplicitComponent || (bIsVisualizationComponent && !bIsScreenComponent))
 			{
 				// Ignore the default impl subobjects.
 				continue;
