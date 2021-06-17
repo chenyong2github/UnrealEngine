@@ -306,6 +306,9 @@ bool FParameterizeMeshOp::ComputeUVs_ExpMap(FDynamicMesh3& Mesh, TFunction<bool(
 {
 	FDynamicMeshUVEditor UVEditor(&Mesh, UVLayer, true);
 
+	// Delete existing UVs, if there are any.
+	UVEditor.ResetUVs();
+	
 	TArray<int32> AllTriangles;
 	for (int32 tid : Mesh.TriangleIndicesItr())
 	{
@@ -324,6 +327,9 @@ bool FParameterizeMeshOp::ComputeUVs_ConformalFreeBoundary(FDynamicMesh3& InOutM
 {
 	FDynamicMeshUVEditor UVEditor(&InOutMesh, UVLayer, true);
 
+	// Delete existing UVs, if there are any.
+	UVEditor.ResetUVs();
+	
 	TArray<int32> AllTriangles;
 	for (int32 tid : InOutMesh.TriangleIndicesItr())
 	{

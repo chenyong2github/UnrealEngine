@@ -240,7 +240,7 @@ int TDynamicMeshOverlay<RealType, ElementSize>::SplitElementWithNewParent(int El
 	if (ElementsRefCounts.GetRefCount(ElementID) == 1) 
 	{
 		ElementsRefCounts.Decrement(ElementID);
-		ParentVertices[ElementID] = -1;
+		ParentVertices[ElementID] = FDynamicMesh3::InvalidID;
 	}
 
 	return NewElID;
@@ -386,7 +386,7 @@ template<typename RealType, int ElementSize>
 void TDynamicMeshOverlay<RealType, ElementSize>::UnsetTriangle(int TriangleID)
 {
 	int i = 3 * TriangleID;
-	if (ElementTriangles[i] == -1)
+	if (ElementTriangles[i] == FDynamicMesh3::InvalidID)
 	{
 		return;
 	}
@@ -397,9 +397,9 @@ void TDynamicMeshOverlay<RealType, ElementSize>::UnsetTriangle(int TriangleID)
 		if (ElementsRefCounts.GetRefCount(ElementTriangles[i + SubIdx]) == 1)
 		{
 			ElementsRefCounts.Decrement(ElementTriangles[i + SubIdx]);
-			ParentVertices[ElementTriangles[i + SubIdx]] = -1;
+			ParentVertices[ElementTriangles[i + SubIdx]] = FDynamicMesh3::InvalidID;
 		}
-		ElementTriangles[i + SubIdx] = -1;
+		ElementTriangles[i + SubIdx] = FDynamicMesh3::InvalidID;
 	}
 }
 
