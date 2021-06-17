@@ -9,12 +9,24 @@ FInstanceSceneShaderData::FInstanceSceneShaderData(
 	uint32 PrimitiveId,
 	const FRenderTransform& PrimitiveLocalToWorld,
 	const FRenderTransform& PrimitivePrevLocalToWorld,
-	uint32 LastUpdateFrame,
-	bool bHasPreviousTransform
+	const FRenderTransform& PrevLocalToPrimitive, // TODO: Temporary
+	const FVector4& LightMapShadowMapUVBias, // TODO: Temporary
+	float RandomID, // TODO: Temporary
+	uint32 LastUpdateFrame
 )
 : Data(InPlace, NoInit)
 {
-	Setup(Instance, PrimitiveId, PrimitiveLocalToWorld, PrimitivePrevLocalToWorld, LastUpdateFrame, bHasPreviousTransform);
+	Setup
+	(
+		Instance,
+		PrimitiveId,
+		PrimitiveLocalToWorld,
+		PrimitivePrevLocalToWorld,
+		PrevLocalToPrimitive,
+		LightMapShadowMapUVBias,
+		RandomID,
+		LastUpdateFrame
+	);
 }
 
 void FInstanceSceneShaderData::Setup(
@@ -22,8 +34,10 @@ void FInstanceSceneShaderData::Setup(
 	uint32 PrimitiveId,
 	const FRenderTransform& PrimitiveToWorld,
 	const FRenderTransform& PrevPrimitiveToWorld,
-	uint32 LastUpdateFrame,
-	bool bHasPreviousTransform
+	const FRenderTransform& PrevLocalToPrimitive, // TODO: Temporary
+	const FVector4& LightMapShadowMapUVBias, // TODO: Temporary
+	float RandomID, // TODO: Temporary
+	uint32 LastUpdateFrame
 )
 {
 	// Note: layout must match GetInstanceData in SceneData.ush
@@ -31,12 +45,16 @@ void FInstanceSceneShaderData::Setup(
 	// TODO: Could remove LightMapAndShadowMapUVBias if r.AllowStaticLighting=false.
 	// This is a read-only setting that will cause all shaders to recompile if changed.
 
-	FRenderTransform LocalToWorld		= Instance.LocalToPrimitive * PrimitiveToWorld;
-
-	// TODO: Remove
-	const FRenderTransform& PrevLocalToPrimitive = bHasPreviousTransform ? Instance.PrevLocalToPrimitive : Instance.LocalToPrimitive;
-	FRenderTransform PrevLocalToWorld = PrevLocalToPrimitive * PrevPrimitiveToWorld;
-	//FRenderTransform PrevLocalToWorld	= Instance.PrevLocalToPrimitive * PrevPrimitiveToWorld;
+	FRenderTransform LocalToWorld = Instance.LocalToPrimitive * PrimitiveToWorld;
+	FRenderTransform PrevLocalToWorld;
+	if (Instance.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA)
+	{
+		PrevLocalToWorld = PrevLocalToPrimitive * PrevPrimitiveToWorld;
+	}
+	else
+	{
+		PrevLocalToWorld = Instance.LocalToPrimitive * PrevPrimitiveToWorld;
+	}
 
 	// Remove shear
 	LocalToWorld.Orthonormalize();
@@ -71,18 +89,16 @@ void FInstanceSceneShaderData::Setup(
 	Data[8].X  = *(const     float*)&BoundsExtent.Y;
 	Data[8].Y  = *(const     float*)&BoundsExtent.Z;
 	Data[8].Z  = *(const     float*)&PayloadDataOffset;
-	Data[8].W  = *(const     float*)&Instance.PerInstanceRandom;
+	Data[8].W  = *(const     float*)&RandomID;
 
-	Data[9]    = *(const  FVector4*)&Instance.LightMapAndShadowMapUVBias;
+	Data[9]    = *(const  FVector4*)&LightMapShadowMapUVBias;
 }
 
 static FPrimitiveInstance DummyInstance =
 	ConstructPrimitiveInstance(
 		FRenderBounds(FVector3f::ZeroVector, FVector3f::ZeroVector),
-		FVector4(ForceInitToZero),
 		NANITE_INVALID_HIERARCHY_OFFSET,
-		0u, /* Instance Flags */
-		0.0f
+		0u /* Instance Flags */
 	);
 
 ENGINE_API const FPrimitiveInstance& GetDummyPrimitiveInstance()
@@ -97,8 +113,10 @@ ENGINE_API const FInstanceSceneShaderData& GetDummyInstanceSceneShaderData()
 		0xFFFFFFFFu, /* Primitive Id */
 		FRenderTransform::Identity, /* Primitive LocalToWorld */
 		FRenderTransform::Identity,  /* Primitive PrevLocalToWorld */
-		INVALID_LAST_UPDATE_FRAME,
-		false /* Has Previous Transform */
+		FRenderTransform::Identity,  /* PrevLocalToPrimitive */
+		FVector4(ForceInitToZero), /* Lightmap and Shadowmap UV Bias */ // TODO: Temporary
+		0.0f, /* Per instance Random */ // TODO: Temporary
+		INVALID_LAST_UPDATE_FRAME
 	);
 	return DummyShaderData;
 }

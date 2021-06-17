@@ -169,7 +169,11 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bShouldNotifyOnWorldAddRemove(false)
 ,	bWantsSelectionOutline(true)
 ,	bVerifyUsedMaterials(true)
-,   bHasPrevInstanceTransforms(false)
+,	bHasPerInstanceRandom(false)
+,	bHasPerInstanceCustomData(false)
+,	bHasPerInstanceDynamicData(false)
+,	bHasPerInstanceLMSMUVBias(false)
+,	bHasPerInstanceHierarchyOffset(false)
 ,	bUseAsOccluder(InComponent->bUseAsOccluder)
 ,	bAllowApproximateOcclusion(InComponent->Mobility != EComponentMobility::Movable)
 ,	bSelectable(InComponent->bSelectable)
@@ -718,12 +722,9 @@ void FPrimitiveSceneProxy::UpdateDefaultInstanceSceneData()
 	InstanceSceneData.SetNumUninitialized(1);
 	FPrimitiveInstance& DefaultInstance = InstanceSceneData[0];
 	DefaultInstance.LocalToPrimitive.SetIdentity();
-	DefaultInstance.PrevLocalToPrimitive.SetIdentity();
 	DefaultInstance.LocalBounds = GetLocalBounds();
 	DefaultInstance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
 	DefaultInstance.Flags = 0;
-	DefaultInstance.PerInstanceRandom = 0.0f;
-	DefaultInstance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
 }
 
 bool FPrimitiveSceneProxy::DrawInVirtualTextureOnly(bool bEditor) const

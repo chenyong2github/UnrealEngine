@@ -602,6 +602,11 @@ public:
 		return UniformBuffer.GetReference(); 
 	}
 	inline bool HasPerInstanceHitProxies () const { return bHasPerInstanceHitProxies; }
+	inline bool HasPerInstanceRandom() const { return bHasPerInstanceRandom; }
+	inline bool HasPerInstanceCustomData() const { return bHasPerInstanceCustomData; }
+	inline bool HasPerInstanceDynamicData() const { return bHasPerInstanceDynamicData; }
+	inline bool HasPerInstanceLMSMUVBias() const { return bHasPerInstanceLMSMUVBias; }
+	inline bool HasPerInstanceHierarchyOffset() const { return bHasPerInstanceHierarchyOffset; }
 	inline bool UseEditorCompositing(const FSceneView* View) const { return GIsEditor && bUseEditorCompositing && !View->bIsGameView; }
 	inline bool IsBeingMovedByEditor() const { return bIsBeingMovedByEditor; }
 	inline const FVector& GetActorPosition() const { return ActorPosition; }
@@ -613,7 +618,6 @@ public:
 	inline bool SupportsMeshCardRepresentation() const { return bSupportsMeshCardRepresentation; }
 	inline bool SupportsHeightfieldRepresentation() const { return bSupportsHeightfieldRepresentation; }
 	inline bool SupportsInstanceDataBuffer() const { return bSupportsInstanceDataBuffer; }
-	inline bool HasPrevInstanceTransforms() const { return bHasPrevInstanceTransforms; }
 	inline bool TreatAsBackgroundForOcclusion() const { return bTreatAsBackgroundForOcclusion; }
 	inline bool ShouldNotifyOnWorldAddRemove() const { return bShouldNotifyOnWorldAddRemove; }
 	inline bool IsForceHidden() const {return bForceHidden;}
@@ -712,6 +716,26 @@ public:
 	TConstArrayView<FPrimitiveInstance> GetInstanceSceneData() const
 	{
 		return InstanceSceneData;
+	}
+
+	TConstArrayView<FPrimitiveInstanceDynamicData> GetInstanceDynamicData() const
+	{
+		return InstanceDynamicData;
+	}
+
+	TConstArrayView<float> GetInstanceCustomData() const
+	{
+		return InstanceCustomData;
+	}
+
+	TConstArrayView<float> GetInstanceRandomID() const
+	{
+		return InstanceRandomID;
+	}
+
+	TConstArrayView<FVector4> GetInstanceLightShadowUVBias() const
+	{
+		return InstanceLightShadowUVBias;
 	}
 
 	virtual void GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset) const
@@ -1059,8 +1083,12 @@ protected:
 
 	uint8 bVerifyUsedMaterials : 1;
 
-	/** TODO: KevinO cleanup. This is used to mark a scene proxy having manually set its own prev transform from construction */
-	uint8 bHasPrevInstanceTransforms : 1;
+	uint8 bHasPerInstanceRandom : 1;
+	uint8 bHasPerInstanceCustomData : 1;
+	uint8 bHasPerInstanceDynamicData : 1;
+	uint8 bHasPerInstanceLMSMUVBias : 1;
+	uint8 bHasPerInstanceHierarchyOffset : 1;
+
 private:
 
 	/** If this is True, this primitive will be used to occlusion cull other primitives. */
@@ -1107,6 +1135,10 @@ private:
 
 protected:
 	TArray<FPrimitiveInstance, TInlineAllocator<1>> InstanceSceneData;
+	TArray<FPrimitiveInstanceDynamicData> InstanceDynamicData;
+	TArray<float> InstanceCustomData;
+	TArray<float> InstanceRandomID;
+	TArray<FVector4> InstanceLightShadowUVBias;
 
 	/** Quality of interpolated indirect lighting for Movable components. */
 	TEnumAsByte<EIndirectLightingCacheQuality> IndirectLightingCacheQuality;

@@ -1261,7 +1261,25 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 	{
 		const TArray<int32>& InstanceReorderTable = InComponent->InstanceReorderTable;
 		bSupportsInstanceDataBuffer = true;
+
 		InstanceSceneData.SetNum(InComponent->GetInstanceCount());
+
+		const bool bValidPreviousData = InComponent->PerInstancePrevTransform.Num() == InComponent->GetInstanceCount();
+		InstanceDynamicData.SetNumUninitialized(bValidPreviousData ? InComponent->GetInstanceCount() : 0);
+
+		InstanceRandomID.SetNumZeroed(InComponent->GetInstanceCount()); // TODO: Only allocate if material bound which uses this
+		InstanceLightShadowUVBias.SetNumZeroed(InComponent->GetInstanceCount()); // TODO: Only allocate if static lighting is enabled for the project
+		InstanceCustomData.SetNumZeroed(InComponent->GetInstanceCount() * InComponent->NumCustomDataFloats);
+		//InstanceCustomData = InComponent->PerInstanceSMCustomData; // TODO: Use this once the hacky reorder table is removed
+		//check(InComponent->NumCustomDataFloats == 0 || (InstanceCustomData.Num() / InComponent->NumCustomDataFloats == InComponent->GetInstanceCount()));
+
+		uint32 InstanceDataFlags = 0;
+		InstanceDataFlags |= bCastDynamicShadow ? INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS : 0u;
+		InstanceDataFlags |= InstanceLightShadowUVBias.Num() > 0 ? INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS : 0u;
+		InstanceDataFlags |= InstanceDynamicData.Num() > 0 ? INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA : 0u;
+		InstanceDataFlags |= InstanceCustomData.Num() > 0 ? INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA : 0u;
+		InstanceDataFlags |= InstanceRandomID.Num() > 0 ? INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM : 0u;
+
 		for (int32 InInstanceIndex = 0; InInstanceIndex < InstanceSceneData.Num(); ++InInstanceIndex)
 		{
 			int32 OutInstanceIndex = InInstanceIndex;
@@ -1270,34 +1288,47 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 			if (OutInstanceIndex < InstanceReorderTable.Num() && InstanceReorderTable[OutInstanceIndex] < InstanceSceneData.Num())
 			{
 				// Temporary workaround for out of bound array access
-				// TODO: fix this properly
+				// TODO: fix this properly!!!!!!
 				OutInstanceIndex = InstanceReorderTable[OutInstanceIndex] != INDEX_NONE ? InstanceReorderTable[OutInstanceIndex] : OutInstanceIndex;
 			}
+
+			FPrimitiveInstance& SceneData = InstanceSceneData[OutInstanceIndex];
+
+			SceneData.Flags = InstanceDataFlags;
+			SceneData.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
+			SceneData.LocalBounds = InComponent->GetStaticMesh()->GetBounds();
+
 			FTransform InstanceTransform;
 			InComponent->GetInstanceTransform(InInstanceIndex, InstanceTransform);
-			
-			// TODO: KevinO cleanup
-			FTransform InstancePrevTransform;
-			const bool bHasPrevTransform = InComponent->GetInstancePrevTransform(InInstanceIndex, InstancePrevTransform);
+			SceneData.LocalToPrimitive = InstanceTransform.ToMatrixWithScale();
 
-			FPrimitiveInstance& Instance = InstanceSceneData[OutInstanceIndex];
-			Instance.LocalToPrimitive = InstanceTransform.ToMatrixWithScale();
-			
-			// TODO: KevinO cleanup
-			if (bHasPrevTransform)
+			if (bValidPreviousData)
 			{
-				bHasPrevInstanceTransforms = true;
-				Instance.PrevLocalToPrimitive = InstancePrevTransform.ToMatrixWithScale();
+				FPrimitiveInstanceDynamicData& DynamicData = InstanceDynamicData[OutInstanceIndex];
+
+				FTransform InstancePrevTransform;
+				const bool bHasPrevTransform = InComponent->GetInstancePrevTransform(InInstanceIndex, InstancePrevTransform);
+				if (ensure(bHasPrevTransform)) // Should always be true here
+				{
+					DynamicData.PrevLocalToPrimitive = InstanceTransform.ToMatrixWithScale();
+				}
+				else
+				{
+					DynamicData.PrevLocalToPrimitive = SceneData.LocalToPrimitive;
+				}
 			}
-			else
+
+			if (InComponent->NumCustomDataFloats > 0)
 			{
-				Instance.PrevLocalToPrimitive = Instance.LocalToPrimitive;
+				const int32 SrcCustomDataOffset = InInstanceIndex  * InComponent->NumCustomDataFloats;
+				const int32 DstCustomDataOffset = OutInstanceIndex * InComponent->NumCustomDataFloats;
+				FMemory::Memcpy
+				(
+					&InstanceCustomData[DstCustomDataOffset],
+					&InComponent->PerInstanceSMCustomData[SrcCustomDataOffset],
+					InComponent->NumCustomDataFloats * sizeof(float)
+				);
 			}
-			Instance.LocalBounds = InComponent->GetStaticMesh()->GetBounds();
-			Instance.PerInstanceRandom = 0.0f;
-			Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
-			Instance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
-			Instance.Flags = 0U;
 		}
 	}
 }
@@ -1333,21 +1364,29 @@ void FInstancedStaticMeshSceneProxy::CreateRenderThreadResources()
 			// NOTE: we set up partial data in the construction of ISM proxy (yep, awful but the equally awful way the InstanceBuffer is maintained means complete data is not available)
 			if (InstanceSceneData.Num() == InstanceBuffer.GetNumInstances())
 			{
+				const bool bHasLightMapData = InstanceLightShadowUVBias.Num() == InstanceSceneData.Num();
+				const bool bHasRandomID = InstanceRandomID.Num() == InstanceSceneData.Num();
+
 				for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 				{
-					FPrimitiveInstance& PrimitiveInstance = InstanceSceneData[InstanceIndex];
-					// TODO: redundant setting
-					PrimitiveInstance.LocalBounds = StaticMeshBounds;
+					FPrimitiveInstance& SceneData = InstanceSceneData[InstanceIndex];
+					SceneData.LocalBounds = StaticMeshBounds; // TODO: redundant setting
+					InstanceBuffer.GetInstanceTransform(InstanceIndex, SceneData.LocalToPrimitive);
 
-					InstanceBuffer.GetInstanceTransform(InstanceIndex, PrimitiveInstance.LocalToPrimitive);
-					InstanceBuffer.GetInstanceLightMapData(InstanceIndex, PrimitiveInstance.LightMapAndShadowMapUVBias);
-					InstanceBuffer.GetInstanceRandomID(InstanceIndex, PrimitiveInstance.PerInstanceRandom);
+					if (bHasRandomID)
+					{
+						InstanceBuffer.GetInstanceRandomID(InstanceIndex, InstanceRandomID[InstanceIndex]);
+					}
+
+					if (bHasLightMapData)
+					{
+						InstanceBuffer.GetInstanceLightMapData(InstanceIndex, InstanceLightShadowUVBias[InstanceIndex]);
+					}
 				}
 			}
 		}
 	}
 }
-
 
 void FInstancedStaticMeshSceneProxy::DestroyRenderThreadResources()
 {

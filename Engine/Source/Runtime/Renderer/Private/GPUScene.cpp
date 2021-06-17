@@ -163,6 +163,12 @@ struct FInstanceUploadInfo
 {
 	TConstArrayView<FPrimitiveInstance> PrimitiveInstances;
 	int32 InstanceSceneDataOffset = INDEX_NONE;
+
+	// Optional per-instance data views
+	TConstArrayView<FPrimitiveInstanceDynamicData> InstanceDynamicData;
+	TConstArrayView<FVector4> InstanceLightShadowUVBias;
+	TConstArrayView<float> InstanceCustomData;
+	TConstArrayView<float> InstanceRandomID;
 	
 	// Used for primitives that need to create a dummy instance (they do not have instance data in the proxy)
 	FPrimitiveInstance DummyInstance;
@@ -171,8 +177,6 @@ struct FInstanceUploadInfo
 	FRenderTransform PrevPrimitiveToWorld;
 	int32 PrimitiveID = INDEX_NONE;
 	uint32 LastUpdateSceneFrameNumber = ~uint32(0);
-
-	bool bHasPreviousTransforms = false;
 };
 
 /**
@@ -258,7 +262,6 @@ struct FUploadDataSourceAdapterScenePrimitives
 			InstanceUploadInfo.LastUpdateSceneFrameNumber = SceneFrameNumber;
 			InstanceUploadInfo.PrimitiveID = PrimitiveID;
 			InstanceUploadInfo.PrimitiveToWorld = PrimitiveSceneProxy->GetLocalToWorld();
-			InstanceUploadInfo.bHasPreviousTransforms = PrimitiveSceneProxy->HasPrevInstanceTransforms();
 
 			{
 				bool bHasPrecomputedVolumetricLightmap{};
@@ -270,10 +273,18 @@ struct FUploadDataSourceAdapterScenePrimitives
 				InstanceUploadInfo.PrevPrimitiveToWorld = PreviousLocalToWorld;
 			}
 
+			bool bPerformUpload = true;
+
 			if (PrimitiveSceneProxy->SupportsInstanceDataBuffer())
 			{
 				InstanceUploadInfo.PrimitiveInstances = PrimitiveSceneProxy->GetInstanceSceneData();
-				return InstanceUploadInfo.PrimitiveInstances.Num() > 0;
+				InstanceUploadInfo.InstanceDynamicData = PrimitiveSceneProxy->GetInstanceDynamicData();
+				InstanceUploadInfo.InstanceLightShadowUVBias = PrimitiveSceneProxy->GetInstanceLightShadowUVBias();
+				InstanceUploadInfo.InstanceCustomData = PrimitiveSceneProxy->GetInstanceCustomData();
+				InstanceUploadInfo.InstanceRandomID = PrimitiveSceneProxy->GetInstanceRandomID();
+
+				// Only trigger upload if this primitive has instances
+				bPerformUpload = InstanceUploadInfo.PrimitiveInstances.Num() > 0;
 			}
 			else
 			{
@@ -281,17 +292,20 @@ struct FUploadDataSourceAdapterScenePrimitives
 				// In the future we should remove redundant data from the primitive, and then the instances should be
 				// provided by the proxy. However, this is a lot of work before we can just enable it in the base proxy class.
 				InstanceUploadInfo.DummyInstance.LocalToPrimitive.SetIdentity();
-				InstanceUploadInfo.DummyInstance.PrevLocalToPrimitive.SetIdentity();
 				InstanceUploadInfo.DummyInstance.LocalBounds = PrimitiveSceneProxy->GetLocalBounds();
 				InstanceUploadInfo.DummyInstance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
-				InstanceUploadInfo.DummyInstance.PerInstanceRandom = 0.0f;
-				InstanceUploadInfo.DummyInstance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
-				// TODO: This should be propagated from the Primitive, or not exist?
+
+				// TODO: Set INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS when appropriate
 				InstanceUploadInfo.DummyInstance.Flags = 0;
 
-				InstanceUploadInfo.PrimitiveInstances = TArrayView<FPrimitiveInstance>(&InstanceUploadInfo.DummyInstance, 1);
-				return true;
+				InstanceUploadInfo.PrimitiveInstances = TConstArrayView<FPrimitiveInstance>(&InstanceUploadInfo.DummyInstance, 1);
+				InstanceUploadInfo.InstanceDynamicData = TConstArrayView<FPrimitiveInstanceDynamicData>((FPrimitiveInstanceDynamicData*)nullptr, 0);
+				InstanceUploadInfo.InstanceLightShadowUVBias = TConstArrayView<FVector4>((FVector4*)nullptr, 0);
+				InstanceUploadInfo.InstanceCustomData = TConstArrayView<float>((float*)nullptr, 0);
+				InstanceUploadInfo.InstanceRandomID = TConstArrayView<float>((float*)nullptr, 0);
 			}
+
+			return bPerformUpload;
 		}
 
 		return false;
@@ -723,22 +737,72 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 							const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
 							check(Index >= PrimitiveSceneInfo->GetInstanceSceneDataOffset() && Index < PrimitiveSceneInfo->GetInstanceSceneDataOffset() + PrimitiveSceneInfo->GetNumInstanceSceneDataEntries());
 							FPrimitiveInstance PrimitiveInstance;
+
+							float RandomID = 0.0f; // TODO: Temporary
+							FVector4 LightMapAndShadowMapUVBias = FVector4(ForceInitToZero); // TODO: Temporary
+							FRenderTransform PrevLocalToPrimitive = FRenderTransform::Identity; // TODO: Temporary
+
+							// TODO: Temporary code to de-interleave optional data on the CPU, but prior to doing the same on the GPU
 							if (PrimitiveSceneProxy->SupportsInstanceDataBuffer())
 							{
+								const int32 InstanceDataIndex = Index - PrimitiveSceneInfo->GetInstanceSceneDataOffset();
+
 								const TConstArrayView<FPrimitiveInstance> InstanceSceneData = PrimitiveSceneProxy->GetInstanceSceneData();
-								PrimitiveInstance = InstanceSceneData[Index - PrimitiveSceneInfo->GetInstanceSceneDataOffset()];
+								PrimitiveInstance = InstanceSceneData[InstanceDataIndex];
+
+								const TConstArrayView<FPrimitiveInstanceDynamicData> InstanceDynamicData = PrimitiveSceneProxy->GetInstanceDynamicData();
+								if (InstanceDynamicData.Num() == InstanceSceneData.Num())
+								{
+									PrevLocalToPrimitive = InstanceDynamicData[InstanceDataIndex].PrevLocalToPrimitive;
+									check((PrimitiveInstance.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA) != 0);
+								}
+								else
+								{
+									check((PrimitiveInstance.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA) == 0);
+								}
+								
+								const TConstArrayView<float> InstanceRandomID = PrimitiveSceneProxy->GetInstanceRandomID();
+								if (InstanceRandomID.Num() == InstanceSceneData.Num())
+								{
+									RandomID = InstanceRandomID[InstanceDataIndex];
+									check((PrimitiveInstance.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM) != 0);
+								}
+								else
+								{
+									check((PrimitiveInstance.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM) == 0);
+								}
+
+								const TConstArrayView<float> InstanceCustomData = PrimitiveSceneProxy->GetInstanceCustomData();
+								if (InstanceCustomData.Num() == InstanceSceneData.Num())
+								{
+									// TODO: Implement
+									check((PrimitiveInstance.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA) != 0);
+								}
+								else
+								{
+									check((PrimitiveInstance.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA) == 0);
+								}
+
+								const TConstArrayView<FVector4> InstanceLightShadowUVBias = PrimitiveSceneProxy->GetInstanceLightShadowUVBias();
+								if (InstanceLightShadowUVBias.Num() == InstanceSceneData.Num())
+								{
+									LightMapAndShadowMapUVBias = InstanceLightShadowUVBias[InstanceDataIndex];
+									check((PrimitiveInstance.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS) != 0);
+								}
+								else
+								{
+									check((PrimitiveInstance.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS) == 0);
+								}
 							}
 							else
 							{
 								PrimitiveInstance.LocalToPrimitive.SetIdentity();
-								PrimitiveInstance.PrevLocalToPrimitive.SetIdentity();
 								PrimitiveInstance.LocalBounds = PrimitiveSceneProxy->GetLocalBounds();
 								PrimitiveInstance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
-								PrimitiveInstance.PerInstanceRandom = 0.0f;
-								PrimitiveInstance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
-								// TODO: This should be propagated from the Primitive, or not exist?
+								// TODO: Set INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS when appropriate
 								PrimitiveInstance.Flags = 0;
 							}
+
 							FMatrix PrimitiveToWorld = PrimitiveSceneProxy->GetLocalToWorld();
 							bool bHasPrecomputedVolumetricLightmap{};
 							bool bOutputVelocity{};
@@ -753,8 +817,10 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 								InstanceSceneDataGPU.PrimitiveId,
 								PrimitiveToWorld,
 								PrevPrimitiveToWorld,
-								SceneFrameNumber,
-								PrimitiveSceneProxy->HasPrevInstanceTransforms()
+								PrevLocalToPrimitive, // TODO: Temporary
+								LightMapAndShadowMapUVBias, // TODO: Temporary
+								RandomID, // TODO: Temporary
+								SceneFrameNumber
 							);
 
 							// unpack again, just as on GPU...
@@ -1212,13 +1278,22 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 									// Update each primitive instance with current data.
 									for (int32 InstanceIndex = 0; InstanceIndex < UploadInfo.PrimitiveInstances.Num(); ++InstanceIndex)
 									{
+										const FPrimitiveInstance& SceneData = UploadInfo.PrimitiveInstances[InstanceIndex];
+
+										// TODO: Temporary
+										const FRenderTransform& PrevLocalToPrimitive = SceneData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA ? UploadInfo.InstanceDynamicData[InstanceIndex].PrevLocalToPrimitive : FRenderTransform::Identity;
+										FVector4 LightMapShadowMapUVBias = SceneData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS ? UploadInfo.InstanceLightShadowUVBias[InstanceIndex] : FVector4(ForceInitToZero);
+										float RandomID = SceneData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM ? UploadInfo.InstanceRandomID[InstanceIndex] : 0.0f;
+
 										const FInstanceSceneShaderData InstanceSceneData(
-											UploadInfo.PrimitiveInstances[InstanceIndex],
+											SceneData,
 											UploadInfo.PrimitiveID,
 											UploadInfo.PrimitiveToWorld,
 											UploadInfo.PrevPrimitiveToWorld,
-											UploadInfo.LastUpdateSceneFrameNumber,
-											UploadInfo.bHasPreviousTransforms
+											PrevLocalToPrimitive, // TODO: Temporary
+											LightMapShadowMapUVBias, // TODO: Temporary
+											RandomID, // TODO: Temporary
+											UploadInfo.LastUpdateSceneFrameNumber
 										);
 
 										void* DstRefs[FInstanceSceneShaderData::DataStrideInFloat4s];
@@ -1386,15 +1461,17 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 			InstanceUploadInfo.PrevPrimitiveToWorld = InstanceUploadInfo.PrimitiveToWorld;
 			
 			InstanceUploadInfo.DummyInstance.LocalToPrimitive.SetIdentity();
-			InstanceUploadInfo.DummyInstance.PrevLocalToPrimitive.SetIdentity();
 			InstanceUploadInfo.DummyInstance.LocalBounds = FRenderBounds(PrimitiveData.LocalObjectBoundsMin, PrimitiveData.LocalObjectBoundsMax);
 			InstanceUploadInfo.DummyInstance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
-			InstanceUploadInfo.DummyInstance.PerInstanceRandom = 0.0f;
-			InstanceUploadInfo.DummyInstance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
-			// TODO: This should be propagated from the Primitive, or not exist?
+
+			// TODO: Set INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS when appropriate
 			InstanceUploadInfo.DummyInstance.Flags = 0;
 
 			InstanceUploadInfo.PrimitiveInstances = TConstArrayView<FPrimitiveInstance>(&InstanceUploadInfo.DummyInstance, 1);
+			InstanceUploadInfo.InstanceDynamicData = TConstArrayView<FPrimitiveInstanceDynamicData>((FPrimitiveInstanceDynamicData*)nullptr, 0);
+			InstanceUploadInfo.InstanceLightShadowUVBias = TConstArrayView<FVector4>((FVector4*)nullptr, 0);
+			InstanceUploadInfo.InstanceCustomData = TConstArrayView<float>((float*)nullptr, 0);
+			InstanceUploadInfo.InstanceRandomID = TConstArrayView<float>((float*)nullptr, 0);
 			InstanceUploadInfo.InstanceSceneDataOffset = InstanceIDStartOffset + ItemIndex;
 			return true;
 		}
