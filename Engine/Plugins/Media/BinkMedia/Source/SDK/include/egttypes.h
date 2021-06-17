@@ -6,7 +6,7 @@
 // (C) Copyright 1994-2021 Epic Games Tools, LLC  
 //===============================================
 
-#if !defined(__EGTTYPESH__)
+#ifndef __EGTTYPESH__
 #define __EGTTYPESH__
 
 #if !defined(__RADTYPESH__) && !defined(__RADRR_COREH__) 
