@@ -16,9 +16,14 @@
 #include "SLevelOfDetailBranchNode.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "AnimationGraphSchema.h"
+#include "BlueprintMemberReferenceCustomization.h"
 #include "SGraphPin.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Brushes/SlateColorBrush.h"
+#include "PropertyEditorModule.h"
+#include "IPropertyRowGenerator.h"
+#include "IDetailTreeNode.h"
+#include "Widgets/Layout/SGridPanel.h"
 
 #define LOCTEXT_NAMESPACE "AnimationGraphNode"
 
@@ -132,7 +137,7 @@ void SAnimationGraphNode::Construct(const FArguments& InArgs, UAnimGraphNode_Bas
 
 	this->UpdateGraphNode();
 
-	ReconfigurePinWidgetsForPropertyBindings(CastChecked<UAnimGraphNode_Base>(GraphNode), [this](UEdGraphPin* InPin){ return FindWidgetForPin(InPin); });
+	ReconfigurePinWidgetsForPropertyBindings(CastChecked<UAnimGraphNode_Base>(GraphNode), SharedThis(this), [this](UEdGraphPin* InPin){ return FindWidgetForPin(InPin); });
 
 	const FSlateBrush* ImageBrush = FEditorStyle::Get().GetBrush(TEXT("Graph.AnimationFastPathIndicator"));
 
@@ -271,7 +276,118 @@ void SAnimationGraphNode::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<FG
 	}
 }
 
-void SAnimationGraphNode::ReconfigurePinWidgetsForPropertyBindings(UAnimGraphNode_Base* InAnimGraphNode, TFunctionRef<TSharedPtr<SGraphPin>(UEdGraphPin*)> InFindWidgetForPin)
+void SAnimationGraphNode::CreateBelowPinControls(TSharedPtr<SVerticalBox> MainBox)
+{
+	if (UAnimGraphNode_Base* AnimNode = CastChecked<UAnimGraphNode_Base>(GraphNode, ECastCheckedType::NullAllowed))
+	{
+		FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		PropertyRowGenerator = PropertyEditorModule.CreatePropertyRowGenerator(FPropertyRowGeneratorArgs());
+		PropertyRowGenerator->RegisterInstancedCustomPropertyTypeLayout(FMemberReference::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FBlueprintMemberReferenceDetails::MakeInstance));
+		PropertyRowGenerator->SetObjects({ AnimNode });
+
+		TSharedPtr<SGridPanel> GridPanel;
+		
+		MainBox->AddSlot()
+		.AutoHeight()
+		.Padding(4.0f)
+		[
+			SNew(SLevelOfDetailBranchNode)
+			.UseLowDetailSlot(this, &SAnimationGraphNode::UseLowDetailNodeTitles)
+			.LowDetail()
+			[
+				SNew(SSpacer)
+				.Size(FVector2D(17.0f, 17.f))
+			]
+			.HighDetail()
+			[
+				SAssignNew(GridPanel, SGridPanel)
+				.IsEnabled_Lambda([this](){ return IsNodeEditable(); })
+			]
+		];
+
+		GridPanel->SetVisibility(EVisibility::Collapsed);
+
+		int32 RowIndex = 0;
+		
+		// Add bound functions
+		auto AddFunctionBindingWidget = [this, &GridPanel, &RowIndex](FName InCategory, FName InMemberName)
+		{
+			GridPanel->SetVisibility(EVisibility::Visible);
+			
+			// Find row
+			TSharedPtr<IPropertyHandle> PropertyHandle;
+			TSharedPtr<IDetailTreeNode> DetailTreeNode;
+
+			for (const TSharedRef<IDetailTreeNode>& RootTreeNode : PropertyRowGenerator->GetRootTreeNodes())
+			{
+				if(RootTreeNode->GetNodeName() == InCategory)
+				{
+					TArray<TSharedRef<IDetailTreeNode>> Children;
+					RootTreeNode->GetChildren(Children);
+
+					for (int32 ChildIdx = 0; ChildIdx < Children.Num(); ChildIdx++)
+					{
+						TSharedPtr<IPropertyHandle> ChildPropertyHandle = Children[ChildIdx]->CreatePropertyHandle();
+						if (ChildPropertyHandle.IsValid() && ChildPropertyHandle->GetProperty() && ChildPropertyHandle->GetProperty()->GetFName() == InMemberName)
+						{
+							DetailTreeNode = Children[ChildIdx];
+							PropertyHandle = ChildPropertyHandle;
+							PropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([this]()
+							{
+								GraphNode->ReconstructNode();
+							}));
+							break;
+						}
+					}
+				}
+			}
+
+			if(DetailTreeNode.IsValid() && PropertyHandle.IsValid())
+			{
+				DetailNodes.Add(DetailTreeNode);
+				
+				FNodeWidgets NodeWidgets = DetailTreeNode->CreateNodeWidgets();
+
+				GridPanel->AddSlot(0, RowIndex)
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(10.0f, 2.0f, 2.0f, 2.0f)
+				[
+					NodeWidgets.NameWidget.ToSharedRef()
+				];
+
+				GridPanel->AddSlot(1, RowIndex)
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(2.0f, 2.0f, 10.0f, 2.0f)
+				[
+					NodeWidgets.ValueWidget.ToSharedRef()
+				];
+
+				RowIndex++;
+			}
+		};
+
+		if(AnimNode->InitializeFunction.GetMemberGuid().IsValid())
+		{
+			AddFunctionBindingWidget("Functions", GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, InitializeFunction));
+		}
+		if(AnimNode->BecomeRelevantFunction.GetMemberGuid().IsValid())
+		{
+			AddFunctionBindingWidget("Functions", GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, BecomeRelevantFunction));
+		}
+		if(AnimNode->UpdateFunction.GetMemberGuid().IsValid())
+		{
+			AddFunctionBindingWidget("Functions", GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, UpdateFunction));
+		}
+		if(AnimNode->EvaluateFunction.GetMemberGuid().IsValid())
+		{
+			AddFunctionBindingWidget("Functions", GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, EvaluateFunction));
+		}
+	}
+}
+
+void SAnimationGraphNode::ReconfigurePinWidgetsForPropertyBindings(UAnimGraphNode_Base* InAnimGraphNode, TSharedRef<SGraphNode> InGraphNodeWidget, TFunctionRef<TSharedPtr<SGraphPin>(UEdGraphPin*)> InFindWidgetForPin)
 {
 	for(UEdGraphPin* Pin : InAnimGraphNode->Pins)
 	{
@@ -328,6 +444,10 @@ void SAnimationGraphNode::ReconfigurePinWidgetsForPropertyBindings(UAnimGraphNod
 					PinWidget->GetLabelAndValue()->AddSlot()
 					[
 						SNew(SBox)
+						.IsEnabled_Lambda([WeakWidget = TWeakPtr<SGraphNode>(InGraphNodeWidget)]()
+						{
+							return WeakWidget.IsValid() ? WeakWidget.Pin()->IsNodeEditable() : false;
+						})
 						.Visibility_Lambda([PinName, InAnimGraphNode]()
 						{
 							if (FAnimGraphNodePropertyBinding* BindingPtr = InAnimGraphNode->PropertyBindings.Find(PinName))

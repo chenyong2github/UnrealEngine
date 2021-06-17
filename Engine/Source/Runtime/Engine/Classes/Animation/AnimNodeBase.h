@@ -17,6 +17,7 @@
 #include "Animation/AnimNodeMessages.h"
 #include "Animation/AnimNodeData.h"
 #include "Animation/ExposedValueHandler.h"
+#include "AnimNodeFunctionRef.h"
 
 // WARNING: This should always be the last include in any file that needs it (except .generated.h)
 #include "UObject/UndefineUPropertyMacros.h"
@@ -909,11 +910,13 @@ protected:
 #endif
 	}
 
-#if WITH_EDITORONLY_DATA
 	// Get anim node constant/folded data of the specified type given the identifier. Do not use directly - use GET_MUTABLE_ANIM_NODE_DATA
+	// Note: will assert if data is not held on the instance/dynamic. Use GetInstanceDataPtr/GET_INSTANCE_ANIM_NODE_DATA_PTR if the value
+	// might not be mutable, which will return null.
 	template<typename DataType>
 	DataType& GetMutableData(UE::Anim::FNodeDataId InId, UObject* InObject = nullptr)
 	{
+#if WITH_EDITORONLY_DATA
 		if(NodeData)
 		{
 			return *static_cast<DataType*>(NodeData->GetMutableData(InId, this, InObject));
@@ -922,9 +925,32 @@ protected:
 		{
 			return *InId.GetProperty()->ContainerPtrToValuePtr<DataType>(this);
 		}
-	}
+#else
+		check(NodeData);
+		return *static_cast<DataType*>(NodeData->GetMutableData(InId, this, InObject));
 #endif
+	}
 
+	// Get anim node mutable data of the specified type given the identifier. Do not use directly - use GET_INSTANCE_ANIM_NODE_DATA_PTR
+	// @return nullptr if the data is not mutable/dynamic
+	template<typename DataType>
+	DataType* GetInstanceDataPtr(UE::Anim::FNodeDataId InId, UObject* InObject = nullptr)
+	{
+#if WITH_EDITORONLY_DATA	
+		if(NodeData)
+		{
+			return static_cast<DataType*>(NodeData->GetInstanceData(InId, this, InObject));
+		}
+		else
+		{
+			return InId.GetProperty()->ContainerPtrToValuePtr<DataType>(this);
+		}
+#else
+		check(NodeData);
+		return static_cast<DataType*>(NodeData->GetInstanceData(InId, this, InObject));
+#endif
+	}
+	
 protected:
 	/** return true if enabled, otherwise, return false. This is utility function that can be used per node level */
 	bool IsLODEnabled(FAnimInstanceProxy* AnimInstanceProxy);
@@ -942,15 +968,42 @@ protected:
 	friend struct FAnimInstanceProxy;
 
 private:
+	// Access functions
+	const FAnimNodeFunctionRef& GetInitializeFunction() const;
+	const FAnimNodeFunctionRef& GetBecomeRelevantFunction() const;
+	const FAnimNodeFunctionRef& GetUpdateFunction() const;
+	const FAnimNodeFunctionRef& GetEvaluateFunction() const;
+	
+private:
 	friend class IAnimClassInterface;
 	friend class UAnimBlueprintGeneratedClass;
 	friend struct UE::Anim::FNodeDataId;
+	friend struct FAnimNodeFunctionCaller;
+	friend class UAnimGraphNode_Base;
 
 	// Set the cached ptr to the constant/folded data for this node
 	void SetNodeData(const FAnimNodeData& InNodeData) { NodeData = &InNodeData; }
 
 	// Reference to the constant/folded data for this node
 	const FAnimNodeData* NodeData = nullptr;
+
+#if WITH_EDITORONLY_DATA
+	// Function called on initialize
+	UPROPERTY(meta=(FoldProperty))
+	FAnimNodeFunctionRef InitializeFunction;
+
+	// Function called on become relevant
+	UPROPERTY(meta=(FoldProperty))
+	FAnimNodeFunctionRef BecomeRelevantFunction;
+
+	// Function called on update
+	UPROPERTY(meta=(FoldProperty))
+	FAnimNodeFunctionRef UpdateFunction;
+
+	// Function called on evaluate
+	UPROPERTY(meta=(FoldProperty))
+	FAnimNodeFunctionRef EvaluateFunction;
+#endif
 };
 
 #if WITH_EDITORONLY_DATA
@@ -959,42 +1012,31 @@ private:
 #define VERIFY_ANIM_NODE_MEMBER_TYPE(Type, Identifier)
 #endif
 
+#define GET_ANIM_NODE_DATA_ID_INTERNAL(Type, Identifier) \
+	[this]() -> UE::Anim::FNodeDataId \
+	{ \
+		VERIFY_ANIM_NODE_MEMBER_TYPE(Type, Identifier) \
+		static UE::Anim::FNodeDataId CachedId_##Identifier; \
+		if(!CachedId_##Identifier.IsValid()) \
+		{ \
+			static const FName AnimName_##Identifier(#Identifier); \
+			CachedId_##Identifier = UE::Anim::FNodeDataId(AnimName_##Identifier, this, StaticStruct()); \
+		} \
+		return CachedId_##Identifier; \
+	}() \
+
 // Get some (potentially folded) anim node data. Only usable from within an anim node.
 // This caches the node data ID in static contained in a local lambda for improved performance
-#define GET_ANIM_NODE_DATA(Type, Identifier) \
-	( \
-		GetData<Type>( \
-			[this]() -> UE::Anim::FNodeDataId \
-			{ \
-				VERIFY_ANIM_NODE_MEMBER_TYPE(Type, Identifier) \
-				static UE::Anim::FNodeDataId CachedId_##Identifier; \
-				if(!CachedId_##Identifier.IsValid()) \
-				{ \
-					static const FName AnimName_##Identifier(#Identifier); \
-					CachedId_##Identifier = UE::Anim::FNodeDataId(AnimName_##Identifier, this, StaticStruct()); \
-				} \
-				return CachedId_##Identifier; \
-			}() \
-		) \
-	)
+#define GET_ANIM_NODE_DATA(Type, Identifier) (GetData<Type>(GET_ANIM_NODE_DATA_ID_INTERNAL(Type, Identifier)))
+
+// Get some anim node data that should be held on an instance. Only usable from within an anim node.
+// @return nullptr if the data is not held on an instance (i.e. it is in constant sparse class data)
+// This caches the node data ID in static contained in a local lambda for improved performance
+#define GET_INSTANCE_ANIM_NODE_DATA_PTR(Type, Identifier) (GetInstanceDataPtr<Type>(GET_ANIM_NODE_DATA_ID_INTERNAL(Type, Identifier)))
 
 #if WITH_EDITORONLY_DATA
-#define GET_MUTABLE_ANIM_NODE_DATA(Type, Identifier) \
-	( \
-		GetMutableData<Type>( \
-			[this]() -> UE::Anim::FNodeDataId \
-			{ \
-				VERIFY_ANIM_NODE_MEMBER_TYPE(Type, Identifier) \
-				static UE::Anim::FNodeDataId CachedId_##Identifier; \
-				if(!CachedId_##Identifier.IsValid()) \
-				{ \
-					static const FName AnimName_##Identifier(#Identifier); \
-					CachedId_##Identifier = UE::Anim::FNodeDataId(AnimName_##Identifier, this, StaticStruct()); \
-				} \
-				return CachedId_##Identifier; \
-			}() \
-		) \
-	)
+// Editor-only way of accessing mutable anim node data but with internal checks
+#define GET_MUTABLE_ANIM_NODE_DATA(Type, Identifier) (GetMutableData<Type>(GET_ANIM_NODE_DATA_ID_INTERNAL(Type, Identifier)))
 #endif
 
 #include "UObject/DefineUPropertyMacros.h"

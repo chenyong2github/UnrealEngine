@@ -10,6 +10,7 @@
 #include "AnimBlueprintExtension_Attributes.h"
 #include "AnimBlueprintExtension_PropertyAccess.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "AnimBlueprintExtension_NodeRelevancy.h"
 
 // Set used to refresh extensions. Checks that an extension has a reference from an anim node for each refresh.
 static TSet<TSubclassOf<UAnimBlueprintExtension>> RefreshSet;
@@ -76,7 +77,12 @@ void UAnimBlueprintExtension::RequestExtensionsForNode(UAnimGraphNode_Base* InAn
             UAnimBlueprintExtension_Attributes::StaticClass(),
             UAnimBlueprintExtension_PropertyAccess::StaticClass()
         };
-	
+
+		if(InAnimGraphNode->BecomeRelevantFunction.GetMemberGuid().IsValid())
+		{
+			ExtensionClasses.Add(UAnimBlueprintExtension_NodeRelevancy::StaticClass());
+		}
+
 		InAnimGraphNode->GetRequiredExtensions(ExtensionClasses);
 	
 		for(const TSubclassOf<UAnimBlueprintExtension>& ExtensionClass : ExtensionClasses)

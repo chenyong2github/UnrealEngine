@@ -12,6 +12,8 @@
 #include "Editor.h"
 #include "IPropertyAccessEditor.h"
 #include "K2Node.h"
+#include "Engine/MemberReference.h"
+
 #include "AnimGraphNode_Base.generated.h"
 
 class FAnimGraphNodeDetails;
@@ -200,9 +202,29 @@ class ANIMGRAPH_API UAnimGraphNode_Base : public UK2Node
  	UPROPERTY(EditAnywhere, Category=PinOptions)
  	TMap<FName, FAnimGraphNodePropertyBinding> PropertyBindings;
 
+	/** Properties marked as always dynamic, so they can be set externally */
+	UPROPERTY()
+	TSet<FName> AlwaysDynamicProperties;
+	
 	UPROPERTY(Transient)
 	EBlueprintUsage BlueprintUsage;
 
+	// Function called when the node is initialized
+	UPROPERTY(EditAnywhere, Category = Functions, meta=(FunctionReference, PrototypeFunction="/Script/AnimGraphRuntime.AnimNodeLibrary.Prototype_ThreadSafeAnimNodeCall"), DisplayName="On Initialize")
+	FMemberReference InitializeFunction;
+
+	// Function called when the node becomes relevant
+	UPROPERTY(EditAnywhere, Category = Functions, meta=(FunctionReference, PrototypeFunction="/Script/AnimGraphRuntime.AnimNodeLibrary.Prototype_ThreadSafeAnimNodeCall"), DisplayName="On Become Relevant")
+	FMemberReference BecomeRelevantFunction;
+
+	// Function called when the node is updated
+	UPROPERTY(EditAnywhere, Category = Functions, meta=(FunctionReference, PrototypeFunction="/Script/AnimGraphRuntime.AnimNodeLibrary.Prototype_ThreadSafeAnimNodeCall"), DisplayName="On Update")
+	FMemberReference UpdateFunction;
+
+	// Function called when the node is evaluated
+	UPROPERTY(EditAnywhere, Category = Functions, meta=(FunctionReference, PrototypeFunction="/Script/AnimGraphRuntime.AnimNodeLibrary.Prototype_ThreadSafeAnimNodeCall"), DisplayName="On Evaluate")
+	FMemberReference EvaluateFunction;
+	
 	// UObject interface
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
@@ -325,6 +347,7 @@ class ANIMGRAPH_API UAnimGraphNode_Base : public UK2Node
 	// you should implement all below functions
 	virtual bool DoesSupportTimeForTransitionGetter() const { return false; }
 	virtual UAnimationAsset* GetAnimationAsset() const { return nullptr; }
+	virtual TSubclassOf<UAnimationAsset> GetAnimationAssetClass() const { return nullptr; }
 	virtual const TCHAR* GetTimePropertyName() const { return nullptr; }
 	virtual UScriptStruct* GetTimePropertyStruct() const { return nullptr; }
 	// END Interface to support transition getter

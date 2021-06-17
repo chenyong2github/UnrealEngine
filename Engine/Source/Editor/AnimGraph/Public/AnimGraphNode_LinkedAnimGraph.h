@@ -3,15 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Misc/Guid.h"
 #include "AnimGraphNode_LinkedAnimGraphBase.h"
+#include "K2Node_ExternalGraphInterface.h"
 #include "Animation/AnimNode_LinkedAnimGraph.h"
+#include "Engine/MemberReference.h"
 
 #include "AnimGraphNode_LinkedAnimGraph.generated.h"
 
 UCLASS(MinimalAPI)
-class UAnimGraphNode_LinkedAnimGraph : public UAnimGraphNode_LinkedAnimGraphBase
+class UAnimGraphNode_LinkedAnimGraph : public UAnimGraphNode_LinkedAnimGraphBase, public IK2Node_ExternalGraphInterface
 {
 	GENERATED_BODY()
 
@@ -21,7 +21,7 @@ public:
 	FAnimNode_LinkedAnimGraph Node;
 
 	// Begin UEdGraphNode
-	virtual void PostPasteNode();
+	virtual void PostPasteNode() override;
 
 	// Begin UK2Node
 	virtual void GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const override;
@@ -34,6 +34,9 @@ public:
 	// Begin UAnimGraphNode_LinkedAnimGraphBase
 	virtual FAnimNode_LinkedAnimGraph* GetLinkedAnimGraphNode() override { return &Node; }
 	virtual const FAnimNode_LinkedAnimGraph* GetLinkedAnimGraphNode() const override { return &Node; }
+
+	// IK2Node_ExternalGraphInterface interface
+	virtual TArray<UEdGraph*> GetExternalGraphs() const override;
 
 private:
 	// Setup the node from a specified anim BP

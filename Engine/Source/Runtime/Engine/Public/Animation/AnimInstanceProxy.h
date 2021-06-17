@@ -140,6 +140,7 @@ public:
 #if WITH_EDITORONLY_DATA
 		, bIsBeingDebugged(false)
 #endif
+		, bInitializeSubsystems(false)
 	{
 	}
 
@@ -166,6 +167,7 @@ public:
 #if WITH_EDITORONLY_DATA
 		, bIsBeingDebugged(false)
 #endif
+		, bInitializeSubsystems(false)
 	{
 	}
 
@@ -1157,4 +1159,7 @@ private:
 	/** Whether this UAnimInstance is currently being debugged in the editor */
 	uint8 bIsBeingDebugged : 1;
 #endif
+
+	// Whether subsystems should be initialized
+	uint8 bInitializeSubsystems : 1;
 };

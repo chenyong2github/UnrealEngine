@@ -41,6 +41,7 @@
 #include "BlueprintDetailsCustomization.h"
 #include "K2Node_BitmaskLiteral.h"
 #include "BitmaskLiteralDetails.h"
+#include "BlueprintMemberReferenceCustomization.h"
 #include "FormatTextDetails.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "ClassViewerFilter.h"

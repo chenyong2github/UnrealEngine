@@ -85,7 +85,28 @@ void UAnimGraphNode_Base::PostEditChangeProperty(FPropertyChangedEvent& Property
 		FOptionalPinManager::EvaluateOldShownPins(ShowPinForProperties, OldShownPins, this);
 		GetSchema()->ReconstructNode(*this);
 	}
-
+	else if(PropertyName == GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, InitializeFunction))
+	{
+		GetFNode()->InitializeFunction.SetFromFunction(InitializeFunction.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass));
+		GetSchema()->ReconstructNode(*this);
+	}
+	else if(PropertyName == GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, BecomeRelevantFunction))
+	{
+		GetFNode()->BecomeRelevantFunction.SetFromFunction(BecomeRelevantFunction.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass));
+		GetAnimBlueprint()->RequestRefreshExtensions();
+		GetSchema()->ReconstructNode(*this);
+	}
+	else if(PropertyName == GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, UpdateFunction))
+	{
+		GetFNode()->UpdateFunction.SetFromFunction(UpdateFunction.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass));
+		GetSchema()->ReconstructNode(*this);
+	}
+	else if(PropertyName == GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, EvaluateFunction))
+	{
+		GetFNode()->EvaluateFunction.SetFromFunction(EvaluateFunction.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass));
+		GetSchema()->ReconstructNode(*this);
+	}
+	
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	PropertyChangeEvent.Broadcast(PropertyChangedEvent);
@@ -185,6 +206,23 @@ void UAnimGraphNode_Base::ValidateAnimNodeDuringCompilation(USkeleton* ForSkelet
 			}
 		}
 	}
+
+	auto ValidateFunctionRef = [this, &MessageLog](const FMemberReference& InRef, const FText& InError)
+	{
+		if(InRef.GetMemberName() != NAME_None)
+		{
+			UFunction* Function = InRef.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass);
+			if(Function == nullptr)
+			{
+				MessageLog.Error(*InError.ToString());
+			}
+		}
+	};
+	
+	ValidateFunctionRef(InitializeFunction, LOCTEXT("MissingInitializeFunction", "Could not resolve initialize function"));
+	ValidateFunctionRef(BecomeRelevantFunction, LOCTEXT("MissingBecomeRelevantFunction", "Could not resolve become relevant function"));
+	ValidateFunctionRef(UpdateFunction, LOCTEXT("MissingUpdateFunction", "Could not resolve update function"));
+	ValidateFunctionRef(EvaluateFunction, LOCTEXT("MissingEvaluateFunction", "Could not resolve evaluate function"));
 }
 
 void UAnimGraphNode_Base::CopyTermDefaultsToDefaultObject(IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintNodeCopyTermDefaultsContext& InPerNodeContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
@@ -467,6 +505,12 @@ void UAnimGraphNode_Base::ProcessDuringCompilation(IAnimBlueprintCompilationCont
 	// Record pose pins for later patchup and gather pins that have an associated evaluation handler
 	Extension->ProcessNodePins(this, InCompilationContext, OutCompiledData);
 
+	// Resolve functions
+	GetFNode()->InitializeFunction.SetFromFunction(InitializeFunction.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass));  
+	GetFNode()->BecomeRelevantFunction.SetFromFunction(BecomeRelevantFunction.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass));
+	GetFNode()->UpdateFunction.SetFromFunction(UpdateFunction.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass));
+	GetFNode()->EvaluateFunction.SetFromFunction(EvaluateFunction.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass)); 
+	
 	// Call the override point
 	OnProcessDuringCompilation(InCompilationContext, OutCompiledData);
 }
@@ -1054,81 +1098,155 @@ TSharedRef<SWidget> UAnimGraphNode_Base::MakePropertyBindingWidget(const FAnimPr
 		{
 			InMenuBuilder.BeginSection("Pins", LOCTEXT("Pin", "Pin"));
 			{
+				auto ExposeAsPin = [InArgs, Blueprint]()
+				{
+					bool bHasBinding = false;
+
+					// Comparison without name index to deal with arrays
+					const FName ComparisonName = FName(InArgs.PinName, 0);
+							
+					for(UAnimGraphNode_Base* AnimGraphNode : InArgs.Nodes)
+					{
+						for(const TPair<FName, FAnimGraphNodePropertyBinding>& BindingPair : AnimGraphNode->PropertyBindings)
+						{
+							if(ComparisonName == FName(BindingPair.Key, 0))
+							{
+								bHasBinding = true;
+								break;
+							}
+						}
+					}
+
+					{
+						FScopedTransaction Transaction(LOCTEXT("PinExposure", "Pin Exposure"));
+
+						// Switching from non-pin to pin, remove any bindings
+						for(UAnimGraphNode_Base* AnimGraphNode : InArgs.Nodes)
+						{
+							AnimGraphNode->Modify();
+
+							bool bVisible = AnimGraphNode->ShowPinForProperties[InArgs.OptionalPinIndex].bShowPin;
+							AnimGraphNode->SetPinVisibility(!bVisible || bHasBinding, InArgs.OptionalPinIndex);
+
+							// Remove all bindings that match the property, array or array elements
+							for(auto It = AnimGraphNode->PropertyBindings.CreateIterator(); It; ++It)
+							{
+								if(ComparisonName == FName(It.Key(), 0))
+								{
+									It.RemoveCurrent();
+								}
+							}
+						}
+
+						FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+					}
+				}; 
+
+				auto GetExposedAsPinCheckState = [InArgs]()
+				{
+					bool bPinShown = false;
+					bool bHasBinding = false;
+
+					// Comparison without name index to deal with arrays
+					const FName ComparisonName = FName(InArgs.PinName, 0);
+							
+					for(UAnimGraphNode_Base* AnimGraphNode : InArgs.Nodes)
+					{
+						for(const TPair<FName, FAnimGraphNodePropertyBinding>& BindingPair : AnimGraphNode->PropertyBindings)
+						{
+							if(ComparisonName == FName(BindingPair.Key, 0))
+							{
+								bHasBinding = true;
+								break;
+							}
+						}
+								
+						bPinShown |= AnimGraphNode->ShowPinForProperties[InArgs.OptionalPinIndex].bShowPin;
+					}
+
+					// Pins are exposed if we have a binding or not, so treat as unchecked only if we have
+					// no binding
+					return bPinShown && !bHasBinding ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+				};
+				
 				InMenuBuilder.AddMenuEntry(
 					LOCTEXT("ExposeAsPin", "Expose As Pin"),
 					LOCTEXT("ExposeAsPinTooltip", "Show/hide this property as a pin on the node"),
 					FSlateIcon("EditorStyle", "GraphEditor.PinIcon"),
 					FUIAction(
-						FExecuteAction::CreateLambda([InArgs, Blueprint]()
-						{
-							bool bHasBinding = false;
-
-							// Comparison without name index to deal with arrays
-							const FName ComparisonName = FName(InArgs.PinName, 0);
-							
-							for(UAnimGraphNode_Base* AnimGraphNode : InArgs.Nodes)
-							{
-								for(const TPair<FName, FAnimGraphNodePropertyBinding>& BindingPair : AnimGraphNode->PropertyBindings)
-								{
-									if(ComparisonName == FName(BindingPair.Key, 0))
-									{
-										bHasBinding = true;
-										break;
-									}
-								}
-							}
-
-							{
-								FScopedTransaction Transaction(LOCTEXT("PinExposure", "Pin Exposure"));
-
-								// Switching from non-pin to pin, remove any bindings
-								for(UAnimGraphNode_Base* AnimGraphNode : InArgs.Nodes)
-								{
-									AnimGraphNode->Modify();
-
-									bool bVisible = AnimGraphNode->ShowPinForProperties[InArgs.OptionalPinIndex].bShowPin;
-									AnimGraphNode->SetPinVisibility(!bVisible || bHasBinding, InArgs.OptionalPinIndex);
-
-									// Remove all bindings that match the property, array or array elements
-									for(auto It = AnimGraphNode->PropertyBindings.CreateIterator(); It; ++It)
-									{
-										if(ComparisonName == FName(It.Key(), 0))
-										{
-											It.RemoveCurrent();
-										}
-									}
-								}
-
-								FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
-							}
-						}),
+						FExecuteAction::CreateLambda(ExposeAsPin),
 						FCanExecuteAction(),
-						FGetActionCheckState::CreateLambda([InArgs]()
+						FGetActionCheckState::CreateLambda(GetExposedAsPinCheckState)
+					),
+					NAME_None,
+					EUserInterfaceActionType::Check
+				);
+
+				auto MakeDynamic = [InArgs, Blueprint]()
+				{
+					// Comparison without name index to deal with arrays
+					const FName ComparisonName = FName(InArgs.PinName, 0);
+
+					bool bIsAlwaysDynamic = false;
+					for(UAnimGraphNode_Base* AnimGraphNode : InArgs.Nodes)
+					{
+						if(AnimGraphNode->AlwaysDynamicProperties.Contains(ComparisonName))
 						{
-							bool bPinShown = false;
-							bool bHasBinding = false;
+							bIsAlwaysDynamic = true;
+							break;
+						}
+					}
 
-							// Comparison without name index to deal with arrays
-							const FName ComparisonName = FName(InArgs.PinName, 0);
-							
-							for(UAnimGraphNode_Base* AnimGraphNode : InArgs.Nodes)
+					{
+						FScopedTransaction Transaction(LOCTEXT("AlwaysDynamic", "Always Dynamic"));
+
+						for(UAnimGraphNode_Base* AnimGraphNode : InArgs.Nodes)
+						{
+							AnimGraphNode->Modify();
+
+							if(bIsAlwaysDynamic)
 							{
-								for(const TPair<FName, FAnimGraphNodePropertyBinding>& BindingPair : AnimGraphNode->PropertyBindings)
-								{
-									if(ComparisonName == FName(BindingPair.Key, 0))
-									{
-										bHasBinding = true;
-										break;
-									}
-								}
-								
-								bPinShown |= AnimGraphNode->ShowPinForProperties[InArgs.OptionalPinIndex].bShowPin;
+								AnimGraphNode->AlwaysDynamicProperties.Remove(ComparisonName);
 							}
+							else
+							{
+								AnimGraphNode->AlwaysDynamicProperties.Add(ComparisonName);
+							}
+						}
 
-							// Pins are exposed if we have a binding or not, so treat as unchecked only if we have
-							// no binding
-							return bPinShown && !bHasBinding ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-						})
+						FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+					}
+				};
+
+				auto GetDynamicCheckState = [InArgs]()
+				{
+					// Comparison without name index to deal with arrays
+					const FName ComparisonName = FName(InArgs.PinName, 0);
+
+					bool bIsAlwaysDynamic = false;
+					for(UAnimGraphNode_Base* AnimGraphNode : InArgs.Nodes)
+					{
+						for(const FName& AlwaysDynamicPropertyName : AnimGraphNode->AlwaysDynamicProperties)
+						{
+							if(ComparisonName == FName(AlwaysDynamicPropertyName, 0))
+							{
+								bIsAlwaysDynamic = true;
+								break;
+							}
+						}
+					}
+					
+					return bIsAlwaysDynamic ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+				};
+				
+				InMenuBuilder.AddMenuEntry(
+					LOCTEXT("DynamicValue", "Dynamic Value"),
+					LOCTEXT("DynamicValueTooltip", "Flag this value as dynamic. This way it can be set from functions even when not exposed as a pin."),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateLambda(MakeDynamic),
+						FCanExecuteAction(),
+						FGetActionCheckState::CreateLambda(GetDynamicCheckState)
 					),
 					NAME_None,
 					EUserInterfaceActionType::Check

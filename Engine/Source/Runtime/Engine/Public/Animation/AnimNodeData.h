@@ -81,12 +81,18 @@ public:
 	 * @return the raw data value, either held on sparse class data or on the instance 
 	 */
 	const void* GetData(UE::Anim::FNodeDataId InId, const FAnimNode_Base* InNode, const UObject* InCurrentObject = nullptr) const;
-	
+
 #if WITH_EDITORONLY_DATA
-	/** Get the specified mutable data for the specified instance. The data may or may not reside on an anim instance itself as it may have been folded into constants. */
+	/**
+	 * Get the specified mutable data for the specified instance. The data may or may not reside on an anim instance itself as it may have been folded into constants.
+	 * Only available in editor to support patching constant data during compilation. Not for use at runtime. 
+	 */
 	void* GetMutableData(UE::Anim::FNodeDataId InId, FAnimNode_Base* InNode, UObject* InCurrentObject = nullptr) const;
 #endif
 
+	/** Get the specified mutable data for the specified instance. If the data is not held on the instance this will return nullptr. */
+	void* GetInstanceData(UE::Anim::FNodeDataId InId, FAnimNode_Base* InNode, UObject* InCurrentObject = nullptr) const;
+	
 	/** The class we are part of */
 	const IAnimClassInterface& GetAnimClassInterface() const { check(AnimClassInterface); return *AnimClassInterface; }
 
@@ -101,19 +107,19 @@ private:
 	UPROPERTY()
 	TScriptInterface<IAnimClassInterface> AnimClassInterface = nullptr;
 
-	/** 
-	 * The index of the node for this constant data block in the class that it is held in. 
-	 * INDEX_NONE if this node is not in a generated class or is per-instance data. 
-	 */
-	UPROPERTY()
-	int32 NodeIndex = INDEX_NONE;
-
 	/**
 	 * Flags & Indices for table entries. Used to look up indices from NodePropertyIndex->FoldedDataIndex.
 	 * If the MSB is set for an entry it is assumed to be on an instance, if not, it is assumed to be stored on the class.
 	 */
 	UPROPERTY()
 	TArray<uint32> Entries;
+	
+	/** 
+	 * The index of the node for this constant data block in the class that it is held in. 
+	 * INDEX_NONE if this node is not in a generated class or is per-instance data. 
+	 */
+	UPROPERTY()
+	int32 NodeIndex = INDEX_NONE;
 };
 
 /**

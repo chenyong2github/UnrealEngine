@@ -366,6 +366,7 @@ void FAnimBlueprintCompilerContext::GatherFoldRecordsForAnimationNode(const UScr
 		{
 			bool bAllPinsExposed = true;
 			bool bAllPinsDisconnected = true;
+			const bool bAlwaysDynamic = InVisualAnimNode->AlwaysDynamicProperties.Contains(SubProperty->GetFName());
 
 			// If a value is exposed on a pin but disconnected, push the value to the (intermediate) node here to simplify later logic
 			if(SubProperty->HasAnyPropertyFlags(CPF_Edit|CPF_BlueprintVisible))
@@ -417,7 +418,7 @@ void FAnimBlueprintCompilerContext::GatherFoldRecordsForAnimationNode(const UScr
 			if(SubProperty->HasMetaData(NAME_FoldProperty))
 			{
 				// Add folding candidate
-				AddFoldedPropertyRecord(InVisualAnimNode, InNodeProperty, SubProperty, bAllPinsExposed, !bAllPinsDisconnected);
+				AddFoldedPropertyRecord(InVisualAnimNode, InNodeProperty, SubProperty, bAllPinsExposed, !bAllPinsDisconnected, bAlwaysDynamic);
 			}
 		}
 		else
@@ -426,6 +427,7 @@ void FAnimBlueprintCompilerContext::GatherFoldRecordsForAnimationNode(const UScr
 			const bool bExposedOnPin = Pin != nullptr;
 			const bool bPinConnected = InVisualAnimNode->IsPinExposedAndLinked(SubProperty->GetName(), EGPD_Input);
 			const bool bPinBound = InVisualAnimNode->IsPinExposedAndBound(SubProperty->GetName(), EGPD_Input);
+			const bool bAlwaysDynamic = InVisualAnimNode->AlwaysDynamicProperties.Contains(SubProperty->GetFName());
 
 			// If a value is exposed on a pin but disconnected, push the value to the (intermediate) node here to simplify later logic
 			if(SubProperty->HasAnyPropertyFlags(CPF_Edit|CPF_BlueprintVisible))
@@ -454,7 +456,7 @@ void FAnimBlueprintCompilerContext::GatherFoldRecordsForAnimationNode(const UScr
 			if(SubProperty->HasMetaData(NAME_FoldProperty))
 			{
 				// Add folding candidate
-				AddFoldedPropertyRecord(InVisualAnimNode, InNodeProperty, SubProperty, bExposedOnPin, bPinConnected || bPinBound);
+				AddFoldedPropertyRecord(InVisualAnimNode, InNodeProperty, SubProperty, bExposedOnPin, bPinConnected || bPinBound, bAlwaysDynamic);
 			}
 		}
 	}
@@ -627,7 +629,7 @@ void FAnimBlueprintCompilerContext::ProcessAllAnimationNodes()
 	BP_SCOPED_COMPILER_EVENT_STAT(EAnimBlueprintCompilerStats_ProcessAllAnimationNodes);
 	
 	// Validate that we have a skeleton
-	if ((AnimBlueprint->TargetSkeleton == nullptr) && !AnimBlueprint->bIsNewlyCreated)
+	if ((AnimBlueprint->TargetSkeleton == nullptr) && !AnimBlueprint->bIsNewlyCreated && !AnimBlueprint->bIsTemplate)
 	{
 		MessageLog.Error(*LOCTEXT("NoSkeleton", "@@ - The skeleton asset for this animation Blueprint is missing, so it cannot be compiled!").ToString(), AnimBlueprint);
 		return;
@@ -818,7 +820,7 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 					SourcePtr = SourceExtensionProperty->ContainerPtrToValuePtr<uint8>(Extension);
 				}
 				
-				FAnimBlueprintExtensionCopyTermDefaultsContext ExtensionContext(TargetProperty, DestinationPtr, SourcePtr, LinkIndexCount);
+				FAnimBlueprintExtensionCopyTermDefaultsContext ExtensionContext(DefaultObject, TargetProperty, DestinationPtr, SourcePtr, LinkIndexCount);
 				Extension->CopyTermDefaultsToDefaultObject(DefaultAnimInstance, CompilerContext, ExtensionContext);
 			}
 		}
@@ -837,7 +839,7 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 				uint8* DestinationPtr = TargetProperty->ContainerPtrToValuePtr<uint8>(DefaultAnimInstance);
 				const uint8* SourcePtr = SourceNodeProperty->ContainerPtrToValuePtr<uint8>(VisualAnimNode);
 
-				FAnimBlueprintNodeCopyTermDefaultsContext NodeContext(TargetProperty, DestinationPtr, SourcePtr, LinkIndexCount);
+				FAnimBlueprintNodeCopyTermDefaultsContext NodeContext(DefaultObject, TargetProperty, DestinationPtr, SourcePtr, LinkIndexCount);
 				VisualAnimNode->CopyTermDefaultsToDefaultObject(CompilerContext, NodeContext, CompiledData);
 
 				LinkIndexMap.Add(VisualAnimNode, LinkIndexCount);
@@ -899,7 +901,7 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 						uint8* DestinationPtr = TargetProperty->ContainerPtrToValuePtr<uint8>(Constants);
 						const uint8* SourcePtr = SourceExtensionProperty->ContainerPtrToValuePtr<uint8>(Extension);
 					
-						FAnimBlueprintExtensionCopyTermDefaultsContext NodeContext(TargetProperty, DestinationPtr, SourcePtr, LinkIndexCount);
+						FAnimBlueprintExtensionCopyTermDefaultsContext NodeContext(DefaultObject, TargetProperty, DestinationPtr, SourcePtr, LinkIndexCount);
 						Extension->CopyTermDefaultsToSparseClassData(CompilerContext, NodeContext);
 					}
 				}
@@ -1414,13 +1416,15 @@ void FAnimBlueprintCompilerContext::PostCompile()
 	if(UAnimInstance* DefaultAnimInstance = Cast<UAnimInstance>(AnimBlueprintGeneratedClass->GetDefaultObject()))
 	{
 		// iterate all anim node and call PostCompile
-		const USkeleton* CurrentSkeleton = AnimBlueprint->TargetSkeleton;
-		for (FStructProperty* Property : TFieldRange<FStructProperty>(AnimBlueprintGeneratedClass, EFieldIteratorFlags::IncludeSuper))
+		if(const USkeleton* CurrentSkeleton = AnimBlueprint->TargetSkeleton)
 		{
-			if (Property->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
+			for (FStructProperty* Property : TFieldRange<FStructProperty>(AnimBlueprintGeneratedClass, EFieldIteratorFlags::IncludeSuper))
 			{
-				FAnimNode_Base* AnimNode = Property->ContainerPtrToValuePtr<FAnimNode_Base>(DefaultAnimInstance);
-				AnimNode->PostCompile(CurrentSkeleton);
+				if (Property->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
+				{
+					FAnimNode_Base* AnimNode = Property->ContainerPtrToValuePtr<FAnimNode_Base>(DefaultAnimInstance);
+					AnimNode->PostCompile(CurrentSkeleton);
+				}
 			}
 		}
 	}
@@ -1760,9 +1764,9 @@ FProperty* FAnimBlueprintCompilerContext::CreateStructVariable(UScriptStruct* In
 	return NewProperty;
 }
 
-void FAnimBlueprintCompilerContext::AddFoldedPropertyRecord(UAnimGraphNode_Base* InAnimGraphNode, FStructProperty* InAnimNodeProperty, FProperty* InProperty, bool bInExposedOnPin, bool bInPinConnected)
+void FAnimBlueprintCompilerContext::AddFoldedPropertyRecord(UAnimGraphNode_Base* InAnimGraphNode, FStructProperty* InAnimNodeProperty, FProperty* InProperty, bool bInExposedOnPin, bool bInPinConnected, bool bInAlwaysDynamic)
 {
-	const bool bConstant = !bInExposedOnPin || (bInExposedOnPin && !bInPinConnected);
+	const bool bConstant = !bInAlwaysDynamic && (!bInExposedOnPin || (bInExposedOnPin && !bInPinConnected));
 
 	if(!InProperty->HasAnyPropertyFlags(CPF_EditorOnly))
 	{

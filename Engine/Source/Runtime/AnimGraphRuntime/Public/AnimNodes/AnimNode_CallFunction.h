@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Animation/AnimNodeBase.h"
+#include "Animation/AnimNodeFunctionRef.h"
 #include "AnimNode_CallFunction.generated.h"
 
 // When to call the function during the execution of the animation graph
@@ -59,14 +60,12 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_CallFunction : public FAnimNode_Base
 	UPROPERTY(EditAnywhere, Category = Links)
 	FPoseLink Source;
 
-	// The name of the function to call
-	UPROPERTY()
-	FName FunctionName = NAME_None;
-
-	// The function to call, recovered by looking for a function of name FunctionName
-	UPROPERTY()
-	UFunction* Function = nullptr;
-
+#if WITH_EDITORONLY_DATA
+	// Function to call
+	UPROPERTY(meta=(FoldProperty))
+	FAnimNodeFunctionRef Function;
+#endif
+	
 	// Counter used to determine relevancy
 	FGraphTraversalCounter Counter;
 
@@ -88,4 +87,7 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_CallFunction : public FAnimNode_Base
 
 	// Calls the function we hold if the callsite matches the one we have set
 	void CallFunctionFromCallSite(EAnimFunctionCallSite InCallSite, const FAnimationBaseContext& InContext) const;
+
+	// Get the function held on this node
+	const FAnimNodeFunctionRef& GetFunction() const;
 };

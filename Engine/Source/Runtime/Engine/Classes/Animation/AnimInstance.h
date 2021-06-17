@@ -13,6 +13,7 @@
 #include "BonePose.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimNotifyQueue.h"
+#include "Animation/AnimSubsystemInstance.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "AnimInstance.generated.h"
 
@@ -876,6 +877,27 @@ public:
 	void AddExternalNotifyHandler(UObject* ExternalHandlerObject, FName NotifyEventName);
 	/** Other UObjects should call this to remove themselves from the callbacks */
 	void RemoveExternalNotifyHandler(UObject* ExternalHandlerObject, FName NotifyEventName);
+
+	// Find a subsystem's instance-resident data. If no subsystem of the type exists this will return nullptr.
+	// @param	InSubsystemType	The subsystem's type
+	FAnimSubsystemInstance* FindSubsystem(UScriptStruct* InSubsystemType);
+
+	// Get a subsystem's instance-resident data. If no subsystem of the type exists this will return nullptr.
+	template<typename SubsystemType>
+	SubsystemType* FindSubsystem()
+	{
+		FAnimSubsystemInstance* Subsystem = FindSubsystem(SubsystemType::StaticStruct());
+		return static_cast<SubsystemType*>(Subsystem);
+	}
+	
+	// Get a subsystem's instance-resident data. If no subsystem of the type exists this will assert.
+	template<typename SubsystemType>
+	SubsystemType& GetSubsystem()
+	{
+		FAnimSubsystemInstance* Subsystem = FindSubsystem(SubsystemType::StaticStruct());
+		check(Subsystem);
+		return static_cast<SubsystemType&>(*Subsystem);
+	}
 
 private:
 	/** Helper function to perform layer overlay actions (set, clear) */

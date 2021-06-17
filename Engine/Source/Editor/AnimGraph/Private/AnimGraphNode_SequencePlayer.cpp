@@ -162,44 +162,7 @@ void UAnimGraphNode_SequencePlayer::ValidateAnimNodeDuringCompilation(class USke
 {
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 
-	UAnimSequenceBase* SequenceToCheck = Node.GetSequence();
-	UEdGraphPin* SequencePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_SequencePlayer, Sequence));
-	if (SequencePin != nullptr && SequenceToCheck == nullptr)
-	{
-		SequenceToCheck = Cast<UAnimSequenceBase>(SequencePin->DefaultObject);
-	}
-
-	if (SequenceToCheck == nullptr)
-	{
-		// Check for bindings
-		bool bHasBinding = false;
-		if(SequencePin != nullptr)
-		{
-			if (FAnimGraphNodePropertyBinding* BindingPtr = PropertyBindings.Find(SequencePin->GetFName()))
-			{
-				bHasBinding = true;
-			}
-		}
-
-		// we may have a connected node or binding
-		if (SequencePin == nullptr || (SequencePin->LinkedTo.Num() == 0 && !bHasBinding))
-		{
-			MessageLog.Error(TEXT("@@ references an unknown sequence"), this);
-		}
-	}
-	else if(SupportsAssetClass(SequenceToCheck->GetClass()) == EAnimAssetHandlerType::NotSupported)
-	{
-		MessageLog.Error(*FText::Format(LOCTEXT("UnsupportedAssetError", "@@ is trying to play a {0} as a sequence, which is not allowed."), SequenceToCheck->GetClass()->GetDisplayNameText()).ToString(), this);
-	}
-	else
-	{
-		USkeleton* SeqSkeleton = SequenceToCheck->GetSkeleton();
-		if (SeqSkeleton && // if anim sequence doesn't have skeleton, it might be due to anim sequence not loaded yet, @todo: wait with anim blueprint compilation until all assets are loaded?
-			!ForSkeleton->IsCompatible(SeqSkeleton))
-		{
-			MessageLog.Error(TEXT("@@ references sequence that uses an incompatible skeleton @@"), this, SeqSkeleton);
-		}
-	}
+	ValidateAnimNodeDuringCompilationHelper(ForSkeleton, MessageLog, Node.GetSequence(), UAnimSequenceBase::StaticClass(), FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_SequencePlayer, Sequence)));
 }
 
 void UAnimGraphNode_SequencePlayer::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const

@@ -295,11 +295,19 @@ bool FAnimNode_MotionMatching::GetIgnoreForRelevancyTest() const
 	return GET_ANIM_NODE_DATA(bool, bIgnoreForRelevancyTest);
 }
 
-void FAnimNode_MotionMatching::SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest)
+bool FAnimNode_MotionMatching::SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest)
 {
 #if WITH_EDITORONLY_DATA
 	bIgnoreForRelevancyTest = bInIgnoreForRelevancyTest;
 #endif
+
+	if(bool* bIgnoreForRelevancyTestPtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(bool, bIgnoreForRelevancyTest))
+	{
+		*bIgnoreForRelevancyTestPtr = bInIgnoreForRelevancyTest;
+		return true;
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

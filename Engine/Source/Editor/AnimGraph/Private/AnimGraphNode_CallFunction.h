@@ -12,7 +12,7 @@
 class UEdGraph;
 class UK2Node_CallFunction;
 
-UCLASS(MinimalAPI, meta=(Keywords = "Event"))
+UCLASS(MinimalAPI, Experimental, meta=(Keywords = "Event"))
 class UAnimGraphNode_CallFunction : public UAnimGraphNode_Base
 {
 	GENERATED_BODY()

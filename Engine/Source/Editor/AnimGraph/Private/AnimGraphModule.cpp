@@ -31,6 +31,7 @@
 #include "Animation/AnimRootMotionProvider.h"
 #include "Features/IModularFeatures.h"
 #include "PropertyAccessAnimBlueprintBinding.h"
+#include "AnimBlueprintDetails.h"
 
 class FAnimGraphModule : public IModuleInterface
 {
@@ -70,6 +71,7 @@ void FAnimGraphModule::StartupModule()
 
 	// Register details customization
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	PropertyModule.RegisterCustomClassLayout(UAnimBlueprint::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FAnimBlueprintDetails::MakeInstance));
 	PropertyModule.RegisterCustomClassLayout(UAnimGraphNode_PoseDriver::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FPoseDriverDetails::MakeInstance));
 
 	PropertyModule.RegisterCustomPropertyTypeLayout("AnimBlueprintFunctionPinInfo", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FAnimBlueprintFunctionPinInfoDetails::MakeInstance));

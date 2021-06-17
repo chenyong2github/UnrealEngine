@@ -127,9 +127,7 @@ void UAnimGraphNode_CallFunction::ExpandNode(FKismetCompilerContext& CompilerCon
 		UAnimBlueprintExtension_CallFunction* Extension = UAnimBlueprintExtension::GetExtension<UAnimBlueprintExtension_CallFunction>(GetAnimBlueprint());
 		
 		const FName EventName = Extension->AddCustomEventName(this);
-
-		// @TODO: move this name copy to the CDO baking step
-		Node.FunctionName = EventName;
+		Node.Function.SetFromFunctionName(EventName);
 
 		UK2Node_CustomEvent* CustomEventNode = CompilerContext.SpawnIntermediateEventNode<UK2Node_CustomEvent>(this, nullptr, CompilerContext.ConsolidatedEventGraph);
 		CustomEventNode->bInternalEvent = true;

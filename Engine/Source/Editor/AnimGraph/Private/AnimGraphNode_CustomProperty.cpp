@@ -10,6 +10,7 @@
 #include "PropertyCustomizationHelpers.h"
 #include "KismetCompiler.h"
 #include "IAnimBlueprintCompilationContext.h"
+#include "IAnimBlueprintCopyTermDefaultsContext.h"
 
 #define LOCTEXT_NAMESPACE "CustomPropNode"
 
@@ -65,6 +66,26 @@ void UAnimGraphNode_CustomProperty::OnProcessDuringCompilation(IAnimBlueprintCom
 			else
 			{
 				AddSourceTargetProperties(*PrefixedName, Pin->GetFName());
+			}
+		}
+	}
+}
+
+void UAnimGraphNode_CustomProperty::OnCopyTermDefaultsToDefaultObject(IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintNodeCopyTermDefaultsContext& InPerNodeContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+{
+	// Copy pin default values to generated properties
+	for (UEdGraphPin* Pin : Pins)
+	{
+		if (!Pin->bOrphanedPin && !UAnimationGraphSchema::IsPosePin(Pin->PinType))
+		{
+			FString PrefixedName = GetPinTargetVariableName(Pin);
+
+			if (FProperty* GeneratedProperty = FindFProperty<FProperty>(InPerNodeContext.GetClassDefaultObject()->GetClass(), *PrefixedName))
+			{
+				if(!FBlueprintEditorUtils::PropertyValueFromString(GeneratedProperty, Pin->GetDefaultAsString(), (uint8*)InPerNodeContext.GetClassDefaultObject(), InPerNodeContext.GetClassDefaultObject()))
+				{
+					InCompilationContext.GetMessageLog().Warning(TEXT("Unable to push default value for pin @@ on @@"), Pin, this);
+				}
 			}
 		}
 	}

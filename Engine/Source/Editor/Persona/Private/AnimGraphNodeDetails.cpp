@@ -992,35 +992,38 @@ TSharedRef<SWidget> SParentPlayerTreeRow::GenerateWidgetForColumn(const FName& C
 				]
 				
 			];
-		
-		TArray<const UClass*> AllowedClasses;
-		AllowedClasses.Add(UAnimationAsset::StaticClass());
-		HorizBox->AddSlot()
-			.VAlign(VAlign_Center)
-			.FillWidth(1.f)
-			[
-				SNew(SObjectPropertyEntryBox)
-				.ObjectPath(this, &SParentPlayerTreeRow::GetCurrentAssetPath)
-				.OnShouldFilterAsset(this, &SParentPlayerTreeRow::OnShouldFilterAsset)
-				.OnObjectChanged(this, &SParentPlayerTreeRow::OnAssetSelected)
-				.AllowedClass(GetCurrentAssetToUse()->GetClass())
-			];
 
-		HorizBox->AddSlot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-				.Visibility(this, &SParentPlayerTreeRow::GetResetToDefaultVisibility)
-				.OnClicked(this, &SParentPlayerTreeRow::OnResetButtonClicked)
-				.ToolTip(IDocumentation::Get()->CreateToolTip(LOCTEXT("ResetToParentButtonTip", "Undo the override, returning to the default asset for this node"), NULL, "Shared/Editors/Persona", "ResetToParentButton"))
-				.Content()
+		if(GraphNode)
+		{
+			TArray<const UClass*> AllowedClasses;
+			AllowedClasses.Add(UAnimationAsset::StaticClass());
+			HorizBox->AddSlot()
+				.VAlign(VAlign_Center)
+				.FillWidth(1.f)
 				[
-					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
-				]
-			];
+					SNew(SObjectPropertyEntryBox)
+					.ObjectPath(this, &SParentPlayerTreeRow::GetCurrentAssetPath)
+					.OnShouldFilterAsset(this, &SParentPlayerTreeRow::OnShouldFilterAsset)
+					.OnObjectChanged(this, &SParentPlayerTreeRow::OnAssetSelected)
+					.AllowedClass(GraphNode->GetAnimationAssetClass())
+				];
+
+			HorizBox->AddSlot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(SButton)
+					.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+					.Visibility(this, &SParentPlayerTreeRow::GetResetToDefaultVisibility)
+					.OnClicked(this, &SParentPlayerTreeRow::OnResetButtonClicked)
+					.ToolTip(IDocumentation::Get()->CreateToolTip(LOCTEXT("ResetToParentButtonTip", "Undo the override, returning to the default asset for this node"), NULL, "Shared/Editors/Persona", "ResetToParentButton"))
+					.Content()
+					[
+						SNew(SImage)
+						.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+					]
+				];
+		}
 	}
 
 	return HorizBox.ToSharedRef();
@@ -1028,8 +1031,8 @@ TSharedRef<SWidget> SParentPlayerTreeRow::GenerateWidgetForColumn(const FName& C
 
 bool SParentPlayerTreeRow::OnShouldFilterAsset(const FAssetData& AssetData)
 {
-	const USkeleton* CurrentSkeleton = GraphNode->GetAnimBlueprint()->TargetSkeleton;
-	return !CurrentSkeleton->IsCompatibleSkeletonByAssetData(AssetData);
+	const USkeleton* CurrentSkeleton = CastChecked<UAnimBlueprint>(BlueprintEditor.Pin()->GetBlueprintObj())->TargetSkeleton;
+	return CurrentSkeleton != nullptr && !CurrentSkeleton->IsCompatibleSkeletonByAssetData(AssetData);
 }
 
 void SParentPlayerTreeRow::OnAssetSelected(const FAssetData& AssetData)
@@ -1070,7 +1073,7 @@ const UAnimationAsset* SParentPlayerTreeRow::GetCurrentAssetToUse() const
 		return GraphNode->GetAnimationAsset();
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 EVisibility SParentPlayerTreeRow::GetResetToDefaultVisibility() const

@@ -29,6 +29,7 @@ struct FAnimationBlueprintEditorModes
 	// Mode constants
 	static const FName AnimationBlueprintEditorMode;
 	static const FName AnimationBlueprintInterfaceEditorMode;
+	static const FName AnimationBlueprintTemplateEditorMode;
 
 	static FText GetLocalizedMode(const FName InMode)
 	{
@@ -38,6 +39,7 @@ struct FAnimationBlueprintEditorModes
 		{
 			LocModes.Add(AnimationBlueprintEditorMode, NSLOCTEXT("AnimationBlueprintEditorModes", "AnimationBlueprintEditorMode", "Animation Blueprint"));
 			LocModes.Add(AnimationBlueprintInterfaceEditorMode, NSLOCTEXT("AnimationBlueprintEditorModes", "AnimationBlueprintInterface EditorMode", "Animation Blueprint Interface"));
+			LocModes.Add(AnimationBlueprintTemplateEditorMode, NSLOCTEXT("AnimationBlueprintEditorModes", "AnimationBlueprintTemplate EditorMode", "Animation Blueprint Template"));
 		}
 
 		check(InMode != NAME_None);

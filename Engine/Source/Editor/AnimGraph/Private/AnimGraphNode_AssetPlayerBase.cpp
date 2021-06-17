@@ -451,4 +451,54 @@ FText UAnimGraphNode_AssetPlayerBase::GetNodeTitleForAsset(ENodeTitleType::Type 
 	}
 }
 
+void UAnimGraphNode_AssetPlayerBase::ValidateAnimNodeDuringCompilationHelper(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog, UAnimationAsset* InAsset, TSubclassOf<UAnimationAsset> InAssetType, UEdGraphPin* InExposedPin)
+{
+	UAnimationAsset* AssetToCheck = InAsset;
+	if(InExposedPin != nullptr && AssetToCheck == nullptr)
+	{
+		AssetToCheck = Cast<UAnimationAsset>(InExposedPin->DefaultObject);
+	}
+
+	if(AssetToCheck == nullptr)
+	{
+		if(!GetAnimBlueprint()->bIsTemplate)
+		{
+			// Check for bindings
+			bool bHasBinding = false;
+			bool bAlwaysDynamic = false;
+			if(InExposedPin != nullptr)
+			{
+				if(PropertyBindings.Contains(InExposedPin->GetFName()))
+				{
+					bHasBinding = true;
+				}
+
+				if(AlwaysDynamicProperties.Contains(InExposedPin->GetFName()))
+				{
+					bAlwaysDynamic = true;
+				}
+			}
+
+			// we may have a connected node or binding
+			if(!bAlwaysDynamic)
+			{
+				if (InExposedPin == nullptr || (InExposedPin->LinkedTo.Num() == 0 && !bHasBinding))
+				{
+					MessageLog.Error(*FText::Format(LOCTEXT("MissingAssetFormat", "@@ references an unknown {0}"), InAssetType->GetDisplayNameText()).ToString(), this);
+				}
+			}
+		}
+	}
+	else 
+	{
+		USkeleton* AssetSkeleton = AssetToCheck->GetSkeleton();
+		
+		// if asset doesn't have a skeleton, it might be due to the asset no being not loaded yet
+		if(AssetSkeleton && !ForSkeleton->IsCompatible(AssetSkeleton))
+		{
+			MessageLog.Error(*FText::Format(LOCTEXT("IncompatibleSkeletonFormat", "@@ references {0} that uses an incompatible skeleton @@"), InAssetType->GetDisplayNameText()).ToString(), this, AssetSkeleton);
+		}
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

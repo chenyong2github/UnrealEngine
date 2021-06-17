@@ -952,6 +952,46 @@ namespace AnimationEditorUtils
 		}
 #endif
 	}
+
+	void SetupDebugLinkedAnimInstances(UAnimBlueprint* InAnimBlueprint, UObject* InRootObjectBeingDebugged)
+	{
+		check(IsInGameThread());
+		
+		static bool bSettingDebugInstances = false;
+
+		if(!bSettingDebugInstances)
+		{
+			TGuardValue<bool> GuardValue(bSettingDebugInstances, true);
+			if(InRootObjectBeingDebugged)
+			{
+				if(const USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(InRootObjectBeingDebugged->GetOuter()))
+				{
+					// See if we have any linked instances
+					for(UAnimInstance* LinkedInstance : Component->GetLinkedAnimInstances())
+					{
+						if(UAnimBlueprint* LinkedAnimBlueprint = Cast<UAnimBlueprint>(LinkedInstance->GetClass()->ClassGeneratedBy))
+						{
+							LinkedAnimBlueprint->SetObjectBeingDebugged(LinkedInstance);
+						}
+					}
+				}
+			}
+			else if(UObject* OldDebuggedObject = InAnimBlueprint->GetObjectBeingDebugged())
+			{
+				if(const USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(OldDebuggedObject->GetOuter()))
+				{
+					// See if we have any linked instances
+					for(UAnimInstance* LinkedInstance : Component->GetLinkedAnimInstances())
+					{
+						if(UAnimBlueprint* LinkedAnimBlueprint = Cast<UAnimBlueprint>(LinkedInstance->GetClass()->ClassGeneratedBy))
+						{
+							LinkedAnimBlueprint->SetObjectBeingDebugged(nullptr);
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

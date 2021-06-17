@@ -99,7 +99,7 @@ protected:
 	virtual float GetCurrentAssetTime() const override;
 	virtual float GetCurrentAssetTimePlayRateAdjusted() const override;
 	virtual bool GetIgnoreForRelevancyTest() const override;
-	virtual void SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override;
+	virtual bool SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override;
 	// End of FAnimNode_AssetPlayerBase interface
 
 private:

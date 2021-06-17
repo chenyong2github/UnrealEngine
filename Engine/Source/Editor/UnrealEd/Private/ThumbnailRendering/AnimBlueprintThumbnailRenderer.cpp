@@ -14,7 +14,7 @@ UAnimBlueprintThumbnailRenderer::UAnimBlueprintThumbnailRenderer(const FObjectIn
 bool UAnimBlueprintThumbnailRenderer::CanVisualizeAsset(UObject* Object)
 {
 	UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Object);
-	return AnimBlueprint->BlueprintType != BPTYPE_Interface;
+	return AnimBlueprint->BlueprintType != BPTYPE_Interface && !AnimBlueprint->bIsTemplate;
 }
 
 void UAnimBlueprintThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily)

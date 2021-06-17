@@ -59,7 +59,7 @@ public:
 	virtual float GetEffectiveDeltaTime(float ExplicitTime, float PrevExplicitTime) const;
 
 	// Set the animation sequence asset to evaluate
-	virtual void SetSequence(UAnimSequenceBase* InSequence) {}
+	virtual bool SetSequence(UAnimSequenceBase* InSequence) { return false; }
 
 	// Set the time at which to evaluate the associated sequence
 	virtual void SetExplicitTime(float InTime) {}
@@ -146,7 +146,7 @@ private:
 
 public:
 	// FAnimNode_SequenceEvaluatorBase interface
-	virtual void SetSequence(UAnimSequenceBase* InSequence) override;
+	virtual bool SetSequence(UAnimSequenceBase* InSequence) override;
 	virtual UAnimSequenceBase* GetSequence() const override;
 	virtual float GetExplicitTime() const override;
 	virtual bool GetShouldLoop() const override;
@@ -159,10 +159,10 @@ public:
 	virtual EAnimGroupRole::Type GetGroupRole() const override;
 	virtual EAnimSyncMethod GetGroupMethod() const override;
 	virtual bool GetIgnoreForRelevancyTest() const override;
-	virtual void SetGroupName(FName InGroupName) override;
-	virtual void SetGroupRole(EAnimGroupRole::Type InRole) override;
-	virtual void SetGroupMethod(EAnimSyncMethod InMethod) override;
-	virtual void SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override;
+	virtual bool SetGroupName(FName InGroupName) override;
+	virtual bool SetGroupRole(EAnimGroupRole::Type InRole) override;
+	virtual bool SetGroupMethod(EAnimSyncMethod InMethod) override;
+	virtual bool SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override;
 };
 
 // Sequence evaluator node that can be used standalone (without constant folding)
@@ -216,7 +216,7 @@ private:
 
 public:
 	// FAnimNode_SequenceEvaluatorBase interface
-	virtual void SetSequence(UAnimSequenceBase* InSequence) override { Sequence = InSequence; }
+	virtual bool SetSequence(UAnimSequenceBase* InSequence) override { Sequence = InSequence; return true; }
 	virtual void SetExplicitTime(float InTime) override { ExplicitTime = InTime; }
 	virtual void SetTeleportToExplicitTime(bool bInTeleport) override { bTeleportToExplicitTime = bInTeleport; }
 	virtual void SetReinitializationBehavior(TEnumAsByte<ESequenceEvalReinit::Type> InBehavior) override { ReinitializationBehavior = InBehavior; }
@@ -232,8 +232,8 @@ public:
 	virtual EAnimGroupRole::Type GetGroupRole() const override { return GroupRole; }
 	virtual EAnimSyncMethod GetGroupMethod() const override { return Method; }
 	virtual bool GetIgnoreForRelevancyTest() const override { return bIgnoreForRelevancyTest; }
-	virtual void SetGroupName(FName InGroupName) override { GroupName = InGroupName; }
-	virtual void SetGroupRole(EAnimGroupRole::Type InRole) override { GroupRole = InRole; }
-	virtual void SetGroupMethod(EAnimSyncMethod InMethod) override { Method = InMethod; }
-	virtual void SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override { bIgnoreForRelevancyTest = bInIgnoreForRelevancyTest; }
+	virtual bool SetGroupName(FName InGroupName) override { GroupName = InGroupName; return true; }
+	virtual bool SetGroupRole(EAnimGroupRole::Type InRole) override { GroupRole = InRole; return true; }
+	virtual bool SetGroupMethod(EAnimSyncMethod InMethod) override { Method = InMethod; return true; }
+	virtual bool SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override { bIgnoreForRelevancyTest = bInIgnoreForRelevancyTest; return true; }
 };

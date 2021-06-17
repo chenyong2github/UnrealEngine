@@ -131,12 +131,20 @@ float FAnimNode_SequenceEvaluatorBase::GetEffectiveDeltaTime(float ExplicitTime,
 	return DeltaTime;
 }
 
-void FAnimNode_SequenceEvaluator::SetSequence(UAnimSequenceBase* InSequence)
+bool FAnimNode_SequenceEvaluator::SetSequence(UAnimSequenceBase* InSequence)
 {
 #if WITH_EDITORONLY_DATA
-	TObjectPtr<UAnimSequenceBase>& SequenceToSet = GET_MUTABLE_ANIM_NODE_DATA(TObjectPtr<UAnimSequenceBase>, Sequence);
-	SequenceToSet = InSequence;
+	Sequence = InSequence;
+	GET_MUTABLE_ANIM_NODE_DATA(TObjectPtr<UAnimSequenceBase>, Sequence) = InSequence;
 #endif
+
+	if(TObjectPtr<UAnimSequenceBase>* SequencePtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(TObjectPtr<UAnimSequenceBase>, Sequence))
+	{
+		*SequencePtr = InSequence;
+		return true;
+	}
+
+	return false;
 }
 
 UAnimSequenceBase* FAnimNode_SequenceEvaluator::GetSequence() const
@@ -189,30 +197,62 @@ bool FAnimNode_SequenceEvaluator::GetIgnoreForRelevancyTest() const
 	return GET_ANIM_NODE_DATA(bool, bIgnoreForRelevancyTest);
 }
 
-void FAnimNode_SequenceEvaluator::SetGroupName(FName InGroupName)
+bool FAnimNode_SequenceEvaluator::SetGroupName(FName InGroupName)
 {
 #if WITH_EDITORONLY_DATA	
 	GroupName = InGroupName;
 #endif
+
+	if(FName* GroupNamePtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(FName, GroupName))
+	{
+		*GroupNamePtr = InGroupName;
+		return true;
+	}
+
+	return false;
 }
 
-void FAnimNode_SequenceEvaluator::SetGroupRole(EAnimGroupRole::Type InRole)
+bool FAnimNode_SequenceEvaluator::SetGroupRole(EAnimGroupRole::Type InRole)
 {
 #if WITH_EDITORONLY_DATA
 	GroupRole = InRole;
 #endif
+
+	if(TEnumAsByte<EAnimGroupRole::Type>* GroupRolePtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(TEnumAsByte<EAnimGroupRole::Type>, GroupRole))
+	{
+		*GroupRolePtr = InRole;
+		return true;
+	}
+
+	return false;	
 }
 
-void FAnimNode_SequenceEvaluator::SetGroupMethod(EAnimSyncMethod InMethod)
+bool FAnimNode_SequenceEvaluator::SetGroupMethod(EAnimSyncMethod InMethod)
 {
 #if WITH_EDITORONLY_DATA
 	Method = InMethod;
 #endif
+
+	if(EAnimSyncMethod* MethodPtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(EAnimSyncMethod, Method))
+	{
+		*MethodPtr = InMethod;
+		return true;
+	}
+
+	return false;
 }
 
-void FAnimNode_SequenceEvaluator::SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest)
+bool FAnimNode_SequenceEvaluator::SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest)
 {
 #if WITH_EDITORONLY_DATA
 	bIgnoreForRelevancyTest = bInIgnoreForRelevancyTest;
 #endif
+
+	if(bool* bIgnoreForRelevancyTestPtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(bool, bIgnoreForRelevancyTest))
+	{
+		*bIgnoreForRelevancyTestPtr = bInIgnoreForRelevancyTest;
+		return true;
+	}
+
+	return false;
 }
