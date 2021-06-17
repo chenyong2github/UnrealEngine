@@ -98,7 +98,7 @@ void FAnimationModifiersModule::ShowAddAnimationModifierWindow(const TArray<UAni
 	FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
 }
 
-void FAnimationModifiersModule::ApplyAnimationModifiers(const TArray<UAnimSequence*>& InSequences)
+void FAnimationModifiersModule::ApplyAnimationModifiers(const TArray<UAnimSequence*>& InSequences, bool bForceApply /*= true*/)
 {
 	const FScopedTransaction Transaction(LOCTEXT("UndoAction_ApplyModifiers", "Applying Animation Modifier(s) to Animation Sequence(s)"));
 	
@@ -116,7 +116,10 @@ void FAnimationModifiersModule::ApplyAnimationModifiers(const TArray<UAnimSequen
 				const TArray<UAnimationModifier*>& ModifierInstances = UserData->GetAnimationModifierInstances();
 				for (UAnimationModifier* Modifier : ModifierInstances)
 				{
-					Modifier->ApplyToAnimationSequence(AnimationSequence);
+					if (bForceApply || !Modifier->IsLatestRevisionApplied())
+					{
+						Modifier->ApplyToAnimationSequence(AnimationSequence);
+					}
 				}
 			}
 		}		

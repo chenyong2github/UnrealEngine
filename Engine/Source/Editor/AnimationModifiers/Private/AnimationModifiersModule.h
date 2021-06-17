@@ -20,7 +20,7 @@ public:
 
 	/** Begin IAnimationModifiersModule overrides */
 	virtual void ShowAddAnimationModifierWindow(const TArray<UAnimSequence*>& InSequences) override;
-	virtual void ApplyAnimationModifiers(const TArray<UAnimSequence*>& InSequences) override;
+	virtual void ApplyAnimationModifiers(const TArray<UAnimSequence*>& InSequences, bool bForceApply = true) override;
 	/** End IAnimationModifiersModule overrides */
 
 protected:
