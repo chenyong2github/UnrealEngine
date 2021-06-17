@@ -86,14 +86,9 @@
     <Content Include="..\..\..\ThirdParty\Perforce\P4Api.Net\native\linux\release\p4bridge.*" Condition="$([MSBuild]::IsOSPlatform('Linux'))">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <ContentWithTargetPath Include="..\..\..\..\Restricted\NotForLicensees\Source\Programs\Horde\ThirdParty\Mongo\mongod.exe" Condition="$([MSBuild]::IsOSPlatform('Windows')) And Exists('..\..\..\..\Restricted\NotForLicensees\Source\Programs\Horde\ThirdParty\Mongo\mongod.exe')">
+    <Content Include="..\ThirdParty\**" Condition="$([MSBuild]::IsOSPlatform('Windows'))">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <TargetPath>ThirdParty/Mongo/mongod.exe</TargetPath>
-    </ContentWithTargetPath>
-    <ContentWithTargetPath Include="..\ThirdParty\Redis\redis-server.exe" Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <TargetPath>ThirdParty/Redis/redis-server.exe</TargetPath>
-    </ContentWithTargetPath>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
