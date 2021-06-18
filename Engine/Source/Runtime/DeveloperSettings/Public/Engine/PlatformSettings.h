@@ -59,8 +59,10 @@ public:
 	static UPlatformSettings* GetSettingsForPlatform(TSubclassOf<UPlatformSettings> SettingsClass);
 
 #if WITH_EDITOR
-	static FString GetEditorSimulatedPlatform() { return SimulatedEditorPlatform; }
-	static void SetEditorSimulatedPlatform(FString PlatformIniName) { SimulatedEditorPlatform = PlatformIniName; }
+	static FName GetEditorSimulatedPlatform() { return SimulatedEditorPlatform; }
+	static void SetEditorSimulatedPlatform(FName PlatformIniName) { SimulatedEditorPlatform = PlatformIniName; }
+
+	static TArray<FName> GetKnownAndEnablePlatformIniNames();
 
 	template <typename TPlatformSettingsClass>
 	FORCEINLINE static TArray<UPlatformSettings*> GetAllPlatformSettings()
@@ -92,6 +94,6 @@ private:
 	FString ConfigPlatformName;
 
 #if WITH_EDITOR
-	static FString SimulatedEditorPlatform;
+	static FName SimulatedEditorPlatform;
 #endif
 };

@@ -11,38 +11,54 @@
 #include "ProjectDescriptor.h"
 
 #if WITH_EDITOR
-FString UPlatformSettings::SimulatedEditorPlatform;
+FName UPlatformSettings::SimulatedEditorPlatform;
 #endif
 
 UPlatformSettings::UPlatformSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	
+
 }
 
 #if WITH_EDITOR
+TArray<FName> UPlatformSettings::GetKnownAndEnablePlatformIniNames()
+{
+	TArray<FName> Results;
+
+	FProjectStatus ProjectStatus;
+	const bool bProjectStatusIsValid = IProjectManager::Get().QueryStatusForCurrentProject(/*out*/ ProjectStatus);
+
+	for (const auto& Pair : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
+	{
+		const FName PlatformName = Pair.Key;
+		const FDataDrivenPlatformInfo& Info = Pair.Value;
+
+		const bool bProjectDisabledPlatform = bProjectStatusIsValid && !ProjectStatus.IsTargetPlatformSupported(PlatformName);
+
+		const bool bEnabledForUse =
+#if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
+			Info.bEnabledForUse;
+#else
+			true;
+#endif
+
+		const bool bSupportedPlatform = !Info.bIsFakePlatform && bEnabledForUse && !bProjectDisabledPlatform;
+
+		if (bSupportedPlatform)
+		{
+			Results.Add(PlatformName);
+		}
+	}
+
+	return Results;
+}
+
 TArray<UPlatformSettings*> UPlatformSettings::GetAllPlatformSettings(TSubclassOf<UPlatformSettings> SettingsClass)
 {
 	TArray<UPlatformSettings*> Settings;
-
-	const FProjectDescriptor* Project = IProjectManager::Get().GetCurrentProject();
-	
-	const TMap<FName, FDataDrivenPlatformInfo>& AllPlatforms = FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos();
-
-	for (auto& PlatformKVP : AllPlatforms)
+	for (FName PlatformIniName : GetKnownAndEnablePlatformIniNames())
 	{
-		const FName PlatformIniName = PlatformKVP.Key;
-		const FDataDrivenPlatformInfo& PlatformInfo = PlatformKVP.Value;
-
-		if (PlatformInfo.bIsFakePlatform)
-		{
-			continue;
-		}
-
-		if (Project->TargetPlatforms.IsEmpty() || Project->TargetPlatforms.Contains(PlatformIniName))
-		{
-			Settings.Add(GetSettingsForPlatformInternal(SettingsClass, PlatformIniName.ToString()));
-		}
+		Settings.Add(GetSettingsForPlatformInternal(SettingsClass, PlatformIniName.ToString()));
 	}
 	
 	return Settings;
@@ -52,11 +68,15 @@ TArray<UPlatformSettings*> UPlatformSettings::GetAllPlatformSettings(TSubclassOf
 UPlatformSettings* UPlatformSettings::GetSettingsForPlatform(TSubclassOf<UPlatformSettings> SettingsClass)
 {
 	static UPlatformSettings* ThisPlatformsSettings = GetSettingsForPlatformInternal(SettingsClass, FPlatformProperties::IniPlatformName());
-	
+
 #if WITH_EDITOR
-	if (GIsEditor && !SimulatedEditorPlatform.IsEmpty())
+	if (GIsEditor && SimulatedEditorPlatform != NAME_None)
 	{
-		return GetSettingsForPlatformInternal(SettingsClass, SimulatedEditorPlatform);
+		UPlatformSettings* OtherPlatformsSettings = GetSettingsForPlatformInternal(SettingsClass, SimulatedEditorPlatform.ToString());
+		if (ensure(OtherPlatformsSettings))
+		{
+			return OtherPlatformsSettings;
+		}
 	}
 #endif
 	
