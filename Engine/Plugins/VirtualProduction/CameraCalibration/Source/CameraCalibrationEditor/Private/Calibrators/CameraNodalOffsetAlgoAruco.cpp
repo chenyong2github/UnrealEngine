@@ -219,8 +219,10 @@ bool UCameraNodalOffsetAlgoAruco::PopulatePoints(FText& OutErrorMessage)
 		);
 	}
 
+	check(MarkerIds.size() == MarkerCorners.size());
+
 	// Add the detected markers that match calibration points to the table
-	for(int32 MarkerIdx=0; MarkerIdx < MarkerIds.size(); ++MarkerIdx)
+	for(int32 MarkerIdx=0; MarkerIdx < MarkerCorners.size(); ++MarkerIdx)
 	{
 		// Naming convention for calibration points:
 		//     DICTIONARY-ID-CORNER
@@ -232,13 +234,13 @@ bool UCameraNodalOffsetAlgoAruco::PopulatePoints(FText& OutErrorMessage)
 
 		static const TArray<FString> CornerNames = { TEXT("TL"), TEXT("TR"), TEXT("BR"), TEXT("BL") };
 
-		check(MarkerCorners[MarkerIdx].size() == 4);
+		check(MarkerCorners[MarkerIdx].size() == 4); // Successful detection should always return the 4 corners of each marker.
 
 		// Iterate over the 4 corners of this marker and try to find the corresponding calibration point
 		for (int32 CornerIdx = 0; CornerIdx < 4; ++CornerIdx)
 		{
 			// Build calibrator point name based on the detected marker
-			const FString MarkerName = FString::Printf(TEXT("%s-%d-%s"), *DictionaryInfo.Name, MarkerIds[MarkerIdx], *CornerNames[CornerIdx]);
+			const FString MarkerName = FString::Printf(TEXT("%s-%d-%s"), *DictionaryInfo.Name, MarkerIds[MarkerIdx], *CornerNames[CornerIdx]); //-V557
 
 			// Find the corresponding calibrator point
 			const UCalibrationPointComponent* CalibrationPointComponent = GetCalibrationPointComponentFromName(MarkerName);
