@@ -41,7 +41,7 @@ public:
 	UCommonUIRichTextData* GetRichTextData() const;
 	const FSlateBrush& GetDefaultThrobberBrush() const;
 	UObject* GetDefaultImageResourceObject() const;
-	const FGameplayTagContainer& GetPlatformTraits() const { return PlatformTraitContainer; }
+	const FGameplayTagContainer& GetPlatformTraits() const;
 
 private:
 
