@@ -52,8 +52,7 @@ namespace Chaos
 
 		UGeometryCollectionComponent*    Comp  = CastChecked<UGeometryCollectionComponent>(InComp);
 		FGeometryCollectionPhysicsProxy* Proxy = Comp->GetPhysicsProxy();
-		const FTransform WorldToComponent = Proxy->GetSimParameters().WorldTransform.Inverse();
-
+		
 		FPhysScene_Chaos& Scene = *(Comp->GetWorld()->GetPhysicsScene());
 		
 		if(!Proxy)
@@ -65,6 +64,8 @@ namespace Chaos
 		{
 			return;
 		}
+
+		const FTransform WorldToComponent = Proxy->GetSimParameters().WorldTransform.Inverse();
 
 		const FCachedEventData& ProxyCachedEventData = CachedData[Proxy];
 
@@ -232,13 +233,13 @@ namespace Chaos
 
 		UGeometryCollectionComponent*    Comp  = CastChecked<UGeometryCollectionComponent>(InComponent);
 		FGeometryCollectionPhysicsProxy* Proxy = Comp->GetPhysicsProxy();
-		const FTransform ComponentToWorld = Proxy->GetSimParameters().WorldTransform;
-
+		
 		if(!Proxy)
 		{
 			return;
 		}
 
+		const FTransform ComponentToWorld = Proxy->GetSimParameters().WorldTransform;
 		const FGeometryCollection* RestCollection = Proxy->GetSimParameters().RestCollection;
 		Chaos::FPhysicsSolver*     Solver         = Proxy->GetSolver<Chaos::FPhysicsSolver>();
 
@@ -669,12 +670,12 @@ namespace Chaos
 		UGeometryCollectionComponent*    Comp     = CastChecked<UGeometryCollectionComponent>(InComponent);
 		FGeometryCollectionPhysicsProxy* Proxy    = Comp->GetPhysicsProxy();
 
-		const FSimulationParameters& SimulationParameters = Proxy->GetSimParameters();
-
 		if (!Proxy)
 		{
 			return false;
 		}
+
+		const FSimulationParameters& SimulationParameters = Proxy->GetSimParameters();
 
 		Chaos::FPhysicsSolver* Solver = Proxy->GetSolver<Chaos::FPhysicsSolver>();
 
