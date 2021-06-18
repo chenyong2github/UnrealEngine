@@ -56,12 +56,12 @@ void FDMXRawListener::EnqueueSignal(void* Producer, const FDMXSignalSharedRef& S
 {
 #if UE_BUILD_DEBUG
 	// Test single producer
-	if (!Producer)
+	if (!ProducerObj)
 	{
 		ProducerObj = Producer;
 	}
 	FDMXPortSharedPtr PinnedOwnerPort = OwnerPort.Pin();
-	check(PinnedOwnerPort.IsValid() && ProducerObj == PinnedOwnerPort.Get());
+	checkf(PinnedOwnerPort.IsValid() && ProducerObj == PinnedOwnerPort.Get(), TEXT("More than one producer detected in FDMXRawListener::DequeueSignal."));
 #endif // UE_BUILD_DEBUG
 
 	RawBuffer.Enqueue(Signal);
@@ -71,11 +71,11 @@ bool FDMXRawListener::DequeueSignal(void* Consumer, FDMXSignalSharedPtr& OutSign
 {
 #if UE_BUILD_DEBUG
 	// Test single consumer
-	if (!Consumer)
+	if (!ConsumerObj)
 	{
 		ConsumerObj = Consumer;
 	}
-	check(ConsumerObj == Consumer);
+	checkf(ConsumerObj == Consumer, TEXT("More than one consumer detected in FDMXRawListener::DequeueSignal."));
 #endif // UE_BUILD_DEBUG
 
 	if (RawBuffer.Dequeue(OutSignal))
