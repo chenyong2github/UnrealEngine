@@ -120,6 +120,7 @@ UObject* UCommonUISettings::GetDefaultImageResourceObject() const
 
 const FGameplayTagContainer& UCommonUISettings::GetPlatformTraits() const
 {
+#if WITH_EDITOR
 	const FName SimulatedPlatform = UPlatformSettings::GetEditorSimulatedPlatform();
 	if (SimulatedPlatform != NAME_None)
 	{
@@ -146,6 +147,7 @@ const FGameplayTagContainer& UCommonUISettings::GetPlatformTraits() const
 			return OtherPlatformTraitContainer;
 		}
 	}
+#endif
 
 	return PlatformTraitContainer;
 }
