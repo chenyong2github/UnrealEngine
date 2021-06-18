@@ -166,10 +166,11 @@ class AddnDisplayDialog(AddDeviceDialog):
 
         def validateConfigAsset(asset):
             ''' Returns the asset if it is an nDisplay config '''
-            aparser = UassetParser(asset['path'], allowUnversioned=True)
-            for assetdata in aparser.aregdata:
-                if assetdata.ObjectClassName == 'DisplayClusterBlueprint':
-                    return asset
+            with open(asset['path'], 'rb') as file:
+                aparser = UassetParser(file, allowUnversioned=True)
+                for assetdata in aparser.aregdata:
+                    if assetdata.ObjectClassName == 'DisplayClusterBlueprint':
+                        return asset
             raise ValueError
 
         numThreads = 8
@@ -635,12 +636,13 @@ class DevicenDisplay(DeviceUnreal):
         ''' Extract the configexport from the config uasset '''
 
         # Initialize uasset parser
-        aparser = UassetParser(cfg_file)
+        with open(cfg_file, 'rb') as file:
+            aparser = UassetParser(file)
 
-        # Check that the asset is of the right class, then find its ConfigExport tag and parse it.
-        for assetdata in aparser.aregdata:
-            if assetdata.ObjectClassName == 'DisplayClusterBlueprint':
-                return assetdata.tags['ConfigExport']
+            # Check that the asset is of the right class, then find its ConfigExport tag and parse it.
+            for assetdata in aparser.aregdata:
+                if assetdata.ObjectClassName == 'DisplayClusterBlueprint':
+                    return assetdata.tags['ConfigExport']
 
         raise ValueError('Invalid nDisplay config .uasset')
 

@@ -371,9 +371,9 @@ class SettingsDialog(QtCore.QObject):
 
         combo.currentTextChanged.connect(lambda text, setting=setting: setting.update_value(text))
 
-    _str_attr_path_filters = { 'ndisplay_cfg_file': 'nDisplay Config (*.cfg;*.ndisplay)' }
+    _str_attr_path_filters = { 'ndisplay_cfg_file': 'nDisplay Config (*.cfg;*.ndisplay;*.uasset)' }
     def path_filter_for_setting(self, setting):
-        return self._str_attr_path_filters[setting.attr_name] if setting.attr_name in self._str_attr_path_filters else None
+        return self._str_attr_path_filters.get(setting.attr_name)
 
     def add_browse_button(self, layout, setting, filter_str):
         browse_btn = QtWidgets.QPushButton('Browse')
