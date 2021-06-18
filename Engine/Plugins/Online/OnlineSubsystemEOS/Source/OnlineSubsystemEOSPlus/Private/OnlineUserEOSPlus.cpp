@@ -344,7 +344,7 @@ void FOnlineUserEOSPlus::AddPlayer(int32 LocalUserNum)
 
 	FUniqueNetIdPtr BaseNetId = BaseIdentityInterface->GetUniquePlayerId(LocalUserNum);
 	FUniqueNetIdPtr EOSNetId = EOSIdentityInterface->GetUniquePlayerId(LocalUserNum);
-	FUniqueNetIdEOSPlusPtr PlusNetId = MakeShared<FUniqueNetIdEOSPlus>(BaseNetId, EOSNetId);
+	FUniqueNetIdEOSPlusPtr PlusNetId = FUniqueNetIdEOSPlus::Create(BaseNetId, EOSNetId);
 
 	BaseNetIdToNetIdPlus.Add(BaseNetId->ToString(), PlusNetId);
 	EOSNetIdToNetIdPlus.Add(EOSNetId->ToString(), PlusNetId);
@@ -362,7 +362,7 @@ void FOnlineUserEOSPlus::AddPlayer(int32 LocalUserNum)
 
 FUniqueNetIdEOSPlusPtr FOnlineUserEOSPlus::AddRemotePlayer(FUniqueNetIdPtr BaseNetId, FUniqueNetIdPtr EOSNetId)
 {
-	FUniqueNetIdEOSPlusPtr PlusNetId = MakeShared<FUniqueNetIdEOSPlus>(BaseNetId, EOSNetId);
+	FUniqueNetIdEOSPlusPtr PlusNetId = FUniqueNetIdEOSPlus::Create(BaseNetId, EOSNetId);
 
 	BaseNetIdToNetIdPlus.Add(BaseNetId->ToString(), PlusNetId);
 	EOSNetIdToNetIdPlus.Add(EOSNetId->ToString(), PlusNetId);
@@ -745,8 +745,13 @@ TSharedRef<FOnlineFriendPlus> FOnlineUserEOSPlus::AddFriend(TSharedRef<FOnlineFr
 		}
 		else
 		{
-			NetIdPlus = MakeShared<FUniqueNetIdEOSPlus>(nullptr, NetId);
+			NetIdPlus = FUniqueNetIdEOSPlus::Create(nullptr, NetId);
 			EOSNetIdToNetIdPlus.Add(NetId->ToString(), NetIdPlus);
+
+			if (!NetIdPlusToNetIdPlus.Contains(NetIdPlus->ToString()))
+			{
+				NetIdPlusToNetIdPlus.Add(NetIdPlus->ToString(), NetIdPlus);
+			}
 		}
 		// Build a new friend plus and map them in
 		TSharedRef<FOnlineFriendPlus> FriendPlus = MakeShared<FOnlineFriendPlus>(nullptr, Friend);
@@ -760,8 +765,13 @@ TSharedRef<FOnlineFriendPlus> FOnlineUserEOSPlus::AddFriend(TSharedRef<FOnlineFr
 	}
 	else
 	{
-		NetIdPlus = MakeShared<FUniqueNetIdEOSPlus>(NetId, nullptr);
+		NetIdPlus = FUniqueNetIdEOSPlus::Create(NetId, nullptr);
 		BaseNetIdToNetIdPlus.Add(NetId->ToString(), NetIdPlus);
+
+		if (!NetIdPlusToNetIdPlus.Contains(NetIdPlus->ToString()))
+		{
+			NetIdPlusToNetIdPlus.Add(NetIdPlus->ToString(), NetIdPlus);
+		}
 	}
 	// Build a new friend plus and map them in
 	TSharedRef<FOnlineFriendPlus> FriendPlus = MakeShared<FOnlineFriendPlus>(Friend, nullptr);
@@ -862,7 +872,7 @@ TSharedRef<FOnlineRecentPlayer> FOnlineUserEOSPlus::AddRecentPlayer(TSharedRef<F
 		}
 		else
 		{
-			NetIdPlus = MakeShared<FUniqueNetIdEOSPlus>(nullptr, NetId);
+			NetIdPlus = FUniqueNetIdEOSPlus::Create(nullptr, NetId);
 			EOSNetIdToNetIdPlus.Add(NetId->ToString(), NetIdPlus);
 		}
 		// Build a new recent player plus and map them in
@@ -877,7 +887,7 @@ TSharedRef<FOnlineRecentPlayer> FOnlineUserEOSPlus::AddRecentPlayer(TSharedRef<F
 	}
 	else
 	{
-		NetIdPlus = MakeShared<FUniqueNetIdEOSPlus>(NetId, nullptr);
+		NetIdPlus = FUniqueNetIdEOSPlus::Create(NetId, nullptr);
 		BaseNetIdToNetIdPlus.Add(NetId->ToString(), NetIdPlus);
 	}
 	// Build a new recent player plus and map them in
@@ -954,7 +964,7 @@ TSharedRef<FOnlineBlockedPlayer> FOnlineUserEOSPlus::AddBlockedPlayer(TSharedRef
 		}
 		else
 		{
-			NetIdPlus = MakeShared<FUniqueNetIdEOSPlus>(nullptr, NetId);
+			NetIdPlus = FUniqueNetIdEOSPlus::Create(nullptr, NetId);
 			EOSNetIdToNetIdPlus.Add(NetId->ToString(), NetIdPlus);
 		}
 		TSharedRef<FOnlineBlockedPlayerPlus> PlayerPlus = MakeShared<FOnlineBlockedPlayerPlus>(nullptr, Player);
@@ -967,7 +977,7 @@ TSharedRef<FOnlineBlockedPlayer> FOnlineUserEOSPlus::AddBlockedPlayer(TSharedRef
 	}
 	else
 	{
-		NetIdPlus = MakeShared<FUniqueNetIdEOSPlus>(NetId, nullptr);
+		NetIdPlus = FUniqueNetIdEOSPlus::Create(NetId, nullptr);
 		BaseNetIdToNetIdPlus.Add(NetId->ToString(), NetIdPlus);
 	}
 	TSharedRef<FOnlineBlockedPlayerPlus> PlayerPlus = MakeShared<FOnlineBlockedPlayerPlus>(Player, nullptr);

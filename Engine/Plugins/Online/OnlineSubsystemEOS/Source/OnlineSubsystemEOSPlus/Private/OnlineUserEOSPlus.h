@@ -28,11 +28,14 @@ class FUniqueNetIdEOSPlus :
 	public FUniqueNetIdString
 {
 public:
-	FUniqueNetIdEOSPlus()
+	template<typename... TArgs>
+	static FUniqueNetIdEOSPlusRef Create(TArgs&&... Args)
 	{
+		return MakeShared<FUniqueNetIdEOSPlus, UNIQUENETID_ESPMODE>(Forward<TArgs>(Args)...);
 	}
 
-	explicit FUniqueNetIdEOSPlus(FUniqueNetIdPtr InBaseUniqueNetId, FUniqueNetIdPtr InEOSUniqueNetId);
+	/** Allow MakeShared to see private constructors */
+	friend class SharedPointerInternals::TIntrusiveReferenceController<FUniqueNetIdEOSPlus>;
 
 // FUniqueNetId interface
 	virtual const uint8* GetBytes() const override;
@@ -50,10 +53,24 @@ public:
 		return EOSUniqueNetId;
 	}
 
-private:
+	/** global static instance of invalid (zero) id */
+	static const FUniqueNetIdEOSPlusRef& EmptyId()
+	{
+		static const FUniqueNetIdEOSPlusRef EmptyId(Create());
+		return EmptyId;
+	}
+
+PACKAGE_SCOPE:
 	FUniqueNetIdPtr BaseUniqueNetId;
 	FUniqueNetIdPtr EOSUniqueNetId;
 	TArray<uint8> RawBytes;
+
+private:
+	FUniqueNetIdEOSPlus()
+	{
+	}
+
+	explicit FUniqueNetIdEOSPlus(FUniqueNetIdPtr InBaseUniqueNetId, FUniqueNetIdPtr InEOSUniqueNetId);
 };
 
 class FUniqueNetIdBinary :
@@ -149,7 +166,7 @@ public:
 		{
 			EOSNetId = EOSItem->GetUserId();
 		}
-		return MakeShared<FUniqueNetIdEOSPlus>(BaseNetId, EOSNetId);
+		return FUniqueNetIdEOSPlus::Create(BaseNetId, EOSNetId);
 	}
 
 	virtual FString GetRealName() const override
