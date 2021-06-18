@@ -1,0 +1,170 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "PoseSearchPredictionLibrary.h"
+#include "Animation/AnimInstanceProxy.h"
+#include "Algo/MinElement.h"
+
+
+float UPoseSearchPredictionDistanceMatching::ComputePlayRate(const FAnimationUpdateContext& Context
+	, const FPredictionTrajectoryRange& TrajectoryRange
+	, const FPredictionTrajectorySettings& Settings
+	, const FPredictionSequenceState& SequenceState)
+{
+	const float DeltaTime = Context.GetDeltaTime();
+	float PlayRate = 1.f;
+
+	// Delta time is not progressing
+	if (FMath::IsNearlyZero(DeltaTime, SMALL_NUMBER))
+	{
+		return PlayRate;
+	}
+
+	// Prediction range isn't being updated
+	if (!TrajectoryRange.HasSamples())
+	{
+		return PlayRate;
+	}
+
+	// Prediction range contains only zeroed samples
+	if (TrajectoryRange.HasOnlyZeroSamples())
+	{
+		return PlayRate;
+	}
+
+	// No sequence available to play rate scale
+	if (!SequenceState.HasSequence())
+	{
+		return PlayRate;
+	}
+
+	// Find the minima prediction trajectory velocity
+	// Approximate zeroed values may indicate the synchronization point for a stop or pivot
+	const FPredictionTrajectoryState* MinimaSample = Algo::MinElementBy(TrajectoryRange.Samples, [](const FPredictionTrajectoryState& Sample)
+	{
+		return Sample.LocalLinearVelocity.SizeSquared();
+	});
+
+	check(MinimaSample);
+	const UAnimSequence* Sequence = Cast<const UAnimSequence>(SequenceState.SequenceBase);
+	check(Sequence);
+
+	// Given a high-resolution time step, walk the current animation sequence to find a corresponding minima root motion delta
+	// Changes in direction are considered extreme minima events, meaning no other subsequent minima is significant enough to take precedence
+	float MinimaSampleTime = FLT_MAX;
+	bool bPivotDetected = false;
+
+	for (auto [SampleTime, PreviousDirection, MinimaDisplacement, CosPivotAngleThreshold] = std::tuple{ (double)SequenceState.AccumulatedTime, FVector::ZeroVector, FLT_MAX, FMath::Cos(Settings.RootMotionPivotAngleThreshold) };
+		SampleTime <= Sequence->GetPlayLength(); 
+		SampleTime += Settings.RootMotionSampleStep)
+	{
+		const FVector RootMotion = Sequence->ExtractRootMotion(SampleTime, Settings.RootMotionSampleStep, SequenceState.bLooping).GetTranslation();
+		
+		FVector RootMotionDirection;
+		float RootMotionDisplacement;
+		RootMotion.ToDirectionAndLength(RootMotionDirection, RootMotionDisplacement);
+
+		// Found a smaller displacement in the root motion track
+		if (RootMotionDisplacement <= MinimaDisplacement)
+		{
+			MinimaDisplacement = RootMotionDisplacement;
+			MinimaSampleTime = SampleTime;
+		}
+
+		const float PotentialPivotAngle = RootMotionDirection.Dot(PreviousDirection);
+		PreviousDirection = RootMotionDirection;
+
+		// Significant changes in direction will be defined as a pivot
+		// Hack: Unfortunately in practice, we may erroneously identify animations as a pivot when in fact they have malformed root motion tracks
+		if (PotentialPivotAngle < CosPivotAngleThreshold && RootMotionDisplacement > Settings.RootMotionPivotDisplacementError)
+		{
+			// Bias the minima sample time for pivots to favor the pre-pivot phase (moment prior to direction change)
+			MinimaSampleTime = SampleTime - Settings.RootMotionSampleStep;
+			bPivotDetected = true;
+			break;
+		}
+	}
+
+	// We should always be able to find a minima, however a few situations could lead to this firing
+	// 1) If the root motion sampling time step is not high enough resolution, we may not be able to sample the
+	//    track near the end of a non-looping sequence
+	// 2) We may be sampling at time 'sequence length' of a non-looping sequence
+	if (MinimaSampleTime == FLT_MAX)
+	{
+		return PlayRate;
+	}
+
+	// Extrapolate the minima forward in time to detect a potential complete loss in velocity
+	const FVector MinimaRootMotionDelta = Sequence->ExtractRootMotion(MinimaSampleTime, DeltaTime, SequenceState.bLooping).GetTranslation();
+
+	// Play rate scaling is minima driven when a near zero root motion delta or pivot has been detected
+	// Otherwise we are locomotion driven, which is reflected in the numerator of the divisor
+	bool bMinimaDrivenPlayRate = MinimaRootMotionDelta.IsNearlyZero(KINDA_SMALL_NUMBER) || bPivotDetected;
+#if WITH_EDITORONLY_DATA
+	FColor SynchronizationColor = FColor::Red;
+#endif
+	FVector RemainingRootMotionDelta = FVector::ZeroVector;
+
+	// This loop allows for play rate scaling to apply correction in the event that we discover the animation and trajectory prediction minima mismatch
+	// Example: 
+	//	If both the trajectory prediction and chosen animation are decelerating to zero, minima driven play rate scaling can be correctly applied
+	//  However if the chosen animation is not decelerating to zero -- such as Jog_Right vs Jog_Right_Stop -- then a mismatch has been detected
+	//	and locomotion/instantaneous driven play rate scaling is attempted instead
+	for (int MaxIterations = 1; MaxIterations >= 0; MaxIterations--)
+	{
+		// Minima driven play rate scaling synchronizes using the remaining displacement to near zero with: animation / locomotion
+		// Locomotion driven play rate scaling synchronizes using the per-frame instantaneous displacement with: locomotion / animation
+		const float RemainingSequenceDelta = bMinimaDrivenPlayRate ? MinimaSampleTime - SequenceState.AccumulatedTime : DeltaTime;
+		const float PredictionDisplacement = bMinimaDrivenPlayRate ? MinimaSample->AccumulatedDistance : TrajectoryRange.Samples[0].LocalLinearVelocity.Size2D() * DeltaTime;
+
+		RemainingRootMotionDelta = Sequence->ExtractRootMotion(SequenceState.AccumulatedTime, RemainingSequenceDelta, SequenceState.bLooping).GetTranslation();
+		const float RemainingRootMotionDeltaDisplacement = RemainingRootMotionDelta.Size2D();
+
+		// Zero displacement is left in the animation, which may result in sliding if the prediction minima has non-zero displacement
+		const bool bZeroRootMotion = FMath::IsNearlyZero(RemainingRootMotionDeltaDisplacement, KINDA_SMALL_NUMBER);
+
+		// Zero displacement is left in the prediction minima, which may result in a pop or a pose break if the animation has non-zero displacement
+		const bool bZeroPrediction = FMath::IsNearlyZero(PredictionDisplacement, KINDA_SMALL_NUMBER);
+
+		// Play rate scaling isn't require since no trajectory prediction motion or root motion is present
+		if (bZeroRootMotion && bZeroPrediction)
+		{
+			break;
+		}
+		// The computed minima in the root motion and prediction mismatch, so flip the synchronization behavior as an attempt to correctly play rate scale
+		// If this fails, the algorithm will automatically fall back to a default play rate of 1.f, which may introduce sliding.
+		else if (bZeroPrediction || bZeroRootMotion)
+		{
+			bMinimaDrivenPlayRate = !bMinimaDrivenPlayRate;
+			continue;
+		}
+		// Play rate scaling succeeded
+		else
+		{
+#if WITH_EDITORONLY_DATA
+			SynchronizationColor = bMinimaDrivenPlayRate ? FColor::Purple : FColor::Blue;
+#endif
+			PlayRate = bMinimaDrivenPlayRate
+				? RemainingRootMotionDeltaDisplacement / PredictionDisplacement 
+				: PredictionDisplacement / RemainingRootMotionDeltaDisplacement;
+
+			break;
+		}
+	}
+
+#if WITH_EDITORONLY_DATA
+	// Render the starting and ending trajectory prediction positions for the distance matching play rate synchronization
+	if (Settings.bDebugDraw)
+	{
+		Context.AnimInstanceProxy->AnimDrawDebugSphere(Context.AnimInstanceProxy->GetComponentTransform().GetLocation(), 10.f, 10, FColor::Green);
+		Context.AnimInstanceProxy->AnimDrawDebugSphere(Context.AnimInstanceProxy->GetComponentTransform().TransformPosition(RemainingRootMotionDelta), 10.f, 10, SynchronizationColor);
+
+		if (bMinimaDrivenPlayRate)
+		{
+			Context.AnimInstanceProxy->AnimDrawDebugSphere(Context.AnimInstanceProxy->GetComponentTransform().TransformPosition(MinimaSample->Position), 10.f, 10, FColor::Yellow);
+		}
+	}
+#endif
+
+	// Optionally remap the computed play rate against a curve
+	return Settings.PlayRateAdjustment.ComputePlayRate(PlayRate, DeltaTime);
+}
