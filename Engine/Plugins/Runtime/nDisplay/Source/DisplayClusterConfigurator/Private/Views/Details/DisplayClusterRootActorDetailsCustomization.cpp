@@ -189,6 +189,19 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 						CurrentGroup.AddPropertyRow(Handle.ToSharedRef());
 					}
 				END_GROUP();
+
+				TArray<TSharedPtr<IPropertyHandle>> OverscanHandles;
+				NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.Cluster.Nodes.Viewports.RenderSettings.Overscan"), OverscanHandles);
+
+				BEGIN_GROUP("OuterViewportOverscan", LOCTEXT("OuterViewportOverscan", "Viewport Overscan"))
+					for (int32 VPIdx = 0; VPIdx < OverscanHandles.Num(); ++VPIdx)
+					{
+						TSharedPtr<IPropertyHandle>& Handle = OverscanHandles[VPIdx];
+
+						Handle->SetPropertyDisplayName(FText::FromString(ViewportNames[VPIdx]));
+						CurrentGroup.AddPropertyRow(Handle.ToSharedRef());
+					}
+				END_GROUP();
 			}
 
 			BEGIN_GROUP(TEXT("HiddenContentGroup"), LOCTEXT("HiddenContentGroupLabel", "Content Hidden from nDisplay"))

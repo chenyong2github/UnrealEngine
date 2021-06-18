@@ -40,7 +40,7 @@ public:
 
 	// If true (increased RTT size, same image quality) - increase the RTT size from overscan_pixel or overscan_percent (of actual size)
 	// If false (same RTT size, loss of image quality) - use the original viewport size to render overscan, but finally the small inner rectangle copy into the frame 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Viewport", meta = (DisplayName = "Adapt Resolution", DisplayAfter = "Mode", ToolTip = "If checked, the viewport's render resolution will be increased by the overscan amount; otherwise, viewport image will be scaled down to accommodate overscan"))
 	bool bOversize = true;
 };
 
