@@ -269,7 +269,7 @@ void UCommonInputPlatformSettings::InitializePlatformDefaults()
 	DefaultGamepadName = PlatformName;
 }
 
-bool UCommonInputPlatformSettings::TryGetInputBrush(FSlateBrush& OutBrush, FKey Key, ECommonInputType InputType, const FName& GamepadName) const
+bool UCommonInputPlatformSettings::TryGetInputBrush(FSlateBrush& OutBrush, FKey Key, ECommonInputType InputType, const FName GamepadName) const
 {
 	InitializeControllerData();
 
@@ -288,7 +288,7 @@ bool UCommonInputPlatformSettings::TryGetInputBrush(FSlateBrush& OutBrush, FKey 
 	return false;
 }
 
-bool UCommonInputPlatformSettings::TryGetInputBrush(FSlateBrush& OutBrush, const TArray<FKey>& Keys, ECommonInputType InputType, const FName& GamepadName) const
+bool UCommonInputPlatformSettings::TryGetInputBrush(FSlateBrush& OutBrush, const TArray<FKey>& Keys, ECommonInputType InputType, const FName GamepadName) const
 {
 	InitializeControllerData();
 
@@ -305,6 +305,51 @@ bool UCommonInputPlatformSettings::TryGetInputBrush(FSlateBrush& OutBrush, const
 	}
 
 	return false;
+}
+
+FName UCommonInputPlatformSettings::GetBestGamepadNameForHardware(FName CurrentGamepadName, FName InputDeviceName, const FString& HardwareDeviceIdentifier)
+{
+	FName FirstMatch = NAME_None;
+
+	// This is far more complicated than it should be because XInput exposes no information about device type,
+	// so we want to be 'sticky', only switching to an Xbox controller if you don't already have one selected
+	// and otherwise conserving the player UI chosen choice
+	if (ControllerDataClasses.Num() > 0)
+	{
+		for (const TSubclassOf<UCommonInputBaseControllerData>& ControllerDataPtr : ControllerDataClasses)
+		{
+			if (const UCommonInputBaseControllerData* DefaultControllerData = ControllerDataPtr.GetDefaultObject())
+			{
+				bool bThisEntryMatches = false;
+				for (const FInputDeviceIdentifierPair& Pair : DefaultControllerData->GamepadHardwareIdMapping)
+				{
+					if ((Pair.InputDeviceName == InputDeviceName) && (Pair.HardwareDeviceIdentifier == HardwareDeviceIdentifier))
+					{
+						bThisEntryMatches = true;
+						break;
+					}
+				}
+
+				if (bThisEntryMatches)
+				{
+					if (CurrentGamepadName == DefaultControllerData->GamepadName)
+					{
+						// Preferentially conserve the existing setting
+						return CurrentGamepadName;
+					}
+
+					if (FirstMatch == NAME_None)
+					{
+						// Record the first match, which we'll use if the existing one doesn't work
+						FirstMatch = DefaultControllerData->GamepadName;
+					}
+				}
+			}
+
+		}
+	}
+
+	return FirstMatch.IsNone() ? CurrentGamepadName : FirstMatch;
 }
 
 bool UCommonInputPlatformSettings::SupportsInputType(ECommonInputType InputType) const
@@ -338,29 +383,6 @@ void UCommonInputPlatformSettings::PostEditChangeProperty(struct FPropertyChange
 	ControllerDataClasses.Reset();
 }
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 bool FCommonInputPlatformBaseData::TryGetInputBrush(FSlateBrush& OutBrush, FKey Key, ECommonInputType InputType, const FName& GamepadName) const
 {

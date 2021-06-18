@@ -203,6 +203,20 @@ private:
 #endif
 
 		InputSubsystem.SetCurrentInputType(InputMethod);
+
+		if (UCommonInputPlatformSettings::Get()->CanChangeGamepadType())
+		{
+			if (const FInputDeviceScope* DeviceScope = FInputDeviceScope::GetCurrent())
+			{
+				const FName GamepadInputType = InputSubsystem.GetCurrentGamepadName();
+				const FName BestGamepadType = UCommonInputPlatformSettings::Get()->GetBestGamepadNameForHardware(GamepadInputType, DeviceScope->InputDeviceName, DeviceScope->HardwareDeviceIdentifier);
+				if (BestGamepadType != GamepadInputType)
+				{
+					UE_LOG(LogCommonInput, Log, TEXT("UCommonInputSubsystem: Autodetect changed GamepadInputType to %s"), *BestGamepadType.ToString());
+					InputSubsystem.SetGamepadInputType(BestGamepadType);
+				}
+			}
+		}
 	}
 
 	ECommonInputType GetInputType(const FKey& Key)
@@ -267,6 +281,7 @@ UCommonInputSubsystem* UCommonInputSubsystem::Get(const ULocalPlayer* LocalPlaye
 
 UCommonInputSubsystem::UCommonInputSubsystem()
 {
+	//@TODO: Project setting (should be done as another config var any platform can set tho)?
 //	// Uncomment this if we want mobile platforms to default to gamepad when gamepads are enabled.
 // #if PLATFORM_IOS
 //     bool bAllowControllers = false;
@@ -444,7 +459,7 @@ bool UCommonInputSubsystem::CheckForInputMethodThrashing(ECommonInputType NewInp
 
 void UCommonInputSubsystem::SetCurrentInputType(ECommonInputType NewInputType)
 {
-	if (LastInputType != NewInputType && PlatformSupportsInputType(NewInputType))
+	if ((LastInputType != NewInputType) && PlatformSupportsInputType(NewInputType))
 	{
 		CheckForInputMethodThrashing(NewInputType);
 	
@@ -496,19 +511,16 @@ const FName UCommonInputSubsystem::GetCurrentGamepadName() const
 	return GamepadInputType;
 }
  
-void UCommonInputSubsystem::SetGamepadInputType(const FName& InGamepadInputType)
+void UCommonInputSubsystem::SetGamepadInputType(const FName InGamepadInputType)
 {
-	if (!UCommonInputPlatformSettings::Get()->CanChangeGamepadType())
+	if (ensure(UCommonInputPlatformSettings::Get()->CanChangeGamepadType()))
 	{
-		ensure(false);	// should not be called on the console platforms
-		return;
+		GamepadInputType = InGamepadInputType;
+
+		// Send out notifications so we update our buttons
+		//BroadcastLastInputDeviceChanged();
+		BroadcastInputMethodChanged();
 	}
-
-	GamepadInputType = InGamepadInputType;
-
-	// Send out notifications so we update our buttons
-	//BroadcastLastInputDeviceChanged();
-	BroadcastInputMethodChanged();
 }
 
 bool UCommonInputSubsystem::IsUsingPointerInput() const

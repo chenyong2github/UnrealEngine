@@ -54,7 +54,7 @@ public:
 	const FName GetCurrentGamepadName() const;
 
 	UFUNCTION(BlueprintCallable, Category = CommonInputSubsystem)
-	void SetGamepadInputType(const FName& InGamepadInputType);
+	void SetGamepadInputType(const FName InGamepadInputType);
 
 	UFUNCTION(BlueprintCallable, Category = CommonInputSubsystem)
 	bool IsUsingPointerInput() const;
