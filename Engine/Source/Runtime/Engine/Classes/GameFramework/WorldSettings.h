@@ -477,7 +477,7 @@ public:
 	 * Enables tools for creating a partitioned world. 
 	 * Level has to be saved and all sub-levels removed before enabling this option.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=WorldPartitionSetup)
+	UPROPERTY(BlueprintReadOnly, Category=WorldPartitionSetup)
 	uint8 bEnableWorldPartition:1;
 
 	/** Class of WorldPartitionStreamingPolicy to be used to manage world partition streaming. */
