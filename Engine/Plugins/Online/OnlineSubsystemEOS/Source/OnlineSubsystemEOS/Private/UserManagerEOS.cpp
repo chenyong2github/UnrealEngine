@@ -1953,14 +1953,34 @@ bool FUserManagerEOS::HandleFriendsExec(UWorld* InWorld, const TCHAR* Cmd, FOutp
 #if !UE_BUILD_SHIPPING
 
 	bool bWasHandled = true;
-	if (FParse::Command(&Cmd, TEXT("ReadFriendsList"))) /* ONLINE (EOS if using EOSPlus) FRIENDS ReadFriendsList 0 default/onlinePlayers/inGamePlayers/inGameAndSessionPlayers */
+	if (FParse::Command(&Cmd, TEXT("GetFriendsList"))) /* ONLINE (EOS if using EOSPlus) FRIENDS GetFriendsList 0 default/onlinePlayers/inGamePlayers/inGameAndSessionPlayers */
 	{
 		int LocalUserNum = FCString::Atoi(*FParse::Token(Cmd, false));
 
 		FString FriendsList = FParse::Token(Cmd, false);
 
-		FOnReadFriendsListComplete Delegate = FOnReadFriendsListComplete::CreateRaw(this, &FUserManagerEOS::HandleExec_OnReadFriendsComplete);
-		bool bResult = ReadFriendsList(LocalUserNum, FriendsList, Delegate);
+		TArray< TSharedRef<FOnlineFriend> > Friends;
+		// Grab the friends data so we can print it out
+		if (GetFriendsList(LocalUserNum, FriendsList, Friends))
+		{
+			UE_LOG_ONLINE_FRIEND(Log, TEXT("FUserManagerEOS::GetFriendsList returned %d friends"), Friends.Num());
+
+			// Log each friend's data out
+			for (int32 Index = 0; Index < Friends.Num(); Index++)
+			{
+				const FOnlineFriend& Friend = *Friends[Index];
+				const FOnlineUserPresence& Presence = Friend.GetPresence();
+				UE_LOG_ONLINE_FRIEND(Log, TEXT("\t%s has unique id (%s)"), *Friend.GetDisplayName(), *Friend.GetUserId()->ToDebugString());
+				UE_LOG_ONLINE_FRIEND(Log, TEXT("\t\t Invite status (%s)"), EInviteStatus::ToString(Friend.GetInviteStatus()));
+				UE_LOG_ONLINE_FRIEND(Log, TEXT("\t\t Presence: %s"), *Presence.Status.StatusStr);
+				UE_LOG_ONLINE_FRIEND(Log, TEXT("\t\t State: %s"), EOnlinePresenceState::ToString(Presence.Status.State));
+				UE_LOG_ONLINE_FRIEND(Log, TEXT("\t\t bIsOnline (%s)"), Presence.bIsOnline ? TEXT("true") : TEXT("false"));
+				UE_LOG_ONLINE_FRIEND(Log, TEXT("\t\t bIsPlaying (%s)"), Presence.bIsPlaying ? TEXT("true") : TEXT("false"));
+				UE_LOG_ONLINE_FRIEND(Log, TEXT("\t\t bIsPlayingThisGame (%s)"), Presence.bIsPlayingThisGame ? TEXT("true") : TEXT("false"));
+				UE_LOG_ONLINE_FRIEND(Log, TEXT("\t\t bIsJoinable (%s)"), Presence.bIsJoinable ? TEXT("true") : TEXT("false"));
+				UE_LOG_ONLINE_FRIEND(Log, TEXT("\t\t bHasVoiceSupport (%s)"), Presence.bHasVoiceSupport ? TEXT("true") : TEXT("false"));
+			}
+		}
 	}
 	else if (FParse::Command(&Cmd, TEXT("GetFriend"))) /* ONLINE (EOS if using EOSPlus) FRIENDS GetFriend 0 "FriendUserId|FullStr" default/onlinePlayers/inGamePlayers/inGameAndSessionPlayers */
 	{
@@ -2008,37 +2028,6 @@ bool FUserManagerEOS::HandleFriendsExec(UWorld* InWorld, const TCHAR* Cmd, FOutp
 #else
 	return false;
 #endif // !UE_BUILD_SHIPPING
-}
-
-void FUserManagerEOS::HandleExec_OnReadFriendsComplete(int32 LocalPlayer, bool bWasSuccessful, const FString& ListName, const FString& ErrorStr)
-{
-	UE_LOG_ONLINE_FRIEND(Log, TEXT("FUserManagerEOS::ReadFriendsList completed for player (%d). Success=%d Error=%s"), LocalPlayer, bWasSuccessful, *ErrorStr);
-
-	if (bWasSuccessful)
-	{
-		TArray< TSharedRef<FOnlineFriend> > Friends;
-		// Grab the friends data so we can print it out
-		if (GetFriendsList(LocalPlayer, ListName, Friends))
-		{
-			UE_LOG_ONLINE_FRIEND(Log, TEXT("FUserManagerEOS::GetFriendsList returned %d friends"), Friends.Num());
-
-			// Log each friend's data out
-			for (int32 Index = 0; Index < Friends.Num(); Index++)
-			{
-				const FOnlineFriend& Friend = *Friends[Index];
-				const FOnlineUserPresence& Presence = Friend.GetPresence();
-				UE_LOG_ONLINE_FRIEND(Log, TEXT("\t%s has unique id (%s)"), *Friend.GetDisplayName(), *Friend.GetUserId()->ToDebugString());
-				UE_LOG_ONLINE_FRIEND(Log, TEXT("\t\t Invite status (%s)"), EInviteStatus::ToString(Friend.GetInviteStatus()));
-				UE_LOG_ONLINE_FRIEND(Log, TEXT("\t\t Presence: %s"), *Presence.Status.StatusStr);
-				UE_LOG_ONLINE_FRIEND(Log, TEXT("\t\t State: %s"), EOnlinePresenceState::ToString(Presence.Status.State));
-				UE_LOG_ONLINE_FRIEND(Log, TEXT("\t\t bIsOnline (%s)"), Presence.bIsOnline ? TEXT("true") : TEXT("false"));
-				UE_LOG_ONLINE_FRIEND(Log, TEXT("\t\t bIsPlaying (%s)"), Presence.bIsPlaying ? TEXT("true") : TEXT("false"));
-				UE_LOG_ONLINE_FRIEND(Log, TEXT("\t\t bIsPlayingThisGame (%s)"), Presence.bIsPlayingThisGame ? TEXT("true") : TEXT("false"));
-				UE_LOG_ONLINE_FRIEND(Log, TEXT("\t\t bIsJoinable (%s)"), Presence.bIsJoinable ? TEXT("true") : TEXT("false"));
-				UE_LOG_ONLINE_FRIEND(Log, TEXT("\t\t bHasVoiceSupport (%s)"), Presence.bHasVoiceSupport ? TEXT("true") : TEXT("false"));
-			}
-		}
-	}
 }
 
 // ~IOnlineFriends Interface
