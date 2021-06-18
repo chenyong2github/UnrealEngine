@@ -3269,6 +3269,7 @@ class FStripifier
 	static const uint32 INVALID_INDEX = 0xFFFFu;
 	static const uint32 INVALID_CORNER = 0xFFFFu;
 	static const uint32 INVALID_NODE = 0xFFFFu;
+	static const uint32 INVALID_NODE_MEMSET = 0xFFu;
 
 	uint32 VertexToTriangleMasks[ MAX_CLUSTER_TRIANGLES * 3 ][ MAX_CLUSTER_TRIANGLES_IN_DWORDS ];
 	uint16 OppositeCorner[ MAX_CLUSTER_TRIANGLES * 3 ];
@@ -3303,8 +3304,8 @@ class FStripifier
 		};
 
 		FEdgeNode EdgeNodes[ MAX_CLUSTER_INDICES ];
-		TArray<uint16> EdgeNodeHeads;
-		EdgeNodeHeads.Init(INVALID_NODE, MAX_CLUSTER_INDICES * MAX_CLUSTER_INDICES );	// Linked list per edge to support more than 2 triangles per edge.
+		uint16 EdgeNodeHeads[ MAX_CLUSTER_INDICES * MAX_CLUSTER_INDICES ];	// Linked list per edge to support more than 2 triangles per edge.
+		FMemory::Memset( EdgeNodeHeads, INVALID_NODE_MEMSET );
 
 		FMemory::Memset( VertexToTriangleMasks, 0 );
 
