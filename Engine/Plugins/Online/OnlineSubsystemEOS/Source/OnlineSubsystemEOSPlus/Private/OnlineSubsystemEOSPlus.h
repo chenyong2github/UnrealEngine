@@ -12,6 +12,7 @@
 #include "OnlineSessionEOSPlus.h"
 #include "OnlineLeaderboardsEOSPlus.h"
 #include "OnlineStoreEOSPlus.h"
+#include "OnlineExternalUIEOSPlus.h"
 
 
 /**
@@ -82,6 +83,7 @@ PACKAGE_SCOPE:
 	FOnlineSessionEOSPlusPtr SessionInterfacePtr;
 	FOnlineLeaderboardsEOSPlusPtr LeaderboardsInterfacePtr;
 	FOnlineStoreEOSPlusPtr StoreInterfacePtr;
+	FOnlineExternalUIEOSPlusPtr ExternalUIInterfacePtr;
 };
 
 typedef TSharedPtr<FOnlineSubsystemEOSPlus, ESPMode::ThreadSafe> FOnlineSubsystemEOSPlusPtr;

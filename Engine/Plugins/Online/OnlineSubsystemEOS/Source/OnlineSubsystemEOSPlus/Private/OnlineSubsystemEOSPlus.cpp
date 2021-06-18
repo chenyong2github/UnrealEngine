@@ -76,8 +76,10 @@ bool FOnlineSubsystemEOSPlus::Init()
 	SessionInterfacePtr = MakeShareable(new FOnlineSessionEOSPlus(this));
 	LeaderboardsInterfacePtr = MakeShareable(new FOnlineLeaderboardsEOSPlus(this));
 	StoreInterfacePtr = MakeShareable(new FOnlineStoreEOSPlus(this));
+	ExternalUIInterfacePtr = MakeShareable(new FOnlineExternalUIEOSPlus(this));
 
 	StoreInterfacePtr->Initialize();
+	ExternalUIInterfacePtr->Initialize();
 
 	return true;
 }
@@ -99,6 +101,7 @@ void FOnlineSubsystemEOSPlus::PreUnload()
 	DESTRUCT_INTERFACE(SessionInterfacePtr);
 	DESTRUCT_INTERFACE(LeaderboardsInterfacePtr);
 	DESTRUCT_INTERFACE(StoreInterfacePtr);
+	DESTRUCT_INTERFACE(ExternalUIInterfacePtr);
 
 #undef DESTRUCT_INTERFACE
 }
@@ -158,7 +161,7 @@ IOnlineVoicePtr FOnlineSubsystemEOSPlus::GetVoiceInterface() const
 
 IOnlineExternalUIPtr FOnlineSubsystemEOSPlus::GetExternalUIInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetExternalUIInterface() : nullptr;
+	return ExternalUIInterfacePtr;
 }
 
 IOnlineTimePtr FOnlineSubsystemEOSPlus::GetTimeInterface() const
