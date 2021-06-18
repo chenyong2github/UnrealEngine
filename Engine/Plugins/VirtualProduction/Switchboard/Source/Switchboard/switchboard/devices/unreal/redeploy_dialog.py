@@ -1,14 +1,19 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
+import base64
+import hashlib
+import os
+import threading
+from typing import Dict, Optional
+
+from PySide2 import QtCore, QtWidgets
+
 from switchboard import message_protocol
 from switchboard.config import CONFIG
 from switchboard.listener_client import ListenerClient
 from switchboard.switchboard_logging import LOGGER
 from . import version_helpers
 
-from PySide2 import QtCore, QtWidgets
-
-import base64, hashlib, os, threading, typing
 
 class RedeployListenerEndpoint(QtCore.QObject):
     signal_refresh_ui = QtCore.Signal()
@@ -27,7 +32,13 @@ class RedeployListenerEndpoint(QtCore.QObject):
 
         self.ip_address = ip_address
         self.port = port
+
         self.client = ListenerClient(self.ip_address, self.port)
+        self.client.listener_qt_handler.listener_connecting.connect(
+            lambda _: self.version_label.setText('Connecting...'))
+        self.client.listener_qt_handler.listener_connection_failed.connect(
+            lambda _: self.version_label.setText('Connection failed'))
+
         self.client.delegates['state'] = self.on_listener_state
         self.client.delegates['redeploy server status'] = self.on_redeploy_server_status
 
@@ -39,7 +50,7 @@ class RedeployListenerEndpoint(QtCore.QObject):
         self.client.delegates['programstdout'] = lambda _: None
 
         self.devices = []
-        self.version: typing.Optional[version_helpers.ListenerVersion] = None
+        self.version: Optional[version_helpers.ListenerVersion] = None
 
         self.signal_refresh_ui.connect(self.refresh_ui)
 
@@ -63,22 +74,20 @@ class RedeployListenerEndpoint(QtCore.QObject):
         return redeploy_supported and (old_version or not compatible)
 
     def rich_version_str(self, remote_ver, available_redeploy_ver):
-        if remote_ver:
-            version_str = version_helpers.version_str(remote_ver)
-            if not version_helpers.listener_is_compatible(remote_ver) or not version_helpers.listener_supports_redeploy(remote_ver):
-                version_str = f'<span style="color: #f44">{version_str}</span>'
-            elif available_redeploy_ver and remote_ver < available_redeploy_ver:
-                version_str = f'<span style="color: #ff4">{version_str}</span>'
-            else:
-                version_str = f'<span style="color: #4f4">{version_str}</span>'
-
-            return version_str
+        version_str = version_helpers.version_str(remote_ver)
+        if not version_helpers.listener_is_compatible(remote_ver) or not version_helpers.listener_supports_redeploy(remote_ver):
+            version_str = f'<span style="color: #f44">{version_str}</span>'
+        elif available_redeploy_ver and remote_ver < available_redeploy_ver:
+            version_str = f'<span style="color: #ff4">{version_str}</span>'
         else:
-            return '<span style="color: #999">(unknown)</span>'
+            version_str = f'<span style="color: #4f4">{version_str}</span>'
+
+        return version_str
 
     @QtCore.Slot()
     def refresh_ui(self):
-        self.version_label.setText(f"Version {self.rich_version_str(self.version, self.dlg_parent.listener_ver)}")
+        if self.version:
+            self.version_label.setText(f"Version {self.rich_version_str(self.version, self.dlg_parent.listener_ver)}")
 
     @QtCore.Slot()
     def on_redeploy_clicked(self):
@@ -105,7 +114,7 @@ class RedeployListenerEndpoint(QtCore.QObject):
         # Suppress on_disconnect for this expected disconnect
         self.client.disconnect()
         self.client.disconnect_delegate = self.on_disconnect
-        self.client.connect(blocking=True)
+        self.client.connect()
 
     def on_disconnect(self, unexpected, exception):
         self.version = None
@@ -143,11 +152,11 @@ class RedeployListenerDialog(QtWidgets.QDialog):
 
         self.listener_watcher = listener_watcher
 
-        self.endpoints: typing.Dict[tuple, RedeployListenerEndpoint] = {}
+        self.endpoints: Dict[tuple, RedeployListenerEndpoint] = {}
 
-        self.listener_ver: typing.Optional[version_helpers.ListenerVersion] = None
-        self.listener_exe_base64: typing.Optional[str] = None
-        self.listener_exe_sha1sum: typing.Optional[str] = None
+        self.listener_ver: Optional[version_helpers.ListenerVersion] = None
+        self.listener_exe_base64: Optional[str] = None
+        self.listener_exe_sha1sum: Optional[str] = None
 
         qss_file = os.path.join(CONFIG.SWITCHBOARD_DIR, 'switchboard/ui/switchboard.qss')
         with open(qss_file, 'r') as styling:
@@ -190,7 +199,7 @@ class RedeployListenerDialog(QtWidgets.QDialog):
                 endpoint = RedeployListenerEndpoint(self, device.unreal_client.ip_address, device.unreal_client.port)
                 endpoint.signal_result.connect(self.on_endpoint_result)
                 endpoint.signal_refresh_ui.connect(self.refresh_ui)
-                endpoint.client.connect(blocking=True)
+                endpoint.client.connect()
                 layout.addWidget(endpoint.endpoint_label, row_idx, 0)
                 layout.addWidget(endpoint.devices_label,  row_idx, 1)
                 layout.addWidget(endpoint.version_label,  row_idx, 2)
@@ -274,7 +283,7 @@ class RedeployListenerDialog(QtWidgets.QDialog):
             endpoint.on_redeploy_clicked()
 
     @QtCore.Slot(bool, str)
-    def on_endpoint_result(self, success, details, exc_info: typing.Optional[BaseException]):
+    def on_endpoint_result(self, success, details, exc_info: Optional[BaseException]):
         sender = self.sender()
         assert isinstance(sender, RedeployListenerEndpoint)
         logfn = LOGGER.info if success else LOGGER.error
