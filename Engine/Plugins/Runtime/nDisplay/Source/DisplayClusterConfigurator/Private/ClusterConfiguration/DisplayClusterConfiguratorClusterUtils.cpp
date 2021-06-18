@@ -449,6 +449,22 @@ void FDisplayClusterConfiguratorClusterUtils::SortClusterNodesByHost(const TMap<
 
 UDisplayClusterConfigurationHostDisplayData* FDisplayClusterConfiguratorClusterUtils::FindOrCreateHostDisplayData(UDisplayClusterConfigurationCluster* Cluster, FString HostIPAddress)
 {
+	// In some cases, existing host display data may be pending kill, such as if the user recently performed an undo to a state
+	// prior to the data's existence. In this case, simply remove existing host data that is pending kill and create a new one to use.
+	TArray<FString> PendingKillHostData;
+	for (TPair<FString, UDisplayClusterConfigurationHostDisplayData*>& HostPair : Cluster->HostDisplayData)
+	{
+		if (!HostPair.Value || HostPair.Value->IsPendingKill())
+		{
+			PendingKillHostData.Add(HostPair.Key);
+		}
+	}
+
+	for (const FString& Host : PendingKillHostData)
+	{
+		Cluster->HostDisplayData.Remove(Host);
+	}
+
 	if (!Cluster->HostDisplayData.Contains(HostIPAddress))
 	{
 		const FString HostName = GetUniqueNameForHost(DefaultNewHostName, Cluster, true);
