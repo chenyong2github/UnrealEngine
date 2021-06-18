@@ -22,6 +22,7 @@ TextureStreamingBuild.cpp : Contains definitions to build texture streaming data
 #include "UObject/UObjectIterator.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
+#include "UnrealEngine.h"
 
 DEFINE_LOG_CATEGORY(TextureStreamingBuild);
 #define LOCTEXT_NAMESPACE "TextureStreamingBuild"
