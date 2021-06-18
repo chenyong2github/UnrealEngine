@@ -742,6 +742,16 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 
 }
 
+#if WITH_EDITOR
+FText UMoviePipelineDeferredPass_PathTracer::GetFooterText(UMoviePipelineExecutorJob* InJob) const {
+	return NSLOCTEXT(
+		"MovieRenderPipeline",
+		"DeferredBasePassSetting_FooterText_PathTracer",
+		"Samples per Pixel for the Path Tracer are controlled by the Spatial Sample Count from the Anti-Aliasing settings.\n"
+		"All other Path Tracer settings are taken from the Post Process settings as usual.");
+}
+#endif
+
 namespace MoviePipeline
 {
 	static void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const MoviePipeline::FImageSampleAccumulationArgs& InParams)
