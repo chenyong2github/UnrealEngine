@@ -14,9 +14,15 @@ FOnlineStoreEOSPlus::FOnlineStoreEOSPlus(FOnlineSubsystemEOSPlus* InSubsystem)
 
 FOnlineStoreEOSPlus::~FOnlineStoreEOSPlus()
 {
-	BaseStoreInterface->ClearOnQueryForAvailablePurchasesCompleteDelegates(this);
+	if (BaseStoreInterface.IsValid())
+	{
+		BaseStoreInterface->ClearOnQueryForAvailablePurchasesCompleteDelegates(this);
+	}
 
-	BasePurchaseInterface->ClearOnUnexpectedPurchaseReceiptDelegates(this);
+	if (BasePurchaseInterface.IsValid())
+	{
+		BasePurchaseInterface->ClearOnUnexpectedPurchaseReceiptDelegates(this);
+	}
 }
 
 FUniqueNetIdEOSPlusPtr FOnlineStoreEOSPlus::GetNetIdPlus(const FString& SourceId) const
@@ -32,7 +38,7 @@ void FOnlineStoreEOSPlus::Initialize()
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::FOnlineStoreEOSPlus] BaseStoreInterface delegates not bound. Base interface not valid"));
+		UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::Initialize] BaseStoreInterface delegates not bound. Base interface not valid"));
 	}
 
 	if (BasePurchaseInterface.IsValid())
@@ -41,7 +47,7 @@ void FOnlineStoreEOSPlus::Initialize()
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::FOnlineStoreEOSPlus] BasePurchaseInterface delegates not bound. Base interface not valid"));
+		UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::Initialize] BasePurchaseInterface delegates not bound. Base interface not valid"));
 	}
 }
 
@@ -52,8 +58,8 @@ void FOnlineStoreEOSPlus::QueryCategories(const FUniqueNetId& UserId, const FOnQ
 	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
 	if (NetIdPlus.IsValid())
 	{
-		bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
-		bool bIsBaseStoreInterfaceValid = BaseStoreInterface.IsValid();
+		const bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
+		const bool bIsBaseStoreInterfaceValid = BaseStoreInterface.IsValid();
 		if (bIsBaseNetIdValid && bIsBaseStoreInterfaceValid)
 		{
 			BaseStoreInterface->QueryCategories(*NetIdPlus->GetBaseNetId(), Delegate);
@@ -91,8 +97,8 @@ void FOnlineStoreEOSPlus::QueryOffersByFilter(const FUniqueNetId& UserId, const 
 	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
 	if (NetIdPlus.IsValid())
 	{
-		bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
-		bool bIsBaseStoreInterfaceValid = BaseStoreInterface.IsValid();
+		const bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
+		const bool bIsBaseStoreInterfaceValid = BaseStoreInterface.IsValid();
 		if (bIsBaseNetIdValid && bIsBaseStoreInterfaceValid)
 		{
 			BaseStoreInterface->QueryOffersByFilter(*NetIdPlus->GetBaseNetId(), Filter, Delegate);
@@ -119,8 +125,8 @@ void FOnlineStoreEOSPlus::QueryOffersById(const FUniqueNetId& UserId, const TArr
 	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
 	if (NetIdPlus.IsValid())
 	{
-		bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
-		bool bIsBaseStoreInterfaceValid = BaseStoreInterface.IsValid();
+		const bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
+		const bool bIsBaseStoreInterfaceValid = BaseStoreInterface.IsValid();
 		if (bIsBaseNetIdValid && bIsBaseStoreInterfaceValid)
 		{
 			BaseStoreInterface->QueryOffersById(*NetIdPlus->GetBaseNetId(), OfferIds, Delegate);
@@ -186,15 +192,15 @@ bool FOnlineStoreEOSPlus::IsAllowedToPurchase(const FUniqueNetId& UserId)
 	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
 	if (NetIdPlus.IsValid())
 	{
-		bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
-		bool bIsBasePurchaseInterfaceValid = BasePurchaseInterface.IsValid();
+		const bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
+		const bool bIsBasePurchaseInterfaceValid = BasePurchaseInterface.IsValid();
 		if (bIsBaseNetIdValid && bIsBasePurchaseInterfaceValid)
 		{
 			bResult = BasePurchaseInterface->IsAllowedToPurchase(*NetIdPlus->GetBaseNetId());
 		}
 		else
 		{
-			UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::IsAllowedToPurchase] Unable to call method in base interface. IsBaseNetIdValid=%s IsBaseStoreInterfaceValid=%s."), *LexToString(bIsBaseNetIdValid), *LexToString(bIsBasePurchaseInterfaceValid));
+			UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::IsAllowedToPurchase] Unable to call method in base interface. IsBaseNetIdValid=%s IsBasePurchaseInterfaceValid=%s."), *LexToString(bIsBaseNetIdValid), *LexToString(bIsBasePurchaseInterfaceValid));
 		}
 	}
 	else
@@ -211,8 +217,8 @@ void FOnlineStoreEOSPlus::Checkout(const FUniqueNetId& UserId, const FPurchaseCh
 	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
 	if (NetIdPlus.IsValid())
 	{
-		bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
-		bool bIsBasePurchaseInterfaceValid = BasePurchaseInterface.IsValid();
+		const bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
+		const bool bIsBasePurchaseInterfaceValid = BasePurchaseInterface.IsValid();
 		if (bIsBaseNetIdValid && bIsBasePurchaseInterfaceValid)
 		{
 			BasePurchaseInterface->Checkout(*NetIdPlus->GetBaseNetId(), CheckoutRequest, Delegate);
@@ -220,7 +226,7 @@ void FOnlineStoreEOSPlus::Checkout(const FUniqueNetId& UserId, const FPurchaseCh
 		}
 		else
 		{
-			UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::Checkout] Unable to call method in base interface. IsBaseNetIdValid=%s IsBaseStoreInterfaceValid=%s."), *LexToString(bIsBaseNetIdValid), *LexToString(bIsBasePurchaseInterfaceValid));
+			UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::Checkout] Unable to call method in base interface. IsBaseNetIdValid=%s IsBasePurchaseInterfaceValid=%s."), *LexToString(bIsBaseNetIdValid), *LexToString(bIsBasePurchaseInterfaceValid));
 			ErrorResult = bIsBasePurchaseInterfaceValid ? EOnlineErrorResult::MissingInterface : EOnlineErrorResult::InvalidUser;
 		}
 	}
@@ -241,15 +247,15 @@ void FOnlineStoreEOSPlus::FinalizePurchase(const FUniqueNetId& UserId, const FSt
 	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
 	if (NetIdPlus.IsValid())
 	{
-		bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
-		bool bIsBasePurchaseInterfaceValid = BasePurchaseInterface.IsValid();
+		const bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
+		const bool bIsBasePurchaseInterfaceValid = BasePurchaseInterface.IsValid();
 		if (bIsBaseNetIdValid && bIsBasePurchaseInterfaceValid)
 		{
 			BasePurchaseInterface->FinalizePurchase(*NetIdPlus->GetBaseNetId(), ReceiptId);
 		}
 		else
 		{
-			UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::FinalizePurchase] Unable to call method in base interface. IsBaseNetIdValid=%s IsBaseStoreInterfaceValid=%s."), *LexToString(bIsBaseNetIdValid), *LexToString(bIsBasePurchaseInterfaceValid));
+			UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::FinalizePurchase] Unable to call method in base interface. IsBaseNetIdValid=%s IsBasePurchaseInterfaceValid=%s."), *LexToString(bIsBaseNetIdValid), *LexToString(bIsBasePurchaseInterfaceValid));
 		}
 	}
 	else
@@ -264,15 +270,15 @@ void FOnlineStoreEOSPlus::RedeemCode(const FUniqueNetId& UserId, const FRedeemCo
 	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
 	if (NetIdPlus.IsValid())
 	{
-		bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
-		bool bIsBasePurchaseInterfaceValid = BasePurchaseInterface.IsValid();
+		const bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
+		const bool bIsBasePurchaseInterfaceValid = BasePurchaseInterface.IsValid();
 		if (bIsBaseNetIdValid && bIsBasePurchaseInterfaceValid)
 		{
 			BasePurchaseInterface->RedeemCode(*NetIdPlus->GetBaseNetId(), RedeemCodeRequest, Delegate);
 		}
 		else
 		{
-			UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::RedeemCode] Unable to call method in base interface. IsBaseNetIdValid=%s IsBaseStoreInterfaceValid=%s."), *LexToString(bIsBaseNetIdValid), *LexToString(bIsBasePurchaseInterfaceValid));
+			UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::RedeemCode] Unable to call method in base interface. IsBaseNetIdValid=%s IsBasePurchaseInterfaceValid=%s."), *LexToString(bIsBaseNetIdValid), *LexToString(bIsBasePurchaseInterfaceValid));
 			ErrorResult = bIsBasePurchaseInterfaceValid ? EOnlineErrorResult::MissingInterface : EOnlineErrorResult::InvalidUser;
 		}
 	}
@@ -294,15 +300,15 @@ void FOnlineStoreEOSPlus::QueryReceipts(const FUniqueNetId& UserId, bool bRestor
 	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
 	if (NetIdPlus.IsValid())
 	{
-		bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
-		bool bIsBasePurchaseInterfaceValid = BasePurchaseInterface.IsValid();
+		const bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
+		const bool bIsBasePurchaseInterfaceValid = BasePurchaseInterface.IsValid();
 		if (bIsBaseNetIdValid && bIsBasePurchaseInterfaceValid)
 		{
 			BasePurchaseInterface->QueryReceipts(*NetIdPlus->GetBaseNetId(), bRestoreReceipts, Delegate);
 		}
 		else
 		{
-			UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::QueryReceipts] Unable to call method in base interface. IsBaseNetIdValid=%s IsBaseStoreInterfaceValid=%s."), *LexToString(bIsBaseNetIdValid), *LexToString(bIsBasePurchaseInterfaceValid));
+			UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::QueryReceipts] Unable to call method in base interface. IsBaseNetIdValid=%s IsBasePurchaseInterfaceValid=%s."), *LexToString(bIsBaseNetIdValid), *LexToString(bIsBasePurchaseInterfaceValid));
 			ErrorResult = bIsBasePurchaseInterfaceValid ? EOnlineErrorResult::MissingInterface : EOnlineErrorResult::InvalidUser;
 		}
 	}
@@ -322,15 +328,15 @@ void FOnlineStoreEOSPlus::GetReceipts(const FUniqueNetId& UserId, TArray<FPurcha
 	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
 	if (NetIdPlus.IsValid())
 	{
-		bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
-		bool bIsBasePurchaseInterfaceValid = BasePurchaseInterface.IsValid();
+		const bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
+		const bool bIsBasePurchaseInterfaceValid = BasePurchaseInterface.IsValid();
 		if (bIsBaseNetIdValid && bIsBasePurchaseInterfaceValid)
 		{
 			BasePurchaseInterface->GetReceipts(*NetIdPlus->GetBaseNetId(), OutReceipts);
 		}
 		else
 		{
-			UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::GetReceipts] Unable to call method in base interface. IsBaseNetIdValid=%s IsBaseStoreInterfaceValid=%s."), *LexToString(bIsBaseNetIdValid), *LexToString(bIsBasePurchaseInterfaceValid));
+			UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::GetReceipts] Unable to call method in base interface. IsBaseNetIdValid=%s IsBasePurchaseInterfaceValid=%s."), *LexToString(bIsBaseNetIdValid), *LexToString(bIsBasePurchaseInterfaceValid));
 		}
 	}
 	else
@@ -345,15 +351,15 @@ void FOnlineStoreEOSPlus::FinalizeReceiptValidationInfo(const FUniqueNetId& User
 	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
 	if (NetIdPlus.IsValid())
 	{
-		bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
-		bool bIsBasePurchaseInterfaceValid = BasePurchaseInterface.IsValid();
+		const bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
+		const bool bIsBasePurchaseInterfaceValid = BasePurchaseInterface.IsValid();
 		if (bIsBaseNetIdValid && bIsBasePurchaseInterfaceValid)
 		{
 			BasePurchaseInterface->FinalizeReceiptValidationInfo(*NetIdPlus->GetBaseNetId(), InReceiptValidationInfo, Delegate);
 		}
 		else
 		{
-			UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::FinalizeReceiptValidationInfo] Unable to call method in base interface. IsBaseNetIdValid=%s IsBaseStoreInterfaceValid=%s."), *LexToString(bIsBaseNetIdValid), *LexToString(bIsBasePurchaseInterfaceValid));
+			UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::FinalizeReceiptValidationInfo] Unable to call method in base interface. IsBaseNetIdValid=%s IsBasePurchaseInterfaceValid=%s."), *LexToString(bIsBaseNetIdValid), *LexToString(bIsBasePurchaseInterfaceValid));
 			ErrorResult = bIsBasePurchaseInterfaceValid ? EOnlineErrorResult::MissingInterface : EOnlineErrorResult::InvalidUser;
 		}
 	}
