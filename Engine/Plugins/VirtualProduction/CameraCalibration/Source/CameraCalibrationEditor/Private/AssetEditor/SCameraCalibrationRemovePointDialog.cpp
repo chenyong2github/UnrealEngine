@@ -207,7 +207,7 @@ void FFocusRemoveLensDataListItem::OnRemoveRequested(bool bIncludeChildren) cons
 {
 	if (bIncludeChildren)
 	{
-		for (const TSharedPtr<FRemoveLensDataListItem> Child : Children)
+		for (TSharedPtr<FRemoveLensDataListItem> Child : Children)
 		{
 			Child->OnRemoveRequested(bIncludeChildren);
 		}
@@ -223,7 +223,7 @@ void FFocusRemoveLensDataListItem::OnCheckStateChanged(ECheckBoxState NewState)
 {
 	CheckBoxState = NewState;
 			
-	for (const TSharedPtr<FRemoveLensDataListItem> Child : Children)
+	for (TSharedPtr<FRemoveLensDataListItem> Child : Children)
 	{
 		if (NewState != Child->GetCheckBoxState())
 		{
@@ -268,7 +268,7 @@ void FZoomRemoveLensDataListItem::OnCheckStateChanged(const ECheckBoxState NewSt
 		else if (CheckBoxState == ECheckBoxState::Checked)
 		{
 			bool bAllChildChecked = true;
-			for (const TSharedPtr<FRemoveLensDataListItem> Child : ParentPtr->GetChildren())
+			for (TSharedPtr<FRemoveLensDataListItem> Child : ParentPtr->GetChildren())
 			{
 				bAllChildChecked &= Child->GetCheckBoxState() == ECheckBoxState::Checked;
 			}
@@ -455,7 +455,7 @@ void SCameraCalibrationRemovePointDialog::RefreshRemoveItemsTree()
 		RemoveItems.Add(ZoomItem);
 
 		// Generate list for Linked Category
-		BaseDataTable.ForEachLinkedFocusPoint([this, ZoomValue](const FBaseFocusPoint& InFocusPoint, ELensDataCategory Category, FLinkPointMetadata LinkPointMeta)
+		BaseDataTable.ForEachLinkedFocusPoint([this, ZoomValue](const FBaseFocusPoint& InFocusPoint, ELensDataCategory InCategory, FLinkPointMetadata LinkPointMeta)
 		{
 			for(int32 Index = 0; Index < InFocusPoint.GetNumPoints(); ++Index)
 			{
@@ -467,7 +467,7 @@ void SCameraCalibrationRemovePointDialog::RefreshRemoveItemsTree()
 				}
 		
 				// Add zoom points for this focus
-				const TSharedPtr<FZoomRemoveLensDataListItem> LinkedZoomItem = MakeShared<FZoomRemoveLensDataListItem>(WeakLensFile.Get(), Category, LinkPointMeta.bRemoveByDefault, ZoomValue, Focus);
+				const TSharedPtr<FZoomRemoveLensDataListItem> LinkedZoomItem = MakeShared<FZoomRemoveLensDataListItem>(WeakLensFile.Get(), InCategory, LinkPointMeta.bRemoveByDefault, ZoomValue, Focus);
 				RemoveItems.Add(LinkedZoomItem);
 			}
 		}, Focus);
