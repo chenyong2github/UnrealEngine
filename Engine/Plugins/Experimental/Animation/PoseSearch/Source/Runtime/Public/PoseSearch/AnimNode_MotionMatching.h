@@ -3,6 +3,7 @@
 #pragma once
 
 #include "PoseSearch/PoseSearch.h"
+#include "PoseSearch/PoseSearchPredictionTypes.h"
 #include "Animation/AnimNode_AssetPlayerBase.h"
 #include "Animation/AnimNode_SequencePlayer.h"
 #include "AnimNode_MotionMatching.generated.h"
@@ -20,12 +21,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinHiddenByDefault))
 	TObjectPtr<const UPoseSearchDatabase> Database = nullptr;
 
+	// Dynamic biasing weights during pose search queries
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
 	FPoseSearchBiasWeightParams BiasWeights;
 
 	// Motion matching goal
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinShownByDefault))
 	FPoseSearchFeatureVectorBuilder Goal;
+
+	// Trajectory prediction samples
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
+	FPredictionTrajectoryRange Prediction;
+
+	// Configuration for prediction play rate adjustment, error tolerances, and sampling resolution
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
+	FPredictionTrajectorySettings PredictionSettings;
 
 	// Time in seconds to blend out to the new pose. Uses inertial blending and requires an Inertialization node after this node.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))

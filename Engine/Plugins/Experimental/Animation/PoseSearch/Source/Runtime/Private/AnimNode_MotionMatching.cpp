@@ -2,6 +2,7 @@
 
 #include "PoseSearch/AnimNode_MotionMatching.h"
 #include "PoseSearch/PoseSearch.h"
+#include "PoseSearch/PoseSearchPredictionLibrary.h"
 #include "PoseSearch/AnimNode_PoseSearchHistoryCollector.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNode_Inertialization.h"
@@ -40,6 +41,8 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 	// Note: What if the input database changes? That's not being handled at all!
 
 	bool bJumpedToPose = false;
+
+	const float DeltaTime = Context.GetDeltaTime();
 
 	if (IsValidForSearch())
 	{
@@ -128,7 +131,7 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 		// Continue with the follow up sequence if we're finishing a one shot anim
 		if (!bJumpedToPose && SequencePlayerNode.GetSequence() && !SequencePlayerNode.GetLoopAnimation())
 		{
-			float AssetTimeAfterUpdate = AssetTime + Context.GetDeltaTime();
+			float AssetTimeAfterUpdate = AssetTime + DeltaTime;
 			if (AssetTimeAfterUpdate > AssetLength)
 			{
 				const FPoseSearchDatabaseSequence& DbSequence = Database->Sequences[DbSequenceIdx];
@@ -156,8 +159,12 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 	}
 	else
 	{
-		ElapsedPoseJumpTime += Context.GetDeltaTime();
+		ElapsedPoseJumpTime += DeltaTime;
 	}
+	 
+	const FPredictionSequenceState SequenceState = { SequencePlayerNode.GetSequence() , SequencePlayerNode.GetAccumulatedTime(), SequencePlayerNode.GetLoopAnimation() };
+	const float PlayRate = UPoseSearchPredictionDistanceMatching::ComputePlayRate(Context, Prediction, PredictionSettings, SequenceState);
+	SequencePlayerNode.SetPlayRate(PlayRate);
 
 	Source.Update(Context);
 }
