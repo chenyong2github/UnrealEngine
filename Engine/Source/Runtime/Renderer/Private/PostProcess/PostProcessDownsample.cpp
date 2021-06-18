@@ -135,7 +135,14 @@ FScreenPassTexture AddDownsamplePass(
 			Desc.Format = Inputs.FormatOverride;
 		}
 
-		Output.Texture = GraphBuilder.CreateTexture(Desc, Inputs.Name);
+		if (Inputs.UserSuppliedOutput && Translate(Inputs.UserSuppliedOutput->GetDesc()) == Desc)
+		{
+			Output.Texture = GraphBuilder.RegisterExternalTexture(Inputs.UserSuppliedOutput, Inputs.Name);
+		}
+		else
+		{
+			Output.Texture = GraphBuilder.CreateTexture(Desc, Inputs.Name);
+		}
 		Output.ViewRect = FIntRect::DivideAndRoundUp(Inputs.SceneColor.ViewRect, 2);
 		Output.LoadAction = ERenderTargetLoadAction::ENoAction;
 	}

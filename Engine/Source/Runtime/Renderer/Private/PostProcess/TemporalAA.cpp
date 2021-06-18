@@ -511,8 +511,16 @@ FTAAOutputs AddTemporalAAPass(
 				Inputs.DownsampleOverrideFormat != PF_Unknown ? Inputs.DownsampleOverrideFormat : Inputs.SceneColorInput->Desc.Format,
 				FClearValueBinding::Black,
 				TexCreate_ShaderResource | TexCreate_UAV | GFastVRamConfig.Downsample);
+			const TRefCountPtr<IPooledRenderTarget>& PrevFrameHalfResTAAHistory = View.PrevViewInfo.HalfResTemporalAAHistory;
 
-			Outputs.DownsampledSceneColor = GraphBuilder.CreateTexture(HalfResSceneColorDesc, TEXT("SceneColorHalfRes"));
+			if (PrevFrameHalfResTAAHistory && Translate(PrevFrameHalfResTAAHistory->GetDesc(), ERenderTargetTexture::ShaderResource) == HalfResSceneColorDesc)
+			{
+				Outputs.DownsampledSceneColor = GraphBuilder.RegisterExternalTexture(PrevFrameHalfResTAAHistory);
+			}
+			else
+			{
+				Outputs.DownsampledSceneColor = GraphBuilder.CreateTexture(HalfResSceneColorDesc, TEXT("SceneColorHalfRes"));
+			}
 		}
 	}
 
