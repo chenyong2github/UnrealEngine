@@ -21,10 +21,6 @@ namespace
 
 			// We'll always want to spawn ISMC, even if our source components are all SMC
 			ComponentClass = UInstancedStaticMeshComponent::StaticClass();
-			
-			// For now, ignore ray tracing group ID when batching
-			// We may want to expose an instance batching option to control this
-			RayTracingGroupId = FPrimitiveSceneProxy::InvalidRayTracingGroupId;
 
 			ComputeHash();
 		}
