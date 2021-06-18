@@ -37,6 +37,9 @@ struct FDownsamplePassInputs
 	// Friendly name of the pass. Used for logging and profiling.
 	const TCHAR* Name = nullptr;
 
+	// Optional user supplied output buffer.
+	IPooledRenderTarget* UserSuppliedOutput = nullptr;
+
 	// Input scene color RDG texture / view rect. Must not be null.
 	FScreenPassTexture SceneColor;
 

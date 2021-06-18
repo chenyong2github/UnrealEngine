@@ -741,6 +741,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			PassInputs.SceneColor = SceneColor;
 			PassInputs.Quality = DownsampleQuality;
 			PassInputs.FormatOverride = DownsampleOverrideFormat;
+			PassInputs.UserSuppliedOutput = View.PrevViewInfo.HalfResTemporalAAHistory;
 
 			DownsampledSceneColor = AddDownsamplePass(GraphBuilder, View, PassInputs);
 		}
