@@ -214,7 +214,7 @@ bool UCameraNodalOffsetAlgoAruco::PopulatePoints(FText& OutErrorMessage)
 		cv::cvtColor(CvFrame, CvFrame, cv::COLOR_RGB2RGBA);
 
 		FCameraCalibrationWidgetHelpers::DisplayTextureInWindowAlmostFullScreen(
-			FCameraCalibrationUtils::TextureFromCvMat(CvFrame),
+			FCameraCalibrationStepsController::TextureFromCvMat(CvFrame),
 			LOCTEXT("ArucoMarkerDetection", "ArucoMarkerDetection")
 		);
 	}

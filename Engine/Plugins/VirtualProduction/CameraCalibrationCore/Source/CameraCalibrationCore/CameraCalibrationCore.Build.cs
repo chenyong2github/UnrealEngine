@@ -25,8 +25,6 @@ namespace UnrealBuildTool.Rules
 				new string[]
                 {
                     "Projects",
-					"OpenCV",
-					"OpenCVHelper",
 				}
 			);
 

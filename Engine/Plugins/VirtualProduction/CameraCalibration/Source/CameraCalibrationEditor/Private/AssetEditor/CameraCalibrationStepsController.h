@@ -25,6 +25,12 @@ struct FGeometry;
 struct FLensFileEvalData;
 struct FPointerEvent;
 
+namespace cv
+{
+	class Mat;
+}
+
+
 /**
  * Controller for SCameraCalibrationSteps, where the calibration steps are hosted in.
  */
@@ -115,6 +121,9 @@ public:
 
 	/** Reads the pixels in the media plate */
 	bool ReadMediaPixels(TArray<FColor>& Pixels, FIntPoint& Size, ETextureRenderTargetFormat& PixelFormat, FText& OutErrorMessage) const;
+
+	/** Returns a new transient texture for the given cv::Mat */
+	static UTexture2D* TextureFromCvMat(cv::Mat& Mat);
 
 public:
 
