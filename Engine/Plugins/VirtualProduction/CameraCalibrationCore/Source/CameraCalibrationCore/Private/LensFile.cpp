@@ -14,8 +14,8 @@
 #include "LensFileRendering.h"
 #include "LensInterpolationUtils.h"
 #include "Models/SphericalLensModel.h"
+#include "Tables/BaseLensTable.h"
 #include "Tables/LensTableUtils.h"
-
 
 namespace LensFileUtils
 {
@@ -1211,12 +1211,58 @@ bool ULensFile::HasSamples(ELensDataCategory InDataCategory) const
 	}
 }
 
+const FBaseLensTable& ULensFile::GetDataTable(ELensDataCategory InDataCategory) const
+{
+	switch(InDataCategory)
+	{
+	case ELensDataCategory::Distortion:
+		{
+			return DistortionTable;
+		}
+	case ELensDataCategory::ImageCenter:
+		{
+			return ImageCenterTable;
+		}
+	case ELensDataCategory::Zoom:
+		{
+			return FocalLengthTable;
+		}
+	case ELensDataCategory::STMap:
+		{
+			return STMapTable;
+		}
+	case ELensDataCategory::NodalOffset:
+		{
+			return NodalOffsetTable;
+		}
+	case ELensDataCategory::Focus:
+		{
+			return EncodersTable;
+		}
+	case ELensDataCategory::Iris:
+		{
+			return EncodersTable;
+		}
+	default:
+		{
+			checkNoEntry();
+			static FBaseLensTable BaseDataTable;
+			return BaseDataTable;
+		}
+	}
+}
+
 void ULensFile::PostInitProperties()
 {
 	Super::PostInitProperties();
 	
 	const FIntPoint DisplacementMapResolution = GetDefault<UCameraCalibrationSettings>()->GetDisplacementMapResolution();
 	CreateIntermediateDisplacementMaps(DisplacementMapResolution);
+
+	// Set a Lens file reference to all tables
+	EncodersTable.LensFile = DistortionTable.LensFile =
+		FocalLengthTable.LensFile = ImageCenterTable.LensFile =
+		NodalOffsetTable.LensFile = STMapTable.LensFile = this;
 }
 
 void ULensFile::Tick(float DeltaTime)

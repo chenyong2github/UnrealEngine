@@ -7,9 +7,9 @@
 #include "SLensDataEditPointDialog.h"
 #include "UI/CameraCalibrationEditorStyle.h"
 #include "Widgets/Input/SButton.h"
+#include "SCameraCalibrationRemovePointDialog.h"
 
 #define LOCTEXT_NAMESPACE "LensDataListItem"
-
 
 FLensDataListItem::FLensDataListItem(ULensFile* InLensFile, ELensDataCategory InCategory, int32 InSubCategoryIndex, FOnDataRemoved InOnDataRemovedCallback)
 	: Category(InCategory)
@@ -18,7 +18,6 @@ FLensDataListItem::FLensDataListItem(ULensFile* InLensFile, ELensDataCategory In
 	, OnDataRemovedCallback(InOnDataRemovedCallback)
 {
 }
-
 
 FEncoderDataListItem::FEncoderDataListItem(ULensFile* InLensFile, ELensDataCategory InCategory, float InInputValue, int32 InIndex, FOnDataRemoved InOnDataRemovedCallback)
 	: FLensDataListItem(InLensFile, InCategory, INDEX_NONE, InOnDataRemovedCallback)
@@ -63,14 +62,29 @@ TSharedRef<ITableRow> FFocusDataListItem::MakeTreeRowWidget(const TSharedRef<STa
 }
 
 void FFocusDataListItem::OnRemoveRequested() const
-{
+{	
 	if (ULensFile* LensFilePtr = WeakLensFile.Get())
 	{
-		FScopedTransaction Transaction(LOCTEXT("RemoveFocusPointsTransaction", "Remove Focus Points"));
-		LensFilePtr->Modify();
+		const FBaseLensTable& LinkDataTable = LensFilePtr->GetDataTable(Category);
+		if (LinkDataTable.HasLinkedFocusValues(Focus))
+		{
+			SCameraCalibrationRemovePointDialog::OpenWindow(
+				LensFilePtr,
+				Category,
+				FSimpleDelegate::CreateLambda([this]()
+				{
+					OnDataRemovedCallback.ExecuteIfBound(Focus, TOptional<float>());
+				}),
+				Focus);
+		}
+		else
+		{
+			FScopedTransaction Transaction(LOCTEXT("RemoveFocusPointsTransaction", "Remove Focus Points"));
+			LensFilePtr->Modify();
 
-		LensFilePtr->RemoveFocusPoint(Category, Focus);
-		OnDataRemovedCallback.ExecuteIfBound(Focus, TOptional<float>());
+			LensFilePtr->RemoveFocusPoint(Category, Focus);
+			OnDataRemovedCallback.ExecuteIfBound(Focus, TOptional<float>());
+		}
 	}
 }
 
@@ -97,10 +111,26 @@ void FZoomDataListItem::OnRemoveRequested() const
 	{
 		if(TSharedPtr<FFocusDataListItem> ParentItem = WeakParent.Pin())
 		{
-			FScopedTransaction Transaction(LOCTEXT("RemoveZoomPointTransaction", "Remove Zoom Point"));
-			LensFilePtr->Modify();
-			LensFilePtr->RemoveZoomPoint(Category, ParentItem->Focus, Zoom);
-			OnDataRemovedCallback.ExecuteIfBound(ParentItem->Focus, Zoom);
+			const FBaseLensTable& LinkDataTable = LensFilePtr->GetDataTable(Category);
+			if (LinkDataTable.HasLinkedZoomValues(ParentItem->Focus, Zoom))
+			{
+				SCameraCalibrationRemovePointDialog::OpenWindow(
+					LensFilePtr,
+					Category,
+					FSimpleDelegate::CreateLambda([this, ParentItem]()
+					{
+						OnDataRemovedCallback.ExecuteIfBound(ParentItem->Focus, Zoom);
+					}),
+					ParentItem->Focus,
+					Zoom);
+			}
+			else
+			{
+				FScopedTransaction Transaction(LOCTEXT("RemoveZoomPointTransaction", "Remove Zoom Point"));
+				LensFilePtr->Modify();
+				LensFilePtr->RemoveZoomPoint(Category, ParentItem->Focus, Zoom);
+				OnDataRemovedCallback.ExecuteIfBound(ParentItem->Focus, Zoom);
+			}
 		}
 	}
 }
@@ -235,8 +265,5 @@ FReply SLensDataItem::OnEditPointClicked() const
 
 	return FReply::Handled();
 }
- 
+
 #undef LOCTEXT_NAMESPACE /* LensDataListItem */
-
-
-

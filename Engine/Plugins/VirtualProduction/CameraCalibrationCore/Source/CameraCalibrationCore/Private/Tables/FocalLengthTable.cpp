@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "Tables/FocalLengthTable.h"
 
+#include "LensFile.h"
 #include "LensTableUtils.h"
 
 int32 FFocalLengthFocusPoint::GetNumPoints() const
@@ -116,6 +116,34 @@ bool FFocalLengthFocusPoint::IsEmpty() const
 	return Fx.IsEmpty();
 }
 
+bool FFocalLengthTable::DoesZoomPointExists(float InFocus, float InZoom, float InputTolerance) const
+{
+	FFocalLengthInfo FocalLengthInfo;
+	if (GetPoint(InFocus, InZoom, FocalLengthInfo, InputTolerance))
+	{
+		return true;
+	}
+
+	return false;
+}
+
+TMap<ELensDataCategory, FLinkPointMetadata> FFocalLengthTable::GetLinkedCategories() const
+{
+	static TMap<ELensDataCategory, FLinkPointMetadata> LinkedToCategories =
+	{
+		{ELensDataCategory::Distortion, {true}},
+		{ELensDataCategory::ImageCenter, {true}},
+		{ELensDataCategory::STMap, {true}},
+		{ELensDataCategory::NodalOffset, {false}},
+	};
+	return LinkedToCategories;
+}
+
+UScriptStruct* FFocalLengthTable::GetScriptStruct() const
+{
+	return StaticStruct();
+}
+
 bool FFocalLengthTable::BuildParameterCurve(float InFocus, int32 ParameterIndex, FRichCurve& OutCurve) const
 {
 	if(ParameterIndex >= 0 && ParameterIndex < 2)
@@ -152,6 +180,14 @@ TConstArrayView<FFocalLengthFocusPoint> FFocalLengthTable::GetFocusPoints() cons
 	return FocusPoints;
 }
 
+void FFocalLengthTable::ForEachPoint(FFocusPointCallback InCallback) const
+{
+	for (const FFocalLengthFocusPoint& Point : FocusPoints)
+	{
+		InCallback(Point);
+	}
+}
+
 void FFocalLengthTable::RemoveFocusPoint(float InFocus)
 {
 	LensDataTableUtils::RemoveFocusPoint(FocusPoints, InFocus);
@@ -160,6 +196,16 @@ void FFocalLengthTable::RemoveFocusPoint(float InFocus)
 void FFocalLengthTable::RemoveZoomPoint(float InFocus, float InZoom)
 {
 	LensDataTableUtils::RemoveZoomPoint(FocusPoints, InFocus, InZoom);
+}
+
+bool FFocalLengthTable::DoesFocusPointExists(float InFocus) const
+{
+	if (GetFocusPoint(InFocus) != nullptr)
+	{
+		return true;
+	}
+
+	return false;
 }
 
 bool FFocalLengthTable::AddPoint(float InFocus, float InZoom, const FFocalLengthInfo& InData, float InputTolerance, bool bIsCalibrationPoint)

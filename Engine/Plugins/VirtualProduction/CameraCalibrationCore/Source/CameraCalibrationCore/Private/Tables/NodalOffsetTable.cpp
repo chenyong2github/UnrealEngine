@@ -3,6 +3,7 @@
 
 #include "Tables/NodalOffsetTable.h"
 
+#include "LensFile.h"
 #include "LensTableUtils.h"
 
 int32 FNodalOffsetFocusPoint::GetNumPoints() const
@@ -141,6 +142,34 @@ bool FNodalOffsetFocusPoint::IsEmpty() const
 	return LocationOffset[0].IsEmpty();
 }
 
+bool FNodalOffsetTable::DoesZoomPointExists(float InFocus, float InZoom, float InputTolerance) const
+{
+	FNodalPointOffset NodalPointOffset;
+	if (GetPoint(InFocus, InZoom, NodalPointOffset, InputTolerance))
+	{
+		return true;
+	}
+
+	return false;
+}
+
+TMap<ELensDataCategory, FLinkPointMetadata> FNodalOffsetTable::GetLinkedCategories() const
+{
+	static TMap<ELensDataCategory, FLinkPointMetadata> LinkedToCategories =
+	{
+		{ELensDataCategory::Distortion, {false}},
+		{ELensDataCategory::Zoom, {false}},
+		{ELensDataCategory::STMap, {false}},
+		{ELensDataCategory::ImageCenter, {false}},
+	};
+	return LinkedToCategories;
+}
+
+UScriptStruct* FNodalOffsetTable::GetScriptStruct() const
+{
+	return StaticStruct();
+}
+
 bool FNodalOffsetTable::BuildParameterCurve(float InFocus, int32 ParameterIndex, EAxis::Type InAxis, FRichCurve& OutCurve) const
 {
 	if((ParameterIndex >= 0) && (ParameterIndex < 2) && (InAxis != EAxis::None))
@@ -182,6 +211,14 @@ TArray<FNodalOffsetFocusPoint>& FNodalOffsetTable::GetFocusPoints()
 	return FocusPoints;
 }
 
+void FNodalOffsetTable::ForEachPoint(FFocusPointCallback InCallback) const
+{
+	for (const FNodalOffsetFocusPoint& Point : FocusPoints)
+	{
+		InCallback(Point);
+	}
+}
+
 void FNodalOffsetTable::RemoveFocusPoint(float InFocus)
 {
 	LensDataTableUtils::RemoveFocusPoint(FocusPoints, InFocus);
@@ -190,6 +227,16 @@ void FNodalOffsetTable::RemoveFocusPoint(float InFocus)
 void FNodalOffsetTable::RemoveZoomPoint(float InFocus, float InZoom)
 {
 	LensDataTableUtils::RemoveZoomPoint(FocusPoints, InFocus, InZoom);
+}
+
+bool FNodalOffsetTable::DoesFocusPointExists(float InFocus) const
+{
+	if (GetFocusPoint(InFocus) != nullptr)
+	{
+		return true;
+	}
+
+	return false;
 }
 
 bool FNodalOffsetTable::AddPoint(float InFocus, float InZoom, const FNodalPointOffset& InData, float InputTolerance, bool bIsCalibrationPoint)

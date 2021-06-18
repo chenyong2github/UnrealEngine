@@ -3,10 +3,8 @@
 #pragma once
 
 #include "Curves/RichCurve.h"
-#include "Engine/EngineTypes.h"
 #include "LensData.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
+#include "Tables/BaseLensTable.h"
 
 #include "EncodersTable.generated.h"
 
@@ -15,7 +13,7 @@
  * Encoder table containing mapping from raw input value to nominal value
  */
 USTRUCT()
-struct CAMERACALIBRATIONCORE_API FEncodersTable 
+struct CAMERACALIBRATIONCORE_API FEncodersTable : public FBaseLensTable
 {
 	GENERATED_BODY()
 

@@ -3,10 +3,8 @@
 #pragma once
 
 #include "Curves/RichCurve.h"
-#include "Engine/EngineTypes.h"
+#include "Tables/BaseLensTable.h"
 #include "LensData.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 
 #include "FocalLengthTable.generated.h"
 
@@ -38,17 +36,16 @@ public:
  * Contains list of focal length points associated to zoom value
  */
 USTRUCT()
-struct CAMERACALIBRATIONCORE_API FFocalLengthFocusPoint
+struct CAMERACALIBRATIONCORE_API FFocalLengthFocusPoint : public FBaseFocusPoint
 {
 	GENERATED_BODY()
 	
 public:
-
-	/** Returns number of zoom points */
-	int32 GetNumPoints() const;
-
-	/** Returns zoom value for a given index */
-	float GetZoom(int32 Index) const;
+	//~ Begin FBaseFocusPoint Interface
+	virtual float GetFocus() const override { return Focus; }
+	virtual int32 GetNumPoints() const override;
+	virtual float GetZoom(int32 Index) const override;
+	//~ End FBaseFocusPoint Interface
 
 	/** Returns zoom value for a given float */
 	bool GetPoint(float InZoom, FFocalLengthZoomPoint& OutZoomPont, float InputTolerance = KINDA_SMALL_NUMBER) const;
@@ -63,7 +60,7 @@ public:
 	bool GetValue(int32 Index, FFocalLengthInfo& OutData) const;
 
 	/** Removes a point corresponding to specified zoom */
-   	void RemovePoint(float InZoomValue);
+	void RemovePoint(float InZoomValue);
 
 	/** Returns true if this point is empty */
 	bool IsEmpty() const;
@@ -91,13 +88,25 @@ public:
  * Focal Length table containing FxFy values for each focus and zoom input values
  */
 USTRUCT()
-struct CAMERACALIBRATIONCORE_API FFocalLengthTable
+struct CAMERACALIBRATIONCORE_API FFocalLengthTable : public FBaseLensTable
 {
 	GENERATED_BODY()
 
 	using FocusPointType = FFocalLengthFocusPoint;
 
+protected:
+	//~ Begin FBaseDataTable Interface
+	virtual TMap<ELensDataCategory, FLinkPointMetadata> GetLinkedCategories() const override;
+	virtual bool DoesFocusPointExists(float InFocus) const override;
+	virtual bool DoesZoomPointExists(float InFocus, float InZoom, float InputTolerance = KINDA_SMALL_NUMBER) const override;
+	//~ End FBaseDataTable Interface
+	
 public:
+	//~ Begin FBaseDataTable Interface
+	virtual void ForEachPoint(FFocusPointCallback InCallback) const override;
+	virtual int32 GetFocusPointNum() const override { return FocusPoints.Num(); }
+	virtual UScriptStruct* GetScriptStruct() const override;
+	//~ End FBaseDataTable Interface
 
 	/** 
 	* Fills OutCurve with all points contained in the given focus 
@@ -117,7 +126,7 @@ public:
 	/** Removes a focus point identified as InFocusIdentifier */
 	void RemoveFocusPoint(float InFocus);
 
-	/** Removes a focus point identified as InFocusIdentifier */
+	/** Removes a zoom point from a focus point*/
 	void RemoveZoomPoint(float InFocus, float InZoom);
 
 	/** Adds a new point in the table */

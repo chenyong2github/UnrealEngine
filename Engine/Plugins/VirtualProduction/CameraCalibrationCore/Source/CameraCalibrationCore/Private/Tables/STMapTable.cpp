@@ -3,6 +3,7 @@
 
 #include "Tables/STMapTable.h"
 
+#include "LensFile.h"
 #include "LensTableUtils.h"
 
 int32 FSTMapFocusPoint::GetNumPoints() const
@@ -109,6 +110,40 @@ bool FSTMapFocusPoint::IsEmpty() const
 	return MapBlendingCurve.IsEmpty();
 }
 
+void FSTMapTable::ForEachPoint(FFocusPointCallback InCallback) const
+{
+	for (const FSTMapFocusPoint& Point : FocusPoints)
+	{
+		InCallback(Point);
+	}
+}
+
+bool FSTMapTable::DoesFocusPointExists(float InFocus) const
+{
+	if (GetFocusPoint(InFocus) != nullptr)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+bool FSTMapTable::DoesZoomPointExists(float InFocus, float InZoom, float InputTolerance) const
+{
+	FSTMapInfo STMapInfo;
+	if (GetPoint(InFocus, InZoom, STMapInfo, InputTolerance))
+	{
+		return true;
+	}
+
+	return false;
+}
+
+UScriptStruct* FSTMapTable::GetScriptStruct() const
+{
+	return StaticStruct();
+}
+
 bool FSTMapTable::BuildMapBlendingCurve(float InFocus, FRichCurve& OutCurve)
 {
 	if(FSTMapFocusPoint* FocusPoint = GetFocusPoint(InFocus))
@@ -150,8 +185,19 @@ void FSTMapTable::RemoveZoomPoint(float InFocus, float InZoom)
 	LensDataTableUtils::RemoveZoomPoint(FocusPoints, InFocus, InZoom);
 }
 
+TMap<ELensDataCategory, FLinkPointMetadata> FSTMapTable::GetLinkedCategories() const
+{
+	static TMap<ELensDataCategory, FLinkPointMetadata> LinkedToCategories =
+	{
+		{ELensDataCategory::Zoom, {true}},
+		{ELensDataCategory::ImageCenter, {true}},
+		{ELensDataCategory::NodalOffset, {false}},
+	};
+	return LinkedToCategories;
+}
+
 bool FSTMapTable::AddPoint(float InFocus, float InZoom, const FSTMapInfo& InData, float InputTolerance,
-	bool bIsCalibrationPoint)
+                           bool bIsCalibrationPoint)
 {
 	return LensDataTableUtils::AddPoint(FocusPoints, InFocus, InZoom, InData, InputTolerance, bIsCalibrationPoint);
 }
