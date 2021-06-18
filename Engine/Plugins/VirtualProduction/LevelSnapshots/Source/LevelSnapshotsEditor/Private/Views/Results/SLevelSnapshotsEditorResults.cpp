@@ -1141,6 +1141,16 @@ void FLevelSnapshotsEditorResultsRow::SetIsTreeViewItemExpanded(const bool bNewE
 	bIsTreeViewItemExpanded = bNewExpanded;
 }
 
+bool FLevelSnapshotsEditorResultsRow::GetShouldExpandAllChildren() const
+{
+	return bShouldExpandAllChildren;
+}
+
+void FLevelSnapshotsEditorResultsRow::SetShouldExpandAllChildren(const bool bNewShouldExpandAllChildren)
+{
+	bShouldExpandAllChildren = bNewShouldExpandAllChildren;
+}
+
 uint8 FLevelSnapshotsEditorResultsRow::GetChildDepth() const
 {
 	return ChildDepth;
@@ -1815,7 +1825,8 @@ void SLevelSnapshotsEditorResults::Construct(const FArguments& InArgs, ULevelSna
 								.Visibility_Raw(Row.Get(), &FLevelSnapshotsEditorResultsRow::GetDesiredVisibility);
 						})
 					.OnGetChildren_Raw(this, &SLevelSnapshotsEditorResults::OnGetRowChildren)
-					.OnExpansionChanged_Raw(this, &SLevelSnapshotsEditorResults::OnRowChildExpansionChange)
+					.OnExpansionChanged_Raw(this, &SLevelSnapshotsEditorResults::OnRowChildExpansionChange, false)
+					.OnSetExpansionRecursive(this, &SLevelSnapshotsEditorResults::OnRowChildExpansionChange, true)
 					.Visibility_Lambda([this]()
 						{
 							return this->DoesTreeViewHaveVisibleChildren() ? EVisibility::Visible : EVisibility::Collapsed;
@@ -2824,16 +2835,52 @@ void SLevelSnapshotsEditorResults::OnGetRowChildren(FLevelSnapshotsEditorResults
 				OutChildren.Add(GetOrCreateDummyRow());
 			}
 		}
+
+		if (Row->GetShouldExpandAllChildren())
+		{
+			SetChildExpansionRecursively(Row, true);
+			Row->SetShouldExpandAllChildren(false);
+		}
 	}
 }
 
-void SLevelSnapshotsEditorResults::OnRowChildExpansionChange(FLevelSnapshotsEditorResultsRowPtr Row, const bool bIsExpanded) const
+void SLevelSnapshotsEditorResults::OnRowChildExpansionChange(FLevelSnapshotsEditorResultsRowPtr Row, const bool bIsExpanded, const bool bIsRecursive) const
 {
 	if (Row.IsValid())
 	{
+		if (bIsRecursive)
+		{
+			if (bIsExpanded)
+			{
+				if (Row->GetRowType() != FLevelSnapshotsEditorResultsRow::TreeViewHeader)
+				{
+					Row->SetShouldExpandAllChildren(true);
+				}
+			}
+			else
+			{
+				SetChildExpansionRecursively(Row, bIsExpanded);
+			}
+		}
+		
+		TreeViewPtr->SetItemExpansion(Row, bIsExpanded);
 		Row->SetIsTreeViewItemExpanded(bIsExpanded);
 	}
 }
+
+void SLevelSnapshotsEditorResults::SetChildExpansionRecursively(const FLevelSnapshotsEditorResultsRowPtr& InRow, const bool bNewIsExpanded) const
+{
+	if (InRow.IsValid())
+	{
+		for (const FLevelSnapshotsEditorResultsRowPtr& Child : InRow->GetChildRows())
+		{
+			TreeViewPtr->SetItemExpansion(Child, bNewIsExpanded);
+			Child->SetIsTreeViewItemExpanded(bNewIsExpanded);
+
+			SetChildExpansionRecursively(Child, bNewIsExpanded);
+		}
+	}
+};
 
 void SLevelSnapshotsEditorResultsRow::Construct(const FArguments& InArgs, const TWeakPtr<FLevelSnapshotsEditorResultsRow>& InRow, const FLevelSnapshotsEditorResultsSplitterManagerPtr& InSplitterManagerPtr)
 {	

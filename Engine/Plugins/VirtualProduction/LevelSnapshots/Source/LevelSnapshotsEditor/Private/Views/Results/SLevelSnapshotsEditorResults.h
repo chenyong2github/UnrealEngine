@@ -195,6 +195,9 @@ struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEd
 	bool GetIsTreeViewItemExpanded() const;
 	void SetIsTreeViewItemExpanded(const bool bNewExpanded);
 
+	bool GetShouldExpandAllChildren() const;
+	void SetShouldExpandAllChildren(const bool bNewShouldExpandAllChildren);
+
 	uint8 GetChildDepth() const;
 	void SetChildDepth(const uint8 InDepth);
 
@@ -270,6 +273,9 @@ private:
 	FText DisplayName;
 	TArray<FLevelSnapshotsEditorResultsRowPtr> ChildRows;
 	bool bIsTreeViewItemExpanded = false;
+
+	// Used to epand all children on shift+click.
+	bool bShouldExpandAllChildren = false;
 
 	/* For Header Rows */
 	ELevelSnapshotsEditorResultsTreeViewHeaderType HeaderType = HeaderType_None;
@@ -438,7 +444,9 @@ private:
 	bool GenerateTreeViewChildren_RemovedActors(FLevelSnapshotsEditorResultsRowPtr RemovedActorsHeader);
 	
 	void OnGetRowChildren(FLevelSnapshotsEditorResultsRowPtr Row, TArray<FLevelSnapshotsEditorResultsRowPtr>& OutChildren);
-	void OnRowChildExpansionChange(FLevelSnapshotsEditorResultsRowPtr Row, const bool bIsExpanded) const;
+	void OnRowChildExpansionChange(FLevelSnapshotsEditorResultsRowPtr Row, const bool bIsExpanded, const bool bIsRecursive = false) const;
+
+	void SetChildExpansionRecursively(const FLevelSnapshotsEditorResultsRowPtr& InRow, const bool bNewIsExpanded) const;
 	
 	TSharedPtr<STreeView<FLevelSnapshotsEditorResultsRowPtr>> TreeViewPtr;
 	
