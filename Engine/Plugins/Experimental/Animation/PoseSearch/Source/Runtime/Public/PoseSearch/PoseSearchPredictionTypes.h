@@ -71,11 +71,11 @@ struct POSESEARCH_API FPredictionTrajectorySettings
 	FPredictionPlayRateAdjustment PlayRateAdjustment;
 
 	// Root motion time step used for analyzing and determining future velocity minima
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
-	float RootMotionSampleStep = 1.f / 240.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault, ClampMin = "15", ClampMax = "240"))
+	float RootMotionSampleStepPerSecond = 120.f;
 
-	// Root motion angle threshold for determining significant changes in direction (ie: pivots)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
+	// Root motion angle threshold for determining significant changes in direction (pivots)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault, ClampMin = "0", ClampMax = "180"))
 	float RootMotionPivotAngleThreshold = 90.f;
 
 	// Root motion displacement error tolerance for identifying pivot false positives
