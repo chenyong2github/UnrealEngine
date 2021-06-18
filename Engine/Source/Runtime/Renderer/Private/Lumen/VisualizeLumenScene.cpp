@@ -191,6 +191,16 @@ FAutoConsoleVariableRef CVarVisualizeLumenSceneCardPlacementPrimitives(
 	ECVF_RenderThreadSafe
 );
 
+int32 GVisualizeLumenRayTracingGroups = 0;
+FAutoConsoleVariableRef CVarVisualizeLumenRayTracingGroups(
+	TEXT("r.Lumen.Visualize.RayTracingGroups"),
+	GVisualizeLumenRayTracingGroups,
+	TEXT("0 - disable\n")
+	TEXT("1 - all groups\n")
+	TEXT("2 - groups with a single instance"),
+	ECVF_RenderThreadSafe
+);
+
 int32 GVisualizeLumenCardPlacementIndex = -1;
 FAutoConsoleVariableRef CVarVisualizeLumenSceneCardPlacementIndex(
 	TEXT("r.Lumen.Visualize.CardPlacementIndex"),
@@ -572,6 +582,33 @@ void AddBoxFaceTriangles(FDynamicMeshBuilder& MeshBuilder, int32 FaceIndex)
 	MeshBuilder.AddTriangle(BoxIndices[FaceIndex][0], BoxIndices[FaceIndex][3], BoxIndices[FaceIndex][2]);
 }
 
+void DrawPrimitiveBounds(const FLumenPrimitiveGroup& PrimitiveGroup, FLinearColor BoundsColor, FViewElementPDI& ViewPDI)
+{
+	const uint8 DepthPriority = SDPG_World;
+
+	for (const FPrimitiveSceneInfo* ScenePrimitiveInfo : PrimitiveGroup.Primitives)
+	{
+		const FMatrix& PrimitiveToWorld = ScenePrimitiveInfo->Proxy->GetLocalToWorld();
+		const TConstArrayView<FPrimitiveInstance> InstanceSceneData = ScenePrimitiveInfo->Proxy->GetInstanceSceneData();
+
+		if (InstanceSceneData.Num() > 0)
+		{
+			for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
+			{
+				const FPrimitiveInstance& PrimitiveInstance = InstanceSceneData[InstanceIndex];
+				FBox LocalBoundingBox = PrimitiveInstance.LocalBounds.ToBox();
+				FMatrix LocalToWorld = PrimitiveInstance.LocalToPrimitive.ToMatrix() * PrimitiveToWorld;
+				DrawWireBox(&ViewPDI, LocalToWorld, LocalBoundingBox, BoundsColor, DepthPriority);
+			}
+		}
+		else
+		{
+			FBox LocalBoundingBox = ScenePrimitiveInfo->Proxy->GetLocalBounds().GetBox();
+			DrawWireBox(&ViewPDI, PrimitiveToWorld, LocalBoundingBox, BoundsColor, DepthPriority);
+		}
+	}
+}
+
 void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 {
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
@@ -592,19 +629,45 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 	const bool bAnyLumenEnabled = ShouldRenderLumenDiffuseGI(Scene, Views[0])
 		|| ShouldRenderLumenReflections(Views[0]);
 
-	if (bAnyLumenEnabled && GVisualizeLumenCardPlacement != 0)
+	if (bAnyLumenEnabled 
+		&& (GVisualizeLumenCardPlacement != 0 || GVisualizeLumenRayTracingGroups != 0))
 	{
 		FViewElementPDI ViewPDI(&Views[0], nullptr, &Views[0].DynamicPrimitiveCollector);
 
 		FConvexVolume ViewFrustum;
 		GetViewFrustumBounds(ViewFrustum, Views[0].ViewMatrices.GetViewProjectionMatrix(), true);
 
-		for (FLumenPrimitiveGroup& PrimitiveGroup : LumenSceneData.PrimitiveGroups)
+		if (GVisualizeLumenRayTracingGroups != 0)
 		{
-			bool bVisible = PrimitiveGroup.MeshCardsIndex >= 0;
-
-			switch (GVisualizeLumenCardPlacementLOD)
+			for (FLumenPrimitiveGroup& PrimitiveGroup : LumenSceneData.PrimitiveGroups)
 			{
+				if ((GVisualizeLumenRayTracingGroups != 2 || !PrimitiveGroup.HasMergedInstances())
+					&& PrimitiveGroup.HasMergedPrimitives()
+					&& PrimitiveGroup.WorldSpaceBoundingBox.ComputeSquaredDistanceToPoint(Views[0].ViewMatrices.GetViewOrigin()) < GVisualizeLumenCardPlacementDistance * GVisualizeLumenCardPlacementDistance
+					&& ViewFrustum.IntersectBox(PrimitiveGroup.WorldSpaceBoundingBox.GetCenter(), PrimitiveGroup.WorldSpaceBoundingBox.GetExtent()))
+				{
+					const uint32 GroupIdHash = GetTypeHash(PrimitiveGroup.RayTracingGroupMapElementId.GetIndex());
+					const uint8 DepthPriority = SDPG_World;
+					const uint8 Hue = GroupIdHash & 0xFF;
+					const uint8 Saturation = 0xFF;
+					const uint8 Value = 0xFF;
+
+					FLinearColor GroupColor = FLinearColor::MakeFromHSV8(Hue, Saturation, Value);
+					GroupColor.A = 1.0f;
+
+					DrawPrimitiveBounds(PrimitiveGroup, GroupColor, ViewPDI);
+				}
+			}
+		}
+
+		if (GVisualizeLumenCardPlacement != 0)
+		{
+			for (FLumenPrimitiveGroup& PrimitiveGroup : LumenSceneData.PrimitiveGroups)
+			{
+				bool bVisible = PrimitiveGroup.MeshCardsIndex >= 0;
+
+				switch (GVisualizeLumenCardPlacementLOD)
+				{
 				case 1:
 					bVisible = bVisible && !PrimitiveGroup.HasMergedInstances();
 					break;
@@ -616,96 +679,77 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 				case 3:
 					bVisible = bVisible && PrimitiveGroup.HasMergedInstances() && PrimitiveGroup.HasMergedPrimitives();
 					break;
-			}
+				}
 
-			if (bVisible
-				&& PrimitiveGroup.WorldSpaceBoundingBox.ComputeSquaredDistanceToPoint(Views[0].ViewMatrices.GetViewOrigin()) < GVisualizeLumenCardPlacementDistance * GVisualizeLumenCardPlacementDistance
-				&& ViewFrustum.IntersectBox(PrimitiveGroup.WorldSpaceBoundingBox.GetCenter(), PrimitiveGroup.WorldSpaceBoundingBox.GetExtent()))
-			{
-				const FLumenMeshCards& MeshCardsEntry = LumenSceneData.MeshCards[PrimitiveGroup.MeshCardsIndex];
-
-				for (uint32 CardIndex = MeshCardsEntry.FirstCardIndex; CardIndex < MeshCardsEntry.FirstCardIndex + MeshCardsEntry.NumCards; ++CardIndex)
+				if (bVisible
+					&& PrimitiveGroup.WorldSpaceBoundingBox.ComputeSquaredDistanceToPoint(Views[0].ViewMatrices.GetViewOrigin()) < GVisualizeLumenCardPlacementDistance * GVisualizeLumenCardPlacementDistance
+					&& ViewFrustum.IntersectBox(PrimitiveGroup.WorldSpaceBoundingBox.GetCenter(), PrimitiveGroup.WorldSpaceBoundingBox.GetExtent()))
 				{
-					const FLumenCard& Card = LumenSceneData.Cards[CardIndex];
+					const FLumenMeshCards& MeshCardsEntry = LumenSceneData.MeshCards[PrimitiveGroup.MeshCardsIndex];
 
-					bVisible = Card.bVisible;
-
-					if (GVisualizeLumenCardPlacementIndex >= 0 && Card.IndexInMeshCards != GVisualizeLumenCardPlacementIndex)
+					for (uint32 CardIndex = MeshCardsEntry.FirstCardIndex; CardIndex < MeshCardsEntry.FirstCardIndex + MeshCardsEntry.NumCards; ++CardIndex)
 					{
-						bVisible = false;
-					}
+						const FLumenCard& Card = LumenSceneData.Cards[CardIndex];
 
-					if (GVisualizeLumenCardPlacementOrientation >= 0 && Card.Orientation != GVisualizeLumenCardPlacementOrientation)
-					{
-						bVisible = false;
-					}
+						bVisible = Card.bVisible;
 
-					if (bVisible)
-					{
-						uint32 CardHash = HashCombine(GetTypeHash(Card.Origin), GetTypeHash(Card.LocalExtent));
-						CardHash = HashCombine(CardHash, GetTypeHash(Card.Orientation));
-
-						const uint8 DepthPriority = SDPG_World;
-						const uint8 CardHue = CardHash & 0xFF;
-						const uint8 CardSaturation = 0xFF;
-						const uint8 CardValue = 0xFF;
-
-						FLinearColor CardColor = FLinearColor::MakeFromHSV8(CardHue, CardSaturation, CardValue);
-						CardColor.A = 1.0f;
-
-						FMatrix CardToWorld = FMatrix::Identity;
-						CardToWorld.SetAxes(&Card.LocalToWorldRotationX, &Card.LocalToWorldRotationY, &Card.LocalToWorldRotationZ, &Card.Origin);
-
-						const FBox LocalBounds(-Card.LocalExtent, Card.LocalExtent);
-
-						DrawWireBox(&ViewPDI, CardToWorld, LocalBounds, CardColor, DepthPriority);
-
-						// Visualize bounds of primitives which make current card
-						if (GVisualizeLumenCardPlacementPrimitives != 0 && PrimitiveGroup.HasMergedInstances())
+						if (GVisualizeLumenCardPlacementIndex >= 0 && Card.IndexInMeshCards != GVisualizeLumenCardPlacementIndex)
 						{
-							for (const FPrimitiveSceneInfo* ScenePrimitiveInfo : PrimitiveGroup.Primitives)
-							{
-								const FMatrix& PrimitiveToWorld = ScenePrimitiveInfo->Proxy->GetLocalToWorld();
-								const TConstArrayView<FPrimitiveInstance> InstanceSceneData = ScenePrimitiveInfo->Proxy->GetInstanceSceneData();
-
-								if (InstanceSceneData.Num() > 0)
-								{
-									for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
-									{
-										const FPrimitiveInstance& PrimitiveInstance = InstanceSceneData[InstanceIndex];
-										FBox LocalBoundingBox = PrimitiveInstance.LocalBounds.ToBox();
-										FMatrix LocalToWorld = PrimitiveInstance.LocalToPrimitive.ToMatrix() * PrimitiveToWorld;
-										DrawWireBox(&ViewPDI, LocalToWorld, LocalBoundingBox, CardColor, DepthPriority);
-									}
-								}
-								else
-								{
-									FBox LocalBoundingBox = ScenePrimitiveInfo->Proxy->GetLocalBounds().GetBox();
-									DrawWireBox(&ViewPDI, PrimitiveToWorld, LocalBoundingBox, CardColor, DepthPriority);
-								}
-							}
+							bVisible = false;
 						}
-						
-						// Draw card "projection face"
+
+						if (GVisualizeLumenCardPlacementOrientation >= 0 && Card.Orientation != GVisualizeLumenCardPlacementOrientation)
 						{
-							CardColor.A = 0.5f;
+							bVisible = false;
+						}
 
-							FColoredMaterialRenderProxy* MaterialRenderProxy = new(FMemStack::Get()) FColoredMaterialRenderProxy(GEngine->EmissiveMeshMaterial->GetRenderProxy(), CardColor, NAME_Color);
+						if (bVisible)
+						{
+							uint32 CardHash = HashCombine(GetTypeHash(Card.Origin), GetTypeHash(Card.LocalExtent));
+							CardHash = HashCombine(CardHash, GetTypeHash(Card.Orientation));
 
-							FDynamicMeshBuilder MeshBuilder(ViewPDI.View->GetFeatureLevel());
+							const uint8 DepthPriority = SDPG_World;
+							const uint8 CardHue = CardHash & 0xFF;
+							const uint8 CardSaturation = 0xFF;
+							const uint8 CardValue = 0xFF;
 
-							for (int32 VertIndex = 0; VertIndex < 8; ++VertIndex)
+							FLinearColor CardColor = FLinearColor::MakeFromHSV8(CardHue, CardSaturation, CardValue);
+							CardColor.A = 1.0f;
+
+							FMatrix CardToWorld = FMatrix::Identity;
+							CardToWorld.SetAxes(&Card.LocalToWorldRotationX, &Card.LocalToWorldRotationY, &Card.LocalToWorldRotationZ, &Card.Origin);
+
+							const FBox LocalBounds(-Card.LocalExtent, Card.LocalExtent);
+
+							DrawWireBox(&ViewPDI, CardToWorld, LocalBounds, CardColor, DepthPriority);
+
+							// Visualize bounds of primitives which make current card
+							if (GVisualizeLumenCardPlacementPrimitives != 0 && PrimitiveGroup.HasMergedInstances())
 							{
-								FVector BoxVertex;
-								BoxVertex.X = VertIndex & 0x1 ? LocalBounds.Max.X : LocalBounds.Min.X;
-								BoxVertex.Y = VertIndex & 0x2 ? LocalBounds.Max.Y : LocalBounds.Min.Y;
-								BoxVertex.Z = VertIndex & 0x4 ? LocalBounds.Max.Z : LocalBounds.Min.Z;
-								MeshBuilder.AddVertex(BoxVertex, FVector2D(0, 0), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
+								DrawPrimitiveBounds(PrimitiveGroup, CardColor, ViewPDI);
 							}
 
-							AddBoxFaceTriangles(MeshBuilder, 1);
+							// Draw card "projection face"
+							{
+								CardColor.A = 0.5f;
 
-							MeshBuilder.Draw(&ViewPDI, CardToWorld, MaterialRenderProxy, DepthPriority, false);
+								FColoredMaterialRenderProxy* MaterialRenderProxy = new(FMemStack::Get()) FColoredMaterialRenderProxy(GEngine->EmissiveMeshMaterial->GetRenderProxy(), CardColor, NAME_Color);
+
+								FDynamicMeshBuilder MeshBuilder(ViewPDI.View->GetFeatureLevel());
+
+								for (int32 VertIndex = 0; VertIndex < 8; ++VertIndex)
+								{
+									FVector BoxVertex;
+									BoxVertex.X = VertIndex & 0x1 ? LocalBounds.Max.X : LocalBounds.Min.X;
+									BoxVertex.Y = VertIndex & 0x2 ? LocalBounds.Max.Y : LocalBounds.Min.Y;
+									BoxVertex.Z = VertIndex & 0x4 ? LocalBounds.Max.Z : LocalBounds.Min.Z;
+									MeshBuilder.AddVertex(BoxVertex, FVector2D(0, 0), FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), FColor::White);
+								}
+
+								AddBoxFaceTriangles(MeshBuilder, 1);
+
+								MeshBuilder.Draw(&ViewPDI, CardToWorld, MaterialRenderProxy, DepthPriority, false);
+							}
 						}
 					}
 				}
