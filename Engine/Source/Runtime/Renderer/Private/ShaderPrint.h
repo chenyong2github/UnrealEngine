@@ -18,9 +18,11 @@ class FViewInfo;
 namespace ShaderPrint
 {
 	// Does the platform support the ShaderPrint system?
-	bool IsSupported(FViewInfo const& View);
+	bool IsSupported(const EShaderPlatform Platform);
 	// Have we enabled the ShaderPrint system?
 	bool IsEnabled();
+	// Call this to know if a view can render this debug information
+	bool IsEnabled(const FViewInfo& View);
 
 	// Accessors for controlling from code: enabling/disabling, font size, and max drawn element
 	void SetEnabled(bool bInEnabled);

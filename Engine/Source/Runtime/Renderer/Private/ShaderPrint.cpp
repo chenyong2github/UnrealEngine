@@ -108,11 +108,6 @@ namespace ShaderPrint
 		return RHISupportsComputeShaders(InShaderPlatform) && !IsHlslccShaderPlatform(InShaderPlatform);
 	}
 
-	bool IsSupported(FViewInfo const& View)
-	{
-		return IsSupported(View.GetShaderPlatform());
-	}
-
 	void SetEnabled(bool bInEnabled)
 	{
 		CVarEnable->Set(bInEnabled);
@@ -131,6 +126,11 @@ namespace ShaderPrint
 	bool IsEnabled()
 	{
 		return CVarEnable.GetValueOnAnyThread() != 0;
+	}
+
+	bool IsEnabled(const FViewInfo& View)
+	{
+		return IsEnabled() && IsSupported(View.GetShaderPlatform());
 	}
 
 	// Shader to initialize the output value buffer
@@ -270,7 +270,7 @@ namespace ShaderPrint
 	void BeginView(FRDGBuilder& GraphBuilder, FViewInfo& View)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ShaderPrint::BeginView);
-		if (!IsSupported(View))
+		if (!IsSupported(View.GetShaderPlatform()))
 		{
 			return;
 		}

@@ -34,53 +34,37 @@ namespace ShaderDrawDebug
 
 	bool IsEnabled()
 	{
-#if WITH_EDITOR
 		return GShaderDrawDebug_Enable > 0;
-#else
-		return false;
-#endif
 	}
 
 	static bool IsShaderDrawLocked()
 	{
-#if WITH_EDITOR
 		return CVarShaderDrawLock.GetValueOnRenderThread() > 0;
-#else
-		return false;
-#endif
 	}
 
-	static bool IsEnabled(const EShaderPlatform Platform)
+	bool IsSupported(const EShaderPlatform Platform)
 	{
 		return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && IsPCPlatform(Platform) && !IsOpenGLPlatform(Platform);
 	}
 
 	void SetEnabled(bool bInEnabled)
 	{
-#if WITH_EDITOR
 		GShaderDrawDebug_Enable = bInEnabled ? 1 : 0;
-#endif		
 	}
 
 	void SetMaxElementCount(uint32 MaxCount)
 	{
-#if WITH_EDITOR
 		GShaderDrawDebug_MaxElementCount = FMath::Max(1024, int32(MaxCount));
-#endif		
 	}
 
 	uint32 GetMaxElementCount()
 	{
-#if WITH_EDITOR
 		return uint32(FMath::Max(1, GShaderDrawDebug_MaxElementCount));
-#else
-		return 0;
-#endif			
 	}
 
 	bool IsEnabled(const FViewInfo& View)
 	{
-		return IsEnabled() && IsEnabled(View.GetShaderPlatform());
+		return IsEnabled() && IsSupported(View.GetShaderPlatform());
 	}
 
 	// Note: Unaligned structures used for structured buffers is an unsupported and/or sparsely
@@ -107,7 +91,7 @@ namespace ShaderDrawDebug
 
 		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 		{
-			return IsEnabled(Parameters.Platform);
+			return IsSupported(Parameters.Platform);
 		}
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -136,7 +120,7 @@ namespace ShaderDrawDebug
 
 		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 		{
-			return IsEnabled(Parameters.Platform);
+			return IsSupported(Parameters.Platform);
 		}
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -169,7 +153,7 @@ namespace ShaderDrawDebug
 
 		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 		{
-			return IsEnabled(Parameters.Platform);
+			return IsSupported(Parameters.Platform);
 		}
 
 		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -249,7 +233,7 @@ namespace ShaderDrawDebug
 
 	void BeginView(FRDGBuilder& GraphBuilder, FViewInfo& View)
 	{
-		if (!IsEnabled(View) || !IsEnabled())
+		if (!IsEnabled(View))
 		{
 			return;
 		}

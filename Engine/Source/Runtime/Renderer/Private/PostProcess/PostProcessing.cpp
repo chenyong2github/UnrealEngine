@@ -1141,7 +1141,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		ShaderDrawDebug::DrawView(GraphBuilder, View, SceneColor.Texture, SceneDepth.Texture);
 	}
 
-	if (ShaderPrint::IsEnabled() && ShaderPrint::IsSupported(View))
+	if (ShaderPrint::IsEnabled(View))
 	{
 		ShaderPrint::DrawView(GraphBuilder, View, SceneColor.Texture);
 	}

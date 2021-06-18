@@ -75,7 +75,7 @@ static FAutoConsoleVariableRef CVarHairStrandsUpdateCullIndex(TEXT("r.HairStrand
 
 static bool IsDebugDrawAndDebugPrintEnabled(const FViewInfo& View)
 {
-	return ShaderDrawDebug::IsEnabled() && ShaderPrint::IsEnabled() && ShaderPrint::IsSupported(View);
+	return ShaderDrawDebug::IsEnabled(View) && ShaderPrint::IsEnabled(View);
 }
 
 bool IsHairStrandsClusterDebugEnable()
