@@ -18,7 +18,6 @@ namespace UnrealBuildTool.Rules
 
 			if (!Directory.Exists(SignallingServerDir))
 			{
-				Log.TraceInformation(string.Format("Signalling Server path '{0}' does not exist", SignallingServerDir));
 				return;
 			}
 
@@ -43,7 +42,6 @@ namespace UnrealBuildTool.Rules
 
 			if (!Directory.Exists(MatchmakingServerDir))
 			{
-				Log.TraceInformation(string.Format("Matchmaking Server path '{0}' does not exist", MatchmakingServerDir));
 				return;
 			}
 
