@@ -53,14 +53,14 @@ float UPoseSearchPredictionDistanceMatching::ComputePlayRate(const FAnimationUpd
 	float MinimaSampleTime = FLT_MAX;
 	bool bPivotDetected = false;
 
-	for (auto [SampleTime, PreviousDirection, MinimaDisplacement, CosPivotAngleThreshold] = std::tuple{ (double)SequenceState.AccumulatedTime, FVector::ZeroVector, FLT_MAX, FMath::Cos(Settings.RootMotionPivotAngleThreshold) };
+	for (auto [SampleTime, RootMotionSampleStep, PreviousDirection, MinimaDisplacement, CosPivotAngleThreshold] = std::tuple{ (double)SequenceState.AccumulatedTime, 1.f / Settings.RootMotionSampleStepPerSecond, FVector::ZeroVector, FLT_MAX, FMath::Cos(Settings.RootMotionPivotAngleThreshold) };
 		SampleTime <= Sequence->GetPlayLength(); 
-		SampleTime += Settings.RootMotionSampleStep)
+		SampleTime += RootMotionSampleStep)
 	{
-		const FVector RootMotion = Sequence->ExtractRootMotion(SampleTime, Settings.RootMotionSampleStep, SequenceState.bLooping).GetTranslation();
-		
 		FVector RootMotionDirection;
 		float RootMotionDisplacement;
+
+		const FVector RootMotion = Sequence->ExtractRootMotion(SampleTime, RootMotionSampleStep, SequenceState.bLooping).GetTranslation();
 		RootMotion.ToDirectionAndLength(RootMotionDirection, RootMotionDisplacement);
 
 		// Found a smaller displacement in the root motion track
@@ -78,7 +78,7 @@ float UPoseSearchPredictionDistanceMatching::ComputePlayRate(const FAnimationUpd
 		if (PotentialPivotAngle < CosPivotAngleThreshold && RootMotionDisplacement > Settings.RootMotionPivotDisplacementError)
 		{
 			// Bias the minima sample time for pivots to favor the pre-pivot phase (moment prior to direction change)
-			MinimaSampleTime = SampleTime - Settings.RootMotionSampleStep;
+			MinimaSampleTime = SampleTime - RootMotionSampleStep;
 			bPivotDetected = true;
 			break;
 		}
