@@ -74,6 +74,18 @@ public:
 	FSlateBrush KeyBrush;
 };
 
+USTRUCT()
+struct FInputDeviceIdentifierPair
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gamepad")
+	FName InputDeviceName;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gamepad")
+	FString HardwareDeviceIdentifier;
+};
+
 /* Derive from this class to store the Input data. It is referenced in the Common Input Settings, found in the project settings UI. */
 UCLASS(Abstract, Blueprintable, ClassGroup = Input, meta = (Category = "Common Input"))
 class COMMONINPUT_API UCommonUIInputData : public UObject
@@ -121,6 +133,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Gamepad", meta = (EditCondition = "InputType == ECommonInputType::Gamepad"))
 	FText GamepadDisplayName;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Gamepad", meta=(EditCondition="InputType == ECommonInputType::Gamepad"))
+	TArray<FInputDeviceIdentifierPair> GamepadHardwareIdMapping;
+
 	UPROPERTY(EditDefaultsOnly, Category = "Display")
 	TSoftObjectPtr<UTexture2D> ControllerTexture;
 
@@ -159,8 +174,10 @@ public:
 		return UPlatformSettings::GetSettingsForPlatform<UCommonInputPlatformSettings>();
 	}
 
-	bool TryGetInputBrush(FSlateBrush& OutBrush, FKey Key, ECommonInputType InputType, const FName& GamepadName) const;
-	bool TryGetInputBrush(FSlateBrush& OutBrush, const TArray<FKey>& Keys, ECommonInputType InputType,  const FName& GamepadName) const;
+	bool TryGetInputBrush(FSlateBrush& OutBrush, FKey Key, ECommonInputType InputType, const FName GamepadName) const;
+	bool TryGetInputBrush(FSlateBrush& OutBrush, const TArray<FKey>& Keys, ECommonInputType InputType, const FName GamepadName) const;
+
+	FName GetBestGamepadNameForHardware(FName CurrentGamepadName, FName InputDeviceName, const FString& HardwareDeviceIdentifier);
 
 	ECommonInputType GetDefaultInputType() const
 	{

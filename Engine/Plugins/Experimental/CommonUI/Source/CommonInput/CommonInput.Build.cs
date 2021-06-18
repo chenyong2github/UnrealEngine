@@ -22,6 +22,7 @@ public class CommonInput : ModuleRules
 			{
                 "SlateCore",
 				"Slate",
+				"ApplicationCore",
                 "EngineSettings"
             }
 		);
