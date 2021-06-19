@@ -13,9 +13,9 @@ using SolidworksDatasmith.Geometry;
 
 namespace SolidworksDatasmith.SwObjects
 {
-    public class SwAnimationKeyframe
-    {
-        public double Time = 0.0;
-        public double[] Value = new double[4] { 0.0, 0.0, 0.0, 1.0 };
-    }
+	public class SwAnimationKeyframe
+	{
+		public double Time = 0.0;
+		public double[] Value = new double[4] { 0.0, 0.0, 0.0, 1.0 };
+	}
 }

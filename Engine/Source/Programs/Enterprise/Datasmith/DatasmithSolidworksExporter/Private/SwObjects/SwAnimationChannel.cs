@@ -7,12 +7,12 @@ using System.Text;
 
 namespace SolidworksDatasmith.SwObjects
 {
-    public class SwAnimationChannel
-    {
-        // UNCOMMENT WHEN IMPLEMENTED
-        /* 
-        SwAnimation.PathType Path;
-        List<SwAnimationKeyframe> Keyframes;
-        */
-    }
+	public class SwAnimationChannel
+	{
+		// UNCOMMENT WHEN IMPLEMENTED
+		/*
+		SwAnimation.PathType Path;
+		List<SwAnimationKeyframe> Keyframes;
+		*/
+	}
 }

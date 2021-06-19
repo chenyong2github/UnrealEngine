@@ -13,34 +13,34 @@ using SolidworksDatasmith.Geometry;
 
 namespace SolidworksDatasmith.SwObjects
 {
-    public class SwAnimationIntermediateChannel
-    {
-        private Dictionary<int, SwAnimationIntermediateKeyframe> id2key = new Dictionary<int, SwAnimationIntermediateKeyframe>();
-        public Component2 Target;
-        public int interpolation;
-        public List<SwAnimationIntermediateKeyframe> keyframes;
+	public class SwAnimationIntermediateChannel
+	{
+		private Dictionary<int, SwAnimationIntermediateKeyframe> id2key = new Dictionary<int, SwAnimationIntermediateKeyframe>();
+		public Component2 Target;
+		public int interpolation;
+		public List<SwAnimationIntermediateKeyframe> keyframes;
 
-        public SwAnimationIntermediateChannel()
-        {
-        }
+		public SwAnimationIntermediateChannel()
+		{
+		}
 
-        public SwAnimationIntermediateKeyframe newKeyframe(int step, double time = -1.0)
-        {
-            SwAnimationIntermediateKeyframe key = new SwAnimationIntermediateKeyframe();
-            key.Step = step;
-            key.Time = time;
-            key.Owner = this;
-            keyframes.Add(key);
-            id2key.Add(key.Step, key);
-            return key;
-        }
+		public SwAnimationIntermediateKeyframe newKeyframe(int step, double time = -1.0)
+		{
+			SwAnimationIntermediateKeyframe key = new SwAnimationIntermediateKeyframe();
+			key.Step = step;
+			key.Time = time;
+			key.Owner = this;
+			keyframes.Add(key);
+			id2key.Add(key.Step, key);
+			return key;
+		}
 
-        public SwAnimationIntermediateKeyframe getKeyframe(int step)
-        {
-            SwAnimationIntermediateKeyframe res = null;
-            if (!id2key.TryGetValue(step, out res))
-                return null;
-            return res;
-        }
-    }
+		public SwAnimationIntermediateKeyframe getKeyframe(int step)
+		{
+			SwAnimationIntermediateKeyframe res = null;
+			if (!id2key.TryGetValue(step, out res))
+				return null;
+			return res;
+		}
+	}
 }

@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using System;
 using System.IO;
 using System.Collections.Generic;
@@ -10,40 +12,40 @@ using System.Windows.Forms;
 
 namespace PreprocessWxs
 {
-    class Program
-    {
-        static void ProcessBody(ref string text, ref bool copying)
-        {
-            if (text.Contains("<Component"))
-            {
-                text = text.Replace(">", " Win64=\"yes\">");
-                copying = true;
-            }
-            else if (text.Contains("<File"))
-            {
-                if (text.Contains("SourceDir\\Debug\\"))
-                    text = text.Replace("SourceDir\\Debug\\", "$(var.SolidworksBinDir)/");
-                else if (text.Contains("SourceDir\\Release\\"))
-                    text = text.Replace("SourceDir\\Release\\", "$(var.SolidworksBinDir)/");
-            }
-            //<TypeLib Id="{14E2A942-3C3F-3B90-A32E-857D2B46BCBF}" Description="SolidworksDatasmith" HelpDirectory="dir39B22699688E51DCD8DCBB99A47E835B" Language="0" MajorVersion="1" MinorVersion="0">
-            else if (text.Contains("<TypeLib"))
-            {
-                int pos1 = text.IndexOf("HelpDirectory=\"");
-                int pos2 = text.IndexOf("Language=\"");
+	class Program
+	{
+		static void ProcessBody(ref string text, ref bool copying)
+		{
+			if (text.Contains("<Component"))
+			{
+				text = text.Replace(">", " Win64=\"yes\">");
+				copying = true;
+			}
+			else if (text.Contains("<File"))
+			{
+				if (text.Contains("SourceDir\\Debug\\"))
+					text = text.Replace("SourceDir\\Debug\\", "$(var.SolidworksBinDir)/");
+				else if (text.Contains("SourceDir\\Release\\"))
+					text = text.Replace("SourceDir\\Release\\", "$(var.SolidworksBinDir)/");
+			}
+			//<TypeLib Id="{14E2A942-3C3F-3B90-A32E-857D2B46BCBF}" Description="SolidworksDatasmith" HelpDirectory="dir39B22699688E51DCD8DCBB99A47E835B" Language="0" MajorVersion="1" MinorVersion="0">
+			else if (text.Contains("<TypeLib"))
+			{
+				int pos1 = text.IndexOf("HelpDirectory=\"");
+				int pos2 = text.IndexOf("Language=\"");
 				if (pos2 < 0)
 					pos2 = text.IndexOf("MajorVersion=\"");
 				string temp = text.Substring(0, pos1);
-                temp += text.Substring(pos2);
-                text = temp;
-            }
-        }
+				temp += text.Substring(pos2);
+				text = temp;
+			}
+		}
 
-        static void ProcessEnd(string text, ref bool copying)
-        {
-            if (text.Contains("</Component>"))
-                copying = false;
-        }
+		static void ProcessEnd(string text, ref bool copying)
+		{
+			if (text.Contains("</Component>"))
+				copying = false;
+		}
 
 		static void BuildCandleScript(string Config, string ProjectPath, string EngineDir)
 		{
@@ -125,20 +127,20 @@ namespace PreprocessWxs
 		}
 
 		static void Main(string[] args)
-        {
-            // uncomment for to debug
-            //int processId = Process.GetCurrentProcess().Id;
-            //string message = string.Format("Please attach the debugger (elevated on Vista or Win 7) to process [{0}].", processId);
-            //MessageBox.Show(message, "Debug");
+		{
+			// uncomment for to debug
+			//int processId = Process.GetCurrentProcess().Id;
+			//string message = string.Format("Please attach the debugger (elevated on Vista or Win 7) to process [{0}].", processId);
+			//MessageBox.Show(message, "Debug");
 
-            string[] asm = File.ReadAllLines(args[1]);
-            string[] tlb = File.ReadAllLines(args[2]);
+			string[] asm = File.ReadAllLines(args[1]);
+			string[] tlb = File.ReadAllLines(args[2]);
 			string installerDir = args[3];
 			string EngineDir = args[4];
 
 			// // process TLB
 			List<string> tlb_chunk = new List<string>();
-            bool copying = false;
+			bool copying = false;
 			for (int i = 0; i < tlb.Length; i++)
 			{
 				ProcessBody(ref tlb[i], ref copying);
@@ -147,38 +149,38 @@ namespace PreprocessWxs
 				ProcessEnd(tlb[i], ref copying);
 			}
 
-            // process ASM
-            List<string> asm_chunk = new List<string>();
-            copying = false;
-            for (int i = 0; i < asm.Length; i++)
-            {
-                ProcessBody(ref asm[i], ref copying);
-                if (copying)
-                    asm_chunk.Add(asm[i]);
-                ProcessEnd(asm[i], ref copying);
-            }
+			// process ASM
+			List<string> asm_chunk = new List<string>();
+			copying = false;
+			for (int i = 0; i < asm.Length; i++)
+			{
+				ProcessBody(ref asm[i], ref copying);
+				if (copying)
+					asm_chunk.Add(asm[i]);
+				ProcessEnd(asm[i], ref copying);
+			}
 
-            // get the version info
-            FileVersionInfo version = FileVersionInfo.GetVersionInfo(args[0]);
+			// get the version info
+			FileVersionInfo version = FileVersionInfo.GetVersionInfo(args[0]);
 
-            List<string> Product = new List<string>();
-            string[] template = File.ReadAllLines(Path.Combine(installerDir,"Product.template"));
-            foreach (var line in template)
-            {
-                if (line.Contains("$ASM_COMPONENT$"))
-                {
-                    foreach (var ll in asm_chunk)
-                        Product.Add(ll);
-                }
-                else if (line.Contains("$TLB_COMPONENT$"))
-                {
-                    foreach (var ll in tlb_chunk)
-                        Product.Add(ll);
-                }
-                else if (line.Contains("$ASM_VERSION$"))
-                {
-                    string completed = line.Replace("$ASM_VERSION$", version.ProductVersion);
-                    Product.Add(completed);
+			List<string> Product = new List<string>();
+			string[] template = File.ReadAllLines(Path.Combine(installerDir,"Product.template"));
+			foreach (var line in template)
+			{
+				if (line.Contains("$ASM_COMPONENT$"))
+				{
+					foreach (var ll in asm_chunk)
+						Product.Add(ll);
+				}
+				else if (line.Contains("$TLB_COMPONENT$"))
+				{
+					foreach (var ll in tlb_chunk)
+						Product.Add(ll);
+				}
+				else if (line.Contains("$ASM_VERSION$"))
+				{
+					string completed = line.Replace("$ASM_VERSION$", version.ProductVersion);
+					Product.Add(completed);
 				}
 				else if (line.Contains("$ENGINE_DIR$"))
 				{
@@ -191,13 +193,13 @@ namespace PreprocessWxs
 					Product.Add(completed);
 				}
 				else
-                    Product.Add(line);
-            }
+					Product.Add(line);
+			}
 
-            File.WriteAllLines(Path.Combine(installerDir, "Product.wxs"), Product.ToArray());
+			File.WriteAllLines(Path.Combine(installerDir, "Product.wxs"), Product.ToArray());
 
 			BuildCandleScript("Release", installerDir, EngineDir);
 			BuildLightScript("Release", installerDir, EngineDir);
 		}
-    }
+	}
 }
