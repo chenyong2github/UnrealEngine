@@ -5101,7 +5101,9 @@ void GlobalBeginCompileShader(
 		Input.Environment.CompilerFlags.Add(CFLAG_ForceDXC);
 	}
 
-	if (IsMobilePlatform((EShaderPlatform)Target.Platform))
+	bool bIsMobilePlatform = IsMobilePlatform((EShaderPlatform)Target.Platform);
+
+	if (bIsMobilePlatform)
 	{
 		if (IsOpenGLPlatform((EShaderPlatform)Target.Platform))
 		{
@@ -5117,7 +5119,7 @@ void GlobalBeginCompileShader(
 
 	{
 		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ClearCoatNormal"));
-		Input.Environment.SetDefine(TEXT("CLEAR_COAT_BOTTOM_NORMAL"), CVar ? (CVar->GetValueOnAnyThread() != 0) : 0);
+		Input.Environment.SetDefine(TEXT("CLEAR_COAT_BOTTOM_NORMAL"), CVar ? (CVar->GetValueOnAnyThread() != 0) && !bIsMobilePlatform : 0);
 	}
 
 	{
