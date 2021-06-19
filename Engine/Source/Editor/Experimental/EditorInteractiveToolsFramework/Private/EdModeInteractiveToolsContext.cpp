@@ -820,8 +820,8 @@ public:
 
 void UEdModeInteractiveToolsContext::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
-	// tools framework cannot use HitProxy so skip these calls
-	if (PDI->IsHitTesting())
+	// skip HitProxy rendering passes if desired
+	if (PDI->IsHitTesting() && bEnableRenderingDuringHitProxyPass == false)
 	{
 		return;
 	}
@@ -1272,4 +1272,10 @@ void UEdModeInteractiveToolsContext::OnToolEnded(UInteractiveToolManager* InTool
 void UEdModeInteractiveToolsContext::OnToolPostBuild(UInteractiveToolManager* InToolManager, EToolSide InSide, UInteractiveTool* InBuiltTool, UInteractiveToolBuilder* InToolBuilder, const FToolBuilderState& ToolState)
 {
 	// todo: Add any shared tool targets for the mode toolkit
+}
+
+
+void UEdModeInteractiveToolsContext::SetEnableRenderingDuringHitProxyPass(bool bEnabled)
+{
+	bEnableRenderingDuringHitProxyPass = bEnabled;
 }

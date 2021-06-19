@@ -89,6 +89,19 @@ public:
 
 	FRay GetLastWorldRay() const;
 
+	//
+	// Configuration functions
+	//
+
+	/*
+	 * Configure whether ::Render() should early-out for HitProxy rendering passes.
+	 * If the Mode does not use HitProxy, and the Tools/Gizmos have expensive Render() calls, this can help with interactive performance.
+	 */
+	void SetEnableRenderingDuringHitProxyPass(bool bEnabled);
+
+	/** @return true if HitProxy rendering will be allowed in ::Render() */
+	bool GetEnableRenderingDuringHitProxyPass() const { return bEnableRenderingDuringHitProxyPass; }
+
 protected:
 	// we hide these 
 	virtual void Initialize(IToolsContextQueriesAPI* QueriesAPI, IToolsContextTransactionsAPI* TransactionsAPI) override;
@@ -150,4 +163,7 @@ protected:
 private:
 	FEditorModeTools* EditorModeManager = nullptr;
 	bool bIsTrackingMouse;
+
+	// currently defaulting to enabled as FEdModes generally assume this, and in most cases hitproxy pass is not expensive.
+	bool bEnableRenderingDuringHitProxyPass = true;
 };
