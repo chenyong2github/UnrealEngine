@@ -313,6 +313,9 @@ void UModelingToolsEditorMode::Enter()
 	// register gizmo helper
 	UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(ToolsContext.Get());
 
+	// disable HitProxy rendering, it is not used in Modeling Mode and adds overhead to Render() calls
+	ToolsContext.Get()->SetEnableRenderingDuringHitProxyPass(false);
+
 	// register object creation api
 	UEditorModelingObjectsCreationAPI* ModelCreationAPI = UEditorModelingObjectsCreationAPI::Register(ToolsContext.Get());
 	if (ModelCreationAPI)
@@ -718,6 +721,9 @@ void UModelingToolsEditorMode::Exit()
 
 	// clear realtime viewport override
 	ConfigureRealTimeViewportsOverride(false);
+
+	// re-enable HitProxy rendering
+	ToolsContext.Get()->SetEnableRenderingDuringHitProxyPass(true);
 
 	// Call base Exit method to ensure proper cleanup
 	UEdMode::Exit();
