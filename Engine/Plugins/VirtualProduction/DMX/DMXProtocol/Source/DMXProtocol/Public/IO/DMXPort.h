@@ -41,16 +41,14 @@ public:
 	
 protected:	
 	/**
-	 * Adds a Input that receives all raw signals received on this port. Returns the new Input
-	 * Only useful for objects that want to process all data, and not just data on tick (e.g. Activity Monitor)
+	 * Adds a Raw Listener that receives all raw signals received on this port.
+	 * Only useful for objects that want to process all data, and not just data on tick (e.g. DMX Take Recorder).
+	 * Should not be used directly, instead see DMXRawListener constructor.
 	 */
-	virtual void AddRawInput(TSharedRef<FDMXRawListener> InRawInput) = 0;
+	virtual void AddRawListener(TSharedRef<FDMXRawListener> InRawListener) = 0;
 
-	/**
-	 * Removes the raw Input from the port.
-	 * Usually doesn't need to be called, as this is called on destruction of the raw Inputs.
-	 */
-	virtual void RemoveRawInput(TSharedRef<FDMXRawListener> RawInput) = 0;
+	/** Removes the Raw Listener from the port. Should not be used directly, instead see DMXRawListener. */
+	virtual void RemoveRawListener(TSharedRef<FDMXRawListener> InRawListener) = 0;
 
 	/** Registers the port with its protocol. Returns true if successfully registered */
 	virtual bool Register() = 0;

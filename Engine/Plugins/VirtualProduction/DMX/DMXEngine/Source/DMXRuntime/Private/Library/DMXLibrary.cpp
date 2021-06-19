@@ -388,7 +388,6 @@ void UDMXLibrary::UpdatePorts()
 			// Default to enabled
 			bool bEnabled = true;
 
-			Modify();
 			if (PortReferences.InputPortReferences.IsValidIndex(IndexInputPortConfig))
 			{
 				PortReferences.InputPortReferences.Insert(FDMXInputPortReference(InputPortGuid, bEnabled), IndexInputPortConfig);
@@ -413,7 +412,6 @@ void UDMXLibrary::UpdatePorts()
 			// Default to enabled
 			bool bEnabled = true;
 
-			Modify();
 			if (PortReferences.OutputPortReferences.IsValidIndex(IndexOutputPortConfig))
 			{
 				PortReferences.OutputPortReferences.Insert(FDMXOutputPortReference(OutputPortGuid, bEnabled), IndexOutputPortConfig);
@@ -472,20 +470,6 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 	if (bNeedsUpgradeFromControllersToPorts)
 	{
 		UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
-
-		// Disable all port references, to later only enable the ones that got generated from controllers
-		for (FDMXInputPortReference& InputPortRef : PortReferences.InputPortReferences)
-		{
-			bool bEnabledFlag = false;
-			InputPortRef = FDMXInputPortReference(InputPortRef, bEnabledFlag);
-		}
-
-		// Disable all port references, to later only enable the ones that got generated from controllers
-		for (FDMXOutputPortReference& OutputPortRef : PortReferences.OutputPortReferences)
-		{
-			bool bEnabledFlag = false;
-			OutputPortRef = FDMXOutputPortReference(OutputPortRef, bEnabledFlag);
-		}
 
 		// Helpers to enable port references
 		struct Local
@@ -551,18 +535,17 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 				}
 				
 				// The 4.26 libraries held ambigous values for controllers, we mend it here to the best possible
-				// It seems depending on what the user set either was updated so we take the max.
 				const int32 FixedLocalUniverseStart = VoidController->UniverseLocalStart + GlobalUniverseOffset_DEPRECATED;
 				const int32 FixedLocalUniverseEnd = VoidController->UniverseLocalEnd + GlobalUniverseOffset_DEPRECATED;
 				int32 FixedLocalUniverseNum = FixedLocalUniverseEnd - FixedLocalUniverseStart + 1;
 				FixedLocalUniverseNum = FMath::Max(FixedLocalUniverseNum, VoidController->UniverseLocalNum);
 
-				const int32 FixedExternUniverseStart = VoidController->UniverseRemoteStart + GlobalUniverseOffset_DEPRECATED;
+				int32 FixedExternUniverseStart = VoidController->UniverseRemoteStart + GlobalUniverseOffset_DEPRECATED;
 				const int32 FixedExternUnivereEnd = VoidController->UniverseRemoteEnd + GlobalUniverseOffset_DEPRECATED;
 				int32 FixedExternUniverseNum = FixedExternUnivereEnd - FixedExternUniverseStart + 1;
-				FixedExternUniverseNum = FMath::Max(FixedExternUnivereEnd, VoidController->UniverseLocalNum);
+				FixedExternUniverseNum = FMath::Max(FixedExternUnivereEnd, FixedExternUniverseStart + VoidController->UniverseLocalNum);
 
-				const int32 FixedNumUniverses = FMath::Max(FixedLocalUniverseNum, FixedExternUniverseNum);
+				const int32 FixedNumUniverses = FixedLocalUniverseNum;
 
 				// Convert the controller to an input port	
 				FDMXInputPortConfig* ExistingInputPortConfigPtr = ProtocolSettings->FindInputPortConfig([VoidController, &InterfaceIPAddress_DEPRECATED, &ProtocolName, FixedExternUniverseStart](FDMXInputPortConfig& InputPortConfig) {

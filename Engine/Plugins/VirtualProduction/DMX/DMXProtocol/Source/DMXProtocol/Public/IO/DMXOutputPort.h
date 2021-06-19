@@ -84,35 +84,15 @@ public:
 	/** Updates the Port to use the config of the OutputPortConfig */
 	void UpdateFromConfig(FDMXOutputPortConfig& OutputPortConfig);
 
-public:
-	// ~Begin DMXPort Interface 
-
-	/** Returns true if the port is successfully registered with its protocol */
+	//~ Begin DMXPort Interface 
 	virtual bool IsRegistered() const override;
-
-	/** Returns the Guid of the Port */
 	virtual const FGuid& GetPortGuid() const override;
-
 protected:
-	/**
-	 * Adds a Input that receives all raw signals received on this port. Returns the new Input
-	 * Only useful for objects that want to process all data, and not just data on tick (e.g. Activity Monitor)
-	 */
-	virtual void AddRawInput(TSharedRef<FDMXRawListener> RawInput) override;
-
-	/**
-	 * Removes the raw Input from the port.
-	 * Usually doesn't need to be called, this is called on destruction of the raw Inputs.
-	 */
-	virtual void RemoveRawInput(TSharedRef<FDMXRawListener> RawInput) override;
-
-	/** Registers the port with its protocol. Returns true if successfully registered */
+	virtual void AddRawListener(TSharedRef<FDMXRawListener> InRawListener) override;
+	virtual void RemoveRawListener(TSharedRef<FDMXRawListener> InRawListenerToRemove) override;
 	virtual bool Register() override;
-
-	/** Unregisteres the port if it was registered with its protocol */
 	virtual void Unregister() override;
-
-	// ~End DMXPort Interface
+	//~ End DMXPort Interface
 
 public:
 	/** Sends DMX over the port */
@@ -136,21 +116,24 @@ public:
 	 * @param bEvenIfNotLoopbackToEngine	Defaults to false. If true, succeeds even if the signal should not be looped back to engine (useful for monitoring).
 	 * @return								True if the OutDMXSignal was set.
 	 */
-	bool GameThreadGetDMXSignal(int32 LocalUniverseID, FDMXSignalSharedPtr& OutDMXSignal, bool bEvenIfNotLoopbackToEngine = false);
+	bool GameThreadGetDMXSignal(int32 LocalUniverseID, FDMXSignalSharedPtr& OutDMXSignal, bool bEvenIfNotLoopbackToEngine);
 
 	/**  DEPRECATED 4.27. Gets the DMX signal from an extern (remote) Universe ID. */
 	UE_DEPRECATED(4.27, "Use GameThreadGetDMXSignal instead. GameThreadGetDMXSignalFromRemoteUniverse only exists to support deprecated blueprint nodes.")
-	bool GameThreadGetDMXSignalFromRemoteUniverse(FDMXSignalSharedPtr& OutDMXSignal, int32 RemoteUniverseID, bool bEvenIfNotLoopbackToEngine = false);
+	bool GameThreadGetDMXSignalFromRemoteUniverse(FDMXSignalSharedPtr& OutDMXSignal, int32 RemoteUniverseID, bool bEvenIfNotLoopbackToEngine);
 
 	/** Returns the Destination Address */
 	FORCEINLINE const FString& GetDestinationAddress() const { return DestinationAddress; }
 
-protected:
+private:
 	/** Called to set if DMX should be enabled */
 	void OnSetSendDMXEnabled(bool bEnabled);
 
 	/** Called to set if DMX should be enabled */
 	void OnSetReceiveDMXEnabled(bool bEnabled);
+
+	/** Returns the port config that corresponds to the guid of this port. */
+	FDMXOutputPortConfig* FindOutputPortConfigChecked() const;
 	
 	/** The DMX sender, or nullptr if not registered */
 	TSharedPtr<IDMXSender> DMXSender;
@@ -163,8 +146,7 @@ protected:
 
 	/** Priority on which packets are being sent */
 	int32 Priority;
-		
-private:
+
 	/** Map of latest Singals per Universe */
 	TMap<int32, FDMXSignalSharedPtr> ExternUniverseToLatestSignalMap;
 
@@ -172,11 +154,7 @@ private:
 	TSet<TSharedRef<FDMXRawListener>> RawListeners;
 
 	/** True if the port is registered with it its protocol */
-	bool bRegistered;
-
-private:
-	/** Returns the port config that corresponds to the guid of this port. */
-	FDMXOutputPortConfig* FindOutputPortConfigChecked() const;
+	bool bRegistered = false;
 
 	/** The unique identifier of this port, shared with the port config this was constructed from. Should not be changed after construction. */
 	FGuid PortGuid;

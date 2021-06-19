@@ -154,19 +154,19 @@ bool FDMXInputPort::IsRegistered() const
 	return bRegistered;
 }
 
-void FDMXInputPort::AddRawInput(TSharedRef<FDMXRawListener> RawInput)
+void FDMXInputPort::AddRawListener(TSharedRef<FDMXRawListener> InRawListener)
 {
-	check(!RawListeners.Contains(RawInput));
+	check(!RawListeners.Contains(InRawListener));
 
 	// Inputs need to run in the game thread
 	check(IsInGameThread());
 
-	RawListeners.Add(RawInput);
+	RawListeners.Add(InRawListener);
 }
 
-void FDMXInputPort::RemoveRawInput(TSharedRef<FDMXRawListener> RawInput)
+void FDMXInputPort::RemoveRawListener(TSharedRef<FDMXRawListener> InRawListenerToRemove)
 {
-	RawListeners.Remove(RawInput);
+	RawListeners.Remove(InRawListenerToRemove);
 }
 
 bool FDMXInputPort::Register()
@@ -227,9 +227,9 @@ void FDMXInputPort::ClearBuffers()
 	check(IsInGameThread());
 #endif // UE_BUILD_DEBUG
 
-	for (const TSharedRef<FDMXRawListener>& RawInput : RawListeners)
+	for (const TSharedRef<FDMXRawListener>& RawListener : RawListeners)
 	{
-		RawInput->ClearBuffer();
+		RawListener->ClearBuffer();
 	}
 
 	DefaultInputQueue.Empty();

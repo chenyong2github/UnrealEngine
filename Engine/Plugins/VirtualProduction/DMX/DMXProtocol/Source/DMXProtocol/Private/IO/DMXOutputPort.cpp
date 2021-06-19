@@ -137,19 +137,19 @@ bool FDMXOutputPort::IsRegistered() const
 	return false;
 }
 
-void FDMXOutputPort::AddRawInput(TSharedRef<FDMXRawListener> RawInput)
+void FDMXOutputPort::AddRawListener(TSharedRef<FDMXRawListener> InRawListener)
 {
-	check(!RawListeners.Contains(RawInput));
+	check(!RawListeners.Contains(InRawListener));
 
 	// Inputs need to run in the game thread
 	check(IsInGameThread());
 
-	RawListeners.Add(RawInput);
+	RawListeners.Add(InRawListener);
 }
 
-void FDMXOutputPort::RemoveRawInput(TSharedRef<FDMXRawListener> RawInput)
+void FDMXOutputPort::RemoveRawListener(TSharedRef<FDMXRawListener> InRawListenerToRemove)
 {
-	RawListeners.Remove(RawInput);
+	RawListeners.Remove(InRawListenerToRemove);
 }
 
 void FDMXOutputPort::SendDMX(int32 LocalUniverseID, const TMap<int32, uint8>& ChannelToValueMap)
@@ -294,10 +294,12 @@ void FDMXOutputPort::ClearBuffers()
 		DMXSender->ClearBuffer();
 	}
 
-	for (const TSharedRef<FDMXRawListener>& RawInput : RawListeners)
+	for (const TSharedRef<FDMXRawListener>& RawListener : RawListeners)
 	{
-		RawInput->ClearBuffer();
+		RawListener->ClearBuffer();
 	}
+
+	ExternUniverseToLatestSignalMap.Reset();
 }
 
 bool FDMXOutputPort::IsLoopbackToEngine() const

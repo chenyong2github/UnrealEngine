@@ -95,7 +95,7 @@ void SDMXChannelsMonitor::Construct(const FArguments& InArgs)
 					[
 						SNew(STextBlock)
 						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-						.Text(LOCTEXT("ClearTextLabel", "Clear Values"))
+						.Text(LOCTEXT("ClearTextLabel", "Clear DMX Buffers"))
 					]
 				]
 			]
@@ -143,23 +143,20 @@ void SDMXChannelsMonitor::Tick(const FGeometry& AllottedGeometry, const double I
 	const bool bSendOrReceiveDisabled = !ProtocolSettings->IsSendDMXEnabled() || !ProtocolSettings->IsReceiveDMXEnabled();
 
 	// The widget returns the right arrays, also output ports that loopback when input ports are selected.
-	if (SourceSelector->IsMonitorAllPorts())
+	for (const FDMXInputPortSharedRef& InputPort : SourceSelector->GetSelectedInputPorts())
 	{
-		for (const FDMXInputPortSharedRef& InputPort : SourceSelector->GetSelectedInputPorts())
+		if (InputPort->GameThreadGetDMXSignal(UniverseID, Signal))
 		{
-			if (InputPort->GameThreadGetDMXSignal(UniverseID, Signal))
-			{
-				break;
-			}
+			break;
 		}
+	}
 
-		for (const FDMXOutputPortSharedRef& OutputPort : SourceSelector->GetSelectedOutputPorts())
+	for (const FDMXOutputPortSharedRef& OutputPort : SourceSelector->GetSelectedOutputPorts())
+	{
+		constexpr bool bEvenIfNotLoopbackToEngine = true;
+		if (OutputPort->GameThreadGetDMXSignal(UniverseID, Signal, bEvenIfNotLoopbackToEngine))
 		{
-			constexpr bool bEvenIfNotLoopbackToEngine = true;
-			if (OutputPort->GameThreadGetDMXSignal(UniverseID, Signal, bEvenIfNotLoopbackToEngine))
-			{
-				break;
-			}
+			break;
 		}
 	}
 
@@ -258,6 +255,7 @@ void SDMXChannelsMonitor::SetChannelValues(const TArray<uint8>& Buffer)
 FReply SDMXChannelsMonitor::OnClearButtonClicked()
 {
 	FDMXEditorUtils::ClearAllDMXPortBuffers();
+	FDMXEditorUtils::ClearFixturePatchCachedData();
 
 	ZeroChannelValues();
 

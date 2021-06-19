@@ -180,6 +180,19 @@ bool UDMXEntityFixturePatch::UpdateCache()
 			}
 		}
 
+		for (const FDMXOutputPortSharedRef& OutputPort : DMXLibrary->GetOutputPorts())
+		{
+			constexpr bool bGetSignalWithLoopbackDisabled = false;
+			if (OutputPort->GameThreadGetDMXSignal(UniverseID, NewDMXSignal, bGetSignalWithLoopbackDisabled))
+			{
+				if (!LastDMXSignal.IsValid() ||
+					NewDMXSignal->Timestamp > LastDMXSignal->Timestamp)
+				{
+					LastDMXSignal = NewDMXSignal;
+				}
+			}
+		}
+
 		if (LastDMXSignal.IsValid())
 		{
 			// Update the cache and see if data changed
@@ -292,6 +305,7 @@ void UDMXEntityFixturePatch::SetFixtureType(UDMXEntityFixtureType* NewFixtureTyp
 	if (NewFixtureType && NewFixtureType != ParentFixtureTypeTemplate)
 	{
 		ParentFixtureTypeTemplate = NewFixtureType;
+		
 		ActiveMode = ParentFixtureTypeTemplate->Modes.Num() > 0 ? 0 : INDEX_NONE;
 	}
 	else
@@ -737,8 +751,10 @@ bool UDMXEntityFixturePatch::SendNormalizedMatrixCellValue(const FIntPoint& Cell
 		const FDMXFixtureCellAttribute& ExistingAttribute = *ExistingAttributePtr;
 
 		Value = FMath::Clamp(Value, 0.0f, 1.0f);
-		const uint32 IntValue = UDMXEntityFixtureType::GetDataTypeMaxValue(ExistingAttribute.DataType) * Value;
 
+		const uint32 UnsignedIntValue = UDMXEntityFixtureType::GetDataTypeMaxValue(ExistingAttribute.DataType) * Value;
+		const int32  IntValue = FMath::Clamp(UnsignedIntValue, static_cast<uint32>(0), static_cast<uint32>(TNumericLimits<int32>::Max()));
+	
 		SendMatrixCellValue(CellCoordinate, Attribute, IntValue);
 
 		return true;

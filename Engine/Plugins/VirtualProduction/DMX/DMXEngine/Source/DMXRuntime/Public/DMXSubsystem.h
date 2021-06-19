@@ -44,7 +44,7 @@ public:
 
 	/**  Sends DMX Values over the Output Port */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	static void SendDMXToOutputPort(FDMXOutputPortReference OutputPortReference, int32 LocalUniverse, TMap<int32, uint8> ChannelToValueMap);
+	static void SendDMXToOutputPort(FDMXOutputPortReference OutputPortReference, TMap<int32, uint8> ChannelToValueMap, int32 LocalUniverse = 1);
 
 	/**  DEPRECATED 4.27 */
 	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.27. Use GetDMXDataFromInputPort or GetDMXDataFromOutputPort instead."))
@@ -52,11 +52,11 @@ public:
 	
 	/**  Gets accumulated latest DMX Values from the Input Port (all that's been received since Begin Play) */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	static void GetDMXDataFromInputPort(FDMXInputPortReference InputPortReference, int32 LocalUniverse, TArray<uint8>& DMXData);
+	static void GetDMXDataFromInputPort(FDMXInputPortReference InputPortReference, TArray<uint8>& DMXData, int32 LocalUniverse = 1);
 	
 	/**  Gets accumulated latest DMX Values from the Output Port  (all that's been sent since Begin Play)*/
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	static void GetDMXDataFromOutputPort(FDMXOutputPortReference OutputPortReference, int32 LocalUniverse, TArray<uint8>& DMXData);
+	static void GetDMXDataFromOutputPort(FDMXOutputPortReference OutputPortReference, TArray<uint8>& DMXData, int32 LocalUniverse = 1);
 
 	/**  Return reference to array of Fixture Patch objects of a given type. */
 	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (AutoCreateRefTerm = "FixtureType"))

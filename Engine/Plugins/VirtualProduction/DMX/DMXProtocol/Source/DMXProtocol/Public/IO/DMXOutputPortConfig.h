@@ -78,11 +78,11 @@ public:
 
 protected:
 	/** The name displayed wherever the port can be displayed */
-	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config")
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
 	FString PortName;
 
 	/** DMX Protocol */
-	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config")
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
 	FName ProtocolName;
 
 	/** The type of communication used with this port */
@@ -90,34 +90,34 @@ protected:
 	EDMXCommunicationType CommunicationType;
 
 	/** The IP address of the network interface card over which outbound DMX is sent */
-	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Network Interface Card IP Address"))
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Network Interface Card IP Address"))
 	FString DeviceAddress;
 
 	/** For Unicast, the IP address outbound DMX is sent to */
-	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Destination IP Address"))
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Destination IP Address"))
 	FString DestinationAddress; 
 
 	/** If true, the signals of output to this port is input into to the engine. It will still show only under output ports and is not visible in Monitors as Input. */
-	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Input into Engine"))
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Input into Engine"))
 	bool bLoopbackToEngine;
 
 	/** Local Start Universe */
-	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config")
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
 	int32 LocalUniverseStart;
 
 	/** Number of Universes */
-	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Amount of Universes"))
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Amount of Universes"))
 	int32 NumUniverses;
 
 	/** 
 	 * The start address this being transposed to. 
 	 * E.g. if LocalUniverseStart is 1 and this is 100, Local Universe 1 is sent/received as Universe 100.
 	 */
-	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config")
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
 	int32 ExternUniverseStart;
 
 	/** Priority on which packets are being sent */
-	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config")
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
 	int32 Priority;
 
 protected:
@@ -128,6 +128,6 @@ protected:
 	 * Unique identifier, shared with the port instance.
 	 * Note: This needs be BlueprintReadWrite to be accessible to property type customization, but is hidden by customization.
 	 */
-	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config Guid")
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config Guid")
 	FGuid PortGuid;
 };

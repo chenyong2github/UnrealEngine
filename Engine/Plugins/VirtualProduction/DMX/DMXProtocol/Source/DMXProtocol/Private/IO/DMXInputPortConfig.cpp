@@ -23,7 +23,7 @@ FDMXInputPortConfigParams::FDMXInputPortConfigParams(const FDMXInputPortConfig& 
 
 FDMXInputPortConfig::FDMXInputPortConfig(const FGuid& InPortGuid)
 	: CommunicationType(EDMXCommunicationType::InternalOnly)
-	, DeviceAddress(TEXT("None"))
+	, DeviceAddress(TEXT("127.0.0.1"))
 	, LocalUniverseStart(1)
 	, NumUniverses(10)
 	, ExternUniverseStart(1)

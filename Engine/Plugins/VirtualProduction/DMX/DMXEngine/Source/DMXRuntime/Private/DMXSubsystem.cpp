@@ -142,7 +142,7 @@ void UDMXSubsystem::SendDMXRaw(FDMXProtocolName SelectedProtocol, int32 RemoteUn
 	OutResult = EDMXSendResult::Success;
 }
 
-void UDMXSubsystem::SendDMXToOutputPort(FDMXOutputPortReference OutputPortReference, int32 LocalUniverseID, TMap<int32, uint8> ChannelToValueMap)
+void UDMXSubsystem::SendDMXToOutputPort(FDMXOutputPortReference OutputPortReference, TMap<int32, uint8> ChannelToValueMap, int32 LocalUniverse)
 {
 	const FGuid& PortGuid = OutputPortReference.GetPortGuid();
 	const FDMXOutputPortSharedRef* OutputPortPtr = FDMXPortManager::Get().GetOutputPorts().FindByPredicate([PortGuid](const FDMXOutputPortSharedRef& OutputPort) {
@@ -151,7 +151,7 @@ void UDMXSubsystem::SendDMXToOutputPort(FDMXOutputPortReference OutputPortRefere
 
 	if (OutputPortPtr)
 	{
-		(*OutputPortPtr)->SendDMX(LocalUniverseID, ChannelToValueMap);
+		(*OutputPortPtr)->SendDMX(LocalUniverse, ChannelToValueMap);
 	}
 	else
 	{
@@ -190,7 +190,8 @@ void UDMXSubsystem::GetRawBuffer(FDMXProtocolName SelectedProtocol, int32 Remote
 
 			// Using deprecated function in deprecated node to get data from a remote universe.
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			if (OutputPort->GameThreadGetDMXSignalFromRemoteUniverse(Signal, RemoteUniverse))
+			constexpr bool bWhenLoopbackIsDisabled = false;
+			if (OutputPort->GameThreadGetDMXSignalFromRemoteUniverse(Signal, RemoteUniverse, bWhenLoopbackIsDisabled))
 			{
 				DMXBuffer = Signal->ChannelData;
 			}
@@ -199,7 +200,7 @@ void UDMXSubsystem::GetRawBuffer(FDMXProtocolName SelectedProtocol, int32 Remote
 	}
 }
 
-void UDMXSubsystem::GetDMXDataFromInputPort(FDMXInputPortReference InputPortReference, int32 LocalUniverseID, TArray<uint8>& DMXData)
+void UDMXSubsystem::GetDMXDataFromInputPort(FDMXInputPortReference InputPortReference, TArray<uint8>& DMXData, int32 LocalUniverse)
 {
 	const FGuid& PortGuid = InputPortReference.GetPortGuid();
 	const FDMXInputPortSharedRef* InputPortPtr = FDMXPortManager::Get().GetInputPorts().FindByPredicate([PortGuid](const FDMXInputPortSharedRef& InputPort) {
@@ -211,7 +212,7 @@ void UDMXSubsystem::GetDMXDataFromInputPort(FDMXInputPortReference InputPortRefe
 		const FDMXInputPortSharedRef& InputPort = *InputPortPtr;
 
 		FDMXSignalSharedPtr Signal;
-		if (InputPort->GameThreadGetDMXSignal(LocalUniverseID, Signal))
+		if (InputPort->GameThreadGetDMXSignal(LocalUniverse, Signal))
 		{
 			DMXData = Signal->ChannelData;
 		}
@@ -222,7 +223,7 @@ void UDMXSubsystem::GetDMXDataFromInputPort(FDMXInputPortReference InputPortRefe
 	}
 }
 
-void UDMXSubsystem::GetDMXDataFromOutputPort(FDMXOutputPortReference OutputPortReference, int32 LocalUniverseID, TArray<uint8>& DMXData)
+void UDMXSubsystem::GetDMXDataFromOutputPort(FDMXOutputPortReference OutputPortReference, TArray<uint8>& DMXData, int32 LocalUniverse)
 {
 	const FGuid& PortGuid = OutputPortReference.GetPortGuid();
 	const FDMXOutputPortSharedRef* OutputPortPtr = FDMXPortManager::Get().GetOutputPorts().FindByPredicate([PortGuid](const FDMXOutputPortSharedRef& OutputPort) {
@@ -234,7 +235,8 @@ void UDMXSubsystem::GetDMXDataFromOutputPort(FDMXOutputPortReference OutputPortR
 		const FDMXOutputPortSharedRef& OutputPort = *OutputPortPtr;
 
 		FDMXSignalSharedPtr Signal;
-		if (OutputPort->GameThreadGetDMXSignal(LocalUniverseID, Signal))
+		constexpr bool bWhenLoopbackIsDisabled = false;
+		if (OutputPort->GameThreadGetDMXSignal(LocalUniverse, Signal, bWhenLoopbackIsDisabled))
 		{
 			DMXData = Signal->ChannelData;
 		}

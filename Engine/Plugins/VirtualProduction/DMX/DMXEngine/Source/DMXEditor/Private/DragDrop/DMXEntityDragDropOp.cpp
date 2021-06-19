@@ -103,6 +103,10 @@ bool FDMXEntityDragDropOperation::HandleDropOnCategoryRow(const TSharedPtr<SDMXC
 						FixturePatch->Modify();
 
 						FixturePatch->PreEditChange(nullptr);
+						if (FixturePatch->IsAutoAssignAddress())
+						{
+							FDMXEditorUtils::TryAutoAssignToUniverses(FixturePatch, TSet<int32>({ UniverseID }));
+						}
 						FixturePatch->SetUniverseID(UniverseID);
 						FixturePatch->PostEditChange();
 					}
