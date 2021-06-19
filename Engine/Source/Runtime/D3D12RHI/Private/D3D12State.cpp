@@ -454,6 +454,7 @@ bool FD3D12BlendState::GetInitializer(class FBlendStateInitializerRHI& Init)
 			| ((Src.RenderTargetWriteMask & D3D12_COLOR_WRITE_ENABLE_ALPHA) ? CW_ALPHA : 0));
 	}
 	Init.bUseIndependentRenderTargetBlendStates = !!Desc.IndependentBlendEnable;
+	Init.bUseAlphaToCoverage = !!Desc.AlphaToCoverageEnable;
 	return true;
 }
 

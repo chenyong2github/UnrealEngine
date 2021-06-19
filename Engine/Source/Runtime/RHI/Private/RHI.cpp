@@ -545,6 +545,7 @@ void FBlendStateInitializerRHI::FromString(const FStringView& InSrc)
 uint32 GetTypeHash(const FBlendStateInitializerRHI& Initializer)
 {
 	uint32 Hash = GetTypeHash(Initializer.bUseIndependentRenderTargetBlendStates);
+	Hash = HashCombine(Hash, Initializer.bUseAlphaToCoverage);
 	for (int32 i = 0; i < MaxSimultaneousRenderTargets; ++i)
 	{
 		Hash = HashCombine(Hash, GetTypeHash(Initializer.RenderTargets[i]));
@@ -556,6 +557,7 @@ uint32 GetTypeHash(const FBlendStateInitializerRHI& Initializer)
 bool operator== (const FBlendStateInitializerRHI& A, const FBlendStateInitializerRHI& B)
 {
 	bool bSame = A.bUseIndependentRenderTargetBlendStates == B.bUseIndependentRenderTargetBlendStates;
+	bSame = bSame && A.bUseAlphaToCoverage == B.bUseAlphaToCoverage;
 	for (int32 i = 0; i < MaxSimultaneousRenderTargets && bSame; ++i)
 	{
 		bSame = bSame && A.RenderTargets[i] == B.RenderTargets[i];
