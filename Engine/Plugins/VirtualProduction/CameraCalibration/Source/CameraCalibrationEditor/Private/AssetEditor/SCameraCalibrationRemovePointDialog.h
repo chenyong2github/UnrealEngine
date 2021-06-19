@@ -6,6 +6,7 @@
 
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
+class ITableRow;
 class FRemoveLensDataListItem;
 class STableViewBase;
 class SWindow;

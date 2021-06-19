@@ -1235,14 +1235,6 @@ const FBaseLensTable& ULensFile::GetDataTable(ELensDataCategory InDataCategory) 
 		{
 			return NodalOffsetTable;
 		}
-	case ELensDataCategory::Focus:
-		{
-			return EncodersTable;
-		}
-	case ELensDataCategory::Iris:
-		{
-			return EncodersTable;
-		}
 	default:
 		{
 			checkNoEntry();
@@ -1260,7 +1252,7 @@ void ULensFile::PostInitProperties()
 	CreateIntermediateDisplacementMaps(DisplacementMapResolution);
 
 	// Set a Lens file reference to all tables
-	EncodersTable.LensFile = DistortionTable.LensFile =
+	DistortionTable.LensFile =
 		FocalLengthTable.LensFile = ImageCenterTable.LensFile =
 		NodalOffsetTable.LensFile = STMapTable.LensFile = this;
 }

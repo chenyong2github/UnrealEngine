@@ -13,7 +13,7 @@
  * Encoder table containing mapping from raw input value to nominal value
  */
 USTRUCT()
-struct CAMERACALIBRATIONCORE_API FEncodersTable : public FBaseLensTable
+struct CAMERACALIBRATIONCORE_API FEncodersTable
 {
 	GENERATED_BODY()
 

@@ -4,7 +4,9 @@
 
 #include "AssetEditor/SSimulcamViewport.h"
 #include "Dialogs/CustomDialog.h"
+#include "Engine/Texture2D.h"
 #include "Internationalization/Text.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Text/STextBlock.h"

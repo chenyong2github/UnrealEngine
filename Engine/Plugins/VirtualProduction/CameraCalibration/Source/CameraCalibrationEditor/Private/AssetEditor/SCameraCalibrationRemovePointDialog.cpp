@@ -2,7 +2,9 @@
 
 #include "SCameraCalibrationRemovePointDialog.h"
 
+#include "Editor.h"
 #include "LensFile.h"
+#include "ScopedTransaction.h"
 
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -336,7 +338,7 @@ void SCameraCalibrationRemovePointDialog::Construct(const FArguments& InArgs, co
 	OnDataRemoved = InArgs._OnDataRemoved;
 
 	const FBaseLensTable& BaseDataTable = WeakLensFile.Get()->GetDataTable(Category);
-	const FText DialogText = FText::Format(LOCTEXT("DialogTextLabel", "Select points to remove which is linked to {0}"), FText::FromName(BaseDataTable.GetScriptStruct()->GetFName()));
+	const FText DialogText = FText::Format(LOCTEXT("DialogTextLabel", "Select points to remove which have same raw input than {0}"), FText::FromName(BaseDataTable.GetScriptStruct()->GetFName()));
 
 	const TSharedPtr<SWidget> ButtonsWidget = [this]()
 	{
@@ -409,7 +411,7 @@ void SCameraCalibrationRemovePointDialog::OpenWindow(ULensFile* InLensFile,
                                                      TOptional<float> InZoom)
 {
 	TSharedRef<SWindow> ModalWindow = SNew(SWindow)
-		.Title( LOCTEXT("RemovePointsTitle", "Remove Liked Points"))
+		.Title( LOCTEXT("RemovePointsTitle", "Remove Points"))
 		.ClientSize(FVector2D(570,420));
 
 	const TSharedRef<SCameraCalibrationRemovePointDialog> DialogBox = SNew(
@@ -493,17 +495,17 @@ void SCameraCalibrationRemovePointDialog::RefreshRemoveItemsTree()
 		}, Focus);
 
 		// Generate for Linked Category
-		BaseDataTable.ForEachLinkedFocusPoint([this](const FBaseFocusPoint& InFocusPoint, ELensDataCategory Category, FLinkPointMetadata LinkPointMeta)
+		BaseDataTable.ForEachLinkedFocusPoint([this](const FBaseFocusPoint& InFocusPoint, ELensDataCategory InCategory, FLinkPointMetadata LinkPointMeta)
 		{		
 			//Add entry for focus
-			const TSharedPtr<FFocusRemoveLensDataListItem> RemoveFocus = MakeShared<FFocusRemoveLensDataListItem>(WeakLensFile.Get(), Category, LinkPointMeta.bRemoveByDefault, InFocusPoint.GetFocus());
+			const TSharedPtr<FFocusRemoveLensDataListItem> RemoveFocus = MakeShared<FFocusRemoveLensDataListItem>(WeakLensFile.Get(), InCategory, LinkPointMeta.bRemoveByDefault, InFocusPoint.GetFocus());
 			RemoveItems.Add(RemoveFocus);
 			RemoveItemsTree->SetItemExpansion(RemoveFocus, true);
 
 			for(int32 Index = 0; Index < InFocusPoint.GetNumPoints(); ++Index)
 			{
 				//Add zoom points for this focus
-				RemoveFocus->AddChild(MakeShared<FZoomRemoveLensDataListItem>(WeakLensFile.Get(), Category, LinkPointMeta.bRemoveByDefault, InFocusPoint.GetZoom(Index), RemoveFocus.ToSharedRef()));
+				RemoveFocus->AddChild(MakeShared<FZoomRemoveLensDataListItem>(WeakLensFile.Get(), InCategory, LinkPointMeta.bRemoveByDefault, InFocusPoint.GetZoom(Index), RemoveFocus.ToSharedRef()));
 			}
 		}, Focus);
 	}

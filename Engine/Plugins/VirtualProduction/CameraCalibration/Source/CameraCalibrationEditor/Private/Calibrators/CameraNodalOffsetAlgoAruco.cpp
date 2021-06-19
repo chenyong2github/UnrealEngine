@@ -10,7 +10,7 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Misc/MessageDialog.h"
 #include "UI/CameraCalibrationWidgetHelpers.h"
-
+#include "Widgets/Input/SCheckBox.h"
 
 #if WITH_OPENCV
 
