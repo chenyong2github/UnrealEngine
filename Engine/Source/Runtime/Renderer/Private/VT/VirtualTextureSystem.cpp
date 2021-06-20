@@ -3,6 +3,8 @@
 #include "VirtualTextureSystem.h"
 
 #include "AllocatedVirtualTexture.h"
+#include "Engine/Canvas.h"
+#include "Debug/DebugDrawService.h"
 #include "HAL/IConsoleManager.h"
 #include "PostProcess/SceneRenderTargets.h"
 #include "ProfilingDebugging/CsvProfiler.h"
@@ -42,7 +44,7 @@ DECLARE_CYCLE_STAT(TEXT("Feedback Map"), STAT_FeedbackMap, STATGROUP_VirtualText
 DECLARE_CYCLE_STAT(TEXT("Feedback Analysis"), STAT_FeedbackAnalysis, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("Page Table Updates"), STAT_PageTableUpdates, STATGROUP_VirtualTexturing);
 DECLARE_CYCLE_STAT(TEXT("Flush Cache"), STAT_FlushCache, STATGROUP_VirtualTexturing);
-DECLARE_CYCLE_STAT(TEXT("Update Stats"), STAT_UpdateStats, STATGROUP_VirtualTexturing);
+DECLARE_CYCLE_STAT(TEXT("Update Residency Tracking"), STAT_ResidencyTracking, STATGROUP_VirtualTexturing);
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num page visible"), STAT_NumPageVisible, STATGROUP_VirtualTexturing);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Num page visible resident"), STAT_NumPageVisibleResident, STATGROUP_VirtualTexturing);
@@ -113,6 +115,12 @@ static TAutoConsoleVariable<int32> CVarVTProduceLockedTilesOnFlush(
 	1,
 	TEXT("Should locked tiles be (re)produced when flushing the cache"),
 	ECVF_RenderThreadSafe
+);
+static TAutoConsoleVariable<int32> CVarVTResidencyShow(
+	TEXT("r.VT.Residency.Show"),
+	0,
+	TEXT("Show on screen HUD for virtual texture physical pool residency"),
+	ECVF_Default
 );
 
 static FORCEINLINE uint32 EncodePage(uint32 ID, uint32 vLevel, uint32 vTileX, uint32 vTileY)
@@ -241,6 +249,7 @@ FVirtualTextureSystem::FVirtualTextureSystem()
 {
 #if !UE_BUILD_SHIPPING
 	FCoreDelegates::OnGetOnScreenMessages.AddRaw(this, &FVirtualTextureSystem::GetOnScreenMessages);
+	DrawResidencyHudDelegateHandle = UDebugDrawService::Register(TEXT("VirtualTextureResidency"), FDebugDrawDelegate::CreateRaw(this, &FVirtualTextureSystem::DrawResidencyHud));
 #endif
 }
 
@@ -248,6 +257,7 @@ FVirtualTextureSystem::~FVirtualTextureSystem()
 {
 #if !UE_BUILD_SHIPPING
 	FCoreDelegates::OnGetOnScreenMessages.RemoveAll(this);
+	UDebugDrawService::Unregister(DrawResidencyHudDelegateHandle);
 #endif
 
 	DestroyPendingVirtualTextures(true);
@@ -348,13 +358,8 @@ void FVirtualTextureSystem::ListPhysicalPoolsFromConsole()
 			const FTexturePagePool& PagePool = PhysicalSpace.GetPagePool();
 			const uint32 TotalSizeInBytes = PhysicalSpace.GetSizeInBytes();
 
-			UE_LOG(LogConsoleResponse, Display, TEXT("PhysicaPool: [%i] %ix%i:"), i, Desc.TileSize, Desc.TileSize);
+			UE_LOG(LogConsoleResponse, Display, TEXT("PhysicaPool: [%i] %s (%ix%i):"), i, *PhysicalSpace.GetFormatString(), Desc.TileSize, Desc.TileSize);
 			
-			for (int Layer = 0; Layer < Desc.NumLayers; ++Layer)
-			{
-				UE_LOG(LogConsoleResponse, Display, TEXT("  Layer %i=%s"), Layer, GPixelFormats[Desc.Format[Layer]].Name);
-			}
-
 			const int32 AllocatedTiles = PagePool.GetNumAllocatedPages();
 			const float AllocatedLoad = (float)AllocatedTiles / (float)PhysicalSpace.GetNumTiles();
 			const float AllocatedMemory = AllocatedLoad * TotalSizeInBytes / 1024.0f / 1024.0f;
@@ -1293,7 +1298,7 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 	// Submit the merged requests
 	SubmitRequests(GraphBuilder, FeatureLevel, MemStack, MergedRequestList, true);
 
-	UpdateCSVStats();
+	UpdateResidencyTracking();
 
 	ReleasePendingSpaces();
 }
@@ -1797,11 +1802,6 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 		FVirtualTexturePhysicalSpace* RESTRICT PhysicalSpace = GetPhysicalSpace(PhysicalSpaceID);
 		FPageUpdateBuffer& RESTRICT Buffer = PageUpdateBuffers[PhysicalSpaceID];
 
-		if (Buffer.WorkingSetSize > 0u)
-		{
-			PhysicalSpace->IncrementWorkingSetSize(Buffer.WorkingSetSize);
-		}
-
 		if (Buffer.NumPages > 0u)
 		{
 			Buffer.NumPageUpdates += Buffer.NumPages;
@@ -1839,28 +1839,18 @@ void FVirtualTextureSystem::GetContinuousUpdatesToProduce(FUniqueRequestList con
 	}
 }
 
-void FVirtualTextureSystem::UpdateCSVStats() const
+void FVirtualTextureSystem::UpdateResidencyTracking() const
 {
-#if CSV_PROFILER
-	SCOPE_CYCLE_COUNTER(STAT_UpdateStats);
+	SCOPE_CYCLE_COUNTER(STAT_ResidencyTracking);
 
-	uint32 TotalPages = 0;
-	uint32 CurrentPages = 0;
-	const uint32 AgeTolerance = 5; // Include some tolerance/smoothing for previous frames
 	for (int32 i = 0; i < PhysicalSpaces.Num(); ++i)
 	{
 		FVirtualTexturePhysicalSpace* PhysicalSpace = PhysicalSpaces[i];
 		if (PhysicalSpace)
 		{
-			FTexturePagePool const& PagePool = PhysicalSpace->GetPagePool();
-			TotalPages += PagePool.GetNumPages();
-			CurrentPages += PagePool.GetNumVisiblePages(Frame > AgeTolerance ? Frame - AgeTolerance : 0);
+			PhysicalSpace->UpdateResidencyTracking(Frame);
 		}
 	}
-
-	const float PhysicalPoolUsage = TotalPages > 0 ? (float)CurrentPages / (float)TotalPages : 0.f;
-	CSV_CUSTOM_STAT_GLOBAL(VirtualTexturePageUsage, PhysicalPoolUsage, ECsvCustomStatOp::Set);
-#endif
 }
 
 void FVirtualTextureSystem::SubmitRequestsFromLocalTileList(TArray<FVirtualTextureLocalTile>& OutDeferredTiles, const TSet<FVirtualTextureLocalTile>& LocalTileList, EVTProducePageFlags Flags, FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel)
@@ -2064,7 +2054,6 @@ void FVirtualTextureSystem::SubmitRequests(FRDGBuilder& GraphBuilder, ERHIFeatur
 						}
 						else
 						{
-							PhysicalSpace->SetLastFrameOversubscribed(Frame);
 							bProduceTargetValid = false;
 							NumPageAllocateFails++;
 							break;
@@ -2194,19 +2183,12 @@ void FVirtualTextureSystem::SubmitRequests(FRDGBuilder& GraphBuilder, ERHIFeatur
 				// Once a pool fails an allocation, keep displaying the message for a minimum number of frames, to avoid the message quickly flickering on/off
 				if (PhysicalSpace != nullptr && Frame <= PhysicalSpace->GetLastFrameOversubscribed() + 60u)
 				{
-					const FVTPhysicalSpaceDescription& Desc = PhysicalSpace->GetDescription();
+					FString const& FormatString = PhysicalSpace->GetFormatString();
+					const float MipBias = PhysicalSpace->GetResidencyMipMapBias();
 
-					FString FormatString;
-					for (uint32 Layer = 0u; Layer < Desc.NumLayers; ++Layer)
-					{
-						FormatString += GPixelFormats[Desc.Format[Layer]].Name;
-						if (Layer + 1u < Desc.NumLayers)
-						{
-							FormatString += TEXT(", ");
-						}
-					}
-
-					OnScreenMessages.Add(FCoreDelegates::EOnScreenMessageSeverity::Warning, FText::Format(LOCTEXT("VTOversubscribed", "VT Pool [{0}] is oversubscribed"), FText::FromString(FormatString)));
+					OnScreenMessages.Add(
+						FCoreDelegates::EOnScreenMessageSeverity::Warning, 
+						FText::Format(LOCTEXT("VTOversubscribed", "VT Pool [{0}] is oversubscribed. Setting MipBias {1}"), FText::FromString(FormatString), FText::AsNumber(MipBias)));
 				}
 			}
 		}
@@ -2315,6 +2297,84 @@ void FVirtualTextureSystem::ReleasePendingResources()
 {
 	DestroyPendingVirtualTextures(true);
 	ReleasePendingSpaces();
+}
+
+float FVirtualTextureSystem::GetGlobalMipBias() const
+{
+	float MaxResidencyMipMapBias = 0.f;
+	for (int32 SpaceIndex = 0; SpaceIndex < PhysicalSpaces.Num(); ++SpaceIndex)
+	{
+		FVirtualTexturePhysicalSpace const* PhysicalSpace = PhysicalSpaces[SpaceIndex];
+		const float ResidencyMipMapBias = PhysicalSpace != nullptr ? PhysicalSpace->GetResidencyMipMapBias() : 0.f;
+		MaxResidencyMipMapBias = FMath::Max(MaxResidencyMipMapBias, ResidencyMipMapBias);
+	}
+
+	return UTexture2D::GetGlobalMipMapLODBias() + MaxResidencyMipMapBias;
+}
+
+void FVirtualTextureSystem::DrawResidencyHud(UCanvas* InCanvas, APlayerController* InController)
+{
+#if !UE_BUILD_SHIPPING
+	if (CVarVTResidencyShow.GetValueOnGameThread() == 0)
+	{
+		return;
+	}
+
+	int32 NumGraphs = 0;
+	for (int32 SpaceIndex = 0; SpaceIndex < PhysicalSpaces.Num(); ++SpaceIndex)
+	{
+		FVirtualTexturePhysicalSpace* PhysicalSpace = PhysicalSpaces[SpaceIndex];
+		if (PhysicalSpace)
+		{
+			NumGraphs++;
+		}
+	}
+
+	if (NumGraphs == 0)
+	{
+		return;
+	}
+
+	const FIntPoint GraphSize(400, 200);
+	const FIntPoint BorderSize(25, 25);
+	const FIntPoint GraphWithBorderSize = GraphSize + BorderSize * 2;
+
+	const FIntPoint CanvasSize = InCanvas->Canvas->GetParentCanvasSize();
+	const int32 NumGraphsInRow = FMath::Max(CanvasSize.X / GraphWithBorderSize.X, 1);
+	const int32 CanvasOffsetY = 90;
+
+	int32 GraphIndex = 0;
+	for (int32 SpaceIndex = 0; SpaceIndex < PhysicalSpaces.Num(); ++SpaceIndex)
+	{
+		FVirtualTexturePhysicalSpace* PhysicalSpace = PhysicalSpaces[SpaceIndex];
+		if (PhysicalSpace)
+		{
+			int32 GraphX = GraphIndex % NumGraphsInRow;
+			int32 GraphY = GraphIndex / NumGraphsInRow;
+
+			FBox2D CanvasPosition;
+			CanvasPosition.Min.X = GraphX * GraphWithBorderSize.X + BorderSize.X;
+			CanvasPosition.Min.Y = GraphY * GraphWithBorderSize.Y + BorderSize.Y + CanvasOffsetY;
+			CanvasPosition.Max = CanvasPosition.Min + GraphSize;
+
+			if (CanvasPosition.Min.Y > CanvasSize.Y)
+			{
+				// Off screen so early out.
+				break;
+			}
+
+			PhysicalSpace->DrawResidencyGraph(InCanvas->Canvas, CanvasPosition);
+		
+			GraphIndex++;
+		}
+	}
+
+	// Key with same colors as used by FVirtualTexturePhysicalSpace::DrawResidencyGraph()
+	InCanvas->Canvas->DrawShadowedString(25, 320, TEXT("MipMap Bias"), GEngine->GetSmallFont(), FLinearColor(0.1f, 0.8f, 0.1f));
+	InCanvas->Canvas->DrawShadowedString(125, 320, TEXT("Page Residency"), GEngine->GetSmallFont(), FLinearColor(0.8f, 0.1f, 0.1f));
+	InCanvas->Canvas->DrawShadowedString(225, 320, TEXT("LockedPage Residency"), GEngine->GetSmallFont(), FLinearColor(0.8f, 0.8f, 0.1f));
+
+#endif
 }
 
 #undef LOCTEXT_NAMESPACE

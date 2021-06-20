@@ -18,7 +18,14 @@ struct FVirtualTextureSpacePoolConfig
 {
 	GENERATED_USTRUCT_BODY()
 
-	FVirtualTextureSpacePoolConfig() : MinTileSize(0), MaxTileSize(0), SizeInMegabyte(0), bAllowSizeScale(false), ScalabilityGroup(0) {}
+	FVirtualTextureSpacePoolConfig() 
+		: MinTileSize(0)
+		, MaxTileSize(0)
+		, SizeInMegabyte(0)
+		, bEnableResidencyMipMapBias(false)
+		, bAllowSizeScale(false)
+		, ScalabilityGroup(0) 
+	{}
 
 	/** Minimum tile size to match (including tile border). */
 	UPROPERTY()
@@ -36,6 +43,10 @@ struct FVirtualTextureSpacePoolConfig
 	UPROPERTY()
 	int32 SizeInMegabyte;
 
+	/** Enable MipMapBias based on pool residency tracking. */
+	UPROPERTY()
+	bool bEnableResidencyMipMapBias;
+
 	/** Allow the size to allocate for the pool to be scaled by some factor. */
 	UPROPERTY()
 	bool bAllowSizeScale;
@@ -45,7 +56,7 @@ struct FVirtualTextureSpacePoolConfig
 	uint32 ScalabilityGroup;
 
 	/** Is this the default config? Use this setting when we can't find any other match. */
-	bool IsDefault() const { return Formats.Num() == 0; }
+	bool IsDefault() const { return Formats.Num() == 0 && SizeInMegabyte > 0; }
 };
 
 UCLASS(config = Engine, transient)

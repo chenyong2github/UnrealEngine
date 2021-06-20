@@ -1,20 +1,65 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VirtualTexturePhysicalSpace.h"
-#include "VirtualTextureSystem.h"
+
+#include "Engine/Canvas.h"
 #include "RenderTargetPool.h"
 #include "VisualizeTexture.h"
-#include "Stats/Stats.h"
 #include "VT/VirtualTexturePoolConfig.h"
+#include "VT/VirtualTextureScalability.h"
+#include "VT/VirtualTextureSystem.h"
+
+static TAutoConsoleVariable<float> CVarVTResidencyMaxMipMapBias(
+	TEXT("r.VT.Residency.MaxMipMapBias"),
+	8,
+	TEXT("Maximum mip bias to apply to prevent Virtual Texture pool residency over-subscription.\n")
+	TEXT("Default 8"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarVTResidencyUpperBound(
+	TEXT("r.VT.Residency.UpperBound"),
+	0.9f,
+	TEXT("Virtual Texture pool residency above which we increase mip bias.\n")
+	TEXT("Default 0.95"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarVTResidencyLowerBound(
+	TEXT("r.VT.Residency.LowerBound"),
+	0.75f,
+	TEXT("Virtual Texture pool residency below which we decrease mip bias.\n")
+	TEXT("Default 0.85"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarVTResidencyLockedUpperBound(
+	TEXT("r.VT.Residency.LockedUpperBound"),
+	0.65f,
+	TEXT("Virtual Texture pool locked page residency above which we kill any mip bias.\n")
+	TEXT("That's because locked pages are never affected by the mip bias setting. So it is unlikely that we can get the pool within budget.\n")
+	TEXT("Default 0.65"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarVTResidencyAdjustmentRate(
+	TEXT("r.VT.Residency.AdjustmentRate"),
+	0.2,
+	TEXT("Rate at which we adjust mip bias due to Virtual Texture pool residency.\n")
+	TEXT("Default 0.25"),
+	ECVF_RenderThreadSafe);
 
 
 FVirtualTexturePhysicalSpace::FVirtualTexturePhysicalSpace(const FVTPhysicalSpaceDescription& InDesc, uint16 InID)
 	: Description(InDesc)
 	, NumRefs(0u)
-	, LastFrameOversubscribed(0u)
 	, ID(InID)
-	, bPageTableLimit(false)
 	, bGpuTextureLimit(false)
+	, bEnableResidencyMipMapBias(true)
+	, ResidencyMipMapBias(0.0f)
+	, LastFrameOversubscribed(0)
+#if !UE_BUILD_SHIPPING
+	, VisibleHistory(HistorySize)
+	, LockedHistory(HistorySize)
+	, MipMapBiasHistory(HistorySize)
+	, HistoryIndex(0)
+#endif
 {
 	// Find matching physical pool
 	FVirtualTextureSpacePoolConfig Config;
@@ -41,15 +86,22 @@ FVirtualTexturePhysicalSpace::FVirtualTexturePhysicalSpace(const FVTPhysicalSpac
 		bGpuTextureLimit = true;
 	}
 
+	bEnableResidencyMipMapBias = Config.bEnableResidencyMipMapBias;
+
 	Pool.Initialize(GetNumTiles());
 
 	// Initialize this resource FeatureLevel, so it gets re-created on FeatureLevel changes
 	SetFeatureLevel(GMaxRHIFeatureLevel);
 
-#if STATS
-	const FString LongName = FString::Printf(TEXT("WorkingSet %s %%"), FormatInfo.Name);
-	WorkingSetSizeStatID = FDynamicStats::CreateStatIdDouble<STAT_GROUP_TO_FStatGroup(STATGROUP_VirtualTexturing)>(LongName);
-#endif // STATS
+	// Store string for logging.
+	for (uint32 Layer = 0u; Layer < Description.NumLayers; ++Layer)
+	{
+		FormatString += GPixelFormats[Description.Format[Layer]].Name;
+		if (Layer + 1u < Description.NumLayers)
+		{
+			FormatString += TEXT(", ");
+		}
+	}
 }
 
 FVirtualTexturePhysicalSpace::~FVirtualTexturePhysicalSpace()
@@ -150,10 +202,122 @@ uint32 FVirtualTexturePhysicalSpace::GetSizeInBytes() const
 	return GetNumTiles() * TileSizeBytes;
 }
 
-#if STATS
-void FVirtualTexturePhysicalSpace::UpdateWorkingSetStat()
+void FVirtualTexturePhysicalSpace::UpdateResidencyTracking(uint32 Frame)
 {
-	const double Value = (double)WorkingSetSize.GetValue() / (double)GetNumTiles() * 100.0;
-	FThreadStats::AddMessage(WorkingSetSizeStatID.GetName(), EStatOperation::Set, Value);
+	float LockedUpperBound = CVarVTResidencyLockedUpperBound.GetValueOnRenderThread();
+	float LowerBound = CVarVTResidencyLowerBound.GetValueOnRenderThread();
+	float UpperBound = CVarVTResidencyUpperBound.GetValueOnRenderThread();
+	float AdjustmentRate = CVarVTResidencyAdjustmentRate.GetValueOnRenderThread();
+	float MaxMipMapBias = CVarVTResidencyMaxMipMapBias.GetValueOnRenderThread();
+
+	const uint32 NumPages = Pool.GetNumPages();
+	const uint32 NumLockedPages = Pool.GetNumLockedPages();
+	const float LockedPageResidency = (float)NumLockedPages / (float)NumPages;
+
+	const uint32 PageFreeThreshold = FMath::Max(VirtualTextureScalability::GetPageFreeThreshold(), 0u);
+	const uint32 FrameMinusThreshold = Frame > PageFreeThreshold ? Frame - PageFreeThreshold : 0;
+	const uint32 NumVisiblePages = Pool.GetNumVisiblePages(FrameMinusThreshold);
+	const float VisiblePageResidency = (float)NumVisiblePages / (float)NumPages;
+	
+	if (ResidencyMipMapBias > 0.f && VisiblePageResidency < LowerBound)
+	{
+		ResidencyMipMapBias -= AdjustmentRate * (LowerBound - VisiblePageResidency);
+	}
+	else if (VisiblePageResidency > UpperBound)
+	{
+		ResidencyMipMapBias += AdjustmentRate * (VisiblePageResidency - UpperBound);
+	}
+
+	ResidencyMipMapBias = FMath::Clamp(ResidencyMipMapBias, 0.f, MaxMipMapBias);
+
+	if (ResidencyMipMapBias > 0.f)
+	{
+		LastFrameOversubscribed = Frame;
+	}
+
+	if (!bEnableResidencyMipMapBias || LockedPageResidency > LockedUpperBound)
+	{
+		ResidencyMipMapBias = 0.f;
+	}
+
+#if !UE_BUILD_SHIPPING
+	LockedHistory[HistoryIndex+1] = LockedPageResidency;
+	VisibleHistory[HistoryIndex+1] = VisiblePageResidency;
+	MipMapBiasHistory[HistoryIndex+1] = ResidencyMipMapBias / MaxMipMapBias;
+	HistoryIndex++;
+#endif
 }
-#endif // STATS
+
+void FVirtualTexturePhysicalSpace::DrawResidencyGraph(FCanvas* Canvas, FBox2D CanvasPosition)
+{
+	// Note that this is called on game thread and reads the history values written on the render thread.
+	// But it should be safe and any race condition will only lead to a slightly incorrect graph.
+
+#if !UE_BUILD_SHIPPING
+	const FLinearColor BackgroundColor(0.0f, 0.0f, 0.0f, 0.7f);
+	const FLinearColor GraphBorderColor(0.1f, 0.1f, 0.1f);
+	const FLinearColor GraphResidencyColor(0.8f, 0.1f, 0.1f);
+	const FLinearColor GraphLockedPageColor(0.8f, 0.8f, 0.1f);
+	const FLinearColor GraphMipMapBiasColor(0.1f, 0.8f, 0.1f);
+
+	FCanvasTileItem BackgroundTile(CanvasPosition.Min, CanvasPosition.GetSize(), BackgroundColor);
+	BackgroundTile.BlendMode = SE_BLEND_AlphaBlend;
+	Canvas->DrawItem(BackgroundTile);
+
+	const int32 BorderSize = 10;
+
+	FString Title = FString::Printf(TEXT("%s (%dMB)"), *FormatString, GetSizeInBytes() / (1024 * 1024));
+	Canvas->DrawShadowedString(CanvasPosition.Min.X + BorderSize, CanvasPosition.Min.Y, *Title, GEngine->GetSmallFont(), FLinearColor::White);
+
+	CanvasPosition.Min += FVector2D(BorderSize, BorderSize);
+	CanvasPosition.Max -= FVector2D(BorderSize, BorderSize);
+
+	const uint32 NumSamples = FMath::Min3<uint32>((uint32)CanvasPosition.GetSize().X, HistorySize, HistoryIndex);
+
+	FHitProxyId HitProxyId = Canvas->GetHitProxyId();
+	FBatchedElements* BatchedElements = Canvas->GetBatchedElements(FCanvas::ET_Line);
+	BatchedElements->AddReserveLines(2 + 3 * NumSamples);
+
+	BatchedElements->AddLine(
+		FVector(CanvasPosition.Min.X - 1.0f, CanvasPosition.Max.Y, 0.0f),
+		FVector(CanvasPosition.Min.X - 1.0f, CanvasPosition.Min.Y - 1.0f, 0.0f),
+		GraphBorderColor,
+		HitProxyId);
+
+	BatchedElements->AddLine(
+		FVector(CanvasPosition.Min.X, CanvasPosition.Max.Y - 1.0f, 0.0f),
+		FVector(CanvasPosition.Max.X, CanvasPosition.Max.Y - 1.0f, 0.0f),
+		GraphBorderColor,
+		HitProxyId);
+
+	for (uint32 SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
+	{
+		float Visible0 = VisibleHistory[HistoryIndex - NumSamples + SampleIndex];
+		float Visible1 = VisibleHistory[HistoryIndex - NumSamples + SampleIndex + 1];
+
+		BatchedElements->AddLine(
+			FVector(CanvasPosition.Min.X + SampleIndex, CanvasPosition.Max.Y - Visible0 * CanvasPosition.GetSize().Y, 0.0f),
+			FVector(CanvasPosition.Min.X + SampleIndex + 1, CanvasPosition.Max.Y - Visible1 * CanvasPosition.GetSize().Y, 0.0f),
+			GraphResidencyColor,
+			HitProxyId);
+
+		float Locked0 = LockedHistory[HistoryIndex - NumSamples + SampleIndex];
+		float Locked1 = LockedHistory[HistoryIndex - NumSamples + SampleIndex + 1];
+
+		BatchedElements->AddLine(
+			FVector(CanvasPosition.Min.X + SampleIndex, CanvasPosition.Max.Y - Locked0 * CanvasPosition.GetSize().Y, 0.0f),
+			FVector(CanvasPosition.Min.X + SampleIndex + 1, CanvasPosition.Max.Y - Locked1 * CanvasPosition.GetSize().Y, 0.0f),
+			GraphLockedPageColor,
+			HitProxyId);
+
+		float MipMapBias0 = MipMapBiasHistory[HistoryIndex - NumSamples + SampleIndex];
+		float MipMapBias1 = MipMapBiasHistory[HistoryIndex - NumSamples + SampleIndex + 1];
+
+		BatchedElements->AddLine(
+			FVector(CanvasPosition.Min.X + SampleIndex, CanvasPosition.Max.Y - MipMapBias0 * CanvasPosition.GetSize().Y, 0.0f),
+			FVector(CanvasPosition.Min.X + SampleIndex + 1, CanvasPosition.Max.Y - MipMapBias1 * CanvasPosition.GetSize().Y, 0.0f),
+			GraphMipMapBiasColor,
+			HitProxyId);
+	}
+#endif // UE_BUILD_SHIPPING
+}
