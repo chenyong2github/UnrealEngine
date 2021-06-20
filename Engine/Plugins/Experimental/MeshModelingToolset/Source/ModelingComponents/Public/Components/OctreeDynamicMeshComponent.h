@@ -16,7 +16,7 @@ struct FMeshDescription;
 
 /** internal FPrimitiveSceneProxy defined in OctreeDynamicMeshSceneProxy.h */
 class FOctreeDynamicMeshSceneProxy;
-
+class FBaseDynamicMeshSceneProxy;
 
 /** 
  * UOctreeDynamicMeshComponent is a mesh component similar to UProceduralMeshComponent,
@@ -116,6 +116,7 @@ protected:
 
 private:
 
+	virtual FBaseDynamicMeshSceneProxy* GetBaseSceneProxy() override { return (FBaseDynamicMeshSceneProxy*)GetCurrentSceneProxy(); }
 	FOctreeDynamicMeshSceneProxy* GetCurrentSceneProxy() { return (FOctreeDynamicMeshSceneProxy*)SceneProxy; }
 
 	//~ Begin UPrimitiveComponent Interface.

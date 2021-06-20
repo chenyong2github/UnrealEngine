@@ -10,6 +10,7 @@
 #include "TransformTypes.h"
 #include "Async/Future.h"
 #include "UDynamicMesh.h"
+#include "PhysicsEngine/BodySetup.h"
 
 #include "DynamicMeshComponent.generated.h"
 
@@ -18,7 +19,7 @@ struct FMeshDescription;
 
 /** internal FPrimitiveSceneProxy defined in DynamicMeshSceneProxy.h */
 class FDynamicMeshSceneProxy;
-
+class FBaseDynamicMeshSceneProxy;
 
 /**
  * Interface for a render mesh processor. Use this to process the Mesh stored in UDynamicMeshComponent before
@@ -58,8 +59,8 @@ enum class EDynamicMeshComponentRenderUpdateMode
  * See comment sections below for details.
  * 
  */
-UCLASS(hidecategories = (LOD, Physics, Collision), meta = (BlueprintSpawnableComponent), ClassGroup = Rendering)
-class MODELINGCOMPONENTS_API UDynamicMeshComponent : public UBaseDynamicMeshComponent
+UCLASS(hidecategories = (LOD), meta = (BlueprintSpawnableComponent), ClassGroup = Rendering)
+class MODELINGCOMPONENTS_API UDynamicMeshComponent : public UBaseDynamicMeshComponent, public IInterface_CollisionDataProvider
 {
 	GENERATED_UCLASS_BODY()
 
@@ -390,56 +391,6 @@ public:
 
 
 
-protected:
-
-	//
-	// standard Component internals, for computing bounds and managing the SceneProxy
-	//
-
-	/** Current local-space bounding box of Mesh */
-	UE::Geometry::FAxisAlignedBox3d LocalBounds;
-
-	/** Recompute LocalBounds from the current Mesh */
-	void UpdateLocalBounds();
-
-	/**
-	 * This is called to tell our RenderProxy about modifications to the material set.
-	 * We need to pass this on for things like material validation in the Editor.
-	 */
-	virtual void NotifyMaterialSetUpdated();
-
-	/**
-	 * If the render proxy is invalidated (eg by MarkRenderStateDirty()), it will be destroyed at the end of
-	 * the frame, but the base SceneProxy pointer is not nulled out immediately. As a result if we call various
-	 * partial-update functions after invalidating the proxy, they may be operating on an invalid proxy.
-	 * So we have to keep track of proxy-valid state ourselves.
-	 */
-	bool bProxyValid = false;
-
-	/** 
-	 * @return current render proxy, if valid, otherwise nullptr 
-	 */
-	FDynamicMeshSceneProxy* GetCurrentSceneProxy();
-
-	/**
-	 * Fully invalidate all rendering data for this Component. Current Proxy will be discarded, Bounds and possibly Tangents recomputed, etc
-	 */
-	void ResetProxy();
-
-	//~ Begin UPrimitiveComponent Interface.
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
-
-	//~ USceneComponent Interface.
-	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
-	virtual void OnChildAttached(USceneComponent* ChildComponent) override;
-	virtual void OnChildDetached(USceneComponent* ChildComponent) override;
-
-	//~ UObject Interface.
-	virtual void PostLoad() override;
-
-
-
-
 	//===============================================================================================================
 	// Triangle-Vertex Tangents support. The default behavior is to not use Tangents, this will lead to incorrect
 	// rendering for any material with Normal Maps and some other shaders.
@@ -475,5 +426,97 @@ protected:
 	UE::Geometry::FMeshTangentsf AutoCalculatedTangents;
 
 	void UpdateAutoCalculatedTangents();
+
+
+
+	//===============================================================================================================
+	//
+	// Physics APIs
+	//
+
+public:
+	virtual bool GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) override;
+	virtual bool ContainsPhysicsTriMeshData(bool InUseAllTriData) const override;
+	virtual bool WantsNegXTriMesh() override;
+
+	virtual UBodySetup* GetBodySetup() override;
+	virtual void SetBodySetup(UBodySetup* NewSetup);
+
+	/** Type of Collision Geometry to use for this Mesh */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Mesh Component|Collision")
+	TEnumAsByte<enum ECollisionTraceFlag> CollisionType = ECollisionTraceFlag::CTF_UseSimpleAsComplex;
+
+	/** If true, current mesh will be used as Complex Collision source mesh. Independent of the CollisionType setting. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Mesh Component|Collision");
+	bool bEnableComplexCollision = false;
+
+	/** If true, updates to the mesh will not result in immediate collision regeneration. Useful when the mesh will be modified multiple times before collision is needed. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Mesh Component|Collision");
+	bool bDeferCollisionUpdates = false;
+
+protected:
+	UPROPERTY(Instanced)
+	TObjectPtr<UBodySetup> MeshBodySetup;
+
+	virtual void InvalidatePhysicsData();
+	virtual void RebuildPhysicsData();
+
+	bool bCollisionUpdatePending = false;
+	virtual void UpdateCollision(bool bOnlyIfPending);
+
+protected:
+
+	//
+	// standard Component internals, for computing bounds and managing the SceneProxy
+	//
+
+	/** Current local-space bounding box of Mesh */
+	UE::Geometry::FAxisAlignedBox3d LocalBounds;
+
+	/** Recompute LocalBounds from the current Mesh */
+	void UpdateLocalBounds();
+
+	/**
+	 * This is called to tell our RenderProxy about modifications to the material set.
+	 * We need to pass this on for things like material validation in the Editor.
+	 */
+	virtual void NotifyMaterialSetUpdated();
+
+	/**
+	 * If the render proxy is invalidated (eg by MarkRenderStateDirty()), it will be destroyed at the end of
+	 * the frame, but the base SceneProxy pointer is not nulled out immediately. As a result if we call various
+	 * partial-update functions after invalidating the proxy, they may be operating on an invalid proxy.
+	 * So we have to keep track of proxy-valid state ourselves.
+	 */
+	bool bProxyValid = false;
+
+	virtual FBaseDynamicMeshSceneProxy* GetBaseSceneProxy() override { return (FBaseDynamicMeshSceneProxy*)GetCurrentSceneProxy(); }
+
+	/** 
+	 * @return current render proxy, if valid, otherwise nullptr 
+	 */
+	FDynamicMeshSceneProxy* GetCurrentSceneProxy();
+
+
+	/**
+	 * Fully invalidate all rendering data for this Component. Current Proxy will be discarded, Bounds and possibly Tangents recomputed, etc
+	 */
+	void ResetProxy();
+
+	//~ Begin UPrimitiveComponent Interface.
+	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+
+	//~ USceneComponent Interface.
+	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+	virtual void OnChildAttached(USceneComponent* ChildComponent) override;
+	virtual void OnChildDetached(USceneComponent* ChildComponent) override;
+
+	//~ UObject Interface.
+	virtual void PostLoad() override;
+#if WITH_EDITOR
+	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
+
 
 };

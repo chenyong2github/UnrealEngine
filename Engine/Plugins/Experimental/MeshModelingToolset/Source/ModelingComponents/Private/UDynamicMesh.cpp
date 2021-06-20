@@ -83,6 +83,17 @@ void UDynamicMesh::InitializeMesh()
 }
 
 
+bool UDynamicMesh::IsEmpty() const
+{
+	return Mesh->TriangleCount() == 0;
+}
+
+int32 UDynamicMesh::GetTriangleCount() const
+{
+	return Mesh->TriangleCount();
+}
+
+
 void UDynamicMesh::SetMesh(const UE::Geometry::FDynamicMesh3& MoveMesh)
 {
 	FDynamicMeshChangeInfo ChangeInfo;
@@ -124,6 +135,21 @@ void UDynamicMesh::EditMeshInternal(TFunctionRef<void(FDynamicMesh3&)> EditFunc,
 		PreMeshChangedEvent.Broadcast(this, ChangeInfo);
 	}
 	EditFunc(GetMeshRef());
+
+	// Enforce our mesh attribute invariants. This should probably be optional to support compute-only UDynamicMeshes....
+	if (Mesh->HasTriangleGroups() == false)
+	{
+		Mesh->EnableTriangleGroups();
+	}
+	if (Mesh->HasAttributes() == false)
+	{
+		Mesh->EnableAttributes();
+	}
+	if (Mesh->Attributes()->HasMaterialID() == false)
+	{
+		Mesh->Attributes()->EnableMaterialID();
+	}
+
 	if (!bDeferChangeEvents)
 	{
 		MeshChangedEvent.Broadcast(this, ChangeInfo);
