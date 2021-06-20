@@ -1294,9 +1294,8 @@ void FVulkanDescriptorSetsLayoutInfo::AddDescriptor(int32 DescriptorSetIndex, co
 
 #if VULKAN_RHI_RAYTRACING
 	case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
-		break;
 #endif
-
+		break;
 	default:
 		checkf(0, TEXT("Unsupported descriptor type %d"), (int32)Descriptor.descriptorType);
 		break;
