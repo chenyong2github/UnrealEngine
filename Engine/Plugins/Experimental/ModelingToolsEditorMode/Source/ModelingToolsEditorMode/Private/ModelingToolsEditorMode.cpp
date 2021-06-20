@@ -78,6 +78,7 @@
 #include "BakeMeshAttributeMapsTool.h"
 #include "MeshAttributePaintTool.h"
 #include "ParameterizeMeshTool.h"
+#include "RecomputeUVsTool.h"
 #include "MeshTangentsTool.h"
 #include "ProjectToTargetTool.h"
 #include "LatticeDeformerTool.h"
@@ -529,12 +530,10 @@ void UModelingToolsEditorMode::Enter()
 	RegisterTool(ToolManagerCommands.BeginPolygonCutTool, TEXT("BeginPolygonCutTool"), PolygonCutToolBuilder);
 
 	auto GlobalUVGenerateToolBuilder = NewObject<UParameterizeMeshToolBuilder>();
-	GlobalUVGenerateToolBuilder->bDoAutomaticGlobalUnwrap = true;
 	RegisterTool(ToolManagerCommands.BeginGlobalUVGenerateTool, TEXT("BeginGlobalUVGenerateTool"), GlobalUVGenerateToolBuilder);
 
-	auto GroupUVGenerateToolBuilder = NewObject<UParameterizeMeshToolBuilder>();
-	GroupUVGenerateToolBuilder->bDoAutomaticGlobalUnwrap = false;
-	RegisterTool(ToolManagerCommands.BeginGroupUVGenerateTool, TEXT("BeginGroupUVGenerateTool"), GroupUVGenerateToolBuilder);
+	auto RecomputeUVsToolBuilder = NewObject<URecomputeUVsToolBuilder>();
+	RegisterTool(ToolManagerCommands.BeginGroupUVGenerateTool, TEXT("BeginGroupUVGenerateTool"), RecomputeUVsToolBuilder);
 
 	RegisterTool(ToolManagerCommands.BeginUVSeamEditTool, TEXT("BeginUVSeamEditTool"), NewObject< USeamSculptToolBuilder>());
 

@@ -146,7 +146,7 @@ void UMeshGroupPaintTool::Setup()
 	PolyLassoMechanic->OnDrawPolyLassoFinished.AddUObject(this, &UMeshGroupPaintTool::OnPolyLassoFinished);
 
 	PolygroupLayerProperties = NewObject<UPolygroupLayersProperties>(this);
-	PolygroupLayerProperties->RestoreProperties(this);
+	PolygroupLayerProperties->RestoreProperties(this, TEXT("MeshGroupPaintTool"));
 	PolygroupLayerProperties->InitializeGroupLayers(GetSculptMesh());
 	PolygroupLayerProperties->WatchProperty(PolygroupLayerProperties->ActiveGroupLayer, [&](FName) { OnSelectedGroupLayerChanged(); });
 	UpdateActiveGroupLayer();
@@ -211,7 +211,7 @@ void UMeshGroupPaintTool::Setup()
 	MeshElementsDisplay->CreateInWorld(DynamicMeshComponent->GetWorld(), DynamicMeshComponent->GetComponentTransform());
 	if (ensure(MeshElementsDisplay->Settings))
 	{
-		MeshElementsDisplay->Settings->RestoreProperties(this);
+		MeshElementsDisplay->Settings->RestoreProperties(this, TEXT("MeshGroupPaintTool"));
 		AddToolPropertySource(MeshElementsDisplay->Settings);
 	}
 	MeshElementsDisplay->SetMeshAccessFunction([this](UMeshElementsVisualizer::ProcessDynamicMeshFunc ProcessFunc) {
@@ -246,12 +246,12 @@ void UMeshGroupPaintTool::Shutdown(EToolShutdownType ShutdownType)
 
 	if (ensure(MeshElementsDisplay->Settings))
 	{
-		MeshElementsDisplay->Settings->SaveProperties(this);
+		MeshElementsDisplay->Settings->SaveProperties(this, TEXT("MeshGroupPaintTool"));
 	}
 	MeshElementsDisplay->Disconnect();
 
 	FilterProperties->SaveProperties(this);
-	PolygroupLayerProperties->SaveProperties(this);
+	PolygroupLayerProperties->SaveProperties(this, TEXT("MeshGroupPaintTool"));
 
 
 	// TODO

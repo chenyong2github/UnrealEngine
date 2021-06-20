@@ -14,6 +14,7 @@
 
 #include "Parameterization/MeshDijkstra.h"
 #include "Parameterization/MeshLocalParam.h"
+#include "Parameterization/MeshUVPacking.h"
 #include "Solvers/MeshParameterizationSolvers.h"
 
 #include "Async/ParallelFor.h"
@@ -989,4 +990,22 @@ void FDynamicMeshUVEditor::SetTriangleUVsFromCylinderProjection(
 	{
 		Result->NewUVElements = MoveTemp(NewUVIndices);
 	}
+}
+
+
+
+
+bool FDynamicMeshUVEditor::QuickPack(int32 TargetTextureResolution, float GutterSize)
+{
+	// always split bowties before packing
+	UVOverlay->SplitBowties();
+
+	FDynamicMeshUVPacker Packer(UVOverlay);
+	Packer.TextureResolution = TargetTextureResolution;
+	Packer.GutterSize = GutterSize;
+	Packer.bAllowFlips = false;
+
+	bool bOK = Packer.StandardPack();
+
+	return bOK;
 }
