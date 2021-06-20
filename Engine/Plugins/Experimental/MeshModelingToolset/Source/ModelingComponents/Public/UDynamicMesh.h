@@ -128,6 +128,19 @@ public:
 	 */
 	virtual void InitializeMesh();
 
+	/**
+	 * @return true if the mesh has no triangles
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh")
+	bool IsEmpty() const;
+
+	/**
+	 * @return number of triangles in the mesh
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh")
+	int32 GetTriangleCount() const;
+
+
 	/** 
 	 * @return Const reference to the internal FDynamicMesh3.
 	 * @warning Calling ProcessMesh() is preferred! This interface may be  removed in the future

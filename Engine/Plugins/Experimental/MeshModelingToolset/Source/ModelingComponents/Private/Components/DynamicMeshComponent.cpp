@@ -1,22 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 
 #include "Components/DynamicMeshComponent.h"
-#include "RenderingThread.h"
-#include "RenderResource.h"
-#include "PrimitiveViewRelevance.h"
 #include "PrimitiveSceneProxy.h"
-#include "VertexFactory.h"
 #include "MaterialShared.h"
 #include "Engine/CollisionProfile.h"
 #include "Materials/Material.h"
-#include "LocalVertexFactory.h"
-#include "SceneManagement.h"
-#include "DynamicMeshBuilder.h"
-#include "EngineGlobals.h"
-#include "Engine/Engine.h"
-#include "StaticMeshResources.h"
-#include "StaticMeshAttributes.h"
 #include "Async/Async.h"
+#include "Engine/CollisionProfile.h"
 
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/MeshNormals.h"
@@ -24,7 +14,6 @@
 
 #include "Changes/MeshVertexChange.h"
 #include "Changes/MeshChange.h"
-#include "DynamicMesh/DynamicMeshChangeTracker.h"
 #include "DynamicMesh/MeshTransforms.h"
 
 // default proxy for this component
@@ -70,8 +59,33 @@ void UDynamicMeshComponent::PostLoad()
 	MeshObjectChangedHandle = MeshObject->OnMeshChanged().AddUObject(this, &UDynamicMeshComponent::OnMeshObjectChanged);
 
 	ResetProxy();
+
+	// make sure BodySetup is created
+	GetBodySetup();
 }
 
+
+#if WITH_EDITOR
+void UDynamicMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName PropName = PropertyChangedEvent.GetPropertyName();
+	if ( (PropName == GET_MEMBER_NAME_CHECKED(UDynamicMeshComponent, bEnableComplexCollision)) ||
+		(PropName == GET_MEMBER_NAME_CHECKED(UDynamicMeshComponent, CollisionType)) ||
+		(PropName == GET_MEMBER_NAME_CHECKED(UDynamicMeshComponent, bDeferCollisionUpdates))  )
+	{
+		if (bDeferCollisionUpdates)
+		{
+			InvalidatePhysicsData();
+		}
+		else
+		{
+			RebuildPhysicsData();
+		}
+	}
+}
+#endif
 
 
 void UDynamicMeshComponent::SetMesh(UE::Geometry::FDynamicMesh3&& MoveMesh)
@@ -838,6 +852,7 @@ void UDynamicMeshComponent::DisableSecondaryTriangleBuffers()
 
 void UDynamicMeshComponent::SetExternalDecomposition(TUniquePtr<FMeshRenderDecomposition> DecompositionIn)
 {
+	check(DecompositionIn->Num() > 0);
 	Decomposition = MoveTemp(DecompositionIn);
 	NotifyMeshUpdated();
 }
@@ -921,6 +936,17 @@ void UDynamicMeshComponent::OnMeshObjectChanged(UDynamicMesh* ChangedMeshObject,
 		NotifyMeshUpdated();
 		OnMeshChanged.Broadcast();
 	}
+
+	// Rebuild body setup. Should this be deferred until proxy creation? Sometimes multiple changes are emitted...
+	// todo: can possibly skip this in some change situations, eg if only changing attributes
+	if (bDeferCollisionUpdates)
+	{
+		InvalidatePhysicsData();
+	}
+	else
+	{
+		RebuildPhysicsData();
+	}
 }
 
 
@@ -941,6 +967,16 @@ void UDynamicMeshComponent::SetDynamicMesh(UDynamicMesh* NewMesh)
 
 	NotifyMeshUpdated();
 	OnMeshChanged.Broadcast();
+
+	// Rebuild physics data
+	if (bDeferCollisionUpdates)
+	{
+		InvalidatePhysicsData();
+	}
+	else
+	{
+		RebuildPhysicsData();
+	}
 }
 
 
@@ -954,4 +990,141 @@ void UDynamicMeshComponent::OnChildDetached(USceneComponent* ChildComponent)
 {
 	Super::OnChildDetached(ChildComponent);
 	OnChildAttachmentModified.Broadcast(ChildComponent, false);
+}
+
+
+
+
+
+bool UDynamicMeshComponent::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData)
+{
+	// todo: support physical materials
+	// todo: support UPhysicsSettings::Get()->bSupportUVFromHitResults
+
+	// this is something we currently assume, if you hit this ensure, we made a mistake
+	ensure(bEnableComplexCollision);
+
+	ProcessMesh([&](const FDynamicMesh3& Mesh)
+	{
+		TArray<int32> VertexMap;
+		bool bIsSparseV = !Mesh.IsCompactV();
+		if (bIsSparseV)
+		{
+			VertexMap.SetNum(Mesh.MaxVertexID());
+		}
+
+		// copy vertices
+		CollisionData->Vertices.Reserve(Mesh.VertexCount());
+		for (int32 vid : Mesh.VertexIndicesItr())
+		{
+			int32 Index = CollisionData->Vertices.Add((FVector)Mesh.GetVertex(vid));
+			if (bIsSparseV)
+			{
+				VertexMap[vid] = Index;
+			}
+			else
+			{
+				check(vid == Index);
+			}
+		}
+
+		// copy triangles
+		CollisionData->Indices.Reserve(Mesh.TriangleCount());
+		CollisionData->MaterialIndices.Reserve(Mesh.TriangleCount());
+		for (int32 tid : Mesh.TriangleIndicesItr())
+		{
+			FIndex3i Tri = Mesh.GetTriangle(tid);
+			FTriIndices Triangle;
+			Triangle.v0 = (bIsSparseV) ? VertexMap[Tri.A] : Tri.A;
+			Triangle.v1 = (bIsSparseV) ? VertexMap[Tri.B] : Tri.B;
+			Triangle.v2 = (bIsSparseV) ? VertexMap[Tri.C] : Tri.C;
+			CollisionData->Indices.Add(Triangle);
+
+			CollisionData->MaterialIndices.Add(0);		// not supporting physical materials yet
+		}
+
+		CollisionData->bFlipNormals = true;
+		CollisionData->bDeformableMesh = true;
+		CollisionData->bFastCook = true;
+	});
+
+	return true;
+}
+
+bool UDynamicMeshComponent::ContainsPhysicsTriMeshData(bool InUseAllTriData) const
+{
+	return bEnableComplexCollision && ((MeshObject != nullptr) ? (MeshObject->GetTriangleCount() > 0) : false);
+}
+
+bool UDynamicMeshComponent::WantsNegXTriMesh()
+{
+	return true;
+}
+
+UBodySetup* UDynamicMeshComponent::GetBodySetup()
+{
+	if (MeshBodySetup == nullptr)
+	{
+		UBodySetup* NewBodySetup = nullptr;
+		{
+			FGCScopeGuard Scope;
+			NewBodySetup = NewObject<UBodySetup>(this);
+		}
+		NewBodySetup->BodySetupGuid = FGuid::NewGuid();
+		
+		NewBodySetup->bGenerateMirroredCollision = false;
+		NewBodySetup->CollisionTraceFlag = this->CollisionType;
+
+		NewBodySetup->DefaultInstance.SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+		NewBodySetup->bSupportUVsAndFaceRemap = false; /* bSupportPhysicalMaterialMasks; */
+		
+		SetBodySetup(NewBodySetup);
+	}
+
+	return MeshBodySetup;
+}
+
+void UDynamicMeshComponent::SetBodySetup(UBodySetup* NewSetup)
+{
+	if (ensure(NewSetup))
+	{
+		MeshBodySetup = NewSetup;
+	}
+}
+
+void UDynamicMeshComponent::InvalidatePhysicsData()
+{
+	if (GetBodySetup())
+	{
+		GetBodySetup()->InvalidatePhysicsData();
+		bCollisionUpdatePending = true;
+	}
+}
+
+void UDynamicMeshComponent::RebuildPhysicsData()
+{
+	UBodySetup* BodySetup = GetBodySetup();
+	if (BodySetup)
+	{
+		// New GUID as collision has changed
+		BodySetup->BodySetupGuid = FGuid::NewGuid();
+		// Also we want cooked data for this
+		BodySetup->bHasCookedCollisionData = true;
+
+		BodySetup->CollisionTraceFlag = this->CollisionType;
+
+		BodySetup->InvalidatePhysicsData();
+		BodySetup->CreatePhysicsMeshes();
+		RecreatePhysicsState();
+
+		bCollisionUpdatePending = false;
+	}
+}
+
+void UDynamicMeshComponent::UpdateCollision(bool bOnlyIfPending)
+{
+	if (bOnlyIfPending == false || bCollisionUpdatePending)
+	{
+		RebuildPhysicsData();
+	}
 }
