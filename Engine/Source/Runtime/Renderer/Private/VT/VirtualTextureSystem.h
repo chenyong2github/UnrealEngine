@@ -75,6 +75,8 @@ public:
 	void FlushCache();
 	void FlushCache(FVirtualTextureProducerHandle const& ProducerHandle, FIntRect const& TextureRegion, uint32 MaxLevel);
 
+	float GetGlobalMipBias() const;
+
 private:
 	friend class FFeedbackAnalysisTask;
 	friend class FGatherRequestsTask;
@@ -103,7 +105,7 @@ private:
 
 	void GetContinuousUpdatesToProduce(FUniqueRequestList const* RequestList, int32 MaxTilesToProduce);
 
-	void UpdateCSVStats() const;
+	void UpdateResidencyTracking() const;
 
 #if !UE_BUILD_SHIPPING
 	void GetOnScreenMessages(FCoreDelegates::FSeverityMessageMap& OutMessages);
@@ -153,6 +155,9 @@ private:
 	TSet<FVirtualTextureLocalTile> MappedTilesToProduce;
 	TArray<FVirtualTextureLocalTile> TransientCollectedPages;
 	TArray<IVirtualTextureFinalizer*> Finalizers;
+
+	void DrawResidencyHud(class UCanvas*, class APlayerController*);
+	FDelegateHandle	DrawResidencyHudDelegateHandle;
 };
 
 

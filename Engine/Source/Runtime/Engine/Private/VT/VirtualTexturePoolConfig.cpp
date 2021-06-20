@@ -11,6 +11,10 @@ UVirtualTexturePoolConfig::UVirtualTexturePoolConfig(const FObjectInitializer& O
 
 void UVirtualTexturePoolConfig::FindPoolConfig(TEnumAsByte<EPixelFormat> const* InFormats, int32 InNumLayers, int32 InTileSize, FVirtualTextureSpacePoolConfig& OutConfig) const
 {
+	bool bFoundDefaultConfig = false;
+	FVirtualTextureSpacePoolConfig DefaultConfig;
+	DefaultConfig.SizeInMegabyte = DefaultSizeInMegabyte;
+
 	// Reverse iterate so that project config can override base config
 	for (int32 Id = Pools.Num() - 1; Id >= 0 ; Id--)
 	{
@@ -34,8 +38,13 @@ void UVirtualTexturePoolConfig::FindPoolConfig(TEnumAsByte<EPixelFormat> const* 
 				return;
 			}
 		}
+
+		if (!bFoundDefaultConfig && Config.IsDefault())
+		{
+			DefaultConfig = Config;
+			bFoundDefaultConfig = true;
+		}
 	}
 
-	OutConfig = FVirtualTextureSpacePoolConfig();
-	OutConfig.SizeInMegabyte = DefaultSizeInMegabyte;
+	OutConfig = DefaultConfig;
 }

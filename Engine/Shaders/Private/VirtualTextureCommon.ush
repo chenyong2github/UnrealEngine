@@ -220,7 +220,7 @@ int TextureComputeVirtualMipLevel(
 	const float Noise = 0;
 #endif
 
-	return (int)floor(ComputedLevel + MipBias + Noise) + int(PageTableUniform.vPageTableMipBias);
+	return (int)floor(ComputedLevel + MipBias + View.GlobalVirtualTextureMipBias + Noise) + int(PageTableUniform.vPageTableMipBias);
 }
 
 /** Samples page table indirection and any apply changes to UV, vLevel and PageTable information for adaptive page tables. */
@@ -332,7 +332,7 @@ VTPageTableResult TextureLoadVirtualPageTable(
 {
 	VTPageTableResult Result = (VTPageTableResult)0;
 	UV = UV * PageTableUniform.UVScale;
-	int vLevel = 0;
+	int vLevel = View.GlobalVirtualTextureMipBias;
 #if PIXELSHADER
 	vLevel = TextureComputeVirtualMipLevel(Result, ddx(UV), ddy(UV), MipBias, SvPositionXY, PageTableUniform);
 #endif // PIXELSHADER
@@ -351,7 +351,7 @@ VTPageTableResult TextureLoadVirtualPageTable(
 {
 	VTPageTableResult Result = (VTPageTableResult)0;
 	UV = UV * PageTableUniform.UVScale;
-	int vLevel = 0;
+	int vLevel = View.GlobalVirtualTextureMipBias;
 #if PIXELSHADER
 	vLevel = TextureComputeVirtualMipLevel(Result, ddx(UV), ddy(UV), MipBias, SvPositionXY, PageTableUniform);
 #endif // PIXELSHADER
@@ -371,7 +371,7 @@ VTPageTableResult TextureLoadVirtualPageTable(
 {
 	VTPageTableResult Result = (VTPageTableResult)0;
 	UV = UV * PageTableUniform.UVScale;
-	int vLevel = 0;
+	int vLevel = View.GlobalVirtualTextureMipBias;
 #if PIXELSHADER
 	vLevel = TextureComputeVirtualMipLevel(Result, ddx(UV), ddy(UV), MipBias, SvPositionXY, PageTableUniform);
 #endif // PIXELSHADER
@@ -390,7 +390,7 @@ VTPageTableResult TextureLoadVirtualPageTable(
 {
 	VTPageTableResult Result = (VTPageTableResult)0;
 	UV = UV * PageTableUniform.UVScale;
-	int vLevel = 0;
+	int vLevel = View.GlobalVirtualTextureMipBias;
 #if PIXELSHADER
 	vLevel = TextureComputeVirtualMipLevel(Result, ddx(UV), ddy(UV), MipBias, SvPositionXY, PageTableUniform);
 #endif // PIXELSHADER
@@ -446,7 +446,7 @@ VTPageTableResult TextureLoadVirtualPageTableLevel(
 {
 	VTPageTableResult Result = (VTPageTableResult)0;
 	UV = UV * PageTableUniform.UVScale;
-	int vLevel = (int)floor(Level);
+	int vLevel = (int)floor(Level + View.GlobalVirtualTextureMipBias);
 	UV = ApplyAddressMode(UV, AddressU, AddressV);
 	TextureLoadVirtualPageTableInternal(Result, PageTable0, PageTableUniform, UV, vLevel);
 	StoreVirtualTextureFeedback(Feedback, SampleIndex, Result.PackedRequest);
@@ -462,7 +462,7 @@ VTPageTableResult TextureLoadVirtualPageTableLevel(
 {
 	VTPageTableResult Result = (VTPageTableResult)0;
 	UV = UV * PageTableUniform.UVScale;
-	int vLevel = (int)floor(Level);
+	int vLevel = (int)floor(Level + View.GlobalVirtualTextureMipBias);
 	UV = ApplyAddressMode(UV, AddressU, AddressV);
 	TextureLoadVirtualPageTableInternal(Result, PageTable0, PageTableUniform, UV, vLevel);
 	return Result;
@@ -479,7 +479,7 @@ VTPageTableResult TextureLoadVirtualPageTableLevel(
 {
 	VTPageTableResult Result = (VTPageTableResult)0;
 	UV = UV * PageTableUniform.UVScale;
-	int vLevel = (int)floor(Level);
+	int vLevel = (int)floor(Level + View.GlobalVirtualTextureMipBias);
 	UV = ApplyAddressMode(UV, AddressU, AddressV);
 	TextureLoadVirtualPageTableInternal(Result, PageTable0, PageTable1, PageTableUniform, UV, vLevel);
 	StoreVirtualTextureFeedback(Feedback, SampleIndex, Result.PackedRequest);
@@ -495,7 +495,7 @@ VTPageTableResult TextureLoadVirtualPageTableLevel(
 {
 	VTPageTableResult Result = (VTPageTableResult)0;
 	UV = UV * PageTableUniform.UVScale;
-	int vLevel = (int)floor(Level);
+	int vLevel = (int)floor(Level + View.GlobalVirtualTextureMipBias);
 	UV = ApplyAddressMode(UV, AddressU, AddressV);
 	TextureLoadVirtualPageTableInternal(Result, PageTable0, PageTable1, PageTableUniform, UV, vLevel);
 	return Result;
@@ -513,7 +513,7 @@ VTPageTableResult TextureLoadVirtualPageTableAdaptive(
 {
 	VTPageTableResult Result = (VTPageTableResult)0;
 	UV = UV * PageTableUniform.UVScale;
-	int vLevel = 0;
+	int vLevel = View.GlobalVirtualTextureMipBias;
 #if PIXELSHADER
 	vLevel = TextureComputeVirtualMipLevel(Result, ddx(UV), ddy(UV), MipBias, SvPositionXY, PageTableUniform);
 #endif // PIXELSHADER
@@ -556,7 +556,7 @@ VTPageTableResult TextureLoadVirtualPageTableAdaptiveLevel(
 {
 	VTPageTableResult Result = (VTPageTableResult)0;
 	// Level is an index into the full size adaptive VT. AdaptiveLevelBias shifts it relative to the low mips allocated VT.
-	int vLevel = (int)floor(Level) - PageTableUniform.AdaptiveLevelBias;
+	int vLevel = (int)floor(max(Level, View.GlobalVirtualTextureMipBias)) - PageTableUniform.AdaptiveLevelBias;
 	UV = UV * PageTableUniform.UVScale;
 	UV = ApplyAddressMode(UV, AddressU, AddressV);
 	ApplyAdaptivePageTableUniform(PageTableIndirection, Result, PageTableUniform, UV, vLevel);
@@ -575,7 +575,7 @@ VTPageTableResult TextureLoadVirtualPageTableAdaptiveLevel(
 {
 	VTPageTableResult Result = (VTPageTableResult)0;
 	// Level is an index into the full size adaptive VT. AdaptiveLevelBias shifts it relative to the low mips allocated VT.
-	int vLevel = (int)floor(Level) - PageTableUniform.AdaptiveLevelBias;
+	int vLevel = (int)floor(max(Level, View.GlobalVirtualTextureMipBias)) - PageTableUniform.AdaptiveLevelBias;
 	UV = UV * PageTableUniform.UVScale;
 	UV = ApplyAddressMode(UV, AddressU, AddressV);
 	ApplyAdaptivePageTableUniform(PageTableIndirection, Result, PageTableUniform, UV, vLevel);
