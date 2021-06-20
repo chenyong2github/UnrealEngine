@@ -4,12 +4,11 @@
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
-#include "Drawing/PreviewGeometryActor.h"
-#include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMesh/MeshTransforms.h"
 #include "DynamicMeshEditor.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "DynamicSubmesh3.h"
+#include "Polygroups/PolygroupUtil.h"
 
 #include "ShapeApproximation/ShapeDetection3.h"
 #include "ShapeApproximation/MeshSimpleShapeApproximation.h"
@@ -26,8 +25,8 @@
 
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
-#include "TargetInterfaces/StaticMeshBackedTarget.h"
 #include "ToolTargetManager.h"
+#include "ModelingToolTargetUtil.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -77,23 +76,31 @@ void USetCollisionGeometryTool::Setup()
 		for (int32 k = 0; k < Targets.Num() -1; ++k)
 		{
 			SourceObjectIndices.Add(k);
-			TargetComponentInterface(k)->SetOwnerVisibility(false);
+			UE::ToolTarget::HideSourceObject(Targets[k]);
 		}
 	}
 
+	// collect input meshes
+	InitialSourceMeshes.SetNum(SourceObjectIndices.Num());
+	ParallelFor(SourceObjectIndices.Num(), [&](int32 k)
+	{
+		InitialSourceMeshes[k] = UE::ToolTarget::GetDynamicMeshCopy(Targets[k]);
+	});
+
+	// why is this here?
 	bInputMeshesValid = true;
 
-	IPrimitiveComponentBackedTarget* CollisionTarget = TargetComponentInterface(Targets.Num() - 1);
+	UToolTarget* CollisionTarget = Targets[Targets.Num() - 1];
 	PreviewGeom = NewObject<UPreviewGeometry>(this);
-	FTransform PreviewTransform = CollisionTarget->GetWorldTransform();
+	FTransform PreviewTransform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(CollisionTarget);
 	OrigTargetTransform = PreviewTransform;
 	TargetScale3D = PreviewTransform.GetScale3D();
 	PreviewTransform.SetScale3D(FVector::OneVector);
-	PreviewGeom->CreateInWorld(CollisionTarget->GetOwnerActor()->GetWorld(), PreviewTransform);
+	PreviewGeom->CreateInWorld(UE::ToolTarget::GetTargetActor(CollisionTarget)->GetWorld(), PreviewTransform);
 
 	// initialize initial collision object
 	InitialCollision = MakeShared<FPhysicsDataCollection, ESPMode::ThreadSafe>();
-	InitialCollision->InitializeFromComponent(CollisionTarget->GetOwnerComponent(), true);
+	InitialCollision->InitializeFromComponent(UE::ToolTarget::GetTargetComponent(CollisionTarget), true);
 	InitialCollision->ExternalScale3D = TargetScale3D;
 
 	// create tool options
@@ -101,7 +108,7 @@ void USetCollisionGeometryTool::Setup()
 	Settings->RestoreProperties(this);
 	AddToolPropertySource(Settings);
 	Settings->bUseWorldSpace = (SourceObjectIndices.Num() > 1);
-	Settings->WatchProperty(Settings->InputMode, [this](ESetCollisionGeometryInputMode) { bResultValid = false; });
+	Settings->WatchProperty(Settings->InputMode, [this](ESetCollisionGeometryInputMode) { OnInputModeChanged(); });
 	Settings->WatchProperty(Settings->GeometryType, [this](ECollisionGeometryType) { bResultValid = false; });
 	Settings->WatchProperty(Settings->bUseWorldSpace, [this](bool) { bInputMeshesValid = false; });
 	Settings->WatchProperty(Settings->bAppendToExisting, [this](bool) { bResultValid = false; });
@@ -117,7 +124,16 @@ void USetCollisionGeometryTool::Setup()
 	Settings->WatchProperty(Settings->bSimplifyPolygons, [this](bool) { bResultValid = false; });
 	Settings->WatchProperty(Settings->HullTolerance, [this](float) { bResultValid = false; });
 	Settings->WatchProperty(Settings->SweepAxis, [this](EProjectedHullAxis) { bResultValid = false; });
-		
+
+	if (InitialSourceMeshes.Num() == 1)
+	{
+		PolygroupLayerProperties = NewObject<UPolygroupLayersProperties>(this);
+		PolygroupLayerProperties->RestoreProperties(this, TEXT("SetCollisionGeometryTool"));
+		PolygroupLayerProperties->InitializeGroupLayers(&InitialSourceMeshes[0]);
+		PolygroupLayerProperties->WatchProperty(PolygroupLayerProperties->ActiveGroupLayer, [&](FName) { OnSelectedGroupLayerChanged(); });
+		AddToolPropertySource(PolygroupLayerProperties);
+	}
+
 	bResultValid = false;
 
 	VizSettings = NewObject<UCollisionGeometryVisualizationProperties>(this);
@@ -142,6 +158,11 @@ void USetCollisionGeometryTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	VizSettings->SaveProperties(this);
 	Settings->SaveProperties(this);
+	if (PolygroupLayerProperties)
+	{
+		PolygroupLayerProperties->SaveProperties(this, TEXT("SetCollisionGeometryTool"));
+	}
+
 	PreviewGeom->Disconnect();
 
 	// show hidden sources
@@ -149,7 +170,7 @@ void USetCollisionGeometryTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		for (int32 k : SourceObjectIndices)
 		{
-			TargetComponentInterface(k)->SetOwnerVisibility(true);
+			UE::ToolTarget::ShowSourceObject(Targets[k]);
 		}
 	}
 
@@ -162,51 +183,53 @@ void USetCollisionGeometryTool::Shutdown(EToolShutdownType ShutdownType)
 
 		// code below derived from FStaticMeshEditor::DuplicateSelectedPrims(), FStaticMeshEditor::OnCollisionSphere(), and GeomFitUtils.cpp::GenerateSphylAsSimpleCollision()
 
-		IPrimitiveComponentBackedTarget* CollisionTarget = TargetComponentInterface(Targets.Num() - 1);
-		UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(CollisionTarget->GetOwnerComponent());
-		UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
-		UBodySetup* BodySetup = StaticMesh->GetBodySetup();
-
-		// mark the BodySetup for modification. Do we need to modify the UStaticMesh??
-		BodySetup->Modify();
-
-		// clear existing simple collision. This will call BodySetup->InvalidatePhysicsData()
-		BodySetup->RemoveSimpleCollision();
-
-		// set new collision geometry
-		BodySetup->AggGeom = GeneratedCollision->AggGeom;
-
-		// update collision type
-		BodySetup->CollisionTraceFlag = (ECollisionTraceFlag)(int32)Settings->SetCollisionType;
-
-		// rebuild physics meshes
-		BodySetup->CreatePhysicsMeshes();
-
-		// rebuild nav collision (? StaticMeshEditor does this)
-		StaticMesh->CreateNavCollision(/*bIsUpdate=*/true);
-
-		// update physics state on all components using this StaticMesh
-		for (FThreadSafeObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
+		UPrimitiveComponent* Component = UE::ToolTarget::GetTargetComponent(Targets[Targets.Num() - 1]);
+		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
+		UStaticMesh* StaticMesh = (StaticMeshComponent) ? StaticMeshComponent->GetStaticMesh() : nullptr;
+		UBodySetup* BodySetup = (StaticMesh) ? StaticMesh->GetBodySetup() : nullptr;
+		if (BodySetup != nullptr)
 		{
-			UStaticMeshComponent* SMComponent = Cast<UStaticMeshComponent>(*Iter);
-			if (SMComponent->GetStaticMesh() == StaticMesh)
+			// mark the BodySetup for modification. Do we need to modify the UStaticMesh??
+			BodySetup->Modify();
+
+			// clear existing simple collision. This will call BodySetup->InvalidatePhysicsData()
+			BodySetup->RemoveSimpleCollision();
+
+			// set new collision geometry
+			BodySetup->AggGeom = GeneratedCollision->AggGeom;
+
+			// update collision type
+			BodySetup->CollisionTraceFlag = (ECollisionTraceFlag)(int32)Settings->SetCollisionType;
+
+			// rebuild physics meshes
+			BodySetup->CreatePhysicsMeshes();
+
+			// rebuild nav collision (? StaticMeshEditor does this)
+			StaticMesh->CreateNavCollision(/*bIsUpdate=*/true);
+
+			// update physics state on all components using this StaticMesh
+			for (FThreadSafeObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
 			{
-				if (SMComponent->IsPhysicsStateCreated())
+				UStaticMeshComponent* SMComponent = Cast<UStaticMeshComponent>(*Iter);
+				if (SMComponent->GetStaticMesh() == StaticMesh)
 				{
-					SMComponent->RecreatePhysicsState();
+					if (SMComponent->IsPhysicsStateCreated())
+					{
+						SMComponent->RecreatePhysicsState();
+					}
 				}
 			}
-		}
 
-		// do we need to do a post edit change here??
+			// do we need to do a post edit change here??
 
-		// mark static mesh as dirty so it gets resaved?
-		StaticMesh->MarkPackageDirty();
+			// mark static mesh as dirty so it gets resaved?
+			StaticMesh->MarkPackageDirty();
 
 #if WITH_EDITORONLY_DATA
-		// mark the static mesh as having customized collision so it is not regenerated on reimport
-		StaticMesh->bCustomizedCollision = true;
+			// mark the static mesh as having customized collision so it is not regenerated on reimport
+			StaticMesh->bCustomizedCollision = true;
 #endif // WITH_EDITORONLY_DATA
+		}
 
 		// post the undo transaction
 		GetToolManager()->EndUndoTransaction();
@@ -238,6 +261,48 @@ void USetCollisionGeometryTool::OnTick(float DeltaTime)
 		bVisualizationDirty = false;
 	}
 }
+
+
+
+void USetCollisionGeometryTool::OnInputModeChanged()
+{
+	if (PolygroupLayerProperties != nullptr)
+	{
+		SetToolPropertySourceEnabled(PolygroupLayerProperties, Settings->InputMode == ESetCollisionGeometryInputMode::PerMeshGroup);
+	}
+	bResultValid = false;
+}
+
+void USetCollisionGeometryTool::OnSelectedGroupLayerChanged()
+{
+	bInputMeshesValid = false;
+	bResultValid = false;
+}
+
+
+void USetCollisionGeometryTool::UpdateActiveGroupLayer()
+{
+	if (InitialSourceMeshes.Num() != 1)
+	{
+		ensure(false);		// should not get here
+		return;
+	}
+	FDynamicMesh3* GroupLayersMesh = &InitialSourceMeshes[0];
+
+	if (PolygroupLayerProperties->HasSelectedPolygroup() == false)
+	{
+		ActiveGroupSet = MakeUnique<UE::Geometry::FPolygroupSet>(GroupLayersMesh);
+	}
+	else
+	{
+		FName SelectedName = PolygroupLayerProperties->ActiveGroupLayer;
+		FDynamicMeshPolygroupAttribute* FoundAttrib = UE::Geometry::FindPolygroupLayerByName(*GroupLayersMesh, SelectedName);
+		ensureMsgf(FoundAttrib, TEXT("Selected Attribute Not Found! Falling back to Default group layer."));
+		ActiveGroupSet = MakeUnique<UE::Geometry::FPolygroupSet>(GroupLayersMesh, FoundAttrib);
+	}
+}
+
+
 
 
 void USetCollisionGeometryTool::UpdateVisualization()
@@ -415,22 +480,23 @@ TArray<const T*> MakeRawPointerList(const TArray<TSharedPtr<T, ESPMode::ThreadSa
 
 void USetCollisionGeometryTool::PrecomputeInputMeshes()
 {
-	IPrimitiveComponentBackedTarget* CollisionTarget = TargetComponentInterface(Targets.Num()-1);
-	UE::Geometry::FTransform3d TargetTransform(CollisionTarget->GetWorldTransform());
+	if (InitialSourceMeshes.Num() == 1)
+	{
+		UpdateActiveGroupLayer();
+	}
+
+	UToolTarget* CollisionTarget = Targets[Targets.Num() - 1];
+	UE::Geometry::FTransform3d TargetTransform(UE::ToolTarget::GetLocalToWorldTransform(CollisionTarget));
 	UE::Geometry::FTransform3d TargetTransformInv = TargetTransform.Inverse();
 
 	InputMeshes.Reset();
 	InputMeshes.SetNum(SourceObjectIndices.Num());
 	ParallelFor(SourceObjectIndices.Num(), [&](int32 k)
 	{
-		FMeshDescriptionToDynamicMesh Converter;
-		Converter.bCalculateMaps = false;
-		Converter.bDisableAttributes = true;
-		FDynamicMesh3 SourceMesh;
-		Converter.Convert(TargetMeshProviderInterface(k)->GetMeshDescription(), SourceMesh);
+		FDynamicMesh3 SourceMesh = InitialSourceMeshes[k];
 		if (Settings->bUseWorldSpace)
 		{
-			UE::Geometry::FTransform3d ToWorld(TargetComponentInterface(k)->GetWorldTransform());
+			UE::Geometry::FTransform3d ToWorld(UE::ToolTarget::GetLocalToWorldTransform(Targets[k]));
 			MeshTransforms::ApplyTransform(SourceMesh, ToWorld);
 			MeshTransforms::ApplyTransform(SourceMesh, TargetTransformInv);
 		}
@@ -465,8 +531,17 @@ void USetCollisionGeometryTool::PrecomputeInputMeshes()
 
 	// build per-group input meshes
 	PerGroupInputMeshes.Reset();
-	InitializeDerivedMeshSet(InputMeshes, PerGroupInputMeshes,
-		[&](const FDynamicMesh3* Mesh, int32 Tri0, int32 Tri1) { return Mesh->GetTriangleGroup(Tri0) == Mesh->GetTriangleGroup(Tri1); });
+	if (ActiveGroupSet.IsValid())
+	{
+		check(InputMeshes.Num() == 1);
+		InitializeDerivedMeshSet(InputMeshes, PerGroupInputMeshes,
+			[&](const FDynamicMesh3* Mesh, int32 Tri0, int32 Tri1) { return ActiveGroupSet->GetTriangleGroup(Tri0) == ActiveGroupSet->GetTriangleGroup(Tri1); });
+	}
+	else
+	{
+		InitializeDerivedMeshSet(InputMeshes, PerGroupInputMeshes,
+			[&](const FDynamicMesh3* Mesh, int32 Tri0, int32 Tri1) { return Mesh->GetTriangleGroup(Tri0) == Mesh->GetTriangleGroup(Tri1); });
+	}
 	PerGroupMeshesApproximator = MakeShared<FMeshSimpleShapeApproximation, ESPMode::ThreadSafe>();
 	PerGroupMeshesApproximator->InitializeSourceMeshes(MakeRawPointerList<FDynamicMesh3>(PerGroupInputMeshes));
 

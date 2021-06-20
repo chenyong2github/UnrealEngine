@@ -13,26 +13,9 @@ namespace UE
 namespace Geometry
 {
 
-
-enum class EParamOpUnwrapType
-{
-	MinStretch = 0,
-	ExpMap = 1,
-	ConformalFreeBoundary = 2
-};
-
-
-
-enum class EParamOpIslandMode
-{
-	Auto = 0,
-	PolyGroups = 1,
-	UVIslands = 2
-};
-
 enum class EParamOpBackend
 {
-	UVAltas = 0,
+	UVAtlas = 0,
 	XAtlas = 1
 };
 
@@ -48,13 +31,12 @@ public:
 	// source mesh
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
 		
-	// UV generation parameters
-	float Stretch;
-	int32 NumCharts;
+	// UVAtlas generation parameters
+	float Stretch = 0.11f;
+	int32 NumCharts = 0;
 
-	// area scaling
-	bool bNormalizeAreas = true;
-	float AreaScaling = 1.0;
+	// XAtlas generation parameters
+	int32 XAtlasMaxIterations = 1;
 
 	// UV layer
 	int32 UVLayer = 0;
@@ -64,12 +46,10 @@ public:
 	int32 Width = 512;
 	float Gutter = 2.5;
 
-	EParamOpUnwrapType UnwrapType = EParamOpUnwrapType::ExpMap;
-	EParamOpIslandMode IslandMode = EParamOpIslandMode::PolyGroups;
-	EParamOpBackend Method = EParamOpBackend::UVAltas;
+	EParamOpBackend Method = EParamOpBackend::UVAtlas;
 
 	// set ability on protected transform.
-	void SetTransform(FTransform3d& XForm)
+	void SetTransform(const FTransform3d& XForm)
 	{
 		ResultTransform = XForm;
 	}
@@ -101,11 +81,7 @@ protected:
 		
 	};
 
-	bool ComputeUVs(FDynamicMesh3& InOutMesh,  TFunction<bool(float)>& Interrupter, const bool bUsePolygroups = false, float GlobalScale = 1.0f);
-	bool ComputeUVs_ExpMap(FDynamicMesh3& InOutMesh, TFunction<bool(float)>& Interrupter, float GlobalScale = 1.0f);
-	bool ComputeUVs_ConformalFreeBoundary(FDynamicMesh3& InOutMesh, TFunction<bool(float)>& Interrupter, float GlobalScale = 1.0f);
-
-	void NormalizeUVAreas(const FDynamicMesh3& Mesh, FDynamicMeshUVOverlay* Overlay, float GlobalScale = 1.0f);
+	bool ComputeUVs(FDynamicMesh3& InOutMesh,  TFunction<bool(float)>& Interrupter);
 };
 
 } // end namespace UE::Geometry

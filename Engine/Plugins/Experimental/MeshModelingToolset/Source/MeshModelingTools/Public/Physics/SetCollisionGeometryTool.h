@@ -10,6 +10,8 @@
 #include "OrientedBoxTypes.h"
 #include "CapsuleTypes.h"
 #include "Physics/CollisionPropertySets.h"
+#include "PropertySets/PolygroupLayersProperties.h"
+#include "Polygroups/PolygroupSet.h"
 #include "SetCollisionGeometryTool.generated.h"
 
 class UPreviewGeometry;
@@ -156,6 +158,8 @@ protected:
 	UPROPERTY()
 	USetCollisionGeometryToolProperties* Settings = nullptr;
 
+	UPROPERTY()
+	UPolygroupLayersProperties* PolygroupLayerProperties = nullptr;
 
 	UPROPERTY()
 	UCollisionGeometryVisualizationProperties* VizSettings = nullptr;
@@ -172,6 +176,10 @@ protected:
 
 	TArray<int32> SourceObjectIndices;
 	bool bSourcesHidden = false;
+
+	TArray<FDynamicMesh3> InitialSourceMeshes;
+
+	void OnInputModeChanged();
 
 	enum class EDetectedCollisionGeometry
 	{
@@ -210,6 +218,10 @@ protected:
 		TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>>& ToMeshes,
 		TFunctionRef<bool(const FDynamicMesh3*, int32, int32)> TrisConnectedPredicate);
 	TSharedPtr<UE::Geometry::FMeshSimpleShapeApproximation, ESPMode::ThreadSafe>& GetApproximator(ESetCollisionGeometryInputMode MeshSetMode);
+
+	TUniquePtr<UE::Geometry::FPolygroupSet> ActiveGroupSet;
+	void OnSelectedGroupLayerChanged();
+	void UpdateActiveGroupLayer();
 
 	FTransform OrigTargetTransform;
 	FVector TargetScale3D;

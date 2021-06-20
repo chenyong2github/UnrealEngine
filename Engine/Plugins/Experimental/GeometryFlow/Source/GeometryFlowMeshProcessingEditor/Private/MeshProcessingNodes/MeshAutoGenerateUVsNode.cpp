@@ -17,9 +17,7 @@ void FMeshAutoGenerateUVsNode::GenerateUVs(const FDynamicMesh3& MeshIn, const FM
 	ParameterizeMeshOp.Stretch = Settings.Stretch;
 	ParameterizeMeshOp.NumCharts = Settings.NumCharts;
 	ParameterizeMeshOp.InputMesh = InputMesh;
-
-	ParameterizeMeshOp.IslandMode = EParamOpIslandMode::Auto;
-	ParameterizeMeshOp.UnwrapType = EParamOpUnwrapType::MinStretch;
+	ParameterizeMeshOp.Method = UE::Geometry::EParamOpBackend::UVAtlas;
 
 	FProgressCancel Progress;
 	ParameterizeMeshOp.CalculateResult(&Progress);

@@ -603,8 +603,7 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 	ParameterizeMeshOp.Stretch = 0.1;
 	ParameterizeMeshOp.NumCharts = 0;
 	ParameterizeMeshOp.InputMesh = UVInputMesh;
-	ParameterizeMeshOp.IslandMode = EParamOpIslandMode::Auto;
-	ParameterizeMeshOp.UnwrapType = EParamOpUnwrapType::MinStretch;
+	ParameterizeMeshOp.Method = UE::Geometry::EParamOpBackend::UVAtlas;
 	FProgressCancel UVProgressCancel;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_GenerateUVs);

@@ -146,6 +146,11 @@ public:
 
 
 
+	/**
+	 * Pack UVs into unit rectangle
+	 */
+	bool QuickPack(int32 TargetTextureResolution = 512, float GutterSize = 1.0f);
+
 
 public:
 

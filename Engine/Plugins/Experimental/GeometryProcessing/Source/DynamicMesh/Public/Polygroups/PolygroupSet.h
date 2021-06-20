@@ -66,6 +66,14 @@ struct DYNAMICMESH_API FPolygroupSet
 	}
 
 	/**
+	 * @return PolygroupID for a TriangleID
+	 */
+	int32 GetTriangleGroup(int32 TriangleID)
+	{
+		return (PolygroupAttrib) ? PolygroupAttrib->GetValue(TriangleID) : Mesh->GetTriangleGroup(TriangleID);
+	}
+
+	/**
 	 * Set the PolygroupID for a TriangleID
 	 */
 	void SetGroup(int32 TriangleID, int32 NewGroupID)
