@@ -7,6 +7,7 @@
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "TargetInterfaces/DynamicMeshSource.h"
 
 #include "ModelingObjectsCreationAPI.h"
 
@@ -18,6 +19,8 @@
 #include "MeshConversionOptions.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
+
+#define LOCTEXT_NAMESPACE "ModelingToolTargetUtil"
 
 using namespace UE::Geometry;
 
@@ -65,6 +68,19 @@ bool UE::ToolTarget::ShowSourceObject(UToolTarget* Target)
 	}
 	ensure(false);
 	return false;
+}
+
+
+bool UE::ToolTarget::SetSourceObjectVisible(UToolTarget* Target, bool bVisible)
+{
+	if (bVisible)
+	{
+		return ShowSourceObject(Target);
+	}
+	else
+	{
+		return HideSourceObject(Target);
+	}
 }
 
 
@@ -139,6 +155,15 @@ FMeshDescription UE::ToolTarget::GetMeshDescriptionCopy(UToolTarget* Target, boo
 
 FDynamicMesh3 UE::ToolTarget::GetDynamicMeshCopy(UToolTarget* Target, bool bWantMeshTangents)
 {
+	IPersistentDynamicMeshSource* DynamicMeshSource = Cast<IPersistentDynamicMeshSource>(Target);
+	if (DynamicMeshSource)
+	{
+		UDynamicMesh* DynamicMesh = DynamicMeshSource->GetDynamicMeshContainer();
+		FDynamicMesh3 Mesh;
+		DynamicMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh) { Mesh = ReadMesh; });
+		return Mesh;
+	}
+
 	IMeshDescriptionProvider* MeshDescriptionProvider = Cast<IMeshDescriptionProvider>(Target);
 	FDynamicMesh3 Mesh(EMeshComponents::FaceGroups);
 	Mesh.EnableAttributes();
@@ -197,6 +222,27 @@ UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitDynamicMeshUpdate
 	const FConversionToMeshDescriptionOptions& ConversionOptions,
 	const FComponentMaterialSet* UpdatedMaterials)
 {
+	IPersistentDynamicMeshSource* DynamicMeshSource = Cast<IPersistentDynamicMeshSource>(Target);
+	if (DynamicMeshSource)
+	{
+		UDynamicMesh* DynamicMesh = DynamicMeshSource->GetDynamicMeshContainer();
+		TUniquePtr<FDynamicMesh3> CurrentMesh = DynamicMesh->ExtractMesh();
+		TSharedPtr<FDynamicMesh3> CurrentMeshShared(CurrentMesh.Release());
+
+		DynamicMesh->EditMesh([&](FDynamicMesh3& EditMesh) { EditMesh = UpdatedMesh; });
+
+		TSharedPtr<FDynamicMesh3> NewMeshShared = MakeShared<FDynamicMesh3>();
+		DynamicMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh) { *NewMeshShared = ReadMesh; });
+
+		TUniquePtr<FMeshReplacementChange> ReplaceChange = MakeUnique<FMeshReplacementChange>(CurrentMeshShared, NewMeshShared);
+		
+		DynamicMeshSource->CommitDynamicMeshChange(MoveTemp(ReplaceChange), LOCTEXT("CommitDynamicMeshUpdate_MeshSource", "Edit Mesh"));
+
+
+		// todo support bModifiedTopology flag?
+		return EDynamicMeshUpdateResult::Ok;
+	}
+
 	IMeshDescriptionCommitter* MeshDescriptionCommitter = Cast<IMeshDescriptionCommitter>(Target);
 	if (MeshDescriptionCommitter)
 	{
@@ -235,6 +281,16 @@ UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitDynamicMeshUpdate
 
 UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitDynamicMeshUVUpdate(UToolTarget* Target, const UE::Geometry::FDynamicMesh3* UpdatedMesh)
 {
+	IPersistentDynamicMeshSource* DynamicMeshSource = Cast<IPersistentDynamicMeshSource>(Target);
+	if (DynamicMeshSource)
+	{
+		// todo actually only update UVs? 
+		UDynamicMesh* DynamicMesh = DynamicMeshSource->GetDynamicMeshContainer();
+		DynamicMesh->EditMesh([&](FDynamicMesh3& EditMesh) { EditMesh = *UpdatedMesh; });
+		return EDynamicMeshUpdateResult::Ok;
+	}
+
+
 	IMeshDescriptionCommitter* MeshDescriptionCommitter = Cast<IMeshDescriptionCommitter>(Target);
 	if (!ensure(MeshDescriptionCommitter))
 	{
@@ -294,3 +350,7 @@ bool UE::ToolTarget::ConfigureCreateMeshObjectParams(UToolTarget* SourceTarget, 
 	}
 	return false;
 }
+
+
+
+#undef LOCTEXT_NAMESPACE

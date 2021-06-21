@@ -5,20 +5,22 @@
 
 const FString UCreateMeshObjectTypeProperties::StaticMeshIdentifier = TEXT("Static Mesh");
 const FString UCreateMeshObjectTypeProperties::VolumeIdentifier = TEXT("Volume");
+const FString UCreateMeshObjectTypeProperties::DynamicMeshActorIdentifier = TEXT("Dynamic Mesh");
 
 void UCreateMeshObjectTypeProperties::InitializeDefault()
 {
 	bool bStaticMeshes = true;
 	bool bVolumes = false;
+	bool bDynamicMeshes = true;
 
 #if WITH_EDITOR
 	bVolumes = true;
 #endif
 
-	Initialize(bStaticMeshes, bVolumes);
+	Initialize(bStaticMeshes, bVolumes, bDynamicMeshes);
 }
 
-void UCreateMeshObjectTypeProperties::Initialize(bool bEnableStaticMeshes, bool bEnableVolumes)
+void UCreateMeshObjectTypeProperties::Initialize(bool bEnableStaticMeshes, bool bEnableVolumes, bool bEnableDynamicMeshActor)
 {
 	if (bEnableStaticMeshes)
 	{
@@ -27,6 +29,10 @@ void UCreateMeshObjectTypeProperties::Initialize(bool bEnableStaticMeshes, bool 
 	if (bEnableVolumes)
 	{
 		OutputTypeNamesList.Add(VolumeIdentifier);
+	}
+	if (bEnableDynamicMeshActor)
+	{
+		OutputTypeNamesList.Add(DynamicMeshActorIdentifier);
 	}
 
 	if ((OutputType.Len() == 0) || (OutputType.Len() > 0 && OutputTypeNamesList.Contains(OutputType) == false))
@@ -58,6 +64,10 @@ ECreateObjectTypeHint UCreateMeshObjectTypeProperties::GetCurrentCreateMeshType(
 	{
 		return ECreateObjectTypeHint::Volume;
 	}
+	else if (OutputType == DynamicMeshActorIdentifier)
+	{
+		return ECreateObjectTypeHint::DynamicMeshActor;
+	}
 	return ECreateObjectTypeHint::Undefined;
 }
 
@@ -78,6 +88,11 @@ bool UCreateMeshObjectTypeProperties::ConfigureCreateMeshObjectParams(FCreateMes
 	{
 		ParamsOut.TypeHint = ECreateObjectTypeHint::Volume;
 		ParamsOut.TypeHintClass = VolumeType.Get();
+		return true;
+	}
+	else if (OutputType == DynamicMeshActorIdentifier)
+	{
+		ParamsOut.TypeHint = ECreateObjectTypeHint::DynamicMeshActor;
 		return true;
 	}
 	return false;

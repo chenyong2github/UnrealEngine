@@ -17,12 +17,15 @@
 #include "Materials/Material.h"
 
 #include "ToolTargets/VolumeDynamicMeshToolTarget.h"  // for CVarModelingMaxVolumeTriangleCount
-
 #include "Engine/BlockingVolume.h"
 #include "Components/BrushComponent.h"
 #include "Engine/Polys.h"
 #include "Model.h"
 #include "BSPOps.h"		// in UnrealEd
+
+#include "DynamicMeshActor.h"
+#include "Components/DynamicMeshComponent.h"
+
 
 using namespace UE::Geometry;
 
@@ -96,6 +99,10 @@ FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateMeshObject(FCre
 	if (CreateMeshParams.TypeHint == ECreateObjectTypeHint::Volume)
 	{
 		ResultOut = CreateVolume(MoveTemp(CreateMeshParams));
+	}
+	else if (CreateMeshParams.TypeHint == ECreateObjectTypeHint::DynamicMeshActor)
+	{
+		ResultOut = CreateDynamicMeshActor(MoveTemp(CreateMeshParams));
 	}
 	else
 	{
@@ -174,6 +181,56 @@ FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateVolume(FCreateM
 	ResultOut.ResultCode = ECreateModelingObjectResult::Ok;
 	ResultOut.NewActor = NewVolumeActor;
 	ResultOut.NewComponent = NewVolumeActor->GetBrushComponent();
+	ResultOut.NewAsset = nullptr;
+	return ResultOut;
+}
+
+
+
+FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateDynamicMeshActor(FCreateMeshObjectParams&& CreateMeshParams)
+{
+	// spawn new actor
+	FRotator Rotation(0.0f, 0.0f, 0.0f);
+	FActorSpawnParameters SpawnInfo;
+	ADynamicMeshActor* NewActor = CreateMeshParams.TargetWorld->SpawnActor<ADynamicMeshActor>(SpawnInfo);
+
+	UDynamicMeshComponent* NewComponent = NewActor->GetDynamicMeshComponent();
+
+	if (CreateMeshParams.MeshType == ECreateMeshObjectSourceMeshType::DynamicMesh)
+	{
+		NewComponent->SetMesh(MoveTemp(CreateMeshParams.DynamicMesh.GetValue()));
+		NewComponent->NotifyMeshUpdated();
+	}
+	else if (CreateMeshParams.MeshType == ECreateMeshObjectSourceMeshType::MeshDescription)
+	{
+		const FMeshDescription* MeshDescription = &CreateMeshParams.MeshDescription.GetValue();
+		FDynamicMesh3 Mesh(EMeshComponents::FaceGroups);
+		Mesh.EnableAttributes();
+		FMeshDescriptionToDynamicMesh Converter;
+		Converter.Convert(MeshDescription, Mesh, true);
+		NewComponent->SetMesh(MoveTemp(Mesh));
+	}
+	else
+	{
+		return FCreateMeshObjectResult{ ECreateModelingObjectResult::Failed_InvalidMesh };
+	}
+
+	NewActor->SetActorTransform(CreateMeshParams.Transform);
+
+	// set materials
+	TArray<UMaterialInterface*> ComponentMaterials = FilterMaterials(CreateMeshParams.Materials);
+	for (int32 k = 0; k < ComponentMaterials.Num(); ++k)
+	{
+		NewComponent->SetMaterial(k, ComponentMaterials[k]);
+	}
+
+	NewActor->PostEditChange();
+
+	// emit result
+	FCreateMeshObjectResult ResultOut;
+	ResultOut.ResultCode = ECreateModelingObjectResult::Ok;
+	ResultOut.NewActor = NewActor;
+	ResultOut.NewComponent = NewComponent;
 	ResultOut.NewAsset = nullptr;
 	return ResultOut;
 }

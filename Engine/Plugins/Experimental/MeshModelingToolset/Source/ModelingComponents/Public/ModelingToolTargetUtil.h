@@ -50,6 +50,12 @@ MODELINGCOMPONENTS_API bool HideSourceObject(UToolTarget* Target);
 MODELINGCOMPONENTS_API bool ShowSourceObject(UToolTarget* Target);
 
 /**
+ * Show or Hide the "Source Object" (eg PrimitiveComponent, Actor, etc) backing a ToolTarget
+ * @return true on success
+ */
+MODELINGCOMPONENTS_API bool SetSourceObjectVisible(UToolTarget* Target, bool bVisible);
+
+/**
  * @return the local-to-world Transform underlying a ToolTarget, eg the Component or Actor transform
  */
 MODELINGCOMPONENTS_API UE::Geometry::FTransform3d GetLocalToWorldTransform(UToolTarget* Target);

@@ -21,7 +21,7 @@ class MESHMODELINGTOOLS_API UCreateMeshObjectTypeProperties : public UInteractiv
 public:
 
 	void InitializeDefault();
-	void Initialize(bool bEnableStaticMeshes = true, bool bEnableVolumes = false);
+	void Initialize(bool bEnableStaticMeshes = true, bool bEnableVolumes = false, bool bEnableDynamicMeshActor = false);
 
 	/** Type of Object to create */
 	UPROPERTY(EditAnywhere, Category = OutputType, meta = (DisplayName = "Output Type", GetOptions = GetOutputTypeNamesFunc))
@@ -65,5 +65,6 @@ public:
 	// constants used for different known types
 	static const FString StaticMeshIdentifier;
 	static const FString VolumeIdentifier;
+	static const FString DynamicMeshActorIdentifier;
 
 };

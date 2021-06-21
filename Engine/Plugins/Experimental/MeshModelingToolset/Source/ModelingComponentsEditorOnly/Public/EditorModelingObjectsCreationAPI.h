@@ -77,6 +77,7 @@ public:
 	//
 	FCreateMeshObjectResult CreateStaticMeshAsset(FCreateMeshObjectParams&& CreateMeshParams);
 	FCreateMeshObjectResult CreateVolume(FCreateMeshObjectParams&& CreateMeshParams);
+	FCreateMeshObjectResult CreateDynamicMeshActor(FCreateMeshObjectParams&& CreateMeshParams);
 
 	TArray<UMaterialInterface*> FilterMaterials(const TArray<UMaterialInterface*>& MaterialsIn);
 };
