@@ -167,6 +167,9 @@ void UControlRig::Initialize(bool bInitRigUnits)
 	InitializeFromCDO();
 	InstantiateVMFromCDO();
 
+	// Create the data source registry here to avoid UObject creation from Non-Game Threads
+	GetDataSourceRegistry();
+
 	// should refresh mapping 
 	RequestSetup();
 
