@@ -624,31 +624,86 @@ void FNDIVelocityGridProxy::ConsumePerInstanceDataFromGameThread(void* PerInstan
 	}
 }
 
-void FNDIVelocityGridProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
-{
-	FNDIVelocityGridData* ProxyData =
-		SystemInstancesToProxyData.Find(Context.SystemInstanceID);
+//------------------------------------------------------------------------------------------------------------
 
-	if (ProxyData != nullptr )
+#define NIAGARA_HAIR_STRANDS_THREAD_COUNT 4
+
+class FClearVelocityGridCS : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(FClearVelocityGridCS, Global)
+
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		if (Context.SimStageData->bFirstStage)
-		{
-			ClearBuffer(RHICmdList, ProxyData->DestinationGridBuffer);
-		}
+		return RHISupportsComputeShaders(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREAD_COUNT"), NIAGARA_HAIR_STRANDS_THREAD_COUNT);
+	}
+
+	FClearVelocityGridCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{
+		GridSize.Bind(Initializer.ParameterMap, TEXT("GridSize"));
+		GridDestinationBuffer.Bind(Initializer.ParameterMap, TEXT("GridDestinationBuffer"));
+	}
+
+	FClearVelocityGridCS()
+	{}
+
+	void SetParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* InGridDestinationBuffer,
+		const FIntVector& InGridSize)
+	{
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
+
+		SetUAVParameter(RHICmdList, ShaderRHI, GridDestinationBuffer, InGridDestinationBuffer);
+		SetShaderValue(RHICmdList, ShaderRHI, GridSize, InGridSize);
+	}
+
+	void UnsetParameters(FRHICommandList& RHICmdList)
+	{
+		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
+
+		SetUAVParameter(RHICmdList, ShaderRHI, GridDestinationBuffer, nullptr);
+	}
+
+	LAYOUT_FIELD(FShaderResourceParameter, GridDestinationBuffer);
+	LAYOUT_FIELD(FShaderParameter, GridSize);
+};
+
+IMPLEMENT_SHADER_TYPE(, FClearVelocityGridCS, TEXT("/Plugin/Runtime/HairStrands/Private/NiagaraClearVelocityGrid.usf"), TEXT("MainCS"), SF_Compute);
+
+inline void ClearTexture(FRHICommandList& RHICmdList, FNDIVelocityGridBuffer* DestinationGridBuffer, const FIntVector& InGridSize)
+{
+	FRHIUnorderedAccessView* DestinationGridBufferUAV = DestinationGridBuffer->GridDataBuffer.UAV;
+
+	if (DestinationGridBufferUAV != nullptr)
+	{
+		TShaderMapRef<FClearVelocityGridCS> ComputeShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
+		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 
 		FRHITransitionInfo Transitions[] = {
-			// FIXME: what's the source state for these?
-			FRHITransitionInfo(ProxyData->CurrentGridBuffer->GridDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
-			FRHITransitionInfo(ProxyData->DestinationGridBuffer->GridDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+			FRHITransitionInfo(DestinationGridBufferUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
 		};
 		RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
+
+		const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT;
+		const FIntVector GridSize( (InGridSize.X + 1) * DestinationGridBuffer->NumAttributes, InGridSize.Y + 1, InGridSize.Z + 1);
+
+		const uint32 DispatchCountX = FMath::DivideAndRoundUp((uint32)GridSize.X, GroupSize);
+		const uint32 DispatchCountY = FMath::DivideAndRoundUp((uint32)GridSize.Y, GroupSize);
+		const uint32 DispatchCountZ = FMath::DivideAndRoundUp((uint32)GridSize.Z, GroupSize);
+
+		ComputeShader->SetParameters(RHICmdList, DestinationGridBufferUAV, GridSize);
+		DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), DispatchCountX, DispatchCountY, DispatchCountZ);
+		ComputeShader->UnsetParameters(RHICmdList);
 	}
 }
 
-
 //------------------------------------------------------------------------------------------------------------
-
-#define NIAGARA_HAIR_STRANDS_THREAD_COUNT 64
 
 class FCopyVelocityGridCS : public FGlobalShader
 {
@@ -669,8 +724,8 @@ public:
 	FCopyVelocityGridCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
-		GridDestinationBuffer.Bind(Initializer.ParameterMap, TEXT("GridDestinationBuffer"));
 		GridSize.Bind(Initializer.ParameterMap, TEXT("GridSize"));
+		GridDestinationBuffer.Bind(Initializer.ParameterMap, TEXT("GridDestinationBuffer"));
 		GridCurrentBuffer.Bind(Initializer.ParameterMap, TEXT("GridCurrentBuffer"));
 	}
 
@@ -702,7 +757,7 @@ public:
 
 IMPLEMENT_SHADER_TYPE(, FCopyVelocityGridCS, TEXT("/Plugin/Runtime/HairStrands/Private/NiagaraCopyVelocityGrid.usf"), TEXT("MainCS"), SF_Compute);
 
-inline void CopyTexture(FRHICommandList& RHICmdList, FNDIVelocityGridBuffer* CurrentGridBuffer, FNDIVelocityGridBuffer* DestinationGridBuffer, const FIntVector& GridSize)
+inline void CopyTexture(FRHICommandList& RHICmdList, FNDIVelocityGridBuffer* CurrentGridBuffer, FNDIVelocityGridBuffer* DestinationGridBuffer, const FIntVector& InGridSize)
 {
 	FRHIUnorderedAccessView* DestinationGridBufferUAV = DestinationGridBuffer->GridDataBuffer.UAV;
 	FRHIShaderResourceView* CurrentGridBufferSRV = CurrentGridBuffer->GridDataBuffer.SRV;
@@ -720,13 +775,36 @@ inline void CopyTexture(FRHICommandList& RHICmdList, FNDIVelocityGridBuffer* Cur
 		RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
 
 		const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT;
-		const uint32 NumElements = (GridSize.X + 1) * (GridSize.Y + 1) * (GridSize.Z + 1);
+		const FIntVector GridSize((InGridSize.X + 1) * DestinationGridBuffer->NumAttributes,InGridSize.Y + 1, InGridSize.Z + 1);
 
-		const uint32 DispatchCount = FMath::DivideAndRoundUp(NumElements, GroupSize);
+		const uint32 DispatchCountX = FMath::DivideAndRoundUp((uint32)GridSize.X, GroupSize);
+		const uint32 DispatchCountY = FMath::DivideAndRoundUp((uint32)GridSize.Y, GroupSize);
+		const uint32 DispatchCountZ = FMath::DivideAndRoundUp((uint32)GridSize.Z, GroupSize);
 
 		ComputeShader->SetParameters(RHICmdList, CurrentGridBufferSRV, DestinationGridBufferUAV, GridSize);
-		DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), DispatchCount, 1, 1);
+		DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), DispatchCountX, DispatchCountY, DispatchCountZ);
 		ComputeShader->UnsetParameters(RHICmdList);
+	}
+}
+
+void FNDIVelocityGridProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
+{
+	FNDIVelocityGridData* ProxyData =
+		SystemInstancesToProxyData.Find(Context.SystemInstanceID);
+
+	if (ProxyData != nullptr)
+	{
+		if (Context.SimStageData->bFirstStage)
+		{
+			ClearTexture(RHICmdList, ProxyData->DestinationGridBuffer, ProxyData->GridSize);
+		}
+
+		FRHITransitionInfo Transitions[] = {
+			// FIXME: what's the source state for these?
+			FRHITransitionInfo(ProxyData->CurrentGridBuffer->GridDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
+			FRHITransitionInfo(ProxyData->DestinationGridBuffer->GridDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+		};
+		RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
 	}
 }
 
@@ -751,8 +829,8 @@ void FNDIVelocityGridProxy::ResetData(FRHICommandList& RHICmdList, const FNiagar
 
 	if (ProxyData != nullptr && ProxyData->DestinationGridBuffer != nullptr && ProxyData->CurrentGridBuffer != nullptr)
 	{
-		ClearBuffer(RHICmdList, ProxyData->DestinationGridBuffer);
-		ClearBuffer(RHICmdList, ProxyData->CurrentGridBuffer);
+		ClearTexture(RHICmdList, ProxyData->DestinationGridBuffer, ProxyData->GridSize);
+		ClearTexture(RHICmdList, ProxyData->CurrentGridBuffer, ProxyData->GridSize);
 	}
 }
 

@@ -37,12 +37,8 @@ static const FName GetProjectionPointName(TEXT("GetProjectionPoint"));
 
 const FString UNiagaraDataInterfacePhysicsAsset::ElementOffsetsName(TEXT("ElementOffsets_"));
 
-const FString UNiagaraDataInterfacePhysicsAsset::CurrentTransformBufferName(TEXT("CurrentTransformBuffer_"));
-const FString UNiagaraDataInterfacePhysicsAsset::PreviousTransformBufferName(TEXT("PreviousTransformBuffer_"));
-const FString UNiagaraDataInterfacePhysicsAsset::PreviousInverseBufferName(TEXT("PreviousInverseBuffer_"));
+const FString UNiagaraDataInterfacePhysicsAsset::WorldTransformBufferName(TEXT("WorldTransformBuffer_"));
 const FString UNiagaraDataInterfacePhysicsAsset::InverseTransformBufferName(TEXT("InverseTransformBuffer_"));
-const FString UNiagaraDataInterfacePhysicsAsset::RestTransformBufferName(TEXT("RestTransformBuffer_"));
-const FString UNiagaraDataInterfacePhysicsAsset::RestInverseBufferName(TEXT("RestInverseBuffer_"));
 const FString UNiagaraDataInterfacePhysicsAsset::ElementExtentBufferName(TEXT("ElementExtentBuffer_"));
 const FString UNiagaraDataInterfacePhysicsAsset::PhysicsTypeBufferName(TEXT("PhysicsTypeBuffer_"));
 
@@ -57,12 +53,8 @@ struct FNDIPhysicsAssetParametersName
 	{
 		ElementOffsetsName = UNiagaraDataInterfacePhysicsAsset::ElementOffsetsName + Suffix;
 
-		CurrentTransformBufferName = UNiagaraDataInterfacePhysicsAsset::CurrentTransformBufferName + Suffix;
-		PreviousTransformBufferName = UNiagaraDataInterfacePhysicsAsset::PreviousTransformBufferName + Suffix;
-		PreviousInverseBufferName = UNiagaraDataInterfacePhysicsAsset::PreviousInverseBufferName + Suffix;
+		WorldTransformBufferName = UNiagaraDataInterfacePhysicsAsset::WorldTransformBufferName + Suffix;
 		InverseTransformBufferName = UNiagaraDataInterfacePhysicsAsset::InverseTransformBufferName + Suffix;
-		RestTransformBufferName = UNiagaraDataInterfacePhysicsAsset::RestTransformBufferName + Suffix;
-		RestInverseBufferName = UNiagaraDataInterfacePhysicsAsset::RestInverseBufferName + Suffix;
 		ElementExtentBufferName = UNiagaraDataInterfacePhysicsAsset::ElementExtentBufferName + Suffix;
 		PhysicsTypeBufferName = UNiagaraDataInterfacePhysicsAsset::PhysicsTypeBufferName + Suffix;
 
@@ -72,12 +64,8 @@ struct FNDIPhysicsAssetParametersName
 
 	FString ElementOffsetsName;
 
-	FString CurrentTransformBufferName;
-	FString PreviousTransformBufferName;
-	FString PreviousInverseBufferName;
+	FString WorldTransformBufferName;
 	FString InverseTransformBufferName;
-	FString RestTransformBufferName;
-	FString RestInverseBufferName;
 	FString ElementExtentBufferName;
 	FString PhysicsTypeBufferName;
 
@@ -87,23 +75,21 @@ struct FNDIPhysicsAssetParametersName
 
 //------------------------------------------------------------------------------------------------------------
 
-template<typename BufferType, EPixelFormat PixelFormat, uint32 ElementCount>
+template<typename BufferType, EPixelFormat PixelFormat, uint32 ElementCount, uint32 BufferCount = 1>
 void CreateInternalBuffer(FRWBuffer& OutputBuffer)
 {
 	if (ElementCount > 0)
 	{
-		const uint32 BufferCount = ElementCount;
-		OutputBuffer.Initialize(sizeof(BufferType), BufferCount, PixelFormat, BUF_Static);
+		OutputBuffer.Initialize(sizeof(BufferType), ElementCount * BufferCount, PixelFormat, BUF_Static);
 	}
 }
 
-template<typename BufferType, EPixelFormat PixelFormat, uint32 ElementCount>
-void UpdateInternalBuffer(const TStaticArray<BufferType,ElementCount>& InputData, FRWBuffer& OutputBuffer)
+template<typename BufferType, EPixelFormat PixelFormat, uint32 ElementCount, uint32 BufferCount = 1>
+void UpdateInternalBuffer(const TStaticArray<BufferType,ElementCount*BufferCount>& InputData, FRWBuffer& OutputBuffer)
 {
 	if (ElementCount > 0)
 	{
-		const uint32 BufferCount = ElementCount;
-		const uint32 BufferBytes = sizeof(BufferType) * BufferCount;
+		const uint32 BufferBytes = sizeof(BufferType) * ElementCount * BufferCount;
 
 		void* OutputData = RHILockVertexBuffer(OutputBuffer.Buffer, 0, BufferBytes, RLM_WriteOnly);
 
@@ -113,14 +99,14 @@ void UpdateInternalBuffer(const TStaticArray<BufferType,ElementCount>& InputData
 }
 
 void FillCurrentTransforms(const FTransform& ElementTransform, uint32& ElementCount,
-	TStaticArray<FVector4,PHYSICS_ASSET_MAX_TRANSFORMS>& OutCurrentTransform, TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS>& OutInverseTransform)
+	TStaticArray<FVector4,PHYSICS_ASSET_MAX_TRANSFORMS>& OutCurrentTransform, TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS>& OutCurrentInverse)
 {
 	const uint32 ElementOffset = 3 * ElementCount;
 	const FMatrix ElementMatrix = ElementTransform.ToMatrixWithScale();
 	const FMatrix ElementInverse = ElementMatrix.Inverse();
 
 	ElementMatrix.To3x4MatrixTranspose(&OutCurrentTransform[ElementOffset].X);
-	ElementInverse.To3x4MatrixTranspose(&OutInverseTransform[ElementOffset].X);
+	ElementInverse.To3x4MatrixTranspose(&OutCurrentInverse[ElementOffset].X);
 	++ElementCount;
 }
 
@@ -175,6 +161,24 @@ void GetNumPrimitives(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAssets
 				}
 			}
 		}
+	}
+}
+
+void CompactInternalArrays(FNDIPhysicsAssetArrays* OutAssetArrays)
+{
+	for (uint32 TransformIndex = 0; TransformIndex < PHYSICS_ASSET_MAX_TRANSFORMS; ++TransformIndex)
+	{
+		uint32 OffsetIndex = TransformIndex;
+		OutAssetArrays->WorldTransform[OffsetIndex] = OutAssetArrays->CurrentTransform[TransformIndex];
+		OutAssetArrays->InverseTransform[OffsetIndex] = OutAssetArrays->CurrentInverse[TransformIndex];
+
+		OffsetIndex += PHYSICS_ASSET_MAX_TRANSFORMS;
+		OutAssetArrays->WorldTransform[OffsetIndex] = OutAssetArrays->PreviousTransform[TransformIndex];
+		OutAssetArrays->InverseTransform[OffsetIndex] = OutAssetArrays->PreviousInverse[TransformIndex];
+
+		OffsetIndex += PHYSICS_ASSET_MAX_TRANSFORMS;
+		OutAssetArrays->WorldTransform[OffsetIndex] = OutAssetArrays->RestTransform[TransformIndex];
+		OutAssetArrays->InverseTransform[OffsetIndex] = OutAssetArrays->RestInverse[TransformIndex];
 	}
 }
 
@@ -249,7 +253,7 @@ void CreateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 
 										const FTransform ElementTransform = FTransform(BoxElem.Rotation, BoxElem.Center) * BoneTransform;
 										OutAssetArrays->ElementExtent[BoxCount] = FVector4(BoxElem.X, BoxElem.Y, BoxElem.Z, 0);
-										FillCurrentTransforms(ElementTransform, BoxCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
+										FillCurrentTransforms(ElementTransform, BoxCount, OutAssetArrays->CurrentTransform, OutAssetArrays->CurrentInverse);
 									}
 								}
 
@@ -265,7 +269,7 @@ void CreateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 
 										const FTransform ElementTransform = FTransform(SphereElem.Center) * BoneTransform;
 										OutAssetArrays->ElementExtent[SphereCount] = FVector4(SphereElem.Radius, 0, 0, 0);
-										FillCurrentTransforms(ElementTransform, SphereCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
+										FillCurrentTransforms(ElementTransform, SphereCount, OutAssetArrays->CurrentTransform, OutAssetArrays->CurrentInverse);
 									}
 								}
 
@@ -281,7 +285,7 @@ void CreateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 
 										const FTransform ElementTransform = FTransform(CapsuleElem.Rotation, CapsuleElem.Center) * BoneTransform;
 										OutAssetArrays->ElementExtent[CapsuleCount] = FVector4(CapsuleElem.Radius, CapsuleElem.Length, 0, 0);
-										FillCurrentTransforms(ElementTransform, CapsuleCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
+										FillCurrentTransforms(ElementTransform, CapsuleCount, OutAssetArrays->CurrentTransform, OutAssetArrays->CurrentInverse);
 									}
 								}
 							}
@@ -290,7 +294,9 @@ void CreateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 				}
 			}
 			OutAssetArrays->PreviousTransform = OutAssetArrays->CurrentTransform;
-			OutAssetArrays->PreviousInverse = OutAssetArrays->InverseTransform;
+			OutAssetArrays->PreviousInverse = OutAssetArrays->CurrentInverse;
+
+			CompactInternalArrays(OutAssetArrays);
 		}
 		else
 		{
@@ -318,7 +324,7 @@ void UpdateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 		}
 
 		OutAssetArrays->PreviousTransform = OutAssetArrays->CurrentTransform;
-		OutAssetArrays->PreviousInverse = OutAssetArrays->InverseTransform;
+		OutAssetArrays->PreviousInverse = OutAssetArrays->CurrentInverse;
 
 		uint32 BoxCount = OutAssetArrays->ElementOffsets.BoxOffset;
 		uint32 SphereCount = OutAssetArrays->ElementOffsets.SphereOffset;
@@ -357,7 +363,7 @@ void UpdateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 								if (CollisionEnabledHasPhysics(BoxElem.GetCollisionEnabled()))
 								{
 									const FTransform ElementTransform = FTransform(BoxElem.Rotation, BoxElem.Center) * BoneTransform;
-									FillCurrentTransforms(ElementTransform, BoxCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
+									FillCurrentTransforms(ElementTransform, BoxCount, OutAssetArrays->CurrentTransform, OutAssetArrays->CurrentInverse);
 								}
 							}
 
@@ -366,7 +372,7 @@ void UpdateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 								if (CollisionEnabledHasPhysics(SphereElem.GetCollisionEnabled()))
 								{
 									const FTransform ElementTransform = FTransform(SphereElem.Center) * BoneTransform;
-									FillCurrentTransforms(ElementTransform, SphereCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
+									FillCurrentTransforms(ElementTransform, SphereCount, OutAssetArrays->CurrentTransform, OutAssetArrays->CurrentInverse);
 								}
 							}
 
@@ -375,7 +381,7 @@ void UpdateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 								if (CollisionEnabledHasPhysics(CapsuleElem.GetCollisionEnabled()))
 								{
 									const FTransform ElementTransform = FTransform(CapsuleElem.Rotation, CapsuleElem.Center) * BoneTransform;
-									FillCurrentTransforms(ElementTransform, CapsuleCount, OutAssetArrays->CurrentTransform, OutAssetArrays->InverseTransform);
+									FillCurrentTransforms(ElementTransform, CapsuleCount, OutAssetArrays->CurrentTransform, OutAssetArrays->CurrentInverse);
 								}
 							}
 						}
@@ -383,6 +389,7 @@ void UpdateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 				}
 			}
 		}
+		CompactInternalArrays(OutAssetArrays);
 	}
 }
 
@@ -390,26 +397,17 @@ void UpdateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 
 void FNDIPhysicsAssetBuffer::InitRHI()
 {
-	CreateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS>(CurrentTransformBuffer);
-	CreateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS>(PreviousTransformBuffer);
-	CreateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS>(InverseTransformBuffer);
-	CreateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS>(PreviousInverseBuffer);
+	CreateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS, 3>(WorldTransformBuffer);
+	CreateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS, 3>(InverseTransformBuffer);
 
-	CreateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS>(RestTransformBuffer);
-	CreateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS>(RestInverseBuffer);
 	CreateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_PRIMITIVES>(ElementExtentBuffer);
-
 	CreateInternalBuffer<uint32, EPixelFormat::PF_R32_UINT, PHYSICS_ASSET_MAX_PRIMITIVES>(PhysicsTypeBuffer);
 }
 
 void FNDIPhysicsAssetBuffer::ReleaseRHI()
 {
-	CurrentTransformBuffer.Release();
-	PreviousTransformBuffer.Release();
-	PreviousInverseBuffer.Release();
+	WorldTransformBuffer.Release();
 	InverseTransformBuffer.Release();
-	RestTransformBuffer.Release();
-	RestInverseBuffer.Release();
 	ElementExtentBuffer.Release();
 	PhysicsTypeBuffer.Release();
 }
@@ -515,12 +513,8 @@ public:
 
 		ElementOffsets.Bind(ParameterMap, *ParamNames.ElementOffsetsName);
 
-		CurrentTransformBuffer.Bind(ParameterMap, *ParamNames.CurrentTransformBufferName);
-		PreviousTransformBuffer.Bind(ParameterMap, *ParamNames.PreviousTransformBufferName);
-		PreviousInverseBuffer.Bind(ParameterMap, *ParamNames.PreviousInverseBufferName);
+		WorldTransformBuffer.Bind(ParameterMap, *ParamNames.WorldTransformBufferName);
 		InverseTransformBuffer.Bind(ParameterMap, *ParamNames.InverseTransformBufferName);
-		RestTransformBuffer.Bind(ParameterMap, *ParamNames.RestTransformBufferName);
-		RestInverseBuffer.Bind(ParameterMap, *ParamNames.RestInverseBufferName);
 		ElementExtentBuffer.Bind(ParameterMap, *ParamNames.ElementExtentBufferName);
 		PhysicsTypeBuffer.Bind(ParameterMap, *ParamNames.PhysicsTypeBufferName);
 
@@ -544,12 +538,8 @@ public:
 		if (ProxyData != nullptr && ProxyData->AssetBuffer && ProxyData->AssetBuffer->IsInitialized())
 		{
 			FNDIPhysicsAssetBuffer* AssetBuffer = ProxyData->AssetBuffer;
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, CurrentTransformBuffer, AssetBuffer->CurrentTransformBuffer.SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, PreviousTransformBuffer, AssetBuffer->PreviousTransformBuffer.SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, PreviousInverseBuffer, AssetBuffer->PreviousInverseBuffer.SRV);
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, WorldTransformBuffer, AssetBuffer->WorldTransformBuffer.SRV);
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, InverseTransformBuffer, AssetBuffer->InverseTransformBuffer.SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, RestTransformBuffer, AssetBuffer->RestTransformBuffer.SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, RestInverseBuffer, AssetBuffer->RestInverseBuffer.SRV);
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, ElementExtentBuffer, AssetBuffer->ElementExtentBuffer.SRV);
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, PhysicsTypeBuffer, AssetBuffer->PhysicsTypeBuffer.SRV);
 
@@ -559,12 +549,8 @@ public:
 		}
 		else
 		{
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, CurrentTransformBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, PreviousTransformBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, PreviousInverseBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, WorldTransformBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, InverseTransformBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, RestTransformBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, RestInverseBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, ElementExtentBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, PhysicsTypeBuffer, FNiagaraRenderer::GetDummyIntBuffer());
 
@@ -583,12 +569,8 @@ private:
 
 	LAYOUT_FIELD(FShaderParameter, ElementOffsets);
 
-	LAYOUT_FIELD(FShaderResourceParameter, CurrentTransformBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, PreviousTransformBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, PreviousInverseBuffer);
+	LAYOUT_FIELD(FShaderResourceParameter, WorldTransformBuffer);
 	LAYOUT_FIELD(FShaderResourceParameter, InverseTransformBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, RestTransformBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, RestInverseBuffer);
 	LAYOUT_FIELD(FShaderResourceParameter, ElementExtentBuffer);
 	LAYOUT_FIELD(FShaderResourceParameter, PhysicsTypeBuffer);
 
@@ -646,13 +628,9 @@ void FNDIPhysicsAssetProxy::PreStage(FRHICommandList& RHICmdList, const FNiagara
 	{
 		if (Context.SimStageData->bFirstStage)
 		{
-			UpdateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS>(ProxyData->AssetArrays.CurrentTransform, ProxyData->AssetBuffer->CurrentTransformBuffer);
-			UpdateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS>(ProxyData->AssetArrays.PreviousTransform, ProxyData->AssetBuffer->PreviousTransformBuffer);
-			UpdateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS>(ProxyData->AssetArrays.InverseTransform, ProxyData->AssetBuffer->InverseTransformBuffer);
-			UpdateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS>(ProxyData->AssetArrays.PreviousInverse, ProxyData->AssetBuffer->PreviousInverseBuffer);
+			UpdateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS, 3>(ProxyData->AssetArrays.WorldTransform, ProxyData->AssetBuffer->WorldTransformBuffer);
+			UpdateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS, 3>(ProxyData->AssetArrays.InverseTransform, ProxyData->AssetBuffer->InverseTransformBuffer);
 
-			UpdateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS>(ProxyData->AssetArrays.RestTransform, ProxyData->AssetBuffer->RestTransformBuffer);
-			UpdateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS>(ProxyData->AssetArrays.RestInverse, ProxyData->AssetBuffer->RestInverseBuffer);
 			UpdateInternalBuffer<FVector4, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_PRIMITIVES>(ProxyData->AssetArrays.ElementExtent, ProxyData->AssetBuffer->ElementExtentBuffer);
 			UpdateInternalBuffer<uint32, EPixelFormat::PF_R32_UINT, PHYSICS_ASSET_MAX_PRIMITIVES>(ProxyData->AssetArrays.PhysicsType, ProxyData->AssetBuffer->PhysicsTypeBuffer);
 		}
@@ -1118,9 +1096,7 @@ bool UNiagaraDataInterfacePhysicsAsset::GetFunctionHLSL(const FNiagaraDataInterf
 	TMap<FString, FStringFormatArg> ArgsSample = {
 		{TEXT("InstanceFunctionName"), FunctionInfo.InstanceName},
 		{TEXT("ElementOffsetsName"), ParamNames.ElementOffsetsName},
-		{TEXT("CurrentTransformBufferName"), ParamNames.CurrentTransformBufferName},
-		{TEXT("PreviousTransformBufferName"), ParamNames.PreviousTransformBufferName},
-		{TEXT("PreviousInverseBufferName"), ParamNames.PreviousInverseBufferName},
+		{TEXT("WorldTransformBufferName"), ParamNames.WorldTransformBufferName},
 		{TEXT("InverseTransformBufferName"), ParamNames.InverseTransformBufferName},
 		{TEXT("ElementExtentBufferName"), ParamNames.ElementExtentBufferName},
 		{TEXT("PhysicsAssetContextName"), TEXT("DIPHYSICSASSET_MAKE_CONTEXT(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")")},

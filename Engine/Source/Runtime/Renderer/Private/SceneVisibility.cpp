@@ -3066,11 +3066,15 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 
 	if (IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform()) && Views.Num() > 0 && !ViewFamily.EngineShowFlags.HitProxies)
 	{
-		FRDGBuilder GraphBuilder(RHICmdList);
+		// If we are rendering from scene capture we don't need to run another time the hair bookmarks.
+		if (Views[0].AllowGPUParticleUpdate())
+		{
+			FRDGBuilder GraphBuilder(RHICmdList);
 
-		FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(Views);
-		RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessGuideInterpolation, Parameters);
-		GraphBuilder.Execute();
+			FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(Views);
+			RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessGuideInterpolation, Parameters);
+			GraphBuilder.Execute();
+		}
 	}
 
 	// Notify the FX system that the scene is about to perform visibility checks.

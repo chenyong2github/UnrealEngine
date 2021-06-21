@@ -31,8 +31,10 @@ struct FElementOffset
 struct FNDIPhysicsAssetArrays
 {
 	FElementOffset ElementOffsets;
+	TStaticArray<FVector4, 3 * PHYSICS_ASSET_MAX_TRANSFORMS> WorldTransform;
+	TStaticArray<FVector4, 3 * PHYSICS_ASSET_MAX_TRANSFORMS> InverseTransform;
 	TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS> CurrentTransform;
-	TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS> InverseTransform;
+	TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS> CurrentInverse;
 	TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS> PreviousTransform;
 	TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS> PreviousInverse;
 	TStaticArray<FVector4, PHYSICS_ASSET_MAX_TRANSFORMS> RestTransform;
@@ -53,23 +55,11 @@ struct FNDIPhysicsAssetBuffer : public FRenderResource
 	/** Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FNDIPhysicsAssetBuffer"); }
 
-	/** Current transform buffer */
-	FRWBuffer CurrentTransformBuffer;
-
-	/** Previous transform buffer */
-	FRWBuffer PreviousTransformBuffer;
-
-	/** Previous inverse buffer */
-	FRWBuffer PreviousInverseBuffer;
+	/** World transform buffer */
+	FRWBuffer WorldTransformBuffer;
 
 	/** Inverse transform buffer*/
 	FRWBuffer InverseTransformBuffer;
-
-	/** Rest transform buffer */
-	FRWBuffer RestTransformBuffer;
-
-	/** Rest transform buffer */
-	FRWBuffer RestInverseBuffer;
 
 	/** Element extent buffer */
 	FRWBuffer ElementExtentBuffer;
@@ -190,23 +180,11 @@ public:
 	/** Name of element offsets */
 	static const FString ElementOffsetsName;
 
-	/** Name of the current transform buffer */
-	static const FString CurrentTransformBufferName;
-
-	/** Name of the previous transform buffer */
-	static const FString PreviousTransformBufferName;
-
-	/** Name of the previous inverse buffer */
-	static const FString PreviousInverseBufferName;
+	/** Name of the world transform buffer */
+	static const FString WorldTransformBufferName;
 
 	/** Name of the inverse transform buffer */
 	static const FString InverseTransformBufferName;
-
-	/** Name of the rest transform buffer */
-	static const FString RestTransformBufferName;
-
-	/** Name of the rest inverse transform buffer */
-	static const FString RestInverseBufferName;
 
 	/** Name of the element extent buffer */
 	static const FString ElementExtentBufferName;
