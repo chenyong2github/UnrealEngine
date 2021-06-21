@@ -203,5 +203,6 @@ private:
 
 	TArray<FProducerEntry> Producers;
 	TArray<FCallbackEntry> Callbacks;
+	TMap<void*, TArray<uint32>> CallbacksMap;
 	uint32 NumPendingCallbacks;
 };
