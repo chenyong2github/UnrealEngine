@@ -468,7 +468,7 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, FMultiTrackAccessUn
 				{
 					RebufferDetectedAtPlayPos = LastKnownPTS;
 				}
-				WorkerThread.SendMessage(FWorkerThread::FMessage::EType::BufferUnderrun);
+				WorkerThread.Enqueue(FWorkerThreadMessages::FMessage::EType::BufferUnderrun);
 			}
 		}
 

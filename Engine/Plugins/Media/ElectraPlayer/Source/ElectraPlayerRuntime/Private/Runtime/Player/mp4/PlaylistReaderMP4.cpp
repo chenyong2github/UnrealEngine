@@ -36,6 +36,7 @@ public:
 	virtual ~FPlaylistReaderMP4();
 
 	virtual void Close() override;
+	virtual void HandleOnce() override;
 
 	/**
 	 * Returns the type of playlist format.
@@ -186,6 +187,12 @@ void FPlaylistReaderMP4::Close()
 	ClearRequest();
 
 	StopWorkerThread();
+}
+
+void FPlaylistReaderMP4::HandleOnce()
+{
+	// No-op. This class is using a dedicated thread to read data from the stream
+	// which can stall at any moment and thus not lend itself to a tickable instance.
 }
 
 void FPlaylistReaderMP4::StartWorkerThread()

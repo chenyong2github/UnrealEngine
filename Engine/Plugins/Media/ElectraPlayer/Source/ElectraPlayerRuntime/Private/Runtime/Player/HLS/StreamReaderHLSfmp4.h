@@ -196,27 +196,28 @@ private:
 		IStreamReader::CreateParam								Parameters;
 		TSharedPtrTS<FStreamSegmentRequestHLSfmp4>				CurrentRequest;
 		FMediaSemaphore											WorkSignal;
-		volatile bool											bTerminate;
-		volatile bool											bRequestCanceled;
-		volatile bool											bSilentCancellation;
-		volatile bool											bHasErrored;
-		bool													bAbortedByABR;
-		bool													bAllowEarlyEmitting;
-		bool													bFillRemainingDuration;
+		volatile bool											bWasStarted = false;
+		volatile bool											bTerminate = false;
+		volatile bool											bRequestCanceled = false;
+		volatile bool											bSilentCancellation = false;
+		volatile bool											bHasErrored = false;
+		bool													bAbortedByABR = false;
+		bool													bAllowEarlyEmitting = false;
+		bool													bFillRemainingDuration = false;
 
-		IPlayerSessionServices*									PlayerSessionService;
+		IPlayerSessionServices*									PlayerSessionService = nullptr;
 		FReadBuffer												ReadBuffer;
 		TSharedPtr<ElectraCDM::IStreamDecrypterAES128, ESPMode::ThreadSafe>	Decrypter;
 		FMediaEvent												DownloadCompleteSignal;
 		TSharedPtrTS<IParserISO14496_12>						MP4Parser;
-		int32													NumMOOFBoxesFound;
+		int32													NumMOOFBoxesFound = 0;
 
 		TMediaQueueDynamicNoLock<FAccessUnit *>					AccessUnitFIFO;
 		FTimeValue 												DurationSuccessfullyRead;
 		FTimeValue 												DurationSuccessfullyDelivered;
 
 		FMediaCriticalSection									MetricUpdateLock;
-		int32													ProgressReportCount;
+		int32													ProgressReportCount = 0;
 		TSharedPtrTS<IAdaptiveStreamSelector>					StreamSelector;
 
 

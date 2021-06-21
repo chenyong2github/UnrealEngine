@@ -26,6 +26,7 @@
 
 DECLARE_CYCLE_STAT(TEXT("FPlaylistReaderHLS_WorkerThread"), STAT_ElectraPlayer_HLS_PlaylistWorker, STATGROUP_ElectraPlayer);
 
+#define HLS_PLAYLISTREADER_USE_DEDICATED_WORKER_THREAD		0
 
 namespace Electra
 {
@@ -46,7 +47,10 @@ const FString IPlaylistReaderHLS::OptionKeyUpdatePlaylistLoadNoDataTimeout  (TEX
 /**
  * This class is responsible for downloading HLS playlists and parsing them.
  */
-class FPlaylistReaderHLS : public IPlaylistReaderHLS, public FMediaThread
+class FPlaylistReaderHLS : public IPlaylistReaderHLS
+#if HLS_PLAYLISTREADER_USE_DEDICATED_WORKER_THREAD
+						 , public FMediaThread
+#endif
 {
 public:
 	FPlaylistReaderHLS();
@@ -54,6 +58,7 @@ public:
 
 	virtual ~FPlaylistReaderHLS();
 	virtual void Close() override;
+	virtual void HandleOnce() override;
 
 	/**
 	 * Returns the type of playlist format.
@@ -225,6 +230,11 @@ private:
 	void StartWorkerThread();
 	void StopWorkerThread();
 	void WorkerThread();
+
+	void InternalSetup();
+	void InternalCleanup();
+	void InternalHandleOnce();
+
 	void HandleEnqueuedPlaylistDownloads(const FTimeValue& TimeNow);
 	void HandleCompletedPlaylistDownloads(const FTimeValue& TimeNow);
 	void HandleStaticRequestCompletions(const FTimeValue& TimeNow);
@@ -244,11 +254,11 @@ private:
 	FErrorDetail ParsePlaylist(FPlaylistRequestPtr FromRequest);
 
 
-	IPlayerSessionServices*									PlayerSessionServices;
+	IPlayerSessionServices*									PlayerSessionServices = nullptr;
 	FString													MasterPlaylistURL;
 	TSharedPtr<FMediaSemaphore, ESPMode::ThreadSafe>		WorkerThreadSignal;
-	bool													bIsWorkerThreadStarted;
-	volatile bool											bTerminateWorkerThread;
+	bool													bIsWorkerThreadStarted = false;
+	volatile bool											bTerminateWorkerThread = false;
 
 	FMediaCriticalSection									PendingPlaylistRequestsLock;
 	TArray<FPlaylistRequestPtr>								PendingPlaylistRequests;
@@ -258,7 +268,7 @@ private:
 	TDoubleLinkedList<FPlaylistLoadRequestHLS>				InitiallyRequiredPlaylistLoadRequests;				//!< Playlists that need to be fetched and parsed before we can report metadata ready to the player.
 	TSharedPtrTS<IElectraHttpManager::FProgressListener>	ProgressListener;
 
-	IManifestBuilderHLS* 									Builder;
+	IManifestBuilderHLS* 									Builder = nullptr;
 	TSharedPtrTS<FManifestHLSInternal>						Manifest;
 	FErrorDetail											LastErrorDetail;
 
@@ -286,11 +296,9 @@ TSharedPtrTS<IPlaylistReader> IPlaylistReaderHLS::Create(IPlayerSessionServices*
 
 
 FPlaylistReaderHLS::FPlaylistReaderHLS()
+#if HLS_PLAYLISTREADER_USE_DEDICATED_WORKER_THREAD
 	: FMediaThread("ElectraPlayer::HLS Playlist")
-	, PlayerSessionServices(nullptr)
-	, bIsWorkerThreadStarted(false)
-	, bTerminateWorkerThread(false)
-	, Builder(nullptr)
+#endif
 {
 	WorkerThreadSignal = MakeShared<FMediaSemaphore, ESPMode::ThreadSafe>();
 }
@@ -322,15 +330,23 @@ void FPlaylistReaderHLS::Close()
 	StopWorkerThread();
 }
 
+void FPlaylistReaderHLS::HandleOnce()
+{
+#if !HLS_PLAYLISTREADER_USE_DEDICATED_WORKER_THREAD
+	InternalHandleOnce();
+#endif
+}
+
+
 void FPlaylistReaderHLS::StartWorkerThread()
 {
 	check(!bIsWorkerThreadStarted);
-
+#if HLS_PLAYLISTREADER_USE_DEDICATED_WORKER_THREAD
 	bTerminateWorkerThread = false;
-	//ThreadSetPriority( ... );
-	//ThreadSetCoreAffinity( ... );
-	//ThreadSetStackSize( ... );
 	ThreadStart(Electra::MakeDelegate(this, &FPlaylistReaderHLS::WorkerThread));
+#else
+	InternalSetup();
+#endif
 	bIsWorkerThreadStarted = true;
 }
 
@@ -338,10 +354,14 @@ void FPlaylistReaderHLS::StopWorkerThread()
 {
 	if (bIsWorkerThreadStarted)
 	{
+#if HLS_PLAYLISTREADER_USE_DEDICATED_WORKER_THREAD
 		bTerminateWorkerThread = true;
 		WorkerThreadSignal->Release();
 		ThreadWaitDone();
 		ThreadReset();
+#else
+		InternalCleanup();
+#endif
 		bIsWorkerThreadStarted = false;
 	}
 }
@@ -455,10 +475,9 @@ void FPlaylistReaderHLS::CheckForPlaylistUpdate(const FTimeValue& TimeNow)
 	}
 }
 
-void FPlaylistReaderHLS::WorkerThread()
-{
-	LLM_SCOPE(ELLMTag::ElectraPlayer);
 
+void FPlaylistReaderHLS::InternalSetup()
+{
 	Builder = IManifestBuilderHLS::Create(PlayerSessionServices);
 
 	// Setup the playlist load request for the master playlist.
@@ -467,38 +486,10 @@ void FPlaylistReaderHLS::WorkerThread()
 	PlaylistLoadRequest.RequestedAtTime  = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
 	PlaylistLoadRequest.InternalUniqueID = 0;
 	EnqueueLoadPlaylist(PlaylistLoadRequest, true);
+}
 
-	while(!bTerminateWorkerThread)
-	{
-		WorkerThreadSignal->Obtain(1000 * 100);
-		if (bTerminateWorkerThread)
-		{
-			break;
-		}
-
-		{
-			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_HLS_PlaylistWorker);
-			CSV_SCOPED_TIMING_STAT(ElectraPlayer, HLS_PlaylistWorker);
-
-			FTimeValue Now = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
-
-			// Check for completed static resource requests.
-			// NOTE: This needs to be done first in order to move the completed ones being moved onto the completed list to be
-			//       handled immediately in the following HandleCompletedPlaylistDownloads() call!!
-			HandleStaticRequestCompletions(Now);
-
-			// Check completed playlist downloads
-			HandleCompletedPlaylistDownloads(Now);
-
-			// Execute enqueued playlist download requests.
-			HandleEnqueuedPlaylistDownloads(Now);
-
-			// Check which playlists need to be reloaded.
-			CheckForPlaylistUpdate(Now);
-		}
-	}
-
-
+void FPlaylistReaderHLS::InternalCleanup()
+{
 	// No playlists are required any more.
 	InitiallyRequiredPlaylistLoadRequests.Empty();
 
@@ -542,6 +533,48 @@ void FPlaylistReaderHLS::WorkerThread()
 
 	delete Builder;
 	Builder = nullptr;
+}
+
+void FPlaylistReaderHLS::InternalHandleOnce()
+{
+	SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_HLS_PlaylistWorker);
+	CSV_SCOPED_TIMING_STAT(ElectraPlayer, HLS_PlaylistWorker);
+
+	FTimeValue Now = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
+
+	// Check for completed static resource requests.
+	// NOTE: This needs to be done first in order to move the completed ones being moved onto the completed list to be
+	//       handled immediately in the following HandleCompletedPlaylistDownloads() call!!
+	HandleStaticRequestCompletions(Now);
+
+	// Check completed playlist downloads
+	HandleCompletedPlaylistDownloads(Now);
+
+	// Execute enqueued playlist download requests.
+	HandleEnqueuedPlaylistDownloads(Now);
+
+	// Check which playlists need to be reloaded.
+	CheckForPlaylistUpdate(Now);
+}
+
+void FPlaylistReaderHLS::WorkerThread()
+{
+	LLM_SCOPE(ELLMTag::ElectraPlayer);
+
+	InternalSetup();
+
+	while(!bTerminateWorkerThread)
+	{
+		WorkerThreadSignal->Obtain(1000 * 100);
+		if (bTerminateWorkerThread)
+		{
+			break;
+		}
+
+		InternalHandleOnce();
+	}
+
+	InternalCleanup();
 }
 
 

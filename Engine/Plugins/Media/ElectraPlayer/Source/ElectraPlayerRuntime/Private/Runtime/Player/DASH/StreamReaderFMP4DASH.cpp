@@ -133,13 +133,13 @@ UEMediaError FStreamReaderFMP4DASH::Create(IPlayerSessionServices* InPlayerSessi
 		StreamHandlers[i].PlayerSessionService = PlayerSessionService;
 		StreamHandlers[i].Parameters		   = InCreateParam;
 		StreamHandlers[i].bTerminate		   = false;
+		StreamHandlers[i].bWasStarted		   = false;
 		StreamHandlers[i].bRequestCanceled     = false;
 		StreamHandlers[i].bSilentCancellation  = false;
 		StreamHandlers[i].bHasErrored   	   = false;
 		StreamHandlers[i].IsIdleSignal.Signal();
 
 		StreamHandlers[i].ThreadSetName(i==0?"ElectraPlayer::fmp4 Video":"ElectraPlayer::fmp4 Audio");
-		StreamHandlers[i].ThreadStart(Electra::MakeDelegate(&StreamHandlers[i], &FStreamHandler::WorkerThread));
 	}
 	return UEMEDIA_ERROR_OK;
 }
@@ -159,8 +159,11 @@ void FStreamReaderFMP4DASH::Close()
 		// Wait until they finished.
 		for(int32 i=0; i<FMEDIA_STATIC_ARRAY_COUNT(StreamHandlers); ++i)
 		{
-			StreamHandlers[i].ThreadWaitDone();
-			StreamHandlers[i].ThreadReset();
+			if (StreamHandlers[i].bWasStarted)
+			{
+				StreamHandlers[i].ThreadWaitDone();
+				StreamHandlers[i].ThreadReset();
+			}
 		}
 	}
 }
@@ -218,6 +221,12 @@ IStreamReader::EAddResult FStreamReaderFMP4DASH::AddRequest(uint32 CurrentPlayba
 		}
 
 		Request->SetPlaybackSequenceID(CurrentPlaybackSequenceID);
+		if (!Handler->bWasStarted)
+		{
+			Handler->ThreadStart(Electra::MakeDelegate(Handler, &FStreamHandler::WorkerThread));
+			Handler->bWasStarted = true;
+		}
+
 		Handler->bRequestCanceled = false;
 		Handler->bSilentCancellation = false;
 		Handler->CurrentRequest = Request;

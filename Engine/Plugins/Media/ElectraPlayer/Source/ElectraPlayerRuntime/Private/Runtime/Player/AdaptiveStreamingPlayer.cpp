@@ -125,7 +125,6 @@ FAdaptiveStreamingPlayer::FAdaptiveStreamingPlayer(const IAdaptiveStreamingPlaye
 
 	TMediaInterlockedExchangePointer(PointerToLatestPlayer, this);
 
-	// Create the worker thread.
 	StartWorkerThread();
 }
 
@@ -223,6 +222,9 @@ void FAdaptiveStreamingPlayer::Initialize(const FParamDict& Options)
 	// Create the ABR stream selector.
 	StreamSelector = IAdaptiveStreamSelector::Create(this, PlayerConfig.StreamSelectorConfig);
 	AddMetricsReceiver(StreamSelector.Get());
+
+	// Create renderers.
+	CreateRenderers();
 
 	// Set up video decoder resolution limits. As the media playlists are parsed the video streams will be
 	// compared against these limits and those that exceed the limit will not be considered for playback.
@@ -356,14 +358,16 @@ void FAdaptiveStreamingPlayer::DispatchEventAndWait(TSharedPtrTS<FMetricEvent> E
  */
 void FAdaptiveStreamingPlayer::StartWorkerThread()
 {
-	if (!WorkerThread.bStarted)
+	// Get us an event dispatcher and add ourselves to the shared worker thread.
+	if (!EventDispatcher.IsValid())
 	{
-		WorkerThread.MediaThread.ThreadSetPriority(PlayerConfig.WorkerThread.Priority);
-		WorkerThread.MediaThread.ThreadSetCoreAffinity(PlayerConfig.WorkerThread.CoreAffinity);
-		WorkerThread.MediaThread.ThreadSetStackSize(PlayerConfig.WorkerThread.StackSize);
-		WorkerThread.MediaThread.ThreadSetName("ElectraPlayer::Worker");
-		WorkerThread.MediaThread.ThreadStart(Electra::MakeDelegate(this, &FAdaptiveStreamingPlayer::WorkerThreadFN));
-		WorkerThread.bStarted = true;
+		EventDispatcher = FAdaptiveStreamingPlayerEventHandler::Create();
+	}
+	if (!SharedWorkerThread.IsValid())
+	{
+		SharedWorkerThread = FAdaptiveStreamingPlayerWorkerThread::Create();
+		WorkerThread.SetSharedWorkerThread(SharedWorkerThread);
+		SharedWorkerThread->AddPlayerInstance(this);
 	}
 }
 
@@ -374,12 +378,16 @@ void FAdaptiveStreamingPlayer::StartWorkerThread()
  */
 void FAdaptiveStreamingPlayer::StopWorkerThread()
 {
-	if (WorkerThread.bStarted)
+	if (SharedWorkerThread.IsValid())
 	{
-		WorkerThread.SendMessage(FWorkerThread::FMessage::EType::Quit);
-		WorkerThread.MediaThread.ThreadWaitDone();
-		WorkerThread.MediaThread.ThreadReset();
-		WorkerThread.bStarted = false;
+		WorkerThread.SetSharedWorkerThread(nullptr);
+		SharedWorkerThread->RemovePlayerInstance(this);
+		SharedWorkerThread.Reset();
+	}
+	if (EventDispatcher.IsValid())
+	{
+		EventDispatcher->DispatchEventAndWait(TSharedPtrTS<FMetricEvent>());
+		EventDispatcher.Reset();
 	}
 }
 
@@ -1007,7 +1015,7 @@ void FAdaptiveStreamingPlayer::AUDeallocate(IAccessUnitMemoryProvider::EDataType
  */
 void FAdaptiveStreamingPlayer::OnFragmentOpen(TSharedPtrTS<IStreamSegment> pRequest)
 {
-	WorkerThread.SendMessage(FWorkerThread::FMessage::EType::FragmentOpen, pRequest);
+	WorkerThread.Enqueue(FWorkerThreadMessages::FMessage::EType::FragmentOpen, pRequest);
 }
 
 
@@ -1096,374 +1104,360 @@ void FAdaptiveStreamingPlayer::OnFragmentReachedEOS(EStreamType InStreamType, TS
  */
 void FAdaptiveStreamingPlayer::OnFragmentClose(TSharedPtrTS<IStreamSegment> pRequest)
 {
-	WorkerThread.SendMessage(FWorkerThread::FMessage::EType::FragmentClose, pRequest);
+	WorkerThread.Enqueue(FWorkerThreadMessages::FMessage::EType::FragmentClose, pRequest);
 }
 
 
 
-//-----------------------------------------------------------------------------
-/**
- * Worker thread.
- */
-void FAdaptiveStreamingPlayer::WorkerThreadFN()
+
+void FAdaptiveStreamingPlayer::InternalHandleOnce()
 {
-	LLM_SCOPE(ELLMTag::ElectraPlayer);
-
-	bool	bQuit = false;
-
-	// Get the event dispatcher.
-	EventDispatcher = FAdaptiveStreamingPlayerEventHandler::Create();
-
-
-	// Create renderers and decoders.
-	// FIXME: At some later point in time we should do this on-demand only. We do not know the codecs
-	//        here yet and the codecs could also change dynamically as streams get switched.
-	//        For now this is ok and also prevents spikes from loading codec DLL/PRX later.
-	/*int32 CreateResult =*/ CreateRenderers();
-
-	while(!bQuit)
+	if (!bIsClosing)
 	{
-		FWorkerThread::FMessage msg;
-		if (WorkerThread.WorkMessages.ReceiveMessage(msg, 1000 * 20))
+		// Update the play position we return to the interested caller.
+		if (!PlaybackState.GetHasEnded())
 		{
-			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AdaptiveWorker);
-			CSV_SCOPED_TIMING_STAT(ElectraPlayer, AdaptiveStreamingPlayer_Worker);
-
-			// While closed ignore all but the quit message.
-			if (bIsClosing && msg.Type != FWorkerThread::FMessage::EType::Quit)
+			if (RenderClock->IsRunning())
 			{
+				FTimeValue playPos = RenderClock->GetInterpolatedRenderTime(IMediaRenderClock::ERendererType::Video);
+				PlaybackState.SetPlayPosition(playPos);
+				// When we reach the time at which the next loop occurred pop it off the queue and update the playback state loop state.
+				while(NextLoopStates.Num())
+				{
+					FTimeValue loopAtTime = NextLoopStates.FrontRef().LoopBasetime;
+					if (playPos >= loopAtTime)
+					{
+						FPlayerLoopState newLoopState = NextLoopStates.Pop();
+						PlaybackState.SetLoopState(newLoopState);
+						DispatchEvent(FMetricEvent::ReportJumpInPlayPosition(playPos, playPos, Metrics::ETimeJumpReason::Looping));
+					}
+					else
+					{
+						break;
+					}
+				}
+			}
+		}
+		else
+		{
+			// When playback has ended we lock the position to the end of the timeline.
+			// This is only in case the application checks for the play position to reach the end of the timeline
+			// ie. calling GetPlayPosition() to compare against the end of GetTimelineRange()
+			// instead of using the dedicated HasEnded() method.
+			FTimeRange TimelineRange;
+			PlaybackState.GetTimelineRange(TimelineRange);
+			PlaybackState.SetPlayPosition(TimelineRange.End);
+		}
+
+		// Handle state changes to match the user request.
+		HandlePlayStateChanges();
+
+		// Update diag buffers
+		UpdateDiagnostics();
+		// Check for end of stream.
+		CheckForStreamEnd();
+		// Check the error queue for new arrivals.
+		CheckForErrors();
+		// Handle pending media segment requests.
+		HandlePendingMediaSegmentRequests();
+		// Handle changes in metadata, like timeline changes or track availability.
+		HandleMetadataChanges();
+		// Handle AEMS events
+		HandleAEMSEvents();
+		// Handle buffer level changes
+		HandleNewBufferedData();
+		// Handle new output data (finish prerolling)
+		HandleNewOutputData();
+		// Handle data buffers from deselected tracks to align with selected ones.
+		HandleDeselectedBuffers();
+		// Handle decoder changes
+		HandleDecoderChanges();
+		// Handle entity cache expirations.
+		if (EntityCache.IsValid())
+		{
+			EntityCache->HandleEntityExpiration();
+		}
+		// Handle completed DRM requests.
+		if (DrmManager.IsValid())
+		{
+			DrmManager->Tick();
+		}
+	}
+}
+
+bool FAdaptiveStreamingPlayer::InternalHandleThreadMessages()
+{
+	bool bGotMessage = false;
+	FWorkerThreadMessages::FMessage msg;
+	while(WorkerThread.WorkMessages.Dequeue(msg))
+	{
+		// While closed ignore all messages.
+		if (bIsClosing)
+		{
+			if (msg.Data.MediaEvent.Event)
+			{
+				msg.Data.MediaEvent.Event->Signal();
+			}
+			continue;
+		}
+
+		bGotMessage = true;
+		// What is it?
+		switch(msg.Type)
+		{
+			case FWorkerThreadMessages::FMessage::EType::LoadManifest:
+			{
+				InternalLoadManifest(msg.Data.ManifestToLoad.URL, msg.Data.ManifestToLoad.MimeType);
+				break;
+			}
+			case FWorkerThreadMessages::FMessage::EType::Pause:
+			{
+				bShouldBePaused = true;
+				bShouldBePlaying = false;
+				break;
+			}
+			case FWorkerThreadMessages::FMessage::EType::Resume:
+			{
+				bShouldBePaused = false;
+				bShouldBePlaying = true;
+				break;
+			}
+			case FWorkerThreadMessages::FMessage::EType::Seek:
+			{
+				StartAtTime = msg.Data.StartPlay.Position;
+
+				if (bIsPlayStart)
+				{
+					CurrentState = EPlayerState::eState_Buffering;
+					bool bOk = InternalStartAt(StartAtTime);
+				}
+				else
+				{
+					// Stop everything.
+					InternalStop(PlayerConfig.bHoldLastFrameDuringSeek);
+					if (Manifest.IsValid())
+					{
+						Manifest->UpdateDynamicRefetchCounter();
+					}
+					CurrentState = EPlayerState::eState_Seeking;
+					bool bOk = InternalStartAt(StartAtTime);
+				}
+				break;
+			}
+			case FWorkerThreadMessages::FMessage::EType::Loop:
+			{
+				InternalSetLoop(msg.Data.Looping.Loop);
+				if (msg.Data.Looping.Signal)
+				{
+					msg.Data.Looping.Signal->Signal();
+				}
+				break;
+			}
+			case FWorkerThreadMessages::FMessage::EType::Close:
+			{
+				if (!bIsClosing)
+				{
+					bIsClosing = true;
+					InternalStop(false);
+					InternalClose();
+					// This is the end of the rope anyway so let's terminate the event dispatcher.
+					// This ensures that the client will not get out of the Stop() call without having
+					// received the stop message.
+					DispatchEventAndWait(FMetricEvent::ReportPlaybackStopped());
+					EventDispatcher.Reset();
+				}
 				if (msg.Data.MediaEvent.Event)
 				{
 					msg.Data.MediaEvent.Event->Signal();
 				}
-				continue;
+				break;
+				}
+
+			case FWorkerThreadMessages::FMessage::EType::ChangeBitrate:
+			{
+				BitrateCeiling = msg.Data.Bitrate.Value;
+				StreamSelector->SetBandwidthCeiling(BitrateCeiling);
+				break;
 			}
 
-			// What is it?
-			switch(msg.Type)
+			case FWorkerThreadMessages::FMessage::EType::LimitResolution:
 			{
-				case FWorkerThread::FMessage::EType::Quit:
-				{
-					bQuit = true;
-					break;
-				}
-				case FWorkerThread::FMessage::EType::LoadManifest:
-				{
-					InternalLoadManifest(msg.Data.ManifestToLoad.URL, msg.Data.ManifestToLoad.MimeType);
-					break;
-				}
-				case FWorkerThread::FMessage::EType::Pause:
-				{
-					bShouldBePaused = true;
-					bShouldBePlaying = false;
-					break;
-				}
-				case FWorkerThread::FMessage::EType::Resume:
-				{
-					bShouldBePaused = false;
-					bShouldBePlaying = true;
-					break;
-				}
-				case FWorkerThread::FMessage::EType::Seek:
-				{
-					StartAtTime = msg.Data.StartPlay.Position;
+				VideoResolutionLimitWidth  = msg.Data.Resolution.Width;
+				VideoResolutionLimitHeight = msg.Data.Resolution.Height;
+				UpdateStreamResolutionLimit();
+				break;
+			}
 
-					if (bIsPlayStart)
-					{
-						CurrentState = EPlayerState::eState_Buffering;
-						bool bOk = InternalStartAt(StartAtTime);
-					}
-					else
-					{
-						// Stop everything.
-						InternalStop(PlayerConfig.bHoldLastFrameDuringSeek);
-						if (Manifest.IsValid())
-						{
-							Manifest->UpdateDynamicRefetchCounter();
-						}
-						CurrentState = EPlayerState::eState_Seeking;
-						bool bOk = InternalStartAt(StartAtTime);
-					}
-					break;
-				}
-				case FWorkerThread::FMessage::EType::Loop:
+			case FWorkerThreadMessages::FMessage::EType::InitialStreamAttributes:
+			{
+				// Map the language in case it is not yet.
+				if (msg.Data.InitialStreamAttribute.InitialSelection.Language_ISO639.IsSet())
 				{
-					InternalSetLoop(msg.Data.Looping.Loop);
-					if (msg.Data.Looping.Signal)
-					{
-						msg.Data.Looping.Signal->Signal();
-					}
-					break;
+					msg.Data.InitialStreamAttribute.InitialSelection.Language_ISO639 = ISO639::MapTo639_1(msg.Data.InitialStreamAttribute.InitialSelection.Language_ISO639.GetValue());
 				}
-				case FWorkerThread::FMessage::EType::Close:
+				switch(msg.Data.InitialStreamAttribute.StreamType)
 				{
-					if (!bIsClosing)
-					{
-						bIsClosing = true;
-						InternalStop(false);
-						InternalClose();
-						// This is the end of the rope anyway so let's terminate the event dispatcher.
-						// This ensures that the client will not get out of the Stop() call without having
-						// received the stop message.
-						DispatchEventAndWait(FMetricEvent::ReportPlaybackStopped());
-						EventDispatcher.Reset();
-					}
-					if (msg.Data.MediaEvent.Event)
-					{
-						msg.Data.MediaEvent.Event->Signal();
-					}
-					break;
-					}
+					case EStreamType::Video:
+						StreamSelectionAttributesVid = msg.Data.InitialStreamAttribute.InitialSelection;
+						break;
+					case EStreamType::Audio:
+						StreamSelectionAttributesAud = msg.Data.InitialStreamAttribute.InitialSelection;
+						break;
+					case EStreamType::Subtitle:
+						StreamSelectionAttributesTxt = msg.Data.InitialStreamAttribute.InitialSelection;
+						break;
+					default:
+						break;
+				}
+				break;
+			}
 
-				case FWorkerThread::FMessage::EType::ChangeBitrate:
-				{
-					BitrateCeiling = msg.Data.Bitrate.Value;
-					StreamSelector->SetBandwidthCeiling(BitrateCeiling);
-					break;
-				}
-
-				case FWorkerThread::FMessage::EType::LimitResolution:
-				{
-					VideoResolutionLimitWidth  = msg.Data.Resolution.Width;
-					VideoResolutionLimitHeight = msg.Data.Resolution.Height;
-					UpdateStreamResolutionLimit();
-					break;
-				}
-
-				case FWorkerThread::FMessage::EType::InitialStreamAttributes:
+			case FWorkerThreadMessages::FMessage::EType::SelectTrackByAttributes:
+			{
+				if (!bIsClosing)
 				{
 					// Map the language in case it is not yet.
-					if (msg.Data.InitialStreamAttribute.InitialSelection.Language_ISO639.IsSet())
+					if (msg.Data.TrackSelection.TrackAttributes.Language_ISO639.IsSet())
 					{
-						msg.Data.InitialStreamAttribute.InitialSelection.Language_ISO639 = ISO639::MapTo639_1(msg.Data.InitialStreamAttribute.InitialSelection.Language_ISO639.GetValue());
+						msg.Data.TrackSelection.TrackAttributes.Language_ISO639 = ISO639::MapTo639_1(msg.Data.TrackSelection.TrackAttributes.Language_ISO639.GetValue());
 					}
-					switch(msg.Data.InitialStreamAttribute.StreamType)
-					{
-						case EStreamType::Video:
-							StreamSelectionAttributesVid = msg.Data.InitialStreamAttribute.InitialSelection;
-							break;
-						case EStreamType::Audio:
-							StreamSelectionAttributesAud = msg.Data.InitialStreamAttribute.InitialSelection;
-							break;
-						case EStreamType::Subtitle:
-							StreamSelectionAttributesTxt = msg.Data.InitialStreamAttribute.InitialSelection;
-							break;
-						default:
-							break;
-					}
-					break;
-				}
-
-				case FWorkerThread::FMessage::EType::SelectTrackByAttributes:
-				{
-					if (!bIsClosing)
-					{
-						// Map the language in case it is not yet.
-						if (msg.Data.TrackSelection.TrackAttributes.Language_ISO639.IsSet())
-						{
-							msg.Data.TrackSelection.TrackAttributes.Language_ISO639 = ISO639::MapTo639_1(msg.Data.TrackSelection.TrackAttributes.Language_ISO639.GetValue());
-						}
-						switch(msg.Data.TrackSelection.StreamType)
-						{
-							case EStreamType::Video:
-								PendingTrackSelectionVid = MakeSharedTS<FStreamSelectionAttributes>(msg.Data.TrackSelection.TrackAttributes);
-								MultiStreamBufferVid.Activate();
-								break;
-							case EStreamType::Audio:
-								PendingTrackSelectionAud = MakeSharedTS<FStreamSelectionAttributes>(msg.Data.TrackSelection.TrackAttributes);
-								MultiStreamBufferAud.Activate();
-								break;
-							case EStreamType::Subtitle:
-								PendingTrackSelectionTxt = MakeSharedTS<FStreamSelectionAttributes>(msg.Data.TrackSelection.TrackAttributes);
-								MultiStreamBufferTxt.Activate();
-								break;
-						}
-					}
-					break;
-				}
-
-				case FWorkerThread::FMessage::EType::SelectTrackByMetadata:
-				{
-					// Currently not used. May be used again later.
-					break;
-				}
-
-				case FWorkerThread::FMessage::EType::DeselectTrack:
-				{
 					switch(msg.Data.TrackSelection.StreamType)
 					{
 						case EStreamType::Video:
-							MultiStreamBufferVid.Deselect();
+							PendingTrackSelectionVid = MakeSharedTS<FStreamSelectionAttributes>(msg.Data.TrackSelection.TrackAttributes);
+							MultiStreamBufferVid.Activate();
 							break;
 						case EStreamType::Audio:
-							MultiStreamBufferAud.Deselect();
+							PendingTrackSelectionAud = MakeSharedTS<FStreamSelectionAttributes>(msg.Data.TrackSelection.TrackAttributes);
+							MultiStreamBufferAud.Activate();
 							break;
 						case EStreamType::Subtitle:
-							MultiStreamBufferTxt.Deselect();
+							PendingTrackSelectionTxt = MakeSharedTS<FStreamSelectionAttributes>(msg.Data.TrackSelection.TrackAttributes);
+							MultiStreamBufferTxt.Activate();
 							break;
 					}
-					break;
 				}
+				break;
+			}
 
-				case FWorkerThread::FMessage::EType::FragmentOpen:
+			case FWorkerThreadMessages::FMessage::EType::SelectTrackByMetadata:
+			{
+				// Currently not used. May be used again later.
+				break;
+			}
+
+			case FWorkerThreadMessages::FMessage::EType::DeselectTrack:
+			{
+				switch(msg.Data.TrackSelection.StreamType)
 				{
-					TSharedPtrTS<IStreamSegment> pRequest = msg.Data.StreamReader.Request;
-					EStreamType reqType = msg.Data.StreamReader.Request->GetType();
-					// Check that the request is for this current playback sequence and not an outdated one.
-					if (pRequest.IsValid() && pRequest->GetPlaybackSequenceID() == CurrentPlaybackSequenceID[StreamTypeToArrayIndex(reqType)])
-					{
-						DispatchBufferUtilizationEvent(msg.Data.StreamReader.Request->GetType() == EStreamType::Video ? EStreamType::Video : EStreamType::Audio);
+					case EStreamType::Video:
+						MultiStreamBufferVid.Deselect();
+						break;
+					case EStreamType::Audio:
+						MultiStreamBufferAud.Deselect();
+						break;
+					case EStreamType::Subtitle:
+						MultiStreamBufferTxt.Deselect();
+						break;
+				}
+				break;
+			}
 
-						// Video bitrate change?
-						if (msg.Data.StreamReader.Request->GetType() == EStreamType::Video)
+			case FWorkerThreadMessages::FMessage::EType::FragmentOpen:
+			{
+				TSharedPtrTS<IStreamSegment> pRequest = msg.Data.StreamReader.Request;
+				EStreamType reqType = msg.Data.StreamReader.Request->GetType();
+				// Check that the request is for this current playback sequence and not an outdated one.
+				if (pRequest.IsValid() && pRequest->GetPlaybackSequenceID() == CurrentPlaybackSequenceID[StreamTypeToArrayIndex(reqType)])
+				{
+					DispatchBufferUtilizationEvent(msg.Data.StreamReader.Request->GetType() == EStreamType::Video ? EStreamType::Video : EStreamType::Audio);
+
+					// Video bitrate change?
+					if (msg.Data.StreamReader.Request->GetType() == EStreamType::Video)
+					{
+						int32 SegmentBitrate = pRequest->GetBitrate();
+						int32 SegmentQualityLevel = pRequest->GetQualityIndex();
+						if (SegmentBitrate != CurrentVideoStreamBitrate.Bitrate)
 						{
-							int32 SegmentBitrate = pRequest->GetBitrate();
-							int32 SegmentQualityLevel = pRequest->GetQualityIndex();
-							if (SegmentBitrate != CurrentVideoStreamBitrate.Bitrate)
-							{
-								bool bDrastic = CurrentVideoStreamBitrate.Bitrate && SegmentQualityLevel < CurrentVideoStreamBitrate.QualityLevel-1;
-								DispatchEvent(FMetricEvent::ReportVideoQualityChange(SegmentBitrate, CurrentVideoStreamBitrate.Bitrate, bDrastic));
-								CurrentVideoStreamBitrate.Bitrate      = SegmentBitrate;
-								CurrentVideoStreamBitrate.QualityLevel = SegmentQualityLevel;
-							}
+							bool bDrastic = CurrentVideoStreamBitrate.Bitrate && SegmentQualityLevel < CurrentVideoStreamBitrate.QualityLevel-1;
+							DispatchEvent(FMetricEvent::ReportVideoQualityChange(SegmentBitrate, CurrentVideoStreamBitrate.Bitrate, bDrastic));
+							CurrentVideoStreamBitrate.Bitrate      = SegmentBitrate;
+							CurrentVideoStreamBitrate.QualityLevel = SegmentQualityLevel;
 						}
 					}
-					break;
 				}
+				break;
+			}
 
-				case FWorkerThread::FMessage::EType::FragmentClose:
+			case FWorkerThreadMessages::FMessage::EType::FragmentClose:
+			{
+				TSharedPtrTS<IStreamSegment> pRequest = msg.Data.StreamReader.Request;
+				EStreamType reqType = msg.Data.StreamReader.Request->GetType();
+				// Check that the request is for this current playback sequence and not an outdated one.
+				if (pRequest.IsValid() && pRequest->GetPlaybackSequenceID() == CurrentPlaybackSequenceID[StreamTypeToArrayIndex(reqType)])
 				{
-					TSharedPtrTS<IStreamSegment> pRequest = msg.Data.StreamReader.Request;
-					EStreamType reqType = msg.Data.StreamReader.Request->GetType();
-					// Check that the request is for this current playback sequence and not an outdated one.
-					if (pRequest.IsValid() && pRequest->GetPlaybackSequenceID() == CurrentPlaybackSequenceID[StreamTypeToArrayIndex(reqType)])
+					// Dispatch download event
+					DispatchSegmentDownloadedEvent(pRequest);
+
+					// Dispatch buffer utilization
+					DispatchBufferUtilizationEvent(reqType == EStreamType::Video ? EStreamType::Video : EStreamType::Audio);
+
+					// Dispatch average throughput, bandwidth and latency event for video segments only.
+					if (reqType == EStreamType::Video)
 					{
-						// Dispatch download event
-						DispatchSegmentDownloadedEvent(pRequest);
-
-						// Dispatch buffer utilization
-						DispatchBufferUtilizationEvent(reqType == EStreamType::Video ? EStreamType::Video : EStreamType::Audio);
-
-						// Dispatch average throughput, bandwidth and latency event for video segments only.
-						if (reqType == EStreamType::Video)
-						{
-							DispatchEvent(FMetricEvent::ReportBandwidth(StreamSelector->GetAverageBandwidth(), StreamSelector->GetAverageThroughput(), StreamSelector->GetAverageLatency()));
-						}
-
-						// Add to the list of completed requests for which we need to find the next or retry segment to fetch.
-						FPendingSegmentRequest NextReq;
-						NextReq.Request = pRequest;
-						NextPendingSegmentRequests.Enqueue(MoveTemp(NextReq));
+						DispatchEvent(FMetricEvent::ReportBandwidth(StreamSelector->GetAverageBandwidth(), StreamSelector->GetAverageThroughput(), StreamSelector->GetAverageLatency()));
 					}
-					break;
-				}
 
-				case FWorkerThread::FMessage::EType::BufferUnderrun:
-				{
-					InternalRebuffer();
-					break;
+					// Add to the list of completed requests for which we need to find the next or retry segment to fetch.
+					FPendingSegmentRequest NextReq;
+					NextReq.Request = pRequest;
+					NextPendingSegmentRequests.Enqueue(MoveTemp(NextReq));
 				}
+				break;
+			}
 
-				case FWorkerThread::FMessage::EType::PlayerSession:
-				{
-					HandleSessionMessage(msg.Data.Session.PlayerMessage);
-					break;
-				}
+			case FWorkerThreadMessages::FMessage::EType::BufferUnderrun:
+			{
+				InternalRebuffer();
+				break;
+			}
 
-				default:
-				{
-					checkNoEntry();
-					break;
-				}
+			case FWorkerThreadMessages::FMessage::EType::PlayerSession:
+			{
+				HandleSessionMessage(msg.Data.Session.PlayerMessage);
+				break;
+			}
+
+			default:
+			{
+				checkNoEntry();
+				break;
 			}
 		}
-
-		if (!bIsClosing)
-		{
-			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AdaptiveWorker);
-			CSV_SCOPED_TIMING_STAT(ElectraPlayer, AdaptiveStreamingPlayer_Worker);
-
-			// Update the play position we return to the interested caller.
-			if (!PlaybackState.GetHasEnded())
-			{
-				if (RenderClock->IsRunning())
-				{
-					FTimeValue playPos = RenderClock->GetInterpolatedRenderTime(IMediaRenderClock::ERendererType::Video);
-					PlaybackState.SetPlayPosition(playPos);
-					// When we reach the time at which the next loop occurred pop it off the queue and update the playback state loop state.
-					while(NextLoopStates.Num())
-					{
-						FTimeValue loopAtTime = NextLoopStates.FrontRef().LoopBasetime;
-						if (playPos >= loopAtTime)
-						{
-							FPlayerLoopState newLoopState = NextLoopStates.Pop();
-							PlaybackState.SetLoopState(newLoopState);
-							DispatchEvent(FMetricEvent::ReportJumpInPlayPosition(playPos, playPos, Metrics::ETimeJumpReason::Looping));
-						}
-						else
-						{
-							break;
-						}
-					}
-				}
-			}
-			else
-			{
-				// When playback has ended we lock the position to the end of the timeline.
-				// This is only in case the application checks for the play position to reach the end of the timeline
-				// ie. calling GetPlayPosition() to compare against the end of GetTimelineRange()
-				// instead of using the dedicated HasEnded() method.
-				FTimeRange TimelineRange;
-				PlaybackState.GetTimelineRange(TimelineRange);
-				PlaybackState.SetPlayPosition(TimelineRange.End);
-			}
-
-			// Handle state changes to match the user request.
-			HandlePlayStateChanges();
-
-			// Update diag buffers
-			UpdateDiagnostics();
-			// Check for end of stream.
-			CheckForStreamEnd();
-			// Check the error queue for new arrivals.
-			CheckForErrors();
-			// Handle pending media segment requests.
-			HandlePendingMediaSegmentRequests();
-			// Handle changes in metadata, like timeline changes or track availability.
-			HandleMetadataChanges();
-			// Handle AEMS events
-			HandleAEMSEvents();
-			// Handle buffer level changes
-			HandleNewBufferedData();
-			// Handle new output data (finish prerolling)
-			HandleNewOutputData();
-			// Handle data buffers from deselected tracks to align with selected ones.
-			HandleDeselectedBuffers();
-			// Handle decoder changes
-			HandleDecoderChanges();
-			// Handle entity cache expirations.
-			if (EntityCache.IsValid())
-			{
-				EntityCache->HandleEntityExpiration();
-			}
-			// Handle completed DRM requests.
-			if (DrmManager.IsValid())
-			{
-				DrmManager->Tick();
-			}
-		}
+			
+		InternalHandleOnce();
 	}
+	return bGotMessage;
+}
 
-	if (EventDispatcher.IsValid())
+//-----------------------------------------------------------------------------
+/**
+ * Handling function called by the shared worker thread.
+ */
+void FAdaptiveStreamingPlayer::HandleOnce()
+{
+	SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AdaptiveWorker);
+	CSV_SCOPED_TIMING_STAT(ElectraPlayer, AdaptiveStreamingPlayer_Worker);
+
+	if (!InternalHandleThreadMessages())
 	{
-		EventDispatcher->DispatchEventAndWait(TSharedPtrTS<FMetricEvent>());
-		EventDispatcher.Reset();
+		InternalHandleOnce();
 	}
-
-	while(WorkerThread.WorkMessages.HaveMessage())
-	{
-		WorkerThread.WorkMessages.ReceiveMessage();
-	}
+	// Handle the components that are bound to add new worker messages.
+	// This should not be done while processing the messages that were enqueued earlier,
+	// especially not since handling those will result in handling all state checks
+	// in InternalHandleOnce() again!
+	InternalHandleManifestReader();
 }
 
 
@@ -2892,11 +2886,7 @@ void FAdaptiveStreamingPlayer::CheckForErrors()
 				DispatchEvent(FMetricEvent::ReportError(LastErrorDetail));
 			}
 			// In error state we do not need any periodic manifest refetches any more.
-			if (ManifestReader.IsValid())
-			{
-				ManifestReader->Close();
-				ManifestReader.Reset();
-			}
+			InternalCloseManifestReader();
 		}
 	}
 }
@@ -3260,11 +3250,7 @@ void FAdaptiveStreamingPlayer::InternalClose()
 {
 	// No longer need the manifest reader/updater
 	InternalCancelLoadManifest();
-	if (ManifestReader.IsValid())
-	{
-		ManifestReader->Close();
-		ManifestReader.Reset();
-	}
+	InternalCloseManifestReader();
 
 	DestroyDecoders();
 	DestroyRenderers();
@@ -3473,13 +3459,72 @@ void FAdaptiveStreamingPlayer::DebugHandle(void* pPlayer, void (*debugDrawPrintf
 //---------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
 
-TWeakPtr<FAdaptiveStreamingPlayerEventHandler, ESPMode::ThreadSafe>	FAdaptiveStreamingPlayerEventHandler::SingletonSelf;
-FCriticalSection													FAdaptiveStreamingPlayerEventHandler::SingletonLock;
 
-TSharedPtr<FAdaptiveStreamingPlayerEventHandler, ESPMode::ThreadSafe> FAdaptiveStreamingPlayerEventHandler::Create()
+TWeakPtrTS<FAdaptiveStreamingPlayerWorkerThread>	FAdaptiveStreamingPlayerWorkerThread::SingletonSelf;
+FCriticalSection									FAdaptiveStreamingPlayerWorkerThread::SingletonLock;
+
+TSharedPtrTS<FAdaptiveStreamingPlayerWorkerThread> FAdaptiveStreamingPlayerWorkerThread::Create()
 {
 	FScopeLock lock(&SingletonLock);
-	TSharedPtr<FAdaptiveStreamingPlayerEventHandler, ESPMode::ThreadSafe> Self = SingletonSelf.Pin();
+	TSharedPtrTS<FAdaptiveStreamingPlayerWorkerThread> Self = SingletonSelf.Pin();
+	if (!Self.IsValid())
+	{
+		FAdaptiveStreamingPlayerWorkerThread* Handler = new FAdaptiveStreamingPlayerWorkerThread;
+		Handler->StartWorkerThread();
+		Self = MakeShareable(Handler);
+		SingletonSelf = Self;
+	}
+	return Self;
+}
+
+FAdaptiveStreamingPlayerWorkerThread::~FAdaptiveStreamingPlayerWorkerThread()
+{
+	StopWorkerThread();
+}
+
+void FAdaptiveStreamingPlayerWorkerThread::StartWorkerThread()
+{
+	WorkerThread.ThreadSetName("ElectraPlayer::SharedWorker");
+	WorkerThread.ThreadStart(Electra::MakeDelegate(this, &FAdaptiveStreamingPlayerWorkerThread::WorkerThreadFN));
+}
+
+void FAdaptiveStreamingPlayerWorkerThread::StopWorkerThread()
+{
+	bTerminate = true;
+	HaveWorkSignal.Signal();
+	WorkerThread.ThreadWaitDone();
+	WorkerThread.ThreadReset();
+}
+
+void FAdaptiveStreamingPlayerWorkerThread::WorkerThreadFN()
+{
+	LLM_SCOPE(ELLMTag::ElectraPlayer);
+	while(!bTerminate)
+	{
+		HaveWorkSignal.WaitTimeoutAndReset(1000 * 20);
+
+		TArray<FAdaptiveStreamingPlayer*>	ActiveInstances(PlayerInstances);
+		SingletonLock.Lock();
+		for(int32 i=0; i<ActiveInstances.Num(); ++i)
+		{
+			ActiveInstances[i]->HandleOnce();
+		}
+		SingletonLock.Unlock();
+	}
+}
+
+
+//---------------------------------------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------------------------------------------
+
+TWeakPtrTS<FAdaptiveStreamingPlayerEventHandler>	FAdaptiveStreamingPlayerEventHandler::SingletonSelf;
+FCriticalSection									FAdaptiveStreamingPlayerEventHandler::SingletonLock;
+
+TSharedPtrTS<FAdaptiveStreamingPlayerEventHandler> FAdaptiveStreamingPlayerEventHandler::Create()
+{
+	FScopeLock lock(&SingletonLock);
+	TSharedPtrTS<FAdaptiveStreamingPlayerEventHandler> Self = SingletonSelf.Pin();
 	if (!Self.IsValid())
 	{
 		FAdaptiveStreamingPlayerEventHandler* Handler = new FAdaptiveStreamingPlayerEventHandler;
@@ -3537,7 +3582,7 @@ void FAdaptiveStreamingPlayerEventHandler::WorkerThreadFN()
 			CSV_SCOPED_TIMING_STAT(ElectraPlayer, AdaptiveStreamingPlayer_Event);
 
 			// Get the player that sends the event. If it no longer exists ignore the event.
-			TSharedPtr<FAdaptiveStreamingPlayer, ESPMode::ThreadSafe>	Player = pEvt->Player.Pin();
+			TSharedPtrTS<FAdaptiveStreamingPlayer>	Player = pEvt->Player.Pin();
 			if (Player.IsValid())
 			{
 				// Call listeners under lock. They are not allowed to add or remove themselves or other listeners.

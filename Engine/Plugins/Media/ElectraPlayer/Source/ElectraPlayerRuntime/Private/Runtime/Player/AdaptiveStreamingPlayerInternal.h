@@ -618,10 +618,47 @@ struct FMetricEvent
 
 
 
+class FAdaptiveStreamingPlayerWorkerThread
+{
+public:
+	static TSharedPtrTS<FAdaptiveStreamingPlayerWorkerThread> Create();
+
+	void AddPlayerInstance(FAdaptiveStreamingPlayer* Instance)
+	{
+		FScopeLock lock(&SingletonLock);
+		PlayerInstances.Emplace(Instance);
+	}
+	void RemovePlayerInstance(FAdaptiveStreamingPlayer* Instance)
+	{
+		FScopeLock lock(&SingletonLock);
+		PlayerInstances.Remove(Instance);
+	}
+
+	void TriggerWork()
+	{
+		HaveWorkSignal.Signal();
+	}
+
+	virtual ~FAdaptiveStreamingPlayerWorkerThread();
+private:
+	void StartWorkerThread();
+	void StopWorkerThread();
+	void WorkerThreadFN();
+
+	FMediaThread						WorkerThread;
+	TArray<FAdaptiveStreamingPlayer*>	PlayerInstances;
+	FMediaEvent							HaveWorkSignal;
+	bool								bTerminate = false;
+
+	static TWeakPtrTS<FAdaptiveStreamingPlayerWorkerThread>	SingletonSelf;
+	static FCriticalSection									SingletonLock;
+};
+
+
 class FAdaptiveStreamingPlayerEventHandler
 {
 public:
-	static TSharedPtr<FAdaptiveStreamingPlayerEventHandler, ESPMode::ThreadSafe> Create();
+	static TSharedPtrTS<FAdaptiveStreamingPlayerEventHandler> Create();
 
 	void DispatchEvent(TSharedPtrTS<FMetricEvent> InEvent);
 	void DispatchEventAndWait(TSharedPtrTS<FMetricEvent> InEvent);
@@ -632,10 +669,10 @@ private:
 	void StopWorkerThread();
 	void WorkerThreadFN();
 
-	FMediaThread																WorkerThread;
-	TMediaMessageQueueDynamicNoTimeout<TSharedPtrTS<FMetricEvent>>				EventQueue;
-	static TWeakPtr<FAdaptiveStreamingPlayerEventHandler, ESPMode::ThreadSafe>	SingletonSelf;
-	static FCriticalSection														SingletonLock;
+	FMediaThread													WorkerThread;
+	TMediaMessageQueueDynamicNoTimeout<TSharedPtrTS<FMetricEvent>>	EventQueue;
+	static TWeakPtrTS<FAdaptiveStreamingPlayerEventHandler>			SingletonSelf;
+	static FCriticalSection											SingletonLock;
 };
 
 
@@ -656,6 +693,8 @@ public:
 
 	virtual void AddMetricsReceiver(IAdaptiveStreamingPlayerMetrics* InMetricsReceiver) override;
 	virtual void RemoveMetricsReceiver(IAdaptiveStreamingPlayerMetrics* InMetricsReceiver) override;
+
+	void HandleOnce();
 
 	// Metrics receiver accessor for event dispatcher thread.
 	void LockMetricsReceivers()
@@ -944,12 +983,16 @@ private:
 		};
 
 
-	class FWorkerThread
+	class FWorkerThreadMessages
 	{
 	public:
-		FWorkerThread()
-			: bStarted(false)
+		~FWorkerThreadMessages()
 		{
+			check(WorkMessages.IsEmpty());
+		}
+		void SetSharedWorkerThread(TSharedPtrTS<FAdaptiveStreamingPlayerWorkerThread> InSharedWorkerThread)
+		{
+			SharedWorkerThread = InSharedWorkerThread;
 		}
 
 		struct FMessage
@@ -958,7 +1001,6 @@ private:
 			{
 				// Commands
 				LoadManifest,
-				Quit,
 				Pause,
 				Resume,
 				Seek,
@@ -1058,25 +1100,25 @@ private:
 			FData   				Data;
 		};
 
-		void SendMessage(FMessage::EType type)
+		void Enqueue(FMessage::EType type)
 		{
 			FMessage Msg;
 			Msg.Type = type;
-			WorkMessages.SendMessage(Msg);
+			TriggerSharedWorkerThread(MoveTemp(Msg));
 		}
-		void SendMessage(FMessage::EType type, TSharedPtrTS<IStreamSegment> pRequest)
+		void Enqueue(FMessage::EType type, TSharedPtrTS<IStreamSegment> pRequest)
 		{
 			FMessage Msg;
 			Msg.Type = type;
 			Msg.Data.StreamReader.Request = pRequest;
-			WorkMessages.SendMessage(Msg);
+			TriggerSharedWorkerThread(MoveTemp(Msg));
 		}
-		void SendMessage(FMessage::EType type, FMediaEvent* pEventSignal)
+		void Enqueue(FMessage::EType type, FMediaEvent* pEventSignal)
 		{
 			FMessage Msg;
 			Msg.Type = type;
 			Msg.Data.MediaEvent.Event = pEventSignal;
-			WorkMessages.SendMessage(Msg);
+			TriggerSharedWorkerThread(MoveTemp(Msg));
 		}
 		void SendLoadManifestMessage(const FString& URL, const FString& MimeType)
 		{
@@ -1084,54 +1126,54 @@ private:
 			Msg.Type = FMessage::EType::LoadManifest;
 			Msg.Data.ManifestToLoad.URL = URL;
 			Msg.Data.ManifestToLoad.MimeType = MimeType;
-			WorkMessages.SendMessage(Msg);
+			TriggerSharedWorkerThread(MoveTemp(Msg));
 		}
 		void SendPauseMessage()
 		{
 			FMessage Msg;
 			Msg.Type = FMessage::EType::Pause;
-			WorkMessages.SendMessage(Msg);
+			TriggerSharedWorkerThread(MoveTemp(Msg));
 		}
 		void SendResumeMessage()
 		{
 			FMessage Msg;
 			Msg.Type = FMessage::EType::Resume;
-			WorkMessages.SendMessage(Msg);
+			TriggerSharedWorkerThread(MoveTemp(Msg));
 		}
 		void SendSeekMessage(const FSeekParam& NewPosition)
 		{
 			FMessage Msg;
 			Msg.Type = FMessage::EType::Seek;
 			Msg.Data.StartPlay.Position = NewPosition;
-			WorkMessages.SendMessage(Msg);
+			TriggerSharedWorkerThread(MoveTemp(Msg));
 		}
 		void SendLoopMessage(const FLoopParam& InLoopParams)
 		{
 			FMessage Msg;
 			Msg.Type = FMessage::EType::Loop;
 			Msg.Data.Looping.Loop = InLoopParams;
-			WorkMessages.SendMessage(Msg);
+			TriggerSharedWorkerThread(MoveTemp(Msg));
 		}
 		void SendCloseMessage(FMediaEvent* pEventSignal)
 		{
 			FMessage Msg;
 			Msg.Type = FMessage::EType::Close;
 			Msg.Data.MediaEvent.Event = pEventSignal;
-			WorkMessages.SendMessage(Msg);
+			TriggerSharedWorkerThread(MoveTemp(Msg));
 		}
 		void SendBitrateMessage(EStreamType type, int32 value, int32 which)
 		{
 			FMessage Msg;
 			Msg.Type = FMessage::EType::ChangeBitrate;
 			Msg.Data.Bitrate.Value = value;
-			WorkMessages.SendMessage(Msg);
+			TriggerSharedWorkerThread(MoveTemp(Msg));
 		}
 		void SendPlayerSessionMessage(const TSharedPtrTS<IPlayerMessage>& message)
 		{
 			FMessage Msg;
 			Msg.Type = FMessage::EType::PlayerSession;
 			Msg.Data.Session.PlayerMessage = message;
-			WorkMessages.SendMessage(Msg);
+			TriggerSharedWorkerThread(MoveTemp(Msg));
 		}
 		void SendResolutionMessage(int32 Width, int32 Height)
 		{
@@ -1139,7 +1181,7 @@ private:
 			Msg.Type = FMessage::EType::LimitResolution;
 			Msg.Data.Resolution.Width = Width;
 			Msg.Data.Resolution.Height = Height;
-			WorkMessages.SendMessage(Msg);
+			TriggerSharedWorkerThread(MoveTemp(Msg));
 		}
 		void SendInitialStreamAttributeMessage(EStreamType StreamType, const FStreamSelectionAttributes& InitialSelection)
 		{
@@ -1147,7 +1189,7 @@ private:
 			Msg.Type = FMessage::EType::InitialStreamAttributes;
 			Msg.Data.InitialStreamAttribute.StreamType = StreamType;
 			Msg.Data.InitialStreamAttribute.InitialSelection = InitialSelection;
-			WorkMessages.SendMessage(Msg);
+			TriggerSharedWorkerThread(MoveTemp(Msg));
 		}
 		void SendTrackSelectByMetadataMessage(EStreamType StreamType, const FTrackMetadata& TrackMetadata)
 		{
@@ -1155,7 +1197,7 @@ private:
 			Msg.Type = FMessage::EType::SelectTrackByMetadata;
 			Msg.Data.TrackSelection.StreamType = StreamType;
 			Msg.Data.TrackSelection.TrackMetadata = TrackMetadata;
-			WorkMessages.SendMessage(Msg);
+			TriggerSharedWorkerThread(MoveTemp(Msg));
 		}
 		void SendTrackSelectByAttributeMessage(EStreamType StreamType, const FStreamSelectionAttributes& TrackAttributes)
 		{
@@ -1163,19 +1205,26 @@ private:
 			Msg.Type = FMessage::EType::SelectTrackByAttributes;
 			Msg.Data.TrackSelection.StreamType = StreamType;
 			Msg.Data.TrackSelection.TrackAttributes = TrackAttributes;
-			WorkMessages.SendMessage(Msg);
+			TriggerSharedWorkerThread(MoveTemp(Msg));
 		}
 		void SendTrackDeselectMessage(EStreamType StreamType)
 		{
 			FMessage Msg;
 			Msg.Type = FMessage::EType::DeselectTrack;
 			Msg.Data.TrackSelection.StreamType = StreamType;
-			WorkMessages.SendMessage(Msg);
+			TriggerSharedWorkerThread(MoveTemp(Msg));
 		}
 
-		FMediaThread									MediaThread;
-		TMediaMessageQueueDynamicWithTimeout<FMessage>	WorkMessages;
-		bool											bStarted;
+		void TriggerSharedWorkerThread(FMessage Mesg)
+		{
+			WorkMessages.Enqueue(MoveTemp(Mesg));
+			if (SharedWorkerThread.IsValid())
+			{
+				SharedWorkerThread->TriggerWork();
+			}
+		}
+		TSharedPtrTS<FAdaptiveStreamingPlayerWorkerThread>	SharedWorkerThread;
+		TQueue<FMessage, EQueueMode::Spsc>					WorkMessages;
 	};
 
 	struct FPendingStartRequest
@@ -1340,6 +1389,7 @@ private:
 
 	void InternalLoadManifest(const FString& URL, const FString& MimeType);
 	void InternalCancelLoadManifest();
+	void InternalCloseManifestReader();
 	bool SelectManifest();
 	void UpdateManifest();
 	void OnManifestGetMimeTypeComplete(TSharedPtrTS<FHTTPResourceRequest> InRequest);
@@ -1350,9 +1400,6 @@ private:
 	void AudioDecoderInputNeeded(const IAccessUnitBufferListener::FBufferStats& currentInputBufferStats);
 	void AudioDecoderOutputReady(const IDecoderOutputBufferListener::FDecodeReadyStats& currentReadyStats);
 
-
-
-	void WorkerThreadFN();
 	void StartWorkerThread();
 	void StopWorkerThread();
 
@@ -1375,6 +1422,9 @@ private:
 	void OnFragmentReachedEOS(EStreamType InStreamType, TSharedPtr<const FBufferSourceInfo, ESPMode::ThreadSafe> InStreamSourceInfo) override;
 	void OnFragmentClose(TSharedPtrTS<IStreamSegment> pRequest) override;
 
+	void InternalHandleOnce();
+	bool InternalHandleThreadMessages();
+	void InternalHandleManifestReader();
 	void InternalHandlePendingStartRequest(const FTimeValue& CurrentTime);
 	void InternalHandlePendingFirstSegmentRequest(const FTimeValue& CurrentTime);
 	void InternalHandleCompletedSegmentRequests(const FTimeValue& CurrentTime);
@@ -1428,8 +1478,9 @@ private:
 	TWeakPtr<IAdaptiveStreamingPlayerResourceProvider, ESPMode::ThreadSafe> StaticResourceProvider;
 	TWeakPtr<IVideoDecoderResourceDelegate, ESPMode::ThreadSafe>		VideoDecoderResourceDelegate;
 
-	FWorkerThread															WorkerThread;
-	TSharedPtr<FAdaptiveStreamingPlayerEventHandler, ESPMode::ThreadSafe>	EventDispatcher;
+	TSharedPtrTS<FAdaptiveStreamingPlayerEventHandler>					EventDispatcher;
+	TSharedPtrTS<FAdaptiveStreamingPlayerWorkerThread>					SharedWorkerThread;
+	FWorkerThreadMessages												WorkerThread;
 
 	FParamDict															PlayerOptions;
 	FPlaybackState														PlaybackState;
