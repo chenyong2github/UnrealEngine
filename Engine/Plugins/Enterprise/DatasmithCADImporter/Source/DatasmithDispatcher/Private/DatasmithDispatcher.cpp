@@ -14,14 +14,14 @@
 
 #ifndef DATASMITH_CAD_IGNORE_CACHE
 static TAutoConsoleVariable<int32> CVarStaticCADTranslatorEnableCADCache(
-	TEXT("r.CADTranslator.EnableCADCache"),
+	TEXT("DS.CADTranslator.EnableCADCache"),
 	1,
 	TEXT("Activate to save temporary CAD processing file. These file will be use in a next import to avoid CAD file processing\n"),
 	ECVF_Default);
 #endif
 
 static TAutoConsoleVariable<int32> CVarStaticCADTranslatorEnableTimeControl(
-	TEXT("r.CADTranslator.EnableTimeControl"),
+	TEXT("DS.CADTranslator.EnableTimeControl"),
 	1,
 	TEXT("Enable the timer that kill the worker if the import time is unusually long. With this time control, the load of the corrupted file is canceled but the rest of the scene is imported.\n"),
 	ECVF_Default);

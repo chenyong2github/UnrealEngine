@@ -12,13 +12,13 @@
 #include "DatasmithUtils.h"
 
 static TAutoConsoleVariable<int32> CVarStaticCADTranslatorEnableThreadedImport(
-	TEXT("r.CADTranslator.EnableThreadedImport"),
+	TEXT("DS.CADTranslator.EnableThreadedImport"),
 	1,
 	TEXT("Activate to parallelise CAD file processing.\n"),
 	ECVF_Default);
 
 static TAutoConsoleVariable<int32> CVarStaticCADTranslatorEnableKernelIOTessellation(
-	TEXT("r.CADTranslator.EnableKernelIOTessellation"),
+	TEXT("DS.CADTranslator.EnableKernelIOTessellation"),
 	1,
 	TEXT("Activate to use KernelIO Tessellation.\n"),
 	ECVF_Default);
