@@ -1,49 +1,45 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencePlayerLibrary.h"
-#include "Animation/AnimNodeContext.h"
 #include "Animation/AnimNode_SequencePlayer.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogSequencePlayerLibrary, Verbose, All);
-
-void USequencePlayerLibrary::SetAccumulatedTime(const FAnimNodeContext& NodeContext, float Time)
+FSequencePlayerReference USequencePlayerLibrary::ConvertToSequencePlayerContext(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result)
 {
-	if(FAnimNode_SequencePlayer* SequencePlayer = NodeContext.GetAnimNode<FAnimNode_SequencePlayer>())
-	{
-		SequencePlayer->SetAccumulatedTime(Time);
-	}
-	else
-	{
-		UE_LOG(LogSequencePlayerLibrary, Warning, TEXT("SetAccumulatedTime called on a non-sequence player node"));
-	}
+	return FAnimNodeReference::ConvertToType<FSequencePlayerReference>(Node, Result);
 }
 
-void USequencePlayerLibrary::SetStartPosition(const FAnimNodeContext& NodeContext, float StartPosition)
+FSequencePlayerReference USequencePlayerLibrary::SetAccumulatedTime(const FSequencePlayerReference& SequencePlayerContext, float Time)
 {
-	if(FAnimNode_SequencePlayer* SequencePlayer = NodeContext.GetAnimNode<FAnimNode_SequencePlayer>())
-	{
-		if(!SequencePlayer->SetStartPosition(StartPosition))
+	SequencePlayerContext.CallAnimNodeFunction<FAnimNode_SequencePlayer>(
+		TEXT("SetAccumulatedTime"),
+		[Time](FAnimNode_SequencePlayer& SequencePlayer)
 		{
-			UE_LOG(LogSequencePlayerLibrary, Warning, TEXT("Could not set start time on sequence player, value is not dynamic. Set it as Always Dynamic or expose it as a pin"));
-		}
-	}
-	else
-	{
-		UE_LOG(LogSequencePlayerLibrary, Warning, TEXT("SetStartTime called on a non-sequence player node"));
-	}
+			SequencePlayer.SetAccumulatedTime(Time);
+		});
+
+	return SequencePlayerContext;
 }
 
-void USequencePlayerLibrary::SetPlayRate(const FAnimNodeContext& NodeContext, float PlayRate)
+FSequencePlayerReference USequencePlayerLibrary::SetStartPosition(const FSequencePlayerReference& SequencePlayerContext, float StartPosition)
 {
-	if(FAnimNode_SequencePlayer* SequencePlayer = NodeContext.GetAnimNode<FAnimNode_SequencePlayer>())
-	{
-		if(!SequencePlayer->SetPlayRate(PlayRate))
+	SequencePlayerContext.CallAnimNodeFunction<FAnimNode_SequencePlayer>(
+		TEXT("SetStartPosition"),
+		[StartPosition](FAnimNode_SequencePlayer& SequencePlayer)
 		{
-			UE_LOG(LogSequencePlayerLibrary, Warning, TEXT("Could not set start time on sequence player, value is not dynamic. Set it as Always Dynamic or expose it as a pin"));
-		}
-	}
-	else
-	{
-		UE_LOG(LogSequencePlayerLibrary, Warning, TEXT("SetStartTime called on a non-sequence player node"));
-	}
+			SequencePlayer.SetStartPosition(StartPosition);
+		});
+
+	return SequencePlayerContext;
+}
+
+FSequencePlayerReference USequencePlayerLibrary::SetPlayRate(const FSequencePlayerReference& SequencePlayerContext, float PlayRate)
+{
+	SequencePlayerContext.CallAnimNodeFunction<FAnimNode_SequencePlayer>(
+		TEXT("SetPlayRate"),
+		[PlayRate](FAnimNode_SequencePlayer& SequencePlayer)
+		{
+			SequencePlayer.SetPlayRate(PlayRate);
+		});
+
+	return SequencePlayerContext;
 }

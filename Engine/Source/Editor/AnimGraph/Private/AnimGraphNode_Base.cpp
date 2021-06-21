@@ -214,15 +214,15 @@ void UAnimGraphNode_Base::ValidateAnimNodeDuringCompilation(USkeleton* ForSkelet
 			UFunction* Function = InRef.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass);
 			if(Function == nullptr)
 			{
-				MessageLog.Error(*InError.ToString());
+				MessageLog.Error(*InError.ToString(), this);
 			}
 		}
 	};
 	
-	ValidateFunctionRef(InitializeFunction, LOCTEXT("MissingInitializeFunction", "Could not resolve initialize function"));
-	ValidateFunctionRef(BecomeRelevantFunction, LOCTEXT("MissingBecomeRelevantFunction", "Could not resolve become relevant function"));
-	ValidateFunctionRef(UpdateFunction, LOCTEXT("MissingUpdateFunction", "Could not resolve update function"));
-	ValidateFunctionRef(EvaluateFunction, LOCTEXT("MissingEvaluateFunction", "Could not resolve evaluate function"));
+	ValidateFunctionRef(InitializeFunction, LOCTEXT("MissingInitializeFunction", "Could not resolve initialize function for @@"));
+	ValidateFunctionRef(BecomeRelevantFunction, LOCTEXT("MissingBecomeRelevantFunction", "Could not resolve become relevant function for @@"));
+	ValidateFunctionRef(UpdateFunction, LOCTEXT("MissingUpdateFunction", "Could not resolve update function for @@"));
+	ValidateFunctionRef(EvaluateFunction, LOCTEXT("MissingEvaluateFunction", "Could not resolve evaluate function for @@"));
 }
 
 void UAnimGraphNode_Base::CopyTermDefaultsToDefaultObject(IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintNodeCopyTermDefaultsContext& InPerNodeContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)

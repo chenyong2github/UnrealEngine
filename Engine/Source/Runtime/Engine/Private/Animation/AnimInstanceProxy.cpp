@@ -58,7 +58,9 @@ void FAnimInstanceProxy::UpdateAnimationNode_WithRoot(const FAnimationUpdateCont
 		{
 			UpdateCounter.Increment();
 		}
-		
+
+		FAnimNodeFunctionCaller::BecomeRelevant(InContext, *InRootNode);
+		FAnimNodeFunctionCaller::Update(InContext, *InRootNode);
 		InRootNode->Update_AnyThread(InContext);
 
 		// We've updated the graph, now update the fractured saved pose sections
@@ -295,6 +297,8 @@ void FAnimInstanceProxy::InitializeRootNode_WithRoot(FAnimNode_Base* InRootNode)
 		FAnimationUpdateSharedContext SharedContext;
 		FAnimationInitializeContext InitContext(this, &SharedContext);
 
+		FAnimNodeFunctionCaller::Initialize(InitContext, *InRootNode);
+		
 		if(InRootNode == RootNode)
 		{
 			InitializationCounter.Increment();
@@ -1289,6 +1293,8 @@ void FAnimInstanceProxy::EvaluateAnimationNode_WithRoot(FPoseContext& Output, FA
 
 		TRACE_SCOPED_ANIM_NODE(Output);
 
+		FAnimNodeFunctionCaller::Evaluate(Output, *InRootNode);
+		
 		InRootNode->Evaluate_AnyThread(Output);
 	}
 	else

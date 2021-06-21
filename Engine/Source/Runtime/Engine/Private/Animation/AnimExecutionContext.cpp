@@ -1,0 +1,28 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Animation/AnimExecutionContext.h"
+#include "Animation/AnimNodeBase.h"
+
+FAnimExecutionContext::FData::FData(const FAnimationInitializeContext& InContext)
+{
+	Context = const_cast<FAnimationInitializeContext*>(&InContext);
+	ContextType = EContextType::Initialize;
+}
+
+FAnimExecutionContext::FData::FData(const FAnimationUpdateContext& InContext)
+{
+	Context = const_cast<FAnimationUpdateContext*>(&InContext);
+	ContextType = EContextType::Update;
+}
+
+FAnimExecutionContext::FData::FData(FPoseContext& InContext)
+{
+	Context = &InContext;
+	ContextType = EContextType::Pose;
+}
+
+FAnimExecutionContext::FData::FData(FComponentSpacePoseContext& InContext)
+{
+	Context = &InContext;
+	ContextType = EContextType::ComponentSpacePose;
+}
