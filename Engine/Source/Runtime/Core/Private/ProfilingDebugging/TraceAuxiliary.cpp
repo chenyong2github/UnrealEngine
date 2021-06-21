@@ -691,8 +691,9 @@ void FTraceAuxiliary::TryAutoConnect()
 {
 #if UE_TRACE_ENABLED
 	#if PLATFORM_WINDOWS
-	// If we can detect a named event then we can try and auto-connect to UnrealInsights.
-	HANDLE KnownEvent = ::OpenEvent(EVENT_ALL_ACCESS, false, TEXT("Local\\UnrealInsightsRecorder"));
+	// If we can detect a named event it means UnrealInsights (Browser Mode) is running.
+	// In this case, we try to auto-connect with the Trace Server.
+	HANDLE KnownEvent = ::OpenEvent(EVENT_ALL_ACCESS, false, TEXT("Local\\UnrealInsightsBrowser"));
 	if (KnownEvent != nullptr)
 	{
 		GTraceAuxiliary.Connect(ETraceConnectType::Network, TEXT("127.0.0.1"));
