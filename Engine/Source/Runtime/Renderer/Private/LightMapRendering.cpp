@@ -376,7 +376,6 @@ void GetIndirectLightingCacheParameters(
 			Parameters.IndirectLightingCacheTextureSampler2 = TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
 		}
 		else
-		if (FeatureLevel >= ERHIFeatureLevel::ES3_1)
 		{
 			Parameters.IndirectLightingCacheTexture0 = GBlackVolumeTexture->TextureRHI;
 			Parameters.IndirectLightingCacheTexture1 = GBlackVolumeTexture->TextureRHI;
@@ -385,16 +384,6 @@ void GetIndirectLightingCacheParameters(
 			Parameters.IndirectLightingCacheTextureSampler0 = GBlackVolumeTexture->SamplerStateRHI;
 			Parameters.IndirectLightingCacheTextureSampler1 = GBlackVolumeTexture->SamplerStateRHI;
 			Parameters.IndirectLightingCacheTextureSampler2 = GBlackVolumeTexture->SamplerStateRHI;
-		}
-		else
-		{
-			Parameters.IndirectLightingCacheTexture0 = GBlackTexture->TextureRHI;
-			Parameters.IndirectLightingCacheTexture1 = GBlackTexture->TextureRHI;
-			Parameters.IndirectLightingCacheTexture2 = GBlackTexture->TextureRHI;
-
-			Parameters.IndirectLightingCacheTextureSampler0 = GBlackTexture->SamplerStateRHI;
-			Parameters.IndirectLightingCacheTextureSampler1 = GBlackTexture->SamplerStateRHI;
-			Parameters.IndirectLightingCacheTextureSampler2 = GBlackTexture->SamplerStateRHI;
 		}
 	}
 }

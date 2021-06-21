@@ -76,7 +76,7 @@ bool IsAutoExposureMethodSupported(ERHIFeatureLevel::Type FeatureLevel, EAutoExp
 	case EAutoExposureMethod::AEM_Histogram:
 	case EAutoExposureMethod::AEM_Basic:
 	case EAutoExposureMethod::AEM_Manual:
-		return FeatureLevel >= ERHIFeatureLevel::ES3_1;
+		return true;
 	}
 	return false;
 }
