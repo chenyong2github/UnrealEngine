@@ -1166,13 +1166,11 @@ FVideoDecoderH264::EOutputResult FVideoDecoderH264::GetOutput()
 				result = DecoderInstance->ReleaseOutputBuffer(OutputBufferInfo.BufferIndex, OutputBufferInfo.ValidCount, false, -1);
 				return EOutputResult::EOS;
 			}
-			// We have not seen a config buffer coming back from a decoder, which makes sense. But we do not put it past some
-			// implementation to do that, so for good measure let's ignore it.
+			// If a configuration buffer is returned to us we ignore it. This serves no purpose.
 			if (OutputBufferInfo.bIsConfig)
 			{
-				LogMessage(Electra::IInfoLog::Warning, "Got CSD buffer back?");
 				result = DecoderInstance->ReleaseOutputBuffer(OutputBufferInfo.BufferIndex, OutputBufferInfo.ValidCount, false, -1);
-				return EOutputResult::EOS;
+				return EOutputResult::Ok;
 			}
 
 			IAndroidJavaH264VideoDecoder::FOutputFormatInfo OutputFormatInfo;
