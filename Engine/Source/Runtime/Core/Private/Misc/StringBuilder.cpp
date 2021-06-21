@@ -86,4 +86,5 @@ TStringBuilderBase<C>& TStringBuilderBase<C>::AppendfImpl(BuilderType& Self, con
 // Instantiate templates once
 
 template class TStringBuilderBase<ANSICHAR>;
+template class TStringBuilderBase<UTF8CHAR>;
 template class TStringBuilderBase<WIDECHAR>;
