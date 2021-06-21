@@ -774,17 +774,16 @@ namespace HordeServer.Controllers
 			Bytes = await Perforce.PrintAsync($"{DevBuild}/RunUAT.bat@13916380");
 			Results.Add($"PrintAsync: {DevBuild}/RunUAT.bat@13916380", $"{System.Text.Encoding.Default.GetString(Bytes)}");
 
-			// DuplicateShelvedChangeAsync is disabled due to issue with p4 librarian
-			/*
 			// need to be running as service account for these
 
 			int? DuplicateCL = null;
 
-			int ShelvedChangeOnDevBuild = 16158333;
+			int ShelvedChangeOnDevBuild = 16687685;
 
 			try 
 			{
 				DuplicateCL = await Perforce.DuplicateShelvedChangeAsync(ShelvedChangeOnDevBuild);
+				Results.Add("DuplicateShelvedChangeAsync", $"Duplicated CL {DuplicateCL} from Shelved CL {ShelvedChangeOnDevBuild}");
 			}
 			catch 
 			{
@@ -794,7 +793,7 @@ namespace HordeServer.Controllers
 			if (DuplicateCL.HasValue)
 			{
 				// Note change client much exist for the update
-				ChangeDetails = await Perforce.GetChangeDetailsAsync(DevBuild, new int[]{NewChangeId}, PerforceUser);
+				ChangeDetails = await Perforce.GetChangeDetailsAsync(DevBuild, new int[]{ DuplicateCL.Value}, PerforceUser);
 
 				Results.Add("UpdateChangelistDescription - PreUpdate", $"{DuplicateCL} : {ChangeDetails[0].Description}"); 
 
@@ -802,7 +801,7 @@ namespace HordeServer.Controllers
 				{
 					await Perforce.UpdateChangelistDescription(DuplicateCL.Value, "Updated Description from Horde");
 
-					ChangeDetails = await Perforce.GetChangeDetailsAsync(DevBuild, new int[]{NewChangeId}, PerforceUser);
+					ChangeDetails = await Perforce.GetChangeDetailsAsync(DevBuild, new int[]{ DuplicateCL.Value}, PerforceUser);
 
 					Results.Add("UpdateChangelistDescription - PostUpdate", $"{DuplicateCL} : {ChangeDetails[0].Description}"); 
 				}
@@ -818,10 +817,8 @@ namespace HordeServer.Controllers
 				Results.Add("GetChangeDetailsAsync - After Delete", $"ChangeDetails.Count: {ChangeDetails.Count}"); 
 
 			}
-			*/
 
 			byte[] ImageBytes = await Perforce.PrintAsync($"{DevBuild}/Samples/Games/ShooterGame/ShooterGame.png");
-
 
 			Content.AppendLine("<html><body><pre>");
 			foreach (KeyValuePair<string, string> Pair in Results)
