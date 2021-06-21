@@ -342,6 +342,7 @@ PACKAGE_SCOPE:
 	}
 
 	int32 GetLocalUserNumFromUniqueNetId(const FUniqueNetId& NetId) const;
+	bool IsLocalUser(const FUniqueNetId& NetId) const;
 
 	EOS_EpicAccountId GetEpicAccountId(const FUniqueNetId& NetId) const;
 	EOS_ProductUserId GetProductUserId(const FUniqueNetId& NetId) const;

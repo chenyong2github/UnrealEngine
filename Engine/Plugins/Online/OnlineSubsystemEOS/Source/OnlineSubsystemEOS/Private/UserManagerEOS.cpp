@@ -882,6 +882,7 @@ TSharedPtr<FUserOnlineAccount> FUserManagerEOS::GetUserAccount(const FUniqueNetI
 	{
 		return *FoundUserAccount;
 	}
+
 	return nullptr;
 }
 
@@ -914,6 +915,12 @@ int32 FUserManagerEOS::GetLocalUserNumFromUniqueNetId(const FUniqueNetId& NetId)
 	}
 	// Use the default user if we can't find the person that they want
 	return DefaultLocalUser;
+}
+
+bool FUserManagerEOS::IsLocalUser(const FUniqueNetId& NetId) const
+{
+	const FUniqueNetIdEOS& EosId = FUniqueNetIdEOS::Cast(NetId);
+	return StringToAccountIdMap.Contains(EosId.UniqueNetIdStr);
 }
 
 FUniqueNetIdEOSPtr FUserManagerEOS::GetLocalUniqueNetIdEOS(int32 LocalUserNum) const
@@ -1136,6 +1143,7 @@ void FUserManagerEOS::RemoveLocalUser(int32 LocalUserNum)
 	const FUniqueNetIdEOSPtr* FoundId = UserNumToNetIdMap.Find(LocalUserNum);
 	if (FoundId != nullptr)
 	{
+		EOSSubsystem->ReleaseVoiceChatUserInterface(**FoundId);
 		LocalUserNumToFriendsListMap.Remove(LocalUserNum);
 		const FString& NetId = (*FoundId)->UniqueNetIdStr;
 		EOS_EpicAccountId AccountId = StringToAccountIdMap[NetId];

@@ -7,7 +7,6 @@
 #include "Containers/Ticker.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Misc/App.h"
-#include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreMisc.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/NetworkVersion.h"
@@ -150,8 +149,7 @@ EOS_EResult FEOSSDKManager::Initialize()
 		const FTCHARToUTF8 ProductName(*GetProductName());
 		const FTCHARToUTF8 ProductVersion(*GetProductVersion());
 
-		EOS_InitializeOptions InitializeOptions;
-		memset(&InitializeOptions, 0, sizeof(InitializeOptions));
+		EOS_InitializeOptions InitializeOptions = {};
 		InitializeOptions.ApiVersion = EOS_INITIALIZE_API_LATEST;
 		static_assert(EOS_INITIALIZE_API_LATEST == 4, "EOS_InitializeOptions updated, check new fields");
 		InitializeOptions.AllocateMemoryFunction = &EosMalloc;

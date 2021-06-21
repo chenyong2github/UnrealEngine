@@ -304,6 +304,8 @@ public:
 	bool bAntiCheatProtected;
 	/** Whether to prefer lobbies APIs if the platform supports them */
 	bool bUseLobbiesIfAvailable;
+	/** Whether to create (and auto join) a voice chat room for the lobby, if the platform supports it */
+	bool bUseLobbiesVoiceChatIfAvailable;
 	/** Used to keep different builds from seeing each other during searches */
 	int32 BuildUniqueId;
 	/** Array of custom session settings */
@@ -328,6 +330,7 @@ public:
 		, bAllowJoinViaPresenceFriendsOnly(false)
 		, bAntiCheatProtected(false)
 		, bUseLobbiesIfAvailable(false)
+		, bUseLobbiesVoiceChatIfAvailable(false)
 		, BuildUniqueId(0)
 	{
 		// Example usage of settings

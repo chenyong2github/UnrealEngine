@@ -6,7 +6,14 @@
 
 #include "EOSHelpers.h"
 
-using FPlatformEOSHelpers = FEOSHelpers;
+class FWindowsEOSHelpers : public FEOSHelpers
+{
+public:
+	virtual ~FWindowsEOSHelpers() = default;
 
-#endif
+	virtual IEOSPlatformHandlePtr CreatePlatform(EOS_Platform_Options& PlatformOptions) override;
+};
 
+using FPlatformEOSHelpers = FWindowsEOSHelpers;
+
+#endif // WITH_EOS_SDK

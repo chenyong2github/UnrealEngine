@@ -13,6 +13,7 @@
 #include "InternetAddrEOS.h"
 #include "IEOSSDKManager.h"
 #include "NetDriverEOS.h"
+#include "EOSVoiceChatUser.h"
 
 #if WITH_EOS_SDK
 	#include "eos_sessions.h"
@@ -3075,16 +3076,20 @@ uint32 FOnlineSessionEOS::CreateLobbySession(int32 HostingPlayerNum, FNamedOnlin
 	Session->SessionState = EOnlineSessionState::Creating;
 	Session->bHosting = true;
 
-	EOS_ProductUserId LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(HostingPlayerNum);
+	const EOS_ProductUserId LocalProductUserId = EOSSubsystem->UserManager->GetLocalProductUserId(HostingPlayerNum);
+	const FUniqueNetIdPtr LocalUserNetId = EOSSubsystem->UserManager->GetLocalUniqueNetIdEOS(HostingPlayerNum);
 
 	EOS_Lobby_CreateLobbyOptions CreateLobbyOptions = { 0 };
 	CreateLobbyOptions.ApiVersion = EOS_LOBBY_CREATELOBBY_API_LATEST;
-	CreateLobbyOptions.LocalUserId = LocalUserId;
+	CreateLobbyOptions.LocalUserId = LocalProductUserId;
 	CreateLobbyOptions.MaxLobbyMembers = GetLobbyMaxMembersFromSessionSettings(Session->SessionSettings);
 	CreateLobbyOptions.PermissionLevel = GetLobbyPermissionLevelFromSessionSettings(Session->SessionSettings);
 	CreateLobbyOptions.bPresenceEnabled = Session->SessionSettings.bUsesPresence;
 	CreateLobbyOptions.bAllowInvites = Session->SessionSettings.bAllowInvites;
 	CreateLobbyOptions.BucketId = BucketIdAnsi;
+#if WITH_EOS_RTC
+	CreateLobbyOptions.bEnableRTCRoom = Session->SessionSettings.bUseLobbiesVoiceChatIfAvailable;
+#endif
 
 	/*When the operation finishes, the EOS_Lobby_OnCreateLobbyCallback will run with an EOS_Lobby_CreateLobbyCallbackInfo data structure.
 	If the data structure's ResultCode field indicates success, its LobbyId field contains the new lobby's ID value, which we will need to interact with the lobby further.*/
@@ -3092,7 +3097,7 @@ uint32 FOnlineSessionEOS::CreateLobbySession(int32 HostingPlayerNum, FNamedOnlin
 	FName SessionName = Session->SessionName;
 	FLobbyCreatedCallback* CallbackObj = new FLobbyCreatedCallback();
 	LobbyCreatedCallback = CallbackObj;
-	CallbackObj->CallbackLambda = [this, SessionName, LocalUserId](const EOS_Lobby_CreateLobbyCallbackInfo* Data)
+	CallbackObj->CallbackLambda = [this, SessionName, LocalProductUserId, LocalUserNetId](const EOS_Lobby_CreateLobbyCallbackInfo* Data)
 	{
 		FNamedOnlineSession* Session = GetNamedSession(SessionName);
 		if (Session)
@@ -3106,10 +3111,17 @@ uint32 FOnlineSessionEOS::CreateLobbySession(int32 HostingPlayerNum, FNamedOnlin
 
 				// Because some platforms remap ports, we will use the ID of the name of the net driver to be our port instead
 				FName NetDriverName = GetDefault<UNetDriverEOS>()->NetDriverName;
-				FInternetAddrEOS TempAddr(MakeStringFromProductUserId(LocalUserId), NetDriverName.ToString(), GetTypeHash(NetDriverName.ToString()));
+				FInternetAddrEOS TempAddr(MakeStringFromProductUserId(LocalProductUserId), SessionName.ToString(), FURL::UrlConfig.DefaultPort);
 				FString HostAddr = TempAddr.ToString(true);
 
 				Session->SessionInfo = MakeShareable(new FOnlineSessionInfoEOS(HostAddr, Data->LobbyId, nullptr));
+
+#if WITH_EOS_RTC
+				if (FEOSVoiceChatUser* VoiceChatUser = static_cast<FEOSVoiceChatUser*>(EOSSubsystem->GetEOSVoiceChatUserInterface(*LocalUserNetId)))
+				{
+					VoiceChatUser->AddLobbyRoom(UTF8_TO_TCHAR(Data->LobbyId));
+				}
+#endif
 
 				BeginSessionAnalytics(Session);
 
@@ -3162,9 +3174,11 @@ uint32 FOnlineSessionEOS::JoinLobbySession(int32 PlayerNum, FNamedOnlineSession*
  			JoinLobbyOptions.LobbyDetailsHandle = LobbyDetailsHandle;
 
 			FName SessionName = Session->SessionName;
+			FUniqueNetIdPtr LocalUserNetId = EOSSubsystem->UserManager->GetLocalUniqueNetIdEOS(PlayerNum);
+
 			FLobbyJoinedCallback* CallbackObj = new FLobbyJoinedCallback();
 			LobbyJoinedCallback = CallbackObj;
-			CallbackObj->CallbackLambda = [this, SessionName](const EOS_Lobby_JoinLobbyCallbackInfo* Data)
+			CallbackObj->CallbackLambda = [this, SessionName, LocalUserNetId](const EOS_Lobby_JoinLobbyCallbackInfo* Data)
 			{
 				FNamedOnlineSession* Session = GetNamedSession(SessionName);
 				if (Session)
@@ -3175,6 +3189,13 @@ uint32 FOnlineSessionEOS::JoinLobbySession(int32 PlayerNum, FNamedOnlineSession*
 						UE_LOG_ONLINE_SESSION(Verbose, TEXT("[FOnlineSessionEOS::JoinLobbySession] JoinLobby was successful. LobbyId is %d."), Data->LobbyId);
 
 						BeginSessionAnalytics(Session);
+
+#if WITH_EOS_RTC
+						if (FEOSVoiceChatUser* VoiceChatUser = static_cast<FEOSVoiceChatUser*>(EOSSubsystem->GetEOSVoiceChatUserInterface(*LocalUserNetId)))
+						{
+							VoiceChatUser->AddLobbyRoom(UTF8_TO_TCHAR(Data->LobbyId));
+						}
+#endif
 					}
 					else
 					{
@@ -3462,6 +3483,13 @@ uint32 FOnlineSessionEOS::DestroyLobbySession(FNamedOnlineSession* Session, cons
 						UE_LOG_ONLINE_SESSION(Warning, TEXT("[FOnlineSessionEOS::DestroyLobbySession] DestroyLobby not successful. Finished with EOS_EResult %s"), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
 					}
 
+#if WITH_EOS_RTC
+					if (FEOSVoiceChatUser* VoiceChatUser = static_cast<FEOSVoiceChatUser*>(EOSSubsystem->GetEOSVoiceChatUserInterface(*EOSSubsystem->UserManager->GetLocalUniqueNetIdEOS())))
+					{
+						VoiceChatUser->RemoveLobbyRoom(UTF8_TO_TCHAR(Data->LobbyId));
+					}
+#endif
+
 					EndSessionAnalytics();
 
 					LobbySession->SessionState = EOnlineSessionState::NoSession;
@@ -3500,6 +3528,13 @@ uint32 FOnlineSessionEOS::DestroyLobbySession(FNamedOnlineSession* Session, cons
 					{
 						UE_LOG_ONLINE_SESSION(Warning, TEXT("[FOnlineSessionEOS::DestroyLobbySession] LeaveLobby not successful. Finished with EOS_EResult %s"), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
 					}
+
+#if WITH_EOS_RTC
+					if (FEOSVoiceChatUser* VoiceChatUser = static_cast<FEOSVoiceChatUser*>(EOSSubsystem->GetEOSVoiceChatUserInterface(*EOSSubsystem->UserManager->GetLocalUniqueNetIdEOS())))
+					{
+						VoiceChatUser->RemoveLobbyRoom(UTF8_TO_TCHAR(Data->LobbyId));
+					}
+#endif
 
 					EndSessionAnalytics();
 
@@ -3708,6 +3743,9 @@ void FOnlineSessionEOS::CopyLobbyData(EOS_HLobbyDetails LobbyDetailsHandle, EOS_
 {
 	OutSession.SessionSettings.bUseLobbiesIfAvailable = true;
 	OutSession.SessionSettings.bIsLANMatch = false;
+#if WITH_EOS_RTC
+	OutSession.SessionSettings.bUseLobbiesVoiceChatIfAvailable = LobbyDetailsInfo->bRTCRoomEnabled == EOS_TRUE;
+#endif
 
 	switch (LobbyDetailsInfo->PermissionLevel)
 	{

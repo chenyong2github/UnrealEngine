@@ -22,9 +22,11 @@ public class OnlineSubsystemEOS : ModuleRules
 				"Engine",
 				"EOSSDK",
 				"EOSShared",
-				"Sockets",
+				"EOSVoiceChat",
+				"Json",
 				"OnlineSubsystem",
-				"Json"
+				"Sockets",
+				"VoiceChat"
 			}
 		);
 
