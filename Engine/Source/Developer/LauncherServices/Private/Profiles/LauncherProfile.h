@@ -47,6 +47,8 @@ enum ELauncherVersion
 	LAUNCHERSERVICES_ADDEDADDITIONALCOMMANDLINE = 26,
 	LAUNCHERSERVICES_ADDEDINCLUDEPREREQUISITES = 27,
 	LAUNCHERSERVICES_ADDEDBUILDMODE = 28,
+	LAUNCHERSERVICES_ADDEDUSEIOSTORE = 29,
+	LAUNCHERSERVICES_ADDEDMAKEBINARYCONFIG = 30,
 
 	//ADD NEW STUFF HERE
 
@@ -1013,6 +1015,17 @@ public:
 		{
 			Archive << BuildMode;
 		}
+
+		if (Version >= LAUNCHERSERVICES_ADDEDUSEIOSTORE)
+		{
+			Archive << bUseIoStore;
+		}
+
+		if (Version >= LAUNCHERSERVICES_ADDEDMAKEBINARYCONFIG)
+		{
+			Archive << bMakeBinaryConfig;
+		}
+
 		else if(Archive.IsLoading())
 		{
 			BuildMode = BuildGame ? ELauncherProfileBuildModes::Build : ELauncherProfileBuildModes::DoNotBuild;
@@ -1153,6 +1166,8 @@ public:
 		Writer.WriteValue("ArchiveDirectory", ArchiveDir);
 		Writer.WriteValue("AdditionalCommandLineParameters", AdditionalCommandLineParameters);
 		Writer.WriteValue("IncludePrerequisites", IncludePrerequisites);
+		Writer.WriteValue("UseIoStore", bUseIoStore);
+		Writer.WriteValue("MakeBinaryConfig", bMakeBinaryConfig);
 
 		// serialize the default launch role
 		DefaultLaunchRole->Save(Writer, TEXT("DefaultRole"));
@@ -1798,6 +1813,16 @@ public:
 		if (Version >= LAUNCHERSERVICES_ADDEDINCLUDEPREREQUISITES)
 		{
 			IncludePrerequisites = Object.GetBoolField("IncludePrerequisites");
+		}
+
+		if (Version >= LAUNCHERSERVICES_ADDEDUSEIOSTORE)
+		{
+			bUseIoStore = Object.GetBoolField("UseIoStore");
+		}
+
+		if (Version >= LAUNCHERSERVICES_ADDEDMAKEBINARYCONFIG)
+		{
+			bMakeBinaryConfig = Object.GetBoolField("MakeBinaryConfig");
 		}
 
 		// load the default launch role
