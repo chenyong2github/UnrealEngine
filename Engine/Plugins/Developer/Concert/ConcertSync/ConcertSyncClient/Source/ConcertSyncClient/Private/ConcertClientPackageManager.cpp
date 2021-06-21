@@ -539,6 +539,7 @@ void FConcertClientPackageManager::HotReloadPendingPackages()
 	SCOPED_CONCERT_TRACE(FConcertClientPackageManager_HotReloadPendingPackages);
 	if (CanHotReloadOrPurge())
 	{
+		LiveSession->GetSessionDatabase().FlushAsynchronousTasks();
 		ConcertSyncClientUtil::HotReloadPackages(PackagesPendingHotReload);
 		PackagesPendingHotReload.Reset();
 	}

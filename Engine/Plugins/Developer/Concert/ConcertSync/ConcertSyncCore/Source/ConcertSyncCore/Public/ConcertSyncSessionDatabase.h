@@ -659,6 +659,11 @@ public:
 	 */
 	void UpdateAsynchronousTasks();
 
+	/**
+	 * Flush any ongoing asynchronous tasks.
+	 */
+	void FlushAsynchronousTasks();
+
 private:
 	/**
 	 * Schedule an asynchronous write for the given Package Stream.  The stream must be in-memory. File sharing
@@ -668,11 +673,6 @@ private:
 	 * @param InPackageDataStream       The package data stream.
 	 **/
 	void ScheduleAsyncWrite(const FString& InDstPackageBlobPathname, FConcertPackageDataStream& InPackageDataStream);
-
-	/**
-	 * Flush any ongoing asynchronous tasks.
-	 */
-	void FlushAsynchronousTasks();
 
 	/**
 	 * Set the active ignored state for the given activity.
