@@ -173,7 +173,7 @@ public:
 
 		for (int32 i = 0; i < Length; ++i)
 		{
-			Dest[i] = String[i];
+			Dest[i] = CharType(String[i]);
 		}
 
 		return *this;
@@ -371,7 +371,7 @@ protected:
 	{
 		if (*CurPos)
 		{
-			*CurPos = 0;
+			*CurPos = CharType(0);
 		}
 	}
 
