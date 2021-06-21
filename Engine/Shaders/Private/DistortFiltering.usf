@@ -1,0 +1,32 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	DistortFiltering.usf: Pixel shader for filtering the scene color in preparation for rough refraction
+=============================================================================*/
+
+#include "Common.ush"
+
+
+uint SrcMipIndex;
+int2 SrcMipResolution;
+int2 DstMipResolution;
+SamplerState SourceSampler;
+Texture2D<float4> SourceTexture;
+RWTexture2D<float4> OutTextureMipColor;
+
+
+/** output distortion offsets as color so they can be accumulated (via blending) */
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void DownsampleColorCS(uint3 ThreadId : SV_DispatchThreadID)
+{
+	if (any(ThreadId.xy >= uint2(DstMipResolution)))
+	{
+		return;
+	}
+	float2 ScaledUVs = (float2(ThreadId.xy) + 0.5f) / float2(DstMipResolution);
+
+	float4 OutColor = SourceTexture.SampleLevel(SourceSampler, ScaledUVs, SrcMipIndex);
+
+	OutTextureMipColor[uint2(ThreadId.xy)] = OutColor;
+
+}

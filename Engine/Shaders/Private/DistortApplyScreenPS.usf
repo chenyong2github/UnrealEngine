@@ -22,9 +22,12 @@ SamplerState	SceneColorTextureSampler;
  #if USE_MSAA
 Texture2DMS<float4> DistortionMSAATexture;
 Texture2DMS<float4> SceneColorMSAATexture;
+Texture2DMS<float4> RoughnessScatterMSAATexture;
 #else
 Texture2D		DistortionTexture;
 SamplerState	DistortionTextureSampler;
+Texture2D<float4> RoughnessScatterTexture;
+SamplerState      RoughnessScatterSampler;
 #endif
 
 /** distorts screen texture using accumulated distortion offsets */
@@ -50,7 +53,37 @@ void Main(
 	//Scale by the screen size and a fudge factor to come close to the offset values we would have had under normal circumstances before my changes. Also flip Y and invert the precision bias scale.
 	DistBufferUVOffset *= InvDistortionScaleBias;
 	
-	
+#if USE_ROUGH_REFRACTION
+
+#if USE_MSAA
+	half RoughnessScatter = RoughnessScatterMSAATexture.Load(int2(TexCoord.xy * View.BufferSizeAndInvSize.xy), SampleIndex) * 10.0f;
+#else
+	half RoughnessScatter = Texture2DSample(RoughnessScatterTexture, RoughnessScatterSampler, TexCoord.xy) * 10.0f;
+#endif
+
+	float2 NewBufferUV = ((TexCoord.xy + DistBufferUVOffset) * View.BufferSizeAndInvSize.xy - View.ViewRectMin.xy) * View.BufferSizeAndInvSize.zw;
+
+	FLATTEN if (any(NewBufferUV < 0.0f) || any(NewBufferUV > 1.0f))
+	{
+		NewBufferUV = (TexCoord.xy * View.BufferSizeAndInvSize.xy - View.ViewRectMin.xy) * View.BufferSizeAndInvSize.zw;
+	}
+
+#if USE_MSAA
+	if (RoughnessScatter == 0.0f)
+	{
+		// Sample the full res MSAA source texture
+		OutColor = SceneColorMSAATexture.Load(int2(TexCoord * View.BufferSizeAndInvSize.xy), SampleIndex);
+	}
+	else
+	{
+		OutColor = Texture2DSampleLevel(SceneColorTexture, SceneColorTextureSampler, NewBufferUV, RoughnessScatter);
+	}
+#else
+	OutColor = Texture2DSampleLevel(SceneColorTexture, SceneColorTextureSampler, NewBufferUV, RoughnessScatter);
+#endif
+
+#else // USE_ROUGH_REFRACTION
+
 	float2 NewBufferUV = TexCoord.xy + DistBufferUVOffset;
 
 	// If we're about to sample outside the valid BufferUVMinMax, set to 0 distortion.
@@ -66,6 +99,8 @@ void Main(
 #else
 	OutColor = Texture2DSample(SceneColorTexture, SceneColorTextureSampler, NewBufferUV);
 #endif
+
+#endif // USE_ROUGH_REFRACTION
 }
 
 void Merge(
