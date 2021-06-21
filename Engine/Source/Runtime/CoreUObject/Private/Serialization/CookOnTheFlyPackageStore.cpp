@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Serialization/CookOnTheFlyPackageStore.h"
+
 #if WITH_COTF
 
-#include "Serialization/CookOnTheFlyPackageStore.h"
 #include "CookOnTheFly.h"
 #include "HAL/PlatformTime.h"
 #include "Containers/ChunkedArray.h"
