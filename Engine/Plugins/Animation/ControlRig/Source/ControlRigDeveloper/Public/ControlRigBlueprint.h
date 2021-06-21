@@ -475,10 +475,19 @@ public:
 	void PropagatePropertyFromBPToInstances(FRigElementKey InRigElement, const FProperty* InProperty);
 	void PropagatePropertyFromInstanceToBP(FRigElementKey InRigElement, const FProperty* InProperty, UControlRig* InInstance);
 
+	/**
+	* Returns the modified event, which can be used to 
+	* subscribe to topological changes happening within the hierarchy. The event is broadcasted only after all hierarchy instances are up to date
+	* @return The event used for subscription.
+	*/
+	FRigHierarchyModifiedEvent& OnHierarchyModified() { return HierarchyModifiedEvent; }
+
 private:
 
 	UPROPERTY()
 	UControlRigValidator* Validator;
+
+	FRigHierarchyModifiedEvent	HierarchyModifiedEvent;
 
 	void HandleHierarchyModified(ERigHierarchyNotification InNotification, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
 

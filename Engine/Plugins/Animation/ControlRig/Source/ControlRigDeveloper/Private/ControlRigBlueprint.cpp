@@ -107,6 +107,7 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 	Hierarchy = CreateDefaultSubobject<URigHierarchy>(TEXT("Hierarchy"));
 	HierarchyController = CreateDefaultSubobject<URigHierarchyController>(TEXT("HierarchyController"));
 	HierarchyController->SetHierarchy(Hierarchy);
+	// give BP a chance to propagate hierarchy changes to available control rig instances
 	HierarchyController->OnModified().AddUObject(this, &UControlRigBlueprint::HandleHierarchyModified);
 }
 
@@ -3282,6 +3283,8 @@ void UControlRigBlueprint::HandleHierarchyModified(ERigHierarchyNotification InN
 			break;
 		}
 	}
+
+	HierarchyModifiedEvent.Broadcast(InNotification, InHierarchy, InElement);
 	
 #endif
 }
