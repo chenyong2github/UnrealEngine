@@ -5,6 +5,7 @@
 #include "Algo/AnyOf.h"
 #include "Algo/Copy.h"
 #include "Algo/Find.h"
+#include "Algo/ForEach.h"
 #include "Algo/Transform.h"
 #include "AssetRegistryModule.h"
 #include "Dom/JsonObject.h"
@@ -38,9 +39,14 @@ void FUncontrolledChangelistsModule::StartupModule()
 	LoadState();
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	OnAssetAddedDelegateHandle = AssetRegistryModule.Get().OnAssetAdded().AddLambda([](const struct FAssetData& AssetData) { Get().OnAssetAdded(AssetData); });
-	OnAssetLoadedDelegateHandle = FCoreUObjectDelegates::OnAssetLoaded.AddLambda([](UObject* InAsset) { Get().OnAssetLoaded(InAsset); });
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+	OnAssetAddedDelegateHandle = AssetRegistry.OnAssetAdded().AddLambda([](const struct FAssetData& AssetData) { Get().OnAssetAdded(AssetData); });
 	OnObjectPreSavedDelegateHandle = FCoreUObjectDelegates::OnObjectPreSave.AddLambda([](UObject* InAsset, const FObjectPreSaveContext& InPreSaveContext) { Get().OnObjectPreSaved(InAsset, InPreSaveContext); });
+
+	TArray<FAssetData> AssetData;
+
+	AssetRegistry.GetAllAssets(AssetData);
+	Algo::ForEach(AssetData, [this](const struct FAssetData& AssetData) { OnAssetAdded(AssetData); });
 }
 
 void FUncontrolledChangelistsModule::ShutdownModule()
@@ -53,7 +59,6 @@ void FUncontrolledChangelistsModule::ShutdownModule()
 		AssetRegistryModulePtr->Get().OnAssetAdded().Remove(OnAssetAddedDelegateHandle);
 	}
 
-	FCoreUObjectDelegates::OnAssetLoaded.Remove(OnAssetLoadedDelegateHandle);
 	FCoreUObjectDelegates::OnObjectPreSave.Remove(OnObjectPreSavedDelegateHandle);
 }
 
@@ -109,8 +114,6 @@ void FUncontrolledChangelistsModule::UpdateStatus()
 		bHasStateChanged |= UncontrolledChangelistState->UpdateStatus();
 	}
 
-	CleanLoadedAssetsCache();
-
 	if (bHasStateChanged)
 	{
 		OnStateChanged();
@@ -119,72 +122,56 @@ void FUncontrolledChangelistsModule::UpdateStatus()
 
 FText FUncontrolledChangelistsModule::GetReconcileStatus() const
 {
-	return FText::Format(LOCTEXT("ReconcileStatus", "Assets to check for reconcile: {0} loaded, {1} saved"), FText::AsNumber(LoadedFilesCache.Num()), FText::AsNumber(SavedFilesCache.Num()));
+	return FText::Format(LOCTEXT("ReconcileStatus", "Assets to check for reconcile: {0}"), FText::AsNumber(AddedAssetsCache.Num()));
 }
 
-void FUncontrolledChangelistsModule::OnReconcileLoadedAssets()
+bool FUncontrolledChangelistsModule::OnReconcileAssets()
 {
-	if ((!IsEnabled()) || ((LoadedFilesCache.Num() == 0)))
+	if ((!IsEnabled()) || AddedAssetsCache.IsEmpty())
 	{
-		return;
+		return false;
 	}
 
 	CleanAssetsCaches();
-	AddFilesToDefaultUncontrolledChangelist(LoadedFilesCache.Array(), FUncontrolledChangelistState::ECheckFlags::All);
-}
+	bool bHasStateChanged = AddFilesToDefaultUncontrolledChangelist(AddedAssetsCache.Array(), FUncontrolledChangelistState::ECheckFlags::All);
 
-void FUncontrolledChangelistsModule::OnReconcileSavedAssets()
-{
-	if ((!IsEnabled()) || ((SavedFilesCache.Num() == 0)))
-	{
-		return;
-	}
+	AddedAssetsCache.Empty();
 
-	CleanAssetsCaches();
-	AddFilesToDefaultUncontrolledChangelist(SavedFilesCache.Array(), FUncontrolledChangelistState::ECheckFlags::All);
-	SavedFilesCache.Reset();
-}
-
-void FUncontrolledChangelistsModule::OnReconcileAllAssets()
-{
-	if ((!IsEnabled()) || ((LoadedFilesCache.Num() == 0) && (SavedFilesCache.Num() == 0)))
-	{
-		return;
-	}
-
-	CleanAssetsCaches();
-
-	TArray<FString> FilenamesToCheck;
-
-	Algo::Copy(LoadedFilesCache, FilenamesToCheck);
-	Algo::Copy(SavedFilesCache, FilenamesToCheck);
-
-	AddFilesToDefaultUncontrolledChangelist(FilenamesToCheck, FUncontrolledChangelistState::ECheckFlags::All);
-
-	LoadedFilesCache.Reset();
-	SavedFilesCache.Reset();
+	return bHasStateChanged;
 }
 
 void FUncontrolledChangelistsModule::OnAssetAdded(const struct FAssetData& AssetData)
-{
-
-}
-
-void FUncontrolledChangelistsModule::OnAssetLoaded(UObject* InAsset)
 {
 	if (!IsEnabled())
 	{
 		return;
 	}
 
-	FString Fullpath = GetUObjectPackageFullpath(InAsset);
+	FPackagePath PackagePath;
+
+	if (!FPackagePath::TryFromPackageName(AssetData.PackageName, PackagePath))
+	{
+		return;
+	}
+
+	const FString LocalFullPath(PackagePath.GetLocalFullPath());
+
+	if (LocalFullPath.IsEmpty())
+	{
+		return;
+	}
+
+	FString Fullpath = FPaths::ConvertRelativePathToFull(LocalFullPath);
 
 	if (Fullpath.IsEmpty())
 	{
 		return;
 	}
 
-	LoadedFilesCache.Add(MoveTemp(Fullpath));
+	if (!IFileManager::Get().IsReadOnly(*Fullpath))
+	{
+		AddedAssetsCache.Add(MoveTemp(Fullpath));
+	}
 }
 
 void FUncontrolledChangelistsModule::OnObjectPreSaved(UObject* InAsset, const FObjectPreSaveContext& InPreSaveContext)
@@ -201,7 +188,7 @@ void FUncontrolledChangelistsModule::OnObjectPreSaved(UObject* InAsset, const FO
 		return;
 	}
 
-	SavedFilesCache.Add(MoveTemp(Fullpath));
+	AddedAssetsCache.Add(MoveTemp(Fullpath));
 }
 
 void FUncontrolledChangelistsModule::MoveFilesToUncontrolledChangelist(const TArray<FSourceControlStateRef>& InControlledFileStates, const TArray<FSourceControlStateRef>& InUncontrolledFileStates, const FUncontrolledChangelist& InUncontrolledChangelist)
@@ -363,45 +350,11 @@ void FUncontrolledChangelistsModule::CleanAssetsCaches()
 	for (FUncontrolledChangelistsStateCache::ElementType& Pair : UncontrolledChangelistsStateCache)
 	{
 		FUncontrolledChangelistsStateCache::ValueType& UncontrolledChangelistState = Pair.Value;
-		UncontrolledChangelistState->RemoveDuplicates(LoadedFilesCache, SavedFilesCache);
+		UncontrolledChangelistState->RemoveDuplicates(AddedAssetsCache);
 	}
 }
 
-void FUncontrolledChangelistsModule::CleanLoadedAssetsCache()
-{
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
-
-	for (auto It = LoadedFilesCache.CreateIterator(); It; ++It)
-	{
-		FString& Filename = *It;
-		FString PackageName;
-		TArray<FAssetData> AssetData;
-
-		FPackageName::TryConvertFilenameToLongPackageName(Filename, PackageName);
-
-		if (PackageName.IsEmpty())
-		{
-			continue;
-		}
-
-		AssetRegistry.GetAssetsByPackageName(*PackageName, AssetData);
-
-		if (AssetData.IsEmpty())
-		{
-			continue;
-		}
-
-		bool bIsLoaded = Algo::AnyOf(AssetData, [](const FAssetData& InAssetData) { return InAssetData.IsAssetLoaded(); });
-
-		if (!bIsLoaded)
-		{
-			It.RemoveCurrent();
-		}
-	}
-}
-
-void FUncontrolledChangelistsModule::AddFilesToDefaultUncontrolledChangelist(const TArray<FString>& InFilenames, const FUncontrolledChangelistState::ECheckFlags InCheckFlags)
+bool FUncontrolledChangelistsModule::AddFilesToDefaultUncontrolledChangelist(const TArray<FString>& InFilenames, const FUncontrolledChangelistState::ECheckFlags InCheckFlags)
 {
 	bool bHasStateChanged = false;
 
@@ -415,6 +368,8 @@ void FUncontrolledChangelistsModule::AddFilesToDefaultUncontrolledChangelist(con
 	{
 		OnStateChanged();
 	}
+
+	return bHasStateChanged;
 }
 
 void FUncontrolledChangelistsModule::SaveState() const

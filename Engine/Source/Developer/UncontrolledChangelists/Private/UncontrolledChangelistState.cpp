@@ -179,14 +179,13 @@ bool FUncontrolledChangelistState::UpdateStatus()
 	return bOutChanged;
 }
 
-void FUncontrolledChangelistState::RemoveDuplicates(TSet<FString>& InOutLoadedFiles, TSet<FString>& InOutModifiedFiles)
+void FUncontrolledChangelistState::RemoveDuplicates(TSet<FString>& InOutAddedAssets)
 {
 	for (const FSourceControlStateRef& FileState : Files)
 	{
 		const FString& Filename = FileState->GetFilename();
 		
-		InOutLoadedFiles.Remove(Filename);
-		InOutModifiedFiles.Remove(Filename);
+		InOutAddedAssets.Remove(Filename);
 	}
 }
 

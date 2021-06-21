@@ -106,11 +106,10 @@ public:
 	bool UpdateStatus();
 
 	/**
-	 * Removes files present both in the Uncontrolled Changelist and the provided sets.
-	 * @param 	InOutLoadedFiles 	A Set representing loaded files to check against.
-	 * @param 	InOutModifiedFiles 	A Set representing modified files to check against.
+	 * Removes files present both in the Uncontrolled Changelist and the provided set.
+	 * @param 	InOutAddedAssets 	A Set representing Added Assets to check against.
 	 */
-	void RemoveDuplicates(TSet<FString>& InOutLoadedFiles, TSet<FString>& InOutModifiedFiles);
+	void RemoveDuplicates(TSet<FString>& InOutAddedAssets);
 
 public:
 	FUncontrolledChangelist Changelist;

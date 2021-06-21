@@ -1334,20 +1334,8 @@ TSharedPtr<SWidget> SSourceControlChangelistsWidget::OnOpenContextMenu()
 	{
 		Section.AddSeparator("ReconcileSeparator");
 
-		Section.AddSubMenu("ReconcileSubMenu", LOCTEXT("ReconcileSubMenu", "Reconcile"), LOCTEXT("ReconcileSubMenu_ToolTip", "Opens the Reconcile sub menu"), FNewToolMenuDelegate::CreateLambda([](UToolMenu* Menu)
-		{
-			FToolMenuSection& SubSection = Menu->AddSection(TEXT("Reconcile"));
-			
-			SubSection.AddMenuEntry("Reconcile all assets", LOCTEXT("SourceControl_ReconcileAllAssets", "Reconcile all assets"), LOCTEXT("SourceControl_ReconcileAllAssets_Tooltip", "Look for uncontrolled modification in previously loaded and saved assets."), FSlateIcon(),
-									FUIAction(FExecuteAction::CreateLambda([]() { FUncontrolledChangelistsModule::Get().OnReconcileAllAssets(); })));
-
-			SubSection.AddMenuEntry("Reconcile loaded assets", LOCTEXT("SourceControl_ReconcileLoadedAssets", "Reconcile loaded assets"), LOCTEXT("SourceControl_ReconcileLoadedAssets_Tooltip", "Look for uncontrolled modification in previously loaded assets."), FSlateIcon(),
-									FUIAction(FExecuteAction::CreateLambda([]() { FUncontrolledChangelistsModule::Get().OnReconcileLoadedAssets(); })));
-
-			SubSection.AddMenuEntry("Reconcile saved assets", LOCTEXT("SourceControl_ReconcileSavedAssets", "Reconcile saved assets"), LOCTEXT("SourceControl_ReconcileSavedAssets_Tooltip", "Look for uncontrolled modification in previously saved assets."), FSlateIcon(),
-									FUIAction(FExecuteAction::CreateLambda([]() { FUncontrolledChangelistsModule::Get().OnReconcileSavedAssets(); })));
-
-		}));
+		Section.AddMenuEntry("Reconcile assets", LOCTEXT("SourceControl_ReconcileAssets", "Reconcile assets"), LOCTEXT("SourceControl_ReconcileAssets_Tooltip", "Look for uncontrolled modification in currently added assets."), FSlateIcon(),
+								FUIAction(FExecuteAction::CreateLambda([]() { FUncontrolledChangelistsModule::Get().OnReconcileAssets(); })));
 	}
 
 	return ToolMenus->GenerateWidget(Menu);
