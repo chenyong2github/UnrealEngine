@@ -673,11 +673,11 @@ void FInstanceCullingContext::SetupDrawCommands(
 			if (VisibleMeshDrawCommand.RunArray)
 			{
 				// GPUCULL_TODO: This complexity should be removed once the HISM culling & LOD selection is on the GPU side
-				AddInstanceRunToCullingCommand(VisibleMeshDrawCommand.DrawPrimitiveId, VisibleMeshDrawCommand.RunArray, VisibleMeshDrawCommand.NumRuns);
+				AddInstanceRunToCullingCommand(VisibleMeshDrawCommand.PrimitiveIdInfo.DrawPrimitiveId, VisibleMeshDrawCommand.RunArray, VisibleMeshDrawCommand.NumRuns);
 			}
 			else
 			{
-				AddPrimitiveToCullingCommand(VisibleMeshDrawCommand.DrawPrimitiveId, VisibleMeshDrawCommand.MeshDrawCommand->NumInstances);
+				AddPrimitiveToCullingCommand(VisibleMeshDrawCommand.PrimitiveIdInfo.DrawPrimitiveId, VisibleMeshDrawCommand.MeshDrawCommand->NumInstances);
 			}
 		}
 	}

@@ -1210,8 +1210,7 @@ void ApplyViewOverridesToMeshDrawCommands(const FSceneView& View, FMeshCommandOn
 
 			NewVisibleMeshDrawCommand.Setup(
 				&NewMeshCommand,
-				VisibleMeshDrawCommand.DrawPrimitiveId,
-				VisibleMeshDrawCommand.ScenePrimitiveId,
+				VisibleMeshDrawCommand.PrimitiveIdInfo,
 				VisibleMeshDrawCommand.StateBucketId,
 				VisibleMeshDrawCommand.MeshFillMode,
 				VisibleMeshDrawCommand.MeshCullMode,
@@ -1321,7 +1320,16 @@ void FMeshPassProcessor::GetDrawCommandPrimitiveId(
 	int32& DrawPrimitiveId,
 	int32& ScenePrimitiveId) const
 {
-	DrawPrimitiveId = 0;
+	FMeshDrawCommandPrimitiveIdInfo PrimitiveIdInfo = GetDrawCommandPrimitiveId(PrimitiveSceneInfo, BatchElement);
+	DrawPrimitiveId = PrimitiveIdInfo.DrawPrimitiveId;
+	ScenePrimitiveId = PrimitiveIdInfo.ScenePrimitiveId;
+}
+
+FMeshDrawCommandPrimitiveIdInfo FMeshPassProcessor::GetDrawCommandPrimitiveId(
+	const FPrimitiveSceneInfo* RESTRICT PrimitiveSceneInfo,
+	const FMeshBatchElement& BatchElement) const
+{
+	FMeshDrawCommandPrimitiveIdInfo PrimitiveIdInfo = FMeshDrawCommandPrimitiveIdInfo(0, -1);
 
 	if (UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel))
 	{
@@ -1329,12 +1337,16 @@ void FMeshPassProcessor::GetDrawCommandPrimitiveId(
 		{
 			ensureMsgf(BatchElement.PrimitiveUniformBufferResource == nullptr, TEXT("PrimitiveUniformBufferResource should not be setup when PrimitiveIdMode == PrimID_FromPrimitiveSceneInfo"));
 			check(PrimitiveSceneInfo);
-			DrawPrimitiveId = PrimitiveSceneInfo->GetIndex();
+			PrimitiveIdInfo.DrawPrimitiveId = PrimitiveSceneInfo->GetIndex();
+			PrimitiveIdInfo.InstanceSceneDataOffset = PrimitiveSceneInfo->GetInstanceSceneDataOffset();
+			PrimitiveIdInfo.bIsDynamicPrimitive = 0U;
 		}
 		else if (BatchElement.PrimitiveIdMode == PrimID_DynamicPrimitiveShaderData && ViewIfDynamicMeshCommand != nullptr)
 		{
 			// Mark using GPrimIDDynamicFlag (top bit) as we defer this to later.
-			DrawPrimitiveId = BatchElement.DynamicPrimitiveShaderDataIndex | GPrimIDDynamicFlag;
+			PrimitiveIdInfo.DrawPrimitiveId = BatchElement.DynamicPrimitiveShaderDataIndex | GPrimIDDynamicFlag;
+			PrimitiveIdInfo.InstanceSceneDataOffset = BatchElement.DynamicPrimitiveShaderDataIndex;
+			PrimitiveIdInfo.bIsDynamicPrimitive = 1U;
 		}
 		else
 		{
@@ -1342,7 +1354,9 @@ void FMeshPassProcessor::GetDrawCommandPrimitiveId(
 		}
 	}
 
-	ScenePrimitiveId = PrimitiveSceneInfo ? PrimitiveSceneInfo->GetIndex() : -1;
+	PrimitiveIdInfo.ScenePrimitiveId = PrimitiveSceneInfo ? PrimitiveSceneInfo->GetIndex() : -1;
+
+	return PrimitiveIdInfo;
 }
 
 FCachedPassMeshDrawListContext::FCachedPassMeshDrawListContext(FCachedMeshDrawCommandInfo& InCommandInfo, FRWLock& InCachedMeshDrawCommandLock, FCachedPassMeshDrawList& InCachedDrawLists, FStateBucketMap& InCachedMeshDrawCommandStateBuckets, const FScene& InScene) :
@@ -1370,8 +1384,7 @@ FMeshDrawCommand& FCachedPassMeshDrawListContext::AddCommand(FMeshDrawCommand& I
 void FCachedPassMeshDrawListContext::FinalizeCommand(
 	const FMeshBatch& MeshBatch, 
 	int32 BatchElementIndex,
-	int32 DrawPrimitiveId,
-	int32 ScenePrimitiveId,
+	const FMeshDrawCommandPrimitiveIdInfo& IdInfo,
 	ERasterizerFillMode MeshFillMode,
 	ERasterizerCullMode MeshCullMode,
 	FMeshDrawCommandSortKey SortKey,

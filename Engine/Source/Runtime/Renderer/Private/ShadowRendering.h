@@ -782,7 +782,7 @@ private:
 	FViewInfo* FindViewForShadow(FSceneRenderer* SceneRenderer) const;
 
 	void AddCachedMeshDrawCommandsForPass(
-		int32 PrimitiveIndex,
+		const FMeshDrawCommandPrimitiveIdInfo &PrimitiveIdInfo,
 		const FPrimitiveSceneInfo* InPrimitiveSceneInfo,
 		const FStaticMeshBatchRelevance& RESTRICT StaticMeshRelevance,
 		const FStaticMeshBatch& StaticMesh,
