@@ -2,6 +2,7 @@
 
 #include "DisplayClusterGameEngine.h"
 
+#include "Algo/Accumulate.h"
 #include "Cluster/IPDisplayClusterClusterManager.h"
 #include "Cluster/Controller/IDisplayClusterNodeController.h"
 #include "Config/IPDisplayClusterConfigManager.h"
@@ -258,6 +259,7 @@ void UDisplayClusterGameEngine::PreExit()
 		GDisplayCluster->EndSession();
 	}
 
+
 	// Release the engine
 	UGameEngine::PreExit();
 }
@@ -356,6 +358,7 @@ void UDisplayClusterGameEngine::Tick(float DeltaSeconds, bool bIdleMode)
 	}
 }
 
+
 void UDisplayClusterGameEngine::UpdateTimeAndHandleMaxTickRate()
 {
 	UEngine::UpdateTimeAndHandleMaxTickRate();
@@ -415,11 +418,21 @@ bool UDisplayClusterGameEngine::OutOfSync() const
 
 void UDisplayClusterGameEngine::ReceivedSync(const FString &Level, const FString &NodeId)
 {
+	UE_LOG(LogDisplayClusterEngine,Display, TEXT("GameSyncChange event received."));
 	TSet<FString> &SyncItem = SyncMap.FindOrAdd(Level);
 	SyncItem.Add(NodeId);
 	if (SyncItem.Num() == ClusterMgr->GetNodesAmount())
 	{
 		SyncMap.Remove(Level);
+	}
+	for (const TTuple<FString, TSet<FString>>& SyncObj : SyncMap)
+	{
+		FString Join = Algo::Accumulate(SyncObj.Value, FString(), [](FString Result, const FString& Value)
+		{
+			Result = Result + ", " + Value;
+			return MoveTemp(Result);
+		});
+		UE_LOG(LogDisplayClusterEngine,Display, TEXT("    %s -> %s"), *SyncObj.Key, *Join);
 	}
 }
 
@@ -444,7 +457,7 @@ void UDisplayClusterGameEngine::CheckGameStartBarrier()
 		}
 		else if (!UGameplayStatics::IsGamePaused(WorldContextObject))
 		{
-			UE_LOG(LogDisplayClusterEngine, Display, TEXT("CheckGameStartBarrier - we are of sync. Pausing Play."));
+			UE_LOG(LogDisplayClusterEngine, Display, TEXT("CheckGameStartBarrier - we are out of sync. Pausing Play."));
 			// A 1 or more nodes is out of sync. Do not advance game until everyone is back in sync.
 			//
 			UGameplayStatics::SetGamePaused(WorldContextObject,true);
@@ -458,7 +471,6 @@ void UDisplayClusterGameEngine::GameSyncChange(const FDisplayClusterClusterEvent
 	{
 		if(InEvent.Category == DisplayClusterGameEngineUtils::WaitForGameCategory)
 		{
-			UE_LOG(LogDisplayClusterEngine,Display, TEXT("GameSyncChange event received."));
 			ReceivedSync(InEvent.Type,InEvent.Name);
 			CheckGameStartBarrier();
 		}
