@@ -1344,6 +1344,80 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		return true;
 	}
+
+	template<uint32 Num>
+	void OversubscriptionStressTest()
+	{
+		// launch a number of tasks >= num of cores, each of them launches a task and waits for its completion. do this inside a task so 
+		// we can detect deadlock.
+		// outer tasks occupy all worker threads. when they launch inner tasks and wait for them, the inner tasks can't be 
+		// executed because all workers are blocked -> deadlock.
+		// can be solved by busy waiting
+
+		for (int i = 0; i != Num; ++i)
+		{
+			FSharedEventRef Event;
+			FFunctionGraphTask::CreateAndDispatchWhenReady(
+				[Event]
+				{
+					ParallelFor(200,
+						[](int32)
+						{
+							FPlatformProcess::Sleep(0.01f); // simulate some work and let all workers to pick up ParallelFor tasks
+							FFunctionGraphTask::CreateAndDispatchWhenReady([] {})->Wait();
+						}
+					);
+					Event->Trigger();
+				}
+			);
+			verify(Event->Wait(FTimespan::FromSeconds(5.f)));
+		}
+	}
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphOversubscriptionTest, "System.Core.Async.TaskGraph.Oversubscription", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+
+	bool FTaskGraphOversubscriptionTest::RunTest(const FString& Parameters)
+	{
+		UE_BENCHMARK(5, OversubscriptionStressTest<10>);
+
+		return true;
+	}
+
+	template<uint32 Nujm>
+	void SquaredOversubscriptionStressTest()
+	{
+		// same as before but using two ParallelFor nested one into another to simulate oversubscription in square
+
+		FSharedEventRef Event;
+		FFunctionGraphTask::CreateAndDispatchWhenReady(
+			[Event]
+			{
+				ParallelFor(200,
+					[](int32)
+					{
+						ParallelFor(200,
+							[](int32)
+							{
+								FPlatformProcess::Sleep(0.01f); // simulate some work and let all workers to pick up ParallelFor tasks
+								FFunctionGraphTask::CreateAndDispatchWhenReady([] {})->Wait();
+							}
+						);
+					}
+				);
+				Event->Trigger();
+			}
+		);
+		verify(Event->Wait(FTimespan::FromSeconds(30.f)));
+	}
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphSquaredOversubscriptionTest, "System.Core.Async.TaskGraph.SquaredOversubscription", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+
+	bool FTaskGraphSquaredOversubscriptionTest::RunTest(const FString& Parameters)
+	{
+		UE_BENCHMARK(5, SquaredOversubscriptionStressTest<10>);
+
+		return true;
+	}
 }
 
 #endif //WITH_DEV_AUTOMATION_TESTS
