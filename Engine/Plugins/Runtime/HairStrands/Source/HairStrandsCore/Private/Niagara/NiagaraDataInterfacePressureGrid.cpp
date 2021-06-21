@@ -438,7 +438,7 @@ void UNiagaraDataInterfacePressureGrid::GetParameterDefinitionHLSL(const FNiagar
 
 //------------------------------------------------------------------------------------------------------------
 
-#define NIAGARA_HAIR_STRANDS_THREAD_COUNT 64
+#define NIAGARA_HAIR_STRANDS_THREAD_COUNT_PRESSURE 64
 
 class FClearPressureGridCS : public FGlobalShader
 {
@@ -453,7 +453,7 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREAD_COUNT"), NIAGARA_HAIR_STRANDS_THREAD_COUNT);
+		OutEnvironment.SetDefine(TEXT("THREAD_COUNT"), NIAGARA_HAIR_STRANDS_THREAD_COUNT_PRESSURE);
 	}
 
 	FClearPressureGridCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -515,7 +515,7 @@ inline void ClearBuffer(FRHICommandList& RHICmdList, FNDIVelocityGridBuffer* Cur
 		};
 		RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
 
-		const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT;
+		const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT_PRESSURE;
 		const uint32 NumElements = (GridSize.X + 1) * (GridSize.Y + 1) * (GridSize.Z + 1);
 
 		const uint32 DispatchCount = FMath::DivideAndRoundUp(NumElements, GroupSize);
