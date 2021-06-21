@@ -981,13 +981,6 @@ void FDMXPixelMappingToolkit::SetupCommands()
 		FIsActionButtonVisible::CreateLambda([this] { return !bIsPlayingDMX; }));
 
 	GetToolkitCommands()->MapAction(
-		FDMXPixelMappingEditorCommands::Get().PlayDMX,
-		FExecuteAction::CreateRaw(this, &FDMXPixelMappingToolkit::PlayDMX),
-		FCanExecuteAction::CreateLambda([this] { return !bIsPlayingDMX; }),
-		FIsActionChecked(),
-		FIsActionButtonVisible::CreateLambda([this] { return !bIsPlayingDMX; }));
-
-	GetToolkitCommands()->MapAction(
 		FDMXPixelMappingEditorCommands::Get().StopPlayingDMX,
 		FExecuteAction::CreateRaw(this, &FDMXPixelMappingToolkit::StopPlayingDMX),
 		FCanExecuteAction::CreateLambda([this] { return bIsPlayingDMX; }),
