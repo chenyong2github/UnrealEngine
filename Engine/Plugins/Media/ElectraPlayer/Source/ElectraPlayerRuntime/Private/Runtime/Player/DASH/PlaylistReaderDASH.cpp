@@ -32,6 +32,8 @@
 DECLARE_CYCLE_STAT(TEXT("FPlaylistReaderDASH_WorkerThread"), STAT_ElectraPlayer_DASH_PlaylistWorker, STATGROUP_ElectraPlayer);
 
 
+#define DASH_PLAYLISTREADER_USE_DEDICATED_WORKER_THREAD		0
+
 //#define DO_NOT_PERFORM_CONDITIONAL_GET
 
 namespace Electra
@@ -40,7 +42,10 @@ namespace Electra
 /**
  * This class is responsible for downloading a DASH MPD and parsing it.
  */
-class FPlaylistReaderDASH : public TSharedFromThis<FPlaylistReaderDASH, ESPMode::ThreadSafe>, public IPlaylistReaderDASH, public IAdaptiveStreamingPlayerAEMSReceiver, public FMediaThread
+class FPlaylistReaderDASH : public TSharedFromThis<FPlaylistReaderDASH, ESPMode::ThreadSafe>, public IPlaylistReaderDASH, public IAdaptiveStreamingPlayerAEMSReceiver
+#if DASH_PLAYLISTREADER_USE_DEDICATED_WORKER_THREAD
+						  , public FMediaThread
+#endif
 {
 public:
 	FPlaylistReaderDASH();
@@ -48,6 +53,7 @@ public:
 
 	virtual ~FPlaylistReaderDASH();
 	virtual void Close() override;
+	virtual void HandleOnce() override;
 	virtual const FString& GetPlaylistType() const override
 	{
 		static FString Type("dash");
@@ -78,6 +84,11 @@ private:
 	void StartWorkerThread();
 	void StopWorkerThread();
 	void WorkerThread();
+
+	void InternalSetup();
+	void InternalCleanup();
+	void InternalHandleOnce();
+
 	void ExecutePendingRequests(const FTimeValue& TimeNow);
 	void HandleCompletedRequests(const FTimeValue& TimeNow);
 	void HandleStaticRequestCompletions(const FTimeValue& TimeNow);
@@ -175,7 +186,9 @@ TSharedPtrTS<IPlaylistReader> IPlaylistReaderDASH::Create(IPlayerSessionServices
 
 
 FPlaylistReaderDASH::FPlaylistReaderDASH()
+#if DASH_PLAYLISTREADER_USE_DEDICATED_WORKER_THREAD
 	: FMediaThread("ElectraPlayer::DASH MPD")
+#endif
 {
 }
 
@@ -204,11 +217,45 @@ void FPlaylistReaderDASH::Close()
 	StopWorkerThread();
 }
 
+void FPlaylistReaderDASH::HandleOnce()
+{
+#if !DASH_PLAYLISTREADER_USE_DEDICATED_WORKER_THREAD
+	InternalHandleOnce();
+#endif
+}
+
+void FPlaylistReaderDASH::InternalHandleOnce()
+{
+	if (bIsWorkerThreadStarted)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_DASH_PlaylistWorker);
+		CSV_SCOPED_TIMING_STAT(ElectraPlayer, DASH_PlaylistWorker);
+		FTimeValue Now = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
+
+		HandleCompletedRequests(Now);
+
+		ExecutePendingRequests(Now);
+
+		// Check if the MPD must be updated.
+		CheckForMPDUpdate();
+
+		// Time sync
+		if (NextTimeSyncTime.IsValid() && Now >= NextTimeSyncTime)
+		{
+			TriggerTimeSynchronization();
+		}
+	}
+}
+
 void FPlaylistReaderDASH::StartWorkerThread()
 {
 	check(!bIsWorkerThreadStarted);
+#if DASH_PLAYLISTREADER_USE_DEDICATED_WORKER_THREAD
 	bTerminateWorkerThread = false;
 	ThreadStart(Electra::MakeDelegate(this, &FPlaylistReaderDASH::WorkerThread));
+#else
+	InternalSetup();
+#endif
 	bIsWorkerThreadStarted = true;
 }
 
@@ -216,10 +263,14 @@ void FPlaylistReaderDASH::StopWorkerThread()
 {
 	if (bIsWorkerThreadStarted)
 	{
+#if DASH_PLAYLISTREADER_USE_DEDICATED_WORKER_THREAD
 		bTerminateWorkerThread = true;
 		WorkerThreadSignal.Release();
 		ThreadWaitDone();
 		ThreadReset();
+#else
+		InternalCleanup();
+#endif
 		bIsWorkerThreadStarted = false;
 	}
 }
@@ -720,11 +771,8 @@ void FPlaylistReaderDASH::TriggerTimeSynchronization()
 }
 
 
-
-void FPlaylistReaderDASH::WorkerThread()
+void FPlaylistReaderDASH::InternalSetup()
 {
-	LLM_SCOPE(ELLMTag::ElectraPlayer);
-
 	bInbandEventByStreamType[0] = false;
 	bInbandEventByStreamType[1] = false;
 	bInbandEventByStreamType[2] = false;
@@ -748,34 +796,10 @@ void FPlaylistReaderDASH::WorkerThread()
 	Fragment = UrlParser.GetFragment();
 	PlaylistLoadRequest->CompleteCallback.BindThreadSafeSP(AsShared(), &FPlaylistReaderDASH::ManifestDownloadCompleted);
 	EnqueueResourceRequest(MoveTemp(PlaylistLoadRequest));
+}
 
-	while(!bTerminateWorkerThread)
-	{
-		WorkerThreadSignal.Obtain(1000 * 100);
-		if (bTerminateWorkerThread)
-		{
-			break;
-		}
-		{
-			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_DASH_PlaylistWorker);
-			CSV_SCOPED_TIMING_STAT(ElectraPlayer, DASH_PlaylistWorker);
-			FTimeValue Now = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
-
-			HandleCompletedRequests(Now);
-
-			ExecutePendingRequests(Now);
-
-			// Check if the MPD must be updated.
-			CheckForMPDUpdate();
-
-			// Time sync
-			if (NextTimeSyncTime.IsValid() && Now >= NextTimeSyncTime)
-			{
-				TriggerTimeSynchronization();
-			}
-		}
-	}
-
+void FPlaylistReaderDASH::InternalCleanup()
+{
 	// Unregister event callbacks
 	PlayerSessionServices->GetAEMSEventHandler()->RemoveAEMSReceiver(AsShared(), DASH::Schemes::ManifestEvents::Scheme_urn_mpeg_dash_event_ttfn_2016, TEXT(""), IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnStart);
 	PlayerSessionServices->GetAEMSEventHandler()->RemoveAEMSReceiver(AsShared(), DASH::Schemes::ManifestEvents::Scheme_urn_mpeg_dash_event_callback_2015, TEXT("1"), IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnStart);
@@ -795,6 +819,27 @@ void FPlaylistReaderDASH::WorkerThread()
 	CompletedRequests.Empty();
 	RequestsLock.Unlock();
 	Builder.Reset();
+}
+
+void FPlaylistReaderDASH::WorkerThread()
+{
+#if DASH_PLAYLISTREADER_USE_DEDICATED_WORKER_THREAD
+	LLM_SCOPE(ELLMTag::ElectraPlayer);
+
+	InternalSetup();
+
+	while(!bTerminateWorkerThread)
+	{
+		WorkerThreadSignal.Obtain(1000 * 100);
+		if (bTerminateWorkerThread)
+		{
+			break;
+		}
+		InternalHandleOnce();
+	}
+
+	InternalCleanup();
+#endif
 }
 
 

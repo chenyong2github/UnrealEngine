@@ -140,13 +140,13 @@ UEMediaError FStreamReaderHLSfmp4::Create(IPlayerSessionServices* InPlayerSessio
 	{
 		StreamHandlers[i].PlayerSessionService = PlayerSessionService;
 		StreamHandlers[i].Parameters		   = InCreateParam;
+		StreamHandlers[i].bWasStarted		   = false;
 		StreamHandlers[i].bTerminate		   = false;
 		StreamHandlers[i].bRequestCanceled     = false;
 		StreamHandlers[i].bSilentCancellation  = false;
 		StreamHandlers[i].bHasErrored   	   = false;
 
 		StreamHandlers[i].ThreadSetName(i==0?"ElectraPlayer::fmp4 Video":"ElectraPlayer::fmp4 Audio");
-		StreamHandlers[i].ThreadStart(Electra::MakeDelegate(&StreamHandlers[i], &FStreamHandler::WorkerThread));
 	}
 	return UEMEDIA_ERROR_OK;
 }
@@ -166,8 +166,11 @@ void FStreamReaderHLSfmp4::Close()
 		// Wait until they finished.
 		for(int32 i=0; i<FMEDIA_STATIC_ARRAY_COUNT(StreamHandlers); ++i)
 		{
-			StreamHandlers[i].ThreadWaitDone();
-			StreamHandlers[i].ThreadReset();
+			if (StreamHandlers[i].bWasStarted)
+			{
+				StreamHandlers[i].ThreadWaitDone();
+				StreamHandlers[i].ThreadReset();
+			}
 		}
 	}
 }
@@ -260,6 +263,11 @@ IStreamReader::EAddResult FStreamReaderHLSfmp4::AddRequest(uint32 CurrentPlaybac
 		// Only add the request if this is not an EOD segment.
 		if (!Request2->bIsEOSSegment)
 		{
+			if (!Handler2->bWasStarted)
+			{
+				Handler2->ThreadStart(Electra::MakeDelegate(Handler2, &FStreamHandler::WorkerThread));
+				Handler2->bWasStarted = true;
+			}
 			Handler2->bRequestCanceled = false;
 			Handler2->bSilentCancellation = false;
 			Handler2->CurrentRequest = Request2;
@@ -270,6 +278,11 @@ IStreamReader::EAddResult FStreamReaderHLSfmp4::AddRequest(uint32 CurrentPlaybac
 	// Only add the request if this is not an EOD segment.
 	if (!Request->bIsEOSSegment)
 	{
+		if (!Handler->bWasStarted)
+		{
+			Handler->ThreadStart(Electra::MakeDelegate(Handler, &FStreamHandler::WorkerThread));
+			Handler->bWasStarted = true;
+		}
 		Handler->bRequestCanceled = false;
 		Handler->bSilentCancellation = false;
 		Handler->CurrentRequest = Request;
@@ -307,14 +320,6 @@ uint32 FStreamReaderHLSfmp4::FStreamHandler::UniqueDownloadID = 1;
 
 FStreamReaderHLSfmp4::FStreamHandler::FStreamHandler()
 {
-	PlayerSessionService = nullptr;
-	bTerminate  		 = false;
-	bRequestCanceled	 = false;
-	bSilentCancellation  = false;
-	bAbortedByABR   	 = false;
-	bHasErrored 		 = false;
-	NumMOOFBoxesFound    = 0;
-	ProgressReportCount  = 0;
 }
 
 FStreamReaderHLSfmp4::FStreamHandler::~FStreamHandler()

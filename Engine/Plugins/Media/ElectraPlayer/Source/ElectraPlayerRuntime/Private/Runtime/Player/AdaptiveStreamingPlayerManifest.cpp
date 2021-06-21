@@ -113,6 +113,16 @@ void FAdaptiveStreamingPlayer::InternalCancelLoadManifest()
 }
 
 
+void FAdaptiveStreamingPlayer::InternalCloseManifestReader()
+{
+	if (ManifestReader.IsValid())
+	{
+		ManifestReader->Close();
+		ManifestReader.Reset();
+	}
+}
+
+
 //-----------------------------------------------------------------------------
 /**
  * Starts asynchronous loading and parsing of a manifest.
@@ -198,6 +208,16 @@ void FAdaptiveStreamingPlayer::InternalLoadManifest(const FString& URL, const FS
 }
 
 
+void FAdaptiveStreamingPlayer::InternalHandleManifestReader()
+{
+	if (ManifestReader.IsValid())
+	{
+		ManifestReader->HandleOnce();
+	}
+}
+
+
+
 //-----------------------------------------------------------------------------
 /**
  * Selects the internal presentation for playback after having selected/disabled candidate streams via AccessManifest().
@@ -206,7 +226,7 @@ void FAdaptiveStreamingPlayer::InternalLoadManifest(const FString& URL, const FS
  */
 bool FAdaptiveStreamingPlayer::SelectManifest()
 {
-	if (ManifestReader)
+	if (ManifestReader.IsValid())
 	{
 		check(Manifest == nullptr);
 		if (ManifestType != EMediaFormatType::Unknown)
@@ -236,6 +256,12 @@ bool FAdaptiveStreamingPlayer::SelectManifest()
 			PlayerConfig.InitialBufferMinTimeAvailBeforePlayback = Utils::Min(minBufTimeMPD, PlayerConfig.InitialBufferMinTimeAvailBeforePlayback);
 			PlayerConfig.SeekBufferMinTimeAvailBeforePlayback    = Utils::Min(minBufTimeMPD, PlayerConfig.SeekBufferMinTimeAvailBeforePlayback);
 			PlayerConfig.RebufferMinTimeAvailBeforePlayback 	 = Utils::Min(minBufTimeMPD, PlayerConfig.RebufferMinTimeAvailBeforePlayback);
+
+			// For an mp4 stream we can now get rid of the manifest reader. It is no longer needed and we don't need to have it linger.
+			if (ManifestType == EMediaFormatType::ISOBMFF)
+			{
+				InternalCloseManifestReader();
+			}
 
 			return true;
 		}

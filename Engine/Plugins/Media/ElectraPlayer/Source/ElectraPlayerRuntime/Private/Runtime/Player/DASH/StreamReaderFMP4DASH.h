@@ -126,6 +126,7 @@ private:
 		FMediaSemaphore											WorkSignal;
 		FMediaEvent												IsIdleSignal;
 		volatile bool											bTerminate = false;
+		volatile bool											bWasStarted = false;
 		volatile bool											bRequestCanceled = false;
 		volatile bool											bSilentCancellation = false;
 		volatile bool											bHasErrored = false;

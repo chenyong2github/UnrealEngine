@@ -27,6 +27,11 @@ namespace Electra
 		virtual void Close() = 0;
 
 		/**
+		 * Called every so often by the player's worker thread to handle this class.
+		 */
+		virtual void HandleOnce() = 0;
+
+		/**
 		 * Returns the type of the playlist (eg. "hls", "dash", etc.)
 		 */
 		virtual const FString& GetPlaylistType() const = 0;
