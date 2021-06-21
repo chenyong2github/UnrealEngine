@@ -715,7 +715,10 @@ public:
 	FInterpolationParameter	InterpolationParam[3];
 
 #if WITH_EDITORONLY_DATA
-	/** Analysis properties for each axis. Note that these can be null. */
+	/** 
+	* Analysis properties for each axis. Note that these can be null. They will be created/set from 
+	* FBlendSpaceDetails::HandleAnalysisFunctionChanged
+	*/
 	UPROPERTY(EditAnywhere, Category = AnalysisProperties)
 	TObjectPtr<UAnalysisProperties> AnalysisProperties[3];
 
