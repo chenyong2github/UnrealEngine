@@ -2,13 +2,29 @@
 
 #pragma once
 
-
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Curves/RichCurve.h"
 #include "Curves/CurveBase.h"
 #include "CurveVector.generated.h"
 
+USTRUCT(BlueprintType)
+struct ENGINE_API FRuntimeVectorCurve
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	FRichCurve VectorCurves[3];
+
+	UPROPERTY(EditAnywhere, Category = RuntimeFloatCurve)
+	TObjectPtr<class UCurveVector> ExternalCurve = nullptr;
+
+	FVector GetValue(float InTime) const;
+	
+	/** Get the current curve struct */
+    FRichCurve* GetRichCurve(int32 Index);
+	const FRichCurve* GetRichCurveConst(int32 Index) const;
+};
 
 UCLASS(BlueprintType, MinimalAPI)
 class UCurveVector : public UCurveBase
