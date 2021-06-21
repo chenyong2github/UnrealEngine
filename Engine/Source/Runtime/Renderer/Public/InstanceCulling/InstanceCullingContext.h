@@ -14,43 +14,8 @@ class FInstanceCullingDrawParams;
 class FScene;
 class FGPUScenePrimitiveCollector;
 
-struct FInstanceCullingRdgParams
-{
-	/**
-	 * In/Out parameter, in non-null it contains the start location of the output to write instance IDs for the command buffer
-	 * will be incremented atomically to allocate ID ranges for each of the commands (does not require exclusive access).
-	 * If null, a new single-entry int32 buffer with initial value of zero is created and returned.
-	 */
-	FRDGBufferRef InstanceIdWriteOffsetBuffer = nullptr;
 
-	/**
-	 * Out parameter, populated with draw commands with instance counts set to draw the instances that survive culling.
-	 * The number of draw args is allocated to match the number of mesh draw commands in the context.
-	 */
-	FRDGBufferRef DrawIndirectArgs = nullptr;
-	/**
-	 * Out parameter, populated with draw start offsets in the instance ID lists (to be fetched by the vertex shader).
-	 * The number of elements is allocated to match the number of mesh draw commands in the context.
-	 */
-	FRDGBufferRef InstanceIdStartOffsetBuffer = nullptr;
-
-	/**
-	 * In/Out parameter, buffer to write instance ID's to, each draw command will have a consecutive range in this buffer containing 
-	 * IDs of surviving instances. The range is allocated atomically InstanceIdWriteOffsetBuffer 
-	 * If null, a new buffer is created and returned with a size of some pre-set [GPUCULL_TODO] hardcoded size.
-	 */
-	FRDGBufferRef InstanceIdsBuffer = nullptr;
-	/**
-	 * [GPUCULL_TODO: Optional] In/Out parameter, buffer to write draw command ID's to, for each instance ID. 
-	 * Used to map each instance ID back to the corresponding draw command.
-	 */
-	FRDGBufferRef DrawCommandIdsBuffer = nullptr;
-
-	/**
-	 * Out parameter, GPU representation of the FInstanceCullingContext::CullingCommands.
-	 */
-	FRDGBufferRef PrimitiveCullingCommands = nullptr;
-};
+#define GPUCULL_ENABLE_CONCAT_ON_UPLOAD 0
 
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FInstanceCullingGlobalUniforms, RENDERER_API)
@@ -73,6 +38,20 @@ enum class EInstanceCullingMode
 	Stereo,
 };
 
+
+// Enumeration of the specialized command processing variants
+enum class EBatchProcessingMode : uint32
+{
+	// Generic processing mode, handles all the features.
+	Generic,
+	// General work batches that need load balancing, either instance runs or primitive id ranges (auto instanced) but culling is disabled
+	// may have multi-view (but probably not used for that path)
+	UnCulled,
+
+	Num,
+};
+
+class FInstanceProcessingGPULoadBalancer;
 /**
  * Thread-safe context for managing culling for a render pass.
  */
@@ -83,39 +62,23 @@ public:
 
 	FInstanceCullingContext() {}
 
-	FInstanceCullingContext(FInstanceCullingManager* InInstanceCullingManager, TArrayView<const int32> InViewIds, EInstanceCullingMode InInstanceCullingMode = EInstanceCullingMode::Normal, bool bInDrawOnlyVSMInvalidatingGeometry = false);
+	RENDERER_API FInstanceCullingContext(
+		FInstanceCullingManager* InInstanceCullingManager, 
+		TArrayView<const int32> InViewIds, 
+		EInstanceCullingMode InInstanceCullingMode = EInstanceCullingMode::Normal, 
+		bool bInDrawOnlyVSMInvalidatingGeometry = false, 
+		EBatchProcessingMode InSingleInstanceProcessingMode = EBatchProcessingMode::UnCulled
+	);
+	RENDERER_API ~FInstanceCullingContext();
 
 	static RENDERER_API const TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> CreateDummyInstanceCullingUniformBuffer(FRDGBuilder& GraphBuilder);
-
-	struct FPrimCullingCommand
-	{
-		uint32 BaseVertexIndex;
-		uint32 FirstIndex;
-		uint32 NumVerticesOrIndices;
-		uint32 FirstPrimitiveIdOffset;
-		uint32 FirstInstanceRunOffset;
-		uint32 bMaterialMayModifyPosition;
-	};
-
-	struct FBatchInfo
-	{
-		uint32 CullingCommandsOffset;
-		uint32 NumCullingCommands;
-		uint32 PrimitiveIdsOffset;
-		uint32 NumPrimitiveIds;
-		uint32 InstanceRunsOffset;
-		uint32 NumInstanceRuns;
-		uint32 ViewIdsOffset;
-		uint32 NumViewIds;
-		int32 DynamicPrimitiveIdOffset;
-		int32 DynamicPrimitiveIdMax;
-	};
 
 	struct FBatchItem
 	{
 		const FInstanceCullingContext* Context = nullptr;
 		FInstanceCullingDrawParams* Result = nullptr;
-		TRange<int32> DynamicPrimitiveIdRange;
+		int32 DynamicInstanceIdOffset = 0;
+		int32 DynamicInstanceIdNum = 0;
 	};
 
 	/**
@@ -126,38 +89,35 @@ public:
 	bool IsEnabled() const { return bIsEnabled; }
 
 	/**
-	 * Begin a new command. Allocates a slot and is referenced by subsequent AddPrimitiveToCullingCommand and AddInstanceRunToCullingCommand.
+	 * Add command to cull a range of instances for the given mesh draw command index.
+	 * Multiple commands may add to the same slot, ordering is not preserved.
 	 */
-	void BeginCullingCommand(EPrimitiveType BatchType, uint32 BaseVertexIndex, uint32 FirstIndex, uint32 NumPrimitives, bool bInMaterialMayModifyPosition);
+	void AddInstancesToDrawCommand(uint32 IndirectArgsOffset, int32 InstanceDataOffset, bool bDynamicInstanceDataOffset, uint32 NumInstances);
 
 	/**
 	 * Command that is executed in the per-view, post-cull pass to gather up the instances belonging to this primitive.
 	 * Multiple commands may add to the same slot, ordering is not preserved.
 	 */
-	void AddPrimitiveToCullingCommand(int32 ScenePrimitiveId, uint32 NumInstances);
+	void AddInstanceRunsToDrawCommand(uint32 IndirectArgsOffset, int32 InstanceDataOffset, bool bDynamicInstanceDataOffset, const uint32* Runs, uint32 NumRuns);
 
-	/**
-	 * Command that is executed in the per-view, post-cull pass to gather up the instances belonging to this primitive.
-	 * Multiple commands may add to the same slot, ordering is not preserved.
+	/*
+	 * Allocate space for indirect draw call argumens for a given MeshDrawCommand and initialize with draw command data.
+	 * TODO: support cached pre-allocated commands.
 	 */
-	void AddInstanceRunToCullingCommand(int32 ScenePrimitiveId, const uint32* Runs, uint32 NumRuns);
+	uint32 AllocateIndirectArgs(const FMeshDrawCommand* MeshDrawCommand);
 
 	/**
-	 * If InstanceCullingDrawParams is not null, this BuildRenderingCommands operation will be deferred and merged into a global pass when possible.
+	 * If InstanceCullingDrawParams is not null, this BuildRenderingCommands operation may be deferred and merged into a global pass when possible.
 	 */
 	void BuildRenderingCommands(
 		FRDGBuilder& GraphBuilder,
 		const FGPUScene& GPUScene,
-		const TRange<int32> &DynamicPrimitiveIdRange,
+		int32 DynamicInstanceIdOffset,
+		int32 DynamicInstanceIdNum,
 		FInstanceCullingResult& Results,
 		FInstanceCullingDrawParams* InstanceCullingDrawParams = nullptr) const;
 
-	/**
-	 * Build instance ID lists & render commands, but without extracting results and also accepting RGD resources for output buffers etc (rather than registering global resources)
-	 */
-	void BuildRenderingCommands(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene, const TRange<int32>& DynamicPrimitiveIdRange, FInstanceCullingRdgParams& Params) const;
-
-	inline bool HasCullingCommands() const { return CullingCommands.Num() > 0 && TotalInstances > 0; 	}
+	inline bool HasCullingCommands() const { return TotalInstances > 0; 	}
 
 	EInstanceCullingMode GetInstanceCullingMode() const { return InstanceCullingMode; }
 
@@ -180,37 +140,85 @@ public:
 		int32& VisibleMeshDrawCommandsNumOut,
 		int32& NewPassVisibleMeshDrawCommandsNumOut);
 
-	// GPUCULL_TODO: These should not be dynamically heap-allocated, all except instance runs are easy to pre-size on memstack.
-	//           Must be presized as populated from task threads.
-	TArray<FPrimCullingCommand/*, SceneRenderingAllocator*/> CullingCommands;
-	TArray<int32/*, SceneRenderingAllocator*/> PrimitiveIds;
-
-	struct FInstanceRun
-	{
-		uint32 Start;
-		uint32 EndInclusive;
-		int32 PrimitiveId;
-	};
-
 	FInstanceCullingManager* InstanceCullingManager = nullptr;
-	TArray<FInstanceRun/*, SceneRenderingAllocator*/> InstanceRuns;
-	TArray<int32/*, SceneRenderingAllocator*/> ViewIds;
+	TArray<int32, TInlineAllocator<6>/*, SceneRenderingAllocator*/> ViewIds;
 	bool bIsEnabled = false;
 	EInstanceCullingMode InstanceCullingMode = EInstanceCullingMode::Normal;
 	bool bDrawOnlyVSMInvalidatingGeometry = false;
 
 	uint32 TotalInstances = 0U;
+
+public:
+	// Auxiliary info for each mesh draw command that needs submitting.
+	struct FMeshDrawCommandInfo
+	{
+		// flag to indicate if using indirect or not.
+		uint32 bUseIndirect : 1U;
+		// stores either the offset to the indirect args or the number of instances
+		uint32 IndirectArgsOffsetOrNumInstances : 31U;
+		// Offset to write the instance data for the command to (either offset into the vertex array
+		uint32 InstanceDataOffset;
+	};
+
+	// TODO: bit-pack
+	struct FDrawCommandDesc
+	{
+		uint32 bMaterialMayModifyPosition;
+	};
+
+	// Info about a batch of culling work produced by a context, when part of a batched job
+	// Store once per context, provides start offsets to commands/etc for the context.
+	struct FContextBatchInfo
+	{
+		uint32 IndirectArgsOffset;
+		uint32 InstanceDataWriteOffset;
+		uint32 ViewIdsOffset;
+		uint32 NumViewIds;
+		uint32 DynamicInstanceIdOffset;
+		uint32 DynamicInstanceIdMax;
+		uint32 ItemDataOffset[uint32(EBatchProcessingMode::Num)];
+	};
+
+	//TArray<FMeshDrawCommandInfo> MeshDrawCommandInfos;
+	TArray<FRHIDrawIndexedIndirectParameters> IndirectArgs;
+	TArray<FDrawCommandDesc> DrawCommandDescs;
+	TArray<uint32> InstanceIdOffsets;
+
+	using LoadBalancerArray = TStaticArray<FInstanceProcessingGPULoadBalancer*, static_cast<uint32>(EBatchProcessingMode::Num)>;
+	// Driver for collecting items using one mode of processing
+	LoadBalancerArray LoadBalancers = LoadBalancerArray(InPlace, nullptr);
+
+	// Set of specialized batches that collect items with different properties each context may have only a subset.
+	//TStaticArray<FBatchProcessor, EBatchProcessingMode::Num> Batches;
+	struct FMergedContext
+	{
+		bool bInitialized = false;
+#if GPUCULL_ENABLE_CONCAT_ON_UPLOAD
+		TArray<TArrayView<const int32>, SceneRenderingAllocator> ViewIds;
+		TArray<TArrayView<const FRHIDrawIndexedIndirectParameters>, SceneRenderingAllocator> IndirectArgs;
+		TArray<TArrayView<const FDrawCommandDesc>, SceneRenderingAllocator> DrawCommandDescs;
+		TArray<TArrayView<const uint32>, SceneRenderingAllocator> InstanceIdOffsets;
+#else // !GPUCULL_ENABLE_CONCAT_ON_UPLOAD
+		TArray<int32, SceneRenderingAllocator> ViewIds;
+		//TArray<FMeshDrawCommandInfo, SceneRenderingAllocator> MeshDrawCommandInfos;
+		TArray<FRHIDrawIndexedIndirectParameters, SceneRenderingAllocator> IndirectArgs;
+		TArray<FDrawCommandDesc, SceneRenderingAllocator> DrawCommandDescs;
+		TArray<uint32, SceneRenderingAllocator> InstanceIdOffsets;
+#endif // GPUCULL_ENABLE_CONCAT_ON_UPLOAD
+		LoadBalancerArray LoadBalancers = LoadBalancerArray(InPlace, nullptr);
+		TStaticArray<TArray<uint32, SceneRenderingAllocator>, static_cast<uint32>(EBatchProcessingMode::Num)> BatchInds;
+		TArray<FInstanceCullingContext::FContextBatchInfo, SceneRenderingAllocator> BatchInfos;
+
+
+		// Counters to sum up all sizes to facilitate pre-sizing
+		uint32 InstanceIdBufferSize = 0U;
+		TStaticArray<int32, uint32(EBatchProcessingMode::Num)> TotalBatches = TStaticArray<int32, uint32(EBatchProcessingMode::Num)>(InPlace, 0);
+		TStaticArray<int32, uint32(EBatchProcessingMode::Num)> TotalItems = TStaticArray<int32, uint32(EBatchProcessingMode::Num)>(InPlace, 0);
+		int32 TotalIndirectArgs = 0;
+		int32 TotalViewIds = 0;
+	};
+
+	// Processing mode to use for single-instance primitives, default to skip culling, as this is already done on CPU. 
+	EBatchProcessingMode SingleInstanceProcessingMode = EBatchProcessingMode::UnCulled;
 };
 
-struct FInstanceCullingContextMerged
-{
-	bool bInitialized = false;
-	TArray<FInstanceCullingContext::FPrimCullingCommand, SceneRenderingAllocator> CullingCommandsAll;
-	TArray<int32, SceneRenderingAllocator> PrimitiveIdsAll;
-	TArray<FInstanceCullingContext::FInstanceRun, SceneRenderingAllocator> InstanceRunsAll;
-	TArray<int32, SceneRenderingAllocator> ViewIdsAll;
-	TArray<FInstanceCullingContext::FBatchInfo, SceneRenderingAllocator> BatchInfos;
-	TArray<int32, SceneRenderingAllocator> BatchIndsAll;
-
-	uint32 InstanceIdBufferSize = 0U;
-};

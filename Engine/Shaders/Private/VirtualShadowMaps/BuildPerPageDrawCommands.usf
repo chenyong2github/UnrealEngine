@@ -9,7 +9,9 @@
 #include "ProjectionCommon.ush"
 #include "../Nanite/NaniteDataDecode.ush"
 #include "../InstanceCulling/InstanceCullingCommon.ush"
+#include "../InstanceCulling/InstanceCullingLoadBalancer.ush"
 #include "../WaveOpUtil.ush"
+
 
 #ifndef NEAR_CLIP
 #define NEAR_CLIP 1
@@ -20,7 +22,7 @@ struct FVisibleInstanceCmd
 {
 	uint PackedPageInfo;
 	uint InstanceId;
-	uint DrawCommandId;
+	uint IndirectArgIndex;
 };
 
 uint PackPageInfo(FPageInfo PageInfo)
@@ -38,21 +40,22 @@ uint PackPageInfo(FPageInfo PageInfo)
 
 
 RWStructuredBuffer<FVisibleInstanceCmd> VisibleInstancesOut;
-StructuredBuffer<uint> InstanceIdsBuffer;
-StructuredBuffer<uint> DrawCommandIdsBuffer;
-StructuredBuffer<uint> NumInstanceIdsBuffer;
 uint FirstPrimaryView;
 uint NumPrimaryViews;
-RWStructuredBuffer<uint> DrawCommandInstanceCountBufferOut;
 RWStructuredBuffer<uint> VisibleInstanceCountBufferOut;
 uint InstanceSceneDataSOAStride;
 uint bInstancePerPage;
+uint DynamicInstanceIdOffset;
+uint DynamicInstanceIdMax;
 
 RWStructuredBuffer<uint> OutDynamicCasterFlags;
-StructuredBuffer<FPrimCullingCommand> PrimitiveCullingCommands;
+
+StructuredBuffer<FDrawCommandDesc> DrawCommandDescs;
+
+RWBuffer<uint> DrawIndirectArgsBufferOut;
 
 
-void WriteCmd(uint2 VirtualPage, uint MipViewId, uint InstanceId, uint DrawCommandId)
+void WriteCmd(uint2 VirtualPage, uint MipViewId, uint InstanceId, uint IndirectArgIndex)
 {
 	FPageInfo PageInfo;
 	PageInfo.VirtualPage = VirtualPage;
@@ -62,7 +65,7 @@ void WriteCmd(uint2 VirtualPage, uint MipViewId, uint InstanceId, uint DrawComma
 	FVisibleInstanceCmd VisibleInstanceCmd;
 	VisibleInstanceCmd.PackedPageInfo = PackPageInfo(PageInfo);
 	VisibleInstanceCmd.InstanceId = InstanceId;
-	VisibleInstanceCmd.DrawCommandId = DrawCommandId;
+	VisibleInstanceCmd.IndirectArgIndex = IndirectArgIndex;
 
 	uint VisibleInstanceOutputOffset = 0U;
 	WaveInterlockedAddScalar_(VisibleInstanceCountBufferOut[0], 1U, VisibleInstanceOutputOffset);
@@ -70,43 +73,41 @@ void WriteCmd(uint2 VirtualPage, uint MipViewId, uint InstanceId, uint DrawComma
 }
 
 [numthreads(NUM_THREADS_PER_GROUP, 1, 1)]
-void CullPerPageDrawCommandsCs(uint InstanceIdIndex : SV_DispatchThreadID, uint GroupIndex : SV_GroupIndex)
+void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex : SV_GroupIndex)
 {
-	// Produced by previous passes
-	uint NumInstances = NumInstanceIdsBuffer[0];
-
-	if (NumInstances == 0)
+	// TODO: Support batching? Currently VSM are culled before each draw. Batching could work explicitly or using the same deferred mechanism as other InstanceCullingContexts.
+	//       However, these would need to be kept separate, and also means all instance data must be pre-allocated for all the lights (and cannot be re-used between lights).
+	//       For supporting many small lights, we will certainly need batching, but perhaps they will use a different path anyway.
+	FInstanceWorkSetup WorkSetup = InstanceCullingLoadBalancer_Setup(GroupId, GroupThreadIndex, 0);
+	if (!WorkSetup.bValid)
 	{
 		return;
 	}
 
-	if (InstanceIdIndex >= NumInstances)
+	const bool bDynamicInstanceDataOffset = (WorkSetup.Item.Payload & 1U) != 0U;
+	uint InstanceDataOffset = WorkSetup.Item.InstanceDataOffset;
+
+	if (bDynamicInstanceDataOffset)
 	{
-		return;
+		InstanceDataOffset += DynamicInstanceIdOffset;
+		checkSlow(InstanceDataOffset + uint(WorkSetup.LocalItemIndex) < DynamicInstanceIdMax);
 	}
 
-	// Load the offset (produced by the previous pass on GPU) or maybe use a fresh/recycled buffer for each and set to zero?
-	uint InstanceIdOffset = 0;//InstanceIdsOffsetBuffer[BaseOffset];
-	uint InstanceId = InstanceIdsBuffer[InstanceIdOffset + InstanceIdIndex] & ((1U << 28U) - 1);
-	// Do we need this? Probably for virtual cube maps if we get there.
-	uint ViewIdIndex = InstanceIdsBuffer[InstanceIdOffset + InstanceIdIndex] >> 28U;
-	uint DrawCommandId = DrawCommandIdsBuffer[InstanceIdOffset + InstanceIdIndex];
+
+	uint InstanceId = InstanceDataOffset + uint(WorkSetup.LocalItemIndex);
+	uint IndirectArgIndex = WorkSetup.Item.Payload >> 1U;
+	FDrawCommandDesc DrawCommandDesc = DrawCommandDescs[IndirectArgIndex];
 
 	const bool bNearClip = (NEAR_CLIP != 0);
-	FPrimCullingCommand Cmd = PrimitiveCullingCommands[DrawCommandId];
 
 	// Load relevant instance data
 	FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId, InstanceSceneDataSOAStride);
-	const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber || Cmd.bMaterialMayModifyPosition;
+	const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber || DrawCommandDesc.bMaterialMayModifyPosition;
 	const uint PageFlagMask = bHasMoved ? VSM_ALLOCATED_FLAG : VSM_INVALID_FLAG;
 
 	uint ThreadTotalForAllViews = 0;
-#if LOOP_OVER_VIEWS
 	// Loop over views and output visible instance (i.e., those that overlap a valid page)
 	for (uint PrimaryViewId = FirstPrimaryView; PrimaryViewId < FirstPrimaryView + NumPrimaryViews; ++PrimaryViewId)
-#else
-	uint PrimaryViewId = ViewIdIndex;
-#endif
 	{
 		FNaniteView NaniteView = GetNaniteView(PrimaryViewId);
 		const uint2 TargetViewSize = uint2(NaniteView.ViewSizeAndInvSize.xy);
@@ -153,7 +154,7 @@ void CullPerPageDrawCommandsCs(uint InstanceIdIndex : SV_DispatchThreadID, uint 
 									if ((PageFlag & PageFlagMask) != 0)
 									{
 										++ThreadTotalForAllViews;
-										WriteCmd(uint2(x,y), MipViewId, InstanceId, DrawCommandId);
+										WriteCmd(uint2(x,y), MipViewId, InstanceId, IndirectArgIndex);
 
 										if (bHasMoved)
 										{
@@ -167,7 +168,7 @@ void CullPerPageDrawCommandsCs(uint InstanceIdIndex : SV_DispatchThreadID, uint 
 						{
 							// bInstancePerPage just one per rect
 							++ThreadTotalForAllViews;
-							WriteCmd(RectPages.xy, MipViewId, InstanceId, DrawCommandId);
+							WriteCmd(RectPages.xy, MipViewId, InstanceId, IndirectArgIndex);
 							if (bHasMoved)
 							{
 								uint PageTableLevelOffset = CalcPageTableLevelOffset(VirtualShadowMapId, MipLevel);
@@ -192,42 +193,38 @@ void CullPerPageDrawCommandsCs(uint InstanceIdIndex : SV_DispatchThreadID, uint 
 		}
 	}
 
-	// Accumulate total number of instances/page pairs for each draw command, is used to allocate space and output compact range of instances later
-	InterlockedAdd(DrawCommandInstanceCountBufferOut[DrawCommandId], ThreadTotalForAllViews);
+	// Accumulate total number of instances for each indirect argument, is also used to allocate space and output compact range of instances later
+	InterlockedAdd(DrawIndirectArgsBufferOut[IndirectArgIndex * INDIRECT_ARGS_NUM_WORDS + 1], ThreadTotalForAllViews);
 }
 
-RWBuffer<uint> DrawIndirectArgsBufferOut;
+Buffer<uint> DrawIndirectArgsBuffer;
 RWBuffer<uint> InstanceIdOffsetBufferOut;
 RWStructuredBuffer<uint> OutputOffsetBufferOut;
 RWStructuredBuffer<uint> TmpInstanceIdOffsetBufferOut;
-StructuredBuffer<uint> DrawCommandInstanceCountBuffer;
+uint NumIndirectArgs;
 
-uint NumDrawCommands;
 /**
  * Separate pass to allocate space, needs to run once the final space requirements are known. We buffer the page/instance-draw info and reshuffle later.
  * TODO: Possibly just re-run the culling process in the output pass, saves storing stuff, but may cost more and runs the risk of the passes disagreeing e.g., due to rounding or whatever.
  */
 [numthreads(NUM_THREADS_PER_GROUP, 1, 1)]
-void AllocateCommandInstanceOutputSpaceCs(uint DrawCommandId : SV_DispatchThreadID)
+void AllocateCommandInstanceOutputSpaceCs(uint IndirectArgIndex : SV_DispatchThreadID)
 {
-	if (DrawCommandId < NumDrawCommands)
+	if (IndirectArgIndex < NumIndirectArgs)
 	{
-		uint CommandInstanceCount = DrawCommandInstanceCountBuffer[DrawCommandId];
+		uint CommandInstanceCount = DrawIndirectArgsBuffer[IndirectArgIndex * INDIRECT_ARGS_NUM_WORDS + 1];
 		uint CommandInstanceOffset = 0U;
 		if (CommandInstanceCount > 0U)
 		{
 			InterlockedAdd(OutputOffsetBufferOut[0], CommandInstanceCount, CommandInstanceOffset);
 		}
-		InstanceIdOffsetBufferOut[DrawCommandId] = CommandInstanceOffset;
+		InstanceIdOffsetBufferOut[IndirectArgIndex] = CommandInstanceOffset;
 		// Store second copy for use during output pass (as we need the first offset buffer during the actual rendering)
-		TmpInstanceIdOffsetBufferOut[DrawCommandId] = CommandInstanceOffset;
-		
-		// fix up the instance count of the draw command (the rest is filled in earlier):
-		DrawIndirectArgsBufferOut[DrawCommandId * INDIRECT_ARGS_NUM_WORDS + 1] = CommandInstanceCount;
+		TmpInstanceIdOffsetBufferOut[IndirectArgIndex] = CommandInstanceOffset;
 	}
 
 	// Also set up indirect dispatch args for the output pass (OutputCommandInstanceLists)
-	//if (DrawCommandId == 0)
+	//if (IndirectArgIndex == 0)
 	//{
 	//	uint NumVisibleInstances = VisibleInstanceCountBuffer[0];
 	//	// ...dispatch args to process all the visible instances
@@ -252,9 +249,10 @@ void OutputCommandInstanceListsCs(uint VisibleInstanceIndex : SV_DispatchThreadI
 
 		// Scatter the instance ID & other data.
 		uint InstanceIdOutputOffset = 0;
-		InterlockedAdd(TmpInstanceIdOffsetBufferOut[VisibleInstanceCmd.DrawCommandId], 1U, InstanceIdOutputOffset);
+		InterlockedAdd(TmpInstanceIdOffsetBufferOut[VisibleInstanceCmd.IndirectArgIndex], 1U, InstanceIdOutputOffset);
 		// TODO: maybe repack as uint2 since that might be better for these type of presumably scalar loads.
 		InstanceIdsBufferOut[InstanceIdOutputOffset] = VisibleInstanceCmd.InstanceId;
 		PageInfoBufferOut[InstanceIdOutputOffset] = VisibleInstanceCmd.PackedPageInfo;
 	}
 }
+
