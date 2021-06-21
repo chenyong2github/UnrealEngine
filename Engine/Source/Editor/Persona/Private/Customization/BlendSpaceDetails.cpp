@@ -130,7 +130,6 @@ static EVisibility GetAnalyzeButtonVisibility(
 // that if "None" was selected then the new value will be null
 void FBlendSpaceDetails::HandleAnalysisFunctionChanged(int32 AxisIndex, TSharedPtr<FString> NewFunctionName)
 {
-	BlendSpace->Modify();
 	UAnalysisProperties* NewAnalysisProperties = BlendSpaceAnalysis::MakeAnalysisProperties(BlendSpace, *NewFunctionName);
 	// Preserve values where possible
 	if (BlendSpace->AnalysisProperties[AxisIndex])

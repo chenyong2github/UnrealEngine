@@ -330,6 +330,8 @@ UAnalysisProperties* BlendSpaceAnalysis::MakeAnalysisProperties(UObject* Outer, 
 		Result = Feature->MakeAnalysisProperties(Outer, FunctionName);
 		if (Result)
 		{
+			// Need to explicitly set flags to make undo work on the new object
+			Result->SetFlags(RF_Transactional);
 			return Result;
 		}
 	}
