@@ -371,163 +371,6 @@ void FGPUScene::EndRender()
 }
 
 
-
-// Helper to build the needed data to run per-instance operation on the GPU in a balanced way
-// TODO: Move to own files
-class FInstanceProcessingGPULoadBalancer
-{
-public:
-	static constexpr int32 ThreadGroupSize = 64;
-
-	// Number of bits needed for prefix sum storage
-	static constexpr uint32 PrefixBits = ILog2Const(uint32(ThreadGroupSize));
-	static constexpr uint32 PrefixBitMask = (1U << PrefixBits) - 1U;
-
-	static constexpr uint32 NumInstancesItemBits = PrefixBits + 1U;
-	static constexpr uint32 NumInstancesItemMask = (1U << NumInstancesItemBits) - 1U;
-
-	FInstanceProcessingGPULoadBalancer()
-	{ 
-	}
-
-	void Add(int32 InstanceSceneDataOffset, int32 NumInstanceSceneDataEntries, int32 Payload)
-	{
-		int32 InstancesAdded = 0;
-		while (InstancesAdded < NumInstanceSceneDataEntries)
-		{
-			int32 MaxInstancesThisBatch = ThreadGroupSize - CurrentBatchPrefixSum;
-
-			if (MaxInstancesThisBatch > 0)
-			{
-				const int NumInstancesThisItem = FMath::Min(MaxInstancesThisBatch, NumInstanceSceneDataEntries - InstancesAdded);
-				Items.Add(PackItem(InstanceSceneDataOffset + InstancesAdded, NumInstancesThisItem, Payload, CurrentBatchPrefixSum));
-				if (CurrentBatchNumItems * PrefixBits < sizeof(CurrentBatchPackedPrefixSum) * 8U)
-				{
-					CurrentBatchPackedPrefixSum |= CurrentBatchPackedPrefixSum << (PrefixBits * CurrentBatchNumItems);
-				}
-				CurrentBatchNumItems += 1;
-				InstancesAdded += NumInstancesThisItem;
-				CurrentBatchPrefixSum += NumInstancesThisItem;
-			}
-
-			// Flush batch if it is not possible to add any more items (for one of the reasons)
-			if (MaxInstancesThisBatch <= 0 || CurrentBatchPrefixSum >= ThreadGroupSize)
-			{
-				Batches.Add(PackBatch(CurrentBatchFirstItem, CurrentBatchNumItems));
-				CurrentBatchFirstItem = uint32(Items.Num());
-				CurrentBatchPrefixSum = 0;
-				CurrentBatchNumItems = 0U;
-				CurrentBatchPackedPrefixSum = 0U;
-			}
-		}
-	}
-
-	bool IsEmpty() const
-	{
-		return Items.IsEmpty();
-	}
-
-	struct FPackedBatch
-	{
-		uint32 FirstItem_NumItems;
-	};
-
-	FPackedBatch PackBatch(uint32 FirstItem, uint32 NumItems)
-	{
-		checkSlow(NumItems < (1U << NumInstancesItemBits));
-		checkSlow(FirstItem < (1U << (32U - NumInstancesItemBits)));
-
-		return FPackedBatch{ (FirstItem << NumInstancesItemBits) | (NumItems & NumInstancesItemMask) };
-	}
-
-	struct FPackedItem
-	{
-		// packed 32-NumInstancesItemBits:NumInstancesItemBits - need one more bit for the case where one item has ThreadGroupSize work to do
-		uint32 InstanceSceneDataOffset_NumInstances;
-		// packed 32-PrefixBits:PrefixBits
-		uint32 Payload_BatchPrefixOffset;
-	};
-	FPackedItem PackItem(uint32 InstanceSceneDataOffset, uint32 NumInstances, uint32 Payload, uint32 BatchPrefixSum)
-	{
-		checkSlow(NumInstances < (1U << NumInstancesItemBits));
-		checkSlow(InstanceSceneDataOffset < (1U << (32U - NumInstancesItemBits)));
-		checkSlow(BatchPrefixSum < (1U << PrefixBits));
-		checkSlow(Payload < (1U << (32U - PrefixBits)));
-
-		return FPackedItem
-		{ 
-			(InstanceSceneDataOffset << NumInstancesItemBits) | (NumInstances & NumInstancesItemMask),
-			(Payload << PrefixBits) | (BatchPrefixSum & PrefixBitMask)
-		};
-	}
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FPackedBatch >, BatchBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FPackedItem >, ItemBuffer)
-		SHADER_PARAMETER(uint32, NumBatches)
-		SHADER_PARAMETER(uint32, NumItems)
-	END_SHADER_PARAMETER_STRUCT()
-
-	struct FGPUData
-	{
-		int32 NumBatches = 0;
-		int32 NumItems = 0;
-		FRDGBufferRef BatchBuffer = nullptr;
-		FRDGBufferRef ItemBuffer = nullptr;
-
-		void GetShaderParameters(FRDGBuilder& GraphBuilder, FShaderParameters& ShaderParameters)
-		{
-			ShaderParameters.BatchBuffer = GraphBuilder.CreateSRV(BatchBuffer);
-			ShaderParameters.ItemBuffer = GraphBuilder.CreateSRV(ItemBuffer);
-			ShaderParameters.NumBatches = NumBatches;
-			ShaderParameters.NumItems = NumItems;
-		}
-	};
-
-	// publish constants to the shader
-	static void SetShaderDefines(FShaderCompilerEnvironment& OutEnvironment)
-	{
-		OutEnvironment.SetDefine(TEXT("NUM_THREADS_PER_GROUP"), ThreadGroupSize);
-		OutEnvironment.SetDefine(TEXT("NUM_INSTANCES_ITEM_BITS"), NumInstancesItemBits);
-		OutEnvironment.SetDefine(TEXT("NUM_INSTANCES_ITEM_MASK"), NumInstancesItemMask);
-		OutEnvironment.SetDefine(TEXT("PREFIX_BITS"), PrefixBits);
-		OutEnvironment.SetDefine(TEXT("PREFIX_BIT_MASK"), PrefixBitMask);
-	}
-
-	FGPUData Upload(FRDGBuilder& GraphBuilder)
-	{
-		if (CurrentBatchNumItems != 0)
-		{
-			Batches.Add(PackBatch(CurrentBatchFirstItem, CurrentBatchNumItems));
-			CurrentBatchNumItems = 0;
-		}
-
-		FGPUData Result;
-		Result.BatchBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceProcessingGPULoadBalancer.Batches"), Batches, ERDGInitialDataFlags::NoCopy);
-		Result.ItemBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceProcessingGPULoadBalancer.Items"), Items, ERDGInitialDataFlags::NoCopy);
-		Result.NumBatches = Batches.Num();
-		Result.NumItems = Items.Num();
-
-		return Result;
-	}
-
-	FIntVector GetCsGroupCount() const
-	{
-		return FIntVector(Batches.Num(), 1, 1);
-	}
-
-	TArray<FPackedBatch, SceneRenderingAllocator>  Batches;
-	TArray<FPackedItem, SceneRenderingAllocator>  Items;
-	
-	int32 CurrentBatchPrefixSum = 0;
-	uint32 CurrentBatchNumItems = 0U;
-	uint32 CurrentBatchPackedPrefixSum = 0U;
-	uint32 CurrentBatchFirstItem = 0U;
-};
-
-
-
-
 void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 {
 	LLM_SCOPE_BYTAG(GPUScene);
@@ -567,7 +410,7 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 
 	// Pull out instances needing only primitive ID update, they still have to go to the general update such that the primitive gets updated (as it moved)
 	{
-		FInstanceProcessingGPULoadBalancer IdOnlyUpdateData;
+		FInstanceGPULoadBalancer IdOnlyUpdateData;
 		for (int32 Index = 0; Index < Adapter.PrimitivesToUpdate.Num(); ++Index)
 		{
 			int32 PrimitiveId = Adapter.PrimitivesToUpdate[Index];
@@ -1785,11 +1628,11 @@ class FGPUSceneSetInstancePrimitiveIdCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FGPUSceneSetInstancePrimitiveIdCS, FGlobalShader)
 public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceProcessingGPULoadBalancer::FShaderParameters, BatcherParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FGPUScene::FInstanceGPULoadBalancer::FShaderParameters, BatcherParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FGPUSceneWriterParameters, GPUSceneWriterParameters)
 		END_SHADER_PARAMETER_STRUCT()
 
-	static constexpr int32 NumThreadsPerGroup = FInstanceProcessingGPULoadBalancer::ThreadGroupSize;
+	static constexpr int32 NumThreadsPerGroup = FGPUScene::FInstanceGPULoadBalancer::ThreadGroupSize;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -1800,7 +1643,7 @@ public:
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
-		FInstanceProcessingGPULoadBalancer::SetShaderDefines(OutEnvironment);
+		FGPUScene::FInstanceGPULoadBalancer::SetShaderDefines(OutEnvironment);
 
 		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
 	}
@@ -1808,7 +1651,7 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FGPUSceneSetInstancePrimitiveIdCS, "/Engine/Private/GPUScene/GPUSceneDataManagement.usf", "GPUSceneSetInstancePrimitiveIdCS", SF_Compute);
 
 
-void FGPUScene::AddUpdatePrimitiveIdsPass(FRDGBuilder& GraphBuilder, FInstanceProcessingGPULoadBalancer& IdOnlyUpdateItems)
+void FGPUScene::AddUpdatePrimitiveIdsPass(FRDGBuilder& GraphBuilder, FInstanceGPULoadBalancer& IdOnlyUpdateItems)
 {
 	if (!IdOnlyUpdateItems.IsEmpty())
 	{
@@ -1827,7 +1670,7 @@ void FGPUScene::AddUpdatePrimitiveIdsPass(FRDGBuilder& GraphBuilder, FInstancePr
 			RDG_EVENT_NAME("GPUSceneSetInstancePrimitiveIdCS"),
 			ComputeShader,
 			PassParameters,
-			IdOnlyUpdateItems.GetCsGroupCount()
+			IdOnlyUpdateItems.GetWrappedCsGroupCount()
 		);
 
 		EndReadWriteAccess(GraphBuilder, ERHIAccess::UAVCompute);
