@@ -272,46 +272,16 @@ struct FTextureSource
 	FORCEINLINE int32 GetNumBlocks() const { return Blocks.Num() + 1; }
 	FORCEINLINE ETextureSourceFormat GetFormat(int32 LayerIndex = 0) const { return (LayerIndex == 0) ? Format : LayerFormat[LayerIndex]; }
 	FORCEINLINE bool IsPNGCompressed() const { return bPNGCompressed; }
-	FORCEINLINE int64 GetSizeOnDisk() const 
-	{ 
-#if UE_USE_VIRTUALBULKDATA
-		return BulkData.GetPayloadSize(); 
-#else
-		return BulkData.GetBulkDataSize(); 
-#endif //UE_USE_VIRTUALBULKDATA
-	}
-	
-	FORCEINLINE bool IsBulkDataLoaded() const
-	{
-#if UE_USE_VIRTUALBULKDATA
-		return BulkData.IsDataLoaded();
-#else
-		return BulkData.IsBulkDataLoaded();
-#endif //UE_USE_VIRTUALBULKDATA
-	}
+	FORCEINLINE int64 GetSizeOnDisk() const { return BulkData.GetPayloadSize(); }
+	inline bool HasPayloadData() const { return BulkData.HasPayloadData(); }
+	FORCEINLINE bool IsBulkDataLoaded() const { return BulkData.IsDataLoaded(); }
 
 	ENGINE_API void OperateOnLoadedBulkData(TFunctionRef<void (const FSharedBuffer& BulkDataBuffer)> Operation);
 
-	FORCEINLINE bool LoadBulkDataWithFileReader()
-	{
-		// TODO: When we remove UE_USE_VIRTUALBULKDATA and go all in, places that call this
-		// should be changed.
-#if UE_USE_VIRTUALBULKDATA
-		return true; // Currently a NOP
-#else
-		return BulkData.LoadBulkDataWithFileReader(); // Kick off an async load if needed
-#endif
-	}
+	UE_DEPRECATED(5.00, "There is no longer a need to call LoadBulkDataWithFileReader, FTextureSource::BulkData can now load the data on demand without it.")
+	FORCEINLINE bool LoadBulkDataWithFileReader() { return true; }
 
-	FORCEINLINE void RemoveBulkData()
-	{
-#if UE_USE_VIRTUALBULKDATA
-		BulkData.UnloadData();
-#else
-		BulkData.RemoveBulkData();
-#endif //UE_USE_VIRTUALBULKDATA
-	}
-
+	FORCEINLINE void RemoveBulkData() { BulkData.UnloadData(); }
 	
 	/** Sets the GUID to use, and whether that GUID is actually a hash of some data. */
 	ENGINE_API void SetId(const FGuid& InId, bool bInGuidIsHash);
@@ -382,11 +352,6 @@ struct FTextureSource
 	/** Structure that encapsulates the decompressed texture data and can be accessed per mip */
 	struct ENGINE_API FMipData
 	{
-		~FMipData();
-
-		/** Get a copy of a given texture mip, to be stored in OutMipData */
-		bool GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const;
-
 		/** Allow the copy constructor by rvalue*/
 		FMipData(FMipData&& Other)
 			: TextureSource(Other.TextureSource)
@@ -394,21 +359,25 @@ struct FTextureSource
 			MipData = MoveTemp(Other.MipData);
 		}
 
+		~FMipData() = default;
+
 		/** Disallow everything else so we don't get duplicates */
 		FMipData() = delete;
 		FMipData(const FMipData&) = delete;
 		FMipData& operator=(const FMipData&) = delete;
 		FMipData& operator=(FMipData&& Other) = delete;
 
+		/** Get a copy of a given texture mip, to be stored in OutMipData */
+		bool GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const;
+
 	private:
 		// We only want to allow FTextureSource to create FMipData objects
 		friend struct FTextureSource;
 
-		FMipData(const FTextureSource& InSource, FMipAllocation&& InMipData, FRWLock* InReadLock = nullptr);
+		FMipData(const FTextureSource& InSource, FSharedBuffer InData);
 
 		const FTextureSource& TextureSource;
-		FMipAllocation MipData;
-		FRWLock* ReadLock;
+		FSharedBuffer MipData;
 	};
 #endif // WITH_EDITOR
 
@@ -425,7 +394,7 @@ private:
 	TDontCopy<FRWLock> BulkDataLock;
 #endif
 	/** The bulk source data. */
-	TChooseClass<UE_USE_VIRTUALBULKDATA, UE::Virtualization::FByteVirtualizedBulkData, FByteBulkData>::Result BulkData;
+	UE::Virtualization::FByteVirtualizedBulkData BulkData;
 	
 	/** Number of mips that are locked. */
 	uint32 NumLockedMips;
@@ -447,11 +416,11 @@ private:
 	uint8* LockMipInternal(int32 BlockIndex, int32 LayerIndex, int32 MipIndex, ELockState RequestedLockState);
 	
 	/** Returns the source data fully decompressed */
-	FMipAllocation Decompress(class IImageWrapperModule* ImageWrapperModule) UE_VBD_CONST;
-
-	FMipAllocation TryDecompressPngData(IImageWrapperModule* ImageWrapperModule) UE_VBD_CONST;
+	FSharedBuffer Decompress(class IImageWrapperModule* ImageWrapperModule) const;
+	/** Attempt to decompress the source data from a compressed png format. All failures will be logged and result in the method returning false */
+	FSharedBuffer TryDecompressPngData(IImageWrapperModule* ImageWrapperModule) const;
 	/** Attempt to decompress the source data from Jpeg format. All failures will be logged and result in the method returning false */
-	FMipAllocation TryDecompressJpegData(IImageWrapperModule* ImageWrapperModule) UE_VBD_CONST;
+	FSharedBuffer TryDecompressJpegData(IImageWrapperModule* ImageWrapperModule) const;
 	
 	/** Return true if the source art is not png compressed but could be. */
 	bool CanPNGCompress() const;

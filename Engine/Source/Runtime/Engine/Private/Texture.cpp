@@ -470,29 +470,14 @@ void UTexture::Serialize(FArchive& Ar)
 
 		if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::TextureSourceVirtualization)
 		{
-#if UE_USE_VIRTUALBULKDATA
 			FByteBulkData TempBulkData;
 			TempBulkData.Serialize(Ar, this);
 
 			Source.BulkData.CreateFromBulkData(TempBulkData, Source.GetId());
-#else
-			Source.BulkData.Serialize(Ar, this);
-#endif //UE_USE_VIRTUALBULKDATA
 		}
 		else
 		{
-#if !UE_USE_VIRTUALBULKDATA && UE_VBD_TO_OLD_BULKDATA_PATH
-			if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::DisabledVirtualization)
-			{
-				UE::Virtualization::FByteVirtualizedBulkData TempVirtualBulkData;
-				TempVirtualBulkData.Serialize(Ar, this);
-				TempVirtualBulkData.ConvertToOldBulkData(Source.BulkData);
-			}
-			else
-#endif // !UE_USE_VIRTUALBULKDATA && UE_VBD_TO_OLD_BULKDATA_PATH
-			{
-				Source.BulkData.Serialize(Ar, this);
-			}
+			Source.BulkData.Serialize(Ar, this);
 		}
 	}
 
@@ -1108,13 +1093,8 @@ void FTextureSource::InitBlocked(const ETextureSourceFormat* InLayerFormats,
 
 	checkf(LockState == ELockState::None, TEXT("InitBlocked shouldn't be called in-between LockMip/UnlockMip"));
 
-#if UE_USE_VIRTUALBULKDATA
 	FUniqueBuffer Buffer = FUniqueBuffer::Alloc(TotalBytes);
 	uint8* DataPtr = (uint8*)Buffer.GetData();
-#else
-	BulkData.Lock(LOCK_READ_WRITE);
-	uint8* DataPtr = (uint8*)BulkData.Realloc(TotalBytes);
-#endif //UE_USE_VIRTUALBULKDATA
 
 	if (InDataPerBlock)
 	{
@@ -1129,11 +1109,7 @@ void FTextureSource::InitBlocked(const ETextureSourceFormat* InLayerFormats,
 		}
 	}
 
-#if UE_USE_VIRTUALBULKDATA
 	BulkData.UpdatePayload(Buffer.MoveToShared());
-#else
-	BulkData.Unlock();
-#endif //UE_USE_VIRTUALBULKDATA
 }
 
 void FTextureSource::InitLayered(
@@ -1166,27 +1142,17 @@ void FTextureSource::InitLayered(
 
 	checkf(LockState == ELockState::None, TEXT("InitLayered shouldn't be called in-between LockMip/UnlockMip"));
 
-#if UE_USE_VIRTUALBULKDATA
-	// TODO: Might be able to just use FUniqueBuffer::Clone, if we can be sure that
-	// TotalBytes and NewData always match (the null check onNewData before memcpy is
-	// suspicious)
-	FUniqueBuffer Buffer = FUniqueBuffer::Alloc(TotalBytes);
-	uint8* DestData = (uint8*)Buffer.GetData();
-#else
-	BulkData.Lock(LOCK_READ_WRITE);
-	uint8* DestData = (uint8*)BulkData.Realloc(TotalBytes);
-#endif //UE_USE_VIRTUALBULKDATA
-
-	if (NewData)
+	// TODO: Allocating an empty buffer if there is no data to copy from seems like an odd choice but the 
+	// code logic has been doing this for almost a decade so I don't want to change it until I am sure that
+	// it serves no purpose. Given a choice I'd assert on NewData == nullptr instead.
+	if (NewData != nullptr)
 	{
-		FMemory::Memcpy(DestData, NewData, TotalBytes);
+		BulkData.UpdatePayload(FSharedBuffer::Clone(NewData, TotalBytes));
 	}
-
-#if UE_USE_VIRTUALBULKDATA
-	BulkData.UpdatePayload(Buffer.MoveToShared());
-#else
-	BulkData.Unlock();
-#endif //UE_USE_VIRTUALBULKDATA
+	else
+	{
+		BulkData.UpdatePayload(FUniqueBuffer::Alloc(TotalBytes).MoveToShared());
+	}
 }
 
 void FTextureSource::Init(
@@ -1257,19 +1223,9 @@ void FTextureSource::InitWithCompressedSourceData(
 
 	checkf(LockState == ELockState::None, TEXT("InitWithCompressedSourceData shouldn't be called in-between LockMip/UnlockMip"));
 	
-#if UE_USE_VIRTUALBULKDATA
 	// Disable the internal bulkdata compression if the source data is already compressed
 	const FName CompressionName = CompressionFormat == TSCF_None ? NAME_Default : NAME_None;
 	BulkData.UpdatePayload(FSharedBuffer::Clone(NewData.GetData(), NewData.Num()), CompressionName);
-#else
-	BulkData.Lock(LOCK_READ_WRITE);
-	uint8* DestData = (uint8*)BulkData.Realloc(NewData.Num());
-	if (NewData.GetData() != nullptr)
-	{
-		FMemory::Memcpy(DestData, NewData.GetData(), NewData.Num());
-	}
-	BulkData.Unlock();
-#endif //UE_USE_VIRTUALBULKDATA
 }
 
 void FTextureSource::Compress()
@@ -1282,31 +1238,19 @@ void FTextureSource::Compress()
 
 	if (CanPNGCompress()) // Note that this will return false if the data is already a compressed PNG
 	{
-#if UE_USE_VIRTUALBULKDATA
 		FSharedBuffer Payload = BulkData.GetPayload().Get();
-		const void* BulkDataPtr = Payload.GetData();
-		const int64 BulkDataSize = Payload.GetSize();
-#else
-		uint8* BulkDataPtr = (uint8*)BulkData.Lock(LOCK_READ_WRITE);
-		const int64 BulkDataSize = BulkData.GetBulkDataSize();
-#endif //UE_USE_VIRTUALBULKDATA
 
 		IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>( FName("ImageWrapper") );
 		TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper( EImageFormat::PNG );
 		// TODO: TSF_BGRA8 is stored as RGBA, so the R and B channels are swapped in the internal png. Should we fix this?
 		ERGBFormat RawFormat = (Format == TSF_G8 || Format == TSF_G16) ? ERGBFormat::Gray : ERGBFormat::RGBA;
-		if ( ImageWrapper.IsValid() && ImageWrapper->SetRaw( BulkDataPtr, BulkDataSize, SizeX, SizeY, RawFormat, (Format == TSF_G16 || Format == TSF_RGBA16) ? 16 : 8 ) )
+		if ( ImageWrapper.IsValid() && ImageWrapper->SetRaw(Payload.GetData(), Payload.GetSize(), SizeX, SizeY, RawFormat, (Format == TSF_G16 || Format == TSF_RGBA16) ? 16 : 8 ) )
 		{
-			const TArray64<uint8> CompressedData = ImageWrapper->GetCompressed();
+			TArray64<uint8> CompressedData = ImageWrapper->GetCompressed();
 			if ( CompressedData.Num() > 0 )
-			{
-#if UE_USE_VIRTUALBULKDATA	
-				BulkData.UpdatePayload(FSharedBuffer::Clone(CompressedData.GetData(), CompressedData.Num()), NAME_None);
-#else
-				BulkDataPtr = (uint8*)BulkData.Realloc(CompressedData.Num());
-				FMemory::Memcpy(BulkDataPtr, CompressedData.GetData(), CompressedData.Num());
-				BulkData.Unlock();
-#endif //UE_USE_VIRTUALBULKDATA
+			{			
+				BulkData.UpdatePayload(MakeSharedBufferFromArray(MoveTemp(CompressedData)), NAME_None);
+
 				bPNGCompressed = true;
 				CompressionFormat = TSCF_PNG;
 			}
@@ -1319,14 +1263,12 @@ void FTextureSource::Compress()
 		CompressionFormat = TSCF_PNG;
 	}
 
-	// TODO: Cannot fix incorrectly assigned compression types if UE_USE_VIRTUALBULKDATA is enabled. Need a fix for that.
-#if !UE_USE_VIRTUALBULKDATA
-	// Disable the internal bulkdata compression if the source data is already compressed	
-	BulkData.StoreCompressedOnDisk(CompressionFormat == TSCF_None ? NAME_Zlib : NAME_None);
-#endif
+	// There was a brief period when textures could be saved with the wrong compression flag based on their storage format
+	// so we force set it here so that they will be fixed on resave.
+	BulkData.SetCompressionFormat(CompressionFormat == TSCF_None ? NAME_Default : NAME_None);
 }
 
-FTextureSource::FMipAllocation FTextureSource::Decompress(IImageWrapperModule* ImageWrapperModule) UE_VBD_CONST
+FSharedBuffer FTextureSource::Decompress(IImageWrapperModule* ImageWrapperModule) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureSource::Decompress);
 
@@ -1340,13 +1282,7 @@ FTextureSource::FMipAllocation FTextureSource::Decompress(IImageWrapperModule* I
 	}
 	else
 	{
-#if UE_USE_VIRTUALBULKDATA
-		FMipAllocation Payload(BulkData.GetPayload().Get());
-#else
-		FMipAllocation Payload(BulkData);
-#endif //UE_USE_VIRTUALBULKDATA
-
-		return Payload;
+		return BulkData.GetPayload().Get();
 	}
 }
 
@@ -1406,7 +1342,6 @@ void FTextureSource::UnlockMip(int32 BlockIndex, int32 LayerIndex, int32 MipInde
 	--NumLockedMips;
 	if (NumLockedMips == 0u)
 	{
-#if UE_USE_VIRTUALBULKDATA
 		// If the lock was for Read/Write then we need to assume that the decompressed copy
 		// we returned (LockedMipData) was updated and should update the payload accordingly.
 		// This will wipe the compression format that we used to have.
@@ -1419,40 +1354,11 @@ void FTextureSource::UnlockMip(int32 BlockIndex, int32 LayerIndex, int32 MipInde
 			bPNGCompressed = false;
 			CompressionFormat = TSCF_None;
 		}
-#else
-		// If the source data is stored in a compressed format then we returned a copy when the mip was
-		// locked. We now need to deal with that copy.
-		if (CompressionFormat == TSCF_JPEG || bPNGCompressed)
-		{
-			// If we had a write lock then we need to update the bulkdata with the copy as we have
-			// to assume that it contains changes. This means we will no longer be storing it 
-			// in a compressed format.
-			// If the lock was read only then we can just delete the locked mip data as we know
-			// that there were no changes to the data.
-			if (LockState == ELockState::ReadWrite)
-			{
-				UE_CLOG(CompressionFormat == TSCF_JPEG, LogTexture, Warning, TEXT("Call to FTextureSource::UnlockMip will cause texture source to lose it's jpeg storage format"));
-
-				check(BlockIndex == 0);
-				check(LayerIndex == 0);
-				check(MipIndex == 0);
-				int32 MipSize = CalcMipSize(0, 0, 0);
-
-				uint8* UncompressedData = (uint8*)BulkData.Realloc(MipSize);
-				FMemory::Memcpy(UncompressedData, LockedMipData.GetDataReadOnly().GetData(), MipSize);
-
-				bPNGCompressed = false;
-				CompressionFormat = TSCF_None;
-			}
-		}
-
-		BulkData.Unlock();	
-#endif //UE_USE_VIRTUALBULKDATA
 
 		LockState = ELockState::None;
 		LockedMipData.Reset();
 
-		// TODO: Only call this if the LockState was ELockState::ReadWrite
+		// TODO: Only call this if the LockState was ELockState::ReadWrite (this would need testing)
 		ForceGenerateGuid();
 	}
 }
@@ -1465,7 +1371,7 @@ bool FTextureSource::GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, i
 
 	bool bSuccess = false;
 
-	if (BlockIndex < GetNumBlocks() && LayerIndex < NumLayers && MipIndex < NumMips && GetSizeOnDisk() > 0)
+	if (BlockIndex < GetNumBlocks() && LayerIndex < NumLayers && MipIndex < NumMips && HasPayloadData())
 	{
 #if WITH_EDITOR
 		FWriteScopeLock BulkDataExclusiveScope(BulkDataLock.Get());
@@ -1474,9 +1380,9 @@ bool FTextureSource::GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, i
 		checkf(NumLockedMips == 0, TEXT("Attempting to access a locked FTextureSource"));
 		// LockedMipData should only be allocated if NumLockedMips > 0 so the following assert should have been caught
 		// by the one above. If it fires then it indicates that there is a lock/unlock mismatch as well as invalid access!
-		checkf(LockedMipData.IsNull(), TEXT("Attempting to access mip data while locked mip data is still allocated")); 
+		checkf(LockedMipData.IsNull(), TEXT("Attempting to access mip data while locked mip data is still allocated"));
 
-		FMipAllocation DecompressedData = Decompress(ImageWrapperModule);
+		FSharedBuffer DecompressedData = Decompress(ImageWrapperModule);
 
 		if (!DecompressedData.IsNull())
 		{
@@ -1489,17 +1395,13 @@ bool FTextureSource::GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, i
 				OutMipData.AddUninitialized(MipSize);
 				FMemory::Memcpy(
 					OutMipData.GetData(),
-					(const uint8*)DecompressedData.GetDataReadOnly().GetData() + MipOffset,
+					(const uint8*)DecompressedData.GetData() + MipOffset,
 					MipSize
 				);
 
 				bSuccess = true;
 			}
-		}
-
-#if !UE_USE_VIRTUALBULKDATA
-		BulkData.Unlock();
-#endif //!UE_USE_VIRTUALBULKDATA		
+		}	
 	}
 	
 	return bSuccess;
@@ -1515,16 +1417,11 @@ FTextureSource::FMipData FTextureSource::GetMipData(IImageWrapperModule* ImageWr
 	check(NumLockedMips == 0);
 
 #if WITH_EDITOR
-	// When UE_USE_VIRTUALBULKDATA is removed, replace this with a FReadScopeLock,
-	// we only need the expanded scope for old style bulkdata
-	BulkDataLock.Get().ReadLock();
+	FReadScopeLock _(BulkDataLock.Get());
+#endif //WITH_EDITOR
 
-	FMipAllocation DecompressedData = Decompress(ImageWrapperModule);
-	return FMipData(*this, MoveTemp(DecompressedData), &BulkDataLock.Get());
-#else
-	FMipAllocation DecompressedData = Decompress(ImageWrapperModule);
-	return FMipData(*this, MoveTemp(DecompressedData));
-#endif
+	FSharedBuffer DecompressedData = Decompress(ImageWrapperModule);
+	return FMipData(*this, DecompressedData);
 }
 
 int64 FTextureSource::CalcMipSize(int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const
@@ -1554,7 +1451,7 @@ bool FTextureSource::IsPowerOfTwo(int32 BlockIndex) const
 bool FTextureSource::IsValid() const
 {
 	return SizeX > 0 && SizeY > 0 && NumSlices > 0 && NumLayers > 0 && NumMips > 0 &&
-		Format != TSF_Invalid && GetSizeOnDisk() > 0;
+		Format != TSF_Invalid && HasPayloadData();
 }
 
 void FTextureSource::GetBlock(int32 Index, FTextureSourceBlock& OutBlock) const
@@ -1636,16 +1533,12 @@ FString FTextureSource::GetSourceCompressionAsString() const
 	return StaticEnum<ETextureSourceCompressionFormat>()->GetDisplayNameTextByValue(GetSourceCompression()).ToString();
 }
 
-FTextureSource::FMipAllocation FTextureSource::TryDecompressPngData(IImageWrapperModule* ImageWrapperModule) UE_VBD_CONST
+FSharedBuffer FTextureSource::TryDecompressPngData(IImageWrapperModule* ImageWrapperModule) const
 {
 	bool bCanPngCompressFormat = (Format == TSF_G8 || Format == TSF_G16 || Format == TSF_RGBA8 || Format == TSF_BGRA8 || Format == TSF_RGBA16);
 	check(Blocks.Num() == 0 && NumLayers == 1 && NumSlices == 1 && bCanPngCompressFormat);
 
-#if UE_USE_VIRTUALBULKDATA
-	FMipAllocation Payload(BulkData.GetPayload().Get());
-#else
-	FMipAllocation Payload(BulkData);
-#endif //UE_USE_VIRTUALBULKDATA
+	FSharedBuffer Payload = BulkData.GetPayload().Get();
 
 	if (ImageWrapperModule == nullptr) // Optional if called from the gamethread, see FModuleManager::WarnIfItWasntSafeToLoadHere()
 	{
@@ -1653,8 +1546,10 @@ FTextureSource::FMipAllocation FTextureSource::TryDecompressPngData(IImageWrappe
 	}
 
 	TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule->CreateImageWrapper(EImageFormat::PNG);
-	if (ImageWrapper.IsValid() && ImageWrapper->SetCompressed(Payload.GetDataReadOnly().GetData(), Payload.GetSize()))
+	if (ImageWrapper.IsValid() && ImageWrapper->SetCompressed(Payload.GetData(), Payload.GetSize()))
 	{
+		Payload.Reset(); // Image wrapper takes a copy so we can discard the payload now
+
 		check(ImageWrapper->GetWidth() == SizeX);
 		check(ImageWrapper->GetHeight() == SizeY);
 
@@ -1662,23 +1557,23 @@ FTextureSource::FMipAllocation FTextureSource::TryDecompressPngData(IImageWrappe
 		// TODO: TSF_BGRA8 is stored as RGBA, so the R and B channels are swapped in the internal png. Should we fix this?
 		ERGBFormat RawFormat = (Format == TSF_G8 || Format == TSF_G16) ? ERGBFormat::Gray : ERGBFormat::RGBA;
 		if (ImageWrapper->GetRaw(RawFormat, (Format == TSF_G16 || Format == TSF_RGBA16) ? 16 : 8, RawData) && RawData.Num() > 0)
-		{
-			return FMipAllocation(RawData.GetData(), RawData.Num());
+		{		
+			return MakeSharedBufferFromArray(MoveTemp(RawData));
 		}
 		else
 		{
 			UE_LOG(LogTexture, Warning, TEXT("PNG decompression of source art failed"));
-			return FMipAllocation();
+			return FSharedBuffer();
 		}
 	}
 	else
 	{
 		UE_LOG(LogTexture, Log, TEXT("Only pngs are supported"));
-		return FMipAllocation();
+		return FSharedBuffer();
 	}
 }
 
-FTextureSource::FMipAllocation FTextureSource::TryDecompressJpegData(IImageWrapperModule* ImageWrapperModule) UE_VBD_CONST
+FSharedBuffer FTextureSource::TryDecompressJpegData(IImageWrapperModule* ImageWrapperModule) const
 {
 	if (NumLayers == 1 && NumSlices == 1 && Blocks.Num() == 0)
 	{
@@ -1687,39 +1582,37 @@ FTextureSource::FMipAllocation FTextureSource::TryDecompressJpegData(IImageWrapp
 			ImageWrapperModule = &FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
 		}
 
-#if UE_USE_VIRTUALBULKDATA
-		FMipAllocation Payload(BulkData.GetPayload().Get());
-#else
-		FMipAllocation Payload(BulkData);
-#endif //UE_USE_VIRTUALBULKDATA
+		FSharedBuffer Payload = BulkData.GetPayload().Get();
 
 		TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule->CreateImageWrapper(EImageFormat::JPEG);
-		if (ImageWrapper.IsValid() && ImageWrapper->SetCompressed(Payload.GetDataReadOnly().GetData(), Payload.GetSize()))
+		if (ImageWrapper.IsValid() && ImageWrapper->SetCompressed(Payload.GetData(), Payload.GetSize()))
 		{
+			Payload.Reset(); // Image wrapper takes a copy so we can discard the payload now
+
 			TArray64<uint8> RawData;
 			// The two formats we support for JPEG imports, see UTextureFactory::ImportImage
 			const ERGBFormat JpegFormat = Format == TSF_G8 ? ERGBFormat::Gray : ERGBFormat::BGRA;
 			if (ImageWrapper->GetRaw(JpegFormat, 8, RawData))
 			{
-				return FMipAllocation(RawData.GetData(), RawData.Num());
+				return MakeSharedBufferFromArray(MoveTemp(RawData));
 			}
 			else
 			{
 				UE_LOG(LogTexture, Warning, TEXT("JPEG decompression of source art failed to return uncompressed data"));
-				return FMipAllocation();
+				return FSharedBuffer();
 			}
 		}
 		else
 		{
 			UE_LOG(LogTexture, Warning, TEXT("JPEG decompression of source art failed initialization"));
-			return FMipAllocation();
+			return FSharedBuffer();
 		}
 	}
 	else
 	{
 		UE_LOG(LogTexture, Warning, TEXT("JPEG compressed source art is in an invalid format NumLayers:(%d) NumSlices:(%d) NumBlocks:(%d)"),
 			NumLayers, NumSlices, Blocks.Num());
-		return FMipAllocation();
+		return FSharedBuffer();
 	}	
 }
 
@@ -1734,7 +1627,7 @@ bool FTextureSource::CanPNGCompress() const
 		Blocks.Num() == 0 &&
 		SizeX > 4 &&
 		SizeY > 4 &&
-		GetSizeOnDisk() > 0 &&
+		HasPayloadData() &&
 		bCanPngCompressFormat &&
 		CompressionFormat == TSCF_None)
 	{
@@ -1752,16 +1645,7 @@ void FTextureSource::ForceGenerateGuid()
 void FTextureSource::ReleaseSourceMemory()
 {
 	bHasHadBulkDataCleared = true;
-
-#if UE_USE_VIRTUALBULKDATA
 	BulkData.UnloadData();
-#else
-	if (BulkData.IsLocked())
-	{
-		BulkData.Unlock();
-	}
-	BulkData.RemoveBulkData();
-#endif //UE_USE_VIRTUALBULKDATA
 }
 
 void FTextureSource::RemoveSourceData()
@@ -1779,16 +1663,8 @@ void FTextureSource::RemoveSourceData()
 	LockedMipData.Reset();
 	NumLockedMips = 0u;
 	LockState = ELockState::None;
-
-#if UE_USE_VIRTUALBULKDATA
+	
 	BulkData.UnloadData();
-#else
-	if (BulkData.IsLocked())
-	{
-		BulkData.Unlock();
-	}
-	BulkData.RemoveBulkData();
-#endif //UE_USE_VIRTUALBULKDATA
 
 	ForceGenerateGuid();
 }
@@ -1858,21 +1734,10 @@ int64 FTextureSource::CalcMipOffset(int32 BlockIndex, int32 LayerIndex, int32 Mi
 
 void FTextureSource::UseHashAsGuid()
 {
-	if (GetSizeOnDisk() > 0)
+	if (HasPayloadData())
 	{
 		bGuidIsHash = true;
-
-#if UE_USE_VIRTUALBULKDATA
 		Id = BulkData.GetPayloadId().ToGuid();
-#else
-		uint32 Hash[5] = {};
-
-		const void* Buffer = BulkData.LockReadOnly();
-		FSHA1::HashBuffer(Buffer, BulkData.GetBulkDataSize(), (uint8*)Hash);
-		BulkData.Unlock();
-
-		Id = FGuid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]);
-#endif //UE_USE_VIRTUALBULKDATA
 	}
 	else
 	{
@@ -1888,17 +1753,8 @@ void FTextureSource::OperateOnLoadedBulkData(TFunctionRef<void(const FSharedBuff
 	FReadScopeLock BulkDataExclusiveScope(BulkDataLock.Get());
 #endif
 
-#if UE_USE_VIRTUALBULKDATA
 	FSharedBuffer Payload = BulkData.GetPayload().Get();
-#else
-	uint8* BulkDataPtr = (uint8*)BulkData.Lock(LOCK_READ_ONLY);
-	const int64 BulkDataSize = BulkData.GetBulkDataSize();
-	FSharedBuffer Payload = FSharedBuffer::MakeView(BulkDataPtr, BulkDataSize);
-#endif //UE_USE_VIRTUALBULKDATA
 	Operation(Payload);
-#if !UE_USE_VIRTUALBULKDATA
-	BulkData.Unlock();
-#endif //!UE_USE_VIRTUALBULKDATA
 }
 
 void FTextureSource::SetId(const FGuid& InId, bool bInGuidIsHash)
@@ -2306,23 +2162,10 @@ void UTexture::NotifyMaterials(const ENotifyMaterialsEffectOnShaders EffectOnSha
 
 #if WITH_EDITOR
 
-FTextureSource::FMipData::FMipData(const FTextureSource& InSource, FMipAllocation&& InMipData, FRWLock* InReadLock)
+FTextureSource::FMipData::FMipData(const FTextureSource& InSource, FSharedBuffer InData)
 	: TextureSource(InSource)
-	, MipData(MoveTemp(InMipData))
-	, ReadLock(InReadLock)
+	, MipData(InData)
 {
-}
-
-FTextureSource::FMipData::~FMipData()
-{
-#if !UE_USE_VIRTUALBULKDATA
-	TextureSource.BulkData.Unlock();
-#endif //!UE_USE_VIRTUALBULKDATA
-
-	if (ReadLock != nullptr)
-	{
-		ReadLock->ReadUnlock();
-	}
 }
 
 bool FTextureSource::FMipData::GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const
@@ -2338,7 +2181,7 @@ bool FTextureSource::FMipData::GetMipData(TArray64<uint8>& OutMipData, int32 Blo
 			OutMipData.AddUninitialized(MipSize);
 			FMemory::Memcpy(
 				OutMipData.GetData(),
-				(const uint8*)MipData.GetDataReadOnly().GetData() + MipOffset,
+				(const uint8*)MipData.GetData() + MipOffset,
 				MipSize
 			);
 		}

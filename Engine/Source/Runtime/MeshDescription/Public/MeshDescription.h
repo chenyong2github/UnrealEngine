@@ -1290,9 +1290,6 @@ public:
 		: bBulkDataUpdated(false)
 		, bGuidIsHash(false)
 	{
-#if !UE_USE_VIRTUALBULKDATA
-		BulkData.SetBulkDataFlags(BULKDATA_SerializeCompressed | BULKDATA_SerializeCompressedBitWindow);
-#endif //!UE_USE_VIRTUALBULKDATA
 	}
 
 	/** Serialization */
@@ -1308,7 +1305,7 @@ public:
 	void Empty();
 
 	/** Returns true if there is no bulk data available */
-	bool IsEmpty() const { return BulkData.GetBulkDataSize() == 0; }
+	bool IsEmpty() const { return BulkData.GetPayloadSize() == 0; }
 
 	/** Return unique ID string for this bulk data */
 	FString GetIdString() const;
@@ -1317,7 +1314,7 @@ public:
 	void UseHashAsGuid();
 
 	/** Gets the size of the serialized bulk data */
-	int64 GetBulkDataSize() { return BulkData.GetBulkDataSize(); }
+	int64 GetBulkDataSize() { return BulkData.GetPayloadSize(); }
 
 private:
 #if WITH_EDITOR
@@ -1325,7 +1322,7 @@ private:
 	FRWLock       BulkDataLock;
 #endif
 	/** Internally store bulk data as bytes */
-	TChooseClass<UE_USE_VIRTUALBULKDATA, UE::Virtualization::FByteVirtualizedBulkData, FByteBulkData>::Result BulkData;
+	UE::Virtualization::FByteVirtualizedBulkData BulkData;
 
 	/** GUID associated with the data stored herein. */
 	FGuid Guid;

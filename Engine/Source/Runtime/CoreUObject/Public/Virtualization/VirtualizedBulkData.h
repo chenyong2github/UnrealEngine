@@ -3,11 +3,12 @@
 #pragma once
 
 #include "Async/Future.h"
+#include "Compression/CompressedBuffer.h"
 #include "HAL/Platform.h"
 #include "Memory/SharedBuffer.h"
 #include "Misc/Guid.h"
 #include "Misc/PackagePath.h"
-#include "Virtualization/VirtualizationManager.h"
+#include "Virtualization/PayloadId.h"
 
 class FArchive;
 class UObject;
@@ -67,19 +68,14 @@ public:
 	 */
 	void CreateFromBulkData(FUntypedBulkData& BulkData, const FGuid& Guid);
 
-#if UE_VBD_TO_OLD_BULKDATA_PATH
-	/**
-	 * Convenience method to make it easier to convert from FVirtualizedBulkData to BulkData. This is not very
-	 * efficient as it will load the payload from disk and the old bulkdata object will hold it in memory. It 
-	 * is provided in case virtualized bulkdata needs to be disabled once it goes live and we need a way to 
-	 * re-save packages back to the older format.
+	/** 
+	 * Used to serialize the bulkdata to/from a FArchive
 	 * 
-	 * @param BulkData	The bulkdata object to be provided with the payload that the virtualized bulkdata object
-	 *					represents.
+	 * @param Ar	The archive to serialize the bulkdata.
+	 * @param Owner	The UObject that contains the bulkdata object, if this is a nullptr then the bulkdata will
+	 *				assume that it must serialize the payload immediately to memory as it will not be able to
+	 *				identify it's package path.
 	 */
-	void ConvertToOldBulkData(FUntypedBulkData& BulkData);
-#endif //UE_VBD_TO_OLD_BULKDATA_PATH
-
 	void Serialize(FArchive& Ar, UObject* Owner);
 
 	/** Reset to a truly empty state */
@@ -100,14 +96,14 @@ public:
 	 */
 	FGuid GetIdentifier() const;
 
-	/** Returns an unique identifier for the content of the payload */
+	/** Returns an unique identifier for the content of the payload. */
 	const FPayloadId& GetPayloadId() const { return PayloadContentId; }
 
-	/** Returns the size of the payload in bytes */
+	/** Returns the size of the payload in bytes. */
 	int64 GetPayloadSize() const { return PayloadSize; }
-	
-	/** Temp method, to make it easier to transition older code to virtualized bulkdata, remove when we remove UE_USE_VIRTUALBULKDATA */
-	FORCEINLINE int64 GetBulkDataSize() const { return GetPayloadSize(); }
+
+	/** Returns true if the bulkdata object contains a valid payload greater than zero bytes in size. */
+	bool HasPayloadData() const { return PayloadSize > 0; }
 
 	// TODO: This (IsDataLoaded) is only needed for TextureDerivedData.cpp (which assumes that the data 
 	// needs to be loaded in order to be able to run on a background thread. Since FVirtualizedUntypedBulkData 
@@ -137,14 +133,35 @@ public:
 	 * by using 'FSharedBuffer::MakeView') then a clone of the data will be created internally and assigned
 	 * to the bulkdata object.
 	 *
-	 * @param InPayload The payload to update the bulkdata with
-	 * @param CompressionFormat (optional) The compression format to use, NAME_None indicates that the
-	 * payload is already in a compressed format and will not gain from being compressed again. These
-	 * payloads will never be compressed. NAME_Default will apply which ever compression format that the
-	 * underlying code deems appropriate. Other specific compression formats may be allowed, see the
-	 * documentation of FCompressedBuffer for details.
+	 * @param InPayload				The payload to update the bulkdata with
+	 * @param InCompressionFormat	The compression format to use, NAME_None indicates that the
+	 *								payload is already in a compressed format and will not gain from being 
+	 *								compressed again. These payloads will never be compressed. NAME_Default 
+	 *								will apply whichever compression format that the underlying code deems 
+	 *								appropriate. Other specific compression formats may be allowed, see the 
+	 *								documentation of FCompressedBuffer for details.
 	 */
 	void UpdatePayload(FSharedBuffer InPayload, FName CompressionFormat = NAME_Default);
+
+	/** 
+	 * Allows the compression format to be specified that will be applied the next time that the bulkdata
+	 * is saved. For non-virtualized payloads this will occur when the package is next saved. For 
+	 * virtualized payloads this will only ever be applied when it is pushed to the local cache. If the
+	 * payload has already been pushed to long term storage backends then the compression is not likely to
+	 * be changed.
+	 * 
+	 * This method is only exposed as part of the public api so that a long standing bug with FTextureSource
+	 * where older textures may have been saved with the wrong compression setting that needs to be fixed. 
+	 * There shouldn't generally be a need to call this.
+	 * 
+	 * @param InCompressionFormat	The compression format to use, NAME_None indicates that the
+	 *								payload is already in a compressed format and will not gain from being
+	 *								compressed again. These payloads will never be compressed. NAME_Default
+	 *								will apply whichever compression format that the underlying code deems
+	 *								appropriate. Other specific compression formats may be allowed, see the
+	 *								documentation of FCompressedBuffer for details.
+	 */
+	void SetCompressionFormat(FName InCompressionFormat);
 
 	/**
 	* Get the CustomVersions used in the file containing the payload. Currently this is assumed

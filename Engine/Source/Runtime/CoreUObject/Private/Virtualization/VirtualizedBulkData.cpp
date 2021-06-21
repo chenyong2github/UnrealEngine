@@ -14,6 +14,7 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectSaveContext.h"
 #include "Virtualization/IVirtualizationSourceControlUtilities.h"
+#include "Virtualization/VirtualizationManager.h"
 
 //#if WITH_EDITORONLY_DATA
 
@@ -156,36 +157,6 @@ void FVirtualizedUntypedBulkData::CreateFromBulkData(FUntypedBulkData& InBulkDat
 		EnumAddFlags(Flags, EFlags::LegacyKeyWasGuidDerived);
 	}
 }
-
-#if UE_VBD_TO_OLD_BULKDATA_PATH
-void FVirtualizedUntypedBulkData::ConvertToOldBulkData(FUntypedBulkData& BulkData)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::ConvertToOldBulkData);
-
-	FSharedBuffer UncompressedPayload = GetDataInternal().Decompress();
-
-	checkf(!IsDataVirtualized(), TEXT("Trying to convert data that has been virtualized, this system should've been removed before this could occur!"));
-	checkf(UncompressedPayload.GetSize() % BulkData.GetElementSize() == 0, TEXT("Payload does not match the element size for bulkdata!"));
-
-	const int64 ElementCount = UncompressedPayload.GetSize() / BulkData.GetElementSize();
-
-	BulkData.Lock(LOCK_READ_WRITE);
-
-	// It would be faster if we could 'release' the FSharedBuffer data to bulkdata but neither API supports
-	// this sort of thing. Give this is throw away code that we don't expect to have run it is not worth 
-	// adding support if this is the only usecase.
-	void* BulkDataPtr = BulkData.Realloc(ElementCount);
-	FMemory::Memcpy(BulkDataPtr, UncompressedPayload.GetData(), UncompressedPayload.GetSize());
-
-	BulkData.Unlock();
-
-	// If the virtual bulkdata has not disabled compression we should apply it to the old bulkdata
-	if (!EnumHasAnyFlags(Flags, EFlags::DisablePayloadCompression))
-	{
-		BulkData.StoreCompressedOnDisk(NAME_Zlib);
-	}
-}
-#endif // UE_VBD_TO_OLD_BULKDATA_PATH
 
 void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
 {
@@ -643,7 +614,7 @@ bool FVirtualizedUntypedBulkData::SerializeData(FArchive& Ar, FCompressedBuffer&
 	}
 	else if (Ar.IsLoading()) // Loading from old bulkdata format
 	{
-		const int64 Size = GetBulkDataSize();
+		const int64 Size = GetPayloadSize();
 		FUniqueBuffer LoadPayload = FUniqueBuffer::Alloc(Size);
 
 		if (EnumHasAnyFlags(PayloadFlags, EFlags::LegacyFileIsCompressed))
@@ -853,14 +824,8 @@ void FVirtualizedUntypedBulkData::UpdatePayload(FSharedBuffer InPayload, FName I
 							EFlags::LegacyFileIsCompressed |
 							EFlags::LegacyKeyWasGuidDerived);
 
-	//TODO: Should we validate now or let FCompressedBuffer do that later?
-	CompressionFormatToUse = InCompressionFormat;
-
-	if (InCompressionFormat == NAME_None)
-	{
-		EnumAddFlags(Flags, EFlags::DisablePayloadCompression);
-	}
-
+	SetCompressionFormat(InCompressionFormat);
+	
 	PackagePath.Empty();
 	PackageSegment = EPackageSegment::Header;
 	OffsetInFile = INDEX_NONE;
@@ -871,6 +836,17 @@ void FVirtualizedUntypedBulkData::UpdatePayload(FSharedBuffer InPayload, FName I
 	}
 
 	PayloadContentId = FPayloadId(Payload);
+}
+
+void FVirtualizedUntypedBulkData::SetCompressionFormat(FName InCompressionFormat)
+{
+	//TODO: Should we validate now or let FCompressedBuffer do that later?
+	CompressionFormatToUse = InCompressionFormat;
+
+	if (InCompressionFormat == NAME_None)
+	{
+		EnumAddFlags(Flags, EFlags::DisablePayloadCompression);
+	}
 }
 
 FCustomVersionContainer FVirtualizedUntypedBulkData::GetCustomVersions(FArchive& InlineArchive)

@@ -2008,28 +2008,13 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 	FByteBulkData TempBulkData;
 	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::MeshDescriptionVirtualization)
 	{
-#if UE_USE_VIRTUALBULKDATA
 		// Serialize the old BulkData format and mark that we require a conversion after the guid has been serialized
 		TempBulkData.Serialize(Ar, Owner);
 		bSerializedOldDataTypes = true;
-#else
-		BulkData.Serialize(Ar, Owner);
-#endif //UE_USE_VIRTUALBULKDATA
 	}
 	else
 	{
-#if !UE_USE_VIRTUALBULKDATA && UE_VBD_TO_OLD_BULKDATA_PATH
-		if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::DisabledVirtualization)
-		{
-			UE::Virtualization::FByteVirtualizedBulkData TempVirtualBulkData;
-			TempVirtualBulkData.Serialize(Ar, Owner);
-			TempVirtualBulkData.ConvertToOldBulkData(BulkData);
-		}
-		else
-#endif // !UE_USE_VIRTUALBULKDATA && UE_VBD_TO_OLD_BULKDATA_PATH
-		{
-			BulkData.Serialize(Ar, Owner);
-		}
+		BulkData.Serialize(Ar, Owner);
 	}
 
 	if( Ar.IsLoading() && Ar.CustomVer( FEditorObjectVersion::GUID ) < FEditorObjectVersion::MeshDescriptionBulkDataGuid )
@@ -2058,13 +2043,11 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 		CustomVersions = BulkData.GetCustomVersions(Ar);
 	}
 
-#if UE_USE_VIRTUALBULKDATA
 	// Needs to be after the guid is serialized
 	if (bSerializedOldDataTypes)
 	{
 		BulkData.CreateFromBulkData(TempBulkData, Guid);
 	}
-#endif //UE_USE_VIRTUALBULKDATA
 }
 
 
@@ -2076,21 +2059,12 @@ void FMeshDescriptionBulkData::SaveMeshDescription( FMeshDescription& MeshDescri
 	FRWScopeLock ScopeLock(BulkDataLock, SLT_Write);
 #endif
 
-#if UE_USE_VIRTUALBULKDATA
 	BulkData.Reset();
-#else
-	BulkData.RemoveBulkData();
-#endif //UE_USE_VIRTUALBULKDATA
 
 	if( !MeshDescription.IsEmpty() )
 	{
 		const bool bIsPersistent = true;
-#if UE_USE_VIRTUALBULKDATA
 		UE::Virtualization::FVirtualizedBulkDataWriter Ar(BulkData, bIsPersistent);
-#else
-		FBulkDataWriter Ar(BulkData, bIsPersistent);
-#endif //UE_USE_VIRTUALBULKDATA
-
 		Ar << MeshDescription;
 
 		// Preserve CustomVersions at save time so we can reuse the same ones when reloading direct from memory
@@ -2117,7 +2091,6 @@ void FMeshDescriptionBulkData::LoadMeshDescription( FMeshDescription& MeshDescri
 
 	MeshDescription.Empty();
 
-#if UE_USE_VIRTUALBULKDATA
 	if (BulkData.GetPayloadSize() > 0)
 	{
 #if WITH_EDITOR
@@ -2136,55 +2109,11 @@ void FMeshDescriptionBulkData::LoadMeshDescription( FMeshDescription& MeshDescri
 
 		BulkData.UnloadData();
 	}
-#else
-	if (BulkData.GetBulkDataSize() > 0)
-	{
-		// Get a lock on the bulk data and read it into the mesh description
-#if WITH_EDITOR
-		// A lock is required so we can clone the mesh description from multiple threads
-		FRWScopeLock ScopeLock(BulkDataLock, SLT_Write);
-
-		// This allows any thread to be able to clone a mesh description directly
-		// from disk so we can unload bulk data from memory.
-		bool bHasBeenLoadedFromFileReader = false;
-		if (BulkData.IsAsyncLoadingComplete() && !BulkData.IsBulkDataLoaded())
-		{
-			// This will return false under -game mode for now because we're not allowed to load bulk data outside of EDL.
-			bHasBeenLoadedFromFileReader = BulkData.LoadBulkDataWithFileReader();
-		}
-#endif //WITH_EDITOR
-		// This is in a scope because the FBulkDataReader need to be destroyed in order
-		// to unlock the BulkData and allow UnloadBulkData to actually do its job.
-		{
-			const bool bIsPersistent = true;
-			FBulkDataReader Ar(BulkData, bIsPersistent);
-
-			// Propagate the custom version information from the package to the bulk data, so that the MeshDescription
-			// is serialized with the same versioning.
-			Ar.SetCustomVersions( CustomVersions );
-			Ar << MeshDescription;
-		} // Unlock bulk data when we leave scope
-
-#if WITH_EDITOR
-		// Throw away the bulk data allocation only in the case we can safely reload it from disk
-		// and if BulkData.LoadBulkDataWithFileReader() is allowed to work from any thread.
-		// This saves a significant amount of memory during map loading of Nanite Meshes.
-		if (bHasBeenLoadedFromFileReader)
-		{
-			verify(BulkData.UnloadBulkData());
-		}
-#endif //WITH_EDITOR
-	}
-#endif // UE_USE_VIRTUALBULKDATA
 }
 
 void FMeshDescriptionBulkData::Empty()
 {
-#if UE_USE_VIRTUALBULKDATA
 	BulkData.Reset();
-#else
-	BulkData.RemoveBulkData();
-#endif //UE_USE_VIRTUALBULKDATA
 }
 
 FString FMeshDescriptionBulkData::GetIdString() const
@@ -2199,19 +2128,9 @@ FString FMeshDescriptionBulkData::GetIdString() const
 
 FGuid FMeshDescriptionBulkData::GetHash() const
 {
-	if (BulkData.GetBulkDataSize() > 0)
+	if (BulkData.GetPayloadSize() > 0)
 	{
-#if UE_USE_VIRTUALBULKDATA
 		return BulkData.GetPayloadId().ToGuid();
-#else
-		uint32 Hash[5] = {};
-
-		const void* Buffer = BulkData.LockReadOnly();
-		FSHA1::HashBuffer(Buffer, BulkData.GetBulkDataSize(), (uint8*)Hash);
-		BulkData.Unlock();
-
-		return FGuid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]);
-#endif //UE_USE_VIRTUALBULKDATA
 	}
 
 	return FGuid();
@@ -2219,7 +2138,7 @@ FGuid FMeshDescriptionBulkData::GetHash() const
 
 void FMeshDescriptionBulkData::UseHashAsGuid()
 {
-	if (BulkData.GetBulkDataSize() > 0)
+	if (BulkData.GetPayloadSize() > 0)
 	{
 		bGuidIsHash = true;
 
