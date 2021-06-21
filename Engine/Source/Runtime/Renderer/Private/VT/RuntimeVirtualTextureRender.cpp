@@ -504,7 +504,8 @@ namespace RuntimeVirtualTexture
 				}
 			}
 
-			FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene->Primitives[PrimitiveIndex];
+			FPrimitiveSceneInfo* RESTRICT PrimitiveSceneInfo = Scene->Primitives[PrimitiveIndex];
+			FMeshDrawCommandPrimitiveIdInfo IdInfo(PrimitiveIndex, PrimitiveSceneInfo->GetInstanceSceneDataOffset());
 
 			// Calculate Lod for current mip
 			const float AreaRatio = 2.f * SphereBounds.W * RcpWorldSize;
@@ -536,8 +537,7 @@ namespace RuntimeVirtualTexture
 							FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
 							NewVisibleMeshDrawCommand.Setup(
 								MeshDrawCommand,
-								PrimitiveIndex,
-								PrimitiveIndex,
+								IdInfo,
 								CachedMeshDrawCommand.StateBucketId,
 								CachedMeshDrawCommand.MeshFillMode,
 								CachedMeshDrawCommand.MeshCullMode,

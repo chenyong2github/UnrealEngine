@@ -1211,6 +1211,46 @@ enum class EFVisibleMeshDrawCommandFlags : uint8
 ENUM_CLASS_FLAGS(EFVisibleMeshDrawCommandFlags);
 static_assert(uint32(EFVisibleMeshDrawCommandFlags::All) < (1U << uint32(EFVisibleMeshDrawCommandFlags::NumBits)), "EFVisibleMeshDrawCommandFlags::NumBits too small to represent all flags in EFVisibleMeshDrawCommandFlags.");
 
+/**
+ * Container for primtive ID info that needs to be passed around, in the future will likely be condensed to just the instance ID.
+ */
+struct FMeshDrawCommandPrimitiveIdInfo
+{
+	FORCEINLINE FMeshDrawCommandPrimitiveIdInfo() {};
+
+	// Use this ctor when DrawPrimitiveId == ScenePrimitiveId (i.e., for scene primitives)
+	FORCEINLINE FMeshDrawCommandPrimitiveIdInfo(int32 InScenePrimitiveId, int32 InInstanceSceneDataOffset) :
+		DrawPrimitiveId(InScenePrimitiveId),
+		ScenePrimitiveId(InScenePrimitiveId),
+		InstanceSceneDataOffset(InInstanceSceneDataOffset),
+		bIsDynamicPrimitive(0)
+	{
+	}
+
+	// Use this ctor when DrawPrimitiveId may be != ScenePrimitiveId (i.e., for dynamic primitives like editor widgets)
+	FORCEINLINE FMeshDrawCommandPrimitiveIdInfo(int32 InDrawPrimitiveId, int32 InScenePrimitiveId, int32 InInstanceSceneDataOffset) :
+		DrawPrimitiveId(InDrawPrimitiveId),
+		ScenePrimitiveId(InScenePrimitiveId),
+		InstanceSceneDataOffset(InInstanceSceneDataOffset),
+		bIsDynamicPrimitive(0)
+	{
+	}
+
+	// Draw PrimitiveId this draw command is associated with - used by the shader to fetch primitive data from the PrimitiveSceneData SRV.
+	// If it's < Scene->Primitives.Num() then it's a valid Scene PrimitiveIndex and can be used to backtrack to the FPrimitiveSceneInfo.
+	int32 DrawPrimitiveId;
+
+	// Scene PrimitiveId that generated this draw command, or -1 if no FPrimitiveSceneInfo. Can be used to backtrack to the FPrimitiveSceneInfo.
+	int32 ScenePrimitiveId;
+
+	// Offset to the first instance belonging to the primitive in GPU scene
+	int32 InstanceSceneDataOffset : 31;
+	
+	// Set to true if the primitive ID and instance data offset is a dynamic ID, which means it needs to be translated before use.
+	uint32 bIsDynamicPrimitive : 1;
+};
+
+
 /** Interface for the different types of draw lists. */
 class FMeshPassDrawListContext
 {
@@ -1223,8 +1263,7 @@ public:
 	virtual void FinalizeCommand(
 		const FMeshBatch& MeshBatch, 
 		int32 BatchElementIndex,
-		int32 DrawPrimitiveId,
-		int32 ScenePrimitiveId,
+		const FMeshDrawCommandPrimitiveIdInfo& IdInfo,
 		ERasterizerFillMode MeshFillMode,
 		ERasterizerCullMode MeshCullMode,
 		FMeshDrawCommandSortKey SortKey,
@@ -1254,8 +1293,7 @@ public:
 
 	FORCEINLINE_DEBUGGABLE void Setup(
 		const FMeshDrawCommand* InMeshDrawCommand,
-		int32 InDrawPrimitiveId,
-		int32 InScenePrimitiveId,
+		const FMeshDrawCommandPrimitiveIdInfo& InPrimitiveIdInfo,
 		int32 InStateBucketId,
 		ERasterizerFillMode InMeshFillMode,
 		ERasterizerCullMode InMeshCullMode,
@@ -1265,8 +1303,7 @@ public:
 		int32 InNumRuns = 0)
 	{
 		MeshDrawCommand = InMeshDrawCommand;
-		DrawPrimitiveId = InDrawPrimitiveId;
-		ScenePrimitiveId = InScenePrimitiveId;
+		PrimitiveIdInfo = InPrimitiveIdInfo;
 		PrimitiveIdBufferOffset = -1;
 		StateBucketId = InStateBucketId;
 		MeshFillMode = InMeshFillMode;
@@ -1283,12 +1320,7 @@ public:
 	// Sort key for non state based sorting (e.g. sort translucent draws by depth).
 	FMeshDrawCommandSortKey SortKey;
 
-	// Draw PrimitiveId this draw command is associated with - used by the shader to fetch primitive data from the PrimitiveSceneData SRV.
-	// If it's < Scene->Primitives.Num() then it's a valid Scene PrimitiveIndex and can be used to backtrack to the FPrimitiveSceneInfo.
-	int32 DrawPrimitiveId;
-
-	// Scene PrimitiveId that generated this draw command, or -1 if no FPrimitiveSceneInfo. Can be used to backtrack to the FPrimitiveSceneInfo.
-	int32 ScenePrimitiveId;
+	FMeshDrawCommandPrimitiveIdInfo PrimitiveIdInfo;
 
 	// Offset into the buffer of PrimitiveIds built for this pass, in int32's.
 	int32 PrimitiveIdBufferOffset;
@@ -1366,8 +1398,7 @@ public:
 	virtual void FinalizeCommand(
 		const FMeshBatch& MeshBatch, 
 		int32 BatchElementIndex,
-		int32 DrawPrimitiveId,
-		int32 ScenePrimitiveId,
+		const FMeshDrawCommandPrimitiveIdInfo &IdInfo,
 		ERasterizerFillMode MeshFillMode,
 		ERasterizerCullMode MeshCullMode,
 		FMeshDrawCommandSortKey SortKey,
@@ -1384,7 +1415,7 @@ public:
 		//@todo MeshCommandPipeline - assign usable state ID for dynamic path draws
 		// Currently dynamic path draws will not get dynamic instancing, but they will be roughly sorted by state
 		const FMeshBatchElement& MeshBatchElement = MeshBatch.Elements[BatchElementIndex];
-		NewVisibleMeshDrawCommand.Setup(&MeshDrawCommand, DrawPrimitiveId, ScenePrimitiveId, -1, MeshFillMode, MeshCullMode, Flags, SortKey,
+		NewVisibleMeshDrawCommand.Setup(&MeshDrawCommand, IdInfo, -1, MeshFillMode, MeshCullMode, Flags, SortKey,
 			MeshBatchElement.bIsInstanceRuns ? MeshBatchElement.InstanceRuns : nullptr,
 			MeshBatchElement.bIsInstanceRuns ? MeshBatchElement.NumInstances : 0
 			);
@@ -1512,8 +1543,7 @@ public:
 	virtual void FinalizeCommand(
 		const FMeshBatch& MeshBatch, 
 		int32 BatchElementIndex,
-		int32 DrawPrimitiveId,
-		int32 ScenePrimitiveId,
+		const FMeshDrawCommandPrimitiveIdInfo& IdInfo,
 		ERasterizerFillMode MeshFillMode,
 		ERasterizerCullMode MeshCullMode,
 		FMeshDrawCommandSortKey SortKey,
@@ -1766,11 +1796,16 @@ public:
 		const ShaderElementDataType& ShaderElementData);
 
 protected:
+	UE_DEPRECATED(5.0, "This version of GetDrawCommandPrimitiveId is deprecated. Use the below function instead.")
 	RENDERER_API void GetDrawCommandPrimitiveId(
 		const FPrimitiveSceneInfo* RESTRICT PrimitiveSceneInfo,
 		const FMeshBatchElement& BatchElement,
 		int32& DrawPrimitiveId,
 		int32& ScenePrimitiveId) const;
+
+	RENDERER_API FMeshDrawCommandPrimitiveIdInfo GetDrawCommandPrimitiveId(
+		const FPrimitiveSceneInfo* RESTRICT PrimitiveSceneInfo,
+		const FMeshBatchElement& BatchElement) const;
 };
 
 typedef FMeshPassProcessor* (*PassProcessorCreateFunction)(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext);

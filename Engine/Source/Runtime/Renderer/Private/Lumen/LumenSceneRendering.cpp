@@ -938,6 +938,8 @@ void AddCardCaptureDraws(const FScene* Scene,
 				}
 				LODToRender.SetLOD(MaxLOD);
 
+				FMeshDrawCommandPrimitiveIdInfo IdInfo(PrimitiveSceneInfo->GetIndex(), PrimitiveSceneInfo->GetInstanceSceneDataOffset());
+
 				for (int32 MeshIndex = 0; MeshIndex < PrimitiveSceneInfo->StaticMeshRelevances.Num(); MeshIndex++)
 				{
 					const FStaticMeshBatchRelevance& StaticMeshRelevance = PrimitiveSceneInfo->StaticMeshRelevances[MeshIndex];
@@ -980,8 +982,7 @@ void AddCardCaptureDraws(const FScene* Scene,
 
 							NewVisibleMeshDrawCommand.Setup(
 								MeshDrawCommand,
-								PrimitiveSceneInfo->GetIndex(),
-								PrimitiveSceneInfo->GetIndex(),
+								IdInfo,								
 								CachedMeshDrawCommand.StateBucketId,
 								CachedMeshDrawCommand.MeshFillMode,
 								CachedMeshDrawCommand.MeshCullMode,

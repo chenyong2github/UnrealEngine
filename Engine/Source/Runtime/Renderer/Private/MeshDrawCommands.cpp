@@ -152,7 +152,7 @@ void UpdateTranslucentMeshSortKeys(
 	{
 		FVisibleMeshDrawCommand& VisibleCommand = VisibleMeshCommands[CommandIndex];
 
-		const int32 PrimitiveIndex = VisibleCommand.ScenePrimitiveId;
+		const int32 PrimitiveIndex = VisibleCommand.PrimitiveIdInfo.ScenePrimitiveId;
 		const FVector BoundsOrigin = PrimitiveIndex >= 0 ? PrimitiveBounds[PrimitiveIndex].BoxSphereBounds.Origin : FVector::ZeroVector;
 
 		float Distance = 0.0f;
@@ -268,9 +268,9 @@ void MergeMobileBasePassMeshDrawCommands(
 			FVisibleMeshDrawCommand& MeshCommandCSM = MeshCommandsCSM[i];
 
 			if (MobileCSMVisibilityInfo.bAlwaysUseCSM 
-				|| (MeshCommand.ScenePrimitiveId < ScenePrimitiveNum && MobileCSMVisibilityInfo.MobilePrimitiveCSMReceiverVisibilityMap[MeshCommand.ScenePrimitiveId]))
+				|| (MeshCommand.PrimitiveIdInfo.ScenePrimitiveId < ScenePrimitiveNum && MobileCSMVisibilityInfo.MobilePrimitiveCSMReceiverVisibilityMap[MeshCommand.PrimitiveIdInfo.ScenePrimitiveId]))
 			{
-				checkf(MeshCommand.ScenePrimitiveId == MeshCommandCSM.ScenePrimitiveId, TEXT("VisibleMeshDrawCommands of BasePass and MobileBasePassCSM are expected to match."));
+				checkf(MeshCommand.PrimitiveIdInfo.ScenePrimitiveId == MeshCommandCSM.PrimitiveIdInfo.ScenePrimitiveId, TEXT("VisibleMeshDrawCommands of BasePass and MobileBasePassCSM are expected to match."));
 				// Use CSM's VisibleMeshDrawCommand.
 				MeshCommand = MeshCommandCSM;
 			}
@@ -303,9 +303,9 @@ void UpdateMobileBasePassMeshSortKeys(
 			bool bMasked = Cmd.SortKey.PackedData & 0x1 ? true : false; 
 			bool bBackground = Cmd.SortKey.PackedData & 0x2 ? true : false;
 			float PrimitiveDistance = 0;
-			if (Cmd.ScenePrimitiveId < ScenePrimitiveBounds.Num())
+			if (Cmd.PrimitiveIdInfo.ScenePrimitiveId < ScenePrimitiveBounds.Num())
 			{
-				const FPrimitiveBounds& PrimitiveBounds = ScenePrimitiveBounds[Cmd.ScenePrimitiveId];
+				const FPrimitiveBounds& PrimitiveBounds = ScenePrimitiveBounds[Cmd.PrimitiveIdInfo.ScenePrimitiveId];
 				PrimitiveDistance = (PrimitiveBounds.BoxSphereBounds.Origin - ViewOrigin).Size();
 				bBackground|= (PrimitiveBounds.BoxSphereBounds.SphereRadius > HALF_WORLD_MAX / 4.0f);
 			}
@@ -324,11 +324,11 @@ void UpdateMobileBasePassMeshSortKeys(
 		// pre-compute distance to a group of meshes that share same PSO
 		for (int32 CmdIdx = 0; CmdIdx < NumCmds; ++CmdIdx)
 		{
-			FVisibleMeshDrawCommand& Cmd = VisibleMeshCommands[CmdIdx];
+			const FVisibleMeshDrawCommand& Cmd = VisibleMeshCommands[CmdIdx];
 			float PrimitiveDistance = 0;
-			if (Cmd.ScenePrimitiveId < ScenePrimitiveBounds.Num())
+			if (Cmd.PrimitiveIdInfo.ScenePrimitiveId < ScenePrimitiveBounds.Num())
 			{
-				const FPrimitiveBounds& PrimitiveBounds = ScenePrimitiveBounds[Cmd.ScenePrimitiveId];
+				const FPrimitiveBounds& PrimitiveBounds = ScenePrimitiveBounds[Cmd.PrimitiveIdInfo.ScenePrimitiveId];
 				PrimitiveDistance = (PrimitiveBounds.BoxSphereBounds.Origin - ViewOrigin).Size();
 			}
 
@@ -345,9 +345,9 @@ void UpdateMobileBasePassMeshSortKeys(
 			bool bMasked = Cmd.SortKey.PackedData & 0x1 ? true : false; 
 			bool bBackground = Cmd.SortKey.PackedData & 0x2 ? true : false;
 			float PrimitiveDistance = 0;
-			if (Cmd.ScenePrimitiveId < ScenePrimitiveBounds.Num())
+			if (Cmd.PrimitiveIdInfo.ScenePrimitiveId < ScenePrimitiveBounds.Num())
 			{
-				const FPrimitiveBounds& PrimitiveBounds = ScenePrimitiveBounds[Cmd.ScenePrimitiveId];
+				const FPrimitiveBounds& PrimitiveBounds = ScenePrimitiveBounds[Cmd.PrimitiveIdInfo.ScenePrimitiveId];
 				PrimitiveDistance = (PrimitiveBounds.BoxSphereBounds.Origin - ViewOrigin).Size();
 				bBackground|= (PrimitiveBounds.BoxSphereBounds.SphereRadius > HALF_WORLD_MAX / 4.0f);
 			}
@@ -458,8 +458,7 @@ static void BuildMeshDrawCommandPrimitiveIdBuffer(
 
 					NewVisibleMeshDrawCommand.Setup(
 						&NewCommand,
-						VisibleMeshDrawCommand.DrawPrimitiveId,
-						VisibleMeshDrawCommand.ScenePrimitiveId,
+						VisibleMeshDrawCommand.PrimitiveIdInfo,
 						VisibleMeshDrawCommand.StateBucketId,
 						VisibleMeshDrawCommand.MeshFillMode,
 						VisibleMeshDrawCommand.MeshCullMode,
@@ -486,7 +485,7 @@ static void BuildMeshDrawCommandPrimitiveIdBuffer(
 			for (uint32 InstanceFactorIndex = 0; InstanceFactorIndex < InstanceFactor; InstanceFactorIndex++, PrimitiveIdIndex++)
 			{
 				checkSlow(PrimitiveIdIndex < MaxPrimitiveId);
-				PrimitiveIds[PrimitiveIdIndex] = TranslatePrimitiveId(VisibleMeshDrawCommand.DrawPrimitiveId, DynamicPrimitiveIdOffset, DynamicPrimitiveIdMax);
+				PrimitiveIds[PrimitiveIdIndex] = TranslatePrimitiveId(VisibleMeshDrawCommand.PrimitiveIdInfo.DrawPrimitiveId, DynamicPrimitiveIdOffset, DynamicPrimitiveIdMax);
 			}
 		}
 
@@ -508,7 +507,7 @@ static void BuildMeshDrawCommandPrimitiveIdBuffer(
 			for (uint32 InstanceFactorIndex = 0; InstanceFactorIndex < InstanceFactor; InstanceFactorIndex++, PrimitiveIdIndex++)
 			{
 				checkSlow(PrimitiveIdIndex < MaxPrimitiveId);
-				PrimitiveIds[PrimitiveIdIndex] = TranslatePrimitiveId(VisibleMeshDrawCommand.DrawPrimitiveId, DynamicPrimitiveIdOffset, DynamicPrimitiveIdMax);
+				PrimitiveIds[PrimitiveIdIndex] = TranslatePrimitiveId(VisibleMeshDrawCommand.PrimitiveIdInfo.DrawPrimitiveId, DynamicPrimitiveIdOffset, DynamicPrimitiveIdMax);
 			}
 		}
 	}
@@ -728,8 +727,7 @@ void ApplyViewOverridesToMeshDrawCommands(
 
 				NewVisibleMeshDrawCommand.Setup(
 					&NewMeshCommand,
-					VisibleMeshDrawCommand.DrawPrimitiveId,
-					VisibleMeshDrawCommand.ScenePrimitiveId,
+					VisibleMeshDrawCommand.PrimitiveIdInfo,
 					VisibleMeshDrawCommand.StateBucketId,
 					VisibleMeshDrawCommand.MeshFillMode,
 					VisibleMeshDrawCommand.MeshCullMode,

@@ -1082,7 +1082,7 @@ void FProjectedShadowInfo::SetupClipmapProjection(FLightSceneInfo* InLightSceneI
 }
 
 void FProjectedShadowInfo::AddCachedMeshDrawCommandsForPass(
-	int32 PrimitiveIndex,
+	const FMeshDrawCommandPrimitiveIdInfo& PrimitiveIdInfo, 
 	const FPrimitiveSceneInfo* InPrimitiveSceneInfo,
 	const FStaticMeshBatchRelevance& RESTRICT StaticMeshRelevance,
 	const FStaticMeshBatch& StaticMesh,
@@ -1112,8 +1112,7 @@ void FProjectedShadowInfo::AddCachedMeshDrawCommandsForPass(
 
 			NewVisibleMeshDrawCommand.Setup(
 				MeshDrawCommand,
-				PrimitiveIndex,
-				PrimitiveIndex,
+				PrimitiveIdInfo,
 				CachedMeshDrawCommand.StateBucketId,
 				CachedMeshDrawCommand.MeshFillMode,
 				CachedMeshDrawCommand.MeshCullMode,
@@ -1428,7 +1427,7 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes(FViewInfo& InCurrentView, FPri
 	bool WholeSceneDirectionalShadow = IsWholeSceneDirectionalShadow();
 	bool bDrawingStaticMeshes = false;
 	int32 PrimitiveId = InPrimitiveSceneInfo->GetIndex();
-
+	FMeshDrawCommandPrimitiveIdInfo PrimitiveIdInfo(PrimitiveId, InPrimitiveSceneInfo->GetInstanceSceneDataOffset());
 	{
 		const int32 ForcedLOD = (InCurrentView.Family->EngineShowFlags.LOD) ? (GetCVarForceLODShadow() != -1 ? GetCVarForceLODShadow() : GetCVarForceLOD()) : -1;
 		FLODMask ShadowLODToRender = CalcAndUpdateLODToRender(InCurrentView, InPrimitiveSceneInfo->Proxy->GetBounds(), InPrimitiveSceneInfo, ForcedLOD);
@@ -1449,7 +1448,7 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes(FViewInfo& InCurrentView, FPri
 					if (GetShadowDepthType() == CSMShadowDepthType && bCanCache)
 					{
 						AddCachedMeshDrawCommandsForPass(
-							PrimitiveId,
+							PrimitiveIdInfo,
 							InPrimitiveSceneInfo,
 							StaticMeshRelevance,
 							StaticMesh,
@@ -2024,9 +2023,10 @@ void FProjectedShadowInfo::FinalizeAddSubjectPrimitive(
 				&Scene->CachedMeshDrawCommandStateBuckets[MeshPassTargetType].GetByElementId(CmdInfo.StateBucketId).Key :
 				&Scene->CachedDrawLists[MeshPassTargetType].MeshDrawCommands[CmdInfo.CommandIndex];
 			const int32 PrimIdx = PrimitiveSceneInfo->GetIndex();
+			const int32 InstanceSceneDataOffset = PrimitiveSceneInfo->GetInstanceSceneDataOffset();
 
 			FVisibleMeshDrawCommand& VisibleCmd = ShadowDepthPassVisibleCommands[ShadowDepthPassVisibleCommands.AddUninitialized()];
-			VisibleCmd.Setup(CachedCmd, PrimIdx, PrimIdx, CmdInfo.StateBucketId, CmdInfo.MeshFillMode, CmdInfo.MeshCullMode, CmdInfo.Flags, CmdInfo.SortKey);
+			VisibleCmd.Setup(CachedCmd, FMeshDrawCommandPrimitiveIdInfo(PrimIdx, InstanceSceneDataOffset), CmdInfo.StateBucketId, CmdInfo.MeshFillMode, CmdInfo.MeshCullMode, CmdInfo.Flags, CmdInfo.SortKey);
 		}
 	}
 

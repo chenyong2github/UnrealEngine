@@ -1277,7 +1277,7 @@ void FLightmapRenderer::RenderMeshBatchesIntoGBuffer(
 
 		for (FVisibleMeshDrawCommand& Cmd : VisibleMeshDrawCommands)
 		{
-			Cmd.DrawPrimitiveId = Scene->CachedRayTracingScene->InstanceDataOriginalOffsets[MeshBatch.Elements[0].DynamicPrimitiveShaderDataIndex] + MeshBatch.Elements[0].UserIndex;
+			Cmd.PrimitiveIdInfo.DrawPrimitiveId = Scene->CachedRayTracingScene->InstanceDataOriginalOffsets[MeshBatch.Elements[0].DynamicPrimitiveShaderDataIndex] + MeshBatch.Elements[0].UserIndex;
 		}
 
 		TRange<int32> Range = TRange<int32>::Empty();

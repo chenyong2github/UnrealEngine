@@ -1770,8 +1770,7 @@ FMeshDrawCommand& FNaniteDrawListContext::AddCommand(FMeshDrawCommand& Initializ
 void FNaniteDrawListContext::FinalizeCommand(
 	const FMeshBatch& MeshBatch,
 	int32 BatchElementIndex,
-	int32 DrawPrimitiveId,
-	int32 ScenePrimitiveId,
+	const FMeshDrawCommandPrimitiveIdInfo& IdInfo,
 	ERasterizerFillMode MeshFillMode,
 	ERasterizerCullMode MeshCullMode,
 	FMeshDrawCommandSortKey SortKey,
