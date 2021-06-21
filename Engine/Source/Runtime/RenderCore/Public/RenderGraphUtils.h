@@ -253,7 +253,7 @@ struct RENDERCORE_API FComputeShaderUtils
 	/** Ideal size of group size 8x8 to occupy at least an entire wave on GCN, two warp on Nvidia. */
 	static constexpr int32 kGolden2DGroupSize = 8;
 
-	/** Compute the number of group to dispatch. */
+	/** Compute the number of groups to dispatch. */
 	static FIntVector GetGroupCount(const int32 ThreadCount, const int32 GroupSize)
 	{
 		return FIntVector(
@@ -288,6 +288,54 @@ struct RENDERCORE_API FComputeShaderUtils
 			FMath::DivideAndRoundUp(ThreadCount.X, GroupSize),
 			FMath::DivideAndRoundUp(ThreadCount.Y, GroupSize),
 			FMath::DivideAndRoundUp(ThreadCount.Z, GroupSize));
+	}
+
+
+
+	/**
+	 * Constant stride used when wrapping too large 1D dispatches using GetGroupCountWrapped, selected as 128 appears to be the lowest common denominator 
+	 * for mobile (GLES 3.1). For PC (with ~64k groups / dimension) this yields ~8M groups (500M threads @ group size 64) before even wrapping into Z.
+	 * NOTE: this value must match WRAPPED_GROUP_STRIDE in ComputeShaderUtils.ush
+	 */
+	static constexpr int32 WrappedGroupStride = 128;
+
+	/**
+	 * Wrapping number of groups to Y and Z dimension if X group count overflows GRHIMaxDispatchThreadGroupsPerDimension.
+	 * Calculate the linear group index as (or use GetUnWrappedDispatchGroupId(GroupId) in ComputeShaderUtils.ush):
+	 *  uint LinearGroupId = GroupId.X + (GroupId.Z * WrappedGroupStride + GroupId.Y) * WrappedGroupStride;
+	 * Note that you must use an early out because LinearGroupId may be larger than the ideal due to wrapping.
+	 */
+	static FIntVector GetGroupCountWrapped(const int32 TargetGroupCount)
+	{
+		check(GRHIMaxDispatchThreadGroupsPerDimension.X >= WrappedGroupStride && GRHIMaxDispatchThreadGroupsPerDimension.Y >= WrappedGroupStride);
+
+		FIntVector GroupCount(TargetGroupCount, 1, 1);
+
+		if (GroupCount.X > GRHIMaxDispatchThreadGroupsPerDimension.X)
+		{
+			GroupCount.Y = FMath::DivideAndRoundUp(GroupCount.X, WrappedGroupStride);
+			GroupCount.X = WrappedGroupStride;
+		}
+		if (GroupCount.Y > GRHIMaxDispatchThreadGroupsPerDimension.Y)
+		{
+			GroupCount.Z = FMath::DivideAndRoundUp(GroupCount.Y, WrappedGroupStride);
+			GroupCount.Y = WrappedGroupStride;
+		}
+
+		check(TargetGroupCount <= GroupCount.X * GroupCount.Y * GroupCount.Z);
+
+		return GroupCount;
+	}
+
+	/**
+	 * Compute the number of groups to dispatch and allow wrapping to Y and Z dimension if X group count overflows. 
+	 * Calculate the linear group index as (or use GetUnWrappedDispatchGroupId(GroupId) in ComputeShaderUtils.ush):
+	 *  uint LinearGroupId = GroupId.X + (GroupId.Z * WrappedGroupStride + GroupId.Y) * WrappedGroupStride;
+	 * Note that you must use an early out because LinearGroupId may be larger than the ideal due to wrapping.
+	 */
+	static FIntVector GetGroupCountWrapped(const int32 ThreadCount, const int32 GroupSize)
+	{
+		return GetGroupCountWrapped(FMath::DivideAndRoundUp(ThreadCount, GroupSize));
 	}
 
 
