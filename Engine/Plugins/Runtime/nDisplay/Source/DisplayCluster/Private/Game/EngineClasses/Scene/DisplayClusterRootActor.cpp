@@ -236,25 +236,6 @@ int ADisplayClusterRootActor::GetInnerFrustumPriority(const FString& InnerFrustu
 	return -1;
 }
 
-const FOpenColorIODisplayConfiguration* ADisplayClusterRootActor::GetViewportOCIO(const FString& ViewportID) const
-{
-	if (bEnableOuterViewportOCIO)
-	{
-		for (const FDisplayClusterConfigurationOCIOProfile& ConfigurationOCIOProfileIt : OuterViewportOCIOConfigurations)
-		{
-			for (const FString& ObjectIt : ConfigurationOCIOProfileIt.ApplyOCIOToObjects)
-			{
-				if (ObjectIt.Equals(ViewportID, ESearchCase::IgnoreCase))
-				{
-					return &ConfigurationOCIOProfileIt.OCIOConfiguration;
-				}
-			}
-		}
-	}
-
-	return nullptr;
-}
-
 template <typename TComp>
 void ImplCollectChildrenVisualizationComponent(TSet<FPrimitiveComponentId>& OutPrimitives, TComp* pComp)
 {

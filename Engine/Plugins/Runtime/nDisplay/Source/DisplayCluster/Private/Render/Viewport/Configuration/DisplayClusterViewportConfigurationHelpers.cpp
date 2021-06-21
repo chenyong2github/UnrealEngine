@@ -129,13 +129,22 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateViewportSetting_Overscan
 
 void FDisplayClusterViewportConfigurationHelpers::UpdateViewportSetting_GenerateMips(FDisplayClusterViewport& DstViewport, const FDisplayClusterConfigurationPostRender_GenerateMips& InGenerateMips)
 {
-	DstViewport.PostRenderSettings.GenerateMips.bAutoGenerateMips = InGenerateMips.bAutoGenerateMips;
+	if (InGenerateMips.bAutoGenerateMips)
+	{
+		DstViewport.PostRenderSettings.GenerateMips.bAutoGenerateMips = true;
 
-	DstViewport.PostRenderSettings.GenerateMips.MipsSamplerFilter = InGenerateMips.MipsSamplerFilter;
-	DstViewport.PostRenderSettings.GenerateMips.MipsAddressU = InGenerateMips.MipsAddressU;
-	DstViewport.PostRenderSettings.GenerateMips.MipsAddressV = InGenerateMips.MipsAddressV;
+		DstViewport.PostRenderSettings.GenerateMips.MipsSamplerFilter = InGenerateMips.MipsSamplerFilter;
 
-	DstViewport.PostRenderSettings.GenerateMips.MaxNumMipsLimit = (InGenerateMips.bShouldUseMaxNumMips) ? InGenerateMips.MaxNumMips : 100;
+		DstViewport.PostRenderSettings.GenerateMips.MipsAddressU = InGenerateMips.MipsAddressU;
+		DstViewport.PostRenderSettings.GenerateMips.MipsAddressV = InGenerateMips.MipsAddressV;
+
+		DstViewport.PostRenderSettings.GenerateMips.MaxNumMipsLimit = (InGenerateMips.bOverride_MaxNumMips) ? InGenerateMips.MaxNumMips : 100;
+	}
+	else
+	{
+		// Disable mips
+		DstViewport.PostRenderSettings.GenerateMips.bAutoGenerateMips = false;
+	}
 }
 
 void FDisplayClusterViewportConfigurationHelpers::UpdateBaseViewportSetting(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, const UDisplayClusterConfigurationViewport& InConfigurationViewport)
@@ -164,7 +173,7 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateBaseViewportSetting(FDis
 
 	// Additional per-viewport PostProcess
 	FDisplayClusterViewportConfigurationHelpers_Postprocess::UpdateCustomPostProcessSettings(DstViewport, RootActor, InRenderSettings.CustomPostprocess);
-	FDisplayClusterViewportConfigurationHelpers_Postprocess::UpdatePerViewportPostProcessSettings(DstViewport, RootActor, InConfigurationViewport.PostProcessSettings);
+	FDisplayClusterViewportConfigurationHelpers_Postprocess::UpdatePerViewportPostProcessSettings(DstViewport, RootActor);
 
 	{
 		DstViewport.RenderSettings.BufferRatio = InRenderSettings.BufferRatio;

@@ -177,14 +177,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "In Camera VFX", meta = (ShowOnlyInnerProperties))
 	FDisplayClusterConfigurationViewport_ICVFX ICVFX;
 
-	// OCIO Display look configuration 
-	UPROPERTY(BlueprintReadWrite, Category = "OCIO")
-	FOpenColorIODisplayConfiguration OCIO_Configuration;
-
-	// Per viewport post processing
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Post Process", meta = (ShowOnlyInnerProperties))
-	FDisplayClusterConfigurationViewport_PostProcessSettings PostProcessSettings;
-
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditDefaultsOnly, Category = "Configuration", meta = (nDisplayHidden))
 	bool bIsEnabled = true;

@@ -11,6 +11,7 @@ class UDisplayClusterConfigurationViewport;
 class UDisplayClusterICVFXCameraComponent;
 
 struct FOpenColorIODisplayConfiguration;
+struct FOpenColorIOColorConversionSettings;
 
 class FDisplayClusterViewportConfigurationHelpers_OpenColorIO
 {
@@ -22,4 +23,6 @@ public:
 private:
 	static bool ImplUpdate(FDisplayClusterViewport& DstViewport, const FOpenColorIODisplayConfiguration& InConfiguration);
 	static void ImplDisable(FDisplayClusterViewport& DstViewport);
+
+	static bool ImplUpdateOuterViewportOCIO(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor);
 };

@@ -10,7 +10,7 @@ void UDisplayClusterICVFXCameraComponent::GetDesiredView(FMinimalViewInfo& Desir
 {
 	if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(GetOwner()))
 	{
-		UCineCameraComponent* CineCameraComponent = ExternalCameraActor.IsValid() ? ExternalCameraActor->GetCineCameraComponent() : static_cast<UCineCameraComponent*>(this);
+		UCineCameraComponent* CineCameraComponent = CameraSettings.ExternalCameraActor.IsValid() ? CameraSettings.ExternalCameraActor->GetCineCameraComponent() : static_cast<UCineCameraComponent*>(this);
 
 		float DeltaTime = RootActor->GetWorldDeltaSeconds();
 		CineCameraComponent->GetCameraView(DeltaTime, DesiredView);
@@ -19,7 +19,7 @@ void UDisplayClusterICVFXCameraComponent::GetDesiredView(FMinimalViewInfo& Desir
 
 UCameraComponent* UDisplayClusterICVFXCameraComponent::GetCameraComponent()
 {
-	return ExternalCameraActor.IsValid() ? ExternalCameraActor->GetCameraComponent() : this;
+	return CameraSettings.ExternalCameraActor.IsValid() ? CameraSettings.ExternalCameraActor->GetCameraComponent() : this;
 }
 
 FString UDisplayClusterICVFXCameraComponent::GetCameraUniqueId() const

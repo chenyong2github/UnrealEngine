@@ -13,34 +13,45 @@
 #include "Components/DisplayClusterICVFXCameraComponent.h"
 #include "OpenColorIODisplayExtension.h"
 
-bool FDisplayClusterViewportConfigurationHelpers_OpenColorIO::UpdateBaseViewport(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, const UDisplayClusterConfigurationViewport& InViewportConfiguration)
+bool FDisplayClusterViewportConfigurationHelpers_OpenColorIO::ImplUpdateOuterViewportOCIO(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor)
 {
-	// First try use global OCIO from stage settings
-	const FOpenColorIODisplayConfiguration* OCIO_Configuration = RootActor.GetViewportOCIO(DstViewport.GetId());
-	if (OCIO_Configuration)
+	const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings = RootActor.GetStageSettings();
+	if (StageSettings.bUseOverallClusterOCIOConfiguration)
 	{
-		// OCIO defined for this viewport in stage settings, try apply for viewport
-		if (ImplUpdate(DstViewport, *OCIO_Configuration))
+		for (const FDisplayClusterConfigurationOCIOProfile& OCIOProfileIt : StageSettings.PerViewportOCIOProfiles)
+		{
+			for (const FString& ViewportNameIt : OCIOProfileIt.ApplyOCIOToObjects)
+			{
+				if (DstViewport.GetId().Compare(ViewportNameIt, ESearchCase::IgnoreCase) == 0)
+				{
+					// Use per-viewport OCIO overrides
+					if (FDisplayClusterViewportConfigurationHelpers_OpenColorIO::ImplUpdate(DstViewport, OCIOProfileIt.OCIOConfiguration))
+					{
+						return true;
+					}
+
+					break;
+				}
+			}
+		}
+
+		// use all viewports OCIO RootActor
+		if (ImplUpdate(DstViewport, StageSettings.AllViewportsOCIOConfiguration))
 		{
 			return true;
 		}
-
-		// External OCIO configuration disabled or invalid, disable OCIO for this viewport
-		ImplDisable(DstViewport);
-
-		return false;
 	}
 
-	// Finally try use OCIO from viewport configuration
-	if (ImplUpdate(DstViewport, InViewportConfiguration.OCIO_Configuration))
-	{
-		return true;
-	}
-
-	// No OCIO defined for this viewport, disabled
+	// No valid OCIO for ICVX, disable
 	ImplDisable(DstViewport);
 
 	return false;
+}
+
+bool FDisplayClusterViewportConfigurationHelpers_OpenColorIO::UpdateBaseViewport(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, const UDisplayClusterConfigurationViewport& InViewportConfiguration)
+{
+	// ICVFX logic for OCIO
+	return ImplUpdateOuterViewportOCIO(DstViewport, RootActor);
 }
 
 bool FDisplayClusterViewportConfigurationHelpers_OpenColorIO::UpdateLightcardViewport(FDisplayClusterViewport& DstViewport, FDisplayClusterViewport& BaseViewport, ADisplayClusterRootActor& RootActor)
@@ -51,51 +62,10 @@ bool FDisplayClusterViewportConfigurationHelpers_OpenColorIO::UpdateLightcardVie
 	// First try use global OCIO from stage settings
 	if (LightcardSettings.bEnableOuterViewportOCIO)
 	{
-		const FOpenColorIODisplayConfiguration* OCIO_Configuration = RootActor.GetViewportOCIO(BaseViewport.GetId());
-		if (OCIO_Configuration)
-		{
-			// OCIO defined for this viewport in stage settings, try apply for viewport
-			if (ImplUpdate(DstViewport, *OCIO_Configuration))
-			{
-				return true;
-			}
-
-			// External OCIO configuration disabled or invalid, disable OCIO for this viewport
-			ImplDisable(DstViewport);
-
-			return false;
-		}
+		return  ImplUpdateOuterViewportOCIO(DstViewport, RootActor);
 	}
 
-	// After try use OCIO from viewport configuration
-	if (LightcardSettings.bEnableViewportOCIO)
-	{
-		const FDisplayClusterRenderFrameSettings& RenderFrameSettings = DstViewport.Owner.Configuration->GetRenderFrameSettings();
-
-		const FString& ClusterNodeId = RenderFrameSettings.ClusterNodeId;
-		if (!ClusterNodeId.IsEmpty())
-		{
-			UDisplayClusterConfigurationViewport* BaseViewportConfiguration = RootActor.GetViewportConfiguration(ClusterNodeId, BaseViewport.GetId());
-
-			if (BaseViewportConfiguration && ImplUpdate(DstViewport, BaseViewportConfiguration->OCIO_Configuration))
-			{
-				return true;
-			}
-
-			// No OCIO defined for this viewport, disabled
-			ImplDisable(DstViewport);
-
-			return false;
-		}
-	}
-
-	// Finally try use global OCIO from lightcard configuration
-	if (ImplUpdate(DstViewport, LightcardSettings.OCIO_Configuration))
-	{
-		return true;
-	}
-
-	// No OCIO defined for this viewport, disabled
+	// No OCIO defined for this lightcard viewport, disabled
 	ImplDisable(DstViewport);
 	
 	return false;
@@ -104,38 +74,36 @@ bool FDisplayClusterViewportConfigurationHelpers_OpenColorIO::UpdateLightcardVie
 bool FDisplayClusterViewportConfigurationHelpers_OpenColorIO::UpdateICVFXCameraViewport(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent)
 {
 	const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings = InCameraComponent.GetCameraSettingsICVFX();
-	if (CameraSettings.bEnableInnerFrustumOCIO)
+	if (CameraSettings.AllNodesOCIOConfiguration.bIsEnabled)
 	{
 		const FDisplayClusterRenderFrameSettings& RenderFrameSettings = DstViewport.Owner.Configuration->GetRenderFrameSettings();
 
 		const FString& ClusterNodeId = RenderFrameSettings.ClusterNodeId;
 		if (!ClusterNodeId.IsEmpty())
 		{
-			for (const FDisplayClusterConfigurationOCIOProfile& OCIOProfileIt : CameraSettings.InnerFrustumOCIOConfigurations)
+			for (const FDisplayClusterConfigurationOCIOProfile& OCIOProfileIt : CameraSettings.PerNodeOCIOProfiles)
 			{
 				for (const FString& ClusterNodeIt : OCIOProfileIt.ApplyOCIOToObjects)
 				{
 					if (ClusterNodeId.Compare(ClusterNodeIt, ESearchCase::IgnoreCase) == 0)
 					{
 						// Use cluster node OCIO
-						FDisplayClusterViewportConfigurationHelpers_OpenColorIO::ImplUpdate(DstViewport, OCIOProfileIt.OCIOConfiguration);
+						if (FDisplayClusterViewportConfigurationHelpers_OpenColorIO::ImplUpdate(DstViewport, OCIOProfileIt.OCIOConfiguration))
+						{
+							return true;
+						}
 
-						return true;
+						break;
 					}
 				}
 			}
 		}
 
-		// External OCIO configuration disabled or invalid, disable OCIO for this camera
-		ImplDisable(DstViewport);
-
-		return false;
-	}
-
-	// Finally try use OCIO from camera configuration
-	if (ImplUpdate(DstViewport, CameraSettings.OCIO_Configuration))
-	{
-		return true;
+		// cluster node OCIO override not found, use all nodes configuration
+		if (ImplUpdate(DstViewport, CameraSettings.AllNodesOCIOConfiguration))
+		{
+			return true;
+		}
 	}
 
 	// No OCIO defined for this camera, disabled

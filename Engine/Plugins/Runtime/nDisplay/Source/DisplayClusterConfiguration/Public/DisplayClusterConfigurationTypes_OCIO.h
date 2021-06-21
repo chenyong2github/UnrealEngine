@@ -23,6 +23,6 @@ struct FDisplayClusterConfigurationOCIOProfile
 	FOpenColorIODisplayConfiguration OCIOConfiguration;
 
 	/** The data to receive the profile information. This will either be viewports or nodes. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "OCIO")
 	TArray<FString> ApplyOCIOToObjects;
 };

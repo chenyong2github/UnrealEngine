@@ -331,3 +331,9 @@ UDisplayClusterConfigurationData* UDisplayClusterConfigurationData::CreateNewCon
 
 	return NewConfigData;
 }
+
+FDisplayClusterConfigurationICVFX_CameraRenderSettings::FDisplayClusterConfigurationICVFX_CameraRenderSettings()
+{
+	// Setup incamera defaults:
+	GenerateMips.bAutoGenerateMips = true;
+}

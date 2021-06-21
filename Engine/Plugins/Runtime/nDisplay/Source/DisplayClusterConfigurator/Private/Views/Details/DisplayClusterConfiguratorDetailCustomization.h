@@ -453,11 +453,11 @@ private:
 /**
 * Postprocess Profiles
 */
-class FDisplayClusterConfiguratorCameraPostProcessProfileCustomization final
+class FDisplayClusterConfiguratorColorGradingProfileCustomization final
 	: public FDisplayClusterConfiguratorTypeCustomization
 {
 public:
-	virtual ~FDisplayClusterConfiguratorCameraPostProcessProfileCustomization() override
+	virtual ~FDisplayClusterConfiguratorColorGradingProfileCustomization() override
 	{
 		NodeSelection.Reset();
 	}

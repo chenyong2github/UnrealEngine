@@ -1428,7 +1428,7 @@ void FDisplayClusterConfiguratorOCIOProfileCustomization::CustomizeChildren(TSha
 // Post Process Profile Customization
 //////////////////////////////////////////////////////////////////////////////////////////////
 
-void FDisplayClusterConfiguratorCameraPostProcessProfileCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle,
+void FDisplayClusterConfiguratorColorGradingProfileCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle,
 	FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
 	FDisplayClusterConfiguratorTypeCustomization::CustomizeHeader(PropertyHandle, HeaderRow, CustomizationUtils);
@@ -1442,30 +1442,40 @@ void FDisplayClusterConfiguratorCameraPostProcessProfileCustomization::Customize
 		];
 }
 
-void FDisplayClusterConfiguratorCameraPostProcessProfileCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle,
+void FDisplayClusterConfiguratorColorGradingProfileCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle,
 	IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
 	const TSharedPtr<IPropertyHandle> PostProcessSettingsHandle = PropertyHandle->GetChildHandle(
-		GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_CameraPostProcessProfile, PostProcessSettings));
+		GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_ColorGradingProfile, PostProcessSettings));
 	check(PostProcessSettingsHandle->IsValidHandle());
 
-	const TSharedPtr<IPropertyHandle> EnablePostProcessHandle = PostProcessSettingsHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOpenColorIODisplayConfiguration, bIsEnabled));
+	PostProcessSettingsHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
+		LOCTEXT("PostProcessViewportsModeDisplayName", "Color Granding") : LOCTEXT("PostProcessClusterModeDisplayName", "Color Granding"));
+
+	const TSharedPtr<IPropertyHandle> EnablePostProcessHandle = PostProcessSettingsHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_ColorGradingConfiguration, bIsEnabled));
 	check(EnablePostProcessHandle->IsValidHandle());
 
 	EnablePostProcessHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
-		LOCTEXT("EnablePostProcessViewportsDisplayName", "Enable Inner Frustum PostProcess Configuration") : LOCTEXT("EnablePostProcessClusterDisplayName", "Enable Inner Frustum PostProcess Configuration"));
+		LOCTEXT("EnablePostProcessViewportsDisplayName", "Enable Viewports Color Granding") : LOCTEXT("EnablePostProcessClusterDisplayName", "Enable Inner Frustum Color Granding"));
+
+	/*
+	const TAttribute<bool> EnablePostprocess = TAttribute<bool>::Create([this, EnablePostProcessHandle]()
+	{
+		bool bEnable = false;
+		EnablePostProcessHandle->GetValue(bEnable);
+		return bEnable;
+	});
+	*/
 
 	const TSharedPtr<IPropertyHandle> ArrayHandle = PropertyHandle->GetChildHandle(
-		GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFX_CameraPostProcessProfile, ApplyPostProcessToObjects));
+		GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_ColorGradingProfile, ApplyPostProcessToObjects));
 	check(ArrayHandle->IsValidHandle());
 
-	PostProcessSettingsHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
-		LOCTEXT("PostProcessViewportsModeDisplayName", "Outer Viewport PostProcess Configuration") : LOCTEXT("PostProcessClusterModeDisplayName", "Inner Frustum PostProcess Configuration"));
 	ArrayHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
-		LOCTEXT("PostProcessDataViewportsModeDisplayName", "Apply PostProcess to Viewports") : LOCTEXT("PostProcessDataClusterModeDisplayName", "Apply PostProcess to Nodes"));
+		LOCTEXT("PostProcessDataViewportsModeDisplayName", "Apply Color Granding to Viewports") : LOCTEXT("PostProcessDataClusterModeDisplayName", "Apply Color Granding to Nodes"));
 	ArrayHandle->SetToolTipText(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
-		LOCTEXT("PostProcessDataViewportsModeToolTip", "Select viewports to receive this PostProcess profile.") :
-		LOCTEXT("PostProcessDataClusterModeToolTip", "Select cluster nodes to receive this PostProcess profile."));
+		LOCTEXT("PostProcessDataViewportsModeToolTip", "Select viewports to receive this Color Granding profile.") :
+		LOCTEXT("PostProcessDataClusterModeToolTip", "Select cluster nodes to receive this Color Granding profile."));
 
 	ChildBuilder.AddProperty(PostProcessSettingsHandle.ToSharedRef());
 	NodeSelection->CreateArrayBuilder(ArrayHandle.ToSharedRef(), ChildBuilder);

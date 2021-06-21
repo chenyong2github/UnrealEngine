@@ -187,22 +187,12 @@ public:
 	UPROPERTY(EditInstanceOnly, EditFixedSize, Category = "In Camera VFX", meta = (TitleProperty = "Name"))
 	TArray<FDisplayClusterComponentRef> InnerFrustumPriority;
 
-	UPROPERTY(EditInstanceOnly, Category = "OCIO")
-	bool bEnableOuterViewportOCIO = true;
-	
-	UPROPERTY(EditInstanceOnly, Category = "OCIO", meta = (DisplayName = "Outer Viewport OCIO Configurations", ConfigurationMode = "Viewports", EditCondition = "bEnableOuterViewportOCIO"))
-	TArray<FDisplayClusterConfigurationOCIOProfile> OuterViewportOCIOConfigurations;
-	
 public:
-
 	bool IsInnerFrustumEnabled(const FString& InnerFrustumID) const;
 
 	// Return inner frustum priority by InnerFrustum name (from InnerFrustumPriority property)
 	// return -1, if not defined
 	int GetInnerFrustumPriority(const FString& InnerFrustumID) const;
-
-	// Return OCIO profile by viewport name (from OuterViewportOCIOConfigurations property)
-	const FOpenColorIODisplayConfiguration* GetViewportOCIO(const FString& ViewportID) const;
 
 	float GetWorldDeltaSeconds() const
 	{
@@ -219,23 +209,23 @@ public:
 	bool bPreviewEnable = true;
 	
 	// Render single node preview or whole cluster
-	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (DisplayName = "Preview Node"))
+	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (DisplayName = "Preview Node", EditCondition = "bPreviewEnable"))
 	FString PreviewNodeId = DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll;
 
-	// Render mode for PIE
-	UPROPERTY(EditAnywhere, Category = "Editor Preview")
+	// Preview Render mode for PIE
+	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (EditCondition = "bPreviewEnable"))
 	EDisplayClusterConfigurationRenderMode RenderMode = EDisplayClusterConfigurationRenderMode::Mono;
 
 	// Update preview texture period in tick
-	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (ClampMin = "1", UIMin = "1", ClampMax = "200", UIMax = "200"))
+	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (ClampMin = "1", UIMin = "1", ClampMax = "200", UIMax = "200", EditCondition = "bPreviewEnable"))
 	int TickPerFrame = 1;
 
 	// Preview texture size get from viewport, and scaled by this value
-	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (DisplayName = "Preview Screen Percentage", ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1"))
+	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (DisplayName = "Preview Screen Percentage", ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1", EditCondition = "bPreviewEnable"))
 	float PreviewRenderTargetRatioMult = 0.25;
 
 	/* Enable the on-screen camera preview widget when selecting this actor. Changing this value requires reselecting the actor. */
-	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (DisplayName = "Enable Inner Frustum Preview"))
+	UPROPERTY(EditAnywhere, Category = "Editor Preview", meta = (DisplayName = "Enable Inner Frustum Preview", EditCondition = "bPreviewEnable"))
 	bool bEnableICVFXCameraPreview = false;
 
 private:

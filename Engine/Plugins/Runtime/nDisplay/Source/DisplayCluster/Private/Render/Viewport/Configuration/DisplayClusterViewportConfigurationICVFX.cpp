@@ -267,7 +267,8 @@ bool FDisplayClusterViewportConfigurationICVFX::CreateLightcardViewport(FDisplay
 		// Support projection policy update
 		FDisplayClusterViewportConfigurationHelpers::UpdateProjectionPolicy(*LightcardViewport);
 
-		if (LightcardViewport->OpenColorIODisplayExtension.IsValid())
+		// When lightcard use OCIO or PP for render we need resolve scene. Now get alpha channel by second render pass
+		if ((LightcardViewport->RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_ICVFXLightcardColor) != 0)
 		{
 			// Now OCIO require second vp for alpha
 			FDisplayClusterViewport* LightcardViewportAlpha = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetOrCreateLightcardViewport(BaseViewport, RootActor, true);
@@ -382,7 +383,7 @@ void FDisplayClusterViewportConfigurationICVFX::PostUpdate()
 	FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(RootActor);
 	if (ViewportManager)
 	{
-		if (StageSettings.bEnable)
+		if (StageSettings.bEnableICVFXVisibility)
 		{
 			// Update visibility for icvfx viewports and cameras
 			UpdateHideList(*ViewportManager);

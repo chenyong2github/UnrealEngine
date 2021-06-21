@@ -290,11 +290,11 @@ void FDisplayClusterConfiguratorModule::RegisterCustomLayouts()
 	}
 
 	{
-		const FName LayoutName = FDisplayClusterConfigurationICVFX_CameraPostProcessProfile::StaticStruct()->GetFName();
+		const FName LayoutName = FDisplayClusterConfigurationViewport_ColorGradingProfile::StaticStruct()->GetFName();
 		RegisteredPropertyLayoutNames.Add(LayoutName);
 
 		PropertyModule.RegisterCustomPropertyTypeLayout(LayoutName,
-			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorCameraPostProcessProfileCustomization::MakeInstance<FDisplayClusterConfiguratorCameraPostProcessProfileCustomization>));
+			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorColorGradingProfileCustomization::MakeInstance<FDisplayClusterConfiguratorColorGradingProfileCustomization>));
 	}
 }
 

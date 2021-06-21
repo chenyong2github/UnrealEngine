@@ -404,16 +404,6 @@ public:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, EditFixedSize, Instanced, Category = NDisplay, meta = (DisplayThumbnail = false, nDisplayInstanceOnly, ShowInnerProperties))
 	TMap<FString, UDisplayClusterConfigurationClusterNode*> Nodes;
 
-	// Apply the global cluster post process settings to all viewports
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Post Process", meta = (DisplayName = "Enable Entire Cluster Color Grading"))
-	bool bUseOverallClusterPostProcess = true;
-
-	//!
-	// Global cluster post process settings
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Post Process", meta = (DisplayName = "Cluster Color Grading Settings", EditCondition = "bUseOverallClusterPostProcess"))
-	FDisplayClusterConfigurationViewport_PerViewportSettings OverallClusterPostProcessSettings;
-
-
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Instanced)
 	TMap<FString, UDisplayClusterConfigurationHostDisplayData*> HostDisplayData;
@@ -491,11 +481,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Advanced)
 	FDisplayClusterConfigurationDiagnostics Diagnostics;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
-	FDisplayClusterConfigurationICVFX_StageSettings StageSettings;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Advanced)
 	FDisplayClusterConfigurationRenderFrame RenderFrameSettings;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Advanced)
+	FDisplayClusterConfigurationICVFX_StageSettings StageSettings;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Advanced, meta = (DisplayName = "Follow Local Player Camera"))
 	bool bFollowLocalPlayerCamera = false;

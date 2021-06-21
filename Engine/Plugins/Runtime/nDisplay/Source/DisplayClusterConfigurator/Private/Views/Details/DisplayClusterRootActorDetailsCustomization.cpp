@@ -35,7 +35,9 @@ namespace DisplayClusterRootActorDetailsCustomizationUtils
 			DisplayClusterConfigurationStrings::categories::LightcardCategory,
 			DisplayClusterConfigurationStrings::categories::OverrideCategory,
 			DisplayClusterConfigurationStrings::categories::PreviewCategory,
-			DisplayClusterConfigurationStrings::categories::ConfigurationCategory
+			DisplayClusterConfigurationStrings::categories::ConfigurationCategory,
+			DisplayClusterConfigurationStrings::categories::PreviewCategory,
+			DisplayClusterConfigurationStrings::categories::AdvancedCategory
 		};
 
 		for (const TPair<FName, IDetailCategoryBuilder*>& Pair : AllCategoryMap)
@@ -80,7 +82,15 @@ void FDisplayClusterRootActorDetailsCustomization::CustomizeDetails(IDetailLayou
 	InLayoutBuilder.HideCategory(TEXT("Actor"));
 	InLayoutBuilder.HideCategory(TEXT("LOD"));
 	InLayoutBuilder.HideCategory(TEXT("Cooking"));
+	InLayoutBuilder.HideCategory(TEXT("Physics"));
+	InLayoutBuilder.HideCategory(TEXT("Activation"));
+	InLayoutBuilder.HideCategory(TEXT("Tags"));
+	InLayoutBuilder.HideCategory(TEXT("Asset User Data"));
+	InLayoutBuilder.HideCategory(TEXT("Actor Tick"));
 	
+	// Hide the auto-generated category. Currently, you can see "Advanced" and "Default". Fix in a different way.
+	InLayoutBuilder.HideCategory(TEXT("Advanced"));
+
 	// Only single selection is allowed
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects = InLayoutBuilder.GetSelectedObjects();
 	if (SelectedObjects.Num() != 1)
@@ -96,7 +106,8 @@ void FDisplayClusterRootActorDetailsCustomization::CustomizeDetails(IDetailLayou
 	}
 
 	// Store the NodeId property handle to use later
-	PropertyNodeId = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, PreviewNodeId), ADisplayClusterRootActor::StaticClass());
+	PropertyNodeId = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_STRING_CHECKED(ADisplayClusterRootActor, PreviewNodeId), ADisplayClusterRootActor::StaticClass());
+	check(PropertyNodeId.IsValid());
 	check(PropertyNodeId->IsValidHandle());
 
 	InLayoutBuilder.HideCategory(TEXT("NDisplay"));
@@ -131,6 +142,8 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 			NestedPropertyHelper.GetNestedPropertyKeys(TEXT("CurrentConfigData.Cluster.Nodes.Viewports"), ViewportNames);
 		}
 
+		CREATE_NESTED_PROPERTY_EDITCONDITION_1ARG(EnableICVFXEditCondition, NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable);
+
 		// Manually labeling the ICVFX category because UE4 will automatically put a space after the dash if the label is generated automatically
 		BEGIN_LABELED_CATEGORY(DisplayClusterConfigurationStrings::categories::ICVFXCategory, LOCTEXT("ICVFXCategoryLabel", "In-Camera VFX"))
 			if (bIsCDO)
@@ -139,17 +152,8 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 			}
 			else
 			{
-				const TSharedPtr<IPropertyHandle> EnableInnerFrustumsPropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable));
-				check(EnableInnerFrustumsPropertyHandle->IsValidHandle());
-				CurrentCategory.AddProperty(EnableInnerFrustumsPropertyHandle);
+				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable)
 
-				const TAttribute<bool> EnableInnerFrustumsEditCondition = TAttribute<bool>::Create([this, EnableInnerFrustumsPropertyHandle]()
-				{
-					bool bFrustumEnabled = false;
-					EnableInnerFrustumsPropertyHandle->GetValue(bFrustumEnabled);
-					return bFrustumEnabled;
-				});
-		
 				if (ViewportNames.Num() > 0)
 				{
 					TArray<TSharedPtr<IPropertyHandle>> AllowICVFXHandles;
@@ -162,7 +166,7 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 
 							Handle->SetPropertyDisplayName(FText::FromString(ViewportNames[VPIdx]));
 							IDetailPropertyRow& PropertyRow = CurrentGroup.AddPropertyRow(Handle.ToSharedRef());
-							PropertyRow.EditCondition(EnableInnerFrustumsEditCondition, nullptr);
+							PropertyRow.EditCondition(EnableICVFXEditCondition, nullptr);
 						}
 					END_GROUP();
 
@@ -224,48 +228,38 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 				}
 			END_GROUP();
 		END_CATEGORY();
-		
+
+		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::OCIOCategory)
+			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bUseOverallClusterOCIOConfiguration)
+			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.AllViewportsOCIOConfiguration)
+			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.PerViewportOCIOProfiles)
+		END_CATEGORY();
+
+		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ColorGradingCategory)
+			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bUseOverallClusterPostProcess);
+			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.OverallClusterPostProcessSettings);
+			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.PerViewportColorGradingProfiles);
+		END_CATEGORY();
+
 		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::LightcardCategory)
-			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.bEnable)
-			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.Blendingmode)
+			CREATE_NESTED_PROPERTY_EDITCONDITION_1ARG(ICVFXEnabledEditCondition,          NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable);
+			CREATE_NESTED_PROPERTY_EDITCONDITION_2ARG(ICVFXLightCardEnabledEditCondition, NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable, CurrentConfigData->StageSettings.Lightcard.bEnable);
+
+			ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.bEnable, ICVFXEnabledEditCondition)
+			ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.Blendingmode, ICVFXLightCardEnabledEditCondition)
 
 			BEGIN_GROUP(TEXT("LightCardActorsGroup"), LOCTEXT("LightCardActorsGroupLabel", "Content Visible Only in Viewports"))
-				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.ActorLayers)
-				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.Actors)
+
+				ADD_GROUP_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.ActorLayers, ICVFXLightCardEnabledEditCondition)
+				ADD_GROUP_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.Actors, ICVFXLightCardEnabledEditCondition)
 
 				if (bIsCDO)
 				{
-					ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.RootActorComponentNames)
+					ADD_GROUP_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.RootActorComponentNames, ICVFXLightCardEnabledEditCondition)
 				}
 			END_GROUP();
 
-			ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.RenderSettings)
-		END_CATEGORY();
-	
-		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ColorGradingCategory)
-			BEGIN_GROUP(TEXT("GlobalPostProcess"), LOCTEXT("GlobalPostprocessLabel", "Entire Cluster"))
-				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->Cluster->bUseOverallClusterPostProcess);
-				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->Cluster->OverallClusterPostProcessSettings);
-			END_GROUP();
-
-			if (!bIsCDO)
-			{
-				TArray<TSharedPtr<IPropertyHandle>> ViewportPostProcessSettings;
-				NestedPropertyHelper.GetNestedProperties(TEXT("CurrentConfigData.Cluster.Nodes.Viewports.PostProcessSettings"), ViewportPostProcessSettings);
-
-				// This number could mismatch temporarily on an undo after a viewport is deleted.
-				if (ViewportNames.Num() == ViewportPostProcessSettings.Num())
-				{
-					for (int32 Index = 0; Index < ViewportNames.Num(); ++Index)
-					{
-						BEGIN_GROUP(FName(*ViewportNames[Index]), FText::FromString(ViewportNames[Index]))
-							CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, bIsEnabled)).ToSharedRef());
-							CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, bExcludeFromOverallClusterPostProcess)).ToSharedRef());
-							CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, ViewportSettings)).ToSharedRef()).ShouldAutoExpand(true);
-						END_GROUP();
-					}
-				}
-			}
+			ADD_ADVANCED_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.RenderSettings, ICVFXLightCardEnabledEditCondition)
 		END_CATEGORY();
 
 		// Add custom properties and lay out/order properties into their correct categories.
@@ -273,7 +267,8 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 			ADD_PROPERTY(ADisplayClusterRootActor, bPreviewEnable)
 			if (RebuildNodeIdOptionsList())
 			{
-				REPLACE_PROPERTY_WITH_CUSTOM(ADisplayClusterRootActor, PreviewNodeId, CreateCustomNodeIdWidget());
+				CREATE_NESTED_PROPERTY_EDITCONDITION_1ARG(PreviewEnabledEditCondition, NestedPropertyHelper, ADisplayClusterRootActor, bPreviewEnable);
+				REPLACE_PROPERTY_WITH_CUSTOM_ENABLE_CONDITION(ADisplayClusterRootActor, PreviewNodeId, CreateCustomNodeIdWidget(), PreviewEnabledEditCondition);
 			}
 		END_CATEGORY();
 

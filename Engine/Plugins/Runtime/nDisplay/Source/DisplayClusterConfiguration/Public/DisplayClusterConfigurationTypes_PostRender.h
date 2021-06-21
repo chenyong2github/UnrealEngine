@@ -26,15 +26,15 @@ public:
 	bool bAllowOverride = false;
 
 	// This texture resolved to target
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (EditCondition = "bAllowOverride"))
 	UTexture2D* SourceTexture = nullptr;
 
 	// Use TextureRegion rect on SourceTexture to resolve
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Use Texture Crop"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Use Texture Crop", EditCondition = "bAllowOverride"))
 	bool bShouldUseTextureRegion = false;
 
 	// Resolve this region from OverrideTexture
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Texture Crop"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Texture Crop", EditCondition = "bAllowOverride && bShouldUseTextureRegion"))
 	FDisplayClusterConfigurationRectangle TextureRegion;
 };
 
@@ -47,10 +47,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render")
 	EDisplayClusterConfiguration_PostRenderBlur Mode = EDisplayClusterConfiguration_PostRenderBlur::None;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (EditCondition = "Mode != EDisplayClusterConfiguration_PostRenderBlur::None"))
 	int   KernelRadius = 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (EditCondition = "Mode != EDisplayClusterConfiguration_PostRenderBlur::None"))
 	float KernelScale = 1;
 };
 
@@ -59,26 +59,29 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPostRender_Ge
 {
 	GENERATED_BODY()
 
-public:
+	FDisplayClusterConfigurationPostRender_GenerateMips()
+		: bOverride_MaxNumMips(0)
+	{};
+
 	// Allow autogenerate num mips for this target
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render")
 	bool bAutoGenerateMips = false;
 
 	// Control mips generator settings
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (EditCondition = "bAutoGenerateMips"))
 	TEnumAsByte<enum TextureFilter> MipsSamplerFilter = TF_Trilinear;
 
 	/**  AutoGenerateMips sampler address mode for U channel. Defaults to clamp. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (EditCondition = "bAutoGenerateMips"))
 	TEnumAsByte<enum TextureAddress> MipsAddressU = TA_Clamp;
 
 	/**  AutoGenerateMips sampler address mode for V channel. Defaults to clamp. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (EditCondition = "bAutoGenerateMips"))
 	TEnumAsByte<enum TextureAddress> MipsAddressV = TA_Clamp;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render")
-	bool bShouldUseMaxNumMips = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle, EditCondition = "bAutoGenerateMips"))
+	uint8 bOverride_MaxNumMips : 1;
 
-	UPROPERTY(EditAnywhere, Category = "NDisplay Render", meta = (DisplayName = "Maximum Number of Mips"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Maximum Number of Mips", EditCondition = "bOverride_MaxNumMips"))
 	int MaxNumMips = 0;
 };
