@@ -141,8 +141,6 @@ private:
 
 	TSharedRef< SWidget > GenerateExportAssetMenu() const;
 
-	void FillCopyToSoundWaveMenu(FMenuBuilder& MenuBuilder) const;
-
 	void FillExportAssetMenu(FMenuBuilder& MenuBuilder) const;
 
 	void CopyCurveToSoundWave(const FAssetData& SoundWaveAssetData) const;
