@@ -934,6 +934,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 		if (VisibilityMap & (1 << ViewIndex))
 		{
 			const FSceneView* View = Views[ViewIndex];
+			check(View != nullptr);
 
 			const bool bIsInstancedStereo = View->bIsInstancedStereoEnabled && IStereoRendering::IsStereoEyeView(*View);
 			if (bIsInstancedStereo && !IStereoRendering::IsAPrimaryView(*View))
@@ -979,6 +980,11 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 
 				// @TODO : support multiple LOD
 				const int32 LODIndex = GetLODIndex(MeshIndex);
+				if (LODIndex == INDEX_NONE)
+				{
+					continue;
+				}
+
 				const FStaticMeshLODResources& LODModel = MeshData.RenderData->LODResources[LODIndex];
 				const int32 SectionCount = LODModel.Sections.Num();
 
@@ -1100,6 +1106,10 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 
 		const FMeshData& MeshData = Meshes[MeshIndex];
 		const int32 LODIndex = GetLODIndex(MeshIndex);
+		if (LODIndex == INDEX_NONE)
+		{
+			continue;
+		}
 
 		const FStaticMeshLODResources& LODModel = MeshData.RenderData->LODResources[LODIndex];
 		const FStaticMeshVertexFactories& VFs = MeshData.RenderData->LODVertexFactories[LODIndex];
