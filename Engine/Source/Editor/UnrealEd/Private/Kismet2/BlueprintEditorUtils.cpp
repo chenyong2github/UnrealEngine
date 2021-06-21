@@ -8892,7 +8892,14 @@ bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const FProperty* Prop
 			int32 IntValue = 0;
 			if (const UEnum* Enum = ByteProperty->Enum)
 			{
-				IntValue = Enum->GetValueByName(FName(*StrValue, FNAME_Find));
+				if (StrValue.Len() < NAME_SIZE)
+				{
+					IntValue = Enum->GetValueByName(FName(*StrValue));
+				}
+				else
+				{
+					IntValue = INDEX_NONE;
+				}
 				bParseSucceeded = (INDEX_NONE != IntValue);
 
 				// If the parse did not succeed, clear out the int to keep the enum value valid
@@ -8913,7 +8920,11 @@ bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const FProperty* Prop
 			bParseSucceeded = false;
 			if (const UEnum* Enum = EnumProperty->GetEnum())
 			{
-				int64 IntValue = Enum->GetValueByName(FName(*StrValue, FNAME_Find));
+				int64 IntValue = INDEX_NONE;
+				if (StrValue.Len() < NAME_SIZE)
+				{
+					IntValue = Enum->GetValueByName(FName(*StrValue));
+				}
 				bParseSucceeded = (INDEX_NONE != IntValue);
 
 				// If the parse did not succeed, clear out the int to keep the enum value valid
