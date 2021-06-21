@@ -5,11 +5,15 @@
 #include "CoreMinimal.h"
 #include "AnimNodeFunctionRef.generated.h"
 
+struct FPoseLink;
+struct FPoseLinkBase;
+struct FComponentSpacePoseLink;
 struct FAnimNode_Base;
 struct FAnimationInitializeContext;
 struct FAnimationUpdateContext;
 struct FPoseContext;
 struct FComponentSpacePoseContext;
+struct FAnimInstanceProxy;
 
 /**
  * Cached function name/ptr that is resolved at init time
@@ -51,14 +55,16 @@ private:
 	UFunction* Function = nullptr;
 };
 
+namespace UE { namespace Anim {
+
 // Wrapper used to call anim node functions
-struct FAnimNodeFunctionCaller
+struct FNodeFunctionCaller
 {
 private:
-	friend struct FPoseLinkBase;
-	friend struct FPoseLink;
-	friend struct FComponentSpacePoseLink;
-	friend struct FAnimInstanceProxy;
+	friend struct ::FPoseLinkBase;
+	friend struct ::FPoseLink;
+	friend struct ::FComponentSpacePoseLink;
+	friend struct ::FAnimInstanceProxy;
 	
 	// Call the Initialize function of this node
 	static void Initialize(const FAnimationInitializeContext& InContext, FAnimNode_Base& InNode);
@@ -75,3 +81,5 @@ private:
 	// Call the EvaluateComponentSpace function of this node
 	static void EvaluateComponentSpace(FComponentSpacePoseContext& InContext, FAnimNode_Base& InNode);
 };
+
+}}
