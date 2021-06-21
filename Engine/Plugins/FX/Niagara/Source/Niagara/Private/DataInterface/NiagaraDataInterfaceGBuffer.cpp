@@ -13,6 +13,18 @@
 
 namespace NiagaraDataInterfaceGBufferLocal
 {
+	struct EDIFunctionVersion
+	{
+		enum Type
+		{
+			InitialVersion = 0,
+			AddedApplyViewportOffset = 1,
+
+			VersionPlusOne,
+			LatestVersion = VersionPlusOne - 1
+		};
+	};
+
 	struct FGBufferAttribute
 	{
 		FGBufferAttribute(const TCHAR* InAttributeName, const TCHAR* InAttributeType, FNiagaraTypeDefinition InTypeDef, FText InDescription)
@@ -170,8 +182,12 @@ void UNiagaraDataInterfaceGBuffer::GetFunctions(TArray<FNiagaraFunctionSignature
 		Signature.bExperimental = true;
 		Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("GBufferInterface")));
 		Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("ScreenUV")));
+		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("ApplyViewportOffset"))).SetValue(true);
 		Signature.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsValid")));
 		Signature.Outputs.Add(FNiagaraVariable(Attribute.TypeDef, Attribute.AttributeName));
+#if WITH_EDITORONLY_DATA
+		Signature.FunctionVersion = EDIFunctionVersion::LatestVersion;
+#endif
 	}
 }
 
@@ -207,12 +223,35 @@ bool UNiagaraDataInterfaceGBuffer::GetFunctionHLSL(const FNiagaraDataInterfaceGP
 			ArgsSample.Emplace(TEXT("AttributeName"), Attribute.AttributeName);
 			ArgsSample.Emplace(TEXT("AttributeType"), Attribute.AttributeType);
 
-			static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(float2 ScreenUV, out bool IsValid, out {AttributeType} {AttributeName}) { DIGBuffer_Decode{AttributeName}(ScreenUV, IsValid, {AttributeName}); }\n");
+			static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(float2 ScreenUV, bool bApplyViewportOffset, out bool IsValid, out {AttributeType} {AttributeName}) { DIGBuffer_Decode{AttributeName}(ScreenUV, bApplyViewportOffset, IsValid, {AttributeName}); }\n");
 			OutHLSL += FString::Format(FormatSample, ArgsSample);
 			return true;
 		}
 	}
 
 	return false;
+}
+
+bool UNiagaraDataInterfaceGBuffer::UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
+{
+	using namespace NiagaraDataInterfaceGBufferLocal;
+
+	bool bWasChanged = false;
+
+	// Early out for version matching
+	if (FunctionSignature.FunctionVersion == EDIFunctionVersion::LatestVersion)
+	{
+		return bWasChanged;
+	}
+
+	// AddedApplyViewportOffset
+	if ( FunctionSignature.FunctionVersion < EDIFunctionVersion::AddedApplyViewportOffset )
+	{
+		FunctionSignature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("ApplyViewportOffset"))).SetValue(false);
+		bWasChanged = true;
+	}
+
+	FunctionSignature.FunctionVersion = EDIFunctionVersion::LatestVersion;
+	return bWasChanged;
 }
 #endif
