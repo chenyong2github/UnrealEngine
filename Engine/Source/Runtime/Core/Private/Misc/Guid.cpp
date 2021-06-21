@@ -5,6 +5,7 @@
 #include "Math/Int128.h"
 #include "UObject/PropertyPortFlags.h"
 #include "Misc/Base64.h"
+#include "Misc/StringBuilder.h"
 
 
 /* FGuid interface
@@ -47,6 +48,9 @@ FString FGuid::ToString(EGuidFormats Format) const
 	{
 	case EGuidFormats::DigitsWithHyphens:
 		return FString::Printf(TEXT("%08X-%04X-%04X-%04X-%04X%08X"), A, B >> 16, B & 0xFFFF, C >> 16, C & 0xFFFF, D);
+
+	case EGuidFormats::DigitsWithHyphensLower:
+		return FString::Printf(TEXT("%08x-%04x-%04x-%04x-%04x%08x"), A, B >> 16, B & 0xFFFF, C >> 16, C & 0xFFFF, D);
 
 	case EGuidFormats::DigitsWithHyphensInBraces:
 		return FString::Printf(TEXT("{%08X-%04X-%04X-%04X-%04X%08X}"), A, B >> 16, B & 0xFFFF, C >> 16, C & 0xFFFF, D);
@@ -111,6 +115,21 @@ FString FGuid::ToString(EGuidFormats Format) const
 	default:
 		return FString::Printf(TEXT("%08X%08X%08X%08X"), A, B, C, D);
 	}
+}
+
+void FGuid::AppendString(FAnsiStringBuilderBase& Builder) const
+{
+	Builder.Appendf("%08x-%04x-%04x-%04x-%04x%08x", A, B >> 16, B & 0xFFFF, C >> 16, C & 0xFFFF, D);
+}
+
+void FGuid::AppendString(FUtf8StringBuilderBase& Builder) const
+{
+	Builder.Appendf(UTF8TEXT("%08x-%04x-%04x-%04x-%04x%08x"), A, B >> 16, B & 0xFFFF, C >> 16, C & 0xFFFF, D);
+}
+
+void FGuid::AppendString(FWideStringBuilderBase& Builder) const
+{
+	Builder.Appendf(TEXT("%08x-%04x-%04x-%04x-%04x%08x"), A, B >> 16, B & 0xFFFF, C >> 16, C & 0xFFFF, D);
 }
 
 
