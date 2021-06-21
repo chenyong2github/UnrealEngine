@@ -1380,8 +1380,8 @@ FMatrix FOpenXRHMD::GetStereoProjectionMatrix(const enum EStereoscopicPass Stere
 	const uint32 ViewIndex = GetViewIndexForPass(StereoPassType);
 
 	const FPipelinedFrameState& FrameState = GetPipelinedFrameStateForThread();
-	XrFovf Fov = FrameState.Views[ViewIndex].fov;
-
+	XrFovf Fov = (ViewIndex < (uint32)FrameState.Views.Num()) ? FrameState.Views[ViewIndex].fov 
+		: XrFovf{ -PI / 4.0f, PI / 4.0f, PI / 4.0f, -PI / 4.0f };
 	float ZNear = GNearClippingPlane;
 
 	Fov.angleUp = tan(Fov.angleUp);
