@@ -108,6 +108,9 @@ public:
 
 	UPROPERTY()
 	int32 CustomDepthStencilValue;
+
+	UPROPERTY()
+	EHLODBatchingPolicy HLODBatchingPolicy;
 	
 	UPROPERTY()
 	uint8 bCastShadow : 1;
