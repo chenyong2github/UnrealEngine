@@ -4010,7 +4010,7 @@ void EmitDepthTargets(
 		FRDGTextureUAVRef SceneHTileUAV		= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::HTile));
 		FRDGTextureUAVRef MaterialDepthUAV	= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(MaterialDepth, ERDGTextureMetaDataAccess::CompressedSurface));
 		FRDGTextureUAVRef MaterialHTileUAV	= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(MaterialDepth, ERDGTextureMetaDataAccess::HTile));
-		FRDGTextureUAVRef VelocityUAV		= GraphBuilder.CreateUAV(VelocityBuffer);
+		FRDGTextureUAVRef VelocityUAV		= bEmitVelocity ? GraphBuilder.CreateUAV(VelocityBuffer) : nullptr;
 		FRDGTextureUAVRef NaniteMaskUAV		= GraphBuilder.CreateUAV(NaniteMask);
 
 		FDepthExportCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDepthExportCS::FParameters>();
