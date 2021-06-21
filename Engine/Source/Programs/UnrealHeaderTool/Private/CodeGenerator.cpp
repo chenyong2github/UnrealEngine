@@ -2090,7 +2090,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 			FunctionsCount = TEXT("0");
 		}
 
-		if (ClassDef.GetStructMetaData().bObjectInitializerConstructorDeclared)
+		if (ClassDef.IsObjectInitializerConstructorDeclared())
 		{
 			ClassDef.SetMetaData(NAME_ObjectInitializerConstructorDeclared, TEXT(""));
 		}
@@ -2664,7 +2664,7 @@ FString GetGeneratedMacroDeprecationWarning(const TCHAR* MacroName)
 FString GetPreservedAccessSpecifierString(FUnrealClassDefinitionInfo& ClassDef)
 {
 	FString PreservedAccessSpecifier;
-	switch (ClassDef.GetStructMetaData().GeneratedBodyMacroAccessSpecifier)
+	switch (ClassDef.GetGeneratedBodyMacroAccessSpecifier())
 	{
 	case EAccessSpecifier::ACCESS_Private:
 		PreservedAccessSpecifier = "private:";
@@ -2702,7 +2702,6 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 	FUHTStringBuilder EnhancedUObjectConstructorsMacroCall;
 
 	UClass* Class = ClassDef.GetClass();
-	FStructMetaData& StructData = ClassDef.GetStructMetaData();
 
 	FUnrealClassDefinitionInfo* SuperClassDef = ClassDef.GetSuperClass();
 	UClass* SuperClass = SuperClassDef ? SuperClassDef->GetClass() : nullptr;
@@ -2735,14 +2734,14 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 			ExportEventParm(UClassMacroContent, OutReferenceGatherers.ForwardDeclarations, *FunctionDef, /*Indent=*/ 1, /*bOutputConstructor=*/ true, EExportingState::Normal);
 		}
 
-		FString MacroName = SourceFile.GetGeneratedMacroName(StructData, TEXT("_EVENT_PARMS"));
+		FString MacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_EVENT_PARMS"));
 		WriteMacro(OutGeneratedHeaderText, MacroName, UClassMacroContent);
 		PrologMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
 
 		// VM -> C++ proxies (events and delegates).
 		FOutputDeviceNull NullOutput;
 		FOutputDevice& CallbackOut = ClassDef.HasAnyClassFlags(CLASS_NoExport) ? NullOutput : OutCpp;
-		FString CallbackWrappersMacroName = SourceFile.GetGeneratedMacroName(StructData, TEXT("_CALLBACK_WRAPPERS"));
+		FString CallbackWrappersMacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_CALLBACK_WRAPPERS"));
 		ExportCallbackFunctions(
 			OutGeneratedHeaderText,
 			CallbackOut,
@@ -2789,7 +2788,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 		FUHTStringBuilder Boilerplate, BoilerPlateCPP;
 		const TCHAR* MacroNameHeader;
 		const TCHAR* MacroNameCPP;
-		GeneratedSerializeFunctionHeaderMacroName = SourceFile.GetGeneratedMacroName(StructData, TEXT("_ARCHIVESERIALIZER"));
+		GeneratedSerializeFunctionHeaderMacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_ARCHIVESERIALIZER"));
 
 		if (ClassDef.GetArchiveType() == ESerializerArchiveType::StructuredArchiveRecord)
 		{
@@ -2859,12 +2858,12 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 
 		if (ClassDef.HasAnyClassFlags(CLASS_Interface))
 		{
-			ExportConstructorsMacros(OutGeneratedHeaderText, OutCpp, StandardUObjectConstructorsMacroCall, EnhancedUObjectConstructorsMacroCall, SourceFile.GetGeneratedMacroName(StructData), ClassDef, *APIArg);
+			ExportConstructorsMacros(OutGeneratedHeaderText, OutCpp, StandardUObjectConstructorsMacroCall, EnhancedUObjectConstructorsMacroCall, SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine()), ClassDef, *APIArg);
 
-			FString InterfaceMacroName = SourceFile.GetGeneratedMacroName(StructData, TEXT("_GENERATED_UINTERFACE_BODY"));
+			FString InterfaceMacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_GENERATED_UINTERFACE_BODY"));
 			OutGeneratedHeaderText.Log(Macroize(*(InterfaceMacroName + TEXT("()")), *Boilerplate));
 
-			int32 ClassGeneratedBodyLine = StructData.GetGeneratedBodyLine();
+			int32 ClassGeneratedBodyLine = ClassDef.GetGeneratedBodyLine();
 
 			FString DeprecationWarning = GetGeneratedMacroDeprecationWarning(TEXT("GENERATED_UINTERFACE_BODY"));
 
@@ -2926,11 +2925,11 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 				WriteReplicatedMacroData(*ClassCPPName, *APIArg, ClassDef, SuperClass, InterfaceBoilerplate, SourceFile, OutFlags);
 			}
 
-			FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(StructData, TEXT("_INCLASS_IINTERFACE_NO_PURE_DECLS"));
+			FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_INCLASS_IINTERFACE_NO_PURE_DECLS"));
 			WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, InterfaceBoilerplate);
 			ClassNoPureDeclsMacroCalls.Logf(TEXT("\t%s\r\n"), *NoPureDeclsMacroName);
 
-			FString MacroName = SourceFile.GetGeneratedMacroName(StructData, TEXT("_INCLASS_IINTERFACE"));
+			FString MacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_INCLASS_IINTERFACE"));
 			WriteMacro(OutGeneratedHeaderText, MacroName, InterfaceBoilerplate);
 			ClassMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
 		}
@@ -2954,21 +2953,21 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 			}
 
 			{
-				FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(StructData, TEXT("_INCLASS_NO_PURE_DECLS"));
+				FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_INCLASS_NO_PURE_DECLS"));
 				WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, Boilerplate);
 				ClassNoPureDeclsMacroCalls.Logf(TEXT("\t%s\r\n"), *NoPureDeclsMacroName);
 
-				FString MacroName = SourceFile.GetGeneratedMacroName(StructData, TEXT("_INCLASS"));
+				FString MacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_INCLASS"));
 				WriteMacro(OutGeneratedHeaderText, MacroName, Boilerplate);
 				ClassMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
 
-				ExportConstructorsMacros(OutGeneratedHeaderText, OutCpp, StandardUObjectConstructorsMacroCall, EnhancedUObjectConstructorsMacroCall, SourceFile.GetGeneratedMacroName(StructData), ClassDef, *APIArg);
+				ExportConstructorsMacros(OutGeneratedHeaderText, OutCpp, StandardUObjectConstructorsMacroCall, EnhancedUObjectConstructorsMacroCall, SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine()), ClassDef, *APIArg);
 			}
 		}
 	}
 
 	{
-		FString MacroName = SourceFile.GetGeneratedMacroName(StructData.GetPrologLine(), TEXT("_PROLOG"));
+		FString MacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetPrologLine(), TEXT("_PROLOG"));
 		WriteMacro(OutGeneratedHeaderText, MacroName, PrologMacroCalls);
 	}
 
@@ -2987,7 +2986,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 		if (bIsIInterface)
 		{
 			MacroName = TEXT("GENERATED_IINTERFACE_BODY()");
-			GeneratedBodyLine = StructData.GetInterfaceGeneratedBodyLine();
+			GeneratedBodyLine = ClassDef.GetInterfaceGeneratedBodyLine();
 			LegacyGeneratedBody = ClassMacroCalls;
 			GeneratedBody = ClassNoPureDeclsMacroCalls;
 		}
@@ -2995,7 +2994,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 		{
 			MacroName = TEXT("GENERATED_UCLASS_BODY()");
 			DeprecationWarning = GetGeneratedMacroDeprecationWarning(MacroName);
-			GeneratedBodyLine = StructData.GetGeneratedBodyLine();
+			GeneratedBodyLine = ClassDef.GetGeneratedBodyLine();
 			LegacyGeneratedBody = FString::Printf(TEXT("%s%s"), *ClassMacroCalls, *StandardUObjectConstructorsMacroCall);
 			GeneratedBody = FString::Printf(TEXT("%s%s"), *ClassNoPureDeclsMacroCalls, *EnhancedUObjectConstructorsMacroCall);
 		}
@@ -3042,7 +3041,7 @@ void ExportCopyConstructorDefinition(FOutputDevice& Out, const TCHAR* API, const
  */
 void ExportVTableHelperCtorAndCaller(FOutputDevice& Out, FUnrealClassDefinitionInfo& ClassDef, const TCHAR* API, const TCHAR* ClassCPPName)
 {
-	if (!ClassDef.GetStructMetaData().bCustomVTableHelperConstructorDeclared)
+	if (!ClassDef.IsCustomVTableHelperConstructorDeclared())
 	{
 		Out.Logf(TEXT("\tDECLARE_VTABLE_PTR_HELPER_CTOR(%s_API, %s);" LINE_TERMINATOR), API, ClassCPPName);
 	}
@@ -3062,7 +3061,7 @@ void ExportStandardConstructorsMacro(FOutputDevice& Out, FUnrealClassDefinitionI
 	{
 		Out.Logf(TEXT("\t/** Standard constructor, called after all reflected properties have been initialized */\r\n"));
 		Out.Logf(TEXT("\t%s_API %s(const FObjectInitializer& ObjectInitializer%s);\r\n"), API, ClassCPPName,
-			ClassDef.GetStructMetaData().bDefaultConstructorDeclared ? TEXT("") : TEXT(" = FObjectInitializer::Get()"));
+			ClassDef.IsDefaultConstructorDeclared() ? TEXT("") : TEXT(" = FObjectInitializer::Get()"));
 	}
 	if (ClassDef.HasAnyClassFlags(CLASS_Abstract))
 	{
@@ -3087,8 +3086,7 @@ void ExportStandardConstructorsMacro(FOutputDevice& Out, FUnrealClassDefinitionI
  */
 void ExportConstructorDefinition(FOutputDevice& Out, FUnrealClassDefinitionInfo& ClassDef, const TCHAR* API, const TCHAR* ClassCPPName)
 {
-	FStructMetaData& StructData = ClassDef.GetStructMetaData();
-	if (!StructData.bConstructorDeclared)
+	if (!ClassDef.IsConstructorDeclared())
 	{
 		Out.Logf(TEXT("\t/** Standard constructor, called after all reflected properties have been initialized */\r\n"));
 
@@ -3105,27 +3103,26 @@ void ExportConstructorDefinition(FOutputDevice& Out, FUnrealClassDefinitionInfo&
 				// Since the SourceFile array provided to the ParallelFor is in dependency order and does not allow cyclic dependencies, 
 				// we can be certain that another thread has started processing the file containing our SuperClass before this
 				// file would have been assigned out,  so we just have to wait
-				FStructMetaData& SuperClassData = SuperClassDef->GetStructMetaData();
-				while (!SuperClassData.bConstructorDeclared)
+				while (!SuperClassDef->IsConstructorDeclared())
 				{
 					FPlatformProcess::Sleep(0.01);
 				}
 
-				bSuperClassObjectInitializerConstructorDeclared = SuperClassData.bObjectInitializerConstructorDeclared;
+				bSuperClassObjectInitializerConstructorDeclared = SuperClassDef->IsObjectInitializerConstructorDeclared();
 			}
 		}
 		if (bSuperClassObjectInitializerConstructorDeclared)
 		{
 			Out.Logf(TEXT("\t%s_API %s(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get()) : Super(ObjectInitializer) { };\r\n"), API, ClassCPPName);
-			StructData.bObjectInitializerConstructorDeclared = true;
+			ClassDef.MarkObjectInitializerConstructorDeclared();
 		}
 		else
 		{
 			Out.Logf(TEXT("\t%s_API %s() { };\r\n"), API, ClassCPPName);
-			StructData.bDefaultConstructorDeclared = true;
+			ClassDef.MarkDefaultConstructorDeclared();
 		}
 
-		StructData.bConstructorDeclared = true;
+		ClassDef.MarkConstructorDeclared();
 	}
 	ExportCopyConstructorDefinition(Out, API, ClassCPPName);
 }
@@ -3138,7 +3135,7 @@ void ExportConstructorDefinition(FOutputDevice& Out, FUnrealClassDefinitionInfo&
  */
 void ExportDefaultConstructorCallDefinition(FOutputDevice& Out, FUnrealClassDefinitionInfo& ClassDef, const TCHAR* ClassCPPName)
 {
-	if (ClassDef.GetStructMetaData().bObjectInitializerConstructorDeclared)
+	if (ClassDef.IsObjectInitializerConstructorDeclared())
 	{
 		if (ClassDef.HasAnyClassFlags(CLASS_Abstract))
 		{
@@ -3149,7 +3146,7 @@ void ExportDefaultConstructorCallDefinition(FOutputDevice& Out, FUnrealClassDefi
 			Out.Logf(TEXT("\tDEFINE_DEFAULT_OBJECT_INITIALIZER_CONSTRUCTOR_CALL(%s)\r\n"), ClassCPPName);
 		}
 	}
-	else if (ClassDef.GetStructMetaData().bDefaultConstructorDeclared)
+	else if (ClassDef.IsDefaultConstructorDeclared())
 	{
 		if (ClassDef.HasAnyClassFlags(CLASS_Abstract))
 		{
@@ -3208,7 +3205,7 @@ void FNativeClassHeaderGenerator::ExportConstructorsMacros(FOutputDevice& OutGen
 	ExportStandardConstructorsMacro(StdMacro, ClassDef, APIArg, *ClassCPPName);
 	ExportEnhancedConstructorsMacro(EnhMacro, ClassDef, APIArg, *ClassCPPName);
 
-	if (!ClassDef.GetStructMetaData().bCustomVTableHelperConstructorDeclared)
+	if (!ClassDef.IsCustomVTableHelperConstructorDeclared())
 	{
 		Out.Logf(TEXT("\tDEFINE_VTABLE_PTR_HELPER_CTOR(%s);" LINE_TERMINATOR), *ClassCPPName);
 	}
@@ -4980,7 +4977,6 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 	FNativeFunctionStringBuilder RuntimeStringBuilders;
 	FNativeFunctionStringBuilder EditorStringBuilders;
 
-	FStructMetaData& StructData = ClassDef.GetStructMetaData();
 	const FString ClassCPPName = ClassDef.GetAlternateNameCPP(ClassDef.HasAnyClassFlags(CLASS_Interface));
 
 	ClassDef.ValidateDefinitionRange();
@@ -5154,7 +5150,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 
 	// static class data
 	{
-		FString MacroName = SourceFile.GetGeneratedMacroName(StructData, TEXT("_SPARSE_DATA"));
+		FString MacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_SPARSE_DATA"));
 
 		WriteMacro(OutGeneratedHeaderText, MacroName, RuntimeStringBuilders.AutogeneratedStaticData + RuntimeStringBuilders.AutogeneratedStaticDataFuncs);
 		OutMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
@@ -5163,7 +5159,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 
 	// Write runtime wrappers
 	{
-		FString MacroName = SourceFile.GetGeneratedMacroName(StructData, TEXT("_RPC_WRAPPERS"));
+		FString MacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_RPC_WRAPPERS"));
 
 		// WriteMacro has an assumption about what will be at the end of this block that is no longer true due to splitting the
 		// definition and implementation, so add on a line terminator to satisfy it
@@ -5176,7 +5172,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 		OutMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
 
 		// Put static checks before RPCWrappers to get proper messages from static asserts before compiler errors.
-		FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(StructData, TEXT("_RPC_WRAPPERS_NO_PURE_DECLS"));
+		FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_RPC_WRAPPERS_NO_PURE_DECLS"));
 		if (ClassDef.GetGeneratedCodeVersion() > EGeneratedCodeVersion::V1)
 		{
 			WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, RuntimeStringBuilders.RPCWrappers);
@@ -5196,7 +5192,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 	{
 		OutGeneratedHeaderText.Log( BeginEditorOnlyGuard );
 
-		FString MacroName = SourceFile.GetGeneratedMacroName(StructData, TEXT("_EDITOR_ONLY_RPC_WRAPPERS"));
+		FString MacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_EDITOR_ONLY_RPC_WRAPPERS"));
 
 		// WriteMacro has an assumption about what will be at the end of this block that is no longer true due to splitting the
 		// definition and implementation, so add on a line terminator to satisfy it
@@ -5209,7 +5205,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 		OutMacroCalls.Logf(TEXT("\t%s\r\n"), *MacroName);
 
 		// Put static checks before RPCWrappers to get proper messages from static asserts before compiler errors.
-		FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(StructData, TEXT("_EDITOR_ONLY_RPC_WRAPPERS_NO_PURE_DECLS"));
+		FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_EDITOR_ONLY_RPC_WRAPPERS_NO_PURE_DECLS"));
 		if (ClassDef.GetGeneratedCodeVersion() > EGeneratedCodeVersion::V1)
 		{
 			WriteMacro(OutGeneratedHeaderText, NoPureDeclsMacroName, EditorStringBuilders.RPCWrappers);

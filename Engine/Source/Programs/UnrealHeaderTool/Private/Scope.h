@@ -12,7 +12,6 @@ class UDelegateFunction;
 
 // Forward declarations.
 class UStruct;
-class FStructMetaData;
 class FUnrealSourceFile;
 class FFileScope;
 class FStructScope;

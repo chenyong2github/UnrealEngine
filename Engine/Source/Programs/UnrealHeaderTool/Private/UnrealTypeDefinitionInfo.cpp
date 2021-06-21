@@ -1833,7 +1833,7 @@ FUnrealClassDefinitionInfo::FUnrealClassDefinitionInfo(FUnrealSourceFile& InSour
 	if (bInIsInterface)
 	{
 		ClassFlags |= CLASS_Interface;
-		GetStructMetaData().ParsedInterface = EParsedInterface::ParsedUInterface;
+		ParsedInterface = EParsedInterface::ParsedUInterface;
 	}
 }
 
@@ -2045,7 +2045,7 @@ void FUnrealClassDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePha
 			}
 		}
 
-		if (IsInterface() && GetStructMetaData().ParsedInterface == EParsedInterface::ParsedUInterface)
+		if (IsInterface() && ParsedInterface == EParsedInterface::ParsedUInterface)
 		{
 			FString UName = GetNameCPP();
 			FString IName = TEXT("I") + UName.RightChop(1);
