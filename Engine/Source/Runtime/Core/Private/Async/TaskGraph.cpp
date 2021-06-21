@@ -34,6 +34,7 @@
 #include "Misc/ConfigCacheIni.h"
 
 #include "Async/Fundamental/Scheduler.h"
+#include "Async/Fundamental/ReserveScheduler.h"
 #include "Tasks/Pipe.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogTaskGraph, Log, All);
@@ -101,6 +102,7 @@ static FAutoConsoleVariableRef CVarForkedProcessMaxWorkerThreads(
 
 CORE_API int32 GUseNewTaskBackend = 1;
 uint32 GNumForegroundWorkers = 2;
+bool GDisableReserveWorkers = 0;
 
 #if CREATE_HIPRI_TASK_THREADS || CREATE_BACKGROUND_TASK_THREADS
 	static void ThreadSwitchForABTest(const TArray<FString>& Args)
@@ -1876,6 +1878,11 @@ public:
 			int32 NumForegroundWorkers =  FMath::Max(1, NumWorkerThreads - NumBackgroundWorkers);
 
 			LowLevelTasks::FScheduler::Get().StartWorkers(NumForegroundWorkers, NumBackgroundWorkers, EThreadPriority::TPri_Normal, EThreadPriority::TPri_BelowNormal, FForkProcessHelper::IsForkedMultithreadInstance());
+			if (!GDisableReserveWorkers)
+			{
+				LowLevelTasks::FReserveScheduler::Get().StartWorkers(LowLevelTasks::FScheduler::Get(), NumForegroundWorkers + NumBackgroundWorkers, EThreadPriority::TPri_BelowNormal, FForkProcessHelper::IsForkedMultithreadInstance());
+			}
+
 			NumNamedThreads = ENamedThreads::ActualRenderingThread + 1;
 			ENamedThreads::bHasBackgroundThreads = 1;
 			ENamedThreads::bHasHighPriorityThreads = 1;
@@ -1883,6 +1890,10 @@ public:
 		else
 		{
 			LowLevelTasks::FScheduler::Get().StopWorkers();
+			if (!GDisableReserveWorkers)
+			{
+				LowLevelTasks::FReserveScheduler::Get().StopWorkers();
+			}
 			NumNamedThreads = ENamedThreads::ActualRenderingThread;
 			ENamedThreads::bHasBackgroundThreads = 0;
 			ENamedThreads::bHasHighPriorityThreads = 0;
@@ -1913,6 +1924,10 @@ public:
 			NamedThreads[ThreadIndex].bAttached = false;
 		}
 		LowLevelTasks::FScheduler::Get().StopWorkers();
+		if (!GDisableReserveWorkers)
+		{
+			LowLevelTasks::FReserveScheduler::Get().StopWorkers();
+		}
 		FPlatformTLS::FreeTlsSlot(PerThreadIDTLSSlot);
 	}
 
@@ -1946,6 +1961,12 @@ public:
 
 			LowLevelTasks::FScheduler::Get().StopWorkers();
 			LowLevelTasks::FScheduler::Get().StartWorkers(NumWorkers, NumBackgroundWorkers, Pri, EThreadPriority::TPri_BelowNormal, FForkProcessHelper::IsForkedMultithreadInstance());
+
+			if (!GDisableReserveWorkers)
+			{
+				LowLevelTasks::FReserveScheduler::Get().StopWorkers();
+				LowLevelTasks::FReserveScheduler::Get().StartWorkers(LowLevelTasks::FScheduler::Get(), NumWorkers + NumBackgroundWorkers, EThreadPriority::TPri_BelowNormal, FForkProcessHelper::IsForkedMultithreadInstance());
+			}
 		}
 	}
 
@@ -2116,20 +2137,42 @@ private:
 			TGraphTask<FReturnGraphTask>::CreateTask(&Tasks, CurrentThread).ConstructAndDispatchWhenReady(CurrentThread);
 			ProcessThreadUntilRequestReturn(CurrentThread);
 		}
-		else if (LowLevelTasks::FScheduler::Get().IsWorkerThread())
+		else if (LowLevelTasks::FScheduler::Get().IsWorkerThread() || LowLevelTasks::FReserveScheduler::Get().IsWorkerThread())
 		{
-			LowLevelTasks::BusyWaitUntil([Index(0), &Tasks]() mutable
+			if (GDisableReserveWorkers)
 			{
-				while (Index < Tasks.Num())
+				LowLevelTasks::BusyWaitUntil([Index(0), &Tasks]() mutable
 				{
-					if (!Tasks[Index]->IsComplete())
+					while (Index < Tasks.Num())
 					{
-						return false;
+						if (!Tasks[Index]->IsComplete())
+						{
+							return false;
+						}
+						Index++;
 					}
-					Index++;
-				}
-				return true;
-			});
+					return true;
+				});
+			}
+			else
+			{
+				LowLevelTasks::DoReserveWorkUntil([Index(0), Tasks]() mutable
+				{
+					while (Index < Tasks.Num())
+					{
+						if (!Tasks[Index]->IsComplete())
+						{
+							return false;
+						}
+						Index++;
+					}
+					return true;
+				});
+
+				// We will just stall this thread on an event while we wait
+				FScopedEvent Event;
+				TriggerEventWhenTasksComplete(Event.Get(), Tasks, CurrentThreadIfKnown);
+			}
 		}
 		else
 		{
@@ -2271,6 +2314,15 @@ void FTaskGraphInterface::Startup(int32 NumThreads)
 	else if (FParse::Param(FCommandLine::Get(), TEXT("TaskGraphForceNewBackend")))
 	{
 		GUseNewTaskBackend = 1;
+	}
+
+	if (FParse::Param(FCommandLine::Get(), TEXT("TaskGraphDisableReserveWorkers")))
+	{
+		GDisableReserveWorkers = 1;
+	}
+	else if (FParse::Param(FCommandLine::Get(), TEXT("TaskGraphEnableReserveWorkers")))
+	{
+		GDisableReserveWorkers = 0;
 	}
 
 	if (GUseNewTaskBackend)
