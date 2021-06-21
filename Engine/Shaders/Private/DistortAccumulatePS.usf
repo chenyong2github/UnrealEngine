@@ -39,6 +39,10 @@ void Main(
 	in float4 SvPosition	: SV_Position
 	OPTIONAL_IsFrontFace,
 	out float4 OutColor		: SV_Target0
+#if STRATA_ENABLED
+	,
+	out float4 OutRough		: SV_Target1
+#endif
 	)
 {
 #if INSTANCED_STEREO
@@ -124,6 +128,10 @@ void Main(
 
 	// output positives in R|G channels and negatives in B|A channels
 	OutColor = float4(PosOffset.x,PosOffset.y,NegOffset.x,NegOffset.y);
+
+#if STRATA_ENABLED
+	OutRough = saturate( length(abs(PosOffset - NegOffset)) );				// STRATA_TODO use a proper model
+#endif
 }
 
 
