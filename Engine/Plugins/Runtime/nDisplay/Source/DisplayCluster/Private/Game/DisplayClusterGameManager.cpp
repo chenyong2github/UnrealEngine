@@ -79,12 +79,10 @@ bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 		{
 			// Spawn the DCRA
 			RootActor = Cast<ADisplayClusterRootActor>(CurrentWorld->SpawnActor(ADisplayClusterRootActor::StaticClass()));
+			// And initialize it with the config data
+			RootActor->InitializeFromConfig(ConfigData);
 		}
 	}
-
-	// Regardless of the DCRA nature, either it was spawned as an empty DCRA instance or was found as a BP instance,
-	// we need to initialize it with the config data. In case it's a BP instance, the configuration data will be overwritten.
-	RootActor->InitializeFromConfig(ConfigData);
 
 	// Store the DCRA instance. It's now considered as an 'active' root actor, so any nDisplay subsystem
 	// or some user game logic can refer it using game manager API
