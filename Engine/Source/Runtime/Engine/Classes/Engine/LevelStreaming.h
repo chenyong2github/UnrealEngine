@@ -537,6 +537,9 @@ protected:
 	 */
 	virtual bool RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoadRequests, EReqLevelBlock BlockPolicy);
 
+	/** Sets loaded level, fixups for PIE, notifies level is loaded, apply necessary modifications on level once loaded. */
+	void PrepareLoadedLevel(ULevel* InLevel, UPackage* InLevelPackage, int32 InPIEInstanceID);
+
 	/** Sets the value of LoadedLevel */
 	virtual void SetLoadedLevel(ULevel* Level);
 
