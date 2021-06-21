@@ -141,6 +141,24 @@ struct FTransformAnimationAttribute
 	}
 };
 
+USTRUCT()
+struct FNonBlendableTransformAnimationAttribute : public FTransformAnimationAttribute
+{
+	GENERATED_BODY()
+};
+
+USTRUCT()
+struct FNonBlendableFloatAnimationAttribute : public FFloatAnimationAttribute
+{
+	GENERATED_BODY()
+};
+
+USTRUCT()
+struct FNonBlendableIntegerAnimationAttribute : public FIntegerAnimationAttribute
+{
+	GENERATED_BODY()
+};
+
 namespace UE
 {
 	namespace Anim
@@ -158,6 +176,34 @@ namespace UE
 		/** String attribute is not blend-able by default */
 		template<>
 		struct TAttributeTypeTraits<FStringAnimationAttribute> : public TAttributeTypeTraitsBase<FStringAnimationAttribute>
+		{
+			enum
+			{
+				IsBlendable = false,
+			};
+		};
+
+		/** Non blendable types*/
+		template<>
+		struct TAttributeTypeTraits<FNonBlendableTransformAnimationAttribute> : public TAttributeTypeTraitsBase<FNonBlendableTransformAnimationAttribute>
+		{
+			enum
+			{
+				IsBlendable = false,
+			};
+		};
+		
+		template<>
+		struct TAttributeTypeTraits<FNonBlendableFloatAnimationAttribute> : public TAttributeTypeTraitsBase<FNonBlendableFloatAnimationAttribute>
+		{
+			enum
+			{
+				IsBlendable = false,
+			};
+		};
+
+		template<>
+		struct TAttributeTypeTraits<FNonBlendableIntegerAnimationAttribute> : public TAttributeTypeTraitsBase<FNonBlendableIntegerAnimationAttribute>
 		{
 			enum
 			{
