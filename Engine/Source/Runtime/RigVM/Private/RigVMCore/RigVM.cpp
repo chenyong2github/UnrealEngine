@@ -1602,6 +1602,13 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 					}
 				}
 
+#if WITH_EDITOR
+				if(DebugMemoryPtr->Num() > 0)
+				{
+					CopyOperandForDebuggingIfNeeded(Op.Source, SourceHandle);
+				}
+#endif
+
 				Context.InstructionIndex++;
 				break;
 			}
