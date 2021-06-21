@@ -156,6 +156,11 @@ void FXRTrackingSystemBase::GetMotionControllerData(UObject* WorldContext, const
 			break;
 		}
 	}
+
+	if (!MotionControllerData.bValid)
+	{
+		UE_LOG(LogHMD, Warning, TEXT("GetMotionControllerData could not find matching UMotionControllerComponent, Hand: %d"), Hand);
+	}
 }
 
 
