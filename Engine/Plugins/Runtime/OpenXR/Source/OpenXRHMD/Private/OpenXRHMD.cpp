@@ -2424,10 +2424,10 @@ void FOpenXRHMD::LocateViews(FPipelinedFrameState& PipelineState, bool ResizeVie
 	}
 	else
 	{
-		ensure(PipelinedFrameStateRendering.Views.Num() == ViewCount);
+		ensure(PipelineState.Views.Num() == ViewCount);
 	}
 	
-	XR_ENSURE(xrLocateViews(Session, &ViewInfo, &PipelinedFrameStateRendering.ViewState, PipelinedFrameStateRendering.Views.Num(), &ViewCount, PipelinedFrameStateRendering.Views.GetData()));
+	XR_ENSURE(xrLocateViews(Session, &ViewInfo, &PipelineState.ViewState, PipelineState.Views.Num(), &ViewCount, PipelineState.Views.GetData()));
 }
 
 void FOpenXRHMD::OnLateUpdateApplied_RenderThread(FRHICommandListImmediate& RHICmdList, const FTransform& NewRelativeTransform)
