@@ -47,7 +47,7 @@ void FSimpleMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuilde
 		// 2. Run finalize culling commands pass
 		check(View.bIsViewInfo);
 		const FViewInfo* ViewInfo = static_cast<const FViewInfo*>(&View);
-		InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, ViewInfo->DynamicPrimitiveCollector.GetPrimitiveIdRange(), InstanceCullingResult);
+		InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, ViewInfo->DynamicPrimitiveCollector.GetInstanceSceneDataOffset(), ViewInfo->DynamicPrimitiveCollector.NumInstances(), InstanceCullingResult);
 		
 		// Signal that scene primitives are supported, used for validation, the existence of a valid InstanceCullingResult is the required signal
 		bSupportsScenePrimitives = true;

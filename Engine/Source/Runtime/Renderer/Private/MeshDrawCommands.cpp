@@ -1317,7 +1317,7 @@ void FParallelMeshDrawCommandPass::BuildRenderingCommands(
 		check(!bHasInstanceCullingDrawParameters);
 		WaitForMeshPassSetupTask();
 		// 2. Run or queue finalize culling commands pass
-		TaskContext.InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, TaskContext.View->DynamicPrimitiveCollector.GetPrimitiveIdRange(), TaskContext.InstanceCullingResult, &OutInstanceCullingDrawParams);
+		TaskContext.InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, TaskContext.View->DynamicPrimitiveCollector.GetInstanceSceneDataOffset(), TaskContext.View->DynamicPrimitiveCollector.NumInstances(), TaskContext.InstanceCullingResult, &OutInstanceCullingDrawParams);
 		TaskContext.InstanceCullingResult.GetDrawParameters(OutInstanceCullingDrawParams);
 		bHasInstanceCullingDrawParameters = true;
 		check(!TaskContext.InstanceCullingContext.HasCullingCommands() || OutInstanceCullingDrawParams.DrawIndirectArgsBuffer && OutInstanceCullingDrawParams.InstanceIdOffsetBuffer);
@@ -1330,18 +1330,9 @@ void FParallelMeshDrawCommandPass::BuildRenderingCommands(
 
 
 
-void FParallelMeshDrawCommandPass::BuildInstanceList(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene, FInstanceCullingRdgParams& OutParams)
+void FParallelMeshDrawCommandPass::WaitForSetupTask()
 {
-	if (TaskContext.InstanceCullingContext.IsEnabled())
-	{
-		WaitForMeshPassSetupTask();
-		if (MaxNumDraws <= 0)
-		{
-			return;
-		}
-		// Run pass to build ID lists (temporary)
-		TaskContext.InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, TaskContext.View->DynamicPrimitiveCollector.GetPrimitiveIdRange(), OutParams);
-	}
+	WaitForMeshPassSetupTask();
 }
 /**
  * Helper to upload and translate a primitive ID buffer.

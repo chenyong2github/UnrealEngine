@@ -1560,8 +1560,6 @@ class FCullPerPageDrawCommandsCs : public FGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain< FNearClipDim, FLoopOverViewsDim >;
 
 public:
-	static constexpr int32 NumThreadsPerGroup = 64;
-
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
@@ -1573,8 +1571,8 @@ public:
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+		FInstanceProcessingGPULoadBalancer::SetShaderDefines(OutEnvironment);
 
-		OutEnvironment.SetDefine(TEXT("NUM_THREADS_PER_GROUP"), NumThreadsPerGroup);
 		OutEnvironment.SetDefine(TEXT("NANITE_MULTI_VIEW"), 1);
 		OutEnvironment.SetDefine(TEXT("INDIRECT_ARGS_NUM_WORDS"), FInstanceCullingContext::IndirectArgsNumWords);
 		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
@@ -1589,23 +1587,20 @@ public:
 		SHADER_PARAMETER(uint32, InstanceSceneDataSOAStride)
 		SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
 
+		SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceProcessingGPULoadBalancer::FShaderParameters, LoadBalancerParameters)
 
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint>, InstanceIdsBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint>, DrawCommandIdsBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint32 >, NumInstanceIdsBuffer)
 		SHADER_PARAMETER(int32, FirstPrimaryView)
 		SHADER_PARAMETER(int32, NumPrimaryViews)
+		SHADER_PARAMETER(int32, DynamicInstanceIdOffset)
+		SHADER_PARAMETER(int32, DynamicInstanceIdMax)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FPackedView >, InViews)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FInstanceCullingContext::FPrimCullingCommand >, PrimitiveCullingCommands)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FInstanceCullingContext::FDrawCommandDesc >, DrawCommandDescs)
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FVisibleInstanceCmd>, VisibleInstancesOut)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, DrawCommandInstanceCountBufferOut)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, DrawIndirectArgsBufferOut)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, VisibleInstanceCountBufferOut)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutDynamicCasterFlags)
 		SHADER_PARAMETER(int32, bInstancePerPage)
-
-		// Needed reference for make RDG happy somehow
-		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FCullPerPageDrawCommandsCs, "/Engine/Private/VirtualShadowMaps/BuildPerPageDrawCommands.usf", "CullPerPageDrawCommandsCs", SF_Compute);
@@ -1630,6 +1625,7 @@ public:
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+		FInstanceProcessingGPULoadBalancer::SetShaderDefines(OutEnvironment);
 
 		OutEnvironment.SetDefine(TEXT("NUM_THREADS_PER_GROUP"), NumThreadsPerGroup);
 		OutEnvironment.SetDefine(TEXT("NANITE_MULTI_VIEW"), 1);
@@ -1638,12 +1634,11 @@ public:
 
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(uint32, NumDrawCommands)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, DrawIndirectArgsBufferOut)
+		SHADER_PARAMETER(uint32, NumIndirectArgs)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, DrawIndirectArgsBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, InstanceIdOffsetBufferOut)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutputOffsetBufferOut)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, TmpInstanceIdOffsetBufferOut)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, DrawCommandInstanceCountBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FAllocateCommandInstanceOutputSpaceCs, "/Engine/Private/VirtualShadowMaps/BuildPerPageDrawCommands.usf", "AllocateCommandInstanceOutputSpaceCs", SF_Compute);
@@ -1667,6 +1662,7 @@ public:
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+		FInstanceProcessingGPULoadBalancer::SetShaderDefines(OutEnvironment);
 
 		OutEnvironment.SetDefine(TEXT("NUM_THREADS_PER_GROUP"), NumThreadsPerGroup);
 		OutEnvironment.SetDefine(TEXT("NANITE_MULTI_VIEW"), 1);
@@ -1795,33 +1791,28 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 		int32 NumPrimaryViews = VirtualShadowViews.Num();
 		CreateMipViews( VirtualShadowViews );
 
-		// Created by BuildInstanceList
-		// 1. Run post-cull unpack command (?) - maybe skip straight to the second pass, or output to intermediate instance index buffer?
-		//MeshCommandPass.BuildRenderingCommands(GraphBuilder, GPUScene, InstanceListBuffer, InstanceCountBuffer);
-		// 1.1. Pass to unpack into flat drawcommand + instance ID pairs
-		FInstanceCullingRdgParams Params;
-		MeshCommandPass.BuildInstanceList(GraphBuilder, GPUScene, Params);
+		MeshCommandPass.WaitForSetupTask();
 
-		const int32 NumDrawCommands = MeshCommandPass.GetInstanceCullingContext()->CullingCommands.Num();
-		if (NumDrawCommands > 0)
+		FInstanceCullingContext* InstanceCullingContext = MeshCommandPass.GetInstanceCullingContext();
+
+		if (InstanceCullingContext->HasCullingCommands())
 		{
 			FString LightNameWithLevel;
 			FSceneRenderer::GetLightNameForDrawEvent(ProjectedShadowInfo->GetLightSceneInfo().Proxy, LightNameWithLevel);
 			RDG_EVENT_SCOPE(GraphBuilder, "%s", *LightNameWithLevel);
 
+
+			uint32 DynamicInstanceIdOffset = ShadowDepthView->DynamicPrimitiveCollector.GetInstanceSceneDataOffset();
+			uint32 DynamicInstanceIdMax = DynamicInstanceIdOffset + ShadowDepthView->DynamicPrimitiveCollector.NumInstances();
+
+			int32 NumIndirectArgs = InstanceCullingContext->IndirectArgs.Num();
+
 			TArray<int32, SceneRenderingAllocator> DrawCommandInstanceCountTmp;
-			DrawCommandInstanceCountTmp.AddZeroed(NumDrawCommands);
-			FRDGBufferRef DrawCommandInstanceCountRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.DrawCommandInstanceCount"), DrawCommandInstanceCountTmp);
+			DrawCommandInstanceCountTmp.AddZeroed(NumIndirectArgs);
 			FRDGBufferRef TmpInstanceIdOffsetBufferRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.TmpInstanceIdOffsetBuffer"), DrawCommandInstanceCountTmp);
-			//AddBuildInstanceListPass(GraphBuilder, GPUScene, InstanceIdBuffer, InstanceCountBuffer);
-			// 2. Run page culling & command building pass(es)
-			// This takes the per high-level view instance list and performs page overlap tests and amplification/compaction for all target mip levels OR clip levels.
-			//if (IsClipMap())
-			// AddPageRenderCommandPass(GraphBuilder, GPUScene, InstanceIdBuffer, InstanceCountBuffer, ShadowMapViews);
-			// 2.1. Pass to perform the culling & replication to each page, store 
 
 			// TODO: This is both not right, and also over conservative when running with the atomic path
-			const uint32 MaxNumInstancesPerPass = MeshCommandPass.GetInstanceCullingContext()->TotalInstances * 64u;
+			const uint32 MaxNumInstancesPerPass = InstanceCullingContext->TotalInstances * 64u;
 			FRDGBufferRef VisibleInstancesRdg = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.VisibleInstances"), sizeof(FVisibleInstanceCmd), MaxNumInstancesPerPass, nullptr, 0);
 
 			TArray<uint32, TInlineAllocator<1> > NullArray;
@@ -1830,29 +1821,45 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 			FRDGBufferRef OutputOffsetBufferRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.OutputOffsetBuffer"), NullArray);
 			FRDGBufferRef VirtualShadowViewsRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.VirtualShadowViews"), VirtualShadowViews);
 
-			{
-				FRDGBufferRef IndirectArgs = AddIndirectArgsSetupCsPass1D(GraphBuilder, Params.InstanceIdWriteOffsetBuffer, 1, FCullPerPageDrawCommandsCs::NumThreadsPerGroup);
+			const auto& IndirectArgs = InstanceCullingContext->IndirectArgs;
+			const auto& DrawCommandDescs = InstanceCullingContext->DrawCommandDescs;
+			const TArray<uint32> &InstanceIdOffsets = InstanceCullingContext->InstanceIdOffsets;
 
+			// Create buffer for indirect args and upload draw arg data, also clears the instance to zero
+			FRDGBufferRef DrawIndirectArgsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(FInstanceCullingContext::IndirectArgsNumWords * IndirectArgs.Num()), TEXT("Shadow.Virtual.DrawIndirectArgsBuffer"));
+			GraphBuilder.QueueBufferUpload(DrawIndirectArgsRDG, IndirectArgs.GetData(), IndirectArgs.GetTypeSize() * IndirectArgs.Num());
+
+			// not using structured buffer as we have to get at it as a vertex buffer 
+			FRDGBufferRef InstanceIdOffsetBufferRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), InstanceIdOffsets.Num()), TEXT("Shadow.Virtual.InstanceIdOffsetBuffer"));
+
+			{
 				FCullPerPageDrawCommandsCs::FParameters* PassParameters = GraphBuilder.AllocParameters<FCullPerPageDrawCommandsCs::FParameters>();
 
 				GetPageTableParameters(GraphBuilder, PassParameters->PageTableParams);
+
+				auto LoadBalancer = InstanceCullingContext->LoadBalancers[uint32(EBatchProcessingMode::Generic)];
 
 				PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceSceneDataBuffer.SRV;
 				PassParameters->GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
 				PassParameters->GPUSceneFrameNumber = GPUScene.GetSceneFrameNumber();
 				PassParameters->InstanceSceneDataSOAStride = GPUScene.InstanceSceneDataSOAStride;
-				PassParameters->InstanceIdsBuffer = GraphBuilder.CreateSRV(Params.InstanceIdsBuffer);
-				PassParameters->DrawCommandIdsBuffer = GraphBuilder.CreateSRV(Params.DrawCommandIdsBuffer);
-				PassParameters->NumInstanceIdsBuffer = GraphBuilder.CreateSRV(Params.InstanceIdWriteOffsetBuffer);
+
+				PassParameters->DynamicInstanceIdOffset = DynamicInstanceIdOffset;
+				PassParameters->DynamicInstanceIdMax = DynamicInstanceIdMax;
+
+
+				auto GPUData = LoadBalancer->Upload(GraphBuilder);
+				GPUData.GetShaderParameters(GraphBuilder, PassParameters->LoadBalancerParameters);
+
 				PassParameters->FirstPrimaryView = 0;
 				PassParameters->NumPrimaryViews = NumPrimaryViews;
 				PassParameters->InViews = GraphBuilder.CreateSRV(VirtualShadowViewsRDG);
-				PassParameters->PrimitiveCullingCommands = GraphBuilder.CreateSRV(Params.PrimitiveCullingCommands);
+				PassParameters->DrawCommandDescs = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.DrawCommandDescs"), DrawCommandDescs));
+				PassParameters->DrawIndirectArgsBufferOut = GraphBuilder.CreateUAV(DrawIndirectArgsRDG, PF_R32_UINT);
+
 				PassParameters->VisibleInstancesOut = GraphBuilder.CreateUAV(VisibleInstancesRdg);
-				PassParameters->DrawCommandInstanceCountBufferOut = GraphBuilder.CreateUAV(DrawCommandInstanceCountRDG);
 				PassParameters->VisibleInstanceCountBufferOut = GraphBuilder.CreateUAV(VisibleInstanceWriteOffsetRDG);
 				PassParameters->OutDynamicCasterFlags = GraphBuilder.CreateUAV(DynamicCasterPageFlagsRDG);
-				PassParameters->IndirectArgs = IndirectArgs;
 				PassParameters->bInstancePerPage = !bAllocatePageRectAtlas && !bAtomicWrites;
 
 				FCullPerPageDrawCommandsCs::FPermutationDomain PermutationVector;
@@ -1863,11 +1870,10 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
-					RDG_EVENT_NAME("CullPerPageDrawCommandsCs"),
+					RDG_EVENT_NAME("CullPerPageDrawCommands"),
 					ComputeShader,
 					PassParameters,
-					IndirectArgs,
-					0
+					LoadBalancer->GetWrappedCsGroupCount()
 				);
 			}
 			// 2.2.Allocate space for the final instance ID output and so on.
@@ -1876,12 +1882,11 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 
 				FRDGBufferRef InstanceIdOutOffsetBufferRDG = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.OutputOffsetBufferOut"), NullArray);
 
-				PassParameters->NumDrawCommands = NumDrawCommands;
-				PassParameters->DrawIndirectArgsBufferOut = GraphBuilder.CreateUAV(Params.DrawIndirectArgs, PF_R32_UINT);
-				PassParameters->InstanceIdOffsetBufferOut = GraphBuilder.CreateUAV(Params.InstanceIdStartOffsetBuffer, PF_R32_UINT);;
+				PassParameters->NumIndirectArgs = NumIndirectArgs;
+				PassParameters->InstanceIdOffsetBufferOut = GraphBuilder.CreateUAV(InstanceIdOffsetBufferRDG, PF_R32_UINT);;
 				PassParameters->OutputOffsetBufferOut = GraphBuilder.CreateUAV(InstanceIdOutOffsetBufferRDG);
 				PassParameters->TmpInstanceIdOffsetBufferOut = GraphBuilder.CreateUAV(TmpInstanceIdOffsetBufferRDG);
-				PassParameters->DrawCommandInstanceCountBuffer = GraphBuilder.CreateSRV(DrawCommandInstanceCountRDG);
+				PassParameters->DrawIndirectArgsBuffer = GraphBuilder.CreateSRV(DrawIndirectArgsRDG, PF_R32_UINT);
 
 				auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FAllocateCommandInstanceOutputSpaceCs>();
 
@@ -1890,16 +1895,15 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 					RDG_EVENT_NAME("AllocateCommandInstanceOutputSpaceCs"),
 					ComputeShader,
 					PassParameters,
-					FComputeShaderUtils::GetGroupCount(NumDrawCommands, FAllocateCommandInstanceOutputSpaceCs::NumThreadsPerGroup)
+					FComputeShaderUtils::GetGroupCount(NumIndirectArgs, FAllocateCommandInstanceOutputSpaceCs::NumThreadsPerGroup)
 				);
-
 			}
 			// 2.3. Perform final pass to re-shuffle the instance ID's to their final resting places
 			FRDGBufferRef InstanceIdsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxNumInstancesPerPass), TEXT("Shadow.Virtual.InstanceIdsBuffer"));
 			FRDGBufferRef PageInfoBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxNumInstancesPerPass), TEXT("Shadow.Virtual.PageInfoBuffer"));
 
 			{
-				FRDGBufferRef IndirectArgs = AddIndirectArgsSetupCsPass1D(GraphBuilder, VisibleInstanceWriteOffsetRDG, 1, FOutputCommandInstanceListsCs::NumThreadsPerGroup);
+				FRDGBufferRef OutputPassIndirectArgs = AddIndirectArgsSetupCsPass1D(GraphBuilder, VisibleInstanceWriteOffsetRDG, 1, FOutputCommandInstanceListsCs::NumThreadsPerGroup);
 
 				FOutputCommandInstanceListsCs::FParameters* PassParameters = GraphBuilder.AllocParameters<FOutputCommandInstanceListsCs::FParameters>();
 
@@ -1908,7 +1912,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 				PassParameters->InstanceIdsBufferOut = GraphBuilder.CreateUAV(InstanceIdsBuffer);
 				PassParameters->TmpInstanceIdOffsetBufferOut = GraphBuilder.CreateUAV(TmpInstanceIdOffsetBufferRDG);
 				PassParameters->VisibleInstanceCountBuffer = GraphBuilder.CreateSRV(VisibleInstanceWriteOffsetRDG);
-				PassParameters->IndirectArgs = IndirectArgs;
+				PassParameters->IndirectArgs = OutputPassIndirectArgs;
 
 				auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FOutputCommandInstanceListsCs>();
 
@@ -1917,7 +1921,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 					RDG_EVENT_NAME("OutputCommandInstanceListsCs"),
 					ComputeShader,
 					PassParameters,
-					IndirectArgs,
+					OutputPassIndirectArgs,
 					0
 				);
 			}
@@ -1962,8 +1966,8 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 			PassParameters->InViews = GraphBuilder.CreateSRV(VirtualShadowViewsRDG);
 
 			FInstanceCullingResult InstanceCullingResult;
-			InstanceCullingResult.DrawIndirectArgsBuffer = Params.DrawIndirectArgs;
-			InstanceCullingResult.InstanceIdOffsetBuffer = Params.InstanceIdStartOffsetBuffer;
+			InstanceCullingResult.DrawIndirectArgsBuffer = DrawIndirectArgsRDG;
+			InstanceCullingResult.InstanceIdOffsetBuffer = InstanceIdOffsetBufferRDG;
 
 			FInstanceCullingGlobalUniforms* InstanceCullingGlobalUniforms = GraphBuilder.AllocParameters<FInstanceCullingGlobalUniforms>();
 			InstanceCullingGlobalUniforms->InstanceIdsBuffer = GraphBuilder.CreateSRV(InstanceIdsBuffer);

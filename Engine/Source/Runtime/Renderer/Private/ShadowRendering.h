@@ -403,7 +403,7 @@ public:
 	/** Index of the subject primitive for per object shadows. */
 	int32 SubjectPrimitiveComponentIndex = -1;
 
-	TArray<int32> ViewIds;
+	TArray<int32, TInlineAllocator<6> > ViewIds;
 	TSharedPtr<FVirtualShadowMapClipmap> VirtualShadowMapClipmap;
 public:
 

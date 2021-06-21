@@ -4,13 +4,7 @@
 
 #include "../Common.ush"
 
-struct FPrimCullingCommand
+struct FDrawCommandDesc
 {
-	uint BaseVertexIndex;
-	uint FirstIndex;
-	uint NumVerticesOrIndices;
-	uint FirstPrimitiveIdOffset;
-	uint FirstInstanceRunOffset;
-	// GPUCULL_TODO: Wasteful for a flag.
 	uint bMaterialMayModifyPosition;
 };

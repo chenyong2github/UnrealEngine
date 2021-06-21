@@ -3,352 +3,205 @@
 #include "../Common.ush"
 #include "../SceneData.ush"
 #include "InstanceCullingCommon.ush"
+#include "../Nanite/NaniteDataDecode.ush"
+#include "../Nanite/HZBCull.ush"
+#include "../WaveOpUtil.ush"
+#include "../ComputeShaderUtils.ush"
+#include "InstanceCullingLoadBalancer.ush"
 
-struct FInstanceRun
-{
-	uint Start;
-	uint EndInclusive;
-	int PrimitiveId;
-};
-
-struct FBatchInfo
-{
-	uint CullingCommandsOffset;
-	uint NumCullingCommands;
-	uint PrimitiveIdsOffset;
-	uint NumPrimitiveIds;
-	uint InstanceRunsOffset;
-	uint NumInstanceRuns;
-	uint ViewIdsOffset;
-	uint NumViewIds;
-	int DynamicPrimitiveIdOffset;
-	int DynamicPrimitiveIdMax;
-};
+uint InstanceSceneDataSOAStride;
+uint GPUSceneNumInstances;
+uint GPUSceneNumPrimitives;
 
 
-RWStructuredBuffer<uint> InstanceIdsBufferOut;
-RWStructuredBuffer<uint> DrawCommandIdsBufferOut;
-
-RWBuffer<uint> DrawIndirectArgsBufferOut;
-RWBuffer<uint> InstanceIdOffsetBufferOut;
-RWStructuredBuffer<uint> OutputOffsetBufferOut;
-
-StructuredBuffer<FInstanceRun> InstanceRuns;
+StructuredBuffer<FDrawCommandDesc> DrawCommandDescs;
+Buffer<uint> InstanceIdOffsetBuffer;
 StructuredBuffer<uint> ViewIds;
 
-StructuredBuffer<FBatchInfo> BatchInfos;
+uint NumViewIds;
+uint DynamicInstanceIdOffset;
+uint DynamicInstanceIdMax;
+uint NumCullingViews;
+uint CurrentBatchProcessingMode;
+
+struct FContextBatchInfo
+{
+	uint IndirectArgOffset;
+	uint InstanceDataWriteOffset;
+	uint ViewIdsOffset;
+	uint NumViewIds;
+	uint DynamicInstanceIdOffset;
+	uint DynamicInstanceIdMax;
+	uint ItemDataOffset[BATCH_PROCESSING_MODE_NUM];
+};
+
+
+#if ENABLE_BATCH_MODE
+StructuredBuffer<FContextBatchInfo> BatchInfos;
 StructuredBuffer<uint> BatchInds;
-
-groupshared uint PrimitiveInstanceCountGroupShared;
-groupshared uint RunInstanceCountGroupShared;
-groupshared uint InstanceIdOffsetGroupShared;
-groupshared uint FinalInstanceCountGroupShared;
-
-StructuredBuffer<FPrimCullingCommand> PrimitiveCullingCommands;
-StructuredBuffer<uint> PrimitiveIds;
-
-// These flags are not supplied if the culling is disabled either for testing or because there is no data
-#if CULL_INSTANCES
-StructuredBuffer<uint> VisibleInstanceFlags;
-uint NumInstanceFlagWords;
-uint NumCulledInstances;
-uint NumCulledViews;
-#endif
+#endif // ENABLE_BATCH_MODE
 
 #if DEBUG_MODE
 int bDrawOnlyVSMInvalidatingGeometry;
-uint InstanceSceneDataSOAStride;
-#endif
-
-uint NumPrimitiveIds;
-uint NumInstanceRuns;
-int NumCommands;
-uint NumViewIds;
-int DynamicPrimitiveIdOffset;
-int DynamicPrimitiveIdMax;
+#endif // DEBUG_MODE
 
 
-/**
- * Check if the PRIM_ID_DYNAMIC_FLAG bit is set on the Primitive ID and if so add the dynamic primitive offset to get the GPU-Scene ID.
- */
-uint TranslatePrimitiveId(uint PrimitiveIdIn, FBatchInfo BatchInfo)
+RWStructuredBuffer<uint> InstanceIdsBufferOut;
+RWBuffer<uint> DrawIndirectArgsBufferOut;
+
+void WriteInstance(uint Offset, uint InstanceId, FInstanceSceneData InstanceData, uint ViewIdIndex)
 {
-	// This means we defer the translation to later
-	if (BatchInfo.DynamicPrimitiveIdOffset == -1)
-	{
-		return PrimitiveIdIn;
-	}
+	checkSlow(InstanceId < GPUSceneNumInstances);
 
-	uint PrimitiveId = PrimitiveIdIn;
-	if ((PrimitiveIdIn & PRIM_ID_DYNAMIC_FLAG) != 0)
-	{
-		uint DynamicPrimitiveIndex = PrimitiveIdIn & (~PRIM_ID_DYNAMIC_FLAG);
-		PrimitiveId = uint(BatchInfo.DynamicPrimitiveIdOffset) + DynamicPrimitiveIndex;
-	}
+	uint PackedId = InstanceId | (ViewIdIndex << 28U);
 
-	return PrimitiveId;
+	checkStructuredBufferAccessSlow(InstanceIdsBufferOut, Offset);
+	InstanceIdsBufferOut[Offset] = PackedId;
 }
 
+bool ShouldRenderInstance(FInstanceSceneData InstanceData, FDrawCommandDesc Desc)
+{
+#if DEBUG_MODE
+	BRANCH
+		if (bDrawOnlyVSMInvalidatingGeometry != 0)
+		{
+			const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber || Desc.bMaterialMayModifyPosition;
 
-bool TestInstanceVisibilityBit(uint InstanceId, uint ViewId)
+			// TODO: Fix the shadow flag here:
+			const bool bCastShadow = (GetPrimitiveData(InstanceData.PrimitiveId).Flags & 1u) != 0u;
+
+			return bHasMoved && bCastShadow;
+		}
+#endif // DEBUG_MODE
+	return true;
+}
+
+bool IsInstanceVisible(FInstanceSceneData InstanceData, uint ViewIdIndex)
 {
 #if CULL_INSTANCES
-	if (InstanceId < NumCulledInstances && ViewId < NumCulledViews)
+
+	// TODO: The test for dot(InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsExtent) <= 0.0f is just a workaround since the FDynamicMeshBuilder::GetMesh
+	//       seems to just set empty bounds (and FLineBatcherSceneProxy pretends everything is at the origin). In the future these should compute reasonable bounds and 
+	//       this should be removed.
+	// NOTE: Flagging invalid as visible. This is a workaround that prevents instances that are uploaded after this kernel runs from being culled. 
+	// When the culling tests are moved into the later kernel we should switch this back to discarding. Batching moved them back up the pipeline so here we are.
+	// This happens for dynamic instances (e.g., procedural mesh) since they are uploaded with the view after the deferred/batched culling. To solve this we could
+	// use similarly batched & deferred upload of all dynamic primitives / instances (also more efficient).
+	if (!InstanceData.ValidInstance || dot(InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsExtent) <= 0.0f)
 	{
-		uint ViewWordOffset = ViewId * NumInstanceFlagWords;
-		uint WordOffset = ViewWordOffset + InstanceId / 32U;
-		return (VisibleInstanceFlags[WordOffset] & (1U << (InstanceId % 32U))) != 0U;
+		return true;
 	}
-#endif
+
+	// TODO: impact? make permutation for shadow views? Or use a dynamic branch?
+	bool bNearClip = true;
+
+	// TODO: remove this indirection and go straight to data index
+	checkStructuredBufferAccessSlow(ViewIds, ViewIdIndex);
+
+	uint ViewDataIndex = ViewIds[ViewIdIndex];
+
+	if (ViewDataIndex < NumCullingViews)
+	{
+		FNaniteView NaniteView = GetNaniteView(ViewDataIndex);
+
+		float4x4 LocalToTranslatedWorld = InstanceData.LocalToWorld;
+		LocalToTranslatedWorld[3].xyz += NaniteView.PreViewTranslation.xyz;
+		float4x4 LocalToClip = mul(LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip);
+
+		FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, false);
+		return Cull.bIsVisible;
+	}
+#endif // CULL_INSTANCES
 	return true;
 }
 
 
-void WriteInstanceId(uint Offset, uint InstanceId, uint ViewIdIndex, uint DrawCommandId)
-{
-	uint PackedId = InstanceId | (ViewIdIndex << 28U);
-	InstanceIdsBufferOut[Offset] = PackedId;
-#if OUTPUT_COMMAND_IDS
-	DrawCommandIdsBufferOut[Offset] = DrawCommandId;
-#endif
-}
-
-
 /**
+ * Each thread loops over a range on instances loaded from a buffer. The instance bounds are projected to all cached virtual shadow map address space
+ * and any overlapped pages are marked as invalid.
  */
 [numthreads(NUM_THREADS_PER_GROUP, 1, 1)]
-void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : SV_GroupIndex, uint GroupId : SV_GroupID)
+void InstanceCullBuildInstanceIdBufferCS(uint3 GroupId : SV_GroupID, int GroupThreadIndex : SV_GroupIndex)
 {
-	int CommandSlotIndex = int(GroupId);
-	FPrimCullingCommand Cmd = PrimitiveCullingCommands[CommandSlotIndex];
+	uint DispatchGroupId = GetUnWrappedDispatchGroupId(GroupId);
 
-	// 1. Figure out the total number of instances
-	PrimitiveInstanceCountGroupShared = 0;
-	RunInstanceCountGroupShared = 0;
-	InstanceIdOffsetGroupShared = 0;
-	FinalInstanceCountGroupShared = 0;
-	GroupMemoryBarrierWithGroupSync();
+	if (DispatchGroupId >= InstanceCullingLoadBalancer_GetNumBatches())
+	{
+		return;
+	}
 
 #if ENABLE_BATCH_MODE
-	// Load batch info, 
-	FBatchInfo BatchInfo = BatchInfos[BatchInds[CommandSlotIndex]];
+	// Load Instance culling context batch info, indirection per group
+	FContextBatchInfo BatchInfo = BatchInfos[BatchInds[DispatchGroupId]];
 #else // !ENABLE_BATCH_MODE
-	// Single batch in the call, set up batch from the kernel parameters
-	FBatchInfo BatchInfo;
-	BatchInfo.CullingCommandsOffset = 0U;
-	BatchInfo.NumCullingCommands = NumCommands;
-	BatchInfo.PrimitiveIdsOffset = 0U;
-	BatchInfo.NumPrimitiveIds = NumPrimitiveIds;
-	BatchInfo.InstanceRunsOffset = 0U;
-	BatchInfo.NumInstanceRuns = NumInstanceRuns;
-	BatchInfo.ViewIdsOffset = 0U;
+	// Single Instance culling context batch in the call, set up batch from the kernel parameters
+	FContextBatchInfo BatchInfo = (FContextBatchInfo)0;
 	BatchInfo.NumViewIds = NumViewIds;
-	BatchInfo.DynamicPrimitiveIdOffset = DynamicPrimitiveIdOffset;
-	BatchInfo.DynamicPrimitiveIdMax = DynamicPrimitiveIdMax;
-
+	BatchInfo.DynamicInstanceIdOffset = DynamicInstanceIdOffset;
+	BatchInfo.DynamicInstanceIdMax = DynamicInstanceIdMax;
 #endif // ENABLE_BATCH_MODE
 
-	uint BatchCommandSlotIndex = CommandSlotIndex - BatchInfo.CullingCommandsOffset;
-	// Get start of next CMD or go to end.
-	uint LastOffset = (BatchCommandSlotIndex + 1 < BatchInfo.NumCullingCommands) ? PrimitiveCullingCommands[CommandSlotIndex + 1].FirstPrimitiveIdOffset : BatchInfo.NumPrimitiveIds;
-	// Note: the max here is purely to safe-guard against corrupted buffer data leading to an infinite loop
-	uint NumCmdPrimitiveIds = min(BatchInfo.NumPrimitiveIds, LastOffset - Cmd.FirstPrimitiveIdOffset);
+	FInstanceWorkSetup WorkSetup = InstanceCullingLoadBalancer_Setup(GroupId, GroupThreadIndex, BatchInfo.ItemDataOffset[CurrentBatchProcessingMode]);
 
-	uint LastInstanceRunOffset = (BatchCommandSlotIndex + 1 < BatchInfo.NumCullingCommands) ? PrimitiveCullingCommands[CommandSlotIndex + 1].FirstInstanceRunOffset : BatchInfo.NumInstanceRuns;
-	// Note: the min here is purely to safe-guard against corrupted buffer data leading to an infinite loop
-	uint NumCmdInstanceRuns = min(BatchInfo.NumInstanceRuns, LastInstanceRunOffset - Cmd.FirstInstanceRunOffset);
-
-	for (uint Index = GroupThreadIndex; Index < NumCmdPrimitiveIds + NumCmdInstanceRuns; Index += NUM_THREADS_PER_GROUP)
+	if (!WorkSetup.bValid)
 	{
-		uint Num = 0;
-		if (Index < NumCmdPrimitiveIds)
-		{
-			uint PrimitiveId = TranslatePrimitiveId(PrimitiveIds[BatchInfo.PrimitiveIdsOffset + Cmd.FirstPrimitiveIdOffset + Index], BatchInfo);
-			if (GetPrimitiveData(PrimitiveId).InstanceSceneDataOffset >= 0)
-			{
-				Num = GetPrimitiveData(PrimitiveId).NumInstanceSceneDataEntries;
-			}
-			else
-			{
-				// Fake entry for invalid ones -> shaders that will not use the instancing data anyway
-				Num = 1;
-			}
-			InterlockedAdd(PrimitiveInstanceCountGroupShared, Num);
-		}
-		else
-		{
-			FInstanceRun Run = InstanceRuns[BatchInfo.InstanceRunsOffset + Cmd.FirstInstanceRunOffset + Index - NumCmdPrimitiveIds];
-			Num = (Run.EndInclusive + 1) - Run.Start;
-
-			InterlockedAdd(RunInstanceCountGroupShared, Num);
-		}
-
+		return;
 	}
 
-	GroupMemoryBarrierWithGroupSync();
-	uint PrimitiveInstanceCount = PrimitiveInstanceCountGroupShared;
-	uint RunInstanceCount = RunInstanceCountGroupShared;
-	// Note: NumViewIds - replicate for each view in instanced stereo or other multi-view
-	uint CommandInstanceCount = BatchInfo.NumViewIds * (PrimitiveInstanceCount + RunInstanceCount);
+	// Check dynamic flag
+	const bool bDynamicInstanceDataOffset = (WorkSetup.Item.Payload & 1U) != 0U;
+	uint InstanceDataOffset = WorkSetup.Item.InstanceDataOffset;
 
-	// Bail if no instances to output
-	if (CommandInstanceCount > 0)
+	if (bDynamicInstanceDataOffset)
 	{
-		// 2. Allocate output offset (over-allocates for max number, culling may remove any number)
-		if (GroupThreadIndex == 0)
-		{
-			uint IdOutputStart = 0;
-			InterlockedAdd(OutputOffsetBufferOut[0], CommandInstanceCount, IdOutputStart);
-			InstanceIdOffsetGroupShared = IdOutputStart;
-			InstanceIdOffsetBufferOut[CommandSlotIndex] = IdOutputStart;
-		}
-		GroupMemoryBarrierWithGroupSync();
+		InstanceDataOffset += BatchInfo.DynamicInstanceIdOffset;
+		checkSlow(InstanceDataOffset + uint(WorkSetup.LocalItemIndex) < BatchInfo.DynamicInstanceIdMax);
+	}
 
-		// 3. Broadcast to all threads
-		uint InstanceIdOutputOffset = InstanceIdOffsetGroupShared;
-		{
-			uint PrimitiveId = TranslatePrimitiveId(PrimitiveIds[BatchInfo.PrimitiveIdsOffset + Cmd.FirstPrimitiveIdOffset], BatchInfo);
-			WriteInstanceId(InstanceIdOutputOffset, GetPrimitiveData(PrimitiveId).InstanceSceneDataOffset, 0U, CommandSlotIndex);
-		}
-		GroupMemoryBarrierWithGroupSync();
+	uint InstanceId = InstanceDataOffset + uint(WorkSetup.LocalItemIndex);
 
-		int CurrentPrimitiveIdIndex = -1;
+	// Work item payload stores the IndirectArgsOffset, which must be offset for the batch.
+	uint IndirectArgIndex = BatchInfo.IndirectArgOffset + (WorkSetup.Item.Payload >> 1U);
 
-		uint CurrentRangeStart = 0;
-		uint CurrentRangeEnd = 0;
-		int InstanceSceneDataOffset = 0;
+	// TODO: Add unpack and store as bit flags
+	// Load auxiliary per-instanced-draw command info
+	FDrawCommandDesc DrawCommandDesc = DrawCommandDescs[IndirectArgIndex];
 
-		// 4. loop over output primitive instance number
-		for (uint OutputIndex1 = GroupThreadIndex; OutputIndex1 < PrimitiveInstanceCount; OutputIndex1 += NUM_THREADS_PER_GROUP)
-		{
-			// Naive search for range containing the output index (reasonably efficient for large runs, bad for many small runs)
-			while (OutputIndex1 >= CurrentRangeEnd)
-			{
-				CurrentPrimitiveIdIndex += 1;
-				uint PrimitiveId = TranslatePrimitiveId(PrimitiveIds[BatchInfo.PrimitiveIdsOffset + Cmd.FirstPrimitiveIdOffset + CurrentPrimitiveIdIndex], BatchInfo);
+	// TODO: This must be read-modify-written when batching such that the final offset that is fed to the VS is correct.
+	//       Then we don't need to add the batch offset (BatchInfo.InstanceDataWriteOffset)
+	uint InstanceDataOutputOffset = InstanceIdOffsetBuffer[IndirectArgIndex];
 
-				CurrentRangeStart = CurrentRangeEnd;
-				InstanceSceneDataOffset = GetPrimitiveData(PrimitiveId).InstanceSceneDataOffset;
-				CurrentRangeEnd += max(1, GetPrimitiveData(PrimitiveId).NumInstanceSceneDataEntries);
-			}
+	FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceId, InstanceSceneDataSOAStride);
 
-			uint OutId = InstanceSceneDataOffset >= 0 ? uint(InstanceSceneDataOffset) + OutputIndex1 - CurrentRangeStart : 0U;
+	if (!ShouldRenderInstance(InstanceData, DrawCommandDesc))
+	{
+		return;
+	}
 
-			bool bIsVisible = true;
-#if DEBUG_MODE
-			BRANCH
-			if (InstanceSceneDataOffset >= 0 && bDrawOnlyVSMInvalidatingGeometry != 0)
-			{
-				FInstanceSceneData InstanceSceneData = GetInstanceSceneData(OutId, InstanceSceneDataSOAStride);
-				const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceSceneData.LastUpdateSceneFrameNumber || Cmd.bMaterialMayModifyPosition;
-				const bool bCastShadow = (GetPrimitiveData(InstanceSceneData.PrimitiveId).Flags & 1u) != 0u;
-
-				bIsVisible = bHasMoved && bCastShadow;
-			}
-#endif // DEBUG_MODE
-
-			BRANCH
-			if (bIsVisible)
-			{
-				// In stereo mode we need to output all the instances in pairs, one for each eye
 #if STEREO_CULLING_MODE
-				if (InstanceSceneDataOffset < 0 || TestInstanceVisibilityBit(OutId, ViewIds[BatchInfo.ViewIdsOffset + 0]) || TestInstanceVisibilityBit(OutId, ViewIds[BatchInfo.ViewIdsOffset + 1]))
-				{
-					uint OutputOffset = 0;
-					InterlockedAdd(FinalInstanceCountGroupShared, 2, OutputOffset);
-
-					for (uint ViewIdIndex = 0; ViewIdIndex < BatchInfo.NumViewIds; ++ViewIdIndex)
-					{
-						WriteInstanceId(InstanceIdOutputOffset + OutputOffset + ViewIdIndex, OutId, ViewIdIndex, CommandSlotIndex);
-					}
-				}
-#else // !STEREO_CULLING_MODE
-				for (uint ViewIdIndex = 0; ViewIdIndex < BatchInfo.NumViewIds; ++ViewIdIndex)
-				{
-					if (InstanceSceneDataOffset < 0 || TestInstanceVisibilityBit(OutId, ViewIds[BatchInfo.ViewIdsOffset + ViewIdIndex]))
-					{
-						uint OutputOffset = 0;
-						InterlockedAdd(FinalInstanceCountGroupShared, 1, OutputOffset);
-						WriteInstanceId(InstanceIdOutputOffset + OutputOffset, OutId, ViewIdIndex, CommandSlotIndex);
-					}
-				}
-#endif // STEREO_CULLING_MODE
-			}
-		}
-		// repeat process for the runs
-		CurrentRangeStart = 0;
-		CurrentRangeEnd = 0;
-		InstanceSceneDataOffset = 0;
-		FInstanceRun Run = (FInstanceRun)0;
-		int CurrentRunIndex = -1;
-		for (uint OutputIndex2 = GroupThreadIndex; OutputIndex2 < RunInstanceCount; OutputIndex2 += NUM_THREADS_PER_GROUP)
-		{
-			// Naive search for range containing the output index (reasonably efficient for large runs, bad for many small runs)
-			while (OutputIndex2 >= CurrentRangeEnd)
-			{
-				CurrentRunIndex += 1;
-				Run = InstanceRuns[BatchInfo.InstanceRunsOffset + Cmd.FirstInstanceRunOffset + CurrentRunIndex];
-
-				CurrentRangeStart = CurrentRangeEnd;
-				CurrentRangeEnd += (Run.EndInclusive + 1) - Run.Start;
-				InstanceSceneDataOffset = GetPrimitiveData(Run.PrimitiveId).InstanceSceneDataOffset;
-			}
-
-			uint OutId = uint(InstanceSceneDataOffset) + Run.Start + OutputIndex2 - CurrentRangeStart;
-
-			bool bIsVisible = true;
-#if DEBUG_MODE
-			BRANCH
-			if (bDrawOnlyVSMInvalidatingGeometry != 0)
-			{
-				FInstanceSceneData InstanceData = GetInstanceSceneData(OutId, InstanceSceneDataSOAStride);
-				const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber || Cmd.bMaterialMayModifyPosition;
-				const bool bCastShadow = (GetPrimitiveData(Run.PrimitiveId).Flags & 1u) != 0u;
-
-				bIsVisible = bHasMoved && bCastShadow;
-			}
-#endif // DEBUG_MODE
-
-			BRANCH
-			if (bIsVisible)
-			{
-				// In stereo mode we need to output all the instances in pairs, one for each eye, thus they must be atomically allocated in pairs also
-#if STEREO_CULLING_MODE
-				if (TestInstanceVisibilityBit(OutId, ViewIds[BatchInfo.ViewIdsOffset + 0]) || TestInstanceVisibilityBit(OutId, ViewIds[BatchInfo.ViewIdsOffset + 1]))
-				{
-					uint OutputOffset = 0;
-					InterlockedAdd(FinalInstanceCountGroupShared, 2, OutputOffset);
-					for (uint ViewIdIndex = 0; ViewIdIndex < BatchInfo.NumViewIds; ++ViewIdIndex)
-					{
-						WriteInstanceId(InstanceIdOutputOffset + OutputOffset + ViewIdIndex, OutId, ViewIdIndex, CommandSlotIndex);
-					}
-				}
-
-#else // !STEREO_CULLING_MODE
-				for (uint ViewIdIndex = 0; ViewIdIndex < BatchInfo.NumViewIds; ++ViewIdIndex)
-				{
-					if (TestInstanceVisibilityBit(OutId, ViewIds[BatchInfo.ViewIdsOffset + ViewIdIndex]))
-					{
-						uint OutputOffset = 0;
-						InterlockedAdd(FinalInstanceCountGroupShared, 1, OutputOffset);
-						WriteInstanceId(InstanceIdOutputOffset + OutputOffset, OutId, ViewIdIndex, CommandSlotIndex);
-					}
-				}
-#endif // STEREO_CULLING_MODE
-			}
-		}
-	}
-	GroupMemoryBarrierWithGroupSync();
-
-	// Generate draw command
-	if (GroupThreadIndex == 0)
+	if (IsInstanceVisible(InstanceData, BatchInfo.ViewIdsOffset + 0U) || IsInstanceVisible(InstanceData, BatchInfo.ViewIdsOffset + 1U))
 	{
-		DrawIndirectArgsBufferOut[CommandSlotIndex * INDIRECT_ARGS_NUM_WORDS + 0] = Cmd.NumVerticesOrIndices;
-		DrawIndirectArgsBufferOut[CommandSlotIndex * INDIRECT_ARGS_NUM_WORDS + 1] = FinalInstanceCountGroupShared;
-		DrawIndirectArgsBufferOut[CommandSlotIndex * INDIRECT_ARGS_NUM_WORDS + 2] = Cmd.FirstIndex;
-		DrawIndirectArgsBufferOut[CommandSlotIndex * INDIRECT_ARGS_NUM_WORDS + 3] = Cmd.BaseVertexIndex;
-		DrawIndirectArgsBufferOut[CommandSlotIndex * INDIRECT_ARGS_NUM_WORDS + 4] = 0U;
+		uint OutputOffset = 0U;
+		InterlockedAdd(DrawIndirectArgsBufferOut[IndirectArgIndex * INDIRECT_ARGS_NUM_WORDS + 1], 2U, OutputOffset);
 
+		WriteInstance(InstanceDataOutputOffset + OutputOffset + 0U, InstanceId, InstanceData, 0U);
+		WriteInstance(InstanceDataOutputOffset + OutputOffset + 1U, InstanceId, InstanceData, 1U);
 	}
-	GroupMemoryBarrierWithGroupSync();
+#else // !STEREO_CULLING_MODE
+
+	for (uint ViewIdIndex = 0; ViewIdIndex < BatchInfo.NumViewIds; ++ViewIdIndex)
+	{
+		// Culling is disabled for multi-view
+		if (IsInstanceVisible(InstanceData, BatchInfo.ViewIdsOffset + ViewIdIndex))
+		{
+			uint OutputOffset = 0;
+			// TOOD: if all items in the group-batch target the same draw args the more efficient warp-collective functions can be used
+			//       detected as FInstanceBatch.NumItems == 1. Can switch dynamically or bin the items that fill a group and dispatch separately with permutation.
+			// TODO: if the arg only has a single item, and culling is not enabled, then we can skip the atomics. Again do dynamically or separate permutation.
+			InterlockedAdd(DrawIndirectArgsBufferOut[IndirectArgIndex * INDIRECT_ARGS_NUM_WORDS + 1], 1U, OutputOffset);
+
+			WriteInstance(InstanceDataOutputOffset + OutputOffset, InstanceId, InstanceData, ViewIdIndex);
+		}
+	}
+#endif // STEREO_CULLING_MODE
 }

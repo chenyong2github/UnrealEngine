@@ -8,18 +8,23 @@
 #include "SceneManagement.h"
 #include "../Nanite/NaniteRender.h"
 #include "InstanceCulling/InstanceCullingContext.h"
+#include "InstanceCullingLoadBalancer.h"
 
 class FGPUScene;
+
+class FInstanceProcessingGPULoadBalancer : public TInstanceCullingLoadBalancer<>
+{
+public:
+};
+
 
 class FInstanceCullingIntermediate
 {
 public:
 	/**
-	 * One bit per Instance per registered view produced by CullInstances.
+	 * All registered views that may be used for culling.
 	 */
-	FRDGBufferRef VisibleInstanceFlags = nullptr;
-	
-	int32 NumInstances = 0;
+	FRDGBufferRef CullingViews = nullptr;
 	int32 NumViews = 0;
 
 	TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> DummyUniformBuffer;
@@ -71,7 +76,7 @@ struct FBatchedInstanceCullingScratchSpace
 	TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> UniformBuffer = nullptr;
 
 	/** GPU instance culling input data merged from multiple batches throughout a frame. */
-	FInstanceCullingContextMerged MergedContext;
+	FInstanceCullingContext::FMergedContext MergedContext;
 
 	/** Batches of GPU instance culling input data. */
 	TArray<FInstanceCullingContext::FBatchItem, SceneRenderingAllocator> Batches;

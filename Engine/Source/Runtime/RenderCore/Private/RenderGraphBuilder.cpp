@@ -1929,6 +1929,7 @@ void FRDGBuilder::UploadBuffers()
 		if (InitialData && InitialDataSize)
 		{
 			const TRefCountPtr<FRDGPooledBuffer>& PooledBuffer = ConvertToExternalBuffer(UploadedBuffer.Buffer);
+			check(InitialDataSize <= UploadedBuffer.Buffer->Desc.GetTotalNumBytes());
 			void* DestPtr = RHICmdList.LockBuffer(PooledBuffer->GetRHI(), 0, InitialDataSize, RLM_WriteOnly);
 			FMemory::Memcpy(DestPtr, InitialData, InitialDataSize);
 			RHICmdList.UnlockBuffer(PooledBuffer->GetRHI());
