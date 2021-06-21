@@ -4,6 +4,7 @@
 #include "../Common.ush"
 #include "../CommonViewUniformBuffer.ush"
 #include "../SceneTextureParameters.ush"
+#include "../PositionReconstructionCommon.ush" 
 #include "HairStrandsVoxelPageCommonStruct.ush"
 #include "HairStrandsVoxelPageCommon.ush"
 
@@ -22,15 +23,6 @@ uint3		 VirtualVoxelParams_PageCountResolution;
 Buffer<uint> VirtualVoxelParams_PageIndexBuffer;
 Buffer<uint4>VirtualVoxelParams_PageIndexCoordBuffer;
 StructuredBuffer<FPackedVirtualVoxelNodeDesc> VirtualVoxelParams_NodeDescBuffer;
-
-float3 ReconstructWorldPositionFromDepth(float2 UV, float Depth)
-{
-	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-	float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * Depth, Depth, 1), View.ScreenToWorld);
-	float3 WorldPosition = HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
-
-	return WorldPosition;
-}
 
 #define GROUP_SIZE 64
 [numthreads(1, 1, GROUP_SIZE)]
