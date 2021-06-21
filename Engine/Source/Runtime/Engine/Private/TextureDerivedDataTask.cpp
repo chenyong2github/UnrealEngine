@@ -249,12 +249,9 @@ void FTextureSourceData::GetSourceMips(FTextureSource& Source, IImageWrapperModu
 
 void FTextureSourceData::GetAsyncSourceMips(IImageWrapperModule* InImageWrapper)
 {
-	if (bValid && !Blocks[0].MipsPerLayer[0].Num() && AsyncSource.GetSizeOnDisk())
+	if (bValid && !Blocks[0].MipsPerLayer[0].Num() && AsyncSource.HasPayloadData())
 	{
-		if (AsyncSource.LoadBulkDataWithFileReader())
-		{
-			GetSourceMips(AsyncSource, InImageWrapper);
-		}
+		GetSourceMips(AsyncSource, InImageWrapper);
 	}
 }
 void FTextureCacheDerivedDataWorker::ConsumeBuildFunctionOutput(const UE::DerivedData::FBuildOutput& BuildOutput, const FString& TexturePath, bool bReplaceExistingDDC)
