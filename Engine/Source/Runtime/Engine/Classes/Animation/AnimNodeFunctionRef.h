@@ -5,6 +5,12 @@
 #include "CoreMinimal.h"
 #include "AnimNodeFunctionRef.generated.h"
 
+struct FAnimNode_Base;
+struct FAnimationInitializeContext;
+struct FAnimationUpdateContext;
+struct FPoseContext;
+struct FComponentSpacePoseContext;
+
 /**
  * Cached function name/ptr that is resolved at init time
  */
@@ -43,4 +49,29 @@ private:
 	// The function to call, recovered by looking for a function of name FunctionName
 	UPROPERTY(Transient)
 	UFunction* Function = nullptr;
+};
+
+// Wrapper used to call anim node functions
+struct FAnimNodeFunctionCaller
+{
+private:
+	friend struct FPoseLinkBase;
+	friend struct FPoseLink;
+	friend struct FComponentSpacePoseLink;
+	friend struct FAnimInstanceProxy;
+	
+	// Call the Initialize function of this node
+	static void Initialize(const FAnimationInitializeContext& InContext, FAnimNode_Base& InNode);
+
+	// Call the BecomeRelevant function of this node
+	static void BecomeRelevant(const FAnimationUpdateContext& InContext, FAnimNode_Base& InNode);
+
+	// Call the Update function of this node
+	static void Update(const FAnimationUpdateContext& InContext, FAnimNode_Base& InNode);
+
+	// Call the Evaluate function of this node
+	static void Evaluate(FPoseContext& InContext, FAnimNode_Base& InNode);
+
+	// Call the EvaluateComponentSpace function of this node
+	static void EvaluateComponentSpace(FComponentSpacePoseContext& InContext, FAnimNode_Base& InNode);
 };
