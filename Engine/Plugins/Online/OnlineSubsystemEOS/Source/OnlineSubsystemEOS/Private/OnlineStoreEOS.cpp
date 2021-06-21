@@ -100,8 +100,13 @@ void FOnlineStoreEOS::QueryOffers(const FUniqueNetId& UserId, const FOnQueryOnli
 			OfferRef->CurrencyCode = Offer->CurrencyCode;
 			if (Offer->PriceResult == EOS_EResult::EOS_Success)
 			{
+#if EOS_ECOM_CATALOGOFFER_API_LATEST >= 3
+				OfferRef->RegularPrice = Offer->OriginalPrice64;
+				OfferRef->NumericPrice = Offer->CurrentPrice64;
+#else
 				OfferRef->RegularPrice = Offer->OriginalPrice;
 				OfferRef->NumericPrice = Offer->CurrentPrice;
+#endif
 				OfferRef->DiscountType = Offer->DiscountPercentage == 0 ? EOnlineStoreOfferDiscountType::NotOnSale : EOnlineStoreOfferDiscountType::DiscountAmount;
 			}
 
