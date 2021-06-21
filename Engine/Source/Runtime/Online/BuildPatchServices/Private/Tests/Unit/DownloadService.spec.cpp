@@ -98,7 +98,7 @@ void FDownloadServiceSpec::Define()
 
 			Describe("when given a FileUri not starting with http", [this]()
 			{
-				It("should use the file manager to process the request.", [this]()
+				xIt("should use the file manager to process the request.", [this]()
 				{
 					DownloadService->RequestFile(NetworkFileUrl, DownloadComplete, DownloadProgress);
 					DoTicksUntilComplete(50, 1);
