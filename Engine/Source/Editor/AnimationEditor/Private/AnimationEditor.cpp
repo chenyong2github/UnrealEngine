@@ -304,14 +304,6 @@ void FAnimationEditor::ExtendMenu()
 
 				MenuBuilder.AddMenuEntry(FAnimationEditorCommands::Get().AddLoopingInterpolation);
 				MenuBuilder.AddMenuEntry(FAnimationEditorCommands::Get().RemoveBoneTracks);
-
-				MenuBuilder.AddSubMenu(
-					LOCTEXT("CopyCurvesToSoundWave", "Copy Curves To SoundWave"),
-					LOCTEXT("CopyCurvesToSoundWave_ToolTip", "Copy curves from this animation to the selected SoundWave"),
-					FNewMenuDelegate::CreateSP(InAnimationEditor, &FAnimationEditor::FillCopyToSoundWaveMenu),
-					false,
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.")
-				);
 			}
 			MenuBuilder.EndSection();
 		}
@@ -679,29 +671,6 @@ TSharedRef< SWidget > FAnimationEditor::GenerateExportAssetMenu() const
 	FillExportAssetMenu(MenuBuilder);
 	return MenuBuilder.MakeWidget();
 }
-
-void FAnimationEditor::FillCopyToSoundWaveMenu(FMenuBuilder& MenuBuilder) const
-{
-	FAssetPickerConfig AssetPickerConfig;
-	AssetPickerConfig.Filter.ClassNames.Add(*USoundWave::StaticClass()->GetName());
-	AssetPickerConfig.bAllowNullSelection = false;
-	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateRaw(this, &FAnimationEditor::CopyCurveToSoundWave);
-	AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
-
-	FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
-
-	MenuBuilder.AddWidget(
-		SNew(SBox)
-		.WidthOverride(300.0f)
-		.HeightOverride(300.0f)
-		[
-			ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
-		],
-		FText::GetEmpty()
-	);
-
-}
-
 void FAnimationEditor::FillExportAssetMenu(FMenuBuilder& MenuBuilder) const
 {
 	MenuBuilder.BeginSection("AnimationExport", LOCTEXT("ExportAssetMenuHeading", "Export"));
