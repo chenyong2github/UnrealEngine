@@ -35,7 +35,6 @@ public class Launch : ModuleRules
 				"Overlay",
 				"PreLoadScreen",
 				"InstallBundleManager",
-				"CookOnTheFly"
 			});
 
 		// Set a macro allowing us to switch between debuggame/development configuration
@@ -264,6 +263,11 @@ public class Launch : ModuleRules
 		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
 		{
 			PrivateDependencyModuleNames.Add("StorageServerClient");
+
+			if (Target.Type != TargetType.Program)
+			{
+				PublicDependencyModuleNames.Add("CookOnTheFly");
+			}
 		}
 
 		if(Target.LinkType == TargetLinkType.Monolithic && !Target.bFormalBuild)

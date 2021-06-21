@@ -21,9 +21,13 @@ public class CoreUObject : ModuleRules
 
 		PublicDependencyModuleNames.Add("Core");
         PublicDependencyModuleNames.Add("TraceLog");
-		PublicDependencyModuleNames.Add("CookOnTheFly");
 
 		PrivateDependencyModuleNames.Add("Projects");
         PrivateDependencyModuleNames.Add("Json");
+		
+		if (Target.Configuration != UnrealTargetConfiguration.Shipping && Target.Type != TargetType.Program)
+		{
+			PublicDependencyModuleNames.Add("CookOnTheFly");
+		}
 	}
 }

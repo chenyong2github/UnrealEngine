@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_COTF
+
 #include "Serialization/CookOnTheFlyPackageStore.h"
 #include "CookOnTheFly.h"
 #include "HAL/PlatformTime.h"
 #include "Containers/ChunkedArray.h"
 #include "Serialization/MemoryReader.h"
-
-PRAGMA_DISABLE_OPTIMIZATION
 
 namespace UE { namespace PackageStore { namespace Messaging
 {
@@ -325,4 +325,4 @@ TUniquePtr<IPackageStore> MakeCookOnTheFlyPackageStore(
 	return MakeUnique<FCookOnTheFlyPackageStore>(IoDispatcher, CookOnTheFlyServerConnection, MoveTemp(EntriesAddedCallback));
 }
 
-PRAGMA_ENABLE_OPTIMIZATION
+#endif // WITH_COTF
