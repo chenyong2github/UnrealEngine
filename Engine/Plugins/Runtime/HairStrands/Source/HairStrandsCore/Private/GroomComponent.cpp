@@ -1006,6 +1006,8 @@ public:
 			InterpolatedFrame = CurrentFrame;
 		}
 
+		bComputeInterpolation = bComputeInterpolation || !FMath::IsNearlyEqual(InterpolationFactor, OutInterpolationFactor, KINDA_SMALL_NUMBER);
+
 		// Do interpolation of vertex positions if needed
 		if (bComputeInterpolation)
 		{
@@ -1016,11 +1018,6 @@ public:
 	void Interpolate(const FGroomCacheAnimationData& FrameA, const FGroomCacheAnimationData& FrameB, float InInterpolationFactor)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FGroomCacheBuffers::InterpolateCPU);
-
-		if (FMath::IsNearlyEqual(InInterpolationFactor, InterpolationFactor, KINDA_SMALL_NUMBER))
-		{
-			return;
-		}
 
 		InterpolationFactor = InInterpolationFactor;
 
@@ -1203,6 +1200,8 @@ public:
 		{
 			InterpolatedFrame = *CurrentFramePtr;
 		}
+
+		bComputeInterpolation = bComputeInterpolation || !FMath::IsNearlyEqual(InterpolationFactor, OutInterpolationFactor, KINDA_SMALL_NUMBER);
 
 		// Do interpolation of vertex positions if needed
 		if (bComputeInterpolation)
