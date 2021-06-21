@@ -239,12 +239,24 @@ void FDisplayClusterConfiguratorViewportDetailCustomization::CustomizeDetails(ID
 	}
 	
 	ResetCameraOptions();
-	
-	BEGIN_CATEGORY(CameraHandle->GetDefaultCategoryName())
-		REPLACE_PROPERTY_WITH_CUSTOM(UDisplayClusterConfigurationViewport, Camera, CreateCustomCameraWidget());
-	END_CATEGORY()
 
 	FDisplayClusterConfiguratorNestedPropertyHelper NestedPropertyHelper(InLayoutBuilder);
+	
+	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ConfigurationCategory)
+		ADD_PROPERTY(UDisplayClusterConfigurationViewport, bAllowRendering)
+		REPLACE_PROPERTY_WITH_CUSTOM(UDisplayClusterConfigurationViewport, Camera, CreateCustomCameraWidget())
+		ADD_PROPERTY(UDisplayClusterConfigurationViewport, ProjectionPolicy)
+		ADD_PROPERTY(UDisplayClusterConfigurationViewport, bIsShared)
+		ADD_PROPERTY(UDisplayClusterConfigurationViewport, bFixedAspectRatio)
+		ADD_PROPERTY(UDisplayClusterConfigurationViewport, Region)
+		ADD_PROPERTY(UDisplayClusterConfigurationViewport, GPUIndex)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterConfigurationViewport, RenderSettings.StereoGPUIndex)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterConfigurationViewport, RenderSettings.StereoMode)
+		ADD_PROPERTY(UDisplayClusterConfigurationViewport, OverlapOrder)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterConfigurationViewport, RenderSettings.RenderTargetRatio)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterConfigurationViewport, RenderSettings.BufferRatio)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterConfigurationViewport, RenderSettings.Overscan)
+	END_CATEGORY();
 
 	// Update the metadata for the viewport's region. Must set this here instead of in the UPROPERTY specifier because
 	// the Region property is a generic FDisplayClusterConfigurationRectangle struct which is used in lots of places, most of

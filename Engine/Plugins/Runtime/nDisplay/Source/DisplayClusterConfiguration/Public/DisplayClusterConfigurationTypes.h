@@ -490,7 +490,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Advanced, meta = (DisplayName = "Follow Local Player Camera"))
 	bool bFollowLocalPlayerCamera = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Advanced, meta = (DisplayName = "Exit when ESC pressed"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Advanced, meta = (DisplayName = "Exit When ESC Pressed"))
 	bool bExitOnEsc = true;
 
 	/** Create empty config data. */

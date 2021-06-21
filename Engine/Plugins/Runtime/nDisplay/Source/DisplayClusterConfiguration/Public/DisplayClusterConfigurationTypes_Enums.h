@@ -143,13 +143,13 @@ UENUM()
 enum class EDisplayClusterConfigurationCameraMotionBlurMode : uint8
 {
 	// Do not apply motion blur caused by camera movements
-	Off          UMETA(DisplayName = "Disabled"),
+	Off          UMETA(DisplayName = "All Camera Blur Off"),
 
 	// Apply motion blur caused by camera movements
-	On           UMETA(DisplayName = "Enabled"),
+	On           UMETA(DisplayName = "ICVFX Camera Blur On"),
 
 	// Cancel default camera motion blur and replace with motion blur of a custom camera setup
-	Override     UMETA(DisplayName = "Override"),
+	Override     UMETA(DisplayName = "ICVFX Camera Blur Off"),
 };
 
 

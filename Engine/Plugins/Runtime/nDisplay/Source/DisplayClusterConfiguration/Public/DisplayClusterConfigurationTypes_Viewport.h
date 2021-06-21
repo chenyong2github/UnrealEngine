@@ -74,7 +74,7 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_Rend
 
 public:
 	// Performance, Multi-GPU: Customize GPU for stereo mode second view (EYE_RIGHT GPU)
-	UPROPERTY(EditAnywhere, Category = "Configuration")
+	UPROPERTY(EditAnywhere, Category = "Configuration", meta = (DisplayName = "Stereo GPU Index"))
 	int StereoGPUIndex = -1;
 
 	// Performance: force monoscopic render, resolved to stereo viewport
@@ -82,7 +82,7 @@ public:
 	EDisplayClusterConfigurationViewport_StereoMode StereoMode = EDisplayClusterConfigurationViewport_StereoMode::Default;
 
 	// Allow ScreenPercentage 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "10.0", UIMax = "10.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "Screen Percentage", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10.0", UIMax = "10.0"))
 	float BufferRatio = 1;
 
 	// Performance: Render to scale RTT, resolved with shader to viewport (Custom value)
@@ -140,7 +140,7 @@ private:
 
 public:
 	// MultiUser : control this viewport rendering
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "Enable Viewport"))
 	bool bAllowRendering = true;
 
 	// @todo: GUI: Toggle visibility of this property: hide for camera projection policy, and show for other
@@ -166,7 +166,7 @@ public:
 	int OverlapOrder = 0;
 
 	// Performance, Multi-GPU: Asign GPU for viewport rendering. The Value '-1' used to default gpu mapping (EYE_LEFT and EYE_RIGHT GPU)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "GPU Index"))
 	int GPUIndex = -1;
 
 	// Configure render for this viewport
@@ -198,7 +198,7 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationRenderFrame
 
 public:
 	// Performance: Allow change global MGPU settings
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = "Configuration", meta = (DisplayName = "Multi GPU Mode"))
 	EDisplayClusterConfigurationRenderMGPUMode MultiGPUMode = EDisplayClusterConfigurationRenderMGPUMode::Enabled;
 
 	// Performance: Allow merge multiple viewports on single RTT with atlasing (required for bAllowViewFamilyMergeOptimization)
@@ -218,23 +218,23 @@ public:
 	bool bShouldUseParentViewportRenderFamily = false;
 
 	// Multiply all viewports RTT size's for whole cluster by this value
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Global Viewport RTT Size Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Global Viewport RTT Size Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
 	float ClusterRenderTargetRatioMult = 1.f;
 
 	// Multiply inner frustum RTT size's for whole cluster by this value
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Inner Frustum RTT Size Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Inner Frustum RTT Size Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
 	float ClusterICVFXInnerViewportRenderTargetRatioMult = 1.f;
 
 	// Multiply outer viewports RTT size's for whole cluster by this value
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Outer Viewport RTT Size Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Outer Viewport RTT Size Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
 	float ClusterICVFXOuterViewportRenderTargetRatioMult = 1.f;
 
 	// Multiply all buffer ratios for whole cluster by this value
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Global Viewport Screen Percentage Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Global Viewport Screen Percentage Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
 	float ClusterBufferRatioMult = 1.f;
 
 	// Multiply inner frustums buffer ratios for whole cluster by this value
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Inner Frustum Screen Percentage Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Inner Frustum Screen Percentage Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
 	float ClusterICVFXInnerFrustumBufferRatioMult = 1.f;
 
 	// Multiply outer viewports buffer ratios for whole cluster by this value
@@ -242,7 +242,7 @@ public:
 	float ClusterICVFXOuterViewportBufferRatioMult = 1.f;
 
 	// Allow warpblend render
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
 	bool bAllowWarpBlend = true;
 };
 
