@@ -854,7 +854,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponentCube* CaptureCompo
 	{
 		UTextureRenderTargetCube* const TextureTarget = TextureTargets[CaptureIter];
 
-		if (GetFeatureLevel() >= ERHIFeatureLevel::ES3_1 && TextureTarget)
+		if (TextureTarget)
 		{
 			const float FOV = 90 * (float)PI / 360.0f;
 			for (int32 faceidx = 0; faceidx < (int32)ECubeFace::CubeFace_MAX; faceidx++)
