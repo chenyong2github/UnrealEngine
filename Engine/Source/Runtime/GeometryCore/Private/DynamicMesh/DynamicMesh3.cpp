@@ -4,7 +4,6 @@
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Generators/MeshShapeGenerator.h"
 #include "Templates/UniquePtr.h"
-#include "UObject/UE5MainStreamObjectVersion.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -370,35 +369,7 @@ void FDynamicMesh3::Clear()
 	CachedIsClosedTimestamp = -1;
 }
 
-void FDynamicMesh3::Serialize(FArchive& Ar)
-{
-	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
-	Ar << Vertices;
-	Ar << VertexRefCounts;
-	Ar << VertexNormals;
-	Ar << VertexColors;
-	Ar << VertexUVs;
-	Ar << VertexEdgeLists;
-	Ar << Triangles;
-	Ar << TriangleRefCounts;
-	Ar << TriangleEdges;
-	Ar << TriangleGroups;
-	Ar << GroupIDCounter;
-	Ar << Edges;
-	Ar << EdgeRefCounts;
-
-	bool bHasAttributes = HasAttributes();
-	Ar << bHasAttributes;
-	if (bHasAttributes)
-	{
-		if (Ar.IsLoading())
-		{
-			EnableAttributes();
-		}
-		Ar << *AttributeSet;
-	}
-}
 
 int FDynamicMesh3::GetComponentsFlags() const
 {
@@ -1007,7 +978,8 @@ bool FDynamicMesh3::CheckValidity(FValidityOptions ValidityOptions, EValidityChe
 		{
 			CheckOrFailF(vTris.Num() == GetVtxEdgeCount(vID) || vTris.Num() == GetVtxEdgeCount(vID) - 1);
 		}
-		CheckOrFailF(VertexRefCounts.GetRefCount(vID) == vTris.Num() + 1);
+		int32 VertexRefCount = VertexRefCounts.GetRefCount(vID);
+		CheckOrFailF(VertexRefCount == (vTris.Num() + 1));
 		CheckOrFailF(triToVtxRefs[vID] == vTris.Num());
 		for (int tID : vTris)
 		{
