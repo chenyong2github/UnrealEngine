@@ -4604,24 +4604,24 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 		CompileVersionDeclaration(GetCurrentClassDef());
 		RequireSymbol(TEXT(')'), Token.Identifier);
 
-		FStructMetaData& StructData = GetCurrentClassData();
-		if (StructData.ParsedInterface == EParsedInterface::NotAnInterface)
+		FUnrealClassDefinitionInfo& ClassDef = GetCurrentClassDef();
+		if (ClassDef.GetParsedInterfaceState() == EParsedInterface::NotAnInterface)
 		{
-			FString CurrentClassName = GetCurrentClassDef().GetName();
+			FString CurrentClassName = ClassDef.GetName();
 			Throwf(TEXT("Could not find the associated 'U%s' class while parsing 'I%s' - it could be missing or malformed"), *CurrentClassName, *CurrentClassName);
 		}
 
-		if (StructData.ParsedInterface == EParsedInterface::ParsedIInterface)
+		if (ClassDef.GetParsedInterfaceState() == EParsedInterface::ParsedIInterface)
 		{
-			FString CurrentClassName = GetCurrentClassDef().GetName();
+			FString CurrentClassName = ClassDef.GetName();
 			Throwf(TEXT("Duplicate IInterface definition found while parsing 'I%s'"), *CurrentClassName);
 		}
 
-		check(StructData.ParsedInterface == EParsedInterface::ParsedUInterface);
+		check(ClassDef.GetParsedInterfaceState() == EParsedInterface::ParsedUInterface);
 
-		StructData.ParsedInterface = EParsedInterface::ParsedIInterface;
-		StructData.GeneratedBodyMacroAccessSpecifier = CurrentAccessSpecifier;
-		StructData.SetInterfaceGeneratedBodyLine(InputLine);
+		ClassDef.SetParsedInterfaceState(EParsedInterface::ParsedIInterface);
+		ClassDef.SetGeneratedBodyMacroAccessSpecifier(CurrentAccessSpecifier);
+		ClassDef.SetInterfaceGeneratedBodyLine(InputLine);
 
 		bClassHasGeneratedIInterfaceBody = true;
 
@@ -4647,10 +4647,10 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 		CompileVersionDeclaration(GetCurrentClassDef());
 		RequireSymbol(TEXT(')'), Token.Identifier);
 
-		FStructMetaData& StructData = GetCurrentClassData();
+		FUnrealClassDefinitionInfo& ClassDef = GetCurrentClassDef();
 
-		StructData.GeneratedBodyMacroAccessSpecifier = CurrentAccessSpecifier;
-		StructData.SetGeneratedBodyLine(InputLine);
+		ClassDef.SetGeneratedBodyMacroAccessSpecifier(CurrentAccessSpecifier);
+		ClassDef.SetGeneratedBodyLine(InputLine);
 
 		bClassHasGeneratedUInterfaceBody = true;
 
@@ -4668,13 +4668,13 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 			Throwf(TEXT("%s must occur inside the class definition"), Token.Identifier);
 		}
 
-		FStructMetaData& StructData = GetCurrentClassData();
+		FUnrealClassDefinitionInfo& ClassDef = GetCurrentClassDef();
 
 		if (Token.Matches(TEXT("GENERATED_BODY"), ESearchCase::CaseSensitive))
 		{
 			GetCurrentClassDef().MarkGeneratedBody();
 
-			StructData.GeneratedBodyMacroAccessSpecifier = CurrentAccessSpecifier;
+			ClassDef.SetGeneratedBodyMacroAccessSpecifier(CurrentAccessSpecifier);
 		}
 		else
 		{
@@ -4685,7 +4685,7 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 		CompileVersionDeclaration(GetCurrentClassDef());
 		RequireSymbol(TEXT(')'), Token.Identifier);
 
-		StructData.SetGeneratedBodyLine(InputLine);
+		ClassDef.SetGeneratedBodyLine(InputLine);
 
 		bClassHasGeneratedBody = true;
 		return true;
@@ -4759,15 +4759,14 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 
 	if (bEncounteredNewStyleClass_UnmatchedBrackets && Token.Matches(TEXT('}')))
 	{
-		GetCurrentClassDef().GetDefinitionRange().End = &Input[InputPos];
+		FUnrealClassDefinitionInfo& CurrentClassDef = GetCurrentClassDef();
+		CurrentClassDef.GetDefinitionRange().End = &Input[InputPos];
 		MatchSemi();
 
 		// Closing brace for class declaration
 		//@TODO: This is a very loose approximation of what we really need to do
 		// Instead, the whole statement-consumer loop should be in a nest
 		bEncounteredNewStyleClass_UnmatchedBrackets = false;
-
-		FUnrealClassDefinitionInfo& CurrentClassDef = UHTCastChecked<FUnrealClassDefinitionInfo>(GetCurrentClassDef());
 
 		// Pop nesting here to allow other non UClass declarations in the header file.
 		if (CurrentClassDef.HasAllClassFlags(CLASS_Interface))
@@ -4951,7 +4950,7 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 						{
 							FString EnclosingDefine = CurrentCompilerDirective != 0 ? TEXT("WITH_EDITORONLY_DATA") : TEXT("");
 
-							FUnrealClassDefinitionInfo& ClassDef = UHTCastChecked<FUnrealClassDefinitionInfo>(GetCurrentClassDef());
+							FUnrealClassDefinitionInfo& ClassDef = GetCurrentClassDef();
 							ClassDef.AddArchiveType(ArchiveType);
 							ClassDef.SetEnclosingDefine(MoveTemp(EnclosingDefine));
 						}
@@ -5241,9 +5240,7 @@ FUnrealClassDefinitionInfo& FHeaderParser::CompileClassDeclaration()
 	ClassDef.MergeClassCategories();
 
 	// Class attributes.
-	FStructMetaData& StructData = ClassDef.GetStructMetaData();
-	StructData.SetPrologLine(PrologFinishLine);
-
+	ClassDef.SetPrologLine(PrologFinishLine);
 	ClassDef.MergeAndValidateClassFlags(DeclaredClassName);
 	ClassDef.SetInternalFlags(EInternalObjectFlags::Native);
 
@@ -5443,8 +5440,7 @@ void FHeaderParser::CompileInterfaceDeclaration()
 	}
 
 	// Try parsing metadata for the interface
-	FStructMetaData& StructData = InterfaceClassDef->GetStructMetaData();
-	StructData.SetPrologLine(PrologFinishLine);
+	InterfaceClassDef->SetPrologLine(PrologFinishLine);
 
 	// Register the metadata
 	AddModuleRelativePathToMetadata(*InterfaceClassDef, MetaData);
@@ -6099,7 +6095,7 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 	TArray<FPropertySpecifier> SpecifiersFound;
 	ReadSpecifierSetInsideMacro(SpecifiersFound, TEXT("Function"), MetaData);
 
-	FUnrealClassDefinitionInfo& OuterClassDef = UHTCastChecked<FUnrealClassDefinitionInfo>(GetCurrentClassDef());
+	FUnrealClassDefinitionInfo& OuterClassDef = GetCurrentClassDef();
 	if (!OuterClassDef.HasAnyClassFlags(CLASS_Native))
 	{
 		Throwf(TEXT("Should only be here for native classes!"));
@@ -6508,7 +6504,7 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 		// This is a final (prebinding, non-overridable) function
 		FuncDef.SetFunctionFlags(FUNC_Final);
 		FuncDef.SetFunctionExportFlags(FUNCEXPORT_Final);
-		if (UHTCastChecked<FUnrealClassDefinitionInfo>(GetCurrentClassDef()).HasAnyClassFlags(CLASS_Interface))
+		if (GetCurrentClassDef().HasAnyClassFlags(CLASS_Interface))
 		{
 			Throwf(TEXT("Interface functions cannot be declared 'final'"));
 		}
@@ -6565,7 +6561,7 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 	}
 
 	// perform documentation policy tests
-	CheckDocumentationPolicyForFunc(UHTCastChecked<FUnrealClassDefinitionInfo>(GetCurrentClassDef()), FuncDef);
+	CheckDocumentationPolicyForFunc(GetCurrentClassDef(), FuncDef);
 
 	return FuncDef;
 }
@@ -8125,18 +8121,17 @@ bool FHeaderParser::TryToMatchConstructorParameterList(FToken Token)
 		return false;
 	}
 
-	FStructMetaData& StructData = GetCurrentClassData();
+	FUnrealClassDefinitionInfo& ClassDef = GetCurrentClassDef();
 
 	bool bOICtor = false;
 	bool bVTCtor = false;
 
-	if (!StructData.bDefaultConstructorDeclared && MatchSymbol(TEXT(')')))
+	if (!ClassDef.IsDefaultConstructorDeclared() && MatchSymbol(TEXT(')')))
 	{
-		StructData.bDefaultConstructorDeclared = true;
+		ClassDef.MarkDefaultConstructorDeclared();
 	}
-	else if (!StructData.bObjectInitializerConstructorDeclared
-		|| !StructData.bCustomVTableHelperConstructorDeclared
-	)
+	else if (!ClassDef.IsObjectInitializerConstructorDeclared()
+		|| !ClassDef.IsCustomVTableHelperConstructorDeclared())
 	{
 		FToken ObjectInitializerParamParsingToken;
 
@@ -8207,11 +8202,20 @@ bool FHeaderParser::TryToMatchConstructorParameterList(FToken Token)
 			}
 		}
 
-		StructData.bObjectInitializerConstructorDeclared = StructData.bObjectInitializerConstructorDeclared || (bOICtor && bIsRef && bIsConst);
-		StructData.bCustomVTableHelperConstructorDeclared = StructData.bCustomVTableHelperConstructorDeclared || (bVTCtor && bIsRef);
+		if (bOICtor && bIsRef && bIsConst)
+		{
+			ClassDef.MarkObjectInitializerConstructorDeclared();
+		}
+		if (bVTCtor && bIsRef)
+		{
+			ClassDef.MarkCustomVTableHelperConstructorDeclared();
+		}
 	}
 
-	StructData.bConstructorDeclared = StructData.bConstructorDeclared || !bVTCtor;
+	if (!bVTCtor)
+	{
+		ClassDef.MarkConstructorDeclared();
+	}
 
 	// Optionally match semicolon.
 	if (!MatchSymbol(TEXT(';')))
@@ -8258,7 +8262,7 @@ void FHeaderParser::CompileVersionDeclaration(FUnrealStructDefinitionInfo& Struc
 
 void FHeaderParser::ResetClassData()
 {
-	FUnrealClassDefinitionInfo& CurrentClassDef = UHTCastChecked<FUnrealClassDefinitionInfo>(GetCurrentClassDef());
+	FUnrealClassDefinitionInfo& CurrentClassDef = GetCurrentClassDef();
 
 	// Set class flags and within.
 	CurrentClassDef.ClearClassFlags(CLASS_RecompilerClear);

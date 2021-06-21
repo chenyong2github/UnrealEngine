@@ -11,7 +11,6 @@
 
 class UPackage;
 class FArchive;
-class FStructMetaData;
 
 enum class ETopologicalState : uint8
 {
@@ -240,15 +239,7 @@ public:
 	 * @param LineNumber Number at which generated body macro is.
 	 * @param Suffix Suffix to add to generated body macro name.
 	 */
-	FString GetGeneratedMacroName(int32 LineNumber, const TCHAR* Suffix) const;
-
-	/**
-	 * Gets file-wise generated body macro name.
-	 *
-	 * @param StructData Struct metadata for which to get generated body macro name.
-	 * @param Suffix Suffix to add to generated body macro name.
-	 */
-	FString GetGeneratedMacroName(FStructMetaData& StructData, const TCHAR* Suffix = nullptr) const;
+	FString GetGeneratedMacroName(int32 LineNumber, const TCHAR* Suffix = nullptr) const;
 
 	/**
 	 * Gets scope for this file.

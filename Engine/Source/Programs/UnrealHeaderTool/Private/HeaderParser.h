@@ -181,35 +181,6 @@ protected:
 	}
 
 	/**
-	 * Gets current file scope.
-	 */
-	FFileScope* GetCurrentFileScope() const
-	{
-		int32 Index = 0;
-		if (!TopNest)
-		{
-			check(!NestLevel);
-			return nullptr;
-		}
-		while (TopNest[Index].NestType != ENestType::GlobalScope)
-		{
-			--Index;
-		}
-
-		return (FFileScope*)TopNest[Index].GetScope();
-	}
-
-	/**
-	 * Gets current class scope.
-	 */
-	FStructScope* GetCurrentClassScope() const
-	{
-		check(TopNest->NestType == ENestType::Class || TopNest->NestType == ENestType::Interface || TopNest->NestType == ENestType::NativeInterface);
-
-		return (FStructScope*)TopNest->GetScope();
-	}
-
-	/**
 	 * Tells if parser is currently in a class.
 	 */
 	bool IsInAClass() const
@@ -231,17 +202,11 @@ protected:
 	/**
 	 * Gets current class definition.
 	 */
-	FUnrealStructDefinitionInfo& GetCurrentClassDef() const
+	FUnrealClassDefinitionInfo& GetCurrentClassDef() const
 	{
-		return GetCurrentClassScope()->GetStructDef();
-	}
+		check(TopNest->NestType == ENestType::Class || TopNest->NestType == ENestType::Interface || TopNest->NestType == ENestType::NativeInterface);
 
-	/**
-	 * Gets current class's metadata.
-	 */
-	FStructMetaData& GetCurrentClassData()
-	{
-		return GetCurrentClassDef().GetStructMetaData();
+		return UHTCastChecked<FUnrealClassDefinitionInfo>(static_cast<FStructScope*>(TopNest->GetScope())->GetStructDef());
 	}
 
 	// Information about all nesting levels.

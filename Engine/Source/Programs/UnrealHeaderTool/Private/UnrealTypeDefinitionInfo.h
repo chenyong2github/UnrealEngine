@@ -71,6 +71,13 @@ enum class EFunctionType
 	SparseDelegate,
 };
 
+enum class EParsedInterface
+{
+	NotAnInterface,
+	ParsedUInterface,
+	ParsedIInterface
+};
+
 enum class ECreateEngineTypesPhase : uint8
 {
 	Phase1,				// Create the Class, ScriptStruct, and Enum types
@@ -2156,14 +2163,6 @@ public:
 	}
 
 	/**
-	 * Return the class meta data information
-	 */
-	FStructMetaData& GetStructMetaData()
-	{
-		return StructMetaData;
-	}
-
-	/**
 	 * Return the super struct
 	 */
 	FUnrealStructDefinitionInfo* GetSuperStruct() const
@@ -2203,14 +2202,6 @@ public:
 	bool ContainsDelegates() const
 	{
 		return bContainsDelegates;
-	}
-
-	/**
-	 * Sets contains delegates flag for this class.
-	 */
-	void MarkContainsDelegate()
-	{
-		bContainsDelegates = true;
 	}
 
 	const FString* FindMetaDataHierarchical(const FName& Key) const
@@ -2315,7 +2306,6 @@ private:
 	/** Functions of the structure */
 	TArray<TSharedRef<FUnrealFunctionDefinitionInfo>> Functions;
 
-	FStructMetaData StructMetaData;
 	FBaseStructInfo SuperStructInfo;
 	TArray<FBaseStructInfo> BaseStructInfos;
 
@@ -3122,6 +3112,156 @@ public:
 	}
 
 	/**
+	 * Gets prolog line number for this class.
+	 */
+	int32 GetPrologLine() const
+	{
+		check(PrologLine > 0);
+		return PrologLine;
+	}
+
+	/**
+	 * Sets prolog line number for this class.
+	 */
+	void SetPrologLine(int32 Line)
+	{
+		check(Line > 0);
+		PrologLine = Line;
+	}
+
+	/**
+	 * Gets generated body line number for this class.
+	 */
+	int32 GetGeneratedBodyLine() const
+	{
+		check(GeneratedBodyLine > 0);
+		return GeneratedBodyLine;
+	}
+
+	/**
+	 * Sets generated body line number for this class.
+	 */
+	void SetGeneratedBodyLine(int32 Line)
+	{
+		check(Line > 0);
+		GeneratedBodyLine = Line;
+	}
+
+	/**
+	 * Gets interface generated body line number for this class.
+	 */
+	int32 GetInterfaceGeneratedBodyLine() const
+	{
+		check(InterfaceGeneratedBodyLine > 0);
+		return InterfaceGeneratedBodyLine;
+	}
+
+	/**
+	 * Sets interface generated body line number for this class.
+	 */
+	void SetInterfaceGeneratedBodyLine(int32 Line)
+	{
+		check(Line > 0);
+		InterfaceGeneratedBodyLine = Line;
+	}
+
+	/**
+	 * Return true if the constructor is declared
+	 */
+	bool IsConstructorDeclared() const
+	{
+		return bConstructorDeclared;
+	}
+
+	/**
+	 * Mark that the constructor has been declared
+	 */
+	void MarkConstructorDeclared()
+	{
+		bConstructorDeclared = true;
+	}
+
+	/**
+	 * Return true if the default constructor is declared
+	 */
+	bool IsDefaultConstructorDeclared() const
+	{
+		return bDefaultConstructorDeclared;
+	}
+
+	/**
+	 * Mark that the default constructor has been declared
+	 */
+	void MarkDefaultConstructorDeclared()
+	{
+		bDefaultConstructorDeclared = true;
+	}
+
+	/**
+	 * Return true if the object initializer constructor is declared
+	 */
+	bool IsObjectInitializerConstructorDeclared() const
+	{
+		return bObjectInitializerConstructorDeclared;
+	}
+
+	/**
+	 * Mark that the object initializer constructor has been declared
+	 */
+	void MarkObjectInitializerConstructorDeclared()
+	{
+		bObjectInitializerConstructorDeclared = true;
+	}
+
+	/**
+	 * Return true if the custom vtable helper constructor is declared
+	 */
+	bool IsCustomVTableHelperConstructorDeclared() const
+	{
+		return bCustomVTableHelperConstructorDeclared;
+	}
+
+	/**
+	 * Mark that the custom vtable helper constructor has been declared
+	 */
+	void MarkCustomVTableHelperConstructorDeclared()
+	{
+		bCustomVTableHelperConstructorDeclared = true;
+	}
+
+	/**
+	 * Get the generated body access specifier
+	 */
+	EAccessSpecifier GetGeneratedBodyMacroAccessSpecifier() const
+	{
+		return GeneratedBodyMacroAccessSpecifier;
+	}
+
+	/**
+	 * Set the generated body access specifier
+	 */
+	EAccessSpecifier SetGeneratedBodyMacroAccessSpecifier(EAccessSpecifier InGeneratedBodyMacroAccessSpecifier)
+	{
+		return GeneratedBodyMacroAccessSpecifier = InGeneratedBodyMacroAccessSpecifier;
+	}
+
+	/**
+	 * Get the parsed interface state 
+	 */
+	EParsedInterface GetParsedInterfaceState() const
+	{
+		return ParsedInterface;
+	}
+
+	/**
+	 * Set the parsed interface state
+	 */
+	void SetParsedInterfaceState(EParsedInterface InParsedInterface)
+	{
+		ParsedInterface = InParsedInterface;
+	}
+
+	/**
 	 * Test to see if the class implements a specific interface
 	 */
 	bool ImplementsInterface(const FUnrealClassDefinitionInfo& SomeInterface) const;
@@ -3176,8 +3316,37 @@ private:
 	EClassCastFlags ClassCastFlags = CASTCLASS_None;
 	FUnrealClassDefinitionInfo* ClassWithin = nullptr;
 	ESerializerArchiveType ArchiveType = ESerializerArchiveType::None;
+
+	/** GENERATED_BODY access specifier to preserve. */
+	EAccessSpecifier GeneratedBodyMacroAccessSpecifier = ACCESS_NotAnAccessSpecifier;
+
+	/** Parsed interface state */
+	EParsedInterface ParsedInterface = EParsedInterface::NotAnInterface;
+
+	/** The line of UCLASS/UINTERFACE macro in this class. */
+	int32 PrologLine = -1;
+
+	/** The line of GENERATED_BODY/GENERATED_UCLASS_BODY macro in this class. */
+	int32 GeneratedBodyLine = -1;
+
+	/** Same as above, but for interface class associated with this class. */
+	int32 InterfaceGeneratedBodyLine = -1;
+
 	int32 FirstOwnedClassRep = 0;
 	int32 PropertiesSize = 0;
+
+	/** Is constructor declared? */
+	bool bConstructorDeclared = false;
+
+	/** Is default constructor declared? */
+	bool bDefaultConstructorDeclared = false;
+
+	/* Is ObjectInitializer constructor (i.e. a constructor with only one parameter of type FObjectInitializer) declared? */
+	bool bObjectInitializerConstructorDeclared = false;
+
+	/* Is custom VTable helper constructor declared? */
+	bool bCustomVTableHelperConstructorDeclared = false;
+
 	bool bIsInterface = false;
 	bool bWantsToBePlaceable = false;
 };
