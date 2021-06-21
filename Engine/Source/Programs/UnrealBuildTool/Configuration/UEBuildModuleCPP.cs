@@ -494,7 +494,10 @@ namespace UnrealBuildTool
 				List<string> GeneratedFiles = new List<string>();
 				foreach (string GeneratedDir in GeneratedCppDirectories)
 				{
-					GeneratedFiles.AddRange(Directory.GetFiles(GeneratedDir, "*.gen.cpp"));
+					if (Directory.Exists(GeneratedDir))
+					{
+						GeneratedFiles.AddRange(Directory.GetFiles(GeneratedDir, "*.gen.cpp"));
+					}
 				}
 
 				if(GeneratedFiles.Count > 0)
