@@ -93,6 +93,13 @@ void* FCachedOSVeryLargePageAllocator::Allocate(SIZE_T Size, uint32 AllocationHi
 					}
 					CachedFree -= SizeOfSubPage;
 				}
+				else
+				{
+					if (AllocationHint == FMemory::AllocationHints::SmallPool)
+					{
+						UE_CLOG(!ret, LogMemory, Fatal, TEXT("The FCachedOSVeryLargePageAllocator has run out of address space for SmallPool allocations, increase UE_VERYLARGEPAGEALLOCATOR_RESERVEDSIZEINGB for your platform!"));
+					}
+				}
 			}
 		}
 	}
