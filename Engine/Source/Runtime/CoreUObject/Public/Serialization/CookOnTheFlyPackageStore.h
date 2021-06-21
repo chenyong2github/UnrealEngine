@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 #if WITH_COTF
 
-#include "CoreMinimal.h"
 #include "IO/PackageStore.h"
 
 class FIoDispatcher;
