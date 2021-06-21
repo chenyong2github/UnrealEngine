@@ -289,8 +289,6 @@ void FAutomationWorkerModule::HandleFindWorkersMessage(const FAutomationWorkerFi
 	// Set the Instance name to be the same as the session browser. This information should be shared at some point
 	if ((Message.SessionId == FApp::GetSessionId()) && (Message.Changelist == 10000))
 	{
-		TestRequesterAddress = Context->GetSender();
-
 #if WITH_EDITOR
 		//If the asset registry is loading assets then we'll wait for it to stop before running our automation tests.
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
@@ -298,7 +296,10 @@ void FAutomationWorkerModule::HandleFindWorkersMessage(const FAutomationWorkerFi
 		{
 			if (!AssetRegistryModule.Get().OnFilesLoaded().IsBoundToObject(this))
 			{
-				AssetRegistryModule.Get().OnFilesLoaded().AddRaw(this, &FAutomationWorkerModule::SendWorkerFound);
+				AssetRegistryModule.Get().OnFilesLoaded().AddLambda([this, Context] {
+						SendWorkerFound(Context->GetSender());
+					}
+				);
 				GLog->Logf(ELogVerbosity::Log, TEXT("...Forcing Asset Registry Load For Automation"));
 			}
 		}
@@ -306,13 +307,13 @@ void FAutomationWorkerModule::HandleFindWorkersMessage(const FAutomationWorkerFi
 #endif
 		{
 			//If the registry is not loading then we'll just go ahead and run our tests.
-			SendWorkerFound();
+			SendWorkerFound(Context->GetSender());
 		}
 	}
 }
 
 
-void FAutomationWorkerModule::SendWorkerFound()
+void FAutomationWorkerModule::SendWorkerFound(const FMessageAddress& ControllerAddress)
 {
 	FAutomationWorkerFindWorkersResponse* Response = new FAutomationWorkerFindWorkersResponse();
 
@@ -337,8 +338,7 @@ void FAutomationWorkerModule::SendWorkerFound()
 	Response->RenderModeName = TEXT("Unknown");
 #endif
 
-	MessageEndpoint->Send(Response, TestRequesterAddress);
-	TestRequesterAddress.Invalidate();
+	MessageEndpoint->Send(Response, ControllerAddress);
 }
 
 
@@ -512,6 +512,30 @@ void FAutomationWorkerModule::HandleScreenShotAndTraceCapturedWithName(const TAr
 void FAutomationWorkerModule::HandleRunTestsMessage( const FAutomationWorkerRunTests& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context )
 {
 	UE_LOG(LogAutomationWorker, Log, TEXT("Received RunTests %s from %s"), *Message.BeautifiedTestName, *Context->GetSender().ToString());
+
+	if (TestRequesterAddress.IsValid() && !TestName.IsEmpty())
+	{
+		if (TestRequesterAddress == Context->GetSender())
+		{
+			UE_LOG(LogAutomationWorker, Log, TEXT("Worker is already running test '%s' from %s. Request is ignored."), *BeautifiedTestName, *TestRequesterAddress.ToString());
+			return;
+		}
+
+		FString LogMessage = FString::Format(TEXT("Worker is already running test '%s' from %s. '%s' won't be run."), 
+			{ *BeautifiedTestName, *TestRequesterAddress.ToString(), *Message.BeautifiedTestName });
+		UE_LOG(LogAutomationWorker, Warning, TEXT("%s"), *LogMessage);
+
+		// Let the sender know it won't happen
+		FAutomationWorkerRunTestsReply* OutMessage = new FAutomationWorkerRunTestsReply();
+		OutMessage->TestName = Message.TestName;
+		OutMessage->ExecutionCount = Message.ExecutionCount;
+		OutMessage->Success = false;
+		OutMessage->Entries.Add(FAutomationExecutionEntry(FAutomationEvent(EAutomationEventType::Error, LogMessage)));
+		OutMessage->ErrorTotal = 1;
+		MessageEndpoint->Send(OutMessage, Context->GetSender());
+
+		return;
+	}
 
 	ExecutionCount = Message.ExecutionCount;
 	TestName = Message.TestName;
