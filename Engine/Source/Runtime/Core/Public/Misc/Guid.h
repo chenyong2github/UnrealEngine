@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/Crc.h"
+#include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
 #include "Serialization/StructuredArchive.h"
 #include "Serialization/MemoryLayout.h"
@@ -33,6 +34,13 @@ enum class EGuidFormats
 	 * For example: 00000000-0000-0000-0000-000000000000
 	 */
 	DigitsWithHyphens,
+
+	/**
+	 * 32 digits separated by hyphens, in lowercase as described by RFC 4122.
+	 *
+	 * For example: bd048ce3-358b-46c5-8cee-627c719418f8
+	 */
+	DigitsWithHyphensLower,
 
 	/**
 	 * 32 digits separated by hyphens and enclosed in braces.
@@ -306,6 +314,13 @@ public:
 	 */
 	CORE_API FString ToString(EGuidFormats Format) const;
 
+	/**
+	 * Appends this GUID to the string builder in DigitsWithHyphensLower format.
+	 */
+	CORE_API void AppendString(FAnsiStringBuilderBase& Builder) const;
+	CORE_API void AppendString(FUtf8StringBuilderBase& Builder) const;
+	CORE_API void AppendString(FWideStringBuilderBase& Builder) const;
+
 public:
 
 	/**
@@ -368,3 +383,10 @@ template<> struct TCanBulkSerialize<FGuid> { enum { Value = true }; };
 DECLARE_INTRINSIC_TYPE_LAYOUT(FGuid);
 
 template <> struct TIsPODType<FGuid> { enum { Value = true }; };
+
+template <typename CharType>
+inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FGuid& Value)
+{
+	Value.AppendString(Builder);
+	return Builder;
+}
