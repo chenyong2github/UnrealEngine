@@ -96,13 +96,13 @@ void ADatasmithRuntimeActor::Tick(float DeltaTime)
 #if WITH_EDITOR
 				if (EnableThreadedImport != MAX_int32)
 				{
-					IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.CADTranslator.EnableThreadedImport"));
+					IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("DS.CADTranslator.EnableThreadedImport"));
 					CVar->Set(EnableThreadedImport);
 				}
 
 				if (EnableCADCache != MAX_int32)
 				{
-					IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.CADTranslator.EnableCADCache"));
+					IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("DS.CADTranslator.EnableCADCache"));
 					CVar->Set(EnableCADCache);
 				}
 #endif
@@ -363,14 +363,14 @@ bool ADatasmithRuntimeActor::LoadFile(const FString& FilePath)
 
 #if WITH_EDITOR
 	EnableThreadedImport = MAX_int32;
-	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.CADTranslator.EnableThreadedImport")))
+	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("DS.CADTranslator.EnableThreadedImport")))
 	{
 		EnableThreadedImport = CVar->GetInt();
 		CVar->Set(0);
 	}
 
 	EnableCADCache = MAX_int32;
-	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.CADTranslator.EnableCADCache")))
+	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("DS.CADTranslator.EnableCADCache")))
 	{
 		EnableCADCache = CVar->GetInt();
 		CVar->Set(0);
