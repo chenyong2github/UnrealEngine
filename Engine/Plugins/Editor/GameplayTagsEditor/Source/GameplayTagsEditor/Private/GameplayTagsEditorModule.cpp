@@ -325,6 +325,10 @@ public:
 
 				WarnAboutRestart();
 
+				TSharedPtr<FGameplayTagNode> FoundNode = Manager.FindTagNode(TagToDelete);
+
+				ensureMsgf(!FoundNode.IsValid() || FoundNode->GetCompleteTagName() == TagToDelete, TEXT("Failed to delete redirector %s!"), *TagToDelete.ToString());
+
 				return true;
 			}
 		}

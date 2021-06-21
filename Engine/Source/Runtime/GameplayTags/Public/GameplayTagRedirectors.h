@@ -42,7 +42,11 @@ class FGameplayTagRedirectors
 public:
 	static FGameplayTagRedirectors& Get();
 
+	/** Sees if the tag name should be redirected to a different tag, returns null if there is no active redirect */
 	const FGameplayTag* RedirectTag(const FName& InTagName) const;
+
+	/** Refreshes the redirect map after a config change */
+	void RefreshTagRedirects();
 
 private:
 	FGameplayTagRedirectors();

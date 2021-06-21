@@ -49,6 +49,19 @@ FGameplayTagRedirectors::FGameplayTagRedirectors()
 		UE_LOG(LogGameplayTags, Error, TEXT("GameplayTagRedirects is in a deprecated location, after editing GameplayTags developer settings you must remove these manually"));
 	}
 
+	// Only doing the deprecated parse once at startup is fine, but we need to update from the settings object after in-editor config updates
+	// This is a singleton that is never destroyed, so just bind raw once
+	UGameplayTagsManager::OnEditorRefreshGameplayTagTree.AddRaw(this, &FGameplayTagRedirectors::RefreshTagRedirects);
+
+	RefreshTagRedirects();
+}
+
+void FGameplayTagRedirectors::RefreshTagRedirects()
+{
+	TagRedirects.Empty();
+
+	UGameplayTagsSettings* MutableDefault = GetMutableDefault<UGameplayTagsSettings>();
+
 	// Check settings object
 	for (const FGameplayTagRedirect& Redirect : MutableDefault->GameplayTagRedirects)
 	{
@@ -57,28 +70,6 @@ FGameplayTagRedirectors::FGameplayTagRedirectors()
 
 		if (ensureMsgf(!TagRedirects.Contains(OldTagName), TEXT("Old tag %s is being redirected to more than one tag. Please remove all the redirections except for one."), *OldTagName.ToString()))
 		{
-			//FGameplayTag OldTag = RequestGameplayTag(OldTagName, false); //< This only succeeds if OldTag is in the Table!
-			//if (OldTag.IsValid())
-			//{
-			//	FGameplayTagContainer MatchingChildren = RequestGameplayTagChildren(OldTag);
-
-			//	FString Msg = FString::Printf(TEXT("Old tag (%s) which is being redirected still exists in the table!  Generally you should "
-			//		TEXT("remove the old tags from the table when you are redirecting to new tags, or else users will ")
-			//		TEXT("still be able to add the old tags to containers.")), *OldTagName.ToString());
-
-			//	if (MatchingChildren.Num() == 0)
-			//	{
-			//		UE_LOG(LogGameplayTags, Warning, TEXT("%s"), *Msg);
-			//	}
-			//	else
-			//	{
-			//		Msg += TEXT("\nSuppressed warning due to redirected tag being a single component that matched other hierarchy elements.");
-			//		UE_LOG(LogGameplayTags, Log, TEXT("%s"), *Msg);
-			//	}
-			//}
-
-			//FGameplayTag NewTag = (NewTagName != NAME_None) ? RequestGameplayTag(NewTagName, false) : FGameplayTag();
-
 			// Attempt to find multiple redirect hops and flatten the redirection so we only need to redirect once
 			// to resolve the update.  Includes a basic infinite recursion guard, in case the redirects loop.
 			int32 IterationsLeft = 10;
