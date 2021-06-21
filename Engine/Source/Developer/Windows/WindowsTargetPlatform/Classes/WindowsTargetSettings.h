@@ -18,6 +18,7 @@ enum class ECompilerVersion : uint8
 	VisualStudio2015 = 1 UMETA(DisplayName = "Visual Studio 2015 (deprecated)"),
 	VisualStudio2017 = 2 UMETA(DisplayName = "Visual Studio 2017"),
 	VisualStudio2019 = 3 UMETA(DisplayName = "Visual Studio 2019"),
+	VisualStudio2022 = 4 UMETA(DisplayName = "Visual Studio 2022"),
 };
 UENUM()
 enum class EDefaultGraphicsRHI : uint8

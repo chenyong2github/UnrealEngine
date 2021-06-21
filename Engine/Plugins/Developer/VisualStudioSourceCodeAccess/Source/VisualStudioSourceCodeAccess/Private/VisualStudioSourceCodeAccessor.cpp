@@ -89,7 +89,9 @@ static void OnModuleCompileStarted(bool bIsAsyncCompile)
 
 int32 GetVisualStudioVersionForCompiler()
 {
-#if _MSC_VER >= 1920
+#if _MSC_VER >= 1930
+	return 17; // Visual Studio 2022
+#elif _MSC_VER >= 1920
 	return 16; // Visual Studio 2019
 #elif _MSC_VER >= 1910
 	return 15; // Visual Studio 2017
@@ -158,6 +160,7 @@ void FVisualStudioSourceCodeAccessor::RefreshAvailability()
 {
 	Locations.Reset();
 
+	AddVisualStudioVersionUsingVisualStudioSetupAPI(17); // Visual Studio 2022
 	AddVisualStudioVersionUsingVisualStudioSetupAPI(16); // Visual Studio 2019
 	AddVisualStudioVersionUsingVisualStudioSetupAPI(15); // Visual Studio 2017
 	AddVisualStudioVersion(14); // Visual Studio 2015

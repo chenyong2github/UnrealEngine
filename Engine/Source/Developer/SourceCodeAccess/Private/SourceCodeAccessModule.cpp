@@ -73,7 +73,7 @@ bool FSourceCodeAccessModule::CanCompileSourceCode() const
 {
 #if PLATFORM_WINDOWS
 	// Need to have Visual Studio installed to compile on Windows, regardless of chosen IDE
-	return IsSourceCodeAccessorAvailable("VisualStudio2017") || IsSourceCodeAccessorAvailable("VisualStudio2019");
+	return IsSourceCodeAccessorAvailable("VisualStudio2017") || IsSourceCodeAccessorAvailable("VisualStudio2019") || IsSourceCodeAccessorAvailable("VisualStudio2022");
 #else
 	// Default behavior
 	return CanAccessSourceCode();
