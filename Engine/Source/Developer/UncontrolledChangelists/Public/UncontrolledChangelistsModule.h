@@ -67,20 +67,11 @@ public:
 	 */
 	FText GetReconcileStatus() const;
 
-	/** Called when "Reconcile loaded assets" button is clicked. Checks for uncontrolled modifications in previously loaded assets.
+	/** Called when "Reconcile assets" button is clicked. Checks for uncontrolled modifications in previously added assets.
 	 *	Adds modified files to Uncontrolled Changelists
+	 *  @return True if new modifications found
 	 */
-	void OnReconcileLoadedAssets();
-
-	/** Called when "Reconcile saved assets" button is clicked. Checks for uncontrolled modifications in previously saved assets.
-	 *	Adds modified files to Uncontrolled Changelists
-	 */
-	void OnReconcileSavedAssets();
-
-	/** Called when the "Reconcile all assets" button is clicked. Checks for uncontrolled modifications in previously loaded and saved assets.
-	 *	Adds modified files to Uncontrolled Changelists
-	 */
-	void OnReconcileAllAssets();
+	bool OnReconcileAssets();
 
 	/**
 	 * Delegate callback called when assets are added to AssetRegistry.
@@ -160,21 +151,17 @@ private:
 	/** Removes from asset caches files already present in Uncontrolled Changelists */
 	void CleanAssetsCaches();
 
-	/** Removes files not currently loaded from loaded asset cache */
-	void CleanLoadedAssetsCache();
-
 	/**
 	 * Try to add the provided filenames to the default Uncontrolled Changelist.
 	 * @param 	InFilenames 	The files to add.
 	 * @param 	InCheckFlags 	The required checks to check the file against before adding.
+	 * @return 	True file have been added.
 	 */
-	void AddFilesToDefaultUncontrolledChangelist(const TArray<FString>& InFilenames, const FUncontrolledChangelistState::ECheckFlags InCheckFlags);
+	bool AddFilesToDefaultUncontrolledChangelist(const TArray<FString>& InFilenames, const FUncontrolledChangelistState::ECheckFlags InCheckFlags);
 
 private:
 	FUncontrolledChangelistsStateCache	UncontrolledChangelistsStateCache;
-	TSet<FString>						LoadedFilesCache;
-	TSet<FString>						SavedFilesCache;
+	TSet<FString>						AddedAssetsCache;
 	FDelegateHandle						OnAssetAddedDelegateHandle;
-	FDelegateHandle						OnAssetLoadedDelegateHandle;
 	FDelegateHandle						OnObjectPreSavedDelegateHandle;
 };
