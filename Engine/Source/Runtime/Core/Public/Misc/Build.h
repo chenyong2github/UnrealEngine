@@ -441,7 +441,7 @@
 #endif
 
 #ifndef WITH_COTF
-	#define WITH_COTF ((WITH_ENGINE) && !(IS_PROGRAM || WITH_EDITOR || UE_SERVER || UE_BUILD_SHIPPING))
+	#define WITH_COTF ((WITH_ENGINE) && !(IS_PROGRAM || UE_BUILD_SHIPPING))
 #endif
 
 // Controls if the config system can stores configs for other platforms than the running one

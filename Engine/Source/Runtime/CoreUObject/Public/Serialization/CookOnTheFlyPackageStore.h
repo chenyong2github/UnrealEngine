@@ -2,6 +2,8 @@
 
 #pragma once
 
+#if WITH_COTF
+
 #include "CoreMinimal.h"
 #include "IO/PackageStore.h"
 
@@ -65,3 +67,5 @@ TUniquePtr<IPackageStore> MakeCookOnTheFlyPackageStore(
 	FIoDispatcher& IoDispatcher,
 	UE::Cook::ICookOnTheFlyServerConnection& CookOnTheFlyServerConnection,
 	TFunction<void()>&& EntriesAddedCallback);
+
+#endif // WITH_COTF
