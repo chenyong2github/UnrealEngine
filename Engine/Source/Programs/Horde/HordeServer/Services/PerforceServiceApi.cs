@@ -625,18 +625,16 @@ namespace HordeServer.Services
 		/// <inheritdoc/>
 		public override async Task<int> DuplicateShelvedChangeAsync(int ShelvedChange)
 		{
-			await Task.Yield();
-
-			throw new Exception("DuplicateShelvedChangeAsync is disabled due to p4 issue: https://jira.it.epicgames.com/servicedesk/customer/portal/1/ITH-144069");
-
-			/*
-			using (P4.Repository Repository = GetConnection(NoClient: true))
+			return await Task.Run(() =>
 			{
-				return ReshelveChange(Repository, ShelvedChange);
-			}
+				using (P4.Repository Repository = GetConnection(ReadOnly: false, ClientFromChange: ShelvedChange, UseClientFromChange: false))
+				{
+					return ReshelveChange(Repository, ShelvedChange);				
+				}
 
-			throw new Exception($"Failed to duplicate shelved change {ShelvedChange}");
-			*/
+				throw new Exception($"Unable to duplicate shelve change {ShelvedChange}");
+
+			});
 
 		}
 
@@ -1003,23 +1001,6 @@ namespace HordeServer.Services
 			});
 		}
 
-		void RequireEdgeServer()
-		{
-			string? Value;
-			if (Server.Metadata.RawData.TryGetValue("serverServices", out Value))
-			{
-				if (Value != "edge-server")
-				{
-					Serilog.Log.Logger.Information("Perforce: servierService is not an edge server : {ServerServices}", Value);
-					throw new Exception("Operation requires an edge server");
-				}
-			}
-			else
-			{
-				throw new Exception("unable to get server services");
-			}
-		}
-
 		bool CanImpersonate
 		{
 			get
@@ -1032,11 +1013,27 @@ namespace HordeServer.Services
 		int ReshelveChange(P4.Repository Repository, int Change)
 		{
 
-			// all attempts at using this without edge server have lead to bizarre reshelving behavior, also note that -p requires an edge server
-			// https://jira.it.epicgames.com/servicedesk/customer/portal/1/ITH-144069
-			RequireEdgeServer();
+			bool EdgeServer = false;
+			string? Value;
+			if (Server.Metadata.RawData.TryGetValue("serverServices", out Value))
+			{
+				if (Value == "edge-server")
+				{
+					EdgeServer = true;
+				}
+			}
 
-			using (P4.P4Command Cmd = new P4.P4Command(Repository, "reshelve", false, new string[] { "-s", Change.ToString(CultureInfo.InvariantCulture), "-f", "-p" }))
+			List<string> Arguments = new List<string>();
+
+			// promote shelf if we're on an edge server
+			if (EdgeServer)
+			{
+				Arguments.Add("-p");
+			}
+
+			Arguments.AddRange(new string[] { "-s", Change.ToString(CultureInfo.InvariantCulture), "-f" });
+
+			using (P4.P4Command Cmd = new P4.P4Command(Repository, "reshelve", false, Arguments.ToArray()))
 			{
 				P4.P4CommandResult Results = Cmd.Run();
 
