@@ -253,11 +253,11 @@ void UActorDescContainer::RemoveActor(const FGuid& ActorGuid)
 	}
 }
 
-void UActorDescContainer::PinActor(const FGuid& ActorGuid)
+AActor* UActorDescContainer::PinActor(const FGuid& ActorGuid)
 {
-	if (PinnedActors.Contains(ActorGuid))
+	if (FWorldPartitionReference* PinnedActor = PinnedActors.Find(ActorGuid))
 	{
-		return;
+		return (*PinnedActor).IsValid() ? (*PinnedActor)->GetActor() : nullptr;
 	}
 
 	TFunction<void(const FGuid&, TMap<FGuid, FWorldPartitionReference>&)> AddReferences = [this, &AddReferences](const FGuid& ActorGuid, TMap<FGuid, FWorldPartitionReference>& ReferenceMap)
@@ -283,7 +283,7 @@ void UActorDescContainer::PinActor(const FGuid& ActorGuid)
 	{
 		if (const FWorldPartitionActorDesc* const ActorDesc = ActorDescPtr->Get())
 		{
-			PinnedActors.Emplace(ActorGuid, ActorDescPtr);
+			FWorldPartitionReference& PinnedActor = PinnedActors.Emplace(ActorGuid, ActorDescPtr);
 
 			// If the pinned actor has references, we must also create references to those to ensure they are added
 			TMap<FGuid, FWorldPartitionReference>& References = PinnedActorRefs.Emplace(ActorGuid);
@@ -292,8 +292,12 @@ void UActorDescContainer::PinActor(const FGuid& ActorGuid)
 			{
 				AddReferences(ReferencedActor, References);
 			}
+
+			return PinnedActor.IsValid() ? PinnedActor->GetActor() : nullptr;
 		}
 	}
+
+	return nullptr;
 }
 
 void UActorDescContainer::UnpinActor(const FGuid& ActorGuid)

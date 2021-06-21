@@ -41,7 +41,7 @@ public:
 	/** Removes an actor desc without the need to load a package */
 	virtual void RemoveActor(const FGuid& ActorGuid);
 
-	void PinActor(const FGuid& ActorGuid);
+	AActor* PinActor(const FGuid& ActorGuid);
 	void UnpinActor(const FGuid& ActorGuid);
 	bool IsActorPinned(const FGuid& ActorGuid) const { return PinnedActors.Contains(ActorGuid); }
 public:

@@ -1505,19 +1505,35 @@ void FActorBrowsingMode::SelectFoldersDescendants(const TArray<FFolderTreeItem*>
 
 void FActorBrowsingMode::PinItem(const FSceneOutlinerTreeItemPtr& InItem)
 {
+	AActor* PinnedActor = nullptr;
 	if (UWorldPartition* const WorldPartition = RepresentingWorld->GetWorldPartition())
 	{
 		if (const FActorDescTreeItem* const ActorDescTreeItem = InItem->CastTo<FActorDescTreeItem>())
 		{
-			WorldPartition->PinActor(ActorDescTreeItem->GetGuid());
+			PinnedActor = WorldPartition->PinActor(ActorDescTreeItem->GetGuid());
 		}
 		else if (const FActorTreeItem* const ActorTreeItem = InItem->CastTo<FActorTreeItem>())
 		{
 			if (ActorTreeItem->Actor.IsValid())
 			{
-				WorldPartition->PinActor(ActorTreeItem->Actor->GetActorGuid());
+				PinnedActor = WorldPartition->PinActor(ActorTreeItem->Actor->GetActorGuid());
 			}
 		}
+	}
+
+	// Check if we need to start a batch selection
+	bool bIsBatchSelectOwner = false;
+	if (PinnedActor)
+	{
+		const bool bIsBatchSelecting = GEditor->GetSelectedActors()->IsBatchSelecting();
+		if (!bIsBatchSelecting)
+		{
+			bIsBatchSelectOwner = true;
+			GEditor->GetSelectedActors()->BeginBatchSelectOperation();
+			GEditor->SelectNone(/*bNoteSelectionChange=*/false, /*bDeselectBSPSurfs=*/true);
+		}
+
+		GEditor->SelectActor(PinnedActor, /*bInSelected=*/true, /*bNotify=*/false);
 	}
 
 	// Recursively pin all children.
@@ -1527,6 +1543,12 @@ void FActorBrowsingMode::PinItem(const FSceneOutlinerTreeItemPtr& InItem)
 		{
 			PinItem(Child.Pin());
 	    }
+	}
+
+	// End batch selection if needed
+	if (bIsBatchSelectOwner)
+	{
+		GEditor->GetSelectedActors()->EndBatchSelectOperation(/*bNotify=*/true);
 	}
 }
 
@@ -1560,12 +1582,19 @@ void FActorBrowsingMode::UnpinItem(const FSceneOutlinerTreeItemPtr& InItem)
 void FActorBrowsingMode::PinSelectedItems()
 {
 	const FSceneOutlinerItemSelection Selection = SceneOutliner->GetSelection();
-
-	Selection.ForEachItem([this](const FSceneOutlinerTreeItemPtr& TreeItem)
+	if (Selection.Num())
 	{
-		PinItem(TreeItem);
-		return true;
-	});
+		GEditor->GetSelectedActors()->BeginBatchSelectOperation();
+		GEditor->SelectNone(/*bNoteSelectionChange=*/false, /*bDeselectBSPSurfs=*/true);
+
+		Selection.ForEachItem([this](const FSceneOutlinerTreeItemPtr& TreeItem)
+		{
+			PinItem(TreeItem);
+			return true;
+		});
+
+		GEditor->GetSelectedActors()->EndBatchSelectOperation(/*bNotify=*/true);
+	}
 }
 
 void FActorBrowsingMode::UnpinSelectedItems()
