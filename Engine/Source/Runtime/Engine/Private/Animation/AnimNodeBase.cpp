@@ -214,7 +214,7 @@ void FPoseLinkBase::Initialize(const FAnimationInitializeContext& InContext)
 		FAnimationInitializeContext LinkContext(InContext);
 		LinkContext.SetNodeId(LinkID);
 		TRACE_SCOPED_ANIM_NODE(LinkContext);
-		FAnimNodeFunctionCaller::Initialize(LinkContext, *LinkedNode);
+		UE::Anim::FNodeFunctionCaller::Initialize(LinkContext, *LinkedNode);
 		LinkedNode->Initialize_AnyThread(LinkContext);
 	}
 }
@@ -325,8 +325,8 @@ void FPoseLinkBase::Update(const FAnimationUpdateContext& InContext)
 	{
 		FAnimationUpdateContext LinkContext(InContext.WithNodeId(LinkID));
 		TRACE_SCOPED_ANIM_NODE(LinkContext);
-		FAnimNodeFunctionCaller::BecomeRelevant(LinkContext, *LinkedNode);
-		FAnimNodeFunctionCaller::Update(LinkContext, *LinkedNode);
+		UE::Anim::FNodeFunctionCaller::BecomeRelevant(LinkContext, *LinkedNode);
+		UE::Anim::FNodeFunctionCaller::Update(LinkContext, *LinkedNode);
 		LinkedNode->Update_AnyThread(LinkContext);
 	}
 }
@@ -376,7 +376,7 @@ void FPoseLink::Evaluate(FPoseContext& Output)
 		{
 			Output.SetNodeId(LinkID);
 			TRACE_SCOPED_ANIM_NODE(Output);
-			FAnimNodeFunctionCaller::Evaluate(Output, *LinkedNode);
+			UE::Anim::FNodeFunctionCaller::Evaluate(Output, *LinkedNode);
 			LinkedNode->Evaluate_AnyThread(Output);
 			TRACE_ANIM_NODE_BLENDABLE_ATTRIBUTES(Output, SourceID, LinkID);
 		}
@@ -487,7 +487,7 @@ void FComponentSpacePoseLink::EvaluateComponentSpace(FComponentSpacePoseContext&
 		{
 			Output.SetNodeId(LinkID);
 			TRACE_SCOPED_ANIM_NODE(Output);
-			FAnimNodeFunctionCaller::EvaluateComponentSpace(Output, *LinkedNode);
+			UE::Anim::FNodeFunctionCaller::EvaluateComponentSpace(Output, *LinkedNode);
 			LinkedNode->EvaluateComponentSpace_AnyThread(Output);
 			TRACE_ANIM_NODE_BLENDABLE_ATTRIBUTES(Output, SourceID, LinkID);
 		}

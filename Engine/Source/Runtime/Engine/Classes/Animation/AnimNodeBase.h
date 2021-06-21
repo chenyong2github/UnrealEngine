@@ -975,7 +975,7 @@ private:
 	friend class IAnimClassInterface;
 	friend class UAnimBlueprintGeneratedClass;
 	friend struct UE::Anim::FNodeDataId;
-	friend struct FAnimNodeFunctionCaller;
+	friend struct UE::Anim::FNodeFunctionCaller;
 	friend class UAnimGraphNode_Base;
 
 	// Set the cached ptr to the constant/folded data for this node

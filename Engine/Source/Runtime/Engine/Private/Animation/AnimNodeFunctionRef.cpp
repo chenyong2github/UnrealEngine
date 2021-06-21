@@ -23,6 +23,11 @@ void FAnimNodeFunctionRef::Call(UObject* InObject, void* InParameters) const
 	}
 }
 
+namespace UE
+{
+namespace Anim
+{
+
 template<typename ContextType>
 static void CallFunctionHelper(const FAnimNodeFunctionRef& InFunction, ContextType InContext, FAnimNode_Base& InNode)
 {
@@ -44,12 +49,12 @@ static void CallFunctionHelper(const FAnimNodeFunctionRef& InFunction, ContextTy
 	}
 }
 
-void FAnimNodeFunctionCaller::Initialize(const FAnimationInitializeContext& InContext, FAnimNode_Base& InNode)
+void FNodeFunctionCaller::Initialize(const FAnimationInitializeContext& InContext, FAnimNode_Base& InNode)
 {
 	CallFunctionHelper(InNode.GetInitializeFunction(), InContext, InNode);
 }
 	
-void FAnimNodeFunctionCaller::BecomeRelevant(const FAnimationUpdateContext& InContext, FAnimNode_Base& InNode)
+void FNodeFunctionCaller::BecomeRelevant(const FAnimationUpdateContext& InContext, FAnimNode_Base& InNode)
 {
 	const FAnimNodeFunctionRef& Function = InNode.GetBecomeRelevantFunction();
 	if(Function.IsValid())
@@ -63,17 +68,19 @@ void FAnimNodeFunctionCaller::BecomeRelevant(const FAnimationUpdateContext& InCo
 	}
 }
 	
-void FAnimNodeFunctionCaller::Update(const FAnimationUpdateContext& InContext, FAnimNode_Base& InNode)
+void FNodeFunctionCaller::Update(const FAnimationUpdateContext& InContext, FAnimNode_Base& InNode)
 {
 	CallFunctionHelper(InNode.GetUpdateFunction(), InContext, InNode);
 }
 
-void FAnimNodeFunctionCaller::Evaluate(FPoseContext& InContext, FAnimNode_Base& InNode)
+void FNodeFunctionCaller::Evaluate(FPoseContext& InContext, FAnimNode_Base& InNode)
 {
 	CallFunctionHelper(InNode.GetEvaluateFunction(), InContext, InNode);
 }
 
-void FAnimNodeFunctionCaller::EvaluateComponentSpace(FComponentSpacePoseContext& InContext, FAnimNode_Base& InNode)
+void FNodeFunctionCaller::EvaluateComponentSpace(FComponentSpacePoseContext& InContext, FAnimNode_Base& InNode)
 {
 	CallFunctionHelper(InNode.GetEvaluateFunction(), InContext, InNode);
 }
+
+}}
