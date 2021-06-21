@@ -33,10 +33,23 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="3.1.5" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="5.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\EpicGames.Core\EpicGames.Core.csproj" />
+    <ProjectReference Include="..\EpicGames.IoHash\EpicGames.IoHash.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <Protobuf Include="Protos\build\bazel\remote\execution\v2\remote_execution.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\build\bazel\semver\semver.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\google\api\annotations.proto" ProtoRoot="Protos" GrpcServices="Client" />
+    <Protobuf Include="Protos\google\api\client.proto" ProtoRoot="Protos" GrpcServices="Client" />
+    <Protobuf Include="Protos\google\api\field_behavior.proto" ProtoRoot="Protos" GrpcServices="Client" />
+    <Protobuf Include="Protos\google\api\http.proto" ProtoRoot="Protos" GrpcServices="Client" />
+    <Protobuf Include="Protos\google\api\resource.proto" ProtoRoot="Protos" GrpcServices="Client" />
+    <Protobuf Include="Protos\google\longrunning\operations.proto" ProtoRoot="Protos" GrpcServices="Client" />
+    <Protobuf Include="Protos\google\rpc\code.proto" ProtoRoot="Protos" GrpcServices="Client" />
     <Protobuf Include="Protos\google\rpc\status.proto" ProtoRoot="Protos" />
   </ItemGroup>
 </Project>

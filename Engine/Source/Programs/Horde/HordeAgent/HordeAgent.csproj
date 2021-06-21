@@ -22,7 +22,6 @@
   <ItemGroup>
     <PackageReference Include="AWSSDK.Core" Version="3.5.1.49" />
     <PackageReference Include="AWSSDK.EC2" Version="3.5.1.2" />
-    <PackageReference Include="Blake3" Version="0.3.0" />
     <PackageReference Include="Datadog.Trace" Version="1.18.0" />
     <PackageReference Include="Google.Protobuf" Version="3.12.3" />
     <PackageReference Include="Grpc.Net.Client" Version="2.29.0" />
@@ -90,18 +89,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\build\bazel\remote\execution\v2\remote_execution.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" GrpcServices="Client" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\build\bazel\semver\semver.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" GrpcServices="Client" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\google\api\annotations.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" GrpcServices="Client" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\google\api\client.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" GrpcServices="Client" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\google\api\field_behavior.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" GrpcServices="Client" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\google\api\http.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" GrpcServices="Client" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\google\api\resource.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" GrpcServices="Client" />
     <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\google\bytestream\bytestream.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" GrpcServices="Client" />
     <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\google\devtools\remoteworkers\v1test2\bots.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" GrpcServices="Client" />
     <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\google\devtools\remoteworkers\v1test2\worker.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" GrpcServices="Client" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\google\longrunning\operations.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" GrpcServices="Client" />
-    <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\google\rpc\code.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" GrpcServices="Client" />
     <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\action_rpc.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" GrpcServices="Client" />
     <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\horde_rpc.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" GrpcServices="Client" />
     <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\tasks\action_task.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" GrpcServices="Client" />

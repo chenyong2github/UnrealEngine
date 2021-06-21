@@ -29,6 +29,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Serilog.Events;
 using Digest = Build.Bazel.Remote.Execution.V2.Digest;
+using EpicGames.Horde.Common.RemoteExecution;
 
 namespace HordeAgent.Commands
 {
@@ -38,127 +39,6 @@ namespace HordeAgent.Commands
 	[Command("Execute", "Executes a command through the remote execution API")]
 	class ExecuteCommand : Command
 	{
-		/// <summary>
-		/// List of files that need to be uploaded
-		/// </summary>
-		class UploadList
-		{
-			public Dictionary<string, BatchUpdateBlobsRequest.Types.Request> Blobs = new Dictionary<string, BatchUpdateBlobsRequest.Types.Request>();
-
-			public Digest Add<T>(IMessage<T> Message) where T : IMessage<T>
-			{
-				ByteString ByteString = Message.ToByteString();
-
-				Digest Digest = StorageExtensions.GetDigest(ByteString);
-				if (!Blobs.ContainsKey(Digest.Hash))
-				{
-					BatchUpdateBlobsRequest.Types.Request Request = new BatchUpdateBlobsRequest.Types.Request();
-					Request.Data = ByteString;
-					Request.Digest = Digest;
-					Blobs.Add(Digest.Hash, Request);
-				}
-				return Digest;
-			}
-
-			public async Task<Digest> AddFileAsync(string LocalFile)
-			{
-				BatchUpdateBlobsRequest.Types.Request Content = new BatchUpdateBlobsRequest.Types.Request();
-				using (FileStream Stream = File.Open(LocalFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-				{
-					Content.Data = await ByteString.FromStreamAsync(Stream);
-					Content.Digest = StorageExtensions.GetDigest(Content.Data);
-				}
-				Blobs[Content.Digest.Hash] = Content;
-				return Content.Digest;
-			}
-		}
-
-		class JsonFileNode
-		{
-			public string Name { get; set; } = String.Empty;
-			public string LocalFile { get; set; } = String.Empty;
-
-			public async Task<FileNode> BuildAsync(UploadList UploadList)
-			{
-				FileNode Node = new FileNode();
-				Node.Name = String.IsNullOrEmpty(Name) ? Path.GetFileName(LocalFile) : Name;
-				Node.Digest = await UploadList.AddFileAsync(LocalFile);
-				return Node;
-			}
-		}
-
-		class JsonDirectory
-		{
-			public List<JsonFileNode> Files { get; set; } = new List<JsonFileNode>();
-			public List<JsonDirectoryNode> Directories { get; set; } = new List<JsonDirectoryNode>();
-
-			public async Task<Digest> BuildAsync(UploadList UploadList)
-			{
-				Directory Directory = new Directory();
-				foreach (JsonFileNode File in Files)
-				{
-					Directory.Files.Add(await File.BuildAsync(UploadList));
-				}
-				foreach (JsonDirectoryNode DirectoryNode in Directories)
-				{
-					Directory.Directories.Add(await DirectoryNode.BuildAsync(UploadList));
-				}
-				return UploadList.Add(Directory);
-			}
-		}
-
-		class JsonDirectoryNode : JsonDirectory
-		{
-			public string Name { get; set; } = String.Empty;
-
-			public new async Task<DirectoryNode> BuildAsync(UploadList UploadList)
-			{
-				DirectoryNode Node = new DirectoryNode();
-				Node.Name = Name;
-				Node.Digest = await base.BuildAsync(UploadList);
-				return Node;
-			}
-		}
-
-		class JsonCommand
-		{
-			public List<string> OutputPaths { get; set; } = new List<string>();
-			public List<string> Arguments { get; set; } = new List<string>();
-			public Dictionary<string, string> EnvVars { get; set; } = new Dictionary<string, string>();
-			public string WorkingDirectory { get; set; } = String.Empty;
-
-			public Digest Build(UploadList UploadList)
-			{
-				RpcCommand Command = new RpcCommand();
-				Command.Arguments.Add(Arguments);
-				Command.WorkingDirectory = WorkingDirectory;
-				Command.OutputPaths.Add(OutputPaths);
-				
-				foreach (KeyValuePair<string, string> Pair in EnvVars)
-				{
-					Command.EnvironmentVariables.Add(new RpcCommand.Types.EnvironmentVariable { Name = Pair.Key, Value = Pair.Value });
-				}
-				
-				return UploadList.Add(Command);
-			}
-		}
-
-		class JsonAction
-		{
-			public JsonCommand Command { get; set; } = new JsonCommand();
-			public JsonDirectory Workspace { get; set; } = new JsonDirectory();
-
-			public async Task<Digest> BuildAsync(UploadList UploadList, ByteString? Salt, bool DoNotCache)
-			{
-				Action NewAction = new Action();
-				NewAction.CommandDigest = Command.Build(UploadList);
-				NewAction.InputRootDigest = await Workspace.BuildAsync(UploadList);
-				NewAction.Salt = Salt;
-				NewAction.DoNotCache = DoNotCache;
-				return UploadList.Add(NewAction);
-			}
-		}
-
 		/// <summary>
 		/// Input file describing the work to execute
 		/// </summary>

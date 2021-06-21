@@ -27,6 +27,7 @@ using HordeAgent.Utility;
 using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Logging;
 using HordeCommon.Rpc;
+using EpicGames.Horde.Common.RemoteExecution;
 
 namespace HordeAgent
 {

@@ -1,21 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Collections.Generic;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading.Tasks;
-using Blake3;
 using Build.Bazel.Remote.Execution.V2;
 using EpicGames.Core;
 using Google.Protobuf;
-
-using Digest = Build.Bazel.Remote.Execution.V2.Digest;
+using System;
+using System.Security.Cryptography;
+using System.Threading.Tasks;
 using ContentAddressableStorageClient = Build.Bazel.Remote.Execution.V2.ContentAddressableStorage.ContentAddressableStorageClient;
+using Digest = Build.Bazel.Remote.Execution.V2.Digest;
 
-namespace HordeAgent.Utility
+namespace EpicGames.Horde.Common.RemoteExecution
 {
-	static class StorageExtensions
+	public static class StorageExtensions
 	{
 		public static async Task<byte[]> GetBulkDataAsync(this ContentAddressableStorageClient Storage, string InstanceName, Digest Digest)
 		{
@@ -110,15 +106,8 @@ namespace HordeAgent.Utility
 		
 		public static Digest GetDigestIoHash(byte[] Data)
 		{
-			using Hasher Hasher = Hasher.New();
-			const int HashLength = 20;
-			Hasher.UpdateWithJoin(Data);
-			Hash Blake3Hash = Hasher.Finalize();
-            
-			// we only keep the first 20 bytes of the Blake3 hash
-			Span<byte> Hash = Blake3Hash.AsSpan().Slice(0, HashLength);
-			//return new Digest { Hash = StringUtils.FormatHexString(Hash), SizeBytes = HashLength };
-			return new Digest { Hash = StringUtils.FormatHexString(Hash).ToUpper(), SizeBytes = HashLength };
+			IoHash Hash = IoHash.Compute(Data.AsSpan());
+			return new Digest { Hash = StringUtils.FormatHexString(Hash.Span).ToUpper(), SizeBytes = Data.Length };
 		}
 	}
 }
