@@ -78,9 +78,11 @@ namespace UserInterfaceCommand
 bool CheckSessionBrowserSingleInstance()
 {
 #if PLATFORM_WINDOWS
-	// Create a named event that other processes can use to detect a running recorder and connect to it automatically.
-	// See usage in \Engine\Source\Runtime\Launch\Private\LaunchEngineLoop.cpp
-	HANDLE SessionBrowserEvent = CreateEvent(NULL, true, false, TEXT("Local\\UnrealInsightsRecorder"));
+	// Create a named event that other processes can detect.
+	// It allows only a single instance of Unreal Insights (Browser Mode).
+	// The event is also used by runtime to choose when to try to auto-connect.
+	// See FTraceAuxiliary::TryAutoConnect() in \Runtime\Core\Private\ProfilingDebugging\TraceAuxiliary.cpp
+	HANDLE SessionBrowserEvent = CreateEvent(NULL, true, false, TEXT("Local\\UnrealInsightsBrowser"));
 	if (SessionBrowserEvent == NULL || GetLastError() == ERROR_ALREADY_EXISTS)
 	{
 		// Another Session Browser process is already running.
@@ -111,7 +113,7 @@ bool CheckSessionBrowserSingleInstance()
 #endif // PLATFORM_WINDOWS
 
 #if PLATFORM_UNIX
-	int FileHandle = open("/var/run/UnrealInsights.pid", O_CREAT | O_RDWR, 0666);
+	int FileHandle = open("/var/run/UnrealInsightsBrowser.pid", O_CREAT | O_RDWR, 0666);
 	int Ret = flock(FileHandle, LOCK_EX | LOCK_NB);
 	if (Ret && EWOULDBLOCK == errno)
 	{
