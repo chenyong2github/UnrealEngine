@@ -7,6 +7,7 @@
 #include "PrimitiveUniformShaderParameters.h"
 #include "PrimitiveSceneInfo.h"
 #include "GrowOnlySpanAllocator.h"
+#include "InstanceCulling/InstanceCullingLoadBalancer.h"
 
 class FRHICommandList;
 class FScene;
@@ -38,8 +39,8 @@ public:
 	 */
 	FORCEINLINE int32 Add(const FPrimitiveUniformShaderParameters* Data, int32 Num)
 	{
-		ensure(GPUSceneDynamicContext != nullptr);
-		ensure(!bCommitted);
+		check(GPUSceneDynamicContext != nullptr);
+		check(!bCommitted);
 
 		// Lazy allocation of the upload data to not waste space and processing if none was needed.
 		if (UploadData == nullptr)
@@ -58,10 +59,10 @@ public:
 	 */
 	FORCEINLINE int32 GetFinalId(int32 LocalIndex) const
 	{
-		ensure(bCommitted);
+		check(bCommitted);
 
-		ensure(PrimitiveIdRange.GetLowerBoundValue() >= 0);
-		ensure(PrimitiveIdRange.Size<int32>() >= LocalIndex);
+		check(PrimitiveIdRange.GetLowerBoundValue() >= 0);
+		check(PrimitiveIdRange.Size<int32>() >= LocalIndex);
 		return PrimitiveIdRange.GetLowerBoundValue() + LocalIndex;
 	}
 
@@ -75,23 +76,32 @@ public:
 	/**
 	 * Get the range of Primitive IDs in GPU-Scene for this batch of dynamic primitives, only valid to call after commit.
 	 */
-	FORCEINLINE const TRange<int32> &GetPrimitiveIdRange() const
-	{ 
-		ensure(bCommitted || UploadData == nullptr);
-		return PrimitiveIdRange; 
+	FORCEINLINE const TRange<int32>& GetPrimitiveIdRange() const
+	{
+		check(bCommitted || UploadData == nullptr);
+		return PrimitiveIdRange;
 	}
 
 	FORCEINLINE int32 GetInstanceSceneDataOffset(int32 PrimitiveId) const
 	{
-		ensure(bCommitted);
-		ensure(PrimitiveIdRange.Contains(PrimitiveId));
-		ensure(UploadData->bIsUploaded);
+		check(bCommitted);
+		check(PrimitiveIdRange.Contains(PrimitiveId));
+		check(UploadData->bIsUploaded);
 
 		// Assume a 1:1 mapping between primitive ID and instance ID
 		return UploadData->InstanceSceneDataOffset + (PrimitiveId - PrimitiveIdRange.GetLowerBoundValue());
 	}
 
+	FORCEINLINE int32 GetInstanceSceneDataOffset() const
+	{
+		check(bCommitted || UploadData == nullptr);
+
+		// Assume a 1:1 mapping between primitive ID and instance ID
+		return UploadData != nullptr ? UploadData->InstanceSceneDataOffset : 0;
+	}
+
 	int32 Num() const {	return UploadData != nullptr ? UploadData->PrimitiveShaderData.Num() : 0; }
+	int32 NumInstances() const { return Num(); }
 private:
 
 	friend class FGPUScene;
@@ -277,6 +287,9 @@ public:
 
 	uint32 GetSceneFrameNumber() const { return SceneFrameNumber; }
 
+	int32 GetNumInstances() const { return InstanceSceneDataAllocator.GetMaxSize(); }
+	int32 GetNumPrimitives() const { return DynamicPrimitivesOffset; }
+
 	bool bUpdateAllPrimitives;
 
 	/** Indices of primitives that need to be updated in GPU Scene */
@@ -299,6 +312,7 @@ public:
 	FRWBufferStructured		LightmapDataBuffer;
 	FScatterUploadBuffer	LightmapUploadBuffer;
 
+	using FInstanceGPULoadBalancer = TInstanceCullingLoadBalancer<SceneRenderingAllocator>;
 private:
 	TArray<EPrimitiveDirtyState> PrimitiveDirtyState;
 
@@ -339,7 +353,7 @@ private:
 
 	void UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene);
 
-	void AddUpdatePrimitiveIdsPass(FRDGBuilder& GraphBuilder, FInstanceProcessingGPULoadBalancer& IdOnlyUpdateItems);
+	void AddUpdatePrimitiveIdsPass(FRDGBuilder& GraphBuilder, FInstanceGPULoadBalancer& IdOnlyUpdateItems);
 };
 
 class FGPUSceneScopeBeginEndHelper
