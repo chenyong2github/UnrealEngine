@@ -16,7 +16,7 @@ void UAnimGraphNode_PoseHandler::ValidateAnimNodeDuringCompilation(USkeleton* Fo
 {
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 	
-	ValidateAnimNodeDuringCompilationHelper(ForSkeleton, MessageLog, GetPoseHandlerNode()->PoseAsset, UPoseAsset::StaticClass(), FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_PoseHandler, PoseAsset)));
+	ValidateAnimNodeDuringCompilationHelper(ForSkeleton, MessageLog, GetPoseHandlerNode()->PoseAsset, UPoseAsset::StaticClass(), FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_PoseHandler, PoseAsset)), GET_MEMBER_NAME_CHECKED(FAnimNode_PoseHandler, PoseAsset));
 }
 
 void UAnimGraphNode_PoseHandler::SetAnimationAsset(UAnimationAsset* Asset)
