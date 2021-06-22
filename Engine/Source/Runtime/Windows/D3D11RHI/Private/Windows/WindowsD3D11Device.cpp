@@ -1482,10 +1482,33 @@ void FD3D11DynamicRHI::StopIntelExtensions()
 #if INTEL_METRICSDISCOVERY
 static int32 GetIntelDriverBuildNumber(const FString& VerStr)
 {
-	int32 LastDotPos;
-	if (VerStr.FindLastChar(TEXT('.'), LastDotPos) && FCString::IsNumeric(&VerStr[LastDotPos + 1]))
+	int32 LastDotPos, FirstDotPos;
+
+	// https://www.intel.com/content/www/us/en/support/articles/000005654/graphics.html
+	// Older Windows drivers follow 9.18.10.3310 where the last four digits are the driver number
+	// Newer Windows drivers follow 27.20.100.9466 where the last seven digits are the driver number
+	// Linux drivers follow 6000.0001 where the last four digits are the driver number. Not supported here
+
+	// Chop off the last 8 characters. On older drivers the first character will be a dot instead of a number
+	FString RightPart = VerStr.Right(8);
+	RightPart.FindChar(TEXT('.'), FirstDotPos);
+
+	if (FirstDotPos == 0)
 	{
-		return FCString::Atoi(&VerStr[LastDotPos + 1]);
+		// Old driver naming, use last four digits
+		if (VerStr.FindLastChar(TEXT('.'), LastDotPos) && FCString::IsNumeric(&VerStr[LastDotPos + 1]))
+		{
+			return FCString::Atoi(&VerStr[LastDotPos + 1]);
+		}
+	}
+	else
+	{
+		// New driver naming, use seven digits after removing dot
+		RightPart = RightPart.Replace(TEXT("."), TEXT(""));
+		if (FCString::IsNumeric(&RightPart[0]) && RightPart.Len() == 7)
+		{
+			return FCString::Atoi(&RightPart[0]);
+		}
 	}
 	return -1;
 }
