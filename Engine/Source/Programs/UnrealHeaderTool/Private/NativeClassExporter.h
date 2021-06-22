@@ -91,6 +91,11 @@ struct FGeneratedFileInfo
 	void StartLoad(FString&& InFilename);
 
 	/**
+	 * Load the existing version of the file immediately
+	 */
+	void Load(FString&& InFilename);
+
+	/**
 	 * Get the output file name.
 	 */
 	FString& GetFilename() { return Filename; }
@@ -724,6 +729,28 @@ public:
 	 * @param	GeneratedCPPs		Complete list of all source files being generated.
 	 */
 	static void GenerateSourceFiles(TArray<FGeneratedCPP>& GeneratedCPPs);
+
+	/**
+	 * Load a single source file
+	 *
+	 * @parm	GeneratedCPP		Single source file to load
+	 * @return  True if the source file is to be exported, false if not.
+	 */
+	static bool LoadSourceFile(FGeneratedCPP& GeneratedCPP);
+
+	/**
+	 * Generate a single source file
+	 *
+	 * @parm	GeneratedCPP		Single source file to generate
+	 */
+	static void GenerateSourceFile(FGeneratedCPP& GeneratedCPP);
+
+	/**
+	 * Write the generated files
+	 *
+	 * @parm	GeneratedCPP		Single source file to write
+	 */
+	static void WriteSourceFile(FGeneratedCPP& GeneratedCPP);
 
 	/**
 	 * Generate all the extra output files for the given package.
