@@ -2853,19 +2853,29 @@ FSubobjectEditorTreeNodePtrType SSubobjectEditor::FindSlateNodeForObject(const U
 {
 	FSubobjectEditorTreeNodePtrType OutNodePtr;
 
-	if (RootNodes.Num() > 0)
+	if (InObject && RootNodes.Num() > 0)
 	{
 		TSet<FSubobjectEditorTreeNodePtrType> VisitedNodes;
+		UBlueprint* BP = GetBlueprint();
+
 		DepthFirstTraversal(RootNodes[0], VisitedNodes,
-            [&OutNodePtr, &InObject](
+            [&OutNodePtr, InObject, BP](
             const FSubobjectEditorTreeNodePtrType& CurNodePtr)
             {
                 if(CurNodePtr->GetDataHandle().IsValid())
                 {
-                    if(CurNodePtr->GetDataHandle().GetSharedDataPtr()->GetObject() == InObject)
-                    {
-                        OutNodePtr = CurNodePtr;
-                    }
+					if (const FSubobjectData* Data = CurNodePtr->GetDataHandle().GetData())
+					{
+						if (Data->GetObject() == InObject)
+						{
+							OutNodePtr = CurNodePtr;
+						}
+						// Handle BP inherited subobjects that are on instances
+						else if (!OutNodePtr && Data->GetObjectForBlueprint(BP) == InObject->GetArchetype())
+						{
+							OutNodePtr = CurNodePtr;
+						}
+					}
                 }
             });
 
