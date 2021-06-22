@@ -46,6 +46,7 @@ public class StaticMeshEditor : ModuleRules
 				"StaticMeshDescription",
 				"ToolMenus",
 				"DetailCustomizations",
+				"PhysicsUtilities",
 			}
 		);
 

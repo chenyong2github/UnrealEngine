@@ -19,6 +19,17 @@ enum class ELightmapUVVersion : int32
 	Latest = OptimalSurfaceArea
 };
 
+/**
+*	Contains the vertices that are most dominated by that bone. Vertices are in Bone space.
+*	Not used at runtime, but useful for fitting physics assets etc.
+*/
+struct FBoneVertInfo
+{
+	// Invariant: Arrays should be same length!
+	TArray<FVector3f>	Positions;
+	TArray<FVector3f>	Normals;
+};
+
 /** Helper struct for building acceleration structures. */
 struct FIndexAndZ
 {

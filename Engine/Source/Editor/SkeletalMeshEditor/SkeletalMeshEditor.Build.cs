@@ -39,6 +39,7 @@ public class SkeletalMeshEditor : ModuleRules
 				"ToolMenus",
 				"EditorSubsystem",
 				"StatusBar",
+				"PhysicsUtilities",
 			}
 		);
 

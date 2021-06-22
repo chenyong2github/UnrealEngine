@@ -36,7 +36,7 @@
 
 #include "UnrealEdGlobals.h"
 #include "UnrealEd/Private/GeomFitUtils.h"
-#include "UnrealEd/Private/ConvexDecompTool.h"
+#include "ConvexDecompTool.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "EditorStaticMeshLibrary"

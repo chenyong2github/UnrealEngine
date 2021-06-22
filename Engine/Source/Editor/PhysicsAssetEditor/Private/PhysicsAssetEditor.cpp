@@ -33,6 +33,7 @@
 
 #include "WorkflowOrientedApp/SContentReference.h"
 #include "MeshUtilities.h"
+#include "MeshUtilitiesCommon.h"
 
 #include "EngineAnalytics.h"
 #include "Runtime/Analytics/Analytics/Public/AnalyticsEventAttribute.h"

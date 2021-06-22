@@ -43,7 +43,9 @@ public class PhysicsAssetEditor : ModuleRules
                 "DetailCustomizations",
                 "PinnedCommandList",
 				"ToolMenus",
-				"PhysicsCore"
+				"PhysicsCore",
+				"PhysicsUtilities",
+				"MeshUtilitiesCommon",
             }
         );
 

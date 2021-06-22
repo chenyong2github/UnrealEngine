@@ -28,6 +28,7 @@ struct FReferenceSkeleton;
 struct FStaticMeshLODResources;
 class UMeshComponent;
 class UStaticMesh;
+struct FBoneVertInfo;
 
 namespace SkeletalMeshImportData
 {
@@ -45,17 +46,6 @@ namespace ETangentOptions
 		IgnoreDegenerateTriangles = 0x2,
 		UseMikkTSpace = 0x4,
 	};
-};
-
-/**
-*	Contains the vertices that are most dominated by that bone. Vertices are in Bone space.
-*	Not used at runtime, but useful for fitting physics assets etc.
-*/
-struct FBoneVertInfo
-{
-	// Invariant: Arrays should be same length!
-	TArray<FVector3f>	Positions;
-	TArray<FVector3f>	Normals;
 };
 
 class FSignedDistanceFieldBuildMaterialData

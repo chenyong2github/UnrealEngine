@@ -19,6 +19,7 @@
 #include "ScopedTransaction.h"
 #include "PhysicsAssetEditorSkeletalMeshComponent.h"
 #include "MeshUtilities.h"
+#include "MeshUtilitiesCommon.h"
 #include "PhysicsEngine/BoxElem.h"
 #include "PhysicsEngine/ConstraintInstance.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"

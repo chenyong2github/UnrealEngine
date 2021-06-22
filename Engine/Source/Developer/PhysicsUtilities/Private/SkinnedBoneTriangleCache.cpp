@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkinnedBoneTriangleCache.h"
-#include "Editor.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshRenderData.h"

@@ -7,7 +7,6 @@
 #include "ConvexDecompTool.h"
 
 #include "Misc/FeedbackContext.h"
-#include "Settings/EditorExperimentalSettings.h"
 #include "PhysicsEngine/ConvexElem.h"
 
 #include "ThirdParty/VHACD/public/VHACD.h"

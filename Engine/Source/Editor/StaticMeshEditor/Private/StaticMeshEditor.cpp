@@ -30,7 +30,7 @@
 #include "BusyCursor.h"
 #include "Editor/UnrealEd/Private/GeomFitUtils.h"
 #include "EditorViewportCommands.h"
-#include "Editor/UnrealEd/Private/ConvexDecompTool.h"
+#include "ConvexDecompTool.h"
 
 #include "MeshMergeModule.h"
 #include "Runtime/Analytics/Analytics/Public/Interfaces/IAnalyticsProvider.h"
