@@ -198,6 +198,21 @@ void FVisualLogEntry::AddArrow(const FVector& Start, const FVector& End, const F
 	ElementsToDraw.Add(Element);
 }
 
+void FVisualLogEntry::AddCircle(const FVector& Center, const FVector& UpAxis, const float Radius, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color, const FString& Description, const uint16 Thickness)
+{
+	FVisualLogShapeElement Element(EVisualLoggerShapeElement::Circle);
+	Element.Category = CategoryName;
+	Element.SetColor(Color);
+	Element.Thicknes = Thickness;
+	Element.Description = Description;
+	Element.Points.Reserve(3);
+	Element.Points.Add(Center);
+	Element.Points.Add(UpAxis);
+	Element.Points.Add(FVector(Radius, 0.0f, 0.0f));
+	Element.Verbosity = Verbosity;
+	ElementsToDraw.Add(Element);
+}
+
 void FVisualLogEntry::AddElement(const FBox& Box, const FMatrix& Matrix, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color, const FString& Description, uint16 Thickness)
 {
 	FVisualLogShapeElement Element(Description, Color, Thickness, CategoryName);

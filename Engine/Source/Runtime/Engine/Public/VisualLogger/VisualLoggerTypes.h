@@ -48,7 +48,8 @@ enum class EVisualLoggerShapeElement : uint8
 	Polygon,
 	Mesh,
 	NavAreaMesh, // convex based mesh with min and max Z values
-	Arrow, 
+	Arrow,
+	Circle,
 	// note that in order to remain backward compatibility in terms of log
 	// serialization new enum values need to be added at the end
 };
@@ -210,6 +211,8 @@ struct ENGINE_API FVisualLogEntry
 	void AddArrow(const FVector& Start, const FVector& End, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""));
 	// boxes
 	void AddBoxes(const TArray<FBox>& Boxes, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White);
+	// circle
+	void AddCircle(const FVector& Center, const FVector& UpAxis, const float Radius, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color, const FString& Description = TEXT(""), uint16 Thickness = 0);
 
 	// Custom data block
 	FVisualLogDataBlock& AddDataBlock(const FString& TagName, const TArray<uint8>& BlobDataArray, const FName& CategoryName, ELogVerbosity::Type Verbosity);
