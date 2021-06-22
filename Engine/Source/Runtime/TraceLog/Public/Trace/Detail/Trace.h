@@ -38,9 +38,6 @@ class FChannel;
 	TRACE_PRIVATE_CHANNEL_DECLARE(static, ChannelName) \
 	TRACE_PRIVATE_CHANNEL_IMPL(ChannelName, ##__VA_ARGS__)
 
-#define TRACE_PRIVATE_CHANNEL_MODULE_EXTERN(ModuleApi, ChannelName) \
-	TRACE_PRIVATE_CHANNEL_DECLARE(ModuleApi extern, ChannelName)
-
 #define TRACE_PRIVATE_CHANNEL_DEFINE(ChannelName, ...) \
 	TRACE_PRIVATE_CHANNEL_DECLARE(, ChannelName) \
 	TRACE_PRIVATE_CHANNEL_IMPL(ChannelName, ##__VA_ARGS__)
@@ -155,8 +152,6 @@ class FChannel;
 #define TRACE_PRIVATE_CHANNEL(ChannelName, ...)
 
 #define TRACE_PRIVATE_CHANNEL_EXTERN(ChannelName, ...)
-
-#define TRACE_PRIVATE_CHANNEL_MODULE_EXTERN(ModuleApi, ChannelName)
 
 #define TRACE_PRIVATE_CHANNEL_DEFINE(ChannelName, ...)
 
