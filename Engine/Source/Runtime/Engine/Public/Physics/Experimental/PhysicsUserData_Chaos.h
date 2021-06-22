@@ -5,7 +5,7 @@
 #include "EngineDefines.h"
 #include "Physics/PhysicsInterfaceDeclares.h"
 
-struct FConstraintInstance;
+struct FConstraintInstanceBase;
 
 // Note: this must match the enum EChaosUserDataType in PhysicsInterfaceTypesCore
 class FPhysicsUserData_Chaos
@@ -17,7 +17,7 @@ private:
 		BodyInstance,
 		PhysicalMaterial,
 		PhysScene,
-		ConstraintInstance
+		ConstraintInstanceBase
 	};
 
 	EType Type;
@@ -28,7 +28,7 @@ public:
 	FPhysicsUserData_Chaos(FBodyInstance* InPayload) : Type(EType::BodyInstance), Payload(InPayload) { }
 	FPhysicsUserData_Chaos(UPhysicalMaterial* InPayload) : Type(EType::PhysicalMaterial), Payload(InPayload) { }
 	FPhysicsUserData_Chaos(FPhysScene* InPayload) : Type(EType::PhysScene), Payload(InPayload) { }
-	FPhysicsUserData_Chaos(FConstraintInstance* InPayload) : Type(EType::ConstraintInstance), Payload(InPayload) { }
+	FPhysicsUserData_Chaos(FConstraintInstanceBase* InPayload) : Type(EType::ConstraintInstanceBase), Payload(InPayload) { }
 
 	template <class T> static T* Get(void* UserData);
 	template <class T> static void Set(void* UserData, T* InPayload);
@@ -69,7 +69,7 @@ template<> FORCEINLINE FPhysScene* FPhysicsUserData_Chaos::Get(void* UserData)
 	return Get<FPhysScene, EType::PhysScene>(UserData);
 }
 
-template<> FORCEINLINE FConstraintInstance* FPhysicsUserData_Chaos::Get(void* UserData)
+template<> FORCEINLINE FConstraintInstanceBase* FPhysicsUserData_Chaos::Get(void* UserData)
 {
-	return Get<FConstraintInstance, EType::ConstraintInstance>(UserData);
+	return Get<FConstraintInstanceBase, EType::ConstraintInstanceBase>(UserData);
 }

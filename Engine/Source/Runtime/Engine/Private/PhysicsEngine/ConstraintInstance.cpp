@@ -219,6 +219,11 @@ void FConstraintInstanceBase::Reset()
 	PhysScene = nullptr;
 }
 
+void FConstraintInstanceBase::SetConstraintBrokenDelegate(FOnConstraintBroken InConstraintBrokenDelegate)
+{
+	OnConstraintBrokenDelegate = InConstraintBrokenDelegate;
+}
+
 
 /** Constructor **/
 FConstraintInstance::FConstraintInstance()
@@ -512,11 +517,6 @@ void FConstraintInstance::InitConstraint_AssumesLocked(const FPhysicsActorHandle
 			FPhysicsInterface::PutToSleep_AssumesLocked(ActorRef2);
 		}
 	}
-}
-
-void FConstraintInstance::SetConstraintBrokenDelegate(FOnConstraintBroken InConstraintBrokenDelegate)
-{
-	OnConstraintBrokenDelegate = InConstraintBrokenDelegate;
 }
 
 void FConstraintProfileProperties::Update_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float AverageMass, float UseScale) const
