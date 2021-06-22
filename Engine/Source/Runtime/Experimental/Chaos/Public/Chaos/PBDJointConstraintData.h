@@ -298,6 +298,7 @@ namespace Chaos
 		struct FOutputData
 		{
 			// Output properties
+			bool bIsBreaking = false;
 			bool bIsBroken = false;
 			FVector Force = FVector(0);
 			FVector Torque = FVector(0);

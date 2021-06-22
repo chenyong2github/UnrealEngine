@@ -588,6 +588,8 @@ namespace Chaos
 		FJointConstraintPhysicsProxy* JointProxy = new FJointConstraintPhysicsProxy(GTConstraint, nullptr);
 		JointProxy->SetSolver(this);
 
+		JointConstraintPhysicsProxies_Internal.Add(JointProxy);
+
 		AddDirtyProxy(JointProxy);
 	}
 
@@ -1247,7 +1249,7 @@ namespace Chaos
 	// however.
 	void FPBDRigidsSolver::UpdateGameThreadStructures()
 	{
-		PullPhysicsStateForEachDirtyProxy_External([](auto){});
+		PullPhysicsStateForEachDirtyProxy_External([](auto){}, [](auto) {});
 	}
 
 	int32 FPBDRigidsSolver::NumJointConstraints() const

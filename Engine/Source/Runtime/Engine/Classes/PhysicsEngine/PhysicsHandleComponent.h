@@ -82,7 +82,7 @@ protected:
 	bool bPendingConstraint;
 
 	FPhysicsUserData PhysicsUserData;
-	FConstraintInstanceBase ConstraintInstance;
+	FConstraintInstance ConstraintInstance;
 	FPhysicsActorHandle GrabbedHandle;
 	FPhysicsActorHandle KinematicHandle;
 	FPhysicsConstraintHandle ConstraintHandle;

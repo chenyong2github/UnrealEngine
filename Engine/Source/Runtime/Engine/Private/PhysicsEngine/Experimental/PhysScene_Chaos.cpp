@@ -31,6 +31,7 @@
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PhysicsProxy/SkeletalMeshPhysicsProxy.h"
 #include "PhysicsProxy/StaticMeshPhysicsProxy.h"
+#include "PhysicsProxy/JointConstraintProxy.h"
 #include "Chaos/Real.h"
 #include "Chaos/UniformGrid.h"
 #include "Chaos/BoundingVolume.h"
@@ -1615,7 +1616,7 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 	TArray<FPhysScenePendingComponentTransform_Chaos> PendingTransforms;
 	TSet<FGeometryCollectionPhysicsProxy*> GCProxies;
 
-	Solver->PullPhysicsStateForEachDirtyProxy_External([&PendingTransforms](FSingleParticlePhysicsProxy* Proxy)
+	auto RigidLambda = [&PendingTransforms](FSingleParticlePhysicsProxy* Proxy)
 	{
 		FPBDRigidParticle* DirtyParticle = Proxy->GetRigidParticleUnsafe();
 
@@ -1653,7 +1654,27 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 				}
 			}
 		}
-	});
+	};
+
+	auto ConstraintLambda = [&PendingTransforms](FJointConstraintPhysicsProxy* Proxy)
+	{
+		Chaos::FJointConstraint* Constraint = Proxy->GetConstraint();
+
+		if (Constraint->GetOutputData().bIsBreaking)
+		{
+			FConstraintInstance* ConstraintInstance = (Constraint) ? FPhysicsUserData_Chaos::Get<FConstraintInstance>(Constraint->GetUserData()) : nullptr;
+			{
+				FConstraintBrokenDelegateData CBDD(ConstraintInstance);
+				CBDD.DispatchOnBroken();
+			}
+
+			Constraint->GetOutputData().bIsBreaking = false;
+		}
+
+	};
+
+	Solver->PullPhysicsStateForEachDirtyProxy_External(RigidLambda, ConstraintLambda);
+
 
 	for (const FPhysScenePendingComponentTransform_Chaos& ComponentTransform : PendingTransforms)
 	{
@@ -1692,6 +1713,13 @@ FPhysScene_Chaos::AddSpringConstraint(const TArray< TPair<FPhysicsActorHandle, F
 void FPhysScene_Chaos::RemoveSpringConstraint(const FPhysicsConstraintHandle& Constraint)
 {
 	// #todo : Implement
+}
+
+FConstraintBrokenDelegateData::FConstraintBrokenDelegateData(FConstraintInstance* ConstraintInstance)
+	: OnConstraintBrokenDelegate(ConstraintInstance->OnConstraintBrokenDelegate)
+	, ConstraintIndex(ConstraintInstance->ConstraintIndex)
+{
+
 }
 
 void FPhysScene_Chaos::ResimNFrames(const int32 NumFramesRequested)

@@ -168,9 +168,6 @@ protected:
 	virtual void OnSyncBodies(Chaos::FPhysicsSolverBase* Solver);
 	//Engine interface END
 
-	template <typename RigidLambda>
-	void PullPhysicsStateForEachDirtyProxy(const int32 SyncTimestamp, const RigidLambda& DirtyRigidFunc);
-
 	float MDeltaTime;
 
 	UObject* Owner;
