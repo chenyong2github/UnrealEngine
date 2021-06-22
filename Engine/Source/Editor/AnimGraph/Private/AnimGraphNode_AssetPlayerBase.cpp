@@ -479,7 +479,7 @@ FText UAnimGraphNode_AssetPlayerBase::GetNodeTitleForAsset(ENodeTitleType::Type 
 	}
 }
 
-void UAnimGraphNode_AssetPlayerBase::ValidateAnimNodeDuringCompilationHelper(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog, UAnimationAsset* InAsset, TSubclassOf<UAnimationAsset> InAssetType, UEdGraphPin* InExposedPin)
+void UAnimGraphNode_AssetPlayerBase::ValidateAnimNodeDuringCompilationHelper(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog, UAnimationAsset* InAsset, TSubclassOf<UAnimationAsset> InAssetType, UEdGraphPin* InExposedPin, FName InPropertyName)
 {
 	UAnimationAsset* AssetToCheck = InAsset;
 	if(InExposedPin != nullptr && AssetToCheck == nullptr)
@@ -500,13 +500,13 @@ void UAnimGraphNode_AssetPlayerBase::ValidateAnimNodeDuringCompilationHelper(USk
 				{
 					bHasBinding = true;
 				}
-
-				if(AlwaysDynamicProperties.Contains(InExposedPin->GetFName()))
-				{
-					bAlwaysDynamic = true;
-				}
 			}
 
+			if(AlwaysDynamicProperties.Contains(InPropertyName))
+			{
+				bAlwaysDynamic = true;
+			}
+			
 			// we may have a connected node or binding
 			if(!bAlwaysDynamic)
 			{
