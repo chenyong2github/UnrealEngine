@@ -18,7 +18,7 @@ public class MikkTSpace : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PublicAdditionalLibraries.Add(MikkTSpacePath + "/lib/Linux/" + Target.Architecture + "/libMikkTSpace.a");
+			PublicAdditionalLibraries.Add(MikkTSpacePath + "/lib/Unix/" + Target.Architecture + "/libMikkTSpace.a");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{

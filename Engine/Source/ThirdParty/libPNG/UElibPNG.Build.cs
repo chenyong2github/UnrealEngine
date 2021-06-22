@@ -17,7 +17,6 @@ public class UElibPNG : ModuleRules
 				return "libPNG-1.6.37";
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Mac ||
-				Target.Platform == UnrealTargetPlatform.Mac ||
 				Target.Architecture.StartsWith("aarch64") ||
 				Target.Architecture.StartsWith("i686"))
 			{
@@ -106,7 +105,7 @@ public class UElibPNG : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(LibPNGPath, "Linux", Target.Architecture, "libpng.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibPNGPath, "Unix", Target.Architecture, "libpng.a"));
 		}
 
 		PublicIncludePaths.Add(IncPNGPath);

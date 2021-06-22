@@ -40,11 +40,11 @@ public class PhysXCookingLib : ModuleRules
             PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "Android", "ARM64", String.Format("libPhysX3Cooking{0}.a", LibrarySuffix)));
             PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "Android", "x64", String.Format("libPhysX3Cooking{0}.a", LibrarySuffix)));
         }
-        else if (Target.Platform == UnrealTargetPlatform.Linux)
+        else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
         {
             if (Target.Architecture != "arm-unknown-linux-gnueabihf")
             {
-                PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "Linux", Target.Architecture, String.Format("libPhysX3Cooking{0}.a", LibrarySuffix)));
+                PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "Unix", Target.Architecture, String.Format("libPhysX3Cooking{0}.a", LibrarySuffix)));
             }
         }
         else if (Target.Platform == UnrealTargetPlatform.IOS)

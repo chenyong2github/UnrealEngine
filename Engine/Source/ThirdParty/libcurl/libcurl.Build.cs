@@ -16,7 +16,7 @@ public class libcurl : ModuleRules
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			string platform = "/Linux/" + Target.Architecture;
+			string platform = "/Unix/" + Target.Architecture;
 			string IncludePath = LinuxLibCurlPath + "include" + platform;
 			string LibraryPath = LinuxLibCurlPath + "lib" + platform;
 

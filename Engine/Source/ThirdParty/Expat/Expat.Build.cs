@@ -49,7 +49,7 @@ public class Expat : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(ExpatPackagePath, "Linux/" + Target.Architecture, ConfigName, "libexpat.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(ExpatPackagePath, "Unix/" + Target.Architecture, ConfigName, "libexpat.a"));
 		}
 	}
 }

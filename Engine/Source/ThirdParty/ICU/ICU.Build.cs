@@ -48,7 +48,7 @@ public class ICU : ModuleRules
 		{
 			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 			{
-				return "Linux";
+				return "Unix";
 			}
 			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 			{

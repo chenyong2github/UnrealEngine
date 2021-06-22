@@ -103,7 +103,7 @@ public class ApexDestructionLib : ModuleRules
         {
             if (Target.Architecture.StartsWith("x86_64"))
             {
-				string PhysXBinariesDir = Target.UEThirdPartyBinariesDirectory + "PhysX3/Linux/" + Target.Architecture;
+				string PhysXBinariesDir = Target.UEThirdPartyBinariesDirectory + "PhysX3/Unix/" + Target.Architecture;
 				string LibraryPath = PhysXBinariesDir + String.Format("/libAPEX_Destructible{0}.so", LibrarySuffix);
 				PublicAdditionalLibraries.Add(LibraryPath);
 				RuntimeDependencies.Add(LibraryPath);

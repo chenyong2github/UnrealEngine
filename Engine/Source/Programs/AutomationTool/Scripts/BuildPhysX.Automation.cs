@@ -992,11 +992,11 @@ class BuildPhysX_Linux : BuildPhysX.MakefileTargetPlatform
 	{
 		string ThirdPartySourceDirectoryNormal = ThirdPartySourceDirectory.ToNormalizedPath();
 
-		string CxxFlags = "\"-I " + ThirdPartySourceDirectoryNormal + "/Linux/LibCxx/include -I " + ThirdPartySourceDirectoryNormal + "/Linux/LibCxx/include/c++/v1\"";
+		string CxxFlags = "\"-I " + ThirdPartySourceDirectoryNormal + "/Unix/LibCxx/include -I " + ThirdPartySourceDirectoryNormal + "/Unix/LibCxx/include/c++/v1\"";
 		string CxxLinkerFlags = "\"-stdlib=libc++ -nodefaultlibs -Wl,--build-id -L " 
-			+ ThirdPartySourceDirectoryNormal + "/Linux/LibCxx/lib/Linux/x86_64-unknown-linux-gnu/ " 
-			+ ThirdPartySourceDirectoryNormal + "/Linux/LibCxx/lib/Linux/x86_64-unknown-linux-gnu/libc++.a " 
-			+ ThirdPartySourceDirectoryNormal + "/Linux/LibCxx/lib/Linux/x86_64-unknown-linux-gnu/libc++abi.a -lm -lc -lgcc_s\"";
+			+ ThirdPartySourceDirectoryNormal + "/Unix/LibCxx/lib/Linux/x86_64-unknown-linux-gnu/ " 
+			+ ThirdPartySourceDirectoryNormal + "/Unix/LibCxx/lib/Linux/x86_64-unknown-linux-gnu/libc++.a " 
+			+ ThirdPartySourceDirectoryNormal + "/Unix/LibCxx/lib/Linux/x86_64-unknown-linux-gnu/libc++abi.a -lm -lc -lgcc_s\"";
 
 		return "-DCMAKE_CXX_FLAGS=" + CxxFlags + " -DCMAKE_EXE_LINKER_FLAGS=" + CxxLinkerFlags + " -DCAMKE_MODULE_LINKER_FLAGS=" + CxxLinkerFlags + " -DCMAKE_SHARED_LINKER_FLAGS=" + CxxLinkerFlags + " ";
 	}

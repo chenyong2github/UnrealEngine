@@ -146,7 +146,7 @@ public class FreeType2 : ModuleRules
 				? "libfreetyped_fPIC.a"
 				: "libfreetype_fPIC.a";
 
-			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath, "Linux", Target.Architecture, LibPath));
+			PublicAdditionalLibraries.Add(Path.Combine(FreeType2LibPath, "Unix", Target.Architecture, LibPath));
 		}
 	}
 }

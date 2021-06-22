@@ -125,7 +125,7 @@ public class NvCloth : ModuleRules
 			if (Target.Architecture != "arm-unknown-linux-gnueabihf")
 			{
 				NvClothLibraries.Add("NvCloth{0}");
-				LibraryFormatString = Path.Combine("Linux", Target.Architecture, "lib{0}.a");
+				LibraryFormatString = Path.Combine("Unix", Target.Architecture, "lib{0}.a");
 			}
 		}
 
