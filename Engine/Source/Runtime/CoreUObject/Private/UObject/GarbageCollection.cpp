@@ -70,6 +70,7 @@ static bool GObjCurrentPurgeObjectIndexNeedsReset = true;
 static TArray<FUObjectItem*> GUnreachableObjects;
 static FCriticalSection GUnreachableObjectsCritical;
 static int32 GUnrechableObjectIndex = 0;
+static double GLastGCTime = 0;
 
 /** Helpful constant for determining how many token slots we need to store a pointer **/
 static const uint32 GNumTokensPerPointer = sizeof(void*) / sizeof(uint32); //-V514
@@ -2119,8 +2120,14 @@ void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 		FCoreUObjectDelegates::GetPostGarbageCollect().Broadcast();
 	}
 
+	GLastGCTime = FPlatformTime::Seconds();
 	STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, TEXT( "GarbageCollection - End" ) );
 #endif	// UE_WITH_GC
+}
+
+double GetLastGCTime()
+{
+	return GLastGCTime;
 }
 
 bool IsIncrementalUnhashPending()

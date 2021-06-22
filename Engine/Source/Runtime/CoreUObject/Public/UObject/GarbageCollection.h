@@ -566,6 +566,13 @@ public:
 extern COREUOBJECT_API FThreadSafeBool GIsGarbageCollecting;
 
 /**
+ * Gets the last time that the GC was run.
+ *
+ * @return	Returns the FPlatformTime::Seconds() for the last garbage collection, 0 if GC has never run.
+ */
+COREUOBJECT_API double GetLastGCTime();
+
+/**
 * Whether we are inside garbage collection
 */
 FORCEINLINE bool IsGarbageCollecting()

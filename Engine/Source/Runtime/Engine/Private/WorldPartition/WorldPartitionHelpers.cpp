@@ -88,15 +88,17 @@ void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldParti
 
 bool FWorldPartitionHelpers::HasExceededMaxMemory()
 {
-	const uint64 MemoryMinFreePhysical = 1 * 1024ll * 1024ll * 1024ll;
-	const uint64 MemoryMaxUsedPhysical = 32 * 1024ll * 1024ll * 1024ll;
 	const FPlatformMemoryStats MemStats = FPlatformMemory::GetStats();
+
+	const uint64 MemoryMinFreePhysical = 1llu * 1024 * 1024 * 1024;
+	const uint64 MemoryMaxUsedPhysical = FMath::Max(32llu * 1024 * 1024 * 1024, MemStats.TotalPhysical / 2);
 
 	const bool bHasExceededMinFreePhysical = MemStats.AvailablePhysical < MemoryMinFreePhysical;
 	const bool bHasExceededMaxUsedPhysical = MemStats.UsedPhysical >= MemoryMaxUsedPhysical;
 	const bool bHasExceededMaxMemory = bHasExceededMinFreePhysical || bHasExceededMaxUsedPhysical;
 
-	return bHasExceededMaxMemory;
+	// Even if we're not exhausting memory, GC should be run at periodic intervals
+	return bHasExceededMaxMemory || (FPlatformTime::Seconds() - GetLastGCTime()) > 30;
 };
 
 #endif // #if WITH_EDITOR
