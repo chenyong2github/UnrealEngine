@@ -2213,7 +2213,11 @@ void FEOSVoiceChatUser::OnChannelAudioInputState(const EOS_RTCAudio_AudioInputSt
 
 bool FEOSVoiceChatUser::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
+#if !NO_LOGGING
 #define EOS_EXEC_LOG(Fmt, ...) Ar.CategorizedLogf(LogEOSVoiceChat.GetCategoryName(), ELogVerbosity::Log, Fmt, ##__VA_ARGS__)
+#else
+#define EOS_EXEC_LOG(Fmt, ...) 
+#endif
 	if (FParse::Command(&Cmd, TEXT("INFO")))
 	{
 		if (IsInitialized())
