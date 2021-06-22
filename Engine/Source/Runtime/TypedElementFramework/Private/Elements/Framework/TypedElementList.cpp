@@ -375,10 +375,7 @@ void UTypedElementList::ClearPendingChanges()
 
 void UTypedElementList::NoteListMayChange()
 {
-	if (!bHasPendingNotify)
-	{
-		OnPreChangeDelegate.Broadcast(this);
-	}
+	OnPreChangeDelegate.Broadcast(this);
 }
 
 void UTypedElementList::NoteListChanged(const EChangeType InChangeType, const FTypedElementHandle& InElementHandle)

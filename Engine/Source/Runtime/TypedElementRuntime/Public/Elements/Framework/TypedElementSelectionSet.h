@@ -445,8 +445,8 @@ public:
 	}
 
 	/**
-	 * Access the delegate that is invoked whenever this element list is potentially about to change.
-	 * @note This may be called even if no actual change happens, though once a change does happen it won't be called again until after the next call to NotifyPendingChanges.
+	 * Access the delegate that is invoked whenever the underlying element list is potentially about to change.
+	 * @note This may be called even if no actual change happens, so may be called multiple times without a corresponding OnChanged notification.
 	 */
 	DECLARE_EVENT_OneParam(UTypedElementSelectionSet, FOnPreChange, const UTypedElementSelectionSet* /*InElementSelectionSet*/);
 	FOnPreChange& OnPreChange()

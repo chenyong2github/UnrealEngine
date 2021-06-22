@@ -2168,8 +2168,10 @@ void UEditorEngine::EditorDestroyWorld( FWorldContext & Context, const FText& Cl
 		NewWorld->RemoveFromRoot();
 	}
 
-	CheckForWorldGCLeaks( NewWorld, WorldPackage );
+	// Verify that any pending typed elements have been cleanly destroyed from the GC above
+	UTypedElementRegistry::GetInstance()->ProcessDeferredElementsToDestroy();
 
+	CheckForWorldGCLeaks( NewWorld, WorldPackage );
 }
 
 bool UEditorEngine::ShouldAbortBecauseOfPIEWorld()
