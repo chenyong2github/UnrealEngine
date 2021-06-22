@@ -68,6 +68,12 @@ namespace UnrealEditor
 		public bool NoShaderDistrib = false;
 
 		/// <summary>
+		/// Enable Verbose Shader logging so we don't time out compiling lots of shaders
+		/// </summary>
+		[AutoParam]
+		public bool VerboseShaderLogging = false;
+
+		/// <summary>
 		/// Applies these options to the provided app config
 		/// </summary>
 		/// <param name="AppConfig"></param>
@@ -111,6 +117,11 @@ namespace UnrealEditor
 			if (NoShaderDistrib)
 			{
 				AppConfig.CommandLineParams.Add("-noxgeshadercompile");
+			}
+
+			if (VerboseShaderLogging)
+			{
+				AppConfig.CommandLineParams.Add("ini:Engine:[Core.Log]:LogShaderCompilers=Verbose");
 			}
 		}
 	}

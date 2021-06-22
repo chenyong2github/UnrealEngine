@@ -70,7 +70,7 @@
 	<Property Name="ProfileArgs" Value="$(ProfileArgs) -TreatLogWarningsAsTestErrors=false -TreatLogErrorsAsTestErrors=false"/>
 	<Property Name="ProfileArgs" Value="$(ProfileArgs) -GameInstanceLostTimerSeconds=3600"/>
 	<Property Name="ProfileArgs" Value="$(ProfileArgs) -NoLoadLevelAtStartup"/>
-	<Property Name="ProfileArgs" Value="$(ProfileArgs) -NoShaderDistrib"/>
+	<Property Name="ProfileArgs" Value="$(ProfileArgs) -NoShaderDistrib -VerboseShaderLogging"/>
 
 	<!-- Gauntlet arguments for summarize commandlet runs -->
 	<Property Name="SummarizeArgs" Value="-statsfile=&quot;$(RootDir)/Engine/Build/IterationProfileStats.csv&quot;"/>
