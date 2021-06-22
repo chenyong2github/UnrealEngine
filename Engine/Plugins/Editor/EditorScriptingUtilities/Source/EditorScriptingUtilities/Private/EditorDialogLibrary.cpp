@@ -48,7 +48,7 @@ public:
 	SLATE_BEGIN_ARGS(SObjParamDialog) {}
 	SLATE_END_ARGS()	
 
-	void Construct(const FArguments& InArgs, TWeakPtr<SWindow> InParentWindow, const TArray<UObject*>& Objects)
+	void Construct(const FArguments& InArgs, TWeakPtr<SWindow> InParentWindow, const TArray<UObject*>& Objects, const FEditorDialogLibraryObjectDetailsViewOptions& Options = FEditorDialogLibraryObjectDetailsViewOptions())
 	{
 		bOKPressed = false;
 
@@ -57,7 +57,17 @@ public:
 		{
 			DetailsViewArgs.bLockable = false;
 			DetailsViewArgs.bUpdatesFromSelection = false;
-			DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ENameAreaSettings::ObjectsUseNameArea;
+			DetailsViewArgs.bAllowSearch = Options.bAllowSearch;
+			
+			if (Options.bShowObjectName)
+			{
+				DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ENameAreaSettings::ObjectsUseNameArea;
+			}
+			else
+			{
+				DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ENameAreaSettings::HideNameArea;
+			}
+			
 			DetailsViewArgs.bAllowMultipleTopLevelObjects = true;
 			DetailsViewArgs.bShowPropertyMatrixButton = false;
 		}
@@ -133,13 +143,13 @@ protected:
 	bool bOKPressed;
 };
 
-bool UEditorDialogLibrary::ShowObjectDetailsView(const FText& Title, UObject* InOutObject)
+bool UEditorDialogLibrary::ShowObjectDetailsView(const FText& Title, UObject* InOutObject, const FEditorDialogLibraryObjectDetailsViewOptions& Options)
 {	
 	TArray<UObject*> ViewObjects = { InOutObject};
-	return ShowObjectsDetailsView(Title, ViewObjects);
+	return ShowObjectsDetailsView(Title, ViewObjects, Options);
 }
 
-bool UEditorDialogLibrary::ShowObjectsDetailsView(const FText& Title, const TArray<UObject*>& InOutObjects)
+bool UEditorDialogLibrary::ShowObjectsDetailsView(const FText& Title, const TArray<UObject*>& InOutObjects, const FEditorDialogLibraryObjectDetailsViewOptions& Options) 
 {
 	if (!FApp::IsUnattended() && !GIsRunningUnattendedScript)
 	{
@@ -156,7 +166,7 @@ bool UEditorDialogLibrary::ShowObjectsDetailsView(const FText& Title, const TArr
 				.SupportsMaximize(false);
 
 			TSharedPtr<SObjParamDialog> Dialog;
-			Window->SetContent(SAssignNew(Dialog, SObjParamDialog, Window, ViewObjects));
+			Window->SetContent(SAssignNew(Dialog, SObjParamDialog, Window, ViewObjects, Options));
 			GEditor->EditorAddModalWindow(Window);
 
 			return Dialog->WasOkPressed();
