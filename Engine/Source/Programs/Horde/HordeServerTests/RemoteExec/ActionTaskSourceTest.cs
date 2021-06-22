@@ -109,7 +109,7 @@ namespace HordeServerTests.RemoteExec
 
 				if (Metadata.Stage == ExecutionStage.Types.Value.Executing)
 				{
-					ExecuteOp.TrySetResult(new ActionResult {ExitCode = ExitCode});
+					ExecuteOp.TrySetResult(new ActionExecuteResult(new ActionResult {ExitCode = ExitCode}));
 				}
 				
 				if (Op.Done)

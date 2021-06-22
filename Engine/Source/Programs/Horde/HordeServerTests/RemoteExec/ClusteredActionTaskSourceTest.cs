@@ -75,7 +75,7 @@ namespace HordeServerTests.RemoteExec
 			Task Server2UpdateTask = Server2.UpdateOperations();
 			Assert.IsTrue(await WaitForOperationToExistAsync(Server2, ObjectId.Parse(Op.Id)));
 			int ExitCode = 11122233;
-			Assert.IsTrue(Server2.SetResultForActiveOperation(ObjectId.Parse(Op.Id), new ActionResult { ExitCode = ExitCode }));
+			Assert.IsTrue(Server2.SetResultForActiveOperation(ObjectId.Parse(Op.Id), new ActionExecuteResult(new ActionResult { ExitCode = ExitCode })));
 			await Server2UpdateTask;
 			
 			// Verify result can fetched from server 1

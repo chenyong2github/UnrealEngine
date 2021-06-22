@@ -107,7 +107,7 @@ namespace HordeServer.Tasks.Impl
 
 		private class RemoteExecOperationInternal : IActionExecuteOperation
 		{
-			public TaskCompletionSource<ActionResult?> ResultTaskSource { get; } = new TaskCompletionSource<ActionResult?>();
+			public TaskCompletionSource<ActionExecuteResult> ResultTaskSource { get; } = new TaskCompletionSource<ActionExecuteResult>();
 			public ObjectId Id { get; }
 			public ObjectId LeaseId { get; }
 
@@ -117,7 +117,7 @@ namespace HordeServer.Tasks.Impl
 				this.LeaseId = LeaseId;
 			}
 
-			public bool TrySetResult(ActionResult? Result)
+			public bool TrySetResult(ActionExecuteResult Result)
 			{
 				return ResultTaskSource.TrySetResult(Result);
 			}
@@ -178,7 +178,8 @@ namespace HordeServer.Tasks.Impl
 				{
 					if (OpInternal.LeaseId == Lease.Id)
 					{
-						OpInternal.TrySetResult(null);
+						string Message = $"Lease cancelled. LeaseId={Lease.Id}";
+						OpInternal.TrySetResult(new ActionExecuteResult(new Google.Rpc.Status(StatusCode.Cancelled, Message)));
 					}
 				}
 			}
@@ -382,25 +383,45 @@ namespace HordeServer.Tasks.Impl
 					ActiveOperations.Remove(OpId);
 				}
 			}
+			
+			void OnConnectionLost()
+			{
+				string Message = $"Connection lost to agent. LeaseId={Lease.Id} OperationId={OpInternal!.Id}";
+				Logger.LogInformation(Message);
+				OpInternal.TrySetResult(new ActionExecuteResult(new Google.Rpc.Status(StatusCode.Internal, Message)));
+			}
 
-			if (Subscription.TrySetLease(Lease, () => OpInternal.ResultTaskSource.TrySetResult(null)))
+			if (Subscription.TrySetLease(Lease, OnConnectionLost))
 			{
 				await SetOperationStatusAsync(Op, ExecutionStage.Types.Value.Executing, null);
 
-				Task<ActionResult?> ResultTask = OpInternal.ResultTaskSource.Task;
+				Task<ActionExecuteResult> ResultTask = OpInternal.ResultTaskSource.Task;
 				if (await Task.WhenAny(ResultTask, Task.Delay(OperationTimeout)) == ResultTask)
 				{
-					ActionResult? Result = ResultTask.Result;
-					if (Result != null)
+					ActionExecuteResult Result = ResultTask.Result;
+					if (Result.Result != null)
 					{
 						ExecuteResponse SuccessResponse = new ExecuteResponse();
 						SuccessResponse.Status = new Status(StatusCode.OK, String.Empty);
-						SuccessResponse.Result = Result;
+						SuccessResponse.Result = Result.Result;
 						
 						RemoveActiveOperation(OpId);
 						return SuccessResponse;
 					}
-					
+
+					if (Result.Error != null)
+					{
+						ExecuteResponse ErrorResponse = new ExecuteResponse
+						{
+							Status = new Status((StatusCode) Result.Error.Code, Result.Error.Message),
+							CachedResult = false,
+							Message = "Remote execution failed. See 'status' field for more details."
+						};
+						
+						RemoveActiveOperation(OpId);
+						return ErrorResponse;
+					}
+
 					Logger.LogError("No result from remote execution under lease {LeaseId}", Lease.Id);
 				}
 				else
@@ -453,7 +474,7 @@ namespace HordeServer.Tasks.Impl
 			}
 		}
 
-		internal bool SetResultForActiveOperation(ObjectId OperationId, ActionResult? Result)
+		internal bool SetResultForActiveOperation(ObjectId OperationId, ActionExecuteResult Result)
 		{
 			lock (ActiveOperations)
 			{

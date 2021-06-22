@@ -31,7 +31,7 @@ namespace HordeServer.Rpc
 			if (ActionTaskSource.TryGetOperation(Request.LeaseId.ToObjectId(), out Operation))
 			{
 				Logger.LogInformation("Setting operation result to {Result}. LeaseId={LeaseId} OperationId={OperationId}", Request.Result, Request.LeaseId, Operation.Id);
-				Operation.TrySetResult(Request.Result);
+				Operation.TrySetResult(new ActionExecuteResult(Request.Result));
 			}
 			return Task.FromResult<Empty>(new Empty());
 		}
