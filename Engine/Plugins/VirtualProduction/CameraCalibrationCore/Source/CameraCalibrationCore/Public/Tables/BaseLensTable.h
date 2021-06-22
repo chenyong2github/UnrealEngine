@@ -47,6 +47,15 @@ public:
 	virtual float GetZoom(int32 Index) const PURE_VIRTUAL(FBaseLensTable::GetZoom, return 0.f;);
 };
 
+template<>
+struct TStructOpsTypeTraits<FBaseFocusPoint> : public TStructOpsTypeTraitsBase2<FBaseFocusPoint>
+{
+	enum
+	{
+		WithPureVirtual = true,
+	};
+};
+
 /**
  * Base data table struct
  */
@@ -144,4 +153,13 @@ private:
 	 */
 	UPROPERTY()
 	TWeakObjectPtr<ULensFile> LensFile;
+};
+
+template<>
+struct TStructOpsTypeTraits<FBaseLensTable> : public TStructOpsTypeTraitsBase2<FBaseLensTable>
+{
+	enum
+	{
+		WithPureVirtual = true,
+	};
 };

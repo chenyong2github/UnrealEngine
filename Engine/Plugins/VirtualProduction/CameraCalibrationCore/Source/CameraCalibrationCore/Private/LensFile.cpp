@@ -1213,6 +1213,8 @@ bool ULensFile::HasSamples(ELensDataCategory InDataCategory) const
 
 const FBaseLensTable& ULensFile::GetDataTable(ELensDataCategory InDataCategory) const
 {
+	static FBaseLensTable BaseDataTable;
+
 	switch(InDataCategory)
 	{
 	case ELensDataCategory::Distortion:
@@ -1235,10 +1237,15 @@ const FBaseLensTable& ULensFile::GetDataTable(ELensDataCategory InDataCategory) 
 		{
 			return NodalOffsetTable;
 		}
+	case ELensDataCategory::Focus:
+	case ELensDataCategory::Iris:
+		{
+			ensure(false);
+			return BaseDataTable;
+		}
 	default:
 		{
 			checkNoEntry();
-			static FBaseLensTable BaseDataTable;
 			return BaseDataTable;
 		}
 	}
