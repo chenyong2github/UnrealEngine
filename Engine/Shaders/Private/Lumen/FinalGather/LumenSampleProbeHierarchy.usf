@@ -3,6 +3,8 @@
 
 //------------------------------------------------------- INCLUDES
 
+#define USE_HAIR_COMPLEX_TRANSMITTANCE 1
+
 #include "../ProbeHierarchy/LumenCubemapProbeHierarchy.ush"
 #include "../../SceneTextureParameters.ush"
 #include "../../DeferredShadingCommon.ush"

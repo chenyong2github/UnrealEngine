@@ -9,6 +9,14 @@
 #include "MonteCarlo.ush"
 #include "DeferredShadingCommon.ush"
 
+#ifndef USE_HAIR_COMPLEX_TRANSMITTANCE
+#define USE_HAIR_COMPLEX_TRANSMITTANCE 0
+#endif
+#if USE_HAIR_COMPLEX_TRANSMITTANCE
+#include "HairStrands/HairStrandsCommon.ush"
+#include "HairStrands/HairStrandsDeepTransmittanceCommon.ush"
+#include "HairStrands/HairStrandsDeepTransmittanceDualScattering.ush"
+#endif
 
 // Diffuse therm
 #define SHADING_TERM_DIFFUSE 0x01
@@ -114,7 +122,14 @@ FBxDFSample SampleHairBxDF(uint TermMask, FGBufferData GBuffer, float3 V, float4
 	float3 N = GBuffer.WorldNormal;
 	float4 L = UniformSampleSphere(E.xy);
 	float NoL = dot(N, L.xyz);
-	FHairTransmittanceData TransmittanceData = InitHairTransmittanceData();
+
+	FHairTransmittanceData TransmittanceData = InitHairTransmittanceData(true);
+	#if USE_HAIR_COMPLEX_TRANSMITTANCE
+	if (ShouldUseHairComplexTransmittance(GBuffer))
+	{
+		TransmittanceData = EvaluateDualScattering(GBuffer, V, L.xyz);
+	}
+	#endif
 
 	FDirectLighting Lighting;
 	const float OpaqueVisibility = 1;	// No occlusion...
