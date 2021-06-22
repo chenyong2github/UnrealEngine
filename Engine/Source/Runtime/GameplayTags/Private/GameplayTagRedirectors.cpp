@@ -49,9 +49,11 @@ FGameplayTagRedirectors::FGameplayTagRedirectors()
 		UE_LOG(LogGameplayTags, Error, TEXT("GameplayTagRedirects is in a deprecated location, after editing GameplayTags developer settings you must remove these manually"));
 	}
 
+#if WITH_EDITOR
 	// Only doing the deprecated parse once at startup is fine, but we need to update from the settings object after in-editor config updates
 	// This is a singleton that is never destroyed, so just bind raw once
 	UGameplayTagsManager::OnEditorRefreshGameplayTagTree.AddRaw(this, &FGameplayTagRedirectors::RefreshTagRedirects);
+#endif
 
 	RefreshTagRedirects();
 }
