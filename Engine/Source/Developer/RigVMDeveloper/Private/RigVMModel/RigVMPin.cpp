@@ -625,6 +625,13 @@ bool URigVMPin::IsValidDefaultValue(const FString& InDefaultValue) const
 				return false;
 			}
 		}
+		else if (BaseCPPType == TEXT("double"))
+		{ 
+			if (!FDefaultValueHelper::IsStringValidFloat(Value))
+			{
+				return false;
+			}
+		}
 		else if (BaseCPPType == TEXT("int32"))
 		{ 
 			if (!FDefaultValueHelper::IsStringValidInteger(Value))
@@ -1210,21 +1217,59 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 
 	if (InSourcePin->CPPType != InTargetPin->CPPType)
 	{
-		if (OutFailureReason)
+		bool bCPPTypesDiffer = true;
+		static const FString Float = TEXT("float");
+		static const FString Double = TEXT("double");
+
+		if((InSourcePin->CPPType == Float && InTargetPin->CPPType == Double) ||
+			(InSourcePin->CPPType == Double && InTargetPin->CPPType == Float))
 		{
-			*OutFailureReason = TEXT("Source and target pin types are not compatible.");
+			bCPPTypesDiffer = false;
 		}
 
-		// check if this might be a prototype node
-		if (InSourcePin->CPPType.IsEmpty())
+		if (bCPPTypesDiffer)
 		{
-			if (URigVMPrototypeNode* PrototypeNode = Cast<URigVMPrototypeNode>(SourceNode))
+			if (OutFailureReason)
 			{
-				if (PrototypeNode->SupportsType(InSourcePin, InTargetPin->CPPType))
+				*OutFailureReason = TEXT("Source and target pin types are not compatible.");
+			}
+
+			// check if this might be a prototype node
+			if (InSourcePin->CPPType.IsEmpty())
+			{
+				if (URigVMPrototypeNode* PrototypeNode = Cast<URigVMPrototypeNode>(SourceNode))
 				{
-					if (OutFailureReason)
+					if (PrototypeNode->SupportsType(InSourcePin, InTargetPin->CPPType))
 					{
-						*OutFailureReason = FString();
+						if (OutFailureReason)
+						{
+							*OutFailureReason = FString();
+						}
+					}
+					else
+					{
+						return false;
+					}
+				}
+				else
+				{
+					return false;
+				}
+			}
+			else if (InTargetPin->CPPType.IsEmpty())
+			{
+				if (URigVMPrototypeNode* PrototypeNode = Cast<URigVMPrototypeNode>(TargetNode))
+				{
+					if (PrototypeNode->SupportsType(InTargetPin, InSourcePin->CPPType))
+					{
+						if (OutFailureReason)
+						{
+							*OutFailureReason = FString();
+						}
+					}
+					else
+					{
+						return false;
 					}
 				}
 				else
@@ -1236,31 +1281,6 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 			{
 				return false;
 			}
-		}
-		else if (InTargetPin->CPPType.IsEmpty())
-		{
-			if (URigVMPrototypeNode* PrototypeNode = Cast<URigVMPrototypeNode>(TargetNode))
-			{
-				if (PrototypeNode->SupportsType(InTargetPin, InSourcePin->CPPType))
-				{
-					if (OutFailureReason)
-					{
-						*OutFailureReason = FString();
-					}
-				}
-				else
-				{
-					return false;
-				}
-			}
-			else
-			{
-				return false;
-			}
-		}
-		else
-		{
-			return false;
 		}
 	}
 

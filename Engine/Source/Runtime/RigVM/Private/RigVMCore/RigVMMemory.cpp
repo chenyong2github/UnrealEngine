@@ -1779,6 +1779,10 @@ void FRigVMMemoryContainer::SetRegisterValueFromString(const FRigVMOperand& InOp
 		{
 			GetFixedArray<float>(Register)[Index] = FCString::Atof(*DefaultValue);
 		}
+		else if (CPPType == TEXT("double") && Register.Type == ERigVMRegisterType::Plain && Register.ElementSize == sizeof(double))
+		{
+			GetFixedArray<double>(Register)[Index] = FCString::Atod(*DefaultValue);
+		}
 		else if (CPPType == TEXT("FName") && Register.Type == ERigVMRegisterType::Name)
 		{
 			GetFixedArray<FName>(Register)[Index] = *DefaultValue;
@@ -1855,6 +1859,11 @@ TArray<FString> FRigVMMemoryContainer::GetRegisterValueAsString(const FRigVMOper
 			{
 				float Value = GetFixedArray<float>(Register, INDEX_NONE, SliceIndex)[ElementIndex];
 				DefaultValue = FString::Printf(TEXT("%f"), Value);
+			}
+			else if (InCPPType == TEXT("double") && Register.GetNumBytesPerSlice() == sizeof(double))
+			{
+				double Value = GetFixedArray<double>(Register, INDEX_NONE, SliceIndex)[ElementIndex];
+				DefaultValue = FString::Printf(TEXT("%f"), (float)Value);
 			}
 			else if (InCPPType == TEXT("FName") && Register.GetNumBytesPerSlice() == sizeof(FName))
 			{

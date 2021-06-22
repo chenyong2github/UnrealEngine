@@ -2345,6 +2345,10 @@ FEdGraphPinType UControlRig::GetPinTypeFromExternalVariable(const FRigVMExternal
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Float;
 	}
+	else if (InExternalVariable.TypeName == TEXT("double"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Double;
+	}
 	else if (InExternalVariable.TypeName == TEXT("FName"))
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Name;
@@ -2424,6 +2428,11 @@ FRigVMExternalVariable UControlRig::GetExternalVariableFromPinType(const FName& 
 	{
 		ExternalVariable.TypeName = TEXT("float");
 		ExternalVariable.Size = sizeof(float);
+	}
+	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Double)
+	{
+		ExternalVariable.TypeName = TEXT("double");
+		ExternalVariable.Size = sizeof(double);
 	}
 	else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Name)
 	{

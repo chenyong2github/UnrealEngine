@@ -248,6 +248,8 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathVectorSelectBool)
 	return true;
 }
 
+#if UE_LARGE_WORLD_COORDINATES_DISABLED
+
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathVectorDeg)
 {
 	Unit.Value = FVector(-PI, PI * 2.f, PI * 0.5f);
@@ -263,6 +265,8 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathVectorRad)
 	AddErrorIfFalse(FRigUnit_MathVectorTest_Utils::IsNearlyEqual(Unit.Result, FVector(-PI, PI * 2.f, PI * 0.5f)), TEXT("unexpected result"));
 	return true;
 }
+
+#endif
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathVectorLengthSquared)
 {

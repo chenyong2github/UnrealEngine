@@ -64,6 +64,10 @@ struct RIGVM_API FRigVMExternalVariable
 		{
 			ExternalVariable.TypeName = TEXT("float");
 		}
+		else if (CastField<FDoubleProperty>(Property))
+		{
+			ExternalVariable.TypeName = TEXT("double");
+		}
 		else if (CastField<FStrProperty>(Property))
 		{
 			ExternalVariable.TypeName = TEXT("FString");
@@ -191,6 +195,30 @@ struct RIGVM_API FRigVMExternalVariable
 		Variable.TypeObject = nullptr;
 		Variable.bIsArray = true;
 		Variable.Size = sizeof(float);
+		Variable.Memory = (uint8*)&InValue;
+		return Variable;
+	}
+
+	FORCEINLINE static FRigVMExternalVariable Make(const FName& InName, double& InValue)
+	{
+		FRigVMExternalVariable Variable;
+		Variable.Name = InName;
+		Variable.TypeName = TEXT("double");
+		Variable.TypeObject = nullptr;
+		Variable.bIsArray = false;
+		Variable.Size = sizeof(double);
+		Variable.Memory = (uint8*)&InValue;
+		return Variable;
+	}
+
+	FORCEINLINE static FRigVMExternalVariable Make(const FName& InName, TArray<double>& InValue)
+	{
+		FRigVMExternalVariable Variable;
+		Variable.Name = InName;
+		Variable.TypeName = TEXT("double");
+		Variable.TypeObject = nullptr;
+		Variable.bIsArray = true;
+		Variable.Size = sizeof(double);
 		Variable.Memory = (uint8*)&InValue;
 		return Variable;
 	}

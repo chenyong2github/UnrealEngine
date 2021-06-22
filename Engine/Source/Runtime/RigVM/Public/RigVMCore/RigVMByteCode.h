@@ -218,6 +218,15 @@ struct RIGVM_API FRigVMBinaryOp : public FRigVMBaseOp
 	}
 };
 
+// The kind of copy operation to perform
+UENUM()
+enum class ERigVMCopyType : uint8
+{
+	Default,
+	FloatToDouble,
+	DoubleToFloat
+};
+
 // copy the content of one register to another
 USTRUCT()
 struct RIGVM_API FRigVMCopyOp : public FRigVMBaseOp
@@ -230,6 +239,7 @@ struct RIGVM_API FRigVMCopyOp : public FRigVMBaseOp
 	, Target()
 	, NumBytes(0)
 	, RegisterType(ERigVMRegisterType::Invalid)
+	, CopyType(ERigVMCopyType::Default)
 	{
 	}
 
@@ -237,13 +247,15 @@ struct RIGVM_API FRigVMCopyOp : public FRigVMBaseOp
 		FRigVMOperand InSource,
 		FRigVMOperand InTarget,
 		uint16 InNumBytes,
-		ERigVMRegisterType InRegisterType
+		ERigVMRegisterType InRegisterType,
+		ERigVMCopyType InCopyType
 	)
 		: FRigVMBaseOp(ERigVMOpCode::Copy)
 		, Source(InSource)
 		, Target(InTarget)
 		, NumBytes(InNumBytes)
 		, RegisterType(InRegisterType)
+		, CopyType(InCopyType)
 	{
 	}
 
@@ -251,6 +263,7 @@ struct RIGVM_API FRigVMCopyOp : public FRigVMBaseOp
 	FRigVMOperand Target;
 	uint16 NumBytes;
 	ERigVMRegisterType RegisterType;
+	ERigVMCopyType CopyType;
 
 	void Serialize(FArchive& Ar);
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMCopyOp& P)
@@ -551,7 +564,7 @@ public:
 	uint64 AddTrueOp(const FRigVMOperand& InArg);
 
 	// adds a copy operator to copy the content of a source argument to a target argument
-	uint64 AddCopyOp(const FRigVMOperand& InSource, const FRigVMOperand& InTarget, uint16 InNumBytes, ERigVMRegisterType InTargetType);
+	uint64 AddCopyOp(const FRigVMOperand& InSource, const FRigVMOperand& InTarget, uint16 InNumBytes, ERigVMRegisterType InTargetType, ERigVMCopyType InCopyType);
 
 	// adds a copy operator to copy the content of a source argument to a target argument
 	uint64 AddCopyOp(const FRigVMCopyOp& InCopyOp);

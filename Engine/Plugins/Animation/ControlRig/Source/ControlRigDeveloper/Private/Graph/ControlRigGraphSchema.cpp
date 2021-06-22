@@ -515,6 +515,14 @@ FLinearColor UControlRigGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinT
 			}
 		}
 	}
+
+	if(TypeName == UEdGraphSchema_K2::PC_Double)
+	{
+		FEdGraphPinType LocalPinType = PinType;
+		LocalPinType.PinCategory = UEdGraphSchema_K2::PC_Float;
+		return GetPinTypeColor(LocalPinType);
+	}
+	
 	return GetDefault<UEdGraphSchema_K2>()->GetPinTypeColor(PinType);
 }
 
@@ -538,6 +546,7 @@ bool UControlRigGraphSchema::SupportsPinType(UScriptStruct* ScriptStruct) const
 		FString CPPType = Property->GetCPPType();
 		if (CPPType == TEXT("bool") ||
 			CPPType == TEXT("float") ||
+			CPPType == TEXT("double") ||
 			CPPType == TEXT("int32") ||
 			CPPType == TEXT("FString") ||
 			CPPType == TEXT("FName") ||
@@ -583,6 +592,7 @@ bool UControlRigGraphSchema::SupportsPinType(TWeakPtr<const FEdGraphSchemaAction
 	if (TypeName == UEdGraphSchema_K2::PC_Boolean ||
 		TypeName == UEdGraphSchema_K2::PC_Int ||
 		TypeName == UEdGraphSchema_K2::PC_Float ||
+		TypeName == UEdGraphSchema_K2::PC_Double ||
 		TypeName == UEdGraphSchema_K2::PC_Name ||
 		TypeName == UEdGraphSchema_K2::PC_String ||
 		TypeName == UEdGraphSchema_K2::PC_Enum)
@@ -1237,6 +1247,7 @@ void UControlRigGraphSchema::GetVariablePinTypes(TArray<FEdGraphPinType>& PinTyp
 {
 	PinTypes.Add(FEdGraphPinType(UEdGraphSchema_K2::PC_Boolean, FName(NAME_None), nullptr, EPinContainerType::None, false, FEdGraphTerminalType()));
 	PinTypes.Add(FEdGraphPinType(UEdGraphSchema_K2::PC_Float, FName(NAME_None), nullptr, EPinContainerType::None, false, FEdGraphTerminalType()));
+	PinTypes.Add(FEdGraphPinType(UEdGraphSchema_K2::PC_Double, FName(NAME_None), nullptr, EPinContainerType::None, false, FEdGraphTerminalType()));
 	PinTypes.Add(FEdGraphPinType(UEdGraphSchema_K2::PC_Int, FName(NAME_None), nullptr, EPinContainerType::None, false, FEdGraphTerminalType()));
 	PinTypes.Add(FEdGraphPinType(UEdGraphSchema_K2::PC_Struct, FName(NAME_None), TBaseStructure<FVector>::Get(), EPinContainerType::None, false, FEdGraphTerminalType()));
 	PinTypes.Add(FEdGraphPinType(UEdGraphSchema_K2::PC_Struct, FName(NAME_None), TBaseStructure<FVector2D>::Get(), EPinContainerType::None, false, FEdGraphTerminalType()));

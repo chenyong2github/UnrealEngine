@@ -774,19 +774,19 @@ uint64 FRigVMByteCode::AddTrueOp(const FRigVMOperand& InArg)
 	return AddOp(Op);
 }
 
-uint64 FRigVMByteCode::AddCopyOp(const FRigVMOperand& InSource, const FRigVMOperand& InTarget, uint16 InNumBytes, ERigVMRegisterType InTargetType)
+uint64 FRigVMByteCode::AddCopyOp(const FRigVMOperand& InSource, const FRigVMOperand& InTarget, uint16 InNumBytes, ERigVMRegisterType InTargetType, ERigVMCopyType InCopyType)
 {
 	check(InTarget.GetMemoryType() != ERigVMMemoryType::Literal);
 	check(InNumBytes > 0);
 	check(InTargetType != ERigVMRegisterType::Invalid);
 	
-	FRigVMCopyOp Op(InSource, InTarget, InNumBytes, InTargetType);
+	FRigVMCopyOp Op(InSource, InTarget, InNumBytes, InTargetType, InCopyType);
 	return AddOp(Op);
 }
 
 uint64 FRigVMByteCode::AddCopyOp(const FRigVMCopyOp& InCopyOp)
 {
-	return AddCopyOp(InCopyOp.Source, InCopyOp.Target, InCopyOp.NumBytes, InCopyOp.RegisterType);
+	return AddCopyOp(InCopyOp.Source, InCopyOp.Target, InCopyOp.NumBytes, InCopyOp.RegisterType, InCopyOp.CopyType);
 }
 
 uint64 FRigVMByteCode::AddIncrementOp(const FRigVMOperand& InArg)

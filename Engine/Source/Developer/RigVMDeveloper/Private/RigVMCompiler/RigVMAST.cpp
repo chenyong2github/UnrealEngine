@@ -1660,15 +1660,32 @@ void FRigVMParserAST::FoldAssignments()
 		ensure(AssignExpr->Parents.Num() == 1);
 		ensure(AssignExpr->Children.Num() == 1);
 
+		URigVMPin* SourcePin = AssignExpr->GetSourcePin();
+		URigVMPin* TargetPin = AssignExpr->GetTargetPin();
+
+		// in case the assign has different types for left and right - we need to avoid folding
+		// since this assign represents a cast operation
+		if(SourcePin->GetCPPTypeObject() != TargetPin->GetCPPTypeObject())
+		{
+			continue;
+		}
+		else if(SourcePin->GetCPPTypeObject() == nullptr)
+		{
+			if(SourcePin->GetCPPType() != TargetPin->GetCPPType())
+			{
+				continue;
+			}
+		}
+		
 		// non-input pins on anything but a reroute node should be skipped
-		if (AssignExpr->GetTargetPin()->GetDirection() != ERigVMPinDirection::Input &&
-			Cast<URigVMRerouteNode>(AssignExpr->GetTargetPin()->GetNode()) == nullptr)
+		if (TargetPin->GetDirection() != ERigVMPinDirection::Input &&
+			Cast<URigVMRerouteNode>(TargetPin->GetNode()) == nullptr)
 		{
 			continue;
 		}
 
 		// if this node is a loop node - let's skip the folding
-		if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(AssignExpr->GetTargetPin()->GetNode()))
+		if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(TargetPin->GetNode()))
 		{
 			if (UnitNode->IsLoopNode())
 			{
@@ -1677,9 +1694,9 @@ void FRigVMParserAST::FoldAssignments()
 		}
 
 		// if this node is a variable node and the pin requires a watch... skip this
-		if (Cast<URigVMVariableNode>(AssignExpr->GetSourcePin()->GetNode()))
+		if (Cast<URigVMVariableNode>(SourcePin->GetNode()))
 		{
-			if(AssignExpr->GetSourcePin()->RequiresWatch(true))
+			if(SourcePin->RequiresWatch(true))
 			{
 				continue;
 			}
@@ -2162,6 +2179,10 @@ void FRigVMParserAST::FoldLiterals()
 					DefaultValue = TEXT("False");
 				}
 				else if (LiteralExpr->GetCPPType() == TEXT("float"))
+				{
+					DefaultValue = TEXT("0.000000");
+				}
+				else if (LiteralExpr->GetCPPType() == TEXT("double"))
 				{
 					DefaultValue = TEXT("0.000000");
 				}

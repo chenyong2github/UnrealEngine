@@ -1863,6 +1863,11 @@ FName UControlRigBlueprint::AddMemberVariable(const FName& InName, const FString
 		Variable.TypeName = *CPPType;
 		Variable.Size = sizeof(float);
 	}
+	else if (CPPType == TEXT("double"))
+	{
+		Variable.TypeName = *CPPType;
+		Variable.Size = sizeof(double);
+	}
 	else if (CPPType == TEXT("int32"))
 	{
 		Variable.TypeName = *CPPType;
