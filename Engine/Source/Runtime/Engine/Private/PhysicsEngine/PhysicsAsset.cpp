@@ -530,20 +530,23 @@ void UPhysicsAsset::GetBodyIndicesBelow(TArray<int32>& OutBodyIndices, FName InB
 {
 	int32 BaseIndex = SkelMesh->GetRefSkeleton().FindBoneIndex(InBoneName);
 
-	// Iterate over all other bodies, looking for 'children' of this one
-	for(int32 i=0; i<SkeletalBodySetups.Num(); i++)
+	if (BaseIndex != INDEX_NONE)
 	{
-		UBodySetup* BS = SkeletalBodySetups[i];
-		if (!ensure(BS))
+		// Iterate over all other bodies, looking for 'children' of this one
+		for (int32 i = 0; i < SkeletalBodySetups.Num(); i++)
 		{
-			continue;
-		}
-		FName TestName = BS->BoneName;
-		int32 TestIndex = SkelMesh->GetRefSkeleton().FindBoneIndex(TestName);
+			UBodySetup* BS = SkeletalBodySetups[i];
+			if (!ensure(BS))
+			{
+				continue;
+			}
+			FName TestName = BS->BoneName;
+			int32 TestIndex = SkelMesh->GetRefSkeleton().FindBoneIndex(TestName);
 
-		if( (bIncludeParent && TestIndex == BaseIndex) || SkelMesh->GetRefSkeleton().BoneIsChildOf(TestIndex, BaseIndex))
-		{
-			OutBodyIndices.Add(i);
+			if ((bIncludeParent && TestIndex == BaseIndex) || SkelMesh->GetRefSkeleton().BoneIsChildOf(TestIndex, BaseIndex))
+			{
+				OutBodyIndices.Add(i);
+			}
 		}
 	}
 }
