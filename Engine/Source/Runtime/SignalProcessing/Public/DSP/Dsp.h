@@ -362,6 +362,16 @@ namespace Audio
 		return FMath::Pow(2.0f, InPitchSemitones / 12.0f);
 	}
 
+	// Returns the number of semitones relative to a base frequency given the input frequency multiplier
+	static FORCEINLINE float GetSemitones(const float InMultiplier)
+	{
+		if (InMultiplier <= 0.0f)
+		{
+			return 12.0f * FMath::Log2(SMALL_NUMBER);
+		}
+		return 12.0f * FMath::Log2(InMultiplier);
+	}
+
 	// Calculates equal power stereo pan using sinusoidal-panning law and cheap approximation for sin
 	// InLinear pan is [-1.0, 1.0] so it can be modulated by a bipolar LFO
 	static FORCEINLINE void GetStereoPan(const float InLinearPan, float& OutLeft, float& OutRight)
