@@ -185,7 +185,7 @@ void SPropertyBinding::ForEachBindableProperty(UStruct* InStruct, Predicate Pred
 
 			if (Args.OnCanAcceptPropertyOrChildren.IsBound() && Args.OnCanAcceptPropertyOrChildren.Execute(Property) == false)
 			{
-				break;
+				continue;
 			}
 
 			if (SkeletonClass)
