@@ -309,7 +309,7 @@ public class PhysX : ModuleRules
 
 			foreach (string Lib in StaticLibrariesPhysXLinux)
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "Linux", Target.Architecture, "lib" + String.Format(Lib, LibrarySuffix) + ".a"));
+				PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "Unix", Target.Architecture, "lib" + String.Format(Lib, LibrarySuffix) + ".a"));
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS)

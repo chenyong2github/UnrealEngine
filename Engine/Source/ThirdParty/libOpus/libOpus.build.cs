@@ -88,22 +88,22 @@ public class libOpus : ModuleRules
 		{
             if (Target.LinkType == TargetLinkType.Monolithic)
             {
-                PublicAdditionalLibraries.Add(LibraryPath + "Linux/" + Target.Architecture + "/libopus.a");
+                PublicAdditionalLibraries.Add(LibraryPath + "Unix/" + Target.Architecture + "/libopus.a");
             }
             else
             {
-                PublicAdditionalLibraries.Add(LibraryPath + "Linux/" + Target.Architecture + "/libopus_fPIC.a");
+                PublicAdditionalLibraries.Add(LibraryPath + "Unix/" + Target.Architecture + "/libopus_fPIC.a");
             }
 
 			if (Target.Architecture.StartsWith("x86_64"))
 			{
 				if (Target.LinkType == TargetLinkType.Monolithic)
 				{
-					PublicAdditionalLibraries.Add(LibraryPath + "Linux/" + Target.Architecture + "/libresampler.a");
+					PublicAdditionalLibraries.Add(LibraryPath + "Unix/" + Target.Architecture + "/libresampler.a");
 				}
 				else
 				{
-					PublicAdditionalLibraries.Add(LibraryPath + "Linux/" + Target.Architecture + "/libresampler_fPIC.a");
+					PublicAdditionalLibraries.Add(LibraryPath + "Unix/" + Target.Architecture + "/libresampler_fPIC.a");
 				}
 			}
 		}

@@ -561,8 +561,8 @@ namespace UnrealBuildTool
 			if (ShouldUseLibcxx(CompileEnvironment.Architecture))
 			{
 				Result += " -nostdinc++";
-				Result += " -I" + "ThirdParty/Linux/LibCxx/include/";
-				Result += " -I" + "ThirdParty/Linux/LibCxx/include/c++/v1";
+				Result += " -I" + "ThirdParty/Unix/LibCxx/include/";
+				Result += " -I" + "ThirdParty/Unix/LibCxx/include/c++/v1";
 			}
 
 			// ASan
@@ -1030,13 +1030,13 @@ namespace UnrealBuildTool
 			else
 			{
 				// x86_64 is now using updated ICU that doesn't need extra .so
-				Result += " -Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/ThirdParty/ICU/icu4c-53_1/Linux/" + LinkEnvironment.Architecture;
+				Result += " -Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/ThirdParty/ICU/icu4c-53_1/Unix/" + LinkEnvironment.Architecture;
 			}
 
 			Result += " -Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/ThirdParty/OpenVR/OpenVRv1_5_17/linux64";
 
 			// @FIXME: Workaround for generating RPATHs for launching on devices UE-54136
-			Result += " -Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/ThirdParty/PhysX3/Linux/x86_64-unknown-linux-gnu";
+			Result += " -Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/ThirdParty/PhysX3/Unix/x86_64-unknown-linux-gnu";
 			Result += " -Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/ThirdParty/Intel/Embree/Embree2140/Linux/x86_64-unknown-linux-gnu/lib";
 
 			// Some OS ship ld with new ELF dynamic tags, which use DT_RUNPATH vs DT_RPATH. Since DT_RUNPATH do not propagate to dlopen()ed DSOs,
@@ -1859,9 +1859,9 @@ namespace UnrealBuildTool
 			{
 				// libc++ and its abi lib
 				LinkCommandString += " -nodefaultlibs";
-				LinkCommandString += " -L" + "ThirdParty/Linux/LibCxx/lib/Linux/" + LinkEnvironment.Architecture + "/";
-				LinkCommandString += " " + "ThirdParty/Linux/LibCxx/lib/Linux/" + LinkEnvironment.Architecture + "/libc++.a";
-				LinkCommandString += " " + "ThirdParty/Linux/LibCxx/lib/Linux/" + LinkEnvironment.Architecture + "/libc++abi.a";
+				LinkCommandString += " -L" + "ThirdParty/Unix/LibCxx/lib/Linux/" + LinkEnvironment.Architecture + "/";
+				LinkCommandString += " " + "ThirdParty/Unix/LibCxx/lib/Linux/" + LinkEnvironment.Architecture + "/libc++.a";
+				LinkCommandString += " " + "ThirdParty/Unix/LibCxx/lib/Linux/" + LinkEnvironment.Architecture + "/libc++abi.a";
 				LinkCommandString += " -lm";
 				LinkCommandString += " -lc";
 				LinkCommandString += " -lpthread"; // pthread_mutex_trylock is missing from libc stubs

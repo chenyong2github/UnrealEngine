@@ -25,15 +25,15 @@ public class SDL2 : ModuleRules
 			if (Target.Configuration == UnrealTargetConfiguration.Debug)
 			{
 				// Debug version should be built with -fPIC and usable in all targets
-				PublicAdditionalLibraries.Add(Path.Combine(SDL2LibPath, "Linux", Target.Architecture, "libSDL2_fPIC_Debug.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(SDL2LibPath, "Unix", Target.Architecture, "libSDL2_fPIC_Debug.a"));
 			}
 			else if (Target.LinkType == TargetLinkType.Monolithic)
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(SDL2LibPath, "Linux", Target.Architecture, "libSDL2.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(SDL2LibPath, "Unix", Target.Architecture, "libSDL2.a"));
 			}
 			else
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(SDL2LibPath, "Linux", Target.Architecture, "libSDL2_fPIC.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(SDL2LibPath, "Unix", Target.Architecture, "libSDL2_fPIC.a"));
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win64)

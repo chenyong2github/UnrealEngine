@@ -67,7 +67,7 @@ public class zlib : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			string platform = "/Linux/" + Target.Architecture;
+			string platform = "/Unix/" + Target.Architecture;
 			PublicIncludePaths.Add(zlibPath + "/include" + platform);
 			PublicAdditionalLibraries.Add(zlibPath + "/lib/" + platform + "/libz_fPIC.a");
 		}

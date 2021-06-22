@@ -34,7 +34,7 @@ public class PhysXVehicleLib : ModuleRules
         }
         else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
         {
-			PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "Linux", Target.Architecture, String.Format("libPhysX3Vehicle{0}.a", LibrarySuffix)));
+			PublicAdditionalLibraries.Add(Path.Combine(PhysXLibDir, "Unix", Target.Architecture, String.Format("libPhysX3Vehicle{0}.a", LibrarySuffix)));
         }
         else if (Target.Platform == UnrealTargetPlatform.IOS)
         {

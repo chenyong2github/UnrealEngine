@@ -20,7 +20,7 @@ public class LibJpegTurbo : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			string LibPath = Path.Combine(ModuleDirectory, "lib/Linux", Target.Architecture);
+			string LibPath = Path.Combine(ModuleDirectory, "lib/Unix", Target.Architecture);
 
 			if (Target.Configuration == UnrealTargetConfiguration.Debug)
 			{

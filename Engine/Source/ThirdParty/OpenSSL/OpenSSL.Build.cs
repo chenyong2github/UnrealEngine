@@ -54,7 +54,7 @@ public class OpenSSL : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			string platform = "/Linux/" + Target.Architecture;
+			string platform = "/Unix/" + Target.Architecture;
 			string IncludePath = OpenSSL111cPath + "/include" + platform;
 			string LibraryPath = OpenSSL111cPath + "/lib" + platform;
 

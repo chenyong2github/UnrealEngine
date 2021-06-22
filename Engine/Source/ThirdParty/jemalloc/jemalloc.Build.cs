@@ -11,8 +11,8 @@ public class jemalloc : ModuleRules
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
         {
 		    // includes may differ depending on target platform
-		    PublicIncludePaths.Add(Target.UEThirdPartySourceDirectory + "jemalloc/include/Linux/" + Target.Architecture);
-			PublicAdditionalLibraries.Add(Target.UEThirdPartySourceDirectory + "jemalloc/lib/Linux/" + Target.Architecture + "/libjemalloc_pic.a");
+		    PublicIncludePaths.Add(Target.UEThirdPartySourceDirectory + "jemalloc/include/Unix/" + Target.Architecture);
+			PublicAdditionalLibraries.Add(Target.UEThirdPartySourceDirectory + "jemalloc/lib/Unix/" + Target.Architecture + "/libjemalloc_pic.a");
         }
 	}
 }

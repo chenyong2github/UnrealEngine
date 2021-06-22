@@ -155,7 +155,7 @@ public class APEX : ModuleRules
 			if (Target.Architecture.StartsWith("x86_64"))
 			{
 				ApexLibraries.Clear();
-				string PhysXBinariesDir = Target.UEThirdPartyBinariesDirectory + "PhysX3/Linux/" + Target.Architecture;
+				string PhysXBinariesDir = Target.UEThirdPartyBinariesDirectory + "PhysX3/Unix/" + Target.Architecture;
 				PrivateRuntimeLibraryPaths.Add(PhysXBinariesDir);
 
 				string[] DynamicLibrariesLinux =

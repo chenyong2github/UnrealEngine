@@ -41,7 +41,7 @@ public class UEOpenExr : ModuleRules
 			}
 			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 			{
-                    Platform = "Linux";
+                    Platform = "Unix";
                     bDebug = false;
             }
             LibDir = LibDir + "/" + Platform;

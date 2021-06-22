@@ -39,7 +39,7 @@ public class libWebSockets : ModuleRules
 			}
 			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 			{
-				return Path.Combine(WebSocketsPackagePath, "include", "Linux", Target.Architecture);
+				return Path.Combine(WebSocketsPackagePath, "include", "Unix", Target.Architecture);
 			}
 			else
 			{
@@ -58,7 +58,7 @@ public class libWebSockets : ModuleRules
 			}
 			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 			{
-				return Path.Combine(WebSocketsPackagePath, "lib", "Linux", Target.Architecture, ConfigName);
+				return Path.Combine(WebSocketsPackagePath, "lib", "Unix", Target.Architecture, ConfigName);
 			}
 			else
 			{
