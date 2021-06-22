@@ -171,9 +171,6 @@ protected:
 	virtual void OnSyncBodies(Chaos::FPhysicsSolverBase* Solver);
 	//Engine interface END
 
-	template <typename RigidLambda>
-	void PullPhysicsStateForEachDirtyProxy(const int32 SyncTimestamp, const RigidLambda& DirtyRigidFunc);
-
 	float MDeltaTime;
 	float MNetworkDeltaTimeScale = 1.f; // Scale passed in delta time by this. Used by NetworkPrediction to make clients slow down or catch up when needed
 

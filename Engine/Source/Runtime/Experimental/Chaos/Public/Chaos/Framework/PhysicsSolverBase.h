@@ -324,8 +324,8 @@ namespace Chaos
 		}
 
 		/** Used to update external thread data structures. RigidFunc allows per dirty rigid code to execute. Include PhysicsSolverBaseImpl.h to call this function*/
-		template <typename RigidLambda>
-		void PullPhysicsStateForEachDirtyProxy_External(const RigidLambda& RigidFunc);
+		template <typename RigidLambda, typename ConstraintLambda>
+		void PullPhysicsStateForEachDirtyProxy_External(const RigidLambda& RigidFunc, const ConstraintLambda& ConstraintFunc);
 
 		bool IsUsingAsyncResults() const
 		{

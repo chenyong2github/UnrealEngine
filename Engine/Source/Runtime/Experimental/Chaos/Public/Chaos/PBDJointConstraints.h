@@ -40,6 +40,8 @@ namespace Chaos
 		int32 GetConstraintColor() const;
 
 		bool IsConstraintEnabled() const;
+		bool IsConstraintBreaking() const;
+		void ClearConstraintBreaking();
 		FVec3 GetLinearImpulse() const;
 		FVec3 GetAngularImpulse() const;
 
@@ -63,6 +65,7 @@ namespace Chaos
 		int32 Color;
 		int32 IslandSize;
 		bool bDisabled;
+		bool bBreaking;
 		FVec3 LinearImpulse;
 		FVec3 AngularImpulse;
 	};
@@ -131,9 +134,24 @@ namespace Chaos
 		bool IsConstraintEnabled(int32 ConstraintIndex) const;
 
 		/*
+		 * Whether the constraint is breaking this frame
+		 */
+		bool IsConstraintBreaking(int32 ConstraintIndex) const;
+
+		/*
+		 * Clear the constraint braking state
+		 */
+		void ClearConstraintBreaking(int32 ConstraintIndex);
+
+		/*
 		 * Enable or disable a constraints
 		 */
 		void SetConstraintEnabled(int32 ConstraintIndex, bool bEnabled);
+
+		/*
+		 * Set Breaking State
+		 */
+		void SetConstraintBreaking(int32 ConstraintIndex, bool bBreaking);
 
 		/*
 		 * Force a constraints to break

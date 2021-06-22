@@ -16,8 +16,8 @@
 namespace Chaos
 {
 	// Pulls physics state for each dirty particle and allows caller to do additional work if needed
-	template <typename RigidLambda>
-	void FPhysicsSolverBase::PullPhysicsStateForEachDirtyProxy_External(const RigidLambda& RigidFunc)
+	template <typename RigidLambda, typename ConstraintLambda>
+	void FPhysicsSolverBase::PullPhysicsStateForEachDirtyProxy_External(const RigidLambda& RigidFunc, const ConstraintLambda& ConstraintFunc)
 	{
 		using namespace Chaos;
 
@@ -60,9 +60,9 @@ namespace Chaos
 			const int32 SolverTimestamp = Results.Next ? Results.Next->SolverTimestamp : INDEX_NONE;
 			for (const FChaosRigidInterpolationData& RigidInterp : Results.RigidInterpolations)
 				{
-				if (FSingleParticlePhysicsProxy* Proxy = RigidInterp.Prev.GetProxy())
+					if (FSingleParticlePhysicsProxy* Proxy = RigidInterp.Prev.GetProxy())
 					{
-					if (Proxy->PullFromPhysicsState(RigidInterp.Next, SolverTimestamp))
+						if (Proxy->PullFromPhysicsState(RigidInterp.Next, SolverTimestamp))
 						{
 							RigidFunc(Proxy);
 						}
@@ -98,7 +98,11 @@ namespace Chaos
 			{
 				if (auto Proxy = DirtyData.GetProxy())
 				{
-					Proxy->PullFromPhysicsState(DirtyData, SyncTimestamp);
+					if (Proxy->PullFromPhysicsState(DirtyData, SyncTimestamp))
+					{
+						ConstraintFunc(Proxy);
+					}
+
 				}
 			}
 

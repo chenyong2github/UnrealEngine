@@ -74,6 +74,16 @@ namespace Chaos
 		return ConstraintContainer->IsConstraintEnabled(ConstraintIndex);
 	}
 
+	bool FPBDJointConstraintHandle::IsConstraintBreaking() const
+	{
+		return ConstraintContainer->IsConstraintBreaking(ConstraintIndex);
+	}
+
+	void FPBDJointConstraintHandle::ClearConstraintBreaking()
+	{
+		return ConstraintContainer->ClearConstraintBreaking(ConstraintIndex);
+	}
+
 	FVec3 FPBDJointConstraintHandle::GetLinearImpulse() const
 	{
 		return ConstraintContainer->GetConstraintLinearImpulse(ConstraintIndex);
@@ -498,6 +508,15 @@ namespace Chaos
 		return !ConstraintStates[ConstraintIndex].bDisabled;
 	}
 
+	bool FPBDJointConstraints::IsConstraintBreaking(int32 ConstraintIndex) const
+	{
+		return ConstraintStates[ConstraintIndex].bBreaking;
+	}
+
+	void FPBDJointConstraints::ClearConstraintBreaking(int32 ConstraintIndex)
+	{
+		ConstraintStates[ConstraintIndex].bBreaking = false;
+	}
 
 	void FPBDJointConstraints::SetConstraintEnabled(int32 ConstraintIndex, bool bEnabled)
 	{
@@ -520,10 +539,15 @@ namespace Chaos
 		}
 	}
 
+	void FPBDJointConstraints::SetConstraintBreaking(int32 ConstraintIndex, bool bBreaking)
+	{
+		ConstraintStates[ConstraintIndex].bBreaking = bBreaking;
+	}
 
 	void FPBDJointConstraints::BreakConstraint(int32 ConstraintIndex)
 	{
 		SetConstraintEnabled(ConstraintIndex, false);
+		SetConstraintBreaking(ConstraintIndex, true);
 		if (BreakCallback)
 		{
 			BreakCallback(Handles[ConstraintIndex]);
