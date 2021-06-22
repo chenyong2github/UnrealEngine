@@ -32,6 +32,8 @@ public:
 		EBuildPolicy InBuildPolicy,
 		TUniqueFunction<void ()>&& InOnEndAsyncBuild);
 
+	FStringView GetName() const final;
+
 	inline const FCacheKey& GetCacheKey() const { return CacheKey; }
 	inline const IBuildFunction& GetFunction() const { return Function; }
 

@@ -31,6 +31,11 @@ FBuildJobContext::FBuildJobContext(
 {
 }
 
+FStringView FBuildJobContext::GetName() const
+{
+	return Job.GetName();
+}
+
 void FBuildJobContext::AddConstant(FStringView Key, FCbObject&& Value)
 {
 	Constants.EmplaceByHash(GetTypeHash(Key), Key, MoveTemp(Value));
