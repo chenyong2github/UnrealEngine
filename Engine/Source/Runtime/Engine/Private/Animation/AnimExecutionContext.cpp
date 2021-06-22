@@ -26,3 +26,23 @@ FAnimExecutionContext::FData::FData(FComponentSpacePoseContext& InContext)
 	Context = &InContext;
 	ContextType = EContextType::ComponentSpacePose;
 }
+
+FAnimationInitializeContext* FAnimInitializationContext::GetContext() const
+{
+	return GetInternalContext<FAnimInitializationContext, FAnimationInitializeContext>();
+}
+
+FAnimationUpdateContext* FAnimUpdateContext::GetContext() const
+{
+	return GetInternalContext<FAnimUpdateContext, FAnimationUpdateContext>();
+}
+
+FPoseContext* FAnimPoseContext::GetContext() const
+{
+	return GetInternalContext<FAnimPoseContext, FPoseContext>();
+}
+
+FComponentSpacePoseContext* FAnimComponentSpacePoseContext::GetContext() const
+{
+	return GetInternalContext<FAnimPoseContext, FComponentSpacePoseContext>();
+}

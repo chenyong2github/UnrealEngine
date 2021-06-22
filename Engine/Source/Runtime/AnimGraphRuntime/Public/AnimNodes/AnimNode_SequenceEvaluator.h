@@ -62,7 +62,7 @@ public:
 	virtual bool SetSequence(UAnimSequenceBase* InSequence) { return false; }
 
 	// Set the time at which to evaluate the associated sequence
-	virtual void SetExplicitTime(float InTime) {}
+	virtual bool SetExplicitTime(float InTime) { return false; }
 
 	// Set whether to teleport to explicit time when it is set
 	virtual void SetTeleportToExplicitTime(bool bInTeleport) {}
@@ -149,6 +149,7 @@ public:
 	virtual bool SetSequence(UAnimSequenceBase* InSequence) override;
 	virtual UAnimSequenceBase* GetSequence() const override;
 	virtual float GetExplicitTime() const override;
+	virtual bool SetExplicitTime(float InTime) override;
 	virtual bool GetShouldLoop() const override;
 	virtual bool GetTeleportToExplicitTime() const override;
 	virtual TEnumAsByte<ESequenceEvalReinit::Type> GetReinitializationBehavior() const override;
@@ -217,7 +218,7 @@ private:
 public:
 	// FAnimNode_SequenceEvaluatorBase interface
 	virtual bool SetSequence(UAnimSequenceBase* InSequence) override { Sequence = InSequence; return true; }
-	virtual void SetExplicitTime(float InTime) override { ExplicitTime = InTime; }
+	virtual bool SetExplicitTime(float InTime) override { ExplicitTime = InTime; return true; }
 	virtual void SetTeleportToExplicitTime(bool bInTeleport) override { bTeleportToExplicitTime = bInTeleport; }
 	virtual void SetReinitializationBehavior(TEnumAsByte<ESequenceEvalReinit::Type> InBehavior) override { ReinitializationBehavior = InBehavior; }
 	virtual UAnimSequenceBase* GetSequence() const override { return Sequence; }

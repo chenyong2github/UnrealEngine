@@ -1,0 +1,46 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+
+#include "Animation/AnimExecutionContext.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
+#include "Animation/AnimNodeReference.h"
+#include "SequenceEvaluatorLibrary.generated.h"
+
+struct FAnimNode_SequenceEvaluator;
+
+USTRUCT(BlueprintType)
+struct FSequenceEvaluatorReference : public FAnimNodeReference
+{
+	GENERATED_BODY()
+
+	typedef FAnimNode_SequenceEvaluator FInternalNodeType;
+};
+
+// Exposes operations to be performed on a sequence evaluator anim node
+// Note: Experimental and subject to change!
+UCLASS(Experimental)
+class ANIMGRAPHRUNTIME_API USequenceEvaluatorLibrary : public UBlueprintFunctionLibrary
+{
+	GENERATED_BODY()
+
+public:
+	/** Get a sequence evaluator context from an anim node context */
+	UFUNCTION(BlueprintCallable, Category = "Sequence Evaluator", meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
+	static FSequenceEvaluatorReference ConvertToSequenceEvaluatorContext(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result);
+	
+	/** Set the current accumulated time of the sequence evaluator */
+	UFUNCTION(BlueprintCallable, Category = "Sequence Evaluator", meta=(BlueprintThreadSafe))
+	static FSequenceEvaluatorReference SetExplicitTime(const FSequenceEvaluatorReference& SequenceEvaluator, float Time);
+
+	/** Set the current sequence of the sequence evaluator */
+	UFUNCTION(BlueprintCallable, Category = "Sequence Evaluator", meta=(BlueprintThreadSafe))
+	static FSequenceEvaluatorReference SetSequence(const FSequenceEvaluatorReference& SequenceEvaluator, UAnimSequenceBase* Sequence);
+
+	/** Set the current sequence of the sequence evaluator with an inertial blend time */
+	UFUNCTION(BlueprintCallable, Category = "Sequence Evaluator", meta=(BlueprintThreadSafe))
+	static FSequenceEvaluatorReference SetSequenceWithInertialBlending(const FAnimUpdateContext& UpdateContext, const FSequenceEvaluatorReference& SequenceEvaluator, UAnimSequenceBase* Sequence, float BlendTime = 0.2f);
+	
+};
