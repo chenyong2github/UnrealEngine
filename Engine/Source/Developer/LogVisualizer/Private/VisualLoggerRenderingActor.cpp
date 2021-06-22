@@ -679,6 +679,45 @@ void AVisualLoggerRenderingActor::GetDebugShapes(const FVisualLogDevice::FVisual
 			}
 		}
 			break;
+
+		case EVisualLoggerShapeElement::Circle:
+		{
+			const bool bDrawLabel = (ElementToDraw->Description.IsEmpty() == false);
+			const int32 NumPoints = ElementToDraw->Points.Num();
+
+			for (int32 Index = 0; Index + 2 < NumPoints; Index += 3)
+			{
+				const FVector Center = ElementToDraw->Points[Index + 0];
+				const FVector UpAxis = ElementToDraw->Points[Index + 1];
+				const float Radius = ElementToDraw->Points[Index + 2].X;
+				const float Thickness = float(ElementToDraw->Thicknes);
+
+				const FQuat Rotation = FQuat::FindBetweenNormals(FVector::UpVector, UpAxis);
+				const FVector XAxis = Rotation.RotateVector(FVector::XAxisVector);
+				const FVector YAxis = Rotation.RotateVector(FVector::YAxisVector);
+				
+				static const int32 CircleDivs = 12;
+				FVector PrevPosition = FVector::ZeroVector;
+				for (int32 Div = 0; Div <= CircleDivs; Div++)
+				{
+					const float Angle = (float)Div / (float)CircleDivs * PI * 2.0f;
+					const FVector Position = Center + (FMath::Cos(Angle) * XAxis + FMath::Sin(Angle) * YAxis) * Radius;
+					if (Div > 0)
+					{
+						DebugShapes.Lines.Add(FDebugRenderSceneProxy::FDebugLine(PrevPosition, Position, Color, Thickness));
+					}
+					PrevPosition = Position;
+				}
+
+				if (bDrawLabel)
+				{
+					const FString PrintString = NumPoints == 3 ? ElementToDraw->Description : FString::Printf(TEXT("%s_%d"), *ElementToDraw->Description, Index / 3);
+					DebugShapes.Texts.Add(FDebugRenderSceneProxy::FText3d(PrintString, Center, Color));
+				}
+			}
+		}
+			break;
+			
 		}
 	}
 }
