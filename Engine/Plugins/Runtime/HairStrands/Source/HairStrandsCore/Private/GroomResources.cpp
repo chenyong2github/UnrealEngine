@@ -35,6 +35,11 @@ static FAutoConsoleVariableRef CVarHairStrandsBulkData_Validation(TEXT("r.HairSt
 
 ////////////////////////////////////////////////////////////////////////////////////
 
+namespace HairTransition
+{
+	void TransitToSRV(FRDGBuilder& GraphBuilder, FRDGBufferSRVRef InBuffer, ERDGPassFlags Flags);	
+}
+
 enum class EHairResourceUsageType : uint8
 {
 	Static,
@@ -582,29 +587,6 @@ void FHairCardsProceduralResource::InternalRelease()
 	CardVoxel.NormalBuffer.Release();
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-namespace HairCardsTransition
-{
-	BEGIN_SHADER_PARAMETER_STRUCT(FTransitionParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, Buffer)
-	END_SHADER_PARAMETER_STRUCT()
-
-	void TransitToSRV(FRDGBuilder& GraphBuilder, FRDGBufferSRVRef InBuffer)
-	{
-		FTransitionParameters* Parameters = GraphBuilder.AllocParameters<FTransitionParameters>();
-		Parameters->Buffer = InBuffer;
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("HairCardsDeformedBufferTransitionPass"),
-			Parameters,
-			ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass | ERDGPassFlags::NeverCull,
-			[Parameters](FRHICommandList& RHICmdList)
-			{
-				// Nothing to do, we just want GraphBuilder to force the buffer to be transited to SRV Graphics state.
-			});
-	}
-}
-
 /////////////////////////////////////////////////////////////////////////////////////////
 
 FHairCardsDeformedResource::FHairCardsDeformedResource(const FHairCardsBulkData& InBulkData, bool bInInitializedData) :
@@ -626,8 +608,8 @@ void FHairCardsDeformedResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 
 		// Manually transit to SRVs, in case of the cards are rendered not visible, but still rendered (in shadows for instance). In such a case, the cards deformation pass is not called, and thus the 
 		// buffers are never transit from UAV (clear) to SRV for rasterization. 
-		HairCardsTransition::TransitToSRV(GraphBuilder, Register(GraphBuilder, DeformedPositionBuffer[0], ERDGImportedBufferFlags::CreateSRV).SRV);
-		HairCardsTransition::TransitToSRV(GraphBuilder, Register(GraphBuilder, DeformedPositionBuffer[1], ERDGImportedBufferFlags::CreateSRV).SRV);
+		HairTransition::TransitToSRV(GraphBuilder, Register(GraphBuilder, DeformedPositionBuffer[0], ERDGImportedBufferFlags::CreateSRV).SRV, ERDGPassFlags::Raster);
+		HairTransition::TransitToSRV(GraphBuilder, Register(GraphBuilder, DeformedPositionBuffer[1], ERDGImportedBufferFlags::CreateSRV).SRV, ERDGPassFlags::Raster);
 	}
 }
 
@@ -739,6 +721,7 @@ void FHairStrandsRestResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 	TArray<FVector4> RestOffset;
 	RestOffset.Add(BulkData.GetPositionOffset());
 	InternalCreateVertexBufferRDG<FHairStrandsPositionOffsetFormat>(GraphBuilder, RestOffset, PositionOffsetBuffer, HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_PositionOffsetBuffer), EHairResourceUsageType::Static, ERDGInitialDataFlags::None);
+	HairTransition::TransitToSRV(GraphBuilder, Register(GraphBuilder, PositionOffsetBuffer, ERDGImportedBufferFlags::CreateSRV).SRV, ERDGPassFlags::Compute);
 }
 
 void AddHairTangentPass(
