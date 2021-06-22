@@ -21,8 +21,8 @@
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
-#include "TargetInterfaces/AssetBackedTarget.h"
 #include "ToolTargetManager.h"
+#include "ModelingToolTargetUtil.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -39,8 +39,7 @@ const FToolTargetTypeRequirements& UBakeTransformToolBuilder::GetTargetRequireme
 	static FToolTargetTypeRequirements TypeRequirements({
 		UMeshDescriptionCommitter::StaticClass(),
 		UMeshDescriptionProvider::StaticClass(),
-		UPrimitiveComponentBackedTarget::StaticClass(),
-		UAssetBackedTarget::StaticClass()
+		UPrimitiveComponentBackedTarget::StaticClass()
 		});
 	return TypeRequirements;
 }
@@ -102,8 +101,8 @@ void UBakeTransformTool::Setup()
 	bool bHasZeroScales = false;
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
-		if (TargetComponent->GetWorldTransform().GetScale3D().GetAbsMin() < KINDA_SMALL_NUMBER)
+		FTransform Transform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Targets[ComponentIdx]);
+		if (Transform.GetScale3D().GetAbsMin() < KINDA_SMALL_NUMBER)
 		{
 			bHasZeroScales = true;
 		}
@@ -138,9 +137,11 @@ void UBakeTransformTool::UpdateAssets()
 	// Make sure mesh descriptions are deserialized before we open transaction.
 	// This is to avoid potential stability issues related to creation/load of
 	// mesh descriptions inside a transaction.
+	// TODO: this may not be necessary anymore. Also may not be the most efficient
+	TArray<FMeshDescription> SourceMeshes;
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		TargetMeshProviderInterface(ComponentIdx)->GetMeshDescription();
+		UE::ToolTarget::GetMeshDescription(Targets[ComponentIdx]);
 	}
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("BakeTransformToolTransactionName", "Bake Transforms"));
@@ -148,12 +149,11 @@ void UBakeTransformTool::UpdateAssets()
 	TArray<UE::Geometry::FTransform3d> BakedTransforms;
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
-		IMeshDescriptionCommitter* TargetMeshCommitter = TargetMeshCommitterInterface(ComponentIdx);
-		UPrimitiveComponent* Component = TargetComponent->GetOwnerComponent();
+		UToolTarget* Target = Targets[ComponentIdx];
+		UPrimitiveComponent* Component = UE::ToolTarget::GetTargetComponent(Target);
 		Component->Modify();
 
-		UE::Geometry::FTransform3d ComponentToWorld(TargetComponent->GetWorldTransform());
+		UE::Geometry::FTransform3d ComponentToWorld = UE::ToolTarget::GetLocalToWorldTransform(Target);
 		UE::Geometry::FTransform3d ToBakePart = UE::Geometry::FTransform3d::Identity();
 		UE::Geometry::FTransform3d NewWorldPart = ComponentToWorld;
 
@@ -220,37 +220,47 @@ void UBakeTransformTool::UpdateAssets()
 				check(false); // must explicitly handle all cases
 			}
 
-			TargetMeshCommitter->CommitMeshDescription([this, &ToBakePart, &NewWorldPart](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+			// apply edit
+			FMeshDescription SourceMesh(UE::ToolTarget::GetMeshDescriptionCopy(Targets[ComponentIdx], false));
+			FMeshDescriptionEditableTriangleMeshAdapter EditableMeshDescAdapter(&SourceMesh);
+
+			// do this part within the commit because we have the MeshDescription already computed
+			if (BasicProperties->bRecenterPivot)
 			{
-				FMeshDescriptionEditableTriangleMeshAdapter EditableMeshDescAdapter(CommitParams.MeshDescriptionOut);
+				FBox BBox = SourceMesh.ComputeBoundingBox();
+				FVector3d Center(BBox.GetCenter());
+				FFrame3d LocalFrame(Center);
+				ToBakePart.SetTranslation(ToBakePart.GetTranslation() - Center);
+				NewWorldPart.SetTranslation(NewWorldPart.GetTranslation() + NewWorldPart.TransformVector(Center));
+			}
 
-				// do this part within the commit because we have the MeshDescription already computed
-				if (BasicProperties->bRecenterPivot)
-				{
-					FBox BBox = CommitParams.MeshDescriptionOut->ComputeBoundingBox();
-					FVector3d Center(BBox.GetCenter());
-					FFrame3d LocalFrame(Center);
-					ToBakePart.SetTranslation(ToBakePart.GetTranslation() - Center);
-					NewWorldPart.SetTranslation(NewWorldPart.GetTranslation() + NewWorldPart.TransformVector(Center));
-				}
+			MeshAdapterTransforms::ApplyTransform(EditableMeshDescAdapter, ToBakePart);
 
-				MeshAdapterTransforms::ApplyTransform(EditableMeshDescAdapter, ToBakePart);
+			FVector3d BakeScaleVec = ToBakePart.GetScale();
+			if (BakeScaleVec.X * BakeScaleVec.Y * BakeScaleVec.Z < 0)
+			{
+				SourceMesh.ReverseAllPolygonFacing();
+			}
 
-				FVector3d ScaleVec = ToBakePart.GetScale();
-				if (ScaleVec.X * ScaleVec.Y * ScaleVec.Z < 0)
-				{
-					CommitParams.MeshDescriptionOut->ReverseAllPolygonFacing();
-				}
-			});
+			// todo: support vertex-only update
+			UE::ToolTarget::CommitMeshDescriptionUpdate(Target, &SourceMesh);
 
 			// try to transform simple collision
-			UE::Geometry::TransformSimpleCollision(Component, ToBakePart);
+			if (UE::Geometry::ComponentTypeSupportsCollision(Component))
+			{
+				UE::Geometry::TransformSimpleCollision(Component, ToBakePart);
+			}
 
 			BakedTransforms.Add(ToBakePart);
 		}
 
 		Component->SetWorldTransform((FTransform)NewWorldPart);
-		TargetComponent->GetOwnerActor()->MarkComponentsRenderStateDirty();
+
+		AActor* TargetActor = UE::ToolTarget::GetTargetActor(Target);
+		if (TargetActor)
+		{
+			TargetActor->MarkComponentsRenderStateDirty();
+		}
 	}
 
 	GetToolManager()->EndUndoTransaction();

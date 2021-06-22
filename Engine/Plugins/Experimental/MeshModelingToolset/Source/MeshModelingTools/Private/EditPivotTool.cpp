@@ -24,8 +24,8 @@
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
-#include "TargetInterfaces/AssetBackedTarget.h"
 #include "ToolTargetManager.h"
+#include "ModelingToolTargetUtil.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -42,8 +42,7 @@ const FToolTargetTypeRequirements& UEditPivotToolBuilder::GetTargetRequirements(
 	static FToolTargetTypeRequirements TypeRequirements({
 		UMeshDescriptionCommitter::StaticClass(),
 		UMeshDescriptionProvider::StaticClass(),
-		UPrimitiveComponentBackedTarget::StaticClass(),
-		UAssetBackedTarget::StaticClass()
+		UPrimitiveComponentBackedTarget::StaticClass()
 	});
 	return TypeRequirements;
 }
@@ -130,7 +129,7 @@ void UEditPivotTool::Setup()
 	bool bHasISMCs = false;
 	for (int32 k = 0; k < Targets.Num(); ++k)
 	{
-		if (Cast<UInstancedStaticMeshComponent>(TargetComponentInterface(k)->GetOwnerComponent()) != nullptr)
+		if (Cast<UInstancedStaticMeshComponent>(UE::ToolTarget::GetTargetComponent(Targets[k])) != nullptr)
 		{
 			bHasISMCs = true;
 		}
@@ -185,9 +184,9 @@ void UEditPivotTool::Precompute()
 	int NumComponents = Targets.Num();
 	if (NumComponents == 1)
 	{
-		Transform = UE::Geometry::FTransform3d(TargetComponentInterface(0)->GetWorldTransform());
+		Transform = UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
 
-		const FMeshDescription* Mesh = TargetMeshProviderInterface(0)->GetMeshDescription();
+		const FMeshDescription* Mesh = UE::ToolTarget::GetMeshDescription(Targets[0]);
 		VertexIteration(Mesh, [&](int32 VertexID, const FVector& Position) {
 			ObjectBounds.Contain((FVector3d)Position);
 			WorldBounds.Contain(Transform.TransformPosition((FVector3d)Position));
@@ -198,10 +197,8 @@ void UEditPivotTool::Precompute()
 		Transform = UE::Geometry::FTransform3d::Identity();
 		for (int k = 0; k < NumComponents; ++k)
 		{
-			IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(k);
-			IMeshDescriptionProvider* TargetMeshProvider = TargetMeshProviderInterface(k);
-			UE::Geometry::FTransform3d CurTransform(TargetComponent->GetWorldTransform());
-			const FMeshDescription* Mesh = TargetMeshProvider->GetMeshDescription();
+			UE::Geometry::FTransform3d CurTransform = UE::ToolTarget::GetLocalToWorldTransform(Targets[k]);
+			const FMeshDescription* Mesh = UE::ToolTarget::GetMeshDescription(Targets[k]);
 			VertexIteration(Mesh, [&](int32 VertexID, const FVector& Position) {
 				ObjectBounds.Contain(CurTransform.TransformPosition((FVector3d)Position));
 				WorldBounds.Contain(CurTransform.TransformPosition((FVector3d)Position));
@@ -326,7 +323,7 @@ void UEditPivotTool::SetActiveGizmos_Single(bool bLocalRotations)
 
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		Transformable.TransformProxy->AddComponent(TargetComponentInterface(ComponentIdx)->GetOwnerComponent());
+		Transformable.TransformProxy->AddComponent(UE::ToolTarget::GetTargetComponent(Targets[ComponentIdx]));
 	}
 	Transformable.TransformGizmo = UE::TransformGizmoUtil::CreateCustomTransformGizmo(GizmoManager,
 		ETransformGizmoSubElements::StandardTranslateRotate, this
@@ -437,15 +434,14 @@ void UEditPivotTool::UpdateAssets(const FFrame3d& NewPivotWorldFrame)
 	TArray<FTransform> OriginalTransforms;
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		OriginalTransforms.Add(TargetComponentInterface(ComponentIdx)->GetWorldTransform());
+		OriginalTransforms.Add((FTransform)UE::ToolTarget::GetLocalToWorldTransform(Targets[ComponentIdx]));
 	}
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
-		UPrimitiveComponent* Component = TargetComponent->GetOwnerComponent();
+		UPrimitiveComponent* Component = UE::ToolTarget::GetTargetComponent(Targets[ComponentIdx]);
 		Component->Modify();
 
-		UInstancedStaticMeshComponent* InstancedComponent = Cast<UInstancedStaticMeshComponent>(TargetComponent->GetOwnerComponent());
+		UInstancedStaticMeshComponent* InstancedComponent = Cast<UInstancedStaticMeshComponent>(Component);
 		if (InstancedComponent != nullptr)
 		{
 			// For ISMC, we will not bake in a mesh transform, instead we will update the instance transforms relative to the new pivot
@@ -475,13 +471,16 @@ void UEditPivotTool::UpdateAssets(const FFrame3d& NewPivotWorldFrame)
 			UE::Geometry::FTransform3d ToBake(OriginalTransforms[ComponentIdx] * NewWorldInverse);
 
 			// transform simple collision geometry
-			UE::Geometry::TransformSimpleCollision(Component, ToBake);
-
-			TargetMeshCommitterInterface(ComponentIdx)->CommitMeshDescription([&ToBake](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+			if (UE::Geometry::ComponentTypeSupportsCollision(Component))
 			{
-				FMeshDescriptionEditableTriangleMeshAdapter EditableMeshDescAdapter(CommitParams.MeshDescriptionOut);
-				MeshAdapterTransforms::ApplyTransform(EditableMeshDescAdapter, ToBake);
-			});
+				UE::Geometry::TransformSimpleCollision(Component, ToBake);
+			}
+
+			FMeshDescription SourceMesh(UE::ToolTarget::GetMeshDescriptionCopy(Targets[ComponentIdx], false));
+			FMeshDescriptionEditableTriangleMeshAdapter EditableMeshDescAdapter(&SourceMesh);
+			MeshAdapterTransforms::ApplyTransform(EditableMeshDescAdapter, ToBake);
+			// todo: support vertex-only update
+			UE::ToolTarget::CommitMeshDescriptionUpdate(Targets[ComponentIdx], &SourceMesh);
 
 			Component->SetWorldTransform(NewWorldTransform);
 		}
@@ -491,8 +490,13 @@ void UEditPivotTool::UpdateAssets(const FFrame3d& NewPivotWorldFrame)
 			FTransform Baked = OriginalTransforms[MapToFirstOccurrences[ComponentIdx]] * NewWorldInverse;
 			Component->SetWorldTransform(Baked.Inverse() * OriginalTransforms[ComponentIdx]);
 		}
-		TargetComponent->GetOwnerActor()->MarkComponentsRenderStateDirty();
-		TargetComponent->GetOwnerActor()->UpdateComponentTransforms();
+
+		AActor* OwnerActor = UE::ToolTarget::GetTargetActor(Targets[ComponentIdx]);
+		if (OwnerActor)
+		{
+			OwnerActor->MarkComponentsRenderStateDirty();
+			OwnerActor->UpdateComponentTransforms();
+		}
 	}
 
 	// hack to ensure user sees the updated pivot immediately: request re-select of the original selection
@@ -500,8 +504,11 @@ void UEditPivotTool::UpdateAssets(const FFrame3d& NewPivotWorldFrame)
 	NewSelection.ModificationType = ESelectedObjectsModificationType::Replace;
 	for (int OrigMeshIdx = 0; OrigMeshIdx < Targets.Num(); OrigMeshIdx++)
 	{
-		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(OrigMeshIdx);
-		NewSelection.Actors.Add(TargetComponent->GetOwnerActor());
+		AActor* OwnerActor = UE::ToolTarget::GetTargetActor(Targets[OrigMeshIdx]);
+		if (OwnerActor)
+		{
+			NewSelection.Actors.Add(OwnerActor);
+		}
 	}
 	GetToolManager()->RequestSelectionChange(NewSelection);
 

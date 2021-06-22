@@ -18,7 +18,6 @@
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
-#include "TargetInterfaces/AssetBackedTarget.h"
 #include "ToolTargetManager.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
@@ -35,8 +34,7 @@ const FToolTargetTypeRequirements& UMirrorToolBuilder::GetTargetRequirements() c
 		UMaterialProvider::StaticClass(),
 		UMeshDescriptionCommitter::StaticClass(),
 		UMeshDescriptionProvider::StaticClass(),
-		UPrimitiveComponentBackedTarget::StaticClass(),
-		UAssetBackedTarget::StaticClass()
+		UPrimitiveComponentBackedTarget::StaticClass()
 		});
 	return TypeRequirements;
 }
