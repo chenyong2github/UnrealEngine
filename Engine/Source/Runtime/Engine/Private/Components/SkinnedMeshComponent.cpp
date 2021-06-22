@@ -1481,13 +1481,13 @@ bool USkinnedMeshComponent::IsSkinCacheAllowed(int32 LodIdx) const
 
 	if (!SkeletalMesh)
 	{
-		return GEnableGPUSkinCache && (bIsRayTracing || bGlobalDefault);
+		return GEnableGPUSkinCache && bGlobalDefault;
 	}
 
 	FSkeletalMeshLODInfo* LodInfo = SkeletalMesh->GetLODInfo(LodIdx);
 	if (!LodInfo)
 	{
-		return GEnableGPUSkinCache && (bIsRayTracing || bGlobalDefault);
+		return GEnableGPUSkinCache && bGlobalDefault;
 	}
 
 	bool bLodEnabled = LodInfo->SkinCacheUsage == ESkinCacheUsage::Auto ?
@@ -1496,14 +1496,14 @@ bool USkinnedMeshComponent::IsSkinCacheAllowed(int32 LodIdx) const
 
 	if (!SkinCacheUsage.IsValidIndex(LodIdx))
 	{
-		return GEnableGPUSkinCache && (bIsRayTracing || bLodEnabled);
+		return GEnableGPUSkinCache && bLodEnabled;
 	}
 
 	bool bComponentEnabled = SkinCacheUsage[LodIdx] == ESkinCacheUsage::Auto ? 
 		bLodEnabled :
 		SkinCacheUsage[LodIdx] == ESkinCacheUsage::Enabled;
 
-	return GEnableGPUSkinCache && (bIsRayTracing || bComponentEnabled);
+	return GEnableGPUSkinCache && bComponentEnabled;
 }
 
 void USkinnedMeshComponent::GetBoneNames(TArray<FName>& BoneNames)

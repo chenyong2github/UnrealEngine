@@ -84,7 +84,7 @@ public:
 	 * @param	ChunkIdx - not used
 	 * @return	vertex factory for rendering the LOD, 0 to suppress rendering
 	 */
-	virtual const FVertexFactory* GetSkinVertexFactory(const FSceneView* View, int32 LODIndex,int32 ChunkIdx) const = 0;
+	virtual const FVertexFactory* GetSkinVertexFactory(const FSceneView* View, int32 LODIndex,int32 ChunkIdx, ESkinVertexFactoryMode VFMode = ESkinVertexFactoryMode::Default) const = 0;
 
 	/**
 	 * Re-skin cached vertices for an LOD and update the vertex buffer. Note that this
@@ -204,6 +204,7 @@ public:
 	virtual FRayTracingGeometry* GetRayTracingGeometry() { return nullptr; }
 	virtual const FRayTracingGeometry* GetRayTracingGeometry() const { return nullptr; }
 	virtual FRWBuffer* GetRayTracingDynamicVertexBuffer() { return nullptr; }
+	virtual int32 GetRayTracingLOD() const { return GetLOD(); }
 #endif // RHI_RAYTRACING
 
 	/** Called to notify clothing data that component transform has changed */
@@ -245,6 +246,7 @@ public:
 	bool bRequireRecreatingRayTracingGeometry;
 	bool bSupportRayTracing;
 	bool bHiddenMaterialVisibilityDirtyForRayTracing;
+	int32 RayTracingMinLOD;
 #endif
 
 #if UE_BUILD_SHIPPING
@@ -286,6 +288,7 @@ protected:
 	TArray<FSkeletalMeshLODInfo> SkeletalMeshLODInfo;
 
 	class FGPUSkinCacheEntry* SkinCacheEntry;
+	FGPUSkinCacheEntry* SkinCacheEntryForRayTracing;
 
 	/** Used to keep track of the first call to UpdateMinDesiredLODLevel each frame. from ViewFamily.FrameNumber */
 	uint32 LastFrameNumber;

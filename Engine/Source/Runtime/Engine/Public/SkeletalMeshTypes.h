@@ -46,7 +46,11 @@ enum class ESkinVertexColorChannel : uint8
 	None = Alpha
 };
 
-
+enum class ESkinVertexFactoryMode
+{
+	Default,
+	RayTracing
+};
 
 /**
  * A structure for holding mesh-to-mesh triangle influences to skin one mesh to another (similar to a wrap deformer)
@@ -304,7 +308,7 @@ protected:
 	/** Only call on render thread timeline */
 	uint8 GetCurrentFirstLODIdx_Internal() const;
 private:
-	void CreateBaseMeshBatch(const FSceneView* View, const FSkeletalMeshLODRenderData& LODData, const int32 LODIndex, const int32 SectionIndex, const FSectionElementInfo& SectionElementInfo, FMeshBatch& Mesh) const;
+	void CreateBaseMeshBatch(const FSceneView* View, const FSkeletalMeshLODRenderData& LODData, const int32 LODIndex, const int32 SectionIndex, const FSectionElementInfo& SectionElementInfo, FMeshBatch& Mesh, ESkinVertexFactoryMode VFMode = ESkinVertexFactoryMode::Default) const;
 };
 
 /** Used to recreate all skinned mesh components for a given skeletal mesh */
