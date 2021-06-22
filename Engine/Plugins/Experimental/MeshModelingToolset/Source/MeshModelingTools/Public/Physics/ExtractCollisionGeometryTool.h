@@ -3,11 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SingleSelectionTool.h"
-#include "InteractiveToolBuilder.h"
+#include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Physics/CollisionPropertySets.h"
-#include "BaseTools/SingleSelectionMeshEditingTool.h"
+#include "Properties/CreateMeshObjectTypeProperties.h"
 #include "ExtractCollisionGeometryTool.generated.h"
 
 class UPreviewGeometry;
@@ -25,6 +24,42 @@ protected:
 	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
 };
 
+
+UENUM()
+enum class EExtractCollisionOutputType : uint8
+{
+	/** Simple Collision shapes (Box, Sphere, Capsule, Convex) */
+	Simple = 0,
+	/** Complex Collision Mesh */
+	Complex = 1
+};
+
+
+UCLASS()
+class MESHMODELINGTOOLS_API UExtractCollisionToolProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+	/** Type of collision geometry to convert to Mesh */
+	UPROPERTY(EditAnywhere, Category = Options)
+	EExtractCollisionOutputType CollisionType = EExtractCollisionOutputType::Simple;
+
+	/** Whether or not to weld coincident border edges of the Complex Collision Mesh (if possible) */
+	UPROPERTY(EditAnywhere, Category = Options, Meta = (EditCondition = "CollisionType == EExtractCollisionOutputType::Complex"))
+	bool bWeldEdges = true;
+
+	/** Whether or not to generate a seperate Mesh Object for each Simple Collision Shape  */
+	UPROPERTY(EditAnywhere, Category = Options, Meta = (EditCondition = "CollisionType == EExtractCollisionOutputType::Simple"))
+	bool bOutputSeparateMeshes = true;
+
+	/** Show/Hide a preview of the generated mesh (overlaps source mesh) */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bShowPreview = false;
+
+	/** Show/Hide input mesh */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bShowInputMesh = true;
+};
 
 
 
@@ -47,6 +82,13 @@ public:
 
 protected:
 
+	/** Property set for type of output object (StaticMesh, Volume, etc) */
+	UPROPERTY()
+	UCreateMeshObjectTypeProperties* OutputTypeProperties;
+
+	UPROPERTY()
+	UExtractCollisionToolProperties* Settings;
+
 	UPROPERTY()
 	UCollisionGeometryVisualizationProperties* VizSettings = nullptr;
 
@@ -63,9 +105,11 @@ protected:
 	// these are TSharedPtr because TPimplPtr cannot currently be added to a TArray?
 	TSharedPtr<FPhysicsDataCollection> PhysicsInfo;
 
+	TArray<UE::Geometry::FDynamicMesh3> CurrentMeshParts;
 	UE::Geometry::FDynamicMesh3 CurrentMesh;
 	bool bResultValid = false;
-	void RecalculateMesh();
+	void RecalculateMesh_Simple();
+	void RecalculateMesh_Complex();
 
 	bool bVisualizationDirty = false;
 	void UpdateVisualization();
