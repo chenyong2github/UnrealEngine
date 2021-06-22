@@ -349,20 +349,23 @@ public:
 
 	bool BoneIsChildOf(const int32 ChildBoneIndex, const int32 ParentBoneIndex) const
 	{
-		// Bones are in strictly increasing order.
-		// So child must have an index greater than his parent.
-		if( ChildBoneIndex > ParentBoneIndex )
+		if (ParentBoneIndex != INDEX_NONE)
 		{
-			int32 BoneIndex = GetParentIndex(ChildBoneIndex);
-			do
+			// Bones are in strictly increasing order.
+			// So child must have an index greater than his parent.
+			if (ChildBoneIndex > ParentBoneIndex)
 			{
-				if( BoneIndex == ParentBoneIndex )
+				int32 BoneIndex = GetParentIndex(ChildBoneIndex);
+				do
 				{
-					return true;
-				}
-				BoneIndex = GetParentIndex(BoneIndex);
+					if (BoneIndex == ParentBoneIndex)
+					{
+						return true;
+					}
+					BoneIndex = GetParentIndex(BoneIndex);
 
-			} while (BoneIndex != INDEX_NONE);
+				} while (BoneIndex != INDEX_NONE);
+			}
 		}
 
 		return false;
