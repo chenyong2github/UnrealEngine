@@ -57,7 +57,7 @@ public:
 	/** Create a new shaped text cache */
 	static FShapedTextCacheRef Create(const TSharedRef<FSlateFontCache>& InFontCache)
 	{
-		return MakeShared<FShapedTextCache>(InFontCache);
+		return MakeShared<FShapedTextCache>(FPrivateToken{}, InFontCache);
 	}
 
 	/**
@@ -109,14 +109,17 @@ public:
 	}
 
 private:
-	friend class SharedPointerInternals::TIntrusiveReferenceController<FShapedTextCache>;
+	// Private token only allows members or friends to call MakeShared
+	struct FPrivateToken { explicit FPrivateToken() = default; };
 
+public:
 	/** Constructor */
-	FShapedTextCache(const TSharedRef<FSlateFontCache>& InFontCache)
+	FShapedTextCache(FPrivateToken, const TSharedRef<FSlateFontCache>& InFontCache)
 		: FontCachePtr(InFontCache)
 	{
 	}
 
+private:
 	/** Font cache to use when shaping text */
 	TWeakPtr<FSlateFontCache> FontCachePtr;
 

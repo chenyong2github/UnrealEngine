@@ -55,7 +55,7 @@ public:
 
 	/** Get the Protocol Binding ViewModels, filtered by the provided list of hidden protocol type names */
 	TArray<TSharedPtr<FProtocolBindingViewModel>> GetFilteredBindings(const TSet<FName>& InHiddenProtocolTypeNames);
-
+	
 	/** Checks if this entity is bound to one or more objects. */
 	bool IsBound() const;
 
@@ -79,13 +79,15 @@ public:
 	/** Something has changed within the ViewModel */
 	FOnChanged& OnChanged() { return OnChangedDelegate; }
 
+private:
+	// Private token only allows members or friends to call MakeShared
+	struct FPrivateToken { explicit FPrivateToken() = default; };
+	
+public:
+	FProtocolEntityViewModel(FPrivateToken) {}
+	FProtocolEntityViewModel(FPrivateToken, URemoteControlPreset* InPreset, const FGuid& InEntityId);
+
 protected:
-	template <typename FProtocolEntityViewModel>
-	friend class SharedPointerInternals::TIntrusiveReferenceController;
-
-	FProtocolEntityViewModel() = default;
-	FProtocolEntityViewModel(URemoteControlPreset* InPreset, const FGuid& InEntityId);
-
 	void Initialize();
 
 	/** Respond when entity is unexposed */

@@ -72,7 +72,7 @@ const TCHAR* FLwsWebSocket::ToString(const EState InState)
 	return TEXT("Unknown");
 }
 
-FLwsWebSocket::FLwsWebSocket(const FString& InUrl, const TArray<FString>& InProtocols, const FString& InUpgradeHeader)
+FLwsWebSocket::FLwsWebSocket(FPrivateToken, const FString& InUrl, const TArray<FString>& InProtocols, const FString& InUpgradeHeader)
 	: State(EState::None)
 	, LastGameThreadState(EState::None)
 	, bWasSendQueueEmpty(true)

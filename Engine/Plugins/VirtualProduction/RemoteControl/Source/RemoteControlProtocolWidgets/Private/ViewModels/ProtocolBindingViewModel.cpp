@@ -22,13 +22,13 @@ namespace Commands
 	{
 		FGuid EntityId;
 		FGuid BindingId;
-		FGuid RangeId;
+		FGuid RangeId;	
 		TArray<FGuid> RangeIds; // Specify if there are multiple to remove
 	};
-
+	
 	static FGuid AddRangeMappingInternal(URemoteControlPreset* InPreset, const FAddRemoveRangeArgs& InArgs)
 	{
-		if (TSharedPtr<FRemoteControlProperty> RCProperty = InPreset->GetExposedEntity<FRemoteControlProperty>(InArgs.EntityId).Pin())
+		if(TSharedPtr<FRemoteControlProperty> RCProperty = InPreset->GetExposedEntity<FRemoteControlProperty>(InArgs.EntityId).Pin())
 		{
 			FRemoteControlProtocolBinding* ProtocolBinding = RCProperty->ProtocolBindings.FindByHash(GetTypeHash(InArgs.BindingId), InArgs.BindingId);
 			check(ProtocolBinding);
@@ -49,19 +49,19 @@ namespace Commands
 			}
 			else
 			{
-				const FRemoteControlProtocolMapping RangesData(RCProperty->GetProperty(), (*EntityPtr)->GetRangePropertySize());
+			const FRemoteControlProtocolMapping RangesData(RCProperty->GetProperty(), (*EntityPtr)->GetRangePropertySize());
 				ProtocolBinding->AddMapping(RangesData);
 
-				return RangesData.GetId();
-			}
+			return RangesData.GetId();
 		}
-
+		}
+		
 		return FGuid();
 	}
 
 	static bool RemoveRangeMappingInternal(URemoteControlPreset* InPreset, const FAddRemoveRangeArgs& InArgs)
 	{
-		if (TSharedPtr<FRemoteControlProperty> RCProperty = InPreset->GetExposedEntity<FRemoteControlProperty>(InArgs.EntityId).Pin())
+		if(TSharedPtr<FRemoteControlProperty> RCProperty = InPreset->GetExposedEntity<FRemoteControlProperty>(InArgs.EntityId).Pin())
 		{
 			FRemoteControlProtocolBinding* ProtocolBinding = RCProperty->ProtocolBindings.FindByHash(GetTypeHash(InArgs.BindingId), InArgs.BindingId);
 			check(ProtocolBinding);
@@ -79,7 +79,7 @@ namespace Commands
 
 			return NumRemoved > 0;
 		}
-
+		
 		return false;
 	}
 }
@@ -95,13 +95,13 @@ TMap<FProtocolBindingViewModel::EValidity, FText> FProtocolBindingViewModel::Val
 
 TSharedRef<FProtocolBindingViewModel> FProtocolBindingViewModel::Create(const TSharedRef<FProtocolEntityViewModel>& InParentViewModel, const TSharedRef<FRemoteControlProtocolBinding>& InBinding)
 {
-	TSharedRef<FProtocolBindingViewModel> ViewModel = MakeShared<FProtocolBindingViewModel>(InParentViewModel, InBinding);
+	TSharedRef<FProtocolBindingViewModel> ViewModel = MakeShared<FProtocolBindingViewModel>(FPrivateToken{}, InParentViewModel, InBinding);
 	ViewModel->Initialize();
 
 	return ViewModel;
 }
 
-FProtocolBindingViewModel::FProtocolBindingViewModel(const TSharedRef<FProtocolEntityViewModel>& InParentViewModel, const TSharedRef<FRemoteControlProtocolBinding>& InBinding)
+FProtocolBindingViewModel::FProtocolBindingViewModel(FPrivateToken, const TSharedRef<FProtocolEntityViewModel>& InParentViewModel, const TSharedRef<FRemoteControlProtocolBinding>& InBinding)
 	: Preset(InParentViewModel->Preset)
 	, ParentViewModel(InParentViewModel)
 	, Property(InParentViewModel->Property)
@@ -122,7 +122,7 @@ void FProtocolBindingViewModel::Initialize()
 {
 	FRemoteControlProtocolBinding* Binding = GetBinding();
 	// May be stale as a result of an undo deleting it.
-	if (Binding)
+	if(Binding)
 	{
 		if (!RemoteControlTypeUtilities::IsSupportedMappingType(GetProperty().Get()))
 		{
@@ -131,9 +131,9 @@ void FProtocolBindingViewModel::Initialize()
 
 		Ranges.Empty(Ranges.Num());
 		GetBinding()->ForEachMapping([&](FRemoteControlProtocolMapping& InMapping)
-		{
-			Ranges.Emplace(FProtocolRangeViewModel::Create(SharedThis(this), InMapping.GetId()));
-		});
+        { 
+            Ranges.Emplace(FProtocolRangeViewModel::Create(SharedThis(this), InMapping.GetId()));
+        });
 	}
 }
 
@@ -148,20 +148,20 @@ FGuid FProtocolBindingViewModel::AddRangeMapping()
 
 	using FCommandChange = TRemoteControlProtocolCommandChange<Commands::FAddRemoveRangeArgs>;
 	using FOnChange = FCommandChange::FOnUndoRedoDelegate;
-	if (GUndo)
+	if(GUndo)
 	{
 		// What to do on undo and redo
 		GUndo->StoreUndo(Preset.Get(),
-						MakeUnique<FCommandChange>(
-							Preset.Get(),
-							Commands::FAddRemoveRangeArgs{ParentViewModel.Pin()->GetId(), GetId(), NewRangeViewModel->GetId()},
-							FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveRangeArgs& InChangeArgs) { Commands::AddRangeMappingInternal(InPreset, InChangeArgs); }),
-							FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveRangeArgs& InChangeArgs) { Commands::RemoveRangeMappingInternal(InPreset, InChangeArgs); })
-						)
-		);
+            MakeUnique<FCommandChange>(
+                Preset.Get(),
+                Commands::FAddRemoveRangeArgs{ParentViewModel.Pin()->GetId(), GetId(), NewRangeViewModel->GetId()},
+                FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveRangeArgs& InChangeArgs){ Commands::AddRangeMappingInternal(InPreset, InChangeArgs); }),
+                FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveRangeArgs& InChangeArgs){ Commands::RemoveRangeMappingInternal(InPreset, InChangeArgs); })
+            )
+        );
 	}
 
-	OnRangeMappingAddedDelegate.Broadcast(NewRangeViewModel.ToSharedRef());
+	OnRangeMappingAddedDelegate.Broadcast(NewRangeViewModel.ToSharedRef());	
 
 	return NewRangeViewModel->GetId();
 }
@@ -191,27 +191,27 @@ void FProtocolBindingViewModel::RemoveRangeMapping(const FGuid& InId)
 
 	using FCommandChange = TRemoteControlProtocolCommandChange<Commands::FAddRemoveRangeArgs>;
 	using FOnChange = FCommandChange::FOnUndoRedoDelegate;
-	if (GUndo)
+	if(GUndo)
 	{
 		// What to do on undo and redo
 		GUndo->StoreUndo(Preset.Get(),
-						MakeUnique<FCommandChange>(
-							Preset.Get(),
-							Commands::FAddRemoveRangeArgs{ParentViewModel.Pin()->GetId(), GetId(), InId},
-							FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveRangeArgs& InChangeArgs) { Commands::RemoveRangeMappingInternal(InPreset, InChangeArgs); }),
-							FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveRangeArgs& InChangeArgs) { Commands::AddRangeMappingInternal(InPreset, InChangeArgs); })
-						)
-		);
+            MakeUnique<FCommandChange>(
+                Preset.Get(),
+                Commands::FAddRemoveRangeArgs{ParentViewModel.Pin()->GetId(), GetId(), InId},
+                FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveRangeArgs& InChangeArgs){ Commands::RemoveRangeMappingInternal(InPreset, InChangeArgs); }),
+                FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveRangeArgs& InChangeArgs){ Commands::AddRangeMappingInternal(InPreset, InChangeArgs); })
+            )
+        );
 	}
 
-	if (Commands::RemoveRangeMappingInternal(Preset.Get(), Commands::FAddRemoveRangeArgs{ParentViewModel.Pin()->GetId(), GetId(), InId}))
+	if(Commands::RemoveRangeMappingInternal(Preset.Get(), Commands::FAddRemoveRangeArgs{ParentViewModel.Pin()->GetId(), GetId(), InId}))
 	{
 		const int32 NumItemsRemoved = Ranges.RemoveAll([&](const TSharedPtr<FProtocolRangeViewModel>& InRange)
-		{
-			return InRange->GetId() == InId;
-		});
+        {
+            return InRange->GetId() == InId;
+        });
 
-		if (NumItemsRemoved <= 0)
+		if(NumItemsRemoved <= 0)
 			return;
 
 		OnRangeMappingRemovedDelegate.Broadcast(InId);
@@ -286,56 +286,56 @@ void FProtocolBindingViewModel::AddDefaultRangeMappings()
 				int64 IntMin = RemoteControlTypeUtilities::GetDefaultRangeValueMin<int64>(NumericProperty);
 				int64 IntMax = RemoteControlTypeUtilities::GetDefaultRangeValueMax<int64>(NumericProperty);
 
-				// fixup typename according to typesize, ie. it can be a UInt32 but a typesize of 2 makes its a UInt16
-				if (RangePropertyTypeName == NAME_UInt32Property && RangePropertySize > 0)
-				{
-					if (RangePropertySize == sizeof(uint8))
-					{
+		// fixup typename according to typesize, ie. it can be a UInt32 but a typesize of 2 makes its a UInt16
+		if(RangePropertyTypeName == NAME_UInt32Property && RangePropertySize > 0)
+		{
+			if(RangePropertySize == sizeof(uint8))
+			{
 						IntMin = RemoteControlTypeUtilities::GetDefaultRangeValueMin<uint8>(NumericProperty);
 						IntMax = RemoteControlTypeUtilities::GetDefaultRangeValueMax<uint8>(NumericProperty);
-						RangePropertyTypeName = NAME_ByteProperty;
-					}
-					else if (RangePropertySize == sizeof(uint16))
-					{
+				RangePropertyTypeName = NAME_ByteProperty;
+			}
+			else if(RangePropertySize == sizeof(uint16))
+			{
 						IntMin = RemoteControlTypeUtilities::GetDefaultRangeValueMin<uint16>(NumericProperty);
 						IntMax = RemoteControlTypeUtilities::GetDefaultRangeValueMax<uint16>(NumericProperty);
-						RangePropertyTypeName = NAME_UInt16Property;
-					}
-					else if (RangePropertySize == sizeof(uint64))
-					{
+				RangePropertyTypeName = NAME_UInt16Property; 
+			}
+			else if(RangePropertySize == sizeof(uint64))
+			{
 						IntMin = RemoteControlTypeUtilities::GetDefaultRangeValueMin<uint64>(NumericProperty);
 						IntMax = RemoteControlTypeUtilities::GetDefaultRangeValueMax<uint64>(NumericProperty);
-						RangePropertyTypeName = NAME_UInt64Property;
-					}
-				}
+				RangePropertyTypeName = NAME_UInt64Property;
+			}
+		}
 
-				if (RangePropertyTypeName == NAME_ByteProperty)
+				if(RangePropertyTypeName == NAME_ByteProperty)
 				{
 					MinItem->SetInputValue<uint8>(IntMin);
 					MaxItem->SetInputValue<uint8>(IntMax);
 				}
-				else if (RangePropertyTypeName == NAME_UInt16Property)
+				else if(RangePropertyTypeName == NAME_UInt16Property)
 				{
 					MinItem->SetInputValue<uint16>(IntMin);
 					MaxItem->SetInputValue<uint16>(IntMax);
 				}
-				else if (RangePropertyTypeName == NAME_UInt32Property)
+				else if(RangePropertyTypeName == NAME_UInt32Property)
 				{
 					MinItem->SetInputValue<uint32>(IntMin);
 					MaxItem->SetInputValue<uint32>(IntMax);
 				}
-				else if (RangePropertyTypeName == NAME_UInt64Property)
+				else if(RangePropertyTypeName == NAME_UInt64Property)
 				{
 					MinItem->SetInputValue<uint64>(IntMin);
 					MaxItem->SetInputValue<uint64>(IntMax);
 				}
 			}
-			else if (NumericProperty->IsFloatingPoint())
+			else if(NumericProperty->IsFloatingPoint())
 			{
 				const float FloatMin = RemoteControlTypeUtilities::GetDefaultRangeValueMin<float>(RangeProperty);
 				const float FloatMax = RemoteControlTypeUtilities::GetDefaultRangeValueMax<float>(RangeProperty);
 
-				if (RangePropertyTypeName == NAME_FloatProperty)
+				if(RangePropertyTypeName == NAME_FloatProperty)
 				{
 					MinItem->SetInputValue<float>(FloatMin);
 					MaxItem->SetInputValue<float>(FloatMax);
@@ -346,15 +346,15 @@ void FProtocolBindingViewModel::AddDefaultRangeMappings()
 
 	const FProperty* MappingProperty = GetProperty().Get();
 	FName MappingPropertyTypeName = MappingProperty->GetClass()->GetFName();
-	if (const FStructProperty* StructProperty = CastField<FStructProperty>(MappingProperty))
+	if(const FStructProperty* StructProperty = CastField<FStructProperty>(MappingProperty))
 	{
 		MappingPropertyTypeName = StructProperty->Struct->GetFName();
 	}
 	// Mapping (output)
 	{
-		if (const FNumericProperty* NumericProperty = CastField<FNumericProperty>(MappingProperty))
+		if(const FNumericProperty* NumericProperty = CastField<FNumericProperty>(MappingProperty))
 		{
-			if (NumericProperty->IsInteger())
+			if(NumericProperty->IsInteger())
 			{
 				const int64 IntMin = RemoteControlTypeUtilities::GetDefaultMappingValueMin<int64>(NumericProperty);
 				const int64 IntMax = RemoteControlTypeUtilities::GetDefaultMappingValueMax<int64>(NumericProperty);
@@ -364,32 +364,32 @@ void FProtocolBindingViewModel::AddDefaultRangeMappings()
 					MinItem->SetOutputValue<uint8>(IntMin);
 					MaxItem->SetOutputValue<uint8>(IntMax);
 				}
-				else if (MappingPropertyTypeName == NAME_Int8Property)
+				else if(MappingPropertyTypeName == NAME_Int8Property)
 				{
 					MinItem->SetOutputValue<int8>(IntMin);
 					MaxItem->SetOutputValue<int8>(IntMax);
 				}
-				else if (MappingPropertyTypeName == NAME_Int16Property)
+				else if(MappingPropertyTypeName == NAME_Int16Property)
 				{
 					MinItem->SetOutputValue<int16>(IntMin);
 					MaxItem->SetOutputValue<int16>(IntMax);
 				}
-				else if (RangePropertyTypeName == NAME_UInt16Property)
+				else if(RangePropertyTypeName == NAME_UInt16Property)
 				{
 					MinItem->SetOutputValue<uint16>(IntMin);
 					MaxItem->SetOutputValue<uint16>(IntMax);
 				}
-				else if (MappingPropertyTypeName == NAME_Int32Property)
+				else if(MappingPropertyTypeName == NAME_Int32Property)
 				{
 					MinItem->SetOutputValue<int32>(IntMin);
 					MaxItem->SetOutputValue<int32>(IntMax);
 				}
-				else if (RangePropertyTypeName == NAME_UInt32Property)
+				else if(RangePropertyTypeName == NAME_UInt32Property)
 				{
 					MinItem->SetOutputValue<uint32>(IntMin);
 					MaxItem->SetOutputValue<uint32>(IntMax);
 				}
-				else if (MappingPropertyTypeName == NAME_Int64Property)
+				else if(MappingPropertyTypeName == NAME_Int64Property)
 				{
 					MinItem->SetOutputValue<int64>(IntMin);
 					MaxItem->SetOutputValue<int64>(IntMax);
@@ -400,7 +400,7 @@ void FProtocolBindingViewModel::AddDefaultRangeMappings()
 					MaxItem->SetOutputValue<uint64>(IntMax);
 				}
 			}
-			else if (NumericProperty->IsFloatingPoint())
+			else if(NumericProperty->IsFloatingPoint())
 			{
 				const double FloatMin = RemoteControlTypeUtilities::GetDefaultMappingValueMin<double>(MappingProperty);
 				const double FloatMax = RemoteControlTypeUtilities::GetDefaultMappingValueMax<double>(MappingProperty);
@@ -420,10 +420,10 @@ void FProtocolBindingViewModel::AddDefaultRangeMappings()
 		else
 		{
 			if (MappingPropertyTypeName == NAME_BoolProperty)
-			{
+				{
 				MinItem->SetOutputValue<bool>(RemoteControlTypeUtilities::GetDefaultMappingValueMin<bool>(MappingProperty));
 				MaxItem->SetOutputValue<bool>(RemoteControlTypeUtilities::GetDefaultMappingValueMax<bool>(MappingProperty));
-			}
+				}
 
 			else if (MappingPropertyTypeName == NAME_StrProperty)
 			{
@@ -438,11 +438,11 @@ void FProtocolBindingViewModel::AddDefaultRangeMappings()
 				MaxItem->SetOutputValue<Type>(RemoteControlTypeUtilities::GetDefaultMappingValueMax<Type>(MappingProperty));
 			}
 			else if (MappingPropertyTypeName == NAME_TextProperty)
-			{
+				{
 				using Type = TRCTypeNameToType<NAME_TextProperty>::Type;
 				MinItem->SetOutputValue<Type>(RemoteControlTypeUtilities::GetDefaultMappingValueMin<Type>(MappingProperty));
 				MaxItem->SetOutputValue<Type>(RemoteControlTypeUtilities::GetDefaultMappingValueMax<Type>(MappingProperty));
-			}
+				}
 
 			else if (MappingPropertyTypeName == NAME_Vector)
 			{
@@ -450,17 +450,17 @@ void FProtocolBindingViewModel::AddDefaultRangeMappings()
 				MaxItem->SetOutputValue<FVector>(RemoteControlTypeUtilities::GetDefaultMappingValueMax<FVector>(MappingProperty));
 			}
 			else if (MappingPropertyTypeName == NAME_Vector2D)
-			{
+				{
 				using Type = TRCTypeNameToType<NAME_Vector2D>::Type;
 				MinItem->SetOutputValue<Type>(RemoteControlTypeUtilities::GetDefaultMappingValueMin<Type>(MappingProperty));
 				MaxItem->SetOutputValue<Type>(RemoteControlTypeUtilities::GetDefaultMappingValueMax<Type>(MappingProperty));
-			}
+				}
 			else if (MappingPropertyTypeName == NAME_Vector4)
-			{
+				{
 				using Type = TRCTypeNameToType<NAME_Vector4>::Type;
 				MinItem->SetOutputValue<Type>(RemoteControlTypeUtilities::GetDefaultMappingValueMin<Type>(MappingProperty));
 				MaxItem->SetOutputValue<Type>(RemoteControlTypeUtilities::GetDefaultMappingValueMax<Type>(MappingProperty));
-			}
+				}
 			else if (MappingPropertyTypeName == NAME_Rotator)
 			{
 				using Type = TRCTypeNameToType<NAME_Rotator>::Type;
@@ -472,9 +472,9 @@ void FProtocolBindingViewModel::AddDefaultRangeMappings()
 				using Type = TRCTypeNameToType<NAME_Color>::Type;
 				MinItem->SetOutputValue<Type>(RemoteControlTypeUtilities::GetDefaultMappingValueMin<Type>(MappingProperty));
 				MaxItem->SetOutputValue<Type>(RemoteControlTypeUtilities::GetDefaultMappingValueMax<Type>(MappingProperty));
-			}
+		}
 			else if (MappingPropertyTypeName == NAME_LinearColor)
-			{
+		{
 				using Type = TRCTypeNameToType<NAME_LinearColor>::Type;
 				MinItem->SetOutputValue<Type>(RemoteControlTypeUtilities::GetDefaultMappingValueMin<Type>(MappingProperty));
 				MaxItem->SetOutputValue<Type>(RemoteControlTypeUtilities::GetDefaultMappingValueMax<Type>(MappingProperty));
@@ -500,7 +500,7 @@ void FProtocolBindingViewModel::AddDefaultRangeMappings()
 			else
 			{
 				UE_LOG(LogRemoteControlProtocolWidgets, Warning, TEXT("AddDefaultRangeMappings type: %s for default value resolution."), *MappingPropertyTypeName.ToString());
-			}
+			}	
 		}
 	}
 }
@@ -526,7 +526,7 @@ TSharedPtr<IRemoteControlProtocol> FProtocolBindingViewModel::GetProtocol() cons
 FRemoteControlProtocolMapping* FProtocolBindingViewModel::GetRangesMapping(const FGuid& InRangeId) const
 {
 	check(IsValid());
-
+	
 	FRemoteControlProtocolMapping* Mapping = GetBinding()->FindMapping(InRangeId);
 	check(InRangeId == Mapping->GetId());
 	return Mapping;

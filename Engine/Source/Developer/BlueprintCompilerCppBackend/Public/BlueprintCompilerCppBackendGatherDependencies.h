@@ -59,11 +59,13 @@ public:
 
 	static bool IsFieldFromExcludedPackage(const UField* Field, const TSet<FName>& InExcludedModules);
 
+private:
+	// Private token only allows members or friends to call MakeShared
+	struct FPrivateToken { explicit FPrivateToken() = default; };
+
+public:
+	FGatherConvertedClassDependencies(FPrivateToken, UStruct* InStruct, const FCompilerNativizationOptions& InNativizationOptions);
+
 protected:
-	FGatherConvertedClassDependencies(UStruct* InStruct, const FCompilerNativizationOptions& InNativizationOptions);
-
-	/** Friend for access to constructor via MakeShared */
-	friend class SharedPointerInternals::TIntrusiveReferenceController<FGatherConvertedClassDependencies>;
-
 	void DependenciesForHeader();
 };

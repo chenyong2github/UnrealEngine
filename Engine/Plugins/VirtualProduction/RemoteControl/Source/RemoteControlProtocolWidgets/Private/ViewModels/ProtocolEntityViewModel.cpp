@@ -72,13 +72,13 @@ TMap<FProtocolEntityViewModel::EValidity, FText> FProtocolEntityViewModel::Valid
 
 TSharedRef<FProtocolEntityViewModel> FProtocolEntityViewModel::Create(URemoteControlPreset* InPreset, const FGuid& InEntityId)
 {
-	TSharedRef<FProtocolEntityViewModel> ViewModel = MakeShared<FProtocolEntityViewModel>(InPreset, InEntityId);
+	TSharedRef<FProtocolEntityViewModel> ViewModel = MakeShared<FProtocolEntityViewModel>(FPrivateToken{}, InPreset, InEntityId);
 	ViewModel->Initialize();
 
 	return ViewModel;
 }
 
-FProtocolEntityViewModel::FProtocolEntityViewModel(URemoteControlPreset* InPreset, const FGuid& InEntityId)
+FProtocolEntityViewModel::FProtocolEntityViewModel(FPrivateToken, URemoteControlPreset* InPreset, const FGuid& InEntityId)
 	: Preset(InPreset)
 	, PropertyId(InEntityId)
 {
@@ -102,7 +102,7 @@ void FProtocolEntityViewModel::Initialize()
 	if (TSharedPtr<FRemoteControlProperty> RCProperty = Preset->GetExposedEntity<FRemoteControlProperty>(PropertyId).Pin())
 	{
 		Property = RCProperty->GetProperty();
-		for (FRemoteControlProtocolBinding& Binding : RCProperty->ProtocolBindings)
+		for(FRemoteControlProtocolBinding& Binding : RCProperty->ProtocolBindings)
 		{
 			const TSharedPtr<IRemoteControlProtocol> Protocol = IRemoteControlProtocolModule::Get().GetProtocolByName(Binding.GetProtocolName());
 			// Supporting plugin needs to be loaded/protocol available
@@ -165,18 +165,18 @@ TSharedPtr<FProtocolBindingViewModel> FProtocolEntityViewModel::AddBinding(const
 		if (GUndo)
 		{
 			GUndo->StoreUndo(Preset.Get(),
-							MakeUnique<FCommandChange>(
-								Preset.Get(),
-								Commands::FAddRemoveProtocolArgs{GetId(), InProtocolName, ProtocolBinding->GetId()},
-								FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveProtocolArgs& InChangeArgs) { Commands::AddProtocolInternal(InPreset, InChangeArgs); }),
-								FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveProtocolArgs& InChangeArgs) { Commands::RemoveProtocolInternal(InPreset, InChangeArgs); })
-							)
-			);
+                MakeUnique<FCommandChange>(
+                    Preset.Get(),
+                    Commands::FAddRemoveProtocolArgs{GetId(), InProtocolName, ProtocolBinding->GetId()},
+                    FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveProtocolArgs& InChangeArgs){ Commands::AddProtocolInternal(InPreset, InChangeArgs); }),
+                    FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveProtocolArgs& InChangeArgs){ Commands::RemoveProtocolInternal(InPreset, InChangeArgs); })
+                )
+            );
 		}
 
 		TSharedPtr<FProtocolBindingViewModel>& NewBindingViewModel = Bindings.Add_GetRef(FProtocolBindingViewModel::Create(AsShared(), ProtocolBinding.ToSharedRef()));
 		NewBindingViewModel->AddDefaultRangeMappings();
-
+		
 		OnBindingAddedDelegate.Broadcast(NewBindingViewModel.ToSharedRef());
 
 		return NewBindingViewModel;
@@ -200,20 +200,20 @@ void FProtocolEntityViewModel::RemoveBinding(const FGuid& InBindingId)
 		if (GUndo)
 		{
 			GUndo->StoreUndo(Preset.Get(),
-							MakeUnique<FCommandChange>(
-								Preset.Get(),
-								Commands::FAddRemoveProtocolArgs{GetId(), RemovedProtocolName, InBindingId},
-								FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveProtocolArgs& InChangeArgs) { Commands::RemoveProtocolInternal(InPreset, InChangeArgs); }),
-								FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveProtocolArgs& InChangeArgs) { Commands::AddProtocolInternal(InPreset, InChangeArgs); })
-							)
-			);
+                MakeUnique<FCommandChange>(
+                    Preset.Get(),
+                    Commands::FAddRemoveProtocolArgs{GetId(), RemovedProtocolName, InBindingId},
+                    FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveProtocolArgs& InChangeArgs){ Commands::RemoveProtocolInternal(InPreset, InChangeArgs); }),
+                    FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveProtocolArgs& InChangeArgs){ Commands::AddProtocolInternal(InPreset, InChangeArgs); })
+                )
+            );
 		}
 	}
 
 	const int32 NumItemsRemoved = Bindings.RemoveAll([&](const TSharedPtr<FProtocolBindingViewModel>& InBinding)
-	{
-		return InBinding->GetId() == InBindingId;
-	});
+    {
+        return InBinding->GetId() == InBindingId;
+    });
 
 	if (NumItemsRemoved <= 0)
 	{
@@ -243,7 +243,7 @@ TArray<TSharedPtr<FProtocolBindingViewModel>> FProtocolEntityViewModel::GetFilte
 	}
 
 	TArray<TSharedPtr<FProtocolBindingViewModel>> FilteredBindings;
-	for (const TSharedPtr<FProtocolBindingViewModel>& Binding : Bindings)
+	for(const TSharedPtr<FProtocolBindingViewModel>& Binding : Bindings)
 	{
 		// Make sure this bindings protocol name is NOT in the Hidden list, then add it to FilteredBindings
 		if (Algo::NoneOf(InHiddenProtocolTypeNames, [&Binding](const FName& InHiddenTypeName)
@@ -254,7 +254,7 @@ TArray<TSharedPtr<FProtocolBindingViewModel>> FProtocolEntityViewModel::GetFilte
 			FilteredBindings.Add(Binding);
 		}
 	}
-
+	
 	return FilteredBindings;
 }
 

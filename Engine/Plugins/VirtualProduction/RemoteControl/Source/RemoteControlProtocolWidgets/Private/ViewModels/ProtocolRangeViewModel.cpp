@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProtocolRangeViewModel.h"
 
@@ -18,13 +18,13 @@ TMap<FProtocolRangeViewModel::EValidity, FText> FProtocolRangeViewModel::Validit
 
 TSharedRef<FProtocolRangeViewModel> FProtocolRangeViewModel::Create(const TSharedRef<FProtocolBindingViewModel>& InParentViewModel, const FGuid& InRangeId)
 {
-	TSharedRef<FProtocolRangeViewModel> ViewModel = MakeShared<FProtocolRangeViewModel>(InParentViewModel, InRangeId);
+	TSharedRef<FProtocolRangeViewModel> ViewModel = MakeShared<FProtocolRangeViewModel>(FPrivateToken{}, InParentViewModel, InRangeId);
 	ViewModel->Initialize();
 
 	return ViewModel;
 }
 
-FProtocolRangeViewModel::FProtocolRangeViewModel(const TSharedRef<FProtocolBindingViewModel>& InParentViewModel, const FGuid& InRangeId)
+FProtocolRangeViewModel::FProtocolRangeViewModel(FPrivateToken, const TSharedRef<FProtocolBindingViewModel>& InParentViewModel, const FGuid& InRangeId)
 	: Preset(InParentViewModel->Preset)
 	, ParentViewModel(InParentViewModel)
 	, RangeId(InRangeId)

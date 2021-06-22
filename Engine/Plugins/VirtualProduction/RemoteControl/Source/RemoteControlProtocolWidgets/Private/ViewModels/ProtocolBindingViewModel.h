@@ -109,13 +109,17 @@ public:
 	/** Allows the view to notify the ViewModel of a change (ie. from SDetailsView) */
 	void NotifyChanged() const;
 
-protected:
-	template <typename FProtocolBindingViewModel>
-	friend class SharedPointerInternals::TIntrusiveReferenceController;
+private:
+	friend class FProtocolEntityViewModel;
+	
+	// Private token only allows members or friends to call MakeShared
+	struct FPrivateToken { explicit FPrivateToken() = default; };
 
-	FProtocolBindingViewModel() = default;
-	FProtocolBindingViewModel(const TSharedRef<FProtocolEntityViewModel>& InParentViewModel, const TSharedRef<FRemoteControlProtocolBinding>& InBinding);
+public:
+	FProtocolBindingViewModel(FPrivateToken) {}
+	FProtocolBindingViewModel(FPrivateToken, const TSharedRef<FProtocolEntityViewModel>& InParentViewModel, const TSharedRef<FRemoteControlProtocolBinding>& InBinding);
 
+private:
 	void Initialize();
 
 	TSharedPtr<FProtocolRangeViewModel>& AddRangeMappingInternal();
@@ -149,7 +153,7 @@ private:
 
 	/** Range ViewModels for this protocol binding. */
 	TArray<TSharedPtr<FProtocolRangeViewModel>> Ranges;
-
+	
 	/** When single range mapping added. */
 	FOnRangeMappingAdded OnRangeMappingAddedDelegate;
 

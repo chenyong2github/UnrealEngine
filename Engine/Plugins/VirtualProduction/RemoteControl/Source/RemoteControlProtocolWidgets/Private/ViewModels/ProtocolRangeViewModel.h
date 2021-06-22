@@ -52,16 +52,16 @@ public:
 
 	/** Set input */
 	template <typename ValueType>
-	void SetInputValue(ValueType InValue, bool bWithTransaction = false)
+    void SetInputValue(ValueType InValue, bool bWithTransaction = false)
 	{
 		check(IsValid());
 
-		if (bWithTransaction)
+		if(bWithTransaction)
 		{
 			FScopedTransaction Transaction(LOCTEXT("SetInputValue", "Set Input Value"));
-			Preset->Modify();
+			Preset->Modify();	
 		}
-
+		
 		GetRangesData()->SetRangeValue(InValue);
 	}
 
@@ -80,10 +80,10 @@ public:
 	{
 		check(IsValid());
 
-		if (bWithTransaction)
+		if(bWithTransaction)
 		{
 			FScopedTransaction Transaction(LOCTEXT("SetOutputValue", "Set Output Value"));
-			Preset->Modify();
+        	Preset->Modify();	
 		}
 
 		GetRangesData()->SetMappingValueAsPrimitive(InValue);
@@ -130,17 +130,21 @@ public:
 
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnChanged);
-
+	
 	/** Something has changed within the ViewModel */
 	FOnChanged& OnChanged() { return OnChangedDelegate; }
 
+private:
+	// Private token only allows members or friends to call MakeShared
+	struct FPrivateToken { explicit FPrivateToken() = default; };
+
+	friend class FProtocolBindingViewModel;
+	
+public:
+	FProtocolRangeViewModel(FPrivateToken) {}
+	FProtocolRangeViewModel(FPrivateToken, const TSharedRef<FProtocolBindingViewModel>& InParentViewModel, const FGuid& InRangeId);
+
 protected:
-	template <typename FProtocolRangeViewModel>
-	friend class SharedPointerInternals::TIntrusiveReferenceController;
-
-	FProtocolRangeViewModel() = default;
-	FProtocolRangeViewModel(const TSharedRef<FProtocolBindingViewModel>& InParentViewModel, const FGuid& InRangeId);
-
 	void Initialize();
 
 	/** Updates the input range value clamping (in case the type/precision has changed). */
@@ -170,7 +174,7 @@ private:
 private:
 	/** Owning Preset */
 	TWeakObjectPtr<URemoteControlPreset> Preset;
-
+	
 	/** Owning ProtocolBinding */
 	TWeakPtr<FProtocolBindingViewModel> ParentViewModel;
 

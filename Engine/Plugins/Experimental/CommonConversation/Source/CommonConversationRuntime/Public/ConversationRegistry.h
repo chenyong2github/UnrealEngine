@@ -44,8 +44,13 @@ struct COMMONCONVERSATIONRUNTIME_API FConversationsHandle : public TSharedFromTh
 	static TSharedPtr<FConversationsHandle> Create(const UConversationRegistry* InOwningRegistry, const TSharedPtr<FStreamableHandle>& InStreamableHandle, const TArray<FGameplayTag>& InEntryTags);
 
 private:
-	FConversationsHandle(UConversationRegistry* InOwningRegistry, const TSharedPtr<FStreamableHandle>& InStreamableHandle, const TArray<FGameplayTag>& InEntryTags);
+	// Private token only allows members or friends to call MakeShared
+	struct FPrivateToken { explicit FPrivateToken() = default; };
 
+public:
+	FConversationsHandle(FPrivateToken, UConversationRegistry* InOwningRegistry, const TSharedPtr<FStreamableHandle>& InStreamableHandle, const TArray<FGameplayTag>& InEntryTags);
+
+private:
 	void Initialize();
 	void HandleAvailableConversationsChanged();
 
@@ -53,8 +58,6 @@ private:
 	TSharedPtr<FStreamableHandle> StreamableHandle;
 	TArray<FGameplayTag> ConversationEntryTags;
 	TWeakObjectPtr<UConversationRegistry> OwningRegistryPtr;
-
-	friend class SharedPointerInternals::TIntrusiveReferenceController<FConversationsHandle>;
 };
 
 
