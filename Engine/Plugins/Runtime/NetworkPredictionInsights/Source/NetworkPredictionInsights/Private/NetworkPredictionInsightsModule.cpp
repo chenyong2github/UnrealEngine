@@ -5,7 +5,6 @@
 #include "Insights/ITimingViewExtender.h"
 #include "Containers/Ticker.h"
 #include "Modules/ModuleManager.h"
-#include "ProfilingDebugging/TraceAuxiliary.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "Insights/IUnrealInsightsModule.h"
 #include "HAL/PlatformApplicationMisc.h"
@@ -118,7 +117,6 @@ void FNetworkPredictionInsightsModule::StartupModule()
 				ensure(UnrealInsightsModule.ConnectToStore(TEXT("localhost"), StoreService->GetPort()));
 				UE::Trace::SendTo(TEXT("localhost"), StoreService->GetRecorderPort());
 #else
-				FTraceAuxiliary::LaunchUnrealTrace();
 				UnrealInsightsModule.ConnectToStore(TEXT("127.0.0.1"));
 				UE::Trace::SendTo(TEXT("127.0.0.1"));
 #endif // WITH_TRACE_STORE
