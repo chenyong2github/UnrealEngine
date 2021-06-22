@@ -2267,6 +2267,44 @@ void UAnimationBlueprintLibrary::FinalizeBoneAnimation(UAnimSequence* AnimationS
 	}
 }
 
+static void RecursiveRetrieveAnimationGraphs(UEdGraph* EdGraph, TArray<UAnimationGraph*>& OutAnimationGraphs)
+{
+	if (UAnimationGraph* AnimGraph = Cast<UAnimationGraph>(EdGraph))
+	{
+		OutAnimationGraphs.Add(AnimGraph);
+	}
+	
+	for (TObjectPtr<class UEdGraph>& SubGraph : EdGraph->SubGraphs)
+	{		
+		RecursiveRetrieveAnimationGraphs(SubGraph, OutAnimationGraphs);
+	}
+}
+
+void UAnimationBlueprintLibrary::GetAnimationGraphs(UAnimBlueprint* AnimationBlueprint, TArray<UAnimationGraph*>& AnimationGraphs)
+{
+	if (AnimationBlueprint)
+	{
+		for (UEdGraph* EdGraph : AnimationBlueprint->FunctionGraphs)
+		{
+			RecursiveRetrieveAnimationGraphs(EdGraph, AnimationGraphs);
+		}
+	}
+	else
+	{
+		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Animation Blueprint"));
+	}
+}
+
+void UAnimationBlueprintLibrary::GetNodesOfClass(UAnimBlueprint* AnimationBlueprint, TSubclassOf<UAnimGraphNode_Base> NodeClass, TArray<UAnimGraphNode_Base*>& GraphNodes, bool bIncludeChildClasses /*= true*/)
+{
+	TArray<UAnimationGraph*> AnimationGraphs;
+	GetAnimationGraphs(AnimationBlueprint, AnimationGraphs);
+	for (UAnimationGraph* AnimGraph : AnimationGraphs)
+	{
+		AnimGraph->GetGraphNodesOfClass(NodeClass, GraphNodes, bIncludeChildClasses);
+	}
+}
+
 template void UAnimationBlueprintLibrary::AddCurveKeysInternal<float, FFloatCurve, ERawCurveTrackTypes::RCT_Float>(UAnimSequence* AnimationSequence, FName CurveName, const TArray<float>& Times, const TArray<float>& KeyData);
 template void UAnimationBlueprintLibrary::AddCurveKeysInternal<FVector, FVectorCurve, ERawCurveTrackTypes::RCT_Vector>(UAnimSequence* AnimationSequence, FName CurveName, const TArray<float>& Times, const TArray<FVector>& KeyData);
 template void UAnimationBlueprintLibrary::AddCurveKeysInternal<FTransform, FTransformCurve, ERawCurveTrackTypes::RCT_Transform>(UAnimSequence* AnimationSequence, FName CurveName, const TArray<float>& Times, const TArray<FTransform>& KeyData);

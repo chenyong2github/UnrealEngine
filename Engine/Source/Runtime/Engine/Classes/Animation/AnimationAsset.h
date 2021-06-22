@@ -1015,6 +1015,10 @@ public:
 	virtual USkeletalMesh* GetPreviewMesh() const override;
 
 #if WITH_EDITOR
+	/** Sets or updates the preview skeletal mesh */
+	UFUNCTION(BlueprintCallable, Category=Animation)
+	void SetPreviewSkeletalMesh(USkeletalMesh* PreviewMesh) { SetPreviewMesh(PreviewMesh); }
+	
 	/** Replace Skeleton 
 	 * 
 	 * @param NewSkeleton	NewSkeleton to change to 
