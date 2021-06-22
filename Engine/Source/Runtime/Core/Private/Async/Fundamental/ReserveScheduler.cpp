@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Async/Fundamental/ReserveScheduler.h"
+#include "Misc/ScopeLock.h"
 
 namespace LowLevelTasks
 {
@@ -56,8 +57,6 @@ bool FReserveScheduler::DoReserveWorkUntil(FConditional&& Condition)
 
 void FReserveScheduler::StartWorkers(FScheduler& MainScheduler, uint32 NumWorkers, EThreadPriority WorkerPriority, bool bIsForkable)
 {
-	TaskTrace::Init();
-
 	if (NumWorkers == 0)
 	{
 		NumWorkers = FMath::Min(FPlatformMisc::NumberOfWorkerThreadsToSpawn(), 64);
