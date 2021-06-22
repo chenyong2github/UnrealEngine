@@ -45,8 +45,14 @@ void UEnvQueryTest_InsideWaterBody::RunTest(FEnvQueryInstance& QueryInstance) co
 			{
 				QueryFlags |= EWaterBodyQueryFlags::IgnoreExclusionVolumes;
 			}
-			FWaterBodyQueryResult QueryResult = WaterBody.QueryWaterInfoClosestToWorldLocation(ItemLocation, QueryFlags);
-			bInside = QueryResult.IsInWater();
+
+			const FWaterBodyQueryResult QueryResult = WaterBody.QueryWaterInfoClosestToWorldLocation(ItemLocation, QueryFlags);
+
+			if (QueryResult.IsInWater())
+			{
+				bInside = true;
+				break;
+			}
 		}
 
 		It.SetScore(TestPurpose, FilterType, bInside, bWantsInside);

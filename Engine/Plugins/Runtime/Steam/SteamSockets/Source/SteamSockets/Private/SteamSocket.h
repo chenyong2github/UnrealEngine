@@ -12,6 +12,7 @@
 class FSteamSocket : public FSocket
 {
 PACKAGE_SCOPE:
+	HSteamNetPollGroup PollGroup; 
 	HSteamNetConnection InternalHandle;
 	// Binding address to determine the Steam Socket protocol we'll be using
 	FInternetAddrSteamSockets BindAddress;

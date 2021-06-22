@@ -22,15 +22,17 @@ namespace DisplayClusterConfigurationStrings
 		static constexpr auto ClusterCategory              = TEXT("NDisplay Cluster");
 		static constexpr auto ClusterConfigurationCategory = TEXT("NDisplay Cluster Configuration");
 		static constexpr auto ClusterPostprocessCategory   = TEXT("Post Process");
+		static constexpr auto ColorGradingCategory         = TEXT("Color Grading");
+		static constexpr auto CameraColorGradingCategory   = TEXT("Inner Frustum Color Grading");
 		static constexpr auto ChromaKeyCategory            = TEXT("Chromakey");
 		static constexpr auto LightcardCategory            = TEXT("Light Cards");
 		static constexpr auto OCIOCategory                 = TEXT("OCIO");
 		static constexpr auto OverrideCategory             = TEXT("Override");
-
+		static constexpr auto ViewportsCategory            = TEXT("Viewports");
 		static constexpr auto ICVFXCategory                = TEXT("In Camera VFX");
-		static constexpr auto ConfigurationCategory        = TEXT("NDisplay Configuration");
+		static constexpr auto ConfigurationCategory        = TEXT("Configuration");
 		static constexpr auto PreviewCategory              = TEXT("Editor Preview");
-		static constexpr auto AdvancedCategory              = TEXT("Advanced");
+		static constexpr auto AdvancedCategory             = TEXT("Advanced");
 	}
 
 	// Command line arguments

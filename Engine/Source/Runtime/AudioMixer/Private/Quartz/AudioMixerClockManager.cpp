@@ -109,7 +109,39 @@ namespace Audio
 		}
 
 		//Clock doesn't exist
-		return -1;
+		return INDEX_NONE;
+	}
+
+	FQuartzTransportTimeStamp FQuartzClockManager::GetCurrentTimestamp(const FName& InClockName)
+	{
+		FScopeLock Lock(&ActiveClockCritSec);
+
+		// See if this clock already exists
+		TSharedPtr<FQuartzClock> Clock = FindClock(InClockName);
+
+		if (Clock)
+		{
+			return Clock->GetCurrentTimestamp();
+		}
+
+		//Clock doesn't exist
+		return FQuartzTransportTimeStamp();
+	}
+
+	float FQuartzClockManager::GetEstimatedRunTime(const FName& InClockName)
+	{
+		FScopeLock Lock(&ActiveClockCritSec);
+
+		// See if this clock already exists
+		TSharedPtr<FQuartzClock> Clock = FindClock(InClockName);
+
+		if (Clock)
+		{
+			return Clock->GetEstimatedRunTime();
+		}
+
+		//Clock doesn't exist
+		return INDEX_NONE;
 	}
 
 	void FQuartzClockManager::RemoveClock(const FName& InName)

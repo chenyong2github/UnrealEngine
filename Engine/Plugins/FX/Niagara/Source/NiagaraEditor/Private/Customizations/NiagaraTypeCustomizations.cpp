@@ -32,6 +32,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Text/STextBlock.h"
 
 
@@ -157,9 +158,8 @@ TArray<FNiagaraVariableBase> FNiagaraStackAssetAction_VarBind::FindVariables(UNi
 			}
 			else if (Var.IsInNameSpace(InEmitter->GetUniqueEmitterName()) && bEmitter)
 			{
-				TMap<FString, FString> Aliases;
-				Aliases.Add(InEmitter->GetUniqueEmitterName(), FNiagaraConstants::EmitterNamespace.ToString());
-				Bindings.AddUnique(Var.ResolveAliases(Var, Aliases));
+				Bindings.AddUnique(FNiagaraUtilities::ResolveAliases(Var, FNiagaraAliasContext()
+					.ChangeEmitterNameToEmitter(InEmitter->GetUniqueEmitterName())));
 			}
 			else if (FNiagaraParameterMapHistory::IsAliasedEmitterParameter(Var) && bEmitter)
 			{
@@ -226,20 +226,29 @@ TSharedRef<SWidget> FNiagaraVariableAttributeBindingCustomization::OnGetMenuCont
 {
 	FGraphActionMenuBuilder MenuBuilder;
 
-	return SNew(SBorder)
+	TSharedPtr<SGraphActionMenu> GraphActionMenu;
+	
+	TSharedPtr<SWidget> Widget = SNew(SBorder)
 		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
 		.Padding(5)
 		[
 			SNew(SBox)
 			[
-				SNew(SGraphActionMenu)
+				SAssignNew(GraphActionMenu, SGraphActionMenu)
 				.OnActionSelected(const_cast<FNiagaraVariableAttributeBindingCustomization*>(this), &FNiagaraVariableAttributeBindingCustomization::OnActionSelected)
 				.OnCreateWidgetForAction(SGraphActionMenu::FOnCreateWidgetForAction::CreateSP(const_cast<FNiagaraVariableAttributeBindingCustomization*>(this), &FNiagaraVariableAttributeBindingCustomization::OnCreateWidgetForAction))
 				.OnCollectAllActions(const_cast<FNiagaraVariableAttributeBindingCustomization*>(this), &FNiagaraVariableAttributeBindingCustomization::CollectAllActions)
 				.AutoExpandActionMenu(false)
+				.bAllowPreselectedItemActivation(true)
 				.ShowFilterTextBox(true)
 			]
 		];
+
+	// the widget to focus is retrieved after this function is called via delegate, so setting it here works
+	TSharedPtr<SWidget> SearchBoxToFocus = GraphActionMenu->GetFilterTextBox();
+	ComboButton->SetMenuContentWidgetToFocus(SearchBoxToFocus);
+	
+	return Widget.ToSharedRef(); 
 }
 
 TArray<FName> FNiagaraVariableAttributeBindingCustomization::GetNames(UNiagaraEmitter* InEmitter) const
@@ -386,7 +395,7 @@ void FNiagaraVariableAttributeBindingCustomization::CustomizeHeader(TSharedRef<I
 
 	PropertyRow.OverrideResetToDefault(ResetOverride); */
 	InPropertyHandle->MarkResetToDefaultCustomized(true);
-
+	
 	if (Objects.Num() == 1)
 	{
 		RenderProps = Cast<UNiagaraRendererProperties>(Objects[0]);
@@ -411,7 +420,7 @@ void FNiagaraVariableAttributeBindingCustomization::CustomizeHeader(TSharedRef<I
 						.AutoWidth()
 						.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 						[
-							SNew(SComboButton)
+							SAssignNew(ComboButton, SComboButton)					
 							.OnGetMenuContent(this, &FNiagaraVariableAttributeBindingCustomization::OnGetMenuContent)
 							.ContentPadding(1)
 							.ToolTipText(this, &FNiagaraVariableAttributeBindingCustomization::GetTooltipText)
@@ -791,7 +800,8 @@ TArray<TPair<FNiagaraVariableBase, FNiagaraVariableBase> > FNiagaraMaterialAttri
 				FName VariableName = BaseVariable.GetName();
 				if (BaseVariable.IsInNameSpace(FNiagaraConstants::EmitterNamespace))
 				{
-					VariableName = FNiagaraVariable::ResolveAliases(BaseVariable, EmitterAlias).GetName();
+					VariableName = FNiagaraUtilities::ResolveAliases(BaseVariable, FNiagaraAliasContext()
+						.ChangeEmitterToEmitterName(BaseEmitter->GetUniqueEmitterName())).GetName();
 				}
 
 				for (UNiagaraScript* Script : Scripts)

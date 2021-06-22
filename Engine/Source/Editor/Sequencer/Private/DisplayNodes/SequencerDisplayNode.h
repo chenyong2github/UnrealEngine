@@ -575,14 +575,6 @@ public:
 		bHasBeenInitialized = false;
 	}
 
-private:
-
-	/** Callback for executing a "Rename Node" context menu action. */
-	void HandleContextMenuRenameNodeExecute();
-
-	/** Callback for determining whether a "Rename Node" context menu action can execute. */
-	bool HandleContextMenuRenameNodeCanExecute() const;
-
 protected:
 
 	/** The virtual offset of this item from the top of the tree, irrespective of expansion states. */

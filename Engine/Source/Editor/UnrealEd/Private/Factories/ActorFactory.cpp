@@ -401,14 +401,13 @@ AActor* UActorFactory::CreateActor(UObject* InAsset, ULevel* InLevel, const FTra
 
 		if (NewActor)
 		{
-			PostSpawnActor(InAsset, NewActor);
-
 			// Only do this if the actor wasn't already given a name
 			if ((InAsset != nullptr) && (InSpawnParams.Name == NAME_None))
 			{
 				FActorLabelUtilities::SetActorLabelUnique(NewActor, InAsset->GetName());
 			}
 
+			PostSpawnActor(InAsset, NewActor);
 			NewActor->PostEditChange();
 			NewActor->PostEditMove(true);
 		}

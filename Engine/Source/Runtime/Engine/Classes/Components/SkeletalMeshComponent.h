@@ -590,6 +590,13 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category=SkeletalMesh)
 	uint8 bUpdateJointsFromAnimation:1;
 
+	/**
+	 * Toggles creation of cloth simulation. Distinct from the simulation toggle below in that, if off, avoids allocating
+	 * the actors entirely instead of just skipping the simulation step.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
+	uint8 bAllowClothActors:1;
+
 	/** Disable cloth simulation and play original animation without simulation */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Clothing)
 	uint8 bDisableClothSimulation:1;
@@ -902,7 +909,7 @@ public:
 	 * supplied name, this will return NULL.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Components|SkeletalMesh|Animation Blueprint Linking", meta = (Keywords = "AnimBlueprint"))
-	UAnimInstance* GetLinkedAnimGraphInstanceByTag(FName InTag) const;
+		UAnimInstance* GetLinkedAnimGraphInstanceByTag(FName InTag) const;
 
 	UE_DEPRECATED(4.24, "Function renamed, please use GetLinkedAnimGraphInstancesByTag")
 	void GetSubInstancesByTag(FName InTag, TArray<UAnimInstance*>& OutSubInstances) const { GetLinkedAnimGraphInstancesByTag(InTag, OutSubInstances); }
@@ -1098,6 +1105,17 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh")
 	void SnapshotPose(UPARAM(ref) FPoseSnapshot& Snapshot);
+
+	/**
+	 * Sets whether cloth assets should be created/simulated in this component.
+	 * This will update the conditional flag and you will want to call RecreateClothingActors for it to take effect.
+	 * @param bInAllow Whether to allow the creation of cloth assets and simulation.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")
+	void SetAllowClothActors(bool bInAllow);
+
+	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")
+	bool GetAllowClothActors() const { return bAllowClothActors; }
 
 	/**
 	 * Get/Set the max distance scale of clothing mesh vertices

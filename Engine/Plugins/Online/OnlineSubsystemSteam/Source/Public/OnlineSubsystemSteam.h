@@ -67,9 +67,6 @@ protected:
 	/** Steam App ID for the running game */
 	uint32 SteamAppID;
 
-	/** Steam port - the local port used to communicate with the steam servers */
-	int32 GameServerSteamPort;
-
 	/** Game port - the port that clients will connect to for gameplay */
 	int32 GameServerGamePort;
 
@@ -144,7 +141,6 @@ PACKAGE_SCOPE:
 		bSteamworksGameServerInitialized(false),
 		bUsingSteamNetworking(false),
 		SteamAppID(0),
-		GameServerSteamPort(0),
 		GameServerGamePort(0),
 		GameServerQueryPort(0),
 		SessionInterface(nullptr),
@@ -330,14 +326,6 @@ public:
 	inline int32 GetGameServerGamePort() const
 	{
 		return GameServerGamePort;
-	}
-
-	/**
-	 *	@return the port the game has registered for talking to Steam
-	 */
-	inline int32 GetGameServerSteamPort() const
-	{
-		return GameServerSteamPort;
 	}
 
 	/**

@@ -23,7 +23,7 @@ public:
 
 public:
 	/** Create a new view model with the supplied  display name. */
-	FNiagaraScriptGraphViewModel(TAttribute<FText> InDisplayName);
+	FNiagaraScriptGraphViewModel(TAttribute<FText> InDisplayName, bool bInIsForDataProcessingOnly);
 
 	~FNiagaraScriptGraphViewModel();
 
@@ -111,4 +111,7 @@ private:
 	
 	/** Used to set the error color */
 	FSlateColor ErrorColor;
+
+	/** Whether or not this view model is going to be used for data processing only and will not be shown in the UI. */
+	bool bIsForDataProcessingOnly;
 };

@@ -8,6 +8,9 @@
 #include "Modules/ModuleInterface.h"
 #include "HAL/IConsoleManager.h"
 
+struct FDMXProtocolRegistrationParams;
+
+
 /**
  */
 class FDMXProtocolFactoryArtNet : public IDMXProtocolFactory
@@ -41,6 +44,9 @@ public:
 	static FDMXProtocolArtNetModule& Get();
 
 private:
+	/** Registers the Art-Net implementation here with the Protocol Module */
+	void RegisterWithProtocolModule(TArray<FDMXProtocolRegistrationParams>& InOutProtocolRegistrationParamsArray);
+
 	/**
 	 * Sending DMX through console command
 	 * Command structure is DMX.ArtNet.SendDMX [UniverseID] Channel:Value Channel:Value Channel:Value ...

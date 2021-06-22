@@ -3,6 +3,7 @@
 #pragma once
 
 #include "OpenXRHMD_Layer.h"
+#include "OpenXRAssetManager.h"
 #include "CoreMinimal.h"
 #include "HeadMountedDisplayBase.h"
 #include "XRTrackingSystemBase.h"
@@ -29,13 +30,14 @@ class FOpenXRHMD
 	: public FHeadMountedDisplayBase
 	, public FXRRenderTargetManager
 	, public FSceneViewExtensionBase
+	, public FOpenXRAssetManager
 	, public TStereoLayerManager<FOpenXRLayer>
 {
 public:
 	class FDeviceSpace
 	{
 	public:
-		FDeviceSpace(XrAction InAction);
+		FDeviceSpace(XrAction InAction, XrPath InPath);
 		~FDeviceSpace();
 
 		bool CreateSpace(XrSession InSession);
@@ -43,6 +45,7 @@ public:
 
 		XrAction Action;
 		XrSpace Space;
+		XrPath Path;
 	};
 
 	// The game and render threads each have a separate copy of these structures so that they don't stomp on each other or cause tearing
@@ -95,6 +98,8 @@ public:
 	/** IXRTrackingSystem interface */
 	virtual FName GetSystemName() const override
 	{
+		// This identifier is relied upon for plugin identification,
+		// see GetHMDName() to query the true XR system name.
 		static FName DefaultName(TEXT("OpenXR"));
 		return DefaultName;
 	}
@@ -184,16 +189,23 @@ protected:
 
 	void UpdateDeviceLocations(bool bUpdateOpenXRExtensionPlugins);
 	void EnumerateViews(FPipelinedFrameState& PipelineState);
+	void LocateViews(FPipelinedFrameState& PipelinedState, bool ResizeViewsArray = false);
 
 	void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FIntRect SrcRect, FRHITexture2D* DstTexture, FIntRect DstRect, bool bClearBlack, bool bNoAlpha, ERenderTargetActions RTAction) const;
 	void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FIntRect SrcRect, const FXRSwapChainPtr& DstSwapChain, FIntRect DstRect, bool bClearBlack, bool bNoAlpha) const;
 
 public:
+	/** IXRTrackingSystem interface */
+	virtual bool DoesSupportLateProjectionUpdate() const override { return true; }
+	virtual FString GetVersionString() const override;
+	virtual bool HasValidTrackingPosition() override { return IsTracking(HMDDeviceId); }
+
 	/** IHeadMountedDisplay interface */
 	virtual bool IsHMDConnected() override { return true; }
 	virtual bool DoesSupportPositionalTracking() const override { return true; }
 	virtual bool IsHMDEnabled() const override;
 	virtual void EnableHMD(bool allow = true) override;
+	virtual FName GetHMDName() const override;
 	virtual bool GetHMDMonitorInfo(MonitorInfo&) override;
 	virtual void GetFieldOfView(float& OutHFOVInDegrees, float& OutVFOVInDegrees) const override;
 	virtual bool IsChromaAbCorrectionEnabled() const override;
@@ -209,6 +221,7 @@ public:
 	virtual void OnBeginRendering_GameThread() override;
 	virtual void OnLateUpdateApplied_RenderThread(FRHICommandListImmediate& RHICmdList, const FTransform& NewRelativeTransform) override;
 	virtual bool OnStartGameFrame(FWorldContext& WorldContext) override;
+	virtual EHMDWornState::Type GetHMDWornState() override { return bIsReady ? EHMDWornState::Worn : EHMDWornState::NotWorn; }
 
 	/** IStereoRendering interface */
 	virtual bool IsStereoEnabled() const override;
@@ -265,8 +278,9 @@ public:
 	OPENXRHMD_API bool IsRunning() const;
 	OPENXRHMD_API bool IsFocused() const;
 
-	OPENXRHMD_API int32 AddActionDevice(XrAction Action);
+	OPENXRHMD_API int32 AddActionDevice(XrAction Action, XrPath Path);
 	OPENXRHMD_API void ResetActionDevices();
+	OPENXRHMD_API XrPath GetTrackedDevicePath(const int32 DeviceId);
 
 	OPENXRHMD_API bool IsExtensionEnabled(const FString& Name) const { return EnabledExtensions.Contains(Name); }
 	OPENXRHMD_API XrInstance GetInstance() { return Instance; }
@@ -311,6 +325,8 @@ private:
 	XrReferenceSpaceType	TrackingSpaceType;
 	XrViewConfigurationType SelectedViewConfigurationType;
 	XrEnvironmentBlendMode  SelectedEnvironmentBlendMode;
+	XrInstanceProperties    InstanceProperties;
+	XrSystemProperties      SystemProperties;
 
 	FPipelinedFrameState	PipelinedFrameStateGame;
 	FPipelinedFrameState	PipelinedFrameStateRendering;

@@ -41,12 +41,6 @@ public:
 	/** Returns the selected Communication Type */
 	EDMXCommunicationType GetSelectedCommunicationType() const;
 
-	/** 
-	 * Sets the communication types the user can select from. 
-	 * If the array is emtpy or EDMXCommunicationType::Internal only, the widget hides itself 
-	 */
-	void SetCommunicationTypes(const TArray<EDMXCommunicationType>& NewCommunicationTypes);
-
 private:
 	/** Sets the communication type but doesn't raise an external event, useful for initialization */
 	void SetCommunicationTypesInternal(const TArray<EDMXCommunicationType>& NewCommunicationTypes);

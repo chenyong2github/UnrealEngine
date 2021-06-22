@@ -507,24 +507,10 @@ namespace DatasmithRevitExporter
 			}
 		}
 
-		public void OnEndExport()
+		// Sync materials: DatasmithScene.CleanUp() might have deleted some materials that are not referenced by 
+		// meshes anymore, so we need to update our map.
+		void SyncMaterials()
 		{
-			if (RootCache.LinkedDocumentsCache.Count > 0)
-			{
-				ProcessLinkedDocuments();
-			}
-
-			RootCache.Purge(DatasmithScene, false);
-
-			ModifiedLinkedDocuments.Clear();
-			ExportedLinkedDocuments.Clear();
-			RootCache.ClearModified();
-			RootCache.ExportedElements.Clear();
-
-			DatasmithScene.CleanUp();
-			DatasmithDirectLink.UpdateScene(DatasmithScene);
-
-			// Sync materials: DatasmithScene.CleanUp() might have deleted some materials that are not referenced by meshes anymore, so we need to update our map.
 			HashSet<string> SceneMaterials = new HashSet<string>();
 			for (int MaterialIndex = 0; MaterialIndex < DatasmithScene.GetMaterialsCount(); ++MaterialIndex)
 			{
@@ -547,6 +533,53 @@ namespace DatasmithRevitExporter
 			{
 				MaterialDataMap.Remove(MaterialName);
 			}
+		}
+
+		// Sync textures: DatasmithScene.CleanUp() might have deleted some textures that are not referenced by 
+		// materials anymore, so we need to update our cache.
+		void SyncTextures()
+		{
+			HashSet<string> SceneTextures = new HashSet<string>();
+			for (int TextureIndex = 0; TextureIndex < DatasmithScene.GetTexturesCount(); ++TextureIndex)
+			{
+				FDatasmithFacadeTexture Texture = DatasmithScene.GetTexture(TextureIndex);
+				SceneTextures.Add(Texture.GetName());
+			}
+
+			List<string> TexturesToDelete = new List<string>();
+
+			foreach (var CachedTextureName in UniqueTextureNameSet)
+			{
+				if (!SceneTextures.Contains(CachedTextureName))
+				{
+					TexturesToDelete.Add(CachedTextureName);
+				}
+			}
+			foreach (string TextureName in TexturesToDelete)
+			{
+				UniqueTextureNameSet.Remove(TextureName);
+			}
+		}
+
+		public void OnEndExport()
+		{
+			if (RootCache.LinkedDocumentsCache.Count > 0)
+			{
+				ProcessLinkedDocuments();
+			}
+
+			RootCache.Purge(DatasmithScene, false);
+
+			ModifiedLinkedDocuments.Clear();
+			ExportedLinkedDocuments.Clear();
+			RootCache.ClearModified();
+			RootCache.ExportedElements.Clear();
+
+			DatasmithScene.CleanUp();
+			DatasmithDirectLink.UpdateScene(DatasmithScene);
+
+			SyncMaterials();
+			SyncTextures();
 
 			SyncCount++;
 

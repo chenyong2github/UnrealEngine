@@ -68,5 +68,11 @@ public:
 	 */
 	virtual void GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder) override;
 
+	virtual void OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor) override;
+
 	// ~ End IAssetTypeActions Interface
+
+private:
+
+	static void OpenAssetWithLevelSnapshotsEditor(const TArray<UObject*>& InObjects);
 };

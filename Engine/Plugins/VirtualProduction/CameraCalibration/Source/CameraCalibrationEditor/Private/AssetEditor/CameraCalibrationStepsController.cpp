@@ -41,9 +41,19 @@
 #include "Profile/MediaProfile.h"
 #include "SCameraCalibrationSteps.h"
 #include "TimeSynchronizableMediaSource.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UnrealType.h"
 #include "Widgets/SWidget.h"
+
+#if WITH_OPENCV
+#include "OpenCVHelper.h"
+OPENCV_INCLUDES_START
+#undef check 
+#include "opencv2/opencv.hpp"
+OPENCV_INCLUDES_END
+#endif
+
 
 #define LOCTEXT_NAMESPACE "CameraCalibrationStepsController"
 
@@ -224,7 +234,8 @@ TWeakObjectPtr<ACompositingElement> FCameraCalibrationStepsController::AddElemen
 		return nullptr;
 	}
 
-	TWeakObjectPtr<ACompositingElement> Element = CompElementManager->CreateElement(*ElementName, ElementClass, nullptr, GetTransientPackage());
+	TWeakObjectPtr<ACompositingElement> Element = CompElementManager->CreateElement(
+		*ElementName, ElementClass, nullptr, EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient);
 
 	if (!Element.IsValid())
 	{
@@ -346,7 +357,8 @@ void FCameraCalibrationStepsController::CreateComp()
 
 		if (!Comp.IsValid())
 		{
-			Comp = CompElementManager->CreateElement(*CompName, ACompositingElement::StaticClass(), nullptr, GetTransientPackage());
+			Comp = CompElementManager->CreateElement(
+				*CompName, ACompositingElement::StaticClass(), nullptr, EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient);
 		}
 
 		if (!Comp.IsValid())
@@ -1015,6 +1027,104 @@ bool FCameraCalibrationStepsController::CalculateNormalizedMouseClickPosition(co
 
 	return true;
 }
+
+bool FCameraCalibrationStepsController::ReadMediaPixels(TArray<FColor>& Pixels, FIntPoint& Size, ETextureRenderTargetFormat& PixelFormat, FText& OutErrorMessage) const
+{
+	// Get the media plate texture render target 2d
+
+	if (!MediaPlateRenderTarget.IsValid())
+	{
+		OutErrorMessage = LOCTEXT("InvalidMediaPlateRenderTarget", "Invalid MediaPlateRenderTarget");
+		return false;
+	}
+
+	// Extract its render target resource
+	FRenderTarget* MediaRenderTarget = MediaPlateRenderTarget->GameThread_GetRenderTargetResource();
+
+	if (!MediaRenderTarget)
+	{
+		OutErrorMessage = LOCTEXT("InvalidRenderTargetResource", "MediaPlateRenderTarget did not have a RenderTarget resource");
+		return false;
+	}
+
+	PixelFormat = MediaPlateRenderTarget->RenderTargetFormat;
+
+	// Read the pixels onto CPU
+	const bool bReadPixels = MediaRenderTarget->ReadPixels(Pixels);
+
+	if (!bReadPixels)
+	{
+		OutErrorMessage = LOCTEXT("ReadPixelsFailed", "ReadPixels from render target failed");
+		return false;
+	}
+
+	Size = MediaRenderTarget->GetSizeXY();
+
+	check(Pixels.Num() == Size.X * Size.Y);
+
+	return true;
+}
+
+UTexture2D* FCameraCalibrationStepsController::TextureFromCvMat(cv::Mat& Mat)
+{
+#if !WITH_OPENCV
+	return nullptr;
+#else
+	// Currently we only support the pixel format below
+	if (Mat.depth() != CV_8U)
+	{
+		return nullptr;
+	}
+
+	EPixelFormat PixelFormat;
+
+	switch (Mat.channels())
+	{
+	case 1:
+		PixelFormat = PF_G8;
+		break;
+
+	case 4:
+		PixelFormat = PF_B8G8R8A8;
+		break;
+
+	default:
+		return nullptr;
+	}
+
+	UTexture2D* Texture = UTexture2D::CreateTransient(Mat.cols, Mat.rows, PixelFormat);
+
+	if (!Texture)
+	{
+		return nullptr;
+	}
+
+#if WITH_EDITORONLY_DATA
+	Texture->MipGenSettings = TMGS_NoMipmaps;
+#endif
+	Texture->NeverStream = true;
+	Texture->SRGB = 0;
+
+	if (Mat.channels() == 1)
+	{
+		Texture->CompressionSettings = TextureCompressionSettings::TC_Grayscale;
+#if WITH_EDITORONLY_DATA
+		Texture->CompressionNoAlpha = true;
+#endif
+	}
+
+	FTexture2DMipMap& Mip0 = Texture->PlatformData->Mips[0];
+	void* TextureData = Mip0.BulkData.Lock(LOCK_READ_WRITE);
+
+	const int32 PixelStride = Mat.channels();
+	FMemory::Memcpy(TextureData, Mat.data, SIZE_T(Mat.cols * Mat.rows * PixelStride));
+
+	Mip0.BulkData.Unlock();
+	Texture->UpdateResource();
+
+	return Texture;
+#endif // WITH_OPENCV
+};
 
 
 #undef LOCTEXT_NAMESPACE

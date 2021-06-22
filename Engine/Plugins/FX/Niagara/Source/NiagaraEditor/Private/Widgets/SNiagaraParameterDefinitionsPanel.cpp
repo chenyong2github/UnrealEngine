@@ -225,7 +225,7 @@ TSharedPtr<SWidget> SNiagaraParameterDefinitionsPanel::OnContextMenuOpening()
 			FText UnsubscribeToolTip;
 			const bool bCanUnsubscribe = ParameterDefinitionsPanelViewModel->GetCanRemoveParameterDefinitionsAndToolTip(SelectedCategory, UnsubscribeToolTip);
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("RemoveParameterDefinitions", "Remove Parameter Definitions"),
+				LOCTEXT("UnlinkAllParameters", "Unlink All Parameters from Definitions"),
 				UnsubscribeToolTip,
 				FSlateIcon(),
 				FUIAction(
@@ -235,7 +235,7 @@ TSharedPtr<SWidget> SNiagaraParameterDefinitionsPanel::OnContextMenuOpening()
 			FText SubscribeAllToolTip;
 			const bool bCanSynchronizeAll = ParameterDefinitionsPanelViewModel->GetCanSubscribeAllParametersToDefinitionsAndToolTip(SelectedCategory, SubscribeAllToolTip);
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("SubscribeAllParameters", "Subscribe All Parameters"),
+				LOCTEXT("LinkAllParameters", "Link All Parameters to Definitions"),
 				SubscribeAllToolTip,
 				FSlateIcon(),
 				FUIAction(FExecuteAction::CreateSP(this, &SNiagaraParameterDefinitionsPanel::SetAllParametersToSynchronizeWithParameterDefinitions, SelectedCategory)));

@@ -2,6 +2,7 @@
 
 #include "DisplayClusterGameEngine.h"
 
+#include "Algo/Accumulate.h"
 #include "Cluster/IPDisplayClusterClusterManager.h"
 #include "Cluster/Controller/IDisplayClusterNodeController.h"
 #include "Config/IPDisplayClusterConfigManager.h"
@@ -9,6 +10,7 @@
 #include "Engine/DynamicBlueprintBinding.h"
 
 #include "DisplayClusterConfigurationTypes.h"
+#include "DisplayClusterConfigurationVersion.h"
 #include "IDisplayClusterConfiguration.h"
 
 #include "Misc/App.h"
@@ -61,7 +63,8 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 		// Our parsing function for arguments like:
 		// -ArgName1="ArgValue 1" -ArgName2=ArgValue2 ArgName3=ArgValue3
 		//
-		auto ParseCommandArg = [](const FString& CommandLine, const FString& ArgName, FString& OutArgVal) {
+		auto ParseCommandArg = [](const FString& CommandLine, const FString& ArgName, FString& OutArgVal)
+		{
 			const FString Tag = FString::Printf(TEXT("-%s="), *ArgName);
 			const int32 TagPos = CommandLine.Find(Tag);
 
@@ -81,10 +84,8 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 			return FParse::Token(TagValue, OutArgVal, false);
 		};
 
-		FString ConfigPath;
-
-		
 		// Extract config path from command line
+		FString ConfigPath;
 		if (!ParseCommandArg(FCommandLine::Get(), DisplayClusterStrings::args::Config, ConfigPath))
 		{
 			FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::KillImmediately, FString("No config file specified. Cluster operation mode requires config file."));
@@ -93,6 +94,13 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 		// Clean the file path before using it
 		DisplayClusterHelpers::str::TrimStringValue(ConfigPath);
 
+		// Validate the config file first. Since 4.27, we don't allow the old formats to be used
+		const EDisplayClusterConfigurationVersion ConfigVersion = IDisplayClusterConfiguration::Get().GetConfigVersion(ConfigPath);
+		if (!ValidateConfigFile(ConfigPath))
+		{
+			FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::KillImmediately, FString("An invalid or outdated configuration file was specified. Please consider using nDisplay configurator to update the config files."));
+		}
+
 		// Load config data
 		UDisplayClusterConfigurationData* ConfigData = IDisplayClusterConfiguration::Get().LoadConfig(ConfigPath);
 		if (!ConfigData)
@@ -100,9 +108,8 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 			FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::KillImmediately, FString("An error occurred during loading the configuration file"));
 		}
 
-		FString NodeId;
-
 		// Extract node ID from command line
+		FString NodeId;
 		if (!ParseCommandArg(FCommandLine::Get(), DisplayClusterStrings::args::Node, NodeId))
 		{
 			UE_LOG(LogDisplayClusterEngine, Log, TEXT("Node ID is not specified. Trying to resolve from host address..."));
@@ -214,6 +221,36 @@ bool UDisplayClusterGameEngine::GetResolvedNodeId(const UDisplayClusterConfigura
 	return false;
 }
 
+bool UDisplayClusterGameEngine::ValidateConfigFile(const FString& FilePath)
+{
+	const EDisplayClusterConfigurationVersion ConfigVersion = IDisplayClusterConfiguration::Get().GetConfigVersion(FilePath);
+	switch (ConfigVersion)
+	{
+		case EDisplayClusterConfigurationVersion::Version_CFG:
+			// Old .cfg file are not allowed anymore
+			UE_LOG(LogDisplayClusterEngine, Error, TEXT("Old (.cfg) config format is not supported"));
+			break;
+
+		case EDisplayClusterConfigurationVersion::Version_426:
+			// Old 4.26 and 4.27p1 formats are not allowed as well
+			UE_LOG(LogDisplayClusterEngine, Error, TEXT("Detected old (.ndisplay 4.26 or .ndisplay 4.27p1) config format. Please upgrade to the actual version."));
+			return true;
+
+		case EDisplayClusterConfigurationVersion::Version_427:
+			// Ok, it's the actual config format
+			UE_LOG(LogDisplayClusterEngine, Log, TEXT("Detected (.ndisplay 4.27) config format"));
+			return true;
+
+		case EDisplayClusterConfigurationVersion::Unknown:
+		default:
+			// Something unexpected came here
+			UE_LOG(LogDisplayClusterEngine, Error, TEXT("Unknown or unsupported config format"));
+			break;
+	}
+
+	return false;
+}
+
 void UDisplayClusterGameEngine::PreExit()
 {
 	if (OperationMode == EDisplayClusterOperationMode::Cluster)
@@ -221,6 +258,7 @@ void UDisplayClusterGameEngine::PreExit()
 		// Close current DisplayCluster session
 		GDisplayCluster->EndSession();
 	}
+
 
 	// Release the engine
 	UGameEngine::PreExit();
@@ -320,6 +358,7 @@ void UDisplayClusterGameEngine::Tick(float DeltaSeconds, bool bIdleMode)
 	}
 }
 
+
 void UDisplayClusterGameEngine::UpdateTimeAndHandleMaxTickRate()
 {
 	UEngine::UpdateTimeAndHandleMaxTickRate();
@@ -379,11 +418,21 @@ bool UDisplayClusterGameEngine::OutOfSync() const
 
 void UDisplayClusterGameEngine::ReceivedSync(const FString &Level, const FString &NodeId)
 {
+	UE_LOG(LogDisplayClusterEngine,Display, TEXT("GameSyncChange event received."));
 	TSet<FString> &SyncItem = SyncMap.FindOrAdd(Level);
 	SyncItem.Add(NodeId);
 	if (SyncItem.Num() == ClusterMgr->GetNodesAmount())
 	{
 		SyncMap.Remove(Level);
+	}
+	for (const TTuple<FString, TSet<FString>>& SyncObj : SyncMap)
+	{
+		FString Join = Algo::Accumulate(SyncObj.Value, FString(), [](FString Result, const FString& Value)
+		{
+			Result = Result + ", " + Value;
+			return MoveTemp(Result);
+		});
+		UE_LOG(LogDisplayClusterEngine,Display, TEXT("    %s -> %s"), *SyncObj.Key, *Join);
 	}
 }
 
@@ -408,7 +457,7 @@ void UDisplayClusterGameEngine::CheckGameStartBarrier()
 		}
 		else if (!UGameplayStatics::IsGamePaused(WorldContextObject))
 		{
-			UE_LOG(LogDisplayClusterEngine, Display, TEXT("CheckGameStartBarrier - we are of sync. Pausing Play."));
+			UE_LOG(LogDisplayClusterEngine, Display, TEXT("CheckGameStartBarrier - we are out of sync. Pausing Play."));
 			// A 1 or more nodes is out of sync. Do not advance game until everyone is back in sync.
 			//
 			UGameplayStatics::SetGamePaused(WorldContextObject,true);
@@ -422,7 +471,6 @@ void UDisplayClusterGameEngine::GameSyncChange(const FDisplayClusterClusterEvent
 	{
 		if(InEvent.Category == DisplayClusterGameEngineUtils::WaitForGameCategory)
 		{
-			UE_LOG(LogDisplayClusterEngine,Display, TEXT("GameSyncChange event received."));
 			ReceivedSync(InEvent.Type,InEvent.Name);
 			CheckGameStartBarrier();
 		}

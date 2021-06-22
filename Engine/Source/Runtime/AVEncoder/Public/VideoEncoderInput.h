@@ -107,8 +107,14 @@ namespace AVEncoder
 		// Clone frame - this will create a copy that references the original until destroyed
 		virtual const FVideoEncoderInputFrame* Clone(FCloneDestroyedCallback InCloneDestroyedCallback) const = 0;
 
-		// an ID that will stay constant as long as the frame buffer exists
+		void SetFrameID(uint32 id) { FrameID = id; }
 		uint32 GetFrameID() const { return FrameID; }
+
+		void SetTimestampUs(int64 timestampUs) { TimestampUs = timestampUs; }
+		int64 GetTimestampUs() const { return TimestampUs; }
+
+		void SetTimestampRTP(int64 timestampRTP) { TimestampRTP = timestampRTP; }
+		int64 GetTimestampRTP() const { return TimestampRTP; }
 
 		// current format of frame
 		EVideoFrameFormat GetFormat() const { return Format; }
@@ -118,9 +124,6 @@ namespace AVEncoder
 		uint32 GetHeight() const { return Height; }
 
 		TFunction<void()> OnTextureEncode;
-
-		int64			PTS = 0;		// presentation time stamp (within TimeBase)
-		int64			NTP = 0;		// capture time stamp
 
 		// --- YUV420P
 
@@ -213,7 +216,7 @@ namespace AVEncoder
 		using FReleaseVulkanTextureCallback = TFunction<void(VkImage_T*)>;
 
 #if PLATFORM_WINDOWS || PLATFORM_LINUX
-	void SetTexture(VkImage_T* InTexture, FReleaseVulkanTextureCallback InOnReleaseTexture);
+		void SetTexture(VkImage_T* InTexture, FReleaseVulkanTextureCallback InOnReleaseTexture);
 #endif
 
 	protected:
@@ -222,6 +225,8 @@ namespace AVEncoder
 		virtual ~FVideoEncoderInputFrame();
 
 		uint32									FrameID;
+		int64									TimestampUs;
+		int64									TimestampRTP;
 		mutable FThreadSafeCounter				NumReferences;
 		EVideoFrameFormat						Format;
 		uint32									Width;

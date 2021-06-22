@@ -50,12 +50,26 @@ public:
 		return EOSUniqueNetId;
 	}
 
-private:
-	explicit FUniqueNetIdEOSPlus(FUniqueNetIdPtr InBaseUniqueNetId, FUniqueNetIdPtr InEOSUniqueNetId);
+	/** global static instance of invalid (zero) id */
+	static const FUniqueNetIdEOSPlusRef& EmptyId()
+	{
+		static const FUniqueNetIdEOSPlusRef EmptyId(Create());
+		return EmptyId;
+	}
 
+PACKAGE_SCOPE:
 	FUniqueNetIdPtr BaseUniqueNetId;
 	FUniqueNetIdPtr EOSUniqueNetId;
 	TArray<uint8> RawBytes;
+
+private:
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FUniqueNetIdEOSPlus()
+	{
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	explicit FUniqueNetIdEOSPlus(FUniqueNetIdPtr InBaseUniqueNetId, FUniqueNetIdPtr InEOSUniqueNetId);
 };
 
 using FUniqueNetIdBinaryPtr = TSharedPtr<const class FUniqueNetIdBinary>;

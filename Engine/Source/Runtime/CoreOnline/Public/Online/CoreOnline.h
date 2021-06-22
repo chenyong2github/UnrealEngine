@@ -87,8 +87,9 @@ protected:
 
 	virtual bool Compare(const FUniqueNetId& Other) const
 	{
-		return (GetSize() == Other.GetSize()) &&
-			(FMemory::Memcmp(GetBytes(), Other.GetBytes(), GetSize()) == 0);
+		return (GetType() == Other.GetType() &&
+			GetSize() == Other.GetSize() &&
+			FMemory::Memcmp(GetBytes(), Other.GetBytes(), GetSize()) == 0);
 	}
 
 public:

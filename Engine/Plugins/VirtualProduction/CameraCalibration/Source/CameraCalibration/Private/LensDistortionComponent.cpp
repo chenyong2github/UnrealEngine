@@ -71,11 +71,21 @@ void ULensDistortionComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 
 			//Go through the lens file to get distortion data based on FIZ
 			//Our handler's displacement map will get updated
-			FDistortionData DistortionData;
 			const FVector2D CurrentSensorDimensions = FVector2D(CineCameraComponent->Filmback.SensorWidth, CineCameraComponent->Filmback.SensorHeight);
 
-			SubSystem->GetOriginalFocalLength(CineCameraComponent, OriginalFocalLength);
-			LensFile->EvaluateDistortionData(CineCameraComponent->CurrentFocusDistance, OriginalFocalLength, CurrentSensorDimensions, ProducedLensDistortionHandler, DistortionData);
+			if (SubSystem)
+			{
+				SubSystem->GetOriginalFocalLength(CineCameraComponent, OriginalFocalLength);
+			}
+
+			LensFile->EvaluateDistortionData(CineCameraComponent->CurrentFocusDistance, OriginalFocalLength, CurrentSensorDimensions, ProducedLensDistortionHandler);
+
+			// Adjust overscan by the overscan multiplier
+			if (bScaleOverscan)
+			{
+				const float ScaledOverscanFactor = ((ProducedLensDistortionHandler->GetOverscanFactor() - 1.0f) * OverscanMultiplier) + 1.0f;
+				ProducedLensDistortionHandler->SetOverscanFactor(ScaledOverscanFactor);
+			}
 
 			// Track changes to the cine camera's focal length for consumers of distortion data
 			if (SubSystem)

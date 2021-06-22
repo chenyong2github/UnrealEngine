@@ -11,9 +11,28 @@
 #include "DMXPixelMappingOutputComponent.generated.h"
 
 class UDMXEntityFixturePatch;
+#if WITH_EDITOR
+class FDMXPixelMappingComponentWidget;
+#endif // WITH_EDITOR
+
+class UDMXPixelMappingRendererComponent;
+
 class SBox;
 
 
+/** Definition for Default colors */
+struct FDMXOutputComponentColors
+{
+	// Note, for the default color, use the editor color
+
+	/** The color used when no the component is selected */
+	virtual const FLinearColor& GetSelectedColor() { return SelectedColor; }
+
+private:
+	static const FLinearColor SelectedColor;
+};
+
+/** Enum that defines the quality of how pixels are rendered */
 UENUM()
 enum class EDMXPixelBlendingQuality : uint8
 {
@@ -27,7 +46,6 @@ enum class EDMXPixelBlendingQuality : uint8
 	High
 };
 
-
 /**
  * Base class for all Designer and configurable components
  */
@@ -37,20 +55,21 @@ class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingOutputComponent
 {
 	GENERATED_BODY()
 
-	/*----------------------------------
-		Types defenition
-	----------------------------------*/
 public:
 	/** Default Constructor */
 	UDMXPixelMappingOutputComponent();
 
-	// ~Begin UObject Interface
+protected:
+	//~ Begin UObject Interface
 #if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
-
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
-	// ~End UObject Interface
+	//~ End UObject Interface
+
+public:
+	//~ Begin DMXPixelMappingBaseComponentInterface
+	virtual void PostRemovedFromParent() override;
+	//~ End DMXPixelMappingBaseComponentInterface
 
 	/*----------------------------------
 		UDMXPixelMappingOutputComponent Interface
@@ -62,89 +81,75 @@ public:
 	/** Returns the text of palette category*/
 	virtual const FText GetPaletteCategory();
 
+	/** Rebuild widget for designer view */
+	virtual TSharedRef<FDMXPixelMappingComponentWidget> BuildSlot(TSharedRef<SConstraintCanvas> InCanvas);
+
 	/** Whether component should be visible in designer view */
 	virtual bool IsVisibleInDesigner() const { return bVisibleInDesigner; }
 
-	/** Rebuild widget for designer view */
-	virtual TSharedRef<SWidget> BuildSlot(TSharedRef<SConstraintCanvas> InCanvas);
-
-	/** Change widget visuals whether it selected or not */
-	virtual void ToggleHighlightSelection(bool bIsSelected) { bHighlighted = bIsSelected; };
-
-	/** Update the content in designer widget */
-	virtual void UpdateWidget() {}
-
 	/** Whether component can be re-sized or re-position at the editor */
 	virtual bool IsLockInDesigner() const { return bLockInDesigner; }
-
-#endif // WITH_EDITOR
-
-	/** Get rendering size of component */
-	virtual FVector2D GetSize() const;
-
-	/** Get rendering position of the component. Using for determining UV map input rendering offset */
-	virtual FVector2D GetPosition() { return FVector2D(0.f); }
-
-	/** Get pixel index in downsample texture */
-	virtual int32 GetDownsamplePixelIndex() const { return 0; }
-
-	/** Set rendering size of component */
-	virtual void SetSize(const FVector2D& InSize);
-
-	/** Get rendering component position */
-	virtual void SetPosition(const FVector2D& InPosition);
-	
-	/** Queue rendering to downsample rendering target */
-	virtual void QueueDownsample() {}
-
-	/*----------------------------------
-		Blueprint interface
-	----------------------------------*/
-
-	/*----------------------------------------------------------
-		Non virtual functions, not intended to be overridden
-	----------------------------------------------------------*/
-
-	/** Queue rendering to downsample rendering target and send dmx */
-	void QueueDownsampleAndSendDMX();
-
-public:
-#if WITH_EDITOR
-	/** Get designer UI cached widget */
-	TSharedPtr<SWidget> GetCachedWidget() const;
 
 	/** Sets the ZOrder in the UI */
 	virtual void SetZOrder(int32 NewZOrder);
 
 	/** Returns the UI ZOrder */
-	int32 GetZOrder() const { return ZOrder; }
+	virtual int32 GetZOrder() const { return ZOrder; }
+
+	/** Returns an editor color for the widget */
+	virtual FLinearColor GetEditorColor() const { return EditorColor; }
 #endif // WITH_EDITOR
 
+	/** Returns true if the the component's over all its parents. */
+	virtual bool IsOverParent() const;
+
+	/** Returns true if the component is over specified position */
+	virtual bool IsOverPosition(const FVector2D& Position) const;
+
+	/** Returns true if the component overlaps the other */
+	virtual bool OverlapsComponent(UDMXPixelMappingOutputComponent* Other) const;
+
+	/** Get pixel index in downsample texture */
+	virtual int32 GetDownsamplePixelIndex() const { return 0; }
+
+	/** Queue rendering to downsample rendering target */
+	virtual void QueueDownsample() {}
+
+	/** Sets the position */
+	virtual void SetPosition(const FVector2D& NewPosition);
+
+	/** Returns the position */
+	FVector2D GetPosition() const { return FVector2D(PositionX, PositionY); }
+
+	/** Sets the size */
+	virtual void SetSize(const FVector2D& NewSize);
+
+	/** Get the size of the component */
+	FVector2D GetSize() const { return FVector2D(SizeX, SizeY); }
+
+	/** Helper that returns render component if available */
+	UDMXPixelMappingRendererComponent* FindRendererComponent() const;
+	/** Updates children to match the size of this instance */
+
+
+#if WITH_EDITOR
+	/** Makes the component the highest ZOrdered of components in the component rectangle, updates childs if needed */
+	void MakeHighestZOrderInComponentRect();
+
 protected:
-#if WITH_EDITORONLY_DATA
-	/** ZOrder in the UI */
-	UPROPERTY()
-	int32 ZOrder = 1;
-#endif //WITH_EDITORONLY_DATA
+	/** Returns the canvas of the render component if available */
+	TSharedPtr<SConstraintCanvas> FindRendererComponentCanvas() const;
+#endif // WITH_EDITOR
+
+	/*----------------------------------
+		Blueprint interface
+	----------------------------------*/
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", meta = (ClampMin = "1", UIMin = "1"))
-	float SizeX;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", meta = (ClampMin = "1", UIMin = "1"))
-	float SizeY;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings")
-	float PositionX;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings")
-	float PositionY;
-
-    /** The quality level to use when averaging colors during downsampling. */
+	/** The quality level to use when averaging colors during downsampling. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pixel Settings")
 	EDMXPixelBlendingQuality CellBlendingQuality;
 
-public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Editor Settings")
 	bool bLockInDesigner;
@@ -152,35 +157,42 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Editor Settings")
 	bool bVisibleInDesigner;
 #endif
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", Meta = (EditCondition = "!bLockInDesigner"))
+	float PositionX;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", Meta = (EditCondition = "!bLockInDesigner"))
+	float PositionY;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", Meta = (EditCondition = "!bLockInDesigner"))
+	float SizeX;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", Meta = (EditCondition = "!bLockInDesigner"))
+	float SizeY;
+
+public:
 	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */
 	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
 
+#if WITH_EDITOR
+	/** Returns the component widget */
+	FORCEINLINE const TSharedPtr<FDMXPixelMappingComponentWidget> GetComponentWidget() { return ComponentWidget; }
+#endif
+
 protected:
 #if WITH_EDITORONLY_DATA
-	/** A raw pointer to the slot to allow us to adjust the size, padding...etc. */
-	SConstraintCanvas::FSlot* Slot;
-
-	/** Cached designer widget */
-	TSharedPtr<SBox> CachedWidget;
-
-	/** Cached label box */
-	TSharedPtr<SBox> CachedLabelBox;
+	/** The widget shown for this component */
+	TSharedPtr<FDMXPixelMappingComponentWidget> ComponentWidget;
 #endif
 
 public:
-#if WITH_EDITOR
-	const FLinearColor& GetEditorColor(bool bHighlight) const;
-#endif
-
 #if WITH_EDITORONLY_DATA
+	/** ZOrder in the UI */
+	UPROPERTY()
+	int32 ZOrder = 1;
+
 	/** The color displayed in editor */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Editor Settings")
 	FLinearColor EditorColor = FLinearColor::Blue;
-
-	/** If true, the editor color is editable */
-	bool bEditableEditorColor = false;
-
-	/** If true is highlighted */
-	bool bHighlighted = false;
-#endif // WITH_EDITORONLY_DATA
+#endif
 };

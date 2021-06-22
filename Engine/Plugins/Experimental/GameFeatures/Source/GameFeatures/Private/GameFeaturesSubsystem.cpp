@@ -326,7 +326,7 @@ void UGameFeaturesSubsystem::OnGameFeatureRegistering(const UGameFeatureData* Ga
 	{
 		if (Action != nullptr)
 		{
-			Action->OnGameFeatureRegistering(PluginName);
+			Action->OnGameFeatureRegistering();
 		}
 	}
 }
@@ -344,7 +344,7 @@ void UGameFeaturesSubsystem::OnGameFeatureUnregistering(const UGameFeatureData* 
 	{
 		if (Action != nullptr)
 		{
-			Action->OnGameFeatureUnregistering(PluginName);
+			Action->OnGameFeatureUnregistering();
 		}
 	}
 }
@@ -438,6 +438,16 @@ const UGameFeatureData* UGameFeaturesSubsystem::GetGameFeatureDataForActivePlugi
 	return nullptr;
 }
 
+const UGameFeatureData* UGameFeaturesSubsystem::GetGameFeatureDataForRegisteredPluginByURL(const FString& PluginURL)
+{
+	if (UGameFeaturePluginStateMachine* GFSM = FindGameFeaturePluginStateMachine(PluginURL))
+	{
+		return GFSM->GetGameFeatureDataForRegisteredPlugin();
+	}
+
+	return nullptr;
+}
+
 void UGameFeaturesSubsystem::LoadGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginLoadComplete& CompleteDelegate)
 {
 	if (GameSpecificPolicies->IsPluginAllowed(PluginURL))
@@ -491,6 +501,7 @@ bool UGameFeaturesSubsystem::GetGameFeaturePluginInstallPercent(const FString& P
 			{
 				Install_Percent = 0.0f;
 			}
+			return true;
 		}
 	}
 	return false;

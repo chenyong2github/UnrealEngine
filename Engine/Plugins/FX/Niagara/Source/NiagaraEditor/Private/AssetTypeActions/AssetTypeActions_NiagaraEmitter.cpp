@@ -150,7 +150,6 @@ void FAssetTypeActions_NiagaraEmitter::ExecuteCreateDuplicateParent(TArray<TWeak
 				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(Emitter);
 
 				NewEmitter->Modify();
-				NewEmitter->SetUniqueEmitterName(Name);
 				NewEmitter->GraphSource->MarkNotSynchronized(TEXT("Emitter created"));
 
 				Emitter->Modify();

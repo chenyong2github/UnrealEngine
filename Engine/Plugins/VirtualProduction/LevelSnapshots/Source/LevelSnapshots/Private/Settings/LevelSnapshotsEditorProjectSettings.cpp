@@ -17,7 +17,7 @@ ULevelSnapshotsEditorProjectSettings::ULevelSnapshotsEditorProjectSettings(const
 	if (FSlateApplicationBase::IsInitialized())
 	{
 		const FSlateRect WorkAreaRect = FSlateApplicationBase::Get().GetPreferredWorkArea();
-		DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(WorkAreaRect.Left, WorkAreaRect.Right);
+		DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(WorkAreaRect.Left, WorkAreaRect.Top);
 	}
 
 	PreferredCreationFormWindowWidth = DefaultClientSize.X * DPIScale;

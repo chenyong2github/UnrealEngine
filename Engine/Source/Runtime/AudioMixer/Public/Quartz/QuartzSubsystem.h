@@ -106,6 +106,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject"))
 	float GetDurationOfQuantizationTypeInSeconds(const UObject* WorldContextObject, FName ClockName, const EQuartzCommandQuantization& QuantizationType, float Multiplier = 1.0f);
 
+	// Retrieves a timestamp for the clock
+	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject"))
+	FQuartzTransportTimeStamp GetCurrentClockTimestamp(const UObject* WorldContextObject, const FName& InClockName);
+
+	// Returns the amount of time, in seconds, the clock has been running. Caution: due to latency, this will not be perfectly accurate
+	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject"))
+	float GetEstimatedClockRunTime(const UObject* WorldContextObject, const FName& InClockName);
+
 	// latency data (Game thread -> Audio Render Thread)
 	UFUNCTION(BlueprintCallable, Category = "Quartz Subsystem", meta = (WorldContext = "WorldContextObject"))
 	float GetGameThreadToAudioRenderThreadAverageLatency(const UObject* WorldContextObject);

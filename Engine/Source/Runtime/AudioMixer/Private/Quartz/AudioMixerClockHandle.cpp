@@ -146,12 +146,42 @@ float UQuartzClockHandle::GetDurationOfQuantizationTypeInSeconds(const UObject* 
 	}
 	else
 	{
-		return -1;
+		return INDEX_NONE;
+	}
+}
+
+FQuartzTransportTimeStamp UQuartzClockHandle::GetCurrentTimestamp(const UObject* WorldContextObject)
+{
+	if (QuartzSubsystem != nullptr)
+	{
+		return QuartzSubsystem->GetCurrentClockTimestamp(WorldContextObject, CurrentClockId);
+	}
+	else
+	{
+		return FQuartzTransportTimeStamp();
+	}
+}
+
+float UQuartzClockHandle::GetEstimatedRunTime(const UObject* WorldContextObject)
+{
+	if (QuartzSubsystem != nullptr)
+	{
+		return QuartzSubsystem->GetEstimatedClockRunTime(WorldContextObject, CurrentClockId);
+	}
+	else
+	{
+		return INDEX_NONE;
 	}
 }
 
 void UQuartzClockHandle::StartOtherClock(const UObject* WorldContextObject, FName OtherClockName, FQuartzQuantizationBoundary InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
 {
+	if (OtherClockName == CurrentClockId)
+	{
+		UE_LOG(LogAudioQuartz, Warning, TEXT("Clock: (%s) is attempting to start itself on a quantization boundary.  Ignoring command"), *CurrentClockId.ToString());
+		return;
+	}
+
 	if (QuartzSubsystem)
 	{
 		Audio::FQuartzQuantizedCommandInitInfo Data(QuartzSubsystem->CreateDataForStartOtherClock(this, OtherClockName, InQuantizationBoundary, InDelegate));
@@ -162,6 +192,13 @@ void UQuartzClockHandle::StartOtherClock(const UObject* WorldContextObject, FNam
 void UQuartzClockHandle::SubscribeToQuantizationEvent(const UObject* WorldContextObject, EQuartzCommandQuantization InQuantizationBoundary, const FOnQuartzMetronomeEventBP& OnQuantizationEvent, UQuartzClockHandle*& ClockHandle)
 {
 	ClockHandle = this;
+
+	if (InQuantizationBoundary == EQuartzCommandQuantization::None)
+	{
+		UE_LOG(LogAudioQuartz, Warning, TEXT("Clock: (%s) is attempting to subscribe to 'NONE' as a Quantization Boundary.  Ignoring request"), *CurrentClockId.ToString());
+		return;
+	}
+
 	if (QuartzSubsystem)
 	{
 		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetManagerForClock(WorldContextObject, GetClockName());

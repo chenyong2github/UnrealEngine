@@ -41,7 +41,7 @@ public:
 
 public:
 	/** Creates a new emitter editor view model.  It must be initialized before use. */
-	FNiagaraEmitterViewModel();
+	FNiagaraEmitterViewModel(bool bInIsForDataProcessingOnly);
 	virtual ~FNiagaraEmitterViewModel();
 
 	/** Initialize this view model with an emitter and simulation. */

@@ -273,6 +273,7 @@ FClothingSimulation::FClothingSimulation()
 	, StepCount(0)
 	, ResetCount(0)
 #endif
+	, bHasInvalidReferenceBoneTransforms(false)
 {
 #if WITH_EDITOR
 	DebugClothMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"), nullptr, LOAD_None, nullptr);  // LOAD_EditorOnly
@@ -446,6 +447,7 @@ void FClothingSimulation::ResetStats()
 	SimulationTime = 0.f;
 	NumSubsteps = Solver->GetNumSubsteps();
 	NumIterations = Solver->GetNumIterations();
+	bHasInvalidReferenceBoneTransforms = false;
 }
 
 void FClothingSimulation::UpdateStats(const FClothingSimulationCloth* Cloth)
@@ -617,7 +619,8 @@ void FClothingSimulation::GetSimulationData(
 		const int32 ReferenceBoneIndex = InOverrideComponent ? InOwnerComponent->GetMasterBoneMap()[Cloth->GetReferenceBoneIndex()] : Cloth->GetReferenceBoneIndex();
 		if (!ComponentSpaceTransforms.IsValidIndex(ReferenceBoneIndex))
 		{
-			UE_LOG(LogSkeletalMesh, Warning, TEXT("Failed to write back clothing simulation data for component % as bone transforms are invalid."), *InOwnerComponent->GetName());
+			UE_CLOG(!bHasInvalidReferenceBoneTransforms, LogSkeletalMesh, Warning, TEXT("Failed to write back clothing simulation data for component %s as bone transforms are invalid."), *InOwnerComponent->GetName());
+			bHasInvalidReferenceBoneTransforms = true;
 			OutData.Reset();
 			return;
 		}

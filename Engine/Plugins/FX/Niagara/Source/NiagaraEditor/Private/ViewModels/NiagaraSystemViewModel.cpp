@@ -90,7 +90,6 @@ FNiagaraSystemViewModel::FNiagaraSystemViewModel()
 	, ScriptScratchPadViewModel(nullptr)
 	, bPendingAssetMessagesChanged(true)
 {
-	GEditor->RegisterForUndo(this);
 }
 
 void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSystemViewModelOptions InOptions)
@@ -106,13 +105,18 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 	SystemMessageLogGuidKey = InOptions.MessageLogGuid;
 	bIsForDataProcessingOnly = InOptions.bIsForDataProcessingOnly;
 
+	if (bIsForDataProcessingOnly == false)
+	{
+		GEditor->RegisterForUndo(this);
+	}
+
 	SystemChangedDelegateHandle = System->OnSystemPostEditChange().AddSP(this, &FNiagaraSystemViewModel::SystemChanged);
 
 	SelectionViewModel = NewObject<UNiagaraSystemSelectionViewModel>(GetTransientPackage());
 	SelectionViewModel->Initialize(this->AsShared());
 	SelectionViewModel->OnEmitterHandleIdSelectionChanged().AddSP(this, &FNiagaraSystemViewModel::SystemSelectionChanged);
 
-	SystemScriptViewModel = MakeShared<FNiagaraSystemScriptViewModel>();
+	SystemScriptViewModel = MakeShared<FNiagaraSystemScriptViewModel>(bIsForDataProcessingOnly);
 	SystemScriptViewModel->Initialize(GetSystem());
 
 	OverviewGraphViewModel = MakeShared<FNiagaraOverviewGraphViewModel>();
@@ -135,6 +139,11 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 	SetupSequencer();
 	RefreshAll();
 	AddSystemEventHandlers();
+}
+
+bool FNiagaraSystemViewModel::IsValid() const
+{
+	return SystemInstance != nullptr;
 }
 
 void FNiagaraSystemViewModel::DumpToText(FString& ExportText)
@@ -160,7 +169,10 @@ void FNiagaraSystemViewModel::Cleanup()
 		PreviewComponent = nullptr;
 	}
 
-	GEditor->UnregisterForUndo(this);
+	if(bIsForDataProcessingOnly == false)
+	{
+		GEditor->UnregisterForUndo(this);
+	}
 
 	if (System)
 	{
@@ -354,14 +366,14 @@ TSharedPtr<FNiagaraEmitterHandleViewModel> FNiagaraSystemViewModel::AddEmitter(U
 
 	// When editing an emitter asset the system is a placeholder and we don't want to make adding an emitter to it undoable.
 	bool bSystemIsPlaceholder = EditMode == ENiagaraSystemViewModelEditMode::EmitterAsset;
-	if (false == bSystemIsPlaceholder)
+	if (false == bSystemIsPlaceholder && false == bIsForDataProcessingOnly)
 	{
 		GEditor->BeginTransaction(LOCTEXT("AddEmitter", "Add emitter"));
 	}
 
 	const FGuid NewEmitterHandleId = FNiagaraEditorUtilities::AddEmitterToSystem(GetSystem(), Emitter, EditMode != ENiagaraSystemViewModelEditMode::EmitterDuringMerge);
 
-	if (false == bSystemIsPlaceholder)
+	if (false == bSystemIsPlaceholder && false == bIsForDataProcessingOnly)
 	{
 		GEditor->EndTransaction();
 	}
@@ -1260,7 +1272,7 @@ void FNiagaraSystemViewModel::RefreshEmitterHandleViewModels()
 		bool bAdd = OldViewModels.Num() <= i;
 		if (bAdd)
 		{
-			ViewModel = MakeShared<FNiagaraEmitterHandleViewModel>();
+			ViewModel = MakeShared<FNiagaraEmitterHandleViewModel>(bIsForDataProcessingOnly);
 			ViewModel->OnPropertyChanged().AddRaw(this, &FNiagaraSystemViewModel::EmitterHandlePropertyChanged, EmitterHandle->GetId());
 			ViewModel->OnNameChanged().AddRaw(this, &FNiagaraSystemViewModel::EmitterHandleNameChanged);
 			ViewModel->GetEmitterViewModel()->OnPropertyChanged().AddRaw(this, &FNiagaraSystemViewModel::EmitterPropertyChanged);
@@ -1275,7 +1287,7 @@ void FNiagaraSystemViewModel::RefreshEmitterHandleViewModels()
 		}
 
 		EmitterHandleViewModels.Add(ViewModel.ToSharedRef());
-		ViewModel->Initialize(this->AsShared(), EmitterHandle, Simulation);
+		ViewModel->Initialize(this->AsShared(), i, Simulation);
 	}
 
 	check(EmitterHandleViewModels.Num() == GetSystem().GetNumEmitters());
@@ -2304,9 +2316,9 @@ void FNiagaraSystemViewModel::SystemChanged(UNiagaraSystem* ChangedSystem)
 	}
 }
 
-void FNiagaraSystemViewModel::StackViewModelStructureChanged()
+void FNiagaraSystemViewModel::StackViewModelStructureChanged(ENiagaraStructureChangedFlags Flags)
 {
-	if (SelectionViewModel != nullptr)
+	if ((Flags & StructureChanged) != 0 && SelectionViewModel != nullptr)
 	{
 		SelectionViewModel->RefreshDeferred();
 	}

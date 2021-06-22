@@ -3,6 +3,8 @@
 #include "SRemoteControlPanel.h"
 
 #include "ActorEditorUtils.h"
+#include "AssetData.h"
+#include "AssetRegistryModule.h"
 #include "ClassViewerFilter.h"
 #include "ClassViewerModule.h"
 #include "Editor.h"
@@ -32,6 +34,7 @@
 #include "RemoteControlUISettings.h"
 #include "ScopedTransaction.h"
 #include "SClassViewer.h"
+#include "SRCLogger.h"
 #include "SRCPanelExposedEntitiesList.h"
 #include "SRCPanelFunctionPicker.h"
 #include "SRCPanelExposedActor.h"
@@ -90,8 +93,10 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 {
 	OnEditModeChange = InArgs._OnEditModeChange;
 	Preset = TStrongObjectPtr<URemoteControlPreset>(InPreset);
+	WidgetRegistry = MakeShared<FRCPanelWidgetRegistry>();
+
 	UpdateRebindButtonVisibility();
-	
+
 	TArray<TSharedRef<SWidget>> ExtensionWidgets;
 	FRemoteControlUIModule::Get().GetExtensionGenerators().Broadcast(ExtensionWidgets);
 
@@ -99,7 +104,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 
 	EntityProtocolDetails = SNew(SBox);
 	
-	EntityList = SNew(SRCPanelExposedEntitiesList, Preset.Get())
+	EntityList = SNew(SRCPanelExposedEntitiesList, Preset.Get(), WidgetRegistry)
 		.DisplayValues(true)
 		.OnEntityListUpdated_Lambda([this] ()
 		{
@@ -215,6 +220,21 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 					.IsChecked_Lambda([]() { return FRemoteControlLogger::Get().IsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
 					.OnCheckStateChanged(this, &SRemoteControlPanel::OnLogCheckboxToggle)
 				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(FMargin(5.0f, 0.f))
+				[
+					SNew(SSeparator)
+					.Orientation(Orient_Vertical)
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SAssignNew(PresetNameTextBlock, STextBlock)
+					.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+					.Text(FText::FromName(Preset->GetFName()))
+				]
 			]
 		]
 		+ SVerticalBox::Slot()
@@ -294,13 +314,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 			+ SSplitter::Slot()
 			.Value(.2f)
 			[
-				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
-				.Visibility_Lambda([](){ return FRemoteControlLogger::Get().IsEnabled() ? EVisibility::Visible : EVisibility::Collapsed; })
-				.Padding(2.f)
-				[
-					FRemoteControlLogger::Get().GetWidget()
-				]
+				SNew(SRCLogger)
 			]
 		]
 	];
@@ -308,7 +322,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 	for (const TSharedRef<SWidget>& Widget : ExtensionWidgets)
 	{
 		// We want to insert the widgets before the edit mode buttons.
-		TopExtensions->InsertSlot(TopExtensions->NumSlots()-4)
+		TopExtensions->InsertSlot(TopExtensions->NumSlots()-6)
 		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[
@@ -324,7 +338,6 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 SRemoteControlPanel::~SRemoteControlPanel()
 {
 	UnregisterEvents();
-	FRCPanelWidgetRegistry::Get().Clear();
 
 	// Clear the log
 	FRemoteControlLogger::Get().ClearLog();
@@ -396,8 +409,13 @@ bool SRemoteControlPanel::IsExposed(const TSharedPtr<IPropertyHandle>& PropertyH
 
 void SRemoteControlPanel::ToggleProperty(const TSharedPtr<IPropertyHandle>& PropertyHandle)
 {
-	TArray<UObject*> OuterObjects;
-	PropertyHandle->GetOuterObjects(OuterObjects);
+	TSet<UObject*> UniqueOuterObjects;
+	{
+		// Make sure properties are only being exposed once per object.
+		TArray<UObject*> OuterObjects;
+		PropertyHandle->GetOuterObjects(OuterObjects);
+		UniqueOuterObjects.Append(MoveTemp(OuterObjects));
+	}
 
 	if (IsExposed(PropertyHandle))
 	{
@@ -406,12 +424,12 @@ void SRemoteControlPanel::ToggleProperty(const TSharedPtr<IPropertyHandle>& Prop
 		Unexpose(PropertyHandle);
 		return;
 	}
-
-	if (OuterObjects.Num())
+	if (UniqueOuterObjects.Num())
 	{
 		FScopedTransaction Transaction(LOCTEXT("ExposeProperty", "Expose Property"));
 		Preset->Modify();
-		for (UObject* Object : OuterObjects)
+		
+		for (UObject* Object : UniqueOuterObjects)
 		{
 			if (Object)
 			{
@@ -701,6 +719,8 @@ void SRemoteControlPanel::OnMapChange(uint32)
 
 void SRemoteControlPanel::RegisterEvents()
 {
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	AssetRegistryModule.Get().OnAssetRenamed().AddSP(this, &SRemoteControlPanel::OnAssetRenamed);
 	FEditorDelegates::MapChange.AddSP(this, &SRemoteControlPanel::OnMapChange);
 	
 	if (GEditor)
@@ -737,6 +757,9 @@ void SRemoteControlPanel::UnregisterEvents()
 	}
 
 	FEditorDelegates::MapChange.RemoveAll(this);
+	
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	AssetRegistryModule.Get().OnAssetRenamed().RemoveAll(this);
 }
 
 void SRemoteControlPanel::Refresh()
@@ -929,8 +952,15 @@ void SRemoteControlPanel::UpdateEntityDetailsView(const TSharedPtr<SRCPanelTreeN
 		// If the SelectedNode is valid, the Preset should be too.
 		if(ensure(Preset.IsValid()))
 		{
-			IRemoteControlProtocolWidgetsModule& ProtocolWidgetsModule = FModuleManager::LoadModuleChecked<IRemoteControlProtocolWidgetsModule>(ProtocolWidgetsModuleName);
-			EntityProtocolDetails->SetContent(ProtocolWidgetsModule.GenerateDetailsForEntity(Preset.Get(), SelectedEntity->GetId(), FieldType));	
+			if(SelectedEntity->IsBound())
+			{
+				IRemoteControlProtocolWidgetsModule& ProtocolWidgetsModule = FModuleManager::LoadModuleChecked<IRemoteControlProtocolWidgetsModule>(ProtocolWidgetsModuleName);
+				EntityProtocolDetails->SetContent(ProtocolWidgetsModule.GenerateDetailsForEntity(Preset.Get(), SelectedEntity->GetId(), FieldType));	
+			}
+			else
+			{
+				EntityProtocolDetails->SetContent(SNullWidget::NullWidget);
+			}
 		}
 	}
 }
@@ -974,6 +1004,17 @@ void SRemoteControlPanel::UpdateActorFunctionPicker()
 		{
 			ActorFunctionPicker->Refresh();
 		}));
+	}
+}
+
+void SRemoteControlPanel::OnAssetRenamed(const FAssetData& Asset, const FString&)
+{
+	if (Asset.GetAsset() == Preset.Get())
+	{
+		if (PresetNameTextBlock)
+		{
+			PresetNameTextBlock->SetText(FText::FromName(Asset.AssetName));	
+		}
 	}
 }
 

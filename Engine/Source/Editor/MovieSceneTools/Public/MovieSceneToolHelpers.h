@@ -196,9 +196,20 @@ public:
 	 *
 	 * @param InTrack The track to find the next available row on
 	 * @param InSection The section
+	 * @param SectionsToDisregard Disregard checking these sections
 	 * @return The next available row index
 	 */
-	static int32 FindAvailableRowIndex(UMovieSceneTrack* InTrack, UMovieSceneSection* InSection);
+	static int32 FindAvailableRowIndex(UMovieSceneTrack* InTrack, UMovieSceneSection* InSection, const TArray<UMovieSceneSection*>& SectionsToDisregard = TArray<UMovieSceneSection*>());
+
+	/**
+	 * Does this section overlap any other track section?
+	 *
+	 * @param InTrack The track to find sections on
+	 * @param InSection The section
+	 * @param SectionsToDisregard Disregard checking these sections
+	 * @return Whether this section overlaps any other track section
+	 */
+	static bool OverlapsSection(UMovieSceneTrack* InTrack, UMovieSceneSection* InSection, const TArray<UMovieSceneSection*>& SectionsToDisregard = TArray<UMovieSceneSection*>());
 
 	/**
 	 * Generate a combobox for editing enum values

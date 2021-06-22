@@ -2,6 +2,7 @@
 
 #include "UnrealUSDWrapper.h"
 
+#include "USDClassesModule.h"
 #include "USDLog.h"
 #include "USDMemory.h"
 #include "USDProjectSettings.h"
@@ -10,6 +11,7 @@
 #include "UsdWrappers/UsdStage.h"
 #include "UsdWrappers/SdfLayer.h"
 
+#include "Interfaces/IPluginManager.h"
 #include "Internationalization/Regex.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
@@ -863,8 +865,6 @@ const TCHAR* UnrealIdentifiers::IdentifierPrefix = TEXT("@identifier:");
 FUsdDelegates::FUsdImportDelegate FUsdDelegates::OnPreUsdImport;
 FUsdDelegates::FUsdImportDelegate FUsdDelegates::OnPostUsdImport;
 
-DEFINE_LOG_CATEGORY( LogUsd );
-
 namespace UsdWrapperUtils
 {
 	void CheckIfForceDisabled()
@@ -970,6 +970,11 @@ TArray<FString> UnrealUSDWrapper::GetAllSupportedFileFormats()
 
 UE::FUsdStage UnrealUSDWrapper::OpenStage( const TCHAR* Identifier, EUsdInitialLoadSet InitialLoadSet, bool bUseStageCache )
 {
+	if ( !Identifier || FCString::Strlen( Identifier ) == 0 )
+	{
+		return UE::FUsdStage();
+	}
+
 #if USE_USD_SDK
 	FScopedUsdAllocs UsdAllocs;
 
@@ -1108,8 +1113,6 @@ void UnrealUSDWrapper::ClearDiagnosticDelegate()
 #endif // USE_USD_SDK
 }
 
-
-
 class FUnrealUSDWrapperModule : public IUnrealUSDWrapperModule
 {
 public:
@@ -1118,45 +1121,61 @@ public:
 #if USE_USD_SDK
 
 		// Path to USD base plugins
-#if WITH_EDITOR
-		FString BasePluginPath = FPaths::ConvertRelativePathToFull( FPaths::EnginePluginsDir() + FString( TEXT( "Importers/USDImporter/Resources" ) ) );
-#else
-		// The multiple nested folders make sure that the USD plugin plugInfo.json files can reference their library dlls in the engine folder or in the packaged game folder with the same relative path
-		FString BasePluginPath = FPaths::ConvertRelativePathToFull(
-			FPaths::Combine(
-				FPaths::ProjectDir(), TEXT( "Resources" ), TEXT( "F" ), TEXT( "F" ), TEXT( "F" )
-			)
-		);
-#endif // WITH_EDITOR
+		FString UsdPluginsPath = FPaths::Combine( TEXT( ".." ), TEXT( "ThirdParty" ), TEXT( "USD" ), TEXT( "UsdResources" ) );
+		UsdPluginsPath = FPaths::ConvertRelativePathToFull( UsdPluginsPath );
+#if PLATFORM_WINDOWS
+		UsdPluginsPath /= TEXT("Win64/plugins");
+#elif PLATFORM_LINUX
+		UsdPluginsPath /= TEXT("Linux/plugins");
+#elif PLATFORM_MAC
+		UsdPluginsPath /= TEXT("Mac/plugins");
+#endif
+
+#ifdef USE_LIBRARIES_FROM_PLUGIN_FOLDER
+		// e.g. "../../../Engine/Plugins/Importers/USDImporter/Source/ThirdParty"
+		FString TargetDllFolder = FPaths::Combine( IPluginManager::Get().FindPlugin( TEXT( "USDImporter" ) )->GetBaseDir(), TEXT( "Source" ), TEXT( "ThirdParty" ) );
 
 #if PLATFORM_WINDOWS
-		BasePluginPath /= TEXT("UsdResources/Win64/plugins");
+		TargetDllFolder /= TEXT( "USD" );
 #elif PLATFORM_LINUX
-		BasePluginPath /= ("UsdResources/Linux/plugins");
+		TargetDllFolder /= TEXT( "Linux" );
 #elif PLATFORM_MAC
-		BasePluginPath /= ("UsdResources/Mac/plugins");
-#endif
+		TargetDllFolder /= TEXT( "Mac" );
+#endif // PLATFORM_WINDOWS
+
+		TargetDllFolder /= TEXT( "bin" );
+#else
+		FString TargetDllFolder = FPlatformProcess::BaseDir();
+#endif // USD_DLL_LOCATION_OVERRIDE
+
+		// Have to do this in USDClasses as we need the Json module, which is RTTI == false
+		IUsdClassesModule::UpdatePlugInfoFiles(UsdPluginsPath, TargetDllFolder);
+
+		// Combine our current plugins with any additional USD plugins the user may have set.
+		TArray<FString> PluginDirectories;
+		PluginDirectories.Add( UsdPluginsPath );
+		for ( const FDirectoryPath& Directory : GetDefault<UUsdProjectSettings>()->AdditionalPluginDirectories )
+		{
+			if ( !Directory.Path.IsEmpty() )
+			{
+				PluginDirectories.Add( Directory.Path );
+			}
+		}
 
 		{
 			FScopedUsdAllocs UsdAllocs;
+
 			std::vector< std::string > UsdPluginDirectories;
+			UsdPluginDirectories.reserve( PluginDirectories.Num() );
 
-			UsdPluginDirectories.push_back(TCHAR_TO_UTF8(*BasePluginPath));
-
-			// Fetch additional USD plugins the user may have set
-			for (const FDirectoryPath& Directory : GetDefault<UUsdProjectSettings>()->AdditionalPluginDirectories)
+			for ( const FString& Dir : PluginDirectories )
 			{
-				if (!Directory.Path.IsEmpty())
-				{
-					UsdPluginDirectories.push_back(TCHAR_TO_UTF8(*Directory.Path));
-				}
+				UsdPluginDirectories.push_back( TCHAR_TO_UTF8( *Dir ) );
 			}
 
-			PlugRegistry::GetInstance().RegisterPlugins(UsdPluginDirectories);
+			PlugRegistry::GetInstance().RegisterPlugins( UsdPluginDirectories );
 		}
 
-#else
-		UsdWrapperUtils::CheckIfForceDisabled();
 #endif // USE_USD_SDK
 
 		FUsdMemoryManager::Initialize();

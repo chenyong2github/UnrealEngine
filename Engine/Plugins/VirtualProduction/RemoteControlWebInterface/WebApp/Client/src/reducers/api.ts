@@ -13,7 +13,8 @@ export type ApiState = {
   payloads: IPayloads;
   view: IView;
   status: {
-    connected: boolean;
+    connected?: boolean;
+    loading?: boolean;
   },
 };
 
@@ -52,15 +53,16 @@ function _initialize(dispatch: Dispatch, getState: () => { api: ApiState }) {
 
       dispatch(API.VIEW(view));
     })
-    .on('connected', async (connected: boolean) => {
-      dispatch(API.STATUS({ connected }));
+    .on('connected', (connected: boolean) => {
+      dispatch(API.STATUS({ connected, loading: false }));
 
       if (connected) {
-        await Promise.all([
-          _api.presets.get(),
-          _api.payload.all(),
-        ]);
+          _api.presets.get();
+          _api.payload.all();
       }
+    })
+    .on('loading', (loading: boolean) => {
+      dispatch(API.STATUS({ loading }));
     });
 }
 
@@ -191,7 +193,9 @@ const initialState: ApiState = {
 const reducer = createReducer<ApiState>({}, initialState);
 
 reducer
-  .on(API.STATUS, (state, status) => dotProp.merge(state, 'status', status))
+  .on(API.STATUS, (state, status) => {
+    return dotProp.merge(state, 'status', status);
+  })
   .on(API.PRESETS, (state, presets) => {
     const presetsMap = _.keyBy(presets, 'Name');
     state = dotProp.set(state, 'presets', presetsMap);

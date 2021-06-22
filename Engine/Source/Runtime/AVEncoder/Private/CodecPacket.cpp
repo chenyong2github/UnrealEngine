@@ -43,8 +43,6 @@ FCodecPacketImpl::FClone::~FClone()
 
 void FCodecPacketImpl::FClone::Copy(const FCodecPacketImpl& InOriginal)
 {
-	PTS = InOriginal.PTS;
-	DTS = InOriginal.DTS;
 	DataSize = InOriginal.DataSize;
 	Data = static_cast<const uint8*>(FMemory::Malloc(DataSize));
 	FMemory::BigBlockMemcpy(const_cast<uint8*>(Data), InOriginal.Data, DataSize);

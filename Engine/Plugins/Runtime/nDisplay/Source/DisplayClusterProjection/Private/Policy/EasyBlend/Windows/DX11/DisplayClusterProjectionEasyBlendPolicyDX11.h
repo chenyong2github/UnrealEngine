@@ -18,6 +18,11 @@ public:
 		: FDisplayClusterProjectionEasyBlendPolicyBase(ProjectionPolicyId, InConfigurationProjectionPolicy)
 	{ }
 
+	virtual bool IsEasyBlendRenderingEnabled() override
+	{
+		return FDisplayClusterProjectionEasyBlendViewAdapterDX11::IsEasyBlendRenderingEnabled();
+	}
+
 protected:
 	virtual TUniquePtr<FDisplayClusterProjectionEasyBlendViewAdapterBase> CreateViewAdapter(const FDisplayClusterProjectionEasyBlendViewAdapterBase::FInitParams& InitParams) override
 	{

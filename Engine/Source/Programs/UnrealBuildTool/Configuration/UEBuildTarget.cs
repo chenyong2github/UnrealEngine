@@ -3615,6 +3615,15 @@ namespace UnrealBuildTool
 				GlobalCompileEnvironment.Definitions.Add("WITH_ACCESSIBILITY=0");
 			}
 
+			if (Rules.bCompileWithSlateWidgetTracking)
+			{
+				GlobalCompileEnvironment.Definitions.Add("WITH_SLATE_WIDGET_TRACKING=1");
+			}
+			else
+			{
+				GlobalCompileEnvironment.Definitions.Add("WITH_SLATE_WIDGET_TRACKING=0");
+			}
+
 			if (Rules.bWithPerfCounters)
 			{
 				GlobalCompileEnvironment.Definitions.Add("WITH_PERFCOUNTERS=1");

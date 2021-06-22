@@ -12,26 +12,26 @@
 #include "Misc/Guid.h"
 
 
-bool FDMXPort::IsLocalUniverseInPortRange(int32 Universe) const
+bool FDMXPort::IsLocalUniverseInPortRange(int32 LocalUniverse) const
 {
-	if (Universe < LocalUniverseStart ||
-		Universe > LocalUniverseStart + NumUniverses - 1)
+	if (LocalUniverse >= LocalUniverseStart &&
+		LocalUniverse <= LocalUniverseStart + NumUniverses - 1)
 	{
-		return false;
+		return true;
 	}
 
-	return true;
+	return false;
 }
 
-bool FDMXPort::IsExternUniverseInPortRange(int32 Universe) const
+bool FDMXPort::IsExternUniverseInPortRange(int32 ExternUniverse) const
 {
-	if (Universe < ExternUniverseStart ||
-		Universe > ExternUniverseStart + NumUniverses - 1)
+	if (ExternUniverse >= ExternUniverseStart &&
+		ExternUniverse <= ExternUniverseStart + NumUniverses - 1)
 	{
-		return false;
+		return true;
 	}
 
-	return true;
+	return false;
 }
 
 int32 FDMXPort::GetExternUniverseOffset() const

@@ -296,6 +296,30 @@ public:
 					FMemory::Memcpy(VertexBufferData, VertexBuffer.GetTexCoordData(), VertexBuffer.GetTexCoordSize());
 					RHIUnlockBuffer(VertexBuffer.TexCoordVertexBuffer.VertexBufferRHI);
 				}
+
+#if RHI_RAYTRACING
+				if (IsRayTracingEnabled())
+				{
+					Section->RayTracingGeometry.ReleaseResource();
+
+					FRayTracingGeometryInitializer Initializer;
+					Initializer.IndexBuffer = Section->IndexBuffer.IndexBufferRHI;
+					Initializer.TotalPrimitiveCount = Section->IndexBuffer.Indices.Num() / 3;
+					Initializer.GeometryType = RTGT_Triangles;
+					Initializer.bFastBuild = true;
+					Initializer.bAllowUpdate = false;
+
+					Section->RayTracingGeometry.SetInitializer(Initializer);
+					Section->RayTracingGeometry.InitResource();
+
+					FRayTracingGeometrySegment Segment;
+					Segment.VertexBuffer = Section->VertexBuffers.PositionVertexBuffer.VertexBufferRHI;
+					Segment.NumPrimitives = Section->RayTracingGeometry.Initializer.TotalPrimitiveCount;
+					Section->RayTracingGeometry.Initializer.Segments.Add(Segment);
+
+					Section->RayTracingGeometry.UpdateRHI();
+				}
+#endif
 			}
 
 			// Free data sent from game thread

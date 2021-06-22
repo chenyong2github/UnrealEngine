@@ -64,7 +64,7 @@ public:
 	void RenameParameter(const FNiagaraVariable& VariableToRename, const FName NewName);
 	const TArray<UNiagaraScriptVariable*>& GetParametersConst() const;
 	virtual int32 GetChangeIdHash() const override;
-	virtual TArray<FGuid> GetParameterIds() const override;
+	virtual TSet<FGuid> GetParameterIds() const override;
 
 	/** Getters for script variables. 
 	 *  NOTE: These public getters are implemented to support details views. Editing UNiagaraScriptVariable definitions publicly should be done via the add/remove/rename interface otherwise.
@@ -86,13 +86,19 @@ public:
 	void NotifyParameterDefinitionsChanged();
 
 	bool GetIsPromotedToTopInAddMenus() const { return bPromoteToTopInAddMenus; };
+	
+	int32 GetMenuSortOrder() const { return MenuSortOrder; };
 
 private:
 	const TArray<UNiagaraParameterDefinitions*> GetSubscribedParameterDefinitions() const;
 
-private:
-	UPROPERTY(EditAnywhere, Category = "Library Preferences")
+	// If true then these parameters will appear as top level entry in add menus (e.g. in the module editor)
+	UPROPERTY(EditAnywhere, Category = "Definition Preferences")
 	bool bPromoteToTopInAddMenus;
+
+	// Defines the sort order in add menus. Entries with smaller numbers are displayed first.
+	UPROPERTY(EditAnywhere, Category = "Definition Preferences")
+	int32 MenuSortOrder;
 
 	UPROPERTY()
 	TArray<UNiagaraScriptVariable*> ScriptVariables;

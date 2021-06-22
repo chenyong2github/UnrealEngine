@@ -5,29 +5,20 @@
 #include "DetailLayoutBuilder.h"
 #include "EdGraphSchema_Niagara.h"
 #include "EditorFontGlyphs.h"
-#include "Editor/GraphEditor/Private/GraphActionNode.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Misc/Guid.h"
 #include "NiagaraActions.h"
-#include "NiagaraConstants.h"
-#include "NiagaraEditorCommon.h"
 #include "NiagaraEditorStyle.h"
-#include "NiagaraEditorModule.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraScriptVariable.h"
 #include "NiagaraTypes.h"
 #include "SDropTarget.h"
-#include "SGraphActionMenu.h"
-#include "SNiagaraGraphActionWidget.h"
-#include "SNiagaraParameterPanelPaletteItem.h"
 #include "SNiagaraPinTypeSelector.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Input/SSearchBox.h"
+#include "Widgets/SToolTip.h"
 #include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Text/SRichTextBlock.h"
 #include "Widgets/SNiagaraParameterMapView.h"
@@ -60,6 +51,7 @@ void FNiagaraParameterPanelCommands::RegisterCommands()
 void SNiagaraParameterPanel::Construct(const FArguments& InArgs, const TSharedPtr<INiagaraParameterPanelViewModel>& InParameterPanelViewModel, const TSharedPtr<FUICommandList>& InToolkitCommands)
 {
 	bShowParameterSynchronizingWithLibraryIcon = InArgs._ShowParameterSynchronizingWithLibraryIcon;
+	bShowParameterSynchronizingWithLibraryIconExternallyReferenced = InArgs._ShowParameterSynchronizingWithLibraryIconExternallyReferenced;
 	bShowParameterReferenceCounter = InArgs._ShowParameterReferenceCounter;
 
 	ParameterPanelViewModel = InParameterPanelViewModel;
@@ -96,7 +88,7 @@ void SNiagaraParameterPanel::Construct(const FArguments& InArgs, const TSharedPt
 	.OnItemActivated(this, &SNiagaraParameterPanel::OnParameterItemActived)
 	.AllowMultiselect(false)
 	.ClearSelectionOnClick(true)
-	.CategoryRowStyle(FEditorStyle::Get(), "DetailsView.TreeView.TableRow")
+	.CategoryRowStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.Parameters.TableRow")
 	.OnGetCategoryBackgroundImage(this, &SNiagaraParameterPanel::GetCategoryBackgroundImage)
 	.CategoryBorderBackgroundColor(FLinearColor(.6, .6, .6, 1.0f))
 	.CategoryChildSlotPadding(FMargin(0.0f, 2.0f, 0.0f, 0.0f))
@@ -213,15 +205,17 @@ TSharedRef<SWidget> SNiagaraParameterPanel::OnGenerateWidgetForCategory(const FN
 	const FText& CategoryText = Category.NamespaceMetaData.DisplayNameLong.IsEmptyOrWhitespace() == false ?
 		Category.NamespaceMetaData.DisplayNameLong : Category.NamespaceMetaData.DisplayName;
 	TSharedRef<SHorizontalBox> ParameterPanelCategoryHorizontalBox = SNew(SHorizontalBox);
-
+	
 	ParameterPanelCategoryHorizontalBox->AddSlot()
 	.VAlign(VAlign_Center)
 	.Padding(3, 0, 0, 0)
 	[
+
 		SNew(SRichTextBlock)
 		.Text(CategoryText)
-		.DecoratorStyleSet(&FEditorStyle::Get())
-		.TextStyle(FEditorStyle::Get(), "DetailsView.CategoryTextStyle")
+		.ToolTip(SNew(SToolTip).Text(Category.NamespaceMetaData.Description))
+		.DecoratorStyleSet(&FNiagaraEditorStyle::Get())
+		.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.Parameters.HeaderText")
 	];
 
 	if (GetCanAddParametersToCategory(Category))
@@ -266,13 +260,86 @@ TSharedRef<SWidget> SNiagaraParameterPanel::OnGenerateWidgetForItem(const FNiaga
 	bool bItemReadOnly = Item.NamespaceMetaData.IsValid() == false || Item.NamespaceMetaData.Options.Contains(ENiagaraNamespaceMetadataOptions::PreventEditingName) || Item.bExternallyReferenced;
 	
 	TSharedPtr<SHorizontalBox> ParameterNameTextBlockDecorator = SNew(SHorizontalBox);
+	if ( bShowParameterSynchronizingWithLibraryIcon && (bShowParameterSynchronizingWithLibraryIconExternallyReferenced || !Item.bExternallyReferenced) )
+	{
+		if (Item.ScriptVariable->GetIsSubscribedToParameterDefinitions())
+		{
+			if (Item.ScriptVariable->GetIsOverridingParameterDefinitionsDefaultValue())
+			{
+				ParameterNameTextBlockDecorator->AddSlot()
+				.AutoWidth()
+				[
+					SNew(SBox)
+					.MinDesiredWidth(20.0f)
+					[
+						SNew(STextBlock)
+						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
+						.Text(FEditorFontGlyphs::Share_Alt)
+						.ToolTipText(LOCTEXT("ParameterDefinitionDefaultValueOverridingToolTip", "Parameter is overriding the linked Parameter Definition default value."))
+					]
+				];
+			}
+
+			ParameterNameTextBlockDecorator->AddSlot()
+			.AutoWidth()
+			[
+				SNew(SBox)
+				.MinDesiredWidth(20.0f)
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
+					.Text(FEditorFontGlyphs::Book)
+					.ToolTipText(LOCTEXT("ParameterDefinitionSubscribedToolTip", "Parameter is linked to a Parameter Definition."))
+				]
+			];
+		}
+		else if (
+			Item.DefinitionMatchState == EParameterDefinitionMatchState::MatchingOneDefinition ||
+			Item.DefinitionMatchState == EParameterDefinitionMatchState::MatchingMoreThanOneDefinition ||
+			Item.DefinitionMatchState == EParameterDefinitionMatchState::MatchingDefinitionNameButNotType)
+		{
+			FText LinkedParameterToolTipText;
+			if (Item.DefinitionMatchState == EParameterDefinitionMatchState::MatchingOneDefinition)
+			{
+				LinkedParameterToolTipText = LOCTEXT("ParameterDefinitionMatchToolTip", "Parameter has the same name and type as a Parameter Definition, but is not linked to the Parameter Definition.");
+			}
+			else if (Item.DefinitionMatchState == EParameterDefinitionMatchState::MatchingMoreThanOneDefinition)
+			{
+				LinkedParameterToolTipText = LOCTEXT("ParameterDefinitionMultipleMatchToolTip", "Parameter has the same name and type as multiple Parameter Definitions.");
+			}
+			else if (Item.DefinitionMatchState == EParameterDefinitionMatchState::MatchingDefinitionNameButNotType)
+			{
+				LinkedParameterToolTipText = LOCTEXT("ParameterDefinitionMultipleNameAliasToolTip", "Parameter has the same name but not the same type as a Parameter Definition.");
+			}
+			else
+			{
+				ensureMsgf(false, TEXT("Encountered unexepcted definition match state when getting tooltip for linked parameter icon!"));
+			}
+
+			ParameterNameTextBlockDecorator->AddSlot()
+			.AutoWidth()
+			[
+				SNew(SBox)
+				.MinDesiredWidth(20.0f)
+				[
+					SNew(STextBlock)
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
+					.Text(FEditorFontGlyphs::Book)
+					.ColorAndOpacity(FLinearColor::Red)
+					.ToolTipText(LinkedParameterToolTipText)
+					.ShadowOffset(FVector2D(1, 1))
+				]
+			];
+		}
+	}
+
 	if (Item.bExternallyReferenced)
 	{
 		ParameterNameTextBlockDecorator->AddSlot()
 		.AutoWidth()
 		[
 			SNew(SBox)
-			.MinDesiredWidth(30.0f)
+			.MinDesiredWidth(20.0f)
 			[
 				SNew(STextBlock)
 				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
@@ -287,7 +354,7 @@ TSharedRef<SWidget> SNiagaraParameterPanel::OnGenerateWidgetForItem(const FNiaga
 		.AutoWidth()
 		[
 			SNew(SBox)
-			.MinDesiredWidth(30.0f)
+			.MinDesiredWidth(20.0f)
 			[
 				SNew(STextBlock)
 				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
@@ -296,41 +363,7 @@ TSharedRef<SWidget> SNiagaraParameterPanel::OnGenerateWidgetForItem(const FNiaga
 			]
 		];
 	}
-	if (bShowParameterSynchronizingWithLibraryIcon)
-	{
-		if (Item.ScriptVariable->GetIsSubscribedToParameterDefinitions())
-		{
-			ParameterNameTextBlockDecorator->AddSlot()
-			.AutoWidth()
-			[
-				SNew(SBox)
-				.MinDesiredWidth(30.0f)
-				[
-					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
-					.Text(FEditorFontGlyphs::Book)
-					.ToolTipText(LOCTEXT("ParameterDefinitionSubscribedToolTip", "This parameter is subscribed to a Parameter Definition."))
-				]
-			];
-		}
-		else if (Item.bNameAliasingParameterDefinitions)
-		{
-			ParameterNameTextBlockDecorator->AddSlot()
-			.AutoWidth()
-			[
-				SNew(SBox)
-				.MinDesiredWidth(30.0f)
-				[
-					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
-					.Text(FEditorFontGlyphs::Book)
-					.ColorAndOpacity(FLinearColor::Yellow)
-					.ToolTipText(LOCTEXT("ParameterDefinitionNameAliasToolTip", "This parameter has the same name as a Parameter Definition, but is not subscribed to the Parameter Definition."))
-					.ShadowOffset(FVector2D(1, 1))
-				]
-			];
-		}
-	}
+
 
 	// Generate the parameter name widget.
 	TSharedPtr<SNiagaraParameterNameTextBlock> ParameterNameTextBlock = SNew(SNiagaraParameterNameTextBlock)

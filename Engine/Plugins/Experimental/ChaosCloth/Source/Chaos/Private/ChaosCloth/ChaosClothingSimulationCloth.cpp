@@ -735,34 +735,9 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 		// Update Cloth group parameters  TODO: Cloth groups should exist as their own node object so that they can be used by several cloth objects
 		LODData[LODIndex].Update(Solver, this);
 
-		// Update gravity
-		// This code relies on the solver gravity property being already set.
-		// In order to use a cloth gravity override, it must first be enabled by the solver so that an override at solver level can still take precedence if needed.
-		// In all cases apart from when the cloth override is used, the gravity scale must be combined to the solver gravity value.
-		Solver->SetGravity(GroupId, GetGravity(Solver));
-
-		// External forces (legacy wind+field)
-		Solver->AddExternalForces(GroupId, bUseLegacyWind);
-
-		if (bUseLegacyWind && ChaosClothingSimulationClothConsoleVariables::CVarLegacyDisablesAccurateWind.GetValueOnAnyThread())
-		{
-			Solver->SetWindProperties(GroupId, FVec2::ZeroVector, FVec2::ZeroVector, (FReal)0.);  // Disable the wind velocity field
-		}
-		else
-		{
-			Solver->SetWindProperties(GroupId, FVec2((FReal)Drag[0], (FReal)Drag[1]), FVec2((FReal)Lift[0], (FReal)Lift[1]), (FReal)AirDensity);  // TODO: Pass AirDensity too
-		}
-		Solver->SetWindVelocity(GroupId, WindVelocity + Solver->GetWindVelocity());
-
-		// Update general solver properties
-		Solver->SetProperties(GroupId, DampingCoefficient, CollisionThickness, FrictionCoefficient);
-
-		// Update use of continuous collision detection
-		Solver->SetUseCCD(GroupId, bUseCCD);
-
 		// TODO: Move all groupID updates out of the cloth update to allow to use of the same GroupId with different cloths
 
-		// Set the reference input velocity and deal with teleport & reset
+		// Set the reference input velocity and deal with teleport & reset; external forces depends on these values, so they must be initialized before then
 		FVec3 OutLinearVelocityScale;
 		FReal OutAngularVelocityScale;
 
@@ -797,6 +772,31 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 			OutLinearVelocityScale,
 			OutAngularVelocityScale,
 			FictitiousAngularScale);
+
+		// Update gravity
+		// This code relies on the solver gravity property being already set.
+		// In order to use a cloth gravity override, it must first be enabled by the solver so that an override at solver level can still take precedence if needed.
+		// In all cases apart from when the cloth override is used, the gravity scale must be combined to the solver gravity value.
+		Solver->SetGravity(GroupId, GetGravity(Solver));
+
+		// External forces (legacy wind+field)
+		Solver->AddExternalForces(GroupId, bUseLegacyWind);
+
+		if (bUseLegacyWind && ChaosClothingSimulationClothConsoleVariables::CVarLegacyDisablesAccurateWind.GetValueOnAnyThread())
+		{
+			Solver->SetWindProperties(GroupId, FVec2::ZeroVector, FVec2::ZeroVector, (FReal)0.);  // Disable the wind velocity field
+		}
+		else
+		{
+			Solver->SetWindProperties(GroupId, FVec2((FReal)Drag[0], (FReal)Drag[1]), FVec2((FReal)Lift[0], (FReal)Lift[1]), (FReal)AirDensity);  // TODO: Pass AirDensity too
+		}
+		Solver->SetWindVelocity(GroupId, WindVelocity + Solver->GetWindVelocity());
+
+		// Update general solver properties
+		Solver->SetProperties(GroupId, DampingCoefficient, CollisionThickness, FrictionCoefficient);
+
+		// Update use of continuous collision detection
+		Solver->SetUseCCD(GroupId, bUseCCD);
 	}
 
 	// Reset trigger flags

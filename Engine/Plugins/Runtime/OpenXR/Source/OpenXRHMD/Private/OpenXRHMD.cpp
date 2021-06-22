@@ -40,6 +40,7 @@ extern struct android_app* GNativeAndroidApp;
 #endif
 
 #define OPENXR_PAUSED_IDLE_FPS 10
+static const int64 OPENXR_SWAPCHAIN_WAIT_TIMEOUT = 100000000ll;		// 100ms in nanoseconds.
 
 static TAutoConsoleVariable<int32> CVarEnableOpenXRValidationLayer(
 	TEXT("xr.EnableOpenXRValidationLayer"),
@@ -946,6 +947,20 @@ FVector2D FOpenXRHMD::GetPlayAreaBounds(EHMDTrackingOrigin::Type Origin) const
 	return ToFVector2D(Bounds, WorldToMetersScale);
 }
 
+FName FOpenXRHMD::GetHMDName() const
+{
+	return SystemProperties.systemName;
+}
+
+FString FOpenXRHMD::GetVersionString() const
+{
+	return FString::Printf(TEXT("%s: %d.%d.%d"),
+		UTF8_TO_TCHAR(InstanceProperties.runtimeName),
+		XR_VERSION_MAJOR(InstanceProperties.runtimeVersion),
+		XR_VERSION_MINOR(InstanceProperties.runtimeVersion),
+		XR_VERSION_PATCH(InstanceProperties.runtimeVersion));
+}
+
 bool FOpenXRHMD::IsHMDEnabled() const
 {
 	return true;
@@ -957,16 +972,30 @@ void FOpenXRHMD::EnableHMD(bool enable)
 
 bool FOpenXRHMD::GetHMDMonitorInfo(MonitorInfo& MonitorDesc)
 {
-	MonitorDesc.MonitorName = "";
+	MonitorDesc.MonitorName = UTF8_TO_TCHAR(SystemProperties.systemName);
 	MonitorDesc.MonitorId = 0;
-	MonitorDesc.DesktopX = MonitorDesc.DesktopY = MonitorDesc.ResolutionX = MonitorDesc.ResolutionY = 0;
-	return false;
+
+	FIntPoint RTSize = GetIdealRenderTargetSize();
+	MonitorDesc.DesktopX = MonitorDesc.DesktopY = 0;
+	MonitorDesc.ResolutionX = MonitorDesc.WindowSizeX = RTSize.X;
+	MonitorDesc.ResolutionY = MonitorDesc.WindowSizeY = RTSize.Y;
+	return true;
 }
 
 void FOpenXRHMD::GetFieldOfView(float& OutHFOVInDegrees, float& OutVFOVInDegrees) const
 {
-	OutHFOVInDegrees = 0.0f;
-	OutVFOVInDegrees = 0.0f;
+	const FPipelinedFrameState& FrameState = GetPipelinedFrameStateForThread();
+
+	XrFovf UnifiedFov = { 0.0f };
+	for (const XrView& View : FrameState.Views)
+	{
+		UnifiedFov.angleLeft = FMath::Min(UnifiedFov.angleLeft, View.fov.angleLeft);
+		UnifiedFov.angleRight = FMath::Max(UnifiedFov.angleRight, View.fov.angleRight);
+		UnifiedFov.angleUp = FMath::Max(UnifiedFov.angleUp, View.fov.angleUp);
+		UnifiedFov.angleDown = FMath::Min(UnifiedFov.angleDown, View.fov.angleDown);
+	}
+	OutHFOVInDegrees = FMath::RadiansToDegrees(UnifiedFov.angleRight - UnifiedFov.angleLeft);
+	OutVFOVInDegrees = FMath::RadiansToDegrees(UnifiedFov.angleUp - UnifiedFov.angleDown);
 }
 
 bool FOpenXRHMD::EnumerateTrackedDevices(TArray<int32>& OutDevices, EXRTrackedDeviceType Type)
@@ -977,7 +1006,8 @@ bool FOpenXRHMD::EnumerateTrackedDevices(TArray<int32>& OutDevices, EXRTrackedDe
 	}
 	if (Type == EXRTrackedDeviceType::Any || Type == EXRTrackedDeviceType::Controller)
 	{
-		for (int32 i = 0; i < DeviceSpaces.Num(); i++)
+		// Skip the HMD, we already added it to the list
+		for (int32 i = 1; i < DeviceSpaces.Num(); i++)
 		{
 			OutDevices.Add(i);
 		}
@@ -991,7 +1021,15 @@ void FOpenXRHMD::SetInterpupillaryDistance(float NewInterpupillaryDistance)
 
 float FOpenXRHMD::GetInterpupillaryDistance() const
 {
-	return 0.064f;
+	const FPipelinedFrameState& FrameState = GetPipelinedFrameStateForThread();
+	if (FrameState.Views.Num() < 2)
+	{
+		return 0.064f;
+	}
+
+	FVector leftPos = ToFVector(FrameState.Views[0].pose.position);
+	FVector rightPos = ToFVector(FrameState.Views[1].pose.position);
+	return FVector::Dist(leftPos, rightPos);
 }	
 
 bool FOpenXRHMD::GetIsTracked(int32 DeviceId)
@@ -1006,8 +1044,8 @@ bool FOpenXRHMD::GetIsTracked(int32 DeviceId)
 	}
 
 	const XrSpaceLocation& Location = PipelineState.DeviceLocations[DeviceId];
-	return Location.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT &&
-		Location.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT;
+	return Location.locationFlags & XR_SPACE_LOCATION_ORIENTATION_TRACKED_BIT &&
+		Location.locationFlags & XR_SPACE_LOCATION_POSITION_TRACKED_BIT;
 }
 
 bool FOpenXRHMD::GetCurrentPose(int32 DeviceId, FQuat& CurrentOrientation, FVector& CurrentPosition)
@@ -1134,6 +1172,7 @@ bool FOpenXRHMD::EnableStereo(bool stereo)
 		{
 			StartSession();
 
+			FApp::SetUseVRFocus(true);
 			FApp::SetHasVRFocus(true);
 
 			return true;
@@ -1144,6 +1183,7 @@ bool FOpenXRHMD::EnableStereo(bool stereo)
 	{
 		GEngine->bForceDisableFrameRateSmoothing = false;
 
+		FApp::SetUseVRFocus(false);
 		FApp::SetHasVRFocus(false);
 
 #if WITH_EDITOR
@@ -1335,8 +1375,8 @@ FMatrix FOpenXRHMD::GetStereoProjectionMatrix(const enum EStereoscopicPass Stere
 	const uint32 ViewIndex = GetViewIndexForPass(StereoPassType);
 
 	const FPipelinedFrameState& FrameState = GetPipelinedFrameStateForThread();
-	XrFovf Fov = FrameState.Views[ViewIndex].fov;
-
+	XrFovf Fov = (ViewIndex < (uint32)FrameState.Views.Num()) ? FrameState.Views[ViewIndex].fov 
+		: XrFovf{ -PI / 4.0f, PI / 4.0f, PI / 4.0f, -PI / 4.0f };
 	float ZNear = GNearClippingPlane;
 
 	Fov.angleUp = tan(Fov.angleUp);
@@ -1442,6 +1482,7 @@ bool CheckPlatformDepthExtensionSupport(const XrInstanceProperties& InstanceProp
 FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance, XrSystemId InSystem, TRefCountPtr<FOpenXRRenderBridge>& InRenderBridge, TArray<const char*> InEnabledExtensions, TArray<IOpenXRExtensionPlugin*> InExtensionPlugins, IARSystemSupport* ARSystemSupport)
 	: FHeadMountedDisplayBase(ARSystemSupport)
 	, FSceneViewExtensionBase(AutoRegister)
+	, FOpenXRAssetManager(InInstance, this)
 	, bStereoEnabled(false)
 	, bIsRunning(false)
 	, bIsReady(false)
@@ -1468,14 +1509,21 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	, LastRequestedSwapchainFormat(0)
 	, LastRequestedDepthSwapchainFormat(0)
 {
-	XrInstanceProperties InstanceProps = { XR_TYPE_INSTANCE_PROPERTIES, nullptr };
-	XR_ENSURE(xrGetInstanceProperties(Instance, &InstanceProps));
+	InstanceProperties = { XR_TYPE_INSTANCE_PROPERTIES, nullptr };
+	XR_ENSURE(xrGetInstanceProperties(Instance, &InstanceProperties));
 
-	bDepthExtensionSupported = IsExtensionEnabled(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME) && CheckPlatformDepthExtensionSupport(InstanceProps);
+	bDepthExtensionSupported = IsExtensionEnabled(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME) && CheckPlatformDepthExtensionSupport(InstanceProperties);
 
 	bHiddenAreaMaskSupported = IsExtensionEnabled(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME) &&
-		!FCStringAnsi::Strstr(InstanceProps.runtimeName, "Oculus");
+		!FCStringAnsi::Strstr(InstanceProperties.runtimeName, "Oculus");
 	bViewConfigurationFovSupported = IsExtensionEnabled(XR_EPIC_VIEW_CONFIGURATION_FOV_EXTENSION_NAME);
+
+	// Retrieve system properties and check for hand tracking support
+	XrSystemHandTrackingPropertiesEXT HandTrackingSystemProperties = { XR_TYPE_SYSTEM_HAND_TRACKING_PROPERTIES_EXT };
+	SystemProperties = XrSystemProperties{ XR_TYPE_SYSTEM_PROPERTIES, &HandTrackingSystemProperties };
+	XR_ENSURE(xrGetSystemProperties(Instance, System, &SystemProperties));
+	bSupportsHandTracking = HandTrackingSystemProperties.supportsHandTracking == XR_TRUE;
+	SystemProperties.next = nullptr;
 
 	static const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
 	static const auto CVarMobileHDR = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
@@ -1518,6 +1566,7 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 		SelectedViewConfigurationType = ViewConfigTypes[0];
 	}
 
+	// Enumerate the views we will be simulating with.
 	EnumerateViews(PipelinedFrameStateGame);
 
 	// Enumerate environment blend modes and select the best one.
@@ -1564,7 +1613,9 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 #endif
 
 	// Add a device space for the HMD without an action handle and ensure it has the correct index
-	ensure(DeviceSpaces.Emplace(XR_NULL_HANDLE) == HMDDeviceId);
+	XrPath UserHead = XR_NULL_PATH;
+	XR_ENSURE(xrStringToPath(Instance, "/user/head", &UserHead));
+	ensure(DeviceSpaces.Emplace(XR_NULL_HANDLE, UserHead) == HMDDeviceId);
 
 	// Give the all frame states the same initial values.
 	PipelinedFrameStateRHI = PipelinedFrameStateRendering = PipelinedFrameStateGame;
@@ -1689,20 +1740,7 @@ void FOpenXRHMD::EnumerateViews(FPipelinedFrameState& PipelineState)
 	
 	if (Session)
 	{
-		uint32_t ViewCount = 0;
-		XrViewLocateInfo ViewInfo;
-		ViewInfo.type = XR_TYPE_VIEW_LOCATE_INFO;
-		ViewInfo.next = nullptr;
-		ViewInfo.viewConfigurationType = SelectedViewConfigurationType;
-		ViewInfo.space = DeviceSpaces[HMDDeviceId].Space;
-		ViewInfo.displayTime = PipelineState.FrameState.predictedDisplayTime;
-		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
-		{
-			ViewInfo.next = Module->OnLocateViews(Session, ViewInfo.displayTime, ViewInfo.next);
-		}
-		XR_ENSURE(xrLocateViews(Session, &ViewInfo, &PipelineState.ViewState, 0, &ViewCount, nullptr));
-		PipelineState.Views.SetNum(ViewCount, false);
-		XR_ENSURE(xrLocateViews(Session, &ViewInfo, &PipelineState.ViewState, PipelineState.Views.Num(), &ViewCount, PipelineState.Views.GetData()));
+		LocateViews(PipelineState, true);
 
 		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 		{
@@ -1725,7 +1763,7 @@ void FOpenXRHMD::EnumerateViews(FPipelinedFrameState& PipelineState)
 			View.type = XR_TYPE_VIEW;
 			View.next = nullptr;
 			// FIXME: should be recommendedFov
-			View.fov = ViewFov[ViewIndex].recommendedMutableFov;
+			View.fov = ViewFov[ViewIndex].recommendedFov;
 			View.pose = ToXrPose(FTransform::Identity);
 		}
 	}
@@ -1871,7 +1909,11 @@ bool FOpenXRHMD::OnStereoStartup()
 	{
 		SessionInfo.next = Module->OnCreateSession(Instance, System, SessionInfo.next);
 	}
-	XR_ENSURE(xrCreateSession(Instance, &SessionInfo, &Session));
+
+	if (!XR_ENSURE(xrCreateSession(Instance, &SessionInfo, &Session)))
+	{
+		return false;
+	}
 
 	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 	{
@@ -1957,13 +1999,6 @@ bool FOpenXRHMD::OnStereoStartup()
 		}
 	}
 
-	// Check for hand tracking support
-	XrSystemHandTrackingPropertiesEXT HandTrackingSystemProperties{
-		XR_TYPE_SYSTEM_HAND_TRACKING_PROPERTIES_EXT };
-	XrSystemProperties systemProperties{ XR_TYPE_SYSTEM_PROPERTIES,
-										&HandTrackingSystemProperties };
-	XR_ENSURE(xrGetSystemProperties(Instance, System, &systemProperties));
-	bSupportsHandTracking = HandTrackingSystemProperties.supportsHandTracking == XR_TRUE;
 	return true;
 }
 
@@ -2039,12 +2074,12 @@ void FOpenXRHMD::DestroySession()
 	}
 }
 
-int32 FOpenXRHMD::AddActionDevice(XrAction Action)
+int32 FOpenXRHMD::AddActionDevice(XrAction Action, XrPath Path)
 {
 	// Ensure the HMD device is already emplaced
 	ensure(DeviceSpaces.Num() > 0);
 
-	int32 DeviceId = DeviceSpaces.Emplace(Action);
+	int32 DeviceId = DeviceSpaces.Emplace(Action, Path);
 
 	FReadScopeLock Lock(SessionHandleMutex);
 	if (Session)
@@ -2062,6 +2097,15 @@ void FOpenXRHMD::ResetActionDevices()
 	{
 		DeviceSpaces.RemoveAt(HMDDeviceId + 1, DeviceSpaces.Num() - 1);
 	}
+}
+
+XrPath FOpenXRHMD::GetTrackedDevicePath(const int32 DeviceId)
+{
+	if (DeviceSpaces.IsValidIndex(DeviceId))
+	{
+		return DeviceSpaces[DeviceId].Path;
+	}
+	return XR_NULL_PATH;
 }
 
 XrTime FOpenXRHMD::GetDisplayTime() const
@@ -2149,6 +2193,12 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 	if (MobileHWsRGB)
 	{
 		TargetableTextureFlags |= TexCreate_SRGB;
+	}
+
+	// Temporary workaround to swapchain formats - OpenXR doesn't support 10-bit sRGB swapchains, so prefer 8-bit sRGB instead.
+	if (Format == PF_A2B10G10R10)
+	{
+		Format = PF_R8G8B8A8;
 	}
 
 	FClearValueBinding ClearColor = (SelectedEnvironmentBlendMode == XR_ENVIRONMENT_BLEND_MODE_OPAQUE) ? FClearValueBinding::Black : FClearValueBinding::Transparent;
@@ -2311,6 +2361,10 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 
 	if (bIsRunning)
 	{
+		// Locate the views we will actually be rendering for.
+		// This is required to support late-updating the field-of-view.
+		LocateViews(PipelinedFrameStateRendering, false);
+
 		SCOPED_NAMED_EVENT(EnqueueFrame, FColor::Red);
 
 		// Reset the update flag on all layers
@@ -2337,6 +2391,35 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 	UpdateDeviceLocations(false);
 }
 
+void FOpenXRHMD::LocateViews(FPipelinedFrameState& PipelineState, bool ResizeViewsArray)
+{
+	check(PipelineState.FrameState.predictedDisplayTime);
+
+	uint32_t ViewCount = 0;
+	XrViewLocateInfo ViewInfo;
+	ViewInfo.type = XR_TYPE_VIEW_LOCATE_INFO;
+	ViewInfo.next = nullptr;
+	ViewInfo.viewConfigurationType = SelectedViewConfigurationType;
+	ViewInfo.space = DeviceSpaces[HMDDeviceId].Space;
+	ViewInfo.displayTime = PipelineState.FrameState.predictedDisplayTime;
+	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+	{
+		ViewInfo.next = Module->OnLocateViews(Session, ViewInfo.displayTime, ViewInfo.next);
+	}
+
+	XR_ENSURE(xrLocateViews(Session, &ViewInfo, &PipelineState.ViewState, 0, &ViewCount, nullptr));
+	if (ResizeViewsArray)
+	{
+		PipelineState.Views.SetNum(ViewCount, false);
+	}
+	else
+	{
+		ensure(PipelineState.Views.Num() == ViewCount);
+	}
+	
+	XR_ENSURE(xrLocateViews(Session, &ViewInfo, &PipelineState.ViewState, PipelineState.Views.Num(), &ViewCount, PipelineState.Views.GetData()));
+}
+
 void FOpenXRHMD::OnLateUpdateApplied_RenderThread(FRHICommandListImmediate& RHICmdList, const FTransform& NewRelativeTransform)
 {
 	FHeadMountedDisplayBase::OnLateUpdateApplied_RenderThread(RHICmdList, NewRelativeTransform);
@@ -2353,6 +2436,9 @@ void FOpenXRHMD::OnLateUpdateApplied_RenderThread(FRHICommandListImmediate& RHIC
 		FTransform NewRelativePoseTransform = EyePose * NewRelativeTransform;
 		NewRelativePoseTransform.NormalizeRotation();
 		Projection.pose = ToXrPose(NewRelativePoseTransform, GetWorldToMetersScale());
+
+		// Update the field-of-view to match the final projection matrix
+		Projection.fov = View.fov;
 	}
 
 	RHICmdList.EnqueueLambda([this](FRHICommandListImmediate& InRHICmdList)
@@ -2480,7 +2566,7 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 				}
 			}
 
-			FApp::SetUseVRFocus(SessionState.state == XR_SESSION_STATE_FOCUSED);
+			FApp::SetHasVRFocus(SessionState.state == XR_SESSION_STATE_FOCUSED);
 
 			if (SessionState.state != XR_SESSION_STATE_EXITING && SessionState.state != XR_SESSION_STATE_LOSS_PENDING)
 			{
@@ -2581,11 +2667,11 @@ void FOpenXRHMD::OnBeginRendering_RHIThread()
 		if (!bIsRendering && PipelinedLayerStateRHI.ColorSwapchain)
 		{
 			PipelinedLayerStateRHI.ColorSwapchain->IncrementSwapChainIndex_RHIThread();
-			PipelinedLayerStateRHI.ColorSwapchain->WaitCurrentImage_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
+			PipelinedLayerStateRHI.ColorSwapchain->WaitCurrentImage_RHIThread(OPENXR_SWAPCHAIN_WAIT_TIMEOUT);
 			if (bDepthExtensionSupported && PipelinedLayerStateRHI.DepthSwapchain)
 			{
 				PipelinedLayerStateRHI.DepthSwapchain->IncrementSwapChainIndex_RHIThread();
-				PipelinedLayerStateRHI.DepthSwapchain->WaitCurrentImage_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
+				PipelinedLayerStateRHI.DepthSwapchain->WaitCurrentImage_RHIThread(OPENXR_SWAPCHAIN_WAIT_TIMEOUT);
 			}
 		}
 
@@ -2811,7 +2897,7 @@ void FOpenXRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, 
 	RHICmdList.EnqueueLambda([DstSwapChain](FRHICommandListImmediate& InRHICmdList)
 	{
 		DstSwapChain->IncrementSwapChainIndex_RHIThread();
-		DstSwapChain->WaitCurrentImage_RHIThread();
+		DstSwapChain->WaitCurrentImage_RHIThread(OPENXR_SWAPCHAIN_WAIT_TIMEOUT);
 	});
 
 	// Now that we've enqueued the swapchain wait we can add the commands to do the actual texture copy
@@ -2889,7 +2975,7 @@ void FOpenXRHMD::UpdateLayer(FOpenXRLayer& Layer, uint32 LayerId, bool bIsValid)
 	if (bIsValid)
 	{
 		const ETextureCreateFlags Flags = Layer.Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE ?
-			TexCreate_Dynamic : TexCreate_None;
+			TexCreate_Dynamic | TexCreate_SRGB : TexCreate_SRGB;
 
 		auto CreateSwapchain = [this](FRHITexture2D* Texture, ETextureCreateFlags Flags)
 		{
@@ -2932,9 +3018,10 @@ void FOpenXRHMD::UpdateLayer(FOpenXRLayer& Layer, uint32 LayerId, bool bIsValid)
 // OpenXR Action Space Implementation
 //---------------------------------------------------
 
-FOpenXRHMD::FDeviceSpace::FDeviceSpace(XrAction InAction)
+FOpenXRHMD::FDeviceSpace::FDeviceSpace(XrAction InAction, XrPath InPath)
 	: Action(InAction)
 	, Space(XR_NULL_HANDLE)
+	, Path(InPath)
 {
 }
 

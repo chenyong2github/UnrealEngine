@@ -2,7 +2,10 @@
 
 #include "CameraCalibrationToolkit.h"
 
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ISettingsModule.h"
 #include "CameraCalibrationStepsController.h"
+#include "EngineAnalytics.h"
 #include "LensFile.h"
 #include "PropertyEditorModule.h"
 #include "SLensEvaluation.h"
@@ -30,6 +33,13 @@ TSharedRef<FCameraCalibrationToolkit> FCameraCalibrationToolkit::CreateEditor(co
 	TSharedRef<FCameraCalibrationToolkit> NewEditor = MakeShared<FCameraCalibrationToolkit>();
 	NewEditor->InitCameraCalibrationTool(Mode, InitToolkitHost, InLensFile);
 
+	if (FEngineAnalytics::IsAvailable())
+	{
+		TArray<FAnalyticsEventAttribute> EventAttributes;
+		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("LensModel"), InLensFile->LensInfo.LensModel ? InLensFile->LensInfo.LensModel->GetName() : TEXT("None")));
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Usage.LensFile.EditorOpened"), EventAttributes);
+	}
+
 	return NewEditor;
 }
 
@@ -42,7 +52,7 @@ void FCameraCalibrationToolkit::InitCameraCalibrationTool(const EToolkitMode::Ty
 
 	CalibrationStepsController->Initialize();
 
-	LensEvaluationWidget = SNew(SLensEvaluation, InLensFile);
+	LensEvaluationWidget = SNew(SLensEvaluation, CalibrationStepsController, InLensFile);
 	CalibrationStepsTab = CalibrationStepsController->BuildUI();
 	LensEditorTab = SNew(SLensFilePanel, LensFile)
 		.CachedFIZData(TAttribute<FCachedFIZData>::Create(TAttribute<FCachedFIZData>::FGetter::CreateSP(LensEvaluationWidget.ToSharedRef(), &SLensEvaluation::GetLastEvaluatedData)));
@@ -96,6 +106,7 @@ void FCameraCalibrationToolkit::InitCameraCalibrationTool(const EToolkitMode::Ty
 		bToolbarFocusable,
 		bUseSmallIcons);
 
+	ExtendMenu();
 	RegenerateMenusAndToolbars();
 }
 
@@ -246,6 +257,58 @@ FCachedFIZData FCameraCalibrationToolkit::GetFIZData() const
 	}
 
 	return FCachedFIZData();
+}
+
+void FCameraCalibrationToolkit::ExtendMenu()
+{
+	MenuExtender = MakeShared<FExtender>();
+
+	struct Local
+	{
+		static void ExtendMenu(FMenuBuilder& MenuBuilder)
+		{
+			MenuBuilder.BeginSection("CameraCalibrationSettings", LOCTEXT("CameraCalibrationSettings", "Plugin Settings"));
+			{
+				const FUIAction OpenSettingsAction
+				(
+					FExecuteAction::CreateLambda([]()
+					{
+						FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Project", "Plugins", "Camera Calibration");
+					})
+				);
+				
+				const FUIAction OpenEditorSettingsAction
+				(
+					FExecuteAction::CreateLambda([]()
+					{
+						FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Editor", "Plugins", "Camera Calibration Editor");
+					})
+				);
+				
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("OpenCameraCalibrationSettingsLabel", "Open Settings"),
+					LOCTEXT("OpenCameraCalibrationSettingsTooltip", "Open Camera Calibration Settings"),
+					FSlateIcon(),
+					OpenSettingsAction);
+
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("OpenCameraCalibrationEditorSettingsLabel", "Open Editor Settings"),
+					LOCTEXT("OpenCameraCalibrationEditorSettingsTooltip", "Open Camera Calibration Editor Settings"),
+					FSlateIcon(),
+					OpenEditorSettingsAction);
+			}
+			MenuBuilder.EndSection();
+		}
+	};
+
+	MenuExtender->AddMenuExtension(
+		"EditHistory",
+		EExtensionHook::After,
+		GetToolkitCommands(),
+		FMenuExtensionDelegate::CreateStatic(&Local::ExtendMenu)
+	);
+
+	AddMenuExtender(MenuExtender);
 }
 
 TSharedRef<SDockTab> FCameraCalibrationToolkit::HandleSpawnLensEvaluationTab(const FSpawnTabArgs& Args) const

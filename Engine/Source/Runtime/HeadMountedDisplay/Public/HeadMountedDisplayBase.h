@@ -19,6 +19,11 @@ public:
 	virtual ~FHeadMountedDisplayBase() {}
 
 	/**
+	 * Retrieves the HMD name, by default this is the same as the system name.
+	 */
+	virtual FName GetHMDName() const override { return GetSystemName(); }
+
+	/**
 	 * Record analytics - To add custom information logged with the analytics, override PopulateAnalyticsAttributes
 	 */
 	virtual void RecordAnalytics() override;

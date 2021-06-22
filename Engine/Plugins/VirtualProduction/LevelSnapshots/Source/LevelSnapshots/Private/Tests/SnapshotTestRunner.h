@@ -33,6 +33,8 @@ public:
 	FSnapshotTestRunner& ApplySnapshot(TFunction<FPropertySelectionMap()> Callback, FName SnapshotId = DefaultSnapshotId);
 	FSnapshotTestRunner& ApplySnapshot(const FPropertySelectionMap& SelectionSet, FName SnapshotId = DefaultSnapshotId);
 
+	FSnapshotTestRunner& FilterProperties(AActor* OriginalActor, TFunction<void(const FPropertySelectionMap&)> Callback, const ULevelSnapshotFilter* Filter = nullptr, FName SnapshotId = DefaultSnapshotId);
+
 	/* Just calls Callback. Existing for better readability in tests.  */
 	FSnapshotTestRunner& RunTest(TFunction<void()> Callback);
 

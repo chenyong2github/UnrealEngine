@@ -79,9 +79,9 @@ PRAGMA_DISABLE_OPTIMIZATION
 #endif
 
 TRACE_DECLARE_MEMORY_COUNTER(AsyncLoadingPendingIoRequestsSize, TEXT("AsyncLoading/PendingIoRequestsSize"));
-CSV_DEFINE_CATEGORY(AsyncLoading, true);
-CSV_DEFINE_STAT(AsyncLoading, PendingIoRequestsSizeMB);
-CSV_DEFINE_STAT(AsyncLoading, FrameCompletedBundleLoadsKB);
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, FileIO);
+CSV_DEFINE_STAT(FileIO, PendingAsyncLoadingIoRequestsSizeMB);
+CSV_DEFINE_STAT(FileIO, FrameCompletedExportBundleLoadsKB);
 
 int32 GAsyncLoadingMaxPendingRequestsSizeMB = 256;
 static FAutoConsoleVariableRef CVar_AsyncLoadingMaxPendingRequestsSizeMB(
@@ -183,18 +183,21 @@ uint64 FPackageObjectIndex::GenerateImportHashFromObjectPath(const FStringView& 
 	return Hash;
 }
 
-void FindAllRuntimeScriptPackages(TArray<UPackage*>& OutPackages)
+void FindAllRuntimeScriptPackages(TArray<UPackage*>& OutPackages, bool bAllowEditorOnlyPackages)
 {
 	OutPackages.Empty(256);
-	ForEachObjectOfClass(UPackage::StaticClass(), [&OutPackages](UObject* InPackageObj)
+	ForEachObjectOfClass(UPackage::StaticClass(), [&OutPackages, bAllowEditorOnlyPackages](UObject* InPackageObj)
 	{
 		UPackage* Package = CastChecked<UPackage>(InPackageObj);
-		if (Package->HasAnyPackageFlags(PKG_CompiledIn) && !Package->HasAnyPackageFlags(PKG_EditorOnly))
+		if (Package->HasAnyPackageFlags(PKG_CompiledIn))
 		{
-			TCHAR Buffer[FName::StringBufferSize];
-			if (FStringView(Buffer, Package->GetFName().ToString(Buffer)).StartsWith(TEXT("/Script/"), ESearchCase::CaseSensitive))
+			if (!Package->HasAnyPackageFlags(PKG_EditorOnly) || bAllowEditorOnlyPackages)
 			{
-				OutPackages.Add(Package);
+				TCHAR Buffer[FName::StringBufferSize];
+				if (FStringView(Buffer, Package->GetFName().ToString(Buffer)).StartsWith(TEXT("/Script/"), ESearchCase::CaseSensitive))
+				{
+					OutPackages.Add(Package);
+				}
 			}
 		}
 	}, /*bIncludeDerivedClasses*/false);
@@ -2784,7 +2787,7 @@ void FAsyncLoadingThread2::BundleIoRequestCompleted(FAsyncPackage2* Package)
 	check(PendingBundleIoRequestsTotalSize >= Package->Data.ExportInfo.ExportBundlesSize)
 	PendingBundleIoRequestsTotalSize -= Package->Data.ExportInfo.ExportBundlesSize;
 	TRACE_COUNTER_SET(AsyncLoadingPendingIoRequestsSize, PendingBundleIoRequestsTotalSize);
-	CSV_CUSTOM_STAT_DEFINED(FrameCompletedBundleLoadsKB, float((double)Package->Data.ExportInfo.ExportBundlesSize / 1024.0), ECsvCustomStatOp::Accumulate);
+	CSV_CUSTOM_STAT_DEFINED(FrameCompletedExportBundleLoadsKB, float((double)Package->Data.ExportInfo.ExportBundlesSize / 1024.0), ECsvCustomStatOp::Accumulate);
 	if (WaitingIoRequests.Num())
 	{
 		StartBundleIoRequests();
@@ -3328,7 +3331,7 @@ void FGlobalImportStore::FindAllScriptObjects()
 	TStringBuilder<FName::StringBufferSize> Name;
 	TArray<UPackage*> ScriptPackages;
 	TArray<UObject*> Objects;
-	FindAllRuntimeScriptPackages(ScriptPackages);
+	FindAllRuntimeScriptPackages(ScriptPackages, WITH_IOSTORE_IN_EDITOR);
 
 	for (UPackage* Package : ScriptPackages)
 	{
@@ -5728,7 +5731,7 @@ void FAsyncPackage2::FinishUPackage()
 
 void FAsyncPackage2::CallCompletionCallbacks(EAsyncLoadingResult::Type LoadingResult)
 {
-	checkSlow(!IsInAsyncLoadingThread());
+	checkSlow(IsInGameThread());
 
 	UPackage* LoadedPackage = (!bLoadHasFailed) ? LinkerRoot : nullptr;
 	for (FCompletionCallback& CompletionCallback : CompletionCallbacks)
@@ -5959,7 +5962,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadingFromGameThread(FAsy
 	// CSV_CUSTOM_STAT(FileIO, EDLEventQueueDepth, (int32)GraphAllocator.TotalNodeCount, ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT(FileIO, QueuedPackagesQueueDepth, GetNumQueuedPackages(), ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT(FileIO, ExistingQueuedPackagesQueueDepth, GetNumAsyncPackages(), ECsvCustomStatOp::Set);
-	CSV_CUSTOM_STAT_DEFINED(PendingIoRequestsSizeMB, float((double)PendingBundleIoRequestsTotalSize / 1024.0 / 1024.0), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT_DEFINED(PendingAsyncLoadingIoRequestsSizeMB, float((double)PendingBundleIoRequestsTotalSize / 1024.0 / 1024.0), ECsvCustomStatOp::Set);
 
 	TickAsyncLoadingFromGameThread(ThreadState, bUseTimeLimit, bUseFullTimeLimit, TimeLimit);
 	return IsAsyncLoading() ? EAsyncPackageState::TimeOut : EAsyncPackageState::Complete;

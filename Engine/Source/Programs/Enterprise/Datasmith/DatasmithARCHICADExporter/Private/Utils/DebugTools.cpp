@@ -63,7 +63,7 @@ void Write2Log(const utf8_string& InMsg)
 	{
 		bInitialized = true;
 		GS::UniString path(GetAddonDataDirectory() + UE_AC_DirSep "DatasmithArchicadExporter.log");
-#ifdef WIN32
+#if PLATFORM_WINDOWS
 		LogFile = _wfopen((const wchar_t*)path.ToUStr().Get(), L"wb");
 #else
 		LogFile = fopen(path.ToUtf8(), "wb");
@@ -121,7 +121,7 @@ void Printf2DB(EP2DB InMsgLevel, const utf8_t* FormatString, ...)
 				}
 				catch (...)
 				{
-#ifdef WIN32
+#if PLATFORM_WINDOWS
 					OutputDebugStringW(L"UE_AC::Printf2DB - Catch an exception from a listener\n");
 #else
 					printf("UE_AC::Printf2DB - Catch an exception from a listener\n");
@@ -129,7 +129,7 @@ void Printf2DB(EP2DB InMsgLevel, const utf8_t* FormatString, ...)
 				}
 			}
 		}
-#ifdef WIN32
+#if PLATFORM_WINDOWS
 		std::wstring WStr(Utf8ToUtf16(FormattedMessage.c_str()));
 		OutputDebugStringW(WStr.c_str());
 #else
@@ -141,7 +141,7 @@ void Printf2DB(EP2DB InMsgLevel, const utf8_t* FormatString, ...)
 	}
 	catch (...)
 	{
-#ifdef WIN32
+#if PLATFORM_WINDOWS
 		OutputDebugStringW(L"UE_AC::Printf2DB - Catch an exception\n");
 #else
 		printf("UE_AC::Printf2DB - Catch an exception\n");

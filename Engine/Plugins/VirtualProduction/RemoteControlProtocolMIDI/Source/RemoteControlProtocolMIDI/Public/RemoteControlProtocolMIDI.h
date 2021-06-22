@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "MIDIDeviceController.h"
 #include "RemoteControlProtocol.h"
 #include "RemoteControlProtocolBinding.h"
 
@@ -41,6 +42,14 @@ public:
         : DeviceSelector(ERemoteControlMIDIDeviceSelector::ProjectSettings)
 		, ResolvedDeviceId(DeviceId)
         , DeviceName(DeviceName)
+	{
+	}
+
+	/** Construct for the given DeviceId */
+	FRemoteControlMIDIDevice(const int32 DeviceId)
+		: DeviceSelector(ERemoteControlMIDIDeviceSelector::DeviceId)
+		, ResolvedDeviceId(DeviceId)
+		, DeviceId(DeviceId)
 	{
 	}
 
@@ -138,6 +147,12 @@ public:
 	/** Midi range input property template, used for binding. */
 	UPROPERTY(Transient, meta = (ClampMin = 0, ClampMax = 127))
 	uint8 RangeInputTemplate = 0;
+
+	/**
+	* Checks if this entity has the same values as the Other.
+	* Used to check for duplicate inputs.
+	*/
+	virtual bool IsSame(const FRemoteControlProtocolEntity* InOther) override;
 };
 
 /**

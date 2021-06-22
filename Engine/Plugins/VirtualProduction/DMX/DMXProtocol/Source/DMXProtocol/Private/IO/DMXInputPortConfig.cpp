@@ -22,7 +22,12 @@ FDMXInputPortConfigParams::FDMXInputPortConfigParams(const FDMXInputPortConfig& 
 {}
 
 FDMXInputPortConfig::FDMXInputPortConfig(const FGuid& InPortGuid)
-	: PortGuid(InPortGuid)
+	: CommunicationType(EDMXCommunicationType::InternalOnly)
+	, DeviceAddress(TEXT("127.0.0.1"))
+	, LocalUniverseStart(1)
+	, NumUniverses(10)
+	, ExternUniverseStart(1)
+	, PortGuid(InPortGuid)
 {
 	// Cannot create port configs before the protocol module is up (it is required to sanetize protocol names).
 	check(FModuleManager::Get().IsModuleLoaded("DMXProtocol"));
@@ -76,15 +81,9 @@ void FDMXInputPortConfig::MakeValid()
 	// Only Local universes > 1 are supported, even if the protocol supports universes < 1.
 	LocalUniverseStart = LocalUniverseStart < 1 ? 1 : LocalUniverseStart;
 
-	// Limit the num universes relatively to the max extern universe of the protocol and int32 max
-	const int64 MaxNumUniverses = Protocol->GetMaxUniverseID() - Protocol->GetMinUniverseID() + 1;
-	const int64 DesiredNumUniverses = NumUniverses > MaxNumUniverses ? MaxNumUniverses : NumUniverses;
-	const int64 DesiredLocalUniverseEnd = static_cast<int64>(LocalUniverseStart) + DesiredNumUniverses - 1;
-
-	if (DesiredLocalUniverseEnd > TNumericLimits<int32>::Max())
-	{
-		NumUniverses = TNumericLimits<int32>::Max() - DesiredLocalUniverseEnd;
-	}
+	// Limit the num universes to the max num universes of the protocol
+	const int32 MaxNumUniverses = Protocol->GetMaxUniverseID() - Protocol->GetMinUniverseID() + 1;
+	NumUniverses = FMath::Min(NumUniverses, MaxNumUniverses);
 
 	// Fix the communication type if it is not supported by the protocol
 	TArray<EDMXCommunicationType> CommunicationTypes = Protocol->GetInputPortCommunicationTypes();

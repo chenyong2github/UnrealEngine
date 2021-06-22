@@ -7,6 +7,7 @@
 
 #include "NiagaraEditorDataBase.generated.h"
 
+class INiagaraParameterDefinitionsSubscriber;
 class UNiagaraParameterDefinitionsBase;
 
 USTRUCT()
@@ -68,16 +69,20 @@ class UNiagaraEditorParametersAdapterBase : public UObject
 #if WITH_EDITORONLY_DATA
 public:
 	/** Synchronize all source script variables that have been changed or removed from the parameter definitions to all eligible destination script variables owned by the editor data.
-	 * @param	ParameterDefinitions				The parameter definitions to synchronize owned UNiagaraScriptVariables with.
-	 * @param	ParameterDefinitionsParameterIds	The unique ids of all parameters owned by parameter definitions assets subscribed to by the owning INiagaraParameterDefinitionsSubscriber.
-	 *												Used to reconcile if a definition parameter has been removed and the subscribing UNiagaraSCriptVariable may mark itself as no longer subscribed.
-	 * @param	Args								Top level arguments defining specific definitions or destination script vars to sync. See FSynchronizeWithParameterDefinitionsArgs for more info.
-	 * @return										Returns an array of name pairs representing old names of script vars that were synced and the new names they inherited, respectively.
+	 *
+	 *  @param TargetDefinitions			The set of parameter definitions that will be synchronized with the editor only parameters.
+	 *	@param AllDefinitions				All parameter definitions in the project. Used to add new subscriptions to definitions if specified in Args.
+	 *  @param AllDefinitionsParameterIds	All unique Ids of all parameter definitions.
+	 *	@param Subscriber					The INiagaraParameterDefinitionsSubscriber that owns the editor data. Used to add new subscriptions to definitions if specified in Args.
+	 *	@param Args							Additional arguments that specify how to perform the synchronization.
+	 * @return								Returns an array of name pairs representing old names of script vars that were synced and the new names they inherited, respectively.
 	 */
 	virtual TArray<TTuple<FName /*SyncedOldName*/, FName /*SyncedNewName*/>> SynchronizeParametersWithParameterDefinitions(
-		const TArray<UNiagaraParameterDefinitionsBase*> ParameterDefinitions,
-		const TArray<FGuid>& ParameterDefinitionsParameterIds,
-		const FSynchronizeWithParameterDefinitionsArgs& Args
+		const TArray<UNiagaraParameterDefinitionsBase*> TargetDefinitions,
+		const TArray<UNiagaraParameterDefinitionsBase*> AllDefinitions,
+		const TSet<FGuid>& AllDefinitionsParameterIds,
+		INiagaraParameterDefinitionsSubscriber* Subscriber,
+		FSynchronizeWithParameterDefinitionsArgs Args
 	) {
 		return TArray<TTuple<FName, FName>>();
 	};

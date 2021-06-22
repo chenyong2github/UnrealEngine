@@ -20,6 +20,11 @@ public:
 	static void PixelMappingDistributionSort(EDMXPixelMappingDistribution InDistribution, int32 InNumXPanels, int32 InNumYPanels, const TArray<T>& InUnorderedList, TArray<T>& OutSortedList)
 	{
 		if (InDistribution == EDMXPixelMappingDistribution::TopLeftToRight)
+		{	
+			// Do nothing it is default, just copy array
+			OutSortedList = InUnorderedList;
+		}
+		else if (InDistribution == EDMXPixelMappingDistribution::TopLeftToBottom)
 		{
 			for (int32 XIndex = 0; XIndex < InNumXPanels; ++XIndex)
 			{
@@ -28,11 +33,6 @@ public:
 					OutSortedList.Add(InUnorderedList[XIndex + YIndex * InNumXPanels]);
 				}
 			}
-		}
-		else if (InDistribution == EDMXPixelMappingDistribution::TopLeftToBottom)
-		{
-			// Do nothing it is default, just copy array
-			OutSortedList = InUnorderedList;
 		}
 		else if (InDistribution == EDMXPixelMappingDistribution::TopLeftToClockwise)
 		{

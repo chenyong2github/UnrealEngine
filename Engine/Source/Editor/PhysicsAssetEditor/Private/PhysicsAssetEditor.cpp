@@ -1474,9 +1474,16 @@ TSharedRef<ISkeletonTree> FPhysicsAssetEditor::BuildMenuWidgetNewConstraintForBo
 			}
 			else if(SharedData->GetSelectedBody() != nullptr)
 			{
-				for(const FPhysicsAssetEditorSharedData::FSelection& SourceBody : SharedData->SelectedBodies)
+				// make a copy to avoid changing SelectedBodies while iterating SelectedBodies
+				TArray<int32> SourceBodyIndices;
+				for (const FPhysicsAssetEditorSharedData::FSelection& SourceBody : SharedData->SelectedBodies)
 				{
-					HandleCreateNewConstraint(SourceBody.Index, SelectedBody->GetBodySetupIndex());
+					SourceBodyIndices.Add(SourceBody.Index);
+				}
+				// create constraints
+				for(const int32 SourceBodyIndex : SourceBodyIndices)
+				{
+					HandleCreateNewConstraint(SourceBodyIndex, SelectedBody->GetBodySetupIndex());
 				}
 			}
 		}

@@ -1041,7 +1041,7 @@ namespace DatasmithSceneUtilsImpl
 			if ( MaterialElement->GetUseMaterialAttributes() )
 			{
 				ParseExpressionElement(MaterialElement->GetMaterialAttributes().GetExpression());
-			}			
+			}
 		}
 
 		void ScanCompositeTexture( IDatasmithCompositeTexture* CompositeTexture )
@@ -1474,46 +1474,59 @@ void FDatasmithSceneUtils::CleanUpScene(TSharedRef<IDatasmithScene> Scene, bool 
 	}
 }
 
-FString FDatasmithUniqueNameProviderBase::GenerateUniqueName(const FString& BaseName)
+FString FDatasmithUniqueNameProviderBase::GenerateUniqueName(const FString& InBaseName, int32 CharBudget)
 {
 	FScopeLock Lock( &CriticalSection );
 
 	const int32 FrequentlyUsedThreshold = 5; // don't saturate the table with uncommon names
-	if (!Contains(BaseName))
+
+	for (int32 CurrentBaseNameCharBudget = CharBudget; CurrentBaseNameCharBudget >= 1; --CurrentBaseNameCharBudget)
 	{
-		AddExistingName(BaseName);
-		return BaseName;
+		FString ShortName = InBaseName.Left(CurrentBaseNameCharBudget);
+
+		if (!Contains(ShortName))
+		{
+			AddExistingName(ShortName);
+			return ShortName;
+		}
+
+		// use the frequently used label info to avoid useless indices iterations
+		int32 LastKnownIndex = 1;
+		int32* FreqIndexPtr = FrequentlyUsedNames.Find(ShortName);
+		if (FreqIndexPtr != nullptr && *FreqIndexPtr > LastKnownIndex)
+		{
+			LastKnownIndex = *FreqIndexPtr;
+		}
+
+		// loop to find an available indexed name
+		FString NumberedName;
+		do
+		{
+			++LastKnownIndex;
+			NumberedName = FString::Printf(TEXT("%s_%d"), *ShortName, LastKnownIndex);
+		} while (NumberedName.Len() <= CharBudget && Contains(NumberedName));
+
+		if (NumberedName.Len() > CharBudget)
+		{
+			continue;
+		}
+
+		// update frequently used names
+		if (FreqIndexPtr != nullptr)
+		{
+			*FreqIndexPtr = LastKnownIndex;
+		}
+		else if (LastKnownIndex > FrequentlyUsedThreshold)
+		{
+			FrequentlyUsedNames.Add(ShortName, LastKnownIndex);
+		}
+
+		AddExistingName(NumberedName);
+		return NumberedName;
 	}
 
-	// use the frequently used label info to avoid useless indices iterations
-	int32 LastKnownIndex = 1;
-	int32* FreqIndexPtr = FrequentlyUsedNames.Find(BaseName);
-	if (FreqIndexPtr != nullptr &&  *FreqIndexPtr > LastKnownIndex)
-	{
-		LastKnownIndex = *FreqIndexPtr;
-	}
-
-	// loop to find an available indexed name
-	FString ModifiedName;
-	do
-	{
-		++LastKnownIndex;
-		ModifiedName = FString::Printf(TEXT("%s_%d"), *BaseName, LastKnownIndex);
-	} while (Contains(ModifiedName));
-
-	// update frequently used names
-	if (FreqIndexPtr != nullptr)
-	{
-		*FreqIndexPtr = LastKnownIndex;
-	}
-	else if (LastKnownIndex > FrequentlyUsedThreshold)
-	{
-		FrequentlyUsedNames.Add(BaseName, LastKnownIndex);
-	}
-
-	AddExistingName(ModifiedName);
-
-	return ModifiedName;
+	UE_LOG(LogDatasmith, Warning, TEXT("Cannot generate a unique name from '%s'."), *InBaseName);
+	return {};
 }
 
 

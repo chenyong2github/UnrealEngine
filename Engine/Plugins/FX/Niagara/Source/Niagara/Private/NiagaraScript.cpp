@@ -716,6 +716,12 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 						break;
 					}
 				}
+
+				// disable attribute trimming if shader stages are enabled
+				if (OuterEmitter->bDeprecatedShaderStagesEnabled)
+				{
+					TrimAttributes = false;
+				}
 			}
 
 			if (TrimAttributes)
@@ -747,22 +753,7 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 				Id.AdditionalDefines.Append(PreserveAttributes);
 			}
 
-			// Gather additional variables from renderers
-			for (UNiagaraRendererProperties* RendererProperty : Emitter->GetRenderers())
-			{
-				TArray<FNiagaraVariableBase> AdditionalVariables;
-				RendererProperty->GetAdditionalVariables(AdditionalVariables);
-				for (const FNiagaraVariableBase& AdditionalVariable : AdditionalVariables)
-				{
-					if (AdditionalVariable.IsValid())
-					{
-						Id.AdditionalVariables.AddUnique(AdditionalVariable);
-					}
-				}
-			}
-
-			// Sort the additional variables by name lexically so they are always in the same order
-			Id.AdditionalVariables.Sort([](const FNiagaraVariableBase& A, const FNiagaraVariableBase& B) { return A.GetName().LexicalLess(B.GetName()); });
+			ComputeVMCompilationId_EmitterShared(Id, Emitter, EmitterOwner, ENiagaraRendererSourceDataMode::Particles);
 		}
 
 		if ((Emitter->bInterpolatedSpawning && Usage == ENiagaraScriptUsage::ParticleGPUComputeScript) ||
@@ -847,6 +838,8 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 				{
 					Id.AdditionalDefines.Add(Emitter->GetUniqueEmitterName() + TEXT(".Determinism"));
 				}
+
+				ComputeVMCompilationId_EmitterShared(Id, Emitter, System, ENiagaraRendererSourceDataMode::Emitter);
 			}
 		}
 	}
@@ -925,6 +918,30 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 	}
 
 	LastGeneratedVMId = Id;
+}
+
+
+void UNiagaraScript::ComputeVMCompilationId_EmitterShared(FNiagaraVMExecutableDataId& Id, UNiagaraEmitter* Emitter, UNiagaraSystem* EmitterOwner, ENiagaraRendererSourceDataMode InSourceMode) const
+{
+	// Gather additional variables from renderers
+	for (UNiagaraRendererProperties* RendererProperty : Emitter->GetRenderers())
+	{
+		if (RendererProperty->GetCurrentSourceMode() != InSourceMode)
+			continue;
+
+		TArray<FNiagaraVariableBase> AdditionalVariables;
+		RendererProperty->GetAdditionalVariables(AdditionalVariables);
+		for (const FNiagaraVariableBase& AdditionalVariable : AdditionalVariables)
+		{
+			if (AdditionalVariable.IsValid())
+			{
+				Id.AdditionalVariables.AddUnique(AdditionalVariable);
+			}
+		}
+	}
+
+	// Sort the additional variables by name lexically so they are always in the same order
+	Id.AdditionalVariables.Sort([](const FNiagaraVariableBase& A, const FNiagaraVariableBase& B) { return A.GetName().LexicalLess(B.GetName()); });
 }
 #endif
 
@@ -1526,31 +1543,8 @@ void UNiagaraScript::PostLoad()
         	Source->ConditionalPostLoad();
 
 			// Synchronize with Definitions after source scripts have been postloaded.
-			// First force sync with all definitions in the DefaultLinkedParameterDefinitions array.
 			FVersionedNiagaraScript& VersionedScriptAdapter = VersionedScriptAdapters.Emplace_GetRef(this, Data.Version.VersionGuid);
 			VersionedScriptAdapter.PostLoadDefinitionsSubscriptions();
-			const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
-			check(Settings);
-			TArray<FGuid> DefaultDefinitionsUniqueIds;
-			for (const FSoftObjectPath& DefaultLinkedParameterDefinitionObjPath : Settings->DefaultLinkedParameterDefinitions)
-			{
-				UNiagaraParameterDefinitionsBase* DefaultLinkedParameterDefinitions = Cast<UNiagaraParameterDefinitionsBase>(DefaultLinkedParameterDefinitionObjPath.TryLoad());
-				if (!DefaultLinkedParameterDefinitions)
-				{
-					continue;
-				}
-				DefaultDefinitionsUniqueIds.Add(DefaultLinkedParameterDefinitions->GetDefinitionsUniqueId());
-				const bool bDoNotAssertIfAlreadySubscribed = true;
-				VersionedScriptAdapter.SubscribeToParameterDefinitions(DefaultLinkedParameterDefinitions, bDoNotAssertIfAlreadySubscribed);
-			}
-			FSynchronizeWithParameterDefinitionsArgs Args;
-			Args.SpecificDefinitionsUniqueIds = DefaultDefinitionsUniqueIds;
-			Args.bForceSynchronizeDefinitions = true;
-			Args.bSubscribeAllNameMatchParameters = true;
-			VersionedScriptAdapter.SynchronizeWithParameterDefinitions(Args);
-
-			// After forcing syncing all DefaultLinkedParameterDefinitions, call SynchronizeWithParameterDefinitions again to sync with all definitions the script was already subscribed to, and do not force the sync.
-			VersionedScriptAdapter.SynchronizeWithParameterDefinitions();
 
         	bool bScriptVMNeedsRebuild = false;
         	FString RebuildReason;
@@ -2684,7 +2678,7 @@ FString UNiagaraScript::GetFriendlyName() const
 	return FriendlyName;
 }
 
-void UNiagaraScript::SyncAliases(const TMap<FString, FString>& RenameMap)
+void UNiagaraScript::SyncAliases(const FNiagaraAliasContext& ResolveAliasesContext)
 {
 	// First handle any rapid iteration parameters...
 	{
@@ -2692,7 +2686,7 @@ void UNiagaraScript::SyncAliases(const TMap<FString, FString>& RenameMap)
 		RapidIterationParameters.GetParameters(Params);
 		for (FNiagaraVariable Var : Params)
 		{
-			FNiagaraVariable NewVar = FNiagaraVariable::ResolveAliases(Var, RenameMap);
+			FNiagaraVariable NewVar = FNiagaraUtilities::ResolveAliases(Var, ResolveAliasesContext);
 			if (NewVar.GetName() != Var.GetName())
 			{
 				RapidIterationParameters.RenameParameter(Var, NewVar.GetName());
@@ -2707,7 +2701,7 @@ void UNiagaraScript::SyncAliases(const TMap<FString, FString>& RenameMap)
 			const FString& Name = GetVMExecutableData().CompileTags[i].StringValue;
 			if (Name.Len())
 			{
-				FNiagaraVariable NewVar = FNiagaraVariable::ResolveAliases(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), *Name), RenameMap);
+				FNiagaraVariable NewVar = FNiagaraUtilities::ResolveAliases(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), *Name), ResolveAliasesContext);
 				if (NewVar.GetName() != *Name)
 					GetVMExecutableData().CompileTags[i].StringValue = NewVar.GetName().ToString();
 			}
@@ -2728,7 +2722,7 @@ void UNiagaraScript::SyncAliases(const TMap<FString, FString>& RenameMap)
 		}
 
 		FNiagaraVariable Var = GetVMExecutableData().Parameters.Parameters[i];
-		FNiagaraVariable NewVar = FNiagaraVariable::ResolveAliases(Var, RenameMap);
+		FNiagaraVariable NewVar = FNiagaraUtilities::ResolveAliases(Var, ResolveAliasesContext);
 		if (NewVar.GetName() != Var.GetName())
 		{
 			GetVMExecutableData().Parameters.Parameters[i] = NewVar;
@@ -2741,7 +2735,7 @@ void UNiagaraScript::SyncAliases(const TMap<FString, FString>& RenameMap)
 		if (!GetVMExecutableData().SimulationStageMetaData[i].IterationSource.IsNone())
 		{
 			FNiagaraVariable Var(FNiagaraTypeDefinition(UNiagaraDataInterface::StaticClass()), GetVMExecutableData().SimulationStageMetaData[i].IterationSource);
-			FNiagaraVariable NewVar = FNiagaraVariable::ResolveAliases(Var, RenameMap);
+			FNiagaraVariable NewVar = FNiagaraUtilities::ResolveAliases(Var, ResolveAliasesContext);
 			if (NewVar.GetName() != Var.GetName())
 			{
 				GetVMExecutableData().SimulationStageMetaData[i].IterationSource = NewVar.GetName();
@@ -2753,7 +2747,7 @@ void UNiagaraScript::SyncAliases(const TMap<FString, FString>& RenameMap)
 			if (!GetVMExecutableData().SimulationStageMetaData[i].OutputDestinations[DestIdx].IsNone())
 			{
 				FNiagaraVariable Var(FNiagaraTypeDefinition(UNiagaraDataInterface::StaticClass()), GetVMExecutableData().SimulationStageMetaData[i].OutputDestinations[DestIdx]);
-				FNiagaraVariable NewVar = FNiagaraVariable::ResolveAliases(Var, RenameMap);
+				FNiagaraVariable NewVar = FNiagaraUtilities::ResolveAliases(Var, ResolveAliasesContext);
 				if (NewVar.GetName() != Var.GetName())
 				{
 					GetVMExecutableData().SimulationStageMetaData[i].OutputDestinations[DestIdx] = NewVar.GetName();
@@ -2769,7 +2763,7 @@ void UNiagaraScript::SyncAliases(const TMap<FString, FString>& RenameMap)
 		for (int32 i = 0; i < Iterator.Value().Parameters.Num(); i++)
 		{
 			FNiagaraVariable Var = Iterator.Value().Parameters[i];
-			FNiagaraVariable NewVar = FNiagaraVariable::ResolveAliases(Var, RenameMap);
+			FNiagaraVariable NewVar = FNiagaraUtilities::ResolveAliases(Var, ResolveAliasesContext);
 			if (NewVar.GetName() != Var.GetName())
 			{
 				Iterator.Value().Parameters[i] = NewVar;

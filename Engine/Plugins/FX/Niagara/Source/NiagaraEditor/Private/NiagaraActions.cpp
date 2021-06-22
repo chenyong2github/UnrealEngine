@@ -43,14 +43,64 @@ void FNiagaraMenuAction::SetParameterVariable(const FNiagaraVariable& InParamete
 	ParameterVariable = InParameterVariable;
 }
 
+void FNiagaraMenuActionCollector::AddAction(TSharedPtr<FNiagaraMenuAction> Action, int32 SortOrder, const FString& Category)
+{
+	Actions.Add({Action, SortOrder, Category});
+}
+
+void FNiagaraMenuActionCollector::AddAllActionsTo(FGraphActionListBuilderBase& ActionBuilder)
+{
+	Actions.Sort([](const FCollectedAction& Lhs, const FCollectedAction& Rhs)
+	{
+		// First check configured sort order
+		if (Lhs.SortOrder != Rhs.SortOrder)
+		{
+			return Lhs.SortOrder < Rhs.SortOrder;
+		}
+
+		// Then check the defined category (and subcategory)
+		const FText CategoryA = Lhs.Action->GetCategory();
+		const FText CategoryB = Rhs.Action->GetCategory();
+		int32 CategoryCompare = CategoryA.CompareTo(CategoryB);
+		if (CategoryCompare != 0)
+		{
+			return CategoryCompare < 0;
+		}
+
+		// Then compare the actual variable names
+		FNiagaraParameterHandle HandleA(FName(Lhs.Action->GetMenuDescription().ToString()));
+		FNiagaraParameterHandle HandleB(FName(Rhs.Action->GetMenuDescription().ToString()));
+
+		const TArray<FName> NamesA = HandleA.GetHandleParts();
+		const TArray<FName> NamesB = HandleB.GetHandleParts();
+		if (NamesA.Num() == NamesB.Num())
+		{
+			for (int i = 0; i < NamesA.Num(); i++)
+			{
+				if (NamesA[i] != NamesB[i])
+				{
+					return NamesA[i].LexicalLess(NamesB[i]);
+				}
+			}
+		}
+		return NamesA.Num() < NamesB.Num();
+	});
+	
+	for (const FCollectedAction& Entry : Actions)
+	{
+		ActionBuilder.AddAction(Entry.Action, Entry.Category);
+	}
+}
+
 FNiagaraMenuAction_Base::FNiagaraMenuAction_Base(FText InDisplayName, ENiagaraMenuSections InSection,
-	TArray<FString> InNodeCategories, FText InToolTip, FText InKeywords)
+                                                 TArray<FString> InNodeCategories, FText InToolTip, FText InKeywords, float InIntrinsicWeightMultiplier)
 {
 	DisplayName = InDisplayName;
 	Section = InSection;
 	Categories = InNodeCategories;
 	ToolTip = InToolTip;
 	Keywords = InKeywords;
+	SearchWeightMultiplier = InIntrinsicWeightMultiplier;
 
 	UpdateFullSearchText();
 }
@@ -407,7 +457,7 @@ FReply FNiagaraParameterGraphDragOperation::DroppedOnPanel(const TSharedRef<SWid
 			
 			if(ScriptVariable != nullptr && ScriptVariable->GetIsStaticSwitch())
 			{
-				MakeStaticSwitch(NewNodeParams);
+				MakeStaticSwitch(NewNodeParams, ScriptVariable);
 				return FReply::Handled();
 			}
 			
@@ -515,11 +565,18 @@ void FNiagaraParameterGraphDragOperation::MakeSetMap(FNiagaraParameterNodeConstr
 	}
 }
 
-void FNiagaraParameterGraphDragOperation::MakeStaticSwitch(FNiagaraParameterNodeConstructionParams InParams)
+void FNiagaraParameterGraphDragOperation::MakeStaticSwitch(FNiagaraParameterNodeConstructionParams InParams, const UNiagaraScriptVariable* ScriptVariable)
 {
 	FScopedTransaction AddNewPinTransaction(LOCTEXT("MakeStaticSwitch", "Make Static Switch"));
 	check(InParams.Graph);
 	InParams.Graph->Modify();
+
+	// copy metadata
+	if (UNiagaraGraph* NiagaraGraph = Cast<UNiagaraGraph>(InParams.Graph))
+	{
+		NiagaraGraph->AddParameter(ScriptVariable);
+	}
+	
 	FGraphNodeCreator<UNiagaraNodeStaticSwitch> SetNodeCreator(*InParams.Graph);
 	UNiagaraNodeStaticSwitch* SwitchNode = SetNodeCreator.CreateNode();
 	SwitchNode->NodePosX = InParams.GraphPosition.X;

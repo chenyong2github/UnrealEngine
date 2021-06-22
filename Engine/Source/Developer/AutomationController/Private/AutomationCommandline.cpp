@@ -146,12 +146,12 @@ public:
 			const FString GroupPrefix = TEXT("Group:");
 			const FString FilterPrefix = TEXT("Filter:");
 
-			FString ArgumentName = ArgumentNames[ArgumentIndex];
+			FString ArgumentName = ArgumentNames[ArgumentIndex].TrimStartAndEnd();
 
 			// if the argument is a filter (e.g. Filter:System) then create a filter that matches from the start
 			if (ArgumentName.StartsWith(FilterPrefix))
 			{
-				FString FilterName = ArgumentName.RightChop(FilterPrefix.Len());
+				FString FilterName = ArgumentName.RightChop(FilterPrefix.Len()).TrimStart();
 
 				if (FilterName.EndsWith(TEXT(".")) == false)
 				{
@@ -163,7 +163,7 @@ public:
 			else if (ArgumentName.StartsWith(GroupPrefix))
 			{
 				// if the argument is a group (e.g. Group:Rendering) then seach our groups for one that matches
-				FString GroupName = ArgumentName.RightChop(GroupPrefix.Len());
+				FString GroupName = ArgumentName.RightChop(GroupPrefix.Len()).TrimStart();
 
 				bool FoundGroup = false;
 
@@ -195,73 +195,61 @@ public:
 			}			
 			else
 			{
-				// old behavior of just string searching
-				ArgumentName = ArgumentName.TrimStart().Replace(TEXT(" "), TEXT(""));
-
 				bool bMatchFromStart = false;
-				//bool bMatchFromEnd = false;
+				bool bMatchFromEnd = false;
 
 				if (ArgumentName.StartsWith("^"))
 				{
 					bMatchFromStart = true;
 					ArgumentName.RightChopInline(1);
 				}
-
-				/*if (ArgumentName.EndsWith("$"))
+				if (ArgumentName.EndsWith("$"))
 				{
 					bMatchFromEnd = true;
 					ArgumentName.LeftChopInline(1);
-				}*/
+				}
 
-				// #agrant todo: restore in 4.26 when headers can be changed
-				Filters.Add(FAutomatedTestFilter(ArgumentName, bMatchFromStart/*, bMatchFromEnd*/));
+				Filters.Add(FAutomatedTestFilter(ArgumentName, bMatchFromStart, bMatchFromEnd));
 			}
 		}
 		
 		for (int32 TestIndex = 0; TestIndex < AllTestNames.Num(); ++TestIndex)
 		{
-			FString TestNamesNoWhiteSpaces = AllTestNames[TestIndex].Replace(TEXT(" "), TEXT(""));
+			FString TestName = AllTestNames[TestIndex];
 
 			for (const FAutomatedTestFilter& Filter : Filters)
 			{
-				// #agrant todo: remove in 4.26 when headers can be changed and we store this during parsing
-				bool bMatchFromEnd = false;
 				FString FilterString = Filter.Contains;
-				if (FilterString.EndsWith("$"))
+
+				bool bNeedStartMatch = Filter.MatchFromStart;
+				bool bNeedEndMatch = Filter.MatchFromEnd;
+				bool bMeetsMatch = true;	// assume true
+
+				// If we need to match at the start or end, 
+				if (bNeedStartMatch || bNeedEndMatch)
 				{
-					bMatchFromEnd = true;
-					FilterString.LeftChopInline(1);
+					if (bNeedStartMatch)
+					{
+						bMeetsMatch = TestName.StartsWith(FilterString);
+					}
+
+					if (bNeedEndMatch && bMeetsMatch)
+					{
+						bMeetsMatch = TestName.EndsWith(FilterString);
+					}
+				}
+				else
+				{
+					// match anywhere
+					bMeetsMatch = TestName.Contains(FilterString);
 				}
 
-bool bNeedStartMatch = Filter.MatchFromStart;
-bool bNeedEndMatch = bMatchFromEnd;
-bool bMeetsMatch = true;	// assume true
-
-// If we need to match at the start or end, 
-if (bNeedStartMatch || bNeedEndMatch)
-{
-	if (bNeedStartMatch)
-	{
-		bMeetsMatch = TestNamesNoWhiteSpaces.StartsWith(FilterString);
-	}
-
-	if (bNeedEndMatch && bMeetsMatch)
-	{
-		bMeetsMatch = TestNamesNoWhiteSpaces.EndsWith(FilterString);
-	}
-}
-else
-{
-	// match anywhere
-	bMeetsMatch = TestNamesNoWhiteSpaces.Contains(FilterString);
-}
-
-if (bMeetsMatch)
-{
-	OutTestNames.Add(AllTestNames[TestIndex]);
-	TestCount++;
-	break;
-}
+				if (bMeetsMatch)
+				{
+					OutTestNames.Add(TestName);
+					TestCount++;
+					break;
+				}
 			}
 		}
 
@@ -488,7 +476,7 @@ if (bMeetsMatch)
 					}
 					UE_LOG(LogAutomationCommandLine, Log, TEXT("Shutting down. GIsCriticalError=%d"), GIsCriticalError);
 					UE_LOG(LogAutomationCommandLine, Display, TEXT("**** TEST COMPLETE. EXIT CODE: %d ****"), GIsCriticalError ? -1 : 0);
-					FPlatformMisc::RequestExit(true);
+					FPlatformMisc::RequestExitWithStatus(true, GIsCriticalError ? -1 : 0);
 					AutomationTestState = EAutomationTestState::Complete;
 				}
 				break;

@@ -70,11 +70,22 @@ void UDisjunctiveNormalFormFilter::MarkTransactional()
 
 UConjunctionFilter* UDisjunctiveNormalFormFilter::CreateChild()
 {
-	FScopedTransaction Transaction(FText::FromString("Add filter row"));
-	Modify();
+	UConjunctionFilter* Child;
+
+	{
+		FScopedTransaction Transaction(FText::FromString("Add filter row"));
+		Modify();
+		
+		Child = NewObject<UConjunctionFilter>(this, UConjunctionFilter::StaticClass(), NAME_None, RF_Transactional);
+		Children.Add(Child);
+
+		OnFilterModified.Broadcast(EFilterChangeType::RowAdded);
+		
+		bHasJustCreatedNewChild = true;
+	}
+	// OnObjectTransacted will be triggered twice when a ConjunctionFilter is created, this scope ignores the second call
+	bHasJustCreatedNewChild = false;
 	
-	UConjunctionFilter* Child = NewObject<UConjunctionFilter>(this, UConjunctionFilter::StaticClass(), NAME_None, RF_Transactional);
-	Children.Add(Child);
 	
 	return Child;
 }
@@ -88,6 +99,7 @@ void UDisjunctiveNormalFormFilter::RemoveConjunction(UConjunctionFilter* Child)
 	if (ensure(bRemovedChild))
 	{
 		Child->OnRemoved();
+		OnFilterModified.Broadcast(EFilterChangeType::RowRemoved);
 	}
 }
 
@@ -104,12 +116,7 @@ void UDisjunctiveNormalFormFilter::PostInitProperties()
 	{
 		OnObjectTransactedHandle = FCoreUObjectDelegates::OnObjectTransacted.AddLambda([this](UObject* ModifiedObject, const FTransactionObjectEvent& TransactionInfo)
 		{	
-			if (ModifiedObject == this)
-			{
-				OnFilterModified.Broadcast(EFilterChangeType::RowAddedOrRemoved);
-			}
-			
-			else if (IsValid(ModifiedObject) && ModifiedObject->IsIn(this))
+			if (IsValid(ModifiedObject) && ModifiedObject->IsIn(this) && ModifiedObject != this && !bHasJustCreatedNewChild)
 			{
 				const bool bModifiedChildren = Cast<UConjunctionFilter>(ModifiedObject) && TransactionInfo.GetChangedProperties().Contains(UConjunctionFilter::GetChildrenMemberName());
 				OnFilterModified.Broadcast(bModifiedChildren ? EFilterChangeType::RowChildFilterAddedOrRemoved : EFilterChangeType::FilterPropertyModified);

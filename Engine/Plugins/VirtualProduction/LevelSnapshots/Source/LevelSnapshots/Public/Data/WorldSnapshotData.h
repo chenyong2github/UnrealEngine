@@ -6,6 +6,7 @@
 #include "ActorSnapshotData.h"
 #include "ComponentSnapshotData.h"
 #include "ClassDefaultObjectSnapshotData.h"
+#include "CustomSerializationData.h"
 #include "SnapshotVersion.h"
 #include "SubobjectSnapshotData.h"
 #include "UObject/Class.h"
@@ -15,6 +16,8 @@ class AActor;
 class FSnapshotArchive;
 struct FPropertySelectionMap;
 struct FActorSnapshotData;
+
+// TODO: Move all functions into static helper functions in private part of module. Helps separation of concerns.
 
 /* Holds saved world data and handles all logic related to writing to the existing world. */
 USTRUCT()
@@ -56,21 +59,30 @@ public: /* Serialisation functions */
 	UObject* ResolveObjectDependencyForSnapshotWorld(int32 ObjectPathIndex);
 	
 	/* Resolves an object dependency for use in the editor world. If the object is a subobject, it is serialized.
-	* Steps for serializing subobject:
-	*  - If an equivalent object with the saved name and class exists, use that and serialize the properties in SelectionMap into it.
-	*  - Otherwise allocate a new object and serialize all properties into it
-	*  - Replaces all references to the trashed object with the new one
-	*/
+	 * Steps for serializing subobject:
+	 *  - If an equivalent object with the saved name and class exists, use that and serialize the properties in SelectionMap into it.
+	 *  - Otherwise allocate a new object and serialize all properties into it
+	 *  - Replaces all references to the trashed object with the new one
+	 */
 	UObject* ResolveObjectDependencyForEditorWorld(int32 ObjectPathIndex, const FPropertySelectionMap& SelectionMap);
 
 	/* Resolves an object depedency when restoring a class default object. Simply resolves without further checks. */
 	UObject* ResolveObjectDependencyForClassDefaultObject(int32 ObjectPathIndex);
 	
 	
-	/* Adds a subobject dependency. Intended for internal objects which need to store serialized data, e.g. components and other subobjects. Implicitly calls AddObjectDependency.
-	* @return A valid index in SerializedObjectReferences and the corresponding subobject data.
-	*/
+	/**
+	 * Adds a subobject dependency. Intended for internal objects which need to store serialized data, e.g. components and other subobjects. Implicitly calls AddObjectDependency.
+	 * @return A valid index in SerializedObjectReferences and the corresponding subobject data.
+	 */
 	int32 AddSubobjectDependency(UObject* ReferenceFromOriginalObject);
+
+	/**
+	 * Adds a subobject to SerializedObjectReferences and CustomSubobjectSerializationData.
+	 * @return A valid index in SerializedObjectReferences and the corresponding subobject data.
+	 */
+	int32 AddCustomSubobjectDependency(UObject* ReferenceFromOriginalObject);
+	FCustomSerializationData* GetCustomSubobjectData_ForSubobject(const FSoftObjectPath& ReferenceFromOriginalObject);
+	const FCustomSerializationData* GetCustomSubobjectData_ForActorOrSubobject(UObject* OriginalObject) const;
 
 	
 	void AddClassDefault(UClass* Class);
@@ -88,7 +100,7 @@ public: /* Serialisation functions */
 	void PostSerialize(const FArchive& Ar);
 	//~ End TStructOpsTypeTraits Interface
 	
-private:
+public:
 
 	UObject* ResolveExternalReference(const FSoftObjectPath& ObjectPath);
 	
@@ -110,13 +122,15 @@ private:
 	
 	
 	
-	/* We only save properties with values different from their CDO counterpart.
+	/**
+	 * We only save properties with values different from their CDO counterpart.
 	 * Because of this, we need to save class defaults in the snapshot.
 	 */
 	UPROPERTY()
 	TMap<FSoftClassPath, FClassDefaultObjectSnapshotData> ClassDefaults;
 	
-	/* Holds serialized actor data.
+	/**
+	 * Holds serialized actor data.
 	 * Maps the original actor's path to its serialized data.
 	 */
 	UPROPERTY()
@@ -124,11 +138,12 @@ private:
 
 
 	
-	/* Whenever an object needs to serialize a name, we add it to this array and serialize an index to this array. */
+	/** Whenever an object needs to serialize a name, we add it to this array and serialize an index to this array. */
 	UPROPERTY()
 	TArray<FName> SerializedNames;
 
-	/* Whenever an object needs to serialize an object reference, we keep the object path here and serialize an index to this array.
+	/**
+	 * Whenever an object needs to serialize an object reference, we keep the object path here and serialize an index to this array.
 	 * 
 	 * External references, e.g. UDataAssets or UMaterials, are easily handled.
 	 * Example: UStaticMesh /Game/Australia/StaticMeshes/MegaScans/Nature_Rock_vbhtdixga/vbhtdixga_LOD0.vbhtdixga_LOD0
@@ -141,12 +156,20 @@ private:
 	UPROPERTY()
 	TArray<FSoftObjectPath> SerializedObjectReferences;
 	
-	/*
-	 * Key: A valid index in to SerializedObjectReferences. Value: Subobject information for the associated entry in SerializedObjectReferences.
+	/**
+	 * Key: A valid index in to SerializedObjectReferences.
+	 * Value: Subobject information for the associated entry in SerializedObjectReferences.
 	 * There is only an entry if the associated object is in fact a subobject. Actors and assets in particular do not get any entry.
 	 */
 	UPROPERTY()
 	TMap<int32, FSubobjectSnapshotData> Subobjects;
+
+	/**
+	 * Key: A valid index in to SerializedObjectReferences
+	 * Value: Data that was generated by some ICustomObjectSnapshotSerializer.
+	 */
+	UPROPERTY()
+	TMap<int32, FCustomSerializationData> CustomSubobjectSerializationData;
 };
 
 template<>

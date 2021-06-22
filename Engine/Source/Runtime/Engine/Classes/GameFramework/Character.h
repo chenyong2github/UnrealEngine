@@ -27,6 +27,8 @@ class UPawnMovementComponent;
 class UPrimitiveComponent;
 class USkeletalMeshComponent;
 struct FAnimMontageInstance;
+struct FCharacterAsyncInput;
+struct FCharacterAsyncOutput;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FMovementModeChangedSignature, class ACharacter*, Character, EMovementMode, PrevMovementMode, uint8, PreviousCustomMode);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FCharacterMovementUpdatedSignature, float, DeltaSeconds, FVector, OldLocation, FVector, OldVelocity);
@@ -983,4 +985,9 @@ public:
 	 * Called for everyone when recording a Client Replay, including Simulated Proxies.
 	 */
 	virtual void PreReplicationForReplay(IRepChangedPropertyTracker& ChangedPropertyTracker) override;
+
+	/** Async simulation API */
+	void FillAsyncInput(FCharacterAsyncInput& Input) const;
+	void InitializeAsyncOutput(FCharacterAsyncOutput& Output) const;
+	void ApplyAsyncOutput(const FCharacterAsyncOutput& Output);
 };

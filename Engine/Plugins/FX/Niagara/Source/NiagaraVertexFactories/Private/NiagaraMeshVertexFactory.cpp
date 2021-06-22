@@ -135,7 +135,9 @@ void FNiagaraMeshVertexFactory::InitRHI()
 
 bool FNiagaraMeshVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	return (FNiagaraUtilities::SupportsNiagaraRendering(Parameters.Platform)) && (Parameters.MaterialParameters.bIsUsedWithNiagaraMeshParticles || Parameters.MaterialParameters.bIsSpecialEngineMaterial);
+	return	FNiagaraUtilities::SupportsNiagaraRendering(Parameters.Platform)
+			&& (Parameters.MaterialParameters.bIsUsedWithNiagaraMeshParticles || Parameters.MaterialParameters.bIsSpecialEngineMaterial)
+			&& (Parameters.MaterialParameters.MaterialDomain != MD_Volume);
 }
 
 void FNiagaraMeshVertexFactory::SetData(const FStaticMeshDataType& InData)

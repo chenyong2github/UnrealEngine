@@ -322,6 +322,13 @@ UQuartzClockHandle* UQuartzSubsystem::CreateNewClock(const UObject* WorldContext
 		return nullptr;
 	}
 
+	// numerator of time signature must be >= 1
+	if (InSettings.TimeSignature.NumBeats < 1)
+	{
+		UE_LOG(LogAudioQuartz, Warning, TEXT("Clock: (%s) is attempting to set a time signature with a Numerator < 1.  Clamping to 1 beat per bar"), *ClockName.ToString());
+		InSettings.TimeSignature.NumBeats = 1;
+	}
+
 	ClockManager->GetOrCreateClock(ClockName, InSettings, bOverrideSettingsIfClockExists);
 
 	UQuartzClockHandle* ClockHandlePtr = NewObject<UQuartzClockHandle>()->Init(WorldContextObject->GetWorld())->SubscribeToClock(WorldContextObject, ClockName);
@@ -392,10 +399,32 @@ float UQuartzSubsystem::GetDurationOfQuantizationTypeInSeconds(const UObject* Wo
 	Audio::FQuartzClockManager* ClockManager = GetManagerForClock(WorldContextObject, ClockName);
 	if (!ClockManager)
 	{
-		return -1;
+		return INDEX_NONE;
 	}
 
 	return ClockManager->GetDurationOfQuantizationTypeInSeconds(ClockName, QuantizationType, Multiplier);
+}
+
+FQuartzTransportTimeStamp UQuartzSubsystem::GetCurrentClockTimestamp(const UObject* WorldContextObject, const FName& InClockName)
+{
+	Audio::FQuartzClockManager* ClockManager = GetManagerForClock(WorldContextObject, InClockName);
+	if (!ClockManager)
+	{
+		return FQuartzTransportTimeStamp();
+	}
+
+	return ClockManager->GetCurrentTimestamp(InClockName);
+}
+
+float UQuartzSubsystem::GetEstimatedClockRunTime(const UObject* WorldContextObject, const FName& InClockName)
+{
+	Audio::FQuartzClockManager* ClockManager = GetManagerForClock(WorldContextObject, InClockName);
+	if (!ClockManager)
+	{
+		return INDEX_NONE;
+	}
+
+	return ClockManager->GetEstimatedRunTime(InClockName);
 }
 
 float UQuartzSubsystem::GetGameThreadToAudioRenderThreadAverageLatency(const UObject* WorldContextObject)

@@ -5,9 +5,15 @@
 #include "Framework/Text/PlainTextLayoutMarshaller.h"
 #include "Widgets/Text/SlateEditableTextLayout.h"
 #include "Types/ReflectionMetadata.h"
+
 #if WITH_ACCESSIBILITY
 #include "Widgets/Accessibility/SlateAccessibleWidgets.h"
 #endif
+
+#if WITH_SLATE_WIDGET_TRACKING
+#include "Widgets/Accessibility/SlateWidgetTracker.h"
+#include "Widgets/Input/EditableTextMetaData.h"
+#endif //WITH_SLATE_WIDGET_TRACKING
 
 SEditableText::SEditableText()
 {
@@ -75,6 +81,10 @@ void SEditableText::Construct( const FArguments& InArgs )
 	// build context menu extender
 	MenuExtender = MakeShareable(new FExtender());
 	MenuExtender->AddMenuExtension("EditText", EExtensionHook::Before, TSharedPtr<FUICommandList>(), InArgs._ContextMenuExtender);
+
+#if WITH_SLATE_WIDGET_TRACKING
+	AddMetadata(FEditableTextMetaData::MakeShared());
+#endif //WITH_SLATE_WIDGET_TRACKING
 }
 
 void SEditableText::SetText( const TAttribute< FText >& InNewText )

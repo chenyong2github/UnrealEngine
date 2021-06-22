@@ -19,12 +19,6 @@ enum class ERCFindNodeMethod
 class FRCPanelWidgetRegistry
 {
 public:
-	static FRCPanelWidgetRegistry& Get()
-	{
-		static FRCPanelWidgetRegistry Instance;
-		return Instance;
-	}
-
 	/**
 	 * Get a detail tree node for a given object and property.
 	 * @param InObject the object used to generate the detail row.

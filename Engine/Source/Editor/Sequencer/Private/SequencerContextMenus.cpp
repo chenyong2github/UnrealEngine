@@ -7,6 +7,7 @@
 #include "DisplayNodes/SequencerTrackNode.h"
 #include "DisplayNodes/SequencerObjectBindingNode.h"
 #include "SequencerCommonHelpers.h"
+#include "SequencerCommands.h"
 #include "SSequencer.h"
 #include "SectionLayout.h"
 #include "SSequencerSection.h"
@@ -463,32 +464,11 @@ void FSectionContextMenu::AddEditMenu(FMenuBuilder& MenuBuilder)
 
 	MenuBuilder.BeginSection("Trimming", LOCTEXT("TrimmingSectionMenu", "Trimming"));
 
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("TrimSectionLeft", "Trim Left"),
-		LOCTEXT("TrimSectionLeftTooltip", "Trim section at current MouseDownTime to the left"),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateLambda([=]{ Shared->TrimSection(true); }),
-			FCanExecuteAction::CreateLambda([=]{ return Shared->IsTrimmable(); }))
-	);
+	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().TrimSectionLeft);
 
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("TrimSectionRight", "Trim Right"),
-		LOCTEXT("TrimSectionRightTooltip", "Trim section at current MouseDownTime to the right"),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateLambda([=]{ Shared->TrimSection(false); }),
-			FCanExecuteAction::CreateLambda([=]{ return Shared->IsTrimmable(); }))
-	);
+	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().TrimSectionRight);
 
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("SplitSection", "Split"),
-		LOCTEXT("SplitSectionTooltip", "Split section at current MouseDownTime"),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateLambda([=] { Shared->SplitSection(); }),
-			FCanExecuteAction::CreateLambda([=] { return Shared->IsTrimmable(); }))
-	);
+	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SplitSection);
 
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("DeleteKeysWhenTrimming", "Delete Keys"),
@@ -817,27 +797,6 @@ bool FSectionContextMenu::CanSelectAllKeys() const
 	return false;
 }
 
-void FSectionContextMenu::TrimSection(bool bTrimLeft)
-{
-	FScopedTransaction TrimSectionTransaction(LOCTEXT("TrimSection_Transaction", "Trim Section"));
-
-	MovieSceneToolHelpers::TrimSection(Sequencer->GetSelection().GetSelectedSections(), Sequencer->GetLocalTime(), bTrimLeft, Sequencer->GetSequencerSettings()->GetDeleteKeysWhenTrimming());
-	Sequencer->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::TrackValueChanged );
-}
-
-
-void FSectionContextMenu::SplitSection()
-{
-	FScopedTransaction SplitSectionTransaction(LOCTEXT("SplitSection_Transaction", "Split Section"));
-
-	FFrameNumber CurrentFrame = Sequencer->GetLocalTime().Time.FrameNumber;
-	FQualifiedFrameTime SplitFrame = FQualifiedFrameTime(CurrentFrame, Sequencer->GetFocusedTickResolution());
-
-	MovieSceneToolHelpers::SplitSection(Sequencer->GetSelection().GetSelectedSections(), SplitFrame, Sequencer->GetSequencerSettings()->GetDeleteKeysWhenTrimming());
-	Sequencer->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::RefreshAllImmediately );
-}
-
-
 void FSectionContextMenu::AutoSizeSection()
 {
 	FScopedTransaction AutoSizeSectionTransaction(LOCTEXT("AutoSizeSection_Transaction", "Auto Size Section"));
@@ -904,18 +863,6 @@ void FSectionContextMenu::ReduceKeys()
 	}
 
 	Sequencer->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::TrackValueChanged );
-}
-
-bool FSectionContextMenu::IsTrimmable() const
-{
-	for (auto Section : Sequencer->GetSelection().GetSelectedSections())
-	{
-		if (Section.IsValid() && Section->IsTimeWithinSection(Sequencer->GetLocalTime().Time.FrameNumber))
-		{
-			return true;
-		}
-	}
-	return false;
 }
 
 bool FSectionContextMenu::CanAutoSize() const

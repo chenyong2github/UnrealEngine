@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/DisplayClusterCameraComponent.h"
+#include "Components/BillboardComponent.h"
 
-#include "Engine/StaticMesh.h"
-#include "Materials/MaterialInterface.h"
-#include "Materials/Material.h"
+#include "Engine/Texture2D.h"
 #include "UObject/ConstructorHelpers.h"
 
 #include "DisplayClusterConfigurationTypes.h"
@@ -12,67 +11,88 @@
 
 UDisplayClusterCameraComponent::UDisplayClusterCameraComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, InterpupillaryDistance(0.064f)
+#if WITH_EDITOR
+	, bEnableGizmo(true)
+	, BaseGizmoScale(0.5f, 0.5f, 0.5f)
+	, GizmoScaleMultiplier(1.f)
+#endif
+	, InterpupillaryDistance(6.4f)
 	, bSwapEyes(false)
 	, StereoOffset(EDisplayClusterEyeStereoOffset::None)
 {
 #if WITH_EDITOR
 	if (GIsEditor)
 	{
-		// Create visual mesh component as a child
-		VisCameraComponent = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(GetName() + FString("_impl"))));
-		if (VisCameraComponent)
-		{
-			static ConstructorHelpers::FObjectFinder<UStaticMesh> ScreenMesh(TEXT("/nDisplay/Meshes/SM_DCCineCam"));
-
-			VisCameraComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
-			VisCameraComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator(0.f, 90.f, 0.f));
-			VisCameraComponent->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f));
-			VisCameraComponent->SetStaticMesh(ScreenMesh.Object);
-			VisCameraComponent->SetMobility(EComponentMobility::Movable);
-			VisCameraComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			VisCameraComponent->SetVisibility(true);
-			VisCameraComponent->SetIsVisualizationComponent(true);
-		}
+		ConstructorHelpers::FObjectFinderOptional<UTexture2D> SpriteTextureObject = TEXT("/nDisplay/Icons/S_nDisplayViewOrigin");
+		SpriteTexture = SpriteTextureObject.Get();
 	}
 #endif
 }
 
-void UDisplayClusterCameraComponent::ApplyConfigurationData()
+#if WITH_EDITOR
+void UDisplayClusterCameraComponent::SetVisualizationScale(float Scale)
 {
-	Super::ApplyConfigurationData();
+	GizmoScaleMultiplier = Scale;
+	RefreshVisualRepresentation();
+}
 
-	const UDisplayClusterConfigurationSceneComponentCamera* CfgCamera = Cast<UDisplayClusterConfigurationSceneComponentCamera>(GetConfigParameters());
-	if (CfgCamera)
+void UDisplayClusterCameraComponent::SetVisualizationEnabled(bool bEnabled)
+{
+	bEnableGizmo = bEnabled;
+	RefreshVisualRepresentation();
+}
+#endif
+
+void UDisplayClusterCameraComponent::OnRegister()
+{
+#if WITH_EDITOR
+	if (GIsEditor && !IsRunningCommandlet())
 	{
-		InterpupillaryDistance = CfgCamera->InterpupillaryDistance;
-		bSwapEyes = CfgCamera->bSwapEyes;
-
-		switch (CfgCamera->StereoOffset)
+		if (SpriteComponent == nullptr)
 		{
-		case EDisplayClusterConfigurationEyeStereoOffset::Left:
-			StereoOffset = EDisplayClusterEyeStereoOffset::Left;
-			break;
-
-		case EDisplayClusterConfigurationEyeStereoOffset::None:
-			StereoOffset = EDisplayClusterEyeStereoOffset::None;
-			break;
-
-		case EDisplayClusterConfigurationEyeStereoOffset::Right:
-			StereoOffset = EDisplayClusterEyeStereoOffset::Right;
-			break;
-
-		default:
-			StereoOffset = EDisplayClusterEyeStereoOffset::None;
-			break;
+			SpriteComponent = NewObject<UBillboardComponent>(this, NAME_None, RF_Transactional | RF_TextExportTransient);
+			if (SpriteComponent)
+			{
+				SpriteComponent->SetupAttachment(this);
+				SpriteComponent->SetIsVisualizationComponent(true);
+				SpriteComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
+				SpriteComponent->SetMobility(EComponentMobility::Movable);
+				SpriteComponent->Sprite = SpriteTexture;
+				SpriteComponent->SpriteInfo.Category = TEXT("NDisplayViewOrigin");
+				SpriteComponent->SpriteInfo.DisplayName = NSLOCTEXT("DisplayClusterCameraComponent", "NDisplayViewOriginSpriteInfo", "nDisplay View Origin");
+				SpriteComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+				SpriteComponent->bHiddenInGame = true;
+				SpriteComponent->bIsScreenSizeScaled = true;
+				SpriteComponent->CastShadow = false;
+				SpriteComponent->CreationMethod = CreationMethod;
+				SpriteComponent->RegisterComponentWithWorld(GetWorld());
+			}
 		}
 	}
+
+	RefreshVisualRepresentation();
+#endif
+
+	Super::OnRegister();
 }
 
 #if WITH_EDITOR
-void UDisplayClusterCameraComponent::SetNodeSelection(bool bSelect)
+void UDisplayClusterCameraComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	VisCameraComponent->bDisplayVertexColors = bSelect;
-	VisCameraComponent->PushSelectionToProxy();
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	RefreshVisualRepresentation();
+}
+
+void UDisplayClusterCameraComponent::RefreshVisualRepresentation()
+{
+	// Update the viz component
+	if (SpriteComponent)
+	{
+		SpriteComponent->SetVisibility(bEnableGizmo);
+		SpriteComponent->SetWorldScale3D(BaseGizmoScale * GizmoScaleMultiplier);
+		// The sprite components don't get updated in real time without forcing render state dirty
+		SpriteComponent->MarkRenderStateDirty();
+	}
 }
 #endif

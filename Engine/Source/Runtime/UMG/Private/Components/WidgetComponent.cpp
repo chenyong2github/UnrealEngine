@@ -1086,9 +1086,14 @@ void UWidgetComponent::DestroyComponent(bool bPromoteChildren/*= false*/)
 
 void UWidgetComponent::ReleaseResources()
 {
-	if ( Widget )
+	if (Widget)
 	{
 		RemoveWidgetFromScreen();
+		if (bOnWidgetVisibilityChangedRegistered)
+		{
+			Widget->OnNativeVisibilityChanged.RemoveAll(this);
+			bOnWidgetVisibilityChangedRegistered = false;
+		}
 		Widget = nullptr;
 	}
 
@@ -1215,15 +1220,18 @@ void UWidgetComponent::UpdateWidgetOnScreen()
 {
 	if (Space == EWidgetSpace::Screen && !bAddedToScreen)
 	{
-		UWorld* ThisWorld = GetWorld();
-		if (ThisWorld->IsGameWorld())
+		if (GetUserWidgetObject() || GetSlateWidget().IsValid())
 		{
-			ULocalPlayer* TargetPlayer = GetOwnerPlayer();
+			UWorld* ThisWorld = GetWorld();
+			if (ThisWorld && ThisWorld->IsGameWorld())
+			{
+				ULocalPlayer* TargetPlayer = GetOwnerPlayer();
 			APlayerController* PlayerController = TargetPlayer ? ToRawPtr(TargetPlayer->PlayerController) : nullptr;
 
-			if (TargetPlayer && PlayerController && IsVisible() && !(GetOwner()->IsHidden()))
-			{
-				AddWidgetToScreen(TargetPlayer);
+				if (TargetPlayer && PlayerController && IsVisible() && !(GetOwner()->IsHidden()))
+				{
+					AddWidgetToScreen(TargetPlayer);
+				}
 			}
 		}
 	}
@@ -1235,32 +1243,35 @@ void UWidgetComponent::UpdateWidgetOnScreen()
 
 void UWidgetComponent::AddWidgetToScreen(ULocalPlayer* TargetPlayer)
 {
-	UWorld* ThisWorld = GetWorld();
-	if (ThisWorld && ThisWorld->IsGameWorld())
+	if (GetUserWidgetObject() || GetSlateWidget().IsValid())
 	{
-		if (UGameViewportClient* ViewportClient = ThisWorld->GetGameViewport())
+		UWorld* ThisWorld = GetWorld();
+		if (ThisWorld && ThisWorld->IsGameWorld())
 		{
-			TSharedPtr<IGameLayerManager> LayerManager = ViewportClient->GetGameLayerManager();
-			if (LayerManager.IsValid())
+			if (UGameViewportClient* ViewportClient = ThisWorld->GetGameViewport())
 			{
-				TSharedPtr<FWorldWidgetScreenLayer> ScreenLayer;
-
-				FLocalPlayerContext PlayerContext(TargetPlayer, ThisWorld);
-
-				TSharedPtr<IGameLayer> Layer = LayerManager->FindLayerForPlayer(TargetPlayer, SharedLayerName);
-				if (!Layer.IsValid())
+				TSharedPtr<IGameLayerManager> LayerManager = ViewportClient->GetGameLayerManager();
+				if (LayerManager.IsValid())
 				{
-					TSharedRef<FWorldWidgetScreenLayer> NewScreenLayer = MakeShareable(new FWorldWidgetScreenLayer(PlayerContext));
-					LayerManager->AddLayerForPlayer(TargetPlayer, SharedLayerName, NewScreenLayer, LayerZOrder);
-					ScreenLayer = NewScreenLayer;
-				}
-				else
-				{
-					ScreenLayer = StaticCastSharedPtr<FWorldWidgetScreenLayer>(Layer);
-				}
+					TSharedPtr<FWorldWidgetScreenLayer> ScreenLayer;
 
-				bAddedToScreen = true;
-				ScreenLayer->AddComponent(this);
+					FLocalPlayerContext PlayerContext(TargetPlayer, ThisWorld);
+
+					TSharedPtr<IGameLayer> Layer = LayerManager->FindLayerForPlayer(TargetPlayer, SharedLayerName);
+					if (!Layer.IsValid())
+					{
+						TSharedRef<FWorldWidgetScreenLayer> NewScreenLayer = MakeShareable(new FWorldWidgetScreenLayer(PlayerContext));
+						LayerManager->AddLayerForPlayer(TargetPlayer, SharedLayerName, NewScreenLayer, LayerZOrder);
+						ScreenLayer = NewScreenLayer;
+					}
+					else
+					{
+						ScreenLayer = StaticCastSharedPtr<FWorldWidgetScreenLayer>(Layer);
+					}
+
+					bAddedToScreen = true;
+					ScreenLayer->AddComponent(this);
+				}
 			}
 		}
 	}

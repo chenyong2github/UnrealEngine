@@ -1001,7 +1001,7 @@ void FImgMediaLoader::NotifyWorkComplete(FImgMediaLoaderWork& CompletedWork, int
 				ExistingFrame = GlobalCache->FindAndTouch(SequenceName, FrameNumber);
 				if (ExistingFrame == nullptr)
 				{
-					GlobalCache->AddFrame(ImagePaths[0][FrameNumber], SequenceName, FrameNumber, Frame);
+					GlobalCache->AddFrame(ImagePaths[0][FrameNumber], SequenceName, FrameNumber, Frame, MipMapInfo.IsValid());
 				}
 			}
 			else

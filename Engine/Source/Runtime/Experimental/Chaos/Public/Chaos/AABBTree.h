@@ -52,6 +52,27 @@ DECLARE_CYCLE_STAT(TEXT("AABBTreeProgressTimeSlice"), STAT_AABBTreeProgressTimeS
 //DECLARE_CYCLE_STAT(TEXT("AABBTreeGrowPhase"), STAT_AABBTreeGrowPhase, STATGROUP_Chaos);
 //DECLARE_CYCLE_STAT(TEXT("AABBTreeChildrenPhase"), STAT_AABBTreeChildrenPhase, STATGROUP_Chaos);
 
+struct CIsUpdatableElement
+{
+	template<typename ElementT>
+	auto Requires(ElementT& InElem, const ElementT& InOtherElem) -> decltype(InElem.UpdateFrom(InOtherElem));
+};
+
+template<typename T, typename TEnableIf<!TModels<CIsUpdatableElement, T>::Value>::Type* = nullptr>
+static void UpdateElementHelper(T& InElem, const T& InFrom)
+{
+
+}
+
+template<typename T, typename TEnableIf<TModels<CIsUpdatableElement, T>::Value>::Type* = nullptr>
+static void UpdateElementHelper(T& InElem, const T& InFrom)
+{
+	if (FAABBTreeCVars::UpdateDirtyElementPayloadData != 0)
+	{
+		InElem.UpdateFrom(InFrom);
+	}
+}
+
 template <typename TQueryFastData, EAABBQueryType Query>
 struct TAABBTreeIntersectionHelper
 {
@@ -240,14 +261,10 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, bComputeBo
 			if (Elems[Idx].Payload == Payload)
 			{
 				Elems[Idx].Bounds = NewBounds;
+				UpdateElementHelper(Elems[Idx].Payload, Payload);
 				break;
 			}
 		}
-	}
-
-	const FAABB3& GetBounds() const
-	{
-		return Bounds;
 	}
 
 	void Serialize(FChaosArchive& Ar)
@@ -256,7 +273,6 @@ struct TAABBTreeLeafArray : public TBoundsWrapperHelper<TPayloadType, bComputeBo
 	}
 
 	TArray<TPayloadBoundsElement<TPayloadType, FReal>> Elems;
-	FAABB3 Bounds;
 };
 
 template <typename TPayloadType, bool bComputeBounds>
@@ -329,27 +345,6 @@ FORCEINLINE FArchive& operator<<(FArchive& Ar, FAABBTreePayloadInfo& PayloadInfo
 }
 
 extern CHAOS_API int32 MaxDirtyElements;
-
-struct CIsUpdatableElement
-{
-	template<typename ElementT>
-	auto Requires(ElementT& InElem, const ElementT& InOtherElem) -> decltype(InElem.UpdateFrom(InOtherElem));
-};
-
-template<typename T, typename TEnableIf<!TModels<CIsUpdatableElement, T>::Value>::Type* = nullptr>
-static void UpdateElementHelper(T& InElem, const T& InFrom)
-{
-
-}
-
-template<typename T, typename TEnableIf<TModels<CIsUpdatableElement, T>::Value>::Type* = nullptr>
-static void UpdateElementHelper(T& InElem, const T& InFrom)
-{
-	if(FAABBTreeCVars::UpdateDirtyElementPayloadData != 0)
-	{
-		InElem.UpdateFrom(InFrom);
-	}
-}
 
 struct DirtyGridHashEntry
 {

@@ -25,12 +25,14 @@ DECLARE_LOG_CATEGORY_EXTERN(LogPlatformFileManagedStorage, Display, All);
 struct FPersistentStorageCategory
 {
 public:
-	FPersistentStorageCategory(const FString& InCategoryName, const int64 InQuota, const TArray<FString>& InDirectories) :
+	FPersistentStorageCategory(const FString& InCategoryName, const int64 InQuota, const int64 InOptionalQuota, const TArray<FString>& InDirectories) :
 		CategoryName(InCategoryName),
 		UsedQuota(0),
 		StorageQuota(InQuota),
+		OptionalStorageQuota(InOptionalQuota),
 		Directories(InDirectories)
 	{
+		check(OptionalStorageQuota < StorageQuota || StorageQuota <= 0); // optional storage quota should be a subset of the total storage quota
 	}
 
 	FORCEINLINE const FString& GetCategoryName() const
@@ -38,9 +40,21 @@ public:
 		return CategoryName;
 	}
 
-	FORCEINLINE int64 GetCategoryQuota() const
+	FORCEINLINE int64 GetCategoryQuota( bool bIncludeOptional = true ) const
 	{
-		return StorageQuota;
+		if (bIncludeOptional || StorageQuota < 0)
+		{
+			return StorageQuota;
+		}
+		else
+		{
+			return StorageQuota - OptionalStorageQuota;
+		}
+	}
+
+	FORCEINLINE int64 GetCategoryOptionalQuota() const
+	{
+		return OptionalStorageQuota;
 	}
 
 	FORCEINLINE int64 GetUsedSize() const
@@ -48,10 +62,26 @@ public:
 		return UsedQuota;
 	}
 
-	FORCEINLINE int64 GetAvailableSize() const
+	FORCEINLINE int64 GetAvailableSize(bool bIncludeOptionalStorage = true) const
 	{
-		int64 ActualStorageQuota = StorageQuota >= 0 ? StorageQuota : MAX_int64;
+		int64 ActualStorageQuota = StorageQuota;
+		if (ActualStorageQuota >= 0)
+		{
+			if (!bIncludeOptionalStorage)
+			{
+				ActualStorageQuota -= OptionalStorageQuota;
+			}
+		}
+		else
+		{
+			ActualStorageQuota = MAX_int64;
+		}
 		return ActualStorageQuota - UsedQuota;
+	}
+
+	FORCEINLINE bool IsInCategory(const FString& Path)
+	{
+		return ShouldManageFile(Path);
 	}
 
 	FORCEINLINE bool IsCategoryFull() const
@@ -156,6 +186,8 @@ private:
 
 	int64 UsedQuota;
 	int64 StorageQuota;
+	int64 OptionalStorageQuota;
+	bool Required; // is this category marked as required
 
 	// List of all directories managed by this category
 	TArray<FString> Directories;
@@ -299,6 +331,56 @@ public:
 		return TotalUsedSize;
 	}
 
+	/// <summary>
+	/// 
+	/// </summary>
+	/// <param name="Path">path to check for free space</param>
+	/// <param name="UsedSpace">amount of used space</param>
+	/// <param name="RemainingSpace">amount of remaining free space</param>
+	/// <param name="Quota">total storage allocated to the related category</param>
+	/// <param name="OptionalQuota">subset of the storage which is optional i.e. will always be smaller then total Quota</param>
+	/// <returns>returns if function succeeds</returns>
+	bool GetPersistentStorageUsage(const FString& Path, int64& UsedSpace, int64 &RemainingSpace, int64& Quota, int64* OptionalQuota = nullptr)
+	{
+		FString NormalizedPath(Path);
+		FPaths::NormalizeFilename(NormalizedPath);
+
+		FRWScopeLock ReadLock(CategoryLock, SLT_ReadOnly);
+		for (auto& Category : Categories)
+		{
+			if (Category.Value->IsInCategory(NormalizedPath))
+			{
+				UsedSpace = Category.Value->GetUsedSize();
+				RemainingSpace = Category.Value->GetAvailableSize();
+				Quota = Category.Value->GetCategoryQuota();
+				if (OptionalQuota != nullptr)
+				{
+					*OptionalQuota = Category.Value->GetCategoryOptionalQuota();
+				}
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/// <summary>
+	/// Returns any additional required free space and optional free space
+	/// </summary>
+	/// <param name="RequiredSpace">Required persistent storage space to run</param>
+	/// <param name="OptionalSpace">persistent storage categories marked as optional</param>
+	/// <returns></returns>
+	bool GetPersistentStorageSize(int64& UsedSpace, int64& RequiredSpace, int64& OptionalSpace) const
+	{
+		FRWScopeLock ReadLock(CategoryLock, SLT_ReadOnly);
+		for (auto& Category : Categories)
+		{
+			UsedSpace += Category.Value->GetUsedSize();
+			RequiredSpace += Category.Value->GetCategoryQuota();
+			OptionalSpace += Category.Value->GetCategoryOptionalQuota();
+		}
+		return true;
+	}
+
 	FORCEINLINE bool IsInitialized() const
 	{
 		return bInitialized;
@@ -422,6 +504,7 @@ private:
 				const TCHAR* PropertyName = TEXT("Name=");
 				const TCHAR* PropertyQuotaMB = TEXT("QuotaMB=");
 				const TCHAR* PropertyDirectories = TEXT("Directories=");
+				const TCHAR* PropertyOptionalQuotaMB = TEXT("OptionalQuotaMB=");
 				FString CategoryName;
 				int64 QuotaInMB;
 				FString DirectoryNames;
@@ -430,6 +513,12 @@ private:
 					FParse::Value(*TrimmedCategory, PropertyQuotaMB, QuotaInMB) &&
 					FParse::Value(*TrimmedCategory, PropertyDirectories, DirectoryNames, false))
 				{
+					int64 OptionalQuotaMB;
+					if ( FParse::Value(*TrimmedCategory, PropertyOptionalQuotaMB, OptionalQuotaMB) == false )
+					{
+						OptionalQuotaMB = 0;
+					}
+					
 					CategoryName.ReplaceInline(TEXT("\""), TEXT(""));
 
 					// Split Directories
@@ -444,13 +533,29 @@ private:
 
 					TArray<FString> Directories;
 					DirectoryNames.ParseIntoArray(Directories, TEXT(","));
+					TMap<FString, FString> CustomDirectoryReplace;
+					CustomDirectoryReplace.Add(TEXT("[persistent]"), FPaths::ProjectPersistentDownloadDir());
+					CustomDirectoryReplace.Add(TEXT("[saved]"), FPaths::ProjectSavedDir());
+
 					for(FString& DirectoryName : Directories)
 					{
-						DirectoryName = FPaths::ProjectPersistentDownloadDir() / DirectoryName.Replace(TEXT("\""), TEXT(""));
+						bool bUsedCustomDirectory = false;
+						for (const auto& DirectoryMapping : CustomDirectoryReplace)
+						{
+							if (DirectoryName.ReplaceInline(*DirectoryMapping.Key, *DirectoryMapping.Value) > 0)
+							{
+								bUsedCustomDirectory = true;
+							}
+						}
+						if (bUsedCustomDirectory == false)
+						{
+							DirectoryName = FPaths::ProjectPersistentDownloadDir() / DirectoryName.Replace(TEXT("\""), TEXT(""));
+						}
 					}
 
 					int64 Quota = (QuotaInMB >= 0) ? QuotaInMB * 1024 * 1024 : -1;	// Quota being negative means infinite quota
-					Categories.Add(CategoryName, MakeShared<FPersistentStorageCategory, ESPMode::ThreadSafe>(CategoryName, Quota, Directories));
+					int64 OptionalQuota = (OptionalQuotaMB >= 0) ? OptionalQuotaMB * 1024 * 1024 : 0;
+					Categories.Add(CategoryName, MakeShared<FPersistentStorageCategory, ESPMode::ThreadSafe>(CategoryName, Quota, OptionalQuota, Directories));
 				}
 			}
 

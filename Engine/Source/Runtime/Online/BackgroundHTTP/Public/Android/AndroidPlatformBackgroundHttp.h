@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "GenericPlatform/GenericPlatformBackgroundHttp.h"
+#include "PlatformWithModularFeature/ModularFeaturePlatformBackgroundHttp.h"
 
-//Currently no implementation on Android
-typedef FGenericPlatformBackgroundHttp FPlatformBackgroundHttp;
+//Android makes use of a modular game feature for it's BackgroundHttp implementation
+typedef FModularFeaturePlatformBackgroundHttp FPlatformBackgroundHttp;

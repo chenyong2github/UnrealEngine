@@ -11,7 +11,7 @@
 
 UDMXProtocolSettings::UDMXProtocolSettings()
 	: SendingRefreshRate(DMX_RATE)
-	, ReceivingRefreshRate(DMX_RATE)
+	, ReceivingRefreshRate_DEPRECATED(DMX_RATE)
 	, bDefaultSendDMXEnabled(true)
 	, bDefaultReceiveDMXEnabled(true)
 	, bOverrideSendDMXEnabled(true)	
@@ -157,10 +157,10 @@ void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 		(InputPortConfigStruct && InputPortConfigStruct == PropertyOwnerStruct) ||
 		(OutputPortConfigStruct && OutputPortConfigStruct == PropertyOwnerStruct))
 	{
-		// If a new config was added, create a guid for that. We cannot do that in the ctor because the engine
-		// expects identical default values for its structs, FGuid::NewGuid as a default doesn't work with that.
 		if (PropertyChangedChainEvent.ChangeType == EPropertyChangeType::ArrayAdd)
 		{
+			// If a new config was added, create a guid for that. We cannot do that in the ctor because the engine
+			// expects identical default values for its structs, FGuid::NewGuid as a default doesn't work with that.
 			for (FDMXInputPortConfig& Config : InputPortConfigs)
 			{
 				if (!Config.GetPortGuid().IsValid())
@@ -174,6 +174,37 @@ void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 				if (!Config.GetPortGuid().IsValid())
 				{
 					Config = FDMXOutputPortConfig(FGuid::NewGuid());
+				}
+			}
+		}
+		else if (PropertyChangedChainEvent.ChangeType == EPropertyChangeType::Duplicate)
+		{
+			// When duplicating configs, the guid will be duplicated, so we have to create unique ones instead
+
+			int32 ChangedIndex = PropertyChangedChainEvent.GetArrayIndex(PropertyName.ToString());
+			if (ensureAlways(ChangedIndex != INDEX_NONE))
+			{
+				if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, InputPortConfigs))
+				{
+					const int32 IndexOfDuplicate = InputPortConfigs.FindLastByPredicate([this, ChangedIndex](const FDMXInputPortConfig& InputPortConfig) {
+						return InputPortConfigs[ChangedIndex].GetPortGuid() == InputPortConfig.GetPortGuid();
+						});
+
+					if (ensureAlways(IndexOfDuplicate != ChangedIndex))
+					{
+						InputPortConfigs[IndexOfDuplicate] = FDMXInputPortConfig(FGuid::NewGuid(), InputPortConfigs[ChangedIndex]);
+					}
+				}
+				else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, OutputPortConfigs))
+				{
+					const int32 IndexOfDuplicate = OutputPortConfigs.FindLastByPredicate([this, ChangedIndex](const FDMXOutputPortConfig& OutputPortConfig) {
+						return OutputPortConfigs[ChangedIndex].GetPortGuid() == OutputPortConfig.GetPortGuid();
+						});
+
+					if (ensureAlways(IndexOfDuplicate != ChangedIndex))
+					{
+						OutputPortConfigs[IndexOfDuplicate] = FDMXOutputPortConfig(FGuid::NewGuid(), OutputPortConfigs[ChangedIndex]);
+					}
 				}
 			}
 		}

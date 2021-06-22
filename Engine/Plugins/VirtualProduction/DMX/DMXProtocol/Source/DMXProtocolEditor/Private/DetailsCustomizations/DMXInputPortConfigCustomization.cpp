@@ -29,20 +29,6 @@ TSharedRef<IPropertyTypeCustomization> FDMXInputPortConfigCustomization::MakeIns
 	return MakeShared<FDMXInputPortConfigCustomization>();
 }
 
-void FDMXInputPortConfigCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
-{
-	FDMXPortConfigCustomizationBase::CustomizeChildren(InStructPropertyHandle, ChildBuilder, StructCustomizationUtils);
-
-	StructPropertyHandle = InStructPropertyHandle;
-
-	// Update corresponding port on property changes
-	FSimpleDelegate UpdatePortDelegate = FSimpleDelegate::CreateSP(this, &FDMXInputPortConfigCustomization::UpdatePort);
-	StructPropertyHandle->SetOnChildPropertyValueChanged(UpdatePortDelegate);
-
-	// Since base may make changes to data we want to update the port already
-	UpdatePort();
-}
-
 FName FDMXInputPortConfigCustomization::GetProtocolNamePropertyNameChecked() const
 {
 	return FDMXInputPortConfig::GetProtocolNamePropertyNameChecked();
@@ -66,27 +52,6 @@ FName FDMXInputPortConfigCustomization::GetPortGuidPropertyNameChecked() const
 const TArray<EDMXCommunicationType> FDMXInputPortConfigCustomization::GetSupportedCommunicationTypes() const
 {
 	return GetProtocolChecked()->GetInputPortCommunicationTypes();
-}
-
-void FDMXInputPortConfigCustomization::UpdatePort()
-{
-	check(StructPropertyHandle.IsValid());
-
-	TArray<void*> RawDataArray;
-	StructPropertyHandle->AccessRawData(RawDataArray);
-
-	for (void* RawData : RawDataArray)
-	{
-		FDMXInputPortConfig* PortConfigPtr = reinterpret_cast<FDMXInputPortConfig*>(RawData);
-		if (ensureAlways(PortConfigPtr))
-		{
-			FDMXInputPortSharedPtr InputPort = FDMXPortManager::Get().FindInputPortByGuid(PortConfigPtr->GetPortGuid());
-			if (InputPort.IsValid())
-			{
-				InputPort->UpdateFromConfig(*PortConfigPtr);
-			}
-		}
-	}
 }
 
 #undef LOCTEXT_NAMESPACE

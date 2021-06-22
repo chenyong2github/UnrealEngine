@@ -6,52 +6,12 @@
 
 BEGIN_NAMESPACE_UE_AC
 
-class IConnectionListener
+class FConnectionWindow
 {
   public:
-	class FConnection
-	{
-		FString Source;
-		FString Destination;
-	};
+	static void ShowWindow();
 
-	virtual ~IConnectionListener(){};
-
-	virtual void ConnectionsChanged(const TSharedRef< TArray< FConnection > >& FConnection) = 0;
-
-	static void RegisterListener(IConnectionListener* InListener);
-
-	static void UnregisterListener(IConnectionListener* InListener);
-};
-
-class FConnectionDialog;
-
-class FConnectionWindow : IConnectionListener
-{
-  public:
-	static void Create();
-	static void Delete();
-
-	virtual void ConnectionsChanged(const TSharedRef< TArray< FConnection > >& FConnection) override;
-
-  private:
-	FConnectionWindow();
-
-	~FConnectionWindow();
-
-	void Start();
-
-	void Stop();
-
-	FConnectionDialog* ConnectionDialog = nullptr;
-
-	TSharedPtr< TArray< FConnection > > Connections;
-
-	// Control access on this object
-	mutable GS::Lock AccessControl;
-
-	// Condition variable
-	GS::Condition AccessCondition;
+	static void DeleteWindow();
 };
 
 END_NAMESPACE_UE_AC

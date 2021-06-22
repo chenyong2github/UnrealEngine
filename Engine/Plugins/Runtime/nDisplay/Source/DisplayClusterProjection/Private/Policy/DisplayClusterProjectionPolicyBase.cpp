@@ -8,10 +8,10 @@
 #include "Game/IDisplayClusterGameManager.h"
 
 #include "DisplayClusterRootActor.h"
-#include "Components/DisplayClusterSceneComponent.h"
 
 #include "Render/Viewport/IDisplayClusterViewportManager.h"
 #include "Render/Viewport/IDisplayClusterViewport.h"
+
 
 FDisplayClusterProjectionPolicyBase::FDisplayClusterProjectionPolicyBase(const FString& InProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 	: ProjectionPolicyId(InProjectionPolicyId)
@@ -60,7 +60,7 @@ void FDisplayClusterProjectionPolicyBase::InitializeOriginComponent(IDisplayClus
 			if (!OriginCompId.IsEmpty())
 			{
 				UE_LOG(LogDisplayClusterProjection, Log, TEXT("Looking for an origin component '%s'..."), *OriginCompId);
-				PolicyOriginComp = RootActor->GetComponentById(OriginCompId);
+				PolicyOriginComp = RootActor->GetComponentByName<USceneComponent>(OriginCompId);
 
 				if (PolicyOriginComp == nullptr)
 				{

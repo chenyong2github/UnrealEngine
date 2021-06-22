@@ -6,6 +6,9 @@
 #include "Components/BillboardComponent.h"
 #include "Engine/Texture2D.h"
 #include "IMediaAudioSample.h"
+#include "IMediaClock.h"
+#include "IMediaClockSink.h"
+#include "IMediaModule.h"
 #include "IMediaPlayer.h"
 #include "MediaAudioResampler.h"
 #include "Misc/ScopeLock.h"
@@ -22,6 +25,31 @@ DECLARE_FLOAT_COUNTER_STAT(TEXT("MediaUtils MediaSoundComponent SampleTime"), ST
 DECLARE_DWORD_COUNTER_STAT(TEXT("MediaUtils MediaSoundComponent Queued"), STAT_Media_SoundCompQueued, STATGROUP_Media);
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(MEDIA_API, MediaStreaming);
+
+/**
+ * Clock sink for UMediaSoundComponent.
+ */
+class FMediaSoundComponentClockSink
+	: public IMediaClockSink
+{
+public:
+	FMediaSoundComponentClockSink(UMediaSoundComponent& InOwner)
+		: Owner(&InOwner)
+	{ }
+	virtual ~FMediaSoundComponentClockSink() { }
+
+public:
+	virtual void TickInput(FTimespan DeltaTime, FTimespan Timecode) override
+	{
+		if (UMediaSoundComponent* OwnerPtr = Owner.Get())
+		{
+			OwnerPtr->UpdatePlayer();
+		}
+	}
+
+private:
+	TWeakObjectPtr<UMediaSoundComponent> Owner;
+};
 
 
 static const int32 MaxAudioInputSamples = 8;	// accept at most these many samples into our input queue
@@ -63,6 +91,8 @@ UMediaSoundComponent::UMediaSoundComponent(const FObjectInitializer& ObjectIniti
 UMediaSoundComponent::~UMediaSoundComponent()
 {
 	delete Resampler;
+
+	RemoveClockSink();
 }
 
 
@@ -520,6 +550,35 @@ void UMediaSoundComponent::SetEnvelopeFollowingsettings(int32 AttackTimeMsec, in
 float UMediaSoundComponent::GetEnvelopeValue() const
 {
 	return CurrentEnvelopeValue;
+}
+
+void UMediaSoundComponent::AddClockSink()
+{
+	if (!ClockSink.IsValid())
+	{
+		IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>("Media");
+
+		if (MediaModule != nullptr)
+		{
+			ClockSink = MakeShared<FMediaSoundComponentClockSink, ESPMode::ThreadSafe>(*this);
+			MediaModule->GetClock().AddSink(ClockSink.ToSharedRef());
+		}
+	}
+}
+
+void UMediaSoundComponent::RemoveClockSink()
+{
+	if (ClockSink.IsValid())
+	{
+		IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>("Media");
+
+		if (MediaModule != nullptr)
+		{
+			MediaModule->GetClock().RemoveSink(ClockSink.ToSharedRef());
+		}
+
+		ClockSink.Reset();
+	}
 }
 
 /* UMediaSoundComponent implementation

@@ -50,7 +50,7 @@ struct FGraphAStarDefaultNode
 
 	FORCEINLINE FGraphAStarDefaultNode(const FGraphNodeRef& InNodeRef)
 		: NodeRef(InNodeRef)
-		, ParentRef(TIsPointer<FGraphNodeRef>::Value ? (FGraphNodeRef)NULL : (FGraphNodeRef)INDEX_NONE)
+		, ParentRef(TIsPointer<FGraphNodeRef>::Value ? (FGraphNodeRef)0 : (FGraphNodeRef)INDEX_NONE)
 		, TraversalCost(FLT_MAX)
 		, TotalCost(FLT_MAX)
 		, SearchNodeIndex(INDEX_NONE)

@@ -20,4 +20,6 @@ UDisplayClusterConfiguratorEditorSettings::UDisplayClusterConfiguratorEditorSett
 	bShowVisXforms = true;
 
 	bEditorEnableAA = true;
+
+	NewAssetIndex = 0;
 }

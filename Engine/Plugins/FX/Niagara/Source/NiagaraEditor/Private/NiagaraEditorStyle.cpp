@@ -284,6 +284,18 @@ void InitParameterMapView(TSharedRef< FSlateStyleSet > Style)
 	// Parameter Map View
 	Style->Set("NiagaraEditor.Stack.DepressedHighlightedButtonBrush", new BOX_CORE_BRUSH("Common/ButtonHoverHint", FMargin(4 / 16.0f), FStyleColors::PrimaryPress));
 	Style->Set("NiagaraEditor.Stack.FlatButtonColor", FLinearColor(FColor(205, 205, 205)));
+
+	//Parameters panel
+	const FTableRowStyle TreeViewStyle = FEditorStyle::GetWidgetStyle<FTableRowStyle>("DetailsView.TreeView.TableRow");
+	FTableRowStyle ParameterPanelRowStyle = FTableRowStyle(TreeViewStyle)
+		.SetTextColor(FLinearColor::White)
+		.SetSelectedTextColor(FLinearColor::White);
+	Style->Set("NiagaraEditor.Parameters.TableRow", ParameterPanelRowStyle);
+	
+	const FTextBlockStyle CategoryTextStyle = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("DetailsView.CategoryTextStyle");
+	FTextBlockStyle ParameterSectionStyle = FTextBlockStyle(CategoryTextStyle)
+		.SetColorAndOpacity(FLinearColor::White);
+	Style->Set("NiagaraEditor.Parameters.HeaderText", ParameterSectionStyle);
 }
 
 void InitCodeView(TSharedRef< FSlateStyleSet > Style)
@@ -320,6 +332,8 @@ void InitSelectedEmitter(TSharedRef< FSlateStyleSet > Style)
 
 void InitToolbarIcons(TSharedRef< FSlateStyleSet > Style)
 {
+	Style->Set("NiagaraEditor.ApplyScratchPadChanges", new IMAGE_PLUGIN_BRUSH("Icons/Commands/icon_ApplyScratchPadChanges_40x", Icon40x40));
+	Style->Set("NiagaraEditor.ApplyScratchPadChanges.Small", new IMAGE_PLUGIN_BRUSH("Icons/Commands/icon_ApplyScratchPadChanges_40x", Icon20x20));
 	Style->Set("NiagaraEditor.AddEmitter", new IMAGE_BRUSH("Icons/icon_AddObject_40x", Icon40x40));
 	Style->Set("NiagaraEditor.AddEmitter.Small", new IMAGE_BRUSH("Icons/icon_AddObject_40x", Icon20x20));
 	Style->Set("NiagaraEditor.UnlockToChanges", new IMAGE_BRUSH("Icons/icon_levels_unlocked_40x", Icon40x40));

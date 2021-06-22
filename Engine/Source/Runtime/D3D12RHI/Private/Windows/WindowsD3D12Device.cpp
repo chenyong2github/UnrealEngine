@@ -391,8 +391,9 @@ bool FD3D12DynamicRHIModule::IsSupported()
 		FindAdapter();
 	}
 
-	FString BlockedIHVString;
 	bool bBlockD3D12 = false;
+#if UE_BUILD_SHIPPING
+	FString BlockedIHVString;
 	if (ChosenAdapters.Num() > 0 && ChosenAdapters[0].IsValid() && GConfig->GetString(TEXT("SystemSettings"), TEXT("RHI.BlockIHVD3D12"), BlockedIHVString, GEngineIni))
 	{
 		TArray<FString> BlockedIHVs;
@@ -408,6 +409,7 @@ bool FD3D12DynamicRHIModule::IsSupported()
 			}
 		}
 	}
+#endif
 
 	// The hardware must support at least 11.0.
 	return ChosenAdapters.Num() > 0

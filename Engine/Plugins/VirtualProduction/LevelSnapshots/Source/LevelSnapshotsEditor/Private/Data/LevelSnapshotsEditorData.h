@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "DisjunctiveNormalFormFilter.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/StrongObjectPtr.h"
@@ -10,7 +11,6 @@
 #include "NegatableFilter.h"
 #include "LevelSnapshotsEditorData.generated.h"
 
-class SLevelSnapshotsEditorContextPicker;
 class UDisjunctiveNormalFormFilter;
 class UFavoriteFilterContainer;
 class UFilterLoader;
@@ -35,6 +35,7 @@ public:
 
 	
 	/******************** Active snapshot ********************/
+	
 	void SetActiveSnapshot(const TOptional<ULevelSnapshot*>& NewActiveSnapshot);
 	void ClearActiveSnapshot();
 	TOptional<ULevelSnapshot*> GetActiveSnapshot() const;
@@ -44,13 +45,13 @@ public:
 
 
 	/******************** Selected world ********************/
-	void SetSelectedWorldReference(UWorld* InWorld);
-	void ClearSelectedWorld();
-	UWorld* GetSelectedWorld() const;
+	
+	static UWorld* GetEditorWorld();
 
 
 	
 	/******************** Edited filter ********************/
+	
 	void SetEditedFilter(const TOptional<UNegatableFilter*>& InFilter);
 	TOptional<UNegatableFilter*> GetEditedFilter() const;
 	bool IsEditingFilter(UNegatableFilter* Filter) const;
@@ -63,20 +64,30 @@ public:
 
 	
 	/******************** Loading filter preset ********************/
+	
 	DECLARE_EVENT_TwoParams(ULevelSnapshotsEditorData, FUserDefinedFiltersChanged, UDisjunctiveNormalFormFilter* /*NewFilter*/, UDisjunctiveNormalFormFilter* /* OldFilter */);
 	/* Called when user loads a new set of filters. */
 	FUserDefinedFiltersChanged OnUserDefinedFiltersChanged;
 	
 	
 	/******************** Getters ********************/
+	
 	UFavoriteFilterContainer* GetFavoriteFilters() const;
 	UDisjunctiveNormalFormFilter* GetUserDefinedFilters() const;
 	UFilterLoader* GetFilterLoader() const;
-	UFilteredResults* GetFilterResults() const;	
+	UFilteredResults* GetFilterResults() const;
+
+	void HandleFilterChange(EFilterChangeType FilterChangeType);
+	bool IsFilterDirty() const;
+	void SetIsFilterDirty(const bool bNewDirtyState);
+
+	void HandleWorldActorsEdited(UObject* Object);
 	
 private:
 
 	FDelegateHandle OnWorldCleanup;
+	FDelegateHandle OnObjectsEdited;
+	FDelegateHandle TrackedFilterModifiedHandle;
 	
 	UPROPERTY()
 	UFavoriteFilterContainer* FavoriteFilters;
@@ -86,13 +97,14 @@ private:
 	/* Handles save & load requests for exchanging UserDefinedFilters. */
 	UPROPERTY()
 	UFilterLoader* FilterLoader;
+	
+	/* Used for determining whether the filter state has changed since it was last refreshed. */
+	UPROPERTY()
+	bool bIsFilterDirty = false;
 
 	/* Converts UserDefinedFilters into ULevelSnapshotsSelectionSet display in results view. */
 	UPROPERTY()
 	UFilteredResults* FilterResults;
-
-	/* World Picker Reference */
-	TOptional<UWorld*> SelectedWorld;
 
 	/* Snapshot selected by user */
 	TOptional<TStrongObjectPtr<ULevelSnapshot>> ActiveSnapshot;

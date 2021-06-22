@@ -466,23 +466,15 @@ class ir_rem_self_ref_assignments_visitor final : public ir_rvalue_visitor
 {
 	_mesa_glsl_parse_state* parse_state;
 
-	struct replace_info
-	{
-		/** Component of the variable to replace that should be replaced. */
-		unsigned component;
-
-		/** new temp variable to replace with. */
-		ir_variable* replacement;
-	};
+	typedef TTuple<ir_variable*, unsigned int> replace_info;
 
 	/** Map of variables we should replace in subsequent rvalues. */
-	TMap<ir_variable*, replace_info> to_replace;
+	TMap<replace_info, replace_info> to_replace;
 
 	/* The current assignment we're in. */
 	ir_assignment* curr_assign;
 
-	ir_variable* just_replaced_var;
-	unsigned just_replaced_comp;
+	replace_info just_replaced;
 
 	bool progress;
 
@@ -494,8 +486,7 @@ public:
 
 		curr_assign = nullptr;;
 
-		just_replaced_var = nullptr;
-		just_replaced_comp = 0;
+		just_replaced = replace_info(nullptr, 0);
 	}
 
 	virtual ~ir_rem_self_ref_assignments_visitor()
@@ -555,59 +546,39 @@ public:
 			search_var = nullptr;
 		}
 
-		if (curr_assign)
-		{
-			if (search_var == just_replaced_var && search_comp == just_replaced_comp)
-			{
-				//We've just created a replacement for these vars in this assignment.
-				//This deref can must remain in place but future ones must be replaced.
-				return;
-			}
-			
-			replace_info* info = to_replace.Find(search_var);
+		replace_info search_var_comp(search_var, search_comp);
+		replace_info* replace_var_comp = to_replace.Find(search_var_comp);
 
+		if (curr_assign && (just_replaced == search_var_comp))
+		{
+			// if we're in an assign and we've had to replace the LHS, then don't worry about changing rvalues for
+			// the search_var_comp
+			return;
+		}
+		else if (replace_var_comp)
+		{
+			ir_rvalue* new_rval = new(parse_state) ir_dereference_variable(replace_var_comp->Key);
+			(*rvalue) = new_rval;
+			progress = true;
+		}
+		else if (curr_assign)
+		{
 			unsigned assign_comp = get_dest_comp(curr_assign->write_mask);
-			if (curr_assign->lhs->variable_referenced() == search_var && search_comp == assign_comp)
+			if (curr_assign->lhs->variable_referenced() == search_var_comp.Key && assign_comp == search_var_comp.Value)
 			{
 				//We're in an assignment that is reading from the same component it's writing to.
-				if (info == nullptr)
-				{
-					checkSlow(search_var);
-					
-					//Create a new temporary for the assignment and add it to the replacement map so that future refs to it are replaced.
-					ir_variable* new_var = new(parse_state) ir_variable(search_var->type->get_base_type(), "self_assign_replacement", ir_var_temporary);
-					replace_info& new_info = to_replace.Add(search_var);
-					new_info.component = assign_comp;
-					new_info.replacement = new_var;
+				checkSlow(search_var);
 
-					just_replaced_var = search_var;
-					just_replaced_comp = search_comp;
+				//Create a new temporary for the assignment and add it to the replacement map so that future refs to it are replaced.
+				ir_variable* new_var = new(parse_state) ir_variable(search_var->type->get_base_type(), "self_assign_replacement", ir_var_temporary);
+				replace_info& new_info = to_replace.Add(search_var_comp, replace_info(new_var, assign_comp));
 
-					curr_assign->insert_before(new_var);
-					// we want to reset the write_mask since we're now assigning the rhs to a scalar on the lhs
-					curr_assign->write_mask = 1;
-					curr_assign->set_lhs(new(parse_state) ir_dereference_variable(new_var));
-					progress = true;
-				}
-			}
-			else
-			{
-				//Look to see if this var deref needs to be replaced.
-				if (info && info->component == search_comp)
-				{
-					ir_rvalue* new_rval = new(parse_state) ir_dereference_variable(info->replacement);
-					(*rvalue) = new_rval;
-					progress = true;
-				}
-			}
-		}
-		else
-		{
-			replace_info* info = to_replace.Find(search_var);
-			if (info && info->component == search_comp)
-			{
-				ir_rvalue* new_rval = new(parse_state) ir_dereference_variable(info->replacement);
-				(*rvalue) = new_rval;
+				just_replaced = replace_info(search_var, search_comp);
+
+				curr_assign->insert_before(new_var);
+				// we want to reset the write_mask since we're now assigning the rhs to a scalar on the lhs
+				curr_assign->write_mask = 1;
+				curr_assign->set_lhs(new(parse_state) ir_dereference_variable(new_var));
 				progress = true;
 			}
 		}
@@ -622,16 +593,34 @@ public:
 		}
 
 		curr_assign = assign;
-		just_replaced_var = nullptr;
-		just_replaced_comp = 0;
+		just_replaced = replace_info(nullptr, 0);
 		return visit_continue;
 	}
 
 	virtual ir_visitor_status visit_leave(ir_assignment* assign)
 	{
+		if (curr_assign)
+		{
+			// when assigning a variable we need to remove it from our to_replace map; clearing out the history
+			// for the scenario:
+			//	A = A + B;
+			//	C = A;
+			//	A = D;
+			//	E = A
+			// 
+			// we want to adjust things to be:
+			//	self_assign_replacement = A + B;
+			//	C = self_assign_replacement;
+			//	A = D;
+			//	E = A;
+			// 
+			// this removal ensures that the 3rd line in the above code will ensure that A is removed from the history
+			// allowing: E = A; instead of E = self_assign_replacement;
+			to_replace.Remove(replace_info(curr_assign->lhs->variable_referenced(), get_dest_comp(curr_assign->write_mask)));
+		}
+
 		curr_assign = nullptr;
-		just_replaced_var = nullptr;
-		just_replaced_comp = 0;
+		just_replaced = replace_info(nullptr, 0);
 		return visit_continue;
 	}
 

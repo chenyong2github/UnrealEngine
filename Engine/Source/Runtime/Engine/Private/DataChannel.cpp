@@ -2354,7 +2354,8 @@ void UActorChannel::NotifyActorChannelOpen(AActor* InActor, FInBunch& InBunch)
 
 	Actor->OnActorChannelOpen(InBunch, Connection);
 
-	if (NetDriver && !NetDriver->IsServer())
+	// Do not update client dormancy or the replay driver if this is a destruction info, those should be handled already in UNetDriver::NotifyActorDestroyed
+	if (NetDriver && !NetDriver->IsServer() && !InBunch.bClose)
 	{
 		if (Actor->NetDormancy > DORM_Awake)
 		{

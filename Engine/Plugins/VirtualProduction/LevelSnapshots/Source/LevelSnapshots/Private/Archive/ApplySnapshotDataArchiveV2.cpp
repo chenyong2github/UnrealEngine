@@ -210,8 +210,7 @@ UObject* FApplySnapshotDataArchiveV2::ResolveObjectDependency(int32 ObjectIndex)
 
 FApplySnapshotDataArchiveV2::FApplySnapshotDataArchiveV2(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject, const FPropertySelectionMap& InSelectionMapForResolvingSubobjects, TOptional<const FPropertySelection*> InSelectionSet)
         :
-        Super(InObjectData, InSharedData, true),
-        OriginalObject(InOriginalObject),
+        Super(InObjectData, InSharedData, true, InOriginalObject),
 		SelectionMapForResolvingSubobjects(InSelectionMapForResolvingSubobjects),
 		SelectionSet(InSelectionSet)
 {

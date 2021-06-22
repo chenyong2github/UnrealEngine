@@ -17,7 +17,7 @@ DISABLE_SDK_WARNINGS_END
 
 #include "Utils/DebugTools.h"
 
-#if defined(WIN32)
+#if PLATFORM_WINDOWS
 	#pragma warning(push)
 	#pragma warning(disable : 4800)
 	#pragma warning(disable : 4505)
@@ -26,7 +26,7 @@ DISABLE_SDK_WARNINGS_END
 #include <string>
 #include <cstdarg>
 
-#if defined(WIN32)
+#if PLATFORM_WINDOWS
 	#pragma warning(pop)
 #endif
 
@@ -60,7 +60,7 @@ bool LoadDatasmithDlls()
 		UE_AC_TestGSError(ApxLoc.ToPath(&PluginsPath));
 		UE_AC_TraceF("Addon path=\"%s\"\n", PluginsPath.ToUtf8());
 
-#ifdef WIN32
+#if PLATFORM_WINDOWS
 		// On Windows Datasmith dll are placed in the same directory than the addon file (.apx)
 		UE_AC_TestGSError(ApxLoc.DeleteLastLocalName());
 		UE_AC_TestGSError(ApxLoc.ToPath(&PluginsPath));
@@ -80,7 +80,7 @@ bool LoadDatasmithDlls()
 			FDatasmithExporterManager::FInitOptions Options;
 			Options.bEnableMessaging = true; // DirectLink requires the Messaging service.
 			Options.bSuppressLogs = UE_AC_VERBOSEF_ON == 0; // Log are useful, Unhapily there no Log level
-#ifdef WIN32
+#if PLATFORM_WINDOWS
 			Options.bUseDatasmithExporterUI = true;
 			Options.RemoteEngineDirPath = TEXT("C:\\ProgramData\\Epic\\Exporter\\ArchicadEngine\\");
 #else
@@ -100,7 +100,7 @@ bool LoadDatasmithDlls()
 		}
 		bLoadSucceed = true;
 		UE_AC_TraceF("Succeed to load Datasmith dlls\n");
-#ifdef WIN32
+#if PLATFORM_WINDOWS
 		UE_AC_Assert(SetDllDirectoryW(PreviousDllDirectory));
 #endif
 	}

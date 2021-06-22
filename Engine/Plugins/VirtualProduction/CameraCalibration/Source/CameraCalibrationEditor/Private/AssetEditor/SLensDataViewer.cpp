@@ -4,7 +4,7 @@
 
 #include "SCameraCalibrationCurveEditorPanel.h"
 
-#include "CurveEditor.h"
+#include "CameraCalibrationCurveEditor.h"
 #include "ICurveEditorModule.h"
 #include "ISinglePropertyView.h"
 #include "LensFile.h"
@@ -12,6 +12,7 @@
 #include "SLensDataCategoryListItem.h"
 #include "SLensDataListItem.h"
 #include "SLensDataAddPointDialog.h"
+#include "CameraCalibrationSettings.h"
 #include "Curves/LensDataCurveModel.h"
 #include "Curves/LensDistortionParametersCurveModel.h"
 #include "Curves/LensEncodersCurveModel.h"
@@ -20,6 +21,7 @@
 #include "Curves/LensNodalOffsetCurveModel.h"
 #include "Curves/LensSTMapCurveModel.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Misc/MessageDialog.h"
 #include "Widgets/Input/SButton.h"
 
 
@@ -71,10 +73,13 @@ void SLensDataViewer::Construct(const FArguments& InArgs, ULensFile* InLensFile)
 	LensFile = TStrongObjectPtr<ULensFile>(InLensFile);
 
 	//Setup curve editor
-	CurveEditor = MakeShared<FCurveEditor>();
+	CurveEditor = MakeShared<FCameraCalibrationCurveEditor>();
 	FCurveEditorInitParams InitParams;
 	CurveEditor->InitCurveEditor(InitParams);
 	CurveEditor->GridLineLabelFormatXAttribute = LOCTEXT("GridXLabelFormat", "{0}");
+
+	// Set Delegates
+	CurveEditor->OnAddDataPointDelegate.BindSP(this, &SLensDataViewer::OnAddDataPointHandler);
 
 	TUniquePtr<ICurveEditorBounds> EditorBounds = MakeUnique<FStaticCurveEditorBounds>();
 	EditorBounds->SetInputBounds(0.05, 1.05);
@@ -144,18 +149,7 @@ void SLensDataViewer::OnGetDataCategoryItemChildren(TSharedPtr<FLensDataCategory
 void SLensDataViewer::OnDataCategorySelectionChanged(TSharedPtr<FLensDataCategoryItem> Item, ESelectInfo::Type SelectInfo)
 {
 	//Don't filter based on SelectInfo. We want to update on arrow key usage
-	if((Item.IsValid() == false)
-		|| (CachedSelectedCategoryItem.IsValid() == false)
-		|| (CachedSelectedCategoryItem->Category != Item->Category))
-	{
-		RefreshDataEntriesTree();
-	}
-	else
-	{
-		RefreshCurve();
-	}
-
-	CachedSelectedCategoryItem = Item;
+	RefreshDataEntriesTree();
 }
 
 TSharedPtr<FLensDataListItem> SLensDataViewer::GetSelectedDataEntry() const
@@ -294,7 +288,11 @@ TSharedRef<SWidget> SLensDataViewer::MakeToolbarWidget(TSharedRef<SCameraCalibra
 	TSharedRef<SWidget> AddPointButton =
 			 SNew(SButton)
 			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
-			.OnClicked(this, &SLensDataViewer::OnAddDataPointClicked)
+			.OnClicked_Lambda([this]()
+			{
+				OnAddDataPointHandler();
+				return FReply::Handled();
+			})
 			[
 				SNew(STextBlock)
 				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
@@ -325,7 +323,7 @@ TSharedRef<SWidget> SLensDataViewer::MakeToolbarWidget(TSharedRef<SCameraCalibra
 		];
 }
 
-FReply SLensDataViewer::OnAddDataPointClicked()
+void SLensDataViewer::OnAddDataPointHandler()
 {
 	const FSimpleDelegate OnDataPointAdded = FSimpleDelegate::CreateSP(this, &SLensDataViewer::OnLensDataPointAdded);
 
@@ -336,13 +334,20 @@ FReply SLensDataViewer::OnAddDataPointClicked()
 	}
 
 	SLensDataAddPointDialog::OpenDialog(LensFile.Get(), InitialCategory, CachedFIZ, OnDataPointAdded);
-	return FReply::Handled();
 }
 
 FReply SLensDataViewer::OnClearLensFileClicked()
 {
 	FScopedTransaction Transaction(LOCTEXT("LensFileClearAll", "Cleared LensFile"));
 	LensFile->Modify();
+
+	//Warn the user that he's about to clear everything
+	const FText Message = LOCTEXT("ClearAllWarning", "This will erase all data contained in this LensFile. Do you wish to continue?");
+	if (FMessageDialog::Open(EAppMsgType::OkCancel, Message) != EAppReturnType::Ok)
+	{
+		Transaction.Cancel();
+		return FReply::Handled();
+	}
 
 	LensFile->ClearAll();
 	RefreshDataEntriesTree();
@@ -418,6 +423,8 @@ void SLensDataViewer::RefreshDataCategoriesTree()
 
 void SLensDataViewer::RefreshDataEntriesTree()
 {
+	TSharedPtr<FLensDataListItem> CurrentSelection = GetSelectedDataEntry();
+
 	DataEntries.Reset();
 
 	if (TSharedPtr<FLensDataCategoryItem> CategoryItem = GetDataCategorySelection())
@@ -430,7 +437,7 @@ void SLensDataViewer::RefreshDataEntriesTree()
 			{
 				for (int32 Index = 0; Index <LensFile->EncodersTable.GetNumFocusPoints(); ++Index)
 				{
-					DataEntries.Add(MakeShared<FEncoderDataListItem>(LensFile.Get(), CategoryItem->Category, LensFile->EncodersTable.GetFocusInput(Index), Index));
+					DataEntries.Add(MakeShared<FEncoderDataListItem>(LensFile.Get(), CategoryItem->Category, LensFile->EncodersTable.GetFocusInput(Index), Index, DataRemovedCallback));
 				}
 				break;
 			}
@@ -438,7 +445,7 @@ void SLensDataViewer::RefreshDataEntriesTree()
 			{
 				for (int32 Index = 0; Index <LensFile->EncodersTable.GetNumIrisPoints(); ++Index)
 				{
-					DataEntries.Add(MakeShared<FEncoderDataListItem>(LensFile.Get(), CategoryItem->Category, LensFile->EncodersTable.GetIrisInput(Index), Index));
+					DataEntries.Add(MakeShared<FEncoderDataListItem>(LensFile.Get(), CategoryItem->Category, LensFile->EncodersTable.GetIrisInput(Index), Index, DataRemovedCallback));
 				}
 				break;
 			}
@@ -478,14 +485,8 @@ void SLensDataViewer::RefreshDataEntriesTree()
 	//When data entries have been repopulated, refresh the tree and select first item
 	DataEntriesTree->RequestListRefresh();
 
-	if (DataEntries.Num())
-	{
-		DataEntriesTree->SetSelection(DataEntries[0]);
-	}
-	else
-	{
-		DataEntriesTree->SetSelection(nullptr);
-	}
+	//Try to put back the same selected Focus/Zoom item
+	UpdateDataSelection(CurrentSelection);
 }
 
 void SLensDataViewer::RefreshCurve() const
@@ -585,7 +586,8 @@ void SLensDataViewer::RefreshCurve() const
 	if (NewCurve)
 	{
 		NewCurve->SetShortDisplayName(FText::FromName(CategoryItem->Label));
-		NewCurve->SetColor(FLinearColor(0.0f, 1.0f, 0.0f, 1.0f));
+		const UCameraCalibrationEditorSettings* EditorSettings = GetDefault<UCameraCalibrationEditorSettings>();
+		NewCurve->SetColor(EditorSettings->CategoryColor.GetColorForCategory(CategoryItem->Category));
 		const FCurveModelID CurveId = CurveEditor->AddCurve(MoveTemp(NewCurve));
 		CurveEditor->PinCurve(CurveId);
 	}
@@ -609,6 +611,35 @@ void SLensDataViewer::OnDataTablePointsUpdated(ELensDataCategory InCategory)
 		{
 			RefreshDataEntriesTree();
 		}
+	}
+}
+
+void SLensDataViewer::UpdateDataSelection(const TSharedPtr<FLensDataListItem>& PreviousSelection)
+{
+	if (PreviousSelection.IsValid())
+	{
+		const TOptional<float> FocusValue = PreviousSelection->GetFocus();
+		if(FocusValue.IsSet())
+		{
+			for(const TSharedPtr<FLensDataListItem>& Item : DataEntries)
+			{
+				if(Item->GetFocus() == FocusValue)
+				{
+					DataEntriesTree->SetSelection(Item);
+					return;
+				}
+			}
+		}
+	}
+
+	//If we haven't found a selection
+	if (DataEntries.Num())
+	{
+		DataEntriesTree->SetSelection(DataEntries[0]);
+	}
+	else
+	{
+		DataEntriesTree->SetSelection(nullptr);
 	}
 }
 

@@ -270,7 +270,7 @@ bool SNiagaraParameterName::VerifyNameTextChange(const FText& InNewName, FText& 
 
 void SNiagaraParameterName::NameTextCommitted(const FText& InNewNameText, ETextCommit::Type CommitType)
 {
-	if (CommitType == ETextCommit::OnEnter)
+	if (CommitType == ETextCommit::OnEnter || CommitType == ETextCommit::OnUserMovedFocus)
 	{
 		FName NewParameterName = ReconstructNameFromEditText(InNewNameText);
 		OnNameChangedDelegate.ExecuteIfBound(NewParameterName);
@@ -297,7 +297,7 @@ bool SNiagaraParameterName::VerifyNamespaceModifierTextChange(const FText& InNew
 
 void SNiagaraParameterName::NamespaceModifierTextCommitted(const FText& InNewNameText, ETextCommit::Type CommitType)
 {
-	if (CommitType == ETextCommit::OnEnter)
+	if (CommitType == ETextCommit::OnEnter || CommitType == ETextCommit::OnUserMovedFocus)
 	{
 		FName NewNamespaceModifier = *InNewNameText.ToString().Replace(TEXT("."), TEXT(""));
 		FName NewParameterName = FNiagaraParameterUtilities::SetSpecificNamespaceModifier(ParameterName.Get(), NewNamespaceModifier);

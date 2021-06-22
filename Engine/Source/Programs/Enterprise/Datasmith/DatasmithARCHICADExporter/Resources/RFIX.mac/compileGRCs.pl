@@ -13,11 +13,21 @@ sub DoGRC ($$$$$$$)
 {
 	my ($tool, $headerDir, $sourceDir, $intSourceDir, $inputFile, $destinationDir, $outputFile) = @_ ;
 
-	system ("mkdir -p \"" . $destinationDir . "\"") ;
-	system ("vim -e -s +\"set bomb|set encoding=utf-8|wq\" \"" . catfile ($sourceDir, $inputFile) . "\"");
+    if (system ("mkdir -p \"" . $destinationDir . "\"") != 0) {
+        print "Fail: mkdir -p \"" . $destinationDir . "\"";
+        exit(1)
+    };
 
-	system ("xcrun clang -x c++ -E -P " . $ENV{GRC_DEFINES} . " -I \"" . $headerDir . "\" -I \"" . $intSourceDir . "\" \"" . catfile ($sourceDir, $inputFile) . "\" > \"" . catfile ($destinationDir, $outputFile .".i") . "\"");
-	system ($tool . " -m r -q utf8 utf16 -T M -n -i \"" . catfile ($destinationDir, $outputFile .".i") . "\" -p \"" . catfile ($sourceDir, "Images") . "\" -o \"" . catfile ($destinationDir, $outputFile) . "\" -w 2");
+    system ("vim -e -s +\"set bomb|set encoding=utf-8|wq\" \"" . catfile ($sourceDir, $inputFile) . "\"");
+
+    if (system ("xcrun clang -x c++ -E -P " . $ENV{GRC_DEFINES} . " -I \"" . $headerDir . "\" -I \"" . $intSourceDir . "\" \"" . catfile ($sourceDir, $inputFile) . "\" > \"" . catfile ($destinationDir, $outputFile .".i") . "\"") != 0) {
+        print "Fail: xcrun clang -x c++ -E -P " . $ENV{GRC_DEFINES} . " -I \"" . $headerDir . "\" -I \"" . $intSourceDir . "\" \"" . catfile ($sourceDir, $inputFile) . "\" > \"" . catfile ($destinationDir, $outputFile .".i") . "\"";
+        exit(1)
+    }
+    if (system ($tool . " -m r -q utf8 utf16 -T M -n -i \"" . catfile ($destinationDir, $outputFile .".i") . "\" -p \"" . catfile ($sourceDir, "Images") . "\" -o \"" . catfile ($destinationDir, $outputFile) . "\" -w 2") != 0) {
+        print "Fail: " . $tool . " -m r -q utf8 utf16 -T M -n -i \"" . catfile ($destinationDir, $outputFile .".i") . "\" -p \"" . catfile ($sourceDir, "Images") . "\" -o \"" . catfile ($destinationDir, $outputFile) . "\" -w 2";
+        exit(1)
+    }
 }
 
 

@@ -31,9 +31,14 @@ FAsyncLoadingFlushContext::~FAsyncLoadingFlushContext()
 void FAsyncLoadingFlushContext::Flush(const FOnAsyncLoadingFlushComplete& OnFlushComplete)
 {
 	check(IsInGameThread() && !IsInSlateThread());
+	
+	// It is only valid to call flush once on a context.
+	check(!OnFlushCompleteDelegate.IsBound());
+	
+	// A delegate is required.
+	check(OnFlushComplete.IsBound());
 
 	OnFlushCompleteDelegate = OnFlushComplete;
-	check(OnFlushCompleteDelegate.IsBound());
 
 	// Check each frame whether async loading has completed.
 	LoadingCompleteCheckDelegateHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FAsyncLoadingFlushContext::OnAsyncLoadingCheck));
@@ -47,8 +52,17 @@ void FAsyncLoadingFlushContext::Flush(const FOnAsyncLoadingFlushComplete& OnFlus
 
 void FAsyncLoadingFlushContext::CleanupTickers()
 {
-	FTicker::GetCoreTicker().RemoveTicker(LoadingCompleteCheckDelegateHandle);
-	FTicker::GetCoreTicker().RemoveTicker(WaitingWarnDelegateHandle);
+	if (LoadingCompleteCheckDelegateHandle.IsValid())
+	{
+		FTicker::GetCoreTicker().RemoveTicker(LoadingCompleteCheckDelegateHandle);
+		LoadingCompleteCheckDelegateHandle.Reset();
+	}
+
+	if (WaitingWarnDelegateHandle.IsValid())
+	{
+		FTicker::GetCoreTicker().RemoveTicker(WaitingWarnDelegateHandle);
+		WaitingWarnDelegateHandle.Reset();
+	}
 }
 
 bool FAsyncLoadingFlushContext::OnAsyncLoadingCheck(float DeltaTime)

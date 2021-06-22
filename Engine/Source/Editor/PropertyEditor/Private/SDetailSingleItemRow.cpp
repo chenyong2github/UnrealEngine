@@ -872,7 +872,7 @@ void SDetailSingleItemRow::CopyWhitelistText() const
 		if (BaseStructure)
 		{
 			const UStruct* ExactStruct = GetExactStructForProperty(Owner->GetParentBaseStructure(), Owner->GetNodeName());
-			FPlatformApplicationMisc::ClipboardCopy(*FString::Printf(TEXT("(%s, %s)"), *ExactStruct->GetName(), *Owner->GetNodeName().ToString()));
+			FPlatformApplicationMisc::ClipboardCopy(*FString::Printf(TEXT("(%s, %s)"), *FSoftObjectPtr(ExactStruct).ToString(), *Owner->GetNodeName().ToString()));
 		}
 	}
 }

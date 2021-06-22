@@ -714,10 +714,13 @@ void ULocalPlayer::GetViewPoint(FMinimalViewInfo& OutViewInfo, EStereoscopicPass
 		}
 	}
 
-	for (auto& ViewExt : GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(ViewportClient->Viewport)))
+	if (ViewportClient != nullptr)
 	{
-		ViewExt->SetupViewPoint(PlayerController, OutViewInfo);
-	};
+		for (auto& ViewExt : GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(ViewportClient->Viewport)))
+		{
+			ViewExt->SetupViewPoint(PlayerController, OutViewInfo);
+		};
+	}
 
 	// We store the originally desired FOV as other classes may adjust to account for ultra-wide aspect ratios
 	OutViewInfo.DesiredFOV = OutViewInfo.FOV;

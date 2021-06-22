@@ -111,14 +111,11 @@ void FNiagaraDataInterfaceGrid3DCollectionDetails::GeneratePreviewAttributes(TAr
 		if ( !VariableName.IsNone() )
 		{
 			// Resolve namespace
-			TMap<FString, FString> AliasesToResolve;
 			if (UNiagaraEmitter* OwnerEmitter = Grid3DInterface->GetTypedOuter<UNiagaraEmitter>())
 			{
-				AliasesToResolve.Emplace(FNiagaraConstants::EmitterNamespace.ToString(), OwnerEmitter->GetUniqueEmitterName());
-			}
-			if (AliasesToResolve.Num() > 0)
-			{
-				VariableName = FNiagaraVariable::ResolveAliases(FNiagaraVariable(UNiagaraDataInterfaceGrid3DCollection::StaticClass(), VariableName), AliasesToResolve).GetName();
+				FNiagaraAliasContext ResolveAliasesContext(FNiagaraAliasContext::ERapidIterationParameterMode::EmitterOrParticleScript);
+				ResolveAliasesContext.ChangeEmitterToEmitterName(OwnerEmitter->GetUniqueEmitterName());
+				VariableName = FNiagaraUtilities::ResolveAliases(FNiagaraVariable(UNiagaraDataInterfaceGrid3DCollection::StaticClass(), VariableName), ResolveAliasesContext).GetName();
 			}
 
 			// Add named attributes

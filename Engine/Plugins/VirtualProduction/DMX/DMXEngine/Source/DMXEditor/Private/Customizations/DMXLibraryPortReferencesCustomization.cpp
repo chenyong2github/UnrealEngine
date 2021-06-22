@@ -8,6 +8,7 @@
 #include "IO/DMXOutputPort.h"
 #include "IO/DMXOutputPortReference.h"
 #include "IO/DMXPortManager.h"
+#include "Interfaces/IDMXProtocol.h"
 #include "Library/DMXLibrary.h"
 
 #include "DetailWidgetRow.h"
@@ -15,13 +16,15 @@
 #include "DetailCategoryBuilder.h"
 #include "IDetailChildrenBuilder.h"
 #include "IDetailPropertyRow.h" 
-#include "ScopedTransaction.h"
+#include "IPropertyUtilities.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Text/STextBlock.h" 
+#include "Widgets/Layout/SWrapBox.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXLibraryPortReferencesCustomization"
@@ -42,7 +45,7 @@ namespace
 		SLATE_END_ARGS()
 
 		/** Constructs the widget */
-		void Construct(const FArguments& InArgs)
+		void Construct(const FArguments& InArgs, const TSharedRef<SWidget>& PortInfoWidget)
 		{
 			check(InArgs._PortReferenceHandle.IsValid() && InArgs._PortReferenceHandle->IsValidHandle());
 
@@ -57,19 +60,40 @@ namespace
 			[
 				SNew(SVerticalBox)
 
-				// Port name
+				// Port name and Port infos
 				+ SVerticalBox::Slot()
-				.HAlign(HAlign_Left)
+				.HAlign(HAlign_Fill)
 				.VAlign(VAlign_Top)
 				.Padding(FMargin(4.f, 4.f, 4.f, 4.f))
+				.AutoHeight()
 				[
-					SNew(STextBlock)
-					.ToolTipText(LOCTEXT("PortReferenceEnabledTextTooltip", "Enables or disables the port for the Library"))
-					.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
-					.Text_Lambda([Port]() -> FText
-					{
-						return FText::FromString(Port->GetPortName());
-					})
+					SNew(SHorizontalBox)
+
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Left)
+					.VAlign(VAlign_Center)
+					.AutoWidth()
+					[
+						SNew(SBox)
+						.HAlign(HAlign_Left)
+						.VAlign(VAlign_Top)
+						.MinDesiredWidth(180.f)
+						[
+							SNew(STextBlock)
+							.ToolTipText(LOCTEXT("PortReferenceEnabledTextTooltip", "Enables or disables the port for the Library"))
+							.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+							.Text(FText::FromString(Port->GetPortName()))
+						]
+					]
+
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Center)
+					.Padding(FMargin(16.f, 4.f, 4.f, 4.f))
+					.FillWidth(1.f)
+					[
+						PortInfoWidget
+					]
 				]
 
 				// Enabled checkbox
@@ -161,6 +185,7 @@ void FDMXLibraryPortReferencesCustomization::CustomizeHeader(TSharedRef<IPropert
 
 void FDMXLibraryPortReferencesCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
+	PropertyUtilities = StructCustomizationUtils.GetPropertyUtilities();
 	LibraryPortReferencesHandle = StructPropertyHandle;
 
 	// Expand the category
@@ -234,6 +259,17 @@ void FDMXLibraryPortReferencesCustomization::CustomizeChildren(TSharedRef<IPrope
 
 	// Create content widgets
 	RefreshPortReferenceWidgets();
+
+	// Handle port changes
+	FDMXPortManager::Get().OnPortsChanged.AddSP(this, &FDMXLibraryPortReferencesCustomization::OnPortsChanged);
+}
+
+void FDMXLibraryPortReferencesCustomization::OnPortsChanged()
+{
+	if (PropertyUtilities.IsValid())
+	{
+		PropertyUtilities->ForceRefresh();
+	}
 }
 
 void FDMXLibraryPortReferencesCustomization::RefreshPortReferenceWidgets()
@@ -253,16 +289,25 @@ void FDMXLibraryPortReferencesCustomization::RefreshPortReferenceWidgets()
 	for (uint32 IndexElement = 0; IndexElement < NumInputPortRefElements; IndexElement++)
 	{
 		TSharedRef<IPropertyHandle> InputPortReferenceHandle = InputPortReferencesHandleArray->GetElement(IndexElement);
+		FDMXInputPortSharedPtr InputPort = GetInputPort(InputPortReferenceHandle);
 
-		
-		InputPortReferencesWidget->AddSlot()
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Fill)
-		.AutoHeight()
-		[
-			SNew(SDMXLibraryPortReferenceCustomization<FDMXInputPortReference>)
-			.PortReferenceHandle(InputPortReferenceHandle)
-		];
+		// May not be valid while array interactions are ongoing
+		if(InputPort.IsValid())
+		{
+			InputPortReferencesWidget->AddSlot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
+			.AutoHeight()
+			[
+				SNew(SBox)
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Top)
+				[
+					SNew(SDMXLibraryPortReferenceCustomization<FDMXInputPortReference>, GeneratePortInfoWidget(InputPort))
+					.PortReferenceHandle(InputPortReferenceHandle)
+				]
+			];
+		}
 	}
 
 	InputPortReferenceContentBorder->SetContent(InputPortReferencesWidget);
@@ -279,19 +324,193 @@ void FDMXLibraryPortReferencesCustomization::RefreshPortReferenceWidgets()
 	for (uint32 IndexElement = 0; IndexElement < NumOutputPortRefElements; IndexElement++)
 	{
 		TSharedRef<IPropertyHandle> OutputPortReferenceHandle = OutputPortReferencesHandleArray->GetElement(IndexElement);
+		FDMXOutputPortSharedPtr OutputPort = GetOutputPort(OutputPortReferenceHandle);
 
-		OutputPortReferencesWidget->AddSlot()
+		// May not be valid while array interactions are ongoing
+		if(OutputPort.IsValid())
+		{
+			OutputPortReferencesWidget->AddSlot()
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			.AutoHeight()
 			[
-				SNew(SDMXLibraryPortReferenceCustomization<FDMXOutputPortReference>)
-				.PortReferenceHandle(OutputPortReferenceHandle)
+				SNew(SBox)
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Top)
+				[
+					SNew(SDMXLibraryPortReferenceCustomization<FDMXOutputPortReference>, GeneratePortInfoWidget(OutputPort))
+					.PortReferenceHandle(OutputPortReferenceHandle)
+				]
 			];
+		}
 	}
 
 	OutputPortReferenceContentBorder->SetContent(OutputPortReferencesWidget);
+}
 
+TSharedRef<SWidget> FDMXLibraryPortReferencesCustomization::GeneratePortInfoWidget(const FDMXPortSharedPtr& Port) const
+{
+	if(Port.IsValid())
+	{
+		IDMXProtocolPtr Protocol = Port->GetProtocol();
+		if(Protocol.IsValid())
+		{
+			FSlateFontInfo PropertyWindowNormalFont = FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont"));
+			FLinearColor FontColor = FLinearColor(0.6f, 0.6f, 0.6f);
+
+			const int32 LocalUniverseStart = Port->GetLocalUniverseStart();
+			const int32 LocalUniverseEnd = Port->GetLocalUniverseEnd();
+			const int32 ExternUniverseStart = Port->GetExternUniverseStart();
+			const int32 ExternUniverseEnd = Port->GetExternUniverseEnd();
+
+			const FText PortName = FText::FromString(Port->GetPortName() + TEXT(":"));
+			const FText ProtocolName = FText::FromName(Protocol->GetProtocolName());
+			const FText LocalUniverseStartText = FText::FromString(FString::FromInt(LocalUniverseStart));
+			const FText LocalUniverseEndText = FText::FromString(FString::FromInt(LocalUniverseEnd));
+			const FText ExternUniverseStartText = FText::FromString(FString::FromInt(ExternUniverseStart));
+			const FText ExternUniverseEndText = FText::FromString(FString::FromInt(ExternUniverseEnd));
+	
+			return
+				SNew(SWrapBox)
+				.InnerSlotPadding(FVector2D(4.f, 4.f))
+				.UseAllottedWidth(true)
+
+				// Protocol Name
+				+ SWrapBox::Slot()
+				[
+					SNew(STextBlock)
+					.ColorAndOpacity(FontColor)
+					.Font(PropertyWindowNormalFont)
+					.Text(ProtocolName)
+				]
+		
+				// Local Universe Label
+				+ SWrapBox::Slot()
+				[
+					SNew(STextBlock)
+					.ColorAndOpacity(FontColor)
+					.Font(PropertyWindowNormalFont)
+					.Text(LOCTEXT("LocalUniverseStartLabel", "Local Universe:"))
+				]
+
+				// Local Universe Start
+				+ SWrapBox::Slot()
+				[
+					SNew(STextBlock)
+					.ColorAndOpacity(FontColor)
+					.Font(PropertyWindowNormalFont)
+					.Text(LocalUniverseStartText)
+				]
+
+				// Local Universe 'to' Label
+				+ SWrapBox::Slot()
+				[
+					SNew(STextBlock)
+					.ColorAndOpacity(FontColor)
+					.Font(PropertyWindowNormalFont)
+					.Text(LOCTEXT("LocalUniverseToLabel", "-"))
+				]
+
+				// Local Universe End
+				+ SWrapBox::Slot()
+				[
+					SNew(STextBlock)
+					.ColorAndOpacity(FontColor)
+					.Font(PropertyWindowNormalFont)
+					.Text(LocalUniverseEndText)
+				]
+
+				// Extern Universe Label
+				+ SWrapBox::Slot()
+				[
+					SNew(STextBlock)
+					.ColorAndOpacity(FontColor)
+					.Font(PropertyWindowNormalFont)
+					.Text(LOCTEXT("ExternUniverseStartLabel", "mapped to extern Universe:"))
+				]
+
+				// Extern Universe Start
+				+ SWrapBox::Slot()
+				[
+					SNew(STextBlock)
+					.ColorAndOpacity(FontColor)
+					.Font(PropertyWindowNormalFont)
+					.Text(ExternUniverseStartText)
+				]
+
+				// Extern Universe 'to' Label
+				+ SWrapBox::Slot()
+				[
+					SNew(STextBlock)
+					.ColorAndOpacity(FontColor)
+					.Font(PropertyWindowNormalFont)
+					.Text(LOCTEXT("ExternUniverseToLabel", "-"))
+				]
+
+				// Extern Universe End
+				+ SWrapBox::Slot()
+				[
+					SNew(STextBlock)
+					.ColorAndOpacity(FontColor)
+					.Font(PropertyWindowNormalFont)
+					.Text(ExternUniverseEndText)
+				];
+		}
+	}
+
+	return SNullWidget::NullWidget;
+}
+
+FDMXInputPortSharedPtr FDMXLibraryPortReferencesCustomization::GetInputPort(const TSharedPtr<IPropertyHandle>& InputPortReferenceHandle)
+{
+	check(InputPortReferenceHandle.IsValid());
+	TSharedPtr<IPropertyHandle> PortGuidHandle = InputPortReferenceHandle->GetChildHandle(FDMXInputPortReference::GetPortGuidPropertyName());
+	
+	check(PortGuidHandle.IsValid());
+
+	TArray<void*> RawData;
+	PortGuidHandle->AccessRawData(RawData);
+
+	if (ensureMsgf(RawData.Num() == 1, TEXT("FDMXLibraryPortReference struct is only ment to be used in DMX library and does not support multi editing.")))
+	{
+		const FGuid* PortGuidPtr = reinterpret_cast<FGuid*>(RawData[0]);
+		if (PortGuidPtr && PortGuidPtr->IsValid())
+		{
+			FDMXInputPortSharedPtr InputPort = FDMXPortManager::Get().FindInputPortByGuid(*PortGuidPtr);
+			if (InputPort.IsValid())
+			{
+				return InputPort;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+FDMXOutputPortSharedPtr FDMXLibraryPortReferencesCustomization::GetOutputPort(const TSharedPtr<IPropertyHandle>& OutputPortReferenceHandle)
+{
+	check(OutputPortReferenceHandle.IsValid());
+	TSharedPtr<IPropertyHandle> PortGuidHandle = OutputPortReferenceHandle->GetChildHandle(FDMXOutputPortReference::GetPortGuidPropertyName());
+
+	check(PortGuidHandle.IsValid());
+
+	TArray<void*> RawData;
+	PortGuidHandle->AccessRawData(RawData);
+
+	if (ensureMsgf(RawData.Num() == 1, TEXT("FDMXLibraryPortReference struct is only ment to be used in DMX library and does not support multi editing.")))
+	{
+		const FGuid* PortGuidPtr = reinterpret_cast<FGuid*>(RawData[0]);
+		if (PortGuidPtr && PortGuidPtr->IsValid())
+		{
+			FDMXOutputPortSharedPtr OutputPort = FDMXPortManager::Get().FindOutputPortByGuid(*PortGuidPtr);
+			if (OutputPort.IsValid())
+			{
+				return OutputPort;
+			}
+		}
+	}
+
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

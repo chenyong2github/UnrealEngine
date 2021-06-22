@@ -26,13 +26,13 @@ public:
 		static const FName ModuleName = "RemoteControlProtocolWidgets";
 		return FModuleManager::LoadModuleChecked<IRemoteControlProtocolWidgetsModule>(ModuleName);
 	}
-	
+
 	/** Creates a widget for the given Preset Field and FieldType */
 	virtual TSharedRef<SWidget> GenerateDetailsForEntity(URemoteControlPreset* InPreset, const FGuid& InFieldId, const EExposedFieldType& InFieldType = EExposedFieldType::Invalid) = 0;
 
 	/** Reset protocol binding widget */
 	virtual void ResetProtocolBindingList() = 0;
-	
+
 	/** Get the binding list public reference */
 	virtual TSharedPtr<IRCProtocolBindingList> GetProtocolBindingList() const = 0;
 };

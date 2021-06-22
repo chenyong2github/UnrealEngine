@@ -553,7 +553,7 @@ void UAnimStreamable::RequestCompressedData(const ITargetPlatform* Platform)
 	float ChunkSizeSeconds = GetChunkSizeSeconds(Platform);
 
 	uint32 NumChunks = 1;
-	if (!Platform->IsServerOnly() && ChunkSizeSeconds > 0.f) // <= 0.f signifies to not chunk & don't have chunks on a server
+	if (Platform->AllowAudioVisualData() && ChunkSizeSeconds > 0.f) // <= 0.f signifies to not chunk & don't have chunks on a server
 	{
 		ChunkSizeSeconds = FMath::Max(ChunkSizeSeconds, MINIMUM_CHUNK_SIZE);
 		const int32 InitialNumChunks = FMath::FloorToInt(GetPlayLength() / ChunkSizeSeconds);

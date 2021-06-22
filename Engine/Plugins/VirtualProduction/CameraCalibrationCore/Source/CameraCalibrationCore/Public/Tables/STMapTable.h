@@ -3,10 +3,8 @@
 #pragma once
 
 #include "Curves/RichCurve.h"
-#include "Engine/EngineTypes.h"
 #include "LensData.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
+#include "Tables/BaseLensTable.h"
 
 #include "STMapTable.generated.h"
 
@@ -67,17 +65,16 @@ public:
  * A data point associating focus and zoom to lens parameters
  */
 USTRUCT()
-struct CAMERACALIBRATIONCORE_API FSTMapFocusPoint
+struct CAMERACALIBRATIONCORE_API FSTMapFocusPoint : public FBaseFocusPoint
 {
 	GENERATED_BODY()
 
 public:
-
-	/** Returns number of zoom points */
-	int32 GetNumPoints() const;
-
-	/** Returns zoom value for a given index */
-	float GetZoom(int32 Index) const;
+	//~ Begin FBaseFocusPoint Interface
+	virtual float GetFocus() const override { return Focus; }
+	virtual int32 GetNumPoints() const override;
+	virtual float GetZoom(int32 Index) const override;
+	//~ End FBaseFocusPoint Interface
 	
 	/** Returns const point for a given zoom */
 	const FSTMapZoomPoint* GetZoomPoint(float InZoom) const;
@@ -119,13 +116,25 @@ public:
  * STMap table containing list of points for each focus and zoom inputs
  */
 USTRUCT()
-struct CAMERACALIBRATIONCORE_API FSTMapTable
+struct CAMERACALIBRATIONCORE_API FSTMapTable : public FBaseLensTable
 {
 	GENERATED_BODY()
 
 	using FocusPointType = FSTMapFocusPoint;
 
+protected:
+	//~ Begin FBaseDataTable Interface
+	virtual TMap<ELensDataCategory, FLinkPointMetadata> GetLinkedCategories() const override;
+	virtual bool DoesFocusPointExists(float InFocus) const override;
+	virtual bool DoesZoomPointExists(float InFocus, float InZoom, float InputTolerance = KINDA_SMALL_NUMBER) const override;
+	//~ End FBaseDataTable Interface
+	
 public:
+	//~ Begin FBaseDataTable Interface
+	virtual void ForEachPoint(FFocusPointCallback InCallback) const override;
+	virtual int32 GetFocusPointNum() const override { return FocusPoints.Num(); }
+	virtual UScriptStruct* GetScriptStruct() const override;
+	//~ End FBaseDataTable Interface
 
 	/** 
 	 * Builds the map blending curve into OutCurve
@@ -148,7 +157,7 @@ public:
 	/** Removes a focus point identified as InFocusIdentifier */
 	void RemoveFocusPoint(float InFocus);
 
-	/** Removes a focus point identified as InFocusIdentifier */
+	/** Removes a zoom point from a focus point*/
 	void RemoveZoomPoint(float InFocus, float InZoom);
 
 	/** Adds a new point in the table */

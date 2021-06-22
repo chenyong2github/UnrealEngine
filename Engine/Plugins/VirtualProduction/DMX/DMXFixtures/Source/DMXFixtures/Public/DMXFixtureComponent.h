@@ -22,20 +22,13 @@ struct FDMXChannelData
 	FDMXAttributeName Name;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Channel")
-	float MinValue;
+	float MinValue = 0.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Channel")
-	float MaxValue;
+	float MaxValue = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Channel")
-	float DefaultValue;
-
-	FDMXChannelData()
-	{
-		MinValue = 0.0f;
-		MaxValue = 1.0f;
-		DefaultValue = 0.0f;
-	}
+	float DefaultValue = 0.0f;
 };
 
 
@@ -45,55 +38,72 @@ class DMXFIXTURES_API UDMXFixtureComponent : public UActorComponent
 	GENERATED_BODY()
 
 protected:
-	virtual void OnComponentCreated() override;
+	/** Initializes the cells for the fixture */
+	void InitCells(int NumCells);
 
 public:	
 	UDMXFixtureComponent();
+
+	/** Initializes the component */
+	UFUNCTION()
+	virtual void Initialize();
+
+	/** Sets the cell that is currently active */
+	virtual void SetCurrentCell(int Index);
+
+	/** If used within a DMX Fixture Actor or Fixture Matrix Actor, the component only receives data when set to true. Else needs be implemented in blueprints. */
+	UPROPERTY(EditAnywhere, Category = "DMX Parameters", meta= (DisplayPriority = 0))
+	bool bIsEnabled = true;
+
+	/** Value changes smaller than this threshold are ignored */
+	UPROPERTY(EditAnywhere, Category = "DMX Parameters")
+	float SkipThreshold = 0.01f;
+
+	/** If used within a DMX Fixture Actor or Fixture Matrix Actor, the plugin interpolates towards the last set value. */
+	UPROPERTY(EditAnywhere, Category = "DMX Parameters")
+	bool bUseInterpolation = false;
+
+	/** The scale of the interpolation speed. Faster when > 1, slower when < 1 */
+	UPROPERTY(EditAnywhere, Category = "DMX Parameters")
+	float InterpolationScale = 1.0f;
+
+	/** True if the component is attached to a matrix fixture */
+	UPROPERTY()
+	bool bUsingMatrixData = false;
+
+	/** If attached to a DMX Fixture Actor, returns the parent fixture actor. */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	class ADMXFixtureActor* GetParentFixtureActor();
+
+	/** Reads pixel color in the middle of each "Texture" and output linear colors */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	TArray<FLinearColor> GetTextureCenterColors(UTexture2D* TextureAtlas, int numTextures);
+
+	/** Called each tick when interpolation is enabled, to calculate the next value */
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX")
+	void InterpolateComponent(float DeltaSeconds);
+
+	/** Called to initialize the component in blueprints */
+	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX")
+	void InitializeComponent();
+
+	/** Applies the speed scale property */
+	void ApplySpeedScale();
 
 	// A cell represent one "lens" in a light fixture
 	// i.e.: Single light fixture contains one cell but Matrix fixtures contain multiple cells
 	// Also, a cell can have multiple channels (single, double)
 	TArray<FCell> Cells;
+
+	/** The currently handled cell */
 	FCell* CurrentCell;
 
-	// Parameters---------------------------------------
-	UPROPERTY(EditAnywhere, Category = "DMX Parameters", meta=(DisplayPriority = 0))
-	bool IsEnabled;
-
-	UPROPERTY(EditAnywhere, Category = "DMX Parameters", meta = (DisplayPriority = 1))
-	bool UsingMatrixData;
-
-	UPROPERTY(EditAnywhere, Category = "DMX Parameters")
-	float SkipThreshold;
-
-	UPROPERTY(EditAnywhere, Category = "DMX Parameters")
-	bool UseInterpolation;
-
-	UPROPERTY(EditAnywhere, Category = "DMX Parameters")
-	float InterpolationScale;
-
-	// Functions-----------------------------------------
-	UFUNCTION(BlueprintCallable, Category = "DMX")
-	class ADMXFixtureActor* GetParentFixtureActor();
-
-	UFUNCTION(BlueprintCallable, Category = "DMX")
-	TArray<FLinearColor> GetTextureCenterColors(UTexture2D* TextureAtlas, int numTextures);
-
-	// Blueprint event
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX")
-	void InterpolateComponent(float DeltaSeconds);
-
-	// Blueprint event
-	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX")
-	void InitializeComponent();
-
-	void Initialize();
-	void ApplySpeedScale();
-
-	// override me
-	virtual void SetBitResolution(TMap<FDMXAttributeName, EDMXFixtureSignalFormat> map) {};
+	// DERECATED 4.27
+public:
+	UE_DEPRECATED(4.27, "Removed, was unused 4.26 and has no clear use.")
+	virtual void SetBitResolution(TMap<FDMXAttributeName, EDMXFixtureSignalFormat> AttributeNameToSignalFormatMap) {};
+	
+	UE_DEPRECATED(4.27, "Only call initialize instead.")
 	virtual void SetRangeValue() {};
-	virtual void InitCells(int NCells);
-	virtual void SetCurrentCell(int Index);
 };
 

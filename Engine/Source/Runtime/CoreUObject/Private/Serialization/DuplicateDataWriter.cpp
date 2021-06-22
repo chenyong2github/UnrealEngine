@@ -132,7 +132,7 @@ UObject* FDuplicateDataWriter::GetDuplicatedObject(UObject* Object, bool bCreate
 		FDuplicatedObject DupObjectInfo = DuplicatedObjectAnnotation.GetAnnotation( Object );
 		if( !DupObjectInfo.IsDefault() )
 		{
-			Result = DupObjectInfo.DuplicatedObject;
+			Result = DupObjectInfo.DuplicatedObject.GetEvenIfUnreachable();
 		}
 		else if (bCreateIfMissing)
 		{

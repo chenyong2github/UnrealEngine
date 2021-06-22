@@ -203,11 +203,12 @@ static void InitCpuThermalSensor()
 
 	for (uint32 i = 0; i < SensorLocations.Num(); ++i)
 	{
-		const char* SensorFilePath = TCHAR_TO_ANSI(*SensorLocations[i]);
+		auto ConvertedStr = StringCast<ANSICHAR>(*SensorLocations[i]);
+		const char* SensorFilePath = ConvertedStr.Get();
 		if (FILE* File = fopen(SensorFilePath, "r"))
 		{
 			FCStringAnsi::Strcpy(AndroidCpuThermalSensorFileBuf, SensorFilePath);
-			UE_LOG(LogAndroid, Display, TEXT("Selecting thermal sensor located at `%s`"), ANSI_TO_TCHAR(AndroidCpuThermalSensorFileBuf));
+			UE_LOG(LogAndroid, Display, TEXT("Selecting thermal sensor located at `%s`"), *SensorLocations[i]);
 			fclose(File);
 			return;
 		}
@@ -225,10 +226,18 @@ void FAndroidMisc::RequestExit( bool Force )
 	if (!GIsCriticalError)
 	{
 		PGO_WriteFile();
+		// exit now to avoid a possible second PGO write when AndroidMain exits.
+		Force = true;
 	}
 #endif
 
 	UE_LOG(LogAndroid, Log, TEXT("FAndroidMisc::RequestExit(%i)"), Force);
+	if(GLog)
+	{
+		GLog->FlushThreadedLogs();
+		GLog->Flush();
+	}
+
 	if (Force)
 	{
 #if USE_ANDROID_JNI
@@ -615,8 +624,14 @@ const TCHAR* FAndroidMisc::GetSystemErrorMessage(TCHAR* OutBuffer, int32 BufferC
 		Error = errno;
 	}
 	char ErrorBuffer[1024];
-	strerror_r(Error, ErrorBuffer, 1024);
-	FCString::Strcpy(OutBuffer, BufferCount, UTF8_TO_TCHAR((const ANSICHAR*)ErrorBuffer));
+	if (strerror_r(Error, ErrorBuffer, 1024) == 0)
+	{
+		FCString::Strcpy(OutBuffer, BufferCount, UTF8_TO_TCHAR((const ANSICHAR*)ErrorBuffer));
+	}
+	else
+	{
+		*OutBuffer = TEXT('\0');
+	}
 	return OutBuffer;
 }
 

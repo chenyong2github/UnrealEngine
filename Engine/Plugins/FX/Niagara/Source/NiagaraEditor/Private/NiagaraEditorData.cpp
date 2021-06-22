@@ -8,12 +8,16 @@
 
 
 TArray<TTuple<FName /*SyncedOldName*/, FName /*SyncedNewName*/>> UNiagaraEditorParametersAdapter::SynchronizeParametersWithParameterDefinitions(
-	const TArray<UNiagaraParameterDefinitionsBase*> ParameterDefinitions,
-	const TArray<FGuid>& ParameterDefinitionsParameterIds,
-	const FSynchronizeWithParameterDefinitionsArgs& Args)
+	const TArray<UNiagaraParameterDefinitionsBase*> TargetDefinitions,
+	const TArray<UNiagaraParameterDefinitionsBase*> AllDefinitions,
+	const TSet<FGuid>& AllDefinitionsParameterIds,
+	INiagaraParameterDefinitionsSubscriber* Subscriber,
+	FSynchronizeWithParameterDefinitionsArgs Args)
 {
-	TArray<TTuple<FName, FName>> OldToNewNameArr;
 	TArray<UNiagaraScriptVariable*> TargetScriptVariables;
+	TArray<TTuple<FName, FName>> OldToNewNameArr;
+
+	// Filter script variables that will be synchronized if specific script variable ids are specified.
 	if (Args.SpecificDestScriptVarIds.Num() > 0)
 	{
 		TargetScriptVariables = EditorOnlyScriptVars.FilterByPredicate([&Args](const UNiagaraScriptVariable* DestScriptVar) { return Args.SpecificDestScriptVarIds.Contains(DestScriptVar->Metadata.GetVariableGuid()); });
@@ -23,22 +27,14 @@ TArray<TTuple<FName /*SyncedOldName*/, FName /*SyncedNewName*/>> UNiagaraEditorP
 		TargetScriptVariables = EditorOnlyScriptVars;
 	}
 
+	// Get all script variables from target definitions.
 	TArray<const UNiagaraScriptVariable*> TargetLibraryScriptVariables;
-	const TArray<UNiagaraParameterDefinitions*> TargetParameterDefinitions = [&Args, &ParameterDefinitions]()->TArray<UNiagaraParameterDefinitions*> {
-		const TArray<UNiagaraParameterDefinitions*> TempParameterDefinitions = FNiagaraEditorUtilities::DowncastParameterDefinitionsBaseArray(ParameterDefinitions);
-		if (Args.SpecificDefinitionsUniqueIds.Num() > 0)
-		{
-			return TempParameterDefinitions.FilterByPredicate([&Args](const UNiagaraParameterDefinitions* ParameterDefinitionsItr) { return Args.SpecificDefinitionsUniqueIds.Contains(ParameterDefinitionsItr->GetDefinitionsUniqueId()); });
-		}
-		return TempParameterDefinitions;
-	}();
-
-	for (const UNiagaraParameterDefinitions* TargetParameterDefinitionsItr : TargetParameterDefinitions)
+	for (const UNiagaraParameterDefinitionsBase* TargetParameterDefinitionsItr : TargetDefinitions)
 	{
-		TargetLibraryScriptVariables.Append(TargetParameterDefinitionsItr->GetParametersConst());
+		TargetLibraryScriptVariables.Append(CastChecked<const UNiagaraParameterDefinitions>(TargetParameterDefinitionsItr)->GetParametersConst());
 	}
 
-	auto GetTargetLibraryScriptVarWithSameId = [&TargetLibraryScriptVariables](const UNiagaraScriptVariable* GraphScriptVar)->const UNiagaraScriptVariable* {
+	auto GetTargetDefinitionScriptVarWithSameId = [&TargetLibraryScriptVariables](const UNiagaraScriptVariable* GraphScriptVar)->const UNiagaraScriptVariable* {
 		const FGuid& GraphScriptVarId = GraphScriptVar->Metadata.GetVariableGuid();
 		if (const UNiagaraScriptVariable* const* FoundLibraryScriptVarPtr = TargetLibraryScriptVariables.FindByPredicate([GraphScriptVarId](const UNiagaraScriptVariable* LibraryScriptVar) { return LibraryScriptVar->Metadata.GetVariableGuid() == GraphScriptVarId; }))
 		{
@@ -47,28 +43,43 @@ TArray<TTuple<FName /*SyncedOldName*/, FName /*SyncedNewName*/>> UNiagaraEditorP
 		return nullptr;
 	};
 
-	auto GetTargetLibraryScriptVarWithSameName = [&TargetLibraryScriptVariables](const UNiagaraScriptVariable* GraphScriptVar)->const UNiagaraScriptVariable* {
-		const FName& GraphScriptVarName = GraphScriptVar->Variable.GetName();
-		if (const UNiagaraScriptVariable* const* FoundLibraryScriptVarPtr = TargetLibraryScriptVariables.FindByPredicate([GraphScriptVarName](const UNiagaraScriptVariable* LibraryScriptVar) { return LibraryScriptVar->Variable.GetName() == GraphScriptVarName; }))
-		{
-			return *FoundLibraryScriptVarPtr;
-		}
-		return nullptr;
-	};
-
+	// If subscribing all name match parameters; 
+	// If a destination parameter has the same name as a source parameter, create a subscription for the source parameter definition. 
+	// Retain the destination parameter default value if it does not match the source parameters.
 	if (Args.bSubscribeAllNameMatchParameters)
 	{
+		// Get all script variables from all definitions.
+		TArray<const UNiagaraScriptVariable*> AllDefinitionsScriptVariables;
+		for (const UNiagaraParameterDefinitionsBase* AllDefinitionsItr : AllDefinitions)
+		{
+			AllDefinitionsScriptVariables.Append(CastChecked<const UNiagaraParameterDefinitions>(AllDefinitionsItr)->GetParametersConst());
+		}
+
+		auto GetDefinitionScriptVarWithSameNameAndType = [&AllDefinitionsScriptVariables](const UNiagaraScriptVariable* GraphScriptVar)->const UNiagaraScriptVariable* {
+			if (const UNiagaraScriptVariable* const* FoundLibraryScriptVarPtr = AllDefinitionsScriptVariables.FindByPredicate([&GraphScriptVar](const UNiagaraScriptVariable* LibraryScriptVar) { return LibraryScriptVar->Variable == GraphScriptVar->Variable; }))
+			{
+				return *FoundLibraryScriptVarPtr;
+			}
+			return nullptr;
+		};
+
 		for (UNiagaraScriptVariable* TargetScriptVar : TargetScriptVariables)
 		{
-			if (const UNiagaraScriptVariable* TargetLibraryScriptVar = GetTargetLibraryScriptVarWithSameName(TargetScriptVar))
+			if (const UNiagaraScriptVariable* LibraryScriptVar = GetDefinitionScriptVarWithSameNameAndType(TargetScriptVar))
 			{
+				// Add the found definition script var as a target script var so that it can be synchronized with later.
+				TargetLibraryScriptVariables.Add(LibraryScriptVar);
+
+				const bool bDoNotAssetIfAlreadySubscribed = true;
+				Subscriber->SubscribeToParameterDefinitions(CastChecked<UNiagaraParameterDefinitions>(LibraryScriptVar->GetOuter()), bDoNotAssetIfAlreadySubscribed);
 				TargetScriptVar->SetIsSubscribedToParameterDefinitions(true);
-				TargetScriptVar->Metadata.SetVariableGuid(TargetLibraryScriptVar->Metadata.GetVariableGuid());
-				if (UNiagaraScriptVariable::DefaultsAreEquivalent(TargetScriptVar, TargetLibraryScriptVar) == false)
+				TargetScriptVar->Metadata.SetVariableGuid(LibraryScriptVar->Metadata.GetVariableGuid());
+				if (UNiagaraScriptVariable::DefaultsAreEquivalent(TargetScriptVar, LibraryScriptVar) == false)
 				{
 					// Preserve the TargetScriptVars default value if it is not equivalent to prevent breaking changes from subscribing new parameters.
 					TargetScriptVar->SetIsOverridingParameterDefinitionsDefaultValue(true);
 				}
+				SynchronizeEditorOnlyScriptVar(LibraryScriptVar, TargetScriptVar);
 			}
 		}
 	}
@@ -77,7 +88,7 @@ TArray<TTuple<FName /*SyncedOldName*/, FName /*SyncedNewName*/>> UNiagaraEditorP
 	{
 		if (TargetScriptVar->GetIsSubscribedToParameterDefinitions())
 		{
-			if (const UNiagaraScriptVariable* TargetLibraryScriptVar = GetTargetLibraryScriptVarWithSameId(TargetScriptVar))
+			if (const UNiagaraScriptVariable* TargetLibraryScriptVar = GetTargetDefinitionScriptVarWithSameId(TargetScriptVar))
 			{
 				TOptional<TTuple<FName, FName>> OptionalOldToNewName = SynchronizeEditorOnlyScriptVar(TargetLibraryScriptVar, TargetScriptVar);
 				if (OptionalOldToNewName.IsSet())
@@ -85,9 +96,9 @@ TArray<TTuple<FName /*SyncedOldName*/, FName /*SyncedNewName*/>> UNiagaraEditorP
 					OldToNewNameArr.Add(OptionalOldToNewName.GetValue());
 				}
 			}
-			else if (ParameterDefinitionsParameterIds.Contains(TargetScriptVar->Metadata.GetVariableGuid()) == false)
+			else if (AllDefinitionsParameterIds.Contains(TargetScriptVar->Metadata.GetVariableGuid()) == false)
 			{
-				// TargetScriptVar is marked as being sourced from a parameter definitions but no matching definition script variables were found, break the link to the parameter definitions for TargetScriptVar.
+				// ScriptVar is marked as being sourced from a parameter definitions but no matching library script variables were found, break the link to the parameter definitions for ScriptVar.
 				TargetScriptVar->SetIsSubscribedToParameterDefinitions(false);
 			}
 		}

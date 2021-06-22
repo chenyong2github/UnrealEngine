@@ -5,6 +5,8 @@
 #include "AssetRegistry/AssetData.h"
 #include "CameraCalibrationSubsystem.h"
 #include "CameraLensDistortionAlgo.h"
+#include "Dialogs/CustomDialog.h"
+#include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
 #include "Engine/Selection.h"
 #include "LensDistortionTool.h"
@@ -18,7 +20,6 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STreeView.h"
-
 
 #define LOCTEXT_NAMESPACE "LensDistortionTool"
 
@@ -51,7 +52,7 @@ void SLensDistortionToolPanel::Construct(const FArguments& InArgs, ULensDistorti
 			.AutoHeight()
 			.Padding(0, 20)
 			[
-				SNew(SButton).Text(LOCTEXT("AddToLUT", "Add To LUT"))
+				SNew(SButton).Text(LOCTEXT("AddToLUT", "Add To Lens Distortion Calibration"))
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				.OnClicked_Lambda([&]() -> FReply
@@ -173,7 +174,55 @@ TSharedRef<SWidget> SLensDistortionToolPanel::BuildAlgoPickerWidget()
 		AlgosComboBox->SetSelectedItem(nullptr);
 	}
 
-	return AlgosComboBox.ToSharedRef();
+	return SNew(SHorizontalBox)
+
+		+ SHorizontalBox::Slot() // algo picker
+		[
+			AlgosComboBox.ToSharedRef()
+		]
+
+		+ SHorizontalBox::Slot() // Help button
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.ToolTipText(LOCTEXT("ShowHelp_Tip", "Help about this algo"))
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.ButtonColorAndOpacity(FLinearColor::Transparent)
+			.OnClicked_Lambda([&]() -> FReply
+			{
+				if (!Tool.IsValid())
+				{
+					return FReply::Handled();
+				}
+
+				UCameraLensDistortionAlgo* Algo = Tool->GetAlgo();
+
+				if (!Algo)
+				{
+					return FReply::Handled();
+				}
+
+				TSharedRef< SCustomDialog> AlgoHelpWindow = 
+					SNew(SCustomDialog)
+					.Title(FText::FromName(Tool->FriendlyName()))
+					.DialogContent(Algo->BuildHelpWidget())
+					.Buttons({
+						SCustomDialog::FButton(LOCTEXT("Ok", "Ok")),
+					});
+
+				AlgoHelpWindow->Show();
+
+				return FReply::Handled();
+			})
+			[
+				SNew(STextBlock)
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.12"))
+				.Text(FEditorFontGlyphs::Info_Circle)
+				.ColorAndOpacity(FLinearColor::White)
+			]
+		]
+		;
 }
 
 

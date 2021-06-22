@@ -98,7 +98,7 @@ public:
 		const FTextureResource* InputTexture,
 		const FTextureResource* DstTexture,
 		const FTextureRenderTargetResource* DstTextureTargetResource,
-		TArray<FDMXPixelMappingDownsamplePixelParam>&& InDownsamplePixelPass,
+		const TArray<FDMXPixelMappingDownsamplePixelParam>& InDownsamplePixelPass,
 		DownsampleReadCallback InCallback
 	) const = 0;
 

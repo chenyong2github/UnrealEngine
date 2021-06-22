@@ -26,12 +26,12 @@ public:
 /** Holds the last FIZ data that was evaluated */
 struct FCachedFIZData
 {
-	TOptional<float> NormalizedFocus;
-	TOptional<float> NormalizedIris;
-	TOptional<float> NormalizedZoom;
+	TOptional<float> RawFocus;
+	TOptional<float> RawIris;
+	TOptional<float> RawZoom;
 
-	TOptional<float> Focus;
-	TOptional<float> Iris;
-	TOptional<float> Zoom;
+	TOptional<float> EvaluatedFocus;
+	TOptional<float> EvaluatedIris;
+	TOptional<float> EvaluatedZoom;
 };
 

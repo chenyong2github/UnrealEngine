@@ -10,8 +10,6 @@ public class OculusOpenXRLoader : ModuleRules
 
 		string SourceDirectory = Target.UEThirdPartySourceDirectory + "Oculus/OculusOpenXRLoader/OculusOpenXRLoader/";
 
-		PublicIncludePaths.Add(SourceDirectory + "Include");
-
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
 			RuntimeDependencies.Add(SourceDirectory + "Lib/arm64-v8a/libopenxr_loader.so");

@@ -277,10 +277,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Ribbon Shape")
 	ENiagaraRibbonShapeMode Shape;
 
-	/** Double geometry count, to allow for correct geometry on both sides of MultiPlane. With this off, 
-	  * MultiPlane will switch normals based on view direction, but this could potentially cause issues in some materials 
+	/** Disables two-sided forced rendering (Will still respect material settings)
+	  * MultiPlane will double geometry count to have triangles facing both sides. With this off MultiPlane will switch normal direction to face view.
+	  * 3D Ribbons will render like normal meshes with backface culling enabled.
 	  */
-	UPROPERTY(EditAnywhere, Category = "Ribbon Shape", meta = (EditCondition = "Shape == ENiagaraRibbonShapeMode::MultiPlane"))
+	UPROPERTY(EditAnywhere, Category = "Ribbon Shape", meta = (EditCondition = "Shape != ENiagaraRibbonShapeMode::Plane"))
 	bool bEnableAccurateGeometry;
 
 	/** Tessellation factor to apply to the width of the ribbon.

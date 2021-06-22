@@ -101,7 +101,7 @@ public:
 	{
 		return true;
 	}
-
+	
 	virtual void GetShaderCompilerDependencies(TArray<FString>& OutDependencies) const override
 	{
 	}
@@ -193,6 +193,11 @@ public:
 		return !IsServerOnly();
 	}
 
+	virtual bool AllowObject(const class UObject* Object) const override
+	{
+		return true;
+	}
+
 	virtual FName GetMeshBuilderModuleName() const override
 	{
 		// MeshBuilder is the default module. Platforms may override this to provide platform specific mesh data.
@@ -204,6 +209,11 @@ public:
 	virtual bool CopyFileToTarget(const FString& TargetAddress, const FString& HostFilename, const FString& TargetFilename, const TMap<FString,FString>& CustomPlatformData) override
 	{
 		return false; 
+	}
+
+	virtual void GetExtraPackagesToCook(TArray<FName>& PackageNames) const override
+	{
+
 	}
 
 	virtual bool InitializeHostPlatform()
@@ -252,7 +262,7 @@ public:
 	{
 		return true;
 	}
-
+	
 
 
 	/**

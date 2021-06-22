@@ -73,7 +73,7 @@ public:
 	void DisableHandles();
 
 	/**
-	 * Set the solver method to use in the Apply step
+	 * Set the solver method to use
 	 */
 	void SetSolverType(EConstraintSolverType InSolverType)
 	{

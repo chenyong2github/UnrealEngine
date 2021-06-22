@@ -74,7 +74,7 @@ private:
 	void HandleFindWorkersMessage(const FAutomationWorkerFindWorkers& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 
 	/** Deferred handler for sending "find worker" response in case the asset registry isn't loaded yet. */
-	void SendWorkerFound();
+	void SendWorkerFound(const FMessageAddress& ControllerAddress);
 
 	/** Handles message endpoint shutdowns. */
 	void HandleMessageEndpointShutdown();

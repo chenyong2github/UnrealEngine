@@ -52,6 +52,12 @@ namespace Gauntlet.SelfTest
 			return InnerResult;
 		}
 
+		/// <summary>
+		/// Manually set the value of the test result
+		/// </summary>
+		public void SetTestResult(TestResult testResult)
+		{
+		}
 
 		public TestStatus GetTestStatus()
 		{

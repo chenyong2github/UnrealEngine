@@ -271,7 +271,7 @@ void UsdUtils::SetUsdStageMetersPerUnit( const pxr::UsdStageRefPtr& Stage, float
 
 bool UsdUtils::HasCompositionArcs( const pxr::UsdPrim& Prim )
 {
-	if ( !Prim )
+	if ( !Prim || !Prim.IsActive() )
 	{
 		return false;
 	}
@@ -513,6 +513,11 @@ TArray< TUsdStore< pxr::UsdGeomPrimvar > > UsdUtils::GetUVSetPrimvars( const pxr
 
 bool UsdUtils::IsAnimated( const pxr::UsdPrim& Prim )
 {
+	if ( !Prim || !Prim.IsActive() )
+	{
+		return false;
+	}
+
 	FScopedUsdAllocs UsdAllocs;
 
 	pxr::UsdGeomXformable Xformable( Prim );
@@ -869,30 +874,38 @@ bool UsdUtils::RenamePrim( UE::FUsdPrim& Prim, const TCHAR* NewPrimName )
 		return false;
 	}
 
-	const bool bIncludeSessionLayers = true;
-	pxr::SdfLayerHandleVector AllLayers = PxrUsdStage->GetLayerStack( bIncludeSessionLayers );
+	pxr::TfToken NewNameToken = UnrealToUsd::ConvertToken( NewPrimName ).Get();
+	pxr::SdfPath TargetPath = PxrUsdPrim.GetPrimPath().ReplaceName( NewNameToken );
 
-	pxr::SdfBatchNamespaceEdit BatchEdit;
-	BatchEdit.Add( pxr::SdfNamespaceEdit::Rename( PxrUsdPrim.GetPath(), UnrealToUsd::ConvertToken( NewPrimName ).Get() ) );
+	std::vector<pxr::SdfPrimSpecHandle> SpecStack = PxrUsdPrim.GetPrimStack();
+	TArray<TPair<pxr::SdfLayerRefPtr, pxr::SdfBatchNamespaceEdit>> Edits;
 
 	// Check if we can apply this rename, and collect error messages if we can't
+	// We will only rename if we can change all specs, or else we'd split the prim
 	TArray<FString> ErrorMessages;
 	pxr::SdfNamespaceEditDetailVector Details;
 	int32 LastDetailsSize = 0;
 	bool bCanApply = true;
-	for ( const pxr::SdfLayerHandle& Layer : AllLayers )
+	for ( const pxr::SdfPrimSpecHandle& Spec : SpecStack )
 	{
-		// Manually ignore layers that don't have a spec for the prim we want to rename or else USD will
-		// claim it can't rename, which will break our plan here
-		if ( !Layer->HasSpec( PxrUsdPrim.GetPath() ) )
+		pxr::SdfPath SpecPath = Spec->GetPath();
+		if ( !SpecPath.IsPrimPath() )
 		{
+			// Especially when it comes to variants, we can have many different specs for a prim.
+			// e.g. we can simultaneously have "/Prim{Varset=}", "/Prim{Varset=Var}" and "/Prim" in there, and
+			// we will fail to do anything if these paths are not prim paths
 			continue;
 		}
 
+		pxr::SdfLayerRefPtr SpecLayer = Spec->GetLayer();
+
+		pxr::SdfBatchNamespaceEdit BatchEdit;
+		BatchEdit.Add( pxr::SdfNamespaceEdit::Rename( SpecPath, NewNameToken ) );
+
 		int32 CurrentNumDetails = Details.size();
-		if ( Layer->CanApply( BatchEdit, &Details ) != pxr::SdfNamespaceEditDetail::Result::Okay )
+		if ( SpecLayer->CanApply( BatchEdit, &Details ) != pxr::SdfNamespaceEditDetail::Result::Okay )
 		{
-			FString LayerName = UsdToUnreal::ConvertString( Layer->GetIdentifier() );
+			FString LayerIdentifier = UsdToUnreal::ConvertString( SpecLayer->GetIdentifier() );
 
 			// This error pushed something new into the Details vector. Get it as an error message
 			FString ErrorMessage;
@@ -901,11 +914,13 @@ bool UsdUtils::RenamePrim( UE::FUsdPrim& Prim, const TCHAR* NewPrimName )
 				ErrorMessage = UsdToUnreal::ConvertString( Details[ CurrentNumDetails - 1 ].reason );
 			}
 
-			ErrorMessages.Add( FString::Printf( TEXT( "\t%s: %s" ), *LayerName, *ErrorMessage ) );
+			ErrorMessages.Add( FString::Printf( TEXT( "\t%s: %s" ), *LayerIdentifier, *ErrorMessage ) );
 			bCanApply = false;
+			// Don't break so we can collect all error messages
 		}
 
 		LastDetailsSize = CurrentNumDetails;
+		Edits.Add( TPair<pxr::SdfLayerRefPtr, pxr::SdfBatchNamespaceEdit>{ SpecLayer, BatchEdit } );
 	}
 
 	if ( !bCanApply )
@@ -919,22 +934,52 @@ bool UsdUtils::RenamePrim( UE::FUsdPrim& Prim, const TCHAR* NewPrimName )
 		return false;
 	}
 
-	for ( const pxr::SdfLayerHandle& Layer : AllLayers )
+	// Actually apply the renames
 	{
-		if ( !Layer->HasSpec( PxrUsdPrim.GetPath() ) )
+		pxr::SdfChangeBlock Block;
+
+		for ( const TPair<pxr::SdfLayerRefPtr, pxr::SdfBatchNamespaceEdit>& Pair : Edits )
 		{
-			continue;
+			const pxr::SdfLayerRefPtr& Layer = Pair.Key;
+			const pxr::SdfBatchNamespaceEdit& Edit = Pair.Value;
+
+			if ( !Layer->Apply( Edit ) )
+			{
+				// This should not be happening since CanApply was true, so stop doing whatever it is we're doing
+				UE_LOG( LogUsd, Error, TEXT( "Failed to rename prim with path '%s' to name '%s' in layer '%s'" ),
+					*Prim.GetPrimPath().GetString(),
+					NewPrimName,
+					*UsdToUnreal::ConvertString( Layer->GetIdentifier() )
+				);
+
+				return false;
+			}
 		}
+	}
 
-		if ( !Layer->Apply( BatchEdit ) )
+	// For whatever reason, if the renamed prim is within a variant set it will be left inactive (i.e. effectively deleted) post-rename by USD.
+	// Here we override that with a SetActive opinion on the session layer, which will also trigger a new resync of that prim.
+	//
+	// We must send a separate notice for this (which is why this function can't be inside a change block) for two reasons:
+	// - In order to let the transactor know that this edit is done on the session layer (so that we can have our active=true opinion there and not save it to disk);
+	// - Because after we apply the rename, usd *needs* to responds to notices in order to make the target path valid again. Until
+	//   it does so, we can't Get/Override/Define a prim at the target path at all, and so can't set it to active.
+	//
+	// We can't do this *before* we rename because if we already have a prim defined/overriden on "/Root/Target", then we
+	// can't apply a rename from a prim onto "/Root/Target": Meaning we'd lose all extra data we have on the prim on the session layer.
+	{
+		pxr::UsdEditContext EditContext{ PxrUsdStage, PxrUsdStage->GetSessionLayer() };
+
+		if ( pxr::UsdPrim PostRenamePrim = PxrUsdStage->OverridePrim( TargetPath ) )
 		{
-			// This should not be happening since CanApply was true, so stop doing whatever it is we're doing
-			UE_LOG( LogUsd, Error, TEXT( "Failed to rename prim with path '%s' to name '%s'" ),
-				*Prim.GetPrimPath().GetString(),
-				NewPrimName
-			);
-
-			return false;
+			// We need to toggle it back and forth because whenever we undo a rename we'll rename our spec on the session layer
+			// back to the original path, and that spec *already* has an active=true opinion that we set during the first rename.
+			// This means that just setting it to active here wouldn't send any notice (because it already is). We need a new notice
+			// to update to the fact that the child prim is now active again (the rename notice is a resync, but it already comes with the prim set to inactive)
+			pxr::SdfChangeBlock Block;
+			const bool bActive = true;
+			PostRenamePrim.SetActive( !bActive );
+			PostRenamePrim.SetActive( bActive );
 		}
 	}
 
@@ -1025,6 +1070,77 @@ bool UsdUtils::HasInheritedVisibility( UE::FUsdPrim& Prim, double TimeCode )
 	return true;
 #else
 	return false;
+#endif // USE_USD_SDK
+}
+
+UE::FSdfPath UsdUtils::GetPrimSpecPathForLayer( const UE::FUsdPrim& Prim, const UE::FSdfLayer& Layer )
+{
+	UE::FSdfPath Result;
+#if USE_USD_SDK
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdPrim UsdPrim{ Prim };
+	pxr::SdfLayerRefPtr UsdLayer{ Layer };
+
+	// We may have multiple specs in the same layer if we're within a variant set (e.g "/Root/Parent/Child" and
+	// "/Root{Varset=Var}Parent/Child{ChildSet=ChildVar}" and "/Root{Varset=Var}Parent/Child").
+	// This function needs to return a prim path with all of its variant selections (i.e. the last example above)
+	std::size_t LargestPathLength = 0;
+	for ( const pxr::SdfPrimSpecHandle& Spec : UsdPrim.GetPrimStack() )
+	{
+		pxr::SdfPath SpecPath = Spec->GetPath();
+		if ( !SpecPath.IsPrimPath() )
+		{
+			continue;
+		}
+
+		if ( Spec->GetLayer() == UsdLayer )
+		{
+			const std::size_t NewPathLength = Spec->GetPath().GetString().length();
+			if ( NewPathLength > LargestPathLength )
+			{
+				Result = UE::FSdfPath{ SpecPath };
+			}
+		}
+	}
+
+#endif // USE_USD_SDK
+	return Result;
+}
+
+USDUTILITIES_API void UsdUtils::RemoveAllPrimSpecs( const UE::FUsdPrim& Prim, const UE::FSdfLayer& Layer )
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs Allocs;
+
+	pxr::UsdPrim UsdPrim{ Prim };
+	if ( !UsdPrim )
+	{
+		return;
+	}
+
+	pxr::SdfChangeBlock Block;
+
+	pxr::SdfLayerRefPtr UsdLayer{ Layer };
+	pxr::UsdStageRefPtr UsdStage = UsdPrim.GetStage();
+
+	for ( const pxr::SdfPrimSpecHandle& Spec : UsdPrim.GetPrimStack() )
+	{
+		pxr::SdfPath SpecPath = Spec->GetPath();
+		if ( !SpecPath.IsPrimPath() )
+		{
+			continue;
+		}
+
+		if ( Spec->GetLayer() != UsdLayer )
+		{
+			continue;
+		}
+
+		UE_LOG( LogUsd, Log, TEXT( "Removing prim spec '%s' from edit target '%s'" ), *UsdToUnreal::ConvertPath( SpecPath ), *UsdToUnreal::ConvertString( UsdLayer->GetIdentifier() ) );
+		UsdStage->RemovePrim( SpecPath );
+	}
+
 #endif // USE_USD_SDK
 }
 

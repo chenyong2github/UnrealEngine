@@ -38,7 +38,9 @@ private:
 
 	void RefreshEntryList();
 
-	void EntryStructureChanged();
+	void EntryExpansionChanged();
+
+	void EntryStructureChanged(ENiagaraStructureChangedFlags Flags);
 
 	TSharedRef<ITableRow> OnGenerateRowForEntry(UNiagaraStackEntry* Item, const TSharedRef<STableViewBase>& OwnerTable);
 

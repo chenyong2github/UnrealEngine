@@ -14,7 +14,7 @@ class SDMXProtocolNameComboBox;
 
 struct EVisibility;
 class IDetailPropertyRow;
-
+class IPropertyUtilities;
 
 /**
  * Base details customization for input and output port configs.
@@ -112,4 +112,7 @@ private:
 
 	/** ComboBox that exposes a selection of communication types to the user */
 	TSharedPtr<SDMXCommunicationTypeComboBox> CommunicationTypeComboBox;
+
+	/** Property utilities for this customization */
+	TSharedPtr<IPropertyUtilities> PropertyUtilities;
 };

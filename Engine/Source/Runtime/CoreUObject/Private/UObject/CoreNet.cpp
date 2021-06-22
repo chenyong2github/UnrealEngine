@@ -321,7 +321,7 @@ bool UPackageMap::StaticSerializeName(FArchive& Ar, FName& InName)
 	else if (Ar.IsSaving())
 	{
 		const EName* InEName = InName.ToEName();
-		uint8 bHardcoded = InEName && ShouldReplicateAsInteger(*InEName);
+		uint8 bHardcoded = InEName && ShouldReplicateAsInteger(*InEName, InName);
 		Ar.SerializeBits(&bHardcoded, 1);
 		if (bHardcoded && /* silence static analyzer */ InEName)
 		{

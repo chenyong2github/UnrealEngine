@@ -208,7 +208,7 @@ void UDataprepMergeActorsOperation::OnExecution_Implementation(const FDataprepCo
 	AActor* Owner = ComponentsToMerge[0]->GetOwner<AActor>();
 	ensure( Owner );
 
-	if( AActor* OwnerParent = Owner->GetAttachParentActor() )
+	if( AActor* OwnerParent = Owner ? Owner->GetAttachParentActor() : nullptr )
 	{
 		// Keep the merged actor in the hierarchy, taking the parent of the first component
 		// In the future, the merged actor could be attached to the common ancestor instead of the first parent in the list
@@ -443,7 +443,7 @@ void UDataprepCreateProxyMeshOperation::OnExecution_Implementation(const FDatapr
 	AActor* Owner = ComponentsToMerge[0]->GetOwner<AActor>();
 	ensure( Owner );
 
-	if( AActor* OwnerParent = Owner->GetAttachParentActor() )
+	if( AActor* OwnerParent = Owner ? Owner->GetAttachParentActor() : nullptr )
 	{
 		// Keep the merged actor in the hierarchy, taking the parent of the first component
 		// In the future, the merged actor could be attached to the common ancestor instead of the first parent in the list

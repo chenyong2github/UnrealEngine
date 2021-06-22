@@ -580,19 +580,6 @@ inline bool IsUsingDistanceFields(const FStaticShaderPlatform Platform)
 	return !!(GDistanceFieldsPlatformMask & (1ull << Platform));
 }
 
-inline bool IsUsingPerPixelDBufferMask(const FStaticShaderPlatform Platform)
-{
-	switch (Platform)
-	{
-	case SP_SWITCH:
-	case SP_SWITCH_FORWARD:
-		// Per-pixel DBufferMask optimization is currently only tested and supported on Switch.
-		return true;
-	default:
-		return FDataDrivenShaderPlatformInfo::GetSupportsPerPixelDBufferMask(Platform);
-	}
-}
-
 inline bool UseGPUScene(const FStaticShaderPlatform Platform, const FStaticFeatureLevel FeatureLevel)
 {
 	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
@@ -604,7 +591,6 @@ inline bool UseGPUScene(const FStaticShaderPlatform Platform, const FStaticFeatu
 	return FeatureLevel >= ERHIFeatureLevel::SM5 
 		//@todo - support GPU Scene management compute shaders on these platforms to get dynamic instancing speedups on the Rendering Thread and RHI Thread
 		&& !IsOpenGLPlatform(Platform)
-		&& !IsSwitchPlatform(Platform)
 		&& !IsVulkanMobileSM5Platform(Platform)
         && !IsMetalMobileSM5Platform(Platform)
 		// we only check DDSPI for platforms that have been read in - IsValid() can go away once ALL platforms are converted over to this system

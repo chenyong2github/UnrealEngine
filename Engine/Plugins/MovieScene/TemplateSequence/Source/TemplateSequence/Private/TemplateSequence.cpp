@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TemplateSequence.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "MovieScene.h"
+#include "MovieSceneCommonHelpers.h"
 #include "MovieSceneTrack.h"
 #include "Tracks/MovieSceneSpawnTrack.h"
 
@@ -217,6 +219,11 @@ FGuid UTemplateSequence::CreatePossessable(UObject* ObjectToPossess)
 bool UTemplateSequence::AllowsSpawnableObjects() const
 {
 	return true;
+}
+
+UObject* UTemplateSequence::MakeSpawnableTemplateFromInstance(UObject& InSourceObject, FName ObjectName)
+{
+	return MovieSceneHelpers::MakeSpawnableTemplateFromInstance(InSourceObject, MovieScene, ObjectName);
 }
 
 void UTemplateSequence::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const

@@ -1,5 +1,6 @@
 export * from './Button';
 export * from './ColorPicker';
+export * from './ColorPickerList';
 export * from './Dial';
 export * from './DialsWrapper';
 export * from './Joystick';

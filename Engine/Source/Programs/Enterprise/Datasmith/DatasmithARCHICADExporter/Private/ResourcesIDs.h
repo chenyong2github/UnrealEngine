@@ -19,6 +19,8 @@
 #endif
 #define kIconDS 32600
 #define kIconDSFile 32601
+#define kIconFolder 32602
+#define kIconArrowGoto 32603
 
 /* Localizable resources */
 #define kStrListFileTypes 302
@@ -49,6 +51,7 @@
 #define kDlgPalette 341
 #define kDlgReport 342
 #define kDlgConnections 343
+#define kDlgConnectionsRowHeight 21
 
 #if AUTO_SYNC
 	#define X3 62

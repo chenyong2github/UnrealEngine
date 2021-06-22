@@ -119,6 +119,20 @@ FText FRemoteControlMIDIDevice::ToDisplayName() const
 	return FText::Format(LOCTEXT("DeviceMenuItem", "[{0}]: {1}"), FText::AsNumber(ResolvedDeviceId), FText::FromName(DeviceName));
 }
 
+bool FRemoteControlMIDIProtocolEntity::IsSame(const FRemoteControlProtocolEntity* InOther)
+{
+	if(const FRemoteControlMIDIProtocolEntity* Other = static_cast<const FRemoteControlMIDIProtocolEntity*>(InOther))
+	{
+		return Device.ResolvedDeviceId == Other->Device.ResolvedDeviceId
+			&& EventType == Other->EventType
+			&& Channel == Other->Channel
+			&& MessageData1 == Other->MessageData1;	
+	}
+
+	return false;
+}
+
+
 void FRemoteControlProtocolMIDI::Bind(FRemoteControlProtocolEntityPtr InRemoteControlProtocolEntityPtr)
 {
 	if (!ensure(InRemoteControlProtocolEntityPtr.IsValid()))
@@ -220,26 +234,42 @@ void FRemoteControlProtocolMIDI::OnReceiveEvent(UMIDIDeviceInputController* MIDI
 
 #if WITH_EDITOR
 	{		
-		FRemoteControlLogger::Get().Log(ProtocolName, [Type, Channel, MessageData1, MessageData2]
+		FRemoteControlLogger::Get().Log(ProtocolName, [DeviceName = MIDIDeviceController->GetDeviceName(), Type, Channel, MessageData1, MessageData2]
 		{
 			const FString TypeName = StaticEnum<EMIDIEventType>()->GetNameStringByValue(Type);
-			return FText::Format(LOCTEXT("MIDIEventLog","Type {0} TypeName {1}, Channel {2}, MessageData1 {3}, MessageData2 {4}"), Type, FText::FromString(TypeName), Channel, MessageData1, MessageData2);
+			return FText::Format(LOCTEXT("MIDIEventLog","Device {0} Type {1} TypeName {2}, Channel {3}, MessageData1 {4}, MessageData2 {5}"), FText::FromString(DeviceName), Type, FText::FromString(TypeName), Channel, MessageData1, MessageData2);
 		});
 	}
 #endif
 
-	if (MIDIEventType == EMIDIEventType::NoteOn)
+	if (MIDIEventType == EMIDIEventType::NoteOn || MIDIEventType == EMIDIEventType::NoteOff)
 	{
 		for (const TPair<FGuid, FRemoteControlProtocolEntityWeakPtr>& MIDIDeviceBindingPair : MIDIDeviceBindings_NoteOn)
 		{
 			if (const TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> ProtocolEntityPtr = MIDIDeviceBindingPair.Value.Pin())
 			{
 				const FRemoteControlMIDIProtocolEntity* MIDIProtocolEntity = ProtocolEntityPtr->CastChecked<FRemoteControlMIDIProtocolEntity>();
-				if (MIDIEventType != MIDIProtocolEntity->EventType || Channel != MIDIProtocolEntity->Channel)
+
+				// ignore input if disabled
+				if(!MIDIProtocolEntity->IsEnabled())
 				{
 					continue;
 				}
 
+				// ignore if MessageData1 doesn't match
+				if(MessageData1 != MIDIProtocolEntity->MessageData1)
+				{
+					continue;
+				}
+
+				// Special case for note on/off: if the current protocol binding uses NoteOn, NoteOff is part of the toggled state
+				const bool bIsNoteToggle = MIDIProtocolEntity->EventType == EMIDIEventType::NoteOn && (MIDIEventType == EMIDIEventType::NoteOn || MIDIEventType == EMIDIEventType::NoteOff);
+				if(!bIsNoteToggle && (MIDIEventType != MIDIProtocolEntity->EventType || Channel != MIDIProtocolEntity->Channel))
+				{
+				    continue;
+				}
+
+				MessageData2 = MIDIEventType == EMIDIEventType::NoteOn ? 127 : 0;
 				QueueValue(ProtocolEntityPtr, MessageData2);
 			}
 		}
@@ -251,6 +281,13 @@ void FRemoteControlProtocolMIDI::OnReceiveEvent(UMIDIDeviceInputController* MIDI
 			if (const TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> ProtocolEntityPtr = MIDIDeviceBindingPair.Value.Pin())
 			{
 				const FRemoteControlMIDIProtocolEntity* MIDIProtocolEntity = ProtocolEntityPtr->CastChecked<FRemoteControlMIDIProtocolEntity>();
+
+				// ignore input if disabled
+				if(!MIDIProtocolEntity->IsEnabled())
+				{
+					continue;
+				}
+				
 				if (MIDIEventType != MIDIProtocolEntity->EventType || Channel != MIDIProtocolEntity->Channel)
 				{
 					continue;
@@ -271,6 +308,12 @@ void FRemoteControlProtocolMIDI::OnReceiveEvent(UMIDIDeviceInputController* MIDI
 					if (const TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> ProtocolEntityPtr = ProtocolEntityWeakPtr.Pin())
 					{
 						const FRemoteControlMIDIProtocolEntity* MIDIProtocolEntity = ProtocolEntityPtr->CastChecked<FRemoteControlMIDIProtocolEntity>();
+
+						// ignore input if disabled
+						if(!MIDIProtocolEntity->IsEnabled())
+						{
+							continue;
+						}
 
 						if (MIDIEventType != MIDIProtocolEntity->EventType || Channel != MIDIProtocolEntity->Channel)
 						{

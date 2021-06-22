@@ -43,6 +43,12 @@ namespace Chaos
 		Swing1,
 	};
 
+	enum class EJointCylindricalPositionConstraintType : int32
+	{
+		Axial,
+		Radial
+	};
+
 	struct FJointConstants
 	{
 		/** The constraint-space twist axis (X Axis) */

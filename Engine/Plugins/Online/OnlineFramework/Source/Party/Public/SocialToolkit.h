@@ -286,6 +286,7 @@ private:
 	UPROPERTY()
 	USocialChatManager* SocialChatManager;
 
+	TSet<IOnlinePartyJoinInfoConstRef> PartyInvitations;
 	mutable TArray<TWeakPtr<FSocialUserList>> CachedSocialUserLists;
 
 	mutable FPartyInviteEvent OnPartyInviteReceivedEvent;

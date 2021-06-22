@@ -20,6 +20,7 @@ enum EPhaseStrId
 	kCommonSetUpMaterials,
 	kCommonSetUpLights,
 	kCommonSetUpCameras,
+	kSyncWaitPreviousSync,
 
 	kDebugSaveScene,
 

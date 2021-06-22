@@ -9,7 +9,7 @@
 class UNiagaraStackEditorData;
 
 /** Editor only UI data for emitters. */
-UCLASS()
+UCLASS(MinimalAPI)
 class UNiagaraEmitterEditorData : public UNiagaraEditorDataBase
 {
 	GENERATED_BODY()

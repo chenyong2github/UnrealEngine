@@ -8,8 +8,6 @@
 #if WITH_EDITOR
 #include "IMessageLogListing.h"
 #include "MessageLogModule.h"
-#else
-#include "Widgets/SNullWidget.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "RemoteControlLogger"
@@ -28,18 +26,6 @@ FRemoteControlLogger::FRemoteControlLogger()
 	LogOptions.MaxPageCount = 1;
 
 	MessageLogListing = MessageLogModule.CreateLogListing("Remote control logging", LogOptions);
-
-	// Create widget
-	LogListingWidget = MessageLogModule.CreateLogListingWidget(MessageLogListing.ToSharedRef());
-#endif
-}
-
-TSharedRef<SWidget> FRemoteControlLogger::GetWidget() const
-{
-#if WITH_EDITOR
-	return LogListingWidget.ToSharedRef();
-#else
-	return SNullWidget::NullWidget;
 #endif
 }
 

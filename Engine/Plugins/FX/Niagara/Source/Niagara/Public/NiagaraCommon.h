@@ -954,6 +954,7 @@ struct FNiagaraVariableAttributeBinding
 	bool NIAGARA_API CanBindToHostParameterMap() const { return bBindingExistsOnSource && !bIsCachedParticleValue; }
 	void NIAGARA_API SetValue(const FName& InValue, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
 	void NIAGARA_API SetAsPreviousValue(const FNiagaraVariableBase& Src, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
+	void NIAGARA_API SetAsPreviousValue(const FNiagaraVariableAttributeBinding& Src, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
 	void NIAGARA_API CacheValues(const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
 	bool NIAGARA_API RenameVariableIfMatching(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
 	bool NIAGARA_API Matches(const FNiagaraVariableBase& OldVariable, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
@@ -1082,6 +1083,82 @@ struct FNiagaraScriptVariableBinding
 	bool IsValid() const { return Name != NAME_None; }
 };
 
+struct NIAGARA_API FNiagaraAliasContext
+{
+	/** Defines different modes which can be used to split rapid iteration parameter constant names. */
+	enum class ERapidIterationParameterMode
+	{
+		/** Rapid iteration parameters will be from the system. */
+		SystemScript,
+		/** Rapid iteration parameters will be from an emitter or particle script. */
+		EmitterOrParticleScript,
+		/** Rapid iteration parameters will not be handled. NOTE: Using this mode will cause an assert if the context is used with a rapid iteration parameter constant name. */
+		None
+	};
+
+	FNiagaraAliasContext(ERapidIterationParameterMode InRapidIterationParameterMode = ERapidIterationParameterMode::None)
+		: RapidIterationParameterMode(InRapidIterationParameterMode)
+	{
+	}
+
+	FNiagaraAliasContext(ENiagaraScriptUsage InScriptUsage)
+		: RapidIterationParameterMode(InScriptUsage == ENiagaraScriptUsage::SystemSpawnScript || InScriptUsage == ENiagaraScriptUsage::SystemUpdateScript ?
+			ERapidIterationParameterMode::SystemScript : ERapidIterationParameterMode::EmitterOrParticleScript)
+	{
+	}
+
+	/** Configures the context to replace the unaliased emitter namespace with an emitter name namespace in parameter map parameters and rapid iteration parameters. */
+	FNiagaraAliasContext& ChangeEmitterToEmitterName(const FString& InEmitterName);
+
+	/** Configures the context to replace an emitter name namespace with the unaliased emitter namespace in parameter map parameters and rapid iteration parameters. */
+	FNiagaraAliasContext& ChangeEmitterNameToEmitter(const FString& InEmitterName);
+
+	/** Configures the context to replace an old emitter name namespace with a new emitter name namespace in parameter map parameters and rapid iteration parameters. */
+	FNiagaraAliasContext& ChangeEmitterName(const FString& InOldEmitterName, const FString& InNewEmitterName);
+
+	/** Configures the context to replace the unaliased module namespace with a module name namespace in parameter map parameters and rapid iteration parameters. */
+	FNiagaraAliasContext& ChangeModuleToModuleName(const FString& InModuleName);
+
+	/** Configures the context to replace a module name namespace with the unaliased module namespace in parameter map parameters and rapid iteration parameters. */
+	FNiagaraAliasContext& ChangeModuleNameToModule(const FString& InModuleName);
+
+	/** Configures the context to replace an old module name namespace with a new module name namespace in parameter map parameters and rapid iteration parameters. */
+	FNiagaraAliasContext& ChangeModuleName(const FString& InOldModuleName, const FString& InNewModuleName);
+
+	/** Configures the context to replace the stack context namespace with the specified named stack context in parameter map parameters. */
+	FNiagaraAliasContext& ChangeStackContext(const FString& InStackContextName);
+
+	ERapidIterationParameterMode GetRapidIterationParameterMode() const { return RapidIterationParameterMode; }
+
+	const TOptional<FString>& GetEmitterName() const { return EmitterName; }
+	const TOptional<TPair<FString, FString>>& GetEmitterMapping() const { return EmitterMapping; }
+
+	const TOptional<FString>& GetModuleName() const { return ModuleName; }
+	const TOptional<TPair<FString, FString>>& GetModuleMapping() const { return ModuleMapping; }
+
+	const TOptional<FString>& GetStackContextName() const { return StackContextName; }
+	const TOptional<TPair<FString, FString>>& GetStackContextMapping() const { return StackContextMapping; }
+
+	static const FString EmitterNamespaceString;
+	static const FString ModuleNamespaceString;
+	static const FString StackContextNamespaceString;
+	static const FString RapidIterationParametersNamespaceString;
+	static const FString EngineNamespaceString;
+	static const FString AssignmentNodePrefix;
+
+private:
+	ERapidIterationParameterMode RapidIterationParameterMode;
+
+	TOptional<FString> EmitterName;
+	TOptional<TPair<FString, FString>> EmitterMapping;
+
+	TOptional<FString> ModuleName;
+	TOptional<TPair<FString, FString>> ModuleMapping;
+
+	TOptional<FString> StackContextName;
+	TOptional<TPair<FString, FString>> StackContextMapping;
+};
+
 namespace FNiagaraUtilities
 {
 	/** Builds a unique name from a candidate name and a set of existing names.  The candidate name will be made unique
@@ -1163,6 +1240,8 @@ namespace FNiagaraUtilities
 	NIAGARA_API ETextureRenderTargetFormat BufferFormatToRenderTargetFormat(ENiagaraGpuBufferFormat NiagaraFormat);
 
 	NIAGARA_API FString SanitizeNameForObjectsAndPackages(const FString& InName);
+
+	NIAGARA_API FNiagaraVariable ResolveAliases(const FNiagaraVariable& InVar, const FNiagaraAliasContext& InContext);
 };
 
 USTRUCT()
@@ -1459,10 +1538,15 @@ struct NIAGARA_API FSynchronizeWithParameterDefinitionsArgs
 	 */
 	bool bForceSynchronizeDefinitions;
 
-	/** Default false; If true, set all parameters that name match parameter definitions as subscribed to the parameter definitions. */
+	/** Default false; If true, search for parameters with the same name and type as definitions, and if there is a match, subscribe to the definition. 
+	 *  If the existing parameter default value does not match the definition default value, set the parameter to override the definition default value.
+	 */
 	bool bSubscribeAllNameMatchParameters;
 
 	/** If set, the subscriber will also synchronize the additional parameter definitions in addition to those it is normally subscribed to. */
 	TArray<UNiagaraParameterDefinitionsBase*> AdditionalParameterDefinitions;
+
+	/** If set, the subscriber will rename assignment nodes and map get nodes in its underlying scripts for each Old to New name in addition to those it would during regular synchronization. */
+	TArray<TTuple<FName, FName>> AdditionalOldToNewNames;
 };
 

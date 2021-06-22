@@ -133,10 +133,11 @@ void SNiagaraStackModuleItem::AddCustomRowWidgets(TSharedRef<SHorizontalBox> Hor
         .ForegroundColor(FSlateColor::UseForeground())
         .OnGetMenuContent(this, &SNiagaraStackModuleItem::GetVersionSelectorDropdownMenu)
         .ContentPadding(FMargin(2))
-        .ToolTipText(LOCTEXT("VersionTooltip", "Change the version of this module script"))
+        .ToolTipText(this, &SNiagaraStackModuleItem::GetVersionSelectionMenuTooltip)
         .HAlign(HAlign_Center)
         .VAlign(VAlign_Center)
         .Visibility(this, &SNiagaraStackModuleItem::GetVersionSelectionMenuVisibility)
+        .IsEnabled(this, &SNiagaraStackModuleItem::GetVersionSelectionMenuEnabled)
         .ButtonContent()
         [
 	        SNew(STextBlock)
@@ -390,19 +391,28 @@ EVisibility SNiagaraStackModuleItem::GetRefreshVisibility() const
 }
 
 EVisibility SNiagaraStackModuleItem::GetVersionSelectionMenuVisibility() const
-{
-	if (!ModuleItem->CanMoveAndDelete())
-	{
-		// if the module is inherited we do not allow version changes, in that case only the parent emitter can define the module version
-		return EVisibility::Collapsed;	
-	}
-	
+{	
 	UNiagaraScript* Script = ModuleItem->GetModuleNode().FunctionScript;
 	if (Script && Script->IsVersioningEnabled() && Script->GetAllAvailableVersions().Num() > 1)
 	{
 		return EVisibility::Visible;
 	}
 	return EVisibility::Collapsed;
+}
+
+bool SNiagaraStackModuleItem::GetVersionSelectionMenuEnabled() const
+{
+	// if the module is inherited we do not allow version changes, in that case only the parent emitter can define the module version
+	return ModuleItem->CanMoveAndDelete();
+}
+
+FText SNiagaraStackModuleItem::GetVersionSelectionMenuTooltip() const
+{
+	if (ModuleItem->CanMoveAndDelete())
+	{
+		return LOCTEXT("VersionTooltip", "Change the version of this module script");
+	}
+	return LOCTEXT("VersionTooltipDisabled", "The version of this module script can only be changed in the parent emitter.");
 }
 
 FReply SNiagaraStackModuleItem::ScratchButtonPressed() const

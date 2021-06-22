@@ -22,6 +22,11 @@ FText UCameraCalibrationSettings::GetSectionText() const
 	return NSLOCTEXT("CameraCalibrationPlugin", "CameraCalibrationSettingsSection", "Camera Calibration");
 }
 
+FName UCameraCalibrationSettings::GetSectionName() const
+{
+	return TEXT("Camera Calibration");
+}
+
 #endif
 
 ULensFile* UCameraCalibrationSettings::GetStartupLensFile() const
@@ -59,6 +64,31 @@ UMaterialInterface* UCameraCalibrationSettings::GetDefaultDistortionMaterial(con
 	return DistortionMaterial->LoadSynchronous();
 }
 
+#if WITH_EDITOR
+void UCameraCalibrationSettings::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	const FName MemberPropertyName = PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue()->GetFName();
+	if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UCameraCalibrationSettings, DisplacementMapResolution))
+	{
+		DisplacementMapResolutionChangedDelegate.Broadcast(DisplacementMapResolution);
+	}
+	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UCameraCalibrationSettings, CalibrationInputTolerance))
+	{
+		CalibrationInputToleranceChangedDelegate.Broadcast(CalibrationInputTolerance);
+	}
+}
+
+FOnDisplacementMapResolutionChanged& UCameraCalibrationSettings::OnDisplacementMapResolutionChanged()
+{
+	return DisplacementMapResolutionChangedDelegate;
+}
+
+FOnCalibrationInputToleranceChanged& UCameraCalibrationSettings::OnCalibrationInputToleranceChanged()
+{
+	return CalibrationInputToleranceChangedDelegate;
+}
+#endif
+
 FName UCameraCalibrationEditorSettings::GetCategoryName() const
 {
 	return TEXT("Plugins");
@@ -67,7 +97,12 @@ FName UCameraCalibrationEditorSettings::GetCategoryName() const
 #if WITH_EDITOR
 FText UCameraCalibrationEditorSettings::GetSectionText() const
 {
-	return NSLOCTEXT("CameraCalibrationEditorPlugin", "CameraCalibrationEditorSettingsSection", "Camera Calibration");
+	return NSLOCTEXT("CameraCalibrationEditorPlugin", "CameraCalibrationEditorSettingsSection", "Camera Calibration Editor");
+}
+
+FName UCameraCalibrationEditorSettings::GetSectionName() const
+{
+	return TEXT("Camera Calibration Editor");
 }
 #endif
 

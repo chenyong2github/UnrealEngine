@@ -1482,12 +1482,6 @@ bool FMobileSceneRenderer::RequiresMultiPass(FRHICommandListImmediate& RHICmdLis
 		return true;
 	}
 		
-	// Always render reflection capture in single pass
-	if (View.bIsPlanarReflection || View.bIsSceneCapture)
-	{
-		return false;
-	}
-
 	// Always render LDR in single pass
 	if (!IsMobileHDR())
 	{

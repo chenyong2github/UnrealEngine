@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "DSP/Osc.h"
 #include "DSP/ModulationMatrix.h"
+#include "DSP/BufferVectorOperations.h"
 
 namespace Audio
 {
@@ -162,5 +163,47 @@ namespace Audio
 		// tracks if the current envelope was started with sustain at 0.0
 		// (avoids bug where sustain being turned up during decay phase makes note hang)
 		uint8 bCurrentCycleIsADOnly:1;
+	};
+
+	// sample accurate attack-decay style envelope generator
+	class SIGNALPROCESSING_API FADEnvelope
+	{
+	public:
+		FADEnvelope() {}
+		~FADEnvelope() {}
+
+		void Init(int32 InSampleRate);
+
+		void SetAttackTimeSeconds(float InAttackTimeSeconds);
+		void SetDecayTimeSeconds(float InReleaseTimeSeconds);
+		void SetAttackCurveFactor(float InAttackCurve);
+		void SetDecayCurveFactor(float InDecayCurve);
+
+		void SetLooping(bool bInIsLooping) { bIsLooping = bInIsLooping; }
+		bool IsLooping() const { return bIsLooping; }
+
+		// Call function to trigger a new attack-phase of the envelope generator
+		void Attack();
+
+		// Generates an output audio buffer (used for audio-rate envelopes)
+		void GetNextEnvelopeOut(int32 StartFrame, int32 EndFrame, TArray<int32>& OutFinishedFrames, Audio::AlignedFloatBuffer& OutEnvelope);
+
+		// Generates a single float value (used for control-rate envelopes)
+		void GetNextEnvelopeOut(int32 StartFrame, int32 EndFrame, TArray<int32>& OutFinishedFrames, float& OutEnvelope);
+		bool GetNextEnvelopeOut(float& OutEnvelope);
+
+	private:
+		int32 CurrentSampleIndex = INDEX_NONE;
+		float StartingEnvelopeValue = 0.0f;
+		float CurrentEnvelopeValue = 0.0f;
+		float AttackTimeSeconds = 0.0f;
+		float DecayTimeSeconds = 0.1f;
+		int32 AttackSampleCount = 0;
+		int32 DecaySampleCount = 0;
+		float AttackCurveFactor = 1.0f;
+		float DecayCurveFactor = 1.0f;
+		float SampleRate = 0.0f;
+		bool bIsLooping = false;
+
 	};
 }

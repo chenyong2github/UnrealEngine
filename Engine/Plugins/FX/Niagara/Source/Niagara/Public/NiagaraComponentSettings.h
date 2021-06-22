@@ -3,6 +3,9 @@
 #pragma once
 
 #include "NiagaraSystem.h"
+#include "NiagaraSystemInstance.h"
+#include "NiagaraEmitter.h"
+#include "NiagaraEmitterInstance.h"
 
 #include "NiagaraComponentSettings.generated.h"
 
@@ -10,12 +13,12 @@ USTRUCT(meta = (DisplayName = "Emitter Name Settings Reference"))
 struct FNiagaraEmitterNameSettingsRef
 {
 	GENERATED_USTRUCT_BODY()
-public:
-	UPROPERTY(EditAnywhere, Category = Parameters)
-		FName SystemName;
 
 	UPROPERTY(EditAnywhere, Category = Parameters)
-		FString EmitterName;
+	FName SystemName;
+
+	UPROPERTY(EditAnywhere, Category = Parameters)
+	FString EmitterName;
 
 	FORCEINLINE bool operator==(const FNiagaraEmitterNameSettingsRef& Other)const
 	{
@@ -71,18 +74,38 @@ public:
 		return false;
 	}
 
+	FORCEINLINE static bool ShouldSuppressEmitterActivation(const FNiagaraEmitterInstance* EmitterInstance)
+	{
+		if ( bUseSuppressEmitterList || bUseGpuEmitterWhitelist )
+		{
+			const UNiagaraComponentSettings* ComponentSettings = GetDefault<UNiagaraComponentSettings>();
+
+			FNiagaraEmitterNameSettingsRef EmitterRef;
+			if (const UNiagaraSystem* ParentSystem = EmitterInstance->GetParentSystemInstance()->GetSystem())
+			{
+				EmitterRef.SystemName = ParentSystem->GetFName();
+			}
+			const UNiagaraEmitter* CachedEmitter = EmitterInstance->GetCachedEmitter();
+			EmitterRef.EmitterName = CachedEmitter->GetUniqueEmitterName();
+
+			if (bUseSuppressEmitterList && ComponentSettings->SuppressEmitterList.Contains(EmitterRef))
+			{
+				return true;
+			}
+
+			if (bUseGpuEmitterWhitelist && (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim) && !ComponentSettings->GPUEmitterWhitelist.Contains(EmitterRef))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	UPROPERTY(config)
 	TSet<FName> SuppressActivationList;
 
 	UPROPERTY(config)
 	TSet<FName> ForceAutoPooolingList;
-
-	//UPROPERTY(config)
-	//TSet<FName> ForceLatencyList;
-
-	static int32 bAllowSuppressActivation;
-	static int32 bAllowForceAutoPooling;
-
 
 	/** 
 		Config file to tweak individual emitters being disabled. Syntax is as follows for the config file:
@@ -91,4 +114,12 @@ public:
 	*/
 	UPROPERTY(config)
 	TSet<FNiagaraEmitterNameSettingsRef> SuppressEmitterList;
+
+	UPROPERTY(config)
+	TSet<FNiagaraEmitterNameSettingsRef> GPUEmitterWhitelist;
+
+	static int32 bAllowSuppressActivation;
+	static int32 bAllowForceAutoPooling;
+	static int32 bUseSuppressEmitterList;
+	static int32 bUseGpuEmitterWhitelist;
 };

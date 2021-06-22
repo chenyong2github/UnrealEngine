@@ -25,6 +25,12 @@ class FMoviePlayerWidgetRenderer
 public:
 	FMoviePlayerWidgetRenderer(TSharedPtr<SWindow> InMainWindow, TSharedPtr<SVirtualWindow> InVirtualRenderWindowWindow, FSlateRenderer* InRenderer);
 
+	/**
+	 * Call this enable or disable DPI scale. *
+	 *
+	 * @param bInIsEanbled True to apply a DPI scale.
+	 */
+	void EnableDPIScale(bool bShouldEnable);
 	void DrawWindow(float DeltaTime);
 
 private:
@@ -40,6 +46,9 @@ private:
 	FSlateRenderer* SlateRenderer;
 
 	FViewportRHIRef ViewportRHI;
+
+	/** If true then apply a DPI scale. */
+	bool bIsDPIScaleEnabled;
 };
 
 /** An implementation of the movie player/loading screen we will use */

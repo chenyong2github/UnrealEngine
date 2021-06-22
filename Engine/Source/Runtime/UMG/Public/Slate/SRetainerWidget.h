@@ -49,10 +49,12 @@ public:
 		_PhaseCount = 1;
 		_RenderOnPhase = true;
 		_RenderOnInvalidation = false;
+		_RenderWithLocalTransform = true;
 	}
 	SLATE_DEFAULT_SLOT(FArguments, Content)
 		SLATE_ARGUMENT(bool, RenderOnPhase)
 		SLATE_ARGUMENT(bool, RenderOnInvalidation)
+		SLATE_ARGUMENT(bool, RenderWithLocalTransform)
 		SLATE_ARGUMENT(int32, Phase)
 		SLATE_ARGUMENT(int32, PhaseCount)
 		SLATE_ARGUMENT(FName, StatId)
@@ -145,6 +147,7 @@ private:
 
 	bool bEnableRetainedRenderingDesire;
 	bool bEnableRetainedRendering;
+	bool bEnableRenderWithLocalTransform;
 
 	bool RenderOnPhase;
 	bool RenderOnInvalidation;

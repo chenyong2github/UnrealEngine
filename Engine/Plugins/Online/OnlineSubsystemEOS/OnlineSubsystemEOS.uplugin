@@ -15,7 +15,7 @@
 		{
 			"Name": "OnlineSubsystemEOS",
 			"Type": "Runtime",
-			"LoadingPhase": "PostConfigInit",
+			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
 				"Win64",
 				"Mac",
@@ -25,7 +25,7 @@
 		{
 			"Name": "OnlineSubsystemEOSPlus",
 			"Type": "Runtime",
-			"LoadingPhase": "PostConfigInit",
+			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
 				"Win64",
 				"Mac",
@@ -44,6 +44,10 @@
 		},
 		{
 			"Name": "EOSShared",
+			"Enabled": true
+		},
+		{
+			"Name": "EOSVoiceChat",
 			"Enabled": true
 		}
 	]

@@ -104,6 +104,22 @@ public:
 		return false;
 	}
 
+	static void GetAllViewModels(TArray<TSharedRef<ViewModelType>>& OutViewModels)
+	{
+		TArray<TArray<ViewModelType*>> ObjectsToViewModelsValues;
+		ObjectsToViewModels.GenerateValueArray(ObjectsToViewModelsValues);
+		for (const TArray<ViewModelType*>& ViewModelsByObject : ObjectsToViewModelsValues)
+		{
+			for (ViewModelType* ViewModel : ViewModelsByObject)
+			{
+				if (ViewModel != nullptr)
+				{
+					OutViewModels.Add(ViewModel->AsShared());
+				}
+			}
+		}
+	}
+
 	/** Called by a module manager to ensure that all known references have been cleared out before module shutdown.*/
 	static void CleanAll()
 	{

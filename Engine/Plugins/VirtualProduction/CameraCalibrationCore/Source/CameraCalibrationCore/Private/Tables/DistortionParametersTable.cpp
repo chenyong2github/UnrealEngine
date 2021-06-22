@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "Tables/DistortionParametersTable.h"
 
+#include "LensFile.h"
 #include "LensTableUtils.h"
 
 int32 FDistortionFocusPoint::GetNumPoints() const
@@ -103,6 +103,11 @@ void FDistortionFocusPoint::SetParameterValue(int32 InZoomIndex, float InZoomVal
 	}
 }
 
+UScriptStruct* FDistortionTable::GetScriptStruct() const
+{
+	return StaticStruct();
+}
+
 bool FDistortionTable::BuildParameterCurve(float InFocus, int32 ParameterIndex, FRichCurve& OutCurve) const
 {
 	if (const FDistortionFocusPoint* ThisFocusPoints = GetFocusPoint(InFocus))
@@ -138,6 +143,14 @@ FDistortionFocusPoint* FDistortionTable::GetFocusPoint(float InFocus)
 	return FocusPoints.FindByPredicate([InFocus](const FDistortionFocusPoint& Point) { return FMath::IsNearlyEqual(Point.Focus, InFocus); });
 }
 
+void FDistortionTable::ForEachPoint(FFocusPointCallback InCallback) const
+{
+	for (const FDistortionFocusPoint& Point : FocusPoints)
+	{
+		InCallback(Point);
+	}
+}
+
 TConstArrayView<FDistortionFocusPoint> FDistortionTable::GetFocusPoints() const
 {
 	return FocusPoints;
@@ -156,6 +169,38 @@ void FDistortionTable::RemoveFocusPoint(float InFocus)
 void FDistortionTable::RemoveZoomPoint(float InFocus, float InZoom)
 {
 	LensDataTableUtils::RemoveZoomPoint(FocusPoints, InFocus, InZoom);
+}
+
+bool FDistortionTable::DoesFocusPointExists(float InFocus) const
+{
+	if (GetFocusPoint(InFocus) != nullptr)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+bool FDistortionTable::DoesZoomPointExists(float InFocus, float InZoom, float InputTolerance) const
+{
+	FDistortionInfo DistortionInfo;
+	if (GetPoint(InFocus, InZoom, DistortionInfo, InputTolerance))
+	{
+		return true;
+	}
+
+	return false;
+}
+
+TMap<ELensDataCategory, FLinkPointMetadata> FDistortionTable::GetLinkedCategories() const
+{
+	static TMap<ELensDataCategory, FLinkPointMetadata> LinkedToCategories =
+	{
+		{ELensDataCategory::Zoom, {true}},
+		{ELensDataCategory::ImageCenter, {true}},
+		{ELensDataCategory::NodalOffset, {false}},
+	};
+	return LinkedToCategories;
 }
 
 bool FDistortionTable::AddPoint(float InFocus, float InZoom, const FDistortionInfo& InData, float InputTolerance, bool bIsCalibrationPoint)

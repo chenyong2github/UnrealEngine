@@ -155,6 +155,22 @@ class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 		return Result;
 	}
 
+	virtual FImplicitObject* Duplicate() const override
+	{
+		TArray<TUniquePtr<FImplicitObject>> NewObjects;
+		NewObjects.Reserve(MObjects.Num());
+
+		for (const TUniquePtr<FImplicitObject>& Obj : MObjects)
+		{
+			if (ensure(Obj->GetType() != ImplicitObjectType::Union))	//can't duplicate unions of unions
+			{
+				NewObjects.Add(TUniquePtr<FImplicitObject>(Obj->Duplicate()));
+			}
+		}
+
+		return new FImplicitObjectUnion(MoveTemp(NewObjects));
+	}
+
 protected:
 	virtual Pair<FVec3, bool> FindClosestIntersectionImp(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness) const override
 	{

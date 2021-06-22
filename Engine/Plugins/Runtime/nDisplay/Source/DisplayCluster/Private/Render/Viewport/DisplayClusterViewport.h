@@ -26,6 +26,8 @@ class FDisplayClusterViewportConfigurationICVFX;
 
 class FDisplayClusterViewportConfigurationHelpers;
 class FDisplayClusterViewportConfigurationHelpers_ICVFX;
+class FDisplayClusterViewportConfigurationHelpers_OpenColorIO;
+class FDisplayClusterViewportConfigurationHelpers_Postprocess;
 
 struct FDisplayClusterViewportConfigurationProjectionPolicy;
 
@@ -191,6 +193,8 @@ protected:
 
 	friend FDisplayClusterViewportConfigurationHelpers;
 	friend FDisplayClusterViewportConfigurationHelpers_ICVFX;
+	friend FDisplayClusterViewportConfigurationHelpers_OpenColorIO;
+	friend FDisplayClusterViewportConfigurationHelpers_Postprocess;
 	friend FDisplayClusterViewportConfigurationProjectionPolicy;
 
 	// viewport render thread data

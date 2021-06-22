@@ -2,6 +2,8 @@
 
 #include "LevelSnapshotsEditorCommands.h"
 
+#include "LevelSnapshotsEditorStyle.h"
+
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
 
 void FLevelSnapshotsEditorCommands::RegisterCommands()
@@ -22,9 +24,20 @@ void FLevelSnapshotsEditorCommands::RegisterCommands()
 
 	FUICommandInfo::MakeCommandInfo(
 		this->AsShared(),
-		OpenLevelSnapshotsEditor,
-		FName("OpenLevelSnapshotsEditor"),
-		NSLOCTEXT("LevelSnapshots", "OpenLevelSnapshotsEditor", "Open Level Snapshots Editor"),
+		OpenLevelSnapshotsEditorMenuItem,
+		FName("OpenLevelSnapshotsEditorMenuItem"),
+		NSLOCTEXT("LevelSnapshots", "OpenLevelSnapshotsEditorMenuItem", "Level Snapshots"),
+		NSLOCTEXT("LevelSnapshots", "OpenLevelSnapshotsEditorTooltip", "Open Level Snapshots Editor"),
+		FSlateIcon(FLevelSnapshotsEditorStyle::GetStyleSetName(), "LevelSnapshots.ToolbarButton", "LevelSnapshots.ToolbarButton.Small"),
+		EUserInterfaceActionType::Button,
+		FInputChord()
+	);
+
+	FUICommandInfo::MakeCommandInfo(
+		this->AsShared(),
+		OpenLevelSnapshotsEditorToolbarButton,
+		FName("OpenLevelSnapshotsEditorToolbarButton"),
+		NSLOCTEXT("LevelSnapshots", "OpenLevelSnapshotsEditorToolbarButton", "Open Level Snapshots Editor"),
 		NSLOCTEXT("LevelSnapshots", "OpenLevelSnapshotsEditorTooltip", "Open Level Snapshots Editor"),
 		FSlateIcon(),
 		EUserInterfaceActionType::Button,

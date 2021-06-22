@@ -534,7 +534,18 @@ void FOnlineUserEOSPlus::GetUserPrivilege(const FUniqueNetId& UserId, EUserPrivi
 	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
 	if (NetIdPlus.IsValid())
 	{
-		BaseIdentityInterface->GetUserPrivilege(*NetIdPlus->GetBaseNetId(), Privilege, Delegate);
+		FOnGetUserPrivilegeCompleteDelegate IntermediateDelegate = FOnGetUserPrivilegeCompleteDelegate::CreateLambda([this, OriginalDelegate = FOnGetUserPrivilegeCompleteDelegate(Delegate)](const FUniqueNetId& UserId, EUserPrivileges::Type Privilege, uint32 PrivilegeResults)
+		{
+			FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
+			if (!NetIdPlus.IsValid())
+			{
+				UE_LOG_ONLINE(Warning, TEXT("[FOnlineUserEOSPlus::GetUserPrivilege] User not found (%s)"), *UserId.ToString());
+			}
+
+			OriginalDelegate.ExecuteIfBound(*NetIdPlus, Privilege, PrivilegeResults);
+		});
+
+		BaseIdentityInterface->GetUserPrivilege(*NetIdPlus->GetBaseNetId(), Privilege, IntermediateDelegate);
 	}
 	else
 	{
@@ -738,6 +749,11 @@ TSharedRef<FOnlineFriendPlus> FOnlineUserEOSPlus::AddFriend(TSharedRef<FOnlineFr
 		{
 			NetIdPlus = FUniqueNetIdEOSPlus::Create(nullptr, NetId);
 			EOSNetIdToNetIdPlus.Add(NetId->ToString(), NetIdPlus);
+
+			if (!NetIdPlusToNetIdPlus.Contains(NetIdPlus->ToString()))
+			{
+				NetIdPlusToNetIdPlus.Add(NetIdPlus->ToString(), NetIdPlus);
+			}
 		}
 		// Build a new friend plus and map them in
 		TSharedRef<FOnlineFriendPlus> FriendPlus = MakeShared<FOnlineFriendPlus>(nullptr, Friend);
@@ -753,6 +769,11 @@ TSharedRef<FOnlineFriendPlus> FOnlineUserEOSPlus::AddFriend(TSharedRef<FOnlineFr
 	{
 		NetIdPlus = FUniqueNetIdEOSPlus::Create(NetId, nullptr);
 		BaseNetIdToNetIdPlus.Add(NetId->ToString(), NetIdPlus);
+
+		if (!NetIdPlusToNetIdPlus.Contains(NetIdPlus->ToString()))
+		{
+			NetIdPlusToNetIdPlus.Add(NetIdPlus->ToString(), NetIdPlus);
+		}
 	}
 	// Build a new friend plus and map them in
 	TSharedRef<FOnlineFriendPlus> FriendPlus = MakeShared<FOnlineFriendPlus>(Friend, nullptr);

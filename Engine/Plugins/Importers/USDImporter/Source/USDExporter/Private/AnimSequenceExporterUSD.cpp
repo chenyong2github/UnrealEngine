@@ -103,8 +103,19 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 
 	if ( Options && Options->bExportPreviewMesh )
 	{
-		USkeleton* AnimSkeleton = AnimSequence->GetSkeleton();
-		USkeletalMesh* SkeletalMesh = AnimSkeleton ? AnimSkeleton->GetAssetPreviewMesh( AnimSequence ) : nullptr;
+		USkeletalMesh* SkeletalMesh = AnimSequence->GetPreviewMesh();
+		USkeleton* AnimSkeleton = SkeletalMesh ? SkeletalMesh->GetSkeleton() : nullptr;
+
+		if ( !AnimSkeleton && !SkeletalMesh )
+		{
+			AnimSkeleton = AnimSequence->GetSkeleton();
+			SkeletalMesh = AnimSkeleton ? AnimSkeleton->GetAssetPreviewMesh( AnimSequence ) : nullptr;
+		}
+
+		if ( AnimSkeleton && !SkeletalMesh )
+		{
+			SkeletalMesh = AnimSkeleton->FindCompatibleMesh();
+		}
 
 		if ( SkeletalMesh )
 		{

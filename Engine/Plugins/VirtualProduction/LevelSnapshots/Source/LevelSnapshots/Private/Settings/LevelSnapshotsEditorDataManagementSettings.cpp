@@ -7,7 +7,7 @@
 ULevelSnapshotsEditorDataManagementSettings::ULevelSnapshotsEditorDataManagementSettings(const FObjectInitializer& ObjectInitializer)
 {
 	RootLevelSnapshotSaveDir.Path = "/Game/LevelSnapshots";
-	LevelSnapshotSaveDir = "{year}-{month}-{day}/{map}";
+	LevelSnapshotSaveDir = "{map}/{year}-{month}-{day}";
 	LevelSnapshotSaveDirOverride = LevelSnapshotSaveDir;
 	DefaultLevelSnapshotName = "{map}_{user}_{time}";
 	LevelSnapshotNameOverride = DefaultLevelSnapshotName;

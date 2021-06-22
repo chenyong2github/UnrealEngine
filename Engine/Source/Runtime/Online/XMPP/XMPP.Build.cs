@@ -34,7 +34,6 @@ public class XMPP : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.PS4)
 		{
-			TargetPlatformSupportsJingle = true;
 			TargetPlatformSupportsStrophe = true;
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win64 ||

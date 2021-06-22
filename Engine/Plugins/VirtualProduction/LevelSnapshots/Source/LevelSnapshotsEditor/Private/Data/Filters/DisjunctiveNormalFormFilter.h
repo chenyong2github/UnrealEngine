@@ -11,8 +11,10 @@ class UNegatableFilter;
 
 enum class EFilterChangeType : uint8
 {
-	/* A row was added or removed */
-	RowAddedOrRemoved,
+	/* A blank row was added */
+	RowAdded,
+	/* A row was removed */
+	RowRemoved,
 	/* A filter was added or removed to a row */
 	RowChildFilterAddedOrRemoved,
 	/* A filter property was modified, e.g. set to ignored. */
@@ -65,6 +67,8 @@ private:
 	
 	UPROPERTY()
 	TArray<UConjunctionFilter*> Children;
+
+	bool bHasJustCreatedNewChild = false;
 	
 	FDelegateHandle OnObjectTransactedHandle;
 };

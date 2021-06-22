@@ -63,8 +63,14 @@ const TCHAR* FApplePlatformMisc::GetSystemErrorMessage(TCHAR* OutBuffer, int32 B
 		Error = errno;
 	}
 	char* ErrorBuffer = (char*)alloca(BufferCount);
-	strerror_r(Error, ErrorBuffer, BufferCount);
-	FCString::Strcpy(OutBuffer, BufferCount, UTF8_TO_TCHAR((const ANSICHAR*)ErrorBuffer));
+	if (strerror_r(Error, ErrorBuffer, 1024) == 0)
+	{
+		FCString::Strcpy(OutBuffer, BufferCount, UTF8_TO_TCHAR((const ANSICHAR*)ErrorBuffer));
+	}
+	else
+	{
+		*OutBuffer = TEXT('\0');
+	}
 	return OutBuffer;
 }
 

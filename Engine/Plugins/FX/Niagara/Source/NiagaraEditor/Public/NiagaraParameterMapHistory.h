@@ -108,6 +108,9 @@ public:
 	/** List of all the custom iteration source override namespaces encountered */
 	TArray<FName> IterationNamespaceOverridesEncountered;
 
+	/** List of additional DataSets to be written that were encountered during traversal. */
+	TArray<FNiagaraDataSetID> AdditionalDataSetWrites;
+
 	bool IsVariableFromCustomIterationNamespaceOverride(const FNiagaraVariable& InVar) const;
 	
 	/**
@@ -151,11 +154,6 @@ public:
 	/** Get the first namespace entry for this variable. Optionally includes the trailing period.*/
 	static FString GetNamespace(const FNiagaraVariable& InVar, bool bIncludeDelimiter = true);
 
-
-	/**
-	* Use the input alias map to resolve any aliases in this input variable name.
-	*/
-	static FNiagaraVariable ResolveAliases(const FNiagaraVariable& InVar, const TMap<FString, FString>& InAliases, const TMap<FString, FString>& InStartAliases = TMap<FString, FString>(), const TCHAR* InJoinSeparator = TEXT("."));
 
 	static FName ResolveEmitterAlias(const FName& InName, const FString& InAlias);
 
@@ -298,6 +296,9 @@ public:
 
 	/** Important. Must be called for each routing of the parameter map. This feeds the list used by TraceParameterMapOutputPin.*/
 	int32 RegisterParameterMapPin(int32 WhichParameterMap, const UEdGraphPin* Pin);
+
+	/** Records a write to a DataSet in the appropriate parameter map history */
+	void RegisterDataSetWrite(int32 WhichParameterMap, const FNiagaraDataSetID& DataSet);
 
 	uint32 BeginNodeVisitation(int32 WhichParameterMap, const class UNiagaraNode* Node);
 	void EndNodeVisitation(int32 WhichParameterMap, uint32 IndexFromBeginNode);
@@ -455,8 +456,7 @@ protected:
 	/** Keeps track of the script usage at the current context level. This allows us to make some decisions about relevence.*/
 	TArray<ENiagaraScriptUsage> RelevantScriptUsageContext;
 	/** Resolved alias map for the current context level. Rebuilt by BuildCurrentAliases.*/
-	TMap<FString, FString> AliasMap;
-	TMap<FString, FString> StartOnlyAliasMap;
+	FNiagaraAliasContext ResolveAliasContext;
 	TArray<FName> ScriptUsageContextNameStack;
 
 	TArray<TArray<FString> > EncounteredFunctionNames;

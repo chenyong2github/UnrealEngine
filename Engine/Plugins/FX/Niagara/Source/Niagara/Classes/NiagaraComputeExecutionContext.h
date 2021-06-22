@@ -205,15 +205,16 @@ public:
 	uint32 ParticleCountWriteFence = 0;
 
 	// Render thread data
-	FNiagaraDataBuffer* GetCurrDataBuffer() { check(IsInRenderingThread()); return DataBuffers_RT[DataBufferIndex_RT]; }
-	FNiagaraDataBuffer* GetNextDataBuffer() { check(IsInRenderingThread()); return DataBuffers_RT[DataBufferIndex_RT ^ 1]; }
-	void AdvanceDataBuffer() { DataBufferIndex_RT ^= 1; ++BufferSwapsThisFrame_RT; }
+	FNiagaraDataBuffer* GetPrevDataBuffer() { check(IsInRenderingThread() && (BufferSwapsThisFrame_RT > 0)); return DataBuffers_RT[(BufferSwapsThisFrame_RT & 1) ^ 1]; }
+	FNiagaraDataBuffer* GetNextDataBuffer() { check(IsInRenderingThread()); return DataBuffers_RT[(BufferSwapsThisFrame_RT & 1)]; }
+	void AdvanceDataBuffer() { ++BufferSwapsThisFrame_RT; }
 
-	uint32 DataBufferIndex_RT = 0;
 	FNiagaraDataBuffer* DataBuffers_RT[2] = { nullptr, nullptr };
+	uint32 BufferSwapsThisFrame_RT = 0;
 	uint32 CountOffset_RT = INDEX_NONE;
 
-	uint32 BufferSwapsThisFrame_RT = 0;
+	// Used only when we multi-tick and need to keep track of pointing back to the correct FNiagaraDataBuffer
+	FNiagaraDataBuffer* DataSetOriginalBuffer_RT = nullptr;
 
 	// Used to track if we have processed any ticks for this context this frame
 	bool bHasTickedThisFrame_RT = false;

@@ -736,6 +736,11 @@ namespace UnrealBuildTool
 		public bool bCompileWithAccessibilitySupport = true;
 
 		/// <summary>
+		/// Whether to allow the Slate Widget Tracker to track registered Widgets.
+		/// </summary>
+		public bool bCompileWithSlateWidgetTracking = false;
+
+		/// <summary>
 		/// Whether to include PerfCounters support.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -2280,6 +2285,10 @@ namespace UnrealBuildTool
 			get { return Inner.bCompileWithAccessibilitySupport; }
 		}
 
+		public bool bCompileWithSlateWidgetTracking
+		{
+			get { return Inner.bCompileWithSlateWidgetTracking; }
+		}
 		public bool bWithPerfCounters
 		{
 			get { return Inner.bWithPerfCounters; }

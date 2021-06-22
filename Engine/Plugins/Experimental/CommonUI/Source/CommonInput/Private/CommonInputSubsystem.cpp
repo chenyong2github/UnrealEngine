@@ -26,6 +26,8 @@
 #include "Settings/LevelEditorPlaySettings.h"
 #endif
 
+FPlatformInputSupportOverrideDelegate UCommonInputSubsystem::OnPlatformInputSupportOverride;
+
 /**
  * Helper class that is designed to fire before any UI has a chance to process input so that
  * we can properly set the current input type of the application.
@@ -699,44 +701,41 @@ bool UCommonInputSubsystem::PlatformSupportsInputType(ECommonInputType InInputTy
 	bool bPlatformSupportsInput = UCommonInputPlatformSettings::Get()->SupportsInputType(InInputType);
 	switch (InInputType)
 	{
-	case ECommonInputType::MouseAndKeyboard:
-	{
-#if PLATFORM_SWITCH
-		bPlatformSupportsInput &= FSlateApplication::Get().IsMouseAttached();
-#endif
-	}
-	break;
-	case ECommonInputType::Touch:
-	{
-#if PLATFORM_SWITCH
-		bPlatformSupportsInput &= SUPPORT_SWITCH_TOUCHSCREEN;
-#elif PLATFORM_DESKTOP && !UE_BUILD_SHIPPING
-		bPlatformSupportsInput = true; // Support touch testing until touch is supported on desktop
-#elif NV_GEFORCENOW
-		if (GeForceNOWWrapper::Get().IsRunningInGFN())
+		case ECommonInputType::MouseAndKeyboard:
 		{
-			bPlatformSupportsInput = true;
+#if PLATFORM_SWITCH
+			bPlatformSupportsInput &= FSlateApplication::Get().IsMouseAttached();
+#endif
+		}
+		break;
+		case ECommonInputType::Touch:
+		{
+#if PLATFORM_SWITCH
+			bPlatformSupportsInput &= SUPPORT_SWITCH_TOUCHSCREEN;
+#elif PLATFORM_DESKTOP && !UE_BUILD_SHIPPING
+			bPlatformSupportsInput = true; // Support touch testing until touch is supported on desktop
+#endif
+		}
+		break;
+		case ECommonInputType::Gamepad:
+#if PLATFORM_IOS
+		{
+			bool bAllowControllers = false;
+			GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bAllowControllers"), bAllowControllers, GEngineIni);
+			bPlatformSupportsInput &= bAllowControllers;
+		}
+#elif PLATFORM_ANDROID
+		{
+			bool bAllowControllers = false;
+			GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bAllowControllers"), bAllowControllers, GEngineIni);
+			bPlatformSupportsInput &= bAllowControllers;
 		}
 #endif
-	}
-	break;
-	case ECommonInputType::Gamepad:
-#if PLATFORM_IOS
-        {
-            bool bAllowControllers = false;
-            GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bAllowControllers"), bAllowControllers, GEngineIni);
-			bPlatformSupportsInput &= bAllowControllers;
-        }
-#elif PLATFORM_ANDROID
-        {
-            bool bAllowControllers = false;
-            GConfig->GetBool(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("bAllowControllers"), bAllowControllers, GEngineIni);
-			bPlatformSupportsInput &= bAllowControllers;
-        }
-#endif
-	break;
+		break;
 	}
 
+	GetOnPlatformInputSupportOverride().Broadcast(GetLocalPlayer(), InInputType, bPlatformSupportsInput);
+	
 	return bPlatformSupportsInput;
 }
 

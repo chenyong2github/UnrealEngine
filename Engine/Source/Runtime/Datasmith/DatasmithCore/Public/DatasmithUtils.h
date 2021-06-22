@@ -112,10 +112,10 @@ public:
 
 		case EModelCoordSystem::ZUp_RightHanded:
 			return FVector(-V[0], V[1], V[2]);
-		
+
 		case EModelCoordSystem::ZUp_RightHanded_FBXLegacy:
 			return FVector(V[0], -V[1], V[2]);
-		
+
 		case EModelCoordSystem::ZUp_LeftHanded:
 		default:
 			return FVector(V[0], V[1], V[2]);
@@ -240,9 +240,10 @@ public:
 	/**
 	 * Generates a unique name
 	 * @param BaseName Name that will be suffixed with an index to be unique
+	 * @param CharBudget Max character allowed in the name.
 	 * @return FString unique name. Calling "Contains()" with this name will be false
 	 */
-	FString GenerateUniqueName(const FString& BaseName);
+	FString GenerateUniqueName(const FString& BaseName, int32 CharBudget=INT32_MAX);
 
 	/**
 	 * Register a name as known

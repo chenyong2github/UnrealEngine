@@ -145,6 +145,24 @@ namespace UE
 	}
 #endif // #if USE_USD_SDK
 
+	bool FUsdPrim::IsActive() const
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdPrim.Get().IsActive();
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdPrim::SetActive( bool bActive )
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdPrim.Get().SetActive( bActive );
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
 	bool FUsdPrim::IsValid() const
 	{
 #if USE_USD_SDK

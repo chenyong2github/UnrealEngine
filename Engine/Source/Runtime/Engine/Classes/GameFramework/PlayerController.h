@@ -2020,8 +2020,12 @@ public:
 
 	struct FClientFrameInfo
 	{
-		int32 LastRecvInputFrame = INDEX_NONE;	// The latest inputcmd that the server acknowledged processing (this is our frame number that we gave them)
-		int32 LastRecvServerFrame = INDEX_NONE; // the latest ServerFrame number that the processing of LastRecvInputFrame happened on (SErver's local frame number)
+		int32 LastRecvInputFrame = INDEX_NONE;	// The latest inputcmd that the server acknowledged receiving, but not yet processed (this is our frame number that we gave them)
+		int32 LastProcessedInputFrame = INDEX_NONE; // The latest InputCmd that the server actually processed (this is our frame number that we gave them)
+		int32 LastRecvServerFrame = INDEX_NONE; // the latest ServerFrame number that the processing of LastRecvInputFrame happened on (Server's local frame number)
+
+		int8 QuantizedTimeDilation = 1; // Server sent this to this client, telling them to dilate local time either catch up or slow down
+		float TargetNumBufferedCmds = 0.f;
 	};	
 
 	// Client pushes input data locally. RPC is sent here but also includes redundant data
@@ -2041,16 +2045,20 @@ public:
 	{
 		int32 LastProcessedInputFrame = INDEX_NONE;	// The last client frame number we processed. "processed" is arbitrary and we are informed about when commands are processed via SetServerProessedInputFrame
 		int32 LastLocalFrame = INDEX_NONE; // The local frame number that we processed the latest client input frame on. Again, processed is arbitrary and set via SetServerProessedInputFrame
+		int32 LastSentLocalFrame = INDEX_NONE;	// Tracks the latest LastLocalFrame that we sent to the client. Just to prevent redundantly sending info via RPC
 
-		int32 LastSentLocalFrame = INDEX_NONE;	// Tracks the latest LastLocalFrame that we sent to the client. Just to prevent redundandtly sending info via RPC
-
+		float TargetTimeDilation = 1.f;
+		int8 QuantizedTimeDilation = 1; // Server sets this to tell client to slowdown or speed up
+		float TargetNumBufferedCmds = 1.f; // How many buffered cmds the server thinks this client should ideally have to absorb PL and latency variance
 		bool bFault = true;
-		int32 FaultLimit = 2;
 	};
 
 	// We call this in ::SendClientAdjustment to tell the client what the last processed input frame was for him and on what local frame number it was processed
 	UFUNCTION(Client, unreliable)
-	void ClientRecvServerAckFrame(int32 RecvClientInputFrame, int32 RecvServerFrameNumber);
+	void ClientRecvServerAckFrame(int32 LastProcessedInputFrame, int32 RecvServerFrameNumber, int8 TimeDilation);
+
+	UFUNCTION(Client, unreliable)
+	void ClientRecvServerAckFrameDebug(uint8 NumBuffered, float TargetNumBufferedCmds);
 
 	FServerFrameInfo& GetServerFrameInfo() { return ServerFrameInfo; };
 private:

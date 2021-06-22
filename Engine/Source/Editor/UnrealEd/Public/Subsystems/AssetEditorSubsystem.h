@@ -126,6 +126,13 @@ public:
 	DECLARE_EVENT_TwoParams(UAssetEditorSubsystem, FOnAssetOpenedInEditorEvent, UObject*, IAssetEditorInstance*);
 	virtual FOnAssetOpenedInEditorEvent& OnAssetOpenedInEditor() { return AssetOpenedInEditorEvent; }
 
+	/** Notify the asset editor manager that an asset editor is being opened and before widgets are constructed */
+	void NotifyEditorOpeningPreWidgets(const TArray< UObject* >& Assets, IAssetEditorInstance* Instance);
+
+	/** Called when an asset editor is opening and before widgets are constructed */
+	DECLARE_EVENT_TwoParams(UAssetEditorSubsystem, FOnAssetsOpenedInEditorEvent, const TArray<UObject*>&, IAssetEditorInstance*);
+	virtual FOnAssetsOpenedInEditorEvent& OnEditorOpeningPreWidgets() { return EditorOpeningPreWidgetsEvent; }
+
 	/** Notify the asset editor manager that an asset editor is done editing an asset */
 	void NotifyAssetClosed(UObject* Asset, IAssetEditorInstance* Instance);
 
@@ -284,6 +291,9 @@ private:
 
 	/** Called when an asset has been opened in an editor */
 	FOnAssetOpenedInEditorEvent AssetOpenedInEditorEvent;
+
+	/** Called when editor is opening and before widgets are constructed */
+	FOnAssetsOpenedInEditorEvent EditorOpeningPreWidgetsEvent;
 
 	/** Multicast delegate executed when an asset editor is requested to be opened */
 	FAssetEditorRequestOpenEvent AssetEditorRequestOpenEvent;

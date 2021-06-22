@@ -1858,7 +1858,8 @@ const UE::LLMPrivate::FTagData* FLowLevelMemTracker::FindOrAddTagData(FName TagN
 	LLMCheckf(!bIsBootstrapping, TEXT("LLM Error: Invalid use of FName tag when initialising tags."));
 
 	// Add the new Tag
-	FTagData* TagData = &RegisterTagData(TagName, NAME_None, NAME_None, NAME_None, NAME_None, false, ELLMTag::CustomName, bIsStatTag, ReferenceSource);
+	FName StatName = bIsStatTag ? TagName : NAME_None;
+	FTagData* TagData = &RegisterTagData(TagName, NAME_None, NAME_None, StatName, NAME_None, false, ELLMTag::CustomName, bIsStatTag, ReferenceSource);
 	{
 		FReadScopeLock ScopeLock(TagDataLock);
 		FinishConstruct(TagData, ReferenceSource);

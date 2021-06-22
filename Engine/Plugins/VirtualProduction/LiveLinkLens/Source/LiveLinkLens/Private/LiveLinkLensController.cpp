@@ -50,7 +50,13 @@ void ULiveLinkLensController::Tick(float DeltaTime, const FLiveLinkSubjectFrameD
 				LensDistortionHandler->SetDistortionState(DistortionState);
 
 				//Recompute overscan factor for the distortion state
-				LensDistortionHandler->SetOverscanFactor(LensDistortionHandler->ComputeOverscanFactor());
+				float OverscanFactor = LensDistortionHandler->ComputeOverscanFactor();
+
+				if (bScaleOverscan)
+				{
+					OverscanFactor = ((OverscanFactor - 1.0f) * OverscanMultiplier) + 1.0f;
+				}
+				LensDistortionHandler->SetOverscanFactor(OverscanFactor);
 
 				//Make sure the displacement map is up to date
 				LensDistortionHandler->ProcessCurrentDistortion();

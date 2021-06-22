@@ -14,7 +14,9 @@ REMOTECONTROL_API DECLARE_LOG_CATEGORY_EXTERN(LogRemoteControl, Log, All);
 class IStructDeserializerBackend;
 class IStructSerializerBackend;
 class URemoteControlPreset;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 struct FExposedProperty;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 struct FRemoteControlProperty;
 
 /**
@@ -24,6 +26,10 @@ struct FRemoteControlProperty;
  */
 DECLARE_DELEGATE_RetVal_TwoParams(FString /*Value*/, FEntityMetadataInitializer, URemoteControlPreset* /*Preset*/, const FGuid& /*EntityId*/);
 
+/**
+ * Delegate called after a property has been modified through SetObjectProperties..
+ */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPostPropertyModifiedRemotely, const FRCObjectReference& /*ObjectRef*/);
 
 /**
  * Deserialize payload type for interception purposes
@@ -51,6 +57,11 @@ struct FRCCallReference
 
 	TWeakObjectPtr<UObject> Object; 
 	TWeakObjectPtr<UFunction> Function;
+	
+	friend uint32 GetTypeHash(const FRCCallReference& CallRef)
+	{
+		return CallRef.IsValid() ? HashCombine(GetTypeHash(CallRef.Object), GetTypeHash(CallRef.Function)) : 0;
+	}
 };
 
 /**
@@ -126,6 +137,11 @@ struct FRCObjectReference
 	friend bool operator==(const FRCObjectReference& LHS, const FRCObjectReference& RHS)
 	{
 		return LHS.Object == RHS.Object && LHS.Property == RHS.Property && LHS.ContainerAdress == RHS.ContainerAdress;
+	}
+
+	friend uint32 GetTypeHash(const FRCObjectReference& ObjectReference)
+	{
+		return HashCombine(GetTypeHash(ObjectReference.Object), ObjectReference.PropertyPathInfo.PathHash);
 	}
 
 	/** Type of access on this object (read, write) */
@@ -262,14 +278,20 @@ public:
 	 * Resolve the underlying function from a preset.
 	 * @return the underlying function and objects that the property is exposed on.
 	 */
+	UE_DEPRECATED(4.27, "This function is deprecated, please resolve directly on the preset.")
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual TOptional<struct FExposedFunction> ResolvePresetFunction(const FResolvePresetFieldArgs& Args) const = 0;
-
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
 	/**
 	 * Resolve the underlying property from a preset.
 	 * @return the underlying property and objects that the property is exposed on.
 	 */
+	UE_DEPRECATED(4.27, "This function is deprecated, please resolve directly on the preset.")
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual TOptional<struct FExposedProperty> ResolvePresetProperty(const FResolvePresetFieldArgs& Args) const = 0;
-
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
 	/**
 	 * Get a preset using its name.
 	 * @arg PresetName name of the preset to resolve.
@@ -318,4 +340,9 @@ public:
 	 * Returns whether the property can be modified through SetObjectProperties when running without an editor.
 	 */
 	virtual bool PropertySupportsRawModificationWithoutEditor(FProperty* Property) const = 0;
+
+	/**
+	 * Returns the delegate called after a property is modified remotely.
+	 */
+	virtual FOnPostPropertyModifiedRemotely& OnPostPropertyModifiedRemotely() = 0;
 };

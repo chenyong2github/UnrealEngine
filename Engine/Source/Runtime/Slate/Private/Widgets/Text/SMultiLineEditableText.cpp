@@ -12,6 +12,11 @@
 #include "Widgets/Text/SlateEditableTextLayout.h"
 #include "Types/ReflectionMetadata.h"
 
+#if WITH_SLATE_WIDGET_TRACKING
+#include "Widgets/Accessibility/SlateWidgetTracker.h"
+#include "Widgets/Input/EditableTextMetaData.h"
+#endif //WITH_SLATE_WIDGET_TRACKING
+
 SMultiLineEditableText::SMultiLineEditableText()
 	: bSelectAllTextWhenFocused(false)
 	, bIsReadOnly(false)
@@ -88,6 +93,10 @@ void SMultiLineEditableText::Construct( const FArguments& InArgs )
 	// build context menu extender
 	MenuExtender = MakeShareable(new FExtender);
 	MenuExtender->AddMenuExtension("EditText", EExtensionHook::Before, TSharedPtr<FUICommandList>(), InArgs._ContextMenuExtender);
+
+#if WITH_SLATE_WIDGET_TRACKING
+	AddMetadata(FEditableTextMetaData::MakeShared());
+#endif //WITH_SLATE_WIDGET_TRACKING
 }
 
 

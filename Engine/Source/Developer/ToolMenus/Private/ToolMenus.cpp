@@ -1369,6 +1369,27 @@ void UToolMenus::PopulateMenuBarBuilder(FMenuBarBuilder& MenuBarBuilder, UToolMe
 		}
 	}
 
+	const bool bIsEditing = MenuData->IsEditing();
+	if (GetEditMenusMode() && !bIsEditing && EditMenuDelegate.IsBound())
+	{
+		TWeakObjectPtr<UToolMenu> WeakMenuPtr = MenuData;
+		const FName MenuName = MenuData->GetMenuName();
+		MenuBarBuilder.AddMenuEntry(
+			LOCTEXT("EditMenuBar_Label", "Edit Menu"),
+			FText::Format(LOCTEXT("EditMenuBar_ToolTip", "Edit Menu: {0}"), FText::FromName(MenuName)),
+			EditMenuIcon,
+			FExecuteAction::CreateLambda([MenuName, WeakMenuPtr]()
+			{
+				FPlatformApplicationMisc::ClipboardCopy(*MenuName.ToString());
+				if (UToolMenu* InMenu = WeakMenuPtr.Get())
+				{
+					UToolMenus::Get()->EditMenuDelegate.ExecuteIfBound(InMenu);
+				}
+			}),
+			"MenuName"
+		);
+	}
+
 	AddReferencedContextObjects(MenuBarBuilder.GetMultiBox(), MenuData);
 }
 

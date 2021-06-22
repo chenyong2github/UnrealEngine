@@ -66,7 +66,7 @@ FArchive& FDuplicateDataReader::operator<<( UObject*& Object )
 	FDuplicatedObject ObjectInfo = SourceObject ? DuplicatedObjectAnnotation.GetAnnotation(SourceObject) : FDuplicatedObject();
 	if( !ObjectInfo.IsDefault() )
 	{
-		Object = ObjectInfo.DuplicatedObject;
+		Object = ObjectInfo.DuplicatedObject.GetEvenIfUnreachable();
 	}
 	else
 	{
@@ -100,7 +100,7 @@ FArchive& FDuplicateDataReader::operator<<(FSoftObjectPath& SoftObjectPath)
 	FDuplicatedObject ObjectInfo = SourceObject ? DuplicatedObjectAnnotation.GetAnnotation(SourceObject) : FDuplicatedObject();
 	if (!ObjectInfo.IsDefault())
 	{
-		SoftObjectPath = FSoftObjectPath::GetOrCreateIDForObject(ObjectInfo.DuplicatedObject);
+		SoftObjectPath = FSoftObjectPath::GetOrCreateIDForObject(ObjectInfo.DuplicatedObject.GetEvenIfUnreachable());
 	}
 	
 	return *this;

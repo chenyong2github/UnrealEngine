@@ -200,11 +200,13 @@ UTexture* FDatasmithTextureImporter::CreateTexture(const TSharedPtr<IDatasmithTe
 	}
 
 	const FString TextureLabel = TextureElement->GetLabel();
-	const FString TextureName = TextureLabel.Len() > 0 ? ImportContext.AssetsContext.TextureNameProvider.GenerateUniqueName(TextureLabel) : TextureElement->GetName();
+	UPackage* DestinationPackage = ImportContext.AssetsContext.TexturesFinalPackage.Get();
+	int32 AssetNameMaxLength = FDatasmithImporterUtils::GetAssetNameMaxCharCount(DestinationPackage);
+	const FString TextureName = ImportContext.AssetsContext.TextureNameProvider.GenerateUniqueName(TextureLabel.Len() > 0 ? TextureLabel : TextureElement->GetName(), AssetNameMaxLength) ;
 
 	// Verify that the texture could be created in final package
 	FText FailReason;
-	if (!FDatasmithImporterUtils::CanCreateAsset<UTexture2D>(ImportContext.AssetsContext.TexturesFinalPackage.Get(), TextureName, FailReason))
+	if (!FDatasmithImporterUtils::CanCreateAsset<UTexture2D>(DestinationPackage, TextureName, FailReason))
 	{
 		ImportContext.LogError(FailReason);
 		return nullptr;

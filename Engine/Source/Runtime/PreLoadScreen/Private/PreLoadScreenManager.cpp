@@ -86,7 +86,7 @@ void FPreLoadScreenManager::Initialize(FSlateRenderer& InSlateRenderer)
     bInitialized = true;
 
 	// Initialize shaders, because otherwise they might not be guaranteed to exist at this point
-	if (!FPlatformProperties::RequiresCookedData())
+	if (!FPlatformProperties::RequiresCookedData() && GShaderCompilingManager)
 	{
 		TArray<int32> ShaderMapIds;
 		ShaderMapIds.Add(GlobalShaderMapId);

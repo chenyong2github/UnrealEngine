@@ -8,7 +8,10 @@
 #include "Logging/LogMacros.h"
 #include "MeshDescription.h"
 #include "Stats/Stats.h"
+#include "UObject/StrongObjectPtr.h"
 
+#include "DatasmithTranslator.h"
+#include "IDatasmithC4DImporter.h"
 #include "DatasmithC4DMelangeSDKEnterGuard.h"
 #include "c4d.h"
 #include "c4d_browsecontainer.h"
@@ -24,34 +27,36 @@ class IDatasmithMeshActorElement;
 class IDatasmithMeshElement;
 class IDatasmithScene;
 class IDatasmithTextureElement;
-class UDatasmithC4DImportOptions;
 class UDatasmithStaticMeshImportData;
 enum class EDatasmithTextureMode : uint8;
 struct FCraneCameraAttributes;
 struct FDatasmithImportContext;
 struct FRichCurve;
 
+
 DECLARE_STATS_GROUP(TEXT("C4DImporter"), STATGROUP_C4DImporter, STATCAT_Advanced);
 
-DECLARE_LOG_CATEGORY_EXTERN(LogDatasmithC4DImport, Log, All);
 
-class FDatasmithC4DImporter
+class FDatasmithC4DImporter : public IDatasmithC4DImporter
 {
 public:
-	FDatasmithC4DImporter(TSharedRef<IDatasmithScene>& OutScene, UDatasmithC4DImportOptions* InOptions);
-	~FDatasmithC4DImporter();
+	FDatasmithC4DImporter(TSharedRef<IDatasmithScene>& OutScene, FDatasmithC4DImportOptions& InOptions);
+	virtual ~FDatasmithC4DImporter();
 
 	/** Updates the used import options to InOptions */
-	void SetImportOptions(UDatasmithC4DImportOptions* InOptions);
+	virtual void SetImportOptions(FDatasmithC4DImportOptions& InOptions) override;
 
 	/** Open and load a .4cd file into C4dDocument */
-	bool OpenFile(const FString& InFilename);
+	virtual bool OpenFile(const FString& InFilename) override;
 
 	/** Parse the scene contained in the previously opened file and process its content according to parameters from incoming context */
-	bool ProcessScene();
+	virtual bool ProcessScene() override;
 
 	/** Unload melange resources after importing */
-	void UnloadScene();
+	virtual void UnloadScene() override;
+
+	virtual void GetGeometriesForMeshElementAndRelease(const TSharedRef<IDatasmithMeshElement> MeshElement, TArray<FMeshDescription>& OutMeshDescriptions) override;
+	virtual TSharedPtr<IDatasmithLevelSequenceElement> GetLevelSequence() override;
 
 	/** Finds the most derived cache for a melange object. That will be e.g. a polygon cache or a deformed polygon cache, if it has one */
 	melange::BaseObject* GetBestMelangeCache(melange::BaseObject* Object);
@@ -66,7 +71,7 @@ public:
 	melange::BaseObject* GoToMelangeHierarchyPosition(melange::BaseObject* Object, const FString& HierarchyPosition);
 
 	/** Gets all melange objects that are part of the hierarchy of InstanceRoot. Used to identify child hierarchies of Oinstance objects */
-	const TArray<melange::BaseObject*>& GetMelangeInstanceObjects(melange::BaseObject* InstanceRoot);
+	//const TArray<melange::BaseObject*>& GetMelangeInstanceObjects(melange::BaseObject* InstanceRoot);
 
 	/**
 	 * Marks actors children of EmitterObject as ParticleActors, so that they can receive an artificial visibility animation track to
@@ -109,15 +114,15 @@ public:
 	 * from InTextureTag, and adds the new material to the Datasmith scene. This is used because texture tags are closer to material
 	 * instances, and may have different "overrides" for each property
 	 */
-	FString CustomizeMaterial(const FString& InMaterialID, const FString& InMeshID, melange::TextureTag* InTextureTag);
+	virtual FString CustomizeMaterial(const FString& InMaterialID, const FString& InMeshID, melange::TextureTag* InTextureTag);
 
 	/**
 	 * Creates customized materials if necessary, and returns a map from material slot indices to material names
 	 */
-	TMap<int32, FString> GetCustomizedMaterialAssignment(const FString& DatasmithMeshName, const TArray<melange::TextureTag*>& TextureTags);
+	virtual TMap<int32, FString> GetCustomizedMaterialAssignment(const FString& DatasmithMeshName, const TArray<melange::TextureTag*>& TextureTags);
 
 	/** Imports a melange actor, which might involve parsing another small hierarchy of subnodes and deformers*/
-	TSharedPtr<IDatasmithActorElement> ImportObjectAndChildren(melange::BaseObject* ActorObject, melange::BaseObject* DataObject, TSharedPtr<IDatasmithActorElement> ParentActor, const melange::Matrix& WorldTransformMatrix, const FString& InstancePath, const FString& DatasmithLabel, const TArray<melange::TextureTag*>& TextureTags);
+	virtual TSharedPtr<IDatasmithActorElement> ImportObjectAndChildren(melange::BaseObject* ActorObject, melange::BaseObject* DataObject, TSharedPtr<IDatasmithActorElement> ParentActor, const melange::Matrix& WorldTransformMatrix, const FString& InstancePath, const FString& DatasmithLabel, const TArray<melange::TextureTag*>& TextureTags);
 
 	/** Traverse the melange actor hierarchy importing all nodes */
 	void ImportHierarchy(melange::BaseObject* ActorObject, melange::BaseObject* DataObject, TSharedPtr<IDatasmithActorElement> ParentActor, const melange::Matrix& WorldTransformMatrix, const FString& InstancePath, const TArray<melange::TextureTag*>& TextureTags);
@@ -128,20 +133,23 @@ public:
 	 */
 	bool AddChildActor(melange::BaseObject* Object, TSharedPtr<IDatasmithActorElement> ParentActor, melange::Matrix WorldTransformMatrix, const TSharedPtr<IDatasmithActorElement>& Actor);
 
-	void GetGeometriesForMeshElementAndRelease(const TSharedRef<IDatasmithMeshElement> MeshElement, TArray<FMeshDescription>& OutMeshDescriptions);
-	TSharedPtr<IDatasmithLevelSequenceElement> GetLevelSequence() { return LevelSequence; }
+	/** Event for when a C4D document is about to be opened for translation */
+	DECLARE_EVENT_TwoParams(FDatasmithC4DTranslator, FPreTranslateEvent, melange::BaseDocument*, const FString&)
+	static FPreTranslateEvent& OnPreTranslate() { return PreTranslateEvent; }
 
 	melange::BaseDocument* C4dDocument = nullptr;
 	FString C4dDocumentFilename;
 
 private:
+
+
 	FVector GetDocumentDefaultColor();
 
 	/** Returns the TextureTags that should affect this object. May check parent objects, so relies on CachesOriginalObject */
 	TArray<melange::TextureTag*> GetActiveTextureTags(const melange::BaseObject* Object, const TArray<melange::TextureTag*>& OrderedTextureTags);
 
 	/** Removes from Context->Scene all empty actors that have a single child */
-	void RemoveEmptyActors();
+	//void RemoveEmptyActors();
 
 	/** Traverses the original and instanced hierarchy simultaneously and register links between instanced objects and their originals */
 	void RegisterInstancedHierarchy(melange::BaseObject* InstanceRoot, melange::BaseObject* OriginalRoot);
@@ -189,11 +197,10 @@ private:
 	/** Names of IDatasmithActorElements that shouldn't be removed when optimizing the scene */
 	TSet<FString> NamesOfActorsToKeep;
 
+	FDatasmithC4DImportOptions Options;
+
 	/** Where all actor animations are imported into when parsing the scene */
 	TSharedPtr<IDatasmithLevelSequenceElement> LevelSequence;
-
-	/** Chosen import options from the import options dialog*/
-	UDatasmithC4DImportOptions* Options;
 
 	/** Output Datasmith scene */
 	TSharedRef<IDatasmithScene> DatasmithScene;
@@ -202,6 +209,8 @@ private:
 	TSharedPtr<FDatasmithSceneExporter> SceneExporterRef;
 
 	TOptional<FVector> DefaultDocumentColorLinear;
+	
+	static FPreTranslateEvent PreTranslateEvent;
 };
 
 #endif // _MELANGE_SDK_

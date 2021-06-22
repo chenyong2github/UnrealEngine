@@ -375,7 +375,22 @@ namespace Gauntlet
 				if (RunningApps.Count > 0)
 				{
 					Log.Info("Shutting down {0} clients", RunningApps.Count);
-					RunningApps.ForEach(App => App.Kill());
+					RunningApps.ForEach(App =>
+					{
+						App.Kill();
+						// Apps that are still running have timed out => fail
+						IDeviceUsageReporter.RecordEnd(App.Device.Name, (UnrealTargetPlatform)App.Device.Platform, IDeviceUsageReporter.EventType.Test, IDeviceUsageReporter.EventState.Success);
+					});
+				}
+
+				List<IAppInstance> ClosedApps = ClientApps.Where(App => (App != null && App.HasExited == true)).ToList();
+				if(ClosedApps.Count > 0)
+				{
+					ClosedApps.ForEach(App =>
+					{
+						// Apps that have already exited have 'succeeded'
+						IDeviceUsageReporter.RecordEnd(App.Device.Name, (UnrealTargetPlatform)App.Device.Platform, IDeviceUsageReporter.EventType.Test, IDeviceUsageReporter.EventState.Failure);
+					});
 				}
 			}
 
@@ -539,6 +554,10 @@ namespace Gauntlet
 		{
 			if ( (ReservedDevices != null) && (ReservedDevices.Count() > 0) )
 			{
+				foreach(ITargetDevice device in ReservedDevices)
+				{
+					IDeviceUsageReporter.RecordEnd(device.Name, (UnrealTargetPlatform)device.Platform, IDeviceUsageReporter.EventType.Device);
+				}
 				DevicePool.Instance.ReleaseDevices(ReservedDevices);
 				ReservedDevices.Clear();
 			}
@@ -904,9 +923,12 @@ namespace Gauntlet
 
 					IAppInstall Install = null;
 
+					IDeviceUsageReporter.RecordStart(Device.Name, (UnrealTargetPlatform)Device.Platform, IDeviceUsageReporter.EventType.Device);
+					IDeviceUsageReporter.RecordStart(Device.Name, (UnrealTargetPlatform)Device.Platform, IDeviceUsageReporter.EventType.Install);
 					try
 					{
 						Install = Device.InstallApplication(AppConfig);
+						IDeviceUsageReporter.RecordEnd(Device.Name, (UnrealTargetPlatform)Device.Platform, IDeviceUsageReporter.EventType.Install, IDeviceUsageReporter.EventState.Success);
 					}
 					catch (System.Exception Ex)
 					{
@@ -914,8 +936,10 @@ namespace Gauntlet
 						Log.Info("Failed to install app onto device {0} for role {1}. {2}. Will retry with new device", Device, Role, Ex);
 						MarkProblemDevice(Device);
 						InstallSuccess = false;
+						IDeviceUsageReporter.RecordEnd(Device.Name, (UnrealTargetPlatform)Device.Platform, IDeviceUsageReporter.EventType.Install, IDeviceUsageReporter.EventState.Failure);
 						break;
 					}
+					
 
 					if (Globals.CancelSignalled)
 					{
@@ -959,6 +983,7 @@ namespace Gauntlet
 						try
 						{
 							IAppInstance Instance = CurrentInstall.Run();
+							IDeviceUsageReporter.RecordStart(Instance.Device.Name, (UnrealTargetPlatform)Instance.Device.Platform, IDeviceUsageReporter.EventType.Test);
 
 							if (Instance != null || Globals.CancelSignalled)
 							{
@@ -1327,8 +1352,27 @@ namespace Gauntlet
 				if (!App.Role.IsNullRole() && !App.Role.InstallOnly )
 				{
 					Log.VeryVerbose("Calling SaveRoleArtifacts, Role: {0}  Artifact Path: {1}", App.ToString(), App.AppInstance.ArtifactPath);
-					var Artifacts = SaveRoleArtifacts(Context, App, DestPath);
-					AllArtifacts.Add(Artifacts);
+					UnrealRoleArtifacts Artifacts = null;
+					ITargetDevice device = App.AppInstance.Device;
+					IDeviceUsageReporter.RecordStart(device.Name, (UnrealTargetPlatform)device.Platform, IDeviceUsageReporter.EventType.SavingArtifacts);
+					try
+					{
+						Artifacts = SaveRoleArtifacts(Context, App, DestPath);
+					}
+					catch (Exception)
+					{
+						// Caught an exception -> report failure
+						IDeviceUsageReporter.RecordEnd(device.Name, (UnrealTargetPlatform)device.Platform, IDeviceUsageReporter.EventType.SavingArtifacts, IDeviceUsageReporter.EventState.Failure);
+						// Pass exception to the surrounding try/catch in UnrealTestNode while preserving the original callstack
+						throw;
+					}
+					// Did not catch -> successful reporting
+					IDeviceUsageReporter.RecordEnd(device.Name, (UnrealTargetPlatform)device.Platform, IDeviceUsageReporter.EventType.SavingArtifacts, IDeviceUsageReporter.EventState.Success);
+
+					if (Artifacts != null)
+					{
+						AllArtifacts.Add(Artifacts);
+					}
 				}
 				else 
 				{

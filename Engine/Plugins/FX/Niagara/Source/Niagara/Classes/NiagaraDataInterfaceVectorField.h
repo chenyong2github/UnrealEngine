@@ -46,7 +46,8 @@ public:
 
 #if WITH_EDITOR	
 	// Editor functionality
-	virtual TArray<FNiagaraDataInterfaceError> GetErrors() override;
+	virtual void GetFeedback(UNiagaraSystem* InAsset, UNiagaraComponent* InComponent, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& OutWarnings, TArray<FNiagaraDataInterfaceFeedback>& OutInfo) override;
+
 #endif
 
 	// GPU sim functionality

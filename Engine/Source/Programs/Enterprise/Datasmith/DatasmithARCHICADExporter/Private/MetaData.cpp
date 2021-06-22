@@ -60,7 +60,7 @@ FMetaData::FMetaData(const TSharedPtr< IDatasmithElement >& InElement)
 	MetaData->SetName(*FString::Printf(TEXT("MetaData_%s"), InElement->GetName()));
 }
 
-void FMetaData::SetOrUpdate(TSharedPtr< IDatasmithMetaDataElement >* IOPtr, IDatasmithScene* IOScene)
+bool FMetaData::SetOrUpdate(TSharedPtr< IDatasmithMetaDataElement >* IOPtr, IDatasmithScene* IOScene)
 {
 	UE_AC_TestPtr(IOPtr);
 	if (IOPtr->IsValid())
@@ -87,13 +87,17 @@ void FMetaData::SetOrUpdate(TSharedPtr< IDatasmithMetaDataElement >* IOPtr, IDat
 				CurrentMetaData->AddProperty(NewProperty);
 			}
 #endif
+			return true; // Metadata has changed
 		}
 	}
 	else
 	{
 		*IOPtr = MetaData;
 		IOScene->AddMetaData(MetaData);
+		return true; // Metadata has changed
 	}
+
+	return false; // Metadata hasn't changed
 }
 
 void FMetaData::AddProperty(const TCHAR* InPropKey, EDatasmithKeyValuePropertyType InPropertyValueType,

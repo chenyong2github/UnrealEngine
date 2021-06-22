@@ -12,7 +12,7 @@ using UnrealBuildTool;
 using Ionic.Zip;
 using EpicGames.Core;
 using UnrealBuildBase;
-
+using System.Text.RegularExpressions;
 public class AndroidPlatform : Platform
 {
 	// Maximum allowed OBB size (1 GiB, 2 GiB or 4 GiB based on project settings)
@@ -140,7 +140,7 @@ public class AndroidPlatform : Platform
 			if (!File.Exists(AndroidStudioExe))
 			{
 				TurnkeyContext.ReportError("Android Studio is not installed correctly.");
-			}
+	}
 			if (!Directory.Exists(SdkDir))
 			{
 				TurnkeyContext.ReportError("Android SDK directory is not set correctly.");
@@ -276,7 +276,7 @@ public class AndroidPlatform : Platform
 			}
 			else
 			{
-				// if we want to use UE4 directly then use it from the engine directory not project directory
+				// if we want to use UE directly then use it from the engine directory not project directory
 				ApkName = ApkName.Replace(ProjectDir, Path.Combine(CmdEnv.LocalRoot, "Engine/Binaries/Android"));
 			}
 		}
@@ -899,7 +899,7 @@ public class AndroidPlatform : Platform
                     if (FileExists_NoExceptions(UE4SOName) == false)
 					{
 						LogInformation("Failed to find game .so " + UE4SOName);
-                        throw new AutomationException(ExitCode.Error_MissingExecutable, "Stage Failed. Could not find .so {0}. You may need to build the UE4 project with your target configuration and platform.", UE4SOName);
+                        throw new AutomationException(ExitCode.Error_MissingExecutable, "Stage Failed. Could not find .so {0}. You may need to build the UE project with your target configuration and platform.", UE4SOName);
 					}
 				}
 				
@@ -2262,6 +2262,7 @@ public class AndroidPlatform : Platform
 	private static Mutex PackageInfoMutex = new Mutex();
 	private static string LaunchableActivityLine = null;
 	private static string MetaAppTypeLine = null;
+	private static Dictionary<string,string> MetaDataMap = null;
 
 	/** Run an external exe (and capture the output), given the exe path and the commandline. */
 	public static string GetPackageInfo(string ApkName, bool bRetrieveVersionCode)
@@ -2283,6 +2284,7 @@ public class AndroidPlatform : Platform
 				PackageLine = null;
 				LaunchableActivityLine = null;
 				MetaAppTypeLine = null;
+				MetaDataMap = null;
 				GameProcess.BeginOutputReadLine();
 				GameProcess.OutputDataReceived += ParsePackageName;
 				GameProcess.WaitForExit();
@@ -2400,6 +2402,19 @@ public class AndroidPlatform : Platform
 		return ReturnValue;
 	}
 
+	public static string GetMetadataValue(string MetadataKey)
+	{
+		if(MetaDataMap != null)
+		{
+			string MetadataValue;
+			if ( MetaDataMap.TryGetValue(MetadataKey, out MetadataValue) )
+			{
+				return MetadataValue;
+			}
+		}
+		return null;
+	}
+
 	/** Simple function to pipe output asynchronously */
 	private static void ParsePackageName(object Sender, DataReceivedEventArgs Event)
 	{
@@ -2407,9 +2422,9 @@ public class AndroidPlatform : Platform
 		// print anything for that event.
 		if (!String.IsNullOrEmpty(Event.Data))
 		{
+			string Line = Event.Data;
 			if (PackageLine == null)
 			{
-				string Line = Event.Data;
 				if (Line.StartsWith("package:"))
 				{
 					PackageLine = Line;
@@ -2417,7 +2432,6 @@ public class AndroidPlatform : Platform
 			}
 			if (LaunchableActivityLine == null)
 			{
-				string Line = Event.Data;
 				if (Line.StartsWith("launchable-activity:"))
 				{
 					LaunchableActivityLine = Line;
@@ -2425,10 +2439,33 @@ public class AndroidPlatform : Platform
 			}
 			if (MetaAppTypeLine == null)
 			{
-				string Line = Event.Data;
 				if (Line.StartsWith("meta-data: name='com.epicgames.unreal.GameActivity.AppType'"))
 				{
 					MetaAppTypeLine = Line;
+				}
+			}
+			if(Line.StartsWith("meta-data: name='com.epicgames.unreal.GameActivity"))
+			{
+				// We expect the meta-data string to be in the format of " meta-data: name='...' value='...' "
+				Match MetaDataMatch = Regex.Match(Line, @"meta-data: name='com.epicgames.unreal.GameActivity.(.*?)'.*?'(.*?)'");
+				if(MetaDataMatch.Groups.Count == 3)
+				{
+					if (MetaDataMap == null)
+					{
+						MetaDataMap = new Dictionary<string, string>();
+					}
+					try
+					{
+						MetaDataMap.Add(MetaDataMatch.Groups[1].Value, MetaDataMatch.Groups[2].Value);
+					}
+					catch (Exception ex)
+					{
+						LogWarning(@"Ignoring duplicate package metadata entry '"+Line+"\'.\n" + ex.ToString());
+					}
+				}
+				else
+				{
+					LogWarning("Unexpected layout of package metadata: " + Line);
 				}
 			}
 		}
@@ -2695,7 +2732,7 @@ public class AndroidPlatform : Platform
 				//log the results, then clear out the device from our list
 				if(FinishedRunning)
 				{
-					// this is just to get the ue4 log to go to the output
+					// this is just to get the ue log to go to the output
 					RunAdbCommand(Params, DeviceName, "logcat -d -s UE debug Debug DEBUG");
 
 					// get the log we actually want to save

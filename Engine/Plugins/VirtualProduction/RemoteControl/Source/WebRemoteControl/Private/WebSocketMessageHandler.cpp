@@ -15,6 +15,8 @@
 #include "WebRemoteControl.h"
 #include "WebRemoteControlUtils.h"
 
+static TAutoConsoleVariable<int32> CVarWebRemoteControlFramesBetweenPropertyNotifications(TEXT("WebControl.FramesBetweenPropertyNotifications"), 5, TEXT("The number of frames between sending batches of property notifications."));
+
 FWebSocketMessageHandler::FWebSocketMessageHandler(FRCWebSocketServer* InServer, const FGuid& InActingClientId)
 	: Server(InServer)
 	, ActingClientId(InActingClientId)
@@ -360,12 +362,18 @@ void FWebSocketMessageHandler::OnEndFrame()
 		return;
 	}
 
-	ProcessChangedProperties();
-	ProcessChangedActorProperties();
-	ProcessRemovedProperties();
-	ProcessAddedProperties();
-	ProcessRenamedFields();
-	ProcessModifiedMetadata();
+	PropertyNotificationFrameCounter++;
+
+	if (PropertyNotificationFrameCounter >= CVarWebRemoteControlFramesBetweenPropertyNotifications.GetValueOnGameThread())
+	{
+		PropertyNotificationFrameCounter = 0;
+		ProcessChangedProperties();
+		ProcessChangedActorProperties();
+		ProcessRemovedProperties();
+		ProcessAddedProperties();
+		ProcessRenamedFields();
+		ProcessModifiedMetadata();
+	}
 }
 
 void FWebSocketMessageHandler::ProcessAddedProperties()

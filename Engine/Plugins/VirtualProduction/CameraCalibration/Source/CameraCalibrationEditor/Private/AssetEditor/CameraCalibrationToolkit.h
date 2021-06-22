@@ -73,6 +73,8 @@ private:
 
 	FCachedFIZData GetFIZData() const;
 
+	/** Extend Toolkit Menu */
+	void ExtendMenu();
 
 private:
 
@@ -93,4 +95,7 @@ private:
 
 	/** Singleton for the toolkit pop-up window. */
 	static TWeakPtr<SWindow> PopupWindow;
+
+	/** Menu extender */
+	TSharedPtr<FExtender> MenuExtender;
 };

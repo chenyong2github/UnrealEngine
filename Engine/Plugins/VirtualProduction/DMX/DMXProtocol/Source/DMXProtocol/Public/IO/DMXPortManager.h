@@ -14,6 +14,8 @@ class FDMXInputPort;
 class FDMXOutputPort;
 
 
+DECLARE_MULTICAST_DELEGATE(FDMXOnPortsChangedDelegate);
+
 /** 
  * Manager for all DMX ports. Exposes available input and output ports anywhere.
  *
@@ -63,16 +65,7 @@ class FDMXOutputPort;
  */
 class DMXPROTOCOL_API FDMXPortManager
 {
-	DECLARE_MULTICAST_DELEGATE(FDMXOnPortsChangedDelegate);
-	DECLARE_MULTICAST_DELEGATE(FDMXOnIOsAvailableDelegate);
-
 public:
-	/** Returns true once Input and Output Ports are available */
-	bool AreIOsAvailable() const { return bIOsAvailable; }
-
-	/** Broadcast when Input and Output Ports are available */
-	FDMXOnIOsAvailableDelegate OnIOsAvailable;
-
 	/** Broadcast when port arrays or data changed */
 	FDMXOnPortsChangedDelegate OnPortsChanged;
 

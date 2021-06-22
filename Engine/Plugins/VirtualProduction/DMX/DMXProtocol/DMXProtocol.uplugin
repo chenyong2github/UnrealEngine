@@ -19,6 +19,16 @@
 			"LoadingPhase": "PreDefault"
 		},
 		{
+			"Name": "DMXProtocolArtNet",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault"
+		},
+		{
+			"Name": "DMXProtocolSACN",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault"
+		},
+		{
 			"Name": "DMXProtocolEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
@@ -26,16 +36,6 @@
 		{
 			"Name": "DMXProtocolBlueprintGraph",
 			"Type": "UncookedOnly",
-			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "DMXProtocolArtNet",
-			"Type": "Runtime",
-			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "DMXProtocolSACN",
-			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		}
 	]

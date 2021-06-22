@@ -751,7 +751,10 @@ void SNiagaraScriptGraph::FocusGraphSearchBox()
 void SNiagaraScriptGraph::OnCreateComment()
 {
 	FNiagaraSchemaAction_NewComment CommentAction = FNiagaraSchemaAction_NewComment(GraphEditor);
-	CommentAction.PerformAction(ViewModel->GetGraph(), nullptr, GraphEditor->GetPasteLocation(), false);
+	if (CommentAction.PerformAction(ViewModel->GetGraph(), nullptr, GraphEditor->GetPasteLocation(), false))
+	{
+		ViewModel->GetGraph()->NotifyGraphNeedsRecompile();
+	}
 }
 
 void SNiagaraScriptGraph::OnSearchBoxSearch(SSearchBox::SearchDirection Direction)

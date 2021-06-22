@@ -165,9 +165,9 @@ FDMXFunctionChannelData::FDMXFunctionChannelData(UDMXEntityFixturePatch* InFixtu
 {
 	if (FunctionChannel && 
 		FixturePatch.IsValid() &&
-		IsValid(FixturePatch->ParentFixtureTypeTemplate))
+		IsValid(FixturePatch->GetFixtureType()))
 	{
-		LocalUniverseID = FixturePatch->UniverseID;
+		LocalUniverseID = FixturePatch->GetUniverseID();
 		AttributeName = FunctionChannel->AttributeName;
 		bCellChannel = FunctionChannel->IsCellFunction();
 		

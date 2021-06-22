@@ -28,12 +28,13 @@
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanelEntitiesList"
 
-void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteControlPreset* InPreset)
+void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteControlPreset* InPreset, TWeakPtr<FRCPanelWidgetRegistry> InWidgetRegistry)
 {
 	bIsInEditMode = InArgs._EditMode;
 	Preset = TStrongObjectPtr<URemoteControlPreset>(InPreset);
 	bDisplayValues = InArgs._DisplayValues;
 	OnEntityListUpdatedDelegate = InArgs._OnEntityListUpdated;
+	WidgetRegistry = MoveTemp(InWidgetRegistry);
 
 	ColumnSizeData.LeftColumnWidth = TAttribute<float>(this, &SRCPanelExposedEntitiesList::OnGetLeftColumnWidth);
 	ColumnSizeData.RightColumnWidth = TAttribute<float>(this, &SRCPanelExposedEntitiesList::OnGetRightColumnWidth);
@@ -99,7 +100,11 @@ void SRCPanelExposedEntitiesList::OnObjectPropertyChange(UObject* InObject, FPro
 
 	if ((InChangeEvent.ChangeType & TypesNeedingRefresh) != 0 && InChangeEvent.MemberProperty && IsRelevantProperty(InChangeEvent.MemberProperty->GetClass()))
 	{
-		FRCPanelWidgetRegistry::Get().Refresh(InObject);
+		if (TSharedPtr<FRCPanelWidgetRegistry> Registry = WidgetRegistry.Pin())
+		{
+			Registry->Refresh(InObject);
+		}
+
 		for (const TPair <FGuid, TSharedPtr<SRCPanelTreeNode>>& Node : FieldWidgetMap)
 		{
 			Node.Value->Refresh();
@@ -134,7 +139,7 @@ void SRCPanelExposedEntitiesList::GenerateListWidgets()
 		if (TSharedPtr<FRemoteControlField> Field = WeakField.Pin())
 		{
 			FieldWidgetMap.Add(Field->GetId(),
-	            SNew(SRCPanelExposedField, MoveTemp(WeakField), ColumnSizeData)
+	            SNew(SRCPanelExposedField, MoveTemp(WeakField), ColumnSizeData, WidgetRegistry)
 	            .Preset(Preset.Get())
 	            .EditMode(bIsInEditMode)
 	            .DisplayValues(bDisplayValues)
@@ -471,7 +476,7 @@ void SRCPanelExposedEntitiesList::OnEntityAdded(const FGuid& InEntityId)
 	}
 	else if (TSharedPtr<FRemoteControlField> Field = Preset->GetExposedEntity<FRemoteControlField>(InEntityId).Pin())
 	{
-		ExposeEntity(SNew(SRCPanelExposedField, MoveTemp(Field), ColumnSizeData)
+		ExposeEntity(SNew(SRCPanelExposedField, MoveTemp(Field), ColumnSizeData, WidgetRegistry)
 			.Preset(Preset.Get())
 			.EditMode(bIsInEditMode)
 			.DisplayValues(bDisplayValues));

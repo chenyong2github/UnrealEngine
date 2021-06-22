@@ -78,7 +78,7 @@ void UAssetViewerSettings::PostEditChangeProperty(struct FPropertyChangedEvent& 
 {
 	FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;	
 	UObject* Outer = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetOwner<UObject>() : nullptr;
-	if (Outer != nullptr && ( Outer->GetName() == "PostProcessSettings" || Outer->GetName() == "Vector" || Outer->GetName() == "Vector4" || Outer->GetName() == "LinearColor"))
+	if (Outer != nullptr && ( Outer->GetName() == "PostProcessSettings" || Outer->GetName() == "WeightedBlendable" || Outer->GetName() == "Vector" || Outer->GetName() == "Vector4" || Outer->GetName() == "LinearColor"))
 	{
 		PropertyName = GET_MEMBER_NAME_CHECKED(FPreviewSceneProfile, PostProcessingSettings);
 	}

@@ -56,6 +56,7 @@ public:
 		const bool bIsFirstAndRow = EditorData->GetUserDefinedFilters()->GetChildren().Find(InManagedFilter) == 0;
 		const bool bShouldShowOrTextInFrontOfRow = !bIsFirstAndRow;
 		
+		const TWeakPtr<SLevelSnapshotsEditorFilters> WeakOwner = InOwnerPanel;
 		ChildSlot
 		[
 			SNew(SHorizontalBox)
@@ -63,9 +64,12 @@ public:
 			.Padding(FMargin(3.0f, 2.0f))
 			[
 				SNew(SLevelSnapshotsEditorFilterRow, EditorData, InManagedFilter, bShouldShowOrTextInFrontOfRow)
-					.OnClickRemoveRow_Lambda([InOwnerPanel, InManagedFilter](auto)
+					.OnClickRemoveRow_Lambda([WeakOwner, InManagedFilter](auto)
 					{
-						InOwnerPanel->RemoveFilter(InManagedFilter);
+						if (ensure(WeakOwner.IsValid()))
+						{
+							WeakOwner.Pin()->RemoveFilter(InManagedFilter);
+						}
 					})
 			]
 		];
@@ -166,6 +170,16 @@ void SLevelSnapshotsEditorFilters::Construct(const FArguments& InArgs, const TSh
 					SNew(SButton)
 					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
 					.ForegroundColor(FSlateColor::UseForeground())
+					.IsEnabled_Lambda([this]() 
+					{
+						return EditorDataPtr->IsFilterDirty() && EditorDataPtr->GetActiveSnapshot();
+					})
+					.ToolTipText_Lambda([this]() 
+					{
+						return EditorDataPtr->IsFilterDirty() && EditorDataPtr->GetActiveSnapshot() ? 
+							FText(LOCTEXT("RefreshResultsTooltip_DirtyState", "Filter changes have been detected, please refresh filters.")) :
+						FText(LOCTEXT("RefreshResultsTooltip_CleanState", "Results are up to date, no refresh required."));
+					})
 					.OnClicked(this, &SLevelSnapshotsEditorFilters::OnClickUpdateResultsView)
 					[
 						SNew(SHorizontalBox)
@@ -329,11 +343,17 @@ FReply SLevelSnapshotsEditorFilters::OnClickUpdateResultsView()
 
 void SLevelSnapshotsEditorFilters::RefreshGroups()
 {
+	if (!ensure(FilterRowsList.IsValid()))
+	{
+		return;
+	}
+	
 	FilterRowsList->ClearChildren();
 	const TArray<UConjunctionFilter*>& AllAndRows = GetEditorData()->GetUserDefinedFilters()->GetChildren(); 
 	for (UConjunctionFilter* Row : AllAndRows)
 	{
 		FilterRowsList->AddSlot()
+			.AutoHeight()
 		[
 			SNew(SLevelSnapshotsEditorFilterRowGroup, SharedThis<SLevelSnapshotsEditorFilters>(this), Row)
 		];

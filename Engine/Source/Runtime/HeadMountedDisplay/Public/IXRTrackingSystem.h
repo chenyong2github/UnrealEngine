@@ -84,6 +84,15 @@ public:
 	virtual bool DoesSupportLateUpdate() const { return true; }
 
 	/**
+	 * Return true if the default camera implementation should query the current projection matrix at the start of the render frame and apply late update.
+	 * In order to support late update, the plugin should refresh the current projection matrix just before rendering starts.
+	 * A good point to insert the update is in OnBeginRendering_GameThread or OnBeginRendering_RenderThread.
+	 *
+	 * Note that late projection update isn't compatible with all XR implementations because of projection matrix fetch restrictions.
+	 */
+	virtual bool DoesSupportLateProjectionUpdate() const { return false; }
+
+	/**
 	 * If the system currently has valid tracking positions. If not supported at all, returns false.
 	 */
 	virtual bool HasValidTrackingPosition() = 0;

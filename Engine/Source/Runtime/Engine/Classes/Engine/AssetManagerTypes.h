@@ -106,12 +106,17 @@ struct FPrimaryAssetTypeInfo
 	UPROPERTY(EditAnywhere, Category = AssetType)
 	FName PrimaryAssetType;
 
+#if WITH_EDITOR
+	const TSoftClassPtr<UObject>& GetAssetBaseClass() const { return AssetBaseClass; }
+	void SetAssetBaseClass(const TSoftClassPtr<UObject>& InAssetBaseClass) { AssetBaseClass = InAssetBaseClass; }
+#endif //if WITH_EDITOR
+
 private:
 	/** Base Class of all assets of this type */
 	UPROPERTY(EditAnywhere, Category = AssetType, meta = (AllowAbstract))
 	TSoftClassPtr<UObject> AssetBaseClass;
-public:
 
+public:
 	/** Base Class of all assets of this type */
 	UPROPERTY(Transient)
 	TObjectPtr<UClass> AssetBaseClassLoaded;
@@ -124,6 +129,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = AssetType)
 	bool bIsEditorOnly;
 
+#if WITH_EDITOR
+	TArray<FDirectoryPath>& GetDirectories() { return Directories; }
+#endif //if WITH_EDITOR
+
 private:
 	/** Directories to search for this asset type */
 	UPROPERTY(EditAnywhere, Category = AssetType, meta = (RelativeToGameContentDir, LongPackageName))
@@ -132,8 +141,8 @@ private:
 	/** Individual assets to scan */
 	UPROPERTY(EditAnywhere, Category = AssetType)
 	TArray<FSoftObjectPath> SpecificAssets;
-public:
 
+public:
 	/** Default management rules for this type, individual assets can be overridden */
 	UPROPERTY(EditAnywhere, Category = Rules, meta = (ShowOnlyInnerProperties))
 	FPrimaryAssetRules Rules;

@@ -12,15 +12,19 @@
 #include "ISettingsModule.h"
 #endif // WITH_EDITOR
 
+#include "Interfaces/IPluginManager.h"
+
 
 IMPLEMENT_MODULE( FDMXProtocolModule, DMXProtocol );
 
 #define LOCTEXT_NAMESPACE "DMXProtocolModule"
 
-int32 FDMXProtocolModule::NumProtocolsInPlugin = 2;
+const FName FDMXProtocolModule::DefaultProtocolArtNetName = "Art-Net";
+const FName FDMXProtocolModule::DefaultProtocolSACNName = "sACN";
 
 void FDMXProtocolModule::RegisterProtocol(const FName& ProtocolName, IDMXProtocolFactory* Factory)
 {
+	// DEPRECATED 4.27
 	if (!DMXProtocolFactories.Contains(ProtocolName))
 	{
 		// Add a factory for the protocol
@@ -41,11 +45,6 @@ void FDMXProtocolModule::RegisterProtocol(const FName& ProtocolName, IDMXProtoco
 	else
 	{
 		UE_LOG_DMXPROTOCOL(Verbose, TEXT("Unable to create Protocol %s"), *ProtocolName.ToString());
-	}
-
-	if (DMXProtocols.Num() == NumProtocolsInPlugin)
-	{
-		OnProtocolsInPluginRegistered();
 	}
 }
 
@@ -100,10 +99,16 @@ void FDMXProtocolModule::StartupModule()
 		);
 	}
 #endif // WITH_EDITOR
+
+	IPluginManager& PluginManager = IPluginManager::Get();
+	PluginManager.OnLoadingPhaseComplete().AddRaw(this, &FDMXProtocolModule::OnPluginLoadingPhaseComplete);
 }
 
 void FDMXProtocolModule::ShutdownModule()
 {
+	IPluginManager& PluginManager = IPluginManager::Get();
+	PluginManager.OnLoadingPhaseComplete().RemoveAll(this);
+
 	FDMXPortManager::ShutdownManager();
 
 	// Now Shutdown the protocols
@@ -119,9 +124,55 @@ void FDMXProtocolModule::ShutdownModule()
 #endif // WITH_EDITOR
 }
 
-void FDMXProtocolModule::OnProtocolsInPluginRegistered()
+void FDMXProtocolModule::OnPluginLoadingPhaseComplete(ELoadingPhase::Type LoadingPhase, bool bPhaseSuccessful)
 {
-	FDMXPortManager::StartupManager();
+	if (bPhaseSuccessful && LoadingPhase == ELoadingPhase::PreDefault)
+	{
+		// Request other plugins to provide their protocol blacklist
+		TArray<FName> ProtocolBlacklist;
+		GetOnRequestProtocolBlacklistDelegate().Broadcast(ProtocolBlacklist);
+
+		// Request protocols to register themselves
+		TArray<FDMXProtocolRegistrationParams> ProtocolRegistrationParamsArray;
+		GetOnRequestProtocolRegistration().Broadcast(ProtocolRegistrationParamsArray);
+
+		// Sort to make the default protocols show topmost
+		ProtocolRegistrationParamsArray.Sort([](const FDMXProtocolRegistrationParams& ParamsA, const FDMXProtocolRegistrationParams& ParamsB) {
+			return
+				(ParamsA.ProtocolName == DefaultProtocolArtNetName) ||													// Art-Net first if available
+				(ParamsB.ProtocolName != DefaultProtocolArtNetName && ParamsA.ProtocolName == DefaultProtocolSACNName);	// sACN 2nd if available
+			});
+
+		// Register all protocols that joined in
+		for (const FDMXProtocolRegistrationParams& RegistrationParams : ProtocolRegistrationParamsArray)
+		{
+			if (ProtocolBlacklist.Contains(RegistrationParams.ProtocolName))
+			{
+				UE_LOG_DMXPROTOCOL(Log, TEXT("Ignored blacklisted DMX Protocol %s"), *RegistrationParams.ProtocolName.ToString());
+			}
+			else if (ensureMsgf(RegistrationParams.ProtocolFactory, TEXT("No Protocol Factory provided for Protocol %s, protocol cannot be loaded."), *RegistrationParams.ProtocolName.ToString()))
+			{
+				IDMXProtocolPtr NewProtocol = RegistrationParams.ProtocolFactory->CreateProtocol(RegistrationParams.ProtocolName);
+				if (NewProtocol.IsValid())
+				{
+					DMXProtocolFactories.Add(RegistrationParams.ProtocolName, RegistrationParams.ProtocolFactory);
+					DMXProtocols.Add(RegistrationParams.ProtocolName, NewProtocol);
+				}
+				else
+				{
+					UE_LOG_DMXPROTOCOL(Verbose, TEXT("Unable to create Protocol %s"), *RegistrationParams.ProtocolName.ToString());
+				}
+			}
+		}
+
+		// Startup and update the manager, alike  in the Default loading phase the manager is fully available, including Ports from Project Settings.
+		FDMXPortManager::StartupManager();
+		FDMXPortManager::Get().UpdateFromProtocolSettings();
+
+		// Don't let the binding fire twice for whatever reason
+		IPluginManager& PluginManager = IPluginManager::Get();
+		PluginManager.OnLoadingPhaseComplete().RemoveAll(this);
+	}
 }
 
 void FDMXProtocolModule::ShutdownDMXProtocol(const FName& ProtocolName)

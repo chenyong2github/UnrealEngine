@@ -189,6 +189,7 @@ bool UNiagaraNodeParameterMapSet::CommitEditablePinName(const FText& InName, UEd
 		InGraphPinObj->Modify();
 
 		InGraphPinObj->PinName = *NewPinName;
+		InGraphPinObj->PinFriendlyName = InName;
 		if (bSuppressEvents == false)	
 			OnPinRenamed(InGraphPinObj, OldPinName);
 

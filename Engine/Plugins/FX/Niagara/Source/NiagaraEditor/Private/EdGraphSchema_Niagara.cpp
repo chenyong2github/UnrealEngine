@@ -414,6 +414,8 @@ TArray<TSharedPtr<FNiagaraAction_NewNode>> UEdGraphSchema_Niagara::GetGraphActio
 
 		TSharedPtr<FNiagaraAction_NewNode> Action = AddNewNodeMenuAction(NewActions, FunctionCallNode, DisplayName, Section, Categories, TooltipDesc, Keywords, SourceData);
 		Action->bIsInLibrary = bIsInLibrary;
+
+		return Action;
 	};
 
 	//Add functions
@@ -442,7 +444,8 @@ TArray<TSharedPtr<FNiagaraAction_NewNode>> UEdGraphSchema_Niagara::GetGraphActio
 
 		for (const FAssetData& ModuleScriptAsset : ModuleScriptAssets)
 		{
-			AddScriptFunctionAction({LOCTEXT("Module Menu Title", "Modules").ToString()}, ModuleScriptAsset);
+			TSharedPtr<FNiagaraAction_NewNode> ModuleAction = AddScriptFunctionAction({LOCTEXT("Module Menu Title", "Modules").ToString()}, ModuleScriptAsset);
+			ModuleAction->SearchWeightMultiplier = 0.5f;
 		}
 	}
 
@@ -852,7 +855,7 @@ TArray<TSharedPtr<FNiagaraAction_NewNode>> UEdGraphSchema_Niagara::GetGraphActio
 		}
 	}
 
-	const FText UtilMenuCat = LOCTEXT("NiagaraUsageSelectorMenuCat", "Util");
+	const FText UtilMenuCat = LOCTEXT("NiagaraUsageSelectorMenuCat", "Utility");
 
 	// Add reroute node
 	{

@@ -10,6 +10,7 @@
 #include "Misc/Guid.h"
 #include "NiagaraScriptSourceBase.generated.h"
 
+class INiagaraParameterDefinitionsSubscriber;
 class UNiagaraParameterDefinitionsBase;
 
 struct EditorExposedVectorConstant
@@ -129,8 +130,21 @@ class UNiagaraScriptSourceBase : public UObject
 
 	virtual void CollectDataInterfaces(TArray<const UNiagaraDataInterfaceBase*>& DataInterfaces) const {};
 
-	/** Synchronize all source script variables that have been changed or removed from the parameter definitions to all eligible destination script variables owned by the nodegraph. */
-	virtual void SynchronizeGraphParametersWithParameterDefinitions(const TArray<UNiagaraParameterDefinitionsBase*> ParameterDefinitions, const TArray<FGuid>& ParameterDefinitionsParameterIds, FSynchronizeWithParameterDefinitionsArgs Args) {};
+	/** Synchronize all source script variables that have been changed or removed from the parameter definitions to all eligible destination script variables owned by the graph.
+	 *
+	 *  @param TargetDefinitions			The set of parameter definitions that will be synchronized with the graph parameters.
+	 *	@param AllDefinitions				All parameter definitions in the project. Used to add new subscriptions to definitions if specified in Args.
+	 *  @param AllDefinitionsParameterIds	All unique Ids of all parameter definitions.
+	 *	@param Subscriber					The INiagaraParameterDefinitionsSubscriber that owns the graph. Used to add new subscriptions to definitions if specified in Args.
+	 *	@param Args							Additional arguments that specify how to perform the synchronization.
+	 */
+	virtual void SynchronizeGraphParametersWithParameterDefinitions(
+		const TArray<UNiagaraParameterDefinitionsBase*> TargetDefinitions,
+		const TArray<UNiagaraParameterDefinitionsBase*> AllDefinitions,
+		const TSet<FGuid>& AllDefinitionsParameterIds,
+		INiagaraParameterDefinitionsSubscriber* Subscriber,
+		FSynchronizeWithParameterDefinitionsArgs Args
+	) {};
 
 	/** Rename all graph assignment and map set node pins.
 	 *  Used when synchronizing definitions with source scripts of systems and emitters.

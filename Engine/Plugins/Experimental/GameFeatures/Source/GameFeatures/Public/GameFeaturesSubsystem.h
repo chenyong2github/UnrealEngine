@@ -163,8 +163,11 @@ public:
 	/** Returns all the active plugins GameFeatureDatas */
 	void GetGameFeatureDataForActivePlugins(TArray<const UGameFeatureData*>& OutActivePluginFeatureDatas);
 
-	/** Returns the game feature data for the plugin specified by PluginURL */
+	/** Returns the game feature data for an active plugin specified by PluginURL */
 	const UGameFeatureData* GetGameFeatureDataForActivePluginByURL(const FString& PluginURL);
+
+	/** Returns the game feature data for a registered plugin specified by PluginURL */
+	const UGameFeatureData* GetGameFeatureDataForRegisteredPluginByURL(const FString& PluginURL);
 
 	/** Loads a single game feature plugin. */
 	void LoadGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginLoadComplete& CompleteDelegate);

@@ -44,10 +44,8 @@ TWeakObjectPtr<UMovieSceneDMXLibraryTrack> UMovieSceneDMXLibraryTrackRecorder::C
 	FixturePatchRefs.RemoveAll([](const FDMXEntityFixturePatchRef& Ref) {
 		UDMXEntityFixturePatch* FixturePatch = Ref.GetFixturePatch();
 		return
-			!FixturePatch ||
-			!FixturePatch->IsValidLowLevel() ||
-			!FixturePatch->ParentFixtureTypeTemplate ||
-			!FixturePatch->ParentFixtureTypeTemplate->IsValidLowLevel();
+			!IsValid(FixturePatch) ||
+			!IsValid(FixturePatch->GetFixtureType());
 		});
 
 	MovieScene = InMovieScene;

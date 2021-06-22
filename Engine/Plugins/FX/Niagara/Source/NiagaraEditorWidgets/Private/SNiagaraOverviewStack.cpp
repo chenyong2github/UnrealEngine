@@ -524,6 +524,7 @@ void SNiagaraOverviewStack::Construct(const FArguments& InArgs, UNiagaraStackVie
 		.OnItemToString_Debug_Static(&FNiagaraStackEditorWidgetsUtilities::StackEntryToStringForListDebug)
 	];
 
+	InStackViewModel.OnExpansionChanged().AddSP(this, &SNiagaraOverviewStack::EntryExpansionChanged);
 	InStackViewModel.OnStructureChanged().AddSP(this, &SNiagaraOverviewStack::EntryStructureChanged);
 		
 	bRefreshEntryListPending = true;
@@ -536,6 +537,7 @@ SNiagaraOverviewStack::~SNiagaraOverviewStack()
 	if (StackViewModel != nullptr)
 	{
 		StackViewModel->OnStructureChanged().RemoveAll(this);
+		StackViewModel->OnExpansionChanged().RemoveAll(this);
 	}
 
 	if (OverviewSelectionViewModel != nullptr)
@@ -606,7 +608,12 @@ void SNiagaraOverviewStack::RefreshEntryList()
 	}
 }
 
-void SNiagaraOverviewStack::EntryStructureChanged()
+void SNiagaraOverviewStack::EntryExpansionChanged()
+{
+	bRefreshEntryListPending = true;
+}
+
+void SNiagaraOverviewStack::EntryStructureChanged(ENiagaraStructureChangedFlags Flags)
 {
 	bRefreshEntryListPending = true;
 }

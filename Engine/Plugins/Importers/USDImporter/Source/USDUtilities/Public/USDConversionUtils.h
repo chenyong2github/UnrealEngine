@@ -39,7 +39,10 @@ class UUsdAssetImportData;
 enum class EUsdUpAxis : uint8;
 namespace UE
 {
+	class FSdfLayer;
 	class FUsdPrim;
+	class FUsdStage;
+	class FSdfPath;
 }
 
 namespace UsdUtils
@@ -154,6 +157,10 @@ namespace UsdUtils
 
 	/**
 	 * Renames a single prim to a new name
+	 * WARNING: This will lead to issues if called from within a pxr::SdfChangeBlock. This because it needs to be able
+	 * to send separate notices: One notice about the renaming, that the transactor can record on the current edit target,
+	 * and one extra notice about the definition of an auxiliary prim on the session layer, that the transactor *must* record
+	 * as having taken place on the session layer.
 	 * @param Prim - Prim to rename
 	 * @param NewPrimName - New name for the prim e.g. "MyNewName"
 	 * @return True if we managed to rename
@@ -177,5 +184,31 @@ namespace UsdUtils
 
 	/** Returns whether Prim has visibility set to 'inherited' */
 	USDUTILITIES_API bool HasInheritedVisibility( UE::FUsdPrim& Prim, double TimeCode = UsdUtils::GetDefaultTimeCode() );
+
+	/**
+	 * Returns a path exactly like Prim.GetPrimPath(), except that if the prim is within variant sets, it will return the
+	 * full path with variant selections in it (i.e. the spec path), like "/Root/Child{Varset=Var}Inner" instead of just
+	 * "/Root/Child/Inner".
+	 *
+	 * It needs a layer because it is possible for a prim to be defined within a variant set in some layer, but then
+	 * have an 'over' opinion defined in another layer without a variant, meaning the actual spec path depends on the layer.
+	 *
+	 * Note that stage operations that involve manipulating specs require this full path instead (like removing/renaming prims),
+	 * while other operations need the path with the stripped variant selections (like getting/defining/overriding prims)
+	 *
+	 * Returns an empty path in case the layer doesn't have a spec for this prim.
+	 */
+	USDUTILITIES_API UE::FSdfPath GetPrimSpecPathForLayer( const UE::FUsdPrim& Prim, const UE::FSdfLayer& Layer );
+
+	/**
+	 * Removes all the prim specs for Prim on the given Layer.
+	 *
+	 * This function is useful in case the prim is inside a variant set: In that case, just calling FUsdStage::RemovePrim()
+	 * will attempt to remove the "/Root/Example/Child", which wouldn't remove the "/Root{Varset=Var}Example/Child" spec,
+	 * meaning the prim may still be left on the stage. Note that it's even possible to have both of those specs at the same time:
+	 * for example when we have a prim inside a variant set, but outside of it we have overrides to the same prim. This function
+	 * will remove both.
+	 */
+	USDUTILITIES_API void RemoveAllPrimSpecs( const UE::FUsdPrim& Prim, const UE::FSdfLayer& Layer );
 }
 

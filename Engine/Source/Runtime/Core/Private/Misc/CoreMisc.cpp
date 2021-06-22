@@ -20,6 +20,7 @@
 #include "Modules/ModuleManager.h"
 #include "DerivedDataCacheModule.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Interfaces/ITargetPlatform.h"
 
 DEFINE_LOG_CATEGORY(LogSHA);
 DEFINE_LOG_CATEGORY(LogStats);
@@ -180,6 +181,30 @@ class ITargetPlatformManagerModule& GetTargetPlatformManagerRef()
 		CA_ASSUME( SingletonInterface != NULL );	// Suppress static analysis warning in unreachable code (fatal error)
 	}
 	return *SingletonInterface;
+}
+
+bool WillNeedAudioVisualData()
+{
+	class ITargetPlatformManagerModule* SingletonInterface = GetTargetPlatformManager();
+#if WITH_ENGINE
+	// quick check to see if we are targeting non-running platforms
+	if (SingletonInterface && SingletonInterface->RestrictFormatsToRuntimeOnly() == false)
+	{
+		for (ITargetPlatform* Platform : SingletonInterface->GetActiveTargetPlatforms())
+		{
+			if (Platform->AllowAudioVisualData())
+			{
+				return true;
+			}
+		}
+
+		// if nothing in the loop above returned true, then we don't need AV data
+		return false;
+	}
+#endif
+
+	// default to needing AV data because some commandlets may need the data for processing - otherwise we could use "FApp::CanEverRender() || FApp::CanEverRenderAudio()"
+	return true;
 }
 
 //-----------------------------------------------------------------------------

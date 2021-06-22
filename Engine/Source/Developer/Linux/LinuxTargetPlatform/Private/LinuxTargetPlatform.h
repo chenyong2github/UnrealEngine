@@ -248,7 +248,7 @@ public:
 	virtual void GetAllPossibleShaderFormats( TArray<FName>& OutFormats ) const override
 	{
 		// no shaders needed for dedicated server target
-		if (!TProperties::IsServerOnly())
+		if (this->AllowAudioVisualData())
 		{
 			static FName NAME_VULKAN_SM5(TEXT("SF_VULKAN_SM5"));
 			static FName NAME_VULKAN_ES31(TEXT("SF_VULKAN_ES31"));
@@ -290,7 +290,7 @@ public:
 
 	virtual void GetTextureFormats( const UTexture* InTexture, TArray< TArray<FName> >& OutFormats) const override
 	{
-		if (!TProperties::IsServerOnly())
+		if (this->AllowAudioVisualData())
 		{
 			// just use the standard texture format name for this texture
 			GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, InTexture, true);
@@ -300,7 +300,7 @@ public:
 
 	virtual void GetAllTextureFormats(TArray<FName>& OutFormats) const override
 	{
-		if (!TProperties::IsServerOnly())
+		if (this->AllowAudioVisualData())
 		{
 			// just use the standard texture format name for this texture
 			GetAllDefaultTextureFormats(this, OutFormats, true);

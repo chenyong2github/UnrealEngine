@@ -9,6 +9,7 @@
 #include "Http.h"
 #include "Misc/ConfigCacheIni.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS // Too many deprecations between all the deprecated Twitch classes
 bool FTwitchLoginURL::IsValid() const
 {
 	return !GetLoginUrl().IsEmpty() && !GetLoginRedirectUrl().IsEmpty() && !Subsystem->GetAppId().IsEmpty();
@@ -738,3 +739,4 @@ void FOnlineIdentityTwitch::SetStatePrefix(const FString& StatePrefix)
 	UE_LOG_ONLINE_IDENTITY(Log, TEXT("FOnlineIdentityTwitch::SetStatePrefix: Setting StatePrefix to %s"), *StatePrefix);
 	LoginURLDetails.OverrideStatePrefix(StatePrefix);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

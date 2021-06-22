@@ -1027,6 +1027,8 @@ void USocialToolkit::HandlePartyInviteReceived(const FUniqueNetId& LocalUserId, 
 {
 	if (LocalUserId == GetLocalUserNetId(ESocialSubsystem::Primary))
 	{
+		PartyInvitations.Add(Invite.AsShared());
+
 		// We really should know about the sender of the invite already, but queue it up in case we receive it during initial setup
 		QueueUserDependentActionInternal(Invite.GetSourceUserId(), ESocialSubsystem::Primary,
 			[this, Invite = Invite.AsShared()] (USocialUser& User)
@@ -1036,6 +1038,14 @@ void USocialToolkit::HandlePartyInviteReceived(const FUniqueNetId& LocalUserId, 
 #if PARTY_PLATFORM_INVITE_PERMISSIONS
 					CanReceiveInviteFrom(User, Invite, [this, Invite, UserId = User.GetUserId(ESocialSubsystem::Primary)](const bool bResult)
 					{
+						// Check whether the invitation was removed while the async check was completing.
+						if (PartyInvitations.Find(Invite) == nullptr)
+						{
+							UE_LOG(LogParty, Log, TEXT("USocialToolkit::HandlePartyInviteReceived Invitation is no longer valid. LocalUser=[%s] Inviter=[%s]"),
+								*GetLocalUserNetId(ESocialSubsystem::Primary).ToDebugString(), *UserId.ToDebugString());
+							return;
+						}
+
 						UE_LOG(LogParty, Log, TEXT("USocialToolkit::HandlePartyInviteReceived LocalUser=[%s] Inviter=[%s] CanReceiveInviteFrom=[%s]"),
 							*GetLocalUserNetId(ESocialSubsystem::Primary).ToDebugString(), *UserId.ToDebugString(), *LexToString(bResult));
 
@@ -1057,6 +1067,8 @@ void USocialToolkit::HandlePartyInviteRemoved(const FUniqueNetId& LocalUserId, c
 {
 	if (LocalUserId == GetLocalUserNetId(ESocialSubsystem::Primary))
 	{
+		PartyInvitations.Remove(Invite.AsShared());
+
 		if (USocialUser* User = FindUser(Invite.GetSourceUserId()))
 		{
 			User->HandlePartyInviteRemoved(Invite, Reason);

@@ -754,7 +754,7 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 	LevelSequenceHelper.BlockMonitoringChangesForThisTransaction();
 
 	// The most important thing here is to iterate in parent to child order, so build SortedPrimsChangedList
-	TArray< TPair< FString, bool > > SortedPrimsChangedList;
+	TMap< FString, bool > SortedPrimsChangedList;
 	for ( const TPair<FString, TArray<UsdUtils::FObjectChangeNotice>>& InfoChange : InfoChanges )
 	{
 		const FString& PrimPath = InfoChange.Key;
@@ -776,14 +776,19 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 			}
 		}
 
-		SortedPrimsChangedList.Add( TPair<FString, bool>( InfoChange.Key, bIsResync ) );
+		// We may need the full spec path with variant selections later, but for traversal and retrieving prims from the stage we always need
+		// the prim path without any variant selections in it (i.e. GetPrimAtPath("/Root{Varset=Var}Child") doesn't work, we need GetPrimAtPath("/Root/Child")),
+		// and USD sometimes emits changes with the variant selection path (like during renames).
+		SortedPrimsChangedList.Add( UE::FSdfPath( *InfoChange.Key ).StripAllVariantSelections().GetString(), bIsResync );
 	}
+	// Do Resyncs after so that they overwrite pure info changes if we have any
 	for ( const TPair<FString, TArray<UsdUtils::FObjectChangeNotice>>& ResyncChange : ResyncChanges )
 	{
 		const bool bIsResync = true;
-		SortedPrimsChangedList.Add( TPair<FString, bool>( ResyncChange.Key, bIsResync ) );
+		SortedPrimsChangedList.Add( UE::FSdfPath( *ResyncChange.Key ).StripAllVariantSelections().GetString(), bIsResync );
 	}
-	SortedPrimsChangedList.Sort( []( const TPair<FString, bool>& A, const TPair<FString, bool>& B ) -> bool { return A.Key.Len() < B.Key.Len(); } );
+
+	SortedPrimsChangedList.KeySort([]( const FString& A, const FString& B ) -> bool { return A.Len() < B.Len(); } );
 
 	// During PIE, the PIE and the editor world will respond to notices. We have to prevent any PIE
 	// objects from being added to the transaction however, or else it will be discarded when finalized.
@@ -1006,7 +1011,9 @@ UUsdPrimTwin* AUsdStageActor::GetOrCreatePrimTwin( const UE::FSdfPath& UsdPrimPa
 
 UUsdPrimTwin* AUsdStageActor::ExpandPrim( const UE::FUsdPrim& Prim, FUsdSchemaTranslationContext& TranslationContext )
 {
-	if ( !Prim )
+	// "Active" is the non-destructive deletion used in USD. Sometimes when we rename/remove a prim in a complex stage it may remain in
+	// an inactive state, but its otherwise effectively deleted
+	if ( !Prim || !Prim.IsActive() )
 	{
 		return nullptr;
 	}

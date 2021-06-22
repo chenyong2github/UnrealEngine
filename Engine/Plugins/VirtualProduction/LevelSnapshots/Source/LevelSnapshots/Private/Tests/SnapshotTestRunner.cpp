@@ -2,7 +2,9 @@
 
 #include "SnapshotTestRunner.h"
 
+#include "Data/LevelSnapshot.h"
 #include "LevelSnapshotsFunctionLibrary.h"
+
 #include "PreviewScene.h"
 
 FName FSnapshotTestRunner::DefaultSnapshotId = FName("DefaultSnapshotId");
@@ -88,6 +90,20 @@ FSnapshotTestRunner& FSnapshotTestRunner::ApplySnapshot(const FPropertySelection
 	}
 	
 	return *this;
+}
+
+FSnapshotTestRunner& FSnapshotTestRunner::FilterProperties(AActor* OriginalActor, TFunction<void(const FPropertySelectionMap&)> Callback, const ULevelSnapshotFilter* Filter, FName SnapshotId)
+{
+	return AccessSnapshot([OriginalActor, &Callback, Filter](ULevelSnapshot* Snapshot)
+	{
+		TOptional<AActor*> SnapshotCounterpart = Snapshot->GetDeserializedActor(OriginalActor);
+		if (ensure(SnapshotCounterpart))
+		{
+			FPropertySelectionMap SelectedProperties;
+			ULevelSnapshotsFunctionLibrary::ApplyFilterToFindSelectedProperties(Snapshot, SelectedProperties, OriginalActor, *SnapshotCounterpart, Filter);
+			Callback(SelectedProperties);
+		}
+	}, SnapshotId);
 }
 
 FSnapshotTestRunner& FSnapshotTestRunner::RunTest(TFunction<void()> Callback)

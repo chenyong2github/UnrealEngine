@@ -1713,6 +1713,25 @@ TSharedPtr<IPlugin> FPluginManager::FindPlugin(const FStringView Name)
 	}
 }
 
+TSharedPtr<IPlugin> FPluginManager::FindPluginFromPath(const FString& PluginPath)
+{
+	FString PluginName = PluginPath;
+	FPaths::NormalizeFilename(PluginName);
+
+	if (PluginName.StartsWith(TEXT("/"), ESearchCase::CaseSensitive))
+	{
+		PluginName.RightChopInline(1);
+	}
+
+	int32 FoundIndex = INDEX_NONE;
+	if (PluginName.FindChar(TEXT('/'), FoundIndex))
+	{
+		PluginName.LeftInline(FoundIndex);
+	}
+
+	return FindPlugin(PluginName);
+}
+
 TArray<TSharedRef<IPlugin>> FPluginManager::GetEnabledPlugins()
 {
 	TArray<TSharedRef<IPlugin>> Plugins;

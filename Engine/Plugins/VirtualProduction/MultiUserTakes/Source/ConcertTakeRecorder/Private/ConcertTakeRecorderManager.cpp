@@ -391,6 +391,7 @@ void FConcertTakeRecorderManager::OnTakeRecorderInitialized(UTakeRecorder* TakeR
 				FConcertTakeInitializedEvent TakeInitializedEvent;
 				TakeInitializedEvent.TakeName = TakeRecorder->GetName();
 				TakeInitializedEvent.TakePresetPath = TakeMetaData->GetPresetOrigin()->GetPathName();
+				TakeInitializedEvent.Settings = GetDefault<UTakeRecorderUserSettings>()->Settings;
 
 				FConcertLocalIdentifierTable InLocalIdentifierTable;
 				FConcertSyncObjectWriter Writer(&InLocalIdentifierTable, TakeMetaData, TakeInitializedEvent.TakeData, true, false);
@@ -471,7 +472,7 @@ void FConcertTakeRecorderManager::OnTakeInitializedEvent(const FConcertSessionCo
 			UTakeRecorderSources* Sources = LevelSequence->FindMetaData<UTakeRecorderSources>();
 
 			FTakeRecorderParameters DefaultParams;
-			DefaultParams.User = GetDefault<UTakeRecorderUserSettings>()->Settings;
+			DefaultParams.User = InEvent.Settings;
 			DefaultParams.Project = GetDefault<UTakeRecorderProjectSettings>()->Settings;
 
 			UTakeRecorder* NewRecorder = NewObject<UTakeRecorder>(GetTransientPackage(), NAME_None, RF_Transient);

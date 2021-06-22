@@ -211,17 +211,23 @@ void UAudioMixerBlueprintLibrary::SetSubmixEffectChainOverride(const UObject* Wo
 
 		for (USoundEffectSubmixPreset* SubmixEffectPreset : InSubmixEffectPresetChain)
 		{
-			FSoundEffectSubmixInitData InitData;
-			InitData.SampleRate = MixerDevice->GetSampleRate();
-			InitData.ParentPresetUniqueId = SubmixEffectPreset->GetUniqueID();
+			if (SubmixEffectPreset)
+			{
+				FSoundEffectSubmixInitData InitData;
+				InitData.SampleRate = MixerDevice->GetSampleRate();
+				InitData.ParentPresetUniqueId = SubmixEffectPreset->GetUniqueID();
 
-			TSoundEffectSubmixPtr SoundEffectSubmix = USoundEffectPreset::CreateInstance<FSoundEffectSubmixInitData, FSoundEffectSubmix>(InitData, *SubmixEffectPreset);
-			SoundEffectSubmix->SetEnabled(true);
+				TSoundEffectSubmixPtr SoundEffectSubmix = USoundEffectPreset::CreateInstance<FSoundEffectSubmixInitData, FSoundEffectSubmix>(InitData, *SubmixEffectPreset);
+				SoundEffectSubmix->SetEnabled(true);
 
-			NewSubmixEffectPresetChain.Add(SoundEffectSubmix);
+				NewSubmixEffectPresetChain.Add(SoundEffectSubmix);
+			}
 		}
 		
-		MixerDevice->SetSubmixEffectChainOverride(InSoundSubmix, NewSubmixEffectPresetChain, InFadeTimeSec);
+		if (NewSubmixEffectPresetChain.Num() > 0)
+		{
+			MixerDevice->SetSubmixEffectChainOverride(InSoundSubmix, NewSubmixEffectPresetChain, InFadeTimeSec);
+		}
 	}
 }
 

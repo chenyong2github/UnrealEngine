@@ -50,7 +50,9 @@ enum EObjectMark
 	OBJECTMARK_NotForServer					= 0x00000040,		// Temporary save tag for server load flag.
 	OBJECTMARK_NotAlwaysLoadedForEditorGame	= 0x00000080,		// Temporary save tag for editorgame load flag.
 	OBJECTMARK_EditorOnly					= 0x00000100,		// Temporary editor only flag
-	OBJECTMARK_KeepForTargetPlatform		= 0x00000200,		// Temporary save tag to keep an object, derived from the load exclusion flags above
+	OBJECTMARK_NotForTargetPlatform			= 0x00000200,		// Temporary save tag for stripping objets based on TargetPlatform 
+	// Set of marks to inherit up the outer chain, etc
+	OBJECTMARK_INHERITEDMARKS				= OBJECTMARK_NotForClient | OBJECTMARK_NotForServer | OBJECTMARK_EditorOnly | OBJECTMARK_NotForTargetPlatform,
 	OBJECTMARK_ALLMARKS						= 0xffffffff,		// -1, all possible marks
 };
 

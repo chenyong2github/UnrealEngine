@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RemoteControlPresetEditorToolkit.h"
+
+#include "Framework/Docking/TabManager.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlUIModule.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SWidget.h"
-#include "Framework/Docking/TabManager.h"
-#include "Subsystems/AssetEditorSubsystem.h"
 #include "UI/SRCPanelExposedEntitiesList.h"
 #include "UI/SRCPanelTreeNode.h"
 #include "UI/SRemoteControlPanel.h"
@@ -60,7 +61,23 @@ void FRemoteControlPresetEditorToolkit::InitRemoteControlPresetEditor(const EToo
 	InvokePanelTab();
 }
 
-void FRemoteControlPresetEditorToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
+FRemoteControlPresetEditorToolkit::~FRemoteControlPresetEditorToolkit()
+{
+	if (FModuleManager::Get().IsModuleLoaded("LevelEditor"))
+	{
+		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+		if (TSharedPtr<FTabManager> EditorTabManager = LevelEditorModule.GetLevelEditorTabManager())
+		{
+			UnregisterTabSpawners(EditorTabManager.ToSharedRef());
+			if (TSharedPtr<SDockTab> Tab = EditorTabManager->FindExistingLiveTab(PanelTabId))
+			{
+				Tab->RequestCloseTab();
+			}
+		}
+	}
+}
+
+void FRemoteControlPresetEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
 	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_RemoteControlPanel", "Remote Control Panel"));
 
@@ -70,7 +87,7 @@ void FRemoteControlPresetEditorToolkit::RegisterTabSpawners(const TSharedRef<cla
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.GameSettings.Small"));
 }
 
-void FRemoteControlPresetEditorToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
+void FRemoteControlPresetEditorToolkit::UnregisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
 	InTabManager->UnregisterTabSpawner(PanelTabId);
 }

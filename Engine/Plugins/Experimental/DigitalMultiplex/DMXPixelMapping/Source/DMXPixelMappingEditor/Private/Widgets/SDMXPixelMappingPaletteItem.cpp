@@ -20,7 +20,7 @@ void SDMXPixelMappingHierarchyItemHeader::Construct(const FArguments& InArgs, co
 		.Content()
 		[
 			SNew(STextBlock)
-				.Text(InViewModel->GetName())
+			.Text(InViewModel->GetName())
 		],
 		InOwnerTableView);
 }
@@ -38,7 +38,7 @@ void SDMXPixelMappingHierarchyItemTemplate::Construct(const FArguments& InArgs, 
 		.Content()
 		[
 			SNew(STextBlock)
-				.Text(InViewModel->GetName())
+			.Text(InViewModel->GetName())
 		],
 		InOwnerTableView);
 
@@ -47,5 +47,14 @@ void SDMXPixelMappingHierarchyItemTemplate::Construct(const FArguments& InArgs, 
 FReply SDMXPixelMappingHierarchyItemTemplate::OnDraggingWidget(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	check(ViewModel.IsValid());
-	return FReply::Handled().BeginDragDrop(FDMXPixelMappingDragDropOp::New(ViewModel.Pin()->GetTemplate()));
+
+	if (FDMXPixelMappingComponentTemplatePtr ComponentTemplatePtr = ViewModel.Pin()->GetTemplate())
+	{
+		const FVector2D DragOffset = FVector2D::ZeroVector;
+		TArray<FDMXPixelMappingComponentTemplatePtr> TemplateArray = TArray<FDMXPixelMappingComponentTemplatePtr>({ ComponentTemplatePtr });
+
+		return FReply::Handled().BeginDragDrop(FDMXPixelMappingDragDropOp::New(DragOffset, TemplateArray, nullptr));
+	}
+
+	return FReply::Unhandled();
 }

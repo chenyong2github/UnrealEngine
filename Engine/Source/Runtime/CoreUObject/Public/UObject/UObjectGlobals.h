@@ -1956,7 +1956,7 @@ public:
 	/**
 	 * Adds references to a map of objects.
 	 *
-	 * @param ObjectArray Referenced objects map.
+	 * @param Map Referenced objects map.
 	 * @param ReferencingObject Referencing object (if available).
 	 * @param ReferencingProperty Referencing property (if available).
 	 */
@@ -1995,6 +1995,16 @@ public:
 	}
 
 
+
+	/**
+	 * Adds any applicable references from a UScriptStruct. Only necessary to handle cases of an unreflected/non-UPROPERTY struct that wants to have references emitted.
+	 *
+	 * @param ScriptStruct Script struct to add referenced objects from
+	 * @param StructMemory Memory of struct instance
+	 * @param ReferencingObject Referencing object (if available).
+	 * @param ReferencingProperty Referencing property (if available).
+	 */
+	void AddReferencedObjects(const class UScriptStruct*& ScriptStruct, void* StructMemory, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr);
 
 	/**
 	 * Adds object reference.

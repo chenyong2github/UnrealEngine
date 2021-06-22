@@ -19,13 +19,15 @@ FDMXEntityReference::FDMXEntityReference(UDMXEntity* InEntity)
 	SetEntity(InEntity);
 }
 
-void FDMXEntityReference::SetEntity(const UDMXEntity* NewEntity)
+void FDMXEntityReference::SetEntity(UDMXEntity* NewEntity)
 {
-	if (NewEntity != nullptr)
+	if (NewEntity)
 	{
 		DMXLibrary = NewEntity->GetParentLibrary();
 		EntityId = NewEntity->GetID();
 		EntityType = NewEntity->GetClass();
+		
+		CachedEntity = NewEntity;
 	}
 	else if (EntityId.IsValid())
 	{
@@ -40,7 +42,11 @@ void FDMXEntityReference::InvalidateId()
 
 UDMXEntity* FDMXEntityReference::GetEntity() const
 {
-	if (DMXLibrary != nullptr && EntityId.IsValid())
+	if (CachedEntity.IsValid())
+	{
+		return CachedEntity.Get();
+	}
+	else if (DMXLibrary && EntityId.IsValid())
 	{
 		if (UDMXEntity* Entity = DMXLibrary->FindEntity(EntityId))
 		{
@@ -93,12 +99,7 @@ FDMXEntityFixtureTypeRef::FDMXEntityFixtureTypeRef(UDMXEntityFixtureType* InFixt
 
 UDMXEntityFixtureType* FDMXEntityFixtureTypeRef::GetFixtureType() const
 {
-	if (!CachedEntityFixtureType.IsValid())
-	{
-		CachedEntityFixtureType = Cast<UDMXEntityFixtureType>(GetEntity());
-	}
-
-	return CachedEntityFixtureType.Get();
+	return Cast<UDMXEntityFixtureType>(GetEntity());
 }
 
 FDMXEntityFixturePatchRef::FDMXEntityFixturePatchRef()
@@ -112,12 +113,7 @@ FDMXEntityFixturePatchRef::FDMXEntityFixturePatchRef(UDMXEntityFixturePatch* InF
 
 UDMXEntityFixturePatch* FDMXEntityFixturePatchRef::GetFixturePatch() const
 {
-	if (!CachedEntityFixturePatch.IsValid())
-	{
-		CachedEntityFixturePatch = Cast<UDMXEntityFixturePatch>(GetEntity());
-	}
-
-	return CachedEntityFixturePatch.Get();
+	return Cast<UDMXEntityFixturePatch>(GetEntity());
 }
 
 //~ Type conversions extension for Entity Reference structs

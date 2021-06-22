@@ -19,6 +19,7 @@ namespace UnrealBuildTool.Rules
 					"GeometryCore",
 					"MeshConversion",
 					"MeshDescription",
+					"MeshMergeUtilities",
 					"MeshModelingTools",
 					"MeshUtilitiesCommon",
 					"ModelingOperators",

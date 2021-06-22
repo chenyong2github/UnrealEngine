@@ -210,10 +210,9 @@ FString SteamP2PConnectError(EP2PSessionError InError)
 
 	switch (InError)
 	{
+		// there are two other constants here but they are both deprecated/slated for removal
 		SteamResultCase(k_EP2PSessionErrorNone,				TEXT("None"));
-		SteamResultCase(k_EP2PSessionErrorNotRunningApp,	TEXT("NotRunningApp"));
 		SteamResultCase(k_EP2PSessionErrorNoRightsToApp,	TEXT("NoRightsToApp"));
-		SteamResultCase(k_EP2PSessionErrorDestinationNotLoggedIn,	TEXT("DestinationNotLoggedIn"));
 		SteamResultCase(k_EP2PSessionErrorTimeout,			TEXT("Timeout"));
 
 	default:

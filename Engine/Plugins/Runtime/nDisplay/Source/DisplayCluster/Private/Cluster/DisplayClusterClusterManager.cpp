@@ -624,17 +624,47 @@ TUniquePtr<IDisplayClusterNodeController> FDisplayClusterClusterManager::CreateC
 void FDisplayClusterClusterManager::OnClusterEventJsonHandler(const FDisplayClusterClusterEventJson& Event)
 {
 	FScopeLock Lock(&ClusterEventListenersCritSec);
+
+	decltype(ClusterEventListeners) InvalidListeners;
+
 	for (auto Listener : ClusterEventListeners)
 	{
+		if (!Listener.GetObject()) // Note: .GetInterface() is always returning null when intefrace is added to class in the Blueprint.
+		{
+			UE_LOG(LogDisplayClusterCluster, Warning, TEXT("Will remove invalid cluster event listener"));
+			InvalidListeners.Add(Listener);
+			continue;
+		}
+
 		Listener->Execute_OnClusterEventJson(Listener.GetObject(), Event);
+	}
+
+	for (auto& InvalidListener : InvalidListeners)
+	{
+		ClusterEventListeners.Remove(InvalidListener);
 	}
 }
 
 void FDisplayClusterClusterManager::OnClusterEventBinaryHandler(const FDisplayClusterClusterEventBinary& Event)
 {
 	FScopeLock Lock(&ClusterEventListenersCritSec);
+
+	decltype(ClusterEventListeners) InvalidListeners;
+
 	for (auto Listener : ClusterEventListeners)
 	{
+		if (!Listener.GetObject()) // Note: .GetInterface() is always returning null when intefrace is added to class in the Blueprint.
+		{
+			UE_LOG(LogDisplayClusterCluster, Warning, TEXT("Will remove invalid cluster event listener"));
+			InvalidListeners.Add(Listener);
+			continue;
+		}
+
 		Listener->Execute_OnClusterEventBinary(Listener.GetObject(), Event);
+	}
+
+	for (auto& InvalidListener : InvalidListeners)
+	{
+		ClusterEventListeners.Remove(InvalidListener);
 	}
 }

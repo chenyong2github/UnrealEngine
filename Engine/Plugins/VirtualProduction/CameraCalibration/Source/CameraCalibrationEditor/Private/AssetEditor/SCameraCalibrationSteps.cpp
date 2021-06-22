@@ -134,7 +134,20 @@ void SCameraCalibrationSteps::Construct(const FArguments& InArgs, TWeakPtr<FCame
 						.Padding(5, 0, 0, 0)
 						[
 							SNew(STextBlock) // Title text
-							.Text(LOCTEXT("StepSettings", "Step"))
+							.Text_Lambda([&]() -> FText
+							{
+								for (const TStrongObjectPtr<UCameraCalibrationStep>& Step : CalibrationStepsController.Pin()->GetCalibrationSteps())
+								{
+									if (!Step.IsValid() || !Step->IsActive())
+									{
+										continue;
+									}
+
+									return FText::FromName(Step->FriendlyName());
+								}
+
+								return LOCTEXT("StepSettings", "Step");
+							})
 							.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 							.ShadowOffset(FVector2D(1.0f, 1.0f))
 						]

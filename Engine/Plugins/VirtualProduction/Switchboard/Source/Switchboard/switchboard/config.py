@@ -1,18 +1,25 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
-import os
-import os.path
-import json
-import socket
-from .switchboard_logging import LOGGER
-import switchboard.switchboard_utils as sb_utils
-import shutil
+
 import fnmatch
+import json
+import os
+import pathlib
+import socket
 import sys
+import typing
 
 from PySide2 import QtCore
+from PySide2 import QtGui
 
-CONFIG_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', "configs"))
+from switchboard.switchboard_logging import LOGGER
+
+ROOT_CONFIGS_PATH = pathlib.Path(__file__).parent.with_name('configs')
+CONFIG_SUFFIX = '.json'
+
+USER_SETTINGS_FILE_PATH = ROOT_CONFIGS_PATH.joinpath('user_settings.json')
+
 DEFAULT_MAP_TEXT = '-- Default Map --'
+
 
 class Setting(QtCore.QObject):
     signal_setting_changed = QtCore.Signal(object, object)
@@ -32,14 +39,14 @@ class Setting(QtCore.QObject):
         filtervalueset_fn (function): This function will validate and modify the settings value being set. None is allowed.
     """
     def __init__(
-        self, 
-        attr_name, 
-        nice_name, 
-        value, 
-        possible_values=[], 
-        placholder_text=None, 
-        tool_tip=None, 
-        show_ui=True, 
+        self,
+        attr_name,
+        nice_name,
+        value,
+        possible_values=[],
+        placholder_text=None,
+        tool_tip=None,
+        show_ui=True,
         filtervalueset_fn=None
     ):
         super().__init__()
@@ -107,9 +114,119 @@ class Setting(QtCore.QObject):
         self._overrides = {}
 
 
-# Store engine path, uproject path
+class ConfigPathError(Exception):
+    '''
+    Base exception type for config path related errors.
+    '''
+    pass
+
+
+class ConfigPathEmptyError(ConfigPathError):
+    '''
+    Exception type raised when an empty or all whitespace string is used as a
+    config path.
+    '''
+    pass
+
+
+class ConfigPathLocationError(ConfigPathError):
+    '''
+    Exception type raised when a config path is located outside of the root
+    configs directory.
+    '''
+    pass
+
+
+class ConfigPathIsUserSettingsError(ConfigPathError):
+    '''
+    Exception type raised when the user settings file path is used as a config
+    path.
+    '''
+    pass
+
+
+def get_absolute_config_path(
+        config_path: typing.Union[str, pathlib.Path]) -> pathlib.Path:
+    '''
+    Returns the given string or path object as an absolute config path.
+
+    The string/path is validated to ensure that:
+      - It is not empty, or all whitespace
+      - It ends with the config path suffix
+      - If it is already absolute, that it is underneath the root configs path
+      - It is not the same path as the user settings file path
+    '''
+    if isinstance(config_path, str):
+        config_path = config_path.strip()
+        if not config_path:
+            raise ConfigPathEmptyError('Config path cannot be empty')
+
+        config_path = pathlib.Path(config_path)
+
+    # Manually add the suffix instead of using pathlib.Path.with_suffix().
+    # For strings like "foo.bar", with_suffix() will first remove ".bar"
+    # before adding the suffix, which we don't want it to do.
+    if not config_path.name.endswith(CONFIG_SUFFIX):
+        config_path = config_path.with_name(
+            f'{config_path.name}{CONFIG_SUFFIX}')
+
+    if config_path.is_absolute():
+        # Paths that are already absolute must have the root configs path as a
+        # parent path.
+        # Python 3.9 introduced pathlib.Path.is_relative_to(), which would read
+        # a bit nicer here.
+        if ROOT_CONFIGS_PATH not in config_path.parents:
+            raise ConfigPathLocationError(
+                f'Config path "{config_path}" is not underneath the root '
+                f'configs path "{ROOT_CONFIGS_PATH}"')
+    else:
+        # Relative paths can simply be made absolute.
+        config_path = ROOT_CONFIGS_PATH.joinpath(config_path)
+
+    if config_path.resolve() == USER_SETTINGS_FILE_PATH:
+        raise ConfigPathIsUserSettingsError(
+            'Config path cannot be the same as the user settings file '
+            f'path "{USER_SETTINGS_FILE_PATH}"')
+
+    return config_path
+
+
+def get_relative_config_path(
+        config_path: typing.Union[str, pathlib.Path]) -> pathlib.Path:
+    '''
+    Returns the given string or path object as a config path relative to the
+    root configs path.
+
+    An absolute path is generated first to perform all of the same validation
+    as get_absolute_config_path() before the relative path is computed and
+    returned.
+    '''
+    config_path = get_absolute_config_path(config_path)
+    return config_path.relative_to(ROOT_CONFIGS_PATH)
+
+
+class ConfigPathValidator(QtGui.QValidator):
+    '''
+    Validator to determine whether the input is an acceptable config file
+    path.
+
+    If the input is not acceptable, the state is returned as Intermediate
+    rather than Invalid so as not to interfere with the user typing in the
+    text field.
+    '''
+
+    def validate(self, input, pos):
+        try:
+            get_absolute_config_path(input)
+        except Exception:
+            return QtGui.QValidator.Intermediate
+
+        return QtGui.QValidator.Acceptable
+
 
 class Config(object):
+
+    DEFAULT_CONFIG_PATH = ROOT_CONFIGS_PATH.joinpath(f'Default{CONFIG_SUFFIX}')
 
     saving_allowed = True
     saving_allowed_fifo = []
@@ -125,8 +242,8 @@ class Config(object):
         '''
         self.saving_allowed = self.saving_allowed_fifo.pop()
 
-    def __init__(self, file_name):
-        self.init_with_file_name(file_name)
+    def __init__(self, file_path: typing.Union[str, pathlib.Path]):
+        self.init_with_file_path(file_path)
 
     @staticmethod
     def clean_p4_path(path):
@@ -134,19 +251,21 @@ class Config(object):
         '''
         if not path:
             return ''
-            
+
         path = path.strip()
 
         while len(path) and path[-1] == '/':
             path = path[:-1]
-        
+
         return path
 
-    def init_new_config(self, project_name, uproject, engine_dir, p4_settings):
+    def init_new_config(self, file_path: typing.Union[str, pathlib.Path],
+                        uproject, engine_dir, p4_settings):
         ''' Initialize new configuration
         '''
 
-        self.PROJECT_NAME = project_name
+        self.file_path = get_absolute_config_path(file_path)
+        self.PROJECT_NAME = self.file_path.stem
         self.UPROJECT_PATH = Setting("uproject", "uProject Path", uproject, tool_tip="Path to uProject")
         self.SWITCHBOARD_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../'))
         self.ENGINE_DIR = Setting("engine_dir", "Engine Directory", engine_dir, tool_tip="Path to UE4 engine directory")
@@ -157,15 +276,15 @@ class Config(object):
         self.SOURCE_CONTROL_WORKSPACE = Setting("source_control_workspace", "Workspace Name", p4_settings['p4_workspace_name'], tool_tip="SourceControl Workspace/Branch")
 
         self.P4_PROJECT_PATH = Setting(
-            attr_name="p4_sync_path", 
-            nice_name="Perforce Project Path", 
+            attr_name="p4_sync_path",
+            nice_name="Perforce Project Path",
             value=p4_settings['p4_project_path'],
             filtervalueset_fn=Config.clean_p4_path,
         )
 
         self.P4_ENGINE_PATH = Setting(
-            attr_name="p4_engine_path", 
-            nice_name="Perforce Engine Path", 
+            attr_name="p4_engine_path",
+            nice_name="Perforce Engine Path",
             value=p4_settings['p4_engine_path'],
             filtervalueset_fn=Config.clean_p4_path,
         )
@@ -190,24 +309,23 @@ class Config(object):
         self._plugin_data_from_config = {}
         self._plugin_settings = {}
         self._device_settings = {}
-        
-        self.file_path = os.path.normpath(os.path.join(CONFIG_DIR, self.name_to_config_file_name(project_name, unique=True)))
-        file_name = os.path.basename(self.file_path)
-        SETTINGS.CONFIG = file_name
-        LOGGER.info(f"Creating new config saved in {SETTINGS.CONFIG}")
+
+        LOGGER.info(f"Creating new config saved in {self.file_path}")
+        self.save()
+
+        SETTINGS.CONFIG = self.file_path
         SETTINGS.save()
-        CONFIG.save()
 
-    def init_with_file_name(self, file_name):
-        if file_name:
-            self.file_path = os.path.normpath(os.path.join(CONFIG_DIR, file_name))
-
-            # Read the json config file
+    def init_with_file_path(self, file_path: typing.Union[str, pathlib.Path]):
+        if file_path:
             try:
+                self.file_path = get_absolute_config_path(file_path)
+
+                # Read the json config file
                 with open(self.file_path) as f:
                     LOGGER.debug(f'Loading Config {self.file_path}')
                     data = json.load(f)
-            except FileNotFoundError as e:
+            except (ConfigPathError, FileNotFoundError) as e:
                 LOGGER.error(f'Config: {e}')
                 self.file_path = None
                 data = {}
@@ -242,17 +360,17 @@ class Config(object):
         self.SOURCE_CONTROL_WORKSPACE = Setting("source_control_workspace", "Workspace Name", data.get("source_control_workspace"), tool_tip="SourceControl Workspace/Branch")
 
         self.P4_PROJECT_PATH = Setting(
-            "p4_sync_path", 
-            "Perforce Project Path", 
-            data.get("p4_sync_path", ''), 
+            "p4_sync_path",
+            "Perforce Project Path",
+            data.get("p4_sync_path", ''),
             placholder_text="//UE4/Project",
             filtervalueset_fn=Config.clean_p4_path,
         )
 
         self.P4_ENGINE_PATH = Setting(
-            "p4_engine_path", 
-            "Perforce Engine Path", 
-            data.get("p4_engine_path", ''), 
+            "p4_engine_path",
+            "Perforce Engine Path",
+            data.get("p4_engine_path", ''),
             placholder_text="//UE4/Project/Engine",
             filtervalueset_fn=Config.clean_p4_path,
         )
@@ -329,29 +447,23 @@ class Config(object):
         if device_name in known_devices:
             self.save()
 
-    def is_writable(self):
-        if not self.file_path:
-            return False
-
-        if os.path.exists(self.file_path) and os.path.isfile(self.file_path):
-            return os.access(self.file_path, os.W_OK)
-
-        return False
-
-    def rename(self, new_config_name):
+    def replace(self, new_config_path: typing.Union[str, pathlib.Path]):
         """
-        Move the file
+        Move the file.
+
+        If a file already exists at the new path, it will be overwritten.
         """
-        new_file_path = os.path.normpath(os.path.join(CONFIG_DIR, new_config_name))
+        new_config_path = get_absolute_config_path(new_config_path)
 
         if self.file_path:
-            shutil.move(self.file_path, new_file_path)
+            new_config_path.parent.mkdir(parents=True, exist_ok=True)
+            self.file_path.replace(new_config_path)
 
-        self.file_path = new_file_path
+        self.file_path = new_config_path
         self.save()
 
     def save(self):
-        if not self.saving_allowed:
+        if not self.file_path or not self.saving_allowed:
             return
 
         data = {}
@@ -364,8 +476,8 @@ class Config(object):
         data["maps_path"] = self.MAPS_PATH.get_value()
         data["maps_filter"] = self.MAPS_FILTER.get_value()
         data["listener_exe"] = self.LISTENER_EXE
-        
-		# OSC settings
+
+        # OSC settings
         data["osc_server_port"] = self.OSC_SERVER_PORT.get_value()
         data["osc_client_port"] = self.OSC_CLIENT_PORT.get_value()
 
@@ -374,7 +486,7 @@ class Config(object):
         data["p4_sync_path"] = self.P4_PROJECT_PATH.get_value()
         data["p4_engine_path"] = self.P4_ENGINE_PATH.get_value()
         data["source_control_workspace"] = self.SOURCE_CONTROL_WORKSPACE.get_value()
-        
+
         # MU Settings
         data["multiuser_exe"] = self.MULTIUSER_SERVER_EXE
         data["muserver_command_line_arguments"] = self.MUSERVER_COMMAND_LINE_ARGUMENTS
@@ -424,7 +536,8 @@ class Config(object):
 
         # Save to file
         #
-        with open(f'{self.file_path}', 'w') as f:
+        self.file_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.file_path, 'w') as f:
             json.dump(data, f, indent=4)
             LOGGER.debug(f'Config File: {self.file_path} updated')
 
@@ -514,60 +627,38 @@ class Config(object):
 
             return os.path.normpath(os.path.join(engine_dir, 'Binaries', platform_bin_subdir, exe_name))
 
-    @staticmethod
-    def name_to_config_file_name(name, unique=False):
-        """
-        Given a name like My_Project return config_My_Project.json
-        """
-        if not unique:
-            return f'config_{name}.json'
-
-        i = 1
-        file_name = f'config_{name}.json'
-        file_path = os.path.normpath(os.path.join(CONFIG_DIR, file_name))
-        while os.path.isfile(file_path):
-            file_name = f'config_{name}_{i}.json'
-            file_path = os.path.normpath(os.path.join(CONFIG_DIR, file_name))
-            i+=1
-
-        return file_name
-
-    @staticmethod
-    def config_file_name_to_name(file_name):
-        """
-        Given a file name like config_My_Project.json return My_Project
-        """
-        name = sb_utils.remove_prefix(file_name, 'config_')
-        return os.path.splitext(name)[0]
-
 
 class UserSettings(object):
-    def __init__(self, file_name='user_settings.json'):
-        self.file_path = os.path.normpath(os.path.join(CONFIG_DIR, file_name))
 
+    def __init__(self):
         try:
-            with open(self.file_path) as f:
-                LOGGER.debug(f'Loading Settings {self.file_path}')
+            with open(USER_SETTINGS_FILE_PATH) as f:
+                LOGGER.debug(f'Loading Settings {USER_SETTINGS_FILE_PATH}')
                 data = json.load(f)
-        # Create a default user_settings
         except FileNotFoundError:
+            # Create a default user_settings
             data = {}
-            LOGGER.debug(f'Creating default user settings')
+            LOGGER.debug('Creating default user settings')
 
-        config_files = list_config_files()
-        if config_files:
-            config_files = config_files[0]
-        else:
-            config_files = ''
+        self.CONFIG = data.get('config')
+        if self.CONFIG:
+            try:
+                self.CONFIG = get_absolute_config_path(self.CONFIG)
+            except ConfigPathError as e:
+                LOGGER.error(e)
+                self.CONFIG = None
 
-        self.CONFIG = data.get('config', config_files)
+        if not self.CONFIG:
+            config_paths = list_config_paths()
+            self.CONFIG = config_paths[0] if config_paths else None
+
         # IP Address of the machine running Switchboard
         self.IP_ADDRESS = data.get('ip_address', socket.gethostbyname(socket.gethostname()))
 
         self.TRANSPORT_PATH = data.get('transport_path', '')
 
         # UI Settings
-        self.MUSERVER_SESSION_NAME = data.get('muserver_session_name', f'MU_Session')
+        self.MUSERVER_SESSION_NAME = data.get('muserver_session_name', 'MU_Session')
         self.CURRENT_SEQUENCE = data.get('current_sequence', 'Default')
         self.CURRENT_SLATE = data.get('current_slate', 'Scene')
         self.CURRENT_TAKE = data.get('current_take', 1)
@@ -578,30 +669,40 @@ class UserSettings(object):
         self.save()
 
     def save(self):
-        data = {}
-        data['config'] = self.CONFIG
-        data['ip_address'] = self.IP_ADDRESS
-        data['transport_path'] = self.TRANSPORT_PATH
-        data["muserver_session_name"] = self.MUSERVER_SESSION_NAME
-        data["current_sequence"] = self.CURRENT_SEQUENCE
-        data["current_slate"] = self.CURRENT_SLATE
-        data["current_take"] = self.CURRENT_TAKE
-        data["current_level"] = self.CURRENT_LEVEL
-        data["last_browsed_path"] = self.LAST_BROWSED_PATH
+        data = {
+            'config': '',
+            'ip_address': self.IP_ADDRESS,
+            'transport_path': self.TRANSPORT_PATH,
+            'muserver_session_name': self.MUSERVER_SESSION_NAME,
+            'current_sequence': self.CURRENT_SEQUENCE,
+            'current_slate': self.CURRENT_SLATE,
+            'current_take': self.CURRENT_TAKE,
+            'current_level': self.CURRENT_LEVEL,
+            'last_browsed_path': self.LAST_BROWSED_PATH,
+        }
 
-        with open(f'{self.file_path}', 'w') as f:
+        if self.CONFIG:
+            try:
+                data['config'] = str(get_relative_config_path(self.CONFIG))
+            except ConfigPathError as e:
+                LOGGER.error(e)
+
+        with open(USER_SETTINGS_FILE_PATH, 'w') as f:
             json.dump(data, f, indent=4)
 
 
-# Return a path to the user_settings.json file
-def user_settings_file():
-    return os.path.join(CONFIG_DIR, 'user_settings.json')
+def list_config_paths() -> typing.List[pathlib.Path]:
+    '''
+    Returns a list of absolute paths to all config files in the configs dir.
+    '''
+    ROOT_CONFIGS_PATH.mkdir(parents=True, exist_ok=True)
 
+    # Find all JSON files in the config dir recursively, but exclude the user
+    # settings file.
+    config_paths = [path for path in ROOT_CONFIGS_PATH.rglob(f'*{CONFIG_SUFFIX}')
+                    if path != USER_SETTINGS_FILE_PATH]
 
-# Return all the config files in config_dir()
-def list_config_files():
-    os.makedirs(CONFIG_DIR, exist_ok=True)
-    return [x for x in os.listdir(CONFIG_DIR) if x.endswith('.json') and x.startswith('config_')]
+    return config_paths
 
 
 # Get the user settings and load their config

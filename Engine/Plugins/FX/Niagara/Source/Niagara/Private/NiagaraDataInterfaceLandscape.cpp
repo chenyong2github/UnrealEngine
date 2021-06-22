@@ -273,11 +273,24 @@ bool FNDI_Landscape_SharedResource::IsUsed() const
 
 bool FNDI_Landscape_SharedResource::CanBeDestroyed() const
 {
-	return !IsUsed() && GpuDataReleasedByRt && CpuDataReleasedByRt;
+	const bool ReadyForRemoval = !IsUsed() && GpuDataReleasedByRt && CpuDataReleasedByRt;
+
+	checkf(!ReadyForRemoval || !LandscapeTextures.IsInitialized(),
+		TEXT("FNDI_Landscape_SharedResource::CanBeDestroyed returning true, but the LandscpaeTextures is still initialized! Source[%s] MinRegion[%d,%d] MaxRegion[%d,%d]"),
+		*GetNameSafe(ResourceKey.Source.Get()), ResourceKey.MinCaptureRegion.X, ResourceKey.MinCaptureRegion.Y, ResourceKey.MaxCaptureRegion.X, ResourceKey.MaxCaptureRegion.Y);
+
+	return ReadyForRemoval;
 }
 
 bool FNDI_Landscape_SharedResource::CanRepresent(const FResourceKey& RequestKey) const
 {
+	// once data has been queued for release make sure we don't try to re-use it.  CpuData can be released
+	// since it's currently just an intermediary for the Gpu data
+	if (GpuDataQueuedForRelease)
+	{
+		return false;
+	}
+
 	if (ResourceKey.Source != RequestKey.Source)
 	{
 		return false;
@@ -528,7 +541,7 @@ void FNDI_Landscape_GeneratedData::Tick(ETickingGroup TickGroup, float DeltaSeco
 
 		for (int32 LandscapeIt = 0; LandscapeIt < LandscapeCount; ++LandscapeIt)
 		{
-			const TSharedPtr<FNDI_Landscape_SharedResource>& Landscape = LandscapeData[LandscapeIt];;
+			const TSharedPtr<FNDI_Landscape_SharedResource>& Landscape = LandscapeData[LandscapeIt];
 
 			if (Landscape->CanBeDestroyed())
 			{

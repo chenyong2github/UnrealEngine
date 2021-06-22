@@ -20,7 +20,7 @@ class UGameFeatureAction_AddAttributeDefaults final : public UGameFeatureAction
 
 public:
 	//~UGameFeatureAction interface
-	virtual void OnGameFeatureActivating() override;
+	virtual void OnGameFeatureRegistering() override;
 	//~End of UGameFeatureAction interface
 
 	/** List of attribute default tables to add */

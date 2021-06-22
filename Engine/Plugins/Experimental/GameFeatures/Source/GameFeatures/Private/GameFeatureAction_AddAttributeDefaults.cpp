@@ -8,7 +8,7 @@
 //////////////////////////////////////////////////////////////////////
 // UGameFeatureAction_AddAttributeDefaults
 
-void UGameFeatureAction_AddAttributeDefaults::OnGameFeatureActivating()
+void UGameFeatureAction_AddAttributeDefaults::OnGameFeatureRegistering()
 {
 	UAbilitySystemGlobals& AbilitySystemGlobals = UAbilitySystemGlobals::Get();
 	AbilitySystemGlobals.AddAttributeDefaultTables(AttribDefaultTableNames);

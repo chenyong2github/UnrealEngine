@@ -137,19 +137,19 @@ bool FDMXOutputPort::IsRegistered() const
 	return false;
 }
 
-void FDMXOutputPort::AddRawInput(TSharedRef<FDMXRawListener> RawInput)
+void FDMXOutputPort::AddRawListener(TSharedRef<FDMXRawListener> InRawListener)
 {
-	check(!RawListeners.Contains(RawInput));
+	check(!RawListeners.Contains(InRawListener));
 
 	// Inputs need to run in the game thread
 	check(IsInGameThread());
 
-	RawListeners.Add(RawInput);
+	RawListeners.Add(InRawListener);
 }
 
-void FDMXOutputPort::RemoveRawInput(TSharedRef<FDMXRawListener> RawInput)
+void FDMXOutputPort::RemoveRawListener(TSharedRef<FDMXRawListener> InRawListenerToRemove)
 {
-	RawListeners.Remove(RawInput);
+	RawListeners.Remove(InRawListenerToRemove);
 }
 
 void FDMXOutputPort::SendDMX(int32 LocalUniverseID, const TMap<int32, uint8>& ChannelToValueMap)
@@ -178,7 +178,8 @@ void FDMXOutputPort::SendDMX(int32 LocalUniverseID, const TMap<int32, uint8>& Ch
 			{
 				int32 ChannelIndex = ChannelValueKvp.Key - 1;
 
-				if (ensure(Signal->ChannelData.IsValidIndex(ChannelIndex)))
+				// Filter invalid indicies so we can send bp calls here without testing them first.
+				if (Signal->ChannelData.IsValidIndex(ChannelIndex))
 				{
 					Signal->ChannelData[ChannelIndex] = ChannelValueKvp.Value;
 				}
@@ -186,6 +187,7 @@ void FDMXOutputPort::SendDMX(int32 LocalUniverseID, const TMap<int32, uint8>& Ch
 
 			Signal->ExternUniverseID = ExternUniverseID;
 			Signal->Timestamp = FPlatformTime::Seconds();
+			Signal->Priority = Priority;
 
 			// Send DMX
 			if (bNeedsSendDMX)
@@ -194,12 +196,9 @@ void FDMXOutputPort::SendDMX(int32 LocalUniverseID, const TMap<int32, uint8>& Ch
 			}
 
 			// Loopback to Listeners
-			if (bNeedsLoopbackToEngine)
+			for (const TSharedRef<FDMXRawListener>& RawListener : RawListeners)
 			{
-				for (const TSharedRef<FDMXRawListener>& RawListener : RawListeners)
-				{
-					RawListener->EnqueueSignal(this, Signal);
-				}
+				RawListener->EnqueueSignal(this, Signal);
 			}
 		}
 	}
@@ -295,10 +294,17 @@ void FDMXOutputPort::ClearBuffers()
 		DMXSender->ClearBuffer();
 	}
 
-	for (const TSharedRef<FDMXRawListener>& RawInput : RawListeners)
+	for (const TSharedRef<FDMXRawListener>& RawListener : RawListeners)
 	{
-		RawInput->ClearBuffer();
+		RawListener->ClearBuffer();
 	}
+
+	ExternUniverseToLatestSignalMap.Reset();
+}
+
+bool FDMXOutputPort::IsLoopbackToEngine() const
+{
+	return CommunicationDeterminator.NeedsLoopbackToEngine();
 }
 
 bool FDMXOutputPort::GameThreadGetDMXSignal(int32 LocalUniverseID, FDMXSignalSharedPtr& OutDMXSignal, bool bEvenIfNotLoopbackToEngine)

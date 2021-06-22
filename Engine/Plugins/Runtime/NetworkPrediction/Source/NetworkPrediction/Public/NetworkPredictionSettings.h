@@ -53,6 +53,51 @@ struct FNetworkPredictionSettings
 	int32 IndependentTickInterpolationMaxBufferedMS = 250;
 };
 
+USTRUCT(meta=(ShowOnlyInnerProperties))
+struct FNetworkPredictionDevHUDItem
+{
+	GENERATED_BODY();
+
+	UPROPERTY(config, EditAnywhere, Category = DevHUD)
+	FString DisplayName;
+
+	UPROPERTY(config, EditAnywhere, Category = DevHUD)
+	FString ExecCommand;
+
+	// Return to to level HUD menu after selecting this
+	UPROPERTY(config, EditAnywhere, Category = DevHUD)
+	bool bAutoBack = true;
+
+	// only works in PIE
+	UPROPERTY(config, EditAnywhere, Category = DevHUD)
+	bool bRequirePIE = false;
+
+	// only works in non PIE
+	UPROPERTY(config, EditAnywhere, Category = DevHUD)
+	bool bRequireNotPIE = false;
+};
+
+USTRUCT(meta=(ShowOnlyInnerProperties))
+struct FNetworkPredictionDevHUD
+{
+	GENERATED_BODY()
+
+	UPROPERTY(config, EditAnywhere, Category = DevHUD)
+	FString HUDName;
+
+	UPROPERTY(config, EditAnywhere, Category = DevHUD, meta=(ShowOnlyInnerProperties))
+	TArray<FNetworkPredictionDevHUDItem> Items;
+
+	// only works in PIE
+	UPROPERTY(config, EditAnywhere, Category = DevHUD)
+	bool bRequirePIE = false;
+
+	// only works in non PIE
+	UPROPERTY(config, EditAnywhere, Category = DevHUD)
+	bool bRequireNotPIE = false;
+};
+
+
 UCLASS(config=NetworkPrediction, defaultconfig, notplaceable, meta=(DisplayName="Network Prediction"))
 class UNetworkPredictionSettingsObject : public UObject
 {
@@ -62,6 +107,9 @@ public:
 
 	UPROPERTY(config, EditAnywhere, Category = "Network Prediction", meta=(ShowOnlyInnerProperties))
 	FNetworkPredictionSettings Settings;
+
+	UPROPERTY(config, EditAnywhere, Category = DevHUD, meta=(ShowOnlyInnerProperties))
+	TArray<FNetworkPredictionDevHUD> DevHUDs;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

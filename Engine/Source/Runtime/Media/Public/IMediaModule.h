@@ -185,6 +185,14 @@ public:
 	 */
 	virtual void SetTimeSource(const TSharedPtr<IMediaTimeSource, ESPMode::ThreadSafe>& NewTimeSource) = 0;
 
+
+	/**
+	 * Get the time source for the media clock.
+	 *
+	 * @return The current time source.
+	 */
+	virtual TSharedPtr<IMediaTimeSource, ESPMode::ThreadSafe> GetTimeSource() = 0;
+
 	/**
 	 * Called by the main loop after the game engine has been ticked.
 	 *

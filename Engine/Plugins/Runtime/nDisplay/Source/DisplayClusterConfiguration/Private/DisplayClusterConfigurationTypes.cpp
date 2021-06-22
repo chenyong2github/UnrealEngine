@@ -168,26 +168,6 @@ void UDisplayClusterConfigurationHostDisplayData::PostEditChangeChainProperty(FP
 
 	OnPostEditChangeChainProperty.Broadcast(PropertyChangedEvent);
 }
-
-void UDisplayClusterConfigurationSceneComponentMesh::LoadAssets()
-{
-	Asset = nullptr;
-	
-	if (AssetPath.Contains(TEXT("//"), ESearchCase::CaseSensitive))
-	{
-		UE_LOG(LogDisplayClusterConfiguration, Error, TEXT("Attempted to create a package with name containing double slashes. PackageName: %s"), *AssetPath);
-	}
-	else
-	{
-		Asset = LoadObject<UStaticMesh>(nullptr, *AssetPath, nullptr, LOAD_Quiet | LOAD_NoWarn);
-
-		if (Asset == nullptr)
-		{
-			UE_LOG(LogDisplayClusterConfiguration, Error, TEXT("Can't load asset with PackageName %s"), *AssetPath);
-		}
-	}
-}
-
 #endif
 
 UDisplayClusterConfigurationClusterNode::UDisplayClusterConfigurationClusterNode()
@@ -263,7 +243,6 @@ void UDisplayClusterConfigurationScene::GetObjectsToExport(TArray<UObject*>& Out
 	SAVE_MAP(Xforms);
 	SAVE_MAP(Screens);
 	SAVE_MAP(Cameras);
-	SAVE_MAP(Meshes);
 }
 
 FDisplayClusterConfigurationMasterNodePorts::FDisplayClusterConfigurationMasterNodePorts()
@@ -351,4 +330,10 @@ UDisplayClusterConfigurationData* UDisplayClusterConfigurationData::CreateNewCon
 		RF_ArchetypeObject | RF_Public | RF_Transactional);
 
 	return NewConfigData;
+}
+
+FDisplayClusterConfigurationICVFX_CameraRenderSettings::FDisplayClusterConfigurationICVFX_CameraRenderSettings()
+{
+	// Setup incamera defaults:
+	GenerateMips.bAutoGenerateMips = true;
 }

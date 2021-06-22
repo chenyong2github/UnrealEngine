@@ -70,7 +70,6 @@ public:
 	
 	virtual TSharedRef<IDisplayClusterConfiguratorViewOutputMapping> GetViewOutputMapping() const;
 	virtual TSharedRef<IDisplayClusterConfiguratorViewTree> GetViewCluster() const;
-	virtual TSharedRef<IDisplayClusterConfiguratorView> GetViewGeneral() const;
 
 	TSharedPtr<SDockTab> GetViewportTab() const { return ViewportTab; }
 	TSharedPtr<FEditorViewportTabContent> GetViewportTabContent() const { return ViewportTabContent; }
@@ -208,7 +207,6 @@ private:
 	void BindCommands();
 
 private:
-	TSharedPtr<FDisplayClusterConfiguratorViewGeneral> ViewGeneral;
 	TSharedPtr<FDisplayClusterConfiguratorViewOutputMapping> ViewOutputMapping;
 	TSharedPtr<FDisplayClusterConfiguratorViewCluster> ViewCluster;
 

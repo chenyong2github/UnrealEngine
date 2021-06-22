@@ -210,7 +210,7 @@ void SDisplayClusterConfiguratorBaseNode::MoveTo(const FVector2D& NewPosition, F
 		// any node being moved from overlapping with any of its siblings
 		for (UDisplayClusterConfiguratorBaseNode* BaseNode : SelectedBaseNodes)
 		{
-			if (!BaseNode->CanNodeExceedParentBounds())
+			if (!BaseNode->CanNodeExceedParentBounds() || !BaseNode->CanNodeHaveNegativePosition())
 			{
 				BestOffset = BaseNode->FindBoundedOffsetFromParent(BestOffset);
 			}

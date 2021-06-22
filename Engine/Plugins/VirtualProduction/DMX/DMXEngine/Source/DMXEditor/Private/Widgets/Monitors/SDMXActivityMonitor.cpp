@@ -126,7 +126,7 @@ void SDMXActivityMonitor::Construct(const FArguments& InArgs)
 				.VAlign(VAlign_Center)
 				[
 					SNew(SButton)
-					.Text(LOCTEXT("ClearTextLabel", "Clear"))
+					.Text(LOCTEXT("ClearTextLabel", "Clear DMX Buffers"))
 					.OnClicked(this, &SDMXActivityMonitor::OnClearButtonClicked)
 				]
 			]
@@ -405,6 +405,9 @@ void SDMXActivityMonitor::OnMaxUniverseIDValueCommitted(const FText& InNewText, 
 
 void SDMXActivityMonitor::OnSourceSelected()
 {
+	FDMXEditorUtils::ClearAllDMXPortBuffers();
+	FDMXEditorUtils::ClearFixturePatchCachedData();
+
 	ClearDisplay();
 
 	SaveMonitorSettings();

@@ -1708,6 +1708,8 @@ void FPhysicsAssetEditorSharedData::MakeNewConstraints(int32 ParentBodyIndex, co
 	// check we have valid bodies
 	check(ParentBodyIndex < PhysicsAsset->SkeletalBodySetups.Num());
 
+	TArray<int32> NewlyCreatedConstraints;
+
 	for (const int32 ChildBodyIndex : ChildBodyIndices)
 	{
 		check(ChildBodyIndex < PhysicsAsset->SkeletalBodySetups.Num());
@@ -1726,8 +1728,13 @@ void FPhysicsAssetEditorSharedData::MakeNewConstraints(int32 ParentBodyIndex, co
 		UPhysicsConstraintTemplate* ConstraintSetup = PhysicsAsset->ConstraintSetup[NewConstraintIndex];
 		check(ConstraintSetup);
 
+		NewlyCreatedConstraints.Add(NewConstraintIndex);
+
 		InitConstraintSetup(ConstraintSetup, ChildBodyIndex, ParentBodyIndex);
 	}
+
+	ClearSelectedConstraints();
+	SetSelectedConstraints(NewlyCreatedConstraints, true);
 
 	// update the tree
 	BroadcastHierarchyChanged();

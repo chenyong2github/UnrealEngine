@@ -629,7 +629,11 @@ void FUnixPlatformMemory::FPlatformVirtualMemoryBlock::Decommit(size_t InOffset,
 	check(InOffset >= 0 && InSize >= 0 && InOffset + InSize <= GetActualSize() && Ptr);
 	if (!LIKELY(GMemoryRangeDecommitIsNoOp))
 	{
-		madvise(((uint8*)Ptr) + InOffset, InSize, MADV_DONTNEED);
+		if (madvise(((uint8*)Ptr) + InOffset, InSize, MADV_DONTNEED) != 0)
+		{
+			// we can ran out of VMAs here too!
+			FPlatformMemory::OnOutOfMemory(InSize, 0);
+		}
 	}
 }
 
@@ -1051,6 +1055,10 @@ void FUnixPlatformMemory::OnOutOfMemory(uint64 Size, uint32 Alignment)
 	}
 	bIsOOM = true;
 
+	const int ErrorMsgSize = 256;
+	TCHAR ErrorMsg[ErrorMsgSize];
+	FPlatformMisc::GetSystemErrorMessage(ErrorMsg, ErrorMsgSize, 0);
+
 	FMalloc* Prev = GMalloc;
 	FPlatformMallocCrash::Get().SetAsGMalloc();
 
@@ -1077,7 +1085,8 @@ void FUnixPlatformMemory::OnOutOfMemory(uint64 Size, uint32 Alignment)
 	// let any registered handlers go
 	FCoreDelegates::GetOutOfMemoryDelegate().Broadcast();
 
-	UE_LOG(LogMemory, Fatal, TEXT("Ran out of memory allocating %llu bytes with alignment %u"), Size, Alignment);
+	// ErrorMsg might be unrelated to OoM error in some cases as the code that calls OnOutOfMemory could have called other system functions that modified errno
+	UE_LOG(LogMemory, Fatal, TEXT("Ran out of memory allocating %llu bytes with alignment %u. Last error msg: %s."), Size, Alignment, ErrorMsg);
 	// unreachable
 }
 

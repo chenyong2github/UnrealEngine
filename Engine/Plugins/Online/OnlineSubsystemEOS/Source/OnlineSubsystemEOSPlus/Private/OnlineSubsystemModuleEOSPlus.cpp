@@ -40,6 +40,11 @@ public:
 
 void FOnlineSubsystemEOSPlusModule::StartupModule()
 {
+	if (IsRunningCommandlet())
+	{
+		return;
+	}
+
 	// Force loading of the EOS OSS module in case the plugin manager failed to get the dependencies right
 	FModuleManager::LoadModuleChecked<FOnlineSubsystemModule>(TEXT("OnlineSubsystemEOS"));
 	// Make sure the base OSS has a chance to register its OSS factory

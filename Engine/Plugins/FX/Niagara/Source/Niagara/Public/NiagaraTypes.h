@@ -1578,8 +1578,6 @@ struct FNiagaraVariable : public FNiagaraVariableBase
 		return Ret;
 	}
 
-	static NIAGARA_API FNiagaraVariable ResolveAliases(const FNiagaraVariable& InVar, const TMap<FString, FString>& InAliases, const TMap<FString, FString>& InStartOnlyAliases = TMap<FString, FString>(), const TCHAR* InJoinSeparator = TEXT("."));
-
 	static int32 SearchArrayForPartialNameMatch(const TArray<FNiagaraVariable>& Variables, const FName& VariableName)
 	{
 		FString VarNameStr = VariableName.ToString();

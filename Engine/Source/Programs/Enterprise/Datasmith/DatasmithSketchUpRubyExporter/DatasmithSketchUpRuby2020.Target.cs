@@ -2,7 +2,7 @@
 
 using UnrealBuildTool;
 
-[SupportedPlatforms("Win64", "Mac")]
+[SupportedPlatforms("Win64")]
 public abstract class DatasmithSketchUpRubyBaseTarget : TargetRules
 {
 	public DatasmithSketchUpRubyBaseTarget(TargetInfo Target)
@@ -64,6 +64,7 @@ public abstract class DatasmithSketchUpRubyBaseTarget : TargetRules
 
 }
 
+[SupportedPlatforms("Win64")]
 public class DatasmithSketchUpRuby2020Target : DatasmithSketchUpRubyBaseTarget
 {
 	public DatasmithSketchUpRuby2020Target(TargetInfo Target)

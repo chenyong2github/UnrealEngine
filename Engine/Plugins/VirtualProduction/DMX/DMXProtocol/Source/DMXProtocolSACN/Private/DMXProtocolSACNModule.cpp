@@ -2,6 +2,7 @@
 
 #include "DMXProtocolSACNModule.h"
 
+#include "DMXProtocolModule.h"
 #include "DMXProtocolSACN.h"
 #include "DMXProtocolSACNConstants.h"
 #include "DMXProtocolTypes.h"
@@ -55,13 +56,14 @@ void FDMXProtocolSACNModule::StartupModule()
 {
 	FactorySACN = MakeUnique<FDMXProtocolFactorySACN>();
 
-	// Create and register our singleton factory with the main online subsystem for easy access
-	FDMXProtocolModule& DMXProtocolModule = FModuleManager::GetModuleChecked<FDMXProtocolModule>("DMXProtocol");
-	DMXProtocolModule.RegisterProtocol(DMX_PROTOCOLNAME_SACN, FactorySACN.Get());
+	// Bind to the protocol module requesting registration of protocols
+	FDMXProtocolModule::GetOnRequestProtocolRegistration().AddRaw(this, &FDMXProtocolSACNModule::RegisterWithProtocolModule);
 }
 
 void FDMXProtocolSACNModule::ShutdownModule()
 {
+	FDMXProtocolModule::GetOnRequestProtocolRegistration().RemoveAll(this);
+
 	// Unregister and destroy protocol
 	FDMXProtocolModule* DMXProtocolModule = FModuleManager::GetModulePtr<FDMXProtocolModule>("DMXProtocol");
 	if (DMXProtocolModule != nullptr)
@@ -75,6 +77,15 @@ void FDMXProtocolSACNModule::ShutdownModule()
 FDMXProtocolSACNModule& FDMXProtocolSACNModule::Get()
 {
 	return FModuleManager::GetModuleChecked<FDMXProtocolSACNModule>("DMXProtocolSACN");
+}
+
+void FDMXProtocolSACNModule::RegisterWithProtocolModule(TArray<FDMXProtocolRegistrationParams>& InOutProtocolRegistrationParamsArray)
+{
+	FDMXProtocolRegistrationParams RegistrationParams;
+	RegistrationParams.ProtocolName = DMX_PROTOCOLNAME_SACN;
+	RegistrationParams.ProtocolFactory = FactorySACN.Get();
+
+	InOutProtocolRegistrationParamsArray.Add(RegistrationParams);
 }
 
 void FDMXProtocolSACNModule::SendDMXCommandHandler(const TArray<FString>& Args)

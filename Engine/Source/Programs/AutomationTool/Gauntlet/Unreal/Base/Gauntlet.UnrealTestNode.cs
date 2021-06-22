@@ -54,6 +54,11 @@ namespace Gauntlet
 		public override string Name { get { return this.GetType().FullName; } }
 
 		/// <summary>
+		/// This class will log its own warnings and errors as part of its summary
+		/// </summary>
+		public override bool LogWarningsAndErrorsAfterSummary { get; protected set; } = false;
+
+		/// <summary>
 		/// How long this test should run for, set during LaunchTest based on results of GetConfiguration
 		/// </summary>
 		public override float MaxDuration { get; protected set; }
@@ -642,10 +647,19 @@ namespace Gauntlet
 				throw new AutomationException("Node already has a null UnrealApp, was PrepareUnrealSession or IsReadyToStart called?");
 			}
 
-			TConfigClass Config = GetCachedConfiguration();
-
+			// ensure we reset things
+			SessionArtifacts = Enumerable.Empty<UnrealRoleArtifacts>();
+			RoleResults = Enumerable.Empty<UnrealRoleResult>();
+			UnrealTestResult = TestResult.Invalid;
+			MissingProcesses = new List<IAppInstance>();
 			CurrentPass = Pass;
 			NumPasses = InNumPasses;
+			LastLogCount = 0;
+			LastHeartbeatTime = DateTime.MinValue;
+			LastActiveHeartbeatTime = DateTime.MinValue;
+			
+
+			TConfigClass Config = GetCachedConfiguration();
 
 			// Either use the ArtifactName param or name of this test
 			string TestFolder = string.IsNullOrEmpty(Context.Options.ArtifactName) ? this.ToString() : Context.Options.ArtifactName;
@@ -1404,7 +1418,7 @@ namespace Gauntlet
 		/// <returns></returns>
 		protected virtual IEnumerable<UnrealRoleResult> CreateRoleResultsFromArtifacts(StopReason InReason, IEnumerable<UnrealRoleArtifacts> InAllArtifacts)
 		{
-			return InAllArtifacts.Select(A => CreateRoleResultFromArtifact(InReason, A));
+			return InAllArtifacts.Select(A => CreateRoleResultFromArtifact(InReason, A)).ToArray();
 		}
 
 
@@ -1550,9 +1564,9 @@ namespace Gauntlet
 
 			if (LogSummary.Ensures.Count() > 0)
 			{
-				foreach (var Ensure in LogSummary.Ensures)
+				foreach (var Ensure in LogSummary.Ensures.Distinct())
 				{
-					MB.H4(string.Format("Ensure: {0}", Ensure.Message));
+					MB.H4(string.Format("Warning: Ensure: {0}", Ensure.Message));
 					MB.UnorderedList(Ensure.Callstack.Take(MaxCallstackLines));
 
 					if (Ensure.Callstack.Count() > MaxCallstackLines)
@@ -1670,6 +1684,14 @@ namespace Gauntlet
 			}
 
 			return UnrealTestResult;
+		}
+
+		/// <summary>
+		/// Result of the test once completed. Nodes inheriting from us should override
+		/// </summary>
+		public override void SetTestResult(TestResult testResult)
+		{
+			UnrealTestResult = testResult;
 		}
 
 		/// <summary>

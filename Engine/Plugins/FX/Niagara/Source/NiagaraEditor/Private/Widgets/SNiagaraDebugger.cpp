@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraDebugger.h"
+#include "SNiagaraDebuggerSpawn.h"
 #include "Editor/EditorStyle/Private/SlateEditorStyle.h"
 #include "NiagaraEditorStyle.h"
 
@@ -95,6 +96,34 @@ namespace NiagaraDebugHudTab
 		)
 		.SetDisplayName(LOCTEXT("DebugHudTabTitle", "Debug Hud"))
 		.SetTooltipText(LOCTEXT("DebugHudTooltipText", "Open the Debug Hud tab."));
+	}
+}
+
+namespace NiagaraDebugSpawnTab
+{
+	static const FName TabName = FName(TEXT("DebugSpawnTab"));
+
+	static void RegisterTabSpawner(const TSharedPtr<FTabManager>& TabManager, TSharedPtr<FNiagaraDebugger>& Debugger)
+	{
+		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+		TabManager->RegisterTabSpawner(
+			TabName,
+			FOnSpawnTab::CreateLambda(
+				[=](const FSpawnTabArgs&)
+				{
+					return SNew(SDockTab)
+						.TabRole(ETabRole::PanelTab)
+						.Label(LOCTEXT("DebugSpawnTitle", "Debug Spawn"))
+						[
+							SNew(SNiagaraDebuggerSpawn)
+							.Debugger(Debugger)
+						];
+				}
+			)
+		)
+		.SetDisplayName(LOCTEXT("DebugSpawnTabTitle", "Debug Spawn"))
+		.SetTooltipText(LOCTEXT("DebugSpawnTooltipText", "Open the Debug Spawn tab."));
 	}
 }
 
@@ -660,6 +689,7 @@ void SNiagaraDebugger::Construct(const FArguments& InArgs)
 	Debugger = InArgs._Debugger;
 
 	NiagaraDebugHudTab::RegisterTabSpawner(TabManager);
+	NiagaraDebugSpawnTab::RegisterTabSpawner(TabManager, Debugger);
 	NiagaraPerformanceTab::RegisterTabSpawner(TabManager, FOnExecConsoleCommand::CreateSP(Debugger.ToSharedRef(), &FNiagaraDebugger::ExecConsoleCommand));
 	NiagaraOutlinerTab::RegisterTabSpawner(TabManager, Debugger);
 
@@ -690,6 +720,7 @@ void SNiagaraDebugger::Construct(const FArguments& InArgs)
 #if WITH_SESSION_FRONTEND
 					->AddTab(NiagaraSessionBrowserTab::TabName, ETabState::OpenedTab)
 #endif
+					->AddTab(NiagaraDebugSpawnTab::TabName, ETabState::OpenedTab)
 					->SetForegroundTab(NiagaraDebugHudTab::TabName)
 				)
 			)

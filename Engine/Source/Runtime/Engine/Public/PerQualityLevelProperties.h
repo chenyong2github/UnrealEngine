@@ -74,6 +74,7 @@ struct ENGINE_API FPerQualityLevelProperty
 
 #if WITH_EDITOR
 	FSupportedQualityLevelArray GetSupportedQualityLevels(const TCHAR* InPlatformName = nullptr) const;
+	FSupportedQualityLevelArray GetPlatformGroupQualityLevels(const TCHAR* InGroupName) const;
 	void StripQualtiyLevelForCooking(const TCHAR* InPlatformName = nullptr);
 	bool IsQualityLevelValid(int32 QualityLevel) const;
 #endif
@@ -151,19 +152,14 @@ struct ENGINE_API FPerQualityLevelInt
 	UPROPERTY(EditAnywhere, Category = PerQualityLevel)
 	TMap<int32, int32> PerQuality;
 
-	UPROPERTY(EditAnywhere, Category = PerQualityLevel)
-	bool bIsEnabled;
-
 	FPerQualityLevelInt()
 	{
 		Default = 0;
-		bIsEnabled = false;
 	}
 
 	FPerQualityLevelInt(int32 InDefaultValue)
 	{
 		Default = InDefaultValue;
-		bIsEnabled = false;
 	}
 };
 

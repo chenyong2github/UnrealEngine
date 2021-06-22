@@ -1633,7 +1633,6 @@ static FName NAME_PLATFORM_XBOXONE(TEXT("XboxOne"));
 static FName NAME_PLATFORM_ANDROID(TEXT("Android"));
 static FName NAME_PLATFORM_IOS(TEXT("IOS"));
 static FName NAME_PLATFORM_MAC(TEXT("Mac"));
-static FName NAME_PLATFORM_SWITCH(TEXT("Switch"));
 static FName NAME_PLATFORM_TVOS(TEXT("TVOS"));
 static FName NAME_PLATFORM_LUMIN(TEXT("Lumin"));
 
@@ -1662,9 +1661,6 @@ FName ShaderPlatformToPlatformName(EShaderPlatform Platform)
 	case SP_METAL_MACES3_1:
 	case SP_METAL_MRT_MAC:
 		return NAME_PLATFORM_MAC;
-	case SP_SWITCH:
-	case SP_SWITCH_FORWARD:
-		return NAME_PLATFORM_SWITCH;
 	case SP_VULKAN_SM5_LUMIN:
 	case SP_VULKAN_ES3_1_LUMIN:
 		return NAME_PLATFORM_LUMIN;
@@ -1779,6 +1775,13 @@ RHI_API uint32 RHIGetShaderLanguageVersion(const FStaticShaderPlatform Platform)
 				{
 					MaxShaderVersion = 0;
 				}
+                
+                // If we are using Mobile desktop rendering, we need a minimum of Metal 2.1
+                if(IsMetalSM5Platform(Platform))
+                {
+                    MinShaderVersion = 4;
+                }
+                
 				MaxShaderVersion = FMath::Max(MinShaderVersion, MaxShaderVersion);
 			}
 			Version = (uint32)MaxShaderVersion;
@@ -2050,8 +2053,6 @@ FString LexToString(EShaderPlatform Platform, bool bError)
 	case SP_PCD3D_ES3_1: return TEXT("PCD3D_ES3_1");
 	case SP_OPENGL_PCES3_1: return TEXT("OPENGL_PCES3_1");
 	case SP_OPENGL_ES3_1_ANDROID: return TEXT("OPENGL_ES3_1_ANDROID");
-	case SP_SWITCH: return TEXT("SWITCH");
-	case SP_SWITCH_FORWARD: return TEXT("SWITCH_FORWARD");
 	case SP_METAL: return TEXT("METAL");
 	case SP_METAL_MRT: return TEXT("METAL_MRT");
 	case SP_METAL_TVOS: return TEXT("METAL_TVOS");

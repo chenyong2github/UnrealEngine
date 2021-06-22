@@ -27,7 +27,7 @@ FAutoConsoleCommand FDMXProtocolArtNetModule::ResetDMXSendUniverseCommand(
 	TEXT("DMX.ArtNet.ResetDMXSend"),
 	TEXT("Command for resetting DMX universe values."),
 	FConsoleCommandWithArgsDelegate::CreateStatic(&FDMXProtocolArtNetModule::ResetDMXSendUniverseHandler)
-	);
+);
 
 
 IDMXProtocolPtr FDMXProtocolFactoryArtNet::CreateProtocol(const FName & ProtocolName)
@@ -56,13 +56,14 @@ void FDMXProtocolArtNetModule::StartupModule()
 {
 	FactoryArtNet = MakeUnique<FDMXProtocolFactoryArtNet>();
 
-	// Create and register our singleton factory with the main online subsystem for easy access
-	FDMXProtocolModule& DMXProtocolModule = FModuleManager::GetModuleChecked<FDMXProtocolModule>("DMXProtocol");
-	DMXProtocolModule.RegisterProtocol(DMX_PROTOCOLNAME_ARTNET, FactoryArtNet.Get());
+	// Bind to the protocol module requesting registration of protocols
+	FDMXProtocolModule::GetOnRequestProtocolRegistration().AddRaw(this, &FDMXProtocolArtNetModule::RegisterWithProtocolModule);
 }
 
 void FDMXProtocolArtNetModule::ShutdownModule()
 {
+	FDMXProtocolModule::GetOnRequestProtocolRegistration().RemoveAll(this);
+
 	// Unregister and destroy protocol
 	FDMXProtocolModule* DMXProtocolModule = FModuleManager::GetModulePtr<FDMXProtocolModule>("DMXProtocol");
 	if (DMXProtocolModule != nullptr)
@@ -76,6 +77,15 @@ void FDMXProtocolArtNetModule::ShutdownModule()
 FDMXProtocolArtNetModule& FDMXProtocolArtNetModule::Get()
 {
 	return FModuleManager::GetModuleChecked<FDMXProtocolArtNetModule>("DMXProtocolArtNet");
+}
+
+void FDMXProtocolArtNetModule::RegisterWithProtocolModule(TArray<FDMXProtocolRegistrationParams>& InOutProtocolRegistrationParamsArray)
+{	
+	FDMXProtocolRegistrationParams RegistrationParams;
+	RegistrationParams.ProtocolName = DMX_PROTOCOLNAME_ARTNET;
+	RegistrationParams.ProtocolFactory = FactoryArtNet.Get();
+
+	InOutProtocolRegistrationParamsArray.Add(RegistrationParams);
 }
 
 void FDMXProtocolArtNetModule::SendDMXCommandHandler(const TArray<FString>& Args)

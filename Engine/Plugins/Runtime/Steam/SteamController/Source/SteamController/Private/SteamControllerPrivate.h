@@ -19,7 +19,9 @@
  	MSVC_PRAGMA( warning( disable : ALL_CODE_ANALYSIS_WARNINGS ) )
 #endif	// USING_CODE_ANALYSIS
 
+THIRD_PARTY_INCLUDES_START
 #include "steam/steam_api.h"
+THIRD_PARTY_INCLUDES_END
 
 #if USING_CODE_ANALYSIS
  	MSVC_PRAGMA( warning( pop ) )

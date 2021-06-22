@@ -3,30 +3,26 @@
 #pragma once
 
 #include "Curves/RichCurve.h"
-#include "Engine/EngineTypes.h"
 #include "LensData.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
+#include "Tables/BaseLensTable.h"
 
 #include "NodalOffsetTable.generated.h"
-
 
 
 /**
  * Focus point for nodal offset curves
  */
 USTRUCT()
-struct CAMERACALIBRATIONCORE_API FNodalOffsetFocusPoint
+struct CAMERACALIBRATIONCORE_API FNodalOffsetFocusPoint : public FBaseFocusPoint
 {
 	GENERATED_BODY()
 
 public:
-
-	/** Returns number of zoom points */
-	int32 GetNumPoints() const;
-
-	/** Returns zoom value for a given index */
-	float GetZoom(int32 Index) const;
+	//~ Begin FBaseFocusPoint Interface
+	virtual float GetFocus() const override { return Focus; }
+	virtual int32 GetNumPoints() const override;
+	virtual float GetZoom(int32 Index) const override;
+	//~ End FBaseFocusPoint Interface
 
 	/** Returns data type copy value for a given float */
 	bool GetPoint(float InZoom, FNodalPointOffset& OutData, float InputTolerance = KINDA_SMALL_NUMBER) const;
@@ -68,13 +64,25 @@ public:
  * Table containing nodal offset mapping to focus and zoom
  */
 USTRUCT()
-struct CAMERACALIBRATIONCORE_API FNodalOffsetTable
+struct CAMERACALIBRATIONCORE_API FNodalOffsetTable : public FBaseLensTable
 {
 	GENERATED_BODY()
 
 	using FocusPointType = FNodalOffsetFocusPoint;
 
+protected:
+	//~ Begin FBaseDataTable Interface
+	virtual TMap<ELensDataCategory, FLinkPointMetadata> GetLinkedCategories() const override;
+	virtual bool DoesFocusPointExists(float InFocus) const override;
+	virtual bool DoesZoomPointExists(float InFocus, float InZoom, float InputTolerance = KINDA_SMALL_NUMBER) const override;
+	//~ End FBaseDataTable Interface
+	
 public:
+	//~ Begin FBaseDataTable Interface
+	virtual void ForEachPoint(FFocusPointCallback InCallback) const override;
+	virtual int32 GetFocusPointNum() const override { return FocusPoints.Num(); }
+	virtual UScriptStruct* GetScriptStruct() const override;
+	//~ End FBaseDataTable Interface
 
 	/** 
 	* Fills OutCurve with all points contained in the given focus 
@@ -97,7 +105,7 @@ public:
 	/** Removes a focus point identified as InFocusIdentifier */
 	void RemoveFocusPoint(float InFocus);
 
-	/** Removes a focus point identified as InFocusIdentifier */
+	/** Removes a zoom point from a focus point*/
 	void RemoveZoomPoint(float InFocus, float InZoom);
 
 	/** Adds a new point in the table */

@@ -1413,6 +1413,16 @@ bool FAutomationTestBase::TestEqual(const TCHAR* What, const FColor Actual, cons
 	return true;
 }
 
+bool FAutomationTestBase::TestEqual(const TCHAR* What, FLinearColor Actual, FLinearColor Expected)
+{
+	if (Expected != Actual)
+	{
+		AddError(FString::Printf(TEXT("Expected '%s' to be %s, but it was %s."), What, *Expected.ToString(), *Actual.ToString()), 1);
+		return false;
+	}
+	return true;
+}
+
 bool FAutomationTestBase::TestEqual(const TCHAR* What, const TCHAR* Actual, const TCHAR* Expected)
 {
 	if (FCString::Strcmp(Actual, Expected) != 0)

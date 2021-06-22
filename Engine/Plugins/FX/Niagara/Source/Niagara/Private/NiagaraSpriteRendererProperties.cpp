@@ -238,14 +238,14 @@ void UNiagaraSpriteRendererProperties::InitBindings()
 
 void UNiagaraSpriteRendererProperties::SetPreviousBindings(const UNiagaraEmitter* SrcEmitter, ENiagaraRendererSourceDataMode InSourceMode)
 {
-	PrevPositionBinding.SetAsPreviousValue(PositionBinding.GetParamMapBindableVariable(), SrcEmitter, InSourceMode);
-	PrevVelocityBinding.SetAsPreviousValue(VelocityBinding.GetParamMapBindableVariable(), SrcEmitter, InSourceMode);
-	PrevSpriteRotationBinding.SetAsPreviousValue(SpriteRotationBinding.GetParamMapBindableVariable(), SrcEmitter, InSourceMode);
-	PrevSpriteSizeBinding.SetAsPreviousValue(SpriteSizeBinding.GetParamMapBindableVariable(), SrcEmitter, InSourceMode);
-	PrevSpriteFacingBinding.SetAsPreviousValue(SpriteFacingBinding.GetParamMapBindableVariable(), SrcEmitter, InSourceMode);
-	PrevSpriteAlignmentBinding.SetAsPreviousValue(SpriteAlignmentBinding.GetParamMapBindableVariable(), SrcEmitter, InSourceMode);
-	PrevCameraOffsetBinding.SetAsPreviousValue(CameraOffsetBinding.GetParamMapBindableVariable(), SrcEmitter, InSourceMode);
-	PrevPivotOffsetBinding.SetAsPreviousValue(PivotOffsetBinding.GetParamMapBindableVariable(), SrcEmitter, InSourceMode);
+	PrevPositionBinding.SetAsPreviousValue(PositionBinding, SrcEmitter, InSourceMode);
+	PrevVelocityBinding.SetAsPreviousValue(VelocityBinding, SrcEmitter, InSourceMode);
+	PrevSpriteRotationBinding.SetAsPreviousValue(SpriteRotationBinding, SrcEmitter, InSourceMode);
+	PrevSpriteSizeBinding.SetAsPreviousValue(SpriteSizeBinding, SrcEmitter, InSourceMode);
+	PrevSpriteFacingBinding.SetAsPreviousValue(SpriteFacingBinding, SrcEmitter, InSourceMode);
+	PrevSpriteAlignmentBinding.SetAsPreviousValue(SpriteAlignmentBinding, SrcEmitter, InSourceMode);
+	PrevCameraOffsetBinding.SetAsPreviousValue(CameraOffsetBinding, SrcEmitter, InSourceMode);
+	PrevPivotOffsetBinding.SetAsPreviousValue(PivotOffsetBinding, SrcEmitter, InSourceMode);
 }
 
 void UNiagaraSpriteRendererProperties::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData)

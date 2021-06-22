@@ -29,14 +29,14 @@ struct FCrashReportUtil
 #include "PlatformHttp.h"
 #include "Framework/Application/SlateApplication.h"
 
-FCrashReportClient::FCrashReportClient(const FPlatformErrorReport& InErrorReport)
+FCrashReportClient::FCrashReportClient(const FPlatformErrorReport& InErrorReport, bool bImplicitSend)
 	: DiagnosticText( LOCTEXT("ProcessingReport", "Processing crash report ...") )
 	, DiagnoseReportTask(nullptr)
 	, ErrorReport( InErrorReport )
 	, ReceiverUploader(FCrashReportCoreConfig::Get().GetReceiverAddress())
 	, DataRouterUploader(FCrashReportCoreConfig::Get().GetDataRouterURL())
 	, bShouldWindowBeHidden(false)
-	, bSendData(false)
+	, bSendData(bImplicitSend)
 	, bIsSuccesfullRestart(false)
 	, bIsUploadComplete(false)
 {
@@ -70,6 +70,11 @@ FCrashReportClient::FCrashReportClient(const FPlatformErrorReport& InErrorReport
 			FormattedDiagnosticText = FCrashReportUtil::FormatDiagnosticText( FText::FromString( ReportString ) );
 		}
 	}
+
+	if (bSendData)
+	{
+		StartTicker();
+	}
 }
 
 FCrashReportClient::~FCrashReportClient()
@@ -97,6 +102,12 @@ FReply FCrashReportClient::CloseWithoutSending()
 	bSendData = false;
 	bShouldWindowBeHidden = true;
 	StartTicker();
+	return FReply::Handled();
+}
+
+FReply FCrashReportClient::Close()
+{
+	bShouldWindowBeHidden = true;
 	return FReply::Handled();
 }
 
@@ -188,9 +199,6 @@ void FCrashReportClient::UserCommentChanged(const FText& Comment, ETextCommit::T
 
 void FCrashReportClient::RequestCloseWindow(const TSharedRef<SWindow>& Window)
 {
-	// Don't send the data.
-	bSendData = false;
-
 	// We may still processing minidump etc. so start the main ticker.
 	StartTicker();
 	bShouldWindowBeHidden = true;
@@ -258,12 +266,7 @@ bool FCrashReportClient::Tick(float UnusedDeltaTime)
 		check(DiagnoseReportTask == nullptr); // Expected after StopBackgroundThread() call.
 	}
 
-	// Before going further, wait for the an action, either Submit(), CloseWithoutSending() or RequestCloseWindow().
-	if (!bShouldWindowBeHidden)
-	{
-		return true;
-	}
-
+	// Implicit send will begin uploading immediately and continue after the window is hidden
 	if( bSendData )
 	{
 		if (!FCrashUploadBase::IsInitialized())
@@ -304,6 +307,11 @@ bool FCrashReportClient::Tick(float UnusedDeltaTime)
 				return true;
 			}
 		}
+	}
+
+	if (!bShouldWindowBeHidden)
+	{
+		return true;
 	}
 
 	if (FCrashUploadBase::IsInitialized())

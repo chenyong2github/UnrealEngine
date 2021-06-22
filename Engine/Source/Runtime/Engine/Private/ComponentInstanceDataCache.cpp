@@ -80,7 +80,7 @@ public:
 			FDuplicatedObject DupObjectInfo = DuplicatedObjectAnnotation.GetAnnotation( Object );
 			if( !DupObjectInfo.IsDefault() )
 			{
-				Result = DupObjectInfo.DuplicatedObject;
+				Result = DupObjectInfo.DuplicatedObject.GetEvenIfUnreachable();
 			}
 			else if (Object->GetOuter() == Component)
 			{

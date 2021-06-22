@@ -352,10 +352,6 @@ void UNiagaraEmitter::PostLoad()
 {
 	Super::PostLoad();
 
-#if WITH_EDITORONLY_DATA
-	PostLoadDefinitionsSubscriptions();
-#endif
-
 	if (GIsEditor)
 	{
 		SetFlags(RF_Transactional);
@@ -1244,29 +1240,7 @@ void UNiagaraEmitter::UpdateEmitterAfterLoad()
 	check(IsInGameThread());
 
 	// Synchronize with definitions before merging.
-	// First force sync with all definitions in the DefaultLinkedParameterDefinitions array.
-	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
-	check(Settings);
-	TArray<FGuid> DefaultDefinitionsUniqueIds;
-	for (const FSoftObjectPath& DefaultLinkedParameterDefinitionObjPath : Settings->DefaultLinkedParameterDefinitions)
-	{
-		UNiagaraParameterDefinitionsBase* DefaultLinkedParameterDefinitions = Cast<UNiagaraParameterDefinitionsBase>(DefaultLinkedParameterDefinitionObjPath.TryLoad());
-		if (DefaultLinkedParameterDefinitions == nullptr)
-		{
-			continue;
-		}
-		DefaultDefinitionsUniqueIds.Add(DefaultLinkedParameterDefinitions->GetDefinitionsUniqueId());
-		const bool bDoNotAssertIfAlreadySubscribed = true;
-		SubscribeToParameterDefinitions(DefaultLinkedParameterDefinitions, bDoNotAssertIfAlreadySubscribed);
-	}
-	FSynchronizeWithParameterDefinitionsArgs Args;
-	Args.SpecificDefinitionsUniqueIds = DefaultDefinitionsUniqueIds;
-	Args.bForceSynchronizeDefinitions = true;
-	Args.bSubscribeAllNameMatchParameters = true;
-	//SynchronizeWithParameterDefinitions(Args);
-
-	// After forcing syncing all DefaultLinkedParameterDefinitions, call SynchronizeWithParameterDefinitions again to sync with all definitions the emitter was already subscribed to, and do not force the sync.
-	//SynchronizeWithParameterDefinitions();
+	PostLoadDefinitionsSubscriptions();
 
 	// Merge with parent if necessary.
 	if (GetOuter()->IsA<UNiagaraEmitter>())
@@ -1823,9 +1797,6 @@ void UNiagaraEmitter::UpdateFromMergedCopy(const INiagaraMergeManager& MergeMana
 
 void UNiagaraEmitter::SyncEmitterAlias(const FString& InOldName, const FString& InNewName)
 {
-	TMap<FString, FString> RenameMap;
-	RenameMap.Add(InOldName, InNewName);
-
 	TArray<UNiagaraScript*> Scripts;
 	GetScripts(Scripts, false, true); // Get all the scripts...
 
@@ -1834,7 +1805,8 @@ void UNiagaraEmitter::SyncEmitterAlias(const FString& InOldName, const FString& 
 		// We don't mark the package dirty here because this can happen as a result of a compile and we don't want to dirty files
 		// due to compilation, in cases where the package should be marked dirty an previous modify would have already done this.
 		Script->Modify(false);
-		Script->SyncAliases(RenameMap);
+		Script->SyncAliases(FNiagaraAliasContext(Script->GetUsage())
+			.ChangeEmitterName(InOldName, InNewName));
 	}
 
 	// if we haven't yet been postloaded then we'll hold off on updating the renderers as they are dependent on everything

@@ -59,11 +59,13 @@ namespace ExposedFieldUtils
 	}
 }
 
-void SRCPanelExposedField::Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlField> InField, FRCColumnSizeData InColumnSizeData)
+void SRCPanelExposedField::Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlField> InField, FRCColumnSizeData InColumnSizeData, TWeakPtr<FRCPanelWidgetRegistry> InWidgetRegistry)
 {
 	WeakField = MoveTemp(InField);
 
 	ColumnSizeData = MoveTemp(InColumnSizeData);
+	WidgetRegistry = MoveTemp(InWidgetRegistry);
+
 	bEditMode = InArgs._EditMode;
 	Preset = InArgs._Preset;
 	bDisplayValues = InArgs._DisplayValues;
@@ -176,18 +178,21 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 			TArray<UObject*> Objects = Field->GetBoundObjects();
 			if (GetFieldType() == EExposedFieldType::Property && Objects.Num() > 0)
 			{
-				if (TSharedPtr<IDetailTreeNode> Node = FRCPanelWidgetRegistry::Get().GetObjectTreeNode(Objects[0], Field->FieldPathInfo.ToPathPropertyString(), ERCFindNodeMethod::Path))
+				if (TSharedPtr<FRCPanelWidgetRegistry> Registry = WidgetRegistry.Pin())
 				{
-					TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
-					Node->GetChildren(ChildNodes);
-					ChildWidgets.Reset(ChildNodes.Num());
-
-					for (const TSharedRef<IDetailTreeNode>& ChildNode : ChildNodes)
+					if (TSharedPtr<IDetailTreeNode> Node = Registry->GetObjectTreeNode(Objects[0], Field->FieldPathInfo.ToPathPropertyString(), ERCFindNodeMethod::Path))
 					{
-						ChildWidgets.Add(SNew(SRCPanelFieldChildNode, ChildNode, ColumnSizeData));
-					}
+						TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
+						Node->GetChildren(ChildNodes);
+						ChildWidgets.Reset(ChildNodes.Num());
 
-					return MakeFieldWidget(ExposedFieldUtils::CreateNodeValueWidget(MoveTemp(Node)));
+						for (const TSharedRef<IDetailTreeNode>& ChildNode : ChildNodes)
+						{
+							ChildWidgets.Add(SNew(SRCPanelFieldChildNode, ChildNode, ColumnSizeData));
+						}
+
+						return MakeFieldWidget(ExposedFieldUtils::CreateNodeValueWidget(MoveTemp(Node)));
+					}
 				}
 			}
 	
@@ -384,29 +389,32 @@ void SRCPanelExposedField::ConstructFunctionWidget()
 		{
 			if (bDisplayValues)
 			{
-				FRCPanelWidgetRegistry::Get().Refresh(RCFunction->FunctionArguments);
-
-				TArray<TSharedPtr<SRCPanelFieldChildNode>> ChildNodes;
-				for (TFieldIterator<FProperty> It(RCFunction->GetFunction()); It; ++It)
+				if (TSharedPtr<FRCPanelWidgetRegistry> Registry = WidgetRegistry.Pin())
 				{
-					bool bMustHaveParmFlag = !RCFunction->GetFunction()->HasAnyFunctionFlags(FUNC_Native);
-					const bool Param = It->HasAnyPropertyFlags(CPF_Parm);
-					const bool OutParam = It->HasAnyPropertyFlags(CPF_OutParm) && !It->HasAnyPropertyFlags(CPF_ConstParm);
-					const bool ReturnParam = It->HasAnyPropertyFlags(CPF_ReturnParm);
+					Registry->Refresh(RCFunction->FunctionArguments);
 
-					if (!Param || OutParam || ReturnParam)
+					TArray<TSharedPtr<SRCPanelFieldChildNode>> ChildNodes;
+					for (TFieldIterator<FProperty> It(RCFunction->GetFunction()); It; ++It)
 					{
-						continue;
+						bool bMustHaveParmFlag = !RCFunction->GetFunction()->HasAnyFunctionFlags(FUNC_Native);
+						const bool Param = It->HasAnyPropertyFlags(CPF_Parm);
+						const bool OutParam = It->HasAnyPropertyFlags(CPF_OutParm) && !It->HasAnyPropertyFlags(CPF_ConstParm);
+						const bool ReturnParam = It->HasAnyPropertyFlags(CPF_ReturnParm);
+
+						if (!Param || OutParam || ReturnParam)
+						{
+							continue;
+						}
+
+						if (TSharedPtr<IDetailTreeNode> PropertyNode = Registry->GetStructTreeNode(RCFunction->FunctionArguments, It->GetFName().ToString(), ERCFindNodeMethod::Name))
+						{
+							ChildNodes.Add(SNew(SRCPanelFieldChildNode, PropertyNode.ToSharedRef(), ColumnSizeData));
+						}
 					}
 
-					if (TSharedPtr<IDetailTreeNode> PropertyNode = FRCPanelWidgetRegistry::Get().GetStructTreeNode(RCFunction->FunctionArguments, It->GetFName().ToString(), ERCFindNodeMethod::Name))
-					{
-						ChildNodes.Add(SNew(SRCPanelFieldChildNode, PropertyNode.ToSharedRef(), ColumnSizeData));
-					}
+					ChildSlot.AttachWidget(MakeFieldWidget(ConstructCallFunctionButton()));
+					ChildWidgets = ChildNodes;
 				}
-
-				ChildSlot.AttachWidget(MakeFieldWidget(ConstructCallFunctionButton()));
-				ChildWidgets = ChildNodes;
 			}
 			else
 			{

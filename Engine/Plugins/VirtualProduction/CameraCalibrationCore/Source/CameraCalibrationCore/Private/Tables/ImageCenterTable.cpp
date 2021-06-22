@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "Tables/ImageCenterTable.h"
 
+#include "LensFile.h"
 #include "LensTableUtils.h"
 
 int32 FImageCenterFocusPoint::GetNumPoints() const
@@ -90,6 +90,29 @@ bool FImageCenterFocusPoint::IsEmpty() const
 	return Cx.IsEmpty();
 }
 
+void FImageCenterTable::ForEachPoint(FFocusPointCallback InCallback) const
+{
+	for (const FImageCenterFocusPoint& Point : FocusPoints)
+	{
+		InCallback(Point);
+	}
+}
+
+bool FImageCenterTable::DoesFocusPointExists(float InFocus) const
+{
+	if (GetFocusPoint(InFocus) != nullptr)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+UScriptStruct* FImageCenterTable::GetScriptStruct() const
+{
+	return StaticStruct();
+}
+
 bool FImageCenterTable::BuildParameterCurve(float InFocus, int32 ParameterIndex, FRichCurve& OutCurve) const
 {
 	if(ParameterIndex >= 0 && ParameterIndex < 2)
@@ -129,6 +152,29 @@ TConstArrayView<FImageCenterFocusPoint> FImageCenterTable::GetFocusPoints() cons
 TArray<FImageCenterFocusPoint>& FImageCenterTable::GetFocusPoints()
 {
 	return FocusPoints;
+}
+
+bool FImageCenterTable::DoesZoomPointExists(float InFocus, float InZoom, float InputTolerance) const
+{
+	FImageCenterInfo ImageCenterInfo;
+	if (GetPoint(InFocus, InZoom, ImageCenterInfo, InputTolerance))
+	{
+		return true;
+	}
+
+	return false;
+}
+
+TMap<ELensDataCategory, FLinkPointMetadata> FImageCenterTable::GetLinkedCategories() const
+{
+	static TMap<ELensDataCategory, FLinkPointMetadata> LinkedToCategories =
+	{
+		{ELensDataCategory::Distortion, {true}},
+		{ELensDataCategory::Zoom, {true}},
+		{ELensDataCategory::STMap, {true}},
+		{ELensDataCategory::NodalOffset, {false}},
+	};
+	return LinkedToCategories;
 }
 
 void FImageCenterTable::RemoveFocusPoint(float InFocus)

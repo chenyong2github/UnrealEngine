@@ -8,6 +8,12 @@ if ! command -v node > /dev/null ; then
   exit 1
 fi
 
+# Check if npm is installed
+if ! command -v npm > /dev/null ; then
+  echo "ERROR: Couldn't find npm installed..., Please install npm"
+  exit 1
+fi
+
 # Let's check if it is a modern nodejs
 VERSION=$(node -e "console.log( process.versions.node.split('.')[0] );")
 echo "Found Node.js version ${VERSION}"

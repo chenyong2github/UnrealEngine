@@ -12,15 +12,7 @@
 
 BEGIN_NAMESPACE_UE_AC
 
-class FInstance
-{
-  public:
-	GS::ULong				  Hash;
-	GS::UniString			  MeshName;
-	GS::UInt32				  InstancesCount;
-	ModelerAPI::Element::Type ElementType;
-	GS::UInt32				  TransformCount;
-};
+class FMeshClass;
 
 // Class that contain element id and related
 class FElementID
@@ -83,7 +75,7 @@ class FElementID
 	// Return the complete element
 	const API_Element& GetAPIElement();
 
-	FInstance* GetInstance();
+	FMeshClass* GetMeshClass();
 
 	// Return the lib part info if this element come from it
 	const FLibPartInfo* GetLibPartInfo();
@@ -109,7 +101,7 @@ class FElementID
 	// Sync data associated to the current element
 	FSyncData* SyncData;
 
-	FInstance* Instance;
+	FMeshClass* Instance;
 
 	// Lib part info have been fetched
 	bool bLibPartInfoFetched;
@@ -119,20 +111,41 @@ class FElementID
 	utf8_string ElementName;
 };
 
-class FSyncData::FProcessInfo
+// SyncData tree iterator and synchronization process context
+class FSyncData::FProcessInfo : public FSyncData::FInterator
 {
   public:
+	// Contructor
 	FProcessInfo(const FSyncContext& InSyncContext)
 		: SyncContext(InSyncContext)
 		, ProgessValue(0)
 		, ElementID(InSyncContext)
 	{
+		bProcessMetaData = !SyncContext.IsSynchronizer();
+		Start(&SyncContext.GetSyncDatabase().GetSceneSyncData());
 	}
 
+	// Process syncronization
+	virtual EProcessControl Process(FSyncData* InCurrent) override
+	{
+		if (InCurrent == nullptr)
+		{
+			return FInterator::kDone;
+		}
+
+		InCurrent->Process(this);
+
+		return FInterator::kContinue;
+	}
+
+	// Current synchronization context
 	const FSyncContext& SyncContext;
-	int					ProgessValue = 0;
-	FElementID			ElementID;
-	size_t				Index = 0;
+	// True if we must process metadata immediately. (Export->true, DirectLink->False)
+	bool bProcessMetaData = false;
+	// Value to pass to progress progression
+	int ProgessValue = 0;
+	// Current element
+	FElementID ElementID;
 };
 
 END_NAMESPACE_UE_AC

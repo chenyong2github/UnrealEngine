@@ -5,6 +5,31 @@
 #include "Interfaces/IPluginManager.h"
 #include "HAL/PlatformProcess.h"
 
+#if WITH_OPENCV
+#include "OpenCVHelper.h"
+OPENCV_INCLUDES_START
+#undef check 
+#include "opencv2/unreal.hpp"
+OPENCV_INCLUDES_END
+#endif
+
+namespace OpenCVHelperModule
+{
+#if WITH_OPENCV
+
+	static void* UnrealMalloc(size_t Count, uint32_t Alignment)
+	{
+		return FMemory::Malloc(static_cast<SIZE_T>(Count), static_cast<uint32>(Alignment));
+	}
+
+	static void UnrealFree(void* Original)
+	{
+		FMemory::Free(Original);
+	}
+
+#endif //WITH_OPENCV
+}
+
 class FOpenCVHelperModule : public IOpenCVHelperModule
 {
 public:
@@ -28,12 +53,19 @@ void FOpenCVHelperModule::StartupModule()
 	const FString PluginDir = IPluginManager::Get().FindPlugin(TEXT("OpenCVLensDistortion"))->GetBaseDir();
 
 #if WITH_OPENCV
+
 	const FString OpenCvBinPath = PluginDir / TEXT(PREPROCESSOR_TO_STRING(OPENCV_PLATFORM_PATH));
 	const FString DLLPath = OpenCvBinPath / TEXT(PREPROCESSOR_TO_STRING(OPENCV_DLL_NAME));
 
 	FPlatformProcess::PushDllDirectory(*OpenCvBinPath);
 	OpenCvDllHandle = FPlatformProcess::GetDllHandle(*DLLPath);
 	FPlatformProcess::PopDllDirectory(*OpenCvBinPath);
+
+	// We need to tell OpenCV to use Unreal's memory allocator to avoid crashes.
+	// These may happen when Unreal passes a container to OpenCV, then OpenCV allocates memory for that container
+	// and then Unreal tries to release the memory in it.
+	cv::unreal::SetMallocAndFree(&OpenCVHelperModule::UnrealMalloc, &OpenCVHelperModule::UnrealFree);
+
 #endif
 }
 
@@ -45,6 +77,9 @@ void FOpenCVHelperModule::ShutdownModule()
 		FPlatformProcess::FreeDllHandle(OpenCvDllHandle);
 		OpenCvDllHandle = nullptr;
 	}
+
+	// Note: Seems safer to not put back the original new/delete in OpenCV and keep Unreal's versions even after this module unloads.
+
 #endif
 }
 

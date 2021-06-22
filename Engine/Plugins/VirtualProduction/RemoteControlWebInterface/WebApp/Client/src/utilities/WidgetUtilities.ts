@@ -1,4 +1,4 @@
-import { IPreset, PropertyType } from "src/shared";
+import { IPreset, PropertyType, WidgetType, WidgetTypes } from "src/shared";
 
 
 type Range = {
@@ -125,4 +125,38 @@ export class WidgetUtilities {
 
     return [];
   };
+
+  static getCompatibleWidgets(propertyType: PropertyType): WidgetType[] {
+    switch (propertyType) {
+      case PropertyType.Int16:
+      case PropertyType.Int32:
+      case PropertyType.Int64:
+      case PropertyType.Uint16:
+      case PropertyType.Uint32:
+      case PropertyType.Uint64:
+      case PropertyType.Float:
+      case PropertyType.Double:
+        return [WidgetTypes.Slider, WidgetTypes.Dial];
+      
+      case PropertyType.Boolean:
+      case PropertyType.Uint8:
+        return [WidgetTypes.Toggle];
+
+      case PropertyType.Vector:
+      case PropertyType.Vector2D:
+        return [WidgetTypes.Vector, WidgetTypes.Joystick, WidgetTypes.Sliders];
+
+      case PropertyType.Vector4:
+      case PropertyType.LinearColor:
+        return [WidgetTypes.ColorPicker, WidgetTypes.MiniColorPicker];
+
+      case PropertyType.Rotator:
+        return [WidgetTypes.Vector, WidgetTypes.Sliders];
+    }
+
+    if (propertyType?.startsWith('TEnum'))
+      return [WidgetTypes.Dropdown];
+
+    return [];
+  }
 }

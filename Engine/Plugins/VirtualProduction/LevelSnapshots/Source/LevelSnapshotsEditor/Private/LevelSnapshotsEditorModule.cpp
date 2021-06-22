@@ -21,7 +21,6 @@
 #include "ISettingsModule.h"
 #include "LevelEditor.h"
 #include "ToolMenus.h"
-#include "ToolMenuSection.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Misc/ScopeExit.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -42,17 +41,15 @@ void FLevelSnapshotsEditorModule::StartupModule()
 	FLevelSnapshotsEditorStyle::Initialize();
 	FLevelSnapshotsEditorCommands::Register();
 	
-	RegisterMenus();
-	
-	if (RegisterProjectSettings() && ProjectSettingsObjectPtr->bEnableLevelSnapshotsToolbarButton)
-	{
-		RegisterEditorToolbar();
-	}
+	// add the menu subsection
+	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FLevelSnapshotsEditorModule::PostEngineInit);
 }
 
 void FLevelSnapshotsEditorModule::ShutdownModule()
 {
 	UToolMenus::UnregisterOwner(this);
+
+	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 
 	FLevelSnapshotsEditorStyle::Shutdown();
 
@@ -92,14 +89,45 @@ void FLevelSnapshotsEditorModule::SetUseCreationForm(bool bInUseCreationForm)
 	}
 }
 
-void FLevelSnapshotsEditorModule::RegisterMenus()
+void FLevelSnapshotsEditorModule::PostEngineInit()
+{
+	RegisterMenuItem();
+
+	if (RegisterProjectSettings() && ProjectSettingsObjectPtr->bEnableLevelSnapshotsToolbarButton)
+	{
+		RegisterEditorToolbar();
+	}
+}
+
+void FLevelSnapshotsEditorModule::RegisterMenuItem()
 {
 	if (FSlateApplication::IsInitialized())
 	{
-		FToolMenuOwnerScoped OwnerScoped(this);
-		UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("MainFrame.MainMenu.Window");
-		FToolMenuSection& Section = Menu->AddSection("ExperimentalTabSpawners", NSLOCTEXT("LevelSnapshots", "ExperimentalTabSpawnersHeading", "Experimental"), FToolMenuInsert("WindowGlobalTabSpawners", EToolMenuInsertType::After));
-		Section.AddMenuEntry("OpenLevelSnapshotsEditor", NSLOCTEXT("LevelSnapshots", "LevelSnapshotsEditor", "Level Snapshots Editor"), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(this, &FLevelSnapshotsEditorModule::OpenSnapshotsEditor)));
+		if (IsRunningGame())
+		{
+			return;
+		}
+		
+		TSharedRef<FUICommandList> MenuItemCommandList = MakeShareable(new FUICommandList);
+
+		MenuItemCommandList->MapAction(
+			FLevelSnapshotsEditorCommands::Get().OpenLevelSnapshotsEditorMenuItem,
+			FExecuteAction::CreateRaw(this, &FLevelSnapshotsEditorModule::OpenSnapshotsEditor)
+		);
+		
+		TSharedPtr<FExtender> NewMenuExtender = MakeShareable(new FExtender);
+		NewMenuExtender->AddMenuExtension("ExperimentalTabSpawners", 
+		                                  EExtensionHook::After, 
+		                                  MenuItemCommandList, 
+		                                  FMenuExtensionDelegate::CreateLambda([this] (FMenuBuilder& MenuBuilder)
+		                                  {
+			                                  MenuBuilder.AddMenuEntry(FLevelSnapshotsEditorCommands::Get().OpenLevelSnapshotsEditorMenuItem);
+		                                  }));
+	
+		// Get the Level Editor so we can insert our item into the Level Editor menu subsection
+		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+
+		LevelEditorModule.GetMenuExtensibilityManager()->AddExtender(NewMenuExtender);
 	}
 }
 
@@ -188,7 +216,7 @@ void FLevelSnapshotsEditorModule::MapEditorToolbarActions()
 	);
 
 	EditorToolbarButtonCommandList->MapAction(
-		FLevelSnapshotsEditorCommands::Get().OpenLevelSnapshotsEditor,
+		FLevelSnapshotsEditorCommands::Get().OpenLevelSnapshotsEditorToolbarButton,
 		FExecuteAction::CreateRaw(this, &FLevelSnapshotsEditorModule::OpenSnapshotsEditor)
 	);
 
@@ -226,7 +254,7 @@ TSharedRef<SWidget> FLevelSnapshotsEditorModule::FillEditorToolbarComboButtonMen
 	MenuBuilder.AddMenuEntry(FLevelSnapshotsEditorCommands::Get().UseCreationFormToggle);
 	MenuBuilder.EndSection();
 	MenuBuilder.AddMenuSeparator();
-	MenuBuilder.AddMenuEntry(FLevelSnapshotsEditorCommands::Get().OpenLevelSnapshotsEditor);
+	MenuBuilder.AddMenuEntry(FLevelSnapshotsEditorCommands::Get().OpenLevelSnapshotsEditorToolbarButton);
 	MenuBuilder.AddMenuEntry(FLevelSnapshotsEditorCommands::Get().LevelSnapshotsSettings);
 
 	// Create the widget so it can be attached to the combo button
@@ -267,7 +295,7 @@ void FLevelSnapshotsEditorModule::TakeAndSaveSnapshot(const FText& InDescription
 	{
 		return;
 	}
-	UWorld* World = GEditor->GetEditorWorldContext().World();
+	UWorld* World = ULevelSnapshotsEditorData::GetEditorWorld();
 	if (!ensure(World && ProjectSettingsObjectPtr.IsValid()))
 	{
 		return;
@@ -339,6 +367,16 @@ void FLevelSnapshotsEditorModule::TakeAndSaveSnapshot(const FText& InDescription
 			FText::Format(
 				NSLOCTEXT("LevelSnapshots", "NotificationFormatText_CreateSnapshotSuccess", "Failed to create Level Snapshot \"{0}\". Check the file name."), NewSnapshotName));
 		NotificationItem->SetCompletionState(SNotificationItem::CS_Fail);
+	}
+}
+
+void FLevelSnapshotsEditorModule::OpenLevelSnapshotsDialogWithAssetSelected(const FAssetData& InAssetData)
+{
+	OpenSnapshotsEditor();
+
+	if (SnapshotEditorToolkit.IsValid())
+	{
+		SnapshotEditorToolkit.Pin()->OpenLevelSnapshotsDialogWithAssetSelected(InAssetData);
 	}
 }
 

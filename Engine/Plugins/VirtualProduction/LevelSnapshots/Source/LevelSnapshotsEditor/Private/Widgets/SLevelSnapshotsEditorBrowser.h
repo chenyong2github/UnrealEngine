@@ -21,10 +21,12 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder);
+	void SelectAsset(const FAssetData& InAssetData) const;
 
 private:
-	void OnAssetSelected(const FAssetData& InAssetData);
+	void OnAssetDoubleClicked(const FAssetData& InAssetData) const;
 	bool OnShouldFilterAsset(const FAssetData& InAssetData) const;
+	TSharedPtr<SWidget> OnGetAssetContextMenu(const TArray<FAssetData>& SelectedAssets);
 
 	TAttribute<FSoftObjectPath> OwningWorldPathAttribute;
 

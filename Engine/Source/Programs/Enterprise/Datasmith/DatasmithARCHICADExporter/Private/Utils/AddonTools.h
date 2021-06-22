@@ -4,7 +4,7 @@
 
 #include "WarningsDisabler.h"
 
-#if defined(WIN32)
+#if PLATFORM_WINDOWS
 	#pragma warning(push)
 	#pragma warning(disable : 4800)
 	#pragma warning(disable : 4505)
@@ -13,7 +13,7 @@
 #include <string>
 #include <cstdarg>
 
-#if defined(WIN32)
+#if PLATFORM_WINDOWS
 	#pragma warning(pop)
 #endif
 
@@ -149,6 +149,9 @@ enum ENames
 	kName_PauseAutoSync,
 	kName_Undefined,
 	kName_CacheDirectory,
+	kName_Source,
+	kName_Destination,
+	kName_FmtTooltip,
 	kName_NBNames
 };
 const utf8_t*		 GetStdName(ENames InStrIndex);

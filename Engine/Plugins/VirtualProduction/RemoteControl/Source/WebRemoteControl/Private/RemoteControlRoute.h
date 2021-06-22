@@ -93,7 +93,7 @@ struct FRemoteControlRouteDescription
 	FString Path;
 
 	UPROPERTY()
-	ERemoteControlHttpVerbs Verb;
+	ERemoteControlHttpVerbs Verb = ERemoteControlHttpVerbs::None;
 
 	UPROPERTY()
 	FString Description;

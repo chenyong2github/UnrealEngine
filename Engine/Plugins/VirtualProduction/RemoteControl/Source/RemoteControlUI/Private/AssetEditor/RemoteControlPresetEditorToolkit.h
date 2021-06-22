@@ -23,6 +23,7 @@ public:
 	 * Initialize a remote control preset editor module. 
 	 */
 	void InitRemoteControlPresetEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, class URemoteControlPreset* InPreset);
+	~FRemoteControlPresetEditorToolkit();
 	
 	//~ Begin IToolkit interface
 	virtual FText GetBaseToolkitName() const override;
@@ -42,9 +43,6 @@ public:
 private:
 	/** Handle spawning the tab that holds the remote control panel tab. */
 	TSharedRef<SDockTab> HandleTabManagerSpawnPanelTab(const FSpawnTabArgs& Args);
-
-	/** Handle assigning group selection in either tab. */
-	void OnPanelSelectionChange(const TSharedPtr<SRCPanelTreeNode>& Node);
 
 	/** Handle invoking the remote control tab. */
 	void InvokePanelTab();

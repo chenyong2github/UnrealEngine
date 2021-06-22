@@ -41,9 +41,11 @@ class SNiagaraParameterPanel : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS(SNiagaraParameterPanel)
 		: _ShowParameterSynchronizingWithLibraryIcon(true)
+		, _ShowParameterSynchronizingWithLibraryIconExternallyReferenced(true)
 		, _ShowParameterReferenceCounter(true)
 	{}
 		SLATE_ARGUMENT(bool, ShowParameterSynchronizingWithLibraryIcon)
+		SLATE_ARGUMENT(bool, ShowParameterSynchronizingWithLibraryIconExternallyReferenced)
 		SLATE_ARGUMENT(bool, ShowParameterReferenceCounter)
 	SLATE_END_ARGS();
 
@@ -149,8 +151,11 @@ private:
 	TSharedPtr<SNiagaraParameterPanelSelector> ItemSelector;
 	TSharedPtr<SSearchBox> ItemSelectorSearchBox;
 
-	/** Whether or not to display icons signifying whether parameters in the panel are synchronizing with a subscribed parameter definition library. */
+	/** Whether or not to display icons signifying whether parameters in the panel are synchronizing with a subscribed parameter definition. */
 	bool bShowParameterSynchronizingWithLibraryIcon;
+
+	/** Whether or not to display icons signifying whether parameters in the panel are synchronizing with a subscribed parameter definition if that parameter is also externally referenced. */
+	bool bShowParameterSynchronizingWithLibraryIconExternallyReferenced;
 
 	/** Whether or not to display the reference counter for each parameter entry. */
 	bool bShowParameterReferenceCounter;

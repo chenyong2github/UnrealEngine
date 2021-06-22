@@ -37,10 +37,10 @@ namespace UsdToUnreal
 
 		for ( UsdNotice::ObjectsChanged::PathRange::const_iterator It = PathRange.begin(); It != PathRange.end(); ++It )
 		{
-			const TCHAR* PrimPath = ANSI_TO_TCHAR( It->GetAbsoluteRootOrPrimPath().GetString().c_str() );
+			const FString PrimPath = ANSI_TO_TCHAR( It->GetAbsoluteRootOrPrimPath().GetAsString().c_str() );
 
 			// Something like "/Root/Prim.some_field", or "/"
-			const TCHAR* FullFieldPath = ANSI_TO_TCHAR( It->GetString().c_str() );
+			const FString FullFieldPath = ANSI_TO_TCHAR( It->GetAsString().c_str() );
 
 			TArray<UsdUtils::FObjectChangeNotice>& ConvertedChanges = OutChanges.FindOrAdd( PrimPath );
 
@@ -55,7 +55,7 @@ namespace UsdToUnreal
 				{
 					UsdUtils::FAttributeChange& ConvertedAttributeChange = ConvertedEntry.AttributeChanges.Emplace_GetRef();
 
-					const TCHAR* FieldToken = ANSI_TO_TCHAR( AttributeChange.first.GetString().c_str() );
+					const FString FieldToken = ANSI_TO_TCHAR( AttributeChange.first.GetString().c_str() );
 
 					// For regular properties (most common case) FullFieldPath will already carry the property and FieldToken will be "default", "timeSamples", "variability", etc.
 					if ( It->IsPropertyPath() )

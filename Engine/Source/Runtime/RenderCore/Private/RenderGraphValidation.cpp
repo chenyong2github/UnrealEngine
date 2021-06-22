@@ -789,7 +789,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 
 		{
 			/** Tracks the number of contiguous, non-null textures in the render target output array. */
-			uint32 ValidRenderTargetCount = 0;
+			uint32 ValidRenderTargetCount = RenderTargetCount;
 
 			for (uint32 RenderTargetIndex = 0; RenderTargetIndex < RenderTargetCount; ++RenderTargetIndex)
 			{

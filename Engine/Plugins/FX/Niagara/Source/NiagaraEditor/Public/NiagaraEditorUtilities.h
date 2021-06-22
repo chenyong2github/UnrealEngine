@@ -317,6 +317,8 @@ namespace FNiagaraEditorUtilities
 
 	const FNiagaraNamespaceMetadata GetNamespaceMetaDataForId(const FGuid& NamespaceId);
 
+	TArray<UNiagaraParameterDefinitions*> GetAllParameterDefinitions();
+
 	bool GetAvailableParameterDefinitions(const TArray<FString>& ExternalPackagePaths, TArray<FAssetData>& OutParameterDefinitionsAssetData);
 
 	TSharedPtr<INiagaraParameterDefinitionsSubscriberViewModel> GetOwningLibrarySubscriberViewModelForGraph(const UNiagaraGraph* Graph);

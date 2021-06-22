@@ -149,6 +149,7 @@ const TCHAR* LexToString(EInstallBundleSourceUpdateBundleInfoResult Result)
 	static const TCHAR* Strings[] =
 	{
 		TEXT("OK"),
+		TEXT("NotInitailized"),
 		TEXT("AlreadyMounted"),
 		TEXT("AlreadyRequested"),
 		TEXT("IllegalCacheStatus"),

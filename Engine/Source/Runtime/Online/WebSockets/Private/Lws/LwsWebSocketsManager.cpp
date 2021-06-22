@@ -53,6 +53,9 @@ FLwsWebSocketsManager::FLwsWebSocketsManager()
 
 	ThreadMinimumSleepTimeInSeconds = 0.0f;
 	GConfig->GetDouble(TEXT("WebSockets.LibWebSockets"), TEXT("ThreadMinimumSleepTimeInSeconds"), ThreadMinimumSleepTimeInSeconds, GEngineIni);
+
+	GConfig->GetBool(TEXT("LwsWebSocket"), TEXT("bDisableDomainWhitelist"), bDisableDomainWhitelist, GEngineIni);
+	GConfig->GetBool(TEXT("LwsWebSocket"), TEXT("bDisableCertValidation"), bDisableCertValidation, GEngineIni);
 }
 
 FLwsWebSocketsManager& FLwsWebSocketsManager::Get()

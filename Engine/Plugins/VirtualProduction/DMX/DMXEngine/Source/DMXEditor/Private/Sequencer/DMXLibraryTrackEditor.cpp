@@ -214,8 +214,8 @@ int32 GetValidPatchMode(UDMXEntityFixturePatch* InPatch)
 		return INDEX_NONE;
 	}
 
-	UDMXEntityFixtureType* FixtureType = InPatch->ParentFixtureTypeTemplate;
-	if (FixtureType == nullptr || !FixtureType->IsValidLowLevelFast())
+	UDMXEntityFixtureType* FixtureType = InPatch->GetFixtureType();
+	if (!IsValid(FixtureType))
 	{
 		UE_LOG(DMXLibraryTrackEditorLog, Warning, TEXT("%S: Fixture Patch has null parent type"), __FUNCTION__);
 		return INDEX_NONE;
@@ -230,7 +230,7 @@ int32 GetValidPatchMode(UDMXEntityFixturePatch* InPatch)
 		if (Mode.Functions.Num() > 0 ||
 			Mode.FixtureMatrixConfig.CellAttributes.Num() > 0)
 		{
-			if (ModeIndex == InPatch->ActiveMode)
+			if (ModeIndex == InPatch->GetActiveModeIndex())
 			{
 				// This is the preferred mode. It's valid, so stop searching.
 				ValidActiveMode = ModeIndex;
@@ -241,7 +241,7 @@ int32 GetValidPatchMode(UDMXEntityFixturePatch* InPatch)
 
 	if (ValidActiveMode == INDEX_NONE)
 	{
-		UE_LOG(DMXLibraryTrackEditorLog, Warning, TEXT("%S: No active mode set in %s"), __FUNCTION__, *InPatch->GetName());
+		UE_LOG(DMXLibraryTrackEditorLog, Warning, TEXT("%S: No active mode set in %s. Patch will not be recorded."), __FUNCTION__, *InPatch->Name);
 	}
 
 	return ValidActiveMode;
@@ -272,7 +272,7 @@ void FDMXLibraryTrackEditor::HandlePatchSelectedFromAddMenu(UMovieSceneDMXLibrar
 	}
 
 	// Only use Patches which have any mode with at least one Fixture Function
-	int32 ValidActiveMode = GetValidPatchMode(Patch);
+	const int32 ValidActiveMode = GetValidPatchMode(Patch);
 
 	// Do we have no valid Modes at all?
 	if (ValidActiveMode == INDEX_NONE)
@@ -286,7 +286,7 @@ void FDMXLibraryTrackEditor::HandlePatchSelectedFromAddMenu(UMovieSceneDMXLibrar
 	DMXSection->AddFixturePatch(Patch);
 
 	// Do we need to use an Active Mode for the Patch that's not its active one?
-	if (ValidActiveMode != Patch->ActiveMode)
+	if (ValidActiveMode != Patch->GetActiveModeIndex())
 	{
 		DMXSection->SetFixturePatchActiveMode(Patch, ValidActiveMode);
 	}
@@ -350,7 +350,7 @@ void FDMXLibraryTrackEditor::HandleAddAllPatchesClicked(UMovieSceneDMXLibraryTra
 		DMXSection->AddFixturePatch(Patch);
 
 		// Do we need to use an Active Mode for the Patch that's not its active one?
-		if (ValidActiveMode != Patch->ActiveMode)
+		if (ValidActiveMode != Patch->GetActiveModeIndex())
 		{
 			DMXSection->SetFixturePatchActiveMode(Patch, ValidActiveMode);
 		}

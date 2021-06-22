@@ -213,27 +213,4 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Scene View Extension Is Active In Context Function", DeprecatedFunction, DeprecationMessage = "Use Configuration structures"), Category = "NDisplay|Render")
 	virtual void SceneViewExtensionIsActiveInContextFunction(const TArray<FString>& ViewportIDs, FSceneViewExtensionIsActiveFunctor& OutIsActiveFunction) const override
 	{ }
-
-	// @todo: deprecation stuff before release
-
-	// @todo: Implement new BP api
-#if 0
-	/** Return a viewport configuration object (RW access). Changes will be applied at runtime for this frame */
-	virtual bool GetLocalViewportConfiguration(const FString& ViewportID, UDisplayClusterConfigurationViewport* ConfigurationViewport) override;
-
-	/** Return local viewports names */
-	virtual void GetLocalViewports(TArray<FString>& ViewportIDs) const override;
-
-	/** Return local viewports runtime contexts */
-	virtual void GetLocalViewportsContext(TArray<FDisplayClusterViewportContext>& ViewportContexts) const override;
-
-	/** Return local viewports runtime stereo contexts */
-	virtual void GetLocalViewportsStereoContext(TArray<FDisplayClusterViewportStereoContext>& ViewportStereoContexts) const override;
-
-	/** Return viewport runtime context (last frame viewport data) */
-	virtual bool GetLocalViewportContext(const FString& ViewportID, FDisplayClusterViewportContext& ViewportContext) const override;
-
-	/** Return viewport stereo contexts (last frame viewport data) */
-	virtual bool GetLocalViewportStereoContext(const FString& ViewportID, FDisplayClusterViewportStereoContext& ViewportStereoContext) const override;
-#endif
 };

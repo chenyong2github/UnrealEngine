@@ -25,7 +25,7 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"StaticMeshDescription",
 					"UEOpenExr",
-                }
+				}
 			);
 
 			if (Target.Type == TargetType.Editor)
@@ -45,6 +45,13 @@ namespace UnrealBuildTool.Rules
 					"DatasmithTranslator"
 				}
 			);
+
+			string DsC4DDynamicLocatation = Path.Combine(PluginDirectory, "Source", "DatasmithC4DDynamicImporter");
+			if (Directory.Exists(DsC4DDynamicLocatation))
+			{
+				PublicIncludePaths.Add(Path.Combine(DsC4DDynamicLocatation, "Public"));
+				PublicDefinitions.Add("_CHECK_DYNAMIC_IMPORTER_");
+			}
 
 			// Set up the C4D Melange SDK includes and libraries.
 			string MelangeSDKLocation = Path.Combine(EngineDirectory, "Restricted/NotForLicensees/Source/ThirdParty/Enterprise/Melange/20.004_RBMelange20.0_259890");

@@ -103,8 +103,6 @@ namespace AVEncoder
 		// release a cloned copy
 		virtual void ReleaseClone() const = 0;
 
-		int64			PTS = TimeStampNone;	// presentation timestamp (within TimeBase)
-		int64			DTS = TimeStampNone;	// decode timestamp (within TimeBase)
 		const uint8*	Data = nullptr;			// pointer to encoded data
 		uint32			DataSize = 0;			// number of bytes of encoded data
 		bool			IsKeyFrame = false;		// whether or not packet represents a key frame

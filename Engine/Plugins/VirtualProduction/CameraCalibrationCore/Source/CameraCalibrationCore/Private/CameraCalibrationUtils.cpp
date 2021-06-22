@@ -3,8 +3,10 @@
 
 #include "CameraCalibrationUtils.h"
 
-#include <type_traits>
+#include "Engine/Texture2D.h"
+#include "Math/UnrealMathUtility.h"
 
+#include <type_traits>
 
 namespace CameraCalibrationUtils
 {
@@ -58,5 +60,28 @@ void FCameraCalibrationUtils::ConvertUnrealToOpenCV(FTransform& Transform)
 void FCameraCalibrationUtils::ConvertOpenCVToUnreal(FTransform& Transform)
 {
 	ConvertCoordinateSystem(Transform, EAxis::Z, EAxis::X, EAxis::Yn);
+}
+
+bool FCameraCalibrationUtils::IsNearlyEqual(const FTransform& A, const FTransform& B, float MaxLocationDelta, float MaxAngleDeltaDegrees)
+{
+	// Location check
+
+	const float LocationDeltaInCm = (B.GetLocation() - A.GetLocation()).Size();
+
+	if (LocationDeltaInCm > MaxLocationDelta)
+	{
+		return false;
+	}
+
+	// Rotation check
+
+	const float AngularDistanceRadians = FMath::Abs(A.GetRotation().AngularDistance(B.GetRotation()));
+
+	if (AngularDistanceRadians > FMath::DegreesToRadians(MaxAngleDeltaDegrees))
+	{
+		return false;
+	}
+
+	return true;
 }
 

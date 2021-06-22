@@ -39,7 +39,7 @@ DEFINE_LOG_CATEGORY(LogPixelStreamingSS);
 FSignallingServerConnection::FSignallingServerConnection(const FString& Url, FSignallingServerConnectionObserver& InObserver, const FString& InStreamerId)
 	: Observer(InObserver), StreamerId(InStreamerId)
 {
-	WS = FWebSocketsModule::Get().CreateWebSocket(Url, TEXT("ws"));
+	WS = FWebSocketsModule::Get().CreateWebSocket(Url, TEXT(""));
 
 	OnConnectedHandle = WS->OnConnected().AddLambda([this]() { OnConnected(); });
 	OnConnectionErrorHandle = WS->OnConnectionError().AddLambda([this](const FString& Error) { OnConnectionError(Error); });

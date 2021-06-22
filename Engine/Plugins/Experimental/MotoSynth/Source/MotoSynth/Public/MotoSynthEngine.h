@@ -16,6 +16,7 @@
 #include "DSP/Filter.h"
 #include "DSP/DelayStereo.h"
 #include "DSP/Granulator.h"
+#include "DSP/Envelope.h"
 #include "MotoSynthPreset.h"
 #include "MotoSynthSourceAsset.h"
 #include "MotoSynthDataManager.h"
@@ -166,6 +167,14 @@ private:
 	FVector2D SynthFilterFreqRange = { 100.0f, 5000.0f };
 	Audio::FLadderFilter SynthFilter;
 	Audio::FOsc SynthOsc;
+	Audio::FADEnvelope SynthEnv;
+	Audio::AlignedFloatBuffer SynthEnvBuffer;
+
+	Audio::FBiquadFilter NoiseFilter;
+	Audio::FWhiteNoise NoiseGen;
+	Audio::FADEnvelope NoiseEnv;
+	Audio::AlignedFloatBuffer NoiseEnvBuffer;
+
 	int32 SynthPitchUpdateSampleIndex = 0;
 	int32 SynthPitchUpdateDeltaSamples = 1023;
 
@@ -178,14 +187,31 @@ private:
 	// Mono scratch buffer for engine generation
 	TArray<float> GrainEngineBuffer;
 
-	float SynthToneVolume = 0.0f;
+	FVector2D SynthToneVolumeRange = { 0.0f, 0.0f };
+	FVector2D SynthToneFilterFrequencyRange = { 500.0f, 500.0f };
+	FVector2D SynthToneAttackTimeMsecRange = { 10.0f, 10.0f };
+	FVector2D SynthToneDecayTimeMsecRange = { 100.0f, 100.0f };
+	FVector2D SynthToneAttackCurveRange = { 1.0f, 1.0f };
+	FVector2D SynthToneDecayCurveRange = { 1.0f, 1.0f };
+
+	FVector2D NoiseVolumeRange = { 0.0f, 0.0f };
+	FVector2D NoiseLPFRange = { 0.0f, 0.0f };
+	FVector2D NoiseAttackTimeMsecRange = { 10.0f, 10.0f };
+	FVector2D NoiseAttackCurveRange = { 1.0f, 1.0f };
+	FVector2D NoiseDecayTimeMsecRange = { 10.0f, 10.0f };
+	FVector2D NoiseDecayCurveRange = { 1.0f, 1.0f };
+
 	int32 SynthOctaveShift = 0;
-	float SynthFilterFrequency = 500.0f;
 	float GranularEngineVolume = 1.0f;
 	float TargetGranularEngineVolume = 1.0f;
 
 	bool bWasAccelerating = false;
 	bool bSynthToneEnabled = false;
+	bool bSynthToneEnvelopeEnabled = false;
+	bool bNoiseEnabled = false;
+	bool bNoiseEnvelopeEnabled = false;
 	bool bGranularEngineEnabled = true;
 	bool bStereoWidenerEnabled = true;
+	bool bRPMWasSet = false;
+	bool bUpdateRPMCalculations = false;
 };

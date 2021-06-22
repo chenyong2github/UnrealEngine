@@ -37,7 +37,10 @@ CORE_API const TCHAR* LexToString(EName Ename);
  */
 #define MAX_NETWORKED_HARDCODED_NAME 410
 
+UE_DEPRECATED(5.0, "This function is deprecated, please use ShouldReplicateAsInteger(EName Ename, const class FName& Name) instead.")
 inline bool ShouldReplicateAsInteger(EName Ename)
 {
 	return Ename <= EName(MAX_NETWORKED_HARDCODED_NAME);
 }
+
+CORE_API bool ShouldReplicateAsInteger(EName Ename, const class FName& Name);

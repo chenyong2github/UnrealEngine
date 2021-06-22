@@ -4,7 +4,8 @@
 #include "LensFileRendering.h"
 
 #include "Engine/TextureRenderTarget2D.h"
-#include "GlobalShader.h"											   
+#include "GlobalShader.h"
+#include "Misc/MemStack.h"
 #include "PixelShaderUtils.h"
 #include "RenderGraphUtils.h"
 #include "ShaderParameterStruct.h"
@@ -85,10 +86,38 @@ namespace LensFileRendering
 	, UTextureRenderTarget2D* SourceTextureThree
 	, UTextureRenderTarget2D* SourceTextureFour)
 {
+	// At minimum, there must be one valid source texture and a valid output
 	if (SourceTextureOne == nullptr || OutRenderTarget == nullptr)
 	{
 		return false;
 	}
+		
+	// Verify that any additional required source textures are valid for the input blend type before proceeding
+	switch (BlendParams.BlendType)
+	{
+	case EDisplacementMapBlendType::TwoFocusOneZoom:
+	case EDisplacementMapBlendType::OneFocusTwoZoom:
+		{
+			if (SourceTextureTwo == nullptr)
+			{
+				return false;
+			}
+			break;
+		}
+	case EDisplacementMapBlendType::TwoFocusTwoZoom:
+		{
+			if (SourceTextureTwo == nullptr || SourceTextureThree == nullptr || SourceTextureFour == nullptr)
+			{
+				return false;
+			}
+			break;
+		}
+	default:
+		{
+			break;
+		}
+	}
+
 
 	const FTextureRenderTargetResource* const SourceTextureOneResource = SourceTextureOne->GameThread_GetRenderTargetResource();
 	const FTextureRenderTargetResource* const SourceTextureTwoResource = SourceTextureTwo ? SourceTextureTwo->GameThread_GetRenderTargetResource() : nullptr;
@@ -99,6 +128,7 @@ namespace LensFileRendering
 	ENQUEUE_RENDER_COMMAND(LensFileRendering_DrawBlendedDisplacementMap)(
 		[SourceTextureOneResource, SourceTextureTwoResource, SourceTextureThreeResource, SourceTextureFourResource, BlendParams = BlendParams, DestinationTextureResource](FRHICommandListImmediate& RHICmdList)
 		{
+			FMemMark Mark(FMemStack::Get());
 			FRDGBuilder GraphBuilder(RHICmdList);
 
 			FDisplacementMapBlendPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDisplacementMapBlendPS::FParameters>();

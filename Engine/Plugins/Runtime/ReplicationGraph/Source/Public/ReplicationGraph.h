@@ -1180,6 +1180,9 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnClientVisibleLevelNamesRemove, FName);
 	FOnClientVisibleLevelNamesRemove OnClientVisibleLevelNameRemove;
 
+	// Stored list of dormant actors in a previous cell when it's been left - this is for
+	// the dormant dynamic actor destruction feature.
+	FActorRepListRefView PrevDormantActorList;
 
 #if REPGRAPH_DETAILS
 	bool bEnableFullActorPrioritizationDetails = false;

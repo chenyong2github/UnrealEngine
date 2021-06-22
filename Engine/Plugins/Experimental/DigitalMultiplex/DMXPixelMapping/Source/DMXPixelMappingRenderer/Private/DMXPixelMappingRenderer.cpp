@@ -16,6 +16,7 @@
 #include "Slate/WidgetRenderer.h"
 #include "ShaderParameterStruct.h"
 #include "ShaderPermutation.h"
+#include "ShaderParameters.h"
 #include "TextureResource.h"
 #include "Widgets/Images/SImage.h"
 
@@ -122,14 +123,14 @@ void FDMXPixelMappingRenderer::DownsampleRender(
 	const FTextureResource* InputTexture,
 	const FTextureResource* DstTexture,
 	const FTextureRenderTargetResource* DstTextureTargetResource,
-	TArray<FDMXPixelMappingDownsamplePixelParam>&& InDownsamplePixelPass,
+	const TArray<FDMXPixelMappingDownsamplePixelParam>& InDownsamplePixelPass,
 	DownsampleReadCallback InCallback
 ) const
 {
 	check(IsInGameThread());
 	
 	ENQUEUE_RENDER_COMMAND(DownsampleRenderRDG)(
-		[this, InputTexture, DstTexture, DstTextureTargetResource, InCallback, DownsamplePixelPass = MoveTemp(InDownsamplePixelPass)]
+		[this, InputTexture, DstTexture, DstTextureTargetResource, InCallback, DownsamplePixelPass = InDownsamplePixelPass]
 		(FRHICommandListImmediate& RHICmdList)
 		{
 			SCOPED_GPU_STAT(RHICmdList, DMXPixelMappingShadersStat);
@@ -219,7 +220,7 @@ void FDMXPixelMappingRenderer::DownsampleRender(
 				const FIntRect Rect(0, 0, OutputTextureSize.X, OutputTextureSize.Y);
 
 				// Read surface without flush rendering thread
-				GDynamicRHI->RHIReadSurfaceData(ResolveRenderTarget, Rect, ColorArray, FReadSurfaceDataFlags());
+				RHICmdList.ReadSurfaceData(ResolveRenderTarget, Rect, ColorArray, FReadSurfaceDataFlags());
 
 				// Fire the callback after drawing and copying texture to CPU buffer
 				InCallback(MoveTemp(ColorArray), Rect);
@@ -271,7 +272,6 @@ void FDMXPixelMappingRenderer::RenderPreview(const FTextureResource* TextureReso
 				FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 				TShaderMapRef<FScreenVS> VertexShader(ShaderMap);
 				TShaderMapRef<FScreenPS> PixelShader(ShaderMap);
-				PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Point>::GetRHI(), DownsampleTextureRef);
 
 				// Setup graphics pipeline
 				FGraphicsPipelineStateInitializer GraphicsPSOInit;
@@ -284,6 +284,8 @@ void FDMXPixelMappingRenderer::RenderPreview(const FTextureResource* TextureReso
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+				PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Point>::GetRHI(), DownsampleTextureRef);
 
 				const float DownsampleSizeX = DownsampleResource->GetSizeX();
 				const float DownsampleSizeY = DownsampleResource->GetSizeY();
@@ -308,8 +310,7 @@ void FDMXPixelMappingRenderer::RenderPreview(const FTextureResource* TextureReso
 						SizeU, SizeV,																		// Source USize, VSize
 						FIntPoint(TextureResource->GetSizeX(), TextureResource->GetSizeY()),				// Target buffer size
 						FIntPoint(PixelSizeX, PixelSizeY),													// Source texture size
-						VertexShader,
-						EDRF_Default);
+						VertexShader);
 				}
 			}
 			RHICmdList.EndRenderPass();
@@ -411,23 +412,23 @@ void FDMXPixelMappingRenderer::RenderTextureToRectangle(const FTextureResource* 
 
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-			
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
 			if (RenderContext.bSRGBSource)
 			{
 				TShaderMapRef<FScreenPSsRGBSource> PixelShader(ShaderMap);
-				PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Point>::GetRHI(), RenderContext.TextureResource->TextureRHI);
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+				PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Point>::GetRHI(), RenderContext.TextureResource->TextureRHI);
 			}
 			else
 			{
 				TShaderMapRef<FScreenPS> PixelShader(ShaderMap);
-				PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Point>::GetRHI(), RenderContext.TextureResource->TextureRHI);
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+				PixelShader->SetParameters(RHICmdList, TStaticSamplerState<SF_Point>::GetRHI(), RenderContext.TextureResource->TextureRHI);
 			}
+
 			
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 			RendererModule->DrawRectangle(
 				RHICmdList,

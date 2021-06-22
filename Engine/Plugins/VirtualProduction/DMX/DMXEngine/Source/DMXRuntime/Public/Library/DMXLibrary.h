@@ -39,11 +39,9 @@ class DMXRUNTIME_API UDMXLibrary
 {
 	GENERATED_BODY()
 
-public:
-	UDMXLibrary();
-
 protected:
 	// ~Begin UObject Interface
+	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 
@@ -180,13 +178,18 @@ public:
 	/** Returns all ports as a set, slower than GetInputPorts and GetOutputPorts. */
 	TSet<FDMXPortSharedRef> GenerateAllPortsSet() const;
 
-	/** Returns the name of the Ports property. */
-	static FName GetPortReferencesPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXLibrary, PortReferences); }
-
-protected:
 	/** Updates the ports from what's set in the Input and Output Port References arrays */
 	void UpdatePorts();
 
+#if WITH_EDITOR
+	/** Returns the name of the Ports property. */
+	static FName GetPortReferencesPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXLibrary, PortReferences); }
+
+	/** Returns the name of the Entities property. */
+	static FName GetEntitiesPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXLibrary, Entities); }
+#endif // WITH_EDITOR
+
+protected:
 #if WITH_EDITOR
 	/** 
 	 * Upgrades libraries that use controllers (before 4.27) to use ports instead (from 4.27 on). 

@@ -4,6 +4,8 @@
 
 #include "Views/Input/SLevelSnapshotsEditorInput.h"
 
+#include "CoreUObject/Public/AssetRegistry/AssetData.h"
+
 FLevelSnapshotsEditorInput::FLevelSnapshotsEditorInput(const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder)
 	: BuilderPtr(InBuilder)
 {
@@ -17,4 +19,9 @@ TSharedRef<SWidget> FLevelSnapshotsEditorInput::GetOrCreateWidget()
 	}
 
 	return EditorInputWidget.ToSharedRef();
+}
+
+void FLevelSnapshotsEditorInput::OpenLevelSnapshotsDialogWithAssetSelected(const FAssetData& InAssetData) const
+{
+	EditorInputWidget->OpenLevelSnapshotsDialogWithAssetSelected(InAssetData);
 }

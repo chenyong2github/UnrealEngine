@@ -11,6 +11,8 @@
 #include "OnlineUserEOSPlus.h"
 #include "OnlineSessionEOSPlus.h"
 #include "OnlineLeaderboardsEOSPlus.h"
+#include "OnlineStoreEOSPlus.h"
+#include "OnlineExternalUIEOSPlus.h"
 
 
 /**
@@ -55,6 +57,7 @@ public:
 	virtual FText GetOnlineServiceName() const override;
 
 	virtual bool Init() override;
+	virtual void PreUnload() override;
 	virtual bool Shutdown() override;
 	virtual FString GetAppId() const override;
 //~IOnlineSubsystem
@@ -79,6 +82,8 @@ PACKAGE_SCOPE:
 	FOnlineUserEOSPlusPtr UserInterfacePtr;
 	FOnlineSessionEOSPlusPtr SessionInterfacePtr;
 	FOnlineLeaderboardsEOSPlusPtr LeaderboardsInterfacePtr;
+	FOnlineStoreEOSPlusPtr StoreInterfacePtr;
+	FOnlineExternalUIEOSPlusPtr ExternalUIInterfacePtr;
 };
 
 typedef TSharedPtr<FOnlineSubsystemEOSPlus, ESPMode::ThreadSafe> FOnlineSubsystemEOSPlusPtr;

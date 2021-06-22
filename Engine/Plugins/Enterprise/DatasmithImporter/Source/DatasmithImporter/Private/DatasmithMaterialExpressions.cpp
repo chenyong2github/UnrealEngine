@@ -195,11 +195,12 @@ namespace
 		return FName( *ParameterNameString );
 	}
 
-	FString GenerateUniqueMaterialName( const TCHAR* MaterialLabel, FDatasmithUniqueNameProvider& UniqueNameProvider )
+	FString GenerateUniqueMaterialName( const TCHAR* MaterialLabel, UPackage* Package, FDatasmithUniqueNameProvider& UniqueNameProvider )
 	{
 		FString Label = ObjectTools::SanitizeObjectName( MaterialLabel );
 		// Generate unique name from label if valid, otherwise return element's name as it is unique
-		return UniqueNameProvider.GenerateUniqueName( Label );
+		int32 MaxCharCount = FDatasmithImporterUtils::GetAssetNameMaxCharCount(Package);
+		return UniqueNameProvider.GenerateUniqueName( Label, MaxCharCount );
 	}
 
 	template<class IDatasmithMaterialExpression>
@@ -2529,7 +2530,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateDatasmithMaterial(UPack
 	UMaterial* UnrealMaterial = nullptr;
 	if (ExistingMaterial == nullptr)
 	{
-		FString FixedMaterialName = GenerateUniqueMaterialName( MaterialElement->GetLabel(), AssetsContext.MaterialNameProvider );
+		FString FixedMaterialName = GenerateUniqueMaterialName( MaterialElement->GetLabel(), Package, AssetsContext.MaterialNameProvider );
 
 		// Verify that the material could be created in final package
 		FText FailReason;
@@ -2596,7 +2597,8 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateDatasmithMaterial(UPack
 UMaterialInterface* FDatasmithMaterialExpressions::CreateDatasmithMaterial(UPackage* Package, const TSharedPtr< IDatasmithShaderElement >& ShaderElement, FDatasmithAssetsImportContext& AssetsContext,
 																		  UMaterial* ExistingMaterial, EObjectFlags ObjectFlags)
 {
-	FString FixedMaterialName = GenerateUniqueMaterialName( ShaderElement->GetLabel(), AssetsContext.MaterialNameProvider );
+
+	FString FixedMaterialName = GenerateUniqueMaterialName( ShaderElement->GetLabel(), Package, AssetsContext.MaterialNameProvider );
 	UMaterial* UnrealMaterial = nullptr;
 	if (ExistingMaterial == nullptr)
 	{
@@ -2686,7 +2688,7 @@ UMaterialFunction* FDatasmithMaterialExpressions::CreateDatasmithMaterialFunc(UP
 UMaterialInterface* FDatasmithMaterialExpressions::CreateDatasmithEnvironmentMaterial(UPackage* Package, const TSharedPtr< IDatasmithShaderElement >& ShaderElement,
 																					  FDatasmithAssetsImportContext& AssetsContext, UMaterial* ExistingMaterial)
 {
-	FString FixedMaterialName = GenerateUniqueMaterialName(ShaderElement->GetLabel(), AssetsContext.MaterialNameProvider);
+	FString FixedMaterialName = GenerateUniqueMaterialName(ShaderElement->GetLabel(), Package, AssetsContext.MaterialNameProvider);
 	UMaterial* UnrealMaterial = nullptr;
 
 	if (ExistingMaterial == nullptr)
@@ -3186,7 +3188,7 @@ void FDatasmithMaterialExpressions::CreateUEPbrMaterialGraph(const TSharedPtr< I
 
 UMaterialFunction* FDatasmithMaterialExpressions::CreateUEPbrMaterialFunction(UPackage* Package, const TSharedPtr< IDatasmithUEPbrMaterialElement >& MaterialElement, FDatasmithAssetsImportContext& AssetsContext, UMaterial* ExistingMaterial, EObjectFlags ObjectFlags)
 {
-	FString MaterialFunctionName = GenerateUniqueMaterialName(MaterialElement->GetParentLabel(), AssetsContext.MaterialFunctionNameProvider);
+	FString MaterialFunctionName = GenerateUniqueMaterialName(MaterialElement->GetParentLabel(), Package, AssetsContext.MaterialFunctionNameProvider);
 
 	FText FailReason;
 	if (!FDatasmithImporterUtils::CanCreateAsset<UMaterialFunction>(Package, MaterialFunctionName, FailReason))
@@ -3243,7 +3245,7 @@ EBlendMode FDatasmithMaterialExpressions::GetUEPbrImportBlendMode(const TSharedP
 UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterial(UPackage* Package, const TSharedPtr< IDatasmithUEPbrMaterialElement >& MaterialElement, FDatasmithAssetsImportContext& AssetsContext,
 	UMaterial* ExistingMaterial, EObjectFlags ObjectFlags)
 {
-	FString MaterialName = GenerateUniqueMaterialName(MaterialElement->GetParentLabel(), AssetsContext.MasterMaterialNameProvider);
+	FString MaterialName = GenerateUniqueMaterialName(MaterialElement->GetParentLabel(), Package, AssetsContext.MasterMaterialNameProvider);
 
 	// Verify that the material could be created in final package
 	FText FailReason;
@@ -3274,12 +3276,12 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterial(UPackage*
 	EDatasmithShadingModel MaterialShadingModel = MaterialElement->GetShadingModel();
 	switch (MaterialShadingModel)
 	{
-		case EDatasmithShadingModel::Subsurface: 
-			UnrealMaterial->SetShadingModel(MSM_Subsurface); 
+		case EDatasmithShadingModel::Subsurface:
+			UnrealMaterial->SetShadingModel(MSM_Subsurface);
 			break;
 
-		case EDatasmithShadingModel::ClearCoat: 
-			UnrealMaterial->SetShadingModel(MSM_ClearCoat); 
+		case EDatasmithShadingModel::ClearCoat:
+			UnrealMaterial->SetShadingModel(MSM_ClearCoat);
 			break;
 
 		case EDatasmithShadingModel::ThinTranslucent:
@@ -3289,7 +3291,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterial(UPackage*
 		default:
 			break;
 	}
-	
+
 
 	if ( MaterialElement->GetOpacity().GetExpression() )
 	{
@@ -3314,7 +3316,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterial(UPackage*
 UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterialInstance(UPackage* Package, const TSharedPtr< IDatasmithUEPbrMaterialElement >& MaterialElement, FDatasmithAssetsImportContext& AssetsContext,
 	UMaterialInterface* ParentMaterial, EObjectFlags ObjectFlags)
 {
-	FString MaterialName = GenerateUniqueMaterialName(MaterialElement->GetLabel(), AssetsContext.MaterialNameProvider);
+	FString MaterialName = GenerateUniqueMaterialName(MaterialElement->GetLabel(), Package, AssetsContext.MaterialNameProvider);
 
 	// Verify that the material could be created in final package
 	FText FailReason;

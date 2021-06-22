@@ -1594,12 +1594,30 @@ void APlayerController::ClientSetCameraFade_Implementation(bool bEnableFading, F
 
 /// @endcond
 
+namespace UE_NETWORK_PHYSICS
+{
+	int32 NumRedundantCmds=3;
+	FAutoConsoleVariableRef CVarNumRedundantCmds(TEXT("np2.NumRedundantCmds"), NumRedundantCmds, TEXT("Number of redundant user cmds to send per frame"));
+
+#if (UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	int32 EnableDebugRPC=0;
+#else
+	int32 EnableDebugRPC=1;
+#endif
+	FAutoConsoleVariableRef CVarEnableDebugRPC(TEXT("np2.EnableDebugRPC"), EnableDebugRPC, TEXT("Sends extra debug information to clients about server side input buffering"));
+}
+
 void APlayerController::SendClientAdjustment()
 {
 	if (ServerFrameInfo.LastProcessedInputFrame != INDEX_NONE && ServerFrameInfo.LastProcessedInputFrame != ServerFrameInfo.LastSentLocalFrame)
 	{
-		ServerFrameInfo.LastSentLocalFrame = ServerFrameInfo.LastProcessedInputFrame;
-		ClientRecvServerAckFrame(ServerFrameInfo.LastProcessedInputFrame, ServerFrameInfo.LastLocalFrame);
+		ServerFrameInfo.LastSentLocalFrame = ServerFrameInfo.LastProcessedInputFrame;		
+		ClientRecvServerAckFrame(ServerFrameInfo.LastProcessedInputFrame, ServerFrameInfo.LastLocalFrame, ServerFrameInfo.QuantizedTimeDilation);
+
+		if (UE_NETWORK_PHYSICS::EnableDebugRPC)
+		{
+			ClientRecvServerAckFrameDebug(InputBuffer.HeadFrame() - ServerFrameInfo.LastProcessedInputFrame, ServerFrameInfo.TargetNumBufferedCmds);
+		}
 	}
 
 	if (AcknowledgedPawn != GetPawn() && !GetSpectatorPawn())
@@ -1618,12 +1636,6 @@ void APlayerController::SendClientAdjustment()
 			NetworkPredictionInterface->SendClientAdjustment();
 		}
 	}
-}
-
-namespace UE_NETWORK_PHYSICS
-{
-	int32 NumRedundantCmds=3;
-	FAutoConsoleVariableRef CVarNumRedundantCmds(TEXT("np2.NumRedundantCmds"), NumRedundantCmds, TEXT("Number of redundant user cmds to send per frame"));
 }
 
 void APlayerController::PushClientInput(int32 InRecvClientInputFrame, TArray<uint8>& Data)
@@ -1662,10 +1674,17 @@ void APlayerController::ServerRecvClientInputFrame_Implementation(int32 InRecvCl
 	}
 }
 
-void APlayerController::ClientRecvServerAckFrame_Implementation(int32 InClientInputFrame, int32 InServerFrameNumber)
+void APlayerController::ClientRecvServerAckFrame_Implementation(int32 LastProcessedInputFrame, int32 RecvServerFrameNumber, int8 TimeDilation)
 {
-	ClientFrameInfo.LastRecvInputFrame = InClientInputFrame;
-	ClientFrameInfo.LastRecvServerFrame = InServerFrameNumber;
+	ClientFrameInfo.LastRecvServerFrame = RecvServerFrameNumber;
+	ClientFrameInfo.LastProcessedInputFrame = LastProcessedInputFrame;
+	ClientFrameInfo.QuantizedTimeDilation = TimeDilation;
+}
+
+void APlayerController::ClientRecvServerAckFrameDebug_Implementation(uint8 NumBuffered, float TargetNumBufferedCmds)
+{
+	ClientFrameInfo.LastRecvInputFrame = ClientFrameInfo.LastProcessedInputFrame + NumBuffered;
+	ClientFrameInfo.TargetNumBufferedCmds = TargetNumBufferedCmds;
 }
 
 /// @cond DOXYGEN_WARNINGS

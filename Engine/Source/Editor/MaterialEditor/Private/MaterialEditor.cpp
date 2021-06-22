@@ -5262,12 +5262,14 @@ void FMaterialEditor::DeleteNodesInternal(const TArray<class UEdGraphNode*>& Nod
 					const TArray<UEdGraphNode*> SubgraphNodesToDelete = CompositeNode->BoundGraph->Nodes;
 					DeleteNodesInternal(SubgraphNodesToDelete, bHaveExpressionsToDelete, bPreviewExpressionDeleted);
 				}
-
-				MaterialExpression->Modify();
-				Material->Expressions.Remove( MaterialExpression );
-				Material->RemoveExpressionParameter(MaterialExpression);
-				// Make sure the deleted expression is caught by gc
-				MaterialExpression->MarkPendingKill();
+				if(MaterialExpression)
+				{
+					MaterialExpression->Modify();
+					Material->Expressions.Remove( MaterialExpression );
+					Material->RemoveExpressionParameter(MaterialExpression);
+					// Make sure the deleted expression is caught by gc
+					MaterialExpression->MarkPendingKill();
+				}
 			}
 			else if (UMaterialGraphNode_Comment* CommentNode = Cast<UMaterialGraphNode_Comment>(NodesToDelete[Index]))
 			{

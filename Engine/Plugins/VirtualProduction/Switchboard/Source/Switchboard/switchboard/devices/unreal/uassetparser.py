@@ -9,7 +9,9 @@ Find the relevant C++ code in the UE codebase:
   * PackageUtilities.cpp
 '''
 
-import json, struct, os
+import os
+import struct
+from typing import BinaryIO
 
 class UassetSummary(object):
     ''' Class to hold the PacketSummary of the asset.
@@ -41,32 +43,32 @@ class UassetParser(object):
     ''' Class with the logic to parse the asset.
 
     Example usage:
-        aparser = UassetParser(fpath)
-        
-        for assetdata in aparser.aregdata:
-            print('ObjectPath     : {}'.format(assetdata.ObjectPath))
-            print('ObjectClassName: {}'.format(assetdata.ObjectClassName))
-            print('Tags')
+        with open('file.uasset', 'rb') as file:
+            aparser = UassetParser(file)
 
-            for k,v in assetdata.tags.items():
-                print('Tag {}: {}'.format(k,v))
+            for assetdata in aparser.aregdata:
+                print('ObjectPath     : {}'.format(assetdata.ObjectPath))
+                print('ObjectClassName: {}'.format(assetdata.ObjectClassName))
+                print('Tags')
+
+                for k,v in assetdata.tags.items():
+                    print('Tag {}: {}'.format(k,v))
     '''
     
     _names = None
     _aregdata = None
     _thumbnailCache = None
     
-    def __init__(self, fpath, allowUnversioned=True):
-        ''' Opens the file and reads the summary, which has the most basic information about the asset. '''
+    def __init__(self, fileObj: BinaryIO, allowUnversioned=True):
+        ''' Parses `fileObj` and reads the summary, which has the most basic information about the asset. '''
 
-        self.fpath = fpath
         self.allowUnversioned = allowUnversioned
-        
-        self.f = open(self.fpath,'rb')
-        
+
+        self.f = fileObj
+
         self.f.seek(0, os.SEEK_END)
         self.PackageFileSize = self.f.tell()
-        
+
         self.asummary = self._readUassetSummary()
 
     @property
@@ -412,6 +414,7 @@ if __name__ == '__main__':
 
     fpath = os.path.abspath(fpath)
 
-    aparser = UassetParser(fpath)
-    printAssetData(aparser, bAssetRegistry, bTags, bNames, bThumbnailCache)
+    with open(fpath, 'rb') as file:
+        aparser = UassetParser(file)
+        printAssetData(aparser, bAssetRegistry, bTags, bNames, bThumbnailCache)
     

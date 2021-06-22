@@ -10,8 +10,6 @@
 
 #if WITH_EDITOR
 
-
-
 template <>
 bool RemoteControlPropertyUtilities::Deserialize<FProperty>(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst)
 {

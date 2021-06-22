@@ -219,7 +219,7 @@ struct FExportMapEntry
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FExportMapEntry& ExportMapEntry);
 };
 
-COREUOBJECT_API void FindAllRuntimeScriptPackages(TArray<UPackage*>& OutPackages);
+COREUOBJECT_API void FindAllRuntimeScriptPackages(TArray<UPackage*>& OutPackages, bool bAllowEditorOnlyPackages);
 
 #ifndef WITH_ASYNCLOADING2
 #define WITH_ASYNCLOADING2 (WITH_IOSTORE_IN_EDITOR || !WITH_EDITORONLY_DATA)

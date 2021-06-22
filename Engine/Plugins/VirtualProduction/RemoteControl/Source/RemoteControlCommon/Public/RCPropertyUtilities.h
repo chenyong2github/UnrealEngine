@@ -268,10 +268,12 @@ namespace RemoteControlPropertyUtilities
 	/** Reads the raw data from InSrc and deserializes to OutDst. */
 	template <typename PropertyType>
 	typename TEnableIf<
-		TAnd<
-			TIsDerivedFrom<PropertyType, FProperty>,
-			TNot<TIsSame<PropertyType, FProperty>>,
-			TNot<TIsSame<PropertyType, FNumericProperty>>
+		TOr<
+			TAnd<
+				TIsDerivedFrom<PropertyType, FProperty>,
+				TNot<TIsSame<PropertyType, FProperty>>,
+				TNot<TIsSame<PropertyType, FNumericProperty>>>,
+			TIsSame<PropertyType, FEnumProperty>
 			>::Value, bool>::Type
 	Deserialize(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst)
 	{
@@ -281,23 +283,66 @@ namespace RemoteControlPropertyUtilities
 		checkf(SrcPropertyContainer != nullptr, TEXT("Deserialize requires Src to have a backing container."));
 
 		OutDst.Init(InSrc.Size()); // initializes only if necessary
+		
 		ValueType* DstCurrentValue = OutDst.GetPropertyValue<ValueType>();
+		InSrc.GetProperty()->InitializeValue(DstCurrentValue);
+
+		const int32 SrcSize = InSrc.Size();
+
+		// The stored data size doesn't match, so cast
+		if(OutDst.GetProperty()->ElementSize != SrcSize)
+		{
+			if(const FNumericProperty* DstProperty = OutDst.GetProperty<FNumericProperty>())
+			{
+				// @note this only works for integers
+				if(DstProperty->IsInteger())
+				{
+					if(SrcSize == 1)
+					{
+						uint8* SrcValue = InSrc.GetPropertyValue<uint8>();
+						if(SrcValue)
+						{
+							DstProperty->SetIntPropertyValue(DstCurrentValue, static_cast<uint64>(*SrcValue));
+							return true;
+						}
+					}
+					else if(SrcSize == 2)
+					{
+						uint16* SrcValue = InSrc.GetPropertyValue<uint16>();
+						if(SrcValue)
+						{
+							DstProperty->SetIntPropertyValue(DstCurrentValue, static_cast<uint64>(*SrcValue));
+							return true;
+						}
+					}
+					else if(SrcSize == 4)
+					{
+						uint32* SrcValue = InSrc.GetPropertyValue<uint32>();
+						if(SrcValue)
+						{
+							DstProperty->SetIntPropertyValue(DstCurrentValue, static_cast<uint64>(*SrcValue));
+							return true;
+						}
+					}
+				}
+			}
+		}
 
 		FMemoryReader Reader(*SrcPropertyContainer);
-		InSrc.GetProperty()->SerializeItem(FStructuredArchiveFromArchive(Reader).GetSlot(), OutDst.GetPropertyData(), nullptr);
+		InSrc.GetProperty()->SerializeItem(FStructuredArchiveFromArchive(Reader).GetSlot(), DstCurrentValue, nullptr);
 
-		//OutDst.InferNum(&InSrc);
-
-		return false;
+ 		return true;
 	}
-
+	
 	/** Reads the property value from InSrc and serializes to OutDst. */
 	template <typename PropertyType>
-	typename TEnableIf<		
-		TAnd<
-			TIsDerivedFrom<PropertyType, FProperty>,
-			TNot<TIsSame<PropertyType, FProperty>>,
-			TNot<TIsSame<PropertyType, FNumericProperty>>
+	typename TEnableIf<
+		TOr<
+			TAnd<
+				TIsDerivedFrom<PropertyType, FProperty>,
+				TNot<TIsSame<PropertyType, FProperty>>,
+				TNot<TIsSame<PropertyType, FNumericProperty>>>,
+			TIsSame<PropertyType, FEnumProperty>
 			>::Value, bool>::Type
 	Serialize(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst)
 	{
@@ -306,13 +351,33 @@ namespace RemoteControlPropertyUtilities
 		ValueType* SrcValue = InSrc.GetPropertyValue<ValueType>();
 
 		TArray<uint8>* DstPropertyContainer = OutDst.GetPropertyContainer();
-		checkf(DstPropertyContainer != nullptr, TEXT("Serialize requires Src to have a backing container."));
+		checkf(DstPropertyContainer != nullptr, TEXT("Serialize requires Dst to have a backing container."));
+
+		DstPropertyContainer->Empty();
+		OutDst.Init(InSrc.GetProperty()->GetSize()); // initializes only if necessary
+		InSrc.GetProperty()->InitializeValue(DstPropertyContainer->GetData());
 		
 		FMemoryWriter Writer(*DstPropertyContainer);
-		OutDst.Init(); // initializes only if necessary
 		OutDst.GetProperty()->SerializeItem(FStructuredArchiveFromArchive(Writer).GetSlot(), SrcValue, nullptr);
 
 		OutDst.InferNum(&InSrc);
+
+		return true;
+	}
+
+	/** Specialization for FStructProperty. */
+	template <>
+	inline bool Deserialize<FStructProperty>(const FRCPropertyVariant& InSrc, FRCPropertyVariant& OutDst)
+	{
+		TArray<uint8>* SrcPropertyContainer = InSrc.GetPropertyContainer();
+		checkf(SrcPropertyContainer != nullptr, TEXT("Deserialize requires Src to have a backing container."));
+		
+		OutDst.Init(InSrc.Size()); // initializes only if necessary
+		void* DstCurrentValue = OutDst.GetPropertyValue<void>();
+		InSrc.GetProperty<FStructProperty>()->Struct->InitializeStruct(DstCurrentValue);
+		
+		FMemoryReader Reader(*SrcPropertyContainer);
+		InSrc.GetProperty()->SerializeItem(FStructuredArchiveFromArchive(Reader).GetSlot(), DstCurrentValue, nullptr);
 
 		return true;
 	}

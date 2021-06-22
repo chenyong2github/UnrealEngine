@@ -40,6 +40,8 @@ class CAMERACALIBRATIONCORE_API ULensDistortionModelHandlerBase : public UObject
 	GENERATED_BODY()
 
 public:
+	ULensDistortionModelHandlerBase();
+
 	/** Returns true if the input model is supported by this model handler, false otherwise. */
 	UFUNCTION(BlueprintCallable, Category = "Distortion")
 	bool IsModelSupported(const TSubclassOf<ULensModel>& ModelToSupport) const;
@@ -113,6 +115,9 @@ public:
 	/** Draws the current distortion state to the internal displacement map */
 	void ProcessCurrentDistortion();
 
+	/** Create two displacement maps, for distortion and undistortion, using the input resolution */
+	void CreateDisplacementMaps(const FIntPoint DisplacementMapResolution);
+
 protected:
 	/** Initialize the handler. Derived classes must set the LensModelClass that they support, if not already set */
 	virtual void InitializeHandler() PURE_VIRTUAL(ULensDistortionModelHandlerBase::InitializeHandler);
@@ -171,9 +176,6 @@ protected:
 	FGuid DistortionProducerID;
 
 private:
-	static constexpr uint32 DisplacementMapWidth = 256;
-	static constexpr uint32 DisplacementMapHeight = 256;
-
 	/** Tracks whether distortion state has been changed */
 	bool bIsDirty = true;
 };

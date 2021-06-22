@@ -64,7 +64,7 @@ class FTaskMgr::FThread
 		// Run task after task
 		void Run()
 		{
-#ifdef WIN32
+#if PLATFORM_WINDOWS
 			SetThreadName(GS::Thread::GetCurrent().GetName().ToUtf8());
 #else
 			pthread_setname_np(GS::Thread::GetCurrent().GetName().ToUtf8());
@@ -119,7 +119,7 @@ FTaskMgr::FTaskMgr()
 		Treads.resize(nbProcessors);
 		for (unsigned i = 0; i < nbProcessors; i++)
 		{
-			Treads[i].reset(new FThread(this, GS::UniString::Printf("AC2TM Task #%d", i)));
+			Treads[i].reset(new FThread(this, GS::UniString::Printf("Datasmith Exporter Task #%d", i)));
 		}
 	}
 }

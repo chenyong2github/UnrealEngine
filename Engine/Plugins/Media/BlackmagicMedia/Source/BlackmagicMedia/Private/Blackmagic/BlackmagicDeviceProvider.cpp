@@ -337,7 +337,7 @@ TArray<FMediaIOMode> FBlackmagicDeviceProvider::GetModes(const FMediaIODevice& I
 		return Results;
 	}
 
-	if (bInOutput && !DeviceInfo.bCanDoPlayback || !bInOutput && !DeviceInfo.bCanDoCapture)
+	if ((bInOutput && !DeviceInfo.bCanDoPlayback) || (!bInOutput && !DeviceInfo.bCanDoCapture))
 	{
 		return Results;
 	}

@@ -45,6 +45,8 @@ public:
 
 private:
 	void CreateAVEncoder(TSharedPtr<AVEncoder::FVideoEncoderInput> encoderInput);
+	void OnEncodedPacket(uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket);
+	void CreateH264FragmentHeader(uint8 const* CodedData, size_t CodedDataSize, webrtc::RTPFragmentationHeader& Fragments) const;
 
 	// We store this so we can restore back to it if the user decides to use then stop using the PixelStreaming.Encoder.TargetBitrate CVar.
 	int32 WebRtcProposedTargetBitrate = 5000000; 

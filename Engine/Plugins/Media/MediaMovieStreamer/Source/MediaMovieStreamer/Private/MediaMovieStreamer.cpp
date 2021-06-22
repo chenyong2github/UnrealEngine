@@ -5,6 +5,7 @@
 #include "IMediaModule.h"
 #include "MediaMovieAssets.h"
 #include "MediaMovieStreamerModule.h"
+#include "MediaMovieTimeSource.h"
 #include "MediaPlayer.h"
 #include "MediaSource.h"
 #include "MediaTexture.h"
@@ -79,6 +80,14 @@ bool FMediaMovieStreamer::Init(const TArray<FString>& InMoviePaths, TEnumAsByte<
 		Texture = MakeShareable(new FSlateTexture2DRHIRef(nullptr, 0, 0));
 	}
 	
+	// Set time source as the normal one does not update when the game thread is blocked.
+	IMediaModule* MediaModule = GetMediaModule();
+	if (MediaModule != nullptr)
+	{
+		PreviousTimeSource = MediaModule->GetTimeSource();
+		MediaModule->SetTimeSource(MakeShareable(new FMediaMovieTimeSource));
+	}
+
 	return true;
 }
 
@@ -172,6 +181,13 @@ void FMediaMovieStreamer::Cleanup()
 		BeginReleaseResource(CurrentTexture);
 		FlushRenderingCommands();
 		Texture.Reset();
+	}
+
+	// Restore previous time source.
+	IMediaModule* MediaModule = GetMediaModule();
+	if ((MediaModule != nullptr) && (PreviousTimeSource != nullptr))
+	{
+		MediaModule->SetTimeSource(PreviousTimeSource);
 	}
 }
 

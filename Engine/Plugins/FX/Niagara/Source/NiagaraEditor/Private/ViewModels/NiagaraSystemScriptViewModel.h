@@ -15,7 +15,7 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnSystemCompiled)
 
 public:
-	FNiagaraSystemScriptViewModel();
+	FNiagaraSystemScriptViewModel(bool bInIsForDataProcessingOnly);
 
 	void Initialize(UNiagaraSystem& InSystem);
 

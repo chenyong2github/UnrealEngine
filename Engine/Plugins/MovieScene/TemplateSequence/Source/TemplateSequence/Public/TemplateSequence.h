@@ -42,6 +42,8 @@ public:
 	virtual FGuid CreatePossessable(UObject* ObjectToPossess) override;
 	virtual bool AllowsSpawnableObjects() const override;
 
+	virtual UObject* MakeSpawnableTemplateFromInstance(UObject& InSourceObject, FName ObjectName) override;
+
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 
 #if WITH_EDITOR

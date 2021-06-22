@@ -192,6 +192,12 @@ TArray<UObject*> UAssetEditorSubsystem::GetAllEditedAssets()
 }
 
 
+void UAssetEditorSubsystem::NotifyEditorOpeningPreWidgets(const TArray< UObject* >& Assets, IAssetEditorInstance* InInstance)
+{
+	EditorOpeningPreWidgetsEvent.Broadcast(Assets, InInstance);
+}
+
+
 void UAssetEditorSubsystem::NotifyAssetOpened(UObject* Asset, IAssetEditorInstance* InInstance)
 {
 	if (!OpenedEditors.Contains(InInstance))

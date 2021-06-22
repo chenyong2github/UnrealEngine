@@ -670,6 +670,11 @@ protected:
 
 public:
 	static const FString& GetDefaultDemoSavePath();
+	static FString GetDemoFullFilename(const FString& DemoPath, const FString& FileName);
+	static bool CleanUpOldReplays(FString DemoPath = GetDefaultDemoSavePath());
+	static bool GetDemoFreeStorageSpace(uint64& DiskFreeSpace, FString DemoPath);
+
+
 
 	static const uint32 FileMagic;
 	static const uint32 MaxFriendlyNameLen;
@@ -679,6 +684,7 @@ public:
 class LOCALFILENETWORKREPLAYSTREAMING_API FLocalFileNetworkReplayStreamingFactory : public INetworkReplayStreamingFactory, public FTickableGameObject
 {
 public:
+	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
 	virtual TSharedPtr<INetworkReplayStreamer> CreateReplayStreamer() override;

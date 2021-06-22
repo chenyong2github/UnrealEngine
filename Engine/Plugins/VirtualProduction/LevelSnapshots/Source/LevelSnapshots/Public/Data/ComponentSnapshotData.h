@@ -18,7 +18,7 @@ struct LEVELSNAPSHOTS_API FComponentSnapshotData
 
 	static TOptional<FComponentSnapshotData> SnapshotComponent(UActorComponent* OriginalComponent, FWorldSnapshotData& WorldData);
 	
-	bool IsRestoreSupportedForSavedComponent();
+	bool IsRestoreSupportedForSavedComponent() const;
 	
 	void DeserializeIntoTransient(FObjectSnapshotData& SerializedComponentData, UActorComponent* ComponentToDeserializeInto, FWorldSnapshotData& WorldData, UPackage* InLocalisationSnapshotPackage);
 	/* Describes how the component was created */

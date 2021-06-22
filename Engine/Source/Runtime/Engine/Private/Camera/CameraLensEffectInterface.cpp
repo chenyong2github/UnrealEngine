@@ -55,7 +55,7 @@ FTransform ICameraLensEffectInterface::GetAttachedEmitterTransform(const AActor*
 
 TSubclassOf<AActor> UCameraLensEffectInterfaceClassSupportLibrary::GetInterfaceClass(const FCameraLensInterfaceClassSupport& CameraLens)
 {
-	if (CameraLens.Class && CameraLens.Class->Implements<UCameraLensEffectInterface>())
+	if (CameraLens.Class && CameraLens.Class->ImplementsInterface(UCameraLensEffectInterface::StaticClass()))
 	{
 		return CameraLens.Class;
 	}
@@ -93,7 +93,7 @@ void UCameraLensEffectInterfaceClassSupportLibrary::IsInterfaceValid(const TScri
 
 void UCameraLensEffectInterfaceClassSupportLibrary::SetInterfaceClass(TSubclassOf<AActor> Class, FCameraLensInterfaceClassSupport& Var, EInterfaceValidResult& Result)
 {
-	if (Class && Class->Implements<UCameraLensEffectInterface>())
+	if (Class && Class->ImplementsInterface(UCameraLensEffectInterface::StaticClass()))
 	{
 		Var.Class = Class;
 		Result = EInterfaceValidResult::Valid;

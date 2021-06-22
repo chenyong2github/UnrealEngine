@@ -3,7 +3,7 @@
 
 	"FriendlyName": "Blackmagic Media Player",
 	"Version": 2,
-	"VersionName": "2.0",
+	"VersionName": "2.1",
 	"CreatedBy": "Epic Games Inc",
 	"CreatedByURL": "http://epicgames.com",
 	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/content/433d28bdfb764ec5b2e60c4f45d5cb5c",
@@ -12,37 +12,37 @@
 	"CanContainContent": false,
 	"EnabledByDefault": false,
 	"IsBetaVersion": false,
-	"SupportedTargetPlatforms": [ "Win64" ],
+	"SupportedTargetPlatforms": [ "Win64", "Linux" ],
 	"Modules": [
 		{
 			"Name": "BlackmagicMedia",
 			"Type": "Runtime",
 			"LoadingPhase": "PreLoadingScreen",
-			"WhitelistPlatforms": [ "Win64" ]
+			"WhitelistPlatforms": [ "Win64", "Linux" ]
 		},
 		{
 			"Name": "BlackmagicMediaOutput",
 			"Type": "Runtime",
 			"LoadingPhase": "PreLoadingScreen",
-			"WhitelistPlatforms": [ "Win64" ]
+			"WhitelistPlatforms": [ "Win64", "Linux" ]
 		},
 		{
 			"Name": "BlackmagicMediaFactory",
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit",
-			"WhitelistPlatforms": [ "Win64" ]
+			"WhitelistPlatforms": [ "Win64", "Linux" ]
 		},
 		{
 			"Name": "BlackmagicMediaFactory",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PostEngineInit",
-			"WhitelistPlatforms": [ "Win64" ]
+			"WhitelistPlatforms": [ "Win64", "Linux" ]
 		},
 		{
 			"Name": "BlackmagicMediaEditor",
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit",
-			"WhitelistPlatforms": [ "Win64" ]
+			"WhitelistPlatforms": [ "Win64", "Linux" ]
 		}
 	],
 	"Plugins": [

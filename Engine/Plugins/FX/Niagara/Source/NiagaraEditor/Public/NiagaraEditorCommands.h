@@ -23,6 +23,7 @@ public:
 	virtual void RegisterCommands() override;
 
 	TSharedPtr<FUICommandInfo> Apply;
+	TSharedPtr<FUICommandInfo> ApplyScratchPadChanges;
 	TSharedPtr<FUICommandInfo> Discard;
 	TSharedPtr<FUICommandInfo> Compile;
 	TSharedPtr<FUICommandInfo> RefreshNodes;

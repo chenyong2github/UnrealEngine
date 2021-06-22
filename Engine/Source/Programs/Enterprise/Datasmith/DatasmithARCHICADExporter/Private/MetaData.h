@@ -18,7 +18,7 @@ class FMetaData
 		MetaData->SetAssociatedElement(InElement);
 	}
 
-	void SetOrUpdate(TSharedPtr< IDatasmithMetaDataElement >* IOPtr, IDatasmithScene* IOScene);
+	bool SetOrUpdate(TSharedPtr< IDatasmithMetaDataElement >* IOPtr, IDatasmithScene* IOScene);
 
 	void ExportMetaData(const GS::Guid& InElementID);
 

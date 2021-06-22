@@ -113,6 +113,8 @@ void SNewClassDialog::Construct( const FArguments& InArgs )
 		{
 			AvailableModules.Emplace(MakeShareable(new FModuleContextInfo(ModuleInfo)));
 		}
+
+		Algo::SortBy(AvailableModules, &FModuleContextInfo::ModuleName);
 	}
 
 	// If we've been given an initial path that maps to a valid project module, use that as our initial module and path

@@ -307,6 +307,8 @@ public:
 	virtual void DumpRecentPlayers() const override;
 // ~IOnlineFriends Interface
 
+	bool HandleFriendsExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar);
+
 // IOnlinePresence Interface
 	virtual void SetPresence(const FUniqueNetId& User, const FOnlineUserPresenceStatus& Status, const FOnPresenceTaskCompleteDelegate& Delegate = FOnPresenceTaskCompleteDelegate()) override;
 	virtual void QueryPresence(const FUniqueNetId& User, const FOnPresenceTaskCompleteDelegate& Delegate = FOnPresenceTaskCompleteDelegate()) override;
@@ -340,6 +342,7 @@ PACKAGE_SCOPE:
 	}
 
 	int32 GetLocalUserNumFromUniqueNetId(const FUniqueNetId& NetId) const;
+	bool IsLocalUser(const FUniqueNetId& NetId) const;
 
 	EOS_EpicAccountId GetEpicAccountId(const FUniqueNetId& NetId) const;
 	EOS_ProductUserId GetProductUserId(const FUniqueNetId& NetId) const;

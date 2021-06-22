@@ -34,22 +34,22 @@ namespace
 					return Result;
 				}());
 
-			FirstManualFixture->bAutoAssignAddress					= false;
-			FirstManualFixture->ManualStartingAddress				= 1;
-			FirstManualFixture->UniverseID							= 1;
-			SecondManualFixture->bAutoAssignAddress					= false;
-			SecondManualFixture->ManualStartingAddress				= 9;
-			SecondManualFixture->UniverseID							= 1;
+			FirstManualFixture->SetAutoAssignAddressUnsafe(false);
+			FirstManualFixture->SetManualStartingAddress(1);
+			FirstManualFixture->SetUniverseID(1);
+			SecondManualFixture->SetAutoAssignAddressUnsafe(false);
+			SecondManualFixture->SetManualStartingAddress(9);
+			SecondManualFixture->SetUniverseID(1);
 
-			FirstAutoFixture->bAutoAssignAddress					= true;
-			FirstAutoFixture->UniverseID							= 1;
-			SecondAutoFixture->bAutoAssignAddress					= true;
-			SecondAutoFixture->UniverseID							= 1;
+			FirstAutoFixture->SetAutoAssignAddressUnsafe(true);
+			FirstAutoFixture->SetUniverseID(1);
+			SecondAutoFixture->SetAutoAssignAddressUnsafe(true);
+			SecondAutoFixture->SetUniverseID(1);
 
 			Library->AddEntity(DummyFixtureType);
 			for(UDMXEntityFixturePatch* Patch : PatchesAsArray())
 			{
-				Patch->ParentFixtureTypeTemplate = DummyFixtureType;
+				Patch->SetFixtureType(DummyFixtureType);
 				Library->AddEntity(Patch);
 			}
 		}
@@ -72,9 +72,9 @@ bool FPlaceInSingleUniverseTest::RunTest(const FString& Parameters)
 	TestEqual("Patch was placed in gap", TestSetup.FirstAutoFixture->GetStartingChannel(), 5);
 	TestEqual("Patch was placed in after manual", TestSetup.SecondAutoFixture->GetStartingChannel(), 13);
 
-	TestEqual("Universe of first manual patch", TestSetup.FirstManualFixture->UniverseID, 1);
-	TestEqual("Universe of first auto patch", TestSetup.FirstAutoFixture->UniverseID, 1);
-	TestEqual("Universe of second auto patch", TestSetup.SecondAutoFixture->UniverseID, 1);
+	TestEqual("Universe of first manual patch", TestSetup.FirstManualFixture->GetUniverseID(), 1);
+	TestEqual("Universe of first auto patch", TestSetup.FirstAutoFixture->GetUniverseID(), 1);
+	TestEqual("Universe of second auto patch", TestSetup.SecondAutoFixture->GetUniverseID(), 1);
 	
 	return true;
 }
@@ -99,17 +99,17 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FShiftToNextUniverseTest, "VirtualProduction.DM
 bool FShiftToNextUniverseTest::RunTest(const FString& Parameters)
 {
 	FFixtureTestSetup TestSetup(4);
-	TestSetup.FirstManualFixture->ManualStartingAddress = DMX_UNIVERSE_SIZE - 10;
+	TestSetup.FirstManualFixture->SetManualStartingAddress(DMX_UNIVERSE_SIZE - 10);
 	// The following is to test for regression bug: If patch A needed to be moved to universe 2, in which patch B resided, patch A's universe would not be updated to 2.
-	TestSetup.SecondManualFixture->UniverseID = 2;
-	TestSetup.SecondManualFixture->ManualStartingAddress = 5;
+	TestSetup.SecondManualFixture->SetUniverseID(2);
+	TestSetup.SecondManualFixture->SetManualStartingAddress(5);
 
 	FDMXEditorUtils::AutoAssignedAddresses({ TestSetup.FirstAutoFixture, TestSetup.SecondAutoFixture }, TestSetup.FirstManualFixture->GetStartingChannel(), true);
 	TestEqual("Starting channel of first auto patch", TestSetup.FirstAutoFixture->GetStartingChannel(), DMX_UNIVERSE_SIZE - 6); 
 	TestEqual("Starting channel of second auto patch", TestSetup.SecondAutoFixture->GetStartingChannel(), 1);
 
-	TestEqual("Universe of first auto patch", TestSetup.FirstAutoFixture->UniverseID,1 );
-	TestEqual("Universe of second auto patch", TestSetup.SecondAutoFixture->UniverseID, 2);
+	TestEqual("Universe of first auto patch", TestSetup.FirstAutoFixture->GetUniverseID(),1 );
+	TestEqual("Universe of second auto patch", TestSetup.SecondAutoFixture->GetUniverseID(), 2);
 	return true;
 }
 
@@ -117,7 +117,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFindsGapAtUniverseStart, "VirtualProduction.DM
 bool FFindsGapAtUniverseStart::RunTest(const FString& Parameters)
 {
 	FFixtureTestSetup TestSetup(1);
-	TestSetup.FirstManualFixture->ManualStartingAddress = 2;
+	TestSetup.FirstManualFixture->SetManualStartingAddress(2);
 
 	FDMXEditorUtils::AutoAssignedAddresses({ TestSetup.FirstAutoFixture, TestSetup.SecondAutoFixture}, 1, true);
 

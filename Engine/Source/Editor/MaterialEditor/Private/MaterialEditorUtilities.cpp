@@ -746,7 +746,8 @@ void FMaterialEditorUtilities::BuildTextureStreamingData(UMaterialInterface* Upd
 
 	if (UpdatedMaterial)
 	{
-		CollectGarbage( GARBAGE_COLLECTION_KEEPFLAGS );
+
+		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 
 		FScopedSlowTask SlowTask(2.f, (LOCTEXT("MaterialEditorUtilities_UpdatingTextureStreamingData", "Updating Texture Streaming Data")));
 		SlowTask.MakeDialog(true);
@@ -755,19 +756,24 @@ void FMaterialEditorUtilities::BuildTextureStreamingData(UMaterialInterface* Upd
 		const TArray<FMaterialTextureInfo> EmptyTextureStreamingData;
 		UpdatedMaterial->SetTextureStreamingData(EmptyTextureStreamingData);
 
-		TSet<UMaterialInterface*> Materials;
-		Materials.Add(UpdatedMaterial);
-
-		if (CompileDebugViewModeShaders(DVSM_OutputMaterialTextureScales, QualityLevel, FeatureLevel, Materials, &SlowTask))
+		// Skip compilation for cooked materials
+		UMaterial* RootMaterial = UpdatedMaterial->GetMaterial();
+		if (!RootMaterial || !RootMaterial->GetPackage()->HasAnyPackageFlags(PKG_Cooked))
 		{
-			FMaterialUtilities::FExportErrorManager ExportErrors(FeatureLevel);
-			for (UMaterialInterface* MaterialInterface : Materials)
-			{
-				FMaterialUtilities::ExportMaterialUVDensities(MaterialInterface, QualityLevel, FeatureLevel, ExportErrors);
-			}
-			ExportErrors.OutputToLog();
+			TSet<UMaterialInterface*> Materials;
+			Materials.Add(UpdatedMaterial);
 
-			CollectGarbage( GARBAGE_COLLECTION_KEEPFLAGS );
+			if (CompileDebugViewModeShaders(DVSM_OutputMaterialTextureScales, QualityLevel, FeatureLevel, Materials, &SlowTask))
+			{
+				FMaterialUtilities::FExportErrorManager ExportErrors(FeatureLevel);
+				for (UMaterialInterface* MaterialInterface : Materials)
+				{
+					FMaterialUtilities::ExportMaterialUVDensities(MaterialInterface, QualityLevel, FeatureLevel, ExportErrors);
+				}
+				ExportErrors.OutputToLog();
+
+				CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+			}
 		}
 	}
 }

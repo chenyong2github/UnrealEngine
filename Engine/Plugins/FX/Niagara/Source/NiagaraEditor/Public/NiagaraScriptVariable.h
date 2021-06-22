@@ -44,8 +44,6 @@ public:
 	/** Entry point for generating the compile hash.*/
 	bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
 
-	void SynchronizeDefaultValueToOuterGraphPins();
-
 	bool GetIsStaticSwitch() const { return bIsStaticSwitch; };
 	void SetIsStaticSwitch(bool bInIsStaticSwitch) { bIsStaticSwitch = bInIsStaticSwitch; };
 

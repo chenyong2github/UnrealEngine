@@ -2,6 +2,7 @@
 
 using UnrealBuildTool;
 
+[SupportedPlatforms("Win64")]
 public class DatasmithSketchUpRuby2019Target : DatasmithSketchUpRubyBaseTarget
 {
 	public DatasmithSketchUpRuby2019Target(TargetInfo Target)

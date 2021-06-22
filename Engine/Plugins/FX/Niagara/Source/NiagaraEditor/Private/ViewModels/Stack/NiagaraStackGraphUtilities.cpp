@@ -3139,7 +3139,7 @@ void FNiagaraStackGraphUtilities::SynchronizeVariableToLibraryAndApplyToGraph(UN
 	TSharedPtr<class INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeUtilityValue = EditorModule.GetTypeUtilities(ScriptVarToSync->Variable.GetType());
 	if (Graph == nullptr || TypeUtilityValue.IsValid() == false)
 	{
-		ensureMsgf(false, TEXT("Could not force synchronize library value to graph: failed to get graph and/or create parameter type utility!"));
+		ensureMsgf(false, TEXT("Could not force synchronize definition value to graph: failed to get graph and/or create parameter type utility!"));
 		return;
 	}
 

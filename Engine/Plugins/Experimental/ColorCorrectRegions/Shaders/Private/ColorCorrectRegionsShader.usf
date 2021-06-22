@@ -4,14 +4,14 @@
 #include "/Engine/Private/ColorUtils.ush"
 #include "/Engine/Private/SceneTexturesCommon.ush"
 #include "/Engine/Private/Random.ush"
-#include "/Engine/Private/DepthOfFieldCommon.ush"
-#include "/Engine/Private/CircleDOFCommon.ush"
 #include "/Engine/Private/GlobalDistanceFieldShared.ush"
 #include "/Engine/Private/SceneData.ush"
-#include "/Engine/Private/HairShadingCommon.ush"
 #include "/Engine/Private/ScreenPass.ush"
 #include "/Engine/Generated/GeneratedUniformBuffers.ush" 
 #include "/Engine/Private/SceneTextureParameters.ush"
+
+
+#include "/ColorCorrectRegionsShaders/Private/ColorCorrectRegionsColorTemperature.ush"
 
 #ifdef NEEDS_SCENE_TEXTURES
 	#undef NEEDS_SCENE_TEXTURES
@@ -91,7 +91,10 @@ SamplerState PostProcessInput_BilinearSampler;
 #define SHAPE_TYPE_CYLINDER 2
 #define SHAPE_TYPE_CONE 3
 
-
+#define TEMPERATURE_TYPE_LEGACY 0
+#define TEMPERATURE_TYPE_WHITE_BALANCE 1
+#define TEMPERATURE_TYPE_COLOR_TEMP 2
+#define TEMPERATURE_TYPE_SKIP 3
 
 
 /** 
@@ -541,52 +544,12 @@ struct FOutputData
 	float Opacity;
 };
 
-/* Essential constants for color space conversion.*/
-#define XYZ_2_AP1_MAT float3x3(	\
-	1.6410233797, -0.3248032942, -0.2364246952,\
-	-0.6636628587, 1.6153315917, 0.0167563477,\
-     0.0117218943, -0.0082844420, 0.9883948585)
-	
-#define D65_2_D60_CAT float3x3( \
-	1.01303, 0.00610531, -0.014971,\
-     0.00769823, 0.998165, -0.00503203,\
-    -0.00284131, 0.00468516, 0.924507)
-	
-#define sRGB_2_XYZ_MAT float3x3(\
-	0.4124564, 0.3575761, 0.1804375,\
-    0.2126729, 0.7151522, 0.0721750,\
-    0.0193339, 0.1191920, 0.9503041)
-	
-#define XYZ_2_sRGB_MAT float3x3(\
-	3.2409699419, -1.5373831776, -0.4986107603,\
-    -0.9692436363, 1.8759675015, 0.0415550574,\
-     0.0556300797, -0.2039769589, 1.0569715142)
-	 
-#define D60_2_D65_CAT float3x3(\
-	0.987224, -0.00611327, 0.0159533,\
-    -0.00759836, 1.00186, 0.00533002,\
-     0.00307257, -0.00509595, 1.08168)
-
-#define AP1_2_XYZ_MAT float3x3(\
-	0.6624541811, 0.1340042065, 0.1561876870,\
-     0.2722287168, 0.6740817658, 0.0536895174,\
-    -0.0055746495, 0.0040607335, 1.0103391003)
-
-#define sRGB_2_AP1_DEF float3x3(\
-		0.613192 , 0.339512, 0.047366,\
-		0.0702074, 0.916336, 0.0134501,\
-		0.0206189, 0.109567, 0.869606)
-		
-#define AP1_2_sRGB_DEF float3x3(\
-		1.70505, -0.621791, -0.0832592, \
-		-0.130257, 1.1408, -0.0105483, \
-		-0.0240033, -0.128969, 1.15297)
 		
 // Uniform material expressions.
 MaterialFloat3 RGBtoAP1(MaterialFloat4 InputColor)
 {
-	const float3x3 sRGB_2_AP1 = sRGB_2_AP1_DEF;//mul(XYZ_2_AP1_MAT, mul(D65_2_D60_CAT, sRGB_2_XYZ_MAT));
-	const float3x3 AP1_2_sRGB = AP1_2_sRGB_DEF;//mul(XYZ_2_sRGB_MAT, mul(D60_2_D65_CAT, AP1_2_XYZ_MAT));
+	const float3x3 sRGB_2_AP1 = mul(XYZ_2_AP1_MAT, mul(D65_2_D60_CAT, sRGB_2_XYZ_MAT));
+	const float3x3 AP1_2_sRGB = mul(XYZ_2_sRGB_MAT, mul(D60_2_D65_CAT, AP1_2_XYZ_MAT));
 
 	float3 ColorAP1 = mul(sRGB_2_AP1, InputColor.xyz);
 	float3 ColorRGB = mul(AP1_2_sRGB, InputColor.xyz);
@@ -596,8 +559,8 @@ MaterialFloat3 RGBtoAP1(MaterialFloat4 InputColor)
 
 MaterialFloat3 AP1toRGB(MaterialFloat3 InputColor)
 {
-	const float3x3 sRGB_2_AP1 = sRGB_2_AP1_DEF;//mul(XYZ_2_AP1_MAT, mul(D65_2_D60_CAT, sRGB_2_XYZ_MAT));
-	const float3x3 AP1_2_sRGB = AP1_2_sRGB_DEF;//mul(XYZ_2_sRGB_MAT, mul(D60_2_D65_CAT, AP1_2_XYZ_MAT));
+	const float3x3 sRGB_2_AP1 = mul(XYZ_2_AP1_MAT, mul(D65_2_D60_CAT, sRGB_2_XYZ_MAT));
+	const float3x3 AP1_2_sRGB = mul(XYZ_2_sRGB_MAT, mul(D60_2_D65_CAT, AP1_2_XYZ_MAT));
 
 	float3 ColorAP1 = mul(sRGB_2_AP1, InputColor);
 	float3 ColorRGB = mul(AP1_2_sRGB, InputColor);
@@ -712,11 +675,13 @@ float4 ProcessRegion(in out FMaterialPixelParameters Parameters, in FExternalExp
 	FinalColor = AP1toRGB(FinalColor);
 	
 	// White temperature calculation.
+	MaterialFloat3 AfterTemperature = FinalColor;
+
+#if TEMPERATURE_TYPE == TEMPERATURE_TYPE_LEGACY
 	MaterialFloat Local4 = smoothstep(0.00000000, 13000.00000000, ExternalExpressions.WhiteTemp);
 	MaterialFloat Local5 = (Local4 * 2.00000000  - 1.00000000);
 	
 	// MF Artistic temperature 
-	MaterialFloat3 Temperature;
 	{
 		MaterialFloat Local7 = (Local5 * 3.00000000);
 		MaterialFloat Local8 = clamp(Local7, 0.00000000, 5.00000000);
@@ -733,8 +698,13 @@ float4 ProcessRegion(in out FMaterialPixelParameters Parameters, in FExternalExp
 		MaterialFloat Local19 = (Local18 * 2.72000003);
 		MaterialFloat Local20 = (FinalColor.b + Local19);
 		MaterialFloat Local21 = smoothstep(0.00010000, 0.00000000, Local5);
-		Temperature = lerp(MaterialFloat3(Local11, FinalColor.g, Local13), MaterialFloat3(Local17, FinalColor.g, Local20), Local21);
+		AfterTemperature = lerp(MaterialFloat3(Local11, FinalColor.g, Local13), MaterialFloat3(Local17, FinalColor.g, Local20), Local21);
 	}
+#elif TEMPERATURE_TYPE == TEMPERATURE_TYPE_WHITE_BALANCE
+	AfterTemperature = WhiteBalance(ExternalExpressions.WhiteTemp, FinalColor, false /*SwapSourceAndD65White*/);
+#elif TEMPERATURE_TYPE == TEMPERATURE_TYPE_COLOR_TEMP
+	AfterTemperature = WhiteBalance(ExternalExpressions.WhiteTemp, FinalColor, true /*SwapSourceAndD65White*/);
+#endif
 
 	/* Falloff */
 	MaterialFloat ShapeWithFalloff = PositiveClampedPow(ShapeAlpha, ExternalExpressions.Falloff);
@@ -744,7 +714,7 @@ float4 ProcessRegion(in out FMaterialPixelParameters Parameters, in FExternalExp
 
 	MaterialFloat FinalAlpha = lerp(0.00000000, ExternalExpressions.Intensity, FinalShape);
 	
-	FinalColor = lerp(ExternalExpressions.SceneTexture.rgb, Temperature, FinalAlpha);
+	FinalColor = lerp(ExternalExpressions.SceneTexture.rgb, AfterTemperature, FinalAlpha);
 
 	if (ExternalExpressions.ExcludeStencil > 0)
 	{

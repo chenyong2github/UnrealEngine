@@ -279,10 +279,12 @@ void SGraphActionMenu::Construct( const FArguments& InArgs, bool bIsReadOnly/* =
 	this->SelectedSuggestion = INDEX_NONE;
 	this->bIgnoreUIUpdate = false;
 	this->bUseSectionStyling = InArgs._UseSectionStyling;
+	this->bAllowPreselectedItemActivation = InArgs._bAllowPreselectedItemActivation;
 
 	this->bAutoExpandActionMenu = InArgs._AutoExpandActionMenu;
 	this->bShowFilterTextBox = InArgs._ShowFilterTextBox;
 	this->bAlphaSortItems = InArgs._AlphaSortItems;
+	this->bSortItemsRecursively = InArgs._SortItemsRecursively;
 	this->OnActionSelected = InArgs._OnActionSelected;
 	this->OnActionDoubleClicked = InArgs._OnActionDoubleClicked;
 	this->OnActionDragged = InArgs._OnActionDragged;
@@ -752,7 +754,7 @@ void SGraphActionMenu::GenerateFilteredItems(bool bPreserveExpansion)
 			FilteredRootAction->AddChild(CurrentAction);
 		}
 	}
-	FilteredRootAction->SortChildren(bAlphaSortItems, /*bRecursive =*/true);
+	FilteredRootAction->SortChildren(bAlphaSortItems, bSortItemsRecursively);
 
 	TreeView->RequestTreeRefresh();
 
@@ -910,7 +912,8 @@ TSharedRef<ITableRow> SGraphActionMenu::MakeWidget( TSharedPtr<FGraphActionNode>
 	{
 		TableRow = SNew(STableRow< TSharedPtr<FGraphActionNode> >, OwnerTable)
 			.OnDragDetected(this, &SGraphActionMenu::OnItemDragDetected)
-			.ShowSelection(!InItem->IsSeparator());
+			.ShowSelection(!InItem->IsSeparator())
+			.bAllowPreselectedItemActivation(bAllowPreselectedItemActivation);
 	}
 
 	TSharedPtr<SHorizontalBox> RowContainer;

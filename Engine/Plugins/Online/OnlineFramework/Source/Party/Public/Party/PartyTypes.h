@@ -243,7 +243,8 @@ enum class ESocialPartyInviteFailureReason : uint8
 	AlreadyInParty,
 	OssValidationFailed,
 	PlatformInviteFailed,
-	PartyInviteFailed
+	PartyInviteFailed,
+	InviteRateLimitExceeded
 };
 
 
@@ -259,6 +260,7 @@ inline const TCHAR* LexToString(ESocialPartyInviteFailureReason Type)
 	case ESocialPartyInviteFailureReason::OssValidationFailed: return TEXT("OssValidationFailed");
 	case ESocialPartyInviteFailureReason::PlatformInviteFailed: return TEXT("PlatformInviteFailed");
 	case ESocialPartyInviteFailureReason::PartyInviteFailed: return TEXT("PartyInviteFailed");
+	case ESocialPartyInviteFailureReason::InviteRateLimitExceeded: return TEXT("InviteRateLimitExceeded");
 	default:
 		checkNoEntry();
 		return TEXT("Unknown");

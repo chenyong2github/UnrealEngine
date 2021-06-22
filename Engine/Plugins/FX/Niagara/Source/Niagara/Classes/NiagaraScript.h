@@ -950,7 +950,7 @@ public:
 
 	NIAGARA_API FString GetFriendlyName() const;
 
-	NIAGARA_API void SyncAliases(const TMap<FString, FString>& RenameMap);
+	NIAGARA_API void SyncAliases(const FNiagaraAliasContext& ResolveAliasesContext);
 #endif
 	
 	UFUNCTION()
@@ -1086,6 +1086,12 @@ private:
 
 	/** Flag used to guarantee that the RT isn't accessing the FNiagaraScriptResource before cleanup. */
 	FThreadSafeBool ReleasedByRT;
+
+	private :
+
+#if WITH_EDITORONLY_DATA
+		void ComputeVMCompilationId_EmitterShared(FNiagaraVMExecutableDataId& Id, UNiagaraEmitter* Emitter, UNiagaraSystem* EmitterOwner, ENiagaraRendererSourceDataMode InSourceMode) const;
+#endif
 };
 
 // Forward decl FVersionedNiagaraScriptWeakPtr to suport FVersionedNiagaraScript::ToWeakPtr().

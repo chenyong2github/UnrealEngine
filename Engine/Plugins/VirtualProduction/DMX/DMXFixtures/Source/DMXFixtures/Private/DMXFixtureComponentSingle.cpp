@@ -4,26 +4,53 @@
 #include "DMXFixtureComponentSingle.h"
 #include "DMXFixtureActor.h"
 
+
 UDMXFixtureComponentSingle::UDMXFixtureComponentSingle()
 {
 	PrimaryComponentTick.bCanEverTick = false;
-	NumChannels = 1;
-	InitCells(1);
 }
 
-void UDMXFixtureComponentSingle::InitCells(int NCells)
+void UDMXFixtureComponentSingle::Initialize()
 {
-	Cells.Init(FCell(), NCells);
-	CurrentCell = &Cells[0];
+	Super::Initialize();
 
 	// 1 channel per cell
 	for (auto& Cell : Cells)
 	{
-		Cell.ChannelInterpolation.Init(FInterpolationData(), NumChannels);
+		// Init Channel interpolation  
+		Cell.ChannelInterpolation.Init(FInterpolationData(), 1);
+
+		// Init interpolation speed scale
+		Cell.ChannelInterpolation[0].InterpolationScale = InterpolationScale;
+
+		// Init interpolation range 
+		Cell.ChannelInterpolation[0].RangeValue = FMath::Abs(DMXChannel.MaxValue - DMXChannel.MinValue);
 	}
+
+	InitializeComponent();
 }
 
-float UDMXFixtureComponentSingle::RemapValue(float Alpha)
+float UDMXFixtureComponentSingle::GetDMXInterpolatedStep() const
+{
+	return (CurrentCell->ChannelInterpolation[0].CurrentSpeed * CurrentCell->ChannelInterpolation[0].Direction);
+}
+
+float UDMXFixtureComponentSingle::GetDMXInterpolatedValue() const
+{
+	return CurrentCell->ChannelInterpolation[0].CurrentValue;
+}
+
+float UDMXFixtureComponentSingle::GetDMXTargetValue() const
+{
+	return CurrentCell->ChannelInterpolation[0].TargetValue;
+}
+
+bool UDMXFixtureComponentSingle::IsDMXInterpolationDone() const
+{
+	return CurrentCell->ChannelInterpolation[0].IsInterpolationDone();
+}
+
+float UDMXFixtureComponentSingle::GetInterpolatedValue(float Alpha) const
 {
 	float Remapped = FMath::Lerp(DMXChannel.MinValue, DMXChannel.MaxValue, Alpha);
 
@@ -35,40 +62,39 @@ bool UDMXFixtureComponentSingle::IsTargetValid(float Target)
 	return CurrentCell->ChannelInterpolation[0].IsTargetValid(Target, SkipThreshold);
 }
 
+void UDMXFixtureComponentSingle::SetTargetValue(float Value)
+{
+	if (!CurrentCell->ChannelInterpolation[0].bFirstValueWasSet)
+	{
+		CurrentCell->ChannelInterpolation[0].bFirstValueWasSet = true;
+
+		// As per implementaion, push to make interpolation start, so a target can be set without interpolating
+		CurrentCell->ChannelInterpolation[0].Push(Value);
+		CurrentCell->ChannelInterpolation[0].SetTarget(Value);
+
+		SetValueNoInterp(Value);
+	}
+	else
+	{
+		if (bUseInterpolation)
+		{
+			CurrentCell->ChannelInterpolation[0].Push(Value);
+		}
+		else
+		{
+			CurrentCell->ChannelInterpolation[0].SetTarget(Value);
+		}
+	}
+}
+
 void UDMXFixtureComponentSingle::Push(float Target)
 {
+	// DEPRECATED 4.27
 	CurrentCell->ChannelInterpolation[0].Push(Target);
 }
 
 void UDMXFixtureComponentSingle::SetTarget(float Target)
 {
+	// DEPRECATED 4.27
 	CurrentCell->ChannelInterpolation[0].SetTarget(Target);
-}
-
-void UDMXFixtureComponentSingle::SetRangeValue()
-{
-	for (auto& Cell : Cells)
-	{
-		Cell.ChannelInterpolation[0].RangeValue = FMath::Abs(DMXChannel.MaxValue - DMXChannel.MinValue);
-	}
-}
-
-float UDMXFixtureComponentSingle::DMXInterpolatedValue()
-{
-	return CurrentCell->ChannelInterpolation[0].CurrentValue;
-}
-
-float UDMXFixtureComponentSingle::DMXInterpolatedStep()
-{
-	return (CurrentCell->ChannelInterpolation[0].CurrentSpeed * CurrentCell->ChannelInterpolation[0].Direction);
-}
-
-float UDMXFixtureComponentSingle::DMXTargetValue()
-{
-	return CurrentCell->ChannelInterpolation[0].TargetValue;
-}
-
-bool UDMXFixtureComponentSingle::DMXIsInterpolationDone()
-{
-	return CurrentCell->ChannelInterpolation[0].IsInterpolationDone();
 }

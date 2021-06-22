@@ -128,28 +128,6 @@ void FDisplayClusterConfiguratorKismetCompilerContext::ValidateConfiguration()
 
 	bool bAtLeastOneViewportFound = false;
 
-	bool bViewOriginFound = false;
-	if (UDisplayClusterBlueprintGeneratedClass* BPGC = DCBlueprint->GetGeneratedClass())
-	{
-		const TArray<USCS_Node*>& SCSNodes = BPGC->SimpleConstructionScript->GetAllNodes();
-		for (USCS_Node* Node : SCSNodes)
-		{
-			if (UActorComponent* Component = Node->GetActualComponentTemplate(BPGC))
-			{
-				if (Component->IsA<UDisplayClusterCameraComponent>())
-				{
-					bViewOriginFound = true;
-					break;
-				}
-			}
-		}
-
-		if (!bViewOriginFound)
-		{
-			MessageLog.Warning(*LOCTEXT("NoViewOriginWarning", "No view origin found. Please add a view origin component.").ToString());
-		}
-	}
-	
 	for (const auto& ClusterNodes : BlueprintData->Cluster->Nodes)
 	{
 		if (ClusterNodes.Value->Viewports.Num() > 0)
@@ -162,11 +140,6 @@ void FDisplayClusterConfiguratorKismetCompilerContext::ValidateConfiguration()
 				if (Viewport.Value->ProjectionPolicy.Type.IsEmpty())
 				{
 					MessageLog.Warning(*LOCTEXT("NoPolicyError", "No projection policy assigned to viewport @@.").ToString(), Viewport.Value);
-				}
-				
-				if (bViewOriginFound && Viewport.Value->Camera.IsEmpty())
-				{
-					MessageLog.Note(*LOCTEXT("NoViewOriginForViewportNote", "Using default view origin for viewport @@ because none is assigned.").ToString(), Viewport.Value);
 				}
 			}
 		}

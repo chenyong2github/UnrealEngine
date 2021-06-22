@@ -27,6 +27,8 @@ public:
 		CS_CanCreate,
 		CS_HasRedirector,
 		CS_ClassMismatch,
+		CS_NameTooLong, // asset paths are store in FName, which have an internal limitation.
+		CS_NameTooShort,
 	};
 
 		/** Loads an IDatasmithScene from a UDatasmithScene */
@@ -87,6 +89,15 @@ public:
 	 * @param LayerNames	The name of the layers to be added
 	 */
 	static void AddUniqueLayersToWorld( UWorld* World, const TSet< FName >& LayerNames );
+
+	/**
+	 * Try to compute a char budget for asset names, including FNames constraints, OS constraints,
+	 * parent package, and user defined limitation.
+	 *
+	 * @param ParentPackage destination of the asset (Package path consume a part of the budget)
+	 * @return An estimation of the budget for asset names
+	 */
+	static int32 GetAssetNameMaxCharCount(const UPackage* ParentPackage);
 
 	/**
 	 * @param Package			Package to create the asset in
@@ -296,7 +307,7 @@ struct FDatasmithFindAssetTypeHelper< UMaterialFunction >
 	{
 		return SceneAsset ? &SceneAsset->MaterialFunctions : nullptr;
 	}
-	
+
 	static const TSharedRef<IDatasmithBaseMaterialElement>* GetImportedElementByName( const FDatasmithAssetsImportContext& AssetsContext, const TCHAR* ObjectPathName )
 	{
 		return AssetsContext.GetParentContext().ImportedMaterialFunctionsByName.Find(ObjectPathName);

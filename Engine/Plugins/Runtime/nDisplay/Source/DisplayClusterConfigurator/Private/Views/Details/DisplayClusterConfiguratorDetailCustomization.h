@@ -124,40 +124,6 @@ private:
 	TSharedPtr<SDisplayClusterConfigurationSearchableComboBox> CameraComboBox;
 };
 
-/**
- * Input Detail Customization -- TODO: Delete or modify.
- */
-class FDisplayClusterConfiguratorInputDetailCustomization final
-	: public FDisplayClusterConfiguratorDetailCustomization
-{
-public:
-	using Super = FDisplayClusterConfiguratorDetailCustomization;
-
-	/** IDetailCustomization interface */
-	virtual void CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder) override;
-	/** End IDetailCustomization interface */
-
-private:
-	TWeakObjectPtr<UDisplayClusterConfigurationInput> ConfigurationInputPtr;
-};
-
-/**
- * Base Scene Component Detail Customization
- */
-class FDisplayClusterConfiguratorSceneComponentDetailCustomization
-	: public FDisplayClusterConfiguratorDetailCustomization
-{
-public:
-	using Super = FDisplayClusterConfiguratorDetailCustomization;
-
-	/** IDetailCustomization interface */
-	virtual void CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder) override;
-	/** End IDetailCustomization interface */
-
-protected:
-	TWeakObjectPtr<class UDisplayClusterSceneComponent> SceneComponenPtr;
-};
-
 struct FDisplayClusterConfiguratorAspectRatioPresetSize
 {
 public:
@@ -321,6 +287,8 @@ private:
 
 	bool IsCustomTypeInConfig() const;
 
+	int32 GetPolicyTypeIndex(const FString& Type) const;
+
 	void OnTextCommittedInCustomPolicyText(const FText& InValue, ETextCommit::Type CommitType);
 	
 	void AddToParameterMap(const FString& Key, const FString& Value);
@@ -426,18 +394,16 @@ public:
 		ClusterNodes
 	};
 
-	FDisplayClusterConfiguratorNodeSelection(EOperationMode InMode, ADisplayClusterRootActor* InRootActor)
-	{
-		RootActorPtr = InRootActor;
-		OperationMode = InMode;
-		ResetOptions();
-	}
+	FDisplayClusterConfiguratorNodeSelection(EOperationMode InMode, ADisplayClusterRootActor* InRootActor, FDisplayClusterConfiguratorBlueprintEditor* InToolkitPtr);
 
 	~FDisplayClusterConfiguratorNodeSelection()
 	{
 		OptionsComboBox.Reset();
 		Options.Reset();
 	}
+
+	ADisplayClusterRootActor* GetRootActor() const;
+	UDisplayClusterConfigurationData* GetConfigData() const;
 
 	void CreateArrayBuilder(const TSharedRef<IPropertyHandle>& InPropertyHandle, IDetailChildrenBuilder& InChildBuilder);
 
@@ -453,7 +419,10 @@ protected:
 private:
 	TSharedPtr<SDisplayClusterConfigurationSearchableComboBox> OptionsComboBox;
 	TArray<TSharedPtr<FString>> Options;
+
+	TWeakPtr<FDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr = nullptr;
 	TWeakObjectPtr<ADisplayClusterRootActor> RootActorPtr;
+
 	EOperationMode OperationMode = ClusterNodes;
 };
 
@@ -469,6 +438,30 @@ public:
 		NodeSelection.Reset();
 	}
 	
+protected:
+	//~ IPropertyTypeCustomization interface begin
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
+	//~ IPropertyTypeCustomization interface end
+
+private:
+	TSharedPtr<FDisplayClusterConfiguratorNodeSelection> NodeSelection;
+	FDisplayClusterConfiguratorNodeSelection::EOperationMode Mode = FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports;
+};
+
+
+/**
+* Postprocess Profiles
+*/
+class FDisplayClusterConfiguratorColorGradingProfileCustomization final
+	: public FDisplayClusterConfiguratorTypeCustomization
+{
+public:
+	virtual ~FDisplayClusterConfiguratorColorGradingProfileCustomization() override
+	{
+		NodeSelection.Reset();
+	}
+
 protected:
 	//~ IPropertyTypeCustomization interface begin
 	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override;

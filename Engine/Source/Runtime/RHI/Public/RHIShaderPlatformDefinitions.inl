@@ -27,20 +27,6 @@ static FText GetFriendlyShaderPlatformName(const EShaderPlatform InShaderPlatfor
 	}
 	break;
 
-	case SP_SWITCH:
-	{
-		static const FText Description = NSLOCTEXT("FriendlyShaderPlatformNames", "Switch_loc", "Switch");
-		return Description;
-	}
-	break;
-
-	case SP_SWITCH_FORWARD:
-	{
-		static const FText Description = NSLOCTEXT("FriendlyShaderPlatformNames", "Switch_Forward_loc", "Switch Forward");
-		return Description;
-	}
-	break;
-
 	case SP_PCD3D_ES3_1:
 	case SP_VULKAN_PCES3_1:
 	case SP_OPENGL_PCES3_1:

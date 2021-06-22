@@ -630,13 +630,18 @@ bool MovieSceneToolHelpers::SetTakeNumber(const UMovieSceneSection* Section, uin
 	return FMovieSceneToolsModule::Get().SetTakeNumber(Section, InTakeNumber);
 }
 
-int32 MovieSceneToolHelpers::FindAvailableRowIndex(UMovieSceneTrack* InTrack, UMovieSceneSection* InSection)
+int32 MovieSceneToolHelpers::FindAvailableRowIndex(UMovieSceneTrack* InTrack, UMovieSceneSection* InSection, const TArray<UMovieSceneSection*>& SectionsToDisregard)
 {
 	for (int32 RowIndex = 0; RowIndex <= InTrack->GetMaxRowIndex(); ++RowIndex)
 	{
 		bool bFoundIntersect = false;
 		for (UMovieSceneSection* Section : InTrack->GetAllSections())
 		{
+			if (SectionsToDisregard.Contains(Section))
+			{
+				continue;
+			}
+	
 			if (!Section->HasStartFrame() || !Section->HasEndFrame() || !InSection->HasStartFrame() || !InSection->HasEndFrame())
 			{
 				bFoundIntersect = true;
@@ -656,6 +661,30 @@ int32 MovieSceneToolHelpers::FindAvailableRowIndex(UMovieSceneTrack* InTrack, UM
 	}
 
 	return InTrack->GetMaxRowIndex() + 1;
+}
+
+
+bool MovieSceneToolHelpers::OverlapsSection(UMovieSceneTrack* InTrack, UMovieSceneSection* InSection, const TArray<UMovieSceneSection*>& SectionsToDisregard)
+{
+	for (UMovieSceneSection* Section : InTrack->GetAllSections())
+	{
+		if (SectionsToDisregard.Contains(Section))
+		{
+			continue;
+		}
+	
+		if (!Section->HasStartFrame() || !Section->HasEndFrame() || !InSection->HasStartFrame() || !InSection->HasEndFrame())
+		{
+			return true;
+		}
+
+		if (Section != InSection && Section->GetRange().Overlaps(InSection->GetRange()))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 TSharedRef<SWidget> MovieSceneToolHelpers::MakeEnumComboBox(const UEnum* InEnum, TAttribute<int32> InCurrentValue, SEnumComboBox::FOnEnumSelectionChanged InOnSelectionChanged)
@@ -2811,11 +2840,16 @@ void ImportFBXCamera(UnFbx::FFbxImporter* FbxImporter, UMovieSceneSequence* InSe
 
 	UMovieScene* MovieScene = InSequence->GetMovieScene();
 
+	TArray<FbxCamera*> AllCameras;
+	MovieSceneToolHelpers::GetCameras(FbxImporter->Scene->GetRootNode(), AllCameras);
+
+	if (AllCameras.Num() == 0)
+	{
+		return;
+	}
+
 	if (bCreateCameras)
 	{
-		TArray<FbxCamera*> AllCameras;
-		MovieSceneToolHelpers::GetCameras(FbxImporter->Scene->GetRootNode(), AllCameras);
-
 		UWorld* World = GCurrentLevelEditingViewportClient ? GCurrentLevelEditingViewportClient->GetWorld() : nullptr;
 
 		// Find unmatched cameras

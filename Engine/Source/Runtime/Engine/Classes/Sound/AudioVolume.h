@@ -72,7 +72,7 @@ struct FAudioVolumeSubmixOverrideSettings
 
 /** Struct encapsulating settings for interior areas. */
 USTRUCT(BlueprintType)
-struct FInteriorSettings
+struct ENGINE_API FInteriorSettings
 {
 	GENERATED_USTRUCT_BODY()
 

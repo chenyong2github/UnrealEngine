@@ -100,9 +100,7 @@ void FLwsWebSocket::Connect()
 		return;
 	}
 
-	bool bDisableDomainWhitelist = false;
-	GConfig->GetBool(TEXT("LwsWebSocket"), TEXT("bDisableDomainWhitelist"), bDisableDomainWhitelist, GEngineIni);
-	if (!bDisableDomainWhitelist)
+	if (!FLwsWebSocketsManager::Get().bDisableDomainWhitelist)
 	{
 		FHttpManager& HttpManager = FHttpModule::Get().GetHttpManager();
 		if (!HttpManager.IsDomainAllowed(Url))
@@ -498,9 +496,7 @@ int FLwsWebSocket::LwsCallback(lws* Instance, lws_callback_reasons Reason, void*
 		// in FLwsWebSocketsManager::CallbackWrapper, we copied UserData to Data, so Data is the X509_STORE_CTX* instead of the SSL*
 		X509_STORE_CTX* Context = static_cast<X509_STORE_CTX*>(Data);
 		int PreverifyOk = 1;
-		bool bDisableCertValidation = false;
-		GConfig->GetBool(TEXT("LwsWebSocket"), TEXT("bDisableCertValidation"), bDisableCertValidation, GEngineIni);
-		if (!bDisableCertValidation)
+		if (!FLwsWebSocketsManager::Get().bDisableCertValidation)
 		{
 			PreverifyOk = Length;
 			if (PreverifyOk == 1)

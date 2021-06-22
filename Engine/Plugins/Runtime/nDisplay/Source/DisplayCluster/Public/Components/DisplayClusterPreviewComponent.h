@@ -69,12 +69,14 @@ protected:
 	bool GetPreviewTextureSettings(FIntPoint& OutSize, float& OutGamma) const;
 
 	void UpdatePreviewRenderTarget();
-	bool UpdatePreviewMesh();
+	bool UpdatePreviewMesh(bool bRestoreOriginalMaterial = false);
 
 	bool UpdatePreviewTexture();
 	void RemovePreviewTexture();
 
 	void InitializeInternals();
+
+	void UpdatePreviewMeshMaterial(bool bRestoreOriginalMaterial = false);
 
 protected:
 	// Set to true, when RTT surface updated
@@ -117,9 +119,6 @@ private:
 
 	UPROPERTY()
 		UMaterialInstanceDynamic* PreviewMaterialInstance = nullptr;
-
-	UPROPERTY()
-		bool bUseMeshUsePreviewMaterialInstance = false;
 
 	UPROPERTY(Transient)
 		UTexture2D* PreviewTexture;

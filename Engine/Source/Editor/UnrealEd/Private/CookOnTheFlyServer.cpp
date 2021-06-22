@@ -5627,7 +5627,7 @@ bool UCookOnTheFlyServer::IniSettingsOutOfDate(const ITargetPlatform* TargetPlat
 			UE_LOG(LogCook, Warning, TEXT("Found invalid file name in old ini settings file Filename %s settings file %s"), *ConfigNameKey.ToString(), *TargetPlatform->PlatformName());
 			return true;
 		}
-
+		
 		const FConfigFile* ConfigFile = nullptr;
 		FConfigFile Temp;
 		if (bFoundPlatformName)
@@ -6579,6 +6579,11 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 		}
 	}
 
+	for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
+	{
+		TargetPlatform->GetExtraPackagesToCook(FilesInPath);
+	}
+
 
 	if (!(FilesToCookFlags & ECookByTheBookOptions::SkipSoftReferences))
 	{
@@ -7040,10 +7045,10 @@ void UCookOnTheFlyServer::CreatePipelineCache(const ITargetPlatform* TargetPlatf
 				}
 				if (!NumMatched)
 				{
-					UE_LOG(LogCook, Warning, TEXT("Shader format %s for platform %s had this file %s, but no .scl.csv files."), *ShaderFormat.ToString(), *TargetPlatformName, *StablePCPath);
+					UE_LOG(LogCook, Warning, TEXT("Shader format %s for platform %s had this file %s, but no stable keys files."), *ShaderFormat.ToString(), *TargetPlatformName, *StablePCPath);
 					for (int32 Index = 0; Index < SCLCSVPaths->Num(); Index++)
 					{
-						UE_LOG(LogCook, Warning, TEXT("    .scl.csv file: %s"), *((*SCLCSVPaths)[Index]));
+						UE_LOG(LogCook, Warning, TEXT("    stable keys file: %s"), *((*SCLCSVPaths)[Index]));
 					}							
 					continue;
 				}
@@ -7063,6 +7068,21 @@ void UCookOnTheFlyServer::CreatePipelineCache(const ITargetPlatform* TargetPlatf
 				else
 				{
 					UE_LOG(LogCook, Display, TEXT("---- Done running UShaderPipelineCacheToolsCommandlet for platform %s"), *TargetPlatformName);
+
+					// copy the resulting file to metadata for easier examination later
+					if (IFileManager::Get().FileExists(*PCPath))
+					{
+						const FString RootPipelineCacheMetadataPath = FPaths::ProjectDir() / TEXT("Metadata") / TEXT("PipelineCaches");
+						const FString PipelineCacheMetadataPathSB = ConvertToFullSandboxPath(*RootPipelineCacheMetadataPath, true);
+						const FString PipelineCacheMetadataPath = PipelineCacheMetadataPathSB.Replace(TEXT("[Platform]"), *TargetPlatform->PlatformName());
+						const FString PipelineCacheMetadataFileName = PipelineCacheMetadataPath / OutFilename;
+
+						UE_LOG(LogCook, Display, TEXT("Copying the binary PSO cache file %s to %s."), *PCPath, *PipelineCacheMetadataFileName);
+						if (IFileManager::Get().Copy(*PipelineCacheMetadataFileName, *PCPath) != COPY_OK)
+						{
+							UE_LOG(LogCook, Warning, TEXT("Failed to copy the binary PSO cache file %s to %s."), *PCPath, *PipelineCacheMetadataFileName);
+						}
+					}
 				}
 			}
 		}
@@ -8067,13 +8087,16 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 
 		auto ReadDevelopmentAssetRegistry = [this, &BasedOnReleaseVersion, bVerifyPackagesExist](TArray<FName>& OutPackageList, const FString& InPlatformName)
 		{
+			TArray<FString> AttemptedNames;
 			FString OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, InPlatformName ) / TEXT("Metadata") / GetDevelopmentAssetRegistryFilename();
+			AttemptedNames.Add(OriginalSandboxRegistryFilename);
 
 			// if this check fails probably because the asset registry can't be found or read
 			bool bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, OutPackageList);
 			if (!bSucceeded)
 			{
 				OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, InPlatformName) / GetAssetRegistryFilename();
+				AttemptedNames.Add(OriginalSandboxRegistryFilename);
 				bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, OutPackageList);
 			}
 
@@ -8085,6 +8108,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 					for (const PlatformInfo::FTargetPlatformInfo* PlatformFlavor : PlatformInfo->Flavors)
 					{
 						OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, PlatformFlavor->Name.ToString()) / GetAssetRegistryFilename();
+						AttemptedNames.Add(OriginalSandboxRegistryFilename);
 						bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, OutPackageList);
 						if (bSucceeded)
 						{
@@ -8092,6 +8116,15 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 						}
 					}
 				}
+			}
+
+			if (bSucceeded)
+			{
+				UE_LOG(LogCook, Log, TEXT("Loaded assetregistry: %s"), *OriginalSandboxRegistryFilename);
+			}
+			else
+			{
+				UE_LOG(LogCook, Log, TEXT("Failed to load DevelopmentAssetRegistry for platform %s. Attempted the following names:\n%s"), *InPlatformName, *FString::Join(AttemptedNames, TEXT("\n")));
 			}
 			return bSucceeded;
 		};

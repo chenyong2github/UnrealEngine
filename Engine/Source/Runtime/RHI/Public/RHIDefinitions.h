@@ -16,6 +16,10 @@
 #define USE_STATIC_SHADER_PLATFORM_ENUMS 0
 #endif
 
+#ifndef USE_STATIC_SHADER_PLATFORM_INFO
+#define USE_STATIC_SHADER_PLATFORM_INFO 0
+#endif
+
 #ifndef RHI_RAYTRACING
 #define RHI_RAYTRACING 0
 #endif
@@ -73,8 +77,8 @@ enum EShaderPlatform
 	SP_METAL_MACES3_1 				= 22,
 	SP_METAL_MACES2_REMOVED			UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 23,
 	SP_OPENGL_ES3_1_ANDROID			= 24,
-	SP_SWITCH						= 25,
-	SP_SWITCH_FORWARD				= 26,
+	SP_SWITCH_REMOVED				UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 25,
+	SP_SWITCH_FORWARD_REMOVED		UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 26,
 	SP_METAL_MRT_MAC				= 27,
 	SP_VULKAN_SM5_LUMIN				= 28,
 	SP_VULKAN_ES3_1_LUMIN			= 29,
@@ -770,7 +774,7 @@ public:
 	}
 };
 
-#if USE_STATIC_SHADER_PLATFORM_ENUMS
+#if USE_STATIC_SHADER_PLATFORM_ENUMS || USE_STATIC_SHADER_PLATFORM_INFO
 
 #define IMPLEMENT_DDPSPI_SETTING_WITH_RETURN_TYPE(ReturnType, Function, Value) \
 	static FORCEINLINE_DEBUGGABLE const ReturnType Function(const FStaticShaderPlatform Platform) \
@@ -1747,7 +1751,6 @@ inline bool IsMobilePlatform(const EShaderPlatform Platform)
 		Platform == SP_METAL || Platform == SP_METAL_MACES3_1 || Platform == SP_METAL_TVOS
 		|| Platform == SP_OPENGL_PCES3_1 || Platform == SP_OPENGL_ES3_1_ANDROID
 		|| Platform == SP_VULKAN_ES3_1_ANDROID || Platform == SP_VULKAN_PCES3_1 || Platform == SP_VULKAN_ES3_1_LUMIN
-		|| Platform == SP_SWITCH_FORWARD
 		|| FDataDrivenShaderPlatformInfo::GetIsMobile(Platform);
 }
 
@@ -1789,10 +1792,13 @@ inline bool IsConsolePlatform(const FStaticShaderPlatform Platform)
 	return FDataDrivenShaderPlatformInfo::GetIsConsole(Platform);
 }
 
+UE_DEPRECATED(4.27, "IsSwitchPlatform() is deprecated; please use DataDrivenShaderPlatformInfo instead.")
 inline bool IsSwitchPlatform(const FStaticShaderPlatform Platform)
 {
-	return Platform == SP_SWITCH || Platform == SP_SWITCH_FORWARD
-		|| FDataDrivenShaderPlatformInfo::GetIsLanguageNintendo(Platform);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return Platform == SP_SWITCH_REMOVED || Platform == SP_SWITCH_FORWARD_REMOVED || 
+		FDataDrivenShaderPlatformInfo::GetIsLanguageNintendo(Platform);	
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 inline bool IsVulkanPlatform(const FStaticShaderPlatform Platform)
@@ -1848,7 +1854,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 inline bool IsHlslccShaderPlatform(const FStaticShaderPlatform Platform)
 {
-	return IsMetalPlatform(Platform) || IsVulkanMobilePlatform(Platform) || IsSwitchPlatform(Platform) || IsOpenGLPlatform(Platform) || FDataDrivenShaderPlatformInfo::GetIsHlslcc(Platform);
+	return IsMetalPlatform(Platform) || IsVulkanMobilePlatform(Platform) || IsOpenGLPlatform(Platform) || FDataDrivenShaderPlatformInfo::GetIsHlslcc(Platform);
 }
 
 inline FStaticFeatureLevel GetMaxSupportedFeatureLevel(const FStaticShaderPlatform InShaderPlatform)
@@ -1862,7 +1868,6 @@ inline FStaticFeatureLevel GetMaxSupportedFeatureLevel(const FStaticShaderPlatfo
 	case SP_METAL_MRT_MAC:
 	case SP_VULKAN_SM5:
 	case SP_VULKAN_SM5_LUMIN:
-	case SP_SWITCH:
 	case SP_VULKAN_SM5_ANDROID:
 		return ERHIFeatureLevel::SM5;
 	case SP_METAL:
@@ -1873,7 +1878,6 @@ inline FStaticFeatureLevel GetMaxSupportedFeatureLevel(const FStaticShaderPlatfo
 	case SP_VULKAN_ES3_1_ANDROID:
 	case SP_VULKAN_ES3_1_LUMIN:
 	case SP_OPENGL_ES3_1_ANDROID:
-	case SP_SWITCH_FORWARD:
 		return ERHIFeatureLevel::ES3_1;
 	default:
 		return FDataDrivenShaderPlatformInfo::GetMaxFeatureLevel(InShaderPlatform);
@@ -1936,7 +1940,6 @@ inline bool RHINeedsToSwitchVerticalAxis(const FStaticShaderPlatform Platform)
 
 	// ES3.1 need to flip when rendering to an RT that will be post processed
 	return IsOpenGLPlatform(Platform) && IsMobilePlatform(Platform) && !IsPCPlatform(Platform) && !IsMetalMobilePlatform(Platform) && !IsVulkanPlatform(Platform)
-			&& Platform != SP_SWITCH && Platform != SP_SWITCH_FORWARD
 			&& FDataDrivenShaderPlatformInfo::GetNeedsToSwitchVerticalAxisOnMobileOpenGL(Platform);
 }
 

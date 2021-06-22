@@ -735,6 +735,12 @@ void FDefaultGameMoviePlayer::SetupLoadingScreenFromIni()
 void FDefaultGameMoviePlayer::SetViewportDPIScale(float InViewportDPIScale)
 {
 	ViewportDPIScale = InViewportDPIScale;
+
+	// Turn off scale in the renderer as we have our own scale.
+	if (WidgetRenderer != nullptr)
+	{
+		WidgetRenderer->EnableDPIScale(false);
+	}
 }
 
 bool FDefaultGameMoviePlayer::MovieStreamingIsPrepared() const
@@ -861,8 +867,14 @@ FMoviePlayerWidgetRenderer::FMoviePlayerWidgetRenderer(TSharedPtr<SWindow> InMai
 	: MainWindow(InMainWindow.Get())
 	, VirtualRenderWindow(InVirtualRenderWindow.ToSharedRef())
 	, SlateRenderer(InRenderer)
+	, bIsDPIScaleEnabled(true)
 {
 	HittestGrid = MakeShareable(new FHittestGrid);
+}
+
+void FMoviePlayerWidgetRenderer::EnableDPIScale(bool bShouldEnable)
+{
+	bIsDPIScaleEnabled = bShouldEnable;
 }
 
 void FMoviePlayerWidgetRenderer::DrawWindow(float DeltaTime)
@@ -873,8 +885,12 @@ void FMoviePlayerWidgetRenderer::DrawWindow(float DeltaTime)
 		// as we don't want Slate to submit any more draw calls until we Resume.
 		return;
 	}
-
-	const float Scale = FSlateApplication::Get().GetApplicationScale() * MainWindow->GetDPIScaleFactor();
+	float Scale = FSlateApplication::Get().GetApplicationScale();
+	if (bIsDPIScaleEnabled)
+	{
+		Scale *= MainWindow->GetDPIScaleFactor();
+	}
+	
 	FVector2D DrawSize = VirtualRenderWindow->GetClientSizeInScreen() / Scale;
 
 	FSlateApplication::Get().Tick(ESlateTickType::Time);

@@ -76,7 +76,6 @@ public:
 	virtual FText GetCategory_Implementation() const;
 	virtual FText GetAdditionalKeyword_Implementation() const;
 
-protected:
 	// Specifies if input objects that have matching type can be added to the result
 	UPROPERTY(EditAnywhere, Category = SelectionTransform)
 	bool bOutputCanIncludeInput = true;

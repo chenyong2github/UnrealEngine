@@ -62,6 +62,11 @@ public:
 		UNiagaraNodeFunctionCall& OwningFunctionCall,
 		const FNiagaraParameterHandle& InputHandle);
 
+	/*
+	* Tries to get owner information for a managed data interfaces. 
+	*/
+	bool TryGetOwnerInformation(UNiagaraDataInterface* InDataInterface, FGuid& OutOwningEmitterHandleId, UNiagaraNodeFunctionCall*& OutOwningFunctionCallNode);
+
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
 private:

@@ -174,13 +174,15 @@ bool FUsdPrimViewModel::CanExecutePrimAction() const
 		return false;
 	}
 
-	FScopedUsdAllocs UsdAllocs;
+	UE::FSdfPath SpecPath = UsdUtils::GetPrimSpecPathForLayer( UsdPrim, UsdStage.GetEditTarget() );
+	if ( !SpecPath.IsEmpty() )
+	{
+		return true;
+	}
 
-	pxr::SdfPrimSpecHandle PrimSpec = pxr::UsdStageRefPtr( UsdStage )->GetEditTarget().GetLayer()->GetPrimAtPath( pxr::UsdPrim( UsdPrim ).GetPrimPath() );
-	return (bool)PrimSpec;
-#else
-	return false;
 #endif // #if USE_USD_SDK
+
+	return false;
 }
 
 bool FUsdPrimViewModel::HasVisibilityAttribute() const

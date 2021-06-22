@@ -12,8 +12,8 @@ public class DMXProtocol : ModuleRules
 			new string[]
 			{
 				"Core",
-			}
-			);
+				"Projects"
+			});
 			
 		
 		PrivateDependencyModuleNames.AddRange(
@@ -21,12 +21,11 @@ public class DMXProtocol : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
-				"Serialization",
+				"Json",
 				"Networking",
-				"Sockets",
-				"Json"
-			}
-		);
+				"Serialization",
+				"Sockets"				
+			});
 
 		if (Target.Type == TargetType.Editor)
 		{

@@ -81,11 +81,14 @@ void UDataDrivenConsoleVariableSettings::PostInitProperties()
 
 void UDataDrivenConsoleVariableSettings::OnDataDrivenChange(IConsoleVariable* CVar)
 {
-	UDataDrivenCVarEngineSubsystem* Subsystem = GEngine->GetEngineSubsystem<UDataDrivenCVarEngineSubsystem>();
-	if (Subsystem)
+	if (GEngine != nullptr)
 	{
-		FConsoleManager& ConsoleManager = (FConsoleManager&)IConsoleManager::Get();
-		Subsystem->OnDataDrivenCVarDelegate.Broadcast(ConsoleManager.FindConsoleObjectName(CVar));
+		UDataDrivenCVarEngineSubsystem* Subsystem = GEngine->GetEngineSubsystem<UDataDrivenCVarEngineSubsystem>();
+		if (Subsystem)
+		{
+			FConsoleManager& ConsoleManager = (FConsoleManager&)IConsoleManager::Get();
+			Subsystem->OnDataDrivenCVarDelegate.Broadcast(ConsoleManager.FindConsoleObjectName(CVar));
+		}
 	}
 }
 

@@ -245,6 +245,7 @@ USkeletalMeshComponent::USkeletalMeshComponent(const FObjectInitializer& ObjectI
 	ClothingSimulationContext = nullptr;
 	ClothingInteractor = nullptr;
 
+	bAllowClothActors = true;
 	bPostEvaluatingAnimation = false;
 	bAllowAnimCurveEvaluation = true;
 	bDisablePostProcessBlueprint = false;
@@ -431,7 +432,7 @@ extern TAutoConsoleVariable<int32> CVarEnableClothPhysics;
 
 bool USkeletalMeshComponent::CanSimulateClothing() const
 {
-	if(!SkeletalMesh || !CVarEnableClothPhysics.GetValueOnAnyThread())
+	if(!SkeletalMesh || !bAllowClothActors || !CVarEnableClothPhysics.GetValueOnAnyThread())
 	{
 		return false;
 	}
@@ -4006,6 +4007,11 @@ void USkeletalMeshComponent::SetAllowRigidBodyAnimNode(bool bInAllow, bool bRein
 			}
 		}
 	}
+}
+
+void USkeletalMeshComponent::SetAllowClothActors(bool bInAllow)
+{
+	bAllowClothActors = bInAllow;
 }
 
 bool USkeletalMeshComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const

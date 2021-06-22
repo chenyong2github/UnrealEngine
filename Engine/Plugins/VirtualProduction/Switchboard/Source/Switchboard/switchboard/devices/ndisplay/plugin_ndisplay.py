@@ -166,10 +166,11 @@ class AddnDisplayDialog(AddDeviceDialog):
 
         def validateConfigAsset(asset):
             ''' Returns the asset if it is an nDisplay config '''
-            aparser = UassetParser(asset['path'], allowUnversioned=True)
-            for assetdata in aparser.aregdata:
-                if assetdata.ObjectClassName == 'DisplayClusterBlueprint':
-                    return asset
+            with open(asset['path'], 'rb') as file:
+                aparser = UassetParser(file, allowUnversioned=True)
+                for assetdata in aparser.aregdata:
+                    if assetdata.ObjectClassName == 'DisplayClusterBlueprint':
+                        return asset
             raise ValueError
 
         numThreads = 8
@@ -286,6 +287,12 @@ class DevicenDisplay(DeviceUnreal):
             value='',
             tool_tip="Device profile console variables (comma separated)."
         ),
+        'ndisplay_unattended': Setting(
+            attr_name='ndisplay_unattended',
+            nice_name='Unattended',
+            value=True,
+            tool_tip='Include the "-unattended" command line argument, which is documented to "Disable anything requiring feedback from user."',
+        ),
         'max_gpu_count': Setting(
             attr_name="max_gpu_count",
             nice_name="Number of GPUs",
@@ -366,7 +373,7 @@ class DevicenDisplay(DeviceUnreal):
         for csetting in self.__class__.plugin_settings():
             csetting.signal_setting_changed.connect(self.on_change_setting_affecting_command_line)
 
-        self.unreal_client.send_file_completed_delegate = self.on_send_file_completed
+        self.unreal_client.delegates['send file complete'] = self.on_send_file_complete
         self.unreal_client.delegates['get sync status'] = self.on_get_sync_status
         self.unreal_client.delegates['refresh mosaics'] = self.on_refresh_mosaics
 
@@ -492,8 +499,12 @@ class DevicenDisplay(DeviceUnreal):
         # Friendly name. Avoid spaces to avoid parsing issues.
         friendly_name = f'-StageFriendlyName={self.name.replace(" ", "_")}'
 
+        # Unattended mode
+        unattended = ''
+        if DevicenDisplay.csettings['ndisplay_unattended'].get_value(self.name):
+            unattended = '-unattended -ini:EditorSettings:[/Script/UnrealEd.CrashReportsPrivacySettings]:bSendUnattendedBugReports=False'
+
         # fill in fixed arguments
-        # TODO: Consider -unattended as an option to avoid crash window from appearing.
         args = [
             f'"{uproject}"',
             f'{map_name}',                     # map to open
@@ -521,6 +532,7 @@ class DevicenDisplay(DeviceUnreal):
             f'Log={self.name}.log',            # log file
             f'{ini_engine}',                   # Engine ini injections
             f'{ini_game}',                     # Game ini injections
+            f'{unattended}',                   # -unattended, bSendUnattendedBugReports=False
         ]
 
         # fill in ExecCmds
@@ -551,9 +563,9 @@ class DevicenDisplay(DeviceUnreal):
         if CONFIG.MUSERVER_AUTO_JOIN:
             args.extend([
                 f'-CONCERTRETRYAUTOCONNECTONERROR',
-                f'-CONCERTAUTOCONNECT', 
+                f'-CONCERTAUTOCONNECT',
                 f'-CONCERTSERVER={CONFIG.MUSERVER_SERVER_NAME}',
-                f'-CONCERTSESSION={SETTINGS.MUSERVER_SESSION_NAME}', 
+                f'-CONCERTSESSION={SETTINGS.MUSERVER_SESSION_NAME}',
                 f'-CONCERTDISPLAYNAME={self.name}',
                 f'-CONCERTISHEADLESS',
             ])
@@ -567,15 +579,30 @@ class DevicenDisplay(DeviceUnreal):
 
         return path_to_exe, args_expanded
 
-    def on_send_file_completed(self, destination: str):
+    def on_send_file_complete(self, message):
+        try:
+            destination = message['destination']
+            succeeded = message['bAck']
+            error = message.get('error')
+        except KeyError:
+            LOGGER.error(f'Error parsing "send file complete" response ({message})')
+            return
+
         ext = os.path.splitext(destination)[1].lower()
+
         if (ext == '.uasset') and self.pending_transfer_uasset:
             self.pending_transfer_uasset = False
-            LOGGER.info(f"{self.name}: nDisplay uasset successfully transferred to {destination} on host")
+            if succeeded:
+                LOGGER.info(f"{self.name}: nDisplay uasset successfully transferred to {destination} on host")
+            else:
+                LOGGER.error(f"{self.name}: nDisplay uasset transfer failed: {error}")
         elif (ext in ('.ndisplay', '.cfg')) and self.pending_transfer_cfg:
             self.pending_transfer_cfg = False
             self.path_to_config_on_host = destination
-            LOGGER.info(f"{self.name}: nDisplay config file successfully transferred to {destination} on host")
+            if succeeded:
+                LOGGER.info(f"{self.name}: nDisplay config file successfully transferred to {destination} on host")
+            else:
+                LOGGER.error(f"{self.name}: nDisplay config file transfer failed: {error}")
         else:
             LOGGER.error(f"{self.name}: Unexpected send file completion for {destination}")
             return
@@ -609,12 +636,13 @@ class DevicenDisplay(DeviceUnreal):
         ''' Extract the configexport from the config uasset '''
 
         # Initialize uasset parser
-        aparser = UassetParser(cfg_file)
+        with open(cfg_file, 'rb') as file:
+            aparser = UassetParser(file)
 
-        # Check that the asset is of the right class, then find its ConfigExport tag and parse it.
-        for assetdata in aparser.aregdata:
-            if assetdata.ObjectClassName == 'DisplayClusterBlueprint':
-                return assetdata.tags['ConfigExport']
+            # Check that the asset is of the right class, then find its ConfigExport tag and parse it.
+            for assetdata in aparser.aregdata:
+                if assetdata.ObjectClassName == 'DisplayClusterBlueprint':
+                    return assetdata.tags['ConfigExport']
 
         raise ValueError('Invalid nDisplay config .uasset')
 

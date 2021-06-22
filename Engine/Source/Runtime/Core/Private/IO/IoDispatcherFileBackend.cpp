@@ -1004,11 +1004,14 @@ FFileIoStore::FFileIoStore()
 FFileIoStore::~FFileIoStore()
 {
 	delete Thread;
+	FFileIoStats::Shutdown();
 }
 
 void FFileIoStore::Initialize(TSharedRef<const FIoDispatcherBackendContext> InContext)
 {
 	check(!Thread);
+
+	FFileIoStats::Init();
 	BackendContext = InContext;
 	bIsMultithreaded = InContext->bIsMultiThreaded;
 
@@ -1783,13 +1786,11 @@ void FFileIoStore::UpdateAsyncIOMinimumPriority()
 
 bool FFileIoStore::Init()
 {
-	FFileIoStats::Init();
 	return true;
 }
 
 void FFileIoStore::Stop()
 {
-	FFileIoStats::Shutdown();
 	bStopRequested = true;
 	EventQueue.ServiceNotify();
 }
@@ -1819,36 +1820,37 @@ uint32 FFileIoStore::GetThreadId() const
 }
 
 CSV_DEFINE_CATEGORY(IoDispatcherFileBackend, true);
+CSV_DEFINE_CATEGORY(IoDispatcherFileBackendVerbose, false);
 
 // These stats go to both insights and csv by default
 // TODO: Ideally these should go to insights even if CSV is not capturing, but not be doubled-up if both CSV and Insights are capturing
 // TODO: It would also be nice to send these to insights as int64 without unit conversion where appropriate
 // IoDispatcher thread
-CSV_DEFINE_STAT(IoDispatcherFileBackend, QueuedFilesystemReads);	
-CSV_DEFINE_STAT(IoDispatcherFileBackend, QueuedFilesystemReadMB);	
-CSV_DEFINE_STAT(IoDispatcherFileBackend, QueuedUncompressBlocks);	
-CSV_DEFINE_STAT(IoDispatcherFileBackend, QueuedUncompressInMB);		
-CSV_DEFINE_STAT(IoDispatcherFileBackend, QueuedUncompressOutMB);	
-CSV_DEFINE_STAT(IoDispatcherFileBackend, FrameBytesReadKB);				
-CSV_DEFINE_STAT(IoDispatcherFileBackend, FrameBytesUncompressedInKB);	
-CSV_DEFINE_STAT(IoDispatcherFileBackend, FrameBytesUncompressedOutKB);	
-CSV_DEFINE_STAT(IoDispatcherFileBackend, FrameBytesScatteredKB);		
+CSV_DEFINE_STAT(IoDispatcherFileBackend,			FrameBytesScatteredKB);
+CSV_DEFINE_STAT(IoDispatcherFileBackend,			QueuedFilesystemReadMB);
+CSV_DEFINE_STAT(IoDispatcherFileBackendVerbose,	QueuedFilesystemReads);
+CSV_DEFINE_STAT(IoDispatcherFileBackendVerbose,	QueuedUncompressBlocks);	
+CSV_DEFINE_STAT(IoDispatcherFileBackendVerbose,	QueuedUncompressInMB);		
+CSV_DEFINE_STAT(IoDispatcherFileBackendVerbose,	QueuedUncompressOutMB);	
+CSV_DEFINE_STAT(IoDispatcherFileBackendVerbose,	FrameBytesReadKB);				
+CSV_DEFINE_STAT(IoDispatcherFileBackendVerbose,	FrameBytesUncompressedInKB);	
+CSV_DEFINE_STAT(IoDispatcherFileBackendVerbose,	FrameBytesUncompressedOutKB);	
 
-// FileIoStore thread
-CSV_DEFINE_STAT(IoDispatcherFileBackend, FrameFilesystemReads);			
-CSV_DEFINE_STAT(IoDispatcherFileBackend, FrameFilesystemBytesReadKB);	
-CSV_DEFINE_STAT(IoDispatcherFileBackend, FrameSequentialReads);			
-CSV_DEFINE_STAT(IoDispatcherFileBackend, FrameForwardSeeks);			
-CSV_DEFINE_STAT(IoDispatcherFileBackend, FrameBackwardSeeks);			
-CSV_DEFINE_STAT(IoDispatcherFileBackend, FrameHandleChangeSeeks);		
-CSV_DEFINE_STAT(IoDispatcherFileBackend, FrameSeeks);					
-CSV_DEFINE_STAT(IoDispatcherFileBackend, FrameSeekDistanceMB);			
-CSV_DEFINE_STAT(IoDispatcherFileBackend, FrameBlockCacheStores);		
-CSV_DEFINE_STAT(IoDispatcherFileBackend, FrameBlockCacheStoresKB);		
-CSV_DEFINE_STAT(IoDispatcherFileBackend, FrameBlockCacheHits);			
-CSV_DEFINE_STAT(IoDispatcherFileBackend, FrameBlockCacheHitKB);			
-CSV_DEFINE_STAT(IoDispatcherFileBackend, FrameBlockCacheMisses);		
-CSV_DEFINE_STAT(IoDispatcherFileBackend, FrameBlockCacheMissKB);		
+// FileIoStore thread			
+CSV_DEFINE_STAT(IoDispatcherFileBackend,			FrameFilesystemBytesReadKB);	
+CSV_DEFINE_STAT(IoDispatcherFileBackend,			FrameSequentialReads);
+CSV_DEFINE_STAT(IoDispatcherFileBackend,			FrameSeeks);
+CSV_DEFINE_STAT(IoDispatcherFileBackendVerbose,	FrameFilesystemReads);
+CSV_DEFINE_STAT(IoDispatcherFileBackendVerbose,	FrameForwardSeeks);
+CSV_DEFINE_STAT(IoDispatcherFileBackendVerbose,	FrameBackwardSeeks);
+CSV_DEFINE_STAT(IoDispatcherFileBackendVerbose,	FrameHandleChangeSeeks);
+CSV_DEFINE_STAT(IoDispatcherFileBackendVerbose,	FrameSeekDistanceMB);	
+CSV_DEFINE_STAT(IoDispatcherFileBackendVerbose,	FrameBlockCacheStores);
+CSV_DEFINE_STAT(IoDispatcherFileBackendVerbose,	FrameBlockCacheStoresKB);
+CSV_DEFINE_STAT(IoDispatcherFileBackendVerbose,	FrameBlockCacheHits);	
+CSV_DEFINE_STAT(IoDispatcherFileBackendVerbose,	FrameBlockCacheHitKB);	
+CSV_DEFINE_STAT(IoDispatcherFileBackendVerbose,	FrameBlockCacheMisses);
+CSV_DEFINE_STAT(IoDispatcherFileBackendVerbose,	FrameBlockCacheMissKB);
 
 // These stats only go to Insights because they get very large and insights will automatically convert to friendly units
 // IoDispatcher thread
@@ -1858,6 +1860,14 @@ TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherFileBackendQueuedFilesystemReadBytes,	T
 // These are long term totals that grow forever and may be less useful?
 
 // IoDispatcher thread 
+// Total reads queued to be executed on the filesystem layer OR resolved from the block cache
+TRACE_DECLARE_INT_COUNTER(IoDispatcherFileBackendQueuedFilesystemReads,			TEXT("IoDispatcherFileBackend/QueuedFilesystemReads"));
+// Total number of compress operations queued
+TRACE_DECLARE_INT_COUNTER(IoDispatcherFileBackendQueuedUncompressBlocks,		TEXT("IoDispatcherFileBackend/QueuedUncompressBlocks"));
+// Total bytes queued to be consumed by decompression
+TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherFileBackendQueuedUncompressBytesIn,	TEXT("IoDispatcherFileBackend/QueuedUncompressBytesIn"));
+// Total bytes queued to be produced by decompression
+TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherFileBackendQueuedUncompressBytesOut,	TEXT("IoDispatcherFileBackend/QueuedUncompressBytesOut"));
 // Total bytes passing through the decompression stage, even if they were not compressed
 TRACE_DECLARE_MEMORY_COUNTER(IoDispatcherFileBackendTotalBytesUncompressedIn,	TEXT("IoDispatcherFileBackend/TotalBytesUncompressedIn"));
 // Total bytes passing through the decompression stage, even if they were not compressed
@@ -2003,6 +2013,7 @@ void FFileIoStats::OnFilesystemReadsQueued(uint64 BytesToRead, int32 NumReads)
 	QueuedFilesystemReads += NumReads;
 #endif
 
+	TRACE_COUNTER_INCREMENT(IoDispatcherFileBackendQueuedFilesystemReads)
 	TRACE_COUNTER_ADD(IoDispatcherFileBackendQueuedFilesystemReadBytes, BytesToRead);
 #endif
 }
@@ -2066,7 +2077,7 @@ void FFileIoStats::OnReadComplete(int64 BytesRead)
 	--QueuedFilesystemReads;
 #endif
 
-	CSV_CUSTOM_STAT_DEFINED(FrameBytesReadKB, BytesToApproxKB(BytesRead), ECsvCustomStatOp::Accumulate);
+	CSV_CUSTOM_STAT_DEFINED(FrameBytesReadKB, BytesToApproxKB(BytesRead), ECsvCustomStatOp::Accumulate); // TODO: Send to insights if CSV is disabled
 
 	TRACE_COUNTER_SUBTRACT(IoDispatcherFileBackendQueuedFilesystemReadBytes, BytesRead);
 	TRACE_COUNTER_ADD(IoDispatcherFileBackendTotalBytesRead, BytesRead);
@@ -2082,6 +2093,10 @@ void FFileIoStats::OnDecompressQueued(int64 CompressedBytes, int64 UncompressedB
 	QueuedUncompressBytesIn += CompressedBytes;
 	QueuedUncompressBytesOut += UncompressedBytes;
 #endif
+
+	TRACE_COUNTER_INCREMENT(IoDispatcherFileBackendQueuedUncompressBlocks);
+	TRACE_COUNTER_ADD(IoDispatcherFileBackendQueuedUncompressBytesIn, CompressedBytes);
+	TRACE_COUNTER_ADD(IoDispatcherFileBackendQueuedUncompressBytesOut, UncompressedBytes);
 #endif
 }
 
@@ -2095,8 +2110,12 @@ void FFileIoStats::OnDecompressComplete(int64 CompressedBytes, int64 Uncompresse
 	QueuedUncompressBytesOut -= UncompressedBytes;
 #endif
 
-	CSV_CUSTOM_STAT_DEFINED(FrameBytesUncompressedInKB, BytesToApproxKB(CompressedBytes), ECsvCustomStatOp::Accumulate);
+	CSV_CUSTOM_STAT_DEFINED(FrameBytesUncompressedInKB, BytesToApproxKB(CompressedBytes), ECsvCustomStatOp::Accumulate); 
 	CSV_CUSTOM_STAT_DEFINED(FrameBytesUncompressedOutKB, BytesToApproxKB(UncompressedBytes), ECsvCustomStatOp::Accumulate);
+
+	TRACE_COUNTER_DECREMENT(IoDispatcherFileBackendQueuedUncompressBlocks);
+	TRACE_COUNTER_SUBTRACT(IoDispatcherFileBackendQueuedUncompressBytesIn, CompressedBytes);
+	TRACE_COUNTER_SUBTRACT(IoDispatcherFileBackendQueuedUncompressBytesOut, UncompressedBytes);
 
 	TRACE_COUNTER_ADD(IoDispatcherFileBackendTotalBytesUncompressedIn, CompressedBytes);
 	TRACE_COUNTER_ADD(IoDispatcherFileBackendTotalBytesUncompressedOut, UncompressedBytes);

@@ -44,7 +44,13 @@ class FTraceListener : public ITraceListener
 	static void Initialize();
 
 	bool		bScheduledForUpdate = false;
-	std::string Traces;
+	utf8_string Traces;
+
+	// Control access on this object (for queue operations)
+	GS::Lock AccessControl;
+
+	// Condition variable
+	GS::Condition CV;
 
 	// Show newer version alert
 	static GSErrCode __ACENV_CALL UpdateTraces(GSHandle paramHandle, GSPtr resultData, bool silentMode);

@@ -6,6 +6,8 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
+#include "DisplayClusterConfigurationVersion.h"
+
 class UDisplayClusterConfigurationData;
 
 
@@ -44,10 +46,20 @@ public:
 
 public:
 	/**
+	* Returns version of a specified config file
+	*
+	* @param FilePath   - Config file path
+	*
+	* @return Config version if succeeded, otherwise nulltpr
+	*/
+	virtual EDisplayClusterConfigurationVersion GetConfigVersion(const FString& FilePath) = 0;
+
+	/**
 	* Load configuration data from specified file
 	*
-	* @param FilePath - Config file path
-	* 
+	* @param FilePath   - Config file path
+	* @param Owner      - UObject owner for the configuration data object
+	*
 	* @return Configuration data if succeeded, otherwise nulltpr
 	*/
 	virtual UDisplayClusterConfigurationData* LoadConfig(const FString& FilePath, UObject* Owner = nullptr) = 0;

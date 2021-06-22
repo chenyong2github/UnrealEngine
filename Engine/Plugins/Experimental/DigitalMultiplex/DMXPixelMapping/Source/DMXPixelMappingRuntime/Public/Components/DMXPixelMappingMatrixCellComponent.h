@@ -22,25 +22,23 @@ class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingMatrixCellComponent
 {
 	GENERATED_BODY()
 
+	/** Let the matrix component edit size and position */
+	friend class UDMXPixelMappingMatrixComponent;
+
 public:
 	/** Default Constructor */
 	UDMXPixelMappingMatrixCellComponent();
 
 	//~ Begin UObject implementation
-	virtual void PostInitProperties() override;
-
 #if WITH_EDITOR
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
-
-	//~ End UObject implementation
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
+	//~ End UObject implementation
 
 	//~ Begin UDMXPixelMappingBaseComponent implementation
+	virtual void PostParentAssigned() override;
 	virtual const FName& GetNamePrefix() override;
 	virtual void ResetDMX() override;
-	virtual void SendDMX() override;
-	virtual void PostParentAssigned() override;
-
 #if WITH_EDITOR
 	virtual FString GetUserFriendlyName() const override;
 #endif
@@ -48,31 +46,23 @@ public:
 
 	//~ Begin UDMXPixelMappingOutputComponent implementation
 #if WITH_EDITOR
-	virtual TSharedRef<SWidget> BuildSlot(TSharedRef<SConstraintCanvas> InCanvas) override;
-	virtual void ToggleHighlightSelection(bool bIsSelected) override;
-
-	virtual void UpdateWidget() override;
+	virtual TSharedRef<FDMXPixelMappingComponentWidget> BuildSlot(TSharedRef<SConstraintCanvas> InCanvas) override;
+	virtual FLinearColor GetEditorColor() const override;
 #endif // WITH_EDITOR	
-
-	virtual FVector2D GetSize() const override;
-
-	virtual FVector2D GetPosition() override;
+	virtual bool IsOverParent() const override;
 	virtual int32 GetDownsamplePixelIndex() const override { return DownsamplePixelIndex; }
-	virtual void SetPosition(const FVector2D& InPosition) override;
-	virtual void SetSize(const FVector2D& InSize) override;
-
 	virtual void QueueDownsample() override;
+	virtual void SetPosition(const FVector2D& NewPosition) override;
+	virtual void SetSize(const FVector2D& NewSize) override;
 	//~ End UDMXPixelMappingOutputComponent implementation
 
+public:
 	//~ Begin UDMXPixelMappingOutputDMXComponent implementation
 	virtual void RenderWithInputAndSendDMX() override;
 	//~ End UDMXPixelMappingOutputDMXComponent implementation
 
-	void SetPositionFromParent(const FVector2D& InPosition);
-	void SetSizeFromParent(const FVector2D& InSize);
-
-	void SetPixelCoordinate(FIntPoint InPixelCoordinate);
-	const FIntPoint& GetPixelCoordinate() { return CellCoordinate; }
+	void SetCellCoordinate(FIntPoint InCellCoordinate);
+	const FIntPoint& GetCellCoordinate() { return CellCoordinate; }
 
 	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */
 	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
@@ -81,26 +71,15 @@ private:
 	/** Helper that returns the renderer component this component belongs to */
 	UDMXPixelMappingRendererComponent* GetRendererComponent() const;
 
-	void SetPositionInBoundaryBox(const FVector2D& InPosition);
-
-	void SetSizeWithinBoundaryBox(const FVector2D& InSize);
-
 public:
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Pixel Settings")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Cell Settings")
 	int32 CellID;
 
 	UPROPERTY()
-	FDMXEntityFixturePatchRef FixturePatchMatrixRef;
+	FDMXEntityFixturePatchRef FixturePatchMatrixRef_DEPRECATED;
 
-#if WITH_EDITORONLY_DATA
-	/** The X position relative to the parent group */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings")
-	float RelativePositionX;
-
-	/** The Y position relative to the parent group */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings")
-	float RelativePositionY;
-#endif // WITH_EDITORONLY_DATA
+	/** Creates attribute values from current data */
+	TMap<FDMXAttributeName, float> CreateAttributeValues() const;
 
 private:
 	UPROPERTY()
@@ -108,14 +87,4 @@ private:
 
 	/** Index of the cell pixel in downsample target buffer */
 	int32 DownsamplePixelIndex;
-
-	/** Store binding of attribute and DMX channel */
-	TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
-
-#if WITH_EDITORONLY_DATA
-	FSlateBrush Brush;
-#endif
-
-private:
-	static const FVector2D MixPixelSize;
 };

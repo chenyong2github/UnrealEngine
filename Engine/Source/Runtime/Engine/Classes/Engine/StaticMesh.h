@@ -727,7 +727,7 @@ public:
 	bool IsMinLodQualityLevelEnable() const;
 
 	UPROPERTY()
-	/*PerQuality override. Note: Enable PerQuality override in the Project Settings/ General Settings/ UsePerQualityLevelProperty*/
+	/*PerQuality override. Note: Enable PerQuality override in the Project Settings/ General Settings/ UseStaticMeshMinLODPerQualityLevels*/
 	/* Allow more flexibility to set various values driven by the Scalability or Device Profile.*/
 	FPerQualityLevelInt MinQualityLevelLOD;
 
@@ -765,7 +765,7 @@ public:
 		return INDEX_NONE;
 	}
 
-	/*Choose either PerPlatform or PerQuality override. Note: Enable PerQuality override in the Project Settings/ General Settings/ UsePerQualityLevelProperty*/
+	/*Choose either PerPlatform or PerQuality override. Note: Enable PerQuality override in the Project Settings/ General Settings/ UseStaticMeshMinLODPerQualityLevels*/
 	ENGINE_API int32 GetMinLODIdx() const;
 	ENGINE_API int32 GetDefaultMinLOD() const;
 	ENGINE_API void SetMinLODIdx(int32 InMinLOD);

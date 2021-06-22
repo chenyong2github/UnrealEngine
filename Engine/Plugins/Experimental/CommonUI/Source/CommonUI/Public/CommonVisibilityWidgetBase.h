@@ -11,8 +11,8 @@
  * A container that controls visibility based on Input type and Platform
  *
  */
-UCLASS()
-class COMMONUI_API UCommonVisibilityWidgetBase : public UCommonBorder
+UCLASS(Deprecated)
+class COMMONUI_API UDEPRECATED_UCommonVisibilityWidgetBase : public UCommonBorder
 {
 	GENERATED_UCLASS_BODY()
 

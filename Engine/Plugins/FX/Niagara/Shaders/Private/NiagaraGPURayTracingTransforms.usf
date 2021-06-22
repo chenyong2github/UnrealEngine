@@ -5,51 +5,66 @@
 ===================================================================================================*/
 
 #include "/Engine/Private/Common.ush"
+#include "NiagaraCommon.ush"
 
-Buffer<float> NiagaraParticleDataFloat;
-uint NiagaraFloatDataStride;
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Parameters
+
+uint	ParticleDataFloatStride;
+//uint	ParticleDataHalfStride;
+uint	ParticleDataIntStride;
+uint	CPUNumInstances;
+uint	InstanceCountOffset;
+
+uint	PositionDataOffset;
+uint	RotationDataOffset;
+uint	ScaleDataOffset;
+uint	bLocalSpace;
+uint	RenderVisibilityOffset;
+uint	MeshIndexOffset;
+
+uint	RenderVisibilityValue;
+uint	MeshIndexValue;
+
+float3	DefaultPosition;
+float4	DefaultRotation;
+float3	DefaultScale;
+float3	MeshScale;
+
+float4x4	LocalTransform;
+
+Buffer<float>	ParticleDataFloatBuffer;
+//Buffer<half>	ParticleDataHalfBuffer;
+Buffer<int>	ParticleDataIntBuffer;
+Buffer<uint>	GPUInstanceCountBuffer;
+
+RWStructuredBuffer<float3x4> TLASTransforms;
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Helper function for buffers
 
 float GetFloat(int RegisterIdx, uint InstanceID)
 {
 	RegisterIdx &= (~(1 << 31));
-	return NiagaraParticleDataFloat[(RegisterIdx * NiagaraFloatDataStride + InstanceID)];
+	return ParticleDataFloatBuffer[(RegisterIdx * ParticleDataFloatStride + InstanceID)];
 }
 
-float3 GetVec3(int RegisterIndex, uint InstanceID)
+float GetInt(int RegisterIdx, uint InstanceID)
 {
-	return float3(GetFloat(RegisterIndex, InstanceID), GetFloat(RegisterIndex+1, InstanceID), GetFloat(RegisterIndex+2, InstanceID));
+	return ParticleDataIntBuffer[(RegisterIdx * ParticleDataIntStride + InstanceID)];
 }
 
-float4 GetVec4(int RegisterIndex, uint InstanceID)
+float3 SafeGetVec3(int RegisterIndex, uint InstanceID, float3 DefaultValue)
 {
-	return float4(GetFloat(RegisterIndex, InstanceID), GetFloat(RegisterIndex+1, InstanceID), GetFloat(RegisterIndex+2, InstanceID), GetFloat(RegisterIndex+3, InstanceID));
+	return RegisterIndex == -1 ? DefaultValue : float3(GetFloat(RegisterIndex, InstanceID), GetFloat(RegisterIndex+1, InstanceID), GetFloat(RegisterIndex+2, InstanceID));
 }
 
-// Offsets: (Position, Transform, Scale, bLocalSpace)
-uint4 NiagaraOffsets;
-float4x4 LocalTransform;
-
-// (GPUInstanceCount, GPUInstanceCountOffset)
-uint4 GPUInstanceCountParams;
-Buffer<uint> GPUInstanceCountInputBuffer;
-RWStructuredBuffer<float3x4> TLASTransforms;
-
-//#dxr-todo: move to a header
-float4x4 QuatTo4x4(float4 Q)
+float4 SafeGetVec4(int RegisterIndex, uint InstanceID, float4 DefaultValue)
 {
-	float x2 = Q.x + Q.x;  float y2 = Q.y + Q.y;  float z2 = Q.z + Q.z;
-	float xx = Q.x * x2;   float xy = Q.x * y2;   float xz = Q.x * z2;
-	float yy = Q.y * y2;   float yz = Q.y * z2;   float zz = Q.z * z2;
-	float wx = Q.w * x2;   float wy = Q.w * y2;   float wz = Q.w * z2;
-
-	float4x4 Mat = {
-		/*M[0][0]*/ 1.0f - (yy + zz),	/*M[1][0]*/ xy - wz,				/*M[2][0]*/ xz + wy,		0.0f,
-		/*M[0][1]*/ xy + wz,			/*M[1][1]*/ 1.0f - (xx + zz),		/*M[2][1]*/ yz - wx,		0.0f,
-		/*M[0][2]*/ xz - wy,			/*M[1][2]*/ yz + wx,				/*M[2][2]*/ 1.0f - (xx + yy),0.0f,
-		0.0f,							0.0f,								0.0f,						1.0f
-	};
-	return Mat;
+	return RegisterIndex == -1 ? DefaultValue : float4(GetFloat(RegisterIndex, InstanceID), GetFloat(RegisterIndex+1, InstanceID), GetFloat(RegisterIndex+2, InstanceID), GetFloat(RegisterIndex+3, InstanceID));
 }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 1
@@ -58,70 +73,45 @@ float4x4 QuatTo4x4(float4 Q)
 [numthreads(THREADGROUP_SIZE,1,1)]
 void NiagaraGPURayTracingTransformsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	uint CPUInstancesCountConservative = GPUInstanceCountParams.x;
-	const uint GPUInstancesCountOffset = GPUInstanceCountParams.y;
-	const uint GPUInstancesCount = GPUInstancesCountOffset != -1 ? GPUInstanceCountInputBuffer[GPUInstancesCountOffset] : CPUInstancesCountConservative;
-
 	uint InstanceIndex = DispatchThreadId.x;
-
-	if (InstanceIndex < GPUInstancesCount)
+	if ( InstanceIndex >= CPUNumInstances)
 	{
-		uint PositionOffset = NiagaraOffsets[0];
-		uint TransformOffset = NiagaraOffsets[1];
-		uint ScaleOffset = NiagaraOffsets[2];
-		uint bLocalSpace = NiagaraOffsets[3];
+		return;
+	}
 
-		float4 InstancePosition = float4(0.0, 0.0, 0.0, 1.0);
+	const uint GPUNumInstances = InstanceCountOffset != -1 ? GPUInstanceCountBuffer[InstanceCountOffset] : 0;
 
-		if (PositionOffset != -1)
-		{
-			InstancePosition = float4(GetVec3(PositionOffset, InstanceIndex), 1);
-		}
+	float4x4 InstanceTransformTransposed = 0;
+	if (InstanceIndex < GPUNumInstances)
+	{
+		float3 InstancePosition = SafeGetVec3(PositionDataOffset, InstanceIndex, DefaultPosition);
+		float4 InstanceRotation = SafeGetVec4(RotationDataOffset, InstanceIndex, DefaultRotation);
+		float3 InstanceScale    = SafeGetVec3(ScaleDataOffset, InstanceIndex, DefaultScale) * MeshScale;
 
-		float4 Transform1 = float4(1.0f, 0.0f, 0.0f, InstancePosition.x);
-		float4 Transform2 = float4(0.0f, 1.0f, 0.0f, InstancePosition.y);
-		float4 Transform3 = float4(0.0f, 0.0f, 1.0f, InstancePosition.z);
+		float4x4 InstanceTransform = NiagaraComposeTransformMatrix(InstanceScale, NiagaraQuatTo3x3(InstanceRotation), InstancePosition);
 
-		if (TransformOffset != -1)
-		{
-			float4 Quat = GetVec4(TransformOffset, InstanceIndex);
-
-			float4x4 EulerToMat = QuatTo4x4(normalize(Quat));
-			Transform1.xyz = EulerToMat[0].xyz;
-			Transform2.xyz = EulerToMat[1].xyz;
-			Transform3.xyz = EulerToMat[2].xyz;
-		}
-
-		float4x4 ScaleMatrix = float4x4(float4(1.0f, 0.0f, 0.0f, 0.0f), float4(0.0f, 1.0f, 0.0f, 0.0f), float4(0.0f, 0.0f, 1.0f, 0.0f), float4(0.0f, 0.0f, 0.0f, 1.0f));
-		if (ScaleOffset != -1)
-		{
-			float3 Scale = GetVec3(ScaleOffset, InstanceIndex);
-
-			ScaleMatrix[0][0] *= Scale.x;
-			ScaleMatrix[1][1] *= Scale.y;
-			ScaleMatrix[2][2] *= Scale.z;
-		}
-
-		//#dxr-todo: handle MESH_FACING_VELOCITY, MESH_FACING_CAMERA_POSITION, etc
-	
-		float4x4 InstanceMatrix = float4x4(Transform1, Transform2, Transform3, float4(0.0f, 0.0f, 0.0f, 1.0f));
-		InstanceMatrix = mul(InstanceMatrix, ScaleMatrix);
-		
 		if (bLocalSpace == 1)
 		{
-			InstanceMatrix = transpose(InstanceMatrix);
-			InstanceMatrix = mul(InstanceMatrix, LocalTransform);
-			InstanceMatrix = transpose(InstanceMatrix);
+			InstanceTransform = mul(InstanceTransform, LocalTransform);
 		}
 
-		TLASTransforms[InstanceIndex][0] = InstanceMatrix[0];
-		TLASTransforms[InstanceIndex][1] = InstanceMatrix[1];
-		TLASTransforms[InstanceIndex][2] = InstanceMatrix[2];
+		uint bInstanceValid = 1;
+		if ( RenderVisibilityOffset != -1 )
+		{
+			bInstanceValid &= GetInt(RenderVisibilityOffset, InstanceIndex) == RenderVisibilityValue;
+		}
+
+		if ( MeshIndexOffset != -1 )
+		{
+			bInstanceValid &= GetInt(MeshIndexOffset, InstanceIndex) == MeshIndexValue;
+		}
+
+		if ( bInstanceValid )
+		{
+			InstanceTransformTransposed = transpose(InstanceTransform);
+		}
 	}
-	else
-	{
-		TLASTransforms[InstanceIndex][0] = float4(0.0f, 0.0f, 0.0f, 0.0f);
-		TLASTransforms[InstanceIndex][1] = float4(0.0f, 0.0f, 0.0f, 0.0f);
-		TLASTransforms[InstanceIndex][2] = float4(0.0f, 0.0f, 0.0f, 0.0f);
-	}
+	TLASTransforms[InstanceIndex][0] = InstanceTransformTransposed[0];
+	TLASTransforms[InstanceIndex][1] = InstanceTransformTransposed[1];
+	TLASTransforms[InstanceIndex][2] = InstanceTransformTransposed[2];
 }

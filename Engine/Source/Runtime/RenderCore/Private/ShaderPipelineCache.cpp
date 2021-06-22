@@ -256,7 +256,7 @@ static FAutoConsoleCommand SwitchModePipelineCacheCmd(
                                                 FConsoleCommandWithArgsDelegate::CreateStatic(ConsoleCommandSwitchModePipelineCacheCmd)
                                                 );
  
-int32 GShaderPipelineCacheDoNotPrecompileComputePSO = 0;
+int32 GShaderPipelineCacheDoNotPrecompileComputePSO = PLATFORM_ANDROID;	// temporarily (as of 2021-06-21) disable compute PSO precompilation on Android
 static FAutoConsoleVariableRef CVarShaderPipelineCacheDoNotPrecompileComputePSO(
 												TEXT("r.ShaderPipelineCache.DoNotPrecompileComputePSO"),
 												GShaderPipelineCacheDoNotPrecompileComputePSO,
@@ -1026,8 +1026,10 @@ void FShaderPipelineCache::PrecompilePipelineBatch()
 		
 		FRHICommandListImmediate& RHICmdList = GRHICommandList.GetImmediateCommandList();
 		
+		uint32 PSOHash = GetTypeHash(CompileTask.PSO);
+		UE_LOG(LogRHI, Verbose, TEXT("Precompiling PSO %u (%d/%d)"), PSOHash, i, NumToPrecompile);
 		Precompile(RHICmdList, GMaxRHIShaderPlatform, CompileTask.PSO);
-		CompiledHashes.Add(GetTypeHash(CompileTask.PSO));
+		CompiledHashes.Add(PSOHash);
 		
 		delete CompileTask.ReadRequests;
 		CompileTask.ReadRequests = nullptr;

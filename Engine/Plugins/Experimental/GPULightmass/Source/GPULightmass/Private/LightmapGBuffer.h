@@ -60,7 +60,8 @@ protected:
 		static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 		const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnAnyThread() != 0);
 
-		if (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5)
+		if (EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData)
+			&& IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5)
 			&& bAllowStaticLighting
 			&& Parameters.VertexFactoryType->SupportsStaticLighting())
 		{
@@ -113,7 +114,8 @@ public:
 		static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 		const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnAnyThread() != 0);
 
-		if (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5)
+		if (EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData)
+			&& IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5)
 			&& bAllowStaticLighting
 			&& Parameters.VertexFactoryType->SupportsStaticLighting())
 		{

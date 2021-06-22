@@ -2635,7 +2635,7 @@ void USkeletalMeshComponent::RecreateClothingActors()
 
 	ReleaseAllClothingResources();
 
-	if(SkeletalMesh == nullptr || !IsRegistered())
+	if(!bAllowClothActors || SkeletalMesh == nullptr || !IsRegistered())
 	{
 		return;
 	}

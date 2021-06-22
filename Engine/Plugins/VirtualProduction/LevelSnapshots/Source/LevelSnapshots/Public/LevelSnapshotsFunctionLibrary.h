@@ -38,4 +38,14 @@ public:
 		bool bAllowUnchangedProperties = false,
 		bool bAllowNonEditableProperties = false
 		);
+
+	/**
+	 * Recursively gets all subobjects which should be serialized using custom callbacks from an external module.
+	 *
+	 * @param Snapshot The snapshot in which to look
+	 * @param SnapshotRootObject Snapshot version of the object to look in. Either an actor, component, or a custom serialized subobject.
+	 * @param WorldRootObject Editor version of the object to look in. Either an actor, component, or a custom serialized subobject.
+	 * @param Callback Whatever you want to do with this information
+	 */
+	static void ForEachMatchingCustomSubobjectPair(ULevelSnapshot* Snapshot, UObject* SnapshotRootObject, UObject* WorldRootObject, TFunction<void(UObject* SnapshotSubobject, UObject* EditorWorldSubobject)> Callback);
 };

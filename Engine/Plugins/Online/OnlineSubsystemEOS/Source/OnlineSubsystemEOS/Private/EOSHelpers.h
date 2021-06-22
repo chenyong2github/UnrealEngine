@@ -9,9 +9,11 @@
 #endif
 
 #include "eos_auth_types.h"
+#include "eos_types.h"
 #include "Interfaces/OnlineExternalUIInterface.h"
 
 class FOnlineSubsystemEOS;
+using IEOSPlatformHandlePtr = TSharedPtr<class IEOSPlatformHandle, ESPMode::ThreadSafe>;
 
 class FEOSHelpers
 {
@@ -21,10 +23,7 @@ public:
 	virtual FString PlatformCreateCacheDir(const FString &ArtifactName, const FString &EOSSettingsCacheDir);
 	virtual void PlatformAuthCredentials(EOS_Auth_Credentials &Credentials);
 	virtual void PlatformTriggerLoginUI(FOnlineSubsystemEOS* EOSSubsystem, const int ControllerIndex, bool bShowOnlineOnly, bool bShowSkipButton, const FOnLoginUIClosedDelegate& Delegate);
-
-private:
-	FOnlineSubsystemEOS* EOSSubsystem;
+	virtual IEOSPlatformHandlePtr CreatePlatform(EOS_Platform_Options& PlatformOptions);
 };
 
-#endif
-
+#endif // WITH_EOS_SDK

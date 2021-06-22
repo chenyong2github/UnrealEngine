@@ -101,6 +101,9 @@ struct FConcertTakeInitializedEvent
 
 	UPROPERTY()
 	FConcertLocalIdentifierState IdentifierState;
+
+	UPROPERTY()
+	FTakeRecorderUserParameters Settings;
 };
 
 USTRUCT()

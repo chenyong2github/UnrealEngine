@@ -35,6 +35,7 @@ namespace DisplayClusterInterceptionModuleUtils
 {
 	static const FString EventSetup = TEXT("nDCISetup");
 	static const FString EventSync = TEXT("nDCIMUSync");
+	static const FString PackageSync = TEXT("nDCIPackageSync");
 	static const FString EventParameterSettings = TEXT("Settings");
 }
 
@@ -177,6 +178,29 @@ private:
 		}
 	}
 
+	void PackageSyncEvent(int64 ActivityId)
+	{
+		if (!CanFinalizeWorkspaceSync())
+		{
+			return;
+		}
+
+		UE_LOG(LogDisplayClusterInterception, Display, TEXT("Sending package sync event."));
+		IDisplayClusterClusterManager* ClusterManager = IDisplayCluster::Get().GetClusterMgr();
+		check(ClusterManager != nullptr);
+
+		bAllowPackages = false;
+
+		FDisplayClusterClusterEventJson SyncMessagesEvent;
+		SyncMessagesEvent.Category = DisplayClusterInterceptionModuleUtils::PackageSync;
+		SyncMessagesEvent.Type = LexToString(ActivityId);
+		SyncMessagesEvent.Name = ClusterManager->GetNodeId();	// which node got the message
+		SyncMessagesEvent.bIsSystemEvent = true;				// nDisplay internal event
+		SyncMessagesEvent.bShouldDiscardOnRepeat = false;		// Don' discard the events with the same cat/type/name
+		const bool bMasterOnly = false;							// All nodes are broadcasting events to synchronize them across cluster
+		ClusterManager->EmitClusterEventJson(SyncMessagesEvent, bMasterOnly);
+	}
+
 	void WorkspaceSyncEvent()
 	{
 		if (bWasEverDisconnected)
@@ -203,6 +227,11 @@ private:
 		return bCanFinalizeWorkspace || bWasEverDisconnected;
 	}
 
+	bool CanProcessPendingPackages() const
+	{
+		return bAllowPackages;
+	}
+
 #if defined(WITH_CONCERT)
 	void OnSessionConnectionChanged(IConcertClientSession& InSession, EConcertConnectionStatus ConnectionStatus)
 	{
@@ -214,9 +243,13 @@ private:
 		{
 			ResetFinalizeSync();
 			Workspace->OnWorkspaceSynchronized().AddRaw(this, &FDisplayClusterMessageInterceptionModule::WorkspaceSyncEvent);
+			Workspace->OnActivityAddedOrUpdated().AddRaw(this, &FDisplayClusterMessageInterceptionModule::ActivityUpdated);
 			Workspace->AddWorkspaceFinalizeDelegate(TEXT("nDisplay Interceptor"),
 													FCanFinalizeWorkspaceDelegate::CreateRaw(
 														this, &FDisplayClusterMessageInterceptionModule::CanFinalizeWorkspaceSync));
+			Workspace->AddWorkspaceCanProcessPackagesDelegate(TEXT("nDisplay Interceptor"),
+															  FCanProcessPendingPackages::CreateRaw(
+																  this, &FDisplayClusterMessageInterceptionModule::CanProcessPendingPackages));
 		}
 		else if (ConnectionStatus == EConcertConnectionStatus::Disconnected)
 		{
@@ -226,10 +259,21 @@ private:
 			//
 			bWasEverDisconnected = true;
 			bCanFinalizeWorkspace = true;
+			bAllowPackages = true;
 
 			UE_LOG(LogDisplayClusterInterception, Display, TEXT("Disconnecting from session."));
 			Workspace->RemoveWorkspaceFinalizeDelegate(TEXT("nDisplay Interceptor"));
+			Workspace->RemoveWorkspaceCanProcessPackagesDelegate(TEXT("nDisplay Interceptor"));
 			Workspace->OnWorkspaceSynchronized().RemoveAll(this);
+			Workspace->OnActivityAddedOrUpdated().RemoveAll(this);
+		}
+	}
+
+	void ActivityUpdated(const FConcertClientInfo& InClientInfo, const FConcertSyncActivity& InActivity, const FStructOnScope& /*unused*/)
+	{
+		if (InActivity.EventType == EConcertSyncActivityEventType::Package)
+		{
+			PackageSyncEvent(InActivity.ActivityId);
 		}
 	}
 
@@ -284,6 +328,10 @@ private:
 		{
 			HandleWorkspaceSyncEvent(InEvent);
 		}
+		else if (InEvent.Category == DisplayClusterInterceptionModuleUtils::PackageSync)
+		{
+			HandlePackageEvent(InEvent);
+		}
 		else
 		{
 			//All events except our settings synchronization one are passed to the interceptor
@@ -331,6 +379,25 @@ private:
 		}
 	}
 
+	void HandlePackageEvent(const FDisplayClusterClusterEventJson& InEvent)
+	{
+		UE_LOG(LogDisplayClusterInterception, Display, TEXT("Handle multi-user package event sync with id %s -> %s."), *InEvent.Type, *InEvent.Name);
+		TSet<FString>& NodesReceivedPackage = PackageActivities.FindOrAdd(InEvent.Type);
+		NodesReceivedPackage.Add(InEvent.Name);
+
+		IDisplayClusterClusterManager* ClusterManager = IDisplayCluster::Get().GetClusterMgr();
+		if (NodesReceivedPackage.Num() >= (int32)ClusterManager->GetNodesAmount())
+		{
+			UE_LOG(LogDisplayClusterInterception, Display, TEXT("All nodes have received package event %s."), *InEvent.Type);
+			PackageActivities.Remove(InEvent.Type);
+			if (PackageActivities.Num() == 0)
+			{
+				UE_LOG(LogDisplayClusterInterception, Display, TEXT("Releasing the package lock."), *InEvent.Type);
+				bAllowPackages = true;
+			}
+		}
+	}
+
 	void HandleWorkspaceSyncEvent(const FDisplayClusterClusterEventJson& InEvent)
 	{
 		UE_LOG(LogDisplayClusterInterception, Display, TEXT("Handle multi-user workspace sync -> %s."), *InEvent.Name);
@@ -374,6 +441,9 @@ private:
 	bool bWasEverDisconnected = false;
 	bool bCanFinalizeWorkspace = true;
 	TSet<FString> NodesReady;
+
+	bool bAllowPackages = true;
+	TMap<FString, TSet<FString>> PackageActivities;
 
 	/** MessageBus interceptor */
 	TSharedPtr<FDisplayClusterMessageInterceptor, ESPMode::ThreadSafe> Interceptor;

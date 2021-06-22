@@ -25,7 +25,7 @@ void FDMXFixturePatchChannel::SetFixturePatch(UDMXEntityFixturePatch* InPatch)
 {
 	if (InPatch != nullptr && InPatch->IsValidLowLevelFast())
 	{
-		ActiveMode = InPatch->ActiveMode;
+		ActiveMode = InPatch->GetActiveModeIndex();
 	}
 
 	Reference.SetEntity(InPatch);
@@ -35,43 +35,31 @@ void FDMXFixturePatchChannel::SetFixturePatch(UDMXEntityFixturePatch* InPatch)
 void FDMXFixturePatchChannel::UpdateNumberOfChannels(bool bResetDefaultValues /*= false*/)
 {
 	// Test if the patch is still being what was recorded
-	bool bValidPatchChannel = true;
 
 	UDMXEntityFixturePatch* Patch = Reference.GetFixturePatch();
-
-	if (Patch == nullptr || !Patch->IsValidLowLevelFast())
+	UDMXEntityFixtureType* FixtureType = Patch ? Patch->GetFixtureType() : nullptr;
+	if (!Patch || !FixtureType)
 	{
-		UE_LOG(LogDMXRuntime, Warning, TEXT("Patch removed from DMX Library. Corresponding DMX Channel removed from Sequencer."));
-		bValidPatchChannel = false;
-	}
+		UE_LOG(LogDMXRuntime, Warning, TEXT("Cannot find patch for Sequence. Likely it was removed from its DMX Library. Corresponding DMX Channel are not created."));
 
-	UDMXEntityFixtureType* FixtureType = nullptr;
-	if (Patch)
-	{
-		FixtureType = Patch->ParentFixtureTypeTemplate;
-		if (FixtureType == nullptr)
+		if (!FixtureType)
 		{
-			UE_LOG(LogDMXRuntime, Warning, TEXT("%s has no valid Parent Fixture Type set. Corresponding DMX Channel removed from Sequencer."), *Patch->GetDisplayName());
-			bValidPatchChannel = false;
+			UE_LOG(LogDMXRuntime, Warning, TEXT("Sequence has no valid Parent Fixture Type set. Corresponding DMX Channel removed from Sequencer."));
 		}
 		else if (!FixtureType->Modes.IsValidIndex(ActiveMode))
 		{
-			UE_LOG(LogDMXRuntime, Warning, TEXT("Recorded referenced Mode no longer exists in '%s'. Channel Removed from Sequencer."), *FixtureType->GetDisplayName());
-			bValidPatchChannel = false;
+			UE_LOG(LogDMXRuntime, Warning, TEXT("Recorded referenced Mode no longer exists in Sequence. Channel Removed from Sequencer."), *FixtureType->Name);
 		}
-	}
 
-	if (!bValidPatchChannel)
-	{
 		FunctionChannels.Empty();
 		ActiveMode = INDEX_NONE;
 		return;
 	}
 
 	const FDMXFixtureMode& Mode = FixtureType->Modes[ActiveMode];
-	if (Patch->ActiveMode != ActiveMode)
+	if (Patch->GetActiveModeIndex() != ActiveMode)
 	{
-		UE_LOG(LogDMXRuntime, Warning, TEXT("Active Mode of '%s' changed. Its channel in Sequencer uses recorded Mode '%s'."), *FixtureType->GetDisplayName(), *FixtureType->Modes[ActiveMode].ModeName);
+		UE_LOG(LogDMXRuntime, Warning, TEXT("Active Mode of '%s' changed. Its channel in Sequencer uses recorded Mode."), *FixtureType->Name);
 		UE_LOG(LogDMXRuntime, Warning, TEXT("Only channels with matching attribute will be displayed and played, potentially resulting in empty channels."));
 	}
 
@@ -181,7 +169,7 @@ FDMXCachedFunctionChannelInfo::FDMXCachedFunctionChannelInfo(const TArray<FDMXFi
 	}
 
 	// Try to access the active mode
-	const UDMXEntityFixtureType* FixtureType = FixturePatch->ParentFixtureTypeTemplate;
+	const UDMXEntityFixtureType* FixtureType = FixturePatch->GetFixtureType();
 	if (FixtureType == nullptr || !FixtureType->IsValidLowLevelFast())
 	{
 		UE_LOG(MovieSceneDMXLibrarySectionLog, Error, TEXT("%S: Patch %s has invalid Fixture Type template."), __FUNCTION__, *FixturePatch->GetDisplayName());
@@ -250,7 +238,7 @@ FDMXCachedFunctionChannelInfo::FDMXCachedFunctionChannelInfo(const TArray<FDMXFi
 		bLSBMode = Function.bUseLSBMode;
 	}
 
-	UniverseID = FixturePatch->UniverseID;
+	UniverseID = FixturePatch->GetUniverseID();
 
 	// Now that we know it's fully valid, define how it should be processed.
 	bNeedsInitialization = FunctionChannel.Channel.GetNumKeys() > 0;
@@ -279,42 +267,43 @@ const FDMXFixtureFunctionChannel* FDMXCachedFunctionChannelInfo::TryGetFunctionC
 
 void FDMXCachedFunctionChannelInfo::GetMatrixCellChannelsAbsoluteNoSorting(UDMXEntityFixturePatch* FixturePatch, const FIntPoint& CellCoordinate, TMap<FName, int32>& OutAttributeToAbsoluteChannelMap) const
 {
-	if (!FixturePatch ||
-		!FixturePatch->ParentFixtureTypeTemplate ||
-		!FixturePatch->ParentFixtureTypeTemplate->bFixtureMatrixEnabled)
+	if (FixturePatch)
 	{
-		return;
-	}
+		if (UDMXEntityFixtureType* FixtureType = FixturePatch->GetFixtureType())
+		{
+			if (FixtureType->bFixtureMatrixEnabled)
+			{
+				if (const FDMXFixtureMode* FixtureModePtr = FixturePatch->GetActiveMode())
+				{
+					const FDMXFixtureMatrix& FixtureMatrix = FixtureModePtr->FixtureMatrixConfig;
 
-	FDMXFixtureMatrix MatrixProperties;
-	if (!FixturePatch->GetMatrixProperties(MatrixProperties))
-	{
-		return;
-	}
+					TMap<const FDMXFixtureCellAttribute*, int32> AttributeToRelativeChannelOffsetMap;
+					int32 CellDataSize = 0;
+					int32 AttributeChannelOffset = 0;
+					for (const FDMXFixtureCellAttribute& CellAttribute : FixtureMatrix.CellAttributes)
+					{
+						AttributeToRelativeChannelOffsetMap.Add(&CellAttribute, AttributeChannelOffset);
+						const int32 AttributeSize = UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType);
 
-	TMap<const FDMXFixtureCellAttribute*, int32> AttributeToRelativeChannelOffsetMap;
-	int32 CellDataSize = 0;
-	int32 AttributeChannelOffset = 0;
-	for (const FDMXFixtureCellAttribute& CellAttribute : MatrixProperties.CellAttributes)
-	{
-		AttributeToRelativeChannelOffsetMap.Add(&CellAttribute, AttributeChannelOffset);
-		const int32 AttributeSize = UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType);
+						CellDataSize += AttributeSize;
+						AttributeChannelOffset += UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType);
+					}
 
-		CellDataSize += AttributeSize;
-		AttributeChannelOffset += UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType);
-	}
+					const int32 FixtureMatrixAbsoluteStartingChannel = FixturePatch->GetStartingChannel() + FixtureMatrix.FirstCellChannel - 1;
+					const int32 CellChannelOffset = (CellCoordinate.Y * FixtureMatrix.XCells + CellCoordinate.X) * CellDataSize;
+					const int32 AbsoluteCellStartingChannel = FixtureMatrixAbsoluteStartingChannel + CellChannelOffset;
 
-	const int32 FixtureMatrixAbsoluteStartingChannel = FixturePatch->GetStartingChannel() + MatrixProperties.FirstCellChannel - 1;
-	const int32 CellChannelOffset = (CellCoordinate.Y * MatrixProperties.XCells + CellCoordinate.X) * CellDataSize;
-	const int32 AbsoluteCellStartingChannel = FixtureMatrixAbsoluteStartingChannel + CellChannelOffset;
+					for (const TTuple<const FDMXFixtureCellAttribute*, int32>& AttributeToRelativeChannelOffsetKvp : AttributeToRelativeChannelOffsetMap)
+					{
+						const FName FunctionAttributeName = AttributeToRelativeChannelOffsetKvp.Key->Attribute.GetName();
+						const int32 AbsoluteChannel = AbsoluteCellStartingChannel + AttributeToRelativeChannelOffsetKvp.Value;
 
-	for (const TTuple<const FDMXFixtureCellAttribute*, int32>& AttributeToRelativeChannelOffsetKvp : AttributeToRelativeChannelOffsetMap)
-	{
-		const FName FunctionAttributeName = AttributeToRelativeChannelOffsetKvp.Key->Attribute.GetName();
-		const int32 AbsoluteChannel = AbsoluteCellStartingChannel + AttributeToRelativeChannelOffsetKvp.Value;
-
-		check(AbsoluteChannel > 0 && AbsoluteChannel <= DMX_UNIVERSE_SIZE);
-		OutAttributeToAbsoluteChannelMap.Add(FunctionAttributeName, AbsoluteChannel);
+						check(AbsoluteChannel > 0 && AbsoluteChannel <= DMX_UNIVERSE_SIZE);
+						OutAttributeToAbsoluteChannelMap.Add(FunctionAttributeName, AbsoluteChannel);
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -359,7 +348,7 @@ void UMovieSceneDMXLibrarySection::Serialize(FArchive& Ar)
 					static const bool bIssueLogged = false;
 					if (!bIssueLogged)
 					{
-						UE_LOG(LogDMXRuntime, Error, TEXT("Found Fixture Patch being used in a dynamically created sequence, e.g. a level sequence player in a blueprint. This caused a issues in 4.26, the sequence would not play."));
+						UE_LOG(LogDMXRuntime, Error, TEXT("Found Fixture Patch being used in a dynamically created 4.26 DMX Sequence, e.g. a level sequence player in a blueprint. This caused a issues in 4.26, the sequence would not play."));
 						UE_LOG(LogDMXRuntime, Error, TEXT("To restore functionality, please follow these steps:"));
 						UE_LOG(LogDMXRuntime, Error, TEXT("1. Remove the blueprint that uses the sequence player from the level andd save the level."));
 						UE_LOG(LogDMXRuntime, Error, TEXT("2. Restart the engine:		This message should no longer appear. Resave your sequence."));
@@ -467,8 +456,8 @@ void UMovieSceneDMXLibrarySection::SetFixturePatchActiveMode(UDMXEntityFixturePa
 	}
 
 	// Make sure the Mode Index is valid
-	const UDMXEntityFixtureType* FixtureType = InPatch->ParentFixtureTypeTemplate;
-	if (FixtureType == nullptr || !FixtureType->IsValidLowLevelFast())
+	const UDMXEntityFixtureType* FixtureType = InPatch->GetFixtureType();
+	if (!IsValid(FixtureType))
 	{
 		return;
 	}
@@ -494,31 +483,23 @@ void UMovieSceneDMXLibrarySection::SetFixturePatchActiveMode(UDMXEntityFixturePa
 
 void UMovieSceneDMXLibrarySection::ToggleFixturePatchChannel(UDMXEntityFixturePatch* InPatch, int32 InChannelIndex)
 {
-	if (InPatch == nullptr || !InPatch->IsValidLowLevelFast())
+	if (IsValid(InPatch))
 	{
-		return;
-	}
-
-	const UDMXEntityFixtureType* FixtureType = InPatch->ParentFixtureTypeTemplate;
-	if (FixtureType == nullptr || !FixtureType->IsValidLowLevelFast())
-	{
-		return;
-	}
-
-	// Find the PatchChannel object that represents the passed in Patch
-	for (FDMXFixturePatchChannel& PatchChannel : FixturePatchChannels)
-	{
-		UDMXEntityFixturePatch* Patch = PatchChannel.Reference.GetFixturePatch();
-		if (Patch == InPatch)
+		// Find the PatchChannel object that represents the passed in Patch
+		for (FDMXFixturePatchChannel& PatchChannel : FixturePatchChannels)
 		{
-			PatchChannel.UpdateNumberOfChannels();
+			UDMXEntityFixturePatch* Patch = PatchChannel.Reference.GetFixturePatch();
+			if (Patch == InPatch)
+			{
+				PatchChannel.UpdateNumberOfChannels();
 
-			FDMXFixtureFunctionChannel& FunctionChannel = PatchChannel.FunctionChannels[InChannelIndex];
-			FunctionChannel.bEnabled = !FunctionChannel.bEnabled;
+				FDMXFixtureFunctionChannel& FunctionChannel = PatchChannel.FunctionChannels[InChannelIndex];
+				FunctionChannel.bEnabled = !FunctionChannel.bEnabled;
 
-			UpdateChannelProxy();
+				UpdateChannelProxy();
 
-			break;
+				break;
+			}
 		}
 	}
 }
@@ -534,8 +515,8 @@ void UMovieSceneDMXLibrarySection::ToggleFixturePatchChannel(const FName& InPatc
 		{
 			if (Patch->GetDisplayName().Equals(TargetPatchName))
 			{
-				const UDMXEntityFixtureType* FixtureType = Patch->ParentFixtureTypeTemplate;
-				if (FixtureType == nullptr || !FixtureType->IsValidLowLevelFast())
+				const UDMXEntityFixtureType* FixtureType = Patch->GetFixtureType();
+				if (!IsValid(FixtureType))
 				{
 					return;
 				}
@@ -575,25 +556,17 @@ void UMovieSceneDMXLibrarySection::ToggleFixturePatchChannel(const FName& InPatc
 
 bool UMovieSceneDMXLibrarySection::GetFixturePatchChannelEnabled(UDMXEntityFixturePatch* InPatch, int32 InChannelIndex) const
 {
-	if (InPatch == nullptr || !InPatch->IsValidLowLevelFast())
+	if (IsValid(InPatch))
 	{
-		return false;
-	}
-
-	const UDMXEntityFixtureType* FixtureType = InPatch->ParentFixtureTypeTemplate;
-	if (FixtureType == nullptr || !FixtureType->IsValidLowLevelFast())
-	{
-		return false;
-	}
-
-	// Find the PatchChannel object that represents the passed in Patch
-	for (const FDMXFixturePatchChannel& PatchChannel : FixturePatchChannels)
-	{
-		UDMXEntityFixturePatch* Patch = PatchChannel.Reference.GetFixturePatch();
-		if (Patch == InPatch &&
-			PatchChannel.FunctionChannels.IsValidIndex(InChannelIndex))
+		// Find the PatchChannel object that represents the passed in Patch
+		for (const FDMXFixturePatchChannel& PatchChannel : FixturePatchChannels)
 		{
-			return PatchChannel.FunctionChannels[InChannelIndex].bEnabled;
+			UDMXEntityFixturePatch* Patch = PatchChannel.Reference.GetFixturePatch();
+			if (Patch == InPatch &&
+				PatchChannel.FunctionChannels.IsValidIndex(InChannelIndex))
+			{
+				return PatchChannel.FunctionChannels[InChannelIndex].bEnabled;
+			}
 		}
 	}
 
@@ -808,7 +781,7 @@ void UMovieSceneDMXLibrarySection::UpdateChannelProxy(bool bResetDefaultChannelV
 			continue;
 		}
 
-		UDMXEntityFixtureType* FixtureType = Patch->ParentFixtureTypeTemplate;
+		UDMXEntityFixtureType* FixtureType = Patch->GetFixtureType();
 		if (!FixtureType)
 		{
 			UE_LOG(MovieSceneDMXLibrarySectionLog, Warning, TEXT("%s: Ignoring patch  %s without valid parent fixture type"), __FUNCTION__, *Patch->GetDisplayName());

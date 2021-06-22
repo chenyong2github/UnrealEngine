@@ -3,7 +3,7 @@
 using UnrealBuildTool;
 using System.IO;
 
-[SupportedPlatforms("Win64", "Mac")]
+[SupportedPlatforms("Win64")]
 public class DatasmithArchiCADTarget : TargetRules
 {
 	public DatasmithArchiCADTarget(TargetInfo Target)
@@ -38,9 +38,5 @@ public class DatasmithArchiCADTarget : TargetRules
 			string BuildCommand = string.Format(@"$(EngineDir)\Build\BatchFiles\MSBuild.bat /t:Build /p:Configuration=ReleaseUE;Platform=x64 {0}", SolutionPath);
 			PreBuildSteps.Add(BuildCommand);
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Mac)
-		{
-		}
-		
 	}
 }

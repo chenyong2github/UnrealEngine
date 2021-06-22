@@ -251,6 +251,9 @@ void FAssetEditorToolkit::InitAssetEditor( const EToolkitMode::Type Mode, const 
 		}
 	}
 
+	// Give a chance to customize tab manager and other UI before widgets are created
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->NotifyEditorOpeningPreWidgets(EditingObjects, this);
+
 	// Create menus
 	if (ToolkitMode == EToolkitMode::Standalone)
 	{
@@ -996,6 +999,8 @@ void FAssetEditorToolkit::FillDefaultAssetMenuCommands(FToolMenuSection& InSecti
 	// Commands we only want to be accessible when editing an asset should go here 
 	if( IsActuallyAnAsset() )
 	{
+		FName ReimportEntryName = TEXT("Reimport");
+		int32 MenuEntryCount = 0;
 		// Add a reimport menu entry for each supported editable object
 		for( auto ObjectIter = EditingObjects.CreateConstIterator(); ObjectIter; ++ObjectIter )
 		{
@@ -1013,7 +1018,8 @@ void FAssetEditorToolkit::FillDefaultAssetMenuCommands(FToolMenuSection& InSecti
 					const FName IconName = TEXT( "AssetEditor.Reimport" );
 					FUIAction UIAction;
 					UIAction.ExecuteAction.BindRaw( this, &FAssetEditorToolkit::Reimport_Execute, EditingObject );
-					InSection.AddMenuEntry( NAME_None, LabelText, ToolTipText, FSlateIcon(FEditorStyle::GetStyleSetName(), IconName), UIAction );
+					ReimportEntryName.SetNumber(MenuEntryCount++);
+					InSection.AddMenuEntry( ReimportEntryName, LabelText, ToolTipText, FSlateIcon(FEditorStyle::GetStyleSetName(), IconName), UIAction );
 				}
 			}
 		}		

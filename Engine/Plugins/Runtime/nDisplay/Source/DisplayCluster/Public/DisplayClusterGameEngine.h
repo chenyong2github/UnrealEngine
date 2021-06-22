@@ -48,6 +48,7 @@ protected:
 	virtual bool InitializeInternals();
 	EDisplayClusterOperationMode DetectOperationMode() const;
 	bool GetResolvedNodeId(const UDisplayClusterConfigurationData* ConfigData, FString& NodeId) const;
+	bool ValidateConfigFile(const FString& FilePath);
 
 private:
 	bool OutOfSync() const;

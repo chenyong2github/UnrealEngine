@@ -328,6 +328,8 @@ void FChaosScene::SetUpForFrame(const FVector* NewGrav,float InDeltaSeconds /*= 
 	using namespace Chaos;
 	SetGravity(*NewGrav);
 
+	InDeltaSeconds *= MNetworkDeltaTimeScale;
+
 	if(bSubstepping)
 	{
 		MDeltaTime = FMath::Min(InDeltaSeconds, InMaxSubsteps * InMaxSubstepDeltaTime);
@@ -428,6 +430,7 @@ void FChaosScene::SyncBodies(TSolver* Solver)
 {
 #if WITH_CHAOS
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("SyncBodies"),STAT_SyncBodies,STATGROUP_Physics);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(SyncBodies);
 	OnSyncBodies(Solver);
 #endif
 }

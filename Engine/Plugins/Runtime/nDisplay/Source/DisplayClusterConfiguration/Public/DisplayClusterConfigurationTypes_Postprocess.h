@@ -13,26 +13,26 @@
 
 #include "DisplayClusterConfigurationTypes_Postprocess.generated.h"
 
-USTRUCT()
+USTRUCT(Blueprintable)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_CustomPostprocessSettings
 {
 	GENERATED_BODY()
 
 public:
 	// Enable custom postprocess
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Viewport")
 	bool bIsEnabled = false;
 
 	// Apply postprocess for one frame
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Viewport", meta = (EditCondition = "bIsEnabled"))
 	bool bIsOneFrame = false;
 
 	// Custom postprocess settings
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Viewport", meta = (EditCondition = "bIsEnabled"))
 	FPostProcessSettings PostProcessSettings;
 
 	// Override blend weight
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Viewport", meta = (EditCondition = "bIsEnabled"))
 	float BlendWeight = 1;
 };
 
@@ -52,109 +52,124 @@ public:
 	FDisplayClusterConfigurationViewport_CustomPostprocessSettings Final;
 };
 
-USTRUCT()
+USTRUCT(Blueprintable)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_ColorGradingSettings
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_Saturation:1;
-	UPROPERTY(EditAnywhere, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_Contrast:1;
-	UPROPERTY(EditAnywhere, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_Gamma:1;
-	UPROPERTY(EditAnywhere, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_Gain:1;
-	UPROPERTY(EditAnywhere, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_Offset:1;
 
 	// Saturation
-	UPROPERTY(EditAnywhere, Category = "Color Grading", meta = (UIMin = "0.0", UIMax = "2.0", Delta = "0.01", EditCondition = "bOverride_Saturation", ColorGradingMode = "saturation"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Color Grading", meta = (UIMin = "0.0", UIMax = "2.0", Delta = "0.01", EditCondition = "bOverride_Saturation", ColorGradingMode = "saturation"))
 	FVector4 Saturation = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
 
 	// Contrast
-	UPROPERTY(EditAnywhere, Category = "Color Grading", meta = (UIMin = "0.0", UIMax = "2.0", Delta = "0.01", EditCondition = "bOverride_Contrast", ColorGradingMode = "contrast"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Color Grading", meta = (UIMin = "0.0", UIMax = "2.0", Delta = "0.01", EditCondition = "bOverride_Contrast", ColorGradingMode = "contrast"))
 	FVector4 Contrast = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
 
 	// Gamma
-	UPROPERTY(EditAnywhere, Category = "Color Grading", meta = (UIMin = "0.0", UIMax = "2.0", Delta = "0.01", EditCondition = "bOverride_Gamma", ColorGradingMode = "gamma"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Color Grading", meta = (UIMin = "0.0", UIMax = "2.0", Delta = "0.01", EditCondition = "bOverride_Gamma", ColorGradingMode = "gamma"))
 	FVector4 Gamma = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
 
 	// Gain
-	UPROPERTY(EditAnywhere, Category = "Color Grading", meta = (UIMin = "0.0", UIMax = "2.0", Delta = "0.01", EditCondition = "bOverride_Gain", ColorGradingMode = "gain"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Color Grading", meta = (UIMin = "0.0", UIMax = "2.0", Delta = "0.01", EditCondition = "bOverride_Gain", ColorGradingMode = "gain"))
 	FVector4 Gain = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
 
 	// Offset
-	UPROPERTY(EditAnywhere, Category = "Color Grading", meta = (UIMin = "-1.0", UIMax = "1.0", Delta = "0.001", EditCondition = "bOverride_Offset", ColorGradingMode = "offset"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Color Grading", meta = (UIMin = "-1.0", UIMax = "1.0", Delta = "0.001", EditCondition = "bOverride_Offset", ColorGradingMode = "offset"))
 	FVector4 Offset = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_PerViewportSettings
 {
 	GENERATED_BODY()
 
-	FDisplayClusterConfigurationViewport_PerViewportSettings() 
+		FDisplayClusterConfigurationViewport_PerViewportSettings()
 		: bOverride_WhiteTemp(0)
 		, bOverride_WhiteTint(0)
 		, bOverride_AutoExposureBias(0)
 	{};
 
-	UPROPERTY(EditAnywhere, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_WhiteTemp:1;
-	UPROPERTY(EditAnywhere, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_WhiteTint:1;
-	UPROPERTY(EditAnywhere, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_AutoExposureBias:1;
 
 	// Blend weight
-	UPROPERTY(EditAnywhere, Category = "Viewport Settings", Meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", Meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float BlendWeight = 1.0f;
 
 	// White temperature
-	UPROPERTY(EditAnywhere, Category = "Viewport Settings", Meta = (UIMin = "1500.0", UIMax = "15000.0", EditCondition = "bOverride_WhiteTemp"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", Meta = (UIMin = "1500.0", UIMax = "15000.0", EditCondition = "bOverride_WhiteTemp"))
 	float WhiteTemp = 6500.0f;
 
 	// White tint
-	UPROPERTY(EditAnywhere, Category = "Viewport Settings", Meta = (UIMin = "-1.0", UIMax = "1.0", EditCondition = "bOverride_WhiteTint"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", Meta = (UIMin = "-1.0", UIMax = "1.0", EditCondition = "bOverride_WhiteTint"))
 	float WhiteTint = 0.0f;
 
 	// Exposure compensation
-	UPROPERTY(EditAnywhere, Category = "Viewport Settings", Meta = (UIMin = "-15.0", UIMax = "15.0", EditCondition = "bOverride_AutoExposureBias"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", Meta = (UIMin = "-15.0", UIMax = "15.0", EditCondition = "bOverride_AutoExposureBias"))
 	float AutoExposureBias = 0.0f;
 
 	// Global color grading
-	UPROPERTY(EditAnywhere, Category = "Viewport Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings")
 	FDisplayClusterConfigurationViewport_ColorGradingSettings Global;
 
 	// Shadows color grading
-	UPROPERTY(EditAnywhere, Category = "Viewport Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings")
 	FDisplayClusterConfigurationViewport_ColorGradingSettings Shadows;
 
 	// Midtones color grading
-	UPROPERTY(EditAnywhere, Category = "Viewport Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings")
 	FDisplayClusterConfigurationViewport_ColorGradingSettings Midtones;
 
 	// Highlights color grading
-	UPROPERTY(EditAnywhere, Category = "Viewport Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings")
 	FDisplayClusterConfigurationViewport_ColorGradingSettings Highlights;
 };
 
-USTRUCT()
-struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_PostProcessSettings
+USTRUCT(Blueprintable)
+struct FDisplayClusterConfigurationViewport_ColorGradingConfiguration
 {
 	GENERATED_BODY()
 
-	// Exclude this viewport from the global cluster post process
-	UPROPERTY(EditAnywhere, Category = "PostProcess Settings")
-	bool bExcludeFromOverallClusterPostProcess = false;
-
+public:
 	// Allow using a separate post process for this viewport
-	UPROPERTY(EditAnywhere, Category = "PostProcess Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Enable Viewport Color Grading"))
 	bool bIsEnabled = false;
 
+	// Exclude this viewport from the global cluster post process
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Ignore Entire Cluster Color Grading"))
+	bool bExcludeFromOverallClusterPostProcess = false;
+
+	// Color Grading look configuration
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (EditCondition = "bIsEnabled"))
+	FDisplayClusterConfigurationViewport_PerViewportSettings PostProcessSettings;
+};
+
+USTRUCT(Blueprintable)
+struct FDisplayClusterConfigurationViewport_ColorGradingProfile
+{
+	GENERATED_BODY()
+
 	// Post process settings
-	UPROPERTY(EditAnywhere, Category = "PostProcess Settings", Meta = (EditCondition = "bIsEnabled"))
-	FDisplayClusterConfigurationViewport_PerViewportSettings ViewportSettings;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings")
+	FDisplayClusterConfigurationViewport_ColorGradingConfiguration PostProcessSettings;
+
+	/** The data to receive the profile information. This will either be viewports or nodes. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Viewport Settings")
+	TArray<FString> ApplyPostProcessToObjects;
 };
 

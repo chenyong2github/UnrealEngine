@@ -10,9 +10,10 @@ namespace UnrealBuildTool.Rules
 {
 	public class PixelStreaming : ModuleRules
 	{
+		const string PixelStreamingProgramsDirectory = "../../Samples/PixelStreaming";
+
 		private void AddSignallingServer()
 		{
-			string PixelStreamingProgramsDirectory = "./Programs/PixelStreaming";
 			string SignallingServerDir = new DirectoryInfo(PixelStreamingProgramsDirectory + "/WebServers/SignallingWebServer").FullName;
 
 			if (!Directory.Exists(SignallingServerDir))
@@ -38,7 +39,6 @@ namespace UnrealBuildTool.Rules
 
 		private void AddMatchmakingServer()
 		{
-			string PixelStreamingProgramsDirectory = "./Programs/PixelStreaming";
 			string MatchmakingServerDir = new DirectoryInfo(PixelStreamingProgramsDirectory + "/WebServers/Matchmaker").FullName;
 
 			if (!Directory.Exists(MatchmakingServerDir))

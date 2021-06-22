@@ -8,6 +8,7 @@
 #include "NiagaraCustomVersion.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraEditorUtilities.h"
+#include "NiagaraParameterDefinitions.h"
 
 UNiagaraScriptVariable::UNiagaraScriptVariable(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -31,6 +32,10 @@ void UNiagaraScriptVariable::PostEditChangeProperty(struct FPropertyChangedEvent
 	if (UNiagaraGraph* Graph = Cast<UNiagaraGraph>(GetOuter()))
 	{
 		Graph->NotifyGraphNeedsRecompile();
+	}
+	else if (UNiagaraParameterDefinitions* Definitions = Cast<UNiagaraParameterDefinitions>(GetOuter()))
+	{
+		Definitions->NotifyParameterDefinitionsChanged();
 	}
 #endif	//#if WITH_EDITOR
 }
@@ -101,26 +106,6 @@ bool UNiagaraScriptVariable::AppendCompileHash(FNiagaraCompileHashVisitor* InVis
 		return false;
 	}
 	return true;
-}
-
-void UNiagaraScriptVariable::SynchronizeDefaultValueToOuterGraphPins()
-{
-	if (UNiagaraGraph* Graph = Cast<UNiagaraGraph>(GetOuter()))
-	{
-		const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
-		TSharedPtr<class INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeUtilityValue = FNiagaraEditorModule::Get().GetTypeUtilities(Variable.GetType());
-		const FString DefaultValueString = TypeUtilityValue->GetPinDefaultStringFromValue(Variable);
-
-		for (UEdGraphPin* DefaultValuePin : Graph->FindParameterMapDefaultValuePins(Variable.GetName()))
-		{
-			DefaultValuePin->Modify();
-			Schema->TrySetDefaultValue(*DefaultValuePin, DefaultValueString, true);
-		}
-	}
-	else
-	{
-		ensureMsgf(false, TEXT("Tried to synchronize script variable default value to outer graph pins, but script variable was not outered to a UNiagaraGraph!"));
-	}
 }
 
 void UNiagaraScriptVariable::SetIsSubscribedToParameterDefinitions(bool bInSubscribedToParameterDefinitions)

@@ -231,9 +231,11 @@ void SDMXMonitorSourceSelector::UpdateMonitoredPorts()
 		{
 			SelectedInputPorts = FDMXPortManager::Get().GetInputPorts();
 		}
-		else
+		
+		// Show output ports as inputs while they loopback to engine
+		for (FDMXOutputPortSharedPtr OutputPort : FDMXPortManager::Get().GetOutputPorts())
 		{
-			SelectedOutputPorts = FDMXPortManager::Get().GetOutputPorts();
+			SelectedOutputPorts.Add(OutputPort.ToSharedRef());
 		}
 	}
 	else

@@ -5,9 +5,7 @@
 #include "Components/SceneComponent.h"
 #include "Components/DisplayClusterOriginComponent.h"
 #include "Components/DisplayClusterCameraComponent.h"
-#include "Components/DisplayClusterMeshComponent.h"
 #include "Components/DisplayClusterScreenComponent.h"
-#include "Components/DisplayClusterXformComponent.h"
 #include "Components/DisplayClusterSceneComponentSyncParent.h"
 #include "Components/DisplayClusterPreviewComponent.h"
 #include "Components/DisplayClusterICVFXCameraComponent.h"
@@ -88,14 +86,6 @@ void ADisplayClusterRootActor::PostLoad_Editor()
 	// Generating the preview on load for instances in the world can't be done on PostLoad, components may not have loaded flags present.
 	bDeferPreviewGeneration = true;
 }
-void ADisplayClusterRootActor::Destroyed_Editor()
-{
-	ReleasePreviewComponents();
-	OnPreviewGenerated.Unbind();
-	OnPreviewDestroyed.Unbind();
-	bDeferPreviewGeneration = true;
-}
-
 void ADisplayClusterRootActor::BeginDestroy_Editor()
 {
 	ReleasePreviewComponents();
@@ -169,31 +159,6 @@ void ADisplayClusterRootActor::GetPreviewRenderTargetableTextures(const TArray<F
 				}
 			}
 		}
-	}
-}
-
-float ADisplayClusterRootActor::GetXformGizmoScale() const
-{
-	return XformGizmoScale * EditorViewportXformGizmoScale;
-}
-
-bool ADisplayClusterRootActor::GetXformGizmoVisibility() const
-{
-	return bAreXformGizmosVisible && bEditorViewportXformGizmoVisibility;
-}
-
-void ADisplayClusterRootActor::UpdateXformGizmos()
-{
-	TMap<FString, UDisplayClusterXformComponent*> Xforms;
-	GetAllXforms(Xforms);
-
-	float Scale = GetXformGizmoScale();
-	bool bIsVisible = GetXformGizmoVisibility();
-
-	for (TPair<FString, UDisplayClusterXformComponent*> XformPair : Xforms)
-	{
-		XformPair.Value->SetVisXformScale(Scale);
-		XformPair.Value->SetVisXformVisibility(bIsVisible);
 	}
 }
 
@@ -280,7 +245,7 @@ IDisplayClusterViewport* ADisplayClusterRootActor::FindPreviewViewport(const FSt
 	return nullptr;
 }
 
-bool ADisplayClusterRootActor::UpdatePreviewConfiguration_Editor()
+bool ADisplayClusterRootActor::UpdatePreviewConfiguration_Editor(bool bUpdateAllViewports)
 {
 	if (ViewportManager.IsValid())
 	{
@@ -290,7 +255,7 @@ bool ADisplayClusterRootActor::UpdatePreviewConfiguration_Editor()
 		if(bPreviewEnable)
 		{
 			PreviewSettings.bEnable = bPreviewEnable;
-			PreviewSettings.PreviewNodeId = PreviewNodeId;
+			PreviewSettings.PreviewNodeId = bUpdateAllViewports ? DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll : PreviewNodeId;
 			PreviewSettings.TickPerFrame = TickPerFrame;
 			PreviewSettings.PreviewRenderTargetRatioMult = PreviewRenderTargetRatioMult;
 
@@ -303,7 +268,7 @@ bool ADisplayClusterRootActor::UpdatePreviewConfiguration_Editor()
 
 void ADisplayClusterRootActor::RenderPreview_Editor()
 {
-	if (UpdatePreviewConfiguration_Editor())
+	if (UpdatePreviewConfiguration_Editor(false))
 	{
 		// Update all preview components resources before render
 		for (const TTuple<FString, UDisplayClusterPreviewComponent*>& PreviewKeyVal : PreviewComponents)
@@ -349,11 +314,6 @@ void ADisplayClusterRootActor::PostEditChangeProperty(FPropertyChangedEvent& Pro
 			UpdatePreviewComponents();
 		});
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, XformGizmoScale) || 
-			 PropertyName == GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, bAreXformGizmosVisible))
-	{
-		UpdateXformGizmos();
-	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, InnerFrustumPriority))
 	{
 		ResetInnerFrustumPriority();
@@ -371,41 +331,6 @@ void ADisplayClusterRootActor::PostEditMove(bool bFinished)
 	Super::PostEditMove(bFinished);
 }
 
-TSharedPtr<TMap<UObject*, FString>> ADisplayClusterRootActor::GenerateObjectsNamingMap() const
-{
-	TSharedPtr<TMap<UObject*, FString>> ObjNameMap = MakeShared<TMap<UObject*, FString>>();
-
-	for (const TPair<FString, FDisplayClusterSceneComponentRef*>& Component : AllComponents)
-	{
-		UDisplayClusterSceneComponent* DisplayClusterSceneComponent = Cast<UDisplayClusterSceneComponent>(Component.Value->GetOrFindSceneComponent());
-		if (DisplayClusterSceneComponent)
-		{
-			ObjNameMap->Emplace(DisplayClusterSceneComponent->GetObject(), Component.Key);
-		}
-	}
-
-	return ObjNameMap;
-}
-
-void ADisplayClusterRootActor::SelectComponent(const FString& SelectedComponent)
-{
-	for (const TPair<FString, FDisplayClusterSceneComponentRef*>& Component : AllComponents)
-	{
-		UDisplayClusterSceneComponent* DisplayClusterSceneComponent = Cast<UDisplayClusterSceneComponent>(Component.Value->GetOrFindSceneComponent());
-		if (DisplayClusterSceneComponent)
-		{
-			if (Component.Key.Equals(SelectedComponent, ESearchCase::IgnoreCase))
-			{
-				DisplayClusterSceneComponent->SetNodeSelection(true);
-			}
-			else
-			{
-				DisplayClusterSceneComponent->SetNodeSelection(false);
-			}
-		}
-	}
-}
-
 void ADisplayClusterRootActor::UpdatePreviewComponents()
 {
 	if (IsTemplate() || bDeferPreviewGeneration)
@@ -413,9 +338,11 @@ void ADisplayClusterRootActor::UpdatePreviewComponents()
 		return;
 	}
 
+	UpdatePreviewConfiguration_Editor(true);
+
 	TArray<UDisplayClusterPreviewComponent*> IteratedPreviewComponents;
 	
-	if (CurrentConfigData != nullptr)
+	if (CurrentConfigData != nullptr && bPreviewEnable)
 	{
 		const bool bAllComponentsVisible = PreviewNodeId.Equals(DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll, ESearchCase::IgnoreCase);
 
@@ -425,29 +352,33 @@ void ADisplayClusterRootActor::UpdatePreviewComponents()
 			{
 				continue;
 			}
-			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& Viewport : Node.Value->Viewports)
+
+			if (bAllComponentsVisible || Node.Key.Equals(PreviewNodeId, ESearchCase::IgnoreCase))
 			{
-				if (bAllComponentsVisible || Node.Key.Equals(PreviewNodeId, ESearchCase::IgnoreCase))
+				for (const TPair<FString, UDisplayClusterConfigurationViewport*>& Viewport : Node.Value->Viewports)
 				{
-					const FString PreviewCompId = GeneratePreviewComponentName(Node.Key, Viewport.Key);
-					UDisplayClusterPreviewComponent* PreviewComp = PreviewComponents.FindRef(PreviewCompId);
-					if (!PreviewComp)
+					if (bAllComponentsVisible || Node.Key.Equals(PreviewNodeId, ESearchCase::IgnoreCase))
 					{
-						PreviewComp = NewObject<UDisplayClusterPreviewComponent>(this, FName(*PreviewCompId), RF_DuplicateTransient | RF_Transactional | RF_NonPIEDuplicateTransient);
-						check(PreviewComp);
+						const FString PreviewCompId = GeneratePreviewComponentName(Node.Key, Viewport.Key);
+						UDisplayClusterPreviewComponent* PreviewComp = PreviewComponents.FindRef(PreviewCompId);
+						if (!PreviewComp)
+						{
+							PreviewComp = NewObject<UDisplayClusterPreviewComponent>(this, FName(*PreviewCompId), RF_DuplicateTransient | RF_Transactional | RF_NonPIEDuplicateTransient);
+							check(PreviewComp);
 						
-						PreviewComponents.Emplace(PreviewCompId, PreviewComp);
+							PreviewComponents.Emplace(PreviewCompId, PreviewComp);
+						}
+
+						if (GetWorld() && !PreviewComp->IsRegistered())
+						{
+							PreviewComp->RegisterComponent();
+						}
+
+						// Always reinitialize so changes impact the preview component.
+						PreviewComp->InitializePreviewComponent(this, Viewport.Key, Viewport.Value);
+
+						IteratedPreviewComponents.Add(PreviewComp);
 					}
-
-					if (GetWorld() && !PreviewComp->IsRegistered())
-					{
-						PreviewComp->RegisterComponent();
-					}
-
-					// Always reinitialize so changes impact the preview component.
-					PreviewComp->InitializePreviewComponent(this, Viewport.Key, Viewport.Value);
-
-					IteratedPreviewComponents.Add(PreviewComp);
 				}
 			}
 		}
@@ -477,8 +408,6 @@ void ADisplayClusterRootActor::UpdatePreviewComponents()
 
 void ADisplayClusterRootActor::ReleasePreviewComponents()
 {
-	FScopeLock Lock(&InternalsSyncScope);
-
 	for (const TPair<FString, UDisplayClusterPreviewComponent*>& CompPair : PreviewComponents)
 	{
 		if (CompPair.Value)

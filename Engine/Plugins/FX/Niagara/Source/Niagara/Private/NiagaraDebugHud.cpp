@@ -3,16 +3,18 @@
 #include "NiagaraDebugHud.h"
 #include "NiagaraComponent.h"
 #include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraFunctionLibrary.h"
 #include "NiagaraScript.h"
 #include "NiagaraSystem.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraDataSetDebugAccessor.h"
 
+#include "Components/LineBatchComponent.h"
 #include "Debug/DebugDrawService.h"
 #include "Engine/Canvas.h"
-#include "Components/LineBatchComponent.h"
-#include "DrawDebugHelpers.h"
+#include "GameFramework/PlayerController.h"
 #include "Particles/FXBudget.h"
+#include "DrawDebugHelpers.h"
 
 namespace NiagaraDebugLocal
 {
@@ -68,6 +70,27 @@ namespace NiagaraDebugLocal
 	static FDelegateHandle	GDebugDrawHandle;
 	static int32			GDebugDrawHandleUsers = 0;
 
+	static FVector StringToVector(const FString& Arg, const FVector& DefaultValue)
+	{
+		TArray<FString> Values;
+		Arg.ParseIntoArray(Values, TEXT(","));
+		FVector OutValue;
+		OutValue.X = Values.Num() > 0 ? FCString::Atof(*Values[0]) : DefaultValue.X;
+		OutValue.Y = Values.Num() > 1 ? FCString::Atof(*Values[1]) : DefaultValue.Y;
+		OutValue.Z = Values.Num() > 2 ? FCString::Atof(*Values[2]) : DefaultValue.Z;
+		return OutValue;
+	}
+
+	static FVector2D StringToVector2D(const FString& Arg, const FVector2D& DefaultValue)
+	{
+		TArray<FString> Values;
+		Arg.ParseIntoArray(Values, TEXT(","));
+		FVector2D OutValue;
+		OutValue.X = Values.Num() > 0 ? FCString::Atof(*Values[0]) : DefaultValue.X;
+		OutValue.Y = Values.Num() > 1 ? FCString::Atof(*Values[1]) : DefaultValue.Y;
+		return OutValue;
+	}
+
 	static TTuple<const TCHAR*, const TCHAR*, TFunction<void(FString)>> GDebugConsoleCommands[] =
 	{
 		// Main HUD commands
@@ -77,21 +100,7 @@ namespace NiagaraDebugLocal
 
 		MakeTuple(TEXT("OverviewEnabled="), TEXT("Enable or disable the main overview display"), [](FString Arg) {Settings.bOverviewEnabled = FCString::Atoi(*Arg) != 0; }),
 
-		MakeTuple(TEXT("OverviewLocation="), TEXT("Set the overview location"),
-			[](FString Arg)
-			{
-				TArray<FString> Values;
-				Arg.ParseIntoArray(Values, TEXT(","));
-				if (Values.Num() > 0)
-				{
-					Settings.OverviewLocation.X = FCString::Atof(*Values[0]);
-					if (Values.Num() > 1)
-					{
-						Settings.OverviewLocation.Y = FCString::Atof(*Values[1]);
-					}
-				}
-			}
-		),
+		MakeTuple(TEXT("OverviewLocation="), TEXT("Set the overview location"), [](FString Arg) { Settings.OverviewLocation = StringToVector2D(Arg, Settings.OverviewLocation); }),
 		MakeTuple(TEXT("SystemFilter="), TEXT("Set the system filter"), [](FString Arg) {Settings.SystemFilter = Arg; Settings.bSystemFilterEnabled = !Arg.IsEmpty(); }),
 		MakeTuple(TEXT("EmitterFilter="), TEXT("Set the emitter filter"), [](FString Arg) {Settings.EmitterFilter = Arg; Settings.bEmitterFilterEnabled = !Arg.IsEmpty(); GCachedSystemVariables.Empty(); }),
 		MakeTuple(TEXT("ActorFilter="), TEXT("Set the actor filter"), [](FString Arg) {Settings.ActorFilter = Arg; Settings.bActorFilterEnabled = !Arg.IsEmpty(); }),
@@ -153,6 +162,113 @@ namespace NiagaraDebugLocal
 		)
 	);
 
+	TArray<TWeakObjectPtr<UNiagaraComponent>> GDebugSpawnedComponents;
+	static FAutoConsoleCommandWithWorldAndArgs CmdSpawnComponent(
+		TEXT("fx.Niagara.Debug.SpawnComponent"),
+		TEXT("Spawns a NiagaraComponent using the given parameters"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString>& Args, UWorld* World)
+			{
+				// While it works, not sure this makes sense for anything other than PIE
+				if (!World->IsGameWorld() && !World->IsPlayInEditor())
+				{
+					return;
+				}
+
+				if ( Args.Num() == 0 )
+				{
+					UE_LOG(LogNiagara, Log, TEXT("fx.Niagara.Debug.SpawnSystem <AssetPath>"));
+					return;
+				}
+
+				UNiagaraSystem* NiagaraSystem = LoadObject<UNiagaraSystem>(nullptr, *Args[0]);
+				if (NiagaraSystem == nullptr)
+				{
+					UE_LOG(LogNiagara, Warning, TEXT("Failed to load NiagaraSystem '%s'"), *Args[0]);
+					return;
+				}
+
+				bool bAttachToPlayer = false;
+				bool bAutoDestroy = true;
+				bool bAutoActivate = true;
+				FVector Location = FVector::ZeroVector;
+				ENCPoolMethod PoolingMethod = ENCPoolMethod::None;
+				bool bPreCullCheck = true;
+
+				AActor* CameraTarget = nullptr;
+				FVector PlayerLocation = FVector::ZeroVector;
+				FRotator CameraRotation = FRotator::ZeroRotator;
+				for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+				{
+					APlayerController* PlayerController = Iterator->Get();
+					if (PlayerController && PlayerController->IsLocalPlayerController())
+					{
+						PlayerController->GetPlayerViewPoint(PlayerLocation, CameraRotation);
+						if ( APawn* PlayerPawn = PlayerController->GetPawnOrSpectator() )
+						{
+							PlayerLocation = PlayerPawn->GetActorLocation();
+						}
+
+						if (PlayerController->PlayerCameraManager)
+						{
+							CameraRotation = PlayerController->PlayerCameraManager->GetCameraRotation();
+							CameraTarget = PlayerController->PlayerCameraManager->GetViewTarget();
+						}
+					}
+				}
+
+				for (int32 i=1; i < Args.Num(); ++i )
+				{
+					FString Arg = Args[i];
+					if (Arg.RemoveFromStart(TEXT("AttachToPlayer="))) { bAttachToPlayer = FCString::Atoi(*Arg) != 0; }
+					else if (Arg.RemoveFromStart(TEXT("AutoDestroy="))) { bAutoDestroy = FCString::Atoi(*Arg) != 0; }
+					else if (Arg.RemoveFromStart(TEXT("AutoActivate="))) { bAutoActivate = FCString::Atoi(*Arg) != 0; }
+					else if (Arg.RemoveFromStart(TEXT("PreCullCheck="))) { bPreCullCheck = FCString::Atoi(*Arg) != 0; }
+					else if (Arg.RemoveFromStart(TEXT("Location="))) { Location = StringToVector(Arg, FVector::ZeroVector); }
+					else if (Arg.RemoveFromStart(TEXT("LocationFromPlayer="))) { Location = StringToVector(Arg, FVector::ZeroVector); Location = CameraRotation.RotateVector(Location) + PlayerLocation; }
+					//FVector Location = FVector::ZeroVector;
+					//ENCPoolMethod PoolingMethod = ENCPoolMethod::None;
+				}
+
+				UNiagaraComponent* SpawnedComponent = nullptr;
+				if (bAttachToPlayer)
+				{
+					if (CameraTarget != nullptr)
+					{
+						SpawnedComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(NiagaraSystem, CameraTarget->GetRootComponent(), NAME_None, Location, FRotator::ZeroRotator, EAttachLocation::KeepWorldPosition, bAutoDestroy, bAutoActivate, PoolingMethod, bPreCullCheck);
+					}
+				}
+				else
+				{
+					SpawnedComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(World, NiagaraSystem, Location, FRotator::ZeroRotator, FVector(1.f), bAutoDestroy, bAutoActivate, PoolingMethod, bPreCullCheck);
+				}
+
+				if (SpawnedComponent)
+				{
+					GDebugSpawnedComponents.Add(SpawnedComponent);
+				}
+			}
+		)
+	);
+
+	static FAutoConsoleCommandWithWorldAndArgs CmdSpawnSystem(
+		TEXT("fx.Niagara.Debug.KillSpawned"),
+		TEXT("Kills all spawned compoonents"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString>& Args, UWorld* World)
+			{
+				for (TWeakObjectPtr<UNiagaraComponent> WeakComponent : GDebugSpawnedComponents)
+				{
+					UNiagaraComponent* NiagaraComponent = WeakComponent.Get();
+					if (NiagaraComponent)
+					{
+						NiagaraComponent->DestroyComponent();
+					}
+				}
+				GDebugSpawnedComponents.Reset();
+			}
+		)
+	);
 
 	template<typename TVariableList, typename TPredicate>
 	void FindVariablesByWildcard(const TVariableList& Variables, const TArray<FNiagaraDebugHUDVariable>& DebugVariables, TPredicate Predicate)

@@ -64,6 +64,9 @@ public:
 		// If we had a scheduled update run it now.
 		if (UpdateTickerHandle.IsValid())
 		{
+			// Running manually - unregister ticker.
+			FTicker::GetCoreTicker().RemoveTicker(UpdateTickerHandle);
+			UpdateTickerHandle.Reset();
 			DeferredHandleReplicateChanges(0.f);
 		}
 	}
@@ -125,6 +128,7 @@ private:
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_TPartyDataReplicator_DeferredHandleReplicateChanges);
 
+		// Reset ticker handle so that new data changed events will schedule a new ticker.
 		UpdateTickerHandle.Reset();
 
 		FOnlinePartyData OnlinePartyData;

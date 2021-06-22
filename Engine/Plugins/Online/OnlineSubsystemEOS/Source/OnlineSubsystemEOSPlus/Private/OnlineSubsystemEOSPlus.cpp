@@ -6,7 +6,21 @@
 
 bool FOnlineSubsystemEOSPlus::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	return false;
+	if (FOnlineSubsystemImpl::Exec(InWorld, Cmd, Ar))
+	{
+		return true;
+	}
+
+	bool bWasHandled = false;
+	if (FParse::Command(&Cmd, TEXT("EOS")))
+	{
+		if (EosOSS != nullptr)
+		{
+			bWasHandled = EosOSS->Exec(InWorld, Cmd, Ar);
+		}
+	}
+
+	return bWasHandled;
 }
 
 FString FOnlineSubsystemEOSPlus::GetAppId() const
@@ -21,13 +35,21 @@ FText FOnlineSubsystemEOSPlus::GetOnlineServiceName() const
 
 bool FOnlineSubsystemEOSPlus::Init()
 {
-#if PLATFORM_DESKTOP
+	// Get name of Base OSS from config
 	FString BaseOSSName;
 	GConfig->GetString(TEXT("[OnlineSubsystemEOSPlus]"), TEXT("BaseOSSName"), BaseOSSName, GEngineIni);
-	BaseOSS = BaseOSSName.IsEmpty() ? IOnlineSubsystem::GetByPlatform() : IOnlineSubsystem::Get(FName(*BaseOSSName));
-#else
-	BaseOSS = IOnlineSubsystem::GetByPlatform();
-#endif
+	if (BaseOSSName.IsEmpty())
+	{
+		// Load the native platform OSS name
+		GConfig->GetString(TEXT("OnlineSubsystem"), TEXT("NativePlatformService"), BaseOSSName, GEngineIni);
+	}
+	if (BaseOSSName.IsEmpty())
+	{
+		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOSPlus::Init() failed to find the native OSS!"));
+		return false;
+	}
+
+	BaseOSS = IOnlineSubsystem::Get(FName(*BaseOSSName));
 	if (BaseOSS == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOSPlus::Init() failed to get the platform OSS"));
@@ -40,6 +62,7 @@ bool FOnlineSubsystemEOSPlus::Init()
 		BaseOSS = nullptr;
 		return false;
 	}
+
 	EosOSS = IOnlineSubsystem::Get(EOS_SUBSYSTEM);
 	if (EosOSS == nullptr)
 	{
@@ -52,14 +75,18 @@ bool FOnlineSubsystemEOSPlus::Init()
 	UserInterfacePtr = MakeShareable(new FOnlineUserEOSPlus(this));
 	SessionInterfacePtr = MakeShareable(new FOnlineSessionEOSPlus(this));
 	LeaderboardsInterfacePtr = MakeShareable(new FOnlineLeaderboardsEOSPlus(this));
+	StoreInterfacePtr = MakeShareable(new FOnlineStoreEOSPlus(this));
+	ExternalUIInterfacePtr = MakeShareable(new FOnlineExternalUIEOSPlus(this));
+
+	StoreInterfacePtr->Initialize();
+	ExternalUIInterfacePtr->Initialize();
 
 	return true;
 }
 
-bool FOnlineSubsystemEOSPlus::Shutdown()
+void FOnlineSubsystemEOSPlus::PreUnload()
 {
-	BaseOSS = nullptr;
-	EosOSS = nullptr;
+	//EOSPlus will be shutdown after its component subsystems, so we need to delete the references to their interfaces beforehand to avoid errors
 
 #define DESTRUCT_INTERFACE(Interface) \
 	if (Interface.IsValid()) \
@@ -73,8 +100,16 @@ bool FOnlineSubsystemEOSPlus::Shutdown()
 	DESTRUCT_INTERFACE(UserInterfacePtr);
 	DESTRUCT_INTERFACE(SessionInterfacePtr);
 	DESTRUCT_INTERFACE(LeaderboardsInterfacePtr);
+	DESTRUCT_INTERFACE(StoreInterfacePtr);
+	DESTRUCT_INTERFACE(ExternalUIInterfacePtr);
 
 #undef DESTRUCT_INTERFACE
+}
+
+bool FOnlineSubsystemEOSPlus::Shutdown()
+{
+	BaseOSS = nullptr;
+	EosOSS = nullptr;
 
 	return true;
 }
@@ -126,7 +161,7 @@ IOnlineVoicePtr FOnlineSubsystemEOSPlus::GetVoiceInterface() const
 
 IOnlineExternalUIPtr FOnlineSubsystemEOSPlus::GetExternalUIInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetExternalUIInterface() : nullptr;
+	return ExternalUIInterfacePtr;
 }
 
 IOnlineTimePtr FOnlineSubsystemEOSPlus::GetTimeInterface() const
@@ -146,12 +181,12 @@ IOnlineTitleFilePtr FOnlineSubsystemEOSPlus::GetTitleFileInterface() const
 
 IOnlineStoreV2Ptr FOnlineSubsystemEOSPlus::GetStoreV2Interface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetStoreV2Interface() : nullptr;
+	return StoreInterfacePtr;
 }
 
 IOnlinePurchasePtr FOnlineSubsystemEOSPlus::GetPurchaseInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetPurchaseInterface() : nullptr;
+	return StoreInterfacePtr;
 }
 
 IOnlineEventsPtr FOnlineSubsystemEOSPlus::GetEventsInterface() const

@@ -55,7 +55,7 @@ void SDMXPortSelector::Construct(const FArguments& InArgs)
 	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
 	check(ProtocolSettings);
 
-	FDMXPortManager::Get().OnPortsChanged.AddSP(this, &SDMXPortSelector::OnPortConfigsChanged);
+	FDMXPortManager::Get().OnPortsChanged.AddSP(this, &SDMXPortSelector::OnPortsChanged);
 
 	ChildSlot
 		[
@@ -344,7 +344,7 @@ TSharedPtr<FDMXPortSelectorItem> SDMXPortSelector::GetFirstPortInComboBoxSource(
 	return PortItemPtr ? *PortItemPtr : nullptr;
 }
 
-void SDMXPortSelector::OnPortConfigsChanged()
+void SDMXPortSelector::OnPortsChanged()
 {
 	check(PortNameComboBox.IsValid());
 

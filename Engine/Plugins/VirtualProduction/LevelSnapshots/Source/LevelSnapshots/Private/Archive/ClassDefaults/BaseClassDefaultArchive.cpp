@@ -24,8 +24,7 @@ UObject* FBaseClassDefaultArchive::ResolveObjectDependency(int32 ObjectIndex) co
 
 FBaseClassDefaultArchive::FBaseClassDefaultArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading, UObject* InObjectToRestore)
 	:
-	Super(InObjectData, InSharedData, bIsLoading),
-	SerializedObject(InObjectToRestore)
+	Super(InObjectData, InSharedData, bIsLoading, InObjectToRestore)
 {
 	// Description of CPF_Transient: "Property is transient: shouldn't be saved or loaded, except for Blueprint CDOs."
 	ExcludedPropertyFlags = CPF_BlueprintAssignable | CPF_Deprecated
@@ -52,7 +51,7 @@ bool FBaseClassDefaultArchive::IsPropertyReferenceToSubobjectOrClassDefaults(con
 	}
 
 	const FArchiveSerializedPropertyChain* PropertyChain = GetSerializedPropertyChain();
-	const void* ContainerPtr = SerializedObject;
+	const void* ContainerPtr = GetSerializedObject();
 	for (int32 i = 0; PropertyChain && i < PropertyChain->GetNumProperties(); ++i)
 	{
 		ContainerPtr = PropertyChain->GetPropertyFromRoot(i)->ContainerPtrToValuePtr<void>(ContainerPtr);
@@ -63,8 +62,8 @@ bool FBaseClassDefaultArchive::IsPropertyReferenceToSubobjectOrClassDefaults(con
 	{
 		const bool bIsClassDefault = ContainedPtr->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject);
 		const bool bIsPointingToDefaultSubobject = ContainedPtr->HasAnyFlags(RF_DefaultSubObject);
-		const bool bIsPointingToSelf = ContainedPtr == SerializedObject;
-		const bool bIsPointingToSubobject = ContainedPtr->IsIn(SerializedObject);
+		const bool bIsPointingToSelf = ContainedPtr == GetSerializedObject();
+		const bool bIsPointingToSubobject = ContainedPtr->IsIn(GetSerializedObject());
 		return bIsClassDefault || bIsPointingToDefaultSubobject || bIsPointingToSelf || bIsPointingToSubobject;
 	}
 	

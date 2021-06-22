@@ -690,13 +690,33 @@ bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, b
 			//SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_Init_BindParams);
 
 			//Bind parameter collections.
+			auto BindParameterColleciton = [&](UNiagaraParameterCollection* Collection, FNiagaraParameterStore& DestStore)
+			{
+				if (Collection)
+				{
+					if (UNiagaraParameterCollectionInstance* CollectionInst = GetParameterCollectionInstance(Collection))
+					{
+						CollectionInst->GetParameterStore().Bind(&DestStore);
+					}
+					else
+					{
+						UE_LOG(LogNiagara, Error, TEXT("Attempting to bind system simulation to a null parameter collection instance | Collection: %s | System: %s |"), *Collection->GetPathName(), *System->GetPathName());
+					}
+				}
+				else
+				{
+					UE_LOG(LogNiagara, Error, TEXT("Attempting to bind system simulation to a null parameter collection | System: %s |"), *System->GetPathName());
+				}
+			};
+
+			//Bind parameter collections.
 			for (UNiagaraParameterCollection* Collection : SpawnScript->GetCachedParameterCollectionReferences())
 			{
-				GetParameterCollectionInstance(Collection)->GetParameterStore().Bind(&SpawnExecContext->Parameters);
+				BindParameterColleciton(Collection, SpawnExecContext->Parameters);
 			}
 			for (UNiagaraParameterCollection* Collection : UpdateScript->GetCachedParameterCollectionReferences())
 			{
-				GetParameterCollectionInstance(Collection)->GetParameterStore().Bind(&UpdateExecContext->Parameters);
+				BindParameterColleciton(Collection, UpdateExecContext->Parameters);
 			}
 
 			TArray<UNiagaraScript*, TInlineAllocator<2>> Scripts;

@@ -29,10 +29,26 @@ public:
 	 * Construct this Slate ui
 	 * @param InArgs Slate arguments, not used
 	 * @param Client Crash report client implementation object
+	 * @param bSimpleDialog Whether to use the simple dialog UI that implicitly sends the report
 	 */
-	void Construct(const FArguments& InArgs, const TSharedRef<FCrashReportClient>& Client);
+	void Construct(const FArguments& InArgs, const TSharedRef<FCrashReportClient>& Client, bool bSimpleDialog);
+
+	bool IsFinished() { return CrashReportClient->IsUploadComplete() && CrashReportClient->ShouldWindowBeHidden(); }
 
 private:
+
+	/**
+	 * Construct the detailed Slate ui with controls for sending the report and comments
+	 * @param Client Crash report client implementation object
+	 */
+	void ConstructDetailedDialog(const TSharedRef<FCrashReportClient>& Client, const FText& CrashDetailedMessage);
+
+	/**
+	 * Construct the minimal Slate ui with just a button to close
+	 * @param Client Crash report client implementation object
+	 */
+	void ConstructSimpleDialog(const TSharedRef<FCrashReportClient>& Client, const FText& CrashDetailedMessage);
+
 	/**
 	 * Keyboard short-cut handler
 	 * @param InKeyEvent Which key was released, and which auxiliary keys were pressed

@@ -286,7 +286,7 @@ float3 ReflectionEnvironment(FGBufferData GBuffer, float AmbientOcclusion, float
 		R = GetOffSpecularPeakReflectionDir(N, R, ClearCoatRoughness);
 
 		// TODO EnvBRDF should have a mask param
-		float2 AB = PreIntegratedGF.SampleLevel( PreIntegratedGFSampler, float2( NoV, ClearCoatRoughness), 0 ).rg;
+		float2 AB = PreIntegratedGF.SampleLevel( PreIntegratedGFSampler, float2( NoV, GBuffer.Roughness), 0 ).rg;
 		Color.rgb *= SpecularColor * AB.x + AB.y * saturate( 50 * SpecularColor.g ) * (1 - ClearCoat);
 		
 		// F_Schlick

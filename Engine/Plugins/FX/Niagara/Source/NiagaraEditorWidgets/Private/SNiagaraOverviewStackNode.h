@@ -27,7 +27,7 @@ protected:
 	virtual TSharedRef<SWidget> CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle) override;
 	virtual TSharedRef<SWidget> CreateTitleRightWidget() override;
 	virtual TSharedRef<SWidget> CreateNodeContentArea() override;
-	void StackViewModelStructureChanged();
+	void StackViewModelStructureChanged(ENiagaraStructureChangedFlags Flags);
 	void StackViewModelDataObjectChanged(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType);
 	void FillThumbnailBar();
 	void OnMaterialCompiled(class UMaterialInterface* MaterialInterface);
@@ -68,5 +68,6 @@ private:
 	TSharedPtr<SHorizontalBox> ThumbnailBar;
 	TArray<UNiagaraStackEntry*> PreviewStackEntries;
 	bool bIsHoveringThumbnail;
+	bool bThumbnailBarRefreshPending;
 	int32 CurrentIssueIndex;
 };

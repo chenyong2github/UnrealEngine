@@ -1617,7 +1617,6 @@ static int32 OcclusionCull(FRHICommandListImmediate& RHICmdList, const FScene* S
 	// Disable HZB on OpenGL platforms to avoid rendering artifacts
 	// It can be forced on by setting HZBOcclusion to 2
 	bool bHZBOcclusion = !IsOpenGLPlatform(GShaderPlatformForFeatureLevel[Scene->GetFeatureLevel()]);
-	bHZBOcclusion = bHZBOcclusion && !IsSwitchPlatform(GShaderPlatformForFeatureLevel[Scene->GetFeatureLevel()]);
 	bHZBOcclusion = bHZBOcclusion && GHZBOcclusion;
 	bHZBOcclusion = bHZBOcclusion && FDataDrivenShaderPlatformInfo::GetSupportsHZBOcclusion(GShaderPlatformForFeatureLevel[Scene->GetFeatureLevel()]);
 	bHZBOcclusion = bHZBOcclusion || (GHZBOcclusion == 2);
@@ -3110,8 +3109,12 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 
 	if (IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform()) && Views.Num() > 0 && !ViewFamily.EngineShowFlags.HitProxies)
 	{
-		FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(Scene, Views);
-		RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessGuideInterpolation, Parameters);
+		// If we are rendering from scene capture we don't need to run another time the hair bookmarks.
+		if (Views[0].AllowGPUParticleUpdate())
+		{
+			FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(Scene, Views);
+			RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessGuideInterpolation, Parameters);
+		}
 	}
 
 	// Notify the FX system that the scene is about to perform visibility checks.

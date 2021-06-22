@@ -61,6 +61,7 @@ const FSlateBrush* FDisplayClusterConfiguratorStyle::GetBrush(FName PropertyName
 #define BORDER_BRUSH( RelativePath, ... ) FSlateBorderBrush( Style->RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
 
 const FVector2D Icon128x128(128.0f, 128.0f);
+const FVector2D Icon64x64(64.0f, 64.0f);
 const FVector2D Icon40x40(40.0f, 40.0f);
 const FVector2D Icon20x20(20.0f, 20.0f);
 const FVector2D Icon16x16(16.0f, 16.0f);
@@ -76,6 +77,9 @@ TSharedRef< FSlateStyleSet > FDisplayClusterConfiguratorStyle::Create()
 		Style->SetContentRoot(FPaths::Combine(Plugin->GetBaseDir(), TEXT("Resources")));
 	}
 
+	Style->Set("ClassIcon.DisplayClusterRootActor", new IMAGE_BRUSH("RootActor/nDisplay_x16", Icon16x16));
+	Style->Set("ClassThumbnail.DisplayClusterRootActor", new IMAGE_BRUSH("RootActor/nDisplay_x64", Icon64x64));
+
 	// Tabs
 	Style->Set("DisplayClusterConfigurator.Tabs.General", new IMAGE_BRUSH("Tabs/General_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.Tabs.Details", new IMAGE_BRUSH("Tabs/Details_16x", Icon16x16));
@@ -83,7 +87,6 @@ TSharedRef< FSlateStyleSet > FDisplayClusterConfiguratorStyle::Create()
 	Style->Set("DisplayClusterConfigurator.Tabs.OutputMapping", new IMAGE_BRUSH("Tabs/OutputMapping_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.Tabs.Scene", new IMAGE_BRUSH("Tabs/Scene_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.Tabs.Cluster", new IMAGE_BRUSH("Tabs/Cluster_16x", Icon16x16));
-	Style->Set("DisplayClusterConfigurator.Tabs.Input", new IMAGE_BRUSH("Tabs/Input_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.Tabs.Viewport", new IMAGE_BRUSH("Tabs/Viewport_16x", Icon16x16));
 
 
@@ -95,14 +98,12 @@ TSharedRef< FSlateStyleSet > FDisplayClusterConfiguratorStyle::Create()
 	// TreeItems
 	Style->Set("DisplayClusterConfigurator.TreeItems.Scene", new IMAGE_BRUSH("TreeItems/Scene_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.TreeItems.Cluster", new IMAGE_BRUSH("TreeItems/Cluster_16x", Icon16x16));
-	Style->Set("DisplayClusterConfigurator.TreeItems.Input", new IMAGE_BRUSH("TreeItems/Input_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.TreeItems.Container", new IMAGE_BRUSH("TreeItems/Container_12x", Icon12x12));
 
 	// Scene Components
 	Style->Set("DisplayClusterConfigurator.TreeItems.SceneComponentXform", new IMAGE_BRUSH("TreeItems/SceneComponentXform_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.TreeItems.SceneComponentScreen", new IMAGE_BRUSH("TreeItems/SceneComponentScreen_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.TreeItems.SceneComponentCamera", new IMAGE_BRUSH("TreeItems/SceneComponentCamera_16x", Icon16x16));
-	Style->Set("DisplayClusterConfigurator.TreeItems.SceneComponentMesh", new IMAGE_BRUSH("TreeItems/SceneComponentMesh_16x", Icon16x16));
 
 	Style->Set("ClassIcon.DisplayClusterXformComponent", new IMAGE_BRUSH(TEXT("TreeItems/SceneComponentXform_16x"), Icon16x16));
 	Style->Set("ClassThumbnail.DisplayClusterXformComponent", new IMAGE_BRUSH(TEXT("TreeItems/SceneComponentXform_16x"), Icon16x16));
@@ -110,12 +111,11 @@ TSharedRef< FSlateStyleSet > FDisplayClusterConfiguratorStyle::Create()
 	Style->Set("ClassIcon.DisplayClusterScreenComponent", new IMAGE_BRUSH(TEXT("TreeItems/SceneComponentScreen_16x"), Icon16x16));
 	Style->Set("ClassThumbnail.DisplayClusterScreenComponent", new IMAGE_BRUSH(TEXT("TreeItems/SceneComponentScreen_16x"), Icon16x16));
 	
-	Style->Set("ClassIcon.DisplayClusterCameraComponent", new IMAGE_BRUSH(TEXT("TreeItems/SceneComponentCamera_16x"), Icon16x16));
-	Style->Set("ClassThumbnail.DisplayClusterCameraComponent", new IMAGE_BRUSH(TEXT("TreeItems/SceneComponentCamera_16x"), Icon16x16));
+	Style->Set("ClassIcon.DisplayClusterCameraComponent", new IMAGE_BRUSH(TEXT("Components/ViewOrigin/nDisplayViewOrigin_x16"), Icon16x16));
+	Style->Set("ClassThumbnail.DisplayClusterCameraComponent", new IMAGE_BRUSH(TEXT("Components/ViewOrigin/nDisplayViewOrigin_x64"), Icon64x64));
 	
-	Style->Set("ClassIcon.DisplayClusterMeshComponent", new IMAGE_BRUSH(TEXT("TreeItems/SceneComponentMesh_16x"), Icon16x16));
-	Style->Set("ClassThumbnail.DisplayClusterMeshComponent", new IMAGE_BRUSH(TEXT("TreeItems/SceneComponentMesh_16x8"), Icon16x16));
-	
+	Style->Set("ClassIcon.DisplayClusterICVFXCameraComponent", new IMAGE_BRUSH(TEXT("Components/ICVFXCamera/nDisplayCamera_x16"), Icon16x16));
+
 	// Cluster
 	Style->Set("DisplayClusterConfigurator.TreeItems.Host", new IMAGE_BRUSH("TreeItems/ClusterNode_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.TreeItems.ClusterNode", new IMAGE_BRUSH("TreeItems/Viewport_16x", Icon16x16));
@@ -126,12 +126,9 @@ TSharedRef< FSlateStyleSet > FDisplayClusterConfiguratorStyle::Create()
 	Style->Set("DisplayClusterConfigurator.OutputMapping.ToggleWindowInfo", new IMAGE_BRUSH("OutputMapping/ToggleWindowInfo_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.OutputMapping.ToggleWindowCornerImage", new IMAGE_BRUSH("OutputMapping/CornerImage_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.OutputMapping.ToggleOutsideViewports", new IMAGE_BRUSH("OutputMapping/ToggleOutsideViewports_16x", Icon16x16));
-	Style->Set("DisplayClusterConfigurator.OutputMapping.ToggleClusterItemOverlap", new IMAGE_BRUSH("OutputMapping/ToggleClusterItemOverlap_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.OutputMapping.ZoomToFit", new IMAGE_BRUSH("OutputMapping/ZoomToFit_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.OutputMapping.ViewScale", new IMAGE_BRUSH("OutputMapping/ViewScale_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.OutputMapping.ResizeAreaHandle", new IMAGE_BRUSH("OutputMapping/ResizeAreaHandle_20x", Icon20x20));
-	Style->Set("DisplayClusterConfigurator.OutputMapping.ViewportLock", new IMAGE_BRUSH("OutputMapping/ViewprtLock_16x", Icon16x16));
-	Style->Set("DisplayClusterConfigurator.OutputMapping.ViewportLock.Large", new IMAGE_BRUSH("OutputMapping/ViewportLock_128x", Icon128x128));
 
 	Style->Set("DisplayClusterConfigurator.Node.Color.Regular", FLinearColor(FColor(97, 97, 97)));
 	Style->Set("DisplayClusterConfigurator.Node.Color.Selected", FLinearColor(FColor(249, 165, 1)));

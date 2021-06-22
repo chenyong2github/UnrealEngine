@@ -16,7 +16,7 @@ class FBackgroundHttpFileHashHelper;
 /**
  * Contains implementation of some common functions that don't vary between implementation
  */
-class FBackgroundHttpManagerImpl 
+class BACKGROUNDHTTP_API FBackgroundHttpManagerImpl 
 	: public IBackgroundHttpManager
 	, public FTickerObjectBase
 {

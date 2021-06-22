@@ -83,10 +83,10 @@ static FNiagaraVariant GetParameterValueFromAsset(const FNiagaraVariableBase& Pa
 
 static FNiagaraVariant GetCurrentParameterValue(const FNiagaraVariableBase& Parameter, const UNiagaraComponent* Component)
 {
-	FNiagaraVariant OverriddenValue = Component->FindParameterOverride(Parameter);
-	if (OverriddenValue.IsValid())
+	FNiagaraVariant CurrentValue = Component->GetCurrentParameterValue(Parameter);
+	if (CurrentValue.IsValid())
 	{
-		return OverriddenValue;
+		return CurrentValue;
 	}
 	
 	return GetParameterValueFromAsset(Parameter, Component);

@@ -23,7 +23,6 @@ public:
 	virtual FName GetRangePropertyName() const override { return NAME_FloatProperty; }
 	//~ End FRemoteControlProtocolEntity interface
 
-public:
 	/** OSC address in the form '/Container1/Container2/Method' */
 	UPROPERTY(EditAnywhere, Category = Mapping)
 	FName PathName;
@@ -31,6 +30,12 @@ public:
 	/** OSC range input property template, used for binding. */
 	UPROPERTY(Transient, meta = (ClampMin = 0.0, ClampMax = 1.0))
 	float RangeInputTemplate = 0.0f;
+
+	/**
+	* Checks if this entity has the same values as the Other.
+	* Used to check for duplicate inputs.
+	*/
+	virtual bool IsSame(const FRemoteControlProtocolEntity* InOther) override;
 };
 
 /**

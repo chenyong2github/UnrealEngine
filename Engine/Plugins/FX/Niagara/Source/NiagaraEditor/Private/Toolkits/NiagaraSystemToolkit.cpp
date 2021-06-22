@@ -460,6 +460,9 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 
 	bChangesDiscarded = false;
 	bScratchPadChangesDiscarded = false;
+
+
+	GEditor->RegisterForUndo(this);
 }
 
 FName FNiagaraSystemToolkit::GetToolkitFName() const
@@ -483,6 +486,48 @@ FLinearColor FNiagaraSystemToolkit::GetWorldCentricTabColorScale() const
 	return FNiagaraEditorModule::WorldCentricTabColorScale;
 }
 
+bool FNiagaraSystemToolkit::MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjects) const
+{
+	TArray<UNiagaraGraph*> Graphs;
+
+	for (TSharedRef<FNiagaraScratchPadScriptViewModel> ScratchPadViewModel : SystemViewModel->GetScriptScratchPadViewModel()->GetScriptViewModels())
+	{
+		Graphs.AddUnique(ScratchPadViewModel->GetGraphViewModel()->GetGraph());
+	}
+
+	LastUndoGraphs.Empty();
+
+	if (Graphs.Num() > 0)
+	{
+		for (const TPair<UObject*, FTransactionObjectEvent>& TransactionObjectPair : TransactionObjects)
+		{
+			UObject* Object = TransactionObjectPair.Key;
+			while (Object != nullptr)
+			{
+				if (Graphs.Contains(Object))
+				{
+					LastUndoGraphs.AddUnique(Cast<UNiagaraGraph>(Object));
+					return true;
+				}
+				Object = Object->GetOuter();
+			}
+		}
+	}
+	return LastUndoGraphs.Num() > 0;
+}
+
+void FNiagaraSystemToolkit::PostUndo(bool bSuccess)
+{
+	for (TWeakObjectPtr<UNiagaraGraph> Graph : LastUndoGraphs)
+	{
+		if (Graph.IsValid())
+		{
+			Graph->NotifyGraphNeedsRecompile();
+		}
+	}
+
+	LastUndoGraphs.Empty();
+}
 
 TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_Viewport(const FSpawnTabArgs& Args)
 {
@@ -578,6 +623,7 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_SystemParameters(const FSpa
 		SNew(SDockTab)
 		[
 			SAssignNew(ParameterPanel, SNiagaraParameterPanel, ParameterPanelViewModel, GetToolkitCommands())
+			.ShowParameterSynchronizingWithLibraryIconExternallyReferenced(false)
 		];
 	RefreshParameters();
 
@@ -684,7 +730,8 @@ private:
 			if (LastMergedEmitter != nullptr)
 			{
 				UNiagaraScriptSource* LastMergedScriptSource = CastChecked<UNiagaraScriptSource>(LastMergedEmitter->GraphSource);
-				TSharedRef<FNiagaraScriptGraphViewModel> LastMergedScriptGraphViewModel = MakeShared<FNiagaraScriptGraphViewModel>(FText());
+				bool bIsForDataProcessingOnly = false;
+				TSharedRef<FNiagaraScriptGraphViewModel> LastMergedScriptGraphViewModel = MakeShared<FNiagaraScriptGraphViewModel>(FText(), bIsForDataProcessingOnly);
 				LastMergedScriptGraphViewModel->SetScriptSource(LastMergedScriptSource);
 				TSharedRef<SWidget> LastMergedEmitterWidget = 
 					SNew(SSplitter)
@@ -933,6 +980,11 @@ void FNiagaraSystemToolkit::SetupCommands()
 		FCanExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::OnApplyEnabled));
 
 	GetToolkitCommands()->MapAction(
+		FNiagaraEditorCommands::Get().ApplyScratchPadChanges,
+		FExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::OnApplyScratchPadChanges),
+		FCanExecuteAction::CreateSP(this, &FNiagaraSystemToolkit::OnApplyScratchPadChangesEnabled));
+
+	GetToolkitCommands()->MapAction(
 		FNiagaraEditorCommands::Get().ToggleAutoPlay,
 		FExecuteAction::CreateLambda([]()
 		{
@@ -1099,7 +1151,12 @@ void FNiagaraSystemToolkit::ExtendToolbar()
 							FName(TEXT("ApplyNiagaraEmitter")));
 					}
 				}
-		
+				ToolbarBuilder.AddToolBarButton(FNiagaraEditorCommands::Get().ApplyScratchPadChanges,
+					NAME_None,
+					TAttribute<FText>(),
+					TAttribute<FText>(),
+					FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.ApplyScratchPadChanges"),
+					FName(TEXT("ApplyScratchPadChanges")));
 				ToolbarBuilder.AddToolBarButton(FNiagaraEditorCommands::Get().Compile,
 					NAME_None,
 					TAttribute<FText>(),
@@ -1831,6 +1888,25 @@ bool FNiagaraSystemToolkit::OnApplyEnabled() const
 		return EmitterViewModel->GetEmitter()->GetChangeId() != LastSyncedEmitterChangeId || bEmitterThumbnailUpdated;
 	}
 	return false;
+}
+
+void FNiagaraSystemToolkit::OnApplyScratchPadChanges()
+{
+	if (SystemViewModel.IsValid() && SystemViewModel->GetScriptScratchPadViewModel() != nullptr)
+	{
+		for (TSharedRef<FNiagaraScratchPadScriptViewModel> ScratchPadScriptViewModel : SystemViewModel->GetScriptScratchPadViewModel()->GetScriptViewModels())
+		{
+			if(ScratchPadScriptViewModel->HasUnappliedChanges())
+			{
+				ScratchPadScriptViewModel->ApplyChanges();
+			}
+		}
+	}
+}
+
+bool FNiagaraSystemToolkit::OnApplyScratchPadChangesEnabled() const
+{
+	return SystemViewModel.IsValid() && SystemViewModel->GetScriptScratchPadViewModel() != nullptr && SystemViewModel->GetScriptScratchPadViewModel()->HasUnappliedChanges();
 }
 
 void FNiagaraSystemToolkit::OnPinnedCurvesChanged()

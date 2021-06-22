@@ -2,6 +2,7 @@ import { Server } from '@overnightjs/core';
 import { Request, Response, NextFunction, static as expressStatic } from 'express';
 import bodyParser from 'body-parser';
 import path from 'path';
+import request from 'superagent';
 import { Program, Api, Notify } from './';
 import { UnrealEngine } from './UnrealEngine';
 
@@ -24,6 +25,11 @@ export class App extends Server {
       api.initialize();
       super.addControllers([api]);
       this.app.use('/api', (req, res) => App.notFoundHandler(req, res, true));
+
+      // Trying to kill a zombie process
+      await request.get(`http://127.0.0.1:${Program.port}/api/shutdown`)
+                    .timeout(100)
+                    .catch(() => {});
 
       await this.startServer();
       console.log('DONE: WebApp started, port:', Program.port);

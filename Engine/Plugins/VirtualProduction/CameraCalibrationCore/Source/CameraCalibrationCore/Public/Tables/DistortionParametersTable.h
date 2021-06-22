@@ -3,10 +3,8 @@
 #pragma once
 
 #include "Curves/RichCurve.h"
-#include "Engine/EngineTypes.h"
 #include "LensData.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
+#include "Tables/BaseLensTable.h"
 
 #include "DistortionParametersTable.generated.h"
 
@@ -34,17 +32,17 @@ public:
  * Contains list of distortion parameters points associated to zoom value
  */
 USTRUCT()
-struct CAMERACALIBRATIONCORE_API FDistortionFocusPoint
+struct CAMERACALIBRATIONCORE_API FDistortionFocusPoint : public FBaseFocusPoint
 {
 	GENERATED_BODY()
-
 public:
+	//~ Begin FBaseFocusPoint Interface
+	virtual float GetFocus() const override { return Focus; }
+	virtual int32 GetNumPoints() const override;
+	virtual float GetZoom(int32 Index) const override;
+	//~ End FBaseFocusPoint Interface
 
-	/** Returns number of zoom points */
-	int32 GetNumPoints() const;
-
-	/** Returns zoom value for a given index */
-	float GetZoom(int32 Index) const;
+	void RemovePoint(float InZoomValue);
 
 	/** Returns data type copy value for a given float */
 	bool GetPoint(float InZoom, FDistortionInfo& OutData, float InputTolerance = KINDA_SMALL_NUMBER) const;
@@ -54,9 +52,6 @@ public:
 
 	/** Sets an existing point at InZoom. Updates existing one if tolerance is met */
 	bool SetPoint(float InZoom, const FDistortionInfo& InData, float InputTolerance = KINDA_SMALL_NUMBER);
-	
-	/** Removes a point corresponding to specified zoom */
-	void RemovePoint(float InZoomValue);
 
 	/** Returns true if this point is empty */
 	bool IsEmpty() const;
@@ -82,13 +77,25 @@ public:
  * Distortion table containing list of points for each focus and zoom input
  */
 USTRUCT()
-struct CAMERACALIBRATIONCORE_API FDistortionTable
+struct CAMERACALIBRATIONCORE_API FDistortionTable : public FBaseLensTable
 {
 	GENERATED_BODY()
 
 	using FocusPointType = FDistortionFocusPoint;
 
+protected:
+	//~ Begin FBaseDataTable Interface
+	virtual TMap<ELensDataCategory, FLinkPointMetadata> GetLinkedCategories() const override;
+	virtual bool DoesFocusPointExists(float InFocus) const override;
+	virtual bool DoesZoomPointExists(float InFocus, float InZoom, float InputTolerance = KINDA_SMALL_NUMBER) const override;
+	//~ End FBaseDataTable Interface
+	
 public:
+	//~ Begin FBaseDataTable Interface
+	virtual void ForEachPoint(FFocusPointCallback InCallback) const override;
+	virtual int32 GetFocusPointNum() const override { return FocusPoints.Num(); }
+	virtual UScriptStruct* GetScriptStruct() const override;
+	//~ End FBaseDataTable Interface
 
 	/** 
 	 * Fills OutCurve with all points contained in the given focus 
@@ -107,8 +114,8 @@ public:
 
 	/** Returns all focus points */
 	TArray<FDistortionFocusPoint>& GetFocusPoints();
-
-	/** Removes a focus point */
+	
+	/** Removes a focus point identified as InFocusIdentifier */
 	void RemoveFocusPoint(float InFocus);
 
 	/** Removes a zoom point from a focus point*/

@@ -15,6 +15,7 @@
 #include "EditorStyleSet.h"
 #include "IDetailChildrenBuilder.h"
 #include "IDetailPropertyRow.h" 
+#include "IPropertyUtilities.h"
 #include "Misc/Guid.h" 
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Text/STextBlock.h" 
@@ -40,6 +41,8 @@ void FDMXPortReferenceCustomizationBase::CustomizeHeader(TSharedRef<IPropertyHan
 
 void FDMXPortReferenceCustomizationBase::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
+	PropertyUtilities = StructCustomizationUtils.GetPropertyUtilities();
+
 	// Hide the 'reset to default' option
 	StructPropertyHandle->MarkResetToDefaultCustomized();
 
@@ -112,7 +115,7 @@ void FDMXPortReferenceCustomizationBase::CustomizeChildren(TSharedRef<IPropertyH
 		}
 	}
 
-	UpdateInfoRow();
+	FDMXPortManager::Get().OnPortsChanged.AddSP(this, &FDMXPortReferenceCustomizationBase::OnPortsChanged);
 }
 
 void FDMXPortReferenceCustomizationBase::OnPortSelected()
@@ -120,134 +123,14 @@ void FDMXPortReferenceCustomizationBase::OnPortSelected()
 	check(PortSelector.IsValid());
 	
 	ApplySelectedPortGuid();
-
-	UpdateInfoRow();
 }
 
-void FDMXPortReferenceCustomizationBase::UpdateInfoRow()
+void FDMXPortReferenceCustomizationBase::OnPortsChanged()
 {
-	check(InfoContentBorder.IsValid());
-
-	const TSharedRef<SWidget> InfoWidget = [this]()
-	{	
-		if (TSharedPtr<FDMXPort, ESPMode::ThreadSafe> Port = FindPortItem())
-		{
-			return GeneratePortInfoWidget(Port.ToSharedRef());
-		}
-
-		return StaticCastSharedRef<SWidget>(
-			SNew(STextBlock)
-			.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
-			.Text(ErrorText)
-		);
-	}();
-
-	InfoContentBorder->SetContent(InfoWidget);
-}
-
-TSharedRef<SWidget> FDMXPortReferenceCustomizationBase::GeneratePortInfoWidget(TSharedRef<FDMXPort, ESPMode::ThreadSafe> Port) const
-{
-	IDMXProtocolPtr Protocol = Port->GetProtocol();
-	check(Protocol.IsValid());
-
-	FSlateFontInfo PropertyWindowNormalFont = FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont"));
-
-	const int32 LocalUniverseStart = Port->GetLocalUniverseStart();
-	const int32 LocalUniverseEnd = Port->GetLocalUniverseEnd();
-	const int32 ExternUniverseStart = Port->GetExternUniverseStart();
-	const int32 ExternUniverseEnd = Port->GetExternUniverseEnd();
-
-	const FText PortName = FText::FromString(Port->GetPortName() + TEXT(":"));
-	const FText ProtocolName = FText::FromName(Protocol->GetProtocolName());
-	const FText LocalUniverseStartText = FText::FromString(FString::FromInt(LocalUniverseStart));
-	const FText LocalUniverseEndText = FText::FromString(FString::FromInt(LocalUniverseEnd));
-	const FText ExternUniverseStartText = FText::FromString(FString::FromInt(ExternUniverseStart));
-	const FText ExternUniverseEndText = FText::FromString(FString::FromInt(ExternUniverseEnd));
-	
-	return
-		SNew(SWrapBox)
-		.InnerSlotPadding(FVector2D(4.f, 4.f))
-		.UseAllottedWidth(true)
-
-		// Port Name
-		+ SWrapBox::Slot()
-		[
-			SNew(STextBlock)
-			.Font(PropertyWindowNormalFont)
-			.Text(PortName)
-		]
-
-		// Protocol Name
-		+ SWrapBox::Slot()
-		[
-			SNew(STextBlock)
-			.Font(PropertyWindowNormalFont)
-			.Text(ProtocolName)
-		]
-		
-		// Local Universe Label
-		+ SWrapBox::Slot()
-		[
-			SNew(STextBlock)
-			.Font(PropertyWindowNormalFont)
-			.Text(LOCTEXT("LocalUniverseStartLabel", "Local Universe:"))
-		]
-
-		// Local Universe Start
-		+ SWrapBox::Slot()
-		[
-			SNew(STextBlock)
-			.Font(PropertyWindowNormalFont)
-			.Text(LocalUniverseStartText)
-		]
-
-		// Local Universe 'to' Label
-		+ SWrapBox::Slot()
-		[
-			SNew(STextBlock)
-			.Font(PropertyWindowNormalFont)
-			.Text(LOCTEXT("LocalUniverseToLabel", "-"))
-		]
-
-		// Local Universe End
-		+ SWrapBox::Slot()
-		[
-			SNew(STextBlock)
-			.Font(PropertyWindowNormalFont)
-			.Text(LocalUniverseEndText)
-		]
-
-		// Extern Universe Label
-		+ SWrapBox::Slot()
-		[
-			SNew(STextBlock)
-			.Font(PropertyWindowNormalFont)
-			.Text(LOCTEXT("ExternUniverseStartLabel", "mapped to extern Universe:"))
-		]
-
-		// Extern Universe Start
-		+ SWrapBox::Slot()
-		[
-			SNew(STextBlock)
-			.Font(PropertyWindowNormalFont)
-			.Text(ExternUniverseStartText)
-		]
-
-		// Extern Universe 'to' Label
-		+ SWrapBox::Slot()
-		[
-			SNew(STextBlock)
-			.Font(PropertyWindowNormalFont)
-			.Text(LOCTEXT("ExternUniverseToLabel", "-"))
-		]
-
-		// Extern Universe End
-		+ SWrapBox::Slot()
-		[
-			SNew(STextBlock)
-			.Font(PropertyWindowNormalFont)
-			.Text(ExternUniverseEndText)
-		];
+	if (PropertyUtilities.IsValid())
+	{
+		PropertyUtilities->ForceRefresh();
+	}
 }
 
 TSharedPtr<FDMXPort, ESPMode::ThreadSafe> FDMXPortReferenceCustomizationBase::FindPortItem() const

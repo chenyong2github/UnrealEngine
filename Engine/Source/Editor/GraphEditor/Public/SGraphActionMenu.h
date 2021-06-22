@@ -117,8 +117,10 @@ public:
 	SLATE_BEGIN_ARGS(SGraphActionMenu)
 		: _AutoExpandActionMenu(false)
 		, _AlphaSortItems(true)
+		, _SortItemsRecursively(true)
 		, _ShowFilterTextBox(true)
 		, _UseSectionStyling(false)
+		, _bAllowPreselectedItemActivation(false)
 		, _GraphObj(nullptr)
 		{ }
 
@@ -140,8 +142,10 @@ public:
 		SLATE_EVENT( FOnActionMatchesName, OnActionMatchesName )
 		SLATE_ARGUMENT( bool, AutoExpandActionMenu )
 		SLATE_ARGUMENT( bool, AlphaSortItems )
+		SLATE_ARGUMENT( bool, SortItemsRecursively )
 		SLATE_ARGUMENT( bool, ShowFilterTextBox )
 		SLATE_ARGUMENT( bool, UseSectionStyling )
+		SLATE_ARGUMENT( bool, bAllowPreselectedItemActivation )
 		SLATE_ARGUMENT( TArray<UEdGraphPin*>, DraggedFromPins )
 		SLATE_ARGUMENT( UEdGraph*, GraphObj )
 
@@ -191,8 +195,12 @@ protected:
 	bool bShowFilterTextBox;
 	/** Don't sort items alphabetically */
 	bool bAlphaSortItems;
+	/** If only the top entries should be sorted or subentries as well */
+	bool bSortItemsRecursively;
 	/** Should the rows and sections be styled like the details panel? */
 	bool bUseSectionStyling;
+	/** Whether we allow pre-selected items to be activated with a left-click */
+	bool bAllowPreselectedItemActivation;
 	
 	/** Delegate to call when action is selected */
 	FOnActionSelected OnActionSelected;

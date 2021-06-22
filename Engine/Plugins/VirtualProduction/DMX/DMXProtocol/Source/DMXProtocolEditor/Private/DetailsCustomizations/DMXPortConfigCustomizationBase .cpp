@@ -15,6 +15,7 @@
 #include "DetailWidgetRow.h"
 #include "IDetailChildrenBuilder.h"
 #include "IDetailPropertyRow.h" 
+#include "IPropertyUtilities.h"
 #include "IPAddress.h" 
 #include "ScopedTransaction.h"
 #include "SocketSubsystem.h"
@@ -26,6 +27,8 @@
 
 void FDMXPortConfigCustomizationBase::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
+	PropertyUtilities = StructCustomizationUtils.GetPropertyUtilities();
+
 	const bool bDisplayResetToDefault = false;
 	const FText DisplayNameOverride = FText::GetEmpty();
 	const FText DisplayToolTipOverride = FText::GetEmpty();
@@ -94,16 +97,11 @@ void FDMXPortConfigCustomizationBase::CustomizeChildren(TSharedRef<IPropertyHand
 		{
 			GenerateIPAddressRow(PropertyRow);
 		}
-		if (Iter.Key() == FDMXOutputPortConfig::GetDestinationAddressPropertyNameChecked())
+		else if (Iter.Key() == FDMXOutputPortConfig::GetDestinationAddressPropertyNameChecked())
 		{
 			// Customize the destination address for DMXOutputPortConfig only, instead of doing it in DMXOutputPortConfigCustomization.
 			// This is not beautiful code, but otherwise the whole customization with almost identical code would have to be moved to child classes.
-
-			// Bind to communication type changes, instead of directly using in the visibility attribute
-			// since the CommunicationTypeHandle may no longer be accessible when the getter is called.
-			FSimpleDelegate OnCommunicationTypeChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXPortConfigCustomizationBase::UpdateDestinationAddressVisibility);
-			CommunicationTypeHandle->SetOnPropertyValueChanged(OnCommunicationTypeChangedDelegate);
-
+				
 			UpdateDestinationAddressVisibility();
 
 			TAttribute<EVisibility> DestinationAddressVisibilityAttribute =
@@ -282,6 +280,7 @@ void FDMXPortConfigCustomizationBase::OnProtocolNameSelected()
 {
 	check(ProtocolNameHandle.IsValid());
 	check(ProtocolNameComboBox.IsValid());
+	check(CommunicationTypeComboBox.IsValid());
 
 	FName ProtocolName = ProtocolNameComboBox->GetSelectedProtocolName();
 
@@ -290,13 +289,14 @@ void FDMXPortConfigCustomizationBase::OnProtocolNameSelected()
 	ProtocolNameHandle->NotifyPreChange();
 	ProtocolNameHandle->SetValue(ProtocolName);
 	ProtocolNameHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
+
+	PropertyUtilities->ForceRefresh();
 }
 
 void FDMXPortConfigCustomizationBase::OnCommunicationTypeSelected()
 {
 	check(CommunicationTypeHandle.IsValid());
 	check(CommunicationTypeComboBox.IsValid());
-	check(IPAddressEditWidget.IsValid());
 
 	EDMXCommunicationType SelectedCommunicationType = CommunicationTypeComboBox->GetSelectedCommunicationType();
 
@@ -305,6 +305,8 @@ void FDMXPortConfigCustomizationBase::OnCommunicationTypeSelected()
 	CommunicationTypeHandle->NotifyPreChange();
 	CommunicationTypeHandle->SetValue(static_cast<uint8>(SelectedCommunicationType));
 	CommunicationTypeHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
+
+	PropertyUtilities->ForceRefresh();
 }
 
 void FDMXPortConfigCustomizationBase::OnIPAddressSelected()

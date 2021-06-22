@@ -16,19 +16,20 @@
 #include "DisplayClusterProjectionStrings.h"
 #include "Blueprints/DisplayClusterBlueprint.h"
 #include "Components/DisplayClusterCameraComponent.h"
+#include "Components/DisplayClusterOriginComponent.h"
+#include "Components/DisplayClusterPreviewComponent.h"
 #include "Components/DisplayClusterScreenComponent.h"
+#include "Components/DisplayClusterXformComponent.h"
 
 #include "ClusterConfiguration/DisplayClusterConfiguratorClusterUtils.h"
 #include "DisplayClusterConfiguratorPropertyUtils.h"
 #include "DisplayClusterConfiguratorVersionUtils.h"
-#include "Views/General/DisplayClusterConfiguratorViewGeneral.h"
 #include "Views/OutputMapping/DisplayClusterConfiguratorViewOutputMapping.h"
 #include "Views/TreeViews/Cluster/DisplayClusterConfiguratorViewCluster.h"
 #include "Views/Viewport/DisplayClusterConfiguratorSCSEditorViewport.h"
 #include "Views/Viewport/DisplayClusterConfiguratorSCSEditorViewportClient.h"
 #include "Views/SCSEditor/SDisplayClusterConfiguratorComponentCombo.h"
 #include "Views/DisplayClusterConfiguratorToolbar.h"
-#include "Components/DisplayClusterPreviewComponent.h"
 #include "Settings/DisplayClusterConfiguratorSettings.h"
 
 #include "Components/ActorComponent.h"
@@ -446,11 +447,6 @@ TSharedRef<IDisplayClusterConfiguratorViewTree> FDisplayClusterConfiguratorBluep
 	return ViewCluster.ToSharedRef();
 }
 
-TSharedRef<IDisplayClusterConfiguratorView> FDisplayClusterConfiguratorBlueprintEditor::GetViewGeneral() const
-{
-	return ViewGeneral.ToSharedRef();
-}
-
 void FDisplayClusterConfiguratorBlueprintEditor::SyncViewports()
 {
 	if (ViewportTabContent.IsValid())
@@ -510,9 +506,16 @@ void FDisplayClusterConfiguratorBlueprintEditor::UpdateXformGizmos()
 	{
 		const UDisplayClusterConfiguratorEditorSettings* Settings = GetDefault<UDisplayClusterConfiguratorEditorSettings>();
 
-		RootActor->EditorViewportXformGizmoScale = Settings->VisXformScale;
-		RootActor->bEditorViewportXformGizmoVisibility = Settings->bShowVisXforms;
-		RootActor->UpdateXformGizmos();
+		// Get all Xform components
+		TInlineComponentArray<UDisplayClusterXformComponent*> Xforms;
+		RootActor->GetComponents(Xforms);
+
+		// And apply new gizmo settings
+		for (UDisplayClusterXformComponent* Xform : Xforms)
+		{
+			Xform->SetVisualizationScale(Settings->VisXformScale);
+			Xform->SetVisualizationEnabled(Settings->bShowVisXforms);
+		}
 	}
 }
 
@@ -606,7 +609,7 @@ bool FDisplayClusterConfiguratorBlueprintEditor::SaveToFile(const FString& InFil
 	UDisplayClusterConfigurationData* Data = GetEditorData();
 	if (EditorSubsystem && Data)
 	{
-		Data->Meta.ExportAssetPath = LoadedBlueprint->GetPathName();
+		Data->Info.AssetPath = LoadedBlueprint->GetPathName();
 
 		if (EditorSubsystem->SaveConfig(Data, InFilePath))
 		{
@@ -667,7 +670,6 @@ bool FDisplayClusterConfiguratorBlueprintEditor::SaveWithOpenFileDialog()
 
 void FDisplayClusterConfiguratorBlueprintEditor::OnReadOnlyChanged(bool bReadOnly)
 {
-	ViewGeneral->SetEnabled(!bReadOnly);
 	ViewOutputMapping->SetEnabled(!bReadOnly);
 	ViewCluster->SetEnabled(!bReadOnly);
 }
@@ -813,11 +815,9 @@ void FDisplayClusterConfiguratorBlueprintEditor::CreateWidgets()
 {
 	TSharedRef<FDisplayClusterConfiguratorBlueprintEditor> ThisRef(SharedThis(this));
 
-	ViewGeneral			= MakeShared<FDisplayClusterConfiguratorViewGeneral>(ThisRef);
 	ViewOutputMapping	= MakeShared<FDisplayClusterConfiguratorViewOutputMapping>(ThisRef);
 	ViewCluster			= MakeShared<FDisplayClusterConfiguratorViewCluster>(ThisRef);
 
-	ViewGeneral->CreateWidget();
 	ViewOutputMapping->CreateWidget();
 	ViewCluster->CreateWidget();
 	
@@ -827,7 +827,6 @@ void FDisplayClusterConfiguratorBlueprintEditor::CreateWidgets()
 	{
 		bool bReadOnly = false;// FConsoleManager::Get().FindConsoleVariable(TEXT("nDisplay.configurator.ReadOnly"))->GetBool();
 
-		ViewGeneral->SetEnabled(!bReadOnly);
 		ViewOutputMapping->SetEnabled(!bReadOnly);
 		ViewCluster->SetEnabled(!bReadOnly);
 	}

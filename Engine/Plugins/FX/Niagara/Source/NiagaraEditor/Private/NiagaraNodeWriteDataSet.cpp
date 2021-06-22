@@ -158,6 +158,8 @@ void UNiagaraNodeWriteDataSet::BuildParameterMapHistory(FNiagaraParameterMapHist
 		OutHistory.EndNodeVisitation(ParamMapIdx, NodeIdx);
 	}
 
+	OutHistory.RegisterDataSetWrite(ParamMapIdx, DataSet);
+
 	OutHistory.RegisterParameterMapPin(ParamMapIdx, GetOutputPin(0));
 }
 

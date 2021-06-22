@@ -202,7 +202,8 @@ void UNiagaraStackObject::RefreshChildrenInternal(const TArray<UNiagaraStackEntr
 		// Generate the summary stack issue for any errors which are generated.
 		TArray<FNiagaraDataInterfaceError> Errors;
 		TArray<FNiagaraDataInterfaceFeedback> Warnings, Info;
-		UNiagaraDataInterface::GetFeedback(DataInterfaceObject, Errors, Warnings, Info);
+		FNiagaraEditorModule::Get().GetDataInterfaceFeedbackSafe(DataInterfaceObject, Errors, Warnings, Info);
+
 		if (Errors.Num() > 0)
 		{
 			NewIssues.Add(FStackIssue(

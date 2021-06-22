@@ -1419,7 +1419,7 @@ public:
 	FDirectoryPath GameScreenshotSaveDirectory;
 
 	UPROPERTY(config, EditAnywhere, Category = PerQualityLevelProperty, AdvancedDisplay)
-	bool UsePerQualityLevelProperty;
+	bool UseStaticMeshMinLODPerQualityLevels;
 
 	/** The state of the current map transition.  */
 	UPROPERTY()
@@ -2638,6 +2638,7 @@ public:
 		bool bReplaceObjectClassReferences;
 		bool bCopyDeprecatedProperties;
 		bool bPreserveRootComponent;
+		bool bPerformDuplication;
 
 		/** Skips copying properties with BlueprintCompilerGeneratedDefaults metadata */
 		bool bSkipCompilerGeneratedDefaults;
@@ -2650,6 +2651,7 @@ public:
 			, bReplaceObjectClassReferences(true)
 			, bCopyDeprecatedProperties(false)
 			, bPreserveRootComponent(true)
+			, bPerformDuplication(false)
 			, bSkipCompilerGeneratedDefaults(false)
 			, bNotifyObjectReplacement(false)
 			, bClearReferences(true)

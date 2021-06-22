@@ -490,7 +490,7 @@ namespace UnrealBuildTool
 			};
 		}
 
-		private AndroidToolChainOptions CreateToolChainOptions(AndroidTargetRules TargetRules)
+		static public AndroidToolChainOptions CreateToolChainOptions(AndroidTargetRules TargetRules)
 		{
 			AndroidToolChainOptions Options = AndroidToolChainOptions.None;
 			if (TargetRules.bEnableAddressSanitizer)

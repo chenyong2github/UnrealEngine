@@ -305,7 +305,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	public static final int checkLastVirtualKeyboardCommandDelay = 500;
 	public static final boolean bSamsungDevice = android.os.Build.MANUFACTURER.equals("samsung");
 	
-	static GameActivity _activity;
+	static GameActivity _activity = null;
 	static Bundle _bundle;
 	static Bundle _extrasBundle;
 
@@ -2274,6 +2274,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	public void onCreate(Bundle savedInstanceState)
 	{
 		_activity = this;
+		MemAdvisor = new MemoryAdvisor(this);
 		InternalFilesDir = getFilesDir().getAbsolutePath() + "/";
 		ExternalFilesDir = getExternalFilesDir(null).getAbsolutePath() + "/";
 		//$${gameActivityOnCreateBeginningAdditions}$$
@@ -2390,7 +2391,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			Logger.SuppressLogs();
 		}
 		
-		MemAdvisor = new MemoryAdvisor(this);
 		LastMemoryInfoPollTime = System.currentTimeMillis();
 
 		// update memory stats every 10 seconds

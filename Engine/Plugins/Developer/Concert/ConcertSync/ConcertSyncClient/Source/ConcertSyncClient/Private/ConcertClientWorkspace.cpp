@@ -741,7 +741,7 @@ void FConcertClientWorkspace::OnEndFrame()
 		FConcertSlowTaskStackWorkaround::Get().PopTask(MoveTemp(InitialSyncSlowTask));
 	}
 
-	if (bHasSyncedWorkspace)
+	if (bHasSyncedWorkspace && CanProcessPendingPackages())
 	{
 		if (PackageManager)
 		{
@@ -1005,5 +1005,28 @@ void FConcertClientWorkspace::RemoveWorkspaceFinalizeDelegate(FName InDelegateNa
 {
 	CanFinalizeDelegates.Remove(InDelegateName);
 }
+
+void FConcertClientWorkspace::AddWorkspaceCanProcessPackagesDelegate(FName InDelegateName, FCanProcessPendingPackages Delegate)
+{
+	CanProcessPendingDelegates.FindOrAdd(InDelegateName, MoveTemp(Delegate));
+}
+
+void FConcertClientWorkspace::RemoveWorkspaceCanProcessPackagesDelegate(FName InDelegateName)
+{
+	CanProcessPendingDelegates.Remove(InDelegateName);
+}
+
+bool FConcertClientWorkspace::CanProcessPendingPackages() const
+{
+	return Algo::AllOf(CanProcessPendingDelegates, [](const TTuple<FName,FCanProcessPendingPackages>& Pair)
+		{
+			if (Pair.Get<1>().IsBound())
+			{
+				return Pair.Get<1>().Execute();
+			}
+			return true;
+		});
+}
+
 
 #undef LOCTEXT_NAMESPACE

@@ -16,7 +16,7 @@
 
 static const TCHAR* GLoadedRHIModuleName;
 
-static bool ShouldPreferD3D12()
+static bool PreferD3D12()
 {
 	if (!GIsEditor)
 	{
@@ -30,7 +30,8 @@ static bool ShouldPreferD3D12()
 	return true;
 }
 
-static bool ShouldForceFeatureLevelES31()
+// Default to Performance Mode on low-end machines
+static bool DefaultFeatureLevelES31()
 {
 	static TOptional<bool> ForceES31;
 	if (ForceES31.IsSet())
@@ -84,7 +85,7 @@ static bool ShouldForceFeatureLevelES31()
 	return false;
 }
 
-static bool ShouldPreferFeatureLevelES31()
+static bool PreferFeatureLevelES31()
 {
 	if (!GIsEditor)
 	{
@@ -99,13 +100,13 @@ static bool ShouldPreferFeatureLevelES31()
 		bool bFoundPreference = GConfig->GetBool(TEXT("D3DRHIPreference"), TEXT("bPreferFeatureLevelES31"), bPreferFeatureLevelES31, GGameUserSettingsIni);
 
 		// Force low-spec users into performance mode but respect their choice once they have set a preference
-		bool bForceES31 = false;
+		bool bDefaultES31 = false;
 		if (!bFoundPreference && !bIsRunningInGFN)
 		{
-			bForceES31 = ShouldForceFeatureLevelES31();
+			bDefaultES31 = DefaultFeatureLevelES31();
 		}
 
-		if (bPreferFeatureLevelES31 || FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES31")) || FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES3_1")) || bForceES31)
+		if (bPreferFeatureLevelES31 || bDefaultES31)
 		{
 			if (!bFoundPreference)
 			{
@@ -117,7 +118,7 @@ static bool ShouldPreferFeatureLevelES31()
 	return false;
 }
 
-static bool ShouldAllowD3D12FeatureLevelES31()
+static bool AllowD3D12FeatureLevelES31()
 {
 	if (!GIsEditor)
 	{
@@ -126,6 +127,178 @@ static bool ShouldAllowD3D12FeatureLevelES31()
 		return bAllowD3D12FeatureLevelES31;
 	}
 	return true;
+}
+
+namespace
+{
+	enum class WindowsRHI
+	{
+		D3D11,
+		D3D12,
+		Vulkan,
+		OpenGL,
+	};
+}
+
+// Choose the default from DefaultGraphicsRHI or TargetedRHIs. DefaultGraphicsRHI has precedence.
+static WindowsRHI ChooseDefaultRHI()
+{
+	WindowsRHI DefaultRHI = WindowsRHI::D3D11;
+
+	// Check the list of targeted shader platforms and decide an RHI based off them
+	TArray<FString> TargetedShaderFormats;
+	GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("TargetedRHIs"), TargetedShaderFormats, GEngineIni);
+	if (TargetedShaderFormats.Num() > 0)
+	{
+		// Pick the first one
+		FName ShaderFormatName(*TargetedShaderFormats[0]);
+		EShaderPlatform TargetedPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormatName);
+
+		if (IsD3DPlatform(TargetedPlatform))
+		{
+			DefaultRHI = WindowsRHI::D3D11;
+		}
+		else if (IsVulkanPlatform(TargetedPlatform))
+		{
+			DefaultRHI = WindowsRHI::Vulkan;
+		}
+		else if (IsOpenGLPlatform(TargetedPlatform))
+		{
+			DefaultRHI = WindowsRHI::OpenGL;
+		}
+	}
+
+	//Default graphics RHI is only used if no command line option is specified
+	FConfigFile EngineSettings;
+	FString PlatformNameString = FPlatformProperties::PlatformName();
+	const TCHAR* PlatformName = *PlatformNameString;
+	FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, PlatformName);
+	FString DefaultGraphicsRHI;
+	if (EngineSettings.GetString(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("DefaultGraphicsRHI"), DefaultGraphicsRHI))
+	{
+		FString NAME_DX11(TEXT("DefaultGraphicsRHI_DX11"));
+		FString NAME_DX12(TEXT("DefaultGraphicsRHI_DX12"));
+		FString NAME_VULKAN(TEXT("DefaultGraphicsRHI_Vulkan"));
+		if (DefaultGraphicsRHI == NAME_DX11)
+		{
+			DefaultRHI = WindowsRHI::D3D11;
+		}
+		else if (DefaultGraphicsRHI == NAME_DX12)
+		{
+			DefaultRHI = WindowsRHI::D3D12;
+		}
+		else if (DefaultGraphicsRHI == NAME_VULKAN)
+		{
+			DefaultRHI = WindowsRHI::Vulkan;
+		}
+	}
+
+	return DefaultRHI;
+}
+
+static TOptional<WindowsRHI> ChoosePreferredRHI()
+{
+	TOptional<WindowsRHI> PreferredRHI = {};
+
+	if (PreferD3D12())
+	{
+		PreferredRHI = WindowsRHI::D3D12;
+	}
+
+	return PreferredRHI;
+}
+
+static TOptional<WindowsRHI> ChooseForcedRHI()
+{
+	TOptional<WindowsRHI> ForcedRHI = {};
+
+	// Command line overrides
+	uint32 Sum = 0;
+	if (FParse::Param(FCommandLine::Get(), TEXT("vulkan")))
+	{
+		ForcedRHI = WindowsRHI::Vulkan;
+		Sum++;
+	}
+	if (FParse::Param(FCommandLine::Get(), TEXT("opengl")))
+	{
+		ForcedRHI = WindowsRHI::OpenGL;
+		Sum++;
+	}
+	if (FParse::Param(FCommandLine::Get(), TEXT("d3d11")) || FParse::Param(FCommandLine::Get(), TEXT("dx11")))
+	{
+		ForcedRHI = WindowsRHI::D3D11;
+		Sum++;
+	}
+	if (FParse::Param(FCommandLine::Get(), TEXT("d3d12")) || FParse::Param(FCommandLine::Get(), TEXT("dx12")))
+	{
+		ForcedRHI = WindowsRHI::D3D12;
+		Sum++;
+	}
+
+	if (Sum > 1)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RHIOptionsError", "-d3d12/dx12, -d3d11/dx11, -vulkan, and -opengl are mutually exclusive options, but more than one was specified on the command-line."));
+		UE_LOG(LogRHI, Fatal, TEXT("-d3d12, -d3d11, -vulkan, and -opengl are mutually exclusive options, but more than one was specified on the command-line."));
+	}
+
+	// FeatureLevelES31 is also a command line override, so it will determine the underlying RHI unless one is specified
+	if (FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES31")) || FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES3_1")))
+	{
+		if (ForcedRHI == WindowsRHI::OpenGL)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RHIPerformanceOpenGL", "OpenGL is not supported for Performance Mode."));
+			UE_LOG(LogRHI, Fatal, TEXT("OpenGL is not supported for Performance Mode."));
+		}
+		else if (ForcedRHI == WindowsRHI::Vulkan)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RHIPerformanceVulkan", "Vulkan is not supported for Performance Mode."));
+			UE_LOG(LogRHI, Fatal, TEXT("Vulkan is not supported for Performance Mode."));
+		}
+		else if (ForcedRHI == WindowsRHI::D3D12)
+		{
+			if (!AllowD3D12FeatureLevelES31())
+			{
+				FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RHIPerformanceDX12", "DirectX 12 is not supported for Performance Mode."));
+				UE_LOG(LogRHI, Fatal, TEXT("DirectX 12 is not supported for Performance Mode."));
+			}
+		}
+		else
+		{
+			ForcedRHI = WindowsRHI::D3D11;
+		}
+	}
+
+	return ForcedRHI;
+}
+
+static ERHIFeatureLevel::Type ChooseFeatureLevel(TOptional<WindowsRHI> ChosenRHI, TOptional<WindowsRHI> ForcedRHI)
+{
+	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::SM5;
+	if (FParse::Param(FCommandLine::Get(), TEXT("sm6")))
+	{
+		FeatureLevel = ERHIFeatureLevel::SM6;
+	}
+
+	bool bAllowD3D12FeatureLevelES31 = AllowD3D12FeatureLevelES31();
+
+	if (!ForcedRHI && (ChosenRHI == WindowsRHI::D3D11 || (ChosenRHI == WindowsRHI::D3D12 && bAllowD3D12FeatureLevelES31)) && PreferFeatureLevelES31())
+	{
+		FeatureLevel = ERHIFeatureLevel::ES3_1;
+	}
+
+	bool bForceES31 = FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES31")) || FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES3_1"));
+	if (bForceES31 && (ChosenRHI == WindowsRHI::D3D11 || (ChosenRHI == WindowsRHI::D3D12 && bAllowD3D12FeatureLevelES31)))
+	{
+		FeatureLevel = ERHIFeatureLevel::ES3_1;
+	}
+
+	if (ChosenRHI == WindowsRHI::OpenGL)
+	{
+		// OpenGL can only be used for mobile preview
+		FeatureLevel = ERHIFeatureLevel::ES3_1;
+	}
+
+	return FeatureLevel;
 }
 
 static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFeatureLevel, const TCHAR*& LoadedRHIModuleName)
@@ -137,122 +310,31 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 		*GPUCrashDebuggingCVar = bUseGPUCrashDebugging;
 	}
 
-	bool bPreferD3D12 = ShouldPreferD3D12();
-	
-	// OpenGL can only be used for mobile preview.
-	bool bForceOpenGL = FParse::Param(FCommandLine::Get(), TEXT("opengl"));
+	// RHI selection priority: blacklist -> force -> prefer -> default
+	// The IsSupported function blacklists an RHI, causing the default to be selected or none if the default is blacklisted.
+	// Command line parameters force the RHI over preferences chosen in settings.
+	// Finally, the default is chosen based on machine capabilities.
 
-	bool bForceSM5 = FParse::Param(FCommandLine::Get(), TEXT("sm5"));
-	bool bForceSM6 = FParse::Param(FCommandLine::Get(), TEXT("sm6"));
-	bool bPreferES31 = ShouldPreferFeatureLevelES31() && !(bForceSM5 || bForceSM6);
-	bool bAllowD3D12FeatureLevelES31 = ShouldAllowD3D12FeatureLevelES31();
-	bool bForceVulkan = FParse::Param(FCommandLine::Get(), TEXT("vulkan"));
-	bool bForceD3D11 = FParse::Param(FCommandLine::Get(), TEXT("d3d11")) || FParse::Param(FCommandLine::Get(), TEXT("dx11")) || ((bForceSM5 || (bPreferES31 && !bAllowD3D12FeatureLevelES31)) && !bForceVulkan && !bForceOpenGL);
-	bool bForceD3D12 = (FParse::Param(FCommandLine::Get(), TEXT("d3d12")) || FParse::Param(FCommandLine::Get(), TEXT("dx12"))) && (!bPreferES31 || bAllowD3D12FeatureLevelES31);
+	WindowsRHI DefaultRHI = ChooseDefaultRHI();
+	TOptional<WindowsRHI> PreferredRHI = ChoosePreferredRHI();
+	TOptional<WindowsRHI> ForcedRHI = ChooseForcedRHI();
 
-	DesiredFeatureLevel = ERHIFeatureLevel::Num;
-	
-	if(!(bForceVulkan||bForceOpenGL||bForceD3D11||bForceD3D12))
+	WindowsRHI ChosenRHI = DefaultRHI;
+	if (PreferredRHI)
 	{
-		//Default graphics RHI is only used if no command line option is specified
-		FConfigFile EngineSettings;
-		FString PlatformNameString = FPlatformProperties::PlatformName();
-		const TCHAR* PlatformName = *PlatformNameString;
-		FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, PlatformName);
-		FString DefaultGraphicsRHI;
-		if(EngineSettings.GetString(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("DefaultGraphicsRHI"), DefaultGraphicsRHI))
-		{
-			FString NAME_DX11(TEXT("DefaultGraphicsRHI_DX11"));
-			FString NAME_DX12(TEXT("DefaultGraphicsRHI_DX12"));
-			FString NAME_VULKAN(TEXT("DefaultGraphicsRHI_Vulkan"));
-			if(DefaultGraphicsRHI == NAME_DX11)
-			{
-				bForceD3D11 = true;
-			}
-			else if (DefaultGraphicsRHI == NAME_DX12)
-			{
-				bForceD3D12 = true;
-			}
-			else if (DefaultGraphicsRHI == NAME_VULKAN)
-			{
-				bForceVulkan = true;
-			}
-		}
+		ChosenRHI = PreferredRHI.GetValue();
+	}
+	if (ForcedRHI)
+	{
+		ChosenRHI = ForcedRHI.GetValue();
 	}
 
-
-
-	int32 Sum = ((bForceD3D12 ? 1 : 0) + (bForceD3D11 ? 1 : 0) + (bForceOpenGL ? 1 : 0) + (bForceVulkan ? 1 : 0));
-
-	if (Sum > 1)
-	{
-		UE_LOG(LogRHI, Fatal, TEXT("-d3d12, -d3d11, -vulkan, and -opengl are mutually exclusive options, but more than one was specified on the command-line."));
-	}
-	else if (Sum == 0)
-	{
-		// Check the list of targeted shader platforms and decide an RHI based off them
-		TArray<FString> TargetedShaderFormats;
-		GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("TargetedRHIs"), TargetedShaderFormats, GEngineIni);
-		if (TargetedShaderFormats.Num() > 0)
-		{
-			// Pick the first one
-			FName ShaderFormatName(*TargetedShaderFormats[0]);
-			EShaderPlatform TargetedPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormatName);
-			bForceVulkan = IsVulkanPlatform(TargetedPlatform);
-			bForceD3D11 = !bPreferD3D12 && IsD3DPlatform(TargetedPlatform);
-			bForceOpenGL = IsOpenGLPlatform(TargetedPlatform);
-			if (bPreferES31)
-			{
-				DesiredFeatureLevel = ERHIFeatureLevel::ES3_1;
-			}
-			else
-			{
-				DesiredFeatureLevel = GetMaxSupportedFeatureLevel(TargetedPlatform);
-			}
-		}
-	}
-	else
-	{
-		if (bForceSM6)
-		{
-			DesiredFeatureLevel = ERHIFeatureLevel::SM6;
-		}
-		else if (bForceSM5)
-		{
-			DesiredFeatureLevel = ERHIFeatureLevel::SM5;
-		}
-		else if (bPreferES31)
-		{
-			DesiredFeatureLevel = ERHIFeatureLevel::ES3_1;
-		}
-	}
+	DesiredFeatureLevel = ChooseFeatureLevel(ChosenRHI, ForcedRHI);
 
 	// Load the dynamic RHI module.
 	IDynamicRHIModule* DynamicRHIModule = NULL;
 
-#if defined(SWITCHRHI)
-	const bool bForceSwitch = FParse::Param(FCommandLine::Get(), TEXT("switch"));
-	// Load the dynamic RHI module.
-	if (bForceSwitch)
-	{
-#define A(x) #x
-#define B(x) A(x)
-#define SWITCH_RHI_STR B(SWITCHRHI)
-		FApp::SetGraphicsRHI(TEXT("Switch"));
-		const TCHAR* SwitchRHIModuleName = TEXT(SWITCH_RHI_STR);
-		DynamicRHIModule = &FModuleManager::LoadModuleChecked<IDynamicRHIModule>(SwitchRHIModuleName);
-		if (!DynamicRHIModule->IsSupported())
-		{
-			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("SwitchDynamicRHI", "UnsupportedRHI", "The chosen RHI is not supported"));
-			FPlatformMisc::RequestExit(1);
-			DynamicRHIModule = NULL;
-		}
-		LoadedRHIModuleName = SwitchRHIModuleName;
-	}
-	else
-#endif
-
-	if (bForceOpenGL)
+	if (ChosenRHI == WindowsRHI::OpenGL)
 	{
 		FApp::SetGraphicsRHI(TEXT("OpenGL"));
 		const TCHAR* OpenGLRHIModuleName = TEXT("OpenGLDrv");
@@ -265,12 +347,9 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 			DynamicRHIModule = NULL;
 		}
 
-		// OpenGL can only be used for mobile preview
-		DesiredFeatureLevel = ERHIFeatureLevel::ES3_1;
-
 		LoadedRHIModuleName = OpenGLRHIModuleName;
 	}
-	else if (bForceVulkan)
+	else if (ChosenRHI == WindowsRHI::Vulkan)
 	{
 		FApp::SetGraphicsRHI(TEXT("Vulkan"));
 		const TCHAR* VulkanRHIModuleName = TEXT("VulkanRHI");
@@ -283,7 +362,7 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 		}
 		LoadedRHIModuleName = VulkanRHIModuleName;
 	}
-	else if (bForceD3D12 || (bPreferD3D12 && !bForceD3D11))
+	else if (ChosenRHI == WindowsRHI::D3D12)
 	{
 		FApp::SetGraphicsRHI(TEXT("DirectX 12"));
 		LoadedRHIModuleName = TEXT("D3D12RHI");
@@ -291,7 +370,7 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 
 		if (!DynamicRHIModule || !DynamicRHIModule->IsSupported())
 		{
-			if (bForceD3D12)
+			if (ForcedRHI == WindowsRHI::D3D12)
 			{
 				FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RequiredDX12", "DX12 is not supported on your system. Try running without the -dx12 or -d3d12 command line argument."));
 				FPlatformMisc::RequestExit(1);
@@ -319,11 +398,6 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 			auto PSOFileCacheLogCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelineCache.LogPSO"));
 			*PSOFileCacheLogCVar = UE_BUILD_SHIPPING;
 #endif
-
-			if (FPlatformProcess::IsApplicationRunning(TEXT("fraps.exe")))
-			{
-				FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "UseExpressionEncoder", "Fraps has been known to crash D3D12. Please use Microsoft Expression Encoder instead for capturing."));
-			}
 		}
 	}
 
@@ -340,10 +414,7 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 			FPlatformMisc::RequestExit(1);
 			DynamicRHIModule = NULL;
 		}
-		else if (FPlatformProcess::IsApplicationRunning(TEXT("fraps.exe")))
-		{
-			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "UseExpressionEncoderDX11", "Fraps has been known to crash D3D11. Please use Microsoft Expression Encoder instead for capturing."));
-		}
+
 		LoadedRHIModuleName = D3D11RHIModuleName;
 	}
 	return DynamicRHIModule;
@@ -352,21 +423,6 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 FDynamicRHI* PlatformCreateDynamicRHI()
 {
 	FDynamicRHI* DynamicRHI = nullptr;
-
-#if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
-	if (!FPlatformMisc::IsDebuggerPresent())
-	{
-		if (FParse::Param(FCommandLine::Get(), TEXT("AttachDebugger")))
-		{
-			// Wait to attach debugger
-			do
-			{
-				FPlatformProcess::Sleep(0);
-			}
-			while (!FPlatformMisc::IsDebuggerPresent());
-		}
-	}
-#endif
 
 	ERHIFeatureLevel::Type RequestedFeatureLevel;
 	const TCHAR* LoadedRHIModuleName;
@@ -385,14 +441,11 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 const TCHAR* GetSelectedDynamicRHIModuleName(bool bCleanup)
 {
 	check(FApp::CanEverRender());
-	if (ShouldPreferFeatureLevelES31())
-	{
-		return TEXT("ES31");
-	}
-	else if (GDynamicRHI)
+
+	if (GDynamicRHI)
 	{
 		check(!!GLoadedRHIModuleName);
-		return GLoadedRHIModuleName;
+		return GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1 ? TEXT("ES31") : GLoadedRHIModuleName;
 	}
 	else
 	{
@@ -405,7 +458,8 @@ const TCHAR* GetSelectedDynamicRHIModuleName(bool bCleanup)
 		{
 			FModuleManager::Get().UnloadModule(RHIModuleName);
 		}
-		return RHIModuleName;
+
+		return DesiredFeatureLevel == ERHIFeatureLevel::ES3_1 ? TEXT("ES31") : RHIModuleName;
 	}
 }
 
