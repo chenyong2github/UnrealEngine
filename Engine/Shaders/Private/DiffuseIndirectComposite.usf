@@ -263,8 +263,8 @@ void MainPS(
 		FDirectLighting IndirectLighting;
 		if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
 		{
-			IndirectLighting.Diffuse = DiffuseIndirectLighting * GBuffer.BaseColor;
-			IndirectLighting.Specular = 0;
+			IndirectLighting.Diffuse = 0;
+			IndirectLighting.Specular = RoughSpecularIndirectLighting; // The lighting is already fully integrated by lumen rough specular integrator (uniformly sampled weighted by BSDF
 		}
 		else
 		{

@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#define USE_HAIR_COMPLEX_TRANSMITTANCE 1
+
 #include "../HairStrands/HairStrandsVisibilityCommonStruct.ush"
 #include "../Common.ush"
 #include "../DeferredShadingCommon.ush"
