@@ -5,6 +5,25 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "EditorDialogLibrary.generated.h"
 
+
+USTRUCT(BlueprintType, Category = "Editor Scripting | Object Dialog")
+struct FEditorDialogLibraryObjectDetailsViewOptions
+{
+	GENERATED_USTRUCT_BODY()
+
+	FEditorDialogLibraryObjectDetailsViewOptions()
+		:bShowObjectName(true)
+		,bAllowSearch(true)
+	{}
+	
+	
+	UPROPERTY(BlueprintReadWrite, Category = "Editor Scripting | Object Dialog")
+	bool bShowObjectName;
+	
+	UPROPERTY(BlueprintReadWrite, Category = "Editor Scripting | Object Dialog")
+	bool bAllowSearch;
+};
+
 /**
  * Utility class to create simple pop-up dialogs to notify the user of task completion, 
  * or to ask them to make simple Yes/No/Retry/Cancel type decisions.
@@ -44,18 +63,20 @@ public:
 	 * Open a modal message box dialog containing a details view for inspecting / modifying a UObject. 
 	 * @param Title 		The title of the created dialog window
 	 * @param InOutObject 	Object instance of ClassOfObject which is supposed to be viewed
+	 * @param Options 		Optional settings to customize the look of the details view
 	 * @return The result of the users decision, true=Ok, false=Cancel, or false if running in unattended mode.
 	*/
 	UFUNCTION(BlueprintCallable, DisplayName = "Show Object Dialog", Category = "Editor Scripting | Object Dialog")
-	static bool ShowObjectDetailsView(const FText& Title, UObject* InOutObject);
+	static bool ShowObjectDetailsView(const FText& Title, UObject* InOutObject, const FEditorDialogLibraryObjectDetailsViewOptions& Options);
 
 	/**
 	 * Open a modal message box dialog containing a details view for inspecting / modifying multiples UObjects. 
 	 * @param Title 		The title of the created dialog window
 	 * @param InOutObjects 	Array of object instances which are supposed to be viewed
+	 * @param Options 		Optional settings to customize the look of the details view
 	 * @return The result of the users decision, true=Ok, false=Cancel, or false if running in unattended mode.
 	*/
 	UFUNCTION(BlueprintCallable, DisplayName = "Show Objects Dialog", Category = "Editor Scripting | Objects Dialog")
-	static bool ShowObjectsDetailsView(const FText& Title, const TArray<UObject*>& InOutObjects);
+	static bool ShowObjectsDetailsView(const FText& Title, const TArray<UObject*>& InOutObjects, const FEditorDialogLibraryObjectDetailsViewOptions& Options);
 };
 
