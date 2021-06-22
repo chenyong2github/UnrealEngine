@@ -16,14 +16,39 @@
 #include "IGeometryProcessingInterfacesModule.h"
 #include "GeometryProcessingInterfaces/ApproximateActors.h"
 
+#include "HLODBuilderInstancing.h"
+
 
 TArray<UPrimitiveComponent*> FHLODBuilder_MeshApproximate::CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FHLODBuilder_MeshApproximate::CreateComponents);
 
 	TSet<AActor*> Actors;
-	Algo::Transform(InSubComponents, Actors, [](UPrimitiveComponent* InPrimitiveComponent) { return InPrimitiveComponent->GetOwner(); });
+	TArray<UPrimitiveComponent*> InstancedComponents;
 
+	// Filter the input components
+	for (UPrimitiveComponent* SubComponent : InSubComponents)
+	{
+		if (!SubComponent)
+		{
+			continue;
+		}
+
+		switch (SubComponent->HLODBatchingPolicy)
+		{
+		case EHLODBatchingPolicy::None:
+			Actors.Add(SubComponent->GetOwner());
+			break;
+		case EHLODBatchingPolicy::Instancing:
+			InstancedComponents.Add(SubComponent);
+			break;
+		case EHLODBatchingPolicy::MeshSection:
+			InstancedComponents.Add(SubComponent);
+			UE_LOG(LogHLODBuilder, Warning, TEXT("EHLODBatchingPolicy::MeshSection is not yet supported by the MeshApproximate builder."));
+			break;
+		}
+	}
+	
 	IGeometryProcessingInterfacesModule& GeomProcInterfaces = FModuleManager::Get().LoadModuleChecked<IGeometryProcessingInterfacesModule>("GeometryProcessingInterfaces");
 	IGeometryProcessing_ApproximateActors* ApproxActorsAPI = GeomProcInterfaces.GetApproximateActorsImplementation();
 
@@ -149,6 +174,13 @@ TArray<UPrimitiveComponent*> FHLODBuilder_MeshApproximate::CreateComponents(AWor
 			MaterialInst->InitStaticPermutation();
 			MaterialInst->PostEditChange();
 		}
+	}
+
+	// Batch instances
+	if (InstancedComponents.Num())
+	{
+		FHLODBuilder_Instancing InstancingHLODBuilder;
+		Components.Append(InstancingHLODBuilder.CreateComponents(InHLODActor, nullptr, InstancedComponents));
 	}
 
 	return Components;

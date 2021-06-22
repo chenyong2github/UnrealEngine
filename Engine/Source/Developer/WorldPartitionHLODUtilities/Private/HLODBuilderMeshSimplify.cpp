@@ -15,6 +15,8 @@
 #include "MeshMergeModule.h"
 #include "Modules/ModuleManager.h"
 
+#include "HLODBuilderInstancing.h"
+
 
 TArray<UPrimitiveComponent*> FHLODBuilder_MeshSimplify::CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents)
 {
@@ -25,7 +27,33 @@ TArray<UPrimitiveComponent*> FHLODBuilder_MeshSimplify::CreateComponents(AWorldP
 	ProxyDelegate.BindLambda([&Assets](const FGuid Guid, TArray<UObject*>& InAssetsCreated) { Assets = InAssetsCreated; });
 
 	TArray<UStaticMeshComponent*> StaticMeshComponents;
-	Algo::TransformIf(InSubComponents, StaticMeshComponents, [](UPrimitiveComponent* InPrimitiveComponent) { return InPrimitiveComponent->IsA<UStaticMeshComponent>(); }, [](UPrimitiveComponent* InPrimitiveComponent) { return Cast<UStaticMeshComponent>(InPrimitiveComponent); });
+	TArray<UPrimitiveComponent*> InstancedComponents;
+
+	// Filter the input components
+	for (UPrimitiveComponent* SubComponent : InSubComponents)
+	{
+		if (!SubComponent)
+		{
+			continue;
+		}
+
+		switch (SubComponent->HLODBatchingPolicy)
+		{
+		case EHLODBatchingPolicy::None:
+			if (UStaticMeshComponent* SMC = Cast<UStaticMeshComponent>(SubComponent))
+			{
+				StaticMeshComponents.Add(SMC);
+			}
+			break;
+		case EHLODBatchingPolicy::Instancing:
+			InstancedComponents.Add(SubComponent);
+			break;
+		case EHLODBatchingPolicy::MeshSection:
+			InstancedComponents.Add(SubComponent);
+			UE_LOG(LogHLODBuilder, Warning, TEXT("EHLODBatchingPolicy::MeshSection is not yet supported by the MeshApproximate builder."));
+			break;
+		}
+	}
 
 	const IMeshMergeUtilities& MeshMergeUtilities = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
 	MeshMergeUtilities.CreateProxyMesh(StaticMeshComponents, InHLODLayer->GetMeshSimplifySettings(), InHLODLayer->GetHLODMaterial().LoadSynchronous(), InHLODActor->GetPackage(), InHLODActor->GetActorLabel(), FGuid::NewGuid(), ProxyDelegate, true);
@@ -43,5 +71,15 @@ TArray<UPrimitiveComponent*> FHLODBuilder_MeshSimplify::CreateComponents(AWorldP
 		}
 	});
 
-	return TArray<UPrimitiveComponent*>({ Component });
+	TArray<UPrimitiveComponent*> Components;
+	Components.Add(Component);
+
+	// Batch instances
+	if (InstancedComponents.Num())
+	{
+		FHLODBuilder_Instancing InstancingHLODBuilder;
+		Components.Append(InstancingHLODBuilder.CreateComponents(InHLODActor, nullptr, InstancedComponents));
+	}
+
+	return Components;
 }

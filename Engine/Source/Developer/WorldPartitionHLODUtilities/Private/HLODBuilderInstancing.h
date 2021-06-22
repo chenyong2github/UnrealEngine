@@ -9,6 +9,7 @@
  */
 class FHLODBuilder_Instancing : public FHLODBuilder
 {
+public:
 	virtual bool RequiresCompiledAssets() const override { return false; }
 
 	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) override;
