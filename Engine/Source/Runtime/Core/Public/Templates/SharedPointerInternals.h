@@ -24,7 +24,7 @@
  * ESPMode is used select between either 'fast' or 'thread safe' shared pointer types.
  * This is only used by templates at compile time to generate one code path or another.
  */
-enum class ESPMode
+enum class ESPMode : uint8
 {
 	/** Forced to be not thread-safe. */
 	NotThreadSafe = 0,
