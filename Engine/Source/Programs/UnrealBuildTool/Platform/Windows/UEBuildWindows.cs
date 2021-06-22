@@ -251,6 +251,13 @@ namespace UnrealBuildTool
 		public int PCHMemoryAllocationFactor = 0;
 
 		/// <summary>
+		/// Override the PDB page size. Used when the PDB file grows over 4GB. Expected values are 4096 (default), 8192, 16384, 32768
+		/// </summary>
+		[XmlConfigFile(Category = "WindowsPlatform")]
+		[CommandLine("-PDBPageSize")]
+		public int PDBPageSize = 0;
+
+		/// <summary>
 		/// True if we allow using addresses larger than 2GB on 32 bit builds
 		/// </summary>
 		public bool bBuildLargeAddressAwareBinary = true;
@@ -537,6 +544,11 @@ namespace UnrealBuildTool
 		public int PCHMemoryAllocationFactor
 		{
 			get { return Inner.PCHMemoryAllocationFactor; }
+		}
+
+		public int PDBPageSize
+		{
+			get { return Inner.PDBPageSize; }
 		}
 
 		public bool bBuildLargeAddressAwareBinary
