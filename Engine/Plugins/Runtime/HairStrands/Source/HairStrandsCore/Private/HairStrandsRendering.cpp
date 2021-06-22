@@ -39,6 +39,39 @@ static FAutoConsoleVariableRef CVarHairCardsInterpolationType(TEXT("r.HairStrand
 static int32 GHairStrandsTransferPositionOnLODChange = 0;
 static FAutoConsoleVariableRef CVarHairStrandsTransferPositionOnLODChange(TEXT("r.HairStrands.Strands.TransferPrevPos"), GHairStrandsTransferPositionOnLODChange, TEXT("Transfer strands prev. position to current position on LOD switching to avoid large discrepancy causing large motion vector"));
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace HairTransition
+{
+	BEGIN_SHADER_PARAMETER_STRUCT(FTransitionParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, Buffer)
+	END_SHADER_PARAMETER_STRUCT()
+
+	void TransitToSRV(FRDGBuilder& GraphBuilder, FRDGBufferSRVRef InBuffer, ERDGPassFlags Flags)
+	{
+		FTransitionParameters* Parameters = GraphBuilder.AllocParameters<FTransitionParameters>();
+		Parameters->Buffer = InBuffer;
+
+		ensure(Flags == ERDGPassFlags::Raster || Flags == ERDGPassFlags::Compute);
+		if (Flags == ERDGPassFlags::Raster)
+		{
+			Flags |= ERDGPassFlags::SkipRenderPass;
+		}
+		Flags |= ERDGPassFlags::NeverCull;
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("HairTransitionToSRVPass(%s)", Flags == ERDGPassFlags::Raster ? TEXT("Raster") : TEXT("Compute")),
+			Parameters,
+			Flags,
+			[Parameters](FRHICommandList& RHICmdList)
+			{
+				// Nothing to do, we just want GraphBuilder to force the buffer to be transited to SRV Graphics state.
+			});
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 enum class EHairCardsSimulationType
 {
 	None,
@@ -1098,8 +1131,6 @@ void AddHairTangentPass(
 			Parameters,
 			DispatchCount);
 	}
-
-	GraphBuilder.SetBufferAccessFinal(OutTangentBuffer.Buffer, ERHIAccess::SRVMask);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1492,14 +1523,6 @@ static FHairGroupPublicData::FVertexFactoryInput InternalComputeHairStrandsVerte
 FHairGroupPublicData::FVertexFactoryInput ComputeHairStrandsVertexInputData(const FHairGroupInstance* Instance)
 {
 	return InternalComputeHairStrandsVertexInputData(nullptr, Instance);
-}
-
-void AddBufferTransitionToReadablePass(FRDGBuilder& GraphBuilder, FRHIUnorderedAccessView* UAV)
-{
-	AddPass(GraphBuilder, [UAV](FRHICommandList& RHICmdList)
-	{
-		RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
-	});
 }
 
 void CreateHairStrandsDebugAttributeBuffer(FRDGBuilder& GraphBuilder, FRDGExternalBuffer* DebugAttributeBuffer, uint32 VertexCount);
