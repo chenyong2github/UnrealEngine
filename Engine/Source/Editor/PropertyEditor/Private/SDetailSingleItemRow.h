@@ -68,6 +68,7 @@ protected:
 	virtual bool OnContextMenuOpening( FMenuBuilder& MenuBuilder ) override;
 private:
 	void OnCopyProperty();
+	void OnCopyPropertyDisplayName();
 	void OnPasteProperty();
 	bool CanPasteProperty() const;
 	FSlateColor GetOuterBackgroundColor() const;
