@@ -640,7 +640,7 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<FPBDRigidParticles>
 	check(IslandToParticles.Num() == IslandToConstraints.Num());
 	check(IslandToParticles.Num() == IslandToData.Num());
 	// @todo(ccaulfield): make a more complex unit test to check island integrity
-	checkSlow(DebugCheckGraph());
+	//checkSlow(DebugCheckGraph());
 }
 
 
