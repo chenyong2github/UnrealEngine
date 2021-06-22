@@ -11,6 +11,7 @@
 #include "IDisplayClusterConfiguration.h"
 #include "DisplayClusterConfigurationTypes.h"
 
+#include "Components/DisplayClusterCameraComponent.h"
 #include "Components/DisplayClusterSyncTickComponent.h"
 
 #include "Engine/SCS_Node.h"
@@ -86,6 +87,7 @@ void FDisplayClusterConfiguratorUtils::AddRootActorComponentsToBlueprint(UDispla
 	// Already added as default subobjects.
 	AllComponents.Remove(RootActor->GetRootComponent());
 	AllComponents.Remove(RootActor->GetSyncTickComponent());
+	AllComponents.Remove(RootActor->GetDefaultCamera());
 	
 	if (NewRootNode == nullptr)
 	{
@@ -98,7 +100,7 @@ void FDisplayClusterConfiguratorUtils::AddRootActorComponentsToBlueprint(UDispla
 	AddCompParams.bKeepMobility = true;
 	AddCompParams.HarvestMode = FKismetEditorUtilities::EAddComponentToBPHarvestMode::Harvest_UseComponentName;
 	AddCompParams.OptionalNewRootNode = NewRootNode;
-	
+
 	FKismetEditorUtilities::AddComponentsToBlueprint(Blueprint, AllComponents, AddCompParams);
 
 	if (bCompile)

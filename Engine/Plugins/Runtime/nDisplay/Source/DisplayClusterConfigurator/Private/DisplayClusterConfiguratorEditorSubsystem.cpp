@@ -34,6 +34,8 @@ UDisplayClusterBlueprint* UDisplayClusterConfiguratorEditorSubsystem::ImportAsse
 	check(OriginalConfigData);
 
 	UDisplayClusterConfigurationData* ConfigData = CastChecked<UDisplayClusterConfigurationData>(StaticDuplicateObject(OriginalConfigData, NewBlueprint));
+	ConfigData->ImportedPath = InFilename;
+	
 	NewBlueprint->SetConfigData(ConfigData, true);
 
 	FDisplayClusterConfiguratorVersionUtils::SetToLatestVersion(NewBlueprint);
@@ -46,7 +48,9 @@ bool UDisplayClusterConfiguratorEditorSubsystem::ReimportAsset(UDisplayClusterBl
 {
 	if (InBlueprint != nullptr)
 	{
-		return ReloadConfig(InBlueprint, InBlueprint->GetConfigPath()) != nullptr;
+		UDisplayClusterConfigurationData* ConfigData = InBlueprint->GetConfig();
+		check(ConfigData);
+		return ReloadConfig(InBlueprint, ConfigData->ImportedPath) != nullptr;
 	}
 	
 	return false;
@@ -70,7 +74,9 @@ UDisplayClusterConfigurationData* UDisplayClusterConfiguratorEditorSubsystem::Re
 			}
 			
 			NewConfig->PathToConfig = ReimportPath;
-			InBlueprint->SetConfigData(Cast<UDisplayClusterConfigurationData>(StaticDuplicateObject(NewConfig, InBlueprint)), true);
+			NewConfig->ImportedPath = ReimportPath;
+			UDisplayClusterConfigurationData* NewConfigData = Cast<UDisplayClusterConfigurationData>(StaticDuplicateObject(NewConfig, InBlueprint));
+			InBlueprint->SetConfigData(NewConfigData, true);
 
 			// Compile is necessary to update the CDO with the new config data. Otherwise manipulating the data in the editor won't work correctly.
 			FKismetEditorUtilities::CompileBlueprint(InBlueprint);

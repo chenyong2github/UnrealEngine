@@ -501,6 +501,10 @@ public:
 	UPROPERTY(config)
 	FString PathToConfig;
 
+	/** The path used when originally importing. */
+	UPROPERTY()
+	FString ImportedPath;
+
 public:
 	const static TSet<FString> RenderSyncPolicies;
 

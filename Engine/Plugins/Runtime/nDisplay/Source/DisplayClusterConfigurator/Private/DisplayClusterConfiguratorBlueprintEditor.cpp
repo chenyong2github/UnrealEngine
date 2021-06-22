@@ -566,7 +566,11 @@ bool FDisplayClusterConfiguratorBlueprintEditor::LoadFromFile(const FString& Fil
 	check(LoadedBlueprint.IsValid());
 	if (ADisplayClusterRootActor* NewRootActor = FDisplayClusterConfiguratorUtils::GenerateRootActorFromConfigFile(FilePath))
 	{
-		LoadedBlueprint->SetConfigData(const_cast<UDisplayClusterConfigurationData*>(NewRootActor->GetConfigData()), true);
+		LoadedBlueprint->SetConfigData(NewRootActor->GetConfigData(), true);
+		UDisplayClusterConfigurationData* ConfigData = LoadedBlueprint->GetConfig();
+		check(ConfigData);
+		ConfigData->ImportedPath = FilePath;
+		
 		FDisplayClusterConfiguratorUtils::AddRootActorComponentsToBlueprint(LoadedBlueprint.Get(), NewRootActor);
 		return true;
 	}
