@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModels/ProtocolBindingViewModel.h"
 
@@ -56,13 +56,13 @@ namespace Commands
 
 TSharedRef<FProtocolBindingViewModel> FProtocolBindingViewModel::Create(const TSharedRef<FProtocolEntityViewModel>& InParentViewModel, const TSharedRef<FRemoteControlProtocolBinding>& InBinding)
 {
-	TSharedRef<FProtocolBindingViewModel> ViewModel = MakeShared<FProtocolBindingViewModel>(InParentViewModel, InBinding);
+	TSharedRef<FProtocolBindingViewModel> ViewModel = MakeShared<FProtocolBindingViewModel>(FPrivateToken{}, InParentViewModel, InBinding);
 	ViewModel->Initialize();
 
 	return ViewModel;
 }
 
-FProtocolBindingViewModel::FProtocolBindingViewModel(const TSharedRef<FProtocolEntityViewModel>& InParentViewModel, const TSharedRef<FRemoteControlProtocolBinding>& InBinding)
+FProtocolBindingViewModel::FProtocolBindingViewModel(FPrivateToken, const TSharedRef<FProtocolEntityViewModel>& InParentViewModel, const TSharedRef<FRemoteControlProtocolBinding>& InBinding)
 	: Preset(InParentViewModel->Preset),
 	ParentViewModel(InParentViewModel),
 	Property(InParentViewModel->Property),
@@ -124,7 +124,7 @@ FGuid FProtocolBindingViewModel::AddRangeMapping()
 TSharedPtr<FProtocolRangeViewModel>& FProtocolBindingViewModel::AddRangeMappingInternal()
 {
 	FGuid RangeId = Commands::AddRangeMappingInternal(Preset.Get(), {ParentViewModel.Pin()->GetId(), GetId(), FGuid()});
-	TSharedPtr<FProtocolRangeViewModel>& NewRangeViewModel = Ranges.Add_GetRef(MakeShared<FProtocolRangeViewModel>(SharedThis(this), RangeId));
+	TSharedPtr<FProtocolRangeViewModel>& NewRangeViewModel = Ranges.Add_GetRef(MakeShared<FProtocolRangeViewModel>(FProtocolRangeViewModel::FPrivateToken{}, SharedThis(this), RangeId));
 	return NewRangeViewModel;
 }
 

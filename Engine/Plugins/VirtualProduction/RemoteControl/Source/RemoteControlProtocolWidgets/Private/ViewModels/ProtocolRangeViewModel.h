@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -91,13 +91,17 @@ public:
 	/** Something has changed within the ViewModel */
 	FOnChanged& OnChanged() { return OnChangedDelegate; }
 
-protected:
-	template <typename FProtocolRangeViewModel>
-	friend class SharedPointerInternals::TIntrusiveReferenceController;
+private:
+	// Private token only allows members or friends to call MakeShared
+	struct FPrivateToken { explicit FPrivateToken() = default; };
 
-	FProtocolRangeViewModel() = default;
-	FProtocolRangeViewModel(const TSharedRef<FProtocolBindingViewModel>& InParentViewModel, const FGuid& InRangeId);
-	
+	friend class FProtocolBindingViewModel;
+
+public:
+	FProtocolRangeViewModel(FPrivateToken) {}
+	FProtocolRangeViewModel(FPrivateToken, const TSharedRef<FProtocolBindingViewModel>& InParentViewModel, const FGuid& InRangeId);
+
+protected:
 	void Initialize();;
 
 	FRemoteControlProtocolMapping* GetRangesData() const { return ParentViewModel.Pin()->GetRangesMapping(RangeId); }

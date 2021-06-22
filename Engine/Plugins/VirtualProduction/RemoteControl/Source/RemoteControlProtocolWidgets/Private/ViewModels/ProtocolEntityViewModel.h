@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -52,12 +52,14 @@ public:
 	FOnChanged& OnChanged() { return OnChangedDelegate; }
 
 private:
-	template <typename FProtocolEntityViewModel>
-    friend class SharedPointerInternals::TIntrusiveReferenceController;
-	
-	FProtocolEntityViewModel() = default;
-	FProtocolEntityViewModel(URemoteControlPreset* InPreset, const FGuid& InEntityId);
+	// Private token only allows members or friends to call MakeShared
+	struct FPrivateToken { explicit FPrivateToken() = default; };
 
+public:
+	FProtocolEntityViewModel(FPrivateToken) {}
+	FProtocolEntityViewModel(FPrivateToken, URemoteControlPreset* InPreset, const FGuid& InEntityId);
+
+private:
 	void Initialize();
 
 	//~ Begin FEditorUndoClient Interface

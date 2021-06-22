@@ -398,7 +398,7 @@ TSharedRef<IWebSocket> FLwsWebSocketsManager::CreateWebSocket(const FString& Url
 		UpgradeHeaderString += FString::Printf(TEXT("%s: %s\r\n"), *OneHeader.Key, *OneHeader.Value);
 	}
 
-	FLwsWebSocketRef Socket = MakeShared<FLwsWebSocket>(Url, Protocols, UpgradeHeaderString);
+	FLwsWebSocketRef Socket = MakeShared<FLwsWebSocket>(FLwsWebSocket::FPrivateToken{}, Url, Protocols, UpgradeHeaderString);
 	return Socket;
 }
 

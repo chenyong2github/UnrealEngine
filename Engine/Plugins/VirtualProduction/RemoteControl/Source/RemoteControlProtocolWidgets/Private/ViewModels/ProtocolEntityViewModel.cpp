@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProtocolEntityViewModel.h"
 
@@ -65,13 +65,13 @@ namespace Commands
 
 TSharedRef<FProtocolEntityViewModel> FProtocolEntityViewModel::Create(URemoteControlPreset* InPreset, const FGuid& InEntityId)
 {
-	TSharedRef<FProtocolEntityViewModel> ViewModel = MakeShared<FProtocolEntityViewModel>(InPreset, InEntityId);
+	TSharedRef<FProtocolEntityViewModel> ViewModel = MakeShared<FProtocolEntityViewModel>(FPrivateToken{}, InPreset, InEntityId);
 	ViewModel->Initialize();
 
 	return ViewModel;
 }
 
-FProtocolEntityViewModel::FProtocolEntityViewModel(URemoteControlPreset* InPreset, const FGuid& InEntityId)
+FProtocolEntityViewModel::FProtocolEntityViewModel(FPrivateToken, URemoteControlPreset* InPreset, const FGuid& InEntityId)
     : Preset(InPreset),
     PropertyId(InEntityId)
 {
@@ -165,7 +165,7 @@ TSharedPtr<FProtocolBindingViewModel> FProtocolEntityViewModel::AddBinding(const
             );
 		}
 
-		TSharedPtr<FProtocolBindingViewModel>& NewBindingViewModel = Bindings.Add_GetRef(MakeShared<FProtocolBindingViewModel>(SharedThis(this), ProtocolBinding.ToSharedRef()));
+		TSharedPtr<FProtocolBindingViewModel>& NewBindingViewModel = Bindings.Add_GetRef(MakeShared<FProtocolBindingViewModel>(FProtocolBindingViewModel::FPrivateToken{}, SharedThis(this), ProtocolBinding.ToSharedRef()));
 		NewBindingViewModel->AddDefaultRangeMappings();
 		
 		OnBindingAddedDelegate.Broadcast(NewBindingViewModel.ToSharedRef());

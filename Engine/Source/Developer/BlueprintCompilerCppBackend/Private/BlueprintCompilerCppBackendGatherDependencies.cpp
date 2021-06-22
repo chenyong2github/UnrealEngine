@@ -456,7 +456,7 @@ bool FGatherConvertedClassDependencies::IsFieldFromExcludedPackage(const UField*
 	return false;
 }
 
-FGatherConvertedClassDependencies::FGatherConvertedClassDependencies(UStruct* InStruct, const FCompilerNativizationOptions& InNativizationOptions)
+FGatherConvertedClassDependencies::FGatherConvertedClassDependencies(FPrivateToken, UStruct* InStruct, const FCompilerNativizationOptions& InNativizationOptions)
 	: OriginalStruct(InStruct)
 	, NativizationOptions(InNativizationOptions)
 {
@@ -849,7 +849,7 @@ TSharedPtr<FGatherConvertedClassDependencies> FGatherConvertedClassDependencies:
 		ConvertedClassDependenciesPtr = CachedConvertedClassDependencies.FindOrAdd(InStruct);
 		if (!ConvertedClassDependenciesPtr.IsValid())
 		{
-			ConvertedClassDependenciesPtr = MakeShared<FGatherConvertedClassDependencies>(InStruct, InNativizationOptions);
+			ConvertedClassDependenciesPtr = MakeShared<FGatherConvertedClassDependencies>(FPrivateToken{}, InStruct, InNativizationOptions);
 			check(ConvertedClassDependenciesPtr.IsValid());
 		}
 	}

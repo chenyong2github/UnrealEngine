@@ -17,13 +17,13 @@
 
 TSharedPtr<FConversationsHandle> FConversationsHandle::Create(const UConversationRegistry* InOwningRegistry, const TSharedPtr<FStreamableHandle>& InStreamableHandle, const TArray<FGameplayTag>& InEntryTags)
 {
-	TSharedPtr<FConversationsHandle> ConversationsHandle = MakeShared<FConversationsHandle>(const_cast<UConversationRegistry*>(InOwningRegistry), InStreamableHandle, InEntryTags);
+	TSharedPtr<FConversationsHandle> ConversationsHandle = MakeShared<FConversationsHandle>(FPrivateToken{}, const_cast<UConversationRegistry*>(InOwningRegistry), InStreamableHandle, InEntryTags);
 	ConversationsHandle->Initialize();
 
 	return ConversationsHandle;
 }
 
-FConversationsHandle::FConversationsHandle(UConversationRegistry* InOwningRegistry, const TSharedPtr<FStreamableHandle>& InStreamableHandle, const TArray<FGameplayTag>& InEntryTags)
+FConversationsHandle::FConversationsHandle(FPrivateToken, UConversationRegistry* InOwningRegistry, const TSharedPtr<FStreamableHandle>& InStreamableHandle, const TArray<FGameplayTag>& InEntryTags)
 	: StreamableHandle(InStreamableHandle)
 	, ConversationEntryTags(InEntryTags)
 	, OwningRegistryPtr(InOwningRegistry)

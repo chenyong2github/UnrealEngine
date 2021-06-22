@@ -97,6 +97,8 @@ struct FLwsReceiveBufferText
 
 typedef TUniquePtr<FLwsReceiveBufferText> FLwsReceiveBufferTextPtr;
 
+class FLwsWebSocketsManager;
+
 class FLwsWebSocket
 	: public IWebSocket
 	, public TSharedFromThis<FLwsWebSocket>
@@ -185,12 +187,16 @@ public:
 	void LwsThreadTick();
 
 private:
+	// Private token only allows members or friends to call MakeShared
+	struct FPrivateToken { explicit FPrivateToken() = default; };
+
+	friend class FLwsWebSocketsManager;
+
+public:
 	/** Constructor */
-	FLwsWebSocket(const FString& Url, const TArray<FString>& Protocols, const FString& UpgradeHeader);
+	FLwsWebSocket(FPrivateToken, const FString& Url, const TArray<FString>& Protocols, const FString& UpgradeHeader);
 
-	/** Friend for access to constructor via MakeShared */
-	friend class SharedPointerInternals::TIntrusiveReferenceController<FLwsWebSocket>;
-
+private:
 	/**
 	 * Start connecting
 	 * @param LwsContext libwebsockets context
