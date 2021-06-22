@@ -15,7 +15,6 @@
 #include "IImageWrapperModule.h"
 #include "ImageCore.h"
 #include "TextureCompressorModule.h"
-#include "TextureDerivedDataBuildExporter.h"
 
 #endif // WITH_EDITOR
 
@@ -126,8 +125,6 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 	FTextureSourceData CompositeTextureData;
 	/** DDC2 build function name to use to build this texture (if DDC2 is enabled and the target texture type has a DDC2 build function, empty otherwise) */
 	FString BuildFunctionName;
-	/** Exporter that can optionally write out build actions and reference outputs for the purpose of testing remote execution of builds */
-	FTextureDerivedDataBuildExporter BuildExporter;
 	/** Texture cache flags. */
 	uint32 CacheFlags;
 	/** Have many bytes were loaded from DDC or built (for telemetry) */
