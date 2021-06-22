@@ -80,6 +80,8 @@ namespace DatasmithRhino.ElementExporters
 			{
 				DatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress((float)(++ElementIndex) / TotalNumberOfElements);
 
+				ValidateElement(CurrentElementInfo);
+
 				switch (CurrentElementInfo.DirectLinkStatus)
 				{
 					case DirectLinkSynchronizationStatus.Created:
@@ -133,6 +135,8 @@ namespace DatasmithRhino.ElementExporters
 			// First gather all the elements on which we can do async operations, execute the non-async operations.
 			foreach (T CurrentElementInfo in GetElementsToSynchronize())
 			{
+				ValidateElement(CurrentElementInfo);
+
 				switch (CurrentElementInfo.DirectLinkStatus)
 				{
 					case DirectLinkSynchronizationStatus.Created:
@@ -220,6 +224,19 @@ namespace DatasmithRhino.ElementExporters
 				{
 					//#ueent_todo Log elements who could not be exported in Datasmith logging API.
 				}
+			}
+		}
+
+		private void ValidateElement(T ElementInfo)
+		{
+			// We only care of the element validity if it is flagged as Created or Modified, since all other statuses either don't export the element or delete it.
+			bool bDoesElementNeedToBeParsed = (ElementInfo.DirectLinkStatus & (DirectLinkSynchronizationStatus.Created | DirectLinkSynchronizationStatus.Modified)) != DirectLinkSynchronizationStatus.None;
+			bool bIsElementDisposed = ElementInfo.RhinoCommonObject != null && ElementInfo.RhinoCommonObject.Disposed;
+
+			if (bDoesElementNeedToBeParsed && bIsElementDisposed)
+			{
+				Debug.Fail(string.Format("Trying to export a disposed rhino element: {0}", ElementInfo.UniqueLabel));
+				ElementInfo.ApplyDeletedStatus();
 			}
 		}
 
