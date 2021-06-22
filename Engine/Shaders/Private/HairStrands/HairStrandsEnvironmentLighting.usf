@@ -803,6 +803,8 @@ void MainPS(
 
 #if PERMUTATION_INTEGRATION_TYPE == INTEGRATION_SCENECOLOR
 	if (Sample.bScatterSceneLighting)
+#else
+	if (!Sample.bScatterSceneLighting)
 #endif
 	{
 		const float3 SkyLighting =
