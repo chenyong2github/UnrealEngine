@@ -76,7 +76,7 @@ void UAnimGraphNode_CustomProperty::OnCopyTermDefaultsToDefaultObject(IAnimBluep
 	// Copy pin default values to generated properties
 	for (UEdGraphPin* Pin : Pins)
 	{
-		if (!Pin->bOrphanedPin && !UAnimationGraphSchema::IsPosePin(Pin->PinType))
+		if (!Pin->bOrphanedPin && Pin->LinkedTo.Num() == 0 && !UAnimationGraphSchema::IsPosePin(Pin->PinType))
 		{
 			FString PrefixedName = GetPinTargetVariableName(Pin);
 
