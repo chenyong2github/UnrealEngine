@@ -37,6 +37,7 @@ class UWorld;
 class AWorldSettings;
 class FPhysicsReplicationFactory;
 class FContactModifyCallbackFactory;
+struct FConstraintInstanceBase;
 
 namespace Chaos
 {
@@ -64,6 +65,17 @@ namespace Chaos
 
 
 extern int32 GEnableKinematicDeferralStartPhysicsCondition;
+
+struct FConstraintBrokenDelegateWrapper
+{
+	FConstraintBrokenDelegateWrapper(FConstraintInstanceBase* ConstraintInstance);
+
+	void DispatchOnBroken();
+
+	FOnConstraintBroken OnConstraintBrokenDelegate;
+	int32 ConstraintIndex;
+};
+
 
 /**
 * Low level Chaos scene used when building custom simulations that don't exist in the main world physics scene.

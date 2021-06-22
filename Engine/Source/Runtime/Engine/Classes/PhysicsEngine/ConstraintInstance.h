@@ -161,6 +161,17 @@ struct ENGINE_API FConstraintInstanceBase
 
 	FPhysScene* GetPhysicsScene() { return PhysScene; }
 	const FPhysScene* GetPhysicsScene() const { return PhysScene; }
+
+	/** Set the constraint broken delegate. */
+	void SetConstraintBrokenDelegate(FOnConstraintBroken InConstraintBrokenDelegate);
+
+	protected:
+
+		FOnConstraintBroken OnConstraintBrokenDelegate;
+
+		friend struct FConstraintBrokenDelegateData;
+		friend struct FConstraintBrokenDelegateWrapper;
+
 };
 
 /** Container for a physics representation of an object. */
@@ -793,9 +804,6 @@ public:
 	/** Create physics engine constraint using physx actors. */
 	void InitConstraint_AssumesLocked(const FPhysicsActorHandle& ActorRef1, const FPhysicsActorHandle& ActorRef2, float InScale, FOnConstraintBroken InConstraintBrokenDelegate = FOnConstraintBroken());
 
-	/** Set teh constraint broken delegate. */
-	void SetConstraintBrokenDelegate(FOnConstraintBroken InConstraintBrokenDelegate);
-
 	/** Terminate physics engine constraint */
 	void TermConstraint();
 
@@ -930,10 +938,6 @@ private:
 	void UpdateBreakable();
 	void UpdatePlasticity();
 	void UpdateDriveTarget();
-
-	FOnConstraintBroken OnConstraintBrokenDelegate;
-
-	friend struct FConstraintBrokenDelegateData;
 
 public:
 

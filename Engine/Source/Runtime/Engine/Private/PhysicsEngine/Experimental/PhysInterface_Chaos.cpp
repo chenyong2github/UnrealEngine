@@ -637,7 +637,7 @@ private:
 		{
 			Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintHandle->Constraint);
 
-			FConstraintInstance* ConstraintInstance = (Constraint) ? FPhysicsUserData_Chaos::Get<FConstraintInstance>(Constraint->GetUserData()) : nullptr;
+			FConstraintInstanceBase* ConstraintInstance = (Constraint) ? FPhysicsUserData_Chaos::Get<FConstraintInstanceBase>(Constraint->GetUserData()) : nullptr;
 			if (ConstraintInstance)
 			{
 				return ConstraintInstance->GetPhysicsScene();

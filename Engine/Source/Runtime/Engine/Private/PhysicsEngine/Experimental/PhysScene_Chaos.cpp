@@ -37,6 +37,7 @@
 #include "Chaos/BoundingVolume.h"
 #include "Chaos/Framework/DebugSubstep.h"
 #include "Chaos/PBDSpringConstraints.h"
+#include "Chaos/PBDJointConstraints.h"
 #include "Chaos/PerParticleGravity.h"
 #include "PBDRigidActiveParticlesBuffer.h"
 #include "Chaos/GeometryParticlesfwd.h"
@@ -1634,12 +1635,12 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 					if(OwnerComponent != nullptr)
 					{
 						bool bPendingMove = false;
-						FRigidTransform3 NewTransform(DirtyParticle->X(),DirtyParticle->R());
+							FRigidTransform3 NewTransform(DirtyParticle->X(),DirtyParticle->R());
 
-						if(!NewTransform.EqualsNoScale(OwnerComponent->GetComponentTransform()))
-						{
-							if (BodyInstance->InstanceBodyIndex == INDEX_NONE)
+							if(!NewTransform.EqualsNoScale(OwnerComponent->GetComponentTransform()))
 							{
+								if (BodyInstance->InstanceBodyIndex == INDEX_NONE)
+								{
 
 								bPendingMove = true;
 								const FVector MoveBy = NewTransform.GetLocation() - OwnerComponent->GetComponentTransform().GetLocation();
@@ -1648,7 +1649,7 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 
 							}
 
-							PhysScene->UpdateActorInAccelerationStructure(BodyInstance->ActorHandle);
+								PhysScene->UpdateActorInAccelerationStructure(BodyInstance->ActorHandle);
 						}
 
 						if(Proxy->GetWakeEvent() != Chaos::EWakeEventEntry::None && !bPendingMove)
@@ -1667,10 +1668,10 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 
 			if (Constraint->GetOutputData().bIsBreaking)
 			{
-				FConstraintInstance* ConstraintInstance = (Constraint) ? FPhysicsUserData_Chaos::Get<FConstraintInstance>(Constraint->GetUserData()) : nullptr;
+				if (FConstraintInstanceBase* ConstraintInstance = (Constraint) ? FPhysicsUserData_Chaos::Get<FConstraintInstanceBase>(Constraint->GetUserData()) : nullptr)
 				{
-					FConstraintBrokenDelegateData CBDD(ConstraintInstance);
-					CBDD.DispatchOnBroken();
+					FConstraintBrokenDelegateWrapper CBD(ConstraintInstance);
+					CBD.DispatchOnBroken();
 				}
 
 				Constraint->GetOutputData().bIsBreaking = false;
@@ -1721,11 +1722,16 @@ void FPhysScene_Chaos::RemoveSpringConstraint(const FPhysicsConstraintHandle& Co
 	// #todo : Implement
 }
 
-FConstraintBrokenDelegateData::FConstraintBrokenDelegateData(FConstraintInstance* ConstraintInstance)
+FConstraintBrokenDelegateWrapper::FConstraintBrokenDelegateWrapper(FConstraintInstanceBase* ConstraintInstance)
 	: OnConstraintBrokenDelegate(ConstraintInstance->OnConstraintBrokenDelegate)
 	, ConstraintIndex(ConstraintInstance->ConstraintIndex)
 {
 
+}
+
+void FConstraintBrokenDelegateWrapper::DispatchOnBroken()
+{
+	OnConstraintBrokenDelegate.ExecuteIfBound(ConstraintIndex);
 }
 
 void FPhysScene_Chaos::ResimNFrames(const int32 NumFramesRequested)
