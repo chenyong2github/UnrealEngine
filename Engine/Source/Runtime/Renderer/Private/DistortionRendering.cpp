@@ -637,7 +637,7 @@ void FDeferredShadingSceneRenderer::RenderDistortion(FRDGBuilder& GraphBuilder, 
 			RoughnessScatterTexture = GraphBuilder.CreateTexture(
 				FRDGTextureDesc::Create2D(
 					SceneDepthTexture->Desc.Extent,
-					PF_G8,
+					PF_R16F,
 					FClearValueBinding::Transparent,
 					GFastVRamConfig.Distortion | TexCreate_RenderTargetable | TexCreate_ShaderResource,
 					1,
