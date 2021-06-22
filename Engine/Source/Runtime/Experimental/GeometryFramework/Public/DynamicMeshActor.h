@@ -14,7 +14,7 @@
  * Used for experimental procedural geometry generation Blueprints. Currently no physics support.
  */
 UCLASS(ConversionRoot, ComponentWrapperClass, ClassGroup=DynamicMesh, meta = (ChildCanTick))
-class MODELINGCOMPONENTS_API ADynamicMeshActor : public AActor
+class GEOMETRYFRAMEWORK_API ADynamicMeshActor : public AActor
 {
 	GENERATED_UCLASS_BODY()
 private:

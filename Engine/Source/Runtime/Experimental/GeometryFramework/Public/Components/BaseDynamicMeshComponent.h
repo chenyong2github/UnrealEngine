@@ -59,7 +59,7 @@ enum class EDynamicMeshComponentTangentsMode : uint8
  * UBaseDynamicMeshComponent is a base interface for a UMeshComponent based on a UDynamicMesh.
  */
 UCLASS(Abstract, hidecategories = (LOD), ClassGroup = Rendering)
-class MODELINGCOMPONENTS_API UBaseDynamicMeshComponent : 
+class GEOMETRYFRAMEWORK_API UBaseDynamicMeshComponent : 
 	public UMeshComponent, 
 	public IToolFrameworkComponent, 
 	public IMeshVertexCommandChangeTarget, 

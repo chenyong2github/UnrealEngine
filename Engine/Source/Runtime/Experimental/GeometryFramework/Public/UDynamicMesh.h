@@ -19,7 +19,7 @@
  * a UDynamicMesh to allow for arbitrarily-complex procedural generation
  */
 UCLASS(Abstract)
-class MODELINGCOMPONENTS_API UDynamicMeshGenerator : public UObject
+class GEOMETRYFRAMEWORK_API UDynamicMeshGenerator : public UObject
 {
 	GENERATED_BODY()
 public:
@@ -65,7 +65,7 @@ ENUM_CLASS_FLAGS(EDynamicMeshAttributeChangeFlags)
  * This struct is emitted by the UDynamicMesh OnPreMeshChanged() and OnMeshChanged() delegates.
  */
 USTRUCT(BlueprintType)
-struct MODELINGCOMPONENTS_API FDynamicMeshChangeInfo
+struct GEOMETRYFRAMEWORK_API FDynamicMeshChangeInfo
 {
 	GENERATED_BODY()
 
@@ -97,7 +97,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDynamicMeshModifiedBP, UDynamicMe
  * UDynamicMesh is a UObject container for a FDynamicMesh3. 
  */
 UCLASS(BlueprintType)
-class MODELINGCOMPONENTS_API UDynamicMesh : public UObject, 
+class GEOMETRYFRAMEWORK_API UDynamicMesh : public UObject,
 	public IMeshVertexCommandChangeTarget, 
 	public IMeshCommandChangeTarget, 
 	public IMeshReplacementCommandChangeTarget
@@ -365,7 +365,7 @@ public:
  * So the Pool does not re-use mesh memory, only the UObject containers.
  */
 UCLASS(Transient)
-class MODELINGCOMPONENTS_API UDynamicMeshPool : public UObject
+class GEOMETRYFRAMEWORK_API UDynamicMeshPool : public UObject
 {
 	GENERATED_BODY()
 public:

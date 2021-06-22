@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "BaseDynamicMeshComponent.h"
 #include "MeshConversionOptions.h"
-#include "Drawing/MeshRenderDecomposition.h"
+#include "Components/MeshRenderDecomposition.h"
 #include "DynamicMesh/MeshTangents.h"
 #include "TransformTypes.h"
 #include "Async/Future.h"
@@ -26,7 +26,7 @@ class FBaseDynamicMeshSceneProxy;
  * sending it off for rendering.
  * NOTE: This is called whenever the Mesh is updated and before rendering, so performance matters.
  */
-class MODELINGCOMPONENTS_API IRenderMeshPostProcessor
+class GEOMETRYFRAMEWORK_API IRenderMeshPostProcessor
 {
 public:
 	virtual ~IRenderMeshPostProcessor() = default;
@@ -60,7 +60,7 @@ enum class EDynamicMeshComponentRenderUpdateMode
  * 
  */
 UCLASS(hidecategories = (LOD), meta = (BlueprintSpawnableComponent), ClassGroup = Rendering)
-class MODELINGCOMPONENTS_API UDynamicMeshComponent : public UBaseDynamicMeshComponent, public IInterface_CollisionDataProvider
+class GEOMETRYFRAMEWORK_API UDynamicMeshComponent : public UBaseDynamicMeshComponent, public IInterface_CollisionDataProvider
 {
 	GENERATED_UCLASS_BODY()
 

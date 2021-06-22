@@ -30,6 +30,7 @@ public class ModelingComponentsEditorOnly : ModuleRules
                 "MeshDescription",
 				"StaticMeshDescription",
 				"GeometryCore",
+				"GeometryFramework",
 				"GeometryAlgorithms",
 				"DynamicMesh",
 				"MeshConversion",

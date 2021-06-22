@@ -18,7 +18,7 @@
  * FMeshChange represents an undoable change to a FDynamicMesh3.
  * Currently only valid to call Apply/Revert when the Object is a one of several components backed by FDynamicMesh: UDynamicMeshComponent, UOctreeDynamicMeshComponent, UPreviewMesh
  */
-class MODELINGCOMPONENTS_API FMeshChange : public FToolCommandChange
+class GEOMETRYFRAMEWORK_API FMeshChange : public FToolCommandChange
 {
 public:
 	FMeshChange();
@@ -53,14 +53,14 @@ public:
 
 
 UINTERFACE()
-class MODELINGCOMPONENTS_API UMeshCommandChangeTarget : public UInterface
+class GEOMETRYFRAMEWORK_API UMeshCommandChangeTarget : public UInterface
 {
 	GENERATED_BODY()
 };
 /**
  * IMeshCommandChangeTarget is an interface which is used to apply a mesh change
  */
-class MODELINGCOMPONENTS_API IMeshCommandChangeTarget
+class GEOMETRYFRAMEWORK_API IMeshCommandChangeTarget
 {
 	GENERATED_BODY()
 public:
