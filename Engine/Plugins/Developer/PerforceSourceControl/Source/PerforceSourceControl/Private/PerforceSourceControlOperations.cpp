@@ -1437,6 +1437,12 @@ static void ParseHistoryResults(const FP4RecordSet& InRecords, const TArray<FPer
 			FString DepotFileName = ClientRecord(TEXT("depotFile"));
 			FString LocalFileName = FindWorkspaceFile(InStates, DepotFileName);
 
+			if (OutHistory.Contains(LocalFileName))
+			{
+				// If a file existed in a location multiple times we rely on the first, most recent record having all the revisions we are interested in
+				continue;
+			}
+
 			TArray< TSharedRef<FPerforceSourceControlRevision, ESPMode::ThreadSafe> > Revisions;
 			int32 RevisionNumbers = 0;
 			for (;;)
