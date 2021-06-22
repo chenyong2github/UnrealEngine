@@ -105,7 +105,7 @@ namespace HordeServer.Services
 		/// <inheritdoc/>
 		override public Task<int> DuplicateShelvedChangeAsync(int ShelvedChange)
 		{
-			throw new Exception("DuplicateShelvedChangeAsync is disabled due to p4 issue: https://jira.it.epicgames.com/servicedesk/customer/portal/1/ITH-144069");
+			return P4APIService.DuplicateShelvedChangeAsync(ShelvedChange);
 		}
 
 		/// <inheritdoc/>
