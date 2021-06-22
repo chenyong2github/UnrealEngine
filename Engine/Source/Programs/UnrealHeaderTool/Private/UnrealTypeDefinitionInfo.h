@@ -2392,6 +2392,21 @@ public:
 	}
 
 	/**
+	 * Clears the given flags
+	 */
+	void ClearStructFlags(EStructFlags FlagsToClear)
+	{
+#if UHT_ENABLE_ENGINE_TYPE_CHECKS
+		check(GetScriptStructSafe() == nullptr || (GetScriptStructSafe()->StructFlags & ~STRUCT_ComputedFlags) == StructFlags);
+#endif
+		StructFlags = EStructFlags(int32(StructFlags) & int32(~FlagsToClear));
+		if (UScriptStruct* Struct = GetScriptStructSafe())
+		{
+			Struct->StructFlags = EStructFlags(int32(Struct->StructFlags) & int32(~FlagsToClear));
+		}
+	}
+
+	/**
 	 * Used to safely check whether the passed in flag is set.
 	 *
 	 * @param	FlagToCheck		Class flag to check for
