@@ -57,6 +57,7 @@ public:
 	void InitDynamicSkelMeshObjectDataGPUSkin(
 		USkinnedMeshComponent* InMeshComponent,
 		FSkeletalMeshRenderData* InSkeletalMeshRenderData,
+		FSkeletalMeshObjectGPUSkin* InMeshObject,
 		int32 InLODIndex,
 		const TArray<FActiveMorphTarget>& InActiveMorphTargets,
 		const TArray<float>& InMorphTargetWeights, 
@@ -65,9 +66,11 @@ public:
 
 	/** ref pose to local space transforms */
 	TArray<FMatrix44f> ReferenceToLocal;
+	TArray<FMatrix44f> ReferenceToLocalForRayTracing;
 
 	/** Previous ref pose to local space transform */
 	TArray<FMatrix44f> PreviousReferenceToLocal;
+	TArray<FMatrix44f> PreviousReferenceToLocalForRayTracing;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) 
 	/** component space bone transforms*/
@@ -76,12 +79,14 @@ public:
 
 	/** currently LOD for bones being updated */
 	int32 LODIndex;
+	int32 RayTracingLODIndex;
 	/** current morph targets active on this mesh */
 	TArray<FActiveMorphTarget> ActiveMorphTargets;
 	/** All morph target weights on this mesh */
 	TArray<float> MorphTargetWeights;
 	/** All section ID impacted by active morph target on this mesh */
 	TArray<int32> SectionIdsUseByActiveMorphTargets;
+	TArray<int32> SectionIdsUseByActiveMorphTargetsForRayTracing;
 	/** number of active morph targets with weights > 0 */
 	int32 NumWeightedActiveMorphTargets;
 
@@ -369,7 +374,7 @@ public:
 	virtual void Update(int32 LODIndex,USkinnedMeshComponent* InMeshComponent,const TArray<FActiveMorphTarget>& ActiveMorphTargets, const TArray<float>& MorphTargetWeights, EPreviousBoneTransformUpdateMode PreviousBoneTransformUpdateMode) override;
 	void UpdateDynamicData_RenderThread(FGPUSkinCache* GPUSkinCache, FRHICommandListImmediate& RHICmdList, FDynamicSkelMeshObjectDataGPUSkin* InDynamicData, FSceneInterface* Scene, uint32 FrameNumberToPrepare, uint32 RevisionNumber);
 	virtual void PreGDMECallback(FGPUSkinCache* GPUSkinCache, uint32 FrameNumber) override;
-	virtual const FVertexFactory* GetSkinVertexFactory(const FSceneView* View, int32 LODIndex,int32 ChunkIdx) const override;
+	virtual const FVertexFactory* GetSkinVertexFactory(const FSceneView* View, int32 LODIndex,int32 ChunkIdx, ESkinVertexFactoryMode VFMode = ESkinVertexFactoryMode::Default) const override;
 	virtual void CacheVertices(int32 LODIndex, bool bForce) const override {}
 	virtual bool IsCPUSkinned() const override { return false; }
 	virtual TArray<FTransform>* GetComponentSpaceTransforms() const override;
@@ -385,6 +390,18 @@ public:
 
 	/** Return the internal vertex buffer only when initialized otherwise used the shared vertex buffer - needs to be updated every frame */
 	virtual FRWBuffer* GetRayTracingDynamicVertexBuffer() { return RayTracingDynamicVertexBuffer.NumBytes > 0 ? &RayTracingDynamicVertexBuffer : nullptr; }
+
+	virtual int32 GetRayTracingLOD() const override
+	{
+		if (DynamicData)
+		{
+			return DynamicData->RayTracingLODIndex;
+		}
+		else
+		{
+			return 0;
+		}
+	}
 #endif // RHI_RAYTRACING
 
 	virtual int32 GetLOD() const override
@@ -638,7 +655,7 @@ private:
 	*/
 	void ReleaseMorphResources();
 
-	void ProcessUpdatedDynamicData(FGPUSkinCache* GPUSkinCache, FRHICommandListImmediate& RHICmdList, uint32 FrameNumberToPrepare, uint32 RevisionNumber, bool bMorphNeedsUpdate);
+	void ProcessUpdatedDynamicData(EGPUSkinCacheEntryMode Mode, FGPUSkinCache* GPUSkinCache, FRHICommandListImmediate& RHICmdList, uint32 FrameNumberToPrepare, uint32 RevisionNumber, bool bMorphNeedsUpdate, int32 LODIndex);
 
 	void WaitForRHIThreadFenceForDynamicData();
 

@@ -222,12 +222,13 @@ enum class EGPUSkinCacheDispatchFlags
 class FGPUSkinCacheEntry
 {
 public:
-	FGPUSkinCacheEntry(FGPUSkinCache* InSkinCache, FSkeletalMeshObjectGPUSkin* InGPUSkin, FGPUSkinCache::FRWBuffersAllocation* InPositionAllocation)
+	FGPUSkinCacheEntry(FGPUSkinCache* InSkinCache, FSkeletalMeshObjectGPUSkin* InGPUSkin, FGPUSkinCache::FRWBuffersAllocation* InPositionAllocation, int32 InLOD, EGPUSkinCacheEntryMode InMode)
 		: PositionAllocation(InPositionAllocation)
 		, SkinCache(InSkinCache)
 		, GPUSkin(InGPUSkin)
 		, MorphBuffer(0)
-		, LOD(InGPUSkin->GetLOD())
+		, LOD(InLOD)
+		, Mode(InMode)
 	{
 		
 		const TArray<FSkelMeshRenderSection>& Sections = InGPUSkin->GetRenderSections(LOD);
@@ -394,9 +395,9 @@ public:
 		return SectionData.SourceVertexFactory == SourceVertexFactory;
 	}
 
-	bool IsValid(FSkeletalMeshObjectGPUSkin* InSkin) const
+	bool IsValid(FSkeletalMeshObjectGPUSkin* InSkin, int32 InLOD) const
 	{
-		return GPUSkin == InSkin && GPUSkin->GetLOD() == LOD;
+		return GPUSkin == InSkin && LOD == InLOD;
 	}
 
 	void UpdateSkinWeightBuffer()
@@ -431,7 +432,6 @@ public:
 		Data.SectionIndex = SectionIndex;
 		Data.Section = Section;
 
-		check(GPUSkin->GetLOD() == LOD);
 		FSkeletalMeshRenderData& SkelMeshRenderData = GPUSkin->GetSkeletalMeshRenderData();
 		FSkeletalMeshLODRenderData& LodData = SkelMeshRenderData.LODRenderData[LOD];
 		check(Data.SectionIndex == LodData.FindSectionIndex(*Section));
@@ -513,6 +513,7 @@ public:
 	TArray<FSectionDispatchData>& GetDispatchData() { return DispatchData; }
 
 protected:
+	EGPUSkinCacheEntryMode Mode;
 	FGPUSkinCache::FRWBuffersAllocation* PositionAllocation;
 	FGPUSkinCache* SkinCache;
 	TArray<FGPUSkinBatchElementUserData> BatchElementsUserData;
@@ -1477,6 +1478,7 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList, FGPUSkinCac
 }
 
 bool FGPUSkinCache::ProcessEntry(
+	EGPUSkinCacheEntryMode Mode,
 	FRHICommandListImmediate& RHICmdList, 
 	FGPUBaseSkinVertexFactory* VertexFactory,
 	FGPUSkinPassthroughVertexFactory* TargetVertexFactory, 
@@ -1489,7 +1491,8 @@ bool FGPUSkinCache::ProcessEntry(
 	const FMatrix44f& ClothLocalToWorld, 
 	float ClothBlendWeight, 
 	uint32 RevisionNumber, 
-	int32 Section, 
+	int32 Section,
+	int32 LODIndex,
 	FGPUSkinCacheEntry*& InOutEntry
 	)
 {
@@ -1500,7 +1503,6 @@ bool FGPUSkinCache::ProcessEntry(
 	const uint32 InputStreamStart = BatchElement.BaseVertexIndex;
 
 	FSkeletalMeshRenderData& SkelMeshRenderData = Skin->GetSkeletalMeshRenderData();
-	int32 LODIndex = Skin->GetLOD();
 	FSkeletalMeshLODRenderData& LodData = SkelMeshRenderData.LODRenderData[LODIndex];
 
 	if (FlushCounter < GGPUSkinCacheFlushCounter)
@@ -1512,7 +1514,7 @@ bool FGPUSkinCache::ProcessEntry(
 	if (InOutEntry)
 	{
 		// If the LOD changed, the entry has to be invalidated
-		if (!InOutEntry->IsValid(Skin))
+		if (!InOutEntry->IsValid(Skin, LODIndex))
 		{
 			Release(InOutEntry);
 			InOutEntry = nullptr;
@@ -1583,7 +1585,7 @@ bool FGPUSkinCache::ProcessEntry(
 			return false;
 		}
 
-		InOutEntry = new FGPUSkinCacheEntry(this, Skin, NewPositionAllocation);
+		InOutEntry = new FGPUSkinCacheEntry(this, Skin, NewPositionAllocation, LODIndex, Mode);
 		InOutEntry->GPUSkin = Skin;
 
 		InOutEntry->SetupSection(Section, NewPositionAllocation, &LodData.RenderSections[Section], MorphVertexBuffer, ClothVertexBuffer, NumVertices, InputStreamStart, VertexFactory, TargetVertexFactory);
@@ -1849,6 +1851,12 @@ void FGPUSkinCache::EndBatchDispatch(FRHICommandListImmediate& RHICmdList)
 			FDispatchEntry& DispatchItem = BatchDispatches[Index];
 
 			FGPUSkinCacheEntry* SkinCacheEntry = DispatchItem.SkinCacheEntry;
+
+			if (SkinCacheEntry->Mode != EGPUSkinCacheEntryMode::RayTracing)
+			{
+				continue;
+			}
+
 			FSkeletalMeshLODRenderData& LODModel = *DispatchItem.LODModel;
 
 			if (SkinCacheEntriesProcessed.Contains(SkinCacheEntry))

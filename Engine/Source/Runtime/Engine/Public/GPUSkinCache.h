@@ -116,6 +116,12 @@ struct FCachedGeometry
 	FRDGBufferRef DeformedPositionBuffer = nullptr;
 };
 
+enum class EGPUSkinCacheEntryMode
+{
+	Raster,
+	RayTracing
+};
+
 class FGPUSkinCache
 {
 public:
@@ -155,6 +161,7 @@ public:
 	void UpdateSkinWeightBuffer(FGPUSkinCacheEntry* Entry);
 
 	bool ProcessEntry(
+		EGPUSkinCacheEntryMode Mode,
 		FRHICommandListImmediate& RHICmdList, 
 		FGPUBaseSkinVertexFactory* VertexFactory,
 		FGPUSkinPassthroughVertexFactory* TargetVertexFactory, 
@@ -167,7 +174,8 @@ public:
 		const FMatrix44f& ClothLocalToWorld,
 		float ClothBlendWeight, 
 		uint32 RevisionNumber, 
-		int32 Section, 
+		int32 Section,
+		int32 LOD,
 		FGPUSkinCacheEntry*& InOutEntry
 		);
 
