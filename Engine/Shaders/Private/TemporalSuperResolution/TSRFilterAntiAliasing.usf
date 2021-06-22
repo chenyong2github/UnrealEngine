@@ -1,0 +1,126 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "TSRCommon.ush"
+
+
+//------------------------------------------------------- CONFIG
+
+#define TILE_SIZE 8
+
+
+
+//------------------------------------------------------- PARAMETERS
+
+Texture2D<uint> AntiAliasingTexture;
+RWTexture2D<uint> AntiAliasingOutput;
+
+
+//------------------------------------------------------- FUNCTIONS
+
+taa_half2 SampleAntiAliasing(taa_short2 KernelCenter, taa_short2 Offset)
+{
+	taa_short2 SampleInputPixelPos = ClampPixelOffset(
+		KernelCenter + Offset,
+		InputPixelPosMin, InputPixelPosMax);
+	
+	uint EncodedInputTexelOffset = AntiAliasingTexture[SampleInputPixelPos];
+
+	return DecodeSpatialAntiAliasingOffset(EncodedInputTexelOffset);
+}
+
+//------------------------------------------------------- ENTRY POINT
+
+[numthreads(TILE_SIZE, TILE_SIZE, 1)]
+void MainCS(
+	uint2 GroupId : SV_GroupID,
+	uint GroupThreadIndex : SV_GroupIndex)
+{
+	uint GroupWaveIndex = GetGroupWaveIndex(GroupThreadIndex, /* GroupSize = */ TILE_SIZE * TILE_SIZE);
+
+	float4 Debug = 0.0;
+	
+	taa_short2 InputPixelPos = (
+		taa_short2(InputPixelPosMin) +
+		taa_short2(GroupId) * taa_short2(TILE_SIZE, TILE_SIZE) +
+		Map8x8Tile2x2Lane(GroupThreadIndex));
+	
+	taa_half2 TexelOffsetC = SampleAntiAliasing(InputPixelPos, taa_short2( 0,  0));
+	
+	Debug.rg = abs(TexelOffsetC);
+
+	taa_half2 TexelOffsetN = SampleAntiAliasing(InputPixelPos, taa_short2( 0, -1));
+	taa_half2 TexelOffsetS = SampleAntiAliasing(InputPixelPos, taa_short2( 0, +1));
+	taa_half2 TexelOffsetE = SampleAntiAliasing(InputPixelPos, taa_short2(+1,  0));
+	taa_half2 TexelOffsetW = SampleAntiAliasing(InputPixelPos, taa_short2(-1,  0));
+	
+	taa_half2 TexelOffsetNE = SampleAntiAliasing(InputPixelPos, taa_short2(+1, -1));
+	taa_half2 TexelOffsetNW = SampleAntiAliasing(InputPixelPos, taa_short2(-1, -1));
+	taa_half2 TexelOffsetSE = SampleAntiAliasing(InputPixelPos, taa_short2(+1, +1));
+	taa_half2 TexelOffsetSW = SampleAntiAliasing(InputPixelPos, taa_short2(-1, +1));
+	
+	FLATTEN
+	if (TexelOffsetC.x > 0.0)
+	{
+		TexelOffsetC.x = TexelOffsetE.x < 0.0 ? 0.0 : TexelOffsetC.x;
+	}
+	else if (TexelOffsetC.x < 0.0)
+	{
+		TexelOffsetC.x = TexelOffsetW.x > 0.0 ? 0.0 : TexelOffsetC.x;
+	}
+	else if (TexelOffsetC.y > 0.0)
+	{
+		TexelOffsetC.y = TexelOffsetS.y < 0.0 ? 0.0 : TexelOffsetC.y;
+	}
+	else if (TexelOffsetC.y < 0.0)
+	{
+		TexelOffsetC.y = TexelOffsetN.y > 0.0 ? 0.0 : TexelOffsetC.y;
+	}
+#if 0
+	else
+	{
+		TexelOffsetC = TexelOffsetN;
+
+		FLATTEN
+		if (length2(TexelOffsetS) < length2(TexelOffsetC))
+		{
+			TexelOffsetC = TexelOffsetS;
+		}
+		
+		FLATTEN
+		if (length2(TexelOffsetE) < length2(TexelOffsetC))
+		{
+			TexelOffsetC = TexelOffsetE;
+		}
+		
+		FLATTEN
+		if (length2(TexelOffsetW) < length2(TexelOffsetC))
+		{
+			TexelOffsetC = TexelOffsetW;
+		}
+	}
+#endif
+
+	{
+		taa_short2 OutputPixelPos;
+		#if 0
+			ISOLATE
+			{
+				OutputPixelPos = dpv_add(
+					taa_short2(InputPixelPosMin) + taa_short2(GroupId) * taa_short2(TILE_SIZE, TILE_SIZE),
+					taa_short2x2(Map8x8Tile2x2LaneDPV(GroupThreadIndex)));
+			}
+		#else
+			OutputPixelPos = InputPixelPos;
+		#endif
+		
+		OutputPixelPos = InvalidateOutputPixelPos(OutputPixelPos, InputInfo_ViewportMax);
+		
+		AntiAliasingOutput[OutputPixelPos] = EncodeSpatialAntiAliasingOffset(TexelOffsetC);
+		
+		#if DEBUG_OUTPUT
+		{
+			DebugOutput[OutputPixelPos] = Debug;
+		}
+		#endif
+	}
+}

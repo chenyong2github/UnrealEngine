@@ -39,6 +39,7 @@ Texture2D<taa_half> InterferenceWeightTexture;
 
 RWTexture2D<taa_half3> FilteredInputOutput;
 RWTexture2D<taa_half3> FilteredPredictionSceneColorOutput;
+RWTexture2D<taa_half>  InputSceneColorLdrLumaOutput;
 
 
 //------------------------------------------------------- FUNCTIONS
@@ -201,6 +202,25 @@ void MainCS(
 		FilteredHistory *= SafeRcp(FilteredHistoryWeight);
 	}
 	
+	// Compute the LDR luma used for spatial anti-aliasing's computation of the TexelOffset
+	#if DIM_OUTPUT_ANTI_ALIASING_LUMA
+	taa_half CenterLumaLDR;
+	{
+		const taa_half SpatialAAExposure = taa_half(0.5);
+
+		#if 0
+			taa_half3 CenterInputLDR = CenterInput / (SpatialAAExposure + CenterInput);
+			CenterLumaLDR = dot(CenterInputLDR, half3(0.299f, 0.587f, 0.114f));
+		#elif 0
+			taa_half CenterLuma = max(CenterInput.r, max(CenterInput.g, CenterInput.b));
+			CenterLumaLDR = CenterLuma / (SpatialAAExposure + CenterLuma);
+		#else
+			taa_half CenterLuma = dot(CenterInput, half3(0.299f, 0.587f, 0.114f));
+			CenterLumaLDR = CenterLuma / (SpatialAAExposure + CenterLuma);
+		#endif
+	}
+	#endif // DIM_OUTPUT_ANTI_ALIASING_LUMA
+	
 	taa_short2 OutputPixelPos;
 	#if 1
 		ISOLATE
@@ -228,7 +248,13 @@ void MainCS(
 
 	FilteredInputOutput[OutputPixelPos] = FilteredInput;
 	FilteredPredictionSceneColorOutput[OutputPixelPos] = FilteredHistory;
-		
+
+	#if DIM_OUTPUT_ANTI_ALIASING_LUMA
+	{
+		InputSceneColorLdrLumaOutput[OutputPixelPos] = CenterLumaLDR;
+	}
+	#endif
+
 	#if DEBUG_OUTPUT
 	{
 		DebugOutput[OutputPixelPos - LowFrequencyInfo_ViewportMin] = Debug;
