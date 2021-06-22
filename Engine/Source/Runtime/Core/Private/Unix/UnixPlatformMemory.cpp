@@ -295,7 +295,7 @@ class FMalloc* FUnixPlatformMemory::BaseAllocator()
 		break;
 #endif // PLATFORM_SUPPORTS_JEMALLOC
 
-#if PLATFORM_SUPPORTS_MIMALLOC && MIMALLOC_ALLOCATOR_ALLOWED
+#if PLATFORM_SUPPORTS_MIMALLOC && MIMALLOC_ALLOCATOR_ALLOWED && PLATFORM_BUILDS_MIMALLOC
 	case EMemoryAllocatorToUse::Mimalloc:
 		Allocator = new FMallocMimalloc();
 		break;
