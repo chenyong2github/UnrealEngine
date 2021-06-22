@@ -110,9 +110,9 @@ FText SChordEditBox::GetNotificationMessage() const
 
 void SChordEditBox::OnChordEditorLostFocus()
 {
-	if( (!ChordAcceptButton.IsValid() || ChordAcceptButton->HasMouseCapture() == false) && !ChordEditor->IsTyping() )
+	if( (!ChordAcceptButton.IsValid() || ChordAcceptButton->HasMouseCapture() == false) && !ChordEditor->IsTyping() && !ChordEditor->HasConflict() )
 	{
-		if( ChordEditor->IsEditing() && ChordEditor->IsEditedChordValid() && !ChordEditor->HasConflict() )
+		if( ChordEditor->IsEditing() && ChordEditor->IsEditedChordValid() )
 		{
 			ChordEditor->CommitNewChord();
 		}
