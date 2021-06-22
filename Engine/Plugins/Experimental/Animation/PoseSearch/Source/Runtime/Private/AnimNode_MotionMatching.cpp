@@ -81,6 +81,7 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 			{
 				UE::PoseSearch::FPoseHistory& History = PoseHistoryProvider->GetPoseHistory();
 				ComposedQuery.TrySetPoseFeatures(&History);
+				ComposedQuery.TrySetPastTrajectoryFeatures(&History);
 			}
 		}
 
@@ -222,14 +223,6 @@ bool FAnimNode_MotionMatching::IsValidForSearch() const
 
 void FAnimNode_MotionMatching::ComposeQuery(const FAnimationBaseContext& Context)
 {
-	// Set past trajectory features
-	UE::PoseSearch::IPoseHistoryProvider* PoseHistoryProvider = Context.GetMessage<UE::PoseSearch::IPoseHistoryProvider>();
-	if (PoseHistoryProvider)
-	{
-		UE::PoseSearch::FPoseHistory& History = PoseHistoryProvider->GetPoseHistory();
-		ComposedQuery.TrySetPastTrajectoryFeatures(&History);
-	}
-
 	// Merge goal features into the query vector
 	if (ComposedQuery.IsCompatible(Goal))
 	{
