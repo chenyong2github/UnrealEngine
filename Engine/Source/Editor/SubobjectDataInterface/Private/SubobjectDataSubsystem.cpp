@@ -1154,6 +1154,10 @@ int32 USubobjectDataSubsystem::DeleteSubobjects(const FSubobjectDataHandle& Cont
 		{
 			UActorComponent* ActorComponentToSelect = nullptr;
 			NumDeletedSubobjects = FComponentEditorUtils::DeleteComponents(ComponentsToDelete, ActorComponentToSelect);
+			if (ActorComponentToSelect)
+			{
+				OutComponentToSelect = FindHandleForObject(ContextHandle, ActorComponentToSelect);
+			}
 			BroadcastInstanceChanges();
 		}
 	}
