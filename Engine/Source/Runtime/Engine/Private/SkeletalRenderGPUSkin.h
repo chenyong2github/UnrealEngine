@@ -79,7 +79,9 @@ public:
 
 	/** currently LOD for bones being updated */
 	int32 LODIndex;
+#if RHI_RAYTRACING
 	int32 RayTracingLODIndex;
+#endif
 	/** current morph targets active on this mesh */
 	TArray<FActiveMorphTarget> ActiveMorphTargets;
 	/** All morph target weights on this mesh */

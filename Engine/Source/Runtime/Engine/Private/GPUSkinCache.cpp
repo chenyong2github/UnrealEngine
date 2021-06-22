@@ -223,12 +223,12 @@ class FGPUSkinCacheEntry
 {
 public:
 	FGPUSkinCacheEntry(FGPUSkinCache* InSkinCache, FSkeletalMeshObjectGPUSkin* InGPUSkin, FGPUSkinCache::FRWBuffersAllocation* InPositionAllocation, int32 InLOD, EGPUSkinCacheEntryMode InMode)
-		: PositionAllocation(InPositionAllocation)
+		: Mode(InMode)
+		, PositionAllocation(InPositionAllocation)
 		, SkinCache(InSkinCache)
 		, GPUSkin(InGPUSkin)
 		, MorphBuffer(0)
 		, LOD(InLOD)
-		, Mode(InMode)
 	{
 		
 		const TArray<FSkelMeshRenderSection>& Sections = InGPUSkin->GetRenderSections(LOD);
