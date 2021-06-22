@@ -1820,7 +1820,10 @@ void URemoteControlPreset::UnregisterDelegates()
 	FEditorDelegates::EndPIE.RemoveAll(this);
 	FEditorDelegates::PostPIEStarted.RemoveAll(this);
 
-	GEngine->OnLevelActorDeleted().RemoveAll(this);
+	if (GEngine)
+	{
+		GEngine->OnLevelActorDeleted().RemoveAll(this);
+	}
 
 	FCoreUObjectDelegates::OnPreObjectPropertyChanged.RemoveAll(this);
 	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
