@@ -42,7 +42,59 @@ public:
 	FAnimNode_PoseDriver* GetPreviewPoseDriverNode() const;
 
 	/** Util to replace current contents of PoseTargets with info from assigned PoseAsset */
+	UFUNCTION(BlueprintCallable, Category=PoseDriver)
 	void CopyTargetsFromPoseAsset();
+
+	/** Sets the pose-driver its source bones by name */
+	UFUNCTION(BlueprintCallable, Category=PoseDriver)
+	void SetSourceBones(const TArray<FName>& BoneNames);
+
+	/** Returns the pose-driver its source bones by name */
+	UFUNCTION(BlueprintPure, Category=PoseDriver)
+	void GetSourceBoneNames(TArray<FName>& BoneNames);
+ 
+	/** Set the pose-driver its driven bones by name */
+	UFUNCTION(BlueprintCallable, Category=PoseDriver)
+	void SetDrivingBones(const TArray<FName>& BoneNames);
+
+	/** Returns the pose-driver its driven bones by name */
+	UFUNCTION(BlueprintPure, Category=PoseDriver)
+	void GetDrivingBoneNames(TArray<FName>& BoneNames);
+
+	/**  */
+	UFUNCTION(BlueprintCallable, Category=PoseDriver)
+	void SetRBFParameters(FRBFParams Parameters);
+
+	/**  */
+	UFUNCTION(BlueprintPure, Category=PoseDriver)
+	FRBFParams& GetRBFParameters();
+	
+	/**  */
+	UFUNCTION(BlueprintCallable, Category=PoseDriver)
+	void SetPoseDriverSource(EPoseDriverSource DriverSource);
+
+	/**  */
+	UFUNCTION(BlueprintPure, Category=PoseDriver)
+	EPoseDriverSource& GetPoseDriverSource();
+	
+	/**  */
+	UFUNCTION(BlueprintCallable, Category=PoseDriver)
+	void SetPoseDriverOutput(EPoseDriverOutput DriverOutput);
+
+	/**  */
+	UFUNCTION(BlueprintPure, Category=PoseDriver)
+	EPoseDriverOutput& GetPoseDriverOutput();
+	
+	/**  */
+	UFUNCTION(BlueprintCallable, Category=PoseDriver)
+	void SetOnlyDriveSelectedBones(bool bOnlyDriveSelectedBones);
+
+	/**  */
+	UFUNCTION(BlueprintPure, Category=PoseDriver)
+	bool GetOnlyDriveSelectedBones();
+
+
+	
 
 	/** Automatically modify TargetScale for each PoseTarget, based on distance to nearest neighbor */
 	void AutoSetTargetScales(float& OutMaxDistance);

@@ -1110,6 +1110,19 @@ bool UPoseAsset::ContainsPose(const FName& InPoseName) const
 }
 
 #if WITH_EDITOR
+void UPoseAsset::RenamePose(const FName& OriginalPoseName, const FName& NewPoseName)
+{
+	ModifyPoseName(OriginalPoseName, NewPoseName, nullptr);
+}
+
+void UPoseAsset::GetPoseNames(TArray<FName>& PoseNames) const
+{	
+	const int32 NumPoses = GetNumPoses();
+	for (int32 PoseIndex = 0; PoseIndex < NumPoses; ++PoseIndex)
+	{
+		PoseNames.Add(GetPoseNameByIndex(PoseIndex));
+	}
+}
 // whenever you change SourceLocalPoses, or SourceCurves, we should call this to update runtime dataa
 void UPoseAsset::PostProcessData()
 {

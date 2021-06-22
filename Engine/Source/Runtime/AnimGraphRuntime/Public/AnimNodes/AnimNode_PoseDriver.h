@@ -127,7 +127,7 @@ struct ANIMGRAPHRUNTIME_API FPoseDriverTarget
 };
 
 /** RBF based orientation driver */
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintInternalUseOnly)
 struct ANIMGRAPHRUNTIME_API FAnimNode_PoseDriver : public FAnimNode_PoseHandler
 {
 	GENERATED_BODY()
@@ -165,7 +165,7 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_PoseDriver : public FAnimNode_PoseHandler
 	FBoneReference EvalSpaceBone;
 
 	/** Parameters used by RBF solver */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PoseDriver, meta=(ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, Category = PoseDriver, meta=(ShowOnlyInnerProperties))
 	FRBFParams RBFParams;
 
 #if WITH_EDITORONLY_DATA
@@ -182,15 +182,15 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_PoseDriver : public FAnimNode_PoseHandler
 #endif
 
 	/** Which part of the transform is read */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PoseDriver)
+	UPROPERTY(EditAnywhere, Category = PoseDriver)
 	EPoseDriverSource DriveSource;
 
 	/** Whether we should drive poses or curves */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PoseDriver)
+	UPROPERTY(EditAnywhere, Category = PoseDriver)
 	EPoseDriverOutput DriveOutput;
 
 	/** If we should filter bones to be driven using the DrivenBonesFilter array */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PoseDriver)
+	UPROPERTY(EditAnywhere, Category = PoseDriver)
 	uint8 bOnlyDriveSelectedBones : 1;
 
 	/** If true, will recalculate DrivenUID values in PoseTargets array on next eval */

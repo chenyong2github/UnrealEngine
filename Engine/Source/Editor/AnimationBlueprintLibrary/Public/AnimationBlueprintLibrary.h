@@ -6,6 +6,7 @@
 #include "Animation/AnimEnums.h"
 #include "Animation/AnimCurveTypes.h"
 #include "Animation/AnimMetaData.h"
+#include "AnimationGraph.h"
 
 #include "AnimationBlueprintLibrary.generated.h"
 
@@ -471,4 +472,12 @@ public:
 	/** Finds the Bone Path from the given Bone to the Root Bone */
 	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Helpers")
 	static void FindBonePathToRoot(const UAnimSequenceBase* AnimationSequenceBase, FName BoneName, TArray<FName>& BonePath);
+
+	/** Returns all Animation Graphs contained by the provided Animation Blueprint */
+	UFUNCTION(BlueprintCallable, Category=Animation, meta=(ScriptMethod))
+	static void GetAnimationGraphs(UAnimBlueprint* AnimationBlueprint, TArray<UAnimationGraph*>& AnimationGraphs);
+
+	/** Returns all Animation Graph Nodes of the provided Node Class contained by the Animation Blueprint */
+	UFUNCTION(BlueprintCallable, Category=Animation, meta=(ScriptMethod))
+	static void GetNodesOfClass(UAnimBlueprint* AnimationBlueprint, TSubclassOf<UAnimGraphNode_Base> NodeClass, TArray<UAnimGraphNode_Base*>& GraphNodes, bool bIncludeChildClasses = true);
 };

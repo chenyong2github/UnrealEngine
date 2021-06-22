@@ -247,9 +247,20 @@ public:
 	ENGINE_API bool ContainsPose(const FName& InPoseName) const;
 
 #if WITH_EDITOR
+	/** Renames a specific pose */
+	UFUNCTION(BlueprintCallable, Category=PoseAsset)
+	void RenamePose(const FName& OriginalPoseName, const FName& NewPoseName);
+	
+	/** Returns the name of all contained poses */
+	UFUNCTION(BlueprintPure, Category=PoseAsset)
+	void GetPoseNames(TArray<FName>& PoseNames) const;
+	
 	ENGINE_API bool AddOrUpdatePoseWithUniqueName(USkeletalMeshComponent* MeshComponent, FSmartName* OutPoseName = nullptr);
 
 	ENGINE_API void CreatePoseFromAnimation(class UAnimSequence* AnimSequence, const TArray<FSmartName>* InPoseNames = nullptr);
+
+	/** Contained poses are re-generated from the provided Animation Sequence*/
+	UFUNCTION(BlueprintCallable, Category=PoseAsset)
 	ENGINE_API void UpdatePoseFromAnimation(class UAnimSequence* AnimSequence);
 
 	// Begin AnimationAsset interface

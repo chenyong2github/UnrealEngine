@@ -396,6 +396,80 @@ void UAnimGraphNode_PoseDriver::CopyTargetsFromPoseAsset()
 	}
 }
 
+void UAnimGraphNode_PoseDriver::SetSourceBones(const TArray<FName>& BoneNames)
+{
+	Node.SourceBones.Empty(BoneNames.Num());
+	for (const FName& BoneName : BoneNames)
+	{
+		Node.SourceBones.Add(BoneName);
+	}
+}
+
+void UAnimGraphNode_PoseDriver::GetSourceBoneNames(TArray<FName>& BoneNames)
+{
+	for (const FBoneReference& SourceBone : Node.SourceBones)
+	{
+		BoneNames.Add(SourceBone.BoneName);
+	}
+}
+
+void UAnimGraphNode_PoseDriver::SetDrivingBones(const TArray<FName>& BoneNames)
+{
+	Node.OnlyDriveBones.Empty(BoneNames.Num());
+	for (const FName& BoneName : BoneNames)
+	{
+		Node.OnlyDriveBones.Add(BoneName);
+	}
+}
+
+void UAnimGraphNode_PoseDriver::GetDrivingBoneNames(TArray<FName>& BoneNames)
+{
+	for (const FBoneReference& SourceBone : Node.OnlyDriveBones)
+	{
+		BoneNames.Add(SourceBone.BoneName);
+	}
+}
+
+void UAnimGraphNode_PoseDriver::SetRBFParameters(FRBFParams Parameters)
+{
+	Node.RBFParams = Parameters;
+}
+
+FRBFParams& UAnimGraphNode_PoseDriver::GetRBFParameters()
+{
+	return Node.RBFParams;
+}
+
+void UAnimGraphNode_PoseDriver::SetPoseDriverSource(EPoseDriverSource DriverSource)
+{
+	Node.DriveSource = DriverSource;	
+}
+
+EPoseDriverSource& UAnimGraphNode_PoseDriver::GetPoseDriverSource()
+{
+	return Node.DriveSource;
+}
+
+void UAnimGraphNode_PoseDriver::SetPoseDriverOutput(EPoseDriverOutput DriverOutput)
+{
+	Node.DriveOutput = DriverOutput;
+}
+
+EPoseDriverOutput& UAnimGraphNode_PoseDriver::GetPoseDriverOutput()
+{
+	return Node.DriveOutput;
+}
+
+void UAnimGraphNode_PoseDriver::SetOnlyDriveSelectedBones(bool bOnlyDriveSelectedBones)
+{
+	Node.bOnlyDriveSelectedBones = bOnlyDriveSelectedBones;
+}
+
+bool UAnimGraphNode_PoseDriver::GetOnlyDriveSelectedBones()
+{
+	return Node.bOnlyDriveSelectedBones == 1;
+}
+
 void UAnimGraphNode_PoseDriver::AddNewTarget()
 {
 	FPoseDriverTarget& NewTarget = Node.PoseTargets[Node.PoseTargets.Add(FPoseDriverTarget())];
