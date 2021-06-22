@@ -131,7 +131,6 @@ public:
 
 public:
 	AUsdStageActor();
-	virtual ~AUsdStageActor();
 
 	USDSTAGE_API void Reset() override;
 	void Refresh() const;
@@ -152,6 +151,7 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void Destroyed() override;
 	virtual void PostActorCreated() override;
+	virtual void BeginDestroy() override;
 
 	virtual void PostRegisterAllComponents() override;
 	virtual void PostUnregisterAllComponents() override;
