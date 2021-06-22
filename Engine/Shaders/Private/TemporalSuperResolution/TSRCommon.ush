@@ -27,13 +27,6 @@
 
 #define CONFIG_ENABLE_STOCASTIC_QUANTIZATION 1
 
-#if CONFIG_COMPILE_FP16
-	// Take advantage of RDNA's v_pk_*_{uif}16 instructions
-	#define CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION 1
-#else
-	#define CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION 0
-#endif
-
 
 //------------------------------------------------------- CONSTANTS
 
@@ -41,6 +34,10 @@
 #define MAX_SAMPLE_COUNT 8
 
 #define MAX_FALLBACK_SAMPLE_COUNT 20
+
+// Spatial anti-aliasing encoding settings.
+#define SPATIAL_ANTI_ALIASING_OFFSET_RANGE 0.5
+#define SPATIAL_ANTI_ALIASING_OFFSET_BITDEPTH_PER_CHANNEL 4
 
 #define COMPRESS_PREV_USE_COUNT 1
 #if COMPRESS_PREV_USE_COUNT
@@ -968,3 +965,40 @@ void ComputeCompressedUseCountPixelCoordinates(uint2 PixelPos, out uint2 Compres
 }
 	
 #endif
+
+uint2 EncodeSpatialAntiAliasingOffset(taa_half2x2 TexelOffset)
+{
+	const uint Mask = (1 << SPATIAL_ANTI_ALIASING_OFFSET_BITDEPTH_PER_CHANNEL) - 1;
+	const uint Zero = Mask / 2;
+
+	taa_half Multiply = taa_half(float(Zero) / SPATIAL_ANTI_ALIASING_OFFSET_RANGE);
+
+	uint2 EncodedTexelOffset = 0;
+	EncodedTexelOffset |= clamp(uint2(int2(round(TexelOffset[0] * Multiply)) + int(1 + Zero)), uint(1), Mask) << 0;
+	EncodedTexelOffset |= clamp(uint2(int2(round(TexelOffset[1] * Multiply)) + int(1 + Zero)), uint(1), Mask) << SPATIAL_ANTI_ALIASING_OFFSET_BITDEPTH_PER_CHANNEL;
+	return EncodedTexelOffset;
+}
+
+uint EncodeSpatialAntiAliasingOffset(taa_half2 TexelOffset)
+{
+	return dpv_lo(EncodeSpatialAntiAliasingOffset(dpv_interleave_mono_registers(TexelOffset)));
+}
+
+taa_half2x2 DecodeSpatialAntiAliasingOffset(uint2 EncodedInputTexelOffset)
+{
+	const uint Mask = (1 << SPATIAL_ANTI_ALIASING_OFFSET_BITDEPTH_PER_CHANNEL) - 1;
+	const uint Zero = Mask / 2;
+	
+	taa_half Multiply = taa_half(SPATIAL_ANTI_ALIASING_OFFSET_RANGE / float(Zero));
+
+	taa_half2x2 TexelOffset;
+	TexelOffset[0] = taa_half2((EncodedInputTexelOffset >> 0                                                ) & Mask) * Multiply - (taa_half(1 + Zero) * Multiply);
+	TexelOffset[1] = taa_half2((EncodedInputTexelOffset >> SPATIAL_ANTI_ALIASING_OFFSET_BITDEPTH_PER_CHANNEL) & Mask) * Multiply - (taa_half(1 + Zero) * Multiply);
+
+	return TexelOffset;
+}
+
+taa_half2 DecodeSpatialAntiAliasingOffset(uint EncodedInputTexelOffset)
+{
+	return dpv_lo(DecodeSpatialAntiAliasingOffset(dpv_interleave_mono_registers(EncodedInputTexelOffset)));
+}

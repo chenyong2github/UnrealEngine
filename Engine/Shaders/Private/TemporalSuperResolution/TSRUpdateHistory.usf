@@ -24,6 +24,15 @@
 
 #define CONFIG_VFX_SURVIVAL 1
 
+#define CONFIG_REJECTION_ANTI_ALIASING (DIM_REJECTION_ANTI_ALIASING)
+
+#if CONFIG_COMPILE_FP16
+	// Take advantage of RDNA's v_pk_*_{uif}16 instructions
+	#define CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION 1
+#else
+	#define CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION 0
+#endif
+
 
 //------------------------------------------------------- CONSTANTS
 
@@ -40,6 +49,7 @@ Texture2D<taa_half> TranslucencyRejectionTexture;
 Texture2D<float2> DilatedVelocityTexture;
 Texture2D<uint> ParallaxFactorTexture;
 Texture2D<taa_half> ParallaxRejectionMaskTexture;
+Texture2D<uint> AntiAliasingTexture;
 
 float4 HistoryPixelPosToScreenPos;
 float4 HistoryPixelPosToPPCo;
@@ -198,9 +208,6 @@ void MainCS(
 
 	ISOLATE
 	{
-		// Vector in pixel between pixel K -> O.
-		taa_half2x2 dKO = taa_half2x2(PPCo - PPCk);
-
 		float2x2 EncodedVelocity = dpv_interleave_registers(
 			DilatedVelocityTexture[dpv_lo(InputPixelPos)],
 			DilatedVelocityTexture[dpv_hi(InputPixelPos)]);
@@ -229,6 +236,39 @@ void MainCS(
 		uint2 SceneStencilRef = dpv_interleave_registers(
 			InputSceneStencilTexture.Load(int3(dpv_lo(InputPixelPos), 0)) STENCIL_COMPONENT_SWIZZLE, 
 			InputSceneStencilTexture.Load(int3(dpv_hi(InputPixelPos), 0)) STENCIL_COMPONENT_SWIZZLE);
+		
+		#if CONFIG_REJECTION_ANTI_ALIASING
+		{
+			// Detect if HistoryBufferUV would be outside of the viewport.
+			bool2 bOffScreen = bool2(
+				IsOffScreen(bCameraCut, dpv_lo(PrevScreenPos), dpv_lo(ParallaxRejectionMask)),
+				IsOffScreen(bCameraCut, dpv_hi(PrevScreenPos), dpv_hi(ParallaxRejectionMask)));
+			
+			taa_half2 TotalRejection = taa_half2(
+				bOffScreen[0] ? 0.0 : saturate(LowFrequencyRejection[0] * 4.0),
+				bOffScreen[1] ? 0.0 : saturate(LowFrequencyRejection[1] * 4.0));
+
+			uint2 EncodedInputTexelOffset = dpv_interleave_registers(
+				AntiAliasingTexture[dpv_lo(InputPixelPos)],
+				AntiAliasingTexture[dpv_hi(InputPixelPos)]);
+			
+			taa_half2x2 TexelOffset = DecodeSpatialAntiAliasingOffset(EncodedInputTexelOffset);
+			
+			{
+				PPCo += dpv_scale(TexelOffset, taa_half(1.0) - TotalRejection);
+				PPCk = floor(PPCo) + 0.5;
+				InputPixelPos = ClampPixelOffset(
+					taa_short2x2(PPCo),
+					InputPixelPosMin, InputPixelPosMax);
+			}
+			
+			Debug[0] = abs(TexelOffset[0]);
+			Debug[1] = abs(TexelOffset[1]);
+		}
+		#endif
+
+		// Vector in pixel between pixel K -> O.
+		taa_half2x2 dKO = taa_half2x2(PPCo - PPCk);
 
 		UNROLL_N(CONFIG_SAMPLES - 1)
 		for (uint SampleId = 1; SampleId < CONFIG_SAMPLES; SampleId++)
@@ -343,7 +383,7 @@ void MainCS(
 			#if CONFIG_VFX_SURVIVAL
 			if (SampleId == 0)
 			{
-				ToneWeight = max(ToneWeight, ComputeSampleWeigth(1.0, dPP, /* MinimalContribution = */ 0.0));
+				ToneWeight = max(ToneWeight, ToneWeight > 0.2 ? 0.0 : ComputeSampleWeigth(1.0, dPP, /* MinimalContribution = */ 0.0));
 			}
 			#endif
 
@@ -632,12 +672,15 @@ void MainCS(
 		// Determine whether the the prediction based rejection was confident enough.
 		taa_half2 RejectionConfidentEnough = taa_half(1); // saturate(RejectionValidity * MAX_SAMPLE_COUNT - 3.0);
 
+		// Clamp the validity due to motion to maintain better sharpness.
+		taa_half2 ClampedPrevHistoryValidity = min(PrevHistoryValidity, taa_half(1.0) - (taa_half(1.0) - PredictionOnlyValidity) * saturate(OutputPixelVelocity * rcp(taa_half(40.0))));
+
 		// Compute the newly rejected validity
 		taa_half2 RejectedValidity = (
-			min(PrevHistoryValidity, PredictionOnlyValidity - DesiredCurrentContribution) +
-			max(PrevHistoryValidity - PredictionOnlyValidity + DesiredCurrentContribution, taa_half(0.0)) * PrevHistoryRejectionWeight);
+			min(ClampedPrevHistoryValidity, PredictionOnlyValidity - DesiredCurrentContribution) +
+			max(ClampedPrevHistoryValidity - PredictionOnlyValidity + DesiredCurrentContribution, taa_half(0.0)) * PrevHistoryRejectionWeight);
 
-		RejectedValidity = PrevHistoryValidity * PrevHistoryRejectionWeight;
+		RejectedValidity = ClampedPrevHistoryValidity * PrevHistoryRejectionWeight;
 
 		// Compute the maximum output validity.
 		taa_half2 OutputValidity = (

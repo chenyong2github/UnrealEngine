@@ -107,7 +107,7 @@ FScreenPassTexture AddFXAAPass(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 
 	AddDrawScreenPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("FXAA %dx%d (PS)", OutputViewport.Rect.Width(), OutputViewport.Rect.Height()),
+		RDG_EVENT_NAME("FXAA(Quality=%d) %dx%d PS", Inputs.Quality, OutputViewport.Rect.Width(), OutputViewport.Rect.Height()),
 		View,
 		OutputViewport,
 		FScreenPassTextureViewport(Inputs.SceneColor),
