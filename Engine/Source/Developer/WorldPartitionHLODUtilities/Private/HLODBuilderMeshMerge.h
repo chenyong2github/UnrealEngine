@@ -9,5 +9,6 @@
  */
 class FHLODBuilder_MeshMerge : public FHLODBuilder
 {
+public:
 	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) override;
 };
