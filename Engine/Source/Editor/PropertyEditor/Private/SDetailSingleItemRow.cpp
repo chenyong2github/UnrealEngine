@@ -652,6 +652,7 @@ bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 
 	FUIAction CopyAction;
 	FUIAction PasteAction;
+	FUIAction CopyDisplayNameAction = FExecuteAction::CreateSP(this, &SDetailSingleItemRow::OnCopyPropertyDisplayName);
 
 	if (bIsCopyPasteBound)
 	{
@@ -697,6 +698,12 @@ bool SDetailSingleItemRow::OnContextMenuOpening(FMenuBuilder& MenuBuilder)
 			NSLOCTEXT("PropertyView", "PasteProperty_ToolTip", "Paste the copied value here"),
 			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Paste"),
 			PasteAction);
+
+		MenuBuilder.AddMenuEntry(
+			NSLOCTEXT("PropertyView", "CopyPropertyDisplayName", "Copy Display Name"),
+			NSLOCTEXT("PropertyView", "CopyPropertyDisplayName_ToolTip", "Copy this property display name"),
+			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy"),
+			CopyDisplayNameAction);
 	}
 
 	if (OwnerTreeNode.Pin()->GetDetailsView()->IsFavoritingEnabled())
@@ -795,6 +802,18 @@ void SDetailSingleItemRow::OnCopyProperty()
 			{
 				FPlatformApplicationMisc::ClipboardCopy(*Value);
 			}
+		}
+	}
+}
+
+void SDetailSingleItemRow::OnCopyPropertyDisplayName()
+{
+	if (OwnerTreeNode.IsValid())
+	{
+		TSharedPtr<FPropertyNode> PropertyNode = GetPropertyNode();
+		if (PropertyNode.IsValid())
+		{
+			FPlatformApplicationMisc::ClipboardCopy(*PropertyNode->GetDisplayName().ToString());
 		}
 	}
 }
