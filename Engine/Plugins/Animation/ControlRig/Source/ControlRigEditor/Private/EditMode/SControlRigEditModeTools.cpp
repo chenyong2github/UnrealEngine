@@ -107,7 +107,7 @@ public:
 			TSharedPtr<IPropertyHandle> ValuePropertyHandle = DetailLayout.GetProperty(ValuePropertyName, Proxy->GetClass());
 			if (ValuePropertyHandle)
 			{
-				ValuePropertyHandle->SetPropertyDisplayName(FText::FromName(ControlElement->Settings.DisplayName));
+				ValuePropertyHandle->SetPropertyDisplayName(FText::FromName(ControlElement->GetDisplayName()));
 			}
 
 			URigHierarchy* Hierarchy = Proxy->ControlRig->GetHierarchy();
