@@ -315,11 +315,11 @@ public:
 	CORE_API FString ToString(EGuidFormats Format) const;
 
 	/**
-	 * Appends this GUID to the string builder in DigitsWithHyphensLower format.
+	 * Appends this GUID to the string builder using the specified format.
 	 */
-	CORE_API void AppendString(FAnsiStringBuilderBase& Builder) const;
-	CORE_API void AppendString(FUtf8StringBuilderBase& Builder) const;
-	CORE_API void AppendString(FWideStringBuilderBase& Builder) const;
+	CORE_API void AppendString(FAnsiStringBuilderBase& Builder, EGuidFormats Format = EGuidFormats::DigitsWithHyphensLower) const;
+	CORE_API void AppendString(FUtf8StringBuilderBase& Builder, EGuidFormats Format = EGuidFormats::DigitsWithHyphensLower) const;
+	CORE_API void AppendString(FWideStringBuilderBase& Builder, EGuidFormats Format = EGuidFormats::DigitsWithHyphensLower) const;
 
 public:
 
