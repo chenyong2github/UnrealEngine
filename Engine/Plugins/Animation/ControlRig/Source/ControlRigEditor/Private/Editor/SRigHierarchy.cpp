@@ -2385,6 +2385,12 @@ bool SRigHierarchy::OnVerifyNameChanged(const FRigElementKey& OldKey, const FStr
 		return true;
 	}
 
+	if (NewName.IsEmpty())
+	{
+		OutErrorMessage = FText::FromString(TEXT("Name is empty."));
+		return false;
+	}
+
 	// make sure there is no duplicate
 	if (ControlRigBlueprint.IsValid())
 	{
