@@ -12,13 +12,13 @@
 #include "DatasmithUtils.h"
 
 static TAutoConsoleVariable<int32> CVarStaticCADTranslatorEnableThreadedImport(
-	TEXT("DS.CADTranslator.EnableThreadedImport"),
+	TEXT("ds.CADTranslator.EnableThreadedImport"),
 	1,
 	TEXT("Activate to parallelise CAD file processing.\n"),
 	ECVF_Default);
 
 static TAutoConsoleVariable<int32> CVarStaticCADTranslatorEnableKernelIOTessellation(
-	TEXT("DS.CADTranslator.EnableKernelIOTessellation"),
+	TEXT("ds.CADTranslator.EnableKernelIOTessellation"),
 	1,
 	TEXT("Activate to use KernelIO Tessellation.\n"),
 	ECVF_Default);
@@ -85,9 +85,6 @@ void FDatasmithCADTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCa
 bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithScene)
 {
 	ImportParameters.bEnableKernelIOTessellation = (CVarStaticCADTranslatorEnableKernelIOTessellation.GetValueOnAnyThread() != 0);;
-#ifdef CADKERNEL_DEBUG
-	ImportParameters.bEnableKernelIOTessellation = false;
-#endif
 
 	ImportParameters.MetricUnit = 0.001;
 	ImportParameters.ScaleFactor = 0.1;
@@ -144,10 +141,6 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 	if (ImportParameters.bEnableCacheUsage)
 	{
 		bool bWithProcessor = (CVarStaticCADTranslatorEnableThreadedImport.GetValueOnAnyThread() != 0);
-
-#ifdef CAD_TRANSLATOR_DEBUG
-		bWithProcessor = false;
-#endif //CAD_TRANSLATOR_DEBUG
 
 		TMap<uint32, FString> CADFileToUEFileMap;
 		int32 NumCores = FPlatformMisc::NumberOfCores();
