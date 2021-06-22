@@ -376,7 +376,8 @@ bool FDefaultGameMoviePlayer::PlayMovie()
 			VirtualRenderWindow->SetContent(LoadingScreenContents.ToSharedRef());
 
 			// Register the movie viewport so that it can receive user input.
-			if (!FPlatformProperties::SupportsWindowedMode())
+			// There is only a valid viewport if we have a movie streamer as the streamer sets it.
+			if ((!FPlatformProperties::SupportsWindowedMode()) && (ActiveMovieStreamer.IsValid()))
 			{
 				TSharedPtr<SViewport> MovieViewport = MovieViewportWeakPtr.Pin();
 				if (MovieViewport.IsValid())
