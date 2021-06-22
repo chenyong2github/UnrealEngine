@@ -906,38 +906,6 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 	}
 }
 
-AUsdStageActor::~AUsdStageActor()
-{
-#if WITH_EDITOR
-	if ( !IsEngineExitRequested() && HasAuthorityOverStage() )
-	{
-		FEditorDelegates::BeginPIE.RemoveAll(this);
-		FEditorDelegates::PostPIEStarted.RemoveAll(this);
-		FUsdDelegates::OnPostUsdImport.RemoveAll(this);
-		FUsdDelegates::OnPreUsdImport.RemoveAll(this);
-		if ( UTransBuffer* TransBuffer = GUnrealEd ? Cast<UTransBuffer>( GUnrealEd->Trans ) : nullptr )
-		{
-			TransBuffer->OnTransactionStateChanged().RemoveAll( this );
-			TransBuffer->OnRedo().Remove( OnRedoHandle );
-		}
-
-		GEngine->OnLevelActorDeleted().AddUObject( this, &AUsdStageActor::OnLevelActorDeleted );
-
-		// This clears the SUSDStage window whenever the level we're currently in gets destroyed.
-		// Note that this is not called when deleting from the Editor, as the actor goes into the undo buffer.
-		OnActorDestroyed.Broadcast();
-		CloseUsdStage();
-
-		if ( RootUsdTwin )
-		{
-			RootUsdTwin->Clear();
-		}
-
-		FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll( this );
-	}
-#endif // WITH_EDITOR
-}
-
 USDSTAGE_API void AUsdStageActor::Reset()
 {
 	Super::Reset();
@@ -1861,6 +1829,40 @@ void AUsdStageActor::PostActorCreated()
 	{
 		LoadUsdStage();
 	}
+}
+
+void AUsdStageActor::BeginDestroy()
+{
+#if WITH_EDITOR
+	if ( !IsEngineExitRequested() && HasAuthorityOverStage() )
+	{
+		FEditorDelegates::BeginPIE.RemoveAll( this );
+		FEditorDelegates::PostPIEStarted.RemoveAll( this );
+		FUsdDelegates::OnPostUsdImport.RemoveAll( this );
+		FUsdDelegates::OnPreUsdImport.RemoveAll( this );
+		if ( UTransBuffer* TransBuffer = GUnrealEd ? Cast<UTransBuffer>( GUnrealEd->Trans ) : nullptr )
+		{
+			TransBuffer->OnTransactionStateChanged().RemoveAll( this );
+			TransBuffer->OnRedo().Remove( OnRedoHandle );
+		}
+
+		GEngine->OnLevelActorDeleted().RemoveAll( this );
+		FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll( this );
+	}
+
+	// This clears the SUSDStage window whenever the level we're currently in gets destroyed.
+	// Note that this is not called when deleting from the Editor, as the actor goes into the undo buffer.
+	OnActorDestroyed.Broadcast();
+	CloseUsdStage();
+
+	// If our prims are already destroyed then likely the entire map has been destroyed anyway, so don't need to clear it
+	if ( RootUsdTwin && !RootUsdTwin->HasAnyFlags( RF_BeginDestroyed ) )
+	{
+		RootUsdTwin->Clear();
+	}
+#endif // WITH_EDITOR
+
+	Super::BeginDestroy();
 }
 
 void AUsdStageActor::PostRegisterAllComponents()
