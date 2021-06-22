@@ -345,6 +345,7 @@ public:
 		bForceRDOOff_Editor(true),
 		CompressEffortLevel_NoEditor(OodleTex_EncodeEffortLevel_High),
 		CompressEffortLevel_Editor(OodleTex_EncodeEffortLevel_Normal),
+		RDOUniversalTiling(OodleTex_RDO_UniversalTiling_Disable),
 		bDebugColor(false),
 		DefaultRDOLambda(OodleTex_RDOLagrangeLambda_Default),
 		GlobalLambdaMultiplier(1.f)
@@ -377,10 +378,17 @@ public:
 			GConfig->SetInt(OODLETEXTURE_INI_SECTION, TEXT("LogVerbosity"), LogVerbosity, GEngineIni);
 			GConfig->SetFloat(OODLETEXTURE_INI_SECTION, TEXT("GlobalLambdaMultiplier"), GlobalLambdaMultiplier, GEngineIni);
 			GConfig->SetInt(OODLETEXTURE_INI_SECTION, TEXT("DefaultRDOLambda"), DefaultRDOLambda, GEngineIni);
+			GConfig->SetInt(OODLETEXTURE_INI_SECTION, TEXT("RDOUniversalTiling"), (int32)RDOUniversalTiling, GEngineIni);
 
 			GConfig->Flush(false);
 		}
 		#endif
+		
+		//
+		// Note that while this gets called during singleton init for the module,
+		// the INIs don't exist when we're being run as a texture build worker,
+		// so all of these GConfig calls do nothing.
+		// 
 		
 		// Class config variables
 		GConfig->GetBool(IniSection, TEXT("bForceAllBC23ToBC7"), bForceAllBC23ToBC7, GEngineIni);
@@ -393,6 +401,7 @@ public:
 		GConfig->GetInt(IniSection, TEXT("LogVerbosity"), LocalDebugConfig.LogVerbosity, GEngineIni);
 		GConfig->GetFloat(IniSection, TEXT("GlobalLambdaMultiplier"), GlobalLambdaMultiplier, GEngineIni);
 		GConfig->GetInt(IniSection, TEXT("DefaultRDOLambda"), DefaultRDOLambda, GEngineIni);
+		GConfig->GetInt(IniSection, TEXT("RDOUniversalTiling"), (int32&)RDOUniversalTiling, GEngineIni);
 
 		// sanitize config values :
 		DefaultRDOLambda = FMath::Clamp(DefaultRDOLambda,0,100);
@@ -402,12 +411,20 @@ public:
 			GlobalLambdaMultiplier = 1.f;
 		}
 
-		UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture %s init {cook RDO %s %d , Editor RDO %s %d } with DefaultRDOLambda=%d"),
+		if (RDOUniversalTiling < 0 ||
+			RDOUniversalTiling > OodleTex_RDO_UniversalTiling_Max)
+		{
+			UE_LOG(LogTextureFormatOodle, Warning, TEXT("Invalid RDOUniversalTiling value supplied: %d, using 0 (Disabled)"), RDOUniversalTiling);
+			RDOUniversalTiling = OodleTex_RDO_UniversalTiling_Disable;
+		}
+
+		UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture %s init {cook RDO %s %d , Editor RDO %s %d } with DefaultRDOLambda=%d, RDOUniversalTiling=%d"),
 			TEXT(OodleTextureVersion),
 			bForceRDOOff_NoEditor ? TEXT("Off") : TEXT("On"), CompressEffortLevel_NoEditor,
 			bForceRDOOff_Editor ? TEXT("Off") : TEXT("On"), CompressEffortLevel_Editor,
-			DefaultRDOLambda);
-			
+			DefaultRDOLambda,
+			(int32)RDOUniversalTiling
+			);
 		#ifdef DO_FORCE_UNIQUE_DDC_KEY_PER_BUILD
 		UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture DO_FORCE_UNIQUE_DDC_KEY_PER_BUILD"));
 		#endif
@@ -417,11 +434,12 @@ public:
 	{
 		int RDOLambda;
 		OodleTex_EncodeEffortLevel EffortLevel;
+		OodleTex_RDO_UniversalTiling LocalRDOUniversalTiling;
 		EPixelFormat CompressedPixelFormat;
 		bool bLocalDebugColor;
 		const bool bHasAlpha = !BuildSettings.bForceNoAlphaChannel; 
 		
-		GetOodleCompressParameters(&CompressedPixelFormat,&RDOLambda,&EffortLevel, &bLocalDebugColor,BuildSettings,bHasAlpha);
+		GetOodleCompressParameters(&CompressedPixelFormat,&RDOLambda,&EffortLevel, &bLocalDebugColor,&LocalRDOUniversalTiling,BuildSettings,bHasAlpha);
 
 		FCbWriter Writer;
 		Writer.BeginObject("TextureFormatOodleSettings");
@@ -437,12 +455,19 @@ public:
 		Writer.AddInteger("EffortLevel", EffortLevel);
 		Writer.AddBool("bDebugColor", bLocalDebugColor);
 
+		// Don't write if default to maintain compat with any outstanding texture
+		// build workers.
+		if (LocalRDOUniversalTiling != OodleTex_RDO_UniversalTiling_Disable)
+		{
+			Writer.AddInteger("RDOUniversalTiling", LocalRDOUniversalTiling);
+		}
+
 		Writer.EndObject();
 
 		return Writer.Save().AsObject();
 	}
 
-	void GetOodleCompressParameters(EPixelFormat * OutCompressedPixelFormat,int * OutRDOLambda, OodleTex_EncodeEffortLevel * OutEffortLevel, bool * bOutDebugColor, const FTextureBuildSettings& InBuildSettings, bool bHasAlpha) const
+	void GetOodleCompressParameters(EPixelFormat * OutCompressedPixelFormat,int * OutRDOLambda, OodleTex_EncodeEffortLevel * OutEffortLevel, bool * bOutDebugColor, OodleTex_RDO_UniversalTiling* OutRDOUniversalTiling, const struct FTextureBuildSettings& InBuildSettings, bool bHasAlpha) const
 	{
 		FName TextureFormatName = InBuildSettings.TextureFormatName;
 
@@ -516,6 +541,12 @@ public:
 		{
 			// If we have an explicit format config, then use it directly
 			FCbFieldView FieldView;
+
+			// RDOUniversalTiling is only set if not default, so fall back to defaults if it doesn't exist.
+			// Note that in this case, we're a texture build worker, so our defaults are not
+			// changed by GConfig.
+			*OutRDOUniversalTiling = (OodleTex_RDO_UniversalTiling)InBuildSettings.FormatConfigOverride.FindView("RDOUniversalTiling").AsUInt32(RDOUniversalTiling);
+
 			FieldView = InBuildSettings.FormatConfigOverride.FindView("RDOLambda");
 			checkf(FieldView.HasValue(), TEXT("Missing RDOLambda key from FormatConfigOverride"));
 			*OutRDOLambda = FieldView.AsInt32();
@@ -617,6 +648,7 @@ public:
 
 		*OutRDOLambda = RDOLambda;
 		*OutEffortLevel = EffortLevel;
+		*OutRDOUniversalTiling = RDOUniversalTiling;
 	}
 
 private:
@@ -626,6 +658,7 @@ private:
 	bool bForceRDOOff_Editor; // bForceRDOOff in Editor
 	int CompressEffortLevel_NoEditor; // how much time to spend encoding to get higher quality 
 	int CompressEffortLevel_Editor; // CompressEffortLevel in Editor
+	OodleTex_RDO_UniversalTiling RDOUniversalTiling; // whether to use universal tiling, and at what block size.
 	bool bDebugColor; // color textures by their BCN, for data discovery
 	// if no lambda is set on Texture or lodgroup, fall through to this global default :
 	int DefaultRDOLambda;
@@ -696,6 +729,7 @@ public:
 		
 		int RDOLambda;
 		OodleTex_EncodeEffortLevel EffortLevel;
+		OodleTex_RDO_UniversalTiling RDOUniversalTiling;
 		EPixelFormat CompressedPixelFormat;
 		bool bDebugColor;
 
@@ -703,9 +737,9 @@ public:
 		//	bHasAlpha is used for AutoDXT -> DXT1/5
 		//	we do have Texture.bForceNoAlphaChannel/CompressionNoAlpha but that's not quite what we want
 		// do go ahead and read bForceNoAlphaChannel/CompressionNoAlpha so that we invalidate DDC when that changes
-		bool bHasAlpha = !InBuildSettings.bForceNoAlphaChannel;
+		bool bHasAlpha = !InBuildSettings.bForceNoAlphaChannel; 
 		
-		GlobalFormatConfig.GetOodleCompressParameters(&CompressedPixelFormat, &RDOLambda, &EffortLevel, &bDebugColor, InBuildSettings, bHasAlpha);
+		GlobalFormatConfig.GetOodleCompressParameters(&CompressedPixelFormat,&RDOLambda,&EffortLevel,&bDebugColor,&RDOUniversalTiling,InBuildSettings,bHasAlpha);
 
 		// store the actual lambda in DDC key (rather than "LossyCompressionAmount")
 		// that way any changes in how LossyCompressionAmount maps to lambda get rebuilt
@@ -720,6 +754,10 @@ public:
 		}
 		
 		FString DDCString = FString::Printf(TEXT("Oodle_CPF%d_L%d_E%d"), icpf, (int)RDOLambda, (int)EffortLevel);
+		if (RDOUniversalTiling != OodleTex_RDO_UniversalTiling_Disable)
+		{
+			DDCString += FString::Printf(TEXT("_UT%d"), (int)RDOUniversalTiling);
+		}
 
 		#ifdef DO_FORCE_UNIQUE_DDC_KEY_PER_BUILD
 		DDCString += TEXT(__DATE__);
@@ -742,11 +780,12 @@ public:
 	virtual EPixelFormat GetPixelFormatForImage(const FTextureBuildSettings& InBuildSettings, const struct FImage& Image, bool bHasAlpha) const override
 	{
 		int RDOLambda;
-		OodleTex_EncodeEffortLevel EffortLevel;		
+		OodleTex_EncodeEffortLevel EffortLevel;
+		OodleTex_RDO_UniversalTiling RDOUniversalTiling;
 		EPixelFormat CompressedPixelFormat;
 		bool bDebugColor;
 
-		GlobalFormatConfig.GetOodleCompressParameters(&CompressedPixelFormat,&RDOLambda,&EffortLevel,&bDebugColor,InBuildSettings,bHasAlpha);
+		GlobalFormatConfig.GetOodleCompressParameters(&CompressedPixelFormat,&RDOLambda,&EffortLevel,&bDebugColor,&RDOUniversalTiling,InBuildSettings,bHasAlpha);
 		return CompressedPixelFormat;
 	}
 
@@ -765,10 +804,11 @@ public:
 		bool bHasAlpha = bInHasAlpha;
 
 		int RDOLambda;
-		OodleTex_EncodeEffortLevel EffortLevel;		
+		OodleTex_EncodeEffortLevel EffortLevel;
+		OodleTex_RDO_UniversalTiling RDOUniversalTiling;
 		EPixelFormat CompressedPixelFormat;
 		bool bDebugColor;
-		GlobalFormatConfig.GetOodleCompressParameters(&CompressedPixelFormat,&RDOLambda,&EffortLevel,&bDebugColor,InBuildSettings,bHasAlpha);
+		GlobalFormatConfig.GetOodleCompressParameters(&CompressedPixelFormat,&RDOLambda,&EffortLevel,&bDebugColor,&RDOUniversalTiling,InBuildSettings,bHasAlpha);
 
 		OodleTex_BC OodleBCN = OodleTex_BC_Invalid;
 		if ( CompressedPixelFormat == PF_DXT1 ) { OodleBCN = OodleTex_BC1_WithTransparency; bHasAlpha = false; }
@@ -1036,7 +1076,7 @@ public:
 			OodleOptions.effort = EffortLevel;
 			OodleOptions.metric = OodleTex_RDO_ErrorMetric_Default;
 			OodleOptions.bcn_flags = OodleTex_BCNFlags_None;
-			OodleOptions.universal_tiling = OodleTex_RDO_UniversalTiling_Disable;
+			OodleOptions.universal_tiling = RDOUniversalTiling;
 
 			// if RDOLambda == 0, does non-RDO encode :
 			OodleTex_Err OodleErr = OodleTex_EncodeBCN_RDO_Ex(OodleBCN, OutSlicePtr, NumBlocksPerSlice, 
