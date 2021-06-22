@@ -152,7 +152,6 @@ void SWidgetHittestGrid::Construct(const FArguments& InArgs, TSharedPtr<const SW
 				.Padding(4.f, 0.f, 0.f, 0.f)
 				[
 					SNew(SComboButton)
-					.ButtonStyle(FWidgetReflectorStyle::Get(), "Button")
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Center)
 					.ContentPadding(FMargin(6.0f, 2.0f))
@@ -176,7 +175,6 @@ void SWidgetHittestGrid::Construct(const FArguments& InArgs, TSharedPtr<const SW
 				.Padding(4.f, 0.f, 0.f, 0.f)
 				[
 					SNew(SComboButton)
-					.ButtonStyle(FWidgetReflectorStyle::Get(), "Button")
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Center)
 					.ContentPadding(FMargin(6.0f, 2.0f))
@@ -199,7 +197,6 @@ void SWidgetHittestGrid::Construct(const FArguments& InArgs, TSharedPtr<const SW
 				.Padding(8.f, 0.f, 0.f, 0.f)
 				[
 					SNew(SCheckBox)
-					.Style(FWidgetReflectorStyle::Get(), "CheckBox")
 					.ForegroundColor(FSlateColor::UseForeground())
 					.ToolTipText(LOCTEXT("PickOnNavigateTooltip", "Attempt to pick the widget in the Widget Reflector when navigation via the hit test grid occurred."))
 					.IsChecked(this, &SWidgetHittestGrid::HandleGetVisualizeOnNavigationChecked)
@@ -221,7 +218,6 @@ void SWidgetHittestGrid::Construct(const FArguments& InArgs, TSharedPtr<const SW
 				.Padding(8.f, 0.f, 0.f, 0.f)
 				[
 					SNew(SCheckBox)
-					.Style(FWidgetReflectorStyle::Get(), "CheckBox")
 					.ForegroundColor(FSlateColor::UseForeground())
 					.ToolTipText(LOCTEXT("RejectWidgetReflectorTooltip", "Reject navigation event originated from the Widget Reflector."))
 					.IsChecked(this, &SWidgetHittestGrid::HandleGetRejectWidgetReflectorChecked)

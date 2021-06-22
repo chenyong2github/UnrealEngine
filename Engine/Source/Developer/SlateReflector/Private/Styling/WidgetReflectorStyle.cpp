@@ -50,7 +50,7 @@ TSharedRef< FSlateStyleSet > FWidgetReflectorStyle::Create()
 		StyleSet->Set("Icon.HitTestPicking", new FSlateImageBrush(RootToContentDir("Icons/GeneralTools/Select_40x.png"), Icon24x24));
 		StyleSet->Set("Icon.VisualPicking", new FSlateImageBrush(RootToContentDir("Icons/GeneralTools/Paint_40x.png"), Icon24x24));
 		StyleSet->Set("Icon.LoadSnapshot", new FSlateImageBrush(RootToContentDir("Icons/GeneralTools/Import_40x.png"), Icon24x24));
-		StyleSet->Set("Icon.Filter", new FSlateImageBrush(RootToContentDir("Icons/GeneralTools/Filter_40x.png"), Icon24x24));
+		StyleSet->Set("Icon.Filter", new CORE_IMAGE_BRUSH_SVG("Starship/Common/filter", Icon24x24));
 		StyleSet->Set("Icon.TakeSnapshot", new IMAGE_BRUSH_SVG("Starship/Common/SaveThumbnail", Icon24x24));
 
 		StyleSet->Set("Symbols.LeftArrow", new CORE_IMAGE_BRUSH_SVG("Starship/Common/arrow-left", Icon24x24));

@@ -41,6 +41,45 @@ void SWidgetEventLog::Construct(const FArguments& InArgs, TSharedPtr<const SWidg
 	}
 	TSharedRef<IMessageLogListing> MessageLogListing = MessageLogModule.GetLogListing(NAME_WidgetEvents);
 
+	FSlimHorizontalToolBarBuilder ToolbarBuilderGlobal(TSharedPtr<const FUICommandList>(), FMultiBoxCustomization::None);
+
+	ToolbarBuilderGlobal.BeginSection("Log");
+	{
+		ToolbarBuilderGlobal.AddWidget(SNew(SCheckBox)
+			.ForegroundColor(FSlateColor::UseForeground())
+			.IsChecked(this, &SWidgetEventLog::HandleFilterWidgetReflectorEventIsChecked)
+			.OnCheckStateChanged(this, &SWidgetEventLog::HandleFilterWidgetReflectorEventStateChanged)
+			[
+				SNew(SBox)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Center)
+				.Padding(FMargin(4.0f, 2.0f))
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("FilterWidgetReflectorEvent", "Hide events originated from the Widget Reflector"))
+				]
+			]);
+
+		FTextBuilder TooltipText;
+
+		ToolbarBuilderGlobal.AddComboButton(
+			FUIAction(
+				FExecuteAction(),
+				FCanExecuteAction(),
+				FGetActionCheckState()
+			),
+			FOnGetContent::CreateSP(this, &SWidgetEventLog::OnGenerateCategoriesMenu),
+			LOCTEXT("CategoryComboButtonText", "Filters"),
+			TooltipText.ToText(),
+			FSlateIcon(FWidgetReflectorStyle::GetStyleSetName(), "Icon.Filter"),
+			false
+		);
+
+
+	}
+	ToolbarBuilderGlobal.EndSection();
+
+
 	ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -52,53 +91,7 @@ void SWidgetEventLog::Construct(const FArguments& InArgs, TSharedPtr<const SWidg
 			.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 			.Padding(4.f)
 			[
-				SNew(SHorizontalBox)
-
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign(HAlign_Left)
-				.Padding(4.f, 0.f, 0.f, 0.f)
-				[
-					SNew(SComboButton)
-					.ButtonStyle(FWidgetReflectorStyle::Get(), "Button")
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					.ContentPadding(FMargin(6.0f, 2.0f))
-					.ButtonContent()
-					[
-						SNew(SBox)
-						.Padding(FMargin(4.f, 0.f, 4.f, 0.f))
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("CategoryComboButtonText", "Filters"))
-							.ColorAndOpacity(FLinearColor::White)
-						]
-					]
-					.ContentPadding(FMargin(6.0f, 2.0f))
-					.OnGetMenuContent(this, &SWidgetEventLog::OnGenerateCategoriesMenu)
-				]
-
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign(HAlign_Left)
-				.Padding(4.f, 0.f, 0.f, 0.f)
-				[
-					SNew(SCheckBox)
-					.Style(FWidgetReflectorStyle::Get(), "CheckBox")
-					.ForegroundColor(FSlateColor::UseForeground())
-					.IsChecked(this, &SWidgetEventLog::HandleFilterWidgetReflectorEventIsChecked)
-					.OnCheckStateChanged(this, &SWidgetEventLog::HandleFilterWidgetReflectorEventStateChanged)
-					[
-						SNew(SBox)
-						.VAlign(VAlign_Center)
-						.HAlign(HAlign_Center)
-						.Padding(FMargin(4.0, 2.0))
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("FilterWidgetReflectorEvent", "Hide events originated from the Widget Reflector"))
-						]
-					]
-				]
+				ToolbarBuilderGlobal.MakeWidget()
 			]
 		]
 
