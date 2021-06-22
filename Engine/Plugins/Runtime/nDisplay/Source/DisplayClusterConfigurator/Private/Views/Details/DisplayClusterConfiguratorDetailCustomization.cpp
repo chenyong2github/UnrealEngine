@@ -1462,13 +1462,13 @@ void FDisplayClusterConfiguratorColorGradingProfileCustomization::CustomizeChild
 	check(PostProcessSettingsHandle->IsValidHandle());
 
 	PostProcessSettingsHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
-		LOCTEXT("PostProcessViewportsModeDisplayName", "Color Granding") : LOCTEXT("PostProcessClusterModeDisplayName", "Color Granding"));
+		LOCTEXT("PostProcessViewportsModeDisplayName", "Color Grading") : LOCTEXT("PostProcessClusterModeDisplayName", "Color Grading"));
 
 	const TSharedPtr<IPropertyHandle> EnablePostProcessHandle = PostProcessSettingsHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_ColorGradingConfiguration, bIsEnabled));
 	check(EnablePostProcessHandle->IsValidHandle());
 
 	EnablePostProcessHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
-		LOCTEXT("EnablePostProcessViewportsDisplayName", "Enable Viewports Color Granding") : LOCTEXT("EnablePostProcessClusterDisplayName", "Enable Inner Frustum Color Granding"));
+		LOCTEXT("EnablePostProcessViewportsDisplayName", "Enable Viewports Color Grading") : LOCTEXT("EnablePostProcessClusterDisplayName", "Enable Inner Frustum Color Grading"));
 
 	/*
 	const TAttribute<bool> EnablePostprocess = TAttribute<bool>::Create([this, EnablePostProcessHandle]()
@@ -1484,10 +1484,10 @@ void FDisplayClusterConfiguratorColorGradingProfileCustomization::CustomizeChild
 	check(ArrayHandle->IsValidHandle());
 
 	ArrayHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
-		LOCTEXT("PostProcessDataViewportsModeDisplayName", "Apply Color Granding to Viewports") : LOCTEXT("PostProcessDataClusterModeDisplayName", "Apply Color Granding to Nodes"));
+		LOCTEXT("PostProcessDataViewportsModeDisplayName", "Apply Color Grading to Viewports") : LOCTEXT("PostProcessDataClusterModeDisplayName", "Apply Color Grading to Nodes"));
 	ArrayHandle->SetToolTipText(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
-		LOCTEXT("PostProcessDataViewportsModeToolTip", "Select viewports to receive this Color Granding profile.") :
-		LOCTEXT("PostProcessDataClusterModeToolTip", "Select cluster nodes to receive this Color Granding profile."));
+		LOCTEXT("PostProcessDataViewportsModeToolTip", "Select viewports to receive this Color Grading profile.") :
+		LOCTEXT("PostProcessDataClusterModeToolTip", "Select cluster nodes to receive this Color Grading profile."));
 
 	ChildBuilder.AddProperty(PostProcessSettingsHandle.ToSharedRef());
 	NodeSelection->CreateArrayBuilder(ArrayHandle.ToSharedRef(), ChildBuilder);

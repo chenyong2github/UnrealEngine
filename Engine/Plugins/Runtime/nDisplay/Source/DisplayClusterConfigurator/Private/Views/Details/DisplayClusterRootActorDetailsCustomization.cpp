@@ -231,7 +231,11 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 
 		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::OCIOCategory)
 			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bUseOverallClusterOCIOConfiguration)
-			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.AllViewportsOCIOConfiguration)
+			RENAME_NESTED_CONDITIONAL_PROPERTY(NestedPropertyHelper,
+				ADisplayClusterRootActor,
+				CurrentConfigData->StageSettings.AllViewportsOCIOConfiguration.ColorConfiguration,
+				LOCTEXT("AllViewportsColorConfigLabel", "All Viewports Color Configuration"),
+				CurrentConfigData->StageSettings.bUseOverallClusterOCIOConfiguration)
 			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.PerViewportOCIOProfiles)
 		END_CATEGORY();
 

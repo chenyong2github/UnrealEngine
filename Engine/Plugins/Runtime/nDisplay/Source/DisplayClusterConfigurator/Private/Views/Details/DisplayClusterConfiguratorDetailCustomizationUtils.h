@@ -63,6 +63,14 @@ class IPropertyHandle;
 	CurrentCategory.AddProperty(PropertyHandle.ToSharedRef()).DisplayName(NewPropertyName); \
 }
 
+#define RENAME_NESTED_CONDITIONAL_PROPERTY(NestedPropertyHelper, ClassName, PropertyPath, NewPropertyName, ConditionalPropertyPath) { \
+	CREATE_NESTED_PROPERTY_EDITCONDITION_1ARG(Conditional, NestedPropertyHelper, ClassName, ConditionalPropertyPath); \
+	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ClassName, PropertyPath)); \
+	check(PropertyHandle.IsValid()); \
+	check(PropertyHandle->IsValidHandle()); \
+	CurrentCategory.AddProperty(PropertyHandle.ToSharedRef()).DisplayName(NewPropertyName).EditCondition(Conditional, nullptr); \
+}
+
 #define REPLACE_PROPERTY_WITH_CUSTOM(ClassName, PropertyName, Widget) { \
 	TSharedRef<IPropertyHandle> PropertyHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ClassName, PropertyName)); \
 	check(PropertyHandle->IsValidHandle()); \
