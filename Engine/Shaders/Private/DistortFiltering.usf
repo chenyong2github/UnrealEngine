@@ -11,11 +11,12 @@
 #ifdef COPYSCENECOLORTEXTUREPS
 
 Texture2D SceneColorTexture;
+SamplerState SceneColorSampler;
 
 void CopySceneColorTexturePS(FScreenVertexOutput Input, out float4 OutColor : SV_Target0)
 {
 	float2 TextureUV = (Input.UV * View.ViewSizeAndInvSize.xy + View.ViewRectMin.xy) * View.BufferSizeAndInvSize.zw;
-	float4 LinearColor = Texture2DSample(SceneColorTexture, GlobalPointClampedSampler, TextureUV);
+	float4 LinearColor = Texture2DSample(SceneColorTexture, SceneColorSampler, TextureUV);
 	OutColor = float4(LinearColor.rgb, 0);
 }
 
