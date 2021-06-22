@@ -61,11 +61,12 @@ void Main(
 	half RoughnessScatter = Texture2DSample(RoughnessScatterTexture, RoughnessScatterSampler, TexCoord.xy) * 10.0f;
 #endif
 
-	float2 NewBufferUV = ((TexCoord.xy + DistBufferUVOffset) * View.BufferSizeAndInvSize.xy - View.ViewRectMin.xy) * View.BufferSizeAndInvSize.zw;
+	const float2 NoDistortionUVs = TexCoord.xy * View.BufferSizeAndInvSize.xy * View.ViewSizeAndInvSize.zw;
+	float2 NewBufferUV = NoDistortionUVs + DistBufferUVOffset;
 
 	FLATTEN if (any(NewBufferUV < 0.0f) || any(NewBufferUV > 1.0f))
 	{
-		NewBufferUV = (TexCoord.xy * View.BufferSizeAndInvSize.xy - View.ViewRectMin.xy) * View.BufferSizeAndInvSize.zw;
+		NewBufferUV = NoDistortionUVs;
 	}
 
 #if USE_MSAA
