@@ -2215,21 +2215,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-	{
-		const FViewInfo& View = Views[ViewIndex];
-
-		if (((View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::ScreenSpace && ScreenSpaceRayTracing::ShouldKeepBleedFreeSceneColor(View))
-			|| GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
-			&& !View.bStatePrevViewInfoIsReadOnly)
-		{
-			// Keep scene color and depth for next frame screen space ray tracing.
-			FSceneViewState* ViewState = View.ViewState;
-			ViewState->PrevFrameViewInfo.DepthBuffer = GraphBuilder.ConvertToExternalTexture(SceneTextures.Depth.Resolve);
-			ViewState->PrevFrameViewInfo.ScreenSpaceRayTracingInput = GraphBuilder.ConvertToExternalTexture(SceneTextures.Color.Resolve);
-		}
-	}
-
 	if (bDoInitViewAftersPrepass)
 	{
 		GraphBuilder.Drain();
@@ -3140,6 +3125,21 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	FRDGTextureRef ViewFamilyTexture = TryCreateViewFamilyTexture(GraphBuilder, ViewFamily);
 
 	CopySceneCaptureComponentToTarget(GraphBuilder, SceneTextures.UniformBuffer, ViewFamilyTexture);
+
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+	{
+		const FViewInfo& View = Views[ViewIndex];
+
+		if (((View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::ScreenSpace && ScreenSpaceRayTracing::ShouldKeepBleedFreeSceneColor(View))
+			|| GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
+			&& !View.bStatePrevViewInfoIsReadOnly)
+		{
+			// Keep scene color and depth for next frame screen space ray tracing.
+			FSceneViewState* ViewState = View.ViewState;
+			ViewState->PrevFrameViewInfo.DepthBuffer = GraphBuilder.ConvertToExternalTexture(SceneTextures.Depth.Resolve);
+			ViewState->PrevFrameViewInfo.ScreenSpaceRayTracingInput = GraphBuilder.ConvertToExternalTexture(SceneTextures.Color.Resolve);
+		}
+	}
 
 	// Finish rendering for each view.
 	if (ViewFamily.bResolveScene && ViewFamilyTexture)
