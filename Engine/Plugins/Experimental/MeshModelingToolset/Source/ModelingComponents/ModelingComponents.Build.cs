@@ -31,6 +31,7 @@ public class ModelingComponents : ModuleRules
                 "MeshDescription",
 				"StaticMeshDescription",
 				"GeometryCore",
+				"GeometryFramework",
 				"GeometryAlgorithms",
 				"DynamicMesh",
 				"MeshConversion",

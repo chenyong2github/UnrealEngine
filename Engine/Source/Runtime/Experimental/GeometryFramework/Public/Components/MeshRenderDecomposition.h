@@ -13,7 +13,7 @@ struct FComponentMaterialSet;
  * FMeshRenderDecomposition represents a decomposition of a mesh into "chunks" of triangles, with associated materials.
  * This is passed to the rendering components to split a mesh into multiple RenderBuffers, for more efficient updating.
  */
-class MODELINGCOMPONENTS_API FMeshRenderDecomposition
+class GEOMETRYFRAMEWORK_API FMeshRenderDecomposition
 {
 public:
 

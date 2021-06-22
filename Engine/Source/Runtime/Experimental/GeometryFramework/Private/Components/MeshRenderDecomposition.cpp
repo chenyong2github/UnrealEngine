@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 
-#include "Drawing/MeshRenderDecomposition.h"
+#include "Components/MeshRenderDecomposition.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"

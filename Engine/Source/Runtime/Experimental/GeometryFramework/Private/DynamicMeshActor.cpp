@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DynamicMeshActor.h"
-#include "ToolSetupUtil.h"
+#include "Materials/Material.h"
 
 
 #define LOCTEXT_NAMESPACE "ADynamicMeshActor"
@@ -16,7 +16,7 @@ ADynamicMeshActor::ADynamicMeshActor(const FObjectInitializer& ObjectInitializer
 
 	DynamicMeshComponent->CollisionType = ECollisionTraceFlag::CTF_UseDefault;
 
-	DynamicMeshComponent->SetMaterial(0, ToolSetupUtil::GetDefaultMaterial());		// is this necessary?
+	DynamicMeshComponent->SetMaterial(0, UMaterial::GetDefaultMaterial(MD_Surface));		// is this necessary?
 
 	SetRootComponent(DynamicMeshComponent);
 }

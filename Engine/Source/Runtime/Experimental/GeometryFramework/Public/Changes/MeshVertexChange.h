@@ -17,7 +17,7 @@ PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
  * @todo support optionally storing old/new normals and tangents
  * @todo support applying to a StaticMeshComponent/MeshDescription ?
  */
-class MODELINGCOMPONENTS_API FMeshVertexChange : public FToolCommandChange
+class GEOMETRYFRAMEWORK_API FMeshVertexChange : public FToolCommandChange
 {
 public:
 	bool bHaveVertexPositions = true;
@@ -57,7 +57,7 @@ ENUM_CLASS_FLAGS(EMeshVertexChangeComponents);
 /**
  * FMeshVertexChangeBuilder can be used to construct a FMeshVertexChange.
  */
-class MODELINGCOMPONENTS_API FMeshVertexChangeBuilder
+class GEOMETRYFRAMEWORK_API FMeshVertexChangeBuilder
 {
 public:
 	TUniquePtr<FMeshVertexChange> Change;
@@ -101,14 +101,14 @@ protected:
 
 
 UINTERFACE()
-class MODELINGCOMPONENTS_API UMeshVertexCommandChangeTarget : public UInterface
+class GEOMETRYFRAMEWORK_API UMeshVertexCommandChangeTarget : public UInterface
 {
 	GENERATED_BODY()
 };
 /**
  * IMeshVertexCommandChangeTarget is an interface which is used to apply a FMeshVertexChange
  */
-class MODELINGCOMPONENTS_API IMeshVertexCommandChangeTarget
+class GEOMETRYFRAMEWORK_API IMeshVertexCommandChangeTarget
 {
 	GENERATED_BODY()
 public:

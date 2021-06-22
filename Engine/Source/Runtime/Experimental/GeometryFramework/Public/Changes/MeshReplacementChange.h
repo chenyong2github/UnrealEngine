@@ -16,7 +16,7 @@ PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
  * FMeshReplacementChange represents an undoable *complete* change to a FDynamicMesh3.
  * Currently only valid to call Apply/Revert when the Object is a UDynamicMeshComponent
  */
-class MODELINGCOMPONENTS_API FMeshReplacementChange : public FToolCommandChange
+class GEOMETRYFRAMEWORK_API FMeshReplacementChange : public FToolCommandChange
 {
 	TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> Before, After;
 
@@ -47,14 +47,14 @@ public:
 
 
 UINTERFACE()
-class MODELINGCOMPONENTS_API UMeshReplacementCommandChangeTarget : public UInterface
+class GEOMETRYFRAMEWORK_API UMeshReplacementCommandChangeTarget : public UInterface
 {
 	GENERATED_BODY()
 };
 /**
  * IMeshReplacementCommandChangeTarget is an interface which is used to apply a mesh replacement change
  */
-class MODELINGCOMPONENTS_API IMeshReplacementCommandChangeTarget
+class GEOMETRYFRAMEWORK_API IMeshReplacementCommandChangeTarget
 {
 	GENERATED_BODY()
 public:
