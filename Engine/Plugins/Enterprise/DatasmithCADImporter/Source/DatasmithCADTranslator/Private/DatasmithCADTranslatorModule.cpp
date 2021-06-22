@@ -26,7 +26,7 @@ void FDatasmithCADTranslatorModule::StartupModule()
 	}
 
 	bool bCreateCacheFolder = false;
-	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("DS.CADTranslator.EnableCADCache")))
+	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("ds.CADTranslator.EnableCADCache")))
 	{
 		bCreateCacheFolder = CVar->GetInt() != 0;
 	}

@@ -14,14 +14,14 @@
 
 #ifndef DATASMITH_CAD_IGNORE_CACHE
 static TAutoConsoleVariable<int32> CVarStaticCADTranslatorEnableCADCache(
-	TEXT("DS.CADTranslator.EnableCADCache"),
+	TEXT("ds.CADTranslator.EnableCADCache"),
 	1,
 	TEXT("Activate to save temporary CAD processing file. These file will be use in a next import to avoid CAD file processing\n"),
 	ECVF_Default);
 #endif
 
 static TAutoConsoleVariable<int32> CVarStaticCADTranslatorEnableTimeControl(
-	TEXT("DS.CADTranslator.EnableTimeControl"),
+	TEXT("ds.CADTranslator.EnableTimeControl"),
 	1,
 	TEXT("Enable the timer that kill the worker if the import time is unusually long. With this time control, the load of the corrupted file is canceled but the rest of the scene is imported.\n"),
 	ECVF_Default);
@@ -40,7 +40,6 @@ FDatasmithDispatcher::FDatasmithDispatcher(const CADLibrary::FImportParameters& 
 	, NextWorkerId(0)
 {
 	ImportParameters.bEnableTimeControl = (CVarStaticCADTranslatorEnableTimeControl.GetValueOnAnyThread() != 0);
-#ifndef DATASMITH_CAD_IGNORE_CACHE
 	ImportParameters.bEnableCacheUsage = (CVarStaticCADTranslatorEnableCADCache.GetValueOnAnyThread() != 0);
 
 	if (ImportParameters.bEnableCacheUsage)
@@ -51,9 +50,6 @@ FDatasmithDispatcher::FDatasmithDispatcher(const CADLibrary::FImportParameters& 
 		IFileManager::Get().MakeDirectory(*FPaths::Combine(ProcessCacheFolder, TEXT("mesh")), true);
 		IFileManager::Get().MakeDirectory(*FPaths::Combine(ProcessCacheFolder, TEXT("body")), true);
 	}
-#else
-	ImportParameters.bEnableCacheUsage = false;
-#endif
 }
 
 void FDatasmithDispatcher::AddTask(const CADLibrary::FFileDescription & InFileDescription)
