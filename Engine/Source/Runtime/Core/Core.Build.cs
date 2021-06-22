@@ -63,8 +63,12 @@ public class Core : ModuleRules
 				"IntelVTune"
 				);
 
-			PublicSystemIncludePaths.Add(Path.Combine(Target.UEThirdPartySourceDirectory, "mimalloc//include"));
-			PrivateDefinitions.Add("PLATFORM_BUILDS_MIMALLOC=1");
+			// We do not want the static analyzer to run on thirdparty code
+			if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.None) 
+			{
+				PublicSystemIncludePaths.Add(Path.Combine(Target.UEThirdPartySourceDirectory, "mimalloc/include"));
+				PrivateDefinitions.Add("PLATFORM_BUILDS_MIMALLOC=1");
+			}
 
 			if (Target.WindowsPlatform.bUseBundledDbgHelp)
 			{
@@ -104,7 +108,7 @@ public class Core : ModuleRules
 				);
 			PublicFrameworks.AddRange(new string[] { "Cocoa", "Carbon", "IOKit", "Security" });
 
-			PublicSystemIncludePaths.Add(Path.Combine(Target.UEThirdPartySourceDirectory, "mimalloc//include"));
+			PublicSystemIncludePaths.Add(Path.Combine(Target.UEThirdPartySourceDirectory, "mimalloc/include"));
 			PrivateDefinitions.Add("PLATFORM_BUILDS_MIMALLOC=1");
 
 			if (Target.bBuildEditor == true)
@@ -156,7 +160,7 @@ public class Core : ModuleRules
 			// Core uses dlopen()
 			PublicSystemLibraries.Add("dl");
 
-			PublicSystemIncludePaths.Add(Path.Combine(Target.UEThirdPartySourceDirectory, "mimalloc//include"));
+			PublicSystemIncludePaths.Add(Path.Combine(Target.UEThirdPartySourceDirectory, "mimalloc/include"));
 			PrivateDefinitions.Add("PLATFORM_BUILDS_MIMALLOC=1");
 		}
 
