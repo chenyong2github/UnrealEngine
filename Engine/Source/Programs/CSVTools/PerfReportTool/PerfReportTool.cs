@@ -22,7 +22,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.50";
+        private static string VersionString = "4.51";
 
         public static string Get() { return VersionString; }
     };
@@ -962,10 +962,10 @@ namespace PerfReportTool
         void WriteSummaryTableReport(string outputDir, string filenameWithoutExtension, SummaryTable table, SummaryTableInfo tableInfo, bool bCollated, bool bToCSV, bool bSpreadsheetFriendlyStrings, string weightByColumnNameOverride)
 		{
 			string weightByColumnName = weightByColumnNameOverride != null ? weightByColumnNameOverride : tableInfo.weightByColumn;
-			WriteSummaryTableReport(outputDir, filenameWithoutExtension, table, tableInfo.columnFilterList, tableInfo.rowSortList, bCollated, bToCSV, bSpreadsheetFriendlyStrings, tableInfo.sectionBoundary, weightByColumnName);
+			WriteSummaryTableReport(outputDir, filenameWithoutExtension, table, tableInfo.columnFilterList, tableInfo.rowSortList, bCollated, bToCSV, bSpreadsheetFriendlyStrings, tableInfo.sectionBoundaries, weightByColumnName);
 		}
 
-		void WriteSummaryTableReport(string outputDir, string filenameWithoutExtension, SummaryTable table, List<string> columnFilterList, List<string> rowSortList, bool bCollated, bool bToCSV, bool bSpreadsheetFriendlyStrings, SummarySectionBoundaryInfo sectionBoundaryInfo, string weightByColumnName)
+		void WriteSummaryTableReport(string outputDir, string filenameWithoutExtension, SummaryTable table, List<string> columnFilterList, List<string> rowSortList, bool bCollated, bool bToCSV, bool bSpreadsheetFriendlyStrings, List<SummarySectionBoundaryInfo> sectionBoundaries, string weightByColumnName)
 		{
 			if (GetBoolArg("noWeightedAvg"))
 			{
@@ -991,7 +991,7 @@ namespace PerfReportTool
 			{
 				filteredTable.ApplyDisplayNameMapping(statDisplaynameMapping);
 				string VersionString = GetBoolArg("noWatermarks") ? "" : Version.Get();
-				filteredTable.WriteToHTML(filenameWithoutExtension+".html", VersionString, bSpreadsheetFriendlyStrings, sectionBoundaryInfo, bScrollableTable, addMinMaxColumns, GetIntArg("maxSummaryTableStringLength", -1), reportXML.summaryTableLowIsBadStatList, weightByColumnName);
+				filteredTable.WriteToHTML(filenameWithoutExtension+".html", VersionString, bSpreadsheetFriendlyStrings, sectionBoundaries, bScrollableTable, addMinMaxColumns, GetIntArg("maxSummaryTableStringLength", -1), reportXML.columnFormatInfoList, weightByColumnName);
 			}
 		}
 
@@ -2297,10 +2297,10 @@ namespace PerfReportTool
 				}
 			}
 
-			XElement summaryTableLowIsBadStatListEl = rootElement.Element("summaryTableLowIsBadStats");
-			if (summaryTableLowIsBadStatListEl != null)
+			XElement summaryTableColumnInfoListEl = rootElement.Element("summaryTableColumnFormatInfo");
+			if (summaryTableColumnInfoListEl != null)
 			{
-				summaryTableLowIsBadStatList = summaryTableLowIsBadStatListEl.Value.Split(',');
+				columnFormatInfoList = new SummaryTableColumnFormatInfoCollection(summaryTableColumnInfoListEl);
 			}			
 
 			// Read the derived metadata mappings
@@ -2543,7 +2543,7 @@ namespace PerfReportTool
 		Dictionary<string,XElement> sharedSummaries;
 		Dictionary<string, GraphSettings> graphs;
 		Dictionary<string, string> statDisplayNameMapping;
-		public string [] summaryTableLowIsBadStatList;
+		public SummaryTableColumnFormatInfoCollection columnFormatInfoList;
 		string baseXmlDirectory;
 
 		List<CsvEventStripInfo> csvEventsToStrip;
