@@ -84,6 +84,10 @@ public:
 		{
 			PinType.PinCategory = UEdGraphSchema_K2::PC_Float;
 		}
+		else if (CPPType == TEXT("double"))
+		{
+			PinType.PinCategory = UEdGraphSchema_K2::PC_Double;
+		}
 		else if (CPPType == TEXT("FName"))
 		{
 			PinType.PinCategory = UEdGraphSchema_K2::PC_Name;
@@ -137,6 +141,10 @@ public:
 		else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Float)
 		{
 			OutCPPType = Prefix + TEXT("float") + Suffix;
+		}
+		else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Double)
+		{
+			OutCPPType = Prefix + TEXT("double") + Suffix;
 		}
 		else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Name)
 		{

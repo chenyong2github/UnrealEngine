@@ -168,6 +168,54 @@ public:
 	float Float33;
 
 	UPROPERTY()
+	float Float00_2;
+
+	UPROPERTY()
+	float Float01_2;
+
+	UPROPERTY()
+	float Float02_2;
+
+	UPROPERTY()
+	float Float03_2;
+
+	UPROPERTY()
+	float Float10_2;
+
+	UPROPERTY()
+	float Float11_2;
+
+	UPROPERTY()
+	float Float12_2;
+
+	UPROPERTY()
+	float Float13_2;
+
+	UPROPERTY()
+	float Float20_2;
+
+	UPROPERTY()
+	float Float21_2;
+
+	UPROPERTY()
+	float Float22_2;
+
+	UPROPERTY()
+	float Float23_2;
+	
+	UPROPERTY()
+	float Float30_2;
+
+	UPROPERTY()
+	float Float31_2;
+
+	UPROPERTY()
+	float Float32_2;
+
+	UPROPERTY()
+	float Float33_2;
+	
+	UPROPERTY()
 	bool bValid;
 };
 

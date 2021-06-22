@@ -1605,6 +1605,10 @@ uint16 URigVMCompiler::GetElementSizeFromCPPType(const FString& InCPPType, UScri
 	{
 		return sizeof(float);
 	}
+	if (InCPPType == TEXT("double"))
+	{
+		return sizeof(double);
+	}
 	if (InCPPType == TEXT("FName"))
 	{
 		return sizeof(FName);
@@ -1880,6 +1884,13 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 							continue;
 						}
 					}
+					else if (Pin->GetCPPType() == TEXT("double"))
+					{
+						if (Memory[ExistingRegisterIndex].ElementSize != sizeof(double))
+						{
+							continue;
+						}
+					}
 					else if (UEnum* Enum = Pin->GetEnum())
 					{
 						if (Memory[ExistingRegisterIndex].ElementSize != sizeof(uint8))
@@ -2052,6 +2063,29 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 					}
 				}
 				Register = Memory.AddRegisterArray<float>(!Pin->IsDynamicArray() && !bIsDebugValue, RegisterName, Values.Num(), Pin->IsArray(), (uint8*)Values.GetData(), NumSlices, ERigVMRegisterType::Plain, nullptr);
+				check(Register != INDEX_NONE);
+				
+#if WITH_EDITORONLY_DATA
+				Memory.Registers[Register].BaseCPPType = *BaseCPPType;
+				Memory.Registers[Register].BaseCPPTypeObject = nullptr;
+#endif
+				Operand = Memory.GetOperand(Register);
+			}
+			else if (BaseCPPType == TEXT("double"))
+			{
+				TArray<double> Values;
+				for (FString DefaultValue : DefaultValues)
+				{
+					if (DefaultValue.IsEmpty())
+					{
+						Values.Add(0.0);
+					}
+					else
+					{
+						Values.Add(FCString::Atod(*DefaultValue));
+					}
+				}
+				Register = Memory.AddRegisterArray<double>(!Pin->IsDynamicArray() && !bIsDebugValue, RegisterName, Values.Num(), Pin->IsArray(), (uint8*)Values.GetData(), NumSlices, ERigVMRegisterType::Plain, nullptr);
 				check(Register != INDEX_NONE);
 				
 #if WITH_EDITORONLY_DATA

@@ -1251,7 +1251,39 @@ bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<v
 				{
 					case ERigVMRegisterType::Plain:
 					{
-						FMemory::Memcpy(TargetPtr, SourcePtr, NumBytes);
+						switch(Op.CopyType)
+						{
+							case ERigVMCopyType::FloatToDouble:
+							{
+								const float* Floats = (float*)SourcePtr;
+								double* Doubles = (double*)TargetPtr;
+								const int32 NumElementsToCopy = NumBytes / sizeof(double);
+
+								for(int32 ElementIndex = 0; ElementIndex < NumElementsToCopy; ElementIndex++)
+								{
+									Doubles[ElementIndex] = (double)Floats[ElementIndex];
+								}
+								break;
+							}
+							case ERigVMCopyType::DoubleToFloat:
+							{
+								const double* Doubles = (double*)SourcePtr;
+								float* Floats = (float*)TargetPtr;
+								const int32 NumElementsToCopy = NumBytes / sizeof(float); 
+
+								for(int32 ElementIndex = 0; ElementIndex < NumElementsToCopy; ElementIndex++)
+								{
+									Floats[ElementIndex] = (float)Doubles[ElementIndex];
+								}
+								break;
+							}
+							case ERigVMCopyType::Default:
+							default:
+							{
+								FMemory::Memcpy(TargetPtr, SourcePtr, NumBytes);
+								break;
+							}
+						}
 						break;
 					}
 					case ERigVMRegisterType::Name:
@@ -1559,7 +1591,39 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 				{
 					case ERigVMRegisterType::Plain:
 					{
-						FMemory::Memcpy(TargetPtr, SourcePtr, NumBytes);
+						switch(Op.CopyType)
+						{
+							case ERigVMCopyType::FloatToDouble:
+							{
+								const float* Floats = (float*)SourcePtr;
+								double* Doubles = (double*)TargetPtr;
+								const int32 NumElementsToCopy = NumBytes / sizeof(double);
+
+								for(int32 ElementIndex = 0; ElementIndex < NumElementsToCopy; ElementIndex++)
+								{
+									Doubles[ElementIndex] = (double)Floats[ElementIndex];
+								}
+								break;
+							}
+							case ERigVMCopyType::DoubleToFloat:
+							{
+								const double* Doubles = (double*)SourcePtr;
+								float* Floats = (float*)TargetPtr;
+								const int32 NumElementsToCopy = NumBytes / sizeof(float); 
+
+								for(int32 ElementIndex = 0; ElementIndex < NumElementsToCopy; ElementIndex++)
+								{
+									Floats[ElementIndex] = (float)Doubles[ElementIndex];
+								}
+								break;
+							}
+							case ERigVMCopyType::Default:
+							default:
+							{
+								FMemory::Memcpy(TargetPtr, SourcePtr, NumBytes);
+								break;
+							}
+						}
 						break;
 					}
 					case ERigVMRegisterType::Name:
@@ -2337,21 +2401,34 @@ void URigVM::CopyOperandForDebuggingImpl(const FRigVMOperand& InArg, const FRigV
 
 FRigVMCopyOp URigVM::GetCopyOpForOperands(const FRigVMOperand& InSource, const FRigVMOperand& InTarget)
 {
-	TPair<ERigVMRegisterType, uint16> SourceCopyInfo = GetCopyInfoForOperand(InSource);
-	TPair<ERigVMRegisterType, uint16> TargetCopyInfo = GetCopyInfoForOperand(InTarget);
+	FCopyInfoForOperand SourceCopyInfo = GetCopyInfoForOperand(InSource);
+	FCopyInfoForOperand TargetCopyInfo = GetCopyInfoForOperand(InTarget);
 
 #if !WITH_EDITOR
 	check(SourceCopyInfo.Key != ERigVMRegisterType::Invalid);
 	check(SourceCopyInfo.Value > 0);
 	check(TargetCopyInfo.Key != ERigVMRegisterType::Invalid);
 	check(TargetCopyInfo.Value > 0);
-	//check(SourceCopyInfo.Value == TargetCopyInfo.Value);
 #endif
 
-	return FRigVMCopyOp(InSource, InTarget, TargetCopyInfo.Value, TargetCopyInfo.Key);
+	ERigVMCopyType CopyType = ERigVMCopyType::Default;
+
+	if(SourceCopyInfo.RegisterType == ERigVMRegisterType::Plain && TargetCopyInfo.RegisterType == ERigVMRegisterType::Plain)
+	{
+		if((SourceCopyInfo.ElementSize == sizeof(float)) && (TargetCopyInfo.ElementSize == sizeof(double)))
+		{
+			CopyType = ERigVMCopyType::FloatToDouble;
+		}
+		else if((SourceCopyInfo.ElementSize == sizeof(double)) && (TargetCopyInfo.ElementSize == sizeof(float)))
+		{
+			CopyType = ERigVMCopyType::DoubleToFloat;
+		}
+	}
+
+	return FRigVMCopyOp(InSource, InTarget, TargetCopyInfo.NumBytesToCopy, TargetCopyInfo.RegisterType, CopyType);
 }
 
-TPair<ERigVMRegisterType, uint16> URigVM::GetCopyInfoForOperand(const FRigVMOperand& InOperand)
+URigVM::FCopyInfoForOperand URigVM::GetCopyInfoForOperand(const FRigVMOperand& InOperand)
 {
 	if(CachedMemory.IsEmpty())
 	{
@@ -2363,12 +2440,14 @@ TPair<ERigVMRegisterType, uint16> URigVM::GetCopyInfoForOperand(const FRigVMOper
 	
 	ERigVMRegisterType RegisterType = ERigVMRegisterType::Invalid;
 	uint16 NumBytesToCopy = 0;
+	uint16 ElementSize = 0;
 
 	if (InOperand.GetRegisterOffset() != INDEX_NONE)
 	{
 		const FRigVMRegisterOffset& RegisterOffset = CachedMemory[InOperand.GetContainerIndex()]->RegisterOffsets[InOperand.GetRegisterOffset()];
 		RegisterType = RegisterOffset.GetType();
 		NumBytesToCopy = RegisterOffset.GetElementSize();
+		ElementSize = RegisterOffset.GetElementSize();
 	}
 	else if (InOperand.GetMemoryType() == ERigVMMemoryType::External)
 	{
@@ -2377,6 +2456,7 @@ TPair<ERigVMRegisterType, uint16> URigVM::GetCopyInfoForOperand(const FRigVMOper
 			const FRigVMExternalVariable& ExternalVariable = ExternalVariables[InOperand.GetRegisterIndex()];
 
 			NumBytesToCopy = ExternalVariable.Size;
+			ElementSize = ExternalVariable.Size;
 			RegisterType = ERigVMRegisterType::Plain;
 			
 			if (UScriptStruct* ExternalScriptStruct = Cast<UScriptStruct>(ExternalVariable.TypeObject))	
@@ -2399,9 +2479,10 @@ TPair<ERigVMRegisterType, uint16> URigVM::GetCopyInfoForOperand(const FRigVMOper
 
 		RegisterType = Register.Type;
 		NumBytesToCopy = Register.GetNumBytesPerSlice();
+		ElementSize = Register.ElementSize;
 	}
 
-	return TPair<ERigVMRegisterType, uint16>(RegisterType, NumBytesToCopy); 
+	return FCopyInfoForOperand(RegisterType, NumBytesToCopy, ElementSize); 
 }
 
 UScriptStruct* URigVM::GetScriptStructForCopyOp(const FRigVMCopyOp& InCopyOp) const

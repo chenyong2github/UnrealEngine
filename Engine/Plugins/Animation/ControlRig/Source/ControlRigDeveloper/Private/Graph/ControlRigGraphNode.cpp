@@ -1027,6 +1027,10 @@ FEdGraphPinType UControlRigGraphNode::GetPinTypeForModelPin(URigVMPin* InModelPi
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Float;
 	}
+	else if (ModelPinCPPType == TEXT("double"))
+	{
+		PinType.PinCategory = UEdGraphSchema_K2::PC_Double;
+	}
 	else if (ModelPinCPPType == TEXT("FName"))
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Name;

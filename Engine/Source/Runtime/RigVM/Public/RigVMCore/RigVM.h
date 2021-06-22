@@ -375,6 +375,12 @@ public:
 	}
 
 	UFUNCTION(BlueprintCallable, Category = RigVM)
+	double GetParameterValueDouble(const FName& InParameterName, int32 InArrayIndex = 0)
+	{
+		return GetParameterValue<double>(InParameterName, InArrayIndex);
+	}
+
+	UFUNCTION(BlueprintCallable, Category = RigVM)
 	int32 GetParameterValueInt(const FName& InParameterName, int32 InArrayIndex = 0)
 	{
 		return GetParameterValue<int32>(InParameterName, InArrayIndex);
@@ -401,7 +407,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVM)
 	FVector GetParameterValueVector(const FName& InParameterName, int32 InArrayIndex = 0)
 	{
-		return GetParameterValue<FVector3f>(InParameterName, InArrayIndex, FVector3f::ZeroVector);	// LWC_TODO: Store double FVector
+		return GetParameterValue<FVector>(InParameterName, InArrayIndex, FVector::ZeroVector);	// LWC_TODO: Store double FVector
 	}
 
 	UFUNCTION(BlueprintCallable, Category = RigVM)
@@ -426,6 +432,12 @@ public:
 	void SetParameterValueFloat(const FName& InParameterName, float InValue, int32 InArrayIndex = 0)
 	{
 		SetParameterValue<float>(InParameterName, InValue, InArrayIndex);
+	}
+
+	UFUNCTION(BlueprintCallable, Category = RigVM)
+	void SetParameterValueDouble(const FName& InParameterName, double InValue, int32 InArrayIndex = 0)
+	{
+		SetParameterValue<double>(InParameterName, InValue, InArrayIndex);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = RigVM)
@@ -455,7 +467,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVM)
 	void SetParameterValueVector(const FName& InParameterName, const FVector& InValue, int32 InArrayIndex = 0)
 	{
-		SetParameterValue<FVector3f>(InParameterName, InValue, InArrayIndex);	// LWC_TODO: Store double FVector
+		SetParameterValue<FVector>(InParameterName, InValue, InArrayIndex);	// LWC_TODO: Store double FVector
 	}
 
 	UFUNCTION(BlueprintCallable, Category = RigVM)
@@ -641,8 +653,27 @@ private:
 
 	void CopyOperandForDebuggingImpl(const FRigVMOperand& InArg, const FRigVMMemoryHandle& InHandle, const FRigVMOperand& InDebugOperand);
 
+	struct FCopyInfoForOperand
+	{
+		FCopyInfoForOperand()
+			: RegisterType(ERigVMRegisterType::Invalid)
+			, NumBytesToCopy(0)
+			, ElementSize(0)
+		{}
+
+		FCopyInfoForOperand(ERigVMRegisterType InRegisterType, uint16 InNumBytesToCopy, uint16 InElementSize)
+			: RegisterType(InRegisterType)
+			, NumBytesToCopy(InNumBytesToCopy)
+			, ElementSize(InElementSize)
+		{}
+		
+		ERigVMRegisterType RegisterType;
+		uint16 NumBytesToCopy;
+		uint16 ElementSize;
+	};
+
 	FRigVMCopyOp GetCopyOpForOperands(const FRigVMOperand& InSource, const FRigVMOperand& InTarget);
-	TPair<ERigVMRegisterType, uint16> GetCopyInfoForOperand(const FRigVMOperand& InOperand);
+	FCopyInfoForOperand GetCopyInfoForOperand(const FRigVMOperand& InOperand);
 	UScriptStruct* GetScriptStructForCopyOp(const FRigVMCopyOp& InCopyOp) const;
 	UScriptStruct* GetScripStructForOperand(const FRigVMOperand& InOperand) const;
 	

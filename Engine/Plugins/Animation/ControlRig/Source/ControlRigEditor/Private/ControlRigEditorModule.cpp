@@ -1401,6 +1401,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						}
 
 						if (ModelPin->GetCPPType() == TEXT("float") ||
+							ModelPin->GetCPPType() == TEXT("double") ||
 							ModelPin->GetCPPType() == TEXT("FVector"))
 						{
 							FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaNodeInjectionInterp", LOCTEXT("NodeInjectionInterp", "Interpolate"));
@@ -1422,7 +1423,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							{
 								UScriptStruct* ScriptStruct = nullptr;
 
-								if (ModelPin->GetCPPType() == TEXT("float"))
+								if ((ModelPin->GetCPPType() == TEXT("float")) || (ModelPin->GetCPPType() == TEXT("double")))
 								{
 									ScriptStruct = FRigUnit_AlphaInterp::StaticStruct();
 								}
