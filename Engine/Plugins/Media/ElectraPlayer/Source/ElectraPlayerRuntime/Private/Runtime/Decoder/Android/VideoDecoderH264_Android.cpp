@@ -1159,7 +1159,7 @@ FVideoDecoderH264::EOutputResult FVideoDecoderH264::GetOutput()
 			{
 				LogMessage(Electra::IInfoLog::Warning, "Got CSD buffer back?");
 				result = DecoderInstance->ReleaseOutputBuffer(OutputBufferInfo.BufferIndex, OutputBufferInfo.ValidCount, false, -1);
-				return EOutputResult::EOS;
+				return EOutputResult::Ok;
 			}
 
 			IAndroidJavaH264VideoDecoder::FOutputFormatInfo OutputFormatInfo;
