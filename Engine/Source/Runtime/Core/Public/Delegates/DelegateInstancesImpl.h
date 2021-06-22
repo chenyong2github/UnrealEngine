@@ -18,7 +18,7 @@
 
 class FDelegateBase;
 class FDelegateHandle;
-enum class ESPMode;
+enum class ESPMode : uint8;
 
 namespace UE4Delegates_Private
 {
