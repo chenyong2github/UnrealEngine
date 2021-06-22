@@ -14,11 +14,14 @@ class FOnlineSubsystemEOSPlus;
  * Interface for mirroring platform leaderboards to EOS leaderboards
  */
 class FOnlineLeaderboardsEOSPlus :
-	public IOnlineLeaderboards
+	public IOnlineLeaderboards,
+	public TSharedFromThis<FOnlineLeaderboardsEOSPlus, ESPMode::ThreadSafe>
 {
 public:
 	FOnlineLeaderboardsEOSPlus() = delete;
 	virtual ~FOnlineLeaderboardsEOSPlus();
+
+	void Initialize();
 
 // IOnlineLeaderboards Interface
 	virtual bool ReadLeaderboards(const TArray< FUniqueNetIdRef >& Players, FOnlineLeaderboardReadRef& ReadObject) override;
@@ -34,14 +37,18 @@ public:
 PACKAGE_SCOPE:
 	FOnlineLeaderboardsEOSPlus(FOnlineSubsystemEOSPlus* InSubsystem);
 
+	void OnLeaderboardReadComplete(bool bWasSuccessful);
+	void OnLeaderboardFlushComplete(const FName SessionName, bool bWasSuccessful);
+
 private:
 	FUniqueNetIdEOSPlusPtr GetNetIdPlus(const FString& SourceId);
 
 	/** Reference to the owning EOS plus subsystem */
 	FOnlineSubsystemEOSPlus* EOSPlus;
-	/** Since we're going to bind to delegates, we need to hold onto these */
+
+	// We don't support EOS mirroring yet
+	// IOnlineLeaderboardsPtr EOSLeaderboardsInterface;
 	IOnlineLeaderboardsPtr BaseLeaderboardsInterface;
-	IOnlineLeaderboardsPtr EosLeaderboardsInterface;
 };
 
 typedef TSharedPtr<FOnlineLeaderboardsEOSPlus, ESPMode::ThreadSafe> FOnlineLeaderboardsEOSPlusPtr;
