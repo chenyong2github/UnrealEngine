@@ -614,6 +614,7 @@ void FMemAllocTable::AddDefaultColumns()
 									break;
 								}
 							}
+							check(Frame != nullptr);
 
 							TStringBuilder<1024> Str;
 							FormatStackFrame(*Frame, Str, EStackFrameFormatFlags::Module);
