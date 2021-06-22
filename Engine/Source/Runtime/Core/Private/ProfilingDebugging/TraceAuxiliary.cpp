@@ -702,11 +702,3 @@ void FTraceAuxiliary::TryAutoConnect()
 	#endif
 #endif
 }
-
-////////////////////////////////////////////////////////////////////////////////
-void FTraceAuxiliary::LaunchUnrealTrace()
-{
-#if WITH_UNREAL_TRACE_LAUNCH
-	LaunchUnrealTraceInternal();
-#endif
-}
