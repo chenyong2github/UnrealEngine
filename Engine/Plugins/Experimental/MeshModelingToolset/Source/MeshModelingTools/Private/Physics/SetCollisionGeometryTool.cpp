@@ -185,7 +185,7 @@ void USetCollisionGeometryTool::Shutdown(EToolShutdownType ShutdownType)
 
 		UPrimitiveComponent* Component = UE::ToolTarget::GetTargetComponent(Targets[Targets.Num() - 1]);
 		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
-		UStaticMesh* StaticMesh = (StaticMeshComponent) ? StaticMeshComponent->GetStaticMesh() : nullptr;
+		TObjectPtr<UStaticMesh> StaticMesh = (StaticMeshComponent) ? StaticMeshComponent->GetStaticMesh() : nullptr;
 		UBodySetup* BodySetup = (StaticMesh) ? StaticMesh->GetBodySetup() : nullptr;
 		if (BodySetup != nullptr)
 		{
