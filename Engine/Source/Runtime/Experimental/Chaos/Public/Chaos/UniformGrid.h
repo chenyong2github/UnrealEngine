@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Chaos/Vector.h"
+#include "ChaosCheck.h"
 
 namespace Chaos
 {
@@ -36,7 +37,7 @@ class CHAOS_API TUniformGridBase
 			for (int32 i = 0; i < d; ++i)
 			{
 				// This is invalid
-				if (!ensure(MMaxCorner[i] >= MMinCorner[i]))
+				if (!CHAOS_ENSURE(MMaxCorner[i] >= MMinCorner[i])) //TODO convert back to normal ensure once we find out why we hit this.
 				{
 					bValidBounds = false;
 					break;
