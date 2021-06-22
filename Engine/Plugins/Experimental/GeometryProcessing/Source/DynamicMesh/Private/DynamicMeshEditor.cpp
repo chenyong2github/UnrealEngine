@@ -1512,7 +1512,7 @@ void FDynamicMeshEditor::AppendMesh(const FDynamicMesh3* AppendMesh,
 			FDynamicMeshNormalOverlay* ToNormals = Mesh->Attributes()->GetNormalLayer(NormalLayerIndex);
 			if (FromNormals != nullptr && ToNormals != nullptr)
 			{
-				FIndexMapi& NormalMap = IndexMapsOut.GetNormalMap(0);
+				FIndexMapi& NormalMap = IndexMapsOut.GetNormalMap(NormalLayerIndex);
 				NormalMap.Reserve(FromNormals->ElementCount());
 				AppendNormals(AppendMesh, FromNormals, ToNormals,
 					VertexMap, TriangleMap, NormalTransform, NormalMap);
@@ -1845,7 +1845,7 @@ static void AppendTriangleAttributes(const FDynamicMesh3* FromMesh, int FromTria
 			for (int j = 0; j < 3; ++j)
 			{
 				check(FromElemTri[j] != FDynamicMesh3::InvalidID);
-				int NewElemID = AppendTriangleNormalAttribute(FromMesh, FromElemTri[j], ToMesh, 0, IndexMaps);
+				int NewElemID = AppendTriangleNormalAttribute(FromMesh, FromElemTri[j], ToMesh, NormalLayerIndex, IndexMaps);
 				ToElemTri[j] = NewElemID;
 			}
 			ToNormalOverlay->SetTriangle(ToTriangleID, ToElemTri);

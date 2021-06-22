@@ -106,7 +106,7 @@ const FMeshDescription* UDynamicMeshComponentToolTarget::GetMeshDescription()
 		Attributes.Register();
 
 		FDynamicMeshToMeshDescription Converter;
-		Converter.Convert(DynamicMeshComponent->GetMesh(), *ConvertedMeshDescription);
+		Converter.Convert(DynamicMeshComponent->GetMesh(), *ConvertedMeshDescription, true);
 
 		bHaveMeshDescription = true;
 		return ConvertedMeshDescription.Get();
@@ -130,7 +130,7 @@ void UDynamicMeshComponentToolTarget::CommitMeshDescription(const FCommitter& Co
 	FMeshDescriptionToDynamicMesh Converter;
 	TSharedPtr<FDynamicMesh3> NewMeshShared = MakeShared<FDynamicMesh3>();
 	NewMeshShared->EnableAttributes();
-	Converter.Convert(CommitterParams.MeshDescriptionOut, *NewMeshShared);
+	Converter.Convert(CommitterParams.MeshDescriptionOut, *NewMeshShared, true);
 
 	DynamicMesh->EditMesh([&](FDynamicMesh3& EditMesh) { EditMesh = *NewMeshShared; });
 
