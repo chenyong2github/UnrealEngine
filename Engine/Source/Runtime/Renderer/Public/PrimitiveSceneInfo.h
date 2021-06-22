@@ -516,6 +516,9 @@ public:
 	int32 GetInstanceSceneDataOffset() const { return InstanceSceneDataOffset; }
 	int32 GetNumInstanceSceneDataEntries() const { return NumInstanceSceneDataEntries; }
 
+	int32 GetInstancePayloadDataOffset() const { return InstancePayloadDataOffset; }
+	int32 GetInstancePayloadDataStride() const { return InstancePayloadDataStride; }
+
 	int32 GetLightmapDataOffset() const { return LightmapDataOffset; }
 	int32 GetNumLightmapDataEntries() const { return NumLightmapDataEntries; }
 
@@ -585,6 +588,12 @@ private:
 
 	/** Number of entries in the scene's instance scene data buffer. */
 	int32 NumInstanceSceneDataEntries;
+
+	/** Offset into the scene's instance payload data buffer, when GPUScene is enabled. */
+	int32 InstancePayloadDataOffset;
+
+	/** Number of float4 payload data values per instance */
+	int32 InstancePayloadDataStride;
 
 	/** Offset into the scene's lightmap data buffer, when GPUScene is enabled. */
 	int32 LightmapDataOffset;

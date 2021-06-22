@@ -173,6 +173,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bHasPerInstanceCustomData(false)
 ,	bHasPerInstanceDynamicData(false)
 ,	bHasPerInstanceLMSMUVBias(false)
+,	bHasPerInstanceLocalBounds(false)
 ,	bHasPerInstanceHierarchyOffset(false)
 ,	bUseAsOccluder(InComponent->bUseAsOccluder)
 ,	bAllowApproximateOcclusion(InComponent->Mobility != EComponentMobility::Movable)
@@ -423,6 +424,8 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				.CastShadow(CastsDynamicShadow())
 				.InstanceSceneDataOffset(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstanceSceneDataOffset() : INDEX_NONE)
 				.NumInstanceSceneDataEntries(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetNumInstanceSceneDataEntries() : 0)
+				.InstancePayloadDataOffset(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstancePayloadDataOffset() : INDEX_NONE)
+				.InstancePayloadDataStride(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstancePayloadDataStride() : 0)
 			.Build();
 
 		if (UniformBuffer.GetReference())

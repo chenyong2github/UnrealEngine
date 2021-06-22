@@ -606,6 +606,7 @@ public:
 	inline bool HasPerInstanceCustomData() const { return bHasPerInstanceCustomData; }
 	inline bool HasPerInstanceDynamicData() const { return bHasPerInstanceDynamicData; }
 	inline bool HasPerInstanceLMSMUVBias() const { return bHasPerInstanceLMSMUVBias; }
+	inline bool HasPerInstanceLocalBounds() const { return bHasPerInstanceLocalBounds; }
 	inline bool HasPerInstanceHierarchyOffset() const { return bHasPerInstanceHierarchyOffset; }
 	inline bool UseEditorCompositing(const FSceneView* View) const { return GIsEditor && bUseEditorCompositing && !View->bIsGameView; }
 	inline bool IsBeingMovedByEditor() const { return bIsBeingMovedByEditor; }
@@ -742,6 +743,31 @@ public:
 	{
 		ResourceID = NANITE_INVALID_RESOURCE_ID;
 		HierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
+	}
+
+	inline uint32 GetPayloadDataCount() const
+	{
+		static_assert(sizeof(FRenderTransform) == sizeof(float) * 3 * 4); // Sanity check
+		static_assert(sizeof(FRenderBounds) == sizeof(float) * 3 * 2); // Sanity check
+
+		// Count of 32bit values to keep buffer accesses 4 byte aligned.
+		// This count is per instance.
+		uint32 PayloadDataCount = 0;
+		PayloadDataCount += HasPerInstanceDynamicData() ? (3 * 4) : 0;	// FRenderTransform
+		PayloadDataCount += HasPerInstanceRandom() ? 1 : 0;				// Single float
+		PayloadDataCount += HasPerInstanceHierarchyOffset() ? 1 : 0;	// Single uint32
+		PayloadDataCount += HasPerInstanceLocalBounds() ? (3 * 2) : 0;	// FRenderBounds
+		PayloadDataCount += HasPerInstanceLMSMUVBias() ? 4 : 0;			// FVector4
+		if (HasPerInstanceCustomData())
+		{
+			const uint32 InstanceCount		= InstanceSceneData.Num();
+			const uint32 CustomDataCount	= InstanceCustomData.Num();
+			if (InstanceCount > 0)
+			{
+				PayloadDataCount += (CustomDataCount / InstanceCount);
+			}
+		}
+		return PayloadDataCount;
 	}
 
 	/** 
@@ -1087,6 +1113,7 @@ protected:
 	uint8 bHasPerInstanceCustomData : 1;
 	uint8 bHasPerInstanceDynamicData : 1;
 	uint8 bHasPerInstanceLMSMUVBias : 1;
+	uint8 bHasPerInstanceLocalBounds : 1;
 	uint8 bHasPerInstanceHierarchyOffset : 1;
 
 private:

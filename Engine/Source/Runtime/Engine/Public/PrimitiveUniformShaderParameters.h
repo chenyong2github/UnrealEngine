@@ -43,6 +43,10 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(float,			ObjectBoundsY)											// Only needed for editor/development
 	SHADER_PARAMETER(FVector3f,		LocalObjectBoundsMax)									// This is used in a custom material function (ObjectLocalBounds.uasset)
 	SHADER_PARAMETER(float,			ObjectBoundsZ)											// Only needed for editor/development
+	SHADER_PARAMETER(uint32,		InstancePayloadDataOffset)
+	SHADER_PARAMETER(uint32,		InstancePayloadDataStride)
+	SHADER_PARAMETER(uint32,		Unused1)
+	SHADER_PARAMETER(uint32,		Unused2)
 	SHADER_PARAMETER_ARRAY(FVector4, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through material expression parameters and modified through UStaticMeshComponent
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -61,7 +65,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 #define PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_1				0x800
 #define PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_2				0x1000
 
-#define NANITE_INVALID_RESOURCE_ID	0xFFFFFFFFu
+#define NANITE_INVALID_RESOURCE_ID			0xFFFFFFFFu
 #define NANITE_INVALID_HIERARCHY_OFFSET		0xFFFFFFFFu
 
 struct FPrimitiveUniformShaderParametersBuilder
@@ -92,9 +96,11 @@ public:
 		Parameters.NaniteResourceID					= NANITE_INVALID_RESOURCE_ID;
 		Parameters.NaniteHierarchyOffset			= NANITE_INVALID_HIERARCHY_OFFSET;
 
-		// Instance culling
+		// Instance data
 		Parameters.InstanceSceneDataOffset			= INDEX_NONE;
 		Parameters.NumInstanceSceneDataEntries		= 0;
+		Parameters.InstancePayloadDataOffset		= INDEX_NONE;
+		Parameters.InstancePayloadDataStride		= 0;
 
 		LightingChannels = GetDefaultLightingChannelMask();
 
@@ -118,6 +124,8 @@ public:
 
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			InstanceSceneDataOffset);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NumInstanceSceneDataEntries);
+	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			InstancePayloadDataOffset);
+	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			InstancePayloadDataStride);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(int32,				SingleCaptureIndex);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NaniteResourceID);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NaniteHierarchyOffset);
@@ -332,7 +340,7 @@ extern ENGINE_API TGlobalResource<FIdentityPrimitiveUniformBuffer> GIdentityPrim
 struct FPrimitiveSceneShaderData
 {
 	// Must match usf
-	enum { DataStrideInFloat4s = 35 };
+	enum { DataStrideInFloat4s = 36 };
 
 	TStaticArray<FVector4, DataStrideInFloat4s> Data;
 

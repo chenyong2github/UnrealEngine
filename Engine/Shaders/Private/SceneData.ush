@@ -87,11 +87,15 @@ struct FPrimitiveSceneData
 	float		ObjectBoundsY;
 	float3		LocalObjectBoundsMax;
 	float		ObjectBoundsZ;
+	uint		InstancePayloadDataOffset;
+	uint		InstancePayloadDataStride; // TODO: Use 16 bits? 8 bits?
+	uint		Unused1;
+	uint		Unused2;
 	float4		CustomPrimitiveData[NUM_CUSTOM_PRIMITIVE_DATA]; // TODO: Move to associated array to shrink primitive data and pack cachelines more effectively
 };
 
 // Stride of a single primitive's data in float4's, must match C++
-#define PRIMITIVE_SCENE_DATA_STRIDE 35
+#define PRIMITIVE_SCENE_DATA_STRIDE 36
 
 float4 LoadPrimitivePrimitiveSceneDataElement(uint PrimitiveIndex, uint ItemIndex)
 {
@@ -164,12 +168,14 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	PrimitiveData.ObjectBoundsY					= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 24).w;
 	PrimitiveData.LocalObjectBoundsMax			= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 25).xyz;
 	PrimitiveData.ObjectBoundsZ					= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 25).w;
+	PrimitiveData.InstancePayloadDataOffset		= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 26).x);
+	PrimitiveData.InstancePayloadDataStride		= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 26).y);
 
 	// TODO: Move to associated array to shrink primitive data and better pack cachelines
 	UNROLL
 	for (int DataIndex = 0; DataIndex < NUM_CUSTOM_PRIMITIVE_DATA; ++DataIndex)
 	{
-		PrimitiveData.CustomPrimitiveData[DataIndex] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex,  26 + DataIndex);
+		PrimitiveData.CustomPrimitiveData[DataIndex] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex,  27 + DataIndex);
 	}
 
 	return PrimitiveData;
