@@ -215,6 +215,9 @@ public:
 	 */
 	void FreeInstanceSceneDataSlots(int32 InstanceSceneDataOffset, int32 NumInstanceSceneDataEntries);
 
+	int32 AllocateInstancePayloadDataSlots(int32 NumInstancePayloadFloat4Entries);
+	void FreeInstancePayloadDataSlots(int32 InstancePayloadDataOffset, int32 NumInstancePayloadFloat4Entries);
+
 	/**
 	 * Upload primitives from View.DynamicPrimitiveCollector.
 	 */
@@ -304,6 +307,10 @@ public:
 	FRWBufferStructured		InstanceSceneDataBuffer;
 	FScatterUploadBuffer	InstanceSceneUploadBuffer;
 	uint32					InstanceSceneDataSOAStride;	// Distance between arrays in float4s
+
+	FGrowOnlySpanAllocator	InstancePayloadDataAllocator;
+	//FRWBufferStructured		InstancePayloadDataBuffer;
+	//FScatterUploadBuffer	InstancePayloadUploadBuffer;
 
 	FRWBufferStructured		InstanceBVHBuffer;
 

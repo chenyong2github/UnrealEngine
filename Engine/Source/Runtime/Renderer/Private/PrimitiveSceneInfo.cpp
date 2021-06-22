@@ -158,6 +158,8 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent,FScene
 	bRegisteredWithVelocityData(false),
 	InstanceSceneDataOffset(INDEX_NONE),
 	NumInstanceSceneDataEntries(0),
+	InstancePayloadDataOffset(INDEX_NONE),
+	InstancePayloadDataStride(0),
 	LightmapDataOffset(INDEX_NONE),
 	NumLightmapDataEntries(0)
 {
@@ -966,15 +968,30 @@ void FPrimitiveSceneInfo::AllocateGPUSceneInstances(FScene* Scene, const TArrayV
 		SCOPE_CYCLE_COUNTER(STAT_UpdateGPUSceneTime);
 		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
 		{
-			check(SceneInfo->InstanceSceneDataOffset == INDEX_NONE);
-			check(SceneInfo->NumInstanceSceneDataEntries == 0);
+			check
+			(
+				SceneInfo->InstanceSceneDataOffset == INDEX_NONE &&
+				SceneInfo->NumInstanceSceneDataEntries == 0 &&
+				SceneInfo->InstancePayloadDataOffset == INDEX_NONE &&
+				SceneInfo->InstancePayloadDataStride == 0
+			);
+
 			if (SceneInfo->Proxy->SupportsInstanceDataBuffer())
 			{
 				const TConstArrayView<FPrimitiveInstance> InstanceSceneData = SceneInfo->Proxy->GetInstanceSceneData();
-				if (InstanceSceneData.Num() > 0)
+
+				SceneInfo->NumInstanceSceneDataEntries = InstanceSceneData.Num();
+				if (SceneInfo->NumInstanceSceneDataEntries > 0)
 				{
-					SceneInfo->NumInstanceSceneDataEntries = InstanceSceneData.Num();
 					SceneInfo->InstanceSceneDataOffset = Scene->GPUScene.AllocateInstanceSceneDataSlots(SceneInfo->NumInstanceSceneDataEntries);
+
+					// Data count is number of floats per instance. We round up to float4 for packing reasons.
+					SceneInfo->InstancePayloadDataStride = FMath::DivideAndRoundUp(SceneInfo->Proxy->GetPayloadDataCount(), 4u);
+					if (SceneInfo->InstancePayloadDataStride > 0)
+					{
+						const uint32 Float4Count = SceneInfo->NumInstanceSceneDataEntries * SceneInfo->InstancePayloadDataStride;
+						SceneInfo->InstancePayloadDataOffset = Scene->GPUScene.AllocateInstancePayloadDataSlots(Float4Count);
+					}
 
 					if (GGPUSceneInstanceBVH)
 					{
@@ -1010,8 +1027,13 @@ void FPrimitiveSceneInfo::AllocateGPUSceneInstances(FScene* Scene, const TArrayV
 
 void FPrimitiveSceneInfo::FreeGPUSceneInstances()
 {
+	if (!Scene->GPUScene.IsEnabled())
+	{
+		return;
+	}
+
 	// Release all instance data slots associated with this primitive.
-	if (InstanceSceneDataOffset != INDEX_NONE && Scene->GPUScene.IsEnabled())
+	if (InstanceSceneDataOffset != INDEX_NONE)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateGPUSceneTime);
 
@@ -1022,6 +1044,17 @@ void FPrimitiveSceneInfo::FreeGPUSceneInstances()
 			{
 				Scene->InstanceBVH.Remove(InstanceSceneDataOffset + InstanceIndex);
 			}
+		}
+
+		// Release all instance payload data slots associated with this primitive.
+		if (InstancePayloadDataOffset != INDEX_NONE)
+		{
+			check(InstancePayloadDataStride > 0);
+
+			const uint32 Float4Count = NumInstanceSceneDataEntries * InstancePayloadDataStride;
+			Scene->GPUScene.FreeInstancePayloadDataSlots(InstancePayloadDataOffset, Float4Count);
+			InstancePayloadDataOffset = INDEX_NONE;
+			InstancePayloadDataStride = 0;
 		}
 
 		Scene->GPUScene.FreeInstanceSceneDataSlots(InstanceSceneDataOffset, NumInstanceSceneDataEntries);

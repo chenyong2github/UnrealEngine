@@ -247,9 +247,10 @@ int32 FSceneRenderState::GetPrimitiveIdForGPUScene(const FGeometryInstanceRender
 
 void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSceneRenderState& Scene)
 {
-	TResourceArray<FPrimitiveSceneShaderData> PrimitiveSceneData;
-	TResourceArray<FLightmapSceneShaderData> LightmapSceneData;
-	TResourceArray<FInstanceSceneShaderData> InstanceSceneData;
+	TResourceArray<FPrimitiveSceneShaderData>	PrimitiveSceneData;
+	TResourceArray<FLightmapSceneShaderData>	LightmapSceneData;
+	TResourceArray<FInstanceSceneShaderData>	InstanceSceneData;
+	TResourceArray<FVector4>					InstancePayloadData; // TODO: Populate this
 
 	PrimitiveSceneData.AddZeroed(Scene.StaticMeshInstanceRenderStates.Elements.Num());
 	InstanceSceneData.AddZeroed(Scene.StaticMeshInstanceRenderStates.Elements.Num());
@@ -311,6 +312,8 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 				PrimitiveUniformShaderParameters.LightmapUVIndex = 0; // TODO: LightmapUVIndex
 				PrimitiveUniformShaderParameters.InstanceSceneDataOffset = InstanceIndex;
 				PrimitiveUniformShaderParameters.NumInstanceSceneDataEntries = 1;
+				PrimitiveUniformShaderParameters.InstancePayloadDataOffset = INDEX_NONE;
+				PrimitiveUniformShaderParameters.InstancePayloadDataStride = 0;
 				PrimitiveSceneData[InstanceIndex] = FPrimitiveSceneShaderData(PrimitiveUniformShaderParameters);
 
 				InstanceDataOriginalOffsets[InstanceIndex] = InstanceIndex;
@@ -373,6 +376,8 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 					.LightmapDataIndex(LightmapSceneDataStartOffsets[PrimitiveId])
 					.InstanceSceneDataOffset(InstanceSceneData.Num())
 					.NumInstanceSceneDataEntries(NumInstancesThisGroup)
+					.InstancePayloadDataOffset(INDEX_NONE) // InstancePayloadData.Num()) // TODO: Populate this
+					.InstancePayloadDataStride(0) // TODO: Populate this
 					.CastContactShadow(true)
 					.CastShadow(true)
 				.Build();

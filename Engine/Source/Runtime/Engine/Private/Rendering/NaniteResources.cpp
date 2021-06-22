@@ -74,6 +74,14 @@ FAutoConsoleVariableRef CVarRayTracingNaniteProxyMeshes(
 	ECVF_RenderThreadSafe
 );
 
+int32 GNaniteErrorOnVertexInterpolator = 0;
+FAutoConsoleVariableRef CVarNaniteErrorOnVertexInterpolator(
+	TEXT("r.Nanite.ErrorOnVertexInterpolator"),
+	GNaniteErrorOnVertexInterpolator,
+	TEXT("Whether to error and use default material if vertex interpolator is present on a Nanite material."),
+	ECVF_RenderThreadSafe
+);
+
 namespace Nanite
 {
 
@@ -395,14 +403,26 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 		{
 			MaterialSection.bHasInvalidStaticLighting = true;
 		}
-		// TODO: bHasVertexInterpolator
+
+		const UMaterial* Material = MaterialSection.Material->GetMaterial_Concurrent();
+		check(Material != nullptr); // Should always be valid here
+
+		const FMaterialCachedExpressionData& CachedMaterialData = Material->GetCachedExpressionData();
+		MaterialSection.bHasVertexInterpolator		= CachedMaterialData.bHasVertexInterpolator;
+		MaterialSection.bHasPerInstanceRandomID		= CachedMaterialData.bHasPerInstanceRandom;
+		MaterialSection.bHasPerInstanceCustomData	= CachedMaterialData.bHasPerInstanceCustomData;
 
 		MaterialSection.bHasAnyError =
 			MaterialSection.bHasNullMaterial ||
 			MaterialSection.bHasInvalidRelevance ||
 			MaterialSection.bHasNonOpaqueBlendMode ||
-			MaterialSection.bHasVertexInterpolator || 
+			//MaterialSection.bHasVertexInterpolator || 
 			MaterialSection.bHasInvalidStaticLighting;
+
+		if (GNaniteErrorOnVertexInterpolator != 0)
+		{
+			MaterialSection.bHasAnyError |= MaterialSection.bHasVertexInterpolator;
+		}
 
 		if (MaterialSection.bHasAnyError)
 		{

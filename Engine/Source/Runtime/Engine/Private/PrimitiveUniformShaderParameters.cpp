@@ -137,6 +137,8 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 			.SingleCaptureIndex(SingleCaptureIndex)
 			.InstanceSceneDataOffset(Proxy->GetPrimitiveSceneInfo()->GetInstanceSceneDataOffset())
 			.NumInstanceSceneDataEntries(Proxy->GetPrimitiveSceneInfo()->GetNumInstanceSceneDataEntries())
+			.InstancePayloadDataOffset(Proxy->GetPrimitiveSceneInfo()->GetInstancePayloadDataOffset())
+			.InstancePayloadDataStride(Proxy->GetPrimitiveSceneInfo()->GetInstancePayloadDataStride())
 			.ReceivesDecals(Proxy->ReceivesDecals())
 			.DrawsVelocity(Proxy->DrawsVelocity())
 			.OutputVelocity(bOutputVelocity)
@@ -204,8 +206,12 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[24]	= FVector4(PrimitiveUniformShaderParameters.LocalObjectBoundsMin, PrimitiveUniformShaderParameters.ObjectBoundsY);
 	Data[25]	= FVector4(PrimitiveUniformShaderParameters.LocalObjectBoundsMax, PrimitiveUniformShaderParameters.ObjectBoundsZ);
 
+	Data[26].X = *(const float*)&PrimitiveUniformShaderParameters.InstancePayloadDataOffset;
+	Data[26].Y = *(const float*)&PrimitiveUniformShaderParameters.InstancePayloadDataStride;
+	// .ZW = unused
+
 	// Set all the custom primitive data float4. This matches the loop in SceneData.ush
-	const int32 CustomPrimitiveDataStartIndex = 26;
+	const int32 CustomPrimitiveDataStartIndex = 27;
 	for (int32 DataIndex = 0; DataIndex < FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s; ++DataIndex)
 	{
 		Data[CustomPrimitiveDataStartIndex + DataIndex] = PrimitiveUniformShaderParameters.CustomPrimitiveData[DataIndex];

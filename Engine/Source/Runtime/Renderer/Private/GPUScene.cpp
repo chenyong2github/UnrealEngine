@@ -1519,6 +1519,31 @@ void FGPUScene::FreeInstanceSceneDataSlots(int32 InstanceSceneDataOffset, int32 
 	}
 }
 
+int32 FGPUScene::AllocateInstancePayloadDataSlots(int32 NumInstancePayloadFloat4Entries)
+{
+	LLM_SCOPE_BYTAG(GPUScene);
+
+	if (bIsEnabled)
+	{
+		if (NumInstancePayloadFloat4Entries > 0)
+		{
+			int32 InstancePayloadDataOffset = InstancePayloadDataAllocator.Allocate(NumInstancePayloadFloat4Entries);
+			return InstancePayloadDataOffset;
+		}
+	}
+	return INDEX_NONE;
+}
+
+void FGPUScene::FreeInstancePayloadDataSlots(int32 InstancePayloadDataOffset, int32 NumInstancePayloadFloat4Entries)
+{
+	LLM_SCOPE_BYTAG(GPUScene);
+
+	if (bIsEnabled)
+	{
+		InstancePayloadDataAllocator.Free(InstancePayloadDataOffset, NumInstancePayloadFloat4Entries);
+	}
+}
+
 TRange<int32> FGPUScene::CommitPrimitiveCollector(FGPUScenePrimitiveCollector& PrimitiveCollector)
 {
 	ensure(bInBeginEndBlock);

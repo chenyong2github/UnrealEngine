@@ -69,6 +69,24 @@ public:
 		return MaterialMaxIndex;
 	}
 
+	inline void GetMaterialDynamicDataUsage(bool& bOutCustomData, bool& bOutRandomID) const
+	{
+		bOutCustomData	= false;
+		bOutRandomID	= false;
+
+		// Checks if any material assigned to the mesh uses custom data and/or random ID
+		for (const FMaterialSection& MaterialSection : MaterialSections)
+		{
+			bOutCustomData	|= MaterialSection.bHasPerInstanceCustomData;
+			bOutRandomID	|= MaterialSection.bHasPerInstanceRandomID;
+
+			if (bOutCustomData && bOutRandomID)
+			{
+				break;
+			}
+		}
+	}
+
 	// Nanite always uses LOD 0, and performs custom LOD streaming.
 	virtual uint8 GetCurrentFirstLODIdx_RenderThread() const override { return 0; }
 
