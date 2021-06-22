@@ -99,6 +99,7 @@
 #include "Misc/CoreMisc.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
+#include "MeshUtilitiesEngine.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -228,7 +229,7 @@ void FMeshUtilities::CalculateTriangleTangent(const FSoftSkinVertex& VertexA, co
 
 void FMeshUtilities::CalcBoneVertInfos(USkeletalMesh* SkeletalMesh, TArray<FBoneVertInfo>& Infos, bool bOnlyDominant)
 {
-	SkeletalMeshTools::CalcBoneVertInfos(SkeletalMesh, Infos, bOnlyDominant);
+	FMeshUtilitiesEngine::CalcBoneVertInfos(SkeletalMesh, Infos, bOnlyDominant);
 }
 
 // Helper function for ConvertMeshesToStaticMesh

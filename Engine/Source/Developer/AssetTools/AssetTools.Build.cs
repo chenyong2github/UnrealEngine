@@ -40,7 +40,8 @@ public class AssetTools : ModuleRules
 				"DeveloperSettings",
 				"EngineSettings",
 				"InterchangeCore",
-				"InterchangeEngine"
+				"InterchangeEngine",
+				"PhysicsUtilities",
 			}
 		);
 

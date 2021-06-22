@@ -2,7 +2,8 @@
 
 #include "PhysicsAssetUtils.h"
 #include "Modules/ModuleManager.h"
-#include "MeshUtilities.h"
+#include "MeshUtilitiesCommon.h"
+#include "MeshUtilitiesEngine.h"
 #include "ConvexDecompTool.h"
 #include "Logging/MessageLog.h"
 #include "PhysicsEngine/RigidBodyIndexPair.h"
@@ -116,11 +117,9 @@ void AddInfoToParentInfo(const FTransform& LocalToParentTM, const FBoneVertInfo&
 
 bool CreateFromSkeletalMeshInternal(UPhysicsAsset* PhysicsAsset, USkeletalMesh* SkelMesh, const FPhysAssetCreateParams& Params, const FSkinnedBoneTriangleCache& TriangleCache)
 {
-	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
-
 	// For each bone, get the vertices most firmly attached to it.
 	TArray<FBoneVertInfo> Infos;
-	MeshUtilities.CalcBoneVertInfos(SkelMesh, Infos, (Params.VertWeight == EVW_DominantWeight));
+	FMeshUtilitiesEngine::CalcBoneVertInfos(SkelMesh, Infos, (Params.VertWeight == EVW_DominantWeight));
 	check(Infos.Num() == SkelMesh->GetRefSkeleton().GetRawBoneNum());
 
 	PhysicsAsset->CollisionDisableTable.Empty();
@@ -187,8 +186,11 @@ bool CreateFromSkeletalMeshInternal(UPhysicsAsset* PhysicsAsset, USkeletalMesh* 
 		}
 	}
 
-	FScopedSlowTask SlowTask((float)NumBones * 2);
-	SlowTask.MakeDialog();
+	FScopedSlowTask SlowTask((float)NumBones * 2, FText(), IsInGameThread());
+	if (IsInGameThread())
+	{
+		SlowTask.MakeDialog();
+	}
 
 	// Finally, iterate through all the bones and create bodies when needed
 	for (int32 BoneIndex = 0; BoneIndex < NumBones; BoneIndex++)
@@ -217,7 +219,10 @@ bool CreateFromSkeletalMeshInternal(UPhysicsAsset* PhysicsAsset, USkeletalMesh* 
 			// Go ahead and make this bone physical.
 			FName BoneName = SkelMesh->GetRefSkeleton().GetBoneName(BoneIndex);
 
-			SlowTask.EnterProgressFrame(1.0f, FText::Format(NSLOCTEXT("PhysicsAssetEditor", "ResetCollsionStepInfo", "Generating collision for {0}"), FText::FromName(BoneName)));
+			if (IsInGameThread())
+			{
+				SlowTask.EnterProgressFrame(1.0f, FText::Format(NSLOCTEXT("PhysicsAssetEditor", "ResetCollsionStepInfo", "Generating collision for {0}"), FText::FromName(BoneName)));
+			}
 
 			int32 NewBodyIndex = CreateNewBody(PhysicsAsset, BoneName, Params);
 			UBodySetup* NewBodySetup = PhysicsAsset->SkeletalBodySetups[NewBodyIndex];
@@ -319,7 +324,10 @@ bool CreateFromSkeletalMeshInternal(UPhysicsAsset* PhysicsAsset, USkeletalMesh* 
 		FBodyInstance* BodyInstance = Bodies[BodyIdx];
 		if(BodyInstance && BodyInstance->BodySetup.IsValid())
 		{
-			SlowTask.EnterProgressFrame(1.0f, FText::Format(NSLOCTEXT("PhysicsAssetEditor", "ResetCollsionStepInfoOverlaps", "Fixing overlaps for {0}"), FText::FromName(BodyInstance->BodySetup->BoneName)));
+			if (IsInGameThread())
+			{
+				SlowTask.EnterProgressFrame(1.0f, FText::Format(NSLOCTEXT("PhysicsAssetEditor", "ResetCollsionStepInfoOverlaps", "Fixing overlaps for {0}"), FText::FromName(BodyInstance->BodySetup->BoneName)));
+			}
 
 			FTransform BodyTM = BodyInstance->GetUnrealWorldTransform();
 

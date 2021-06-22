@@ -116,6 +116,7 @@ public class UnrealEd : ModuleRules
 				"DeveloperToolSettings",
 				"SubobjectDataInterface",
 				"SubobjectEditor",
+				"PhysicsUtilities",
 			}
 		);
 
@@ -353,7 +354,6 @@ public class UnrealEd : ModuleRules
 		}
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target,
-			"VHACD",
 			"FBX",
 			"FreeType2"
 		);
