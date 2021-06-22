@@ -297,7 +297,10 @@ void FVulkanDynamicRHI::PostInit()
 	TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel)).GetPixelShader();
 
 #if VULKAN_RHI_RAYTRACING
-	Device->InitializeRayTracing();
+	if (GRHISupportsRayTracing)
+	{
+		Device->InitializeRayTracing();
+	}
 #endif // VULKAN_RHI_RAYTRACING
 }
 
