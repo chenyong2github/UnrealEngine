@@ -60,7 +60,8 @@ bool FIsRunningPyLatentCommand::Update()
 
 	UPyAutomationTestLibrary::SetIsRunningPyLatentCommand(false);
 	FAutomationTestBase* CurrentTest = FAutomationTestFramework::Get().GetCurrentTest();
-	CurrentTest->AddError(TEXT("Timeout reached waiting for Python Latent Command."));
+	const FString ErrMessage = FString::Printf(TEXT("Timeout reached waiting for Python Latent Command after %.2f sec."), Timeout);
+	CurrentTest->AddError(ErrMessage);
 
 	CleanUpPythonScheduler();
 
