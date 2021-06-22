@@ -23,11 +23,12 @@ class UWorldPartition;
  */
 struct FStreamingSourceVelocity
 {
-	FStreamingSourceVelocity();
+	FStreamingSourceVelocity(const FName& InSourceName);
 	float GetAverageVelocity(const FVector& NewPosition, const float CurrentTime);
 
 private:
 	enum { VELOCITY_HISTORY_SAMPLE_COUNT = 16 };
+	FName SourceName;
 	int32 LastIndex;
 	float LastUpdateTime;
 	FVector LastPosition;
