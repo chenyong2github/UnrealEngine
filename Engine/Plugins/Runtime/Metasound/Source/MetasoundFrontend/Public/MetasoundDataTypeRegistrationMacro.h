@@ -381,7 +381,7 @@ namespace Metasound
 					TGetVariableNode<TDataType> VariablePrototype(TEXT(""), FGuid(), TEXT(""), FLiteral());
 					VariableClass = Metasound::Frontend::GenerateClassDescription(VariablePrototype.GetMetadata(), EMetasoundFrontendClassType::Variable);
 				}
-				virtual ~FDataTypeRegistryEntry() = default;
+				virtual ~FDataTypeRegistryEntry() {}
 
 				virtual const Frontend::FDataTypeRegistryInfo& GetDataTypeInfo() const override
 				{
