@@ -4,6 +4,7 @@
 
 #if WITH_EOS_RTC
 
+#include "Misc/Parse.h"
 #include "IEOSSDKManager.h"
 
 #include COMPILED_PLATFORM_HEADER(EOSVoiceChat.h)
