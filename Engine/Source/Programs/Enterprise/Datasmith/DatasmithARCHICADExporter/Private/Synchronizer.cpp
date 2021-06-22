@@ -83,6 +83,33 @@ void FThreadUpdateSnapshot::Join(FProgression* IOProgression)
 	}
 }
 
+// Class to process metadata as idle task (Only for Direct Link synchronization)
+class FCountNeededMetadata : public FSyncData::FInterator
+{
+  public:
+	GS::Int32 Count = 0;
+
+	FCountNeededMetadata(FSyncData* Root)
+	{
+		Start(Root);
+		ProcessAll();
+	}
+
+	// Call ProcessMetaData for the sync data
+	virtual EProcessControl Process(FSyncData* InCurrent) override
+	{
+		if (InCurrent == nullptr)
+		{
+			return kDone;
+		}
+		if (InCurrent->NeedTagsAndMetaDataUpdate())
+		{
+			++Count;
+		}
+		return kContinue;
+	}
+};
+
 #define UE_AC_FULL_TRACE 0
 
 enum : GSType
@@ -425,14 +452,14 @@ void FSynchronizer::DoSnapshot(const ModelerAPI::Model& InModel)
 	FTimeStat DoSynchronizeEnd;
 
 	// Try to process meta data now, so if it take less than 10 seconds we can have only one sync
-	SyncContext.NewPhase(kCommonCollectMetaDatas);
+	SyncContext.NewPhase(kCommonCollectMetaDatas, FCountNeededMetadata(&SyncDatabase->GetSceneSyncData()).Count);
 	ProcessMetadata.Start(&SyncDatabase->GetSceneSyncData());
 	double EndSyncData = FTimeStat::RealTimeClock() + 10; // seconds
 	while (FTimeStat::RealTimeClock() < EndSyncData &&
 		   ProcessMetadata.ProcessUntil(FTimeStat::RealTimeClock() + 1.0 / 3.0) == FSyncData::FInterator::kContinue)
 	{
 		// Update progression
-		SyncContext.NewCurrentValue();
+		SyncContext.NewCurrentValue(ProcessMetadata.GetProcessedCount());
 	}
 	ProcessMetadata.CleardMetadataUpdated();
 	FTimeStat DoMetadataEnd;
@@ -518,6 +545,7 @@ void FSynchronizer::DoIdle(int* IOCount)
 		// If we must have meta data to sync ?
 		if (ProcessMetadata.HasMetadataUpdated())
 		{
+			UE_AC_ReportF("Metadata update completed in %.2lgs\n", ProcessMetadata.GetProcessedTime());
 			PostDoSnapshot("Update MetaData");
 			return;
 		}

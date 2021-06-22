@@ -74,9 +74,8 @@ FElementID::FElementID(const FSyncContext& InSyncContext)
 	: SyncContext(InSyncContext)
 	, Index3D(0)
 	, SyncData(nullptr)
-	, Instance(nullptr)
+	, MeshClass(nullptr)
 	, LibPartInfo(nullptr)
-	, bFullElementFetched(false)
 	, bLibPartInfoFetched(false)
 {
 }
@@ -86,9 +85,8 @@ void FElementID::InitElement(GS::Int32 InIndex3d)
 {
 	Index3D = InIndex3d;
 	SyncContext.GetModel().GetElement(Index3D, &Element3D);
-	APIElement.header.guid = APINULLGuid;
-	bFullElementFetched = false;
-	Instance = nullptr;
+	APIElementHeader.guid = APINULLGuid;
+	MeshClass = nullptr;
 	LibPartInfo = nullptr;
 	bLibPartInfoFetched = false;
 	ElementName.clear();
@@ -104,8 +102,7 @@ void FElementID::InitElement(FSyncData* IOSyncdata)
 	{
 		SyncContext.GetModel().GetElement(Index3D, &Element3D);
 	}
-	bFullElementFetched = false;
-	Instance = nullptr;
+	MeshClass = nullptr;
 	LibPartInfo = nullptr;
 	bLibPartInfoFetched = false;
 }
@@ -118,10 +115,9 @@ bool FElementID::InitHeader()
 		throw std::runtime_error(
 			Utf8StringFormat("FElementID::InitHeader - Invalid element for index=%d\n", Index3D).c_str());
 	}
-	bFullElementFetched = false;
-	Zap(&APIElement.header);
-	APIElement.header.guid = GSGuid2APIGuid(Element3D.GetElemGuid());
-	GSErrCode GSErr = ACAPI_Element_GetHeader(&APIElement.header, 0);
+	Zap(&APIElementHeader);
+	APIElementHeader.guid = GSGuid2APIGuid(Element3D.GetElemGuid());
+	GSErrCode GSErr = ACAPI_Element_GetHeader(&APIElementHeader, 0);
 	if (GSErr != NoError)
 	{
 		utf8_string ErrorName(GetErrorName(GSErr));
@@ -137,23 +133,9 @@ bool FElementID::InitHeader()
 	return true;
 }
 
-const API_Element& FElementID::GetAPIElement()
-{
-	if (bFullElementFetched == false)
-	{
-		API_Guid guid = APIElement.header.guid;
-		Zap(&APIElement);
-		APIElement.header.guid = guid;
-		UE_AC_TestGSError(ACAPI_Element_Get(&APIElement, 0));
-		bFullElementFetched = true;
-	}
-
-	return APIElement;
-}
-
 FMeshClass* FElementID::GetMeshClass()
 {
-	if (Instance == nullptr && Index3D != 0)
+	if (MeshClass == nullptr && Index3D != 0)
 	{
 		ModelerAPI::BaseElemId			   BaseElemId;
 		GS::NonInterruptibleProcessControl processControl;
@@ -167,43 +149,43 @@ FMeshClass* FElementID::GetMeshClass()
 #else
 		GS::ULong HashValue = BaseElemId.GenerateHashValue();
 #endif
-		Instance = SyncContext.GetSyncDatabase().GetMeshClass(HashValue);
+		MeshClass = SyncContext.GetSyncDatabase().GetMeshClass(HashValue);
 		bool bTransformed = (Element3D.GetElemLocalToWorldTransformation().status & TR_IDENT) != 0;
-		if (Instance == nullptr)
+		if (MeshClass == nullptr)
 		{
 			TUniquePtr< FMeshClass > NewInstance = MakeUnique< FMeshClass >();
-			Instance = NewInstance.Get();
-			Instance->Hash = HashValue;
-			Instance->ElementType = Element3D.GetType();
-			Instance->TransformCount = bTransformed ? 0 : 1;
+			MeshClass = NewInstance.Get();
+			MeshClass->Hash = HashValue;
+			MeshClass->ElementType = Element3D.GetType();
+			MeshClass->TransformCount = bTransformed ? 0 : 1;
 			SyncContext.GetSyncDatabase().AddInstance(HashValue, std::move(NewInstance));
-			UE_AC_VerboseF("FSynchronizer::ScanElements - First instance %u {%s}\n", Instance->Hash,
+			UE_AC_VerboseF("FElementID::GetMeshClass - First instance %u {%s}\n", MeshClass->Hash,
 						   APIGuidToString(ElementGuid).ToUtf8());
 		}
 		else
 		{
-			if (Instance->ElementType != Element3D.GetType())
+			if (MeshClass->ElementType != Element3D.GetType())
 			{
-				if (Instance->ElementType == ModelerAPI::Element::Type::UndefinedElement)
+				if (MeshClass->ElementType == ModelerAPI::Element::Type::UndefinedElement)
 				{
-					Instance->ElementType = Element3D.GetType();
+					MeshClass->ElementType = Element3D.GetType();
 				}
 				else
 				{
-					UE_AC_DebugF("FSynchronizer::ScanElements - Instance Hash %u collision Type %s != %s\n",
-								 Instance->Hash, GetTypeName(Instance->ElementType), GetTypeName());
-					Instance->ElementType = Element3D.GetType();
-					Instance->MeshElement.Reset();
-					Instance->bMeshElementInitialized = false;
+					UE_AC_DebugF("FElementID::GetMeshClass - MeshClass Hash %u collision Type %s != %s\n",
+								 MeshClass->Hash, GetTypeName(MeshClass->ElementType), GetTypeName());
+					MeshClass->ElementType = Element3D.GetType();
+					MeshClass->MeshElement.Reset();
+					MeshClass->bMeshElementInitialized = false;
 				}
 			}
-			++Instance->InstancesCount;
-			Instance->TransformCount += bTransformed ? 0 : 1;
-			UE_AC_VerboseF("FSynchronizer::ScanElements - Reuse instance %u {%s}\n", Instance->Hash,
+			++MeshClass->InstancesCount;
+			MeshClass->TransformCount += bTransformed ? 0 : 1;
+			UE_AC_VerboseF("FElementID::GetMeshClass - Reuse MeshClass %u {%s}\n", MeshClass->Hash,
 						   APIGuidToString(ElementGuid).ToUtf8());
 		}
 	}
-	return Instance;
+	return MeshClass;
 }
 
 // If this element is related to a lib part ?
@@ -213,7 +195,7 @@ const FLibPartInfo* FElementID::GetLibPartInfo()
 	{
 		// Get the lib part from it's UnId
 		FGSUnID::Buffer lpfUnID = {0};
-		GSErrCode		GSErr = ACAPI_Goodies(APIAny_GetElemLibPartUnIdID, &APIElement.header, lpfUnID);
+		GSErrCode		GSErr = ACAPI_Goodies(APIAny_GetElemLibPartUnIdID, &APIElementHeader, lpfUnID);
 		if (GSErr == NoError)
 		{
 			LibPartInfo = SyncContext.GetSyncDatabase().GetLibPartInfo(lpfUnID);
@@ -235,25 +217,26 @@ const utf8_t* FElementID::GetElementName()
 	if (ElementName.size() == 0)
 	{
 		GS::UniString InfoStringID;
-		GSErrCode GSErr = ACAPI_Database(APIDb_GetElementInfoStringID, (void*)&APIElement.header.guid, &InfoStringID);
+		GSErrCode GSErr = ACAPI_Database(APIDb_GetElementInfoStringID, (void*)&APIElementHeader.guid, &InfoStringID);
 		if (GSErr == NoError)
 		{
-			ElementName = Utf8StringFormat("{%s}:\"%s\"", APIGuidToString(APIElement.header.guid).ToUtf8(),
-										   InfoStringID.ToUtf8());
+			ElementName =
+				Utf8StringFormat("{%s}:\"%s\"", APIGuidToString(APIElementHeader.guid).ToUtf8(), InfoStringID.ToUtf8());
 		}
 		else
 		{
-			ElementName = Utf8StringFormat("{%s}:Error=%s", APIGuidToString(APIElement.header.guid).ToUtf8(),
-										   GetErrorName(GSErr));
+			ElementName =
+				Utf8StringFormat("{%s}:Error=%s", APIGuidToString(APIElementHeader.guid).ToUtf8(), GetErrorName(GSErr));
 		}
 	}
 	return ElementName.c_str();
 }
 
+// Connect childs of this parent
 void FElementID::CollectDependantElementsType(API_ElemTypeID TypeID) const
 {
 	GS::Array< API_Guid > ConnectedElements;
-	UE_AC_TestGSError(ACAPI_Element_GetConnectedElements(APIElement.header.guid, TypeID, &ConnectedElements));
+	UE_AC_TestGSError(ACAPI_Element_GetConnectedElements(APIElementHeader.guid, TypeID, &ConnectedElements));
 	for (USize i = 0; i < ConnectedElements.GetSize(); ++i)
 	{
 		FSyncData*& ChildSyncData = SyncContext.GetSyncDatabase().GetSyncData(APIGuid2GSGuid(ConnectedElements[i]));
@@ -267,26 +250,27 @@ void FElementID::CollectDependantElementsType(API_ElemTypeID TypeID) const
 	}
 }
 
+// Connect to parent or childs
 void FElementID::HandleDepedencies() const
 {
-	if (APIElement.header.typeID == API_WallID)
+	if (APIElementHeader.typeID == API_WallID)
 	{
 		CollectDependantElementsType(API_WindowID);
 		CollectDependantElementsType(API_DoorID);
 	}
-	else if (APIElement.header.typeID == API_RoofID || APIElement.header.typeID == API_ShellID)
+	else if (APIElementHeader.typeID == API_RoofID || APIElementHeader.typeID == API_ShellID)
 	{
 		CollectDependantElementsType(API_SkylightID);
 	}
-	else if (APIElement.header.typeID == API_WindowID || APIElement.header.typeID == API_DoorID ||
-			 APIElement.header.typeID == API_SkylightID)
+	else if (APIElementHeader.typeID == API_WindowID || APIElementHeader.typeID == API_DoorID ||
+			 APIElementHeader.typeID == API_SkylightID)
 	{
 		// Do nothing
 	}
 	else
 	{
-		GS::Guid				  OwnerElemGuid = APIGuid2GSGuid(APIElement.header.guid);
-		API_Guid				  OwnerElemApiGuid = APIElement.header.guid;
+		GS::Guid				  OwnerElemGuid = APIGuid2GSGuid(APIElementHeader.guid);
+		API_Guid				  OwnerElemApiGuid = APIElementHeader.guid;
 		API_HierarchicalElemType  HierarchicalElemType = API_SingleElem;
 		API_HierarchicalOwnerType HierarchicalOwnerType = API_RootHierarchicalOwner;
 		GSErrCode GSErr = ACAPI_Goodies(APIAny_GetHierarchicalElementOwnerID, &OwnerElemGuid, &HierarchicalOwnerType,

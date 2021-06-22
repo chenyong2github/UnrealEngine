@@ -70,23 +70,6 @@ typedef enum
 	kP2DB_Verbose
 } EP2DB;
 
-// Interface to receive trace messages
-class ITraceListener
-{
-  public:
-	// Insure we aren't listeneing after being deleted
-	virtual ~ITraceListener() { RemoveTraceListener(this); }
-
-	// A new trace message (deadlock risk do some Trace. i.e. something that will call Printf2DB)
-	virtual void NewTrace(EP2DB InTraceLevel, const utf8_string& InMsg) = 0;
-
-	// Add to set of listeners (deadlock risk if you call it from your NewTrace implementation)
-	static void AddTraceListener(ITraceListener* InTraceListener);
-
-	// Remove from set of listeners (deadlock risk if you call it from a NewTrace implementation)
-	static void RemoveTraceListener(ITraceListener* InTraceListener);
-};
-
 // Write string to log file
 void Write2Log(const utf8_string& InMsg);
 
@@ -130,5 +113,22 @@ const utf8_t* GetErrorName(GS::GSErrCode GSError);
 			UE_AC_DebugF(FormatString, UE_AC::GetErrorName(e)); \
 		}                                                       \
 	}
+
+// Interface to receive trace messages
+class ITraceListener
+{
+public:
+    // Insure we aren't listeneing after being deleted
+    virtual ~ITraceListener();
+    
+    // A new trace message (deadlock risk do some Trace. i.e. something that will call Printf2DB)
+    virtual void NewTrace(EP2DB InTraceLevel, const utf8_string& InMsg) = 0;
+    
+    // Add to set of listeners (deadlock risk if you call it from your NewTrace implementation)
+    static void AddTraceListener(ITraceListener* InTraceListener);
+    
+    // Remove from set of listeners (deadlock risk if you call it from a NewTrace implementation)
+    static size_t RemoveTraceListener(ITraceListener* InTraceListener);
+};
 
 END_NAMESPACE_UE_AC
