@@ -827,7 +827,7 @@ void FRealtimeGPUProfiler::Cleanup()
 #if UE_TRACE_ENABLED
 namespace GpuProfilerTrace
 {
-	RHI_API UE_TRACE_CHANNEL_EXTERN(GpuChannel)
+	UE_TRACE_CHANNEL_EXTERN(GpuChannel, RHI_API)
 }
 #endif
 
