@@ -568,6 +568,20 @@ void UChildActorComponent::PostLoad()
 	}
 
 }
+
+EDataValidationResult UChildActorComponent::IsDataValid(TArray<FText>& ValidationErrors)
+{
+	EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+
+	// If a CAC is set to the class of the blueprint it is currently on, then there will be a cycle and the data is invalid
+	const UClass* const Outer = Cast<UClass>(GetOuter());
+	if (Outer && Outer == ChildActorClass)
+	{
+		Result = EDataValidationResult::Invalid;
+		ValidationErrors.Add(FText::Format(NSLOCTEXT("ChildActorComponent", "ChildActorCycle", "A Child Actor Component's class cannot be set to its owner! '{0}' is an invalid class choice for '{1}'."), FText::FromString(ChildActorClass->GetName()), FText::FromString(GetPathName())));
+	}
+	return Result;
+}
 #endif
 
 void UChildActorComponent::CreateChildActor()
