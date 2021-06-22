@@ -51,6 +51,7 @@ using Amazon.Util;
 using Amazon.EC2;
 using Scope = Datadog.Trace.Scope;
 using Amazon.EC2.Model;
+using Status = Grpc.Core.Status;
 
 [assembly: InternalsVisibleTo("HordeAgentTests")]
 
@@ -64,7 +65,7 @@ namespace HordeAgent.Services
 		/// <summary>
 		/// Stores information about an active session
 		/// </summary>
-		class LeaseInfo
+		internal class LeaseInfo
 		{
 			/// <summary>
 			/// The worker lease state
@@ -630,14 +631,14 @@ namespace HordeAgent.Services
 		/// <param name="AgentId">The current agent id</param>
 		/// <param name="LeaseInfo">Information about the lease</param>
 		/// <returns>Outcome from the lease</returns>
-		async Task<LeaseOutcome> HandleLeasePayloadAsync(IRpcConnection RpcConnection, string AgentId, LeaseInfo LeaseInfo)
+		internal async Task<LeaseOutcome> HandleLeasePayloadAsync(IRpcConnection RpcConnection, string AgentId, LeaseInfo LeaseInfo)
 		{
 			Any Payload = LeaseInfo.Lease.Payload;
 
 			ActionTask ActionTask;
 			if (LeaseInfo.Lease.Payload.TryUnpack(out ActionTask))
 			{
-				Tracer.Instance.ActiveScope.Span.SetTag("task", "Action");
+				Tracer.Instance.ActiveScope?.Span.SetTag("task", "Action");
 				Func<ILogger, Task<LeaseOutcome>> Handler = NewLogger => ActionAsync(RpcConnection, LeaseInfo.Lease.Id, ActionTask, NewLogger, LeaseInfo.CancellationTokenSource.Token);
 				return await HandleLeasePayloadWithLogAsync(RpcConnection, ActionTask.LogId, AgentId, null, null, Handler, LeaseInfo.CancellationTokenSource.Token);
 			}
@@ -764,7 +765,7 @@ namespace HordeAgent.Services
 		/// <param name="Logger">Logger for the task</param>
 		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns></returns>
-		async Task<LeaseOutcome> ActionAsync(IRpcConnection RpcConnection, string LeaseId, ActionTask ActionTask, ILogger Logger, CancellationToken CancellationToken)
+		internal async Task<LeaseOutcome> ActionAsync(IRpcConnection RpcConnection, string LeaseId, ActionTask ActionTask, ILogger Logger, CancellationToken CancellationToken)
 		{
 			DateTimeOffset ActionTaskStartTime = DateTimeOffset.UtcNow;
 			using (IRpcClientRef Client = await RpcConnection.GetClientRef(new RpcContext(), CancellationToken))
@@ -794,10 +795,26 @@ namespace HordeAgent.Services
 				Logger.LogDebug("ActionCacheChannel={ActionCacheChannel}", ActionCacheChannel.Target);
 				Logger.LogDebug("ActionRpcChannel={ActionRpcChannel}", ActionRpcChannel.Target);
 
+				ActionExecutor Executor = new ActionExecutor(
+					Settings.GetAgentName(), ActionTask.InstanceName,
+					GrpcService.CreateCasClient(CasChannel),
+					GrpcService.CreateActionCacheClient(ActionCacheChannel),
+					GrpcService.CreateActionRpcClient(ActionRpcChannel), Logger);
+
 				try
 				{
-					ActionExecutor Executor = new ActionExecutor(Settings.GetAgentName(), ActionTask.InstanceName, CasChannel, ActionCacheChannel, ActionRpcChannel, Logger);
 					await Executor.ExecuteActionAsync(LeaseId, ActionTask, LeaseDir, ActionTaskStartTime);
+				}
+				catch (Exception re)
+				{
+					Logger.LogError(re, "Unhandled exception during remote execution");
+					PostActionResultRequest PostResultRequest = new PostActionResultRequest();
+					PostResultRequest.LeaseId = LeaseId;
+					PostResultRequest.ActionDigest = ActionTask.Digest;
+					PostResultRequest.Error = new RpcException(new Status(StatusCode.Unknown, "Unhandled exception during remote execution: " + re.Message), re.Message).Status;
+					await Executor.ActionRpc.PostActionResultAsync(PostResultRequest);
+					
+					throw re;
 				}
 				finally
 				{
