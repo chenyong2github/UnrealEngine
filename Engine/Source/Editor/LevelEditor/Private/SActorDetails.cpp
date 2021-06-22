@@ -617,7 +617,7 @@ void SActorDetails::UpdateComponentTreeFromEditorSelection()
 		{
 			TreeWidget->RequestScrollIntoView(TreeNode);
 			TreeWidget->SetItemSelection(TreeNode, true);
-			check(InComponent == TreeNode->GetComponentTemplate());
+			check(InComponent == TreeNode->GetComponentTemplate() || InComponent->GetArchetype() == TreeNode->GetComponentTemplate());
 		}
 		return true;
 	});
