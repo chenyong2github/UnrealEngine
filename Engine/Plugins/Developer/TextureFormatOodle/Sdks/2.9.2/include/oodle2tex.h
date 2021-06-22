@@ -392,6 +392,7 @@ typedef enum OodleTex_RDO_UniversalTiling
     OodleTex_RDO_UniversalTiling_Disable = 0,   // No universal tiling, the default. This option must be used when an $OodleTex_Layout is specified.
     OodleTex_RDO_UniversalTiling_256KB = 1,     // Universal tiling with 256KB blocks
     OodleTex_RDO_UniversalTiling_64KB = 2,      // Universal tiling with 64KB blocks
+	OodleTex_RDO_UniversalTiling_Max = 2,
     OodleTex_RDO_UniversalTiling_Force32 = 0x40000000
 } OodleTex_RDO_UniversalTiling;
 /* Enables universal tiling, when desired.
