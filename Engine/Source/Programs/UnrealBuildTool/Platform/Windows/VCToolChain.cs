@@ -970,6 +970,18 @@ namespace UnrealBuildTool
 				Arguments.Add("/INCREMENTAL:NO");
 			}
 
+
+			// Override the PDB page size, if requested (VS2019 16.11 Preview 1 & above)
+			if (Target.WindowsPlatform.PDBPageSize > 0 && Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2019)
+			{
+				Version CompilerVersion;
+				if (Version.TryParse(Target.WindowsPlatform.CompilerVersion, out CompilerVersion) && CompilerVersion >= new Version("14.29.30130"))
+				{
+					Arguments.Add($"/PDBPAGESIZE:{Target.WindowsPlatform.PDBPageSize}");
+				}
+			}
+
+
 			// Disable
 			//LINK : warning LNK4199: /DELAYLOAD:nvtt_64.dll ignored; no imports found from nvtt_64.dll
 			// type warning as we leverage the DelayLoad option to put third-party DLLs into a
