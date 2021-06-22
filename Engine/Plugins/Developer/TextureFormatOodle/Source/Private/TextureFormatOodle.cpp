@@ -194,6 +194,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatOodle, Log, All);
 static int OodleJobifyNumThreads = 0;
 static void *OodleJobifyUserPointer = nullptr;
 
+// enable this to make the DDC key unique (per build) for testing
+//#define DO_FORCE_UNIQUE_DDC_KEY_PER_BUILD
+
 #define ENUSUPPORTED_FORMATS(op) \
     op(DXT1) \
     op(DXT3) \
@@ -296,7 +299,15 @@ public:
 		FString ImageHash = MD5.HashBytes(static_cast<const uint8*>(InRawData), InRawSize);
 		FString OodleBCName(OodleTex_BC_GetName(InOodleBCN));
 		FString Filename = FString::Printf(TEXT("%s.w%d.h%d.s%d.rdo%d.%s%s"), *ImageHash, InWidth, InHeight, InSlice, InRDOLambda, *OodleBCName, Extension);
-		FString Path = FPaths::ProjectSavedDir() / TEXT("Oodle") / TEXT("DebugDump") / Filename;
+		
+		// put in subdir by format and size
+		// helps reduce the count of files in a single dir, which stresses the file system
+		FString Subdir = FString::Printf(TEXT("%s.w%d.h%d"), *OodleBCName, InWidth, InHeight);
+
+		FString Path = FPaths::ProjectSavedDir() / TEXT("Oodle") / TEXT("DebugDump") / Subdir / Filename;
+
+		//UE_LOG(LogTextureFormatOodle, Display, TEXT("DumpImage : %s"), *Filename );
+
 		const TArray64<uint8>& CompressedImage = ImageWrapper->GetCompressed((int32)EImageCompressionQuality::Uncompressed);
 		return FFileHelper::SaveArrayToFile(CompressedImage, *Path);
 	}
@@ -396,6 +407,10 @@ public:
 			bForceRDOOff_NoEditor ? TEXT("Off") : TEXT("On"), CompressEffortLevel_NoEditor,
 			bForceRDOOff_Editor ? TEXT("Off") : TEXT("On"), CompressEffortLevel_Editor,
 			DefaultRDOLambda);
+			
+		#ifdef DO_FORCE_UNIQUE_DDC_KEY_PER_BUILD
+		UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture DO_FORCE_UNIQUE_DDC_KEY_PER_BUILD"));
+		#endif
 	}
 
 	FCbObject ExportToCb(const FTextureBuildSettings& BuildSettings) const
@@ -643,6 +658,11 @@ public:
 	
 	virtual bool UsesTaskGraph() const override
 	{
+		// @todo the UsesTaskGraph function should go away entirely from ITextureFormat
+		//	it's only being used by VirtualTextureDataBuilder
+		//	it's none of his business
+		//	if that's a deadlock, there should be a better solution
+		//	like let me ask if I'm being called from a ParallelFor
 		return true;
 	}
 
@@ -699,7 +719,14 @@ public:
 			EffortLevel = OodleTex_EncodeEffortLevel_Default;
 		}
 		
-		return FString::Printf(TEXT("Oodle_CPF%d_L%d_E%d"), icpf, (int)RDOLambda, (int)EffortLevel);
+		FString DDCString = FString::Printf(TEXT("Oodle_CPF%d_L%d_E%d"), icpf, (int)RDOLambda, (int)EffortLevel);
+
+		#ifdef DO_FORCE_UNIQUE_DDC_KEY_PER_BUILD
+		DDCString += TEXT(__DATE__);
+		DDCString += TEXT(__TIME__);
+		#endif
+
+		return DDCString;
 	}
 
 	virtual void GetSupportedFormats(TArray<FName>& OutFormats) const override
@@ -965,12 +992,35 @@ public:
 			}
 		}
 
+		bool bIsVT = InBuildSettings.bVirtualStreamable;
+		
+		int CurJobifyNumThreads = OodleJobifyNumThreads;
+		void * CurJobifyUserPointer = OodleJobifyUserPointer;
+
+		// @todo check its safe to do TaskGraph waits from inside TaskGraph threads?
+		//	see also VirtualTextureDataBuilder.cpp UsesTaskGraph
+		//const bool bVTDisableInternalThreading = false; // false = DO use internal threads on VT
+		const bool bVTDisableInternalThreading = true; // true = DO NOT use internal threads on VT
+		
+		if ( bIsVT && bVTDisableInternalThreading )
+		{
+			// VT runs its tiles in a ParallelFor on the TaskGraph
+			// if we use TaskGraph internally there's a chance of deadlock (?)
+			// disable our own internal threading for VT tiles :
+			CurJobifyNumThreads = 1;
+			CurJobifyUserPointer = nullptr;
+
+			// @todo Oodle CurJobifyNumThreads=1 currently does NOT disable jobify in Oodle; need to fix that!
+			//	CurJobifyUserPointer == nullptr is checked in our plugin TFO_RunJob to run jobs immediately
+		}
+
+
 		// encode each slice
 		// @todo Oodle alternatively could do [Image.NumSlices] array of OodleTex_Surface
 		//	and call OodleTex_Encode with the array
 		//  would be slightly better for parallelism with multi-slice images & cube maps
 		//	that's a rare case so don't bother for now
-		// (the main parallelism is from running many mips at once which is done by our caller)
+		// (the main parallelism is from running many mips or VT tiles at once which is done by our caller)
 		bool bCompressionSucceeded = true;
 		for (int Slice = 0; Slice < Image.NumSlices; ++Slice)
 		{
@@ -991,7 +1041,7 @@ public:
 			// if RDOLambda == 0, does non-RDO encode :
 			OodleTex_Err OodleErr = OodleTex_EncodeBCN_RDO_Ex(OodleBCN, OutSlicePtr, NumBlocksPerSlice, 
 					&InSurf, 1, OodlePF, NULL, RDOLambda, 
-					&OodleOptions, OodleJobifyNumThreads, OodleJobifyUserPointer);
+					&OodleOptions, CurJobifyNumThreads, CurJobifyUserPointer);
 
 			if (OodleErr != OodleTex_Err_OK)
 			{
@@ -1025,52 +1075,73 @@ static uint8 PadToCacheLine2[64];
 
 static OO_U64 OODLE_CALLBACK TFO_RunJob(t_fp_Oodle_Job* JobFunction, void* JobData, OO_U64* Dependencies, int NumDependencies, void* UserPtr)
 {
-	FGraphEventArray Prerequisites;
-	if ( NumDependencies > 0 )
+	if ( UserPtr == nullptr )
 	{
-		// map uint64 dependencies to TaskGraph refs
-		FScopeLock Lock(&TaskIdMapLock);
-		Prerequisites.Reserve(NumDependencies);
-		for (int DependencyIndex = 0; DependencyIndex < NumDependencies; DependencyIndex++)
-		{
-			uint64 Id = Dependencies[DependencyIndex];
-			FGraphEventRef Task = TaskIdMap[Id];
-			// operator [] does a check that Task was found
-			Prerequisites.Add(Task);
-		}
+		// run synchronous
+		// Dependencies must already be done because they also ran to completion on creation
+
+		JobFunction(JobData);
+		#define	TFO_SYNCHRONOUS_JOB_HANDLE  (0xD0A)
+		return TFO_SYNCHRONOUS_JOB_HANDLE;
 	}
-
-	// don't hold lock while dispatching task
-
-	// Use AnyBackgroundThreadNormalTask priority so we don't use Foreground time in the Editor
-	// @todo maybe it's better to inherit so the outer caller can tell us if we are high priority or not?
-	FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady(
-		[JobFunction, JobData]()
+	else
+	{
+		FGraphEventArray Prerequisites;
+		if ( NumDependencies > 0 )
 		{
-			JobFunction(JobData);
-		}, TStatId(), &Prerequisites, IsInGameThread() ? ENamedThreads::AnyThread : ENamedThreads::AnyBackgroundThreadNormalTask);
-	
-	// scope lock for NextTaskId and TaskIdMap
-	TaskIdMapLock.Lock();
-	uint64 Id = NextTaskId++;
-	TaskIdMap.Add(Id, MoveTemp(Task));
-	TaskIdMapLock.Unlock();
+			// map uint64 dependencies to TaskGraph refs
+			Prerequisites.Reserve(NumDependencies);
 
-	return Id;
+			FScopeLock Lock(&TaskIdMapLock);
+			for (int DependencyIndex = 0; DependencyIndex < NumDependencies; DependencyIndex++)
+			{
+				uint64 Id = Dependencies[DependencyIndex];
+				FGraphEventRef Task = TaskIdMap[Id];
+				// operator [] does a check that Task was found
+				Prerequisites.Add(Task);
+			}
+		}
+
+		// don't hold TaskIdMapLock while dispatching task
+
+		// Use AnyBackgroundThreadNormalTask priority so we don't use Foreground time in the Editor
+		// @todo maybe it's better to inherit so the outer caller can tell us if we are high priority or not?
+		FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady(
+			[JobFunction, JobData]()
+			{
+				JobFunction(JobData);
+			}, TStatId(), &Prerequisites, IsInGameThread() ? ENamedThreads::AnyThread : ENamedThreads::AnyBackgroundThreadNormalTask);
+	
+		// scope lock for NextTaskId and TaskIdMap
+		TaskIdMapLock.Lock();
+		uint64 Id = NextTaskId++;
+		TaskIdMap.Add(Id, MoveTemp(Task));
+		TaskIdMapLock.Unlock();
+
+		return Id;
+	}
 }
 
 static void OODLE_CALLBACK TFO_WaitJob(OO_U64 JobHandle, void* UserPtr)
 {
-	TaskIdMapLock.Lock();
-	FGraphEventRef Task = TaskIdMap[JobHandle];
-	// TMap operator [] checks that value is found
-	// can remove immediately (task may still be running)
-	//	because once WaitJob is called this handle can never be referred to by calling code
-	TaskIdMap.Remove(JobHandle);
-	TaskIdMapLock.Unlock();
+	if ( UserPtr == nullptr )
+	{
+		// must already be done
+		check( JobHandle == TFO_SYNCHRONOUS_JOB_HANDLE );
+	}
+	else
+	{
+		TaskIdMapLock.Lock();
+		FGraphEventRef Task = TaskIdMap[JobHandle];
+		// TMap operator [] checks that value is found
+		// can remove immediately (task may still be running)
+		//	because once WaitJob is called this handle can never be referred to by calling code
+		TaskIdMap.Remove(JobHandle);
+		TaskIdMapLock.Unlock();
 	
-	// don't hold lock while waiting
-	FTaskGraphInterface::Get().WaitUntilTaskCompletes(Task);
+		// don't hold TaskIdMapLock while waiting
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(Task);
+	}
 }
 
 static OO_BOOL OODLE_CALLBACK TFO_OodleAssert(const char* file, const int line, const char* function, const char* message)
@@ -1114,7 +1185,7 @@ static void TFO_InstallPlugins()
 	// and should be done before any other Oodle calls
 	// plugins to Core/Tex/Net are independent
 
-	OodleJobifyUserPointer = nullptr;
+	OodleJobifyUserPointer = (void *)1; //anything non-null
 	OodleJobifyNumThreads = FTaskGraphInterface::Get().GetNumWorkerThreads();
 
 	// workaround for pre-2.9.1 bug : clamp OodleJobifyNumThreads to avoid int overflow
