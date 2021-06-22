@@ -59,7 +59,7 @@ namespace HordeAgent
 		/// <summary>
 		/// Horde RPC wrapper
 		/// </summary>
-		ActionRpc.ActionRpcClient ActionRpc;
+		internal ActionRpc.ActionRpcClient ActionRpc { get; }
 
 		/// <summary>
 		/// Logger for internal executor output
@@ -71,17 +71,17 @@ namespace HordeAgent
 		/// </summary>
 		/// <param name="AgentName"></param>
 		/// <param name="InstanceName"></param>
-		/// <param name="CasChannel"></param>
-		/// <param name="ActionCacheChannel"></param>
-		/// <param name="ActionRpcChannel"></param>
+		/// <param name="CasClient"></param>
+		/// <param name="CacheClient"></param>
+		/// <param name="ActionRpcClient"></param>
 		/// <param name="Logger"></param>
-		public ActionExecutor(string AgentName, string InstanceName, GrpcChannel CasChannel, GrpcChannel ActionCacheChannel, GrpcChannel ActionRpcChannel, ILogger Logger)
+		public ActionExecutor(string AgentName, string InstanceName, ContentAddressableStorage.ContentAddressableStorageClient CasClient, ActionCache.ActionCacheClient CacheClient, ActionRpc.ActionRpcClient ActionRpcClient, ILogger Logger)
 		{
 			this.AgentName = AgentName;
 			this.InstanceName = InstanceName;
-			this.Storage = new ContentAddressableStorage.ContentAddressableStorageClient(CasChannel);
-			this.Cache = new ActionCache.ActionCacheClient(ActionCacheChannel);
-			this.ActionRpc = new ActionRpc.ActionRpcClient(ActionRpcChannel);
+			this.Storage = CasClient;
+			this.Cache = CacheClient;
+			this.ActionRpc = ActionRpcClient;
 			this.Logger = Logger;
 		}
 

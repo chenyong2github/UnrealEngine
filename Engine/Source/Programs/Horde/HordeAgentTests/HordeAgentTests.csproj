@@ -20,4 +20,10 @@
     <ProjectReference Include="..\HordeAgent\HordeAgent.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="remote-exec-test-bin\*.exe">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

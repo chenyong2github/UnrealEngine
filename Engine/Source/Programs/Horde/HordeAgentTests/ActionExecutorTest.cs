@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.IO;
 using EpicGames.Core;
+using Grpc.Core;
 using HordeAgent;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -60,7 +62,7 @@ namespace HordeAgentTests
 			Directory.Delete(TempDir, true);
 		}
 		
-		private static string GetTemporaryDirectory()
+		public static string GetTemporaryDirectory()
 		{
 			string TempDir = Path.Join(Path.GetTempPath(), "horde-" + Path.GetRandomFileName());
 			if (Directory.Exists(TempDir))
