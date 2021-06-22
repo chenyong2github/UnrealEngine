@@ -1410,7 +1410,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		verify(Event->Wait(FTimespan::FromSeconds(30.f)));
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphSquaredOversubscriptionTest, "System.Core.Async.TaskGraph.SquaredOversubscription", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphSquaredOversubscriptionTest, "System.Core.Async.TaskGraph.SquaredOversubscription", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::Disabled);
 
 	bool FTaskGraphSquaredOversubscriptionTest::RunTest(const FString& Parameters)
 	{
