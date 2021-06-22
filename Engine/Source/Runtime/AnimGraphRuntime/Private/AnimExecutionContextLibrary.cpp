@@ -20,3 +20,23 @@ FAnimNodeReference UAnimExecutionContextLibrary::GetAnimNodeReference(UAnimInsta
 	int32 ReverseIndex = AnimNodeProperties.Num() - 1 - Index;
 	return FAnimNodeReference(Instance, ReverseIndex);
 }
+
+FAnimInitializationContext UAnimExecutionContextLibrary::ConvertToInitializationContext(const FAnimExecutionContext& Context, EAnimExecutionContextConversionResult& Result)
+{
+	return FAnimExecutionContext::ConvertToType<FAnimInitializationContext>(Context, Result);
+}
+
+FAnimUpdateContext UAnimExecutionContextLibrary::ConvertToUpdateContext(const FAnimExecutionContext& Context, EAnimExecutionContextConversionResult& Result)
+{
+	return FAnimExecutionContext::ConvertToType<FAnimUpdateContext>(Context, Result);
+}
+
+FAnimPoseContext UAnimExecutionContextLibrary::ConvertToPoseContext(const FAnimExecutionContext& Context, EAnimExecutionContextConversionResult& Result)
+{
+	return FAnimExecutionContext::ConvertToType<FAnimPoseContext>(Context, Result);
+}
+
+FAnimComponentSpacePoseContext UAnimExecutionContextLibrary::ConvertToComponentSpacePoseContext(const FAnimExecutionContext& Context, EAnimExecutionContextConversionResult& Result)
+{
+	return FAnimExecutionContext::ConvertToType<FAnimComponentSpacePoseContext>(Context, Result);
+}

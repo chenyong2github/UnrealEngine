@@ -79,7 +79,7 @@ public:
 	template<typename OtherContextType>
 	static OtherContextType ConvertToType(const FAnimExecutionContext& InContext, EAnimExecutionContextConversionResult& OutResult)
 	{
-		static_assert(TIsDerivedFrom<OtherContextType, FAnimExecutionContext>::IsDerived, "Argument ContextType must derive from FAnimExecutionContext");
+		static_assert(TIsDerivedFrom<OtherContextType, FAnimExecutionContext>::IsDerived, "Argument OtherContextType must derive from FAnimExecutionContext");
 		
 		if(TSharedPtr<FData> PinnedData = InContext.Data.Pin())
 		{
@@ -98,27 +98,28 @@ public:
 		return OtherContextType();
 	}
 
-	// Access internal context. Will return nullptr if invalid or an incorrect type is requested
-	template<typename InternalContextType>
-	InternalContextType* GetContext() const
-	{
-		if(TSharedPtr<FData> PinnedData = Data.Pin())
-		{
-			if(InternalContextType::InternalContextTypeId == PinnedData->ContextType)
-			{
-				return static_cast<InternalContextType*>(PinnedData->Context);
-			}
-		}
-
-		return nullptr;
-	}
-
 	// Access internal context. Will return nullptr if invalid
 	FAnimationBaseContext* GetBaseContext() const
 	{
 		if(TSharedPtr<FData> PinnedData = Data.Pin())
 		{
 			return PinnedData->Context;
+		}
+
+		return nullptr;
+	}
+
+protected:
+	// Access internal context. Will return nullptr if invalid or an incorrect type is requested
+	template<typename OtherContextType, typename InternalContextType>
+	typename InternalContextType* GetInternalContext() const
+	{
+		if(TSharedPtr<FData> PinnedData = Data.Pin())
+		{
+			if(OtherContextType::InternalContextTypeId == PinnedData->ContextType)
+			{
+				return static_cast<InternalContextType*>(PinnedData->Context);
+			}
 		}
 
 		return nullptr;
@@ -130,12 +131,12 @@ protected:
 };
 
 USTRUCT()
-struct FAnimInitializationContext : public FAnimExecutionContext
+struct ENGINE_API FAnimInitializationContext : public FAnimExecutionContext
 {
 	GENERATED_BODY()
 
 public:
-	static const FAnimExecutionContext::FData::EContextType InternalContextTypeId = FData::EContextType::Initialize;
+	static const FData::EContextType InternalContextTypeId = FData::EContextType::Initialize;
 
 	FAnimInitializationContext() = default;
 	
@@ -145,10 +146,12 @@ public:
 		check(InData.IsValid());
 		check(InData.Pin()->ContextType == InternalContextTypeId);
 	}
+
+	FAnimationInitializeContext* GetContext() const;
 };
 
 USTRUCT()
-struct FAnimUpdateContext : public FAnimExecutionContext
+struct ENGINE_API FAnimUpdateContext : public FAnimExecutionContext
 {
 	GENERATED_BODY()
 
@@ -163,10 +166,12 @@ public:
 		check(InData.IsValid());
 		check(InData.Pin()->ContextType == InternalContextTypeId);
 	}
+
+	FAnimationUpdateContext* GetContext() const;
 };
 
 USTRUCT()
-struct FAnimPoseContext : public FAnimExecutionContext
+struct ENGINE_API FAnimPoseContext : public FAnimExecutionContext
 {
 	GENERATED_BODY()
 
@@ -181,10 +186,12 @@ public:
 		check(InData.IsValid());
 		check(InData.Pin()->ContextType == InternalContextTypeId);
 	}
+
+	FPoseContext* GetContext() const;
 };
 
 USTRUCT()
-struct FAnimComponentSpacePoseContext : public FAnimExecutionContext
+struct ENGINE_API FAnimComponentSpacePoseContext : public FAnimExecutionContext
 {
 	GENERATED_BODY()
 
@@ -199,4 +206,6 @@ public:
 		check(InData.IsValid());
 		check(InData.Pin()->ContextType == InternalContextTypeId);
 	}
+
+	FComponentSpacePoseContext* GetContext() const;
 };
