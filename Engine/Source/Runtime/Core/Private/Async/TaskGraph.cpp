@@ -1867,6 +1867,8 @@ public:
 	FTaskGraphCompatibilityImplementation(int32 InNumWorkerThreads) 
 		: NumWorkerThreads(FForkProcessHelper::IsForkedMultithreadInstance() ? CVar_ForkedProcess_MaxWorkerThreads : InNumWorkerThreads)
 	{
+		TaskTrace::Init();
+
 		if (FTaskGraphInterface::IsMultithread())
 		{
 			if (NumWorkerThreads <= 3)
