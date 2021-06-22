@@ -196,6 +196,9 @@ FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateDynamicMeshActo
 
 	UDynamicMeshComponent* NewComponent = NewActor->GetDynamicMeshComponent();
 
+	// assume that DynamicMeshComponent always has tangents on it's internal UDynamicMesh
+	NewComponent->SetTangentsType(EDynamicMeshComponentTangentsMode::ExternallyProvided);
+
 	if (CreateMeshParams.MeshType == ECreateMeshObjectSourceMeshType::DynamicMesh)
 	{
 		NewComponent->SetMesh(MoveTemp(CreateMeshParams.DynamicMesh.GetValue()));

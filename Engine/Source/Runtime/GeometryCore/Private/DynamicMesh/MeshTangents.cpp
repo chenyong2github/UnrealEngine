@@ -26,10 +26,10 @@ FDynamicMeshTangents::FDynamicMeshTangents(const FDynamicMesh3* MeshIn)
 
 void FDynamicMeshTangents::GetTangentFrame(int32 TriangleID, int32 TriVertexIndex, FVector3f& Normal, FVector3f& Tangent, FVector3f& Bitangent) const
 {
-	if (Normals)
+	if (Normals && Normals->IsSetTriangle(TriangleID))
 	{
 		Normals->GetTriElement(TriangleID, TriVertexIndex, Normal);
-		if (Tangents)
+		if (Tangents && Tangents->IsSetTriangle(TriangleID))
 		{
 			Tangents->GetTriElement(TriangleID, TriVertexIndex, Tangent);
 			Bitangents->GetTriElement(TriangleID, TriVertexIndex, Bitangent);
@@ -50,7 +50,7 @@ void FDynamicMeshTangents::GetTangentFrame(int32 TriangleID, int32 TriVertexInde
 
 void FDynamicMeshTangents::GetTangentVectors(int32 TriangleID, int32 TriVertexIndex, const FVector3f& Normal, FVector3f& Tangent, FVector3f& Bitangent) const
 {
-	if (Tangents)
+	if (Tangents && Tangents->IsSetTriangle(TriangleID) )
 	{
 		Tangents->GetTriElement(TriangleID, TriVertexIndex, Tangent);
 		Bitangents->GetTriElement(TriangleID, TriVertexIndex, Bitangent);
@@ -66,7 +66,7 @@ void FDynamicMeshTangents::GetTangentVectors(int32 TriangleID, int32 TriVertexIn
 
 void FDynamicMeshTangents::GetTangentVectors(int32 TriangleID, int32 TriVertexIndex, FVector3f& Tangent, FVector3f& Bitangent) const
 {
-	if (Tangents)
+	if (Tangents && Tangents->IsSetTriangle(TriangleID))
 	{
 		Tangents->GetTriElement(TriangleID, TriVertexIndex, Tangent);
 		Bitangents->GetTriElement(TriangleID, TriVertexIndex, Bitangent);
