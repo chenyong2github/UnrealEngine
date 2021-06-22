@@ -30,9 +30,9 @@ public:
 	//~UObject interface
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 	virtual void PostReloadConfig(FProperty* PropertyThatWasLoaded) override;
 	virtual void PostInitProperties() override;
-#endif
 	//~End of UObject interface
 
 	// Called by the module startup to auto load CommonUISetting data if bAutoLoadData is true.

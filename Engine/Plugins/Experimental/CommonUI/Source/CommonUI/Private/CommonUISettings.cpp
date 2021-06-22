@@ -28,6 +28,7 @@ void UCommonUISettings::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 	AutoLoadData();
 	RebuildTraitContainer();
 }
+#endif
 
 void UCommonUISettings::PostReloadConfig(FProperty* PropertyThatWasLoaded)
 {
@@ -42,8 +43,6 @@ void UCommonUISettings::PostInitProperties()
 
 	RebuildTraitContainer();
 }
-
-#endif
 
 void UCommonUISettings::LoadEditorData()
 {
