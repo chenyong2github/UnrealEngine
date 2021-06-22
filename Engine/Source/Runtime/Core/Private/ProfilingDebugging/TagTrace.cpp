@@ -257,7 +257,7 @@ int32 FTagTrace::AnnounceFNameTag(const FName& Name)
 int32 FTagTrace::AnnounceCustomTag(int32 Tag, int32 ParentTag, const ANSICHAR* Display)
 {		
 	const uint32 DisplayLen = FCStringAnsi::Strlen(Display);
-	UE_TRACE_LOG(Memory, TagSpec, MemAllocChannel, DisplayLen * sizeof(ANSICHAR))
+	UE_TRACE_LOG(Memory, TagSpec, MemAllocChannel)
 		<< TagSpec.Tag(Tag)
 		<< TagSpec.Parent(ParentTag)
 		<< TagSpec.Display(Display, DisplayLen);

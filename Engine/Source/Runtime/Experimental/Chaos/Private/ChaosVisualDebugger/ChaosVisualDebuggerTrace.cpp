@@ -15,7 +15,7 @@ using namespace Chaos;
 //A very minimal test debug log function
 void ChaosVisualDebugger::ParticlePositionLog(const FVec3& Position)
 {
-	UE_TRACE_LOG(Physics, ParticlePosition, PhysicsChannel, 0)
+	UE_TRACE_LOG(Physics, ParticlePosition, PhysicsChannel)
 					<< ParticlePosition.PositionX(Position.X)
 					<< ParticlePosition.PositionY(Position.Y)
 					<< ParticlePosition.PositionZ(Position.Z);
