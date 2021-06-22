@@ -153,6 +153,7 @@ public:
 	virtual void PostEditImport() override;
 	virtual void PostEditUndo() override;
 	virtual void PostLoad() override;
+	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
 #endif
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void BeginDestroy() override;
