@@ -727,6 +727,17 @@ void AActor::SetIsTemporarilyHiddenInEditor( bool bIsHidden )
 	}
 }
 
+bool AActor::SetIsHiddenEdLayer(bool bIsHiddenEdLayer)
+{
+	if (bHiddenEdLayer != bIsHiddenEdLayer)
+	{
+		bHiddenEdLayer = bIsHiddenEdLayer;
+		MarkComponentsRenderStateDirty();
+		return true;
+	}
+	return false;
+}
+
 bool AActor::IsEditable() const
 {
 	return bEditable;

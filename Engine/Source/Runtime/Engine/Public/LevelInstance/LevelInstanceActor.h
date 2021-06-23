@@ -68,6 +68,7 @@ public:
 	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
 	virtual bool CanDeleteSelectedActor(FText& OutReason) const override;
 	virtual void SetIsTemporarilyHiddenInEditor(bool bIsHidden) override;
+	virtual bool SetIsHiddenEdLayer(bool bIsHiddenEdLayer) override;
 	virtual void EditorGetUnderlyingActors(TSet<AActor*>& OutUnderlyingActors) const override;
 	virtual void PushSelectionToProxies() override;
 	virtual void PushLevelInstanceEditingStateToProxies(bool bInEditingState) override;

@@ -169,7 +169,7 @@ public:
 	virtual void PostRegisterAllComponents() override;
 	virtual void CheckForErrors() override;
 	virtual void SetIsTemporarilyHiddenInEditor( bool bIsHidden ) override;
-
+	virtual bool SetIsHiddenEdLayer(bool bIsHiddenEdLayer) override;
 public:
 
 	virtual void InitPosRotScale();

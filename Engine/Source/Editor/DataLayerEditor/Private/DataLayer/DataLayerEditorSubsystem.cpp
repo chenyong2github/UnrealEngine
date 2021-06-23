@@ -234,7 +234,7 @@ void UDataLayerEditorSubsystem::PostUndoRedo()
 
 bool UDataLayerEditorSubsystem::IsActorValidForDataLayer(AActor* Actor)
 {
-	return Actor && Actor->IsValidForDataLayer();
+	return Actor && Actor->IsValidForDataLayer() && (Actor->GetLevel() == Actor->GetWorld()->PersistentLevel);
 }
 
 void UDataLayerEditorSubsystem::InitializeNewActorDataLayers(AActor* Actor)
@@ -684,37 +684,6 @@ void UDataLayerEditorSubsystem::RemoveViewFromActorViewVisibility(FLevelEditorVi
 	}
 }
 
-static void UpdateBrushDataLayerVisibility(ABrush* Brush, bool bIsHidden)
-{
-	ULevel* Level = Brush->GetLevel();
-	if (!Level)
-	{
-		return;
-	}
-
-	UModel* Model = Level->Model;
-	if (!Model)
-	{
-		return;
-	}
-
-	bool bAnySurfaceWasFound = false;
-	for (FBspSurf& Surf : Model->Surfs)
-	{
-		if (Surf.Actor == Brush)
-		{
-			Surf.bHiddenEdLayer = bIsHidden;
-			bAnySurfaceWasFound = true;
-		}
-	}
-
-	if (bAnySurfaceWasFound)
-	{
-		Level->UpdateModelComponents();
-		Model->InvalidSurfaces = true;
-	}
-}
-
 bool UDataLayerEditorSubsystem::UpdateActorVisibility(AActor* Actor, bool& bOutSelectionChanged, bool& bOutActorModified, const bool bNotifySelectionChange, const bool bRedrawViewports)
 {
 	bOutActorModified = false;
@@ -728,15 +697,8 @@ bool UDataLayerEditorSubsystem::UpdateActorVisibility(AActor* Actor, bool& bOutS
 	// If the actor doesn't belong to any DataLayers
 	if (!Actor->HasValidDataLayers())
 	{
-		// If the actor is also hidden
-		if (Actor->bHiddenEdLayer)
-		{
-			// Actors that don't belong to any DataLayer shouldn't be hidden
-			Actor->bHiddenEdLayer = false;
-			Actor->MarkComponentsRenderStateDirty();
-			bOutActorModified = true;
-		}
-
+		// Actors that don't belong to any DataLayer shouldn't be hidden
+		bOutActorModified = Actor->SetIsHiddenEdLayer(false);
 		return bOutActorModified;
 	}
 
@@ -747,18 +709,10 @@ bool UDataLayerEditorSubsystem::UpdateActorVisibility(AActor* Actor, bool& bOutS
 		{
 			if (DataLayer->IsVisible() && Actor->ContainsDataLayer(DataLayer))
 			{
-				if (Actor->bHiddenEdLayer)
+				if (Actor->SetIsHiddenEdLayer(false))
 				{
-					Actor->bHiddenEdLayer = false;
-					Actor->MarkComponentsRenderStateDirty();
 					bOutActorModified = true;
-
-					if (ABrush* Brush = Cast<ABrush>(Actor))
-					{
-						UpdateBrushDataLayerVisibility(Brush, /*bIsHidden*/false);
-					}
 				}
-
 				// Stop, because we found at least one visible DataLayer the actor belongs to
 				bActorBelongsToVisibleDataLayer = true;
 				return false;
@@ -770,18 +724,11 @@ bool UDataLayerEditorSubsystem::UpdateActorVisibility(AActor* Actor, bool& bOutS
 	// If the actor isn't part of a visible DataLayer, hide and de-select it.
 	if (!bActorBelongsToVisibleDataLayer)
 	{
-		if (!Actor->bHiddenEdLayer)
+		if (Actor->SetIsHiddenEdLayer(true))
 		{
-			Actor->bHiddenEdLayer = true;
-			Actor->MarkComponentsRenderStateDirty();
 			bOutActorModified = true;
-
-			if (ABrush* Brush = Cast<ABrush>(Actor))
-			{
-				UpdateBrushDataLayerVisibility(Brush, /*bIsHidden*/false);
-			}
 		}
-
+		
 		// If the actor was selected, mark it as unselected
 		if (Actor->IsSelected())
 		{

@@ -70,6 +70,7 @@ public:
 	bool HasDirtyChildrenLevelInstances(const ALevelInstance* LevelInstanceActor) const;
 	bool HasEditingChildrenLevelInstances(const ALevelInstance* LevelInstanceActor) const;
 
+	void SetIsHiddenEdLayer(ALevelInstance* LevelInstanceActor, bool bIsHiddenEdLayer);
 	void SetIsTemporarilyHiddenInEditor(ALevelInstance* LevelInstanceActor, bool bIsHidden);
 
 	bool SetCurrent(ALevelInstance* LevelInstanceActor) const;
