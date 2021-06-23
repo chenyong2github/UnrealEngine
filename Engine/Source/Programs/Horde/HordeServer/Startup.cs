@@ -288,6 +288,7 @@ namespace HordeServer
 				Options.Interceptors.Add(typeof(LifetimeGrpcInterceptor));
 				Options.Interceptors.Add(typeof(GrpcExceptionInterceptor));
 			});
+			Services.AddGrpcReflection();
 
 			Services.AddSingleton<IAgentCollection, AgentCollection>();
 			Services.AddSingleton<IAgentSoftwareCollection, AgentSoftwareCollection>();
@@ -722,6 +723,7 @@ namespace HordeServer
 				Endpoints.MapGrpcService<CapabilitiesService>();
 				Endpoints.MapGrpcService<ContentStorageService>();
 				Endpoints.MapGrpcService<ExecutionService>();
+				Endpoints.MapGrpcReflectionService();
 
 				Endpoints.MapControllers();
 			});
