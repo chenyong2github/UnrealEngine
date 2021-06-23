@@ -1,0 +1,143 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Private/Common.ush"
+
+// Statistical operators representing BSDF as a sum of lobes.
+// This implementation is based on [Belcour 2018, "Efficient Rendering of Layered Materials using an Atomic Decomposition with Statistical Operators"]
+
+struct StrataLobStatistic
+{
+	// Mean
+	// xy is the 2d projection of the main direction vector onto the plane defined by the surface normal. 
+	// z is along the normal.
+	float3 Mu;
+
+	// Energy
+	float3 E;
+
+	// Variance
+	float Sigma;
+};
+
+
+
+float StrataLobRoughnessToVariance(float Roughness)
+{
+	const float SafeRoughness = clamp(Roughness, 0.0f, 0.999f);
+	return pow(SafeRoughness, 1.1f) / (1.0f - SafeRoughness);
+}
+
+float StrataLobVarianceToRoughness(float Variance)
+{
+	return pow(Variance / (1.0f + Variance), 1.0f / 1.1f);
+}
+
+
+
+// For the following statistical operators
+//  - WiLob: the lob towards which light is reflected
+//  - InterfaceRoughness = the material layer roughness
+//  - InterfaceFDG = the material layer directional albedo
+//  - InterfaceEta12 = the ratio of refractive mediaEta1 / Eta2
+//  - OpticalDepth = the value impact light transmission (= sigma_t * depth)
+//  - Approximation to in-scattering from the back of the layer (eq.19)
+
+StrataLobStatistic StrataGetNullLob()
+{
+	StrataLobStatistic NullLob = (StrataLobStatistic)0;
+	return NullLob;
+}
+
+StrataLobStatistic StrataGetViewDiracLob(float3 Wi)
+{
+	StrataLobStatistic WiLob;
+	WiLob.E = 1.0f;
+	WiLob.Mu = Wi;
+	WiLob.Sigma = 0.0f;
+	return WiLob;
+}
+
+StrataLobStatistic StrataGetReflectedLob(StrataLobStatistic WiLob, float3 InterfaceFDG, float InterfaceRoughness)
+{
+	StrataLobStatistic WoLob;
+
+	WoLob.E = WiLob.E * InterfaceFDG;
+
+	WoLob.Mu = float3(-WiLob.Mu.xy, WiLob.Mu.z);
+
+	WoLob.Sigma = WiLob.Sigma + StrataLobRoughnessToVariance(InterfaceRoughness);
+
+	return WoLob;
+}
+
+StrataLobStatistic StrataGetRefractedLob(StrataLobStatistic WiLob, float3 InterfaceFDG, float InterfaceRoughness, float InterfaceEta12)
+{
+	StrataLobStatistic WoLob;
+
+	WoLob.E = WiLob.E * (1.0f - InterfaceFDG);
+
+	WoLob.Mu.xy = -WiLob.Mu.xy * InterfaceEta12;
+	const float SquaredProjectedLength = WiLob.Mu.x * WiLob.Mu.x + WiLob.Mu.y * WiLob.Mu.y;
+	WoLob.Mu.z = -sqrt(1.0f - SquaredProjectedLength);
+
+	//	const float S = 0.5f * (1.0f + InterfaceEta12 * (WiLob.Mu.z / WoLob.Mu.z));				// This respect eq.10 but it goes crazy and does not respect the roughness of a single front layer
+	//	const float S = 0.5f * (1.0f + InterfaceEta12 * max(0.0, WiLob.Mu.z / WoLob.Mu.z));		// This respect the roughness range better but looks incorrect
+	const float S = 1.0f;																	// Until this is fully understood, do nto scale anything.
+	WoLob.Sigma = (WiLob.Sigma / InterfaceEta12) + StrataLobRoughnessToVariance(S * InterfaceRoughness);
+
+	return WoLob;
+}
+
+StrataLobStatistic StrataGetTransmittedLob(StrataLobStatistic WiLob, float3 OpticalDepth)
+{
+	StrataLobStatistic WoLob;
+
+	WoLob.E = WiLob.E * exp(-OpticalDepth);
+
+	// No refraction in the paper here
+	WoLob.Mu = -WiLob.Mu;
+
+	WoLob.Sigma = WiLob.Sigma;
+
+	return WoLob;
+}
+
+StrataLobStatistic StrataGetScatteredLob(StrataLobStatistic WiLob, float3 InScattering)
+{
+	StrataLobStatistic WoLob;
+
+	WoLob.E = WiLob.E * InScattering;
+
+	// No refraction in the paper here
+	WoLob.Mu = -WiLob.Mu;
+
+	// In our case, we use an isotropic phase function and the paper do not support that (only HG phase function with g > 0.7).
+	// So we simply assume a roughness of 1 for the lob over which incomling light to scatter is integrated.
+	const float IsotropicPhaseLobVariance = StrataLobRoughnessToVariance(1.0f);
+	WoLob.Sigma = WiLob.Sigma + IsotropicPhaseLobVariance;
+
+	return WoLob;
+}
+
+
+
+// This accumulation function can be used to merge lobes while taking into account their relative importance due to E and a coverage
+void StrataAccumulateWeightedLob(inout StrataLobStatistic LobAccum, inout float WeightAccum, in StrataLobStatistic NewLob)
+{
+	const float NewLobWeight = dot(NewLob.E, (1.0f / 3.0f).xxx);
+	LobAccum.E		+= NewLob.E * NewLobWeight;
+	LobAccum.Mu		+= NewLob.Mu * NewLobWeight;
+	LobAccum.Sigma	+= NewLob.Sigma * NewLobWeight;
+	WeightAccum		+= NewLobWeight;
+}
+
+StrataLobStatistic StrataNormaliseLob(inout StrataLobStatistic LobAccum, inout float WeightAccum)
+{
+	StrataLobStatistic OutputLob;
+	OutputLob.E		= LobAccum.E / WeightAccum;
+	OutputLob.Mu	= normalize(LobAccum.Mu);
+	OutputLob.Sigma	= LobAccum.Sigma / WeightAccum;
+	return OutputLob;
+}
+
+
