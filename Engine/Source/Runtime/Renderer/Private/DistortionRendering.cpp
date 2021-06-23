@@ -50,6 +50,14 @@ static TAutoConsoleVariable<int32> CVarRefractionOffsetQuality(
 	TEXT("When enabled, the offset buffer is made float for higher quality. This is important to maintain the softness of the blurred scene buffer."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
+// Using a simple scale to map roughness to mip level.
+// Later we could remove that and use depth+variance to have a better lob roughness to mip match.
+static TAutoConsoleVariable<float> CVarRefractionRoughnessToMipLevelFactor(
+	TEXT("r.Refraction.RoughnessToMipLevelFactor"),
+	5.0f,
+	TEXT("Factor to translate the roughness factor into a mip level."),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
 
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FDistortionPassUniformParameters, "DistortionPass", SceneTextures);
 
@@ -117,6 +125,7 @@ public:
 		SHADER_PARAMETER_SAMPLER(SamplerState, RoughnessScatterSampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, DistortionTextureSampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorTextureSampler)
+		SHADER_PARAMETER(float, RefractionRoughnessToMipLevelFactor)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -712,6 +721,7 @@ void FDeferredShadingSceneRenderer::RenderDistortion(FRDGBuilder& GraphBuilder, 
 	CommonParameters.SceneColorTextureSampler = bUseRoughRefraction ? TStaticSamplerState<SF_Trilinear>::GetRHI() : TStaticSamplerState<>::GetRHI();
 	CommonParameters.DistortionTextureSampler = TStaticSamplerState<>::GetRHI();
 	CommonParameters.RoughnessScatterSampler = TStaticSamplerState<>::GetRHI();
+	CommonParameters.RefractionRoughnessToMipLevelFactor = FMath::Max(0.0f, CVarRefractionRoughnessToMipLevelFactor.GetValueOnRenderThread());
 
 	FDistortionScreenPS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FDistortionScreenPS::FUseMSAADim>(SceneColorTexture->Desc.NumSamples > 1);

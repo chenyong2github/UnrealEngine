@@ -6,6 +6,12 @@
 #include "Common.ush"
 #include "PostProcessCommon.ush"
 
+
+#if USE_ROUGH_REFRACTION
+#include "/Engine/Private/Strata/StrataStatisticalOperators.ush"
+#endif
+
+
 static const half InvDistortionScaleBias = 1 / 4.0f;
 
 /** 
@@ -29,6 +35,8 @@ SamplerState	DistortionTextureSampler;
 Texture2D<float4> RoughnessScatterTexture;
 SamplerState      RoughnessScatterSampler;
 #endif
+
+float RefractionRoughnessToMipLevelFactor;
 
 /** distorts screen texture using accumulated distortion offsets */
 void Main(
@@ -56,10 +64,12 @@ void Main(
 #if USE_ROUGH_REFRACTION
 
 #if USE_MSAA
-	half RoughnessScatter = RoughnessScatterMSAATexture.Load(int2(TexCoord.xy * View.BufferSizeAndInvSize.xy), SampleIndex) * 5.0f;
+	half RefractionLobeVariance = RoughnessScatterMSAATexture.Load(int2(TexCoord.xy * View.BufferSizeAndInvSize.xy), SampleIndex).x;
 #else
-	half RoughnessScatter = Texture2DSample(RoughnessScatterTexture, RoughnessScatterSampler, TexCoord.xy) * 5.0f;
+	half RefractionLobeVariance = Texture2DSample(RoughnessScatterTexture, RoughnessScatterSampler, TexCoord.xy).x;
 #endif
+	half RefractionRoughness = saturate(StrataLobeVarianceToRoughness(RefractionLobeVariance));
+	half RefractionMipLevel = RefractionRoughness * RefractionRoughnessToMipLevelFactor;
 
 	const float2 NoDistortionUVs = TexCoord.xy * View.BufferSizeAndInvSize.xy * View.ViewSizeAndInvSize.zw;
 	float2 NewBufferUV = NoDistortionUVs + DistBufferUVOffset;
@@ -70,17 +80,17 @@ void Main(
 	}
 
 #if USE_MSAA
-	if (RoughnessScatter == 0.0f)
+	if (RefractionMipLevel < 0.001f)
 	{
 		// Sample the full res MSAA source texture
 		OutColor = SceneColorMSAATexture.Load(int2(TexCoord * View.BufferSizeAndInvSize.xy), SampleIndex);
 	}
 	else
 	{
-		OutColor = Texture2DSampleLevel(SceneColorTexture, SceneColorTextureSampler, NewBufferUV, RoughnessScatter);
+		OutColor = Texture2DSampleLevel(SceneColorTexture, SceneColorTextureSampler, NewBufferUV, RefractionMipLevel);
 	}
 #else
-	OutColor = Texture2DSampleLevel(SceneColorTexture, SceneColorTextureSampler, NewBufferUV, RoughnessScatter);
+	OutColor = Texture2DSampleLevel(SceneColorTexture, SceneColorTextureSampler, NewBufferUV, RefractionMipLevel);
 #endif
 
 #else // USE_ROUGH_REFRACTION

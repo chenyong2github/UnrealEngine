@@ -49,7 +49,7 @@ void Main(
 	out float4 OutColor		: SV_Target0
 #if STRATA_ENABLED
 	,
-	out float4 OutRough		: SV_Target1
+	out float4 OutVariance	: SV_Target1
 #endif
 	)
 {
@@ -203,10 +203,11 @@ void Main(
 		OutThroughput *= LayerThroughput;
 	}
 
-	// Not write out roughness
-	OutRough = saturate(StrataLobeVarianceToRoughness(WiLobe.Sigma));	// STRATA_TODO accumulate variance and convert back to roughness in the apply hader
+	// Not write out variance (as this is more linear to accumulate than roughness)
+	OutVariance = float4(WiLobe.Sigma, 0.0f, 0.0f, 0.0f);
+
 	// Only allow clipping if roughness is close to 0.
-	const bool TryToClip = OutRough < 0.01f;
+	const bool TryToClip = OutVariance.x < 0.01f;
 
 	// Finally, negate the direction to make sure the new incombing Lobe is the refracted Lobe we want to take into account
 	WiLobe.Mu = -WiLobe.Mu;
