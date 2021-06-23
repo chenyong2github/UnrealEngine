@@ -343,7 +343,7 @@ namespace MeshCut
 				FVector3d WalkPlaneNormal = BaseFaceNormals[Seg.BaseTID].Cross(PtB.Pos - PtA.Pos);
 				if (ensure(WalkPlaneNormal.Normalize() > 0))
 				{
-					bool bWalkSuccess = SurfacePath.AddViaPlanarWalk(StartTID,
+					bool bWalkSuccess = SurfacePath.AddViaPlanarWalk(StartTID, PtA.ElemID,
 						Mesh->GetVertex(PtA.ElemID), -1, PtB.ElemID,
 						Mesh->GetVertex(PtB.ElemID), WalkPlaneNormal, nullptr /*TODO: transform fn goes here?*/, false, FMathd::ZeroTolerance, SnapToleranceSq, .001);
 					if (!bWalkSuccess)
@@ -355,7 +355,7 @@ namespace MeshCut
 						EmbeddedPath.Reset();
 						if (SurfacePath.EmbedSimplePath(false, EmbeddedPath, false, SnapToleranceSq))
 						{
-							ensure(EmbeddedPath[0] == PtA.ElemID);
+							ensure(EmbeddedPath.Num() > 0 && EmbeddedPath[0] == PtA.ElemID);
 							if (VertexChains)
 							{
 								if (SegmentToChain)

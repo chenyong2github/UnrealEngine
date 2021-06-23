@@ -1083,6 +1083,49 @@ void FMeshBoolean::SimplifyAlongNewEdges(int NumMeshesToProcess, FDynamicMesh3* 
 					continue;
 				}
 
+				// do some pre-collapse sanity checks on the matched edge (if present) to see if it will fail to collapse
+				bool bAttemptCollapse = true;
+				if (bHasMatches)
+				{
+					int OtherRemoveV = Matches[RemoveVIdx];
+					int OtherKeepV = Matches[KeepVIdx];
+
+					int a = OtherRemoveV, b = OtherKeepV;
+					int eab = CutMesh[1]->FindEdge(OtherRemoveV, OtherKeepV);
+
+					const FDynamicMesh3::FEdge EdgeAB = CutMesh[1]->GetEdge(eab);
+					int t0 = EdgeAB.Tri[0];
+					if (t0 == FDynamicMesh3::InvalidID)
+					{
+						bAttemptCollapse = false;
+					}
+					else
+					{
+						FIndex3i T0tv = CutMesh[1]->GetTriangle(t0);
+						int c = IndexUtil::FindTriOtherVtx(a, b, T0tv);
+						checkSlow(EdgeAB.Tri[1] == FDynamicMesh3::InvalidID);
+						// We cannot collapse if edge lists of a and b share vertices other
+						//  than c and d  (because then we will make a triangle [x b b].
+						//  Brute-force search logic adapted from FDynamicMesh3::CollapseEdge implementation.
+						//  (simplified because we know this is a boundary edge)
+						CutMesh[1]->EnumerateVertexVertices(a, [&](int VID)
+						{
+							if (!bAttemptCollapse || VID == c || VID == b)
+							{
+								return;
+							}
+							CutMesh[1]->EnumerateVertexVertices(b, [&](int VID2)
+							{
+								bAttemptCollapse &= (VID != VID2);
+							});
+						});
+					}
+				}
+				if (!bAttemptCollapse)
+				{
+					break; // don't try starting from other vertex if the match edge couldn't be collapsed
+				}
+
 				FDynamicMesh3::FEdgeCollapseInfo CollapseInfo;
 				int RemoveV = Edge.Vert[RemoveVIdx];
 				int KeepV = Edge.Vert[KeepVIdx];
