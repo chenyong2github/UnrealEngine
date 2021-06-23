@@ -212,7 +212,6 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	}
 	else if (Ar.IsPersistent() && !Ar.IsObjectReferenceCollector() && !Ar.ShouldSkipBulkData())
 	{
-		// Check if we need to update the payload id before it is serialized
 		FLinkerSave* LinkerSave = nullptr;
 		bool bKeepLegacyDataByReference = false;
 		if (Ar.IsSaving())
@@ -224,6 +223,12 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
 			if (!bKeepLegacyDataByReference)
 			{
 				UpdateKeyIfNeeded();
+			}
+
+			const bool bCanAttemptVirtualization = LinkerSave != nullptr;
+			if (bCanAttemptVirtualization)
+			{
+				PushData(); // Note this can change various members if we are going from non-virtualized to virtualized
 			}
 		}
 
@@ -246,13 +251,6 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
 		if (Ar.IsSaving())
 		{
 			checkf(Ar.IsCooking() == false, TEXT("FVirtualizedUntypedBulkData::Serialize should not be called during a cook"));
-
-			const bool bCanAttemptVirtualization = LinkerSave != nullptr;
-
-			if (bCanAttemptVirtualization)
-			{
-				PushData(); // Note this can change various members if we are going from non-virtualized to virtualized
-			}
 
 			EFlags UpdatedFlags = BuildFlagsForSerialization(Ar, !bKeepLegacyDataByReference);
 
