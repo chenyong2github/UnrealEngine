@@ -191,7 +191,6 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 	OnChannelChangedHandle = InSequencer->OnChannelChanged().AddRaw(this, &FControlRigParameterTrackEditor::OnChannelChanged);
 	OnMovieSceneChannelChangedHandle = MovieScene->OnChannelChanged().AddRaw(this, &FControlRigParameterTrackEditor::OnChannelChanged);
 	OnActorAddedToSequencerHandle = InSequencer->OnActorAddedToSequencer().AddRaw(this, &FControlRigParameterTrackEditor::HandleActorAdded);
-	OnTreeViewChangedHandle = InSequencer->OnTreeViewChanged().AddRaw(this, &FControlRigParameterTrackEditor::OnTreeViewChanged);
 
 	{
 		//we check for two things, one if the control rig has been replaced if so we need to switch.
@@ -1626,30 +1625,6 @@ void FControlRigParameterTrackEditor::OnCurveDisplayChanged(FCurveModel* CurveMo
 			}
 		}
 		
-	}
-}
-
-void FControlRigParameterTrackEditor::OnTreeViewChanged()
-{
-	if (!bIsDoingSelection)
-	{
-		FControlRigEditMode* ControlRigEditMode = GetEditMode();
-		if (ControlRigEditMode)
-		{
-			if (UControlRig* ControlRig = ControlRigEditMode->GetControlRig(true))
-			{
-				const TArray<FName>SelectedControls = ControlRig->CurrentControlSelection();
-				for (const FName  ControlName: SelectedControls)
-				{
-					const int32 Index = ControlRig->GetHierarchy()->GetIndex(FRigElementKey(ControlName, ERigElementType::Control));
-					if (Index != INDEX_NONE)
-					{
-						FRigControlElement* ControlElement = ControlRig->GetHierarchy()->GetChecked<FRigControlElement>(Index);
-						HandleControlSelected(ControlRig, ControlElement, true);
-					}
-				}
-			}
-		}
 	}
 }
 

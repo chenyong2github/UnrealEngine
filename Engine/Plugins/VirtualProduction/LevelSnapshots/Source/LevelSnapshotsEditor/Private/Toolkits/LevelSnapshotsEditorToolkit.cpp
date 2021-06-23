@@ -39,6 +39,11 @@ TSharedPtr<FLevelSnapshotsEditorToolkit> FLevelSnapshotsEditorToolkit::CreateSna
 	return Result;
 }
 
+void FLevelSnapshotsEditorToolkit::OpenLevelSnapshotsDialogWithAssetSelected(const FAssetData& InAssetData) const
+{
+	EditorInput->OpenLevelSnapshotsDialogWithAssetSelected(InAssetData);
+}
+
 void FLevelSnapshotsEditorToolkit::Initialize(ULevelSnapshotsEditorData* InEditorData)
 {
 	check(InEditorData);
@@ -265,7 +270,6 @@ TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_Input(const FSpawnTa
 {	
 	TSharedPtr<SDockTab> DetailsTab = SNew(SDockTab)
 		.Label(LOCTEXT("Levelsnapshots.Toolkit.InputTitle", "Input"))
-		.ShouldAutosize(true)
 		[
 			EditorInput->GetOrCreateWidget()
 		];

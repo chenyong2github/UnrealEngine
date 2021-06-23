@@ -239,6 +239,20 @@ FConversationTaskResult UConversationContextHelpers::ReturnToConversationStart(c
 #endif
 }
 
+FConversationTaskResult UConversationContextHelpers::AbortConversation(const FConversationContext& Context)
+{
+#if WITH_SERVER_CODE
+	return FConversationTaskResult::AbortConversation();
+#else
+	return FConversationTaskResult();
+#endif
+}
+
+bool UConversationContextHelpers::CanConversationContinue(const FConversationTaskResult& ConversationTasResult)
+{
+	return ConversationTasResult.CanConversationContinue();
+}
+
 UConversationParticipantComponent* UConversationContextHelpers::FindConversationComponent(AActor* Actor)
 {
 	if (Actor != nullptr)

@@ -10,12 +10,6 @@ FAutoConsoleVariableRef CVarChaosJointISPCEnabled(TEXT("p.Chaos.Joint.ISPC"), bC
 bool bChaos_Joint_EarlyOut_Enabled = true;
 FAutoConsoleVariableRef CVarChaosJointEarlyOutEnabled(TEXT("p.Chaos.Joint.EarlyOut"), bChaos_Joint_EarlyOut_Enabled, TEXT("Whether to iterating when joints report being solved"));
 
-bool bChaos_Joint_Batching = false;
-FAutoConsoleVariableRef CVarChaosJointBatching(TEXT("p.Chaos.Joint.Batching"), bChaos_Joint_Batching, TEXT(""));
-
-int32 bChaos_Joint_MaxBatchSize = 1000;
-FAutoConsoleVariableRef CVarChaosJointBatchSize(TEXT("p.Chaos.Joint.MaxBatchSize"), bChaos_Joint_MaxBatchSize, TEXT(""));
-
 float Chaos_Joint_DegenerateRotationLimit = -0.998f;	// Cos(176deg)
 FAutoConsoleVariableRef CVarChaosJointDegenerateRotationLimit(TEXT("p.Chaos.Joint.DegenerateRotationLimit"), Chaos_Joint_DegenerateRotationLimit, TEXT("Cosine of the swing angle that is considered degerenerate (default Cos(176deg))"));
 
@@ -24,6 +18,3 @@ FAutoConsoleVariableRef CVarChaosJointVelProjectionScale(TEXT("p.Chaos.Joint.Vel
 
 bool bChaos_Joint_DisableSoftLimits = false;
 FAutoConsoleVariableRef CVarChaosJointDisableSoftLimits(TEXT("p.Chaos.Joint.DisableSoftLimits"), bChaos_Joint_DisableSoftLimits, TEXT("Disable soft limits (for debugging only)"));
-
-bool bChaos_Joint_EnableMatrixSolve = false;
-FAutoConsoleVariableRef CVarChaosJointEnableMatrixSolve(TEXT("p.Chaos.Joint.EnableMatrixSolve"), bChaos_Joint_EnableMatrixSolve, TEXT(""));

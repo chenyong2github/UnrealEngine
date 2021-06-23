@@ -69,6 +69,7 @@ struct FTypedElementHandle;
 struct FAnalyticsEventAttribute;
 class UEditorWorldExtensionManager;
 class ITargetDevice;
+class ULevelEditorDragDropHandler;
 
 //
 // Things to set in mapSetBrush.
@@ -2427,6 +2428,14 @@ public:
 	DECLARE_DELEGATE_RetVal_OneParam(TSharedPtr<IAssetReferenceFilter>, FOnMakeAssetReferenceFilter, const FAssetReferenceFilterContext& /*Context*/);
 	FOnMakeAssetReferenceFilter& OnMakeAssetReferenceFilter() { return OnMakeAssetReferenceFilterDelegate; }
 	TSharedPtr<IAssetReferenceFilter> MakeAssetReferenceFilter(const FAssetReferenceFilterContext& Context) { return OnMakeAssetReferenceFilterDelegate.IsBound() ? OnMakeAssetReferenceFilterDelegate.Execute(Context) : nullptr; }
+
+public:
+	ULevelEditorDragDropHandler* GetLevelEditorDragDropHandler() const;
+protected:
+	virtual ULevelEditorDragDropHandler* CreateLevelEditorDragDropHandler();
+private:
+	UPROPERTY()
+	mutable ULevelEditorDragDropHandler* DragDropHandler;
 
 protected:
 

@@ -1357,6 +1357,7 @@ void FSectionList::AddSectionItem(FDetailWidgetRow& Row, int32 LodIndex, const s
 		}
 	}
 
+	Row.RowTag(SectionListName);
 	Row.NameContent()
 		[
 			NewView->CreateNameContent()

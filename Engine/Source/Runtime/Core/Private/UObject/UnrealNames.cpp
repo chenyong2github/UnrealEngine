@@ -3959,4 +3959,9 @@ uint32 Freeze::IntrinsicUnfrozenCopy(const FMemoryUnfreezeContent& Context, cons
 	}
 }
 
+bool ShouldReplicateAsInteger(EName Ename, const FName& Name)
+{
+	return Ename <= EName(MAX_NETWORKED_HARDCODED_NAME) && Name.GetNumber() == NAME_NO_NUMBER_INTERNAL;
+}
+
 PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS

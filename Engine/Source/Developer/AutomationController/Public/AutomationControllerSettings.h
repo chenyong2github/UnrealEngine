@@ -18,8 +18,8 @@ struct FAutomatedTestFilter
 
 public:
 
-	FAutomatedTestFilter(FString InContains, bool InMatchFromStart = false)
-		: Contains(InContains), MatchFromStart(InMatchFromStart)
+	FAutomatedTestFilter(FString InContains, bool InMatchFromStart = false, bool InMatchFromEnd = false)
+		: Contains(InContains), MatchFromStart(InMatchFromStart), MatchFromEnd(InMatchFromEnd)
 	{
 	}
 
@@ -32,6 +32,10 @@ public:
 	/** If true start matching from the start of the string, else anywhere */
 	UPROPERTY(Config)
 		bool MatchFromStart;
+
+	/** If true start matching from the end of the string, else anywhere */
+	UPROPERTY(Config)
+		bool MatchFromEnd;	
 };
 
 /*

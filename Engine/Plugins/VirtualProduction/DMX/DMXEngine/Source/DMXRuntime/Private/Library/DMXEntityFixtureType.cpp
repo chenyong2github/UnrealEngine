@@ -466,6 +466,28 @@ void UDMXEntityFixtureType::PostEditChangeProperty(FPropertyChangedEvent& Proper
 			UpdateChannelSpan(Mode);
 		}
 	}
+
+	// Update the cache of the library's patches if relevant data changed
+	const FProperty* Property = PropertyChangedEvent.Property;
+	const UScriptStruct* ModeStruct = FDMXFixtureMode::StaticStruct();
+	const UScriptStruct* FunctionStruct = FDMXFixtureFunction::StaticStruct();
+	const UScriptStruct* FixtureMatrixStruct = FDMXFixtureMatrix::StaticStruct();
+	const UStruct* PropertyOwnerStruct = Property ? Property->GetOwnerStruct() : nullptr;
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, bFixtureMatrixEnabled) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, InputModulators) ||
+		(PropertyOwnerStruct == ModeStruct) ||
+		(PropertyOwnerStruct == FunctionStruct))
+	{
+		if (UDMXLibrary* Library = ParentLibrary.Get())
+		{
+			for (UDMXEntityFixturePatch* FixturePatch : Library->GetEntitiesTypeCast<UDMXEntityFixturePatch>())
+			{
+				FixturePatch->RebuildCache();
+			}
+		}
+	}
 }
 #endif // WITH_EDITOR
 
@@ -503,8 +525,6 @@ void UDMXEntityFixtureType::PostEditChangeChainProperty(FPropertyChangedChainEve
 		const int32 ModeIndex = PropertyChangedEvent.GetArrayIndex(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes).ToString());
 		if (ModeIndex != INDEX_NONE)
 		{
-			UpdateChannelSpan(Modes[ModeIndex]);
-
 			if (PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, XCells))
 			{
 				UpdateYCellsFromXCells(Modes[ModeIndex]);
@@ -513,6 +533,8 @@ void UDMXEntityFixtureType::PostEditChangeChainProperty(FPropertyChangedChainEve
 			{
 				UpdateXCellsFromYCells(Modes[ModeIndex]);
 			}
+
+			UpdateChannelSpan(Modes[ModeIndex]);
 		}
 		else
 		{
@@ -525,8 +547,6 @@ void UDMXEntityFixtureType::PostEditChangeChainProperty(FPropertyChangedChainEve
 			{
 				for (FDMXFixtureMode& Mode : Modes)
 				{
-					UpdateChannelSpan(Mode);
-
 					if (PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, XCells))
 					{
 						UpdateYCellsFromXCells(Mode);
@@ -535,6 +555,8 @@ void UDMXEntityFixtureType::PostEditChangeChainProperty(FPropertyChangedChainEve
 					{
 						UpdateXCellsFromYCells(Mode);
 					}
+
+					UpdateChannelSpan(Mode);
 				}
 			}
 		}
@@ -607,7 +629,7 @@ void UDMXEntityFixtureType::PostEditChangeChainProperty(FPropertyChangedChainEve
 		{
 			ParentLibrary->ForEachEntityOfType<UDMXEntityFixturePatch>([this](UDMXEntityFixturePatch* Patch)
 			{
-				if (Patch->ParentFixtureTypeTemplate == this)
+				if (Patch->GetFixtureType() == this)
 				{
 					Patch->ValidateActiveMode();					
 				}
@@ -622,8 +644,9 @@ void UDMXEntityFixtureType::PostEditUndo()
 {
 	for (FDMXFixtureMode& Mode : Modes)
 	{
-		UpdateChannelSpan(Mode);
 		UpdateYCellsFromXCells(Mode);
+
+		UpdateChannelSpan(Mode);
 	}
 
 	Super::PostEditUndo();

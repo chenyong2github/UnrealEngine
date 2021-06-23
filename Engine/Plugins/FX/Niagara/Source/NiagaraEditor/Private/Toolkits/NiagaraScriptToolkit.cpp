@@ -186,7 +186,8 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 	const FGuid MessageLogGuidKey = FGuid::NewGuid();
 	NiagaraMessageLogViewModel = MakeShared<FNiagaraMessageLogViewModel>(GetNiagaraScriptMessageLogName(EditedNiagaraScript), MessageLogGuidKey, NiagaraMessageLog);
 
-	ScriptViewModel = MakeShareable(new FNiagaraStandaloneScriptViewModel(GetGraphEditorDisplayName(), ENiagaraParameterEditMode::EditAll, NiagaraMessageLogViewModel, MessageLogGuidKey));
+	bool bIsForDataProcessingOnly = false;
+	ScriptViewModel = MakeShareable(new FNiagaraStandaloneScriptViewModel(GetGraphEditorDisplayName(), ENiagaraParameterEditMode::EditAll, NiagaraMessageLogViewModel, MessageLogGuidKey, bIsForDataProcessingOnly));
 	ScriptViewModel->Initialize(EditedNiagaraScript, OriginalNiagaraScript);
 
 	ParameterPanelViewModel = MakeShareable(new FNiagaraScriptToolkitParameterPanelViewModel(ScriptViewModel));
@@ -308,6 +309,8 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 	}*/
 
 	bChangesDiscarded = false;
+
+	GEditor->RegisterForUndo(this);
 }
 
 void FNiagaraScriptToolkit::InitViewWithVersionedData()
@@ -330,10 +333,12 @@ void FNiagaraScriptToolkit::InitViewWithVersionedData()
 	if (ParameterPanelViewModel)
 	{
 		ParameterPanelViewModel->Init(UIContext);
+		ParameterPanelViewModel->RefreshNextTick();
 	}
 	if (ParameterDefinitionsPanelViewModel)
 	{
 		ParameterDefinitionsPanelViewModel->Init(UIContext);
+		ParameterDefinitionsPanelViewModel->RefreshNextTick();
 	}
 	DetailsScriptSelection->SetSelectedObject(EditedNiagaraScript.Script, &EditedNiagaraScript.Version);
 	if (NiagaraScriptGraphWidget)
@@ -814,6 +819,32 @@ void FNiagaraScriptToolkit::UpdateModuleStats()
 	
 	StatsListing->ClearMessages();
 	StatsListing->AddMessages(Messages);
+}
+
+bool FNiagaraScriptToolkit::MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjects) const
+{
+	const auto* Graph = ScriptViewModel->GetGraphViewModel()->GetGraph();
+	if (Graph)
+	{
+		for (const TPair<UObject*, FTransactionObjectEvent>& TransactionObjectPair : TransactionObjects)
+		{
+			UObject* Object = TransactionObjectPair.Key;
+			while (Object != nullptr)
+			{
+				if (Object == Graph)
+				{
+					return true;
+				}
+				Object = Object->GetOuter();
+			}
+		}
+	}
+	return false;
+}
+
+void FNiagaraScriptToolkit::PostUndo(bool bSuccess)
+{
+	MarkDirtyWithPendingChanges();
 }
 
 void FNiagaraScriptToolkit::GetSaveableObjects(TArray<UObject*>& OutObjects) const

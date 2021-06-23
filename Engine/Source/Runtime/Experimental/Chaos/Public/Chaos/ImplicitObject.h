@@ -177,6 +177,9 @@ public:
 		return static_cast<T_DERIVED&>(*this);
 	}
 
+	//Not all implicit objects can be duplicated, up to user code to use this in cases that make sense
+	virtual FImplicitObject* Duplicate() const { check(false); return nullptr; }
+
 	EImplicitObjectType GetType() const;
 	static int32 GetOffsetOfType() { return offsetof(FImplicitObject, Type); }
 

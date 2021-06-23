@@ -544,7 +544,7 @@ struct FGameFeaturePluginState_Downloading : public FGameFeaturePluginState
 			ProgressTracker->SetBundlesToTrackFromContentState(BundleContentState, PendingBundleDownloads);
 
 			ProgressUpdateHandle = FTicker::GetCoreTicker().AddTicker(
-				FTickerDelegate::CreateRaw(this, &FGameFeaturePluginState_Downloading::OnUpdateProgress), 0.1f);
+				FTickerDelegate::CreateRaw(this, &FGameFeaturePluginState_Downloading::OnUpdateProgress)/*, 0.1f*/);
 		}
 	}
 
@@ -593,7 +593,7 @@ struct FGameFeaturePluginState_Downloading : public FGameFeaturePluginState
 			float Progress = ProgressTracker->GetCurrentCombinedProgress().ProgressPercent;
 			UpdateProgress(Progress);
 
-			UE_LOG(LogGameFeatures, Verbose, TEXT("Download Progress: %f for PluginURL(%s)"), Progress, *StateProperties.PluginURL);
+			UE_LOG(LogGameFeatures, Display, TEXT("Download Progress: %f for PluginURL(%s)"), Progress, *StateProperties.PluginURL);
 		}
 
 		return true;

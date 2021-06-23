@@ -5,11 +5,13 @@
 
 #include "Editor.h"
 #include "Engine/World.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "FavoriteFilterContainer.h"
 #include "DisjunctiveNormalFormFilter.h"
 #include "FilterLoader.h"
 #include "FilteredResults.h"
+#include "SnapshotRestorability.h"
 
 ULevelSnapshotsEditorData::ULevelSnapshotsEditorData(const FObjectInitializer& ObjectInitializer)
 {
@@ -22,6 +24,8 @@ ULevelSnapshotsEditorData::ULevelSnapshotsEditorData(const FObjectInitializer& O
 		TEXT("UserDefinedFilters")
 		);
 	UserDefinedFilters->SetFlags(RF_Transactional);
+
+	TrackedFilterModifiedHandle = UserDefinedFilters->OnFilterModified.AddUObject(this, &ULevelSnapshotsEditorData::HandleFilterChange);
 	
 	FilterLoader = ObjectInitializer.CreateDefaultSubobject<UFilterLoader>(
 		this,
@@ -39,6 +43,10 @@ ULevelSnapshotsEditorData::ULevelSnapshotsEditorData(const FObjectInitializer& O
 		FilterResults->Modify();
 		FilterResults->SetUserFilters(UserDefinedFilters);
 		OnUserDefinedFiltersChanged.Broadcast(NewFilterToEdit, OldFilter);
+
+		OldFilter->OnFilterModified.Remove(TrackedFilterModifiedHandle);
+		
+		SetIsFilterDirty(true);
 	});
 
 	FilterResults = ObjectInitializer.CreateDefaultSubobject<UFilteredResults>(
@@ -51,6 +59,9 @@ ULevelSnapshotsEditorData::ULevelSnapshotsEditorData(const FObjectInitializer& O
     {
         ClearActiveSnapshot();
     });
+
+	// Dirty filter state when an actor that is desirable for capture is modified.
+	OnObjectsEdited = FCoreUObjectDelegates::OnObjectModified.AddUObject(this, &ULevelSnapshotsEditorData::HandleWorldActorsEdited);
 }
 
 void ULevelSnapshotsEditorData::BeginDestroy()
@@ -58,6 +69,7 @@ void ULevelSnapshotsEditorData::BeginDestroy()
 	Super::BeginDestroy();
 	
 	FWorldDelegates::OnWorldCleanup.Remove(OnWorldCleanup);
+	FCoreUObjectDelegates::OnObjectModified.Remove(OnObjectsEdited);
 }
 
 void ULevelSnapshotsEditorData::CleanupAfterEditorClose()
@@ -66,7 +78,6 @@ void ULevelSnapshotsEditorData::CleanupAfterEditorClose()
 	OnEditedFiterChanged.Clear();
 	OnUserDefinedFiltersChanged.Clear();
 
-	SelectedWorld.Reset();
 	ActiveSnapshot.Reset();
 	EditedFilter.Reset();
 
@@ -93,23 +104,16 @@ TOptional<ULevelSnapshot*> ULevelSnapshotsEditorData::GetActiveSnapshot() const
 	return ActiveSnapshot.IsSet() ? TOptional<ULevelSnapshot*>(ActiveSnapshot->Get()) : TOptional<ULevelSnapshot*>();
 }
 
-void ULevelSnapshotsEditorData::SetSelectedWorldReference(UWorld* InWorld)
+UWorld* ULevelSnapshotsEditorData::GetEditorWorld()
 {
-	SelectedWorld = InWorld;
-	
-	FilterResults->SetSelectedWorld(InWorld);
-}
-
-void ULevelSnapshotsEditorData::ClearSelectedWorld()
-{
-	SelectedWorld = nullptr;
-	
-	FilterResults->ClearSelectedWorld();
-}
-
-UWorld* ULevelSnapshotsEditorData::GetSelectedWorld() const
-{
-	return SelectedWorld.IsSet() ? SelectedWorld.GetValue() : nullptr;
+	if (GEditor)
+	{
+		if (UWorld* World = GEditor->GetEditorWorldContext().World())
+		{
+			return World;
+		}
+	}
+	return nullptr;
 }
 
 void ULevelSnapshotsEditorData::SetEditedFilter(const TOptional<UNegatableFilter*>& InFilter)
@@ -146,4 +150,33 @@ UFilterLoader* ULevelSnapshotsEditorData::GetFilterLoader() const
 UFilteredResults* ULevelSnapshotsEditorData::GetFilterResults() const
 {
 	return FilterResults;
+}
+
+void ULevelSnapshotsEditorData::HandleFilterChange(EFilterChangeType FilterChangeType)
+{
+	if (FilterChangeType != EFilterChangeType::RowAdded)
+	{
+		SetIsFilterDirty(true);
+	}
+}
+
+bool ULevelSnapshotsEditorData::IsFilterDirty() const
+{
+	return bIsFilterDirty;
+}
+
+void ULevelSnapshotsEditorData::SetIsFilterDirty(const bool bNewDirtyState)
+{
+	bIsFilterDirty = bNewDirtyState;
+}
+
+void ULevelSnapshotsEditorData::HandleWorldActorsEdited(UObject* Object)
+{
+	if (UWorld* World = GetEditorWorld())
+	{
+		if (Object && Object->IsIn(World))
+		{
+			SetIsFilterDirty(true);
+		}
+	}
 }

@@ -3,24 +3,23 @@
 #include "DisplayClusterConfigurationMgr.h"
 
 #include "Formats/IDisplayClusterConfigurationDataParser.h"
-#include "Formats/JSON/DisplayClusterConfigurationJsonParser.h"
+#include "Formats/JSON426/DisplayClusterConfigurationJsonParser_426.h"
+#include "Formats/JSON427/DisplayClusterConfigurationJsonParser_427.h"
 #include "Formats/Text/DisplayClusterConfigurationTextParser.h"
 
-#include "DisplayClusterConfigurationTypes.h"
-#include "DisplayClusterConfigurationStrings.h"
+#include "VersionChecker/DisplayClusterConfigurationVersionChecker.h"
+
 #include "DisplayClusterConfigurationLog.h"
+#include "DisplayClusterConfigurationTypes.h"
+#include "DisplayClusterConfigurationVersion.h"
 
 #include "Misc/DisplayClusterHelpers.h"
 #include "Misc/Paths.h"
 
 
-FDisplayClusterConfigurationMgr::FDisplayClusterConfigurationMgr()
-{
-}
+// Alias for current config scheme
+namespace ACTUAL_CONFIG_SCHEME = JSON427;
 
-FDisplayClusterConfigurationMgr::~FDisplayClusterConfigurationMgr()
-{
-}
 
 FDisplayClusterConfigurationMgr& FDisplayClusterConfigurationMgr::Get()
 {
@@ -28,6 +27,20 @@ FDisplayClusterConfigurationMgr& FDisplayClusterConfigurationMgr::Get()
 	return Instance;
 }
 
+EDisplayClusterConfigurationVersion FDisplayClusterConfigurationMgr::GetConfigVersion(const FString& FilePath)
+{
+	FString ConfigFile = FilePath.TrimStartAndEnd();
+
+	// Process relative paths
+	if (FPaths::IsRelative(ConfigFile))
+	{
+		ConfigFile = DisplayClusterHelpers::filesystem::GetFullPathForConfig(ConfigFile);
+	}
+
+	// Detect version
+	TUniquePtr<FDisplayClusterConfigurationVersionChecker> VersionChecker = MakeUnique<FDisplayClusterConfigurationVersionChecker>();
+	return VersionChecker->GetConfigVersion(ConfigFile);
+}
 
 UDisplayClusterConfigurationData* FDisplayClusterConfigurationMgr::LoadConfig(const FString& FilePath, UObject* Owner)
 {
@@ -44,20 +57,26 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationMgr::LoadConfig(co
 		return nullptr;
 	}
 
-	// Instantiate appropriate parser
+	// Detect config version and instantiate a proper config parser
 	TUniquePtr<IDisplayClusterConfigurationDataParser> Parser;
-	switch (GetConfigFileType(ConfigFile))
+	TUniquePtr<FDisplayClusterConfigurationVersionChecker> VersionChecker = MakeUnique<FDisplayClusterConfigurationVersionChecker>();
+	switch (VersionChecker->GetConfigVersion(ConfigFile))
 	{
-	case EConfigFileType::Text:
+	case EDisplayClusterConfigurationVersion::Version_CFG:
 		Parser = MakeUnique<FDisplayClusterConfigurationTextParser>();
 		break;
 
-	case EConfigFileType::Json:
-		Parser = MakeUnique<FDisplayClusterConfigurationJsonParser>();
+	case EDisplayClusterConfigurationVersion::Version_426:
+		Parser = MakeUnique<JSON426::FDisplayClusterConfigurationJsonParser>();
 		break;
 
+	case EDisplayClusterConfigurationVersion::Version_427:
+		Parser = MakeUnique<JSON427::FDisplayClusterConfigurationJsonParser>();
+		break;
+
+	case EDisplayClusterConfigurationVersion::Unknown:
 	default:
-		UE_LOG(LogDisplayClusterConfiguration, Error, TEXT("Unknown config type"));
+		UE_LOG(LogDisplayClusterConfiguration, Error, TEXT("No parser implemented for file: %s"), *ConfigFile);
 		return nullptr;
 	}
 
@@ -66,40 +85,22 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationMgr::LoadConfig(co
 
 bool FDisplayClusterConfigurationMgr::SaveConfig(const UDisplayClusterConfigurationData* Config, const FString& FilePath)
 {
-	// Save to json only
-	TUniquePtr<IDisplayClusterConfigurationDataParser> Parser = MakeUnique<FDisplayClusterConfigurationJsonParser>();
+	// Save to json with current config scheme
+	TUniquePtr<IDisplayClusterConfigurationDataParser> Parser = MakeUnique<ACTUAL_CONFIG_SCHEME::FDisplayClusterConfigurationJsonParser>();
 	check(Parser);
 	return Parser->SaveData(Config, FilePath);
 }
 
 bool FDisplayClusterConfigurationMgr::ConfigAsString(const UDisplayClusterConfigurationData* Config, FString& OutString)
 {
-	// Stringify to json only
-	TUniquePtr<IDisplayClusterConfigurationDataParser> Parser = MakeUnique<FDisplayClusterConfigurationJsonParser>();
+	// Stringify to json with current config scheme
+	TUniquePtr<IDisplayClusterConfigurationDataParser> Parser = MakeUnique<ACTUAL_CONFIG_SCHEME::FDisplayClusterConfigurationJsonParser>();
 	check(Parser);
 	return Parser->AsString(Config, OutString);
 }
 
 UDisplayClusterConfigurationData* FDisplayClusterConfigurationMgr::CreateDefaultStandaloneConfigData()
 {
-	// Not implemented yet
+	// Not supported yet
 	return nullptr;
-}
-
-FDisplayClusterConfigurationMgr::EConfigFileType FDisplayClusterConfigurationMgr::GetConfigFileType(const FString& InConfigPath) const
-{
-	const FString Extension = FPaths::GetExtension(InConfigPath).ToLower();
-	if (Extension.Equals(FString(DisplayClusterConfigurationStrings::file::FileExtJson), ESearchCase::IgnoreCase))
-	{
-		UE_LOG(LogDisplayClusterConfiguration, Log, TEXT("JSON config: %s"), *InConfigPath);
-		return EConfigFileType::Json;
-	}
-	else if (Extension.Equals(FString(DisplayClusterConfigurationStrings::file::FileExtCfg), ESearchCase::IgnoreCase))
-	{
-		UE_LOG(LogDisplayClusterConfiguration, Log, TEXT("TXT config: %s"), *InConfigPath);
-		return EConfigFileType::Text;
-	}
-
-	UE_LOG(LogDisplayClusterConfiguration, Warning, TEXT("Unknown file extension: %s"), *Extension);
-	return EConfigFileType::Unknown;
 }

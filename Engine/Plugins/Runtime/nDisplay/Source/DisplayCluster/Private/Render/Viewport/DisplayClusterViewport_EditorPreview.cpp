@@ -181,7 +181,10 @@ bool FDisplayClusterViewport::ImplPreview_CalculateStereoViewOffset(const uint32
 	const FString& CameraId = RenderSettings.CameraId;
 
 	// Get camera component assigned to the viewport (or default camera if nothing assigned)
-	UDisplayClusterCameraComponent* const ViewCamera = (CameraId.IsEmpty() ? RootActor->GetDefaultCamera() : RootActor->GetCameraById(CameraId));
+	UDisplayClusterCameraComponent* const ViewCamera = (CameraId.IsEmpty() ?
+		RootActor->GetDefaultCamera() :
+		RootActor->GetComponentByName<UDisplayClusterCameraComponent>(CameraId));
+
 	if (ViewCamera)
 	{
 		// View base location
@@ -199,16 +202,15 @@ bool FDisplayClusterViewport::ImplPreview_CalculateStereoViewOffset(const uint32
 	}
 
 	// Get the actual camera settings
-	const float CfgEyeDist = ViewCamera ? ViewCamera->GetInterpupillaryDistance() : 0.064f;
+	const float CfgEyeDist  = ViewCamera ? ViewCamera->GetInterpupillaryDistance() : 6.4f;
 	const bool  bCfgEyeSwap = ViewCamera ? ViewCamera->GetSwapEyes() : false;
 	const float CfgNCP = 1.f;
 
 	const EDisplayClusterEyeStereoOffset CfgEyeOffset = ViewCamera ? ViewCamera->GetStereoOffset() : EDisplayClusterEyeStereoOffset::None;
 
 	// Calculate eye offset considering the world scale
-	const float ScaledEyeDist = CfgEyeDist * WorldToMeters;
-	const float ScaledEyeOffset = ScaledEyeDist / 2.f;
-	const float EyeOffsetValues[] = { -ScaledEyeOffset, 0.f, ScaledEyeOffset };
+	const float EyeOffset = CfgEyeDist / 2.f;
+	const float EyeOffsetValues[] = { -EyeOffset, 0.f, EyeOffset };
 
 	auto DecodeEyeType = [](const EStereoscopicPass EyePass)
 	{

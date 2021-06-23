@@ -3,6 +3,7 @@
 #include "ElementEvent.h"
 #include "Utils/TAssValueName.h"
 #include "Synchronizer.h"
+#include "Commander.h"
 
 BEGIN_NAMESPACE_UE_AC
 
@@ -130,7 +131,10 @@ GSErrCode FElementEvent::Event(const API_NotifyElementType& ElemType)
 						 ElemUUID.ToCStr().Get());
 			break;
 	}
-	FSynchronizer::PostDoSnapshot("Element modified");
+	if (FCommander::IsAutoSyncEnabled())
+	{
+		FSynchronizer::PostDoSnapshot("Element modified");
+	}
 
 	UE_AC_TraceF("<- FElementEvent::Event\n");
 	return NoError;

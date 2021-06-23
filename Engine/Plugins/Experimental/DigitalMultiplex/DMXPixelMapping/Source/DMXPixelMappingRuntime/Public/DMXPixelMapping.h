@@ -135,7 +135,7 @@ public:
 	 * Removes the Component from the hierarchy and all sub Components.
 	 * @param InComponent        Component for remove
 	 */
-	bool RemoveComponent(UDMXPixelMappingBaseComponent* InComponent);
+	void RemoveComponent(UDMXPixelMappingBaseComponent* InComponent);
 
 public:
 	/** Holds the reference to root component */

@@ -17,7 +17,6 @@ class ULensFile;
 class FLensDataCurveModel : public FRichCurveEditorModel
 {
 public:
-
 	FLensDataCurveModel(ULensFile* InOwner);
 
 	//~ Begin FRichCurveEditorModel
@@ -28,6 +27,10 @@ public:
 	virtual FRichCurve& GetRichCurve() override;
 	virtual const FRichCurve& GetReadOnlyRichCurve() const override;
 	//~ End FRichCurveEditorModel
+
+public:
+	/** View ID that identifies the registered view type */
+	static ECurveEditorViewID ViewId;
 
 protected:
 

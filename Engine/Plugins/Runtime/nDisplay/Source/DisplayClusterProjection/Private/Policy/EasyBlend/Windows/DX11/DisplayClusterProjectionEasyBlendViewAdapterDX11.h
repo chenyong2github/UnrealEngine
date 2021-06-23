@@ -25,6 +25,7 @@ public:
 	virtual bool GetProjectionMatrix(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix) override;
 	virtual bool ApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* InViewportProxy) override;
 
+	static bool IsEasyBlendRenderingEnabled();
 
 protected:
 	void ImplInitializeResources_RenderThread();

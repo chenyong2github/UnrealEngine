@@ -50,9 +50,6 @@ protected:
 	FWorkflowAllowedTabSet EditorTabFactories;
 };
 
-/*
- * Blueprint graphmode for display cluster blueprints. TODO: Not currently used, delete if not needed.
- */
 class FDisplayClusterConfiguratorEditorConfigurationMode : public FDisplayClusterConfiguratorBlueprintModeBase
 {
 public:
@@ -65,19 +62,4 @@ public:
 
 protected:
 	TSharedPtr<FTabManager::FLayout> BuildDefaultLayout(const FString& LayoutName);
-};
-
-class FDisplayClusterConfiguratorEditorBlueprintMode : public FDisplayClusterConfiguratorBlueprintModeBase
-{
-	
-public:
-	FDisplayClusterConfiguratorEditorBlueprintMode(TSharedPtr<class FDisplayClusterConfiguratorBlueprintEditor> EditorIn);
-
-	// FApplicationMode interface
-	virtual void RegisterTabFactories(TSharedPtr<FTabManager> InTabManager) override;
-	// End of FApplicationMode interface
-
-protected:
-	TSharedPtr<FTabManager::FLayout> BuildDefaultLayout(const FString& LayoutName);
-
 };

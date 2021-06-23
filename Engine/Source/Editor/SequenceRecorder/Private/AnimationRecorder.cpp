@@ -1006,7 +1006,7 @@ bool FAnimRecorderInstance::BeginRecording()
 	}
 	if (Recorder.IsValid())
 	{
-		if(Sequence.IsValid())
+		if (Sequence.IsValid())
 		{
 			Recorder->StartRecord(SkelComp.Get(), Sequence.Get());
 			return true;
@@ -1037,7 +1037,6 @@ void FAnimRecorderInstance::Update(float DeltaTime)
 		UE_LOG(LogAnimation, Log, TEXT("Animation Recorder:  Update: Recoder not Valid, No Recording will occur."));
 	}
 }
-
 void FAnimRecorderInstance::FinishRecording(bool bShowMessage)
 {
 	const FText FinishRecordingAnimationSlowTask = LOCTEXT("FinishRecordingAnimationSlowTask", "Finalizing recorded animation");

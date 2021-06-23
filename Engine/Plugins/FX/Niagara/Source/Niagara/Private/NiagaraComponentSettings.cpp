@@ -4,6 +4,8 @@
 
 int32 UNiagaraComponentSettings::bAllowSuppressActivation = 0;
 int32 UNiagaraComponentSettings::bAllowForceAutoPooling = 0;
+int32 UNiagaraComponentSettings::bUseSuppressEmitterList = 0;
+int32 UNiagaraComponentSettings::bUseGpuEmitterWhitelist = 0;
 
 static FAutoConsoleVariableRef CVarNiagaraUseSupressActivateList(
 	TEXT("fx.Niagara.UseSupressActivateList"),
@@ -16,6 +18,20 @@ static FAutoConsoleVariableRef CVarNiagaraForceAutoPooling(
 	TEXT("fx.Niagara.ForceAutoPooling"),
 	UNiagaraComponentSettings::bAllowForceAutoPooling,
 	TEXT("Forces auto pooling to be enabled on spawned components."),
+	ECVF_Default
+);
+
+static FAutoConsoleVariableRef CVarNiagaraUseEmitterSupressList(
+	TEXT("fx.Niagara.UseEmitterSuppressList"),
+	UNiagaraComponentSettings::bUseSuppressEmitterList,
+	TEXT("When an emitter is activated we will check the surpession list."),
+	ECVF_Default
+);
+
+static FAutoConsoleVariableRef CVarNiagaraUseGpuEmitterWhitelist(
+	TEXT("fx.Niagara.UseGpuEmitterWhitelist"),
+	UNiagaraComponentSettings::bUseGpuEmitterWhitelist,
+	TEXT("When enabled only whitelisted GPU emitters are allowed to run."),
 	ECVF_Default
 );
 

@@ -18,13 +18,15 @@ public class GeForceNOWWrapper : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
-				"GeForceNOW"
+				"GeForceNOW",
+				"Slate"
 			}
 		);
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
+				"SlateCore"
 			}
 		);
 

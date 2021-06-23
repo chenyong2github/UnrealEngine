@@ -57,7 +57,7 @@ public class FDatasmithFacadeEndpointObserver : global::System.IDisposable {
   private NotifyStateChangeNativeEvent NotifyStateChangedEvent;
   private System.Object ObjectLock = new System.Object();
 
-  public class FDatasmithFacadeRawInfoEventArgs
+  public class FDatasmithFacadeRawInfoEventArgs : System.EventArgs
   {
     public FDatasmithFacadeRawInfo RawInfo;
   }

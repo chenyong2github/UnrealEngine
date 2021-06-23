@@ -112,7 +112,7 @@ UDMXEntityFixturePatch* SDMXChannelConnector::GetFixturePatch() const
 	{
 		TArray<UDMXEntityFixturePatch*> FixturePatches = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
 		UDMXEntityFixturePatch** PatchOnChannel = FixturePatches.FindByPredicate([this](UDMXEntityFixturePatch* TestedPatch) {
-			int32 PatchUniverseID = TestedPatch->UniverseID;
+			int32 PatchUniverseID = TestedPatch->GetUniverseID();
 			int32 PatchStartingChannel = TestedPatch->GetStartingChannel();
 			int32 PatchEndingChannel = PatchStartingChannel + TestedPatch->GetChannelSpan() - 1;
 			return

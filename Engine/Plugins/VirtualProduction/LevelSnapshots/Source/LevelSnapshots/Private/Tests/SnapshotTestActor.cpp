@@ -4,6 +4,16 @@
 
 #include "UObject/ConstructorHelpers.h"
 
+USubobject::USubobject()
+{
+	NestedChild = CreateDefaultSubobject<USubSubobject>(TEXT("NestedChild"));
+}
+
+USnapshotTestComponent::USnapshotTestComponent()
+{
+	Subobject = CreateDefaultSubobject<USubobject>(TEXT("Subobject"));
+}
+
 ASnapshotTestActor::ASnapshotTestActor()
 {
 	ConstructorHelpers::FObjectFinder<UMaterialInterface> GradientLinearMaterialFinder(TEXT("Material'/Engine/MaterialTemplates/Gradients/Gradient_Linear.Gradient_Linear'"), LOAD_Quiet | LOAD_NoWarn);
@@ -34,6 +44,8 @@ ASnapshotTestActor::ASnapshotTestActor()
 
 	PointLightComponent = CreateDefaultSubobject<UPointLightComponent>(TEXT("PointLightComponent"));
 	PointLightComponent->SetupAttachment(InstancedMeshComponent);
+
+	TestComponent = CreateDefaultSubobject<USnapshotTestComponent>(TEXT("TestComponent"));
 }
 
 bool ASnapshotTestActor::HasObjectReference(UObject* Object, bool bOnlyCheckCollections, FName MapKey) const
@@ -107,4 +119,13 @@ void ASnapshotTestActor::ClearObjectReferences()
 	WeakObjectPtrArray.Reset();
 	WeakObjectPtrSet.Reset();
 	WeakObjectPtrMap.Reset();
+}
+
+void ASnapshotTestActor::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	EditableInstancedSubobject = NewObject<USubobject>(this, USubobject::StaticClass(), TEXT("EditableInstancedSubobject"));
+	InstancedSubobject = NewObject<USubobject>(this, USubobject::StaticClass(), TEXT("InstancedSubobject"));
+	NakedSubobject = NewObject<USubobject>(this, USubobject::StaticClass(), TEXT("NakedSubobject"));;
 }

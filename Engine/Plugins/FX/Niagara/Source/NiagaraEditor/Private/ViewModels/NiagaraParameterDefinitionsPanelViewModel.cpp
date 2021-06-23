@@ -19,13 +19,13 @@
 /// Shared View Model Loctexts												///
 ///////////////////////////////////////////////////////////////////////////////
 const static FText Loctext_AddDefinitionsAssetTransaction = LOCTEXT("AddDefinitionsAssetTransaction", "Add Definitions");
-const static FText Loctext_RemoveDefinitionsAssetTransaction = LOCTEXT("RemoveDefinitionsAssetTransaction", "Unsubscribe all Parameters From Definitions");
-const static FText Loctext_SubscribeAllParametersToDefinitionsTransaction = LOCTEXT("SubscribeAllParametersToDefinitionsTransaction", "Subscribe all Parameters to Definitions");
+const static FText Loctext_RemoveDefinitionsAssetTransaction = LOCTEXT("RemoveDefinitionsAssetTransaction", "Unlink all Parameters From Definitions");
+const static FText Loctext_SubscribeAllParametersToDefinitionsTransaction = LOCTEXT("SubscribeAllParametersToDefinitionsTransaction", "Link all Parameters to Definitions");
 
-const static FText Loctext_SubscribeAllParametersToDefinitionsToolTip = LOCTEXT("SubscribeAllParametersToDefinitionsToolTip", "Subscribe all Parameters to Definitions.");
-const static FText Loctext_CannotSubscribeAllParametersToDefinitionsToolTip_NoCandidates = LOCTEXT("CannotSubscribeALlParametersToDefinitionsToolTip_NoCandidates", "Cannot subscribe all Parameters to Definitions; No Parameters have a name and type match to a Definition.");
+const static FText Loctext_SubscribeAllParametersToDefinitionsToolTip = LOCTEXT("SubscribeAllParametersToDefinitionsToolTip", "Link all Parameters to Definitions.");
+const static FText Loctext_CannotSubscribeAllParametersToDefinitionsToolTip_NoCandidates = LOCTEXT("CannotSubscribeALlParametersToDefinitionsToolTip_NoCandidates", "Cannot link all Parameters to Definitions; No Parameters have a name and type match to a Definition.");
 
-const static FText Loctext_UnsubscribeFromParameterDefinitionsToolTip = LOCTEXT("UnsubscribeFromParameterDefinitionsToolTip", "Unsubscribe all Parameters from Definitions.");
+const static FText Loctext_UnsubscribeFromParameterDefinitionsToolTip = LOCTEXT("UnsubscribeFromParameterDefinitionsToolTip", "Unlink all Parameters from Definitions.");
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Base Parameter Definitions Panel View Model									///
@@ -150,7 +150,7 @@ bool FNiagaraScriptToolkitParameterDefinitionsPanelViewModel::GetCanSubscribeAll
 	const UNiagaraParameterDefinitions* ParameterDefinitions = FindSubscribedParameterDefinitionsById(CategoryToSubscribe.ParameterDefinitionsUniqueId);
 	if (ParameterDefinitions == nullptr)
 	{
-		ensureMsgf(false, TEXT("Tried to set all parameters to subscribe to library but could not find subscribed library by ID!"));
+		ensureMsgf(false, TEXT("Tried to set all parameters to link to definition but could not find definition asset by ID!"));
 		return false;
 	}
 
@@ -288,7 +288,7 @@ bool FNiagaraSystemToolkitParameterDefinitionsPanelViewModel::GetCanSubscribeAll
 	const UNiagaraParameterDefinitions* ParameterDefinitions = FindSubscribedParameterDefinitionsById(CategoryToSubscribe.ParameterDefinitionsUniqueId);
 	if (ParameterDefinitions == nullptr)
 	{
-		ensureMsgf(false, TEXT("Tried to set all parameters to subscribe to library but could not find subscribed library by ID!"));
+		ensureMsgf(false, TEXT("Tried to set all parameters to subscribe to definition but could not find definition asset by ID!"));
 		return false;
 	}
 

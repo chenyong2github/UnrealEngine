@@ -3,7 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/SBoxPanel.h"
+#include "Widgets/SNullWidget.h"
+#include "Widgets/Text/STextBlock.h"
 
 #include "CameraLensDistortionAlgo.generated.h"
 
@@ -43,7 +44,7 @@ public:
 	virtual bool OnViewportClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) { return false;  };
 
 	/** Returns the UI of this calibrator. Expected to only be called once */
-	virtual TSharedRef<SWidget> BuildUI() { return SNew(SVerticalBox); };
+	virtual TSharedRef<SWidget> BuildUI() { return SNullWidget::NullWidget; };
 
 	/** Returns a descriptive name/title of this nodal offset algorithm */
 	virtual FName FriendlyName() const { return TEXT("Invalid Name"); };
@@ -64,4 +65,7 @@ public:
 	{ 
 		return false; 
 	};
+
+	/** Called to present the user with instructions on how to this this algo */
+	virtual TSharedRef<SWidget> BuildHelpWidget() { return SNew(STextBlock).Text(FText::FromString(TEXT("Coming soon!"))); };
 };

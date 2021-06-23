@@ -557,9 +557,9 @@ void SLensDataAddPointDialog::RefreshEvaluationData()
 {
 	//Get FIZ coming from LiveLink. If normalized values are available, take them. Otherwise, look for precalibrated values or default to 0.0f
 	const FCachedFIZData& CachedData = CachedFIZ.Get();
-	const float Focus = CachedData.NormalizedFocus.IsSet() ? CachedData.NormalizedFocus.GetValue() : CachedData.Focus.IsSet() ? CachedData.Focus.GetValue() : 0.0f;
-	const float Iris = CachedData.NormalizedIris.IsSet() ? CachedData.NormalizedIris.GetValue() : CachedData.Iris.IsSet() ? CachedData.Iris.GetValue() : 0.0f;
-	const float Zoom = CachedData.NormalizedZoom.IsSet() ? CachedData.NormalizedZoom.GetValue() : CachedData.Zoom.IsSet() ? CachedData.Zoom.GetValue() : 0.0f;
+	const float Focus = CachedData.RawFocus.IsSet() ? CachedData.RawFocus.GetValue() : CachedData.EvaluatedFocus.IsSet() ? CachedData.EvaluatedFocus.GetValue() : 0.0f;
+	const float Iris = CachedData.RawIris.IsSet() ? CachedData.RawIris.GetValue() : CachedData.EvaluatedIris.IsSet() ? CachedData.EvaluatedIris.GetValue() : 0.0f;
+	const float Zoom = CachedData.RawZoom.IsSet() ? CachedData.RawZoom.GetValue() : CachedData.EvaluatedZoom.IsSet() ? CachedData.EvaluatedZoom.GetValue() : 0.0f;
 	
 	switch (SelectedCategory)
 	{

@@ -27,6 +27,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Level Snapshots|Editor")
 	bool bUseCreationForm;
 
+	/* If true, clicking on an actor group under 'Modified Actors' will select the actor in the scene. The previous selection will be deselected. */
+	UPROPERTY(config, EditAnywhere, Category = "Level Snapshots|Editor")
+	bool bClickActorGroupToSelectActorInScene;
+
 	UPROPERTY(config, EditAnywhere, Category = "Level Snapshots|Editor")
 	float PreferredCreationFormWindowWidth;
 

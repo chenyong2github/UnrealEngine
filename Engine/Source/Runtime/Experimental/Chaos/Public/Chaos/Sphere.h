@@ -62,6 +62,11 @@ namespace Chaos
 
 		virtual ~TSphere() {}
 
+		virtual FImplicitObject* Duplicate() const override
+		{
+			return new TSphere(*this);
+		}
+
 		static constexpr EImplicitObjectType StaticType()
 		{ 
 			return ImplicitObjectType::Sphere; 

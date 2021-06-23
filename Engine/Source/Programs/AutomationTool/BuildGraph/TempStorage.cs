@@ -1166,6 +1166,10 @@ namespace AutomationTool
 			{
 				return true;
 			}
+			if (FileName.Equals("plugInfo.json", StringComparison.OrdinalIgnoreCase))
+			{
+				return true;
+			}
 			return false;
 		}
 	}

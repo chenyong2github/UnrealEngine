@@ -165,6 +165,9 @@ public:
 	/** Initializes this system view model with the supplied system and options. */
 	NIAGARAEDITOR_API void Initialize(UNiagaraSystem& InSystem, FNiagaraSystemViewModelOptions InOptions);
 
+	/** Returns whether or not this view model is initialized and safe to use. */
+	bool IsValid() const;
+
 	NIAGARAEDITOR_API ~FNiagaraSystemViewModel();
 
 	//~ Begin NiagaraParameterDefinitionsSubscriberViewModel Interface
@@ -506,7 +509,7 @@ private:
 	void SystemChanged(UNiagaraSystem* ChangedSystem);
 
 	/** Called whenever one of the owned stack viewmodels structure changes. */
-	void StackViewModelStructureChanged();
+	void StackViewModelStructureChanged(ENiagaraStructureChangedFlags Flags);
 
 	/** Called whenever one of the scripts in the scratch pad changes. */
 	void ScratchPadScriptsChanged();

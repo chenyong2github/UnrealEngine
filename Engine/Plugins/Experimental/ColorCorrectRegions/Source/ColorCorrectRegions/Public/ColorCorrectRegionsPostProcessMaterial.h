@@ -122,9 +122,19 @@ public:
 class FColorCorrectRegionMaterialPS : public FColorCorrectRegionsPostProcessMaterialShader
 {
 public:
+	UENUM(BlueprintType)
+	enum class ETemperatureType : uint8
+	{
+		LegacyTemperature = static_cast<uint8>(EColorCorrectRegionTemperatureType::LegacyTemperature),
+		WhiteBalance = static_cast<uint8>(EColorCorrectRegionTemperatureType::WhiteBalance),
+		ColorTemperature = static_cast<uint8>(EColorCorrectRegionTemperatureType::ColorTemperature),
+		Disabled,
+		MAX
+	};
 	DECLARE_GLOBAL_SHADER(FColorCorrectRegionMaterialPS);
 
 	class FShaderType : SHADER_PERMUTATION_ENUM_CLASS("SHAPE_TYPE", EColorCorrectRegionsType);
+	class FTemperatureType : SHADER_PERMUTATION_ENUM_CLASS("TEMPERATURE_TYPE", ETemperatureType);
 	class FAdvancedShader : SHADER_PERMUTATION_BOOL("ADVANCED_CC");
 	class FDisplayBoundingRect : SHADER_PERMUTATION_BOOL("CCR_SHADER_DISPLAY_BOUNDING_RECT");
 	class FClipPixelsOutsideAABB : SHADER_PERMUTATION_BOOL("CLIP_PIXELS_OUTSIDE_AABB");
@@ -135,7 +145,7 @@ public:
 	*/
 	class FSampleOpacityFromGbuffer : SHADER_PERMUTATION_BOOL("SAMPLE_OPACITY_FROM_GBUFFER");
 
-	using FPermutationDomain = TShaderPermutationDomain<FShaderType, FAdvancedShader, FDisplayBoundingRect, FClipPixelsOutsideAABB, FSampleOpacityFromGbuffer>;
+	using FPermutationDomain = TShaderPermutationDomain<FShaderType, FTemperatureType, FAdvancedShader, FDisplayBoundingRect, FClipPixelsOutsideAABB, FSampleOpacityFromGbuffer>;
 
 	FColorCorrectRegionMaterialPS() = default;
 	FColorCorrectRegionMaterialPS(const ShaderMetaType::CompiledShaderInitializerType & Initializer)

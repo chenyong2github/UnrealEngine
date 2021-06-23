@@ -25,10 +25,11 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorInput>& InEditorInput, const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder);
-private:
-	void OverrideWorld(FSoftObjectPath InNewContextPath);
+
+	void OpenLevelSnapshotsDialogWithAssetSelected(const FAssetData& InAssetData) const;
 
 private:
+	void OverrideWorld(FSoftObjectPath InNewContextPath);
 
 	FDelegateHandle OnObjectModifiedDelegateHandle;
 	

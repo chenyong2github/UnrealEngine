@@ -24,6 +24,7 @@ public class RemoteControlUI : ModuleRules
 				"Engine",
 				"HotReload",
 				"InputCore",
+				"MessageLog",
 				"Projects",
 				"PropertyEditor",
 				"RemoteControl",

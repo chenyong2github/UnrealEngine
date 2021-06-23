@@ -210,6 +210,8 @@ void SAddNewGameplayTagWidget::PopulateTagSources()
 	TArray<const FGameplayTagSource*> Sources;
 	Manager.FindTagSourcesWithType(EGameplayTagSourceType::TagList, Sources);
 
+	Algo::SortBy(Sources, &FGameplayTagSource::SourceName, FNameLexicalLess());
+
 	for (const FGameplayTagSource* Source : Sources)
 	{
 		if (Source != nullptr && Source->SourceName != DefaultSource)

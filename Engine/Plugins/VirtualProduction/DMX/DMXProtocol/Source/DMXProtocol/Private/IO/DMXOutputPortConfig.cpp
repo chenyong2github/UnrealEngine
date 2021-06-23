@@ -26,7 +26,7 @@ FDMXOutputPortConfigParams::FDMXOutputPortConfigParams(const FDMXOutputPortConfi
 
 FDMXOutputPortConfig::FDMXOutputPortConfig(const FGuid& InPortGuid)
 	: CommunicationType(EDMXCommunicationType::InternalOnly)
-	, DeviceAddress(TEXT("None"))
+	, DeviceAddress(TEXT("127.0.0.1"))
 	, DestinationAddress(TEXT("None"))
 	, bLoopbackToEngine(true)
 	, LocalUniverseStart(1)

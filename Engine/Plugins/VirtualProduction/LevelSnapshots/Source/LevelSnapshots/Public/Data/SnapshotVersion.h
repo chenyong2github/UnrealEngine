@@ -83,9 +83,10 @@ struct LEVELSNAPSHOTS_API FSnapshotVersionInfo
 
 	/** Initialize this version info from the compiled in data */
 	void Initialize();
-
 	bool IsInitialized() const;
 
+	void ApplyToArchive(FArchive& Archive) const;
+	
 	/** File version info */
 	UPROPERTY()
 	FSnapshotFileVersionInfo FileVersion;

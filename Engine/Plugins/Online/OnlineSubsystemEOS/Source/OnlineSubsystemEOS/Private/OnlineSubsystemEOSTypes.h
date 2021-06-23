@@ -144,6 +144,7 @@ private:
 		: FUniqueNetIdString(EMPTY_EASID EOS_ID_SEPARATOR EMPTY_PUID)
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
+		Type = FName("EOS");
 	}
 	
 	explicit FUniqueNetIdEOS(uint8* Bytes, int32 Size)
@@ -155,11 +156,12 @@ private:
 		EpicAccountIdStr = BytesToHex(Bytes, ID_HALF_BYTE_SIZE);
 		ProductUserIdStr = BytesToHex(Bytes + ID_HALF_BYTE_SIZE, ID_HALF_BYTE_SIZE);
 		UniqueNetIdStr = EpicAccountIdStr + EOS_ID_SEPARATOR + ProductUserIdStr;
+		Type = FName("EOS");
 	}
 
 	explicit FUniqueNetIdEOS(const FString& InUniqueNetId)
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		: FUniqueNetIdString(InUniqueNetId)
+		: FUniqueNetIdString(InUniqueNetId, FName("EOS"))
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		ParseAccountIds();
@@ -171,6 +173,7 @@ private:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		ParseAccountIds();
+		Type = FName("EOS");
 	}
 
 	explicit FUniqueNetIdEOS(const FUniqueNetId& Src)
@@ -179,6 +182,7 @@ private:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		ParseAccountIds();
+		Type = FName("EOS");
 	}
 };
 

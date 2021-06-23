@@ -14,18 +14,72 @@
 
 #define LOCTEXT_NAMESPACE "RemoteControlProtocolWidgets"
 
+namespace Internal
+{
+	/** All matching name, returns true if one or more found. Could cache result as child indices. */
+	bool FindWidgetsByName(const TSharedRef<SWidget>& InParent, const FString& InWidgetTypeName, TArray<TSharedRef<SWidget>>& OutFoundWidgets)
+	{
+		FChildren* PanelChildren = InParent->GetChildren();
+		for (int ChildIdx = 0; ChildIdx < PanelChildren->Num(); ++ChildIdx)
+		{
+			TSharedRef<SWidget> ChildWidget = PanelChildren->GetChildAt(ChildIdx);
+			FString ChildType = ChildWidget->GetTypeAsString();
+			if (ChildType.Contains(InWidgetTypeName))
+			{
+				OutFoundWidgets.Add(ChildWidget);
+			}
+			else if (InParent->GetChildren()->Num() > 0)
+			{
+				if (FindWidgetsByName(ChildWidget, InWidgetTypeName, OutFoundWidgets))
+				{
+					return true;
+				}
+			}
+		}
+
+		return OutFoundWidgets.Num() > 0;
+	}
+
+	/** Returns first occurence. */
+	template <typename WidgetType>
+	TSharedPtr<WidgetType> FindWidgetByType(const TSharedRef<SWidget>& InParent)
+	{
+		FChildren* PanelChildren = InParent->GetChildren();
+		for (int ChildIdx = 0; ChildIdx < PanelChildren->Num(); ++ChildIdx)
+		{
+			TSharedRef<SWidget> ChildWidget = PanelChildren->GetChildAt(ChildIdx);
+			if (ChildWidget != SNullWidget::NullWidget)
+			{
+				if (WidgetType* ChildWidgetAsType = Cast<WidgetType>(ChildWidget.Get()))
+				{
+					return ChildWidgetAsType;
+				}
+				else if (InParent->GetChildren()->Num() > 0)
+				{
+					if (const TSharedPtr<WidgetType>& FoundWidget = FindWidgetByType<WidgetType>(ChildWidget))
+					{
+						return FoundWidget;
+					}
+				}
+			}
+		}
+
+		return nullptr;
+	}
+}
+
 int32 SPropertyView::DesiredWidth = 400.f;
 
 void SPropertyView::Construct(const FArguments& InArgs)
 {
+	bHasCustomPrepass = true;
 	bRefreshObjectToDisplay = false;
-	Object = InArgs._Object;
+	Object = TStrongObjectPtr<UObject>(InArgs._Object);
 	RootPropertyName = InArgs._RootPropertyName;
 	NameVisibility = InArgs._NameVisibility;
 	DisplayNameOverride = InArgs._DisplayName;
 	Struct = InArgs._Struct;
 	Spacing = InArgs._Spacing;
-	bColumnPadding = InArgs._ColumnPadding;
 	bResizableColumn = InArgs._ResizableColumn;
 
 	if (InArgs._ColumnSizeData.IsValid())
@@ -46,13 +100,11 @@ void SPropertyView::Construct(const FArguments& InArgs)
 	const FPropertyRowGeneratorArgs Args;
 	Generator = PropertyEditorModule.CreatePropertyRowGenerator(Args);
 
-	if(Object)
+	if (Object.IsValid())
 	{
-		TArray<UObject*> Objects;
-		Objects.Add(Object);
-		Generator->SetObjects(Objects);
+		Generator->SetObjects({Object.Get()});
 	}
-	else if(Struct.IsValid())
+	else if (Struct.IsValid())
 	{
 		Generator->SetStructure(Struct);
 	}
@@ -65,41 +117,21 @@ void SPropertyView::Construct(const FArguments& InArgs)
 		OnObjectTransactedHandle = FCoreUObjectDelegates::OnObjectTransacted.AddSP(this, &SPropertyView::OnObjectTransacted);
 	}
 
-	Construct();
+	ConstructInternal();
 }
 
-void SPropertyView::Construct()
+void SPropertyView::ConstructInternal()
 {
-	Property.Reset();
-	
-	if (Object || Struct.IsValid())
+	if (Object.IsValid() || Struct.IsValid())
 	{
 		GridPanel = SNew(SGridPanel).FillColumn(0.0f, 1.0f);
+
 		TArray<TSharedRef<IDetailTreeNode>> RootNodes = Generator->GetRootTreeNodes();
-		
-		if(RootNodes.Num() > 0)
+		if (FindRootPropertyHandle(RootNodes))
 		{
-			TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
-			RootNodes[0]->GetChildren(ChildNodes);
-			TSharedRef<IDetailTreeNode>* FoundNode = ChildNodes.FindByPredicate([&](const TSharedRef<IDetailTreeNode>& InNode)
-			{
-				if(const TSharedPtr<IPropertyHandle> PropertyHandle = InNode->CreatePropertyHandle())
-				{
-					return PropertyHandle->GetProperty()->GetFName() == RootPropertyName;
-				}
-				return false;
-			});
-
-			if(FoundNode)
-			{
-				Property = FoundNode->Get().CreatePropertyHandle();
-				RootNodes.Empty();
-				RootNodes.Add(*FoundNode);
-			}
+			int32 Index = 0;
+			AddWidgets(RootNodes, Index, 0.0f);
 		}
-
-		int32 Index = 0;
-		AddWidgets(RootNodes, Index, 0.0f);
 
 		ChildSlot
 		[
@@ -122,15 +154,15 @@ void SPropertyView::Construct()
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
-				  .HAlign(HAlign_Left)
-				  .VAlign(VAlign_Center)
-				  .FillWidth(1.0f)
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.FillWidth(1.0f)
 				[
 					SNew(STextBlock)
-                    .Font(IDetailLayoutBuilder::GetDetailFontBold())
-                    .Text(ErrorText)
-                    .Margin(FMargin(5.0f, 5.0f, 0.0f, 0.0f))
-                    .ColorAndOpacity(FLinearColor(1, 0, 0, 1))
+					.Font(IDetailLayoutBuilder::GetDetailFontBold())
+					.Text(ErrorText)
+					.Margin(FMargin(5.0f, 5.0f, 0.0f, 0.0f))
+					.ColorAndOpacity(FLinearColor(1, 0, 0, 1))
 				]
 			]
 		];
@@ -148,66 +180,56 @@ SPropertyView::~SPropertyView()
 	}
 }
 
-void SPropertyView::SetProperty(UObject* InObject, const FName InPropertyName)
+void SPropertyView::SetProperty(UObject* InNewObject, const FName InPropertyName)
 {
-	UObject* NewObjectToDisplay = InObject;
-	if (Object != NewObjectToDisplay)
+	if (!Object.IsValid() || Object.Get() != InNewObject)
 	{
-		Object = NewObjectToDisplay;
+		Object.Reset(InNewObject);
 		RootPropertyName = InPropertyName;
 		Struct.Reset();
 		Refresh();
 	}
 }
 
-void SPropertyView::SetStruct(UObject* InObject, TSharedPtr<FStructOnScope>& InStruct)
+void SPropertyView::SetStruct(UObject* InNewObject, TSharedPtr<FStructOnScope>& InStruct)
 {
-	UObject* NewObjectToDisplay = InObject;
-	if(Object != NewObjectToDisplay)
+	if (!Object.IsValid() || Object.Get() != InNewObject)
 	{
-		Object = NewObjectToDisplay;
+		Object.Reset(InNewObject);
 		Struct = InStruct;
 		Property = nullptr;
 		Refresh();
 	}
 }
 
-bool SPropertyView::CustomPrepass(float LayoutScaleMultiplier)
+TSharedPtr<IPropertyHandle> SPropertyView::GetPropertyHandle() const
 {
-	if(bRefreshObjectToDisplay)
+	return Property;
+}
+
+bool SPropertyView::CustomPrepass(float InLayoutScaleMultiplier)
+{
+	if (bRefreshObjectToDisplay)
 	{
-		if(Object)
+		if (Object.IsValid())
 		{
-			TArray<UObject*> Objects;
-			Objects.Add(Object);
-			Generator->SetObjects(Objects);
+			Generator->SetObjects({Object.Get()});
 		}
-		else if(Struct.IsValid())
+		else if (Struct.IsValid())
 		{
 			Generator->SetStructure(Struct);
 		}
-		Construct();
+		ConstructInternal();
 		bRefreshObjectToDisplay = false;
 	}
-	
-	return true;
-}
 
-void SPropertyView::AddReferencedObjects(FReferenceCollector& InCollector)
-{
-	InCollector.AddReferencedObject(Object);
-	if(Property.IsValid())
-	{
-		if(FProperty* Prp = Property->GetProperty())
-		{
-			Prp->AddReferencedObjects(InCollector);
-		}		
-	}
+	return true;
 }
 
 void SPropertyView::Refresh()
 {
 	// forces CustomPrepass to be called, recreating widgets ie. for array items. Without this array items won't add/remove.
+	// @note: that this breaks current property handle references
 	Invalidate(EInvalidateWidgetReason::Prepass);
 	bRefreshObjectToDisplay = true;
 }
@@ -265,48 +287,11 @@ void SPropertyView::AddWidgets(const TArray<TSharedRef<IDetailTreeNode>>& InDeta
 		TSharedPtr<IPropertyHandle> PropertyHandle = ChildNode->CreatePropertyHandle();
 		if (ChildNode->GetNodeType() == EDetailNodeType::Category)
 		{
-			if (InIndex > 0)
-			{
-				GridPanel->AddSlot(0, InIndex)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					  .VAlign(VAlign_Center)
-					  .HAlign(HAlign_Left)
-					[
-						SNew(SSpacer)
-						.Size(FVector2D(0.f, 10.f))
-					]
-				];
-				InIndex++;
-			}
-
-			TArray<TSharedRef<IDetailTreeNode>> Children;
-			ChildNode->GetChildren(Children);
-			AddWidgets(Children, InIndex, InLeftPadding);
+			AddCategoryWidget(ChildNode, InIndex, InLeftPadding);
 		}
 		else if (IsContainer(PropertyHandle))
 		{
-			TSharedPtr<IDetailPropertyRow> DetailPropertyRow = ChildNode->GetRow();
-			if (DetailPropertyRow.IsValid())
-			{
-				FDetailWidgetRow Row;
-				TSharedPtr<SWidget> NameWidget;
-				TSharedPtr<SWidget> ValueWidget;
-				DetailPropertyRow->GetDefaultWidgets(NameWidget, ValueWidget, Row, true);
-
-				CreateDefaultWidget(FPropertyWidgetCreationArgs(InIndex, NameWidget, ValueWidget, InLeftPadding));
-				InIndex++;
-
-				// @todo: this needs to update when items added/removed from container
-				TArray<TSharedRef<IDetailTreeNode>> Children;
-				ChildNode->GetChildren(Children);
-				if (Children.Num() > 0)
-				{
-					// #ueent_todo: Find a way to add collapse/expand capability for property with children
-					AddWidgets(Children, InIndex, InLeftPadding + 10.f);
-				}
-			}
+			AddContainerWidget(ChildNode, InIndex, InLeftPadding);
 		}
 		else if (IsDisplayable(PropertyHandle))
 		{
@@ -319,11 +304,11 @@ void SPropertyView::AddWidgets(const TArray<TSharedRef<IDetailTreeNode>>& InDeta
 
 			TSharedPtr<IDetailPropertyRow> DetailPropertyRow = ChildNode->GetRow();
 			// Overrides the top-level property display name, if specified
-			if(InIndex == 0 && DisplayNameOverride.IsSet())
+			if (InIndex == 0 && DisplayNameOverride.IsSet())
 			{
 				DetailPropertyRow->DisplayName(DisplayNameOverride.GetValue());
 			}
-			
+
 			if (DetailPropertyRow.IsValid())
 			{
 				FDetailWidgetRow Row;
@@ -333,7 +318,7 @@ void SPropertyView::AddWidgets(const TArray<TSharedRef<IDetailTreeNode>>& InDeta
 				MinWidth = Row.ValueWidget.MinWidth;
 				MaxWidth = Row.ValueWidget.MaxWidth;
 			}
-			else 
+			else
 			{
 				FNodeWidgets NodeWidgets = ChildNode->CreateNodeWidgets();
 
@@ -347,42 +332,90 @@ void SPropertyView::AddWidgets(const TArray<TSharedRef<IDetailTreeNode>>& InDeta
 
 			if (NameWidget.IsValid() && ValueWidget.IsValid())
 			{
-				bool bDisplayChildren = true;
-
-				// Do not display children if the property is a FVector or FVector2D
-				// @todo: find way of detecting from customization if this only requires single row, rather than by checking type
-				if (PropertyHandle.IsValid())
-				{
-					FVector DummyVec;
-					FVector2D DummyVec2D;
-
-					bDisplayChildren &= PropertyHandle->GetValue(DummyVec) == FPropertyAccess::Fail;
-					bDisplayChildren &= PropertyHandle->GetValue(DummyVec2D) == FPropertyAccess::Fail;
-				}
-
 				InIndex++;
+
+				// If root widget, single line (no children or bDisplayChildren == false), disable name widget + column, and not forcibly shown
+				if ((InIndex <= 1 && NameVisibility != EPropertyNameVisibility::Show)
+					// Or if forcibly hidden 
+					|| NameVisibility == EPropertyNameVisibility::Hide)
+				{
+					NameWidget.Reset();
+				}
 
 				TArray<TSharedRef<IDetailTreeNode>> Children;
 				ChildNode->GetChildren(Children);
-				if (bDisplayChildren && Children.Num() > 0)
+
+				// Check if this row has input controls, like a color or vector
+				bool bHasHeaderContent = RowHasInputContent(ValueWidget);
+
+				// Handle special case for Vector4 as color grading
+				bool bIsColorGrading = GetPropertyHandle()->HasMetaData(TEXT("ColorGradingMode"));
+				
+				if ((!bHasHeaderContent && Children.Num() > 0) || (bIsColorGrading && Children.Num() > 0))
 				{
 					// #ueent_todo: Find a way to add collapse/expand capability for property with children
 					AddWidgets(Children, InIndex, InLeftPadding + 10.f);
 				}
 				else
 				{
-					// If root widget, single line (no children, or bDisplayChildren == false, disable name widget + column, and not forcibly shown
-					if((InIndex <= 1 && NameVisibility != EPropertyNameVisibility::Show)
-					// Or if forcibly hidden 
+					// If root widget, single line (no children or bDisplayChildren == false), disable name widget + column, and not forcibly shown
+					if ((InIndex <= 1 && NameVisibility != EPropertyNameVisibility::Show)
+						// Or if forcibly hidden 
 						|| NameVisibility == EPropertyNameVisibility::Hide)
 					{
 						NameWidget.Reset();
 					}
-					
+
 					// Only creates row if no children or bDisplayChildren == false (single row property), so need to reverse index
 					CreateDefaultWidget(FPropertyWidgetCreationArgs(InIndex - 1, NameWidget, ValueWidget, InLeftPadding, MinWidth, MaxWidth));
 				}
 			}
+		}
+	}
+}
+
+void SPropertyView::AddCategoryWidget(const TSharedRef<IDetailTreeNode>& InDetailTree, int32& InOutIndex, float InLeftPadding)
+{
+	if (InOutIndex > 0)
+	{
+		GridPanel->AddSlot(0, InOutIndex)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
+			[
+				SNew(SSpacer)
+				.Size(FVector2D(0.f, 10.f))
+			]
+		];
+		InOutIndex++;
+	}
+
+	TArray<TSharedRef<IDetailTreeNode>> Children;
+	InDetailTree->GetChildren(Children);
+	AddWidgets(Children, InOutIndex, InLeftPadding);
+}
+
+void SPropertyView::AddContainerWidget(const TSharedRef<IDetailTreeNode>& InDetailTree, int32& InOutIndex, float InLeftPadding)
+{
+	TSharedPtr<IDetailPropertyRow> DetailPropertyRow = InDetailTree->GetRow();
+	if (DetailPropertyRow.IsValid())
+	{
+		FDetailWidgetRow Row;
+		TSharedPtr<SWidget> NameWidget;
+		TSharedPtr<SWidget> ValueWidget;
+		DetailPropertyRow->GetDefaultWidgets(NameWidget, ValueWidget, Row, true);
+
+		CreateDefaultWidget(FPropertyWidgetCreationArgs(InOutIndex, NameWidget, ValueWidget, InLeftPadding));
+		InOutIndex++;
+
+		TArray<TSharedRef<IDetailTreeNode>> Children;
+		InDetailTree->GetChildren(Children);
+		if (Children.Num() > 0)
+		{
+			// #ueent_todo: Find a way to add collapse/expand capability for property with children
+			AddWidgets(Children, InOutIndex, InLeftPadding + 10.f);
 		}
 	}
 }
@@ -392,113 +425,194 @@ TSharedRef<SWidget> SPropertyView::CreatePropertyWidget(const FPropertyWidgetCre
 	if (InCreationArgs.HasNameWidget() && InCreationArgs.bResizableColumn)
 	{
 		return SNew(SHorizontalBox)
-        + SHorizontalBox::Slot()
-        .FillWidth(1.0f)
-        .VAlign(VAlign_Top)
-        .HAlign(HAlign_Fill)
-        .Padding(0.0f, 0.0f, 0.0f, InCreationArgs.Spacing)
-        [
-            SNew(RemoteControlProtocolWidgetUtils::SCustomSplitter)
-            .LeftWidget(InCreationArgs.NameWidget)
-            .RightWidget(InCreationArgs.ValueWidget)
-            .ColumnSizeData(InCreationArgs.ColumnSizeData)
-        ];
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Top)
+				.HAlign(HAlign_Fill)
+				.Padding(0.0f, 0.0f, 0.0f, InCreationArgs.Spacing)
+				[
+					SNew(RemoteControlProtocolWidgetUtils::SCustomSplitter)
+					.LeftWidget(InCreationArgs.NameWidget)
+					.RightWidget(InCreationArgs.ValueWidget)
+					.ColumnSizeData(InCreationArgs.ColumnSizeData)
+				];
 	}
 	else
 	{
 		TSharedRef<SHorizontalBox> NameValuePairWidget = SNew(SHorizontalBox);
 
 		// Prepend name widget if present
-		if(InCreationArgs.NameWidget.IsValid())
+		if (InCreationArgs.NameWidget.IsValid())
 		{
 			NameValuePairWidget
-            ->AddSlot()
-			.Padding(0.0f, 0.0f, 12.0f, 0.0f)
-            .AutoWidth()
-            [
-                InCreationArgs.NameWidget.ToSharedRef()
-            ];
+				->AddSlot()
+				.Padding(0.0f, 0.0f, 12.0f, 0.0f)
+				.AutoWidth()
+				[
+					InCreationArgs.NameWidget.ToSharedRef()
+				];
 		}
 
 		NameValuePairWidget
-        ->AddSlot()
-        .AutoWidth()
-        [
-            SNew(SHorizontalBox)
-            .Clipping(EWidgetClipping::OnDemand)
-            + SHorizontalBox::Slot()
-            [
-                SNew(RemoteControlProtocolWidgetUtils::SConstrainedBox)
-                .MinWidth(InCreationArgs.ValueMinWidth)
-                .MaxWidth(InCreationArgs.ValueMaxWidth)
-                [
-                    InCreationArgs.ValueWidget.ToSharedRef()
-                ]
-            ]
-        ];
-		
+			->AddSlot()
+			.AutoWidth()
+			[
+				SNew(SHorizontalBox)
+				.Clipping(EWidgetClipping::OnDemand)
+				+ SHorizontalBox::Slot()
+				[
+					SNew(RemoteControlProtocolWidgetUtils::SConstrainedBox)
+					.MinWidth(InCreationArgs.ValueMinWidth)
+					.MaxWidth(InCreationArgs.ValueMaxWidth)
+					[
+						InCreationArgs.ValueWidget.ToSharedRef()
+					]
+				]
+			];
+
 		return SNew(SHorizontalBox)
-        + SHorizontalBox::Slot()
-        .FillWidth(1.0f)
-        .VAlign(VAlign_Top)
-        .HAlign(HAlign_Fill)
-        .Padding(0.0f, 0.0f, 0.0f, InCreationArgs.Spacing)
-        [
-            NameValuePairWidget
-        ];
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Top)
+				.HAlign(HAlign_Fill)
+				.Padding(0.0f, 0.0f, 0.0f, InCreationArgs.Spacing)
+				[
+					NameValuePairWidget
+				];
 	}
 }
 
 void SPropertyView::CreateDefaultWidget(const FPropertyWidgetCreationArgs& InCreationArgs)
 {
 	TSharedPtr<SHorizontalBox> NameColumn = nullptr;
-	if(InCreationArgs.NameWidget.IsValid())
+	if (InCreationArgs.NameWidget.IsValid())
 	{
 		NameColumn = SNew(SHorizontalBox)
-                    .Clipping(EWidgetClipping::OnDemand);
+					.Clipping(EWidgetClipping::OnDemand);
 
 		InCreationArgs.NameWidget->SetClipping(EWidgetClipping::OnDemand);
 
 		// Add the name widget
 		NameColumn->AddSlot()
-          .VAlign(VAlign_Fill)
-          .HAlign(HAlign_Left)
-          .Padding(FMargin(InCreationArgs.LeftPadding, 0.f, 0.f, 0.f))
-           [
-                InCreationArgs.NameWidget.ToSharedRef()
-           ];
+			.VAlign(VAlign_Fill)
+			.HAlign(HAlign_Left)
+			.Padding(FMargin(InCreationArgs.LeftPadding, 0.f, 0.f, 0.f))
+			[
+				InCreationArgs.NameWidget.ToSharedRef()
+			];
 	}
 
 	GridPanel->AddSlot(0, InCreationArgs.Index)
-    [
-        CreatePropertyWidget(FPropertyWidgetCreationArgs(InCreationArgs, NameColumn, ColumnSizeData, Spacing, bResizableColumn))
-    ];
+	[
+		CreatePropertyWidget(FPropertyWidgetCreationArgs(InCreationArgs, NameColumn, ColumnSizeData, Spacing, bResizableColumn))
+	];
 }
 
 
 void SPropertyView::OnPropertyChanged(const FPropertyChangedEvent& InEvent)
 {
-	if(Property.IsValid() && Property->GetProperty() == InEvent.Property)
+	if (Property.IsValid() && Property->GetProperty() == InEvent.Property)
 	{
-		Refresh();		
+		Refresh();
 	}
 }
 
 void SPropertyView::OnObjectReplaced(const TMap<UObject*, UObject*>& InReplacementObjectMap)
 {
-	if (UObject* const* ObjectPtr = InReplacementObjectMap.Find(Object))
+	if(Object.IsValid())
 	{
-		Object = *ObjectPtr;
-		Refresh();
+		if (UObject* const* ObjectPtr = InReplacementObjectMap.Find(Object.Get()))
+		{
+			Object.Reset(*ObjectPtr);
+			Refresh();
+		}
 	}
 }
 
 void SPropertyView::OnObjectTransacted(UObject* InObject, const FTransactionObjectEvent& InTransactionObjectEvent)
 {
-	if(InObject == Object || (Object && Object->GetOuter() == InObject))
+	if ((Object.IsValid() && Object.Get() == InObject) || (Object.IsValid() && Object->GetOuter() == InObject))
 	{
 		Refresh();
 	}
+}
+
+bool SPropertyView::RowHasInputContent(const TSharedPtr<SWidget>& InValueWidget) const
+{
+	if (const TSharedPtr<SPanel> PanelWidget = StaticCastSharedPtr<SPanel>(InValueWidget))
+	{
+		TArray<TSharedRef<SWidget>> FoundWidgets;
+		if (Internal::FindWidgetsByName(PanelWidget.ToSharedRef(), TEXT("SNumericEntryBox"), FoundWidgets))
+		{
+			return true;
+		}
+
+		if (Internal::FindWidgetsByName(PanelWidget.ToSharedRef(), TEXT("SColorBlock"), FoundWidgets))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool SPropertyView::FindRootPropertyHandle(TArray<TSharedRef<IDetailTreeNode>>& InOutNodes)
+{
+	if (InOutNodes.Num() > 0)
+	{
+		TFunction<TSharedPtr<IDetailTreeNode>(const TSharedRef<IDetailTreeNode>)> FindNodeRecursive;
+		FindNodeRecursive = [&](const TSharedRef<IDetailTreeNode>& InNode) -> TSharedPtr<IDetailTreeNode>
+		{
+			// check input node
+			if (const TSharedPtr<IPropertyHandle> PropertyHandle = InNode->CreatePropertyHandle())
+			{
+				if (PropertyHandle->GetProperty()->GetFName() == RootPropertyName)
+				{
+					return InNode;
+				}
+			}
+
+			TSharedPtr<IDetailTreeNode> FoundNode = nullptr;
+
+			TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
+			InNode->GetChildren(ChildNodes);
+
+			// search children
+			for (const TSharedRef<IDetailTreeNode>& ChildNode : ChildNodes)
+			{
+				FoundNode = FindNodeRecursive(ChildNode);
+				if (FoundNode)
+				{
+					return FoundNode;
+				}
+			}
+
+			// return found or nullptr
+			return FoundNode;
+		};
+
+		TSharedPtr<IDetailTreeNode> FoundNode = nullptr;
+		for (const TSharedRef<IDetailTreeNode>& RootNode : InOutNodes)
+		{
+			FoundNode = FindNodeRecursive(RootNode);
+			if (FoundNode)
+			{
+				break;
+			}
+		}
+
+		if (FoundNode)
+		{
+			TSharedPtr<IPropertyHandle> PropertyHandle = FoundNode->CreatePropertyHandle();
+			Swap(Property, PropertyHandle);
+
+			InOutNodes.Empty();
+			InOutNodes.Add(FoundNode.ToSharedRef());
+			return true;
+		}
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

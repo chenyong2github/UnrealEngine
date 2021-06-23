@@ -4856,7 +4856,10 @@ namespace UnrealBuildTool
 
 			// note that we cannot allow the data packaged into the APK if we are doing something like Launch On that will not make an obb
 			// file and instead pushes files directly via deploy
-			AndroidToolChain ToolChain = new AndroidToolChain(ProjectFile, false, null, null);
+			AndroidTargetRules TargetRules = new AndroidTargetRules();
+			CommandLine.ParseArguments(Environment.GetCommandLineArgs(), TargetRules);
+			AndroidToolChainOptions Options = AndroidPlatform.CreateToolChainOptions(TargetRules);
+			AndroidToolChain ToolChain = new AndroidToolChain(ProjectFile, false, null, null, Options);
 
 			SavePackageInfo(ProjectName, ProjectDirectory.FullName, Type, bSkipGradleBuild);
 

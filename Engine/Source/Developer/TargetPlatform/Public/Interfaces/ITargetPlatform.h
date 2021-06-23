@@ -565,6 +565,12 @@ public:
 	virtual bool AllowAudioVisualData() const = 0;
 
 	/**
+	 * Checks if this Target will want to load this object (generally used to mark an object to not be cooked for this target,
+	 * as called by ConditionallyExcludeObjectForTarget)
+	 */
+	virtual bool AllowObject(const class UObject* Object) const = 0;
+
+	/**
 	 * Gets the texture LOD settings used by this platform.
 	 *
 	 * @return A texture LOD settings structure.
@@ -657,6 +663,11 @@ public:
 	 * Copy a file to the target
 	 */
 	virtual bool CopyFileToTarget(const FString& DeviceId, const FString& HostFilename, const FString& TargetFilename, const TMap<FString,FString>& CustomPlatformData) = 0;
+
+	/**
+	 * Gets a list of package names to cook when cooking this platform
+	 */
+	virtual void GetExtraPackagesToCook(TArray<FName>& PackageNames) const = 0;
 
 	/**
 	 * Initializes the host platform to support target devices (may be called multiple times after an SDK is installed while running)

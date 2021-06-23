@@ -11,7 +11,11 @@
 #include "OnlineUserCloudEOS.h"
 #include "OnlineStoreEOS.h"
 #include "EOSSettings.h"
+#include "EOSShared.h"
 #include "IEOSSDKManager.h"
+#include "EOSVoiceChatFactory.h"
+#include "EOSVoiceChatUser.h"
+#include "VoiceChatErrors.h"
 
 #include "Features/IModularFeatures.h"
 #include "Misc/App.h"
@@ -24,6 +28,91 @@
 // Missing defines
 #define EOS_ENCRYPTION_KEY_MAX_LENGTH 64
 #define EOS_ENCRYPTION_KEY_MAX_BUFFER_LEN (EOS_ENCRYPTION_KEY_MAX_LENGTH + 1)
+
+/** Class that blocks login/logout for the OSS EOS managed IVoiceChatUser interfaces. */
+class FOnlineSubsystemEOSVoiceChatUserWrapper : public IVoiceChatUser
+{
+public:
+	FOnlineSubsystemEOSVoiceChatUserWrapper(FEOSVoiceChatUser& InVoiceChatUser) : VoiceChatUser(InVoiceChatUser) {}
+	~FOnlineSubsystemEOSVoiceChatUserWrapper() = default;
+
+	// ~Begin IVoiceChatUser
+	virtual void SetSetting(const FString& Name, const FString& Value) override { VoiceChatUser.SetSetting(Name, Value); }
+	virtual FString GetSetting(const FString& Name) override { return VoiceChatUser.GetSetting(Name); }
+	virtual void SetAudioInputVolume(float Volume) override { VoiceChatUser.SetAudioInputVolume(Volume); }
+	virtual void SetAudioOutputVolume(float Volume) override { VoiceChatUser.SetAudioOutputVolume(Volume); }
+	virtual float GetAudioInputVolume() const override { return VoiceChatUser.GetAudioInputVolume(); }
+	virtual float GetAudioOutputVolume() const override { return VoiceChatUser.GetAudioOutputVolume(); }
+	virtual void SetAudioInputDeviceMuted(bool bIsMuted) override { VoiceChatUser.SetAudioInputDeviceMuted(bIsMuted); }
+	virtual void SetAudioOutputDeviceMuted(bool bIsMuted) override { VoiceChatUser.SetAudioOutputDeviceMuted(bIsMuted); }
+	virtual bool GetAudioInputDeviceMuted() const override { return VoiceChatUser.GetAudioInputDeviceMuted(); }
+	virtual bool GetAudioOutputDeviceMuted() const override { return VoiceChatUser.GetAudioOutputDeviceMuted(); }
+	virtual TArray<FVoiceChatDeviceInfo> GetAvailableInputDeviceInfos() const override { return VoiceChatUser.GetAvailableInputDeviceInfos(); }
+	virtual TArray<FVoiceChatDeviceInfo> GetAvailableOutputDeviceInfos() const override { return VoiceChatUser.GetAvailableOutputDeviceInfos(); }
+	virtual FOnVoiceChatAvailableAudioDevicesChangedDelegate& OnVoiceChatAvailableAudioDevicesChanged() override { return VoiceChatUser.OnVoiceChatAvailableAudioDevicesChanged(); }
+	virtual void SetInputDeviceId(const FString& InputDeviceId) override { VoiceChatUser.SetInputDeviceId(InputDeviceId); }
+	virtual void SetOutputDeviceId(const FString& OutputDeviceId) override { VoiceChatUser.SetOutputDeviceId(OutputDeviceId); }
+	virtual FVoiceChatDeviceInfo GetInputDeviceInfo() const override { return VoiceChatUser.GetInputDeviceInfo(); }
+	virtual FVoiceChatDeviceInfo GetOutputDeviceInfo() const override { return VoiceChatUser.GetOutputDeviceInfo(); }
+	virtual FVoiceChatDeviceInfo GetDefaultInputDeviceInfo() const override { return VoiceChatUser.GetDefaultInputDeviceInfo(); }
+	virtual FVoiceChatDeviceInfo GetDefaultOutputDeviceInfo() const override { return VoiceChatUser.GetDefaultOutputDeviceInfo(); }
+	virtual void Login(FPlatformUserId PlatformId, const FString& PlayerName, const FString& Credentials, const FOnVoiceChatLoginCompleteDelegate& Delegate) override
+	{
+		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: IVoiceChatUser::Login called on OSS EOS managed VoiceChatUser interface."));
+		checkNoEntry();
+		Delegate.ExecuteIfBound(PlayerName, VoiceChat::Errors::NotPermitted());
+	}
+	virtual void Logout(const FOnVoiceChatLogoutCompleteDelegate& Delegate) override
+	{
+		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: IVoiceChatUser::Logout called on OSS EOS managed VoiceChatUser interface."));
+		checkNoEntry();
+		Delegate.ExecuteIfBound(VoiceChatUser.GetLoggedInPlayerName(), VoiceChat::Errors::NotPermitted());
+	}
+	virtual bool IsLoggingIn() const override { return VoiceChatUser.IsLoggingIn(); }
+	virtual bool IsLoggedIn() const override { return VoiceChatUser.IsLoggedIn(); }
+	virtual FOnVoiceChatLoggedInDelegate& OnVoiceChatLoggedIn() override { return VoiceChatUser.OnVoiceChatLoggedIn(); }
+	virtual FOnVoiceChatLoggedOutDelegate& OnVoiceChatLoggedOut() override { return VoiceChatUser.OnVoiceChatLoggedOut(); }
+	virtual FString GetLoggedInPlayerName() const override { return VoiceChatUser.GetLoggedInPlayerName(); }
+	virtual void BlockPlayers(const TArray<FString>& PlayerNames) override { VoiceChatUser.BlockPlayers(PlayerNames); }
+	virtual void UnblockPlayers(const TArray<FString>& PlayerNames) override { return VoiceChatUser.UnblockPlayers(PlayerNames); }
+	virtual void JoinChannel(const FString& ChannelName, const FString& ChannelCredentials, EVoiceChatChannelType ChannelType, const FOnVoiceChatChannelJoinCompleteDelegate& Delegate, TOptional<FVoiceChatChannel3dProperties> Channel3dProperties = TOptional<FVoiceChatChannel3dProperties>()) override { VoiceChatUser.JoinChannel(ChannelName, ChannelCredentials, ChannelType, Delegate, Channel3dProperties); }
+	virtual void LeaveChannel(const FString& ChannelName, const FOnVoiceChatChannelLeaveCompleteDelegate& Delegate) override { VoiceChatUser.LeaveChannel(ChannelName, Delegate); }
+	virtual FOnVoiceChatChannelJoinedDelegate& OnVoiceChatChannelJoined() override { return VoiceChatUser.OnVoiceChatChannelJoined(); }
+	virtual FOnVoiceChatChannelExitedDelegate& OnVoiceChatChannelExited() override { return VoiceChatUser.OnVoiceChatChannelExited(); }
+	virtual FOnVoiceChatCallStatsUpdatedDelegate& OnVoiceChatCallStatsUpdated() override { return VoiceChatUser.OnVoiceChatCallStatsUpdated(); }
+	virtual void Set3DPosition(const FString& ChannelName, const FVector& SpeakerPosition, const FVector& ListenerPosition, const FVector& ListenerForwardDirection, const FVector& ListenerUpDirection) override { VoiceChatUser.Set3DPosition(ChannelName, SpeakerPosition, ListenerPosition, ListenerForwardDirection, ListenerUpDirection); }
+	virtual TArray<FString> GetChannels() const override { return VoiceChatUser.GetChannels(); }
+	virtual TArray<FString> GetPlayersInChannel(const FString& ChannelName) const override { return VoiceChatUser.GetPlayersInChannel(ChannelName); }
+	virtual EVoiceChatChannelType GetChannelType(const FString& ChannelName) const override { return VoiceChatUser.GetChannelType(ChannelName); }
+	virtual FOnVoiceChatPlayerAddedDelegate& OnVoiceChatPlayerAdded() override { return VoiceChatUser.OnVoiceChatPlayerAdded(); }
+	virtual FOnVoiceChatPlayerRemovedDelegate& OnVoiceChatPlayerRemoved() override { return VoiceChatUser.OnVoiceChatPlayerRemoved(); }
+	virtual bool IsPlayerTalking(const FString& PlayerName) const override { return VoiceChatUser.IsPlayerTalking(PlayerName); }
+	virtual FOnVoiceChatPlayerTalkingUpdatedDelegate& OnVoiceChatPlayerTalkingUpdated() override { return VoiceChatUser.OnVoiceChatPlayerTalkingUpdated(); }
+	virtual void SetPlayerMuted(const FString& PlayerName, bool bMuted) override { VoiceChatUser.SetPlayerMuted(PlayerName, bMuted); }
+	virtual bool IsPlayerMuted(const FString& PlayerName) const override { return VoiceChatUser.IsPlayerMuted(PlayerName); }
+	virtual FOnVoiceChatPlayerMuteUpdatedDelegate& OnVoiceChatPlayerMuteUpdated() override { return VoiceChatUser.OnVoiceChatPlayerMuteUpdated(); }
+	virtual void SetPlayerVolume(const FString& PlayerName, float Volume) override { VoiceChatUser.SetPlayerVolume(PlayerName, Volume); }
+	virtual float GetPlayerVolume(const FString& PlayerName) const override { return VoiceChatUser.GetPlayerVolume(PlayerName); }
+	virtual FOnVoiceChatPlayerVolumeUpdatedDelegate& OnVoiceChatPlayerVolumeUpdated() override { return VoiceChatUser.OnVoiceChatPlayerVolumeUpdated(); }
+	virtual void TransmitToAllChannels() override { VoiceChatUser.TransmitToAllChannels(); }
+	virtual void TransmitToNoChannels() override { VoiceChatUser.TransmitToNoChannels(); }
+	virtual void TransmitToSpecificChannel(const FString& ChannelName) override { VoiceChatUser.TransmitToSpecificChannel(ChannelName); }
+	virtual EVoiceChatTransmitMode GetTransmitMode() const override { return VoiceChatUser.GetTransmitMode(); }
+	virtual FString GetTransmitChannel() const override { return VoiceChatUser.GetTransmitChannel(); }
+	virtual FDelegateHandle StartRecording(const FOnVoiceChatRecordSamplesAvailableDelegate::FDelegate& Delegate) override { return VoiceChatUser.StartRecording(Delegate); }
+	virtual void StopRecording(FDelegateHandle Handle) override { VoiceChatUser.StopRecording(Handle); }
+	virtual FDelegateHandle RegisterOnVoiceChatAfterCaptureAudioReadDelegate(const FOnVoiceChatAfterCaptureAudioReadDelegate::FDelegate& Delegate) override { return VoiceChatUser.RegisterOnVoiceChatAfterCaptureAudioReadDelegate(Delegate); }
+	virtual void UnregisterOnVoiceChatAfterCaptureAudioReadDelegate(FDelegateHandle Handle) override { VoiceChatUser.UnregisterOnVoiceChatAfterCaptureAudioReadDelegate(Handle); }
+	virtual FDelegateHandle RegisterOnVoiceChatBeforeCaptureAudioSentDelegate(const FOnVoiceChatBeforeCaptureAudioSentDelegate::FDelegate& Delegate) override { return VoiceChatUser.RegisterOnVoiceChatBeforeCaptureAudioSentDelegate(Delegate); }
+	virtual void UnregisterOnVoiceChatBeforeCaptureAudioSentDelegate(FDelegateHandle Handle) override { VoiceChatUser.UnregisterOnVoiceChatBeforeCaptureAudioSentDelegate(Handle); }
+	virtual FDelegateHandle RegisterOnVoiceChatBeforeRecvAudioRenderedDelegate(const FOnVoiceChatBeforeRecvAudioRenderedDelegate::FDelegate& Delegate) override { return VoiceChatUser.RegisterOnVoiceChatBeforeRecvAudioRenderedDelegate(Delegate); }
+	virtual void UnregisterOnVoiceChatBeforeRecvAudioRenderedDelegate(FDelegateHandle Handle) override { VoiceChatUser.UnregisterOnVoiceChatBeforeRecvAudioRenderedDelegate(Handle); }
+	virtual FString InsecureGetLoginToken(const FString& PlayerName) override { return VoiceChatUser.InsecureGetLoginToken(PlayerName); }
+	virtual FString InsecureGetJoinToken(const FString& ChannelName, EVoiceChatChannelType ChannelType, TOptional<FVoiceChatChannel3dProperties> Channel3dProperties = TOptional<FVoiceChatChannel3dProperties>()) override { return VoiceChatUser.InsecureGetJoinToken(ChannelName, ChannelType, Channel3dProperties); }
+	// ~End IVoiceChatUser
+
+	FEOSVoiceChatUser& VoiceChatUser;
+};
 
 /** Class that holds the strings for the call duration */
 struct FEOSPlatformOptions :
@@ -103,12 +192,6 @@ bool FOnlineSubsystemEOS::PlatformCreate()
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS::PlatformCreate() failed to find artifact settings object for artifact (%s)"), *ArtifactName);
 		return false;
 	}
-	EOSSDKManager = IEOSSDKManager::Get();
-	if (!EOSSDKManager)
-	{
-		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS::PlatformCreate() failed to get EOSSDKManager interface"));
-		return false;
-	}
 
 	// Create platform instance
 	FEOSPlatformOptions PlatformOptions;
@@ -132,11 +215,18 @@ bool FOnlineSubsystemEOS::PlatformCreate()
 	PlatformOptions.Flags = IsRunningGame() ? OverlayFlags : EOS_PF_DISABLE_OVERLAY;
 	// Make the cache directory be in the user's writable area
 
-	FString CacheDir = EOSHelpersPtr->PlatformCreateCacheDir(ArtifactName, EOSSettings.CacheDir);
+	const FString CacheDir = EOSHelpersPtr->PlatformCreateCacheDir(ArtifactName, EOSSettings.CacheDir);
 	FCStringAnsi::Strncpy(PlatformOptions.CacheDirectoryAnsi, TCHAR_TO_UTF8(*CacheDir), EOS_OSS_STRING_BUFFER_LENGTH);
 	FCStringAnsi::Strncpy(PlatformOptions.EncryptionKeyAnsi, TCHAR_TO_UTF8(*ArtifactSettings.EncryptionKey), EOS_ENCRYPTION_KEY_MAX_BUFFER_LEN);
 
-	EOSPlatformHandle = EOSSDKManager->CreatePlatform(PlatformOptions);
+#if WITH_EOS_RTC
+	EOS_Platform_RTCOptions RtcOptions = { 0 };
+	RtcOptions.ApiVersion = EOS_PLATFORM_RTCOPTIONS_API_LATEST;
+	RtcOptions.PlatformSpecificOptions = nullptr;
+	PlatformOptions.RTCOptions = &RtcOptions;
+#endif
+
+	EOSPlatformHandle = EOSHelpersPtr->CreatePlatform(PlatformOptions);
 	if (EOSPlatformHandle == nullptr)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS::PlatformCreate() failed to init EOS platform"));
@@ -166,6 +256,13 @@ bool FOnlineSubsystemEOS::Init()
 		UE_LOG_ONLINE(Warning, TEXT("FOnlineSubsystemEOS::Init() relaunching artifact (%s) via the store"), *ArtifactName);
 		FPlatformProcess::LaunchURL(*FString::Printf(TEXT("com.epicgames.launcher://store/product/%s?action=launch&silent=true"), *ArtifactName), nullptr, nullptr);
 		FPlatformMisc::RequestExit(false);
+		return false;
+	}
+
+	EOSSDKManager = IEOSSDKManager::Get();
+	if (!EOSSDKManager)
+	{
+		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS::Init() failed to get EOSSDKManager interface"));
 		return false;
 	}
 
@@ -307,7 +404,15 @@ bool FOnlineSubsystemEOS::Shutdown()
 	StoreInterfacePtr = nullptr;
 	TitleFileInterfacePtr = nullptr;
 	UserCloudInterfacePtr = nullptr;
-
+	
+	for (TPair<FUniqueNetIdRef, FOnlineSubsystemEOSVoiceChatUserWrapperRef>& Pair : LocalVoiceChatUsers)
+	{
+		FOnlineSubsystemEOSVoiceChatUserWrapperRef& VoiceChatUserWrapper = Pair.Value;
+		VoiceChatInterface->ReleaseUser(&VoiceChatUserWrapper->VoiceChatUser);
+	}
+	LocalVoiceChatUsers.Reset();
+	VoiceChatInterface = nullptr;
+	
 	EOSPlatformHandle = nullptr;
 
 	return true;
@@ -334,21 +439,27 @@ bool FOnlineSubsystemEOS::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice&
 	}
 
 	bool bWasHandled = false;
-	if (FParse::Command(&Cmd, TEXT("EOS")))
+	if (UserManager != nullptr && FParse::Command(&Cmd, TEXT("FRIENDS")))
 	{
-		if (StoreInterfacePtr != nullptr && FParse::Command(&Cmd, TEXT("ECOM")))
-		{
-			bWasHandled = StoreInterfacePtr->HandleEcomExec(InWorld, Cmd, Ar);
-		}
-		else if (TitleFileInterfacePtr != nullptr && FParse::Command(&Cmd, TEXT("TITLEFILE")))
-		{
-			bWasHandled = TitleFileInterfacePtr->HandleTitleFileExec(InWorld, Cmd, Ar);
-		}
-		else if (UserCloudInterfacePtr != nullptr && FParse::Command(&Cmd, TEXT("USERCLOUD")))
-		{
-			bWasHandled = UserCloudInterfacePtr->HandleUserCloudExec(InWorld, Cmd, Ar);
-		}
+		bWasHandled = UserManager->HandleFriendsExec(InWorld, Cmd, Ar);
 	}
+	else if (StoreInterfacePtr != nullptr && FParse::Command(&Cmd, TEXT("ECOM")))
+	{
+		bWasHandled = StoreInterfacePtr->HandleEcomExec(InWorld, Cmd, Ar);
+	}
+	else if (TitleFileInterfacePtr != nullptr && FParse::Command(&Cmd, TEXT("TITLEFILE")))
+	{
+		bWasHandled = TitleFileInterfacePtr->HandleTitleFileExec(InWorld, Cmd, Ar);
+	}
+	else if (UserCloudInterfacePtr != nullptr && FParse::Command(&Cmd, TEXT("USERCLOUD")))
+	{
+		bWasHandled = UserCloudInterfacePtr->HandleUserCloudExec(InWorld, Cmd, Ar);
+	}
+	else
+	{
+		bWasHandled = false;
+	}
+
 	return bWasHandled;
 }
 
@@ -474,6 +585,61 @@ IOnlinePresencePtr FOnlineSubsystemEOS::GetPresenceInterface() const
 IOnlineStatsPtr FOnlineSubsystemEOS::GetStatsInterface() const
 {
 	return StatsInterfacePtr;
+}
+
+IVoiceChatUser* FOnlineSubsystemEOS::GetVoiceChatUserInterface(const FUniqueNetId& LocalUserId)
+{
+	IVoiceChatUser* Result = nullptr;
+
+#if WITH_EOS_RTC
+	if (!VoiceChatInterface)
+	{
+		if (FEOSVoiceChatFactory* EOSVoiceChatFactory = FEOSVoiceChatFactory::Get())
+		{
+			VoiceChatInterface = EOSVoiceChatFactory->CreateInstanceWithPlatform(EOSPlatformHandle);
+		}
+	}
+
+	if(VoiceChatInterface && UserManager->IsLocalUser(LocalUserId))
+	{
+		if (FOnlineSubsystemEOSVoiceChatUserWrapperRef* WrapperPtr = LocalVoiceChatUsers.Find(LocalUserId.AsShared()))
+		{
+			Result = &WrapperPtr->Get();
+		}
+		else
+		{
+			FEOSVoiceChatUser* VoiceChatUser = static_cast<FEOSVoiceChatUser*>(VoiceChatInterface->CreateUser());
+			VoiceChatUser->Login(UserManager->GetPlatformUserIdFromUniqueNetId(LocalUserId), FUniqueNetIdEOS::Cast(LocalUserId).ProductUserIdStr, FString(), FOnVoiceChatLoginCompleteDelegate());
+
+			const FOnlineSubsystemEOSVoiceChatUserWrapperRef& Wrapper = LocalVoiceChatUsers.Emplace(LocalUserId.AsShared(), MakeShared<FOnlineSubsystemEOSVoiceChatUserWrapper, ESPMode::ThreadSafe>(*VoiceChatUser));
+			Result = &Wrapper.Get();
+		}
+	}
+#endif // WITH_EOS_RTC
+
+	return Result;
+}
+
+FEOSVoiceChatUser* FOnlineSubsystemEOS::GetEOSVoiceChatUserInterface(const FUniqueNetId& LocalUserId)
+{
+	FEOSVoiceChatUser* Result = nullptr;
+	if (IVoiceChatUser* Wrapper = GetVoiceChatUserInterface(LocalUserId))
+	{
+		Result = &static_cast<FOnlineSubsystemEOSVoiceChatUserWrapper*>(Wrapper)->VoiceChatUser;
+	}
+	return Result;
+}
+
+void FOnlineSubsystemEOS::ReleaseVoiceChatUserInterface(const FUniqueNetId& LocalUserId)
+{
+	if (VoiceChatInterface)
+	{
+		if (FOnlineSubsystemEOSVoiceChatUserWrapperRef* WrapperPtr = LocalVoiceChatUsers.Find(LocalUserId.AsShared()))
+		{
+			VoiceChatInterface->ReleaseUser(&(**WrapperPtr).VoiceChatUser);
+			LocalVoiceChatUsers.Remove(LocalUserId.AsShared());
+		}
+	}
 }
 
 #endif

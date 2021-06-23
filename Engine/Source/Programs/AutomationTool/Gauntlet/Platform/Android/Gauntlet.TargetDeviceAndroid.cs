@@ -165,7 +165,8 @@ namespace Gauntlet
 				return;
 			}
 
-			string GetLogCommand = string.Format("shell cat {0}/Logs/{1}.log", Install.AndroidDevice.DeviceArtifactPath, Install.Name);
+			// Note: DeviceLogPath has the correct location for the current app. Apps can be configured to override the default log storage path. 
+			string GetLogCommand = string.Format("shell cat {0}", Install.AndroidDevice.DeviceLogPath);
 			IProcessResult LogQuery = Install.AndroidDevice.RunAdbDeviceCommand(GetLogCommand, true);
 
 			if (LogQuery.ExitCode != 0)
@@ -261,7 +262,7 @@ namespace Gauntlet
 			else
 			{
 				// update final cached stdout property
-				string LogFilename = string.Format("{0}/Logs/{1}.log", LocalSaved, Install.Name);
+				string LogFilename = Install.AndroidDevice.DeviceLogPath;
 				if (File.Exists(LogFilename))
 				{
 					ActivityLogCached = File.ReadAllText(LogFilename);
@@ -370,11 +371,25 @@ namespace Gauntlet
 		/// </summary>
 		public string LocalCachePath { get; protected set; }
 
-
 		/// <summary>
 		/// Artifact (e.g. Saved) path on the device
 		/// </summary>
 		public string DeviceArtifactPath { get; protected set;  }
+
+		/// <summary>
+		/// External storage path on the device, e.g. /sdcard/UEGame/ etc..
+		/// </summary>
+		public string DeviceExternalStorageSavedPath { get; protected set; }
+
+		/// <summary>
+		/// External files path on the device, this is the app's own publically accessible data directory e.g. /sdcard/Android/data/[com.package.name]/files/UnrealGame etc..
+		/// </summary>
+		public string DeviceExternalFilesSavedPath { get; protected set; }
+
+		/// <summary>
+		/// Path to the log file. (This takes public logs setting of the package in to account.)
+		/// </summary>
+		public string DeviceLogPath { get; protected set; }		
 
 		/// <summary>
 		/// Path to a command line if installed
@@ -838,35 +853,38 @@ namespace Gauntlet
 
 			// kill any currently running instance:
 			KillRunningProcess(Build.AndroidPackageName);
+	
+			string DeviceStorageQueryCommand = AndroidPlatform.GetStorageQueryCommand();
+			IProcessResult StorageQueryResult = RunAdbDeviceCommand(DeviceStorageQueryCommand);
+			string StorageLocation = StorageQueryResult.Output.Trim(); // "/mnt/sdcard";
+																	   // remote dir used to save things
+			string ExternalStoragePath = StorageLocation + "/UnrealGame/" + AppConfig.ProjectName;
+			string ExternalFilesPath = StorageLocation + "/Android/data/" + Build.AndroidPackageName + "/files/UnrealGame/" + AppConfig.ProjectName;
+			string DeviceBaseDir = Build.UsesExternalFilesDir ? ExternalFilesPath : ExternalStoragePath;
+
+			// get the device's external file paths, always clear between runs
+			DeviceExternalStorageSavedPath = string.Format("{0}/{1}/Saved", ExternalStoragePath, AppConfig.ProjectName);
+			DeviceExternalFilesSavedPath = string.Format("{0}/{1}/Saved", ExternalFilesPath, AppConfig.ProjectName);
+			DeviceLogPath = string.Format("{0}/Logs/{1}.log", Build.UsesPublicLogs ? DeviceExternalFilesSavedPath : DeviceExternalStorageSavedPath, AppConfig.ProjectName);
+			DeviceArtifactPath = Build.UsesExternalFilesDir ? DeviceExternalFilesSavedPath : DeviceExternalStorageSavedPath;
+
+			// path for OBB files
+			string OBBRemoteDestination = string.Format("{0}/obb/{1}", StorageLocation, Build.AndroidPackageName);
+
+			Log.Info("DeviceBaseDir: " + DeviceBaseDir);
+			Log.Info("DeviceExternalStorageSavedPath: " + DeviceExternalStorageSavedPath);
+			Log.Info("DeviceExternalFilesSavedPath: " + DeviceExternalFilesSavedPath);
+			Log.Info("DeviceLogPath: " + DeviceLogPath);
+			Log.Info("DeviceArtifactPath: " + DeviceArtifactPath);
+
+			// clear all file store paths between installs:
+			RunAdbDeviceCommand(string.Format("shell rm -r {0}", DeviceExternalStorageSavedPath));
+			RunAdbDeviceCommand(string.Format("shell rm -r {0}", DeviceExternalFilesSavedPath));
 
 			bool SkipDeploy = Globals.Params.ParseParam("SkipDeploy");
 
 			if (SkipDeploy == false)
 			{
-				// Establish remote directory locations
-				string DeviceStorageQueryCommand = AndroidPlatform.GetStorageQueryCommand();
-				IProcessResult StorageQueryResult = RunAdbDeviceCommand(DeviceStorageQueryCommand);
-				string StorageLocation = StorageQueryResult.Output.Trim(); // "/mnt/sdcard";
-
-				// remote dir used to save things
-				string RemoteDir = StorageLocation + "/UnrealGame/" + AppConfig.ProjectName;
-
-				// if using a non-bulk test configuration, implies com.epicgames.ue4.GameActivity.bUseExternalFilesDir = true
-				// @todo: query this from the apk? 
-				if (AppConfig.Configuration == UnrealTargetConfiguration.Test && ((Build.Flags & BuildFlags.NotBulk) == BuildFlags.NotBulk))
-				{
-					RemoteDir = StorageLocation + "/Android/data/" + Build.AndroidPackageName + "/files/UnrealGame/" + AppConfig.ProjectName;
-				}
-
-				string DependencyDir = RemoteDir + "/deps";
-
-				// device artifact path, always clear between runs
-				DeviceArtifactPath = string.Format("{0}/{1}/Saved", RemoteDir, AppConfig.ProjectName);
-				RunAdbDeviceCommand(string.Format("shell rm -r {0}", DeviceArtifactPath));
-
-				// path for OBB files
-				string OBBRemoteDestination = string.Format("{0}/obb/{1}", StorageLocation, Build.AndroidPackageName);
-
 				if (Globals.Params.ParseParam("cleandevice"))
 				{
 					Log.Info("Cleaning previous builds due to presence of -cleandevice");
@@ -875,18 +893,16 @@ namespace Gauntlet
 					Log.Info("Uninstalling {0}", Build.AndroidPackageName);
 					RunAdbDeviceCommand(string.Format("uninstall {0}", Build.AndroidPackageName));
 
-					Log.Info("Removing {0}", RemoteDir);
-					RunAdbDeviceCommand(string.Format("shell rm -r {0}", RemoteDir));
+					// delete DeviceExternalStorageSavedPath, note: DeviceExternalFilesSavedPath is removed with package uninstall.
+					Log.Info("Removing {0}", DeviceExternalStorageSavedPath);
+					RunAdbDeviceCommand(string.Format("shell rm -r {0}", DeviceExternalStorageSavedPath));
 
 					Log.Info("Removing {0}", OBBRemoteDestination);
 					RunAdbDeviceCommand(string.Format("shell rm -r {0}", OBBRemoteDestination));
 				}
 
 				// remote dir on the device, create it if it doesn't exist
-				RunAdbDeviceCommand(string.Format("shell mkdir -p {0}/", RemoteDir));
-
-				IProcessResult AdbResult;
-				string AdbCommand;
+				RunAdbDeviceCommand(string.Format("shell mkdir -p {0}/", DeviceExternalStorageSavedPath));
 
 				// path to the APK to install.
 				string ApkPath = Build.SourceApkPath;
@@ -914,7 +930,39 @@ namespace Gauntlet
 
 				// first install the APK
 				CopyFileToDevice(Build.AndroidPackageName, ApkPath, "");
+			}
 
+			// Convert the files from the source to final destination names
+			Dictionary<string, string> FilesToInstall = new Dictionary<string, string>();
+
+			Console.WriteLine("trying to copy files over.");
+            if (AppConfig.FilesToCopy != null)
+            {
+                if (LocalDirectoryMappings.Count == 0)
+                {
+                    Console.WriteLine("Populating Directory");
+                    PopulateDirectoryMappings(DeviceArtifactPath);
+                }
+                Console.WriteLine("trying to copy files over.");
+                foreach (UnrealFileToCopy FileToCopy in AppConfig.FilesToCopy)
+                {
+                    string PathToCopyTo = Path.Combine(LocalDirectoryMappings[FileToCopy.TargetBaseDirectory], FileToCopy.TargetRelativeLocation);
+                    if (File.Exists(FileToCopy.SourceFileLocation))
+                    {
+                        FileInfo SrcInfo = new FileInfo(FileToCopy.SourceFileLocation);
+                        SrcInfo.IsReadOnly = false;
+                        FilesToInstall.Add(FileToCopy.SourceFileLocation, PathToCopyTo.Replace("\\", "/"));
+                    }
+
+                    else
+                    {
+                        Log.Warning("File to copy {0} not found", FileToCopy);
+                    }
+                }
+            }
+
+			if (SkipDeploy == false)
+			{
 				// obb files need to be named based on APK version (grrr), so find that out. This should return something like
 				// versionCode=2 minSdk=21 targetSdk=21
 				string PackageInfo = RunAdbDeviceCommand(string.Format("shell dumpsys package {0} | grep versionCode", Build.AndroidPackageName)).Output;
@@ -925,36 +973,7 @@ namespace Gauntlet
 				}
 				string PackageVersion = Match.Groups[1].ToString();
 
-				// Convert the files from the source to final destination names
-				Dictionary<string, string> FilesToInstall = new Dictionary<string, string>();
-
-                if (AppConfig.FilesToCopy != null)
-                {
-                    if (LocalDirectoryMappings.Count == 0)
-                    {
-                        Console.WriteLine("Populating Directory");
-                        PopulateDirectoryMappings(DeviceArtifactPath);
-                    }
-                    Console.WriteLine("trying to copy files over.");
-                    foreach (UnrealFileToCopy FileToCopy in AppConfig.FilesToCopy)
-                    {
-                        string PathToCopyTo = Path.Combine(LocalDirectoryMappings[FileToCopy.TargetBaseDirectory], FileToCopy.TargetRelativeLocation);
-                        if (File.Exists(FileToCopy.SourceFileLocation))
-                        {
-                            FileInfo SrcInfo = new FileInfo(FileToCopy.SourceFileLocation);
-                            SrcInfo.IsReadOnly = false;
-                            FilesToInstall.Add(FileToCopy.SourceFileLocation, PathToCopyTo.Replace("\\", "/"));
-                            Console.WriteLine("Copying {0} to {1}", FileToCopy.SourceFileLocation, PathToCopyTo);
-                        }
-
-                        else
-                        {
-                            Log.Warning("File to copy {0} not found", FileToCopy);
-                        }
-                    }
-                }
-
-                Build.FilesToInstall.Keys.ToList().ForEach(K =>
+				Build.FilesToInstall.Keys.ToList().ForEach(K =>
 				{
 
 					string SrcPath = K;
@@ -975,10 +994,9 @@ namespace Gauntlet
 					FilesToInstall.Add(SrcPath, DestPath);
 				});
 
-
-
-                // get a list of files in the destination OBB directory
-                AdbResult = RunAdbDeviceCommand(string.Format("shell ls {0}", OBBRemoteDestination));
+				// get a list of files in the destination OBB directory
+				IProcessResult AdbResult;
+				AdbResult = RunAdbDeviceCommand(string.Format("shell ls {0}", OBBRemoteDestination));
 
 				// if != 0 then no folder exists
 				if (AdbResult.ExitCode == 0)
@@ -1007,32 +1025,30 @@ namespace Gauntlet
 					}
 				}
 
-				foreach (var KV in FilesToInstall)
-				{
-					string LocalFile = KV.Key;
-					string RemoteFile = KV.Value;
-
-					CopyFileToDevice(Build.AndroidPackageName, LocalFile, RemoteFile);
-				}
-
-				// create a tempfile, insert the command line, and push it over
-				string TmpFile = Path.GetTempFileName();
-
-				CommandLineFilePath = string.Format("{0}/UECommandLine.txt", RemoteDir);
-
-				// I've seen a weird thing where adb push truncates by a byte, so add some padding...
-				File.WriteAllText(TmpFile, AppConfig.CommandLine + "    ");
-				AdbCommand = string.Format("push {0} {1}", TmpFile, CommandLineFilePath);
-				RunAdbDeviceCommand(AdbCommand);
-
 				EnablePermissions(Build.AndroidPackageName);
-
-				File.Delete(TmpFile);
 			}
 			else
 			{
 				Log.Info("Skipping install of {0} (-skipdeploy)", Build.AndroidPackageName);
 			}
+
+			// create a tempfile, insert the command line, and push it over
+			string CommandLineTmpFile = Path.GetTempFileName();
+			CommandLineFilePath = string.Format("{0}/UECommandLine.txt", DeviceBaseDir);
+			// I've seen a weird thing where adb push truncates by a byte, so add some padding...
+			File.WriteAllText(CommandLineTmpFile, AppConfig.CommandLine + "    ");
+			FilesToInstall.Add(CommandLineTmpFile, CommandLineFilePath);
+
+			foreach (var KV in FilesToInstall)
+			{
+				string LocalFile = KV.Key;
+				string RemoteFile = KV.Value;
+
+				Console.WriteLine("Copying {0} to {1}", LocalFile, RemoteFile);
+				CopyFileToDevice(Build.AndroidPackageName, LocalFile, RemoteFile);
+			}
+
+			File.Delete(CommandLineTmpFile);
 
 			AndroidAppInstall AppInstall = new AndroidAppInstall(this, AppConfig.ProjectName, Build.AndroidPackageName, AppConfig.CommandLine);
 

@@ -1704,6 +1704,9 @@ bool FBodyInstance::Weld(FBodyInstance* TheirBody, const FTransform& TheirTM)
 	return true;
 }
 
+int32 EnsureUnweldModifiesGTOnly = 0;
+FAutoConsoleVariableRef CVarEnsureUnweldModifiesGTOnly(TEXT("p.EnsureUnweldModifiesGTOnly"), EnsureUnweldModifiesGTOnly, TEXT("Ensure if unweld modifies geometry shared with physics thread"));
+
 void FBodyInstance::UnWeld(FBodyInstance* TheirBI)
 {
 	check(IsInGameThread());
@@ -1715,6 +1718,11 @@ void FBodyInstance::UnWeld(FBodyInstance* TheirBI)
 		TArray<FPhysicsShapeHandle> Shapes;
 		const int32 NumSyncShapes = GetAllShapes_AssumesLocked(Shapes);
 		const int32 NumTotalShapes = Shapes.Num();
+
+		if(EnsureUnweldModifiesGTOnly && Actor->GetSolverBase() != nullptr)
+		{
+			ensureAlwaysMsgf(false, TEXT("Tried to unweld on body already in solver %s"), *GetBodyDebugName());
+		}
 
 		// reversed since FPhysicsInterface::DetachShape is removing shapes
 		for (int Idx = Shapes.Num()-1; Idx >=0; Idx--)

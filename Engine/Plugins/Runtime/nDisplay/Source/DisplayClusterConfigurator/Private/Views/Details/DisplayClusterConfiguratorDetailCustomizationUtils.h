@@ -10,6 +10,9 @@ class IPropertyHandle;
 #define BEGIN_CATEGORY(CategoryName) { \
 	IDetailCategoryBuilder& CurrentCategory = InLayoutBuilder.EditCategory(CategoryName);
 
+#define BEGIN_LABELED_CATEGORY(CategoryName, CategoryLabel) { \
+	IDetailCategoryBuilder& CurrentCategory = InLayoutBuilder.EditCategory(CategoryName, CategoryLabel);
+
 #define END_CATEGORY() }
 
 #define ADD_PROPERTY(ClassName, PropertyName) { \
@@ -88,7 +91,108 @@ class IPropertyHandle;
 	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ClassName, PropertyPath)); \
 	check(PropertyHandle.IsValid()); \
 	check(PropertyHandle->IsValidHandle()); \
-	CurrentGroup.AddPropertyRow(PropertyHandle.ToSharedRef()); \
+	CurrentGroup.AddPropertyRow(PropertyHandle.ToSharedRef()).ShouldAutoExpand(true); \
+}
+
+// Edit condition helpers
+#define GET_PROPERTY_HANDLE(HandleName, ClassName, PropertyPath) \
+	const TSharedPtr<IPropertyHandle> HandleName = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_STRING_CHECKED(ClassName, PropertyPath)); \
+	check(HandleName.IsValid()); \
+	check(HandleName->IsValidHandle()); \
+
+#define GET_NESTED_PROPERTY_HANDLE(HandleName, NestedPropertyHelper, ClassName, PropertyPath) \
+	const TSharedPtr<IPropertyHandle> HandleName = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ClassName, PropertyPath)); \
+	check(HandleName.IsValid()); \
+	check(HandleName->IsValidHandle()); \
+
+#define CREATE_NESTED_PROPERTY_EDITCONDITION_1ARG(EditConditionName, NestedPropertyHelper, ClassName, PropertyPath) \
+	GET_NESTED_PROPERTY_HANDLE(EditConditionName##PropertyHandle, NestedPropertyHelper, ClassName, PropertyPath); \
+	const TAttribute<bool> EditConditionName = TAttribute<bool>::Create([this, EditConditionName##PropertyHandle]() \
+	{ \
+		bool bCond1 = false; \
+		EditConditionName##PropertyHandle->GetValue(bCond1); \
+		return bCond1; \
+	});
+
+#define CREATE_NESTED_PROPERTY_EDITCONDITION_2ARG(EditConditionName, NestedPropertyHelper, ClassName, PropertyPath, PropertyPath2) \
+	GET_NESTED_PROPERTY_HANDLE(EditConditionName##PropertyHandle1, NestedPropertyHelper, ClassName, PropertyPath); \
+	GET_NESTED_PROPERTY_HANDLE(EditConditionName##PropertyHandle2, NestedPropertyHelper, ClassName, PropertyPath2); \
+	const TAttribute<bool> EditConditionName = TAttribute<bool>::Create([this, EditConditionName##PropertyHandle1, EditConditionName##PropertyHandle2]() \
+	{ \
+		bool bCond1 = false; \
+		bool bCond2 = false; \
+		EditConditionName##PropertyHandle1->GetValue(bCond1); \
+		EditConditionName##PropertyHandle2->GetValue(bCond2); \
+		return bCond1 && bCond2; \
+	});
+
+#define CREATE_NESTED_PROPERTY_EDITCONDITION_3ARG(EditConditionName, NestedPropertyHelper, ClassName, PropertyPath, PropertyPath2, PropertyPath3) \
+	GET_NESTED_PROPERTY_HANDLE(EditConditionName##PropertyHandle1, NestedPropertyHelper, ClassName, PropertyPath); \
+	GET_NESTED_PROPERTY_HANDLE(EditConditionName##PropertyHandle2, NestedPropertyHelper, ClassName, PropertyPath2); \
+	GET_NESTED_PROPERTY_HANDLE(EditConditionName##PropertyHandle3, NestedPropertyHelper, ClassName, PropertyPath3); \
+	const TAttribute<bool> EditConditionName = TAttribute<bool>::Create([this, EditConditionName##PropertyHandle1, EditConditionName##PropertyHandle2, EditConditionName##PropertyHandle3]() \
+	{ \
+		bool bCond1 = false; \
+		bool bCond2 = false; \
+		bool bCond3 = false; \
+		EditConditionName##PropertyHandle1->GetValue(bCond1); \
+		EditConditionName##PropertyHandle2->GetValue(bCond2); \
+		EditConditionName##PropertyHandle3->GetValue(bCond3); \
+		return bCond1 && bCond2 && bCond3; \
+	});
+
+#define ADD_GROUP_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ClassName, PropertyPath, PropertyRowEditCondition) { \
+	GET_NESTED_PROPERTY_HANDLE(PropertyHandle, NestedPropertyHelper, ClassName, PropertyPath); \
+	IDetailPropertyRow& PropertyRow = CurrentGroup.AddPropertyRow(PropertyHandle.ToSharedRef()); \
+	PropertyRow.EditCondition(PropertyRowEditCondition, nullptr);\
+}
+
+#define RENAME_GROUP_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ClassName, PropertyPath, NewPropertyName, PropertyRowEditCondition) { \
+	GET_NESTED_PROPERTY_HANDLE(PropertyHandle, NestedPropertyHelper, ClassName, PropertyPath); \
+	IDetailPropertyRow& PropertyRow = CurrentGroup.AddPropertyRow(PropertyHandle.ToSharedRef()); \
+	PropertyRow.EditCondition(PropertyRowEditCondition, nullptr); \
+	PropertyRow.DisplayName(NewPropertyName); \
+}
+
+#define ADD_EXPANDED_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ClassName, PropertyPath, PropertyRowEditCondition) { \
+	GET_NESTED_PROPERTY_HANDLE(PropertyHandle, NestedPropertyHelper, ClassName, PropertyPath); \
+	IDetailPropertyRow& PropertyRow = CurrentCategory.AddProperty(PropertyHandle.ToSharedRef()); \
+	PropertyRow.EditCondition(PropertyRowEditCondition, nullptr);\
+	PropertyRow.ShouldAutoExpand(true); \
+}
+
+#define ADD_ADVANCED_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ClassName, PropertyPath, PropertyRowEditCondition) { \
+	GET_NESTED_PROPERTY_HANDLE(PropertyHandle, NestedPropertyHelper, ClassName, PropertyPath); \
+	IDetailPropertyRow& PropertyRow = CurrentCategory.AddProperty(PropertyHandle.ToSharedRef(), EPropertyLocation::Advanced); \
+	PropertyRow.EditCondition(PropertyRowEditCondition, nullptr); \
+}
+
+#define ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ClassName, PropertyPath, PropertyRowEditCondition) { \
+	GET_NESTED_PROPERTY_HANDLE(PropertyHandle, NestedPropertyHelper, ClassName, PropertyPath); \
+	IDetailPropertyRow& PropertyRow = CurrentCategory.AddProperty(PropertyHandle.ToSharedRef()); \
+	PropertyRow.EditCondition(PropertyRowEditCondition, nullptr);\
+}
+
+#define RENAME_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ClassName, PropertyPath, NewPropertyName, PropertyRowEditCondition) { \
+	GET_NESTED_PROPERTY_HANDLE(PropertyHandle, NestedPropertyHelper, ClassName, PropertyPath); \
+	IDetailPropertyRow& PropertyRow = CurrentCategory.AddProperty(PropertyHandle.ToSharedRef()); \
+	PropertyRow.EditCondition(PropertyRowEditCondition, nullptr); \
+	PropertyRow.DisplayName(NewPropertyName); \
+}
+
+// Support IsEnabled
+#define ADD_NESTED_PROPERTY_ENABLE_CONDITION(NestedPropertyHelper, ClassName, PropertyPath, PropertyRowEnableCondition) { \
+	GET_NESTED_PROPERTY_HANDLE(PropertyHandle, NestedPropertyHelper, ClassName, PropertyPath); \
+	IDetailPropertyRow& PropertyRow = CurrentCategory.AddProperty(PropertyHandle.ToSharedRef()); \
+	PropertyRow.IsEnabled(PropertyRowEnableCondition);\
+}
+
+#define REPLACE_PROPERTY_WITH_CUSTOM_ENABLE_CONDITION(ClassName, PropertyName, Widget, PropertyRowEnableCondition) { \
+	GET_PROPERTY_HANDLE(PropertyHandle, ClassName, PropertyName); \
+	InLayoutBuilder.HideProperty(PropertyHandle); \
+	FDetailWidgetRow& DetailWidgetRow = CurrentCategory.AddCustomRow(PropertyHandle->GetPropertyDisplayName()); \
+	DetailWidgetRow.IsEnabled(PropertyRowEnableCondition); \
+	DetailWidgetRow.NameContent()[PropertyHandle->CreatePropertyNameWidget()].ValueContent()[Widget]; \
 }
 
 struct FDisplayClusterConfiguratorNestedPropertyHelper

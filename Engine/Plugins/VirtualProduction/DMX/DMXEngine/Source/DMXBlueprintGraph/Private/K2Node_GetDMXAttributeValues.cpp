@@ -533,12 +533,9 @@ const FDMXFixtureMode* UK2Node_GetDMXAttributeValues::GetActiveFixtureMode() con
 {
 	if (UDMXEntityFixturePatch* FixturePatch = GetFixturePatchFromPin())
 	{
-		if (const UDMXEntityFixtureType* FixtureType = FixturePatch->ParentFixtureTypeTemplate)
+		if (const FDMXFixtureMode* FixtureMode = FixturePatch->GetActiveMode())
 		{
-			if (FixtureType->Modes.Num() && FixtureType->Modes.Num() >= FixturePatch->ActiveMode)
-			{
-				return &FixtureType->Modes[FixturePatch->ActiveMode];
-			}
+			return FixtureMode;
 		}
 	}
 
@@ -549,7 +546,7 @@ UDMXEntityFixtureType* UK2Node_GetDMXAttributeValues::GetParentFixtureType() con
 {
 	if (UDMXEntityFixturePatch* FixturePatch = GetFixturePatchFromPin())
 	{
-		return FixturePatch->ParentFixtureTypeTemplate;
+		return FixturePatch->GetFixtureType();
 	}
 
 	return nullptr;

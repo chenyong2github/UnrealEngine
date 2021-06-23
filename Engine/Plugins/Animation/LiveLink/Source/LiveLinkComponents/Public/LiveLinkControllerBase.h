@@ -64,6 +64,9 @@ public:
 	virtual void InitializeInEditor() {}
 #endif
 
+	/** Get the selected LiveLink subject for this controller */
+	virtual FLiveLinkSubjectRepresentation GetSelectedSubject() { return SelectedSubject; }
+
 protected:
 	AActor* GetOuterActor() const;
 

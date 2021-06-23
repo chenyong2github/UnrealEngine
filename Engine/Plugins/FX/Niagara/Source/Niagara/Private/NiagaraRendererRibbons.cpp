@@ -248,13 +248,6 @@ void FNiagaraRendererRibbons::CreateRenderThreadResources(NiagaraEmitterInstance
 #endif
 }
 
-int32 FNiagaraRendererRibbons::CalculateInterpIndex(const FNiagaraRendererRibbons::FRibbonRenderingIndexOffsets& Offsets, int32 SegmentIndex, int32 SubSegmentIndex, int32 SliceVertexId)
-{
-	//check(uint32(SegmentIndex) <= Offsets.SegmentBitMask && uint32(SubSegmentIndex) <= Offsets.InterpBitMask && uint32(SliceVertexId) <= Offsets.SliceVertexBitMask);
-	return (SegmentIndex << Offsets.SegmentBitShift) | (SubSegmentIndex << Offsets.InterpBitShift) |
-	SliceVertexId;
-}
-
 template <typename TValue>
 TValue* FNiagaraRendererRibbons::AppendToIndexBuffer(
 	TValue* OutIndices,
@@ -265,21 +258,26 @@ TValue* FNiagaraRendererRibbons::AppendToIndexBuffer(
 	bool bInvertOrder) const
 {
 	TValue MaxIndex = 0;
+	if ( SegmentData.Num() == 0)
+	{
+		return OutIndices;
+	}
 
 	// This sets up the first and next vertex for each pair of triangles in the slice.
 	// For a plane this will just be a linear set
 	// For a multiplane it will be multiple separate linear sets
 	// For a tube it will be a linear set that wraps back around to itself,
 	// Same with the custom vertices.
-	TArray<int32> SliceTriangleToVertexIds;
+	TArray<int32, TInlineAllocator<32>> SliceTriangleToVertexIds;
 
 	if (Shape == ENiagaraRibbonShapeMode::MultiPlane)
 	{
-		int32 FrontFaceVertexCount = MultiPlaneCount * (WidthSegmentationCount + 1);
+		const int32 FrontFaceVertexCount = MultiPlaneCount * (WidthSegmentationCount + 1);
 
+		SliceTriangleToVertexIds.Reserve(WidthSegmentationCount * MultiPlaneCount * (bEnableAccurateGeometry ? 2 : 1));
 		for (int32 PlaneIndex = 0; PlaneIndex < MultiPlaneCount; PlaneIndex++)
 		{
-			int32 BaseVertexId = (PlaneIndex * (WidthSegmentationCount + 1));
+			const int32 BaseVertexId = (PlaneIndex * (WidthSegmentationCount + 1));
 
 			for (int32 VertexIdx = 0; VertexIdx < WidthSegmentationCount; VertexIdx++)
 			{
@@ -299,6 +297,7 @@ TValue* FNiagaraRendererRibbons::AppendToIndexBuffer(
 	}
 	else if (Shape == ENiagaraRibbonShapeMode::Tube)
 	{
+		SliceTriangleToVertexIds.Reserve(TubeSubdivisions);
 		for (int32 VertexIdx = 0; VertexIdx < TubeSubdivisions; VertexIdx++)
 		{
 			SliceTriangleToVertexIds.Add(VertexIdx);
@@ -307,6 +306,7 @@ TValue* FNiagaraRendererRibbons::AppendToIndexBuffer(
 	}
 	else if (Shape == ENiagaraRibbonShapeMode::Custom && CustomVertices.Num() >= 2)
 	{
+		SliceTriangleToVertexIds.Reserve(CustomVertices.Num());
 		for (int32 VertexIdx = 0; VertexIdx < CustomVertices.Num(); VertexIdx++)
 		{
 			SliceTriangleToVertexIds.Add(VertexIdx);
@@ -315,6 +315,7 @@ TValue* FNiagaraRendererRibbons::AppendToIndexBuffer(
 	}
 	else // Plane
 	{
+		SliceTriangleToVertexIds.Reserve(WidthSegmentationCount);
 		for (int32 VertexIdx = 0; VertexIdx < WidthSegmentationCount; VertexIdx++)
 		{
 			SliceTriangleToVertexIds.Add(VertexIdx);
@@ -322,32 +323,37 @@ TValue* FNiagaraRendererRibbons::AppendToIndexBuffer(
 		}
 	}
 
+	int32 SegmentDataIndex = bInvertOrder ? SegmentData.Num() - 1 : 0;
+	const int32 LastSegmentDataIndex = bInvertOrder ? -1 : SegmentData.Num();
+	const int32 SegmentDataIndexInc = bInvertOrder ? -1 : 1;
+	const int32 FlipGeometryIndex = SliceTriangleToVertexIds.Num() / 2;
 
-	auto AddTriangleIndices = [this, &MaxIndex, &OutIndices, Offsets, InterpCount, &SliceTriangleToVertexIds](int32 SegmentIndex)
+	while ( SegmentDataIndex != LastSegmentDataIndex )
 	{
+		const int32 SegmentIndex = SegmentData[SegmentDataIndex];
 		for (int32 SubSegmentIndex = 0; SubSegmentIndex < InterpCount; ++SubSegmentIndex)
 		{
-			bool bIsFinalInterp = SubSegmentIndex == InterpCount - 1;
+			const bool bIsFinalInterp = SubSegmentIndex == InterpCount - 1;
 
-			int32 ThisSegmentIndex = SegmentIndex;
-			int32 NextSegmentIndex = SegmentIndex + (bIsFinalInterp ? 1 : 0);
+			const int32 ThisSegmentOffset = SegmentIndex << Offsets.SegmentBitShift;
+			const int32 NextSegmentOffset = (SegmentIndex + (bIsFinalInterp ? 1 : 0)) << Offsets.SegmentBitShift;
 
-			int32 ThisSubSegmentIndex = SubSegmentIndex;
-			int32 NextSubSegmentIndex = bIsFinalInterp ? 0 : SubSegmentIndex + 1;
+			const int32 ThisSubSegmentOffset = SubSegmentIndex << Offsets.InterpBitShift;
+			const int32 NextSubSegmentOffset = (bIsFinalInterp ? 0 : SubSegmentIndex + 1) << Offsets.InterpBitShift;
 
 			for (int32 TriangleId = 0; TriangleId < SliceTriangleToVertexIds.Num(); TriangleId += 2)
 			{
 				// Switch geometry layout based on above or below the centerline.
 				// This has the effect of mirroring the triangle layout across the center
 				// except when it's an odd number of segments, then the center segment doesn't mirror.
-				bool bShouldFlipGeometry = TriangleId < (SliceTriangleToVertexIds.Num() / 2);
+				const bool bShouldFlipGeometry = TriangleId < FlipGeometryIndex;
 
-				OutIndices[0] = CalculateInterpIndex(Offsets, ThisSegmentIndex, ThisSubSegmentIndex, SliceTriangleToVertexIds[TriangleId]);
-				OutIndices[1] = CalculateInterpIndex(Offsets, ThisSegmentIndex, ThisSubSegmentIndex, SliceTriangleToVertexIds[TriangleId + 1]);
-				OutIndices[2] = CalculateInterpIndex(Offsets, NextSegmentIndex, NextSubSegmentIndex, SliceTriangleToVertexIds[TriangleId + (bShouldFlipGeometry ? 0 : 1)]);
-				OutIndices[3] = CalculateInterpIndex(Offsets, ThisSegmentIndex, ThisSubSegmentIndex, SliceTriangleToVertexIds[TriangleId + (bShouldFlipGeometry ? 1 : 0)]);
-				OutIndices[4] = CalculateInterpIndex(Offsets, NextSegmentIndex, NextSubSegmentIndex, SliceTriangleToVertexIds[TriangleId + 1]);
-				OutIndices[5] = CalculateInterpIndex(Offsets, NextSegmentIndex, NextSubSegmentIndex, SliceTriangleToVertexIds[TriangleId]);
+				OutIndices[0] = ThisSegmentOffset | ThisSubSegmentOffset | SliceTriangleToVertexIds[TriangleId];
+				OutIndices[1] = ThisSegmentOffset | ThisSubSegmentOffset | SliceTriangleToVertexIds[TriangleId + 1];
+				OutIndices[2] = NextSegmentOffset | NextSubSegmentOffset | SliceTriangleToVertexIds[TriangleId + (bShouldFlipGeometry ? 0 : 1)];
+				OutIndices[3] = ThisSegmentOffset | ThisSubSegmentOffset | SliceTriangleToVertexIds[TriangleId + (bShouldFlipGeometry ? 1 : 0)];
+				OutIndices[4] = NextSegmentOffset | NextSubSegmentOffset | SliceTriangleToVertexIds[TriangleId + 1];
+				OutIndices[5] = NextSegmentOffset | NextSubSegmentOffset | SliceTriangleToVertexIds[TriangleId];
 
 				MaxIndex = FMath::Max<TValue>(MaxIndex, OutIndices[0]);
 				MaxIndex = FMath::Max<TValue>(MaxIndex, OutIndices[1]);
@@ -359,22 +365,8 @@ TValue* FNiagaraRendererRibbons::AppendToIndexBuffer(
 				OutIndices += 6;
 			}
 		}
-	};
 
-	// If per view sorting is required, generate sort keys and sort segment indices.
-	if (!bInvertOrder)
-	{
-		for (int32 SegmentDataIndex = 0; SegmentDataIndex < SegmentData.Num(); ++SegmentDataIndex)
-		{
-			AddTriangleIndices(SegmentData[SegmentDataIndex]);
-		}
-	}
-	else
-	{
-		for (int32 SegmentDataIndex = SegmentData.Num() - 1; SegmentDataIndex >= 0; --SegmentDataIndex)
-		{
-			AddTriangleIndices(SegmentData[SegmentDataIndex]);
-		}
+		SegmentDataIndex += SegmentDataIndexInc;
 	}
 
 	OutMaxUsedIndex = MaxIndex;
@@ -1157,7 +1149,7 @@ void FNiagaraRendererRibbons::SetupMeshBatchAndCollectorResourceForView(
 #endif
 	MeshBatch.bUseAsOccluder = false;
 	MeshBatch.ReverseCulling = SceneProxy->IsLocalToWorldDeterminantNegative();
-	MeshBatch.bDisableBackfaceCulling = Shape != ENiagaraRibbonShapeMode::MultiPlane || !bEnableAccurateGeometry;
+	MeshBatch.bDisableBackfaceCulling = Shape == ENiagaraRibbonShapeMode::Plane || !bEnableAccurateGeometry;
 	MeshBatch.Type = PT_TriangleList;
 	MeshBatch.DepthPriorityGroup = SceneProxy->GetDepthPriorityGroup(View);
 	MeshBatch.bCanApplyViewModeOverrides = true;

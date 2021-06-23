@@ -151,13 +151,6 @@ static FAutoConsoleVariableRef CVarMinLodQualityLevel(
 	FConsoleVariableDelegate::CreateStatic(&UStaticMesh::OnLodStrippingQualityLevelChanged),
 	ECVF_Scalability);
 
-int32 GDisableMinLODQualityLevel = 1;
-static FAutoConsoleVariableRef CVarCDisableMinLODQualityLevel(
-	TEXT("r.StaticMesh.DisableMinLODQualityLevel"),
-	GDisableMinLODQualityLevel,
-	TEXT("Disable MinLOD Quality Level Override (Fallback on PerPlatform). \n"),
-	ECVF_ReadOnly | ECVF_RenderThreadSafe);
-
 #if ENABLE_COOK_STATS
 namespace StaticMeshCookStats
 {
@@ -314,7 +307,7 @@ int32 FStaticMeshLODResources::GetPlatformMinLODIdx(const ITargetPlatform* Targe
 	if (StaticMesh->IsMinLodQualityLevelEnable())
 	{
 		// get all supported quality level from scalability + engine ini files
-		FSupportedQualityLevelArray SupportedQualityLevels = StaticMesh->GetQualityLevelMinLOD().GetSupportedQualityLevels(*TargetPlatform->PlatformName());
+		FSupportedQualityLevelArray SupportedQualityLevels = StaticMesh->GetQualityLevelMinLOD().GetSupportedQualityLevels(*TargetPlatform->GetPlatformInfo().IniPlatformName.ToString());
 		
 		// loop through all the supported quality level to find the min lod index
 		int32 MinLodIdx = MAX_int32;
@@ -5384,6 +5377,69 @@ void UStaticMesh::ExecutePostLoadInternal(FStaticMeshPostLoadContext& Context)
 
 	if (GetRenderData())
 	{
+#if WITH_EDITORONLY_DATA
+		FPerPlatformInt PerPlatformData = GetMinLOD();
+		FPerQualityLevelInt PerQualityLevelData = GetQualityLevelMinLOD();
+
+		// Convert PerPlatForm data to PerQuality if perQuality data have not been serialized.
+		// Also test default value, since PerPLatformData can have Default !=0 and no PerPlaform data overrides.
+		bool bConvertMinLODData = (PerQualityLevelData.PerQuality.Num() == 0 && PerPlatformData.PerPlatform.Num() != 0) || (PerPlatformData.PerPlatform.Num() == 0 && PerQualityLevelData.Default != PerPlatformData.Default);
+
+		if (GEngine && GEngine->UseStaticMeshMinLODPerQualityLevels && bConvertMinLODData)
+		{
+			//assign the default value
+			PerQualityLevelData.Default = PerPlatformData.Default;
+
+			// get the platform groups
+			const TArray<FName>& PlatformGroupNameArray = PlatformInfo::GetAllPlatformGroupNames();
+
+			// iterate over all platform and platform group entry: ex: XBOXONE = 2, CONSOLE=1, MOBILE = 3
+			if (PerQualityLevelData.PerQuality.Num() == 0)
+			{
+				for (const TPair<FName, int32>& Pair : PerPlatformData.PerPlatform)
+				{
+					bool bIsPlatformGroup = PlatformGroupNameArray.Contains(Pair.Key);
+
+					FSupportedQualityLevelArray QualityLevels;
+					FString PlatformEntry = Pair.Key.ToString();
+
+					if (bIsPlatformGroup)
+					{
+						QualityLevels = PerQualityLevelData.GetPlatformGroupQualityLevels(*PlatformEntry);
+					}
+					else
+					{
+						QualityLevels = PerQualityLevelData.GetSupportedQualityLevels(*PlatformEntry);
+					}
+
+					// we now have a range of quality levels supported on that platform or from that group
+					for (int32& QLKey : QualityLevels)
+					{
+						int32* Value = PerQualityLevelData.PerQuality.Find(QLKey);
+						if (Value != nullptr)
+						{
+							//low/medium takes highest minLOD index
+							if (QLKey <= (int32)QualityLevelProperty::EQualityLevels::Medium)
+							{
+								*Value = FMath::Max(Pair.Value, *Value);
+							}
+							//high/epic/cinematic takes lowest minLOD index
+							else
+							{
+								*Value = FMath::Min(Pair.Value, *Value);
+							}
+						}
+						else
+						{
+							PerQualityLevelData.PerQuality.Add(QLKey, Pair.Value);
+						}
+					}
+				}
+			}
+			SetQualityLevelMinLOD(PerQualityLevelData);
+		}
+#endif
+
 		// check the MinLOD values are all within range
 		bool bFixedMinLOD = false;
 		bool bFixedQualityMinLOD = false;
@@ -7304,17 +7360,17 @@ ENGINE_API void UStaticMesh::SetMinLODIdx(int32 InMinLOD)
 /** Check the QualitLevel property is enabled for MinLod. */
 bool UStaticMesh::IsMinLodQualityLevelEnable() const
 {
-	return !GDisableMinLODQualityLevel && GetQualityLevelMinLOD().bIsEnabled;
+	return (GEngine && GEngine->UseStaticMeshMinLODPerQualityLevels);
 }
 
 void UStaticMesh::OnLodStrippingQualityLevelChanged(IConsoleVariable* Variable){
 #ifdef WITH_EDITOR
-	if (GEngine && GEngine->UsePerQualityLevelProperty)
+	if (GEngine && GEngine->UseStaticMeshMinLODPerQualityLevels)
 	{
 		for (TObjectIterator<UStaticMesh> It; It; ++It)
 		{
 			UStaticMesh* StaticMesh = *It;
-			if (StaticMesh && StaticMesh->IsMinLodQualityLevelEnable())
+			if (StaticMesh && StaticMesh->GetQualityLevelMinLOD().PerQuality.Num() > 0)
 			{
 				FStaticMeshComponentRecreateRenderStateContext Context(StaticMesh, false);
 			}

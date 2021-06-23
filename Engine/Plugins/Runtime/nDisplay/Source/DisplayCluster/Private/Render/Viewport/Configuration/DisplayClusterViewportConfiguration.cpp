@@ -75,18 +75,21 @@ bool FDisplayClusterViewportConfiguration::UpdateConfiguration(EDisplayClusterRe
 			FDisplayClusterViewportConfigurationICVFX ConfigurationICVFX(*RootActor);
 			FDisplayClusterViewportConfigurationProjectionPolicy ConfigurationProjectionPolicy(ViewportManager, *RootActor, *ConfigurationData);
 
+			ImplUpdateRenderFrameConfiguration(RootActor->GetRenderFrameSettings());
+
+			// Set current rendering mode
+			RenderFrameSettings.RenderMode = InRenderMode;
+			RenderFrameSettings.ClusterNodeId = InClusterNodeId;
+
 			ConfigurationBase.Update(RenderNodes);
 			ConfigurationICVFX.Update();
 			ConfigurationProjectionPolicy.Update();
 			ConfigurationICVFX.PostUpdate();
 
 			ImplUpdateConfigurationVisibility(*RootActor, *ConfigurationData);
-			ImplUpdateRenderFrameConfiguration(RootActor->GetRenderFrameSettings());
 
 			ImplUpdateConfiguration_PostProcess(InClusterNodeId, *ConfigurationData);
 
-			// Set current rendering mode
-			RenderFrameSettings.RenderMode = InRenderMode;
 
 			return true;
 		}
@@ -113,14 +116,15 @@ void FDisplayClusterViewportConfiguration::ImplUpdateRenderFrameConfiguration(co
 	// Some frame postprocess require additional render targetable resources
 	RenderFrameSettings.bShouldUseAdditionalFrameTargetableResource = ViewportManager.PostProcessManager->ShouldUseAdditionalFrameTargetableResource_PostProcess();
 
-	// Multiply all downscale ratio inside all viewports settings for whole cluster
+	// Global RTT sizes mults
 	RenderFrameSettings.ClusterRenderTargetRatioMult = InRenderFrameConfiguration.ClusterRenderTargetRatioMult;
-
-	// Multiply all downscale ratio inside all viewports settings for whole cluster
+	RenderFrameSettings.ClusterICVFXInnerViewportRenderTargetRatioMult = InRenderFrameConfiguration.ClusterICVFXInnerViewportRenderTargetRatioMult;
 	RenderFrameSettings.ClusterICVFXOuterViewportRenderTargetRatioMult = InRenderFrameConfiguration.ClusterICVFXOuterViewportRenderTargetRatioMult;
 
-	// Multiply all downscale ratio inside icvfx outer viewports settings for whole cluster
+	// Global Buffer ratio mults
 	RenderFrameSettings.ClusterBufferRatioMult = InRenderFrameConfiguration.ClusterBufferRatioMult;
+	RenderFrameSettings.ClusterICVFXInnerFrustumBufferRatioMult = InRenderFrameConfiguration.ClusterICVFXInnerFrustumBufferRatioMult;
+	RenderFrameSettings.ClusterICVFXOuterViewportBufferRatioMult = InRenderFrameConfiguration.ClusterICVFXOuterViewportBufferRatioMult;
 
 	// Allow warpblend render
 	RenderFrameSettings.bAllowWarpBlend = InRenderFrameConfiguration.bAllowWarpBlend;

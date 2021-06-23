@@ -32,7 +32,11 @@ FNiagaraOverviewGraphViewModel::FNiagaraOverviewGraphViewModel()
 
 FNiagaraOverviewGraphViewModel::~FNiagaraOverviewGraphViewModel()
 {
-	GEditor->UnregisterForUndo(this);
+	if(bIsForDataProcessingOnly == false)
+	{
+		GEditor->UnregisterForUndo(this);
+	}
+
 	TSharedPtr<FNiagaraSystemViewModel> SystemViewModelPinned = SystemViewModel.Pin();
 	if (SystemViewModelPinned.IsValid())
 	{
@@ -55,9 +59,13 @@ void FNiagaraOverviewGraphViewModel::Initialize(TSharedRef<FNiagaraSystemViewMod
 {
 	SystemViewModel = InSystemViewModel;
 	OverviewGraph = InSystemViewModel->GetEditorData().GetSystemOverviewGraph();
+	bIsForDataProcessingOnly = InSystemViewModel->GetIsForDataProcessingOnly();
 
-	SetupCommands();
-	GEditor->RegisterForUndo(this);
+	if(bIsForDataProcessingOnly == false)
+	{
+		SetupCommands();
+		GEditor->RegisterForUndo(this);
+	}
 
 	NodeSelection->OnSelectedObjectsChanged().AddSP(this, &FNiagaraOverviewGraphViewModel::GraphSelectionChanged);
 	InSystemViewModel->GetSelectionViewModel()->OnEntrySelectionChanged().AddSP(this, &FNiagaraOverviewGraphViewModel::SystemSelectionChanged);

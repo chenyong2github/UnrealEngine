@@ -280,6 +280,9 @@ void FNDIMeshRendererInfo::ResetMeshData(const UNiagaraMeshRendererProperties& R
 	for (const auto& MeshSlot : Renderer.Meshes)
 	{
 		FMeshData& NewMeshData = OutMeshData.AddDefaulted_GetRef();
+		NewMeshData.MinLocalBounds = FVector(EForceInit::ForceInitToZero);
+		NewMeshData.MaxLocalBounds = FVector(EForceInit::ForceInitToZero);
+
 		if (MeshSlot.Mesh)
 		{
 			const FBox LocalBounds = MeshSlot.Mesh->GetExtendedBounds().GetBox();
@@ -355,8 +358,9 @@ void UNiagaraDataInterfaceMeshRendererInfo::PostEditChangeProperty(struct FPrope
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	if (PropertyChangedEvent.Property &&
-		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceMeshRendererInfo, MeshRenderer))
+	// If coming from undo, property will be nullptr and since we copy the info, we need to reacquire if new.
+	if (PropertyChangedEvent.Property == nullptr || (PropertyChangedEvent.Property &&
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceMeshRendererInfo, MeshRenderer)))
 	{
 		if (MeshRenderer)
 		{

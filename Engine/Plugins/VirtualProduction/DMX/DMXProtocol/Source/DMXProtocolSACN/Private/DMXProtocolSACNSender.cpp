@@ -301,7 +301,7 @@ void FDMXProtocolSACNSender::Update()
 		FDMXProtocolE131FramingLayerPacket FramingLayer;
 		FramingLayer.Universe = UniverseID;
 		FramingLayer.SequenceNumber = UniverseIDToSequenceNumberMap.FindOrAdd(UniverseID, -1)++; // Init to max, let it wrap over to 0 at first
-
+		FramingLayer.Priority = DMXSignal->Priority;
 		Packet.Append(*FramingLayer.Pack(ACN_DMX_SIZE));
 
 		FDMXProtocolE131DMPLayerPacket DMPLayer;

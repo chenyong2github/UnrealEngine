@@ -68,7 +68,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 
 			// General
 			Comp->ParentId       = CfgComp.ParentId;
-			Comp->Location       = CfgComp.Loc * 100;
+			Comp->Location       = CfgComp.Loc * 100.f;
 			Comp->Rotation       = CfgComp.Rot;
 
 			Config->Scene->Xforms.Emplace(CfgComp.Id, Comp);
@@ -82,10 +82,10 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 
 			// General
 			Comp->ParentId       = CfgComp.ParentId;
-			Comp->Location       = CfgComp.Loc * 100;
+			Comp->Location       = CfgComp.Loc * 100.f;
 			Comp->Rotation       = CfgComp.Rot;
 			// Screen specific
-			Comp->Size = CfgComp.Size;
+			Comp->Size = CfgComp.Size * 100.f;
 
 			Config->Scene->Screens.Emplace(CfgComp.Id, Comp);
 		}
@@ -104,7 +104,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 			Comp->Location       = CfgComp.Loc * 100.f;
 			Comp->Rotation       = CfgComp.Rot;
 			// Camera specific
-			Comp->InterpupillaryDistance = CfgComp.EyeDist;
+			Comp->InterpupillaryDistance = CfgComp.EyeDist * 100.f;
 			Comp->bSwapEyes              = CfgComp.EyeSwap;
 			Comp->StereoOffset           = EyeOffset;
 
@@ -166,11 +166,11 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 
 		// Network
 		{
-			Config->Cluster->Network.ConnectRetriesAmount = CfgNetwork.ClientConnectTriesAmount;
-			Config->Cluster->Network.ConnectRetryDelay = CfgNetwork.ClientConnectRetryDelay;
-			Config->Cluster->Network.GameStartBarrierTimeout = CfgNetwork.BarrierGameStartWaitTimeout;
+			Config->Cluster->Network.ConnectRetriesAmount     = CfgNetwork.ClientConnectTriesAmount;
+			Config->Cluster->Network.ConnectRetryDelay        = CfgNetwork.ClientConnectRetryDelay;
+			Config->Cluster->Network.GameStartBarrierTimeout  = CfgNetwork.BarrierGameStartWaitTimeout;
 			Config->Cluster->Network.FrameStartBarrierTimeout = CfgNetwork.BarrierWaitTimeout;
-			Config->Cluster->Network.FrameEndBarrierTimeout = CfgNetwork.BarrierWaitTimeout;
+			Config->Cluster->Network.FrameEndBarrierTimeout   = CfgNetwork.BarrierWaitTimeout;
 			Config->Cluster->Network.RenderSyncBarrierTimeout = CfgNetwork.BarrierWaitTimeout;
 		}
 

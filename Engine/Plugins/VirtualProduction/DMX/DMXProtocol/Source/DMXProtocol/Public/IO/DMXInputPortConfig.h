@@ -14,6 +14,27 @@ class FDMXPort;
 
 struct FGuid;
 
+/**
+ * Strategy for priority system (when receiving packets)
+ * 
+ * Not: Not all protocols have a use for this
+*/
+UENUM()
+enum class EDMXPortPriorityStrategy : uint8
+{
+	/** Always manage the packet */
+	None,
+	/** Manage the packet only if the priority is equal to the specified value */
+	Equal,
+	/** Manage the packet only if the priority is higher than the specified value */
+	HigherThan,
+	/** Manage the packet only if the priority is lower than the specified value */
+	LowerThan,
+	/** Manage the packet only if it matches the highest received priority */
+	Highest,
+	/** Manage the packet only if it matches the lowest received priority */
+	Lowest
+};
 
 /** Data to create a new input port config with related constructor. */
 struct DMXPROTOCOL_API FDMXInputPortConfigParams
@@ -41,7 +62,7 @@ struct DMXPROTOCOL_API FDMXInputPortConfig
 	GENERATED_BODY()
 
 public:
-	/** Default constructor, only for CDOs */
+	/** Default constructor, only for Default Objects */
 	FDMXInputPortConfig() = default;
 
 	/** Constructs a config from the guid */
@@ -61,6 +82,8 @@ public:
 	FORCEINLINE int32 GetNumUniverses() const { return NumUniverses; }
 	FORCEINLINE int32 GetExternUniverseStart() const { return ExternUniverseStart; }
 	FORCEINLINE const FGuid& GetPortGuid() const { return PortGuid; }
+	FORCEINLINE const EDMXPortPriorityStrategy GetPortPriorityStrategy() const { return PriorityStrategy; }
+	FORCEINLINE const int32 GetPriority() const { return Priority; }
 
 #if WITH_EDITOR
 	static FName GetProtocolNamePropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, ProtocolName); }
@@ -71,35 +94,43 @@ public:
 
 protected:
 	/** The name displayed wherever the port can be displayed */
-	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config")
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
 	FString PortName;
 
 	/** DMX Protocol */
-	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config")
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
 	FName ProtocolName;
 
 	/** The type of communication used with this port */
-	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config")
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
 	EDMXCommunicationType CommunicationType;
 
 	/** The Network Interface Card's IP Adress, over which DMX is received */
-	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Network Interface Card IP Address"))
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Network Interface Card IP Address"))
 	FString DeviceAddress; 
 
 	/** Local Start Universe */
-	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config")
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
 	int32 LocalUniverseStart;
 
 	/** Number of Universes */
-	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Amount of Universes"))
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Amount of Universes"))
 	int32 NumUniverses;
 
 	/** 
 	 * The start address this being transposed to. 
 	 * E.g. if LocalUniverseStart is 1 and this is 100, Local Universe 1 is sent/received as Universe 100.
 	 */
-	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config")
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
 	int32 ExternUniverseStart;
+
+	/** How to deal with the priority value */
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
+	EDMXPortPriorityStrategy PriorityStrategy = EDMXPortPriorityStrategy::None;
+
+	/** Priority value, can act as a filter or a threshold */
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
+	int32 Priority = 0;
 
 protected:
 	/** Generates a unique port name (unique for those stored in project settings) */
@@ -109,6 +140,6 @@ protected:
 	 * Unique identifier, shared with the port instance.
 	 * Note: This needs be BlueprintReadWrite to be accessible to property type customization, but is hidden by customization.
 	 */
-	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config Guid", meta = (IgnoreForMemberInitializationTest))
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config Guid", meta = (IgnoreForMemberInitializationTest))
 	FGuid PortGuid;
 };

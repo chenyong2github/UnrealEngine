@@ -1,14 +1,13 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SRCProtocolRangeList.h"
-
 #include "EditorFontGlyphs.h"
 #include "SRCProtocolRange.h"
 #include "ViewModels/ProtocolBindingViewModel.h"
 #include "ViewModels/ProtocolRangeViewModel.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Views/SListView.h"
 
@@ -20,45 +19,63 @@ void SRCProtocolRangeList::Construct(const FArguments& InArgs, const TSharedRef<
 	ViewModel = InViewModel;
 	PrimaryColumnSizeData = InArgs._PrimaryColumnSizeData;
 	SecondaryColumnSizeData = InArgs._SecondaryColumnSizeData;
-	
+
 	ListView = SNew(SListView<TSharedPtr<FProtocolRangeViewModel>>)
-		.SelectionMode(ESelectionMode::None)
-		.ListItemsSource(&ViewModel->GetRanges())
-		.OnGenerateRow(this, &SRCProtocolRangeList::OnGenerateRow)
-		.AllowOverscroll(EAllowOverscroll::No);
+			   .SelectionMode(ESelectionMode::None)
+			   .ListItemsSource(&ViewModel->GetRanges())
+			   .OnGenerateRow(this, &SRCProtocolRangeList::OnGenerateRow)
+			   .AllowOverscroll(EAllowOverscroll::No);
 
 	ViewModel->OnRangeMappingAdded().AddSP(this, &SRCProtocolRangeList::OnRangeMappingAdded);
 	ViewModel->OnRangeMappingRemoved().AddSP(this, &SRCProtocolRangeList::OnRangeMappingRemoved);
-	ViewModel->OnChanged().AddLambda([&]
-    {
-        if(ListView.IsValid())
-        {
-            ListView->RequestListRefresh();
-        }
-    });
+	ViewModel->OnChanged().AddSP(this, &SRCProtocolRangeList::OnViewModelChanged);
 
 	ChildSlot
 	[
 		SNew(SVerticalBox)
-	    + SVerticalBox::Slot()
-	    .AutoHeight()
-	    .Padding(1, 1, 1, Padding)
-	    [
-		    SNew(SBorder)
-	        .BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
-	        .Padding(FMargin(0.0f, 4.0f, 4.0f, 4.0f))
-	        .BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
-	        .HAlign(HAlign_Fill)
-	        [
-	            ConstructHeader()
-	        ]
-	    ]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(1, 1, 1, Padding)
+		[
+			SNew(SBorder)
+			.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+			.Padding(FMargin(0.0f, 4.0f, 4.0f, 4.0f))
+			.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
+			.HAlign(HAlign_Fill)
+			[
+				ConstructHeader()
+			]
+		]
 
-	    + SVerticalBox::Slot()
-	    .Padding(Padding)
-	    [
-	        ListView.ToSharedRef()
-	    ]
+		// Channel muting
+		/*
+		+ SVerticalBox::Slot()
+		.VAlign(VAlign_Top)
+		.AutoHeight()
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.VAlign(VAlign_Center)
+			.FillHeight(1.0f)
+			[
+				ConstructChannelMuter()
+			]
+
+			+ SVerticalBox::Slot()
+			.VAlign(VAlign_Top)
+			.AutoHeight()
+			[
+				SNew(SSeparator)
+				.Orientation(EOrientation::Orient_Horizontal)
+			]
+		]
+		*/
+
+		+ SVerticalBox::Slot()
+		.Padding(Padding)
+		[
+			ListView.ToSharedRef()
+		]
 	];
 }
 
@@ -70,61 +87,83 @@ void SRCProtocolRangeList::GetDesiredWidth(float& OutMinDesiredWidth, float& Out
 
 TSharedRef<SWidget> SRCProtocolRangeList::ConstructHeader()
 {
-	constexpr float Padding = 2.0f;
-
 	const TSharedPtr<SWidget> LeftWidget =
 		SNew(SHorizontalBox)
-        + SHorizontalBox::Slot()
-          .VAlign(VAlign_Center)
-          .HAlign(HAlign_Left)
-          .Padding(2.0f)
-          .AutoWidth()
-        [
-            SNullWidget::NullWidget
-        ]
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Left)
+		.Padding(2.0f)
+		.AutoWidth()
+		[
+			SNullWidget::NullWidget
+		]
 
-        + SHorizontalBox::Slot()
-          .VAlign(VAlign_Center)
-          .AutoWidth()
-        [
-            SNew(STextBlock)
-            .Text(LOCTEXT("Ranges", "Ranges"))
-            .Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
-            .ShadowOffset(FVector2D(1.0f, 1.0f))
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("Ranges", "Ranges"))
+			.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+			.ShadowOffset(FVector2D(1.0f, 1.0f))
 		];
 
 	const TSharedPtr<SWidget> RightWidget =
 		SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.FillWidth(1.0f)
+		+ SHorizontalBox::Slot()
+		.FillWidth(1.0f)
+		[
+			SNew(SSpacer)
+		]
+
+		// Add new range button
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Right)
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+			.ToolTipText(LOCTEXT("AddRangeTooltip", "Add a new range"))
+			.OnClicked_Lambda([this]()
+			{
+				ViewModel->AddRangeMapping();
+				return FReply::Handled();
+			})
+			.ContentPadding(FMargin(2.0f, 1.0f))
+			.Content()
 			[
-			    SNew(SSpacer)
+				SNew(STextBlock)
+				.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.Text(FEditorFontGlyphs::Plus)
 			]
-							
-			+ SHorizontalBox::Slot()
-			  .VAlign(VAlign_Center)
-			  .HAlign(HAlign_Right)
-			  .AutoWidth()
-			  [
-			    // @todo: clear/delete all
-			    SNew(SButton)
-			    .ButtonStyle(FEditorStyle::Get(), "NoBorder")
-			    .ToolTipText(LOCTEXT("AddRangeTooltip", "Add a new range"))
-			    .OnClicked_Lambda([this]()
-			     {
-			         ViewModel->AddRangeMapping();
-			         return FReply::Handled();
-			     })
-			    .ContentPadding(FMargin(2.0f, 1.0f))
-			    .Content()
-			    [
-			        SNew(STextBlock)
-			        .TextStyle(FEditorStyle::Get(), "NormalText.Important")
-			        .Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-			        .Text(FEditorFontGlyphs::Plus)
-			    ]
-			];
-	
+		]
+
+		// Delete *all* ranges button
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Right)
+		.AutoWidth()
+		[		
+			SNew(SButton)
+			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+			.ToolTipText(LOCTEXT("DeleteRangesTooltip", "Delete all ranges"))
+			.OnClicked_Lambda([this]()
+			{
+				ViewModel->RemoveAllRangeMappings();
+				return FReply::Handled();
+			})
+			.ContentPadding(FMargin(2.0f, 1.0f))
+			.Content()
+			[
+				SNew(STextBlock)
+				.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.Text(FText::FromString(FString(TEXT("\xf00d"))))
+			]
+		];
+
 	TSharedRef<SHorizontalBox> Widget =
 		SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
@@ -132,8 +171,51 @@ TSharedRef<SWidget> SRCProtocolRangeList::ConstructHeader()
 			SNew(RemoteControlProtocolWidgetUtils::SCustomSplitter)
 			.LeftWidget(LeftWidget.ToSharedRef())
 			.RightWidget(RightWidget.ToSharedRef())
-	        .ColumnSizeData(PrimaryColumnSizeData)
-        ];
+			.ColumnSizeData(PrimaryColumnSizeData)
+		];
+
+	return Widget;
+}
+
+TSharedRef<SWidget> SRCProtocolRangeList::ConstructChannelMuter()
+{
+	const TSharedPtr<SWidget> LeftWidget =
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Left)
+		.Padding(2.0f)
+		.AutoWidth()
+		[
+			SNullWidget::NullWidget
+		]
+
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			SNew(STextBlock)
+			.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
+			.Text(LOCTEXT("Channels", "Channels"))
+		];
+
+	const TSharedPtr<SWidget> RightWidget =
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SSpacer)
+		];
+
+	TSharedRef<SHorizontalBox> Widget =
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		[
+			SNew(RemoteControlProtocolWidgetUtils::SCustomSplitter)
+			.LeftWidget(LeftWidget.ToSharedRef())
+			.RightWidget(RightWidget.ToSharedRef())
+			.ColumnSizeData(PrimaryColumnSizeData)
+		];
 
 	return Widget;
 }
@@ -142,23 +224,30 @@ TSharedRef<ITableRow> SRCProtocolRangeList::OnGenerateRow(TSharedPtr<FProtocolRa
 {
 	check(InViewModel.IsValid());
 	return SNew(SRCProtocolRange, InOwnerTable, InViewModel.ToSharedRef())
-		.PrimaryColumnSizeData(PrimaryColumnSizeData)
-		.SecondaryColumnSizeData(SecondaryColumnSizeData);
+		   .PrimaryColumnSizeData(PrimaryColumnSizeData)
+		   .SecondaryColumnSizeData(SecondaryColumnSizeData);
 }
 
 void SRCProtocolRangeList::OnRangeMappingAdded(TSharedRef<FProtocolRangeViewModel> InRangeViewModel) const
 {
-	if(ListView.IsValid())
-	{
-		ListView->RequestListRefresh();
-	}
+	Refresh();
 }
 
 void SRCProtocolRangeList::OnRangeMappingRemoved(FGuid InRangeId) const
 {
-	if(ListView.IsValid())
+	Refresh();
+}
+
+void SRCProtocolRangeList::OnViewModelChanged() const
+{
+	Refresh();
+}
+
+void SRCProtocolRangeList::Refresh() const
+{
+	if (ListView.IsValid())
 	{
-		ListView->RequestListRefresh();	
+		ListView->RequestListRefresh();
 	}
 }
 

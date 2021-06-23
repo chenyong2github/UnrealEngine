@@ -1,24 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "DMXFixtureComponentColor.h"
+
 
 UDMXFixtureComponentColor::UDMXFixtureComponentColor()
 	: CurrentTargetColorRef(nullptr)
 {
 	PrimaryComponentTick.bCanEverTick = false;
-	InitCells(1);
 }
 
-
-// NB: Does not support interpolation
-void UDMXFixtureComponentColor::InitCells(int NCells)
+void UDMXFixtureComponentColor::Initialize()
 {
-	TargetColorArray.Init(FLinearColor(1.f, 1.f, 1.f, 0.f), NCells);
+	Super::Initialize();
+
+	TargetColorArray.Init(FLinearColor(1.f, 1.f, 1.f, 0.f), Cells.Num());
 	CurrentTargetColorRef = &TargetColorArray[0];
+
+	InitializeComponent();
 }
 
-// NB: Does not support interpolation
 void UDMXFixtureComponentColor::SetCurrentCell(int Index)
 {
 	if (Index < TargetColorArray.Num())
@@ -27,19 +27,17 @@ void UDMXFixtureComponentColor::SetCurrentCell(int Index)
 	}
 }
 
-bool UDMXFixtureComponentColor::IsColorValid(FLinearColor NewColor)
+bool UDMXFixtureComponentColor::IsColorValid(const FLinearColor& NewColor) const
 {
 	if (!CurrentTargetColorRef->Equals(NewColor, SkipThreshold))
 	{
 		return true;
 	}
-	else
-	{
-		return false;
-	}
+
+	return false;
 }
 
-void UDMXFixtureComponentColor::SetTargetColor(FLinearColor NewColor)
+void UDMXFixtureComponentColor::SetTargetColor(const FLinearColor& NewColor)
 {
 	CurrentTargetColorRef->R = NewColor.R;
 	CurrentTargetColorRef->G = NewColor.G;

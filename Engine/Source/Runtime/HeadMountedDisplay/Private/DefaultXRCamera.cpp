@@ -107,6 +107,11 @@ void FDefaultXRCamera::PreRenderView_RenderThread(FRHICommandListImmediate& RHIC
 		FQuat DeviceOrientation;
 		FVector DevicePosition;
 
+		if (TrackingSystem->DoesSupportLateProjectionUpdate() && TrackingSystem->GetStereoRenderingDevice())
+		{
+			View.UpdateProjectionMatrix(TrackingSystem->GetStereoRenderingDevice()->GetStereoProjectionMatrix(View.StereoPass));
+		}
+
 		if (TrackingSystem->GetCurrentPose(DeviceId, DeviceOrientation, DevicePosition))
 		{
 			const FQuat DeltaOrient = View.BaseHmdOrientation.Inverse() * DeviceOrientation;

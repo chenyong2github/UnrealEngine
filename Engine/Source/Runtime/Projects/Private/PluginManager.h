@@ -125,6 +125,8 @@ public:
 		return FindPlugin(FStringView(NameString));
 	}
 
+	virtual TSharedPtr<IPlugin> FindPluginFromPath(const FString& PluginPath) override;
+
 	virtual TArray<TSharedRef<IPlugin>> GetEnabledPlugins() override;
 	virtual TArray<TSharedRef<IPlugin>> GetEnabledPluginsWithContent() const override;
 	virtual TArray<TSharedRef<IPlugin>> GetDiscoveredPlugins() override;

@@ -2197,10 +2197,13 @@ UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters )
 		FDuplicatedObject ObjectInfo = DuplicatedObjectAnnotation.GetAnnotation( SerializedObject );
 		checkSlow( !ObjectInfo.IsDefault() );
 
-		TGuardValue<UObject*> SerializedObjectGuard(LoadContext->SerializedObject, ObjectInfo.DuplicatedObject);
+		UObject* DuplicatedObject = ObjectInfo.DuplicatedObject.GetEvenIfUnreachable();
+		check(DuplicatedObject);
+
+		TGuardValue<UObject*> SerializedObjectGuard(LoadContext->SerializedObject, DuplicatedObject);
 		if ( !SerializedObject->HasAnyFlags(RF_ClassDefaultObject) )
 		{
-			ObjectInfo.DuplicatedObject->Serialize(Reader);
+			DuplicatedObject->Serialize(Reader);
 		}
 		else
 		{
@@ -2208,7 +2211,7 @@ UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters )
 			// and in order to read those properties out correctly, we'll need to enable defaults serialization on the
 			// reader as well.
 			Reader.StartSerializingDefaults();
-			ObjectInfo.DuplicatedObject->Serialize(Reader);
+			DuplicatedObject->Serialize(Reader);
 			Reader.StopSerializingDefaults();
 		}
 	}
@@ -2227,21 +2230,24 @@ UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters )
 		{
 			FDuplicatedObject DupObjectInfo = DuplicatedObjectAnnotation.GetAnnotation( OrigObject );
 
-			UObject* DupObjectArchetype = DupObjectInfo.DuplicatedObject->GetArchetype();
-
-			bool bDuplicateForPIE = (Parameters.PortFlags & PPF_DuplicateForPIE) != 0;
-
-			// Any PIE duplicated object that has the standalone flag is a potential garbage collection issue
-			ensure(!(bDuplicateForPIE && DupObjectInfo.DuplicatedObject->HasAnyFlags(RF_Standalone)));
-
-			DupObjectInfo.DuplicatedObject->PostDuplicate(Parameters.DuplicateMode);
-			if (!Parameters.bSkipPostLoad && !DupObjectInfo.DuplicatedObject->IsTemplate())
+			if (UObject* DuplicatedObject = DupObjectInfo.DuplicatedObject.GetEvenIfUnreachable())
 			{
-				// Don't want to call PostLoad on class duplicated CDOs
-				TGuardValue<bool> GuardIsRoutingPostLoad(FUObjectThreadContext::Get().IsRoutingPostLoad, true);
-				DupObjectInfo.DuplicatedObject->ConditionalPostLoad();
+				UObject* DupObjectArchetype = DuplicatedObject->GetArchetype();
+
+				bool bDuplicateForPIE = (Parameters.PortFlags & PPF_DuplicateForPIE) != 0;
+
+				// Any PIE duplicated object that has the standalone flag is a potential garbage collection issue
+				ensure(!(bDuplicateForPIE && DuplicatedObject->HasAnyFlags(RF_Standalone)));
+
+				DuplicatedObject->PostDuplicate(Parameters.DuplicateMode);
+				if (!Parameters.bSkipPostLoad && !DuplicatedObject->IsTemplate())
+				{
+					// Don't want to call PostLoad on class duplicated CDOs
+					TGuardValue<bool> GuardIsRoutingPostLoad(FUObjectThreadContext::Get().IsRoutingPostLoad, true);
+					DuplicatedObject->ConditionalPostLoad();
+				}
+				DuplicatedObject->CheckDefaultSubobjects();
 			}
-			DupObjectInfo.DuplicatedObject->CheckDefaultSubobjects();
 		}
 	}
 
@@ -2263,7 +2269,10 @@ UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters )
 			if ( Parameters.DuplicationSeed.Find(OrigObject) == nullptr )
 			{
 				FDuplicatedObject DupObjectInfo = DuplicatedObjectAnnotation.GetAnnotation( OrigObject );
-				Parameters.CreatedObjects->Add(OrigObject, DupObjectInfo.DuplicatedObject);
+				if (UObject* DuplicatedObject = DupObjectInfo.DuplicatedObject.GetEvenIfUnreachable())
+				{
+					Parameters.CreatedObjects->Add(OrigObject, DuplicatedObject);
+				}
 			}
 		}
 	}
@@ -3738,6 +3747,27 @@ FReferenceCollector::~FReferenceCollector()
 {
 	delete DefaultReferenceCollectorArchive;
 	delete PersistentFrameReferenceCollectorArchive;
+}
+
+void FReferenceCollector::AddReferencedObjects(const UScriptStruct*& ScriptStruct, void* StructMemory, const UObject* ReferencingObject /*= nullptr*/, const FProperty* ReferencingProperty /*= nullptr*/)
+{
+	check(ScriptStruct != nullptr);
+	check(StructMemory != nullptr);
+
+	AddReferencedObject(ScriptStruct, ReferencingObject, ReferencingProperty);
+
+	// If the script struct explicitly provided an implementation of AddReferencedObjects, make sure to capture its referenced objects
+	if (ScriptStruct->StructFlags & STRUCT_AddStructReferencedObjects)
+	{
+		ScriptStruct->GetCppStructOps()->AddStructReferencedObjects()(StructMemory, *this);
+	}
+
+	// Iterate through all object properties within the struct (will also search through structs within the struct)
+	for (TPropertyValueIterator<const FObjectProperty> ObjectPropertyIter(ScriptStruct, StructMemory); ObjectPropertyIter; ++ObjectPropertyIter)
+	{
+		UObject** ObjectPtr = static_cast<UObject**>(const_cast<void*>(ObjectPropertyIter.Value()));
+		AddReferencedObject(*ObjectPtr, ReferencingObject, ReferencingProperty);
+	}
 }
 
 void FReferenceCollector::HandleObjectReferences(FObjectPtr* InObjects, const int32 ObjectNum, const UObject* InReferencingObject, const FProperty* InReferencingProperty)

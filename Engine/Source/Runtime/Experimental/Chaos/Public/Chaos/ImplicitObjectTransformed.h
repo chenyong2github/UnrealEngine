@@ -83,6 +83,22 @@ public:
 		this->bIsConvex = Other.MObject->IsConvex();
 		this->bDoCollide = Other.MObject->GetDoCollide();
 	}
+
+	virtual FImplicitObject* Duplicate() const override
+	{
+		if(MObjectOwner)
+		{
+			check(bSerializable);
+			TUniquePtr<FImplicitObject> DupObj(MObjectOwner->Duplicate());
+			return new TImplicitObjectTransformed<T,d,true>(MoveTemp(DupObj), MTransform);
+		}
+		else
+		{
+			check(false);	//duplicate only supported for owned geometry
+			return nullptr;
+		}
+	}
+
 	~TImplicitObjectTransformed() {}
 
 	static constexpr EImplicitObjectType StaticType()

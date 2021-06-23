@@ -20,8 +20,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogPackageStoreOptimizer, Log, All);
 // modified copy from SavePackage
 EObjectMark GetExcludedObjectMarksForTargetPlatform(const ITargetPlatform* TargetPlatform)
 {
-	EObjectMark Marks = OBJECTMARK_NOMARKS;
-	if (!TargetPlatform->HasEditorOnlyData())
+	EObjectMark Marks = OBJECTMARK_NotForTargetPlatform;
+	if (!TargetPlatform->AllowsEditorObjects())
 	{
 		Marks = (EObjectMark)(Marks | OBJECTMARK_EditorOnly);
 	}
@@ -48,10 +48,18 @@ EObjectMark GetExcludedObjectMarksForObject(const UObject* Object, const ITarget
 	{
 		Marks = (EObjectMark)(Marks | OBJECTMARK_NotForServer);
 	}
-	if (!Object->NeedsLoadForTargetPlatform(TargetPlatform))
+#if WITH_ENGINE
+	// NotForServer && NotForClient implies EditorOnly
+	const bool bIsEditorOnlyObject = (Marks & OBJECTMARK_NotForServer) && (Marks & OBJECTMARK_NotForClient);
+	const bool bTargetAllowsEditorObjects = TargetPlatform->AllowsEditorObjects();
+
+	// no need to query the target platform if the object is editoronly and the targetplatform doesn't allow editor objects 
+	const bool bCheckTargetPlatform = !bIsEditorOnlyObject || bTargetAllowsEditorObjects;
+	if (bCheckTargetPlatform && (!Object->NeedsLoadForTargetPlatform(TargetPlatform) || !TargetPlatform->AllowObject(Object)))
 	{
-		Marks = (EObjectMark)(Marks | OBJECTMARK_NotForClient | OBJECTMARK_NotForServer);
+		Marks = (EObjectMark)(Marks | OBJECTMARK_NotForTargetPlatform);
 	}
+#endif
 	if (Object->IsEditorOnly())
 	{
 		Marks = (EObjectMark)(Marks | OBJECTMARK_EditorOnly);
@@ -1751,7 +1759,7 @@ void FPackageStoreOptimizer::FindScriptObjects(const ITargetPlatform* TargetPlat
 	const EObjectMark ExcludedObjectMarks = GetExcludedObjectMarksForTargetPlatform(TargetPlatform);
 
 	TArray<UPackage*> ScriptPackages;
-	FindAllRuntimeScriptPackages(ScriptPackages);
+	FindAllRuntimeScriptPackages(ScriptPackages, TargetPlatform->AllowsEditorObjects());
 
 	TArray<UObject*> InnerObjects;
 	for (UPackage* Package : ScriptPackages)

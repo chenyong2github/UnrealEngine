@@ -16,93 +16,97 @@
 
 #include "DisplayClusterConfigurationTypes_Viewport.generated.h"
 
-USTRUCT()
+USTRUCT(Blueprintable)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_Overscan
 {
 	GENERATED_BODY()
 
 public:
 	// Allow Render overscan
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Viewport")
 	EDisplayClusterConfigurationViewportOverscanMode Mode = EDisplayClusterConfigurationViewportOverscanMode::None;
 
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Viewport")
 	float Left = 0;
 
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Viewport")
 	float Right = 0;
 
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Viewport")
 	float Top  = 0;
 
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Viewport")
 	float Bottom = 0;
 
 	// If true (increased RTT size, same image quality) - increase the RTT size from overscan_pixel or overscan_percent (of actual size)
 	// If false (same RTT size, loss of image quality) - use the original viewport size to render overscan, but finally the small inner rectangle copy into the frame 
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Viewport", meta = (DisplayName = "Adapt Resolution", DisplayAfter = "Mode", ToolTip = "If checked, the viewport's render resolution will be increased by the overscan amount; otherwise, viewport image will be scaled down to accommodate overscan"))
 	bool bOversize = true;
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_ICVFX
 {
 	GENERATED_BODY()
 
 public:
 	// Allow use ICVFX for this viewport (Must be supported by projection policy)
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "In Camera VFX")
 	bool bAllowICVFX = true;
 
+	// Allow use innner frustum for this viewport (when disabled, the CameraRenderMode = 'Disabled')
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "In Camera VFX")
+	bool bAllowInnerFrustum = true;
+
 	// Disable incamera render to this viewport
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "In Camera VFX")
 	EDisplayClusterConfigurationICVFX_OverrideCameraRenderMode CameraRenderMode = EDisplayClusterConfigurationICVFX_OverrideCameraRenderMode::Default;
 
 	// Use unique lightcard mode for this viewport
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "In Camera VFX")
 	EDisplayClusterConfigurationICVFX_OverrideLightcardRenderMode LightcardRenderMode = EDisplayClusterConfigurationICVFX_OverrideLightcardRenderMode::Default;
 };
 
-USTRUCT()
+USTRUCT(Blueprintable)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_RenderSettings
 {
 	GENERATED_BODY()
 
 public:
+	// Performance, Multi-GPU: Customize GPU for stereo mode second view (EYE_RIGHT GPU)
+	UPROPERTY(EditAnywhere, Category = "Configuration", meta = (DisplayName = "Stereo GPU Index"))
+	int StereoGPUIndex = -1;
+
+	// Performance: force monoscopic render, resolved to stereo viewport
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
+	EDisplayClusterConfigurationViewport_StereoMode StereoMode = EDisplayClusterConfigurationViewport_StereoMode::Default;
+
 	// Allow ScreenPercentage 
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "10.0", UIMax = "10.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "Screen Percentage", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10.0", UIMax = "10.0"))
 	float BufferRatio = 1;
 
-	// Experimental: Overscan rendering
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
-	FDisplayClusterConfigurationViewport_Overscan Overscan;
+	// Performance: Render to scale RTT, resolved with shader to viewport (Custom value)
+	UPROPERTY(EditAnywhere, Category = "Configuration", meta = (ClampMin = "0.01", UIMin = "0.01", ClampMax = "1.0", UIMax = "1.0"))
+	float RenderTargetRatio = 1.f;
 
 	UPROPERTY()
 	FDisplayClusterConfigurationViewport_CustomPostprocess CustomPostprocess;
 
 	// Override viewport render from source texture
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Override")
 	FDisplayClusterConfigurationPostRender_Override Override;
 
 	// Add postprocess blur to viewport
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", AdvancedDisplay)
 	FDisplayClusterConfigurationPostRender_BlurPostprocess PostprocessBlur;
 
 	// Generate Mips texture for this viewport (used, only if projection policy supports this feature)
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", AdvancedDisplay)
 	FDisplayClusterConfigurationPostRender_GenerateMips GenerateMips;
 
-	// Performance: force monoscopic render, resolved to stereo viewport
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
-	EDisplayClusterConfigurationViewport_StereoMode StereoMode = EDisplayClusterConfigurationViewport_StereoMode::Default;
-
-	// Performance, Multi-GPU: Customize GPU for stereo mode second view (EYE_RIGHT GPU)
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
-	int StereoGPUIndex = -1;
-
-	// Performance: Render to scale RTT, resolved with shader to viewport (Custom value)
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport", meta = (ClampMin = "0.01", UIMin = "0.01", ClampMax = "1.0", UIMax = "1.0"))
-	float RenderTargetRatio = 1.f;
+	// Experimental: Overscan rendering
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
+	FDisplayClusterConfigurationViewport_Overscan Overscan;
 
 	// Experimental: Support special frame builder mode - merge viewports to single viewfamily by group num
 	// [not implemented yet]
@@ -110,7 +114,7 @@ public:
 	int RenderFamilyGroup = -1;
 };
 
-UCLASS()
+UCLASS(Blueprintable)
 class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationViewport
 	: public UDisplayClusterConfigurationData_Base
 {
@@ -136,56 +140,48 @@ private:
 
 public:
 	// MultiUser : control this viewport rendering
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "Enable Viewport"))
 	bool bAllowRendering = true;
 
 	// @todo: GUI: Toggle visibility of this property: hide for camera projection policy, and show for other
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport", meta = (DisplayName = "View Origin"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "View Origin"))
 	FString Camera;
 
-	UPROPERTY(EditDefaultsOnly, Category = "NDisplay Viewport")
+	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
 	FDisplayClusterConfigurationProjection ProjectionPolicy;
 
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport", meta = (DisplayName = "Shared Texture"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Configuration", meta = (DisplayName = "Shared Texture"))
 	bool bIsShared = false;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, Category = "Configuration")
 	bool bFixedAspectRatio;
 #endif
 	
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
 	FDisplayClusterConfigurationRectangle Region;
 
-	// Performance, Multi-GPU: Asign GPU for viewport rendering. The Value '-1' used to default gpu mapping (EYE_LEFT and EYE_RIGHT GPU)
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
-	int GPUIndex = -1;
-
 	// Viewport can overlap each other on backbuffer. This value uses to sorting order
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
 	int OverlapOrder = 0;
 
+	// Performance, Multi-GPU: Asign GPU for viewport rendering. The Value '-1' used to default gpu mapping (EYE_LEFT and EYE_RIGHT GPU)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "GPU Index"))
+	int GPUIndex = -1;
+
 	// Configure render for this viewport
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (ShowOnlyInnerProperties))
 	FDisplayClusterConfigurationViewport_RenderSettings RenderSettings;
 
 	// Configure ICVFX for this viewport
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "In Camera VFX", meta = (ShowOnlyInnerProperties))
 	FDisplayClusterConfigurationViewport_ICVFX ICVFX;
 
-	// OCIO Display look configuration 
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
-	FOpenColorIODisplayConfiguration OCIO_Configuration;
-
-	// Per viewport post processing
-	UPROPERTY(EditAnywhere, Category = "NDisplay Viewport")
-	FDisplayClusterConfigurationViewport_PostProcessSettings PostProcessSettings;
-
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditDefaultsOnly, Category = "NDisplay", meta = (nDisplayHidden))
+	UPROPERTY(EditDefaultsOnly, Category = "Configuration", meta = (nDisplayHidden))
 	bool bIsEnabled = true;
 
-	UPROPERTY(EditDefaultsOnly, Category = "NDisplay", meta = (nDisplayHidden))
+	UPROPERTY(EditDefaultsOnly, Category = "Configuration", meta = (nDisplayHidden))
 	bool bIsVisible = true;
 #endif
 
@@ -195,14 +191,14 @@ public:
 };
 
 // This struct now stored in UDisplayClusterConfigurationData, and replicated with MultiUser
-USTRUCT()
+USTRUCT(Blueprintable)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationRenderFrame
 {
 	GENERATED_BODY()
 
 public:
 	// Performance: Allow change global MGPU settings
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, Category = "Configuration", meta = (DisplayName = "Multi GPU Mode"))
 	EDisplayClusterConfigurationRenderMGPUMode MultiGPUMode = EDisplayClusterConfigurationRenderMGPUMode::Enabled;
 
 	// Performance: Allow merge multiple viewports on single RTT with atlasing (required for bAllowViewFamilyMergeOptimization)
@@ -221,20 +217,32 @@ public:
 	UPROPERTY()
 	bool bShouldUseParentViewportRenderFamily = false;
 
-	// Multiply all downscale ratio inside all viewports settings for whole cluster
-	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (DisplayName = "Global Viewport Screen Percentage Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1"))
+	// Multiply all viewports RTT size's for whole cluster by this value
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Global Viewport RTT Size Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
 	float ClusterRenderTargetRatioMult = 1.f;
 
-	// Multiply all downscale ratio inside icvfx outer viewports settings for whole cluster
-	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (DisplayName = "Outer Viewport Screen Percentage Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "1", UIMax = "1"))
+	// Multiply inner frustum RTT size's for whole cluster by this value
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Inner Frustum RTT Size Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
+	float ClusterICVFXInnerViewportRenderTargetRatioMult = 1.f;
+
+	// Multiply outer viewports RTT size's for whole cluster by this value
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Outer Viewport RTT Size Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
 	float ClusterICVFXOuterViewportRenderTargetRatioMult = 1.f;
 
 	// Multiply all buffer ratios for whole cluster by this value
-	UPROPERTY(EditAnywhere, Category = NDisplay, meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Global Viewport Screen Percentage Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
 	float ClusterBufferRatioMult = 1.f;
 
+	// Multiply inner frustums buffer ratios for whole cluster by this value
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Inner Frustum Screen Percentage Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
+	float ClusterICVFXInnerFrustumBufferRatioMult = 1.f;
+
+	// Multiply outer viewports buffer ratios for whole cluster by this value
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Viewport Screen Percentage Multiplier", ClampMin = "0.05", UIMin = "0.05", ClampMax = "10", UIMax = "10"))
+	float ClusterICVFXOuterViewportBufferRatioMult = 1.f;
+
 	// Allow warpblend render
-	UPROPERTY(EditAnywhere, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
 	bool bAllowWarpBlend = true;
 };
 

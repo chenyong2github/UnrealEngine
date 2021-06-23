@@ -45,6 +45,13 @@ public:
 
 	UAudioEngineSubsystem();
 
+	/**
+	 * Override to get an update call during AudioDevice::Update
+	 *  Note: This call will happen on the audio thread
+	 */
+	virtual void Update() {}
+
+	/** Returns the owning audio device handle */
 	virtual FAudioDeviceHandle GetAudioDeviceHandle() const final;
 };
 

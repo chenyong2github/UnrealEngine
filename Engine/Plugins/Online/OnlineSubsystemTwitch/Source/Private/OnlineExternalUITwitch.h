@@ -23,13 +23,17 @@ PACKAGE_SCOPE:
 	 * Constructor
 	 * @param InSubsystem The owner of this external UI interface.
 	 */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FOnlineExternalUITwitch(FOnlineSubsystemTwitch* InSubsystem)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		: TwitchSubsystem(InSubsystem)
 	{
 	}
 
 	/** Reference to the owning subsystem */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FOnlineSubsystemTwitch* TwitchSubsystem;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 public:
 
@@ -61,7 +65,9 @@ private:
 	 * @param RedirectURL an URL knowns to start with the redirect URI
 	 * @return login flow result populated with token or error
 	 */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FLoginFlowResult ParseRedirectResult(const FTwitchLoginURL& URLDetails, const FString& RedirectURL);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Delegate fired when redirect URLs from the login flow are passed back for parsing

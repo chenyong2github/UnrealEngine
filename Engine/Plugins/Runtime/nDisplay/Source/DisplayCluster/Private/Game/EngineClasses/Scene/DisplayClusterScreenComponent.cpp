@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/DisplayClusterScreenComponent.h"
+
+#include "DisplayClusterVersion.h"
 #include "Components/StaticMeshComponent.h"
 
 #include "Engine/StaticMesh.h"
@@ -8,128 +10,85 @@
 #include "Materials/Material.h"
 #include "UObject/ConstructorHelpers.h"
 
-#include "DisplayClusterRootActor.h"
-#include "DisplayClusterConfigurationTypes.h"
-
-#include "Game/IPDisplayClusterGameManager.h"
-#include "Misc/DisplayClusterGlobals.h"
-
-#define SIZE_TO_CM(InSize) \
-	InSize * 100.f
-
-#define SIZE_FROM_CM(InSize) \
-	InSize / 100.f
 
 UDisplayClusterScreenComponent::UDisplayClusterScreenComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	Size = SIZE_FROM_CM(FVector2D(100.f, 56.25f));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> ScreenMesh(TEXT("/nDisplay/Meshes/plane_1x1"));
+	SetStaticMesh(ScreenMesh.Object);
 
-#if WITH_EDITORONLY_DATA
-	SizeCm = SIZE_TO_CM(Size);
-#endif
-	
+	SetMobility(EComponentMobility::Movable);
+	SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	SetVisibility(false);
+	SetHiddenInGame(true);
+
 #if WITH_EDITOR
 	if (GIsEditor)
 	{
-		const FName VisName = FName(*(GetName() + FString("_impl")));
-		// Create visual mesh component as a child
-		
-		static ConstructorHelpers::FObjectFinder<UStaticMesh> ScreenMesh(TEXT("/nDisplay/Meshes/plane_1x1"));
-		VisScreenComponent = CreateDefaultSubobject<UStaticMeshComponent>(VisName);
-		VisScreenComponent->SetFlags(RF_Public);
-		
-		VisScreenComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
-		VisScreenComponent->RegisterComponentWithWorld(GetWorld());
-
-		VisScreenComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
-		VisScreenComponent->SetRelativeScale3D(FVector::OneVector);
-		VisScreenComponent->SetStaticMesh(ScreenMesh.Object);
-		VisScreenComponent->SetMobility(EComponentMobility::Movable);
-		VisScreenComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		VisScreenComponent->SetVisibility(true);
-		VisScreenComponent->SetIsVisualizationComponent(true);
+		SetVisibility(true);
 	}
+#endif
+
+	// Default screen size
+	SetScreenSize(FVector2D(100.f, 56.25f));
+}
+
+FVector2D UDisplayClusterScreenComponent::GetScreenSize() const
+{
+	const FVector ComponentScale = GetComponentScale();
+	const FVector2D ComponentScale2D(ComponentScale.Y, ComponentScale.Z);
+	return ComponentScale2D;
+}
+
+void UDisplayClusterScreenComponent::SetScreenSize(const FVector2D& InSize)
+{
+	SetWorldScale3D(FVector(1.f, InSize.X, InSize.Y));
+
+#if WITH_EDITOR
+	Size = InSize;
 #endif
 }
 
-void UDisplayClusterScreenComponent::PostLoad()
+void UDisplayClusterScreenComponent::Serialize(FArchive& Ar)
 {
-	Super::PostLoad();
+	Ar.UsingCustomVersion(FDisplayClusterCustomVersion::GUID);
+	if (Ar.IsLoading() &&
+		Ar.CustomVer(FDisplayClusterCustomVersion::GUID) < FDisplayClusterCustomVersion::ComponentParentChange_4_27)
+	{
+		USceneComponent::Serialize(Ar);
 
-#if WITH_EDITORONLY_DATA
-	SizeCm = SIZE_TO_CM(Size);
+#if WITH_EDITOR
+		// Filtering by GetOwner() allows to avoid double upscaling for many cases. But it's not enough unfortunately.
+		// There are still some cases where screens get upscaled repeatedly and get x10000 in the end.
+		SetScreenSize(Size * (GetOwner() ? 1.f : 100.f));
 #endif
+	}
+	else
+	{
+		Super::Serialize(Ar);
+	}
 }
 
 #if WITH_EDITOR
 void UDisplayClusterScreenComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	if (PropertyChangedEvent.MemberProperty)
+	{
+		if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UDisplayClusterScreenComponent, Size))
+		{
+			SetScreenSize(Size);
+		}
+		else if (PropertyChangedEvent.MemberProperty->GetFName() == TEXT("RelativeScale3D"))
+		{
+			UpdateScreenSizeFromScale();
+		}
+	}
+
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	if (PropertyChangedEvent.MemberProperty &&
-		PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UDisplayClusterScreenComponent, SizeCm))
-	{
-		Size = SIZE_FROM_CM(SizeCm);
-		SetScreenSize(Size);
-	}
-}
-#endif
-
-void UDisplayClusterScreenComponent::ApplyConfigurationData()
-{
-	Super::ApplyConfigurationData();
-
-	if (DoesComponentBelongToBlueprint() && !IsTemplate())
-	{
-		/*
-			Blueprint already contains component information, position, and heirarchy.
-			When this isn't a blueprint (such as config data only or on initial import) we can apply config data.
-			Screen size only needs to be set on instances as the CDO doesn't need it and will only propagate
-			changes that cause problems for the instances.
-		*/
-		SetScreenSize(Size);
-	}
-	else if (const UDisplayClusterConfigurationSceneComponentScreen* CfgScreen = Cast<UDisplayClusterConfigurationSceneComponentScreen>(GetConfigParameters()))
-	{
-		SetScreenSize(CfgScreen->Size);
-	}
 }
 
-FVector2D UDisplayClusterScreenComponent::GetScreenSizeScaled() const
+void UDisplayClusterScreenComponent::UpdateScreenSizeFromScale()
 {
-	const FVector ComponentScale = GetComponentScale();
-	const FVector2D ComponentScale2D(ComponentScale.Y, ComponentScale.Z);
-	return GetScreenSize() * ComponentScale2D;
-}
-
-FVector2D UDisplayClusterScreenComponent::GetScreenSize() const
-{
-	return Size;
-}
-
-void UDisplayClusterScreenComponent::SetScreenSize(const FVector2D& InSize)
-{
-	Size = InSize;
-
-#if WITH_EDITORONLY_DATA
-	SizeCm = SIZE_TO_CM(Size);
-#endif
-	
-#if WITH_EDITOR
-	if (VisScreenComponent)
-	{
-		VisScreenComponent->SetRelativeScale3D(FVector(1.f, SizeCm.X, SizeCm.Y));
-	}
-#endif
-}
-
-#if WITH_EDITOR
-void UDisplayClusterScreenComponent::SetNodeSelection(bool bSelect)
-{
-	if (VisScreenComponent)
-	{
-		VisScreenComponent->bDisplayVertexColors = bSelect;
-		VisScreenComponent->PushSelectionToProxy();
-	}
+	Size = GetScreenSize();
 }
 #endif

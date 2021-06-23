@@ -88,17 +88,14 @@ class ListenerClient(object):
             return False
         return False
 
-    def connect(self, ip_address=None, blocking=False):
+    def connect(self, ip_address=None):
         '''
         Initiates a connection.
 
-        By default, calling this function starts the connection setup on a background
+        Calling this function starts the connection setup on a background
         thread. The caller should connect slots to the listener_qt_handler's
-        "listener_connected" and "listener_connection_failed" signals to determine
-        whether the connection was created successfully.
-
-        When "blocking" is True, this function will not return until establishing the
-        connection either succeeds or fails, and True or False will be returned, respectively.
+        "listener_connected" and "listener_connection_failed" signals to
+        determine whether the connection was created successfully.
         '''
         self.disconnect()
 
@@ -111,11 +108,6 @@ class ListenerClient(object):
 
         self.close_socket = False
         self.last_activity = datetime.datetime.now()
-
-        if blocking:
-            # Since we're blocking while creating the connection, we don't pass through
-            # the CONNECTING status.
-            return self._establish_connection()
 
         self.listener_qt_handler.listener_connecting.emit(self)
         establish_connection_thread = Thread(target=self._establish_connection)

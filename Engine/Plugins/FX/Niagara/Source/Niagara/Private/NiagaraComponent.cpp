@@ -941,7 +941,13 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		return;
 	}
 
-	bIsCulledByScalability = false; 
+	bIsCulledByScalability = false;
+	
+	//We reset last render time to the current time so that any visibility culling on a delay will function correctly.
+	//Leaving as the default of -1000 causes the visibility code to always assume this should be culled until it's first rendered and initialized by the RT.
+	//Set the component last render time *before* preculling otherwise there are cases where we can pre cull incorrectly.
+	SetLastRenderTime(GetWorld()->GetTimeSeconds());
+
 	if (ShouldPreCull())
 	{
 		#if WITH_PARTICLE_PERF_CSV_STATS
@@ -1034,7 +1040,6 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 
 	//We reset last render time to the current time so that any visibility culling on a delay will function correctly.
 	//Leaving as the default of -1000 causes the visibility code to always assume this should be culled until it's first rendered and initialized by the RT.
-	SetLastRenderTime(GetWorld()->GetTimeSeconds());
 	SystemInstanceController->SetLastRenderTime(GetLastRenderTime());
 
 	RegisterWithScalabilityManager();
@@ -1341,11 +1346,11 @@ void UNiagaraComponent::OnSystemComplete(bool bExternalCompletion)
 					//Only trigger warning if we're not being deactivated/completed from the outside and this is a natural completion by the system itself.
 					if (EffectType->CullReaction == ENiagaraCullReaction::DeactivateImmediateResume || EffectType->CullReaction == ENiagaraCullReaction::DeactivateResume)
 					{
-						if (GNiagaraComponentWarnAsleepCullReaction == 1)
+						if (GNiagaraComponentWarnAsleepCullReaction == 1 && GetAsset())
 						{
 							//If we're completing naturally, i.e. we're a burst/non-looping system then we shouldn't be using a mode reactivates the effect.
 							UE_LOG(LogNiagara, Warning, TEXT("Niagara Effect has completed naturally but has an effect type with the \"Asleep\" cull reaction. If an effect like this is culled before it can complete then it could leak into the scalability manager and be reactivated incorrectly. Please verify this is using the correct EffectType.\nComponent:%s\nSystem:%s")
-								, *GetFullName(), *GetAsset()->GetFullName());
+								, *GetFullName(), *GetFullNameSafe(GetAsset()));
 						}
 					}
 				}
@@ -2830,6 +2835,34 @@ FNiagaraVariant UNiagaraComponent::FindParameterOverride(const FNiagaraVariableB
 	}
 
 	return FNiagaraVariant();
+}
+
+FNiagaraVariant UNiagaraComponent::GetCurrentParameterValue(const FNiagaraVariableBase& InKey) const
+{
+	FNiagaraVariableBase UserVariable = InKey;
+	if (OverrideParameters.RedirectUserVariable(UserVariable) == false)
+	{
+		return FNiagaraVariant();
+	}
+
+	int32 ParameterOffset = OverrideParameters.IndexOf(UserVariable);
+	if (ParameterOffset == INDEX_NONE)
+	{
+		return FNiagaraVariant();
+	}
+
+	if (InKey.GetType().IsDataInterface())
+	{
+		return FNiagaraVariant(OverrideParameters.GetDataInterface(ParameterOffset));
+	}
+	else if (InKey.GetType().IsUObject())
+	{
+		return FNiagaraVariant(OverrideParameters.GetUObject(ParameterOffset));
+	}
+	else
+	{
+		return FNiagaraVariant(OverrideParameters.GetParameterData(ParameterOffset), InKey.GetSizeInBytes());
+	}
 }
 
 void UNiagaraComponent::SetOverrideParameterStoreValue(const FNiagaraVariableBase& InKey, const FNiagaraVariant& InValue)

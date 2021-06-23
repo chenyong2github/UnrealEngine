@@ -46,6 +46,12 @@ namespace Audio
 		// Returns the duration in seconds of the given Quantization Type, or -1 if the Clock is invalid or nonexistent
 		float GetDurationOfQuantizationTypeInSeconds(const FName& InClockName, const EQuartzCommandQuantization& QuantizationType, float Multiplier);
 
+		// Returns the current location of the clock in the transport
+		FQuartzTransportTimeStamp GetCurrentTimestamp(const FName& InClockName);
+
+		// Returns the amount of time, in seconds, the clock has been running. Caution: due to latency, this will not be perfectly accurate
+		float GetEstimatedRunTime(const FName& InClockName);
+
 		// remove existing clock
 		// safe to call from AudioThread (uses Audio Render Thread Command)
 		void RemoveClock(const FName& InName);

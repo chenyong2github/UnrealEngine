@@ -310,6 +310,11 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InViewPassNum, co
 	{
 		ClusterRenderTargetRatioMult *= InFrameSettings.ClusterICVFXOuterViewportRenderTargetRatioMult;
 	}
+	else
+	if ((RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_ICVFXIncamera) != 0)
+	{
+		ClusterRenderTargetRatioMult *= InFrameSettings.ClusterICVFXInnerViewportRenderTargetRatioMult;
+	}
 
 	// Cluster mult downscale in range 0..1
 	float ClusterRTTMult = FMath::Clamp(ClusterRenderTargetRatioMult, 0.f, 1.f);

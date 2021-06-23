@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#ifdef WITH_CLANG_COMPILER
+#ifdef __clang__
 _Pragma( "clang diagnostic pop" )
 #endif
 

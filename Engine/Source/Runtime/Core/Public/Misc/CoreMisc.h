@@ -90,6 +90,12 @@ CORE_API class ITargetPlatformManagerModule* GetTargetPlatformManager(bool bFail
 /** Return the Target Platform Manager interface, fatal error if it is not available. **/
 CORE_API class ITargetPlatformManagerModule& GetTargetPlatformManagerRef();
 
+/**
+ * Return true if we are currently in a commandlet is targeting platforms with AV requirements (ie not a server) 
+ * or we are not targetingother platforms, and the current platform needs to render (CanEverRender())
+ */
+CORE_API bool WillNeedAudioVisualData();
+
 /*-----------------------------------------------------------------------------
 	Runtime.
 -----------------------------------------------------------------------------*/

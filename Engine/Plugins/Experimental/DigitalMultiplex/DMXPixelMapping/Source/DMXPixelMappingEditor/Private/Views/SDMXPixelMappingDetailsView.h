@@ -25,17 +25,15 @@ public:
 	 */
 	void Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit);
 
-	~SDMXPixelMappingDetailsView();
+	virtual ~SDMXPixelMappingDetailsView();
 
 private:
-	void OnSelectedComponenetChanged();
+	void OnSelectedComponentsChanged();
 
 	/** Registers the designer specific customizations */
 	void RegisterCustomizations();
 
 private:
-	FDelegateHandle OnSelectedComponenetChangedHandle;
-
 	TWeakPtr<FDMXPixelMappingToolkit> ToolkitWeakPtr;
 
 	/** Property viewing widget */

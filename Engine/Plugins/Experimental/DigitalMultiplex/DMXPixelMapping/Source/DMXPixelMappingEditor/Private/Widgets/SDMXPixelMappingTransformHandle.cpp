@@ -1,13 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SDMXPixelMappingTransformHandle.h"
-#include "Views/SDMXPixelMappingDesignerView.h"
-#include "Components/DMXPixelMappingOutputComponent.h"
+
 #include "DMXPixelMappingComponentReference.h"
+#include "DMXPixelMappingComponentWidget.h"
+#include "Components/DMXPixelMappingOutputComponent.h"
+#include "Toolkits/DMXPixelMappingToolkit.h"
+#include "Views/SDMXPixelMappingDesignerView.h"
 
 #include "Widgets/Images/SImage.h"
 #include "EditorStyleSet.h"
 #include "ScopedTransaction.h"
+
 
 #define LOCTEXT_NAMESPACE "SDMXPixelMappingTransformHandle"
 
@@ -59,7 +63,7 @@ FReply SDMXPixelMappingTransformHandle::OnMouseButtonDown(const FGeometry& MyGeo
 
 		MouseDownPosition = MouseEvent.GetScreenSpacePosition();
 
-		ScopedTransaction = new FScopedTransaction(LOCTEXT("ResizeWidget", "Resize Widget"));
+		ScopedTransaction = MakeShareable<FScopedTransaction>(new FScopedTransaction(LOCTEXT("ResizeWidget", "Resize Widget")));
 		Component->Modify();
 
 		return FReply::Handled().CaptureMouse(SharedThis(this));
@@ -72,13 +76,35 @@ FReply SDMXPixelMappingTransformHandle::OnMouseButtonUp(const FGeometry& MyGeome
 {
 	if ( HasMouseCapture() && MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton )
 	{
-		if ( ScopedTransaction )
+		if (ScopedTransaction.IsValid())
 		{
-			delete ScopedTransaction;
-			ScopedTransaction = nullptr;
+			ScopedTransaction.Reset();
 		}
 
 		Action = EDMXPixelMappingTransformAction::None;
+		
+		// Delete components no longer over the resized component
+		if (TSharedPtr<FDMXPixelMappingToolkit> Toolkit = DesignerViewWeakPtr.Pin()->GetToolkit())
+		{
+			const FDMXPixelMappingComponentReference& ComponentReference = DesignerViewWeakPtr.Pin()->GetSelectedComponent();
+			UDMXPixelMappingBaseComponent* Component = ComponentReference.GetComponent();
+
+			constexpr bool bRecursive = true;
+			Component->ForEachChildOfClass<UDMXPixelMappingOutputComponent>([Toolkit](UDMXPixelMappingOutputComponent* Component)
+				{
+					if (Component && !Component->IsOverParent())
+					{
+						if (Component->Parent)
+						{
+							Component->Parent->RemoveChild(Component);
+
+							Toolkit->HandleRemoveComponents();
+						}
+					}
+				}, bRecursive);
+
+		}
+
 		return FReply::Handled().ReleaseMouseCapture();
 	}
 
@@ -92,7 +118,6 @@ FReply SDMXPixelMappingTransformHandle::OnMouseMove(const FGeometry& MyGeometry,
 		check(DesignerViewWeakPtr.Pin());
 
 		const FDMXPixelMappingComponentReference& ComponentReference = DesignerViewWeakPtr.Pin()->GetSelectedComponent();
-		UDMXPixelMappingBaseComponent* Preview = ComponentReference.GetComponent();
 		UDMXPixelMappingBaseComponent* Component = ComponentReference.GetComponent();
 
 		const FVector2D Delta = MouseEvent.GetScreenSpacePosition() - MouseDownPosition;
@@ -141,8 +166,7 @@ void SDMXPixelMappingTransformHandle::Resize(UDMXPixelMappingBaseComponent* Base
 			Offsets.Bottom += Amount.Y * Direction.Y;
 		}
 
-
-		OutputComponent->SetSize(FVector2D(Offsets.Right, Offsets.Bottom));
+		OutputComponent->SetSize(FVector2D(Offsets.Right, Offsets.Bottom).RoundToVector());
 	}
 }
 

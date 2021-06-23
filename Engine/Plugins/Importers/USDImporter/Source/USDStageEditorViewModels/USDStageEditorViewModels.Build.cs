@@ -20,18 +20,19 @@ namespace UnrealBuildTool.Rules
 					"EditorFramework",
 					"EditorStyle",
 					"Engine",
-					"LevelEditor",
 					"InputCore",
+					"LevelEditor",
 					"Slate",
 					"SlateCore",
 					"UnrealEd",
 					"UnrealUSDWrapper",
+					"USDClasses",
 					"USDStage",
 					"USDStageImporter",
 					"USDUtilities",
 					"WorkspaceMenuStructure",
 				}
-				);
+			);
 		}
 	}
 }

@@ -155,6 +155,8 @@ static bool CaptureNeedsSceneColor(ESceneCaptureSource CaptureSource)
 	return CaptureSource != SCS_FinalColorLDR && CaptureSource != SCS_FinalColorHDR && CaptureSource != SCS_FinalToneCurveHDR;
 }
 
+static TFunction<void(FRHICommandListImmediate& RHICmdList)> CopyCaptureToTargetSetViewportFn;
+
 void FDeferredShadingSceneRenderer::CopySceneCaptureComponentToTarget(
 	FRDGBuilder& GraphBuilder,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
@@ -219,6 +221,8 @@ void FDeferredShadingSceneRenderer::CopySceneCaptureComponentToTarget(
 				RHICmdList.ApplyCachedRenderTargets(LocalGraphicsPSOInit);
 				SetGraphicsPipelineState(RHICmdList, LocalGraphicsPSOInit);
 				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
+				
+				CopyCaptureToTargetSetViewportFn(RHICmdList);
 
 				DrawRectangle(
 					RHICmdList,
@@ -243,7 +247,8 @@ static void UpdateSceneCaptureContentDeferred_RenderThread(
 	const FString& EventName, 
 	const FResolveParams& ResolveParams,
 	bool bGenerateMips,
-	const FGenerateMipsParams& GenerateMipsParams
+	const FGenerateMipsParams& GenerateMipsParams,
+	bool bClearRenderTarget
 	)
 {
 	SceneRenderer->RenderThreadBegin(RHICmdList);
@@ -260,7 +265,31 @@ static void UpdateSceneCaptureContentDeferred_RenderThread(
 #endif
 
 		FRDGTextureRef TargetTexture = RegisterExternalTexture(GraphBuilder, RenderTarget->GetRenderTargetTexture(), TEXT("SceneCaptureTarget"));
-		AddClearRenderTargetPass(GraphBuilder, TargetTexture, FLinearColor::Black, SceneRenderer->Views[0].UnscaledViewRect);
+		if (bClearRenderTarget)
+		{
+			AddClearRenderTargetPass(GraphBuilder, TargetTexture, FLinearColor::Black, SceneRenderer->Views[0].UnscaledViewRect);
+		}
+
+		if (ResolveParams.DestRect.IsValid())
+		{
+			CopyCaptureToTargetSetViewportFn = [ResolveParams](FRHICommandListImmediate& RHICmdList)
+			{
+				RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
+				RHICmdList.SetViewport
+				(
+					float(ResolveParams.DestRect.X1), 
+					float(ResolveParams.DestRect.Y1), 
+					0.0f, 
+					float(ResolveParams.DestRect.X2), 
+					float(ResolveParams.DestRect.Y2), 
+					1.0f
+				);
+			};
+		}
+		else
+		{
+			CopyCaptureToTargetSetViewportFn = [](FRHICommandListImmediate& RHICmdList) {};
+		}
 
 		// Render the scene normally
 		{
@@ -346,7 +375,8 @@ static void UpdateSceneCaptureContent_RenderThread(
 	const FResolveParams& ResolveParams,
 	bool bGenerateMips,
 	const FGenerateMipsParams& GenerateMipsParams,
-	const bool bDisableFlipCopyLDRGLES)
+	const bool bDisableFlipCopyLDRGLES, 
+	bool bClearRenderTarget)
 {
 	FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 
@@ -376,7 +406,8 @@ static void UpdateSceneCaptureContent_RenderThread(
 				EventName,
 				ResolveParams,
 				bGenerateMips,
-				GenerateMipsParams);
+				GenerateMipsParams,
+				bClearRenderTarget);
 			break;
 		}
 		default:
@@ -387,14 +418,12 @@ static void UpdateSceneCaptureContent_RenderThread(
 	RHICmdList.Transition(FRHITransitionInfo(RenderTargetTexture->TextureRHI, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 }
 
-void BuildProjectionMatrix(FIntPoint RenderTargetSize, ECameraProjectionMode::Type ProjectionType, float FOV, float InOrthoWidth, float InNearClippingPlane, FMatrix& ProjectionMatrix)
+static void BuildOrthoMatrix(FIntPoint InRenderTargetSize, float InOrthoWidth, int32 InTileID, int32 InNumXTiles, int32 InNumYTiles, FMatrix& OutProjectionMatrix)
 {
+	check((int32)ERHIZBuffer::IsInverted);
 	float const XAxisMultiplier = 1.0f;
-	float const YAxisMultiplier = RenderTargetSize.X / (float)RenderTargetSize.Y;
+	float const YAxisMultiplier = InRenderTargetSize.X / float(InRenderTargetSize.Y);
 
-	if (ProjectionType == ECameraProjectionMode::Orthographic)
-	{
-		check((int32)ERHIZBuffer::IsInverted);
 		const float OrthoWidth = InOrthoWidth / 2.0f;
 		const float OrthoHeight = InOrthoWidth / 2.0f * XAxisMultiplier / YAxisMultiplier;
 
@@ -404,20 +433,47 @@ void BuildProjectionMatrix(FIntPoint RenderTargetSize, ECameraProjectionMode::Ty
 		const float ZScale = 1.0f / (FarPlane - NearPlane);
 		const float ZOffset = -NearPlane;
 
-		ProjectionMatrix = FReversedZOrthoMatrix(
+	if (InTileID == -1)
+	{
+		OutProjectionMatrix = FReversedZOrthoMatrix(
 			OrthoWidth,
 			OrthoHeight,
 			ZScale,
 			ZOffset
 			);
+		
+		return;
 	}
-	else
-	{
+
+	const float XTileDividerRcp = 1.0f / float(InNumXTiles);
+	const float YTileDividerRcp = 1.0f / float(InNumYTiles);
+
+	const float TileX = float(InTileID % InNumXTiles);
+	const float TileY = float(InTileID / InNumXTiles);
+
+	float l = -OrthoWidth + TileX * InOrthoWidth * XTileDividerRcp;
+	float r = l + InOrthoWidth * XTileDividerRcp;
+	float t = OrthoHeight - TileY * InOrthoWidth * YTileDividerRcp;
+	float b = t - InOrthoWidth * YTileDividerRcp;
+
+	OutProjectionMatrix = FMatrix(
+		FPlane(2.0f / (r-l), 0.0f, 0.0f, 0.0f),
+		FPlane(0.0f, 2.0f / (t-b), 0.0f, 0.0f),
+		FPlane(0.0f, 0.0f, -ZScale, 0.0f),
+		FPlane(-((r+l)/(r-l)), -((t+b)/(t-b)), 1.0f - ZOffset * ZScale, 1.0f)
+	);
+}
+
+void BuildProjectionMatrix(FIntPoint InRenderTargetSize, float InFOV, float InNearClippingPlane, FMatrix& OutProjectionMatrix)
+{
+	float const XAxisMultiplier = 1.0f;
+	float const YAxisMultiplier = InRenderTargetSize.X / float(InRenderTargetSize.Y);
+
 		if ((int32)ERHIZBuffer::IsInverted)
 		{
-			ProjectionMatrix = FReversedZPerspectiveMatrix(
-				FOV,
-				FOV,
+		OutProjectionMatrix = FReversedZPerspectiveMatrix(
+			InFOV,
+			InFOV,
 				XAxisMultiplier,
 				YAxisMultiplier,
 				InNearClippingPlane,
@@ -426,16 +482,15 @@ void BuildProjectionMatrix(FIntPoint RenderTargetSize, ECameraProjectionMode::Ty
 		}
 		else
 		{
-			ProjectionMatrix = FPerspectiveMatrix(
-				FOV,
-				FOV,
+		OutProjectionMatrix = FPerspectiveMatrix(
+			InFOV,
+			InFOV,
 				XAxisMultiplier,
 				YAxisMultiplier,
 				InNearClippingPlane,
 				InNearClippingPlane
 				);
 		}
-	}
 }
 
 void SetupViewFamilyForSceneCapture(
@@ -595,7 +650,7 @@ static FSceneRenderer* CreateSceneRendererForSceneCapture(
 		.SetResolveScene(!bCaptureSceneColor)
 		.SetRealtimeUpdate(SceneCaptureComponent->bCaptureEveryFrame || SceneCaptureComponent->bAlwaysPersistRenderingState));
 	
-		ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(Scene));
+	ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(Scene));
 	
 	SetupViewFamilyForSceneCapture(
 		ViewFamily,
@@ -639,6 +694,11 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 		const float FOV = CaptureComponent->FOVAngle * (float)PI / 360.0f;
 		FIntPoint CaptureSize(TextureRenderTarget->GetSurfaceWidth(), TextureRenderTarget->GetSurfaceHeight());
 
+		const bool bEnableOrthographicTiling = CaptureComponent->bEnableOrthographicTiling && CaptureComponent->ProjectionType == ECameraProjectionMode::Orthographic;
+		const int32 TileID = CaptureComponent->TileID;
+		const int32 NumXTiles = CaptureComponent->NumXTiles;
+		const int32 NumYTiles = CaptureComponent->NumYTiles;
+
 		FMatrix ProjectionMatrix;
 		if (CaptureComponent->bUseCustomProjectionMatrix)
 		{
@@ -646,8 +706,23 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 		}
 		else
 		{
+			if (CaptureComponent->ProjectionType == ECameraProjectionMode::Perspective)
+			{
 			const float ClippingPlane = (CaptureComponent->bOverride_CustomNearClippingPlane) ? CaptureComponent->CustomNearClippingPlane : GNearClippingPlane;
-			BuildProjectionMatrix(CaptureSize, CaptureComponent->ProjectionType, FOV, CaptureComponent->OrthoWidth, ClippingPlane, ProjectionMatrix);
+				BuildProjectionMatrix(CaptureSize, FOV, ClippingPlane, ProjectionMatrix);
+			}
+			else
+			{
+				if (bEnableOrthographicTiling)
+				{
+					BuildOrthoMatrix(CaptureSize, CaptureComponent->OrthoWidth, CaptureComponent->TileID, NumXTiles, NumYTiles, ProjectionMatrix);
+					CaptureSize /= FIntPoint(NumXTiles, NumYTiles);
+				}
+				else
+				{
+					BuildOrthoMatrix(CaptureSize, CaptureComponent->OrthoWidth, -1, 0, 0, ProjectionMatrix);
+				}
+			}
 		}
 
 		const bool bUseSceneColorTexture = CaptureNeedsSceneColor(CaptureComponent->CaptureSource);
@@ -763,7 +838,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 		}
 
 		ENQUEUE_RENDER_COMMAND(CaptureCommand)(
-			[SceneRenderer, TextureRenderTargetResource, EventName, bGenerateMips, GenerateMipsParams, bDisableFlipCopyGLES, GameViewportRT](FRHICommandListImmediate& RHICmdList)
+			[SceneRenderer, TextureRenderTargetResource, EventName, bGenerateMips, GenerateMipsParams, bDisableFlipCopyGLES, GameViewportRT, bEnableOrthographicTiling, NumXTiles, NumYTiles, TileID](FRHICommandListImmediate& RHICmdList)
 			{
 				if (GameViewportRT != nullptr)
 				{
@@ -778,7 +853,21 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 				// We need to execute the pre-render view extensions before we do any view dependent work.
 				FSceneRenderer::ViewExtensionPreRender_RenderThread(RHICmdList, SceneRenderer);
 
-				UpdateSceneCaptureContent_RenderThread(RHICmdList, SceneRenderer, TextureRenderTargetResource, TextureRenderTargetResource, EventName, FResolveParams(), bGenerateMips, GenerateMipsParams, bDisableFlipCopyGLES);
+				FResolveParams ResolveParams;
+
+				if (bEnableOrthographicTiling)
+				{
+					const uint32 RTSizeX = TextureRenderTargetResource->GetSizeX() / NumXTiles;
+					const uint32 RTSizeY = TextureRenderTargetResource->GetSizeY() / NumYTiles;
+					const uint32 TileX = TileID % NumXTiles;
+					const uint32 TileY = TileID / NumXTiles;
+					ResolveParams.DestRect.X1 = TileX * RTSizeX;
+					ResolveParams.DestRect.Y1 = TileY * RTSizeY;
+					ResolveParams.DestRect.X2 = ResolveParams.DestRect.X1 + RTSizeX;
+					ResolveParams.DestRect.Y2 = ResolveParams.DestRect.Y1 + RTSizeY;
+				}
+
+				UpdateSceneCaptureContent_RenderThread(RHICmdList, SceneRenderer, TextureRenderTargetResource, TextureRenderTargetResource, EventName, ResolveParams, bGenerateMips, GenerateMipsParams, bDisableFlipCopyGLES, !bEnableOrthographicTiling);
 			}
 		);
 	}
@@ -874,7 +963,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponentCube* CaptureCompo
 				}
 				FIntPoint CaptureSize(TextureTarget->GetSurfaceWidth(), TextureTarget->GetSurfaceHeight());
 				FMatrix ProjectionMatrix;
-				BuildProjectionMatrix(CaptureSize, ECameraProjectionMode::Perspective, FOV, 1.0f, GNearClippingPlane, ProjectionMatrix);
+				BuildProjectionMatrix(CaptureSize, FOV, GNearClippingPlane, ProjectionMatrix);
 				FPostProcessSettings PostProcessSettings;
 
 				float StereoIPD = 0.0f;
@@ -905,7 +994,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponentCube* CaptureCompo
 				ENQUEUE_RENDER_COMMAND(CaptureCommand)(
 					[SceneRenderer, TextureRenderTarget, EventName, TargetFace](FRHICommandListImmediate& RHICmdList)
 				{
-					UpdateSceneCaptureContent_RenderThread(RHICmdList, SceneRenderer, TextureRenderTarget, TextureRenderTarget, EventName, FResolveParams(FResolveRect(), TargetFace), false, FGenerateMipsParams(), false);
+					UpdateSceneCaptureContent_RenderThread(RHICmdList, SceneRenderer, TextureRenderTarget, TextureRenderTarget, EventName, FResolveParams(FResolveRect(), TargetFace), false, FGenerateMipsParams(), false, true);
 				}
 				);
 			}

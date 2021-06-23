@@ -1164,15 +1164,7 @@ void FSequencerDisplayNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			);
 		}
 
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("RenameNode", "Rename"),
-			LOCTEXT("RenameNodeTooltip", "Rename this track"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Rename"),
-			FUIAction(
-				FExecuteAction::CreateSP(this, &FSequencerDisplayNode::HandleContextMenuRenameNodeExecute),
-				FCanExecuteAction::CreateSP(this, &FSequencerDisplayNode::HandleContextMenuRenameNodeCanExecute)
-			)
-		);
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Rename);
 	}
 	MenuBuilder.EndSection();
 
@@ -1387,18 +1379,6 @@ bool FSequencerDisplayNode::IsVisible() const
 bool FSequencerDisplayNode::IsHovered() const
 {
 	return ParentTree.GetHoveredNode().Get() == this;
-}
-
-
-void FSequencerDisplayNode::HandleContextMenuRenameNodeExecute()
-{
-	RenameRequestedEvent.Broadcast();
-}
-
-
-bool FSequencerDisplayNode::HandleContextMenuRenameNodeCanExecute() const
-{
-	return CanRenameNode();
 }
 
 

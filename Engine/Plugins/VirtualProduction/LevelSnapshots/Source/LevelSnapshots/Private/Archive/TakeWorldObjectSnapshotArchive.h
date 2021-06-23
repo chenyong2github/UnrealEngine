@@ -15,7 +15,7 @@ class FTakeWorldObjectSnapshotArchive final : public FSnapshotArchive
 	using Super = FSnapshotArchive;
 public:
 
-	static FTakeWorldObjectSnapshotArchive MakeArchiveForSavingWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject);
+	UE_NODISCARD static FTakeWorldObjectSnapshotArchive MakeArchiveForSavingWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject);
 
 	//~ Begin FSnapshotArchive Interface
 	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override;
@@ -24,8 +24,4 @@ public:
 private:
 	
 	FTakeWorldObjectSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject);
-	
-	/* Set when saving a 'real' object. Unset when saving class default object. */
-	UObject* OriginalObject;
-	
 };

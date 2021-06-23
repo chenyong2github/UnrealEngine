@@ -96,6 +96,11 @@ public:
 		SetMargin(Other.GetMargin());
 	}
 
+	virtual FImplicitObject* Duplicate() const override
+	{
+		return new TImplicitObjectInstanced<TConcrete>(this->MObject, this->OuterMargin);
+	}
+
 	static constexpr EImplicitObjectType StaticType()
 	{
 		return TConcrete::StaticType() | ImplicitObjectType::IsInstanced;
@@ -449,6 +454,20 @@ public:
 	}
 	~TImplicitObjectScaled() {}
 
+	virtual FImplicitObject* Duplicate() const override
+	{
+		if (MSharedPtrForRefCount)
+		{
+			check(bInstanced == true);
+			return new TImplicitObjectScaled<TConcrete, true>(this->MSharedPtrForRefCount, this->MScale, this->OuterMargin);
+		}
+		else
+		{
+			check(false);	//duplicate only supported instanced scaled objects
+			return nullptr;
+		}
+	}
+
 	static constexpr EImplicitObjectType StaticType()
 	{
 		return TConcrete::StaticType() | ImplicitObjectType::IsScaled;
@@ -610,8 +629,13 @@ public:
 	{
 		TRigidTransform<T, d> AToBTMNoScale(AToBTM.GetLocation() * MInvScale, AToBTM.GetRotation());
 
+		// Thickness is a culling distance which cannot be non-uniformly scaled. This gets passed into the ImplicitObject API unscaled so that
+		// if can do the right thing internally if possible, but it makes the API a little confusing. (This is only exists used TriMesh and Heightfield.)
+		// See FTriangleMeshImplicitObject::GJKContactPointImp
+		const FReal UnscaledThickness = Thickness;
+
 		auto ScaledA = MakeScaledHelper(A, MInvScale);
-		return MObject->GJKContactPoint(ScaledA, AToBTMNoScale, Thickness, Location, Normal, Penetration, MScale);
+		return MObject->GJKContactPoint(ScaledA, AToBTMNoScale, UnscaledThickness, Location, Normal, Penetration, MScale);
 	}
 
 	/** This is a low level function and assumes the internal object has a OverlapGeom function. Should not be called directly. See GeometryQueries.h : OverlapQuery */

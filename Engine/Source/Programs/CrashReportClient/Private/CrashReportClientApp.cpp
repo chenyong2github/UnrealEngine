@@ -53,6 +53,9 @@ class FRecoveryService;
 /** Default main window size */
 const FVector2D InitialWindowDimensions(740, 560);
 
+/** Simple dialog window size */
+const FVector2D InitialSimpleWindowDimensions(740, 300);
+
 /** Average tick rate the app aims for */
 const float IdealTickRate = 30.f;
 
@@ -247,7 +250,7 @@ static void OnRequestExit()
 }
 
 #if !CRASH_REPORT_UNATTENDED_ONLY
-SubmitCrashReportResult RunWithUI(FPlatformErrorReport ErrorReport)
+SubmitCrashReportResult RunWithUI(FPlatformErrorReport ErrorReport, bool bImplicitSend)
 {
 	// create the platform slate application (what FSlateApplication::Get() returns)
 	TSharedRef<FSlateApplication> Slate = FSlateApplication::Create(MakeShareable(FPlatformApplicationMisc::CreateApplication()));
@@ -302,20 +305,32 @@ SubmitCrashReportResult RunWithUI(FPlatformErrorReport ErrorReport)
 	FCrashReportClientStyle::Initialize();
 
 	// Create the main implementation object
-	TSharedRef<FCrashReportClient> CrashReportClient = MakeShared<FCrashReportClient>(ErrorReport);
+	TSharedRef<FCrashReportClient> CrashReportClient = MakeShared<FCrashReportClient>(ErrorReport, bImplicitSend);
 
 	// Open up the app window
-	TSharedRef<SCrashReportClient> ClientControl = SNew(SCrashReportClient, CrashReportClient);
+	// bImplicitSend now implies bSimpleDialog i.e. immediately send the report and notify the user without requesting input
+	TSharedRef<SCrashReportClient> ClientControl = SNew(SCrashReportClient, CrashReportClient, bImplicitSend);
+
+	FString CrashedAppName = FPrimaryCrashProperties::Get()->IsValid() ? FPrimaryCrashProperties::Get()->GameName : TEXT("");
+	CrashedAppName.RemoveFromStart(TEXT("UE4-"));
+	CrashedAppName.RemoveFromEnd(TEXT("Game"));
+
+	const FString CrashedAppString = NSLOCTEXT("CrashReportClient", "CrashReporterTitle", "Crash Reporter").ToString();
+	const FText CrashedAppText = FText::FromString(FString::Printf(TEXT("%s %s"), *CrashedAppName, *CrashedAppString));
 
 	// Get the engine major version to display in title.
 	FBuildVersion BuildVersion;
 	uint16 MajorEngineVersion = FBuildVersion::TryRead(FBuildVersion::GetDefaultFileName(), BuildVersion) ? BuildVersion.GetEngineVersion().GetMajor() : 5;
 
+	FText WindowTitle = CrashedAppName.IsEmpty() ?
+		FText::Format(NSLOCTEXT("CrashReportClient", "CrashReportClientAppName", "Unreal Engine {0} Crash Reporter"), MajorEngineVersion) :
+		CrashedAppText;
+
 	TSharedRef<SWindow> Window = FSlateApplication::Get().AddWindow(
 		SNew(SWindow)
-		.Title(FText::Format(NSLOCTEXT("CrashReportClient", "CrashReportClientAppName", "Unreal Engine {0} Crash Reporter"), MajorEngineVersion))
+		.Title(WindowTitle)
 		.HasCloseButton(FCrashReportCoreConfig::Get().IsAllowedToCloseWithoutSending())
-		.ClientSize(InitialWindowDimensions)
+		.ClientSize(bImplicitSend ? InitialSimpleWindowDimensions : InitialWindowDimensions)
 		[
 			ClientControl
 		]);
@@ -348,7 +363,7 @@ SubmitCrashReportResult RunWithUI(FPlatformErrorReport ErrorReport)
 	Window->BringToFront(bForceBringToFront);
 
 	// loop until the app is ready to quit
-	while (!(IsEngineExitRequested() || CrashReportClient->IsUploadComplete()))
+	while (!(IsEngineExitRequested() || ClientControl->IsFinished()))
 	{
 		MainLoop.Tick();
 
@@ -392,8 +407,14 @@ class FMessageBoxThread : public FRunnable
 		// We will not have any GUI for the crash reporter if we are sending implicitly, so pop a message box up at least
 		if (FApp::CanEverRender() && !FApp::IsUnattended())
 		{
+			FString Body = *NSLOCTEXT("MessageDialog", "ReportCrash_Body", "The application has crashed and will now close. We apologize for the inconvenience.").ToString();
+			if (FPrimaryCrashProperties::Get()->IsValid())
+			{
+				Body = FPrimaryCrashProperties::Get()->CrashReporterMessage.AsString();
+			}
+
 			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
-				*NSLOCTEXT("MessageDialog", "ReportCrash_Body", "The application has crashed and will now close. We apologize for the inconvenience.").ToString(),
+				*Body,
 				*NSLOCTEXT("MessageDialog", "ReportCrash_Title", "Application Crash Detected").ToString());
 		}
 
@@ -641,12 +662,7 @@ SubmitCrashReportResult SendErrorReport(FPlatformErrorReport& ErrorReport,
 	if (!IsEngineExitRequested() && ErrorReport.HasFilesToUpload() && FPrimaryCrashProperties::Get() != nullptr)
 	{
 		const bool bImplicitSend = bImplicitSendOpt.Get(false);
-		const bool bUnattended =
-#if CRASH_REPORT_UNATTENDED_ONLY
-			true;
-#else
-			bNoDialogOpt.Get(FApp::IsUnattended()) || bImplicitSend;
-#endif // CRASH_REPORT_UNATTENDED_ONLY
+		const bool bUnattended = CRASH_REPORT_UNATTENDED_ONLY ? true : bNoDialogOpt.Get(FApp::IsUnattended());
 
 		ErrorReport.SetCrashReportClientVersion(FCrashReportCoreConfig::Get().GetVersion());
 
@@ -657,7 +673,7 @@ SubmitCrashReportResult SendErrorReport(FPlatformErrorReport& ErrorReport,
 #if !CRASH_REPORT_UNATTENDED_ONLY
 		else
 		{
-			const SubmitCrashReportResult Result = RunWithUI(ErrorReport);
+			const SubmitCrashReportResult Result = RunWithUI(ErrorReport, bImplicitSend);
 			if (Result == Failed)
 			{
 				// UI failed to initialize, probably due to driver crash. Send in unattended mode if allowed.
@@ -899,10 +915,54 @@ static bool LoadTempCrashContextFromFile(FSharedCrashContext& CrashContext, uint
 	return true;
 }
 
-static void HandleAbnormalShutdown(FSharedCrashContext& CrashContext, uint64 ProcessID, void* WritePipe, const TSharedPtr<FRecoveryService>& RecoveryService)
+FString FormatExitCode(int32 ExitCode)
+{
+	// Translate common exit codes.
+	auto GetExitCodeName = [](int32 Code) -> const TCHAR*
+	{
+#if PLATFORM_WINDOWS
+		switch (Code)
+		{
+			case  1073807364: return TEXT("DBG_TERMINATE_PROCESS"); // Typically when the user logs out or the system is shutting down.
+			case -1073740286: return TEXT("STATUS_FAIL_FAST_EXCEPTION");
+			case -1073740771: return TEXT("STATUS_FATAL_USER_CALLBACK_EXCEPTION");
+			case -1073740791: return TEXT("STATUS_STACK_BUFFER_OVERRUN");
+			case -1073740940: return TEXT("STATUS_HEAP_CORRUPTION");
+			case -1073741395: return TEXT("STATUS_FATAL_MEMORY_EXHAUSTION");
+			case -1073741510: return TEXT("STATUS_CONTROL_C_EXIT");
+			case -1073741571: return TEXT("STATUS_STACK_OVERFLOW");
+			case -1073741676: return TEXT("STATUS_INTEGER_DIVIDE_BY_ZERO");
+			case -1073741795: return TEXT("STATUS_ILLEGAL_INSTRUCTION");
+			case -1073741811: return TEXT("STATUS_INVALID_PARAMETER");
+			case -1073741818: return TEXT("STATUS_IN_PAGE_ERROR");
+			case -1073741819: return TEXT("STATUS_ACCESS_VIOLATION");
+			default:          return nullptr;
+		}
+#else
+		return nullptr;
+#endif
+	};
+
+	const TCHAR* ExitCodeName = GetExitCodeName(ExitCode);
+	if (ExitCodeName)
+	{
+		return FString::Printf(TEXT("%d (%s)"), ExitCode, ExitCodeName);
+	}
+	return LexToString(ExitCode);
+}
+
+static void HandleAbnormalShutdown(FSharedCrashContext& CrashContext, uint64 ProcessID, void* WritePipe, const TSharedPtr<FRecoveryService>& RecoveryService, const TOptional<int32>& ExitCode)
 {
 	CrashContext.CrashType = ECrashContextType::AbnormalShutdown;
-	FCString::Strcpy(CrashContext.ErrorMessage, TEXT("AbnormalShutdown"));
+	if (ExitCode.IsSet())
+	{
+		// Set the error message like: AbnormalShutdown - ExitCode: -1073741571 (STATUS_STACK_OVERFLOW)
+		FCString::Sprintf(CrashContext.ErrorMessage, TEXT("AbnormalShutdown - ExitCode: %s"), *FormatExitCode(*ExitCode));
+	}
+	else
+	{
+		FCString::Strcpy(CrashContext.ErrorMessage, TEXT("AbnormalShutdown"));
+	}
 
 	// Normally, the CrashGUIDRoot is generated by the Editor/Engine and a counter is appended to it. Starting at zero, the counter is incremented after each ensure/crash by the Editor/Engine.
 	// In this cases, the crash doesn't originate from the Editor/Engine, but CRC. The Editor/Engine CrashGUIDRoot isn't serialized in the temp context file so we need to generate  a new one.
@@ -947,6 +1007,17 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 {
 #if !PLATFORM_MAC
 	FTaskTagScope ThreadScope(ETaskTag::EGameThread); // Main thread is the game thread.
+#endif
+
+#if !(UE_BUILD_SHIPPING)
+
+	// If "-waitforattach" or "-WaitForDebugger" was specified, halt startup and wait for a debugger to attach before continuing
+	if (FParse::Param(CommandLine, TEXT("waitforattach")) || FParse::Param(CommandLine, TEXT("WaitForDebugger")))
+	{
+		while (!FPlatformMisc::IsDebuggerPresent());
+		UE_DEBUG_BREAK();
+	}
+
 #endif
 
 	// Override the stack size for the thread pool.
@@ -1120,12 +1191,19 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 				FCrashReportAnalytics::Initialize();
 				if (FCrashReportAnalytics::IsAvailable())
 				{
-					auto HandleAbnormalShutdownFunc = [&TempCrashContext, &RecoveryServicePtr]()
+					TOptional<int32> ExitCodeOpt;
+					int32 ExitCode;
+					if (FPlatformProcess::GetProcReturnCode(MonitoredProcess, &ExitCode))
+					{
+						ExitCodeOpt.Emplace(ExitCode);
+					}
+
+					auto HandleAbnormalShutdownFunc = [&TempCrashContext, &RecoveryServicePtr, &ExitCodeOpt]()
 					{
 						if (TempCrashContext.UserSettings.bSendUnattendedBugReports)
 						{
 							// Send a spoofed crash report in the case that we detect an abnormal shutdown has occurred
-							HandleAbnormalShutdown(TempCrashContext, MonitorPid, MonitorWritePipe, RecoveryServicePtr);
+							HandleAbnormalShutdown(TempCrashContext, MonitorPid, MonitorWritePipe, RecoveryServicePtr, ExitCodeOpt);
 						}
 					};
 

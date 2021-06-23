@@ -707,6 +707,7 @@ class DeviceUnreal(Device):
             #if CONFIG.LISTENER_AUTO_BUILD:
             #    puuid_dependency = self._build_listener(puuid_dependency=puuid_dependency)
 
+        puuid_dependency = self._build_shadercompileworker(puuid_dependency=puuid_dependency)
         puuid_dependency = self._build_project(puuid_dependency=puuid_dependency)
 
     def _build_project(self, puuid_dependency: Optional[uuid.UUID] = None):
@@ -720,6 +721,10 @@ class DeviceUnreal(Device):
     def _build_listener(self, puuid_dependency: Optional[uuid.UUID] = None):
         ubt_args = 'SwitchboardListener Win64 Development -Progress'
         return self._queue_build('listener', ubt_args=ubt_args, puuid_dependency=puuid_dependency)
+
+    def _build_shadercompileworker(self, puuid_dependency: Optional[uuid.UUID] = None):
+        ubt_args = 'ShaderCompileWorker Win64 Development -Progress'
+        return self._queue_build('shadercw', ubt_args=ubt_args, puuid_dependency=puuid_dependency)
 
     def _queue_build(self, program_name_suffix: str, ubt_args: str, puuid_dependency: Optional[uuid.UUID] = None):
         program_name = f"build_{program_name_suffix}"

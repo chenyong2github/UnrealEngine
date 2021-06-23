@@ -11,6 +11,23 @@ void UMotoSynthPreset::BeginDestroy()
 	Super::BeginDestroy();
 }
 
+void UMotoSynthPreset::PostLoad()
+{
+#if WITH_EDITORONLY_DATA
+	if (Settings.SynthToneVolume_DEPRECATED > 0.0)
+	{
+		Settings.SynthToneVolumeRange = { Settings.SynthToneVolume_DEPRECATED, Settings.SynthToneVolume_DEPRECATED };
+	}
+
+	if (Settings.SynthToneFilterFrequency_DEPRECATED > 0.0f)
+	{
+		Settings.SynthToneFilterFrequencyRange = { Settings.SynthToneFilterFrequency_DEPRECATED, Settings.SynthToneFilterFrequency_DEPRECATED };
+	}
+#endif
+
+	Super::PostLoad();
+}
+
 #if WITH_EDITOR
 void UMotoSynthPreset::StartEnginePreview()
 {

@@ -25,11 +25,17 @@ namespace UE_NP {
 // ---------------------------------------------------
 
 template<typename T>
+struct TNetworkPredictionSimulationManager
+{
+
+};
+
+template<typename T>
 struct TNetworkPredictionModelDefAsync
 {
 	// --------------------------------------------------------------
 	// Option 1: A single "GameObjType" for the entire thing. Don't impose any rules about client/server of GT/PT ownership.
-	//	Just marshal deltas or TFunctions to modify state. Let user implemented functions carve things up for effeciency.
+	//	Just marshal deltas or TFunctions to modify state. Let user implemented functions carve things up for efficiency.
 	// --------------------------------------------------------------
 
 	using InputCmdType = void;
@@ -81,20 +87,18 @@ struct TPersistentStorage
 
 		return nullptr;
 	}
-	
-	void IncrementFrame(int32 Frame, const bool bAutoCopyPre = true)
+
+	void SetHeadFrame(int32 NewHeadFrame)
 	{
-		if (bAutoCopyPre && (HeadFrame+1 == Frame))
-		{
-			T* Pre = GetWritable();
-			HeadFrame++;
-			T* Next = GetWritable();
-			*Next = *Pre;
-		}
-		else
-		{
-			HeadFrame = Frame;
-		}
+		HeadFrame = NewHeadFrame;
+	}
+	
+	void IncrementFrame()
+	{
+		T* Pre = GetWritable();
+		HeadFrame++;
+		T* Next = GetWritable();
+		*Next = *Pre;
 	}
 
 	void RollbackToFrame(int32 Frame)
@@ -124,8 +128,6 @@ private:
 	TStaticArray<T, Size> Buffer;
 };
 
-
-
 inline FString ToString(AActor* ObjKey)
 {
 	return GetNameSafe(ObjKey);
@@ -147,7 +149,6 @@ inline bool IsLocallyControlled_Client(APlayerController* PC)
 {
 	return PC != nullptr;
 }
-
 
 template<typename ModelDef>
 struct TSnapshot
@@ -255,28 +256,30 @@ public:
 		const int32 LocalFrame = PhysicsSolver->GetCurrentFrame();
 		const int32 SimulationFrame = LocalFrame - LocalFrameOffset_Internal; // FIXME: should be part of ISimCallbackObject/PersistentStorage API somehow
 		
-		TSortedMap<ObjKeyType, ManagedObjType>* ObjectMap = PersistentStorage_Internal->GetWritable();
-		npCheckSlow(ObjectMap);
+		{
+			TSortedMap<ObjKeyType, ManagedObjType>* ObjectMap = PersistentStorage_Internal->GetWritable();
+			npCheckSlow(ObjectMap);
 	
-		// -----------------------------------------
-		// 1. Apply data from GT inputs
-		// -----------------------------------------
-		for (auto& ModIt : Input->MarshalledMods)
-		{
-			const ObjKeyType& ObjKey = ModIt.Key;
-			ManagedObjType& InputObj = ObjectMap->FindOrAdd(ObjKey);
-			ModIt.Value(InputObj.State); // maybe frame should be passed here too?
-		}
+			// -----------------------------------------
+			// 1. Apply data from GT inputs
+			// -----------------------------------------
+			for (auto& ModIt : Input->MarshalledMods)
+			{
+				const ObjKeyType& ObjKey = ModIt.Key;
+				ManagedObjType& InputObj = ObjectMap->FindOrAdd(ObjKey);
+				ModIt.Value(InputObj.State); // maybe frame should be passed here too?
+			}
 
-		for (const TTuple<ObjKeyType, InputCmdType>& InputCmd : Input->MarshalledInputCmds)
-		{
-			ManagedObjType& InputObj = ObjectMap->FindOrAdd(InputCmd.Key);
-			InputObj.Input = InputCmd.Value;
-		}
+			for (const TTuple<ObjKeyType, InputCmdType>& InputCmd : Input->MarshalledInputCmds)
+			{
+				ManagedObjType& InputObj = ObjectMap->FindOrAdd(InputCmd.Key);
+				InputObj.Input = InputCmd.Value;
+			}
 
-		for (const ObjKeyType& ObjKey : Input->MarshalledDeletes)
-		{
-			ObjectMap->Remove(ObjKey);
+			for (const ObjKeyType& ObjKey : Input->MarshalledDeletes)
+			{
+				ObjectMap->Remove(ObjKey);
+			}
 		}
 
 		// -----------------------------------------
@@ -290,13 +293,18 @@ public:
 
 		// -----------------------------------------
 		// 3. Actually Run the Tick
-		// -----------------------------------------			
+		// -----------------------------------------
 
-		const float DeltaTimeSeconds = this->GetDeltaTime_Internal();
-		for (auto& MapIt : *ObjectMap)
 		{
-			ManagedObjType& GameObj = MapIt.Value;
-			ObjStateType::SimulationTick(&GameObj.Input, &GameObj.State, DeltaTimeSeconds, SimulationFrame, LocalFrame);
+			TSortedMap<ObjKeyType, ManagedObjType>* ObjectMap = PersistentStorage_Internal->GetWritable();
+			npCheckSlow(ObjectMap);
+
+			const float DeltaTimeSeconds = this->GetDeltaTime_Internal();
+			for (auto& MapIt : *ObjectMap)
+			{
+				ManagedObjType& GameObj = MapIt.Value;
+				ObjStateType::SimulationTick(World,  &GameObj.Input, &GameObj.State, DeltaTimeSeconds, SimulationFrame, LocalFrame);
+			}
 		}
 	}
 
@@ -322,6 +330,7 @@ public:
 	const TPersistentStorage<TSortedMap<ObjKeyType, ManagedObjType>>* PersistentStorage_Internal = nullptr;
 	TUniqueFunction<void(int32)> NetworkSyncFunc;
 	int32 LocalFrameOffset_Internal = 0;
+	UWorld* World = nullptr;
 };
 
 // -----------------------------------------------------------------------------------------
@@ -399,6 +408,7 @@ public:
 					{
 						AsyncCallback = Solver->CreateAndRegisterSimCallbackObject_External<TNetworkPredictionAsyncCallback<ModelDef>>(true, true);
 						AsyncCallback->PersistentStorage_Internal = &PersistentStorage_Internal;
+						AsyncCallback->World = World;
 						AsyncCallback->NetworkSyncFunc = [this](int32 F) { this->NetworkSyncPersistentStorage_Internal(F); };
 					}
 					else
@@ -430,7 +440,7 @@ public:
 		}
 	}
 
-	// Serialize the authoratative object state
+	// Serialize the authoritative object state
 	//		-Receiving side must place it somewhere to be reconciled
 	//		-Sending side should send latest available copies
 	// Fixme: want differnet options here for serializing the Input/State structs (and maybe support for Output struct too)
@@ -731,15 +741,18 @@ public:
 					const bool bIsLocallyControlled = LocalObjs_Internal.Contains(ObjKey);
 					if (LocalState->State.ShouldReconcile(AuthObj.State, bIsLocallyControlled))
 					{
+						//UE_LOG(LogNetworkPrediction, Warning, TEXT("Should Reconcile Due to State! [%d/%d]"), Snapshot.Frame, Snapshot.Frame-Snapshot.LocalFrameOffset)
 						bShouldReconcile = true;
 					}
 					else if (!bIsLocallyControlled && LocalState->Input.ShouldReconcile(AuthObj.Input))
 					{
+						//UE_LOG(LogNetworkPrediction, Warning, TEXT("Should Reconcile Due to Input State! [%d/%d]"), Snapshot.Frame, Snapshot.Frame-Snapshot.LocalFrameOffset)
 						bShouldReconcile = true;
 					}
 				}
 				else 
 				{
+					//UE_LOG(LogNetworkPrediction, Warning, TEXT("Should Reconcile Due to no valid state! [%d/%d]"), Snapshot.Frame, Snapshot.Frame-Snapshot.LocalFrameOffset)
 					bShouldReconcile = true;
 				}
 
@@ -771,7 +784,8 @@ public:
 
 	void ProcessInputs_Internal(int32 PhysicsStep) override
 	{
-		PersistentStorage_Internal.IncrementFrame(PhysicsStep, true);
+		npEnsureMsgf(PersistentStorage_Internal.GetHeadFrame() == 0 || PersistentStorage_Internal.GetHeadFrame() == PhysicsStep, TEXT("Unexpected jump in persistent storage HeadFrame. %d: -> %d"), PersistentStorage_Internal.GetHeadFrame(), PhysicsStep);
+		PersistentStorage_Internal.SetHeadFrame(PhysicsStep);
 	}
 
 	void PreResimStep_Internal(int32 PhysicsStep, bool bFirst)
@@ -782,9 +796,9 @@ public:
 
 			// When we start a resim, even if we didn't cause the correction
 			// we still want to apply "more accurate inputs" when possible
-			// this will give us more accurate repridiections 
+			// this will give us more accurate repredictions 
 			//
-			// The transofmrations the data has to go through are very gross
+			// The transformations the data has to go through are very gross
 			// I don't see a better way atm that doesn't compromise the golden path (non resim)
 			PendingInputCorrections_Internal.Reset();
 			for (auto& FutureInput : FutureInputs_Internal)
@@ -816,7 +830,7 @@ public:
 		TSortedMap<ObjKeyType, ManagedObjType>* ObjectMap = PersistentStorage_Internal.GetWritable();
 		SnapshotsForGT_External.Enqueue(TSnapshot<ModelDef>{PhysicsStep, AsyncCallback->LocalFrameOffset_Internal, *ObjectMap});
 
-		// Apply correctionn
+		// Apply correction
 		if (PendingCorrections_Internal.IsValidIndex(PendingCorrectionIdx_Internal))
 		{
 			TSnapshot<ModelDef>& CorrectionSnapshot = PendingCorrections_Internal[PendingCorrectionIdx_Internal];
@@ -865,6 +879,9 @@ public:
 				break;
 			}
 		}
+
+		// Increment storage frame. PhysicsStep is effectively sealed and subsequent mods will be captured in the next frame
+		PersistentStorage_Internal.IncrementFrame();
 	}
 
 	// ---------------------------------------------
@@ -923,11 +940,8 @@ private:
 
 	TArray<TTuple<int32, ObjKeyType, TArray<InputCmdType>>> FutureInputs_Internal;
 	TArray<TTuple<int32, TSortedMap<ObjKeyType, InputCmdType>>> PendingInputCorrections_Internal;
-
-
 	
 	TSortedMap<ObjKeyType, TStorageBuffer<InputCmdType, 16>> NetRecvInputCmds;
-
 
 	// Set to hold ObjKeys that are locally controlled: this is just so we can know who is locally controlled on PT functions
 	// Consider replacing with some form of "ObjectFlags"
@@ -1005,9 +1019,6 @@ struct FTempMockInputCmd
 	FVector	Force;
 
 	UPROPERTY(BlueprintReadWrite,Category="Input")
-	float Turn=0.f;
-
-	UPROPERTY(BlueprintReadWrite,Category="Input")
 	bool bJumpedPressed = false;
 
 	UPROPERTY(BlueprintReadWrite,Category="Input")
@@ -1016,18 +1027,15 @@ struct FTempMockInputCmd
 	void NetSerialize(FArchive& Ar)
 	{
 		Ar << Force;
-		Ar << Turn;
 		Ar << bJumpedPressed;
 		Ar << bBrakesPressed;
 	}
 
 	bool ShouldReconcile(const FTempMockInputCmd& AuthState) const
 	{
-		return
-			FVector::DistSquared(Force, AuthState.Force) > 0.1f || 
+		return FVector::DistSquared(Force, AuthState.Force) > 0.1f || 
 			bJumpedPressed != AuthState.bJumpedPressed || 
-			bBrakesPressed != AuthState.bBrakesPressed || 
-			FMath::Abs<float>(Turn - AuthState.Turn) > 0.1f;
+			bBrakesPressed != AuthState.bBrakesPressed;
 	}
 
 	void ApplyCorrection(const FTempMockInputCmd& AuthState)
@@ -1041,19 +1049,39 @@ struct FTempMockObject
 {
 	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadWrite,Category="Mock Object")
-	int32 JumpCooldownMS = 0;
-
-	// Number of frames jump has been pressed
-	UPROPERTY(BlueprintReadWrite,Category="Mock Object")
-	int32 JumpCount = 0;
-
-	UPROPERTY(BlueprintReadWrite,Category="Mock Object")
+	// Actually used by AsyncTick to scale force applied
+	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
 	float ForceMultiplier = 125000.f;
 
 	// Arbitrary data that doesn't affect sim but could still trigger rollback
-	UPROPERTY(BlueprintReadWrite,Category="Mock Object")
+	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
 	int32 RandValue = 0;
+
+	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
+	int32 JumpCooldownMS = 0;
+
+	// Number of frames jump has been pressed
+	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
+	int32 JumpCount = 0;
+
+	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
+	int32 CheckSum = 0;
+
+	// Frame we started "in air recovery" on
+	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
+	int32 RecoveryFrame = 0;
+
+	// Frame we started jumping on
+	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
+	int32 JumpStartFrame = 0;
+
+	// Frame we started being in the air
+	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
+	int32 InAirFrame = 0;
+
+	// Frame we last applied a kick impulse
+	UPROPERTY(BlueprintReadWrite, Category="Mock Object")
+	int32 KickFrame = 0;
 
 	void NetSerialize(FArchive& Ar)
 	{
@@ -1061,25 +1089,34 @@ struct FTempMockObject
 		Ar << RandValue;
 		Ar << JumpCooldownMS;
 		Ar << JumpCount;
+		Ar << CheckSum;	
+		Ar << RecoveryFrame;
+		Ar << JumpStartFrame;
+		Ar << InAirFrame;
+		Ar << KickFrame;
 	}
 
 	bool ShouldReconcile(const FTempMockObject& AuthState, const bool bIsLocallyControlled) const
 	{
-		return ForceMultiplier != AuthState.ForceMultiplier || 
+		return 
+			ForceMultiplier != AuthState.ForceMultiplier || 
 			RandValue != AuthState.RandValue ||
 			JumpCooldownMS != AuthState.JumpCooldownMS || 
-			JumpCount != AuthState.JumpCount;
+			JumpCount != AuthState.JumpCount ||
+			RecoveryFrame != AuthState.RecoveryFrame ||
+			JumpStartFrame != AuthState.JumpStartFrame ||
+			InAirFrame != AuthState.InAirFrame ||
+			KickFrame!= AuthState.KickFrame;
 	}
 
 	void ApplyCorrection(const FTempMockObject& AuthState, const bool bIsLocallyControlled)
 	{
-		ForceMultiplier = AuthState.ForceMultiplier;
-		RandValue = AuthState.RandValue;
-		JumpCooldownMS = AuthState.JumpCooldownMS;
-		JumpCount = AuthState.JumpCount;
+		FSingleParticlePhysicsProxy* MyProxy = this->Proxy; // gross but compact. See Non-networked data notes below
+		*this = AuthState;
+		this->Proxy = MyProxy;
 	}
 
-	static void SimulationTick(const FTempMockInputCmd* InputCmd, FTempMockObject* SimObject, const float DeltaSeconds, const int32 Frame, const int32 StorageFrame);
+	static void SimulationTick(UWorld* World, const FTempMockInputCmd* InputCmd, FTempMockObject* SimObject, const float DeltaSeconds, const int32 Frame, const int32 StorageFrame);
 
 	// -----------------------------------------------------
 	// Non-networked data

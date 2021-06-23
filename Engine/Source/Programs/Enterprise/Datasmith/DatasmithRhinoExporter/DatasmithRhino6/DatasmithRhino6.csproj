@@ -79,6 +79,13 @@
       <Private>False</Private>
     </Reference>
   </ItemGroup>
+  <ItemGroup Condition="'$(Platform_OS)' == 'Mac'">
+    <Reference Include="RhinoMac">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>$(RHINO6_PATH)\RhinoMac.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
   <ItemGroup>
     <Compile Include="DatasmithRhino6.cs" />
     <Compile Include="$(AssemblyInfo)">
@@ -219,10 +226,9 @@
 		Copy "$(MSBuildProjectDirectory)\..\SharedResources\DatasmithRhino.rui" "$(TargetDir)$(TargetName).rui"
     </PostBuildEvent>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)' == 'Debug' And '$(Platform_OS)' == 'Mac'">
+  <PropertyGroup Condition="'$(Platform_OS)' == 'Mac'">
     <PostBuildEvent>
-		cp -f "$(MSBuildProjectDirectory)/$(OutputPath)$(AssemblyName).dll" "$(MSBuildProjectDirectory)/$(OutputPath)$(AssemblyName).rhp"
-		cp -f "$(MSBuildProjectDirectory)/../SharedResources/DatasmithRhino.rui" "$(MSBuildProjectDirectory)/$(OutputPath)$(AssemblyName).rui" 
+    sh "$(ProjectDir)../Installer/CreateMacPackages.sh" $(TargetName) 6
     </PostBuildEvent>
   </PropertyGroup>
   <PropertyGroup>

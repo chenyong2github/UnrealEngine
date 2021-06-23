@@ -18,7 +18,8 @@ public:
 		FText DisplayName,
 		ENiagaraParameterEditMode InParameterEditMode,
 		TSharedPtr<FNiagaraMessageLogViewModel> InNiagaraMessageLogViewModel,
-		const FGuid& InMessageLogGuidKey
+		const FGuid& InMessageLogGuidKey,
+		bool bInIsForDataProcessingOnly
 	);
 
 	void Initialize(FVersionedNiagaraScript& InScript, const FVersionedNiagaraScript& InSourceScript);

@@ -444,10 +444,16 @@ void UNiagaraScriptSource::CollectDataInterfaces(TArray<const UNiagaraDataInterf
 	}
 }
 
-void UNiagaraScriptSource::SynchronizeGraphParametersWithParameterDefinitions(const TArray<UNiagaraParameterDefinitionsBase*> ParameterDefinitions, const TArray<FGuid>& ParameterDefinitionsParameterIds, FSynchronizeWithParameterDefinitionsArgs Args)
+void UNiagaraScriptSource::SynchronizeGraphParametersWithParameterDefinitions(
+	const TArray<UNiagaraParameterDefinitionsBase*> TargetDefinitions,
+	const TArray<UNiagaraParameterDefinitionsBase*> AllDefinitions,
+	const TSet<FGuid>& AllDefinitionsParameterIds,
+	INiagaraParameterDefinitionsSubscriber* Subscriber,
+	FSynchronizeWithParameterDefinitionsArgs Args)
 {
-	TArray<UNiagaraParameterDefinitions*> EditorOnlyParameterDefinitions = FNiagaraEditorUtilities::DowncastParameterDefinitionsBaseArray(ParameterDefinitions);
-	NodeGraph->SynchronizeParametersWithParameterDefinitions(EditorOnlyParameterDefinitions, ParameterDefinitionsParameterIds, Args);
+	TArray<UNiagaraParameterDefinitions*> QualifiedTargetDefinitions = FNiagaraEditorUtilities::DowncastParameterDefinitionsBaseArray(TargetDefinitions);
+	TArray<UNiagaraParameterDefinitions*> QualifiedAllDefinitions = FNiagaraEditorUtilities::DowncastParameterDefinitionsBaseArray(AllDefinitions);
+	NodeGraph->SynchronizeParametersWithParameterDefinitions(QualifiedTargetDefinitions, QualifiedAllDefinitions, AllDefinitionsParameterIds, Subscriber, Args);
 }
 
 void UNiagaraScriptSource::RenameGraphAssignmentAndSetNodePins(const FName OldName, const FName NewName)

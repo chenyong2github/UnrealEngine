@@ -217,7 +217,12 @@ void FSteamSharedModule::LoadSteamModules()
 	if (SteamDLLHandle == nullptr)
 	{
 		// try bundled one
-		UE_LOG(LogSteamShared, Warning, TEXT("Could not find system one, loading bundled %s."), *SteamModuleFileName);
+#if PLATFORM_MAC
+		if (FParse::Param(FCommandLine::Get(), TEXT("dllerrors")))
+#endif // PLATFORM_MAC
+		{
+			UE_LOG(LogSteamShared, Warning, TEXT("Could not find system one, loading bundled %s."), *SteamModuleFileName);
+		}
 		FString RootSteamPath = GetSteamModulePath();
 		SteamDLLHandle = FPlatformProcess::GetDllHandle(*(RootSteamPath + SteamModuleFileName));
 	}
@@ -322,9 +327,6 @@ FSteamServerInstanceHandler::FSteamServerInstanceHandler(FSteamSharedModule* Ste
 		}
 	}
 
-	// Grab the SteamPort, which handles communications over the steam network.
-	SteamPort = GamePort + 1;
-
 	// Allow the command line to override the default query port for master server communications
 	if (FParse::Value(FCommandLine::Get(), TEXT("QueryPort="), QueryPort) == false)
 	{
@@ -346,9 +348,9 @@ FSteamServerInstanceHandler::FSteamServerInstanceHandler(FSteamSharedModule* Ste
 		UE_LOG(LogSteamShared, Warning, TEXT("[OnlineSubsystemSteam].GameVersion is not set. Server advertising will fail"));
 	}
 
-	UE_LOG(LogSteamShared, Verbose, TEXT("Initializing Steam Game Server IP: 0x%08X Port: %d SteamPort: %d QueryPort: %d"), LocalServerIP, GamePort, SteamPort, QueryPort);
+	UE_LOG(LogSteamShared, Verbose, TEXT("Initializing Steam Game Server IP: 0x%08X Port: %d QueryPort: %d"), LocalServerIP, GamePort, QueryPort);
 
-	if (SteamGameServer_Init(LocalServerIP, SteamPort, GamePort, QueryPort,
+	if (SteamGameServer_Init(LocalServerIP, GamePort, QueryPort,
 		(bVACEnabled ? eServerModeAuthenticationAndSecure : eServerModeAuthentication),
 		TCHAR_TO_UTF8(*GameVersion)))
 	{

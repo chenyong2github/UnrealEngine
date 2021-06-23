@@ -167,18 +167,12 @@ void UDisplayClusterConfiguratorFactory::SetupNewBlueprint(UDisplayClusterBluepr
 	NewBlueprint->SetConfigData(UDisplayClusterConfigurationData::CreateNewConfigData());
 	// Setup default components.
 	{
-		{
-			USCS_Node* NewNode = NewBlueprint->SimpleConstructionScript->CreateNode(UDisplayClusterCameraComponent::StaticClass(),
-				*FDisplayClusterConfiguratorUtils::FormatNDisplayComponentName(UDisplayClusterCameraComponent::StaticClass()));
-			UDisplayClusterCameraComponent* ComponentTemplate = CastChecked<UDisplayClusterCameraComponent>(NewNode->GetActualComponentTemplate(NewBlueprint->GetGeneratedClass()));
-			ComponentTemplate->SetRelativeLocation(FVector(-200.f, 0.f, 50.f));
-			NewBlueprint->SimpleConstructionScript->AddNode(NewNode);
-		}
+		// We add a screen component only. The DCRA already has a default camera (view point).
 		{
 			USCS_Node* NewNode = NewBlueprint->SimpleConstructionScript->CreateNode(UDisplayClusterScreenComponent::StaticClass(),
 				*FDisplayClusterConfiguratorUtils::FormatNDisplayComponentName(UDisplayClusterScreenComponent::StaticClass()));
 			UDisplayClusterScreenComponent* ComponentTemplate = CastChecked<UDisplayClusterScreenComponent>(NewNode->GetActualComponentTemplate(NewBlueprint->GetGeneratedClass()));
-			ComponentTemplate->SetRelativeLocation(FVector(0.f, 0.f, 50.f));
+			ComponentTemplate->SetRelativeLocation(FVector(100.f, 0.f, 50.f));
 			NewBlueprint->SimpleConstructionScript->AddNode(NewNode);
 		}
 	}

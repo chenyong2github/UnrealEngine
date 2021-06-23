@@ -21,10 +21,6 @@ public:
 
 protected:
 	
-	/* The object we're serializing into. Can be a CDO or 'normal' object. Used to detect subobjects references. */
-	UObject* SerializedObject;
-
-	
 	//~ Begin FSnapshotArchive Interface
 	virtual UObject* ResolveObjectDependency(int32 ObjectIndex) const override;
 	//~ End FSnapshotArchive Interface

@@ -154,6 +154,7 @@ public:
 		, _Padding( FMargin(0) )
 		, _ShowSelection( true )
 		, _ShowWires( false )
+		, _bAllowPreselectedItemActivation(false)
 		, _SignalSelectionMode( ETableRowSignalSelectionMode::Deferred )
 		, _Content()
 		{}
@@ -190,6 +191,7 @@ public:
 	
 		SLATE_ARGUMENT( bool, ShowSelection )
 		SLATE_ARGUMENT( bool, ShowWires)
+		SLATE_ARGUMENT( bool, bAllowPreselectedItemActivation)
 
 		/**
 		 * The Signal Selection mode affect when the owner table gets notified that the selection has changed.
@@ -511,7 +513,7 @@ public:
 						}
 					}
 
-					if (!bIsSelected && !bChangedSelectionOnMouseDown)
+					if ((bAllowPreselectedItemActivation || !bIsSelected) && !bChangedSelectionOnMouseDown)
 					{
 						OwnerTable->Private_ClearSelection();
 						OwnerTable->Private_SetItemSelection(MyItem, true, true);
@@ -1150,6 +1152,8 @@ protected:
 		this->SignalSelectionMode = InArgs._SignalSelectionMode;
 
 		this->bShowWires = InArgs._ShowWires;
+
+		this->bAllowPreselectedItemActivation = InArgs._bAllowPreselectedItemActivation;
 	}
 
 	void SetOwnerTableView( TSharedPtr<STableViewBase> OwnerTableView )
@@ -1258,6 +1262,9 @@ protected:
 
 	/** Did the current a touch interaction start in this item?*/
 	bool bProcessingSelectionTouch;
+
+	/** When activating an item via mouse button, we generally don't allow pre-selected items to be activated */
+	bool bAllowPreselectedItemActivation;
 
 private:
 	bool bShowWires;

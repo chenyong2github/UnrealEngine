@@ -9,15 +9,12 @@
 #include "IO/DMXOutputPort.h"
 #include "IO/DMXPortManager.h"
 
-#include "Engine/Texture.h"
-#include "Widgets/SOverlay.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SScaleBox.h"
-#include "Widgets/Text/STextBlock.h"
-
 #if WITH_EDITOR
-#include "SDMXPixelMappingEditorWidgets.h"
+#include "DMXPixelMappingComponentWidget.h"
+#include "SDMXPixelMappingScreenComponentBox.h"
 #endif // WITH_EDITOR
+
+#include "Engine/Texture.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("Send Screen"), STAT_DMXPixelMaping_SendScreen, STATGROUP_DMXPIXELMAPPING);
@@ -26,15 +23,11 @@ DECLARE_CYCLE_STAT(TEXT("Send Screen"), STAT_DMXPixelMaping_SendScreen, STATGROU
 
 const FVector2D UDMXPixelMappingScreenComponent::MinGridSize = FVector2D(1.f);
 
-#if WITH_EDITORONLY_DATA
-const uint32 UDMXPixelMappingScreenComponent::MaxGridUICells = 40 * 40;
-#endif
-
 UDMXPixelMappingScreenComponent::UDMXPixelMappingScreenComponent()
 	: bSendToAllOutputPorts(true)
 {
-	SizeX = 100;
-	SizeY = 100;
+	SizeX = 500.f; 
+	SizeY = 500.f; 
 
 	NumXCells = 10;
 	NumYCells = 10;
@@ -42,30 +35,11 @@ UDMXPixelMappingScreenComponent::UDMXPixelMappingScreenComponent()
 	PixelFormat = EDMXCellFormat::PF_RGB;
 	bIgnoreAlphaChannel = true;
 
-	RemoteUniverse = 1;
+	LocalUniverse = 1;
 	StartAddress = 1;
 	PixelIntensity = 1;
 	AlphaIntensity = 1;
 	Distribution = EDMXPixelMappingDistribution::TopLeftToRight;
-
-#if WITH_EDITOR
-	bIsUpdateWidgetRequested = false;
-	Slot = nullptr;
-
-	bEditableEditorColor = true;
-#endif // WITH_EDITOR
-}
-
-void UDMXPixelMappingScreenComponent::Tick(float DeltaTime)
-{
-#if WITH_EDITOR
-	if (bIsUpdateWidgetRequested)
-	{
-		UpdateWidget();
-
-		bIsUpdateWidgetRequested = false;
-	}
-#endif // WITH_EDITOR
 }
 
 #if WITH_EDITOR
@@ -76,37 +50,26 @@ void UDMXPixelMappingScreenComponent::PostEditChangeChainProperty(FPropertyChang
 	
 	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, NumXCells) ||
 		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, NumYCells) ||
-		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, RemoteUniverse) ||
+		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, LocalUniverse) ||
 		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, StartAddress) ||
 		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, Distribution) ||
 		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, PixelFormat) ||
 		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, bShowAddresses) ||
-		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, bShowUniverse) ||
-		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, bVisibleInDesigner)
-		)
+		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, bShowUniverse))
 	{
-		bIsUpdateWidgetRequested = true;
-	}
-	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, EditorColor))
-	{
-		Brush.TintColor = EditorColor;
-	}
-
-	if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
-	{
-
-		if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, PositionX) ||
-			PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, PositionY))
+		if (ScreenComponentBox.IsValid())
 		{
-			Slot->SetOffset(FMargin(PositionX, PositionY, 0.f, 0.f));
-		}
+			FDMXPixelMappingScreenComponentGridParams GridParams;
+			GridParams.bShowAddresses = bShowAddresses;
+			GridParams.bShowUniverse = bShowUniverse;
+			GridParams.Distribution = Distribution;
+			GridParams.NumXCells = NumXCells;
+			GridParams.NumYCells = NumYCells;
+			GridParams.PixelFormat = PixelFormat;
+			GridParams.LocalUniverse = LocalUniverse;
+			GridParams.StartAddress = StartAddress;
 
-		if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, SizeX) ||
-			PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, SizeY))
-		{
-			CachedWidget->SetWidthOverride(SizeX);
-			CachedWidget->SetHeightOverride(SizeY);
-			CachedLabelBox->SetWidthOverride(SizeX);
+			ScreenComponentBox->RebuildGrid(GridParams);
 		}
 	}
 	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, OutputPortReferences))
@@ -136,128 +99,31 @@ const FText UDMXPixelMappingScreenComponent::GetPaletteCategory()
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
-TSharedRef<SWidget> UDMXPixelMappingScreenComponent::BuildSlot(TSharedRef<SConstraintCanvas> InCanvas)
+TSharedRef<FDMXPixelMappingComponentWidget> UDMXPixelMappingScreenComponent::BuildSlot(TSharedRef<SConstraintCanvas> InCanvas)
 {
-	CachedWidget =
-		SNew(SBox)
-		.HeightOverride(SizeX)
-		.WidthOverride(SizeY);
-
-	InCanvas->AddSlot()
-		.AutoSize(true)
-		.Alignment(FVector2D::ZeroVector)
-		.ZOrder(ZOrder)
-		.Expose(Slot)
-		[
-			CachedWidget.ToSharedRef()
-		];
-
-	// Border settings
-	Brush.DrawAs = ESlateBrushDrawType::Border;
-	Brush.TintColor = GetEditorColor(false);
-	Brush.Margin = FMargin(1.f);
-
-	Slot->SetOffset(FMargin(PositionX, PositionY, 0.f, 0.f));
-	CachedWidget->SetWidthOverride(SizeX);
-	CachedWidget->SetHeightOverride(SizeY);
-
-	UpdateWidget();
-
-	return CachedWidget.ToSharedRef();
-}
-#endif // WITH_EDITOR
-
-#if WITH_EDITOR
-void UDMXPixelMappingScreenComponent::ToggleHighlightSelection(bool bIsSelected)
-{
-	Super::ToggleHighlightSelection(bIsSelected);
-
-	Brush.TintColor = GetEditorColor(bIsSelected);
-}
-#endif // WITH_EDITOR
-
-#if WITH_EDITOR
-TSharedRef<SWidget> UDMXPixelMappingScreenComponent::ConstructGrid()
-{
-	CachedLabelBox =
-		SNew(SBox)
-		.WidthOverride(SizeY)
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Top)
-		[
-			SNew(SScaleBox)
-			.Stretch(EStretch::ScaleToFit)
-			.StretchDirection(EStretchDirection::DownOnly)
-			[
-				SNew(STextBlock)
-				.Text(FText::FromString(GetUserFriendlyName()))
-			]
-		];
-
-	if ((NumXCells * NumYCells) > MaxGridUICells)
+	if (!ComponentWidget.IsValid())
 	{
-		return SNew(SOverlay)
-			+ SOverlay::Slot()
-			.Padding(FMargin(0.0f, -16.0f))
-			.HAlign(HAlign_Fill)
-			.VAlign(VAlign_Fill)
-			[
-				CachedLabelBox.ToSharedRef()
-			]
-			+ SOverlay::Slot()
-			.HAlign(HAlign_Fill)
-			.VAlign(VAlign_Fill)
-			[
-				SNew(SDMXPixelMappingSimpleScreenLayout)
-				.NumXCells(NumXCells)
-				.NumYCells(NumYCells)
-				.Brush(&Brush)
-				.RemoteUniverse(RemoteUniverse)
-				.StartAddress(StartAddress)
-			];
-	}
-	else
-	{
-		return SNew(SOverlay)
-			+ SOverlay::Slot()
-			.Padding(FMargin(0.0f, -16.0f))
-			.HAlign(HAlign_Fill)
-			.VAlign(VAlign_Fill)
-			[
-				CachedLabelBox.ToSharedRef()
-			]
-			+ SOverlay::Slot()
-			.HAlign(HAlign_Fill)
-			.VAlign(VAlign_Fill)
-			[
-				SNew(SDMXPixelMappingScreenLayout)
-				.NumXCells(NumXCells)
-				.NumYCells(NumYCells)
-				.Distribution(Distribution)
-				.PixelFormat(PixelFormat)
-				.Brush(&Brush)
-				.RemoteUniverse(RemoteUniverse)
-				.StartAddress(StartAddress)
-				.bShowAddresses(bShowAddresses)
-				.bShowUniverse(bShowUniverse)
-			];			
-		
-	}
-}
-#endif // WITH_EDITOR
+		ScreenComponentBox = 
+			SNew(SDMXPixelMappingScreenComponentBox)
+			.NumXCells(NumXCells)
+			.NumYCells(NumYCells)
+			.Distribution(Distribution)
+			.PixelFormat(PixelFormat)
+			.LocalUniverse(LocalUniverse)
+			.StartAddress(StartAddress)
+			.bShowAddresses(bShowAddresses)
+			.bShowUniverse(bShowUniverse);
 
-#if WITH_EDITOR
-void UDMXPixelMappingScreenComponent::UpdateWidget()
-{
-	// Hide in designer view
-	if (bVisibleInDesigner == false)
-	{
-		CachedWidget->SetContent(SNullWidget::NullWidget);
+		ComponentWidget = MakeShared<FDMXPixelMappingComponentWidget>(ScreenComponentBox, nullptr);
+
+		ComponentWidget->AddToCanvas(InCanvas, ZOrder);
+		ComponentWidget->SetPosition(GetPosition());
+		ComponentWidget->SetSize(GetSize());
+		ComponentWidget->SetColor(GetEditorColor());
+		ComponentWidget->SetLabelText(FText::FromString(GetUserFriendlyName()));
 	}
-	else
-	{
-		CachedWidget->SetContent(ConstructGrid());
-	}
+	
+	return ComponentWidget.ToSharedRef();
 }
 #endif // WITH_EDITOR
 
@@ -392,9 +258,9 @@ void UDMXPixelMappingScreenComponent::SendDMX()
 		return;
 	}
 
-	if (RemoteUniverse < 0)
+	if (LocalUniverse < 0)
 	{
-		UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("RemoteUniverse < 0"));
+		UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("LocalUniverse < 0"));
 		return;
 	}
 
@@ -448,7 +314,7 @@ void UDMXPixelMappingScreenComponent::SendDMX()
 		// Start sending
 		const uint32 UniverseMaxChannels = FDMXPixelMappingUtils::GetUniverseMaxChannels(PixelFormat, StartAddress);
 		uint32 SendDMXIndex = StartAddress;
-		int32 UniverseToSend = RemoteUniverse;
+		int32 UniverseToSend = LocalUniverse;
 		const int32 SendBufferNum = SendBuffer.Num();
 		TMap<int32, uint8> ChannelToValueMap;
 		for (int32 FragmentMapIndex = 0; FragmentMapIndex < SendBufferNum; FragmentMapIndex++)
@@ -540,37 +406,6 @@ void UDMXPixelMappingScreenComponent::QueueDownsample()
 	PixelDownsamplePositionRange.Value = PixelDownsamplePositionRange.Key + IterationCount;
 }
 
-FVector2D UDMXPixelMappingScreenComponent::GetSize() const
-{
-	return FVector2D(SizeX, SizeY);
-}
-
-void UDMXPixelMappingScreenComponent::SetSize(const FVector2D& InSize)
-{
-	// SetSize from parent rounded the values for us
-	Super::SetSize(InSize);
-
-	SetSizeInternal(InSize);
-}
-
-FVector2D UDMXPixelMappingScreenComponent::GetPosition()
-{
-	return FVector2D(PositionX, PositionY);
-}
-
-void UDMXPixelMappingScreenComponent::SetPosition(const FVector2D& InPosition)
-{
-	// SetPosition from parent rounded the values for us
-	Super::SetPosition(InPosition);
-
-#if WITH_EDITOR
-	if (Slot != nullptr)
-	{
-		Slot->SetOffset(FMargin(PositionX, PositionY, 0.f, 0.f));
-	}
-#endif // WITH_EDITOR
-}
-
 void UDMXPixelMappingScreenComponent::RenderWithInputAndSendDMX()
 {
 	if (UDMXPixelMappingRendererComponent* RendererComponent = GetFirstParentByClass<UDMXPixelMappingRendererComponent>(this))
@@ -579,36 +414,6 @@ void UDMXPixelMappingScreenComponent::RenderWithInputAndSendDMX()
 	}
 
 	RenderAndSendDMX();
-}
-
-void UDMXPixelMappingScreenComponent::SetSizeInternal(const FVector2D& InSize)
-{
-	if (InSize.X <= MinGridSize.X)
-	{
-		SizeX = MinGridSize.X;
-	}
-	else
-	{
-		SizeX = InSize.X;
-	}
-
-	if (InSize.Y <= MinGridSize.Y)
-	{
-		SizeY = MinGridSize.Y;
-	}
-	else
-	{
-		SizeY = InSize.Y;
-	}
-
-#if WITH_EDITOR
-	if (Slot != nullptr)
-	{
-		CachedWidget->SetWidthOverride(SizeX);
-		CachedWidget->SetHeightOverride(SizeY);
-		CachedLabelBox->SetWidthOverride(SizeX);
-	}
-#endif // WITH_EDITOR
 }
 
 bool UDMXPixelMappingScreenComponent::CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const
@@ -632,6 +437,35 @@ void UDMXPixelMappingScreenComponent::ForEachPixel(ForEachPixelCallback InCallba
 			IndexXY++;
 		}
 	}
+}
+
+void UDMXPixelMappingScreenComponent::SetPosition(const FVector2D& NewPosition)
+{
+	PositionX = NewPosition.X;
+	PositionY = NewPosition.Y;
+
+#if WITH_EDITOR
+	if (ComponentWidget.IsValid())
+	{
+		ComponentWidget->SetPosition(FVector2D(PositionX, PositionY));
+	}
+#endif
+}
+
+void UDMXPixelMappingScreenComponent::SetSize(const FVector2D& NewSize)
+{
+	SizeX = FMath::Max(NewSize.X, 1.f);
+	SizeY = FMath::Max(NewSize.Y, 1.f);
+
+	SizeX = FMath::Max(SizeX, 1.f);
+	SizeY = FMath::Max(SizeY, 1.f);
+
+#if WITH_EDITOR
+	if (ComponentWidget.IsValid())
+	{
+		ComponentWidget->SetSize(FVector2D(SizeX, SizeY));
+	}
+#endif
 }
 
 #undef LOCTEXT_NAMESPACE

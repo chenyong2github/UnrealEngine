@@ -102,7 +102,16 @@ EVisibility FMaterialPropertyHelpers::ShouldShowExpression(UDEditorParameterValu
 
 	ShowHiddenDelegate.ExecuteIfBound(bShowHidden);
 
-	const bool bShouldShowExpression = (bShowHidden || MaterialEditorInstance->VisibleExpressions.Contains(Parameter->ParameterInfo));
+	bool bIsCooked = false;
+	if (MaterialEditorInstance->SourceInstance)
+	{
+		if (UMaterial* Material = MaterialEditorInstance->SourceInstance->GetMaterial())
+		{
+			bIsCooked = Material->GetPackage()->bIsCookedForEditor;
+		}
+	}
+
+	const bool bShouldShowExpression = bShowHidden || MaterialEditorInstance->VisibleExpressions.Contains(Parameter->ParameterInfo) || bIsCooked;
 
 	if (MaterialEditorInstance->bShowOnlyOverrides)
 	{

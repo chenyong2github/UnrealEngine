@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "1.49.0",
 	"FriendlyName": "Oculus OpenXR",
-	"Description": "OpenXR extension to support Oculus headsets and features",
+	"Description": "OpenXR extension to support Oculus headsets and features. Disable the Oculus VR plugin when enabling this plugin.",
 	"Category": "Virtual Reality",
 	"CreatedBy": "Oculus",
 	"CreatedByURL": "https://www.oculus.com/",

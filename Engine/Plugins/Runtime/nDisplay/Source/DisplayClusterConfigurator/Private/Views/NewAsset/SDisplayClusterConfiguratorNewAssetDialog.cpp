@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Views/NewAsset/SDisplayClusterConfiguratorNewAssetDialog.h"
+#include "Settings/DisplayClusterConfiguratorSettings.h"
 
 #include "AssetData.h"
 
@@ -17,8 +18,9 @@
 void SDisplayClusterConfiguratorNewAssetDialog::Construct(const FArguments& InArgs, FText AssetTypeDisplayName, TArray<FDisplayClusterConfiguratorNewAssetDialogOption> InOptions)
 {
 	bUserConfirmedSelection = false;
-	
-	SelectedOptionIndex = 0;
+
+	const UDisplayClusterConfiguratorEditorSettings* Settings = GetDefault<UDisplayClusterConfiguratorEditorSettings>();
+	SelectedOptionIndex = Settings->NewAssetIndex;
 
 	Options = InOptions;
 
@@ -168,6 +170,7 @@ void SDisplayClusterConfiguratorNewAssetDialog::ConfirmSelection()
 	}
 	SelectedOption.OnSelectionConfirmed.ExecuteIfBound();
 	bUserConfirmedSelection = true;
+
 	RequestDestroyWindow();
 }
 
@@ -199,11 +202,19 @@ void SDisplayClusterConfiguratorNewAssetDialog::OptionCheckBoxStateChanged(EChec
 	if (InCheckBoxState == ECheckBoxState::Checked)
 	{
 		SelectedOptionIndex = OptionIndex;
+		
+		UDisplayClusterConfiguratorEditorSettings* Settings = GetMutableDefault<UDisplayClusterConfiguratorEditorSettings>();
+		Settings->NewAssetIndex = SelectedOptionIndex;
+	
 	}
 }
 
 FText SDisplayClusterConfiguratorNewAssetDialog::GetAssetPickersLabelText() const
 {
+	if (SelectedOptionIndex < 0 || SelectedOptionIndex >= Options.Num())
+	{
+		return FText::GetEmpty();
+	}
 	return Options[SelectedOptionIndex].AssetPickerHeader;
 }
 

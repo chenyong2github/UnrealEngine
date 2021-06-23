@@ -55,6 +55,12 @@ class FSyncContext
 		TAtomicInt			  TotalMeshesCreated;
 		TAtomicInt			  TotalMeshesReused;
 		TAtomicInt			  TotalBugsCount;
+		TAtomicInt			  TotalMeshClassesCreated;
+		TAtomicInt			  TotalEmptyMeshClassesCreated;
+		TAtomicInt			  TotalInstancesCreated;
+		TAtomicInt			  TotalEmptyInstancesCreated;
+		TAtomicInt			  TotalMeshClassesForgot;
+		TAtomicInt			  TotalMeshClassesResactivated;
 	};
 
 	// Constructor
@@ -79,6 +85,9 @@ class FSyncContext
 
 	// Progression - Advance progression bar to the current value
 	void NewCurrentValue(int InCurrentValue = -1) const;
+
+	// Progression - Advance progression bar to the current value
+	FProgression* GetProgression() const { return Progression; }
 
   private:
 	// AC Model, can differ from one call to another

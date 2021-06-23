@@ -75,12 +75,11 @@ static TAutoConsoleVariable<int32> CVarRHICmdFlushRenderThreadTasksSingleLayerWa
 	TEXT("r.RHICmdFlushRenderThreadTasksSingleLayerWater"),
 	0,
 	TEXT("Wait for completion of parallel render thread tasks at the end of Single layer water. A more granular version of r.RHICmdFlushRenderThreadTasks. If either r.RHICmdFlushRenderThreadTasks or r.RHICmdFlushRenderThreadTasksSingleLayerWater is > 0 we will flush."));
-// This is to have switch use the simple single layer water shading similar to mobile: no dynamic lights, only sun and sky, no distortion, no colored transmittance on background, no custom depth read.
+// This is to have platforms use the simple single layer water shading similar to mobile: no dynamic lights, only sun and sky, no distortion, no colored transmittance on background, no custom depth read.
 bool SingleLayerWaterUsesSimpleShading(EShaderPlatform ShaderPlatform)
 {
 	bool bUsesSimpleShading;
-	bUsesSimpleShading = IsSwitchPlatform(ShaderPlatform);
-	bUsesSimpleShading = bUsesSimpleShading || IsVulkanMobileSM5Platform(ShaderPlatform);
+	bUsesSimpleShading = IsVulkanMobileSM5Platform(ShaderPlatform);
 	bUsesSimpleShading = bUsesSimpleShading || FDataDrivenShaderPlatformInfo::GetWaterUsesSimpleForwardShading(ShaderPlatform);
 	bUsesSimpleShading = bUsesSimpleShading && IsForwardShadingEnabled(ShaderPlatform);
 
@@ -120,8 +119,7 @@ bool ShouldRenderSingleLayerWaterSkippedRenderEditorNotification(TArrayView<cons
 bool UseSingleLayerWaterIndirectDraw(EShaderPlatform ShaderPlatform)
 {
 	return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5)
-		// Switch does not use tiling, Vulkan gives error with WaterTileCatergorisationCS usage of atomic, and Metal does not play nice, either.
-		&& !IsSwitchPlatform(ShaderPlatform)
+		// Vulkan gives error with WaterTileCatergorisationCS usage of atomic, and Metal does not play nice, either.
 		&& !IsVulkanMobilePlatform(ShaderPlatform)
 		&& FDataDrivenShaderPlatformInfo::GetSupportsWaterIndirectDraw(ShaderPlatform);
 }
@@ -664,7 +662,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWater(
 	// Copy the texture to be available for the water surface to refract
 	SceneWithoutWaterTextures = AddCopySceneWithoutWaterPass(GraphBuilder, ViewFamily, Views, SceneTextures.Color.Resolve, SceneTextures.Depth.Resolve);
 
-	// Render height fog over the color buffer if it is allocated, e.g. SingleLayerWaterUsesSimpleShading is true which is not the case on Switch.
+	// Render height fog over the color buffer if it is allocated, e.g. SingleLayerWaterUsesSimpleShading is true.
 	if (SceneWithoutWaterTextures.ColorTexture && ShouldRenderFog(ViewFamily))
 	{
 		RenderUnderWaterFog(GraphBuilder, SceneWithoutWaterTextures, SceneTextures.UniformBuffer);

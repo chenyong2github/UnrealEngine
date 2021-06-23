@@ -149,6 +149,15 @@ public:
 	 * @return The unique name
 	 */
 	static FString MakeUniqueSpawnableName(UMovieScene* InMovieScene, const FString& InName);
+
+	/**
+	 * Return a copy of the source object, suitable for use as a spawnable template.
+	 * @param InSourceObject The source object to convert into a spawnable template
+	 * @param InMovieScene The movie scene the spawnable template will be associated with
+	 * @param InName The name to use for the spawnable template
+	 * @return The spawnable template
+	 */
+	static UObject* MakeSpawnableTemplateFromInstance(UObject& InSourceObject, UMovieScene* InMovieScene, FName InName);
 };
 
 /**

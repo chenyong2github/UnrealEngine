@@ -475,7 +475,11 @@ void FAndroidPlatformMemory::FPlatformVirtualMemoryBlock::Decommit(size_t InOffs
 {
 	check(IsAligned(InOffset, GetCommitAlignment()) && IsAligned(InSize, GetCommitAlignment()));
 	check(InOffset >= 0 && InSize >= 0 && InOffset + InSize <= GetActualSize() && Ptr);
-	madvise(((uint8*)Ptr) + InOffset, InSize, MADV_DONTNEED);
+	if (madvise(((uint8*)Ptr) + InOffset, InSize, MADV_DONTNEED) != 0)
+	{
+		// we can ran out of VMAs here too!
+		FPlatformMemory::OnOutOfMemory(InSize, 0);
+	}
 }
 
 

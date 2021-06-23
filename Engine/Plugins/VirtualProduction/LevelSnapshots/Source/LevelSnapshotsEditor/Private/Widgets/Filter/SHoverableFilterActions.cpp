@@ -41,9 +41,9 @@ void SHoverableFilterActions::Construct(FArguments InArgs, TWeakPtr<SWidget> InH
 			.AutoWidth()
 			[
 			SNew(SCheckBox)
-			.OnCheckStateChanged_Lambda([this](ECheckBoxState NewState){ OnChangeFilterIgnored.ExecuteIfBound(NewState == ECheckBoxState::Checked); })
-			.IsChecked_Lambda([this](){ return IsFilterIgnored.Execute() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-			.ToolTipText(LOCTEXT("FilterRow.Ignore", "Ignore row"))
+				.OnCheckStateChanged_Lambda([this](ECheckBoxState NewState){ OnChangeFilterIgnored.ExecuteIfBound(NewState != ECheckBoxState::Checked); })
+				.IsChecked_Lambda([this](){ return IsFilterIgnored.Execute() ? ECheckBoxState::Unchecked : ECheckBoxState::Checked; })
+				.ToolTipText_Lambda([this](){ return IsFilterIgnored.Execute() ? LOCTEXT("FilterRow.Ignored", "Enable filter. Filter is ignored.") : LOCTEXT("FilterRow.NotIgnored", "Ignore filter. Filter is enabled."); })
 			]
 				
 			// Remove Button

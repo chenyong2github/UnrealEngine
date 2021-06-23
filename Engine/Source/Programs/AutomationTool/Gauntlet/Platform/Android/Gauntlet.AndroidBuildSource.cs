@@ -27,7 +27,11 @@ namespace Gauntlet
 
 		public bool Is32Bit { get; protected set; }
 
-		public AndroidBuild(UnrealTargetConfiguration InConfig, string InAndroidPackageName, string InApkPath, Dictionary<string, string> InFilesToInstall, BuildFlags InFlags, bool InIs32Bit)
+		public bool UsesExternalFilesDir { get; protected set; }
+
+		public bool UsesPublicLogs { get; protected set; }
+
+		public AndroidBuild(UnrealTargetConfiguration InConfig, string InAndroidPackageName, string InApkPath, Dictionary<string, string> InFilesToInstall, BuildFlags InFlags, bool InIs32Bit, bool bInUsesExternalFilesDir, bool bInUsesPublicLogs)
 		{
 			Configuration = InConfig;
 			AndroidPackageName = InAndroidPackageName;
@@ -35,6 +39,8 @@ namespace Gauntlet
 			FilesToInstall = InFilesToInstall;
 			Flags = InFlags;
 			Is32Bit = InIs32Bit;
+			UsesExternalFilesDir = bInUsesExternalFilesDir;
+			UsesPublicLogs = bInUsesPublicLogs;
 		}
 
 		public bool CanSupportRole(UnrealTargetRole RoleType)
@@ -103,6 +109,18 @@ namespace Gauntlet
 				}
 				string SourceApkPath = Path.Combine(AbsPath,SourceApkMatch.Groups[1].ToString());
 				
+				bool bUsesExternalFilesDir = false;
+				bool bUsesPublicLogs = false;
+				// parse APK's metadata for some build details
+				{
+					AndroidPlatform.GetPackageInfo(SourceApkPath, false);
+					// Establish remote directory usage
+					string ApkUsesExternalFilesDir = AndroidPlatform.GetMetadataValue("com.epicgames.unreal.GameActivity.bUseExternalFilesDir");
+					string ApkUsesPublicLogs = AndroidPlatform.GetMetadataValue("com.epicgames.unreal.GameActivity.bPublicLogFiles");
+					bUsesExternalFilesDir = ApkUsesExternalFilesDir != null ? ApkUsesExternalFilesDir.Contains("1") : false;
+					bUsesPublicLogs = ApkUsesPublicLogs != null ? ApkUsesPublicLogs.Contains("1") : false;
+				}
+
 				// save com.companyname.product
 				string AndroidPackageName = Regex.Match(BatContents, @"uninstall\s+(com\..+)").Groups[1].ToString();
 
@@ -147,7 +165,7 @@ namespace Gauntlet
 					Flags |= BuildFlags.NotBulk;
 				}
 
-				AndroidBuild NewBuild = new AndroidBuild(UnrealConfig, AndroidPackageName, SourceApkPath, FilesToInstall, Flags, PackageIs32Bit);
+				AndroidBuild NewBuild = new AndroidBuild(UnrealConfig, AndroidPackageName, SourceApkPath, FilesToInstall, Flags, PackageIs32Bit, bUsesExternalFilesDir, bUsesPublicLogs);
 
 				DiscoveredBuilds.Add(NewBuild);
 

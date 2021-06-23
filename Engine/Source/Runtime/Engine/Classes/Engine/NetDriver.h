@@ -895,12 +895,17 @@ public:
 
 	bool IsInTick() const { return bInTick; }
 
+	bool GetPendingDestruction() const { return bPendingDestruction; }
+	void SetPendingDestruction(bool bDestroy) { bPendingDestruction = bDestroy; }
+
 private:
 	double						ElapsedTime;
 	
 
 	/** Whether or not the NetDriver is ticking */
 	bool bInTick;
+
+	bool bPendingDestruction;
 
 public:
 	/** Last realtime a tick dispatch occurred. Used currently to try and diagnose timeout issues */

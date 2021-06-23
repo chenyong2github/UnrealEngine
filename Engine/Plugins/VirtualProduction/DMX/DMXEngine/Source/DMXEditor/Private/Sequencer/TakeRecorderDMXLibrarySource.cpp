@@ -41,11 +41,11 @@ void UTakeRecorderDMXLibrarySource::AddAllPatches()
 	
 	// Sort the patches by universe and starting channel
 	FixturePatches.Sort([](UDMXEntityFixturePatch& FirstPatch, UDMXEntityFixturePatch& SecondPatch) {
-		if (FirstPatch.UniverseID < SecondPatch.UniverseID)
+		if (FirstPatch.GetUniverseID() < SecondPatch.GetUniverseID())
 		{
 			return true;
 		}
-		else if (FirstPatch.UniverseID > SecondPatch.UniverseID)
+		else if (FirstPatch.GetUniverseID() > SecondPatch.GetUniverseID())
 		{
 			return false;
 		}

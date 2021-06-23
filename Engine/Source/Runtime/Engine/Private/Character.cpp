@@ -1753,3 +1753,43 @@ void ACharacter::ClientAdjustRootMotionSourcePosition_Implementation(float TimeS
 {
 	GetCharacterMovement()->ClientAdjustRootMotionSourcePosition_Implementation(TimeStamp, ServerRootMotion, bHasAnimRootMotion, ServerMontageTrackPosition, ServerLoc, ServerRotation, ServerVelZ, ServerBase, ServerBoneName, bHasBase, bBaseRelativePosition, ServerMovementMode);
 }
+
+void ACharacter::FillAsyncInput(FCharacterAsyncInput& Input) const
+{
+	Input.JumpMaxHoldTime = GetJumpMaxHoldTime();
+	Input.JumpMaxCount = JumpMaxCount;
+	Input.LocalRole = ENetRole::ROLE_Authority;//CharacterOwner->GetLocalRole(); Override as we aren't currently replicating to server. TODO NetRole
+	Input.RemoteRole = GetRemoteRole();
+	Input.bIsLocallyControlled = true;// CharacterOwner->IsLocallyControlled(); TODO NetRole
+	Input.bIsPlayingNetworkedRootMontage = IsPlayingNetworkedRootMotionMontage();
+	Input.bUseControllerRotationPitch = bUseControllerRotationPitch;
+	Input.bUseControllerRotationYaw = bUseControllerRotationYaw;
+	Input.bUseControllerRotationRoll = bUseControllerRotationRoll;
+	Input.ControllerDesiredRotation = Controller->GetDesiredRotation();
+}
+
+void ACharacter::InitializeAsyncOutput(FCharacterAsyncOutput& Output) const
+{
+	Output.Rotation = GetActorRotation();
+	Output.JumpCurrentCountPreJump = JumpCurrentCountPreJump;
+	Output.JumpCurrentCount = JumpCurrentCount;
+	Output.JumpForceTimeRemaining = JumpForceTimeRemaining;
+	Output.bWasJumping = bWasJumping;
+	Output.bPressedJump = bPressedJump;
+	Output.JumpKeyHoldTime = JumpKeyHoldTime;
+	Output.bClearJumpInput = false;
+}
+
+void ACharacter::ApplyAsyncOutput(const FCharacterAsyncOutput& Output)
+{
+	JumpCurrentCountPreJump = Output.JumpCurrentCountPreJump;
+	JumpCurrentCount = Output.JumpCurrentCount;
+	JumpForceTimeRemaining = Output.JumpForceTimeRemaining;
+	bWasJumping = Output.bWasJumping;
+	JumpKeyHoldTime = Output.JumpKeyHoldTime;
+
+	if (Output.bClearJumpInput)
+	{
+		bPressedJump = false;
+	}
+}

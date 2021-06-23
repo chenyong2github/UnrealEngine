@@ -380,7 +380,7 @@ class FPathTracingSkylightMISCompensationCS : public FGlobalShader
 IMPLEMENT_SHADER_TYPE(, FPathTracingSkylightMISCompensationCS, TEXT("/Engine/Private/PathTracing/PathTracingSkylightMISCompensation.usf"), TEXT("PathTracingSkylightMISCompensationCS"), SF_Compute);
 
 // this struct holds a light grid for both building or rendering
-BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingLightGrid,)
+BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingLightGrid, RENDERER_API)
 	SHADER_PARAMETER(uint32, SceneInfiniteLightCount)
 	SHADER_PARAMETER(FVector3f, SceneLightsBoundMin)
 	SHADER_PARAMETER(FVector3f, SceneLightsBoundMax)
@@ -799,7 +799,7 @@ bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo
 	return true;
 }
 
-void PrepareLightGrid(FRDGBuilder& GraphBuilder, FPathTracingLightGrid* LightGridParameters, const FPathTracingLight* Lights, uint32 NumLights, uint32 NumInfiniteLights, FRDGBufferSRV* LightsSRV, const FViewInfo& View)
+RENDERER_API void PrepareLightGrid(FRDGBuilder& GraphBuilder, FPathTracingLightGrid* LightGridParameters, const FPathTracingLight* Lights, uint32 NumLights, uint32 NumInfiniteLights, FRDGBufferSRV* LightsSRV)
 {
 	const float Inf = std::numeric_limits<float>::infinity();
 	LightGridParameters->SceneInfiniteLightCount = NumInfiniteLights;
@@ -874,7 +874,7 @@ void PrepareLightGrid(FRDGBuilder& GraphBuilder, FPathTracingLightGrid* LightGri
 		LightGridPassParameters->SceneLights = LightsSRV;
 		LightGridPassParameters->SceneLightCount = NumLights;
 
-		TShaderMapRef<FPathTracingBuildLightGridCS> ComputeShader(View.ShaderMap);
+		TShaderMapRef<FPathTracingBuildLightGridCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("Light Grid Create (%u lights)", NumFiniteLights),
@@ -1174,7 +1174,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 	}
 
 
-	PrepareLightGrid(GraphBuilder, &PassParameters->LightGridParameters, Lights, NumLights, NumInfiniteLights, PassParameters->SceneLights, View);
+	PrepareLightGrid(GraphBuilder, &PassParameters->LightGridParameters, Lights, NumLights, NumInfiniteLights, PassParameters->SceneLights);
 }
 
 class FPathTracingCompositorPS : public FGlobalShader

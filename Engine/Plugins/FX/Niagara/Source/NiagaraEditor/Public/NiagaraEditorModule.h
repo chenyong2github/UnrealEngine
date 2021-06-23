@@ -10,6 +10,7 @@
 #include "AssetTypeCategories.h"
 #include "NiagaraPerfBaseline.h"
 #include "NiagaraDebuggerCommon.h"
+#include "NiagaraEditorModule.generated.h"
 
 class IAssetTools;
 class IAssetTypeActions;
@@ -37,6 +38,8 @@ class UNiagaraEffectType;
 class SNiagaraBaselineViewport;
 class FParticlePerfStatsListener_NiagaraBaselineComparisonRender;
 class FNiagaraDebugger;
+class UNiagaraParameterDefinitions;
+class UNiagaraReservedParametersManager;
 
 DECLARE_STATS_GROUP(TEXT("Niagara Editor"), STATGROUP_NiagaraEditor, STATCAT_Advanced);
 
@@ -53,6 +56,38 @@ public:
 	virtual TSharedRef<SWidget> CreateCurveOverview(TSharedRef<FNiagaraSystemViewModel> SystemViewModel) const = 0;
 	virtual FLinearColor GetColorForExecutionCategory(FName ExecutionCategory) const = 0;
 };
+
+/* Wrapper struct for tracking parameters that are reserved by parameter definitions assets. */
+USTRUCT()
+struct FReservedParameter
+{
+	GENERATED_BODY()
+
+public:
+	FReservedParameter()
+		: Parameter(FNiagaraVariable())
+		, ReservingDefinitionsAsset(nullptr)
+	{};
+
+	FReservedParameter(const FNiagaraVariableBase& InParameter, const UNiagaraParameterDefinitions* InReservingDefinitionsAsset)
+		: Parameter(InParameter)
+		, ReservingDefinitionsAsset(const_cast<UNiagaraParameterDefinitions*>(InReservingDefinitionsAsset))
+	{};
+
+	bool operator== (const FReservedParameter& Other) const { return Parameter == Other.GetParameter() && ReservingDefinitionsAsset == Other.GetReservingDefinitionsAsset(); };
+
+	const FNiagaraVariableBase& GetParameter() const { return Parameter; };
+	const UNiagaraParameterDefinitions* GetReservingDefinitionsAsset() const { return ReservingDefinitionsAsset; };
+
+private:
+	UPROPERTY(transient)
+	FNiagaraVariableBase Parameter;
+		 
+	UPROPERTY(transient)
+	UNiagaraParameterDefinitions* ReservingDefinitionsAsset;
+};
+
+FORCEINLINE uint32 GetTypeHash(const FReservedParameter& ReservedParameter) { return GetTypeHash(ReservedParameter.GetParameter().GetName()); };
 
 /** Niagara Editor module */
 class FNiagaraEditorModule : public IModuleInterface,
@@ -154,9 +189,12 @@ public:
 	TSharedPtr<FNiagaraDebugger> GetDebugger(){ return Debugger; }
 #endif
 
-	const TSet<FName>& GetReservedLibraryParameterNames() const;
-	void AddReservedLibraryParameterName(const FName& ParameterName);
-	void RemoveReservedLibraryParameterName(const FName& ParameterName);
+	UNiagaraReservedParametersManager* GetReservedParametersManager();
+
+	NIAGARAEDITOR_API void GetTargetSystemAndEmitterForDataInterface(UNiagaraDataInterface* InDataInterface, UNiagaraSystem*& OutOwningSystem, UNiagaraEmitter*& OutOwningEmitter);
+	NIAGARAEDITOR_API void GetDataInterfaceFeedbackSafe(UNiagaraDataInterface* InDataInterface, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& Warnings, TArray<FNiagaraDataInterfaceFeedback>& Info);
+
+	TArray<UNiagaraParameterDefinitions*>& GetReservedDefinitions() { return ReservedDefinitions; };
 
 private:
 	class FDeferredDestructionContainerBase
@@ -212,6 +250,7 @@ private:
 		StackIssueGenerators.Add(StructName) = Generator;
 	}
 
+	void PreloadAllParameterDefinitions();
 
 private:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
@@ -280,9 +319,6 @@ private:
 
 	TMap<UClass*, TArray<UObject*>> ObjectPool;
 
-	// Parameter library assets reserve the name/type pairs of their parameters engine-wide.
-	mutable TSet<FName> ReservedLibraryParameterNames;
-
 #if NIAGARA_PERF_BASELINES
 	void GeneratePerfBaselines(TArray<UNiagaraEffectType*>& BaselinesToGenerate);
 	void OnPerfBaselineWindowClosed(const TSharedRef<SWindow>& ClosedWindow);
@@ -294,4 +330,46 @@ private:
 #if WITH_NIAGARA_DEBUGGER
 	TSharedPtr<FNiagaraDebugger> Debugger;
 #endif
+
+	UNiagaraReservedParametersManager* ReservedParametersManagerSingleton;
+
+	// Set of Parameter Definitions assets to reconcile the unique Id for Definitions that are duplicated from each other.
+	TArray<UNiagaraParameterDefinitions*> ReservedDefinitions;
+};
+
+USTRUCT()
+struct FReservedParameterArray
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(Transient)
+	TArray<FReservedParameter> Arr;
+};
+
+/** Manager singleton for tracking parameters that are reserved by parameter definitions assets.
+ *  Implements UObject to support undo/redo transactions on the map of definitions asset ptrs to parameter names.
+ */
+UCLASS()
+class UNiagaraReservedParametersManager : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	// UNiagaraReservedParametersManager is lazy initialized inside FNiagaraEditorModule::GetReservedParametersByName(), so delegate this method as a friend so that it may call InitReservedParameters().
+	friend UNiagaraReservedParametersManager* FNiagaraEditorModule::GetReservedParametersManager();
+
+public:
+	const TArray<FReservedParameter>* FindReservedParametersByName(const FName ParameterName) const;
+	int32 GetNumReservedParametersByName(const FName ParameterName) const;
+	EParameterDefinitionMatchState GetDefinitionMatchStateForParameter(const FNiagaraVariableBase& Parameter) const;
+	void AddReservedParameter(const FNiagaraVariableBase& Parameter, const UNiagaraParameterDefinitions* ReservingDefinitionsAsset);
+	void RemoveReservedParameter(const FNiagaraVariableBase& Parameter, const UNiagaraParameterDefinitions* ReservingDefinitionsAsset);
+
+private:
+	UPROPERTY(Transient)
+	TMap<FName, FReservedParameterArray> ReservedParameters;
+
+private:
+	void InitReservedParameters();
 };

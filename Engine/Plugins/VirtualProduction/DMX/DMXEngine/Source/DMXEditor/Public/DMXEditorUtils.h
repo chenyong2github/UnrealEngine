@@ -66,7 +66,7 @@ public:
 	static bool IsEntityUsed(const UDMXLibrary* InLibrary, const UDMXEntity* InEntity);
 
 	/**  Removes the entities and fixes references to it. */
-	static void RemoveEntities(UDMXLibrary* InLibrary, const TArray<UDMXEntity*>&& InEntities);
+	static void RemoveEntities(UDMXLibrary* InLibrary, const TArray<UDMXEntity*>& InEntities);
 
 	/**  Copies Entities to the operating system's clipboard. */
 	static void CopyEntities(const TArray<UDMXEntity*>&& EntitiesToCopy);

@@ -3,12 +3,63 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/ActorComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Engine/StaticMesh.h"
 #include "GameFramework/Character.h"
 #include "Materials/MaterialInterface.h"
 #include "SnapshotTestActor.generated.h"
+
+UCLASS()
+class USubSubobject : public UObject
+{
+	GENERATED_BODY()
+public:
+
+	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
+	int32 IntProperty;
+
+	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
+	float FloatProperty;
+	
+};
+
+UCLASS()
+class USubobject : public UObject
+{
+	GENERATED_BODY()
+public:
+
+	USubobject();
+	
+	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
+	int32 IntProperty;
+
+	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
+	float FloatProperty;
+
+	UPROPERTY(Instanced)
+	USubSubobject* NestedChild;
+};
+
+UCLASS()
+class USnapshotTestComponent : public UActorComponent
+{
+	GENERATED_BODY()
+public:
+
+	USnapshotTestComponent();
+	
+	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
+	int32 IntProperty;
+
+	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
+	float FloatProperty;
+
+	UPROPERTY(Instanced)
+	USubobject* Subobject;
+};
 
 UCLASS()
 class ASnapshotTestActor : public ACharacter
@@ -24,15 +75,25 @@ public:
 	void AddObjectReference(UObject* Object, FName MapKey = NAME_Name);
 	void ClearObjectReferences();
 
-
+	//~ Begin UObject Interface
+	virtual void PostInitProperties() override;
+	//~ End UObject Interface
+	
+	
+	/******************** Skipped properties  ********************/
+	
 	UPROPERTY()
 	int32 DeprecatedProperty_DEPRECATED = 100;
 
 	UPROPERTY(EditAnywhere, Transient, Category = "Level Snapshots")
 	int32 TransientProperty = 200;
 
+	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
+	int32 IntProperty;
+
 
 	
+	/******************** Raw references  ********************/
 	
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
 	UObject* ObjectReference;
@@ -48,7 +109,7 @@ public:
 
 
 
-	
+	/******************** FSoftObjectPath  ********************/
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
 	FSoftObjectPath SoftPath;
@@ -65,6 +126,7 @@ public:
 	
 
 	
+	/******************** TSoftObjectPtr  ********************/
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
 	TSoftObjectPtr<UObject> SoftObjectPtr;
@@ -81,6 +143,7 @@ public:
 
 
 	
+	/******************** TWeakObjectPtr  ********************/
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
 	TWeakObjectPtr<UObject> WeakObjectPtr;
@@ -96,7 +159,7 @@ public:
 
 	
 
-	
+	/******************** External component references  ********************/
 	
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
 	UActorComponent* ExternalComponentReference;
@@ -107,6 +170,7 @@ public:
 
 
 	
+	/******************** External references  ********************/
 	
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
 	UMaterialInterface* GradientLinearMaterial;
@@ -123,10 +187,26 @@ public:
 
 
 	
+	/******************** Subobject Component references  ********************/
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
 	UInstancedStaticMeshComponent* InstancedMeshComponent;
 
 	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
 	UPointLightComponent* PointLightComponent;
+
+	UPROPERTY(EditAnywhere, Category = "Level Snapshots")
+	USnapshotTestComponent* TestComponent;
+
+	
+	/******************** Subobject references  ********************/
+
+	UPROPERTY(EditAnywhere, Instanced, Category = "Level Snapshots")
+	USubobject* EditableInstancedSubobject;
+
+	UPROPERTY(Instanced)
+	USubobject* InstancedSubobject;
+
+	UPROPERTY()
+	USubobject* NakedSubobject;
 };

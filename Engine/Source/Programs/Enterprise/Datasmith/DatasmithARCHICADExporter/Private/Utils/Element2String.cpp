@@ -819,7 +819,7 @@ utf8_string FElement2String::GetPropertyObjectsAsString(const API_Elem_Head& InE
 	return PropertyObjectsString;
 }
 
-#ifdef WIN32 // Define for non compatible OS
+#if PLATFORM_WINDOWS // Define for non compatible OS
 	#define strlcpy(d, s, sz) strncpy(d, s, sz - 1)
 	#define strlcat(d, s, sz) strncat(d, s, sz - strlen(d) - 1)
 #endif

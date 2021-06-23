@@ -79,7 +79,10 @@ void FNiagaraParameterDefinitionsToolkit::Initialize(const EToolkitMode::Type Mo
 
 	check(InParameterDefinitions != nullptr);
 	ParameterDefinitionsSource = InParameterDefinitions;
-	ParameterDefinitionsInstance = Cast<UNiagaraParameterDefinitions>(StaticDuplicateObject(ParameterDefinitionsSource, GetTransientPackage()));
+
+	ResetLoaders(GetTransientPackage()); // Make sure that we're not going to get invalid version number linkers into the package we are going into. 
+	GetTransientPackage()->LinkerCustomVersion.Empty();
+	ParameterDefinitionsInstance = Cast<UNiagaraParameterDefinitions>(StaticDuplicateObject(ParameterDefinitionsSource, GetTransientPackage(), NAME_None, ~RF_Standalone, UNiagaraParameterDefinitions::StaticClass()));
 	ParameterDefinitionsInstance->ClearFlags(RF_Standalone | RF_Public);
 	LastSyncedDefinitionsChangeIdHash = ParameterDefinitionsInstance->GetChangeIdHash();
 	ParameterDefinitionsInstance->GetOnParameterDefinitionsChanged().AddRaw(this, &FNiagaraParameterDefinitionsToolkit::OnEditedParameterDefinitionsChanged);
@@ -179,15 +182,13 @@ void FNiagaraParameterDefinitionsToolkit::GetSaveableObjects(TArray<UObject*>& O
 
 void FNiagaraParameterDefinitionsToolkit::SaveAsset_Execute()
 {
-	bool bInvokedFromSaveAsset = true;
-	OnApply(bInvokedFromSaveAsset);
+	OnApply();
 	FAssetEditorToolkit::SaveAsset_Execute();
 }
 
 void FNiagaraParameterDefinitionsToolkit::SaveAssetAs_Execute()
 {
-	bool bInvokedFromSaveAsset = true;
-	OnApply(bInvokedFromSaveAsset);
+	OnApply();
 	FAssetEditorToolkit::SaveAsset_Execute();
 }
 
@@ -309,20 +310,14 @@ void FNiagaraParameterDefinitionsToolkit::ExtendToolbar()
 
 void FNiagaraParameterDefinitionsToolkit::SetupCommands()
 {
-	bool bInvokedFromSaveAsset = false;
 	GetToolkitCommands()->MapAction(
 		FNiagaraEditorCommands::Get().Apply,
-		FExecuteAction::CreateSP(this, &FNiagaraParameterDefinitionsToolkit::OnApply, bInvokedFromSaveAsset),
+		FExecuteAction::CreateSP(this, &FNiagaraParameterDefinitionsToolkit::OnApply),
 		FCanExecuteAction::CreateSP(this, &FNiagaraParameterDefinitionsToolkit::OnApplyEnabled));
 }
 
-void FNiagaraParameterDefinitionsToolkit::OnApply(bool bInvokedFromSaveAsset /*= false*/)
+void FNiagaraParameterDefinitionsToolkit::OnApply()
 {
-	if (bInvokedFromSaveAsset == false && ParameterDefinitionsInstance->GetChangeIdHash() == LastSyncedDefinitionsChangeIdHash)
-	{
-		ensureMsgf(false, TEXT("Tried to apply changes to parameter definitions but the change ID does not differ with the last seen change ID!"));
-	}
-
 	const FScopedBusyCursor BusyCursor;
 	const FText LocalizedScriptEditorApply = NSLOCTEXT("UnrealEd", "ToolTip_NiagaraParameterDefinitionsEditorApply", "Apply changes to parameter definitions.");
 	GWarn->BeginSlowTask(LocalizedScriptEditorApply, true);
@@ -344,17 +339,20 @@ void FNiagaraParameterDefinitionsToolkit::OnApply(bool bInvokedFromSaveAsset /*=
 	// Restore RF_Standalone and RF_Public on the original parameter definitions.
 	ParameterDefinitionsSource->SetFlags(RF_Standalone | RF_Public);
 
+	// Invoke onchanged events for listeners.
 	ParameterDefinitionsSource->PostEditChange();
-
-	// Record the last synced change id to detect future changes.
-	LastSyncedDefinitionsChangeIdHash = ParameterDefinitionsInstance->GetChangeIdHash();
-	bEditedParameterDefinitionsHasPendingChanges = false;
-
 	ParameterDefinitionsSource->NotifyParameterDefinitionsChanged();
-	FRefreshAllScriptsFromExternalChangesArgs Args;
-	Args.OriginatingParameterDefinitions = ParameterDefinitionsSource;
-	FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(Args);
+	
+	// If the ChangeIdHash is different, apply to all scripts/emitters/systems in editor. Record the last synced ChangeIdHash to detect future changes.
+	if (ParameterDefinitionsInstance->GetChangeIdHash() != LastSyncedDefinitionsChangeIdHash)
+	{
+		FRefreshAllScriptsFromExternalChangesArgs Args;
+		Args.OriginatingParameterDefinitions = ParameterDefinitionsSource;
+		FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(Args);
+		LastSyncedDefinitionsChangeIdHash = ParameterDefinitionsInstance->GetChangeIdHash();
+	}
 
+	bEditedParameterDefinitionsHasPendingChanges = false;
 	GWarn->EndSlowTask();
 	FNiagaraEditorModule::Get().InvalidateCachedScriptAssetData();
 }

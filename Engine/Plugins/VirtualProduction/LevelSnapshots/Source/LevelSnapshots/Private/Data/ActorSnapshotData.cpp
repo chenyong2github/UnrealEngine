@@ -7,6 +7,8 @@
 #include "PropertySelectionMap.h"
 #include "TakeWorldObjectSnapshotArchive.h"
 #include "WorldSnapshotData.h"
+#include "CustomSerialization/CustomObjectSerializationWrapper.h"
+#include "CustomSerialization/CustomSerializationDataManager.h"
 
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -15,13 +17,14 @@
 FActorSnapshotData FActorSnapshotData::SnapshotActor(AActor* OriginalActor, FWorldSnapshotData& WorldData)
 {
 	FActorSnapshotData Result;
-	
 	UClass* ActorClass = OriginalActor->GetClass();
 	Result.ActorClass = ActorClass;
 	
 	FTakeWorldObjectSnapshotArchive Serializer = FTakeWorldObjectSnapshotArchive::MakeArchiveForSavingWorldObject(Result.SerializedActorData, WorldData, OriginalActor);
 	OriginalActor->Serialize(Serializer);
 	WorldData.AddClassDefault(OriginalActor->GetClass());
+	// If external modules registered for custom serialisation, trigger their callbacks
+	FCustomObjectSerializationWrapper::TakeSnapshotForActor(OriginalActor, Result.CustomActorSerializationData, WorldData);
 	
 	TInlineComponentArray<UActorComponent*> Components;
 	OriginalActor->GetComponents(Components);
@@ -32,6 +35,8 @@ FActorSnapshotData FActorSnapshotData::SnapshotActor(AActor* OriginalActor, FWor
 		{
 			const int32 ComponentIndex = WorldData.AddSubobjectDependency(Comp);
 			Result.ComponentData.Add(ComponentIndex, *SerializedComponentData);
+			// If external modules registered for custom serialisation, trigger their callbacks
+			FCustomObjectSerializationWrapper::TakeSnapshotForSubobject(Comp, WorldData);
 		}
 	}
 	
@@ -40,25 +45,21 @@ FActorSnapshotData FActorSnapshotData::SnapshotActor(AActor* OriginalActor, FWor
 
 void FActorSnapshotData::DeserializeIntoExistingWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData, UPackage* InLocalisationSnapshotPackage, const FPropertySelectionMap& SelectedProperties)
 {
-	auto DeserializeActor = [this, &WorldData, &SelectedProperties](AActor* OriginalActor, AActor* DeserializedActor)
+	auto DeserializeActor = [this, &WorldData, InLocalisationSnapshotPackage, &SelectedProperties](AActor* OriginalActor, AActor* DeserializedActor)
 	{
+		const FRestoreObjectScope FinishRestore = FCustomObjectSerializationWrapper::PreActorRestore_EditorWorld(OriginalActor, CustomActorSerializationData, WorldData, SelectedProperties, InLocalisationSnapshotPackage);
 		const FPropertySelection* ActorPropertySelection = SelectedProperties.GetSelectedProperties(OriginalActor);
 		if (ActorPropertySelection)
 		{
-#if WITH_EDITOR
-			OriginalActor->Modify();
-#endif
 			FApplySnapshotDataArchiveV2::ApplyToExistingEditorWorldObject(SerializedActorData, WorldData, OriginalActor, DeserializedActor, SelectedProperties, *ActorPropertySelection);
 		}
 	};
-	auto DeserializeComponent = [&SelectedProperties, &WorldData](FObjectSnapshotData& SerializedCompData, FComponentSnapshotData& CompData, UActorComponent* Original, UActorComponent* Deserialized)
+	auto DeserializeComponent = [OriginalActor, InLocalisationSnapshotPackage, &SelectedProperties, &WorldData](FObjectSnapshotData& SerializedCompData, FComponentSnapshotData& CompData, UActorComponent* Original, UActorComponent* Deserialized)
 	{
+		const FRestoreObjectScope FinishRestore = FCustomObjectSerializationWrapper::PreSubobjectRestore_EditorWorld(Deserialized, Original, WorldData, SelectedProperties, InLocalisationSnapshotPackage);
 		const FPropertySelection* ComponentSelectedProperties = SelectedProperties.GetSelectedProperties(Original);
 		if (ComponentSelectedProperties)
 		{		
-#if WITH_EDITOR
-			Original->Modify();
-#endif
 			FApplySnapshotDataArchiveV2::ApplyToExistingEditorWorldObject(SerializedCompData, WorldData, Original, Deserialized, SelectedProperties, *ComponentSelectedProperties);
 		};
 	};
@@ -68,18 +69,14 @@ void FActorSnapshotData::DeserializeIntoExistingWorldActor(UWorld* SnapshotWorld
 
 void FActorSnapshotData::DeserializeIntoRecreatedEditorWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData, UPackage* InLocalisationSnapshotPackage, const FPropertySelectionMap& SelectedProperties)
 {
-	auto DeserializeActor = [this, &WorldData, &SelectedProperties](AActor* OriginalActor, AActor* DeserializedActor)
+	auto DeserializeActor = [this, &WorldData, InLocalisationSnapshotPackage, &SelectedProperties](AActor* OriginalActor, AActor* DeserializedActor)
 	{
-#if WITH_EDITOR
-		OriginalActor->Modify();
-#endif
+		const FRestoreObjectScope FinishRestore = FCustomObjectSerializationWrapper::PreActorRestore_EditorWorld(OriginalActor, CustomActorSerializationData, WorldData, SelectedProperties, InLocalisationSnapshotPackage);
 		FApplySnapshotDataArchiveV2::ApplyToRecreatedEditorWorldObject(SerializedActorData, WorldData, OriginalActor, DeserializedActor, SelectedProperties);
 	};
-	auto DeserializeComponent = [&WorldData, &SelectedProperties](FObjectSnapshotData& SerializedCompData, FComponentSnapshotData& CompData, UActorComponent* Original, UActorComponent* Deserialized)
+	auto DeserializeComponent = [OriginalActor, InLocalisationSnapshotPackage, &WorldData, &SelectedProperties](FObjectSnapshotData& SerializedCompData, FComponentSnapshotData& CompData, UActorComponent* Original, UActorComponent* Deserialized)
 	{
-#if WITH_EDITOR
-		Original->Modify();
-#endif
+		const FRestoreObjectScope FinishRestore = FCustomObjectSerializationWrapper::PreSubobjectRestore_EditorWorld(Deserialized, Original, WorldData, SelectedProperties, InLocalisationSnapshotPackage);
 		FApplySnapshotDataArchiveV2::ApplyToRecreatedEditorWorldObject(SerializedCompData, WorldData, Original, Deserialized, SelectedProperties); 
 	};
 	
@@ -145,12 +142,23 @@ TOptional<AActor*> FActorSnapshotData::GetDeserialized(UWorld* SnapshotWorld, FW
 	bReceivedSerialisation = true;
 	
 	AActor* PreallocatedActor = Preallocated.GetValue();
-	FSnapshotArchive::ApplyToSnapshotWorldObject(SerializedActorData, WorldData, PreallocatedActor, InLocalisationSnapshotPackage);
-
-	DeserializeComponents(PreallocatedActor, WorldData, [InLocalisationSnapshotPackage](FObjectSnapshotData& SerializedCompData, FComponentSnapshotData& CompData, UActorComponent* Comp, FWorldSnapshotData& SharedData)
 	{
-		CompData.DeserializeIntoTransient(SerializedCompData, Comp, SharedData, InLocalisationSnapshotPackage);
-	});
+		const FRestoreObjectScope FinishRestore = FCustomObjectSerializationWrapper::PreActorRestore_SnapshotWorld(PreallocatedActor, CustomActorSerializationData, WorldData, InLocalisationSnapshotPackage);
+		FSnapshotArchive::ApplyToSnapshotWorldObject(SerializedActorData, WorldData, PreallocatedActor, InLocalisationSnapshotPackage);
+	}
+
+	DeserializeComponents(PreallocatedActor, WorldData,
+		[&WorldData, InLocalisationSnapshotPackage](
+			FObjectSnapshotData& SerializedCompData,
+			FComponentSnapshotData& CompData,
+			UActorComponent* Comp,
+			const FSoftObjectPath& OriginalComponentPath,
+			FWorldSnapshotData& SharedData)
+		{
+			const FRestoreObjectScope FinishRestore = FCustomObjectSerializationWrapper::PreSubobjectRestore_SnapshotWorld(Comp, OriginalComponentPath, WorldData, InLocalisationSnapshotPackage);
+			CompData.DeserializeIntoTransient(SerializedCompData, Comp, SharedData, InLocalisationSnapshotPackage);
+		}
+	);
 
 	PreallocatedActor->UpdateComponentTransforms();
 #if WITH_EDITOR
@@ -162,11 +170,6 @@ TOptional<AActor*> FActorSnapshotData::GetDeserialized(UWorld* SnapshotWorld, FW
 #endif
 	
 	return Preallocated;
-}
-
-FSoftClassPath FActorSnapshotData::GetActorClass() const
-{
-	return ActorClass;
 }
 
 void FActorSnapshotData::DeserializeIntoWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData, UPackage* InLocalisationSnapshotPackage, FSerializeActor SerializeActor, FSerializeComponent SerializeComponent)
@@ -182,7 +185,14 @@ void FActorSnapshotData::DeserializeIntoWorldActor(UWorld* SnapshotWorld, AActor
 
 	TInlineComponentArray<UActorComponent*> DeserializedComponents;
 	Deserialized.GetValue()->GetComponents(DeserializedComponents);
-	DeserializeComponents(OriginalActor, WorldData, [&SerializeComponent, &DeserializedComponents](FObjectSnapshotData& SerializedCompData, FComponentSnapshotData& CompData, UActorComponent* Comp, FWorldSnapshotData& SharedData)
+	DeserializeComponents(OriginalActor, WorldData,
+		[&SerializeComponent, &DeserializedComponents](
+			FObjectSnapshotData& SerializedCompData,
+			FComponentSnapshotData& CompData,
+			UActorComponent* Comp,
+			const FSoftObjectPath& OriginalComponenPath,
+			FWorldSnapshotData& SharedData
+			)
     {
         const FName OriginalCompName = Comp->GetFName();
         UActorComponent** DeserializedCompCounterpart = DeserializedComponents.FindByPredicate([OriginalCompName](UActorComponent* Other)
@@ -194,7 +204,7 @@ void FActorSnapshotData::DeserializeIntoWorldActor(UWorld* SnapshotWorld, AActor
             UE_LOG(LogLevelSnapshots, Warning, TEXT("Failed to find component called %s on temp deserialized snapshot actor. Skipping component..."), *OriginalCompName.ToString())
         	return;
         }
-		
+
         SerializeComponent(SerializedCompData, CompData, Comp, *DeserializedCompCounterpart);
 		
 		// We may have modified render information, e.g. for lights we may have changed intensity or colour
@@ -205,7 +215,11 @@ void FActorSnapshotData::DeserializeIntoWorldActor(UWorld* SnapshotWorld, AActor
 	OriginalActor->UpdateComponentTransforms();
 }
 
-void FActorSnapshotData::DeserializeComponents(AActor* IntoActor, FWorldSnapshotData& WorldData, TFunction<void(FObjectSnapshotData& SerializedCompData, FComponentSnapshotData& ComponentMetaData, UActorComponent* ActorComp, FWorldSnapshotData& SharedData)>&& Callback)
+void FActorSnapshotData::DeserializeComponents(
+	AActor* IntoActor,
+	FWorldSnapshotData& WorldData,
+	FHandleFoundComponent Callback
+	)
 {
 	for (auto CompIt = ComponentData.CreateIterator(); CompIt; ++CompIt)
 	{
@@ -233,7 +247,7 @@ void FActorSnapshotData::DeserializeComponents(AActor* IntoActor, FWorldSnapshot
 		{
 			if (Comp->GetName().Equals(OriginalComponentName))
 			{
-				Callback(SnapshotData, CompIt->Value, Comp, WorldData);
+				Callback(SnapshotData, CompIt->Value, Comp, OriginalComponentPath, WorldData);
 				break;
 			}
 		}

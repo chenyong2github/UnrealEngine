@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/CommandLine.h"
 #include "InputCoreTypes.h"
 #include "Misc/CommandLine.h"
 #include "VideoEncoder.h"

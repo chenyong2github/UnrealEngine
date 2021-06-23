@@ -526,7 +526,7 @@ namespace AVEncoder
                     LastKeyFrameTime = FDateTime::UtcNow();
                     PicParams.encodePicFlags |= NV_ENC_PIC_FLAG_FORCEIDR;
                 }
-                PicParams.inputTimeStamp = Buffer->TimeStamp = frame->PTS;
+                PicParams.inputTimeStamp = Buffer->TimeStamp = frame->GetTimestampUs();
                 PicParams.outputBitstream = Buffer->OutputBitstream;
                 PicParams.completionEvent = Buffer->CompletionEvent;
                 PicParams.pictureStruct = NV_ENC_PIC_STRUCT_FRAME;
@@ -622,7 +622,6 @@ namespace AVEncoder
                         // create packet with buffer contents
                         FCodecPacketImpl	Packet;
 
-                        Packet.PTS = static_cast<int64>(Buffer->TimeStamp);
                         Packet.Data = static_cast<const uint8*>(Buffer->BitstreamData);
                         Packet.DataSize = Buffer->BitstreamDataSize;
                         if (Buffer->PictureType == NV_ENC_PIC_TYPE_IDR)
@@ -746,6 +745,7 @@ namespace AVEncoder
             if (InFrame->GetWidth() != Buffer->Width || InFrame->GetHeight() != Buffer->Height)
             {	
                 // Buffer is wrong resolution, destroy it and we will make a new buffer below
+				CreatedBuffers.Remove(Buffer);
                 DestroyBuffer(Buffer);
                 Buffer = nullptr;
             }

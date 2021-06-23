@@ -15,6 +15,7 @@ namespace Chaos
 			: bFilteringEnabled(true)
 			, bDeferUpdate(true)
 			, bAllowManifolds(false)
+			, bForceDisableCCD(false)
 		{
 		}
 
@@ -28,5 +29,8 @@ namespace Chaos
 
 		// Whether to use manifolds where supported [default: false]
 		bool bAllowManifolds;
+
+		// Force disable CCD
+		bool bForceDisableCCD;
 	};
 }

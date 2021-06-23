@@ -245,6 +245,11 @@ struct FTabSpawnerEntry : public FWorkspaceItem
 		return SharedThis(this);
 	}
 
+	const FName GetTabType() const
+	{
+		return TabType;
+	};
+
 private:
 	FName TabType;
 	FOnSpawnTab OnSpawnTab;

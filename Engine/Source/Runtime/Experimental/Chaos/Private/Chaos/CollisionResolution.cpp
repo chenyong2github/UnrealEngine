@@ -73,7 +73,11 @@ DECLARE_CYCLE_STAT(TEXT("Collisions::UpdateCapsuleTriangleMeshConstraintSwept"),
 DECLARE_CYCLE_STAT(TEXT("Collisions::UpdateConvexHeightFieldConstraintSwept"), STAT_Collisions_UpdateConvexHeightFieldConstraintSwept, STATGROUP_ChaosCollision);
 DECLARE_CYCLE_STAT(TEXT("Collisions::UpdateLevelsetLevelsetConstraint"), STAT_UpdateLevelsetLevelsetConstraint, STATGROUP_ChaosCollision);
 
-
+// Stat Collision counters (need to be reset every advance)
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumParticlePairs"), STAT_ChaosCollisionCounter_NumParticlePairs, STATGROUP_ChaosCollisionCounters);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumShapePairs"), STAT_ChaosCollisionCounter_NumShapePairs, STATGROUP_ChaosCollisionCounters);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumContactsCreated"), STAT_ChaosCollisionCounter_NumContactsCreated, STATGROUP_ChaosCollisionCounters);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumContactUpdates"), STAT_ChaosCollisionCounter_NumContactUpdates, STATGROUP_ChaosCollisionCounters);
 
 
 Chaos::FRealSingle CCDEnableThresholdBoundsScale = 0.4f;
@@ -94,11 +98,14 @@ FAutoConsoleVariableRef CVarConstraintsDetailedStats(TEXT("p.Chaos.Constraints.D
 int32 AlwaysAddSweptConstraints = 0;
 FAutoConsoleVariableRef CVarAlwaysAddSweptConstraints(TEXT("p.Chaos.Constraints.AlwaysAddSweptConstraints"), AlwaysAddSweptConstraints, TEXT("Since GJKContactPointSwept returns infinity for it's contact data when not hitting anything, some contacts are discarded prematurely. This flag will cause contact points considered for sweeps to never be discarded."));
 
+int32 CCDAllowForceDisable = 1;
+FAutoConsoleVariableRef CVarCCDAllowForceDisable(TEXT("p.Chaos.CCD.AllowForceDisable"), CCDAllowForceDisable, TEXT("Allow force disable CCD."));
+
 bool bChaos_Collision_AllowLevelsetManifolds = false;
 FAutoConsoleVariableRef CVarChaosCollisionAllowLevelsetManifolds(TEXT("p.Chaos.Collision.AllowLevelsetManifolds"), bChaos_Collision_AllowLevelsetManifolds, TEXT("Use incremental manifolds for levelset-levelset collision. This does not work well atm - too much rotation in the small pieces"));
 
-//Chaos::FRealSingle Chaos_Collision_ManifoldFaceAngle = 5.0f;
-//Chaos::FRealSingle Chaos_Collision_ManifoldFaceEpsilon = FMath::Sin(FMath::DegreesToRadians(Chaos_Collision_ManifoldFaceAngle));
+//Chaos::FRealSingl Chaos_Collision_ManifoldFaceAngle = 5.0f;
+//Chaos::FRealSingl Chaos_Collision_ManifoldFaceEpsilon = FMath::Sin(FMath::DegreesToRadians(Chaos_Collision_ManifoldFaceAngle));
 //FConsoleVariableDelegate Chaos_Collision_ManifoldFaceDelegate = FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* CVar) { Chaos_Collision_ManifoldFaceEpsilon = FMath::Sin(FMath::DegreesToRadians(Chaos_Collision_ManifoldFaceAngle)); });
 //FAutoConsoleVariableRef CVarChaosCollisionManifoldFaceAngle(TEXT("p.Chaos.Collision.ManifoldFaceAngle"), Chaos_Collision_ManifoldFaceAngle, TEXT("Angle above which a face is rejected and we switch to point collision"), Chaos_Collision_ManifoldFaceDelegate);
 //
@@ -119,6 +126,13 @@ namespace Chaos
 {
 	namespace Collisions
 	{
+		void ResetChaosCollisionCounters()
+		{
+			SET_DWORD_STAT(STAT_ChaosCollisionCounter_NumParticlePairs, 0);
+			SET_DWORD_STAT(STAT_ChaosCollisionCounter_NumShapePairs, 0);
+			SET_DWORD_STAT(STAT_ChaosCollisionCounter_NumContactsCreated, 0);
+			SET_DWORD_STAT(STAT_ChaosCollisionCounter_NumContactUpdates, 0);
+		}
 
 		// Traits to control how contacts are generated
 		template<bool B_IMMEDIATEUPDATE>
@@ -148,8 +162,13 @@ namespace Chaos
 		}
 
 		// Determines if body should use CCD. If using CCD, computes Dir and Length of sweep.
-		bool UseCCD(const TGeometryParticleHandle<FReal, 3>* SweptParticle, const TGeometryParticleHandle<FReal, 3>* OtherParticle, const FImplicitObject* Implicit, FVec3& Dir, FReal& Length)
+		bool UseCCD(const TGeometryParticleHandle<FReal, 3>* SweptParticle, const TGeometryParticleHandle<FReal, 3>* OtherParticle, const FImplicitObject* Implicit, FVec3& Dir, FReal& Length, const bool bForceDisableCCD)
 		{
+			if (CCDAllowForceDisable > 0 && bForceDisableCCD)
+			{
+				return false;
+			}
+
 			if (CCDOnlyConsiderDynamicStatic > 0 && OtherParticle->ObjectState() != EObjectStateType::Static)
 			{
 				return false;
@@ -2126,12 +2145,16 @@ namespace Chaos
 		{
 			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_UpdateConstraintFromGeometryInternal, ConstraintsDetailedStats);
 
-			const FImplicitObject& Implicit0 = *Constraint.Manifold.Implicit[0];
-			const FImplicitObject& Implicit1 = *Constraint.Manifold.Implicit[1];
-
 			// @todo(chaos): remove
 			//const FVec3 OriginalContactPositionLocal0 = WorldTransform0.InverseTransformPosition(Constraint.Manifold.Location);
 			//const FVec3 OriginalContactPositionLocal1 = WorldTransform1.InverseTransformPosition(Constraint.Manifold.Location);
+			if (!Constraint.Manifold.Implicit[0] || !Constraint.Manifold.Implicit[1])
+			{
+				return;
+			}
+
+			const FImplicitObject& Implicit0 = *Constraint.Manifold.Implicit[0];
+			const FImplicitObject& Implicit1 = *Constraint.Manifold.Implicit[1];
 
 			if (Implicit0.HasBoundingBox() && Implicit1.HasBoundingBox())
 			{
@@ -2159,6 +2182,7 @@ namespace Chaos
 				}
 			}
 
+			INC_DWORD_STAT(STAT_ChaosCollisionCounter_NumContactUpdates);
 
 			switch (Constraint.Manifold.ShapesType)
 			{
@@ -2284,12 +2308,14 @@ namespace Chaos
 		{
 			FReal LengthCCD = 0.0f;
 			FVec3 DirCCD(0.0f);
-			bool bUseCCD = UseCCD(Constraint.Particle[0], Constraint.Particle[1], Constraint.GetManifold().Implicit[0], DirCCD, LengthCCD);
+			bool bUseCCD = UseCCD(Constraint.Particle[0], Constraint.Particle[1], Constraint.GetManifold().Implicit[0], DirCCD, LengthCCD, false);
 
 			const FImplicitObject& Implicit0 = *Constraint.Manifold.Implicit[0];
 			const FImplicitObject& Implicit1 = *Constraint.Manifold.Implicit[1];
 
 			TGeometryParticleHandle<FReal, 3>* Particle0 = Constraint.Particle[0];
+
+			INC_DWORD_STAT(STAT_ChaosCollisionCounter_NumContactUpdates);
 
 			if (bUseCCD)
 			{
@@ -2378,6 +2404,7 @@ namespace Chaos
 		void ConstructConstraintsImpl(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FBVHParticles* Simplicial0, const FImplicitObject* Implicit1, const FBVHParticles* Simplicial1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, const FReal Dt, const FCollisionContext& Context, FCollisionConstraintsArray& NewConstraints)
 		{
 			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_ConstructConstraintsInternal, ConstraintsDetailedStats);
+			INC_DWORD_STAT(STAT_ChaosCollisionCounter_NumShapePairs);
 
 			// @todo(chaos): We use GetInnerType here because TriMeshes are left with their "Instanced" wrapper, unlike all other instanced implicits. Should we strip the instance on Tri Mesh too?
 			EImplicitObjectType Implicit0Type = Implicit0 ? GetInnerType(Implicit0->GetCollisionType()) : ImplicitObjectType::Unknown;
@@ -2387,7 +2414,7 @@ namespace Chaos
 
 			FReal LengthCCD = 0.0f;
 			FVec3 DirCCD(0.0f);
-			bool bUseCCD = UseCCD(Particle0, Particle1, Implicit0, DirCCD, LengthCCD);
+			bool bUseCCD = UseCCD(Particle0, Particle1, Implicit0, DirCCD, LengthCCD, Context.bForceDisableCCD);
 			const bool bUseGenericSweptConstraints = bUseCCD && (CCDUseGenericSweptConvexConstraints > 0) && bIsConvex0 && bIsConvex1;
 #if CHAOS_COLLISION_CREATE_BOUNDSCHECK
 			if ((Implicit0 != nullptr) && (Implicit1 != nullptr))
@@ -2422,6 +2449,8 @@ namespace Chaos
 				}
 			}
 #endif
+
+			INC_DWORD_STAT(STAT_ChaosCollisionCounter_NumContactsCreated);
 
 			if (Implicit0Type == TBox<FReal, 3>::StaticType() && Implicit1Type == TBox<FReal, 3>::StaticType() && !bUseGenericSweptConstraints)
 			{
@@ -2932,15 +2961,13 @@ namespace Chaos
 
 		void ConstructConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FBVHParticles* Simplicial0, const FImplicitObject* Implicit1, const FBVHParticles* Simplicial1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, const FReal dT, const FCollisionContext& Context, FCollisionConstraintsArray& NewConstraints)
 		{
+			INC_DWORD_STAT(STAT_ChaosCollisionCounter_NumParticlePairs);
+
 			bool bDeferUpdate = Context.bDeferUpdate;
 			// Skip constraint update for sleeping particles
 			if(Particle0 && Particle1)
 			{
-				TPBDRigidParticleHandle<FReal, 3>* RigidParticle0 = Particle0->CastToRigidParticle(), *RigidParticle1 = Particle1->CastToRigidParticle();
-				if(RigidParticle0 && RigidParticle1)
-				{
-					bDeferUpdate |= (RigidParticle0->ObjectState() == EObjectStateType::Sleeping) || (RigidParticle1->ObjectState() == EObjectStateType::Sleeping);
-				}
+				bDeferUpdate |= (Particle0->ObjectState() == EObjectStateType::Sleeping) || (Particle1->ObjectState() == EObjectStateType::Sleeping);
 			}
 			if (bDeferUpdate)
 			{

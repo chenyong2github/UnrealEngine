@@ -31,42 +31,55 @@ public:
 public:
 	void Construct(const FArguments& InArgs, const FSlateBrush* Brush, const FTextBlockStyle& TextStyle, TOptional<int32> Width, TOptional<int32> Height, EStretch::Type Stretch)
 	{
-		if (ensure(Brush))
+		check(Brush);
+
+		const TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+		float IconHeight = FMath::Min((float)FontMeasure->GetMaxCharacterHeight(TextStyle.Font, 1.0f), Brush->ImageSize.Y);
+
+		if (Height.IsSet())
 		{
-			const TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-			float IconHeight = FMath::Min((float)FontMeasure->GetMaxCharacterHeight(TextStyle.Font, 1.0f), Brush->ImageSize.Y);
-			float IconWidth = IconHeight;
-
-			if (Width.IsSet())
-			{
-				IconWidth = Width.GetValue();
-			}
-
-			if (Height.IsSet())
-			{
-				IconHeight = Height.GetValue();
-			}
-
-			ChildSlot
-			[
-				SNew(SBox)
-				.HeightOverride(IconHeight)
-				.WidthOverride(IconWidth)
-				[
-					SNew(SScaleBox)
-					.Stretch(Stretch)
-					.StretchDirection(EStretchDirection::DownOnly)
-					.VAlign(VAlign_Center)
-					[
-						SNew(SImage)
-						.Image(Brush)
-					]
-				]
-			];
+			IconHeight = Height.GetValue();
 		}
+
+		float IconWidth = IconHeight;
+		if (Width.IsSet())
+		{
+			IconWidth = Width.GetValue();
+		}
+
+		ChildSlot
+		[
+			SNew(SBox)
+			.HeightOverride(IconHeight)
+			.WidthOverride(IconWidth)
+			[
+				SNew(SScaleBox)
+				.Stretch(Stretch)
+				.StretchDirection(EStretchDirection::DownOnly)
+				.VAlign(VAlign_Center)
+				[
+					SNew(SImage)
+					.Image(Brush)
+				]
+			]
+		];
 	}
 };
 
+
+/** 
+ * Add an image inline with the text.
+ * Usage: Before image <img id="MyId"/>, after image.
+ * 
+ * A width and height can be specified.
+ * By default the width and the height is the same size as the font height.
+ * Use "desired" to use the same size as the image brush.
+ * Usage: Before image <img id="MyId" height="40" width="desired"/>, after image.
+ * 
+ * A stretch type can be specified. See EStretch.
+ * By default the stretch type is ScaleToFit.
+ * Usage: Before image <img id="MyId" stretch="ScaleToFitY"/>, after image.
+ */
 class FRichInlineImage : public FRichTextDecorator
 {
 public:
@@ -96,32 +109,56 @@ protected:
 		const bool bWarnIfMissing = true;
 		const FSlateBrush* Brush = Decorator->FindImageBrush(*RunInfo.MetaData[TEXT("id")], bWarnIfMissing);
 
-		TOptional<int32> Width;
-		if (const FString* WidthString = RunInfo.MetaData.Find(TEXT("width")))
+		if (ensure(Brush))
 		{
-			int32 WidthTemp;
-			Width = FDefaultValueHelper::ParseInt(*WidthString, WidthTemp) ? WidthTemp : TOptional<int32>();
-		}
-
-		TOptional<int32> Height;
-		if (const FString* HeightString = RunInfo.MetaData.Find(TEXT("height")))
-		{
-			int32 HeightTemp;
-			Height = FDefaultValueHelper::ParseInt(*HeightString, HeightTemp) ? HeightTemp : TOptional<int32>();
-		}
-
-		EStretch::Type Stretch = EStretch::ScaleToFit;
-		if (const FString* SstretchString = RunInfo.MetaData.Find(TEXT("stretch")))
-		{
-			static const UEnum* StretchEnum = StaticEnum<EStretch::Type>();
-			int64 StretchValue = StretchEnum->GetValueByNameString(*SstretchString);
-			if (StretchValue != INDEX_NONE)
+			TOptional<int32> Width;
+			if (const FString* WidthString = RunInfo.MetaData.Find(TEXT("width")))
 			{
-				Stretch = static_cast<EStretch::Type>(StretchValue);
+				int32 WidthTemp;
+				if (FDefaultValueHelper::ParseInt(*WidthString, WidthTemp))
+				{
+					Width = WidthTemp;
+				}
+				else
+				{
+					if (FCString::Stricmp(GetData(*WidthString), TEXT("desired")) == 0)
+					{
+						Width = Brush->ImageSize.X;
+					}
+				}
 			}
-		}
 
-		return SNew(SRichInlineImage, Brush, TextStyle, Width, Height, Stretch);
+			TOptional<int32> Height;
+			if (const FString* HeightString = RunInfo.MetaData.Find(TEXT("height")))
+			{
+				int32 HeightTemp;
+				if (FDefaultValueHelper::ParseInt(*HeightString, HeightTemp))
+				{
+					Height = HeightTemp;
+				}
+				else
+				{
+					if (FCString::Stricmp(GetData(*HeightString), TEXT("desired")) == 0)
+					{
+						Height = Brush->ImageSize.Y;
+					}
+				}
+			}
+
+			EStretch::Type Stretch = EStretch::ScaleToFit;
+			if (const FString* SstretchString = RunInfo.MetaData.Find(TEXT("stretch")))
+			{
+				const UEnum* StretchEnum = StaticEnum<EStretch::Type>();
+				int64 StretchValue = StretchEnum->GetValueByNameString(*SstretchString);
+				if (StretchValue != INDEX_NONE)
+				{
+					Stretch = static_cast<EStretch::Type>(StretchValue);
+				}
+			}
+
+			return SNew(SRichInlineImage, Brush, TextStyle, Width, Height, Stretch);
+		}
+		return TSharedPtr<SWidget>();
 	}
 
 private:

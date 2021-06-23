@@ -164,6 +164,10 @@ void FGenericPlatformMemory::OnOutOfMemory(uint64 Size, uint32 Alignment)
 	}
 	bIsOOM = true;
 
+	const int ErrorMsgSize = 256;
+	TCHAR ErrorMsg[ErrorMsgSize];
+	FPlatformMisc::GetSystemErrorMessage(ErrorMsg, ErrorMsgSize, 0);
+
 	FPlatformMemoryStats PlatformMemoryStats = FPlatformMemory::GetStats();
 	if (BackupOOMMemoryPool)
 	{
@@ -194,7 +198,8 @@ void FGenericPlatformMemory::OnOutOfMemory(uint64 Size, uint32 Alignment)
 	// let any registered handlers go
 	FCoreDelegates::GetOutOfMemoryDelegate().Broadcast();
 
-	UE_LOG(LogMemory, Fatal, TEXT("Ran out of memory allocating %llu bytes with alignment %u"), Size, Alignment);
+	// ErrorMsg might be unrelated to OoM error in some cases as the code that calls OnOutOfMemory could have called other system functions that modified errno
+	UE_LOG(LogMemory, Fatal, TEXT("Ran out of memory allocating %llu bytes with alignment %u. Last error msg: %s."), Size, Alignment, ErrorMsg);
 }
 
 FMalloc* FGenericPlatformMemory::BaseAllocator()

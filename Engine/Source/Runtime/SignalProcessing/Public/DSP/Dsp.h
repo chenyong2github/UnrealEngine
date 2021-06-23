@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AudioMixerCore/Public/AudioDefines.h"
 #include "Misc/ScopeLock.h"
 #include "Templates/IsFloatingPoint.h"
 #include "Templates/IsIntegral.h"
@@ -312,7 +313,13 @@ namespace Audio
 			return Range.Y;
 		}
 
-		const FVector2D RangeLog(FMath::Loge(Range.X), FMath::Loge(Range.Y));
+		//Handle edge case of NaN
+		if (FMath::IsNaN(InValue))
+		{
+			return Range.X;
+		}
+
+		const FVector2D RangeLog(FMath::Max(FMath::Loge(Range.X), SMALL_NUMBER), FMath::Min(FMath::Loge(Range.Y), BIG_NUMBER));
 		const float FreqLinear = FMath::GetMappedRangeValueUnclamped(Domain, RangeLog, InValue);
 		return FMath::Exp(FreqLinear);
 	}
@@ -331,7 +338,13 @@ namespace Audio
 			return Domain.Y;
 		}
 
-		const FVector2D RangeLog(FMath::Loge(Range.X), FMath::Loge(Range.Y));
+		//Handle edge case of NaN
+		if (FMath::IsNaN(InFrequencyValue))
+		{
+			return Domain.X;
+		}
+
+		const FVector2D RangeLog(FMath::Max(FMath::Loge(Range.X), SMALL_NUMBER), FMath::Min(FMath::Loge(Range.Y), BIG_NUMBER));
 		const float FrequencyLog = FMath::Loge(InFrequencyValue);
 		return FMath::GetMappedRangeValueUnclamped(RangeLog, Domain, FrequencyLog);
 	}

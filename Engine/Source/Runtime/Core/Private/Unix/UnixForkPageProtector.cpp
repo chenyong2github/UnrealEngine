@@ -608,6 +608,7 @@ bool FForkPageProtector::HandleNewCrashAddress(void* CrashAddress)
 
 	// Align the crash addess to the nearest left most page boundary
 	uint64 PageAlignedAddress = reinterpret_cast<uint64>(CrashAddress) & ~(FPlatformMemory::GetConstants().PageSize - 1);
+	//TODO: check return code here, it can fail to change protection
 	mprotect(reinterpret_cast<void*>(PageAlignedAddress), FPlatformMemory::GetConstants().PageSize, PROT_READ | PROT_WRITE);
 
 	return DumpCallstackInfoToFile();

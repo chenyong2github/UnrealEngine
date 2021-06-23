@@ -48,7 +48,7 @@ void INiagaraParameterDefinitionsSubscriberViewModel::SubscribeAllParametersToDe
 	const UNiagaraParameterDefinitions* LibraryToSynchronize = FindSubscribedParameterDefinitionsById(DefinitionsUniqueId);
 	if (LibraryToSynchronize == nullptr)
 	{
-		ensureMsgf(false, TEXT("Tried to synchronize all name matching parameters to library but failed to find subscribed library by Id!"));
+		ensureMsgf(false, TEXT("Tried to link all name matching parameters to definition but failed to find definition asset by ID!"));
 		return;
 	}
 
@@ -90,7 +90,7 @@ void INiagaraParameterDefinitionsSubscriberViewModel::SetParameterIsSubscribedTo
 	UNiagaraScriptVariable* const* ScriptVarPtr = ScriptVars.FindByPredicate([&ScriptVarId](const UNiagaraScriptVariable* ScriptVar) { return ScriptVar->Metadata.GetVariableGuid() == ScriptVarId; });
 	if (ScriptVarPtr == nullptr)
 	{
-		ensureMsgf(false, TEXT("Tried to set parameter synchronizing state with subscribed parameter libraries but failed to find parameter by Id!"));
+		ensureMsgf(false, TEXT("Tried to link parameter to definition but failed to find parameter by Id!"));
 		return;
 	}
 	UNiagaraScriptVariable* ScriptVar = *ScriptVarPtr;
@@ -106,7 +106,13 @@ void INiagaraParameterDefinitionsSubscriberViewModel::SetParameterIsSubscribedTo
 					ScriptVar->SetIsSubscribedToParameterDefinitions(true);
 					ScriptVar->SetIsOverridingParameterDefinitionsDefaultValue(false);
 					ScriptVar->Metadata.SetVariableGuid(LibraryScriptVar->Metadata.GetVariableGuid());
-					FNiagaraStackGraphUtilities::SynchronizeVariableToLibraryAndApplyToGraph(ScriptVar);
+					ScriptVar->Metadata.Description = LibraryScriptVar->Metadata.Description;
+
+					// The parameter may be in a UNiagaraEditorParametersAdapter; Only apply changes to the underlying graph is there is one to apply to.
+					if (ScriptVar->GetOuter()->IsA<UNiagaraGraph>())
+					{
+						FNiagaraStackGraphUtilities::SynchronizeVariableToLibraryAndApplyToGraph(ScriptVar);
+					}
 					return ParameterDefinitionsItr;
 				}
 			}
@@ -132,7 +138,7 @@ void INiagaraParameterDefinitionsSubscriberViewModel::SetParameterIsSubscribedTo
 			return;
 		}
 
-		ensureMsgf(false, TEXT("Tried to set parameter to synchronize with parameter definitions but library parameter could not be found! Library name cache out of date!"));
+		ensureMsgf(false, TEXT("Tried to set parameter to synchronize with parameter definitions but definition parameter could not be found! Definition cache out of date!"));
 	}
 }
 
@@ -144,14 +150,14 @@ void INiagaraParameterDefinitionsSubscriberViewModel::SetParameterIsOverridingLi
 	UNiagaraScriptVariable* const* ScriptVarPtr = ScriptVars.FindByPredicate([&ScriptVarId](const UNiagaraScriptVariable* ScriptVar) { return ScriptVar->Metadata.GetVariableGuid() == ScriptVarId; });
 	if (ScriptVarPtr == nullptr)
 	{
-		ensureMsgf(false, TEXT("Tried to set parameter synchronizing state with subscribed parameter libraries but failed to find parameter by Id!"));
+		ensureMsgf(false, TEXT("Tried to link parameter to definition but failed to find parameter by Id!"));
 		return;
 	}
 	UNiagaraScriptVariable* ScriptVar = *ScriptVarPtr;
 
 	if (ScriptVar->GetIsSubscribedToParameterDefinitions() == false)
 	{
-		ensureMsgf(false, TEXT("Tried to set scriptvar to override library default value but it was not subscribed to a library!"));
+		ensureMsgf(false, TEXT("Tried to set parameter to override definition default value but it was linked to a definition!"));
 		return;
 	}
 	
@@ -169,31 +175,20 @@ TArray<UNiagaraParameterDefinitions*> INiagaraParameterDefinitionsSubscriberView
 
 TArray<UNiagaraParameterDefinitions*> INiagaraParameterDefinitionsSubscriberViewModel::GetAvailableParameterDefinitions(bool bSkipSubscribedParameterDefinitions)
 {
-	const TArray<UNiagaraParameterDefinitions*> SubscribedParameterDefinitions = bSkipSubscribedParameterDefinitions ? GetSubscribedParameterDefinitions() : TArray<UNiagaraParameterDefinitions*>();
-	auto GetParameterDefinitionsIsSubscribed = [&SubscribedParameterDefinitions](const UNiagaraParameterDefinitions* ParameterDefinitions)->bool {
-		return SubscribedParameterDefinitions.ContainsByPredicate([&ParameterDefinitions](const UNiagaraParameterDefinitions* SubscribedParameterDefinitions) { return ParameterDefinitions->GetDefinitionsUniqueId() == SubscribedParameterDefinitions->GetDefinitionsUniqueId(); });
-	};
-
-	TArray<FAssetData> ParameterDefinitionsAssetData;
-	TArray<UNiagaraParameterDefinitions*> AvailableParameterDefinitions;
-	TArray<FString> ExternalPackagePaths = {  GetSourceObjectPackagePathName() };
-	ensureMsgf(FNiagaraEditorUtilities::GetAvailableParameterDefinitions(ExternalPackagePaths, ParameterDefinitionsAssetData), TEXT("Failed to get parameter libraries!"));
-
-	for (const FAssetData& ParameterDefinitionsAssetDatum : ParameterDefinitionsAssetData)
+	TArray<UNiagaraParameterDefinitions*> OutParameterDefinitions = FNiagaraEditorUtilities::GetAllParameterDefinitions();
+	if (bSkipSubscribedParameterDefinitions)
 	{
-		UNiagaraParameterDefinitions* ParameterDefinitions = Cast<UNiagaraParameterDefinitions>(ParameterDefinitionsAssetDatum.GetAsset());
-		if (ParameterDefinitions == nullptr)
+		const TArray<FParameterDefinitionsSubscription>& Subscriptions = GetParameterDefinitionsSubscriber()->GetParameterDefinitionsSubscriptions();
+		for (int32 Idx = OutParameterDefinitions.Num() - 1; Idx > -1; --Idx)
 		{
-			continue;
+			const UNiagaraParameterDefinitions* Definition = OutParameterDefinitions[Idx];
+			if (Subscriptions.ContainsByPredicate([Definition](const FParameterDefinitionsSubscription& Subscription) { return Subscription.DefinitionsId == Definition->GetDefinitionsUniqueId(); }))
+			{
+				OutParameterDefinitions.RemoveAtSwap(Idx);
+			}
 		}
-		else if (bSkipSubscribedParameterDefinitions && GetParameterDefinitionsIsSubscribed(ParameterDefinitions))
-		{
-			continue;
-		}
-		AvailableParameterDefinitions.Add(ParameterDefinitions);
 	}
-
-	return AvailableParameterDefinitions;
+	return OutParameterDefinitions;
 }
 
 TArray<UNiagaraScriptVariable*> INiagaraParameterDefinitionsSubscriberViewModel::GetAllScriptVars()

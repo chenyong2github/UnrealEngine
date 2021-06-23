@@ -169,6 +169,7 @@ namespace Chaos
 		int32 StepCount;
 		int32 ResetCount;
 #endif
+		mutable bool bHasInvalidReferenceBoneTransforms;
 	};
 } // namespace Chaos
 

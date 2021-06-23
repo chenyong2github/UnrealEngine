@@ -6,22 +6,22 @@
 #include "IDetailCustomization.h"
 #include "Types/SlateEnums.h"
 
+struct FDMXEntityFixturePatchRef;
 class FDMXPixelMappingToolkit;
-class ITableRow;
-class STableViewBase;
+class SDMXPixelMappingFixturePatchDetailRow;
 class UDMXLibrary;
+class UDMXEntityFixturePatch;
 class UDMXPixelMappingFixtureGroupComponent;
-class IDetailLayoutBuilder;
-class FDMXPixelMappingComponentTemplate;
-class SBorder;
-class FReply;
 
+class FReply;
 struct FPointerEvent;
 struct FGeometry;
-struct FDMXEntityFixturePatchRef;
+class IDetailLayoutBuilder;
+class IPropertyHandle;
+class IPropertyUtilities;
+class SBorder;
+template <typename ItemType> class SListView;
 
-template <typename ItemType>
-class SListView;
 
 class FDMXPixelMappingDetailCustomization_FixtureGroup
 	: public IDetailCustomization
@@ -41,34 +41,58 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 
 private:
-	TSharedRef<ITableRow> GenerateFixturePatchRow(TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef, const TSharedRef<STableViewBase>& OwnerTable);
+	/** Called when the library changed */
+	void OnLibraryChanged();
 
-	UDMXPixelMappingFixtureGroupComponent* GetSelectedFixtureGroupComponent();
+	/** Forces the detail layout to refresh */
+	void ForceRefresh();
 
-	UDMXLibrary* GetSelectedDMXLibrary();
+	/** Called when a fixture patch widget got a mouse down event */
+	void OnFixturePatchLMBDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, FDMXEntityFixturePatchRef FixturePatchRef);
 
-	void OnFixtureSelectionChanged(TSharedPtr<FDMXEntityFixturePatchRef> FixturePatchRef, ESelectInfo::Type SelectInfo);
+	/** Called when a fixture patch widget got a mouse up event */
+	void OnFixturePatchLMBUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, FDMXEntityFixturePatchRef FixturePatchRef);
 
-	void OnDMXLibraryChanged();
+	/** Called when a fixture patch was dragged */
+	FReply OnFixturePatchesDragged(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 
-	void UpdateFixturePatchRefs();
+	/** Updates highlights for the fixture patches (selection) */
+	void UpdateFixturePatchHighlights();
 
-	void RebuildFixturePatchListView();
+	/** Update fixture patches in use */
+	void UpdateFixturePatchesInUse(UDMXLibrary* DMXLibrary);
 
-	FReply OnFixturePatchDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef);
+	/** Helper that returns the library selected in for the group */
+	UDMXLibrary* GetSelectedDMXLibrary(UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent) const;
 
-protected:
+	/** Returns the currently selected fixture group */
+	UDMXPixelMappingFixtureGroupComponent* GetSelectedFixtureGroupComponent(const IDetailLayoutBuilder& InDetailLayout) const;
+
 	/** Weak reference to the DMX editor */
 	TWeakPtr<FDMXPixelMappingToolkit> ToolkitWeakPtr;
 
-private:
-	IDetailLayoutBuilder* DetailLayout;
-	
-	TArray<TSharedPtr<FDMXEntityFixturePatchRef>> FixturePatchRefs;
+	/** Fixture patches currently in the library */
+	TArray<FDMXEntityFixturePatchRef> FixturePatches;
 
-	TSharedPtr<SListView<TSharedPtr<FDMXEntityFixturePatchRef>>> FixturePatchListView;
+	/** Fixture patches currently in the library and selected */
+	TArray<FDMXEntityFixturePatchRef> SelectedFixturePatches;
 
-	TSharedPtr<FDMXPixelMappingComponentTemplate> FixturePatchItemTemplate;
+	/** The single fixture group component in use */
+	TWeakObjectPtr<UDMXPixelMappingFixtureGroupComponent> WeakFixtureGroupComponent;
 
-	TSharedPtr<SBorder> FixturePatchListArea;
+	/** Handle to the dmx library property */
+	TSharedPtr<IPropertyHandle> DMXLibraryHandle;
+
+	/** Handle to the dmx library's entity array */
+	TSharedPtr<IPropertyHandle> EntitiesHandle;
+
+	/** Patches with their details row. Helps to multiselect and toggle highlights */
+	struct FDetailRowWidgetWithPatch
+	{
+		TWeakObjectPtr<UDMXEntityFixturePatch> WeakFixturePatch;
+		TSharedPtr<SDMXPixelMappingFixturePatchDetailRow> DetailRowWidget;
+	};
+	TArray<FDetailRowWidgetWithPatch> DetailRowWidgetsWithPatch;
+
+	TSharedPtr<IPropertyUtilities> PropertyUtilities;
 };

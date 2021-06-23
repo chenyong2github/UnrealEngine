@@ -70,5 +70,5 @@ void UGauntletTestController::EndTest(int32 ExitCode /*= 0*/)
 	// we flush logs because we don't (currently...) want to treat shutdown errors as failures
 	GLog->PanicFlushThreadedLogs();
 	// force exit only if platform doesn't support quitting
-	FPlatformMisc::RequestExit(!FPlatformProperties::SupportsQuit());
+	FPlatformMisc::RequestExitWithStatus(!FPlatformProperties::SupportsQuit(), static_cast<uint8>(ExitCode));
 }

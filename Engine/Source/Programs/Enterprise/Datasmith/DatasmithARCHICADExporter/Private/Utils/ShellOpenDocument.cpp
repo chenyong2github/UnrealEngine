@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#ifdef WIN32
+#if PLATFORM_WINDOWS
 	#include <windows.h>
 #else
 	#include <unistd.h>

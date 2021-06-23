@@ -52,6 +52,39 @@ FDMXInputPort::~FDMXInputPort()
 	UE_LOG(LogDMXProtocol, VeryVerbose, TEXT("Destroyed input port %s"), *PortName);
 }
 
+bool FDMXInputPort::CheckPriority(const int32 InPriority)
+{
+	if (InPriority > HighestReceivedPriority)
+	{
+		HighestReceivedPriority = InPriority;
+	}
+	
+	if (InPriority < LowestReceivedPriority)
+	{
+		LowestReceivedPriority = InPriority;
+	}
+	
+	switch (PriorityStrategy)
+	{
+	case(EDMXPortPriorityStrategy::None):
+		return true;
+	case(EDMXPortPriorityStrategy::HigherThan):
+		return InPriority > Priority;
+	case(EDMXPortPriorityStrategy::Equal):
+		return InPriority == Priority;
+	case(EDMXPortPriorityStrategy::LowerThan):
+		return InPriority < Priority;
+	case(EDMXPortPriorityStrategy::Highest):
+		return InPriority >= HighestReceivedPriority;
+	case(EDMXPortPriorityStrategy::Lowest):
+		return InPriority <= LowestReceivedPriority;
+	default:
+		break;
+	}
+
+	return false;
+}
+
 void FDMXInputPort::UpdateFromConfig(FDMXInputPortConfig& InputPortConfig)
 {
 	// Need a valid config for the port
@@ -98,6 +131,8 @@ void FDMXInputPort::UpdateFromConfig(FDMXInputPortConfig& InputPortConfig)
 	LocalUniverseStart = InputPortConfig.GetLocalUniverseStart();
 	NumUniverses = InputPortConfig.GetNumUniverses();
 	PortName = InputPortConfig.GetPortName();
+	PriorityStrategy = InputPortConfig.GetPortPriorityStrategy();
+	Priority = InputPortConfig.GetPriority();
 
 	// Re-register the port if required
 	if (bNeedsUpdateRegistration)
@@ -119,19 +154,19 @@ bool FDMXInputPort::IsRegistered() const
 	return bRegistered;
 }
 
-void FDMXInputPort::AddRawInput(TSharedRef<FDMXRawListener> RawInput)
+void FDMXInputPort::AddRawListener(TSharedRef<FDMXRawListener> InRawListener)
 {
-	check(!RawListeners.Contains(RawInput));
+	check(!RawListeners.Contains(InRawListener));
 
 	// Inputs need to run in the game thread
 	check(IsInGameThread());
 
-	RawListeners.Add(RawInput);
+	RawListeners.Add(InRawListener);
 }
 
-void FDMXInputPort::RemoveRawInput(TSharedRef<FDMXRawListener> RawInput)
+void FDMXInputPort::RemoveRawListener(TSharedRef<FDMXRawListener> InRawListenerToRemove)
 {
-	RawListeners.Remove(RawInput);
+	RawListeners.Remove(InRawListenerToRemove);
 }
 
 bool FDMXInputPort::Register()
@@ -192,9 +227,9 @@ void FDMXInputPort::ClearBuffers()
 	check(IsInGameThread());
 #endif // UE_BUILD_DEBUG
 
-	for (const TSharedRef<FDMXRawListener>& RawInput : RawListeners)
+	for (const TSharedRef<FDMXRawListener>& RawListener : RawListeners)
 	{
-		RawInput->ClearBuffer();
+		RawListener->ClearBuffer();
 	}
 
 	DefaultInputQueue.Empty();

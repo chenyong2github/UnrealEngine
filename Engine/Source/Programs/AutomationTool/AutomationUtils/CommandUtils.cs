@@ -3041,7 +3041,7 @@ namespace AutomationTool
 
 				foreach (FileReference FileRef in DirectoryReference.EnumerateFiles(PathRef, "*", SearchOption.TopDirectoryOnly))
 				{
-					if (FileRef.GetExtension() == ".dylib" || FileRef.GetExtension() == ".so")
+					if (FileRef.GetExtension() == ".dylib" || FileRef.GetExtension() == ".so" || FileRef.GetExtension() == ".bundle")
 					{
 						SignMacFileOrFolder(FileRef.FullName, bIgnoreExtension, NotarizationEntitlements);
 					}

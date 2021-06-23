@@ -92,6 +92,7 @@
 #include "Materials/MaterialExpressionTransformPosition.h"
 #include "Materials/MaterialExpressionCustom.h"
 #include "Materials/MaterialExpressionWorldPosition.h"
+#include "LevelEditorDragDropHandler.h"
 #include "UnrealWidget.h"
 #include "EdModeInteractiveToolsContext.h"
 
@@ -801,7 +802,7 @@ bool FLevelEditorViewportClient::AttemptApplyObjAsMaterialToSurface( UObject* Ob
 		UModel* Model = ModelHitProxy->GetModel();
 		
 		// If our model doesn't exist or is part of a level that is being destroyed
-		if( !Model || (Model && Model->GetOuter()->IsPendingKillOrUnreachable()))
+		if( !Model || !Model->GetOuter() || Model->GetOuter()->IsPendingKillOrUnreachable() )
 		{
 			return false;
 		}
@@ -1248,39 +1249,21 @@ FDropQuery FLevelEditorViewportClient::CanDropObjectsAtCoordinates(int32 MouseX,
 {
 	FDropQuery Result;
 
-	UWorld* CurrentWorld = GetWorld();
-	if ( !ObjectTools::IsAssetValidForPlacing(CurrentWorld, AssetData.ObjectPath.ToString() ) )
+	ULevelEditorDragDropHandler* DragDrop = GEditor->GetLevelEditorDragDropHandler();
+	if (!DragDrop->PreviewDropObjectsAtCoordinates(MouseX, MouseY, GetWorld(), Viewport, AssetData))
 	{
+		Result.bCanDrop = DragDrop->GetCanDrop();
+		Result.HintText = DragDrop->GetPreviewDropHintText();
+
 		return Result;
 	}
 
-	if (CurrentWorld)
-	{
-		ULevel* CurrentLevel = CurrentWorld->GetCurrentLevel();
-		UWorld* CurrentLevelOuterWorld = CurrentLevel ? Cast<UWorld>(CurrentLevel->GetOuter()) : nullptr;  
-		UWorld* ReferencingWorld = CurrentLevelOuterWorld ? CurrentLevelOuterWorld : CurrentWorld;
-		FAssetReferenceFilterContext AssetReferenceFilterContext;
-		AssetReferenceFilterContext.ReferencingAssets.Add(FAssetData(ReferencingWorld));
-
-		TSharedPtr<IAssetReferenceFilter> AssetReferenceFilter = GEditor->MakeAssetReferenceFilter(AssetReferenceFilterContext);
-		if (AssetReferenceFilter.IsValid())
-		{
-			FText FailureReason;
-			if (!AssetReferenceFilter->PassesFilter(AssetData, &FailureReason))
-			{
-				Result.bCanDrop = false;
-				Result.HintText = FailureReason;
-				return Result;
-			}
-		}
-	}
-
 	UObject* AssetObj = AssetData.GetAsset();
-	UClass* ClassObj = Cast<UClass>( AssetObj );
+	UClass* ClassObj = Cast<UClass>(AssetObj);
 
-	if ( ClassObj )
+	if (ClassObj)
 	{
-		if ( !ObjectTools::IsClassValidForPlacing(ClassObj) )
+		if (!ObjectTools::IsClassValidForPlacing(ClassObj))
 		{
 			Result.bCanDrop = false;
 			Result.HintText = FText::Format(LOCTEXT("DragAndDrop_CannotDropAssetClassFmt", "The class '{0}' cannot be placed in a level"), FText::FromString(ClassObj->GetName()));
@@ -1290,17 +1273,17 @@ FDropQuery FLevelEditorViewportClient::CanDropObjectsAtCoordinates(int32 MouseX,
 		AssetObj = ClassObj->GetDefaultObject();
 	}
 
-	if( ensureMsgf( AssetObj != NULL, TEXT("AssetObj was null (%s)"), *AssetData.GetFullName() ) )
+	if (ensureMsgf(AssetObj != NULL, TEXT("AssetObj was null (%s)"), *AssetData.GetFullName()))
 	{
 		// Check if the asset has an actor factory
-		bool bHasActorFactory = FActorFactoryAssetProxy::GetFactoryForAsset( AssetData ) != NULL;
+		bool bHasActorFactory = FActorFactoryAssetProxy::GetFactoryForAsset(AssetData) != nullptr;
 
-		if ( AssetObj->IsA( AActor::StaticClass() ) || bHasActorFactory )
+		if (AssetObj->IsA(AActor::StaticClass()) || bHasActorFactory)
 		{
 			Result.bCanDrop = true;
 			GUnrealEd->SetPivotMovedIndependently(false);
 		}
-		else if( AssetObj->IsA( UBrushBuilder::StaticClass()) )
+		else if (AssetObj->IsA(UBrushBuilder::StaticClass()))
 		{
 			Result.bCanDrop = true;
 			GUnrealEd->SetPivotMovedIndependently(false);
@@ -1308,18 +1291,13 @@ FDropQuery FLevelEditorViewportClient::CanDropObjectsAtCoordinates(int32 MouseX,
 		else
 		{
 			HHitProxy* HitProxy = Viewport->GetHitProxy(MouseX, MouseY);
-			if( HitProxy != NULL && CanApplyMaterialToHitProxy(HitProxy))
+			if (HitProxy != nullptr && CanApplyMaterialToHitProxy(HitProxy))
 			{
-				if ( AssetObj->IsA( UMaterialInterface::StaticClass() ) || AssetObj->IsA( UTexture::StaticClass() ) )
+				if (AssetObj->IsA(UMaterialInterface::StaticClass()) || AssetObj->IsA(UTexture::StaticClass()))
 				{
 					// If our asset is a material and the target is a valid recipient
 					Result.bCanDrop = true;
 					GUnrealEd->SetPivotMovedIndependently(false);
-
-					//if ( HitProxy->IsA(HActor::StaticGetType()) )
-					//{
-					//	Result.HintText = LOCTEXT("Material_Shift_Hint", "Hold [Shift] to apply material to every slot");
-					//}
 				}
 			}
 		}
@@ -1331,6 +1309,16 @@ FDropQuery FLevelEditorViewportClient::CanDropObjectsAtCoordinates(int32 MouseX,
 bool FLevelEditorViewportClient::DropObjectsAtCoordinates(int32 MouseX, int32 MouseY, const TArray<UObject*>& DroppedObjects, TArray<AActor*>& OutNewActors, bool bOnlyDropOnTarget/* = false*/, bool bCreateDropPreview/* = false*/, bool SelectActors, UActorFactory* FactoryToUse )
 {
 	bool bResult = false;
+
+	// Allow the drag drop handler to do anything pre-drop.
+	if (!bCreateDropPreview)
+	{
+		ULevelEditorDragDropHandler* DragDrop = GEditor->GetLevelEditorDragDropHandler();
+		if (!DragDrop->PreDropObjectsAtCoordinates(MouseX, MouseY, GetWorld(), Viewport, DroppedObjects, OutNewActors))
+		{
+			return bResult;
+		}
+	}
 
 	// Make sure the placement dragging actor is cleaned up.
 	DestroyDropPreviewActors();

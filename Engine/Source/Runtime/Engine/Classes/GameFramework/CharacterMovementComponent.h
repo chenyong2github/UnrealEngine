@@ -2024,8 +2024,10 @@ protected:
 
 
 protected:
+	/* Prepare root motion to be passed on to physics thread */
+	virtual void AccumulateRootMotionForAsync(float DeltaSeconds, FRootMotionAsyncData& RootMotion);
 	/* Prepare inputs for asynchronous simulation on physics thread */ 
-	virtual void FillAsyncInput(const FVector& InputVector, FCharacterMovementComponentAsyncInput& AsyncInput) const;
+	virtual void FillAsyncInput(const FVector& InputVector, FCharacterMovementComponentAsyncInput& AsyncInput);
 	virtual void BuildAsyncInput();
 	virtual void PostBuildAsyncInput();
 	/* Apply outputs from async sim. */
@@ -2510,6 +2512,8 @@ public:
 
 	UPROPERTY(Transient)
 	FRootMotionSourceGroup ServerCorrectionRootMotion;
+
+	FRootMotionAsyncData AsyncRootMotion;
 
 	/** Returns true if we have Root Motion from any source to use in PerformMovement() physics. */
 	bool HasRootMotionSources() const;

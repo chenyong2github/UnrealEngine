@@ -976,7 +976,7 @@ void NiagaraEmitterInstanceBatcher::PrepareTicksForProxy(FRHICommandListImmediat
 
 				SimStageData.bFirstStage = true;
 				SimStageData.StageIndex = 0;
-				SimStageData.Source = ComputeContext->bHasTickedThisFrame_RT ? ComputeContext->GetCurrDataBuffer() : ComputeContext->MainDataSet->GetCurrentData();
+				SimStageData.Source = ComputeContext->bHasTickedThisFrame_RT ? ComputeContext->GetPrevDataBuffer() : ComputeContext->MainDataSet->GetCurrentData();
 				SimStageData.SourceCountOffset = ComputeContext->CountOffset_RT;
 				SimStageData.SourceNumInstances = PrevNumInstances;
 
@@ -1034,7 +1034,7 @@ void NiagaraEmitterInstanceBatcher::PrepareTicksForProxy(FRHICommandListImmediat
 					// This stage does not modify particle data, i.e. read only or not related to particles at all
 					if (!SimStageData.StageMetaData->bWritesParticles)
 					{
-						SimStageData.Source = ComputeContext->GetCurrDataBuffer();
+						SimStageData.Source = ComputeContext->GetPrevDataBuffer();
 						SimStageData.SourceCountOffset = ComputeContext->CountOffset_RT;
 						SimStageData.SourceNumInstances = ComputeContext->CurrentNumInstances_RT;
 						SimStageData.Destination = nullptr;
@@ -1047,14 +1047,14 @@ void NiagaraEmitterInstanceBatcher::PrepareTicksForProxy(FRHICommandListImmediat
 						SimStageData.Source = nullptr;
 						SimStageData.SourceCountOffset = ComputeContext->CountOffset_RT;
 						SimStageData.SourceNumInstances = ComputeContext->CurrentNumInstances_RT;
-						SimStageData.Destination = ComputeContext->GetCurrDataBuffer();
+						SimStageData.Destination = ComputeContext->GetPrevDataBuffer();
 						SimStageData.DestinationCountOffset = ComputeContext->CountOffset_RT;
 						SimStageData.DestinationNumInstances = ComputeContext->CurrentNumInstances_RT;
 					}
 					// This stage may kill particles, we need to allocate a new destination buffer
 					else
 					{
-						SimStageData.Source = ComputeContext->GetCurrDataBuffer();
+						SimStageData.Source = ComputeContext->GetPrevDataBuffer();
 						SimStageData.SourceCountOffset = ComputeContext->CountOffset_RT;
 						SimStageData.SourceNumInstances = ComputeContext->CurrentNumInstances_RT;
 						SimStageData.Destination = ComputeContext->GetNextDataBuffer();
@@ -1114,20 +1114,27 @@ void NiagaraEmitterInstanceBatcher::PrepareTicksForProxy(FRHICommandListImmediat
 			continue;
 		}
 
+		// We need to store the current data from the main data set as we will be temporarily stomping it during multi-ticking
+		ComputeContext->DataSetOriginalBuffer_RT = ComputeContext->MainDataSet->GetCurrentData();
+
 		//-OPT: We should allocate all GPU free IDs together since they require a transition
 		if (ComputeContext->MainDataSet->RequiresPersistentIDs())
 		{
 			ComputeContext->MainDataSet->AllocateGPUFreeIDs(ComputeContext->CurrentMaxAllocateInstances_RT + 1, RHICmdList, FeatureLevel, ComputeContext->GetDebugSimName());
 		}
 
-		// Allocate space for all buffers we use
+		// Allocate space for the buffers we need to perform ticking.  In cases of multiple ticks or multiple write stages we need 3 buffers (current rendered and two simulation buffers).
 		//-OPT: We can batch the allocation of persistent IDs together so the compute shaders overlap
 		const uint32 NumBuffersToResize = FMath::Min<uint32>(ComputeContext->BufferSwapsThisFrame_RT, UE_ARRAY_COUNT(ComputeContext->DataBuffers_RT));
-
-		for (uint32 i = 0; i < NumBuffersToResize; ++i)
+		for (uint32 i=0; i < NumBuffersToResize; ++i)
 		{
-			const uint32 BufferIndex = (ComputeContext->DataBufferIndex_RT + i) % UE_ARRAY_COUNT(ComputeContext->DataBuffers_RT);
-			ComputeContext->DataBuffers_RT[BufferIndex]->AllocateGPU(RHICmdList, ComputeContext->CurrentMaxAllocateInstances_RT + 1, FeatureLevel, ComputeContext->GetDebugSimName());
+			ComputeContext->DataBuffers_RT[i]->AllocateGPU(RHICmdList, ComputeContext->CurrentMaxAllocateInstances_RT + 1, FeatureLevel, ComputeContext->GetDebugSimName());
+		}
+
+		// Ensure we don't keep multi-tick buffers around longer than they are required by releasing them
+		for (uint32 i=NumBuffersToResize; i < UE_ARRAY_COUNT(ComputeContext->DataBuffers_RT); ++i)
+		{
+			ComputeContext->DataBuffers_RT[i]->ReleaseGPU();
 		}
 
 		// RDG will defer the Niagara dispatches until the graph is executed.
@@ -1135,7 +1142,7 @@ void NiagaraEmitterInstanceBatcher::PrepareTicksForProxy(FRHICommandListImmediat
 		// that is anything that happens before PostRenderOpaque
 		if ((ComputeProxy->GetComputeTickStage() == ENiagaraGpuComputeTickStage::PreInitViews) || (ComputeProxy->GetComputeTickStage() == ENiagaraGpuComputeTickStage::PostInitViews))
 		{
-			FNiagaraDataBuffer* FinalBuffer = ComputeContext->GetCurrDataBuffer();
+			FNiagaraDataBuffer* FinalBuffer = ComputeContext->GetPrevDataBuffer();
 			FinalBuffer->GPUInstanceCountBufferOffset = ComputeContext->CountOffset_RT;
 			FinalBuffer->SetNumInstances(ComputeContext->CurrentNumInstances_RT);
 			ComputeContext->SetDataToRender(FinalBuffer);
@@ -1148,7 +1155,7 @@ void NiagaraEmitterInstanceBatcher::PrepareTicksForProxy(FRHICommandListImmediat
 		// This allows simulations that use the depth buffer, for example, to execute with no latency
 		else if ( GNiagaraGpuLowLatencyTranslucencyEnabled )
 		{
-			FNiagaraDataBuffer* FinalBuffer = ComputeContext->GetCurrDataBuffer();
+			FNiagaraDataBuffer* FinalBuffer = ComputeContext->GetPrevDataBuffer();
 			FinalBuffer->GPUInstanceCountBufferOffset = ComputeContext->CountOffset_RT;
 			FinalBuffer->SetNumInstances(ComputeContext->CurrentNumInstances_RT);
 			ComputeContext->SetTranslucentDataToRender(FinalBuffer);
@@ -1341,23 +1348,34 @@ void NiagaraEmitterInstanceBatcher::ExecuteTicks(FRHICommandList& RHICmdList, FR
 			if ( DispatchInstance.SimStageData.bLastStage )
 			{
 				PostSimulateInterface(RHICmdList, DispatchInstance.Tick, DispatchInstance.InstanceData);
-			}
 
-			if (DispatchInstance.SimStageData.bSetDataToRender)
-			{
 				// Update CurrentData with the latest information as things like ParticleReads can use this data
 				FNiagaraComputeExecutionContext* ComputeContext = DispatchInstance.InstanceData.Context;
 				const FNiagaraSimStageData& FinalSimStageData = DispatchInstance.SimStageData;
-				FNiagaraDataBuffer* CurrentData = ComputeContext->MainDataSet->GetCurrentData();
-				FNiagaraDataBuffer* FinalData = FinalSimStageData.Destination != nullptr ? FinalSimStageData.Destination : FinalSimStageData.Source;
-				check(FinalData);
+				FNiagaraDataBuffer* FinalSimStageDataBuffer = FinalSimStageData.Destination != nullptr ? FinalSimStageData.Destination : FinalSimStageData.Source;
+				check(FinalSimStageDataBuffer != nullptr);
 
-				CurrentData->SwapGPU(FinalData);
-				ComputeContext->SetTranslucentDataToRender(nullptr);
-				ComputeContext->SetDataToRender(CurrentData);
+				// If we are setting the data to render we need to ensure we switch back to the original CurrentData then swap the GPU buffers into it
+				if (DispatchInstance.SimStageData.bSetDataToRender)
+				{
+					check(ComputeContext->DataSetOriginalBuffer_RT != nullptr);
+					FNiagaraDataBuffer* CurrentData = ComputeContext->DataSetOriginalBuffer_RT;
+					ComputeContext->DataSetOriginalBuffer_RT = nullptr;
+
+					ComputeContext->MainDataSet->CurrentData = CurrentData;
+					CurrentData->SwapGPU(FinalSimStageDataBuffer);
+
+					ComputeContext->SetTranslucentDataToRender(nullptr);
+					ComputeContext->SetDataToRender(CurrentData);
 #if WITH_MGPU
-				AddTemporalEffectBuffers(CurrentData);
+					AddTemporalEffectBuffers(CurrentData);
 #endif // WITH_MGPU
+				}
+				// If this is not the final tick of the final stage we need set our temporary buffer for data interfaces, etc, that may snoop from CurrentData
+				else
+				{
+					ComputeContext->MainDataSet->CurrentData = FinalSimStageDataBuffer;
+				}
 			}
 		}
 

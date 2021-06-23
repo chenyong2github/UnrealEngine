@@ -1,111 +1,302 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Customizations/DMXPixelMappingDetailCustomization_FixtureGroup.h"
+
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
-#include "Templates/DMXPixelMappingComponentTemplate.h"
+#include "Components/DMXPixelMappingMatrixComponent.h"
 #include "DragDrop/DMXPixelMappingDragDropOp.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
+#include "Templates/DMXPixelMappingComponentTemplate.h"
+#include "Toolkits/DMXPixelMappingToolkit.h"
+#include "Widgets/SDMXPixelMappingFixturePatchDetailRow.h"
 
-#include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "PropertyHandle.h"
+#include "IPropertyUtilities.h"
+#include "Layout/Visibility.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Layout/SScrollBorder.h"
-#include "DetailWidgetRow.h"
-#include "Layout/Visibility.h"
+#include "Widgets/SBoxPanel.h"
+
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingDetailCustomization_FixtureGroup"
 
 void FDMXPixelMappingDetailCustomization_FixtureGroup::CustomizeDetails(IDetailLayoutBuilder& InDetailLayout)
 {
-	DetailLayout = &InDetailLayout;
+	PropertyUtilities = InDetailLayout.GetPropertyUtilities();
 
-	FixturePatchItemTemplate = MakeShared<FDMXPixelMappingComponentTemplate>(UDMXPixelMappingFixtureGroupItemComponent::StaticClass());
-
-	UpdateFixturePatchRefs();
-
-	// Get editing categories
-	IDetailCategoryBuilder& FixtureListCategoryBuilder = DetailLayout->EditCategory("Fixture List", FText::GetEmpty(), ECategoryPriority::Important);
-
-	// Add DMX library property and listener
-	TSharedPtr<IPropertyHandle> DMXLibraryHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, DMXLibrary), UDMXPixelMappingFixtureGroupComponent::StaticClass());
-	FixtureListCategoryBuilder.AddProperty(DMXLibraryHandle);
-	DMXLibraryHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::OnDMXLibraryChanged));
-
-	// Add Fixture Patch list widget
-	FixtureListCategoryBuilder.AddCustomRow(FText::GetEmpty())
-		.WholeRowContent()
-		[
-			SAssignNew(FixturePatchListArea, SBorder)
-			.Padding(0)
-			.BorderImage(FEditorStyle::GetBrush("NoBrush"))
-		];
-
-	RebuildFixturePatchListView();
-}
-
-TSharedRef<ITableRow> FDMXPixelMappingDetailCustomization_FixtureGroup::GenerateFixturePatchRow(TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef, const TSharedRef<STableViewBase>& OwnerTable)
-{
-	if (InFixturePatchRef.IsValid())
+	WeakFixtureGroupComponent = GetSelectedFixtureGroupComponent(InDetailLayout);
+	if(UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent = WeakFixtureGroupComponent.Get())
 	{
-		if (UDMXEntityFixturePatch* FixturePatch = InFixturePatchRef->GetFixturePatch())
+		// Listen to the library being changed in the group component
+		DMXLibraryHandle = InDetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, DMXLibrary), UDMXPixelMappingFixtureGroupComponent::StaticClass());
+		DMXLibraryHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::OnLibraryChanged));
+		DMXLibraryHandle->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::OnLibraryChanged));
+		
+		if (UDMXLibrary* DMXLibrary = GetSelectedDMXLibrary(FixtureGroupComponent))
 		{
-			return SNew(STableRow<TSharedPtr<FString>>, OwnerTable)
-				.Padding(2.0f)
-				.OnDragDetected(FOnDragDetected::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::OnFixturePatchDragDetected, InFixturePatchRef))
-				.ShowSelection(true)
-				[
-					SNew(SBox)
-					[
-						SNew(STextBlock)
-						.Text(FText::FromString(FixturePatch->GetDisplayName()))
-					]
-				];
+			UpdateFixturePatchesInUse(DMXLibrary);
+
+			// Get editing categories
+			IDetailCategoryBuilder& FixtureListCategoryBuilder = InDetailLayout.EditCategory("Fixture List", FText::GetEmpty(), ECategoryPriority::Important);
+
+			// Listen to the entities array being changed in the library
+			EntitiesHandle = InDetailLayout.GetProperty(UDMXLibrary::GetEntitiesPropertyName());
+			EntitiesHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::ForceRefresh));
+
+			// Add the library property
+			FixtureListCategoryBuilder.AddProperty(DMXLibraryHandle);
+
+			// Add fixture patches as custom rows
+			TArray<UDMXEntityFixturePatch*> AllFixturePatches = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+			for (UDMXEntityFixturePatch* FixturePatch : AllFixturePatches)
+			{
+				const bool bPatchIsAssigned = FixtureGroupComponent->Children.ContainsByPredicate([FixturePatch](UDMXPixelMappingBaseComponent* BaseComponent)
+					{
+						if (UDMXPixelMappingFixtureGroupItemComponent* GroupItemComponent = Cast<UDMXPixelMappingFixtureGroupItemComponent>(BaseComponent))
+						{
+							return GroupItemComponent->FixturePatchRef.GetFixturePatch() == FixturePatch;
+						}
+						return false;
+					});
+
+				if (!bPatchIsAssigned)
+				{
+					TSharedRef<SDMXPixelMappingFixturePatchDetailRow> FixturePatchDetailRowWidget =
+						SNew(SDMXPixelMappingFixturePatchDetailRow)
+						.FixturePatch(FixturePatch)
+						.OnLMBDown(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::OnFixturePatchLMBDown, FDMXEntityFixturePatchRef(FixturePatch))
+						.OnLMBUp(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::OnFixturePatchLMBUp, FDMXEntityFixturePatchRef(FixturePatch))
+						.OnDragged(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::OnFixturePatchesDragged);
+
+					FDMXPixelMappingDetailCustomization_FixtureGroup::FDetailRowWidgetWithPatch DetailRowWidgetWithPatch;
+					DetailRowWidgetWithPatch.DetailRowWidget = FixturePatchDetailRowWidget;
+					DetailRowWidgetWithPatch.WeakFixturePatch = FixturePatch;
+					DetailRowWidgetsWithPatch.Add(DetailRowWidgetWithPatch);
+
+					FixtureListCategoryBuilder.AddCustomRow(FText::GetEmpty())
+						.WholeRowContent()
+						[
+							FixturePatchDetailRowWidget
+						];
+				}
+			}		
 		}
 	}
-
-	return SNew(STableRow<TSharedPtr<FString>>, OwnerTable);
 }
 
-void FDMXPixelMappingDetailCustomization_FixtureGroup::OnFixtureSelectionChanged(TSharedPtr<FDMXEntityFixturePatchRef> FixturePatchRef, ESelectInfo::Type SelectInfo)
+void FDMXPixelMappingDetailCustomization_FixtureGroup::OnLibraryChanged()
 {
-	TArray<TSharedPtr<FDMXEntityFixturePatchRef>> SelectedItems;
-	FixturePatchListView->GetSelectedItems(SelectedItems);
-	UDMXPixelMappingFixtureGroupComponent* Component = GetSelectedFixtureGroupComponent();
-	if (Component != nullptr)
+	// Remove patches not in the library
+	if (TSharedPtr<FDMXPixelMappingToolkit> Toolkit = ToolkitWeakPtr.Pin())
 	{
-		Component->SelectedFixturePatchRef.Empty();
-		for (TSharedPtr<FDMXEntityFixturePatchRef> SelectedItem : SelectedItems)
+		if (UDMXPixelMappingFixtureGroupComponent* GroupComponent = Cast<UDMXPixelMappingFixtureGroupComponent>(WeakFixtureGroupComponent))
 		{
-			if (SelectedItem.IsValid())
+			for (UDMXPixelMappingBaseComponent* GroupChild : TArray<UDMXPixelMappingBaseComponent*>(GroupComponent->Children))
 			{
-				Component->SelectedFixturePatchRef.Add(*SelectedItem.Get());
+				if (UDMXPixelMappingFixtureGroupItemComponent* GroupItemComponent = Cast<UDMXPixelMappingFixtureGroupItemComponent>(GroupChild))
+				{
+					if (GroupComponent->DMXLibrary)
+					{
+						const bool bPatchIsInLibrary = GroupComponent->DMXLibrary->GetEntities().ContainsByPredicate([GroupItemComponent](UDMXEntity* Entity)
+							{
+								return GroupItemComponent->FixturePatchRef.GetEntity() == Entity;
+							});
+
+						if (bPatchIsInLibrary)
+						{
+							continue;
+						}
+					}
+				}
+
+				GroupComponent->RemoveChild(GroupChild);
+				Toolkit->HandleRemoveComponents();
 			}
 		}
 	}
+
+	ForceRefresh();
 }
 
-FReply FDMXPixelMappingDetailCustomization_FixtureGroup::OnFixturePatchDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef)
+void FDMXPixelMappingDetailCustomization_FixtureGroup::ForceRefresh()
 {
-	if (UDMXPixelMappingFixtureGroupComponent* Component = GetSelectedFixtureGroupComponent())
+	// Reset the handles so they won't fire any changes after refreshing
+	DMXLibraryHandle.Reset();
+	EntitiesHandle.Reset();
+
+	if (ensure(PropertyUtilities.IsValid()))
 	{
-		Component->SelectedFixturePatchRef.Add(*InFixturePatchRef.Get());
-		return FReply::Handled().BeginDragDrop(FDMXPixelMappingDragDropOp::New(FixturePatchItemTemplate, Component));
+		PropertyUtilities->ForceRefresh();
+	}
+}
+
+void FDMXPixelMappingDetailCustomization_FixtureGroup::OnFixturePatchLMBDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, FDMXEntityFixturePatchRef FixturePatchRef)
+{
+	UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.GetFixturePatch();
+	if(FixturePatch)
+	{
+		if (SelectedFixturePatches.Num() == 0)
+		{
+			SelectedFixturePatches = TArray<FDMXEntityFixturePatchRef>({ FixturePatchRef });
+		}
+		else
+		{
+			if (MouseEvent.IsShiftDown())
+			{
+				// Shift select
+				const int32 IndexOfAnchor = DetailRowWidgetsWithPatch.IndexOfByPredicate([this](const FDMXPixelMappingDetailCustomization_FixtureGroup::FDetailRowWidgetWithPatch& DetailRowWidgetWithPatch) {
+					return
+						DetailRowWidgetWithPatch.WeakFixturePatch.IsValid() &&
+						SelectedFixturePatches[0].GetFixturePatch() &&
+						DetailRowWidgetWithPatch.WeakFixturePatch.Get() == SelectedFixturePatches[0].GetFixturePatch();
+					});
+
+				const int32 IndexOfSelected = DetailRowWidgetsWithPatch.IndexOfByPredicate([FixturePatch](const FDMXPixelMappingDetailCustomization_FixtureGroup::FDetailRowWidgetWithPatch& DetailRowWidgetWithPatch) {
+					return
+						DetailRowWidgetWithPatch.WeakFixturePatch.IsValid() &&
+						DetailRowWidgetWithPatch.WeakFixturePatch.Get() == FixturePatch;
+					});
+
+				if (ensure(IndexOfSelected != INDEX_NONE))
+				{
+					if (IndexOfAnchor == INDEX_NONE || IndexOfAnchor == IndexOfSelected)
+					{
+						SelectedFixturePatches = TArray<FDMXEntityFixturePatchRef>({ FixturePatchRef });
+					}
+					else
+					{
+						SelectedFixturePatches.Reset();
+						SelectedFixturePatches.Add(FDMXEntityFixturePatchRef(DetailRowWidgetsWithPatch[IndexOfAnchor].WeakFixturePatch.Get()));
+
+						const bool bAscending = IndexOfAnchor < IndexOfSelected;
+						const int32 StartIndex = bAscending ? IndexOfAnchor + 1 : IndexOfSelected;
+						const int32 EndIndex = bAscending ? IndexOfSelected : IndexOfAnchor - 1;
+
+						for (int32 IndexDetailRowWidget = StartIndex; IndexDetailRowWidget <= EndIndex; IndexDetailRowWidget++)
+						{
+							if (UDMXEntityFixturePatch* NewlySelectedPatch = DetailRowWidgetsWithPatch[IndexDetailRowWidget].WeakFixturePatch.Get())
+							{
+								SelectedFixturePatches.AddUnique(FDMXEntityFixturePatchRef(NewlySelectedPatch));
+							}
+						}
+					}
+				}
+			}
+			else if (MouseEvent.IsControlDown())
+			{
+				// Ctrl select
+				if (!SelectedFixturePatches.Contains(FixturePatchRef))
+				{
+					SelectedFixturePatches.Add(FixturePatchRef);
+				}
+				else
+				{
+					SelectedFixturePatches.Remove(FixturePatchRef);
+				}
+			}
+		}
+
+		UpdateFixturePatchHighlights();
+	}
+}
+
+void FDMXPixelMappingDetailCustomization_FixtureGroup::OnFixturePatchLMBUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, FDMXEntityFixturePatchRef FixturePatchRef)
+{
+	if (!MouseEvent.IsShiftDown() && !MouseEvent.IsControlDown())
+	{
+		// Make a new selection
+		SelectedFixturePatches.Reset();
+		SelectedFixturePatches.Add(FixturePatchRef);
+
+		UpdateFixturePatchHighlights();
+	}
+}
+
+FReply FDMXPixelMappingDetailCustomization_FixtureGroup::OnFixturePatchesDragged(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if (WeakFixtureGroupComponent.IsValid())
+	{
+		TArray<TSharedPtr<FDMXPixelMappingComponentTemplate>> Templates;
+		for (const FDMXEntityFixturePatchRef& FixturePatchRef : SelectedFixturePatches)
+		{
+			if (UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.GetFixturePatch())
+			{
+				if (UDMXEntityFixtureType* FixtureType = FixturePatch->GetFixtureType())
+				{
+					if (FixtureType->bFixtureMatrixEnabled)
+					{
+						TSharedRef<FDMXPixelMappingComponentTemplate> FixturePatchMatrixTemplate = MakeShared<FDMXPixelMappingComponentTemplate>(UDMXPixelMappingMatrixComponent::StaticClass(), FixturePatchRef);
+						Templates.Add(FixturePatchMatrixTemplate);
+					}
+					else
+					{
+						TSharedRef<FDMXPixelMappingComponentTemplate> FixturePatchItemTemplate = MakeShared<FDMXPixelMappingComponentTemplate>(UDMXPixelMappingFixtureGroupItemComponent::StaticClass(), FixturePatchRef);
+						Templates.Add(FixturePatchItemTemplate);
+					}
+				}
+			}
+		}
+
+		UpdateFixturePatchHighlights();
+
+		ForceRefresh();
+
+		return FReply::Handled().BeginDragDrop(FDMXPixelMappingDragDropOp::New(FVector2D::ZeroVector, Templates, WeakFixtureGroupComponent.Get()));
 	}
 
 	return FReply::Handled();
 }
 
-void FDMXPixelMappingDetailCustomization_FixtureGroup::OnDMXLibraryChanged()
+void FDMXPixelMappingDetailCustomization_FixtureGroup::UpdateFixturePatchHighlights()
 {
-	UpdateFixturePatchRefs();
-	RebuildFixturePatchListView();
+	for (const FDMXPixelMappingDetailCustomization_FixtureGroup::FDetailRowWidgetWithPatch& DetailRowWidgetWithPatch : DetailRowWidgetsWithPatch)
+	{
+		bool bIsSelected = SelectedFixturePatches.ContainsByPredicate([DetailRowWidgetWithPatch](const FDMXEntityFixturePatchRef& SelectedRef) {
+			return
+				SelectedRef.GetFixturePatch() &&
+				DetailRowWidgetWithPatch.WeakFixturePatch.IsValid() &&
+				SelectedRef.GetFixturePatch() == DetailRowWidgetWithPatch.WeakFixturePatch.Get();
+			});
+
+		DetailRowWidgetWithPatch.DetailRowWidget->SetHighlight(bIsSelected);
+	}
 }
 
-UDMXPixelMappingFixtureGroupComponent* FDMXPixelMappingDetailCustomization_FixtureGroup::GetSelectedFixtureGroupComponent()
+void FDMXPixelMappingDetailCustomization_FixtureGroup::UpdateFixturePatchesInUse(UDMXLibrary* DMXLibrary)
 {
-	const TArray<TWeakObjectPtr<UObject> >& SelectedSelectedObjects = DetailLayout->GetSelectedObjects();
+	TArray<UDMXEntityFixturePatch*> FixturePatchesInLibrary = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+
+	FixturePatches.Reset(FixturePatchesInLibrary.Num());
+	for (UDMXEntityFixturePatch* FixturePatch : FixturePatchesInLibrary)
+	{
+		FDMXEntityFixturePatchRef FixturePatchRef;
+		FixturePatchRef.SetEntity(FixturePatch);
+		FixturePatches.Add(FixturePatchRef);
+	}
+		
+	SelectedFixturePatches.RemoveAll([&FixturePatchesInLibrary](const FDMXEntityFixturePatchRef& SelectedFixturePatch) {
+		return !SelectedFixturePatch.GetFixturePatch() || !FixturePatchesInLibrary.Contains(SelectedFixturePatch.GetFixturePatch());
+	});
+}
+
+UDMXLibrary* FDMXPixelMappingDetailCustomization_FixtureGroup::GetSelectedDMXLibrary(UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent) const
+{
+	if (FixtureGroupComponent)
+	{
+		return FixtureGroupComponent->DMXLibrary;
+	}
+
+	return nullptr;
+}
+
+UDMXPixelMappingFixtureGroupComponent* FDMXPixelMappingDetailCustomization_FixtureGroup::GetSelectedFixtureGroupComponent(const IDetailLayoutBuilder& InDetailLayout) const
+{
+	const TArray<TWeakObjectPtr<UObject> >& SelectedSelectedObjects = InDetailLayout.GetSelectedObjects();
 	TArray<UDMXPixelMappingFixtureGroupComponent*> SelectedSelectedComponents;
 
 	for (TWeakObjectPtr<UObject> SelectedObject : SelectedSelectedObjects)
@@ -121,43 +312,6 @@ UDMXPixelMappingFixtureGroupComponent* FDMXPixelMappingDetailCustomization_Fixtu
 	// and that is why we getting only one UObject from here TArray<TWeakObjectPtr<UObject>>& SDetailsView::GetSelectedObjects()
 	check(SelectedSelectedComponents.Num());
 	return SelectedSelectedComponents[0];
-}
-
-UDMXLibrary* FDMXPixelMappingDetailCustomization_FixtureGroup::GetSelectedDMXLibrary()
-{
-	if (UDMXPixelMappingFixtureGroupComponent * Component = GetSelectedFixtureGroupComponent())
-	{
-		return Component->DMXLibrary;
-	}
-
-	return nullptr;
-}
-
-void FDMXPixelMappingDetailCustomization_FixtureGroup::UpdateFixturePatchRefs()
-{
-	FixturePatchRefs.Empty();
-	if (UDMXLibrary* DMXLibrary = GetSelectedDMXLibrary())
-	{
-		DMXLibrary->ForEachEntityOfType<UDMXEntityFixturePatch>([this](UDMXEntityFixturePatch* InFixturePatch)
-		{
-			FixturePatchRefs.Add(MakeShared<FDMXEntityFixturePatchRef>(InFixturePatch));
-		});
-	}
-}
-
-void FDMXPixelMappingDetailCustomization_FixtureGroup::RebuildFixturePatchListView()
-{
-	SAssignNew(FixturePatchListView, SListView<TSharedPtr<FDMXEntityFixturePatchRef>>)
-		.ListItemsSource(&FixturePatchRefs)
-		.SelectionMode(ESelectionMode::Multi)
-		.OnSelectionChanged(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::OnFixtureSelectionChanged)
-		.OnGenerateRow(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::GenerateFixturePatchRow);
-
-	FixturePatchListArea->SetContent(
-		SNew(SScrollBorder, FixturePatchListView.ToSharedRef())
-		[
-			FixturePatchListView.ToSharedRef()
-		]);
 }
 
 #undef LOCTEXT_NAMESPACE

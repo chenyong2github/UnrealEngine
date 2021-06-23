@@ -24,6 +24,7 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"Foliage",
 					"FreeImage",
+					"HTTP",
 					"InputCore",
 					"InterchangeCore",
 					"InterchangeEngine",

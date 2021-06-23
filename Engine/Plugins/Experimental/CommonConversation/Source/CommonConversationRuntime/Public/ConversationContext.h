@@ -243,11 +243,11 @@ public:
 	// SERVER ONLY
 	//-----------------------------------------------------------------------
 
-	/**  */
+	// Returns the conversation instance object associated with the conversation context provided, or nullptr if not valid
 	UFUNCTION(BlueprintPure, BlueprintAuthorityOnly, Category=Conversation)
 	static UConversationInstance* GetConversationInstance(const FConversationContext& Context);
 
-	/**  */
+	// Returns the FConversationNodeHandle of the conversation instance associated with this context, or a handle with an invalid FGuid if not possible
 	UFUNCTION(BlueprintPure, BlueprintAuthorityOnly, Category=Conversation)
 	static FConversationNodeHandle GetCurrentConversationNodeHandle(const FConversationContext& Context);
 
@@ -260,42 +260,53 @@ public:
 
 	//-----------------------------------------------------------------------
 
-	/**  */
+	// Constructs and returns a FConversationTaskResult configured with EConversationTaskResultType::AdvanceConversation
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category=Conversation)
 	static FConversationTaskResult AdvanceConversation(const FConversationContext& Context);
 
-	/**  */
+	// Constructs and returns a FConversationTaskResult configured with EConversationTaskResultType::AdvanceConversationWithChoice
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, meta=(AutoCreateRefTerm="Choice"), Category=Conversation)
 	static FConversationTaskResult AdvanceConversationWithChoice(const FConversationContext& Context, const FAdvanceConversationRequest& Choice);
 
-	/**  */
+	// Constructs and returns a FConversationTaskResult configured with EConversationTaskResultType::PauseConversationAndSendClientChoices
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category=Conversation)
 	static FConversationTaskResult PauseConversationAndSendClientChoices(const FConversationContext& Context, const FClientConversationMessage& Message);
 
-	/**  */
+	// Constructs and returns a FConversationTaskResult configured with EConversationTaskResultType::ReturnToLastClientChoice
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category=Conversation)
 	static FConversationTaskResult ReturnToLastClientChoice(const FConversationContext& Context);
 
-	/**  */
+	// Constructs and returns a FConversationTaskResult configured with EConversationTaskResultType::ReturnToCurrentClientChoice
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category=Conversation)
 	static FConversationTaskResult ReturnToCurrentClientChoice(const FConversationContext& Context);
 
-	/**  */
+	// Constructs and returns a FConversationTaskResult configured with EConversationTaskResultType::ReturnToConversationStart
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category=Conversation)
 	static FConversationTaskResult ReturnToConversationStart(const FConversationContext& Context);
+
+	// Constructs and returns a FConversationTaskResult configured with EConversationTaskResultType::AbortConversation
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = Conversation)
+	static FConversationTaskResult AbortConversation(const FConversationContext& Context);
+
+	/** 
+	 * Checks the provided task result against any which would end the conversation e.g. EConversationTaskResultType::Invalid 
+	 * or EConversationTaskResultType::AbortConversation 
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = Conversation)
+	static bool CanConversationContinue(const FConversationTaskResult& ConversationTasResult);
 	
 	// SERVER or CLIENT
 	//-----------------------------------------------------------------------
 
-	/**  */
+	// Returns the conversation participant component belonging to the participant indicated by 'ParticipantTag', or nullptr if not found
 	UFUNCTION(BlueprintPure=false, Category=Conversation)
 	static UConversationParticipantComponent* GetConversationParticipant(const FConversationContext& Context, FGameplayTag ParticipantTag);
 
-	/**  */
+	// Returns the conversation participant actor indicated by 'ParticipantTag', or nullptr if not found
 	UFUNCTION(BlueprintPure=false, Category=Conversation)
 	static AActor* GetConversationParticipantActor(const FConversationContext& Context, FGameplayTag ParticipantTag);
 
-	/**  */
+	// Wrapper to find and return any UConversationParticipantComponent belonging to the provided parameter actor
 	UFUNCTION(BlueprintPure=false, Category=Conversation)
 	static UConversationParticipantComponent* FindConversationComponent(AActor* Actor);
 };

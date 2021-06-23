@@ -876,7 +876,7 @@ namespace Electra
 		ApplicationRunningSignal.Signal();
 	}
 
-	
+
 	//-----------------------------------------------------------------------------
 	/**
 	 * Application goes into background.

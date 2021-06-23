@@ -11,6 +11,7 @@
 #include "DerivedDataBackendInterface.h"
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheRecord.h"
+#include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataPluginInterface.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Misc/CoreMisc.h"
@@ -49,7 +50,9 @@ namespace DerivedDataCacheCookStats
 	// See https://developercommunity.visualstudio.com/content/problem/576913/c6244-regression-in-new-lambda-processorpermissive.html
 	static void AddCookStats(FCookStatsManager::AddStatFuncRef AddStat)
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		TSharedRef<FDerivedDataCacheStatsNode> DDCUsage = GetDerivedDataCacheRef().GatherUsageStats();
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		TMap<FString, FDerivedDataCacheUsageStats> DDCStats = DDCUsage->ToLegacyUsageMap();
 		{
 			const FString StatName(TEXT("DDC.Usage"));
@@ -609,10 +612,17 @@ public:
 		return FDDCCleanup::Get();
 	}
 
+	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStats) override
+	{
+		GatherUsageStats()->GatherLegacyUsageStats(UsageStats, TEXT(" 0"));
+	}
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override
 	{
 		return FDerivedDataBackend::Get().GatherUsageStats();
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Get event delegate for data cache notifications */
 	virtual FOnDDCNotification& GetDDCNotificationEvent()

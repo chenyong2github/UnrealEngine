@@ -1811,13 +1811,7 @@ public:
 	}
 
 	void SetIgnoreAnalyticCollisionsImp(FImplicitObject* Implicit, bool bIgnoreAnalyticCollisions);
-	void SetIgnoreAnalyticCollisions(bool bIgnoreAnalyticCollisions)
-	{
-		if (FImplicitObject* Implicit = MNonFrequentData.Read().AccessGeometryDangerous())
-		{
-			SetIgnoreAnalyticCollisionsImp(Implicit, bIgnoreAnalyticCollisions);
-		}
-	}
+	void SetIgnoreAnalyticCollisions(bool bIgnoreAnalyticCollisions);
 
 	TSerializablePtr<FImplicitObject> Geometry() const { return MakeSerializable(MNonFrequentData.Read().Geometry()); }
 
@@ -1940,6 +1934,42 @@ protected:
 	// TODO: It's important to eventually hide this!
 	// Right now it's exposed to lubricate the creation of the whole proxy system.
 	class IPhysicsProxyBase* Proxy;
+
+	template <typename Lambda>
+	void ModifyGeometry(const Lambda& Func)
+	{
+		ensure(IsInGameThread());
+		FPhysicsSolverBase* Solver = Proxy ? Proxy->GetSolverBase() : nullptr;
+		MNonFrequentData.Modify(true, MDirtyFlags, Proxy, [this, Solver, &Func](auto& Data)
+		{
+			FImplicitObject* GeomToModify = nullptr;
+			bool bNewGeom = false;
+			if(Data.Geometry())
+			{
+				if (Solver == nullptr)
+				{
+					//not registered yet so we can still modify geometry
+					GeomToModify = Data.AccessGeometryDangerous();
+				}
+				else
+				{
+					//already registered and used by physics thread, so need to duplicate
+					GeomToModify = Data.Geometry()->Duplicate();
+					bNewGeom = true;
+				}
+
+				Func(*GeomToModify);
+				
+				if(bNewGeom)
+				{
+					//must set geometry after because shapes are rebuilt and we want them to know about anything Func did
+					Data.SetGeometry(TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(GeomToModify));
+				}
+				
+				UpdateShapesArray();
+			}
+		});
+	}
 private:
 
 	TParticleProperty<FParticlePositionRotation, EParticleProperty::XR> MXR;

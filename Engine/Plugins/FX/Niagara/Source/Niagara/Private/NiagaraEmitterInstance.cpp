@@ -85,14 +85,6 @@ static FAutoConsoleVariableRef CVarMaxNiagaraGPUParticlesSpawnPerFrame(
 	ECVF_Default
 );
 
-static int32 GNiagaraUseSuppressEmitterList = 0;
-static FAutoConsoleVariableRef CVarNiagaraUseEmitterSupressList(
-	TEXT("fx.Niagara.UseEmitterSuppressList"),
-	GNiagaraUseSuppressEmitterList,
-	TEXT("When an emitter is activated we will check the surpession list."),
-	ECVF_Default
-);
-
 //////////////////////////////////////////////////////////////////////////
 
 template<bool bAccumulate>
@@ -237,23 +229,6 @@ bool FNiagaraEmitterInstance::IsAllowedToExecute() const
 		return false;
 	}
 
-	if (GNiagaraUseSuppressEmitterList != 0)
-	{
-		if (const UNiagaraComponentSettings* ComponentSettings = GetDefault<UNiagaraComponentSettings>())
-		{
-			FNiagaraEmitterNameSettingsRef Ref;
-			if (const UNiagaraSystem* ParentSystem = ParentSystemInstance->GetSystem())
-			{
-				Ref.SystemName = ParentSystem->GetFName();
-			}
-			Ref.EmitterName = CachedEmitter->GetUniqueEmitterName();
-			if (ComponentSettings->SuppressEmitterList.Contains(Ref))
-			{
-				return false;
-			}
-		}
-	}
-
 	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
 		//-TODO: Could replace with CPU side sim in some cases
@@ -267,6 +242,11 @@ bool FNiagaraEmitterInstance::IsAllowedToExecute() const
 		{
 			return false;
 		}
+	}
+
+	if (UNiagaraComponentSettings::ShouldSuppressEmitterActivation(this))
+	{
+		return false;
 	}
 
 	return true;
@@ -1829,7 +1809,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 			//Though this requires us to copy the contents of the instances we're not writing to in this pass over from the previous buffer.
 			FNiagaraDataBuffer& DestBuffer = Data.BeginSimulate();
 			Data.Allocate(Data.GetCurrentDataChecked().GetNumInstances(), true);
-			DestBuffer.SetNumInstances(Data.GetCurrentDataChecked().GetNumInstances());
+			DestBuffer.SetNumInstances(EventSpawnStart);
 
 			//if (GbDumpParticleData || System->bDumpDebugEmitterInfo)
 			//{
@@ -1857,15 +1837,17 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 					{
 						EventInstanceData->EventExecCountBindings[EventScriptIdx].SetValue(EventNumToSpawn);
 
-						EventInstanceData->EventExecContexts[EventScriptIdx].BindData(0, Data, EventSpawnStart, false);
+						EventInstanceData->EventExecContexts[EventScriptIdx].BindData(0, Data, EventSpawnStart, true);
 						EventInstanceData->EventExecContexts[EventScriptIdx].BindData(1, EventInstanceData->EventHandlingInfo[EventScriptIdx].EventData, i, false);
 
 						EventInstanceData->EventExecContexts[EventScriptIdx].Execute(EventNumToSpawn, EventConstantBufferTable);
 
+						uint32 PostHandlerNumInstances = Data.GetDestinationData()->GetNumInstances();
+						uint32 EventSpawnsStillAlive = PostHandlerNumInstances - EventSpawnStart;
 						if (GbDumpParticleData || System->bDumpDebugEmitterInfo)
 						{
 							EventInstanceData->EventHandlingInfo[EventScriptIdx].EventData->Dump(i, 1, FString::Printf(TEXT("=== Event Data %d [%d] ==="), EventScriptIdx, i));
-							Data.GetDestinationDataChecked().Dump(EventSpawnStart, EventNumToSpawn, FString::Printf(TEXT("=== Event %d %d Particles ==="), EventScriptIdx, EventNumToSpawn));
+							Data.GetDestinationDataChecked().Dump(EventSpawnStart, EventSpawnsStillAlive, FString::Printf(TEXT("=== Event %d %d Particles (%d Alive) ==="), EventScriptIdx, EventNumToSpawn, EventSpawnsStillAlive));
 							//UE_LOG(LogNiagara, Log, TEXT("=== Event %d Parameters ==="), EventScriptIdx);
 							EventInstanceData->EventExecContexts[EventScriptIdx].Parameters.Dump();
 						}
@@ -1877,13 +1859,14 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 							TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo = ParentSystemInstance->GetActiveCaptureWrite(CachedIDName, ENiagaraScriptUsage::ParticleEventScript, EventGuid);
 							if (DebugInfo)
 							{
-								Data.CopyTo(DebugInfo->Frame, EventSpawnStart, EventNumToSpawn);
+								Data.CopyTo(DebugInfo->Frame, EventSpawnStart, EventSpawnsStillAlive);
 								DebugInfo->Parameters = EventInstanceData->EventExecContexts[EventScriptIdx].Parameters;
 								DebugInfo->bWritten = true;
 							}
 						}
 	#endif
-						EventSpawnStart += EventNumToSpawn;
+						//Spawn events from the current end point. Possible the last event killed some particles.
+						EventSpawnStart = PostHandlerNumInstances;
 					}
 				}
 			}

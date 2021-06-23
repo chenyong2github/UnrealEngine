@@ -15,8 +15,17 @@
 
 #define LOCTEXT_NAMESPACE "DMXLibrary"
 
-UDMXLibrary::UDMXLibrary()
-{}
+
+void UDMXLibrary::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		FDMXPortManager::Get().OnPortsChanged.AddUObject(this, &UDMXLibrary::UpdatePorts);
+		UpdatePorts();
+	}
+}
 
 void UDMXLibrary::PostLoad()
 {
@@ -24,19 +33,6 @@ void UDMXLibrary::PostLoad()
 
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
-		FDMXPortManager::Get().OnPortsChanged.AddUObject(this, &UDMXLibrary::UpdatePorts);
-
-		UpdatePorts();
-
-		// Bind to port changes and update ports
-		if (!FDMXPortManager::Get().OnPortsChanged.IsBoundToObject(this))
-		{
-			FDMXPortManager::Get().OnPortsChanged.AddUObject(this, &UDMXLibrary::UpdatePorts);
-		}
-
-		UpdatePorts();
-
 #if WITH_EDITOR
 		bool bNeedsUpgradeFromControllersToPorts = Entities.ContainsByPredicate([](UDMXEntity* Entity) {
 			return Cast<UDMXEntityController>(Entity) != nullptr;
@@ -46,6 +42,7 @@ void UDMXLibrary::PostLoad()
 			UpgradeFromControllersToPorts();
 		}
 #endif 
+		UpdatePorts();
 
 		// Remove null entities
 		TArray<UDMXEntity*> CachedEntities = Entities;
@@ -390,7 +387,15 @@ void UDMXLibrary::UpdatePorts()
 		{
 			// Default to enabled
 			bool bEnabled = true;
-			PortReferences.InputPortReferences.Insert(FDMXInputPortReference(InputPortGuid, bEnabled), IndexInputPortConfig);
+
+			if (PortReferences.InputPortReferences.IsValidIndex(IndexInputPortConfig))
+			{
+				PortReferences.InputPortReferences.Insert(FDMXInputPortReference(InputPortGuid, bEnabled), IndexInputPortConfig);
+			}
+			else
+			{
+				PortReferences.InputPortReferences.Add(FDMXInputPortReference(InputPortGuid, bEnabled));
+			}
 		}
 	}
 
@@ -406,7 +411,15 @@ void UDMXLibrary::UpdatePorts()
 		{
 			// Default to enabled
 			bool bEnabled = true;
-			PortReferences.OutputPortReferences.Insert(FDMXOutputPortReference(OutputPortGuid, bEnabled), IndexOutputPortConfig);
+
+			if (PortReferences.OutputPortReferences.IsValidIndex(IndexOutputPortConfig))
+			{
+				PortReferences.OutputPortReferences.Insert(FDMXOutputPortReference(OutputPortGuid, bEnabled), IndexOutputPortConfig);
+			}
+			else
+			{
+				PortReferences.OutputPortReferences.Add(FDMXOutputPortReference(OutputPortGuid, bEnabled));
+			}
 		}
 	}
 
@@ -457,20 +470,6 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 	if (bNeedsUpgradeFromControllersToPorts)
 	{
 		UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
-
-		// Disable all port references, to later only enable the ones that got generated from controllers
-		for (FDMXInputPortReference& InputPortRef : PortReferences.InputPortReferences)
-		{
-			bool bEnabledFlag = false;
-			InputPortRef = FDMXInputPortReference(InputPortRef, bEnabledFlag);
-		}
-
-		// Disable all port references, to later only enable the ones that got generated from controllers
-		for (FDMXOutputPortReference& OutputPortRef : PortReferences.OutputPortReferences)
-		{
-			bool bEnabledFlag = false;
-			OutputPortRef = FDMXOutputPortReference(OutputPortRef, bEnabledFlag);
-		}
 
 		// Helpers to enable port references
 		struct Local
@@ -534,16 +533,23 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 				{
 					OutputPortConfigNames.Add(OutputPortConfig.GetPortName());
 				}
+				
+				// The 4.26 libraries held ambigous values for controllers, we mend it here to the best possible
+				const int32 FixedLocalUniverseStart = VoidController->UniverseLocalStart + GlobalUniverseOffset_DEPRECATED;
+				const int32 FixedLocalUniverseEnd = VoidController->UniverseLocalEnd + GlobalUniverseOffset_DEPRECATED;
+				int32 FixedLocalUniverseNum = FixedLocalUniverseEnd - FixedLocalUniverseStart + 1;
+				FixedLocalUniverseNum = FMath::Max(FixedLocalUniverseNum, VoidController->UniverseLocalNum);
 
-				// The 4.26 libraries held ambigous values (default vs user set) for controllers, we mend it here to the best possible
-				const int32 FixedLocalUniverseStart = FMath::Max(VoidController->UniverseLocalStart + GlobalUniverseOffset_DEPRECATED, 1 + GlobalUniverseOffset_DEPRECATED);
-				const int32 FixedLocalUniverseEnd = FMath::Max(VoidController->UniverseLocalEnd + GlobalUniverseOffset_DEPRECATED, 1 + GlobalUniverseOffset_DEPRECATED);
-				const int32 FixedExternUniverseStart = FMath::Max(VoidController->UniverseRemoteStart + GlobalUniverseOffset_DEPRECATED, 1 + GlobalUniverseOffset_DEPRECATED);
+				int32 FixedExternUniverseStart = VoidController->UniverseRemoteStart + GlobalUniverseOffset_DEPRECATED;
+				const int32 FixedExternUnivereEnd = VoidController->UniverseRemoteEnd + GlobalUniverseOffset_DEPRECATED;
+				int32 FixedExternUniverseNum = FixedExternUnivereEnd - FixedExternUniverseStart + 1;
+				FixedExternUniverseNum = FMath::Max(FixedExternUnivereEnd, FixedExternUniverseStart + VoidController->UniverseLocalNum);
+
+				const int32 FixedNumUniverses = FixedLocalUniverseNum;
 
 				// Convert the controller to an input port	
 				FDMXInputPortConfig* ExistingInputPortConfigPtr = ProtocolSettings->FindInputPortConfig([VoidController, &InterfaceIPAddress_DEPRECATED, &ProtocolName, FixedExternUniverseStart](FDMXInputPortConfig& InputPortConfig) {
 					return
-						InputPortConfig.GetDeviceAddress() == InterfaceIPAddress_DEPRECATED &&
 						InputPortConfig.GetProtocolName() == ProtocolName &&
 						InputPortConfig.GetExternUniverseStart() == FixedExternUniverseStart;
 				});
@@ -553,7 +559,7 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 					FDMXInputPortConfigParams InputPortConfigParams(*ExistingInputPortConfigPtr);
 					InputPortConfigParams.CommunicationType = EDMXCommunicationType::InternalOnly;
 					InputPortConfigParams.LocalUniverseStart = FMath::Min(ExistingInputPortConfigPtr->GetLocalUniverseStart(), FixedLocalUniverseStart); // The lower universe start
-					InputPortConfigParams.NumUniverses = FMath::Max(ExistingInputPortConfigPtr->GetNumUniverses(), FixedLocalUniverseEnd - FixedLocalUniverseStart + 1); // The higher num universes
+					InputPortConfigParams.NumUniverses = FMath::Max(ExistingInputPortConfigPtr->GetNumUniverses(), FixedNumUniverses); // The higher num universes
 
 					*ExistingInputPortConfigPtr = FDMXInputPortConfig(ExistingInputPortConfigPtr->GetPortGuid(), InputPortConfigParams);
 
@@ -568,7 +574,7 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 					InputPortConfigParams.PortName = FDMXProtocolUtils::GenerateUniqueNameFromExisting(InputPortConfigNames, TEXT("Generated_InputPort"));
 					InputPortConfigParams.CommunicationType = EDMXCommunicationType::InternalOnly;
 					InputPortConfigParams.LocalUniverseStart = FixedLocalUniverseStart;
-					InputPortConfigParams.NumUniverses = FixedLocalUniverseEnd - FixedLocalUniverseStart + 1;
+					InputPortConfigParams.NumUniverses = FixedNumUniverses;
 					InputPortConfigParams.ExternUniverseStart = FixedExternUniverseStart;
 
 					FDMXInputPortConfig InputPortConfig = FDMXInputPortConfig(FGuid::NewGuid(), InputPortConfigParams);
@@ -583,7 +589,6 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 				// Add a port for the default output
 				FDMXOutputPortConfig* ExistingOutputPortConfigPtr = ProtocolSettings->FindOutputPortConfig([VoidController, &InterfaceIPAddress_DEPRECATED, &ProtocolName, FixedExternUniverseStart](FDMXOutputPortConfig& OutputPortConfig) {
 					return
-						OutputPortConfig.GetDeviceAddress() == InterfaceIPAddress_DEPRECATED &&
 						OutputPortConfig.GetProtocolName() == ProtocolName &&
 						OutputPortConfig.GetExternUniverseStart() == FixedExternUniverseStart;
 				});
@@ -594,7 +599,7 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 					OutputPortConfigParams.CommunicationType = VoidController->DeviceProtocol == "Art-Net" ? EDMXCommunicationType::Broadcast : EDMXCommunicationType::Multicast;
 					OutputPortConfigParams.bLoopbackToEngine = OutputPortConfigParams.CommunicationType == EDMXCommunicationType::Multicast ? true : false;
 					OutputPortConfigParams.LocalUniverseStart = FMath::Min(ExistingOutputPortConfigPtr->GetLocalUniverseStart(), FixedLocalUniverseStart);
-					OutputPortConfigParams.NumUniverses = FMath::Max(ExistingOutputPortConfigPtr->GetNumUniverses(), FixedLocalUniverseEnd - FixedLocalUniverseStart + 1);
+					OutputPortConfigParams.NumUniverses = FMath::Max(ExistingOutputPortConfigPtr->GetNumUniverses(), FixedNumUniverses);
 
 					*ExistingOutputPortConfigPtr = FDMXOutputPortConfig(ExistingOutputPortConfigPtr->GetPortGuid(), OutputPortConfigParams);
 
@@ -610,7 +615,7 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 					OutputPortConfigParams.DestinationAddress = TEXT("");
 					OutputPortConfigParams.bLoopbackToEngine = OutputPortConfigParams.CommunicationType == EDMXCommunicationType::Multicast ? true : false;
 					OutputPortConfigParams.LocalUniverseStart = FixedLocalUniverseStart;
-					OutputPortConfigParams.NumUniverses = FixedLocalUniverseEnd - FixedLocalUniverseStart + 1;
+					OutputPortConfigParams.NumUniverses = FixedNumUniverses;
 					OutputPortConfigParams.ExternUniverseStart = FixedExternUniverseStart;
 					OutputPortConfigParams.Priority = 100;
 
@@ -637,7 +642,7 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 						OutputPortConfigParams.CommunicationType = EDMXCommunicationType::Unicast;
 						OutputPortConfigParams.DestinationAddress = AdditionalUnicastIP;
 						OutputPortConfigParams.LocalUniverseStart = FMath::Min(ExistingOutputPortConfigPtr->GetLocalUniverseStart(), FixedLocalUniverseStart);
-						OutputPortConfigParams.NumUniverses = FMath::Max(ExistingOutputPortConfigPtr->GetNumUniverses(), FixedLocalUniverseEnd - FixedLocalUniverseStart + 1);
+						OutputPortConfigParams.NumUniverses = FMath::Max(ExistingOutputPortConfigPtr->GetNumUniverses(), FixedNumUniverses);
 
 						*ExistingOutputPortConfigPtr = FDMXOutputPortConfig(ExistingOutputPortConfigPtr->GetPortGuid(), OutputPortConfigParams);
 
@@ -653,7 +658,7 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 						OutputPortConfigParams.DestinationAddress = AdditionalUnicastIP;
 						OutputPortConfigParams.bLoopbackToEngine = true;
 						OutputPortConfigParams.LocalUniverseStart = FixedLocalUniverseStart;
-						OutputPortConfigParams.NumUniverses = FixedLocalUniverseEnd - FixedLocalUniverseStart + 1;
+						OutputPortConfigParams.NumUniverses = FixedNumUniverses;
 						OutputPortConfigParams.ExternUniverseStart = FixedExternUniverseStart;
 						OutputPortConfigParams.Priority = 100;
 

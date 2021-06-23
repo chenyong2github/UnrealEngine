@@ -108,6 +108,37 @@ static const TCHAR* NiagaraParticleDataValueTypeName(ENiagaraParticleDataValueTy
 	}
 }
 
+static bool CheckVariableType(const FNiagaraTypeDefinition& VarType, ENiagaraParticleDataValueType AttributeType) 
+{
+	switch (AttributeType)
+	{
+	case ENiagaraParticleDataValueType::Int: return VarType == FNiagaraTypeDefinition::GetIntDef();
+	case ENiagaraParticleDataValueType::Bool: return VarType == FNiagaraTypeDefinition::GetBoolDef();
+	case ENiagaraParticleDataValueType::Float: return VarType == FNiagaraTypeDefinition::GetFloatDef();
+	case ENiagaraParticleDataValueType::Vec2: return VarType == FNiagaraTypeDefinition::GetVec2Def();
+	case ENiagaraParticleDataValueType::Vec3: return VarType == FNiagaraTypeDefinition::GetVec3Def();
+	case ENiagaraParticleDataValueType::Vec4: return VarType == FNiagaraTypeDefinition::GetVec4Def();
+	case ENiagaraParticleDataValueType::Color: return VarType == FNiagaraTypeDefinition::GetColorDef();
+	case ENiagaraParticleDataValueType::Quat: return VarType == FNiagaraTypeDefinition::GetQuatDef();
+	case ENiagaraParticleDataValueType::ID: return VarType == FNiagaraTypeDefinition::GetIDDef();
+	default: return false;
+	}
+}
+
+static ENiagaraParticleDataValueType GetValueTypeFromFuncName(const FName& FuncName)
+{
+	if (FuncName == GetIntByIDFunctionName || FuncName == GetIntByIndexFunctionName) return ENiagaraParticleDataValueType::Int;
+	if (FuncName == GetBoolByIDFunctionName || FuncName == GetBoolByIndexFunctionName) return ENiagaraParticleDataValueType::Bool;
+	if (FuncName == GetFloatByIDFunctionName || FuncName == GetFloatByIndexFunctionName) return ENiagaraParticleDataValueType::Float;
+	if (FuncName == GetVec2ByIDFunctionName || FuncName == GetVec2ByIndexFunctionName) return ENiagaraParticleDataValueType::Vec2;
+	if (FuncName == GetVec3ByIDFunctionName || FuncName == GetVec3ByIndexFunctionName) return ENiagaraParticleDataValueType::Vec3;
+	if (FuncName == GetVec4ByIDFunctionName || FuncName == GetVec4ByIndexFunctionName) return ENiagaraParticleDataValueType::Vec4;
+	if (FuncName == GetColorByIDFunctionName || FuncName == GetColorByIndexFunctionName) return ENiagaraParticleDataValueType::Color;
+	if (FuncName == GetQuatByIDFunctionName || FuncName == GetQuatByIndexFunctionName) return ENiagaraParticleDataValueType::Quat;
+	if (FuncName == GetIDByIDFunctionName || FuncName == GetIDByIndexFunctionName) return ENiagaraParticleDataValueType::ID;
+	return ENiagaraParticleDataValueType::Invalid;
+}
+
 struct FNDIParticleRead_InstanceData
 {
 	FNiagaraSystemInstance* SystemInstance;
@@ -119,7 +150,6 @@ struct FNDIParticleRead_GameToRenderData
 	FNDIParticleRead_GameToRenderData() : SourceEmitterGPUContext(nullptr) {}
 
 	FNiagaraComputeExecutionContext* SourceEmitterGPUContext;
-	FString SourceEmitterName;
 };
 
 struct FNDIParticleRead_RenderInstanceData
@@ -131,7 +161,7 @@ struct FNDIParticleRead_RenderInstanceData
 	}
 
 	FNiagaraComputeExecutionContext* SourceEmitterGPUContext = nullptr;
-	FString SourceEmitterName;
+	FString DebugSourceName;
 	const FNiagaraDataSet* CachedDataSet = nullptr;
 	TArray<int32> AttributeIndices;
 	TArray<int32> AttributeCompressed;
@@ -154,12 +184,10 @@ struct FNiagaraDataInterfaceProxyParticleRead : public FNiagaraDataInterfaceProx
 		if (IncomingData)
 		{
 			InstanceData->SourceEmitterGPUContext = IncomingData->SourceEmitterGPUContext;
-			InstanceData->SourceEmitterName = IncomingData->SourceEmitterName;
 		}
 		else
 		{
 			InstanceData->SourceEmitterGPUContext = nullptr;
-			InstanceData->SourceEmitterName = TEXT("");
 		}
 	}
 	
@@ -168,11 +196,12 @@ struct FNiagaraDataInterfaceProxyParticleRead : public FNiagaraDataInterfaceProx
 		return sizeof(FNDIParticleRead_GameToRenderData);
 	}
 
-	void CreateRenderThreadSystemData(const FNiagaraSystemInstanceID& InstanceID)
+	void CreateRenderThreadSystemData(const FNiagaraSystemInstanceID& InstanceID, FString InDebugSourceName)
 	{
 		check(IsInRenderingThread());
 		check(!SystemsRenderData.Contains(InstanceID));
-		SystemsRenderData.Add(InstanceID);
+		FNDIParticleRead_RenderInstanceData& RTInstanceData = SystemsRenderData.Add(InstanceID);
+		RTInstanceData.DebugSourceName = InDebugSourceName;
 	}
 
 	void DestroyRenderThreadSystemData(const FNiagaraSystemInstanceID& InstanceID)
@@ -233,19 +262,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 {
 	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_ParticleRead, NonVirtual);
 
-	ENiagaraParticleDataValueType GetValueTypeFromFuncName(const FName& FuncName)
-	{
-		if (FuncName == GetIntByIDFunctionName || FuncName == GetIntByIndexFunctionName) return ENiagaraParticleDataValueType::Int;
-		if (FuncName == GetBoolByIDFunctionName || FuncName == GetBoolByIndexFunctionName) return ENiagaraParticleDataValueType::Bool;
-		if (FuncName == GetFloatByIDFunctionName || FuncName == GetFloatByIndexFunctionName) return ENiagaraParticleDataValueType::Float;
-		if (FuncName == GetVec2ByIDFunctionName || FuncName == GetVec2ByIndexFunctionName) return ENiagaraParticleDataValueType::Vec2;
-		if (FuncName == GetVec3ByIDFunctionName || FuncName == GetVec3ByIndexFunctionName) return ENiagaraParticleDataValueType::Vec3;
-		if (FuncName == GetVec4ByIDFunctionName || FuncName == GetVec4ByIndexFunctionName) return ENiagaraParticleDataValueType::Vec4;
-		if (FuncName == GetColorByIDFunctionName || FuncName == GetColorByIndexFunctionName) return ENiagaraParticleDataValueType::Color;
-		if (FuncName == GetQuatByIDFunctionName || FuncName == GetQuatByIndexFunctionName) return ENiagaraParticleDataValueType::Quat;
-		if (FuncName == GetIDByIDFunctionName || FuncName == GetIDByIndexFunctionName) return ENiagaraParticleDataValueType::ID;
-		return ENiagaraParticleDataValueType::Invalid;
-	}
+	
 
 	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const FShaderParameterMap& ParameterMap)
 	{
@@ -325,22 +342,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 		SetShaderValue(RHICmdList, ComputeShader, AcquireTagRegisterIndexParam, AcquireTagRegisterIndex);
 	}
 
-	bool CheckVariableType(const FNiagaraTypeDefinition& VarType, ENiagaraParticleDataValueType AttributeType) const
-	{
-		switch (AttributeType)
-		{
-			case ENiagaraParticleDataValueType::Int: return VarType == FNiagaraTypeDefinition::GetIntDef();
-			case ENiagaraParticleDataValueType::Bool: return VarType == FNiagaraTypeDefinition::GetBoolDef();
-			case ENiagaraParticleDataValueType::Float: return VarType == FNiagaraTypeDefinition::GetFloatDef();
-			case ENiagaraParticleDataValueType::Vec2: return VarType == FNiagaraTypeDefinition::GetVec2Def();
-			case ENiagaraParticleDataValueType::Vec3: return VarType == FNiagaraTypeDefinition::GetVec3Def();
-			case ENiagaraParticleDataValueType::Vec4: return VarType == FNiagaraTypeDefinition::GetVec4Def();
-			case ENiagaraParticleDataValueType::Color: return VarType == FNiagaraTypeDefinition::GetColorDef();
-			case ENiagaraParticleDataValueType::Quat: return VarType == FNiagaraTypeDefinition::GetQuatDef();
-			case ENiagaraParticleDataValueType::ID: return VarType == FNiagaraTypeDefinition::GetIDDef();
-			default: return false;
-		}
-	}
+	
 
 	bool CheckHalfVariableType(const FNiagaraTypeDefinition& VarType, ENiagaraParticleDataValueType AttributeType) const
 	{
@@ -399,7 +401,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 					else
 					{
 						UE_LOG(LogNiagara, Error, TEXT("Variable '%s' in emitter '%s' has type '%s', but particle read DI tried to access it as '%s'."),
-							*Var.GetName().ToString(), *InstanceData->SourceEmitterName, *Var.GetType().GetName(), NiagaraParticleDataValueTypeName(AttributeType)
+							*Var.GetName().ToString(), *InstanceData->DebugSourceName, *Var.GetType().GetName(), NiagaraParticleDataValueTypeName(AttributeType)
 						);
 						InstanceData->AttributeIndices[AttrNameIdx] = -1;
 						InstanceData->AttributeCompressed[AttrNameIdx] = 0;
@@ -411,7 +413,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 
 			if (!FoundVariable)
 			{
-				UE_LOG(LogNiagara, Error, TEXT("Particle read DI is trying to access inexistent variable '%s' in emitter '%s'."), *AttrName.ToString(), *InstanceData->SourceEmitterName);
+				UE_LOG(LogNiagara, Error, TEXT("Particle read DI is trying to access inexistent variable '%s' in emitter '%s'."), *AttrName.ToString(), *InstanceData->DebugSourceName);
 				InstanceData->AttributeIndices[AttrNameIdx] = -1;
 				InstanceData->AttributeCompressed[AttrNameIdx] = 0;
 			}
@@ -477,7 +479,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 			// This means the source emitter isn't running on GPU.
 			if (!InstanceData->bSourceEmitterNotGPUErrorShown)
 			{
-				UE_LOG(LogNiagara, Error, TEXT("GPU particle read DI is set to access CPU emitter '%s'."), *InstanceData->SourceEmitterName);
+				UE_LOG(LogNiagara, Error, TEXT("GPU particle read DI is set to access CPU emitter '%s'."), *InstanceData->DebugSourceName);
 				InstanceData->bSourceEmitterNotGPUErrorShown = true;
 			}
 			SetErrorParams(RHICmdList, ComputeShader, false);
@@ -513,7 +515,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 			{
 				if ( StageMetaData->bPartialParticleUpdate )
 				{
-					UE_LOG(LogNiagara, Error, TEXT("Particle read DI reading self '%s' on stage '%s' is unsafe, please disable partial writes on the stage."), *InstanceData->SourceEmitterName, *StageMetaData->SimulationStageName.ToString());
+					UE_LOG(LogNiagara, Error, TEXT("Particle read DI reading self '%s' on stage '%s' is unsafe, please disable partial writes on the stage."), *InstanceData->DebugSourceName, *StageMetaData->SimulationStageName.ToString());
 					SetErrorParams(RHICmdList, ComputeShader, true);
 					return;
 				}
@@ -584,7 +586,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 		if (InstanceData->bWarnFailedToFindAcquireTag && AcquireTagRegisterIndexParam.IsBound() && (InstanceData->AcquireTagRegisterIndex == -1))
 		{
 			InstanceData->bWarnFailedToFindAcquireTag = false;
-			UE_LOG(LogNiagara, Error, TEXT("Particle read DI cannot find ID variable in emitter '%s'."), *InstanceData->SourceEmitterName);
+			UE_LOG(LogNiagara, Error, TEXT("Particle read DI cannot find ID variable in emitter '%s'."), *InstanceData->DebugSourceName);
 		}
 	}
 	
@@ -671,11 +673,17 @@ bool UNiagaraDataInterfaceParticleRead::InitPerInstanceData(void* PerInstanceDat
 		UE_LOG(LogNiagara, Warning, TEXT("Source emitter '%s' not found. System: %s"), *EmitterName, *GetFullNameSafe(SystemInstance->GetSystem()));
 	}
 
+	FString DebugSourceName;
+	if ( UNiagaraSystem* NiagaraSystem = PIData->SystemInstance->GetSystem() )
+	{
+		DebugSourceName = FString::Printf(TEXT("%s.%s"), *NiagaraSystem->GetName(), *EmitterName);
+	}
+
 	FNiagaraDataInterfaceProxyParticleRead* ThisProxy = GetProxyAs<FNiagaraDataInterfaceProxyParticleRead>();
 	ENQUEUE_RENDER_COMMAND(FNDIParticleReadCreateRTInstance)(
-		[ThisProxy, InstanceID = SystemInstance->GetId()](FRHICommandList& CmdList)
+		[ThisProxy, InstanceID = SystemInstance->GetId(), RT_DebugSourceName=MoveTemp(DebugSourceName)](FRHICommandList& CmdList)
 		{
-			ThisProxy->CreateRenderThreadSystemData(InstanceID);
+			ThisProxy->CreateRenderThreadSystemData(InstanceID, RT_DebugSourceName);
 		}
 	);
 
@@ -2174,7 +2182,6 @@ void UNiagaraDataInterfaceParticleRead::ProvidePerInstanceDataForRenderThread(vo
 	if (PIData && PIData->EmitterInstance)
 	{
 		RTData->SourceEmitterGPUContext = PIData->EmitterInstance->GetGPUContext();
-		RTData->SourceEmitterName = PIData->EmitterInstance->GetCachedEmitter()->GetUniqueEmitterName();
 	}
 }
 
@@ -2233,7 +2240,7 @@ void UNiagaraDataInterfaceParticleRead::GetFeedback(UNiagaraSystem* Asset, UNiag
 		if (EmitterInstance && EmitterInstance->GetUniqueEmitterName() == EmitterName)
 		{
 			FoundSourceEmitter = EmitterInstance;
-			break;
+			break; 
 		}
 	}
 
@@ -2285,10 +2292,89 @@ void UNiagaraDataInterfaceParticleRead::GetFeedback(UNiagaraSystem* Asset, UNiag
 		return false;
 	}();
 
+
+	for (const auto Script : Scripts)
+	{
+		const TArray<FNiagaraScriptDataInterfaceInfo>& CachedDefaultDIs = Script->GetCachedDefaultDataInterfaces();
+
+		for (int32 Idx = 0; Idx < Script->GetVMExecutableData().DataInterfaceInfo.Num(); Idx++)
+		{
+			const auto& DIInfo = Script->GetVMExecutableData().DataInterfaceInfo[Idx];
+			if (DIInfo.MatchesClass(GetClass()))
+			{
+				bool bMatchFound = false;
+				// We assume that if the properties match, it's a valid match for us.
+				if (CachedDefaultDIs.IsValidIndex(Idx) && CachedDefaultDIs[Idx].DataInterface != nullptr && CachedDefaultDIs[Idx].DataInterface->Equals(this))
+				{
+					bMatchFound = true;
+					UNiagaraEmitter* OuterEmitter = Script->GetTypedOuter<UNiagaraEmitter>();
+					if (OuterEmitter && FoundSourceEmitter)
+					{
+						if (OuterEmitter->SimTarget != FoundSourceEmitter->SimTarget)
+						{
+							FText Msg = FText::Format(LOCTEXT("SourceEmitterSimTypeMismatchError", "Emitter \"{0}\" SimTarget not compatible (CPU vs GPU)!"), FText::FromName(OuterEmitter->GetFName()));
+							FNiagaraDataInterfaceError SourceEmitterNotFoundError(
+								Msg, Msg,
+								FNiagaraDataInterfaceFix());
+							OutErrors.AddUnique(SourceEmitterNotFoundError);
+						}
+					}
+				}
+
+				if (bMatchFound)
+				{
+					for (const auto& Func : DIInfo.RegisteredFunctions)
+					{
+						static const FName NAME_Attribute("Attribute");
+
+						const FName* AttributeName = Func.FunctionSpecifiers.Find(NAME_Attribute);
+						ENiagaraParticleDataValueType AttributeType = ENiagaraParticleDataValueType::Invalid;
+						if (AttributeName != nullptr)
+						{
+							AttributeType = GetValueTypeFromFuncName(Func.Name);
+						}
+
+						if (AttributeName && FoundSourceEmitter)
+						{
+							if (AttributeType != ENiagaraParticleDataValueType::Invalid)
+							{
+								auto AttribFilter = [&Func, AttributeName](const FNiagaraVariable& Var)
+								{
+									return Var.GetName() == *AttributeName;
+								};
+
+								const FNiagaraVariableBase* FoundVar = FoundSourceEmitter->SpawnScriptProps.Script->GetVMExecutableData().Attributes.FindByPredicate(AttribFilter);
+								if (FoundVar && !CheckVariableType(FoundVar->GetType(), AttributeType))
+								{
+									FText Msg = FText::Format(LOCTEXT("SourceEmitterTypeMismatchError", "Source Emitter has attribute named, \"{0}\" but the type isn't compatible with the function \"{1}\", and will not succeed."), FText::FromName(*AttributeName), FText::FromName(Func.Name));
+
+									FNiagaraDataInterfaceFeedback MissingByType(Msg, Msg,
+										FNiagaraDataInterfaceFix());
+
+									Info.AddUnique(MissingByType);
+
+								}
+								else if (!FoundVar)
+								{
+									FText Msg = FText::Format(LOCTEXT("SourceEmitterNameMismatchError", "Source Emitter does not have attribute named, \"{0}\" referenced by function \"{1}\", and will not succeed."), FText::FromName(*AttributeName), FText::FromName(Func.Name));
+									FNiagaraDataInterfaceFeedback MissingByName(
+										Msg, Msg,
+										FNiagaraDataInterfaceFix());
+
+									Info.AddUnique(MissingByName);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// If we found persistent ID functions in use and the target emitter isn't set to expose them, trigger a fixable warning.
 	if (bHasPersistenIDAccessWarning && FoundSourceEmitter && FoundSourceEmitter->bRequiresPersistentIDs == false)
 	{
-		FNiagaraDataInterfaceError SourceEmitterNeedsPersistentIDError(LOCTEXT("SourceEmitterNeedsPersistenIDError", "Source Emitter Needs PersistenIDs set."),
+		FNiagaraDataInterfaceError SourceEmitterNeedsPersistentIDError(LOCTEXT("SourceEmitterNeedsPersistenIDError", "Source Emitter Needs PersistentIDs set."),
 			LOCTEXT("SourceEmitterNeedsPersistenIDErrorSummary", "Source emitter needs persistent id's set."),
 			FNiagaraDataInterfaceFix::CreateLambda([=]()
 				{

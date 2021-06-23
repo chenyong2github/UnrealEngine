@@ -25,7 +25,7 @@
 #include "LevelEditor.h"
 #endif
 
-class FTextureResource;
+
 const FIntPoint UDMXPixelMappingRendererComponent::MaxDownsampleBufferTargetSize = FIntPoint(4096);
 const FLinearColor UDMXPixelMappingRendererComponent::ClearTextureColor = FLinearColor::Black;
 
@@ -87,8 +87,8 @@ void UDMXPixelMappingRendererComponent::PostEditChangeChainProperty(FPropertyCha
 	// Call the parent at the first place
 	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);
 
-	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, SizeX) ||
-		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, SizeY))
+	if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeX) ||
+		PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeY))
 	{
 		// The target always needs be within GMaxTextureDimensions, larger dimensions are not supported by the engine
 		const uint32 MaxTextureDimensions = GetMax2DTextureDimension();
@@ -106,7 +106,7 @@ void UDMXPixelMappingRendererComponent::PostEditChangeChainProperty(FPropertyCha
 	} 
 	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, InputWidget))
 	{
-		if (InputWidget && InputWidget->GetClass() != UserWidget->GetClass())
+		if (InputWidget && UserWidget && InputWidget->GetClass() != UserWidget->GetClass())
 		{
 			// UMG just tries to expand to the max possible size. Instead of using that we set a smaller, reasonable size here. 
 			// This doesn't offer a solution to the adaptive nature of UMG, but implies to the user how to deal with the issue.
@@ -150,8 +150,8 @@ void UDMXPixelMappingRendererComponent::RenderEditorPreviewTexture()
 		{
 			const FVector2D SizePixel = ScreenComponent->GetScreenPixelSize();
 			const int32 DownsampleIndexStart = ScreenComponent->GetPixelDownsamplePositionRange().Key;
-			const int32 PositionX = ScreenComponent->PositionX;
-			const int32 PositionY = ScreenComponent->PositionY;
+			const int32 PositionX = ScreenComponent->GetPosition().X;
+			const int32 PositionY = ScreenComponent->GetPosition().Y;
 
 			ScreenComponent->ForEachPixel([this, &PixelPreviewParams, SizePixel, PositionX, PositionY, DownsampleIndexStart](const int32 InXYIndex, const int32 XIndex, const int32 YIndex)
 				{
@@ -187,20 +187,7 @@ UTextureRenderTarget2D* UDMXPixelMappingRendererComponent::GetPreviewRenderTarge
 	return PreviewRenderTarget;
 }
 
-FVector2D UDMXPixelMappingRendererComponent::GetSize() const
-{
-	// Get a size from Input Texture
-	if (const UTexture* const RendererInputTexture = GetRendererInputTexture())
-	{
-		if (const FTextureResource* Resource = RendererInputTexture->GetResource())
-		{
-			return FVector2D(Resource->GetSizeX(), Resource->GetSizeY());
-		}
-	}
-
-	return ComponentsCanvas->GetDesiredSize();
-}
-
+#if WITH_EDITOR
 TSharedRef<SWidget> UDMXPixelMappingRendererComponent::TakeWidget()
 {
 	if (!ComponentsCanvas.IsValid())
@@ -208,8 +195,6 @@ TSharedRef<SWidget> UDMXPixelMappingRendererComponent::TakeWidget()
 		ComponentsCanvas =
 			SNew(SConstraintCanvas);
 	}
-
-	ComponentsCanvas->ClearChildren();
 
 	ForEachChild([&](UDMXPixelMappingBaseComponent* InComponent) {
 		if (UDMXPixelMappingOutputComponent* Component = Cast<UDMXPixelMappingOutputComponent>(InComponent))
@@ -221,6 +206,7 @@ TSharedRef<SWidget> UDMXPixelMappingRendererComponent::TakeWidget()
 
 	return ComponentsCanvas.ToSharedRef();
 }
+#endif // WITH_EDITOR
 
 void UDMXPixelMappingRendererComponent::OnMapChanged(UWorld* InWorld, EMapChangeType MapChangeType)
 {
@@ -284,7 +270,7 @@ void UDMXPixelMappingRendererComponent::Render()
 	CreateOrUpdateDownsampleBufferTarget();
 
 	// 4. reserve enough space for pixels params
-	DownsamplePixelParams.Reserve(DownsamplePixelCount);
+	DownsamplePixelParams.Reset(DownsamplePixelCount);
 
 	// 5. Loop through all child pixels in order to get pixels downsample params for rendering
 	ForEachChild([&](UDMXPixelMappingBaseComponent* InComponent) {
@@ -306,7 +292,7 @@ void UDMXPixelMappingRendererComponent::Render()
 		DownsampleInputTexture->GetResource(),
 		DownsampleBufferTarget->GetResource(),
 		DownsampleBufferTarget->GameThread_GetRenderTargetResource(),
-		MoveTemp(DownsamplePixelParams), // Move Set to GPU thread, no empty function call needed
+		DownsamplePixelParams, // Copy Set to GPU thread, no empty function call needed
 		[this](TArray<FLinearColor>&& InDownsampleBuffer, FIntRect InRect) { SetDownsampleBuffer(MoveTemp(InDownsampleBuffer), InRect); }
 	);
 }
@@ -316,7 +302,6 @@ void UDMXPixelMappingRendererComponent::RenderAndSendDMX()
 	Render();
 	SendDMX();
 }
-
 
 FIntPoint UDMXPixelMappingRendererComponent::GetPixelPosition(int32 InPosition) const
 {
@@ -469,7 +454,7 @@ int32 UDMXPixelMappingRendererComponent::GetTotalDownsamplePixelCount()
 
 	// Count all pixels
 	constexpr bool bIsRecursive = true;
-	ForEachComponentOfClass<UDMXPixelMappingOutputComponent>([&](UDMXPixelMappingOutputComponent* InComponent)
+	ForEachChildOfClass<UDMXPixelMappingOutputComponent>([&](UDMXPixelMappingOutputComponent* InComponent)
 		{
 			// If that is screen component
 			if (UDMXPixelMappingScreenComponent* ScreenComponent = Cast<UDMXPixelMappingScreenComponent>(InComponent))

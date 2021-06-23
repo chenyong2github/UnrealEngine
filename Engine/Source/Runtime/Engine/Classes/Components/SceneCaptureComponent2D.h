@@ -66,7 +66,19 @@ public:
 	UPROPERTY(BlueprintReadWrite, AdvancedDisplay, Category = Projection)
 	FMatrix CustomProjectionMatrix;
 
-	/** 
+	/** Render the scene in n frames (i.e TileCount) - Ignored in Perspective mode, works only in Orthographic mode */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Projection, meta = (editcondition = "ProjectionType==1"))
+	bool bEnableOrthographicTiling = false;
+
+	/** Number of X tiles to render. Ignored in Perspective mode, works only in Orthographic mode */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Projection, meta = (ClampMin = "1", ClampMax = "64", editcondition = "ProjectionType==1 && bEnableOrthographicTiling"))
+	int32 NumXTiles = 4;
+
+	/** Number of Y tiles to render. Ignored in Perspective mode, works only in Orthographic mode */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Projection, meta = (ClampMin = "1", ClampMax = "64", editcondition = "ProjectionType==1 && bEnableOrthographicTiling"))
+	int32 NumYTiles = 4;
+
+	/**
 	 * Enables a clip plane while rendering the scene capture which is useful for portals.  
 	 * The global clip plane must be enabled in the renderer project settings for this to work.
 	 */
@@ -103,6 +115,9 @@ public:
 
 	/** Array of scene view extensions specifically to apply to this scene capture */
 	TArray< TWeakPtr<ISceneViewExtension, ESPMode::ThreadSafe> > SceneViewExtensions;
+
+	/** Which tile to render of the orthographic view (ignored in Perspective mode) */
+	int32 TileID = 0;
 
 	//~ Begin UActorComponent Interface
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
@@ -153,6 +168,8 @@ public:
 	void CaptureScene();
 
 	void UpdateSceneCaptureContents(FSceneInterface* Scene) override;
+
+	void UpdateOrthographicTilingSettings();
 
 #if WITH_EDITORONLY_DATA
 	void UpdateDrawFrustum();

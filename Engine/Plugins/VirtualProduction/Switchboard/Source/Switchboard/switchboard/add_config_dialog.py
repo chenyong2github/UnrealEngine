@@ -1,18 +1,26 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
-from PySide2 import QtCore, QtWidgets
-from switchboard.config import CONFIG
-from .switchboard_logging import LOGGER
+import os
+import pathlib
+import shlex
+import socket
+import subprocess
+import sys
+import threading
 
-import switchboard.p4_utils as P4
-import switchboard.switchboard_utils as sb_utils
-import os, sys, subprocess, shlex, pathlib, socket, threading
+from PySide2 import QtCore
+from PySide2 import QtWidgets
+
+from switchboard import config
+from switchboard import p4_utils as P4
+from switchboard import switchboard_utils as sb_utils
+from switchboard.switchboard_logging import LOGGER
+
 
 class AddConfigDialog(QtWidgets.QDialog):
 
-
     class AddConfigDialogState(object):
-        ''' Proxy that holds the state of the AddConfigDialog, 
+        ''' Proxy that holds the state of the AddConfigDialog,
         used to avoid accessing AddConfigDialog UI fields directly from worker threads.
         '''
 
@@ -22,30 +30,30 @@ class AddConfigDialog(QtWidgets.QDialog):
             self.load(addConfigDialog)
 
         def load(self, addConfigDialog):
-            ''' Reads the relevant fields from AddConfigDialog 
+            ''' Reads the relevant fields from AddConfigDialog
             Args:
                 addConfigDialog(AddConfigDialog): The dialog to load the data from
             '''
-            self.name        = addConfigDialog.name_line_edit.text()
-            self.engineDir   = addConfigDialog.engine_dir_line_edit.text()
-            self.project     = addConfigDialog.uproject_line_edit.text()
-            self.p4Engine    = addConfigDialog.p4_engine_path_line_edit.text()
-            self.p4Project   = addConfigDialog.p4_project_path_line_edit.text()
-            self.p4Workspace = addConfigDialog.p4_workspace_line_edit.text()
-            self.p4Enabled   = addConfigDialog.p4_group.isChecked()
+            self.config_path_str  = addConfigDialog.config_path_line_edit.text()
+            self.engineDir        = addConfigDialog.engine_dir_line_edit.text()
+            self.project          = addConfigDialog.uproject_line_edit.text()
+            self.p4Engine         = addConfigDialog.p4_engine_path_line_edit.text()
+            self.p4Project        = addConfigDialog.p4_project_path_line_edit.text()
+            self.p4Workspace      = addConfigDialog.p4_workspace_line_edit.text()
+            self.p4Enabled        = addConfigDialog.p4_group.isChecked()
 
         def dump(self, addConfigDialog):
-            ''' Writes the relevant fields from AddConfigDialog 
+            ''' Writes the relevant fields from AddConfigDialog
             Args:
                 addConfigDialog(AddConfigDialog): The dialog to load the data from
             '''
             lineEdits = [
-                (self.name       , addConfigDialog.name_line_edit           ),
-                (self.engineDir  , addConfigDialog.engine_dir_line_edit     ),
-                (self.project    , addConfigDialog.uproject_line_edit       ),
-                (self.p4Engine   , addConfigDialog.p4_engine_path_line_edit ),
-                (self.p4Project  , addConfigDialog.p4_project_path_line_edit),
-                (self.p4Workspace, addConfigDialog.p4_workspace_line_edit   ),
+                (self.config_path_str, addConfigDialog.config_path_line_edit    ),
+                (self.engineDir      , addConfigDialog.engine_dir_line_edit     ),
+                (self.project        , addConfigDialog.uproject_line_edit       ),
+                (self.p4Engine       , addConfigDialog.p4_engine_path_line_edit ),
+                (self.p4Project      , addConfigDialog.p4_project_path_line_edit),
+                (self.p4Workspace    , addConfigDialog.p4_workspace_line_edit   ),
             ]
 
             # Update line edits
@@ -61,7 +69,7 @@ class AddConfigDialog(QtWidgets.QDialog):
     def __init__(self, stylesheet, uproject_search_path, previous_engine_dir, parent):
         super().__init__(parent=parent, f=QtCore.Qt.WindowCloseButtonHint)
 
-        self.config_name = None
+        self.config_path = None
         self.uproject = None
         self.engine_dir = None
 
@@ -71,11 +79,19 @@ class AddConfigDialog(QtWidgets.QDialog):
 
         self.form_layout =  QtWidgets.QFormLayout()
 
-        # Name of this configuration
+        # Path to this configuration file
 
-        self.name_line_edit = QtWidgets.QLineEdit()
-        self.name_line_edit.textChanged.connect(self.on_name_changed)
-        self.form_layout.addRow("Name", self.name_line_edit)
+        self.config_path_line_edit = QtWidgets.QLineEdit()
+        self.config_path_line_edit.setValidator(config.ConfigPathValidator())
+        self.config_path_line_edit.textChanged.connect(self.update_button_box)
+        self.config_path_browse_button = QtWidgets.QPushButton("Browse")
+        self.config_path_browse_button.clicked.connect(
+            self.on_browse_config_path)
+
+        config_path_layout = QtWidgets.QHBoxLayout()
+        config_path_layout.addWidget(self.config_path_line_edit)
+        config_path_layout.addWidget(self.config_path_browse_button)
+        self.form_layout.addRow("Config Path", config_path_layout)
 
         # Path to .uproject
 
@@ -114,17 +130,20 @@ class AddConfigDialog(QtWidgets.QDialog):
         # Checkable group box
         self.p4_group = QtWidgets.QGroupBox("Perforce")
         self.p4_group.setCheckable(True)
-        self.p4_group.setChecked(bool(CONFIG.P4_ENABLED.get_value()))
+        self.p4_group.setChecked(bool(config.CONFIG.P4_ENABLED.get_value()))
         self.p4_group.toggled.connect(self.on_p4_toggled)
 
         # Project p4 path
-        self.p4_project_path_line_edit = QtWidgets.QLineEdit(CONFIG.P4_PROJECT_PATH.get_value())
+        self.p4_project_path_line_edit = QtWidgets.QLineEdit(
+            config.CONFIG.P4_PROJECT_PATH.get_value())
 
         # Engine p4 path
-        self.p4_engine_path_line_edit = QtWidgets.QLineEdit(CONFIG.P4_ENGINE_PATH.get_value())
+        self.p4_engine_path_line_edit = QtWidgets.QLineEdit(
+            config.CONFIG.P4_ENGINE_PATH.get_value())
 
         # Name of the workspace
-        self.p4_workspace_line_edit = QtWidgets.QLineEdit(CONFIG.SOURCE_CONTROL_WORKSPACE.get_value())
+        self.p4_workspace_line_edit = QtWidgets.QLineEdit(
+            config.CONFIG.SOURCE_CONTROL_WORKSPACE.get_value())
 
         p4_layout = QtWidgets.QFormLayout()
         p4_layout.addRow("P4 Project Path", self.p4_project_path_line_edit)
@@ -152,16 +171,37 @@ class AddConfigDialog(QtWidgets.QDialog):
 
         # auto-populate what you can, but respecting existing values
         self.populate_best_project_guess(overrideIfFound=False)
-        self.populate_best_config_name(overrideIfFound=False)
+        self.populate_best_config_path(overrideIfFound=False)
         if self.p4_group.isChecked():
             self.populate_best_p4_guess_with_progressbar(overrideIfFound=False)
 
+    def accept(self):
+        '''
+        Override to ensure that the config_path property is a valid, usable
+        file path when the dialog is accepted.
+
+        The validator for the config path line edit should ensure that the file
+        path is valid by this point, but just in case it's not somehow, some
+        error messages are offered about how to fix it, in which cases the
+        dialog is *not* dismissed.
+        '''
+        config_path_str = self.config_path_line_edit.text().strip()
+        try:
+            config_path = config.get_absolute_config_path(config_path_str)
+        except Exception as e:
+            error_msg = QtWidgets.QErrorMessage(self)
+            error_msg.showMessage(str(e))
+            return
+
+        self.config_path = config_path
+
+        super().accept()
 
     def on_btnDetect_clicked(self):
-        ''' The user has decided to override the current selections with auto-detected settings. 
+        ''' The user has decided to override the current selections with auto-detected settings.
         '''
         self.populate_best_project_guess(overrideIfFound=True)
-        self.populate_best_config_name(overrideIfFound=False) # seems wrong to override the name
+        self.populate_best_config_path(overrideIfFound=False) # seems wrong to override the path
 
         if self.p4_group.isChecked():
             self.populate_best_p4_guess_with_progressbar(overrideIfFound=True)
@@ -194,7 +234,7 @@ class AddConfigDialog(QtWidgets.QDialog):
         progressDiag = QtWidgets.QProgressDialog('Querying Perforce...','Cancel', 0, 0, parent=self)
         progressDiag.setModal(True)
         progressDiag.setMinimumDuration(1000) # time before it shows up
-        progressDiag.setCancelButton(None)        
+        progressDiag.setCancelButton(None)
         progressDiag.setWindowFlag(QtCore.Qt.FramelessWindowHint) # Looks much better without the window frame
         progressDiag.setRange(0,0) # Makes it show a self-cycling progress bar.
         progressDiag.setValue(0) # Required for setMinimumDuration to work
@@ -232,7 +272,7 @@ class AddConfigDialog(QtWidgets.QDialog):
         # Each workspace returned by p4 -G clients comes with:
         # * Host   : Hostname
         # * Root   : Local path
-        # * Stream : p4 path 
+        # * Stream : p4 path
         # * client : Name of the workspace
 
         try:
@@ -240,8 +280,8 @@ class AddConfigDialog(QtWidgets.QDialog):
             workspaces = P4.run(cmd='clients', args=['--me'])
 
             # valid workspaces are those with the same host as the PC's, or are empty (that is, shared workspaces)
-            workspaces = [ws for ws in workspaces 
-                if P4.valueForMarshalledKey(ws,'Host').lower() == hostname 
+            workspaces = [ws for ws in workspaces
+                if P4.valueForMarshalledKey(ws,'Host').lower() == hostname
                 or not P4.valueForMarshalledKey(ws,'Host')
             ]
 
@@ -256,7 +296,7 @@ class AddConfigDialog(QtWidgets.QDialog):
             try:
                 enginedir = diagState.engineDir
                 client,p4path = P4.p4_from_localpath(localpath=enginedir, workspaces=workspaces, preferredClient=client)
-                
+
                 diagState.p4Workspace = client
                 diagState.p4Engine = p4path
             except Exception as e:
@@ -268,7 +308,7 @@ class AddConfigDialog(QtWidgets.QDialog):
                 projectpath = diagState.project
                 projectdir = str(pathlib.PurePath(projectpath).parent)
                 client,p4path = P4.p4_from_localpath(localpath=projectdir, workspaces=workspaces, preferredClient=client)
-                
+
                 diagState.p4Workspace = client
                 diagState.p4Project = p4path
             except Exception as e:
@@ -316,17 +356,18 @@ class AddConfigDialog(QtWidgets.QDialog):
         # go one up, recursively
         return self.find_upstream_path_with_name(path.parent, name, includeSiblings)
 
-    def populate_best_config_name(self, overrideIfFound=False):
-        ''' Populates the project name with a best guess based on the project name 
-        
+    def populate_best_config_path(self, overrideIfFound=False):
+        ''' Populates the config path with a best guess based on the project name
+
         Args:
             overrideIfFound(bool): If true, will overwrite existing field if found.
         '''
         projectpath = self.uproject_line_edit.text()
-        existingConfigName = self.name_line_edit.text()
+        config_path_str = self.config_path_line_edit.text().strip()
 
-        if projectpath and (overrideIfFound or not existingConfigName):
-            self.name_line_edit.setText(pathlib.PurePath(projectpath).stem)
+        if projectpath and (overrideIfFound or not config_path_str):
+            self.config_path_line_edit.setText(
+                pathlib.PurePath(projectpath).stem)
 
     def populate_best_project_guess(self, overrideIfFound=False):
         ''' Populates the editor and project with a best guess based on the running processes
@@ -353,7 +394,7 @@ class AddConfigDialog(QtWidgets.QDialog):
 
         editorfolder = ''
         projectpath = ''
-        
+
         # pick the best candidate out of the detected ones
         for idx, editor in enumerate(editors):
             try:
@@ -379,13 +420,13 @@ class AddConfigDialog(QtWidgets.QDialog):
 
         if bUpdateEngine and editorfolder:
             self.engine_dir_line_edit.setText(editorfolder)
-            
+
         if bUpdateProject and projectpath:
             self.uproject_line_edit.setText(projectpath)
 
     def detect_running_projects(self):
         ''' Detects a running UnrealEngine editor and its project
-        
+
         Returns:
             list,list: Detected editors,projects local paths.
         '''
@@ -408,7 +449,7 @@ class AddConfigDialog(QtWidgets.QDialog):
                 for line in subprocess.check_output(cmd, startupinfo=sb_utils.get_hidden_sp_startupinfo()).decode().splitlines():
                     if UEname.lower() not in line.lower():
                         continue
-                    
+
                     # split the cmdline as a list of the original arguments
                     try:
                         # Replacing \ with / will alter command line arguments in general, but is expected to be ok
@@ -421,7 +462,7 @@ class AddConfigDialog(QtWidgets.QDialog):
                     # There should be at least 2 arguments, the executable and the project.
                     if len(argv) < 2:
                         continue
-                    
+
                     editorpath = os.path.normpath(argv[0])
                     projectpath = os.path.normpath(argv[1])
 
@@ -445,26 +486,44 @@ class AddConfigDialog(QtWidgets.QDialog):
         settings['p4_engine_path'] = self.p4_engine_path_line_edit.text() if self.p4_group.isChecked() else None
         return settings
 
-    def on_name_changed(self, text):
-        self.config_name = text
-        self.update_button_box()
-
     def on_uproject_changed(self, text):
         self.uproject = os.path.normpath(text)
 
-        # Update the config name with a suggestion based on the project name, if empty.
-        if not self.name_line_edit.text() and self.uproject.lower().endswith('.uproject'):
-            self.name_line_edit.setText(pathlib.PurePath(self.uproject).stem)
+        # Update the config path with a suggestion based on the project name, if empty.
+        if not self.config_path_line_edit.text().strip() and self.uproject.lower().endswith('.uproject'):
+            self.config_path_line_edit.setText(pathlib.PurePath(self.uproject).stem)
 
         # Update the Engine directory with a best guess, if it is empty.
         if not self.engine_dir_line_edit.text():
             try:
-                # Try going up the path until you find Engine in a sibling folder. This will work for custom build p4 setups.    
+                # Try going up the path until you find Engine in a sibling folder. This will work for custom build p4 setups.
                 self.engine_dir_line_edit.setText(self.find_upstream_path_with_name(self.uproject, 'Engine', includeSiblings=True))
             except FileNotFoundError:
                 pass
 
         self.update_button_box()
+
+    def on_browse_config_path(self):
+        config_path_str, _ = QtWidgets.QFileDialog.getSaveFileName(self,
+            'Select config file', str(config.ROOT_CONFIGS_PATH),
+            f'Config files (*{config.CONFIG_SUFFIX})')
+
+        if not config_path_str:
+            return
+
+        # Protect against selecting a file outside of the configs directory.
+        try:
+            config_path_str = str(
+                config.get_relative_config_path(config_path_str))
+        except Exception as e:
+            error_msg = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning,
+                'Config Path Error', 'Cannot save config file.',
+                QtWidgets.QMessageBox.Ok, parent=self)
+            error_msg.setInformativeText(str(e))
+            error_msg.exec_()
+            return
+
+        self.config_path_line_edit.setText(config_path_str)
 
     def on_browse_uproject_path(self, uproject_search_path):
         self.uproject, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select uProject file", self.engine_dir, "uProject (*.uproject)")
@@ -482,6 +541,7 @@ class AddConfigDialog(QtWidgets.QDialog):
 
     def update_button_box(self):
         self.button_box.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(False)
-        if self.config_name and self.uproject and self.engine_dir:
-            if os.path.exists(self.uproject) and os.path.exists(self.engine_dir):
-                self.button_box.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(True)
+        if (self.config_path_line_edit.hasAcceptableInput() and
+                self.uproject and os.path.exists(self.uproject) and
+                self.engine_dir and os.path.exists(self.engine_dir)):
+            self.button_box.button(QtWidgets.QDialogButtonBox.Ok).setEnabled(True)

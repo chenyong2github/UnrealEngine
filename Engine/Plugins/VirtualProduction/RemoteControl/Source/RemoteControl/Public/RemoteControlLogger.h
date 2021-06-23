@@ -42,11 +42,6 @@ public:
 	virtual ~FRemoteControlLogger() = default;
 
 	/**
-	 * Get Logger SWidget
-	 */
-	TSharedRef<SWidget> GetWidget() const;
-
-	/**
 	 * Log the message
 	 *
 	 * @param InputType Type of the log, protocol, api, webapi
@@ -67,15 +62,17 @@ public:
 	/** Removes all messages from log */
 	void ClearLog() const;
 
+#if WITH_EDITOR
+	/** Log listening interface */
+	TSharedPtr<IMessageLogListing> GetMessageLogListing() const { return MessageLogListing; }
+#endif
+
 private:
 
 #if WITH_EDITOR
 	/** Log listening interface */
 	TSharedPtr<IMessageLogListing> MessageLogListing;
 #endif
-
-	/** Pointer to log widget */
-	TSharedPtr<SWidget> LogListingWidget;
 
 	/** Is the logger enabled */
 	bool bIsEnabled = false;

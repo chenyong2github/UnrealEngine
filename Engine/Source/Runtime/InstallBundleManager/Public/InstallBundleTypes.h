@@ -259,6 +259,7 @@ struct FInstallBundleSourceBundleInfoQueryResult
 enum class EInstallBundleSourceUpdateBundleInfoResult : uint8
 {
 	OK,
+	NotInitailized,
 	AlreadyMounted,
 	AlreadyRequested,
 	IllegalCacheStatus,

@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/Queue.h"
+#include "Misc/ScopeLock.h"
 #include "Templates/SharedPointer.h"
 
 class FDMXSignal;
@@ -41,7 +42,7 @@ public:
 	void Stop();
 
 	/** 
-	 * Enqueues a signal. Should not be called besides from the owner port.
+	 * Thread safe single producer. Enqueues a signal. Should not be called besides from the owner port.
 	 *
 	 * @Param Producer				The producer object, tested in debug builds to be the owner port.
 	 * @Param Signal				The signal to enqueue
@@ -49,7 +50,7 @@ public:
 	void EnqueueSignal(void* Producer, const FDMXSignalSharedRef& Signal);
 
 	/** 
-	 * Tries to dequeues a signal from the raw listener. 
+	 * Thread safe single consumer. Tries to dequeues a signal from the raw listener. 
 	 *
 	 * @param Consumer				The consumer object, tested to be the same single consumer in debug builds.
 	 * @param OutSignal				The dequeued signal. If the function returns true, the outsignal is a valid shared pointer.
@@ -59,7 +60,7 @@ public:
 	 */
 	bool DequeueSignal(void* Consumer, FDMXSignalSharedPtr& OutSignal, int32& OutLocalUniverseID);
 
-	/** Clears the raw buffer */
+	/** Thread-safe. Clears the raw buffer */
 	void ClearBuffer();
 
 private:
@@ -69,8 +70,11 @@ private:
 	/** The actual buffer */
 	TQueue<FDMXSignalSharedPtr, EQueueMode::Spsc> RawBuffer;
 
-	/** The port that owns this Input */
+	/** The port that owns this Listener */
 	TWeakPtr<FDMXPort, ESPMode::ThreadSafe> OwnerPort;
+
+	/** Lock used when the buffer is cleared */
+	FCriticalSection ListenerCriticalSection;
 
 	/** The extern universe offset of the port */
 	int32 ExternUniverseOffset;

@@ -3,6 +3,7 @@
 #include "ApplySnapshotFilter.h"
 
 #include "IPropertyComparer.h"
+#include "CustomSerialization/CustomSerializationDataManager.h"
 #include "Data/LevelSnapshot.h"
 #include "Data/PropertySelection.h"
 #include "LevelSnapshotFilters.h"
@@ -13,6 +14,7 @@
 
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
+#include "Modules/ModuleManager.h"
 
 namespace
 {
@@ -127,7 +129,7 @@ void FApplySnapshotFilter::AnalyseComponentProperties(FPropertySelectionMap& Map
 		
 		if (UActorComponent* SnapshotMatchedComp = TryFindMatchingComponent(DeserializedSnapshotActor, SnapshotComponents, WorldActor, WorldComp))
 		{
-			FilterComponentPair(MapToAddTo, SnapshotMatchedComp, WorldComp);
+			FilterSubobjectPair(MapToAddTo, SnapshotMatchedComp, WorldComp);
 		}
 	}
 }
@@ -146,24 +148,35 @@ void FApplySnapshotFilter::FilterActorPair(FPropertySelectionMap& MapToAddTo)
         );
 	
 	AnalyseRootProperties(ActorContext, DeserializedSnapshotActor, WorldActor);
+	const EFilterObjectPropertiesResult FilterResult = FindAndFilterCustomSubobjectPairs(MapToAddTo, DeserializedSnapshotActor, WorldActor);
+	
+	ActorSelection.SetHasCustomSerializedSubobjects(FilterResult == EFilterObjectPropertiesResult::HasCustomSubobjects);
 	MapToAddTo.AddObjectProperties(WorldActor, ActorSelection);
 }
 
-void FApplySnapshotFilter::FilterComponentPair(FPropertySelectionMap& MapToAddTo, UActorComponent* SnapshotComponent, UActorComponent* WorldComponent)
+bool FApplySnapshotFilter::FilterSubobjectPair(FPropertySelectionMap& MapToAddTo, UObject* SnapshotSubobject, UObject* WorldSubobject)
 {
-	FPropertySelection ComponentSelection;
+	FPropertySelection SubobjectSelection;
 	FPropertyContainerContext ComponentContext(
-		ComponentSelection,
-        SnapshotComponent->GetClass(),
-        SnapshotComponent,
-        WorldComponent,
-        { WorldComponent->GetName() },
+		SubobjectSelection,
+        SnapshotSubobject->GetClass(),
+        SnapshotSubobject,
+        WorldSubobject,
+        { WorldSubobject->GetName() },
         FLevelSnapshotPropertyChain(),
-		WorldComponent->GetClass()
+		WorldSubobject->GetClass()
         );
 	
-	AnalyseRootProperties(ComponentContext, SnapshotComponent, WorldComponent);
-	MapToAddTo.AddObjectProperties(WorldComponent, ComponentSelection);
+	AnalyseRootProperties(ComponentContext, SnapshotSubobject, WorldSubobject);
+	const EFilterObjectPropertiesResult FilterResult = FindAndFilterCustomSubobjectPairs(MapToAddTo, SnapshotSubobject, WorldSubobject);
+
+	if (ensureMsgf(MapToAddTo.GetSelectedProperties(WorldSubobject) == nullptr, TEXT("Object %s was analysed more than once. Most likely an ICustomObjectSnapshotSerializer implementation returned the same object pair more than once or returned an object pair that was already discovered by the standard system, e.g. UPROPERTY(EditAnywhere, Instanced) UObject* Object."), *WorldSubobject->GetName()))
+	{
+		SubobjectSelection.SetHasCustomSerializedSubobjects(FilterResult == EFilterObjectPropertiesResult::HasCustomSubobjects);
+		return MapToAddTo.AddObjectProperties(WorldSubobject, SubobjectSelection);
+	}
+
+	return false;
 }
 
 void FApplySnapshotFilter::FilterStructPair(FPropertyContainerContext& Parent, FStructProperty* StructProperty)
@@ -178,6 +191,49 @@ void FApplySnapshotFilter::FilterStructPair(FPropertyContainerContext& Parent, F
         );
 	StructContext.AuthoredPathInformation.Add(StructProperty->GetAuthoredName());
 	AnalyseStructProperties(StructContext);
+}
+
+FApplySnapshotFilter::EFilterObjectPropertiesResult FApplySnapshotFilter::FindAndFilterCustomSubobjectPairs(FPropertySelectionMap& MapToAddTo, UObject* SnapshotOwner, UObject* WorldOwner)
+{
+	FLevelSnapshotsModule& LevelSnapshots = FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
+	TSharedPtr<ICustomObjectSnapshotSerializer> ExternalSerializer = LevelSnapshots.GetCustomSerializerForClass(SnapshotOwner->GetClass());
+	if (!ExternalSerializer.IsValid())
+	{
+		return EFilterObjectPropertiesResult::HasOnlyNormalProperties;
+	}
+
+	const FCustomSerializationData* SerializationData = Snapshot->GetSerializedData().GetCustomSubobjectData_ForActorOrSubobject(WorldOwner);
+	if (!SerializationData)
+	{
+		UE_LOG(LogLevelSnapshots, Warning, TEXT("Custom ICustomObjectSnapshotSerializer is registered for class %s but no data was saved for it."), *WorldOwner->GetClass()->GetName());
+		return EFilterObjectPropertiesResult::HasOnlyNormalProperties;
+	}
+
+	const FCustomSerializationDataReader SubobjectDataReader(
+			FCustomSerializationDataGetter_ReadOnly::CreateLambda([SerializationData]() -> const FCustomSerializationData* { return SerializationData; }),
+			Snapshot->GetSerializedData()
+			);
+	bool bAtLeastOneSubobjectWasAdded = false;
+	for (int32 i = 0; i < SubobjectDataReader.GetNumSubobjects(); ++i)
+	{	
+		TSharedPtr<ISnapshotSubobjectMetaData> SubobjectMetadata = SubobjectDataReader.GetSubobjectMetaData(i);
+		UObject* SnapshotSubobject = ExternalSerializer->FindOrRecreateSubobjectInSnapshotWorld(SnapshotOwner, *SubobjectMetadata, SubobjectDataReader);
+		UObject* EditorSubobject = ExternalSerializer->FindSubobjectInEditorWorld(WorldOwner, *SubobjectMetadata, SubobjectDataReader);
+		
+		// External modules implement this: must be validated
+		if (!SnapshotSubobject || !EditorSubobject)
+		{
+			UE_CLOG(SnapshotSubobject && !EditorSubobject, LogLevelSnapshots, Warning, TEXT("Restoring missing subobjects is not supported"));
+			continue;
+		}
+
+		if (ensureAlwaysMsgf(SnapshotSubobject->IsIn(SnapshotOwner) && EditorSubobject->IsIn(WorldOwner), TEXT("Your interface must return subobjects")))
+		{
+			bAtLeastOneSubobjectWasAdded |= FilterSubobjectPair(MapToAddTo, SnapshotSubobject, EditorSubobject);
+		}
+	}
+
+	return bAtLeastOneSubobjectWasAdded ? EFilterObjectPropertiesResult::HasCustomSubobjects : EFilterObjectPropertiesResult::HasOnlyNormalProperties;
 }
 
 void FApplySnapshotFilter::AnalyseRootProperties(FPropertyContainerContext& ContainerContext, UObject* SnapshotObject, UObject* WorldObject)

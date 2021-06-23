@@ -68,14 +68,6 @@ static FText GetFriendlyNameFromWindowsRHIName(const FString& InRHIName)
 	{
 		FriendlyRHIName = LOCTEXT("VulkanSM5", "Vulkan (SM5)");
 	}
-	else if (InRHIName == TEXT("GLSL_SWITCH"))
-	{
-		FriendlyRHIName = LOCTEXT("Switch", "Switch (Deferred)");
-	}
-	else if (InRHIName == TEXT("GLSL_SWITCH_FORWARD"))
-	{
-		FriendlyRHIName = LOCTEXT("SwitchForward", "Switch (Forward)");
-	}
 	else if (InRHIName == TEXT("GLSL_150_ES31")
 		|| InRHIName == TEXT("SF_VULKAN_ES31_ANDROID") || InRHIName == TEXT("SF_VULKAN_ES31")
 		|| InRHIName == TEXT("GLSL_430"))

@@ -655,6 +655,7 @@ void UReplicationGraph::RemoveNetworkActor(AActor* Actor)
 		for (UNetReplicationGraphConnection* ConnectionManager : Connections)
 		{
 			ConnectionManager->ActorInfoMap.RemoveActor(Actor);
+			ConnectionManager->PrevDormantActorList.RemoveSlow(Actor);
 		}
 	}
 }
@@ -2702,15 +2703,8 @@ int64 UNetReplicationGraphConnection::ReplicateDormantDestructionInfos()
 
 	if (NetConnection && NetConnection->Driver)
 	{
-		int32 NumToRemove = FMath::Min(PendingDormantDestructList.Num(), CVar_RepGraph_ReplicatedDormantDestructionInfosPerFrame);
-		if (NumToRemove > 0)
+		for (const FCachedDormantDestructInfo& Info : PendingDormantDestructList)
 		{
-			UE_LOG(LogReplicationGraph, Verbose, TEXT("UNetReplicationGraphConnection::ReplicateDormantDestructionInfos: Removing %d Actors (List size: %d)"), PendingDormantDestructList.Num(), NumToRemove);
-		}
-
-		for (int32 i = NumToRemove - 1; i >= 0; i--)
-		{
-			const FCachedDormantDestructInfo& Info = PendingDormantDestructList[i];
 			FActorDestructionInfo DestructInfo;
 			DestructInfo.DestroyedPosition = FVector::ZeroVector;
 			DestructInfo.NetGUID = Info.NetGUID;
@@ -2721,8 +2715,9 @@ int64 UNetReplicationGraphConnection::ReplicateDormantDestructionInfos()
 			DestructInfo.Reason = EChannelCloseReason::Relevancy;
 
 			NumBits += NetConnection->Driver->SendDestructionInfo(NetConnection, &DestructInfo);
-			PendingDormantDestructList.RemoveAt(i);
 		}
+
+		PendingDormantDestructList.Empty();
 	}
 
 	return NumBits;
@@ -5414,8 +5409,7 @@ void UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection(c
 
 	if (bDestroyDormantDynamicActors && CVar_RepGraph_DormantDynamicActorsDestruction > 0)
 	{
-		bool bCellHasChanged = false;
-		FActorRepListRefView PrevDormantActorList;
+		FActorRepListRefView& PrevDormantActorList = Params.ConnectionManager.PrevDormantActorList;
 
 		// Process and create the dormancy list for the active grid for this user
 		for (const FPlayerGridCellInformation& CellInfo : ActiveGridCells)
@@ -5434,7 +5428,6 @@ void UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection(c
 			// but this should just result in a wasted cycle if anything.
 			if (((CellX != PrevX) || (CellY != PrevY)) && !UniqueCurrentLocations.Contains(CellInfo.PrevLocation))
 			{
-				bCellHasChanged = true;
 				RG_QUICK_SCOPE_CYCLE_COUNTER(UReplicationGraphNode_GridSpatialization2D_CellChangeDormantRelevancy);
 				FActorRepListRefView DormantActorList;
 
@@ -5460,12 +5453,16 @@ void UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection(c
 			}
 		}
 
-		// Now process the previous dormant list to handle destruction
-   		if (bCellHasChanged)
+		if (Params.ConnectionManager.PrevDormantActorList.Num() > 0)
 		{
+			int32 NumActorsToRemove = CVar_RepGraph_ReplicatedDormantDestructionInfosPerFrame;
+			
+			UE_LOG(LogReplicationGraph, Verbose, TEXT("UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection: Removing %d Actors (List size: %d)"), Params.ConnectionManager.PrevDormantActorList.Num(), NumActorsToRemove);
+
 			// any previous dormant actors not in the current node dormant list
-			for (FActorRepListType& Actor : PrevDormantActorList)
+			for (int32 i = 0; i < Params.ConnectionManager.PrevDormantActorList.Num() && NumActorsToRemove > 0; i++, NumActorsToRemove--)
 			{
+				FActorRepListType& Actor = Params.ConnectionManager.PrevDormantActorList[i];
 				Params.ConnectionManager.NotifyAddDormantDestructionInfo(Actor);
 
 				if (FConnectionReplicationActorInfo* ActorInfo = Params.ConnectionManager.ActorInfoMap.Find(Actor))
@@ -5491,6 +5488,8 @@ void UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection(c
 						}
 					}
 				}
+
+				Params.ConnectionManager.PrevDormantActorList.RemoveAtSwap(i);
 			}
 		}
 	}

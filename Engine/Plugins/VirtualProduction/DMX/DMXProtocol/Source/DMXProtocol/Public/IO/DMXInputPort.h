@@ -9,13 +9,13 @@
 #include "CoreMinimal.h"
 #include "Tickable.h"
 #include "Containers/Queue.h" 
-#include "Misc/ScopeLock.h"
 #include "Templates/SharedPointer.h"
 
 struct FDMXInputPortConfig;
 class FDMXPortManager;
 class FDMXRawListener;
-class IDMXInputPortTickedBufferOverride;
+
+enum class EDMXPortPriorityStrategy : uint8;
 
 /**  
  * Higher level abstraction of a DMX input hiding networking specific and protocol specific complexity from the game. 
@@ -44,43 +44,23 @@ public:
 	/** Updates the Port to use the config of the InputPortConfig. Makes the config valid if it's invalid. */
 	void UpdateFromConfig(FDMXInputPortConfig& InputPortConfig);
 
-public:
-	// ~Begin DMXPort Interface 
-
-	/** Returns true if the port is successfully registered with its protocol */
+	//~ Begin DMXPort Interface 
 	virtual bool IsRegistered() const override;
-
-	/** Returns the Guid of the Port */
 	virtual const FGuid& GetPortGuid() const override;
-
+	virtual bool CheckPriority(const int32 InPriority);
 protected:
-	/**
-	 * Adds a Raw Input that receives all raw signals received on this port. Returns the new Raw Input
-	 * Only useful for objects that want to process all data, and not just data on tick (e.g. Activity Monitor)
-	 */
-	virtual void AddRawInput(TSharedRef<FDMXRawListener> InRawInput) override;
-
-	/**
-	 * Removes the raw Input from the port.
-	 * Usually doesn't need to be called, as this is called on destruction of the raw Inputs.
-	 */
-	virtual void RemoveRawInput(TSharedRef<FDMXRawListener> RawInputToRemove) override;
-
-	/** Registers the port with its protocol. Returns true if successfully registered */
+	virtual void AddRawListener(TSharedRef<FDMXRawListener> InRawListener) override;
+	virtual void RemoveRawListener(TSharedRef<FDMXRawListener> InRawListenerToRemove) override;
 	virtual bool Register() override;
-
-	/** Unregisteres the port if it was registered with its protocol */
 	virtual void Unregister() override;
+	//~ End DMXPort Interface
 
-	// ~End DMXPort Interface
-
-protected:
-	// ~Begin FTickableGameObject interface
+	//~ Begin FTickableGameObject interface
 	virtual void Tick(float DeltaTime) override;
 	virtual bool IsTickableInEditor() const override { return true; }
 	virtual ETickableTickType GetTickableTickType() const override;
 	virtual TStatId GetStatId() const override;
-	// ~End FTickableGameObject interface
+	//~ End FTickableGameObject interface
 
 public:
 	/** Clears all buffers */
@@ -116,19 +96,33 @@ public:
 	 */
 	void SetUseDefaultQueue(bool bUse);
 	
-protected:
+private:
 	/** Called to set if receive DMX should be enabled */
 	void OnSetReceiveDMXEnabled(bool bEnabled);
 
-	/** According to DMXProtcolSettings, true if DMX should be received */
-	bool bReceiveDMXEnabled;
+	/** Returns the port config that corresponds to the guid of this port. */
+	FDMXInputPortConfig* FindInputPortConfigChecked() const;
 
-private:
 	/** The default buffer, which is being read on tick */
 	TQueue<FDMXSignalSharedPtr> DefaultInputQueue;
 
+	/** According to DMXProtcolSettings, true if DMX should be received */
+	bool bReceiveDMXEnabled = false;
+
 	/** If true, adds data to the default input queue and fills the UniverseToLatestSignalMap with it */
 	bool bUseDefaultInputQueue = true;
+
+	/** How to manage priority */
+	EDMXPortPriorityStrategy PriorityStrategy;
+
+	/** the Priority value, used by the PriorityStrategy */
+	int32 Priority;
+
+	/** The highest priority received */
+	int32 HighestReceivedPriority = 0;
+
+	/** The highest priority received */
+	int32 LowestReceivedPriority = 0;
 
 	/** Map of Universe Inputs with their Universes */
 	TMap<int32, TSet<TSharedRef<FDMXTickedUniverseListener>>> LocalUniverseToListenerGroupMap;
@@ -140,11 +134,7 @@ private:
 	TSet<TSharedRef<FDMXRawListener>> RawListeners;
 
 	/** True if the port is registered with it its protocol */
-	bool bRegistered;
-
-private:
-	/** Returns the port config that corresponds to the guid of this port. */
-	FDMXInputPortConfig* FindInputPortConfigChecked() const;
+	bool bRegistered = false;
 
 	/** The unique identifier of this port, shared with the port config this was constructed from. Should not be changed after construction. */
 	FGuid PortGuid;

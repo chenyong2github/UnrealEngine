@@ -246,7 +246,8 @@ private:
 	template <typename U, EPimplPtrMode M, typename... ArgTypes>
 	friend TPimplPtr<U, M> MakePimpl(ArgTypes&&... Args);
 
-	using Super::TPimplPtr;
+	// Super here breaks clang
+	using TPimplPtr<T, EPimplPtrMode::NoCopy>::TPimplPtr;
 
 public:
 	TPimplPtr() = default;

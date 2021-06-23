@@ -174,6 +174,7 @@ private:
 	TMap<FString, CefRefPtr<CefRequestContext>> RequestContexts;
 	TMap<FString, CefRefPtr<FCEFResourceContextHandler>> RequestResourceHandlers;
 	FCefSchemeHandlerFactories SchemeHandlerFactories;
+	bool bAllowCEF;
 	bool bTaskFinished;
 #endif
 

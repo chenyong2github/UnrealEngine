@@ -476,6 +476,10 @@ void FUdpMessageProcessor::ProcessAcknowledgeSegmentsSegment(FInboundSegment& Se
 	if (Segmenter.IsValid())
 	{
 		Segmenter->MarkAsAcknowledged(AcknowledgeChunk.Segments);
+		// For large chunks of data, this will prevent the segmenter from resending data too early.  We want the resend to only
+		// happen after a delay of not recieving any acknowledgements.
+		//
+		Segmenter->UpdateSentTime(CurrentTime);
 		if (Segmenter->IsSendingComplete() && Segmenter->AreAcknowledgementsComplete())
 		{
 			UE_LOG(LogUdpMessaging, Verbose, TEXT("Segmenter for %s is now complete. Removing"), *NodeInfo.NodeId.ToString());
@@ -788,6 +792,7 @@ void FUdpMessageProcessor::UpdateKnownNodes()
 			bSuccess = NodeByteSent >= 0;
 			if (!bSuccess)
 			{
+				UE_LOG(LogUdpMessaging, Warning, TEXT("FUdpMessageProcessor::UpdateKnownNodes received negative NodeByteSent (%d) from socket."), NodeByteSent);
 				break;
 			}
 			// if NodeByteSent is higher than the allotted number of bytes for the node, queue another round of sending once all node had a go
@@ -917,7 +922,6 @@ int32 FUdpMessageProcessor::UpdateSegmenters(FNodeInfo& NodeInfo, uint32 MaxSend
 		{
 			It.RemoveCurrent();
 		}
-
 		// if we reach the max send rate, break
 		if (ByteSent >= MaxSendBytes)
 		{

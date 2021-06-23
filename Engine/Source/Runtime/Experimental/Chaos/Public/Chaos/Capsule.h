@@ -59,6 +59,11 @@ namespace Chaos
 			return *this;
 		}
 
+		virtual FImplicitObject* Duplicate() const override
+		{
+			return new FCapsule(*this);
+		}
+
 		~FCapsule() {}
 
 		static constexpr EImplicitObjectType StaticType() { return ImplicitObjectType::Capsule; }

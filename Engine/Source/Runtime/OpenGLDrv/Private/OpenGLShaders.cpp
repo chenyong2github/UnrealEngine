@@ -2563,7 +2563,7 @@ static void VerifyUniformBufferLayouts(GLuint Program)
 			}
 			
 #ifdef GL_UNIFORM_BLOCK_REFERENCED_BY_COMPUTE_SHADER
-			glGetActiveUniformBlockiv(Program, BlockIndex, GL_UNIFORM_BLOCK_REFERENCED_BY_COMPUTE_SHADER, &ReferencedByCS);
+				glGetActiveUniformBlockiv(Program, BlockIndex, GL_UNIFORM_BLOCK_REFERENCED_BY_COMPUTE_SHADER, &ReferencedByCS);
 #endif
 
 			if(ReferencedByVS) {ReferencedBy += TEXT("V");}
@@ -2788,7 +2788,7 @@ FOpenGLLinkedProgram* FOpenGLDynamicRHI::GetLinkedComputeProgram(FRHIComputeShad
 	FOpenGLLinkedProgram* LinkedProgram = GetOpenGLProgramsCache().Find(Config.ProgramKey, true);
 	if (!LinkedProgram)
 	{
-		// ensure that pending request for this program has been completed before
+		// ensure that pending request for this program has been completed before attempting to link
 		if (FOpenGLProgramBinaryCache::CheckSinglePendingGLProgramCreateRequest(Config.ProgramKey))
 		{
 			LinkedProgram = GetOpenGLProgramsCache().Find(Config.ProgramKey, true);
@@ -3119,8 +3119,8 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 		Config.ProgramKey.ShaderHashes[CrossCompiler::SHADER_STAGE_VERTEX] = VertexShaderRHI->GetHash();
 
 		if (GeometryShader)
-		{
-			check(VertexShader);
+			{
+				check(VertexShader);
 			BindShaderStage(Config, CrossCompiler::SHADER_STAGE_GEOMETRY, GeometryShader, GeometryShaderRHI->GetHash(), CrossCompiler::SHADER_STAGE_VERTEX, VertexShader);
 		}
 
@@ -4695,17 +4695,21 @@ void FOpenGLProgramBinaryCache::CheckPendingGLProgramCreateRequests_internal()
 	FScopeLock Lock(&GPendingGLProgramCreateRequestsCS);
 	//UE_LOG(LogRHI, Log, TEXT("CheckPendingGLProgramCreateRequests : PendingGLProgramCreateRequests = %d"), PendingGLProgramCreateRequests.Num());
 
-	float TimeRemainingS = (float)GMaxShaderLibProcessingTimeMS / 1000.0f;
-	double StartTime = FPlatformTime::Seconds();
-	int32 Count = 0;
-	while (PendingGLProgramCreateRequests.Num() && TimeRemainingS > 0.0f)
+	if(PendingGLProgramCreateRequests.Num() > 0)
 	{
-		CompleteLoadedGLProgramRequest_internal(PendingGLProgramCreateRequests.Pop());
-		TimeRemainingS -= (float)(FPlatformTime::Seconds() - StartTime);
-		StartTime = FPlatformTime::Seconds();
-		Count++;
+		float TimeRemainingS = (float)GMaxShaderLibProcessingTimeMS / 1000.0f;
+		double StartTime = FPlatformTime::Seconds();
+		int32 Count = 0;
+		while(PendingGLProgramCreateRequests.Num() && TimeRemainingS > 0.0f)
+		{
+			CompleteLoadedGLProgramRequest_internal(PendingGLProgramCreateRequests.Pop());
+			TimeRemainingS -= (float)(FPlatformTime::Seconds() - StartTime);
+			StartTime = FPlatformTime::Seconds();
+			Count++;
+		}
+		float TimeTaken = (float)GMaxShaderLibProcessingTimeMS - (TimeRemainingS * 1000.0f);
+		UE_CLOG(TimeTaken>2.0f, LogRHI, Log, TEXT("CheckPendingGLProgramCreateRequests : iter count = %d, time taken = %f ms (remaining %d)"), Count, TimeTaken, PendingGLProgramCreateRequests.Num());
 	}
-	UE_CLOG(PendingGLProgramCreateRequests.Num()>0, LogRHI, Log, TEXT("CheckPendingGLProgramCreateRequests : iter count = %d, time taken = %d ms (remaining %d)"), Count, GMaxShaderLibProcessingTimeMS - (int32)(TimeRemainingS*1000.0f), PendingGLProgramCreateRequests.Num());
 }
 
 void FOpenGLProgramBinaryCache::CompleteLoadedGLProgramRequest_internal(FGLProgramBinaryFileCacheEntry* PendingGLCreate)

@@ -21,6 +21,7 @@
 
 class FMediaAudioResampler;
 class FMediaPlayerFacade;
+class FMediaSoundComponentClockSink;
 class IMediaAudioSample;
 class IMediaPlayer;
 class UMediaPlayer;
@@ -197,6 +198,12 @@ public:
 
 public:
 
+	/** Adds a clock sink so this can be ticked without the world. */
+	void AddClockSink();
+
+	/** Removes the clock sink. */
+	void RemoveClockSink();
+
 	void UpdatePlayer();
 
 #if WITH_EDITOR
@@ -324,4 +331,7 @@ private:
 
 	/** Whether or not envelope follower settings changed. */
 	bool bEnvelopeFollowerSettingsChanged;
+
+	/** Holds our clock sink if available. */
+	TSharedPtr<FMediaSoundComponentClockSink, ESPMode::ThreadSafe> ClockSink;
 };

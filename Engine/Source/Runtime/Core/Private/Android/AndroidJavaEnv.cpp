@@ -125,7 +125,8 @@ JNIEnv* AndroidJavaEnv::GetJavaEnv( bool bRequireGlobalThis /*= true*/ )
 		Args.version = CurrentJavaVersion;
 		Args.group = nullptr;
 		const FString& ThreadName = FThreadManager::GetThreadName(FPlatformTLS::GetCurrentThreadId());
-		Args.name = ThreadName.IsEmpty() ? nullptr : TCHAR_TO_ANSI(*ThreadName);
+		auto Name = StringCast<ANSICHAR>(*ThreadName);
+		Args.name = Name.Get();
 
 		jint AttachResult = CurrentJavaVM->AttachCurrentThread(&Env, &Args);
 		if (AttachResult == JNI_ERR)
@@ -156,7 +157,8 @@ JNIEnv* AndroidJavaEnv::GetJavaEnv( bool bRequireGlobalThis /*= true*/ )
 		Args.group = nullptr;
 		const uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
 		const FString& ThreadName = FThreadManager::GetThreadName(ThreadId);
-		Args.name = ThreadName.IsEmpty() ? nullptr : TCHAR_TO_ANSI(*ThreadName);
+		auto Name = StringCast<ANSICHAR>(*ThreadName);
+		Args.name = Name.Get();
 		if (!Args.name)
 		{
 			Args.name = FAndroidMisc::GetThreadName(ThreadId);

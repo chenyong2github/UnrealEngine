@@ -1617,65 +1617,71 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 	TArray<FPhysScenePendingComponentTransform_Chaos> PendingTransforms;
 	TSet<FGeometryCollectionPhysicsProxy*> GCProxies;
 
-	auto RigidLambda = [&PendingTransforms](FSingleParticlePhysicsProxy* Proxy)
+	FPhysicsCommand::ExecuteWrite(this, [&Solver, &PendingTransforms](FPhysScene* PhysScene)
 	{
-		FPBDRigidParticle* DirtyParticle = Proxy->GetRigidParticleUnsafe();
-
-		if(FBodyInstance* BodyInstance = FPhysicsUserData::Get<FBodyInstance>(DirtyParticle->UserData()))
+		auto RigidLambda = [&PhysScene, &PendingTransforms](FSingleParticlePhysicsProxy* Proxy)
 		{
-			if(BodyInstance->OwnerComponent.IsValid())
+			FPBDRigidParticle* DirtyParticle = Proxy->GetRigidParticleUnsafe();
+
+			if(FBodyInstance* BodyInstance = FPhysicsUserData::Get<FBodyInstance>(DirtyParticle->UserData()))
 			{
-				if (SyncKinematicOnGameThread == 0 && BodyInstance->IsInstanceSimulatingPhysics() == false)
+				if(BodyInstance->OwnerComponent.IsValid())
 				{
-					return;
-				}
-
-				UPrimitiveComponent* OwnerComponent = BodyInstance->OwnerComponent.Get();
-				if(OwnerComponent != nullptr)
-				{
-					bool bPendingMove = false;
-					if(BodyInstance->InstanceBodyIndex == INDEX_NONE)
+					if (SyncKinematicOnGameThread == 0 && BodyInstance->IsInstanceSimulatingPhysics() == false)
 					{
-						FRigidTransform3 NewTransform(DirtyParticle->X(),DirtyParticle->R());
+						return;
+					}
+					UPrimitiveComponent* OwnerComponent = BodyInstance->OwnerComponent.Get();
+					if(OwnerComponent != nullptr)
+					{
+						bool bPendingMove = false;
+							FRigidTransform3 NewTransform(DirtyParticle->X(),DirtyParticle->R());
 
-						if(!NewTransform.EqualsNoScale(OwnerComponent->GetComponentTransform()))
-						{
-							bPendingMove = true;
-							const FVector MoveBy = NewTransform.GetLocation() - OwnerComponent->GetComponentTransform().GetLocation();
-							const FQuat NewRotation = NewTransform.GetRotation();
-							PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent,MoveBy,NewRotation,Proxy->GetWakeEvent()));
+							if(!NewTransform.EqualsNoScale(OwnerComponent->GetComponentTransform()))
+							{
+								if (BodyInstance->InstanceBodyIndex == INDEX_NONE)
+								{
+
+								bPendingMove = true;
+								const FVector MoveBy = NewTransform.GetLocation() - OwnerComponent->GetComponentTransform().GetLocation();
+								const FQuat NewRotation = NewTransform.GetRotation();
+								PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent,MoveBy,NewRotation,Proxy->GetWakeEvent()));
+
+							}
+
+								PhysScene->UpdateActorInAccelerationStructure(BodyInstance->ActorHandle);
 						}
-					}
 
-					if(Proxy->GetWakeEvent() != Chaos::EWakeEventEntry::None && !bPendingMove)
-					{
-						PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent,Proxy->GetWakeEvent()));
+						if(Proxy->GetWakeEvent() != Chaos::EWakeEventEntry::None && !bPendingMove)
+						{
+							PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent,Proxy->GetWakeEvent()));
+						}
+						Proxy->ClearEvents();
 					}
-					Proxy->ClearEvents();
 				}
 			}
-		}
-	};
+		};
 
-	auto ConstraintLambda = [&PendingTransforms](FJointConstraintPhysicsProxy* Proxy)
-	{
-		Chaos::FJointConstraint* Constraint = Proxy->GetConstraint();
-
-		if (Constraint->GetOutputData().bIsBreaking)
+		auto ConstraintLambda = [&PendingTransforms](FJointConstraintPhysicsProxy* Proxy)
 		{
-			if (FConstraintInstanceBase* ConstraintInstance = (Constraint) ? FPhysicsUserData_Chaos::Get<FConstraintInstanceBase>(Constraint->GetUserData()) : nullptr)
+			Chaos::FJointConstraint* Constraint = Proxy->GetConstraint();
+
+			if (Constraint->GetOutputData().bIsBreaking)
 			{
-				FConstraintBrokenDelegateWrapper CBD(ConstraintInstance);
-				CBD.DispatchOnBroken();
+				if (FConstraintInstanceBase* ConstraintInstance = (Constraint) ? FPhysicsUserData_Chaos::Get<FConstraintInstanceBase>(Constraint->GetUserData()) : nullptr)
+				{
+					FConstraintBrokenDelegateWrapper CBD(ConstraintInstance);
+					CBD.DispatchOnBroken();
+				}
+
+				Constraint->GetOutputData().bIsBreaking = false;
 			}
 
-			Constraint->GetOutputData().bIsBreaking = false;
-		}
+		};
 
-	};
+		Solver->PullPhysicsStateForEachDirtyProxy_External(RigidLambda, ConstraintLambda);
 
-	Solver->PullPhysicsStateForEachDirtyProxy_External(RigidLambda, ConstraintLambda);
-
+	});
 
 	for (const FPhysScenePendingComponentTransform_Chaos& ComponentTransform : PendingTransforms)
 	{

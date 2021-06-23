@@ -1103,6 +1103,12 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 			// Fire delegate to inform bound functions the back buffer is ready to be captured.
 			OnBackBufferReadyToPresentDelegate.Broadcast(*DrawCommandParams.Window, BackBuffer);
+
+			if (bRenderedStereo)
+			{
+				// XR requires the backbuffer to be transitioned back to RTV
+				RHICmdList.Transition(FRHITransitionInfo(BackBuffer, ERHIAccess::SRVGraphics, ERHIAccess::RTV));
+			}
 		}
 	}
 

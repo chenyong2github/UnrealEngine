@@ -3954,7 +3954,7 @@ EVisibility SLevelViewport::GetSelectedActorsCurrentLevelTextVisibility() const
 	return (&GetLevelViewportClient() == GCurrentLevelEditingViewportClient) 
 		&& (GEditor->GetSelectedActorCount() > 0) 
 		&& !IsPlayInEditorViewportActive() 
-		&& GetWorld() && GetWorld()->GetCurrentLevel()->OwningWorld->GetLevels().Num() > 1
+		&& GetWorld() && GetWorld()->GetCurrentLevel() && GetWorld()->GetCurrentLevel()->OwningWorld->GetLevels().Num() > 1
 		? ContentVisibility : EVisibility::Collapsed;
 }
 

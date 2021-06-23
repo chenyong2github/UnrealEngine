@@ -3,14 +3,12 @@
 #ifdef _MELANGE_SDK_
 
 #include "DatasmithC4DImporter.h"
+#include "IDatasmithC4DImporter.h"
 
 #include "DatasmithAssetImportData.h"
 #include "DatasmithC4DExtraMelangeDefinitions.h"
-#include "DatasmithC4DImportOptions.h"
 #include "DatasmithC4DTranslatorModule.h"
 #include "DatasmithC4DUtils.h"
-#include "DatasmithDefinitions.h"
-#include "DatasmithImportOptions.h"
 #include "DatasmithMesh.h"
 #include "DatasmithSceneFactory.h"
 #include "DatasmithUtils.h"
@@ -47,7 +45,7 @@
 
 DECLARE_CYCLE_STAT(TEXT("C4DImporter - Load File"), STAT_C4DImporter_LoadFile, STATGROUP_C4DImporter);
 
-DEFINE_LOG_CATEGORY(LogDatasmithC4DImport);
+DEFINE_LOG_CATEGORY_STATIC(LogDatasmithC4DImport, Log, All);
 
 #define LOCTEXT_NAMESPACE "DatasmithC4DImportPlugin"
 
@@ -58,11 +56,10 @@ DEFINE_LOG_CATEGORY(LogDatasmithC4DImport);
 #define UnitlessGlobalLightIntensity 10.0
 #define UnitlessIESandPointLightIntensity 8000
 
-FDatasmithC4DImporter::FDatasmithC4DImporter(TSharedRef<IDatasmithScene>& OutScene, UDatasmithC4DImportOptions* InOptions)
+FDatasmithC4DImporter::FDatasmithC4DImporter(TSharedRef<IDatasmithScene>& OutScene, FDatasmithC4DImportOptions& InOptions)
 	: Options(InOptions)
 	, DatasmithScene(OutScene)
 {
-	check(Options);
 }
 
 FDatasmithC4DImporter::~FDatasmithC4DImporter()
@@ -76,7 +73,7 @@ FDatasmithC4DImporter::~FDatasmithC4DImporter()
 	}
 }
 
-void FDatasmithC4DImporter::SetImportOptions(UDatasmithC4DImportOptions* InOptions)
+void FDatasmithC4DImporter::SetImportOptions(FDatasmithC4DImportOptions& InOptions)
 {
 	Options = InOptions;
 }
@@ -2654,7 +2651,7 @@ TSharedPtr<IDatasmithActorElement> FDatasmithC4DImporter::ImportObjectAndChildre
 		else if (ObjectType == Opolygon)
 		{
 			melange::PolygonObject* PolygonObject = static_cast<melange::PolygonObject*>(DataObject);
-			if (Options->bImportEmptyMesh || PolygonObject->GetPolygonCount() > 0)
+			if (Options.bImportEmptyMesh || PolygonObject->GetPolygonCount() > 0)
 			{
 				TArray<melange::TextureTag*> ActiveTextureTags = GetActiveTextureTags(PolygonObject, TextureTags);
 				if (TSharedPtr<IDatasmithMeshActorElement> MeshActorElement = ImportPolygon(PolygonObject, DatasmithName.GetValue(), DatasmithLabel, ActiveTextureTags))
@@ -3034,6 +3031,11 @@ void FDatasmithC4DImporter::GetGeometriesForMeshElementAndRelease(const TSharedR
 	}
 }
 
+TSharedPtr<IDatasmithLevelSequenceElement> FDatasmithC4DImporter::GetLevelSequence()
+{
+	return LevelSequence;
+}
+
 bool FDatasmithC4DImporter::OpenFile(const FString& InFilename)
 {
 	SCOPE_CYCLE_COUNTER(STAT_C4DImporter_LoadFile)
@@ -3204,7 +3206,7 @@ bool FDatasmithC4DImporter::ProcessScene()
 	DatasmithScene->RemoveActor(RootActor, EDatasmithActorRemovalRule::KeepChildrenAndKeepRelativeTransform);
 
 #if WITH_EDITOR
-	if (Options->bExportToUDatasmith)
+	if (Options.bExportToUDatasmith)
 	{
 		SceneExporterRef = TSharedRef<FDatasmithSceneExporter>(new FDatasmithSceneExporter);
 		SceneExporterRef->PreExport();

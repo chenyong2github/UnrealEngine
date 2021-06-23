@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "LensFile.h"
 
 #include "Algo/MaxElement.h"
 #include "CalibratedMapProcessor.h"
 #include "CameraCalibrationCoreLog.h"
+#include "CameraCalibrationSettings.h"
 #include "CameraCalibrationSubsystem.h"
 #include "CineCameraComponent.h"
 #include "Engine/Engine.h"
@@ -14,28 +14,27 @@
 #include "LensFileRendering.h"
 #include "LensInterpolationUtils.h"
 #include "Models/SphericalLensModel.h"
+#include "Tables/BaseLensTable.h"
 #include "Tables/LensTableUtils.h"
-
 
 namespace LensFileUtils
 {
-	UTextureRenderTarget2D* CreateDisplacementMapRenderTarget(UObject* Outer)
+	UTextureRenderTarget2D* CreateDisplacementMapRenderTarget(UObject* Outer, const FIntPoint DisplacementMapResolution)
 	{
 		check(Outer);
-
-		//Will be good using a project settings or global resolution that user can change
-		const FIntPoint Size{256,256};
 
 		UTextureRenderTarget2D* NewRenderTarget2D = NewObject<UTextureRenderTarget2D>(Outer, MakeUniqueObjectName(Outer, UTextureRenderTarget2D::StaticClass(), TEXT("LensDisplacementMap")), RF_Public);
 		NewRenderTarget2D->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RG16f;
 		NewRenderTarget2D->ClearColor = FLinearColor(0.5f, 0.5f, 0.5f, 0.5f);
+		NewRenderTarget2D->AddressX = TA_Clamp;
+		NewRenderTarget2D->AddressY = TA_Clamp;
 		NewRenderTarget2D->bAutoGenerateMips = false;
 		NewRenderTarget2D->bCanCreateUAV = true;
-		NewRenderTarget2D->InitAutoFormat(Size.X, Size.Y);
+		NewRenderTarget2D->InitAutoFormat(DisplacementMapResolution.X, DisplacementMapResolution.Y);
 		NewRenderTarget2D->UpdateResourceImmediate(true);
 
-		// Flush RHI thread after creating texture render target to make sure that RHIUpdateTextureReference is executed before doing any rendering with it
-		// This makes sure that Value->TextureReference.TextureReferenceRHI->GetReferencedTexture() is valid so that FUniformExpressionSet::FillUniformBuffer properly uses the texture for rendering, instead of using a fallback texture
+		//Flush RHI thread after creating texture render target to make sure that RHIUpdateTextureReference is executed before doing any rendering with it
+		//This makes sure that Value->TextureReference.TextureReferenceRHI->GetReferencedTexture() is valid so that FUniformExpressionSet::FillUniformBuffer properly uses the texture for rendering, instead of using a fallback texture
 		ENQUEUE_RENDER_COMMAND(FlushRHIThreadToUpdateTextureRenderTargetReference)(
 			[](FRHICommandListImmediate& RHICmdList)
 			{
@@ -58,6 +57,65 @@ namespace LensFileUtils
 		return P0123;
 	}
 
+	float EvalAtTwoPoints(const float EvalTime, const float Time0, const float Time1, const float Value0, const float Value1, const float Tangent0, const float Tangent1)
+	{
+		if (FMath::IsNearlyEqual(Time0, Time1))
+		{
+			return Value0;
+		}
+
+		constexpr float OneThird = 1.0f / 3.0f;
+
+		const float CurveDiff = Time1 - Time0;
+		const float CurveAlpha = (EvalTime - Time0) / CurveDiff;
+
+		const float DeltaInput = Value1 - Value0;
+		const float CurveDelta = DeltaInput / CurveDiff;
+		const float CurveTan0 = Tangent0 * CurveDelta;
+		const float CurveTan1 = Tangent1 * CurveDelta;
+
+		const float P0 = Value0;
+		const float P3 = Value1;
+		const float P1 = P0 + (CurveTan0 * CurveDiff * OneThird);
+		const float P2 = P3 - (CurveTan1 * CurveDiff * OneThird);
+		return BezierInterp(P0, P1, P2, P3, CurveAlpha);
+	}
+
+	void FindWeightsAndInterp(float InEvalTime, TConstArrayView<float> InTimes, TConstArrayView<float> InTangents, TOptional<float> LerpFactor, TConstArrayView<float> Inputs, float& Output)
+	{
+		const int32 CurveCount = InTimes.Num();
+		check(CurveCount == 2 || CurveCount == 4);
+
+		const int32 ResultCount = InTimes.Num() / 2;
+
+		TArray<float, TInlineAllocator<4>> BezierResults;
+		BezierResults.SetNumZeroed(ResultCount);
+
+		for (int32 CurveIndex = 0; CurveIndex < InTimes.Num(); CurveIndex += 2)
+		{
+			BezierResults[CurveIndex / 2] = EvalAtTwoPoints(InEvalTime
+				, InTimes[CurveIndex + 0]
+				, InTimes[CurveIndex + 1]
+				, Inputs[CurveIndex + 0]
+				, Inputs[CurveIndex + 1]
+				, InTangents[CurveIndex + 0]
+				, InTangents[CurveIndex + 1]);
+		}
+
+		if (LerpFactor.IsSet())
+		{
+			check(BezierResults.Num() == 2);
+
+			const float BlendFactor = LerpFactor.GetValue();
+			Output = FMath::Lerp(BezierResults[0], BezierResults[1], BlendFactor);
+		}
+		else
+		{
+			check(BezierResults.Num() == 1);
+			Output = BezierResults[0];
+		}
+	}
+
 	void FindWeightsAndInterp(float InEvalTime, TConstArrayView<float> InTimes, TConstArrayView<float> InTangents, TOptional<float> LerpFactor, TConstArrayView<TConstArrayView<float>> Inputs, TArray<float>& Output)
 	{
 		const int32 CurveCount = InTimes.Num();
@@ -74,31 +132,22 @@ namespace LensFileUtils
 			Result.SetNumZeroed(InputCount);
 		}
         
-		// Bezier Interp Curve0
 		for(int32 CurveIndex = 0; CurveIndex < InTimes.Num(); CurveIndex += 2)
 		{
 			TArray<float, TInlineAllocator<10>>& ResultContainer = BezierResults[CurveIndex/2];
-			const float Time0 = InTimes[CurveIndex+0];
-			const float Time1 = InTimes[CurveIndex+1];
-			const float CurveDiff = Time1 - Time0;
-			const float CurveAlpha = (InEvalTime - Time0) / CurveDiff;
 
 			TConstArrayView<float> Inputs0 = Inputs[CurveIndex+0];
 			TConstArrayView<float> Inputs1 = Inputs[CurveIndex+1];
+
 			for(int32 InputIndex = 0; InputIndex < Inputs0.Num(); ++InputIndex)
 			{
-				const float Input0 = Inputs0[InputIndex];
-				const float Input1 = Inputs1[InputIndex];
-				const float DeltaInput = Input1 - Input0;
-				const float CurveDelta = DeltaInput / CurveDiff;
-				const float CurveTan0 = InTangents[CurveIndex+0] * CurveDelta;
-				const float CurveTan1 = InTangents[CurveIndex+1] * CurveDelta;
-
-				const float P0 = Input0;
-				const float P3 = Input1;
-				const float P1 = P0 + (CurveTan0 * CurveDiff * OneThird);
-				const float P2 = P3 - (CurveTan1 * CurveDiff * OneThird);
-				ResultContainer[InputIndex] = BezierInterp(P0, P1, P2, P3, CurveAlpha);
+				ResultContainer[InputIndex] = EvalAtTwoPoints(InEvalTime
+					, InTimes[CurveIndex + 0]
+					, InTimes[CurveIndex + 1]
+					, Inputs0[InputIndex]
+					, Inputs1[InputIndex]
+					, InTangents[CurveIndex + 0]
+					, InTangents[CurveIndex + 1]);
 			}
 		}
 
@@ -110,7 +159,6 @@ namespace LensFileUtils
 			Output.SetNumUninitialized(InputCount);
 			for(int32 InputIndex = 0; InputIndex < BezierResults[0].Num(); ++InputIndex)
 			{
-				//Lerp across focus curves
 				Output[InputIndex] = FMath::Lerp(BezierResults[0][InputIndex], BezierResults[1][InputIndex], BlendFactor);
 			}
 		}
@@ -141,6 +189,13 @@ ULensFile::ULensFile()
 	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
 	{
 		CalibratedMapProcessor = MakeUnique<FCalibratedMapProcessor>();
+#if WITH_EDITOR
+		UCameraCalibrationSettings* DefaultSettings = GetMutableDefault<UCameraCalibrationSettings>();
+		DefaultSettings->OnDisplacementMapResolutionChanged().AddUObject(this, &ULensFile::UpdateDisplacementMapResolution);
+		DefaultSettings->OnCalibrationInputToleranceChanged().AddUObject(this, &ULensFile::UpdateInputTolerance);
+
+		UpdateInputTolerance(DefaultSettings->GetCalibrationInputTolerance());
+#endif // WITH_EDITOR
 	}
 }
 
@@ -339,7 +394,7 @@ bool ULensFile::EvaluateImageCenterParameters(float InFocus, float InZoom, FImag
 	return true;
 }
 
-bool ULensFile::EvaluateDistortionData(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler, FDistortionData& OutDistortionData) const
+bool ULensFile::EvaluateDistortionData(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler) const
 {	
 	TRACE_CPUPROFILER_EVENT_SCOPE(ULensFile::EvaluateDistortionData);
 
@@ -364,27 +419,27 @@ bool ULensFile::EvaluateDistortionData(float InFocus, float InZoom, FVector2D In
 	if (LensInfo.LensModel == nullptr)
 	{
 		UE_LOG(LogCameraCalibrationCore, Warning, TEXT("Can't evaluate LensFile '%s' - Invalid Lens Model"), *GetName());
-		SetupNoDistortionOutput(InLensHandler, OutDistortionData);
+		SetupNoDistortionOutput(InLensHandler);
 		return false;
 	}
 
 	if (InLensHandler->IsModelSupported(LensInfo.LensModel) == false)
 	{
 		UE_LOG(LogCameraCalibrationCore, Warning, TEXT("Can't evaluate LensFile '%s' - LensHandler '%s' doesn't support lens model '%s'"), *GetName(), *InLensHandler->GetName(), *LensInfo.LensModel.GetDefaultObject()->GetModelName().ToString());
-		SetupNoDistortionOutput(InLensHandler, OutDistortionData);
+		SetupNoDistortionOutput(InLensHandler);
 		return false;
 	}
 	
 	if(DataMode == ELensDataMode::Parameters)
 	{
-		return EvaluateDistortionForParameters(InFocus, InZoom, InFilmback, InLensHandler, OutDistortionData);
+		return EvaluateDistortionForParameters(InFocus, InZoom, InFilmback, InLensHandler);
 	}
 	else
 	{
 		//Only other mode for now
 		check(DataMode == ELensDataMode::STMap);
 
-		return EvaluteDistortionForSTMaps(InFocus, InZoom, InFilmback, InLensHandler, OutDistortionData);
+		return EvaluateDistortionForSTMaps(InFocus, InZoom, InFilmback, InLensHandler);
 	}
 }
 
@@ -413,16 +468,14 @@ float ULensFile::ComputeOverscan(const FDistortionData& DerivedData, FVector2D P
 	return FoundOverscan;
 }
 
-void ULensFile::SetupNoDistortionOutput(ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData) const
+void ULensFile::SetupNoDistortionOutput(ULensDistortionModelHandlerBase* LensHandler) const
 {
 	LensFileRendering::ClearDisplacementMap(LensHandler->GetUndistortionDisplacementMap());
 	LensFileRendering::ClearDisplacementMap(LensHandler->GetDistortionDisplacementMap());
-	OutDistortionData.DistortedUVs = UndistortedUVs;
-	OutDistortionData.OverscanFactor = 1.0f;
-	LensHandler->SetOverscanFactor(OutDistortionData.OverscanFactor);
+	LensHandler->SetOverscanFactor(1.0f);
 }
 
-bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler, FDistortionData& OutDistortionData) const
+bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler) const
 {
 	//ImageCenter is always required
 	FImageCenterInfo ImageCenter;
@@ -449,24 +502,21 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, FVe
 		//Updates handler state
 		InLensHandler->SetDistortionState(State);
 
-		OutDistortionData.OverscanFactor = InLensHandler->ComputeOverscanFactor();
-		InLensHandler->SetOverscanFactor(OutDistortionData.OverscanFactor);
+		InLensHandler->SetOverscanFactor(1.0f);
 
 		//Draw displacement map associated with the new state
 		InLensHandler->ProcessCurrentDistortion();
 	}
 	else
 	{
-		FDistortionData BlendedData;
-		BlendedData.DistortedUVs.SetNumZeroed(UndistortedUVs.Num());
-
 		FLensDistortionState State;
 		State.ImageCenter.PrincipalPoint = ImageCenter.PrincipalPoint;
 
 		FDisplacementMapBlendingParams Params;
+		float InterpolatedOverscanFactor = 1.0f;
 
 		//Helper function to compute the current distortion state
-		const auto ProcessDistortionState = [this, &State, InFilmback, InLensHandler](const FDistortionInfo& DistortionInfo, const FFocalLengthInfo& FocalLength, UTextureRenderTarget2D* UndistortionRenderTarget, UTextureRenderTarget2D* DistortionRenderTarget, FDistortionData& OutDistortionData)
+		const auto ProcessDistortionState = [this, &State, InFilmback, InLensHandler](const FDistortionInfo& DistortionInfo, const FFocalLengthInfo& FocalLength, UTextureRenderTarget2D* UndistortionRenderTarget, UTextureRenderTarget2D* DistortionRenderTarget, float& OverscanFactor)
 		{
 			State.DistortionInfo.Parameters = DistortionInfo.Parameters;
 
@@ -477,8 +527,7 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, FVe
 			InLensHandler->DrawUndistortionDisplacementMap(UndistortionRenderTarget);
 			InLensHandler->DrawDistortionDisplacementMap(DistortionRenderTarget);
 
-			OutDistortionData.DistortedUVs = InLensHandler->GetDistortedUVs(UndistortedUVs);
-			OutDistortionData.OverscanFactor = InLensHandler->ComputeOverscanFactor();
+			OverscanFactor = InLensHandler->ComputeOverscanFactor();
 		};
 
 		//Find focuses in play
@@ -501,14 +550,19 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, FVe
 			{
 				//Exactly on one point
 				Params.BlendType = EDisplacementMapBlendType::OneFocusOneZoom;
-				ProcessDistortionState(PreviousZoomPoint.DistortionInfo, PreviousZoomPointFocalLength, UndistortionDisplacementMapHolders[0], DistortionDisplacementMapHolders[0], BlendedData);
+
+				ProcessDistortionState(PreviousZoomPoint.DistortionInfo, PreviousZoomPointFocalLength, UndistortionDisplacementMapHolders[0], DistortionDisplacementMapHolders[0], InterpolatedOverscanFactor);
 			}
 			else
 			{
-				//Blend between two zoom points following map blend curve
+				//Interpolate between two zoom points following the map blending curve
 				Params.BlendType = EDisplacementMapBlendType::OneFocusTwoZoom;
-				float BlendFactor0 = LensInterpolationUtils::GetBlendFactor(InZoom, PreviousZoomPoint.Zoom, NextZoomPoint.Zoom);
 
+				float BlendedOverscanFactors[2];
+				ProcessDistortionState(PreviousZoomPoint.DistortionInfo, PreviousZoomPointFocalLength, UndistortionDisplacementMapHolders[0], DistortionDisplacementMapHolders[0], BlendedOverscanFactors[0]);
+				ProcessDistortionState(NextZoomPoint.DistortionInfo, NextZoomPointFocalLength, UndistortionDisplacementMapHolders[1], DistortionDisplacementMapHolders[1], BlendedOverscanFactors[1]);
+
+				//Set displacement map blending parameters
 				const TArray<FRichCurveKey>& PreviousPointsKeys = PreviousPoint.MapBlendingCurve.GetConstRefOfKeys();
 				const FRichCurveKey Curve0Key0 = PreviousPointsKeys[ZoomNeighbors.PreviousIndex];
 				const FRichCurveKey Curve0Key1 = PreviousPointsKeys[ZoomNeighbors.NextIndex];
@@ -519,16 +573,15 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, FVe
 				Params.Curve0Key0Tangent = Curve0Key0.LeaveTangent;
 				Params.Curve0Key1Tangent = Curve0Key1.ArriveTangent;
 
-				FDistortionData DistortionData[2];
-				ProcessDistortionState(PreviousZoomPoint.DistortionInfo, PreviousZoomPointFocalLength, UndistortionDisplacementMapHolders[0], DistortionDisplacementMapHolders[0], DistortionData[0]);
-				ProcessDistortionState(NextZoomPoint.DistortionInfo, NextZoomPointFocalLength, UndistortionDisplacementMapHolders[1], DistortionDisplacementMapHolders[1], DistortionData[1]);
-
+				//Interpolate distortion parameters along the map blending curve
 				const float Times[2] = { Curve0Key0.Time, Curve0Key1.Time };
 				const float Tangents[2] = { Curve0Key0.LeaveTangent, Curve0Key1.ArriveTangent };
 				const TConstArrayView<float> Parameters[2] = { PreviousZoomPoint.DistortionInfo.Parameters, NextZoomPoint.DistortionInfo.Parameters };
 				LensFileUtils::FindWeightsAndInterp(InZoom, Times, Tangents, TOptional<float>(), Parameters, State.DistortionInfo.Parameters);
-				
-				LensInterpolationUtils::Interpolate<FDistortionData>(BlendFactor0, &DistortionData[0], &DistortionData[1], &BlendedData);
+
+				//Interpolate overscan factor along the map blending curve
+				const float OverscanFactors[2] = { BlendedOverscanFactors[0], BlendedOverscanFactors[1] };
+				LensFileUtils::FindWeightsAndInterp(InZoom, Times, Tangents, TOptional<float>(), OverscanFactors, InterpolatedOverscanFactor);
 			}
 		}
 		else
@@ -551,70 +604,57 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, FVe
 			LensDataTableUtils::GetPointValue<FFocalLengthFocusPoint>(NextPoint.Focus, NextFocusPreviousZoomPoint.Zoom, FocalLengthTable.FocusPoints, NextFocusPreviousZoomPointFocalLength);
 			LensDataTableUtils::GetPointValue<FFocalLengthFocusPoint>(NextPoint.Focus, NextFocusNextZoomPoint.Zoom, FocalLengthTable.FocusPoints, NextFocusNextZoomPointFocalLength);
 
+			const float FocusBlendFactor = LensInterpolationUtils::GetBlendFactor(InFocus, PreviousPoint.Focus, NextPoint.Focus);
+			Params.FocusBlendFactor = FocusBlendFactor;
+
 			//Verify if we are dealing with one zoom point on each focus. If that's the case, we are doing simple lerp across the focus curves
 			if(PreviousFocusZoomNeighbors.NextIndex == PreviousFocusZoomNeighbors.PreviousIndex
 				&& NextFocusZoomNeighbors.NextIndex == NextFocusZoomNeighbors.PreviousIndex)
 			{
-				//Generate two maps and linear blend across focus
-				FDistortionData DistortionData[2];
-				ProcessDistortionState(PreviousFocusPreviousZoomPoint.DistortionInfo, PreviousFocusPreviousZoomPointFocalLength, UndistortionDisplacementMapHolders[0], DistortionDisplacementMapHolders[0], DistortionData[0]);
-				ProcessDistortionState(NextFocusPreviousZoomPoint.DistortionInfo, NextFocusPreviousZoomPointFocalLength, UndistortionDisplacementMapHolders[1], DistortionDisplacementMapHolders[1], DistortionData[1]);
-
-				//Linear blend between each zoom point pair and then both results linearly according to focus
-				const float FocusBlendFactor = LensInterpolationUtils::GetBlendFactor(InFocus, PreviousPoint.Focus, NextPoint.Focus);
-				LensInterpolationUtils::Interpolate(FocusBlendFactor, &DistortionData[0], &DistortionData[1], &BlendedData);
-
+				//Linearly interpolate between two focus curves
 				Params.BlendType = EDisplacementMapBlendType::TwoFocusOneZoom;
-				Params.FocusBlendFactor = FocusBlendFactor;
 
+				float BlendedOverscanFactors[2];
+				ProcessDistortionState(PreviousFocusPreviousZoomPoint.DistortionInfo, PreviousFocusPreviousZoomPointFocalLength, UndistortionDisplacementMapHolders[0], DistortionDisplacementMapHolders[0], BlendedOverscanFactors[0]);
+				ProcessDistortionState(NextFocusPreviousZoomPoint.DistortionInfo, NextFocusPreviousZoomPointFocalLength, UndistortionDisplacementMapHolders[1], DistortionDisplacementMapHolders[1], BlendedOverscanFactors[1]);
+
+				//Linearly interpolate the distortion parameters
 				LensInterpolationUtils::Interpolate(FocusBlendFactor, &PreviousFocusPreviousZoomPoint.DistortionInfo, &NextFocusPreviousZoomPoint.DistortionInfo, &State.DistortionInfo);
+
+				//Linearly interpolate the overscan factor
+				InterpolatedOverscanFactor = FMath::Lerp(FocusBlendFactor, BlendedOverscanFactors[0], BlendedOverscanFactors[1]);
 			}
 			else
 			{
-				//Generate four maps
-				FDistortionData DistortionData[4];
-				ProcessDistortionState(PreviousFocusPreviousZoomPoint.DistortionInfo, PreviousFocusPreviousZoomPointFocalLength, UndistortionDisplacementMapHolders[0], DistortionDisplacementMapHolders[0], DistortionData[0]);
-				ProcessDistortionState(PreviousFocusNextZoomPoint.DistortionInfo, PreviousFocusNextZoomPointFocalLength, UndistortionDisplacementMapHolders[1], DistortionDisplacementMapHolders[1], DistortionData[1]);
-				ProcessDistortionState(NextFocusPreviousZoomPoint.DistortionInfo, NextFocusPreviousZoomPointFocalLength, UndistortionDisplacementMapHolders[2], DistortionDisplacementMapHolders[2], DistortionData[2]);
-				ProcessDistortionState(NextFocusNextZoomPoint.DistortionInfo, NextFocusNextZoomPointFocalLength, UndistortionDisplacementMapHolders[3], DistortionDisplacementMapHolders[3], DistortionData[3]);
-
-				//Linear blend between each zoom point pair and then both results linearly according to focus
-				FDistortionData PreviousFocusBlendResult;
-				FDistortionData NextFocusBlendResult;
-				const float PreviousFocusZoomBlendFactor = LensInterpolationUtils::GetBlendFactor(InZoom, PreviousFocusPreviousZoomPoint.Zoom, PreviousFocusNextZoomPoint.Zoom);
-				LensInterpolationUtils::Interpolate(PreviousFocusZoomBlendFactor, &DistortionData[0], &DistortionData[1], &PreviousFocusBlendResult);
-
-				const float NextFocusZoomBlendFactor = LensInterpolationUtils::GetBlendFactor(InZoom, NextFocusPreviousZoomPoint.Zoom, NextFocusNextZoomPoint.Zoom);
-				LensInterpolationUtils::Interpolate(NextFocusZoomBlendFactor, &DistortionData[2], &DistortionData[3], &NextFocusBlendResult);
-
-				const float FocusBlendFactor = LensInterpolationUtils::GetBlendFactor(InFocus, PreviousPoint.Focus, NextPoint.Focus);
-				LensInterpolationUtils::Interpolate(FocusBlendFactor, &PreviousFocusBlendResult, &NextFocusBlendResult, &BlendedData);
-
+				//Interpolate between two zoom points on each curve using the correct map blending curve, then linearly interpolate between the two focus points
 				Params.BlendType = EDisplacementMapBlendType::TwoFocusTwoZoom;
 
-				Params.EvalTime = InZoom;
+				float BlendedOverscanFactors[4];
+				ProcessDistortionState(PreviousFocusPreviousZoomPoint.DistortionInfo, PreviousFocusPreviousZoomPointFocalLength, UndistortionDisplacementMapHolders[0], DistortionDisplacementMapHolders[0], BlendedOverscanFactors[0]);
+				ProcessDistortionState(PreviousFocusNextZoomPoint.DistortionInfo, PreviousFocusNextZoomPointFocalLength, UndistortionDisplacementMapHolders[1], DistortionDisplacementMapHolders[1], BlendedOverscanFactors[1]);
+				ProcessDistortionState(NextFocusPreviousZoomPoint.DistortionInfo, NextFocusPreviousZoomPointFocalLength, UndistortionDisplacementMapHolders[2], DistortionDisplacementMapHolders[2], BlendedOverscanFactors[2]);
+				ProcessDistortionState(NextFocusNextZoomPoint.DistortionInfo, NextFocusNextZoomPointFocalLength, UndistortionDisplacementMapHolders[3], DistortionDisplacementMapHolders[3], BlendedOverscanFactors[3]);
 
+				//Set displacement map blending parameters
 				const TArray<FRichCurveKey>& Curve0Keys = PreviousPoint.MapBlendingCurve.GetConstRefOfKeys();
-				FRichCurveKey Curve0Key0 = Curve0Keys[PreviousFocusZoomNeighbors.PreviousIndex];
-				FRichCurveKey Curve0Key1 = Curve0Keys[PreviousFocusZoomNeighbors.NextIndex];
+				const FRichCurveKey Curve0Key0 = Curve0Keys[PreviousFocusZoomNeighbors.PreviousIndex];
+				const FRichCurveKey Curve0Key1 = Curve0Keys[PreviousFocusZoomNeighbors.NextIndex];
 
+				const TArray<FRichCurveKey>& Curve1Keys = NextPoint.MapBlendingCurve.GetConstRefOfKeys();
+				const FRichCurveKey Curve1Key0 = Curve1Keys[NextFocusZoomNeighbors.PreviousIndex];
+				const FRichCurveKey Curve1Key1 = Curve1Keys[NextFocusZoomNeighbors.NextIndex];
+
+				Params.EvalTime = InZoom;
 				Params.Curve0Key0Time = Curve0Key0.Time;
 				Params.Curve0Key1Time = Curve0Key1.Time;
 				Params.Curve0Key0Tangent = Curve0Key0.LeaveTangent;
 				Params.Curve0Key1Tangent = Curve0Key1.ArriveTangent;
-
-				const TArray<FRichCurveKey>& Curve1Keys = NextPoint.MapBlendingCurve.GetConstRefOfKeys();
-				FRichCurveKey Curve1Key0 = Curve1Keys[NextFocusZoomNeighbors.PreviousIndex];
-				FRichCurveKey Curve1Key1 = Curve1Keys[NextFocusZoomNeighbors.NextIndex];
-
 				Params.Curve1Key0Time = Curve1Key0.Time;
 				Params.Curve1Key1Time = Curve1Key1.Time;
 				Params.Curve1Key0Tangent = Curve1Key0.LeaveTangent;
 				Params.Curve1Key1Tangent = Curve1Key1.ArriveTangent;
 
-				Params.FocusBlendFactor = FocusBlendFactor;
-
-				//Blend parameters following both zoom curves and lerp result using focus blend factor
+				//Interpolate distortion parameters along the map blending curves, then linearly interpolate between focus points
 				const float Times[4] = { Curve0Key0.Time, Curve0Key1.Time, Curve1Key0.Time, Curve1Key1.Time };
 				const float Tangents[4] = { Curve0Key0.LeaveTangent, Curve0Key1.ArriveTangent, Curve1Key0.LeaveTangent, Curve1Key1.ArriveTangent };
 				const TConstArrayView<float> Parameters[4] = { PreviousFocusPreviousZoomPoint.DistortionInfo.Parameters
@@ -622,6 +662,10 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, FVe
 															 , NextFocusPreviousZoomPoint.DistortionInfo.Parameters
 															 , NextFocusNextZoomPoint.DistortionInfo.Parameters};
 				LensFileUtils::FindWeightsAndInterp(InZoom, Times, Tangents, FocusBlendFactor, Parameters, State.DistortionInfo.Parameters);
+
+				//Interpolate overscan factor along the map blending curves, then linearly interpolate between focus points
+				const float OverscanFactors[4] = { BlendedOverscanFactors[0], BlendedOverscanFactors[1], BlendedOverscanFactors[2], BlendedOverscanFactors[3] };
+				LensFileUtils::FindWeightsAndInterp(InZoom, Times, Tangents, FocusBlendFactor, OverscanFactors, InterpolatedOverscanFactor);
 			}
 		}
 
@@ -654,33 +698,29 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, FVe
 			, DistortionDisplacementMapHolders[2]
 			, DistortionDisplacementMapHolders[3]);
 
-		OutDistortionData = MoveTemp(BlendedData);
-		InLensHandler->SetOverscanFactor(OutDistortionData.OverscanFactor);
+		InLensHandler->SetOverscanFactor(InterpolatedOverscanFactor);
 	}
 	
 	return true;
 }
 
-bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler, FDistortionData& OutDistortionData) const
+bool ULensFile::EvaluateDistortionForSTMaps(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler) const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(ULensFile::EvaluteDistortionForSTMaps);
+	TRACE_CPUPROFILER_EVENT_SCOPE(ULensFile::EvaluateDistortionForSTMaps);
 
 	if(DerivedDataInFlightCount > 0)
 	{
 		UE_LOG(LogCameraCalibrationCore, Verbose, TEXT("Can't evaluate LensFile '%s' - %d data points still being computed. Clearing render target for no distortion"), *GetName(), DerivedDataInFlightCount);
-		SetupNoDistortionOutput(InLensHandler, OutDistortionData);
+		SetupNoDistortionOutput(InLensHandler);
 		return true;
 	}
 
 	if(STMapTable.FocusPoints.Num() <= 0)
 	{
 		UE_LOG(LogCameraCalibrationCore, Verbose, TEXT("Can't evaluate LensFile '%s' - No calibrated maps"), *GetName());
-		SetupNoDistortionOutput(InLensHandler, OutDistortionData);
+		SetupNoDistortionOutput(InLensHandler);
 		return true;
 	}
-
-	FDistortionData BlendedData;
-	BlendedData.DistortedUVs.SetNumZeroed(UndistortedUVs.Num());
 
 	FDisplacementMapBlendingParams Params;
 
@@ -691,14 +731,20 @@ bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, FVector2
 
 	//When dealing with STMaps, FxFy was not a calibrated value. We can interpolate our curve directly for desired point
 	FLensDistortionState State;
+
+	const FVector2D FxFyScale = FVector2D(InFilmback.X / LensInfo.SensorDimensions.X, InFilmback.Y / LensInfo.SensorDimensions.Y);
+	Params.FxFyScale = FxFyScale;
+
 	FFocalLengthInfo FocalLength;
 	EvaluateFocalLength(InFocus, InZoom, FocalLength);
-	State.FocalLengthInfo = FocalLength;
+	State.FocalLengthInfo.FxFy = FocalLength.FxFy * FxFyScale;
 
 	FImageCenterInfo ImageCenter;
 	EvaluateImageCenterParameters(InFocus, InZoom, ImageCenter);
 	State.ImageCenter = ImageCenter;
+	Params.PrincipalPoint = ImageCenter.PrincipalPoint;
 
+	float InterpolatedOverscanFactor = 0.0f;
 
 	//Find focuses in play
 	const LensDataTableUtils::FPointNeighbors Neighbors = LensDataTableUtils::FindFocusPoints(InFocus, STMapTable.GetFocusPoints());
@@ -717,30 +763,37 @@ bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, FVector2
 
 			UndistortionMapSource[0] = PreviousZoomPoint.DerivedDistortionData.UndistortionDisplacementMap;
 			DistortionMapSource[0] = PreviousZoomPoint.DerivedDistortionData.DistortionDisplacementMap;
-			BlendedData = PreviousZoomPoint.DerivedDistortionData.DistortionData;
+ 			InterpolatedOverscanFactor = ComputeOverscan(PreviousZoomPoint.DerivedDistortionData.DistortionData, ImageCenter.PrincipalPoint);
 		}
 		else
 		{
-			//Blend between two zoom points following map blend curve
+			//Interpolate between two zoom points following the map blending curve
 			Params.BlendType = EDisplacementMapBlendType::OneFocusTwoZoom;
-			const float BlendFactor = LensInterpolationUtils::GetBlendFactor(InZoom, PreviousZoomPoint.Zoom, NextZoomPoint.Zoom);
 
+			UndistortionMapSource[0] = PreviousZoomPoint.DerivedDistortionData.UndistortionDisplacementMap;
+			DistortionMapSource[0] = PreviousZoomPoint.DerivedDistortionData.DistortionDisplacementMap;
+			UndistortionMapSource[1] = NextZoomPoint.DerivedDistortionData.UndistortionDisplacementMap;
+			DistortionMapSource[1] = NextZoomPoint.DerivedDistortionData.DistortionDisplacementMap;
+
+			//Set displacement map blending parameters
 			const TArray<FRichCurveKey>& PreviousPointsKeys = PreviousPoint.MapBlendingCurve.GetConstRefOfKeys();
 			const FRichCurveKey Curve0Key0 = PreviousPointsKeys[ZoomNeighbors.PreviousIndex];
 			const FRichCurveKey Curve0Key1 = PreviousPointsKeys[ZoomNeighbors.NextIndex];
 
-			Params.BlendType = EDisplacementMapBlendType::OneFocusTwoZoom;
 			Params.EvalTime = InZoom;
 			Params.Curve0Key0Time = Curve0Key0.Time;
 			Params.Curve0Key1Time = Curve0Key1.Time;
 			Params.Curve0Key0Tangent = Curve0Key0.LeaveTangent;
 			Params.Curve0Key1Tangent = Curve0Key1.ArriveTangent;
 
-			UndistortionMapSource[0] = PreviousZoomPoint.DerivedDistortionData.UndistortionDisplacementMap;
-			DistortionMapSource[0] = PreviousZoomPoint.DerivedDistortionData.DistortionDisplacementMap;
-			UndistortionMapSource[1] = NextZoomPoint.DerivedDistortionData.UndistortionDisplacementMap;
-			DistortionMapSource[1] = NextZoomPoint.DerivedDistortionData.DistortionDisplacementMap;
-			LensInterpolationUtils::Interpolate<FDistortionData>(BlendFactor, &PreviousZoomPoint.DerivedDistortionData.DistortionData, &NextZoomPoint.DerivedDistortionData.DistortionData, &BlendedData);
+			//Interpolate overscan factor along the map blending curve
+			const float PreviousZoomPointOverscanFactor = ComputeOverscan(PreviousZoomPoint.DerivedDistortionData.DistortionData, ImageCenter.PrincipalPoint);
+			const float NextZoomPointOverscanFactor = ComputeOverscan(NextZoomPoint.DerivedDistortionData.DistortionData, ImageCenter.PrincipalPoint);
+
+			const float Times[2] = { Curve0Key0.Time, Curve0Key1.Time };
+			const float Tangents[2] = { Curve0Key0.LeaveTangent, Curve0Key1.ArriveTangent };
+			const float OverscanFactors[2] = { PreviousZoomPointOverscanFactor, NextZoomPointOverscanFactor };
+			LensFileUtils::FindWeightsAndInterp(InZoom, Times, Tangents, TOptional<float>(), OverscanFactors, InterpolatedOverscanFactor);
 		}
 	}
 	else
@@ -755,27 +808,30 @@ bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, FVector2
 		const FSTMapZoomPoint NextFocusPreviousZoomPoint = NextPoint.ZoomPoints[NextFocusZoomNeighbors.PreviousIndex];
 		const FSTMapZoomPoint& NextFocusNextZoomPoint = NextPoint.ZoomPoints[NextFocusZoomNeighbors.NextIndex];
 		
+		const float FocusBlendFactor = LensInterpolationUtils::GetBlendFactor(InFocus, PreviousPoint.Focus, NextPoint.Focus);
+		Params.FocusBlendFactor = FocusBlendFactor;
+
 		//Verify if we are dealing with one zoom point on each focus. If that's the case, we are doing simple lerp across the focus curves
 		if(PreviousFocusZoomNeighbors.NextIndex == PreviousFocusZoomNeighbors.PreviousIndex
 			&& NextFocusZoomNeighbors.NextIndex == NextFocusZoomNeighbors.PreviousIndex)
 		{
-			//Grab 2 maps
+			Params.BlendType = EDisplacementMapBlendType::TwoFocusOneZoom;
+
 			UndistortionMapSource[0] = PreviousFocusPreviousZoomPoint.DerivedDistortionData.UndistortionDisplacementMap;
 			DistortionMapSource[0] = PreviousFocusPreviousZoomPoint.DerivedDistortionData.DistortionDisplacementMap;
 			UndistortionMapSource[1] = NextFocusPreviousZoomPoint.DerivedDistortionData.UndistortionDisplacementMap;
 			DistortionMapSource[1] = NextFocusPreviousZoomPoint.DerivedDistortionData.DistortionDisplacementMap;
-			
-			//Linear blend between each zoom point pair and then both results linearly according to focus
-			const float FocusBlendFactor = LensInterpolationUtils::GetBlendFactor(InFocus, PreviousPoint.Focus, NextPoint.Focus);
-			LensInterpolationUtils::Interpolate(FocusBlendFactor, &PreviousFocusPreviousZoomPoint.DerivedDistortionData.DistortionData, &NextFocusPreviousZoomPoint.DerivedDistortionData.DistortionData, &BlendedData);
 
-			//Setup blend params
-			Params.BlendType = EDisplacementMapBlendType::TwoFocusOneZoom;
-			Params.FocusBlendFactor = FocusBlendFactor;
+			//Linearly interpolate the overscan factor
+			const float PreviousPointOverscanFactor = ComputeOverscan(PreviousFocusPreviousZoomPoint.DerivedDistortionData.DistortionData, ImageCenter.PrincipalPoint);
+			const float NextPointOverscanFactor = ComputeOverscan(NextFocusPreviousZoomPoint.DerivedDistortionData.DistortionData, ImageCenter.PrincipalPoint);
+			InterpolatedOverscanFactor = FMath::Lerp(FocusBlendFactor, PreviousPointOverscanFactor, NextPointOverscanFactor);
 		}
 		else
 		{
-			//Grab 4 maps
+			//Interpolate between two zoom points on each curve using the correct map blending curve, then linearly interpolate between the two focus points
+			Params.BlendType = EDisplacementMapBlendType::TwoFocusTwoZoom;
+
 			UndistortionMapSource[0] = PreviousFocusPreviousZoomPoint.DerivedDistortionData.UndistortionDisplacementMap;
 			DistortionMapSource[0] = PreviousFocusPreviousZoomPoint.DerivedDistortionData.DistortionDisplacementMap;
 			UndistortionMapSource[1] = PreviousFocusNextZoomPoint.DerivedDistortionData.UndistortionDisplacementMap;
@@ -785,48 +841,37 @@ bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, FVector2
 			UndistortionMapSource[3] = NextFocusNextZoomPoint.DerivedDistortionData.UndistortionDisplacementMap;
 			DistortionMapSource[3] = NextFocusNextZoomPoint.DerivedDistortionData.DistortionDisplacementMap;
 			
-			//Linear blend between each zoom point pair and then both results linearly according to focus
-			//Linear blend between each zoom point pair and then both results linearly according to focus
-			FDistortionData PreviousFocusBlendResult;
-			FDistortionData NextFocusBlendResult;
-			const float PreviousFocusZoomBlendFactor = LensInterpolationUtils::GetBlendFactor(InZoom, PreviousFocusPreviousZoomPoint.Zoom, PreviousFocusNextZoomPoint.Zoom);
-			LensInterpolationUtils::Interpolate(PreviousFocusZoomBlendFactor, &PreviousFocusPreviousZoomPoint.DerivedDistortionData.DistortionData, &PreviousFocusNextZoomPoint.DerivedDistortionData.DistortionData, &PreviousFocusBlendResult);
-
-			const float NextFocusZoomBlendFactor = LensInterpolationUtils::GetBlendFactor(InZoom, NextFocusPreviousZoomPoint.Zoom, NextFocusNextZoomPoint.Zoom);
-			LensInterpolationUtils::Interpolate(NextFocusZoomBlendFactor, &NextFocusPreviousZoomPoint.DerivedDistortionData.DistortionData, &NextFocusNextZoomPoint.DerivedDistortionData.DistortionData, &NextFocusBlendResult);
-
-			const float FocusBlendFactor = LensInterpolationUtils::GetBlendFactor(InFocus, PreviousPoint.Focus, NextPoint.Focus);
-			LensInterpolationUtils::Interpolate(FocusBlendFactor, &PreviousFocusBlendResult, &NextFocusBlendResult, &BlendedData);
-
-			//Setup blend params
-			Params.BlendType = EDisplacementMapBlendType::TwoFocusTwoZoom;
-			Params.EvalTime = InZoom;
-
+			//Set displacement map blending parameters
 			const TArray<FRichCurveKey>& Curve0Keys = PreviousPoint.MapBlendingCurve.GetConstRefOfKeys();
 			const FRichCurveKey Curve0Key0 = Curve0Keys[PreviousFocusZoomNeighbors.PreviousIndex];
 			const FRichCurveKey Curve0Key1 = Curve0Keys[PreviousFocusZoomNeighbors.NextIndex];
-
-			Params.Curve0Key0Time = Curve0Key0.Time;
-			Params.Curve0Key1Time = Curve0Key1.Time;
-			Params.Curve0Key0Tangent = Curve0Key0.LeaveTangent;
-			Params.Curve0Key1Tangent = Curve0Key1.ArriveTangent;
 
 			const TArray<FRichCurveKey>& Curve1Keys = NextPoint.MapBlendingCurve.GetConstRefOfKeys();
 			const FRichCurveKey Curve1Key0 = Curve1Keys[NextFocusZoomNeighbors.PreviousIndex];
 			const FRichCurveKey Curve1Key1 = Curve1Keys[NextFocusZoomNeighbors.NextIndex];
 
+			Params.EvalTime = InZoom;
+			Params.Curve0Key0Time = Curve0Key0.Time;
+			Params.Curve0Key1Time = Curve0Key1.Time;
+			Params.Curve0Key0Tangent = Curve0Key0.LeaveTangent;
+			Params.Curve0Key1Tangent = Curve0Key1.ArriveTangent;
 			Params.Curve1Key0Time = Curve1Key0.Time;
 			Params.Curve1Key1Time = Curve1Key1.Time;
 			Params.Curve1Key0Tangent = Curve1Key0.LeaveTangent;
 			Params.Curve1Key1Tangent = Curve1Key1.ArriveTangent;
 
-			Params.FocusBlendFactor = FocusBlendFactor;
+			//Interpolate overscan factor along the map blending curves, then linearly interpolate between focus points
+			const float PreviousFocusPreviousZoomOverscanFactor = ComputeOverscan(PreviousFocusPreviousZoomPoint.DerivedDistortionData.DistortionData, ImageCenter.PrincipalPoint);
+			const float PreviousFocusNextZoomOverscanFactor = ComputeOverscan(PreviousFocusNextZoomPoint.DerivedDistortionData.DistortionData, ImageCenter.PrincipalPoint);
+			const float NextFocusPreviousZoomOverscanFactor = ComputeOverscan(NextFocusPreviousZoomPoint.DerivedDistortionData.DistortionData, ImageCenter.PrincipalPoint);
+			const float NextFocusNextZoomOverscanFactor = ComputeOverscan(NextFocusNextZoomPoint.DerivedDistortionData.DistortionData, ImageCenter.PrincipalPoint);
+
+			const float Times[4] = { Curve0Key0.Time, Curve0Key1.Time, Curve1Key0.Time, Curve1Key1.Time };
+			const float Tangents[4] = { Curve0Key0.LeaveTangent, Curve0Key1.ArriveTangent, Curve1Key0.LeaveTangent, Curve1Key1.ArriveTangent };
+			const float OverscanFactors[4] = { PreviousFocusPreviousZoomOverscanFactor, PreviousFocusNextZoomOverscanFactor, NextFocusPreviousZoomOverscanFactor, NextFocusNextZoomOverscanFactor };
+			LensFileUtils::FindWeightsAndInterp(InZoom, Times, Tangents, FocusBlendFactor, OverscanFactors, InterpolatedOverscanFactor);
 		}
 	}
-
-	// Compute a scale factor to scale the UVs in the blended displacement map
-	Params.FxFyScale = FVector2D(InFilmback.X / LensInfo.SensorDimensions.X, InFilmback.Y / LensInfo.SensorDimensions.Y);
-	Params.PrincipalPoint = ImageCenter.PrincipalPoint;
 
 	//Draw resulting undistortion displacement map for evaluation point
 	LensFileRendering::DrawBlendedDisplacementMap(InLensHandler->GetUndistortionDisplacementMap()
@@ -847,8 +892,7 @@ bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, FVector2
 			
 	//Sets final blended distortion state
 	InLensHandler->SetDistortionState(MoveTemp(State));
-	OutDistortionData = MoveTemp(BlendedData);
-	InLensHandler->SetOverscanFactor(OutDistortionData.OverscanFactor);
+	InLensHandler->SetOverscanFactor(InterpolatedOverscanFactor);
 
 	return true;
 }
@@ -895,7 +939,7 @@ bool ULensFile::EvaluateNodalPointOffset(float InFocus, float InZoom, FNodalPoin
 		EvaluateNodalOffset(Neighbors.NextIndex, InZoom, NextValue);
 	
 		//Blend result between focus
-		const float BlendFactor = LensInterpolationUtils::GetBlendFactor(InFocus, FocalLengthTable.FocusPoints[Neighbors.PreviousIndex].Focus, FocalLengthTable.FocusPoints[Neighbors.NextIndex].Focus);
+		const float BlendFactor = LensInterpolationUtils::GetBlendFactor(InFocus, NodalOffsetTable.FocusPoints[Neighbors.PreviousIndex].Focus, NodalOffsetTable.FocusPoints[Neighbors.NextIndex].Focus);
 		LensInterpolationUtils::Interpolate(BlendFactor, &PreviousValue, &NextValue, &OutEvaluatedValue);
 	}
 
@@ -962,6 +1006,11 @@ bool ULensFile::IsCineCameraCompatible(const UCineCameraComponent* CineCameraCom
 	return true;
 }
 
+void ULensFile::UpdateInputTolerance(const float NewTolerance)
+{
+	InputTolerance = NewTolerance;
+}
+
 void ULensFile::AddDistortionPoint(float NewFocus, float NewZoom, const FDistortionInfo& NewDistortionPoint, const FFocalLengthInfo& NewFocalLength)
 {
 	const bool bPointAdded = DistortionTable.AddPoint(NewFocus, NewZoom, NewDistortionPoint, InputTolerance, false);
@@ -1018,7 +1067,15 @@ void ULensFile::RemoveFocusPoint(ELensDataCategory InDataCategory, float InFocus
 			break;
 		}
 		case ELensDataCategory::Focus:
+		{
+			EncodersTable.RemoveFocusPoint(InFocus);
+			break;
+		}
 		case ELensDataCategory::Iris:
+		{
+			EncodersTable.RemoveIrisPoint(InFocus);
+			break;
+		}
 		default:
 		{}
 	}
@@ -1062,6 +1119,7 @@ void ULensFile::RemoveZoomPoint(ELensDataCategory InDataCategory, float InFocus,
 
 void ULensFile::ClearAll()
 {
+	EncodersTable.ClearAll();
 	LensDataTableUtils::EmptyTable(DistortionTable);
 	LensDataTableUtils::EmptyTable(FocalLengthTable);
 	LensDataTableUtils::EmptyTable(STMapTable);
@@ -1153,19 +1211,50 @@ bool ULensFile::HasSamples(ELensDataCategory InDataCategory) const
 	}
 }
 
+const FBaseLensTable& ULensFile::GetDataTable(ELensDataCategory InDataCategory) const
+{
+	switch(InDataCategory)
+	{
+	case ELensDataCategory::Distortion:
+		{
+			return DistortionTable;
+		}
+	case ELensDataCategory::ImageCenter:
+		{
+			return ImageCenterTable;
+		}
+	case ELensDataCategory::Zoom:
+		{
+			return FocalLengthTable;
+		}
+	case ELensDataCategory::STMap:
+		{
+			return STMapTable;
+		}
+	case ELensDataCategory::NodalOffset:
+		{
+			return NodalOffsetTable;
+		}
+	default:
+		{
+			checkNoEntry();
+			static FBaseLensTable BaseDataTable;
+			return BaseDataTable;
+		}
+	}
+}
+
 void ULensFile::PostInitProperties()
 {
 	Super::PostInitProperties();
 	
-	//Create displacement maps used when blending them together to get final distortion map
-	UndistortionDisplacementMapHolders.Reserve(DisplacementMapHolderCount);
-	DistortionDisplacementMapHolders.Reserve(DisplacementMapHolderCount);
-	for (int32 Index = 0; Index < DisplacementMapHolderCount; ++Index)
-	{
-		UTextureRenderTarget2D* NewMap = LensFileUtils::CreateDisplacementMapRenderTarget(GetTransientPackage());
-		UndistortionDisplacementMapHolders.Add(NewMap);
-		DistortionDisplacementMapHolders.Add(NewMap);
-	}
+	const FIntPoint DisplacementMapResolution = GetDefault<UCameraCalibrationSettings>()->GetDisplacementMapResolution();
+	CreateIntermediateDisplacementMaps(DisplacementMapResolution);
+
+	// Set a Lens file reference to all tables
+	DistortionTable.LensFile =
+		FocalLengthTable.LensFile = ImageCenterTable.LensFile =
+		NodalOffsetTable.LensFile = STMapTable.LensFile = this;
 }
 
 void ULensFile::Tick(float DeltaTime)
@@ -1176,6 +1265,23 @@ void ULensFile::Tick(float DeltaTime)
 	}
 
 	UpdateDerivedData();
+}
+
+void ULensFile::UpdateDisplacementMapResolution(const FIntPoint NewDisplacementMapResolution)
+{
+	CreateIntermediateDisplacementMaps(NewDisplacementMapResolution);
+
+	// Mark all points in the STMap table as dirty, so that they will update their derived data on the next tick
+	if (DataMode == ELensDataMode::STMap)
+	{
+		for (FSTMapFocusPoint& FocusPoint : STMapTable.GetFocusPoints())
+		{
+			for (FSTMapZoomPoint& ZoomPoint : FocusPoint.ZoomPoints)
+			{
+				ZoomPoint.DerivedDistortionData.bIsDirty = true;
+			}
+		}
+	}
 }
 
 TStatId ULensFile::GetStatId() const
@@ -1200,16 +1306,23 @@ void ULensFile::UpdateDerivedData()
 						continue;
 					}
 
+					const FIntPoint CurrentDisplacementMapResolution = GetDefault<UCameraCalibrationSettings>()->GetDisplacementMapResolution();
+
 					//Create required undistortion texture for newly added points
-					if (ZoomPoint.DerivedDistortionData.UndistortionDisplacementMap == nullptr)
+					if ((ZoomPoint.DerivedDistortionData.UndistortionDisplacementMap == nullptr)
+						|| (ZoomPoint.DerivedDistortionData.UndistortionDisplacementMap->SizeX != CurrentDisplacementMapResolution.X)
+						|| (ZoomPoint.DerivedDistortionData.UndistortionDisplacementMap->SizeY != CurrentDisplacementMapResolution.Y))
+
 					{
-						ZoomPoint.DerivedDistortionData.UndistortionDisplacementMap = LensFileUtils::CreateDisplacementMapRenderTarget(this);
+						ZoomPoint.DerivedDistortionData.UndistortionDisplacementMap = LensFileUtils::CreateDisplacementMapRenderTarget(this, CurrentDisplacementMapResolution);
 					}
 
 					//Create required distortion texture for newly added points
-					if (ZoomPoint.DerivedDistortionData.DistortionDisplacementMap == nullptr)
+					if ((ZoomPoint.DerivedDistortionData.DistortionDisplacementMap == nullptr)
+						|| (ZoomPoint.DerivedDistortionData.DistortionDisplacementMap->SizeX != CurrentDisplacementMapResolution.X)
+						|| (ZoomPoint.DerivedDistortionData.DistortionDisplacementMap->SizeY != CurrentDisplacementMapResolution.Y))
 					{
-						ZoomPoint.DerivedDistortionData.DistortionDisplacementMap = LensFileUtils::CreateDisplacementMapRenderTarget(this);
+						ZoomPoint.DerivedDistortionData.DistortionDisplacementMap = LensFileUtils::CreateDisplacementMapRenderTarget(this, CurrentDisplacementMapResolution);
 					}
 
 					check(ZoomPoint.DerivedDistortionData.UndistortionDisplacementMap);
@@ -1231,6 +1344,19 @@ void ULensFile::UpdateDerivedData()
 			}
 		
 		}
+	}
+}
+
+void ULensFile::CreateIntermediateDisplacementMaps(const FIntPoint DisplacementMapResolution)
+{
+	UndistortionDisplacementMapHolders.Reset(DisplacementMapHolderCount);
+	DistortionDisplacementMapHolders.Reset(DisplacementMapHolderCount);
+	for (int32 Index = 0; Index < DisplacementMapHolderCount; ++Index)
+	{
+		UTextureRenderTarget2D* NewUndistortionMap = LensFileUtils::CreateDisplacementMapRenderTarget(GetTransientPackage(), DisplacementMapResolution);
+		UTextureRenderTarget2D* NewDistortionMap = LensFileUtils::CreateDisplacementMapRenderTarget(GetTransientPackage(), DisplacementMapResolution);
+		UndistortionDisplacementMapHolders.Add(NewUndistortionMap);
+		DistortionDisplacementMapHolders.Add(NewDistortionMap);
 	}
 }
 

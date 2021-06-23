@@ -1,18 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DMXPixelMappingEditorUtils.h"
-#include "DMXPixelMappingComponentReference.h"
+
 #include "DMXPixelMapping.h"
+#include "DMXPixelMappingComponentReference.h"
+#include "DMXPixelMappingEditorCommon.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"
+#include "DragDrop/DMXPixelMappingDragDropOp.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
-#include "DMXPixelMappingEditorCommon.h"
+
+#include "ScopedTransaction.h"
 
 #include "Framework/Commands/GenericCommands.h"
-#include "ScopedTransaction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Input/DragAndDrop.h"
+#include "Layout/ArrangedWidget.h"
+#include "Widgets/SWidget.h"
 
 #define LOCTEXT_NAMESPACE "FDMXPixelMappingEditorUtils"
+
 
 bool FDMXPixelMappingEditorUtils::VerifyComponentRename(TSharedRef<FDMXPixelMappingToolkit> InToolkit, const FDMXPixelMappingComponentReference& InComponent, const FText& NewName, FText& OutErrorMessage)
 {
@@ -100,43 +107,15 @@ void FDMXPixelMappingEditorUtils::DeleteComponents(TSharedRef<FDMXPixelMappingTo
 
 		InDMXPixelMapping->Modify();
 
-		bool bRemoved = false;
 		for (const FDMXPixelMappingComponentReference& ComponentRef : InComponents)
 		{
 			if (UDMXPixelMappingBaseComponent* ComponentToRemove = ComponentRef.GetComponent())
 			{
-				ComponentToRemove->SetFlags(RF_Transactional);
-
-				UDMXPixelMappingBaseComponent* ParentOfRemovedComponent = ComponentToRemove->Parent;
-				if (ParentOfRemovedComponent)
-				{
-					ParentOfRemovedComponent->SetFlags(RF_Transactional);
-					ParentOfRemovedComponent->Modify();
-				}
-
-				// Modify the component being removed.
-				ComponentToRemove->Modify();
-
-				bRemoved = InDMXPixelMapping->RemoveComponent(ComponentToRemove);
-
-				// Rename the removed Component to the transient package so that it doesn't conflict with future Components sharing the same name.
-				ComponentToRemove->Rename(nullptr, GetTransientPackage());
-
-				// Rename all child Components as well, to the transient package so that they don't conflict with future Components sharing the same name.
-				TArray<UDMXPixelMappingBaseComponent*> ChildComponents;
-				ComponentToRemove->GetChildComponentsRecursively(ChildComponents);
-				for (UDMXPixelMappingBaseComponent* Component : ChildComponents)
-				{
-					Component->SetFlags(RF_Transactional);
-					Component->Rename(nullptr, GetTransientPackage());
-				}
+				InDMXPixelMapping->RemoveComponent(ComponentToRemove);
 			}
 		}
 
-		if (bRemoved)
-		{
-			InToolkit->BroadcastPostChange(InDMXPixelMapping);
-		}
+		InToolkit->BroadcastPostChange(InDMXPixelMapping);
 	}
 }
 
@@ -144,14 +123,14 @@ UDMXPixelMappingRendererComponent* FDMXPixelMappingEditorUtils::AddRenderer(UDMX
 {
 	if (InPixelMapping == nullptr)
 	{
-		UE_LOG(LogDMXPixelMappingEditor, Warning, TEXT("%S: InPixelMapping is nullptr"), __FUNCTION__);
+		UE_LOG(LogDMXPixelMappingEditor, Warning, TEXT("Cannot find PixelMapping in AddRenderer call. PixelMapping is nullptr."));
 
 		return nullptr;
 	}	
 	
 	if (InPixelMapping->RootComponent == nullptr)
 	{
-		UE_LOG(LogDMXPixelMappingEditor, Warning, TEXT("%S: InPixelMapping->RootComponent is nullptr"), __FUNCTION__);
+		UE_LOG(LogDMXPixelMappingEditor, Warning, TEXT("Cannot find RootComponent in AddRenderer call. RootComponent is nullptr."));
 
 		return nullptr;
 	}
@@ -182,6 +161,43 @@ void FDMXPixelMappingEditorUtils::CreateComponentContextMenu(FMenuBuilder& MenuB
 		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete);
 	}
 	MenuBuilder.EndSection();
+}
+
+
+bool FDMXPixelMappingEditorUtils::GetArrangedWidget(TSharedRef<SWidget> InWidget, FArrangedWidget& OutArrangedWidget)
+{
+	TSharedPtr<SWindow> WidgetWindow = FSlateApplication::Get().FindWidgetWindow(InWidget);
+	if (!WidgetWindow.IsValid())
+	{
+		return false;
+	}
+
+	TSharedRef<SWindow> CurrentWindowRef = WidgetWindow.ToSharedRef();
+
+	FWidgetPath WidgetPath;
+	if (FSlateApplication::Get().GeneratePathToWidgetUnchecked(InWidget, WidgetPath))
+	{
+		OutArrangedWidget = WidgetPath.FindArrangedWidget(InWidget).Get(FArrangedWidget::GetNullWidget());
+		return true;
+	}
+
+	return false;
+}
+
+UDMXPixelMappingBaseComponent* FDMXPixelMappingEditorUtils::GetTargetComponentFromDragDropEvent(const TWeakPtr<FDMXPixelMappingToolkit>& WeakToolkit, const FDragDropEvent& DragDropEvent)
+{
+	if (TSharedPtr<FDMXPixelMappingToolkit> ToolkitPtr = WeakToolkit.Pin())
+	{
+		TSharedPtr<FDMXPixelMappingDragDropOp> DragDropOp = DragDropEvent.GetOperationAs<FDMXPixelMappingDragDropOp>();
+		if (DragDropOp.IsValid())
+		{
+			UDMXPixelMappingBaseComponent* Target = (DragDropOp->Parent.IsValid()) ? DragDropOp->Parent.Get() : ToolkitPtr->GetActiveRendererComponent();
+
+			return Target;
+		}
+	}
+
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

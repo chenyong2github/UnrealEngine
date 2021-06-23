@@ -20,7 +20,7 @@
  * 
  * Note: To handle Port changes in code please refer to FDMXPortManager.
  */
-UCLASS(Config = Engine, DefaultConfig, Meta = (DisplayName = "DMX"))
+UCLASS(Config = Engine, DefaultConfig, AutoExpandCategories = ("DMX|Communication Settings"), Meta = (DisplayName = "DMX"))
 class DMXPROTOCOL_API UDMXProtocolSettings 
 	: public UObject
 {
@@ -63,6 +63,14 @@ public:
 	/** DMX Output Port Configs */
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Communication Settings", Meta = (DisplayName = "Output Ports"))
 	TArray<FDMXOutputPortConfig> OutputPortConfigs;
+		
+	/** Rate at which DMX is sent, in Hz from 1 to 1000. 44Hz is recommended. */
+	UPROPERTY(Config, EditAnywhere, Category = "DMX|Sending Settings", Meta = (ClampMin = "1", ClampMax = "1000"), Meta = (DisplayName = "DMX Send Rate"))
+	uint32 SendingRefreshRate;
+
+	/** Rate at which DMX is received, in Hz from 1 to 1000. 44Hz is recommended */
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "ReceivingRefreshRate is deprecated without replacement. It would prevent from precise timestamps on the receivers."))
+	uint32 ReceivingRefreshRate_DEPRECATED;
 
 	/** Fixture Categories ENum */
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Fixture Settings", Meta = (DisplayName = "Fixture Categories"))
@@ -71,14 +79,6 @@ public:
 	/** Common names to map Fixture Functions to and access them easily on Blueprints */
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Fixture Settings", Meta = (DisplayName = "Fixture Attributes"))
 	TSet<FDMXAttribute> Attributes;
-
-	/** Rate at which DMX is sent, in Hz from 1 to 1000. 44Hz is recommended. */
-	UPROPERTY(Config, EditAnywhere, Category = "DMX|Sending Settings", Meta = (ClampMin = "1", ClampMax = "1000"))
-	uint32 SendingRefreshRate;
-
-	/** Rate at which DMX is received, in Hz from 1 to 1000. 44Hz is recommended */
-	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "ReceivingRefreshRate is deprecated without replacement. It would deter timestamps on the receivers. Instead use a per object rate where desired."))
-	uint32 ReceivingRefreshRate;
 
 	/** Broadcast when send DMX is enabled or disabled */
 	FDMXOnSendDMXEnabled OnSetSendDMXEnabled;

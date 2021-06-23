@@ -5,13 +5,10 @@
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "DisplayClusterRootActor.h"
 
-#include "Components/DisplayClusterOriginComponent.h"
-#include "Components/DisplayClusterMeshComponent.h"
+#include "Components/DisplayClusterCameraComponent.h"
+#include "Components/DisplayClusterICVFXCameraComponent.h"
 #include "Components/DisplayClusterScreenComponent.h"
 #include "Components/DisplayClusterXformComponent.h"
-#include "Components/DisplayClusterCameraComponent.h"
-
-#include "Components/DisplayClusterICVFXCameraComponent.h"
 
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Images/SImage.h"
@@ -430,10 +427,8 @@ void SDisplayClusterConfiguratorComponentClassCombo::GenerateComponentClassList(
 	};
 
 	AddHeader("nDisplay Components");
-	
-	AddDCComp(UDisplayClusterOriginComponent::StaticClass());
-	AddDCComp(UDisplayClusterScreenComponent::StaticClass());
 	AddDCComp(UDisplayClusterXformComponent::StaticClass());
+	AddDCComp(UDisplayClusterScreenComponent::StaticClass());
 	AddDCComp(UDisplayClusterCameraComponent::StaticClass());
 
 	AddHeader("nDisplay ICVFX Components");

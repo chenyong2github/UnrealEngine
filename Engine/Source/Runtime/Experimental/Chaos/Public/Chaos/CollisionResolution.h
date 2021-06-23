@@ -47,5 +47,7 @@ namespace Chaos
 		template<ECollisionUpdateType UpdateType>
 		void UpdateLevelsetLevelsetConstraint(const FRigidTransform3& WorldTransform0, const FRigidTransform3& WorldTransform1, const FReal Dt, FRigidBodyPointContactConstraint& Constraint);
 
+		// Reset per-frame collision stat counters
+		void CHAOS_API ResetChaosCollisionCounters();
 	}
 }

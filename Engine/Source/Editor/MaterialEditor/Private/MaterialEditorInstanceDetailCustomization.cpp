@@ -287,24 +287,22 @@ void FMaterialInstanceParameterDetails::CreateGroupsWidget(TSharedRef<IPropertyH
 		{
 			bShowSaveButtons = true;
 			bool bCreateGroup = false;
-			for (int32 ParamIdx = 0; ParamIdx < ParameterGroup.Parameters.Num(); ++ParamIdx)
+			bool bIsCookedMaterial = false;
+			if (MaterialEditorInstance->SourceInstance)
 			{
-				UDEditorParameterValue* Parameter = ParameterGroup.Parameters[ParamIdx];
-				if (MaterialEditorInstance->bShowOnlyOverrides)
+				if (UMaterial* Material = MaterialEditorInstance->SourceInstance->GetMaterial())
 				{
-					if (MaterialEditorInstance->VisibleExpressions.Contains(Parameter->ParameterInfo) && FMaterialPropertyHelpers::IsOverriddenExpression(Parameter))
-					{
-						bCreateGroup = true;
-					}
-				}
-				else
-				{
-					if (MaterialEditorInstance->VisibleExpressions.Contains(Parameter->ParameterInfo))
-					{
-						bCreateGroup = true;
-					}
+					bIsCookedMaterial = Material->GetPackage()->HasAnyPackageFlags(PKG_Cooked);
 				}
 			}
+			for (int32 ParamIdx = 0; ParamIdx < ParameterGroup.Parameters.Num() && !bCreateGroup; ++ParamIdx)
+			{
+				UDEditorParameterValue* Parameter = ParameterGroup.Parameters[ParamIdx];
+				// All parameters on cooked materials are visible since the underlying data to discover visibility has been stripped.
+				const bool bIsVisible = bIsCookedMaterial || MaterialEditorInstance->VisibleExpressions.Contains(Parameter->ParameterInfo);
+				bCreateGroup = bIsVisible && (!MaterialEditorInstance->bShowOnlyOverrides || FMaterialPropertyHelpers::IsOverriddenExpression(Parameter));
+			}
+			
 			if (bCreateGroup)
 			{
 				IDetailGroup& DetailGroup = GroupsCategory.AddGroup(ParameterGroup.GroupName, FText::FromName(ParameterGroup.GroupName), false, true);

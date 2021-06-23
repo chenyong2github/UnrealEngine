@@ -7,7 +7,6 @@
 #include "ProtocolDefs.h"
 #include "JavaScriptKeyCodes.inl"
 #include "IPixelStreamingModule.h"
-
 #include "Engine/Engine.h"
 #include "Engine/GameEngine.h"
 #include "Engine/GameViewportClient.h"
@@ -119,7 +118,7 @@ FInputDevice::FInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& 
 	: PixelStreamerApplicationWrapper(MakeShareable(new FApplicationWrapper(FSlateApplication::Get().GetPlatformApplication())))
 	, MessageHandler(InMessageHandler)
 	, InputComponents(InInputComponents)
-	, bAllowCommands(FParse::Param(FCommandLine::Get(), TEXT("AllowPixelStreamingCommands")))
+	, bAllowCommands(PixelStreamingSettings::IsAllowPixelStreamingCommands())
 	, bFakingTouchEvents(FSlateApplication::Get().IsFakingTouchEvents())
 	, FocusedPos(UnfocusedPos)
 	, PixelStreamingModule(FModuleManager::Get().GetModulePtr<IPixelStreamingModule>("PixelStreaming"))
@@ -134,7 +133,7 @@ FInputDevice::FInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& 
 		// Check to see if we want to hide the cursor (by making it invisible).
 		// This is required if we want to make the cursor client-side (displayed
 		// only by the the browser).
-		bool bHideCursor = FParse::Param(FCommandLine::Get(), TEXT("PixelStreamingHideCursor"));
+		bool bHideCursor = PixelStreamingSettings::IsPixelStreamingHideCursor();
 		if (bHideCursor)
 		{
 			GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::Default, Settings->PixelStreamerHiddenCursorClassName);
@@ -453,30 +452,8 @@ void FInputDevice::FindFocusedWidget()
 
 namespace
 {
-	template<typename T>
-	const T& Get(const uint8*& Data, uint32& Size)
-	{
-		checkf(sizeof(T) <= Size, TEXT("%d - %d"), sizeof(T), Size);
-		const T& Value = *reinterpret_cast<const T*>(Data);
-		Data += sizeof(T);
-		Size -= sizeof(T);
-		return Value;
-	}
 
-#define GET(Type, Var) Type Var = Get<Type>(Data, Size)
-
-	FString GetString(const uint8*& Data, uint32& Size)
-	{
-		GET(uint16, StrLen);
-		checkf(StrLen * sizeof(TCHAR) <= Size, TEXT("%d - %d"), StrLen, Size);
-		FString Res;
-		Res.GetCharArray().SetNumUninitialized(StrLen + 1);
-		FMemory::Memcpy(Res.GetCharArray().GetData(), Data, StrLen * sizeof(TCHAR));
-		Res.GetCharArray()[StrLen] = '\0';
-		Data += StrLen * sizeof(TCHAR);
-		Size -= StrLen * sizeof(TCHAR);
-		return Res;
-	}
+#define GET(Type, Var) Type Var = PixelStreamingProtocol::ParseBuffer<Type>(Data, Size)
 
 	// XY positions are the ratio (0.0..1.0) along a viewport axis, quantized
 	// into an uint16 (0..65536). This allows the browser viewport and player
@@ -574,7 +551,7 @@ void FInputDevice::OnMessage(const uint8* Data, uint32 Size)
 	{
 	case EToStreamerMsg::UIInteraction:
 	{
-		FString Descriptor = GetString(Data, Size);
+		FString Descriptor = PixelStreamingProtocol::ParseString(Data, Size);
 		checkf(Size == 0, TEXT("%d, %d"), Size, Descriptor.Len());
 		UE_LOG(PixelStreamerInput, Verbose, TEXT("UIInteraction: %s"), *Descriptor);
 		ProcessUIInteraction(Descriptor);
@@ -582,7 +559,7 @@ void FInputDevice::OnMessage(const uint8* Data, uint32 Size)
 	}
 	case EToStreamerMsg::Command:
 	{
-		FString Descriptor = GetString(Data, Size);
+		FString Descriptor = PixelStreamingProtocol::ParseString(Data, Size);
 		checkf(Size == 0, TEXT("%d, %d"), Size, Descriptor.Len());
 		UE_LOG(PixelStreamerInput, Verbose, TEXT("Command: %s"), *Descriptor);
 		ProcessCommand(Descriptor);

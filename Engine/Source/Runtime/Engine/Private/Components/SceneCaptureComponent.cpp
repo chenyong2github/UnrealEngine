@@ -38,6 +38,30 @@
 
 static TMultiMap<TWeakObjectPtr<UWorld>, TWeakObjectPtr<USceneCaptureComponent> > SceneCapturesToUpdateMap;
 
+static TAutoConsoleVariable<bool> CVarSCOverrideOrthographicTilingValues(
+	TEXT("r.SceneCapture.OverrideOrthographicTilingValues"),
+	false,
+	TEXT("Override defined orthographic values from SceneCaptureComponent2D - Ignored in Perspective mode."),
+	ECVF_Default);
+
+static TAutoConsoleVariable<bool> CVarSCEnableOrthographicTiling(
+	TEXT("r.SceneCapture.EnableOrthographicTiling"),
+	false,
+	TEXT("Render the scene in n frames (i.e TileCount) - Ignored in Perspective mode, works only in Orthographic mode and when r.SceneCapture.OverrideOrthographicTilingValues is on."),
+	ECVF_Default);
+
+static TAutoConsoleVariable<int32> CVarSCOrthographicNumXTiles(
+	TEXT("r.SceneCapture.OrthographicNumXTiles"),
+	4,
+	TEXT("Number of X tiles to render. Ignored in Perspective mode, works only in Orthographic mode and when r.SceneCapture.OverrideOrthographicTilingValues is on."),
+	ECVF_Default);
+
+static TAutoConsoleVariable<int32> CVarSCOrthographicNumYTiles(
+	TEXT("r.SceneCapture.OrthographicNumYTiles"),
+	4,
+	TEXT("Number of Y tiles to render. Ignored in Perspective mode, works only in Orthographic mode and when r.SceneCapture.OverrideOrthographicTilingValues is on."),
+	ECVF_Default);
+
 ASceneCapture::ASceneCapture(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -448,6 +472,9 @@ USceneCaptureComponent2D::USceneCaptureComponent2D(const FObjectInitializer& Obj
 	bConsiderUnrenderedOpaquePixelAsFullyTranslucent = false;
 	bDisableFlipCopyGLES = false;
 	
+	UpdateOrthographicTilingSettings();
+	TileID = 0;
+
 	// Legacy initialization.
 	{
 		// previous behavior was to capture 2d scene captures before cube scene captures.
@@ -491,6 +518,7 @@ void USceneCaptureComponent2D::OnRegister()
 	// Without updating here this component would not work in a blueprint construction script which recreates the component after each move in the editor
 	if (bCaptureOnMovement)
 	{
+		TileID = 0;
 		CaptureSceneDeferred();
 	}
 #endif
@@ -510,9 +538,25 @@ void USceneCaptureComponent2D::TickComponent(float DeltaTime, enum ELevelTick Ti
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	if (bCaptureEveryFrame)
+	UpdateOrthographicTilingSettings();
+
+	const int32 NumTiles = NumXTiles * NumYTiles;
+	if (bCaptureEveryFrame || (bEnableOrthographicTiling && TileID < NumTiles))
 	{
 		CaptureSceneDeferred();
+	}
+
+	if (bEnableOrthographicTiling)
+	{
+		if (bCaptureEveryFrame)
+		{
+			TileID++;
+			TileID %= NumTiles;
+		}
+		else if (TileID < (NumTiles-1))
+		{
+			TileID++;
+		}
 	}
 }
 
@@ -673,6 +717,8 @@ void USceneCaptureComponent2D::PostEditChangeProperty(FPropertyChangedEvent& Pro
 	// AActor::PostEditChange will ForceUpdateComponents()
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
+	UpdateOrthographicTilingSettings();
+	TileID = 0;
 	CaptureSceneDeferred();
 
 	UpdateDrawFrustum();
@@ -699,9 +745,46 @@ void USceneCaptureComponent2D::Serialize(FArchive& Ar)
 
 void USceneCaptureComponent2D::UpdateSceneCaptureContents(FSceneInterface* Scene)
 {
+	UpdateOrthographicTilingSettings();
 	Scene->UpdateSceneCaptureContents(this);
 }
 
+void USceneCaptureComponent2D::UpdateOrthographicTilingSettings()
+{
+	if (!CVarSCOverrideOrthographicTilingValues->GetBool())
+	{
+		return;
+	}
+
+	bool bEnableOrthographicTilingLocal = CVarSCEnableOrthographicTiling->GetBool();
+	int32 NumXTilesLocal = CVarSCOrthographicNumXTiles->GetInt();
+	int32 NumYTilesLocal = CVarSCOrthographicNumYTiles->GetInt();
+
+	bool bModified = false;
+
+	if (bEnableOrthographicTilingLocal != bEnableOrthographicTiling)
+	{
+		bEnableOrthographicTiling = bEnableOrthographicTilingLocal;
+		bModified = true;
+	}
+
+	if (NumXTilesLocal != NumXTiles)
+	{
+		NumXTiles = FMath::Clamp(NumXTilesLocal, 1, 64);
+		bModified = true;
+	}
+
+	if (NumYTilesLocal != NumYTiles)
+	{
+		NumYTiles = FMath::Clamp(NumYTilesLocal, 1, 64);
+		bModified = true;
+	}
+	
+	if (bModified)
+	{
+		TileID = 0;
+	}
+}
 
 // -----------------------------------------------
 

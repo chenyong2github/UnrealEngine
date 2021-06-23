@@ -11,16 +11,18 @@
 #endif
 #include "eos_types.h"
 
-struct IEOSPlatformHandle
+class IEOSPlatformHandle
 {
-	EOS_HPlatform PlatformHandle;
-
+public:
 	IEOSPlatformHandle(EOS_HPlatform InPlatformHandle) : PlatformHandle(InPlatformHandle) {}
 	virtual ~IEOSPlatformHandle() = default;
 
 	virtual void Tick() = 0;
 
 	operator EOS_HPlatform() const { return PlatformHandle; }
+
+protected:
+	EOS_HPlatform PlatformHandle;
 };
 using IEOSPlatformHandlePtr = TSharedPtr<IEOSPlatformHandle, ESPMode::ThreadSafe>;
 

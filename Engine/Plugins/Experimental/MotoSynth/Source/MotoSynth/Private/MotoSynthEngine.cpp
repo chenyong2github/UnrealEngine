@@ -64,17 +64,18 @@ void FMotoSynthEngine::Init(int32 InSampleRate)
 
 	SynthOsc.Start();
 
+	SynthEnv.Init(InSampleRate);
+
+	NoiseEnv.Init(InSampleRate);
+	NoiseFilter.Init((float)InSampleRate, 1, Audio::EBiquadFilter::Lowpass);
+
 	GrainCrossfadeSamples = 10;
 	NumGrainTableEntriesPerGrain = 3;
 	GrainTableRandomOffsetForConstantRPMs = 20;
 	GrainCrossfadeSamplesForConstantRPMs = 20;
 
 	SynthOctaveShift = 0;
-	SynthToneVolume = 1.0f;
-	SynthFilterFrequency = 500.0f;
 	SynthFilter.Init((float)InSampleRate, 1);
-	SynthFilter.SetFrequency(SynthFilterFrequency);
-	SynthFilter.Update();
 
 	DelayStereo.Init((float)InSampleRate, 2);
 	DelayStereo.SetDelayTimeMsec(25);
@@ -96,6 +97,8 @@ void FMotoSynthEngine::Init(int32 InSampleRate)
 	}
 
 	ActiveGrains.Reset();
+
+	bRPMWasSet = false;
 }
 
 void FMotoSynthEngine::Reset()
@@ -144,9 +147,16 @@ void FMotoSynthEngine::SetSettings(const FMotoSynthRuntimeSettings& InSettings)
 	SynthCommand([this, InSettings]()
 	{
 		bSynthToneEnabled = InSettings.bSynthToneEnabled;
-		SynthToneVolume = InSettings.SynthToneVolume;
+		bSynthToneEnvelopeEnabled = InSettings.bSynthToneEnvelopeEnabled;
 		SynthOctaveShift = InSettings.SynthOctaveShift;
-		SynthFilterFrequency = InSettings.SynthToneFilterFrequency;
+
+		SynthToneVolumeRange = { FMath::Clamp(InSettings.SynthToneVolumeRange.X, 0.0f, 4.0f), FMath::Clamp(InSettings.SynthToneVolumeRange.Y, 0.0f, 4.0f) };
+		SynthToneFilterFrequencyRange = { FMath::Clamp(InSettings.SynthToneFilterFrequencyRange.X, 20.0f, 10000.0f), FMath::Clamp(InSettings.SynthToneFilterFrequencyRange.Y, 20.0f, 10000.0f) };;
+		SynthToneAttackTimeMsecRange = { FMath::Max(InSettings.SynthToneAttackTimeMsecRange.X, 0.0f), FMath::Max(InSettings.SynthToneAttackTimeMsecRange.Y, 0.0f) };
+		SynthToneDecayTimeMsecRange = { FMath::Max(InSettings.SynthToneDecayTimeMsecRange.X, 0.0f), FMath::Max(InSettings.SynthToneDecayTimeMsecRange.Y, 0.0f) };
+		SynthToneAttackCurveRange = { FMath::Max(InSettings.SynthToneAttackCurveRange.X, 0.0f), FMath::Max(InSettings.SynthToneAttackCurveRange.Y, 0.0f) };
+		SynthToneDecayCurveRange = { FMath::Max(InSettings.SynthToneDecayCurveRange.X, 0.0f), FMath::Max(InSettings.SynthToneDecayCurveRange.Y, 0.0f) };
+
 		bGranularEngineEnabled = InSettings.bGranularEngineEnabled;
 		TargetGranularEngineVolume = InSettings.GranularEngineVolume;
 		GrainCrossfadeSamples = InSettings.NumSamplesToCrossfadeBetweenGrains;
@@ -155,9 +165,16 @@ void FMotoSynthEngine::SetSettings(const FMotoSynthRuntimeSettings& InSettings)
 		GrainCrossfadeSamplesForConstantRPMs = InSettings.GrainCrossfadeSamplesForConstantRPMs;
 		bStereoWidenerEnabled = InSettings.bStereoWidenerEnabled;
 		PitchScale = InSettings.GranularEnginePitchScale;
-		
-		SynthFilter.SetFrequency(SynthFilterFrequency);
-		SynthFilter.Update();
+
+		bNoiseEnabled = InSettings.bNoiseEnabled;
+		bNoiseEnvelopeEnabled = InSettings.bNoiseEnvelopeEnabled;
+
+		NoiseVolumeRange = { FMath::Clamp(InSettings.NoiseVolumeRange.X, 0.0f, 4.0f), FMath::Clamp(InSettings.NoiseVolumeRange.Y, 0.0f, 4.0f) };
+		NoiseLPFRange = { FMath::Clamp(InSettings.NoiseLPFRange.X, 20.0f, 20000.0f), FMath::Clamp(InSettings.NoiseLPFRange.Y, 20.0f, 20000.0f) };
+		NoiseAttackTimeMsecRange = { FMath::Max(InSettings.NoiseAttackTimeMsecRange.X, 0.0f), FMath::Max(InSettings.NoiseAttackTimeMsecRange.Y, 0.0f) };
+		NoiseDecayTimeMsecRange = { FMath::Max(InSettings.NoiseDecayTimeMsecRange.X, 0.0f), FMath::Max(InSettings.NoiseDecayTimeMsecRange.Y, 0.0f) };
+		NoiseAttackCurveRange = { FMath::Max(InSettings.NoiseAttackCurveRange.X, 0.0f), FMath::Max(InSettings.NoiseAttackCurveRange.Y, 0.0f) };
+		NoiseDecayCurveRange = { FMath::Max(InSettings.NoiseDecayCurveRange.X, 0.0f), FMath::Max(InSettings.NoiseDecayCurveRange.Y, 0.0f) };
 
 		DelayStereo.SetDelayTimeMsec(InSettings.StereoDelayMsec);
 		DelayStereo.SetFeedback(InSettings.StereoFeedback);
@@ -173,6 +190,7 @@ void FMotoSynthEngine::SetRPM(float InRPM, float InTimeSec)
 {
 	SynthCommand([this, InRPM, InTimeSec]()
 	{
+		bRPMWasSet = true;
 		TargetRPM = InRPM;
 		CurrentRPMTime = 0.0f;
 		RPMFadeTime = InTimeSec;
@@ -295,8 +313,13 @@ void FMotoSynthEngine::SpawnGrain(int32& StartingIndex, const MotoSynthDataPtr& 
 
 void FMotoSynthEngine::GenerateGranularEngine(float* OutAudio, int32 NumSamples)
 {
+	if (!bRPMWasSet)
+	{
+		return;
+	}
+
 	// If we're generating a synth tone prepare the scratch buffer
-	if (bSynthToneEnabled)
+	if (bSynthToneEnabled || bNoiseEnabled)
 	{
 		SynthBuffer.Reset();
 		SynthBuffer.AddUninitialized(NumSamples);
@@ -304,7 +327,7 @@ void FMotoSynthEngine::GenerateGranularEngine(float* OutAudio, int32 NumSamples)
 
 	// we lerp through the frame lerp to accurately account for RPM changes and accel or decel
 	float RPMDelta = 0.0f;
-	if (!FMath::IsNearlyEqual(CurrentRPM, TargetRPM))
+	if (!FMath::IsNearlyEqual(CurrentRPM, TargetRPM) || !RPMFadeTime)
 	{
 		// In this callback, we will lerp to a target RPM. We will always lerp to the target, even if it's in one callback.
 		float ThisCallbackTargetRPM = TargetRPM;
@@ -325,11 +348,51 @@ void FMotoSynthEngine::GenerateGranularEngine(float* OutAudio, int32 NumSamples)
 
 		// This is the amount of RPMs to increment per sample to get accurate grain management
 		RPMDelta = (ThisCallbackTargetRPM - CurrentRPM) / NumSamples;
+
+		if (bSynthToneEnabled)
+		{
+			float SynthFilterFreq = FMath::GetMappedRangeValueClamped(RPMRange, SynthToneFilterFrequencyRange, CurrentRPM);
+			SynthFilter.SetFrequency(SynthFilterFreq);
+			SynthFilter.Update();
+
+			float AttackCurve = FMath::GetMappedRangeValueClamped(RPMRange, SynthToneAttackCurveRange, CurrentRPM);
+			SynthEnv.SetAttackCurveFactor(AttackCurve);
+
+			float AttackTime = 0.001f * FMath::GetMappedRangeValueClamped(RPMRange, SynthToneAttackTimeMsecRange, CurrentRPM);
+			SynthEnv.SetAttackTimeSeconds(AttackTime);
+
+			float DecayCurve = FMath::GetMappedRangeValueClamped(RPMRange, SynthToneDecayCurveRange, CurrentRPM);
+			SynthEnv.SetDecayCurveFactor(DecayCurve);
+
+			float DecayTime = 0.001f * FMath::GetMappedRangeValueClamped(RPMRange, SynthToneDecayTimeMsecRange, CurrentRPM);
+			SynthEnv.SetDecayTimeSeconds(DecayTime);
+		}
+
+		// If RPM changes, adjust the noise filter frequency if it's enabled
+		if (bNoiseEnabled)
+		{
+			float NoiseLPF = FMath::GetMappedRangeValueClamped(RPMRange, NoiseLPFRange, CurrentRPM);
+			NoiseFilter.SetFrequency(NoiseLPF);
+
+			float AttackCurve = FMath::GetMappedRangeValueClamped(RPMRange, NoiseAttackCurveRange, CurrentRPM);
+			NoiseEnv.SetAttackCurveFactor(AttackCurve);
+
+			float AttackTime = 0.001f * FMath::GetMappedRangeValueClamped(RPMRange, NoiseAttackTimeMsecRange, CurrentRPM);
+			NoiseEnv.SetAttackTimeSeconds(AttackTime);
+
+			float DecayCurve = FMath::GetMappedRangeValueClamped(RPMRange, NoiseDecayCurveRange, CurrentRPM);
+			NoiseEnv.SetDecayCurveFactor(DecayCurve);
+
+			float DecayTime = 0.001f * FMath::GetMappedRangeValueClamped(RPMRange, NoiseDecayTimeMsecRange, CurrentRPM);
+			NoiseEnv.SetDecayTimeSeconds(DecayTime);
+		}
 	}
+
+	SynthEnvBuffer.Reset();
+	NoiseEnvBuffer.Reset();
 
 	for (int32 SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
 	{
-		if (bGranularEngineEnabled)
 		{
 			if (NeedsSpawnGrain())
 			{
@@ -361,6 +424,10 @@ void FMotoSynthEngine::GenerateGranularEngine(float* OutAudio, int32 NumSamples)
 					CurrentAccelerationSourceDataIndex = 0;
 					SpawnGrain(CurrentDecelerationSourceDataIndex, DecelerationSourceData);
 				}
+
+				// On every grain spawn, trigger an attack
+				SynthEnv.Attack();
+				NoiseEnv.Attack();
 			}
 
 			PreviousRPMSlope = CurrentRPMSlope;
@@ -372,13 +439,38 @@ void FMotoSynthEngine::GenerateGranularEngine(float* OutAudio, int32 NumSamples)
 				FMotoSynthGrainRuntime& Grain = GrainPool[GrainIndex];
 				Grain.SetRPM(CurrentRPM);
 
-				OutAudio[SampleIndex] += Grain.GenerateSample();
+				if (bGranularEngineEnabled)
+				{
+					OutAudio[SampleIndex] += Grain.GenerateSample();
+				}
+				else
+				{
+					// Still need to generate the grain since envelope state is dependent on grain state
+					// TODO: if this is used at runtime, implement a virtual GenerateSample to update state but not do any audio work 
+					// Currently the expectation is that this mode is only an editor-only mode (i.e. no pure synth engines shipped)
+					Grain.GenerateSample();
+				}
 
 				if (Grain.IsDone())
 				{
 					ActiveGrains.RemoveAtSwap(ActiveGrainIndex, 1, false);
 					FreeGrains.Push(GrainIndex);
 				}
+			}
+
+			// Render the envelope data
+			if (bSynthToneEnvelopeEnabled)
+			{
+				float EnvOut = 0.0f;
+				SynthEnv.GetNextEnvelopeOut(EnvOut);
+				SynthEnvBuffer.Add(EnvOut);
+			}
+
+			if (bNoiseEnvelopeEnabled)
+			{
+				float EnvOut = 0.0f;
+				NoiseEnv.GetNextEnvelopeOut(EnvOut);
+				NoiseEnvBuffer.Add(EnvOut);
 			}
 		}
 
@@ -410,15 +502,56 @@ void FMotoSynthEngine::GenerateGranularEngine(float* OutAudio, int32 NumSamples)
 		Audio::MultiplyBufferByConstantInPlace(OutAudio, NumSamples, GranularEngineVolume);
 	}
 
-	// Apply the filter andmix the audio intothe output buffer
+	// Apply the filter and mix the audio into the output buffer
 	if (bSynthToneEnabled)
 	{
 		float* SynthBufferPtr = SynthBuffer.GetData();
 		SynthFilter.ProcessAudio(SynthBufferPtr, NumSamples, SynthBufferPtr);
 
+		float SynthToneVolume = FMath::GetMappedRangeValueClamped(RPMRange, SynthToneVolumeRange, CurrentRPM);
+
+		if (bSynthToneEnvelopeEnabled)
+		{
+			for (int32 FrameIndex = 0; FrameIndex < NumSamples; ++FrameIndex)
+			{
+				OutAudio[FrameIndex] += SynthToneVolume * SynthEnvBuffer[FrameIndex] * SynthBufferPtr[FrameIndex];
+			}
+		}
+		else
+		{
+			for (int32 FrameIndex = 0; FrameIndex < NumSamples; ++FrameIndex)
+			{
+				OutAudio[FrameIndex] += SynthToneVolume * SynthBufferPtr[FrameIndex];
+			}
+		}
+	}
+
+	if (bNoiseEnabled)
+	{
+		float* SynthBufferPtr = SynthBuffer.GetData();
 		for (int32 FrameIndex = 0; FrameIndex < NumSamples; ++FrameIndex)
 		{
-			OutAudio[FrameIndex] += SynthToneVolume * SynthBufferPtr[FrameIndex];
+			SynthBufferPtr[FrameIndex] = NoiseGen.Generate();
+		}
+
+		float NoiseVolume = FMath::GetMappedRangeValueClamped(RPMRange, NoiseVolumeRange, CurrentRPM);
+
+		// Filter it
+		NoiseFilter.ProcessAudio(SynthBufferPtr, NumSamples, SynthBufferPtr);
+
+		if (bNoiseEnvelopeEnabled)
+		{
+			for (int32 FrameIndex = 0; FrameIndex < NumSamples; ++FrameIndex)
+			{
+				OutAudio[FrameIndex] += NoiseVolume * NoiseEnvBuffer[FrameIndex] * SynthBufferPtr[FrameIndex];
+			}
+		}
+		else
+		{
+			for (int32 FrameIndex = 0; FrameIndex < NumSamples; ++FrameIndex)
+			{
+				OutAudio[FrameIndex] += NoiseVolume * SynthBufferPtr[FrameIndex];
+			}
 		}
 	}
 

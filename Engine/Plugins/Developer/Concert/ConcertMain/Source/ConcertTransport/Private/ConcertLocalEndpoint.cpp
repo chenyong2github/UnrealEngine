@@ -543,6 +543,7 @@ void FConcertLocalEndpoint::ProcessEndpointDiscovery(const FConcertMessageContex
 
 void FConcertLocalEndpoint::ProcessReliableHandshake(const FConcertMessageContext& ConcertContext)
 {
+	SCOPED_CONCERT_TRACE(FConcertLocalEndpoint_ProcessReliableHandshake);
 	const FConcertReliableHandshakeData* Message = ConcertContext.GetMessage<FConcertReliableHandshakeData>();
 
 	// This should always exist as FConcertReliableHandshakeData is also a FConcertEndpointDiscoveryEvent message, so should have added the endpoint in ProcessEndpointDiscovery
@@ -732,6 +733,7 @@ void FConcertLocalEndpoint::SendKeepAlive(const FConcertRemoteEndpointRef& Remot
 
 void FConcertLocalEndpoint::SendKeepAlives(const FDateTime& UtcNow)
 {
+	SCOPED_CONCERT_TRACE(FConcertLocalEndpoint_SendKeepAlives);
 	FScopeLock RemoteEndpointsLock(&RemoteEndpointsCS);
 
 	for (const auto& RemoteEndpointPair : RemoteEndpoints)

@@ -47,7 +47,10 @@ FGPULightmass::FGPULightmass(UWorld* InWorld, FGPULightmassModule* InGPULightmas
 	Info.ButtonDetails.Add(FNotificationButtonInfo(
 		LOCTEXT("LightBuildCancel", "Cancel"),
 		LOCTEXT("LightBuildCancelToolTip", "Cancels the lighting build in progress."),
-		FSimpleDelegate::CreateLambda([InWorld]() { InWorld->GetSubsystem<UGPULightmassSubsystem>()->Stop(); })));
+		FSimpleDelegate::CreateLambda([InWorld]() { 
+			InWorld->GetSubsystem<UGPULightmassSubsystem>()->Stop(); 
+			InWorld->GetSubsystem<UGPULightmassSubsystem>()->OnLightBuildEnded().Broadcast();
+			})));
 
 	LightBuildNotification = FSlateNotificationManager::Get().AddNotification(Info);
 	if (LightBuildNotification.IsValid())

@@ -12,12 +12,14 @@ FSteamSocket::FSteamSocket(ESocketType InSocketType, const FString& InSocketDesc
 	InternalHandle(k_HSteamNetConnection_Invalid),
 	SendMode(k_nSteamNetworkingSend_UnreliableNoNagle),
 	bShouldLingerOnClose(false),
-	bIsListenSocket(false),
+	bIsListenSocket(false), 
 	bIsLANSocket(false),
 	bHasPendingData(false),
 	ClosureReason(k_ESteamNetConnectionEnd_App_Generic)
 {
 	SocketSubsystem = static_cast<FSteamSocketsSubsystem*>(ISocketSubsystem::Get(STEAM_SOCKETS_SUBSYSTEM));
+	ISteamNetworkingSockets* SocketInterface = FSteamSocketsSubsystem::GetSteamSocketsInterface();
+	PollGroup = SocketInterface->CreatePollGroup();
 }
 
 FSteamSocket::~FSteamSocket()
@@ -27,7 +29,10 @@ FSteamSocket::~FSteamSocket()
 	{
 		PendingData->Release();
 	}
-	
+
+	ISteamNetworkingSockets* SocketInterface = FSteamSocketsSubsystem::GetSteamSocketsInterface();
+	SocketInterface->DestroyPollGroup(PollGroup);
+
 	Close();
 }
 
@@ -129,6 +134,7 @@ bool FSteamSocket::Connect(const FInternetAddr& Addr)
 	{
 		UE_LOG(LogSockets, Verbose, TEXT("SteamSockets: Connection to %s initiated"), *Addr.ToString(false));
 		SocketSubsystem->AddSocket(Addr, this);
+		SocketInterface->SetConnectionPollGroup(InternalHandle, PollGroup);
 		return true;
 	}
 
@@ -322,7 +328,7 @@ bool FSteamSocket::RecvRaw(SteamNetworkingMessage_t*& Data, int32 MaxMessages, i
 	}
 
 	// At this point, we will have already written our pending data or we're getting a new one.
-	MessagesRead = (bIsListenSocket) ? SocketInterface->ReceiveMessagesOnListenSocket(InternalHandle, ((bIsPeeking) ? &PendingData : &Data), MaxMessages) :
+	MessagesRead = (bIsListenSocket) ? SocketInterface->ReceiveMessagesOnPollGroup(PollGroup, ((bIsPeeking) ? &PendingData : &Data), MaxMessages) :
 		SocketInterface->ReceiveMessagesOnConnection(InternalHandle, ((bIsPeeking) ? &PendingData : &Data), MaxMessages);
 
 	if (MessagesRead >= 1)

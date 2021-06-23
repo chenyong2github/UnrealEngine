@@ -69,4 +69,8 @@ public:
 	/** Anti aliasing in 3d viewport. */
 	UPROPERTY(config)
 	bool bEditorEnableAA;
+
+	/** The last position on the new asset dialog box. */
+	UPROPERTY(config)
+	int32 NewAssetIndex;
 };

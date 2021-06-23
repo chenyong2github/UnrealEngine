@@ -246,6 +246,7 @@ bool FUdpMessageSegmenter::NeedSending(const FDateTime& CurrentTime)
 				++PendingSendSegmentsCount;
 			}
 		}
+		++SentNumber;
 
 		return true;
 	}
@@ -256,5 +257,4 @@ bool FUdpMessageSegmenter::NeedSending(const FDateTime& CurrentTime)
 void FUdpMessageSegmenter::UpdateSentTime(const FDateTime& CurrentTime)
 {
 	LastSentTime = CurrentTime;
-	++SentNumber;
 }

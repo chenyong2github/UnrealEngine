@@ -74,6 +74,12 @@ namespace Gauntlet
 		public abstract TestResult GetTestResult();
 
 		/// <summary>
+		/// Set the test result value of the test.
+		/// </summary>
+		/// <param name="testResult">New result that the Test should have.</param>
+		public abstract void SetTestResult(TestResult testResult);
+
+		/// <summary>
 		/// Summarize the result of the test
 		/// </summary>
 		/// <returns></returns>

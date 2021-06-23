@@ -234,6 +234,9 @@ struct FListenerProxy
 	/** Is our attenuation override active */
 	uint32 bUseAttenuationOverride :1;
 
+	/** The ID of the world the listener resides in */
+	uint32 WorldID = INDEX_NONE;
+
 	/**
 	 * Gets the position of the listener proxy
 	 */
@@ -248,6 +251,7 @@ struct FListenerProxy
 		: Transform(Listener.Transform)
 		, AttenuationOverride(Listener.AttenuationOverride)
 		, bUseAttenuationOverride(Listener.bUseAttenuationOverride)
+		, WorldID(Listener.WorldID)
 	{
 	}
 };
@@ -819,6 +823,14 @@ public:
 
 public:
 
+	/**
+	 * Gets the default reverb and interior settings for the provided world.  Returns true if settings with WorldID were located
+	 */
+	bool GetDefaultAudioSettings(uint32 WorldID, FReverbSettings& OutReverbSettings, FInteriorSettings& OutInteriorSettings) const;
+
+	/**
+	 * Sets the default reverb and interior settings for the provided world
+	 */
 	void SetDefaultAudioSettings(UWorld* World, const FReverbSettings& DefaultReverbSettings, const FInteriorSettings& DefaultInteriorSettings);
 
 	/**
@@ -961,6 +973,11 @@ public:
 	* Returns the transform of the appropriate listener representation, depending on calling thread
 	*/
 	bool GetListenerTransform(int32 ListenerIndex, FTransform& OutTransform) const;
+
+	/**
+	 * Returns the WorldID of the appropriate listener representation, depending on calling thread
+	 */
+	bool GetListenerWorldID(int32 ListenerIndex, uint32& OutWorldID) const;
 
 	/**
 	 * Sets the Sound Mix that should be active by default
@@ -1561,6 +1578,9 @@ private:
 
 	/** Updates audio volume effects. */
 	void UpdateAudioVolumeEffects();
+
+	/** Updates audio engine subsystems on this device. */
+	void UpdateAudioEngineSubsystems();
 
 public:
 

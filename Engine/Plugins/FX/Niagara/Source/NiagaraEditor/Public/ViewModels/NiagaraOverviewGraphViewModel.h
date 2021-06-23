@@ -101,4 +101,7 @@ private:
 	bool bUpdatingSystemSelectionFromGraph;
 
 	bool bUpdatingGraphSelectionFromSystem;
+
+	/** Whether or not this view model is going to be used for data processing only and will not be shown in the UI. */
+	bool bIsForDataProcessingOnly;
 };

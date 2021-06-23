@@ -88,6 +88,11 @@ namespace Chaos
 			return *this;
 		}
 
+		virtual FImplicitObject* Duplicate() const override
+		{
+			return new TBox(*this);
+		}
+
 		virtual ~TBox() {}
 
 		virtual TUniquePtr<FImplicitObject> Copy() const override

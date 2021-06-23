@@ -617,14 +617,14 @@ void FDMXFixturePatchesDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLay
 	FDMXCustomization::CustomizeDetails(DetailLayout);
 
 	// Bind to auto assign address changes to assign channels when it gets enabled
-	AutoAssignAddressHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, bAutoAssignAddress));
+	AutoAssignAddressHandle = DetailLayout.GetProperty(UDMXEntityFixturePatch::GetAutoAssignAddressPropertyNameChecked());
 	check(AutoAssignAddressHandle.IsValid() && AutoAssignAddressHandle->IsValidHandle());
 	
 	FSimpleDelegate OnAutoAssignAddressChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXFixturePatchesDetails::OnAutoAssignAddressChanged);
 	AutoAssignAddressHandle->SetOnPropertyValueChanged(OnAutoAssignAddressChangedDelegate);
 
 	// Make a Fixture Types dropdown for the Fixture Type template property
-	ParentFixtureTypeHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, ParentFixtureTypeTemplate));
+	ParentFixtureTypeHandle = DetailLayout.GetProperty(UDMXEntityFixturePatch::GetParentFixtureTypeTemplatePropertyNameChecked());
 	check(ParentFixtureTypeHandle.IsValid() && ParentFixtureTypeHandle->IsValidHandle());
 
 	DetailLayout.EditDefaultProperty(ParentFixtureTypeHandle)->CustomWidget(false)
@@ -644,22 +644,22 @@ void FDMXFixturePatchesDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLay
 		];
 
 	// Make a modes dropdown to select the active Fixture Type Mode, if a valid Fixture Type is selected
-	ActiveModeHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, ActiveMode));
+	ActiveModeHandle = DetailLayout.GetProperty(UDMXEntityFixturePatch::GetActiveModePropertyNameChecked());
 	check(ActiveModeHandle->IsValidHandle());
 
 	TSharedPtr<uint32> DefaultSelectedActiveMode = nullptr;
 	GenerateActiveModeOptions();
-	if (ActiveModeOptions.Num() > 0)
+
+	int32 ActiveMode;
+	if (ensure(ActiveModeHandle->GetValue(ActiveMode)))
 	{
-		// Test if we have a single valid type of Fixture selected as Template
-		UObject* Object = nullptr;
-		if (ParentFixtureTypeHandle->GetValue(Object) == FPropertyAccess::Success && Object != nullptr)
+		const bool bActiveModeExists = ActiveModeOptions.ContainsByPredicate([ActiveMode](TSharedPtr<uint32> Option) {
+			return Option.IsValid() && *Option == ActiveMode;
+			});
+
+		if (!bActiveModeExists)
 		{
-			int32 ActiveModeValue = 0;
-			if (ActiveModeHandle->GetValue(ActiveModeValue) == FPropertyAccess::Success)
-			{
-				DefaultSelectedActiveMode = ActiveModeOptions[ActiveModeValue];
-			}
+			SetFixturePatchActiveMode(0);
 		}
 	}
 
@@ -687,21 +687,43 @@ void FDMXFixturePatchesDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLay
 		];
 }
 
-void FDMXFixturePatchesDetails::OnAutoAssignAddressChanged()
+void FDMXFixturePatchesDetails::SetFixturePatchActiveMode(int32 ModeIndex)
 {
-	check(AutoAssignAddressHandle.IsValid() && AutoAssignAddressHandle->IsValidHandle());
+	check(ActiveModeHandle.IsValid());
 
 	TArray<UObject*> OuterObjects;
-	AutoAssignAddressHandle->GetOuterObjects(OuterObjects);
+	ActiveModeHandle->GetOuterObjects(OuterObjects);
 
 	TArray<UDMXEntityFixturePatch*> FixturePatches;
 	for (UObject* Object : OuterObjects)
 	{
 		UDMXEntityFixturePatch* Patch = CastChecked<UDMXEntityFixturePatch>(Object);
-		FixturePatches.Add(Patch);
+		Patch->SetActiveModeIndex(ModeIndex);
 	}
+}
 
-	FDMXEditorUtils::AutoAssignedAddresses(FixturePatches);
+void FDMXFixturePatchesDetails::OnAutoAssignAddressChanged()
+{
+	check(AutoAssignAddressHandle.IsValid());
+
+	bool bAutoAssignAddress;
+	if (ensure(AutoAssignAddressHandle->GetValue(bAutoAssignAddress)))
+	{
+		if (bAutoAssignAddress)
+		{
+			TArray<UObject*> OuterObjects;
+			AutoAssignAddressHandle->GetOuterObjects(OuterObjects);
+
+			TArray<UDMXEntityFixturePatch*> FixturePatches;
+			for (UObject* Object : OuterObjects)
+			{
+				UDMXEntityFixturePatch* Patch = CastChecked<UDMXEntityFixturePatch>(Object);
+				FixturePatches.Add(Patch);
+			}
+
+			FDMXEditorUtils::AutoAssignedAddresses(FixturePatches);
+		}
+	}
 }
 
 void FDMXFixturePatchesDetails::GenerateActiveModeOptions()
@@ -1080,12 +1102,14 @@ FReply FDMXPixelMappingDistributionCustomization::OnGridButtonClicked(int32 Grid
 	if (PropertyHandle.IsValid())
 	{
 		uint8 ChoosenDistribution = (GridIndexX * DistributionGridNumXPanels + GridIndexY);
+
+		PropertyHandle->NotifyPreChange();
 		PropertyHandle->SetValue(ChoosenDistribution);
+		PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 	}
 
 	return FReply::Handled();
 }
-
 
 FSlateColor FDMXPixelMappingDistributionCustomization::GetButtonColorAndOpacity(int32 GridIndexX, int32 GridIndexY)
 {

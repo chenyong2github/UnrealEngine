@@ -272,6 +272,8 @@ protected:
 	/** Override in child classes to specify the type of UPartyMember to create */
 	virtual TSubclassOf<UPartyMember> GetDesiredMemberClass(bool bLocalPlayer) const;
 
+	bool IsInviteRateLimited(const USocialUser& User, ESocialSubsystem SubsystemType) const;
+
 	bool ApplyCrossplayRestriction(FPartyJoinApproval& JoinApproval, const FUserPlatform& Platform, const FOnlinePartyData& JoinData) const;
 	FName GetGameSessionName() const;
 	bool IsInRestrictedGameSession() const;
@@ -369,6 +371,14 @@ private:
 
 	UPROPERTY(config)
 	bool bEnableAutomaticPartyRejoin = true;
+
+	TMap<FUniqueNetIdRepl, double> LastInviteSentById;
+
+	UPROPERTY(config)
+	double PlatformUserInviteCooldown = 10.f;
+
+	UPROPERTY(config)
+	double PrimaryUserInviteCooldown = 0.f;
 
 	FPartyConfiguration CurrentConfig;
 

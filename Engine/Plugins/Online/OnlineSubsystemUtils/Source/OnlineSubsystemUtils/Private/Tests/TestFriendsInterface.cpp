@@ -304,10 +304,10 @@ void FTestFriendsInterface::OnDeleteFriendComplete(int32 LocalPlayer, bool bWasS
 		FriendsToDelete.RemoveAt(0);
 	}
 
-	if (bWasSuccessful && FriendsToDelete.Num() == 0)
+	if (FriendsToDelete.Num() == 0)
 	{
 		bDeleteFriends = false;
-		bReadFriendsList = true;
+		bReadFriendsList = bWasSuccessful;
 	}
 	// kick off next test
 	StartNextTest();

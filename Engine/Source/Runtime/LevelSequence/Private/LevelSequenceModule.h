@@ -19,10 +19,8 @@ public:
 
 	// ILevelSequenceModule interface
 	virtual FDelegateHandle RegisterObjectSpawner(FOnCreateMovieSceneObjectSpawner InOnCreateMovieSceneObjectSpawner) override;
+	virtual void GenerateObjectSpawners(TArray<TSharedRef<IMovieSceneObjectSpawner>>& OutSpawners) const override;
 	virtual void UnregisterObjectSpawner(FDelegateHandle InHandle) override;
-
-	/** Populate the specified array with all currently registered object spawners */
-	void GenerateObjectSpawners(TArray<TSharedRef<IMovieSceneObjectSpawner>>& OutSpawners) const;
 
 public:
 	/** List of object spawner delegates used to extend the spawn register */

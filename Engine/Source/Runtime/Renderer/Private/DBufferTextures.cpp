@@ -16,7 +16,7 @@ bool FDBufferTextures::IsValid() const
 EDecalDBufferMaskTechnique GetDBufferMaskTechnique(EShaderPlatform ShaderPlatform)
 {
 	const bool bWriteMaskDBufferMask = RHISupportsRenderTargetWriteMask(ShaderPlatform);
-	const bool bPerPixelDBufferMask = IsUsingPerPixelDBufferMask(ShaderPlatform);
+	const bool bPerPixelDBufferMask = FDataDrivenShaderPlatformInfo::GetSupportsPerPixelDBufferMask(ShaderPlatform);
 	checkf(!bWriteMaskDBufferMask || !bPerPixelDBufferMask, TEXT("The WriteMask and PerPixel DBufferMask approaches cannot be enabled at the same time. They are mutually exclusive."));
 
 	if (bWriteMaskDBufferMask)

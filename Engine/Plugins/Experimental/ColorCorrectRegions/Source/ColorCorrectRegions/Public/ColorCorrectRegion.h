@@ -21,6 +21,15 @@ enum class EColorCorrectRegionsType : uint8
 	MAX
 };
 
+UENUM(BlueprintType)
+enum class EColorCorrectRegionTemperatureType : uint8
+{
+	LegacyTemperature		UMETA(DisplayName = "Temperature (Legacy)"),
+	WhiteBalance			UMETA(DisplayName = "White Balance"),
+	ColorTemperature		UMETA(DisplayName = "Color Temperature"),
+	MAX
+};
+
 /**
  * An instance of Color Correction Region. Used to aggregate all active regions.
  * This actor is aggregated by ColorCorrectRegionsSubsystem which handles:
@@ -62,6 +71,10 @@ public:
 	/** Invert region. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Correction")
 	bool Invert;
+
+	/** Type of algorithm to be used to control color temperature or white balance. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Correction")
+	EColorCorrectRegionTemperatureType TemperatureType;
 
 	/** Color correction temperature. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Correction")

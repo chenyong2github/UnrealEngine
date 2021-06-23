@@ -109,13 +109,22 @@ bool FDisplayClusterProjectionSimplePolicy::GetProjectionMatrix(class IDisplayCl
 		return false;
 	}
 
-
 	const float n = ViewData[InContextNum].NCP;
 	const float f = ViewData[InContextNum].FCP;
 
 	// Half-size
-	const float hw = ScreenComp->GetScreenSizeScaled().X / 2.f * ViewData[InContextNum].WorldToMeters;
-	const float hh = ScreenComp->GetScreenSizeScaled().Y / 2.f * ViewData[InContextNum].WorldToMeters;
+	//@note The original code that takes the world scale into account needs
+	//      a) to be removed completely from nDisplay rendering pipeline
+	//      b) to be implemented for every projection policy, and properly tested
+	// Currently it's not working properly so I commented it out. Once we decide what to
+	// do with the world scale, I will get it back or remove completely.
+#if 0
+	const float hw = ScreenComp->GetScreenSize().X / 2.f * ViewData[InContextNum].WorldToMeters;
+	const float hh = ScreenComp->GetScreenSize().Y / 2.f * ViewData[InContextNum].WorldToMeters;
+#else
+	const float hw = ScreenComp->GetScreenSize().X / 2.f;
+	const float hh = ScreenComp->GetScreenSize().Y / 2.f;
+#endif
 
 	float lhw = hw;
 	float rhw = hw;
@@ -180,7 +189,7 @@ bool FDisplayClusterProjectionSimplePolicy::InitializeMeshData(class IDisplayClu
 	}
 
 	// Get screen component
-	UDisplayClusterScreenComponent* ScreenComp = Root->GetScreenById(ScreenId);
+	UDisplayClusterScreenComponent* ScreenComp = Root->GetComponentByName<UDisplayClusterScreenComponent>(ScreenId);
 	if (!ScreenComp)
 	{
 		UE_LOG(LogDisplayClusterProjectionSimple, Warning, TEXT("Couldn't initialize screen component"));
@@ -206,7 +215,7 @@ UMeshComponent* FDisplayClusterProjectionSimplePolicy::GetOrCreatePreviewMeshCom
 	if (SceneComponent)
 	{
 		UDisplayClusterScreenComponent* ScreenComp = StaticCast<UDisplayClusterScreenComponent*>(SceneComponent);
-		return (ScreenComp == nullptr) ? nullptr : ScreenComp->VisScreenComponent;
+		return (ScreenComp == nullptr) ? nullptr : ScreenComp;
 	}
 
 	return nullptr;

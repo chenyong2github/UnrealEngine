@@ -3101,6 +3101,7 @@ void FAudioDevice::SetListener(UWorld* World, const int32 InViewportIndex, const
 	}
 
 	ListenerProxies[InViewportIndex].Transform = ListenerTransformCopy;
+	ListenerProxies[InViewportIndex].WorldID = WorldID;
 
 	DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetListener"), STAT_AudioSetListener, STATGROUP_AudioThreadCommands);
 
@@ -3249,6 +3250,21 @@ void FAudioDevice::ClearListenerAttenuationOverride(int32 ListenerIndex)
 	}
 }
 
+bool FAudioDevice::GetDefaultAudioSettings(uint32 WorldID, FReverbSettings& OutReverbSettings, FInteriorSettings& OutInteriorSettings) const
+{
+	check(IsInAudioThread());
+
+	const TPair<FReverbSettings, FInteriorSettings>* DefaultAudioSettings = WorldIDToDefaultAudioVolumeSettingsMap.Find(WorldID);
+	if (DefaultAudioSettings)
+	{
+		OutReverbSettings = DefaultAudioSettings->Key;
+		OutInteriorSettings = DefaultAudioSettings->Value;
+		return true;
+	}
+
+	return false;
+}
+
 void FAudioDevice::SetDefaultAudioSettings(UWorld* World, const FReverbSettings& DefaultReverbSettings, const FInteriorSettings& DefaultInteriorSettings)
 {
 	check(IsInGameThread());
@@ -3300,12 +3316,8 @@ void FAudioDevice::GetAudioVolumeSettings(const uint32 WorldID, const FVector& L
 
 	OutSettings.AudioVolumeID = 0;
 
-	const TPair<FReverbSettings, FInteriorSettings>* DefaultAudioVolumeSettings = WorldIDToDefaultAudioVolumeSettingsMap.Find(WorldID);
-
-	if (DefaultAudioVolumeSettings)
+	if (GetDefaultAudioSettings(WorldID, OutSettings.ReverbSettings, OutSettings.InteriorSettings))
 	{
-		OutSettings.ReverbSettings = DefaultAudioVolumeSettings->Key;
-		OutSettings.InteriorSettings = DefaultAudioVolumeSettings->Value;
 		OutSettings.SubmixSendSettings.Reset();
 	}
 }
@@ -4328,6 +4340,13 @@ void FAudioDevice::Update(bool bGameTicking)
 
 	UpdateAudioVolumeEffects();
 
+	{
+		SCOPED_NAMED_EVENT(FAudioDevice_UpdateAudioEngineSubsystems, FColor::Blue);
+
+		// Updates our audio engine subsystems 
+		UpdateAudioEngineSubsystems();
+	}
+
 #if ENABLE_AUDIO_DEBUG
 	if (GEngine)
 	{
@@ -4522,6 +4541,17 @@ void FAudioDevice::UpdateAudioVolumeEffects()
 	}
 }
 
+void FAudioDevice::UpdateAudioEngineSubsystems()
+{
+	const TArray<UAudioEngineSubsystem*>& Subsystems = GetSubsystemArray<UAudioEngineSubsystem>();
+	for (UAudioEngineSubsystem* Subsystem : Subsystems)
+	{
+		if (Subsystem)
+		{
+			Subsystem->Update();
+		}
+	}
+}
 
 void FAudioDevice::SendUpdateResultsToGameThread(const int32 FirstActiveIndex)
 {
@@ -5302,6 +5332,33 @@ bool FAudioDevice::GetListenerTransform(int32 ListenerIndex, FTransform& OutTran
 			OutTransform = ListenerProxies[ListenerIndex].Transform;
 			return true;
 	}
+	}
+	return false;
+}
+
+bool FAudioDevice::GetListenerWorldID(int32 ListenerIndex, uint32& OutWorldID) const
+{
+	OutWorldID = INDEX_NONE;
+	if (ListenerIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	if (IsInAudioThread())
+	{
+		if (ListenerIndex < Listeners.Num())
+		{
+			OutWorldID = Listeners[ListenerIndex].WorldID;
+			return true;
+		}
+	}
+	else // IsInGameThread()
+	{
+		if (ListenerIndex < ListenerProxies.Num())
+		{
+			OutWorldID = ListenerProxies[ListenerIndex].WorldID;
+			return true;
+		}
 	}
 	return false;
 }
@@ -6410,6 +6467,12 @@ bool FAudioDevice::IsAudioDeviceMuted() const
 		const bool bIsAlwaysPlayNonRealtime = DeviceManager->IsAlwaysPlayNonRealtimeDeviceAudio() && IsNonRealtime();
 
 		if (bIsPlayAllDeviceAudio || bIsAlwaysPlayNonRealtime)
+		{
+			return false;
+		}
+
+		// If we have one active device, ignore device muting
+		if (DeviceManager->GetNumActiveAudioDevices() == 1)
 		{
 			return false;
 		}

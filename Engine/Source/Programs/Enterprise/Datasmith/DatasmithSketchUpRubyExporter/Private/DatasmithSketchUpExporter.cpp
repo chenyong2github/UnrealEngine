@@ -15,6 +15,8 @@
 
 #include "DatasmithDirectLink.h"
 
+#include "DirectLinkEndpoint.h"
+
 #include "IDatasmithExporterUIModule.h"
 #include "IDirectLinkUI.h"
 
@@ -157,6 +159,67 @@ class FDatasmithSketchUpDirectLinkManager
 {
 public:
 
+	class FEndpointObserver: public DirectLink::IEndpointObserver
+	{
+	public:
+
+		TArray<FString> ConnectionStatusList;
+
+		FCriticalSection ConnectionStatusListCriticalSection;
+
+		TArray<FString> GetConnectionStatus()
+		{
+			FScopeLock Lock(&ConnectionStatusListCriticalSection);
+			return ConnectionStatusList;
+		}
+		
+		FORCENOINLINE void OnStateChanged(const DirectLink::FRawInfo& RawInfo) override
+		{
+			using namespace DirectLink;
+
+			FScopeLock Lock(&ConnectionStatusListCriticalSection); // OnStateChanged is called from a separate thread
+			ConnectionStatusList.Reset();
+
+			for (const FRawInfo::FStreamInfo& StreamInfo : RawInfo.StreamsInfo)
+			{
+				if (!StreamInfo.bIsActive)
+				{
+					continue;
+				}
+
+				const FRawInfo::FDataPointInfo* SourceDataPointInfo =  RawInfo.DataPointsInfo.Find(StreamInfo.Source);
+				if(!SourceDataPointInfo || !SourceDataPointInfo->bIsOnThisEndpoint)
+				{
+					continue;
+				}
+
+				const FRawInfo::FDataPointInfo* DestinationDataPointInfo = RawInfo.DataPointsInfo.Find(StreamInfo.Destination);
+
+				if(!DestinationDataPointInfo)
+				{
+					continue;
+				}
+				
+				
+				const FRawInfo::FEndpointInfo* SourceEndpointInfo = RawInfo.EndpointsInfo.Find(SourceDataPointInfo->EndpointAddress);
+				const FRawInfo::FEndpointInfo* DestinationEndpointInfo = RawInfo.EndpointsInfo.Find(DestinationDataPointInfo->EndpointAddress);
+
+				ConnectionStatusList.Add(SourceDataPointInfo->Name);
+				ConnectionStatusList.Add(SourceEndpointInfo->Name);
+				ConnectionStatusList.Add(SourceEndpointInfo->UserName);
+				ConnectionStatusList.Add(SourceEndpointInfo->ExecutableName);
+				ConnectionStatusList.Add(SourceEndpointInfo->ComputerName);
+
+				ConnectionStatusList.Add(DestinationEndpointInfo->Name);
+				ConnectionStatusList.Add(DestinationDataPointInfo->Name);
+				ConnectionStatusList.Add(DestinationEndpointInfo->Name);
+				ConnectionStatusList.Add(DestinationEndpointInfo->UserName);
+				ConnectionStatusList.Add(DestinationEndpointInfo->ExecutableName);
+				ConnectionStatusList.Add(DestinationEndpointInfo->ComputerName);
+			}
+		}
+	};
+
 	static bool Init(bool bEnableUI, const FString& InEnginePath)
 	{
 		FDatasmithExporterManager::FInitOptions Options;
@@ -174,22 +237,36 @@ public:
 		{
 			return false;
 		}
+
+
 		return true;
 	}
 
 	void InitializeForScene(FDatasmithSketchUpScene& Scene)
 	{
-		DirectLink.InitializeForScene(Scene.GetDatasmithSceneRef());
+		DirectLinkImpl.InitializeForScene(Scene.GetDatasmithSceneRef());
+		DirectLinkImpl.GetEnpoint()->AddEndpointObserver(&StateObserver);
+	}
+
+	void Close()
+	{
+		DirectLinkImpl.GetEnpoint()->RemoveEndpointObserver(&StateObserver);
+	}
+
+	TArray<FString> GetConnectionStatus()
+	{
+		return StateObserver.GetConnectionStatus();
 	}
 
 	void UpdateScene(FDatasmithSketchUpScene& Scene)
 	{
 		// FDatasmithSceneUtils::CleanUpScene(Scene.GetDatasmithSceneRef(), true);
-		DirectLink.UpdateScene(Scene.GetDatasmithSceneRef());
+		DirectLinkImpl.UpdateScene(Scene.GetDatasmithSceneRef());
 	}
 
 private:
-	FDatasmithDirectLink DirectLink;
+	FDatasmithDirectLink DirectLinkImpl;
+	FEndpointObserver StateObserver;
 };
 
 // Maintains Datasmith scene and promotes Sketchup scene change events to it, updating DirectLink
@@ -216,10 +293,6 @@ public:
 		}
 	}
 
-	~FDatasmithSketchUpDirectLinkExporter()
-	{
-	}
-
 	bool Start()
 	{
 		Context.DatasmithScene = ExportedScene.GetDatasmithSceneRef();
@@ -227,6 +300,15 @@ public:
 		Context.Populate();
 
 		SetSceneModified();
+		return true;
+	}
+
+	bool Stop()
+	{
+		if (bEnableDirectLink)
+		{
+			DirectLinkManager.Close();
+		}
 		return true;
 	}
 
@@ -497,6 +579,17 @@ VALUE DatasmithSketchUpDirectLinkExporter_start(VALUE self)
 	return Ptr->Start() ? Qtrue : Qfalse;
 }
 
+VALUE DatasmithSketchUpDirectLinkExporter_stop(VALUE self)
+{
+	// Converting args
+	FDatasmithSketchUpDirectLinkExporter* Ptr;
+	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, Ptr);
+
+	// Done converting args
+
+	return Ptr->Stop() ? Qtrue : Qfalse;
+}
+
 VALUE DatasmithSketchUpDirectLinkExporter_send_update(VALUE self)
 {
 	// Converting args
@@ -530,6 +623,27 @@ VALUE DatasmithSketchUpDirectLinkExporter_export_current_datasmith_scene(VALUE s
 	return Qtrue;
 }
 
+VALUE DatasmithSketchUpDirectLinkExporter_get_connection_status(VALUE self)
+{
+	// Converting args
+	FDatasmithSketchUpDirectLinkExporter* ptr;
+	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, ptr);
+	// Done converting args
+
+	TArray<FString> Items = ptr->DirectLinkManager.GetConnectionStatus();
+
+	VALUE Result = rb_ary_new();
+
+	for(const FString& Str: Items)
+	{
+		rb_ary_push(Result, UnrealStringToRuby(Str));
+	}
+
+	return Result;
+}
+
+
+
 #ifndef SKP_SDK_2019
 VALUE DatasmithSketchUpDirectLinkExporter_on_component_instance_changed(VALUE self, VALUE ruby_entity)
 {
@@ -557,7 +671,7 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_entity_added(VALUE self, VALUE ruby
 	SUEntityRef ParentEntity = SU_INVALID;
 	if (!NIL_P(ruby_parent_entity) && (SUEntityFromRuby(ruby_parent_entity, &ParentEntity) != SU_ERROR_NONE)) {
 		
-		rb_raise(rb_eTypeError, "Expected SketchUp Entity but found '%s'", StringValue(ruby_parent_entity));
+		rb_raise(rb_eTypeError, "Expected SketchUp Entity but found '%s'", StringValuePtr(ruby_parent_entity));
 	}
 
 	SUEntityRef Entity = SU_INVALID;
@@ -688,6 +802,7 @@ VALUE on_load(VALUE self, VALUE enable_ui, VALUE engine_path) {
 }
 
 VALUE on_unload() {
+	FDatasmithDirectLink::Shutdown();
 	FDatasmithExporterManager::Shutdown();
 	return Qtrue;
 }
@@ -740,6 +855,7 @@ extern "C" DLLEXPORT void Init_DatasmithSketchUp()
 
 	rb_define_singleton_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "new", ToRuby(DatasmithSketchUpDirectLinkExporter_new), 3);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "start", ToRuby(DatasmithSketchUpDirectLinkExporter_start), 0);
+	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "stop", ToRuby(DatasmithSketchUpDirectLinkExporter_stop), 0);
 
 #ifndef SKP_SDK_2019
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_component_instance_changed", ToRuby(DatasmithSketchUpDirectLinkExporter_on_component_instance_changed), 1);
@@ -757,6 +873,9 @@ extern "C" DLLEXPORT void Init_DatasmithSketchUp()
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "update", ToRuby(DatasmithSketchUpDirectLinkExporter_update), 0);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "send_update", ToRuby(DatasmithSketchUpDirectLinkExporter_send_update), 0);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "export_current_datasmith_scene", ToRuby(DatasmithSketchUpDirectLinkExporter_export_current_datasmith_scene), 0);
+
+	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "get_connection_status", ToRuby(DatasmithSketchUpDirectLinkExporter_get_connection_status), 0);
+
 }
 
 /* todo:

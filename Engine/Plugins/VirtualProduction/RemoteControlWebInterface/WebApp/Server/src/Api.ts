@@ -29,7 +29,6 @@ export class Api {
     this.send(res, UnrealEngine.getPayloads());
   }
 
-
   @Get('presets/payload')
   private async payload(req: Request, res: Response): Promise<void> {
     this.send(res, UnrealEngine.getPayload(req.query.preset?.toString()));
@@ -57,6 +56,12 @@ export class Api {
   @Get('thumbnail')
   private thumbnail(req: Request, res: Response) {
     this.send(res, UnrealEngine.thumbnail(req.query.asset.toString()));
+  }
+
+  @Get('shutdown')
+  private shutdown(req: Request, res: Response) {
+    res.send({ message: 'ok' });
+    setTimeout(() => process.exit(0), 1000);
   }
 
   protected async send(res: Response, promise: Promise<any>, options?: ISendOptions): Promise<any> {

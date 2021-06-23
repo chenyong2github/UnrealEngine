@@ -5,12 +5,14 @@
 #include "LensFile.h"
 
 
-
+ECurveEditorViewID FLensDataCurveModel::ViewId = ECurveEditorViewID::Invalid;
 FLensDataCurveModel::FLensDataCurveModel(ULensFile* InOwner)
 	: FRichCurveEditorModel(InOwner)
 	, LensFile(InOwner)
 {
 	check(InOwner);
+
+	SupportedViews = ViewId;
 }
 
 void FLensDataCurveModel::AddKeys(TArrayView<const FKeyPosition> InKeyPositions, TArrayView<const FKeyAttributes> InAttributes, TArrayView<TOptional<FKeyHandle>>* OutKeyHandles)

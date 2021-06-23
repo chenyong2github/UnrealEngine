@@ -209,20 +209,34 @@ void FDMXPortManager::UpdateFromProtocolSettings()
 	// Add newly created ports and update existing ones
 	for (FDMXInputPortConfig& InputPortConfig : ProtocolSettings->InputPortConfigs)
 	{
-		FDMXInputPortSharedRef InputPort = GetOrCreateInputPortFromConfig(InputPortConfig);
+		if (InputPortConfig.GetPortGuid().IsValid())
+		{
+			FDMXInputPortSharedRef InputPort = GetOrCreateInputPortFromConfig(InputPortConfig);
 
-		InputPort->UpdateFromConfig(InputPortConfig);
+			InputPort->UpdateFromConfig(InputPortConfig);
 
-		PortGuidsFromProtocolSettings.AddUnique(InputPort->GetPortGuid());
+			PortGuidsFromProtocolSettings.AddUnique(InputPort->GetPortGuid());
+		}
+		else
+		{
+			UE_LOG(LogDMXProtocol, Error, TEXT("Input Port '%s' has no valid PortGUID and can no longer be used. If you changed the DefaultEngine.ini directly, please undo your changes. Otherwise please report the issue."), *InputPortConfig.GetPortName());
+		}
 	}
 
 	for (FDMXOutputPortConfig& OutputPortConfig : ProtocolSettings->OutputPortConfigs)
 	{
-		FDMXOutputPortSharedRef OutputPort = GetOrCreateOutputPortFromConfig(OutputPortConfig);
+		if (OutputPortConfig.GetPortGuid().IsValid())
+		{
+			FDMXOutputPortSharedRef OutputPort = GetOrCreateOutputPortFromConfig(OutputPortConfig);
 
-		OutputPort->UpdateFromConfig(OutputPortConfig);
+			OutputPort->UpdateFromConfig(OutputPortConfig);
 
-		PortGuidsFromProtocolSettings.AddUnique(OutputPort->GetPortGuid());
+			PortGuidsFromProtocolSettings.AddUnique(OutputPort->GetPortGuid());
+		}
+		else
+		{
+			UE_LOG(LogDMXProtocol, Error, TEXT("Output Port '%s' has no valid GUID and can no longer be used. If you changed the DefaultEngine.ini directly, please undo your changes. Otherwise please report the issue."), *OutputPortConfig.GetPortName());
+		}
 	}
 
 	OnPortsChanged.Broadcast();
@@ -300,8 +314,6 @@ void FDMXPortManager::StartupManager()
 
 	check(!CurrentManager.IsValid());
 	CurrentManager = MakeUnique<FDMXPortManager>();
-
-	CurrentManager->UpdateFromProtocolSettings();
 }
 
 void FDMXPortManager::ShutdownManager()

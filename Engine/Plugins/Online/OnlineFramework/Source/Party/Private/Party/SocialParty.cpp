@@ -293,7 +293,29 @@ ESocialPartyInviteFailureReason USocialParty::CanInviteUserInternal(const USocia
 		return ESocialPartyInviteFailureReason::AlreadyInParty;
 	}
 
+	const bool bIsPrimaryRateLimited = IsInviteRateLimited(User, ESocialSubsystem::Primary);
+	const bool bIsPlatformMissingOrRateLimited = !User.GetUserId(ESocialSubsystem::Platform).IsValid() || IsInviteRateLimited(User, ESocialSubsystem::Platform);
+	if (bIsPrimaryRateLimited && bIsPlatformMissingOrRateLimited)
+	{
+			return ESocialPartyInviteFailureReason::InviteRateLimitExceeded;
+	}
+	
 	return ESocialPartyInviteFailureReason::Success;
+}
+
+bool USocialParty::IsInviteRateLimited(const USocialUser& User, ESocialSubsystem SubsystemType) const
+{
+	const FUniqueNetIdRepl UserId = User.GetUserId(SubsystemType);
+
+	if (UserId.IsValid())
+	{
+		const double* LastInviteTimestamp = LastInviteSentById.Find(UserId);
+		const double UserInviteCooldown = SubsystemType == ESocialSubsystem::Primary ? PrimaryUserInviteCooldown : PlatformUserInviteCooldown;
+
+		return (LastInviteTimestamp != nullptr && FPlatformTime::Seconds() < *LastInviteTimestamp + UserInviteCooldown);
+	}
+
+	return false;
 }
 
 bool USocialParty::TryInviteUser(const USocialUser& UserToInvite, const ESocialPartyInviteMethod InviteMethod)
@@ -313,7 +335,9 @@ bool USocialParty::TryInviteUser(const USocialUser& UserToInvite, const ESocialP
 			bIsOnlineOnPlatform = PlatformPresenceInfo->bIsOnline;
 		}
 
-		if ((UserPlatformId.IsValid() && bIsOnlineOnPlatform) && (!UserPrimaryId.IsValid() || bPreferPlatformInvite))
+		if ((UserPlatformId.IsValid() && bIsOnlineOnPlatform) && 
+			(!UserPrimaryId.IsValid() || bPreferPlatformInvite) && 
+			!IsInviteRateLimited(UserToInvite, ESocialSubsystem::Platform))
 		{
 			// Platform invites are sent as session invites on platform OSS' - this way we get the OS popups one would expect on XBox, PS4, etc.
 			bool bSentPlatformInvite = false;
@@ -342,7 +366,7 @@ bool USocialParty::TryInviteUser(const USocialUser& UserToInvite, const ESocialP
 			OnInviteSentInternal(ESocialSubsystem::Platform, UserToInvite, bSentPlatformInvite, FailureReason, InviteMethod);
 			bSentInvite |= bSentPlatformInvite;
 		}
-		if ((!bSentInvite || bMustSendPrimaryInvite) && UserPrimaryId.IsValid())
+		if ((!bSentInvite || bMustSendPrimaryInvite) && UserPrimaryId.IsValid() && !IsInviteRateLimited(UserToInvite, ESocialSubsystem::Primary))
 		{
 			// Primary subsystem invites can be sent directly to the user via the party interface
 			const IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
@@ -634,6 +658,18 @@ void USocialParty::OnLeftPartyInternal(EMemberExitedReason Reason)
 
 void USocialParty::OnInviteSentInternal(ESocialSubsystem SubsystemType, const USocialUser& InvitedUser, bool bWasSuccessful, const ESocialPartyInviteFailureReason FailureReason, const ESocialPartyInviteMethod InviteMethod)
 {
+	// If the invite is successful, save the current timestamp to stop invites to this user 
+	// for a while (defined in PlatformUserInviteCooldown/PrimaryUserInviteCooldown)
+	if (bWasSuccessful)
+	{
+		const FUniqueNetIdRepl UserId = InvitedUser.GetUserId(SubsystemType);
+
+		if (UserId.IsValid())
+		{
+			LastInviteSentById.FindOrAdd(UserId) = FPlatformTime::Seconds();
+		}
+	}
+	
 	OnInviteSent().Broadcast(InvitedUser);
 
 	// Call the deprecated method after the current OnInviteSentInternal

@@ -18,6 +18,7 @@ class IPropertyHandleArray;
 class UNiagaraGraph;
 class UNiagaraParameterDefinitions;
 class UNiagaraScriptVariable;
+class SComboButton;
 
 enum class ECheckBoxState : uint8;
 
@@ -182,6 +183,7 @@ private:
 	void OnActionSelected(const TArray< TSharedPtr<FEdGraphSchemaAction> >& SelectedActions, ESelectInfo::Type InSelectionType);
 
 	TSharedPtr<IPropertyHandle> PropertyHandle;
+	TSharedPtr<SComboButton> ComboButton;
 	class UNiagaraEmitter* BaseEmitter;
 	class UNiagaraRendererProperties* RenderProps;
 	struct FNiagaraVariableAttributeBinding* TargetVariableBinding;

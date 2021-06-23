@@ -140,6 +140,16 @@ bool FSnapshotRestorability::IsComponentDesirableForCapture(const UActorComponen
 		&& (Component->CreationMethod == EComponentCreationMethod::Native || Component->CreationMethod == EComponentCreationMethod::SimpleConstructionScript);
 }
 
+bool FSnapshotRestorability::IsPropertyBlacklistedForCapture(const FProperty* Property)
+{
+	return Module->IsPropertyBlacklisted(Property);
+}
+
+bool FSnapshotRestorability::IsPropertyWhitelistedForCapture(const FProperty* Property)
+{
+	return Module->IsPropertyWhitelisted(Property);
+}
+
 bool FSnapshotRestorability::ShouldConsiderNewActorForRemoval(const AActor* Actor)
 {
 	return DoesActorHaveSupportedClassForRemoving(Actor) && IsActorDesirableForCapture(Actor);

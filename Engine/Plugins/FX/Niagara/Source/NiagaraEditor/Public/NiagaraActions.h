@@ -85,6 +85,23 @@ private:
 	FCanExecuteStackAction CanPerformAction;
 };
 
+class FNiagaraMenuActionCollector
+{
+public:
+	void AddAction(TSharedPtr<FNiagaraMenuAction> Action, int32 SortOrder, const FString& Category = FString());
+	void AddAllActionsTo(FGraphActionListBuilderBase& ActionBuilder);
+
+private:
+	struct FCollectedAction
+	{
+		TSharedPtr<FNiagaraMenuAction> Action;
+		int32 SortOrder;
+		FString Category;
+	};
+
+	TArray<FCollectedAction> Actions;
+};
+
 // new action hierarchy for the new menus. Prefer inheriting from this rather than the above
 // this action does not have any use; inherit from it and provide your own functionality
 USTRUCT()
@@ -96,7 +113,7 @@ struct NIAGARAEDITOR_API FNiagaraMenuAction_Base
 	DECLARE_DELEGATE_RetVal(bool, FCanExecuteAction);
 
 	FNiagaraMenuAction_Base() {}
-	FNiagaraMenuAction_Base(FText DisplayName, ENiagaraMenuSections Section, TArray<FString> InNodeCategories, FText InToolTip, FText InKeywords);
+	FNiagaraMenuAction_Base(FText DisplayName, ENiagaraMenuSections Section, TArray<FString> InNodeCategories, FText InToolTip, FText InKeywords, float InIntrinsicWeightMultiplier = 1.f);
 
 	void UpdateFullSearchText();
 
@@ -124,6 +141,9 @@ struct NIAGARAEDITOR_API FNiagaraMenuAction_Base
 
 	/** A string that combines all kinds of search terms */
 	FString FullSearchString;
+
+	/** A multiplier intrinsic to the action. Can be used to tweak search relevance depending on context (like module actions in a module script) */
+	float SearchWeightMultiplier = 1.f;
 };
 
 USTRUCT()
@@ -134,16 +154,16 @@ struct NIAGARAEDITOR_API FNiagaraMenuAction_Generic : public FNiagaraMenuAction_
 	FNiagaraMenuAction_Generic() {}
 
 	FNiagaraMenuAction_Generic(FOnExecuteAction ExecuteAction, FCanExecuteAction InCanExecuteAction,
-		FText InDisplayName, ENiagaraMenuSections Section, TArray<FString> InNodeCategories, FText InToolTip, FText InKeywords)
-    : FNiagaraMenuAction_Base(InDisplayName, Section, InNodeCategories, InToolTip, InKeywords)
+		FText InDisplayName, ENiagaraMenuSections Section, TArray<FString> InNodeCategories, FText InToolTip, FText InKeywords, float InIntrinsicWeightMultiplier = 1.f)
+    : FNiagaraMenuAction_Base(InDisplayName, Section, InNodeCategories, InToolTip, InKeywords, InIntrinsicWeightMultiplier)
 	{
 		Action = ExecuteAction;
 		CanExecuteAction = InCanExecuteAction;
 	}
 
 	FNiagaraMenuAction_Generic(FOnExecuteAction ExecuteAction,
-        FText InDisplayName, ENiagaraMenuSections Section, TArray<FString> InNodeCategories, FText InToolTip, FText InKeywords)
-    : FNiagaraMenuAction_Base(InDisplayName, Section, InNodeCategories, InToolTip, InKeywords)
+        FText InDisplayName, ENiagaraMenuSections Section, TArray<FString> InNodeCategories, FText InToolTip, FText InKeywords, float InIntrinsicWeightMultiplier = 1.f)
+    : FNiagaraMenuAction_Base(InDisplayName, Section, InNodeCategories, InToolTip, InKeywords, InIntrinsicWeightMultiplier)
 	{
 		Action = ExecuteAction;
 	}
@@ -179,8 +199,8 @@ struct NIAGARAEDITOR_API FNiagaraAction_NewNode : public FNiagaraMenuAction_Gene
 
 	FNiagaraAction_NewNode() {}
 	FNiagaraAction_NewNode(
-		FText InDisplayName, ENiagaraMenuSections Section, TArray<FString> InNodeCategories, FText InToolTip, FText InKeywords)
-		: FNiagaraMenuAction_Generic(FOnExecuteAction(), InDisplayName, Section, InNodeCategories, InToolTip, InKeywords)
+		FText InDisplayName, ENiagaraMenuSections Section, TArray<FString> InNodeCategories, FText InToolTip, FText InKeywords, float InIntrinsicWeightMultiplier = 1.f)
+		: FNiagaraMenuAction_Generic(FOnExecuteAction(), InDisplayName, Section, InNodeCategories, InToolTip, InKeywords, InIntrinsicWeightMultiplier)
 	{		
 	}
 
@@ -312,7 +332,7 @@ protected:
 
 	static void MakeGetMap(FNiagaraParameterNodeConstructionParams InParams);
 	static void MakeSetMap(FNiagaraParameterNodeConstructionParams InParams);
-	static void MakeStaticSwitch(FNiagaraParameterNodeConstructionParams InParams);
+	static void MakeStaticSwitch(FNiagaraParameterNodeConstructionParams InParams, const UNiagaraScriptVariable* ScriptVariable);
 
 	virtual EVisibility GetIconVisible() const override;
 	virtual EVisibility GetErrorIconVisible() const override;

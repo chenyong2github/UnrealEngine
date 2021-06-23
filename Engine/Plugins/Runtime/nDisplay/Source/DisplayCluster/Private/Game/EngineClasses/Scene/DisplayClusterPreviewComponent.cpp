@@ -60,12 +60,7 @@ void UDisplayClusterPreviewComponent::DestroyComponent(bool bPromoteChildren)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UDisplayClusterPreviewComponent::DestroyComponent"), STAT_DestroyComponent, STATGROUP_NDisplay);
 	
-	if (PreviewMesh)
-	{
-		bUseMeshUsePreviewMaterialInstance = false;
-		PreviewMesh->SetMaterial(0, OriginalMaterial);
-	}
-
+	UpdatePreviewMesh(true);
 	RemovePreviewTexture();
 
 	Super::DestroyComponent(bPromoteChildren);
@@ -90,12 +85,58 @@ bool UDisplayClusterPreviewComponent::InitializePreviewComponent(ADisplayCluster
 	return true;
 }
 
+void UDisplayClusterPreviewComponent::UpdatePreviewMeshMaterial(bool bRestoreOriginalMaterial)
+{
+	if (PreviewMesh)
+	{
+		bool bViewportPreviewEnabled = (ViewportConfig && ViewportConfig->bIsEnabled && RootActor && RootActor->bPreviewEnable);
 
-bool UDisplayClusterPreviewComponent::UpdatePreviewMesh()
+		if (bRestoreOriginalMaterial || !bViewportPreviewEnabled)
+		{
+			// Restore
+			if (OriginalMaterial)
+			{
+				PreviewMesh->SetMaterial(0, OriginalMaterial);
+				OriginalMaterial = nullptr;
+			}
+		}
+		else
+		{
+			// Save original material
+			if (OriginalMaterial == nullptr)
+			{
+				// Save original mesh material
+				UMaterialInterface* MatInterface = PreviewMesh->GetMaterial(0);
+				if (MatInterface)
+				{
+					OriginalMaterial = MatInterface->GetMaterial();
+				}
+			}
+
+			// Set preview material
+			if (PreviewMaterialInstance)
+			{
+				PreviewMesh->SetMaterial(0, PreviewMaterialInstance);
+			}
+		}
+	}
+}
+
+bool UDisplayClusterPreviewComponent::UpdatePreviewMesh(bool bRestoreOriginalMaterial)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UDisplayClusterPreviewComponent::UpdatePreviewMesh"), STAT_UpdatePreviewMesh, STATGROUP_NDisplay);
 	
 	check(IsInGameThread());
+
+	if (PreviewMesh && PreviewMesh->GetName().Find(TEXT("TRASH_")) != INDEX_NONE)
+	{
+		// Screen components are regenerated from construction scripts, but preview components are added in dynamically. This preview component may end up
+		// pointing to invalid data on reconstruction.
+		// TODO: See if we can remove this hack
+		// 
+		//!
+		PreviewMesh = nullptr;
+	}
 
 	// And search for new mesh reference
 	IDisplayClusterViewport* Viewport = GetCurrentViewport();
@@ -104,34 +145,20 @@ bool UDisplayClusterPreviewComponent::UpdatePreviewMesh()
 		if (Viewport->GetProjectionPolicy()->HasPreviewMesh())
 		{
 			// create warp mesh or update changes
-			if (PreviewMesh == nullptr || Viewport->GetProjectionPolicy()->IsConfigurationChanged(&WarpMeshSavedProjectionPolicy))
+			if (Viewport->GetProjectionPolicy()->IsConfigurationChanged(&WarpMeshSavedProjectionPolicy))
 			{
-				// Handle delete prev mesh component
-				if (PreviewMesh)
-				{
-					if (bUseMeshUsePreviewMaterialInstance && OriginalMaterial != nullptr)
-					{
-						// Restore
-						bUseMeshUsePreviewMaterialInstance = false;
-						PreviewMesh->SetMaterial(0, OriginalMaterial);
-					}
+				UpdatePreviewMeshMaterial(true);
 
 					// Forget old mesh ptr
 					PreviewMesh = nullptr;
-					OriginalMaterial = nullptr;
 				}
 
-				bUseMeshUsePreviewMaterialInstance = false;
+			if (PreviewMesh == nullptr)
+			{
+				// Get new mesh ptr
 				PreviewMesh = Viewport->GetProjectionPolicy()->GetOrCreatePreviewMeshComponent(Viewport);
 
-				if (PreviewMesh)
-				{
-					// Save original mesh material
-					UMaterialInterface* MatInterface = PreviewMesh->GetMaterial(0);
-					if (MatInterface)
-					{
-						OriginalMaterial = MatInterface->GetMaterial();
-					}
+				UpdatePreviewMeshMaterial(bRestoreOriginalMaterial);
 					
 					if (!ensure(ViewportConfig))
 					{
@@ -146,6 +173,9 @@ bool UDisplayClusterPreviewComponent::UpdatePreviewMesh()
 				}
 			}
 		}
+	else
+	{
+		UpdatePreviewMeshMaterial(true);
 	}
 
 	return false;
@@ -155,43 +185,13 @@ void UDisplayClusterPreviewComponent::UpdatePreviewResources()
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UDisplayClusterPreviewComponent::UpdatePreviewResources"), STAT_UpdatePreviewResources, STATGROUP_NDisplay);
 	
-	if (PreviewMesh && PreviewMesh->GetName().Find(TEXT("TRASH_")) != INDEX_NONE)
-	{
-		// Screen components are regenerated from construction scripts, but preview components are added in dynamically. This preview component may end up
-		// pointing to invalid data on reconstruction.
-		// TODO: See if we can remove this hack
-		// 
-		//!
-		PreviewMesh = nullptr;
-	}
-
 	if (GetWorld())
 	{
 		UpdatePreviewRenderTarget();
 		UpdatePreviewMesh();
 	}
 
-	if (PreviewMesh)
-	{
-		if (ViewportConfig && ViewportConfig->bIsEnabled)
-		{
-			// Render preview on mesh:
-			if (bUseMeshUsePreviewMaterialInstance == false)
-			{
-				PreviewMesh->SetMaterial(0, PreviewMaterialInstance);
-				bUseMeshUsePreviewMaterialInstance = true;
-			}
-		}
-		else
-		{
-			// Restore original material
-			if (bUseMeshUsePreviewMaterialInstance == true)
-			{
-				PreviewMesh->SetMaterial(0, OriginalMaterial);
-				bUseMeshUsePreviewMaterialInstance = false;
-			}
-		}
-	}
+	UpdatePreviewMeshMaterial();
 }
 
 void UDisplayClusterPreviewComponent::InitializeInternals()

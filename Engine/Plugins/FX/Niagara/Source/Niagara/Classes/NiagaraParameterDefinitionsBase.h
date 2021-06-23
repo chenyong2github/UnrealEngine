@@ -25,7 +25,7 @@ public:
 
 	const FGuid& GetDefinitionsUniqueId() const { return UniqueId; };
 	virtual int32 GetChangeIdHash() const { return 0; };
-	virtual TArray<FGuid> GetParameterIds() const { return TArray<FGuid>(); };
+	virtual TSet<FGuid> GetParameterIds() const { return TSet<FGuid>(); };
 
 	FOnParameterDefinitionsChanged& GetOnParameterDefinitionsChanged() { return OnParameterDefinitionsChangedDelegate; };
 

@@ -123,7 +123,6 @@ inline bool IsSupported(const FStaticShaderPlatform ShaderPlatform)
 		ShaderPlatform == SP_PCD3D_SM5 ||
 		IsVulkanSM5Platform(ShaderPlatform) ||
 		IsMetalSM5Platform(ShaderPlatform) ||
-		ShaderPlatform == SP_SWITCH ||
 		FDataDrivenShaderPlatformInfo::GetSupportsDiaphragmDOF(ShaderPlatform);
 }
 

@@ -126,6 +126,7 @@ bool UNiagaraNodeOutputTag::CommitEditablePinName(const FText& InName, UEdGraphP
 		InGraphPinObj->Modify();
 
 		InGraphPinObj->PinName = *NewPinName;
+		InGraphPinObj->PinFriendlyName = InName;
 		if (bSuppressEvents == false)
 			OnPinRenamed(InGraphPinObj, OldPinName);
 

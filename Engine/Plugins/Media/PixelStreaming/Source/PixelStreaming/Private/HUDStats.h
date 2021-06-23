@@ -20,6 +20,6 @@ struct FHUDStats
 	FSmoothedValue<SmoothingPeriod> EncoderLatencyMs;
 	FSmoothedValue<SmoothingPeriod> CaptureLatencyMs;
 	FSmoothedValue<SmoothingPeriod> EncoderBitrateMbps;
-	FSmoothedValue<SmoothingPeriod> EncoderQP;
 	FSmoothedValue<SmoothingPeriod> EncoderFPS;
+	uint32_t EncoderQP;
 };

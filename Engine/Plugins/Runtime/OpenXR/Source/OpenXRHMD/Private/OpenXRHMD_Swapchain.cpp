@@ -4,6 +4,12 @@
 #include "OpenXRCore.h"
 #include "XRThreadUtils.h"
 
+static TAutoConsoleVariable<int32> CVarOpenXRSwapchainRetryCount(
+	TEXT("vr.OpenXRSwapchainRetryCount"),
+	9,
+	TEXT("Number of times the OpenXR plugin will attempt to wait for the next swapchain image."),
+	ECVF_RenderThreadSafe);
+
 FOpenXRSwapchain::FOpenXRSwapchain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef & InRHITexture, XrSwapchain InHandle) :
 	FXRSwapChain(MoveTemp(InRHITextureSwapChain), InRHITexture),
 	Handle(InHandle)
@@ -43,7 +49,7 @@ void FOpenXRSwapchain::WaitCurrentImage_RHIThread(int64 Timeout)
 	WaitInfo.timeout = Timeout;
 
 	XrResult WaitResult = XR_SUCCESS;
-	int RetryCount = 3;
+	int RetryCount = CVarOpenXRSwapchainRetryCount.GetValueOnAnyThread();
 	do
 	{
 		XR_ENSURE(WaitResult = xrWaitSwapchainImage(Handle, &WaitInfo));

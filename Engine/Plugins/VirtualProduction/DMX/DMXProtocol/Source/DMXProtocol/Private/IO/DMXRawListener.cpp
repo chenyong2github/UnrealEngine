@@ -31,7 +31,7 @@ void FDMXRawListener::Start()
 	if (TSharedPtr<FDMXPort, ESPMode::ThreadSafe> PinnedOwnerPort = OwnerPort.Pin())
 	{
 		PinnedOwnerPort->OnPortUpdated.AddSP(this, &FDMXRawListener::OnPortUpdated);
-		PinnedOwnerPort->AddRawInput(AsShared());
+		PinnedOwnerPort->AddRawListener(AsShared());
 
 		bStopped = false;
 	}
@@ -39,14 +39,16 @@ void FDMXRawListener::Start()
 
 void FDMXRawListener::Stop()
 {
-	// Without the Stop method, the port would not know it had to free its shared pointer to this.
+	// Without the RemoveRawListener method, the port would not know it had to free its shared pointer to this.
 	// It may seem benefitial to hold a weak ref in the port, however assuming we may well have many
-	// listeners, this would cause significant overhead when copying of the weak ptr. 
+	// listeners, this would cause needless overhead when constantly copying of the weak ptr. 
 	// This is less relevant for raw listeners, but kept for consistency with ticked universe 
 	// listener and minimal performance benefits. 
 	if (FDMXPortSharedPtr PinnedOwnerPort = OwnerPort.Pin())
 	{
-		PinnedOwnerPort->RemoveRawInput(AsShared());
+		FScopeLock Lock(&ListenerCriticalSection);
+
+		PinnedOwnerPort->RemoveRawListener(AsShared());
 	}
 
 	bStopped = true;
@@ -56,13 +58,15 @@ void FDMXRawListener::EnqueueSignal(void* Producer, const FDMXSignalSharedRef& S
 {
 #if UE_BUILD_DEBUG
 	// Test single producer
-	if (!Producer)
+	if (!ProducerObj)
 	{
 		ProducerObj = Producer;
 	}
 	FDMXPortSharedPtr PinnedOwnerPort = OwnerPort.Pin();
-	check(PinnedOwnerPort.IsValid() && ProducerObj == PinnedOwnerPort.Get());
+	checkf(PinnedOwnerPort.IsValid() && ProducerObj == PinnedOwnerPort.Get(), TEXT("More than one producer detected in FDMXRawListener::DequeueSignal."));
 #endif // UE_BUILD_DEBUG
+
+	FScopeLock Lock(&ListenerCriticalSection);
 
 	RawBuffer.Enqueue(Signal);
 }
@@ -71,12 +75,14 @@ bool FDMXRawListener::DequeueSignal(void* Consumer, FDMXSignalSharedPtr& OutSign
 {
 #if UE_BUILD_DEBUG
 	// Test single consumer
-	if (!Consumer)
+	if (!ConsumerObj)
 	{
 		ConsumerObj = Consumer;
 	}
-	check(ConsumerObj == Consumer);
+	checkf(ConsumerObj == Consumer, TEXT("More than one consumer detected in FDMXRawListener::DequeueSignal."));
 #endif // UE_BUILD_DEBUG
+
+	FScopeLock Lock(&ListenerCriticalSection);
 
 	if (RawBuffer.Dequeue(OutSignal))
 	{
@@ -94,11 +100,15 @@ bool FDMXRawListener::DequeueSignal(void* Consumer, FDMXSignalSharedPtr& OutSign
 
 void FDMXRawListener::ClearBuffer()
 {
+	FScopeLock Lock(&ListenerCriticalSection);
+
 	RawBuffer.Empty();
 }
 
 void FDMXRawListener::OnPortUpdated()
 {
+	FScopeLock Lock(&ListenerCriticalSection);
+
 	if (TSharedPtr<FDMXPort, ESPMode::ThreadSafe> PinnedOwnerPort = OwnerPort.Pin())
 	{
 		ExternUniverseOffset = PinnedOwnerPort->GetExternUniverseOffset();

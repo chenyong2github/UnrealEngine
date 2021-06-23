@@ -449,6 +449,22 @@ void FDisplayClusterConfiguratorClusterUtils::SortClusterNodesByHost(const TMap<
 
 UDisplayClusterConfigurationHostDisplayData* FDisplayClusterConfiguratorClusterUtils::FindOrCreateHostDisplayData(UDisplayClusterConfigurationCluster* Cluster, FString HostIPAddress)
 {
+	// In some cases, existing host display data may be pending kill, such as if the user recently performed an undo to a state
+	// prior to the data's existence. In this case, simply remove existing host data that is pending kill and create a new one to use.
+	TArray<FString> PendingKillHostData;
+	for (TPair<FString, UDisplayClusterConfigurationHostDisplayData*>& HostPair : Cluster->HostDisplayData)
+	{
+		if (!HostPair.Value || HostPair.Value->IsPendingKill())
+		{
+			PendingKillHostData.Add(HostPair.Key);
+		}
+	}
+
+	for (const FString& Host : PendingKillHostData)
+	{
+		Cluster->HostDisplayData.Remove(Host);
+	}
+
 	if (!Cluster->HostDisplayData.Contains(HostIPAddress))
 	{
 		const FString HostName = GetUniqueNameForHost(DefaultNewHostName, Cluster, true);
@@ -1185,8 +1201,9 @@ TArray<UObject*> FDisplayClusterConfiguratorClusterUtils::PasteClusterItemsFromC
 				// Offset the location to keep this viewport's relative position with the group of pasted nodes consistent.
 				NewLocation -= FVector2D(Viewport->Region.X, Viewport->Region.Y) - *ReferencePosition;
 
-				ViewportCopy->Region.X = NewLocation.X;
-				ViewportCopy->Region.Y = NewLocation.Y;
+				// Viewports cannot have negative position
+				ViewportCopy->Region.X = FMath::Max(NewLocation.X, 0.0f);
+				ViewportCopy->Region.Y = FMath::Max(NewLocation.Y, 0.0f);
 			}
 
 			CopiedObjects.Add(ViewportCopy);

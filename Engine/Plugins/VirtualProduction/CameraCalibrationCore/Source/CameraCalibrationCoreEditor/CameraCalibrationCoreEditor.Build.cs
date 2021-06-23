@@ -13,6 +13,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
+					"PlacementMode",
 					"PropertyEditor",
 					"Slate",
 					"SlateCore",

@@ -16,8 +16,7 @@ FTakeWorldObjectSnapshotArchive FTakeWorldObjectSnapshotArchive::MakeArchiveForS
 
 FTakeWorldObjectSnapshotArchive::FTakeWorldObjectSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject)
 	:
-	Super(InObjectData, InSharedData, false),
-	OriginalObject(InOriginalObject)
+	Super(InObjectData, InSharedData, false, InOriginalObject)
 {}
 
 bool FTakeWorldObjectSnapshotArchive::ShouldSkipProperty(const FProperty* InProperty) const
@@ -45,7 +44,7 @@ bool FTakeWorldObjectSnapshotArchive::ShouldSkipProperty(const FProperty* InProp
 			return false;
 		}
 		
-		UObject* OriginalContainer = OriginalObject;
+		UObject* OriginalContainer = GetSerializedObject();
 		UObject* ClassDefaultContainer = OriginalContainer->GetClass()->GetDefaultObject(); 
 		for (int32 ArrayDim = 0; ArrayDim < InProperty->ArrayDim; ++ArrayDim)
 		{

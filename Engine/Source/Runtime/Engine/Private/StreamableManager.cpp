@@ -1179,7 +1179,7 @@ TSharedPtr<FStreamableHandle> FStreamableManager::RequestAsyncLoad(TArray<FSoftO
 	if (NumValidRequests == 0)
 	{
 		// Original array was empty or all null
-		UE_LOG(LogStreamableManager, Error, TEXT("RequestAsyncLoad(%s) called with empty or only null assets!"), *DebugName);
+		UE_LOG(LogStreamableManager, Display, TEXT("RequestAsyncLoad(%s) called with empty or only null assets!"), *DebugName);
 		NewRequest->CancelHandle();
 		return nullptr;
 	} 

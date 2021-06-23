@@ -160,6 +160,9 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 
 private:
+	/** The active mode to use */
+	void SetFixturePatchActiveMode(int32 ModeIndex);
+
 	/** Called when the bAutoAssignAddress Property changed */
 	void OnAutoAssignAddressChanged();
 

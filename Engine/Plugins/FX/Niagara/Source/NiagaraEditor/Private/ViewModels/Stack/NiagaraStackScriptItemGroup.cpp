@@ -62,7 +62,7 @@ public:
 		return MakeShareable(new FScriptGroupAddAction(DisplayName, {Category.ToString()}, Description, Keywords, bSuggested, bIsInLibrary, FNiagaraVariable(), false, AssetData, nullptr, false, false, SourceData));
 	}
 
-	static TSharedRef<FScriptGroupAddAction> CreateScriptModuleAction(UNiagaraScript* ModuleScript)
+	static TSharedRef<FScriptGroupAddAction> CreateModuleActionFromScratchPadScript(UNiagaraScript* ModuleScript)
 	{
 		FVersionedNiagaraScriptData* ScriptData = ModuleScript->GetLatestScriptData();
 		FText Category = ScriptData->Category;
@@ -71,16 +71,15 @@ public:
 			Category = LOCTEXT("ModuleNotCategorized", "Uncategorized Modules");
 		}
 
-		bool bIsInLibrary = ScriptData->LibraryVisibility == ENiagaraScriptLibraryVisibility::Library;
+		// we assume scratch pads should always be displayed, so we act like it's a library action so it's not accidentally filtered out
+		bool bIsInLibrary = true;
 		FText DisplayName = FNiagaraEditorUtilities::FormatScriptName(ModuleScript->GetFName(), bIsInLibrary);
 		FText Description = FNiagaraEditorUtilities::FormatScriptDescription(ScriptData->Description, *ModuleScript->GetPathName(), bIsInLibrary);
 		FText Keywords = ScriptData->Keywords;
 		bool bSuggested = ScriptData->bSuggested;
 
 		FAssetData Data = FAssetData(ModuleScript);
-		TTuple<EScriptSource, FText> Source = FNiagaraEditorUtilities::GetScriptSource(Data);
-		// @Todo technically the function would work for all scripts but it's exclusively used for scratch pads
-		FNiagaraActionSourceData SourceData(Source.Key, FText::FromString("Scratch Pad"), true);
+		FNiagaraActionSourceData SourceData(EScriptSource::Niagara, FText::FromString("Scratch Pad"), true);
 		return MakeShareable(new FScriptGroupAddAction(DisplayName, {Category.ToString()}, Description, Keywords, bSuggested, bIsInLibrary, FNiagaraVariable(), false, FAssetData(), ModuleScript, false, false, SourceData));
 	}
 
@@ -273,7 +272,7 @@ public:
 				TArray<ENiagaraScriptUsage> SupportedUsages = ScratchPadScript->GetLatestScriptData()->GetSupportedUsageContexts();
 				if (SupportedUsages.Contains(OutputNode->GetUsage()))
 				{
-					OutAddActions.Add(FScriptGroupAddAction::CreateScriptModuleAction(ScratchPadScript));
+					OutAddActions.Add(FScriptGroupAddAction::CreateModuleActionFromScratchPadScript(ScratchPadScript));
 				}
 			}
 		}

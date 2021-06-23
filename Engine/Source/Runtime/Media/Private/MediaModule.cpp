@@ -138,6 +138,11 @@ public:
 		TimeSource = NewTimeSource;
 	}
 
+	virtual TSharedPtr<IMediaTimeSource, ESPMode::ThreadSafe> GetTimeSource() override
+	{
+		return TimeSource;
+	}
+
 	virtual void TickPostEngine() override
 	{
 		{

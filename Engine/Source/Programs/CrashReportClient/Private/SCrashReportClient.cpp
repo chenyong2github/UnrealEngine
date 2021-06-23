@@ -42,12 +42,11 @@ static void OnViewCrashDirectory( const FSlateHyperlinkRun::FMetadata& Metadata)
 	}
 }
 
-void SCrashReportClient::Construct(const FArguments& InArgs, const TSharedRef<FCrashReportClient>& Client)
+void SCrashReportClient::Construct(const FArguments& InArgs, const TSharedRef<FCrashReportClient>& Client, bool bSimpleDialog)
 {
 	CrashReportClient = Client;
 	bHasUserCommentErrors = false;
 
-	auto CrashedAppName = FPrimaryCrashProperties::Get()->IsValid() ? FPrimaryCrashProperties::Get()->GameName : TEXT("");
 	FText CrashDetailedMessage = LOCTEXT("CrashDetailed", "We are very sorry that this crash occurred. Our goal is to prevent crashes like this from occurring in the future. Please help us track down and fix this crash by providing detailed information about what you were doing so that we may reproduce the crash and fix it quickly. You can also log a Bug Report with us using the <a id=\"browser\" href=\"https://epicsupport.force.com/unrealengine/s/\" style=\"Hyperlink\">Bug Submission Form</> and work directly with support staff to report this issue.\n\nThanks for your help in improving the Unreal Engine.");
 	if (FPrimaryCrashProperties::Get()->IsValid())
 	{
@@ -57,6 +56,22 @@ void SCrashReportClient::Construct(const FArguments& InArgs, const TSharedRef<FC
 			CrashDetailedMessage = FText::FromString(CrashDetailedMessageString);
 		}
 	}
+
+	if (bSimpleDialog)
+	{
+		ConstructSimpleDialog(Client, CrashDetailedMessage);
+	}
+	else
+	{ 
+		ConstructDetailedDialog(Client, CrashDetailedMessage);
+	}
+
+	FSlateApplication::Get().SetUnhandledKeyDownEventHandler(FOnKeyEvent::CreateSP(this, &SCrashReportClient::OnUnhandledKeyDown));
+}
+
+void SCrashReportClient::ConstructDetailedDialog(const TSharedRef<FCrashReportClient>& Client, const FText& CrashDetailedMessage)
+{
+	auto CrashedAppName = FPrimaryCrashProperties::Get()->IsValid() ? FPrimaryCrashProperties::Get()->GameName : TEXT("");
 
 	// Set the text displaying the name of the crashed app, if available
 	const FText CrashedAppText = CrashedAppName.IsEmpty() ?
@@ -310,9 +325,68 @@ void SCrashReportClient::Construct(const FArguments& InArgs, const TSharedRef<FC
 			]
 		]
 	];
-
-	FSlateApplication::Get().SetUnhandledKeyDownEventHandler(FOnKeyEvent::CreateSP(this, &SCrashReportClient::OnUnhandledKeyDown));
 }
+
+void SCrashReportClient::ConstructSimpleDialog(const TSharedRef<FCrashReportClient>& Client, const FText& CrashDetailedMessage)
+{
+	FString CrashedAppName = FPrimaryCrashProperties::Get()->IsValid() ? FPrimaryCrashProperties::Get()->GameName : TEXT("");
+	CrashedAppName.RemoveFromStart(TEXT("UE4-"));
+	CrashedAppName.RemoveFromEnd(TEXT("Game"));
+
+	ChildSlot
+	[
+		SNew(SBorder)
+		.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+		[
+			SNew(SVerticalBox)
+
+			// Stuff anchored to the top
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(4)
+			[
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.TextStyle(FCrashReportClientStyle::Get(), "Title")
+					.Text(FText::FromString(CrashedAppName))
+				]
+			]
+
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding( FMargin( 4, 10 ) )
+			[
+				SNew( SRichTextBlock )
+				.Text(CrashDetailedMessage)
+				.AutoWrapText(true)
+				.DecoratorStyleSet( &FCoreStyle::Get() )
+				+ SRichTextBlock::HyperlinkDecorator( TEXT("browser"), FSlateHyperlinkRun::FOnClick::CreateStatic( &OnBrowserLinkClicked ) )
+			]
+
+			// Stuff anchored to the bottom
+			+SVerticalBox::Slot()
+			.Padding( FMargin(4, 4+16, 4, 4) )
+			[
+				SNew(SHorizontalBox)
+
+				+SHorizontalBox::Slot()
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Bottom)
+				.Padding( FMargin(6) )
+				[
+					SNew(SButton)
+					.ContentPadding( FMargin(8,2) )
+					.Text(LOCTEXT("Close", "Close"))
+					.OnClicked(Client, &FCrashReportClient::Close)
+				]		
+			]
+		]
+	];
+}
+
 
 FReply SCrashReportClient::OnUnhandledKeyDown(const FKeyEvent& InKeyEvent)
 {

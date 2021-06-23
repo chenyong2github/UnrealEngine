@@ -1145,7 +1145,7 @@ void FRHICommandListBase::Reset()
 	check(BreadcrumbStackTop == nullptr);
 	BreadcrumbStackTop = nullptr;
 	// Should be null if we submitted
-	check(FirstUnsubmittedBreadcrumb == nullptr);
+	checkf(FirstUnsubmittedBreadcrumb == nullptr, TEXT("RHI breadcrumb not submitted. Name:%s"), FirstUnsubmittedBreadcrumb->Name);
 	FirstUnsubmittedBreadcrumb = nullptr;
 #endif
 }

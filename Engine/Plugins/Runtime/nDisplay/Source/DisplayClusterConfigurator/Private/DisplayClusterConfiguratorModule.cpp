@@ -12,7 +12,6 @@
 #include "Views/Details/Policies/DisplayClusterConfiguratorPolicyDetailCustomization.h"
 
 #include "Blueprints/DisplayClusterBlueprint.h"
-#include "Components/DisplayClusterSceneComponent.h"
 #include "Components/DisplayClusterScreenComponent.h"
 #include "Components/DisplayClusterICVFXCameraComponent.h"
 #include "Misc/DisplayClusterObjectRef.h"
@@ -288,6 +287,14 @@ void FDisplayClusterConfiguratorModule::RegisterCustomLayouts()
 
 		PropertyModule.RegisterCustomPropertyTypeLayout(LayoutName,
 			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorOCIOProfileCustomization::MakeInstance<FDisplayClusterConfiguratorOCIOProfileCustomization>));
+	}
+
+	{
+		const FName LayoutName = FDisplayClusterConfigurationViewport_ColorGradingProfile::StaticStruct()->GetFName();
+		RegisteredPropertyLayoutNames.Add(LayoutName);
+
+		PropertyModule.RegisterCustomPropertyTypeLayout(LayoutName,
+			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorColorGradingProfileCustomization::MakeInstance<FDisplayClusterConfiguratorColorGradingProfileCustomization>));
 	}
 }
 

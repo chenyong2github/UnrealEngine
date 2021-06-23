@@ -112,7 +112,6 @@ namespace Chaos
 		return nullptr;
 	}
 
-
 	template <typename T, int d>
 	void Chaos::TGeometryParticle<T, d>::MergeGeometry(TArray<TUniquePtr<FImplicitObject>>&& Objects)
 	{
@@ -123,19 +122,13 @@ namespace Chaos
 
 		if (MNonFrequentData.Read().Geometry()->GetType() == FImplicitObjectUnion::StaticType())
 		{
-			// if we are currently a union then add the new geometry to this union
-			MNonFrequentData.Modify(true, MDirtyFlags, Proxy, [&Objects](auto& Data)
+			ModifyGeometry([&Objects, this](FImplicitObject& GeomToModify)
+			{
+				if (FImplicitObjectUnion* Union = GeomToModify.template GetObject<FImplicitObjectUnion>())
 				{
-					if (Data.AccessGeometryDangerous())
-					{
-						if (FImplicitObjectUnion* Union = Data.AccessGeometryDangerous()->template GetObject<FImplicitObjectUnion>())
-						{
-							Union->Combine(Objects);
-						}
-					}
-				});
-
-			UpdateShapesArray();
+					Union->Combine(Objects);
+				}
+			});
 		}
 	}
 
@@ -159,19 +152,15 @@ namespace Chaos
 		if (MNonFrequentData.Read().Geometry()->GetType() == FImplicitObjectUnion::StaticType())
 		{
 			// if we are currently a union then remove geometry from this union
-			MNonFrequentData.Modify(true, MDirtyFlags, Proxy, [FoundIndex](auto& Data)
+			ModifyGeometry([FoundIndex](FImplicitObject& GeomToModify)
+			{
+				if (FImplicitObjectUnion* Union = GeomToModify.template GetObject<FImplicitObjectUnion>())
 				{
-					if (Data.Geometry())
-					{
-						if (FImplicitObjectUnion* Union = Data.AccessGeometryDangerous()->template GetObject<FImplicitObjectUnion>())
-						{
-							Union->RemoveAt(FoundIndex);
-						}
-					}
-				});
+					Union->RemoveAt(FoundIndex);
+				}
+			});
 		}
 
-		UpdateShapesArray();
 	}
 
 
@@ -216,6 +205,15 @@ namespace Chaos
 				// @todo (mlentine): Need to in theory set convex properly here
 			}
 		}
+	}
+
+	template <typename T, int d>
+	void TGeometryParticle<T,d>::SetIgnoreAnalyticCollisions(bool bIgnoreAnalyticCollisions)
+	{
+		ModifyGeometry([this, bIgnoreAnalyticCollisions](FImplicitObject& GeomToModify)
+		{
+			SetIgnoreAnalyticCollisionsImp(&GeomToModify, bIgnoreAnalyticCollisions);
+		});
 	}
 
 	template class CHAOS_API TGeometryParticle<FReal, 3>;

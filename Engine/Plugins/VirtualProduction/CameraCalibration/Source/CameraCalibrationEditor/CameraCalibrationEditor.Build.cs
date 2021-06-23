@@ -9,6 +9,7 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"ApplicationCore",
 					"AssetRegistry",
 					"AssetTools",
 					"CameraCalibration",
@@ -20,6 +21,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 	                "CurveEditor",
 					"EditorStyle",
+					"EditorWidgets",
 					"Engine",
 					"InputCore",
 					"LiveLinkCamera",
@@ -29,7 +31,10 @@ namespace UnrealBuildTool.Rules
 					"MediaAssets",
 					"MediaFrameworkUtilities",
 					"OpenCV",
+					"OpenCVHelper",
+					"PlacementMode",
 					"PropertyEditor",
+					"Settings",
 					"Slate",
 					"SlateCore",
 					"UnrealEd",

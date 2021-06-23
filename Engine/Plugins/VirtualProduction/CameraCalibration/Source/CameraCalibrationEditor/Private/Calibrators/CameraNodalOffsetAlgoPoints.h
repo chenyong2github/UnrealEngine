@@ -8,6 +8,8 @@
 
 #include "CameraNodalOffsetAlgoPoints.generated.h"
 
+class FCameraCalibrationStepsController;
+
 template <typename ItemType>
 class SListView;
 
@@ -15,6 +17,7 @@ class UCalibrationPointComponent;
 
 template<typename OptionType>
 class SComboBox;
+
 
 namespace CameraNodalOffsetAlgoPoints
 {
@@ -47,9 +50,10 @@ public:
 	virtual bool GetNodalOffset(FNodalPointOffset& OutNodalOffset, float& OutFocus, float& OutZoom, float& OutError, FText& OutErrorMessage) override;
 	virtual FName FriendlyName() const override { return TEXT("Nodal Offset Points Method"); };
 	virtual void OnSavedNodalOffset() override;
+	virtual TSharedRef<SWidget> BuildHelpWidget() override;
 	//~ End CalibPointsNodalOffsetAlgo
 
-private:
+protected:
 
 	// SCalibrationRowGenerator will need access to the row structures below.
 	friend class CameraNodalOffsetAlgoPoints::SCalibrationRowGenerator;
@@ -102,8 +106,14 @@ private:
 		// Calibrator Pose
 		FTransform CalibratorPose;
 
+		// Calibrator ParentPose
+		FTransform CalibratorParentPose;
+
 		// Calibrator unique id
 		uint32 CalibratorUniqueId;
+
+		// Calibrator parent unique id
+		uint32 CalibratorParentUniqueId;
 	};
 
 	/** Holds information of the calibrator 3d point for a given sample of a 2d-3d correlation */
@@ -119,7 +129,7 @@ private:
 		FCameraDataCache CameraData;
 	};
 
-private:
+protected:
 
 	/** The nodal offset tool controller */
 	TWeakObjectPtr<UNodalOffsetTool> NodalOffsetTool;
@@ -145,7 +155,7 @@ private:
 	/** Caches the last camera data.  Will hold last value before the nodal offset tool is paused */
 	FCameraDataCache LastCameraData;
 
-private:
+protected:
 
 	/** Builds the UI of the calibration device picker */
 	TSharedRef<SWidget> BuildCalibrationDevicePickerWidget();
@@ -159,10 +169,10 @@ private:
 	/** Builds the UI for the action buttons (RemoveLast, ClearAll) */
 	TSharedRef<SWidget> BuildCalibrationActionButtons();
 
-private:
+protected:
 
 	/** Returns the first calibrator object in the scene that it can find */
-	AActor* FindFirstCalibrator() const;
+	virtual AActor* FindFirstCalibrator() const;
 
 	/** Sets the calibrator object to be used. Updates the selection picker. */
 	void SetCalibrator(AActor* InCalibrator);
@@ -174,16 +184,16 @@ private:
 	void ClearCalibrationRows();
 
 	/** Retrieves by name the UCalibrationPointComponent of the currently selected calibrator */
-	const UCalibrationPointComponent* GetCalibrationPointComponentFromName(FString& Name) const;
+	const UCalibrationPointComponent* GetCalibrationPointComponentFromName(const FString& Name) const;
 
-	/** Returns the world 3d location of the currently selected */
+	/** Returns the world 3d location of the currently selected calibrator */
 	bool GetCurrentCalibratorPointLocation(FVector& OutLocation);
 
 	/** Selects the next available UCalibrationPointComponent of the currently selected calibrator object. Returns true when it wraps around */
 	bool AdvanceCalibratorPoint();
 
 	/** Validates a new calibration point to determine if it should be added as a new sample row */
-	bool ValidateNewRow(TSharedPtr<FCalibrationRowData>& Row, FText& OutErrorMessage) const;
+	virtual bool ValidateNewRow(TSharedPtr<FCalibrationRowData>& Row, FText& OutErrorMessage) const;
 
 	/** Applies the nodal offset to the calibrator */
 	bool ApplyNodalOffsetToCalibrator();
@@ -191,9 +201,15 @@ private:
 	/** Applies the nodal offset to the tracker origin (normally the camera parent) */
 	bool ApplyNodalOffsetToTrackingOrigin();
 
+	/** Applies the nodal offset to the parent of the calibrator */
+	bool ApplyNodalOffsetToCalibratorParent();
+
 	/** Does basic checks on the data before performing the actual calibration */
 	bool BasicCalibrationChecksPass(FText& OutErrorMessage) const;
 
 	/** Calculates the optimal camera component pose that minimizes the reprojection error */
 	bool CalculatedOptimalCameraComponentPose(FTransform& OutDesiredCameraTransform, FText& OutErrorMessage) const;
+
+	/** Gets the step controller and the lens file */
+	bool GetStepsControllerAndLensFile(const FCameraCalibrationStepsController** OutStepsController, const ULensFile** OutLensFile) const;
 };

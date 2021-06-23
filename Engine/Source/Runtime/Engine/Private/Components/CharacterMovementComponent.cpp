@@ -1377,7 +1377,28 @@ void UCharacterMovementComponent::TickComponent(float DeltaTime, enum ELevelTick
 
 	if (bUsingAsyncTick)
 	{
-		// We are simulating character movement on physics thread, do not tick movement.
+		check(CharacterOwner && CharacterOwner->GetMesh());
+		USkeletalMeshComponent* CharacterMesh = CharacterOwner->GetMesh();
+		if (CharacterMesh->ShouldTickPose())
+		{
+			const bool bWasPlayingRootMotion = CharacterOwner->IsPlayingRootMotion();
+
+			CharacterMesh->TickPose(DeltaTime, true);
+			// We are simulating character movement on physics thread, do not tick movement.
+			const bool bIsPlayingRootMotion = CharacterOwner->IsPlayingRootMotion();
+			if (bIsPlayingRootMotion || bWasPlayingRootMotion)
+			{
+				FRootMotionMovementParams RootMotion = CharacterMesh->ConsumeRootMotion();
+				if (RootMotion.bHasRootMotion)
+				{
+					RootMotion.ScaleRootMotionTranslation(CharacterOwner->GetAnimRootMotionTranslationScale());
+					RootMotionParams.Accumulate(RootMotion);
+				}
+			}
+		}
+
+		AccumulateRootMotionForAsync(DeltaTime, AsyncRootMotion);
+
 		return;
 	}
 
@@ -12047,8 +12068,162 @@ ETeleportType UCharacterMovementComponent::GetTeleportType() const
 	return bJustTeleported || bNetworkLargeClientCorrection ? ETeleportType::TeleportPhysics : ETeleportType::None;
 }
 
+void UCharacterMovementComponent::AccumulateRootMotionForAsync(float DeltaSeconds, FRootMotionAsyncData& RootMotion)
+{
+	SCOPE_CYCLE_COUNTER(STAT_CharacterMovementPerformMovement);
 
-void UCharacterMovementComponent::FillAsyncInput(const FVector& InputVector, FCharacterMovementComponentAsyncInput& AsyncInput) const
+	const UWorld* MyWorld = GetWorld();
+	if (!HasValidData() || MyWorld == nullptr)
+	{
+		return;
+	}
+
+	check(CharacterOwner && CharacterOwner->GetMesh());
+	const bool bIsPlayingRootMotion = CharacterOwner->IsPlayingRootMotion();
+
+	RootMotion.bHasAnimRootMotion |= HasAnimRootMotion();
+
+	// no movement if we can't move, or if currently doing physical simulation on UpdatedComponent
+	if (MovementMode == MOVE_None || UpdatedComponent->Mobility != EComponentMobility::Movable || UpdatedComponent->IsSimulatingPhysics())
+	{
+		if (!CharacterOwner->bClientUpdating && !CharacterOwner->bServerMoveIgnoreRootMotion)
+		{
+			// Consume root motion
+			if (bIsPlayingRootMotion && CharacterOwner->GetMesh())
+			{
+				RootMotionParams.Clear();
+			}
+			if (CurrentRootMotion.HasActiveRootMotionSources())
+			{
+				CurrentRootMotion.Clear();
+			}
+		}
+		RootMotion.TimeAccumulated += DeltaSeconds;
+		return;
+	}
+
+	bool bHasRootMotion = RootMotionParams.bHasRootMotion;
+
+	{
+		// Clean up invalid RootMotion Sources.
+		// This includes RootMotion sources that ended naturally.
+		// They might want to perform a clamp on velocity or an override, 
+		// so we want this to happen before ApplyAccumulatedForces and HandlePendingLaunch as to not clobber these.
+		const bool bHasRootMotionSources = HasRootMotionSources();
+		if (bHasRootMotionSources && !CharacterOwner->bClientUpdating && !CharacterOwner->bServerMoveIgnoreRootMotion)
+		{
+			const FVector VelocityBeforeCleanup = Velocity;
+			CurrentRootMotion.CleanUpInvalidRootMotion(DeltaSeconds, *CharacterOwner, *this);
+		}
+
+		// Prepare Root Motion (generate/accumulate from root motion sources to be used later)
+		if (bHasRootMotionSources && !CharacterOwner->bClientUpdating && !CharacterOwner->bServerMoveIgnoreRootMotion)
+		{
+			// Animation root motion - If using animation RootMotion, tick animations before running physics.
+			if (bIsPlayingRootMotion && CharacterOwner->GetMesh())
+			{
+				//TickCharacterPose(DeltaSeconds);// doing this in Tick now
+
+				// Make sure animation didn't trigger an event that destroyed us
+				if (!HasValidData())
+				{
+					return;
+				}
+
+				// For local human clients, save off root motion data so it can be used by movement networking code.
+				if (CharacterOwner->IsLocallyControlled() && (CharacterOwner->GetLocalRole() == ROLE_AutonomousProxy) && CharacterOwner->IsPlayingNetworkedRootMotionMontage())
+				{
+					CharacterOwner->ClientRootMotionParams = RootMotionParams;
+				}
+			}
+
+			// Generates root motion to be used this frame from sources other than animation
+			{
+				CurrentRootMotion.PrepareRootMotion(DeltaSeconds, *CharacterOwner, *this, true);
+			}
+
+			// For local human clients, save off root motion data so it can be used by movement networking code.
+			if (CharacterOwner->IsLocallyControlled() && (CharacterOwner->GetLocalRole() == ROLE_AutonomousProxy))
+			{
+				CharacterOwner->SavedRootMotion = CurrentRootMotion;
+			}
+		}
+
+		RootMotion.bHasOverrideRootMotion |= CurrentRootMotion.HasOverrideVelocity();
+		RootMotion.bHasOverrideWithIgnoreZAccumulate |= CurrentRootMotion.HasOverrideVelocityWithIgnoreZAccumulate();
+		RootMotion.bHasAdditiveRootMotion |= CurrentRootMotion.HasAdditiveVelocity();
+		RootMotion.bUseSensitiveLiftoff |= CurrentRootMotion.LastAccumulatedSettings.HasFlag(ERootMotionSourceSettingsFlags::UseSensitiveLiftoffCheck);
+
+		// Apply Root Motion to Velocity
+		if (CurrentRootMotion.HasOverrideVelocity() || bHasRootMotion)
+		{
+			// Animation root motion overrides Velocity and currently doesn't allow any other root motion sources
+			if (bHasRootMotion)
+			{
+				// Convert to world space (animation root motion is always local)
+				USkeletalMeshComponent* SkelMeshComp = CharacterOwner->GetMesh();
+				if (SkelMeshComp)
+				{
+					// Convert Local Space Root Motion to world space. Do it right before used by physics to make sure we use up to date transforms, as translation is relative to rotation.
+					RootMotionParams.Set(ConvertLocalRootMotionToWorld(RootMotionParams.GetRootMotionTransform(), DeltaSeconds));
+					RootMotion.AnimTransform.Accumulate(RootMotionParams.GetRootMotionTransform());
+				}
+			}
+			else
+			{
+				// We don't have animation root motion so we apply other sources
+				if (DeltaSeconds > 0.f)
+				{
+					SCOPE_CYCLE_COUNTER(STAT_CharacterMovementRootMotionSourceApply);
+
+					const FVector VelocityBeforeOverride = Velocity;
+					FVector NewVelocity = Velocity;
+					CurrentRootMotion.AccumulateOverrideRootMotionVelocity(DeltaSeconds, *CharacterOwner, *this, NewVelocity);
+					if (RootMotion.TimeAccumulated == 0.f)
+					{
+						RootMotion.OverrideVelocity = NewVelocity;
+					}
+					else
+					{
+						// weighted average
+						RootMotion.OverrideVelocity = ((RootMotion.OverrideVelocity * RootMotion.TimeAccumulated) + NewVelocity * DeltaSeconds) / (RootMotion.TimeAccumulated + DeltaSeconds);
+					}
+				}
+			}
+
+			// Root Motion has been used, clear
+			RootMotionParams.Clear();
+		}
+
+		// NaN tracking
+		devCode(ensureMsgf(!Velocity.ContainsNaN(), TEXT("UCharacterMovementComponent::PerformMovement: Velocity contains NaN (%s)\n%s"), *GetPathNameSafe(this), *Velocity.ToString()));
+
+		// Apply Root Motion rotation after movement is complete.
+		if (bHasRootMotion)
+		{
+			//const FQuat OldActorRotationQuat = UpdatedComponent->GetComponentQuat();
+			//const FQuat RootMotionRotationQuat = RootMotionTransform.GetRotation();
+			//if (!RootMotionRotationQuat.IsIdentity())
+			//{
+			//	const FQuat NewActorRotationQuat = RootMotionRotationQuat * OldActorRotationQuat;
+			//	MoveUpdatedComponent(FVector::ZeroVector, NewActorRotationQuat, true);// WARNING
+			//}
+
+		}
+		else if (CurrentRootMotion.HasActiveRootMotionSources())
+		{
+			FQuat RootMotionRotationQuat;
+			if (CharacterOwner && UpdatedComponent && CurrentRootMotion.GetOverrideRootMotionRotation(DeltaSeconds, *CharacterOwner, *this, RootMotionRotationQuat))
+			{
+				RootMotion.OverrideRotation = RootMotionRotationQuat * RootMotion.OverrideRotation;
+			}
+		}
+	} // End scoped movement update
+
+	RootMotion.TimeAccumulated += DeltaSeconds;
+}
+
+void UCharacterMovementComponent::FillAsyncInput(const FVector& InputVector, FCharacterMovementComponentAsyncInput& AsyncInput)
 {
 	if (!CharacterOwner || !CharacterOwner->Controller)
 	{
@@ -12056,11 +12231,13 @@ void UCharacterMovementComponent::FillAsyncInput(const FVector& InputVector, FCh
 	}
 
 	ensure(UpdatedComponent); // assumed to exist in  MockMoveUpdatedComponent
-	ensure(HasRootMotionSources() == false); // Skipped some impl in PerformMovement, is this required for first test?
 	ensure(CharacterOwner->GetCapsuleComponent()); // check in FindFloor
 	ensure(!bRunPhysicsWithNoController);
 	ensure(UpdatedComponent->GetOwner()); // assumed in ResolvePenetration
 	ensure(GetOwner()); 
+
+	// here because it can trigger other animation stuff (Mantis)
+	UpdateCharacterStateBeforeMovement(AsyncRootMotion.TimeAccumulated);
 
 	AsyncInput.bInitialized = true;
 
@@ -12125,6 +12302,10 @@ void UCharacterMovementComponent::FillAsyncInput(const FVector& InputVector, FCh
 	AsyncInput.MaxSwimSpeed = MaxSwimSpeed;
 	AsyncInput.MaxFlySpeed = MaxFlySpeed;
 	AsyncInput.MaxCustomMovementSpeed = MaxCustomMovementSpeed;
+	AsyncInput.RotationRate = RotationRate;
+	
+	AsyncInput.RootMotion = AsyncRootMotion;
+	AsyncRootMotion.Clear();
 
 	FCachedMovementBaseAsyncData& MovementBaseData = AsyncInput.MovementBaseAsyncData;
 	
@@ -12156,16 +12337,7 @@ void UCharacterMovementComponent::FillAsyncInput(const FVector& InputVector, FCh
 	// Character owner inputs
 	TUniquePtr<FCharacterAsyncInput>& CharacterInput = AsyncInput.CharacterInput;
 	ensure(CharacterInput.IsValid());
-	CharacterInput->JumpMaxHoldTime = CharacterOwner->GetJumpMaxHoldTime();
-	CharacterInput->JumpMaxCount = CharacterOwner->JumpMaxCount;
-	CharacterInput->LocalRole = ENetRole::ROLE_Authority;//CharacterOwner->GetLocalRole(); Override as we aren't currently replicating to server. TODO NetRole
-	CharacterInput->RemoteRole = CharacterOwner->GetRemoteRole();
-	CharacterInput->bIsLocallyControlled = true;// CharacterOwner->IsLocallyControlled(); TODO NetRole
-	CharacterInput->bIsPlayingNetworkedRootMontage = CharacterOwner->IsPlayingNetworkedRootMotionMontage();
-	CharacterInput->bUseControllerRotationPitch = CharacterOwner->bUseControllerRotationPitch;
-	CharacterInput->bUseControllerRotationYaw = CharacterOwner->bUseControllerRotationYaw;
-	CharacterInput->bUseControllerRotationRoll = CharacterOwner->bUseControllerRotationRoll;
-	CharacterInput->ControllerDesiredRotation = CharacterOwner->Controller->GetDesiredRotation();
+	CharacterOwner->FillAsyncInput(*CharacterInput.Get());
 
 	AsyncInput.World = GetWorld();
 
@@ -12245,7 +12417,8 @@ void UCharacterMovementComponent::FillAsyncInput(const FVector& InputVector, FCh
 		AsyncSimState->LastUpdateVelocity = LastUpdateVelocity;
 		AsyncSimState->bForceNextFloorCheck = bForceNextFloorCheck;
 		AsyncSimState->Velocity = Velocity;
-		AsyncSimState->RotationRate = RotationRate;
+		AsyncSimState->LastPreAdditiveVelocity = FVector::ZeroVector;
+		AsyncSimState->bIsAdditiveVelocityApplied = false;
 		AsyncSimState->bDeferUpdateBasedMovement = bDeferUpdateBasedMovement;
 		AsyncSimState->MoveComponentFlags = MoveComponentFlags;
 		AsyncSimState->PendingForceToApply = PendingForceToApply;
@@ -12262,7 +12435,6 @@ void UCharacterMovementComponent::FillAsyncInput(const FVector& InputVector, FCh
 		AsyncSimState->bRequestedMoveWithMaxSpeed = bRequestedMoveWithMaxSpeed;
 		AsyncSimState->RequestedVelocity = RequestedVelocity;
 		AsyncSimState->NumJumpApexAttempts = NumJumpApexAttempts;
-		AsyncSimState->RootMotionParams = RootMotionParams;
 		AsyncSimState->bShouldApplyDeltaToMeshPhysicsTransforms = false;
 		AsyncSimState->DeltaPosition = FVector::ZeroVector;
 		AsyncSimState->DeltaQuat = FQuat::Identity;
@@ -12275,18 +12447,11 @@ void UCharacterMovementComponent::FillAsyncInput(const FVector& InputVector, FCh
 		AsyncSimState->bShouldRemoveMovementBaseTickDependency = false;
 		AsyncSimState->NewMovementBase = AsyncInput.MovementBaseAsyncData.CachedMovementBase;
 		AsyncSimState->NewMovementBaseOwner = AsyncSimState->NewMovementBase ? AsyncSimState->NewMovementBase->GetOwner() : nullptr;
-		AsyncSimState->CurrentRootMotion = CurrentRootMotion;
 
 		// Character owner data
 		TUniquePtr<FCharacterAsyncOutput>& CharacterOutput = AsyncSimState->CharacterOutput;
-		CharacterOutput->Rotation = CharacterOwner->GetActorRotation();
-		CharacterOutput->JumpCurrentCountPreJump = CharacterOwner->JumpCurrentCountPreJump;
-		CharacterOutput->JumpCurrentCount = CharacterOwner->JumpCurrentCount;
-		CharacterOutput->JumpForceTimeRemaining = CharacterOwner->JumpForceTimeRemaining;
-		CharacterOutput->bWasJumping = CharacterOwner->bWasJumping;
-		CharacterOutput->bPressedJump = CharacterOwner->bPressedJump;
-		CharacterOutput->JumpKeyHoldTime = CharacterOwner->JumpKeyHoldTime;
-		CharacterOutput->bClearJumpInput = false;
+		ensure(CharacterOutput.IsValid());
+		CharacterOwner->InitializeAsyncOutput(*CharacterOutput.Get());
 
 		AsyncSimState->bIsValid = true;
 	}
@@ -12349,15 +12514,21 @@ void UCharacterMovementComponent::ApplyAsyncOutput(FCharacterMovementComponentAs
 
 	// TODO verify order
 	bWasSimulatingRootMotion = Output.bWasSimulatingRootMotion;
-	MovementMode = Output.MovementMode;
-	CustomMovementMode = Output.CustomMovementMode;
 	Acceleration = Output.Acceleration;
 	AnalogInputModifier = Output.AnalogInputModifier;
 	LastUpdateLocation = Output.LastUpdateLocation;
 	LastUpdateRotation = Output.LastUpdateRotation;
 	LastUpdateVelocity = Output.LastUpdateVelocity;
 	bForceNextFloorCheck = Output.bForceNextFloorCheck;
-	CurrentRootMotion = Output.CurrentRootMotion; // TODO RootMotion, needs fix.
+
+	EMovementMode PrevMovementMode = MovementMode;
+	uint8 PrevCustomMode = CustomMovementMode;
+	MovementMode = Output.MovementMode;
+	CustomMovementMode = Output.CustomMovementMode;
+	if (CharacterOwner && (MovementMode != PrevMovementMode || CustomMovementMode != PrevCustomMode))
+	{
+		CharacterOwner->OnMovementModeChanged(PrevMovementMode, PrevCustomMode);
+	}
 
 	Velocity = Output.Velocity;
 	CallMovementUpdateDelegate(Output.DeltaTime, Output.OldLocation, Output.OldVelocity);
@@ -12386,21 +12557,11 @@ void UCharacterMovementComponent::ApplyAsyncOutput(FCharacterMovementComponentAs
 	if (CharacterOwner)
 	{
 		TUniquePtr<FCharacterAsyncOutput>& CharacterOutput = Output.CharacterOutput;
-		CharacterOwner->JumpCurrentCountPreJump = CharacterOutput->JumpCurrentCountPreJump;
-		CharacterOwner->JumpCurrentCount = CharacterOutput->JumpCurrentCount;
-		CharacterOwner->JumpForceTimeRemaining = CharacterOutput->JumpForceTimeRemaining;
-		CharacterOwner->bWasJumping = CharacterOutput->bWasJumping;
-		CharacterOwner->JumpKeyHoldTime = CharacterOutput->JumpKeyHoldTime;
-
-		if (CharacterOutput->bClearJumpInput)
-		{
-			CharacterOwner->bPressedJump = false;
-		}
+		ensure(CharacterOutput.IsValid());
+		CharacterOwner->ApplyAsyncOutput(*CharacterOutput.Get());
 	}
 
 	NumJumpApexAttempts = Output.NumJumpApexAttempts;
-
-	RootMotionParams = Output.RootMotionParams; // Probably wrong
 
 	if (CharacterOwner && Output.bShouldApplyDeltaToMeshPhysicsTransforms)
 	{

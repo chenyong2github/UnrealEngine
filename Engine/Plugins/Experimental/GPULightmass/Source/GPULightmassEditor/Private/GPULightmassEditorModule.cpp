@@ -282,6 +282,14 @@ TSharedRef<SDockTab> FGPULightmassEditorModule::SpawnSettingsTab(const FSpawnTab
 		];
 }
 
+void FGPULightmassEditorModule::UpdateSettingsTab()
+{
+	if (SettingsView.IsValid())
+	{
+		SettingsView->ForceRefresh();
+	}
+}
+
 bool FGPULightmassEditorModule::IsBakeWhatYouSeeMode()
 {
 	if (UWorld* World = GEditor->GetEditorWorldContext().World())
@@ -322,8 +330,11 @@ FReply FGPULightmassEditorModule::OnStartClicked()
 			}
 
 			World->GetSubsystem<UGPULightmassSubsystem>()->Launch();
+			World->GetSubsystem<UGPULightmassSubsystem>()->OnLightBuildEnded().AddRaw(this, &FGPULightmassEditorModule::UpdateSettingsTab);
 		}
 	}
+
+	UpdateSettingsTab();
 
 	return FReply::Handled();
 }
@@ -337,8 +348,11 @@ FReply FGPULightmassEditorModule::OnSaveAndStopClicked()
 		{
 			World->GetSubsystem<UGPULightmassSubsystem>()->Save();
 			World->GetSubsystem<UGPULightmassSubsystem>()->Stop();
+			World->GetSubsystem<UGPULightmassSubsystem>()->OnLightBuildEnded().RemoveAll(this);
 		}
 	}
+
+	UpdateSettingsTab();
 
 	return FReply::Handled();
 }
@@ -351,8 +365,11 @@ FReply FGPULightmassEditorModule::OnCancelClicked()
 		if (World->GetSubsystem<UGPULightmassSubsystem>()->IsRunning())
 		{
 			World->GetSubsystem<UGPULightmassSubsystem>()->Stop();
+			World->GetSubsystem<UGPULightmassSubsystem>()->OnLightBuildEnded().RemoveAll(this);
 		}
 	}
+	
+	UpdateSettingsTab();
 
 	return FReply::Handled();
 }
@@ -365,6 +382,15 @@ void FGPULightmassEditorModule::OnMapChanged(UWorld* InWorld, EMapChangeType Map
 		if (World->GetSubsystem<UGPULightmassSubsystem>())
 		{
 			SettingsView->SetObject(World->GetSubsystem<UGPULightmassSubsystem>()->GetSettings(), true);
+
+			if (MapChangeType == EMapChangeType::LoadMap || MapChangeType == EMapChangeType::NewMap)
+			{
+				World->GetSubsystem<UGPULightmassSubsystem>()->OnLightBuildEnded().AddRaw(this, &FGPULightmassEditorModule::UpdateSettingsTab);
+			}
+			else if (MapChangeType == EMapChangeType::TearDownWorld)
+			{
+				World->GetSubsystem<UGPULightmassSubsystem>()->OnLightBuildEnded().RemoveAll(this);
+			}
 		}
 	}
 }

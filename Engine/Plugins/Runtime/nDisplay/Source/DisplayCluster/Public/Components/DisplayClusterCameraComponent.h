@@ -3,28 +3,31 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DisplayClusterSceneComponent.h"
-#include "DisplayClusterConfigurationTypes.h"
+#include "Components/SceneComponent.h"
+#include "Components/IDisplayClusterComponent.h"
+
 #include "DisplayClusterCameraComponent.generated.h"
 
-class UStaticMeshComponent;
+class UBillboardComponent;
+class UTexture2D;
 
 
 UENUM()
 enum class EDisplayClusterEyeStereoOffset : uint8
 {
-	None,
-	Left,
-	Right
+	None  UMETA(DisplayName = "Default"),
+	Left  UMETA(DisplayName = "Left Eye"),
+	Right UMETA(DisplayName = "Right Eye"),
 };
 
 
 /**
- * Camera component
+ * nDisplay camera component
  */
-UCLASS(ClassGroup = (DisplayCluster), meta = (BlueprintSpawnableComponent, DisplayName="NDisplay View Origin"))
+UCLASS(ClassGroup = (DisplayCluster), meta = (BlueprintSpawnableComponent, DisplayName = "NDisplay View Origin"))
 class DISPLAYCLUSTER_API UDisplayClusterCameraComponent
-	: public UDisplayClusterSceneComponent
+	: public USceneComponent
+	, public IDisplayClusterComponent
 {
 	GENERATED_BODY()
 
@@ -33,40 +36,44 @@ public:
 
 public:
 	/**
-	* Returns currently used interpupillary distance.
+	* Get interpupillary distance
 	*
-	* @return - distance between eyes (in meters)
+	* @return - Interpupillary distance
 	*/
+	UFUNCTION(BlueprintCallable, Category = "Stereo")
 	float GetInterpupillaryDistance() const
 	{
 		return InterpupillaryDistance;
 	}
 
 	/**
-	* Configuration of interpupillary (interocular) distance
+	* Set interpupillary distance
 	*
-	* @param Distance - distance between eyes (meters).
+	* @param Distance - New interpupillary distance
 	*/
+	UFUNCTION(BlueprintCallable, Category = "Stereo")
 	void SetInterpupillaryDistance(float Distance)
 	{
 		InterpupillaryDistance = Distance;
 	}
 
 	/**
-	* Returns currently used eyes swap
+	* Get swap eyes state
 	*
-	* @return - eyes swap state. False - normal eyes left|right, true - swapped eyes right|left
+	* @return - Eyes swap state. False - normal eyes left|right, true - swapped eyes right|left
 	*/
+	UFUNCTION(BlueprintCallable, Category = "Stereo")
 	bool GetSwapEyes() const
 	{
 		return bSwapEyes;
 	}
 
 	/**
-	* Configure eyes swap state
+	* Set swap eyes state
 	*
-	* @param SwapEyes - new eyes swap state. False - normal eyes left|right, true - swapped eyes right|left
+	* @param SwapEyes - New eyes swap state. False - normal eyes left|right, true - swapped eyes right|left
 	*/
+	UFUNCTION(BlueprintCallable, Category = "Stereo")
 	void SetSwapEyes(bool SwapEyes)
 	{
 		bSwapEyes = SwapEyes;
@@ -75,18 +82,20 @@ public:
 	/**
 	* Toggles eyes swap state
 	*
-	* @return - new eyes swap state. False - normal eyes left|right, true - swapped eyes right|left
+	* @return - New eyes swap state. False - normal eyes left|right, true - swapped eyes right|left
 	*/
+	UFUNCTION(BlueprintCallable, Category = "Stereo")
 	bool ToggleSwapEyes()
 	{
 		return (bSwapEyes = !bSwapEyes);
 	}
 
 	/**
-	* Returns stereo offset type
+	* Get stereo offset type
 	*
-	* @return - -1, 0 or 1 depending on config file
+	* @return - Current forced stereo offset type
 	*/
+	UFUNCTION(BlueprintCallable, Category = "Stereo")
 	EDisplayClusterEyeStereoOffset GetStereoOffset() const
 	{
 		return StereoOffset;
@@ -95,31 +104,66 @@ public:
 	/**
 	* Set stereo offset type
 	*
-	* @param InStereoOffset - stereo offset type
+	* @param StereoOffset - New forced stereo offset type
 	*/
+	UFUNCTION(BlueprintCallable, Category = "Stereo")
 	void SetStereoOffset(EDisplayClusterEyeStereoOffset InStereoOffset)
 	{
 		StereoOffset = InStereoOffset;
 	}
 
-protected:
-	virtual void ApplyConfigurationData() override;
+public:
+#if WITH_EDITOR
+	// Begin IDisplayClusterComponent
+	virtual void SetVisualizationScale(float Scale) override;
+	virtual void SetVisualizationEnabled(bool bEnabled) override;
+	// End IDisplayClusterComponent
+#endif
+
+	// Begin UActorComponent
+	virtual void OnRegister() override;
+	// End UActorComponent
+
+	// Begin UObject
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+	// End UObject
 
 protected:
-	UPROPERTY(EditAnywhere, Category = "NDisplay")
+#if WITH_EDITOR
+	/** Refreshes the visual components to match the component state */
+	virtual void RefreshVisualRepresentation();
+#endif
+
+#if WITH_EDITORONLY_DATA
+protected:
+	/** Gizmo visibility */
+	UPROPERTY(EditAnywhere, Category = "Gizmo")
+	uint8 bEnableGizmo : 1;
+
+	/** Base gizmo scale */
+	UPROPERTY(EditAnywhere, Category = "Gizmo", meta = (EditCondition = "bEnableGizmo"))
+	FVector BaseGizmoScale;
+
+	/** Gizmo scale multiplier */
+	UPROPERTY(EditAnywhere, Category = "Gizmo", meta = (UIMin = "0", UIMax = "2.0", ClampMin = "0.01", ClampMax = "10.0", EditCondition = "bEnableGizmo"))
+	float GizmoScaleMultiplier;
+
+	UPROPERTY()
+	UBillboardComponent* SpriteComponent;
+
+	UPROPERTY()
+	UTexture2D* SpriteTexture;
+#endif
+
+private:
+	UPROPERTY(EditAnywhere, Category = "Stereo")
 	float InterpupillaryDistance;
 	
-	UPROPERTY(EditAnywhere, Category = "NDisplay")
+	UPROPERTY(EditAnywhere, Category = "Stereo")
 	bool bSwapEyes;
 	
-	UPROPERTY(EditAnywhere, Category = "NDisplay")
+	UPROPERTY(EditAnywhere, Category = "Stereo")
 	EDisplayClusterEyeStereoOffset StereoOffset;
-
-	UPROPERTY(Transient)
-	UStaticMeshComponent* VisCameraComponent = nullptr;
-
-#if WITH_EDITOR 
-public:
-	virtual void SetNodeSelection(bool bSelect) override;
-#endif
 };

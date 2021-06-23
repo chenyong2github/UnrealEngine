@@ -144,6 +144,9 @@ public:
 	bool IsCompletionEventComplete() const;
 	FGraphEventArray GetCompletionEvents();
 
+	void SetNetworkDeltaTimeScale(float InDeltaTimeScale) { MNetworkDeltaTimeScale = InDeltaTimeScale; }
+	float GetNetworkDeltaTimeScale() const { return MNetworkDeltaTimeScale; }
+
 protected:
 
 	Chaos::ISpatialAccelerationCollection<Chaos::FAccelerationStructureHandle, Chaos::FReal, 3>* SolverAccelerationStructure;
@@ -169,6 +172,7 @@ protected:
 	//Engine interface END
 
 	float MDeltaTime;
+	float MNetworkDeltaTimeScale = 1.f; // Scale passed in delta time by this. Used by NetworkPrediction to make clients slow down or catch up when needed
 
 	UObject* Owner;
 

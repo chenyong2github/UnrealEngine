@@ -84,8 +84,7 @@ FNiagaraSystemViewportClient::FNiagaraSystemViewportClient(FAdvancedPreviewScene
 	ShowWidget(false);
 
 	FEditorViewportClient::SetViewMode(VMI_Lit);
-	
-	EngineShowFlags.DisableAdvancedFeatures();
+
 	EngineShowFlags.SetSnap(0);
 
 	OverrideNearClipPlane(1.0f);
@@ -755,7 +754,6 @@ FNiagaraBaselineViewportClient::FNiagaraBaselineViewportClient(FAdvancedPreviewS
 
 	SetViewMode(VMI_Lit);
 	
-	EngineShowFlags.DisableAdvancedFeatures();
 	EngineShowFlags.SetSnap(0);
 
 	OverrideNearClipPlane(1.0f);

@@ -95,9 +95,6 @@ private:
 	FEditorModeTools* GetEditorModeTools() const;
 	FControlRigEditMode* GetEditMode(bool bForceActivate = false) const;
 
-	/** Delegate for  Tree View Changed Event */
-	void OnTreeViewChanged();
-
 	/** Delegate for MovieScene Changing so we can see if our track got deleted*/
 	void OnSequencerDataChanged(EMovieSceneDataChangeType DataChangeType);
 
@@ -183,7 +180,6 @@ private:
 	FDelegateHandle OnChannelChangedHandle;
 	FDelegateHandle OnMovieSceneChannelChangedHandle;
 	FDelegateHandle OnActorAddedToSequencerHandle;
-	FDelegateHandle OnTreeViewChangedHandle;
 
 
 	//used to sync curve editor selections/displays on next tick for performance reasons

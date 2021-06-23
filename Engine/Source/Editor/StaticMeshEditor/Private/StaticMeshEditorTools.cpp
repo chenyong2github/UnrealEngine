@@ -1209,6 +1209,7 @@ void FMeshReductionSettingsLayout::GenerateChildContent( IDetailChildrenBuilder&
 
 	{
 		ChildrenBuilder.AddCustomRow( LOCTEXT("PercentTriangles", "Percent Triangles") )
+		.RowTag("PercentTriangles")
 		.NameContent()
 		[
 			SNew(STextBlock)
@@ -2406,6 +2407,7 @@ UStaticMesh& FMeshMaterialsLayout::GetStaticMesh() const
 void FMeshMaterialsLayout::AddToCategory(IDetailCategoryBuilder& CategoryBuilder, const TArray<FAssetData>& AssetDataArray)
 {
 	CategoryBuilder.AddCustomRow(LOCTEXT("AddLODLevelCategories_MaterialArrayOperationAdd", "Add Material Slot"))
+		.RowTag("MaterialSlots")
 		.CopyAction(FUIAction(FExecuteAction::CreateSP(this, &FMeshMaterialsLayout::OnCopyMaterialList), FCanExecuteAction::CreateSP(this, &FMeshMaterialsLayout::OnCanCopyMaterialList)))
 		.PasteAction(FUIAction(FExecuteAction::CreateSP(this, &FMeshMaterialsLayout::OnPasteMaterialList)))
 		.NameContent()
@@ -3209,8 +3211,8 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 		];
 
 	int32 PlatformNumber = PlatformInfo::GetAllPlatformGroupNames().Num();
-	bool bDisablePerPlatformMinLod = GEngine->UsePerQualityLevelProperty && StaticMesh->GetQualityLevelMinLOD().bIsEnabled;
-	
+
+	bool bDisablePerPlatformMinLod = GEngine->UseStaticMeshMinLODPerQualityLevels;
 	{
 		TAttribute<TArray<FName>> PlatformOverrideNames = TAttribute<TArray<FName>>::Create(TAttribute<TArray<FName>>::FGetter::CreateSP(this, &FLevelOfDetailSettingsLayout::GetMinLODPlatformOverrideNames));
 		FPerPlatformPropertyCustomNodeBuilderArgs Args;
@@ -3230,7 +3232,8 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 	}
 
 	LODSettingsCategory.AddCustomRow(LOCTEXT("QualityLevelMinLOD", "Quality Level Min LOD"))
-		.NameContent()
+	.RowTag("QualityLevelMinLOD")
+	.NameContent()
 		[
 			SNew(STextBlock)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
@@ -3248,20 +3251,6 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 		.EntryNames(this, &FLevelOfDetailSettingsLayout::GetMinQualityLevelLODOverrideNames)
 		];
 
-	LODSettingsCategory.AddCustomRow(LOCTEXT("QualityLevelMinLODEnable", "Enable"))
-		[
-			SNew(SCheckBox)
-			.IsChecked(this, &FLevelOfDetailSettingsLayout::IsMinLODQualityLevelChecked)
-			.OnCheckStateChanged(this, &FLevelOfDetailSettingsLayout::OnMinLODQualityLevelChecked)
-		.HAlign(HAlign_Right)
-			.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
-			.Content()
-			[
-				SNew(STextBlock)
-				.Font(IDetailLayoutBuilder::GetDetailFont())
-				.Text(LOCTEXT("QualityLevelMinLODEnable", "Enable"))
-			]
-		];
 	{
 		TAttribute<TArray<FName>> PlatformOverrideNames = TAttribute<TArray<FName>>::Create(TAttribute<TArray<FName>>::FGetter::CreateSP(this, &FLevelOfDetailSettingsLayout::GetNumStreamedLODsPlatformOverrideNames));
 		FPerPlatformPropertyCustomNodeBuilderArgs Args;
@@ -3304,6 +3293,7 @@ void FLevelOfDetailSettingsLayout::AddToDetailsPanel( IDetailLayoutBuilder& Deta
 
 	// Auto LOD distance check box.
 	LODSettingsCategory.AddCustomRow( LOCTEXT("AutoComputeLOD", "Auto Compute LOD Distances") )
+	.RowTag("AutoComputeLOD")
 	.NameContent()
 	[
 		SNew(STextBlock)
@@ -3414,6 +3404,7 @@ void FLevelOfDetailSettingsLayout::AddLODLevelCategories( IDetailLayoutBuilder& 
 		LodCustomCategory = &LODCustomModeCategory;
 
 		LODCustomModeCategory.AddCustomRow((LOCTEXT("LODCustomModeSelect", "Select LOD")))
+		.RowTag("SelectLOD")
 		.NameContent()
 		[
 			SNew(STextBlock)
@@ -3427,6 +3418,7 @@ void FLevelOfDetailSettingsLayout::AddLODLevelCategories( IDetailLayoutBuilder& 
 		];
 
 		LODCustomModeCategory.AddCustomRow((LOCTEXT("LODCustomModeFirstRowName", "LODCustomMode")))
+		.RowTag("LODCustomMode")
 		.NameContent()
 		[
 			SNew(STextBlock)
@@ -3448,6 +3440,7 @@ void FLevelOfDetailSettingsLayout::AddLODLevelCategories( IDetailLayoutBuilder& 
 			bool IsViewportLOD = (CurrentLodIndex == 0 ? 0 : CurrentLodIndex - 1) == LODIndex;
 			DetailDisplayLODs[LODIndex] = true; //enable all LOD in custom mode
 			LODCustomModeCategory.AddCustomRow((LOCTEXT("LODCustomModeRowName", "LODCheckBoxRowName")), true)
+			.RowTag("LODCheckBoxRowName")
 			.NameContent()
 			[
 				SNew(STextBlock)
@@ -3949,29 +3942,6 @@ void FLevelOfDetailSettingsLayout::OnLODGroupChanged(TSharedPtr<FString> NewValu
 			StaticMeshEditor.RefreshTool();
 		}
 	}
-}
-
-bool FLevelOfDetailSettingsLayout::IsMinLODQualityLevelEnabled() const
-{
-	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
-	check(StaticMesh);
-	return StaticMesh->GetQualityLevelMinLOD().bIsEnabled;
-}
-
-ECheckBoxState FLevelOfDetailSettingsLayout::IsMinLODQualityLevelChecked() const
-{
-	return IsMinLODQualityLevelEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-}
-
-void FLevelOfDetailSettingsLayout::OnMinLODQualityLevelChecked(ECheckBoxState NewState)
-{
-	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
-	check(StaticMesh);
-
-	FPerQualityLevelInt PerQualityLevel = StaticMesh->GetQualityLevelMinLOD();
-	PerQualityLevel.bIsEnabled = (NewState == ECheckBoxState::Checked) ? true : false;
-	StaticMesh->SetQualityLevelMinLOD(PerQualityLevel);
-	StaticMeshEditor.RefreshTool();
 }
 
 bool FLevelOfDetailSettingsLayout::IsAutoLODEnabled() const

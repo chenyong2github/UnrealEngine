@@ -556,9 +556,6 @@ private:
 	bool AddMinLODQualityLevelOverride(FName QualityLevelName);
 	bool RemoveMinLODQualityLevelOverride(FName QualityLevelName);
 	TArray<FName> GetMinQualityLevelLODOverrideNames() const;
-	ECheckBoxState IsMinLODQualityLevelChecked() const;
-	void OnMinLODQualityLevelChecked(ECheckBoxState NewState);
-	bool IsMinLODQualityLevelEnabled() const;
 
 	void OnNumStreamedLODsChanged(int32 NewValue, FName Platform);
 	void OnNumStreamedLODsCommitted(int32 InValue, ETextCommit::Type CommitInfo, FName Platform);

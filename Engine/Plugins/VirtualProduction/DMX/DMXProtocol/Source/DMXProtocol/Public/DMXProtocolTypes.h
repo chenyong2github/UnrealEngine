@@ -35,18 +35,20 @@ public:
 	FDMXSignal()
 		: Timestamp()
 		, ExternUniverseID(0)
+		, Priority(0)
 		, ChannelData()
 	{
 		ChannelData.AddZeroed(DMX_UNIVERSE_SIZE);
 	}
 
-	FDMXSignal(double InTimestamp, int32 InUniverseID, const TArray<uint8>& InChannelData)
+	FDMXSignal(const double InTimestamp, const int32 InUniverseID, const int32 InPriority, const TArray<uint8>& InChannelData)
 		: Timestamp(InTimestamp)
 		, ExternUniverseID(InUniverseID)
+		, Priority(InPriority)
 		, ChannelData(InChannelData)
 	{}
 
-	FDMXSignal(double InTimestamp, int32 InUniverseID, TArray<uint8>&& InChannelData)
+	FDMXSignal(const double InTimestamp, const int32 InUniverseID, const int32 InPriority, TArray<uint8>&& InChannelData)
 		: Timestamp(InTimestamp)
 		, ExternUniverseID(InUniverseID)
 		, ChannelData(InChannelData)
@@ -56,12 +58,15 @@ public:
 	{
 		Ar << Timestamp;
 		Ar << ExternUniverseID;
+		Ar << Priority;
 		Ar << ChannelData;
 	}
 
 	double Timestamp;
 
 	int32 ExternUniverseID;
+
+	int32 Priority;
 
 	TArray<uint8> ChannelData;
 };

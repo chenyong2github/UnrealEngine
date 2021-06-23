@@ -91,7 +91,7 @@ private:
 	/** Rebuilds the tree structure based on the current filter options */
 	void RefreshTree();
 
-	void HandleAddComponent(bool bIsSuccess);
+	void HandleAddComponents();
 
 	/** Called when the selected widget has changed.  The treeview then needs to match the new selection. */
 	void OnEditorSelectionChanged();
@@ -155,10 +155,6 @@ private:
 	bool bIsUpdatingSelection;
 
 	TreeViewPtr WidgetTreeView;
-
-	FDelegateHandle DelegateHandleAddComponent;
-
-	FDelegateHandle OnSelectedComponenetChangedHandle;
 
 	FDMXPixelMappingHierarchyItemWidgetModelArr CurrentSelectedItems;
 

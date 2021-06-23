@@ -26,6 +26,8 @@ struct FInterpolationData
 	float SpeedIncMax;
 	float SpeedMinimum;
 	
+	bool bFirstValueWasSet;
+
 	FInterpolationData()
 	{
 		IsUpdating = false;
@@ -44,6 +46,8 @@ struct FInterpolationData
 		SpeedIncMin = 15.0f;
 		SpeedIncMid = 20.0f;
 		SpeedIncMax = 30.0f;
+
+		bFirstValueWasSet = false;
 	}
 
 	bool IsTargetValid(float Value, float SkipThreshold)

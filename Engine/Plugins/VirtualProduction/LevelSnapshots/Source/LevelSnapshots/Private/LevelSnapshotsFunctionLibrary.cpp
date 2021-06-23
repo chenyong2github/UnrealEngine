@@ -10,6 +10,7 @@
 #include "LevelSnapshotsStats.h"
 
 #include "EngineUtils.h"
+#include "CustomSerialization/CustomObjectSerializationWrapper.h"
 
 namespace
 {
@@ -122,7 +123,7 @@ void ULevelSnapshotsFunctionLibrary::ApplySnapshotToWorld(const UObject* WorldCo
 	UWorld* TargetWorld = WorldContextObject ? WorldContextObject->GetWorld() : nullptr;
 	if (ensure(TargetWorld && Snapshot))
 	{
-		const FPropertyMapBuilder Helper(TargetWorld, Snapshot, OptionalFilter ? OptionalFilter : NewObject<UConstantFilter>());
+		const FPropertyMapBuilder Helper(TargetWorld, Snapshot, OptionalFilter ? OptionalFilter : GetMutableDefault<UConstantFilter>());
 		Snapshot->ApplySnapshotToWorld(TargetWorld, Helper.GetSelectionMap());
 	}
 }
@@ -137,9 +138,22 @@ void ULevelSnapshotsFunctionLibrary::ApplyFilterToFindSelectedProperties(
     bool bAllowNonEditableProperties)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("ApplyFilterToFindSelectedProperties"), STAT_ApplyFilterToFindSelectedProperties, STATGROUP_LevelSnapshots);
+	if (Filter == nullptr)
+	{
+		Filter = GetMutableDefault<UConstantFilter>();
+	}
 	
 	FApplySnapshotFilter::Make(Snapshot, DeserializedSnapshotActor, WorldActor, Filter)
 		.AllowUnchangedProperties(bAllowUnchangedProperties)
 		.AllowNonEditableProperties(bAllowNonEditableProperties)
 		.ApplyFilterToFindSelectedProperties(MapToAddTo);
+}
+
+void ULevelSnapshotsFunctionLibrary::ForEachMatchingCustomSubobjectPair(
+	ULevelSnapshot* Snapshot,
+	UObject* SnapshotRootObject,
+	UObject* WorldRootObject,
+	TFunction<void(UObject* SnapshotSubobject, UObject* EditorWorldSubobject)> Callback)
+{
+	FCustomObjectSerializationWrapper::ForEachMatchingCustomSubobjectPair(Snapshot->GetSerializedData(), SnapshotRootObject, WorldRootObject, Callback);
 }

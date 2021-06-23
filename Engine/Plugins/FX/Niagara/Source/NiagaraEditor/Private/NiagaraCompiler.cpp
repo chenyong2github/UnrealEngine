@@ -416,7 +416,7 @@ void FNiagaraCompileRequestData::DeepCopyGraphs(UNiagaraScriptSource* ScriptSour
 
 void FNiagaraCompileRequestData::DeepCopyGraphs(UNiagaraScriptSource* ScriptSource, UNiagaraEmitter* Emitter, bool bNeedsCompilation)
 {
-	Source = bNeedsCompilation ? PrecompileDuplicateObject<UNiagaraScriptSource>(ScriptSource, GetTransientPackage()) : ScriptSource;
+	Source = bNeedsCompilation ? ScriptSource->CreateCompilationCopy() : ScriptSource;
 	NodeGraphDeepCopy = Source->NodeGraph;
 	if (bNeedsCompilation)
 	{

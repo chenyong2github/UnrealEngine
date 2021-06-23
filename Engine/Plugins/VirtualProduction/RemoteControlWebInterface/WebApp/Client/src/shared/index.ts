@@ -139,6 +139,7 @@ export enum WidgetTypes {
   ScaleSlider =     'Scale Slider',
   ColorPicker =     'Color Picker',
   MiniColorPicker = 'Mini Color Picker',
+  ColorPickerList = 'Color Picker List',
   Toggle =          'Toggle',
   Joystick =        'Joystick',
   Button =          'Button',
@@ -172,6 +173,12 @@ export interface IPanel {
   type: IPanelType;
   widgets?: ICustomStackWidget[];
   items?: ICustomStackListItem[];
+}
+
+export interface IColorPickerList {
+  id?: string;
+  widget: WidgetTypes.ColorPickerList;
+  properties: string[];
 }
 
 export enum TabLayout {
@@ -235,7 +242,7 @@ export interface ICustomStackListItem {
   panels: IPanel[];
 }
 
-export type ICustomStackWidget = ICustomStackProperty | ICustomStackTabs;
+export type ICustomStackWidget = ICustomStackProperty | ICustomStackTabs | IColorPickerList;
 
 export interface IView {
   tabs: ITab[];

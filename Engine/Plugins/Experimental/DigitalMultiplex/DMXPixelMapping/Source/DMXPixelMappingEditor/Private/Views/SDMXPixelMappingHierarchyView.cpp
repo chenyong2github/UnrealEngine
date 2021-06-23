@@ -60,8 +60,8 @@ void SDMXPixelMappingHierarchyView::Construct(const FArguments& InArgs, const TS
 {
 	Toolkit = InToolkit;
 
-	DelegateHandleAddComponent = InToolkit->GetOnComponenetAddedOrDeletedDelegate().AddSP(this, &SDMXPixelMappingHierarchyView::HandleAddComponent);
-	OnSelectedComponenetChangedHandle = InToolkit->GetOnSelectedComponenetChangedDelegate().AddSP(this, &SDMXPixelMappingHierarchyView::OnEditorSelectionChanged);
+	InToolkit->GetOnComponentsAddedOrDeletedDelegate().AddSP(this, &SDMXPixelMappingHierarchyView::HandleAddComponents);
+	InToolkit->GetOnSelectedComponentsChangedDelegate().AddSP(this, &SDMXPixelMappingHierarchyView::OnEditorSelectionChanged);
 
 	bRebuildTreeRequested = false;
 	bIsUpdatingSelection = false;
@@ -316,6 +316,8 @@ void SDMXPixelMappingHierarchyView::ConditionallyUpdateTree()
 
 		bRefreshRequested = false;
 		bRebuildTreeRequested = false;
+
+		RestoreSelectedItems();
 	}
 }
 
@@ -388,7 +390,7 @@ void SDMXPixelMappingHierarchyView::RefreshTree()
 	FilterHandler->RefreshAndFilterTree();
 }
 
-void SDMXPixelMappingHierarchyView::HandleAddComponent(bool bIsSuccess)
+void SDMXPixelMappingHierarchyView::HandleAddComponents()
 {
 	RequestRebuildTree();
 }

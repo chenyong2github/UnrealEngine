@@ -11,6 +11,12 @@ NiagaraDataInterfacePhysicsAsset.ush
  * -----------------------------------------------------------------
  */
 
+ #define PHYSICS_ASSET_MAX_TRANSFORMS 300
+
+ #define CURRENT_OFFSET 0
+ #define PREVIOUS_OFFSET PHYSICS_ASSET_MAX_TRANSFORMS
+ #define REST_OFFSET 2*PHYSICS_ASSET_MAX_TRANSFORMS
+
 #define MAX_DISTANCE 1e+38
 #define BOX_INDEX 0
 #define SPHERE_INDEX 1
@@ -19,39 +25,30 @@ NiagaraDataInterfacePhysicsAsset.ush
 struct FDIPhysicsAssetContext
 {
 	uint4 ElementOffsets;
-	Buffer<float4>		CurrentTransformBuffer;
+	Buffer<float4>		WorldTransformBuffer;
 	Buffer<float4>		InverseTransformBuffer;
-	Buffer<float4>		RestTransformBuffer;
-	Buffer<float4>		RestInverseBuffer;
-	Buffer<float4>		PreviousTransformBuffer;
-	Buffer<float4>		PreviousInverseBuffer;
 	Buffer<float4>		ElementExtentBuffer;
+	Buffer<uint>		PhysicsTypeBuffer;
 	float3				BoxOrigin;
 	float3				BoxExtent;
 }; 
 
 #define DIPHYSICSASSET_DECLARE_CONSTANTS(NAME)\
 uint4 ElementOffsets_##NAME;\
-Buffer<float4>		CurrentTransformBuffer_##NAME;\
+Buffer<float4>		WorldTransformBuffer_##NAME;\
 Buffer<float4>		InverseTransformBuffer_##NAME;\
-Buffer<float4>		RestTransformBuffer_##NAME;\
-Buffer<float4>		RestInverseBuffer_##NAME;\
-Buffer<float4>		PreviousTransformBuffer_##NAME;\
-Buffer<float4>		PreviousInverseBuffer_##NAME;\
 Buffer<float4>		ElementExtentBuffer_##NAME;\
+Buffer<uint>		PhysicsTypeBuffer_##NAME;\
 float3 BoxOrigin_##NAME;\
 float3 BoxExtent_##NAME;\
 
 #define DIPHYSICSASSET_MAKE_CONTEXT(NAME)\
 FDIPhysicsAssetContext DIContext; \
 DIContext.ElementOffsets = ElementOffsets_##NAME;\
-DIContext.CurrentTransformBuffer = CurrentTransformBuffer_##NAME;\
+DIContext.WorldTransformBuffer = WorldTransformBuffer_##NAME;\
 DIContext.InverseTransformBuffer = InverseTransformBuffer_##NAME;\
-DIContext.RestTransformBuffer = RestTransformBuffer_##NAME;\
-DIContext.RestInverseBuffer = RestInverseBuffer_##NAME;\
-DIContext.PreviousTransformBuffer = PreviousTransformBuffer_##NAME;\
-DIContext.PreviousInverseBuffer = PreviousInverseBuffer_##NAME;\
 DIContext.ElementExtentBuffer = ElementExtentBuffer_##NAME;\
+DIContext.PhysicsTypeBuffer = PhysicsTypeBuffer_##NAME;\
 DIContext.BoxOrigin = BoxOrigin_##NAME;\
 DIContext.BoxExtent = BoxExtent_##NAME;\
 
@@ -83,22 +80,22 @@ int DIPhysicsAsset_GetNumCapsules(in FDIPhysicsAssetContext DIContext)
 
 float3 DIPhysicsAsset_GetCurrentPosition(in FDIPhysicsAssetContext DIContext, in int ElementIndex)
 {
-	const int BufferOffset = 3 * ElementIndex;
-    return float3(DIContext.CurrentTransformBuffer[BufferOffset].w, DIContext.CurrentTransformBuffer[BufferOffset+1].w, DIContext.CurrentTransformBuffer[BufferOffset+2].w);
+	const int BufferOffset = 3 * ElementIndex + CURRENT_OFFSET;
+    return float3(DIContext.WorldTransformBuffer[BufferOffset].w, DIContext.WorldTransformBuffer[BufferOffset+1].w, DIContext.WorldTransformBuffer[BufferOffset+2].w);
 }
 
 float3 DIPhysicsAsset_GetPreviousPosition(in FDIPhysicsAssetContext DIContext, in int ElementIndex)
 {
-	const int BufferOffset = 3 * ElementIndex;
-    return float3(DIContext.PreviousTransformBuffer[BufferOffset].w, DIContext.PreviousTransformBuffer[BufferOffset+1].w, DIContext.PreviousTransformBuffer[BufferOffset+2].w);
+	const int BufferOffset = 3 * ElementIndex + PREVIOUS_OFFSET;
+    return float3(DIContext.WorldTransformBuffer[BufferOffset].w, DIContext.WorldTransformBuffer[BufferOffset+1].w, DIContext.WorldTransformBuffer[BufferOffset+2].w);
 }
 
 float4 DIPhysicsAsset_GetCurrentOrientation(in FDIPhysicsAssetContext DIContext, in int ElementIndex)
 {
-	const int BufferOffset = 3 * ElementIndex;
-	const float3 OrientationMatrix[3] = {float3(DIContext.CurrentTransformBuffer[BufferOffset].x, DIContext.CurrentTransformBuffer[BufferOffset+1].x, DIContext.CurrentTransformBuffer[BufferOffset+2].x),
-									     float3(DIContext.CurrentTransformBuffer[BufferOffset].y, DIContext.CurrentTransformBuffer[BufferOffset+1].y, DIContext.CurrentTransformBuffer[BufferOffset+2].y),
-										 float3(DIContext.CurrentTransformBuffer[BufferOffset].z, DIContext.CurrentTransformBuffer[BufferOffset+1].z, DIContext.CurrentTransformBuffer[BufferOffset+2].z)};
+	const int BufferOffset = 3 * ElementIndex + CURRENT_OFFSET;
+	const float3 OrientationMatrix[3] = {float3(DIContext.WorldTransformBuffer[BufferOffset].x, DIContext.WorldTransformBuffer[BufferOffset+1].x, DIContext.WorldTransformBuffer[BufferOffset+2].x),
+									     float3(DIContext.WorldTransformBuffer[BufferOffset].y, DIContext.WorldTransformBuffer[BufferOffset+1].y, DIContext.WorldTransformBuffer[BufferOffset+2].y),
+										 float3(DIContext.WorldTransformBuffer[BufferOffset].z, DIContext.WorldTransformBuffer[BufferOffset+1].z, DIContext.WorldTransformBuffer[BufferOffset+2].z)};
 
 
 	return QuatFromMatrix(OrientationMatrix);
@@ -106,48 +103,48 @@ float4 DIPhysicsAsset_GetCurrentOrientation(in FDIPhysicsAssetContext DIContext,
 
 float4 DIPhysicsAsset_GetPreviousOrientation(in FDIPhysicsAssetContext DIContext, in int ElementIndex)
 {
-	const int BufferOffset = 3 * ElementIndex;
-	const float3 OrientationMatrix[3] = {float3(DIContext.PreviousTransformBuffer[BufferOffset].x, DIContext.PreviousTransformBuffer[BufferOffset+1].x, DIContext.PreviousTransformBuffer[BufferOffset+2].x),
-										 float3(DIContext.PreviousTransformBuffer[BufferOffset].y, DIContext.PreviousTransformBuffer[BufferOffset+1].y, DIContext.PreviousTransformBuffer[BufferOffset+2].y),
-										 float3(DIContext.PreviousTransformBuffer[BufferOffset].z, DIContext.PreviousTransformBuffer[BufferOffset+1].z, DIContext.PreviousTransformBuffer[BufferOffset+2].z)};
+	const int BufferOffset = 3 * ElementIndex + PREVIOUS_OFFSET;
+	const float3 OrientationMatrix[3] = {float3(DIContext.WorldTransformBuffer[BufferOffset].x, DIContext.WorldTransformBuffer[BufferOffset+1].x, DIContext.WorldTransformBuffer[BufferOffset+2].x),
+										 float3(DIContext.WorldTransformBuffer[BufferOffset].y, DIContext.WorldTransformBuffer[BufferOffset+1].y, DIContext.WorldTransformBuffer[BufferOffset+2].y),
+										 float3(DIContext.WorldTransformBuffer[BufferOffset].z, DIContext.WorldTransformBuffer[BufferOffset+1].z, DIContext.WorldTransformBuffer[BufferOffset+2].z)};
 
 	return QuatFromMatrix(OrientationMatrix);
 }
 
 float3x4 DIPhysicsAsset_GetCurrentTransform(in FDIPhysicsAssetContext DIContext, in int ElementIndex)
 {
-	const int BufferOffset = 3 * ElementIndex;
-    return float3x4(DIContext.CurrentTransformBuffer[BufferOffset], DIContext.CurrentTransformBuffer[BufferOffset+1], DIContext.CurrentTransformBuffer[BufferOffset+2]);
+	const int BufferOffset = 3 * ElementIndex + CURRENT_OFFSET;
+    return float3x4(DIContext.WorldTransformBuffer[BufferOffset], DIContext.WorldTransformBuffer[BufferOffset+1], DIContext.WorldTransformBuffer[BufferOffset+2]);
 }
 
 float3x4 DIPhysicsAsset_GetInverseTransform(in FDIPhysicsAssetContext DIContext, in int ElementIndex)
 {
-	const int BufferOffset = 3 * ElementIndex;
+	const int BufferOffset = 3 * ElementIndex + CURRENT_OFFSET;
     return float3x4(DIContext.InverseTransformBuffer[BufferOffset], DIContext.InverseTransformBuffer[BufferOffset+1], DIContext.InverseTransformBuffer[BufferOffset+2]);
 }
 
 float3x4 DIPhysicsAsset_GetPreviousTransform(in FDIPhysicsAssetContext DIContext, in int ElementIndex)
 {
-	const int BufferOffset = 3 * ElementIndex;
-    return float3x4(DIContext.PreviousTransformBuffer[BufferOffset], DIContext.PreviousTransformBuffer[BufferOffset+1], DIContext.PreviousTransformBuffer[BufferOffset+2]);
+	const int BufferOffset = 3 * ElementIndex + PREVIOUS_OFFSET;
+    return float3x4(DIContext.WorldTransformBuffer[BufferOffset], DIContext.WorldTransformBuffer[BufferOffset+1], DIContext.WorldTransformBuffer[BufferOffset+2]);
 }
 
 float3x4 DIPhysicsAsset_GetPreviousInverse(in FDIPhysicsAssetContext DIContext, in int ElementIndex)
 {
-	const int BufferOffset = 3 * ElementIndex;
-    return float3x4(DIContext.PreviousInverseBuffer[BufferOffset], DIContext.PreviousInverseBuffer[BufferOffset+1], DIContext.PreviousInverseBuffer[BufferOffset+2]);
+	const int BufferOffset = 3 * ElementIndex + PREVIOUS_OFFSET;
+    return float3x4(DIContext.InverseTransformBuffer[BufferOffset], DIContext.InverseTransformBuffer[BufferOffset+1], DIContext.InverseTransformBuffer[BufferOffset+2]);
 }
 
 float3x4 DIPhysicsAsset_GetRestTransform(in FDIPhysicsAssetContext DIContext, in int ElementIndex)
 {
-	const int BufferOffset = 3 * ElementIndex;
-    return float3x4(DIContext.RestTransformBuffer[BufferOffset], DIContext.RestTransformBuffer[BufferOffset+1], DIContext.RestTransformBuffer[BufferOffset+2]);
+	const int BufferOffset = 3 * ElementIndex + REST_OFFSET;
+    return float3x4(DIContext.WorldTransformBuffer[BufferOffset], DIContext.WorldTransformBuffer[BufferOffset+1], DIContext.WorldTransformBuffer[BufferOffset+2]);
 }
 
 float3x4 DIPhysicsAsset_GetRestInverse(in FDIPhysicsAssetContext DIContext, in int ElementIndex)
 {
-	const int BufferOffset = 3 * ElementIndex;
-    return float3x4(DIContext.RestInverseBuffer[BufferOffset], DIContext.RestInverseBuffer[BufferOffset+1], DIContext.RestInverseBuffer[BufferOffset+2]);
+	const int BufferOffset = 3 * ElementIndex + REST_OFFSET;
+    return float3x4(DIContext.InverseTransformBuffer[BufferOffset], DIContext.InverseTransformBuffer[BufferOffset+1], DIContext.InverseTransformBuffer[BufferOffset+2]);
 }
 
 /* -----------------------------------------------------------------
@@ -387,7 +384,7 @@ void DIPhysicsAsset_GetElementDistance(in FDIPhysicsAssetContext DIContext, in f
 
 	if (ElementIndex != -1)
 	{
-		OutClosestDistance = MinDistance;
+		OutClosestDistance = (DIContext.PhysicsTypeBuffer[ElementIndex] == 1) ? MinDistance : 0;
 	}
 }
 
@@ -445,7 +442,7 @@ void DIPhysicsAsset_GetClosestDistance(in FDIPhysicsAssetContext DIContext, in f
 
 	if (ElementIndex != -1)
 	{
-		OutClosestDistance = MinDistance;
+		OutClosestDistance = (DIContext.PhysicsTypeBuffer[ElementIndex] == 1) ? MinDistance : 0;
 	}
 }
 

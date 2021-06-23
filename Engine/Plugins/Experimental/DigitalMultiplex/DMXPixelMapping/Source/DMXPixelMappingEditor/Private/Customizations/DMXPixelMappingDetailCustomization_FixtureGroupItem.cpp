@@ -2,21 +2,26 @@
 
 #include "Customizations/DMXPixelMappingDetailCustomization_FixtureGroupItem.h"
 
-#include "Toolkits/DMXPixelMappingToolkit.h"
-#include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
 #include "DMXPixelMappingTypes.h"
+#include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
+#include "Toolkits/DMXPixelMappingToolkit.h"
+#include "Modulators/DMXModulator.h"
 
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailWidgetRow.h"
 #include "IDetailChildrenBuilder.h"
+#include "IPropertyUtilities.h"
+#include "PropertyEditorModule.h"
 #include "Layout/Visibility.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "FixtureGroupItem"
 
 void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CustomizeDetails(IDetailLayoutBuilder& InDetailLayout)
 {
 	DetailLayout = &InDetailLayout;
+	PropertyUtilities = InDetailLayout.GetPropertyUtilities();
 
 	// Get editing object
 	TArray<TWeakObjectPtr<UObject>> Objects;
@@ -33,10 +38,15 @@ void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CustomizeDetails(IDet
 	IDetailCategoryBuilder& OutputSettingsCategory = DetailLayout->EditCategory("Output Settings", FText::GetEmpty(), ECategoryPriority::Important);
 
 	// Hide absolute postition property handles
-	TSharedPtr<IPropertyHandle> PositionXPropertyHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, PositionX), UDMXPixelMappingOutputComponent::StaticClass());
-	DetailLayout->HideProperty(PositionXPropertyHandle);
-	TSharedPtr<IPropertyHandle> PositionYPropertyHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, PositionY), UDMXPixelMappingOutputComponent::StaticClass());
-	DetailLayout->HideProperty(PositionYPropertyHandle);
+	// Hide absolute postition property handles
+	TSharedPtr<IPropertyHandle> PositionXPropertyHandle = InDetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionX));
+	InDetailLayout.HideProperty(PositionXPropertyHandle);
+	TSharedPtr<IPropertyHandle> PositionYPropertyHandle = InDetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionY));
+	InDetailLayout.HideProperty(PositionYPropertyHandle);
+	TSharedPtr<IPropertyHandle> SizeXPropertyHandle = InDetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeX));
+	InDetailLayout.HideProperty(SizeXPropertyHandle);
+	TSharedPtr<IPropertyHandle> SizeYPropertyHandle = InDetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeY));
+	InDetailLayout.HideProperty(SizeXPropertyHandle);
 
 	// Add Function and ColorMode properties at the beginning
 	TSharedPtr<IPropertyHandle> ColorModePropertyHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, ColorMode));
@@ -118,9 +128,8 @@ void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CustomizeDetails(IDet
 			.AddProperty(Attribute->Handle)
 			.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroupItem::GetMonochromeRowVisibilty, Attribute.Get())));
 	}
-	
-	TSharedPtr<IPropertyHandle> ExtraAttributesHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, ExtraAttributes), UDMXPixelMappingFixtureGroupItemComponent::StaticClass());
-	OutputSettingsCategory.AddProperty(ExtraAttributesHandle);
+
+	CreateModulatorDetails(InDetailLayout);
 }
 
 bool FDMXPixelMappingDetailCustomization_FixtureGroupItem::CheckComponentsDMXColorMode(const EDMXColorMode DMXColorMode) const
@@ -234,6 +243,94 @@ TSharedRef<ITableRow> FDMXPixelMappingDetailCustomization_FixtureGroupItem::Gene
 				]
 			]
 		];
+}
+
+void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CreateModulatorDetails(IDetailLayoutBuilder& InDetailLayout)
+{	
+	IDetailCategoryBuilder& ModualtorsCategory = InDetailLayout.EditCategory("Modulators", LOCTEXT("DMXModulatorsCategory", "Modulators"), ECategoryPriority::Important);
+
+	TSharedPtr<IPropertyHandle> ModulatorClassesHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, ModulatorClasses), UDMXPixelMappingFixtureGroupItemComponent::StaticClass());
+	ModulatorClassesHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroupItem::ForceRefresh));
+	ModulatorClassesHandle->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroupItem::ForceRefresh));
+
+	ModualtorsCategory.AddProperty(ModulatorClassesHandle);
+
+	TSharedPtr<IPropertyHandle> ModulatorsHandle = DetailLayout->GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupItemComponent, Modulators), UDMXPixelMappingFixtureGroupItemComponent::StaticClass());
+	InDetailLayout.HideProperty(ModulatorsHandle);
+
+	// Create detail views for the modulators
+	TArray<TWeakObjectPtr<UObject>> CustomizedObjects;
+	InDetailLayout.GetObjectsBeingCustomized(CustomizedObjects);
+	if (CustomizedObjects.Num() > 0)
+	{
+		if (UDMXPixelMappingFixtureGroupItemComponent* FirstGroupItemComponent = Cast<UDMXPixelMappingFixtureGroupItemComponent>(CustomizedObjects[0].Get()))
+		{
+			for (int32 IndexModulator = 0; IndexModulator < FirstGroupItemComponent->Modulators.Num(); IndexModulator++)
+			{
+				TArray<UObject*> ModulatorsToEdit;
+				ModulatorsToEdit.Add(FirstGroupItemComponent->Modulators[IndexModulator]);
+
+				for (const TWeakObjectPtr<UObject>& Other : CustomizedObjects)
+				{
+					if (UDMXPixelMappingFixtureGroupItemComponent* OtherGroupItemComponent = Cast<UDMXPixelMappingFixtureGroupItemComponent>(Other.Get()))
+					{
+						const bool bModulatorOfSameType =
+							OtherGroupItemComponent != FirstGroupItemComponent &&
+							OtherGroupItemComponent->Modulators.IsValidIndex(IndexModulator) &&
+							OtherGroupItemComponent->Modulators[IndexModulator] &&
+							OtherGroupItemComponent->Modulators[IndexModulator]->GetClass() == FirstGroupItemComponent->Modulators[IndexModulator]->GetClass();
+
+						if (bModulatorOfSameType)
+						{
+							ModulatorsToEdit.Add(OtherGroupItemComponent->Modulators[IndexModulator]);
+						}
+						else if (CustomizedObjects.Num() > 1)
+						{
+							// Don't allow multi edit if not all modulators are of same class
+							ModulatorsToEdit.Reset();
+						}
+					}
+				}
+
+				if (ModulatorsToEdit.Num() > 0)
+				{
+					FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+					FDetailsViewArgs DetailsViewArgs;
+					DetailsViewArgs.bUpdatesFromSelection = false;
+					DetailsViewArgs.bLockable = true;
+					DetailsViewArgs.bAllowSearch = false;
+					DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+					DetailsViewArgs.bHideSelectionTip = false;
+					TSharedRef<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+					DetailsView->SetObjects(ModulatorsToEdit);
+
+					ModualtorsCategory.AddCustomRow(FText::GetEmpty())
+						.WholeRowContent()
+						[
+							DetailsView
+						];
+				}
+				else
+				{
+					ModualtorsCategory.AddCustomRow(FText::GetEmpty())
+						.WholeRowContent()
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("ModulatorMultipleValues", "Multiple Values"))
+							.Font(IDetailLayoutBuilder::GetDetailFont())
+						];
+
+					break;
+				}
+			}
+		}
+	}
+}
+
+void FDMXPixelMappingDetailCustomization_FixtureGroupItem::ForceRefresh()
+{
+	PropertyUtilities->ForceRefresh();
 }
 
 #undef LOCTEXT_NAMESPACE

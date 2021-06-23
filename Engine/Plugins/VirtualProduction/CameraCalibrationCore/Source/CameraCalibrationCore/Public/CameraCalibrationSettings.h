@@ -9,7 +9,10 @@
 
 #include "CameraCalibrationSettings.generated.h"
 
-
+#if WITH_EDITOR
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnDisplacementMapResolutionChanged, const FIntPoint NewDisplacementMapResolution);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnCalibrationInputToleranceChanged, const float NewTolerance);
+#endif
 
 /**
  * Settings for the CameraCalibration plugin modules. 
@@ -22,12 +25,23 @@ class CAMERACALIBRATIONCORE_API UCameraCalibrationSettings : public UDeveloperSe
 public:
 	UCameraCalibrationSettings();
 
-	//~ Begin UDevelopperSettings interface
+	//~ Begin UDeveloperSettings interface
 	virtual FName GetCategoryName() const;
 #if WITH_EDITOR
 	virtual FText GetSectionText() const override;
+	virtual FName GetSectionName() const override;
 #endif
-	//~ End UDevelopperSettings interface
+	//~ End UDeveloperSettings interface
+
+#if WITH_EDITOR
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
+
+	/** Gets a multicast delegate which is called whenever the displacement map resolution project setting changes */
+	FOnDisplacementMapResolutionChanged& OnDisplacementMapResolutionChanged();
+
+	/** Gets a multicast delegate which is called whenever the displacement map resolution project setting changes */
+	FOnCalibrationInputToleranceChanged& OnCalibrationInputToleranceChanged();
+#endif
 
 public:
 
@@ -38,6 +52,12 @@ public:
 	 */
 	ULensFile* GetStartupLensFile() const;
 
+	/** Get the resolution that should be used for distortion and undistortion displacement maps */
+	FIntPoint GetDisplacementMapResolution() const { return DisplacementMapResolution; }
+
+	/** Get the tolerance to use when adding or accessing data in a calibrated LensFile */
+	float GetCalibrationInputTolerance() const { return CalibrationInputTolerance; }
+
 	/** Get the default MaterialInterface used by the input Model Handler class to write the undistortion displacement map */
 	UMaterialInterface* GetDefaultUndistortionDisplacementMaterial(const TSubclassOf<ULensDistortionModelHandlerBase>& InModelHandler) const;
 
@@ -47,8 +67,13 @@ public:
 	/** Get the default MaterialInterface used by the input Model Handler class to apply the post-process lens distortion effect */
 	UMaterialInterface* GetDefaultDistortionMaterial(const TSubclassOf<ULensDistortionModelHandlerBase>& InModelHandler) const;
 
-private:
+#if WITH_EDITOR
+protected:
+	FOnDisplacementMapResolutionChanged DisplacementMapResolutionChangedDelegate;
+	FOnCalibrationInputToleranceChanged CalibrationInputToleranceChangedDelegate;
+#endif // WITH_EDITOR
 
+private:
 	/** 
 	 * Startup lens file for the project 
 	 * Can be overriden. Priority of operation is
@@ -58,6 +83,14 @@ private:
 	 */
 	UPROPERTY(config, EditAnywhere, Category = "Settings", meta = (ConfigRestartRequired = true))
 	TSoftObjectPtr<ULensFile> StartupLensFile;
+
+	/** Resolution used when creating new distortion and undistortion displacement maps */
+	UPROPERTY(config, EditAnywhere, Category = "Settings")
+	FIntPoint DisplacementMapResolution = FIntPoint(256, 256);
+
+	/** Tolerance to use when adding or accessing data in a calibrated LensFile */
+	UPROPERTY(config, EditAnywhere, Category = "Settings")
+	float CalibrationInputTolerance = 0.001f;
 
 	/** Map of Lens Distortion Model Handler classes to the default displacement map material used by that class */
 	UPROPERTY(config)
@@ -70,6 +103,60 @@ private:
 	/** Map of Lens Distortion Model Handler classes to the default lens distortion post-process material used by that class */
 	UPROPERTY(config)
 	TMap<TSubclassOf<ULensDistortionModelHandlerBase>, TSoftObjectPtr<UMaterialInterface>> DefaultDistortionMaterials;
+};
+
+/**
+* Lens Data Table Editor Category color. Using for the color of the curves
+*/
+USTRUCT()
+struct FLensDataCategoryEditorColor
+{
+	GENERATED_BODY()
+
+	/** Get the color for specific category */
+	FColor GetColorForCategory(const ELensDataCategory InCategory) const
+	{
+		switch (InCategory) {
+		case ELensDataCategory::Focus:
+			return Focus;
+		case ELensDataCategory::Iris:
+			return Iris;
+		case ELensDataCategory::Zoom:
+			return Zoom;
+		case ELensDataCategory::Distortion:
+			return Distortion;
+		case ELensDataCategory::ImageCenter:
+			return ImageCenter;
+		case ELensDataCategory::STMap:
+			return STMap;
+		case ELensDataCategory::NodalOffset:
+			return NodalOffset;
+		default:
+			checkNoEntry();
+			return FColor::Black;
+		}
+	}
+	
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FColor Focus = FColor::Red;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FColor Iris = FColor::Green;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FColor Zoom = FColor::Blue;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FColor Distortion = FColor::Cyan;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FColor ImageCenter = FColor::Yellow;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FColor STMap = FColor::Orange;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FColor NodalOffset = FColor::Purple;
 };
 
 /**
@@ -87,6 +174,7 @@ public:
 		virtual FName GetCategoryName() const;
 #if WITH_EDITOR
 		virtual FText GetSectionText() const override;
+		virtual FName GetSectionName() const override;
 #endif
 		//~ End UDevelopperSettings interface
 
@@ -99,6 +187,12 @@ public:
 	 */
 	UPROPERTY(config, EditAnywhere, Category = "Settings", Meta = (ConfigRestartRequired = true, DisplayName = "Enable Lens File Toolbar Button"))
 	bool bShowEditorToolbarButton = false;
+
+	/**
+	 * Data Table category color settings
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Settings")
+	FLensDataCategoryEditorColor CategoryColor;
 
 private:
 

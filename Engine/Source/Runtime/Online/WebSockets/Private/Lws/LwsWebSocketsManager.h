@@ -107,6 +107,11 @@ private:
 	double ThreadTargetFrameTimeInSeconds;
 	/** Minimum time to sleep in our thread's tick, even if the sleep makes us exceed our target frame time */
 	double ThreadMinimumSleepTimeInSeconds;
+
+	bool bDisableDomainWhitelist = false;
+	bool bDisableCertValidation = false;
+
+	friend class FLwsWebSocket;
 };
 
 #endif // WITH_WEBSOCKETS && WITH_LIBWEBSOCKETS

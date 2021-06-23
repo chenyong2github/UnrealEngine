@@ -302,7 +302,7 @@ class UNiagaraGraph : public UEdGraph
 	* @param bMerged				Whether or not the rename ended up merging with a different parameter because the names are the same.
 	* @return						true if the new name was applied. 
 	*/
-	bool RenameParameter(const FNiagaraVariable& Parameter, FName NewName, bool bRenameRequestedFromStaticSwitch = false, bool* bMerged = nullptr);
+	NIAGARAEDITOR_API bool RenameParameter(const FNiagaraVariable& Parameter, FName NewName, bool bRenameRequestedFromStaticSwitch = false, bool* bMerged = nullptr);
 
 	/** Rename a pin inline in a graph. If this is the only instance used in the graph, then rename them all, otherwise make a duplicate. */
 	bool RenameParameterFromPin(const FNiagaraVariable& Parameter, FName NewName, UEdGraphPin* InPin);
@@ -342,16 +342,29 @@ class UNiagaraGraph : public UEdGraph
 	void ScriptVariableChanged(FNiagaraVariable Variable);
 
 	/** Synchronize all the properties of DestScriptVar to those of SourceScriptVar, as well as propagating those changes through the graph (pin variable names and default values on pins.) 
-	 *  If DestScriptVar is not set, find a script variable with the same key as the SourceScriptVar. '
+	 *  If DestScriptVar is not set, find a script variable with the same key as the SourceScriptVar.
 	 *  Returns bool to signify if DestScriptVar was modified.
 	 */
-	bool SynchronizeScriptVariable(const UNiagaraScriptVariable* SourceScriptVar, UNiagaraScriptVariable* DestScriptVar = nullptr, bool bMarkGraphRequiresSync = true);
+	bool SynchronizeScriptVariable(const UNiagaraScriptVariable* SourceScriptVar, UNiagaraScriptVariable* DestScriptVar = nullptr, bool bIgnoreChangeId = false);
 
 	/** Find a script variable with the same key as RemovedScriptVarId and unmark it as being sourced from a parameter definitions. */
 	bool SynchronizeParameterDefinitionsScriptVariableRemoved(const FGuid RemovedScriptVarId);
 
-	/** Synchronize all source script variables that have been changed or removed from the parameter definitions to all eligible destination script variables owned by the graph. */
-	void SynchronizeParametersWithParameterDefinitions(const TArray<UNiagaraParameterDefinitions*> ParameterDefinitions, const TArray<FGuid>& ParameterDefinitionsParameterIds, FSynchronizeWithParameterDefinitionsArgs Args);
+	/** Synchronize all source script variables that have been changed or removed from the parameter definitions to all eligible destination script variables owned by the graph. 
+	 * 
+	 *  @param TargetDefinitions			The set of parameter definitions that will be synchronized with the graph parameters.
+	 *	@param AllDefinitions				All parameter definitions in the project. Used to add new subscriptions to definitions if specified in Args.
+	 *  @param AllDefinitionsParameterIds	All unique Ids of all parameter definitions. 
+	 *	@param Subscriber					The INiagaraParameterDefinitionsSubscriber that owns the graph. Used to add new subscriptions to definitions if specified in Args.
+	 *	@param Args							Additional arguments that specify how to perform the synchronization. 
+	 */
+	void SynchronizeParametersWithParameterDefinitions(
+		const TArray<UNiagaraParameterDefinitions*> TargetDefinitions,
+		const TArray<UNiagaraParameterDefinitions*> AllDefinitions,
+		const TSet<FGuid>& AllDefinitionsParameterIds,
+		INiagaraParameterDefinitionsSubscriber* Subscriber,
+		FSynchronizeWithParameterDefinitionsArgs Args
+	);
 
 	/** Rename all assignment and map set node pins. 
 	 *  Used when synchronizing definitions with source scripts of systems and emitters.

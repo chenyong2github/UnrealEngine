@@ -9,9 +9,10 @@
 #include "Views/Details/Widgets/SDisplayClusterConfigurationSearchableComboBox.h"
 
 #include "DisplayClusterRootActor.h"
-#include "Blueprints/DisplayClusterBlueprint.h"
-#include "Misc/DisplayClusterHelpers.h"
 #include "DisplayClusterProjectionStrings.h"
+#include "Blueprints/DisplayClusterBlueprint.h"
+#include "Components/DisplayClusterScreenComponent.h"
+#include "Misc/DisplayClusterHelpers.h"
 #include "Misc/DisplayClusterTypesConverter.h"
 
 #include "EditorDirectories.h"
@@ -22,6 +23,7 @@
 #include "IPropertyUtilities.h"
 #include "PropertyHandle.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Components/StaticMeshComponent.h"
 
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
@@ -204,7 +206,14 @@ void FPolicyParameterInfoComponentCombo::CreateParameterValues(ADisplayClusterRo
 		RootActor->GetComponents(ComponentType, ActorComponents);
 		for (UActorComponent* ActorComponent : ActorComponents)
 		{
-			if (ActorComponent->GetName().EndsWith(FDisplayClusterConfiguratorUtils::GetImplSuffix()))
+			// Filter out components that should not be listed, including implicit components and visualization components. We must
+			// specially check for screen components since they are flagged as visualization components but we want them to show up
+			// in the list.
+			const bool bIsImplicitComponent = ActorComponent->GetName().EndsWith(FDisplayClusterConfiguratorUtils::GetImplSuffix());
+			const bool bIsVisualizationComponent = ActorComponent->IsA<UStaticMeshComponent>() && ActorComponent->IsVisualizationComponent();
+			const bool bIsScreenComponent = ActorComponent->IsA<UDisplayClusterScreenComponent>();
+
+			if (bIsImplicitComponent || (bIsVisualizationComponent && !bIsScreenComponent))
 			{
 				// Ignore the default impl subobjects.
 				continue;

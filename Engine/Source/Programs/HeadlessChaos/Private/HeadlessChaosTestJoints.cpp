@@ -611,5 +611,70 @@ namespace ChaosTest {
 	GTEST_TEST(AllEvolutions, JointTests_TestSingleDynamicSpringConstraint) {
 		DynamicSpringConstraint<FPBDRigidsEvolutionGBF>();
 	}
+
+
+	// Check that constraints end up in the same island when graph is fully connected
+	GTEST_TEST(JointTests, TestJointConstraintGraph_Connected)
+	{
+		FPBDRigidsSOAs ParticleContainer;
+		FPBDJointConstraints JointContainer;
+
+		// Create 3 particles
+		TArray<FPBDRigidParticleHandle*> Rigids = ParticleContainer.CreateDynamicParticles(3);
+
+		// Connect particles with 2 joints
+		TArray<FPBDJointConstraintHandle*> Joints =
+		{
+			JointContainer.AddConstraint({ Rigids[0], Rigids[1] }, { FRigidTransform3(), FRigidTransform3() }),
+			JointContainer.AddConstraint({ Rigids[0], Rigids[2] }, { FRigidTransform3(), FRigidTransform3() })
+		};
+
+		// This sets up the joint container, including generating islands etc
+		JointContainer.PrepareTick();
+
+		// Both joints should be in an island
+		EXPECT_GE(Joints[0]->GetConstraintIsland(), 0);
+		EXPECT_GE(Joints[0]->GetConstraintIsland(), 0);
+
+		// Both joints should be in same island
+		EXPECT_EQ(Joints[0]->GetConstraintIsland(), Joints[1]->GetConstraintIsland());
+
+		// Joints should have different colors
+		EXPECT_NE(Joints[0]->GetConstraintColor(), Joints[1]->GetConstraintColor());
+	}
+
+	// Check that constraints islands are not merged through shared kinematic particles
+	GTEST_TEST(JointTests, TestJointConstraintGraph_NotConnected)
+	{
+		FPBDRigidsSOAs ParticleContainer;
+		FPBDJointConstraints JointContainer;
+
+		// Create 3 particles
+		TArray<FPBDRigidParticleHandle*> Rigids = ParticleContainer.CreateDynamicParticles(3);
+
+		// Connect particles with 2 joints
+		TArray<FPBDJointConstraintHandle*> Joints =
+		{
+			JointContainer.AddConstraint({ Rigids[0], Rigids[1] }, { FRigidTransform3(), FRigidTransform3() }),
+			JointContainer.AddConstraint({ Rigids[0], Rigids[2] }, { FRigidTransform3(), FRigidTransform3() })
+		};
+
+		// Set the particle in the middle of the two joints to kinematic
+		Rigids[0]->SetObjectStateLowLevel(EObjectStateType::Kinematic);
+
+		// This sets up the joint container, including generating islands etc
+		JointContainer.PrepareTick();
+
+		// Both joints should be in an island
+		EXPECT_GE(Joints[0]->GetConstraintIsland(), 0);
+		EXPECT_GE(Joints[1]->GetConstraintIsland(), 0);
+
+		// Joints should be in different islands
+		EXPECT_NE(Joints[0]->GetConstraintIsland(), Joints[1]->GetConstraintIsland());
+
+		// Both joints should be at level 0
+		EXPECT_EQ(Joints[0]->GetConstraintLevel(), 0);
+		EXPECT_EQ(Joints[1]->GetConstraintLevel(), 0);
+	}
 }
 

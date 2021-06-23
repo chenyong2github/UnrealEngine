@@ -146,7 +146,7 @@ void FGauntletModuleImpl::OnPostEngineInit()
 	FParse::Value(FCommandLine::Get(), TEXT("gauntlet.tickrate="), kTickRate);
 
 
-	FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, kTickRate](float TimeDelta)
+	TickHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, kTickRate](float TimeDelta)
 	{
 		// ticker passes in frame-delta, not tick delta...
 		InnerTick(kTickRate);
@@ -157,12 +157,14 @@ void FGauntletModuleImpl::OnPostEngineInit()
 
 void FGauntletModuleImpl::ShutdownModule()
 {
+	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 	FCoreUObjectDelegates::PreLoadMap.RemoveAll(this);
 	FCoreUObjectDelegates::PostLoadMapWithWorld.RemoveAll(this);
 
 	if (TickHandle.IsValid())
 	{
 		FTicker::GetCoreTicker().RemoveTicker(TickHandle);
+		TickHandle.Reset();
 	}
 
 	UE_LOG(LogGauntlet, Log, TEXT("Gauntlet Shutdown"));

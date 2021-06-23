@@ -1,0 +1,33 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Private/TonemapCommon.ush"
+
+
+float3 WhiteBalance( float WhiteTemp, float3 LinearColor, bool SwapSourceAndD65White )
+{
+	float2 SrcWhiteDaylight = D_IlluminantChromaticity( WhiteTemp );
+	float2 SrcWhitePlankian = PlanckianLocusChromaticity( WhiteTemp );
+
+	float2 SrcWhite = WhiteTemp < 4000 ? SrcWhitePlankian : SrcWhiteDaylight;
+	float2 D65White = float2( 0.31270,  0.32900 );
+
+	float2 src_xy, dst_xy;
+
+	if (SwapSourceAndD65White)
+	{
+		// TEMPERATURE_TYPE_COLOR_TEMP
+		src_xy = D65White;
+		dst_xy = SrcWhite;
+	}
+	else
+	{
+		// TEMPERATURE_TYPE_WHITE_BALANCE
+		src_xy = SrcWhite;
+		dst_xy = D65White;
+	}
+
+	float3x3 WhiteBalanceMat = ChromaticAdaptation( src_xy, dst_xy );
+	WhiteBalanceMat = mul( XYZ_2_sRGB_MAT, mul( WhiteBalanceMat, sRGB_2_XYZ_MAT ) );
+
+	return mul( WhiteBalanceMat, LinearColor );
+}

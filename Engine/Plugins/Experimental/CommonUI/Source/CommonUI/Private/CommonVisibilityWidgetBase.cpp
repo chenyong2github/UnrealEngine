@@ -9,7 +9,7 @@
 #include "Styling/CoreStyle.h"
 #include "CommonInputBaseTypes.h"
 
-UCommonVisibilityWidgetBase::UCommonVisibilityWidgetBase(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_UCommonVisibilityWidgetBase::UDEPRECATED_UCommonVisibilityWidgetBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bShowForGamepad(true)
 	, bShowForMouseAndKeyboard(true)
@@ -24,14 +24,14 @@ UCommonVisibilityWidgetBase::UCommonVisibilityWidgetBase(const FObjectInitialize
 	}
 }
 
-void UCommonVisibilityWidgetBase::OnWidgetRebuilt()
+void UDEPRECATED_UCommonVisibilityWidgetBase::OnWidgetRebuilt()
 {
 	Super::OnWidgetRebuilt();
 	UpdateVisibility();
 	ListenToInputMethodChanged();
 }
 
-void UCommonVisibilityWidgetBase::UpdateVisibility()
+void UDEPRECATED_UCommonVisibilityWidgetBase::UpdateVisibility()
 {
 	if (!IsDesignTime())
 	{
@@ -49,13 +49,21 @@ void UCommonVisibilityWidgetBase::UpdateVisibility()
 				bVisibleForInput = bShowForTouch;
 			}
 
-			bool bVisibleForPlatform = VisibilityControls[FCommonInputBase::GetCurrentPlatformName()];
-			SetVisibility(bVisibleForPlatform && bVisibleForInput ? VisibleType : HiddenType);
+			if (bool* bVisibleForPlatform = VisibilityControls.Find(FCommonInputBase::GetCurrentPlatformName()))
+			{
+				SetVisibility(*bVisibleForPlatform && bVisibleForInput ? VisibleType : HiddenType);
+			}
+			else
+			{
+				// Current setup assumes all platforms should have a value, so log if we didn't get a hit.
+				UE_LOG(LogCommonUI, Warning, TEXT("Invalid platform: '%s' used to control visibility."), *FCommonInputBase::GetCurrentPlatformName().ToString())
+				SetVisibility(bVisibleForInput ? VisibleType : HiddenType);
+			}
 		}
 	}
 }
 
-void UCommonVisibilityWidgetBase::ListenToInputMethodChanged(bool bListen)
+void UDEPRECATED_UCommonVisibilityWidgetBase::ListenToInputMethodChanged(bool bListen)
 {
 	if (IsDesignTime())
 	{
@@ -72,12 +80,12 @@ void UCommonVisibilityWidgetBase::ListenToInputMethodChanged(bool bListen)
 	}
 }
 
-void UCommonVisibilityWidgetBase::HandleInputMethodChanged(ECommonInputType input)
+void UDEPRECATED_UCommonVisibilityWidgetBase::HandleInputMethodChanged(ECommonInputType input)
 {
 	UpdateVisibility();
 }
 
-const TArray<FName>& UCommonVisibilityWidgetBase::GetRegisteredPlatforms()
+const TArray<FName>& UDEPRECATED_UCommonVisibilityWidgetBase::GetRegisteredPlatforms()
 {
 	return FCommonInputPlatformBaseData::GetRegisteredPlatforms();
 }

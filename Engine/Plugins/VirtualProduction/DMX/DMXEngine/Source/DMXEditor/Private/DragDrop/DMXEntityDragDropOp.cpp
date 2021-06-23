@@ -77,7 +77,7 @@ bool FDMXEntityDragDropOperation::HandleDropOnCategoryRow(const TSharedPtr<SDMXC
 		{
 			case FDMXTreeNodeBase::ECategoryType::DMXCategory:
 			{
-				const FDMXFixtureCategory& FixtureCategory = *CategoryNode->GetCategoryValue<FDMXFixtureCategory>();
+				const FDMXFixtureCategory& FixtureCategory = CategoryNode->GetCategoryValue();
 				for (TWeakObjectPtr<UDMXEntity> Entity : DraggedEntities)
 				{
 					if (UDMXEntityFixtureType* FixtureType = Cast<UDMXEntityFixtureType>(Entity))
@@ -95,7 +95,7 @@ bool FDMXEntityDragDropOperation::HandleDropOnCategoryRow(const TSharedPtr<SDMXC
 			case FDMXTreeNodeBase::ECategoryType::UniverseID:
 			case FDMXTreeNodeBase::ECategoryType::FixtureAssignmentState:
 			{
-				const uint32& UniverseID = *CategoryNode->GetCategoryValue<uint32>();
+				int32 UniverseID = CategoryNode->GetIntValue();
 				for (TWeakObjectPtr<UDMXEntity> Entity : DraggedEntities)
 				{
 					if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(Entity))
@@ -103,7 +103,11 @@ bool FDMXEntityDragDropOperation::HandleDropOnCategoryRow(const TSharedPtr<SDMXC
 						FixturePatch->Modify();
 
 						FixturePatch->PreEditChange(nullptr);
-						FixturePatch->UniverseID = UniverseID;
+						if (FixturePatch->IsAutoAssignAddress())
+						{
+							FDMXEditorUtils::TryAutoAssignToUniverses(FixturePatch, TSet<int32>({ UniverseID }));
+						}
+						FixturePatch->SetUniverseID(UniverseID);
 						FixturePatch->PostEditChange();
 					}
 				}
@@ -195,51 +199,46 @@ bool FDMXEntityDragDropOperation::HandleDropOnEntityRow(const TSharedPtr<SDMXEnt
 		TSharedPtr<FDMXCategoryTreeNode> TargetCategory = StaticCastSharedPtr<FDMXCategoryTreeNode>(Node->GetParent().Pin());
 		check(TargetCategory.IsValid());
 
-		if (TargetCategory->IsCategoryValueValid())
+		switch (TargetCategory->GetCategoryType())
 		{
-			switch (TargetCategory->GetCategoryType())
+			case FDMXTreeNodeBase::ECategoryType::DMXCategory:
 			{
-				case FDMXTreeNodeBase::ECategoryType::DMXCategory:
+				const FDMXFixtureCategory& FixtureCategory = TargetCategory->GetCategoryValue();
+				for (TWeakObjectPtr<UDMXEntity> Entity : DraggedEntities)
 				{
-					const FDMXFixtureCategory& FixtureCategory = *TargetCategory->GetCategoryValue<FDMXFixtureCategory>();
-					for (TWeakObjectPtr<UDMXEntity> Entity : DraggedEntities)
+					if (UDMXEntityFixtureType* FixtureType = Cast<UDMXEntityFixtureType>(Entity))
 					{
-						if (UDMXEntityFixtureType* FixtureType = Cast<UDMXEntityFixtureType>(Entity))
-						{
-							FixtureType->Modify();
-							FixtureType->DMXCategory = FixtureCategory;
-						}
+						FixtureType->Modify();
+						FixtureType->DMXCategory = FixtureCategory;
 					}
 				}
-				break;
-
-				case FDMXTreeNodeBase::ECategoryType::UniverseID:
-				case FDMXTreeNodeBase::ECategoryType::FixtureAssignmentState:
-				{
-					const uint32& UniverseID = *TargetCategory->GetCategoryValue<uint32>();
-
-					for (TWeakObjectPtr<UDMXEntity> Entity : DraggedEntities)
-					{
-						if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(Entity))
-						{
-							FixturePatch->Modify();
-
-							FixturePatch->bAutoAssignAddress = false;
-							FixturePatch->UniverseID = UniverseID;
-						}
-					}
-				}
-
-				default:
-					// The other category types don't change properties
-					break;
 			}
-		}
+			break;
 
-		return true;
+			case FDMXTreeNodeBase::ECategoryType::UniverseID:
+			case FDMXTreeNodeBase::ECategoryType::FixtureAssignmentState:
+			{
+				const uint32& UniverseID = TargetCategory->GetIntValue();
+
+				for (TWeakObjectPtr<UDMXEntity> Entity : DraggedEntities)
+				{
+					if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(Entity))
+					{
+						FixturePatch->Modify();
+
+						FDMXEditorUtils::AutoAssignedAddresses(TArray<UDMXEntityFixturePatch*>({ FixturePatch }));
+						FixturePatch->SetUniverseID(UniverseID);
+					}
+				}
+			}
+
+			default:
+				// The other category types don't change properties
+				break;
+		}
 	}
 
-	return false;
+	return true;
 }
 
 TArray<UClass*> FDMXEntityDragDropOperation::GetDraggedEntityTypes() const
@@ -346,24 +345,25 @@ bool FDMXEntityDragDropOperation::TestCanDropOnCategoryRow(const TSharedPtr<SDMX
 		TSharedPtr<FDMXCategoryTreeNode> CategoryNode = CategoryRow->GetNode();
 		check(CategoryNode.IsValid());
 		
-		if (!CategoryNode->IsCategoryValueValid())
-		{
-			if (bShowFeedback)
-			{
-				// There wouldn't be any change by dragging the items into their own category.
-				SetFeedbackMessageError(FText::Format(
-					LOCTEXT("DragIntoNoValueCategory", "Cannot drop {0} onto this category"),
-					GetDraggedEntitiesName()
-				));
-			}
-			return false;
-		}
-		
 		UDMXLibrary* Library = EntityList->GetDMXLibrary();
 		check(Library);
 
 		if (CategoryNode.IsValid())
 		{
+
+			if (!CategoryNode->CanDropOntoCategory())
+			{
+				if (bShowFeedback)
+				{
+					// There wouldn't be any change by dragging the items into their own category.
+					SetFeedbackMessageError(FText::Format(
+						LOCTEXT("DragIntoNoValueCategory", "Cannot drop {0} onto this category"),
+						GetDraggedEntitiesName()
+					));
+				}
+				return false;
+			}
+
 			TArray<TSharedPtr<FDMXTreeNodeBase>> DraggedFromCategories = GetDraggedFromCategories(EntityList);
 
 			if (DraggedFromCategories.Num() == 1 && DraggedFromCategories[0] == CategoryNode)
@@ -404,10 +404,8 @@ bool FDMXEntityDragDropOperation::TestCanDropOnCategoryRow(const TSharedPtr<SDMX
 					else if (ListType == UDMXEntityFixturePatch::StaticClass())
 					{
 						ListTypeText = LOCTEXT("Property_Universe", "Universe");
-						const uint32 UniverseID = *TargetCategory->GetCategoryValue<uint32>();
-						CategoryText = UniverseID == MAX_uint32
-							? LOCTEXT("UnassignedUniverseIDValue", "Unassigned")
-							: FText::AsNumber(UniverseID);
+						const uint32 UniverseID = TargetCategory->GetIntValue();
+						CategoryText = FText::AsNumber(UniverseID);
 					}
 
 					SetFeedbackMessageOK(FText::Format(
@@ -504,7 +502,7 @@ bool FDMXEntityDragDropOperation::TestCanDropOnEntityRow(const TSharedPtr<SDMXEn
 		else if (ListType == UDMXEntityFixturePatch::StaticClass())
 		{
 			ListTypeText = LOCTEXT("Property_Universe", "Universe");
-			const uint32 UniverseID = *TargetCategory->GetCategoryValue<uint32>();
+			const uint32 UniverseID = TargetCategory->GetIntValue();
 			CategoryText = UniverseID == MAX_uint32
 				? LOCTEXT("UnassignedUniverseIDValue", "Unassigned")
 				: FText::AsNumber(UniverseID);
@@ -601,7 +599,7 @@ bool FDMXEntityDragDropOperation::TestCanDropOnFixturePatch(UDMXEntityFixturePat
 	{
 		if (UDMXEntityFixturePatch* DraggedFixturePatch = Cast<UDMXEntityFixturePatch>(DraggedEntity))
 		{
-			if (DraggedFixturePatch->UniverseID != HoveredFixturePatch->UniverseID)
+			if (DraggedFixturePatch->GetUniverseID() != HoveredFixturePatch->GetUniverseID())
 			{
 				bDragBetweenUniverses = true;
 				break;

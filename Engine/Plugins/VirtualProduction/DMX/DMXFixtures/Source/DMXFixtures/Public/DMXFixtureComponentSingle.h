@@ -13,37 +13,49 @@ class DMXFIXTURES_API UDMXFixtureComponentSingle : public UDMXFixtureComponent
 	GENERATED_BODY()
 
 public:
-
 	UDMXFixtureComponentSingle();
-	int NumChannels;
-
+		
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Channels")
 	FDMXChannelData DMXChannel;
 
-	// Functions-----------------------------------------
-	UFUNCTION(BlueprintPure, Category = "DMX")
-	float DMXInterpolatedStep();
+	/** Initializes the interpolation range of the channels */
+	virtual void Initialize() override;
 
+	/** Gets the interpolation delta value (step) for this frame */
 	UFUNCTION(BlueprintPure, Category = "DMX")
-	float DMXInterpolatedValue();
+	float GetDMXInterpolatedStep() const;
 
+	/** Gets the current interpolated value */
 	UFUNCTION(BlueprintPure, Category = "DMX")
-	float DMXTargetValue();
+	float GetDMXInterpolatedValue() const;
 
+	/** Gets the target value towards which the component interpolates */
 	UFUNCTION(BlueprintPure, Category = "DMX")
-	bool DMXIsInterpolationDone();
+	float GetDMXTargetValue() const;
+
+	/** True if the target value is reached and no interpolation is required */
+	UFUNCTION(BlueprintPure, Category = "DMX")
+	bool IsDMXInterpolationDone() const;
 	
-	float RemapValue(float Alpha);
+	/** Returns the interpolated value */
+	float GetInterpolatedValue(float Alpha) const;
+
 	bool IsTargetValid(float Target);
-	void Push(float Target);
-	void SetTarget(float Target);
 
-	// Overrides
-	virtual void InitCells(int NCells) override;
-	virtual void SetRangeValue() override;
+	/** Sets the target value. Interpolates to the value if bUseInterpolation is true. */
+	void SetTargetValue(float Value);
 
-	// Blueprint event
+	/** Called to set the value. When interpolation is enabled this function is called by the plugin until the target value is reached, else just once. */
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX Component")
-	void SetComponent(float NewValue);
+	void SetValueNoInterp(float NewValue);
 
+	// DEPRECATED 4.27
+public:	
+	// DEPRECATED 4.27
+	UE_DEPRECATED(4.27, "Replaced with SetChannelValue to be more expressive about the intent of the function and to avoid the duplicate method Push and SetTarget.")
+	void Push(float Target);
+
+	// DEPRECATED 4.27
+	UE_DEPRECATED(4.27, "Replaced with SetChannelValue to be more expressive about the intent of the function.")
+	void SetTarget(float Target);
 };

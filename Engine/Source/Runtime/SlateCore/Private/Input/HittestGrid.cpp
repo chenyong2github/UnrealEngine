@@ -270,7 +270,7 @@ void FHittestGrid::ClearInternal(int32 TotalCells)
 	SCOPE_CYCLE_COUNTER(STAT_SlateHTG_Clear);
 #endif
 	Cells.Reset(TotalCells);
-	Cells.SetNum(TotalCells);
+	Cells.SetNumZeroed(TotalCells);
 
 	WidgetMap.Reset();
 	WidgetArray.Reset();

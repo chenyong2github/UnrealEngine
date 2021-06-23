@@ -962,6 +962,54 @@ namespace EpicGames.MCP.Automation
 			}
 			public List<ListBinariesOutputBinary> Binaries;
 		}
+		public class ListBinariesOutputBinaryJsonFormat
+		{
+			public class ListBinariesOutputLabelJsonFormat
+			{
+				public string LabelName;
+				public string Platform;
+			}
+			public List<ListBinariesOutputLabelJsonFormat> Labels;
+			public string ArtifactId;
+			public string BuildVersion;
+			public DateTime Created;
+			public DateTime Updated;
+			public string ManifestHash;
+			public int Rvn;
+			
+			public ListBinariesOutput.ListBinariesOutputBinary.ListBinariesOutputManifestLocation ManifestLocation;
+			public bool IsResuable;
+
+			public ListBinariesOutput.ListBinariesOutputBinary ConvertToOutputBinary()
+			{
+				ListBinariesOutput.ListBinariesOutputBinary Result = new ListBinariesOutput.ListBinariesOutputBinary();
+				Result.Labels = new List<ListBinariesOutput.ListBinariesOutputBinary.ListBinariesOutputLabel>();
+				foreach (ListBinariesOutputLabelJsonFormat Label in Labels)
+				{
+					ListBinariesOutput.ListBinariesOutputBinary.ListBinariesOutputLabel NewLabel = new ListBinariesOutput.ListBinariesOutputBinary.ListBinariesOutputLabel();
+					if (Enum.TryParse<MCPPlatform>(Label.Platform, out NewLabel.Platform) == false)
+					{
+						// skip platforms which don't have a resolvable platform
+						CommandUtils.LogWarning("Unable to resolve MCP platform for Label {0} platform string is {1}", Label.LabelName, Label.Platform);
+						continue;
+					}
+					NewLabel.LabelName = Label.LabelName;
+					Result.Labels.Add(NewLabel);
+				}
+
+				Result.ArtifactId = ArtifactId;
+				Result.BuildVersion = BuildVersion;
+				Result.Created = Created;
+				Result.Updated = Updated;
+				Result.ManifestHash = ManifestHash;
+				Result.Rvn = Rvn;
+				Result.ManifestLocation = ManifestLocation;
+				Result.IsResuable = IsResuable;
+
+				return Result;
+			}
+		}
+
 
 		public class CopyBinaryOptions
 		{
@@ -1016,6 +1064,7 @@ namespace EpicGames.MCP.Automation
 				Unknown,
 				Copy_Failed,
 				Copy_Failed_Binary_Exists,
+				Copy_Failed_No_Source_Binary,
 				Num
 			};
 			public BPTErrorCode ResolvedErrorCode;

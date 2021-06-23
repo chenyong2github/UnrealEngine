@@ -2506,8 +2506,7 @@ bool FPhysicsInterface_PhysX::Sweep_Geom(FHitResult& OutHit, const FBodyInstance
 
 					UPrimitiveComponent* OwnerComponentInst = InInstance->OwnerComponent.Get();
 					PxTransform PStartTM(U2PVector(InStart), U2PQuat(ShapeAdapter.GetGeomOrientation()));
-					PxTransform PCompTM(U2PTransform(OwnerComponentInst->GetComponentTransform()));
-
+					
 					PxVec3 PDir = U2PVector(Delta / DeltaMag);
 
 					PxSweepHit PHit;
@@ -2525,7 +2524,9 @@ bool FPhysicsInterface_PhysX::Sweep_Geom(FHitResult& OutHit, const FBodyInstance
 						check(PShape);
 
 						// Skip shapes not bound to this instance
-						if(!TargetInstance->IsShapeBoundToBody(ShapeRef))
+						// We check InInstance here because we want the shapes that were created for that instance
+						// and not just the shapes created for the weld parent (if InInstance is welded)
+						if(!InInstance->IsShapeBoundToBody(ShapeRef))
 						{
 							continue;
 						}
@@ -2536,7 +2537,7 @@ bool FPhysicsInterface_PhysX::Sweep_Geom(FHitResult& OutHit, const FBodyInstance
 						const bool bShapeIsSimple = (ShapeFilter.Word3 & EPDF_SimpleCollision) != 0;
 						if((bSweepComplex && bShapeIsComplex) || (!bSweepComplex && bShapeIsSimple))
 						{
-							PxTransform PGlobalPose = PCompTM.transform(PShape->getLocalPose());
+							PxTransform PGlobalPose = RigidBody->getGlobalPose().transform(PShape->getLocalPose());
 							const PxGeometry& Geometry = ShapeAdapter.GetGeometry();
 							if(PxGeometryQuery::sweep(PDir, DeltaMag, Geometry, PStartTM, PShape->getGeometry().any(), PGlobalPose, PHit, POutputFlags))
 							{

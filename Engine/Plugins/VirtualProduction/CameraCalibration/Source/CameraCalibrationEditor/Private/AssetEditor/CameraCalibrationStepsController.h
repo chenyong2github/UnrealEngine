@@ -4,8 +4,10 @@
 
 #include "CoreMinimal.h"
 
+#include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
 #include "UObject/StrongObjectPtr.h"
+
 
 class ACameraActor;
 class ACompositingElement;
@@ -18,11 +20,16 @@ class UCompositingElementMaterialPass;
 class ULensDistortionModelHandlerBase;
 class ULensFile;
 class ULiveLinkCameraController;
-class UTextureRenderTarget2D;
 
 struct FGeometry;
 struct FLensFileEvalData;
 struct FPointerEvent;
+
+namespace cv
+{
+	class Mat;
+}
+
 
 /**
  * Controller for SCameraCalibrationSteps, where the calibration steps are hosted in.
@@ -111,6 +118,12 @@ public:
 
 	/** Finds the world being used by the tool for finding and spawning objects */
 	UWorld* GetWorld() const;
+
+	/** Reads the pixels in the media plate */
+	bool ReadMediaPixels(TArray<FColor>& Pixels, FIntPoint& Size, ETextureRenderTargetFormat& PixelFormat, FText& OutErrorMessage) const;
+
+	/** Returns a new transient texture for the given cv::Mat */
+	static UTexture2D* TextureFromCvMat(cv::Mat& Mat);
 
 public:
 

@@ -213,6 +213,8 @@ private:
 	friend struct FNetworkPhysicsRewindCallback;
 	void ProcessInputs_External(int32 PhysicsStep, const TArray<Chaos::FSimCallbackInputAndObject>& SimCallbackInputs);
 
+	void ProcessClientInputBuffers_External(int32 PhysicsStep, const TArray<Chaos::FSimCallbackInputAndObject>& SimCallbackInputs);
+
 	// Historic GT recording for GT only (compiled out. probably temp until Insights integration is back)
 	struct FDebugSnapshot
 	{

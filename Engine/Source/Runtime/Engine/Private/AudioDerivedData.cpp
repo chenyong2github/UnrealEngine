@@ -1484,7 +1484,7 @@ void USoundWave::SerializeCookedPlatformData(FArchive& Ar)
 #if WITH_EDITORONLY_DATA
 	if (Ar.IsCooking() && Ar.IsPersistent())
 	{
-		check(!Ar.CookingTarget()->IsServerOnly());
+		check(Ar.CookingTarget()->AllowAudioVisualData());
 
 		FName PlatformFormat = Ar.CookingTarget()->GetWaveFormat(this);
 		const FPlatformAudioCookOverrides* CompressionOverrides = FPlatformCompressionUtilities::GetCookOverrides(*Ar.CookingTarget()->IniPlatformName());
@@ -1562,7 +1562,7 @@ void USoundWave::BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPl
 {
 	const FPlatformAudioCookOverrides* CompressionOverrides = FPlatformCompressionUtilities::GetCookOverrides(*TargetPlatform->IniPlatformName());
 
-	if (TargetPlatform->SupportsFeature(ETargetPlatformFeatures::AudioStreaming) && IsStreaming(*CompressionOverrides))
+	if (TargetPlatform->SupportsFeature(ETargetPlatformFeatures::AudioStreaming) && IsStreaming(*CompressionOverrides) && TargetPlatform->AllowAudioVisualData())
 	{
 		// Retrieve format to cache for targetplatform.
 		FName PlatformFormat = TargetPlatform->GetWaveFormat(this);
@@ -1686,8 +1686,11 @@ void USoundWave::FinishCachePlatformData()
 {
 	if (RunningPlatformData == NULL)
 	{
-		// begin cache never called
-		CachePlatformData();
+		// begin cache never called, but we are running with, or targeting platforms that need, audio redner data
+		if (WillNeedAudioVisualData())
+		{
+			CachePlatformData();
+		}
 	}
 	else
 	{
@@ -1697,7 +1700,7 @@ void USoundWave::FinishCachePlatformData()
 
 #if DO_CHECK
 	// If we're allowing cooked data to be loaded then the derived data key will not have been serialized, so won't match and that's fine
-	if (!GAllowCookedDataInEditorBuilds)
+	if (!GAllowCookedDataInEditorBuilds && RunningPlatformData != nullptr)
 	{
 		FString DerivedDataKey;
 		FName AudioFormat = GetWaveFormatForRunningPlatform(*this);

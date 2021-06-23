@@ -111,6 +111,12 @@ namespace Audio
 		// Returns the duration in seconds of the given Quantization Type
 		float GetDurationOfQuantizationTypeInSeconds(const EQuartzCommandQuantization& QuantizationType, float Multiplier);
 
+		// Returns the current location of the clock in the transport
+		FQuartzTransportTimeStamp GetCurrentTimestamp();
+
+		// Returns the amount of time, in seconds, the clock has been running. Caution: due to latency, this will not be perfectly accurate
+		float GetEstimatedRunTime();
+
 		FMixerDevice* GetMixerDevice();
 
 		FMixerSourceManager* GetSourceManager();

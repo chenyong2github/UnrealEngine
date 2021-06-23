@@ -22,6 +22,7 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraSystem.h"
 #include "NiagaraNodeInput.h"
+#include "NiagaraEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraDataInterfaceDetailsBase"
 #define ErrorsCategoryName  TEXT("Errors")
@@ -260,7 +261,7 @@ public:
 		TArray<FNiagaraDataInterfaceError> Errors;
 		TArray<FNiagaraDataInterfaceFeedback> Warnings;
 		TArray<FNiagaraDataInterfaceFeedback> Infos;
-		UNiagaraDataInterface::GetFeedback(DataInterface.Get(), Errors, Warnings, Infos);
+		FNiagaraEditorModule::Get().GetDataInterfaceFeedbackSafe(DataInterface.Get(), Errors, Warnings, Infos);
 
 		for (FNiagaraDataInterfaceError Error : Errors)
 		{
@@ -365,7 +366,7 @@ void FNiagaraDataInterfaceDetailsBase::OnErrorsRefreshed() // need to only refre
 		TArray<FNiagaraDataInterfaceError> Errors;
 		TArray<FNiagaraDataInterfaceFeedback> Warnings;
 		TArray<FNiagaraDataInterfaceFeedback> Info;
-		UNiagaraDataInterface::GetFeedback(DataInterface.Get(), Errors, Warnings, Info);
+		FNiagaraEditorModule::Get().GetDataInterfaceFeedbackSafe(DataInterface.Get(), Errors, Warnings, Info);
 
 		int CurrentErrorCount = Errors.Num() + Warnings.Num() + Info.Num();
 		ErrorsCategoryBuilder->SetCategoryVisibility(CurrentErrorCount > 0);

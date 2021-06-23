@@ -19,6 +19,10 @@ public:
 	/** Method to get where the primary assets should scanned from in the plugin hierarchy */
 	const TArray<FPrimaryAssetTypeInfo>& GetPrimaryAssetTypesToScan() const { return PrimaryAssetTypesToScan; }
 
+#if WITH_EDITOR
+	TArray<FPrimaryAssetTypeInfo>& GetPrimaryAssetTypesToScan() { return PrimaryAssetTypesToScan; }
+#endif //if WITH_EDITOR
+
 	/** Method to process the base ini file for the plugin during loading */
 	void InitializeBasePluginIniFile(const FString& PluginInstalledFilename) const;
 

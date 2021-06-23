@@ -151,6 +151,8 @@ void UReplaySubsystem::RecordReplay(const FString& Name, const FString& Friendly
 
 		NetDriver->AddClientConnection(Connection);
 		
+		UE_LOG(LogDemo, Log, TEXT("UReplaySubsystem::RecordReplay: Starting recording with replay connection.  Name: %s FriendlyName: %s"), *Name, *FriendlyName);
+
 		Connection->StartRecording();
 		return;
 	}
@@ -188,6 +190,8 @@ void UReplaySubsystem::RecordReplay(const FString& Name, const FString& Friendly
 		CurrentLevelCollection->SetDemoNetDriver(DemoNetDriver);
 	}
 
+	UE_LOG(LogDemo, Log, TEXT("UReplaySubsystem::RecordReplay: Starting recording with demo driver.  Name: %s FriendlyName: %s"), *Name, *FriendlyName);
+
 	FString Error;
 
 	if (bDestroyedDemoNetDriver)
@@ -206,7 +210,7 @@ void UReplaySubsystem::RecordReplay(const FString& Name, const FString& Friendly
 		return;
 	}
 
-	UE_LOG(LogDemo, Log, TEXT("Num Network Actors: %i"), DemoNetDriver->GetNetworkObjectList().GetActiveObjects().Num());
+	UE_LOG(LogDemo, Verbose, TEXT("Num Network Actors: %i"), DemoNetDriver->GetNetworkObjectList().GetActiveObjects().Num());
 }
 
 bool UReplaySubsystem::PlayReplay(const FString& Name, UWorld* WorldOverride, const TArray<FString>& AdditionalOptions)

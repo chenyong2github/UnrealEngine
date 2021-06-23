@@ -70,6 +70,18 @@ namespace Gauntlet
 		}
 
 		/// <summary>
+		/// Breaks down a raw commandline and adds it to the commandline dictionary.
+		/// Will override current set values in the dictionary when conflicts arise.
+		/// </summary>
+		/// <param name="InRawCommandline"></param>
+		public void CombineCommandLines(GauntletCommandLine InCommandline, bool bOverrideExistingValues = true)
+		{
+			foreach (string Key in InCommandline.Params.Keys)
+			{
+				Add(Key, InCommandline.Params[Key]);
+			}
+		}
+		/// <summary>
 		/// Add a new value to the commandline, returning false if the value already exists on the commandline and would be set
 		/// to something other than what is passed in. Execcmds passed in here will still append to an existing value.
 		/// </summary>

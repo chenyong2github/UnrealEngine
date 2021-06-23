@@ -48,18 +48,13 @@ void SDMXPixelMappingDetailsView::Construct(const FArguments& InArgs, const TSha
 		]
 	];
 
-	OnSelectedComponenetChangedHandle = InToolkit->GetOnSelectedComponenetChangedDelegate().AddRaw(this, &SDMXPixelMappingDetailsView::OnSelectedComponenetChanged);
+	InToolkit->GetOnSelectedComponentsChangedDelegate().AddRaw(this, &SDMXPixelMappingDetailsView::OnSelectedComponentsChanged);
 
-	OnSelectedComponenetChanged();
+	OnSelectedComponentsChanged();
 }
 
 SDMXPixelMappingDetailsView::~SDMXPixelMappingDetailsView()
 {
-	if (TSharedPtr<FDMXPixelMappingToolkit> ToolkitPtr = ToolkitWeakPtr.Pin())
-	{
-		ToolkitPtr->GetOnSelectedComponenetChangedDelegate().Remove(OnSelectedComponenetChangedHandle);
-	}
-
 	if (PropertyView.IsValid())
 	{
 		PropertyView->UnregisterInstancedCustomPropertyLayout(UDMXPixelMappingFixtureGroupComponent::StaticClass());
@@ -69,7 +64,7 @@ SDMXPixelMappingDetailsView::~SDMXPixelMappingDetailsView()
 	}
 }
 
-void SDMXPixelMappingDetailsView::OnSelectedComponenetChanged()
+void SDMXPixelMappingDetailsView::OnSelectedComponentsChanged()
 {
 	// Clear selection in the property view.
 	SelectedObjects.Empty();

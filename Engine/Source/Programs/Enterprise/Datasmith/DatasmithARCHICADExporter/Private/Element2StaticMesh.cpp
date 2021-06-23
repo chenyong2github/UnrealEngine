@@ -39,17 +39,15 @@ class FElement2StaticMesh::FVertex
 
 	// Constructor
 	FVertex()
-		: Index(0)
+		: Used(false)
+		, Index(kInvalidVertex)
 	{
 	}
 
 	ModelerAPI::Vertex LocalVertex; // The vertex in local coordinates
 	ModelerAPI::Vertex WorldVertex; // The vertex in world coordinates
-	union
-	{
-		bool Used; // Used flag
-		int	 Index; // New index
-	};
+	bool			   Used; // Used flag
+	int				   Index; // New index
 };
 
 // Constructor
@@ -422,6 +420,13 @@ void FElement2StaticMesh::AddElementGeometry(const ModelerAPI::Element&		   InMo
 	}
 }
 
+// Validate Vertice
+inline void ValidateVertice(int32 InIndex, const FElement2StaticMesh::VecVertices& InVertices, int32 InVertexUsedCount)
+{
+	UE_AC_Assert(InIndex >= 0 && InIndex < InVertices.Num() && InVertices[InIndex].Index >= 0 &&
+				 InVertices[InIndex].Index < InVertexUsedCount);
+}
+
 // Fill 3d maesh data from collected goemetry
 void FElement2StaticMesh::FillMesh(FDatasmithMesh* OutMesh)
 {
@@ -487,6 +492,11 @@ void FElement2StaticMesh::FillMesh(FDatasmithMesh* OutMesh)
 		const FTriangle& triangle = Triangles[IndexTriangle];
 		if (triangle.IsValid())
 		{
+#if 0
+			ValidateVertice(triangle.V0, Vertices, VertexUsedCount);
+			ValidateVertice(triangle.V1, Vertices, VertexUsedCount);
+			ValidateVertice(triangle.V2, Vertices, VertexUsedCount);
+#endif
 			OutMesh->SetFace(IndexFace, Vertices[triangle.V0].Index, Vertices[triangle.V1].Index,
 							 Vertices[triangle.V2].Index, triangle.LocalMatID);
 
@@ -539,9 +549,12 @@ TSharedPtr< IDatasmithMeshElement > FElement2StaticMesh::CreateMesh()
 		FDatasmithMeshExporter MeshExporter;
 		MeshElement =
 			MeshExporter.ExportToUObject(*OutputPath, Mesh.GetName(), Mesh, nullptr, EDSExportLightmapUV::Never);
-		MeshElement->SetName(*MeshElementName);
-		MeshElement->SetFileHash(MeshHash);
-		SyncContext.GetSyncDatabase().GetMeshIndexor().AddMesh(*MeshElement);
+		if (MeshElement.IsValid())
+		{
+			MeshElement->SetName(*MeshElementName);
+			MeshElement->SetFileHash(MeshHash);
+			SyncContext.GetSyncDatabase().GetMeshIndexor().AddMesh(*MeshElement);
+		}
 	}
 	else
 	{

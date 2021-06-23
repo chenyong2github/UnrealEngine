@@ -4,6 +4,7 @@
 
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "DisplayClusterConfigurationTypes.h"
+#include "DisplayClusterConfigurationTypes_ICVFX.h"
 #include "Views/Details/DisplayClusterConfiguratorDetailCustomizationUtils.h"
 #include "Views/Details/Widgets/SDisplayClusterConfigurationSearchableComboBox.h"
 #include "Views/OutputMapping/Widgets/SDisplayClusterConfiguratorExternalImagePicker.h"
@@ -149,7 +150,10 @@ void FDisplayClusterConfiguratorDataDetailCustomization::CustomizeDetails(IDetai
 {
 	Super::CustomizeDetails(InLayoutBuilder);
 
+	FDisplayClusterConfiguratorNestedPropertyHelper NestedPropertyHelper(InLayoutBuilder);
+
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ConfigurationCategory)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterConfigurationData, StageSettings.DefaultFrameSize)
 		ADD_EXPANDED_PROPERTY(UDisplayClusterConfigurationData, RenderFrameSettings);
 		ADD_PROPERTY(UDisplayClusterConfigurationData, Info);
 		ADD_PROPERTY(UDisplayClusterConfigurationData, Diagnostics);
@@ -169,42 +173,8 @@ void FDisplayClusterConfiguratorClusterDetailCustomization::CustomizeDetails(IDe
 	// Store the Nodes property handle for use later
 	ClusterNodesHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationCluster, Nodes));
 	check(ClusterNodesHandle->IsValidHandle());
-
-	FDisplayClusterConfiguratorNestedPropertyHelper NestedPropertyHelper(InLayoutBuilder);
 	
-	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ClusterPostprocessCategory)
-		BEGIN_GROUP(TEXT("GlobalPostProcess"), LOCTEXT("GlobalPostprocessLabel", "All Viewports"))
-			ADD_GROUP_PROPERTY(UDisplayClusterConfigurationCluster, bUseOverallClusterPostProcess);
-			ADD_GROUP_EXPANDED_PROPERTY(UDisplayClusterConfigurationCluster, OverallClusterPostProcessSettings);
-		END_GROUP();
-
-		TArray<FString> ViewportNames;
-		NestedPropertyHelper.GetNestedPropertyKeys(TEXT("Nodes.Viewports"), ViewportNames);
-
-		TArray<TSharedPtr<IPropertyHandle>> ViewportPostProcessSettings;
-		NestedPropertyHelper.GetNestedProperties(TEXT("Nodes.Viewports.PostProcessSettings"), ViewportPostProcessSettings);
-
-		// This number could mismatch temporarily on an undo after a viewport is deleted.
-		if(ViewportNames.Num() == ViewportPostProcessSettings.Num())
-		{
-			for (int32 Index = 0; Index < ViewportNames.Num(); ++Index)
-			{
-				BEGIN_GROUP(FName(*ViewportNames[Index]), FText::FromString(ViewportNames[Index]))
-					CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, bExcludeFromOverallClusterPostProcess)).ToSharedRef());
-					CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, bIsEnabled)).ToSharedRef());
-					CurrentGroup.AddPropertyRow(ViewportPostProcessSettings[Index]->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_PostProcessSettings, ViewportSettings)).ToSharedRef()).ShouldAutoExpand(true);
-				END_GROUP();
-			}
-		}
-	END_CATEGORY();
-
-	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::AdvancedCategory)
-		ADD_PROPERTY(UDisplayClusterConfigurationCluster, MasterNode);
-		ADD_PROPERTY(UDisplayClusterConfigurationCluster, Sync);
-		ADD_PROPERTY(UDisplayClusterConfigurationCluster, Network);
-		ADD_PROPERTY(UDisplayClusterConfigurationCluster, bUseOverallClusterPostProcess);
-		ADD_PROPERTY(UDisplayClusterConfigurationCluster, OverallClusterPostProcessSettings);
-
+	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ConfigurationCategory)
 		if (!IsRunningForBlueprintEditor())
 		{
 			ADD_CUSTOM_PROPERTY(LOCTEXT("ResetClusterNodesButton_Label", "Reset Cluster Nodes"))
@@ -226,9 +196,13 @@ void FDisplayClusterConfiguratorClusterDetailCustomization::CustomizeDetails(IDe
 					]
 				];
 		}
+	END_CATEGORY();
 
-		ADD_PROPERTY(UDisplayClusterConfigurationCluster, Nodes);
-	END_CATEGORY()
+	if (IsRunningForBlueprintEditor())
+	{
+		// Hide the Post Process category since these properties will be denested and displayed on the root actor's details panel
+		InLayoutBuilder.HideCategory(DisplayClusterConfigurationStrings::categories::ClusterPostprocessCategory);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -265,18 +239,38 @@ void FDisplayClusterConfiguratorViewportDetailCustomization::CustomizeDetails(ID
 	}
 	
 	ResetCameraOptions();
-	
-	BEGIN_CATEGORY(CameraHandle->GetDefaultCategoryName())
-		REPLACE_PROPERTY_WITH_CUSTOM(UDisplayClusterConfigurationViewport, Camera, CreateCustomCameraWidget());
-	END_CATEGORY()
 
 	FDisplayClusterConfiguratorNestedPropertyHelper NestedPropertyHelper(InLayoutBuilder);
+	
+	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ConfigurationCategory)
+		ADD_PROPERTY(UDisplayClusterConfigurationViewport, bAllowRendering)
+		REPLACE_PROPERTY_WITH_CUSTOM(UDisplayClusterConfigurationViewport, Camera, CreateCustomCameraWidget())
+		ADD_PROPERTY(UDisplayClusterConfigurationViewport, ProjectionPolicy)
+		ADD_PROPERTY(UDisplayClusterConfigurationViewport, bIsShared)
+		ADD_PROPERTY(UDisplayClusterConfigurationViewport, bFixedAspectRatio)
+		ADD_PROPERTY(UDisplayClusterConfigurationViewport, Region)
+		ADD_PROPERTY(UDisplayClusterConfigurationViewport, GPUIndex)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterConfigurationViewport, RenderSettings.StereoGPUIndex)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterConfigurationViewport, RenderSettings.StereoMode)
+		ADD_PROPERTY(UDisplayClusterConfigurationViewport, OverlapOrder)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterConfigurationViewport, RenderSettings.RenderTargetRatio)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterConfigurationViewport, RenderSettings.BufferRatio)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterConfigurationViewport, RenderSettings.Overscan)
+	END_CATEGORY();
 
-	// Update the metadata for the viewport's width and height. Must set this here instead of in the UPROPERTY specifier because
+	// Update the metadata for the viewport's region. Must set this here instead of in the UPROPERTY specifier because
 	// the Region property is a generic FDisplayClusterConfigurationRectangle struct which is used in lots of places, most of
 	// which don't make sense to have a minimum or maximum limit
+	TSharedPtr<IPropertyHandle> XHandle = NestedPropertyHelper.GetNestedProperty(TEXT("Region.X"));
+	TSharedPtr<IPropertyHandle> YHandle = NestedPropertyHelper.GetNestedProperty(TEXT("Region.Y"));
 	TSharedPtr<IPropertyHandle> WidthHandle = NestedPropertyHelper.GetNestedProperty(TEXT("Region.W"));
 	TSharedPtr<IPropertyHandle> HeightHandle = NestedPropertyHelper.GetNestedProperty(TEXT("Region.H"));
+
+	XHandle->SetInstanceMetaData(TEXT("ClampMin"), FString::SanitizeFloat(0.0f));
+	XHandle->SetInstanceMetaData(TEXT("UIMin"), FString::SanitizeFloat(0.0f));
+
+	YHandle->SetInstanceMetaData(TEXT("ClampMin"), FString::SanitizeFloat(0.0f));
+	YHandle->SetInstanceMetaData(TEXT("UIMin"), FString::SanitizeFloat(0.0f));
 
 	WidthHandle->SetInstanceMetaData(TEXT("ClampMin"), FString::SanitizeFloat(UDisplayClusterConfigurationViewport::ViewportMinimumSize));
 	WidthHandle->SetInstanceMetaData(TEXT("UIMin"), FString::SanitizeFloat(UDisplayClusterConfigurationViewport::ViewportMinimumSize));
@@ -377,26 +371,8 @@ FText FDisplayClusterConfiguratorViewportDetailCustomization::GetSelectedCameraT
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// Base Scene Component Detail Customization
-//////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterConfiguratorSceneComponentDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder)
-{
-	Super::CustomizeDetails(InLayoutBuilder);
-	SceneComponenPtr = nullptr;
-
-	// Get the Editing object
-	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = InLayoutBuilder.GetSelectedObjects();
-	if (SelectedObjects.Num())
-	{
-		SceneComponenPtr = Cast<UDisplayClusterSceneComponent>(SelectedObjects[0]);
-	}
-	check(SceneComponenPtr != nullptr);
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////
 // Screen Component Detail Customization
 //////////////////////////////////////////////////////////////////////////////////////////////
-
 const TArray<FDisplayClusterConfiguratorAspectRatioPresetSize> FDisplayClusterConfiguratorAspectRatioPresetSize::CommonPresets =
 {
 	FDisplayClusterConfiguratorAspectRatioPresetSize(LOCTEXT("3x2", "3:2"), FVector2D(100.f, 66.67f)),
@@ -437,7 +413,7 @@ void FDisplayClusterConfiguratorScreenDetailCustomization::CustomizeDetails(IDet
 	
 	const FText RowName = LOCTEXT("DisplayClusterConfiguratorResolution", "Aspect Ratio Preset");
 	
-	SizeHandlePtr = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterScreenComponent, SizeCm));
+	SizeHandlePtr = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterScreenComponent, Size));
 	SizeHandlePtr->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateRaw(this, &FDisplayClusterConfiguratorScreenDetailCustomization::OnSizePropertyChanged));
 	SizeHandlePtr->SetOnPropertyResetToDefault(FSimpleDelegate::CreateRaw(this, &FDisplayClusterConfiguratorScreenDetailCustomization::OnSizePropertyChanged));
 
@@ -537,19 +513,16 @@ void FDisplayClusterConfiguratorScreenDetailCustomization::OnSelectedPresetChang
 void FDisplayClusterConfiguratorScreenDetailCustomization::GetAspectRatioAndSetDefaultValueForPreset(
 	const FDisplayClusterConfiguratorAspectRatioPresetSize& Preset, FVector2D* OutAspectRatio)
 {
-	const FVector2D NewValueCm = Preset.Size;
-	const FVector2D NewValue(NewValueCm / 100.f);
-	
 	if (UDisplayClusterScreenComponent* Archetype = Cast<UDisplayClusterScreenComponent>(ScreenComponentPtr->GetArchetype()))
 	{
 		// Set the DEFAULT value here, that way user can always reset to default for the current preset.
 		Archetype->Modify();
-		Archetype->SetScreenSize(NewValue);
+		Archetype->SetScreenSize(Preset.Size);
 	}
 
 	if (OutAspectRatio)
 	{
-		*OutAspectRatio = NewValueCm;
+		*OutAspectRatio = Preset.Size;
 	}
 }
 
@@ -901,7 +874,20 @@ void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::AddCustomPolicyRo
 
 TSharedRef<SWidget> FDisplayClusterConfiguratorRenderSyncPolicyCustomization::MakeRenderSyncPolicyOptionComboWidget(TSharedPtr<FString> InItem)
 {
-	return SNew(STextBlock).Text(FText::FromString(*InItem));
+	FString TypeStr = *InItem;
+	int32 TypeIndex = GetPolicyTypeIndex(TypeStr);
+
+	FText DisplayText;
+	if (TypeIndex > INDEX_NONE)
+	{
+		DisplayText = FText::Format(LOCTEXT("RenderPolicyTypeDisplayFormat", "{0} ({1})"), FText::FromString(TypeStr), FText::AsNumber(TypeIndex));
+	}
+	else
+	{
+		DisplayText = FText::FromString(TypeStr);
+	}
+
+	return SNew(STextBlock).Text(DisplayText);
 }
 
 void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::OnRenderSyncPolicySelected(TSharedPtr<FString> InPolicy, ESelectInfo::Type SelectInfo)
@@ -960,7 +946,17 @@ FText FDisplayClusterConfiguratorRenderSyncPolicyCustomization::GetSelectedRende
 		return FText::FromString(*CustomOption.Get());
 	}
 
-	return FText::FromString(ConfigurationCluster->Sync.RenderSyncPolicy.Type);
+	FString TypeStr = ConfigurationCluster->Sync.RenderSyncPolicy.Type;
+	int32 TypeIndex = GetPolicyTypeIndex(TypeStr);
+
+	if (TypeIndex > INDEX_NONE)
+	{
+		return FText::Format(LOCTEXT("RenderPolicyTypeDisplayFormat", "{0} ({1})"), FText::FromString(TypeStr), FText::AsNumber(TypeIndex));
+	}
+	else
+	{
+		return FText::FromString(TypeStr);
+	}
 }
 
 FText FDisplayClusterConfiguratorRenderSyncPolicyCustomization::GetCustomPolicyText() const
@@ -987,6 +983,26 @@ bool FDisplayClusterConfiguratorRenderSyncPolicyCustomization::IsCustomTypeInCon
 	}
 
 	return true;
+}
+
+int32 FDisplayClusterConfiguratorRenderSyncPolicyCustomization::GetPolicyTypeIndex(const FString& Type) const
+{
+	int32 TypeIndex = INDEX_NONE;
+
+	if (Type.ToLower().Equals(DisplayClusterConfigurationStrings::config::cluster::render_sync::None))
+	{
+		TypeIndex = 0;
+	}
+	else if (Type.ToLower().Equals(DisplayClusterConfigurationStrings::config::cluster::render_sync::Ethernet))
+	{
+		TypeIndex = 1;
+	}
+	else if (Type.ToLower().Equals(DisplayClusterConfigurationStrings::config::cluster::render_sync::Nvidia))
+	{
+		TypeIndex = 2;
+	}
+
+	return TypeIndex;
 }
 
 void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::OnTextCommittedInCustomPolicyText(const FText& InValue, ETextCommit::Type CommitType)
@@ -1219,6 +1235,55 @@ void FDisplayClusterConfiguratorComponentRefCustomization::CustomizeHeader(TShar
 // Node Selection Customization
 //////////////////////////////////////////////////////////////////////////////////////////////
 
+FDisplayClusterConfiguratorNodeSelection::FDisplayClusterConfiguratorNodeSelection(EOperationMode InMode, ADisplayClusterRootActor* InRootActor, FDisplayClusterConfiguratorBlueprintEditor* InToolkitPtr)
+{
+	RootActorPtr = InRootActor;
+
+	if (InToolkitPtr)
+	{
+		ToolkitPtr = StaticCastSharedRef<FDisplayClusterConfiguratorBlueprintEditor>(InToolkitPtr->AsShared());
+	}
+
+	OperationMode = InMode;
+
+	check(RootActorPtr.IsValid() || ToolkitPtr.IsValid());
+	ResetOptions();
+}
+
+ADisplayClusterRootActor* FDisplayClusterConfiguratorNodeSelection::GetRootActor() const
+{
+	ADisplayClusterRootActor* RootActor = nullptr;
+
+	if (ToolkitPtr.IsValid())
+	{
+		RootActor = Cast<ADisplayClusterRootActor>(ToolkitPtr.Pin()->GetPreviewActor());
+	}
+	else
+	{
+		RootActor = RootActorPtr.Get();
+	}
+
+	check(RootActor);
+	return RootActor;
+}
+
+UDisplayClusterConfigurationData* FDisplayClusterConfiguratorNodeSelection::GetConfigData() const
+{
+	UDisplayClusterConfigurationData* ConfigData = nullptr;
+
+	if (ToolkitPtr.IsValid())
+	{
+		ConfigData = ToolkitPtr.Pin()->GetConfig();
+	}
+	else if (RootActorPtr.IsValid())
+	{
+		ConfigData = RootActorPtr->GetConfigData();
+	}
+
+	check(ConfigData);
+	return ConfigData;
+}
+
 void FDisplayClusterConfiguratorNodeSelection::CreateArrayBuilder(const TSharedRef<IPropertyHandle>& InPropertyHandle,
 	IDetailChildrenBuilder& InChildBuilder)
 {
@@ -1281,24 +1346,21 @@ void FDisplayClusterConfiguratorNodeSelection::GenerateSelectionWidget(
 void FDisplayClusterConfiguratorNodeSelection::ResetOptions()
 {
 	Options.Reset();
-	if(ADisplayClusterRootActor* RootActor = RootActorPtr.Get())
+	if (UDisplayClusterConfigurationData* ConfigData = GetConfigData())
 	{
-		if (UDisplayClusterConfigurationData* ConfigData = RootActor->GetConfigData())
+		for (const TTuple<FString, UDisplayClusterConfigurationClusterNode*>& Node : ConfigData->Cluster->Nodes)
 		{
-			for (const TTuple<FString, UDisplayClusterConfigurationClusterNode*>& Node : ConfigData->Cluster->Nodes)
+			if (OperationMode == ClusterNodes)
 			{
-				if (OperationMode == ClusterNodes)
-				{
-					Options.Add(MakeShared<FString>(Node.Value->GetName()));
-					continue;
-				}
-				for (const TTuple<FString, UDisplayClusterConfigurationViewport*>& Viewport : Node.Value->Viewports)
-				{
-					Options.Add(MakeShared<FString>(Viewport.Value->GetName()));
-				}
+				Options.Add(MakeShared<FString>(Node.Value->GetName()));
+				continue;
+			}
+			for (const TTuple<FString, UDisplayClusterConfigurationViewport*>& Viewport : Node.Value->Viewports)
+			{
+				Options.Add(MakeShared<FString>(Viewport.Value->GetName()));
 			}
 		}
-	}	
+	}
 }
 
 TSharedRef<SWidget> FDisplayClusterConfiguratorNodeSelection::MakeOptionComboWidget(
@@ -1337,14 +1399,7 @@ void FDisplayClusterConfiguratorOCIOProfileCustomization::CustomizeHeader(TShare
 	FDisplayClusterConfiguratorTypeCustomization::CustomizeHeader(PropertyHandle, HeaderRow, CustomizationUtils);
 
 	Mode = FDisplayClusterConfiguratorNodeSelection::GetOperationModeFromProperty(PropertyHandle->GetProperty()->GetOwnerProperty());
-	NodeSelection = MakeShared<FDisplayClusterConfiguratorNodeSelection>(Mode, FindRootActor());
-
-	const TAttribute<bool> EditCondition = TAttribute<bool>::Create([this]()
-	{
-		ADisplayClusterRootActor* RootActor = FindRootActor();
-		return RootActor && RootActor->bEnableOuterViewportOCIO;
-	});
-	HeaderRow.IsEnabled(EditCondition);
+	NodeSelection = MakeShared<FDisplayClusterConfiguratorNodeSelection>(Mode, FindRootActor(), FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(EditingObject));
 	
 	HeaderRow.NameContent()
 	[
@@ -1363,14 +1418,14 @@ void FDisplayClusterConfiguratorOCIOProfileCustomization::CustomizeChildren(TSha
 	check(EnableOCIOHandle->IsValidHandle());
 	
 	EnableOCIOHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
-		LOCTEXT("EnableOCIOViewportsDisplayName", "Enable Outer Viewport OCIO Configuration") : LOCTEXT("EnableOCIOClusterDisplayName", "Enable Inner Frustum OCIO Configuration"));
+		LOCTEXT("EnableOCIOViewportsDisplayName", "Enable Per-Viewport OCIO") : LOCTEXT("EnableOCIOClusterDisplayName", "Enable Per-Node OCIO"));
 	
 	const TSharedPtr<IPropertyHandle> ArrayHandle = PropertyHandle->GetChildHandle(
 		GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationOCIOProfile, ApplyOCIOToObjects));
 	check(ArrayHandle->IsValidHandle());
 	
 	OCIOHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
-		LOCTEXT("OCIOViewportsModeDisplayName", "Outer Viewport OCIO Configuration") : LOCTEXT("OCIOClusterModeDisplayName", "Inner Frustum OCIO Configuration"));
+		LOCTEXT("OCIOViewportsModeDisplayName", "Viewport OCIO") : LOCTEXT("OCIOClusterModeDisplayName", "Inner Frustum OCIO"));
 	ArrayHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
 		LOCTEXT("DataViewportsModeDisplayName", "Apply OCIO to Viewports") : LOCTEXT("DataClusterModeDisplayName", "Apply OCIO to Nodes"));
 	ArrayHandle->SetToolTipText(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
@@ -1381,4 +1436,60 @@ void FDisplayClusterConfiguratorOCIOProfileCustomization::CustomizeChildren(TSha
 	NodeSelection->CreateArrayBuilder(ArrayHandle.ToSharedRef(), ChildBuilder);
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////
+// Post Process Profile Customization
+//////////////////////////////////////////////////////////////////////////////////////////////
+
+void FDisplayClusterConfiguratorColorGradingProfileCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle,
+	FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
+{
+	FDisplayClusterConfiguratorTypeCustomization::CustomizeHeader(PropertyHandle, HeaderRow, CustomizationUtils);
+
+	Mode = FDisplayClusterConfiguratorNodeSelection::GetOperationModeFromProperty(PropertyHandle->GetProperty()->GetOwnerProperty());
+	NodeSelection = MakeShared<FDisplayClusterConfiguratorNodeSelection>(Mode, FindRootActor(), FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(EditingObject));
+
+	HeaderRow.NameContent()
+		[
+			PropertyHandle->CreatePropertyNameWidget()
+		];
+}
+
+void FDisplayClusterConfiguratorColorGradingProfileCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle,
+	IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
+{
+	const TSharedPtr<IPropertyHandle> PostProcessSettingsHandle = PropertyHandle->GetChildHandle(
+		GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_ColorGradingProfile, PostProcessSettings));
+	check(PostProcessSettingsHandle->IsValidHandle());
+
+	PostProcessSettingsHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
+		LOCTEXT("PostProcessViewportsModeDisplayName", "Color Granding") : LOCTEXT("PostProcessClusterModeDisplayName", "Color Granding"));
+
+	const TSharedPtr<IPropertyHandle> EnablePostProcessHandle = PostProcessSettingsHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_ColorGradingConfiguration, bIsEnabled));
+	check(EnablePostProcessHandle->IsValidHandle());
+
+	EnablePostProcessHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
+		LOCTEXT("EnablePostProcessViewportsDisplayName", "Enable Viewports Color Granding") : LOCTEXT("EnablePostProcessClusterDisplayName", "Enable Inner Frustum Color Granding"));
+
+	/*
+	const TAttribute<bool> EnablePostprocess = TAttribute<bool>::Create([this, EnablePostProcessHandle]()
+	{
+		bool bEnable = false;
+		EnablePostProcessHandle->GetValue(bEnable);
+		return bEnable;
+	});
+	*/
+
+	const TSharedPtr<IPropertyHandle> ArrayHandle = PropertyHandle->GetChildHandle(
+		GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_ColorGradingProfile, ApplyPostProcessToObjects));
+	check(ArrayHandle->IsValidHandle());
+
+	ArrayHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
+		LOCTEXT("PostProcessDataViewportsModeDisplayName", "Apply Color Granding to Viewports") : LOCTEXT("PostProcessDataClusterModeDisplayName", "Apply Color Granding to Nodes"));
+	ArrayHandle->SetToolTipText(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
+		LOCTEXT("PostProcessDataViewportsModeToolTip", "Select viewports to receive this Color Granding profile.") :
+		LOCTEXT("PostProcessDataClusterModeToolTip", "Select cluster nodes to receive this Color Granding profile."));
+
+	ChildBuilder.AddProperty(PostProcessSettingsHandle.ToSharedRef());
+	NodeSelection->CreateArrayBuilder(ArrayHandle.ToSharedRef(), ChildBuilder);
+}
 #undef LOCTEXT_NAMESPACE

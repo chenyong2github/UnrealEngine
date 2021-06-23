@@ -665,12 +665,18 @@ namespace UsdToUnrealImpl
 
 namespace UnrealToUsdImpl
 {
-	void ConvertSkeletalMeshLOD( USkeletalMesh* SkeletalMesh, const FSkeletalMeshLODModel& LODModel, pxr::UsdGeomMesh& UsdLODPrimGeomMesh, bool bHasVertexColors, pxr::VtArray< std::string >& MaterialAssignments, const TArray<int32>& LODMaterialMap, const pxr::UsdTimeCode TimeCode, pxr::UsdPrim MaterialPrim )
+	void ConvertSkeletalMeshLOD( const USkeletalMesh* SkeletalMesh, const FSkeletalMeshLODModel& LODModel, pxr::UsdGeomMesh& UsdLODPrimGeomMesh, bool bHasVertexColors, pxr::VtArray< std::string >& MaterialAssignments, const TArray<int32>& LODMaterialMap, const pxr::UsdTimeCode TimeCode, pxr::UsdPrim MaterialPrim )
 	{
 		FScopedUsdAllocs UsdAllocs;
 
 		pxr::UsdPrim MeshPrim = UsdLODPrimGeomMesh.GetPrim();
 		pxr::UsdStageRefPtr Stage = MeshPrim.GetStage();
+
+		// In 21.05 we now must apply the skel binding API to this mesh prim, or else the joints/etc. attributes may be ignored
+		if ( !pxr::UsdSkelBindingAPI::Apply( MeshPrim ) )
+		{
+			return;
+		}
 
 		if ( !Stage )
 		{
@@ -794,8 +800,6 @@ namespace UnrealToUsdImpl
 					pxr::VtArray< float > JointWeights;
 					JointWeights.reserve( VertexCount * NumInfluencesPerVertex );
 
-					USkeleton* Skeleton = SkeletalMesh->GetSkeleton();
-
 					const int32 SectionCount = LODModel.Sections.Num();
 					for ( const FSkelMeshSection& Section : LODModel.Sections )
 					{
@@ -804,13 +808,6 @@ namespace UnrealToUsdImpl
 							for ( int32 InfluenceIndex = 0; InfluenceIndex < NumInfluencesPerVertex; ++InfluenceIndex )
 							{
 								int32 BoneIndex = Section.BoneMap[ Vertex.InfluenceBones[ InfluenceIndex ] ];
-
-								// Remap to whatever skeleton we'll export with this skeletal mesh, because if the skeleton has e.g. more bones
-								// than this mesh's RefSkeleton, then these indices will be different
-								if ( Skeleton )
-								{
-									BoneIndex = Skeleton->GetSkeletonBoneIndexFromMeshBoneIndex( SkeletalMesh, BoneIndex );
-								}
 
 								JointIndices.push_back( BoneIndex );
 								JointWeights.push_back( Vertex.InfluenceWeights[ InfluenceIndex ] / 255.0f );
@@ -2284,13 +2281,8 @@ pxr::UsdSkelSkinningQuery UsdUtils::CreateSkinningQuery( const pxr::UsdGeomMesh&
 	);
 }
 
-bool UnrealToUsd::ConvertSkeleton( const USkeleton* Skeleton, pxr::UsdSkelSkeleton& UsdSkeleton )
+bool UnrealToUsd::ConvertSkeleton( const FReferenceSkeleton& ReferenceSkeleton, pxr::UsdSkelSkeleton& UsdSkeleton )
 {
-	if ( !Skeleton )
-	{
-		return false;
-	}
-
 	FScopedUsdAllocs Allocs;
 
 	pxr::UsdStageRefPtr Stage = UsdSkeleton.GetPrim().GetStage();
@@ -2300,8 +2292,6 @@ bool UnrealToUsd::ConvertSkeleton( const USkeleton* Skeleton, pxr::UsdSkelSkelet
 	}
 
 	FUsdStageInfo StageInfo{ Stage };
-
-	const FReferenceSkeleton& ReferenceSkeleton = Skeleton->GetReferenceSkeleton();
 
 	// Joints
 	{
@@ -2344,7 +2334,17 @@ bool UnrealToUsd::ConvertSkeleton( const USkeleton* Skeleton, pxr::UsdSkelSkelet
 	return true;
 }
 
-bool UnrealToUsd::ConvertSkeletalMesh( USkeletalMesh* SkeletalMesh, pxr::UsdPrim& SkelRootPrim, const pxr::UsdTimeCode TimeCode, UE::FUsdStage* StageForMaterialAssignments )
+bool UnrealToUsd::ConvertSkeleton( const USkeleton* Skeleton, pxr::UsdSkelSkeleton& UsdSkeleton )
+{
+	if ( !Skeleton )
+	{
+		return false;
+	}
+
+	return UnrealToUsd::ConvertSkeleton( Skeleton->GetReferenceSkeleton(), UsdSkeleton );
+}
+
+bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::UsdPrim& SkelRootPrim, const pxr::UsdTimeCode TimeCode, UE::FUsdStage* StageForMaterialAssignments )
 {
 	pxr::UsdSkelRoot SkelRoot{ SkelRootPrim };
 	if ( !SkeletalMesh || !SkeletalMesh->GetSkeleton() || !SkelRoot )
@@ -2415,7 +2415,7 @@ bool UnrealToUsd::ConvertSkeletalMesh( USkeletalMesh* SkeletalMesh, pxr::UsdPrim
 		pxr::UsdRelationship SkelRel = SkelBindingAPI.CreateSkeletonRel();
 		SkelRel.SetTargets({SkeletonPrim.GetPath()});
 
-		UnrealToUsd::ConvertSkeleton( SkeletalMesh->GetSkeleton(), SkelSkeleton );
+		UnrealToUsd::ConvertSkeleton( SkeletalMesh->GetRefSkeleton(), SkelSkeleton );
 	}
 
 	// Actual meshes
@@ -2546,6 +2546,11 @@ bool UnrealToUsd::ConvertAnimSequence( UAnimSequence* AnimSequence, pxr::UsdPrim
 
 	USkeleton* AnimSkeleton = AnimSequence->GetSkeleton();
 	USkeletalMesh* SkeletalMesh = AnimSkeleton->GetAssetPreviewMesh( AnimSequence );
+
+	if ( !SkeletalMesh )
+	{
+		SkeletalMesh = AnimSkeleton->FindCompatibleMesh();
+	}
 
 	if ( !SkeletalMesh )
 	{

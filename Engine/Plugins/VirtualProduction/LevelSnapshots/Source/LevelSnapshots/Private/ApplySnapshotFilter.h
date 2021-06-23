@@ -31,6 +31,12 @@ public:
 
 private:
 
+	enum class EFilterObjectPropertiesResult
+	{
+		HasCustomSubobjects,
+		HasOnlyNormalProperties
+	};
+	
 	struct FPropertyContainerContext
 	{
 		FPropertySelection& SelectionToAddTo;
@@ -58,8 +64,10 @@ private:
 	void AnalyseComponentProperties(FPropertySelectionMap& MapToAddTo);
 
 	void FilterActorPair(FPropertySelectionMap& MapToAddTo);
-	void FilterComponentPair(FPropertySelectionMap& MapToAddTo, UActorComponent* SnapshotComponent, UActorComponent* WorldComponent);
+	/* @return Whether any property selection was added */
+	bool FilterSubobjectPair(FPropertySelectionMap& MapToAddTo, UObject* SnapshotSubobject, UObject* WorldSubobject);
 	void FilterStructPair(FPropertyContainerContext& Parent, FStructProperty* StructProperty);
+	EFilterObjectPropertiesResult FindAndFilterCustomSubobjectPairs(FPropertySelectionMap& MapToAddTo, UObject* SnapshotOwner, UObject* WorldOwner);
 
 	void AnalyseRootProperties(FPropertyContainerContext& ContainerContext, UObject* SnapshotObject, UObject* WorldObject);
 	void AnalyseStructProperties(FPropertyContainerContext& ContainerContext);

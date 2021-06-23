@@ -15,7 +15,7 @@ class USoundControlBus;
 
 
 USTRUCT(BlueprintType)
-struct FSoundControlBusMixStage
+struct AUDIOMODULATION_API FSoundControlBusMixStage
 {
 	GENERATED_USTRUCT_BODY()
 

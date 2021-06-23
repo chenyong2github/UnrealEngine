@@ -84,7 +84,7 @@ void FCharacterMovementComponentAsyncInput::ControlledCharacterMove(const float 
 		CharacterInput->CheckJumpInput(DeltaSeconds, *this, Output);
 
 		// apply input to acceleration
-		Output.Acceleration = ScaleInputAcceleration(ConstrainInputAcceleration(InputVector, Output));
+		Output.Acceleration = ScaleInputAcceleration(ConstrainInputAcceleration(InputVector, Output), Output);
 		Output.AnalogInputModifier = ComputeAnalogInputModifier(Output.Acceleration);
 	}
 
@@ -105,7 +105,6 @@ void FCharacterMovementComponentAsyncInput::PerformMovement(float DeltaSeconds, 
 	FVector& LastUpdateLocation = Output.LastUpdateLocation;
 	const FVector UpdatedComponentLocation = UpdatedComponentInput->GetPosition();
 	bool& bForceNextFloorCheck = Output.bForceNextFloorCheck;
-	FRootMotionSourceGroup& CurrentRootMotion = Output.CurrentRootMotion;
 	const FVector& Velocity = Output.Velocity;
 	const FVector& LastUpdateVelocity = Output.LastUpdateVelocity;
 
@@ -135,10 +134,10 @@ void FCharacterMovementComponentAsyncInput::PerformMovement(float DeltaSeconds, 
 	bForceNextFloorCheck |= (IsMovingOnGround(Output) && UpdatedComponentLocation != LastUpdateLocation);
 
 	// Update saved LastPreAdditiveVelocity with any external changes to character Velocity that happened since last update.
-	if (CurrentRootMotion.HasAdditiveVelocity())
+	if (RootMotion.bHasAdditiveRootMotion)
 	{
 		FVector Adjustment = (Velocity - LastUpdateVelocity);
-		CurrentRootMotion.LastPreAdditiveVelocity += Adjustment;
+		Output.LastPreAdditiveVelocity += Adjustment;
 
 		// TODO Debug TODO Rootmotion
 /*#if ROOT_MOTION_DEBUG
@@ -167,8 +166,9 @@ void FCharacterMovementComponentAsyncInput::PerformMovement(float DeltaSeconds, 
 		// This includes RootMotion sources that ended naturally.
 		// They might want to perform a clamp on velocity or an override, 
 		// so we want this to happen before ApplyAccumulatedForces and HandlePendingLaunch as to not clobber these.
-	/*	const bool bHasRootMotionSources = HasRootMotionSources();
-		if (bHasRootMotionSources && !CharacterOwner->bClientUpdating && !CharacterOwner->bServerMoveIgnoreRootMotion)
+		//const bool bHasRootMotionSources = HasRootMotionSources();
+		const bool bHasRootMotionSources = Output.bWasSimulatingRootMotion;
+		/*if (bHasRootMotionSources)
 		{
 			//SCOPE_CYCLE_COUNTER(STAT_CharacterMovementRootMotionSourceCalculate);
 
@@ -198,7 +198,8 @@ void FCharacterMovementComponentAsyncInput::PerformMovement(float DeltaSeconds, 
 		ApplyAccumulatedForces(DeltaSeconds, Output);
 
 		// Update the character state before we do our movement
-		UpdateCharacterStateBeforeMovement(DeltaSeconds, Output);
+		// MOVED this to CharacterMovementComponent::FillAsyncInput
+		// UpdateCharacterStateBeforeMovement(DeltaSeconds, Output);
 
 		// TODO navwalking
 		/*if (MovementMode == MOVE_NavWalking && bWantsToLeaveNavWalking)
@@ -227,10 +228,10 @@ void FCharacterMovementComponentAsyncInput::PerformMovement(float DeltaSeconds, 
 #endif*/
 
 		// Update saved LastPreAdditiveVelocity with any external changes to character Velocity that happened due to ApplyAccumulatedForces/HandlePendingLaunch
-		if (Output.CurrentRootMotion.HasAdditiveVelocity())
+		if (RootMotion.bHasAdditiveRootMotion)
 		{
 			const FVector Adjustment = (Velocity - Output.OldVelocity);
-			Output.CurrentRootMotion.LastPreAdditiveVelocity += Adjustment;
+			Output.LastPreAdditiveVelocity += Adjustment;
 
 			// TODO Debug
 /*#if ROOT_MOTION_DEBUG
@@ -282,29 +283,19 @@ void FCharacterMovementComponentAsyncInput::PerformMovement(float DeltaSeconds, 
 		}*/
 
 		// Apply Root Motion to Velocity
-		if (Output.CurrentRootMotion.HasOverrideVelocity() || Output.RootMotionParams.bHasRootMotion)
+		if (RootMotion.bHasOverrideRootMotion || RootMotion.bHasAnimRootMotion)
 		{
 			// Animation root motion overrides Velocity and currently doesn't allow any other root motion sources
-			if (Output.RootMotionParams.bHasRootMotion)
+			if (RootMotion.bHasAnimRootMotion)
 			{
-				ensure(false);
-				// TODO RootMotion
-				// Convert to world space (animation root motion is always local)
-				/*USkeletalMeshComponent* SkelMeshComp = CharacterOwner->GetMesh();
-				if (SkelMeshComp)
+				// Turn root motion to velocity to be used by various physics modes.
+				if (RootMotion.TimeAccumulated > 0.f)
 				{
-					// Convert Local Space Root Motion to world space. Do it right before used by physics to make sure we use up to date transforms, as translation is relative to rotation.
-					RootMotionParams.Set(ConvertLocalRootMotionToWorld(RootMotionParams.GetRootMotionTransform()));
+					Output.AnimRootMotionVelocity = CalcAnimRootMotionVelocity(RootMotion.AnimTransform.GetTranslation(), RootMotion.TimeAccumulated, Velocity);
+					Output.Velocity = ConstrainAnimRootMotionVelocity(Output.AnimRootMotionVelocity, Output.Velocity, Output);
 				}
 
-				// Then turn root motion to velocity to be used by various physics modes.
-				if (DeltaSeconds > 0.f)
-				{
-					AnimRootMotionVelocity = CalcAnimRootMotionVelocity(RootMotionParams.GetRootMotionTransform().GetTranslation(), DeltaSeconds, Velocity);
-					Velocity = ConstrainAnimRootMotionVelocity(AnimRootMotionVelocity, Velocity);
-				}
-
-				UE_LOG(LogRootMotion, Log, TEXT("PerformMovement WorldSpaceRootMotion Translation: %s, Rotation: %s, Actor Facing: %s, Velocity: %s")
+				/*UE_LOG(LogRootMotion, Log, TEXT("PerformMovement WorldSpaceRootMotion Translation: %s, Rotation: %s, Actor Facing: %s, Velocity: %s")
 					, *RootMotionParams.GetRootMotionTransform().GetTranslation().ToCompactString()
 					, *RootMotionParams.GetRootMotionTransform().GetRotation().Rotator().ToCompactString()
 					, *CharacterOwner->GetActorForwardVector().ToCompactString()
@@ -316,25 +307,7 @@ void FCharacterMovementComponentAsyncInput::PerformMovement(float DeltaSeconds, 
 				// We don't have animation root motion so we apply other sources
 				if (DeltaSeconds > 0.f)
 				{
-					//SCOPE_CYCLE_COUNTER(STAT_CharacterMovementRootMotionSourceApply);
-					ensure(false);
-					/*const FVector VelocityBeforeOverride = Velocity;
-					FVector NewVelocity = Velocity;
-					
-					Output.CurrentRootMotion.AccumulateOverrideRootMotionVelocity(DeltaSeconds, *CharacterOwner, *this, NewVelocity);
-					Velocity = NewVelocity;
-
-#if ROOT_MOTION_DEBUG
-					if (RootMotionSourceDebug::CVarDebugRootMotionSources.GetValueOnGameThread() == 1)
-					{
-						if (VelocityBeforeOverride != Velocity)
-						{
-							FString AdjustedDebugString = FString::Printf(TEXT("PerformMovement AccumulateOverrideRootMotionVelocity Velocity(%s) VelocityBeforeOverride(%s)"),
-								*Velocity.ToCompactString(), *VelocityBeforeOverride.ToCompactString());
-							RootMotionSourceDebug::PrintOnScreen(*CharacterOwner, AdjustedDebugString);
-						}
-					}
-#endif*/
+					Output.Velocity = RootMotion.OverrideVelocity;
 				}
 			}
 		}
@@ -367,16 +340,16 @@ void FCharacterMovementComponentAsyncInput::PerformMovement(float DeltaSeconds, 
 		// Update character state based on change from movement
 		UpdateCharacterStateAfterMovement(DeltaSeconds, Output);
 
-		if ((bAllowPhysicsRotationDuringAnimRootMotion || !Output.RootMotionParams.bHasRootMotion))
+		if ((bAllowPhysicsRotationDuringAnimRootMotion || !RootMotion.bHasAnimRootMotion)/* && !CharacterOwner->IsMatineeControlled()*/)
 		{
 			PhysicsRotation(DeltaSeconds, Output);
 		}
 
 		// Apply Root Motion rotation after movement is complete.
-		if (Output.RootMotionParams.bHasRootMotion)
+		if (RootMotion.bHasAnimRootMotion)
 		{
 			const FQuat OldActorRotationQuat = UpdatedComponentInput->GetRotation();
-			const FQuat RootMotionRotationQuat = Output.RootMotionParams.GetRootMotionTransform().GetRotation();
+			const FQuat RootMotionRotationQuat = RootMotion.AnimTransform.GetRotation();
 			if (!RootMotionRotationQuat.IsIdentity())
 			{
 				const FQuat NewActorRotationQuat = RootMotionRotationQuat * OldActorRotationQuat;
@@ -409,21 +382,15 @@ void FCharacterMovementComponentAsyncInput::PerformMovement(float DeltaSeconds, 
 			}
 #endif // !(UE_BUILD_SHIPPING)*/
 
-			// Root Motion has been used, clear
-			Output.RootMotionParams.Clear();
 		}
-		else if (CurrentRootMotion.HasActiveRootMotionSources())
+		else if (RootMotion.bHasOverrideRootMotion)
 		{
-			// TODO RootMotion
-			ensure(false);
-			/*
-			FQuat RootMotionRotationQuat;
-			if (CharacterOwner && UpdatedComponent && CurrentRootMotion.GetOverrideRootMotionRotation(DeltaSeconds, *CharacterOwner, *this, RootMotionRotationQuat))
+			if (UpdatedComponentInput && !RootMotion.OverrideRotation.IsIdentity())
 			{
-				const FQuat OldActorRotationQuat = UpdatedComponent->GetComponentQuat();
-				const FQuat NewActorRotationQuat = RootMotionRotationQuat * OldActorRotationQuat;
-				MoveUpdatedComponent(FVector::ZeroVector, NewActorRotationQuat, true);
-			}*/
+				const FQuat OldActorRotationQuat = UpdatedComponentInput->GetRotation();
+				const FQuat NewActorRotationQuat = RootMotion.OverrideRotation * OldActorRotationQuat;
+				MoveUpdatedComponent(FVector::ZeroVector, NewActorRotationQuat, true, Output);
+			}
 		}
 
 		// consume path following requested velocity
@@ -789,7 +756,7 @@ void FCharacterMovementComponentAsyncInput::PhysWalking(float deltaTime, int32 I
 
 	// Perform the move
 	while ((remainingTime >= UCharacterMovementComponent::MIN_TICK_TIME) && (Iterations < MaxSimulationIterations) /*&& CharacterOwner*/ && (/*CharacterOwner->Controller ||*/ bRunPhysicsWithNoController
-		|| Output.RootMotionParams.bHasRootMotion || Output.CurrentRootMotion.HasOverrideVelocity() || (true/*LocalRole == ROLE_SimulatedProxy TODO NetRole*/)))
+		|| RootMotion.bHasAnimRootMotion || RootMotion.bHasOverrideRootMotion || (true/*LocalRole == ROLE_SimulatedProxy TODO NetRole*/)))
 	{
 		Iterations++;
 		Output.bJustTeleported = false;
@@ -811,14 +778,13 @@ void FCharacterMovementComponentAsyncInput::PhysWalking(float deltaTime, int32 I
 		Acceleration.Z = 0.f;
 
 		// Apply acceleration
-		if (!Output.RootMotionParams.bHasRootMotion && !Output.CurrentRootMotion.HasOverrideVelocity())
+		if (!RootMotion.bHasAnimRootMotion && !RootMotion.bHasOverrideRootMotion)
 		{
 			CalcVelocity(timeTick, GroundFriction, false, GetMaxBrakingDeceleration(Output), Output);
 			//devCode(ensureMsgf(!Velocity.ContainsNaN(), TEXT("PhysWalking: Velocity contains NaN after CalcVelocity (%s)\n%s"), *GetPathNameSafe(this), *Velocity.ToString()));
 		}
 
-		// TODO ROot Motion
-		//ApplyRootMotionToVelocity(timeTick);
+		ApplyRootMotionToVelocity(timeTick, Output);
 		//devCode(ensureMsgf(!Velocity.ContainsNaN(), TEXT("PhysWalking: Velocity contains NaN after Root Motion application (%s)\n%s"), *GetPathNameSafe(this), *Velocity.ToString()));
 
 		if (IsFalling(Output))
@@ -834,6 +800,12 @@ void FCharacterMovementComponentAsyncInput::PhysWalking(float deltaTime, int32 I
 		const FVector Delta = timeTick * MoveVelocity;
 		const bool bZeroDelta = Delta.IsNearlyZero();
 		FStepDownResult StepDownResult;
+
+		/*if (GEngine)
+		{
+			FString DebugMsg = FString::Printf(TEXT("Vel: %s"), *Output.Velocity.ToString());
+			GEngine->AddOnScreenDebugMessage(198907, 1.f, FColor::Blue, DebugMsg);
+		}*/
 
 		if (bZeroDelta)
 		{
@@ -971,7 +943,7 @@ void FCharacterMovementComponentAsyncInput::PhysWalking(float deltaTime, int32 I
 		if (IsMovingOnGround(Output))
 		{
 			// Make velocity reflect actual move
-			if (!Output.bJustTeleported && !Output.RootMotionParams.bHasRootMotion && !Output.CurrentRootMotion.HasOverrideVelocity() && timeTick >= UCharacterMovementComponent::MIN_TICK_TIME)
+			if (!Output.bJustTeleported && !RootMotion.bHasAnimRootMotion && !RootMotion.bHasOverrideRootMotion && timeTick >= UCharacterMovementComponent::MIN_TICK_TIME)
 			{
 				// TODO-RootMotionSource: Allow this to happen during partial override Velocity, but only set allowed axes?
 				Velocity = (UpdatedComponentInput->GetPosition() - OldLocation) / timeTick;
@@ -1009,7 +981,7 @@ void FCharacterMovementComponentAsyncInput::PhysFalling(float deltaTime, int32 I
 
 	FVector FallAcceleration = GetFallingLateralAcceleration(deltaTime, Output);
 	FallAcceleration.Z = 0.f;
-	const bool bHasLimitedAirControl = ShouldLimitAirControl(deltaTime, FallAcceleration);
+	const bool bHasLimitedAirControl = ShouldLimitAirControl(deltaTime, FallAcceleration, Output);
 
 	float remainingTime = deltaTime;
 	while ((remainingTime >= MIN_TICK_TIME) && (Iterations < MaxSimulationIterations))
@@ -1028,7 +1000,7 @@ void FCharacterMovementComponentAsyncInput::PhysFalling(float deltaTime, int32 I
 
 		// Apply input
 		const float MaxDecel = GetMaxBrakingDeceleration(Output);
-		if (!Output.RootMotionParams.bHasRootMotion && !Output.CurrentRootMotion.HasOverrideVelocity())
+		if (!RootMotion.bHasAnimRootMotion && !RootMotion.bHasOverrideRootMotion)
 		{
 			// Compute Velocity
 			{
@@ -1199,7 +1171,7 @@ void FCharacterMovementComponentAsyncInput::PhysFalling(float deltaTime, int32 I
 				if (subTimeTickRemaining > KINDA_SMALL_NUMBER && !Output.bJustTeleported)
 				{
 					const FVector NewVelocity = (Delta / subTimeTickRemaining);
-					Velocity = Output.RootMotionParams.bHasRootMotion|| Output.CurrentRootMotion.HasOverrideVelocityWithIgnoreZAccumulate() ? FVector(Velocity.X, Velocity.Y, NewVelocity.Z) : NewVelocity;
+					Velocity = RootMotion.bHasAnimRootMotion || RootMotion.bHasOverrideWithIgnoreZAccumulate ? FVector(Velocity.X, Velocity.Y, NewVelocity.Z) : NewVelocity;
 				}
 
 				if (subTimeTickRemaining > KINDA_SMALL_NUMBER && (Delta | Adjusted) > 0.f)
@@ -1255,7 +1227,7 @@ void FCharacterMovementComponentAsyncInput::PhysFalling(float deltaTime, int32 I
 						if (subTimeTickRemaining > KINDA_SMALL_NUMBER && !Output.bJustTeleported)
 						{
 							const FVector NewVelocity = (Delta / subTimeTickRemaining);
-							Velocity = Output.RootMotionParams.bHasRootMotion || Output.CurrentRootMotion.HasOverrideVelocityWithIgnoreZAccumulate() ? FVector(Velocity.X, Velocity.Y, NewVelocity.Z) : NewVelocity;
+							Velocity = RootMotion.bHasAnimRootMotion || RootMotion.bHasOverrideWithIgnoreZAccumulate ? FVector(Velocity.X, Velocity.Y, NewVelocity.Z) : NewVelocity;
 						}
 
 						// bDitch=true means that pawn is straddling two slopes, neither of which he can stand on
@@ -1321,7 +1293,7 @@ void FCharacterMovementComponentAsyncInput::PhysicsRotation(float DeltaTime, FCh
 	FRotator CurrentRotation = FRotator(UpdatedComponentInput->GetRotation()); // Normalized
 	CurrentRotation.DiagnosticCheckNaN(TEXT("CharacterMovementComponent::PhysicsRotation(): CurrentRotation"));
 
-	FRotator DeltaRot = Output.GetDeltaRotation(Output.RotationRate, DeltaTime);
+	FRotator DeltaRot = Output.GetDeltaRotation(GetRotationRate(Output), DeltaTime);
 	DeltaRot.DiagnosticCheckNaN(TEXT("CharacterMovementComponent::PhysicsRotation(): GetDeltaRotation"));
 
 	FRotator DesiredRotation = CurrentRotation;
@@ -1441,7 +1413,7 @@ void FCharacterMovementComponentAsyncInput::MoveAlongFloor(const FVector& InVelo
 						// Don't recalculate velocity based on this height adjustment, if considering vertical adjustments. Only consider horizontal movement.
 						Output.bJustTeleported = true;
 						const float StepUpTimeSlice = (1.f - PercentTimeApplied) * DeltaSeconds;
-						if (!Output.RootMotionParams.bHasRootMotion && !Output.CurrentRootMotion.HasOverrideVelocity() && StepUpTimeSlice >= KINDA_SMALL_NUMBER)
+						if (!RootMotion.bHasAnimRootMotion && !RootMotion.bHasOverrideRootMotion && StepUpTimeSlice >= KINDA_SMALL_NUMBER)
 						{
 							Output.Velocity = (UpdatedComponentInput->GetPosition() - PreStepUpLocation) / StepUpTimeSlice;
 							Output.Velocity.Z = 0;
@@ -1506,7 +1478,7 @@ FVector FCharacterMovementComponentAsyncInput::ConstrainInputAcceleration(FVecto
 	return InputAcceleration;
 }
 
-FVector FCharacterMovementComponentAsyncInput::ScaleInputAcceleration(FVector InputAcceleration) const
+FVector FCharacterMovementComponentAsyncInput::ScaleInputAcceleration(FVector InputAcceleration, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	return MaxAcceleration * InputAcceleration.GetClampedToMaxSize(1.0f);
 }
@@ -2065,6 +2037,8 @@ bool FCharacterMovementComponentAsyncInput::IsWithinEdgeTolerance(const FVector&
 
 bool FCharacterMovementComponentAsyncInput::IsWalkable(const FHitResult& Hit) const
 {
+	// TODO: Possibly handle an override for this with UFortMovementComp_CharacterAthena_Ostrich.
+
 	if (!Hit.IsValidBlockingHit())
 	{
 		// No hit, or starting in penetration
@@ -2097,26 +2071,6 @@ bool FCharacterMovementComponentAsyncInput::IsWalkable(const FHitResult& Hit) co
 	}
 
 	return true;
-}
-
-void FCharacterMovementComponentAsyncInput::UpdateCharacterStateBeforeMovement(float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const
-{
-	// Proxies get replicated crouch state.
-	if (CharacterInput->LocalRole != ROLE_SimulatedProxy)
-	{
-		// Check for a change in crouch state. Players toggle crouch by changing bWantsToCrouch.
-		const bool bIsCrouching = IsCrouching(Output);
-		if (bIsCrouching && (!Output.bWantsToCrouch || !CanCrouchInCurrentState(Output)))
-		{
-			// TODO CROUCHING
-			//UnCrouch(false);
-		}
-		else if (!bIsCrouching && Output.bWantsToCrouch && CanCrouchInCurrentState(Output))
-		{
-			// TODO CROUCHING
-			//Crouch(false);
-		}
-	}
 }
 
 void FCharacterMovementComponentAsyncInput::UpdateCharacterStateAfterMovement(float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const
@@ -2163,7 +2117,7 @@ float FCharacterMovementComponentAsyncInput::GetSimulationTimeStep(float Remaini
 void FCharacterMovementComponentAsyncInput::CalcVelocity(float DeltaTime, float Friction, bool bFluid, float BrakingDeceleration, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	// Do not update velocity when using root motion or when SimulatedProxy and not simulating root motion - SimulatedProxy are repped their Velocity
-	if (!bHasValidData || Output.RootMotionParams.bHasRootMotion || DeltaTime < UCharacterMovementComponent::MIN_TICK_TIME
+	if (!bHasValidData || RootMotion.bHasAnimRootMotion || DeltaTime < UCharacterMovementComponent::MIN_TICK_TIME
 		|| (/*CharacterOwner && */CharacterInput->LocalRole == ROLE_SimulatedProxy && !bWasSimulatingRootMotion))
 	{
 		return;
@@ -2355,7 +2309,7 @@ void FCharacterMovementComponentAsyncInput::ApplyVelocityBraking(float DeltaTime
 {
 	FVector& Velocity = Output.Velocity;
 
-	if (Velocity.IsZero() || !bHasValidData || Output.RootMotionParams.bHasRootMotion || DeltaTime < UCharacterMovementComponent::MIN_TICK_TIME)
+	if (Velocity.IsZero() || !bHasValidData || RootMotion.bHasAnimRootMotion || DeltaTime < UCharacterMovementComponent::MIN_TICK_TIME)
 	{
 		return;
 	}
@@ -3979,7 +3933,7 @@ FVector FCharacterMovementComponentAsyncInput::GetFallingLateralAcceleration(flo
 	FVector FallAcceleration = FVector(Output.Acceleration.X, Output.Acceleration.Y, 0.f);
 
 	// bound acceleration, falling object has minimal ability to impact acceleration
-	if (!Output.RootMotionParams.bHasRootMotion && FallAcceleration.SizeSquared2D() > 0.f)
+	if (!RootMotion.bHasAnimRootMotion && FallAcceleration.SizeSquared2D() > 0.f)
 	{
 		FallAcceleration = GetAirControl(DeltaTime, AirControl, FallAcceleration, Output);
 		FallAcceleration = FallAcceleration.GetClampedToMaxSize(MaxAcceleration);
@@ -3999,7 +3953,7 @@ float FCharacterMovementComponentAsyncInput::BoostAirControl(float DeltaTime, fl
 	return TickAirControl;
 }
 
-bool FCharacterMovementComponentAsyncInput::ShouldLimitAirControl(float DeltaTime, const FVector& FallAcceleration) const
+bool FCharacterMovementComponentAsyncInput::ShouldLimitAirControl(float DeltaTime, const FVector& FallAcceleration, FCharacterMovementComponentAsyncOutput& Output) const
 {
 	return (FallAcceleration.SizeSquared2D() > 0.f);
 }
@@ -4284,6 +4238,11 @@ bool FCharacterMovementComponentAsyncInput::IsFalling(const FCharacterMovementCo
 	return (Output.MovementMode == MOVE_Falling);// && UpdatedComponent;
 }
 
+bool FCharacterMovementComponentAsyncInput::IsFlying(const FCharacterMovementComponentAsyncOutput& Output) const
+{
+	return (Output.MovementMode == MOVE_Flying);// && UpdatedComponent;
+}
+
 bool FCharacterMovementComponentAsyncInput::IsMovingOnGround(const FCharacterMovementComponentAsyncOutput& Output) const
 {
 	return ((Output.MovementMode == MOVE_Walking) || (Output.MovementMode == MOVE_NavWalking));//&& UpdatedComponent;
@@ -4321,7 +4280,7 @@ void FCharacterMovementComponentAsyncInput::RestorePreAdditiveRootMotionVelocity
 {
 	// Restore last frame's pre-additive Velocity if we had additive applied 
 	// so that we're not adding more additive velocity than intended
-	if (Output.CurrentRootMotion.bIsAdditiveVelocityApplied)
+	if (Output.bIsAdditiveVelocityApplied)
 	{
 		/*#if ROOT_MOTION_DEBUG
 				if (RootMotionSourceDebug::CVarDebugRootMotionSources.GetValueOnGameThread() == 1)
@@ -4332,8 +4291,96 @@ void FCharacterMovementComponentAsyncInput::RestorePreAdditiveRootMotionVelocity
 				}
 		#endif*/
 
-		Output.Velocity = Output.CurrentRootMotion.LastPreAdditiveVelocity;
-		Output.CurrentRootMotion.bIsAdditiveVelocityApplied = false;
+		Output.Velocity = Output.LastPreAdditiveVelocity;
+		Output.bIsAdditiveVelocityApplied = false;
+	}
+}
+
+void FCharacterMovementComponentAsyncInput::ApplyRootMotionToVelocity(float deltaTime, FCharacterMovementComponentAsyncOutput& Output) const
+{
+	// Animation root motion is distinct from root motion sources right now and takes precedence
+	if (RootMotion.bHasAnimRootMotion && deltaTime > 0.f)
+	{
+		Output.Velocity = ConstrainAnimRootMotionVelocity(Output.AnimRootMotionVelocity, Output.Velocity, Output);
+		return;
+	}
+
+	const FVector OldVelocity = Output.Velocity;
+
+	bool bAppliedRootMotion = false;
+
+	// Apply override velocity
+	if (RootMotion.bHasOverrideRootMotion)
+	{
+		Output.Velocity = RootMotion.OverrideVelocity;
+		bAppliedRootMotion = true;
+
+#if ROOT_MOTION_DEBUG
+		if (RootMotionSourceDebug::CVarDebugRootMotionSources.GetValueOnGameThread() == 1)
+		{
+			FString AdjustedDebugString = FString::Printf(TEXT("ApplyRootMotionToVelocity HasOverrideVelocity Velocity(%s)"),
+				*Output.Velocity.ToCompactString());
+			//RootMotionSourceDebug::PrintOnScreen(*CharacterOwner, AdjustedDebugString);
+		}
+#endif
+	}
+
+	// Next apply additive root motion
+	if (RootMotion.bHasAdditiveRootMotion)
+	{
+		Output.LastPreAdditiveVelocity = Output.Velocity; // Save off pre-additive Velocity for restoration next tick
+		Output.Velocity += RootMotion.AdditiveVelocity;
+		//AccumulateRootMotionVelocity(ERootMotionAccumulateMode::Additive, deltaTime, UpdatedComponentInput->UpdatedComponent, Output.Velocity, Output);
+		Output.bIsAdditiveVelocityApplied = true; // Remember that we have it applied
+		bAppliedRootMotion = true;
+	}
+
+	// Switch to Falling if we have vertical velocity from root motion so we can lift off the ground
+	const FVector AppliedVelocityDelta = Output.Velocity - OldVelocity;
+	if (bAppliedRootMotion && AppliedVelocityDelta.Z != 0.f && IsMovingOnGround(Output))
+	{
+		float LiftoffBound;
+		if (RootMotion.bUseSensitiveLiftoff)
+		{
+			// Sensitive bounds - "any positive force"a
+			LiftoffBound = SMALL_NUMBER;
+		}
+		else
+		{
+			// Default bounds - the amount of force gravity is applying this tick
+			LiftoffBound = FMath::Max(GravityZ * deltaTime, SMALL_NUMBER);
+		}
+
+		if (AppliedVelocityDelta.Z > LiftoffBound)
+		{
+			SetMovementMode(MOVE_Falling, Output);
+		}
+	}
+}
+
+FVector FCharacterMovementComponentAsyncInput::ConstrainAnimRootMotionVelocity(const FVector& RootMotionVelocity, const FVector& CurrentVelocity, FCharacterMovementComponentAsyncOutput& Output) const
+{
+	FVector Result = RootMotionVelocity;
+
+	// Do not override Velocity.Z if in falling physics, we want to keep the effect of gravity.
+	if (IsFalling(Output))
+	{
+		Result.Z = CurrentVelocity.Z;
+	}
+
+	return Result;
+}
+
+FVector FCharacterMovementComponentAsyncInput::CalcAnimRootMotionVelocity(const FVector& RootMotionDeltaMove, float DeltaSeconds, const FVector& CurrentVelocity) const
+{
+	if (ensure(DeltaSeconds > 0.f))
+	{
+		FVector RootMotionVelocity = RootMotionDeltaMove / DeltaSeconds;
+		return RootMotionVelocity;
+	}
+	else
+	{
+		return CurrentVelocity;
 	}
 }
 
@@ -4526,8 +4573,9 @@ void FCharacterMovementComponentAsyncOutput::Copy(const FCharacterMovementCompon
 	LastUpdateRotation = Value.LastUpdateRotation;
 	LastUpdateVelocity = Value.LastUpdateVelocity;
 	bForceNextFloorCheck = Value.bForceNextFloorCheck;
-	CurrentRootMotion = Value.CurrentRootMotion;
 	Velocity = Value.Velocity;
+	LastPreAdditiveVelocity = Value.LastPreAdditiveVelocity;
+	bIsAdditiveVelocityApplied = Value.bIsAdditiveVelocityApplied;
 	bDeferUpdateBasedMovement = Value.bDeferUpdateBasedMovement;
 	MoveComponentFlags = Value.MoveComponentFlags;
 	PendingForceToApply = Value.PendingForceToApply;
@@ -4545,13 +4593,15 @@ void FCharacterMovementComponentAsyncOutput::Copy(const FCharacterMovementCompon
 	bRequestedMoveWithMaxSpeed = Value.bRequestedMoveWithMaxSpeed;
 	RequestedVelocity = Value.RequestedVelocity;
 	NumJumpApexAttempts = Value.NumJumpApexAttempts;
-	RootMotionParams = Value.RootMotionParams;
+	AnimRootMotionVelocity = Value.AnimRootMotionVelocity;
 	bShouldApplyDeltaToMeshPhysicsTransforms = Value.bShouldApplyDeltaToMeshPhysicsTransforms;
 	DeltaPosition = Value.DeltaPosition;
 	DeltaQuat = Value.DeltaQuat;
 	DeltaTime = Value.DeltaTime;
 	OldVelocity = Value.OldVelocity;
 	OldLocation = Value.OldLocation;
+	ModifiedRotationRate = Value.ModifiedRotationRate;
+	bUsingModifiedRotationRate = Value.bUsingModifiedRotationRate;
 
 	// See MaybeUpdateBasedMovement
 	// TODO MovementBase, handle tick group changes properly

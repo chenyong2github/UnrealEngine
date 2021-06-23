@@ -10,6 +10,8 @@ THIRD_PARTY_INCLUDES_START
 #include "GfnRuntimeSdk_CAPI.h"
 THIRD_PARTY_INCLUDES_END
 
+class GeForceNOWActionZoneProcessor;
+
 /**
  * Singleton wrapper to manage the GeForceNow SDK
  */
@@ -51,6 +53,9 @@ public:
 	GfnRuntimeError StopStream() const;
 	/** Request GeforceNOW client to stop a streaming session of an application in an asynchronous fashion. */
 	GfnRuntimeError StopStreamAsync(StopStreamCallbackSig StopStreamCallback, void* Context, unsigned int TimeoutMs) const;
+
+	/** Use to invoke special events on the client from the GFN cloud environment */
+	GfnRuntimeError SetActionZone(GfnActionType ActionType, unsigned int Id, GfnRect* Zone);
 
 	/** Registers a callback that gets called on the user's PC when the streaming session state changes. */
 	GfnRuntimeError RegisterStreamStatusCallback(StreamStatusCallbackSig StreamStatusCallback, void* Context) const;
@@ -99,6 +104,9 @@ private:
 
 	/** Is the DLL running in the GeForce Now environment. */
 	TOptional<bool> bIsRunningInCloud;
+
+	/** Keeps track of actions zones for GeForce NOW. Action Zones are used for things like keyboard invocation within the GeForce NOW app.*/
+	TSharedPtr<GeForceNOWActionZoneProcessor> ActionZoneProcessor;
 };
 
 #endif // NV_GEFORCENOW

@@ -452,8 +452,9 @@ public:
 		return IsEqual(Other);
 	}
 
-	//This function is not thread safe, don't use it (geometry is shared across threads). Leaving here for existing code, but needs to be removed
-	FImplicitObject* AccessGeometryDangerous() const { return const_cast<FImplicitObject*>(MGeometry.Get()); }
+	//This function should only be used when geometry is not used by physics thread. The owning particle should not have a solver yet
+	//Avoid using this function unless you know the threading model, see TGeometryParticle::ModifyGeometry
+	FImplicitObject* AccessGeometryDangerous() { return const_cast<FImplicitObject*>(MGeometry.Get()); }
 
 	TSerializablePtr<FImplicitObject> Geometry() const { return TSerializablePtr<const FImplicitObject>(MGeometry);}
 	const TSharedPtr<const FImplicitObject,ESPMode::ThreadSafe>& SharedGeometryLowLevel() const { return MGeometry;}

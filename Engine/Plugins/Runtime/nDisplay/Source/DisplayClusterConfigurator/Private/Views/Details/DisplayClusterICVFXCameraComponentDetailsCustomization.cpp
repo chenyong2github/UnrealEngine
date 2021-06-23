@@ -7,6 +7,7 @@
 #include "Components/DisplayClusterICVFXCameraComponent.h"
 
 #include "CineCameraActor.h"
+#include "DisplayClusterRootActor.h"
 #include "UObject/SoftObjectPtr.h"
 
 #include "DetailCategoryBuilder.h"
@@ -24,9 +25,11 @@ namespace DisplayClusterICVFXCameraComponentDetailsCustomizationUtils
 			TEXT("Variable"),
 			TEXT("TransformCommon"),
 			DisplayClusterConfigurationStrings::categories::ICVFXCategory,
-			DisplayClusterConfigurationStrings::categories::ChromaKeyCategory,
+			DisplayClusterConfigurationStrings::categories::CameraColorGradingCategory,
 			DisplayClusterConfigurationStrings::categories::OCIOCategory,
-			DisplayClusterConfigurationStrings::categories::OverrideCategory
+			DisplayClusterConfigurationStrings::categories::ChromaKeyCategory,
+			DisplayClusterConfigurationStrings::categories::OverrideCategory,
+			DisplayClusterConfigurationStrings::categories::ConfigurationCategory
 		};
 
 		for (const TPair<FName, IDetailCategoryBuilder*>& Pair : AllCategoryMap)
@@ -72,7 +75,7 @@ void FDisplayClusterICVFXCameraComponentDetailsCustomization::CustomizeDetails(I
 	}
 
 	// Hide some groups if an external CineCameraActor is set
-	if (EditedObject.IsValid() && EditedObject->ExternalCameraActor.IsValid())
+	if (EditedObject.IsValid() && EditedObject->CameraSettings.ExternalCameraActor.IsValid())
 	{
 		InLayoutBuilder.HideCategory(TEXT("TransformCommon"));
 		InLayoutBuilder.HideCategory(TEXT("Current Camera Settings"));
@@ -90,6 +93,13 @@ void FDisplayClusterICVFXCameraComponentDetailsCustomization::CustomizeDetails(I
 		InLayoutBuilder.HideCategory(TEXT("Activation"));
 	}
 
+	bool bIsCDO = false;
+	if (EditedObject.IsValid())
+	{
+		ADisplayClusterRootActor* RootActor = static_cast<ADisplayClusterRootActor*>(EditedObject->GetOwner());
+		bIsCDO = (RootActor == nullptr) || RootActor->IsTemplate(RF_ClassDefaultObject);
+	}
+
 	// Always hide the following categories
 	InLayoutBuilder.HideCategory(TEXT("AssetUserData"));
 	InLayoutBuilder.HideCategory(TEXT("Collision"));
@@ -99,6 +109,10 @@ void FDisplayClusterICVFXCameraComponentDetailsCustomization::CustomizeDetails(I
 	InLayoutBuilder.HideCategory(TEXT("Physics"));
 	InLayoutBuilder.HideCategory(TEXT("Sockets"));
 	InLayoutBuilder.HideCategory(TEXT("NDisplay"));
+	InLayoutBuilder.HideCategory(TEXT("Activation"));
+	InLayoutBuilder.HideCategory(TEXT("Tags"));
+	InLayoutBuilder.HideCategory(TEXT("Component Tick"));
+
 
 	InLayoutBuilder.SortCategories(DisplayClusterICVFXCameraComponentDetailsCustomizationUtils::SortCategories);
 
@@ -106,54 +120,85 @@ void FDisplayClusterICVFXCameraComponentDetailsCustomization::CustomizeDetails(I
 
 	GET_MEMBER_NAME_CHECKED(UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable);
 
-	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ICVFXCategory)
+	CREATE_NESTED_PROPERTY_EDITCONDITION_1ARG(CameraEnabledEditCondition, NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable);
+
+	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ConfigurationCategory)
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.RenderOrder, CameraEnabledEditCondition)
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.CustomFrameSize, CameraEnabledEditCondition)
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.AdvancedRenderSettings.RenderTargetRatio, CameraEnabledEditCondition)
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.AdvancedRenderSettings.GPUIndex, CameraEnabledEditCondition)
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.AdvancedRenderSettings.StereoGPUIndex, CameraEnabledEditCondition)
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.AdvancedRenderSettings.StereoMode, CameraEnabledEditCondition)
+	END_CATEGORY();
+
+	BEGIN_LABELED_CATEGORY(DisplayClusterConfigurationStrings::categories::ICVFXCategory, LOCTEXT("ICVFXCategoryLabel", "In-Camera VFX"))
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable)
-		ADD_PROPERTY(UDisplayClusterICVFXCameraComponent, ExternalCameraActor)
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.ExternalCameraActor)
+
 		// TODO: Screen Percentage Multiplier
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.BufferRatio)
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.FieldOfViewMultiplier)
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.SoftEdge)
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.FrustumRotation)
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.FrustumOffset)
-		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CameraMotionBlur)
 
-		ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.RenderOrder)
-		ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.CustomFrameSize)
-		ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.PostprocessBlur)
-		ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.GenerateMips)
-		ADD_ADVANCED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.AdvancedRenderSettings)
+		CREATE_NESTED_PROPERTY_EDITCONDITION_2ARG(CameraAndMipsEditCondition, NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable, CameraSettings.RenderSettings.GenerateMips.bAutoGenerateMips);
+	
+		ADD_NESTED_PROPERTY_ENABLE_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.GenerateMips.MaxNumMips, CameraAndMipsEditCondition)
+
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CameraMotionBlur, CameraEnabledEditCondition)
+
+		ADD_ADVANCED_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.PostprocessBlur, CameraEnabledEditCondition)
+		ADD_ADVANCED_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.GenerateMips, CameraEnabledEditCondition)
 
 		BEGIN_GROUP(TEXT("HiddenContentGroup"), LOCTEXT("HiddenContentGroupLabel", "Content Hidden from Camera"))
-			ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CameraHideList.ActorLayers)
-			ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CameraHideList.Actors)
+		
+			ADD_GROUP_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CameraHideList.ActorLayers, CameraEnabledEditCondition)
+			ADD_GROUP_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CameraHideList.Actors, CameraEnabledEditCondition)
+
+			if (bIsCDO)
+			{
+				ADD_GROUP_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CameraHideList.RootActorComponentNames, CameraEnabledEditCondition)
+			}
 		END_GROUP();
 
 	END_CATEGORY();
 
-	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ClusterPostprocessCategory)
-		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.bUseCameraComponentPostprocess)
-		ADD_EXPANDED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.PostProcessSettings)
-	END_CATEGORY();
-
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::ChromaKeyCategory)
-		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.Chromakey.bEnable)
-		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.Chromakey.ChromakeyColor)
-		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.Chromakey.ChromakeyRenderTexture)
-		ADD_EXPANDED_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.Chromakey.ChromakeyMarkers)
+		CREATE_NESTED_PROPERTY_EDITCONDITION_2ARG(CameraAndChromakeyEditCondition, NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable, CameraSettings.Chromakey.bEnable);
+
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.Chromakey.bEnable, CameraEnabledEditCondition)
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.Chromakey.ChromakeyColor, CameraAndChromakeyEditCondition)
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.Chromakey.ChromakeyRenderTexture, CameraAndChromakeyEditCondition)
+		ADD_EXPANDED_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.Chromakey.ChromakeyMarkers, CameraAndChromakeyEditCondition)
 	END_CATEGORY();
 
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::OCIOCategory)
-		// TODO: Refactor ICVFX camera OCIO to match the DCRA OCIO refactor
-		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.OCIO_Configuration)
-		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnableInnerFrustumOCIO)
-		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.InnerFrustumOCIOConfigurations)
+		CREATE_NESTED_PROPERTY_EDITCONDITION_2ARG(CameraAndOCIOEnabledEditCondition, NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable, CameraSettings.AllNodesOCIOConfiguration.bIsEnabled);
+
+		RENAME_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesOCIOConfiguration.bIsEnabled, LOCTEXT("bEnableInnerFrustumOCIOLabel", "Enable Inner Frustum OCIO"), CameraEnabledEditCondition)
+		RENAME_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesOCIOConfiguration.ColorConfiguration, LOCTEXT("AllNodesColorConfigurationGroupLabel", "All Nodes Color Configuration"), CameraAndOCIOEnabledEditCondition)
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.PerNodeOCIOProfiles, CameraAndOCIOEnabledEditCondition)
+	END_CATEGORY();
+
+	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::CameraColorGradingCategory)
+		CREATE_NESTED_PROPERTY_EDITCONDITION_2ARG(CameraAndColorGradingEnabledEditCondition, NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable, CameraSettings.AllNodesColorGradingConfiguration.bIsEnabled);
+
+		RENAME_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesColorGradingConfiguration.bIsEnabled, LOCTEXT("bEnableCameraColorGrandingLabel", "Enable Inner Frustum Color Granding"), CameraEnabledEditCondition)
+		RENAME_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesColorGradingConfiguration.bExcludeFromOverallClusterPostProcess, LOCTEXT("bExcludeAllNodesColorConfigurationGroupLabel", "Ignore Entire Cluster Color Granding"), CameraAndColorGradingEnabledEditCondition)
+		RENAME_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesColorGradingConfiguration.PostProcessSettings, LOCTEXT("AllNodesColorGrandingGroupLabel", "All Nodes Color Granding"), CameraAndColorGradingEnabledEditCondition)
+
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.PerNodeColorGradingProfiles, CameraAndColorGradingEnabledEditCondition)
 	END_CATEGORY();
 
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::OverrideCategory)
-		RENAME_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Override.bAllowOverride, LOCTEXT("bAllowOverrideLabel", "Enable Inner Frustum Override"))
-		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Override.SourceTexture)
-		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Override.bShouldUseTextureRegion)
-		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Override.TextureRegion)
+		CREATE_NESTED_PROPERTY_EDITCONDITION_2ARG(CameraAndOverrideEditCondition, NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable, CameraSettings.RenderSettings.Override.bAllowOverride);
+		CREATE_NESTED_PROPERTY_EDITCONDITION_3ARG(TextureRegionEditCondition,     NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable, CameraSettings.RenderSettings.Override.bAllowOverride, CameraSettings.RenderSettings.Override.bShouldUseTextureRegion);
+
+		RENAME_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Override.bAllowOverride, LOCTEXT("bAllowOverrideLabel", "Enable Inner Frustum Override"), CameraEnabledEditCondition)
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Override.SourceTexture, CameraAndOverrideEditCondition)
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Override.bShouldUseTextureRegion, CameraAndOverrideEditCondition)
+		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.Override.TextureRegion, TextureRegionEditCondition)
 	END_CATEGORY();
 }
 

@@ -281,6 +281,8 @@ public:
 	virtual PROJECTS_API TSharedPtr<IPlugin> FindPlugin(const FStringView Name) = 0;
 	virtual PROJECTS_API TSharedPtr<IPlugin> FindPlugin(const ANSICHAR* Name) = 0;
 
+	virtual PROJECTS_API TSharedPtr<IPlugin> FindPluginFromPath(const FString& PluginPath) = 0;
+
 	/**
 	 * Gets an array of all the enabled plugins.
 	 *

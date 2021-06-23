@@ -11,7 +11,7 @@ namespace DecalRendering
 		const bool bIsMobilePlatform = IsMobilePlatform(Platform);
 		const bool bIsMobileDeferredPlatform = bIsMobilePlatform && IsMobileDeferredShadingEnabled(Platform);
 		const bool bIsDBufferPlatform = !bIsMobilePlatform && IsUsingDBuffers(Platform);
-		const bool bIsDBufferMaskPlatform = bIsDBufferPlatform && IsUsingPerPixelDBufferMask(Platform);
+		const bool bIsDBufferMaskPlatform = bIsDBufferPlatform && FDataDrivenShaderPlatformInfo::GetSupportsPerPixelDBufferMask(Platform);
 
 		Desc.bWriteDBufferMask = bIsDBufferMaskPlatform;
 

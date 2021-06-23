@@ -1161,7 +1161,8 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 	}
 
 	//Cull if any of our budgets are exceeded.
- 	if (!OutState.bCulled && FFXBudget::Enabled() && INiagaraModule::UseGlobalFXBudget() && GEnableNiagaraGlobalBudgetCulling && ScalabilitySettings.BudgetScaling.bCullByGlobalBudget)
+	bool bEnabled = GEnableNiagaraGlobalBudgetCulling && FFXBudget::Enabled() && INiagaraModule::UseGlobalFXBudget();
+ 	if (!OutState.bCulled && bEnabled && ScalabilitySettings.BudgetScaling.bCullByGlobalBudget)
  	{
  		GlobalBudgetCull(ScalabilitySettings, WorstGlobalBudgetUse, OutState);
  	}
@@ -1186,7 +1187,8 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 		InstanceCountCull(EffectType, System, ScalabilitySettings, OutState);
 	}
 
- 	if (!OutState.bCulled && FFXBudget::Enabled() && INiagaraModule::UseGlobalFXBudget() && GEnableNiagaraGlobalBudgetCulling && ScalabilitySettings.BudgetScaling.bCullByGlobalBudget)
+	bool bEnabled = GEnableNiagaraGlobalBudgetCulling && FFXBudget::Enabled() && INiagaraModule::UseGlobalFXBudget();
+ 	if (!OutState.bCulled && bEnabled && ScalabilitySettings.BudgetScaling.bCullByGlobalBudget)
 	{
  		GlobalBudgetCull(ScalabilitySettings, WorstGlobalBudgetUse, OutState);
  	}
@@ -1213,6 +1215,7 @@ void FNiagaraWorldManager::SortedSignificanceCull(UNiagaraEffectType* EffectType
 		bCull = ScalabilitySettings.bCullMaxInstanceCount && EffectTypeInstCount >= EffectTypeInstanceMax;
 		bCull |= ScalabilitySettings.bCullPerSystemMaxInstanceCount && SystemInstCount >= SystemInstanceMax;
 
+		bool bBudgetCullEnabled = GEnableNiagaraGlobalBudgetCulling && FFXBudget::Enabled() && INiagaraModule::UseGlobalFXBudget();
 		if (bCull)
 		{
 #if DEBUG_SCALABILITY_STATE
@@ -1220,7 +1223,7 @@ void FNiagaraWorldManager::SortedSignificanceCull(UNiagaraEffectType* EffectType
 			OutState.bCulledByGlobalBudget = false;
 #endif
 		}
-		else if (FFXBudget::Enabled() && INiagaraModule::UseGlobalFXBudget() && GEnableNiagaraGlobalBudgetCulling && ScalabilitySettings.BudgetScaling.bCullByGlobalBudget)
+		else if (bBudgetCullEnabled && ScalabilitySettings.BudgetScaling.bCullByGlobalBudget)
 	 	{
 			float Usage = FFXBudget::GetWorstAdjustedUsage();
 
@@ -1275,7 +1278,8 @@ void FNiagaraWorldManager::InstanceCountCull(UNiagaraEffectType* EffectType, UNi
 
 	bool bCull = ScalabilitySettings.bCullMaxInstanceCount && EffectType->NumInstances >= EffectTypeInstanceMax;
 	bCull |= ScalabilitySettings.bCullPerSystemMaxInstanceCount && System->GetActiveInstancesCount() >= SystemInstanceMax;
-	
+
+	bool bBudgetCullEnabled = GEnableNiagaraGlobalBudgetCulling && FFXBudget::Enabled() && INiagaraModule::UseGlobalFXBudget();
 	//Apply budget based adjustments separately so we can mark this cull as being due to budgetting or not.
 	if (bCull)
 	{
@@ -1284,7 +1288,7 @@ void FNiagaraWorldManager::InstanceCountCull(UNiagaraEffectType* EffectType, UNi
 		OutState.bCulledByGlobalBudget = false;
 #endif
 	}
-	else if (FFXBudget::Enabled() && GEnableNiagaraGlobalBudgetCulling && (ScalabilitySettings.BudgetScaling.bScaleMaxInstanceCountByGlobalBudgetUse || ScalabilitySettings.BudgetScaling.bScaleSystemInstanceCountByGlobalBudgetUse))
+	else if (bBudgetCullEnabled && (ScalabilitySettings.BudgetScaling.bScaleMaxInstanceCountByGlobalBudgetUse || ScalabilitySettings.BudgetScaling.bScaleSystemInstanceCountByGlobalBudgetUse))
 	{
 		float Usage = FFXBudget::GetWorstAdjustedUsage();
 
@@ -1341,6 +1345,7 @@ void FNiagaraWorldManager::DistanceCull(UNiagaraEffectType* EffectType, const FN
 		bool bCull = LODDistance > MaxDist;
 		OutState.bCulled |= bCull;
 
+		bool bBudgetCullEnabled = GEnableNiagaraGlobalBudgetCulling && FFXBudget::Enabled() && INiagaraModule::UseGlobalFXBudget();
 		//Check the budget adjusted range separately so we can tell what is down to budgets and what's distance.
 		if (bCull)
 		{
@@ -1349,7 +1354,7 @@ void FNiagaraWorldManager::DistanceCull(UNiagaraEffectType* EffectType, const FN
 			OutState.bCulledByGlobalBudget = false;
 #endif
 		}
-		else if (FFXBudget::Enabled() && GEnableNiagaraGlobalBudgetCulling && ScalabilitySettings.BudgetScaling.bScaleMaxDistanceByGlobalBudgetUse)
+		else if (bBudgetCullEnabled && ScalabilitySettings.BudgetScaling.bScaleMaxDistanceByGlobalBudgetUse)
 		{
 			float Usage = FFXBudget::GetWorstAdjustedUsage();
 			float Scale = ScalabilitySettings.BudgetScaling.MaxDistanceScaleByGlobalBudgetUse.Evaluate(Usage);
@@ -1385,6 +1390,7 @@ void FNiagaraWorldManager::DistanceCull(UNiagaraEffectType* EffectType, const FN
 			float ClosestDist = FMath::Sqrt(ClosestDistSq);
 			bool bCull = ClosestDist > MaxDist;
 
+			bool bBudgetCullEnabled = GEnableNiagaraGlobalBudgetCulling && FFXBudget::Enabled() && INiagaraModule::UseGlobalFXBudget();
 			//Check the budget adjusted range separately so we can tell what is down to budgets and what's distance.
 			if (bCull)
 			{
@@ -1393,7 +1399,7 @@ void FNiagaraWorldManager::DistanceCull(UNiagaraEffectType* EffectType, const FN
 				OutState.bCulledByGlobalBudget = false;
 #endif
 			}
-			else if (FFXBudget::Enabled() && GEnableNiagaraGlobalBudgetCulling && ScalabilitySettings.BudgetScaling.bScaleMaxDistanceByGlobalBudgetUse)
+			else if (bBudgetCullEnabled && ScalabilitySettings.BudgetScaling.bScaleMaxDistanceByGlobalBudgetUse)
 			{
 				float Usage = FFXBudget::GetWorstAdjustedUsage();
 				float Scale = ScalabilitySettings.BudgetScaling.MaxDistanceScaleByGlobalBudgetUse.Evaluate(Usage);

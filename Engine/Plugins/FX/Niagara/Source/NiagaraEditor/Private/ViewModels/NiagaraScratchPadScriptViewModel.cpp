@@ -20,8 +20,8 @@
 
 
 
-FNiagaraScratchPadScriptViewModel::FNiagaraScratchPadScriptViewModel()
-	: FNiagaraScriptViewModel(TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FNiagaraScratchPadScriptViewModel::GetDisplayNameInternal)), ENiagaraParameterEditMode::EditAll)
+FNiagaraScratchPadScriptViewModel::FNiagaraScratchPadScriptViewModel(bool bInIsForDataProcessingOnly)
+	: FNiagaraScriptViewModel(TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FNiagaraScratchPadScriptViewModel::GetDisplayNameInternal)), ENiagaraParameterEditMode::EditAll, bInIsForDataProcessingOnly)
 	, bIsPendingRename(false)
 	, bIsPinned(false)
 	, EditorHeight(300)
@@ -187,6 +187,7 @@ void FNiagaraScratchPadScriptViewModel::ApplyChanges()
 		FunctionCallNodeToRefresh->MarkNodeRequiresSynchronization(TEXT("ScratchPadChangesApplied"), true);
 	}
 
+	OnHasUnappliedChangesChangedDelegate.Broadcast();
 	OnChangesAppliedDelegate.Broadcast();
 }
 
@@ -203,6 +204,11 @@ FNiagaraScratchPadScriptViewModel::FOnRenamed& FNiagaraScratchPadScriptViewModel
 FNiagaraScratchPadScriptViewModel::FOnPinnedChanged& FNiagaraScratchPadScriptViewModel::OnPinnedChanged()
 {
 	return OnPinnedChangedDelegate;
+}
+
+FNiagaraScratchPadScriptViewModel::FOnHasUnappliedChangesChanged& FNiagaraScratchPadScriptViewModel::OnHasUnappliedChangesChanged()
+{
+	return OnHasUnappliedChangesChangedDelegate;
 }
 
 FNiagaraScratchPadScriptViewModel::FOnChangesApplied& FNiagaraScratchPadScriptViewModel::OnChangesApplied()
@@ -222,12 +228,20 @@ FText FNiagaraScratchPadScriptViewModel::GetDisplayNameInternal() const
 
 void FNiagaraScratchPadScriptViewModel::OnScriptGraphChanged(const FEdGraphEditAction &Action)
 {
-	bHasPendingChanges = true;
+	if(bHasPendingChanges == false)
+	{
+		bHasPendingChanges = true;
+		OnHasUnappliedChangesChangedDelegate.Broadcast();
+	}
 }
 
 void FNiagaraScratchPadScriptViewModel::OnScriptPropertyChanged(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	bHasPendingChanges = true;
+	if (bHasPendingChanges == false)
+	{
+		bHasPendingChanges = true;
+		OnHasUnappliedChangesChangedDelegate.Broadcast();
+	}
 }
 
 FNiagaraScratchPadScriptViewModel::FOnNodeIDFocusRequested& FNiagaraScratchPadScriptViewModel::OnNodeIDFocusRequested()

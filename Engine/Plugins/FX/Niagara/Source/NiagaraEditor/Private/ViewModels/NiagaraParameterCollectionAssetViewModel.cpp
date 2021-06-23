@@ -248,6 +248,7 @@ void FNiagaraParameterCollectionAssetViewModel::RefreshParameterViewModels()
 {
 	if (!Collection)
 	{
+		ParameterViewModels.Empty();
 		return;
 	}
 

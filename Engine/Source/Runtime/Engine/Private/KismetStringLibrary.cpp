@@ -485,6 +485,10 @@ FString UKismetStringLibrary::Mid(const FString& SourceString, int32 Start, int3
 
 FString UKismetStringLibrary::TimeSecondsToString(float InSeconds)
 {
+	// Determine whether to display this number as a negative
+	const TCHAR* NegativeModifier = InSeconds < 0.f? TEXT("-") : TEXT("");
+	InSeconds = FMath::Abs(InSeconds);
+	
 	// Get whole minutes
 	const int32 NumMinutes = FMath::FloorToInt(InSeconds/60.f);
 	// Get seconds not part of whole minutes
@@ -493,5 +497,5 @@ FString UKismetStringLibrary::TimeSecondsToString(float InSeconds)
 	const int32 NumCentiseconds = FMath::FloorToInt((InSeconds - FMath::FloorToFloat(InSeconds)) * 100.f);
 
 	// Create string, including leading zeroes
-	return FString::Printf(TEXT("%02d:%02d.%02d"), NumMinutes, NumSeconds, NumCentiseconds);
+	return FString::Printf(TEXT("%s%02d:%02d.%02d"), NegativeModifier, NumMinutes, NumSeconds, NumCentiseconds);
 }

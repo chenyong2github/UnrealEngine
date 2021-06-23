@@ -14,7 +14,7 @@
 
 class FLensDataListItem;
 class FLensDataCategoryItem;
-class FCurveEditor;
+class FCameraCalibrationCurveEditor;
 class SCameraCalibrationCurveEditorPanel;
 
 
@@ -70,8 +70,8 @@ private:
 	/** Makes the Toolbar with data manipulation buttons */
 	TSharedRef<SWidget> MakeToolbarWidget(TSharedRef<SCameraCalibrationCurveEditorPanel> InEditorPanel);
 
-	/** Called when user clicks on AddPoint button */
-	FReply OnAddDataPointClicked();
+	/** Curve Editor add point delegate handler*/
+	void OnAddDataPointHandler();
 	
 	/** Called when user clicks on Clear LensFile button */
 	FReply OnClearLensFileClicked();
@@ -99,6 +99,9 @@ private:
 	
 	/** Called when the data table points list of a data category was updated */
 	void OnDataTablePointsUpdated(ELensDataCategory InCategory);
+
+	/** Used to keep same selected data point when rebuilding tree */
+	void UpdateDataSelection(const TSharedPtr<FLensDataListItem>& PreviousSelection);
 	
 private:
 	
@@ -127,7 +130,7 @@ private:
 	TStrongObjectPtr<ULensFile> LensFile;
 
 	/** Curve editor manager and panel to display */
-	TSharedPtr<FCurveEditor> CurveEditor;
+	TSharedPtr<FCameraCalibrationCurveEditor> CurveEditor;
 
 	/** Child class of curve editor panel */
 	TSharedPtr<SCameraCalibrationCurveEditorPanel> CurvePanel;

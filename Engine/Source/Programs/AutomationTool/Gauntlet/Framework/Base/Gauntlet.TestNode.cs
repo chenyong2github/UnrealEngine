@@ -153,6 +153,11 @@ namespace Gauntlet
 		TestResult GetTestResult();
 
 		/// <summary>
+		/// Set the Test Result value
+		/// </summary>
+		void SetTestResult(TestResult testResult);
+
+		/// <summary>
 		/// Summary of the test. Only called once GetTestStatus() returns complete, but may be called multiple
 		/// times.
 		/// </summary>

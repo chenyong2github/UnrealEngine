@@ -50,6 +50,7 @@ int32 FWaterBodyManager::AddWaterBody(const AWaterBody* InWaterBody)
 void FWaterBodyManager::RemoveWaterBody(const AWaterBody* InWaterBody)
 {
 	check(InWaterBody->WaterBodyIndex != INDEX_NONE);
+	check(!UnusedWaterBodyIndices.Contains(InWaterBody->WaterBodyIndex));
 	UnusedWaterBodyIndices.Add(InWaterBody->WaterBodyIndex);
 	WaterBodies[InWaterBody->WaterBodyIndex] = nullptr;
 

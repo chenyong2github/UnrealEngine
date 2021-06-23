@@ -343,6 +343,20 @@ namespace UE
 		}
 
 		/// <summary>
+		/// Called when a test is starting
+		/// </summary>
+		/// <param name="Pass"></param>
+		/// <param name="InNumPasses"></param>
+		/// <returns></returns>
+		public override bool StartTest(int Pass, int InNumPasses)
+		{
+			LastAutomationEntryTime = DateTime.MinValue;
+			LastAutomationEntryCount = 0;
+
+			return base.StartTest(Pass, InNumPasses);
+		}
+
+		/// <summary>
 		/// Override TickTest to log interesting things and make sure nothing has stalled
 		/// </summary>
 		public override void TickTest()

@@ -111,14 +111,11 @@ void FNiagaraDataInterfaceGrid2DCollectionDetails::GeneratePreviewAttributes(TAr
 		if ( !VariableName.IsNone() )
 		{
 			// Resolve namespace
-			TMap<FString, FString> AliasesToResolve;
 			if (UNiagaraEmitter* OwnerEmitter = Grid2DInterface->GetTypedOuter<UNiagaraEmitter>())
 			{
-				AliasesToResolve.Emplace(FNiagaraConstants::EmitterNamespace.ToString(), OwnerEmitter->GetUniqueEmitterName());
-			}
-			if (AliasesToResolve.Num() > 0)
-			{
-				VariableName = FNiagaraVariable::ResolveAliases(FNiagaraVariable(UNiagaraDataInterfaceGrid2DCollection::StaticClass(), VariableName), AliasesToResolve).GetName();
+				FNiagaraAliasContext ResolveAliasesContext(FNiagaraAliasContext::ERapidIterationParameterMode::EmitterOrParticleScript);
+				ResolveAliasesContext.ChangeEmitterToEmitterName(OwnerEmitter->GetUniqueEmitterName());
+				VariableName = FNiagaraUtilities::ResolveAliases(FNiagaraVariable(UNiagaraDataInterfaceGrid2DCollection::StaticClass(), VariableName), ResolveAliasesContext).GetName();
 			}
 
 			// Add named attributes

@@ -117,7 +117,7 @@ void UMovieSceneSequence::PreSave(FObjectPreSaveContext ObjectSaveContext)
 			{
 				NetworkMask = EMovieSceneServerClientMask::Client;
 			}
-			else if (TargetPlatform->IsServerOnly())
+			else if (!TargetPlatform->AllowAudioVisualData())
 			{
 				NetworkMask = EMovieSceneServerClientMask::Server;
 			}

@@ -19,13 +19,16 @@ FAutoConsoleVariableRef CVarChaos_PBD_Collision_UseCorrectApplyPosition(TEXT("p.
 bool bChaos_PBD_Collision_Position_SolveEnabled = true;
 float Chaos_PBD_Collision_Position_MinStiffness = 1.0f;
 float Chaos_PBD_Collision_Position_MaxStiffness = 1.0f;
+int32 Chaos_PBD_Collision_Position_ShockPropagationIterations = 0;
 float Chaos_PBD_Collision_Position_MinInvMassScale = 0.0f;
 float Chaos_PBD_Collision_Position_StaticFrictionIterations = 0.5f;
 float Chaos_PBD_Collision_Position_Tolerance = 0.1f;
+float Chaos_PBD_Collision_Position_ShockPropagationNormalZ = 0.8f;
 
 FAutoConsoleVariableRef CVarChaos_PBD_Collision_Position_SolveEnabled(TEXT("p.Chaos.PBD.Collision.Position.SolveEnabled"), bChaos_PBD_Collision_Position_SolveEnabled, TEXT(""));
 FAutoConsoleVariableRef CVarChaos_PBD_Collision_Position_MinStiffness(TEXT("p.Chaos.PBD.Collision.Position.MinStiffness"), Chaos_PBD_Collision_Position_MinStiffness, TEXT(""));
 FAutoConsoleVariableRef CVarChaos_PBD_Collision_Position_MaxStiffness(TEXT("p.Chaos.PBD.Collision.Position.MaxStiffness"), Chaos_PBD_Collision_Position_MaxStiffness, TEXT(""));
+FAutoConsoleVariableRef CVarChaos_PBD_Collision_Position_UseShockPropagation(TEXT("p.Chaos.PBD.Collision.Position.ShockPropagationIterations"), Chaos_PBD_Collision_Position_ShockPropagationIterations, TEXT(""));
 FAutoConsoleVariableRef CVarChaos_PBD_Collision_Position_MinInvMassScale(TEXT("p.Chaos.PBD.Collision.Position.MinInvMassScale"), Chaos_PBD_Collision_Position_MinInvMassScale, TEXT(""));
 FAutoConsoleVariableRef CVarChaos_PBD_Collision_Position_StaticFrictionIterations(TEXT("p.Chaos.PBD.Collision.Position.StaticFrictionIterations"), Chaos_PBD_Collision_Position_StaticFrictionIterations, TEXT(""));
 FAutoConsoleVariableRef CVarChaos_PBD_Collision_Position_Tolerance(TEXT("p.Chaos.PBD.Collision.Position.Tolerance"), Chaos_PBD_Collision_Position_Tolerance, TEXT(""));
@@ -33,6 +36,8 @@ FAutoConsoleVariableRef CVarChaos_PBD_Collision_Position_Tolerance(TEXT("p.Chaos
 bool bChaos_PBD_Collision_Velocity_SolveEnabled = true;
 float Chaos_PBD_Collision_Velocity_MinStiffness = 1.0f;
 float Chaos_PBD_Collision_Velocity_MaxStiffness = 1.0f;
+int32 Chaos_PBD_Collision_Velocity_ShockPropagationIterations = 0;
+float Chaos_PBD_Collision_Velocity_MinInvMassScale = 0.0f;
 bool bChaos_PBD_Collision_Velocity_DynamicFrictionEnabled = true;
 bool bChaos_PBD_Collision_Velocity_ImpulseClampEnabled = false;
 
@@ -40,6 +45,8 @@ bool bChaos_PBD_Collision_Velocity_ImpulseClampEnabled = false;
 FAutoConsoleVariableRef CVarChaos_PBD_Collision_Velocity_SolveEnabled(TEXT("p.Chaos.PBD.Collision.Velocity.SolveEnabled"), bChaos_PBD_Collision_Velocity_SolveEnabled, TEXT(""));
 FAutoConsoleVariableRef CVarChaos_PBD_Collision_Velocity_MinStiffness(TEXT("p.Chaos.PBD.Collision.Velocity.MinStiffness"), Chaos_PBD_Collision_Velocity_MinStiffness, TEXT(""));
 FAutoConsoleVariableRef CVarChaos_PBD_Collision_Velocity_MaxStiffness(TEXT("p.Chaos.PBD.Collision.Velocity.MaxStiffness"), Chaos_PBD_Collision_Velocity_MaxStiffness, TEXT(""));
+FAutoConsoleVariableRef CVarChaos_PBD_Collision_Velocity_UseShockPropagation(TEXT("p.Chaos.PBD.Collision.Velocity.ShockPropagationIterations"), Chaos_PBD_Collision_Velocity_ShockPropagationIterations, TEXT(""));
+FAutoConsoleVariableRef CVarChaos_PBD_Collision_Velocity_MinInvMassScale(TEXT("p.Chaos.PBD.Collision.Velocity.MinInvMassScale"), Chaos_PBD_Collision_Velocity_MinInvMassScale, TEXT(""));
 FAutoConsoleVariableRef CVarChaos_PBD_Collision_Velocity_DynamicFrictionEnabled(TEXT("p.Chaos.PBD.Collision.Velocity.DynamicFrictionEnabled"), bChaos_PBD_Collision_Velocity_DynamicFrictionEnabled, TEXT(""));
 FAutoConsoleVariableRef CVarChaos_PBD_Collision_Velocity_ImpulseClampEnabled(TEXT("p.Chaos.PBD.Collision.Velocity.ImpulseClampEnabled"), bChaos_PBD_Collision_Velocity_ImpulseClampEnabled, TEXT(""));
 
@@ -58,9 +65,10 @@ namespace Chaos
 
 	inline FReal GetPositionInvMassScale(int32 It, int32 NumIts)
 	{
-		if (NumIts > 1)
+		if ((NumIts > 1) && (Chaos_PBD_Collision_Position_ShockPropagationIterations > 0))
 		{
-			const FReal Interpolant = (FReal)It / (FReal)(NumIts - 1);
+			const int32 FirstShockIt = FMath::Max(NumIts - Chaos_PBD_Collision_Position_ShockPropagationIterations, 0);
+			const FReal Interpolant = FMath::Clamp(FReal(It - FirstShockIt) / FReal(NumIts - FirstShockIt - 1), FReal(0), FReal(1));
 			return FMath::Lerp((FReal)1.0f, (FReal)Chaos_PBD_Collision_Position_MinInvMassScale, Interpolant);
 		}
 		return 1.0f;
@@ -78,7 +86,13 @@ namespace Chaos
 
 	inline FReal GetVelocityInvMassScale(int32 It, int32 NumIts)
 	{
-		return (FReal)1.0f;// GetPositionInvMassScale(It, NumIts);
+		if ((NumIts > 1) && (Chaos_PBD_Collision_Velocity_ShockPropagationIterations > 0))
+		{
+			const int32 FirstShockIt = FMath::Max(NumIts - Chaos_PBD_Collision_Velocity_ShockPropagationIterations, 0);
+			const FReal Interpolant = FMath::Clamp(FReal(It - FirstShockIt) / FReal(NumIts - FirstShockIt - 1), FReal(0), FReal(1));
+			return FMath::Lerp((FReal)1.0f, (FReal)Chaos_PBD_Collision_Velocity_MinInvMassScale, Interpolant);
+		}
+		return 1.0f;
 	}
 
 
@@ -350,11 +364,6 @@ namespace Chaos
 			const bool bProcessManifoldPoint = (ManifoldPoint.ContactPoint.Phi < Chaos_PBD_Collision_Position_Tolerance) || !ManifoldPoint.NetPushOut.IsNearlyZero();
 			if (bProcessManifoldPoint)
 			{
-				const FReal InvM0 = bIsRigidDynamic0 ? PBDRigid0->InvM() : 0.0f;
-				const FReal InvM1 = bIsRigidDynamic1 ? PBDRigid1->InvM() : 0.0f;
-				const FMatrix33 InvI0 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Constraint.Manifold.InvInertiaScale0 : FMatrix33(0);
-				const FMatrix33 InvI1 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Constraint.Manifold.InvInertiaScale1 : FMatrix33(0);
-
 				// Calculate the position error we need to correct, including static friction and restitution
 				// Position correction uses the deepest point on each body (see velocity correction which uses average contact)
 				const FRotation3& PlaneQ = (ManifoldPoint.ContactPoint.ContactNormalOwnerIndex == 0) ? Q0 : Q1;
@@ -384,14 +393,21 @@ namespace Chaos
 				}
 
 				// Temporary shock propagation implementation...
-				const bool bUseMassScale = bIsRigidDynamic0 && bIsRigidDynamic1;
-				const bool bOnTop0 = FVec3::DotProduct(ApplyContactPoint0, ContactNormal) < 0.0f;
+				// Contact normal always points from body 1 to body 0 (regardless of which body owns the contact manifold plane)
+				// so if Contact Normal points up body 0 is on top
+				const bool bUseMassScale = bIsRigidDynamic0 && bIsRigidDynamic1 && (FMath::Abs(ContactNormal.Z) > Chaos_PBD_Collision_Position_ShockPropagationNormalZ);
+				const bool bOnTop0 = ContactNormal.Z > 0.0f;
 				const FReal InvMassScale0 = (!bUseMassScale || bOnTop0) ? 1.0f : GetPositionInvMassScale(IterationParameters.Iteration, IterationParameters.NumIterations);
-				const FReal InvMassScale1 = (bUseMassScale && bOnTop0) ? GetPositionInvMassScale(IterationParameters.Iteration, IterationParameters.NumIterations) : 1.0f;
+				const FReal InvMassScale1 = (!bUseMassScale || !bOnTop0) ? 1.0f : GetPositionInvMassScale(IterationParameters.Iteration, IterationParameters.NumIterations);
+
+				const FReal InvM0 = bIsRigidDynamic0 ? InvMassScale0 * PBDRigid0->InvM() : 0.0f;
+				const FReal InvM1 = bIsRigidDynamic1 ? InvMassScale1 * PBDRigid1->InvM() : 0.0f;
+				const FMatrix33 InvI0 = bIsRigidDynamic0 ? InvMassScale0 * Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Constraint.Manifold.InvInertiaScale0 : FMatrix33(0);
+				const FMatrix33 InvI1 = bIsRigidDynamic1 ? InvMassScale1 * Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Constraint.Manifold.InvInertiaScale1 : FMatrix33(0);
 
 				const FMatrix33 ContactMassInv =
-					(bIsRigidDynamic0 ? Collisions::ComputeFactorMatrix3(ApplyContactPoint0, InvI0, InvM0) : FMatrix33(0)) +
-					(bIsRigidDynamic1 ? Collisions::ComputeFactorMatrix3(ApplyContactPoint1, InvI1, InvM1) : FMatrix33(0));
+					((InvM0 > SMALL_NUMBER) ? Collisions::ComputeFactorMatrix3(ApplyContactPoint0, InvI0, InvM0) : FMatrix33(0)) +
+					((InvM1 > SMALL_NUMBER) ? Collisions::ComputeFactorMatrix3(ApplyContactPoint1, InvI1, InvM1) : FMatrix33(0));
 				const FMatrix33 ContactMass = ContactMassInv.Inverse();
 				const FReal ContactMassInvNormal = FVec3::DotProduct(ContactNormal, Utilities::Multiply(ContactMassInv, ContactNormal));
 				const FReal ContactMassNormal = (ContactMassInvNormal > (FReal)SMALL_NUMBER) ? (FReal)1.0f / ContactMassInvNormal : (FReal)0.0f;
@@ -407,7 +423,7 @@ namespace Chaos
 					ContactMass,
 					ContactMassNormal,
 					StaticFriction,
-					InvMassScale0 * InvM0, InvMassScale0 * InvI0, InvMassScale1 * InvM1, InvMassScale1 * InvI1,
+					InvM0, InvI0, InvM1, InvI1,
 					P0, Q0, P1, Q1,
 					ManifoldPoint);
 			}
@@ -449,11 +465,6 @@ namespace Chaos
 		FVec3 V1 = Particle1->V();
 		FVec3 W1 = Particle1->W();
 
-		const FReal InvM0 = bIsRigidDynamic0 ? PBDRigid0->InvM() : 0.0f;
-		const FReal InvM1 = bIsRigidDynamic1 ? PBDRigid1->InvM() : 0.0f;
-		const FMatrix33 InvI0 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Constraint.Manifold.InvInertiaScale0 : FMatrix33(0);
-		const FMatrix33 InvI1 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Constraint.Manifold.InvInertiaScale1 : FMatrix33(0);
-
 		//Constraint.AccumulatedImpulse = FVec3(0);
 
 		if (bChaos_PBD_Collision_Velocity_SolveEnabled)
@@ -479,15 +490,22 @@ namespace Chaos
 					const FRotation3& PlaneQ = (ManifoldPoint.ContactPoint.ContactNormalOwnerIndex == 0) ? Q0 : Q1;
 					const FVec3 ContactNormal = PlaneQ * ManifoldPoint.CoMContactNormal;
 
-					// Temporary shock propagation implementation
-					const bool bUseMassScale = bIsRigidDynamic0 && bIsRigidDynamic1;
-					const bool bOnTop0 = FVec3::DotProduct(ApplyContactPoint0, ContactNormal) < 0.0f;
+					// Temporary shock propagation implementation...
+					// Contact normal always points from body 1 to body 0 (regardless of which body owns the contact manifold plane)
+					// so if Contact Normal points up body 0 is on top
+					const bool bUseMassScale = bIsRigidDynamic0 && bIsRigidDynamic1 && (FMath::Abs(ContactNormal.Z) > Chaos_PBD_Collision_Position_ShockPropagationNormalZ);
+					const bool bOnTop0 = ContactNormal.Z > 0.0f;
 					const FReal InvMassScale0 = (!bUseMassScale || bOnTop0) ? 1.0f : GetVelocityInvMassScale(IterationParameters.Iteration, IterationParameters.NumIterations);
-					const FReal InvMassScale1 = (bUseMassScale && bOnTop0) ? GetVelocityInvMassScale(IterationParameters.Iteration, IterationParameters.NumIterations) : 1.0f;
+					const FReal InvMassScale1 = (!bUseMassScale || !bOnTop0) ? 1.0f : GetVelocityInvMassScale(IterationParameters.Iteration, IterationParameters.NumIterations);
+
+					const FReal InvM0 = bIsRigidDynamic0 ? InvMassScale0 * PBDRigid0->InvM() : 0.0f;
+					const FReal InvM1 = bIsRigidDynamic1 ? InvMassScale1 * PBDRigid1->InvM() : 0.0f;
+					const FMatrix33 InvI0 = bIsRigidDynamic0 ? InvMassScale0 * Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Constraint.Manifold.InvInertiaScale0 : FMatrix33(0);
+					const FMatrix33 InvI1 = bIsRigidDynamic1 ? InvMassScale1 * Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Constraint.Manifold.InvInertiaScale1 : FMatrix33(0);
 
 					const FMatrix33 ContactMassInv =
-						(bIsRigidDynamic0 ? Collisions::ComputeFactorMatrix3(ApplyContactPoint0, InvI0, InvM0) : FMatrix33(0)) +
-						(bIsRigidDynamic1 ? Collisions::ComputeFactorMatrix3(ApplyContactPoint1, InvI1, InvM1) : FMatrix33(0));
+						((InvM0 > SMALL_NUMBER) ? Collisions::ComputeFactorMatrix3(ApplyContactPoint0, InvI0, InvM0) : FMatrix33(0)) +
+						((InvM1 > SMALL_NUMBER) ? Collisions::ComputeFactorMatrix3(ApplyContactPoint1, InvI1, InvM1) : FMatrix33(0));
 					const FMatrix33 ContactMass = ContactMassInv.Inverse();
 					const FReal ContactMassInvNormal = FVec3::DotProduct(ContactNormal, Utilities::Multiply(ContactMassInv, ContactNormal));
 					const FReal ContactMassNormal = (ContactMassInvNormal > (FReal)SMALL_NUMBER) ? (FReal)1.0f / ContactMassInvNormal : (FReal)0.0f;

@@ -181,7 +181,13 @@ void UNiagaraParameterCollectionInstance::Tick(UWorld* World)
 void UNiagaraParameterCollectionInstance::SyncWithCollection()
 {
 	FNiagaraParameterStore OldStore = ParameterStorage;
-	ParameterStorage.Empty(false);
+	ParameterStorage.Empty(Collection == nullptr);
+
+	if (Collection == nullptr)
+	{
+		OverridenParameters.Empty();
+		return;
+	}
 
 	for (FNiagaraVariable& Param : Collection->GetParameters())
 	{

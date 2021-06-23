@@ -8,7 +8,7 @@
 
 BEGIN_NAMESPACE_UE_AC
 
-#if defined(WIN32)
+#if PLATFORM_WINDOWS
 
 // Throw a runtime_error for last windows error
 void ThrowWinError(DWORD winErr, const utf8_t* InFile, int InLineNo);

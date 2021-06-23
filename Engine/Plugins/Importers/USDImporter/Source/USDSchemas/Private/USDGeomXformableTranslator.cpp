@@ -257,7 +257,7 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 	{
 		// Spawn actor
 		FActorSpawnParameters SpawnParameters;
-		SpawnParameters.ObjectFlags = Context->ObjectFlags;
+		SpawnParameters.ObjectFlags = Context->ObjectFlags & ~RF_Standalone;
 		SpawnParameters.OverrideLevel =  Context->Level;
 		SpawnParameters.Name = Prim.GetName();
 		SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested; // Will generate a unique name in case of a conflict
@@ -330,7 +330,7 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 		if ( ComponentType.IsSet() && ComponentType.GetValue() != nullptr )
 		{
 			const FName ComponentName = MakeUniqueObjectName( ComponentOuter, ComponentType.GetValue(), FName( Prim.GetName() ) );
-			SceneComponent = NewObject< USceneComponent >( ComponentOuter, ComponentType.GetValue(), ComponentName, Context->ObjectFlags );
+			SceneComponent = NewObject< USceneComponent >( ComponentOuter, ComponentType.GetValue(), ComponentName, Context->ObjectFlags & ~RF_Standalone);
 
 			if ( AActor* Owner = SceneComponent->GetOwner() )
 			{

@@ -83,6 +83,17 @@ static FAutoConsoleVariableRef CVarFXBudget_AdjustedUsageMax(
 	ECVF_Default
 );
 
+#if WITH_EDITOR
+static bool GFXBudget_EnabledInEditor=false;
+static FAutoConsoleVariableRef CVarFXBudget_EnabledInEditor(
+	TEXT("fx.Budget.EnabledInEditor"),
+	GFXBudget_EnabledInEditor,
+	TEXT("Controls whether we track global FX budgets in editor builds."),
+	FConsoleVariableDelegate::CreateStatic(FFXBudget::OnEnabledCVarChanged),
+	ECVF_Default
+);
+#endif
+
 static FAutoConsoleVariableRef CVarFXBudget_Enabled(
 	TEXT("fx.Budget.Enabled"),
 	FFXBudget::bEnabled,
@@ -329,6 +340,11 @@ void FFXBudget::SetEnabled(bool bInEnabled)
 
 void FFXBudget::OnEnabledChangedInternal()
 {
+#if WITH_EDITOR
+	//Don't allow budgeting to be enabled in the editor if the editor specific CVar is false.
+	SetEnabled(GFXBudget_EnabledInEditor && CVarFXBudget_Enabled->GetBool());
+#endif
+
 	if (bEnabled)
 	{
 		if (!StatsListener.IsValid())

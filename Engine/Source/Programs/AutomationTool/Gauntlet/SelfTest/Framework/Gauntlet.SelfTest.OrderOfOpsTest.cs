@@ -91,6 +91,13 @@ namespace Gauntlet.SelfTest
 			return TestResult.Passed;
 		}
 
+		/// <summary>
+		/// Manually set the value of the test result
+		/// </summary>
+		public void SetTestResult(TestResult testResult)
+		{
+		}
+
 		public string GetTestSummary()
 		{
 			SetNewStage(TestStages.Summary);

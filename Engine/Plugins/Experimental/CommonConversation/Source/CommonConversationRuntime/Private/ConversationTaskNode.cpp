@@ -26,30 +26,44 @@ EConversationRequirementResult UConversationTaskNode::CheckRequirements(const FC
 
 	UWorld* World = Context.GetWorld();
 
-	// If this task has innate requirements, we should check those.
+	// Iterate sub node requirements, before we iterate core task node requirements. 
+	// whilst counter-intuitive, task node requirements often have expensive checks (e.g physics tests) which we want to avoid
+	// Conversely sub node requirements often feature simple tag gating checks, which we would prefer to fail on and bail quickly
+
+	// Iterate subnodes that are requirements and see if any don't pass.
+	for (const UConversationNode* SubNode : SubNodes)
 	{
-		TGuardValue<UObject*> Swapper(EvalWorldContextObj, World);
-
-		const EConversationRequirementResult RequirementResult = IsRequirementSatisfied(Context);
-		if (RequirementResult != EConversationRequirementResult::Passed)
-		{
-			UE_LOG(LogCommonConversationRuntime, Verbose, TEXT("\tRequirement %s %s"), *GetPathNameSafe(this), *StaticEnum<EConversationRequirementResult>()->GetNameStringByValue((int64)RequirementResult));
-		}
-
-		FinalRequirementResult = RequirementResult;
-	}
-
-	// Go through any subnodes that are requirements and see if any don't pass.
-	for (UConversationNode* SubNode : SubNodes)
-	{
-		if (UConversationRequirementNode* RequirementNode = Cast<UConversationRequirementNode>(SubNode))
+		if (const UConversationRequirementNode* RequirementNode = Cast<UConversationRequirementNode>(SubNode))
 		{
 			TGuardValue<UObject*> Swapper(RequirementNode->EvalWorldContextObj, World);
-			
+
 			const EConversationRequirementResult RequirementResult = RequirementNode->IsRequirementSatisfied(Context);
+
+			FinalRequirementResult = MergeRequirements(FinalRequirementResult, RequirementResult);
+
 			if (RequirementResult != EConversationRequirementResult::Passed)
 			{
 				UE_LOG(LogCommonConversationRuntime, Verbose, TEXT("\tRequirement %s %s"), *GetPathNameSafe(RequirementNode), *StaticEnum<EConversationRequirementResult>()->GetNameStringByValue((int64)RequirementResult));
+			}
+
+			if (FinalRequirementResult == EConversationRequirementResult::FailedAndHidden)
+			{
+				// Can't get any more failed than this
+				break;
+			}
+		}
+	}
+
+	if (FinalRequirementResult != EConversationRequirementResult::FailedAndHidden)
+	{
+		// If this task has innate requirements, we should check those.
+		{
+			TGuardValue<UObject*> Swapper(EvalWorldContextObj, World);
+
+			const EConversationRequirementResult RequirementResult = IsRequirementSatisfied(Context);
+			if (RequirementResult != EConversationRequirementResult::Passed)
+			{
+				UE_LOG(LogCommonConversationRuntime, Verbose, TEXT("\tRequirement %s %s"), *GetPathNameSafe(this), *StaticEnum<EConversationRequirementResult>()->GetNameStringByValue((int64)RequirementResult));
 			}
 
 			FinalRequirementResult = MergeRequirements(FinalRequirementResult, RequirementResult);

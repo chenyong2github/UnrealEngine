@@ -25,17 +25,77 @@ struct MOTOSYNTH_API FMotoSynthRuntimeSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth")
 	bool bSynthToneEnabled = false;
 
-	// The volume of the synth tone	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0", EditCondition="bSynthToneEnabled"))
-	float SynthToneVolume = 0.0f;
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	float SynthToneVolume_DEPRECATED = 0.0f;
 
-	// The filter frequency of the synth tone
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth", meta = (ClampMin = "20.0", ClampMax = "10000.0", UIMin = "20.0", UIMax = "10000.0", EditCondition = "bSynthToneEnabled"))
-	float SynthToneFilterFrequency = 500.0f;
+	UPROPERTY()
+	float SynthToneFilterFrequency_DEPRECATED = 0.0f;
+#endif
+
+	// The volume of the synth tone	between min and max RPM
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth", meta = (EditCondition = "bSynthToneEnabled"))
+	FVector2D SynthToneVolumeRange = { 0.0f, 0.0f };
+
+	// The filter frequency of the synth tone between min/max RPM
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth", meta = (EditCondition = "bSynthToneEnabled"))
+	FVector2D SynthToneFilterFrequencyRange = { 500.0f, 500.0f };
+
+	// Enable the synth tone envelope generator
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth", meta = (EditCondition = "bSynthToneEnabled"))
+	bool bSynthToneEnvelopeEnabled = true;
+
+	// Synth tone envelope attack time in milliseconds between min/max RPM
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth", meta = (EditCondition = "bSynthToneEnabled"))
+	FVector2D SynthToneAttackTimeMsecRange = { 10.0f, 10.0f };
+
+	// Synth tone envelope attack curve.  1.0 = linear growth, < 1.0 logorithmic growth, > 1.0 exponential growth.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth", meta = (EditCondition = "bSynthToneEnabled"))
+	FVector2D SynthToneAttackCurveRange = { 1.0f, 1.0f };
+
+	// Synth tone decay time in milliseconds
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth", meta = (EditCondition = "bSynthToneEnabled"))
+	FVector2D SynthToneDecayTimeMsecRange = { 100.0f, 100.0f };
+
+	// Synth tone envelope decay curve.  1.0 = linear decay, < 1.0 exponential decay, > 1.0 logarithmic decay.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth", meta = (EditCondition = "bSynthToneEnabled"))
+	FVector2D SynthToneDecayCurveRange = { 1.0f, 1.0f };
 
 	// Octave shift of the synth
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth", meta = (ClampMin = "-3", ClampMax = "3", UIMin = "-3", UIMax = "3", EditCondition = "bSynthToneEnabled"))
 	int32 SynthOctaveShift = 0;
+
+	// If the noise generator enabled
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth")
+	bool bNoiseEnabled = false;
+
+	// The volume of the noise source
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth", meta = (EditCondition = "bNoiseEnabled"))
+	FVector2D NoiseVolumeRange = { 1.0f, 1.0f };
+
+	// If the noise generator has the envelope enabled
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth", meta = (EditCondition = "bNoiseEnabled"))
+	bool bNoiseEnvelopeEnabled = false;
+
+	// The filter frequency of the noise generator between min/max RPM
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth", meta = (EditCondition = "bNoiseEnabled"))
+	FVector2D NoiseLPFRange = { 500.0f, 500.0f };
+
+	// Noise envelope attack time in milliseconds between min/max RPM
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth", meta = (EditCondition = "bNoiseEnabled"))
+	FVector2D NoiseAttackTimeMsecRange = { 10.0f, 10.0f };
+
+	// Noise envelope attack curve.  1.0 = linear growth, < 1.0 logorithmic growth, > 1.0 exponential growth.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth", meta = (EditCondition = "bNoiseEnabled"))
+	FVector2D NoiseAttackCurveRange = { 1.0f, 1.0f };
+
+	// Noise envelope attack time in milliseconds between min/max RPM
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth", meta = (EditCondition = "bNoiseEnabled"))
+	FVector2D NoiseDecayTimeMsecRange = { 10.0f, 10.0f };
+
+	// Noise envelope attack curve between min/max RPM.  1.0 = linear growth, < 1.0 logorithmic growth, > 1.0 exponential growth.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Synth", meta = (EditCondition = "bNoiseEnabled"))
+	FVector2D NoiseDecayCurveRange = { 1.0f, 1.0f };
 
 	// If the granular engine is enabled
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Granular Engine")
@@ -62,7 +122,7 @@ struct MOTOSYNTH_API FMotoSynthRuntimeSettings
 	int32 GrainTableRandomOffsetForConstantRPMs = 20;
 
 	// Number of samples to cross fade grains when on a constant-RPM state. More crossfaded samples can reduce the robotic sound.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Granular Engine", meta = (ClampMin = "0", ClampMax = "200", UIMin = "0", UIMax = "200", EditCondition = "bGranularEngineEnabled"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Granular Engine", meta = (ClampMin = "0", UIMin = "0", EditCondition = "bGranularEngineEnabled"))
 	int32 GrainCrossfadeSamplesForConstantRPMs = 20;
 
 	// Motosynth source to use for granular engine acceleration
@@ -165,6 +225,7 @@ class MOTOSYNTH_API UMotoSynthPreset : public UObject
 public:
 
 	virtual void BeginDestroy() override;
+	virtual void PostLoad() override;
 
 #if WITH_EDITORONLY_DATA
 	// Engine preview RPM curve

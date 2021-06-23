@@ -8,8 +8,7 @@
 
 #if PLATFORM_ANDROID
 #include "Android/AndroidPlatformMisc.h"
-#include <openxr_oculus.h>
-#include <dlfcn.h>
+#include <dlfcn.h> 
 #endif //PLATFORM_ANDROID
 
 DEFINE_LOG_CATEGORY(LogOculusOpenXRPlugin);

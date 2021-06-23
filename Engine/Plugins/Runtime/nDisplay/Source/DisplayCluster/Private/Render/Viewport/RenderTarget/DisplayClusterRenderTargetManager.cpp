@@ -216,10 +216,11 @@ bool FDisplayClusterRenderTargetManager::AllocateFrameTargets(const FDisplayClus
 						ViewportPtr->AdditionalFrameTargetableResources = NewAdditionalFrameTargetableResources;
 
 						// Adjust viewports frame rects. This offset saved in 'BackbufferFrameOffset'
-						for (FDisplayClusterViewport_Context& ContextIt : ViewportPtr->Contexts)
+						if (ViewIt.ContextNum < (uint32)ViewportPtr->Contexts.Num())
 						{
-							ContextIt.FrameTargetRect.Min -= InOutRenderFrame.FrameRect.Min;
-							ContextIt.FrameTargetRect.Max -= InOutRenderFrame.FrameRect.Min;
+							FDisplayClusterViewport_Context& Context = ViewportPtr->Contexts[ViewIt.ContextNum];
+							Context.FrameTargetRect.Min -= InOutRenderFrame.FrameRect.Min;
+							Context.FrameTargetRect.Max -= InOutRenderFrame.FrameRect.Min;
 						}
 					}
 				}

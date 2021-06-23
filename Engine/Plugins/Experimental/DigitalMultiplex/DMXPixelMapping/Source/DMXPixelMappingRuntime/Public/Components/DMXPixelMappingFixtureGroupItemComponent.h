@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "Components/DMXPixelMappingExtraAttribute.h"
-
 #include "Components/DMXPixelMappingOutputDMXComponent.h"
+
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "Library/DMXEntityReference.h"
@@ -13,14 +12,18 @@
 
 #include "DMXPixelMappingFixtureGroupItemComponent.generated.h"
 
+struct FDMXAttributeName;
+class UDMXModulator;
+enum class EDMXColorMode : uint8;
+
 class STextBlock;
 class UTextureRenderTarget2D;
-enum class EDMXColorMode : uint8;
+
 
 /**
  * Fixture Item pixel component
  */
-UCLASS()
+UCLASS(AutoExpandCategories = ("Output Settings"))
 class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingFixtureGroupItemComponent
 	: public UDMXPixelMappingOutputDMXComponent
 {
@@ -30,19 +33,17 @@ public:
 	UDMXPixelMappingFixtureGroupItemComponent();
 
 protected:
-	//~ Begin UObject implementation
+	virtual void PostLoad() override;
 #if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
 #endif // WITH_EDITOR
-	//~ End UObject implementation
 
 public:
 	//~ Begin UDMXPixelMappingBaseComponent implementation
 	virtual const FName& GetNamePrefix() override;
 	virtual void ResetDMX() override;
 	virtual void SendDMX() override;
-	virtual void PostParentAssigned() override;
-
 #if WITH_EDITOR
 	virtual FString GetUserFriendlyName() const override;
 #endif
@@ -50,23 +51,16 @@ public:
 
 	//~ Begin UDMXPixelMappingOutputComponent implementation
 #if WITH_EDITOR
-	virtual TSharedRef<SWidget> BuildSlot(TSharedRef<SConstraintCanvas> InCanvas) override;
-	virtual void ToggleHighlightSelection(bool bIsSelected) override;
 	virtual bool IsVisibleInDesigner() const override;
-
-	virtual void UpdateWidget() override;
 #endif // WITH_EDITOR	
-
-	virtual FVector2D GetSize() const override;
-	virtual FVector2D GetPosition() override;
-	virtual void SetPosition(const FVector2D& InPosition) override;
-	virtual void SetSize(const FVector2D& InSize) override;
-
+	virtual bool IsOverParent() const override;
 	virtual void QueueDownsample() override;
-
 	virtual int32 GetDownsamplePixelIndex() const override { return DownsamplePixelIndex; }
+	virtual void SetPosition(const FVector2D& NewPosition) override;
+	virtual void SetSize(const FVector2D& NewSize) override;
 	//~ End UDMXPixelMappingOutputComponent implementation
 
+public:
 	//~ Begin UDMXPixelMappingOutputDMXComponent implementation
 	virtual void RenderWithInputAndSendDMX() override;
 	//~ End UDMXPixelMappingOutputDMXComponent implementation
@@ -74,17 +68,9 @@ public:
 	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */
 	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
 
-	void SetPositionFromParent(const FVector2D& InPosition);
-
 private:
 	/** Helper that returns the renderer component this component belongs to */
 	UDMXPixelMappingRendererComponent* GetRendererComponent() const;
-
-	/** Set position of Fixture Pixel inside Fixture Group Boundary Box */
-	void SetPositionInBoundaryBox(const FVector2D& InPosition);
-
-	/** Set size of Fixture Pixel inside Fixture Group Boundary Box */
-	void SetSizeWithinBoundaryBox(const FVector2D& InSize);
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Selected Patch")
@@ -129,37 +115,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayName = "Intensity Attribute"))
 	FDMXAttributeName MonochromeIntensity;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings", meta = (DisplayAfter = "MonochromeIntensity"))
-	TArray<FDMXPixelMappingExtraAttribute> ExtraAttributes;
+	/** Modulators applied to the output before sending DMX */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Transient, Category = "Output Settings", meta = (DisplayName = "Output Modulators"))
+	TArray<TSubclassOf<UDMXModulator>> ModulatorClasses;
 
-#if WITH_EDITORONLY_DATA
-	/** The X position relative to the parent group */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings")
-	float RelativePositionX;
-
-	/** The Y position relative to the parent group */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings")
-	float RelativePositionY;
-#endif // WITH_EDITORONLY_DATA
-
-private:
-#if WITH_EDITOR
-	/** Maps attributes that exist in the patch to the attributes of the group items. Clears those that don't exist. */
-	void AutoMapAttributes();
-#endif // WITH_EDITOR
-
-#if WITH_EDITORONLY_DATA
-	FSlateBrush Brush;
-
-	TSharedPtr<STextBlock> PatchNameWidget;
-#endif // WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TArray<UDMXModulator*> Modulators;
 
 	/** Index of the cell pixel in downsample target buffer */
 	int32 DownsamplePixelIndex;
 
-private:
-	static const FVector2D MixPixelSize;
-
-protected:
-	bool CheckForDuplicateFixturePatch(UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent, FDMXEntityFixturePatchRef InFixturePatchRef);
+	/** Creates attribute values from current data */
+	TMap<FDMXAttributeName, float> CreateAttributeValues() const;
 };

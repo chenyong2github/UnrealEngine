@@ -56,6 +56,7 @@ struct FRCCachedFieldData
 /**
  * Holds an exposed property and owner objects.
  */
+struct UE_DEPRECATED(4.27, "FExposedProperty is deprecated. Please use FRemoteControlProperty::GetBoundObjects to access an exposed property's owner objects.") FExposedProperty;
 struct REMOTECONTROL_API FExposedProperty
 {
 	bool IsValid() const
@@ -70,6 +71,7 @@ struct REMOTECONTROL_API FExposedProperty
 /**
  * Holds an exposed function, its default parameters and owner objects.
  */
+struct UE_DEPRECATED(4.27, "FExposedFunction is deprecated. Please use FRemoteControlFunction::GetBoundObjects to access an exposed function's owner objects.") FExposedFunction;
 struct REMOTECONTROL_API FExposedFunction
 {
 	bool IsValid() const 
@@ -265,6 +267,7 @@ private:
 /**
  * Represents objects grouped under a single alias that contain exposed functions and properties.
  */
+struct UE_DEPRECATED(4.27, "FRemoteControlTarget is deprecated. Expose properties directly on a remote control preset instead.") FRemoteControlTarget;
 USTRUCT()
 struct REMOTECONTROL_API FRemoteControlTarget
 {
@@ -338,14 +341,17 @@ public:
 	 * @param PropertyLabel the label of the remote controlled property.
 	 * @return The resolved exposed property if found.
 	 */
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TOptional<FExposedProperty> ResolveExposedProperty(FGuid PropertyId) const;
-
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	/**
 	 * Resolve a remote controlled function to its UFunction and owner objects.
 	 * @param FunctionLabel the label of the remote controlled function.
 	 * @return The resolved exposed function if found.
 	 */
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TOptional<FExposedFunction> ResolveExposedFunction(FGuid FunctionId) const;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Resolve the target bindings to return the target's underlying objects.
@@ -464,14 +470,17 @@ public:
 	 * Get this preset's targets.
 	 */
 	UE_DEPRECATED(4.27, "FRemoteControlTarget is deprecated, use URemoteControlPreset::Bindings instead.")
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TMap<FName, FRemoteControlTarget>& GetRemoteControlTargets() { return RemoteControlTargets; }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Get this preset's targets.
 	 */
 	UE_DEPRECATED(4.27, "FRemoteControlTarget is deprecated, use URemoteControlPreset::Bindings instead.")
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	const TMap<FName, FRemoteControlTarget>& GetRemoteControlTargets() const { return RemoteControlTargets; }
-
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	/**
 	 * Get the target that owns this exposed field.
 	 */
@@ -637,7 +646,9 @@ public:
 	 * @return The resolved exposed property if found.
 	 */
 	UE_DEPRECATED(4.27, "Use FRemoteControlProperty::GetProperty and FRemoteControlProperty::ResolveFieldOwners instead.")
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TOptional<FExposedProperty> ResolveExposedProperty(FName PropertyLabel) const;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Resolve a remote controlled function to its UFunction and owner objects.
@@ -646,7 +657,9 @@ public:
 	 * @return The resolved exposed function if found.
 	 */
 	UE_DEPRECATED(4.27, "Use FRemoteControlFunction::ResolveFieldOwners instead.")
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TOptional<FExposedFunction> ResolveExposedFunction(FName FunctionLabel) const;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Unexpose an entity from the preset.
@@ -676,7 +689,9 @@ public:
 	 * @note A target must be created with at least one object and they must have a common base class.
 	 */
 	UE_DEPRECATED(4.27, "Targets are deprecated in favor of exposing directly on the preset. You do not need to create a target beforehand.")
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FRemoteControlTarget& CreateAndGetTarget(const TArray<UObject*>& TargetObjects);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Remove a target from the preset.
@@ -786,6 +801,7 @@ private:
 	//~ Keep track of any property change to notify if one of the exposed property has changed
 	void OnObjectPropertyChanged(UObject* Object, struct FPropertyChangedEvent& Event);
 	void OnPreObjectPropertyChanged(UObject* Object, const class FEditPropertyChain& PropertyChain);
+	void OnPostPropertyModifiedRemotely(const FRCObjectReference& ObjectRef);
 
 #if WITH_EDITOR	
 	//~ Handle events that can incur bindings to be modified.
@@ -849,9 +865,11 @@ private:
 	UPROPERTY(AssetRegistrySearchable)
 	FGuid PresetId;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** The mappings of alias to targets. */
 	UPROPERTY()
 	TMap<FName, FRemoteControlTarget> RemoteControlTargets;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** The cache for information about an exposed field. */
 	UPROPERTY(Transient)
@@ -934,14 +952,16 @@ private:
 	TMap<FGuid, FRCPropertyWatcher> PropertyWatchers;
 
 	/** Frame counter for delaying property change checks. */
-	int8 PropertyChangeWatchFrameCounter = 0;
+	int32 PropertyChangeWatchFrameCounter = 0;
 
 #if WITH_EDITOR
 	/** List of blueprints for which we have registered events. */
 	TSet<TWeakObjectPtr<UBlueprint>> BlueprintsWithRegisteredDelegates;
 #endif
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	friend FRemoteControlTarget;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	friend FRemoteControlPresetLayout;
 	friend FRemoteControlEntity;
 };

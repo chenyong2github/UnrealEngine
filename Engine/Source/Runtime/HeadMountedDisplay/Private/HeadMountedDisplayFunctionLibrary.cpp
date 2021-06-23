@@ -57,9 +57,9 @@ FName UHeadMountedDisplayFunctionLibrary::GetHMDDeviceName()
 {
 	FName DeviceName(NAME_None);
 
-	if (GEngine->XRSystem.IsValid())
+	if (GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice())
 	{
-		DeviceName = GEngine->XRSystem->GetSystemName();
+		DeviceName = GEngine->XRSystem->GetHMDDevice()->GetHMDName();
 	}
 
 	return DeviceName;
@@ -568,7 +568,6 @@ bool UHeadMountedDisplayFunctionLibrary::GetControllerTransformForTime(UObject* 
 	return false;
 }
 
-
 FVector2D UHeadMountedDisplayFunctionLibrary::GetPlayAreaBounds(TEnumAsByte<EHMDTrackingOrigin::Type> InOrigin)
 {
 	if (GEngine->XRSystem.IsValid())
@@ -591,4 +590,25 @@ FVector2D UHeadMountedDisplayFunctionLibrary::GetPlayAreaBounds(TEnumAsByte<EHMD
 		return GEngine->XRSystem->GetPlayAreaBounds(Origin);
 	}
 	return FVector2D::ZeroVector;
+}
+
+void UHeadMountedDisplayFunctionLibrary::BreakKey(FKey InKey, FString& InteractionProfile, EControllerHand& Hand, FName& MotionSource, FString& Indentifier, FString& Component)
+{
+	TArray<FString> Tokens;
+	if (InKey.ToString().ParseIntoArray(Tokens, TEXT("_")) == EKeys::NUM_XR_KEY_TOKENS)
+	{
+		InteractionProfile = Tokens[0];
+		Hand = Tokens[1] == TEXT("Right") ? EControllerHand::Right : EControllerHand::Left;
+		MotionSource = FName(Tokens[1]);
+		Indentifier = Tokens[2];
+		Component = Tokens[3];
+	}
+	else
+	{
+		InteractionProfile.Reset();
+		Hand = EControllerHand::AnyHand;
+		MotionSource = NAME_None;
+		Indentifier.Reset();
+		Component.Reset();
+	}
 }

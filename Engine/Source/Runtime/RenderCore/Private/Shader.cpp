@@ -1813,7 +1813,7 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		KeyString += TEXT("_RTWM");
 	}
 
-	if (IsUsingPerPixelDBufferMask(Platform))
+	if (FDataDrivenShaderPlatformInfo::GetSupportsPerPixelDBufferMask(Platform))
 	{
 		KeyString += TEXT("_PPDBM");
 	}

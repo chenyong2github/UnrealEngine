@@ -3,6 +3,7 @@
 #include "LensDistortionModelHandlerBase.h"
 
 #include "Algo/MaxElement.h"
+#include "CameraCalibrationSettings.h"
 #include "Kismet/KismetRenderingLibrary.h"
 
 bool FLensDistortionState::operator==(const FLensDistortionState& Other) const
@@ -10,6 +11,16 @@ bool FLensDistortionState::operator==(const FLensDistortionState& Other) const
 	return ((DistortionInfo.Parameters == Other.DistortionInfo.Parameters)
 		&& (FocalLengthInfo.FxFy == Other.FocalLengthInfo.FxFy)
 		&& (ImageCenter.PrincipalPoint == Other.ImageCenter.PrincipalPoint));
+}
+
+ULensDistortionModelHandlerBase::ULensDistortionModelHandlerBase()
+{
+	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
+	{
+#if WITH_EDITOR
+		GetMutableDefault<UCameraCalibrationSettings>()->OnDisplacementMapResolutionChanged().AddUObject(this, &ULensDistortionModelHandlerBase::CreateDisplacementMaps);
+#endif // WITH_EDITOR
+	}
 }
 
 bool ULensDistortionModelHandlerBase::IsModelSupported(const TSubclassOf<ULensModel>& ModelToSupport) const
@@ -47,20 +58,37 @@ void ULensDistortionModelHandlerBase::PostInitProperties()
 			CurrentState.DistortionInfo.Parameters.Init(0.0f, NumDistortionParameters);
 		}
 
-		// TODO: Delay this to an initialization step where the user can specify whether to create one or both render targets
-		UndistortionDisplacementMapRT = NewObject<UTextureRenderTarget2D>(this, MakeUniqueObjectName(this, UTextureRenderTarget2D::StaticClass(), TEXT("UndistortionDisplacementMapRT")));
-		UndistortionDisplacementMapRT->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RG16f;
-		UndistortionDisplacementMapRT->ClearColor = FLinearColor::Black;
-		UndistortionDisplacementMapRT->bAutoGenerateMips = false;
-		UndistortionDisplacementMapRT->InitAutoFormat(DisplacementMapWidth, DisplacementMapHeight);
-		UndistortionDisplacementMapRT->UpdateResourceImmediate(true);
+		const FIntPoint DisplacementMapResolution = GetDefault<UCameraCalibrationSettings>()->GetDisplacementMapResolution();
+		CreateDisplacementMaps(DisplacementMapResolution);
+	}
+}
 
-		DistortionDisplacementMapRT = NewObject<UTextureRenderTarget2D>(this, MakeUniqueObjectName(this, UTextureRenderTarget2D::StaticClass(), TEXT("DistortionDisplacementMapRT")));
-		DistortionDisplacementMapRT->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RG16f;
-		DistortionDisplacementMapRT->ClearColor = FLinearColor::Black;
-		DistortionDisplacementMapRT->bAutoGenerateMips = false;
-		DistortionDisplacementMapRT->InitAutoFormat(DisplacementMapWidth, DisplacementMapHeight);
-		DistortionDisplacementMapRT->UpdateResourceImmediate(true);
+void ULensDistortionModelHandlerBase::CreateDisplacementMaps(const FIntPoint DisplacementMapResolution)
+{
+	//Helper function to set material parameters of an MID
+	const auto SetupDisplacementMap = [this, DisplacementMapResolution](UTextureRenderTarget2D* const DisplacementMap)
+	{
+		DisplacementMap->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RG16f;
+		DisplacementMap->ClearColor = FLinearColor::Black;
+		DisplacementMap->AddressX = TA_Clamp;
+		DisplacementMap->AddressY = TA_Clamp;
+		DisplacementMap->bAutoGenerateMips = false;
+		DisplacementMap->InitAutoFormat(DisplacementMapResolution.X, DisplacementMapResolution.Y);
+		DisplacementMap->UpdateResourceImmediate(true);
+	};
+
+	// Create an undistortion displacement map
+	UndistortionDisplacementMapRT = NewObject<UTextureRenderTarget2D>(this, MakeUniqueObjectName(this, UTextureRenderTarget2D::StaticClass(), TEXT("UndistortionDisplacementMapRT")));
+	SetupDisplacementMap(UndistortionDisplacementMapRT);
+
+	// Create a distortion displacement map
+	DistortionDisplacementMapRT = NewObject<UTextureRenderTarget2D>(this, MakeUniqueObjectName(this, UTextureRenderTarget2D::StaticClass(), TEXT("DistortionDisplacementMapRT")));
+	SetupDisplacementMap(DistortionDisplacementMapRT);
+
+	if (DistortionPostProcessMID)
+	{
+		DistortionPostProcessMID->SetTextureParameterValue("UndistortionDisplacementMap", UndistortionDisplacementMapRT);
+		DistortionPostProcessMID->SetTextureParameterValue("DistortionDisplacementMap", DistortionDisplacementMapRT);
 	}
 }
 

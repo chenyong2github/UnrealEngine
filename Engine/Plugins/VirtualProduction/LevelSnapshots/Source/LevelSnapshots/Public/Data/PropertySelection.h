@@ -32,6 +32,7 @@ struct LEVELSNAPSHOTS_API FLevelSnapshotPropertyChain : FArchiveSerializedProper
 	bool EqualsSerializedProperty(const FArchiveSerializedPropertyChain* ContainerChain, const FProperty* LeafProperty) const;
 
 	bool IsEmpty() const;
+	bool operator==(const FLevelSnapshotPropertyChain& InPropertyChain) const;
 };
 
 /* Holds all properties that should be restored for an object. */
@@ -60,15 +61,25 @@ struct LEVELSNAPSHOTS_API FPropertySelection
 
 	bool IsEmpty() const;
 
+	void SetHasCustomSerializedSubobjects(bool bValue) { bHasCustomSerializedSubobjects = bValue; };
+	bool HasCustomSerializedSubobjects() const { return bHasCustomSerializedSubobjects;}
+
 	void AddProperty(const FLevelSnapshotPropertyChain& SelectedProperty);
 	void RemoveProperty(const FArchiveSerializedPropertyChain* ContainerChain, const FProperty* LeafProperty);
+
+	void RemoveProperty(FArchiveSerializedPropertyChain* ContainerChain);
 
 	/* Gets a flat list of all selected properties. The result contains no information what nested struct a property came from. */
 	const TArray<TFieldPath<FProperty>>& GetSelectedLeafProperties() const;
 
+	const TArray<FLevelSnapshotPropertyChain>& GetSelectedProperties() const;
+
 private:
 
 	int32 FindPropertyChain(const FArchiveSerializedPropertyChain* ContainerChain, const FProperty* LeafProperty) const;
+
+	/** Whether some ICustomObjectSnapshotSerializer has changed subobjects */
+	bool bHasCustomSerializedSubobjects = false;
 	
 	/* Duplicate version of SelectedProperties with the struct-path leading to the property left out. Needed to build UI more easily. */
 	TArray<TFieldPath<FProperty>> SelectedLeafProperties;

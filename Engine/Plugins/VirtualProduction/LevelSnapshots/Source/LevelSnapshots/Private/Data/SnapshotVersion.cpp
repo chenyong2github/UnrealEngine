@@ -43,3 +43,20 @@ bool FSnapshotVersionInfo::IsInitialized() const
 {
 	return CustomVersions.Num() > 0;
 }
+
+void FSnapshotVersionInfo::ApplyToArchive(FArchive& Archive) const
+{
+	if (ensure(Archive.IsLoading()))
+	{
+		Archive.SetUEVer(FileVersion.FileVersion);
+		Archive.SetLicenseeUEVer(FileVersion.FileVersionLicensee);
+		Archive.SetEngineVer(FEngineVersionBase(EngineVersion.Major, EngineVersion.Minor, EngineVersion.Patch, EngineVersion.Changelist));
+
+		FCustomVersionContainer EngineCustomVersions;
+		for (const FSnapshotCustomVersionInfo& CustomVersion : CustomVersions)
+		{
+			EngineCustomVersions.SetVersion(CustomVersion.Key, CustomVersion.Version, CustomVersion.FriendlyName);
+		}
+		Archive.SetCustomVersions(EngineCustomVersions);
+	}
+}

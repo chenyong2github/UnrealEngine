@@ -21,6 +21,8 @@
 #include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
 #include "PhysicsEngine/BodySetup.h"
 
+DEFINE_LOG_CATEGORY(LogDataprepGeometryOperations);
+
 #define LOCTEXT_NAMESPACE "DatasmithEditingOperationsExperimental"
 
 #ifdef LOG_TIME

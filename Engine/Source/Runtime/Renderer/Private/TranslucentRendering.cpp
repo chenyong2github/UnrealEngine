@@ -847,7 +847,7 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 		BasePassParameters.SceneColorCopyTexture = SceneColorCopyTexture;
 	}
 
-	BasePassParameters.EyeAdaptationTexture = SystemTextures.Black;
+	BasePassParameters.EyeAdaptationTexture = SystemTextures.White;
 
 	// Setup by passes that support it
 	if (View.HasValidEyeAdaptationTexture())

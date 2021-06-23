@@ -6,13 +6,14 @@
 
 #include "IPropertyRowGenerator.h"
 #include "UObject/StrongObjectPtr.h"
-#include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 
 namespace RemoteControlProtocolWidgetUtils {
 	struct FPropertyViewColumnSizeData;
 }
 
+/** Controls visibility of the property name column */
 enum class EPropertyNameVisibility : uint8
 {
 	Show = 0, // Always show the name column
@@ -23,46 +24,44 @@ enum class EPropertyNameVisibility : uint8
 class SGridPanel;
 
 /** Represents a single property, including a struct. */
-class REMOTECONTROLPROTOCOLWIDGETS_API SPropertyView final : public SCompoundWidget, public FGCObject
+class REMOTECONTROLPROTOCOLWIDGETS_API SPropertyView final : public SCompoundWidget
 {
 	struct FPropertyWidgetCreationArgs
 	{
 		FPropertyWidgetCreationArgs(
-            const int32 InIndex,
-            const TSharedPtr<SWidget>& InNameWidget, 
-            const TSharedPtr<SWidget>& InValueWidget,
-            const float InLeftPadding,
-            const TOptional<float>& InValueMinWidth = {},
-            const TOptional<float>& InValueMaxWidth = {})
-            : Index(InIndex),
-              NameWidget(InNameWidget),
-              ValueWidget(InValueWidget),
-              LeftPadding(InLeftPadding),
-              ValueMinWidth(InValueMinWidth),
-              ValueMaxWidth(InValueMaxWidth),
-              ColumnSizeData(nullptr),
-              Spacing(0.0f),
-              bResizableColumn(false)
-		{
-		}
+			const int32 InIndex,
+			const TSharedPtr<SWidget>& InNameWidget,
+			const TSharedPtr<SWidget>& InValueWidget,
+			const float InLeftPadding,
+			const TOptional<float>& InValueMinWidth = {},
+			const TOptional<float>& InValueMaxWidth = {})
+			: Index(InIndex)
+			, NameWidget(InNameWidget)
+			, ValueWidget(InValueWidget)
+			, LeftPadding(InLeftPadding)
+			, ValueMinWidth(InValueMinWidth)
+			, ValueMaxWidth(InValueMaxWidth)
+			, ColumnSizeData(nullptr)
+			, Spacing(0.0f)
+			, bResizableColumn(false)
+		{ }
 
 		FPropertyWidgetCreationArgs(
-            const FPropertyWidgetCreationArgs& InOther,
-            const TSharedPtr<SWidget>& InNameWidget,
-            const TSharedPtr<RemoteControlProtocolWidgetUtils::FPropertyViewColumnSizeData>& InColumnSizeData,
-            const float InSpacing,
-            const bool bInResizeableColumn)
-            : Index(InOther.Index),
-              NameWidget(InNameWidget ? InNameWidget : InOther.NameWidget),
-              ValueWidget(InOther.ValueWidget),
-              LeftPadding(InOther.LeftPadding),
-              ValueMinWidth(InOther.ValueMinWidth),
-              ValueMaxWidth(InOther.ValueMaxWidth),
-              ColumnSizeData(InColumnSizeData),
-              Spacing(InSpacing),
-              bResizableColumn(bInResizeableColumn)
-		{
-		}
+			const FPropertyWidgetCreationArgs& InOther,
+			const TSharedPtr<SWidget>& InNameWidget,
+			const TSharedPtr<RemoteControlProtocolWidgetUtils::FPropertyViewColumnSizeData>& InColumnSizeData,
+			const float InSpacing,
+			const bool bInResizeableColumn)
+			: Index(InOther.Index)
+			, NameWidget(InNameWidget ? InNameWidget : InOther.NameWidget)
+			, ValueWidget(InOther.ValueWidget)
+			, LeftPadding(InOther.LeftPadding)
+			, ValueMinWidth(InOther.ValueMinWidth)
+			, ValueMaxWidth(InOther.ValueMaxWidth)
+			, ColumnSizeData(InColumnSizeData)
+			, Spacing(InSpacing)
+			, bResizableColumn(bInResizeableColumn)
+		{ }
 
 		int32 Index;
 		TSharedPtr<SWidget> NameWidget;
@@ -102,33 +101,29 @@ public:
 	/** Constructs this widget with InArgs */
 	void Construct(const FArguments& InArgs);
 
-	~SPropertyView();
+	virtual ~SPropertyView() override;
 
 	/** Set's the object/property pair */
-	void SetProperty(UObject* InObject, const FName InPropertyName);
+	void SetProperty(UObject* InNewObject, const FName InPropertyName);
 
 	/** Set's the object/struct pair */
-	void SetStruct(UObject* InObject, TSharedPtr<FStructOnScope>& InStruct);
+	void SetStruct(UObject* InNewObject, TSharedPtr<FStructOnScope>& InStruct);
 
 	/** Force a refresh/rebuild */
 	void Refresh();
-
-	// FGCObject interface
-	virtual void AddReferencedObjects(FReferenceCollector& InCollector) override;
-	// End of FGCObject interface
 
 	static int32 GetDesiredWidth() { return DesiredWidth; }
 	static void SetDesiredWidth(int32 InDesiredWidth) { DesiredWidth = InDesiredWidth; }
 
 	/** Get the property handle for the property on this view */
-	TSharedPtr<IPropertyHandle> GetPropertyHandle() const { return Property; }
+	TSharedPtr<IPropertyHandle> GetPropertyHandle() const;
 
 	/** Get the FOnFinishedChangingProperties delegate from the underlying PropertyRowGenerator */
 	FOnFinishedChangingProperties& OnFinishedChangingProperties() const { return Generator->OnFinishedChangingProperties(); }
 
 protected:
 	// ueent_hotfix Hack for 4.24 allow to refresh the ui in between two frame without any flickering
-	virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
+	virtual bool CustomPrepass(float InLayoutScaleMultiplier) override;
 	
 	// Begin SWidget overrides.
 	// #ueent_todo: This is temporary until we find a better solution to the splitter issue
@@ -142,20 +137,21 @@ protected:
 
 private:	
 	/** Fills up the details view with the detail nodes created by the property row manager */
-	void Construct();
+	void ConstructInternal();
 
 	/** Add widgets held by array of DetailTreeNode objects */
-	void AddWidgets( const TArray<TSharedRef<class IDetailTreeNode>>& InDetailTree, int32& InIndex, float InLeftPadding);
+	void AddWidgets(const TArray<TSharedRef<class IDetailTreeNode>>& InDetailTree, int32& InIndex, float InLeftPadding);
 
+	/** Add widget for a category node */
+	void AddCategoryWidget(const TSharedRef<IDetailTreeNode>& InDetailTree, int32& InOutIndex, float InLeftPadding);
+
+	/** Add widget for a container node (array, etc.) */
+	void AddContainerWidget(const TSharedRef<IDetailTreeNode>& InDetailTree, int32& InOutIndex, float InLeftPadding);
+
+	/** Creates a layout for the supplied Name/Value widgets according to the supplied creation options. */
 	TSharedRef<SWidget> CreatePropertyWidget(const FPropertyWidgetCreationArgs& InCreationArgs);
 	
-	/**
-	* Inserts a generic widget for a property row into the grid panel
-	* @param Index						Row index in the grid panel
-	* @param NameWidget				The widget used in the name column
-	* @param ValueWidget				The widget used in the value column
-	* @param LeftPadding				The Padding on the left of the row
-	*/
+	/** Inserts a generic widget for a property row into the grid panel	*/
 	void CreateDefaultWidget(const FPropertyWidgetCreationArgs& InCreationArgs);
 
 	/** Callback used by all splitters in the details view, so that they move in sync */
@@ -169,45 +165,54 @@ private:
 	float OnGetRightColumnWidth() const { return ColumnWidth; }
 	void OnSetColumnWidth(float InWidth) { ColumnWidth = InWidth < 0.5f ? 0.5f : InWidth; }
 
-	/** Callback to track property changes on array properties */
+	/** Callback to track property changes */
 	void OnPropertyChanged(const struct FPropertyChangedEvent& InEvent);
 
-	/** Callback used to detect the existence of a new object to display after a reinstancing process */
+	/** Callback used to detect the existence of a new object to display after a re-instancing process */
 	void OnObjectReplaced(const TMap<UObject*, UObject*>& InReplacementObjectMap);
 
+	/** Callback to track object transactions (undo/redo) */
 	void OnObjectTransacted(UObject* InObject, const class FTransactionObjectEvent& InTransactionObjectEvent);
 
+	/** Semi-reliable check to see if a row is an empty header row or not (customized). */
+	bool RowHasInputContent(const TSharedPtr<SWidget>& InValueWidget) const;
+
+	/** Attempts to find the property specified by RootPropertyName, returns true if found.  */
+	bool FindRootPropertyHandle(TArray<TSharedRef<class IDetailTreeNode>>& InOutNodes);
+
 private:
-	/** Row generator applied on detailed object */
+	/** Row generator applied on detailed object. */
 	TSharedPtr<class IPropertyRowGenerator> Generator;
 
-	/** Object to be detailed */
-	UObject* Object;
+	/** Object to be detailed. */
+	TStrongObjectPtr<UObject> Object = nullptr;
 
-	/** Array properties tracked for changes */
+	/** Name of the root property represented. */
 	FName RootPropertyName;
 
-	EPropertyNameVisibility NameVisibility;
+	/** Display name visibility option. */
+	EPropertyNameVisibility NameVisibility = EPropertyNameVisibility::Show;
 
+	/** Optional display name override. */
 	TOptional<FText> DisplayNameOverride;
 
-	/** Array properties tracked for changes */
+	/** Property represented by this widget. */
 	TSharedPtr<IPropertyHandle> Property;
 
-	/** */
+	/** Struct to be detailed. */
 	TSharedPtr<FStructOnScope> Struct;
 
-	/** Delegate handle to track property changes on array properties */
+	/** Delegate handle to track property changes. */
 	FDelegateHandle OnPropertyChangedHandle;
 
-	/** Delegate handle to track new object after a re-instancing process */
+	/** Delegate handle to track new object after a re-instancing process. */
 	FDelegateHandle OnObjectReplacedHandle;
 
-	/** Delegate handle to track when a object was transacted */
+	/** Delegate handle to track when a object was transacted. */
 	FDelegateHandle OnObjectTransactedHandle;
 
 	/** Relative width to control splitters. */
-	float ColumnWidth;
+	float ColumnWidth = 0;
 
 	/** Points to the currently used column size data. Can be provided via argument as well. */
 	TSharedPtr<RemoteControlProtocolWidgetUtils::FPropertyViewColumnSizeData> ColumnSizeData;
@@ -215,22 +220,15 @@ private:
 	/** If there is a new object to display on the next tick */
 	uint8 bRefreshObjectToDisplay : 1;
 
-	/** Spacing between rows of the SDataprepDetailsView. 0 by default. */
-	float Spacing;
+	/** Spacing between rows. 0 by default. */
+	float Spacing = 0;
 
-	/**
-	* Indicates if two columns should be added
-	* This is useful when the SDataprepDetailsView widget is used along the Producers widget
-	*/
-	bool bColumnPadding;
+	/** Indicates if the name and value widgets have a splitter and can be resized. */
+	bool bResizableColumn = false;
 
-	/**
-	* Indicates if the name and value widgets have a splitter and can be resized
-	*/
-	bool bResizableColumn;
-
-	/** Grid panel storing the row widgets */
+	/** Grid panel storing the row widgets. */
 	TSharedPtr<SGridPanel> GridPanel;
 
+	/** Ideal total width of the widget. */
 	static int32 DesiredWidth;
 };

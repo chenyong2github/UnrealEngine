@@ -107,7 +107,6 @@ void ULensModel::FromArray_Internal(UScriptStruct* TypeStruct, const TArray<floa
 
 	if (SrcArray.Num() != GetNumParameters())
 	{
-		UE_LOG(LogLensModel, Error, TEXT("SrcArray size (%d) does not match the expected number of parameters (%d)."), SrcArray.Num(), GetNumParameters());
 		return;
 	}
 

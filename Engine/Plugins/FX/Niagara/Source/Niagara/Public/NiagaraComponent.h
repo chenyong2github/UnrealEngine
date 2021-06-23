@@ -489,10 +489,16 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	/**
-	  * Find the value of an overridden parameter.
+	  * Find the value of an overridden parameter.  The value returned may not be the current value being used by the simulation but
+	  * will reflect the last value which has been set through the editor on a component placed in a level, or on a component in the 
+	  * blueprint editor.
 	  * Returns null if the parameter isn't overridden by this component.
 	  */
 	FNiagaraVariant FindParameterOverride(const FNiagaraVariableBase& InKey) const;
+
+	/** Gets the current value of a parameter which is being used by the simulation.  This value will reflect runtime changes such as
+	  * those made by sequencer, or in PIE through code or blueprint. */
+	FNiagaraVariant GetCurrentParameterValue(const FNiagaraVariableBase& InKey) const;
 
 	bool HasParameterOverride(const FNiagaraVariableBase& InKey) const;
 	void SetParameterOverride(const FNiagaraVariableBase& InKey, const FNiagaraVariant& InValue);

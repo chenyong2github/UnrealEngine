@@ -747,7 +747,7 @@ void FNiagaraRendererSprites::CreateMeshBatchForView(
 	VFLooseParams.SortedIndicesOffset = VertexFactory.GetSortedIndicesOffset();
 
 	FNiagaraGPUInstanceCountManager::FIndirectArgSlot IndirectDraw;
-	if ((SourceMode != ENiagaraRendererSourceDataMode::Emitter) && (GPUCountBufferOffset != INDEX_NONE))
+	if ((SourceMode == ENiagaraRendererSourceDataMode::Particles) && (GPUCountBufferOffset != INDEX_NONE))
 	{
 		NiagaraEmitterInstanceBatcher* Batcher = SceneProxy.GetBatcher();
 		check(Batcher);

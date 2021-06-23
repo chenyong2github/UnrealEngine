@@ -126,7 +126,7 @@ public:
 	//~ End EdGraphNode Interface
 
 	/** Checks if the existing pin names match the function script parameter names and try to fix them via guid matching if there is a difference */
-	bool FixupPinNames();
+	NIAGARAEDITOR_API bool FixupPinNames();
 
 	/** When overriding an input value, this updates which variable guid was bound to which input name, so it can be reassigned when the input is renamed.*/
 	void UpdateInputNameBinding(const FGuid& BoundVariableGuid, const FName& BoundName);

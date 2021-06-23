@@ -23,6 +23,8 @@ class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingBaseComponent
 {
 	GENERATED_BODY()
 
+	DECLARE_DELEGATE_OneParam(FDMXOnPixelMappingComponentBeginDestroy, UDMXPixelMappingBaseComponent* /** Component about to be destroyed */);
+
 public:
 	/** Public constructor */
 	UDMXPixelMappingBaseComponent();
@@ -32,9 +34,14 @@ public:
 	----------------------------------*/
 
 	/**
-	* The function might have custom behavior implementation after object has been assigned to the parent.
+	* Called when the component was assigned to its parent
 	*/
 	virtual void PostParentAssigned() {}
+
+	/**
+	* Called when the component was removed from its parent
+	*/
+	virtual void PostRemovedFromParent() {}
 
 	/**
 	 * Should log properties that were changed in underlying fixture patch or fixture type
@@ -81,9 +88,6 @@ public:
 	/** Get the number of children components */
 	int32 GetChildrenCount() const;
 
-	/** Get the index of this component, it returns -1 if the component doesn't have a parent */
-	int32 GetChildIndex() const { return ChildIndex; }
-
 	/** Get the child component by the given index. */
 	UDMXPixelMappingBaseComponent* GetChildAt(int32 Index) const;
 
@@ -97,15 +101,11 @@ public:
 	 * Add a new child componet
 	 *
 	 * @param InComponent    Component instance object
-	 * @return An index of added comonent
 	 */
-	int32 AddChild(UDMXPixelMappingBaseComponent* InComponent);
-
-	/** Remove the child component by the given index. */
-	bool RemoveChildAt(int32 Index);
+	void AddChild(UDMXPixelMappingBaseComponent* InComponent);
 
 	/** Remove the child component by the given component object. */
-	bool RemoveChild(UDMXPixelMappingBaseComponent* InComponent);
+	void RemoveChild(UDMXPixelMappingBaseComponent* InComponent);
 
 	/** Remove all children */
 	void ClearChildren();
@@ -117,13 +117,26 @@ public:
 	 */
 	void ForEachChild(TComponentPredicate Predicate, bool bIsRecursive);
 
+	/** DEPRECATED 4.27  */
+	template <typename TComponentClass>
+	UE_DEPRECATED(4.27, "Use ForEachChildOfClass in favor of a clearer name instead.")
+	void ForEachComponentOfClass(TComponentPredicateType<TComponentClass> Predicate, bool bIsRecursive)
+	{
+		ForEachChild([&Predicate](UDMXPixelMappingBaseComponent* InComponent) {
+			if (TComponentClass* CastComponent = Cast<TComponentClass>(InComponent))
+			{
+				Predicate(CastComponent);
+			}
+		}, bIsRecursive);
+	}
+
 	/** 
 	 * Loop through all templated child class by given Predicate
 	 *
 	 * @param bIsRecursive		Should it loop recursively
 	 */
 	template <typename TComponentClass>
-	void ForEachComponentOfClass(TComponentPredicateType<TComponentClass> Predicate, bool bIsRecursive)
+	void ForEachChildOfClass(TComponentPredicateType<TComponentClass> Predicate, bool bIsRecursive)
 	{
 		ForEachChild([&Predicate](UDMXPixelMappingBaseComponent* InComponent) {
 			if (TComponentClass* CastComponent = Cast<TComponentClass>(InComponent))
@@ -137,10 +150,10 @@ public:
 	UDMXPixelMapping* GetPixelMapping();
 
 	/** Get root component of the component tree */
-	UDMXPixelMappingRootComponent* GetRootComponent();
+	const UDMXPixelMappingRootComponent* GetRootComponent() const;
 
 	/** Get the root component and not allow a null option. */
-	UDMXPixelMappingRootComponent* GetRootComponentChecked();
+	const UDMXPixelMappingRootComponent* GetRootComponentChecked() const;
 
 	/**
 	 * Get renderer component associated with current component
@@ -210,11 +223,7 @@ public:
 #if WITH_EDITOR
 	/** Returns the name of the component used across all widgets that draw it */
 	virtual FString GetUserFriendlyName() const;
-#endif // WITH_EDITOR
-
-private:
-	/** Set array index of this componet. It should be called if component belong to some parent */
-	void SetChildIndex(int32 InIndex);
+#endif 
 
 public:
 	/** Array of children belong to this component */
@@ -224,9 +233,4 @@ public:
 	/** Parent component */
 	UPROPERTY(Instanced)
 	UDMXPixelMappingBaseComponent* Parent;
-
-private:
-	/** Index of this component */
-	UPROPERTY()
-	int32 ChildIndex;
 };

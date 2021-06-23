@@ -2,11 +2,14 @@
 
 #pragma once
 
+#include "DMXProtocolCommon.h"
+
 #include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
 
 class FDetailWidgetRow;
 class IPropertyHandle;
+class IPropertyUtilities;
 class SBorder;
 
 
@@ -24,8 +27,20 @@ public:
 	// ~End IPropertyTypeCustomization Interface
 
 protected:
+	/** Called when ports changed */
+	void OnPortsChanged();
+
 	/** Generates an port row given the PortReferenceHandles */
 	void RefreshPortReferenceWidgets();
+
+	/** Generates infos about the port */
+	TSharedRef<SWidget> GeneratePortInfoWidget(const FDMXPortSharedPtr& Port) const;
+
+	/** Returns the input port from the port refernce handle */
+	FDMXInputPortSharedPtr GetInputPort(const TSharedPtr<IPropertyHandle>& InputPortReferenceHandle);
+
+	/** Returns the output port from the port refernce handle */
+	FDMXOutputPortSharedPtr GetOutputPort(const TSharedPtr<IPropertyHandle>& OutputPortReferenceHandle);
 
 	/** The PortReferences property handle (the outermost StructPropertyHandle that is being customized) */
 	TSharedPtr<IPropertyHandle> LibraryPortReferencesHandle;
@@ -35,4 +50,7 @@ protected:
 
 	/** Output port reference content border */
 	TSharedPtr<SBorder> OutputPortReferenceContentBorder;
+
+	/** Property utilities for this customization */
+	TSharedPtr<IPropertyUtilities> PropertyUtilities;
 };

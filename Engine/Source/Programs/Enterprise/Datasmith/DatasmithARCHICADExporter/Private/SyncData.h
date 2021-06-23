@@ -19,6 +19,7 @@ BEGIN_NAMESPACE_UE_AC
 class FElementID;
 class FSyncContext;
 class FSyncDatabase;
+class FSynchronizer;
 
 /* Class that keep synchronization data of Archicad elements.
  * Take care of object hierarchy (By synthetizing layer an scene) */
@@ -38,6 +39,8 @@ class FSyncData
 	class FHotLinkInstance;
 
 	// Class use for scanning db to find element not yet registered.
+	class FInterator;
+	class FProcessMetadata;
 	class FAttachObservers;
 
 	// Constructor
@@ -92,17 +95,24 @@ class FSyncData
 	// Working class that contain data to process elements and it's childs
 	class FProcessInfo;
 
-	// Sync Datasmith elements from Archicad elements (for this syncdata and it's childs)
-	void ProcessTree(FProcessInfo* IOProcessInfo);
+	// Process (Sync Datasmith element from Archicad element)
+	virtual void Process(FProcessInfo* IOProcessInfo) = 0;
 
 	// Attach observer for Auto Sync
-	virtual bool AttachObserver(FAttachObservers*) { return false; }
+	virtual bool AttachObserver(FAttachObservers* /* IOAttachObservers */) { return false; }
+
+	// Process meta data. Return true if meta data was updated
+	virtual bool ProcessMetaData(IDatasmithScene* /* InScene */) { return false; };
 
 	// Delete this sync data
 	virtual TSharedPtr< IDatasmithElement > GetElement() const = 0;
 
 	// Return the Id
 	const GS::Guid& GetId() const { return ElementId; }
+
+	virtual void SetMesh(FSyncDatabase* /* IOSyncDatabase */, const TSharedPtr< IDatasmithMeshElement >& /* InMesh */)
+	{
+	}
 
   protected:
 	// Add a child
@@ -116,9 +126,6 @@ class FSyncData
 
 	// Return Element as an actor
 	virtual const TSharedPtr< IDatasmithActorElement >& GetActorElement() const = 0;
-
-	// Process (Sync Datasmith element from Archicad element)
-	virtual void Process(FProcessInfo* IOProcessInfo) = 0;
 
 	// Delete this sync data
 	virtual void DeleteMe(FSyncDatabase* IOSyncDatabase);
@@ -170,11 +177,13 @@ class FSyncData::FScene : public FSyncData
 	virtual TSharedPtr< IDatasmithElement > GetElement() const override { return SceneElement; };
 
   protected:
+	// Set the element to the scene element
 	virtual void Process(FProcessInfo* IOProcessInfo) override;
 
 	// Delete this sync data
 	virtual void DeleteMe(FSyncDatabase* IOSyncDatabase) override;
 
+	// Update scene metadata
 	void UpdateInfo(FProcessInfo* IOProcessInfo);
 
 	// Add an child actor to my scene
@@ -279,6 +288,11 @@ class FSyncData::FElement : public FSyncData::FActor
 	// Attach observer for Auto Sync
 	virtual bool AttachObserver(FAttachObservers* IOAttachObservers) override;
 
+	// Process meta data. Return true if meta data was updated
+	virtual bool ProcessMetaData(IDatasmithScene* InScene) override;
+
+	virtual void SetMesh(FSyncDatabase* IOSyncDatabase, const TSharedPtr< IDatasmithMeshElement >& InMesh) override;
+
 	// Rebuild the meta data of this element
 	void UpdateMetaData(FProcessInfo* IOProcessInfo);
 
@@ -290,6 +304,8 @@ class FSyncData::FElement : public FSyncData::FActor
 
 	// True if we observe this element
 	bool bIsObserved = false;
+
+	API_ElemTypeID TypeID = API_ZombieElemID;
 };
 
 class FSyncData::FCameraSet : public FSyncData::FActor
@@ -338,7 +354,7 @@ class FSyncData::FLight : public FSyncData::FActor
 	{
 	  public:
 		FLightGDLParameters();
-		FLightGDLParameters(const API_Guid& InLightGuid);
+		FLightGDLParameters(const API_Guid& InLightGuid, const class FLibPartInfo* InLibPartInfo);
 
 		bool operator!=(const FLightGDLParameters& InOther) const;
 
@@ -459,16 +475,11 @@ class FSyncData::FHotLinkInstance : public FSyncData::FActor
 	API_Tranmat Transformation;
 };
 
-#define ATTACH_ONSERVER_STAT 1
-
-// Class use for scanning db to find element not yet registered.
-class FSyncData::FAttachObservers
+class FSyncData::FInterator
 {
   public:
-	// Constructor
-	FAttachObservers();
-
-	~FAttachObservers();
+	// Destructor
+	virtual ~FInterator() {}
 
 	// Start the process with this root observer
 	void Start(FSyncData* Root);
@@ -480,10 +491,85 @@ class FSyncData::FAttachObservers
 	bool NeedProcess() const { return Stack.Num() != 0; }
 
 	// Process attachment until done or until time slice finish
-	bool ProcessUntil(double TimeSliceEnd);
+	enum EProcessControl
+	{
+		kDone, // Task is terminated
+		kInterrupted, // Task is interrupted -> need restart to resume
+		kContinue // Time slice end, wait for another idle
+	};
+	EProcessControl ProcessUntil(double TimeSliceEnd);
+
+	virtual EProcessControl Process(FSyncData* InCurrent) = 0;
 
 	// Return the next FSyncData
 	FSyncData* Next();
+
+	// Return the index of the current.
+	FChildsArray::SizeType GetCurrentIndex();
+
+	// Return the current count of item processed
+	int32 GetProcessedCount() const { return ProcessedCount; }
+
+  private:
+	// Stack element
+	class FEntry
+	{
+	  public:
+		FSyncData*			   Parent;
+		FChildsArray::SizeType ChildIndex;
+	};
+
+	typedef TArray< FEntry > FEntriesArray;
+	FEntriesArray			 Stack;
+	int32					 ProcessedCount = 0;
+};
+
+// Class to process metadata as idle task (Only for Direct Link synchronization)
+class FSyncData::FProcessMetadata : public FSyncData::FInterator
+{
+  public:
+	// Constructor
+	FProcessMetadata(FSynchronizer* InSynchronizer)
+		: Synchronizer(InSynchronizer)
+	{
+	}
+
+	// Start the process with this root observer
+	void Start(FSyncData* Root);
+
+	// Call ProcessMetaData for the sync data
+	virtual EProcessControl Process(FSyncData* InCurrent) override;
+
+	// Return true if at least one sync data updated it's meta data
+	bool HasMetadataUpdated() const { return bMetadataUpdated; }
+
+	// Tell that we already synced previously processed sync data
+	void CleardMetadataUpdated() { bMetadataUpdated = false; }
+
+  private:
+	// My synchronizer
+	FSynchronizer* Synchronizer = nullptr;
+	// True if at least one sync data updated it's meta data
+	bool bMetadataUpdated = false;
+};
+
+#define ATTACH_ONSERVER_STAT 1
+
+// Class use for scanning db to find element not yet registered.
+class FSyncData::FAttachObservers : public FSyncData::FInterator
+{
+  public:
+	// Constructor
+	FAttachObservers();
+
+	// Start the process with this root observer
+	void Start(FSyncData* Root);
+
+	// Call AttachObserver for the sync data
+	virtual EProcessControl Process(FSyncData* InCurrent) override;
+
+	// Process attachment until done or until time slice finish
+	bool ProcessAttachUntil(double TimeSliceEnd);
 
 #if ATTACH_ONSERVER_STAT
 	void CumulateStats(const FTimeStat& SlotStart, double AfterAttachObserver);
@@ -493,16 +579,6 @@ class FSyncData::FAttachObservers
 #endif
 
   private:
-	class FAttachEntry
-	{
-	  public:
-		FSyncData*			   Parent;
-		FChildsArray::SizeType ChildIndex;
-	};
-
-	typedef TArray< FAttachEntry > FAttachEntriesArray;
-	FAttachEntriesArray			   Stack;
-
 #if ATTACH_ONSERVER_STAT
 	FTimeStat AttachObserverProcessTimeStart;
 	FTimeStat AttachObserverProcessTimeEnd;

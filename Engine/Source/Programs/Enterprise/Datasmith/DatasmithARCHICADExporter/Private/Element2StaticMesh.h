@@ -147,7 +147,10 @@ class FElement2StaticMesh
 	// Vertex value and used flag or index
 	class FVertex;
 
-	typedef TArray< FVertex >									   VecVertices;
+  public:
+	typedef TArray< FVertex > VecVertices;
+
+  private:
 	typedef TArray< FTriangle >									   VecTriangles;
 	typedef TMap< FTextureCoordinate, int >						   MapUVs;
 	typedef TArray< const FMaterialsDatabase::FMaterialSyncData* > VecMaterialSyncData;

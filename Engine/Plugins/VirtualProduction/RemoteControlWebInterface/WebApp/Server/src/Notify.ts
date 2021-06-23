@@ -19,10 +19,13 @@ export namespace Notify {
 
       if (UnrealEngine.isConnected())
         socket.emit('connected', true);
+
+      if (UnrealEngine.isLoading())
+        socket.emit('loading', true);
     });
   }
 
-  export function emit(what: 'presets' | 'payloads' | 'connected', value: any) {
+  export function emit(what: 'presets' | 'payloads' | 'connected' | 'loading', value: any) {
     io.emit(what, value);
   }
 

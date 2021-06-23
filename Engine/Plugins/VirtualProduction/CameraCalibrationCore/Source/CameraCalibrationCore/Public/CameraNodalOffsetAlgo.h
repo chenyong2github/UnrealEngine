@@ -3,7 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/SBoxPanel.h"
+#include "Widgets/SNullWidget.h"
+#include "Widgets/Text/STextBlock.h"
 
 #include "CameraNodalOffsetAlgo.generated.h"
 
@@ -39,7 +40,7 @@ public:
 	virtual bool OnViewportClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) { return false;  };
 
 	/** Returns the UI of this calibrator. Expected to only be called once */
-	virtual TSharedRef<SWidget> BuildUI() { return SNew(SVerticalBox); };
+	virtual TSharedRef<SWidget> BuildUI() { return SNullWidget::NullWidget; };
 
 	/** Returns the most recently calibrated nodal offset transform, with an error metric */
 	virtual bool GetNodalOffset(FNodalPointOffset& OutNodalOffset, float& OutFocus, float& OutZoom, float& OutError, FText& OutErrorMessage) { return false; };
@@ -49,4 +50,7 @@ public:
 
 	/** Called when the current offset was saved */
 	virtual void OnSavedNodalOffset() { };
+
+	/** Called to present the user with instructions on how to this this algo */
+	virtual TSharedRef<SWidget> BuildHelpWidget() { return SNew(STextBlock).Text(FText::FromString(TEXT("Coming soon!")));  };
 };

@@ -25,7 +25,7 @@ public:
 		, _PixelFormat(EDMXCellFormat::PF_RGB)
 		, _bShowAddresses(false)
 		, _bShowUniverse(false)
-		, _RemoteUniverse(1)
+		, _LocalUniverse(1)
 		, _StartAddress(1)
 	{}
 		
@@ -41,7 +41,7 @@ public:
 
 		SLATE_ARGUMENT(bool, bShowUniverse)
 
-		SLATE_ARGUMENT(int32, RemoteUniverse)
+		SLATE_ARGUMENT(int32, LocalUniverse)
 
 		SLATE_ARGUMENT(int32, StartAddress)
 
@@ -66,7 +66,7 @@ private:
 
 	bool bShowUniverse;
 
-	int32 RemoteUniverse;
+	int32 LocalUniverse;
 
 	int32 StartAddress;
 
@@ -88,7 +88,7 @@ public:
 	SLATE_BEGIN_ARGS(SDMXPixelMappingSimpleScreenLayout)
 		: _NumXCells(1)
 		, _NumYCells(1)
-		, _RemoteUniverse(1)
+		, _LocalUniverse(1)
 		, _StartAddress(1)
 	{}
 
@@ -96,7 +96,7 @@ public:
 
 		SLATE_ARGUMENT(int32, NumYCells)
 
-		SLATE_ARGUMENT(int32, RemoteUniverse)
+		SLATE_ARGUMENT(int32, LocalUniverse)
 
 		SLATE_ARGUMENT(int32, StartAddress)
 
@@ -109,7 +109,7 @@ public:
 	//~ Begin SCompoundWidget interface
 
 private:
-	int32 RemoteUniverse;
+	int32 LocalUniverse;
 
 	int32 StartAddress;
 

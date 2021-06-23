@@ -5,6 +5,7 @@
 #include <stddef.h>
 
 #include "Utils/WarningsDisabler.h"
+#include "Utils/TaskMgr.h"
 
 DISABLE_SDK_WARNINGS_START
 
@@ -30,6 +31,9 @@ DISABLE_SDK_WARNINGS_END
 #include "ResourcesIDs.h"
 #include "Synchronizer.h"
 #include "ReportWindow.h"
+#if PLATFORM_MAC
+	#include "ConnectionWindow.h"
+#endif
 
 using namespace UE_AC;
 
@@ -141,12 +145,16 @@ GSErrCode __ACENV_CALL FreeData(void)
 {
 	UE_AC_TraceF("-> UE_AC FreeData\n");
 
+#if PLATFORM_MAC
+	FConnectionWindow::DeleteWindow();
+#endif
 	FPalette::Delete();
 	FPalette::Unregister();
 	FSynchronizer::DeleteSingleton();
 	UnloadDatasmithDlls(true);
 	FReportWindow::Delete();
 	FTraceListener::Delete();
+	FTaskMgr::DeleteMgr();
 
 	UE_AC_TraceF("<- UE_AC FreeData\n");
 

@@ -1006,6 +1006,17 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 	{
 		if (ReadyFrame->bResolvedTargetRequested)
 		{
+#if WITH_MGPU
+			FRHIGPUMask GPUMask = RHICmdList.GetGPUMask();
+
+			// If GPUMask is not set to a specific GPU we and since we are reading back the texture, it shouldn't matter which GPU we do this on.
+			if (!GPUMask.HasSingleIndex())
+			{
+				GPUMask = FRHIGPUMask::FromIndex(GPUMask.GetFirstIndex());
+			}
+
+			SCOPED_GPU_MASK(RHICmdList, GPUMask);
+#endif
 			check(ReadyFrame->ReadbackTexture.IsValid());
 
 			// Lock & read

@@ -12,6 +12,18 @@ USTRUCT(BlueprintType)
 struct LIVELINKINTERFACE_API FLiveLinkTransformStaticData : public FLiveLinkBaseStaticData
 {
 	GENERATED_BODY()
+	
+	// Whether location in frame data should be used
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink")
+	bool bIsLocationSupported = true;
+	
+	// Whether rotation in frame data should be used
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink")
+	bool bIsRotationSupported = true;
+	
+	// Whether scale in frame data should be used
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink")
+	bool bIsScaleSupported = false;
 };
 
 /**

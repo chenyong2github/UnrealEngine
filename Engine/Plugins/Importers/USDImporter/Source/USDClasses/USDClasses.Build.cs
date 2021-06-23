@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"DeveloperSettings",
 					"InputCore",
+					"Json", // To read/write plugInfo.json files from UnrealUSDWrapper.cpp
 				}
 			);
 		}

@@ -90,15 +90,6 @@ void FNiagaraScriptVariableDetails::PostUndo(bool bSuccess)
 			ParameterEditorLibraryValue->UpdateInternalValueFromStruct(ParameterValue.ToSharedRef());
 		}
 	}
-	else if (Variable->GetOuter()->IsA<UNiagaraParameterDefinitions>())
-	{
-		if (TypeUtilityLibraryValue && ParameterEditorLibraryValue)
-		{
-			TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
-			Variable->CopyDefaultValueDataTo(ParameterValue->GetStructMemory());
-			ParameterEditorLibraryValue->UpdateInternalValueFromStruct(ParameterValue.ToSharedRef());
-		}
-	}
 	else
 	{
 		if (UEdGraphPin* Pin = GetAnyDefaultPin())
@@ -528,12 +519,17 @@ void FNiagaraScriptVariableDetails::OnBeginLibraryValueChanged()
 	if (TypeUtilityLibraryValue && ParameterEditorLibraryValue && CachedDetailBuilder.IsValid())
 	{
 		const TSharedPtr<IPropertyHandle> DefaultValueHandle = CachedDetailBuilder.Pin()->GetProperty("DefaultValueVariant", UNiagaraScriptVariable::StaticClass());
-		GEditor->BeginTransaction(NSLOCTEXT("ScriptVariableCustomization", "ChangeLibraryValue", "Change Default Value"));
-		DefaultValueHandle->NotifyPreChange();
-		Variable->Modify();
+		
 		TSharedPtr<FStructOnScope> ParameterValue = MakeShareable(new FStructOnScope(Variable->Variable.GetType().GetStruct()));
 		ParameterEditorLibraryValue->UpdateStructFromInternalValue(ParameterValue.ToSharedRef());
-		Variable->SetDefaultValueData(ParameterValue->GetStructMemory());
+		 
+		if (FMemory::Memcmp(Variable->GetDefaultValueData(), ParameterValue->GetStructMemory(), Variable->Variable.GetType().GetSize()) != 0)
+		{
+			GEditor->BeginTransaction(NSLOCTEXT("ScriptVariableCustomization", "ChangeLibraryValue", "Change Default Value"));
+			DefaultValueHandle->NotifyPreChange();
+			Variable->Modify();
+			Variable->SetDefaultValueData(ParameterValue->GetStructMemory());
+		}
 	}
 }
 
@@ -600,7 +596,7 @@ int32 FNiagaraScriptVariableDetails::GetLibrarySourcedDefaultModeInitialValue() 
 		return static_cast<int32>(ENiagaraLibrarySourceDefaultMode::FailIfPreviouslyNotSet);
 
 	default:
-		ensureMsgf(false, TEXT("Encountered invalid ENiagaraDefaultMode for library sourced script variable!"));
+		ensureMsgf(false, TEXT("Encountered invalid ENiagaraDefaultMode for definition sourced script variable!"));
 		return 0;
 	}
 }
@@ -609,7 +605,7 @@ int32 FNiagaraScriptVariableDetails::GetLibrarySynchronizedDefaultModeInitialVal
 {
 	if (Variable->GetIsOverridingParameterDefinitionsDefaultValue() == false)
 	{
-		return static_cast<int32>(ENiagaraLibrarySynchronizedDefaultMode::Library);
+		return static_cast<int32>(ENiagaraLibrarySynchronizedDefaultMode::Definition);
 	}
 
 	switch (Variable->DefaultMode) {
@@ -626,7 +622,7 @@ int32 FNiagaraScriptVariableDetails::GetLibrarySynchronizedDefaultModeInitialVal
 		return static_cast<int32>(ENiagaraLibrarySynchronizedDefaultMode::FailIfPreviouslyNotSet);
 
 	default:
-		ensureMsgf(false, TEXT("Encountered invalid ENiagaraDefaultMode for library synchronized script variable!"));
+		ensureMsgf(false, TEXT("Encountered invalid ENiagaraDefaultMode for definition linked script variable!"));
 		return 0;
 	}
 }
@@ -679,7 +675,7 @@ void FNiagaraScriptVariableDetails::OnLibrarySynchronizedDefaultModeChanged(int3
 
 		const ENiagaraLibrarySynchronizedDefaultMode LibraryDefaultMode = ENiagaraLibrarySynchronizedDefaultMode(InValue);
 		switch (LibraryDefaultMode) {
-		case ENiagaraLibrarySynchronizedDefaultMode::Library:
+		case ENiagaraLibrarySynchronizedDefaultMode::Definition:
 			Variable->SetIsOverridingParameterDefinitionsDefaultValue(false);
 			// Special case if we're switching back to synchronizing with the parameter definitions, synchronize the library default value immediately.
 			FNiagaraStackGraphUtilities::SynchronizeVariableToLibraryAndApplyToGraph(Variable.Get());

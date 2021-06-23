@@ -83,7 +83,11 @@ void FPixelStreamingVideoEncoderFactory::OnEncodedImage(const webrtc::EncodedIma
 void FPixelStreamingVideoEncoderFactory::ReleaseVideoEncoder(FPixelStreamingVideoEncoder* encoder)
 {
 	ActiveEncoders.Remove(encoder);
+	if (ActiveEncoders.Num() == 0)
+	{
+		EncoderContext.Encoder->Shutdown();
+		EncoderContext.Encoder = nullptr;
+	}
 	FPlayerId PlayerId = encoder->GetPlayerId();
 	UE_LOG(PixelStreamer, Log, TEXT("Encoder factory asked to remove encoder for PlayerId=%s"), *PlayerId);
 }
-

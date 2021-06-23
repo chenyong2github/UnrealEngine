@@ -25,5 +25,9 @@ public class OnlineSubsystemEOSPlus : ModuleRules
 				"OnlineSubsystemEOS"
 			}
 		);
+
+		PrivateDefinitions.Add("CREATE_MIRROR_PLATFORM_SESSION=" + (bCreateMirrorPlatformSession ? "1" : "0"));
 	}
+
+	protected virtual bool bCreateMirrorPlatformSession { get { return true; } }
 }

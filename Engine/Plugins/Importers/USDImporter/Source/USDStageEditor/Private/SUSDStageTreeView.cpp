@@ -369,6 +369,13 @@ void SUsdStageTreeView::Refresh( AUsdStageActor* InUsdStageActor )
 		// stage from being fully closed, so we must do this whenever the stage changes
 		ClearExpandedItems();
 		TreeItemExpansionStates.Reset();
+
+		// Clear other things that may hold FUsdPrimViewModelRefs
+		LinearizedItems.Empty();
+		SelectorItem = SUsdStageTreeView::NullableItemType(nullptr);
+		RangeSelectionStart = SUsdStageTreeView::NullableItemType(nullptr);
+		ItemToScrollIntoView = SUsdStageTreeView::NullableItemType(nullptr);
+		ItemToNotifyWhenInView = SUsdStageTreeView::NullableItemType(nullptr);
 	}
 
 	UsdStageActor = InUsdStageActor;
@@ -567,7 +574,7 @@ TSharedPtr< SWidget > SUsdStageTreeView::ConstructPrimContextMenu()
 
 		PrimOptions.AddMenuEntry(
 			LOCTEXT( "RenamePrim", "Rename Prim" ),
-			LOCTEXT( "RenamePrim_ToolTip", "Renames the prim" ),
+			LOCTEXT( "RenamePrim_ToolTip", "Renames the prim on all layers" ),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnRenamePrim ),
@@ -579,7 +586,7 @@ TSharedPtr< SWidget > SUsdStageTreeView::ConstructPrimContextMenu()
 
 		PrimOptions.AddMenuEntry(
 			LOCTEXT("RemovePrim", "Remove Prim"),
-			LOCTEXT("RemovePrim_ToolTip", "Removes the prim and its children"),
+			LOCTEXT("RemovePrim_ToolTip", "Removes the prim and its children from the current edit target"),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP( this, &SUsdStageTreeView::OnRemovePrim ),
@@ -730,7 +737,9 @@ void SUsdStageTreeView::OnRemovePrim()
 
 	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
 	{
-		UsdStageActor->GetOrLoadUsdStage().RemovePrim( SelectedItem->UsdPrim.GetPrimPath() );
+		UE::FUsdStage Stage = UsdStageActor->GetOrLoadUsdStage();
+
+		UsdUtils::RemoveAllPrimSpecs( SelectedItem->UsdPrim, Stage.GetEditTarget() );
 	}
 }
 
@@ -957,19 +966,14 @@ void SUsdStageTreeView::OnPrimNameCommitted( const FUsdPrimViewModelRef& ViewMod
 	{
 		FScopedTransaction Transaction( LOCTEXT( "RenamePrimTransaction", "Rename a prim" ) );
 
-		UE::FSdfChangeBlock ChangeBlock;
-
 		// e.g. "/Root/OldPrim/"
 		FString OldPath = ViewModel->UsdPrim.GetPrimPath().GetString();
 
 		// e.g. "NewPrim"
 		FString NewNameStr = InPrimName.ToString();
 
-		const bool bDidRename = UsdUtils::RenamePrim( ViewModel->UsdPrim, *NewNameStr );
-
-		// Preserve the expansion states before our ChangeBlock's destructor triggers
-		// notices that will refresh the tree view
-		if ( bDidRename )
+		// Preemptively preserve the prim's expansion state because RenamePrim will trigger notices from within itself
+		// that will trigger refreshes of the tree view
 		{
 			// e.g. "/Root/NewPrim"
 			FString NewPath = FString::Printf( TEXT( "%s/%s" ), *FPaths::GetPath( OldPath ), *NewNameStr );
@@ -983,12 +987,12 @@ void SUsdStageTreeView::OnPrimNameCommitted( const FUsdPrimViewModelRef& ViewMod
 					// e.g. "/Root/NewPrim/SomeChild"
 					SomePrimPath = NewPath + SomePrimPath;
 					PairsToAdd.Add( SomePrimPath, It->Value );
-
-					It.RemoveCurrent();
 				}
 			}
 			TreeItemExpansionStates.Append( PairsToAdd );
 		}
+
+		UsdUtils::RenamePrim( ViewModel->UsdPrim, *NewNameStr );
 	}
 	else
 	{

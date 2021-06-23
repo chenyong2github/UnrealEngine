@@ -37,11 +37,11 @@ protected:
 	
 	/* Allocates and serializes an object dependency, or gets the object, if it already exists. */
 	virtual UObject* ResolveObjectDependency(int32 ObjectIndex) const;
+
+	bool IsPropertyReferenceToSubobject(const FProperty* InProperty) const;
 	
-	FWorldSnapshotData& GetSharedData() const
-	{
-		return SharedData;
-	}
+	FWorldSnapshotData& GetSharedData() const { return SharedData;}
+	UObject* GetSerializedObject() const { return SerializedObject; }
 
 	EPropertyFlags ExcludedPropertyFlags;
 
@@ -50,9 +50,11 @@ protected:
 	 * @param InSharedData Used to store shared data, e.g. references
 	 * @param bIsLoading Whether to load or save
 	 */
-	FSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading);
+	FSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading, UObject* InSerializedObject);
 	
 private:
+	
+	UObject* SerializedObject;
 	
 	/*  Where in ObjectData we're currently writing to. */
 	int64 DataIndex = 0;

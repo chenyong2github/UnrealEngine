@@ -50,7 +50,7 @@ private:
 	void ExtendToolbar();
 	void SetupCommands();
 
-	void OnApply(bool bInvokedFromSaveAsset = false);
+	void OnApply();
 	bool OnApplyEnabled() const;
 
 	void OnEditedParameterDefinitionsPropertyFinishedChanging(const FPropertyChangedEvent& InEvent);
