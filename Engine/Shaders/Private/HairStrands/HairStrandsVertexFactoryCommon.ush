@@ -17,6 +17,17 @@ struct FHairControlPoint
 	uint   Type;
 };
 
+uint4 PackHairControlPoint(
+	FHairControlPoint CP,
+	float3 InVF_PositionOffset,
+	float InVF_Radius)
+{
+	uint PackedAttribute =  (uint(clamp(CP.UCoord * 0xFFu, 0u, 0xFFu)) << 8) |
+							(uint(clamp((CP.WorldRadius / InVF_Radius) * 63u, 0u, 63u)) << 2u) |
+							(CP.Type & 0x3);
+	return uint4(f32tof16(CP.Position - InVF_PositionOffset), PackedAttribute);
+}
+
 FHairControlPoint UnpackHairControlPoint(
 	uint4 InPackedData,
 	float3 InVF_PositionOffset,

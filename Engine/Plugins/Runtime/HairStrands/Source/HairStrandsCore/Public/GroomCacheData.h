@@ -13,6 +13,12 @@ enum class EGroomCacheAttributes : uint8
 	Position = 1,
 	Width = 1 << 1,
 	Color = 1 << 2,
+
+	// For display names
+	PositionWidth = (Position | Width) UMETA(DisplayName = "Position & Width"),
+	PositionColor = (Position | Color) UMETA(DisplayName = "Position & Color"),
+	WidthColor = (Position | Color) UMETA(DisplayName = "Width & Color"),
+	PositionWidthColor = (Position | Width | Color) UMETA(DisplayName = "Position, Width, Color")
 };
 
 ENUM_CLASS_FLAGS(EGroomCacheAttributes)

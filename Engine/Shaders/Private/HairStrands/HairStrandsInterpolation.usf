@@ -755,7 +755,9 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 uint ElementCount;
 uint DispatchCountX;
+uint bHasRadiusData;
 
+Buffer<float> InRadiusBuffer;
 Buffer<float> InAnimatedBuffer;
 Buffer<uint4> InRestPoseBuffer;
 Buffer<float4> InDeformedOffsetBuffer;
@@ -780,7 +782,16 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	uint4 PackedRestPosition = InRestPoseBuffer[Index];
 	float3 HairPositionOffset = InDeformedOffsetBuffer[0];
 	float3 WorldVertexPosition = InAnimatedPosition - HairPositionOffset;
-	OutDeformedBuffer[Index] = uint4(f32tof16(WorldVertexPosition) , PackedRestPosition.w);
+
+	FHairControlPoint CP = UnpackHairControlPoint(PackedRestPosition, float3(0, 0, 0), 1, 1, 1);
+	CP.Position = WorldVertexPosition;
+
+	if (bHasRadiusData == 1)
+	{
+		CP.WorldRadius = InRadiusBuffer[Index];
+	}
+
+	OutDeformedBuffer[Index] = PackHairControlPoint(CP, float3(0, 0, 0), 1);
 }
 
 #endif // SHADER_GROOMCACHE_UPDATE
