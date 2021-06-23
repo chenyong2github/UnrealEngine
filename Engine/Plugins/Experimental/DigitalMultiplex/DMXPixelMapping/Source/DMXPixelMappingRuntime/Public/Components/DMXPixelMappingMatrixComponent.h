@@ -21,6 +21,8 @@ class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingMatrixComponent
 {
 	GENERATED_BODY()
 
+	DECLARE_EVENT_TwoParams(UDMXPixelMappingMatrixComponent, FDMXPixelMappingOnMatrixChanged, UDMXPixelMapping* /** PixelMapping */, UDMXPixelMappingMatrixComponent* /** AddedComponent */);
+
 	/** Helper callback for loop through all component child */
 	using ChildCallback = TFunctionRef<void(UDMXPixelMappingMatrixCellComponent*)>;
 
@@ -28,13 +30,21 @@ public:
 	/** Default Constructor */
 	UDMXPixelMappingMatrixComponent();
 
+	/** Gets an Event broadcast when a the matrix (and by that its num cells) changed */
+	static FDMXPixelMappingOnMatrixChanged& GetOnMatrixChanged()
+	{
+		static FDMXPixelMappingOnMatrixChanged OnMatrixChanged;
+		return OnMatrixChanged;
+	}
+
 	// ~Begin UObject interface
-	virtual void PostInitProperties() override;
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
+	virtual void PreEditUndo() override;
+	virtual void PostEditUndo() override; 
 #endif // WITH_EDITOR
 	// ~End UObject interface
 	
@@ -47,9 +57,7 @@ public:
 	virtual void ResetDMX() override;
 	virtual void SendDMX() override;
 	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
-#if WITH_EDITOR
 	virtual FString GetUserFriendlyName() const override;
-#endif
 	// ~End UDMXPixelMappingBaseComponent interface
 
 	// ~Begin FTickableGameObject interface
@@ -73,15 +81,18 @@ public:
 	/** Handles changes in size or in matrix */
 	void HandleSizeOrMatrixChanged();
 
-private:
-	/** Holds the last set size */
-	FVector2D LastPosition;
+protected:
+#if WITH_EDITORONLY_DATA
+	/** Children available PreEditUndo, useful to hide all removed ones in post edit undo */
+	TArray<UDMXPixelMappingBaseComponent*> PreEditUndoMatrixCellChildren;
+#endif // WITH_EDITORONLY_DATA
+
 
 public:
 	UPROPERTY()
 	FDMXEntityFixturePatchRef FixturePatchMatrixRef_DEPRECATED;
 
-	UPROPERTY(EditAnywhere, Category = "Matrix Settings")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Matrix Settings")
 	FDMXEntityFixturePatchRef FixturePatchRef;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings")
@@ -132,7 +143,7 @@ public:
 	TArray<UDMXModulator*> Modulators;
 
 	UPROPERTY()
-	FIntPoint NumCells;
+	FIntPoint CoordinateGrid;
 
 	UPROPERTY()
 	FVector2D CellSize;

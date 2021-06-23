@@ -1,16 +1,62 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/DMXPixelMappingBaseComponent.h"
-#include "Components/DMXPixelMappingRendererComponent.h"
-#include "Components/DMXPixelMappingRootComponent.h"
+
 #include "DMXPixelMapping.h"
 #include "DMXPixelMappingRuntimeCommon.h"
+#include "DMXPixelMappingRuntimeObjectVersion.h"
+#include "Components/DMXPixelMappingRendererComponent.h"
+#include "Components/DMXPixelMappingRootComponent.h"
 
 #include "UObject/Package.h"
 
 
 UDMXPixelMappingBaseComponent::UDMXPixelMappingBaseComponent()
 {}
+
+void UDMXPixelMappingBaseComponent::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FDMXPixelMappingRuntimeObjectVersion::GUID);
+	if (Ar.IsLoading())
+	{
+		if (Ar.CustomVer(FDMXPixelMappingRuntimeObjectVersion::GUID) < FDMXPixelMappingRuntimeObjectVersion::UseWeakPtrForPixelMappingComponentParent)
+		{
+			// Upgrade from strong object references for parent to weak ones
+			WeakParent = Parent_DEPRECATED;
+
+			Parent_DEPRECATED = nullptr;
+		}
+	}
+}
+
+void UDMXPixelMappingBaseComponent::PostRename(UObject* OldOuter, const FName OldName) 
+{
+	Super::PostRename(OldOuter, OldName);
+
+	// Broadcast the change
+	GetOnComponentRenamed().Broadcast(GetPixelMapping(), this, OldOuter, OldName);
+}
+
+#if WITH_EDITOR
+void UDMXPixelMappingBaseComponent::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	if (HasValidParent())
+	{
+		if(GetParent()->Children.Contains(this))
+		{
+			GetParent()->AddChild(this);
+		}
+		else
+		{
+			GetParent()->RemoveChild(this);
+		}
+	}
+}
+#endif // WITH_EDITOR
 
 const FName& UDMXPixelMappingBaseComponent::GetNamePrefix()
 {
@@ -68,16 +114,19 @@ const UDMXPixelMappingRootComponent* UDMXPixelMappingBaseComponent::GetRootCompo
 	{
 		return ThisRootComponent;
 	}
-	// Try to get a root component from oobject owner
-	else if(UDMXPixelMappingRootComponent* OuterRootComponent = Cast<UDMXPixelMappingRootComponent>(GetOuter()))
-	{
-		return OuterRootComponent;
-	}
+	// Try to get a root component from object owner
 	else
 	{
-		UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("Parent should be UDMXPixelMappingRootComponent!"));
-		return nullptr;
+		for (UDMXPixelMappingBaseComponent* Parent = GetParent(); Parent; Parent = Parent->GetParent())
+		{
+			if (const UDMXPixelMappingRootComponent* Root = Cast<UDMXPixelMappingRootComponent>(Parent))
+			{
+				return Root;
+			}
+		}
 	}
+	
+	return nullptr;
 }
 
 const UDMXPixelMappingRootComponent* UDMXPixelMappingBaseComponent::GetRootComponentChecked() const
@@ -114,13 +163,6 @@ void UDMXPixelMappingBaseComponent::ForComponentAndChildren(UDMXPixelMappingBase
 	}
 }
 
-#if WITH_EDITOR
-FString UDMXPixelMappingBaseComponent::GetUserFriendlyName() const
-{
-	return GetName();
-}
-#endif // WITH_EDITOR
-
 UDMXPixelMappingBaseComponent* UDMXPixelMappingBaseComponent::GetChildAt(int32 InIndex) const
 {
 	if (Children.IsValidIndex(InIndex))
@@ -139,57 +181,41 @@ void UDMXPixelMappingBaseComponent::AddChild(UDMXPixelMappingBaseComponent* InCo
 
 	if (InComponent)
 	{
-#if WITH_EDITOR
-		ensureMsgf(!Children.Contains(InComponent), TEXT("Trying to add %s to %s twice"), *InComponent->GetUserFriendlyName(), *GetUserFriendlyName());
-#endif
-		if (!Children.Contains(InComponent))
-		{
-			InComponent->Parent = this;
+		InComponent->WeakParent = this;
 
-			Children.AddUnique(InComponent);
+		// Allow children to be readded, this may be the case during Undo of a Remove
+		Children.AddUnique(InComponent);
 
-			InComponent->PostParentAssigned();
-		}
+		// Broadcast the change
+		GetOnComponentAdded().Broadcast(GetPixelMapping(), InComponent);
 	}
 }
 
-
 void UDMXPixelMappingBaseComponent::RemoveChild(UDMXPixelMappingBaseComponent* ChildComponent)
 {
-#if WITH_EDITOR
 	ensureMsgf(ChildComponent || Children.Contains(ChildComponent), TEXT("Trying to remove child, but %s is not a child of %s."), *ChildComponent->GetUserFriendlyName(), *GetUserFriendlyName());
-#endif
 
 	if (ChildComponent)
 	{
-		ChildComponent->SetFlags(RF_Transactional);
-
-		UDMXPixelMappingBaseComponent* ParentOfRemovedComponent = ChildComponent->Parent;
-		if (ParentOfRemovedComponent)
-		{
-			ParentOfRemovedComponent->SetFlags(RF_Transactional);
-			ParentOfRemovedComponent->Modify();
-		}
-
-		// Modify the component being removed.
-		ChildComponent->Modify();
-
-		// Rename the removed Component to the transient package so that it doesn't conflict with future Components sharing the same name.
-		ChildComponent->Rename(nullptr, GetTransientPackage());
-
-		// Remove childs recursively.
 		TArray<UDMXPixelMappingBaseComponent*> ChildComponents;
 		ChildComponent->GetChildComponentsRecursively(ChildComponents);
 		for (UDMXPixelMappingBaseComponent* ChildOfChild : ChildComponents)
-		{
+		{ 
+			// Recursively call this function here on children
 			ChildComponent->RemoveChild(ChildOfChild);
 		}
 
-		Children.Remove(ChildComponent);
-		ChildComponent->Parent = nullptr;
+		ChildComponent->ResetDMX();
 
-		ChildComponent->PostRemovedFromParent();
+		Children.Remove(ChildComponent);
+
+		ChildComponent->SetFlags(RF_Transactional);
+
+		// Broadcast the change
+		GetOnComponentRemoved().Broadcast(GetPixelMapping(), ChildComponent);
 	}
+
+	ensure(ChildComponent && !Children.Contains(ChildComponent) && ChildComponent->Children.Num() == 0 && !ChildComponent->Parent_DEPRECATED);
 }
 
 void UDMXPixelMappingBaseComponent::ClearChildren()
@@ -198,6 +224,11 @@ void UDMXPixelMappingBaseComponent::ClearChildren()
 	{
 		RemoveChild(Component);
 	}
+}
+
+FString UDMXPixelMappingBaseComponent::GetUserFriendlyName() const
+{
+	return GetName();
 }
 
 void UDMXPixelMappingBaseComponent::GetChildComponentsRecursively(TArray<UDMXPixelMappingBaseComponent*>& Components)

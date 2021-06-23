@@ -6,18 +6,20 @@
 
 #include "Library/DMXEntityReference.h"
 
+#include "Templates/SharedPointer.h"
 #include "Templates/SubclassOf.h"
 #include "UObject/StrongObjectPtr.h"
 
 struct UDMXEntityFixturePatchRef;
 class UDMXPixelMappingBaseComponent;
+class UDMXPixelMappingRootComponent;
 class UClass;
 
 
 /**
  * The Component template represents a Component or a set of Components to create.
  */
-class FDMXPixelMappingComponentTemplate
+class DMXPIXELMAPPINGRUNTIME_API FDMXPixelMappingComponentTemplate
 	: public TSharedFromThis<FDMXPixelMappingComponentTemplate>
 {
 public:
@@ -30,8 +32,10 @@ public:
 	/** Virtual Destructor */
 	virtual ~FDMXPixelMappingComponentTemplate() {}
 
+#if WITH_EDITOR
 	/** Gets the category for the Component */
 	FText GetCategory() const;
+#endif 
 
 	/** 
 	 * Creates an instance of the Component according to the class specified during construction. 

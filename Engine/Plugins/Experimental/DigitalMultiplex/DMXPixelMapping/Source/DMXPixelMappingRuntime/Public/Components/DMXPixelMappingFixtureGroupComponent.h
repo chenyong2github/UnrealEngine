@@ -28,6 +28,7 @@ public:
 	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditUndo() override;
 #endif // WITH_EDITOR
 	//~ End UObject implementation
 
@@ -36,9 +37,7 @@ public:
 	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
 	virtual void ResetDMX() override;
 	virtual void SendDMX() override;
-#if WITH_EDITOR
 	virtual FString GetUserFriendlyName() const override;
-#endif
 	//~ End UDMXPixelMappingBaseComponent implementation
 
 	//~ Begin UDMXPixelMappingOutputComponent implementation

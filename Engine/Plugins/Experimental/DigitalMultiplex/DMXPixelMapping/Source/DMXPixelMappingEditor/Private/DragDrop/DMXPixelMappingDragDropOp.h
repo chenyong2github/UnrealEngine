@@ -9,7 +9,6 @@
 #include "CoreMinimal.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "Input/DragAndDrop.h"
-#include "UObject/GCObject.h"
 
 class FDMXPixelMappingComponentTemplate;
 class FDMXPixelMappingComponentReference;
@@ -23,19 +22,21 @@ class UDMXPixelMappingBaseComponent;
  */
 class FDMXPixelMappingDragDropOp 
 	: public FDecoratedDragDropOp
-	, public FGCObject
 {
 public:
 	DRAG_DROP_OPERATOR_TYPE(FDMXPixelMappingDragDropOp, FDecoratedDragDropOp)
+
+	/** Destructor */
+	virtual ~FDMXPixelMappingDragDropOp();
 
 	/** Constructs the drag drop operation. */
 	static TSharedRef<FDMXPixelMappingDragDropOp> New(const FVector2D& InGraphSpaceDragOffset, const TArray<TSharedPtr<FDMXPixelMappingComponentTemplate>>& InTemplates, UDMXPixelMappingBaseComponent* InParent);
 	
 	/** Constructs the drag drop operation. Note, the component that initiated the drag drop op has to be the first element in the InDraggedComponents array. */
-	static TSharedRef<FDMXPixelMappingDragDropOp> New(const FVector2D& InGraphSpaceDragOffset, const TArray<UDMXPixelMappingBaseComponent*>& InDraggedComponents);
+	static TSharedRef<FDMXPixelMappingDragDropOp> New(const FVector2D& InGraphSpaceDragOffset, const TArray<TWeakObjectPtr<UDMXPixelMappingBaseComponent>>& InDraggedComponents);
 
 	/** Sets dragged components. Clears the template, preventing from the template being used more than once. */
-	void SetDraggedComponents(const TArray<UDMXPixelMappingBaseComponent*> & InDraggedComponents);
+	void SetDraggedComponents(const TArray<TWeakObjectPtr<UDMXPixelMappingBaseComponent>>& InDraggedComponents);
 
 	/** 
 	 * Lays out the draged output components at given locations. Requires the first in the selection to have specified the drag offset 
@@ -56,26 +57,24 @@ public:
 	FORCEINLINE const TSharedPtr<FDMXPixelMappingGroupChildDragDropHelper>& GetGroupChildDragDropHelper() const { return GroupChildDragDropHelper; }
 
 	/** Returns the dragged component references */
-	FORCEINLINE const TArray<UDMXPixelMappingBaseComponent*>& GetDraggedComponents() const { return DraggedComponents; }
+	FORCEINLINE const TArray<TWeakObjectPtr<UDMXPixelMappingBaseComponent>>& GetDraggedComponents() const { return DraggedComponents; }
 
 	/** Returns the dragged component references */
 	FORCEINLINE const TArray<TSharedPtr<FDMXPixelMappingComponentTemplate>>& GetTemplates() const { return Templates; }
 
 private:
-	// ~Begin FGCObject interface
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	// ~End FGCObject interface
-
 	/** True if this was created with the New version was used that provides a template */
 	bool bWasCreatedAsTemplate = false;
 
+	/** Transaction index of the drag drop op */
+	int32 TransactionIndex = INDEX_NONE;
+
 	/** Components dragged with this opperation */
-	TArray<UDMXPixelMappingBaseComponent*> DraggedComponents;
+	TArray<TWeakObjectPtr<UDMXPixelMappingBaseComponent>> DraggedComponents;
 
 	/** The templates to create component instances */
 	TArray<TSharedPtr<FDMXPixelMappingComponentTemplate>> Templates;
 
 	/** Group Item drag drop helper */
 	TSharedPtr<FDMXPixelMappingGroupChildDragDropHelper> GroupChildDragDropHelper;
-
 };

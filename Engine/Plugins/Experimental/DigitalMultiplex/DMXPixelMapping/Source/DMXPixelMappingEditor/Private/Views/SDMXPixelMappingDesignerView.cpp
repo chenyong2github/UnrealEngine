@@ -40,9 +40,6 @@
 
 void SDMXPixelMappingDesignerView::Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit)
 {
-	InToolkit->GetOnComponentsAddedOrDeletedDelegate().AddSP(this, &SDMXPixelMappingDesignerView::HandleChangeComponents);
-	InToolkit->GetOnSelectedComponentsChangedDelegate().AddSP(this, &SDMXPixelMappingDesignerView::OnSelectedComponentsChanged);
-
 	SDMXPixelMappingSurface::Construct(SDMXPixelMappingSurface::FArguments()
 		.AllowContinousZoomInterpolation(false)
 		.Content()
@@ -175,6 +172,13 @@ void SDMXPixelMappingDesignerView::Construct(const FArguments& InArgs, const TSh
 	ZoomToFit(true);
 
 	HittestGrid = MakeShared<FHittestGrid>();
+
+	// Bind to selection changes
+	InToolkit->GetOnSelectedComponentsChangedDelegate().AddSP(this, &SDMXPixelMappingDesignerView::OnSelectedComponentsChanged);
+
+	// Bind to component changes
+	UDMXPixelMappingBaseComponent::GetOnComponentAdded().AddSP(this, &SDMXPixelMappingDesignerView::OnComponentAdded);
+	UDMXPixelMappingBaseComponent::GetOnComponentRemoved().AddSP(this, &SDMXPixelMappingDesignerView::OnComponentRemoved);
 }
 
 FReply SDMXPixelMappingDesignerView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -185,20 +189,36 @@ FReply SDMXPixelMappingDesignerView::OnMouseButtonDown(const FGeometry& MyGeomet
 	{
 		if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 		{
-			UDMXPixelMappingOutputComponent* OutputComponent = FindComponentUnderCursor();
+			UDMXPixelMappingOutputComponent* ClickedComponent = FindComponentUnderCursor();
 
 			// Select and detect drag when something was clicked
-			if (OutputComponent)
+			if (ClickedComponent)
 			{
-				PendingSelectedComponent = OutputComponent;
+				PendingSelectedComponent = ClickedComponent;
 
-				const bool bClickedSelectedComponent = [this]()
+				// Handle reclicking a selected component depending on type
+				const bool bClickedSelectedComponent = [ClickedComponent, this]()
 				{
-					for (const FDMXPixelMappingComponentReference& ComponentReference : GetSelectedComponents())
+					for (const FDMXPixelMappingComponentReference& SelectedComponentRef : GetSelectedComponents())
 					{
-						if (ComponentReference.GetComponent() == PendingSelectedComponent)
+						if (ClickedComponent == SelectedComponentRef.GetComponent())
 						{
 							return true;
+						}
+						else if (UDMXPixelMappingMatrixCellComponent* ClickedMatrixCellComponent = Cast<UDMXPixelMappingMatrixCellComponent>(ClickedComponent))
+						{
+							if (ClickedMatrixCellComponent->GetParent() == SelectedComponentRef.GetComponent())
+							{
+								return true;
+							}
+						}
+						else if (UDMXPixelMappingFixtureGroupItemComponent* ClickedGroupItemComponent = Cast<UDMXPixelMappingFixtureGroupItemComponent>(ClickedComponent))
+						{
+							if (ClickedGroupItemComponent->GetParent() == SelectedComponentRef.GetComponent() &&
+								ClickedGroupItemComponent->IsLockInDesigner())
+							{
+								return true;
+							}
 						}
 					}
 
@@ -207,15 +227,19 @@ FReply SDMXPixelMappingDesignerView::OnMouseButtonDown(const FGeometry& MyGeomet
 
 				const bool bClearPreviousSelection = !MouseEvent.IsShiftDown() && !MouseEvent.IsControlDown() && !bClickedSelectedComponent;
 				ResolvePendingSelectedComponents(bClearPreviousSelection);
+				
+				FVector2D GraphSpaceCursorPosition;
+				if (GetGraphSpaceCursorPosition(GraphSpaceCursorPosition))
+				{
+					DragAnchor = GraphSpaceCursorPosition;
 
-				DragAnchor = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
-
-				return
-					FReply::Handled()
-					.PreventThrottling()
-					.SetUserFocus(AsShared(), EFocusCause::Mouse)
-					.CaptureMouse(AsShared())
-					.DetectDrag(AsShared(), EKeys::LeftMouseButton);
+					return
+						FReply::Handled()
+						.PreventThrottling()
+						.SetUserFocus(AsShared(), EFocusCause::Mouse)
+						.CaptureMouse(AsShared())
+						.DetectDrag(AsShared(), EKeys::LeftMouseButton);
+				}
 			}
 		}
 	}
@@ -273,7 +297,7 @@ FReply SDMXPixelMappingDesignerView::OnMouseMove(const FGeometry& MyGeometry, co
 		for (const FDMXPixelMappingComponentReference& ComponentReference : SelectedComponentReferences)
 		{
 			UDMXPixelMappingBaseComponent* Component = ComponentReference.GetComponent();
-			if (Component != nullptr && Component->Parent == nullptr)
+			if (Component && Component->GetParent())
 			{
 				bIsRootWidgetSelected = true;
 				break;
@@ -306,16 +330,14 @@ FReply SDMXPixelMappingDesignerView::OnKeyDown(const FGeometry& MyGeometry, cons
 	{
 		if (TSharedPtr<FDMXPixelMappingToolkit> ToolkitPtr = ToolkitWeakPtr.Pin())
 		{
-			if (ToolkitPtr->CanDeleteSelectedComponents(ToolkitPtr->GetSelectedComponents()))
-			{
-				ToolkitPtr->DeleteSelectedComponents(ToolkitPtr->GetSelectedComponents());
-			}
+			ToolkitPtr->DeleteSelectedComponents();
+
+			return FReply::Handled();
 		}
 	}
 
-	return FReply::Handled();
+	return FReply::Unhandled();
 }
-
 
 void SDMXPixelMappingDesignerView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
@@ -398,16 +420,16 @@ FReply SDMXPixelMappingDesignerView::OnDragDetected(const FGeometry& MyGeometry,
 			}
 		}
 
-		// Check the parent chain of each dragged component and ignore those that are children of other dragged components
-		TArray<UDMXPixelMappingBaseComponent*> DraggedComponents;
+		TArray<TWeakObjectPtr<UDMXPixelMappingBaseComponent>> DraggedComponents;
 		for (UDMXPixelMappingOutputComponent* Candidate : DraggedComponentCandidates)
 		{
+			// Check the parent chain of each dragged component and ignore those that are children of other dragged components
 			bool bIsChild = false;
-			for (UDMXPixelMappingBaseComponent* ParentPtr = Candidate->Parent; ParentPtr != nullptr; ParentPtr = ParentPtr->Parent)
+			for (UDMXPixelMappingBaseComponent* Parent = Candidate->GetParent(); Parent; Parent = Parent->GetParent())
 			{
-				bIsChild = DraggedComponentCandidates.ContainsByPredicate([ParentPtr](const UDMXPixelMappingOutputComponent* BaseComponent)
+				bIsChild = DraggedComponentCandidates.ContainsByPredicate([Parent](const UDMXPixelMappingOutputComponent* BaseComponent)
 					{ 
-						return BaseComponent == ParentPtr;
+						return BaseComponent == Parent;
 					});
 
 				if (bIsChild)
@@ -418,7 +440,20 @@ FReply SDMXPixelMappingDesignerView::OnDragDetected(const FGeometry& MyGeometry,
 
 			if (!bIsChild)
 			{
-				DraggedComponents.Add(Candidate);
+				// Make sure the component as well as its parent output components aren't lock in designer
+				bool bIsLockInDesigner = false;
+				for (UDMXPixelMappingOutputComponent* OutputComponent = Candidate; OutputComponent; OutputComponent = Cast<UDMXPixelMappingOutputComponent>(OutputComponent->GetParent()))
+				{
+					if (OutputComponent->IsLockInDesigner())
+					{
+						bIsLockInDesigner = true;
+					}
+				}
+
+				if (!bIsLockInDesigner)
+				{
+					DraggedComponents.Add(Candidate);
+				}
 			}
 		}
 
@@ -428,19 +463,15 @@ FReply SDMXPixelMappingDesignerView::OnDragDetected(const FGeometry& MyGeometry,
 			// We rely on the first being the clicked component. There's an according comment in the DragDropOp and the detected drag is raised here.
 			UDMXPixelMappingOutputComponent* ClickedComponent = CastChecked<UDMXPixelMappingOutputComponent>(DraggedComponents[0]);
 
-			FVector2D GraphSpaceCursorPosition;
-			if (GetGraphSpaceCursorPosition(GraphSpaceCursorPosition))
-			{
-				FVector2D GraphSpaceDragOffset = GraphSpaceCursorPosition - ClickedComponent->GetPosition();
+			FVector2D GraphSpaceDragOffset = DragAnchor - ClickedComponent->GetPosition();
 
-				TSharedRef<FDMXPixelMappingDragDropOp> DragDropOp = FDMXPixelMappingDragDropOp::New(GraphSpaceDragOffset, DraggedComponents);
-				DragDropOp->SetDecoratorVisibility(false);
+			TSharedRef<FDMXPixelMappingDragDropOp> DragDropOp = FDMXPixelMappingDragDropOp::New(GraphSpaceDragOffset, DraggedComponents);
+			DragDropOp->SetDecoratorVisibility(false);
 
-				// Clear any pending selected widgets
-				PendingSelectedComponent = nullptr;
+			// Clear any pending selected widgets
+			PendingSelectedComponent = nullptr;
 
-				return FReply::Handled().BeginDragDrop(DragDropOp);
-			}
+			return FReply::Handled().BeginDragDrop(DragDropOp);
 		}
 	}
 
@@ -481,14 +512,13 @@ void SDMXPixelMappingDesignerView::OnDragLeave(const FDragDropEvent& DragDropEve
 			if (DragDropOp->WasCreatedAsTemplate())
 			{
 				TSet<FDMXPixelMappingComponentReference> Parents;
-				for (UDMXPixelMappingBaseComponent* Component : DragDropOp->GetDraggedComponents())
+				for (const TWeakObjectPtr<UDMXPixelMappingBaseComponent>& Component : DragDropOp->GetDraggedComponents())
 				{
-					if (Component->Parent)
+					if (Component.IsValid() && Component->GetParent())
 					{
-						Parents.Add(ToolkitPtr->GetReferenceFromComponent(Component->Parent));
+						Parents.Add(ToolkitPtr->GetReferenceFromComponent(Component->GetParent()));
 					
-						Component->Parent->RemoveChild(Component);
-						ToolkitPtr->HandleRemoveComponents();
+						Component->GetParent()->RemoveChild(Component.Get());
 					}
 				}
 
@@ -510,18 +540,8 @@ FReply SDMXPixelMappingDesignerView::OnDragOver(const FGeometry& MyGeometry, con
 	const TSharedPtr<FDMXPixelMappingDragDropOp> DragDropOp = DragDropEvent.GetOperationAs<FDMXPixelMappingDragDropOp>();
 	if (DragDropOp.IsValid())
 	{
-		if (bRequestTerminateDragDrop)
-		{
-			bRequestTerminateDragDrop = false;
-			PendingDragDropOp.Reset();
-
-			return FReply::Handled().EndDragDrop();
-		}
-		else
-		{
-			// Handle the drag drop op on tick
-			PendingDragDropOp = DragDropOp;
-		}
+		// Handle the drag drop op on tick
+		PendingDragDropOp = DragDropOp;
 	}
 
 	return FReply::Handled();
@@ -540,35 +560,10 @@ FReply SDMXPixelMappingDesignerView::OnDrop(const FGeometry& MyGeometry, const F
 
 			CachedRendererComponent = nullptr;
 			UpdateOutput(false);
-
-			const FGeometry WidgetUnderCursorGeometry = PreviewSizeConstraint->GetTickSpaceGeometry();
-			const FVector2D ScreenSpacePosition = DragDropEvent.GetScreenSpacePosition();
-			const FVector2D LocalPosition = WidgetUnderCursorGeometry.AbsoluteToLocal(ScreenSpacePosition);
-
-			TArray<UDMXPixelMappingBaseComponent*> RemovedComponents;
-			for (UDMXPixelMappingBaseComponent* DraggedComponent : DragDropOp->GetDraggedComponents())
-			{
-				if (UDMXPixelMappingOutputComponent* DraggedOutputComponent = Cast<UDMXPixelMappingOutputComponent>(DraggedComponent))
-				{
-					if (DraggedOutputComponent->Parent && !DraggedOutputComponent->IsOverParent())
-					{
-						// Remove output components not over their parent
-						DraggedOutputComponent->Parent->RemoveChild(DraggedOutputComponent);
-						ToolkitPtr->HandleRemoveComponents();
-
-						RemovedComponents.Add(DraggedOutputComponent);
-					}
-					else
-					{		
-						// Make dropped components the highest ZOrder
-						DraggedOutputComponent->MakeHighestZOrderInComponentRect();
-					}
-				}
-			}
 		}
 	}
 
-	return FReply::Handled().EndDragDrop();
+	return FReply::Handled().EndDragDrop().SetUserFocus(AsShared());
 }
 
 UDMXPixelMappingOutputComponent* SDMXPixelMappingDesignerView::FindComponentUnderCursor() const
@@ -586,7 +581,7 @@ UDMXPixelMappingOutputComponent* SDMXPixelMappingDesignerView::FindComponentUnde
 						if (!ComponentUnderCursor ||
 							ComponentUnderCursor->GetZOrder() <= OutputComponent->GetZOrder())
 						{
-							if (OutputComponent->IsVisibleInDesigner() &&
+							if (OutputComponent->IsVisible() &&
 								OutputComponent->IsOverPosition(GraphSpaceCursorPosition))
 							{
 								ComponentUnderCursor = OutputComponent;
@@ -720,7 +715,13 @@ void SDMXPixelMappingDesignerView::UpdateOutput(bool bForceUpdate)
 	}
 }
 
-void SDMXPixelMappingDesignerView::HandleChangeComponents()
+void SDMXPixelMappingDesignerView::OnComponentAdded(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component)
+{
+	CachedRendererComponent = nullptr;
+	UpdateOutput(true);
+}
+
+void SDMXPixelMappingDesignerView::OnComponentRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component)
 {
 	CachedRendererComponent = nullptr;
 	UpdateOutput(true);
@@ -898,9 +899,9 @@ FText SDMXPixelMappingDesignerView::GetHoveredComponentNameText() const
 FText SDMXPixelMappingDesignerView::GetHoveredComponentParentNameText() const
 {
 	UDMXPixelMappingOutputComponent* OutputComponent = FindComponentUnderCursor();
-	if (OutputComponent && OutputComponent->Parent)
+	if (OutputComponent && OutputComponent->GetParent())
 	{
-		return FText::FromString(OutputComponent->Parent->GetUserFriendlyName());
+		return FText::FromString(OutputComponent->GetParent()->GetUserFriendlyName());
 	}
 
 	return FText();
@@ -912,17 +913,17 @@ void SDMXPixelMappingDesignerView::ResolvePendingSelectedComponents(bool bClearP
 	{
 		if (PendingSelectedComponent.IsValid())
 		{
-			if (UDMXPixelMappingMatrixCellComponent* MatrixPixelComponent = Cast<UDMXPixelMappingMatrixCellComponent>(PendingSelectedComponent))
+			if (UDMXPixelMappingMatrixCellComponent* MatrixCellComponent = Cast<UDMXPixelMappingMatrixCellComponent>(PendingSelectedComponent))
 			{
 				// If a Matrix Cell is selected, select the owning Matrix Component instead
-				PendingSelectedComponent = MatrixPixelComponent->Parent;
+				PendingSelectedComponent = MatrixCellComponent->GetParent();
 			}
 			else if (UDMXPixelMappingFixtureGroupItemComponent* GroupItemComponent = Cast<UDMXPixelMappingFixtureGroupItemComponent>(PendingSelectedComponent))
 			{
 				// If an Item Component is selected and is lock in designer, select the owning Group Component instead
-				if (GroupItemComponent->bLockInDesigner)
+				if (GroupItemComponent->IsLockInDesigner())
 				{
-					PendingSelectedComponent = GroupItemComponent->Parent;
+					PendingSelectedComponent = GroupItemComponent->GetParent();
 				}
 			}
 
@@ -955,43 +956,52 @@ void SDMXPixelMappingDesignerView::HandleDragEnterFromDetailsOrPalette(const TSh
 
 				if (Target && PixelMapping->RootComponent)
 				{
-					TArray<UDMXPixelMappingBaseComponent*> DraggedComponents = ToolkitPtr->CreateComponentsFromTemplates(PixelMapping->GetRootComponent(), Target, TemplateDragDropOp->GetTemplates());
+					const TArray<UDMXPixelMappingBaseComponent*> NewComponents = ToolkitPtr->CreateComponentsFromTemplates(PixelMapping->GetRootComponent(), Target, TemplateDragDropOp->GetTemplates());
+					
+					// Build an array of all new componets for dragging
+					TArray<TWeakObjectPtr<UDMXPixelMappingBaseComponent>> DraggedComponents;
+					for (UDMXPixelMappingBaseComponent* Component : NewComponents)
+					{
+						DraggedComponents.Add(Component);
+					}
 
 					TemplateDragDropOp->SetDraggedComponents(DraggedComponents);
 
-					TArray<UDMXPixelMappingBaseComponent*> DraggedMatrices;
-					for (UDMXPixelMappingBaseComponent* DraggedComponent : DraggedComponents)
+					// Find if only matrix components and its childs are dragged
+					TArray<UDMXPixelMappingBaseComponent*> NewMatrices;
+					for (UDMXPixelMappingBaseComponent* NewComponent : NewComponents)
 					{
-						if (UDMXPixelMappingMatrixComponent* DraggedMatrix = Cast<UDMXPixelMappingMatrixComponent>(DraggedComponent))
+						if (UDMXPixelMappingMatrixComponent* NewMatrix = Cast<UDMXPixelMappingMatrixComponent>(NewComponent))
 						{
-							DraggedMatrices.Add(DraggedMatrix);
+							NewMatrices.Add(NewMatrix);
 						}
-						else if (UDMXPixelMappingMatrixCellComponent* DraggedMatrixCell = Cast<UDMXPixelMappingMatrixCellComponent>(DraggedComponent))
+						else if (UDMXPixelMappingMatrixCellComponent* NewMatrixCell = Cast<UDMXPixelMappingMatrixCellComponent>(NewComponent))
 						{
 							continue;
 						}
 						else
 						{
-							DraggedMatrices.Reset();
+							NewMatrices.Reset();
 							break;
 						}
 					}
 
+					// Update selection depending on types
 					TSet<FDMXPixelMappingComponentReference> NewSelection;
-					if (DraggedMatrices.Num() > 0)
+					if (NewMatrices.Num() > 0)
 					{					
 						// When only matrices and its childs are dragged, just select the matrix
-						for (UDMXPixelMappingBaseComponent* DraggedMatrix : DraggedMatrices)
+						for (UDMXPixelMappingBaseComponent* NewMatrix : NewMatrices)
 						{
-							NewSelection.Add(ToolkitPtr->GetReferenceFromComponent(DraggedMatrix));
+							NewSelection.Add(ToolkitPtr->GetReferenceFromComponent(NewMatrix));
 						}
 					}
 					else
 					{
-						// Select non-matrix components
-						for (UDMXPixelMappingBaseComponent* DraggedComponent : DraggedComponents)
+						// Select all new components
+						for (UDMXPixelMappingBaseComponent* NewComponent : NewComponents)
 						{
-							NewSelection.Add(ToolkitPtr->GetReferenceFromComponent(DraggedComponent));
+							NewSelection.Add(ToolkitPtr->GetReferenceFromComponent(NewComponent));
 						}
 					}
 
@@ -1052,10 +1062,9 @@ EVisibility SDMXPixelMappingDesignerView::GetExtensionCanvasVisibility() const
 	{
 		UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(Component.GetComponent());
 
-		if (OutputComponent == nullptr ||
-			OutputComponent->IsVisibleInDesigner() == false ||
-			OutputComponent->IsLockInDesigner() == true
-			)
+		if (!OutputComponent ||
+			!OutputComponent->IsVisible() ||
+			OutputComponent->IsLockInDesigner())
 		{
 			return EVisibility::Hidden;
 		}
@@ -1205,13 +1214,13 @@ SDMXPixelMappingDesignerView::FScopedRestoreSelection::~FScopedRestoreSelection(
 					{
 						return
 							Component &&
-							Component->Parent &&
-							ComponentsInPixelMapping.Contains(Component->Parent);
+							Component->GetParent() &&
+							ComponentsInPixelMapping.Contains(Component->GetParent());
 					});
 
 				if (ComponentWithParentPtr)
 				{
-					ValidComponents.Add(PinnedToolkit->GetReferenceFromComponent((*ComponentWithParentPtr)->Parent));
+					ValidComponents.Add(PinnedToolkit->GetReferenceFromComponent((*ComponentWithParentPtr)->GetParent()));
 				}
 				else
 				{
@@ -1233,4 +1242,5 @@ SDMXPixelMappingDesignerView::FScopedRestoreSelection::~FScopedRestoreSelection(
 		PinnedDesignerView->CreateExtensionWidgetsForSelection();
 	}
 }
+
 #undef LOCTEXT_NAMESPACE

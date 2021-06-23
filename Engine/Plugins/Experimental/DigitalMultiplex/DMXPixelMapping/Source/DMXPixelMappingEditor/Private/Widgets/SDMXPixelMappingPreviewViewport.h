@@ -29,7 +29,7 @@ public:
 	 *
 	 * @param InArgs The construction arguments.
 	 */
-	void Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InViewport);
+	void Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit);
 
 	/** Enable viewport rendering */
 	void EnableRendering();

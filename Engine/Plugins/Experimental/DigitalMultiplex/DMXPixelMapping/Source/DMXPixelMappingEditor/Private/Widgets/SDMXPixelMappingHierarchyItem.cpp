@@ -76,7 +76,10 @@ FReply SDMXPixelMappingHierarchyItem::OnDraggingWidget(const FGeometry& MyGeomet
 	check(Model.IsValid());
 
 	UDMXPixelMappingBaseComponent* Component = Model.Pin()->GetReference().GetComponent();
-	return FReply::Handled().BeginDragDrop(FDMXPixelMappingDragDropOp::New(FVector2D::ZeroVector, TArray<UDMXPixelMappingBaseComponent*>({ Component })));
+
+	TArray<TWeakObjectPtr<UDMXPixelMappingBaseComponent>> DraggedComponents;
+	DraggedComponents.Add(Component);
+	return FReply::Handled().BeginDragDrop(FDMXPixelMappingDragDropOp::New(FVector2D::ZeroVector, DraggedComponents));
 }
 
 FReply SDMXPixelMappingHierarchyItem::OnDropWidget(const FDragDropEvent& InDragDropEvent)
@@ -86,34 +89,37 @@ FReply SDMXPixelMappingHierarchyItem::OnDropWidget(const FDragDropEvent& InDragD
 	if (ComponentDragDropOp.IsValid()
 		&& HierarchyView.IsValid())
 	{
-		for (UDMXPixelMappingBaseComponent* Source : ComponentDragDropOp->GetDraggedComponents())
+		for (const TWeakObjectPtr<UDMXPixelMappingBaseComponent>& WeakSource : ComponentDragDropOp->GetDraggedComponents())
 		{
-			UDMXPixelMappingBaseComponent* Destination = Model.Pin()->GetReference().GetComponent();
-
-			UDMXPixelMappingBaseComponent* NewParent = nullptr;
-			if (Source->CanBeMovedTo(Destination))
+			if (UDMXPixelMappingBaseComponent* Source = WeakSource.Get())
 			{
-				NewParent = Destination;
-			}
-			else if (Source->CanBeMovedTo(Destination->Parent))
-			{
-				NewParent = Destination->Parent;
-			}
+				UDMXPixelMappingBaseComponent* Destination = Model.Pin()->GetReference().GetComponent();
 
-			if (NewParent)
-			{
-				NewParent->Modify();
-				Source->Modify();
-				NewParent->AddChild(Source);
-
-				if (Source->Parent)
+				UDMXPixelMappingBaseComponent* NewParent = nullptr;
+				if (Source->CanBeMovedTo(Destination))
 				{
-					Source->Parent->Modify();
-					Source->Parent->RemoveChild(Source);
+					NewParent = Destination;
+				}
+				else if (Source->CanBeMovedTo(Destination->GetParent()))
+				{
+					NewParent = Destination->GetParent();
 				}
 
-				HierarchyView->RequestComponentRedraw(NewParent);
-				HierarchyView->RequestRebuildTree();
+				if (NewParent)
+				{
+					NewParent->Modify();
+					Source->Modify();
+					NewParent->AddChild(Source);
+
+					if (Source->GetParent())
+					{
+						Source->GetParent()->Modify();
+						Source->GetParent()->RemoveChild(Source);
+					}
+
+					HierarchyView->RequestComponentRedraw(NewParent);
+					HierarchyView->RequestRebuildTree();
+				}
 			}
 		}		
 	}

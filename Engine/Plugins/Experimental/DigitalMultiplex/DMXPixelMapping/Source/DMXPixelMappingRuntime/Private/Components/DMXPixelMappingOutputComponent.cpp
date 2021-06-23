@@ -40,16 +40,16 @@ void UDMXPixelMappingOutputComponent::PostEditChangeProperty(FPropertyChangedEve
 	
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, bVisibleInDesigner))
 	{
+		const EVisibility NewVisiblity = IsVisible() ? EVisibility::Visible : EVisibility::Collapsed;
+
+		if (ComponentWidget.IsValid())
+		{
+			ComponentWidget->SetVisibility(NewVisiblity);
+		}
+
 		constexpr bool bSetVisibilityRecursive = true;
-		ForEachChildOfClass<UDMXPixelMappingOutputComponent>([this](UDMXPixelMappingOutputComponent* ChildComponent) 
+		ForEachChildOfClass<UDMXPixelMappingOutputComponent>([NewVisiblity](UDMXPixelMappingOutputComponent* ChildComponent)
 			{
-				const EVisibility NewVisiblity = bVisibleInDesigner ? EVisibility::Visible : EVisibility::Collapsed;
-
-				if (ComponentWidget.IsValid())
-				{
-					ComponentWidget->SetVisibility(NewVisiblity);
-				}
-
 				if (TSharedPtr<FDMXPixelMappingComponentWidget> ChildComponentWidget = ChildComponent->GetComponentWidget())
 				{
 					ChildComponentWidget->SetVisibility(NewVisiblity);
@@ -59,28 +59,149 @@ void UDMXPixelMappingOutputComponent::PostEditChangeProperty(FPropertyChangedEve
 	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, CellBlendingQuality))
 	{
 		// Propagonate to children
-		constexpr bool bRecursive = true;
-		ForEachChild([this](UDMXPixelMappingBaseComponent* ChildComponent)
+		constexpr bool bSetCellBlendingQualityToChildsRecursive = true;
+		ForEachChildOfClass<UDMXPixelMappingOutputComponent>([this](UDMXPixelMappingOutputComponent* ChildComponent)
 			{
-				if (UDMXPixelMappingOutputComponent* ChildOutputComponent = Cast<UDMXPixelMappingOutputComponent>(ChildComponent))
+				ChildComponent->CellBlendingQuality = CellBlendingQuality;
+			}, bSetCellBlendingQualityToChildsRecursive);
+	}
+
+	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
+	{
+		if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionX) ||
+			PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionY) ||
+			PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeX) ||
+			PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeY))
+		{
+			// Remove self if not over parent
+			if (!IsOverParent())
+			{
+				Modify();
+
+				if (ensureMsgf(HasValidParent(), TEXT("No valid Parent when trying to remove PixelMapping Component %s."), *GetUserFriendlyName()))
 				{
-					ChildOutputComponent->CellBlendingQuality = CellBlendingQuality;
+					GetParent()->Modify();
+					GetParent()->RemoveChild(this);
 				}
-			}, bRecursive);
+			}
+			else
+			{
+				// Remove children not over this
+				constexpr bool RemoveChildNotOverThisRecursively = true;
+				ForEachChildOfClass<UDMXPixelMappingOutputComponent>([this](UDMXPixelMappingOutputComponent* ChildComponent)
+					{
+						if (!ChildComponent->IsOverParent())
+						{
+							ChildComponent->Modify();
+							Modify();
+
+							if (ensureMsgf(ChildComponent->HasValidParent(), TEXT("No valid Parent when trying to remove PixelMapping Component %s."), *ChildComponent->GetUserFriendlyName()))
+							{
+								ChildComponent->GetParent()->RemoveChild(ChildComponent);
+							}
+						}
+					}, RemoveChildNotOverThisRecursively);
+			}
+		}
 	}
 }
 #endif // WITH_EDITOR
 
-void UDMXPixelMappingOutputComponent::PostRemovedFromParent()
+#if WITH_EDITOR
+void UDMXPixelMappingOutputComponent::PreEditUndo()
 {
-	Super::PostRemovedFromParent();
+	Super::PreEditUndo();
+
+	PreEditUndoChildren = Children;
+}
+#endif // WITH_EDITOR
+
+#if WITH_EDITOR
+void UDMXPixelMappingOutputComponent::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	EVisibility NewVisibility = IsVisible() ? EVisibility::Visible : EVisibility::Collapsed;
+
+	UpdateComponentWidget(NewVisibility);
+
+	if (Children.Num() < PreEditUndoChildren.Num())
+	{	
+		// Undo Add Children (remove them again)
+		for (UDMXPixelMappingBaseComponent* PreEditUndoChild : PreEditUndoChildren)
+		{
+			if (UDMXPixelMappingOutputComponent* PreEditUndoOutputComponent = Cast<UDMXPixelMappingOutputComponent>(PreEditUndoChild))
+			{
+				const EVisibility NewChildVisibility = PreEditUndoOutputComponent->IsVisible() ? EVisibility::Visible : EVisibility::Collapsed;
+
+				constexpr bool bWithChildrenRecursive = false;
+				PreEditUndoOutputComponent->UpdateComponentWidget(NewChildVisibility, bWithChildrenRecursive);
+			}	
+		}
+	}
+	else if (Children.Num() > PreEditUndoChildren.Num())
+	{
+		// Undo Remove Children (add them again)
+		for (UDMXPixelMappingBaseComponent* PreEditUndoChild : PreEditUndoChildren)
+		{
+			if (UDMXPixelMappingOutputComponent* PreEditUndoOutputComponent = Cast<UDMXPixelMappingOutputComponent>(PreEditUndoChild))
+			{
+				const EVisibility NewChildVisibility = IsVisible() ? EVisibility::Visible : EVisibility::Collapsed;
+
+				constexpr bool bWithChildrenRecursive = false;
+				PreEditUndoOutputComponent->UpdateComponentWidget(NewChildVisibility, bWithChildrenRecursive);
+			}
+		}
+	}
+
+	PreEditUndoChildren.Reset();
+}
+#endif // WITH_EDITOR
+
+void UDMXPixelMappingOutputComponent::BeginDestroy()
+{
+	Super::BeginDestroy();
 
 #if WITH_EDITOR
 	if (ComponentWidget.IsValid())
 	{
 		ComponentWidget->RemoveFromCanvas();
+
+		// Should have released all references by now
+		ensureMsgf(ComponentWidget.GetSharedReferenceCount() == 1, TEXT("Detected Reference to Component Widget the component is destroyed."));
 	}
 #endif
+}
+
+bool UDMXPixelMappingOutputComponent::CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const
+{
+	return false;
+}
+
+void UDMXPixelMappingOutputComponent::AddChild(UDMXPixelMappingBaseComponent* InComponent)
+{
+	Super::AddChild(InComponent);
+
+#if WITH_EDITOR
+	if (UDMXPixelMappingOutputComponent* ChildOutputComponent = Cast<UDMXPixelMappingOutputComponent>(InComponent))
+	{
+		const EVisibility NewChildVisibility = ChildOutputComponent->IsVisible() ? EVisibility::Visible : EVisibility::Collapsed;
+
+		ChildOutputComponent->UpdateComponentWidget(NewChildVisibility);
+	}	
+#endif // WITH_EDITOR
+}
+
+void UDMXPixelMappingOutputComponent::RemoveChild(UDMXPixelMappingBaseComponent* InComponent)
+{
+	Super::RemoveChild(InComponent);
+
+#if WITH_EDITOR
+	if (UDMXPixelMappingOutputComponent* ChildOutputComponent = Cast<UDMXPixelMappingOutputComponent>(InComponent))
+	{
+		ChildOutputComponent->UpdateComponentWidget(EVisibility::Collapsed);
+	}
+#endif // WITH_EDITOR
 }
 
 #if WITH_EDITOR
@@ -99,13 +220,20 @@ TSharedRef<FDMXPixelMappingComponentWidget> UDMXPixelMappingOutputComponent::Bui
 	{
 		ComponentWidget = MakeShared<FDMXPixelMappingComponentWidget>();
 		ComponentWidget->AddToCanvas(InCanvas, ZOrder);
-		ComponentWidget->SetPosition(GetPosition());
-		ComponentWidget->SetSize(GetSize());
-		ComponentWidget->SetColor(GetEditorColor());
-		ComponentWidget->SetLabelText(FText::FromString(GetUserFriendlyName()));
 	}
 
+	UpdateComponentWidget();
+
 	return ComponentWidget.ToSharedRef();
+}
+#endif // WITH_EDITOR
+
+#if WITH_EDITOR
+bool UDMXPixelMappingOutputComponent::IsVisible() const
+{
+	const bool bAssignedToParent = GetParent() && GetParent()->Children.Contains(this);
+
+	return bVisibleInDesigner && bAssignedToParent;
 }
 #endif // WITH_EDITOR
 
@@ -142,7 +270,7 @@ void UDMXPixelMappingOutputComponent::SetZOrder(int32 NewZOrder)
 					}
 				}
 			}
-		}, true);
+		}, bRecursive);
 
 }
 #endif // WITH_EDITOR
@@ -193,9 +321,9 @@ UDMXPixelMappingRendererComponent* UDMXPixelMappingOutputComponent::FindRenderer
 {
 	UDMXPixelMappingRendererComponent* ParentRendererComponent = nullptr;
 
-	if (Parent)
+	if (GetParent())
 	{
-		for (UDMXPixelMappingBaseComponent* ParentComponent = Parent; Parent; ParentComponent = ParentComponent->Parent)
+		for (UDMXPixelMappingBaseComponent* ParentComponent = GetParent(); ParentComponent; ParentComponent = ParentComponent->GetParent())
 		{
 			ParentRendererComponent = Cast<UDMXPixelMappingRendererComponent>(ParentComponent);
 			if (ParentRendererComponent)
@@ -222,7 +350,7 @@ void UDMXPixelMappingOutputComponent::MakeHighestZOrderInComponentRect()
 				}
 
 				// Exclude children, they're updated when SetZOrder is called below
-				for (UDMXPixelMappingBaseComponent* OtherParent = InComponent->Parent; OtherParent; OtherParent = OtherParent->Parent)
+				for (UDMXPixelMappingBaseComponent* OtherParent = InComponent->GetParent(); OtherParent; OtherParent = OtherParent->GetParent())
 				{
 					if (OtherParent == this)
 					{
@@ -255,9 +383,30 @@ TSharedPtr<SConstraintCanvas> UDMXPixelMappingOutputComponent::FindRendererCompo
 }
 #endif // WITH_EDITOR
 
-bool UDMXPixelMappingOutputComponent::CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const
+#if WITH_EDITOR
+void UDMXPixelMappingOutputComponent::UpdateComponentWidget(EVisibility NewVisibility, bool bWithChildrenRecursive)
 {
-	return false;
+	if (ComponentWidget.IsValid())
+	{
+		ComponentWidget->SetVisibility(NewVisibility);
+		ComponentWidget->SetPosition(GetPosition());
+		ComponentWidget->SetSize(GetSize());
+		ComponentWidget->SetColor(GetEditorColor());
+		ComponentWidget->SetLabelText(FText::FromString(GetUserFriendlyName()));
+	}
+
+	if (bWithChildrenRecursive)
+	{
+		for (UDMXPixelMappingBaseComponent* ChildComponent : Children)
+		{
+			if (UDMXPixelMappingOutputComponent* ChildOutputComponent = Cast<UDMXPixelMappingOutputComponent>(ChildComponent))
+			{
+				// Recursive for all
+				ChildOutputComponent->UpdateComponentWidget(NewVisibility, bWithChildrenRecursive);
+			}
+		}
+	}
 }
+#endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE

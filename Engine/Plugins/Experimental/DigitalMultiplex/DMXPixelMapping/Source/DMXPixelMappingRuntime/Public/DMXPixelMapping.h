@@ -17,6 +17,7 @@ class UTexture;
 DECLARE_DELEGATE_OneParam(FOnEditorRebuildChildrenComponentsDelegate, UDMXPixelMappingBaseComponent*)
 #endif // WITH_EDITOR
 
+
 /**
  * Public container of Pixel Mapping object and it using for asset
  */
@@ -26,9 +27,6 @@ class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMapping
 {
 	GENERATED_BODY()
 public:
-	/** Destructor */
-	~UDMXPixelMapping();
-
 	//~ Begin UObject implementation
 	virtual void PostLoad() override;
 	//~ End UObject implementation
@@ -139,7 +137,7 @@ public:
 
 public:
 	/** Holds the reference to root component */
-	UPROPERTY(Instanced)
+	UPROPERTY()
 	UDMXPixelMappingRootComponent* RootComponent;
 
 
@@ -148,7 +146,7 @@ public:
 	UPROPERTY(Transient)
 	UTexture* ThumbnailImage;
 
-	/** Editor Delete Components Delegate */
-	FOnEditorRebuildChildrenComponentsDelegate OnEditorRebuildChildrenComponentsDelegate;
+	/** DEPRECATED 4.27. Use FDMXPixelMappingMatrixComponent::GetOnMatrixChanged() instead */
+	FOnEditorRebuildChildrenComponentsDelegate OnEditorRebuildChildrenComponentsDelegate_DEPRECATED;
 #endif
 };

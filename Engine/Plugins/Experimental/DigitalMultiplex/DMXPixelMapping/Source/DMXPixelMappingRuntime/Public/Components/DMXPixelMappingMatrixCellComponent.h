@@ -32,21 +32,21 @@ public:
 	//~ Begin UObject implementation
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PreEditUndo() override;
+	virtual void PostEditUndo() override;
 #endif // WITH_EDITOR
 	//~ End UObject implementation
 
 	//~ Begin UDMXPixelMappingBaseComponent implementation
-	virtual void PostParentAssigned() override;
 	virtual const FName& GetNamePrefix() override;
 	virtual void ResetDMX() override;
-#if WITH_EDITOR
 	virtual FString GetUserFriendlyName() const override;
-#endif
 	//~ End UDMXPixelMappingBaseComponent implementation
 
 	//~ Begin UDMXPixelMappingOutputComponent implementation
 #if WITH_EDITOR
 	virtual TSharedRef<FDMXPixelMappingComponentWidget> BuildSlot(TSharedRef<SConstraintCanvas> InCanvas) override;
+	virtual bool IsVisible() const override;
 	virtual FLinearColor GetEditorColor() const override;
 #endif // WITH_EDITOR	
 	virtual bool IsOverParent() const override;

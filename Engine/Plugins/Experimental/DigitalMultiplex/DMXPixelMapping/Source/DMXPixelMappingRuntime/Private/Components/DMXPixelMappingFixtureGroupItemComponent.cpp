@@ -105,7 +105,6 @@ void UDMXPixelMappingFixtureGroupItemComponent::PostEditChangeChainProperty(FPro
 }
 #endif // WITH_EDITOR
 
-#if WITH_EDITOR
 FString UDMXPixelMappingFixtureGroupItemComponent::GetUserFriendlyName() const
 {
 	if (UDMXEntityFixturePatch* Patch = FixturePatchRef.GetFixturePatch())
@@ -115,7 +114,6 @@ FString UDMXPixelMappingFixtureGroupItemComponent::GetUserFriendlyName() const
 
 	return FString(TEXT("Fixture Group Item: No Fixture Patch"));
 }
-#endif // WITH_EDITOR
 
 const FName& UDMXPixelMappingFixtureGroupItemComponent::GetNamePrefix()
 {
@@ -124,19 +122,17 @@ const FName& UDMXPixelMappingFixtureGroupItemComponent::GetNamePrefix()
 }
 
 #if WITH_EDITOR
-bool UDMXPixelMappingFixtureGroupItemComponent::IsVisibleInDesigner() const
+bool UDMXPixelMappingFixtureGroupItemComponent::IsVisible() const
 {
-	if (UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent = Cast<UDMXPixelMappingFixtureGroupComponent>(Parent))
+	if (UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent = Cast<UDMXPixelMappingFixtureGroupComponent>(GetParent()))
 	{
-		if (bVisibleInDesigner == false)
+		if (!FixtureGroupComponent->IsVisible())
 		{
 			return false;
 		}
-
-		return FixtureGroupComponent->IsVisibleInDesigner();
 	}
 
-	return bVisibleInDesigner;
+	return Super::IsVisible();
 }
 #endif // WITH_EDITOR
 
@@ -250,6 +246,8 @@ void UDMXPixelMappingFixtureGroupItemComponent::QueueDownsample()
 
 void UDMXPixelMappingFixtureGroupItemComponent::SetPosition(const FVector2D& NewPosition)
 {
+	Modify();
+
 	PositionX = FMath::RoundHalfToZero(NewPosition.X);
 	PositionY = FMath::RoundHalfToZero(NewPosition.Y);
 
@@ -263,6 +261,8 @@ void UDMXPixelMappingFixtureGroupItemComponent::SetPosition(const FVector2D& New
 
 void UDMXPixelMappingFixtureGroupItemComponent::SetSize(const FVector2D& NewSize)
 {
+	Modify();
+
 	SizeX = FMath::RoundHalfToZero(NewSize.X);
 	SizeY = FMath::RoundHalfToZero(NewSize.Y);
 
@@ -280,7 +280,7 @@ void UDMXPixelMappingFixtureGroupItemComponent::SetSize(const FVector2D& NewSize
 bool UDMXPixelMappingFixtureGroupItemComponent::IsOverParent() const
 {
 	// Needs be over the over the group
-	if (UDMXPixelMappingFixtureGroupComponent* ParentFixtureGroupComponent = Cast<UDMXPixelMappingFixtureGroupComponent>(Parent))
+	if (UDMXPixelMappingFixtureGroupComponent* ParentFixtureGroupComponent = Cast<UDMXPixelMappingFixtureGroupComponent>(GetParent()))
 	{
 		return
 			PositionX >= ParentFixtureGroupComponent->GetPosition().X &&
@@ -317,7 +317,7 @@ bool UDMXPixelMappingFixtureGroupItemComponent::CanBeMovedTo(const UDMXPixelMapp
 
 UDMXPixelMappingRendererComponent* UDMXPixelMappingFixtureGroupItemComponent::UDMXPixelMappingFixtureGroupItemComponent::GetRendererComponent() const
 {
-	return Cast<UDMXPixelMappingRendererComponent>(Parent->Parent);
+	return GetParent() ? Cast<UDMXPixelMappingRendererComponent>(GetParent()->GetParent()) : nullptr;
 }
 
 TMap<FDMXAttributeName, float> UDMXPixelMappingFixtureGroupItemComponent::CreateAttributeValues() const

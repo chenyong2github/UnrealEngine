@@ -39,7 +39,8 @@ class FDMXPixelMappingToolkit
 
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnComponentsAddedOrDeletedDelegate)
-	FOnComponentsAddedOrDeletedDelegate& GetOnComponentsAddedOrDeletedDelegate() { return OnComponentsAddedOrDeletedDelegate; }
+	UE_DEPRECATED(4.27, "Use UDMXPixelMappingBaseComponent::GetOnComponentAdded and  UDMXPixelMappingBaseComponent::GetOnComponentRemoved instead.")
+	FOnComponentsAddedOrDeletedDelegate& GetOnComponentsAddedOrDeletedDelegate() { return OnComponentsAddedOrDeletedDelegate_DEPRECATED; }
 
 	DECLARE_MULTICAST_DELEGATE(FOnSelectedComponentsChangedDelegate)
 	FOnSelectedComponentsChangedDelegate& GetOnSelectedComponentsChangedDelegate() { return OnSelectedComponentsChangedDelegate; }
@@ -123,8 +124,12 @@ public:
 
 	void SetActiveRenderComponent(UDMXPixelMappingRendererComponent* InComponent);
 
+	/** DEPRECATED 4.27 */
+	UE_DEPRECATED(4.27, "No longer needed")
 	void HandleAddComponents();
 
+	/** DEPRECATED 4.27 */
+	UE_DEPRECATED(4.27, "No longer needed")
 	void HandleRemoveComponents();
 
 	/** Creates an array of components given specifed component references */
@@ -141,15 +146,9 @@ public:
 
 	void AddRenderer();
 
-	void ClearRenderers();
-
-	void DeleteSelectedComponents(const TSet<FDMXPixelMappingComponentReference>& InComponents);
-
-	bool CanDeleteSelectedComponents(const TSet<FDMXPixelMappingComponentReference>& InComponents);
+	void DeleteSelectedComponents();
 
 	void OnComponentRenamed(UDMXPixelMappingBaseComponent* InComponent);
-
-	void BroadcastPostChange(UDMXPixelMapping* InDMXPixelMapping);
 
 	/** 
 	 * Creates components from the template. Returns the new components.
@@ -157,9 +156,11 @@ public:
 	 */
 	TArray<UDMXPixelMappingBaseComponent*> CreateComponentsFromTemplates(UDMXPixelMappingRootComponent* RootComponent, UDMXPixelMappingBaseComponent* Target, const TArray<TSharedPtr<FDMXPixelMappingComponentTemplate>>& Templates);
 
-	void DeleteMatrixPixels(UDMXPixelMappingMatrixComponent* InMatrixComponent);
+	UE_DEPRECATED(4.27, "Handled in UDMXPixelMappingMatrixComponent internally instead. No longer needs to be call explicitly.")
+	void DeleteMatrixPixels(UDMXPixelMappingMatrixComponent* InMatrixComponent) { checkNoEntry();}
 
-	void CreateMatrixPixels(UDMXPixelMappingMatrixComponent* InMatrixComponent);
+	UE_DEPRECATED(4.27, "Handled in UDMXPixelMappingMatrixComponent internally instead.  No longer needs to be call explicitly.")
+	void CreateMatrixPixels(UDMXPixelMappingMatrixComponent* InMatrixComponent) {}
 
 private:
 	void PlayDMX();
@@ -168,11 +169,9 @@ private:
 
 	void ExecutebTogglePlayDMXAll();
 
+	void UpdateBlueprintNodes(UDMXPixelMapping* InDMXPixelMapping);
+
 	void OnSaveThumbnailImage();
-
-	void DeleteSelectedComponents_Internal();
-
-	bool CanDeleteSelectedComponents_Internal();
 
 	void InitializeInternal(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, const FGuid& MessageLogGuid);
 
@@ -194,7 +193,11 @@ private:
 
 	void CreateInternalViews();
 
-	void OnDMXPixelMappingDeleteChildrenComponents(UDMXPixelMappingBaseComponent* InParentComponent);
+	/** Called when a component was added to the pixel mapping */
+	void OnComponentAdded(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* InComponent);
+
+	/** Called when a component was removed from the pixel mapping */
+	void OnComponentRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* InComponent);
 
 private:
 	UDMXPixelMapping* DMXPixelMapping;
@@ -213,8 +216,6 @@ private:
 	TSharedPtr<SDMXPixelMappingDetailsView> DetailsView;
 
 	TSharedPtr<FDMXPixelMappingPaletteViewModel> PaletteViewModel;
-
-	FOnComponentsAddedOrDeletedDelegate OnComponentsAddedOrDeletedDelegate;
 
 	FOnSelectedComponentsChangedDelegate OnSelectedComponentsChangedDelegate;
 
@@ -238,6 +239,8 @@ private:
 	uint8 RequestStopSendingTicks;
 
 	static const uint8 RequestStopSendingMaxTicks;
+
+	FOnComponentsAddedOrDeletedDelegate OnComponentsAddedOrDeletedDelegate_DEPRECATED;
 
 public:
 	static const FName PaletteViewTabID;

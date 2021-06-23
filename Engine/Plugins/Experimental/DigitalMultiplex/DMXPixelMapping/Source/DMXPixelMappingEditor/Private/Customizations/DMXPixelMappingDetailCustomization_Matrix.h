@@ -48,8 +48,6 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 
 private:
-	void OnFixturePatchChanged();
-
 	EVisibility GetRGBAttributeRowVisibilty(FDMXCellAttributeGroup* Attribute) const;
 
 	EVisibility GetRGBAttributesVisibility() const;

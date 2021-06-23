@@ -70,6 +70,16 @@ void UDMXPixelMappingFixtureGroupComponent::PostEditChangeProperty(FPropertyChan
 }
 #endif // WITH_EDITOR
 
+#if WITH_EDITOR
+void UDMXPixelMappingFixtureGroupComponent::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	// Update last position, so the next will be set correctly on children
+	LastPosition = GetPosition();
+}
+#endif // WITH_EDITOR
+
 const FName& UDMXPixelMappingFixtureGroupComponent::GetNamePrefix()
 {
 	static FName NamePrefix = TEXT("Fixture Group");
@@ -109,6 +119,8 @@ void UDMXPixelMappingFixtureGroupComponent::QueueDownsample()
 
 void UDMXPixelMappingFixtureGroupComponent::SetPosition(const FVector2D& NewPosition)
 {
+	Modify();
+
 	PositionX = FMath::RoundHalfToZero(NewPosition.X);
 	PositionY = FMath::RoundHalfToZero(NewPosition.Y);
 
@@ -117,6 +129,8 @@ void UDMXPixelMappingFixtureGroupComponent::SetPosition(const FVector2D& NewPosi
 
 void UDMXPixelMappingFixtureGroupComponent::SetSize(const FVector2D& NewSize)
 {
+	Modify();
+
 	SizeX = FMath::RoundHalfToZero(NewSize.X);
 	SizeY = FMath::RoundHalfToZero(NewSize.Y);
 
@@ -149,11 +163,9 @@ void UDMXPixelMappingFixtureGroupComponent::HandlePositionChanged()
 
 		}, bUpdatePositionRecursive);
 
-	LastPosition.X = PositionX;
-	LastPosition.Y = PositionY;
+	LastPosition = GetPosition();
 }
 
-#if WITH_EDITOR
 FString UDMXPixelMappingFixtureGroupComponent::GetUserFriendlyName() const
 {
 	if (DMXLibrary)
@@ -163,7 +175,6 @@ FString UDMXPixelMappingFixtureGroupComponent::GetUserFriendlyName() const
 
 	return FString("Fixture Group: No Library");
 }
-#endif // WITH_EDITOR
 
 #if WITH_EDITOR
 const FText UDMXPixelMappingFixtureGroupComponent::GetPaletteCategory()

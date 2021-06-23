@@ -107,7 +107,11 @@ private:
 
 	FGeometry GetDesignerGeometry() const;
 
-	void HandleChangeComponents();
+	/** Called when a component was added */
+	void OnComponentAdded(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component);
+
+	/** Called when a component was removed */
+	void OnComponentRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component);
 
 	EVisibility GetRulerVisibility() const;
 
@@ -159,9 +163,6 @@ private:
 
 	/** The drag over DragDropOp that should be handled on the next tick*/
 	TSharedPtr<FDMXPixelMappingDragDropOp> PendingDragDropOp;
-
-	/** If true, terminates any existing drag drop op without handling it */
-	bool bRequestTerminateDragDrop = false;
 
 	TSharedPtr<SCanvas> ExtensionWidgetCanvas;
 

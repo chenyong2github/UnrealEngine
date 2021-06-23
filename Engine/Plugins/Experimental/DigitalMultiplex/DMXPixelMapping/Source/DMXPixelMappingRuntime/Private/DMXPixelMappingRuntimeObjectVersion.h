@@ -16,8 +16,8 @@ struct FDMXPixelMappingRuntimeObjectVersion
 		// Update DMXPixelMappingMatrixComponent to no longer use a custom MatrixFixturePatchRef, but the default EntityFixturePatchRef one.
 		ChangePixelMappingMatrixComponentToFixturePatchReference,
 
-		// Update DMXPixelMappingOutputComponent to use EditorPosition and EditorSize for details
-		PixelMappingOutputComponentNowUsesVector2DForPositionAndSize,
+		// Update DMXPixelMappingBaseComponent to store the parent as a weak ptr
+		UseWeakPtrForPixelMappingComponentParent,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

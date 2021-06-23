@@ -11,19 +11,15 @@
 #include "Widgets/SCompoundWidget.h"
 
 class FDMXPixelMappingToolkit;
+class UDMXPixelMapping;
+
+class FUICommandList;
+class ITableRow;
 class SBorder;
 class SSearchBox;
-
-template<typename ItemType>
-class TreeFilterHandler;
-
-template<typename ItemType>
-class STreeView;
-
-class ITableRow;
-class FUICommandList;
-
 class STableViewBase;
+template<typename ItemType> class STreeView;
+template<typename ItemType> class TreeFilterHandler;
 
 
 class SDMXPixelMappingHierarchyView
@@ -91,7 +87,11 @@ private:
 	/** Rebuilds the tree structure based on the current filter options */
 	void RefreshTree();
 
-	void HandleAddComponents();
+	/** Called when a component was added */
+	void OnComponentAdded(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component);
+
+	/** Called when a component was removed */
+	void OnComponentRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component);
 
 	/** Called when the selected widget has changed.  The treeview then needs to match the new selection. */
 	void OnEditorSelectionChanged();

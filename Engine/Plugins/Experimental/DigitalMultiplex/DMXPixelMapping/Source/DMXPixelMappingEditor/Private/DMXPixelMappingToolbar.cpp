@@ -57,11 +57,6 @@ void FDMXPixelMappingToolbar::AddPlayAndStopSection(FToolBarBuilder& ToolbarBuil
 			NAME_None, TAttribute<FText>(), TAttribute<FText>(),
 			FSlateIcon(FDMXPixelMappingEditorStyle::GetStyleSetName(), "DMXPixelMappingEditor.AddMapping"),
 			FName(TEXT("Add Mapping")));
-
-		ToolbarBuilder.AddToolBarButton(FDMXPixelMappingEditorCommands::Get().ClearMappings,
-			NAME_None, TAttribute<FText>(), TAttribute<FText>(),
-			FSlateIcon(FDMXPixelMappingEditorStyle::GetStyleSetName(), "DMXPixelMappingEditor.ClearMappings"),
-			FName(TEXT("Clear Mappings")));
 	}
 	ToolbarBuilder.EndSection();
 

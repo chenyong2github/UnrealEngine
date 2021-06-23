@@ -11,7 +11,9 @@
 
 DECLARE_STATS_GROUP(TEXT("DMXPixelMapping"), STATGROUP_DMXPIXELMAPPING, STATCAT_Advanced);
 
+class FDMXPixelMappingComponentTemplate;
 class UDMXPixelMappingRendererComponent;
+
 
 /**
  * Base class for all DMX Pixel Mapping components
@@ -23,26 +25,46 @@ class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingBaseComponent
 {
 	GENERATED_BODY()
 
-	DECLARE_DELEGATE_OneParam(FDMXOnPixelMappingComponentBeginDestroy, UDMXPixelMappingBaseComponent* /** Component about to be destroyed */);
+	DECLARE_EVENT_TwoParams(UDMXPixelMappingBaseComponent, FDMXPixelMappingOnComponentAdded, UDMXPixelMapping* /** PixelMapping */, UDMXPixelMappingBaseComponent* /** AddedComponent */);
+	DECLARE_EVENT_TwoParams(UDMXPixelMappingBaseComponent, FDMXPixelMappingOnComponentRemoved, UDMXPixelMapping* /** PixelMapping */, UDMXPixelMappingBaseComponent* /** RemovedComponent */);
+	DECLARE_EVENT_FourParams(UDMXPixelMappingBaseComponent, FDMXPixelMappingOnComponentRenamed, UDMXPixelMapping* /** PixelMapping */, UDMXPixelMappingBaseComponent* /** RenamedComponent */, UObject* /** OldOuter */, const FName /** OldName */);
 
 public:
 	/** Public constructor */
 	UDMXPixelMappingBaseComponent();
 
-	/*----------------------------------
-		UDMXPixelMappingBaseComponent interface
-	----------------------------------*/
+	/** Gets an Event broadcast when a component was added */
+	static FDMXPixelMappingOnComponentAdded& GetOnComponentAdded()
+	{
+		static FDMXPixelMappingOnComponentAdded OnComponentAdded;
+		return OnComponentAdded;
+	}
 
-	/**
-	* Called when the component was assigned to its parent
-	*/
-	virtual void PostParentAssigned() {}
+	/** Gets an Event broadcast when a component was added */
+	static FDMXPixelMappingOnComponentRemoved& GetOnComponentRemoved()
+	{
+		static FDMXPixelMappingOnComponentRemoved OnComponentRemoved;
+		return OnComponentRemoved;
+	}
 
-	/**
-	* Called when the component was removed from its parent
-	*/
-	virtual void PostRemovedFromParent() {}
+	/** Gets an Event broadcast when a component was renamed */
+	static FDMXPixelMappingOnComponentRenamed& GetOnComponentRenamed()
+	{
+		static FDMXPixelMappingOnComponentRenamed OnComponentRenamed;
+		return OnComponentRenamed;
+	}
 
+protected:
+	//~ Begin UObject interface
+	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
+#if WITH_EDITOR
+	virtual void PostEditUndo() override;
+#endif // WITH_EDITOR
+	//~ End UObject interface
+
+
+public:
 	/**
 	 * Should log properties that were changed in underlying fixture patch or fixture type
 	 *
@@ -63,27 +85,9 @@ public:
 	virtual bool IsTickable() const override { return false; }
 	// ~End FTickableGameObject interface
 
-	/*----------------------------------------------------------
-		Non virtual functions, not intended to be overridden
-	----------------------------------------------------------*/
-
-	/**
-	 * Looking for the first child by given Class
-	 *
-	 * @return An instance of the templated Component
-	 */
-	template <typename TComponentClass>
-	TComponentClass* GetFirstChildOfClass()
-	{
-		TComponentClass* FoundObject = nullptr;
-		ForEachComponentOfClass<TComponentClass>([this, &FoundObject](TComponentClass* InObject)
-		{
-			FoundObject = InObject;
-			return;
-		}, true);
-
-		return FoundObject;
-	}
+	/*------------------------------------------
+		UDMXPixelMappingBaseComponent interface
+	--------------------------------------------*/
 
 	/** Get the number of children components */
 	int32 GetChildrenCount() const;
@@ -102,13 +106,22 @@ public:
 	 *
 	 * @param InComponent    Component instance object
 	 */
-	void AddChild(UDMXPixelMappingBaseComponent* InComponent);
+	virtual void AddChild(UDMXPixelMappingBaseComponent* InComponent);
 
 	/** Remove the child component by the given component object. */
-	void RemoveChild(UDMXPixelMappingBaseComponent* InComponent);
+	virtual void RemoveChild(UDMXPixelMappingBaseComponent* InComponent);
 
 	/** Remove all children */
 	void ClearChildren();
+
+	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */
+	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const
+	{
+		return false;
+	}
+
+	/** Returns the name of the component used across all widgets that draw it */
+	virtual FString GetUserFriendlyName() const;
 
 	/** 
 	 * Loop through all child by given Predicate 
@@ -116,6 +129,24 @@ public:
 	 * @param bIsRecursive		Should it loop recursively
 	 */
 	void ForEachChild(TComponentPredicate Predicate, bool bIsRecursive);
+
+	/**
+	 * Looking for the first child by given Class
+	 *
+	 * @return An instance of the templated Component
+	 */
+	template <typename TComponentClass>
+	TComponentClass* GetFirstChildOfClass()
+	{
+		TComponentClass* FoundObject = nullptr;
+		ForEachComponentOfClass<TComponentClass>([this, &FoundObject](TComponentClass* InObject)
+			{
+				FoundObject = InObject;
+				return;
+			}, true);
+
+		return FoundObject;
+	}
 
 	/** DEPRECATED 4.27  */
 	template <typename TComponentClass>
@@ -196,41 +227,45 @@ public:
 	template <typename TComponentClass>
 	static TComponentClass* GetFirstParentByClass(UDMXPixelMappingBaseComponent* InComponent)
 	{
-		if (InComponent->Parent == nullptr)
+		if (!InComponent->WeakParent.IsValid())
 		{
 			return nullptr;
 		}
 
-		if (TComponentClass* SearchComponentbyType = Cast<TComponentClass>(InComponent->Parent))
+		if (TComponentClass* SearchComponentbyType = Cast<TComponentClass>(InComponent->GetParent()))
 		{
 			return SearchComponentbyType;
 		}
 		else
 		{
-			return GetFirstParentByClass<TComponentClass>(InComponent->Parent);
+			return GetFirstParentByClass<TComponentClass>(InComponent->GetParent());
 		}
 	}
 
 	/** Recursively loop through all child by given Component and Predicate */
 	static void ForComponentAndChildren(UDMXPixelMappingBaseComponent* Component, TComponentPredicate Predicate);
 
-	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */
-	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const
-	{
-		return false;
-	}
-
-#if WITH_EDITOR
-	/** Returns the name of the component used across all widgets that draw it */
-	virtual FString GetUserFriendlyName() const;
-#endif 
-
-public:
 	/** Array of children belong to this component */
-	UPROPERTY(Instanced)
+	UPROPERTY()
 	TArray<UDMXPixelMappingBaseComponent*> Children;
 
+	/** Returns the parent. May be nullptr when the the component is creating or destroying */
+	FORCEINLINE UDMXPixelMappingBaseComponent* GetParent() const { return WeakParent.Get(); }
+
+	/** Returns the parent. May be nullptr when the the component is creating or destroying */
+	FORCEINLINE bool HasValidParent() const { return WeakParent.IsValid(); }
+
+#if WITH_EDITOR
+	/** Set the components parent */
+	void SetParent(const TWeakObjectPtr<UDMXPixelMappingBaseComponent>& NewParent) { WeakParent = NewParent; }
+#endif
+	
 	/** Parent component */
-	UPROPERTY(Instanced)
-	UDMXPixelMappingBaseComponent* Parent;
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "Leads to entangled references. Use GetParent() or WeakParent instead."))
+	UDMXPixelMappingBaseComponent* Parent_DEPRECATED;
+
+private:
+	/** Parent component */
+	UPROPERTY(NonTransactional)
+	TWeakObjectPtr<UDMXPixelMappingBaseComponent> WeakParent;
 };

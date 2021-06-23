@@ -25,7 +25,7 @@ TSharedPtr<FDMXPixelMappingGroupChildDragDropHelper> FDMXPixelMappingGroupChildD
 	}
 
 	// No parent group
-	UDMXPixelMappingFixtureGroupComponent* ParentGroupComponent = Cast<UDMXPixelMappingFixtureGroupComponent>(DragDropOp->GetDraggedComponents()[0]->Parent);
+	UDMXPixelMappingFixtureGroupComponent* ParentGroupComponent = Cast<UDMXPixelMappingFixtureGroupComponent>(DragDropOp->GetDraggedComponents()[0]->GetParent());
 	if (!ParentGroupComponent)
 	{
 		return nullptr;
@@ -34,9 +34,9 @@ TSharedPtr<FDMXPixelMappingGroupChildDragDropHelper> FDMXPixelMappingGroupChildD
 	NewHelper->ParentPosition = ParentGroupComponent->GetPosition();
 	NewHelper->ParentSize = ParentGroupComponent->GetSize();
 
-	for (UDMXPixelMappingBaseComponent* BaseComponent : DragDropOp->GetDraggedComponents())
+	for (const TWeakObjectPtr<UDMXPixelMappingBaseComponent>& BaseComponent : DragDropOp->GetDraggedComponents())
 	{	
-		if (UDMXPixelMappingMatrixCellComponent* MatrixCellComponent = Cast<UDMXPixelMappingMatrixCellComponent>(BaseComponent))
+		if (UDMXPixelMappingMatrixCellComponent* MatrixCellComponent = Cast<UDMXPixelMappingMatrixCellComponent>(BaseComponent.Get()))
 		{		
 			// For matrices, don't drag the childs along, they adopt their position from the parent
 			continue;
@@ -45,8 +45,8 @@ TSharedPtr<FDMXPixelMappingGroupChildDragDropHelper> FDMXPixelMappingGroupChildD
 		UDMXPixelMappingOutputComponent* OutputComponent = [BaseComponent]() -> UDMXPixelMappingOutputComponent*
 		{
 			// Either a matrices or group items
-			if ((BaseComponent && BaseComponent->GetClass() == UDMXPixelMappingFixtureGroupItemComponent::StaticClass()) ||
-				(BaseComponent && BaseComponent->GetClass() == UDMXPixelMappingMatrixComponent::StaticClass()))
+			if ((BaseComponent.IsValid() && BaseComponent->GetClass() == UDMXPixelMappingFixtureGroupItemComponent::StaticClass()) ||
+				(BaseComponent.IsValid() && BaseComponent->GetClass() == UDMXPixelMappingMatrixComponent::StaticClass()))
 			{
 				return Cast<UDMXPixelMappingOutputComponent>(BaseComponent);
 			}
@@ -56,7 +56,7 @@ TSharedPtr<FDMXPixelMappingGroupChildDragDropHelper> FDMXPixelMappingGroupChildD
 
 
 		// Invalid component or different parents
-		if (!OutputComponent || OutputComponent->Parent != ParentGroupComponent)
+		if (!OutputComponent || OutputComponent->GetParent() != ParentGroupComponent)
 		{
 			return nullptr;
 		}
@@ -177,6 +177,8 @@ void FDMXPixelMappingGroupChildDragDropHelper::SetPositionRounded(UDMXPixelMappi
 {
 	if (Component)
 	{
+		Component->Modify();
+
 		Component->SetPosition(Position.RoundToVector());
 	}
 }

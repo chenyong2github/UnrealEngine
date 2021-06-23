@@ -63,7 +63,7 @@ FReply SDMXPixelMappingTransformHandle::OnMouseButtonDown(const FGeometry& MyGeo
 
 		MouseDownPosition = MouseEvent.GetScreenSpacePosition();
 
-		ScopedTransaction = MakeShareable<FScopedTransaction>(new FScopedTransaction(LOCTEXT("ResizeWidget", "Resize Widget")));
+		ScopedTransaction = MakeShareable<FScopedTransaction>(new FScopedTransaction(LOCTEXT("ResizePixelMappingComponent", "PixelMapping: Resize Component")));
 		Component->Modify();
 
 		return FReply::Handled().CaptureMouse(SharedThis(this));
@@ -76,34 +76,33 @@ FReply SDMXPixelMappingTransformHandle::OnMouseButtonUp(const FGeometry& MyGeome
 {
 	if ( HasMouseCapture() && MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton )
 	{
-		if (ScopedTransaction.IsValid())
-		{
-			ScopedTransaction.Reset();
-		}
-
 		Action = EDMXPixelMappingTransformAction::None;
-		
+
 		// Delete components no longer over the resized component
 		if (TSharedPtr<FDMXPixelMappingToolkit> Toolkit = DesignerViewWeakPtr.Pin()->GetToolkit())
 		{
 			const FDMXPixelMappingComponentReference& ComponentReference = DesignerViewWeakPtr.Pin()->GetSelectedComponent();
-			UDMXPixelMappingBaseComponent* Component = ComponentReference.GetComponent();
-
-			constexpr bool bRecursive = true;
-			Component->ForEachChildOfClass<UDMXPixelMappingOutputComponent>([Toolkit](UDMXPixelMappingOutputComponent* Component)
+			if (UDMXPixelMappingBaseComponent* ResizedComponent = ComponentReference.GetComponent())
+			{
+				constexpr bool bRecursive = true;
+				for(UDMXPixelMappingBaseComponent* ChildComponent : TArray<UDMXPixelMappingBaseComponent*>(ResizedComponent->Children))
 				{
-					if (Component && !Component->IsOverParent())
+					if (UDMXPixelMappingOutputComponent* ChildOuptputComponent = Cast<UDMXPixelMappingOutputComponent>(ChildComponent))
 					{
-						if (Component->Parent)
+						if (!ChildOuptputComponent->IsOverParent())
 						{
-							Component->Parent->RemoveChild(Component);
+							ChildOuptputComponent->SetFlags(RF_Transactional);
+							ChildOuptputComponent->Modify();
+							ResizedComponent->Modify();
 
-							Toolkit->HandleRemoveComponents();
+							ResizedComponent->RemoveChild(ChildOuptputComponent);
 						}
 					}
-				}, bRecursive);
-
+				}
+			}
 		}
+
+		ScopedTransaction.Reset();
 
 		return FReply::Handled().ReleaseMouseCapture();
 	}

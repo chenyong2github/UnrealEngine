@@ -15,8 +15,10 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "Editor.h"
 #include "PropertyHandle.h"
 #include "IPropertyUtilities.h"
+#include "ScopedTransaction.h"
 #include "Layout/Visibility.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Layout/SScrollBorder.h"
@@ -32,6 +34,10 @@ void FDMXPixelMappingDetailCustomization_FixtureGroup::CustomizeDetails(IDetailL
 	WeakFixtureGroupComponent = GetSelectedFixtureGroupComponent(InDetailLayout);
 	if(UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent = WeakFixtureGroupComponent.Get())
 	{
+		// Listen to component changes
+		UDMXPixelMappingBaseComponent::GetOnComponentAdded().AddSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::OnComponentAdded);
+		UDMXPixelMappingBaseComponent::GetOnComponentRemoved().AddSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::OnComponentRemoved);
+
 		// Listen to the library being changed in the group component
 		DMXLibraryHandle = InDetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingFixtureGroupComponent, DMXLibrary), UDMXPixelMappingFixtureGroupComponent::StaticClass());
 		DMXLibraryHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::OnLibraryChanged));
@@ -96,31 +102,54 @@ void FDMXPixelMappingDetailCustomization_FixtureGroup::OnLibraryChanged()
 	{
 		if (UDMXPixelMappingFixtureGroupComponent* GroupComponent = Cast<UDMXPixelMappingFixtureGroupComponent>(WeakFixtureGroupComponent))
 		{
-			for (UDMXPixelMappingBaseComponent* GroupChild : TArray<UDMXPixelMappingBaseComponent*>(GroupComponent->Children))
-			{
-				if (UDMXPixelMappingFixtureGroupItemComponent* GroupItemComponent = Cast<UDMXPixelMappingFixtureGroupItemComponent>(GroupChild))
-				{
-					if (GroupComponent->DMXLibrary)
-					{
-						const bool bPatchIsInLibrary = GroupComponent->DMXLibrary->GetEntities().ContainsByPredicate([GroupItemComponent](UDMXEntity* Entity)
-							{
-								return GroupItemComponent->FixturePatchRef.GetEntity() == Entity;
-							});
+			const FScopedTransaction ChangeDMXLibraryTransaction(LOCTEXT("DMXLibraryChangedResetTransactionReason", "PixelMapping Changed DMX Library"));
 
-						if (bPatchIsInLibrary)
-						{
-							continue;
-						}
+			TArray<UDMXPixelMappingBaseComponent*> CachedChildren(GroupComponent->Children);
+			for (UDMXPixelMappingBaseComponent* ChildComponent : CachedChildren)
+			{
+				if (UDMXPixelMappingFixtureGroupItemComponent* ChildGroupItem = Cast<UDMXPixelMappingFixtureGroupItemComponent>(ChildComponent))
+				{
+					if (ChildGroupItem->FixturePatchRef.GetFixturePatch() &&
+						ChildGroupItem->FixturePatchRef.GetFixturePatch()->GetParentLibrary() != GroupComponent->DMXLibrary)
+					{
+						GroupComponent->RemoveChild(ChildGroupItem);
 					}
 				}
-
-				GroupComponent->RemoveChild(GroupChild);
-				Toolkit->HandleRemoveComponents();
-			}
+				else if (UDMXPixelMappingMatrixComponent* ChildMatrix = Cast<UDMXPixelMappingMatrixComponent>(ChildComponent))
+				{
+					if (ChildMatrix->FixturePatchRef.GetFixturePatch() &&
+						ChildMatrix->FixturePatchRef.GetFixturePatch()->GetParentLibrary() != GroupComponent->DMXLibrary)
+					{
+						GroupComponent->RemoveChild(ChildMatrix);
+					}
+				}
+			};
 		}
 	}
 
-	ForceRefresh();
+	if (!bRefreshing)
+	{
+		ForceRefresh();
+		bRefreshing = true;
+	}
+}
+
+void FDMXPixelMappingDetailCustomization_FixtureGroup::OnComponentAdded(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component)
+{
+	if (!bRefreshing)
+	{
+		ForceRefresh();
+		bRefreshing = true;
+	}
+}
+
+void FDMXPixelMappingDetailCustomization_FixtureGroup::OnComponentRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component)
+{
+	if (!bRefreshing)
+	{
+		ForceRefresh();
+		bRefreshing = true;
+	}
 }
 
 void FDMXPixelMappingDetailCustomization_FixtureGroup::ForceRefresh()
@@ -133,6 +162,8 @@ void FDMXPixelMappingDetailCustomization_FixtureGroup::ForceRefresh()
 	{
 		PropertyUtilities->ForceRefresh();
 	}
+
+	bRefreshing = false;
 }
 
 void FDMXPixelMappingDetailCustomization_FixtureGroup::OnFixturePatchLMBDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, FDMXEntityFixturePatchRef FixturePatchRef)

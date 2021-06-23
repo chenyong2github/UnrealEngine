@@ -270,29 +270,36 @@ void FDMXPixelMappingDetailCustomization_FixtureGroupItem::CreateModulatorDetail
 			for (int32 IndexModulator = 0; IndexModulator < FirstGroupItemComponent->Modulators.Num(); IndexModulator++)
 			{
 				TArray<UObject*> ModulatorsToEdit;
-				ModulatorsToEdit.Add(FirstGroupItemComponent->Modulators[IndexModulator]);
-
-				for (const TWeakObjectPtr<UObject>& Other : CustomizedObjects)
+				if (CustomizedObjects.Num() > 1)
 				{
-					if (UDMXPixelMappingFixtureGroupItemComponent* OtherGroupItemComponent = Cast<UDMXPixelMappingFixtureGroupItemComponent>(Other.Get()))
-					{
-						const bool bModulatorOfSameType =
-							OtherGroupItemComponent != FirstGroupItemComponent &&
-							OtherGroupItemComponent->Modulators.IsValidIndex(IndexModulator) &&
-							OtherGroupItemComponent->Modulators[IndexModulator] &&
-							OtherGroupItemComponent->Modulators[IndexModulator]->GetClass() == FirstGroupItemComponent->Modulators[IndexModulator]->GetClass();
+					UClass* ModulatorClass = FirstGroupItemComponent->Modulators[IndexModulator]->GetClass();
 
-						if (bModulatorOfSameType)
+					for (const TWeakObjectPtr<UObject>& CustomizedObject : CustomizedObjects)
+					{
+						if (UDMXPixelMappingFixtureGroupItemComponent* GroupItemComponent = Cast<UDMXPixelMappingFixtureGroupItemComponent>(CustomizedObject.Get()))
 						{
-							ModulatorsToEdit.Add(OtherGroupItemComponent->Modulators[IndexModulator]);
-						}
-						else if (CustomizedObjects.Num() > 1)
-						{
-							// Don't allow multi edit if not all modulators are of same class
-							ModulatorsToEdit.Reset();
+							const bool bMultiEditableModulator =
+								GroupItemComponent->Modulators.IsValidIndex(IndexModulator) &&
+								GroupItemComponent->Modulators[IndexModulator] &&
+								GroupItemComponent->Modulators[IndexModulator]->GetClass() == ModulatorClass;
+
+							if (bMultiEditableModulator)
+							{
+								ModulatorsToEdit.Add(GroupItemComponent->Modulators[IndexModulator]);
+							}
+							else
+							{
+								// Don't allow multi edit if not all modulators are of same class
+								ModulatorsToEdit.Reset();
+							}
 						}
 					}
 				}
+				else if (UDMXModulator* ModulatorOfFirstGroupItem = FirstGroupItemComponent->Modulators[IndexModulator])
+				{
+					ModulatorsToEdit.Add(ModulatorOfFirstGroupItem);
+				}
+
 
 				if (ModulatorsToEdit.Num() > 0)
 				{

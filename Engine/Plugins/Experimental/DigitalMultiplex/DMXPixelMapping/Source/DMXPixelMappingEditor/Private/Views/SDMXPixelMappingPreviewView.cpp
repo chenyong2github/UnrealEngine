@@ -392,9 +392,9 @@ FText SDMXPixelMappingPreviewView::GetSelectedComponentParentNameText() const
 {
 	FDMXPixelMappingComponentReference SelectedComponentRef = GetSelectedComponent();
 	UDMXPixelMappingBaseComponent* BaseComponent = SelectedComponentRef.GetComponent();
-	if (BaseComponent && BaseComponent->Parent)
+	if (BaseComponent && BaseComponent->GetParent())
 	{
-		return FText::FromString(BaseComponent->Parent->GetName());
+		return FText::FromString(BaseComponent->GetParent()->GetUserFriendlyName());
 	}
 
 	return FText();
@@ -405,7 +405,7 @@ EVisibility SDMXPixelMappingPreviewView::GetTitleBarVisibility() const
 	FDMXPixelMappingComponentReference SelectedComponentRef = GetSelectedComponent();
 	UDMXPixelMappingBaseComponent* BaseComponent = SelectedComponentRef.GetComponent();
 
-	if (BaseComponent && BaseComponent->Parent)
+	if (BaseComponent && BaseComponent->GetParent())
 	{
 		return EVisibility::Visible;
 	}

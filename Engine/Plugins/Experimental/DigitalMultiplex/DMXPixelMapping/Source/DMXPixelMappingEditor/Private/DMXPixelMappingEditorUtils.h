@@ -44,16 +44,6 @@ public:
 	static void RenameComponent(TSharedRef<FDMXPixelMappingToolkit> InToolkit, const FName& OldObjectName, const FString& NewDisplayName);
 
 	/**
-	 * Rename Pixel Maping component.
-	 *
-	 * @param InToolkit				Pixel Mappint editor toolkit
-	 * @param InDMXPixelMapping		Pixel Mapping object
-	 * @param InComponent			Component references to delete
-	 * @param bCreateTransaction	If true, creates a scoped transaction for undo. Defaults to true.
-	 */
-	static void DeleteComponents(TSharedRef<FDMXPixelMappingToolkit> InToolkit, UDMXPixelMapping* InDMXPixelMapping, const TSet<FDMXPixelMappingComponentReference>& InComponents, bool bCreateTransaction = true );
-
-	/**
 	 * Add renderer to Pixel Mapping object
 	 *
 	 * @param InDMXPixelMapping		Pixel Mapping object

@@ -348,6 +348,9 @@ public:
 #endif // WITH_EDITOR
 
 private:
+	/** Rebuilds the cache of fixture patches that use this fixture type */
+	void RebuildFixturePatchCaches();
+
 #if WITH_EDITOR
 	/** Editor only data type change delagate */
 	static FDataTypeChangeDelegate DataTypeChangeDelegate;

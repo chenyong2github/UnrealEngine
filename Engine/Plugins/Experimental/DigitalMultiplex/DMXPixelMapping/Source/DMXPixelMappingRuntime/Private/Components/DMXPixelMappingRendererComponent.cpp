@@ -128,7 +128,9 @@ void UDMXPixelMappingRendererComponent::PostEditChangeChainProperty(FPropertyCha
 		}
 	}
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 void UDMXPixelMappingRendererComponent::RenderEditorPreviewTexture()
 {
 	if (DownsampleBufferTarget == nullptr || DownsamplePixelCount == 0)
@@ -176,7 +178,9 @@ void UDMXPixelMappingRendererComponent::RenderEditorPreviewTexture()
 
 	Renderer->RenderPreview(GetPreviewRenderTarget()->Resource, DownsampleBufferTarget->Resource, MoveTemp(PixelPreviewParams));
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 UTextureRenderTarget2D* UDMXPixelMappingRendererComponent::GetPreviewRenderTarget()
 {
 	if (PreviewRenderTarget == nullptr)
@@ -186,6 +190,7 @@ UTextureRenderTarget2D* UDMXPixelMappingRendererComponent::GetPreviewRenderTarge
 
 	return PreviewRenderTarget;
 }
+#endif // WITH_EDITOR
 
 #if WITH_EDITOR
 TSharedRef<SWidget> UDMXPixelMappingRendererComponent::TakeWidget()
@@ -208,6 +213,7 @@ TSharedRef<SWidget> UDMXPixelMappingRendererComponent::TakeWidget()
 }
 #endif // WITH_EDITOR
 
+#if WITH_EDITOR
 void UDMXPixelMappingRendererComponent::OnMapChanged(UWorld* InWorld, EMapChangeType MapChangeType)
 {
 	if (UserWidget != nullptr)
@@ -216,12 +222,11 @@ void UDMXPixelMappingRendererComponent::OnMapChanged(UWorld* InWorld, EMapChange
 		UserWidget = nullptr;
 	}
 }
-
 #endif // WITH_EDITOR
 
+#if WITH_EDITOR
 void UDMXPixelMappingRendererComponent::ResizePreviewRenderTarget(uint32 InSizeX, uint32 InSizeY)
 {
-#if WITH_EDITOR
 	UTextureRenderTarget2D* Target = GetPreviewRenderTarget();
 
 	if ((InSizeX > 0 && InSizeY > 0) && (Target->SizeX != InSizeX || Target->SizeY != InSizeY))
@@ -230,8 +235,8 @@ void UDMXPixelMappingRendererComponent::ResizePreviewRenderTarget(uint32 InSizeX
 		Target->ResizeTarget(InSizeX, InSizeY);
 		Target->UpdateResourceImmediate();
 	}
-#endif
 }
+#endif // WITH_EDITOR
 
 void UDMXPixelMappingRendererComponent::ResetDMX()
 {
@@ -396,6 +401,7 @@ void UDMXPixelMappingRendererComponent::RendererInputTexture()
 {
 	Initialize();
 
+#if WITH_EDITOR
 	switch (RendererType)
 	{
 	case(EDMXPixelMappingRendererType::Texture) :
@@ -414,6 +420,7 @@ void UDMXPixelMappingRendererComponent::RendererInputTexture()
 		ResizePreviewRenderTarget(SizeX, SizeY);
 		break;
 	}
+#endif
 }
 
 UTexture* UDMXPixelMappingRendererComponent::GetRendererInputTexture() const

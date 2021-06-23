@@ -95,30 +95,6 @@ void FDMXPixelMappingEditorUtils::RenameComponent(TSharedRef<FDMXPixelMappingToo
 	InToolkit->OnComponentRenamed(ComponentToRename);
 }
 
-void FDMXPixelMappingEditorUtils::DeleteComponents(TSharedRef<FDMXPixelMappingToolkit> InToolkit, UDMXPixelMapping* InDMXPixelMapping, const TSet<FDMXPixelMappingComponentReference>& InComponents, bool bCreateTransaction)
-{
-	if (InComponents.Num() > 0)
-	{
-		if (bCreateTransaction)
-		{
-			const FScopedTransaction Transaction(LOCTEXT("RemoveComponent", "Remove Component"));
-			InDMXPixelMapping->SetFlags(RF_Transactional);
-		}
-
-		InDMXPixelMapping->Modify();
-
-		for (const FDMXPixelMappingComponentReference& ComponentRef : InComponents)
-		{
-			if (UDMXPixelMappingBaseComponent* ComponentToRemove = ComponentRef.GetComponent())
-			{
-				InDMXPixelMapping->RemoveComponent(ComponentToRemove);
-			}
-		}
-
-		InToolkit->BroadcastPostChange(InDMXPixelMapping);
-	}
-}
-
 UDMXPixelMappingRendererComponent* FDMXPixelMappingEditorUtils::AddRenderer(UDMXPixelMapping* InPixelMapping)
 {
 	if (InPixelMapping == nullptr)

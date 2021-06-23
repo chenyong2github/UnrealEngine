@@ -14,6 +14,7 @@
 
 #if WITH_EDITOR
 #include "DMXPixelMappingComponentWidget.h"
+#include "SDMXPixelMappingComponentBox.h"
 #include "SDMXPixelMappingComponentLabel.h"
 #endif // WITH_EDITOR
 
@@ -62,22 +63,29 @@ void UDMXPixelMappingMatrixCellComponent::PostEditChangeProperty(FPropertyChange
 	{
 		if (ComponentWidget.IsValid())
 		{
-			ComponentWidget->GetComponentLabel()->SetText(FText::Format(LOCTEXT("CellID", "{0}"), CellID));
+			ComponentWidget->GetComponentBox()->SetIDText(FText::Format(LOCTEXT("CellID", "{0}"), CellID));
 		}
 	}
 }
 #endif // WITH_EDITOR
 
-void UDMXPixelMappingMatrixCellComponent::PostParentAssigned()
+#if WITH_EDITOR
+void UDMXPixelMappingMatrixCellComponent::PreEditUndo()
 {
-	Super::PostParentAssigned();
-
-	// Let the parent now this is now ready to use, so it can set the position and size
-	if (UDMXPixelMappingMatrixComponent* ParentMatrix = Cast<UDMXPixelMappingMatrixComponent>(Parent))
-	{
-		ParentMatrix->HandleSizeOrMatrixChanged();
-	}
+	// Use default engine instead of parent class.
+	// Let the prent matrix component handle it instead.
+	UObject::PreEditUndo();
 }
+#endif // WITH_EDITOR
+
+#if WITH_EDITOR
+void UDMXPixelMappingMatrixCellComponent::PostEditUndo()
+{
+	// Use default engine instead of parent class.
+	// Let the prent matrix component handle it instead.	
+	UObject::PostEditUndo();
+}
+#endif // WITH_EDITOR
 
 #if WITH_EDITOR
 TSharedRef<FDMXPixelMappingComponentWidget> UDMXPixelMappingMatrixCellComponent::BuildSlot(TSharedRef<SConstraintCanvas> InCanvas)
@@ -87,10 +95,27 @@ TSharedRef<FDMXPixelMappingComponentWidget> UDMXPixelMappingMatrixCellComponent:
 	// Expect super to construct the component widget
 	if (ensureMsgf(ComponentWidget.IsValid(), TEXT("PixelMapping: Expected Super to construct a component widget, but didn't.")))
 	{
-		ComponentWidget->GetComponentLabel()->SetText(FText::Format(LOCTEXT("CellID", "{0}"), CellID));
+		ComponentWidget->GetComponentLabel()->SetText(FText::GetEmpty());
+		ComponentWidget->GetComponentBox()->SetIDText(FText::Format(LOCTEXT("CellID", "{0}"), CellID));
 	}
 
 	return ComponentWidget.ToSharedRef();
+}
+#endif // WITH_EDITOR
+
+#if WITH_EDITOR
+bool UDMXPixelMappingMatrixCellComponent::IsVisible() const
+{
+	// Needs be over the matrix and over the group
+	if (UDMXPixelMappingMatrixComponent* ParentMatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(GetParent()))
+	{
+		if (!ParentMatrixComponent->IsVisible())
+		{
+			return false;
+		}
+	}
+
+	return Super::IsVisible();
 }
 #endif // WITH_EDITOR
 
@@ -100,9 +125,9 @@ FLinearColor UDMXPixelMappingMatrixCellComponent::GetEditorColor() const
 	if (bLockInDesigner)
 	{
 		// When locked in designer, always use the parent color. So when the parent shows an error color, show it too.
-		if (UDMXPixelMappingMatrixComponent* ParentMatrixComponent = Cast< UDMXPixelMappingMatrixComponent>(Parent))
+		if (UDMXPixelMappingMatrixComponent* ParentMatrixComponent = Cast< UDMXPixelMappingMatrixComponent>(GetParent()))
 		{
-			if (TSharedPtr<FDMXPixelMappingComponentWidget> ParentComponentWidget = ParentMatrixComponent->GetComponentWidget())
+			if (const TSharedPtr<FDMXPixelMappingComponentWidget>& ParentComponentWidget = ParentMatrixComponent->GetComponentWidget())
 			{
 				return ParentComponentWidget->GetColor();
 			}
@@ -116,7 +141,7 @@ FLinearColor UDMXPixelMappingMatrixCellComponent::GetEditorColor() const
 bool UDMXPixelMappingMatrixCellComponent::IsOverParent() const
 {
 	// Needs be over the matrix and over the group
-	if (UDMXPixelMappingMatrixComponent* ParentMatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(Parent))
+	if (UDMXPixelMappingMatrixComponent* ParentMatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(GetParent()))
 	{
 		const bool bIsParentMatrixOverGroup = ParentMatrixComponent->IsOverParent();
 
@@ -133,6 +158,8 @@ bool UDMXPixelMappingMatrixCellComponent::IsOverParent() const
 
 void UDMXPixelMappingMatrixCellComponent::SetPosition(const FVector2D& NewPosition)
 {
+	Modify();
+
 	PositionX = FMath::RoundHalfToZero(NewPosition.X);
 	PositionY = FMath::RoundHalfToZero(NewPosition.Y);
 
@@ -146,6 +173,8 @@ void UDMXPixelMappingMatrixCellComponent::SetPosition(const FVector2D& NewPositi
 
 void UDMXPixelMappingMatrixCellComponent::SetSize(const FVector2D& NewSize)
 {
+	Modify();
+
 	SizeX = FMath::RoundHalfToZero(NewSize.X);
 	SizeY = FMath::RoundHalfToZero(NewSize.Y);
 
@@ -169,19 +198,17 @@ const FName& UDMXPixelMappingMatrixCellComponent::GetNamePrefix()
 void UDMXPixelMappingMatrixCellComponent::ResetDMX()
 {
 	UDMXPixelMappingRendererComponent* RendererComponent = GetRendererComponent();
-	if (!ensure(RendererComponent))
+	if (RendererComponent)
 	{
-		return;
+		RendererComponent->ResetColorDownsampleBufferPixel(DownsamplePixelIndex);
 	}
-	RendererComponent->ResetColorDownsampleBufferPixel(DownsamplePixelIndex);
 
 	// No need to send dmx, that is done by the parent matrix
 }
 
-#if WITH_EDITOR
 FString UDMXPixelMappingMatrixCellComponent::GetUserFriendlyName() const
 {
-	if (UDMXPixelMappingMatrixComponent* MatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(Parent))
+	if (UDMXPixelMappingMatrixComponent* MatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(GetParent()))
 	{
 		UDMXEntityFixturePatch* FixturePatch = MatrixComponent->FixturePatchRef.GetFixturePatch();
 		
@@ -193,12 +220,11 @@ FString UDMXPixelMappingMatrixCellComponent::GetUserFriendlyName() const
 
 	return FString(TEXT("Invalid Patch"));
 }
-#endif // WITH_EDITOR
 
 void UDMXPixelMappingMatrixCellComponent::QueueDownsample()
 {
 	// Queue pixels into the downsample rendering
-	UDMXPixelMappingMatrixComponent* MatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(Parent);
+	UDMXPixelMappingMatrixComponent* MatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(GetParent());
 	UDMXPixelMappingRendererComponent* RendererComponent = GetRendererComponent();
 
 	if (!ensure(MatrixComponent))
@@ -274,14 +300,14 @@ void UDMXPixelMappingMatrixCellComponent::RenderWithInputAndSendDMX()
 	RenderAndSendDMX();
 }
 
-bool UDMXPixelMappingMatrixCellComponent::CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const
+bool UDMXPixelMappingMatrixCellComponent::CanBeMovedTo(const UDMXPixelMappingBaseComponent* OtherComponent) const
 {
-	return Component && Component == Parent;
+	return OtherComponent && OtherComponent == GetParent();
 }
 
 UDMXPixelMappingRendererComponent* UDMXPixelMappingMatrixCellComponent::GetRendererComponent() const
 {
-	for (UDMXPixelMappingBaseComponent* ParentComponent = Parent; ParentComponent; ParentComponent = ParentComponent->Parent)
+	for (UDMXPixelMappingBaseComponent* ParentComponent = GetParent(); ParentComponent; ParentComponent = ParentComponent->GetParent())
 	{
 		if (UDMXPixelMappingRendererComponent* RendererComponent = Cast<UDMXPixelMappingRendererComponent>(ParentComponent))
 		{
@@ -295,7 +321,7 @@ TMap<FDMXAttributeName, float> UDMXPixelMappingMatrixCellComponent::CreateAttrib
 {
 	TMap<FDMXAttributeName, float> AttributeToNormalizedValueMap;
 
-	if (UDMXPixelMappingMatrixComponent* ParentMatrix = Cast<UDMXPixelMappingMatrixComponent>(Parent))
+	if (UDMXPixelMappingMatrixComponent* ParentMatrix = Cast<UDMXPixelMappingMatrixComponent>(GetParent()))
 	{
 		UDMXPixelMappingRendererComponent* RendererComponent = GetRendererComponent();
 		if (RendererComponent)

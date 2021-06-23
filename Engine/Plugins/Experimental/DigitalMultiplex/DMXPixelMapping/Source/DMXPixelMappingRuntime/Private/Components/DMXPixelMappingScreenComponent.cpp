@@ -233,19 +233,17 @@ void UDMXPixelMappingScreenComponent::AddColorToSendBuffer(const FColor& InColor
 
 UDMXPixelMappingRendererComponent* UDMXPixelMappingScreenComponent::GetRendererComponent() const
 {
-	return Cast<UDMXPixelMappingRendererComponent>(Parent);
+	return Cast<UDMXPixelMappingRendererComponent>(GetParent());
 }
 
 void UDMXPixelMappingScreenComponent::ResetDMX()
 {
 	UDMXPixelMappingRendererComponent* RendererComponent = GetRendererComponent();
-	if (!ensure(RendererComponent))
+	if (ensure(RendererComponent))
 	{
-		return;
+		RendererComponent->ResetColorDownsampleBufferPixels(PixelDownsamplePositionRange.Key, PixelDownsamplePositionRange.Value);
+		SendDMX();
 	}
-	
-	RendererComponent->ResetColorDownsampleBufferPixels(PixelDownsamplePositionRange.Key, PixelDownsamplePositionRange.Value);
-	SendDMX();
 }
 
 void UDMXPixelMappingScreenComponent::SendDMX()

@@ -16,12 +16,6 @@
 
 #include "UObject/LinkerLoad.h"
 
-UDMXPixelMapping::~UDMXPixelMapping()
-{
-#if WITH_EDITOR
-	OnEditorRebuildChildrenComponentsDelegate.Unbind();
-#endif // WITH_EDITOR
-}
 
 void UDMXPixelMapping::PostLoad()
 {
@@ -64,9 +58,9 @@ void UDMXPixelMapping::DestroyInvalidComponents()
 				Component->RemoveChild(Child);
 			}
 
-			if (Component->Parent)
+			if (Component->GetParent())
 			{
-				Component->Parent->RemoveChild(Component);
+				Component->GetParent()->RemoveChild(Component);
 			}
 		}
 	}
@@ -161,10 +155,10 @@ void UDMXPixelMapping::RemoveComponent(UDMXPixelMappingBaseComponent* InComponen
 	if (InComponent)
 	{
 #if WITH_EDITOR
-		ensureMsgf(InComponent->Parent, TEXT("Trying to remove component %s but it has no valid parent."), *InComponent->GetUserFriendlyName());
+		ensureMsgf(InComponent->GetParent(), TEXT("Trying to remove component %s but it has no valid parent."), *InComponent->GetUserFriendlyName());
 #endif
 
-		if (UDMXPixelMappingBaseComponent* Parent = InComponent->Parent)
+		if (UDMXPixelMappingBaseComponent* Parent = InComponent->GetParent())
 		{
 			if (InComponent && InComponent != RootComponent)
 			{

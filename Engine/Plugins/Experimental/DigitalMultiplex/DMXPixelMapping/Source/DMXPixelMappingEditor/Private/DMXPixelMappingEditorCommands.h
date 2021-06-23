@@ -16,7 +16,6 @@ public:
 
 	TSharedPtr<FUICommandInfo> SaveThumbnailImage;
 	TSharedPtr<FUICommandInfo> AddMapping;
-	TSharedPtr<FUICommandInfo> ClearMappings;
 	TSharedPtr<FUICommandInfo> PlayDMX;
 	TSharedPtr<FUICommandInfo> StopPlayingDMX;
 	TSharedPtr<FUICommandInfo> bTogglePlayDMXAll;

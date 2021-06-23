@@ -45,8 +45,15 @@ void SDMXPixelMappingComponentLabel::Construct(const FArguments& InArgs)
 		.VAlign(VAlign_Top)
 		.Padding_Lambda([this]()
 			{
-				float OffsetY = bAlignAbove ? LabelTextBlock->GetCachedGeometry().GetLocalSize().Y : 0.f;
-				return OffsetY;
+				if (bAlignAbove)
+				{
+					float OffsetY = LabelTextBlock->GetCachedGeometry().GetLocalSize().Y;
+					return FMargin(2.f, -OffsetY, 2.f, 2.f);
+				}
+				else
+				{
+					return FMargin(2.f, 1.f, 2.f, 2.f);
+				}
 			})
 		[
 			LabelWidget.ToSharedRef()

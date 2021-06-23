@@ -13,10 +13,10 @@
 #include "Widgets/SViewport.h"
 #include "Widgets/Layout/SBox.h"
 
-void SDMXPixelMappingPreviewViewport::Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InViewport)
+void SDMXPixelMappingPreviewViewport::Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit)
 {
 	bIsRenderingEnabled = true;
-	ToolkitWeakPtr = InViewport;      
+	ToolkitWeakPtr = InToolkit;
 
 	ChildSlot
 		[
@@ -31,7 +31,7 @@ void SDMXPixelMappingPreviewViewport::Construct(const FArguments& InArgs, const 
 			]
 		];
 
-	ViewportClient = MakeShared<FDMXPixelMappingPreviewViewportClient>(InViewport, SharedThis(this));
+	ViewportClient = MakeShared<FDMXPixelMappingPreviewViewportClient>(InToolkit, SharedThis(this));
 
 	Viewport = MakeShared<FDMXPixelMappingSceneViewport>(ViewportClient.Get(), ViewportWidget);
 

@@ -33,11 +33,13 @@ FDMXPixelMappingComponentTemplate::FDMXPixelMappingComponentTemplate(TSubclassOf
 	Name = FText::FromString(DefaultComponent->GetNamePrefix().ToString());
 }
 
+#if WITH_EDITOR
 FText FDMXPixelMappingComponentTemplate::GetCategory() const
 {
 	UDMXPixelMappingOutputComponent* OutputComponent = ComponentClass->GetDefaultObject<UDMXPixelMappingOutputComponent>();
 	return OutputComponent->GetPaletteCategory();
 }
+#endif // WITH_EDITOR
 
 UDMXPixelMappingBaseComponent* FDMXPixelMappingComponentTemplate::CreateComponentInternal(UDMXPixelMappingRootComponent* InRootComponent)
 {

@@ -44,14 +44,12 @@ public:
 	virtual const FName& GetNamePrefix() override;
 	virtual void ResetDMX() override;
 	virtual void SendDMX() override;
-#if WITH_EDITOR
 	virtual FString GetUserFriendlyName() const override;
-#endif
 	//~ End UDMXPixelMappingBaseComponent implementation
 
 	//~ Begin UDMXPixelMappingOutputComponent implementation
 #if WITH_EDITOR
-	virtual bool IsVisibleInDesigner() const override;
+	virtual bool IsVisible() const override;
 #endif // WITH_EDITOR	
 	virtual bool IsOverParent() const override;
 	virtual void QueueDownsample() override;
@@ -73,7 +71,7 @@ private:
 	UDMXPixelMappingRendererComponent* GetRendererComponent() const;
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Selected Patch")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Selected Patch")
 	FDMXEntityFixturePatchRef FixturePatchRef;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Output Settings")

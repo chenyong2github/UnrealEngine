@@ -9,8 +9,10 @@
 struct FDMXEntityFixturePatchRef;
 class FDMXPixelMappingToolkit;
 class SDMXPixelMappingFixturePatchDetailRow;
-class UDMXLibrary;
 class UDMXEntityFixturePatch;
+class UDMXLibrary;
+class UDMXPixelMapping;
+class UDMXPixelMappingBaseComponent;
 class UDMXPixelMappingFixtureGroupComponent;
 
 class FReply;
@@ -43,6 +45,12 @@ public:
 private:
 	/** Called when the library changed */
 	void OnLibraryChanged();
+
+	/** Called when a component was added */
+	void OnComponentAdded(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component);
+
+	/** Called when a component was removed */
+	void OnComponentRemoved(UDMXPixelMapping* PixelMapping, UDMXPixelMappingBaseComponent* Component);
 
 	/** Forces the detail layout to refresh */
 	void ForceRefresh();
@@ -95,4 +103,7 @@ private:
 	TArray<FDetailRowWidgetWithPatch> DetailRowWidgetsWithPatch;
 
 	TSharedPtr<IPropertyUtilities> PropertyUtilities;
+
+	/** If true, is refreshing */
+	bool bRefreshing = false;
 };
