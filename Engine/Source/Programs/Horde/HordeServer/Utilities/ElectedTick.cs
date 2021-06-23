@@ -29,6 +29,7 @@ namespace HordeServer.Utilities
 		Task BackgroundTask;
 		CancellationTokenSource CancellationTokenSource;
 		Func<CancellationToken, Task<DateTime>> TickAsync;
+		bool ReadOnlyMode;
 		ILogger Logger;
 
 		/// <summary>
@@ -71,6 +72,7 @@ namespace HordeServer.Utilities
 			this.PollInterval = PollInterval;
 			this.ElectionTimeout = ElectionTimeout;
 			this.TickAsync = TickAsync;
+			this.ReadOnlyMode = DatabaseService.ReadOnlyMode;
 			this.Logger = Logger;
 
 			CancellationTokenSource = new CancellationTokenSource();
@@ -119,6 +121,12 @@ namespace HordeServer.Utilities
 						RetryDelay = PollInterval;
 					}
 					await Task.Delay(RetryDelay);
+					continue;
+				}
+
+				// Don't claim the election unless we're in writeable mode
+				if (ReadOnlyMode)
+				{
 					continue;
 				}
 
