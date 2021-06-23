@@ -203,6 +203,11 @@ void Main(
 		OutThroughput *= LayerThroughput;
 	}
 
+	// Not write out roughness
+	OutRough = saturate(StrataLobVarianceToRoughness(WiLob.Sigma));	// STRATA_TODO accumulate variance and convert back to roughness in the apply hader
+	// Only allow clipping if roughness is close to 0.
+	const bool TryToClip = OutRough > 0.01f;
+
 	// Finally, negate the direction to make sure the new incombing lob is the refracted lob we want to take into account
 	WiLob.Mu = -WiLob.Mu;
 
@@ -211,15 +216,12 @@ void Main(
 	Normal = LobWorldDir;
 
 	// Compute UV distortion
-	const bool TryToClip = false; // We cannot clip because the roughness information is always needed.
 	float2 BufferUVDistortion = ComputeBufferUVDistortion(
 		MaterialParameters, PixelMaterialInputs, ResolvedView,
 		Normal, DistortionParams, ScreenUV, Refraction, TryToClip, EyeIndex);
 
 	// Sample depth at distortion offset
 	float2 DistortBufferUV = ScreenUV + BufferUVDistortion;
-
-	OutRough = saturate(StrataLobVarianceToRoughness(WiLob.Sigma));	// STRATA_TODO accumulate variance and convert back to roughness in the apply hader
 
 
 #else // STRATA_ENABLED
