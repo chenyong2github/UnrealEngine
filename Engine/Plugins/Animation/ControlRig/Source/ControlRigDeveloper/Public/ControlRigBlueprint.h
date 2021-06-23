@@ -338,7 +338,7 @@ public:
 #endif
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, config, Category = DefaultGizmo)
+	UPROPERTY(EditAnywhere, Category = DefaultGizmo)
 	TSoftObjectPtr<UControlRigGizmoLibrary> GizmoLibrary;
 #endif
 
