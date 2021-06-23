@@ -28,6 +28,7 @@ public class TurnkeySupport : ModuleRules
  				"LauncherServices",
 				"SourceControl",
 				"EditorStyle",
+				"TurnkeyIO",
 			}
 		);
 

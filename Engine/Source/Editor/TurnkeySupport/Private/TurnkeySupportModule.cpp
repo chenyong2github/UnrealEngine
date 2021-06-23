@@ -43,6 +43,7 @@
 #include "UObject/UObjectIterator.h"
 #include "ToolMenus.h"
 #include "TurnkeyEditorSupport.h"
+#include "ITurnkeyIOModule.h"
 
 #include "Misc/App.h"
 #include "Framework/Application/SlateApplication.h"
@@ -502,7 +503,7 @@ public:
 		}
 
 
-		FString TurnkeyParams = FString::Printf(TEXT("-command=VerifySdk -platform=%s -UpdateIfNeeded -EditorIO"), *UBTPlatformString);
+		FString TurnkeyParams = FString::Printf(TEXT("-command=VerifySdk -platform=%s -UpdateIfNeeded %s"), *UBTPlatformString, *ITurnkeyIOModule::Get().GetUATParams());
 		if (!ProjectPath.IsEmpty())
 		{
 			TurnkeyParams.Appendf(TEXT(" -project=\"%s\""), *ProjectPath);
@@ -723,7 +724,7 @@ static void TurnkeyInstallSdk(FString PlatformName, bool bPreferFull, bool bForc
 	{
 		CommandLine.Appendf(TEXT("-ScriptsForProject=\"%s\" "), *ProjectPath);
 	}
-	CommandLine.Appendf(TEXT("Turnkey -command=VerifySdk -UpdateIfNeeded -platform=%s %s -EditorIO -noturnkeyvariables -utf8output -WaitForUATMutex"), *PlatformName, *OptionalOptions);
+	CommandLine.Appendf(TEXT("Turnkey -command=VerifySdk -UpdateIfNeeded -platform=%s %s %s -noturnkeyvariables -utf8output -WaitForUATMutex"), *PlatformName, *OptionalOptions, *ITurnkeyIOModule::Get().GetUATParams());
 
 	FText TaskName = LOCTEXT("InstallingSdk", "Installing Sdk");
 	FTurnkeyEditorSupport::RunUAT(CommandLine, FText::FromString(PlatformName), TaskName, TaskName, FEditorStyle::GetBrush(TEXT("MainFrame.PackageProject")),
