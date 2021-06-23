@@ -29,7 +29,16 @@ class ANIMGRAPHRUNTIME_API USequenceEvaluatorLibrary : public UBlueprintFunction
 public:
 	/** Get a sequence evaluator context from an anim node context */
 	UFUNCTION(BlueprintCallable, Category = "Sequence Evaluator", meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
-	static FSequenceEvaluatorReference ConvertToSequenceEvaluatorContext(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result);
+	static FSequenceEvaluatorReference ConvertToSequenceEvaluator(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result);
+
+	/** Get a sequence evaluator context from an anim node context (pure) */
+	UFUNCTION(BlueprintPure, Category = "Sequence Evaluator", meta=(BlueprintThreadSafe, DisplayName = "Convert to Sequence Evaluator"))
+	static void ConvertToSequenceEvaluatorPure(const FAnimNodeReference& Node, FSequenceEvaluatorReference& SequenceEvaluator, bool& Result)
+	{
+		EAnimNodeReferenceConversionResult ConversionResult;
+		SequenceEvaluator = ConvertToSequenceEvaluator(Node, ConversionResult);
+		Result = (ConversionResult == EAnimNodeReferenceConversionResult::Succeeded);	
+	}
 	
 	/** Set the current accumulated time of the sequence evaluator */
 	UFUNCTION(BlueprintCallable, Category = "Sequence Evaluator", meta=(BlueprintThreadSafe))

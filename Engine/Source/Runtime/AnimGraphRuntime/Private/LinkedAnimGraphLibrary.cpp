@@ -4,7 +4,7 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimNode_LinkedAnimGraph.h"
 
-FLinkedAnimGraphReference ULinkedAnimGraphLibrary::ConvertToLinkedAnimGraphContext(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result)
+FLinkedAnimGraphReference ULinkedAnimGraphLibrary::ConvertToLinkedAnimGraph(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result)
 {
 	return FAnimNodeReference::ConvertToType<FLinkedAnimGraphReference>(Node, Result);
 }
