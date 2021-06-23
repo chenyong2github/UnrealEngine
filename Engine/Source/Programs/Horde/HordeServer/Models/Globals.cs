@@ -226,6 +226,11 @@ namespace HordeServer.Models
 		public bool ResolveDns { get; set; }
 
 		/// <summary>
+		/// Maximum number of simultaneous conforms on this server
+		/// </summary>
+		public int MaxConformCount { get; set; }
+
+		/// <summary>
 		/// List of properties for an agent to be eligable to use this server
 		/// </summary>
 		public List<string>? Properties { get; set; }
