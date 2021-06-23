@@ -52,7 +52,7 @@ FNiagaraSubmixListener::~FNiagaraSubmixListener()
 
 void FNiagaraSubmixListener::RegisterToSubmix()
 {
-	FAudioDeviceHandle DeviceHandle = FAudioDeviceManager::Get()->GetAudioDevice(AudioDeviceId);
+	FAudioDevice * DeviceHandle = FAudioDeviceManager::Get()->GetAudioDeviceRaw(AudioDeviceId);
 	ensure(DeviceHandle);
 
 	if (DeviceHandle)
@@ -72,8 +72,8 @@ void FNiagaraSubmixListener::UnregisterFromSubmix()
 {
 	if (bIsRegistered)
 	{
-		FAudioDeviceHandle DeviceHandle = FAudioDeviceManager::Get()->GetAudioDevice(AudioDeviceId);
-		check(DeviceHandle);
+		FAudioDevice * DeviceHandle = FAudioDeviceManager::Get()->GetAudioDeviceRaw(AudioDeviceId);
+		ensure(DeviceHandle);
 		DeviceHandle->UnregisterSubmixBufferListener(this, Submix);
 
 		bIsRegistered = false;
