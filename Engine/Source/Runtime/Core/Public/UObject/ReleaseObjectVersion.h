@@ -132,6 +132,9 @@ struct CORE_API FReleaseObjectVersion
 		// Some sequencer event sections that were copy-pasted left broken links to the director BP
 		FixupCopiedEventSections,
 
+		// Serialize the number of bytes written when serializing function arguments
+		RemoteControlSerializeFunctionArgumentsSize,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
