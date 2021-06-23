@@ -128,27 +128,27 @@ IOnlineFriendsPtr FOnlineSubsystemEOSPlus::GetFriendsInterface() const
 
 IOnlineGroupsPtr FOnlineSubsystemEOSPlus::GetGroupsInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetGroupsInterface() : nullptr;
+	return nullptr;
 }
 
 IOnlinePartyPtr FOnlineSubsystemEOSPlus::GetPartyInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetPartyInterface() : nullptr;
+	return nullptr;
 }
 
 IOnlineSharedCloudPtr FOnlineSubsystemEOSPlus::GetSharedCloudInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetSharedCloudInterface() : nullptr;
+	return nullptr;
 }
 
 IOnlineUserCloudPtr FOnlineSubsystemEOSPlus::GetUserCloudInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetUserCloudInterface() : nullptr;
+	return nullptr;
 }
 
 IOnlineEntitlementsPtr FOnlineSubsystemEOSPlus::GetEntitlementsInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetEntitlementsInterface() : nullptr;
+	return nullptr;
 }
 
 IOnlineLeaderboardsPtr FOnlineSubsystemEOSPlus::GetLeaderboardsInterface() const
@@ -158,7 +158,7 @@ IOnlineLeaderboardsPtr FOnlineSubsystemEOSPlus::GetLeaderboardsInterface() const
 
 IOnlineVoicePtr FOnlineSubsystemEOSPlus::GetVoiceInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetVoiceInterface() : nullptr;
+	return nullptr;
 }
 
 IOnlineExternalUIPtr FOnlineSubsystemEOSPlus::GetExternalUIInterface() const
@@ -168,7 +168,7 @@ IOnlineExternalUIPtr FOnlineSubsystemEOSPlus::GetExternalUIInterface() const
 
 IOnlineTimePtr FOnlineSubsystemEOSPlus::GetTimeInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetTimeInterface() : nullptr;
+	return nullptr;
 }
 
 IOnlineIdentityPtr FOnlineSubsystemEOSPlus::GetIdentityInterface() const
@@ -178,7 +178,7 @@ IOnlineIdentityPtr FOnlineSubsystemEOSPlus::GetIdentityInterface() const
 
 IOnlineTitleFilePtr FOnlineSubsystemEOSPlus::GetTitleFileInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetTitleFileInterface() : nullptr;
+	return nullptr;
 }
 
 IOnlineStoreV2Ptr FOnlineSubsystemEOSPlus::GetStoreV2Interface() const
@@ -203,7 +203,7 @@ IOnlineAchievementsPtr FOnlineSubsystemEOSPlus::GetAchievementsInterface() const
 
 IOnlineSharingPtr FOnlineSubsystemEOSPlus::GetSharingInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetSharingInterface() : nullptr;
+	return nullptr;
 }
 
 IOnlineUserPtr FOnlineSubsystemEOSPlus::GetUserInterface() const
@@ -213,7 +213,7 @@ IOnlineUserPtr FOnlineSubsystemEOSPlus::GetUserInterface() const
 
 IOnlineMessagePtr FOnlineSubsystemEOSPlus::GetMessageInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetMessageInterface() : nullptr;
+	return nullptr;
 }
 
 IOnlinePresencePtr FOnlineSubsystemEOSPlus::GetPresenceInterface() const
@@ -223,7 +223,7 @@ IOnlinePresencePtr FOnlineSubsystemEOSPlus::GetPresenceInterface() const
 
 IOnlineChatPtr FOnlineSubsystemEOSPlus::GetChatInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetChatInterface() : nullptr;
+	return nullptr;
 }
 
 IOnlineStatsPtr FOnlineSubsystemEOSPlus::GetStatsInterface() const
@@ -233,12 +233,12 @@ IOnlineStatsPtr FOnlineSubsystemEOSPlus::GetStatsInterface() const
 
 IOnlineTurnBasedPtr FOnlineSubsystemEOSPlus::GetTurnBasedInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetTurnBasedInterface() : nullptr;
+	return nullptr;
 }
 
 IOnlineTournamentPtr FOnlineSubsystemEOSPlus::GetTournamentInterface() const
 {
-	return BaseOSS != nullptr ? BaseOSS->GetTournamentInterface() : nullptr;
+	return nullptr;
 }
 
 bool FOnlineSubsystemEOSPlus::IsLocalPlayer(const FUniqueNetId& UniqueId) const
