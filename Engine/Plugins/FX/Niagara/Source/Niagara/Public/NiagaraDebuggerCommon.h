@@ -49,6 +49,13 @@ struct FNiagaraOutlinerEmitterInstanceData
 	UPROPERTY(VisibleAnywhere, Category = "Emitter")
 	int32 NumParticles = 0;
 
+	UPROPERTY(VisibleAnywhere, Category = "Emitter")
+	uint32 bRequiresPersistentIDs : 1;
+
+	FNiagaraOutlinerEmitterInstanceData()
+		: bRequiresPersistentIDs(false)
+	{}
+
 	//Mem Usage?
 	//Scalability info?
 };
@@ -90,9 +97,37 @@ struct FNiagaraOutlinerSystemInstanceData
 	UPROPERTY(VisibleAnywhere, Category = "Performance")
 	FNiagaraOutlinerTimingData MaxTime;
 
-	FNiagaraOutlinerSystemInstanceData() 
-	: bPendingKill(false)
-	, bUsingCullProxy(false)
+	UPROPERTY(VisibleAnywhere, Category = "Ticking")
+	TEnumAsByte<ETickingGroup> TickGroup;
+
+	UPROPERTY(VisibleAnywhere, Category = "Gpu")
+	uint32 bIsSolo : 1;
+
+	UPROPERTY(VisibleAnywhere, Category = "Gpu")
+	uint32 bRequiresDistanceFieldData : 1;
+
+	UPROPERTY(VisibleAnywhere, Category = "Gpu")
+	uint32 bRequiresDepthBuffer : 1;
+
+	UPROPERTY(VisibleAnywhere, Category = "Gpu")
+	uint32 bRequiresEarlyViewData : 1;
+
+	UPROPERTY(VisibleAnywhere, Category = "Gpu")
+	uint32 bRequiresViewUniformBuffer : 1;
+
+	UPROPERTY(VisibleAnywhere, Category = "Gpu")
+	uint32 bRequiresRayTracingScene : 1;
+
+	FNiagaraOutlinerSystemInstanceData()
+		: bPendingKill(false)
+		, bUsingCullProxy(false)
+		, TickGroup(0)
+		, bIsSolo(false)
+		, bRequiresDistanceFieldData(false)
+		, bRequiresDepthBuffer(false)
+		, bRequiresEarlyViewData(false)
+		, bRequiresViewUniformBuffer(false)
+		, bRequiresRayTracingScene(false)
 	{}
 
 	//TODO:
