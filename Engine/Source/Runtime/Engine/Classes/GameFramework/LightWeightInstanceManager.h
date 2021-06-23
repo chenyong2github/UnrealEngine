@@ -98,7 +98,11 @@ public:
 	// Returns a handle to a light weight instance representing the same object as InActor and calls destroy on InActor if successful.
 	FActorInstanceHandle ConvertActorToLightWeightInstance(AActor* InActor);
 
+	// Returns the index used internally by the light weight instance manager that is associated with the instance referred to by InIndex used by collision and rendering
 	virtual int32 ConvertCollisionIndexToLightWeightIndex(int32 InIndex) const;
+
+	// Returns the index used by collision and rendering that is associated with the instance referred to by InIndex
+	virtual int32 ConvertLightWeightIndexToCollisionIndex(int32 InIndex) const;
 
 	template<typename U>
 	bool IsInterfaceSupported() const
