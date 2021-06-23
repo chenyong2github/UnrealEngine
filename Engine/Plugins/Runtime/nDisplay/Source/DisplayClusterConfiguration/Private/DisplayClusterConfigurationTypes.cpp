@@ -133,6 +133,7 @@ FDisplayClusterConfigurationProjection::FDisplayClusterConfigurationProjection()
 
 FDisplayClusterConfigurationICVFX_StageSettings::FDisplayClusterConfigurationICVFX_StageSettings()
 {
+	AllViewportsOCIOConfiguration.bIsEnabled = true;
 }
 
 const float UDisplayClusterConfigurationViewport::ViewportMinimumSize = 1.0f;
