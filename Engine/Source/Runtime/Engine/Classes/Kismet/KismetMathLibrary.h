@@ -1982,7 +1982,7 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 
 	/** Returns a random point within the specified bounding box using the first vector as an origin and the second as the box extents. */
 	UFUNCTION(BlueprintPure, Category = "Math|Random", meta=(ScriptMethod = "RandomPointInBoxExtents", NotBlueprintThreadSafe))
-	static FVector RandomPointInBoundingBox(FVector Origin, FVector BoxExtent);
+	static FVector RandomPointInBoundingBox(const FVector Center, const FVector HalfSize);
 
 	/** 
 	 * Returns a random vector with length of 1, within the specified cone, with uniform random distribution.
@@ -3960,6 +3960,10 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	/** Returns a random vector with length of 1.0 */
 	UFUNCTION(BlueprintPure, Category="Math|Random")
 	static FVector RandomUnitVectorFromStream(const FRandomStream& Stream);
+
+	/** Returns a random point within the specified bounding box using the first vector as an origin and the second as the half size of the AABB. */
+	UFUNCTION(BlueprintPure, Category="Math|Random")
+	static FVector RandomPointInBoundingBoxFromStream(const FVector Center, const FVector HalfSize, const FRandomStream& Stream);
 
 	/** Create a random rotation */
 	UFUNCTION(BlueprintPure, Category="Math|Random")

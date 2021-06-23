@@ -369,7 +369,7 @@ int64 UKismetMathLibrary::SignOfInteger64(int64 A)
 KISMET_MATH_FORCEINLINE
 int64 UKismetMathLibrary::RandomInteger64(int64 A)
 {
-	return FMath::RandHelper(A);
+	return FMath::RandHelper64(A);
 }
 
 KISMET_MATH_FORCEINLINE
@@ -1768,10 +1768,10 @@ FVector UKismetMathLibrary::Vector_Reciprocal(const FVector& A)
 }	
 
 KISMET_MATH_INLINE
-FVector UKismetMathLibrary::RandomPointInBoundingBox(FVector Origin, FVector BoxExtent)
+FVector UKismetMathLibrary::RandomPointInBoundingBox(const FVector Center, const FVector HalfSize)
 {
-	const FVector BoxMin = Origin - BoxExtent;
-	const FVector BoxMax = Origin + BoxExtent;
+	const FVector BoxMin = Center - HalfSize;
+	const FVector BoxMax = Center + HalfSize;
 	return FMath::RandPointInBox(FBox(BoxMin, BoxMax));
 }
 

@@ -220,6 +220,13 @@ public:
 		return GetUnitVector();
 	}
 
+	FORCEINLINE FVector RandPointInBox(const FBox& Box) const
+	{
+		return FVector(	FRandRange(Box.Min.X, Box.Max.X),
+						FRandRange(Box.Min.Y, Box.Max.Y),
+						FRandRange(Box.Min.Z, Box.Max.Z) );
+	}
+
 	/**
 	 * Returns a random unit vector, uniformly distributed, within the specified cone.
 	 *
