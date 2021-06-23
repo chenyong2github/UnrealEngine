@@ -149,8 +149,8 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 
 		if (Pin->GetDirection() == EOptimusNodePinDirection::Input)
 		{
-		const UOptimusNodePin *ConnectedPin = ConnectedPins.IsEmpty() ? nullptr : ConnectedPins[0];
-		const UOptimusNode *ConnectedNode = ConnectedPin ? ConnectedPin->GetNode() : nullptr;
+			const UOptimusNodePin *ConnectedPin = ConnectedPins.IsEmpty() ? nullptr : ConnectedPins[0];
+			const UOptimusNode *ConnectedNode = ConnectedPin ? ConnectedPin->GetNode() : nullptr;
 
 			// For inputs, we only have to deal with a single read, because only one
 			// link can connect into it. 
@@ -174,13 +174,13 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 					DataFunctionName = ReadFunctions[DataInterfaceFuncIndex].Name;
 				}
 				else if(ensure(InNodeDataInterfaceMap.Contains(ConnectedNode)))
-		{
+				{
 					// FIXME: Sub-pin read support.
 					DataInterface = InNodeDataInterfaceMap[ConnectedNode];
 
 					TArray<FOptimusCDIPinDefinition> PinDefs = DataInterface->GetPinDefinitions();
 
-			int32 DataInterfaceDefPinIndex = GetPinIndex(ConnectedPin); 
+					int32 DataInterfaceDefPinIndex = GetPinIndex(ConnectedPin); 
 					DataFunctionName = PinDefs[DataInterfaceDefPinIndex].DataFunctionName;
 
 					TArray<FShaderFunctionDefinition> ReadFunctions;
@@ -188,7 +188,7 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 					DataInterfaceFuncIndex = ReadFunctions.IndexOfByPredicate([DataFunctionName](const FShaderFunctionDefinition &InDef) { return DataFunctionName == InDef.Name; });
 				}
 				else
-			{
+				{
 					continue;
 				}
 
@@ -264,7 +264,7 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 				
 				for (const UOptimusNodePin* ConnectedPin: ConnectedPins)
 				{
-					const UOptimusNode *ConnectedNode = ConnectedPin ? ConnectedPin->GetNode() : nullptr;
+					const UOptimusNode *ConnectedNode = ConnectedPin->GetNode();
 
 					// Conneted to a data interface node?
 					if(!InNodeDataInterfaceMap.Contains(ConnectedNode))
@@ -287,16 +287,16 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 				for (const FWriteConnectionDef& WriteConnectionDef: WriteConnectionDefs)
 				{
 					const FString DataFunctionName = WriteConnectionDef.DataFunctionName;
-				FShaderFunctionDefinition FuncDef;
+					FShaderFunctionDefinition FuncDef;
 					FuncDef.Name = DataFunctionName;
-				FuncDef.bHasReturnType = false;
+					FuncDef.bHasReturnType = false;
 				
-				FShaderParamTypeDefinition ParamDef;
-				CopyValueType(ValueType, ParamDef);
-				FuncDef.ParamTypes.Add(IndexParamDef);
-				FuncDef.ParamTypes.Emplace(ParamDef);
+					FShaderParamTypeDefinition ParamDef;
+					CopyValueType(ValueType, ParamDef);
+					FuncDef.ParamTypes.Add(IndexParamDef);
+					FuncDef.ParamTypes.Emplace(ParamDef);
 
-				TArray<FShaderFunctionDefinition> WriteFunctions;
+					TArray<FShaderFunctionDefinition> WriteFunctions;
 					WriteConnectionDef.DataInterface->GetSupportedOutputs(WriteFunctions);
 					int32 DataInterfaceFuncIndex = WriteFunctions.IndexOfByPredicate([DataFunctionName](const FShaderFunctionDefinition &InDef) { return DataFunctionName == InDef.Name; });
 				
@@ -305,11 +305,11 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 					{
 						WrapFunctionName = FString::Printf(TEXT("Write%sTo%s"), *Pin->GetName(), *WriteConnectionDef.WriteToName);
 						WrapFunctionNameCalls.Add(FString::Printf(TEXT("    %s(Index, Value)"), *WrapFunctionName));
-		}
-		else
-		{
+					}
+					else
+					{
 						WrapFunctionName = FString::Printf(TEXT("Write%s"), *Pin->GetName());
-				}
+					}
 					OutOutputDataBindings.Add(KernelSource->ExternalOutputs.Num(), {WriteConnectionDef.DataInterface, DataInterfaceFuncIndex, WrapFunctionName});
 					KernelSource->ExternalOutputs.Emplace(FuncDef);
 				}
@@ -317,7 +317,7 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 				if (!WrapFunctionNameCalls.IsEmpty())
 				{
 					// Add a wrapper function that calls all the write functions in one shot.
-				StubWrapFunctions.Add(
+					StubWrapFunctions.Add(
 						FString::Printf(TEXT("void Write%s(uint Index, %s Value)\n{\n%s;\n}"),
 							*Pin->GetName(), *ValueType->ToString(), *FString::Join(WrapFunctionNameCalls, TEXT(";\n"))));
 				}
