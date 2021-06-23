@@ -6879,9 +6879,9 @@ void UCharacterMovementComponent::HandleImpact(const FHitResult& Impact, float T
 		PFAgent->OnMoveBlockedBy(Impact);
 	}
 
-	APawn* OtherPawn = Impact.HitObjectHandle.FetchActor<APawn>();
-	if (OtherPawn)
+	if (Impact.HitObjectHandle.DoesRepresentClass(APawn::StaticClass()))
 	{
+		APawn* OtherPawn = Impact.HitObjectHandle.FetchActor<APawn>();
 		NotifyBumpedPawn(OtherPawn);
 	}
 

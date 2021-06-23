@@ -2582,7 +2582,7 @@ void UPrimitiveComponent::DispatchBlockingHit(AActor& Owner, FHitResult const& B
 		if (!BlockingHitComponent->IsPendingKill())
 		{
 			// BlockingHit.GetActor() could be marked for deletion in DispatchBlockingHit(), which would make the weak pointer return NULL.
-			if (AActor* const BlockingHitActor = BlockingHit.HitObjectHandle.FetchActor())
+			if (AActor* const BlockingHitActor = BlockingHit.HitObjectHandle.GetManagingActor())
 			{
 				BlockingHitActor->DispatchBlockingHit(BlockingHitComponent, this, false, BlockingHit);
 			}
