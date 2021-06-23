@@ -1596,7 +1596,28 @@ void VoxelizeHairStrands(
 	FHairStrandsVoxelResources& VirtualVoxelResources = View.HairStrandsViewData.VirtualVoxelResources;
 	FHairStrandsMacroGroupResources& MacroGroupResources = View.HairStrandsViewData.MacroGroupResources;
 
+	// Simple early out to check if voxelization is needed
 	if (!IsHairStrandsVoxelizationEnable() || MacroGroupDatas.Num() == 0)
+	{
+		VirtualVoxelResources = AllocateDummyVirtualVoxelResources(GraphBuilder, View, MacroGroupDatas);
+		return;
+	}
+
+	// Detailed early out to check if voxelization is needed
+	bool bHasValidElementToVoxelize = false;
+	for (const FHairStrandsMacroGroupData& MacroGroup : MacroGroupDatas)
+	{
+		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroup.PrimitivesInfos)
+		{
+			if (PrimitiveInfo.PublicDataPtr->DoesSupportVoxelization())
+			{
+				bHasValidElementToVoxelize = true;
+				break;
+			}
+		}
+	}
+
+	if (!bHasValidElementToVoxelize)
 	{
 		VirtualVoxelResources = AllocateDummyVirtualVoxelResources(GraphBuilder, View, MacroGroupDatas);
 		return;
