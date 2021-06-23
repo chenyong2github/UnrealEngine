@@ -11,10 +11,6 @@
 
 PRAGMA_DISABLE_OPTIMIZATION
 
-template<>
-TScriptStructTypeBitSet<FTestStructSimple>::FStructTracker TScriptStructTypeBitSet<FTestStructSimple>::StructTracker = TScriptStructTypeBitSet<FTestStructSimple>::FStructTracker();
-template struct TScriptStructTypeBitSet<FTestStructSimple>::FStructTracker;
-
 namespace FScriptStructTypeBitSetTests
 {
 
