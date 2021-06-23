@@ -439,6 +439,11 @@ namespace UnrealBuildTool
 				Arguments.Add(String.Format("/Fo\"{0}\"", ObjectFile.AbsolutePath));
 			}
 
+			if (DependencyListFile != null && DependencyListFile.HasExtension(".json"))
+			{
+				Arguments.Add(String.Format("/sourceDependencies\"{0}\"", DependencyListFile.AbsolutePath));
+			}
+
 			Arguments.AddRange(this.Arguments);
 			return Arguments;
 		}

@@ -1242,7 +1242,6 @@ namespace UnrealBuildTool
 					if (EnvVars.ToolChainVersion >= VersionNumber.Parse("14.27"))
 					{
 						CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.json", SourceFile.Location.GetFileName())));
-						CompileAction.Arguments.Add($"/sourceDependencies \"{CompileAction.DependencyListFile.AbsolutePath}\"");
 					}
 					else
 					{
