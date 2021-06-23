@@ -7,9 +7,9 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNode_Inertialization.h"
 #include "Animation/AnimSequence.h"
-#include "Trace/PoseSearchTraceLogger.h"
 
 #define LOCTEXT_NAMESPACE "AnimNode_MotionMatching"
+
 
 /////////////////////////////////////////////////////
 // FAnimNode_MotionMatching
@@ -166,18 +166,8 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 	const FPredictionSequenceState SequenceState = { SequencePlayerNode.GetSequence() , SequencePlayerNode.GetAccumulatedTime(), SequencePlayerNode.GetLoopAnimation() };
 	const float PlayRate = UPoseSearchPredictionDistanceMatching::ComputePlayRate(Context, Prediction, PredictionSettings, SequenceState);
 	SequencePlayerNode.SetPlayRate(PlayRate);
+
 	Source.Update(Context);
-	
-#if UE_POSE_SEARCH_TRACE_ENABLED
-	// Gather our node state and trace it
-	UE::PoseSearch::FTraceMotionMatchingState State;
-	State.ElapsedPoseJumpTime = ElapsedPoseJumpTime;
-	State.Flags = UE::PoseSearch::FTraceMotionMatchingState::EFlags::None;
-	State.DbPoseIdx = DbPoseIdx;
-	State.DatabaseId = FObjectTrace::GetObjectId(Database.Get());
-	State.QueryVector = ComposedQuery.GetValues();
-	UE_TRACE_POSE_SEARCH_MOTION_MATCHING_STATE(Context, State)
-#endif
 }
 
 bool FAnimNode_MotionMatching::HasPreUpdate() const
