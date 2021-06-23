@@ -89,17 +89,20 @@ bool FDisplayClusterViewportConfigurationHelpers_Postprocess::ImplUpdateInnerFru
 		{
 			for (const FDisplayClusterConfigurationViewport_ColorGradingProfile& ColorGradingProfileIt : CameraSettings.PerNodeColorGradingProfiles)
 			{
-				for (const FString& ClusterNodeIt : ColorGradingProfileIt.ApplyPostProcessToObjects)
+				if (ColorGradingProfileIt.PostProcessSettings.bIsEnabled)
 				{
-					if (ClusterNodeId.Compare(ClusterNodeIt, ESearchCase::IgnoreCase) == 0)
+					for (const FString& ClusterNodeIt : ColorGradingProfileIt.ApplyPostProcessToObjects)
 					{
-						// Use cluster node PP
-						if (ImplUpdateICVFXColorGrading(DstViewport, RootActor, ColorGradingProfileIt.PostProcessSettings))
+						if (ClusterNodeId.Compare(ClusterNodeIt, ESearchCase::IgnoreCase) == 0)
 						{
-							return true;
-						}
+							// Use cluster node PP
+							if (ImplUpdateICVFXColorGrading(DstViewport, RootActor, ColorGradingProfileIt.PostProcessSettings))
+							{
+								return true;
+							}
 
-						break;
+							break;
+						}
 					}
 				}
 			}
