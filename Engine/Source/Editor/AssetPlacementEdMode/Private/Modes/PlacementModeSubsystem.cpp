@@ -56,7 +56,7 @@ bool UPlacementModeSubsystem::DoesCurrentPaletteSupportElement(const FTypedEleme
 	// Not all actors do this reliably, so additionally check the supplied factory for a match. 
 	for (const TSharedPtr<FPaletteItem>& Item : ModeSettings->PaletteItems)
 	{
-		if (!Item)
+		if (!Item || !Item->AssetFactoryInterface)
 		{
 			continue;
 		}

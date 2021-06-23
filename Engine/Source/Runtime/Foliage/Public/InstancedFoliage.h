@@ -23,6 +23,11 @@ struct FFoliageInstanceHash;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogInstancedFoliage, Log, All);
 
+namespace FoliageElementUtil
+{
+	FOLIAGE_API bool FoliageInstanceElementsEnabled();
+}
+
 /**
 * Flags stored with each instance
 */

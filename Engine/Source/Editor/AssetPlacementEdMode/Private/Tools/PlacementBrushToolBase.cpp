@@ -7,18 +7,21 @@
 #include "InstancedFoliageActor.h"
 #include "FoliageHelper.h"
 #include "Components/PrimitiveComponent.h"
-#include "Components/StaticMeshComponent.h"
 #include "Components/BrushComponent.h"
 #include "Components/ModelComponent.h"
 #include "LandscapeHeightfieldCollisionComponent.h"
 #include "FoliageInstancedStaticMeshComponent.h"
 #include "AssetPlacementSettings.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
-#include "AssetPlacementEdMode.h"
+#include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
+#include "Elements/Interfaces/TypedElementWorldInterface.h"
+#include "Elements/Interfaces/TypedElementSelectionInterface.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"
 #include "Editor.h"
 #include "Modes/PlacementModeSubsystem.h"
 #include "ActorFactories/ActorFactory.h"
+#include "BaseGizmos/GizmoRenderingUtil.h"
 #include "Elements/SMInstance/SMInstanceElementData.h" // For SMInstanceElementDataUtil::SMInstanceElementsEnabled
 
 bool UPlacementToolBuilderBase::CanBuildTool(const FToolBuilderState& SceneState) const
@@ -43,6 +46,27 @@ bool UPlacementBrushToolBase::HitTest(const FRay& Ray, FHitResult& OutHit)
 bool UPlacementBrushToolBase::AreAllTargetsValid() const
 {
 	return Target ? Target->IsValid() : true;
+}
+
+void UPlacementBrushToolBase::Render(IToolsContextRenderAPI* RenderAPI)
+{
+	Super::Render(RenderAPI);
+
+	// Transform the brush radius to standard pixel size
+	LastBrushStampWorldToPixelScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(RenderAPI->GetSceneView(), LastBrushStamp.WorldPosition);
+}
+
+void UPlacementBrushToolBase::OnClickPress(const FInputDeviceRay& PressPos)
+{
+	LastDeviceInputRay = PressPos;
+	Super::OnClickPress(PressPos);
+}
+
+void UPlacementBrushToolBase::OnClickDrag(const FInputDeviceRay& DragPos)
+{
+	LastDeviceInputRay = DragPos;
+	GetToolManager()->PostInvalidation();
+	Super::OnClickDrag(DragPos);
 }
 
 double UPlacementBrushToolBase::EstimateMaximumTargetDimension()
@@ -238,52 +262,61 @@ FTransform UPlacementBrushToolBase::FinalizeTransform(const FTransform& Original
 	return FinalizedTransform;
 }
 
-TArray<FTypedElementHandle> UPlacementBrushToolBase::GetElementsInBrushRadius() const
+TArray<FTypedElementHandle> UPlacementBrushToolBase::GetElementsInBrushRadius(const FInputDeviceRay& DragPos) const
 {
 	TArray<FTypedElementHandle> ElementHandles;
-	FCollisionQueryParams QueryParams(TEXT("PlacementBrushTool"), SCENE_QUERY_STAT_ONLY(IFA_FoliageTrace), true);
-	QueryParams.bReturnFaceIndex = false;
-	TArray<FHitResult> Hits;
-	FCollisionShape BrushSphere;
-	BrushSphere.SetSphere(LastBrushStamp.Radius);
 
-	const FVector TraceStart(LastWorldRay.Origin);
-	const FVector TraceEnd(LastWorldRay.Origin + LastWorldRay.Direction * HALF_WORLD_MAX);
-
-	GetToolManager()->GetWorld()->SweepMultiByObjectType(Hits, TraceStart, TraceEnd, FQuat::Identity,
-		FCollisionObjectQueryParams(FCollisionObjectQueryParams::InitType::AllObjects), BrushSphere, QueryParams);
-
-	for (const FHitResult& Hit : Hits)
+	// We need the 2D device screen space position to test against hit proxies.
+	if (!DragPos.bHas2D)
 	{
-		const UPrimitiveComponent* HitComponent = Hit.GetComponent();
-		check(HitComponent);
+		return ElementHandles;
+	}
 
-		// In the editor traces can hit "No Collision" type actors, so ugh. (ignore these)
-		if (!HitComponent->IsQueryCollisionEnabled() || HitComponent->GetCollisionResponseToChannel(ECC_WorldStatic) != ECR_Block)
-		{
-			continue;
-		}
+	FViewport* Viewport = GetToolManager()->GetContextQueriesAPI()->GetFocusedViewport();
+	if (!Viewport)
+	{
+		return ElementHandles;
+	}
 
-		// Don't place assets on invisible walls / triggers / volumes
-		if (HitComponent->IsA<UBrushComponent>())
-		{
-			continue;
-		}
+	FToolBuilderState SelectionState;
+	GetToolManager()->GetContextQueriesAPI()->GetCurrentSelectionState(SelectionState);
+	if (!SelectionState.TypedElementSelectionSet.IsValid())
+	{
+		return ElementHandles;
+	}
+	UTypedElementSelectionSet* SelectionSet = SelectionState.TypedElementSelectionSet.Get();
 
-		const AActor* HitActor = Hit.GetActor();
-		if (HitActor)
+	// Convert brush radius to screen space and gather hit elements within the brush radius.
+	int32 HalfBrushRadius = FMath::CeilToFloat((LastBrushStamp.Radius * LastBrushStampWorldToPixelScale) / 2.0f);
+	FIntRect AreaToCheck;
+	FIntPoint ViewportSize = Viewport->GetSizeXY();
+	AreaToCheck.Min.X = FMath::Max<int32>(0, DragPos.ScreenPosition.X - HalfBrushRadius);
+	AreaToCheck.Min.Y = FMath::Max<int32>(0, DragPos.ScreenPosition.Y - HalfBrushRadius);
+	AreaToCheck.Max.X = FMath::Min<int32>(ViewportSize.X, DragPos.ScreenPosition.X + HalfBrushRadius);
+	AreaToCheck.Max.Y = FMath::Min<int32>(ViewportSize.Y, DragPos.ScreenPosition.Y + HalfBrushRadius);
+
+	FBoxSphereBounds WorldBrushSphereBounds(FSphere(LastBrushStamp.WorldPosition, LastBrushStamp.Radius));
+	TSet<FTypedElementHandle> HitElementHandles;
+	Viewport->GetElementHandlesInRect(AreaToCheck, HitElementHandles);
+	for (const FTypedElementHandle& HitHandle : HitElementHandles)
+	{
+		FTypedElementHandle ResolvedHandle = SelectionSet->GetSelectionElement(HitHandle, ETypedElementSelectionMethod::Primary);
+		if (TTypedElement<UTypedElementWorldInterface> WorldInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementWorldInterface>(ResolvedHandle))
 		{
-			FTypedElementHandle ActorHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(HitActor);
-			if (GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesCurrentPaletteSupportElement(ActorHandle))
+			// Since the viewport gives us back hit proxies in a rect, we also want to verify that we're actually intersecting with the sphere from the brush in world space.
+			FBoxSphereBounds ElementBounds;
+			WorldInterface.GetBounds(ElementBounds);
+			if (ElementBounds.SpheresIntersect(ElementBounds, WorldBrushSphereBounds))
 			{
-				ElementHandles.Emplace(ActorHandle);
+				ElementHandles.Add(MoveTemp(ResolvedHandle));
 			}
 		}
 	}
 
-	if (!SMInstanceElementDataUtil::SMInstanceElementsEnabled())
+	// Handle the IFA for the brush stroke level if needed for ISMs
+	const bool bAreFoliageSMInstancesEnabled = SMInstanceElementDataUtil::SMInstanceElementsEnabled() && FoliageElementUtil::FoliageInstanceElementsEnabled();
+	if (!bAreFoliageSMInstancesEnabled)
 	{
-		// Handle the IFA for the brush stroke level
 		if (UActorPartitionSubsystem* PartitionSubsystem = UWorld::GetSubsystem<UActorPartitionSubsystem>(GEditor->GetEditorWorldContext().World()))
 		{
 			constexpr bool bCreatePartitionActorIfMissing = false;
@@ -292,18 +325,21 @@ TArray<FTypedElementHandle> UPlacementBrushToolBase::GetElementsInBrushRadius() 
 			{
 				for (const auto& FoliageInfo : FoliageActor->GetFoliageInfos())
 				{
-					FTypedElementHandle SourceObjectHandle = UEngineElementsLibrary::AcquireEditorObjectElementHandle(FoliageInfo.Key->GetSource());
-					if (GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesCurrentPaletteSupportElement(SourceObjectHandle))
+					// The foliage info needs a valid component for ISM placement from our systems.
+					if (FoliageInfo.Value->GetComponent() != nullptr)
 					{
-						TArray<int32> Instances;
-						FSphere SphereToCheck(LastBrushStamp.WorldPosition, LastBrushStamp.Radius);
-						FoliageInfo.Value->GetInstancesInsideSphere(SphereToCheck, Instances);
-						if (Instances.Num())
-						{
-							// For now, return the whole foliage actor, and allow the calling code to drill down, since we do not have element handles at the instance level just yet
-							ElementHandles.Emplace(UEngineElementsLibrary::AcquireEditorActorElementHandle(FoliageActor));
-							break;
-						}
+						continue;
+					}
+
+					FTypedElementHandle SourceObjectHandle = UEngineElementsLibrary::AcquireEditorObjectElementHandle(FoliageInfo.Key->GetSource());
+					TArray<int32> Instances;
+					FSphere SphereToCheck(LastBrushStamp.WorldPosition, LastBrushStamp.Radius);
+					FoliageInfo.Value->GetInstancesInsideSphere(SphereToCheck, Instances);
+					if (Instances.Num())
+					{
+						// For now, return the whole foliage actor, and allow the calling code to drill down, since we do not have element handles at the instance level just yet
+						ElementHandles.Emplace(UEngineElementsLibrary::AcquireEditorActorElementHandle(FoliageActor));
+						break;
 					}
 				}
 			}
