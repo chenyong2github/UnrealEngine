@@ -698,18 +698,27 @@ namespace UnrealBuildTool
 				
 				if (CompileEnvironment.bGenerateDependenciesFile)
 				{
-					List<string> CommandArguments = new List<string>();
-					CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.txt", SourceFile.Location.GetFileName())));
-					CompileAction.ProducedItems.Add(CompileAction.DependencyListFile);
-					CommandArguments.Add(String.Format("-dependencies={0}", Utils.MakePathSafeToUseWithCommandLine(CompileAction.DependencyListFile.Location)));
+					if (EnvVars.ToolChainVersion >= VersionNumber.Parse("14.27"))
+					{
+						CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.json", SourceFile.Location.GetFileName())));
+						CompileAction.ProducedItems.Add(CompileAction.DependencyListFile);
+						CompileAction.CommandArguments = string.Join(" ", CompileAction.CommandArguments, "/sourceDependencies", $"\"{CompileAction.DependencyListFile.AbsolutePath}\"");
+					}
+					else
+					{
+						List<string> CommandArguments = new List<string>();
+						CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.txt", SourceFile.Location.GetFileName())));
+						CompileAction.ProducedItems.Add(CompileAction.DependencyListFile);
+						CommandArguments.Add(String.Format("-dependencies={0}", Utils.MakePathSafeToUseWithCommandLine(CompileAction.DependencyListFile.Location)));
 
-					CommandArguments.Add(String.Format("-compiler={0}", Utils.MakePathSafeToUseWithCommandLine(CompileAction.CommandPath)));
-					CommandArguments.Add("--");
-					CommandArguments.Add(Utils.MakePathSafeToUseWithCommandLine(CompileAction.CommandPath));
-					CommandArguments.Add(CompileAction.CommandArguments);
-					CommandArguments.Add("/showIncludes");
-					CompileAction.CommandArguments = string.Join(" ", CommandArguments);
-					CompileAction.CommandPath = FileReference.Combine(Unreal.EngineDirectory, "Build", "Windows", "cl-filter", "cl-filter.exe");
+						CommandArguments.Add(String.Format("-compiler={0}", Utils.MakePathSafeToUseWithCommandLine(CompileAction.CommandPath)));
+						CommandArguments.Add("--");
+						CommandArguments.Add(Utils.MakePathSafeToUseWithCommandLine(CompileAction.CommandPath));
+						CommandArguments.Add(CompileAction.CommandArguments);
+						CommandArguments.Add("/showIncludes");
+						CompileAction.CommandArguments = string.Join(" ", CommandArguments);
+						CompileAction.CommandPath = FileReference.Combine(Unreal.EngineDirectory, "Build", "Windows", "cl-filter", "cl-filter.exe");
+					}
 				}
 
 				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
