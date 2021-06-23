@@ -51,6 +51,11 @@ bool FTimingViewLayout::Update()
 		{
 			TimelineDY -= LayoutTransitionSpeed;
 			bHasChanged = true;
+		}		
+		if (ChildTimelineDY > CompactLayoutChildTimelineDY)
+		{
+			ChildTimelineDY -= LayoutTransitionSpeed / 2;
+			bHasChanged = true;
 		}
 	}
 	else
@@ -68,6 +73,11 @@ bool FTimingViewLayout::Update()
 		if (TimelineDY < NormalLayoutTimelineDY)
 		{
 			TimelineDY += LayoutTransitionSpeed;
+			bHasChanged = true;
+		}		
+		if (ChildTimelineDY < NormalLayoutChildTimelineDY)
+		{
+			ChildTimelineDY += LayoutTransitionSpeed / 2;
 			bHasChanged = true;
 		}
 	}

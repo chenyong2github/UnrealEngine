@@ -72,6 +72,43 @@ const TPagedArray<FContextSwitch>* FContextSwitchProvider::GetContextSwitches(ui
 	return nullptr;
 }
 
+const void FContextSwitchProvider::EnumerateContextSwitches(uint32 ThreadId, double StartTime, double EndTime, ContextSwitchCallback Callback) const
+{
+	Session.ReadAccessCheck();
+
+	const TPagedArray<FContextSwitch>* PagedArray = GetContextSwitches(ThreadId);
+
+	if (PagedArray == nullptr)
+	{
+		return;
+	}
+
+	uint64 ContextSwitchPageIndex = Algo::UpperBoundBy(*PagedArray, StartTime, [](const TPagedArrayPage<FContextSwitch>& ContextSwitchPage)
+		{
+			return ContextSwitchPage.Items[0].Start;
+		});
+
+	if (ContextSwitchPageIndex > 0)
+	{
+		--ContextSwitchPageIndex;
+	}
+
+	auto Iterator = PagedArray->GetIteratorFromPage(ContextSwitchPageIndex);
+	const FContextSwitch* CurrentContextSwitch = Iterator.NextItem();
+	while (CurrentContextSwitch && CurrentContextSwitch->Start < EndTime)
+	{
+		if (CurrentContextSwitch->End > StartTime)
+		{
+			if (Callback(*CurrentContextSwitch) == EContextSwitchEnumerationResult::Stop)
+			{
+				break;
+			}
+		}
+
+		CurrentContextSwitch = Iterator.NextItem();
+	}
+}
+
 void FContextSwitchProvider::Add(uint32 ThreadId, double Start, double End, uint32 CoreNumber)
 {
 	Session.WriteAccessCheck();

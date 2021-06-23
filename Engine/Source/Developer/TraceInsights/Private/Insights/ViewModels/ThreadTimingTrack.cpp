@@ -1173,6 +1173,10 @@ void FThreadTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITim
 			} while (false);
 		}
 	}
+	else if (ChildTrack.IsValid())
+	{
+		ChildTrack->InitTooltip(InOutTooltip, InTooltipEvent);
+	}
 
 	InOutTooltip.UpdateLayout();
 }
