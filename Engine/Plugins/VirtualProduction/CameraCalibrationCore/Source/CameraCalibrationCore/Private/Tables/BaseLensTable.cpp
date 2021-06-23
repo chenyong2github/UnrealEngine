@@ -40,8 +40,13 @@ void FBaseLensTable::ForEachLinkedFocusPoint(FLinkedFocusPointCallback InCallbac
 	const TMap<ELensDataCategory, FLinkPointMetadata> LinkedCategories = GetLinkedCategories();
 	for (const TPair<ELensDataCategory, FLinkPointMetadata>& LinkedCategoryPair : LinkedCategories)
 	{
-		const FBaseLensTable& LinkDataTable = LensFile->GetDataTable(LinkedCategoryPair.Key);
-		LinkDataTable.ForEachPoint([this, InCallback, InFocus, InputTolerance, LinkedCategoryPair](const FBaseFocusPoint& InFocusPoint)
+		const FBaseLensTable* const LinkDataTable = LensFile->GetDataTable(LinkedCategoryPair.Key);
+		if (!ensure(LinkDataTable))
+		{
+			return;
+		}
+		
+		LinkDataTable->ForEachPoint([this, InCallback, InFocus, InputTolerance, LinkedCategoryPair](const FBaseFocusPoint& InFocusPoint)
 		{
 			if (!FMath::IsNearlyEqual(InFocusPoint.GetFocus(), InFocus, InputTolerance))
 			{
@@ -63,8 +68,13 @@ bool FBaseLensTable::HasLinkedFocusValues(const float InFocus, float InputTolera
 	const TMap<ELensDataCategory, FLinkPointMetadata> LinkedCategories = GetLinkedCategories();
 	for (const TPair<ELensDataCategory, FLinkPointMetadata>& LinkedCategoryPair : LinkedCategories)
 	{
-		const FBaseLensTable& LinkDataTable = LensFile->GetDataTable(LinkedCategoryPair.Key);
-		if (LinkDataTable.DoesFocusPointExists(InFocus))
+		const FBaseLensTable* const LinkDataTable = LensFile->GetDataTable(LinkedCategoryPair.Key);
+		if (!ensure(LinkDataTable))
+		{
+			return false;
+		}
+
+		if (LinkDataTable->DoesFocusPointExists(InFocus))
 		{
 			return true;
 		}
@@ -83,8 +93,13 @@ bool FBaseLensTable::HasLinkedZoomValues(const float InFocus, const float InZoom
 	const TMap<ELensDataCategory, FLinkPointMetadata> LinkedCategories = GetLinkedCategories();
 	for (const TPair<ELensDataCategory, FLinkPointMetadata>& LinkedCategoryPair : LinkedCategories)
 	{
-		const FBaseLensTable& LinkDataTable = LensFile->GetDataTable(LinkedCategoryPair.Key);
-		if (LinkDataTable.DoesZoomPointExists(InFocus, InZoomPoint, InputTolerance))
+		const FBaseLensTable* const LinkDataTable = LensFile->GetDataTable(LinkedCategoryPair.Key);
+		if (!ensure(LinkDataTable))
+		{
+			return false;
+		}
+	
+		if (LinkDataTable->DoesZoomPointExists(InFocus, InZoomPoint, InputTolerance))
 		{
 			return true;
 		}

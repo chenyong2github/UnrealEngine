@@ -65,8 +65,13 @@ void FFocusDataListItem::OnRemoveRequested() const
 {	
 	if (ULensFile* LensFilePtr = WeakLensFile.Get())
 	{
-		const FBaseLensTable& LinkDataTable = LensFilePtr->GetDataTable(Category);
-		if (LinkDataTable.HasLinkedFocusValues(Focus))
+		const FBaseLensTable* const LinkDataTable = LensFilePtr->GetDataTable(Category);
+		if (!ensure(LinkDataTable))
+		{
+			return;	
+		}
+		
+		if (LinkDataTable->HasLinkedFocusValues(Focus))
 		{
 			SCameraCalibrationRemovePointDialog::OpenWindow(
 				LensFilePtr,
@@ -111,8 +116,12 @@ void FZoomDataListItem::OnRemoveRequested() const
 	{
 		if(TSharedPtr<FFocusDataListItem> ParentItem = WeakParent.Pin())
 		{
-			const FBaseLensTable& LinkDataTable = LensFilePtr->GetDataTable(Category);
-			if (LinkDataTable.HasLinkedZoomValues(ParentItem->Focus, Zoom))
+			const FBaseLensTable* const LinkDataTable = LensFilePtr->GetDataTable(Category);
+			if (!ensure(LinkDataTable))
+			{
+				return;	
+			}
+			if (LinkDataTable->HasLinkedZoomValues(ParentItem->Focus, Zoom))
 			{
 				SCameraCalibrationRemovePointDialog::OpenWindow(
 					LensFilePtr,

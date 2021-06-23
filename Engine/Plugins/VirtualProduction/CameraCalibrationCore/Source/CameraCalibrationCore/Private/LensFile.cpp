@@ -1211,42 +1211,36 @@ bool ULensFile::HasSamples(ELensDataCategory InDataCategory) const
 	}
 }
 
-const FBaseLensTable& ULensFile::GetDataTable(ELensDataCategory InDataCategory) const
+const FBaseLensTable* ULensFile::GetDataTable(ELensDataCategory InDataCategory) const
 {
-	static FBaseLensTable BaseDataTable;
-
 	switch(InDataCategory)
 	{
-	case ELensDataCategory::Distortion:
+		case ELensDataCategory::Distortion:
 		{
-			return DistortionTable;
+			return &DistortionTable;
 		}
-	case ELensDataCategory::ImageCenter:
+		case ELensDataCategory::ImageCenter:
 		{
-			return ImageCenterTable;
+			return &ImageCenterTable;
 		}
-	case ELensDataCategory::Zoom:
+		case ELensDataCategory::Zoom:
 		{
-			return FocalLengthTable;
+			return &FocalLengthTable;
 		}
-	case ELensDataCategory::STMap:
+		case ELensDataCategory::STMap:
 		{
-			return STMapTable;
+			return &STMapTable;
 		}
-	case ELensDataCategory::NodalOffset:
+		case ELensDataCategory::NodalOffset:
 		{
-			return NodalOffsetTable;
+			return &NodalOffsetTable;
 		}
-	case ELensDataCategory::Focus:
-	case ELensDataCategory::Iris:
+		case ELensDataCategory::Focus:
+		case ELensDataCategory::Iris:
+		default:
 		{
-			ensure(false);
-			return BaseDataTable;
-		}
-	default:
-		{
-			checkNoEntry();
-			return BaseDataTable;
+			// No base table for now.
+			return nullptr;
 		}
 	}
 }

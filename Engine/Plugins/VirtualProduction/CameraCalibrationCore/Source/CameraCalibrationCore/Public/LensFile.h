@@ -145,7 +145,7 @@ public:
 	bool HasSamples(ELensDataCategory InDataCategory) const;
 
 	/** Get data table reference based on given category */
-	const FBaseLensTable& GetDataTable(ELensDataCategory InDataCategory) const;
+	const FBaseLensTable* GetDataTable(ELensDataCategory InDataCategory) const;
 	
 protected:
 	/** Updates derived data entries to make sure it matches what is assigned in map points based on data mode */
