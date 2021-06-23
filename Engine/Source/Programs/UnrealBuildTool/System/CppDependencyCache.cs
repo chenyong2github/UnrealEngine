@@ -452,7 +452,7 @@ namespace UnrealBuildTool
 					}
 				}
 
-				return new DependencyInfo(InputFile.LastWriteTimeUtc.Ticks, ProducedModule, ImportedModules.ToList(), Files);
+				return new DependencyInfo(InputFile.LastWriteTimeUtc.Ticks, ProducedModule, ImportedModules?.ToList(), Files);
 			}
 			else
 			{

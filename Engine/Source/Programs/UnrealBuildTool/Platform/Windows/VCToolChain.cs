@@ -1234,13 +1234,21 @@ namespace UnrealBuildTool
 					CompileAction.ActionType = ActionType.CompileModuleInterface;
 					CompileAction.AdditionalPrerequisiteItems.Add(IfcDepsFile); // Force the dependencies file into the action graph
 					CompileAction.AdditionalProducedItems.Add(IfcFile);
-					CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.txt", SourceFile.Location.GetFileName())));
 					CompileAction.CompiledModuleInterfaceFile = IfcFile;
 				}
-				else if (CompileEnvironment.bGenerateDependenciesFile)
+				
+				if (CompileEnvironment.bGenerateDependenciesFile)
 				{
-					CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.txt", SourceFile.Location.GetFileName())));
-					CompileAction.bShowIncludes = Target.WindowsPlatform.bShowIncludes;
+					if (EnvVars.ToolChainVersion >= VersionNumber.Parse("14.27"))
+					{
+						CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.json", SourceFile.Location.GetFileName())));
+						CompileAction.Arguments.Add($"/sourceDependencies \"{CompileAction.DependencyListFile.AbsolutePath}\"");
+					}
+					else
+					{
+						CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.txt", SourceFile.Location.GetFileName())));
+						CompileAction.bShowIncludes = Target.WindowsPlatform.bShowIncludes;
+					}
 				}
 
 				if (Target.bPrintToolChainTimingInfo || Target.WindowsPlatform.bCompilerTrace)
