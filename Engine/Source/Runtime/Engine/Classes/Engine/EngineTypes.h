@@ -2097,7 +2097,11 @@ struct ENGINE_API FActorInstanceHandle
 	template <typename T>
 	T* FetchActor() const;
 
+	/* Returns the index used internally by the manager */
 	FORCEINLINE int32 GetInstanceIndex() const { return InstanceIndex; }
+
+	/* Returns the index used by rendering and collision */
+	int32 GetRenderingInstanceIndex() const;
 
 	FActorInstanceHandle& operator=(const FActorInstanceHandle& Other) = default;
 	FActorInstanceHandle& operator=(FActorInstanceHandle&& Other) = default;
@@ -2218,6 +2222,10 @@ struct ENGINE_API FHitResult
 	UPROPERTY()
 	float PenetrationDepth;
 
+	/** If the hit result is from a collision this will have extra info about the item that hit the second item. */
+	UPROPERTY()
+	int32 MyItem;
+
 	/** Extra data about item that was hit (hit primitive specific). */
 	UPROPERTY()
 	int32 Item;
@@ -2294,6 +2302,7 @@ struct ENGINE_API FHitResult
 		FMemory::Memzero(this, sizeof(FHitResult));
 		HitObjectHandle = FActorInstanceHandle();
 		Time = 1.f;
+		MyItem = INDEX_NONE;
 	}
 
 	/** Initialize empty hit result with given time, TraceStart, and TraceEnd */
@@ -2304,6 +2313,7 @@ struct ENGINE_API FHitResult
 		Time = 1.f;
 		TraceStart = Start;
 		TraceEnd = End;
+		MyItem = INDEX_NONE;
 	}
 
 	/** Ctor for easily creating "fake" hits from limited data. */
@@ -2396,6 +2406,14 @@ struct ENGINE_API FHitResult
 		FHitResult Result(Hit);
 		Result.Normal = -Result.Normal;
 		Result.ImpactNormal = -Result.ImpactNormal;
+
+		int32 TempItem = Result.Item;
+		Result.Item = Result.MyItem;
+		Result.MyItem = TempItem;
+
+		FName TempBoneName = Result.BoneName;
+		Result.BoneName = Result.MyBoneName;
+		Result.MyBoneName = Result.BoneName;
 		return Result;
 	}
 

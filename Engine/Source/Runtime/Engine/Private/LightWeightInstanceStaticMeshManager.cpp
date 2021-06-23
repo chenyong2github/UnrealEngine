@@ -49,6 +49,11 @@ int32 ALightWeightInstanceStaticMeshManager::ConvertCollisionIndexToLightWeightI
 	return RenderingIndicesToDataIndices[InIndex];
 }
 
+int32 ALightWeightInstanceStaticMeshManager::ConvertLightWeightIndexToCollisionIndex(int32 InIndex) const
+{
+	return DataIndicesToRenderingIndices[InIndex];
+}
+
 void ALightWeightInstanceStaticMeshManager::AddNewInstanceAt(FLWIData* InitData, int32 Index)
 {
 	Super::AddNewInstanceAt(InitData, Index);
@@ -85,7 +90,6 @@ void ALightWeightInstanceStaticMeshManager::RemoveInstanceFromRendering(int32 Da
 	if (IsIndexValid(DataIndex))
 	{
 		const int32 RenderingIndex = DataIndicesToRenderingIndices[DataIndex];
-		DataIndicesToRenderingIndices[DataIndex] = INDEX_NONE;
 
 		if (RenderingIndex != INDEX_NONE)
 		{
@@ -94,19 +98,24 @@ void ALightWeightInstanceStaticMeshManager::RemoveInstanceFromRendering(int32 Da
 				InstancedStaticMeshComponent->RemoveInstance(RenderingIndex);
 			}
 
-			// update the map to match what is now in the instanced static mesh component
-			RenderingIndicesToDataIndices.RemoveAtSwap(RenderingIndex);
-
-			// fix up the other side of the map to match the change we just made
-			// if we removed the last element than nothing was moved so we're done
-			if (RenderingIndex < RenderingIndicesToDataIndices.Num())
-			{
-				// find the data index that corresponds with the changed rendering index
-				const int32 ShiftedDataIndex = RenderingIndicesToDataIndices[RenderingIndex];
-
-				DataIndicesToRenderingIndices[ShiftedDataIndex] = RenderingIndex;
-			}
+			// We can't remove the indices right away because we could have a situation where we receive multiple requests to convert an instance to an actor in the same frame			
+			GetWorld()->GetTimerManager().SetTimerForNextTick([this, RenderingIndex]() { PostRemoveInstanceFromRendering(RenderingIndex); });
 		}
+	}
+}
+
+void ALightWeightInstanceStaticMeshManager::PostRemoveInstanceFromRendering(int32 RenderingIndex)
+{
+	RenderingIndicesToDataIndices.RemoveAtSwap(RenderingIndex);
+
+	// fix up the other side of the map to match the change we just made
+	// if we removed the last element than nothing was moved so we're done
+	if (RenderingIndex < RenderingIndicesToDataIndices.Num())
+	{
+		// find the data index that corresponds with the changed rendering index
+		const int32 ShiftedDataIndex = RenderingIndicesToDataIndices[RenderingIndex];
+
+		DataIndicesToRenderingIndices[ShiftedDataIndex] = RenderingIndex;
 	}
 }
 

@@ -26,12 +26,16 @@ class ENGINE_API ALightWeightInstanceStaticMeshManager : public ALightWeightInst
 
 	virtual int32 ConvertCollisionIndexToLightWeightIndex(int32 InIndex) const override;
 
+	virtual int32 ConvertLightWeightIndexToCollisionIndex(int32 InIndex) const override;
+
 protected:
 	virtual void AddNewInstanceAt(FLWIData* InitData, int32 Index) override;
 
 	virtual void RemoveInstance(int32 Index) override;
 
 	void RemoveInstanceFromRendering(int32 DataIndex);
+
+	void PostRemoveInstanceFromRendering(int32 RenderingIndex);
 
 	// sets the parameters on the instanced static mesh component
 	virtual void SetInstancedStaticMeshParams();

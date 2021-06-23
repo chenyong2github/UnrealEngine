@@ -471,6 +471,12 @@ AActor* FActorInstanceHandle::FetchActor() const
 	return FLightWeightInstanceSubsystem::Get().FetchActor(*this);
 }
 
+int32 FActorInstanceHandle::GetRenderingInstanceIndex() const
+{
+	const ALightWeightInstanceManager* Manager = FLightWeightInstanceSubsystem::Get().GetManagerAt(ManagerIndex);
+	return Manager ? Manager->ConvertLightWeightIndexToCollisionIndex(InstanceIndex) : INDEX_NONE;
+}
+
 UObject* FActorInstanceHandle::GetActorAsUObject()
 {
 	if (IsActorValid())

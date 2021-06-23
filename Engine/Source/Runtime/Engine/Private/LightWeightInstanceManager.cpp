@@ -169,6 +169,11 @@ int32 ALightWeightInstanceManager::ConvertCollisionIndexToLightWeightIndex(int32
 	return InIndex;
 }
 
+int32 ALightWeightInstanceManager::ConvertLightWeightIndexToCollisionIndex(int32 InIndex) const
+{
+	return InIndex;
+}
+
 void ALightWeightInstanceManager::SetSpawnParameters(FActorSpawnParameters& SpawnParams)
 {
 	SpawnParams.OverrideLevel = GetLevel();
