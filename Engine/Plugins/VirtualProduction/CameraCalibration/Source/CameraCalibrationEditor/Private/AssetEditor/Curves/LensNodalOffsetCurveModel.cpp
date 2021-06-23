@@ -109,3 +109,5 @@ FText FLensNodalOffsetCurveModel::GetValueUnitSuffixLabel() const
 	}
 	return FText();
 }
+
+#undef LOCTEXT_NAMESPACE

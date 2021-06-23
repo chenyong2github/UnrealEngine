@@ -87,3 +87,6 @@ FText FLensDistortionParametersCurveModel::GetValueLabel() const
 	}
 	return FText();
 }
+
+#undef LOCTEXT_NAMESPACE
+

@@ -87,3 +87,5 @@ FText FLensImageCenterCurveModel::GetValueLabel() const
 {
 	return LOCTEXT("ImageCenterValueLabel", "(normalized)");
 }
+
+#undef LOCTEXT_NAMESPACE

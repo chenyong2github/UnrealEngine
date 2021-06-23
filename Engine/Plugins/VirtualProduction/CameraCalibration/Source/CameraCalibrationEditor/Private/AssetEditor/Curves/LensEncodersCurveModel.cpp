@@ -89,3 +89,5 @@ FText FLensEncodersCurveModel::GetValueUnitSuffixLabel() const
 	}
 	return FText();
 }
+
+#undef LOCTEXT_NAMESPACE
