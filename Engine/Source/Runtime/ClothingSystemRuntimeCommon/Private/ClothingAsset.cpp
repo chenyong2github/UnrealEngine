@@ -310,15 +310,30 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 	}
 
 	TArrayView<uint32> IndexView(SkelLod.IndexBuffer);
-	IndexView.Slice(OriginalSection.BaseIndex, OriginalSection.NumTriangles * 3);
+	IndexView = IndexView.Slice(OriginalSection.BaseIndex, OriginalSection.NumTriangles * 3);
 
-	ClothingMeshUtils::ClothMeshDesc TargetMesh(RenderPositions, RenderNormals, IndexView);
+	TArray<uint32> RenderIndices;
+	RenderIndices.Reserve(OriginalSection.NumTriangles * 3);
+	for (uint32 OriginalIndex : IndexView)
+	{
+		const int32 TempIndex = (int32)OriginalIndex - (int32)OriginalSection.BaseVertexIndex;
+		if (ensure(RenderIndices.IsValidIndex(TempIndex)))
+		{
+			RenderIndices.Add(TempIndex);
+		}
+	}
+
+	ClothingMeshUtils::ClothMeshDesc TargetMesh(RenderPositions, RenderNormals, RenderIndices);
+
 	ClothingMeshUtils::ClothMeshDesc SourceMesh(
 		ClothLodData.PhysicalMeshData.Vertices, 
 		ClothLodData.PhysicalMeshData.Normals, 
 		ClothLodData.PhysicalMeshData.Indices);
 
-	ClothingMeshUtils::GenerateMeshToMeshSkinningData(MeshToMeshData, TargetMesh, &RenderTangents, SourceMesh, 
+	TArray<float> MaxEdgeLength;
+	ClothingMeshUtils::ComputeMaxEdgeLength(TargetMesh, MaxEdgeLength);
+
+	ClothingMeshUtils::GenerateMeshToMeshSkinningData(MeshToMeshData, TargetMesh, &RenderTangents, SourceMesh, MaxEdgeLength,
 		ClothLodData.bUseMultipleInfluences, ClothLodData.SkinningKernelRadius);
 
 	if(MeshToMeshData.Num() == 0)
@@ -330,8 +345,12 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 
 	// Calculate the vertex contribution alpha
 	const FPointWeightMap* const MaxDistances = ClothLodData.PhysicalMeshData.FindWeightMap(EWeightMapTargetCommon::MaxDistance);
-
 	ClothingMeshUtils::ComputeVertexContributions(MeshToMeshData, MaxDistances, ClothLodData.bSmoothTransition);
+
+	if (ClothLodData.bUseMultipleInfluences)
+	{
+		ClothingMeshUtils::FixZeroWeightVertices(MeshToMeshData, TargetMesh, &RenderTangents, SourceMesh, MaxEdgeLength);
+	}
 
 	// We have to copy the bone map to verify we don't exceed the maximum while adding the clothing bones
 	TArray<FBoneIndexType> TempBoneMap = OriginalSection.BoneMap;
@@ -579,13 +598,16 @@ void UClothingAssetCommon::BuildLodTransitionData()
 
 		ClothingMeshUtils::ClothMeshDesc CurrentMeshDesc(CurrentPhysMesh.Vertices, CurrentPhysMesh.Normals, CurrentPhysMesh.Indices);
 		static const bool bUseMultipleInfluences = false;  // Multiple influences must not be used for LOD transitions
+
+		TArray<float> MaxEdgeLength;
+		ClothingMeshUtils::ComputeMaxEdgeLength(CurrentMeshDesc, MaxEdgeLength);
 		if(PrevLod)
 		{
 			FClothPhysicalMeshData& PrevPhysMesh = PrevLod->PhysicalMeshData;
 			CurrentLod.TransitionUpSkinData.Empty(CurrentLodNumVerts);
 			ClothingMeshUtils::ClothMeshDesc PrevMeshDesc(PrevPhysMesh.Vertices, PrevPhysMesh.Normals, PrevPhysMesh.Indices);
 			ClothingMeshUtils::GenerateMeshToMeshSkinningData(CurrentLod.TransitionUpSkinData, CurrentMeshDesc, nullptr, 
-				PrevMeshDesc, bUseMultipleInfluences, CurrentLod.SkinningKernelRadius);
+				PrevMeshDesc, MaxEdgeLength, bUseMultipleInfluences, CurrentLod.SkinningKernelRadius);
 		}
 		if(NextLod)
 		{
@@ -593,7 +615,7 @@ void UClothingAssetCommon::BuildLodTransitionData()
 			CurrentLod.TransitionDownSkinData.Empty(CurrentLodNumVerts);
 			ClothingMeshUtils::ClothMeshDesc NextMeshDesc(NextPhysMesh.Vertices, NextPhysMesh.Normals, NextPhysMesh.Indices);
 			ClothingMeshUtils::GenerateMeshToMeshSkinningData(CurrentLod.TransitionDownSkinData, CurrentMeshDesc, 
-				nullptr, NextMeshDesc, bUseMultipleInfluences, CurrentLod.SkinningKernelRadius);
+				nullptr, NextMeshDesc, MaxEdgeLength, bUseMultipleInfluences, CurrentLod.SkinningKernelRadius);
 		}
 	}
 }

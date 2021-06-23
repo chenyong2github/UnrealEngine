@@ -92,19 +92,57 @@ namespace ClothingMeshUtils
 		TArray<FVector3f>& OutNormals,
 		uint32 ArrayOffset = 0); // Used for Chaos Cloth
 
+
 	/**
-	* Given mesh information for two meshes, generate a list of skinning data to embed mesh0 in mesh1
-	* @param OutSkinningData	- Final skinning data to map mesh0 to mesh1
-	* @param TargetMesh		- Mesh data for the mesh we are embedding
-	* @param TargetTangents		- Optional Tangents for the mesh we are embedding
-	* @param Mesh1Normals		- Vertex normals for Mesh1
-	* @param Mesh1Indices		- Triangle indices for Mesh1
+	 * Compute the max edge length for each edge coming out of a mesh vertex. Useful for guiding the search radius when
+	 * searching for nearest triangles.
+	 */
+	inline void CLOTHINGSYSTEMRUNTIMECOMMON_API ComputeMaxEdgeLength(const ClothMeshDesc& TargetMesh, 
+																	 TArray<float>& OutMaxEdgeLength)
+	{
+		const int32 NumMesh0Verts = TargetMesh.Positions.Num();
+
+		// Check we have properly formed triangles
+		ensure(TargetMesh.Indices.Num() % 3 == 0);
+		const int32 NumMesh0Tris = TargetMesh.Indices.Num() / 3;
+
+		OutMaxEdgeLength.Init(0.0f, NumMesh0Verts);
+
+		for (int32 TriangleIdx = 0; TriangleIdx < NumMesh0Tris; ++TriangleIdx)
+		{
+			const uint32* Triangle = &TargetMesh.Indices[TriangleIdx * 3];
+
+			for (int32 Vertex0Idx = 0; Vertex0Idx < 3; ++Vertex0Idx)
+			{
+				const int32 Vertex1Idx = (Vertex0Idx + 1) % 3;
+
+				const FVector& P0 = TargetMesh.Positions[Triangle[Vertex0Idx]];
+				const FVector& P1 = TargetMesh.Positions[Triangle[Vertex1Idx]];
+
+				const float EdgeLength = FVector::Distance(P0, P1);
+				OutMaxEdgeLength[Triangle[Vertex0Idx]] = FMath::Max(OutMaxEdgeLength[Triangle[Vertex0Idx]], EdgeLength);
+				OutMaxEdgeLength[Triangle[Vertex1Idx]] = FMath::Max(OutMaxEdgeLength[Triangle[Vertex1Idx]], EdgeLength);
+			}
+		}
+	}
+
+	/**
+	* Given mesh information for two meshes, generate a list of skinning data to embed TargetMesh in SourceMesh
+	* 
+	* @param OutSkinningData            - Final skinning data
+	* @param TargetMesh                 - Mesh data for the mesh we are embedding
+	* @param TargetTangents             - Optional Tangents for the mesh we are embedding
+	* @param SourceMesh                 - Mesh data for the mesh we are embedding into
+	* @param TargetMaxEdgeLength        - Per-vertex longest incident edge length, as returned by ComputeMaxEdgeLength()
+	* @param bUseMultipleInfluences     - Whether to take a weighted average of influences from multiple source triangles
+	* @param KernelMaxDistance          - Max distance parameter for weighting kernel
 	*/
 	void CLOTHINGSYSTEMRUNTIMECOMMON_API GenerateMeshToMeshSkinningData(
 		TArray<FMeshToMeshVertData>& OutSkinningData,
 		const ClothMeshDesc& TargetMesh,
 		const TArray<FVector3f>* TargetTangents,
 		const ClothMeshDesc& SourceMesh,
+		const TArray<float>& TargetMaxEdgeLength,
 		bool bUseMultipleInfluences,
 		float KernelMaxDistance);
 
@@ -128,9 +166,19 @@ namespace ClothingMeshUtils
 	void CLOTHINGSYSTEMRUNTIMECOMMON_API ComputeVertexContributions(
 		TArray<FMeshToMeshVertData> &InOutSkinningData,
 		const FPointWeightMap* const InMaxDistances,
-		const bool bInSmoothTransition
-		);
+		const bool bInSmoothTransition );
 	
+	/**
+	 * Identify vertices that are not influenced by any triangles, and compute a new single attachment for the
+	 * vertex.
+	 */
+	void CLOTHINGSYSTEMRUNTIMECOMMON_API FixZeroWeightVertices(TArray<FMeshToMeshVertData>& InOutSkinningData,
+															   const ClothMeshDesc& TargetMesh,
+															   const TArray<FVector3f>* TargetTangents,
+															   const ClothMeshDesc& SourceMesh,
+															   const TArray<float>& TargetMaxEdgeLength );
+
+
 	/**
 	* Given a triangle ABC with normals at each vertex NA, NB and NC, get a barycentric coordinate
 	* and corresponding distance from the triangle encoded in an FVector4 where the components are

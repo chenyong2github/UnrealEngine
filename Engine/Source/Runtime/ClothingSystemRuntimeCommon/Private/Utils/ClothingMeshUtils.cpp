@@ -271,7 +271,7 @@ namespace ClothingMeshUtils
 		}
 
 		// Using this formula, for R = Distance / MaxDistance:
-		//		Weight = 1 - 3 * R ^ 2 + 3 * R ^ 4 - R ^ 6
+		//		Weight = 1 - 3 * R ^ 2 + 3 * R ^ 4 - R ^ 6 = (1-R^2)^3
 		// From the Houdini metaballs docs: https://www.sidefx.com/docs/houdini/nodes/sop/metaball.html#kernels
 		// Which was linked to from the cloth capture doc: https://www.sidefx.com/docs/houdini/nodes/sop/clothcapture.html
 
@@ -283,9 +283,8 @@ namespace ClothingMeshUtils
 			}
 
 			float R = FMath::Max(0.0f, FMath::Min(1.0f, Distance / MaxDistance));
-			float R2 = R * R;
-			float R4 = R2 * R2;
-			return 1.0f + 3.0f * (R4 - R2) - R4 * R2;
+			float OneMinusR2 = 1.0f - R * R;
+			return OneMinusR2 * OneMinusR2 * OneMinusR2;
 		}
 
 
@@ -419,23 +418,7 @@ namespace ClothingMeshUtils
 			}
 
 			// Normalize weights
-
-			if (SumWeight == 0.0f)
-			{
-				// Abort
-				for (int j = 0; j < NUM_INFLUENCES; ++j)
-				{
-					FMeshToMeshVertData& CurrentData = SkinningData[j];
-					CurrentData.SourceMeshVertIndices[3] = 0xFFFF;
-					CurrentData.Weight = 0.0f;
-				}
-
-				// Compute one rigid attachment
-				const int32 ClosestTriangleBaseIdx = GetBestTriangleBaseIndex(SourceMesh, VertPosition, MaxIncidentEdgeLength);
-				check(ClosestTriangleBaseIdx != INDEX_NONE);
-				SingleSkinningDataForVertex(VertPosition, VertNormal, VertTangent, SourceMesh, ClosestTriangleBaseIdx, SkinningData[0]);
-			}
-			else
+			if (SumWeight > 0.0f)
 			{
 				for (FMeshToMeshVertData& CurrentData : SkinningData)
 				{
@@ -449,12 +432,13 @@ namespace ClothingMeshUtils
 	}		// unnamed namespace
 
 
-	void GenerateMeshToMeshSkinningData(TArray<FMeshToMeshVertData>& OutSkinningData, 
-		const ClothMeshDesc& TargetMesh, 
-		const TArray<FVector3f>* TargetTangents, 
-		const ClothMeshDesc& SourceMesh,
-		bool bUseMultipleInfluences,
-		float KernelMaxDistance)
+	void GenerateMeshToMeshSkinningData(TArray<FMeshToMeshVertData>& OutSkinningData,
+										const ClothMeshDesc& TargetMesh,
+										const TArray<FVector3f>* TargetTangents,
+										const ClothMeshDesc& SourceMesh,
+										const TArray<float>& MaxEdgeLength,
+										bool bUseMultipleInfluences,
+										float KernelMaxDistance)
 	{
 		if(!TargetMesh.HasValidMesh())
 		{
@@ -472,14 +456,13 @@ namespace ClothingMeshUtils
 		const int32 NumMesh0Normals = TargetMesh.Normals.Num();
 		const int32 NumMesh0Tangents = TargetTangents ? TargetTangents->Num() : 0;
 
+		// Check we have properly formed triangles
+		ensure(TargetMesh.Indices.Num() % 3 == 0);
+		const int32 NumMesh0Tris = TargetMesh.Indices.Num() / 3;
+
 		const int32 NumMesh1Verts = SourceMesh.Positions.Num();
 		const int32 NumMesh1Normals = SourceMesh.Normals.Num();
 		const int32 NumMesh1Indices = SourceMesh.Indices.Num();
-
-		// Check we have properly formed triangles
-		check(NumMesh1Indices % 3 == 0);
-
-		const int32 NumMesh1Triangles = NumMesh1Indices / 3;
 
 		// Check mesh data to make sure we have the same number of each element
 		if(NumMesh0Verts != NumMesh0Normals || (TargetTangents && NumMesh0Tangents != NumMesh0Verts))
@@ -494,27 +477,9 @@ namespace ClothingMeshUtils
 			return;
 		}
 
-
-		// Compute the max edge length for each edge coming out of a target vertex and 
-		// use that to guide the search radius for the source mesh triangles.
-		TArray<float> MaxEdgeLength;
-		MaxEdgeLength.Init(0.0f, NumMesh0Verts);
-
-		for (int32 TriangleIdx = 0; TriangleIdx < NumMesh0Verts; ++TriangleIdx)
+		if (!ensure(NumMesh0Verts == MaxEdgeLength.Num()))
 		{
-			const uint32* Triangle = &TargetMesh.Indices[TriangleIdx * 3];
-
-			for (int32 Vertex0Idx = 0; Vertex0Idx < 3; Vertex0Idx++)
-			{
-				const int32 Vertex1Idx = (Vertex0Idx + 1) % 3;
-
-				const FVector& P0 = TargetMesh.Positions[Triangle[Vertex0Idx]];
-				const FVector& P1 = TargetMesh.Positions[Triangle[Vertex1Idx]];
-
-				const float EdgeLength = FVector::Distance(P0, P1);
-				MaxEdgeLength[Triangle[Vertex0Idx]] = FMath::Max(MaxEdgeLength[Triangle[Vertex0Idx]], EdgeLength);
-				MaxEdgeLength[Triangle[Vertex1Idx]] = FMath::Max(MaxEdgeLength[Triangle[Vertex1Idx]], EdgeLength);
-			}
+			return;
 		}
 
 		if (bUseMultipleInfluences)
