@@ -52,20 +52,14 @@ Use of this format (instead of DXT1) is enabled with TextureFormatPrefix in conf
 [AlternateTextureCompression]
 TextureCompressionFormat="TextureFormatOodle"
 TextureFormatPrefix="OODLE_"
-bEnableInEditor=True
 
 When this is enabled, the formats like "DXT1" are renamed to "OODLE_DXT1" and are handled by this encoder.
-
-You can control whether Oodle Texture is used in the Editor with bEnableInEditor.  If this is false, non-RDO 
-encoding will be done in the editor, so artists won't see the RDO results while editing, Oodle Texture will 
-only be used in cooked builds in that case.
 
 Oodle Texture RDO encoding can be slow, but is cached in the DDC so should only be slow the first time.  
 A fast local network shared DDC is recommended.
 
-The default setting currently has "bForceRDOOff=True" so Oodle Texture will be used, but non-RDO encoding will
-be done, just like a traditional BCN encoder (maximizing quality without considering rate).  To enable RDO 
-encoding set "bForceRDOOff=False".
+RDO encoding and compression level can be enabled separately in the editor vs cooks using settings described
+below.
 
 ========================
 
@@ -81,10 +75,13 @@ The INI settings block looks like :
 
 [TextureFormatOodleSettings]
 bForceAllBC23ToBC7=False
-bForceRDOOff=False
+bForceRDOOff_Editor=False
+bForceRDOOff_NoEditor=False
 bDebugColor=False
 DefaultRDOLambda=30
 GlobalLambdaMultiplier=1.0
+CompressEffortLevel_NoEditor=High
+CompressEffortLevel_Editor=Normal
 
 The sense of the bools is set so that all-false is default behavior.
 
@@ -92,6 +89,12 @@ TextureFormatOodle by default tries to exactly reproduce the legacy behavior of
 TextureFormatDXT+TextureFormatISPC , just with Oodle Texture RDO encoding.
 
 The behavior of the options is :
+
+CompressEffortLevel_NoEditor :
+CompressEffortLevel_Editor :
+
+Sets how much time Oodle should spend finding good results. Values are
+from the OodleTex_EncodeEffortLevel enum - Default, Low, Normal, High.
 
 bForceAllBC23ToBC7 :
 
@@ -105,11 +108,13 @@ for textures with alpha.  If you turn on this option, the BC3 will change to BC7
 
 It is off by default to make default behavior match the old encoders.
 
-bForceRDOOff :
+bForceRDOOff_Editor :
+bForceRDOOff_NoEditor :
 
 Force Oodle Texture to use non-RDO encoding.  This sets lambda to 0 for all encodes.
 (this is different than setting DefaultRDOLambda=0 because it also applies to textures
-that have per-texture lambda overrides set)
+that have per-texture lambda overrides set). When EditorOnly data is present _Editor
+is used to facilitate iteration times.
 
 bDebugColor :
 
@@ -357,6 +362,64 @@ public:
 		return LocalDebugConfig;
 	}
 
+	static const TCHAR* EffortLevelToString(OodleTex_EncodeEffortLevel InEffortLevel)
+	{
+		switch (InEffortLevel)
+		{
+		case OodleTex_EncodeEffortLevel_Default:
+			{
+				return TEXT("Default");
+			}
+		case OodleTex_EncodeEffortLevel_Low:
+			{
+				return TEXT("Low");
+			}
+		case OodleTex_EncodeEffortLevel_Normal:
+			{
+				return TEXT("Normal");
+			}
+		case OodleTex_EncodeEffortLevel_High:
+			{
+				return TEXT("High");
+			}
+		}
+		UE_LOG(LogTextureFormatOodle, Warning, TEXT("Invalid Oodle effort level passed to ToString: %d -- returning \"Default\""), InEffortLevel);
+		return TEXT("Default");
+	}
+
+	static bool EffortLevelFromConfig(const TCHAR* InSection, const TCHAR* InKey, OodleTex_EncodeEffortLevel& OutEffortLevel)
+	{
+		FString EffortLevel_String;
+		if (GConfig->GetString(InSection, InKey, EffortLevel_String, GEngineIni))
+		{
+			OodleTex_EncodeEffortLevel Result;
+			if (EffortLevel_String.Compare(TEXT("Default"), ESearchCase::IgnoreCase) == 0)
+			{
+				Result = OodleTex_EncodeEffortLevel_Default;
+			}
+			else if (EffortLevel_String.Compare(TEXT("Low"), ESearchCase::IgnoreCase) == 0)
+			{
+				Result = OodleTex_EncodeEffortLevel_Low;
+			}
+			else if (EffortLevel_String.Compare(TEXT("Normal"), ESearchCase::IgnoreCase) == 0)
+			{
+				Result = OodleTex_EncodeEffortLevel_Normal;
+			}
+			else if (EffortLevel_String.Compare(TEXT("High"), ESearchCase::IgnoreCase) == 0)
+			{
+				Result = OodleTex_EncodeEffortLevel_High;
+			}
+			else
+			{
+				UE_LOG(LogTextureFormatOodle, Warning, TEXT("Invalid %s specified: %s, using defaults."), InKey, *EffortLevel_String);
+				return false;
+			}
+			OutEffortLevel = Result;
+			return true;
+		}
+		return false;
+	}
+
 	void ImportFromConfigCache()
 	{
 		const TCHAR* IniSection = TEXT("TextureFormatOodleSettings");
@@ -371,8 +434,8 @@ public:
 			GConfig->SetBool(OODLETEXTURE_INI_SECTION, TEXT("bForceAllBC23ToBC7"), bForceAllBC23ToBC7, GEngineIni);
 			GConfig->SetBool(OODLETEXTURE_INI_SECTION, TEXT("bForceRDOOff_NoEditor"), bForceRDOOff_NoEditor, GEngineIni);
 			GConfig->SetBool(OODLETEXTURE_INI_SECTION, TEXT("bForceRDOOff_Editor"), bForceRDOOff_Editor, GEngineIni);
-			GConfig->SetInt(OODLETEXTURE_INI_SECTION, TEXT("CompressEffortLevel_NoEditor"), CompressEffortLevel_NoEditor, GEngineIni);
-			GConfig->SetInt(OODLETEXTURE_INI_SECTION, TEXT("CompressEffortLevel_Editor"), CompressEffortLevel_Editor, GEngineIni);
+			GConfig->SetString(OODLETEXTURE_INI_SECTION, TEXT("CompressEffortLevel_NoEditor"), EffortLevelToString(CompressEffortLevel_NoEditor), GEngineIni);
+			GConfig->SetString(OODLETEXTURE_INI_SECTION, TEXT("CompressEffortLevel_Editor"), EffortLevelToString(CompressEffortLevel_Editor), GEngineIni);
 			GConfig->SetBool(OODLETEXTURE_INI_SECTION, TEXT("bDebugColor"), bDebugColor, GEngineIni);
 			GConfig->SetBool(OODLETEXTURE_INI_SECTION, TEXT("bDebugDump"), bDebugDump, GEngineIni);
 			GConfig->SetInt(OODLETEXTURE_INI_SECTION, TEXT("LogVerbosity"), LogVerbosity, GEngineIni);
@@ -394,14 +457,15 @@ public:
 		GConfig->GetBool(IniSection, TEXT("bForceAllBC23ToBC7"), bForceAllBC23ToBC7, GEngineIni);
 		GConfig->GetBool(IniSection, TEXT("bForceRDOOff_NoEditor"), bForceRDOOff_NoEditor, GEngineIni);
 		GConfig->GetBool(IniSection, TEXT("bForceRDOOff_Editor"), bForceRDOOff_Editor, GEngineIni);
-		GConfig->GetInt(IniSection, TEXT("CompressEffortLevel_NoEditor"), CompressEffortLevel_NoEditor, GEngineIni);
-		GConfig->GetInt(IniSection, TEXT("CompressEffortLevel_Editor"), CompressEffortLevel_Editor, GEngineIni);
 		GConfig->GetBool(IniSection, TEXT("bDebugColor"), bDebugColor, GEngineIni);
 		GConfig->GetBool(IniSection, TEXT("bDebugDump"), LocalDebugConfig.bDebugDump, GEngineIni);
 		GConfig->GetInt(IniSection, TEXT("LogVerbosity"), LocalDebugConfig.LogVerbosity, GEngineIni);
 		GConfig->GetFloat(IniSection, TEXT("GlobalLambdaMultiplier"), GlobalLambdaMultiplier, GEngineIni);
 		GConfig->GetInt(IniSection, TEXT("DefaultRDOLambda"), DefaultRDOLambda, GEngineIni);
 		GConfig->GetInt(IniSection, TEXT("RDOUniversalTiling"), (int32&)RDOUniversalTiling, GEngineIni);
+
+		EffortLevelFromConfig(IniSection, TEXT("CompressEffortLevel_NoEditor"), CompressEffortLevel_NoEditor);
+		EffortLevelFromConfig(IniSection, TEXT("CompressEffortLevel_Editor"), CompressEffortLevel_Editor);
 
 		// sanitize config values :
 		DefaultRDOLambda = FMath::Clamp(DefaultRDOLambda,0,100);
@@ -418,10 +482,10 @@ public:
 			RDOUniversalTiling = OodleTex_RDO_UniversalTiling_Disable;
 		}
 
-		UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture %s init {cook RDO %s %d , Editor RDO %s %d } with DefaultRDOLambda=%d, RDOUniversalTiling=%d"),
+		UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture %s init {cook RDO %s %s, Editor RDO %s %s} with DefaultRDOLambda=%d, RDOUniversalTiling=%d"),
 			TEXT(OodleTextureVersion),
-			bForceRDOOff_NoEditor ? TEXT("Off") : TEXT("On"), CompressEffortLevel_NoEditor,
-			bForceRDOOff_Editor ? TEXT("Off") : TEXT("On"), CompressEffortLevel_Editor,
+			bForceRDOOff_NoEditor ? TEXT("Off") : TEXT("On"), EffortLevelToString(CompressEffortLevel_NoEditor),
+			bForceRDOOff_Editor ? TEXT("Off") : TEXT("On"), EffortLevelToString(CompressEffortLevel_Editor),
 			DefaultRDOLambda,
 			(int32)RDOUniversalTiling
 			);
@@ -612,39 +676,10 @@ public:
 		}
 			
 		// "Normal" is medium quality/speed
-		int CompressEffortLevel = InBuildSettings.bHasEditorOnlyData ? CompressEffortLevel_Editor : CompressEffortLevel_NoEditor;
+		OodleTex_EncodeEffortLevel EffortLevel = InBuildSettings.bHasEditorOnlyData ? CompressEffortLevel_Editor : CompressEffortLevel_NoEditor;
 		// EffortLevel might be set to faster modes for previewing vs cooking or something
 		//	but I don't see people setting that per-Texture or in lod groups or any of that
-		//  it's more about cook mode (fast vs final bake)
-		
-		// EffortLevel == CompressEffortLevel
-		// but make sure it's a valid enum value
-		OodleTex_EncodeEffortLevel EffortLevel;
-		switch(CompressEffortLevel)
-		{
-		case OodleTex_EncodeEffortLevel_Default:
-			EffortLevel = OodleTex_EncodeEffortLevel_Default;
-			break;
-			
-		case OodleTex_EncodeEffortLevel_Low:
-			EffortLevel = OodleTex_EncodeEffortLevel_Low;
-			break;
-
-		case OodleTex_EncodeEffortLevel_Normal:
-			EffortLevel = OodleTex_EncodeEffortLevel_Normal;
-			break;
-			
-		case OodleTex_EncodeEffortLevel_High:
-			EffortLevel = OodleTex_EncodeEffortLevel_High;
-			break;
-		
-		default:
-			UE_LOG(LogTextureFormatOodle,Warning,
-				TEXT("Invalid OodleTex_EncodeEffortLevel: %d"),CompressEffortLevel
-				);
-			EffortLevel = OodleTex_EncodeEffortLevel_Default;
-			break;
-		}
+		//  it's more about cook mode (fast vs final bake)	
 
 		*OutRDOLambda = RDOLambda;
 		*OutEffortLevel = EffortLevel;
@@ -656,8 +691,8 @@ private:
 	bool bForceAllBC23ToBC7; // change BC2 & 3 (aka DXT3 and DXT5) to BC7 
 	bool bForceRDOOff_NoEditor; // use Oodle Texture but without RDO ; for debugging/testing , use LossyCompresionAmount to do this per-Texture
 	bool bForceRDOOff_Editor; // bForceRDOOff in Editor
-	int CompressEffortLevel_NoEditor; // how much time to spend encoding to get higher quality 
-	int CompressEffortLevel_Editor; // CompressEffortLevel in Editor
+	OodleTex_EncodeEffortLevel CompressEffortLevel_NoEditor; // how much time to spend encoding to get higher quality 
+	OodleTex_EncodeEffortLevel CompressEffortLevel_Editor; // CompressEffortLevel in Editor
 	OodleTex_RDO_UniversalTiling RDOUniversalTiling; // whether to use universal tiling, and at what block size.
 	bool bDebugColor; // color textures by their BCN, for data discovery
 	// if no lambda is set on Texture or lodgroup, fall through to this global default :
