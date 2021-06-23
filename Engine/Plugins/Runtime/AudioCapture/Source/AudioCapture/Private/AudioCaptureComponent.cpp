@@ -2,7 +2,7 @@
 
 #include "AudioCaptureComponent.h"
 
-static const unsigned int MaxBufferSize = 2 * 2 * 48000;
+static const unsigned int MaxBufferSize = 2 * 5 * 48000;
 
 UAudioCaptureComponent::UAudioCaptureComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -120,7 +120,7 @@ int32 UAudioCaptureComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 	}
 	int32 OutputSamplesGenerated = 0;
 	//In case of severe overflow, just drop the data
-	if (CaptureAudioData.Num() > MaxBufferSize - 1)
+	if (CaptureAudioData.Num() > MaxBufferSize)
 	{
 		//Clear the CaptureSynth's data, too
 		CaptureSynth.GetAudioData(CaptureAudioData);

@@ -195,13 +195,13 @@ namespace Audio
 					float* AudioCaptureDataPtr = AudioCaptureData.GetData();
 
 					//Avoid reading outside of buffer boundaries
-					if (!(AudioCaptureData.Num() + NumSamples > MaxBufferSize - 1))
+					if (!(AudioCaptureData.Num() + NumSamples > MaxBufferSize))
 					{
 						FMemory::Memcpy(&AudioCaptureDataPtr[Index], AudioData, NumSamples * sizeof(float));
 					}
 					else
 					{
-						UE_LOG(LogAudio, Warning, TEXT("Attempt to write past end of buffer in OpenDefaultStream [%u]"), AudioCaptureData.Num() + NumSamples);
+						UE_LOG(LogAudioCaptureCore, Warning, TEXT("Attempt to write past end of buffer in OpenDefaultStream [%u]"), AudioCaptureData.Num() + NumSamples);
 					}
 				}
 			};
@@ -278,13 +278,13 @@ namespace Audio
 			float* OutDataPtr = OutAudioData.GetData();
 
 			//Check bounds of buffer
-			if (!(OutIndex > MaxBufferSize - 1))
+			if (!(OutIndex > MaxBufferSize))
 			{
 				FMemory::Memcpy(&OutDataPtr[OutIndex], AudioCaptureData.GetData(), CaptureDataSamples * sizeof(float));
 			}
 			else
 			{
-				UE_LOG(LogAudio, Warning, TEXT("Attempt to write past end of buffer in GetAudioData"));
+				UE_LOG(LogAudioCaptureCore, Warning, TEXT("Attempt to write past end of buffer in GetAudioData"));
 				return false;
 			}
 
