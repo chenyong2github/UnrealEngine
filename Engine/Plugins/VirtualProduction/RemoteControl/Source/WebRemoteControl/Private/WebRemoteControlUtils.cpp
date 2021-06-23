@@ -109,7 +109,7 @@ namespace RemotePayloadSerializer
 			}
 			else
 			{
-				FString Base64String = FBase64::Encode(Response->Body);
+				FString Base64String = FString::Printf(TEXT("\"%s\""), *FBase64::Encode(Response->Body));
 				TArray<uint8> WorkingBuffer;
 				WebRemoteControlUtils::ConvertToUTF8(Base64String, WorkingBuffer);
 				Writer.Serialize((void*)WorkingBuffer.GetData(), WorkingBuffer.Num());
