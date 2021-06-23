@@ -2,8 +2,6 @@
 
 #include "ZenStoreHttpClient.h"
 
-#include "Serialization/CompactBinaryPackage.h"
-
 #if PLATFORM_WINDOWS
 
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
@@ -1241,6 +1239,54 @@ TIoStatusOr<FIoBuffer> FZenStoreHttpClient::ReadChunk(const FIoChunkId& Id, uint
 	return FIoStatus(EIoErrorCode::NotFound);
 }
 
+TFuture<TIoStatusOr<FCbObject>> FZenStoreHttpClient::GetOplog()
+{
+	return Async(EAsyncExecution::LargeThreadPool, [this]
+	{
+		UE::Zen::FScopedRequestPtr Request(RequestPool.Get());
+		
+		TStringBuilder<128> Uri;
+		Uri << OplogPath << "/entries";
+
+		TArray64<uint8> GetBuffer;
+		UE::Zen::FRequest::Result Res = Request->PerformBlockingDownload(Uri, &GetBuffer);
+
+		if (Res == Zen::FRequest::Success && Request->GetResponseCode() == 200)
+		{
+			FCbObjectView Response(GetBuffer.GetData());
+			return TIoStatusOr<FCbObject>(FCbObject::Clone(Response));
+		}
+		else
+		{
+			return TIoStatusOr<FCbObject>(FIoStatus(EIoErrorCode::NotFound));
+		}
+	});
+}
+
+TFuture<TIoStatusOr<FCbObject>> FZenStoreHttpClient::GetFiles()
+{
+	return Async(EAsyncExecution::LargeThreadPool, [this]
+	{
+		UE::Zen::FScopedRequestPtr Request(RequestPool.Get());
+		
+		TStringBuilder<128> Uri;
+		Uri << OplogPath << "/files";
+
+		TArray64<uint8> GetBuffer;
+		UE::Zen::FRequest::Result Res = Request->PerformBlockingDownload(Uri, &GetBuffer);
+
+		if (Res == Zen::FRequest::Success && Request->GetResponseCode() == 200)
+		{
+			FCbObjectView Response(GetBuffer.GetData());
+			return TIoStatusOr<FCbObject>(FCbObject::Clone(Response));
+		}
+		else
+		{
+			return TIoStatusOr<FCbObject>(FIoStatus(EIoErrorCode::NotFound));
+		}
+	});
+}
+
 void 
 FZenStoreHttpClient::StartBuildPass()
 {
@@ -1330,6 +1376,16 @@ TIoStatusOr<uint64> FZenStoreHttpClient::EndBuildPass(FCbPackage OpEntry)
 TFuture<TIoStatusOr<uint64>> FZenStoreHttpClient::AppendOp(FCbPackage OpEntry)
 {
 	return TFuture<TIoStatusOr<uint64>>();
+}
+
+TFuture<TIoStatusOr<FCbObject>> FZenStoreHttpClient::GetOplog()
+{
+	return TFuture<TIoStatusOr<FCbObject>>();
+}
+
+TFuture<TIoStatusOr<FCbObject>> FZenStoreHttpClient::GetFiles()
+{
+	return TFuture<TIoStatusOr<FCbObject>>();
 }
 
 }

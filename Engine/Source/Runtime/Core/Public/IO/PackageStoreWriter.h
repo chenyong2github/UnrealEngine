@@ -3,6 +3,7 @@
 #pragma once
 
 #include "IO/IoDispatcher.h"
+#include "Misc/SecureHash.h"
 
 struct FPackageStoreEntryResource;
 
@@ -11,7 +12,7 @@ class IPackageStoreWriter
 public:
 	virtual ~IPackageStoreWriter() = default;
 
-	struct FPackageBaseInfo
+	struct FBeginPackageInfo
 	{
 		FName	PackageName;
 	};
@@ -20,11 +21,18 @@ public:
 
 		This must be called before any data is produced for a given package
 	  */
-	virtual void BeginPackage(const FPackageBaseInfo& Info) = 0;
+	virtual void BeginPackage(const FBeginPackageInfo& Info) = 0;
+
+	struct FCommitPackageInfo
+	{
+		FName PackageName;
+		FGuid PackageGuid;
+		bool bSucceeded = false;
+	};
 
 	/** Finalize a package started with BeginPackage()
 	  */
-	virtual void CommitPackage(const FPackageBaseInfo& Info) = 0;
+	virtual void CommitPackage(const FCommitPackageInfo& Info) = 0;
 
 	struct FPackageInfo
 	{
@@ -118,6 +126,24 @@ public:
 	 * Flush any outstanding writes.
 	 */
 	virtual void Flush() = 0;
+
+	struct FCookedPackageInfo
+	{
+		FName PackageName;
+		FMD5Hash Hash;
+		FGuid PackageGuid;
+		int64 DiskSize = -1;
+	};
+
+	/**
+	 * Returns a list of cooked package(s).
+	 */
+	virtual void GetCookedPackages(TArray<FCookedPackageInfo>& OutCookedPackages) = 0;
+
+	/**
+	 * Remove cooked package(s) that has been modified since the last cook.
+	 */
+	virtual void RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove) = 0;
 };
 
 static inline const ANSICHAR* LexToString(IPackageStoreWriter::FBulkDataInfo::EType Value)

@@ -1065,7 +1065,7 @@ void FAssetRegistryGenerator::Initialize(const TArray<FName> &InStartupPackages)
 	FGameDelegates::Get().GetAssignLayerChunkDelegate() = FAssignLayerChunkDelegate::CreateStatic(AssignLayerChunkDelegate);
 }
 
-void FAssetRegistryGenerator::ComputePackageDifferences(TSet<FName>& ModifiedPackages, TSet<FName>& NewPackages, TSet<FName>& RemovedPackages, TSet<FName>& IdenticalCookedPackages, TSet<FName>& IdenticalUncookedPackages, bool bRecurseModifications, bool bRecurseScriptModifications)
+void FAssetRegistryGenerator::ComputePackageDifferences(const FComputeDifferenceOptions& Options, const TMap<FName, const FAssetPackageData*>& PreviousAssetPackageDataMap, FAssetRegistryDifference& OutDifference)
 {
 	TArray<FName> ModifiedScriptPackages;
 
@@ -1074,23 +1074,23 @@ void FAssetRegistryGenerator::ComputePackageDifferences(TSet<FName>& ModifiedPac
 		FName PackageName = PackagePair.Key;
 		const FAssetPackageData* CurrentPackageData = PackagePair.Value;
 
-		const FAssetPackageData* PreviousPackageData = PreviousState.GetAssetPackageData(PackageName);
+		const FAssetPackageData* PreviousPackageData = PreviousAssetPackageDataMap.FindRef(PackageName);
 
 		if (!PreviousPackageData)
 		{
-			NewPackages.Add(PackageName);
+			OutDifference.NewPackages.Add(PackageName);
 		}
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		else if (CurrentPackageData->PackageGuid == PreviousPackageData->PackageGuid)
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
-			if (PreviousPackageData->DiskSize < 0)
+			if (!Options.bIgnoreDiskSize && PreviousPackageData->DiskSize < 0)
 			{
-				IdenticalUncookedPackages.Add(PackageName);
+				OutDifference.IdenticalUncookedPackages.Add(PackageName);
 			}
 			else
 			{
-				IdenticalCookedPackages.Add(PackageName);
+				OutDifference.IdenticalCookedPackages.Add(PackageName);
 			}
 		}
 		else
@@ -1101,12 +1101,12 @@ void FAssetRegistryGenerator::ComputePackageDifferences(TSet<FName>& ModifiedPac
 			}
 			else
 			{
-			ModifiedPackages.Add(PackageName);
+				OutDifference.ModifiedPackages.Add(PackageName);
+			}
 		}
 	}
-	}
 
-	for (const TPair<FName, const FAssetPackageData*>& PackagePair : PreviousState.GetAssetPackageDataMap())
+	for (const TPair<FName, const FAssetPackageData*>& PackagePair : PreviousAssetPackageDataMap)
 	{
 		FName PackageName = PackagePair.Key;
 		const FAssetPackageData* PreviousPackageData = PackagePair.Value;
@@ -1115,16 +1115,16 @@ void FAssetRegistryGenerator::ComputePackageDifferences(TSet<FName>& ModifiedPac
 
 		if (!CurrentPackageData)
 		{
-			RemovedPackages.Add(PackageName);
+			OutDifference.RemovedPackages.Add(PackageName);
 		}
 	}
 
-	if (bRecurseModifications)
+	if (Options.bRecurseModifications)
 	{
 		// Recurse modified packages to their dependencies. This is needed because we only compare package guids
-		TArray<FName> ModifiedPackagesToRecurse = ModifiedPackages.Array();
+		TArray<FName> ModifiedPackagesToRecurse = OutDifference.ModifiedPackages.Array();
 
-		if (bRecurseScriptModifications)
+		if (Options.bRecurseScriptModifications)
 		{
 			ModifiedPackagesToRecurse.Append(ModifiedScriptPackages);
 		}
@@ -1138,18 +1138,34 @@ void FAssetRegistryGenerator::ComputePackageDifferences(TSet<FName>& ModifiedPac
 			for (const FAssetIdentifier& Referencer : Referencers)
 			{
 				FName ReferencerPackage = Referencer.PackageName;
-				if (!ModifiedPackages.Contains(ReferencerPackage) && (IdenticalCookedPackages.Contains(ReferencerPackage) || IdenticalUncookedPackages.Contains(ReferencerPackage)))
+				if (!OutDifference.ModifiedPackages.Contains(ReferencerPackage) && (OutDifference.IdenticalCookedPackages.Contains(ReferencerPackage) || OutDifference.IdenticalUncookedPackages.Contains(ReferencerPackage)))
 				{
 					// Remove from identical list
-					IdenticalCookedPackages.Remove(ReferencerPackage);
-					IdenticalUncookedPackages.Remove(ReferencerPackage);
+					OutDifference.IdenticalCookedPackages.Remove(ReferencerPackage);
+					OutDifference.IdenticalUncookedPackages.Remove(ReferencerPackage);
 
-					ModifiedPackages.Add(ReferencerPackage);
+					OutDifference.ModifiedPackages.Add(ReferencerPackage);
 					ModifiedPackagesToRecurse.Add(ReferencerPackage);
 				}
 			}
 		}
 	}
+}
+
+void FAssetRegistryGenerator::ComputePackageDifferences(TSet<FName>& ModifiedPackages, TSet<FName>& NewPackages, TSet<FName>& RemovedPackages, TSet<FName>& IdenticalCookedPackages, TSet<FName>& IdenticalUncookedPackages, bool bRecurseModifications, bool bRecurseScriptModifications)
+{
+	FComputeDifferenceOptions Options;
+	Options.bRecurseModifications		= bRecurseModifications;
+	Options.bRecurseScriptModifications	= bRecurseScriptModifications;
+	
+	FAssetRegistryDifference Difference;
+	ComputePackageDifferences(Options, PreviousState.GetAssetPackageDataMap(), Difference);
+
+	ModifiedPackages			= MoveTemp(Difference.ModifiedPackages);
+	NewPackages					= MoveTemp(Difference.NewPackages);
+	RemovedPackages				= MoveTemp(Difference.RemovedPackages);
+	IdenticalCookedPackages		= MoveTemp(Difference.IdenticalCookedPackages);
+	IdenticalUncookedPackages	= MoveTemp(Difference.IdenticalUncookedPackages);
 }
 
 void FAssetRegistryGenerator::UpdateKeptPackages(const TArray<FName>& InKeptPackages)
@@ -1158,6 +1174,21 @@ void FAssetRegistryGenerator::UpdateKeptPackages(const TArray<FName>& InKeptPack
 	// Update disk data right away, disk data is only updated when packages are saved, and kept packages are never saved
 	UpdateKeptPackagesDiskData(InKeptPackages);
 	// Delay update of AssetData with TagsAndValues, this data may be modified up until serialization in SaveAssetRegistry
+}
+
+void FAssetRegistryGenerator::UpdateKeptPackages(const TArray<FName>& InKeptPackages, TFunction<void(const FName&, FAssetPackageData*)>&& Update)
+{
+	KeptPackages.Append(InKeptPackages);
+
+	for (const FName& PackageName : InKeptPackages)
+	{
+		// Get mutable PackageData without creating it when it does not exist
+		FAssetPackageData* PackageData = State.GetAssetPackageData(PackageName)
+			? State.CreateOrGetAssetPackageData(PackageName)
+			: nullptr;
+
+		Update(PackageName, PackageData);
+	}
 }
 
 void FAssetRegistryGenerator::BuildChunkManifest(const TSet<FName>& InCookedPackages, const TSet<FName>& InDevelopmentOnlyPackages, FSandboxPlatformFile* InSandboxFile, bool bGenerateStreamingInstallManifest)

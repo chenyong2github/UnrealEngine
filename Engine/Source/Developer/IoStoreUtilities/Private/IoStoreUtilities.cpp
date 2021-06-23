@@ -4065,10 +4065,10 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const ITar
 	{
 		const FPackageInfo& PackageInfo = PackagesArray[Index];
 
-		IPackageStoreWriter::FPackageBaseInfo PackageStorePackageBaseInfo;
-		PackageStorePackageBaseInfo.PackageName = PackageInfo.PackageName;
+		IPackageStoreWriter::FBeginPackageInfo BeginPackageInfo;
+		BeginPackageInfo.PackageName = PackageInfo.PackageName;
 
-		ZenStoreWriter->BeginPackage(PackageStorePackageBaseInfo);
+		ZenStoreWriter->BeginPackage(BeginPackageInfo);
 
 		IPackageStoreWriter::FPackageInfo PackageStorePackageInfo;
 		PackageStorePackageInfo.PackageName = PackageInfo.PackageName;
@@ -4088,7 +4088,10 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const ITar
 			FIoBuffer BulkDataBuffer = BulkDataInfo.Chunk.Key->Read(BulkDataInfo.Chunk.Value, FIoReadOptions()).ValueOrDie();
 			ZenStoreWriter->WriteBulkdata(PackageStoreBulkDataInfo, BulkDataBuffer, TArray<FFileRegion>());
 		}
-		ZenStoreWriter->CommitPackage(PackageStorePackageBaseInfo);
+		
+		IPackageStoreWriter::FCommitPackageInfo CommitInfo;
+		CommitInfo.PackageName = PackageInfo.PackageName;
+		ZenStoreWriter->CommitPackage(CommitInfo);
 
 		int32 LocalUploadCount = UploadCount.IncrementExchange() + 1;
 		UE_CLOG(LocalUploadCount % 1000 == 0, LogIoStore, Display, TEXT("Uploading package %d/%d"), LocalUploadCount, PackagesArray.Num());

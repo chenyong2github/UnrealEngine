@@ -65,8 +65,8 @@ class FFilePackageStoreWriter
 public:
 	IOSTOREUTILITIES_API FFilePackageStoreWriter(const FString& OutputPath, const FString& MetadataDirectoryPath, const ITargetPlatform* TargetPlatform);
 	IOSTOREUTILITIES_API ~FFilePackageStoreWriter();
-	IOSTOREUTILITIES_API virtual void BeginPackage(const FPackageBaseInfo& Info) override;
-	IOSTOREUTILITIES_API virtual void CommitPackage(const FPackageBaseInfo& Info) override;
+	IOSTOREUTILITIES_API virtual void BeginPackage(const FBeginPackageInfo& Info) override;
+	IOSTOREUTILITIES_API virtual void CommitPackage(const FCommitPackageInfo& Info) override;
 	IOSTOREUTILITIES_API virtual void WritePackageData(const FPackageInfo& Info, const FIoBuffer& PackageData, const TArray<FFileRegion>& FileRegions) override;
 	IOSTOREUTILITIES_API virtual void WriteBulkdata(const FBulkDataInfo& Info, const FIoBuffer& BulkData, const TArray<FFileRegion>& FileRegions) override;
 	IOSTOREUTILITIES_API virtual bool WriteAdditionalFile(const FAdditionalFileInfo& Info, const FIoBuffer& FileData) override { return false; }
@@ -87,6 +87,12 @@ public:
 	}
 
 	virtual void Flush() override
+	{ }
+
+	virtual void GetCookedPackages(TArray<FCookedPackageInfo>& OutCookedPackages)
+	{ }
+
+	virtual void RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove)
 	{ }
 
 private:

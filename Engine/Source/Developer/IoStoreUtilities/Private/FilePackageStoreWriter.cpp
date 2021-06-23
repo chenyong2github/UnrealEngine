@@ -348,11 +348,11 @@ void FFilePackageStoreWriter::EndCook()
 	UE_LOG(LogPackageStoreWriter, Display, TEXT("Output:\t%d Public runtime script objects"), PackageStoreOptimizer->GetTotalScriptObjectCount());
 }
 
-void FFilePackageStoreWriter::BeginPackage(const FPackageBaseInfo& Info)
+void FFilePackageStoreWriter::BeginPackage(const FBeginPackageInfo& Info)
 {
 	PackageStoreManifest.BeginPackage(Info.PackageName);
 }
 
-void FFilePackageStoreWriter::CommitPackage(const FPackageBaseInfo& Info)
+void FFilePackageStoreWriter::CommitPackage(const FCommitPackageInfo& Info)
 {
 }

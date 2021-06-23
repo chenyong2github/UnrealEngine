@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IO/IoDispatcher.h"
 
 class ITargetPlatform;
 class FArchive;
@@ -15,30 +16,30 @@ public:
 	{
 		FString ServerPath;
 		FString ClientPath;
-		uint32 FileId = ~uint32(0);
+		FIoChunkId FileChunkId;
 	};
 	
 	FZenFileSystemManifest(const ITargetPlatform& InTargetPlatform, FString InCookDirectory);
 	
-	void Generate();
+	int32 Generate();
 
-	const FManifestEntry& AddFile(const FString& Filename);
+	const FManifestEntry& CreateManifestEntry(const FString& Filename);
+	
+	const FManifestEntry& AddManifestEntry(const FIoChunkId& FileChunkId, FString ServerPath, FString ClientPath);
 
 	TArrayView<const FManifestEntry> ManifestEntries() const
 	{
 		return Entries;
 	}
 
-	int32 ManifestVersion() const
+	bool Save(const TCHAR* Filename);
+
+	int32 NumEntries() const
 	{
 		return Entries.Num();
 	}
 
-	void Save(const TCHAR* Filename);
-
 private:
-	const FManifestEntry& AddManifestEntry(FString ServerPath, FString ClientPath);
-
 	const ITargetPlatform& TargetPlatform;
 	FString CookDirectory;
 	FString ServerRoot;

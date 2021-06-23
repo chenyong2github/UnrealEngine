@@ -27,6 +27,19 @@ FCbObjectId ToObjectId(const FIoChunkId& ChunkId)
 	return FCbObjectId(MakeMemoryView(ChunkId.GetData(), ChunkId.GetSize()));
 }
 
+FMD5Hash IoHashToMD5(const FIoHash& IoHash)
+{
+	const FIoHash::ByteArray& Bytes = IoHash.GetBytes();
+	
+	FMD5 MD5Gen;
+	MD5Gen.Update(Bytes, sizeof(FIoHash::ByteArray));
+	
+	FMD5Hash Hash;
+	Hash.Set(MD5Gen);
+
+	return Hash;
+}
+
 class FZenStoreWriter::FZenStoreHttpQueue
 {
 public:
@@ -247,6 +260,86 @@ FZenStoreWriter::FZenStoreWriter(
 	ZenFileSystemManifest = MakeUnique<FZenFileSystemManifest>(TargetPlatform, OutputPath);
 	
 	HttpQueue = MakeUnique<FZenStoreHttpQueue>(*HttpClient);
+
+	if (!IsCleanBuild)
+	{
+		UE_LOG(LogZenStoreWriter, Display, TEXT("Fetching oplog..."), *ProjectId, *OplogId);
+
+		TFuture<FIoStatus> FutureOplogStatus = HttpClient->GetOplog().Next([this](TIoStatusOr<FCbObject> OplogStatus)
+		{
+			if (!OplogStatus.IsOk())
+			{
+				return OplogStatus.Status();
+			}
+			
+			FCbObject Oplog = OplogStatus.ConsumeValueOrDie();
+			
+			if (Oplog["entries"])
+			{
+				for (FCbField& OplogEntry : Oplog["entries"].AsArray())
+				{
+					FCbObject OplogObj						= OplogEntry.AsObject();
+
+					if (OplogObj["package"])
+					{
+						FCbObject PackageObj				= OplogObj["package"].AsObject();
+
+						const FGuid PkgGuid					= PackageObj["guid"].AsUuid();
+						const FIoHash PkgHash				= PackageObj["data"].AsHash();
+						const int64	PkgDiskSize				= PackageObj["disksize"].AsUInt64();
+						FPackageStoreEntryResource Entry	= FPackageStoreEntryResource::FromCbObject(OplogObj["packagestoreentry"].AsObject());
+						const FName PackageName				= Entry.PackageName;
+
+						const int32 Index					= PackageStoreEntries.Num();
+
+						PackageStoreEntries.Add(MoveTemp(Entry));
+						CookedPackagesInfo.Add(FCookedPackageInfo { PackageName, IoHashToMD5(PkgHash), PkgGuid, PkgDiskSize });
+						PackageNameToIndex.Add(PackageName, Index);
+					}
+				}
+			}
+
+			return FIoStatus::Ok;
+		});
+
+		UE_LOG(LogZenStoreWriter, Display, TEXT("Fetching file manifest..."), *ProjectId, *OplogId);
+
+		TIoStatusOr<FCbObject> FileStatus = HttpClient->GetFiles().Get();
+		if (FileStatus .IsOk())
+		{
+			FCbObject FilesObj = FileStatus.ConsumeValueOrDie();
+			if (FilesObj["files"])
+			{
+				for (FCbField& FileEntry : FilesObj["files"].AsArray())
+				{
+					FCbObject FileObj	= FileEntry.AsObject();
+					FCbObjectId FileId	= FileObj["id"].AsObjectId();
+					FString ServerPath	= FString(FileObj["serverpath"].AsString());
+					FString ClientPath	= FString(FileObj["clientpath"].AsString());
+
+					FIoChunkId FileChunkId;
+					FileChunkId.Set(FileId.GetView());
+					
+					ZenFileSystemManifest->AddManifestEntry(FileChunkId, MoveTemp(ServerPath), MoveTemp(ClientPath));
+				}
+			}
+
+			UE_LOG(LogZenStoreWriter, Display, TEXT("Fetched '%d' files(s) from oplog '%s/%s'"), ZenFileSystemManifest->NumEntries(), *ProjectId, *OplogId);
+		}
+		else
+		{
+			UE_LOG(LogZenStoreWriter, Warning, TEXT("Failed to fetch file(s) from oplog '%s/%s'"), *ProjectId, *OplogId);
+		}
+
+		if (FutureOplogStatus.Get().IsOk())
+		{
+			UE_LOG(LogZenStoreWriter, Display, TEXT("Fetched '%d' packges(s) from oplog '%s/%s'"), PackageStoreEntries.Num(), *ProjectId, *OplogId);
+		}
+		else
+		{
+			UE_LOG(LogZenStoreWriter, Warning, TEXT("Failed to fetch oplog '%s/%s'"), *ProjectId, *OplogId);
+		}
+	}
 }
 
 FZenStoreWriter::~FZenStoreWriter()
@@ -363,13 +456,13 @@ void FZenStoreWriter::WriteBulkdata(const FBulkDataInfo& Info, const FIoBuffer& 
 
 bool FZenStoreWriter::WriteAdditionalFile(const FAdditionalFileInfo& Info, const FIoBuffer& FileData)
 {
-	const FZenFileSystemManifest::FManifestEntry& ManifestEntry = ZenFileSystemManifest->AddFile(Info.Filename);
+	const FZenFileSystemManifest::FManifestEntry& ManifestEntry = ZenFileSystemManifest->CreateManifestEntry(Info.Filename);
 
 	FFileDataEntry FileEntry;
 
 	FileEntry.Payload				= FIoBuffer(FIoBuffer::Clone, FileData.Data(), FileData.DataSize());
 	FileEntry.Info					= Info;
-	FileEntry.Info.ChunkId			= CreateExternalFileChunkId(0, ManifestEntry.FileId);
+	FileEntry.Info.ChunkId			= ManifestEntry.FileChunkId;
 	FileEntry.ZenManifestServerPath = ManifestEntry.ServerPath;
 	FileEntry.ZenManifestClientPath = ManifestEntry.ClientPath;
 
@@ -446,7 +539,7 @@ void FZenStoreWriter::EndCook()
 		(double(ZenStats.TotalBytes) / 1024.0 / 1024.0) / ZenStats.TotalRequestTime);
 }
 
-void FZenStoreWriter::BeginPackage(const FPackageBaseInfo& Info)
+void FZenStoreWriter::BeginPackage(const FBeginPackageInfo& Info)
 {
 	FWriteScopeLock _(PackagesLock);
 
@@ -462,7 +555,7 @@ void FZenStoreWriter::BeginPackage(const FPackageBaseInfo& Info)
 	PackageStoreManifest.BeginPackage(Info.PackageName);
 }
 
-void FZenStoreWriter::CommitPackage(const FPackageBaseInfo& Info)
+void FZenStoreWriter::CommitPackage(const FCommitPackageInfo& Info)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FZenStoreWriter::CommitPackage);
 
@@ -473,7 +566,7 @@ void FZenStoreWriter::CommitPackage(const FPackageBaseInfo& Info)
 	CommitEventArgs.EntryIndex		= INDEX_NONE;
 	
 	FCbPackage Pkg;
-	bool bIsValid = false;
+	bool bIsValid = Info.bSucceeded;
 
 	{
 		FWriteScopeLock _(PackagesLock);
@@ -482,18 +575,9 @@ void FZenStoreWriter::CommitPackage(const FPackageBaseInfo& Info)
 
 		checkf(PackageState != nullptr, TEXT("CommitPackage called for package which is not pending: '%s'"), *Info.PackageName.ToString());
 
-		bIsValid = PackageState->PackageData.IsValid;
-
 		if (bIsValid)
 		{
-			FPackageDataEntry& PkgData = PackageState->PackageData;
-
-			CommitEventArgs.EntryIndex = PackageStoreEntries.Num();
-			PackageStoreEntries.Add(PkgData.PackageStoreEntry);
-
-			FCbWriter PackageObj;
-			PackageObj.BeginObject();
-			PackageObj << "key" << Info.PackageName.ToString();
+			check(PackageState->PackageData.IsValid);
 
 			// Note that this is destructive - we yank out the buffer memory from the 
 			// IoBuffer into the FSharedBuffer
@@ -504,14 +588,31 @@ void FZenStoreWriter::CommitPackage(const FPackageBaseInfo& Info)
 				return FSharedBuffer{ FSharedBuffer::TakeOwnership(DataPtr, DataSize, FMemory::Free) };
 			};
 
+			FPackageDataEntry& PkgData = PackageState->PackageData;
+			
+			const int64 PkgDiskSize = PkgData.Payload.DataSize();
+			
 			FCbAttachment PkgDataAttachment(IoBufferToSharedBuffer(PkgData.Payload));
 			Pkg.AddAttachment(PkgDataAttachment);
+			
+			CommitEventArgs.EntryIndex = PackageStoreEntries.Num();
+			PackageStoreEntries.Add(PkgData.PackageStoreEntry);
+			CookedPackagesInfo.Add(FCookedPackageInfo { Info.PackageName, IoHashToMD5(PkgDataAttachment.GetHash()), Info.PackageGuid, PkgDiskSize });
 
+			FCbWriter PackageObj;
+			PackageObj.BeginObject();
+			PackageObj << "key" << Info.PackageName.ToString();
+
+			// NOTE: The package GUID and disk size are used for iterative cooks when comparing asset registry package data
 			PackageObj.BeginObject("package");
 			PackageObj << "id" << PkgData.ChunkId;
+			PackageObj << "guid" << Info.PackageGuid;
 			PackageObj << "data" << PkgDataAttachment;
+			PackageObj << "disksize" << PkgDiskSize; 
 			PackageObj.EndObject();
 
+			PackageObj << "packagestoreentry" << PkgData.PackageStoreEntry;
+			
 			if (PackageState->BulkData.Num())
 			{
 				PackageObj.BeginArray("bulkdata");
@@ -596,32 +697,85 @@ void FZenStoreWriter::Flush()
 	HttpQueue->Flush();
 }
 
+void FZenStoreWriter::GetCookedPackages(TArray<FCookedPackageInfo>& OutCookedPackages) 
+{
+	OutCookedPackages.Append(CookedPackagesInfo);
+}
+
+void FZenStoreWriter::RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove)
+{
+	TSet<int32> PackageIndicesToKeep;
+	for (int32 Idx = 0, Num = PackageStoreEntries.Num(); Idx < Num; ++Idx)
+	{
+		PackageIndicesToKeep.Add(Idx);
+	}
+	
+	for (const FName& PackageName : PackageNamesToRemove)
+	{
+		if (const int32* Idx = PackageNameToIndex.Find(PackageName))
+		{
+			PackageIndicesToKeep.Remove(*Idx);
+		}
+	}
+
+	const int32 NumPackagesToKeep = PackageIndicesToKeep.Num();
+	
+	TArray<FPackageStoreEntryResource> PreviousPackageStoreEntries = MoveTemp(PackageStoreEntries);
+	TArray<FCookedPackageInfo> PreviousCookedPackageInfo = MoveTemp(CookedPackagesInfo);
+	PackageNameToIndex.Empty(false);
+
+	if (NumPackagesToKeep > 0)
+	{
+		PackageStoreEntries.Reserve(NumPackagesToKeep);
+		CookedPackagesInfo.Reserve(NumPackagesToKeep);
+		PackageNameToIndex.Reserve(NumPackagesToKeep);
+
+		int32 EntryIndex = 0;
+		for (int32 Idx : PackageIndicesToKeep)
+		{
+			const FName PackageName = PreviousCookedPackageInfo[Idx].PackageName;
+
+			PackageStoreEntries.Add(MoveTemp(PreviousPackageStoreEntries[Idx]));
+			CookedPackagesInfo.Add(MoveTemp(PreviousCookedPackageInfo[Idx]));
+			PackageNameToIndex.Add(PackageName, EntryIndex++);
+		}
+	}
+}
+
 void FZenStoreWriter::CreateProjectMetaData(FCbPackage& Pkg, FCbWriter& PackageObj, bool bGenerateContainerHeader)
 {
 	// File Manifest
 	{
-		// Append all project and cooked files
-		ZenFileSystemManifest->Generate();
+		// Only append new file entries to the Oplog
+		
+		int32 NumEntries = ZenFileSystemManifest->NumEntries();
+		const int32 NumNewEntries = ZenFileSystemManifest->Generate();
 
+		if (NumNewEntries > 0)
 		{
+			TArrayView<FZenFileSystemManifest::FManifestEntry const> Entries = ZenFileSystemManifest->ManifestEntries();
+			TArrayView<FZenFileSystemManifest::FManifestEntry const> NewEntries = Entries.Slice(NumEntries, NumNewEntries);
+			
 			PackageObj.BeginArray("files");
 
-			for (const FZenFileSystemManifest::FManifestEntry& ManifestEntry : ZenFileSystemManifest->ManifestEntries())
+			for (const FZenFileSystemManifest::FManifestEntry& NewEntry : NewEntries)
 			{
-				FCbObjectId FileOid = ToObjectId(CreateExternalFileChunkId(0, ManifestEntry.FileId));
+				FCbObjectId FileOid = ToObjectId(NewEntry.FileChunkId);
 
 				PackageObj.BeginObject();
 				PackageObj << "id" << FileOid;
 				PackageObj << "data" << FIoHash::Zero;
-				PackageObj << "serverpath" << ManifestEntry.ServerPath;
-				PackageObj << "clientpath" << ManifestEntry.ClientPath;
+				PackageObj << "serverpath" << NewEntry.ServerPath;
+				PackageObj << "clientpath" << NewEntry.ClientPath;
 				PackageObj.EndObject();
 			}
 
-			PackageObj.EndArray(); // End of files
+			PackageObj.EndArray();
 		}
 
-		ZenFileSystemManifest->Save(*FPaths::Combine(MetadataDirectoryPath, TEXT("zenfs.manifest")));
+		FString ManifestPath = FPaths::Combine(MetadataDirectoryPath, TEXT("zenfs.manifest"));
+		UE_LOG(LogZenStoreWriter, Display, TEXT("Saving Zen filesystem manifest '%s'"), *ManifestPath);
+		ZenFileSystemManifest->Save(*ManifestPath);
 	}
 
 	// Metadata section

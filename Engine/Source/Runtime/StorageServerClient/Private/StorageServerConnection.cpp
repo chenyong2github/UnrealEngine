@@ -337,7 +337,7 @@ int32 FStorageServerConnection::HandshakeRequest()
 void FStorageServerConnection::FileManifestRequest(TFunctionRef<void(FIoChunkId Id, FStringView Path)> Callback)
 {
 	TAnsiStringBuilder<256> ResourceBuilder;
-	ResourceBuilder.Append(OplogPath).Append("/files");
+	ResourceBuilder.Append(OplogPath).Append("/files?filter=client");
 	FStorageServerRequest Request("GET", *ResourceBuilder, Hostname);
 	FSocket* Socket = Request.Send(*this);
 	if (!Socket)
@@ -357,7 +357,7 @@ void FStorageServerConnection::FileManifestRequest(TFunctionRef<void(FIoChunkId 
 			FCbObjectId Id = Entry["id"].AsObjectId();
 
 			TStringBuilder<128> WidePath;
-			WidePath.Append(FUTF8ToTCHAR(Entry["path"].AsString()));
+			WidePath.Append(FUTF8ToTCHAR(Entry["clientpath"].AsString()));
 
 			FIoChunkId ChunkId;
 			ChunkId.Set(Id.GetView());

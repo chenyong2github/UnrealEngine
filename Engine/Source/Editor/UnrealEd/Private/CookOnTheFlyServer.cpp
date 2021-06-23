@@ -594,18 +594,7 @@ public:
 
 	virtual IPackageStoreWriter* GetPackageStoreWriter(const FName& PlatformName) override
 	{
-		if (Cooker.CookOnTheFlyOptions.bIoStore)
-		{
-			for (FSavePackageContext* Context : Cooker.SavePackageContexts)
-			{
-				if (FName(*Context->TargetPlatform->PlatformName()) == PlatformName)
-				{
-					return Context->PackageStoreWriter;
-				}
-			}
-		}
-
-		return nullptr;
+		return Cooker.GetPackageStoreWriter(PlatformName);
 	}
 
 	DECLARE_DERIVED_EVENT(UCookOnTheFlyServer::FCookOnTheFlyServerInterface, UE::Cook::ICookOnTheFlyServer::FFlushEvent, FFlushEvent);
@@ -4643,12 +4632,12 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 					{
 						FSavePackageContext* const SavePackageContext = SavePackageContexts.Num() > 0 ? SavePackageContexts[PlatformIndex] : nullptr;
 
-						IPackageStoreWriter::FPackageBaseInfo Info;
-						Info.PackageName = Package->GetFName();
-
 						IPackageStoreWriter* PackageStoreWriter = SavePackageContext ? SavePackageContext->PackageStoreWriter : nullptr;
 						if (PackageStoreWriter)
 						{
+							IPackageStoreWriter::FBeginPackageInfo Info;
+							Info.PackageName = Package->GetFName();
+							
 							PackageStoreWriter->BeginPackage(Info);
 						}
 
@@ -4659,6 +4648,17 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 
 						if (PackageStoreWriter)
 						{
+							FAssetRegistryGenerator* Generator = PlatformManager->GetPlatformData(Target)->RegistryGenerator.Get();
+							FAssetPackageData* AssetPackageData = Generator->GetAssetPackageData(Package->GetFName());
+							check(AssetPackageData);
+
+							IPackageStoreWriter::FCommitPackageInfo Info;
+							Info.bSucceeded		= Result.IsSuccessful();
+							Info.PackageName	= Package->GetFName();
+							PRAGMA_DISABLE_DEPRECATION_WARNINGS
+							Info.PackageGuid	= AssetPackageData->PackageGuid;
+							PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 							PackageStoreWriter->CommitPackage(Info);
 						}
 					}
@@ -6172,6 +6172,100 @@ void UCookOnTheFlyServer::PopulateCookedPackagesFromDisk(const TArrayView<const 
 	}
 }
 
+void UCookOnTheFlyServer::PopulateCookedPackagesFromPackageStore(const TArrayView<const ITargetPlatform* const>& Platforms)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::PopulateCookedPackagesFromPackgeStore);
+
+	struct FPreviousAssetPackageData
+	{
+		FPreviousAssetPackageData(const TArray<IPackageStoreWriter::FCookedPackageInfo>& InCookedPackages)
+		{
+			AssetPackageDatas.SetNum(InCookedPackages.Num());
+			AssetPackageDataMap.Reserve(InCookedPackages.Num());
+
+			for (int32 Idx = 0, Count = InCookedPackages.Num(); Idx < Count; ++Idx)
+			{
+				const IPackageStoreWriter::FCookedPackageInfo& CookedPackageInfo = InCookedPackages[Idx];
+				FAssetPackageData& AssetPackageData = AssetPackageDatas[Idx];
+				
+				AssetPackageData.CookedHash = CookedPackageInfo.Hash;
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
+				AssetPackageData.PackageGuid = CookedPackageInfo.PackageGuid;
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
+				AssetPackageData.DiskSize = CookedPackageInfo.DiskSize;
+
+				AssetPackageDataMap.Add(CookedPackageInfo.PackageName, &AssetPackageData);
+			}
+		}
+
+		TArray<FAssetPackageData> AssetPackageDatas;
+		TMap<FName, const FAssetPackageData*> AssetPackageDataMap;
+	};
+
+	for (const ITargetPlatform* Platform : Platforms)
+	{
+		UE_LOG(LogCook, Display, TEXT("Populating cooked package(s) from package store on platform '%s'"), *Platform->PlatformName());
+		
+		UE::Cook::FPlatformData* PlatformData = PlatformManager->GetPlatformData(Platform);
+		FAssetRegistryGenerator* PlatformAssetRegistry = PlatformData->RegistryGenerator.Get();
+		IPackageStoreWriter* PackageStoreWriter = GetPackageStoreWriter(FName(*Platform->PlatformName()));
+		
+		check(PlatformData);
+		check(PlatformAssetRegistry);
+		check(PackageStoreWriter);
+
+		TArray<IPackageStoreWriter::FCookedPackageInfo> CookedPackages;
+		PackageStoreWriter->GetCookedPackages(CookedPackages);
+		
+		UE_LOG(LogCook, Display, TEXT("Found '%d' cooked package(s) in package store"), CookedPackages.Num());
+
+		FPreviousAssetPackageData PreviousAssetPackageData(CookedPackages);
+
+		FAssetRegistryGenerator::FComputeDifferenceOptions Options;
+		Options.bRecurseModifications		= true;
+		Options.bRecurseScriptModifications	= !IsCookFlagSet(ECookInitializationFlags::IgnoreScriptPackagesOutOfDate);
+		
+		FAssetRegistryGenerator::FAssetRegistryDifference Difference;
+		PlatformAssetRegistry->ComputePackageDifferences(Options, PreviousAssetPackageData.AssetPackageDataMap, Difference);
+
+		TArray<FName> PackagesToRemove;
+		PackagesToRemove.Reserve(Difference.ModifiedPackages.Num() + Difference.RemovedPackages.Num());
+		
+		for (const FName& ModifiedPackageName : Difference.ModifiedPackages)
+		{
+			PackagesToRemove.Add(ModifiedPackageName);
+		}
+		
+		for (const FName& RemovedPackageName : Difference.RemovedPackages)
+		{
+			PackagesToRemove.Add(RemovedPackageName );
+		}
+		
+		UE_LOG(LogCook, Display, TEXT("Keeping '%d' and removing '%d' cooked package(s)"), Difference.IdenticalCookedPackages.Num(), PackagesToRemove.Num());
+		
+		PackageStoreWriter->RemoveCookedPackages(PackagesToRemove);
+		
+		TArray<FName> PackagesToKeep;
+		for (const FName& IdenticalPackageName : Difference.IdenticalCookedPackages)
+		{
+			UE::Cook::FPackageData* PackageData = PackageDatas->TryAddPackageDataByPackageName(IdenticalPackageName);
+			if (PackageData)
+			{
+				const bool bSucceded = true;
+				PackageData->AddCookedPlatforms({ Platform }, bSucceded);
+				PackagesToKeep.Add(IdenticalPackageName);
+			}
+		}
+
+		PlatformAssetRegistry->UpdateKeptPackages(PackagesToKeep, [&PreviousAssetPackageData](const FName& PackageName, FAssetPackageData* Current)
+		{
+			const FAssetPackageData* Previous = PreviousAssetPackageData.AssetPackageDataMap.FindRef(PackageName);
+			Current->CookedHash = Previous->CookedHash;
+			Current->DiskSize = Previous->DiskSize;
+		});
+	}
+}
+
 const FString ExtractPackageNameFromObjectPath( const FString ObjectPath )
 {
 	// get the path 
@@ -7665,9 +7759,11 @@ void UCookOnTheFlyServer::InitializeSandbox(const TArrayView<const ITargetPlatfo
 		}
 
 		// Don't populate platforms that were already initialized; we already populated them when we first initialized them
-		RefreshPlatforms.RemoveAllSwap([&AlreadyInitializedPlatforms](const ITargetPlatform* TargetPlatform) {
+		RefreshPlatforms.RemoveAllSwap([&AlreadyInitializedPlatforms](const ITargetPlatform* TargetPlatform)
+		{
 			return AlreadyInitializedPlatforms.Contains(TargetPlatform);
-			});
+		});
+
 		if (RefreshPlatforms.Num() != 0)
 		{
 			for (UE::Cook::FPackageData* PackageData : *PackageDatas.Get())
@@ -7676,7 +7772,7 @@ void UCookOnTheFlyServer::InitializeSandbox(const TArrayView<const ITargetPlatfo
 			}
 			// The asset registry makes populating cooked packages from disk fast, and populating is a performance benefit
 			// Don't populate however if we are looking for deterministic cooking differences; start from an empty list of cooked packages
-			if (!bIsDiffOnly) 
+			if (!bIsDiffOnly && !IsUsingIoStore()) 
 			{
 				PopulateCookedPackagesFromDisk(RefreshPlatforms);
 			}
@@ -7731,10 +7827,6 @@ void UCookOnTheFlyServer::InitializePackageStore(const TArrayView<const ITargetP
 			{
 				PackageStoreWriter = new FFilePackageStoreWriter(ResolvedRootPath, MetadataDirectoryPath, TargetPlatform);
 			}
-
-			IPackageStoreWriter::FCookInfo CookInfo;
-			CookInfo.CookMode = IsCookOnTheFlyMode() ? IPackageStoreWriter::FCookInfo::CookOnTheFlyMode : IPackageStoreWriter::FCookInfo::CookByTheBookMode;
-			PackageStoreWriter->BeginCook(CookInfo);
 		}
 
 		FConfigFile PlatformEngineIni;
@@ -7745,6 +7837,21 @@ void UCookOnTheFlyServer::InitializePackageStore(const TArrayView<const ITargetP
 
 		FSavePackageContext* SavePackageContext = new FSavePackageContext(TargetPlatform, PackageStoreWriter, bLegacyBulkDataOffsets);
 		SavePackageContexts.Add(SavePackageContext);
+	}
+
+	if (IsUsingIoStore())
+	{
+		if (!bIsCleanBuild)
+		{
+			PopulateCookedPackagesFromPackageStore(TargetPlatforms);
+		}
+
+		for (const FSavePackageContext* Context : SavePackageContexts)
+		{
+			IPackageStoreWriter::FCookInfo CookInfo;
+			CookInfo.CookMode = IsCookOnTheFlyMode() ? IPackageStoreWriter::FCookInfo::CookOnTheFlyMode : IPackageStoreWriter::FCookInfo::CookByTheBookMode;
+			Context->PackageStoreWriter->BeginCook(CookInfo);
+		}
 	}
 }
 
@@ -8027,7 +8134,6 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	// This will either delete the sandbox or iteratively clean it
 	InitializeSandbox(TargetPlatforms);
 	InitializeTargetPlatforms(TargetPlatforms);
-
 	InitializePackageStore(TargetPlatforms);
 
 	if (CurrentCookMode == ECookMode::CookByTheBook && !IsCookFlagSet(ECookInitializationFlags::Iterative))
@@ -9092,6 +9198,19 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 	}
 
 	return Result;
+}
+
+IPackageStoreWriter* UCookOnTheFlyServer::GetPackageStoreWriter(const FName& PlatformName) const
+{
+	for (const FSavePackageContext* Context : SavePackageContexts)
+	{
+		if (FName(*Context->TargetPlatform->PlatformName()) == PlatformName)
+		{
+			return Context->PackageStoreWriter;
+		}
+	}
+
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE

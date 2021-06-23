@@ -27,6 +27,7 @@ class FSavePackageContext;
 class ITargetPlatform;
 class IAssetRegistry;
 class IPlugin;
+class IPackageStoreWriter;
 
 enum class ECookInitializationFlags
 {
@@ -1052,6 +1053,11 @@ private:
 	* @param Platforms to process
 	*/
 	void PopulateCookedPackagesFromDisk(const TArrayView<const ITargetPlatform* const>& Platforms);
+	
+	/**
+	 * Populate cooked packages from meta data available in the package store.
+	 */
+	void PopulateCookedPackagesFromPackageStore(const TArrayView<const ITargetPlatform* const>& Platforms);
 
 	/**
 	* Searches the disk for all the cooked files in the sandbox path provided
@@ -1106,6 +1112,8 @@ private:
 	UPackage* TryPopulateGeneratedPackage(UE::Cook::FPopulatePackageContext& Context);
 
 	uint32 FullLoadAndSave(uint32& CookedPackageCount);
+
+	IPackageStoreWriter* GetPackageStoreWriter(const FName& PlatformName) const;
 
 	uint32		StatLoadedPackageCount = 0;
 	uint32		StatSavedPackageCount = 0;

@@ -8,7 +8,7 @@
 #include "Misc/Paths.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 
-const FZenFileSystemManifest::FManifestEntry FZenFileSystemManifest::InvalidEntry;
+const FZenFileSystemManifest::FManifestEntry FZenFileSystemManifest::InvalidEntry = FManifestEntry();
 
 FZenFileSystemManifest::FZenFileSystemManifest(const ITargetPlatform& InTargetPlatform, FString InCookDirectory)
 	: TargetPlatform(InTargetPlatform)
@@ -20,7 +20,7 @@ FZenFileSystemManifest::FZenFileSystemManifest(const ITargetPlatform& InTargetPl
 	FPaths::NormalizeDirectoryName(ServerRoot);
 }
 
-void FZenFileSystemManifest::Generate()
+int32 FZenFileSystemManifest::Generate()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(GenerateStorageServerFileSystemManifest);
 
@@ -105,6 +105,7 @@ void FZenFileSystemManifest::Generate()
 						RelativePath.RightChopInline(LocalDirectory.Len() + 1);
 
 						AddManifestEntry(
+							CreateExternalFileChunkId(0, Entries.Num() + 1),
 							FPaths::Combine(ServerRelativeDirectory, RelativePath.GetData()),
 							FPaths::Combine(ClientDirectory, RelativePath.GetData()));
 					}
@@ -118,6 +119,8 @@ void FZenFileSystemManifest::Generate()
 				PlatformFile.IterateDirectory(*DirectoriesToVisit.Pop(), VisitorFunc);
 			}
 		};
+
+	const int32 PreviousEntryCount = NumEntries();
 
 	AddFilesFromDirectory(TEXT("/{engine}"), FPaths::Combine(CookDirectory, TEXT("Engine")), true);
 	AddFilesFromDirectory(TEXT("/{project}"), FPaths::Combine(CookDirectory, FApp::GetProjectName()), true);
@@ -148,9 +151,13 @@ void FZenFileSystemManifest::Generate()
 		AddFilesFromDirectory(FPaths::Combine(TEXT("/{engine}/Platforms"), PlatformDirectory), FPaths::Combine(EngineDir, TEXT("Platforms"), PlatformDirectory), true, &Filter);
 		AddFilesFromDirectory(FPaths::Combine(TEXT("/{project}/Platforms"), PlatformDirectory), FPaths::Combine(ProjectDir, TEXT("Platforms"), PlatformDirectory), true, &Filter);
 	}
+
+	const int32 CurrentEntryCount = NumEntries();
+	
+	return CurrentEntryCount - PreviousEntryCount;
 }
 
-const FZenFileSystemManifest::FManifestEntry& FZenFileSystemManifest::AddFile(const FString& Filename)
+const FZenFileSystemManifest::FManifestEntry& FZenFileSystemManifest::CreateManifestEntry(const FString& Filename)
 {
 	FString CookedEngineDirectory = FPaths::Combine(CookDirectory, TEXT("Engine"));
 
@@ -164,6 +171,7 @@ const FZenFileSystemManifest::FManifestEntry& FZenFileSystemManifest::AddFile(co
 		ServerRelativeDirectory = TEXT("/") + ServerRelativeDirectory;
 
 		return AddManifestEntry(
+			CreateExternalFileChunkId(0, Entries.Num() + 1),
 			FPaths::Combine(ServerRelativeDirectory, RelativePath.GetData()),
 			FPaths::Combine(ClientDirectory, RelativePath.GetData()));
 	};
@@ -182,10 +190,18 @@ const FZenFileSystemManifest::FManifestEntry& FZenFileSystemManifest::AddFile(co
 	return InvalidEntry;
 }
 
-const FZenFileSystemManifest::FManifestEntry& FZenFileSystemManifest::AddManifestEntry(FString ServerPath, FString ClientPath)
+const FZenFileSystemManifest::FManifestEntry& FZenFileSystemManifest::AddManifestEntry(const FIoChunkId& FileChunkId, FString ServerPath, FString ClientPath)
 {
+	check(ServerPath.Len() > 0 && ClientPath.Len() > 0);
+
 	ServerPath.ReplaceInline(TEXT("\\"), TEXT("/"));
 	ClientPath.ReplaceInline(TEXT("\\"), TEXT("/"));
+
+	// The server path is always relative to project root
+	if (ServerPath[0] == '/')
+	{
+		ServerPath.RightChopInline(1);
+	}
 
 	int32& EntryIndex = ServerPathToEntry.FindOrAdd(ServerPath, INDEX_NONE);
 
@@ -199,14 +215,14 @@ const FZenFileSystemManifest::FManifestEntry& FZenFileSystemManifest::AddManifes
 	FManifestEntry Entry;
 	Entry.ServerPath = MoveTemp(ServerPath);
 	Entry.ClientPath = MoveTemp(ClientPath);
-	Entry.FileId = static_cast<uint32>(EntryIndex + 1);
+	Entry.FileChunkId = FileChunkId;
 
 	Entries.Add(MoveTemp(Entry));
 
 	return Entries[EntryIndex];
 }
 
-void FZenFileSystemManifest::Save(const TCHAR* Filename)
+bool FZenFileSystemManifest::Save(const TCHAR* Filename)
 {
 	check(Filename);
 
@@ -214,10 +230,13 @@ void FZenFileSystemManifest::Save(const TCHAR* Filename)
 	CsvLines.Add(FString::Printf(TEXT(";ServerRoot=%s, Platform=%s, CookDirectory=%s"), *ServerRoot, *TargetPlatform.PlatformName(), *CookDirectory));
 	CsvLines.Add(TEXT("FileId, ServerPath, ClientPath"));
 
+	TStringBuilder<2048> Sb;
 	for (const FManifestEntry& Entry : Entries)
 	{
-		CsvLines.Add(FString::Printf(TEXT("%d, %s, %s"), Entry.FileId, *Entry.ServerPath, *Entry.ClientPath));
+		Sb.Reset();
+		Sb << Entry.FileChunkId << TEXT(", ") << Entry.ServerPath << TEXT(", ") << *Entry.ClientPath;
+		CsvLines.Add(Sb.ToString());
 	}
 
-	FFileHelper::SaveStringArrayToFile(CsvLines, Filename);
+	return FFileHelper::SaveStringArrayToFile(CsvLines, Filename);
 }
