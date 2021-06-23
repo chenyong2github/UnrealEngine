@@ -361,7 +361,7 @@ struct FOptionallySparseIndexMap
 		}
 		else
 		{
-			Sparse[Index] = Value;
+			Sparse.FindOrAdd(Index) = Value;
 		}
 	}
 
