@@ -30,8 +30,20 @@ namespace HordeServer.Rpc
 			IActionExecuteOperation? Operation;
 			if (ActionTaskSource.TryGetOperation(Request.LeaseId.ToObjectId(), out Operation))
 			{
-				Logger.LogInformation("Setting operation result to {Result}. LeaseId={LeaseId} OperationId={OperationId}", Request.Result, Request.LeaseId, Operation.Id);
-				Operation.TrySetResult(new ActionExecuteResult(Request.Result));
+				Logger.LogInformation("Setting operation result. Result={Result} Error={Error}. LeaseId={LeaseId} OperationId={OperationId}", Request.Result, Request.Error, Request.LeaseId, Operation.Id);
+				if (Request.Error != null)
+				{
+					Operation.TrySetResult(new ActionExecuteResult(Request.Error));	
+				}
+				else if (Request.Result != null)
+				{
+					Operation.TrySetResult(new ActionExecuteResult(Request.Result));	
+				}
+				else
+				{
+					Logger.LogError("Both Result and Error are null!");
+				}
+				
 			}
 			return Task.FromResult<Empty>(new Empty());
 		}

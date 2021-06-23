@@ -511,7 +511,7 @@ namespace HordeServer.Tasks.Impl
 						};
 					}
 					
-					throw new Exception("Either ActionResult or Error must be set");
+					throw new Exception($"Either Result or Error must be set. Result={Result.Result} Error={Result.Error}");
 				}
 			}
 		}
