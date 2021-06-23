@@ -109,11 +109,13 @@ FText FMetaSettingGatherer::ValueToString(EAntiAliasingMethod Value)
 	case AAM_None:
 		return LOCTEXT("AA_None", "None");
 	case AAM_FXAA:
-		return LOCTEXT("AA_FXAA", "FXAA");
+		return LOCTEXT("AA_FXAA", "Fast Approximate Anti-Aliasing (FXAA)");
 	case AAM_TemporalAA:
-		return LOCTEXT("AA_TemporalAA", "Temporal AA");
+		return LOCTEXT("AA_TemporalAA", "Temporal Anti-Aliasing (TAA)");
 	case AAM_MSAA:
-		return LOCTEXT("AA_MSAA", "MSAA");
+		return LOCTEXT("AA_MSAA", "Multisample Anti-Aliasing (MSAA)");
+	case AAM_TSR:
+		return LOCTEXT("AAM_TSR", "Temporal Super-Resolution (TSR)");
 	default:
 		return FText::AsNumber((int32)Value);
 	}
@@ -239,7 +241,7 @@ void FHardwareTargetingModule::GatherSettings(FMetaSettingGatherer& Builder)
 		// DOF and AA work on mobile but are expensive, keeping them off by default
 		//@TODO: DOF setting doesn't exist yet
 		// UE_META_SETTING_ENTRY(Builder, URendererSettings, bDefaultFeatureDepthOfField, bHighEndPC);
-		UE_META_SETTING_ENTRY(Builder, URendererSettings, DefaultFeatureAntiAliasing, bHighEndPC ? AAM_TemporalAA : AAM_None);
+		UE_META_SETTING_ENTRY(Builder, URendererSettings, DefaultFeatureAntiAliasing, bHighEndPC ? AAM_TSR : AAM_None);
 	}
 
 	{

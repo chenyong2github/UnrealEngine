@@ -258,7 +258,7 @@ const FViewInfo* CreateEditorPrimitiveView(const FViewInfo& ParentView, FIntRect
 	// Disable decals so that we don't do a SetDepthStencilState() in TMobileBasePassDrawingPolicy::SetupPipelineState()
 	EditorView->bSceneHasDecals = false;
 
-	if (EditorView->AntiAliasingMethod == AAM_TemporalAA)
+	if (IsTemporalAccumulationBasedMethod(EditorView->AntiAliasingMethod))
 	{
 		EditorView->ViewMatrices.HackRemoveTemporalAAProjectionJitter();
 	}
@@ -363,7 +363,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 			const int32 DepthUpsampleFactor = FMath::Clamp(CVarEditorTemporalUpsampleDepth.GetValueOnRenderThread(), 0, ComputeMaxUpsampleFactor);
 
 			// Upsample the depth at higher resolution to reduce depth intersection instability of editor primitives.
-			if (DepthUpsampleFactor > 0 && View.ViewState && View.AntiAliasingMethod == AAM_TemporalAA)
+			if (DepthUpsampleFactor > 0 && View.ViewState && IsTemporalAccumulationBasedMethod(View.AntiAliasingMethod))
 			{
 				FScreenPassTexture History;
 				{

@@ -1434,7 +1434,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 	FIntPoint PreprocessViewSize = FIntPoint::DivideAndRoundUp(FullResViewSize, PrefilteringResolutionDivisor);
 	FIntPoint GatheringViewSize = PreprocessViewSize;
 
-	if (View.AntiAliasingMethod == AAM_TemporalAA && ViewState)
+	if (IsTemporalAccumulationBasedMethod(View.AntiAliasingMethod) && ViewState)
 	{
 		PreprocessViewSize = FIntPoint::DivideAndRoundUp(TAAParameters.OutputViewRect.Size(), PrefilteringResolutionDivisor);
 	}
@@ -1615,7 +1615,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 	}
 	
 	// TAA the setup for the convolution to be temporally stable.
-	if (View.AntiAliasingMethod == AAM_TemporalAA && ViewState)
+	if (IsTemporalAccumulationBasedMethod(View.AntiAliasingMethod) && ViewState)
 	{
 		TAAParameters.SceneDepthTexture = SceneTextures.SceneDepthTexture;
 		TAAParameters.SceneVelocityTexture = SceneTextures.GBufferVelocityTexture;

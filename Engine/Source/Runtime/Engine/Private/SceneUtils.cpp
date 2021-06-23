@@ -61,8 +61,8 @@ ENGINE_API EAntiAliasingMethod GetDefaultAntiAliasingMethod(const FStaticFeature
 	}
 	else
 	{
-		static auto* DefaultAntiAliasingCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultFeature.AntiAliasing"));
-		AntiAliasingMethod = (EAntiAliasingMethod)DefaultAntiAliasingCvar->GetValueOnAnyThread();
+		static auto* DefaultAntiAliasingCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AntiAliasingMethod"));
+		AntiAliasingMethod = EAntiAliasingMethod(FMath::Clamp(DefaultAntiAliasingCvar->GetValueOnAnyThread(), 0, AAM_MAX));
 	}
 
 	static auto* MSAACountCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MSAACount"));
@@ -71,12 +71,37 @@ ENGINE_API EAntiAliasingMethod GetDefaultAntiAliasingMethod(const FStaticFeature
 
 	EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(InFeatureLevel);
 
-	if (AntiAliasingMethod == EAntiAliasingMethod::AAM_MSAA)
+	if (AntiAliasingMethod == EAntiAliasingMethod::AAM_None)
+	{
+		// NOP
+	}
+	else if (AntiAliasingMethod == EAntiAliasingMethod::AAM_FXAA)
+	{
+		int32 Quality = PostProcessAAQualityCVar->GetValueOnAnyThread();
+
+		if (Quality <= 0)
+		{
+			AntiAliasingMethod = EAntiAliasingMethod::AAM_None;
+		}
+	}
+	else if (AntiAliasingMethod == EAntiAliasingMethod::AAM_TemporalAA)
+	{
+		int32 Quality = PostProcessAAQualityCVar->GetValueOnAnyThread();
+
+		if (Quality <= 0)
+		{
+			AntiAliasingMethod = EAntiAliasingMethod::AAM_None;
+		}
+		else if (Quality == 1 || Quality == 2)
+		{
+			AntiAliasingMethod = AAM_FXAA;
+		}
+	}
+	else if (AntiAliasingMethod == EAntiAliasingMethod::AAM_MSAA)
 	{
 		if (MSAACountCVar->GetValueOnAnyThread() <= 0)
 		{
-			// Fallback to temporal AA so we can easily toggle methods with r.MSAACount
-			AntiAliasingMethod = EAntiAliasingMethod::AAM_TemporalAA;
+			AntiAliasingMethod = EAntiAliasingMethod::AAM_None;
 		}
 		else if ((InFeatureLevel >= ERHIFeatureLevel::SM5 && !IsForwardShadingEnabled(ShaderPlatform))
 			|| (IsMobilePlatform(ShaderPlatform) && IsMobileDeferredShadingEnabled(ShaderPlatform)))
@@ -85,17 +110,17 @@ ENGINE_API EAntiAliasingMethod GetDefaultAntiAliasingMethod(const FStaticFeature
 			AntiAliasingMethod = EAntiAliasingMethod::AAM_None;
 		}
 	}
-
-	int32 Quality = FMath::Clamp(PostProcessAAQualityCVar->GetValueOnAnyThread(), 0, 6);
-
-	if (Quality <= 0)
+	else if (AntiAliasingMethod == EAntiAliasingMethod::AAM_TSR)
 	{
-		AntiAliasingMethod = EAntiAliasingMethod::AAM_None;
+		if (!SupportsTSR(ShaderPlatform))
+		{
+			// Fallback to UE4's TAA if TSR isn't supported on that platform
+			AntiAliasingMethod = AAM_TemporalAA;
+		}
 	}
-
-	if (AntiAliasingMethod == AAM_TemporalAA && Quality < 3)
+	else
 	{
-		AntiAliasingMethod = AAM_FXAA;
+		unimplemented();
 	}
 
 	return AntiAliasingMethod;

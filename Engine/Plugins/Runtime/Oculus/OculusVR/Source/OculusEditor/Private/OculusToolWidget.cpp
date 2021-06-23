@@ -799,7 +799,7 @@ EVisibility SOculusToolWidget::AndroidQuestArchVisibility(FName tag) const
 FReply SOculusToolWidget::AntiAliasingEnable(bool text)
 {
 	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
-	Settings->DefaultFeatureAntiAliasing = EAntiAliasingMethod::AAM_TemporalAA;
+	Settings->DefaultFeatureAntiAliasing = EAntiAliasingMethod::AAM_TemporalAA; // TODO(TSR)
 	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, DefaultFeatureAntiAliasing)), Settings->GetDefaultConfigFilename());
 	return FReply::Handled();
 }

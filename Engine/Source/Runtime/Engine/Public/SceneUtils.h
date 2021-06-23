@@ -35,12 +35,19 @@ UENUM()
 enum EAntiAliasingMethod
 {
 	AAM_None UMETA(DisplayName = "None"),
-	AAM_FXAA UMETA(DisplayName = "FXAA"),
-	AAM_TemporalAA UMETA(DisplayName = "TemporalAA"),
+	AAM_FXAA UMETA(DisplayName = "Fast Approximate Anti-Aliasing (FXAA)"),
+	AAM_TemporalAA UMETA(DisplayName = "Temporal Anti-Aliasing (TAA)"),
 	/** Only supported with forward shading.  MSAA sample count is controlled by r.MSAACount. */
-	AAM_MSAA UMETA(DisplayName = "MSAA"),
+	AAM_MSAA UMETA(DisplayName = "Multisample Anti-Aliasing (MSAA)"),
+	AAM_TSR UMETA(DisplayName = "Temporal Super-Resolution (TSR)"),
 	AAM_MAX,
 };
+
+/** Returns whether the anti-aliasing method use a temporal accumulation */
+inline bool IsTemporalAccumulationBasedMethod(EAntiAliasingMethod AntiAliasingMethod)
+{
+	return AntiAliasingMethod == AAM_TemporalAA || AntiAliasingMethod == AAM_TSR;
+}
 
 /** True if HDR is enabled for the mobile renderer. */
 ENGINE_API bool IsMobileHDR();

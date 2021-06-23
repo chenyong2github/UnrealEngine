@@ -1629,6 +1629,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 			View.FinalPostProcessSettings.AutoExposureMinBrightness < View.FinalPostProcessSettings.AutoExposureMaxBrightness;
 
 		bool bUseTAA = View.AntiAliasingMethod == AAM_TemporalAA;
+		ensure(View.AntiAliasingMethod != AAM_TSR);
 
 		bool bUseDistortion = IsMobileDistortionActive(View);
 
@@ -2219,7 +2220,7 @@ FRDGTextureRef AddProcessPlanarReflectionPass(
 	FSceneViewState* ViewState = View.ViewState;
 	const EAntiAliasingMethod AntiAliasingMethod = View.AntiAliasingMethod;
 
-	if (AntiAliasingMethod == AAM_TemporalAA)
+	if (IsTemporalAccumulationBasedMethod(AntiAliasingMethod))
 	{
 		check(ViewState);
 

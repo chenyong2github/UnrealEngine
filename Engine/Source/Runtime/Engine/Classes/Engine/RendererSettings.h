@@ -537,14 +537,8 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	uint32 bTemporalUpsampling : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
-		EditCondition = "DefaultFeatureAntiAliasing == EAntiAliasingMethod::AAM_TemporalAA",
-		ConsoleVariable = "r.TemporalAA.Algorithm", DisplayName = "Temporal Super Resolution",
-		ToolTip = "Enable UE5's Temporal Super Resolution algorithm. This new technique is mainly built for handling Nanite amount of details on screen and higher output fidelity with lower ScreenPercentage/Dynamic Resolution on desktops and consoles."))
-	uint32 bUseGen5TAA : 1;
-
-	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
-		ConsoleVariable = "r.DefaultFeature.AntiAliasing", DisplayName = "Anti-Aliasing Method",
-		ToolTip = "Which anti-aliasing mode is used by default"))
+		ConsoleVariable = "r.AntiAliasingMethod", DisplayName = "Anti-Aliasing Method",
+		ToolTip = "Selects the anti-aliasing method to use."))
 	TEnumAsByte<EAntiAliasingMethod> DefaultFeatureAntiAliasing;
 
 	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (

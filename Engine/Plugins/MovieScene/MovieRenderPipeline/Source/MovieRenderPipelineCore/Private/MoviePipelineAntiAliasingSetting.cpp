@@ -13,7 +13,7 @@ void UMoviePipelineAntiAliasingSetting::ValidateStateImpl()
 		NumTAASamples = AntiAliasingCVar->GetInt();
 	}
 	
-	if (UE::MovieRenderPipeline::GetEffectiveAntiAliasingMethod(this) == EAntiAliasingMethod::AAM_TemporalAA)
+	if (IsTemporalAccumulationBasedMethod(UE::MovieRenderPipeline::GetEffectiveAntiAliasingMethod(this)))
 	{
 		if ((TemporalSampleCount*SpatialSampleCount) > NumTAASamples)
 		{

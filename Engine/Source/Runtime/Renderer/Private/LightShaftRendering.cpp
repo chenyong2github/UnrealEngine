@@ -345,7 +345,7 @@ FScreenPassTexture AddTemporalAAPass(
 	FTemporalAAHistory* HistoryState,
 	FScreenPassTexture LightShafts)
 {
-	if (View.AntiAliasingMethod == AAM_TemporalAA && HistoryState && GLightShaftAllowTAA)
+	if (IsTemporalAccumulationBasedMethod(View.AntiAliasingMethod) && HistoryState && GLightShaftAllowTAA)
 	{
 		const FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
 
