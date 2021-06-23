@@ -8,7 +8,7 @@
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"
 
-UE_TRACE_CHANNEL(LogChannel)
+UE_TRACE_CHANNEL_DEFINE(LogChannel)
 
 UE_TRACE_EVENT_BEGIN(Logging, LogCategory, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(const void*, CategoryPointer)
