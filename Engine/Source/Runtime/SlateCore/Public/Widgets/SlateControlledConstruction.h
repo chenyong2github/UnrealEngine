@@ -7,10 +7,11 @@
 #include "Types/SlateAttributeDescriptor.h"
 #include "Templates/Identity.h"
 
+enum class ESPMode : uint8;
 class FSlateControlledConstruction;
 namespace SharedPointerInternals
 {
-	template <typename ObjectType>
+	template <typename ObjectType, ESPMode Mode>
 	class TIntrusiveReferenceController;
 }
 
@@ -23,8 +24,8 @@ namespace SharedPointerInternals
 		using PrivateParentType = ParentType; \
 		template<class WidgetType, bool bIsUserWidget> \
 		friend struct TWidgetAllocator; \
-		template <typename ObjectType> \
-		friend class SharedPointerInternals::TIntrusiveReferenceController; \
+		template <typename ObjectType, ESPMode Mode> \
+		friend class SharedPointerInternals::TIntrusiveReferenceController; /* Shouldn't really forward-declare this to allow MakeShared to work, but is for legacy reasons */ \
 		static const FSlateWidgetClassData& GetPrivateWidgetClass() \
 		{ \
 			static FSlateWidgetClassData WidgetClassDataInstance = FSlateWidgetClassData(TIdentity<ParentType>(), #WidgetType, &WidgetType::PrivateRegisterAttributes); \
@@ -113,7 +114,8 @@ private:
 	template<class WidgetType, bool bIsUserWidget>
 	friend struct TWidgetAllocator;
 
-	template <typename ObjectType>
+	/* Shouldn't really forward-declare this to allow MakeShared to work, but is for legacy reasons */
+	template <typename ObjectType, ESPMode Mode>
 	friend class SharedPointerInternals::TIntrusiveReferenceController;
 
 public:
