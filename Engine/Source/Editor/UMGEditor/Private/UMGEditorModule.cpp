@@ -38,6 +38,7 @@
 #include "PropertyEditorModule.h"
 #include "DynamicEntryBoxDetails.h"
 #include "ListViewBaseDetails.h"
+#include "WidgetBlueprintThumbnailRenderer.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -94,11 +95,17 @@ public:
 		PropertyModule.RegisterCustomClassLayout(TEXT("DynamicEntryBoxBase"), FOnGetDetailCustomizationInstance::CreateStatic(&FDynamicEntryBoxBaseDetails::MakeInstance));
 		PropertyModule.RegisterCustomClassLayout(TEXT("DynamicEntryBox"), FOnGetDetailCustomizationInstance::CreateStatic(&FDynamicEntryBoxDetails::MakeInstance));
 		PropertyModule.RegisterCustomClassLayout(TEXT("ListViewBase"), FOnGetDetailCustomizationInstance::CreateStatic(&FListViewBaseDetails::MakeInstance));
+
+		UThumbnailManager::Get().RegisterCustomRenderer(UWidgetBlueprint::StaticClass(), UWidgetBlueprintThumbnailRenderer::StaticClass());
 	}
 
 	/** Called before the module is unloaded, right before the module object is destroyed. */
 	virtual void ShutdownModule() override
 	{
+		if (UObjectInitialized()) 
+		{
+			UThumbnailManager::Get().UnregisterCustomRenderer(UWidgetBlueprint::StaticClass());
+		}
 		MenuExtensibilityManager.Reset();
 		ToolBarExtensibilityManager.Reset();
 
