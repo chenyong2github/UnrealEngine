@@ -607,14 +607,12 @@ struct FFuncInfo
 {
 	/** @name Variables */
 	//@{
-	/** Name of the function or operator. */
-	FToken		Function;
 	/** Function flags. */
-	EFunctionFlags	FunctionFlags;
+	EFunctionFlags	FunctionFlags = FUNC_None;
 	/** Function flags which are only required for exporting */
-	uint32		FunctionExportFlags;
+	uint32		FunctionExportFlags = 0;
 	/** Number of parameters expected for operator. */
-	int32		ExpectParms;
+	int32		ExpectParms = 0;
 	/** Name of the wrapper function that marshalls the arguments and does the indirect call **/
 	FString		MarshallAndCallName;
 	/** Name of the actual implementation **/
@@ -626,37 +624,19 @@ struct FFuncInfo
 	/** Endpoint name */
 	FString		EndpointName;
 	/** Identifier for an RPC call to a platform service */
-	uint16		RPCId;
+	uint16		RPCId = 0;
 	/** Identifier for an RPC call expecting a response */
-	uint16		RPCResponseId;
+	uint16		RPCResponseId = 0;
 	/** Delegate macro line in header. */
-	int32		MacroLine;
+	int32		MacroLine = -1;
 	/** Position in file where this function was declared. Points to first char of function name. */
-	int32 InputPos;
+	int32		InputPos = -1;
 	/** Whether this function represents a sealed event */
-	bool		bSealedEvent;
+	bool		bSealedEvent = false;
 	/** TRUE if the function is being forced to be considered as impure by the user */
-	bool bForceBlueprintImpure;
+	bool		bForceBlueprintImpure = false;
 
 	//@}
-
-	/** Constructor. */
-	FFuncInfo()
-		: Function()
-		, FunctionFlags(FUNC_None)
-		, FunctionExportFlags(0)
-		, ExpectParms(0)
-		, RPCId(0)
-		, RPCResponseId(0)
-		, MacroLine(-1)
-		, InputPos(-1)
-		, bSealedEvent(false)
-		, bForceBlueprintImpure(false)
-	{}
-
-	FFuncInfo(const FFuncInfo& Other) = default;
-	FFuncInfo(FFuncInfo&& Other) = default;
-	FFuncInfo& operator=(FFuncInfo&& Other) = default;
 
 	/** Set the internal function names based on flags **/
 	void SetFunctionNames(FUnrealFunctionDefinitionInfo& FunctionDef);
