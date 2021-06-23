@@ -78,6 +78,7 @@ bool FOnlineSubsystemEOSPlus::Init()
 	StoreInterfacePtr = MakeShareable(new FOnlineStoreEOSPlus(this));
 	ExternalUIInterfacePtr = MakeShareable(new FOnlineExternalUIEOSPlus(this));
 
+	UserInterfacePtr->Initialize();
 	LeaderboardsInterfacePtr->Initialize();
 	StoreInterfacePtr->Initialize();
 	ExternalUIInterfacePtr->Initialize();
@@ -207,7 +208,7 @@ IOnlineSharingPtr FOnlineSubsystemEOSPlus::GetSharingInterface() const
 
 IOnlineUserPtr FOnlineSubsystemEOSPlus::GetUserInterface() const
 {
-	return nullptr;
+	return UserInterfacePtr;
 }
 
 IOnlineMessagePtr FOnlineSubsystemEOSPlus::GetMessageInterface() const
