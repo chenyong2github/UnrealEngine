@@ -164,12 +164,16 @@ float ComputeDiffuseTransmission(
 
 	// Refract inward and force a scattering event
 	float3 Tr = refract(V, N, Eta);
+	if (all(Tr) == 0.0)
+	{
+		return TransmissionDistance;
+	}
 
 	// Find bounding sub-surface ray extent
 	const uint RayFlags = 0;
 	const uint InstanceInclusionMask = RAY_TRACING_MASK_OPAQUE;
 
-	float TMax = SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE;
+	float TMax = TransmissionDistance;
 	if (bTransmissionSamplingDistanceCulling)
 	{
 		RayDesc RejectionTestRay;
@@ -185,11 +189,15 @@ float ComputeDiffuseTransmission(
 			PixelCoord,
 			RejectionTestRay);
 		TMax = (RejectionTestPayload.IsHit() ? RejectionTestPayload.HitT : RejectionTestRay.TMax);
+		if (RejectionTestPayload.IsMiss())
+		{
+			return TransmissionDistance;
+		}
 	}
 
 	float RandSample = RandomSequence_GenerateSample1D(RandSequence);
 
-	float ScatterDistance = SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE;
+	float ScatterDistance = TransmissionDistance;
 	float ScatterDistancePdf = 0.0;
 	if (TransmissionSamplingTechnique == TransmissionSampling_ConstantTrackingFiniteDomain)
 	{
@@ -215,7 +223,6 @@ float ComputeDiffuseTransmission(
 		}
 		if (ScatterDistance > TMax)	return 0.0;
 	}
-
 	ScatterDistance /= ScatterDistancePdf;
 
 	// Build sub-surface scattering ray
@@ -251,8 +258,7 @@ float ComputeDiffuseTransmission(
 		}
 	}
 
-	// Conversion to raster model: 1.0 - (distance / SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE)
-	return EncodeThickness(TransmissionDistance / SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE);
+	return TransmissionDistance;
 }
 
 struct FOcclusionResult
@@ -509,15 +515,23 @@ FOcclusionResult ComputeOcclusion(
 		RandomSequence RandSequence;
 		RandomSequence_Initialize(RandSequence, PixelCoord, 0, TimeSeed, 1);
 
-		// Snag two variables to fix light sampling for all computations..
-		const float2 LightSample = RandomSequence_GenerateSample2D(RandSequence);
+		// Fix light sampling to occur at the light center for all transmission computations..
+		float2 LightSample = 0.5;
 		const float3 V = normalize(WorldPosition - View.WorldViewOrigin);
 
 		const float MeanFreePath = TransmissionProfileParams.ExtinctionScale;
 		const float Eta = TransmissionProfileParams.OneOverIOR;
 		const uint RejectionRetryMax = LocalSamplesPerPixel - 1;
-
 		Out.TransmissionDistance = ComputeDiffuseTransmission(V, WorldPosition, WorldNormal, MeanFreePath, Eta, LightParameters, LightSample, RandSequence, RejectionRetryMax, PixelCoord);
+
+		// Overload closest-hit distance to express occlusion distance when facing the light or transmission distance when back-facing
+		if (Out.TransmissionDistance < SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE)
+		{
+			Out.ClosestRayDistance = max(Out.ClosestRayDistance, Out.TransmissionDistance);
+		}
+
+		// Conversion to raster model: 1.0 - (distance / SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE)
+		Out.TransmissionDistance = saturate(EncodeThickness(Out.TransmissionDistance / (SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE)));
 	}
 	else if (ShadingModelID == SHADINGMODELID_SUBSURFACE || ShadingModelID == SHADINGMODELID_HAIR)
 	{
