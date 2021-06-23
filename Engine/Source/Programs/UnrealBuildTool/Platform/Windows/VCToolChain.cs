@@ -356,6 +356,12 @@ namespace UnrealBuildTool
 				// Use the CRT allocator so that ASan is able to hook into it for better error
 				// detection.
 				AddDefinition(Arguments, "FORCE_ANSI_ALLOCATOR=1");
+
+				// MSVC has no support for __has_feature(address_sanitizer)
+				if (Target.WindowsPlatform.Compiler != WindowsCompiler.Clang)
+				{
+					AddDefinition(Arguments, "USING_ADDRESS_SANITISER=1");
+				}
 			}
 
 			//
