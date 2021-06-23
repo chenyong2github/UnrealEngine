@@ -100,6 +100,7 @@ namespace HordeAgent
 			{
 				throw new RpcException(new Grpc.Core.Status(StatusCode.NotFound, "Unable to find action message"));
 			}
+			Logger.LogInformation("Using action {Hash} / {Size} bytes for lease ID {LeaseId}", ActionTask.Digest.Hash, ActionTask.Digest.SizeBytes, LeaseId);
 
 			DirectoryReference.CreateDirectory(SandboxDir);
 			FileUtils.ForceDeleteDirectoryContents(SandboxDir);
