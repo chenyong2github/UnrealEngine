@@ -413,7 +413,6 @@ float4 ClothingPosition(FClothVertex ClothVertexInfluences[NUM_INFLUENCES_PER_VE
 			float Weight = 1.0f;
 			if ( NUM_INFLUENCES_PER_VERTEX > 1 )
 			{
-				// Weight is packed in the last coordinate
 				Weight = Influence.Weight;
 				SumWeights += Weight;
 			}
@@ -444,6 +443,7 @@ float4 ClothingPosition(FClothVertex ClothVertexInfluences[NUM_INFLUENCES_PER_VE
 	else
 	{
 		AveragedSimulatedPosition = float3(0, 0, 0);
+		SimulWeight = 0.0f;			// Fall back to skinned vertex position by setting this lerp param to zero
 	}
 
 	SimulWeight /= NUM_INFLUENCES_PER_VERTEX;
@@ -724,20 +724,21 @@ float3x3 SkinTangents( FVertexFactoryInput Input, FVertexFactoryIntermediates In
 		    // cloth data are all in world space so need to change into local space
 		    TangentToLocal[0] = mul(TangentToLocal[0], (half3x3)Intermediates.WorldToLocal);
 		    TangentToLocal[2] = mul(TangentToLocal[2], (half3x3)Intermediates.WorldToLocal);
+	
+			// derive the new binormal by getting the cross product of the normal and tangent
+			// and flip vector based on sign of tangent basis determinant
+			TangentToLocal[1] = cross(TangentToLocal[2], TangentToLocal[0]) * LocalTangentZ.w;
+	
+			ClothTangent = TangentToLocal;
         }
 	    else
 	    {
-		    TempClothBlendWeight = 0.0f;
+		    SimulWeight = 0.0f;			// Fall back to skinned data by setting this lerp param to zero
 	    }
 
 		TempClothBlendWeight *= SimulWeight;
-
-		// derive the new binormal by getting the cross product of the normal and tangent
-		// and flip vector based on sign of tangent basis determinant
-		TangentToLocal[1] = cross(TangentToLocal[2], TangentToLocal[0]) * LocalTangentZ.w;
-	
-		ClothTangent = TangentToLocal;
 	}
+	
 	#endif // GPUSKIN_APEX_CLOTH
 
 #endif // GPUSKIN_MORPH_BLEND
