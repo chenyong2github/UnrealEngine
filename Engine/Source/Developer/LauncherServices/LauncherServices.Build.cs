@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 					"TargetPlatform",
 					"UnrealEdMessages",
 					"JSON",
+					"TurnkeyIO",
 				});
 
 			PrivateIncludePathModuleNames.AddRange(

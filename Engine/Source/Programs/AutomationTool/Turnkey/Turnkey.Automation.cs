@@ -14,7 +14,12 @@ namespace Turnkey
 		public override ExitCode Execute()
 		{
 			IOProvider IOProvider;
-			if (ParseParam("EditorIO"))
+			if (ParseParam("EditorIOPort"))
+			{
+				int Port = ParseParamInt("EditorIOPort");
+				IOProvider = new EditorIOClient(Port);
+			}
+			else if (ParseParam("EditorIO"))
 			{
 				IOProvider = new HybridIOProvider();
 			}

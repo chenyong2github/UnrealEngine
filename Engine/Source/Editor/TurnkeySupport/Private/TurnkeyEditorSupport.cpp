@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TurnkeyEditorSupport.h"
+#include "ITurnkeyIOModule.h"
 #include "Misc/AssertionMacros.h"
 
 #if WITH_EDITOR
@@ -130,7 +131,7 @@ void FTurnkeyEditorSupport::LaunchRunningMap(const FString& DeviceId, const FStr
 			// if we want to check device flash before we start cooking, kick it off now. we could delay this 
 			if (bUseTurnkey)
 			{
-				FString CommandLine = FString::Printf(TEXT("Turnkey -command=VerifySdk -UpdateIfNeeded -platform=%s -EditorIO -noturnkeyvariables -device=%s -utf8output -WaitForUATMutex %s"), *UBTPlatformName, *TargetDeviceId.GetDeviceName(), *PlatformInfo->UATCommandLine);
+				FString CommandLine = FString::Printf(TEXT("Turnkey -command=VerifySdk -UpdateIfNeeded -platform=%s -noturnkeyvariables -device=%s -utf8output -WaitForUATMutex %s %s"), *UBTPlatformName, *TargetDeviceId.GetDeviceName(), *PlatformInfo->UATCommandLine, *ITurnkeyIOModule::Get().GetUATParams());
 				if (!ProjectPath.IsEmpty())
 				{
 					CommandLine = FString::Printf(TEXT(" -ScriptsForProject=\"%s\" %s -project=\"%s\""), *ProjectPath, *CommandLine, *ProjectPath);
