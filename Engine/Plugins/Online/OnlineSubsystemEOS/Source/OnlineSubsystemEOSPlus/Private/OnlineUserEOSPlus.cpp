@@ -25,10 +25,12 @@ static inline EOSSValue ToEOSSValue(FName OSSName)
 	{
 		return EOSSValue::PS4;
 	}
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	else if (OSSName == LIVE_SUBSYSTEM)
 	{
 		return EOSSValue::XboxLive;
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	else if (OSSName == SWITCH_SUBSYSTEM)
 	{
 		return EOSSValue::Switch;
@@ -50,10 +52,12 @@ static inline FName ToOSSName(EOSSValue OSSValue)
 	{
 		return PS4_SUBSYSTEM;
 	}
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	else if (OSSValue == EOSSValue::XboxLive)
 	{
 		return LIVE_SUBSYSTEM;
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	else if (OSSValue == EOSSValue::Switch)
 	{
 		return SWITCH_SUBSYSTEM;

@@ -48,10 +48,12 @@ void FSocialInteraction_AddFriend::ExecuteInteraction(USocialUser& User)
 FText FSocialInteraction_AddPlatformFriend::GetDisplayName(const USocialUser& User)
 {
 	const FName PlatformOssName = USocialManager::GetSocialOssName(ESocialSubsystem::Platform);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (PlatformOssName == LIVE_SUBSYSTEM)
 	{
 		return LOCTEXT("AddPlatformFriend_Live", "Add Xbox Live Friend");
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	else if (PlatformOssName == PS4_SUBSYSTEM)
 	{
 		return LOCTEXT("AddPlatformFriend_PSN", "Add Playstation Network Friend");
