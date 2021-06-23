@@ -416,22 +416,18 @@ public:
 		AssetRegistry.OnAssetRemoved().AddRaw(this, &FRemoteControlModule::OnAssetRemoved);
 		AssetRegistry.OnAssetRenamed().AddRaw(this, &FRemoteControlModule::OnAssetRenamed);
 
-		if (AssetRegistry.IsLoadingAssets())
-		{
-			AssetRegistry.OnFilesLoaded().AddRaw(this, &FRemoteControlModule::CachePresets);
-		}
-		else
-		{
-			CachePresets();
-		}
-
 		// Instantiate the RCI processor feature on module start
 		RCIProcessor = MakeUnique<FRemoteControlInterceptionProcessor>();
 		// Register the interceptor feature
 		IModularFeatures::Get().RegisterModularFeature(IRemoteControlInterceptionFeatureProcessor::GetName(), RCIProcessor.Get());
 
+		if (AssetRegistry.IsLoadingAssets())
+		{
+			AssetRegistry.OnFilesLoaded().AddRaw(this, &FRemoteControlModule::CachePresets);
+		}
+
 #if WITH_EDITOR
-		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FRemoteControlModule::RegisterEditorDelegates);
+		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FRemoteControlModule::HandleEnginePostInit);
 #endif
 	}
 
@@ -529,6 +525,7 @@ public:
 
 	virtual bool InvokeCall(FRCCall& InCall, ERCPayloadType InPayloadType = ERCPayloadType::Json, const TArray<uint8>& InInterceptPayload = TArray<uint8>()) override
 	{
+		UE_LOG(LogRemoteControl, VeryVerbose, TEXT("Invoke function"));
 		if (InCall.IsValid())
 		{
 			// Check the replication path before apply property values
@@ -549,6 +546,7 @@ public:
 					if (Interceptor)
 					{
 						// Update response flag
+						UE_LOG(LogRemoteControl, VeryVerbose, TEXT("Invoke function - Intercepted"));
 						bShouldIntercept |= (Interceptor->InvokeCall(FunctionMetadata) == ERCIResponse::Intercept);
 					}
 				}
@@ -768,6 +766,7 @@ public:
 	virtual bool SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType, const TArray<uint8>& InPayload) override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FRemoteControlModule::SetObjectProperties);
+		UE_LOG(LogRemoteControl, VeryVerbose, TEXT("Set Object Properties"));
 		// Check the replication path before applying property values
 		if (InPayload.Num() != 0 && ObjectAccess.Object.IsValid())
 		{
@@ -780,7 +779,9 @@ public:
 				RemoteControlSetterUtils::FConvertToFunctionCallArgs Args(ObjectAccess, Backend, Call);
 				if (RemoteControlSetterUtils::ConvertModificationToFunctionCall(Args, InterceptionPayload))
 				{
-					return InvokeCall(Call, InterceptionPayload.Type, InterceptionPayload.Payload);
+					const bool bResult = InvokeCall(Call, InterceptionPayload.Type, InterceptionPayload.Payload);
+					PostPropertyModifiedRemotelyDelegate.Broadcast(ObjectAccess);
+					return bResult;
 				}
 			}
 
@@ -808,6 +809,7 @@ public:
 				if (Interceptor)
 				{
 					// Update response flag
+					UE_LOG(LogRemoteControl, VeryVerbose, TEXT("Set Object Properties - Intercepted"));
 					bShouldIntercept |= (Interceptor->SetObjectProperties(PropsMetadata) == ERCIResponse::Intercept);
 				}
 			}
@@ -826,7 +828,9 @@ public:
 			RemoteControlSetterUtils::FConvertToFunctionCallArgs Args(ObjectAccess, Backend, Call);
 			if (RemoteControlSetterUtils::ConvertModificationToFunctionCall(Args))
 			{
-				return InvokeCall(Call);
+				const bool bResult = InvokeCall(Call);
+				PostPropertyModifiedRemotelyDelegate.Broadcast(ObjectAccess);
+				return bResult;
 			}
 		}
 
@@ -856,19 +860,24 @@ public:
 					if (GEditor && bGenerateTransaction)
 					{
 						GEditor->BeginTransaction(LOCTEXT("RemoteSetPropertyTransaction", "Remote Set Object Property"));
+
+						// Call modify since it's not called by PreEditChange until the end of the ongoing change.
+						ObjectAccess.Object.Get()->Modify();
+
 					}
 				}
 			}
 			else 
 			{
-				FEditPropertyChain PreEditChain;
-				ObjectAccess.PropertyPathInfo.ToEditPropertyChain(PreEditChain);
-				Object->PreEditChange(PreEditChain);
-				
 				if (GEditor && bGenerateTransaction)
 				{
 					GEditor->BeginTransaction(LOCTEXT("RemoteSetPropertyTransaction", "Remote Set Object Property"));
 				}
+
+				FEditPropertyChain PreEditChain;
+				ObjectAccess.PropertyPathInfo.ToEditPropertyChain(PreEditChain);
+				Object->PreEditChange(PreEditChain);
+				
 			}
 #endif
 
@@ -923,13 +932,13 @@ public:
 			}
 			else
 			{
-				FPropertyChangedEvent PropertyEvent(ObjectAccess.PropertyPathInfo.ToPropertyChangedEvent());
-				Object->PostEditChangeProperty(PropertyEvent);
-				
 				if (GEditor && bGenerateTransaction)
 				{
 					GEditor->EndTransaction();
 				}
+
+				FPropertyChangedEvent PropertyEvent(ObjectAccess.PropertyPathInfo.ToPropertyChangedEvent());
+				Object->PostEditChangeProperty(PropertyEvent);
 			}
 #endif
 			PostPropertyModifiedRemotelyDelegate.Broadcast(ObjectAccess);
@@ -1295,6 +1304,12 @@ private:
 				OngoingModification->bWasTriggeredSinceLastPass = false;
 			}
 		}
+	}
+
+	void HandleEnginePostInit()
+	{
+		CachePresets();
+		RegisterEditorDelegates();
 	}
 
 	void RegisterEditorDelegates()
