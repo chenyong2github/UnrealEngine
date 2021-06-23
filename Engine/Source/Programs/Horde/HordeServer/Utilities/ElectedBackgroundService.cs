@@ -26,6 +26,7 @@ namespace HordeServer.Utilities
 		SingletonDocument<State> StateAccessor;
 		TimeSpan PollInterval;
 		TimeSpan ElectionTimeout;
+		bool ReadOnlyMode;
 
 		/// <summary>
 		/// Constructor
@@ -52,6 +53,7 @@ namespace HordeServer.Utilities
 			this.StateAccessor = new SingletonDocument<State>(DatabaseService, ServiceId);
 			this.PollInterval = PollInterval;
 			this.ElectionTimeout = ElectionTimeout;
+			this.ReadOnlyMode = DatabaseService.ReadOnlyMode;
 		}
 
 		/// <summary>
@@ -61,6 +63,11 @@ namespace HordeServer.Utilities
 		/// <returns>Async task</returns>
 		protected override sealed async Task TickAsync(CancellationToken StoppingToken)
 		{
+			if (ReadOnlyMode)
+			{
+				return;
+			}
+
 			DateTime UtcNow = DateTime.UtcNow;
 			for (; ; )
 			{
