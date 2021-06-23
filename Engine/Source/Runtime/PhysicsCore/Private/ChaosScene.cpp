@@ -40,6 +40,9 @@ CSV_DEFINE_CATEGORY(ChaosPhysics,true);
 
 // Stat Counters
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumDirtyAABBTreeElements"), STAT_ChaosCounter_NumDirtyAABBTreeElements, STATGROUP_ChaosCounters);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumDirtyGridOverflowElements"), STAT_ChaosCounter_NumDirtyGridOverflowElements, STATGROUP_ChaosCounters);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumDirtyElementsTooLargeForGrid"), STAT_ChaosCounter_NumDirtyElementsTooLargeForGrid, STATGROUP_ChaosCounters);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumDirtyNonEmptyCellsInGrid"), STAT_ChaosCounter_NumDirtyNonEmptyCellsInGrid, STATGROUP_ChaosCounters);
 
 TAutoConsoleVariable<int32> CVar_ChaosSimulationEnable(TEXT("P.Chaos.Simulation.Enable"),1,TEXT("Enable / disable chaos simulation. If disabled, physics will not tick."));
 TAutoConsoleVariable<int32> CVar_ApplyProjectSettings(TEXT("p.Chaos.Simulation.ApplySolverProjectSettings"), 1, TEXT("Whether to apply the solver project settings on spawning a solver"));
@@ -432,27 +435,24 @@ void FChaosScene::SyncBodies(TSolver* Solver)
 #endif
 }
 
-
-// Find the number of dirty elements in all substructures that has dirty elements that we know of
-// This is non recursive for now
-// Todo: consider making DirtyElementsCount a method on ISpatialAcceleration instead
-int32 DirtyElementCount(Chaos::ISpatialAccelerationCollection<Chaos::FAccelerationStructureHandle,Chaos::FReal,3>& Collection)
+// Accumulate all the AABBTree stats
+void GetAABBTreeStats(Chaos::ISpatialAccelerationCollection<Chaos::FAccelerationStructureHandle, Chaos::FReal, 3>& Collection, Chaos::AABBTreeStatistics& OutAABBTreeStatistics)
 {
 	using namespace Chaos;
-	int32 DirtyElements = 0;
+	OutAABBTreeStatistics.Reset();
 	TArray<FSpatialAccelerationIdx> SpatialIndices = Collection.GetAllSpatialIndices();
-	for(const FSpatialAccelerationIdx SpatialIndex : SpatialIndices)
+	for (const FSpatialAccelerationIdx SpatialIndex : SpatialIndices)
 	{
 		auto SubStructure = Collection.GetSubstructure(SpatialIndex);
-		if(const auto AABBTree = SubStructure->template As<TAABBTree<FAccelerationStructureHandle,TAABBTreeLeafArray<FAccelerationStructureHandle>>>())
+		if (const auto AABBTree = SubStructure->template As<TAABBTree<FAccelerationStructureHandle, TAABBTreeLeafArray<FAccelerationStructureHandle>>>())
 		{
-			DirtyElements += AABBTree->NumDirtyElements();
-		} else if(const auto AABBTreeBV = SubStructure->template As<TAABBTree<FAccelerationStructureHandle,TBoundingVolume<FAccelerationStructureHandle>>>())
+			OutAABBTreeStatistics += AABBTree->GetAABBTreeStatistics();
+		}
+		else if (const auto AABBTreeBV = SubStructure->template As<TAABBTree<FAccelerationStructureHandle, TBoundingVolume<FAccelerationStructureHandle>>>())
 		{
-			DirtyElements += AABBTreeBV->NumDirtyElements();
+			OutAABBTreeStatistics += AABBTreeBV->GetAABBTreeStatistics();
 		}
 	}
-	return DirtyElements;
 }
 
 void FChaosScene::EndFrame()
@@ -468,9 +468,20 @@ void FChaosScene::EndFrame()
 		return;
 	}
 
-	int32 DirtyElements = DirtyElementCount(GetSpacialAcceleration()->AsChecked<SpatialAccelerationCollection>());
-	CSV_CUSTOM_STAT(ChaosPhysics,AABBTreeDirtyElementCount,DirtyElements,ECsvCustomStatOp::Set);
-	SET_DWORD_STAT(STAT_ChaosCounter_NumDirtyAABBTreeElements, DirtyElements);
+	Chaos::AABBTreeStatistics TreeStats;
+	GetAABBTreeStats(GetSpacialAcceleration()->AsChecked<SpatialAccelerationCollection>(), TreeStats);
+
+	CSV_CUSTOM_STAT(ChaosPhysics, AABBTreeDirtyElementCount, TreeStats.StatNumDirtyElements, ECsvCustomStatOp::Set);
+	SET_DWORD_STAT(STAT_ChaosCounter_NumDirtyAABBTreeElements, TreeStats.StatNumDirtyElements);
+
+	CSV_CUSTOM_STAT(ChaosPhysics, AABBTreeDirtyGridOverflowCount, TreeStats.StatNumGridOverflowElements, ECsvCustomStatOp::Set);
+	SET_DWORD_STAT(STAT_ChaosCounter_NumDirtyGridOverflowElements, TreeStats.StatNumGridOverflowElements);
+
+	CSV_CUSTOM_STAT(ChaosPhysics, AABBTreeDirtyElementTooLargeCount, TreeStats.StatNumElementsTooLargeForGrid, ECsvCustomStatOp::Set);
+	SET_DWORD_STAT(STAT_ChaosCounter_NumDirtyElementsTooLargeForGrid, TreeStats.StatNumElementsTooLargeForGrid);
+
+	CSV_CUSTOM_STAT(ChaosPhysics, AABBTreeDirtyElementNonEmptyCellCount, TreeStats.StatNumNonEmptyCellsInGrid, ECsvCustomStatOp::Set);
+	SET_DWORD_STAT(STAT_ChaosCounter_NumDirtyNonEmptyCellsInGrid, TreeStats.StatNumNonEmptyCellsInGrid);
 
 	check(IsCompletionEventComplete())
 	//check(PhysicsTickTask->IsComplete());
