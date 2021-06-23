@@ -40,8 +40,6 @@ struct FComputeGraphEdge
 	GENERATED_BODY()
 
 	UPROPERTY()
-	bool bKernelInput;
-	UPROPERTY()
 	int32 KernelIndex;
 	UPROPERTY()
 	int32 KernelBindingIndex;
@@ -49,11 +47,21 @@ struct FComputeGraphEdge
 	int32 DataInterfaceIndex;
 	UPROPERTY()
 	int32 DataInterfaceBindingIndex;
+	UPROPERTY()
+	bool bKernelInput;
 
 	// Optional name to use for the proxy generation function, in case the kernel expects
 	// something other than the interface's bind name. Leave empty to go with the default. 
 	UPROPERTY()
 	FString BindingFunctionNameOverride;
+
+	FComputeGraphEdge()
+		: KernelIndex(0)
+		, KernelBindingIndex(0)
+		, DataInterfaceIndex(0)
+		, DataInterfaceBindingIndex(0)
+		, bKernelInput(false)
+	{}
 };
 
 /** 

@@ -162,7 +162,7 @@ struct ENGINE_API FShaderValueType
 	FString GetTypeDeclaration() const;
 
 	UPROPERTY()
-	EShaderFundamentalType Type;
+	EShaderFundamentalType Type = EShaderFundamentalType::Bool;
 
 	UPROPERTY()
 	EShaderFundamentalDimensionType DimensionType = EShaderFundamentalDimensionType::Scalar;
@@ -232,19 +232,19 @@ public:
 	FShaderValueTypeHandle ValueType;
 
 	UPROPERTY()
-	uint16 ArrayElementCount; // 0 indicates not an array. >= 1 indicates an array
+	uint16 ArrayElementCount = 0; // 0 indicates not an array. >= 1 indicates an array
 
 	UPROPERTY()
-	EShaderFundamentalType FundamentalType;
+	EShaderFundamentalType FundamentalType = EShaderFundamentalType::Bool;
 
 	UPROPERTY()
-	EShaderFundamentalDimensionType	DimType;
+	EShaderFundamentalDimensionType	DimType = EShaderFundamentalDimensionType::Scalar;
 
 	UPROPERTY()
-	EShaderParamBindingType BindingType;
+	EShaderParamBindingType BindingType = EShaderParamBindingType::None;
 
 	UPROPERTY()
-	EShaderResourceType	ResourceType;
+	EShaderResourceType	ResourceType = EShaderResourceType::None;
 
 	union
 	{
@@ -326,5 +326,5 @@ public:
 
 	/** If set to true then the first element of ParamTypes is the return type. Otherwise return type is void. */
 	UPROPERTY()
-	bool bHasReturnType;
+	bool bHasReturnType = false;
 };
