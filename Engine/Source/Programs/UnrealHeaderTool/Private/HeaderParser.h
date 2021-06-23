@@ -387,7 +387,7 @@ protected:
 	/**
 	 * Create new function object based on given info structure.
 	 */
-	FUnrealFunctionDefinitionInfo& CreateFunction(FFuncInfo&& FuncInfo, EFunctionType InFunctionType) const;
+	FUnrealFunctionDefinitionInfo& CreateFunction(const TCHAR* FuncName, FFuncInfo&& FuncInfo, EFunctionType InFunctionType) const;
 
 	FUnrealClassDefinitionInfo& CompileClassDeclaration();
 	FUnrealFunctionDefinitionInfo& CompileDelegateDeclaration(const TCHAR* DelegateIdentifier, EDelegateSpecifierAction::Type SpecifierAction = EDelegateSpecifierAction::DontParse);
