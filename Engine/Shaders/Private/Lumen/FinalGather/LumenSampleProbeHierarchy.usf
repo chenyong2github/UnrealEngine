@@ -141,14 +141,6 @@ void MainCS(
 
 		DiffuseLighting *= fInvSamplePerPixel;
 
-		// Don't temporally accumulate hair's base color, to keep base color sharpness even if the characters are constantly moving.
-		BRANCH
-		if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
-		{
-			DiffuseLighting *= -min(-rcp(GBuffer.BaseColor), 0.0);
-		}
-
-
 		#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
 		{
 			// Diffuse occlusion from the material's bent normal

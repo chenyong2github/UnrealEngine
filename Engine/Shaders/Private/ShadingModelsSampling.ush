@@ -123,6 +123,11 @@ FBxDFSample SampleHairBxDF(uint TermMask, FGBufferData GBuffer, float3 V, float4
 	float4 L = UniformSampleSphere(E.xy);
 	float NoL = dot(N, L.xyz);
 
+	// Enforce white albedo to insure so that the output contains only the integrated lighting. 
+	// This ensures the hair lighting history i sstored into the same white-albedo space as other 
+	// material, and so that history neighboring clamping works correctly in area with mix materials
+	GBuffer.BaseColor = 1;
+
 	FHairTransmittanceData TransmittanceData = InitHairTransmittanceData(true);
 	#if USE_HAIR_COMPLEX_TRANSMITTANCE
 	if (ShouldUseHairComplexTransmittance(GBuffer))

@@ -67,6 +67,9 @@
 
 #endif
 
+#include "HairStrands/HairStrandsCommon.ush"
+#include "HairStrands/HairStrandsDeepTransmittanceCommon.ush"
+#include "HairStrands/HairStrandsDeepTransmittanceDualScattering.ush"
 
 //------------------------------------------------------- PARAMETERS
 
@@ -264,7 +267,13 @@ void MainPS(
 		if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
 		{
 			IndirectLighting.Diffuse = 0;
-			IndirectLighting.Specular = RoughSpecularIndirectLighting; // The lighting is already fully integrated by lumen rough specular integrator (uniformly sampled weighted by BSDF
+			IndirectLighting.Specular = 0;
+
+			// Evaluate the hair BSDF for a imaginary reflected direction, and uses it a measure of the directional albedo
+			const float3 L = normalize(V - N * dot(V, N));
+			FHairTransmittanceData TransmittanceData = EvaluateDualScattering(GBuffer, V, L.xyz);
+			float3 f_s = PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 1, 0.2, uint2(0, 0));
+			IndirectLighting.Diffuse = DiffuseIndirectLighting * DiffuseIndirectAO * f_s;			
 		}
 		else
 		{
