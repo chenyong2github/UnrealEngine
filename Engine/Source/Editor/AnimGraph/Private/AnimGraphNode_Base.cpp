@@ -850,6 +850,7 @@ TSharedRef<SWidget> UAnimGraphNode_Base::MakePropertyBindingWidget(const FAnimPr
 			None,
 			Pin,
 			Binding,
+			Dynamic,
 			MultipleValues,
 		};
 
@@ -860,6 +861,7 @@ TSharedRef<SWidget> UAnimGraphNode_Base::MakePropertyBindingWidget(const FAnimPr
 			const FText MultipleValues = LOCTEXT("MultipleValuesLabel", "Multiple Values");
 			const FText Bind = LOCTEXT("BindLabel", "Bind");
 			const FText ExposedAsPin = LOCTEXT("ExposedAsPinLabel", "Pin");
+			const FText Dynamic = LOCTEXT("DynamicLabel", "Dynamic");
 			FText CurrentValue = Bind;
 
 			auto SetAssignValue = [&CurrentValueType, &CurrentValue, &MultipleValues](const FText& InValue, ECurrentValueType InType)
@@ -893,6 +895,10 @@ TSharedRef<SWidget> UAnimGraphNode_Base::MakePropertyBindingWidget(const FAnimPr
 				{
 					SetAssignValue(BindingPtr->PathAsText, ECurrentValueType::Binding);
 				}
+				else if(AnimGraphNode->AlwaysDynamicProperties.Find(InArgs.PinName))
+				{
+					SetAssignValue(Dynamic, ECurrentValueType::Dynamic);
+				}
 				else
 				{
 					if(AnimGraphNode->ShowPinForProperties[InArgs.OptionalPinIndex].bShowPin)
@@ -916,6 +922,7 @@ TSharedRef<SWidget> UAnimGraphNode_Base::MakePropertyBindingWidget(const FAnimPr
 			const FText MultipleValues = LOCTEXT("MultipleValuesToolTip", "Bindings Have Multiple Values");
 			const FText ExposedAsPin = LOCTEXT("ExposedAsPinToolTip", "Exposed As a Pin on the Node");
 			const FText BindValue = LOCTEXT("BindValueToolTip", "Bind This Value");
+			const FText DynamicValue = LOCTEXT("DynamicValueToolTip", "Dynamic value that can be set externally");
 			FText CurrentValue;
 			
 			auto SetAssignValue = [&CurrentValueType, &CurrentValue, &MultipleValues](const FText& InValue, ECurrentValueType InType)
@@ -964,6 +971,10 @@ TSharedRef<SWidget> UAnimGraphNode_Base::MakePropertyBindingWidget(const FAnimPr
 							SetAssignValue(FText::Format(LOCTEXT("BindingToolTipFormatWithDesc", "Pin is bound to property '{0}'\n{1}\n{2}"), BindingPtr->PathAsText, CompilationContext, CompilationContextDesc), ECurrentValueType::Binding);
 						}
 					}
+				}
+				else if(AnimGraphNode->AlwaysDynamicProperties.Find(InArgs.PinName))
+				{
+					SetAssignValue(DynamicValue, ECurrentValueType::Dynamic);
 				}
 				else
 				{
