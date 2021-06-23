@@ -310,14 +310,18 @@ bool SRCProtocolBindingList::Refresh(bool bNavigateToEnd)
 		if(!CanAddProtocol())
 		{
 			return false;
-		}			
+		}
+
 		
-		GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this, bNavigateToEnd]()
+		GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([bNavigateToEnd, WeakListPtr = TWeakPtr<SRCProtocolBindingList>(StaticCastSharedRef<SRCProtocolBindingList>(AsShared()))]()
 		{
-			BindingList->RequestListRefresh();
-			if(bNavigateToEnd)
+			if (TSharedPtr<SRCProtocolBindingList> ListPtr = WeakListPtr.Pin())
 			{
-				BindingList->ScrollToBottom();	
+				ListPtr->BindingList->RequestListRefresh();
+				if(bNavigateToEnd)
+				{
+					ListPtr->BindingList->ScrollToBottom();	
+				}
 			}
 		}));
 		

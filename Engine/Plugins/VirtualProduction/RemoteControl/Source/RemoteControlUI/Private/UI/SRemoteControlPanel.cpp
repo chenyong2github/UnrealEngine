@@ -1000,9 +1000,12 @@ void SRemoteControlPanel::UpdateActorFunctionPicker()
 {
 	if (GEditor && ActorFunctionPicker)
 	{
-		GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this]()
+		GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([WeakPanelPtr = TWeakPtr<SRemoteControlPanel>(StaticCastSharedRef<SRemoteControlPanel>(AsShared()))]()
 		{
-			ActorFunctionPicker->Refresh();
+			if (TSharedPtr<SRemoteControlPanel> PanelPtr = WeakPanelPtr.Pin())
+			{
+				PanelPtr->ActorFunctionPicker->Refresh();
+			}
 		}));
 	}
 }

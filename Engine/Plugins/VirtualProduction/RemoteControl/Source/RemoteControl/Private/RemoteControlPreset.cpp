@@ -36,6 +36,7 @@ URemoteControlPreset::FOnPostLoadRemoteControlPreset URemoteControlPreset::OnPos
 
 #define LOCTEXT_NAMESPACE "RemoteControlPreset"
 
+static TAutoConsoleVariable<int32> CVarRemoteControlEnablePropertyWatchInEditor(TEXT("RemoteControl.EnablePropertyWatchInEditor"), 1, TEXT("Whether or not to manually compare certain properties to detect property changes while in editor."));
 static TAutoConsoleVariable<int32> CVarRemoteControlFramesBetweenPropertyWatch(TEXT("RemoteControl.FramesBetweenPropertyWatch"), 5, TEXT("The number of frames between every property value comparison when manually watching for property changes."));
 
 namespace
@@ -1034,6 +1035,14 @@ bool URemoteControlPreset::PropertyShouldBeWatched(const TSharedPtr<FRemoteContr
 
 void URemoteControlPreset::CreatePropertyWatchers()
 {
+#if WITH_EDITOR
+	if (GEditor && !CVarRemoteControlEnablePropertyWatchInEditor.GetValueOnAnyThread())
+	{
+		// Don't use property watchers in editor unless specified.
+		return;
+	}
+#endif
+	
 	for (const TSharedPtr<FRemoteControlProperty>& ExposedProperty : Registry->GetExposedEntities<FRemoteControlProperty>())
 	{
 		if (PropertyShouldBeWatched(ExposedProperty))
@@ -1876,12 +1885,15 @@ void URemoteControlPreset::OnActorDeleted(AActor* Actor)
 
 void URemoteControlPreset::OnPieEvent(bool)
 {
-	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this]()
+	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([PresetPtr = TWeakObjectPtr<URemoteControlPreset>{this}]()
 	{
-		for (TSharedPtr<FRemoteControlEntity> Entity : Registry->GetExposedEntities<FRemoteControlEntity>())
+		if (PresetPtr.IsValid() && PresetPtr->Registry)
 		{
-			PerFrameUpdatedEntities.Add(Entity->GetId());
-		}	
+			for (TSharedPtr<FRemoteControlEntity> Entity : PresetPtr->Registry->GetExposedEntities<FRemoteControlEntity>())
+			{
+				PresetPtr->PerFrameUpdatedEntities.Add(Entity->GetId());
+			}	
+		}
 	}));
 }
 
@@ -1927,9 +1939,12 @@ void URemoteControlPreset::OnReplaceObjects(const TMap<UObject*, UObject*>& Repl
 void URemoteControlPreset::OnMapChange(uint32)
 {
 	// Delay the refresh in order for the old actors to be invalid.
-	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this]()
+	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([PresetPtr = TWeakObjectPtr<URemoteControlPreset>{this}]()
 	{
-		Algo::Transform(Registry->GetExposedEntities(), PerFrameUpdatedEntities, [](const TSharedPtr<FRemoteControlEntity>& Entity) { return Entity->GetId(); });
+		if (PresetPtr.IsValid() && PresetPtr->Registry)
+		{
+			Algo::Transform(PresetPtr->Registry->GetExposedEntities(), PresetPtr->PerFrameUpdatedEntities, [](const TSharedPtr<FRemoteControlEntity>& Entity) { return Entity->GetId(); });
+		}
 	}));
 }
 

@@ -625,10 +625,14 @@ void SRCPanelExposedEntitiesList::OnEntitiesUpdated(URemoteControlPreset*, const
 			(*Node)->Refresh();
 		}
 	}
+	
 
-	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([this]()
+	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([WeakListPtr = TWeakPtr<SRCPanelExposedEntitiesList>(StaticCastSharedRef<SRCPanelExposedEntitiesList>(AsShared()))]()
 	{
-		TreeView->RequestListRefresh();
+		if (TSharedPtr<SRCPanelExposedEntitiesList> ListPtr = WeakListPtr.Pin())
+		{
+			ListPtr->TreeView->RequestListRefresh();
+		}
 	}));
 
 	OnEntityListUpdatedDelegate.ExecuteIfBound();
