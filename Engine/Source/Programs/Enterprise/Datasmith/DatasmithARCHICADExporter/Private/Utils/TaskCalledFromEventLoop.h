@@ -7,11 +7,11 @@
 BEGIN_NAMESPACE_UE_AC
 
 // Schedule an idle task
-class FTaskCalledFromEvenLoop
+class FTaskCalledFromEventLoop
 {
   public:
 	// Destructor
-	virtual ~FTaskCalledFromEvenLoop() {}
+	virtual ~FTaskCalledFromEventLoop() {}
 
 	// Run the task
 	virtual void Run() = 0;
@@ -24,10 +24,10 @@ class FTaskCalledFromEvenLoop
 	};
 
 	// Schedule InTask to be executed on next event.
-	static void CallTaskFromEvenLoop(const TSharedRef< FTaskCalledFromEvenLoop >& InTask, ERetainType InRetainType);
+	static void CallTaskFromEventLoop(const TSharedRef< FTaskCalledFromEventLoop >& InTask, ERetainType InRetainType);
 
 	// Schedule functor to be executed on next event.
-	template < typename Functor > static void CallFunctorFromEvenLoop(Functor InFunctor);
+	template < typename Functor > static void CallFunctorFromEventLoop(Functor InFunctor);
 
 	// Register the task service
 	static GSErrCode Register();
@@ -45,7 +45,7 @@ class FTaskCalledFromEvenLoop
 };
 
 // Template class for function
-template < typename Functor > class TFunctorCalledFromEventLoop : public FTaskCalledFromEvenLoop
+template < typename Functor > class TFunctorCalledFromEventLoop : public FTaskCalledFromEventLoop
 {
   public:
     // Constructor
@@ -62,9 +62,9 @@ template < typename Functor > class TFunctorCalledFromEventLoop : public FTaskCa
 };
 
 // Implementation of schedule functor to be executed on next event.
-template < typename Functor > void FTaskCalledFromEvenLoop::CallFunctorFromEvenLoop(Functor InFunctor)
+template < typename Functor > void FTaskCalledFromEventLoop::CallFunctorFromEventLoop(Functor InFunctor)
 {
-	CallTaskFromEvenLoop(MakeShared< TFunctorCalledFromEventLoop< Functor > >(InFunctor), kSharedRef);
+	CallTaskFromEventLoop(MakeShared< TFunctorCalledFromEventLoop< Functor > >(InFunctor), kSharedRef);
 }
 
 END_NAMESPACE_UE_AC

@@ -6,7 +6,7 @@
 #include "Commander.h"
 #include "Menus.h"
 #include "Utils/ShellOpenDocument.h"
-#include "Utils/TaskCalledFromEvenLoop.h"
+#include "Utils/TaskCalledFromEventLoop.h"
 
 DISABLE_SDK_WARNINGS_START
 
@@ -229,7 +229,7 @@ class FConnectionDialog : public DG::Palette,
 	{
 		*bAccepted = true;
 		Hide();
-		FTaskCalledFromEvenLoop::CallFunctorFromEvenLoop([]() { FConnectionWindow::DeleteWindow(); });
+		FTaskCalledFromEventLoop::CallFunctorFromEventLoop([]() { FConnectionWindow::DeleteWindow(); });
 	}
 
 	virtual void PanelIdle(const DG::PanelIdleEvent& /* ev */) override

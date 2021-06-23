@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "TaskCalledFromEvenLoop.h"
+#include "TaskCalledFromEventLoop.h"
 #include "../ResourcesIDs.h"
 #include "Error.h"
 
@@ -20,29 +20,29 @@ enum : Int32
 class FTaskParameters
 {
   public:
-	FTaskCalledFromEvenLoop::ERetainType RetainType;
+	FTaskCalledFromEventLoop::ERetainType RetainType;
 	union
 	{
-		TWeakPtr< FTaskCalledFromEvenLoop >*   WeakPtr;
-		TSharedRef< FTaskCalledFromEvenLoop >* SharedRef;
+		TWeakPtr< FTaskCalledFromEventLoop >*   WeakPtr;
+		TSharedRef< FTaskCalledFromEventLoop >* SharedRef;
 	} u;
 };
 
 static std::atomic< int32 > SPendingTaskCount(0);
 
 // Run the task if it's not already deleted
-GSErrCode FTaskCalledFromEvenLoop::DoTasks(GSHandle ParamHandle)
+GSErrCode FTaskCalledFromEventLoop::DoTasks(GSHandle ParamHandle)
 {
 	if (ParamHandle)
 	{
 		FTaskParameters& TaskParameters = reinterpret_cast< FTaskParameters& >(**ParamHandle);
-		if (TaskParameters.RetainType == FTaskCalledFromEvenLoop::kSharedRef)
+		if (TaskParameters.RetainType == FTaskCalledFromEventLoop::kSharedRef)
 		{
 			TaskParameters.u.SharedRef->Get().Run();
 		}
 		else
 		{
-			TSharedPtr< FTaskCalledFromEvenLoop > TaskPtr = TaskParameters.u.WeakPtr->Pin();
+			TSharedPtr< FTaskCalledFromEventLoop > TaskPtr = TaskParameters.u.WeakPtr->Pin();
 			if (TaskPtr.IsValid())
 			{
 				TaskPtr->Run();
@@ -53,7 +53,7 @@ GSErrCode FTaskCalledFromEvenLoop::DoTasks(GSHandle ParamHandle)
 }
 
 // Run the task if it's not already deleted
-GSErrCode FTaskCalledFromEvenLoop::DoTasksCallBack(GSHandle ParamHandle, GSPtr /* OutResultData */,
+GSErrCode FTaskCalledFromEventLoop::DoTasksCallBack(GSHandle ParamHandle, GSPtr /* OutResultData */,
 												   bool /* bSilentMode */)
 {
 	GSErrCode GSErr = TryFunctionCatchAndLog("DoTasks", [&ParamHandle]() -> GSErrCode { return DoTasks(ParamHandle); });
@@ -62,7 +62,7 @@ GSErrCode FTaskCalledFromEvenLoop::DoTasksCallBack(GSHandle ParamHandle, GSPtr /
 }
 
 // Schedule InTask to be executed on next event.
-void FTaskCalledFromEvenLoop::CallTaskFromEvenLoop(const TSharedRef< FTaskCalledFromEvenLoop >& InTask,
+void FTaskCalledFromEventLoop::CallTaskFromEventLoop(const TSharedRef< FTaskCalledFromEventLoop >& InTask,
 												   ERetainType									InRetainType)
 {
 	++SPendingTaskCount;
@@ -75,16 +75,16 @@ void FTaskCalledFromEvenLoop::CallTaskFromEvenLoop(const TSharedRef< FTaskCalled
 	TaskParameters.RetainType = InRetainType;
 	if (InRetainType == kSharedRef)
 	{
-		TaskParameters.u.SharedRef = new TSharedRef< FTaskCalledFromEvenLoop >(InTask);
+		TaskParameters.u.SharedRef = new TSharedRef< FTaskCalledFromEventLoop >(InTask);
 	}
 	else
 	{
-		TaskParameters.u.WeakPtr = new TWeakPtr< FTaskCalledFromEvenLoop >(InTask);
+		TaskParameters.u.WeakPtr = new TWeakPtr< FTaskCalledFromEventLoop >(InTask);
 	}
 	GSErrCode err = ACAPI_Command_CallFromEventLoop(&mdid, UEDirectLinkTask, CmdDoTask, ParamHandle, false, nullptr);
 	if (err != NoError)
 	{
-		UE_AC_DebugF("FTaskCalledFromEvenLoop::CallFromEvenLoop - ACAPI_Command_CallFromEventLoop error %d\n", err);
+		UE_AC_DebugF("FTaskCalledFromEventLoop::CallFromEventLoop - ACAPI_Command_CallFromEventLoop error %d\n", err);
 
 		// Clean up
 		DeleteParamHandle(ParamHandle);
@@ -92,44 +92,44 @@ void FTaskCalledFromEvenLoop::CallTaskFromEvenLoop(const TSharedRef< FTaskCalled
 }
 
 // Register the task service
-GSErrCode FTaskCalledFromEvenLoop::Register()
+GSErrCode FTaskCalledFromEventLoop::Register()
 {
 	GSErrCode GSErr = ACAPI_Register_SupportedService(UEDirectLinkTask, CmdDoTask);
 	if (GSErr != NoError)
 	{
-		UE_AC_DebugF("FTaskCalledFromEvenLoop::Register - Error %d\n", GSErr);
+		UE_AC_DebugF("FTaskCalledFromEventLoop::Register - Error %d\n", GSErr);
 	}
 	return GSErr;
 }
 
 // Initialize
-GSErrCode FTaskCalledFromEvenLoop::Initialize()
+GSErrCode FTaskCalledFromEventLoop::Initialize()
 {
 	GSErrCode GSErr = ACAPI_Install_ModulCommandHandler(UEDirectLinkTask, CmdDoTask, DoTasksCallBack);
 	if (GSErr != NoError)
 	{
-		UE_AC_DebugF("FTaskCalledFromEvenLoop::Initialize - Error %d\n", GSErr);
+		UE_AC_DebugF("FTaskCalledFromEventLoop::Initialize - Error %d\n", GSErr);
 	}
 	return GSErr;
 }
 
 // Uninitialize the task service
-void FTaskCalledFromEvenLoop::Uninitialize()
+void FTaskCalledFromEventLoop::Uninitialize()
 {
 	int PendingTaskCount = SPendingTaskCount;
 	if (PendingTaskCount != 0)
 	{
-		UE_AC_DebugF("FTaskCalledFromEvenLoop::Uninitialize - Pending tasks %d\n", PendingTaskCount);
+		UE_AC_DebugF("FTaskCalledFromEventLoop::Uninitialize - Pending tasks %d\n", PendingTaskCount);
 	}
 }
 
-void FTaskCalledFromEvenLoop::DeleteParamHandle(GSHandle ParamHandle)
+void FTaskCalledFromEventLoop::DeleteParamHandle(GSHandle ParamHandle)
 {
 	if (ParamHandle != nullptr)
 	{
 		--SPendingTaskCount;
 		FTaskParameters& TaskParameters = reinterpret_cast< FTaskParameters& >(**ParamHandle);
-		if (TaskParameters.RetainType == FTaskCalledFromEvenLoop::kSharedRef)
+		if (TaskParameters.RetainType == FTaskCalledFromEventLoop::kSharedRef)
 		{
 			delete TaskParameters.u.SharedRef;
 		}
@@ -141,7 +141,7 @@ void FTaskCalledFromEvenLoop::DeleteParamHandle(GSHandle ParamHandle)
 		if (GSErr != NoError)
 		{
 			UE_AC_DebugF(
-				"FTaskCalledFromEvenLoop::DeleteParamHandle - APIAny_FreeMDCLParameterListID return error %s\n",
+				"FTaskCalledFromEventLoop::DeleteParamHandle - APIAny_FreeMDCLParameterListID return error %s\n",
 				GetErrorName(GSErr));
 		}
 	}

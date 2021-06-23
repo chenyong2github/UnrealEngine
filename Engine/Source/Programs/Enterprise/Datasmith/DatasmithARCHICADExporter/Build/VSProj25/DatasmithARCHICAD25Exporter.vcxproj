@@ -287,7 +287,7 @@ copy "$(EnginePath)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb
     <ClInclude Include="..\..\Private\Utils\ResourcesUtils.h" />
     <ClInclude Include="..\..\Private\Utils\SceneValidator.h" />
     <ClInclude Include="..\..\Private\Utils\ShellOpenDocument.h" />
-    <ClInclude Include="..\..\Private\Utils\TaskCalledFromEvenLoop.h" />
+    <ClInclude Include="..\..\Private\Utils\TaskCalledFromEventLoop.h" />
     <ClInclude Include="..\..\Private\Utils\TaskMgr.h" />
     <ClInclude Include="..\..\Private\Utils\TAssValueName.h" />
     <ClInclude Include="..\..\Private\Utils\TimeStat.h" />
@@ -330,7 +330,7 @@ copy "$(EnginePath)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb
     <ClCompile Include="..\..\Private\Utils\Progression.cpp" />
     <ClCompile Include="..\..\Private\Utils\SceneValidator.cpp" />
     <ClCompile Include="..\..\Private\Utils\ShellOpenDocument.cpp" />
-    <ClCompile Include="..\..\Private\Utils\TaskCalledFromEvenLoop.cpp" />
+    <ClCompile Include="..\..\Private\Utils\TaskCalledFromEventLoop.cpp" />
     <ClCompile Include="..\..\Private\Utils\TaskMgr.cpp" />
     <ClCompile Include="..\..\Private\Utils\TAssValueName.cpp" />
     <ClCompile Include="..\..\Private\Utils\TimeStat.cpp" />

@@ -7,7 +7,7 @@
 #include "Menus.h"
 #include "Utils/Pasteboard.h"
 #include "Utils/Error.h"
-#include "Utils/TaskCalledFromEvenLoop.h"
+#include "Utils/TaskCalledFromEventLoop.h"
 
 DISABLE_SDK_WARNINGS_START
 #include "DGDialog.hpp"
@@ -50,7 +50,7 @@ class FReportDialog : public DG::Palette,
 	virtual void PanelCloseRequested(const DG::PanelCloseRequestEvent& /* ev */, bool* /* accepted */) override
 	{
 		Hide();
-        FTaskCalledFromEvenLoop::CallFunctorFromEvenLoop([]() { FReportWindow::Delete(); });
+        FTaskCalledFromEventLoop::CallFunctorFromEventLoop([]() { FReportWindow::Delete(); });
 	}
 
 	virtual void PanelResized(const DG::PanelResizeEvent& ev) override
