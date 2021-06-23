@@ -209,7 +209,7 @@ void UK2Node_Timeline::PostPasteNode()
 			for( auto TrackIt = Template->FloatTracks.CreateIterator(); TrackIt; ++TrackIt )
 			{
 				FTTFloatTrack& Track = *TrackIt;
-				if (!Track.bIsExternalCurve && Track.CurveFloat->GetOuter()->IsA(UBlueprint::StaticClass()))
+				if (!Track.bIsExternalCurve && Track.CurveFloat && Track.CurveFloat->GetOuter()->IsA(UBlueprint::StaticClass()))
 				{
 					Track.CurveFloat->Rename(*Template->MakeUniqueCurveName(Track.CurveFloat, Track.CurveFloat->GetOuter()), Blueprint, REN_DontCreateRedirectors);
 				}
@@ -218,7 +218,7 @@ void UK2Node_Timeline::PostPasteNode()
 			for( auto TrackIt = Template->EventTracks.CreateIterator(); TrackIt; ++TrackIt )
 			{
 				FTTEventTrack& Track = *TrackIt;
-				if (!Track.bIsExternalCurve && Track.CurveKeys->GetOuter()->IsA(UBlueprint::StaticClass()))
+				if (!Track.bIsExternalCurve && Track.CurveKeys && Track.CurveKeys->GetOuter()->IsA(UBlueprint::StaticClass()))
 				{
 					Track.CurveKeys->Rename(*Template->MakeUniqueCurveName(Track.CurveKeys, Track.CurveKeys->GetOuter()), Blueprint, REN_DontCreateRedirectors);
 				}
@@ -227,7 +227,7 @@ void UK2Node_Timeline::PostPasteNode()
 			for( auto TrackIt = Template->VectorTracks.CreateIterator(); TrackIt; ++TrackIt )
 			{
 				FTTVectorTrack& Track = *TrackIt;
-				if (!Track.bIsExternalCurve && Track.CurveVector->GetOuter()->IsA(UBlueprint::StaticClass()))
+				if (!Track.bIsExternalCurve && Track.CurveVector && Track.CurveVector->GetOuter()->IsA(UBlueprint::StaticClass()))
 				{
 					Track.CurveVector->Rename(*Template->MakeUniqueCurveName(Track.CurveVector, Track.CurveVector->GetOuter()), Blueprint, REN_DontCreateRedirectors);
 				}
@@ -236,7 +236,7 @@ void UK2Node_Timeline::PostPasteNode()
 			for( auto TrackIt = Template->LinearColorTracks.CreateIterator(); TrackIt; ++TrackIt )
 			{
 				FTTLinearColorTrack& Track = *TrackIt;
-				if (!Track.bIsExternalCurve && Track.CurveLinearColor->GetOuter()->IsA(UBlueprint::StaticClass()))
+				if (!Track.bIsExternalCurve && Track.CurveLinearColor && Track.CurveLinearColor->GetOuter()->IsA(UBlueprint::StaticClass()))
 				{
 					Track.CurveLinearColor->Rename(*Template->MakeUniqueCurveName(Track.CurveLinearColor, Track.CurveLinearColor->GetOuter()), Blueprint, REN_DontCreateRedirectors);
 				}
