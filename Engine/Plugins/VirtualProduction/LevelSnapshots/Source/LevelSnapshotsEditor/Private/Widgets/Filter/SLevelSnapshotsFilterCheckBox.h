@@ -11,11 +11,11 @@
 class SBorder;
 
 /* Displays contents of filters. */
-class SFilterCheckBox : public SCompoundWidget
+class SLevelSnapshotsFilterCheckBox : public SCompoundWidget
 {
 public:
 
-	SLATE_BEGIN_ARGS(SFilterCheckBox)
+	SLATE_BEGIN_ARGS(SLevelSnapshotsFilterCheckBox)
 	{}
 		SLATE_DEFAULT_SLOT( FArguments, Content )
 		SLATE_EVENT(FOnClicked, OnFilterCtrlClicked)
@@ -30,8 +30,8 @@ public:
 
 	void Construct(const FArguments& Args);
 	
-	FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	FReply OnMouseButtonUp( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override;
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual FReply OnMouseButtonUp( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override;
 
 private:
 	

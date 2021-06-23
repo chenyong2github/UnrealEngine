@@ -4,7 +4,7 @@
 
 #include "LevelSnapshotsEditorStyle.h"
 #include "LevelSnapshotsEditorFilters.h"
-#include "SFilterCheckBox.h"
+#include "SLevelSnapshotsFilterCheckBox.h"
 
 #include "EditorStyleSet.h"
 #include "ILevelSnapshotsEditorView.h"
@@ -28,7 +28,7 @@ public:
 		OnClicked = Callback;
 	}
 
-	FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
 	{
 		if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 		{
@@ -80,7 +80,7 @@ void SLevelSnapshotsEditorFilter::Construct(const FArguments& InArgs, const TWea
 			.BorderImage(FEditorStyle::GetBrush("ContentBrowser.FilterButtonBorder"))
 			.ColorAndOpacity_Lambda([this](){ return SnapshotFilter.IsValid() && SnapshotFilter->IsIgnored() ? FLinearColor(0.175f, 0.175f, 0.175f, 1.f) : FLinearColor(1,1,1,1); })
 			[
-				SAssignNew(ToggleButtonPtr, SFilterCheckBox) 
+				SAssignNew(ToggleButtonPtr, SLevelSnapshotsFilterCheckBox) 
 				.ToolTipText(this, &SLevelSnapshotsEditorFilter::GetFilterTooltip)
 				.OnFilterClickedOnce(this, &SLevelSnapshotsEditorFilter::OnNegateFilter)
 				.ForegroundColor(this, &SLevelSnapshotsEditorFilter::GetFilterColor)

@@ -1,12 +1,12 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Widgets/Filter/SFilterCheckBox.h"
+#include "Widgets/Filter/SLevelSnapshotsFilterCheckBox.h"
 
 #include "EditorStyleSet.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
 
-void SFilterCheckBox::Construct(const FArguments& Args)
+void SLevelSnapshotsFilterCheckBox::Construct(const FArguments& Args)
 {
 	OnFilterCtrlClicked = Args._OnFilterCtrlClicked;
 	OnFilterAltClicked = Args._OnFilterAltClicked;
@@ -48,11 +48,11 @@ void SFilterCheckBox::Construct(const FArguments& Args)
     );
 }
 
-FReply SFilterCheckBox::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+FReply SLevelSnapshotsFilterCheckBox::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	return FReply::Handled();
 }
-FReply SFilterCheckBox::OnMouseButtonUp( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) 
+FReply SLevelSnapshotsFilterCheckBox::OnMouseButtonUp( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) 
 {
 	if (InMouseEvent.IsControlDown() && OnFilterCtrlClicked.IsBound())
 	{
