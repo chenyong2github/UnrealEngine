@@ -45,6 +45,31 @@ enum class EAABBQueryType
 	Overlap
 };
 
+struct AABBTreeStatistics
+{
+	void Reset()
+	{
+		StatNumNonEmptyCellsInGrid = 0;
+		StatNumElementsTooLargeForGrid = 0;
+		StatNumDirtyElements = 0;
+		StatNumGridOverflowElements = 0;
+	}
+
+	AABBTreeStatistics& operator+=(const AABBTreeStatistics& Rhs)
+	{
+		StatNumNonEmptyCellsInGrid += Rhs.StatNumNonEmptyCellsInGrid;
+		StatNumElementsTooLargeForGrid += Rhs.StatNumElementsTooLargeForGrid;
+		StatNumDirtyElements += Rhs.StatNumDirtyElements;
+		StatNumGridOverflowElements += Rhs.StatNumGridOverflowElements;
+		return *this;
+	}
+
+	int32 StatNumNonEmptyCellsInGrid = 0;
+	int32 StatNumElementsTooLargeForGrid = 0;
+	int32 StatNumDirtyElements = 0;
+	int32 StatNumGridOverflowElements = 0;
+};
+
 DECLARE_CYCLE_STAT(TEXT("AABBTreeGenerateTree"), STAT_AABBTreeGenerateTree, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("AABBTreeTimeSliceSetup"), STAT_AABBTreeTimeSliceSetup, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("AABBTreeInitialTimeSlice"), STAT_AABBTreeInitialTimeSlice, STATGROUP_Chaos);
@@ -395,6 +420,7 @@ public:
 		CellHashToFlatArray.Reset();
 		FlattenedCellArrayOfDirtyIndices.Reset();
 		DirtyElementsGridOverflow.Reset();
+		TreeStats.Reset();
 		GlobalPayloads.Reset();
 		PayloadToInfo.Reset();
 
@@ -589,6 +615,7 @@ public:
 			NewHashEntry.Count = 1;
 			FlattenedCellArrayOfDirtyIndices.AddUninitialized(DirtyElementMaxCellCapacity);
 			FlattenedCellArrayOfDirtyIndices[NewHashEntry.Index] = NewDirtyIndex;
+			TreeStats.StatNumNonEmptyCellsInGrid++;
 			return true;
 		}
 		return false;
@@ -663,6 +690,11 @@ public:
 	FORCEINLINE_DEBUGGABLE int32 AddDirtyElementToGrid(const TAABB<FReal, 3>& NewBounds, int32 NewDirtyElement)
 	{
 		bool bAddToGrid = !TooManyOverlapQueryCells(NewBounds, DirtyElementGridCellSizeInv, DirtyElementMaxPhysicalSizeInCells);
+		if (!bAddToGrid)
+		{
+			TreeStats.StatNumElementsTooLargeForGrid++;
+		}
+
 		if (bAddToGrid)
 		{
 			DoForOverlappedCells(NewBounds, DirtyElementGridCellSize, DirtyElementGridCellSizeInv, [&](int32 Hash) {
@@ -884,6 +916,14 @@ public:
 	int32 NumDirtyElements() const
 	{
 		return DirtyElements.Num();
+	}
+
+	// Some useful statistics
+	const AABBTreeStatistics& GetAABBTreeStatistics() {
+		// Update the stats that needs it first
+		TreeStats.StatNumDirtyElements = DirtyElements.Num();
+		TreeStats.StatNumGridOverflowElements = DirtyElementsGridOverflow.Num();
+		return TreeStats;
 	}
 
 	const TArray<TPayloadBoundsElement<TPayloadType, FReal>>& GlobalObjects() const
@@ -1292,6 +1332,7 @@ private:
 		CellHashToFlatArray.Reset(); 
 		FlattenedCellArrayOfDirtyIndices.Reset();
 		DirtyElementsGridOverflow.Reset();
+		TreeStats.Reset();
 		PayloadToInfo.Reset();
 		NumProcessedThisSlice = 0;
 		GetCVars();  // Safe to copy CVARS here
@@ -1688,6 +1729,7 @@ private:
 		, DirtyElementMaxGridCellQueryCount(Other.DirtyElementMaxGridCellQueryCount)
 		, DirtyElementMaxPhysicalSizeInCells(Other.DirtyElementMaxPhysicalSizeInCells)
 		, DirtyElementMaxCellCapacity(Other.DirtyElementMaxCellCapacity)
+		, TreeStats(Other.TreeStats)
 		, GlobalPayloads(Other.GlobalPayloads)
 		, PayloadToInfo(Other.PayloadToInfo)
 		, MaxChildrenInLeaf(Other.MaxChildrenInLeaf)
@@ -1716,6 +1758,7 @@ private:
 			CellHashToFlatArray = Rhs.CellHashToFlatArray;
 			FlattenedCellArrayOfDirtyIndices = Rhs.FlattenedCellArrayOfDirtyIndices;
 			DirtyElementsGridOverflow = Rhs.DirtyElementsGridOverflow;
+			TreeStats = Rhs.TreeStats;
 			
 			DirtyElementGridCellSize = Rhs.DirtyElementGridCellSize;
 			DirtyElementGridCellSizeInv = Rhs.DirtyElementGridCellSizeInv;
@@ -1749,6 +1792,8 @@ private:
 	int32 DirtyElementMaxGridCellQueryCount;
 	int32 DirtyElementMaxPhysicalSizeInCells;
 	int32 DirtyElementMaxCellCapacity;
+	// Some useful statistics
+	AABBTreeStatistics TreeStats;
 
 	TArray<FElement> GlobalPayloads;
 	TArrayAsMap<TPayloadType, FAABBTreePayloadInfo> PayloadToInfo;
