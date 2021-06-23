@@ -206,7 +206,7 @@ void Main(
 	// Not write out roughness
 	OutRough = saturate(StrataLobVarianceToRoughness(WiLob.Sigma));	// STRATA_TODO accumulate variance and convert back to roughness in the apply hader
 	// Only allow clipping if roughness is close to 0.
-	const bool TryToClip = OutRough > 0.01f;
+	const bool TryToClip = OutRough < 0.01f;
 
 	// Finally, negate the direction to make sure the new incombing lob is the refracted lob we want to take into account
 	WiLob.Mu = -WiLob.Mu;
