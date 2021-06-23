@@ -3,6 +3,7 @@
 #ifdef ELECTRA_ENABLE_MFDECODER
 
 #include "PlayerCore.h"
+#include "PlayerRuntimeGlobal.h"
 #include "ElectraPlayerPrivate.h"
 #include "ElectraPlayerPrivate_Platform.h"
 
@@ -23,7 +24,6 @@
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/WindowsHWrapper.h"
 #include "HAL/LowLevelMemTracker.h"
-#include "Misc/CoreDelegates.h"
 
 THIRD_PARTY_INCLUDES_START
 #include "mftransform.h"
@@ -159,8 +159,6 @@ namespace Electra
 
 		FAccessUnitBuffer														AccessUnits;
 
-		FDelegateHandle															ApplicationSuspendedDelegate;
-		FDelegateHandle															ApplicationResumeDelegate;
 		FMediaEvent																ApplicationRunningSignal;
 		FMediaEvent																ApplicationSuspendConfirmedSignal;
 
@@ -901,8 +899,11 @@ namespace Electra
 
 		ApplicationRunningSignal.Signal();
 		ApplicationSuspendConfirmedSignal.Reset();
-		ApplicationSuspendedDelegate = FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddRaw(this, &FAudioDecoderAAC::HandleApplicationWillEnterBackground);
-		ApplicationResumeDelegate = FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddRaw(this, &FAudioDecoderAAC::HandleApplicationHasEnteredForeground);
+
+		TSharedPtrTS<FFGBGNotificationHandlers> FGBGHandlers = MakeSharedTS<FFGBGNotificationHandlers>();
+		FGBGHandlers->WillEnterBackground = [this]() { HandleApplicationWillEnterBackground(); };
+		FGBGHandlers->HasEnteredForeground = [this]() { HandleApplicationHasEnteredForeground(); };
+		AddBGFGNotificationHandler(FGBGHandlers);
 
 		bool bError = false;
 		bool bInDummyDecodeMode = false;
@@ -1181,16 +1182,7 @@ namespace Electra
 		CurrentPTS.SetToInvalid();
 		NextExpectedPTS.SetToInvalid();
 
-		if (ApplicationSuspendedDelegate.IsValid())
-		{
-			FCoreDelegates::ApplicationWillEnterBackgroundDelegate.Remove(ApplicationSuspendedDelegate);
-			ApplicationSuspendedDelegate.Reset();
-		}
-		if (ApplicationResumeDelegate.IsValid())
-		{
-			FCoreDelegates::ApplicationHasEnteredForegroundDelegate.Remove(ApplicationResumeDelegate);
-			ApplicationResumeDelegate.Reset();
-		}
+		RemoveBGFGNotificationHandler(FGBGHandlers);
 	}
 
 

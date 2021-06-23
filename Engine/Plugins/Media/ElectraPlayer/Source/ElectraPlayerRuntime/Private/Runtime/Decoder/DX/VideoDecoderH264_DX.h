@@ -130,8 +130,6 @@ namespace Electra {
 
 		FInstanceConfiguration								Config;
 
-		FDelegateHandle										ApplicationSuspendedDelegate;
-		FDelegateHandle										ApplicationResumeDelegate;
 		FMediaEvent											ApplicationRunningSignal;
 		FMediaEvent											ApplicationSuspendConfirmedSignal;
 
