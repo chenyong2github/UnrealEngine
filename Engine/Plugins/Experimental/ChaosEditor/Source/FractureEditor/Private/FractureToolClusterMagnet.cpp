@@ -92,6 +92,11 @@ void UFractureToolClusterMagnet::Execute(TWeakPtr<FFractureEditorModeToolkit> In
 
 			for (TPair<int32, TArray<int32>>& Group : ClusteredSelection)
 			{
+				if (Group.Key == INDEX_NONE) // Group is top level
+				{
+					continue;
+				}
+
 				// We have the connections for the leaf nodes of our geometry collection. We want to percolate those up to the top nodes.
 				TMap<int32, TSet<int32>> TopNodeConnectivity = InitializeConnectivity(Children[Group.Key], Context.GetGeometryCollection(), Levels[Group.Key]+1);
 

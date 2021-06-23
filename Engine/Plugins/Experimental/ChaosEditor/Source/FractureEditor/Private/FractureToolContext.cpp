@@ -24,9 +24,15 @@ FFractureToolContext::FFractureToolContext(UGeometryCollectionComponent* InGeome
 
 void FFractureToolContext::Sanitize()
 {
+	// Ensure that selected indices are valid
+	int NumTransforms = GeometryCollection->NumElements(FGeometryCollection::TransformGroup);
+	SelectedBones.RemoveAll([this, NumTransforms](int32 Index) {
+		return Index == INDEX_NONE || !ensure(Index < NumTransforms);
+		});
+	
 	// Ensure that children of a selected node are not also selected.
 	SelectedBones.RemoveAll([this](int32 Index) {
-		return HasSelectedAncestor(Index);
+		return !IsValidBone(Index) || HasSelectedAncestor(Index);
 		});
 
 	SelectedBones.Sort();
@@ -34,6 +40,12 @@ void FFractureToolContext::Sanitize()
 
 void FFractureToolContext::RemoveRootNodes()
 {
+	// Ensure that selected indices are valid
+	int NumTransforms = GeometryCollection->NumElements(FGeometryCollection::TransformGroup);
+	SelectedBones.RemoveAll([this, NumTransforms](int32 Index) {
+		return Index == INDEX_NONE || !ensure(Index < NumTransforms);
+		});
+
 	SelectedBones.RemoveAll([this](int32 Index) {
 		return FGeometryCollectionClusteringUtility::IsARootBone(this->GeometryCollection.Get(), Index);
 		});
@@ -153,16 +165,23 @@ void FFractureToolContext::ConvertSelectionToClusterNodes()
 	const TManagedArray<int32>& Parents = GeometryCollection->Parent;
 	const TManagedArray<int32>& SimulationType = GeometryCollection->SimulationType;
 
+	Sanitize();
+
 	TArray<int32> AddedClusterSelections;
 	for (int32 Index : SelectedBones)
 	{
+		int32 AddParent = FGeometryCollection::Invalid;
 		if (SimulationType[Index] == FGeometryCollection::ESimulationTypes::FST_Rigid)
 		{
-			AddedClusterSelections.AddUnique(Parents[Index]);
+			AddParent = Parents[Index];
 		}
 		else if (SimulationType[Index] == FGeometryCollection::ESimulationTypes::FST_None)
 		{
-			AddedClusterSelections.AddUnique(Parents[Parents[Index]]);
+			AddParent = Parents[Parents[Index]];
+		}
+		if (AddParent != FGeometryCollection::Invalid)
+		{
+			AddedClusterSelections.AddUnique(AddParent);
 		}
 	}
 	SelectedBones.Append(AddedClusterSelections);
@@ -179,6 +198,11 @@ void FFractureToolContext::TransformBoundsToWorld()
 bool FFractureToolContext::HasSelectedAncestor(int32 Index) const
 {
 	const TManagedArray<int32>& Parents = GeometryCollection->GetAttribute<int32>("Parent", FGeometryCollection::TransformGroup);
+
+	if (!ensureMsgf(Index >= 0 && Index < Parents.Num(), TEXT("Invalid index in selection: %d"), Index))
+	{
+		return false;
+	}
 
 	int32 CurrIndex = Index;
 	while (Parents[CurrIndex] != INDEX_NONE)
