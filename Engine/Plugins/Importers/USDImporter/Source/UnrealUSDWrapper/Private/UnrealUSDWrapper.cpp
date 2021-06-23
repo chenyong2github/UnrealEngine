@@ -1124,11 +1124,11 @@ public:
 		FString UsdPluginsPath = FPaths::Combine( TEXT( ".." ), TEXT( "ThirdParty" ), TEXT( "USD" ), TEXT( "UsdResources" ) );
 		UsdPluginsPath = FPaths::ConvertRelativePathToFull( UsdPluginsPath );
 #if PLATFORM_WINDOWS
-		UsdPluginsPath /= TEXT("Win64/plugins");
+		UsdPluginsPath /= FPaths::Combine( TEXT( "Win64" ), TEXT( "plugins" ) );
 #elif PLATFORM_LINUX
-		UsdPluginsPath /= TEXT("Linux/plugins");
+		UsdPluginsPath /= FPaths::Combine( TEXT( "Linux" ), TEXT( "plugins" ) );
 #elif PLATFORM_MAC
-		UsdPluginsPath /= TEXT("Mac/plugins");
+		UsdPluginsPath /= FPaths::Combine( TEXT( "Mac" ), TEXT( "plugins" ) );
 #endif
 
 #ifdef USE_LIBRARIES_FROM_PLUGIN_FOLDER
@@ -1136,14 +1136,13 @@ public:
 		FString TargetDllFolder = FPaths::Combine( IPluginManager::Get().FindPlugin( TEXT( "USDImporter" ) )->GetBaseDir(), TEXT( "Source" ), TEXT( "ThirdParty" ) );
 
 #if PLATFORM_WINDOWS
-		TargetDllFolder /= TEXT( "USD" );
+		TargetDllFolder /= FPaths::Combine( TEXT( "USD" ), TEXT( "bin" ) );
 #elif PLATFORM_LINUX
-		TargetDllFolder /= TEXT( "Linux" );
+		TargetDllFolder /= FPaths::Combine( TEXT( "Linux" ), TEXT( "bin" ), TEXT( "x86_64-unknown-linux-gnu" ) );
 #elif PLATFORM_MAC
-		TargetDllFolder /= TEXT( "Mac" );
+		TargetDllFolder /= FPaths::Combine( TEXT( "Mac" ), TEXT( "bin" ) );
 #endif // PLATFORM_WINDOWS
 
-		TargetDllFolder /= TEXT( "bin" );
 #else
 		FString TargetDllFolder = FPlatformProcess::BaseDir();
 #endif // USD_DLL_LOCATION_OVERRIDE
