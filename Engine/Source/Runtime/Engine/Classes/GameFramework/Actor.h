@@ -2144,6 +2144,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Editor Scripting | Actor Editing")
 	virtual void SetIsTemporarilyHiddenInEditor( bool bIsHidden );
 
+	/** Changes bHiddenEdLayer flag and returns true if flag changed. */
+	virtual bool SetIsHiddenEdLayer(bool bIsHiddenEdLayer);
+
 	/** Returns if level should keep a reference to the external actor for PIE (used for always loaded actors). */
 	bool IsForceExternalActorLevelReferenceForPIE() const
 	{

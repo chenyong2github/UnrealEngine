@@ -636,6 +636,18 @@ bool ULevelInstanceSubsystem::HasEditingChildrenLevelInstances(const ALevelInsta
 	return bEditingChildren;
 }
 
+void ULevelInstanceSubsystem::SetIsHiddenEdLayer(ALevelInstance* LevelInstanceActor, bool bIsHiddenEdLayer)
+{
+	if (ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstanceActor))
+	{
+		ForEachActorInLevel(LevelInstanceLevel, [bIsHiddenEdLayer](AActor* LevelActor)
+		{
+			LevelActor->SetIsHiddenEdLayer(bIsHiddenEdLayer);
+			return true;
+		});
+	}
+}
+
 void ULevelInstanceSubsystem::SetIsTemporarilyHiddenInEditor(ALevelInstance* LevelInstanceActor, bool bIsHidden)
 {
 	if (ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstanceActor))

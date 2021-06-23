@@ -550,6 +550,23 @@ void ALevelInstance::SetIsTemporarilyHiddenInEditor(bool bIsHidden)
 	}
 }
 
+bool ALevelInstance::SetIsHiddenEdLayer(bool bIsHiddenEdLayer)
+{
+	bool bHasChanged = false;
+	{
+		TGuardValue<bool> LoadUnloadGuard(bGuardLoadUnload, true);
+		bHasChanged = Super::SetIsHiddenEdLayer(bIsHiddenEdLayer);
+	}
+	if (bHasChanged)
+	{
+		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
+		{
+			LevelInstanceSubsystem->SetIsHiddenEdLayer(this, bIsHiddenEdLayer);
+		}
+	}
+	return bHasChanged;
+}
+
 void ALevelInstance::EditorGetUnderlyingActors(TSet<AActor*>& OutUnderlyingActors) const
 {
 	Super::EditorGetUnderlyingActors(OutUnderlyingActors);
