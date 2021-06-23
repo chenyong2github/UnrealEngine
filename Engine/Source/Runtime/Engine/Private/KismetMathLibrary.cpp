@@ -1008,6 +1008,13 @@ FVector UKismetMathLibrary::RandomUnitVectorFromStream(const FRandomStream& Stre
 	return Stream.VRand();
 }
 
+FVector UKismetMathLibrary::RandomPointInBoundingBoxFromStream(const FVector Center, const FVector HalfSize, const FRandomStream& Stream)
+{
+	const FVector BoxMin = Center - HalfSize;
+	const FVector BoxMax = Center + HalfSize;
+	return Stream.RandPointInBox(FBox(BoxMin, BoxMax));
+}
+
 FRotator UKismetMathLibrary::RandomRotatorFromStream(bool bRoll, const FRandomStream& Stream)
 {
 	FRotator RRot;
