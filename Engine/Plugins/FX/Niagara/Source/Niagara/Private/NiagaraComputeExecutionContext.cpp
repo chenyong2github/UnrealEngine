@@ -293,24 +293,12 @@ void FNiagaraComputeExecutionContext::PostTick()
 	}
 }
 
-void FNiagaraComputeExecutionContext::ReleaseReadbackCounter(FNiagaraGPUInstanceCountManager& GPUInstanceCountManager)
-{
-	if ( EmitterInstanceReadback.GPUCountOffset != INDEX_NONE )
-	{
-		check(EmitterInstanceReadback.GPUCountOffset != CountOffset_RT);
-
-		GPUInstanceCountManager.FreeEntry(EmitterInstanceReadback.GPUCountOffset);
-		EmitterInstanceReadback.GPUCountOffset = INDEX_NONE;
-	}
-}
-
 void FNiagaraComputeExecutionContext::ResetInternal(NiagaraEmitterInstanceBatcher* Batcher)
 {
 	checkf(IsInRenderingThread(), TEXT("Can only reset the gpu context from the render thread"));
 
 	if (Batcher)
 	{
-		ReleaseReadbackCounter(Batcher->GetGPUInstanceCounterManager());
 		Batcher->GetGPUInstanceCounterManager().FreeEntry(CountOffset_RT);
 	}
 

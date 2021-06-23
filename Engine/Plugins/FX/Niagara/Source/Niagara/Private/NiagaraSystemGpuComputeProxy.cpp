@@ -69,6 +69,9 @@ void FNiagaraSystemGpuComputeProxy::AddToBatcher(NiagaraEmitterInstanceBatcher* 
 				ComputeContext->CurrentNumInstances_RT = 0;
 				ComputeContext->CurrentMaxInstances_RT = 0;
 
+				ComputeContext->EmitterInstanceReadback.CPUCount = 0;
+				ComputeContext->EmitterInstanceReadback.GPUCountOffset = INDEX_NONE;
+
 				for (int i=0; i < UE_ARRAY_COUNT(ComputeContext->DataBuffers_RT); ++i)
 				{
 					check(ComputeContext->DataBuffers_RT[i] == nullptr);
