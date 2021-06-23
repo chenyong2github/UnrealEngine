@@ -5,6 +5,7 @@
 #include "CameraCalibrationEditorLog.h"
 #include "LensFile.h"
 
+#define LOCTEXT_NAMESPACE "LensFocalLengthCurveModel"
 
 
 FLensFocalLengthCurveModel::FLensFocalLengthCurveModel(ULensFile* InOwner, float InFocus, int32 InParameterIndex)
@@ -152,4 +153,22 @@ FRichCurve* FLensFocalLengthCurveModel::GetRichCurveForParameterIndex(FFocalLeng
 	{
 		return &InFocusPoint.Fy;
 	}
+}
+
+FText FLensFocalLengthCurveModel::GetValueLabel() const
+{
+	if (ParameterIndex == INDEX_NONE)
+	{
+		return LOCTEXT("ZoomValueLabel", "(mm)");
+	}
+	return LOCTEXT("ZoomValueLabel", "(normalized)");
+}
+
+FText FLensFocalLengthCurveModel::GetValueUnitSuffixLabel() const
+{
+	if (ParameterIndex == INDEX_NONE)
+	{
+		return LOCTEXT("UnitSuffixLabelZoom", "mm");
+	}
+	return FText();
 }

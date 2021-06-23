@@ -17,6 +17,10 @@ public:
 	virtual void SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyAttributes> InAttributes, EPropertyChangeType::Type ChangeType) override;
 	//~ End FRichCurveEditorModel interface
 
+	//~ Begin FLensDataCurveModel interface
+	virtual FText GetValueLabel() const override;
+	//~ End FLensDataCurveModel interface
+
 private:
 
 	/** Current focus to display curve for */
