@@ -88,6 +88,7 @@
 		Templates/TP_PhotoStudioBP/TP_PhotoStudioBP.uproject
 		Templates/TP_AEC_CollabBP/TP_AEC_CollabBP.uproject
 		Templates/TP_MFG_CollabBP/TP_MFG_CollabBP.uproject
+		Templates/TP_VirtualRealityBP/TP_VirtualRealityBP.uproject
 		Samples/StarterContent/StarterContent.uproject
 		Samples/MobileStarterContent/MobileStarterContent.uproject
 	</Property>
