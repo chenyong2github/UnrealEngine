@@ -1,0 +1,69 @@
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "PoseSearchTraceLogger.h"
+#include "Animation/AnimInstanceProxy.h"
+#include "Trace/Trace.inl"
+
+#if UE_POSE_SEARCH_TRACE_ENABLED
+
+UE_TRACE_CHANNEL_DEFINE(PoseSearchChannel);
+
+UE_TRACE_EVENT_BEGIN(PoseSearch, MotionMatchingState)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint16, FrameCounter)
+	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
+	UE_TRACE_EVENT_FIELD(int32, NodeId)
+	UE_TRACE_EVENT_FIELD(float, ElapsedPoseJumpTime)
+	UE_TRACE_EVENT_FIELD(uint32, Flags)
+	UE_TRACE_EVENT_FIELD(uint64, DatabaseId)
+	UE_TRACE_EVENT_FIELD(int32, DbPoseIdx)
+	UE_TRACE_EVENT_FIELD(float[], QueryVector)
+UE_TRACE_EVENT_END()
+
+namespace UE { namespace PoseSearch {
+
+const FName FTraceLogger::Name("PoseSearch");
+const FName FTraceMotionMatchingState::Name("MotionMatchingState");
+
+static bool ShouldTrace(const FAnimationBaseContext& InContext)
+{
+	const bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(PoseSearchChannel);
+	if (!bChannelEnabled)
+	{
+		return false;
+	}
+
+	if (InContext.GetCurrentNodeId() == INDEX_NONE)
+	{
+		return false;
+	}
+
+	check(InContext.AnimInstanceProxy);
+	return !CANNOT_TRACE_OBJECT(InContext.AnimInstanceProxy->GetSkelMeshComponent());
+}
+
+void FTraceMotionMatchingState::Output(const FAnimationBaseContext& InContext, const FTraceMotionMatchingState& State)
+{
+	if (!ShouldTrace(InContext))
+	{
+		return;
+	}
+
+	UObject* AnimInstance = InContext.AnimInstanceProxy->GetAnimInstanceObject();
+	TRACE_OBJECT(AnimInstance);
+
+	UE_TRACE_LOG(PoseSearch, MotionMatchingState, PoseSearchChannel)
+		<< MotionMatchingState.Cycle(FPlatformTime::Cycles64())
+		<< MotionMatchingState.FrameCounter(FObjectTrace::GetObjectWorldTickCounter(AnimInstance))
+		<< MotionMatchingState.AnimInstanceId(FObjectTrace::GetObjectId(AnimInstance))
+		<< MotionMatchingState.NodeId(InContext.GetCurrentNodeId())
+		<< MotionMatchingState.ElapsedPoseJumpTime(State.ElapsedPoseJumpTime)
+		// Cast to uint32 for event message
+		<< MotionMatchingState.Flags(static_cast<uint32>(State.Flags))
+		<< MotionMatchingState.QueryVector(State.QueryVector.GetData(), State.QueryVector.Num())
+		<< MotionMatchingState.DbPoseIdx(State.DbPoseIdx)
+		<< MotionMatchingState.DatabaseId(State.DatabaseId);
+}
+
+}}
+#endif
