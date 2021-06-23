@@ -151,7 +151,7 @@ void FDisplayClusterICVFXCameraComponentDetailsCustomization::CustomizeDetails(I
 		ADD_ADVANCED_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.PostprocessBlur, CameraEnabledEditCondition)
 		ADD_ADVANCED_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.GenerateMips, CameraEnabledEditCondition)
 
-		BEGIN_GROUP(TEXT("HiddenContentGroup"), LOCTEXT("HiddenContentGroupLabel", "Content Hidden from Camera"))
+		BEGIN_GROUP(TEXT("HiddenContentGroup"), LOCTEXT("HiddenContentGroupLabel", "Content Hidden from Inner Frustum"))
 		
 			ADD_GROUP_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CameraHideList.ActorLayers, CameraEnabledEditCondition)
 			ADD_GROUP_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CameraHideList.Actors, CameraEnabledEditCondition)

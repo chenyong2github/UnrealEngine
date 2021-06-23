@@ -218,7 +218,7 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 				}
 			END_GROUP();
 
-			BEGIN_GROUP(TEXT("HiddenOuterViewportsGroup"), LOCTEXT("HiddenOuterViewportsLabel", "Content Hidden from Outer Viewports"))
+			BEGIN_GROUP(TEXT("HiddenOuterViewportsGroup"), LOCTEXT("HiddenOuterViewportsLabel", "Content Hidden from Viewports"))
 				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.OuterViewportHideList.ActorLayers)
 				ADD_GROUP_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.OuterViewportHideList.Actors)
 
@@ -252,7 +252,7 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 			ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.bEnable, ICVFXEnabledEditCondition)
 			ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.Blendingmode, ICVFXLightCardEnabledEditCondition)
 
-			BEGIN_GROUP(TEXT("LightCardActorsGroup"), LOCTEXT("LightCardActorsGroupLabel", "Content Visible Only in Viewports"))
+			BEGIN_GROUP(TEXT("LightCardActorsGroup"), LOCTEXT("LightCardActorsGroupLabel", "Light Cards Content"))
 
 				ADD_GROUP_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.ActorLayers, ICVFXLightCardEnabledEditCondition)
 				ADD_GROUP_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.ShowOnlyList.Actors, ICVFXLightCardEnabledEditCondition)

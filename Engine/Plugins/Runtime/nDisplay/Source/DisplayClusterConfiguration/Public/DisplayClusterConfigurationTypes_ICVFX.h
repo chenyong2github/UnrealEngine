@@ -24,7 +24,7 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_Visibil
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Layers"))
 	TArray<FActorLayer> ActorLayers;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
