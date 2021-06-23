@@ -806,6 +806,8 @@ void NiagaraEmitterInstanceBatcher::DumpDebugFrame()
 
 void NiagaraEmitterInstanceBatcher::UpdateInstanceCountManager(FRHICommandListImmediate& RHICmdList)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(NiagaraEmitterInstanceBatcher_UpdateInstanceCountManager);
+
 	// Resize dispatch buffer count
 	//-OPT: No need to iterate over all the ticks, we can store this as ticks are queued
 	{
@@ -822,7 +824,7 @@ void NiagaraEmitterInstanceBatcher::UpdateInstanceCountManager(FRHICommandListIm
 					{
 						if (InstanceData.bResetData)
 						{
-							GPUInstanceCounterManager.FreeEntry(InstanceData.Context->EmitterInstanceReadback.GPUCountOffset);
+							InstanceData.Context->EmitterInstanceReadback.GPUCountOffset = INDEX_NONE;
 						}
 					}
 				}
@@ -862,8 +864,8 @@ void NiagaraEmitterInstanceBatcher::UpdateInstanceCountManager(FRHICommandListIm
 							UE_LOG(LogNiagara, Warning, TEXT("ComputeContext(%p) Emitter(%s) DeadInstances(%d) CountReleased(0x%08x)"), ComputeContext, ComputeContext->GetDebugSimName(), DeadInstanceCount, ComputeContext->EmitterInstanceReadback.GPUCountOffset);
 						}
 
-						// Release the counter for the readback
-						GPUInstanceCounterManager.FreeEntry(ComputeContext->EmitterInstanceReadback.GPUCountOffset);
+						// Readback complete
+						ComputeContext->EmitterInstanceReadback.GPUCountOffset = INDEX_NONE;
 					}
 				}
 			}
@@ -998,10 +1000,7 @@ void NiagaraEmitterInstanceBatcher::PrepareTicksForProxy(FRHICommandListImmediat
 						ComputeContext->EmitterInstanceReadback.CPUCount = SimStageData.SourceNumInstances;
 						ComputeContext->EmitterInstanceReadback.GPUCountOffset = SimStageData.SourceCountOffset;
 					}
-					else if (SimStageData.SourceCountOffset != ComputeContext->EmitterInstanceReadback.GPUCountOffset)
-					{
-						GpuDispatchList.CountsToRelease.Add(SimStageData.SourceCountOffset);
-					}
+					GpuDispatchList.CountsToRelease.Add(SimStageData.SourceCountOffset);
 				}
 				if (Tick.NumInstancesWithSimStages > 0)
 				{
@@ -1214,7 +1213,7 @@ void NiagaraEmitterInstanceBatcher::ExecuteTicks(FRHICommandList& RHICmdList, FR
 		return;
 	}
 
-
+	TRACE_CPUPROFILER_EVENT_SCOPE(NiagaraEmitterInstanceBatcher_ExecuteTicks);
 	SCOPED_DRAW_EVENTF(RHICmdList, NiagaraEmitterInstanceBatcher_ExecuteTicks, TEXT("NiagaraEmitterInstanceBatcher_ExecuteTicks - TickStage(%d)"), TickStage);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraGPUSimTick_RT);
 	SCOPED_GPU_STAT(RHICmdList, NiagaraGPUSimulation);
@@ -1408,12 +1407,9 @@ void NiagaraEmitterInstanceBatcher::ExecuteTicks(FRHICommandList& RHICmdList, FR
 		}
 	}
 
+	// Clear dispatch groups
+	// We do not release the counts as we won't do that until we finish the dispatches
 	DispatchList.DispatchGroups.Empty();
-	if (DispatchList.CountsToRelease.Num() > 0)
-	{
-		GPUInstanceCounterManager.FreeEntryArray(DispatchList.CountsToRelease);
-		DispatchList.CountsToRelease.Empty();
-	}
 }
 
 void NiagaraEmitterInstanceBatcher::DispatchStage(FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraSimStageData& SimStageData)
@@ -1747,9 +1743,11 @@ void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRDGBuilder& GraphBuilder, 
 			ProcessDebugReadbacks(RHICmdList, false);
 		}
 
-		if (!GPUInstanceCounterManager.HasPendingGPUReadback() && bRequiresReadback)
+		if ( bRequiresReadback )
 		{
+			check(!GPUInstanceCounterManager.HasPendingGPUReadback());
 			GPUInstanceCounterManager.EnqueueGPUReadback(RHICmdList);
+			bRequiresReadback = false;
 		}
 	});
 

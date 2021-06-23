@@ -142,7 +142,6 @@ struct FNiagaraComputeExecutionContext
 		// The CPU instance count at the time the GPU count readback was issued. Always bigger or equal to the GPU count.
 		uint32 CPUCount = 0;
 	}  EmitterInstanceReadback;
-	void ReleaseReadbackCounter(FNiagaraGPUInstanceCountManager& GPUInstanceCountManager);
 	
 #if !UE_BUILD_SHIPPING
 	const TCHAR* GetDebugSimName() const { return *DebugSimName; }
