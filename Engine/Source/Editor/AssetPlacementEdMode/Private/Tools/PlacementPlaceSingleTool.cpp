@@ -73,6 +73,8 @@ void UPlacementModePlaceSingleTool::OnClickPress(const FInputDeviceRay& PressPos
 	FPlacementOptions PlacementOptions;
 	PlacementOptions.bPreferBatchPlacement = true;
 	PlacementOptions.bPreferInstancedPlacement = SMInstanceElementDataUtil::SMInstanceElementsEnabled();
+
+	LastBrushStamp.Radius = 100.0f * LastBrushStampWorldToPixelScale;
 	
 	UPlacementSubsystem* PlacementSubsystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>();
 	if (PlacementSubsystem)
@@ -224,15 +226,6 @@ FInputRayHit UPlacementModePlaceSingleTool::BeginHoverSequenceHitTest(const FInp
 	return FInputRayHit();
 }
 
-void UPlacementModePlaceSingleTool::Render(IToolsContextRenderAPI* RenderAPI)
-{
-	// Transform the brush radius to standard pixel size
-	float BrushRadiusScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(RenderAPI->GetSceneView(), LastBrushStamp.WorldPosition);
-	LastBrushStamp.Radius = 100.0f * BrushRadiusScale;
-
-	Super::Render(RenderAPI);
-}
-
 void UPlacementModePlaceSingleTool::GeneratePlacementData(const FInputDeviceRay& DevicePos)
 {
 	const UAssetPlacementSettings* PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
@@ -294,6 +287,9 @@ void UPlacementModePlaceSingleTool::UpdatePreviewElements(const FInputDeviceRay&
 	{
 		return;
 	}
+
+	// Update the brush radius to be stable screen size based on the world to pixel scale at the last render update.
+	LastBrushStamp.Radius = 100.0f * LastBrushStampWorldToPixelScale;
 
 	FTransform UpdatedTransform(PlacementInfo->FinalizedTransform.GetRotation(), LastBrushStamp.WorldPosition, PlacementInfo->FinalizedTransform.GetScale3D());
 	UpdatedTransform = FinalizeTransform(UpdatedTransform, LastBrushStamp.WorldNormal, GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject());

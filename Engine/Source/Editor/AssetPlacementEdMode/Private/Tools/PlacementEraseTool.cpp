@@ -68,7 +68,7 @@ void UPlacementModeEraseTool::OnTick(float DeltaTime)
 
 	TGCObjectScopeGuard<UTypedElementList> ElementsToDelete(UTypedElementRegistry::GetInstance()->CreateElementList());
 
-	TArray<FTypedElementHandle> HitElements = GetElementsInBrushRadius();
+	TArray<FTypedElementHandle> HitElements = GetElementsInBrushRadius(LastDeviceInputRay);
 	for (const FTypedElementHandle& HitElement : HitElements)
 	{
 		if (TTypedElement<UTypedElementObjectInterface> ObjectInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementObjectInterface>(HitElement))

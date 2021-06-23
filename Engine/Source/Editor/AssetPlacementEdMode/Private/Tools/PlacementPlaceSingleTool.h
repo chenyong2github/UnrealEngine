@@ -65,8 +65,6 @@ public:
 	virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
 	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& DevicePos) override;
 
-	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
-
 protected:
 	void GeneratePlacementData(const FInputDeviceRay& DevicePos);
 	void CreatePreviewElements(const FInputDeviceRay& DevicePos);
