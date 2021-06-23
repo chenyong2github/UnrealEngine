@@ -1366,7 +1366,7 @@ void ProcessShaderLibraries(const FIoStoreArguments& Arguments, TArray<FContaine
 				const TArray<FIoChunkId>* FindChunkIds = ShaderChunkIdsByShaderMapHash.Find(ShaderMapHash);
 				if (!FindChunkIds)
 				{
-					UE_LOG(LogIoStore, Warning, TEXT("Package referencing unknown shader map"));
+					UE_LOG(LogIoStore, Warning, TEXT("Package '%s' in '%s' referencing missing shader map '%s'"), *Package->PackageName.ToString(), *ContainerTarget->Name.ToString(), *ShaderMapHash.ToString());
 					continue;
 				}
 				for (const FIoChunkId& ShaderChunkId : *FindChunkIds)
