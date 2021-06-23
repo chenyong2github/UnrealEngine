@@ -780,7 +780,6 @@ public:
 				if (RemoteControlSetterUtils::ConvertModificationToFunctionCall(Args, InterceptionPayload))
 				{
 					const bool bResult = InvokeCall(Call, InterceptionPayload.Type, InterceptionPayload.Payload);
-					PostPropertyModifiedRemotelyDelegate.Broadcast(ObjectAccess);
 					return bResult;
 				}
 			}
@@ -829,7 +828,6 @@ public:
 			if (RemoteControlSetterUtils::ConvertModificationToFunctionCall(Args))
 			{
 				const bool bResult = InvokeCall(Call);
-				PostPropertyModifiedRemotelyDelegate.Broadcast(ObjectAccess);
 				return bResult;
 			}
 		}
@@ -941,7 +939,6 @@ public:
 				Object->PostEditChangeProperty(PropertyEvent);
 			}
 #endif
-			PostPropertyModifiedRemotelyDelegate.Broadcast(ObjectAccess);
 			return bSuccess;
 		}
 		return false;
@@ -1015,7 +1012,6 @@ public:
 				Object->PostEditChangeProperty(PropertyEvent);
 			}
 #endif
-			PostPropertyModifiedRemotelyDelegate.Broadcast(ObjectAccess);
 			return true;
 		}
 		return false;
@@ -1142,11 +1138,6 @@ public:
 		return Property && (RemoteControlUtil::IsPropertyAllowed(Property, ERCAccess::WRITE_ACCESS, bInGameOrPackage) || !!RemoteControlSetterUtils::FindSetterFunction(Property));
 	}
 
-	virtual FOnPostPropertyModifiedRemotely& OnPostPropertyModifiedRemotely() override
-	{
-		return PostPropertyModifiedRemotelyDelegate;
-	}
-
 private:
 	void CachePresets()
 	{
@@ -1183,14 +1174,11 @@ private:
 			return;
 		}
 
-		if (URemoteControlPreset* Preset = Cast<URemoteControlPreset>(AssetData.GetAsset()))
+		const FGuid PresetAssetId = RemoteControlUtil::GetPresetId(AssetData);
+		if (PresetAssetId.IsValid())
 		{
-			const FGuid PresetId = Preset->GetPresetId();
-			if (PresetId.IsValid())
-			{
-				CachedPresetNamesById.Add(PresetId, AssetData.AssetName);
-				CachedPresetsByName.FindOrAdd(AssetData.AssetName).AddUnique(AssetData);
-			}
+			CachedPresetNamesById.Add(PresetAssetId, AssetData.AssetName);
+			CachedPresetsByName.FindOrAdd(AssetData.AssetName).AddUnique(AssetData);
 		}
 	}
 
@@ -1391,9 +1379,6 @@ private:
 	/** Delay before we check if a modification is no longer ongoing. */
 	static constexpr float SecondsBetweenOngoingChangeCheck = 0.2f;
 #endif
-
-	/** Delegate called after modifying a property through SetObjectProperties. */
-	FOnPostPropertyModifiedRemotely PostPropertyModifiedRemotelyDelegate;
 };
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

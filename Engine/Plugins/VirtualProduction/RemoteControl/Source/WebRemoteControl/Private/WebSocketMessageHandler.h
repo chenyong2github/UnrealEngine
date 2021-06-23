@@ -31,6 +31,9 @@ public:
 	/** Unregister the custom websocket routes from the module */
 	void UnregisterRoutes(FWebRemoteControlModule* WebRemoteControl);
 
+	/** Notify that a property was modified by a web client. */
+	void NotifyPropertyChangedRemotely(const FGuid& OriginClientId, FName PresetName, const FGuid& ExposedPropertyId);
+
 private:
 	
 	/** Handles registration to callbacks to a given preset */
@@ -115,6 +118,12 @@ private:
 
 	/** Properties that changed for a frame, per preset.  */
 	TMap<FName, TMap<FGuid, TSet<FGuid>>> PerFrameModifiedProperties;
+
+	/** 
+	 * List of properties modified remotely this frame, used to not trigger a 
+	 * change notification after a post edit change for a property that was modified remotely.
+	 */
+	TSet<FGuid> PropertiesManuallyNotifiedThisFrame;
 
 	/** Properties that changed on an exposed actor for a given client, for a frame, per preset.  */
 	TMap<FName, TMap<FGuid, TMap<FRemoteControlActor, TArray<FRCObjectReference>>>> PerFrameActorPropertyChanged;

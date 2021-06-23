@@ -60,6 +60,39 @@ void FWebSocketMessageHandler::UnregisterRoutes(FWebRemoteControlModule* WebRemo
 	}
 }
 
+void FWebSocketMessageHandler::NotifyPropertyChangedRemotely(const FGuid& OriginClientId, FName PresetName, const FGuid& ExposedPropertyId)
+{
+	if (TArray<FGuid>* SubscribedClients = WebSocketNotificationMap.Find(PresetName))
+	{
+		if (SubscribedClients->Contains(OriginClientId))
+		{
+			bool bIgnoreIncomingNotification = false;
+
+			if (FRCClientConfig* Config = ClientConfigMap.Find(OriginClientId))
+			{
+				bIgnoreIncomingNotification = Config->bIgnoreRemoteChanges;
+			}
+
+			if (!bIgnoreIncomingNotification)
+			{
+				PerFrameModifiedProperties.FindOrAdd(PresetName).FindOrAdd(OriginClientId).Add(ExposedPropertyId);
+			}
+			else
+			{
+				for (TPair<FGuid, TSet<FGuid>>& Entry : PerFrameModifiedProperties.FindOrAdd(PresetName))
+				{
+					if (Entry.Key != OriginClientId)
+					{
+						Entry.Value.Add(ExposedPropertyId);
+					}
+				}
+			}
+
+			PropertiesManuallyNotifiedThisFrame.Add(ExposedPropertyId);
+		}
+	}
+}
+
 void FWebSocketMessageHandler::HandleWebSocketPresetRegister(const FRemoteControlWebSocketMessage& WebSocketMessage)
 {
 	FRCWebSocketPresetRegisterBody Body;
@@ -68,7 +101,20 @@ void FWebSocketMessageHandler::HandleWebSocketPresetRegister(const FRemoteContro
 		return;
 	}
 
-	URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(*Body.PresetName);
+	URemoteControlPreset* Preset = nullptr;
+
+	FGuid PresetId = FGuid{Body.PresetName};
+
+	if (PresetId.IsValid())
+	{
+		Preset = IRemoteControlModule::Get().ResolvePreset(PresetId);
+	}
+	else
+	{
+		Preset = IRemoteControlModule::Get().ResolvePreset(*Body.PresetName);
+	}
+
+
 	if (Preset == nullptr)
 	{
 		return;
@@ -105,9 +151,25 @@ void FWebSocketMessageHandler::HandleWebSocketPresetUnregister(const FRemoteCont
 		return;
 	}
 
-	if (TArray<FGuid>* RegisteredClients = WebSocketNotificationMap.Find(*Body.PresetName))
+	URemoteControlPreset* Preset = nullptr;
+
+	FGuid PresetId = FGuid{ Body.PresetName };
+
+	if (PresetId.IsValid())
 	{
-		RegisteredClients->Remove(WebSocketMessage.ClientId);
+		Preset = IRemoteControlModule::Get().ResolvePreset(PresetId);
+	}
+	else
+	{
+		Preset = IRemoteControlModule::Get().ResolvePreset(*Body.PresetName);
+	}
+
+	if (Preset)
+	{
+		if (TArray<FGuid>* RegisteredClients = WebSocketNotificationMap.Find(Preset->GetFName()))
+		{
+			RegisteredClients->Remove(WebSocketMessage.ClientId);
+		}
 	}
 }
 
@@ -208,14 +270,28 @@ void FWebSocketMessageHandler::OnPresetExposedPropertiesModified(URemoteControlP
 	//Cache the property field that changed for end of frame notification
 	TMap<FGuid, TSet<FGuid>>& EventsForClient = PerFrameModifiedProperties.FindOrAdd(Owner->GetFName());
 	
-	// Don't send events to the client that triggered it.
 	if (TArray<FGuid>* SubscribedClients = WebSocketNotificationMap.Find(Owner->GetFName()))
 	{
-		for (const FGuid& Client : *SubscribedClients)
+		for (const FGuid& ModifiedPropertyId : ModifiedPropertyIds)
 		{
-			if (!ClientConfigMap.FindChecked(Client).bIgnoreRemoteChanges || Client != ActingClientId)
+			// Don't send a change notification if the change was manually notified.
+			// This is to avoid the case of a post edit change property being caught by the preset for a change 
+			// that a client deliberatly wishes to ignore.
+			if (!PropertiesManuallyNotifiedThisFrame.Contains(ModifiedPropertyId))
 			{
-				EventsForClient.FindOrAdd(Client).Append(ModifiedPropertyIds);
+				for (const FGuid& Client : *SubscribedClients)
+				{
+					if (Client != ActingClientId || !ClientConfigMap.FindChecked(Client).bIgnoreRemoteChanges)
+					{
+						EventsForClient.FindOrAdd(Client).Append(ModifiedPropertyIds);
+					}
+				}
+			}
+			else
+			{
+				// Remove the property after encountering it here since we can't remove it on end frame
+				// because that might happen before the final PostEditChange of a property change in the RC Module.
+				PropertiesManuallyNotifiedThisFrame.Remove(ModifiedPropertyId);
 			}
 		}
 	}
@@ -501,6 +577,7 @@ bool FWebSocketMessageHandler::WritePropertyChangeEventPayload(URemoteControlPre
 	{
 		JsonWriter->WriteValue(TEXT("Type"), TEXT("PresetFieldsChanged"));
 		JsonWriter->WriteValue("PresetName", *InPreset->GetFName().ToString());
+		JsonWriter->WriteValue("PresetId", *InPreset->GetPresetId().ToString());
 
 		JsonWriter->WriteIdentifierPrefix("ChangedFields");
 
@@ -565,6 +642,7 @@ bool FWebSocketMessageHandler::WriteActorPropertyChangePayload(URemoteControlPre
 	{
 		JsonWriter->WriteValue(TEXT("Type"), TEXT("PresetActorModified"));
 		JsonWriter->WriteValue("PresetName", *InPreset->GetFName().ToString());
+		JsonWriter->WriteValue("PresetId", *InPreset->GetPresetId().ToString());
 
 		JsonWriter->WriteIdentifierPrefix("ModifiedActors");
 
