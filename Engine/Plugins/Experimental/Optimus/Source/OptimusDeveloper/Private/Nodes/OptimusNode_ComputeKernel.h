@@ -112,6 +112,7 @@ public:
 	UOptimusKernelSource* CreateComputeKernel(
 		UObject* InKernelSourceOuter,
 		const TMap<const UOptimusNode *, UOptimusComputeDataInterface *>& InNodeDataInterfaceMap,
+		TMap<const UOptimusNodePin*, UOptimusComputeDataInterface *>& InLinkDataInterfaceMap,
 		FOptimus_InterfaceBindingMap& OutInputDataBindings,
 		FOptimus_InterfaceBindingMap& OutOutputDataBindings
 		) const;

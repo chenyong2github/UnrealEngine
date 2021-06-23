@@ -35,8 +35,7 @@ void USkeletalMeshSkinCacheDataInterface::GetSupportedInputs(TArray<FShaderFunct
 		Fn.Name = TEXT("ReadNumVertices");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.FundamentalType = EShaderFundamentalType::Uint;
-		ReturnParam.DimType = EShaderFundamentalDimensionType::Scalar;
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(ReturnParam);
 		OutFunctions.Add(Fn);
 	}
@@ -52,13 +51,10 @@ void USkeletalMeshSkinCacheDataInterface::GetSupportedOutputs(TArray<FShaderFunc
 		Fn.Name = TEXT("WritePosition");
 		Fn.bHasReturnType = false;
 		FShaderParamTypeDefinition Param0 = {};
-		Param0.FundamentalType = EShaderFundamentalType::Uint;
-		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(Param0);
 		FShaderParamTypeDefinition Param1 = {};
-		Param1.FundamentalType = EShaderFundamentalType::Float;
-		Param1.DimType = EShaderFundamentalDimensionType::Vector;
-		Param1.VectorDimension = 3;
+		Param1.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 3);
 		Fn.ParamTypes.Add(Param1);
 		OutFunctions.Add(Fn);
 	}
@@ -67,13 +63,10 @@ void USkeletalMeshSkinCacheDataInterface::GetSupportedOutputs(TArray<FShaderFunc
 		Fn.Name = TEXT("WriteTangentX");
 		Fn.bHasReturnType = false;
 		FShaderParamTypeDefinition Param0 = {};
-		Param0.FundamentalType = EShaderFundamentalType::Uint;
-		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(Param0);
 		FShaderParamTypeDefinition Param1 = {};
-		Param1.FundamentalType = EShaderFundamentalType::Float;
-		Param1.DimType = EShaderFundamentalDimensionType::Vector;
-		Param1.VectorDimension = 4;
+		Param1.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 4);
 		Fn.ParamTypes.Add(Param1);
 		OutFunctions.Add(Fn);
 	}
@@ -82,13 +75,10 @@ void USkeletalMeshSkinCacheDataInterface::GetSupportedOutputs(TArray<FShaderFunc
 		Fn.Name = TEXT("WriteTangentZ");
 		Fn.bHasReturnType = false;
 		FShaderParamTypeDefinition Param0 = {};
-		Param0.FundamentalType = EShaderFundamentalType::Uint;
-		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(Param0);
 		FShaderParamTypeDefinition Param1 = {};
-		Param1.FundamentalType = EShaderFundamentalType::Float;
-		Param1.DimType = EShaderFundamentalDimensionType::Vector;
-		Param1.VectorDimension = 4;
+		Param1.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 4);
 		Fn.ParamTypes.Add(Param1);
 		OutFunctions.Add(Fn);
 	}
@@ -112,9 +102,9 @@ void USkeletalMeshSkinCacheDataInterface::GetHLSL(FString& OutHLSL) const
 }
 
 
-UClass* USkeletalMeshSkinCacheDataInterface::GetDataProviderClass() const
+UComputeDataProvider* USkeletalMeshSkinCacheDataInterface::CreateDataProvider(UObject* InOuter) const
 {
-	return USkeletalMeshSkinCacheDataProvider::StaticClass();
+	return NewObject<USkeletalMeshSkinCacheDataProvider>(InOuter);
 }
 
 

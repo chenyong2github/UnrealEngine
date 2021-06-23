@@ -24,6 +24,25 @@ struct FOptimusCDIPinDefinition
 
 	// The data context. Connections of different contexts cannot be made.
 	FName ContextName;
+
+	struct FExtraDataFunction
+	{
+		FString Suffix;
+		FString DataFunctionName;
+	};
+	
+	TArray<FExtraDataFunction> ExtraDataFunctions;
+
+	// Add an extra data function that operates on the same data but with possibly different
+	// semantics. 
+	FOptimusCDIPinDefinition& AddExtraFunction(
+		const FString& InSuffix,
+		const FString& InDataFunctionName
+		)
+	{
+		ExtraDataFunctions.Add({InSuffix, InDataFunctionName});
+		return *this;
+	}
 };
 
 
@@ -41,7 +60,7 @@ public:
 	/// Returns the list of pins that will map to the shader functions provided by this data interface.
 	virtual TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const PURE_VIRTUAL(UOptimusComputeDataInterface::GetDisplayName, return {};)
 	
-	virtual bool IsTerminal() const
+	virtual bool IsVisible() const
 	{
 		return true;
 	}

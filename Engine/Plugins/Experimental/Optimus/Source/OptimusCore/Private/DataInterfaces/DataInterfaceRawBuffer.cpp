@@ -8,22 +8,50 @@
 #include "ShaderCore.h"
 #include "ShaderParameterMetadataBuilder.h"
 
+const int32 UTransientBufferDataInterface::ReadValueInputIndex = 1;
+const int32 UTransientBufferDataInterface::WriteValueOutputIndex = 0;
+
 bool UTransientBufferDataInterface::SupportsAtomics() const
 {
-	return Type.FundamentalType == EShaderFundamentalType::Int;
+	return ValueType->Type == EShaderFundamentalType::Int;
 }
+
+
+FString UTransientBufferDataInterface::GetDisplayName() const
+{
+	return TEXT("Transient");
+}
+
+
+TArray<FOptimusCDIPinDefinition> UTransientBufferDataInterface::GetPinDefinitions() const
+{
+	TArray<FOptimusCDIPinDefinition> Defs;
+	Defs.Add({"ValueIn", "ReadValue", "ReadNumValues"});
+	Defs.Add({"ValueOut", "WriteValue", "ReadNumValues"});
+	return Defs;
+}
+
 
 void UTransientBufferDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	{
 		FShaderFunctionDefinition Fn;
+		Fn.Name = TEXT("ReadNumValues");
+		Fn.bHasReturnType = true;
+		FShaderParamTypeDefinition ReturnParam = {};
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
+		Fn.ParamTypes.Add(ReturnParam);
+		OutFunctions.Add(Fn);
+	}
+	{
+		FShaderFunctionDefinition Fn;
 		Fn.Name = TEXT("ReadValue");
 		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = Type;
+		FShaderParamTypeDefinition ReturnParam = {};
+		ReturnParam.ValueType = ValueType;
 		Fn.ParamTypes.Add(ReturnParam);
 		FShaderParamTypeDefinition Param0 = {};
-		Param0.FundamentalType = EShaderFundamentalType::Uint;
-		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(Param0);
 		OutFunctions.Add(Fn);
 	}
@@ -32,13 +60,14 @@ void UTransientBufferDataInterface::GetSupportedInputs(TArray<FShaderFunctionDef
 		FShaderFunctionDefinition Fn;
 		Fn.Name = TEXT("ReadAtomicAdd");
 		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = Type;
+		FShaderParamTypeDefinition ReturnParam = {};
+		ReturnParam.ValueType = ValueType;
 		Fn.ParamTypes.Add(ReturnParam);
 		FShaderParamTypeDefinition Param0 = {};
-		Param0.FundamentalType = EShaderFundamentalType::Uint;
-		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(Param0);
-		FShaderParamTypeDefinition Param1 = Type;
+		FShaderParamTypeDefinition Param1 = {};
+		Param1.ValueType = ValueType;
 		Fn.ParamTypes.Add(Param1);
 		OutFunctions.Add(Fn);
 	}
@@ -51,10 +80,10 @@ void UTransientBufferDataInterface::GetSupportedOutputs(TArray<FShaderFunctionDe
 		Fn.Name = TEXT("WriteValue");
 		Fn.bHasReturnType = false;
 		FShaderParamTypeDefinition Param0 = {};
-		Param0.FundamentalType = EShaderFundamentalType::Uint;
-		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(Param0);
-		FShaderParamTypeDefinition Param1 = Type;
+		FShaderParamTypeDefinition Param1 = {};
+		Param1.ValueType = ValueType;
 		Fn.ParamTypes.Add(Param1);
 		OutFunctions.Add(Fn);
 	}
@@ -64,10 +93,10 @@ void UTransientBufferDataInterface::GetSupportedOutputs(TArray<FShaderFunctionDe
 		Fn.Name = TEXT("WriteAtomicAdd");
 		Fn.bHasReturnType = false;
 		FShaderParamTypeDefinition Param0 = {};
-		Param0.FundamentalType = EShaderFundamentalType::Uint;
-		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(Param0);
-		FShaderParamTypeDefinition Param1 = Type;
+		FShaderParamTypeDefinition Param1 = {};
+		Param1.ValueType = ValueType;
 		Fn.ParamTypes.Add(Param1);
 		OutFunctions.Add(Fn);
 	}
@@ -88,7 +117,7 @@ void UTransientBufferDataInterface::GetShaderParameters(TCHAR const* UID, FShade
 void UTransientBufferDataInterface::GetHLSL(FString& OutHLSL) const
 {
 	OutHLSL += TEXT("#define BUFFER_TYPE ");
-	OutHLSL += Type.TypeDeclaration;
+	OutHLSL += ValueType->ToString();
 	OutHLSL += TEXT(" \n");
 	if (SupportsAtomics()) { OutHLSL += TEXT("#define BUFFER_TYPE_SUPPORTS_ATOMIC 1\n"); }
 	OutHLSL += TEXT("#include \"/Plugin/Optimus/Private/DataInterfaceRawBuffer.ush\"\n");
@@ -101,9 +130,11 @@ void UTransientBufferDataInterface::ModifyCompilationEnvironment(FShaderCompiler
 }
 
 
-UClass* UTransientBufferDataInterface::GetDataProviderClass() const
+UComputeDataProvider* UTransientBufferDataInterface::CreateDataProvider(UObject* InOuter) const
 {
-	return UTransientBufferDataProvider::StaticClass();
+	UTransientBufferDataProvider *Provider = NewObject<UTransientBufferDataProvider>(InOuter);
+	Provider->ElementStride = ValueType->GetResourceElementSize();
+	return Provider;
 }
 
 

@@ -19,8 +19,8 @@ FString USceneDataInterface::GetDisplayName() const
 TArray<FOptimusCDIPinDefinition> USceneDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
-	Defs.Add({"GameTime", "SD_ReadGameTime", {}, {}});
-	Defs.Add({"FrameNumber", "SD_ReadFrameNumber", {}, {}});
+	Defs.Add({"GameTime", "ReadGameTime", {}, {}});
+	Defs.Add({"FrameNumber", "ReadFrameNumber", {}, {}});
 	return Defs;
 }
 
@@ -32,21 +32,20 @@ void USceneDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& 
 	// todo[CF]: Expose other general scene information here.
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("SD_ReadGameTime");
+		Fn.Name = TEXT("ReadGameTime");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.FundamentalType = EShaderFundamentalType::Float;
-		ReturnParam.DimType = EShaderFundamentalDimensionType::Scalar;
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float);
 		Fn.ParamTypes.Add(ReturnParam);
 		OutFunctions.Add(Fn);
 	}
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("SD_ReadFrameNumber");
+		Fn.Name = TEXT("ReadFrameNumber");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.FundamentalType = EShaderFundamentalType::Uint;
-		ReturnParam.DimType = EShaderFundamentalDimensionType::Scalar;
+		
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(ReturnParam);
 		OutFunctions.Add(Fn);
 	}
@@ -68,9 +67,9 @@ void USceneDataInterface::GetHLSL(FString& OutHLSL) const
 }
 
 
-UClass* USceneDataInterface::GetDataProviderClass() const
+UComputeDataProvider* USceneDataInterface::CreateDataProvider(UObject* InOuter) const
 {
-	return USceneDataProvider::StaticClass();
+	return NewObject<USceneDataProvider>(InOuter);
 }
 
 

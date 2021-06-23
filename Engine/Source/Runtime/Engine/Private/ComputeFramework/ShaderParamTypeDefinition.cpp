@@ -3,6 +3,7 @@
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 
 #include "Algo/Find.h"
+#include "Internationalization/Regex.h"
 #include "Misc/DefaultValueHelper.h"
 #include "Serialization/Archive.h"
 #include "Templates/TypeHash.h"
@@ -33,6 +34,14 @@ struct HandleKeyFuncs : BaseKeyFuncs<FShaderValueTypeHandle,FShaderValueTypeHand
 };
 
 static TSet<FShaderValueTypeHandle, HandleKeyFuncs> GloballyKnownValueTypes;
+
+
+bool FShaderValueTypeHandle::Serialize(FArchive& Ar)
+{
+	Ar << *this;
+	return true;
+}
+
 
 FShaderValueTypeHandle FShaderValueType::Get(EShaderFundamentalType InType)
 {
@@ -122,20 +131,66 @@ FShaderValueTypeHandle FShaderValueType::Get(
 }
 
 
-FShaderValueTypeHandle FShaderValueType::Get(const FShaderParamTypeDefinition& InDef)
+FShaderValueTypeHandle FShaderValueType::FromString(const FString& InTypeDecl)
 {
-	switch(InDef.DimType)
-	{
-	case EShaderFundamentalDimensionType::Scalar:
-		return Get(InDef.FundamentalType);
+	static const FRegexPattern ValueTypeDeclPattern(TEXT(R"(\s*(bool|int|uint|float)((?:[1-4])|(?:[1-4]x[1-4]))?\s*)"));
 
-	case EShaderFundamentalDimensionType::Vector:
-		return Get(InDef.FundamentalType, InDef.VectorDimension);
-		
-	case EShaderFundamentalDimensionType::Matrix:
-		return Get(InDef.FundamentalType, InDef.MatrixRowCount, InDef.MatrixColumnCount);
+	// We really should have a FStringView version of the regex matcher. This level of string
+	// copying is gross.
+	FRegexMatcher Matcher(ValueTypeDeclPattern, InTypeDecl);
+	if (!Matcher.FindNext())
+	{
+		return {};
 	}
 
+	FString FundamentalTypeStr = Matcher.GetCaptureGroup(1);
+	FString DimensionTypeStr   = Matcher.GetCaptureGroup(2);
+
+	EShaderFundamentalType FundamentalType;
+	if (FundamentalTypeStr == TEXT("bool"))
+	{
+		FundamentalType = EShaderFundamentalType::Bool;
+	}
+	else if (FundamentalTypeStr == TEXT("int"))
+	{
+		FundamentalType = EShaderFundamentalType::Int;
+	}
+	else if (FundamentalTypeStr == TEXT("uint"))
+	{
+		FundamentalType = EShaderFundamentalType::Uint;
+	}
+	else if (FundamentalTypeStr == TEXT("float"))
+	{
+		FundamentalType = EShaderFundamentalType::Float;
+	}
+	else
+	{
+		return {};
+	}
+
+	if (DimensionTypeStr.Len() == 0)
+	{
+		return Get(FundamentalType);
+	}
+	else if (DimensionTypeStr.Len() == 1)
+	{
+		int32 Dim = 0;
+		if (FDefaultValueHelper::ParseInt(DimensionTypeStr, Dim))
+		{
+			return Get(FundamentalType, Dim);
+		}
+	}
+	else if (DimensionTypeStr.Len() == 3)
+	{
+		int32 Row = 0, Col = 0;
+		if (FDefaultValueHelper::ParseInt(DimensionTypeStr.Left(1), Row) &&
+			FDefaultValueHelper::ParseInt(DimensionTypeStr.Right(1), Col))
+		{
+			return Get(FundamentalType, Row, Col);
+		}
+	}
+
+	// Failure to parse.
 	return {};
 }
 
@@ -287,6 +342,43 @@ FString FShaderValueType::GetTypeDeclaration() const
 		*FString::Join(Elements, TEXT("")));
 }
 
+
+int32 FShaderValueType::GetResourceElementSize() const
+{
+	int32 Size = 0;
+	
+	switch (Type)
+	{
+	case EShaderFundamentalType::Bool:
+	case EShaderFundamentalType::Int:
+	case EShaderFundamentalType::Uint:
+	case EShaderFundamentalType::Float:
+		Size = 4;		// Yes, even for bool.
+		break;
+	case EShaderFundamentalType::Struct:
+		for (const FStructElement& Elem: StructElements)
+		{
+			Size += Elem.Type->GetResourceElementSize();
+		}
+		break;
+	}
+
+	switch(DimensionType)
+	{
+	case EShaderFundamentalDimensionType::Scalar:
+		break;
+	case EShaderFundamentalDimensionType::Vector:
+		Size *= VectorElemCount;
+		break;
+	case EShaderFundamentalDimensionType::Matrix:
+		Size *= MatrixRowCount * MatrixColumnCount;
+		break;
+	}
+
+	return Size;
+}
+
+
 FArchive& operator<<(FArchive& InArchive, FShaderValueTypeHandle& InHandle)
 {
 	FShaderValueType ValueTypeTemp;
@@ -338,15 +430,7 @@ FArchive& operator<<(FArchive& InArchive, FShaderValueType::FStructElement& InEl
 	return InArchive;
 }
 
-using FFundamentalStingPair = TPair<EShaderFundamentalType, FString>;
 using FResourceStingPair = TPair<EShaderResourceType, FString>;
-
-static FFundamentalStingPair TypeStringMap[] = {
-	FFundamentalStingPair(EShaderFundamentalType::Bool,		TEXT("bool")),
-	FFundamentalStingPair(EShaderFundamentalType::Uint,		TEXT("uint")),
-	FFundamentalStingPair(EShaderFundamentalType::Int,		TEXT("int")),
-	FFundamentalStingPair(EShaderFundamentalType::Float,	TEXT("float")),
-	};
 
 static FResourceStingPair ResTypeStringMap[] = {
 	FResourceStingPair(EShaderResourceType::Texture1D,			TEXT("Texture1D")),
@@ -358,61 +442,6 @@ static FResourceStingPair ResTypeStringMap[] = {
 	FResourceStingPair(EShaderResourceType::Buffer,				TEXT("Buffer")),
 	};
 
-EShaderFundamentalType FShaderParamTypeDefinition::ParseFundamental(
-	const FString& Str
-	)
-{
-	for (auto& Pair : TypeStringMap)
-	{
-		if (Str.Contains(Pair.Value))
-		{
-			return Pair.Key;
-		}
-	}
-
-	check(!"Unknown Type");
-	return EShaderFundamentalType::Float;
-}
-
-EShaderFundamentalDimensionType FShaderParamTypeDefinition::ParseDimension(
-	const FString& Str
-	)
-{
-	if (Str.Contains(TEXT("x"), ESearchCase::CaseSensitive))
-	{
-		return EShaderFundamentalDimensionType::Matrix;
-	}
-	else if (!Str.IsEmpty())
-	{
-		return EShaderFundamentalDimensionType::Vector;
-	}
-	else
-	{
-		return EShaderFundamentalDimensionType::Scalar;
-	}
-}
-
-uint8 FShaderParamTypeDefinition::ParseVectorDimension(
-	const FString& Str
-	)
-{
-	int32 Dim = 0;
-	FDefaultValueHelper::ParseInt(Str, Dim);
-
-	return uint8(Dim);
-}
-
-FIntVector2 FShaderParamTypeDefinition::ParseMatrixDimension(
-	const FString& Str
-	)
-{
-	FIntVector2 Dim;
-
-	Dim.X = ParseVectorDimension(Str.Left(1));
-	Dim.Y = ParseVectorDimension(Str.Right(1));
-
-	return Dim;
-}
 
 EShaderResourceType FShaderParamTypeDefinition::ParseResource(const FString& Str)
 {
@@ -450,29 +479,7 @@ void FShaderParamTypeDefinition::ResetTypeDeclaration(
 		TypeDecl.Appendf(TEXT("%s<"), *foundItem->Value);
 	}
 
-	auto* foundItem = Algo::FindByPredicate(
-		TypeStringMap, 
-		[this](const FFundamentalStingPair& Pair) 
-		{ 
-			return Pair.Key == FundamentalType; 
-		});
-	check(foundItem);
-
-	TypeDecl.Append(foundItem->Value);
-
-	switch (DimType)
-	{
-	case EShaderFundamentalDimensionType::Scalar:
-		break;
-
-	case EShaderFundamentalDimensionType::Vector:
-		TypeDecl.AppendInt(VectorDimension);
-		break;
-
-	case EShaderFundamentalDimensionType::Matrix:
-		TypeDecl.Appendf(TEXT("%dx%d"), MatrixRowCount, MatrixColumnCount);
-		break;
-	};
+	TypeDecl.Append(ValueType->ToString());
 
 	if (bIsResourceType)
 	{
