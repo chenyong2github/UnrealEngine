@@ -90,38 +90,89 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_Colo
 };
 
 USTRUCT(BlueprintType)
-struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_PerViewportSettings
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_ColorGradingWhiteBalanceSettings
 {
 	GENERATED_BODY()
 
-		FDisplayClusterConfigurationViewport_PerViewportSettings()
+		FDisplayClusterConfigurationViewport_ColorGradingWhiteBalanceSettings()
 		: bOverride_WhiteTemp(0)
 		, bOverride_WhiteTint(0)
-		, bOverride_AutoExposureBias(0)
 	{};
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_WhiteTemp:1;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_WhiteTint:1;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
-	uint8 bOverride_AutoExposureBias:1;
-
-	// Blend weight
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", Meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float BlendWeight = 1.0f;
 
 	// White temperature
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", Meta = (UIMin = "1500.0", UIMax = "15000.0", EditCondition = "bOverride_WhiteTemp"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "White Balance", meta = (UIMin = "1500.0", UIMax = "15000.0", EditCondition = "bOverride_WhiteTemp", DisplayName = "Temp"))
 	float WhiteTemp = 6500.0f;
 
 	// White tint
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", Meta = (UIMin = "-1.0", UIMax = "1.0", EditCondition = "bOverride_WhiteTint"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "White Balance", meta = (UIMin = "-1.0", UIMax = "1.0", EditCondition = "bOverride_WhiteTint", DisplayName = "Tint"))
 	float WhiteTint = 0.0f;
+};
+
+USTRUCT(BlueprintType)
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_ColorGradingMiscSettings
+{
+	GENERATED_BODY()
+
+		FDisplayClusterConfigurationViewport_ColorGradingMiscSettings()
+		: bOverride_BlueCorrection(0)
+		, bOverride_ExpandGamut(0)
+		, bOverride_SceneColorTint(0)
+	{};
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_BlueCorrection:1;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_ExpandGamut:1;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_SceneColorTint:1;
+
+	// Correct for artifacts with "electric" blues due to the ACEScg color space. Bright blue desaturates instead of going to violet.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Misc", meta = (ClampMin = "0.0", ClampMax = "1.0", EditCondition = "bOverride_BlueCorrection"))
+	float BlueCorrection;
+
+	// Expand bright saturated colors outside the sRGB gamut to fake wide gamut rendering.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Misc", meta = (ClampMin = "0.0", UIMax = "1.0", EditCondition = "bOverride_ExpandGamut"))
+	float ExpandGamut;
+
+	// Scene tint color
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Misc", meta = (EditCondition = "bOverride_SceneColorTint", HideAlphaChannel))
+	FLinearColor SceneColorTint;
+};
+
+USTRUCT(BlueprintType)
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_PerViewportSettings
+{
+	GENERATED_BODY()
+
+		FDisplayClusterConfigurationViewport_PerViewportSettings()
+		: bOverride_AutoExposureBias(0)
+		, bOverride_ColorCorrectionHighlightsMin(0)
+		, bOverride_ColorCorrectionShadowsMax(0)
+	{};
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_AutoExposureBias:1;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_ColorCorrectionHighlightsMin:1;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_ColorCorrectionShadowsMax:1;
+
+	// Blend weight
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float BlendWeight = 1.0f;
 
 	// Exposure compensation
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", Meta = (UIMin = "-15.0", UIMax = "15.0", EditCondition = "bOverride_AutoExposureBias"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (UIMin = "-15.0", UIMax = "15.0", EditCondition = "bOverride_AutoExposureBias", DisplayName = "Exposure Compensation"))
 	float AutoExposureBias = 0.0f;
+
+	// White balance
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings")
+	FDisplayClusterConfigurationViewport_ColorGradingWhiteBalanceSettings WhiteBalance;
 
 	// Global color grading
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings")
@@ -131,6 +182,9 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_PerV
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings")
 	FDisplayClusterConfigurationViewport_ColorGradingSettings Shadows;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (UIMin = "-1.0", UIMax = "1.0", EditCondition = "bOverride_ColorCorrectionShadowsMax", DisplayName = "ShadowsMax"))
+	float ColorCorrectionShadowsMax;
+
 	// Midtones color grading
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings")
 	FDisplayClusterConfigurationViewport_ColorGradingSettings Midtones;
@@ -138,6 +192,13 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_PerV
 	// Highlights color grading
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings")
 	FDisplayClusterConfigurationViewport_ColorGradingSettings Highlights;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (UIMin = "-1.0", UIMax = "1.0", EditCondition = "bOverride_ColorCorrectionHighlightsMin", DisplayName = "HighlightsMin"))
+	float ColorCorrectionHighlightsMin;
+
+	// Highlights color grading misc settings
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings")
+	FDisplayClusterConfigurationViewport_ColorGradingMiscSettings Misc;
 };
 
 USTRUCT(Blueprintable)

@@ -247,9 +247,12 @@ void FDisplayClusterViewportConfigurationHelpers_Postprocess::UpdatePerViewportP
 
 void FDisplayClusterViewportConfigurationHelpers_Postprocess::BlendPostProcessSettings(FPostProcessSettings& OutputPP, const FDisplayClusterConfigurationViewport_PerViewportSettings& ClusterPPSettings, const FDisplayClusterConfigurationViewport_PerViewportSettings& ViewportPPSettings)
 {
-	PP_CONDITIONAL_BLEND(+, , , , WhiteTemp, +, -6500.0f);
-	PP_CONDITIONAL_BLEND(+, , , , WhiteTint, , );
 	PP_CONDITIONAL_BLEND(+, , , , AutoExposureBias, , );
+	PP_CONDITIONAL_BLEND(+, , , , ColorCorrectionHighlightsMin, , );
+	PP_CONDITIONAL_BLEND(+, , , , ColorCorrectionShadowsMax, , );
+
+	PP_CONDITIONAL_BLEND(+, , , WhiteBalance., WhiteTemp, +, -6500.0f);
+	PP_CONDITIONAL_BLEND(+, , , WhiteBalance., WhiteTint, , );
 
 	PP_CONDITIONAL_BLEND(*, Color, , Global., Saturation, , );
 	PP_CONDITIONAL_BLEND(*, Color, , Global., Contrast, , );
@@ -274,6 +277,10 @@ void FDisplayClusterViewportConfigurationHelpers_Postprocess::BlendPostProcessSe
 	PP_CONDITIONAL_BLEND(*, Color, Highlights, Highlights., Gamma, , );
 	PP_CONDITIONAL_BLEND(*, Color, Highlights, Highlights., Gain, , );
 	PP_CONDITIONAL_BLEND(+, Color, Highlights, Highlights., Offset, , );
+
+	PP_CONDITIONAL_BLEND(+, , , Misc., BlueCorrection, , );
+	PP_CONDITIONAL_BLEND(+, , , Misc., ExpandGamut, , );
+	PP_CONDITIONAL_BLEND(+, , , Misc., SceneColorTint, , );
 }
 
 #define PP_CONDITIONAL_COPY(COLOR, OUTGROUP, INGROUP, NAME) \
@@ -287,9 +294,12 @@ void FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyPPSStructCondi
 {
 	if ((OutViewportPPSettings != nullptr) && (InPPS != nullptr))
 	{
-		PP_CONDITIONAL_COPY(, , , WhiteTemp);
-		PP_CONDITIONAL_COPY(, , , WhiteTint);
 		PP_CONDITIONAL_COPY(, , , AutoExposureBias);
+		PP_CONDITIONAL_COPY(, , , ColorCorrectionHighlightsMin);
+		PP_CONDITIONAL_COPY(, , , ColorCorrectionShadowsMax);
+
+		PP_CONDITIONAL_COPY(, WhiteBalance., , WhiteTemp);
+		PP_CONDITIONAL_COPY(, WhiteBalance., , WhiteTint);
 
 		PP_CONDITIONAL_COPY(Color, Global., , Saturation);
 		PP_CONDITIONAL_COPY(Color, Global., , Contrast);
@@ -314,6 +324,10 @@ void FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyPPSStructCondi
 		PP_CONDITIONAL_COPY(Color, Highlights., Highlights, Gamma);
 		PP_CONDITIONAL_COPY(Color, Highlights., Highlights, Gain);
 		PP_CONDITIONAL_COPY(Color, Highlights., Highlights, Offset);
+
+		PP_CONDITIONAL_COPY(, Misc., , BlueCorrection);
+		PP_CONDITIONAL_COPY(, Misc., , ExpandGamut);
+		PP_CONDITIONAL_COPY(, Misc., , SceneColorTint);
 	}
 }
 
@@ -325,9 +339,12 @@ void FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyPPSStruct(FDis
 {
 	if ((OutViewportPPSettings != nullptr) && (InPPS != nullptr))
 	{
-		PP_COPY(, , , WhiteTemp);
-		PP_COPY(, , , WhiteTint);
 		PP_COPY(, , , AutoExposureBias);
+		PP_COPY(, , , ColorCorrectionHighlightsMin);
+		PP_COPY(, , , ColorCorrectionShadowsMax);
+
+		PP_COPY(, WhiteBalance., , WhiteTemp);
+		PP_COPY(, WhiteBalance., , WhiteTint);
 
 		PP_COPY(Color, Global., , Saturation);
 		PP_COPY(Color, Global., , Contrast);
@@ -352,6 +369,9 @@ void FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyPPSStruct(FDis
 		PP_COPY(Color, Highlights., Highlights, Gamma);
 		PP_COPY(Color, Highlights., Highlights, Gain);
 		PP_COPY(Color, Highlights., Highlights, Offset);
+
+		PP_COPY(, Misc., , BlueCorrection);
+		PP_COPY(, Misc., , ExpandGamut);
+		PP_COPY(, Misc., , SceneColorTint);
 	}
 }
-
