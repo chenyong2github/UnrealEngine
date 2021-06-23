@@ -89,11 +89,28 @@ struct FNiagaraDataIntefaceProxyCollisionQuery : public FNiagaraDataInterfacePro
 		FNiagaraDataInterfaceProxy::PreStage(RHICmdList, Context);
 
 #if RHI_RAYTRACING
-		if (MaxRayTraceCount > 0)
+		// First stage needs to clear the indirect args
+		if (MaxRayTraceCount > 0 && Context.SimStageData->bFirstStage)
 		{
-			// clear out indirect args
 			RHICmdList.ClearUAVUint(RayTraceCounts.UAV, FUintVector4(0, 0, 0, 0));
-			RHICmdList.Transition(FRHITransitionInfo(RayTraceCounts.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+			RHICmdList.Transition(FRHITransitionInfo(RayTraceCounts.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+		}
+#endif
+	}
+
+	virtual void PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override
+	{
+#if RHI_RAYTRACING
+		// If we are not the last stage we need to transition because another stage may write
+		// If we do not have a ray tracing scene active we also need to transition as PostSimulate will not transition the buffers
+		if (MaxRayTraceCount > 0 && (!Context.SimStageData->bLastStage || !Context.Batcher->HasRayTracingScene()))
+		{
+			FRHITransitionInfo Transitions[] =
+			{
+				FRHITransitionInfo(RayTraceRequests.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(RayTraceCounts.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
+			};
+			RHICmdList.Transition(Transitions);
 		}
 #endif
 	}
@@ -109,7 +126,8 @@ struct FNiagaraDataIntefaceProxyCollisionQuery : public FNiagaraDataInterfacePro
 				FRHITransitionInfo PreTransitions[] =
 				{
 					FRHITransitionInfo(RayTraceRequests.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute),
-					FRHITransitionInfo(RayTraceIntersections.UAV, ERHIAccess::SRVCompute, ERHIAccess::UAVCompute)
+					FRHITransitionInfo(RayTraceIntersections.UAV, ERHIAccess::SRVCompute, ERHIAccess::UAVCompute),
+					FRHITransitionInfo(RayTraceCounts.UAV, ERHIAccess::UAVCompute, ERHIAccess::IndirectArgs),
 				};
 				RHICmdList.Transition(PreTransitions);
 			}
@@ -120,7 +138,8 @@ struct FNiagaraDataIntefaceProxyCollisionQuery : public FNiagaraDataInterfacePro
 				FRHITransitionInfo PostTransitions[] =
 				{
 					FRHITransitionInfo(RayTraceRequests.UAV, ERHIAccess::SRVCompute, ERHIAccess::UAVCompute),
-					FRHITransitionInfo(RayTraceIntersections.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute)
+					FRHITransitionInfo(RayTraceIntersections.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute),
+					FRHITransitionInfo(RayTraceCounts.UAV, ERHIAccess::IndirectArgs, ERHIAccess::UAVCompute),
 				};
 				RHICmdList.Transition(PostTransitions);
 			}

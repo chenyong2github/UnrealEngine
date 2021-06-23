@@ -619,7 +619,6 @@ void NiagaraEmitterInstanceBatcher::PostSimulateInterface(FRHICommandList& RHICm
 
 void NiagaraEmitterInstanceBatcher::UpdateFreeIDsListSizesBuffer(FRHICommandList& RHICmdList, uint32 NumInstances)
 {
-	ERHIAccess BeforeState = ERHIAccess::UAVCompute;
 	if (NumInstances > NumAllocatedFreeIDListSizes)
 	{
 		constexpr uint32 ALLOC_CHUNK_SIZE = 128;
@@ -628,14 +627,12 @@ void NiagaraEmitterInstanceBatcher::UpdateFreeIDsListSizesBuffer(FRHICommandList
 		{
 			FreeIDListSizesBuffer.Release();
 		}
-		FreeIDListSizesBuffer.Initialize(TEXT("NiagaraFreeIDListSizes"), sizeof(uint32), NumAllocatedFreeIDListSizes, EPixelFormat::PF_R32_SINT, BUF_Static);
-
-		BeforeState = ERHIAccess::Unknown;
+		FreeIDListSizesBuffer.Initialize(TEXT("NiagaraFreeIDListSizes"), sizeof(uint32), NumAllocatedFreeIDListSizes, EPixelFormat::PF_R32_SINT, ERHIAccess::UAVCompute, BUF_Static);
 	}
 
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, NiagaraGPUComputeClearFreeIDListSizes);
-		RHICmdList.Transition(FRHITransitionInfo(FreeIDListSizesBuffer.UAV, BeforeState, ERHIAccess::UAVCompute));
+		RHICmdList.Transition(FRHITransitionInfo(FreeIDListSizesBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
 		NiagaraFillGPUIntBuffer(RHICmdList, FeatureLevel, FreeIDListSizesBuffer, 0);
 	}
 }
@@ -2141,6 +2138,7 @@ FRHIUnorderedAccessView* NiagaraEmitterInstanceBatcher::GetEmptyUAVFromPool(FRHI
 	{
 		FDummyUAV& NewUAV = Pool.UAVs.AddDefaulted_GetRef();
 		NewUAV.Init(RHICmdList, Format, Type, TEXT("NiagaraEmitterInstanceBatcher::DummyUAV"));
+
 		// Dispatches which use dummy UAVs are allowed to overlap, since we don't care about the contents of these buffers.
 		// We never need to calll EndUAVOverlap() on these.
 		RHICmdList.BeginUAVOverlap(NewUAV.UAV);

@@ -781,8 +781,6 @@ void FNiagaraDataBuffer::AllocateGPU(FRHICommandList& RHICmdList, uint32 InNumIn
 	}
 	else // Otherwise check for growing and possibly shrinking (if GNiagaraGPUDataBufferBufferSlack > 1) .
 	{
-		TArray<FRHITransitionInfo, TInlineAllocator<5>> Transitions;
-
 		// Float buffer requires growing or shrinking?
 		const int32 RequiredFloatByteSize = Align(FloatStride * Owner->GetNumFloatComponents(), GNiagaraGPUDataBufferChunkSize);
 		const int32 CurrentFloatByteSize = (int32)GPUBufferFloat.NumBytes;
@@ -792,8 +790,7 @@ void FNiagaraDataBuffer::AllocateGPU(FRHICommandList& RHICmdList, uint32 InNumIn
 			{
 				GPUBufferFloat.Release();
 			}
-			GPUBufferFloat.Initialize(TEXT("GPUBufferFloat"), sizeof(float), RequiredFloatByteSize / sizeof(float), EPixelFormat::PF_R32_FLOAT, GPUBufferFlags);
-			Transitions.Add(FRHITransitionInfo(GPUBufferFloat.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+			GPUBufferFloat.Initialize(TEXT("GPUBufferFloat"), sizeof(float), RequiredFloatByteSize / sizeof(float), EPixelFormat::PF_R32_FLOAT, ERHIAccess::SRVMask, GPUBufferFlags);
 		}
 
 		// Half buffer requires growing or shrinking?
@@ -805,8 +802,7 @@ void FNiagaraDataBuffer::AllocateGPU(FRHICommandList& RHICmdList, uint32 InNumIn
 			{
 				GPUBufferHalf.Release();
 			}
-			GPUBufferHalf.Initialize(TEXT("GPUBufferHalf"), sizeof(FFloat16), RequiredHalfByteSize / sizeof(FFloat16), EPixelFormat::PF_R16F, GPUBufferFlags);
-			Transitions.Add(FRHITransitionInfo(GPUBufferHalf.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+			GPUBufferHalf.Initialize(TEXT("GPUBufferHalf"), sizeof(FFloat16), RequiredHalfByteSize / sizeof(FFloat16), EPixelFormat::PF_R16F, ERHIAccess::SRVMask, GPUBufferFlags);
 		}
 
 		// Int buffer requires growing or shrinking?
@@ -818,8 +814,7 @@ void FNiagaraDataBuffer::AllocateGPU(FRHICommandList& RHICmdList, uint32 InNumIn
 			{
 				GPUBufferInt.Release();
 			}
-			GPUBufferInt.Initialize(TEXT("GPUBufferInt"), sizeof(int32), RequiredInt32ByteSize / sizeof(int32), EPixelFormat::PF_R32_SINT, GPUBufferFlags);
-			Transitions.Add(FRHITransitionInfo(GPUBufferInt.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+			GPUBufferInt.Initialize(TEXT("GPUBufferInt"), sizeof(int32), RequiredInt32ByteSize / sizeof(int32), EPixelFormat::PF_R32_SINT, ERHIAccess::SRVMask, GPUBufferFlags);
 		}
 
 		// Allocate persistent IDs?
@@ -835,13 +830,9 @@ void FNiagaraDataBuffer::AllocateGPU(FRHICommandList& RHICmdList, uint32 InNumIn
 				}
 				TStringBuilder<128> DebugBufferName;
 				DebugBufferName.Appendf(TEXT("NiagaraIDToIndexTable_%s_%p"), DebugSimName ? DebugSimName : TEXT(""), this);
-				GPUIDToIndexTable.Initialize(DebugBufferName.ToString(), sizeof(int32), NumNeededElems, EPixelFormat::PF_R32_SINT, BUF_Static);
-				Transitions.Add(FRHITransitionInfo(GPUIDToIndexTable.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
+				GPUIDToIndexTable.Initialize(DebugBufferName.ToString(), sizeof(int32), NumNeededElems, EPixelFormat::PF_R32_SINT, ERHIAccess::SRVCompute, BUF_Static);
 			}
 		}
-
-		// NiagaraEmitterInstanceBatcher expects the buffers to be readable before running the sim.
-		RHICmdList.Transition(MakeArrayView(Transitions.GetData(), Transitions.Num()));
 	}
 #if NIAGARA_MEMORY_TRACKING
 	AllocationSizeBytes = GPUBufferFloat.NumBytes + GPUBufferHalf.NumBytes + GPUBufferInt.NumBytes + GPUIDToIndexTable.NumBytes;
