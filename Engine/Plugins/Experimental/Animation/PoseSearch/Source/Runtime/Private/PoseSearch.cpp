@@ -21,9 +21,6 @@
 #include "Animation/AnimationPoseData.h"
 #include "AnimationRuntime.h"
 #include "BonePose.h"
-#include "Trace/PoseSearchTraceLogger.h"
-#include "Trace/PoseSearchTraceModule.h"
-#include "TraceServices/ModuleService.h"
 #include "UObject/ObjectSaveContext.h"
 
 IMPLEMENT_ANIMGRAPH_MESSAGE(UE::PoseSearch::IPoseHistoryProvider);
@@ -3047,9 +3044,6 @@ public: // IModuleInterface
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
-	/** Host our trace module here, which registers the PoseSearch trace features */
-	FPoseSearchTraceModule PoseSearchTraceModule;
-
 public: // IPoseSearchProvider
 	virtual UE::Anim::IPoseSearchProvider::FSearchResult Search(const FAnimationBaseContext& GraphContext, const UAnimSequenceBase* Sequence) override;
 };
@@ -3057,10 +3051,6 @@ public: // IPoseSearchProvider
 void FModule::StartupModule()
 {
 	IModularFeatures::Get().RegisterModularFeature(UE::Anim::IPoseSearchProvider::ModularFeatureName, this);
-
-	// Enable the PoseSearch trace channel
-	UE::Trace::ToggleChannel(*FTraceLogger::Name.ToString(), true);
-	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &PoseSearchTraceModule);
 }
 
 void FModule::ShutdownModule()
