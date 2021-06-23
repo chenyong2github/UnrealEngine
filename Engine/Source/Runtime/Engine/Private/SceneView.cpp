@@ -205,13 +205,14 @@ static TAutoConsoleVariable<int32> CVarDefaultLensFlare(
 
 // see EAntiAliasingMethod
 static TAutoConsoleVariable<int32> CVarDefaultAntiAliasing(
-	TEXT("r.DefaultFeature.AntiAliasing"),
-	2,
+	TEXT("r.AntiAliasingMethod"),
+	4,
 	TEXT("Engine default (project setting) for AntiAliasingMethod is (postprocess volume/camera/game setting still can override)\n")
 	TEXT(" 0: off (no anti-aliasing)\n")
-	TEXT(" 1: FXAA (faster than TemporalAA but much more shimmering for non static cases)\n")
-	TEXT(" 2: TemporalAA (default)\n")
-	TEXT(" 3: MSAA (Forward shading only)"),
+	TEXT(" 1: Fast Approximate Anti-Aliasing (FXAA)\n")
+	TEXT(" 2: Temporal Anti-Aliasing (TAA)\n")
+	TEXT(" 3: Multisample Anti-Aliasing (MSAA, Only available on the desktop forward renderer)\n")
+	TEXT(" 4: Temporal Super-Resolution (TSR, Default)"),
 	ECVF_RenderThreadSafe);
 
 // see ELightUnits
@@ -843,8 +844,15 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 
 	SetupAntiAliasingMethod();
 
-	if ((AntiAliasingMethod == AAM_TemporalAA) &&
-		(CVarEnableTemporalUpsample.GetValueOnAnyThread() || (Family && Family->GetTemporalUpscalerInterface() != nullptr)))
+	if (AntiAliasingMethod == AAM_TSR)
+	{
+		PrimaryScreenPercentageMethod = EPrimaryScreenPercentageMethod::TemporalUpscale;
+	}
+	else if (AntiAliasingMethod == AAM_TemporalAA && CVarEnableTemporalUpsample.GetValueOnAnyThread() != 0)
+	{
+		PrimaryScreenPercentageMethod = EPrimaryScreenPercentageMethod::TemporalUpscale;
+	}
+	else if (Family && Family->GetTemporalUpscalerInterface() != nullptr)
 	{
 		PrimaryScreenPercentageMethod = EPrimaryScreenPercentageMethod::TemporalUpscale;
 	}
@@ -872,12 +880,14 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 #if DO_CHECK || USING_CODE_ANALYSIS
 bool FSceneView::VerifyMembersChecks() const
 {
+	bool bIsTemporalAccumulation = IsTemporalAccumulationBasedMethod(AntiAliasingMethod);
+
 	if (PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale)
 	{
-		checkf(AntiAliasingMethod == AAM_TemporalAA, TEXT("ScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale requires AntiAliasingMethod == AAM_TemporalAA"));
+		checkf(bIsTemporalAccumulation, TEXT("ScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale requires TAA, TSR or custom Temporal Upscaler"));
 	}
 
-	if (AntiAliasingMethod == AAM_TemporalAA)
+	if (bIsTemporalAccumulation)
 	{
 		checkf(State, TEXT("TemporalAA requires the view to have a valid state."));
 	}
@@ -913,16 +923,24 @@ void FSceneView::SetupAntiAliasingMethod()
 				AntiAliasingMethod = AAM_FXAA;
 			}
 		}
+		else if (AntiAliasingMethod == AAM_TSR)
+		{
+			// TODO(TSR): Support TSR with bRealtimeUpdate
+			if (!Family->EngineShowFlags.TemporalAA || !Family->bRealtimeUpdate || !SupportsTSR(GetShaderPlatform()))
+			{
+				AntiAliasingMethod = AAM_FXAA;
+			}
+		}
 
 		// Overides the anti aliasing method to temporal AA when using a custom temporal upscaler.
-		if (Family->GetTemporalUpscalerInterface() != nullptr)
+		if (Family->GetTemporalUpscalerInterface() != nullptr && Family->bRealtimeUpdate)
 		{
 			AntiAliasingMethod = AAM_TemporalAA;
 		}
 	}
 
-    // TemporalAA requires view state for history.
-	if (AntiAliasingMethod == AAM_TemporalAA && !State)
+	// TemporalAA requires view state for history.
+	if (IsTemporalAccumulationBasedMethod(AntiAliasingMethod) && !State)
 	{
 		AntiAliasingMethod = AAM_None;
 	}

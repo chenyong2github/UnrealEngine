@@ -146,7 +146,7 @@ static FSSAOCommonParameters GetSSAOCommonParameters(
 
 	// If there is no temporal upsampling, we need a smooth pass to get rid of the grid pattern.
 	// Pixel shader version has relatively smooth result so no need to do extra work.
-	CommonParameters.bNeedSmoothingPass = CommonParameters.FullscreenType != ESSAOType::EPS && View.AntiAliasingMethod != AAM_TemporalAA && CVarSSAOSmoothPass.GetValueOnRenderThread();
+	CommonParameters.bNeedSmoothingPass = CommonParameters.FullscreenType != ESSAOType::EPS && !IsTemporalAccumulationBasedMethod(View.AntiAliasingMethod) && CVarSSAOSmoothPass.GetValueOnRenderThread();
 
 	return CommonParameters;
 }

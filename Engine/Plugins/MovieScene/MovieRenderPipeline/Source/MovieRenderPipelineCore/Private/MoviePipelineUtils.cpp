@@ -67,7 +67,7 @@ namespace UE
 		{
 			EAntiAliasingMethod AntiAliasingMethod = EAntiAliasingMethod::AAM_None;
 
-			IConsoleVariable* AntiAliasingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DefaultFeature.AntiAliasing"));
+			IConsoleVariable* AntiAliasingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.AntiAliasingMethod"));
 			if (AntiAliasingCVar)
 			{
 				int32 Value = AntiAliasingCVar->GetInt();

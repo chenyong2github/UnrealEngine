@@ -17,13 +17,6 @@ namespace
 const int32 GTemporalAATileSizeX = 8;
 const int32 GTemporalAATileSizeY = 8;
 
-TAutoConsoleVariable<int32> CVarTAAAlgorithm(
-	TEXT("r.TemporalAA.Algorithm"), 1,
-	TEXT("Algorithm to use for Temporal AA\n")
-	TEXT(" 0: Temporal AA Upsampling\n")
-	TEXT(" 1: Temporal Super Resolution (default)"),
-	ECVF_RenderThreadSafe);
-
 TAutoConsoleVariable<float> CVarTemporalAAFilterSize(
 	TEXT("r.TemporalAAFilterSize"),
 	1.0f,
@@ -798,7 +791,7 @@ static void AddGen4MainTemporalAAPasses(
 	FRDGTextureRef* OutSceneColorHalfResTexture,
 	FIntRect* OutSceneColorHalfResViewRect)
 {
-	check(View.AntiAliasingMethod == AAM_TemporalAA && View.ViewState);
+	check(View.ViewState);
 
 	FTAAPassParameters TAAParameters(View);
 
@@ -906,7 +899,7 @@ public:
 		FRDGTextureRef* OutSceneColorHalfResTexture,
 		FIntRect* OutSceneColorHalfResViewRect) const final
 	{
-		if (CVarTAAAlgorithm.GetValueOnRenderThread() && DoesPlatformSupportTSR(View.GetShaderPlatform()))
+		if (ITemporalUpscaler::GetMainTAAPassConfig(View) == EMainTAAPassConfig::TSR)
 		{
 			*OutSceneColorHalfResTexture = nullptr;
 			//*OutSceneColorHalfResViewRect; // TODO.
@@ -955,7 +948,7 @@ EMainTAAPassConfig ITemporalUpscaler::GetMainTAAPassConfig(const FViewInfo& View
 	{
 		return EMainTAAPassConfig::Disabled;
 	}
-	else if (View.AntiAliasingMethod != AAM_TemporalAA)
+	else if (!IsTemporalAccumulationBasedMethod(View.AntiAliasingMethod))
 	{
 		return EMainTAAPassConfig::Disabled;
 	}
@@ -966,8 +959,10 @@ EMainTAAPassConfig ITemporalUpscaler::GetMainTAAPassConfig(const FViewInfo& View
 	{
 		return EMainTAAPassConfig::ThirdParty;
 	}
-	else if (CVarTAAAlgorithm.GetValueOnRenderThread() && DoesPlatformSupportTSR(View.GetShaderPlatform()))
+	else if (View.AntiAliasingMethod == AAM_TSR && !IsPostProcessingWithAlphaChannelSupported())
 	{
+		// TODO(TSR): alpha channel is not supported yet
+		check(SupportsTSR(View.GetShaderPlatform()));
 		return EMainTAAPassConfig::TSR;
 	}
 	else

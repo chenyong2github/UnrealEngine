@@ -293,7 +293,7 @@ void UMoviePipeline::RenderFrame()
 
 				// Now to check if we have to force it off (at which point we warn the user).
 				bool bMultipleTiles = (TileCount.X > 1) || (TileCount.Y > 1);
-				if (bMultipleTiles && AntiAliasingMethod == EAntiAliasingMethod::AAM_TemporalAA)
+				if (bMultipleTiles && IsTemporalAccumulationBasedMethod(AntiAliasingMethod))
 				{
 					// Temporal Anti-Aliasing isn't supported when using tiled rendering because it relies on having history, and
 					// the tiles use the previous tile as the history which is incorrect. 

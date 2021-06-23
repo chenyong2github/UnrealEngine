@@ -105,8 +105,12 @@ void FDynamicResolutionState::SetupMainViewFamily(class FSceneViewFamily& ViewFa
 		MinResolutionFraction = FMath::Max(MinResolutionFraction, FSceneViewScreenPercentageConfig::kMinResolutionFraction);
 		MaxResolutionFraction = FMath::Min(MaxResolutionFraction, FSceneViewScreenPercentageConfig::kMaxResolutionFraction);
 
-		// Temporal upsample has a smaller resolution fraction range.
-		if (View.AntiAliasingMethod == AAM_TemporalAA)
+		if (View.AntiAliasingMethod == AAM_TSR)
+		{
+			MinResolutionFraction = FMath::Max(MinResolutionFraction, FSceneViewScreenPercentageConfig::kMinTSRResolutionFraction);
+			MaxResolutionFraction = FMath::Min(MaxResolutionFraction, FSceneViewScreenPercentageConfig::kMaxTSRResolutionFraction);
+		}
+		else if (View.AntiAliasingMethod == AAM_TemporalAA)
 		{
 			MinResolutionFraction = FMath::Max(MinResolutionFraction, FSceneViewScreenPercentageConfig::kMinTAAUpsampleResolutionFraction);
 			MaxResolutionFraction = FMath::Min(MaxResolutionFraction, FSceneViewScreenPercentageConfig::kMaxTAAUpsampleResolutionFraction);

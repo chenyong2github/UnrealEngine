@@ -505,6 +505,8 @@ RENDERCORE_API bool IsMobileDistanceFieldShadowingEnabled(const FStaticShaderPla
 
 RENDERCORE_API bool SupportsGen4TAA(const FStaticShaderPlatform Platform);
 
+RENDERCORE_API bool SupportsTSR(const FStaticShaderPlatform Platform);
+
 RENDERCORE_API bool PlatformSupportsVelocityRendering(const FStaticShaderPlatform Platform);
 
 RENDERCORE_API bool IsUsingDBuffers(const FStaticShaderPlatform Platform);

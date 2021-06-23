@@ -1421,7 +1421,11 @@ struct FSceneViewScreenPercentageConfig
 	static constexpr float kMinResolutionFraction = 0.01f;
 	static constexpr float kMaxResolutionFraction = 4.0f;
 
-	// Sets the minimal and maximal screen percentage for TAA upsample.
+	// Sets the minimal and maximal screen percentage for TSR.
+	static constexpr float kMinTSRResolutionFraction = 0.25f;
+	static constexpr float kMaxTSRResolutionFraction = 2.0f;
+
+	// Sets the minimal and maximal screen percentage for TAAU.
 	static constexpr float kMinTAAUpsampleResolutionFraction = 0.5f;
 	static constexpr float kMaxTAAUpsampleResolutionFraction = 2.0f;
 

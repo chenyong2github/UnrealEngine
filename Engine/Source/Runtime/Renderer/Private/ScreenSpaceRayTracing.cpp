@@ -170,7 +170,7 @@ bool IsSSRTemporalPassRequired(const FViewInfo& View)
 	{
 		return false;
 	}
-	return View.AntiAliasingMethod != AAM_TemporalAA || CVarSSRTemporal.GetValueOnRenderThread() != 0;
+	return !IsTemporalAccumulationBasedMethod(View.AntiAliasingMethod) || CVarSSRTemporal.GetValueOnRenderThread() != 0;
 }
 
 
@@ -304,7 +304,7 @@ FLinearColor ComputeSSRParams(const FViewInfo& View, ESSRQuality SSRQuality, boo
 
 	if(View.ViewState)
 	{
-		bool bTemporalAAIsOn = View.AntiAliasingMethod == AAM_TemporalAA;
+		bool bTemporalAAIsOn = IsTemporalAccumulationBasedMethod(View.AntiAliasingMethod);
 
 		if(bTemporalAAIsOn)
 		{

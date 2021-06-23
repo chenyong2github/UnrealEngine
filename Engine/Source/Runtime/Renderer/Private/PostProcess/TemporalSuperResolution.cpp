@@ -13,16 +13,6 @@
 
 #define COMPILE_TSR_DEBUG_PASSES (!UE_BUILD_SHIPPING)
 
-bool DoesPlatformSupportTSR(EShaderPlatform Platform)
-{
-	// TODO(TSR): alpha channel is not supported yet
-	if (IsPostProcessingWithAlphaChannelSupported())
-	{
-		return false;
-	}
-	return FDataDrivenShaderPlatformInfo::GetSupportsGen5TemporalAA(Platform);
-}
-
 namespace
 {
 
@@ -143,7 +133,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return DoesPlatformSupportTSR(Parameters.Platform);
+		return SupportsTSR(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)

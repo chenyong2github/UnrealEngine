@@ -192,7 +192,7 @@ bool FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder, const FCus
 			PassParameters->SceneTextures = SceneTextures;
 
 			// User requested jitter-free custom depth.
-			if (CVarCustomDepthTemporalAAJitter.GetValueOnRenderThread() == 0 && View.AntiAliasingMethod == AAM_TemporalAA)
+			if (CVarCustomDepthTemporalAAJitter.GetValueOnRenderThread() == 0 && IsTemporalAccumulationBasedMethod(View.AntiAliasingMethod))
 			{
 				PassParameters->View = CreateViewShaderParametersWithoutJitter(View);
 			}

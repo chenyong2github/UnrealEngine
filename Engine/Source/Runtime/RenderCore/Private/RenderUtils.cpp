@@ -1151,6 +1151,11 @@ RENDERCORE_API bool SupportsGen4TAA(const FStaticShaderPlatform Platform)
 	return true;
 }
 
+RENDERCORE_API bool SupportsTSR(const FStaticShaderPlatform Platform)
+{
+	return FDataDrivenShaderPlatformInfo::GetSupportsGen5TemporalAA(Platform);
+}
+
 template<typename Type>
 Type FShaderPlatformCachedIniValue<Type>::Get(EShaderPlatform ShaderPlatform)
 {
