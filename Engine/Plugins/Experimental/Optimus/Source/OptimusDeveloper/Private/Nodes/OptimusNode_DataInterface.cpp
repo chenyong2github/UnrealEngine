@@ -110,7 +110,7 @@ void UOptimusNode_DataInterface::CreatePinFromDefinition(
 			return;
 		}
 
-		FShaderValueTypeHandle ValueTypeHandle = FShaderValueType::Get(FuncDef->ParamTypes[0]);
+		const FShaderValueTypeHandle ValueTypeHandle = FuncDef->ParamTypes[0].ValueType;
 		PinDataType = TypeRegistry.FindType(ValueTypeHandle);
 		if (!PinDataType.IsValid())
 		{
@@ -148,7 +148,7 @@ void UOptimusNode_DataInterface::CreatePinFromDefinition(
 			}
 
 			// The return type dictates the pin type.
-			ValueTypeHandle = FShaderValueType::Get(FuncDef->ParamTypes[0]);
+			ValueTypeHandle = FuncDef->ParamTypes[0].ValueType;
 		}
 		else if (InWriteFunctionMap.Contains(InDefinition.DataFunctionName))
 		{
@@ -165,7 +165,7 @@ void UOptimusNode_DataInterface::CreatePinFromDefinition(
 			}
 
 			// The second argument dictates the pin type.
-			ValueTypeHandle = FShaderValueType::Get(FuncDef->ParamTypes[1]);
+			ValueTypeHandle = FuncDef->ParamTypes[1].ValueType;
 		}
 		else
 		{

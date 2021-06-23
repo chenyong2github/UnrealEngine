@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "ComputeFramework/ComputeDataInterface.h"
+#include "OptimusComputeDataInterface.h"
 #include "ComputeFramework/ComputeDataProvider.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "DataInterfaceRawBuffer.generated.h"
@@ -13,22 +13,50 @@ class FRDGBufferUAV;
 
 /** Compute Framework Data Interface for a transient buffer. */
 UCLASS(Category = ComputeFramework)
-class UTransientBufferDataInterface : public UComputeDataInterface
+class OPTIMUSCORE_API UTransientBufferDataInterface : public UOptimusComputeDataInterface
 {
 	GENERATED_BODY()
 
 public:
+	static const int32 ReadValueInputIndex;
+	static const int32 WriteValueOutputIndex;
+	
+	//~ Begin UComputeDataInterface Interface
+	FString GetDisplayName() const override;
+	
+	/// Returns the list of pins that will map to the shader functions provided by this data interface.
+	TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const override;
+	
+	bool IsVisible() const override
+	{
+		return false;
+	}
+	//~ End UComputeDataInterface Interface
+
 	//~ Begin UComputeDataInterface Interface
 	void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	void GetSupportedOutputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& OutBuilder) const override;
 	void GetHLSL(FString& OutHLSL) const override;
 	void ModifyCompilationEnvironment(FShaderCompilerEnvironment& OutEnvironment) const override;
-	UClass* GetDataProviderClass() const override;
+	UComputeDataProvider* CreateDataProvider(UObject *InOuter) const override;
 	//~ End UComputeDataInterface Interface
 
+	void Serialize(FArchive& Ar) override
+	{
+		Super::Serialize(Ar);
+	}
+
+	void Serialize(FStructuredArchive::FRecord Record) override
+	{
+		Super::Serialize(Record);
+	}
+
 	UPROPERTY()
-	FShaderParamTypeDefinition Type;
+	FString TestString;
+	
+	UPROPERTY()
+	FShaderValueTypeHandle ValueType;
 
 private:
 	bool SupportsAtomics() const;
@@ -36,7 +64,7 @@ private:
 
 /** Compute Framework Data Provider for a transient buffer. */
 UCLASS(BlueprintType, editinlinenew, Category = ComputeFramework)
-class UTransientBufferDataProvider : public UComputeDataProvider
+class OPTIMUSCORE_API UTransientBufferDataProvider : public UComputeDataProvider
 {
 	GENERATED_BODY()
 

@@ -96,6 +96,14 @@ struct FShaderValueTypeHandle
 		return ValueTypePtr != InOther.ValueTypePtr;
 	}
 	
+	bool Serialize(FArchive& Ar);
+};
+
+FArchive& operator<<(FArchive& InArchive, FShaderValueTypeHandle& InHandle);
+
+template<> struct TStructOpsTypeTraits<FShaderValueTypeHandle> : TStructOpsTypeTraitsBase2<FShaderValueTypeHandle>
+{
+	enum { WithSerializer = true, WithIdenticalViaEquality = true, WithCopy = false };
 };
 
 /*  */
@@ -138,10 +146,13 @@ struct ENGINE_API FShaderValueType
 	/** Constructor for vector values. InElemCount can be any value between 1-4 */
 	static FShaderValueTypeHandle Get(EShaderFundamentalType InType, int32 InRowCount, int32 InColumnCount);
 
+	/** Constructor for struct types */
 	static FShaderValueTypeHandle Get(FName InName, std::initializer_list<FStructElement> InStructElements);
 
-	// FIXME: Remove once we remove redundant members from FShaderParamTypeDefinition
-	static FShaderValueTypeHandle Get(const FShaderParamTypeDefinition &InDef);
+	/** Parses the given string section and tries to convert to a shader value type.
+	 *  NOTE: Does not work on structs.
+	 */
+	static FShaderValueTypeHandle FromString(const FString& InTypeDecl);
 	
 	/** Returns true if this type and the other type are exactly equal. */
 	bool operator==(const FShaderValueType &InOtherType) const;
@@ -161,6 +172,10 @@ struct ENGINE_API FShaderValueType
 	/** Returns the type declaration if this type is a struct, or the empty string if not. */
 	FString GetTypeDeclaration() const;
 
+	// Returns the size in bytes required to hold one element of this type using HLSL sizing
+	// (which may be different from packed sizing in C++).
+	int32 GetResourceElementSize() const;
+	
 	UPROPERTY()
 	EShaderFundamentalType Type = EShaderFundamentalType::Bool;
 
@@ -235,27 +250,10 @@ public:
 	uint16 ArrayElementCount = 0; // 0 indicates not an array. >= 1 indicates an array
 
 	UPROPERTY()
-	EShaderFundamentalType FundamentalType = EShaderFundamentalType::Bool;
-
-	UPROPERTY()
-	EShaderFundamentalDimensionType	DimType = EShaderFundamentalDimensionType::Scalar;
-
-	UPROPERTY()
 	EShaderParamBindingType BindingType = EShaderParamBindingType::None;
 
 	UPROPERTY()
 	EShaderResourceType	ResourceType = EShaderResourceType::None;
-
-	union
-	{
-		uint8 VectorDimension : 3;
-
-		struct
-		{
-			uint8 MatrixRowCount : 3;
-			uint8 MatrixColumnCount : 3;
-		};
-	};
 
 	bool IsAnyBufferType() const
 	{
@@ -277,19 +275,24 @@ public:
 	/* Determines if the type definition is valid according to HLSL rules. */
 	bool IsValid() const
 	{
-		if (FundamentalType == EShaderFundamentalType::Struct && DimType != EShaderFundamentalDimensionType::Scalar)
+		if (!ValueType)
+		{
+			return false;
+		}
+		
+		if (ValueType->Type == EShaderFundamentalType::Struct && ValueType->DimensionType != EShaderFundamentalDimensionType::Scalar)
 		{
 			// cannot have anything but scalar struct types
 			return false;
 		}
 
-		if (IsAnyTextureType() && FundamentalType == EShaderFundamentalType::Struct)
+		if (IsAnyTextureType() && ValueType->Type == EShaderFundamentalType::Struct)
 		{
 			// cannot have textures of structs
 			return false;
 		}
 
-		if (IsAnyTextureType() && DimType == EShaderFundamentalDimensionType::Matrix)
+		if (IsAnyTextureType() && ValueType->DimensionType == EShaderFundamentalDimensionType::Matrix)
 		{
 			// cannot have textures of matrices
 			return false;

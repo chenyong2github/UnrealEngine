@@ -8,9 +8,9 @@ void UComputeKernelSource::GetShaderParameters(class FShaderParametersMetadataBu
 {
 	for (auto& Input : InputParams)
 	{
-		ensureAlways(Input.DimType == EShaderFundamentalDimensionType::Scalar);
+		ensureAlways(Input.ValueType->DimensionType == EShaderFundamentalDimensionType::Scalar);
 
-		switch (Input.FundamentalType)
+		switch (Input.ValueType->Type)
 		{
 		case EShaderFundamentalType::Bool:
 			OutBuilder.AddParam<bool>(*Input.Name);

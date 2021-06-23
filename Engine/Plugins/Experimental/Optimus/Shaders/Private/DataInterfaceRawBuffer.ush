@@ -8,6 +8,11 @@ uint DI_LOCAL(BufferSize);
 StructuredBuffer<BUFFER_TYPE> DI_LOCAL(BufferSRV);
 RWStructuredBuffer<BUFFER_TYPE> DI_LOCAL(BufferUAV);
 
+DI_IMPL_READ(ReadNumValues, uint, void)
+{
+	return DI_LOCAL(BufferSize);
+}
+
 DI_IMPL_READ(ReadValue, BUFFER_TYPE, uint Index)
 {
 	uint BufferIndex = DI_LOCAL(StartOffset) + Index;

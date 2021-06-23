@@ -9,6 +9,7 @@ struct FComputeKernelPermutationSet;
 struct FShaderCompilerEnvironment;
 struct FShaderFunctionDefinition;
 class FShaderParametersMetadataBuilder;
+class UComputeDataProvider;
 
 /** 
  * Compute Data Interface required to compile a Compute Graph. 
@@ -34,5 +35,5 @@ public:
 	/** Gather modifications to the compilation environment always required when including this data provider. */
 	virtual void ModifyCompilationEnvironment(FShaderCompilerEnvironment& OutEnvironment) const {}
 
-	virtual UClass* GetDataProviderClass() const PURE_VIRTUAL(UComputeDataInterface::GetDataProviderClass, return nullptr; )
+	virtual UComputeDataProvider* CreateDataProvider(UObject *InOuter) const PURE_VIRTUAL(UComputeDataInterface::CreateDataProvider, return nullptr; )
 };

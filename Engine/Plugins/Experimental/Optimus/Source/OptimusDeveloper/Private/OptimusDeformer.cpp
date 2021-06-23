@@ -17,6 +17,7 @@
 #include "ComputeFramework/ComputeKernel.h"
 #include "DataInterfaces/DataInterfaceSkeletalMeshRead.h"
 #include "DataInterfaces/DataInterfaceSkinCacheWrite.h"
+#include "DataInterfaces/DataInterfaceRawBuffer.h"
 #include "Nodes/OptimusNode_ComputeKernel.h"
 #include "Nodes/OptimusNode_DataInterface.h"
 
@@ -484,29 +485,43 @@ bool UOptimusDeformer::RenameResourceDirect(
 	return bChanged;
 }
 
+// Do a breadth-first collection of nodes starting from the seed nodes (terminal data interfaces).
 static void CollectNodes(
-	const UOptimusNodeGraph* InGraph, 
-	const UOptimusNode *InNode,
-	TSet<const UOptimusNode *>& CollectedNodes
+	const UOptimusNodeGraph* InGraph,
+	const TArray<const UOptimusNode*>& InSeedNodes,
+	TArray<const UOptimusNode*>& OutCollectedNodes
 	)
 {
-	if (CollectedNodes.Contains(InNode))
+	TSet<const UOptimusNode*> VisitedNodes;
+	TQueue<const UOptimusNode*> WorkingSet;
+
+	for (const UOptimusNode* Node: InSeedNodes)
 	{
-		return;
+		WorkingSet.Enqueue(Node);
+		VisitedNodes.Add(Node);
+		OutCollectedNodes.Add(Node);
 	}
-	
-	CollectedNodes.Add(InNode);
-	
-	// Traverse in the direction of input pins (up the graph).
-	for (const UOptimusNodePin* Pin: InNode->GetPins())
+
+	const UOptimusNode* WorkNode;
+	while (WorkingSet.Dequeue(WorkNode))
 	{
-		if (Pin->GetDirection() == EOptimusNodePinDirection::Input)
+		// Traverse in the direction of input pins (up the graph).
+		for (const UOptimusNodePin* Pin: WorkNode->GetPins())
 		{
-			for (const UOptimusNodePin* ConnectedPin: InGraph->GetConnectedPins(Pin))
+			if (Pin->GetDirection() == EOptimusNodePinDirection::Input)
 			{
-				CollectNodes(InGraph, ConnectedPin->GetNode(), CollectedNodes);
+				for (const UOptimusNodePin* ConnectedPin: InGraph->GetConnectedPins(Pin))
+				{
+					const UOptimusNode *NextNode = ConnectedPin->GetNode();
+					if (!VisitedNodes.Contains(NextNode))
+					{
+						WorkingSet.Enqueue(NextNode);
+						VisitedNodes.Add(NextNode);
+						OutCollectedNodes.Add(NextNode);
+					}
+				}
 			}
-		}
+		}	
 	}	
 }
 
@@ -570,25 +585,58 @@ bool UOptimusDeformer::Compile()
 	DataInterfaces.Reset();
 	GraphEdges.Reset();
 
-	TSet<const UOptimusNode *> ConnectedNodes;
-	for (const UOptimusNode* Node: TerminalNodes)
-	{
-		CollectNodes(UpdateGraph, Node, ConnectedNodes);
-	}
+	TArray<const UOptimusNode *> ConnectedNodes;
+	CollectNodes(UpdateGraph, TerminalNodes, ConnectedNodes);
+
+	// Since we now have the connected nodes in a breadth-first list, reverse the list which
+	// will give use the same list but topologically sorted in kernel execution order.
+	Algo::Reverse(ConnectedNodes.GetData(), ConnectedNodes.Num());
 
 	// Find all data interface nodes and create their data interfaces.
 	TMap<const UOptimusNode *, UOptimusComputeDataInterface *> NodeDataInterfaceMap;
 
+	// Find all resource links from one compute kernel directly to another. The pin here is
+	// the output pin from a kernel node that connects to another. We don't map from input pins
+	// because a resource output may be used multiple times, but only written into once.
+	TMap<const UOptimusNodePin*, UOptimusComputeDataInterface *> LinkDataInterfaceMap;
+
 	for (const UOptimusNode* Node: ConnectedNodes)
 	{
-		const UOptimusNode_DataInterface *DataInterfaceNode = Cast<const UOptimusNode_DataInterface>(Node);
+		const UOptimusNode_DataInterface* DataInterfaceNode = Cast<const UOptimusNode_DataInterface>(Node);
 
 		if (DataInterfaceNode)
 		{
-			UOptimusComputeDataInterface *DataInterface =
+			UOptimusComputeDataInterface* DataInterface =
 				NewObject<UOptimusComputeDataInterface>(this, DataInterfaceNode->GetDataInterfaceClass());
 
 			NodeDataInterfaceMap.Add(Node, DataInterface);
+		}
+
+		const UOptimusNode_ComputeKernel* KernelNode = Cast<const UOptimusNode_ComputeKernel>(Node);
+		if (KernelNode)
+		{
+			for (const UOptimusNodePin* Pin: KernelNode->GetPins())
+			{
+				if (Pin->GetDirection() == EOptimusNodePinDirection::Output &&
+					ensure(Pin->GetStorageType() == EOptimusNodePinStorageType::Resource) &&
+					!LinkDataInterfaceMap.Contains(Pin))
+				{
+					for (const UOptimusNodePin* ConnectedPin: UpdateGraph->GetConnectedPins(Pin))
+					{
+						// Make sure it connects to another kernel node.
+						if (Cast<const UOptimusNode_ComputeKernel>(ConnectedPin->GetNode()) &&
+							ensure(Pin->GetDataType().IsValid()))
+						{
+							UTransientBufferDataInterface* TransientBufferDI =
+								NewObject<UTransientBufferDataInterface>(this);
+
+							TransientBufferDI->ValueType = Pin->GetDataType()->ShaderValueType;
+							TransientBufferDI->TestString = TEXT("Wtfbbq");
+							LinkDataInterfaceMap.Add(Pin, TransientBufferDI);
+						}
+					}
+				}
+			}	
 		}
 	}
 
@@ -611,12 +659,14 @@ bool UOptimusDeformer::Compile()
 
 			BoundKernel.Kernel = NewObject<UComputeKernel>(this, *KernelNode->KernelName);
 			
-			UComputeKernelSource *KernelSource = KernelNode->CreateComputeKernel(BoundKernel.Kernel, NodeDataInterfaceMap, BoundKernel.InputDataBindings, BoundKernel.OutputDataBindings);
+			UComputeKernelSource *KernelSource = KernelNode->CreateComputeKernel(
+				BoundKernel.Kernel, NodeDataInterfaceMap, LinkDataInterfaceMap, BoundKernel.InputDataBindings, BoundKernel.OutputDataBindings);
 			if (!KernelSource)
 			{
 				UE_LOG(LogOptimusDeveloper, Warning, TEXT("Unable to create compute kernel from kernel node. Compilation aborted."));
 				return false;
 			}
+
 			if (BoundKernel.InputDataBindings.IsEmpty() || BoundKernel.OutputDataBindings.IsEmpty())
 			{
 				UE_LOG(LogOptimusDeveloper, Warning, TEXT("Kernel has either no input or output bindings. Compilation aborted."));
@@ -631,6 +681,10 @@ bool UOptimusDeformer::Compile()
 
 	// Now that we've collected all the pieces, time to line them up.
 	for (TPair<const UOptimusNode *, UOptimusComputeDataInterface *>&Item: NodeDataInterfaceMap)
+	{
+		DataInterfaces.Add(Item.Value);
+	}
+	for (TPair<const UOptimusNodePin *, UOptimusComputeDataInterface *>&Item: LinkDataInterfaceMap)
 	{
 		DataInterfaces.Add(Item.Value);
 	}
@@ -660,8 +714,7 @@ bool UOptimusDeformer::Compile()
 			DataInterface->GetSupportedInputs(DataInterfaceFunctions);
 			
 			if (ensure(KernelInputs.IsValidIndex(KernelBindingIndex)) &&
-				ensure(DataInterfaceFunctions.IsValidIndex(DataInterfaceBindingIndex)) &&
-				ensure(KernelInputs[KernelBindingIndex].Name == DataInterfaceFunctions[DataInterfaceBindingIndex].Name))
+				ensure(DataInterfaceFunctions.IsValidIndex(DataInterfaceBindingIndex)))
 			{
 				FComputeGraphEdge GraphEdge;
 				GraphEdge.bKernelInput = true;
@@ -688,8 +741,7 @@ bool UOptimusDeformer::Compile()
 			DataInterface->GetSupportedOutputs(DataInterfaceFunctions);
 			
 			if (ensure(KernelOutputs.IsValidIndex(KernelBindingIndex)) &&
-				ensure(DataInterfaceFunctions.IsValidIndex(DataInterfaceBindingIndex)) &&
-				ensure(KernelOutputs[KernelBindingIndex].Name == DataInterfaceFunctions[DataInterfaceBindingIndex].Name))
+				ensure(DataInterfaceFunctions.IsValidIndex(DataInterfaceBindingIndex)))
 			{
 				FComputeGraphEdge GraphEdge;
 				GraphEdge.bKernelInput = false;
@@ -802,12 +854,12 @@ void UOptimusDeformer::Notify(EOptimusGlobalNotifyType InNotifyType, UObject* In
 }
 
 
-TArray<TSubclassOf<UComputeDataProvider>> UOptimusDeformer::GetDataProviderClasses() const
+TArray<TObjectPtr<UComputeDataProvider>> UOptimusDeformer::CreateDataProviders(UObject* InOuter) const
 {
-	TArray<TSubclassOf<UComputeDataProvider>> DataProviders;
+	TArray<TObjectPtr<UComputeDataProvider>> DataProviders;
 	for (UComputeDataInterface *DataInterface: DataInterfaces)
 	{
-		DataProviders.Add(DataInterface->GetDataProviderClass());
+		DataProviders.Add(DataInterface->CreateDataProvider(InOuter));
 	}
 	return DataProviders;
 }

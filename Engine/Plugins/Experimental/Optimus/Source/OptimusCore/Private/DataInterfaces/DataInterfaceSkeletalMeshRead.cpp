@@ -49,8 +49,7 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 		Fn.Name = TEXT("ReadNumVertices");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.FundamentalType = EShaderFundamentalType::Uint;
-		ReturnParam.DimType = EShaderFundamentalDimensionType::Scalar;
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(ReturnParam);
 		OutFunctions.Add(Fn);
 	}
@@ -59,8 +58,7 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 		Fn.Name = TEXT("ReadNumTriangles");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.FundamentalType = EShaderFundamentalType::Uint;
-		ReturnParam.DimType = EShaderFundamentalDimensionType::Scalar;
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(ReturnParam);
 		OutFunctions.Add(Fn);
 	}
@@ -69,12 +67,10 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 		Fn.Name = TEXT("ReadIndexBuffer");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.FundamentalType = EShaderFundamentalType::Uint;
-		ReturnParam.DimType = EShaderFundamentalDimensionType::Scalar;
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(ReturnParam);
 		FShaderParamTypeDefinition Param0 = {};
-		Param0.FundamentalType = EShaderFundamentalType::Uint;
-		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(Param0);
 		OutFunctions.Add(Fn);
 	}
@@ -83,13 +79,10 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 		Fn.Name = TEXT("ReadPosition");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.FundamentalType = EShaderFundamentalType::Float;
-		ReturnParam.DimType = EShaderFundamentalDimensionType::Vector;
-		ReturnParam.VectorDimension = 3;
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 3);
 		Fn.ParamTypes.Add(ReturnParam);
 		FShaderParamTypeDefinition Param0 = {};
-		Param0.FundamentalType = EShaderFundamentalType::Uint;
-		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(Param0);
 		OutFunctions.Add(Fn);
 	}
@@ -98,13 +91,10 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 		Fn.Name = TEXT("ReadTangentX");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.FundamentalType = EShaderFundamentalType::Float;
-		ReturnParam.DimType = EShaderFundamentalDimensionType::Vector;
-		ReturnParam.VectorDimension = 4;
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 4);
 		Fn.ParamTypes.Add(ReturnParam);
 		FShaderParamTypeDefinition Param0 = {};
-		Param0.FundamentalType = EShaderFundamentalType::Uint;
-		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(Param0);
 		OutFunctions.Add(Fn);
 	}
@@ -113,13 +103,10 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 		Fn.Name = TEXT("ReadTangentZ");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.FundamentalType = EShaderFundamentalType::Float;
-		ReturnParam.DimType = EShaderFundamentalDimensionType::Vector;
-		ReturnParam.VectorDimension = 4;
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 4);
 		Fn.ParamTypes.Add(ReturnParam);
 		FShaderParamTypeDefinition Param0 = {};
-		Param0.FundamentalType = EShaderFundamentalType::Uint;
-		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(Param0);
 		OutFunctions.Add(Fn);
 	}
@@ -128,17 +115,13 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 		Fn.Name = TEXT("ReadUV");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.FundamentalType = EShaderFundamentalType::Float;
-		ReturnParam.DimType = EShaderFundamentalDimensionType::Vector;
-		ReturnParam.VectorDimension = 2;
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 2);
 		Fn.ParamTypes.Add(ReturnParam);
 		FShaderParamTypeDefinition Param0 = {};
-		Param0.FundamentalType = EShaderFundamentalType::Uint;
-		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(Param0);
 		FShaderParamTypeDefinition Param1 = {};
-		Param1.FundamentalType = EShaderFundamentalType::Uint;
-		Param1.DimType = EShaderFundamentalDimensionType::Scalar;
+		Param1.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(Param1);
 		OutFunctions.Add(Fn);
 	}
@@ -147,14 +130,10 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 		Fn.Name = TEXT("ReadBoneMatrix");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.FundamentalType = EShaderFundamentalType::Float;
-		ReturnParam.DimType = EShaderFundamentalDimensionType::Matrix;
-		ReturnParam.MatrixRowCount = 3;
-		ReturnParam.MatrixColumnCount = 4;
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 3, 4);
 		Fn.ParamTypes.Add(ReturnParam);
 		FShaderParamTypeDefinition Param0 = {};
-		Param0.FundamentalType = EShaderFundamentalType::Uint;
-		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(Param0);
 		OutFunctions.Add(Fn);
 	}
@@ -163,14 +142,10 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 		Fn.Name = TEXT("ReadBlendMatrix");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.FundamentalType = EShaderFundamentalType::Float;
-		ReturnParam.DimType = EShaderFundamentalDimensionType::Matrix;
-		ReturnParam.MatrixRowCount = 3;
-		ReturnParam.MatrixColumnCount = 4;
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 3, 4);
 		Fn.ParamTypes.Add(ReturnParam);
 		FShaderParamTypeDefinition Param0 = {};
-		Param0.FundamentalType = EShaderFundamentalType::Uint;
-		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(Param0);
 		OutFunctions.Add(Fn);
 	}
@@ -179,13 +154,10 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 		Fn.Name = TEXT("ReadMorphDeltaPosition");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.FundamentalType = EShaderFundamentalType::Float;
-		ReturnParam.DimType = EShaderFundamentalDimensionType::Vector;
-		ReturnParam.VectorDimension = 3;
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 3);
 		Fn.ParamTypes.Add(ReturnParam);
 		FShaderParamTypeDefinition Param0 = {};
-		Param0.FundamentalType = EShaderFundamentalType::Uint;
-		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(Param0);
 		OutFunctions.Add(Fn);
 	}
@@ -194,13 +166,10 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 		Fn.Name = TEXT("ReadMorphDeltaTangentZ");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.FundamentalType = EShaderFundamentalType::Float;
-		ReturnParam.DimType = EShaderFundamentalDimensionType::Vector;
-		ReturnParam.VectorDimension = 3;
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 3);
 		Fn.ParamTypes.Add(ReturnParam);
 		FShaderParamTypeDefinition Param0 = {};
-		Param0.FundamentalType = EShaderFundamentalType::Uint;
-		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(Param0);
 		OutFunctions.Add(Fn);
 	}
@@ -209,12 +178,10 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 		Fn.Name = TEXT("ReadDuplicatedIndicesStart");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.FundamentalType = EShaderFundamentalType::Uint;
-		ReturnParam.DimType = EShaderFundamentalDimensionType::Scalar;
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(ReturnParam);
 		FShaderParamTypeDefinition Param0 = {};
-		Param0.FundamentalType = EShaderFundamentalType::Uint;
-		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(Param0);
 		OutFunctions.Add(Fn);
 	}
@@ -223,12 +190,10 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 		Fn.Name = TEXT("ReadDuplicatedIndicesLength");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.FundamentalType = EShaderFundamentalType::Uint;
-		ReturnParam.DimType = EShaderFundamentalDimensionType::Scalar;
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(ReturnParam);
 		FShaderParamTypeDefinition Param0 = {};
-		Param0.FundamentalType = EShaderFundamentalType::Uint;
-		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(Param0);
 		OutFunctions.Add(Fn);
 	}
@@ -237,12 +202,10 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 		Fn.Name = TEXT("ReadDuplicatedIndex");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.FundamentalType = EShaderFundamentalType::Uint;
-		ReturnParam.DimType = EShaderFundamentalDimensionType::Scalar;
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(ReturnParam);
 		FShaderParamTypeDefinition Param0 = {};
-		Param0.FundamentalType = EShaderFundamentalType::Uint;
-		Param0.DimType = EShaderFundamentalDimensionType::Scalar;
+		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
 		Fn.ParamTypes.Add(Param0);
 		OutFunctions.Add(Fn);
 	}
@@ -280,9 +243,9 @@ void USkeletalMeshReadDataInterface::GetHLSL(FString& OutHLSL) const
 }
 
 
-UClass* USkeletalMeshReadDataInterface::GetDataProviderClass() const
+UComputeDataProvider* USkeletalMeshReadDataInterface::CreateDataProvider(UObject* InOuter) const
 {
-	return USkeletalMeshReadDataProvider::StaticClass();
+	return NewObject<USkeletalMeshReadDataProvider>(InOuter);
 }
 
 

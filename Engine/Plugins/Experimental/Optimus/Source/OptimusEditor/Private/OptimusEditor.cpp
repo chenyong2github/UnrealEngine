@@ -28,8 +28,10 @@
 #include "OptimusEditorMode.h"
 #include "PersonaModule.h"
 #include "PersonaTabs.h"
+#include "SkeletalRenderPublic.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "ComputeFramework/ComputeGraphComponent.h"
+#include "DataInterfaces/DataInterfaceRawBuffer.h"
 #include "DataInterfaces/DataInterfaceScene.h"
 #include "DataInterfaces/DataInterfaceSkeletalMeshRead.h"
 #include "DataInterfaces/DataInterfaceSkinCacheWrite.h"
@@ -249,18 +251,7 @@ bool FOptimusEditor::SetEditGraph(UOptimusNodeGraph* InNodeGraph)
 
 void FOptimusEditor::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	if (SkeletalMeshReadDataProvider)
-	{
-		Collector.AddReferencedObject(SkeletalMeshReadDataProvider);
-	}
-	if (SkeletalMeshSkinCacheDataProvider)
-	{
-		Collector.AddReferencedObject(SkeletalMeshSkinCacheDataProvider);
-	}
-	if (SceneDataProvider)
-	{
-		Collector.AddReferencedObject(SceneDataProvider);
-	}
+	// 
 }
 
 
@@ -297,28 +288,8 @@ void FOptimusEditor::InstallDataProviders()
 {
 	if (ComputeGraphComponent)
 	{
-		ComputeGraphComponent->DataProviders.Reset();
-
-		for (UClass* DataProviderClass: DeformerObject->GetDataProviderClasses())
-		{
-			if (DataProviderClass == USkeletalMeshReadDataProvider::StaticClass())
-			{
-				ComputeGraphComponent->DataProviders.Add(SkeletalMeshReadDataProvider);
-			}
-			else if (DataProviderClass == USkeletalMeshSkinCacheDataProvider::StaticClass())
-			{
-				ComputeGraphComponent->DataProviders.Add(SkeletalMeshSkinCacheDataProvider);
-			}
-			else if (DataProviderClass == USceneDataProvider::StaticClass())
-			{
-				ComputeGraphComponent->DataProviders.Add(SceneDataProvider);
-			}
-			else
-			{
-				checkf(false, TEXT("Unknown provider class: %s"), *DataProviderClass->GetName());
-			}
-		}
-
+		ComputeGraphComponent->DataProviders = DeformerObject->CreateDataProviders(ComputeGraphComponent);
+		
 		UpdateDataProviderBindings();
 	}
 }
@@ -326,17 +297,41 @@ void FOptimusEditor::InstallDataProviders()
 
 void FOptimusEditor::UpdateDataProviderBindings()
 {
-	if (SkeletalMeshReadDataProvider)
+	if (ComputeGraphComponent)
 	{
-		SkeletalMeshReadDataProvider->SkeletalMesh = GetPersonaToolkit()->GetPreviewMeshComponent();
-	}
-	if (SkeletalMeshSkinCacheDataProvider)
-	{
-		SkeletalMeshSkinCacheDataProvider->SkeletalMesh = GetPersonaToolkit()->GetPreviewMeshComponent();
-	}
-	if (SceneDataProvider)
-	{
-		SceneDataProvider->SceneComponent = GetPersonaToolkit()->GetPreviewMeshComponent();
+		for (UComputeDataProvider* DataProvider: ComputeGraphComponent->DataProviders)
+		{
+			if (USkeletalMeshReadDataProvider* SkeletalMeshReadDataProvider = Cast<USkeletalMeshReadDataProvider>(DataProvider))
+			{
+				SkeletalMeshReadDataProvider->SkeletalMesh = SkeletalMeshComponent;
+			}
+			else if (USkeletalMeshSkinCacheDataProvider* SkeletalMeshSkinCacheDataProvider = Cast<USkeletalMeshSkinCacheDataProvider>(DataProvider))
+			{
+				SkeletalMeshSkinCacheDataProvider->SkeletalMesh = SkeletalMeshComponent;
+			}
+			else if (USceneDataProvider* SceneDataProvider = Cast<USceneDataProvider>(DataProvider))
+			{
+				SceneDataProvider->SceneComponent = SkeletalMeshComponent;
+			}
+			else if (UTransientBufferDataProvider *TransientBufferDataProvider = Cast<UTransientBufferDataProvider>(DataProvider))
+			{
+				if (SkeletalMeshComponent->MeshObject)
+				{
+					FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshComponent->MeshObject->GetSkeletalMeshRenderData();
+					FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
+			
+					TransientBufferDataProvider->NumElements = LodRenderData->GetNumVertices();
+				}
+				else
+				{
+					TransientBufferDataProvider->NumElements = 0;
+				}
+
+				// For retained buffers we will probably want to clear them beforehand to keep up
+				// with the principle of least surprise.
+				TransientBufferDataProvider->bClearBeforeUse = false;
+			}
+		}
 	}
 }
 
@@ -525,7 +520,7 @@ void FOptimusEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewS
 	Actor->SetFlags(RF_Transient);
 	InPreviewScene->SetActor(Actor);
 
-	UDebugSkelMeshComponent* SkeletalMeshComponent = NewObject<UDebugSkelMeshComponent>(Actor);
+	SkeletalMeshComponent = NewObject<UDebugSkelMeshComponent>(Actor);
 	if (GEditor->PreviewPlatform.GetEffectivePreviewFeatureLevel() <= ERHIFeatureLevel::ES3_1)
 	{
 		SkeletalMeshComponent->SetMobility(EComponentMobility::Static);
@@ -538,14 +533,8 @@ void FOptimusEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewS
 	ComputeGraphComponent->ComputeGraph = DeformerObject;
 
 	// Make sure we tick _after_ the skelmesh component is done.
-	// ComputeGraphComponent->AddTickPrerequisiteComponent(SkeletalMeshComponent);
+	ComputeGraphComponent->AddTickPrerequisiteComponent(SkeletalMeshComponent);
 	InPreviewScene->AddComponent(ComputeGraphComponent, FTransform::Identity);
-
-	// FIXME: Use factories, and only create these on-demand.
-	// Set up the data interfaces. Those will get filled in when we set the preview asset.
-	SkeletalMeshReadDataProvider = NewObject<USkeletalMeshReadDataProvider>(GetTransientPackage(), USkeletalMeshReadDataProvider::StaticClass(), NAME_None, RF_Transient);
-	SkeletalMeshSkinCacheDataProvider = NewObject<USkeletalMeshSkinCacheDataProvider>(GetTransientPackage(), USkeletalMeshSkinCacheDataProvider::StaticClass(), NAME_None, RF_Transient);
-	SceneDataProvider = NewObject<USceneDataProvider>(GetTransientPackage(), USceneDataProvider::StaticClass(), NAME_None, RF_Transient);
 
 	InPreviewScene->RegisterOnPreTick(FSimpleDelegate::CreateSP(this, &FOptimusEditor::HandleViewportPreTick));
 }

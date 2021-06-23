@@ -4,28 +4,28 @@
 
 #include "IOptimusEditor.h"
 
-#include "Framework/Docking/TabManager.h"
 #include "Misc/NotifyHook.h"
 
-class USkeletalMeshReadDataProvider;
-class USceneDataProvider;
-class USkeletalMeshSkinCacheDataProvider;
-class UComputeGraphComponent;
-class IPersonaPreviewScene;
-class IPersonaViewport;
-class IPersonaToolkit;
+
 class FUICommandList;
 class IOptimusNodeGraphCollectionOwner;
+class IPersonaPreviewScene;
+class IPersonaToolkit;
+class IPersonaViewport;
 class SGraphEditor;
 class SOptimusEditorViewport;
 class SOptimusGraphTitleBar;
 class SOptimusNodePalette;
+class UComputeGraphComponent;
+class UDebugSkelMeshComponent;
 class UOptimusActionStack;
 class UOptimusDeformer;
 class UOptimusEditorGraph;
 class UOptimusNodeGraph;
+class USkeletalMesh;
 enum class EOptimusGlobalNotifyType;
 struct FGraphAppearanceInfo;
+
 
 class FOptimusEditor :
 	public IOptimusEditor,
@@ -170,10 +170,7 @@ private:
 
 	// Compute Graph Component and data providers.
 	UComputeGraphComponent* ComputeGraphComponent = nullptr;
-	// FIXME: Use factories.
-	USkeletalMeshReadDataProvider* SkeletalMeshReadDataProvider = nullptr;
-	USkeletalMeshSkinCacheDataProvider* SkeletalMeshSkinCacheDataProvider = nullptr;
-	USceneDataProvider* SceneDataProvider = nullptr;
+	UDebugSkelMeshComponent* SkeletalMeshComponent = nullptr;
 	
 	FOnRefreshEvent RefreshEvent;
 };

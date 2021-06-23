@@ -155,7 +155,12 @@ public:
 	FOptimusCompileBegin& GetCompileBeginDelegate()  { return CompileBeginDelegate; }
 	FOptimusCompileEnd& GetCompileEndDelegate() { return CompileEndDelegate; }
 
-	TArray<TSubclassOf<UComputeDataProvider>> GetDataProviderClasses() const;
+	// Create a set of data providers that the caller can then hook up, depending on its underlying
+	// type.
+	// FIXME: Better to have some kind of factory pattern here. Some providers need data filled
+	// in from the data interfaces (e.g. transient buffers) but some from the caller side to
+	// link up with the objects they operate on.
+	TArray<TObjectPtr<UComputeDataProvider>> CreateDataProviders(UObject* InOuter) const;
 
 	/// IInterface_PreviewMeshProvider overrides
 	void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true) override;

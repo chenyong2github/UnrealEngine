@@ -19,7 +19,11 @@ TArray<UClass*> UOptimusComputeDataInterface::GetAllComputeDataInterfaceClasses(
 			if (!Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NotPlaceable) &&
 				Class->IsChildOf(StaticClass()))
 			{
-				CachedClasses.Add(Class);
+				UOptimusComputeDataInterface* DataInterface = Cast<UOptimusComputeDataInterface>(Class->GetDefaultObject());
+				if (DataInterface && DataInterface->IsVisible())
+				{
+					CachedClasses.Add(Class);
+				}
 			}
 		}
 	}
