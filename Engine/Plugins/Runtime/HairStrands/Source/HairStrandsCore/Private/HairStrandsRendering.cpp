@@ -23,6 +23,7 @@
 #include "GroomAsset.h" 
 #include "GroomManager.h"
 #include "GroomInstance.h"
+#include "SystemTextures.h"
 
 static float GHairRaytracingRadiusScale = 0;
 static FAutoConsoleVariableRef CVarHairRaytracingRadiusScale(TEXT("r.HairStrands.RaytracingRadiusScale"), GHairRaytracingRadiusScale, TEXT("Override the per instance scale factor for raytracing hair strands geometry (0: disabled, >0:enabled)"));
@@ -191,7 +192,9 @@ class FGroomCacheUpdatePassCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, ElementCount)
 		SHADER_PARAMETER(uint32, DispatchCountX)
+		SHADER_PARAMETER(int, bHasRadiusData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InAnimatedBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InRadiusBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InRestPoseBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InDeformedOffsetBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutDeformedBuffer)
@@ -218,6 +221,8 @@ static void AddGroomCacheUpdatePass(
 	FRDGBufferUAVRef OutBuffer
 	)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(AddGroomCacheUpdatePass);
+
 	if (ElementCount == 0) return;
 
 	const uint32 GroupSize = 64;
@@ -231,7 +236,7 @@ static void AddGroomCacheUpdatePass(
 	{
 		// Deformation are upload into a Buffer<float> as the original position are float3 which is is both
 		// 1) incompatible with structure buffer alignment (128bits), and 2) incompatible with vertex buffer 
-		// as R32G32B32_FLOAT format is not well supported for SRV accross HW.
+		// as R32G32B32_FLOAT format is not well supported for SRV across HW.
 		// So instead the positions are uploaded into vertex buffer Buffer<float>
 		VertexBuffer = CreateVertexBuffer(
 			GraphBuilder,
@@ -253,6 +258,28 @@ static void AddGroomCacheUpdatePass(
 	Parameters->InRestPoseBuffer = InBuffer;
 	Parameters->InDeformedOffsetBuffer = InDeformedOffsetBuffer;
 	Parameters->OutDeformedBuffer = OutBuffer;
+
+	const uint32 RadiusDataCount = GroomCacheData.VertexData.PointsRadius.Num();
+	const bool bHasRadiusData = RadiusDataCount > 0;
+	FRDGBufferRef RadiusBuffer = nullptr;
+	if (bHasRadiusData)
+	{
+		const uint32 RadiusDataSizeInBytes = sizeof(float) * RadiusDataCount;
+		RadiusBuffer = CreateVertexBuffer(
+			GraphBuilder,
+			TEXT("GroomCache_RadiusBuffer"),
+			FRDGBufferDesc::CreateBufferDesc(sizeof(float), GroomCacheData.VertexData.PointsRadius.Num()),
+			GroomCacheData.VertexData.PointsRadius.GetData(),
+			RadiusDataSizeInBytes,
+			ERDGInitialDataFlags::None);
+
+		Parameters->InRadiusBuffer = GraphBuilder.CreateSRV(RadiusBuffer, PF_R32_FLOAT);
+	}
+	else
+	{
+		Parameters->InRadiusBuffer = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultBuffer(GraphBuilder, 4), PF_R32_FLOAT);
+	}
+	Parameters->bHasRadiusData = bHasRadiusData ? 1 : 0;
 
 	TShaderMapRef<FGroomCacheUpdatePassCS> ComputeShader(ShaderMap);
 	FComputeShaderUtils::AddPass(
@@ -1713,6 +1740,11 @@ void ComputeHairStrandsInterpolation(
 						RegisterAsSRV(GraphBuilder, Instance->Strands.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Current)),
 						Strands_DeformedPosition.UAV
 						);
+
+					if (GroomCacheGroupData.VertexData.PointsRadius.Num() > 0)
+					{
+						Instance->Strands.Modifier.HairWidth = GroomCacheGroupData.StrandData.MaxRadius * 2.f;
+					}
 				}
 
 				// 2.2 Update tangent data based on the deformed positions

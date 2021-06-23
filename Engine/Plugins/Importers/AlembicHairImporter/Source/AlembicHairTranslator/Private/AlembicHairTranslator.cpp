@@ -453,7 +453,7 @@ static void ParseObject(const Alembic::Abc::IObject& InObject, int32 FrameIndex,
 			{
 				AnimInfo->Attributes |= EGroomCacheAttributes::Position;
 			}
-			else if (bIsWidthAnimated)
+			if (bIsWidthAnimated)
 			{
 				AnimInfo->Attributes |= EGroomCacheAttributes::Width;
 			}

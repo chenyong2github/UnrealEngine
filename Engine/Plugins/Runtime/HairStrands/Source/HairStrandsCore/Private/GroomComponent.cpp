@@ -1037,6 +1037,12 @@ public:
 			FVector InterpolatedCenter = FMath::Lerp(CurrentGroupData.BoundingBox.GetCenter(), NextGroupData.BoundingBox.GetCenter(), InterpolationFactor);
 			InterpolatedGroupData.BoundingBox = CurrentGroupData.BoundingBox.MoveTo(InterpolatedCenter) + NextGroupData.BoundingBox.MoveTo(InterpolatedCenter);
 
+			const bool bHasRadiusData = InterpolatedGroupData.VertexData.PointsRadius.Num() > 0;
+			if (bHasRadiusData)
+			{
+				InterpolatedGroupData.StrandData.MaxRadius = FMath::Lerp(CurrentGroupData.StrandData.MaxRadius, NextGroupData.StrandData.MaxRadius, InterpolationFactor);
+			}
+
 			// Parallel batched interpolation
 			const int32 BatchSize = 1024;
 			const int32 BatchCount = (NumVertices + BatchSize - 1) / BatchSize;
@@ -1052,6 +1058,14 @@ public:
 					const FVector& NextPosition = NextGroupData.VertexData.PointsPosition[VertexIndex];
 
 					InterpolatedGroupData.VertexData.PointsPosition[VertexIndex] = FMath::Lerp(CurrentPosition, NextPosition, InterpolationFactor);
+
+					if (bHasRadiusData)
+					{
+						const float CurrentRadius = CurrentGroupData.VertexData.PointsRadius[VertexIndex];
+						const float NextRadius = NextGroupData.VertexData.PointsRadius[VertexIndex];
+
+						InterpolatedGroupData.VertexData.PointsRadius[VertexIndex] = FMath::Lerp(CurrentRadius, NextRadius, InterpolationFactor);
+					}
 				}
 			});
 		}

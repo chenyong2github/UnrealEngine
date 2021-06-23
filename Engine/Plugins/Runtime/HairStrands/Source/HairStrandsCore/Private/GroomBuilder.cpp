@@ -193,10 +193,19 @@ namespace HairStrandsBuilder
 
 				for (uint32 PointIndex = 0; PointIndex < StrandCount; ++PointIndex, ++RadiusIterator, ++CoordUIterator)
 				{
-					*CoordUIterator /= *LengthIterator;
-					*RadiusIterator /= Curves.MaxRadius;
+					if (*LengthIterator > 0.0f)
+					{
+						*CoordUIterator /= *LengthIterator;
+					}
+					if (Curves.MaxRadius > 0.0f)
+					{
+						*RadiusIterator /= Curves.MaxRadius;
+					}
 				}
-				*LengthIterator /= Curves.MaxLength;
+				if (Curves.MaxLength > 0.0f)
+				{
+					*LengthIterator /= Curves.MaxLength;
+				}
 			}
 
 			if (bComputeRootUV)
