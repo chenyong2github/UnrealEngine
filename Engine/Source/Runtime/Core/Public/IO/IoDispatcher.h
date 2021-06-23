@@ -635,6 +635,31 @@ private:
 };
 
 /**
+ * Addressable chunk types.
+ * 
+ * The enumerators have explicitly defined values here to encourage backward/forward
+ * compatible updates. 
+ * 
+ * Also note that for certain discriminators, Zen Store will assume certain things
+ * about the structure of the chunk ID so changes must be made carefully.
+ * 
+ */
+enum class EIoChunkType : uint8
+{
+	Invalid = 0,
+	ExportBundleData = 1,
+	BulkData = 2,
+	OptionalBulkData = 3,
+	MemoryMappedBulkData = 4,
+	ScriptObjects = 5,
+	ContainerHeader = 6,
+	ExternalFile = 7,
+	ShaderCodeLibrary = 8,
+	ShaderCode = 9,
+	PackageStoreEntry = 10
+};
+
+/**
  * Identifier to a chunk of data.
  */
 class FIoChunkId
@@ -695,6 +720,11 @@ public:
 	inline const uint8* GetData() const { return Id; }
 	inline uint32		GetSize() const { return sizeof Id; }
 
+	EIoChunkType GetChunkType() const
+	{
+		return static_cast<EIoChunkType>(Id[11]);
+	}
+
 private:
 	static inline FIoChunkId CreateEmptyId()
 	{
@@ -708,29 +738,6 @@ private:
 	uint8	Id[12];
 };
 
-/**
- * Addressable chunk types.
- * 
- * The enumerators have explicitly defined values here to encourage backward/forward
- * compatible updates. 
- * 
- * Also note that for certain discriminators, Zen Store will assume certain things
- * about the structure of the chunk ID so changes must be made carefully.
- * 
- */
-enum class EIoChunkType : uint8
-{
-	Invalid = 0,
-	ExportBundleData = 1,
-	BulkData = 2,
-	OptionalBulkData = 3,
-	MemoryMappedBulkData = 4,
-	ScriptObjects = 5,
-	ContainerHeader = 6,
-	ExternalFile = 7,
-	ShaderCodeLibrary = 8,
-	ShaderCode = 9
-};
 
 /**
  * Creates a chunk identifier (generic -- prefer specialized versions where possible)

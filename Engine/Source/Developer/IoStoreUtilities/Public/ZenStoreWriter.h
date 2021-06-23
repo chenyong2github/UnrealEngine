@@ -34,8 +34,8 @@ public:
 
 	IOSTOREUTILITIES_API ~FZenStoreWriter();
 
-	IOSTOREUTILITIES_API virtual void BeginPackage(const FPackageBaseInfo& Info) override;
-	IOSTOREUTILITIES_API virtual void CommitPackage(const FPackageBaseInfo& Info) override;
+	IOSTOREUTILITIES_API virtual void BeginPackage(const FBeginPackageInfo& Info) override;
+	IOSTOREUTILITIES_API virtual void CommitPackage(const FCommitPackageInfo& Info) override;
 
 	IOSTOREUTILITIES_API virtual void WritePackageData(const FPackageInfo& Info, const FIoBuffer& PackageData, const TArray<FFileRegion>& FileRegions) override;
 	IOSTOREUTILITIES_API virtual bool WriteAdditionalFile(const FAdditionalFileInfo& Info, const FIoBuffer& FileData) override;
@@ -54,6 +54,9 @@ public:
 	virtual void Flush() override;
 
 	IOSTOREUTILITIES_API void WriteIoStorePackageData(const FPackageInfo& Info, const FIoBuffer& PackageData, const FPackageStoreEntryResource& PackageStoreEntry, const TArray<FFileRegion>& FileRegions);
+
+	IOSTOREUTILITIES_API virtual void GetCookedPackages(TArray<FCookedPackageInfo>& OutCookedPackages) override;
+	IOSTOREUTILITIES_API virtual void RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove);
 
 private:
 	void CreateProjectMetaData(FCbPackage& Pkg, FCbWriter& PackageObj, bool bGenerateContainerHeader);
@@ -110,6 +113,9 @@ private:
 	FPackageStoreManifest				PackageStoreManifest;
 	TUniquePtr<FPackageStoreOptimizer>	PackageStoreOptimizer;
 	TArray<FPackageStoreEntryResource>	PackageStoreEntries;
+	TArray<FCookedPackageInfo>			CookedPackagesInfo;
+	TMap<FName, int32>					PackageNameToIndex;
+
 	TUniquePtr<FZenFileSystemManifest>	ZenFileSystemManifest;
 	
 	FCriticalSection					CommitEventCriticalSection;

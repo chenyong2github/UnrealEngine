@@ -12,8 +12,6 @@
 #include "UObject/SavePackage.h"
 #include "ProfilingDebugging/CountersTrace.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 DEFINE_LOG_CATEGORY_STATIC(LogCookOnTheFlyTracker, Log, All);
 
 class FCookOnTheFlyPackageTracker
@@ -187,6 +185,27 @@ public:
 		}
 
 		return MoveTemp(CompletedPackages);
+	}
+
+	void AddCompletedPackages(TArrayView<const FPackageStoreEntryResource> Entries)
+	{
+		Packages.Reserve(Entries.Num());
+		CookedEntries.Reserve(Entries.Num());
+
+		for (int32 EntryIndex = 0, Num = Entries.Num(); EntryIndex < Num; ++EntryIndex)
+		{
+			const FPackageStoreEntryResource& Entry = Entries[EntryIndex];
+			const FPackageId PackageId = Entry.GetPackageId();
+
+			FPackage& Package	= GetPackage(PackageId);
+
+			Package.PackageId	= PackageId;
+			Package.PackageName = Entry.PackageName;
+			Package.Status		= EPackageStatus::Cooked;
+			Package.EntryIndex	= EntryIndex;
+
+			CookedEntries.Add(Package.EntryIndex);
+		}
 	}
 
 	FCompletedPackages Flush()
@@ -425,8 +444,16 @@ private:
 				{
 					TUniquePtr<FPlatformContext>& Context = PlatformContexts.Add(Client.PlatformName, MakeUnique<FPlatformContext>());
 					Context->PlatformName = Client.PlatformName;
-					Context->PackageStoreWriter = CookOnTheFlyServer.GetPackageStoreWriter(Client.PlatformName);
-					Context->PackageStoreWriter->OnCommit().AddRaw(this, &FIoStoreCookOnTheFlyRequestManager::OnPackageCooked); 
+					
+					IPackageStoreWriter* PackageStoreWriter = CookOnTheFlyServer.GetPackageStoreWriter(Client.PlatformName);
+					Context->PackageStoreWriter = PackageStoreWriter;
+					
+					PackageStoreWriter->GetEntries([&Context](TArrayView<const FPackageStoreEntryResource> Entries)
+					{
+						Context->PackageTracker.AddCompletedPackages(Entries);
+					});
+
+					PackageStoreWriter->OnCommit().AddRaw(this, &FIoStoreCookOnTheFlyRequestManager::OnPackageCooked);
 				}
 
 				return true;
@@ -747,5 +774,3 @@ TUniquePtr<ICookOnTheFlyRequestManager> MakeIoStoreCookOnTheFlyRequestManager(IC
 }
 
 }}
-
-PRAGMA_ENABLE_OPTIMIZATION

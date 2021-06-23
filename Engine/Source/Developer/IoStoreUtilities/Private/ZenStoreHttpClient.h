@@ -4,6 +4,7 @@
 
 #include "IO/IoDispatcher.h"
 #include "Async/Future.h"
+#include "Serialization/CompactBinaryPackage.h"
 
 class FCbPackage;
 class FCbObject;
@@ -38,6 +39,9 @@ public:
 
 	TIoStatusOr<uint64> GetChunkSize(const FIoChunkId& Id);
 	TIoStatusOr<FIoBuffer> ReadChunk(const FIoChunkId& Id, uint64 Offset = 0, uint64 Size = ~0ull);
+
+	TFuture<TIoStatusOr<FCbObject>> GetOplog();
+	TFuture<TIoStatusOr<FCbObject>> GetFiles();
 
 private:
 	FString	HostName;

@@ -19,6 +19,11 @@ public:
 
 	CORE_API static FPackageId FromName(const FName& Name);
 
+	static FPackageId FromValue(const uint64 Value)
+	{
+		return FPackageId(Value);
+	}
+
 	inline bool IsValid() const
 	{
 		return Id != InvalidId;

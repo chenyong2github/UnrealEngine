@@ -43,6 +43,37 @@ public:
 	 * Loads asset registry from a previous run that is used for iterative or DLC cooking
 	 */
 	bool LoadPreviousAssetRegistry(const FString& Filename);
+	
+	/**
+	 * Options when computing the differences between current and previous state.
+	 */
+	struct FComputeDifferenceOptions
+	{
+		bool bRecurseModifications;
+		bool bRecurseScriptModifications;
+		bool bIgnoreDiskSize = false;
+	};
+
+	/**
+	 * Differences between the current and the previous state.
+	 */
+	struct FAssetRegistryDifference
+	{
+		TSet<FName> ModifiedPackages;
+		TSet<FName> NewPackages;
+		TSet<FName> RemovedPackages;
+		TSet<FName> IdenticalCookedPackages;
+		TSet<FName> IdenticalUncookedPackages;
+	};
+
+	/**
+	 * Computes differences between the current asset registry state and the provided previous state.
+	 *
+	 * @param Options options to use when computing the differences
+	 * @param PreviousAssetPackageDataMap previously cooked asset package data
+	 * @param OutDifference the differences between the current and the previous state
+	 */
+	void ComputePackageDifferences(const FComputeDifferenceOptions& Options, const TMap<FName, const FAssetPackageData*>& PreviousAssetPackageDataMap, FAssetRegistryDifference& OutDifference);
 
 	/**
 	 * Computes differences between the previous asset registry and the current one 
@@ -62,6 +93,7 @@ public:
 	 * Updates the current asset registry from the previous one for all kept packages.
 	 */
 	void UpdateKeptPackages(const TArray<FName>& InKeptPackages);
+	void UpdateKeptPackages(const TArray<FName>& InKeptPackages, TFunction<void(const FName&, FAssetPackageData*)>&& Update);
 
 	/**
 	 * GenerateChunkManifest 

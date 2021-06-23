@@ -8,6 +8,8 @@
 
 class FArchive;
 class FStructuredArchiveSlot;
+class FCbObject;
+class FCbWriter;
 
 /**
  * Package export information.
@@ -20,6 +22,10 @@ struct FPackageStoreExportInfo
 	uint32 LoadOrder = 0;
 
 	CORE_API friend FArchive& operator<<(FArchive& Ar, FPackageStoreExportInfo& ExportInfo);
+	
+	CORE_API friend FCbWriter& operator<<(FCbWriter& Writer, const FPackageStoreExportInfo& ExportInfo);
+	
+	CORE_API static FPackageStoreExportInfo FromCbObject(const FCbObject& Obj);
 };
 
 /**
@@ -85,6 +91,10 @@ struct FPackageStoreEntryResource
 	}
 
 	CORE_API friend FArchive& operator<<(FArchive& Ar, FPackageStoreEntryResource& PackageStoreEntry);
+	
+	CORE_API friend FCbWriter& operator<<(FCbWriter& Writer, const FPackageStoreEntryResource& PackageStoreEntry);
+	
+	CORE_API static FPackageStoreEntryResource FromCbObject(const FCbObject& Obj);
 };
 
 /**
