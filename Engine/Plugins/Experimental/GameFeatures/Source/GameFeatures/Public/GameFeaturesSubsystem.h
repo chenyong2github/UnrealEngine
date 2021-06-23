@@ -29,12 +29,13 @@ public:
 		return CompletionDelegate;
 	}
 
-private:
 	FGameFeatureDeactivatingContext(FSimpleDelegate&& InCompletionDelegate)
 		: CompletionDelegate(MoveTemp(InCompletionDelegate))
 	{
 	}
 
+	int32 GetNumPausers() const { return NumPausers; }
+private:
 	FSimpleDelegate CompletionDelegate;
 	int32 NumPausers = 0;
 
