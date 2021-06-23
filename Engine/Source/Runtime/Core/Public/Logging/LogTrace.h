@@ -16,6 +16,8 @@
 #if LOGTRACE_ENABLED
 #include "ProfilingDebugging/FormatArgsTrace.h"
 
+UE_TRACE_CHANNEL_EXTERN(LogChannel, CORE_API)
+
 struct FLogCategoryBase;
 
 struct FLogTrace
@@ -42,13 +44,16 @@ private:
 	FLogTrace::OutputLogCategory(Category, Name, DefaultVerbosity);
 
 #define TRACE_LOG_MESSAGE(Category, Verbosity, Format, ...) \
-	static bool PREPROCESSOR_JOIN(__LogPoint, __LINE__); \
-	if (!PREPROCESSOR_JOIN(__LogPoint, __LINE__)) \
+	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(LogChannel)) \
 	{ \
-		FLogTrace::OutputLogMessageSpec(&PREPROCESSOR_JOIN(__LogPoint, __LINE__), &Category, ELogVerbosity::Verbosity, __FILE__, __LINE__, Format); \
-		PREPROCESSOR_JOIN(__LogPoint, __LINE__) = true; \
-	} \
-	FLogTrace::OutputLogMessage(&PREPROCESSOR_JOIN(__LogPoint, __LINE__), ##__VA_ARGS__);
+		static bool PREPROCESSOR_JOIN(__LogPoint, __LINE__); \
+		if (!PREPROCESSOR_JOIN(__LogPoint, __LINE__)) \
+		{ \
+			FLogTrace::OutputLogMessageSpec(&PREPROCESSOR_JOIN(__LogPoint, __LINE__), &Category, ELogVerbosity::Verbosity, __FILE__, __LINE__, Format); \
+			PREPROCESSOR_JOIN(__LogPoint, __LINE__) = true; \
+		} \
+		FLogTrace::OutputLogMessage(&PREPROCESSOR_JOIN(__LogPoint, __LINE__), ##__VA_ARGS__); \
+	}
 
 #else
 #define TRACE_LOG_CATEGORY(Category, Name, DefaultVerbosity)
