@@ -170,7 +170,7 @@ public:
 	UPROPERTY()
 		FString assetSubType;
 	UPROPERTY()
-		int8 assetTier;
+		int8 assetTier = 0;
 	UPROPERTY()
 		FString assetRootPath;
 	UPROPERTY()

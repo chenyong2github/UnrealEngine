@@ -32,7 +32,7 @@ struct FCommonButtonStyleOptionalSlateSound
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties")
-	bool bHasSound;
+	bool bHasSound = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (EditCondition = "bHasSound"))
 	FSlateSound Sound;
