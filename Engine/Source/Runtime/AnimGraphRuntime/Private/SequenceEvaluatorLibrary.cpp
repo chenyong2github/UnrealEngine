@@ -7,7 +7,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogSequenceEvaluatorLibrary, Verbose, All);
 
-FSequenceEvaluatorReference USequenceEvaluatorLibrary::ConvertToSequenceEvaluatorContext(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result)
+FSequenceEvaluatorReference USequenceEvaluatorLibrary::ConvertToSequenceEvaluator(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result)
 {
 	return FAnimNodeReference::ConvertToType<FSequenceEvaluatorReference>(Node, Result);
 }

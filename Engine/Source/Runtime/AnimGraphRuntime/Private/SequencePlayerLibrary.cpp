@@ -7,7 +7,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogSequencePlayerLibrary, Verbose, All);
 
-FSequencePlayerReference USequencePlayerLibrary::ConvertToSequencePlayerContext(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result)
+FSequencePlayerReference USequencePlayerLibrary::ConvertToSequencePlayer(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result)
 {
 	return FAnimNodeReference::ConvertToType<FSequencePlayerReference>(Node, Result);
 }

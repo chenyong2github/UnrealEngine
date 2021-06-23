@@ -24,9 +24,18 @@ class ANIMGRAPHRUNTIME_API ULinkedAnimGraphLibrary : public UBlueprintFunctionLi
 	GENERATED_BODY()
 
 public:
-	/** Get a sequence player context from an anim node context */
+	/** Get a linked anim graph reference from an anim node reference */
 	UFUNCTION(BlueprintCallable, Category = "Linked Anim Graph", meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
-	static FLinkedAnimGraphReference ConvertToLinkedAnimGraphContext(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result);
+	static FLinkedAnimGraphReference ConvertToLinkedAnimGraph(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result);
+
+	/** Get a linked anim graph reference from an anim node reference (pure) */
+	UFUNCTION(BlueprintPure, Category = "Linked Anim Graph", meta=(BlueprintThreadSafe, DisplayName = "Convert to Linked Anim Graph"))
+	static void ConvertToLinkedAnimGraphPure(const FAnimNodeReference& Node, FLinkedAnimGraphReference& LinkedAnimGraph, bool& Result)
+	{
+		EAnimNodeReferenceConversionResult ConversionResult;
+		LinkedAnimGraph = ConvertToLinkedAnimGraph(Node, ConversionResult);
+		Result = (ConversionResult == EAnimNodeReferenceConversionResult::Succeeded);
+	}
 	
 	/** Returns whether the node hosts an instance (e.g. linked anim graph or layer) */
 	UFUNCTION(BlueprintPure, Category = "Linked Anim Graph", meta=(BlueprintThreadSafe))

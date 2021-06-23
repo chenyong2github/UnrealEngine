@@ -29,8 +29,17 @@ class ANIMGRAPHRUNTIME_API USequencePlayerLibrary : public UBlueprintFunctionLib
 public:
 	/** Get a sequence player context from an anim node context */
 	UFUNCTION(BlueprintCallable, Category = "Sequence Player", meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
-	static FSequencePlayerReference ConvertToSequencePlayerContext(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result);
-	
+	static FSequencePlayerReference ConvertToSequencePlayer(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result);
+
+	/** Get a sequence player context from an anim node context (pure) */
+	UFUNCTION(BlueprintPure, Category = "Sequence Player", meta=(BlueprintThreadSafe, DisplayName = "Convert to Sequence Player"))
+	static void ConvertToSequencePlayerPure(const FAnimNodeReference& Node, FSequencePlayerReference& SequencePlayer, bool& Result)
+	{
+		EAnimNodeReferenceConversionResult ConversionResult;
+		SequencePlayer = ConvertToSequencePlayer(Node, ConversionResult);
+		Result = (ConversionResult == EAnimNodeReferenceConversionResult::Succeeded);
+	}
+
 	/** Set the current accumulated time of the sequence player */
 	UFUNCTION(BlueprintCallable, Category = "Sequence Player", meta=(BlueprintThreadSafe))
 	static FSequencePlayerReference SetAccumulatedTime(const FSequencePlayerReference& SequencePlayer, float Time);
