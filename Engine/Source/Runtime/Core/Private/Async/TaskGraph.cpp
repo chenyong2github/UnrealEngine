@@ -2141,7 +2141,9 @@ private:
 		}
 		else if (LowLevelTasks::FScheduler::Get().IsWorkerThread() || LowLevelTasks::FReserveScheduler::Get().IsWorkerThread())
 		{
-			if (GDisableReserveWorkers)
+			// for latency reason, worker thread aren't tackling other tasks while waiting if we have reserve workers, 
+			// reserve worker don't have that liberty as they have no backup of their own
+			if (GDisableReserveWorkers || LowLevelTasks::FReserveScheduler::Get().IsWorkerThread())
 			{
 				LowLevelTasks::BusyWaitUntil([Index(0), &Tasks]() mutable
 				{
