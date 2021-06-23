@@ -18,7 +18,7 @@ public:
 	~FContextSwitchProvider();
 
 	int32 GetCoreNumber(uint32 ThreadId, double Time) const override;
-	const TPagedArray<FContextSwitch>* GetContextSwitches(uint32 ThreadId) const override;
+	const void EnumerateContextSwitches(uint32 ThreadId, double StartTime, double EndTime, ContextSwitchCallback Callback) const override;
 
 	void Add(uint32 ThreadId, double Start, double End, uint32 CoreNumber);
 	void AddThreadInfo(uint32 TraceThreadId, uint32 SystemThreadId);
@@ -26,6 +26,8 @@ public:
 	virtual bool HasData() const override;
 
 private:
+	const TPagedArray<FContextSwitch>* GetContextSwitches(uint32 ThreadId) const;
+
 	IAnalysisSession& Session;
 	// System Thread Id -> PagedArray
 	TMap<uint32, TPagedArray<FContextSwitch>*> Threads;

@@ -10,6 +10,7 @@
 
 // Insights
 #include "Insights/Common/TimeUtils.h"
+#include "Insights/ContextSwitches/ViewModels/ContextSwitchTimingEvent.h"
 #include "Insights/ITimingViewSession.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/ViewModels/ThreadTimingTrack.h"
@@ -149,36 +150,13 @@ void FContextSwitchesTimingTrack::BuildDrawState(ITimingEventsTrackDrawStateBuil
 		return;
 	}
 
-	const TPagedArray<FContextSwitch>* ContextSwitches = ContextSwitchesProvider->GetContextSwitches(ThreadId);
-
-	if (ContextSwitches == nullptr)
-	{
-		return;
-	}
-
 	const FTimingTrackViewport& Viewport = Context.GetViewport();
 
-	uint64 ContextSwitchPageIndex = Algo::UpperBoundBy(*ContextSwitches, Viewport.GetStartTime(), [](const TPagedArrayPage<FContextSwitch>& ContextSwitchPage)
+	ContextSwitchesProvider->EnumerateContextSwitches(ThreadId, Viewport.GetStartTime(), Viewport.GetEndTime(), [&Builder](const FContextSwitch& ContextSwitch)
 		{
-			return ContextSwitchPage.Items[0].Start;
+			Builder.AddEvent(ContextSwitch.Start, ContextSwitch.End, 0, *FString::Printf(TEXT("Core %d"), ContextSwitch.CoreNumber), 0, 0);
+			return EContextSwitchEnumerationResult::Continue;
 		});
-
-	if (ContextSwitchPageIndex > 0)
-	{
-		--ContextSwitchPageIndex;
-	}
-
-	auto Iterator = ContextSwitches->GetIteratorFromPage(ContextSwitchPageIndex);
-	const FContextSwitch* CurrentContextSwitch = Iterator.NextItem();
-	while (CurrentContextSwitch && CurrentContextSwitch->Start < Viewport.GetEndTime())
-	{
-		if (CurrentContextSwitch->End > Viewport.GetStartTime())
-		{
-			Builder.AddEvent(CurrentContextSwitch->Start, CurrentContextSwitch->End, 0, *FString::Printf(TEXT("Core %d"), CurrentContextSwitch->CoreNumber), 0, 0);
-		}
-
-		CurrentContextSwitch = Iterator.NextItem();
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -198,7 +176,7 @@ void FContextSwitchesTimingTrack::PostDraw(const ITimingTrackDrawContext& Contex
 
 const TSharedPtr<const ITimingEvent> FContextSwitchesTimingTrack::GetEvent(float InPosX, float InPosY, const FTimingTrackViewport& Viewport) const
 {
-	TSharedPtr<FTimingEvent> TimingEvent;
+	TSharedPtr<FContextSwitchTimingEvent> TimingEvent;
 
 	const FTimingViewLayout& Layout = Viewport.GetLayout();
 
@@ -255,37 +233,44 @@ const TSharedPtr<const ITimingEvent> FContextSwitchesTimingTrack::GetEvent(float
 			return TimingEvent;
 		}
 
-		const TPagedArray<FContextSwitch>* ContextSwitches = ContextSwitchesProvider->GetContextSwitches(ThreadId);
+		FContextSwitch BestMatchContextSwitch;
+		double Delta = 2 * SecondsPerPixel;
 
-		if (ContextSwitches == nullptr)
-		{
-			return TimingEvent;
-		}
-
-		uint64 ContextSwitchPageIndex = Algo::UpperBoundBy(*ContextSwitches, EventTime + SecondsPerPixel, [](const TPagedArrayPage<FContextSwitch>& ContextSwitchPage)
+		ContextSwitchesProvider->EnumerateContextSwitches(ThreadId, EventTime - 2 * SecondsPerPixel, EventTime + 2 * SecondsPerPixel,
+			[EventTime, &BestMatchContextSwitch, &Delta](const FContextSwitch& ContextSwitch)
 			{
-				return ContextSwitchPage.Items[0].Start;
+				if (ContextSwitch.Start <= EventTime && ContextSwitch.End >= EventTime)
+				{
+					BestMatchContextSwitch = ContextSwitch;
+					Delta = 0.0f;
+					return EContextSwitchEnumerationResult::Stop;
+				}
+
+				if (ContextSwitch.End <= EventTime)
+				{
+					if (EventTime - ContextSwitch.End < Delta)
+					{
+						Delta = EventTime - ContextSwitch.End;
+						BestMatchContextSwitch = ContextSwitch;
+					}
+				}
+
+				if (ContextSwitch.Start >= EventTime)
+				{
+					if (ContextSwitch.Start - EventTime < Delta)
+					{
+						Delta = ContextSwitch.Start - EventTime;
+						BestMatchContextSwitch = ContextSwitch;
+					}
+				}
+
+				return EContextSwitchEnumerationResult::Continue;
 			});
 
-		if (ContextSwitchPageIndex > 0)
+		if (Delta < 2 * SecondsPerPixel)
 		{
-			--ContextSwitchPageIndex;
-		}
-
-		auto Iterator = ContextSwitches->GetIteratorFromPage(ContextSwitchPageIndex);
-		const FContextSwitch* CurrentContextSwitch = Iterator.NextItem();
-		while (CurrentContextSwitch && CurrentContextSwitch->End < EventTime)
-		{
-			CurrentContextSwitch = Iterator.NextItem();
-		}
-
-		if (CurrentContextSwitch)
-		{
-			ensure(ParentTrack.IsValid());
-			if (CurrentContextSwitch->Start < EventTime && EventTime < CurrentContextSwitch->End)
-			{
-				TimingEvent = MakeShared<FTimingEvent>(SharedThis(this), CurrentContextSwitch->Start, CurrentContextSwitch->End, 0);
-			}
+			TimingEvent = MakeShared<FContextSwitchTimingEvent>(SharedThis(this), BestMatchContextSwitch.Start, BestMatchContextSwitch.End, 0);
+			TimingEvent->SetCoreNumber(BestMatchContextSwitch.CoreNumber);
 		}
 	}
 
@@ -298,8 +283,22 @@ void FContextSwitchesTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, c
 {
 	InOutTooltip.ResetContent();
 
+	if (!InTooltipEvent.CheckTrack(this) || !InTooltipEvent.Is<FContextSwitchTimingEvent>())
+	{
+		return;
+	}
+
+	const FContextSwitchTimingEvent& ContextSwitchEvent = InTooltipEvent.As<FContextSwitchTimingEvent>();
+	InOutTooltip.AddTitle(FString::Printf(TEXT("Core %d"), ContextSwitchEvent.GetCoreNumber()));
+
+	InOutTooltip.AddNameValueTextLine(TEXT("Start Time:"), TimeUtils::FormatTimeAuto(InTooltipEvent.GetStartTime(), 6));
+	InOutTooltip.AddNameValueTextLine(TEXT("End Time:"), TimeUtils::FormatTimeAuto(InTooltipEvent.GetEndTime(), 6));
+	InOutTooltip.AddNameValueTextLine(TEXT("Duration:"), TimeUtils::FormatTimeAuto(InTooltipEvent.GetDuration(), 6));
+
 	InOutTooltip.UpdateLayout();
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 } // namespace Insights
 

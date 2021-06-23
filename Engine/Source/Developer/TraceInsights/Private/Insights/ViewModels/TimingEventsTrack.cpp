@@ -171,9 +171,13 @@ void FTimingEventsTrack::UpdateTrackHeight(const ITimingTrackUpdateContext& Cont
 	else
 	{
 		DesiredTrackHeight = Viewport.GetLayout().ComputeTrackHeight(NumLanes);
-		if (ChildTrack.IsValid())
+		if (ChildTrack.IsValid() && ChildTrack->GetHeight() > Viewport.GetLayout().MinTimelineH)
 		{
-			DesiredTrackHeight += ChildTrack->GetHeight();
+			if (DesiredTrackHeight == Viewport.GetLayout().MinTimelineH)
+			{
+				DesiredTrackHeight += 1.0f + 2.0 * Viewport.GetLayout().TimelineDY;
+			}
+			DesiredTrackHeight += ChildTrack->GetHeight() + Viewport.GetLayout().ChildTimelineDY;
 		}
 	}
 
