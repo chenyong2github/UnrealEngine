@@ -3,6 +3,7 @@
 #pragma once
 
 #include "PlayerCore.h"
+#include "Templates/Function.h"
 
 namespace Electra
 {
@@ -15,7 +16,7 @@ namespace Electra
 	bool Startup(const Configuration& Configuration);
 
 	//! Shuts down core services.
-	void Shutdown(void);
+	void Shutdown();
 
 	//! Waits until all player instances have terminated, which may happen asynchronously.
 	void WaitForAllPlayersToHaveTerminated();
@@ -27,5 +28,14 @@ namespace Electra
 	//! Check if an analytics event is enabled
 	bool IsAnalyticsEventEnabled(const FString& AnalyticsEventName);
 
+
+	//! Background / foreground handling
+	struct FFGBGNotificationHandlers
+	{
+		TFunction<void()> WillEnterBackground;
+		TFunction<void()> HasEnteredForeground;
+	};
+	void AddBGFGNotificationHandler(TSharedPtrTS<FFGBGNotificationHandlers> InHandlers);
+	void RemoveBGFGNotificationHandler(TSharedPtrTS<FFGBGNotificationHandlers> InHandlers);
 };
 

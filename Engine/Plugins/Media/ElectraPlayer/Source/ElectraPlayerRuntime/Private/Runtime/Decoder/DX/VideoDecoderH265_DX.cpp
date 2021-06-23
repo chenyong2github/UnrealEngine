@@ -3,8 +3,8 @@
 #ifdef ELECTRA_ENABLE_MFDECODER
 
 #include "PlayerCore.h"
+#include "PlayerRuntimeGlobal.h"
 #include "ElectraPlayerPrivate.h"
-
 #include "ElectraPlayerPrivate_Platform.h"
 
 #include "StreamAccessUnitBuffer.h"
@@ -24,7 +24,6 @@
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/WindowsHWrapper.h"
 #include "HAL/LowLevelMemTracker.h"
-#include "Misc/CoreDelegates.h"
 
 THIRD_PARTY_INCLUDES_START
 #include "mftransform.h"
@@ -1102,8 +1101,11 @@ void FVideoDecoderH265::WorkerThread()
 
 	ApplicationRunningSignal.Signal();
 	ApplicationSuspendConfirmedSignal.Reset();
-	ApplicationSuspendedDelegate = FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddRaw(this, &FVideoDecoderH265::HandleApplicationWillEnterBackground);
-	ApplicationResumeDelegate = FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddRaw(this, &FVideoDecoderH265::HandleApplicationHasEnteredForeground);
+
+	TSharedPtrTS<FFGBGNotificationHandlers> FGBGHandlers = MakeSharedTS<FFGBGNotificationHandlers>();
+	FGBGHandlers->WillEnterBackground = [this]() { HandleApplicationWillEnterBackground(); };
+	FGBGHandlers->HasEnteredForeground = [this]() { HandleApplicationHasEnteredForeground(); };
+	AddBGFGNotificationHandler(FGBGHandlers);
 
 	CurrentRenderOutputBuffer     = nullptr;
 	CurrentAccessUnit   		  = nullptr;
@@ -1308,16 +1310,7 @@ void FVideoDecoderH265::WorkerThread()
 	AccessUnits.Flush();
 	AccessUnits.CapacitySet(0);
 
-	if (ApplicationSuspendedDelegate.IsValid())
-	{
-		FCoreDelegates::ApplicationWillEnterBackgroundDelegate.Remove(ApplicationSuspendedDelegate);
-		ApplicationSuspendedDelegate.Reset();
-	}
-	if (ApplicationResumeDelegate.IsValid())
-	{
-		FCoreDelegates::ApplicationHasEnteredForegroundDelegate.Remove(ApplicationResumeDelegate);
-		ApplicationResumeDelegate.Reset();
-	}
+	RemoveBGFGNotificationHandler(FGBGHandlers);
 
 	if (bDrainForCodecChange)
 	{
