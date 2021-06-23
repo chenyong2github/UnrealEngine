@@ -110,10 +110,10 @@ void Main(
 	float OutThroughput = 1.0f;
 
 	// The current way rough refraction are evaluated is
-	//  1- start with the dirac view lob
-	//	2- refract/scatter/transmit that lob though all BSDF of a layer. Compute the mean of all the resulting lobes.
-	//  3- Use that new lob as input (pointing away from the surface) for the next layer until done.
-	StrataLobStatistic WiLob = StrataGetViewDiracLob(V);
+	//  1- start with the dirac view Lobe
+	//	2- refract/scatter/transmit that Lobe though all BSDF of a layer. Compute the mean of all the resulting Lobes.
+	//  3- Use that new Lobe as input (pointing away from the surface) for the next layer until done.
+	StrataLobeStatistic WiLobe = StrataGetViewDiracLobe(V);
 
 	UNROLL
 	for (l = 0; l < StrataData.LayerCount; ++l)
@@ -124,8 +124,8 @@ void Main(
 		const bool bTopLayer = l == 0;
 		const bool bBottomLayer = l == (StrataData.LayerCount - 1);
 
-		StrataLobStatistic AccumulatedLayerLobs = StrataGetNullLob();
-		float AccumulatedLayerLobsWeights = 0.0f;
+		StrataLobeStatistic AccumulatedLayerLobes = StrataGetNullLobe();
+		float AccumulatedLayerLobesWeights = 0.0f;
 
 		UNROLL
 		for (int i = 0; i < StrataData.Layers[l].BSDFCount; ++i)
@@ -163,37 +163,37 @@ void Main(
 				// The top layer we consider a transition air to water. For layers below, we assume they all have similar index of refraction.
 				const float InterfaceEta12 = i == 0 ? 1.0f / 1.33f : 1.0f; // STRATA_TODO Use Refraction.x in IOR mode?
 
-				// Transform input lob into local space w.r.t. normal
-				const float3 SavedWorldSpaceWiLobMu = WiLob.Mu;
-				WiLob.Mu = float3(dot(WiLob.Mu, StrataBSDFContext.X), dot(WiLob.Mu, StrataBSDFContext.Y), dot(WiLob.Mu, StrataBSDFContext.N));
+				// Transform input Lobe into local space w.r.t. normal
+				const float3 SavedWorldSpaceWiLobeMu = WiLobe.Mu;
+				WiLobe.Mu = float3(dot(WiLobe.Mu, StrataBSDFContext.X), dot(WiLobe.Mu, StrataBSDFContext.Y), dot(WiLobe.Mu, StrataBSDFContext.N));
 
-				// Compute the refracted lob according to roughness . 
+				// Compute the refracted Lobe according to roughness . 
 				// STRATA_TODO: take into account scattering and transmittance. Colored transmittance is taken into account already but not scattering influence on variance.
-				StrataLobStatistic NewLob = StrataGetRefractedLob(WiLob, InterfaceFDG * OutThroughput * BSDFCoverage, SLAB_ROUGHNESSX(BSDF), InterfaceEta12);
+				StrataLobeStatistic NewLobe = StrataGetRefractedLobe(WiLobe, InterfaceFDG * OutThroughput * BSDFCoverage, SLAB_ROUGHNESSX(BSDF), InterfaceEta12);
 
-				// Transform the new lob direction to world space and accumulate
-				NewLob.Mu = NewLob.Mu.x * StrataBSDFContext.X + NewLob.Mu.y * StrataBSDFContext.Y + NewLob.Mu.z * StrataBSDFContext.N;
-				StrataAccumulateWeightedLob(AccumulatedLayerLobs, AccumulatedLayerLobsWeights, NewLob);
+				// Transform the new Lobe direction to world space and accumulate
+				NewLobe.Mu = NewLobe.Mu.x * StrataBSDFContext.X + NewLobe.Mu.y * StrataBSDFContext.Y + NewLobe.Mu.z * StrataBSDFContext.N;
+				StrataAccumulateWeightedLobe(AccumulatedLayerLobes, AccumulatedLayerLobesWeights, NewLobe);
 
-				// Restore current layer input lob direction to world space
-				WiLob.Mu = SavedWorldSpaceWiLobMu;
+				// Restore current layer input Lobe direction to world space
+				WiLobe.Mu = SavedWorldSpaceWiLobeMu;
 			}
 			else
 			{
 				// Full roughness to make it visible as something to fix in case a type is not handled.
-				WiLob.Sigma = 1000.0;
+				WiLobe.Sigma = 1000.0;
 			} 
 
 			LayerCoverage	+= BSDFCoverage;
 			LayerThroughput += BSDFCoverage * StrataEvaluate.Throughput;
 		}
 
-		if (AccumulatedLayerLobsWeights > 0.0f)
+		if (AccumulatedLayerLobesWeights > 0.0f)
 		{
-			// Now compute the new input Wi lob from the accumulated refracted lob of the previous layer
-			WiLob = StrataNormaliseLob(AccumulatedLayerLobs, AccumulatedLayerLobsWeights);
+			// Now compute the new input Wi Lobe from the accumulated refracted Lobe of the previous layer
+			WiLobe = StrataNormaliseLobe(AccumulatedLayerLobes, AccumulatedLayerLobesWeights);
 			// And negate the direction to make sure the previously refracted direction is the new incoming
-			WiLob.Mu = -WiLob.Mu;
+			WiLobe.Mu = -WiLobe.Mu;
 		}
 
 		// Take into account the non covered part for this layer and update throughput accordingly
@@ -204,16 +204,16 @@ void Main(
 	}
 
 	// Not write out roughness
-	OutRough = saturate(StrataLobVarianceToRoughness(WiLob.Sigma));	// STRATA_TODO accumulate variance and convert back to roughness in the apply hader
+	OutRough = saturate(StrataLobeVarianceToRoughness(WiLobe.Sigma));	// STRATA_TODO accumulate variance and convert back to roughness in the apply hader
 	// Only allow clipping if roughness is close to 0.
 	const bool TryToClip = OutRough < 0.01f;
 
-	// Finally, negate the direction to make sure the new incombing lob is the refracted lob we want to take into account
-	WiLob.Mu = -WiLob.Mu;
+	// Finally, negate the direction to make sure the new incombing Lobe is the refracted Lobe we want to take into account
+	WiLobe.Mu = -WiLobe.Mu;
 
 	// FixUp to reuse the same distortion code we have for now. STRATA_TODO implement a new model?
-	half3 LobWorldDir = normalize(TransformWorldVectorToView(WiLob.Mu));
-	Normal = LobWorldDir;
+	half3 LobeWorldDir = normalize(TransformWorldVectorToView(WiLobe.Mu));
+	Normal = LobeWorldDir;
 
 	// Compute UV distortion
 	float2 BufferUVDistortion = ComputeBufferUVDistortion(
