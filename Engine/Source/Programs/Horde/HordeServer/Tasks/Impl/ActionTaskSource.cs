@@ -497,6 +497,7 @@ namespace HordeServer.Tasks.Impl
 						return new ExecuteResponse
 						{
 							Status = new Status(StatusCode.OK, String.Empty),
+							CachedResult = false,
 							Result = Result.Result
 						};
 					}

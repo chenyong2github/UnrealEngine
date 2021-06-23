@@ -204,20 +204,32 @@ namespace HordeAgent
 					PostResultRequest.Result = Result;
 					await ActionRpc.PostActionResultAsync(PostResultRequest);
 
-					if (!Action.DoNotCache)
-					{
-						UpdateActionResultRequest Request = new UpdateActionResultRequest();
-						Request.InstanceName = InstanceName;
-						Request.ActionDigest = ActionTask.Digest;
-						Request.ActionResult = Result;
-						await Cache.UpdateActionResultAsync(Request);
-					}
+					await CacheActionResultAsync(Action, ActionTask, Result);
 
 					// Command.OutputPaths
 					// Command.OutputDirectories
 				}
 			}
 			return Result;
+		}
+
+		async Task CacheActionResultAsync(Action Action, ActionTask ActionTask, ActionResult Result)
+		{
+			if (!Action.DoNotCache)
+			{
+				try
+				{
+					UpdateActionResultRequest Request = new UpdateActionResultRequest();
+					Request.InstanceName = InstanceName;
+					Request.ActionDigest = ActionTask.Digest;
+					Request.ActionResult = Result;
+					await Cache.UpdateActionResultAsync(Request);
+				}
+				catch (Exception e)
+				{
+					Logger.LogError(e, "Unable to update action result for digest {DigestHash}", ActionTask.Digest.Hash);
+				}
+			}
 		}
 
 		/// <summary>
