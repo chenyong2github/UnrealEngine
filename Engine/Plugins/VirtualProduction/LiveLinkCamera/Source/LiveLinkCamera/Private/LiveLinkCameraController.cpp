@@ -141,8 +141,10 @@ void ULiveLinkCameraController::SetAttachedComponent(UActorComponent* ActorCompo
 
 	if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(AttachedComponent))
 	{	
-		// Initialize the most recent filmback to the current filmback of the camera to properly detect changes to this property
+		// Initialize the most recent filmback and component transform to the current values of the camera to properly detect changes to this property
 		LastFilmback = CineCameraComponent->Filmback;
+		LastRotation = CineCameraComponent->GetRelativeRotation();
+		LastLocation = CineCameraComponent->GetRelativeLocation();
 
 		ULensFile* SelectedLensFile = LensFilePicker.GetLensFile();
 		if (SelectedLensFile && SelectedLensFile->IsCineCameraCompatible(CineCameraComponent) == false)
@@ -269,57 +271,150 @@ void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraCompone
 	 */
 	if (LensFile)
 	{
-		if (LensFileEvalData.Input.Focus.IsSet() && UpdateFlags.bApplyFocusDistance)
+		if (UpdateFlags.bApplyFocusDistance)
 		{
-			float FocusDistance = LensFileEvalData.Input.Focus.GetValue(); 
-			if (LensFile->HasFocusEncoderMapping())
+			if(LensFileEvalData.Input.Focus.IsSet())
 			{
-				FocusDistance = LensFile->EvaluateNormalizedFocus(*LensFileEvalData.Input.Focus);
-			}
+				//If focus is streamed in, query the mapping if there is one. Otherwise, use focus as is
+				float FocusDistance = LensFileEvalData.Input.Focus.GetValue(); 
+				if (LensFile->HasFocusEncoderMapping())
+				{
+					FocusDistance = LensFile->EvaluateNormalizedFocus(*LensFileEvalData.Input.Focus);
+				}
 
-			CineCameraComponent->FocusSettings.ManualFocusDistance = FocusDistance;
+				CineCameraComponent->FocusSettings.ManualFocusDistance = FocusDistance;
+			}
+			else
+			{
+				// If the LiveLink source is not streaming focus, but the lens file has a valid mapping for focus,
+				// evaluate the mapping at 0.0f. In this case, it is expected that the mapping will have 
+				// exactly one value in it, so warn the user if this is not the case.
+				if(LensFile->EncodersTable.GetNumFocusPoints() > 1)
+				{
+					static const FName NAME_InvalidFocusMappingWhenNotStreamed = "LiveLinkCamera_FocusNotStreamedInvalidMapping";
+					const FLiveLinkSubjectKey FakedSubjectKey = {FGuid(), SelectedSubject.Subject};
+					FLiveLinkLog::WarningOnce(NAME_InvalidFocusMappingWhenNotStreamed, FakedSubjectKey, TEXT("Problem applying Focus for subject '%s' using LensFile '%s'. Focus wasn't streamed in and more than one focus mapping was found."), *FakedSubjectKey.SubjectName.ToString(), *LensFile->GetName());
+				}
+
+				//If focus wasn't streamed, only set focus distance if there is a mapping
+				if (LensFile->HasFocusEncoderMapping())
+				{
+					CineCameraComponent->FocusSettings.ManualFocusDistance = LensFile->EvaluateNormalizedFocus(0.0f);
+				}
+			}
 		}
 
-		if (LensFileEvalData.Input.Iris.IsSet() && UpdateFlags.bApplyAperture)
+		if(LensFileEvalData.Input.Iris.IsSet())
 		{
-			float Aperture = LensFileEvalData.Input.Iris.GetValue();
+			//If iris is streamed in, query the mapping if there is one. Otherwise, use iris as is
+			float Aperture = LensFileEvalData.Input.Iris.GetValue(); 
 			if (LensFile->HasIrisEncoderMapping())
 			{
 				Aperture = LensFile->EvaluateNormalizedIris(*LensFileEvalData.Input.Iris);
 			}
-			
+
 			CineCameraComponent->CurrentAperture = Aperture;
 		}
-		if (LensFileEvalData.Input.Zoom.IsSet() && UpdateFlags.bApplyFocalLength)
+		else
 		{
-			//To evaluate focal length, we need F/Z pair. If focus is not available default to 0
-			bool bHasValidFocalLength = false;
-			const float FocusValue = LensFileEvalData.Input.Focus.IsSet() ? LensFileEvalData.Input.Focus.GetValue() : 0.0f;
-			FFocalLengthInfo FocalLengthInfo;
-			if (LensFile->EvaluateFocalLength(FocusValue, LensFileEvalData.Input.Zoom.GetValue(), FocalLengthInfo))
+			// If the LiveLink source is not streaming iris, but the lens file has a valid mapping for iris,
+			// evaluate the mapping at 0.0f. In this case, it is expected that the mapping will have 
+			// exactly one value in it, so warn the user if this is not the case.
+			if(LensFile->EncodersTable.GetNumIrisPoints() > 1)
 			{
-				if ((FocalLengthInfo.FxFy[0] > KINDA_SMALL_NUMBER) && (FocalLengthInfo.FxFy[1] > KINDA_SMALL_NUMBER))
-				{
-					// This is how field of view, filmback, and focal length are related:
-					//
-					// FOVx = 2*atan(1/(2*Fx)) = 2*atan(FilmbackX / (2*FocalLength))
-					// => FocalLength = Fx*FilmbackX
-					// 
-					// FOVy = 2*atan(1/(2*Fy)) = 2*atan(FilmbackY / (2*FocalLength))
-					// => FilmbackY = FocalLength / Fy
-
-					// Adjust FocalLength and Filmback to match FxFy (which has already been divided by resolution in pixels)
-					const float NewFocalLength = CineCameraComponent->CurrentFocalLength = FocalLengthInfo.FxFy[0] * CineCameraComponent->Filmback.SensorWidth;
-					CineCameraComponent->Filmback.SensorHeight = CineCameraComponent->CurrentFocalLength / FocalLengthInfo.FxFy[1];
-					CineCameraComponent->SetCurrentFocalLength(NewFocalLength);
-					bHasValidFocalLength = true;
-				}
+				static const FName NAME_InvalidIrisMappingWhenNotStreamed = "LiveLinkCamera_IrisNotStreamedInvalidMapping";
+				const FLiveLinkSubjectKey FakedSubjectKey = {FGuid(), SelectedSubject.Subject};
+				FLiveLinkLog::WarningOnce(NAME_InvalidIrisMappingWhenNotStreamed, FakedSubjectKey, TEXT("Problem applying Iris for subject '%s' using LensFile '%s'. Iris wasn't streamed in and more than one iris mapping was found."), *FakedSubjectKey.SubjectName.ToString(), *LensFile->GetName());
 			}
 
-			//If FocalLength could not be applied, use LiveLink input directly without affecting filmback
-			if (bHasValidFocalLength == false)
+			//If iris wasn't streamed, only set aperture if there is a mapping
+			if (LensFile->HasIrisEncoderMapping())
 			{
-				CineCameraComponent->SetCurrentFocalLength(LensFileEvalData.Input.Zoom.GetValue());
+				CineCameraComponent->CurrentAperture = LensFile->EvaluateNormalizedIris(0.0f);
+			}
+		}
+		
+		if (UpdateFlags.bApplyFocalLength)
+		{
+			//To evaluate focal length, we need F/Z pair. If focus is not available default to 0, same for zoom if it's not available
+			
+			float FocusValue = 0.0f;
+			if(LensFileEvalData.Input.Focus.IsSet())
+			{
+				FocusValue = LensFileEvalData.Input.Focus.GetValue();
+			}
+			else
+			{
+				// If the LiveLink source is not streaming focus, but the lens file has a valid mapping for FocalLength,
+				// evaluate the mapping at 0.0f. In this case, it is expected that the mapping will have 
+				// exactly one value in it, so warn the user if this is not the case.
+				const int32 FocalLengthFocusPointCount = LensFile->FocalLengthTable.GetFocusPointNum();
+				if(FocalLengthFocusPointCount > 0 && FocalLengthFocusPointCount != 1)
+				{
+					static const FName NAME_InvalidFocalLengthMappingWhenNoFocusStreamed = "LiveLinkCamera_FocusNotStreamedInvalidFocusMapping";
+					const FLiveLinkSubjectKey FakedSubjectKey = {FGuid(), SelectedSubject.Subject};
+					FLiveLinkLog::WarningOnce(NAME_InvalidFocalLengthMappingWhenNoFocusStreamed, FakedSubjectKey, TEXT("Problem applying FocalLength using subject '%s' and LensFile '%s'. Focus wasn't streamed in and more than one focal length focus point was found."), *FakedSubjectKey.SubjectName.ToString(), *LensFile->GetName());
+				}
+			}
+			
+			if(LensFileEvalData.Input.Zoom.IsSet())
+			{
+				bool bHasValidFocalLength = false;
+				const float ZoomValue = LensFileEvalData.Input.Zoom.GetValue();
+				FFocalLengthInfo FocalLengthInfo;
+				if (LensFile->EvaluateFocalLength(FocusValue, ZoomValue, FocalLengthInfo))
+				{
+					if ((FocalLengthInfo.FxFy[0] > KINDA_SMALL_NUMBER) && (FocalLengthInfo.FxFy[1] > KINDA_SMALL_NUMBER))
+					{
+						// This is how field of view, filmback, and focal length are related:
+						//
+						// FOVx = 2*atan(1/(2*Fx)) = 2*atan(FilmbackX / (2*FocalLength))
+						// => FocalLength = Fx*FilmbackX
+						// 
+						// FOVy = 2*atan(1/(2*Fy)) = 2*atan(FilmbackY / (2*FocalLength))
+						// => FilmbackY = FocalLength / Fy
+
+						// Adjust FocalLength and Filmback to match FxFy (which has already been divided by resolution in pixels)
+						const float NewFocalLength = CineCameraComponent->CurrentFocalLength = FocalLengthInfo.FxFy[0] * CineCameraComponent->Filmback.SensorWidth;
+						CineCameraComponent->Filmback.SensorHeight = CineCameraComponent->CurrentFocalLength / FocalLengthInfo.FxFy[1];
+						CineCameraComponent->SetCurrentFocalLength(NewFocalLength);
+						bHasValidFocalLength = true;
+					}
+				}
+
+				//If FocalLength could not be applied, use LiveLink input directly without affecting filmback
+				if (bHasValidFocalLength == false)
+				{
+					CineCameraComponent->SetCurrentFocalLength(ZoomValue);
+				}
+			}
+			else
+			{
+				// If the LiveLink source is not streaming zoom, but the lens file has a valid mapping,
+				// evaluate the mapping at 0.0f. In this case, it is expected that the mapping will have 
+				// exactly one value in it, so warn the user if this is not the case.
+				const FFocalLengthFocusPoint* FocusPoint = LensFileEvalData.Input.Focus.IsSet() ? LensFile->FocalLengthTable.GetFocusPoint(LensFileEvalData.Input.Focus.GetValue()) : LensFile->FocalLengthTable.GetFocusPointNum() > 0 ? &LensFile->FocalLengthTable.GetFocusPoints()[0] : nullptr;
+				if(FocusPoint && FocusPoint->GetNumPoints() != 1)
+				{
+					static const FName NAME_InvalidFocalLengthMappingWhenNotStreamed = "LiveLinkCamera_ZoomNotStreamedInvalidMapping";
+					const FLiveLinkSubjectKey FakedSubjectKey = {FGuid(), SelectedSubject.Subject};
+					FLiveLinkLog::WarningOnce(NAME_InvalidFocalLengthMappingWhenNotStreamed, FakedSubjectKey, TEXT("Problem applying FocalLength using subject '%s' and LensFile '%s'. Zoom wasn't streamed in and more than one focal length zoom point was found."), *FakedSubjectKey.SubjectName.ToString(), *LensFile->GetName());
+				}
+
+				//If evaluating FocalLength with default FZ pair fails, don't update it
+				constexpr float ZoomValue = 0.0f;
+				FFocalLengthInfo FocalLengthInfo;
+				if (LensFile->EvaluateFocalLength(FocusValue, ZoomValue, FocalLengthInfo))
+				{
+					if ((FocalLengthInfo.FxFy[0] > KINDA_SMALL_NUMBER) && (FocalLengthInfo.FxFy[1] > KINDA_SMALL_NUMBER))
+					{
+						// See above for explanation how focal length is applied
+						// Adjust FocalLength and Filmback to match FxFy (which has already been divided by resolution in pixels)
+						const float NewFocalLength = CineCameraComponent->CurrentFocalLength = FocalLengthInfo.FxFy[0] * CineCameraComponent->Filmback.SensorWidth;
+						CineCameraComponent->Filmback.SensorHeight = CineCameraComponent->CurrentFocalLength / FocalLengthInfo.FxFy[1];
+						CineCameraComponent->SetCurrentFocalLength(NewFocalLength);
+					}
+				}
 			}
 		}
 	}

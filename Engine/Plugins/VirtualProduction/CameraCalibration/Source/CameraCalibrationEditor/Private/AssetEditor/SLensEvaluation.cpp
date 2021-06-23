@@ -102,37 +102,29 @@ void SLensEvaluation::CacheLiveLinkData()
 		bCameraControllerExists = true;
 
 		const FLensFileEvalData& LensFileEvalData = CameraController->GetLensFileEvalDataRef();
-		if (LensFileEvalData.Input.Focus.IsSet())
 		{
-			const float RawFocus = LensFileEvalData.Input.Focus.GetValue();
-			CachedLiveLinkData.RawFocus = RawFocus;
+			CachedLiveLinkData.RawFocus = LensFileEvalData.Input.Focus;
 			if (LensFile->HasFocusEncoderMapping())
 			{
-				CachedLiveLinkData.EvaluatedFocus = LensFile->EvaluateNormalizedFocus(RawFocus);
+				CachedLiveLinkData.EvaluatedFocus = LensFile->EvaluateNormalizedFocus(LensFileEvalData.Input.Focus.IsSet() ? LensFileEvalData.Input.Focus.GetValue() : 0.0f);
 			}
 		}
-		if (LensFileEvalData.Input.Iris.IsSet())
 		{
-			const float RawIris = LensFileEvalData.Input.Iris.GetValue();
-			CachedLiveLinkData.RawIris = RawIris;
+			CachedLiveLinkData.RawIris = LensFileEvalData.Input.Iris;
 			if (LensFile->HasIrisEncoderMapping())
 			{
-				CachedLiveLinkData.EvaluatedIris = LensFile->EvaluateNormalizedIris(RawIris);
+				CachedLiveLinkData.EvaluatedIris = LensFile->EvaluateNormalizedIris(LensFileEvalData.Input.Iris.IsSet() ? LensFileEvalData.Input.Iris.GetValue() : 0.0f);
 			}
 		}
-		if (LensFileEvalData.Input.Zoom.IsSet())
 		{
-			const float RawZoom = LensFileEvalData.Input.Zoom.GetValue();
-			CachedLiveLinkData.RawZoom = RawZoom;
+			CachedLiveLinkData.RawZoom = LensFileEvalData.Input.Zoom;
 
-			// Only evaluate the lens file for focal length if both raw focus and raw zoom are valid
-			if (LensFileEvalData.Input.Focus.IsSet())
+			FFocalLengthInfo FocalLength;
+			const float FocusValue = LensFileEvalData.Input.Focus.IsSet() ? LensFileEvalData.Input.Focus.GetValue() : 0.0f;
+			const float ZoomValue = LensFileEvalData.Input.Zoom.IsSet() ? LensFileEvalData.Input.Zoom.GetValue() : 0.0f;
+			if (LensFile->EvaluateFocalLength(FocusValue, ZoomValue, FocalLength))
 			{
-				FFocalLengthInfo FocalLength;
-				if (LensFile->EvaluateFocalLength(LensFileEvalData.Input.Focus.GetValue(), RawZoom, FocalLength))
-				{
-					CachedLiveLinkData.EvaluatedZoom = FocalLength.FxFy.X * LensFile->LensInfo.SensorDimensions.X;
-				}
+				CachedLiveLinkData.EvaluatedZoom = FocalLength.FxFy.X * LensFile->LensInfo.SensorDimensions.X;
 			}
 		}
 	}
@@ -144,20 +136,17 @@ void SLensEvaluation::CacheLiveLinkData()
 
 void SLensEvaluation::CacheLensFileData()
 {
-	if (CachedLiveLinkData.RawFocus.IsSet() && CachedLiveLinkData.RawZoom.IsSet())
-	{
-		const float Focus = CachedLiveLinkData.RawFocus.GetValue();
-		const float Zoom = CachedLiveLinkData.RawZoom.GetValue();
-		LensFile->EvaluateDistortionParameters(Focus, Zoom, CachedDistortionInfo);
-		LensFile->EvaluateFocalLength(Focus, Zoom, CachedFocalLengthInfo);
-		LensFile->EvaluateImageCenterParameters(Focus, Zoom, CachedImageCenter);
-		LensFile->EvaluateNodalPointOffset(Focus, Zoom, CachedNodalOffset);
+	bHasValidRawFocus = CachedLiveLinkData.RawFocus.IsSet();
+	bHasValidRawZoom = CachedLiveLinkData.RawZoom.IsSet();
 
-		bCanEvaluateLensFile = true;
-	}
-	else
+	//Evaluate LensFile independantly of valid FZ pair. Use default 0.0f like LiveLinkCamera if it's not present
 	{
-		bCanEvaluateLensFile = false;
+		const float Focus = CachedLiveLinkData.RawFocus.IsSet() ? CachedLiveLinkData.RawFocus.GetValue() : 0.0f;
+		const float Zoom = CachedLiveLinkData.RawZoom.IsSet() ? CachedLiveLinkData.RawZoom.GetValue() : 0.0f;
+		bCouldEvaluateDistortion = LensFile->EvaluateDistortionParameters(Focus, Zoom, CachedDistortionInfo);
+		bCouldEvaluateFocalLength = LensFile->EvaluateFocalLength(Focus, Zoom, CachedFocalLengthInfo);
+		bCouldEvaluateImageCenter = LensFile->EvaluateImageCenterParameters(Focus, Zoom, CachedImageCenter);
+		bCouldEvaluateNodalOffset = LensFile->EvaluateNodalPointOffset(Focus, Zoom, CachedNodalOffset);
 	}
 }
 
@@ -206,9 +195,24 @@ TSharedRef<SWidget> SLensEvaluation::MakeTrackingWidget()
 				SNew(STextBlock)
 				.Text(MakeAttributeLambda([this]
 				{
-					if (!bCanEvaluateLensFile)
+					if (!bHasValidRawFocus)
 					{
-						return LOCTEXT("CannotEvaluateLensFileWarning", "Cannot evaluate LensFile because LiveLink subject does not stream Focus and/or Zoom");
+						return LOCTEXT("CannotUseRawFocusToEvaluateWarning", "Used default raw Focus value (0.0) to evaluate LensFile.");
+					}
+					return LOCTEXT("EmptyString", "");
+				}))
+				.ColorAndOpacity(FLinearColor::Yellow)
+				.AutoWrapText(true)
+			]
+			+ SGridPanel::Slot(0, 5)
+			.Padding(0.0f, 15.0f, 0.0f, 0.0f)
+			[
+				SNew(STextBlock)
+				.Text(MakeAttributeLambda([this]
+				{
+					if (!bHasValidRawZoom)
+					{
+						return LOCTEXT("CannotUseRawZoomToEvaluateWarning", "Used default raw Zoom value (0.0) to evaluate LensFile.");
 					}
 					return LOCTEXT("EmptyString", "");
 				}))
@@ -616,7 +620,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeDistortionWidget() const
 				SNew(STextBlock)
 				.Text(MakeAttributeLambda([this, Index]
 					{
-						if (bCanEvaluateLensFile && CachedDistortionInfo.Parameters.IsValidIndex(Index))
+						if (bCouldEvaluateDistortion && CachedDistortionInfo.Parameters.IsValidIndex(Index))
 						{
 							return FText::AsNumber(CachedDistortionInfo.Parameters[Index]);
 						}
@@ -679,7 +683,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeIntrinsicsWidget() const
 				SNew(STextBlock)
 				.Text(MakeAttributeLambda([this, FloatOptions]
 				{
-					if (bCanEvaluateLensFile)
+					if (bCouldEvaluateImageCenter)
 					{
 						const FText CxText = FText::AsNumber(CachedImageCenter.PrincipalPoint.X, &FloatOptions);
 						const FText CyText = FText::AsNumber(CachedImageCenter.PrincipalPoint.Y, &FloatOptions);
@@ -701,7 +705,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeIntrinsicsWidget() const
 				SNew(STextBlock)
 				.Text(MakeAttributeLambda([this, FloatOptions]
 				{
-					if (bCanEvaluateLensFile)
+					if (bCouldEvaluateFocalLength)
 					{
 						const FText FxText = FText::AsNumber(CachedFocalLengthInfo.FxFy.X, &FloatOptions);
 						const FText FyText = FText::AsNumber(CachedFocalLengthInfo.FxFy.Y, &FloatOptions);
@@ -753,7 +757,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeNodalOffsetWidget() const
 				.MinDesiredWidth(15.0f)
 				.Text(MakeAttributeLambda([this, FloatOptions]
 				{
-					if (bCanEvaluateLensFile)
+					if (bCouldEvaluateNodalOffset)
 					{
 						const FText LocXText = FText::AsNumber(CachedNodalOffset.LocationOffset.X, &FloatOptions);
 						const FText LocYText = FText::AsNumber(CachedNodalOffset.LocationOffset.Y, &FloatOptions);
@@ -777,7 +781,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeNodalOffsetWidget() const
 				.MinDesiredWidth(15.0f)
 				.Text(MakeAttributeLambda([this, FloatOptions]
 				{
-					if (bCanEvaluateLensFile)
+					if (bCouldEvaluateNodalOffset)
 					{
 						const FText RotXText = FText::AsNumber(CachedNodalOffset.RotationOffset.Rotator().GetComponentForAxis(EAxis::X), &FloatOptions);
 						const FText RotYText = FText::AsNumber(CachedNodalOffset.RotationOffset.Rotator().GetComponentForAxis(EAxis::Y), &FloatOptions);
