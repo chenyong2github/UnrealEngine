@@ -791,9 +791,9 @@ namespace HordeAgent.Services
 				GrpcChannel ActionCacheChannel = GetChannel(ActionTask.ActionCacheUrl, ActionTask.ServiceAccountToken);//ActionTask.ActionCacheUrl == null ? Client.Channel : GrpcChannel.ForAddress(ActionTask.ActionCacheUrl);
 				GrpcChannel ActionRpcChannel = Client.Channel;
 
-				Logger.LogDebug("CasChannel={CasChannel}", CasChannel.Target);
-				Logger.LogDebug("ActionCacheChannel={ActionCacheChannel}", ActionCacheChannel.Target);
-				Logger.LogDebug("ActionRpcChannel={ActionRpcChannel}", ActionRpcChannel.Target);
+				Logger.LogInformation("CasChannel={CasChannel}", CasChannel.Target);
+				Logger.LogInformation("ActionCacheChannel={ActionCacheChannel}", ActionCacheChannel.Target);
+				Logger.LogInformation("ActionRpcChannel={ActionRpcChannel}", ActionRpcChannel.Target);
 
 				ActionExecutor Executor = new ActionExecutor(
 					Settings.GetAgentName(), ActionTask.InstanceName,
