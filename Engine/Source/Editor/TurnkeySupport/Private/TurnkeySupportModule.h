@@ -4,12 +4,17 @@
 
 #include "CoreMinimal.h"
 #include "Interfaces/ITurnkeySupportModule.h"
-
+#if WITH_EDITOR
+	#include "Misc/CoreMisc.h"
+#endif
 
 /**
  * Editor main frame module
  */
 class FTurnkeySupportModule	: public ITurnkeySupportModule
+#if WITH_EDITOR
+	, public FSelfRegisteringExec
+#endif
 {
 public:
 
@@ -48,4 +53,10 @@ private:
 
 	// menu helpers
 	TSharedRef<SWidget> MakeTurnkeyMenuWidget() const;
+
+#if WITH_EDITOR
+	// FSelfRegisteringExec interface
+	virtual bool Exec( class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override;
+#endif
+
 };

@@ -2086,6 +2086,29 @@ void FTurnkeySupportModule::ClearDeviceStatus(FName PlatformName)
 
 
 
+#if WITH_EDITOR
+bool FTurnkeySupportModule::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
+{
+	if (FParse::Command( &Cmd, TEXT("Turnkey")) )
+	{
+		// run Turnkey via UAT. The Cmd is added at the end in case the user wants to run additional commands
+		const FString CommandLine = FString::Printf( TEXT("Turnkey %s %s %s"), *ITurnkeyIOModule::Get().GetUATParams(), *FTurnkeyEditorSupport::GetUATOptions(), Cmd );
+		FTurnkeyEditorSupport::RunUAT(CommandLine, FText::GetEmpty(), LOCTEXT("Turnkey_CustomTurnkeyName", "Executing Turnkey"), LOCTEXT("Turnkey_CustomTurnkeyShortName", "Turnkey"), FEditorStyle::GetBrush(TEXT("MainFrame.PackageProject")));
+		return true;
+	}
+	else if ( FParse::Command( &Cmd, TEXT("RunUAT")) )
+	{
+		// run UAT directly. The Cmd is added at the start on the assumption that it contains the command to run
+		const FString CommandLine = FString::Printf( TEXT("%s %s %s"), Cmd, *ITurnkeyIOModule::Get().GetUATParams(), *FTurnkeyEditorSupport::GetUATOptions() );
+		FTurnkeyEditorSupport::RunUAT(CommandLine, FText::GetEmpty(), LOCTEXT("Turnkey_CustomUATName", "Executing Custom UAT Task"), LOCTEXT("Turnkey_CustomUATShortName", "UAT"), FEditorStyle::GetBrush(TEXT("MainFrame.PackageProject")));
+		return true;
+	}
+
+	return false;
+}
+#endif
+
+
 void FTurnkeySupportModule::StartupModule( )
 {
 	

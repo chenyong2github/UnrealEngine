@@ -423,7 +423,8 @@ public:
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("Platform"), PlatformDisplayName);
 		Arguments.Add(TEXT("TaskName"), TaskName);
-		FNotificationInfo Info( FText::Format( LOCTEXT("UatTaskInProgressNotification", "{TaskName} for {Platform}..."), Arguments) );
+		FText NotificationFormat = (PlatformDisplayName.IsEmpty()) ? LOCTEXT("UatTaskInProgressNotificationNoPlatform", "{TaskName}...") : LOCTEXT("UatTaskInProgressNotification", "{TaskName} for {Platform}...");
+		FNotificationInfo Info( FText::Format( NotificationFormat, Arguments) );
 		
 		Info.Image = TaskIcon;
 		Info.bFireAndForget = false;
