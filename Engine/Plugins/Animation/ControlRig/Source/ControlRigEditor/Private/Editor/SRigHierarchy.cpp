@@ -1459,7 +1459,7 @@ UToolMenu* SRigHierarchy::GetOrCreateDragDropMenu(const TArray<FRigElementKey>& 
 	}
 
 	UControlRigContextMenuContext* MenuContext = NewObject<UControlRigContextMenuContext>();
-	MenuContext->Init(ControlRigEditor, FControlRigRigHierarchyDragAndDropContext(DraggedKeys, TargetKey));
+	MenuContext->Init(ControlRigBlueprint, FControlRigRigHierarchyDragAndDropContext(DraggedKeys, TargetKey));
 	
 	UToolMenu* Menu = ToolMenus->GenerateMenu(MenuName, FToolMenuContext(MenuContext));
 
@@ -1552,7 +1552,7 @@ UToolMenu* SRigHierarchy::GetOrCreateContextMenu()
 
 	// individual entries in this menu can access members of this context, particularly useful for editor scripting
 	UControlRigContextMenuContext* ContextMenuContext = NewObject<UControlRigContextMenuContext>();
-	ContextMenuContext->Init(ControlRigEditor);
+	ContextMenuContext->Init(ControlRigBlueprint);
 	
 	FToolMenuContext MenuContext(CommandList);
 	MenuContext.AddObject(ContextMenuContext);
@@ -2711,7 +2711,7 @@ void SRigHierarchy::HandleParent(const FToolMenuContext& Context)
 {
 	if (UControlRigContextMenuContext* MenuContext = Cast<UControlRigContextMenuContext>(Context.FindByClass(UControlRigContextMenuContext::StaticClass())))
 	{
-		const FControlRigRigHierarchyDragAndDropContext DragAndDropContext = MenuContext->GetDragAndDropContext();
+		const FControlRigRigHierarchyDragAndDropContext DragAndDropContext = MenuContext->GetRigHierarchyDragAndDropContext();
 		ReparentOrMatchTransform(DragAndDropContext.DraggedElementKeys, DragAndDropContext.TargetElementKey, true);
 	}
 }
@@ -2720,7 +2720,7 @@ void SRigHierarchy::HandleAlign(const FToolMenuContext& Context)
 {
 	if (UControlRigContextMenuContext* MenuContext = Cast<UControlRigContextMenuContext>(Context.FindByClass(UControlRigContextMenuContext::StaticClass())))
 	{
-		const FControlRigRigHierarchyDragAndDropContext DragAndDropContext = MenuContext->GetDragAndDropContext();
+		const FControlRigRigHierarchyDragAndDropContext DragAndDropContext = MenuContext->GetRigHierarchyDragAndDropContext();
 		ReparentOrMatchTransform(DragAndDropContext.DraggedElementKeys, DragAndDropContext.TargetElementKey, false);
 	}
 }

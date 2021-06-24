@@ -102,6 +102,7 @@ public:
 	{
 		return FString(TEXT("Engine/Animation/ControlRig"));
 	}
+	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
 
 	// BlueprintEditor interface
 	virtual bool TransactionObjectAffectsBlueprint(UObject* InTransactedObject) override;

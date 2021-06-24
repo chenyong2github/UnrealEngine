@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
 #include "Rigs/RigHierarchyDefines.h"
 
 #include "ControlRigContextMenuContext.generated.h"
@@ -10,6 +11,9 @@
 class UControlRig;
 class UControlRigBlueprint;
 class FControlRigEditor;
+class URigVMGraph;
+class URigVMNode;
+class URigVMPin;
 
 USTRUCT(BlueprintType)
 struct FControlRigRigHierarchyDragAndDropContext
@@ -31,6 +35,33 @@ struct FControlRigRigHierarchyDragAndDropContext
 	FRigElementKey TargetElementKey;
 };
 
+USTRUCT(BlueprintType)
+struct FControlRigGraphNodeContextMenuContext
+{
+	GENERATED_BODY()
+
+	FControlRigGraphNodeContextMenuContext() = default;
+	
+	FControlRigGraphNodeContextMenuContext(TObjectPtr<const URigVMGraph> InGraph, TObjectPtr<const URigVMNode> InNode, TObjectPtr<const URigVMPin> InPin)
+		: Graph(InGraph)
+		, Node(InNode)
+		, Pin(InPin)
+	{
+	}
+	
+	/** The graph associated with this context. */
+	UPROPERTY(BlueprintReadOnly, Category = ControlRigEditorExtensions)
+	TObjectPtr<const URigVMGraph> Graph;
+
+	/** The node associated with this context. */
+	UPROPERTY(BlueprintReadOnly, Category = ControlRigEditorExtensions)
+	TObjectPtr<const URigVMNode> Node;
+
+	/** The pin associated with this context; may be NULL when over a node. */
+	UPROPERTY(BlueprintReadOnly, Category = ControlRigEditorExtensions)
+	TObjectPtr<const URigVMPin> Pin;
+};
+
 UCLASS(BlueprintType)
 class UControlRigContextMenuContext : public UObject
 {
@@ -39,15 +70,12 @@ class UControlRigContextMenuContext : public UObject
 public:
 	/**
 	 *	Initialize the Context
-	 * @param InControlRigEditor 		The Control Rig editor that hosts the menu
+	 * @param InControlRigBlueprint 	The Control Rig Bluerpint currently opened in the Editor
 	 * @param InDragAndDropContext 		Optional, only used for the menu that shows up after a drag & drop action
+	 * @param InGraphNodeContext 		Optional, only used for the graph node context menu
 	*/
-	void Init(TWeakPtr<FControlRigEditor> InControlRigEditor, FControlRigRigHierarchyDragAndDropContext InDragAndDropContext = FControlRigRigHierarchyDragAndDropContext())
-	{
-		ControlRigEditor = InControlRigEditor;
-		DragAndDropContext = InDragAndDropContext;
-	}
-	
+	void Init(TWeakObjectPtr<UControlRigBlueprint> InControlRigBlueprint, const FControlRigRigHierarchyDragAndDropContext& InDragAndDropContext = FControlRigRigHierarchyDragAndDropContext(), const FControlRigGraphNodeContextMenuContext& InGraphNodeContext = FControlRigGraphNodeContextMenuContext());
+
 	/** Get the control rig blueprint that we are editing */
 	UFUNCTION(BlueprintCallable, Category = ControlRigEditorExtensions)
     UControlRigBlueprint* GetControlRigBlueprint() const;
@@ -60,13 +88,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = ControlRigEditorExtensions)
 	bool IsAltDown() const;
 	
-	/** Returns the source and target element keys of a drag & drop action */
+	/** Returns context for a drag & drop action that contains source and target element keys */ 
 	UFUNCTION(BlueprintCallable, Category = ControlRigEditorExtensions)
-	FControlRigRigHierarchyDragAndDropContext GetDragAndDropContext();
+	FControlRigRigHierarchyDragAndDropContext GetRigHierarchyDragAndDropContext();
+
+	/** Returns context for graph node context menu */
+	UFUNCTION(BlueprintCallable, Category = ControlRigEditorExtensions)
+	FControlRigGraphNodeContextMenuContext GetGraphNodeContextMenuContext();
 
 private:
-	/** Our owning control rig editor */
-	TWeakPtr<FControlRigEditor> ControlRigEditor;
+	TWeakObjectPtr<UControlRigBlueprint> ControlRigBlueprint;
 
 	FControlRigRigHierarchyDragAndDropContext DragAndDropContext;
+
+	FControlRigGraphNodeContextMenuContext GraphNodeContextMenuContext;
 };

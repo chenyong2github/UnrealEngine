@@ -89,6 +89,7 @@
 #include "Engine/StaticMeshActor.h"
 #include "Components/StaticMeshComponent.h"
 #include "ControlRig/Private/Units/Execution/RigUnit_SequenceExecution.h"
+#include "ControlRigContextMenuContext.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 
@@ -1890,6 +1891,40 @@ FString FControlRigEditor::GetWorldCentricTabPrefix() const
 FLinearColor FControlRigEditor::GetWorldCentricTabColorScale() const
 {
 	return FLinearColor( 0.5f, 0.25f, 0.35f, 0.5f );
+}
+
+void FControlRigEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
+{
+	FAssetEditorToolkit::InitToolMenuContext(MenuContext);
+
+	if (UControlRigBlueprint* RigBlueprint = GetControlRigBlueprint())
+	{
+		URigVMGraph* Model = nullptr;
+		URigVMNode* Node = nullptr;
+		URigVMPin* Pin = nullptr;
+		
+		if (UGraphNodeContextMenuContext* GraphNodeContext = MenuContext.FindContext<UGraphNodeContextMenuContext>())
+		{
+		
+			if (GraphNodeContext->Node)
+			{
+				Model = RigBlueprint->GetModel(GraphNodeContext->Graph);
+				Node = Model->FindNodeByName(GraphNodeContext->Node->GetFName());
+			}
+		
+			if (GraphNodeContext->Pin && Node)
+			{
+				Pin = Model->FindPin(GraphNodeContext->Pin->GetName());
+			}
+		}
+		
+		UControlRigContextMenuContext* ControlRigContext = NewObject<UControlRigContextMenuContext>();
+		ControlRigContext->Init(RigBlueprint,
+			FControlRigRigHierarchyDragAndDropContext(),
+			FControlRigGraphNodeContextMenuContext(Model, Node, Pin));
+
+		MenuContext.AddObject(ControlRigContext);
+	}
 }
 
 bool FControlRigEditor::TransactionObjectAffectsBlueprint(UObject* InTransactedObject)
