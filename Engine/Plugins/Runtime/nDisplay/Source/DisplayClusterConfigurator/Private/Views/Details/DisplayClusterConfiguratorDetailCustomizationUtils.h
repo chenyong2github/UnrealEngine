@@ -42,6 +42,13 @@ class IPropertyHandle;
 	CurrentCategory.AddProperty(PropertyHandle.ToSharedRef()); \
 }
 
+#define HIDE_NESTED_PROPERTY(NestedPropertyHelper, ClassName, PropertyPath) { \
+	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ClassName, PropertyPath)); \
+	check(PropertyHandle.IsValid()); \
+	check(PropertyHandle->IsValidHandle()); \
+	PropertyHandle->MarkHiddenByCustomization(); \
+}
+
 #define ADD_EXPANDED_NESTED_PROPERTY(NestedPropertyHelper, ClassName, PropertyPath) { \
 	TSharedPtr<IPropertyHandle> PropertyHandle = NestedPropertyHelper.GetNestedProperty(GET_MEMBER_NAME_STRING_CHECKED(ClassName, PropertyPath)); \
 	check(PropertyHandle.IsValid()); \

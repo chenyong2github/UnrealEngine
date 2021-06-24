@@ -312,10 +312,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
 	FDisplayClusterConfigurationPostRender_Override Override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay)
 	FDisplayClusterConfigurationPostRender_BlurPostprocess PostprocessBlur;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Mipmapping"))
 	FDisplayClusterConfigurationPostRender_GenerateMips GenerateMips;
 
 	// Advanced render settings
