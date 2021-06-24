@@ -210,7 +210,7 @@ namespace Metasound
 			return OutputDataReferences;
 		}
 
-		static FVertexInterface DeclareVertexInterface() 
+		static const FVertexInterface& DeclareVertexInterface() 
 		{
 			static const FVertexInterface Interface(
 				FInputVertexInterface(
