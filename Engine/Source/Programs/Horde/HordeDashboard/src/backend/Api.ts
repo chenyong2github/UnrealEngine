@@ -423,7 +423,7 @@ export enum LeaseOutcome {
     
     /** The lease was cancelled by request */
     Cancelled = "Cancelled"
-	
+
   }
 
 
@@ -462,6 +462,9 @@ export type GetAgentLeaseResponse = {
 
 	/**logId of this lease (parsed from Details array) */
 	logId: string;
+
+	/**Batch data for this lease, queried from backend */
+	batch?: GetBatchResponse;
 
 	/** Outcome of the lease */
 	outcome? : LeaseOutcome;
