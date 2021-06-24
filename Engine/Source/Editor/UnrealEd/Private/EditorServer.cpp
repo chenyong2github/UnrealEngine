@@ -2570,8 +2570,9 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 						TArray<UPackage*> WorldPackages;
 						for (TObjectIterator<UWorld> It; It; ++It)
 						{
-							UPackage* Package = Cast<UPackage>(It->GetOuter());
-							if (Package && Package != GetTransientPackage() && (!IsWorldValidForReuse(*It) || Package->GetPathName() != LongTempFname))
+							// Don't unload transient or newly created worlds, nor the world we're attempting to keep-alive
+							UPackage* Package = It->GetPackage();
+							if (Package != GetTransientPackage() && !Package->HasAnyPackageFlags(PKG_NewlyCreated) && *It != NewWorld)
 							{
 								WorldPackages.AddUnique(Package);
 							}
