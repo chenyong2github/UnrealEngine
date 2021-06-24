@@ -331,6 +331,32 @@ void FSyncData::FScene::UpdateInfo(FProcessInfo* IOProcessInfo)
 		}
 	}
 
+    FAutoChangeDatabase AutoRestoreDB(APIWind_3DModelID);
+    API_Coord DbOffset = {0.0, 0.0};
+    GSErrCode  GSErr = ACAPI_Database(APIDb_GetOffsetID, &DbOffset);
+    if (GSErr == NoError)
+    {
+        InfoMetaData.AddStringProperty(TEXT("VirtualToWorldOffset.X"), GS::ValueToUniString(DbOffset.x));
+        InfoMetaData.AddStringProperty(TEXT("VirtualToWorldOffset.Y"), GS::ValueToUniString(DbOffset.y));
+    }
+    else
+    {
+        UE_AC_DebugF("FSyncData::FScene::UpdateInfo - APIDb_GetOffsetID return error %s", GetErrorName(GSErr));
+    }
+
+    API_Coord3D LocOrigo = {0.0, 0.0, 0.0};
+    GSErr = ACAPI_Database(APIDb_GetLocOrigoID, &LocOrigo);
+    if (GSErr == NoError)
+    {
+        InfoMetaData.AddStringProperty(TEXT("UserOrigin.X"), GS::ValueToUniString(LocOrigo.x));
+        InfoMetaData.AddStringProperty(TEXT("UserOrigin.Y"), GS::ValueToUniString(LocOrigo.y));
+        InfoMetaData.AddStringProperty(TEXT("UserOrigin.Z"), GS::ValueToUniString(LocOrigo.z));
+    }
+    else
+    {
+        UE_AC_DebugF("FSyncData::FScene::UpdateInfo - APIDb_GetLocOrigoID return error %s", GetErrorName(GSErr));
+    }
+
 	SceneInfoActorElement->SetLabel(GSStringToUE(GS::UniString(projectName + " Project Informations")));
 
 	InfoMetaData.SetOrUpdate(&SceneInfoMetaData, &IOProcessInfo->SyncContext.GetScene());
@@ -1281,8 +1307,8 @@ void FSyncData::FLight::Process(FProcessInfo* IOProcessInfo)
 					break;
 			}
 			AreaLightElement.SetLightType(AreaLightType);
-			AreaLightElement.SetWidth(float(Parameters.AreaSize.x * IOProcessInfo->SyncContext.ScaleLength));
-			AreaLightElement.SetLength(float(Parameters.AreaSize.y * IOProcessInfo->SyncContext.ScaleLength));
+			AreaLightElement.SetWidth(float(Parameters.AreaSize.y * IOProcessInfo->SyncContext.ScaleLength));
+			AreaLightElement.SetLength(float(Parameters.AreaSize.x * IOProcessInfo->SyncContext.ScaleLength));
 		}
 		if (!Parameters.IESFileName.IsEmpty())
 		{
