@@ -1860,7 +1860,8 @@ void SLevelEditor::OnLevelActorDeleted(AActor* InActor)
 				.SetAllowHidden(true)
 				.SetAllowGroups(false)
 				.SetAllowLegacyNotifications(false)
-				.SetWarnIfLocked(false);
+				.SetWarnIfLocked(false)
+				.SetChildElementInclusionMethod(ETypedElementChildInclusionMethod::Recursive);
 
 			SelectedElements->DeselectElement(ActorElement, SelectionOptions);
 		}
