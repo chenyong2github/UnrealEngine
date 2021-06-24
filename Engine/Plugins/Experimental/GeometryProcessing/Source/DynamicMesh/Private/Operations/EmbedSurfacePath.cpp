@@ -133,7 +133,7 @@ struct FIndexDistance
 	}
 };
 
-bool WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, FVector3d StartPt, int EndTri, int EndVertID, FVector3d EndPt, FVector3d WalkPlaneNormal, TFunction<FVector3d(const FDynamicMesh3*, int)> VertexToPosnFn,
+bool WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, int StartVID, FVector3d StartPt, int EndTri, int EndVertID, FVector3d EndPt, FVector3d WalkPlaneNormal, TFunction<FVector3d(const FDynamicMesh3*, int)> VertexToPosnFn,
 	bool bAllowBackwardsSearch, double AcceptEndPtOutsideDist, double PtOnPlaneThresholdSq, TArray<TPair<FMeshSurfacePoint, int>>& WalkedPath, double BackwardsTolerance)
 {
 	auto SetTriVertPositions = [&VertexToPosnFn, &Mesh](FIndex3i TriVertIDs, FTriangle3d& Tri)
@@ -175,10 +175,26 @@ bool WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, FVector3d StartPt, 
 	FIndex3i StartTriVertIDs = Mesh->GetTriangle(StartTri);
 	SetTriVertPositions(StartTriVertIDs, CurrentTri);
 	FDistPoint3Triangle3d CurrentTriDist(StartPt, CurrentTri); // heavy duty way to get barycentric coordinates and check if on triangle; should be robust to degenerate triangles unlike VectorUtil's barycentric coordinate function
-	// TODO: use TrianglePosToSurfacePoint to snap to edge or vertex as needed (OR do this as a post-process and delete the point if doing so leads to a duplicate point!)
-	CurrentTriDist.ComputeResult();
-	// TODO: replace barycoords result with edge or vertex surface point data if within distance threshold of vertex or edge!
-	ComputedPointsAndSources.Emplace(FMeshSurfacePoint(StartTri, CurrentTriDist.TriangleBaryCoords), FWalkIndices(StartPt, -1, StartTri));
+	int StartVIDIndex = -1;
+	if (StartVID != -1)
+	{
+		StartVIDIndex = StartTriVertIDs.IndexOf(StartVID);
+	}
+	if (StartVIDIndex == -1)
+	{
+		// TODO: use TrianglePosToSurfacePoint to snap to edge or vertex as needed (OR do this as a post-process and delete the point if doing so leads to a duplicate point!)
+		CurrentTriDist.ComputeResult();
+		// TODO: replace barycoords result with edge or vertex surface point data if within distance threshold of vertex or edge!
+		ComputedPointsAndSources.Emplace(FMeshSurfacePoint(StartTri, CurrentTriDist.TriangleBaryCoords), FWalkIndices(StartPt, -1, StartTri));
+	}
+	else
+	{
+		// if a valid StartVID was given, assume that's our closest point
+		CurrentTriDist.TriangleBaryCoords = FVector3d::Zero();
+		CurrentTriDist.TriangleBaryCoords[StartVIDIndex] = 1.0;
+		CurrentTriDist.ClosestTrianglePoint = StartPt;
+		ComputedPointsAndSources.Emplace(FMeshSurfacePoint(StartTri, CurrentTriDist.TriangleBaryCoords), FWalkIndices(StartPt, -1, StartTri));
+	}
 
 	FVector3d ForwardsDirection = EndPt - StartPt;
 
@@ -560,7 +576,7 @@ bool FMeshSurfacePath::IsConnected() const
 
 
 bool FMeshSurfacePath::AddViaPlanarWalk(
-	int StartTri, FVector3d StartPt, int EndTri, int EndVertID, 
+	int StartTri, int StartVID, FVector3d StartPt, int EndTri, int EndVertID, 
 	FVector3d EndPt, FVector3d WalkPlaneNormal, TFunction<FVector3d(const FDynamicMesh3*, int)> VertexToPosnFn,
 	bool bAllowBackwardsSearch, double AcceptEndPtOutsideDist, double PtOnPlaneThresholdSq, double BackwardsTolerance)
 {
@@ -571,7 +587,7 @@ bool FMeshSurfacePath::AddViaPlanarWalk(
 			return MeshArg->GetVertex(VertexID);
 		};
 	}
-	return WalkMeshPlanar(Mesh, StartTri, StartPt, EndTri, EndVertID, EndPt, WalkPlaneNormal, VertexToPosnFn,
+	return WalkMeshPlanar(Mesh, StartTri, StartVID, StartPt, EndTri, EndVertID, EndPt, WalkPlaneNormal, VertexToPosnFn,
 		bAllowBackwardsSearch, AcceptEndPtOutsideDist, PtOnPlaneThresholdSq, Path, BackwardsTolerance);
 }
 
@@ -842,7 +858,7 @@ bool UE::Geometry::EmbedProjectedPaths(FDynamicMesh3* Mesh, const TArrayView<con
 				{
 					return false;
 				}
-				bool bWalkSuccess = SurfacePath.AddViaPlanarWalk(CurrentSeedTriID, StartPos, -1, LastVert, FVector3d(Path2D[IdxB].X, Path2D[IdxB].Y, 0), WalkNormal, ProjectToFrame, false, FMathf::ZeroTolerance, PtSnapVertexOrEdgeThresholdSq);
+				bool bWalkSuccess = SurfacePath.AddViaPlanarWalk(CurrentSeedTriID, -1, StartPos, -1, LastVert, FVector3d(Path2D[IdxB].X, Path2D[IdxB].Y, 0), WalkNormal, ProjectToFrame, false, FMathf::ZeroTolerance, PtSnapVertexOrEdgeThresholdSq);
 				if (!bWalkSuccess)
 				{
 					return false;
