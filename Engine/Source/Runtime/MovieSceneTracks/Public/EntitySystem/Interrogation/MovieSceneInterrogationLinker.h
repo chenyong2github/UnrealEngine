@@ -83,6 +83,12 @@ public:
 	/**
 	 * Allocate a new interrogation channel that relates to a specific object
 	 */
+	FInterrogationChannel AllocateChannel(UObject* Object, const FMovieScenePropertyBinding& PropertyBinding);
+
+
+	/**
+	 * Allocate a new interrogation channel that relates to a specific object
+	 */
 	FInterrogationChannel AllocateChannel(UObject* Object, FInterrogationChannel ParentChannel, const FMovieScenePropertyBinding& PropertyBinding);
 
 
@@ -139,6 +145,18 @@ public:
 	 * @return The channel that was either pre-existing or allocated for SceneComponent
 	 */
 	FInterrogationChannel ImportLocalTransforms(USceneComponent* SceneComponent, IMovieScenePlayer* InPlayer, FMovieSceneSequenceID SequenceID);
+
+
+	/**
+	 * Import multiple tracks into this linker. See ImporTrack above.
+	 */
+	void ImportTracks(TArrayView<UMovieSceneTrack* const> Tracks, FInterrogationChannel InChannel)
+	{
+		for (UMovieSceneTrack* Track : Tracks)
+		{
+			ImportTrack(Track, InChannel);
+		}
+	}
 
 
 	/**
