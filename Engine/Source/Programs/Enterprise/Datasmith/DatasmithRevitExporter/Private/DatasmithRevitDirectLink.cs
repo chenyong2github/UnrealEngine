@@ -215,6 +215,19 @@ namespace DatasmithRevitExporter
 				{
 					DirectLink.ModifiedLinkedDocuments.Add((ModifiedElement as RevitLinkInstance).GetLinkDocument());
 				}
+				else
+				{
+					// Handles a case where Revit won't notify us about modified mullions and their transform remains obsolte, thus wrong.
+					ElementCategoryFilter Filter = new ElementCategoryFilter(BuiltInCategory.OST_CurtainWallMullions);
+					IList<ElementId> DependentElements = ModifiedElement.GetDependentElements(Filter);
+					if (DependentElements != null && DependentElements.Count > 0)
+					{
+						foreach (ElementId DepElemId in DependentElements)
+						{
+							DirectLink.RootCache.ModifiedElements.Add(DepElemId);
+						}
+					}
+				}
 
 				DirectLink.RootCache.ModifiedElements.Add(ElemId);
 			}
