@@ -138,8 +138,8 @@ namespace Turnkey
 
 					if (!bUnattended)
 					{
-						string Response = TurnkeyUtils.ReadInput("Do you want to attempt again? [y/N]", "N");
-						if (string.Compare(Response, "Y", true) != 0)
+						bool bResponse = TurnkeyUtils.GetUserConfirmation("Do you want to attempt again?", false);
+						if (bResponse == false)
 						{
 							bDone = true;
 						}

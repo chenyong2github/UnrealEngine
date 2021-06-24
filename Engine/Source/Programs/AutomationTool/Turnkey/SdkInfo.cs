@@ -151,8 +151,8 @@ namespace Turnkey
 					return false;
 				}
 
-				string Response = TurnkeyUtils.ReadInput("The AutoSdk system is not setup on this machine. Would you like to set it up now? [Y/n]", "Y");
-				if (string.Compare(Response, "Y", true) == 0)
+				bool bResponse = TurnkeyUtils.GetUserConfirmation("The AutoSdk system is not setup on this machine. Would you like to set it up now?", true);
+				if (bResponse)
 				{
 					bSetupEnvVarAfterInstall = true;
 				}

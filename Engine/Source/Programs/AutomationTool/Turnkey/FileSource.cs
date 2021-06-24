@@ -522,8 +522,8 @@ namespace Turnkey
 		// 				if (!bUnattended)
 		// 				{
 		// 					// @todo turnkey - have studio settings 
-		// 					string Response = TurnkeyUtils.ReadInput("AutoSdks are not setup, but your studio has support. Would you like to set it up now? [Y/n]", "Y");
-		// 					if (string.Compare(Response, "Y", true) == 0)
+		// 					bool bResponse = TurnkeyUtils.GetUserConfirmation("AutoSdks are not setup, but your studio has support. Would you like to set it up now?", true);
+		// 					if (bResponse)
 		// 					{
 		// 						bAttemptAutoSdkSetup = true;
 		// 						bSetupEnvVarAfterInstall = true;

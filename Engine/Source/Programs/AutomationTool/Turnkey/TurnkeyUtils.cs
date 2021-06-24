@@ -338,8 +338,8 @@ namespace Turnkey
 						string ProjectChoice = TurnkeyUtils.ReadInput("Enter path to .uproject file:");
 						if (!File.Exists(ProjectChoice))
 						{
-							string Response = TurnkeyUtils.ReadInput(string.Format("'{0}' doesn't exist. Would you like to enter another path? [y/N]", ProjectChoice), "N");
-							if (Response.ToLower() != "y")
+							bool bResponse = TurnkeyUtils.GetUserConfirmation(string.Format("'{0}' doesn't exist. Would you like to enter another path?", ProjectChoice), false);
+							if (bResponse == false)
 							{
 								break;
 							}
@@ -822,6 +822,11 @@ namespace Turnkey
 		public static int ReadInputInt(string Prompt, List<string> Options, bool bIsCancellable, int DefaultValue = -1)
 		{
 			return IOProvider.ReadInputInt(Prompt, Options, bIsCancellable, DefaultValue, bAppendNewLine: true);
+		}
+
+		public static bool GetUserConfirmation(string Message, bool bDefaultValue)
+		{
+			return IOProvider.GetUserConfirmation(Message, bDefaultValue, true );
 		}
 #endregion
 

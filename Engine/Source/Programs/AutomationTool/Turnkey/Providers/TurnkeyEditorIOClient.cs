@@ -148,6 +148,39 @@ namespace Turnkey
 			return FallbackIOProvider.Value.ReadInputInt(Prompt, Options, bIsCancellable, DefaultValue, bAppendNewLine);
 		}
 
+		public override bool GetUserConfirmation(string Message, bool bDefaultValue, bool bAppendNewLine)
+		{
+			if (Connect())
+			{
+				// send the action message
+				if (SendAction( "GetConfirmation", (Json) =>
+				{
+					Json.WriteValue("Message",      Message);
+					Json.WriteValue("DefaultValue", bDefaultValue);
+				}))
+				{
+					// wait for the response
+					JsonObject ReceivedMessage = ReceiveMessage();
+					Disconnect();
+
+					// parse the result
+					if (ReceivedMessage != null)
+					{
+						bool bResult;
+						if (ReceivedMessage.TryGetBoolField("Result", out bResult))
+						{
+							return bResult;
+						}
+						return bDefaultValue;
+					}
+				}
+			}
+
+			// failed to connect - use the fallback instead
+			return FallbackIOProvider.Value.GetUserConfirmation(Message, bDefaultValue, bAppendNewLine);
+
+		}
+
 
 		#region socket functions
 

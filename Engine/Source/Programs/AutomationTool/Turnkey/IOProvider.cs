@@ -22,5 +22,7 @@ namespace Turnkey
 		public abstract string ReadInput(string Prompt, string DefaultValue, bool bAppendNewLine);
 		
 		public abstract int ReadInputInt(string Prompt, List<string> Options, bool bIsCancellable, int DefaultValue, bool bAppendNewLine);
+
+		public abstract bool GetUserConfirmation(string Message, bool bDefaultValue, bool bAppendNewLine);
 	}
 }

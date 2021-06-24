@@ -228,8 +228,8 @@ namespace Turnkey
 				{
 					TurnkeyUtils.Log("Unable to find a clientspec for the perforce operation {0}, looking for a depot client", Operation);
 
-					string Response = TurnkeyUtils.ReadInput("Would you like to create one? [y/N]", "N");
-					if (string.Compare(Response, "Y", true) != 0)
+					bool bResponse = TurnkeyUtils.GetUserConfirmation("Would you like to create one?", false);
+					if (bResponse == false)
 					{
 						// make sure to try again next time
 						PerforceConnection = null;
