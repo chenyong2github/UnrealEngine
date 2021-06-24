@@ -16,12 +16,12 @@
 #include "RenderResource.h"
 #include "HitProxies.h"
 #include "RenderGraphDefinitions.h"
+#include "Elements/Framework/TypedElementListFwd.h"
 
 class FCanvas;
 class FViewport;
 class FViewportClient;
 class UModel;
-class UTypedElementList;
 
 /**
  * A render target.
@@ -508,7 +508,7 @@ public:
 	 * InRect must be entirely within the viewport's client area.
 	 * If the hit proxies are not cached, this will call ViewportClient->Draw with a hit-testing canvas.
 	 */
-	ENGINE_API void GetElementHandlesInRect(FIntRect InRect, UTypedElementList* OutElementHandles);
+	ENGINE_API void GetElementHandlesInRect(FIntRect InRect, FTypedElementListRef OutElementHandles);
 	ENGINE_API void GetElementHandlesInRect(FIntRect InRect, TSet<FTypedElementHandle>& OutElementHandles);
 
 	/**

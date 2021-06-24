@@ -41,16 +41,19 @@ private:
 	uint64 InstanceId = 0;
 };
 
-bool USMInstanceElementEditorSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
+bool USMInstanceElementEditorSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const FTypedElementListProxy InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
 {
-	if (const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle))
+	FTypedElementListConstPtr SelectionSetPtr = InSelectionSet.GetElementList();
+	const FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
+
+	if (SelectionSetPtr && SMInstance)
 	{
-		if (InSelectionSet->Num() == 0)
+		if (SelectionSetPtr->Num() == 0)
 		{
 			return false;
 		}
 
-		if (InSelectionSet->Contains(InElementHandle))
+		if (SelectionSetPtr->Contains(InElementHandle))
 		{
 			return true;
 		}
@@ -59,7 +62,7 @@ bool USMInstanceElementEditorSelectionInterface::IsElementSelected(const FTypedE
 		{
 			if (FTypedElementHandle ISMComponentElement = UEngineElementsLibrary::AcquireEditorComponentElementHandle(SMInstance.GetISMComponent(), /*bAllowCreate*/false))
 			{
-				return InSelectionSet->Contains(ISMComponentElement);
+				return SelectionSetPtr->Contains(ISMComponentElement);
 			}
 		}
 	}

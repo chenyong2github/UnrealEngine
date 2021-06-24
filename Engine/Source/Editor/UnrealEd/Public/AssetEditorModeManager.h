@@ -6,7 +6,6 @@
 #include "EditorModeManager.h"
 
 class FPreviewScene;
-class UTypedElementList;
 
 //////////////////////////////////////////////////////////////////////////
 // FAssetEditorModeManager

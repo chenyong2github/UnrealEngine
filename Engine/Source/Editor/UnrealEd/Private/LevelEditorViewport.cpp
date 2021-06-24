@@ -2127,7 +2127,7 @@ void FLevelEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitPr
 	// otherwise the usual call in TrackingStopped would include the newly selected element
 	if (bHasBegunGizmoManipulation)
 	{
-		const UTypedElementList* ElementsToManipulate = GetElementsToManipulate();
+		FTypedElementListConstRef ElementsToManipulate = GetElementsToManipulate();
 		ViewportInteraction->EndGizmoManipulation(ElementsToManipulate, GetWidgetMode(), ETypedElementViewportInteractionGizmoManipulationType::Click);
 		bHasBegunGizmoManipulation = false;
 	}
@@ -2592,12 +2592,11 @@ bool FLevelEditorViewportClient::InputWidgetDelta(FViewport* InViewport, EAxisLi
 							UTypedElementCommonActions* CommonActions = LevelEditor ? LevelEditor->GetCommonActions() : nullptr;
 							if (CommonActions)
 							{
-								const UTypedElementList* ElementsToManipulate = GetElementsToManipulate();
+								FTypedElementListConstRef ElementsToManipulate = GetElementsToManipulate();
 								TArray<FTypedElementHandle> DuplicatedElements;
 								{
-									TGCObjectScopeGuard<UTypedElementList> ElementsToDuplicate(ElementsToManipulate->Clone()); // Clone this, as the duplicate may triger construction scripts to modify the selection as we duplicate
-									DuplicatedElements = CommonActions->DuplicateNormalizedElements(ElementsToDuplicate.Get(), GetWorld(), FVector::ZeroVector);
-									ElementsToDuplicate.Get()->Empty();
+									FTypedElementListRef ElementsToDuplicate = ElementsToManipulate->Clone(); // Clone this, as the duplicate may triger construction scripts to modify the selection as we duplicate
+									DuplicatedElements = CommonActions->DuplicateNormalizedElements(ElementsToDuplicate, GetWorld(), FVector::ZeroVector);
 								}
 
 								// Exclusively select the new elements, so that future gizmo interaction manipulates those items instead
@@ -2955,7 +2954,7 @@ void FLevelEditorViewportClient::TrackingStarted( const FInputEventState& InInpu
 	{
 		bIsTrackingBrushModification = false;
 
-		const UTypedElementList* ElementsToManipulate = GetElementsToManipulate();
+		FTypedElementListConstRef ElementsToManipulate = GetElementsToManipulate();
 		TypedElementListObjectUtil::ForEachObject<ABrush>(ElementsToManipulate, [this](ABrush* InBrush)
 		{
 			bIsTrackingBrushModification = InBrush && !InBrush->IsVolumeBrush() && !FActorEditorUtils::IsABuilderBrush(InBrush);
@@ -2967,7 +2966,7 @@ void FLevelEditorViewportClient::TrackingStarted( const FInputEventState& InInpu
 	{
 		Widget->SetSnapEnabled(true);
 
-		const UTypedElementList* ElementsToManipulate = GetElementsToManipulate();
+		FTypedElementListConstRef ElementsToManipulate = GetElementsToManipulate();
 		ViewportInteraction->BeginGizmoManipulation(ElementsToManipulate, GetWidgetMode());
 		bHasBegunGizmoManipulation = true;
 
@@ -3094,7 +3093,7 @@ void FLevelEditorViewportClient::TrackingStopped()
 
 		if (bHasBegunGizmoManipulation)
 		{
-			const UTypedElementList* ElementsToManipulate = GetElementsToManipulate();
+			FTypedElementListConstRef ElementsToManipulate = GetElementsToManipulate();
 			ViewportInteraction->EndGizmoManipulation(ElementsToManipulate, GetWidgetMode(), bDidMove ? ETypedElementViewportInteractionGizmoManipulationType::Drag : ETypedElementViewportInteractionGizmoManipulationType::Click);
 			bHasBegunGizmoManipulation = false;
 		}
@@ -3107,7 +3106,7 @@ void FLevelEditorViewportClient::TrackingStopped()
 
 	if (bNeedToRestoreComponentBeingMovedFlag)
 	{
-		const UTypedElementList* ElementsToManipulate = GetElementsToManipulate();
+		FTypedElementListConstRef ElementsToManipulate = GetElementsToManipulate();
 		TypedElementListObjectUtil::ForEachObject<AActor>(ElementsToManipulate, [this](AActor* InActor)
 		{
 			SetActorBeingMovedByEditor(InActor, false);
@@ -3510,7 +3509,7 @@ bool FLevelEditorViewportClient::HaveSelectedObjectsBeenChanged() const
 	return (TrackingTransaction.TransCount > 0 || TrackingTransaction.IsActive()) && (MouseDeltaTracker->HasReceivedDelta() || MouseDeltaTracker->WasExternalMovement());
 }
 
-const UTypedElementList* FLevelEditorViewportClient::GetElementsToManipulate(const bool bForceRefresh)
+FTypedElementListConstRef FLevelEditorViewportClient::GetElementsToManipulate(const bool bForceRefresh)
 {
 	CacheElementsToManipulate(bForceRefresh);
 	return CachedElementsToManipulate;
@@ -3796,7 +3795,7 @@ void FLevelEditorViewportClient::ApplyDeltaToSelectedElements(const FTransform& 
 	FInputDeviceState InputState;
 	InputState.SetModifierKeyStates(IsShiftPressed(), IsAltPressed(), IsCtrlPressed(), IsCmdPressed());
 
-	const UTypedElementList* ElementsToManipulate = GetElementsToManipulate();
+	FTypedElementListConstRef ElementsToManipulate = GetElementsToManipulate();
 	ViewportInteraction->UpdateGizmoManipulation(ElementsToManipulate, GetWidgetMode(), Widget ? Widget->GetCurrentAxis() : EAxisList::None, InputState, ModifiedDeltaTransform);
 }
 
@@ -4587,8 +4586,6 @@ void FLevelEditorViewportClient::DrawTextureStreamingBounds(const FSceneView* Vi
 void FLevelEditorViewportClient::AddReferencedObjects( FReferenceCollector& Collector )
 {
 	FEditorViewportClient::AddReferencedObjects( Collector );
-
-	Collector.AddReferencedObject(CachedElementsToManipulate);
 
 	for( TSet<FViewportHoverTarget>::TIterator It( FLevelEditorViewportClient::HoveredObjects ); It; ++It )
 	{

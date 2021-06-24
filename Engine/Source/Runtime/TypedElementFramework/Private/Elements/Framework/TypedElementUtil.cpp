@@ -6,7 +6,7 @@
 namespace TypedElementUtil
 {
 
-void BatchElementsByType(const UTypedElementList* InElementsToBatch, TMap<FTypedHandleTypeId, TArray<FTypedElementHandle>>& OutElementsByType)
+void BatchElementsByType(FTypedElementListConstRef InElementsToBatch, TMap<FTypedHandleTypeId, TArray<FTypedElementHandle>>& OutElementsByType)
 {
 	OutElementsByType.Reset();
 	InElementsToBatch->ForEachElementHandle([&OutElementsByType](const FTypedElementHandle& InElementHandle)

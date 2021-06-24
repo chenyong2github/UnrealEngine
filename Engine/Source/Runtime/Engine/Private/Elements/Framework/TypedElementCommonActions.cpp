@@ -20,29 +20,30 @@ void FTypedElementCommonActionsCustomization::DuplicateElements(UTypedElementWor
 
 bool UTypedElementCommonActions::DeleteSelectedElements(UTypedElementSelectionSet* SelectionSet, UWorld* World, const FTypedElementDeletionOptions& DeletionOptions)
 {
-	TGCObjectScopeGuard<UTypedElementList> NormalizedElements(SelectionSet->GetNormalizedSelection(FTypedElementSelectionNormalizationOptions()));
-	const bool bSuccess = DeleteNormalizedElements(NormalizedElements.Get(), World, SelectionSet, DeletionOptions);
-	NormalizedElements.Get()->Reset();
-	return bSuccess;
+	FTypedElementListRef NormalizedElements = SelectionSet->GetNormalizedSelection(FTypedElementSelectionNormalizationOptions());
+	return DeleteNormalizedElements(NormalizedElements, World, SelectionSet, DeletionOptions);
 }
 
-bool UTypedElementCommonActions::DeleteNormalizedElements(const UTypedElementList* ElementList, UWorld* World, UTypedElementSelectionSet* SelectionSet, const FTypedElementDeletionOptions& DeletionOptions)
+bool UTypedElementCommonActions::DeleteNormalizedElements(const FTypedElementListProxy ElementList, UWorld* World, UTypedElementSelectionSet* SelectionSet, const FTypedElementDeletionOptions& DeletionOptions)
 {
-	TMap<FTypedHandleTypeId, TArray<FTypedElementHandle>> ElementsToDeleteByType;
-	TypedElementUtil::BatchElementsByType(ElementList, ElementsToDeleteByType);
-	
 	bool bSuccess = false;
-	
-	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
-	UTypedElementRegistry::FDisableElementDestructionOnGC GCGuard(Registry);
-	
-	for (const auto& ElementsByTypePair : ElementsToDeleteByType)
+
+	if (FTypedElementListConstPtr ElementListPtr = ElementList.GetElementList())
 	{
-		FTypedElementCommonActionsCustomization* CommonActionsCustomization = GetInterfaceCustomizationByTypeId(ElementsByTypePair.Key);
-		UTypedElementWorldInterface* WorldInterface = Registry->GetElementInterface<UTypedElementWorldInterface>(ElementsByTypePair.Key);
-		if (CommonActionsCustomization && WorldInterface)
+		TMap<FTypedHandleTypeId, TArray<FTypedElementHandle>> ElementsToDeleteByType;
+		TypedElementUtil::BatchElementsByType(ElementListPtr.ToSharedRef(), ElementsToDeleteByType);
+
+		UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
+		UTypedElementRegistry::FDisableElementDestructionOnGC GCGuard(Registry);
+
+		for (const auto& ElementsByTypePair : ElementsToDeleteByType)
 		{
-			bSuccess |= CommonActionsCustomization->DeleteElements(WorldInterface, ElementsByTypePair.Value, World, SelectionSet, DeletionOptions);
+			FTypedElementCommonActionsCustomization* CommonActionsCustomization = GetInterfaceCustomizationByTypeId(ElementsByTypePair.Key);
+			UTypedElementWorldInterface* WorldInterface = Registry->GetElementInterface<UTypedElementWorldInterface>(ElementsByTypePair.Key);
+			if (CommonActionsCustomization && WorldInterface)
+			{
+				bSuccess |= CommonActionsCustomization->DeleteElements(WorldInterface, ElementsByTypePair.Value, World, SelectionSet, DeletionOptions);
+			}
 		}
 	}
 	
@@ -51,28 +52,29 @@ bool UTypedElementCommonActions::DeleteNormalizedElements(const UTypedElementLis
 
 TArray<FTypedElementHandle> UTypedElementCommonActions::DuplicateSelectedElements(const UTypedElementSelectionSet* SelectionSet, UWorld* World, const FVector& LocationOffset)
 {
-	TGCObjectScopeGuard<UTypedElementList> NormalizedElements(SelectionSet->GetNormalizedSelection(FTypedElementSelectionNormalizationOptions()));
-	TArray<FTypedElementHandle> NewElements = DuplicateNormalizedElements(NormalizedElements.Get(), World, LocationOffset);
-	NormalizedElements.Get()->Reset();
-	return NewElements;
+	FTypedElementListRef NormalizedElements = SelectionSet->GetNormalizedSelection(FTypedElementSelectionNormalizationOptions());
+	return DuplicateNormalizedElements(NormalizedElements, World, LocationOffset);
 }
 
-TArray<FTypedElementHandle> UTypedElementCommonActions::DuplicateNormalizedElements(const UTypedElementList* ElementList, UWorld* World, const FVector& LocationOffset)
+TArray<FTypedElementHandle> UTypedElementCommonActions::DuplicateNormalizedElements(const FTypedElementListProxy ElementList, UWorld* World, const FVector& LocationOffset)
 {
-	TMap<FTypedHandleTypeId, TArray<FTypedElementHandle>> ElementsToDuplicateByType;
-	TypedElementUtil::BatchElementsByType(ElementList, ElementsToDuplicateByType);
-	
 	TArray<FTypedElementHandle> NewElements;
-	NewElements.Reserve(ElementList->Num());
-	
-	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
-	for (const auto& ElementsByTypePair : ElementsToDuplicateByType)
+	if (FTypedElementListConstPtr ElementListPtr = ElementList.GetElementList())
 	{
-		FTypedElementCommonActionsCustomization* CommonActionsCustomization = GetInterfaceCustomizationByTypeId(ElementsByTypePair.Key);
-		UTypedElementWorldInterface* WorldInterface = Registry->GetElementInterface<UTypedElementWorldInterface>(ElementsByTypePair.Key);
-		if (CommonActionsCustomization && WorldInterface)
+		NewElements.Reserve(ElementListPtr->Num());
+
+		TMap<FTypedHandleTypeId, TArray<FTypedElementHandle>> ElementsToDuplicateByType;
+		TypedElementUtil::BatchElementsByType(ElementListPtr.ToSharedRef(), ElementsToDuplicateByType);
+
+		UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
+		for (const auto& ElementsByTypePair : ElementsToDuplicateByType)
 		{
-			CommonActionsCustomization->DuplicateElements(WorldInterface, ElementsByTypePair.Value, World, LocationOffset, NewElements);
+			FTypedElementCommonActionsCustomization* CommonActionsCustomization = GetInterfaceCustomizationByTypeId(ElementsByTypePair.Key);
+			UTypedElementWorldInterface* WorldInterface = Registry->GetElementInterface<UTypedElementWorldInterface>(ElementsByTypePair.Key);
+			if (CommonActionsCustomization && WorldInterface)
+			{
+				CommonActionsCustomization->DuplicateElements(WorldInterface, ElementsByTypePair.Value, World, LocationOffset, NewElements);
+			}
 		}
 	}
 	

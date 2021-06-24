@@ -39,10 +39,11 @@ private:
 	TWeakObjectPtr<UActorComponent> ComponentPtr;
 };
 
-bool UComponentElementEditorSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
+bool UComponentElementEditorSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const FTypedElementListProxy InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
 {
+	FTypedElementListConstPtr SelectionSetPtr = InSelectionSet.GetElementList();
 	const UActorComponent* Component = ComponentElementDataUtil::GetComponentFromHandle(InElementHandle);
-	return Component && IsComponentSelected(Component, InSelectionSet, InSelectionOptions);
+	return SelectionSetPtr && Component && IsComponentSelected(Component, SelectionSetPtr.ToSharedRef(), InSelectionOptions);
 }
 
 bool UComponentElementEditorSelectionInterface::ShouldPreventTransactions(const FTypedElementHandle& InElementHandle)
@@ -56,7 +57,7 @@ TUniquePtr<ITypedElementTransactedElement> UComponentElementEditorSelectionInter
 	return MakeUnique<FComponentElementTransactedElement>();
 }
 
-bool UComponentElementEditorSelectionInterface::IsComponentSelected(const UActorComponent* InComponent, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
+bool UComponentElementEditorSelectionInterface::IsComponentSelected(const UActorComponent* InComponent, FTypedElementListConstRef InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
 {
 	if (InSelectionSet->Num() == 0)
 	{

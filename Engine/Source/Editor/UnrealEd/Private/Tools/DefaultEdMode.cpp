@@ -15,7 +15,7 @@ public:
 	{
 		if (GCurrentLevelEditingViewportClient)
 		{
-			const UTypedElementList* ElementsToManipulate = GCurrentLevelEditingViewportClient->GetElementsToManipulate();
+			FTypedElementListConstRef ElementsToManipulate = GCurrentLevelEditingViewportClient->GetElementsToManipulate();
 			return ElementsToManipulate->Num() > 0;
 		}
 		return false;

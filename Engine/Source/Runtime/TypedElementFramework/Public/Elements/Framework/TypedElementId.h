@@ -76,7 +76,7 @@ public:
 	/**
 	 * Access the combined value of this element ID.
 	 * @note You typically don't want to store this directly as the element ID could be re-used.
-	 *       It is primarily useful as a secondary cache where something is keeping a reference to an element ID or element handle (eg, how UTypedElementList uses it internally).
+	 *       It is primarily useful as a secondary cache where something is keeping a reference to an element ID or element handle (eg, how FTypedElementList uses it internally).
 	 */
 	FORCEINLINE FTypedHandleCombinedId GetCombinedId() const
 	{

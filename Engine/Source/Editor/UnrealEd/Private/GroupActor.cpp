@@ -147,18 +147,15 @@ bool ActorHasParentInGroup(const AActor* Actor, const AGroupActor* GroupActor)
 	return false;
 }
 
-bool ActorHasParentInSelection(const AActor* Actor, const UTypedElementList* SelectionSet)
+bool ActorHasParentInSelection(const AActor* Actor, FTypedElementListConstRef SelectionSet)
 {
 	check(Actor);
-	if (SelectionSet)
+	for (const AActor* ParentActor = Actor->GetAttachParentActor(); ParentActor; ParentActor = ParentActor->GetAttachParentActor())
 	{
-		for (const AActor* ParentActor = Actor->GetAttachParentActor(); ParentActor; ParentActor = ParentActor->GetAttachParentActor())
+		FTypedElementHandle ParentActorElementHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(ParentActor, /*bAllowCreate*/false);
+		if (ParentActorElementHandle && SelectionSet->Contains(ParentActorElementHandle))
 		{
-			FTypedElementHandle ParentActorElementHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(ParentActor, /*bAllowCreate*/false);
-			if (ParentActorElementHandle && SelectionSet->Contains(ParentActorElementHandle))
-			{
-				return true;
-			}
+			return true;
 		}
 	}
 	return false;

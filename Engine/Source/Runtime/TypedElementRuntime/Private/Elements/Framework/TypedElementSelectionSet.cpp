@@ -8,7 +8,7 @@
 #include "Serialization/ObjectReader.h"
 #include "Serialization/ObjectWriter.h"
 
-void FTypedElementSelectionCustomization::GetNormalizedElements(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const UTypedElementList* InSelectionSet, const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, UTypedElementList* OutNormalizedElements)
+void FTypedElementSelectionCustomization::GetNormalizedElements(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, FTypedElementListConstRef InSelectionSet, const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, FTypedElementListRef OutNormalizedElements)
 {
 	// Don't include this element in the normalized selection if it has a parent element that is also selected
 	{
@@ -201,7 +201,7 @@ bool UTypedElementSelectionSet::SelectElements(const TArray<FTypedElementHandle>
 
 bool UTypedElementSelectionSet::SelectElements(TArrayView<const FTypedElementHandle> InElementHandles, const FTypedElementSelectionOptions InSelectionOptions)
 {
-	FTypedElementListLegacySyncScopedBatch LegacySyncBatch(ElementList, InSelectionOptions.AllowLegacyNotifications());
+	FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
 
 	bool bSelectionChanged = false;
 
@@ -251,7 +251,7 @@ bool UTypedElementSelectionSet::DeselectElements(const TArray<FTypedElementHandl
 
 bool UTypedElementSelectionSet::DeselectElements(TArrayView<const FTypedElementHandle> InElementHandles, const FTypedElementSelectionOptions InSelectionOptions)
 {
-	FTypedElementListLegacySyncScopedBatch LegacySyncBatch(ElementList, InSelectionOptions.AllowLegacyNotifications());
+	FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
 
 	bool bSelectionChanged = false;
 
@@ -265,7 +265,7 @@ bool UTypedElementSelectionSet::DeselectElements(TArrayView<const FTypedElementH
 
 bool UTypedElementSelectionSet::ClearSelection(const FTypedElementSelectionOptions InSelectionOptions)
 {
-	FTypedElementListLegacySyncScopedBatch LegacySyncBatch(ElementList, InSelectionOptions.AllowLegacyNotifications());
+	FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
 
 	bool bSelectionChanged = false;
 
@@ -300,7 +300,7 @@ bool UTypedElementSelectionSet::SetSelection(const TArray<FTypedElementHandle>& 
 
 bool UTypedElementSelectionSet::SetSelection(TArrayView<const FTypedElementHandle> InElementHandles, const FTypedElementSelectionOptions InSelectionOptions)
 {
-	FTypedElementListLegacySyncScopedBatch LegacySyncBatch(ElementList, InSelectionOptions.AllowLegacyNotifications());
+	FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
 
 	bool bSelectionChanged = false;
 
@@ -322,31 +322,31 @@ FTypedElementHandle UTypedElementSelectionSet::GetSelectionElement(const FTypedE
 	return SelectionSetElement ? SelectionSetElement.GetSelectionElement(InSelectionMethod) : FTypedElementHandle();
 }
 
-UTypedElementList* UTypedElementSelectionSet::GetNormalizedSelection(const FTypedElementSelectionNormalizationOptions InNormalizationOptions) const
+FTypedElementListRef UTypedElementSelectionSet::GetNormalizedSelection(const FTypedElementSelectionNormalizationOptions InNormalizationOptions) const
 {
-	return GetNormalizedElementList(ElementList, InNormalizationOptions);
+	return GetNormalizedElementList(ElementList.ToSharedRef(), InNormalizationOptions);
 }
 
-void UTypedElementSelectionSet::GetNormalizedSelection(const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, UTypedElementList* OutNormalizedElements) const
+void UTypedElementSelectionSet::GetNormalizedSelection(const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, FTypedElementListRef OutNormalizedElements) const
 {
-	GetNormalizedElementList(ElementList, InNormalizationOptions, OutNormalizedElements);
+	GetNormalizedElementList(ElementList.ToSharedRef(), InNormalizationOptions, OutNormalizedElements);
 }
 
-UTypedElementList* UTypedElementSelectionSet::GetNormalizedElementList(const UTypedElementList* InElementList, const FTypedElementSelectionNormalizationOptions InNormalizationOptions) const
+FTypedElementListRef UTypedElementSelectionSet::GetNormalizedElementList(FTypedElementListConstRef InElementList, const FTypedElementSelectionNormalizationOptions InNormalizationOptions) const
 {
 	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
-	TGCObjectScopeGuard<UTypedElementList> NormalizedElementList(Registry->CreateElementList());
-	GetNormalizedElementList(InElementList, InNormalizationOptions, NormalizedElementList.Get());
-	return NormalizedElementList.Get();
+	FTypedElementListRef NormalizedElementList(Registry->CreateElementList());
+	GetNormalizedElementList(InElementList, InNormalizationOptions, NormalizedElementList);
+	return NormalizedElementList;
 }
 
-void UTypedElementSelectionSet::GetNormalizedElementList(const UTypedElementList* InElementList, const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, UTypedElementList* OutNormalizedElements) const
+void UTypedElementSelectionSet::GetNormalizedElementList(FTypedElementListConstRef InElementList, const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, FTypedElementListRef OutNormalizedElements) const
 {
 	OutNormalizedElements->Reset();
 	InElementList->ForEachElement<UTypedElementSelectionInterface>([this, InElementList, &InNormalizationOptions, OutNormalizedElements](const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle)
 	{
-		// Note: FTypedElementSelectionSetElement needs a non-const UTypedElementList, but we won't call anything that will modify it...
-		FTypedElementSelectionSetElement SelectionSetElement(InElementSelectionHandle, const_cast<UTypedElementList*>(InElementList), GetInterfaceCustomizationByTypeId(InElementSelectionHandle.GetId().GetTypeId()));
+		// Note: FTypedElementSelectionSetElement needs a non-const FTypedElementList, but we won't call anything that will modify it...
+		FTypedElementSelectionSetElement SelectionSetElement(InElementSelectionHandle, ConstCastSharedRef<FTypedElementList>(InElementList), GetInterfaceCustomizationByTypeId(InElementSelectionHandle.GetId().GetTypeId()));
 		check(SelectionSetElement.IsSet());
 		SelectionSetElement.GetNormalizedElements(InNormalizationOptions, OutNormalizedElements);
 		return true;
@@ -478,9 +478,9 @@ void UTypedElementSelectionSet::OnElementUpdated(TArrayView<const FTypedElementH
 	}
 }
 
-void UTypedElementSelectionSet::OnElementListPreChange(const UTypedElementList* InElementList)
+void UTypedElementSelectionSet::OnElementListPreChange(const FTypedElementList& InElementList)
 {
-	check(InElementList == ElementList);
+	check(&InElementList == ElementList.Get());
 	OnPreChangeDelegate.Broadcast(this);
 
 	if (!bIsRestoringState)
@@ -490,8 +490,8 @@ void UTypedElementSelectionSet::OnElementListPreChange(const UTypedElementList* 
 	}
 }
 
-void UTypedElementSelectionSet::OnElementListChanged(const UTypedElementList* InElementList)
+void UTypedElementSelectionSet::OnElementListChanged(const FTypedElementList& InElementList)
 {
-	check(InElementList == ElementList);
+	check(&InElementList == ElementList.Get());
 	OnChangedDelegate.Broadcast(this);
 }

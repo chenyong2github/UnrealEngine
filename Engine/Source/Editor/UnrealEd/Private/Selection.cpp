@@ -129,7 +129,7 @@ UObject* USelection::GetSelectedObject(const int32 InIndex) const
 {
 	if (ElementSelectionSet)
 	{
-		const UTypedElementList* ElementList = ElementSelectionSet->GetElementList();
+		FTypedElementListConstRef ElementList = ElementSelectionSet->GetElementList();
 		if (ElementList->IsValidIndex(InIndex))
 		{
 			const FTypedElementHandle ElementHandle = ElementList->GetElementHandleAt(InIndex);
@@ -198,9 +198,9 @@ UObject* USelection::GetObjectForElementHandle(const FTypedElementHandle& InElem
 	return nullptr;
 }
 
-void USelection::OnElementListSyncEvent(const UTypedElementList* InElementList, FTypedElementListLegacySync::ESyncType InSyncType, const FTypedElementHandle& InElementHandle, bool bIsWithinBatchOperation)
+void USelection::OnElementListSyncEvent(const FTypedElementList& InElementList, FTypedElementListLegacySync::ESyncType InSyncType, const FTypedElementHandle& InElementHandle, bool bIsWithinBatchOperation)
 {
-	check(InElementList == ElementSelectionSet->GetElementList());
+	check(&InElementList == &ElementSelectionSet->GetElementList().Get());
 
 	const bool bNotify = !bIsWithinBatchOperation;
 	if (bNotify)
