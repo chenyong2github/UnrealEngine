@@ -30,7 +30,7 @@ UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& Obj
 	, bHideConstructionScriptComponentsInDetailsView(true)
 	, bHostFindInBlueprintsInGlobalTab(true)
 	, bNavigateToNativeFunctionsFromCallNodes(true)
-	, bDoubleClickNavigatesToParent(false)
+	, bDoubleClickNavigatesToParent(true)
 	, bEnableTypePromotion(true)
 	// Experimental
 	, bEnableNamespaceFilteringFeatures(false)

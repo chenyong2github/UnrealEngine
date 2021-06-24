@@ -37,6 +37,15 @@ DECLARE_DELEGATE_ThreeParams(FOnEditCurves, UAnimSequenceBase* /*InAnimSequence*
 // Called to stop editing curves in the curve editor
 DECLARE_DELEGATE_OneParam(FOnStopEditingCurves, const TArray<IAnimationEditor::FCurveEditInfo>& /*InCurveInfo*/);
 
+// Called when the user navigates with pageup
+DECLARE_DELEGATE(FOnBlendSpaceNavigateUp);
+
+// Called when the user navigates with pagedown
+DECLARE_DELEGATE(FOnBlendSpaceNavigateDown);
+
+// Called when the blendspace canvas is double clicked
+DECLARE_DELEGATE(FOnBlendSpaceCanvasDoubleClicked);
+
 // Called when a blendspace sample point is double clicked
 DECLARE_DELEGATE_OneParam(FOnBlendSpaceSampleDoubleClicked, int32 /*SampleIndex*/);
 

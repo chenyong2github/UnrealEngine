@@ -51,6 +51,9 @@ public:
 		SLATE_EVENT(FOnBlendSpaceSampleAdded, OnSampleAdded)
 		SLATE_EVENT(FOnBlendSpaceSampleDuplicated, OnSampleDuplicated)
 		SLATE_EVENT(FOnBlendSpaceSampleReplaced, OnSampleReplaced)
+		SLATE_EVENT(FOnBlendSpaceNavigateUp, OnNavigateUp)
+		SLATE_EVENT(FOnBlendSpaceNavigateDown, OnNavigateDown)
+		SLATE_EVENT(FOnBlendSpaceCanvasDoubleClicked, OnCanvasDoubleClicked)
 		SLATE_EVENT(FOnBlendSpaceSampleDoubleClicked, OnSampleDoubleClicked)
 		SLATE_EVENT(FOnGetBlendSpaceSampleName, OnGetBlendSpaceSampleName)
 		SLATE_ARGUMENT(FName, StatusBarName)
@@ -324,6 +327,9 @@ private:
 	FOnSampleMoved OnSampleMoved;
 	FOnBlendSpaceSampleRemoved OnSampleRemoved;
 	FOnBlendSpaceSampleReplaced OnSampleReplaced;
+	FOnBlendSpaceNavigateUp OnNavigateUp;
+	FOnBlendSpaceNavigateDown OnNavigateDown;
+	FOnBlendSpaceCanvasDoubleClicked OnCanvasDoubleClicked;
 	FOnBlendSpaceSampleDoubleClicked OnSampleDoubleClicked;
 	FOnGetBlendSpaceSampleName OnGetBlendSpaceSampleName;
 	FOnExtendBlendSpaceSampleTooltip OnExtendSampleTooltip;

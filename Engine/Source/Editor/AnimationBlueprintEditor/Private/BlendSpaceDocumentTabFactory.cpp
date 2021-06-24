@@ -16,6 +16,8 @@
 #include "SGraphPreviewer.h"
 #include "AnimNodes/AnimNode_BlendSpaceGraphBase.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "BlueprintEditorSettings.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 static const FName BlendSpaceEditorID("BlendSpaceEditor");
 
@@ -30,9 +32,9 @@ class SBlendSpaceDocumentTab : public SCompoundWidget
 	
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, UBlendSpaceGraph* InDocument)
+	void Construct(const FArguments& InArgs, UBlendSpaceGraph* InBlendSpaceGraph)
 	{
-		Document = InDocument;
+		BlendSpaceGraph = InBlendSpaceGraph;
 		
 		ChildSlot
 		[
@@ -40,7 +42,7 @@ class SBlendSpaceDocumentTab : public SCompoundWidget
 		];
 	}
 
-	TWeakObjectPtr<UBlendSpaceGraph> Document;
+	TWeakObjectPtr<UBlendSpaceGraph> BlendSpaceGraph;
 };
 
 FBlendSpaceDocumentTabFactory::FBlendSpaceDocumentTabFactory(TSharedPtr<FAnimationBlueprintEditor> InBlueprintEditorPtr)
@@ -51,13 +53,81 @@ FBlendSpaceDocumentTabFactory::FBlendSpaceDocumentTabFactory(TSharedPtr<FAnimati
 
 TSharedRef<SWidget> FBlendSpaceDocumentTabFactory::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
 {
-	UBlendSpaceGraph* DocumentID = FTabPayload_BlendSpaceGraph::GetBlendSpaceGraph(Info.Payload);
+	UBlendSpaceGraph* BlendSpaceGraph = FTabPayload_BlendSpaceGraph::GetBlendSpaceGraph(Info.Payload);
 
 	FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
 
-	UAnimGraphNode_BlendSpaceGraphBase* BlendSpaceNode = CastChecked<UAnimGraphNode_BlendSpaceGraphBase>(DocumentID->GetOuter());
+	UAnimGraphNode_BlendSpaceGraphBase* BlendSpaceNode = CastChecked<UAnimGraphNode_BlendSpaceGraphBase>(BlendSpaceGraph->GetOuter());
 
 	FBlendSpaceEditorArgs Args;
+
+	Args.OnBlendSpaceCanvasDoubleClicked = FOnBlendSpaceCanvasDoubleClicked::CreateLambda([this, WeakBlendSpaceNode = TWeakObjectPtr<UAnimGraphNode_BlendSpaceGraphBase>(BlendSpaceNode)]()
+	{
+		UBlueprintEditorSettings const* Settings = GetDefault<UBlueprintEditorSettings>();
+		if (Settings->bDoubleClickNavigatesToParent)
+		{
+			if(BlueprintEditorPtr.IsValid() && WeakBlendSpaceNode.Get())
+			{
+				UAnimGraphNode_BlendSpaceGraphBase* BlendSpaceNode = WeakBlendSpaceNode.Get();
+				BlueprintEditorPtr.Pin()->JumpToHyperlink(BlendSpaceNode->GetOuter(), false);
+			}
+		}
+	});
+
+	Args.OnBlendSpaceNavigateUp = FOnBlendSpaceNavigateUp::CreateLambda([this, WeakBlendSpaceNode = TWeakObjectPtr<UAnimGraphNode_BlendSpaceGraphBase>(BlendSpaceNode)]()
+	{
+		if(BlueprintEditorPtr.IsValid() && WeakBlendSpaceNode.Get())
+		{
+			UAnimGraphNode_BlendSpaceGraphBase* BlendSpaceNode = WeakBlendSpaceNode.Get();
+			BlueprintEditorPtr.Pin()->JumpToHyperlink(BlendSpaceNode->GetOuter(), false);
+		}
+	});
+
+	Args.OnBlendSpaceNavigateDown = FOnBlendSpaceNavigateDown::CreateLambda([this, WeakBlendSpaceNode = TWeakObjectPtr<UAnimGraphNode_BlendSpaceGraphBase>(BlendSpaceNode)]()
+	{
+		if(BlueprintEditorPtr.IsValid() && WeakBlendSpaceNode.Get())
+		{
+			UAnimGraphNode_BlendSpaceGraphBase* BlendSpaceNode = WeakBlendSpaceNode.Get();
+			TArrayView<UEdGraph* const> Graphs = BlendSpaceNode->GetGraphs();
+			if (Graphs.Num() > 1)
+			{
+				// Display a child jump list
+				FMenuBuilder MenuBuilder(true, nullptr);
+				MenuBuilder.BeginSection("NavigateToGraph", LOCTEXT("ChildGraphPickerDesc", "Navigate to graph"));
+
+				TArray<const UEdGraph*> SortedGraphs(Graphs);
+				SortedGraphs.Sort([](const UEdGraph& A, const UEdGraph& B) { return FBlueprintEditor::GetGraphDisplayName(&A).CompareToCaseIgnored(FBlueprintEditor::GetGraphDisplayName(&B)) < 0; });
+
+				for (const UEdGraph* Graph : SortedGraphs)
+				{
+					MenuBuilder.AddMenuEntry(
+						BlueprintEditorPtr.Pin()->GetGraphDisplayName(Graph),
+						LOCTEXT("ChildGraphPickerTooltip", "Pick the graph to enter"),
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateLambda(
+								[this,Graph]() 
+								{
+									BlueprintEditorPtr.Pin()->OpenDocument(Graph, FDocumentTracker::NavigatingCurrentDocument);
+								}),
+							FCanExecuteAction()));
+				}
+				MenuBuilder.EndSection();
+
+				FSlateApplication::Get().PushMenu( 
+					BlueprintEditorPtr.Pin()->GetToolkitHost()->GetParentWidget(),
+					FWidgetPath(),
+					MenuBuilder.MakeWidget(),
+					FSlateApplication::Get().GetCursorPos(), // summon location
+					FPopupTransitionEffect( FPopupTransitionEffect::TypeInPopup )
+				);
+			}
+			else if (Graphs.Num() == 1)
+			{
+				BlueprintEditorPtr.Pin()->JumpToHyperlink(Graphs[0], false);
+			}
+		}
+	});
 
 	Args.OnBlendSpaceSampleDoubleClicked = FOnBlendSpaceSampleDoubleClicked::CreateLambda([this, WeakBlendSpaceNode = TWeakObjectPtr<UAnimGraphNode_BlendSpaceGraphBase>(BlendSpaceNode)](int32 InSampleIndex)
 	{
@@ -215,27 +285,27 @@ TSharedRef<SWidget> FBlendSpaceDocumentTabFactory::CreateTabBody(const FWorkflow
 	Args.StatusBarName = TEXT("AssetEditor.AnimationBlueprintEditor.MainMenu");
 
 	return
-		SNew(SBlendSpaceDocumentTab, DocumentID)
+		SNew(SBlendSpaceDocumentTab, BlendSpaceGraph)
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
 			.AutoHeight()
 			[
-				BlueprintEditorPtr.Pin()->CreateGraphTitleBarWidget(Info.TabInfo.ToSharedRef(), DocumentID)
+				BlueprintEditorPtr.Pin()->CreateGraphTitleBarWidget(Info.TabInfo.ToSharedRef(), BlendSpaceGraph)
 			]
 			+SVerticalBox::Slot()
 			.FillHeight(1.0f)
 			[
-				PersonaModule.CreateBlendSpaceEditWidget(DocumentID->BlendSpace, Args)
+				PersonaModule.CreateBlendSpaceEditWidget(BlendSpaceGraph->BlendSpace, Args)
 			]
 		];
 }
 
 const FSlateBrush* FBlendSpaceDocumentTabFactory::GetTabIcon(const FWorkflowTabSpawnInfo& Info) const
 {
-	UBlendSpaceGraph* DocumentID = FTabPayload_BlendSpaceGraph::GetBlendSpaceGraph(Info.Payload);
+	UBlendSpaceGraph* BlendSpaceGraph = FTabPayload_BlendSpaceGraph::GetBlendSpaceGraph(Info.Payload);
 
-	if (UBlendSpace1D* BlendSpace1D = Cast<UBlendSpace1D>(DocumentID->BlendSpace))
+	if (UBlendSpace1D* BlendSpace1D = Cast<UBlendSpace1D>(BlendSpaceGraph->BlendSpace))
 	{
 		return FEditorStyle::GetBrush("ClassIcon.BlendSpace1D");
 	}
@@ -263,9 +333,9 @@ TAttribute<FText> FBlendSpaceDocumentTabFactory::ConstructTabName(const FWorkflo
 {
 	check(Info.Payload.IsValid());
 
-	UBlendSpaceGraph* DocumentID = FTabPayload_BlendSpaceGraph::GetBlendSpaceGraph(Info.Payload);
+	UBlendSpaceGraph* BlendSpaceGraph = FTabPayload_BlendSpaceGraph::GetBlendSpaceGraph(Info.Payload);
 
-	return MakeAttributeLambda([WeakBlendSpace = TWeakObjectPtr<UBlendSpace>(DocumentID->BlendSpace)]()
+	return MakeAttributeLambda([WeakBlendSpace = TWeakObjectPtr<UBlendSpace>(BlendSpaceGraph->BlendSpace)]()
 		{ 
 			return WeakBlendSpace.Get() ? FText::FromName(WeakBlendSpace->GetFName()) : FText::GetEmpty();
 		});
@@ -273,24 +343,24 @@ TAttribute<FText> FBlendSpaceDocumentTabFactory::ConstructTabName(const FWorkflo
 
 void FBlendSpaceDocumentTabFactory::OnTabActivated(TSharedPtr<SDockTab> Tab) const
 {
-	TSharedRef<SBlendSpaceDocumentTab> DocumentWidget = StaticCastSharedRef<SBlendSpaceDocumentTab>(Tab->GetContent());
-	if(UBlendSpaceGraph* Document = DocumentWidget->Document.Get())
+	TSharedRef<SBlendSpaceDocumentTab> BlendSpaceDocumentTab = StaticCastSharedRef<SBlendSpaceDocumentTab>(Tab->GetContent());
+	if(UBlendSpaceGraph* BlendSpaceGraph = BlendSpaceDocumentTab->BlendSpaceGraph.Get())
 	{
 		if(TSharedPtr<FAnimationBlueprintEditor> BlueprintEditor = BlueprintEditorPtr.Pin())
 		{
-			BlueprintEditor->SetDetailObject(Document);
+			BlueprintEditor->SetDetailObject(BlendSpaceGraph);
 		}
 	}
 }
 
 void FBlendSpaceDocumentTabFactory::OnTabForegrounded(TSharedPtr<SDockTab> Tab) const
 {
-	TSharedRef<SBlendSpaceDocumentTab> DocumentWidget = StaticCastSharedRef<SBlendSpaceDocumentTab>(Tab->GetContent());
-	if(UBlendSpaceGraph* Document = DocumentWidget->Document.Get())
+	TSharedRef<SBlendSpaceDocumentTab> BlendSpaceDocumentTab = StaticCastSharedRef<SBlendSpaceDocumentTab>(Tab->GetContent());
+	if(UBlendSpaceGraph* BlendSpaceGraph = BlendSpaceDocumentTab->BlendSpaceGraph.Get())
 	{
 		if(TSharedPtr<FAnimationBlueprintEditor> BlueprintEditor = BlueprintEditorPtr.Pin())
 		{
-			BlueprintEditor->SetDetailObject(Document);
+			BlueprintEditor->SetDetailObject(BlendSpaceGraph);
 		}
 	}
 }

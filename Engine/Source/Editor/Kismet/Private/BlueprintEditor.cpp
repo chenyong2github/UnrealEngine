@@ -3323,51 +3323,88 @@ void FBlueprintEditor::NavigateToChildGraph()
 	{
 		UEdGraph* CurrentGraph = FocusedGraphEdPtr.Pin()->GetCurrentGraph();
 
-		if (CurrentGraph->SubGraphs.Num() > 1)
+		if (CurrentGraph->Nodes.Num() > 0)
 		{
 			// Display a child jump list
 			FMenuBuilder MenuBuilder(true, nullptr);
 			MenuBuilder.BeginSection("NavigateToGraph", LOCTEXT("ChildGraphPickerDesc", "Navigate to graph"));
 
-			TArray<TObjectPtr<UEdGraph>> SortedSubGraphs = CurrentGraph->SubGraphs;
-			SortedSubGraphs.Sort([](UEdGraph& A, UEdGraph& B) { return FLocalKismetCallbacks::GetGraphDisplayName(&A).CompareToCaseIgnored(FLocalKismetCallbacks::GetGraphDisplayName(&B)) < 0; });
+			TArray<TObjectPtr<UEdGraphNode>> SortedGraphNodes = CurrentGraph->Nodes;
+			SortedGraphNodes.Sort([](UEdGraphNode& A, UEdGraphNode& B) {
+				FText AName = A.GetNodeTitle(ENodeTitleType::ListView);
+				FText BName = B.GetNodeTitle(ENodeTitleType::ListView);
+				return AName.CompareToCaseIgnored(BName) < 0; });
 
-			for (TObjectPtr<UEdGraph> ChildGraph : SortedSubGraphs)
+			TObjectPtr<UEdGraphNode> SingleNode;
+			int32 NumEntries = 0;
+
+			for (TObjectPtr<UEdGraphNode> Node : SortedGraphNodes)
 			{
-				MenuBuilder.AddMenuEntry(
-					FLocalKismetCallbacks::GetGraphDisplayName(ChildGraph),
-					LOCTEXT("ChildGraphPickerTooltip", "Pick the graph to enter"),
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateLambda([this,ChildGraph]() {
-							 OpenDocument(ChildGraph, FDocumentTracker::NavigatingCurrentDocument);
-							 // focus blueprint widget so that keyboard inputs (navigate to child/parent) will work before clicking
-							 FSlateApplication::Get().SetKeyboardFocus(GetMyBlueprintWidget());
-							  }),
-						FCanExecuteAction()));
+				// Just calling CanJumpToDefinition isn't enough as it returns true for functions (resulting in a jump
+				// to code, which isn't desired).
+				UObject* TargetObject = Node->GetJumpTargetForDoubleClick();
+				if (TargetObject && Node->CanJumpToDefinition())
+				{
+					++NumEntries;
+					SingleNode = Node;
+					MenuBuilder.AddMenuEntry(
+						Node->GetNodeTitle(ENodeTitleType::ListView),
+						LOCTEXT("ChildGraphPickerTooltip", "Pick the graph to enter"),
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateLambda(
+								[this, Node]() 
+								{
+									if (Node->CanJumpToDefinition())
+									{
+										Node->JumpToDefinition();
+									}
+									// Note that setting the keyboard focus here doesn't work when navigating into a
+									// blendspace (i.e. a UEdGraph). Neither does trying to set the focus to 
+									// Node->DEPRECATED_NodeWidget
+									SetKeyboardFocus();
+								}),
+							FCanExecuteAction()));
+				}
 			}
 			MenuBuilder.EndSection();
-
-			FSlateApplication::Get().PushMenu( 
-				GetToolkitHost()->GetParentWidget(),
-				FWidgetPath(),
-				MenuBuilder.MakeWidget(),
-				FSlateApplication::Get().GetCursorPos(), // summon location
-				FPopupTransitionEffect( FPopupTransitionEffect::TypeInPopup )
-			);
-		}
-		else if (CurrentGraph->SubGraphs.Num() == 1)
-		{
-			// Jump immediately to the child if there is only one
-			UEdGraph* ChildGraph = CurrentGraph->SubGraphs[0];
-			OpenDocument(ChildGraph, FDocumentTracker::NavigatingCurrentDocument);
+			
+			if (NumEntries > 0)
+			{
+				// If there is only one entry we could just jump straight to it. However, sometimes that can be a little
+				// disorientating if it was not obvious to the user exactly what the targets might be.
+				FSlateApplication::Get().PushMenu( 
+					GetToolkitHost()->GetParentWidget(),
+					FWidgetPath(),
+					MenuBuilder.MakeWidget(),
+					FSlateApplication::Get().GetCursorPos(), // summon location
+					FPopupTransitionEffect( FPopupTransitionEffect::TypeInPopup )
+				);
+			}
 		}
 	}
 }
 
 bool FBlueprintEditor::CanNavigateToChildGraph() const
 {
-	return FocusedGraphEdPtr.IsValid() && (FocusedGraphEdPtr.Pin()->GetCurrentGraph()->SubGraphs.Num() > 0);
+	if (FocusedGraphEdPtr.IsValid())
+	{
+		UEdGraph* CurrentGraph = FocusedGraphEdPtr.Pin()->GetCurrentGraph();
+		for (TObjectPtr<UEdGraphNode> Node : CurrentGraph->Nodes)
+		{
+			UObject* TargetObject = Node->GetJumpTargetForDoubleClick();
+			if (TargetObject && Node->CanJumpToDefinition())
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+void FBlueprintEditor::SetKeyboardFocus()
+{
+	FSlateApplication::Get().SetKeyboardFocus(GetMyBlueprintWidget());
 }
 
 bool FBlueprintEditor::TransactionObjectAffectsBlueprint(UObject* InTransactedObject)
@@ -9882,12 +9919,18 @@ float FBlueprintEditor::GetInstructionTextOpacity(UEdGraph* InGraph) const
 	return 1.0f;
 }
 
+FText FBlueprintEditor::GetGraphDisplayName(const UEdGraph* Graph)
+{
+	return FLocalKismetCallbacks::GetGraphDisplayName(Graph);
+}
+
+
 FText FBlueprintEditor::GetGraphDecorationString(UEdGraph* InGraph) const
 {
 	return FText::GetEmpty();
 }
 
-bool FBlueprintEditor::IsGraphInCurrentBlueprint(UEdGraph* InGraph) const
+bool FBlueprintEditor::IsGraphInCurrentBlueprint(const UEdGraph* InGraph) const
 {
 	bool bEditable = true;
 
