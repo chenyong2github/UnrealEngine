@@ -1966,6 +1966,20 @@ namespace EpicGames.Serialization
 			InnerField = new CbField(Buffer, FieldType);
 		}
 
+		/// <summary>
+		/// Builds an object by calling a delegate with a writer
+		/// </summary>
+		/// <param name="Build"></param>
+		/// <returns></returns>
+		public static CbObject Build(Action<CbWriter> Build)
+		{
+			CbWriter Writer = new CbWriter();
+			Writer.BeginObject();
+			Build(Writer);
+			Writer.EndObject();
+			return new CbObject(Writer.Save());
+		}
+
 		/// <inheritdoc cref="FindView(ReadOnlyUtf8String)"/>
 		public CbField Find(ReadOnlyUtf8String Name) => FindView(Name);
 
@@ -2093,6 +2107,22 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="Visitor"></param>
 		public void IterateAttachments(Action<CbField> Visitor) => CreateViewIterator().IterateRangeAttachments(Visitor);
+
+		/// <summary>
+		/// Creates a view of the object, excluding the name
+		/// </summary>
+		/// <returns></returns>
+		public ReadOnlyMemory<byte> GetView()
+		{
+			ReadOnlyMemory<byte> Memory;
+			if (!TryGetView(out Memory))
+			{
+				byte[] Data = new byte[GetSize()];
+				CopyTo(Data);
+				Memory = Data;
+			}
+			return Memory;
+		}
 
 		/// <summary>
 		/// Try to get a view of the object as it would be serialized, such as by CopyTo.

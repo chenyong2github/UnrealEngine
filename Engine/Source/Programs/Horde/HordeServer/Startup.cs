@@ -71,6 +71,7 @@ using HordeServer.Notifications.Impl;
 using HordeServer.Notifications;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using System.Runtime.InteropServices;
+using HordeServer.Storage.Collections;
 
 namespace HordeServer
 {
@@ -315,6 +316,13 @@ namespace HordeServer
 			Services.AddSingleton<IUgsMetadataCollection, UgsMetadataCollection>();
 			Services.AddSingleton<IUserCollection, UserCollectionV2>();
 			Services.AddSingleton<IDeviceCollection, DeviceCollection>();
+
+			// Storage
+			Services.AddSingleton<IBlobCollection, FileSystemBlobCollection>();
+			Services.AddSingleton<IBucketCollection, BucketCollection>();
+			Services.AddSingleton<INamespaceCollection, NamespaceCollection>();
+			Services.AddSingleton<IObjectCollection, ObjectCollection>();
+			Services.AddSingleton<IRefCollection, RefCollection>();
 
 			Services.AddSingleton(typeof(ISingletonDocument<>), typeof(SingletonDocument<>));
 

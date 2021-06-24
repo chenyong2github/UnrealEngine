@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Datadog.Trace;
+using EpicGames.Core;
 using HordeCommon;
 using HordeServer;
 using HordeServer.Collections;
@@ -21,6 +22,7 @@ using HordeServer.Rpc;
 using HordeServer.Services;
 using HordeServer.Services.Impl;
 using HordeServer.Storage;
+using HordeServer.Storage.Collections;
 using HordeServer.Storage.Impl;
 using HordeServer.Storage.Services;
 using HordeServer.Tasks.Impl;
@@ -49,7 +51,7 @@ namespace HordeServerTests
 	public class TestSetup
 	{
 		public IServiceProvider ServiceProvider { get; }
-		public FakeClock Clock { get; }
+		public FakeClock Clock { get; set; } = null!;
 
 		public IGraphCollection GraphCollection => ServiceProvider.GetRequiredService<IGraphCollection>();
 		public INotificationTriggerCollection NotificationTriggerCollection => ServiceProvider.GetRequiredService<INotificationTriggerCollection>();
@@ -106,14 +108,31 @@ namespace HordeServerTests
 			IConfiguration Config = new ConfigurationBuilder().Build();
 
 			IServiceCollection Services = new ServiceCollection();
-			Services.Configure<ServerSettings>(Settings =>
-			{
-				Settings.AdminClaimType = HordeClaimTypes.Role;
-				Settings.AdminClaimValue = "app-horde-admins";
-			});
-			Services.AddLogging(Builder => Builder.AddConsole());
 			Services.AddSingleton(DbService);
+			Services.Configure<ServerSettings>(ConfigureSettings);
 			Services.AddSingleton<IConfiguration>(Config);
+
+			ConfigureServices(Services);
+
+			ServiceProvider = Services.BuildServiceProvider();
+		}
+
+		protected virtual void ConfigureSettings(ServerSettings Settings)
+		{
+			DirectoryReference DataDir = new DirectoryReference("TempData");
+			FileUtils.ForceDeleteDirectoryContents(DataDir);
+
+			Settings.AdminClaimType = HordeClaimTypes.Role;
+			Settings.AdminClaimValue = "app-horde-admins";
+
+			Settings.LocalLogsDir = DataDir.FullName;
+			Settings.LocalArtifactsDir = DataDir.FullName;
+			Settings.LocalBlobsDir = DataDir.FullName;
+		}
+
+		protected virtual void ConfigureServices(IServiceCollection Services)
+		{
+			Services.AddLogging(Builder => Builder.AddConsole());
 
 			Services.AddSingleton<StackExchange.Redis.IDatabase>(new Mock<StackExchange.Redis.IDatabase>().Object);
 
@@ -185,13 +204,17 @@ namespace HordeServerTests
 			Services.AddSingleton<ContentStorageService>();
 			Services.AddSingleton<ExecutionService>();
 
+			Services.AddSingleton<IBlobCollection, FileSystemBlobCollection>();
+			Services.AddSingleton<IObjectCollection, ObjectCollection>();
+			Services.AddSingleton<IRefCollection, RefCollection>();
+			Services.AddSingleton<INamespaceCollection, NamespaceCollection>();
+			Services.AddSingleton<IBucketCollection, BucketCollection>();
+
 			Services.AddSingleton<FileSystemStorageBackend>();
 			Services.AddSingleton<IStorageService, SimpleStorageService>(SP => new SimpleStorageService(SP.GetRequiredService<FileSystemStorageBackend>()));
 
 			Services.AddSingleton<ISingletonDocument<GlobalPermissions>>(new SingletonDocumentStub<GlobalPermissions>());
 			Services.AddSingleton<ISingletonDocument<AgentSoftwareChannels>>(new SingletonDocumentStub<AgentSoftwareChannels>());
-
-			ServiceProvider = Services.BuildServiceProvider();
 		}
 
 		public async Task CreateFixture(bool ForceNewFixture = false)

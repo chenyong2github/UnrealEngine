@@ -47,6 +47,11 @@ namespace HordeServer.Models
 		public int MaxConformCount { get; set; }
 
 		/// <summary>
+		/// List of storage namespaces
+		/// </summary>
+		public StorageConfig? Storage { get; set; }
+
+		/// <summary>
 		/// Access control list
 		/// </summary>
 		public UpdateAclRequest? Acl { get; set; }
@@ -199,6 +204,49 @@ namespace HordeServer.Models
 		/// Reason for pausing builds of the stream
 		/// </summary>
 		public string? PauseComment { get; set; }
+	}
+
+	/// <summary>
+	/// Configuration for storage system
+	/// </summary>
+	public class StorageConfig
+	{
+		/// <summary>
+		/// List of storage namespaces
+		/// </summary>
+		public List<NamespaceConfig> Namespaces { get; set; } = new List<NamespaceConfig>();
+	}
+
+	/// <summary>
+	/// Configuration for a storage namespace
+	/// </summary>
+	public class NamespaceConfig
+	{
+		/// <summary>
+		/// Identifier for this namespace
+		/// </summary>
+		public string Id { get; set; } = String.Empty;
+
+		/// <summary>
+		/// Buckets within this namespace
+		/// </summary>
+		public List<BucketConfig> Buckets { get; set; } = new List<BucketConfig>();
+
+		/// <summary>
+		/// Access control for this namespace
+		/// </summary>
+		public UpdateAclRequest? Acl { get; set; }
+	}
+
+	/// <summary>
+	/// Configuration for a bucket
+	/// </summary>
+	public class BucketConfig
+	{
+		/// <summary>
+		/// Identifier for the bucket
+		/// </summary>
+		public string Id { get; set; } = String.Empty;
 	}
 }
 

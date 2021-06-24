@@ -26,6 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Shared\EpicGames.Serialization\EpicGames.Serialization.csproj" />
     <ProjectReference Include="..\HordeAgent\HordeAgent.csproj" Label="HordeAgent">
       <Aliases>HordeAgent</Aliases>
     </ProjectReference>

@@ -148,6 +148,15 @@ namespace EpicGames.Core
 		/// Tests whether A is less than or equal to B
 		/// </summary>
 		public static bool operator <=(IoHash A, IoHash B) => A.CompareTo(B) <= 0;
+
+		/// <summary>
+		/// Convert a Blake3Hash to an IoHash
+		/// </summary>
+		/// <param name="Hash"></param>
+		public static implicit operator IoHash(Blake3Hash Hash)
+		{
+			return new IoHash(Hash.Memory.Slice(0, NumBytes));
+		}
 	}
 
 	/// <summary>
