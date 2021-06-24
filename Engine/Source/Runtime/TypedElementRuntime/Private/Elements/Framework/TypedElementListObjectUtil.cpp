@@ -14,7 +14,7 @@ UObject* GetObjectOfType(const TTypedElement<UTypedElementObjectInterface>& InOb
 		: nullptr;
 }
 
-bool HasObjects(const UTypedElementList* InElementList, const UClass* InRequiredClass)
+bool HasObjects(FTypedElementListConstRef InElementList, const UClass* InRequiredClass)
 {
 	bool bHasObjects = false;
 
@@ -27,7 +27,7 @@ bool HasObjects(const UTypedElementList* InElementList, const UClass* InRequired
 	return bHasObjects;
 }
 
-int32 CountObjects(const UTypedElementList* InElementList, const UClass* InRequiredClass)
+int32 CountObjects(FTypedElementListConstRef InElementList, const UClass* InRequiredClass)
 {
 	int32 NumObjects = 0;
 
@@ -40,7 +40,7 @@ int32 CountObjects(const UTypedElementList* InElementList, const UClass* InRequi
 	return NumObjects;
 }
 
-void ForEachObject(const UTypedElementList* InElementList, TFunctionRef<bool(UObject*)> InCallback, const UClass* InRequiredClass)
+void ForEachObject(FTypedElementListConstRef InElementList, TFunctionRef<bool(UObject*)> InCallback, const UClass* InRequiredClass)
 {
 	InElementList->ForEachElement<UTypedElementObjectInterface>([&InCallback, InRequiredClass](const TTypedElement<UTypedElementObjectInterface>& InObjectElement)
 	{
@@ -52,7 +52,7 @@ void ForEachObject(const UTypedElementList* InElementList, TFunctionRef<bool(UOb
 	});
 }
 
-TArray<UObject*> GetObjects(const UTypedElementList* InElementList, const UClass* InRequiredClass)
+TArray<UObject*> GetObjects(FTypedElementListConstRef InElementList, const UClass* InRequiredClass)
 {
 	TArray<UObject*> SelectedObjects;
 	SelectedObjects.Reserve(InElementList->Num());
@@ -66,7 +66,7 @@ TArray<UObject*> GetObjects(const UTypedElementList* InElementList, const UClass
 	return SelectedObjects;
 }
 
-UObject* GetTopObject(const UTypedElementList* InElementList, const UClass* InRequiredClass)
+UObject* GetTopObject(FTypedElementListConstRef InElementList, const UClass* InRequiredClass)
 {
 	TTypedElement<UTypedElementObjectInterface> TempElement;
 	for (int32 ElementIndex = 0; ElementIndex < InElementList->Num(); ++ElementIndex)
@@ -82,7 +82,7 @@ UObject* GetTopObject(const UTypedElementList* InElementList, const UClass* InRe
 	return nullptr;
 }
 
-UObject* GetBottomObject(const UTypedElementList* InElementList, const UClass* InRequiredClass)
+UObject* GetBottomObject(FTypedElementListConstRef InElementList, const UClass* InRequiredClass)
 {
 	TTypedElement<UTypedElementObjectInterface> TempElement;
 	for (int32 ElementIndex = InElementList->Num() - 1; ElementIndex >= 0; --ElementIndex)
@@ -98,17 +98,17 @@ UObject* GetBottomObject(const UTypedElementList* InElementList, const UClass* I
 	return nullptr;
 }
 
-bool HasObjectsOfExactClass(const UTypedElementList* InElementList, const UClass* InClass)
+bool HasObjectsOfExactClass(FTypedElementListConstRef InElementList, const UClass* InClass)
 {
 	return CountObjectsOfExactClass(InElementList, InClass) > 0;
 }
 
-int32 CountObjectsOfExactClass(const UTypedElementList* InElementList, const UClass* InClass)
+int32 CountObjectsOfExactClass(FTypedElementListConstRef InElementList, const UClass* InClass)
 {
 	return InElementList->GetCounter().GetCounterValue(NAME_Class, InClass);
 }
 
-void ForEachObjectClass(const UTypedElementList* InElementList, TFunctionRef<bool(UClass*)> InCallback)
+void ForEachObjectClass(FTypedElementListConstRef InElementList, TFunctionRef<bool(UClass*)> InCallback)
 {
 	InElementList->GetCounter().ForEachCounterValue<UClass*>(NAME_Class, [&InCallback](UClass* InClass, FTypedElementCounter::FCounterValue InCount)
 	{

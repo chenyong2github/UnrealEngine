@@ -10,13 +10,13 @@ namespace TypedElementListObjectUtil
 /**
  * Test whether there are any objects in the given list of elements.
  */
-TYPEDELEMENTRUNTIME_API bool HasObjects(const UTypedElementList* InElementList, const UClass* InRequiredClass = nullptr);
+TYPEDELEMENTRUNTIME_API bool HasObjects(FTypedElementListConstRef InElementList, const UClass* InRequiredClass = nullptr);
 
 /**
  * Test whether there are any objects in the given list of elements.
  */
 template <typename RequiredClassType>
-bool HasObjects(const UTypedElementList* InElementList)
+bool HasObjects(FTypedElementListConstRef InElementList)
 {
 	return HasObjects(InElementList, RequiredClassType::StaticClass());
 }
@@ -24,13 +24,13 @@ bool HasObjects(const UTypedElementList* InElementList)
 /**
  * Count the number of objects in the given list of elements.
  */
-TYPEDELEMENTRUNTIME_API int32 CountObjects(const UTypedElementList* InElementList, const UClass* InRequiredClass = nullptr);
+TYPEDELEMENTRUNTIME_API int32 CountObjects(FTypedElementListConstRef InElementList, const UClass* InRequiredClass = nullptr);
 
 /**
  * Count the number of objects in the given list of elements.
  */
 template <typename RequiredClassType>
-int32 CountObjects(const UTypedElementList* InElementList)
+int32 CountObjects(FTypedElementListConstRef InElementList)
 {
 	return CountObjects(InElementList, RequiredClassType::StaticClass());
 }
@@ -39,14 +39,14 @@ int32 CountObjects(const UTypedElementList* InElementList)
  * Enumerate the objects from the given list of elements.
  * @note Return true from the callback to continue enumeration.
  */
-TYPEDELEMENTRUNTIME_API void ForEachObject(const UTypedElementList* InElementList, TFunctionRef<bool(UObject*)> InCallback, const UClass* InRequiredClass = nullptr);
+TYPEDELEMENTRUNTIME_API void ForEachObject(FTypedElementListConstRef InElementList, TFunctionRef<bool(UObject*)> InCallback, const UClass* InRequiredClass = nullptr);
 
 /**
  * Enumerate the objects from the given list of elements.
  * @note Return true from the callback to continue enumeration.
  */
 template <typename RequiredClassType>
-void ForEachObject(const UTypedElementList* InElementList, TFunctionRef<bool(RequiredClassType*)> InCallback)
+void ForEachObject(FTypedElementListConstRef InElementList, TFunctionRef<bool(RequiredClassType*)> InCallback)
 {
 	ForEachObject(InElementList, [&InCallback](UObject* InObject)
 	{
@@ -57,13 +57,13 @@ void ForEachObject(const UTypedElementList* InElementList, TFunctionRef<bool(Req
 /**
  * Get the array of objects from the given list of elements.
  */
-TYPEDELEMENTRUNTIME_API TArray<UObject*> GetObjects(const UTypedElementList* InElementList, const UClass* InRequiredClass = nullptr);
+TYPEDELEMENTRUNTIME_API TArray<UObject*> GetObjects(FTypedElementListConstRef InElementList, const UClass* InRequiredClass = nullptr);
 
 /**
  * Get the array of objects from the given list of elements.
  */
 template <typename RequiredClassType>
-TArray<RequiredClassType*> GetObjects(const UTypedElementList* InElementList)
+TArray<RequiredClassType*> GetObjects(FTypedElementListConstRef InElementList)
 {
 	TArray<RequiredClassType*> SelectedObjects;
 	SelectedObjects.Reserve(InElementList->Num());
@@ -80,13 +80,13 @@ TArray<RequiredClassType*> GetObjects(const UTypedElementList* InElementList)
 /**
  * Get the first object of the given type from the given list of elements.
  */
-TYPEDELEMENTRUNTIME_API UObject* GetTopObject(const UTypedElementList* InElementList, const UClass* InRequiredClass = nullptr);
+TYPEDELEMENTRUNTIME_API UObject* GetTopObject(FTypedElementListConstRef InElementList, const UClass* InRequiredClass = nullptr);
 
 /**
  * Get the first object of the given type from the given list of elements.
  */
 template <typename RequiredClassType>
-RequiredClassType* GetTopObject(const UTypedElementList* InElementList)
+RequiredClassType* GetTopObject(FTypedElementListConstRef InElementList)
 {
 	return Cast<RequiredClassType>(GetTopObject(InElementList, RequiredClassType::StaticClass()));
 }
@@ -94,13 +94,13 @@ RequiredClassType* GetTopObject(const UTypedElementList* InElementList)
 /**
  * Get the last object of the given type from the given list of elements.
  */
-TYPEDELEMENTRUNTIME_API UObject* GetBottomObject(const UTypedElementList* InElementList, const UClass* InRequiredClass = nullptr);
+TYPEDELEMENTRUNTIME_API UObject* GetBottomObject(FTypedElementListConstRef InElementList, const UClass* InRequiredClass = nullptr);
 
 /**
  * Get the last object of the given type from the given list of elements.
  */
 template <typename RequiredClassType>
-RequiredClassType* GetBottomObject(const UTypedElementList* InElementList)
+RequiredClassType* GetBottomObject(FTypedElementListConstRef InElementList)
 {
 	return Cast<RequiredClassType>(GetBottomObject(InElementList, RequiredClassType::StaticClass()));
 }
@@ -108,13 +108,13 @@ RequiredClassType* GetBottomObject(const UTypedElementList* InElementList)
 /**
  * Test if there are any objects of the exact class in the given list of elements (a quick test using the class counter, skipping derived types).
  */
-TYPEDELEMENTRUNTIME_API bool HasObjectsOfExactClass(const UTypedElementList* InElementList, const UClass* InClass);
+TYPEDELEMENTRUNTIME_API bool HasObjectsOfExactClass(FTypedElementListConstRef InElementList, const UClass* InClass);
 
 /**
  * Test if there are any objects of the exact class in the given list of elements (a quick test using the class counter, skipping derived types).
  */
 template <typename ClassType>
-bool HasObjectsOfExactClass(const UTypedElementList* InElementList)
+bool HasObjectsOfExactClass(FTypedElementListConstRef InElementList)
 {
 	return HasObjectsOfExactClass(InElementList, ClassType::StaticClass());
 }
@@ -122,13 +122,13 @@ bool HasObjectsOfExactClass(const UTypedElementList* InElementList)
 /**
  * Count the number of objects of the exact class in the given list of elements (a quick test using the class counter, skipping derived types).
  */
-TYPEDELEMENTRUNTIME_API int32 CountObjectsOfExactClass(const UTypedElementList* InElementList, const UClass* InClass);
+TYPEDELEMENTRUNTIME_API int32 CountObjectsOfExactClass(FTypedElementListConstRef InElementList, const UClass* InClass);
 
 /**
  * Count the number of objects of the exact class in the given list of elements (a quick test using the class counter, skipping derived types).
  */
 template <typename ClassType>
-bool CountObjectsOfExactClass(const UTypedElementList* InElementList)
+bool CountObjectsOfExactClass(FTypedElementListConstRef InElementList)
 {
 	return CountObjectsOfExactClass(InElementList, ClassType::StaticClass());
 }
@@ -137,6 +137,6 @@ bool CountObjectsOfExactClass(const UTypedElementList* InElementList)
  * Enumerate the classes of the objects in the given list of elements.
  * @note Return true from the callback to continue enumeration.
  */
-TYPEDELEMENTRUNTIME_API void ForEachObjectClass(const UTypedElementList* InElementList, TFunctionRef<bool(UClass*)> InCallback);
+TYPEDELEMENTRUNTIME_API void ForEachObjectClass(FTypedElementListConstRef InElementList, TFunctionRef<bool(UClass*)> InCallback);
 
 } // namespace TypedElementListObjectUtil

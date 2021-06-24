@@ -2,11 +2,11 @@
 
 #pragma once
 
+#include "Elements/Framework/TypedElementListProxy.h"
 #include "Elements/Framework/TypedElementInterfaceCustomization.h"
 #include "Elements/Interfaces/TypedElementWorldInterface.h"
 #include "TypedElementCommonActions.generated.h"
 
-class UTypedElementList;
 class UTypedElementSelectionSet;
 
 /**
@@ -82,7 +82,7 @@ public:
 	 * @note This list should have been pre-normalized via UTypedElementSelectionSet::GetNormalizedSelection or UTypedElementSelectionSet::GetNormalizedElementList.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Common")
-	bool DeleteNormalizedElements(const UTypedElementList* ElementList, UWorld* World, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& DeletionOptions);
+	bool DeleteNormalizedElements(const FTypedElementListProxy ElementList, UWorld* World, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& DeletionOptions);
 
 	/**
 	 * Duplicate any elements from the given selection set that can be duplicated.
@@ -96,7 +96,7 @@ public:
 	 * @note This list should have been pre-normalized via UTypedElementSelectionSet::GetNormalizedSelection or UTypedElementSelectionSet::GetNormalizedElementList.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Common")
-	TArray<FTypedElementHandle> DuplicateNormalizedElements(const UTypedElementList* ElementList, UWorld* World, const FVector& LocationOffset);
+	TArray<FTypedElementHandle> DuplicateNormalizedElements(const FTypedElementListProxy ElementList, UWorld* World, const FVector& LocationOffset);
 
 private:
 	/**

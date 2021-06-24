@@ -11,6 +11,7 @@
 #include "EditorViewportClient.h"
 #include "UObject/ObjectKey.h"
 #include "UnrealEdMisc.h"
+#include "Elements/Framework/TypedElementListFwd.h"
 
 struct FAssetData;
 struct FMinimalViewInfo;
@@ -21,7 +22,6 @@ class ILevelEditor;
 class SLevelViewport;
 class UActorFactory;
 class UModel;
-class UTypedElementList;
 class UTypedElementSelectionSet;
 struct FWorldContext;
 struct FTypedElementHandle;
@@ -331,7 +331,7 @@ public:
 	/**
 	 * Get the elements (from the current selection set) that this viewport can manipulate (eg, via the transform gizmo).
 	 */
-	const UTypedElementList* GetElementsToManipulate(const bool bForceRefresh = false);
+	FTypedElementListConstRef GetElementsToManipulate(const bool bForceRefresh = false);
 
 	virtual void SetIsSimulateInEditorViewport( bool bInIsSimulateInEditorViewport ) override;
 
@@ -910,7 +910,7 @@ private:
 
 	/** The elements (from the current selection set) that this viewport can manipulate (eg, via the transform gizmo) */
 	bool bHasCachedElementsToManipulate = false;
-	UTypedElementList* CachedElementsToManipulate = nullptr;
+	FTypedElementListRef CachedElementsToManipulate;
 
 	/** Bit array representing the visibility of every sprite category in the current viewport */
 	TBitArray<>	SpriteCategoryVisibility;

@@ -206,7 +206,7 @@ void UUnrealEdEngine::SetPivot( FVector NewPivot, bool bSnapPivotToGrid, bool bI
 	// Pick a new common pivot, or not.
 	TTypedElement<UTypedElementWorldInterface> SingleWorldElement;
 
-	const UTypedElementList* ElementsToManipulate = GCurrentLevelEditingViewportClient->GetElementsToManipulate();
+	FTypedElementListConstRef ElementsToManipulate = GCurrentLevelEditingViewportClient->GetElementsToManipulate();
 	ElementsToManipulate->ForEachElement<UTypedElementWorldInterface>([&NumElements, &TranslateRotateWidgetWorldXAxis, &Widget2DWorldXAxis, &SingleWorldElement](const TTypedElement<UTypedElementWorldInterface>& InWorldElement)
 	{
 		if (NumElements == 0)
@@ -328,7 +328,7 @@ void UUnrealEdEngine::UpdatePivotLocationForSelection( bool bOnChange )
 	// Pick a new common pivot, or not.
 	TTypedElement<UTypedElementWorldInterface> SingleWorldElement;
 	
-	const UTypedElementList* ElementsToManipulate = GCurrentLevelEditingViewportClient->GetElementsToManipulate();
+	FTypedElementListConstRef ElementsToManipulate = GCurrentLevelEditingViewportClient->GetElementsToManipulate();
 	ElementsToManipulate->ForEachElement<UTypedElementWorldInterface>([&SingleWorldElement](const TTypedElement<UTypedElementWorldInterface>& InWorldElement)
 	{
 #if DO_CHECK

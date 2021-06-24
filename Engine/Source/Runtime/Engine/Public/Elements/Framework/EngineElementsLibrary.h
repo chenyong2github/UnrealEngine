@@ -21,9 +21,6 @@ struct FSMInstanceElementData;
 struct FSMInstanceId;
 struct FSMInstanceElementId;
 
-class UWorld;
-class UTypedElementList;
-
 UCLASS()
 class ENGINE_API UEngineElementsLibrary : public UBlueprintFunctionLibrary
 {

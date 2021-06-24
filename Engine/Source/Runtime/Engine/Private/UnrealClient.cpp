@@ -1864,7 +1864,7 @@ FTypedElementHandle FViewport::GetElementHandleAtPoint(int32 X, int32 Y)
 	return FTypedElementHandle();
 }
 
-void FViewport::GetElementHandlesInRect(FIntRect InRect, UTypedElementList* OutElementHandles)
+void FViewport::GetElementHandlesInRect(FIntRect InRect, FTypedElementListRef OutElementHandles)
 {
 	GetElementHandlesInRectImpl(InRect, *OutElementHandles);
 }

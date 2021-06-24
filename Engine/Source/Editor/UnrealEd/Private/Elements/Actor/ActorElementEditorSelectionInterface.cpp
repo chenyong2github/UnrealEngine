@@ -38,10 +38,11 @@ private:
 	TWeakObjectPtr<AActor> ActorPtr;
 };
 
-bool UActorElementEditorSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
+bool UActorElementEditorSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const FTypedElementListProxy InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
 {
+	FTypedElementListConstPtr SelectionSetPtr = InSelectionSet.GetElementList();
 	const AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementHandle);
-	return Actor && IsActorSelected(Actor, InSelectionSet, InSelectionOptions);
+	return SelectionSetPtr && Actor && IsActorSelected(Actor, SelectionSetPtr.ToSharedRef(), InSelectionOptions);
 }
 
 bool UActorElementEditorSelectionInterface::ShouldPreventTransactions(const FTypedElementHandle& InElementHandle)
@@ -55,7 +56,7 @@ TUniquePtr<ITypedElementTransactedElement> UActorElementEditorSelectionInterface
 	return MakeUnique<FActorElementTransactedElement>();
 }
 
-bool UActorElementEditorSelectionInterface::IsActorSelected(const AActor* InActor, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
+bool UActorElementEditorSelectionInterface::IsActorSelected(const AActor* InActor, FTypedElementListConstRef InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
 {
 	if (InSelectionSet->Num() == 0)
 	{

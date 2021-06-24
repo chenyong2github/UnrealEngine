@@ -9,11 +9,11 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "GameFramework/Actor.h"
+#include "Elements/Framework/TypedElementListFwd.h"
 #include "GroupActor.generated.h"
 
 class FLevelEditorViewportClient;
 class FViewport;
-class UTypedElementList;
 class UTypedElementSelectionSet;
 
 UCLASS(hidedropdown,MinimalAPI, notplaceable, NotBlueprintable)
@@ -228,6 +228,6 @@ namespace GroupActorHelpers
 {
 
 UNREALED_API bool ActorHasParentInGroup(const AActor* Actor, const AGroupActor* GroupActor);
-UNREALED_API bool ActorHasParentInSelection(const AActor* Actor, const UTypedElementList* SelectionSet);
+UNREALED_API bool ActorHasParentInSelection(const AActor* Actor, FTypedElementListConstRef SelectionSet);
 
 } // namespace GroupActorHelpers

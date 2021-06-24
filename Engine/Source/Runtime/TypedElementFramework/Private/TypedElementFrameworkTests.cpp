@@ -109,7 +109,7 @@ bool FTypedElementRegistrySmokeTest::RunTest(const FString& Parameters)
 	TestInterfaceAccess(TypedElement1.AcquireHandle());
 	TestInterfaceAccess(UntypedElement1.AcquireHandle());
 
-	UTypedElementList* ElementList = Registry->CreateElementList();
+	FTypedElementListPtr ElementList = Registry->CreateElementList();
 	ElementList->Add(TypedElement1);
 	ElementList->Add(TypedElement2);
 	ElementList->Add(TypedElement3);
@@ -129,8 +129,7 @@ bool FTypedElementRegistrySmokeTest::RunTest(const FString& Parameters)
 		return true;
 	});
 
-	ElementList->Empty();
-	ElementList = nullptr;
+	ElementList.Reset();
 
 	Registry->DestroyElement(TypedElement1);
 	Registry->DestroyElement(TypedElement2);
@@ -139,6 +138,9 @@ bool FTypedElementRegistrySmokeTest::RunTest(const FString& Parameters)
 	Registry->DestroyElement(UntypedElement1);
 	Registry->DestroyElement(UntypedElement2);
 	Registry->DestroyElement(UntypedElement3);
+
+	// Verify that there were no leaks
+	Registry->ProcessDeferredElementsToDestroy();
 
 	return true;
 }
@@ -160,7 +162,7 @@ bool FTypedElementRegistryPerfTest::RunTest(const FString& Parameters)
 
 	TArray<TTypedElementOwner<FTestTypedElementData>> TypedOwnerHandles;
 	TArray<FTypedElementOwner> UntypedOwnerHandles;
-	UTypedElementList* ElementList = Registry->CreateElementList();
+	FTypedElementListPtr ElementList = Registry->CreateElementList();
 
 	// Create typed handles
 	{
@@ -226,8 +228,7 @@ bool FTypedElementRegistryPerfTest::RunTest(const FString& Parameters)
 	// Clear the element list
 	{
 		FScopedDurationTimeLogger Timer(FString::Printf(TEXT("Reset %d elements in list"), ElementList->Num()));
-		ElementList->Empty();
-		ElementList = nullptr;
+		ElementList.Reset();
 	}
 
 	// Destroy typed handles
@@ -253,6 +254,9 @@ bool FTypedElementRegistryPerfTest::RunTest(const FString& Parameters)
 		}
 		UntypedOwnerHandles.Reset();
 	}
+
+	// Verify that there were no leaks
+	Registry->ProcessDeferredElementsToDestroy();
 
 	return true;
 }

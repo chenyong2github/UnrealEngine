@@ -3,17 +3,20 @@
 #include "Elements/Interfaces/TypedElementSelectionInterface.h"
 #include "Elements/Framework/TypedElementList.h"
 
-bool UTypedElementSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const UTypedElementList* InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
+bool UTypedElementSelectionInterface::IsElementSelected(const FTypedElementHandle& InElementHandle, const FTypedElementListProxy InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions)
 {
-	return InSelectionSet->Contains(InElementHandle);
+	FTypedElementListConstPtr SelectionSetPtr = InSelectionSet.GetElementList();
+	return SelectionSetPtr && SelectionSetPtr->Contains(InElementHandle);
 }
 
-bool UTypedElementSelectionInterface::SelectElement(const FTypedElementHandle& InElementHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
+bool UTypedElementSelectionInterface::SelectElement(const FTypedElementHandle& InElementHandle, FTypedElementListProxy InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
-	return InSelectionSet->Add(InElementHandle);
+	FTypedElementListPtr SelectionSetPtr = InSelectionSet.GetElementList();
+	return SelectionSetPtr && SelectionSetPtr->Add(InElementHandle);
 }
 
-bool UTypedElementSelectionInterface::DeselectElement(const FTypedElementHandle& InElementHandle, UTypedElementList* InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
+bool UTypedElementSelectionInterface::DeselectElement(const FTypedElementHandle& InElementHandle, FTypedElementListProxy InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
-	return InSelectionSet->Remove(InElementHandle);
+	FTypedElementListPtr SelectionSetPtr = InSelectionSet.GetElementList();
+	return SelectionSetPtr && SelectionSetPtr->Remove(InElementHandle);
 }

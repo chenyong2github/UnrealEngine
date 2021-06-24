@@ -66,7 +66,7 @@ void UPlacementModeEraseTool::OnTick(float DeltaTime)
 		return;
 	}
 
-	TGCObjectScopeGuard<UTypedElementList> ElementsToDelete(UTypedElementRegistry::GetInstance()->CreateElementList());
+	FTypedElementListRef ElementsToDelete = UTypedElementRegistry::GetInstance()->CreateElementList();
 
 	TArray<FTypedElementHandle> HitElements = GetElementsInBrushRadius(LastDeviceInputRay);
 	for (const FTypedElementHandle& HitElement : HitElements)
@@ -91,16 +91,14 @@ void UPlacementModeEraseTool::OnTick(float DeltaTime)
 			}
 			else
 			{
-				ElementsToDelete.Get()->Add(HitElement);
+				ElementsToDelete->Add(HitElement);
 			}
 		}
 	}
 
-	if (ElementsToDelete.Get()->HasElements())
+	if (ElementsToDelete->HasElements())
 	{
-		TGCObjectScopeGuard<UTypedElementList> NormalizedElementsToDelete(SelectionSet->GetNormalizedElementList(ElementsToDelete.Get(), FTypedElementSelectionNormalizationOptions()));
-		ElementCommonActions->DeleteNormalizedElements(NormalizedElementsToDelete.Get(), AssetEditorContext->GetEditingWorld(), SelectionSet, FTypedElementDeletionOptions());
-		NormalizedElementsToDelete.Get()->Empty();
-		ElementsToDelete.Get()->Empty();
+		FTypedElementListRef NormalizedElementsToDelete = SelectionSet->GetNormalizedElementList(ElementsToDelete, FTypedElementSelectionNormalizationOptions());
+		ElementCommonActions->DeleteNormalizedElements(NormalizedElementsToDelete, AssetEditorContext->GetEditingWorld(), SelectionSet, FTypedElementDeletionOptions());
 	}
 }

@@ -4,11 +4,11 @@
 
 #include "InputState.h"
 #include "UnrealWidgetFwd.h"
+#include "Elements/Framework/TypedElementListFwd.h"
 #include "Elements/Framework/TypedElementInterfaceCustomization.h"
 #include "Elements/Interfaces/TypedElementWorldInterface.h"
 #include "TypedElementViewportInteraction.generated.h"
 
-class UTypedElementList;
 class UTypedElementSelectionSet;
 
 enum class ETypedElementViewportInteractionGizmoManipulationType : uint8
@@ -93,17 +93,17 @@ public:
 	/**
 	 * Notify that the gizmo is potentially about to start manipulating the transform of the given set of elements (calculated from calling GetSelectedElementsToMove).
 	 */
-	void BeginGizmoManipulation(const UTypedElementList* InElementsToMove, const UE::Widget::EWidgetMode InWidgetMode);
+	void BeginGizmoManipulation(FTypedElementListConstRef InElementsToMove, const UE::Widget::EWidgetMode InWidgetMode);
 
 	/**
 	 * Notify that the gizmo has manipulated the transform of the given set of elements (calculated from calling GetSelectedElementsToMove) by the given delta.
 	 */
-	void UpdateGizmoManipulation(const UTypedElementList* InElementsToMove, const UE::Widget::EWidgetMode InWidgetMode, const EAxisList::Type InDragAxis, const FInputDeviceState& InInputState, const FTransform& InDeltaTransform);
+	void UpdateGizmoManipulation(FTypedElementListConstRef InElementsToMove, const UE::Widget::EWidgetMode InWidgetMode, const EAxisList::Type InDragAxis, const FInputDeviceState& InInputState, const FTransform& InDeltaTransform);
 	
 	/**
 	 * Notify that the gizmo has finished manipulating the transform of the given set of elements (calculated from calling GetSelectedElementsToMove).
 	 */
-	void EndGizmoManipulation(const UTypedElementList* InElementsToMove, const UE::Widget::EWidgetMode InWidgetMode, const ETypedElementViewportInteractionGizmoManipulationType InManipulationType);
+	void EndGizmoManipulation(FTypedElementListConstRef InElementsToMove, const UE::Widget::EWidgetMode InWidgetMode, const ETypedElementViewportInteractionGizmoManipulationType InManipulationType);
 
 	/**
 	 * Apply the given delta to the specified element.
