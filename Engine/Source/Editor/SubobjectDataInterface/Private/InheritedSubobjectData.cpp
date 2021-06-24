@@ -44,21 +44,12 @@ bool FInheritedSubobjectData::CanEdit() const
 
 bool FInheritedSubobjectData::CanDelete() const
 {
-	if(IsNativeComponent() || IsInheritedSCSNode() || IsDefaultSceneRoot() || IsInstancedInheritedComponent())
+	if(IsInheritedComponent() || IsDefaultSceneRoot() || (GetSCSNode() != nullptr && IsInstancedInheritedComponent()) || IsChildActorSubtreeObject())
 	{
 		return false;
 	}
 	
 	return true;
-}
-
-bool FInheritedSubobjectData::IsInheritedComponent() const
-{
-	if(GetComponentTemplate() != nullptr)
-	{
-		return true;
-	}
-	return false;
 }
 
 bool FInheritedSubobjectData::IsInheritedSCSNode() const

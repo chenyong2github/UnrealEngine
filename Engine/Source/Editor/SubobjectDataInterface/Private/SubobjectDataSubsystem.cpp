@@ -747,7 +747,7 @@ FSubobjectDataHandle USubobjectDataSubsystem::FindParentForNewSubobject(const UO
 	FSubobjectData* TargetParentData = TargetParentHandle.GetData();
 
 	// If the current selection belongs to a child actor template, move the target to its outer component node.
-	while(TargetParentHandle.IsValid() && TargetParentData->IsChildActor())
+	while(TargetParentHandle.IsValid() && TargetParentData->IsChildActorSubtreeObject())
 	{
 		TargetParentHandle = TargetParentData->GetParentHandle();
 		TargetParentData = TargetParentHandle.GetData();

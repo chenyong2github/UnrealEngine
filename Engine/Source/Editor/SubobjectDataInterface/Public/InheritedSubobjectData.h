@@ -18,7 +18,6 @@ struct SUBOBJECTDATAINTERFACE_API FInheritedSubobjectData : public FSubobjectDat
 	virtual bool CanEdit() const override;
 	virtual bool CanDelete() const override;
 	virtual bool IsInheritedSCSNode() const override;
-	virtual bool IsInheritedComponent() const override;
 	// End FSubobjectData
 
 protected:

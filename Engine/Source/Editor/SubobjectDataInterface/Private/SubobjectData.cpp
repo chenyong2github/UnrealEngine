@@ -108,12 +108,12 @@ bool FSubobjectData::CanRename() const
 
 	// You can rename within the BP editor, but not if if this subobject
 	// is on an instance in the level
-	if(GetSCSNode() != nullptr)
+	if(GetSCSNode() != nullptr && !IsInheritedSCSNode())
 	{
 		return !IsInstancedInheritedComponent();
 	}
 	
-	return !IsInheritedComponent() && !IsDefaultSceneRoot() && !IsChildActor();
+	return !IsInheritedComponent() && !IsDefaultSceneRoot() && !IsChildActorSubtreeObject();
 }
 
 const UObject* FSubobjectData::GetObjectForBlueprint(UBlueprint* Blueprint) const
@@ -917,6 +917,16 @@ bool FSubobjectData::IsComponent() const
 
 bool FSubobjectData::IsChildActor() const
 {
+	return false;
+}
+
+bool FSubobjectData::IsChildActorSubtreeObject() const
+{
+	const FSubobjectDataHandle& RootActor = GetRootSubobject();
+	if (const FSubobjectData* RootData = RootActor.GetData())
+	{
+		return RootData->IsChildActor();
+	}
 	return false;
 }
 

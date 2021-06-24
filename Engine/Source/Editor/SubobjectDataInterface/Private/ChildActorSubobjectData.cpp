@@ -30,20 +30,3 @@ bool FChildActorSubobjectData::IsChildActor() const
 {
 	return true;
 }
-
-bool FChildActorSubobjectData::CanDelete() const
-{
-	return false;
-}
-
-bool FChildActorSubobjectData::CanReparent() const
-{
-	// Can't reparent nodes within a child actor subtree
-	return false;
-}
-
-bool FChildActorSubobjectData::CanDuplicate() const
-{
-	// Duplication of Child actor components is not allowed.
-	return false;
-}	
