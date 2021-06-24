@@ -85,11 +85,6 @@ void UAnimGraphNode_Base::PostEditChangeProperty(FPropertyChangedEvent& Property
 		FOptionalPinManager::EvaluateOldShownPins(ShowPinForProperties, OldShownPins, this);
 		GetSchema()->ReconstructNode(*this);
 	}
-	else if(PropertyName == GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, InitializeFunction))
-	{
-		GetFNode()->InitializeFunction.SetFromFunction(InitializeFunction.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass));
-		GetSchema()->ReconstructNode(*this);
-	}
 	else if(PropertyName == GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, BecomeRelevantFunction))
 	{
 		GetFNode()->BecomeRelevantFunction.SetFromFunction(BecomeRelevantFunction.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass));
@@ -99,11 +94,6 @@ void UAnimGraphNode_Base::PostEditChangeProperty(FPropertyChangedEvent& Property
 	else if(PropertyName == GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, UpdateFunction))
 	{
 		GetFNode()->UpdateFunction.SetFromFunction(UpdateFunction.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass));
-		GetSchema()->ReconstructNode(*this);
-	}
-	else if(PropertyName == GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, EvaluateFunction))
-	{
-		GetFNode()->EvaluateFunction.SetFromFunction(EvaluateFunction.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass));
 		GetSchema()->ReconstructNode(*this);
 	}
 	
@@ -219,10 +209,8 @@ void UAnimGraphNode_Base::ValidateAnimNodeDuringCompilation(USkeleton* ForSkelet
 		}
 	};
 	
-	ValidateFunctionRef(InitializeFunction, LOCTEXT("MissingInitializeFunction", "Could not resolve initialize function for @@"));
 	ValidateFunctionRef(BecomeRelevantFunction, LOCTEXT("MissingBecomeRelevantFunction", "Could not resolve become relevant function for @@"));
 	ValidateFunctionRef(UpdateFunction, LOCTEXT("MissingUpdateFunction", "Could not resolve update function for @@"));
-	ValidateFunctionRef(EvaluateFunction, LOCTEXT("MissingEvaluateFunction", "Could not resolve evaluate function for @@"));
 }
 
 void UAnimGraphNode_Base::CopyTermDefaultsToDefaultObject(IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintNodeCopyTermDefaultsContext& InPerNodeContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
@@ -506,11 +494,9 @@ void UAnimGraphNode_Base::ProcessDuringCompilation(IAnimBlueprintCompilationCont
 	Extension->ProcessNodePins(this, InCompilationContext, OutCompiledData);
 
 	// Resolve functions
-	GetFNode()->InitializeFunction.SetFromFunction(InitializeFunction.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass));  
 	GetFNode()->BecomeRelevantFunction.SetFromFunction(BecomeRelevantFunction.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass));
-	GetFNode()->UpdateFunction.SetFromFunction(UpdateFunction.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass));
-	GetFNode()->EvaluateFunction.SetFromFunction(EvaluateFunction.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass)); 
-	
+	GetFNode()->UpdateFunction.SetFromFunction(UpdateFunction.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass)); 
+
 	// Call the override point
 	OnProcessDuringCompilation(InCompilationContext, OutCompiledData);
 }

@@ -66,20 +66,11 @@ private:
 	friend struct ::FComponentSpacePoseLink;
 	friend struct ::FAnimInstanceProxy;
 	
-	// Call the Initialize function of this node
-	static void Initialize(const FAnimationInitializeContext& InContext, FAnimNode_Base& InNode);
-
 	// Call the BecomeRelevant function of this node
 	static void BecomeRelevant(const FAnimationUpdateContext& InContext, FAnimNode_Base& InNode);
 
 	// Call the Update function of this node
 	static void Update(const FAnimationUpdateContext& InContext, FAnimNode_Base& InNode);
-
-	// Call the Evaluate function of this node
-	static void Evaluate(FPoseContext& InContext, FAnimNode_Base& InNode);
-
-	// Call the EvaluateComponentSpace function of this node
-	static void EvaluateComponentSpace(FComponentSpacePoseContext& InContext, FAnimNode_Base& InNode);
 };
 
 }}

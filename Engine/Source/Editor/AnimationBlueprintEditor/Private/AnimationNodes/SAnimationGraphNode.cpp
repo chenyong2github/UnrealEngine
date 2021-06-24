@@ -368,10 +368,6 @@ void SAnimationGraphNode::CreateBelowPinControls(TSharedPtr<SVerticalBox> MainBo
 			}
 		};
 
-		if(AnimNode->InitializeFunction.GetMemberGuid().IsValid())
-		{
-			AddFunctionBindingWidget("Functions", GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, InitializeFunction));
-		}
 		if(AnimNode->BecomeRelevantFunction.GetMemberGuid().IsValid())
 		{
 			AddFunctionBindingWidget("Functions", GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, BecomeRelevantFunction));
@@ -379,10 +375,6 @@ void SAnimationGraphNode::CreateBelowPinControls(TSharedPtr<SVerticalBox> MainBo
 		if(AnimNode->UpdateFunction.GetMemberGuid().IsValid())
 		{
 			AddFunctionBindingWidget("Functions", GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, UpdateFunction));
-		}
-		if(AnimNode->EvaluateFunction.GetMemberGuid().IsValid())
-		{
-			AddFunctionBindingWidget("Functions", GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, EvaluateFunction));
 		}
 	}
 }
