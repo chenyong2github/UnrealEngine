@@ -87,9 +87,6 @@ namespace DatasmithRuntime
 		TFuture<void> ThreadResult;
 		FEvent* ThreadEvent;
 		TQueue< FTranslationJob, EQueueMode::Mpsc > JobQueue;
-
-		static TArray<TStrongObjectPtr<UDatasmithOptionsBase>> AllOptions;
-		static FDatasmithTessellationOptions* TessellationOptions;
 	};
 }
 
@@ -216,7 +213,7 @@ public:
 	virtual void OnImportEnd();
 
 	static void OnShutdownModule();
-	static void OnStartupModule(bool bCADRuntimeSupported);
+	static void OnStartupModule();
 
 private:
 	TSharedPtr< DatasmithRuntime::FSceneImporter > SceneImporter;
