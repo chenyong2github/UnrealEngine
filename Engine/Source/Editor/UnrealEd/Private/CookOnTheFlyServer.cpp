@@ -230,6 +230,7 @@ DECLARE_CYCLE_STAT(TEXT("Precache Derived data for platform"), STAT_TickPrecache
 DECLARE_CYCLE_STAT(TEXT("Tick cooking"), STAT_TickCooker, STATGROUP_Cooking);
 
 constexpr uint32 ExpectedMaxNumPlatforms = 32;
+constexpr float TickCookableObjectsFrameTime = .100f;
 
 namespace UE
 {
@@ -1529,8 +1530,17 @@ uint32 UCookOnTheFlyServer::TickCookOnTheSide(const float TimeSlice, uint32 &Coo
 void UCookOnTheFlyServer::TickCookStatus(UE::Cook::FTickStackData& StackData)
 {
 	UE_SCOPED_COOKTIMER(TickCookStatus);
-	UpdateDisplay(StackData.TickFlags, false /* bForceDisplay */);
 
+	// TODO: Calculate CurrentTime once per status update and share it with e.g. StackData.Timer
+	double CurrentTime = FPlatformTime::Seconds();
+	if (LastCookableObjectTickTime + TickCookableObjectsFrameTime <= CurrentTime)
+	{
+		UE_SCOPED_COOKTIMER(TickCookableObjects);
+		FTickableCookObject::TickObjects(CurrentTime - LastCookableObjectTickTime, false /* bTickComplete */);
+		LastCookableObjectTickTime = CurrentTime;
+	}
+
+	UpdateDisplay(StackData.TickFlags, false /* bForceDisplay */);
 	// prevent autosave from happening until we are finished cooking
 	// causes really bad hitches
 	if (GUnrealEd)
@@ -7269,6 +7279,13 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 	check(PackageDatas->GetSaveQueue().IsEmpty());
 
 	UE_LOG(LogCook, Display, TEXT("Finishing up..."));
+
+	{
+		UE_SCOPED_COOKTIMER(TickCookableObjects);
+		float CurrentTime = FPlatformTime::Seconds();
+		FTickableCookObject::TickObjects(CurrentTime - LastCookableObjectTickTime, true /* bTickComplete */);
+		LastCookableObjectTickTime = CurrentTime;
+	}
 
 	UPackage::WaitForAsyncFileWrites();
 	

@@ -9,6 +9,7 @@
 #include "Misc/SecureHash.h"
 #include "Misc/ScopeLock.h"
 #include "Serialization/BulkData.h"
+#include "Serialization/BulkDataRegistry.h"
 #include "UObject/LinkerLoad.h"
 #include "UObject/LinkerSave.h"
 #include "UObject/Object.h"
@@ -78,6 +79,33 @@ IVirtualizationSourceControlUtilities* GetSourceControlInterface()
 	return (IVirtualizationSourceControlUtilities*)IModularFeatures::Get().GetModularFeatureImplementation(FName("VirtualizationSourceControlUtilities"), 0);
 }
 
+FVirtualizedUntypedBulkData::FVirtualizedUntypedBulkData(FVirtualizedUntypedBulkData&& Other)
+{
+	*this = MoveTemp(Other);
+}
+
+FVirtualizedUntypedBulkData& FVirtualizedUntypedBulkData::operator=(FVirtualizedUntypedBulkData&& Other)
+{
+	// The same as the default move constructor, except we need to handle registration and deregistration
+	Unregister();
+	Other.Unregister();
+
+	BulkDataId = MoveTemp(Other.BulkDataId);
+	PayloadContentId = MoveTemp(Other.PayloadContentId);
+	Payload = MoveTemp(Other.Payload);
+	PayloadSize = MoveTemp(Other.PayloadSize);
+	CompressionFormatToUse = MoveTemp(Other.CompressionFormatToUse);
+	OffsetInFile = MoveTemp(Other.OffsetInFile);
+	PackagePath = MoveTemp(Other.PackagePath);
+	PackageSegment = MoveTemp(Other.PackageSegment);
+	Flags = MoveTemp(Other.Flags);
+	Other.Reset();
+
+	Register(nullptr);
+
+	return *this;
+}
+
 FVirtualizedUntypedBulkData::FVirtualizedUntypedBulkData(const FVirtualizedUntypedBulkData& Other)
 {
 	*this = Other;
@@ -85,9 +113,28 @@ FVirtualizedUntypedBulkData::FVirtualizedUntypedBulkData(const FVirtualizedUntyp
 
 FVirtualizedUntypedBulkData& FVirtualizedUntypedBulkData::operator=(const FVirtualizedUntypedBulkData& Other)
 {
-	if (!BulkDataId.IsValid() && Other.BulkDataId.IsValid())
+	// Torn-off BulkDatas remain torn-off even when being copied into from a non-torn-off BulkData
+	// Remaining torn-off is a work-around necessary for FTextureSource::CopyTornOff to avoid registering a new
+	// guid before setting the new BulkData to torn-off. The caller can call Reset to clear the torn-off flag.
+	bool bTornOff = false;
+	if (EnumHasAnyFlags(Flags, EFlags::IsTornOff))
 	{
-		BulkDataId = FGuid::NewGuid();
+		check(!EnumHasAnyFlags(Flags, EFlags::HasRegistered));
+		BulkDataId = Other.BulkDataId;
+		bTornOff = true;
+	}
+	else
+	{
+		Unregister();
+		if (EnumHasAnyFlags(Other.Flags, EFlags::IsTornOff))
+		{
+			BulkDataId = Other.BulkDataId;
+			bTornOff = true;
+		}
+		else if (!BulkDataId.IsValid() && Other.BulkDataId.IsValid())
+		{
+			BulkDataId = FGuid::NewGuid();
+		}
 	}
 
 	PayloadContentId = Other.PayloadContentId;
@@ -98,11 +145,60 @@ FVirtualizedUntypedBulkData& FVirtualizedUntypedBulkData::operator=(const FVirtu
 	PackagePath = Other.PackagePath;
 	PackageSegment = Other.PackageSegment;
 	Flags = Other.Flags;
-	
+	EnumRemoveFlags(Flags, EFlags::TransientFlags);
+
+	if (bTornOff)
+	{
+		EnumAddFlags(Flags, EFlags::IsTornOff);
+	}
+	else
+	{
+		Register(nullptr);
+	}
 	return *this;
 }
 
-void FVirtualizedUntypedBulkData::CreateFromBulkData(FUntypedBulkData& InBulkData, const FGuid& InGuid)
+FVirtualizedUntypedBulkData::~FVirtualizedUntypedBulkData()
+{
+	Unregister();
+}
+
+FVirtualizedUntypedBulkData::FVirtualizedUntypedBulkData(const FVirtualizedUntypedBulkData& Other, ETornOff)
+{
+	EnumAddFlags(Flags, EFlags::IsTornOff);
+	*this = Other; // We rely on operator= preserving the torn-off flag
+}
+
+void FVirtualizedUntypedBulkData::TearOff()
+{
+	Unregister();
+	EnumAddFlags(Flags, EFlags::IsTornOff);
+}
+
+void FVirtualizedUntypedBulkData::Register(UObject* Owner)
+{
+#if WITH_EDITOR
+	if (BulkDataId.IsValid() && PayloadSize > 0 && !EnumHasAnyFlags(Flags, EFlags::IsTornOff))
+	{
+		IBulkDataRegistry::Get().Register(Owner ? Owner->GetPackage() : nullptr, *this);
+		EnumAddFlags(Flags, EFlags::HasRegistered);
+	}
+#endif
+}
+
+void FVirtualizedUntypedBulkData::Unregister()
+{
+#if WITH_EDITOR
+	if (EnumHasAnyFlags(Flags, EFlags::HasRegistered))
+	{
+		check(!EnumHasAnyFlags(Flags, EFlags::IsTornOff));
+		IBulkDataRegistry::Get().OnExitMemory(*this);
+		EnumRemoveFlags(Flags, EFlags::HasRegistered);
+	}
+#endif
+}
+
+void FVirtualizedUntypedBulkData::CreateFromBulkData(FUntypedBulkData& InBulkData, const FGuid& InGuid, UObject* Owner)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::CreateFromBulkData);
 	
@@ -156,6 +252,7 @@ void FVirtualizedUntypedBulkData::CreateFromBulkData(FUntypedBulkData& InBulkDat
 	{
 		EnumAddFlags(Flags, EFlags::LegacyKeyWasGuidDerived);
 	}
+	Register(Owner);
 }
 
 void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
@@ -171,6 +268,11 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
 
 		if (bNeedsTransaction)
 		{
+			if (Ar.IsLoading())
+			{
+				Unregister();
+			}
+
 			Ar << Flags;
 			Ar << BulkDataId;
 			Ar << PayloadContentId;
@@ -207,6 +309,8 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
 				}
 				
 				Payload = CompressedPayload.Decompress();	
+
+				Register(Owner);
 			}
 		}
 	}
@@ -231,10 +335,18 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
 				PushData(); // Note this can change various members if we are going from non-virtualized to virtualized
 			}
 		}
+		else
+		{
+			Unregister();
+		}
 
 		// Store the position in the archive of the flags in case we need to update it later
 		const int64 SavedFlagsPos = Ar.Tell();
 		Ar << Flags;
+		if (Ar.IsLoading())
+		{
+			EnumRemoveFlags(Flags, EFlags::TransientFlags);
+		}
 
 		// TODO: Can probably remove these checks before UE5 release
 		check(!Ar.IsSaving() || GetPayloadSize() == 0 || BulkDataId.IsValid()); // Sanity check to stop us saving out bad data
@@ -297,7 +409,7 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
 
 				// The lambda is mutable so that PayloadToSerialize is not const (due to FArchive api not
 				// accepting const values)
-				auto SerializePayload = [this, OffsetPos, PayloadToSerialize, UpdatedFlags](FArchive& Ar) mutable
+				auto SerializePayload = [this, OffsetPos, PayloadToSerialize, UpdatedFlags, Owner](FArchive& Ar) mutable
 				{
 					checkf(Ar.IsCooking() == false, TEXT("FVirtualizedUntypedBulkData::Serialize should not be called during a cook"));
 
@@ -329,7 +441,7 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
 							SidecarData.Payload = PayloadToSerialize;
 						}
 
-						auto OnSavePackage = [this, PayloadOffset, UpdatedFlags](const FPackagePath& InPackagePath, FObjectPostSaveContext ObjectSaveContext)
+						auto OnSavePackage = [this, PayloadOffset, UpdatedFlags, Owner](const FPackagePath& InPackagePath, FObjectPostSaveContext ObjectSaveContext)
 						{
 							if (!ObjectSaveContext.IsUpdatingLoadedPath())
 							{
@@ -345,6 +457,9 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
 							{
 								this->Payload.Reset();
 							}
+							// Update our information in the registry
+							// TODO: Pass Owner into Register once the AssetRegistry has been fixed to use the updated PackageGuid from the save
+							Register(nullptr);
 						};
 
 						LinkerSave->PostSaveCallbacks.Add(MoveTemp(OnSavePackage));
@@ -413,9 +528,53 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
 					Payload = CompressedPayload.Decompress();
 				}
 			}
+			Register(Owner);
 		}
 	}
 }
+
+void FVirtualizedUntypedBulkData::SerializeForRegistry(FArchive& Ar)
+{
+	if (Ar.IsSaving())
+	{
+		check(CanSaveForRegistry());
+		EFlags FlagsForSerialize = Flags;
+		EnumRemoveFlags(FlagsForSerialize, EFlags::TransientFlags);
+		Ar << FlagsForSerialize;
+	}
+	else
+	{
+		Ar << Flags;
+		EnumRemoveFlags(Flags, EFlags::TransientFlags);
+		EnumAddFlags(Flags, EFlags::IsTornOff);
+	}
+
+	Ar << BulkDataId;
+	Ar << PayloadContentId;
+	Ar << PayloadSize;
+	if (Ar.IsSaving())
+	{
+		FString PackageName = PackagePath.GetPackageName();
+		check(PackageName.IsEmpty() || PackageSegment == EPackageSegment::Header);
+		Ar << PackageName;
+	}
+	else
+	{
+		FString PackageName;
+		Ar << PackageName;
+		ensure(FPackagePath::TryFromPackageName(PackageName, PackagePath));
+		PackageSegment = EPackageSegment::Header;
+	}
+	Ar << OffsetInFile;
+}
+
+bool FVirtualizedUntypedBulkData::CanSaveForRegistry() const
+{
+	return BulkDataId.IsValid() && PayloadSize > 0 && !IsMemoryOnlyPayload()
+		&& EnumHasAnyFlags(Flags, EFlags::IsTornOff) && !EnumHasAnyFlags(Flags, EFlags::HasRegistered)
+		&& (PackagePath.IsEmpty() || PackageSegment == EPackageSegment::Header);
+}
+
 
 FCompressedBuffer FVirtualizedUntypedBulkData::LoadFromDisk() const
 {
@@ -668,6 +827,9 @@ void FVirtualizedUntypedBulkData::PushData()
 			PackagePath.Empty();
 			PackageSegment = EPackageSegment::Header;
 			OffsetInFile = INDEX_NONE;
+
+			// Update our information in the registry
+			Register(nullptr);
 		}
 	}	
 }
@@ -718,9 +880,15 @@ bool FVirtualizedUntypedBulkData::CanUnloadData() const
 	return IsDataVirtualized() || PackagePath.IsEmpty() == false;
 }
 
+bool FVirtualizedUntypedBulkData::IsMemoryOnlyPayload() const
+{
+	return !Payload.IsNull() && !CanUnloadData();
+}
+
 void FVirtualizedUntypedBulkData::Reset()
 {
 	// Note that we do not reset the BulkDataId
+	Unregister();
 	PayloadContentId.Reset();
 	Payload.Reset();
 	PayloadSize = 0;
@@ -741,15 +909,8 @@ void FVirtualizedUntypedBulkData::UnloadData()
 
 FGuid FVirtualizedUntypedBulkData::GetIdentifier() const
 {
-	if (GetPayloadSize() > 0)
-	{
-		checkf(BulkDataId.IsValid(), TEXT("If bulkdata has a valid payload then it should have a valid BulkDataId"));
-		return BulkDataId;
-	}
-	else
-	{
-		return FGuid();
-	}
+	checkf(GetPayloadSize() == 0 || BulkDataId.IsValid(), TEXT("If bulkdata has a valid payload then it should have a valid BulkDataId"));
+	return BulkDataId;
 }
 
 FCompressedBuffer FVirtualizedUntypedBulkData::GetDataInternal() const
@@ -815,7 +976,8 @@ void FVirtualizedUntypedBulkData::UpdatePayload(FSharedBuffer InPayload, FName I
 	// Make sure that we own the memory in the shared buffer
 	Payload = InPayload.MakeOwned();
 	PayloadSize = (int64)Payload.GetSize();
-	
+	PayloadContentId = FPayloadId(Payload);
+
 	EnumRemoveFlags(Flags,	EFlags::IsVirtualized | 
 							EFlags::DisablePayloadCompression |
 							EFlags::ReferencesLegacyFile |
@@ -828,12 +990,18 @@ void FVirtualizedUntypedBulkData::UpdatePayload(FSharedBuffer InPayload, FName I
 	PackageSegment = EPackageSegment::Header;
 	OffsetInFile = INDEX_NONE;
 
-	if (!BulkDataId.IsValid() && PayloadSize > 0)
+	if (PayloadSize > 0)
 	{
-		BulkDataId = FGuid::NewGuid();
+		if (!BulkDataId.IsValid())
+		{
+			BulkDataId = FGuid::NewGuid();
+		}
+		Register(nullptr);
 	}
-
-	PayloadContentId = FPayloadId(Payload);
+	else
+	{
+		Unregister();
+	}
 }
 
 void FVirtualizedUntypedBulkData::SetCompressionFormat(FName InCompressionFormat)
@@ -850,6 +1018,11 @@ void FVirtualizedUntypedBulkData::SetCompressionFormat(FName InCompressionFormat
 FCustomVersionContainer FVirtualizedUntypedBulkData::GetCustomVersions(FArchive& InlineArchive)
 {
 	return InlineArchive.GetCustomVersions();
+}
+
+void FVirtualizedUntypedBulkData::UpdatePayloadId()
+{
+	UpdateKeyIfNeeded();
 }
 
 void FVirtualizedUntypedBulkData::UpdateKeyIfNeeded()

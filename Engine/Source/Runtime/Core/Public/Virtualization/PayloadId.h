@@ -49,6 +49,10 @@ public:
 	/** Returns a string representation of the id, useful for debug tools */
 	FString ToString() const;
 
+	const FIoHash& GetIdentifier() const
+	{
+		return Identifier;
+	}
 	bool operator == (const FPayloadId& InPayloadId) const;
 	bool operator != (const FPayloadId& InPayloadId) const { return !(*this == InPayloadId); }
 

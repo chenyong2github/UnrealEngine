@@ -473,7 +473,8 @@ void UTexture::Serialize(FArchive& Ar)
 			FByteBulkData TempBulkData;
 			TempBulkData.Serialize(Ar, this);
 
-			Source.BulkData.CreateFromBulkData(TempBulkData, Source.GetId());
+			FGuid LegacyPersistentId = Source.GetId();
+			Source.BulkData.CreateFromBulkData(TempBulkData, LegacyPersistentId, this);
 		}
 		else
 		{
@@ -1226,6 +1227,16 @@ void FTextureSource::InitWithCompressedSourceData(
 	// Disable the internal bulkdata compression if the source data is already compressed
 	const FName CompressionName = CompressionFormat == TSCF_None ? NAME_Default : NAME_None;
 	BulkData.UpdatePayload(FSharedBuffer::Clone(NewData.GetData(), NewData.Num()), CompressionName);
+}
+
+FTextureSource FTextureSource::CopyTornOff() const
+{
+	FTextureSource Result;
+	// Set the Torn off flag on Result.BulkData so that the copy constructor below will not set it
+	Result.BulkData.TearOff();
+	// Use the default copy constructor to copy all the fields without having to write them manually
+	Result = *this;
+	return Result;
 }
 
 void FTextureSource::Compress()

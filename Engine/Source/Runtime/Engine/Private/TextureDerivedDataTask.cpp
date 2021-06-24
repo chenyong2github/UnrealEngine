@@ -40,7 +40,9 @@
 #include "Math/NumericLimits.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/FeedbackContext.h"
+#include "Misc/Optional.h"
 #include "ProfilingDebugging/CookStats.h"
+#include "Serialization/BulkDataRegistry.h"
 #include "TextureDerivedDataBuildUtils.h"
 #include "VT/VirtualTextureDataBuilder.h"
 
@@ -190,7 +192,7 @@ void FTextureSourceData::Init(UTexture& InTexture, const FTextureBuildSettings* 
 	if (bAllowAsyncLoading && !InTexture.Source.IsBulkDataLoaded())
 	{
 		// Prepare the async source to be later able to load it from file if required.
-		AsyncSource = InTexture.Source; // This copies information required to make a safe IO load async.
+		AsyncSource = InTexture.Source.CopyTornOff(); // This copies information required to make a safe IO load async.
 	}
 
 	bValid = true;
@@ -442,10 +444,10 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 
 			DefinitionBuilder.AddConstant(TEXT("Settings"_SV),
 				SaveTextureBuildSettings(KeySuffix, Texture, BuildSettingsPerLayer[0], 0, NUM_INLINE_DERIVED_MIPS));
-			DefinitionBuilder.AddInputBulkData(TEXT("Source"_SV), Texture.Source.GetId());
+			DefinitionBuilder.AddInputBulkData(TEXT("Source"_SV), Texture.Source.GetPersistentId());
 			if (Texture.CompositeTexture)
 			{
-				DefinitionBuilder.AddInputBulkData(TEXT("CompositeSource"_SV), Texture.CompositeTexture->Source.GetId());
+				DefinitionBuilder.AddInputBulkData(TEXT("CompositeSource"_SV), Texture.CompositeTexture->Source.GetPersistentId());
 			}
 
 			class FTextureBuildInputResolver final : public IBuildInputResolver
@@ -458,7 +460,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 
 				const FCompressedBuffer& FindSource(FCompressedBuffer& Buffer, FTextureSource& Source, const FGuid& BulkDataId)
 				{
-					if (Source.GetId() != BulkDataId)
+					if (Source.GetPersistentId() != BulkDataId)
 					{
 						return FCompressedBuffer::Null;
 					}
@@ -536,8 +538,14 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 				FCompressedBuffer CompositeSourceBuffer;
 			};
 
-			FTextureBuildInputResolver InputResolver(Texture);
-			FBuildSession Session = Build.CreateSession(TexturePath, &InputResolver);
+			TOptional<FTextureBuildInputResolver> PlaceholderResolver;
+			UE::DerivedData::IBuildInputResolver* InputResolver = GetGlobalBuildInputResolver();
+			if (!InputResolver)
+			{
+				PlaceholderResolver.Emplace(Texture);
+				InputResolver = &PlaceholderResolver.GetValue();
+			}
+			FBuildSession Session = Build.CreateSession(TexturePath, InputResolver);
 			Session.Build(DefinitionBuilder.Build(), EBuildPolicy::Default, EPriority::Blocking,
 				[this, &TexturePath, bReplaceExistingDDC] (FBuildCompleteParams&& Params)
 				{

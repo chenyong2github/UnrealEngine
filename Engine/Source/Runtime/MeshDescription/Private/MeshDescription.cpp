@@ -2046,7 +2046,7 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 	// Needs to be after the guid is serialized
 	if (bSerializedOldDataTypes)
 	{
-		BulkData.CreateFromBulkData(TempBulkData, Guid);
+		BulkData.CreateFromBulkData(TempBulkData, Guid, Owner);
 	}
 }
 

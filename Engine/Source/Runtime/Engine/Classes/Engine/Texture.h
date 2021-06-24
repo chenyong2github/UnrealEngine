@@ -211,6 +211,9 @@ struct FTextureSource
 		ETextureSourceCompressionFormat NewSourceFormat
 	);
 
+	/** Make a copy with a torn-off BulkData that has the same Guid used for DDC as this->BulkData */
+	FTextureSource CopyTornOff() const;
+
 	/** PNG Compresses the source art if possible or tells the bulk data to zlib compress when it saves out to disk. */
 	ENGINE_API void Compress();
 
@@ -263,6 +266,7 @@ struct FTextureSource
 	ETextureSourceCompressionFormat GetSourceCompression() const;
 
 	/** Trivial accessors. These will only give values for Block0 so may not be correct for UDIM/multi-block textures, use GetBlock() for this case. */
+	FGuid GetPersistentId() const { return BulkData.GetIdentifier(); }
 	FORCEINLINE FGuid GetId() const { return Id; }
 	FORCEINLINE int32 GetSizeX() const { return SizeX; }
 	FORCEINLINE int32 GetSizeY() const { return SizeY; }

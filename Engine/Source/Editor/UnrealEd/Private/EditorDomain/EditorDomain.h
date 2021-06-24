@@ -21,19 +21,6 @@ class UPackage;
 namespace UE::EditorDomain
 {
 	typedef FIoHash FPackageDigest;
-
-	/** A UClass's data that is used in the EditorDomain Digest */
-	struct FClassDigestData
-	{
-		FBlake3Hash SchemaHash;
-		bool bNative;
-	};
-	/** Threadsafe cache of ClassName -> Digest data for calculating EditorDomain Digests */
-	struct FClassDigestMap
-	{
-		TMap<FName, FClassDigestData> Map;
-		FCriticalSection Lock;
-	};
 }
 
 DECLARE_LOG_CATEGORY_EXTERN(LogEditorDomain, Log, All);
@@ -157,8 +144,6 @@ private:
 	TRefCountPtr<FLocks> Locks;
 	/** Digests previously found for a package. Used for optimization, but also to record loaded-from-domain. */
 	TMap<FName, TRefCountPtr<FPackageSource>> PackageSources;
-	/** Cache of GetSchemaHash by class name */
-	UE::EditorDomain::FClassDigestMap ClassDigests;
 	/** True by default, set to false when reading is disabled for testing. */
 	bool bEditorDomainReadEnabled = true;
 	/** If true, use an out-of-process EditorDomainSaveServer for saves, else save in process in EndLoad */
