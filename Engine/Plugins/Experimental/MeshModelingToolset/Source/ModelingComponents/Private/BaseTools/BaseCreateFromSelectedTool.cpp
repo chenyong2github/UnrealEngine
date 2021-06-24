@@ -85,11 +85,18 @@ void UBaseCreateFromSelectedTool::Setup()
 	TransformProperties->RestoreProperties(this);
 	AddToolPropertySource(TransformProperties);
 	
+	OutputTypeProperties = NewObject<UCreateMeshObjectTypeProperties>(this);
+	OutputTypeProperties->InitializeDefaultWithAuto();
+	OutputTypeProperties->OutputType = UCreateMeshObjectTypeProperties::AutoIdentifier;
+	OutputTypeProperties->RestoreProperties(this, TEXT("OutputTypeFromInputTool"));
+	OutputTypeProperties->WatchProperty(OutputTypeProperties->OutputType, [this](FString) { OutputTypeProperties->UpdatePropertyVisibility(); });
+	AddToolPropertySource(OutputTypeProperties);
+
 	HandleSourcesProperties = NewObject<UBaseCreateFromSelectedHandleSourceProperties>(this);
 	HandleSourcesProperties->RestoreProperties(this);
 	AddToolPropertySource(HandleSourcesProperties);
 
-	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
+	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this);
 	Preview->Setup(this->TargetWorld, this);
 
 	SetPreviewCallbacks();
@@ -108,6 +115,7 @@ void UBaseCreateFromSelectedTool::Setup()
 	HandleSourcesProperties->OutputName = PrefixWithSourceNameIfSingleSelection(GetCreatedAssetName());
 	HandleSourcesProperties->WatchProperty(HandleSourcesProperties->WriteOutputTo, [&](EBaseCreateFromSelectedTargetType NewType)
 	{
+		SetToolPropertySourceEnabled(OutputTypeProperties, (NewType == EBaseCreateFromSelectedTargetType::NewAsset));
 		if (NewType == EBaseCreateFromSelectedTargetType::NewAsset)
 		{
 			HandleSourcesProperties->OutputAsset = TEXT("");
@@ -241,7 +249,14 @@ void UBaseCreateFromSelectedTool::GenerateAsset(const FDynamicMeshOpResult& OpRe
 	NewMeshObjectParams.BaseName = UseBaseName;
 	NewMeshObjectParams.Materials = GetOutputMaterials();
 	NewMeshObjectParams.SetMesh(OpResult.Mesh.Get());
-	UE::ToolTarget::ConfigureCreateMeshObjectParams(Targets[0], NewMeshObjectParams);
+	if (OutputTypeProperties->OutputType == UCreateMeshObjectTypeProperties::AutoIdentifier)
+	{
+		UE::ToolTarget::ConfigureCreateMeshObjectParams(Targets[0], NewMeshObjectParams);
+	}
+	else
+	{
+		OutputTypeProperties->ConfigureCreateMeshObjectParams(NewMeshObjectParams);
+	}
 	FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
 	if (Result.IsOK() && Result.NewActor != nullptr)
 	{
@@ -315,6 +330,7 @@ void UBaseCreateFromSelectedTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	SaveProperties();
 	HandleSourcesProperties->SaveProperties(this);
+	OutputTypeProperties->SaveProperties(this, TEXT("OutputTypeFromInputTool"));
 	TransformProperties->SaveProperties(this);
 
 	FDynamicMeshOpResult Result = Preview->Shutdown();

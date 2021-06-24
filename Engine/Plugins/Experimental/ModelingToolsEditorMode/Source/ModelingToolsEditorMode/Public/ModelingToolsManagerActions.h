@@ -50,6 +50,8 @@ public:
 	TSharedPtr<FUICommandInfo> BeginDuplicateMeshesTool;
 	TSharedPtr<FUICommandInfo> BeginAlignObjectsTool;
 	TSharedPtr<FUICommandInfo> BeginTransferMeshTool;
+	TSharedPtr<FUICommandInfo> BeginConvertMeshesTool;
+	TSharedPtr<FUICommandInfo> BeginSplitMeshesTool;
 
 	TSharedPtr<FUICommandInfo> BeginRemeshSculptMeshTool;
 	TSharedPtr<FUICommandInfo> BeginRemeshMeshTool;

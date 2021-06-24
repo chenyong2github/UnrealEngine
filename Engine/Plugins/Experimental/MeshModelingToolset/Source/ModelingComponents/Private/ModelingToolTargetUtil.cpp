@@ -222,6 +222,11 @@ UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitDynamicMeshUpdate
 	const FConversionToMeshDescriptionOptions& ConversionOptions,
 	const FComponentMaterialSet* UpdatedMaterials)
 {
+	if (UpdatedMaterials != nullptr)
+	{
+		CommitMaterialSetUpdate(Target, *UpdatedMaterials, true);
+	}
+
 	IPersistentDynamicMeshSource* DynamicMeshSource = Cast<IPersistentDynamicMeshSource>(Target);
 	if (DynamicMeshSource)
 	{
@@ -246,11 +251,6 @@ UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitDynamicMeshUpdate
 	IMeshDescriptionCommitter* MeshDescriptionCommitter = Cast<IMeshDescriptionCommitter>(Target);
 	if (MeshDescriptionCommitter)
 	{
-		if (UpdatedMaterials != nullptr)
-		{
-			CommitMaterialSetUpdate(Target, *UpdatedMaterials, true);
-		}
-
 		EDynamicMeshUpdateResult Result = EDynamicMeshUpdateResult::Failed;
 		MeshDescriptionCommitter->CommitMeshDescription([&](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
