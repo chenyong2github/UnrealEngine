@@ -279,6 +279,7 @@ struct FHairStrandsMacroGroupData
 	FIntRect ScreenRect;
 	uint32 MacroGroupId;
 
+	bool bSupportVoxelization = false; // true if at least one of the Primitive requires voxelization
 	bool bNeedScatterSceneLighting = false;
 };
 

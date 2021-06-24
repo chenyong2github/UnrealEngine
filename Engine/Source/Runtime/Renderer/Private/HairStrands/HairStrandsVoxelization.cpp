@@ -219,6 +219,7 @@ class FVoxelAllocatePageIndexCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, PageResolution)
 		SHADER_PARAMETER(uint32, MacroGroupCount)
 		SHADER_PARAMETER(uint32, IndirectDispatchGroupSize)
+		SHADER_PARAMETER(uint32, bDoesMacroGroupSupportVoxelization)
 
 		SHADER_PARAMETER(FVector3f, CPU_MinAABB)
 		SHADER_PARAMETER(FVector3f, CPU_MaxAABB)
@@ -599,11 +600,21 @@ static void AddAllocateVoxelPagesPass(
 	// Allocate page index for all instance group
 //	if (bIsGPUDriven)
 	{
+		uint32 bDoesMacroGroupSupportVoxelization = 0;
+		for (const FHairStrandsMacroGroupData& MacroGroup : MacroGroupDatas)
+		{
+			if (MacroGroup.bSupportVoxelization)
+			{
+				bDoesMacroGroupSupportVoxelization |= 1u << MacroGroup.MacroGroupId;
+			}
+		}
+
 		FVoxelAllocatePageIndexCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVoxelAllocatePageIndexCS::FParameters>();
 		Parameters->PageWorldSize = PageWorldSize;
 		Parameters->TotalPageIndexCount = OutTotalPageIndexCount;
 		Parameters->PageResolution = PageResolution;
 		Parameters->MacroGroupCount = MacroGroupCount;
+		Parameters->bDoesMacroGroupSupportVoxelization = bDoesMacroGroupSupportVoxelization;
 		Parameters->MacroGroupAABBBuffer = GraphBuilder.CreateUAV(MacroGroupResources.MacroGroupAABBsBuffer, PF_R32_SINT);
 		Parameters->IndirectDispatchGroupSize = GroupSize; // This is the GroupSize used for FVoxelAllocateVoxelPageCS
 		Parameters->OutPageIndexResolutionAndOffsetBuffer = GraphBuilder.CreateUAV(PageIndexResolutionBuffer, PF_R32G32B32A32_UINT);
@@ -636,7 +647,10 @@ static void AddAllocateVoxelPagesPass(
 		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroup.PrimitivesInfos)
 		{
 			FHairGroupPublicData* HairGroupData = PrimitiveInfo.PublicDataPtr;
-			TotalClusterCount += HairGroupData->GetClusterCount();
+			if (HairGroupData->DoesSupportVoxelization())
+			{
+				TotalClusterCount += HairGroupData->GetClusterCount();
+			}
 		}
 	}
 
@@ -669,6 +683,7 @@ static void AddAllocateVoxelPagesPass(
 			{
 				FHairGroupPublicData* HairGroupData = PrimitiveInfo.PublicDataPtr;
 
+				// Among the macro group, some prmitive might not support/require voxelization. So skip them.
 				if (!HairGroupData->DoesSupportVoxelization())
 					continue;
 
@@ -1239,6 +1254,8 @@ static void AddVirtualVoxelizationComputeRasterPass(
 	if (!bIsGPUDriven)
 		return;
 
+	ensure(MacroGroup.bSupportVoxelization);
+
 	if (ViewInfo)
 	{
 		const FHairStrandsMacroGroupData::TPrimitiveInfos& PrimitiveSceneInfos = MacroGroup.PrimitivesInfos;
@@ -1607,13 +1624,10 @@ void VoxelizeHairStrands(
 	bool bHasValidElementToVoxelize = false;
 	for (const FHairStrandsMacroGroupData& MacroGroup : MacroGroupDatas)
 	{
-		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroup.PrimitivesInfos)
+		if (MacroGroup.bSupportVoxelization)
 		{
-			if (PrimitiveInfo.PublicDataPtr->DoesSupportVoxelization())
-			{
-				bHasValidElementToVoxelize = true;
-				break;
-			}
+			bHasValidElementToVoxelize = true;
+			break;
 		}
 	}
 
@@ -1636,14 +1650,20 @@ void VoxelizeHairStrands(
 
 		for (FHairStrandsMacroGroupData& MacroGroup : MacroGroupDatas)
 		{
-			AddVirtualVoxelizationRasterPass(GraphBuilder, Scene, &View, VirtualVoxelResources, InstanceCullingManager, MacroGroup);
+			if (MacroGroup.bSupportVoxelization)
+			{
+				AddVirtualVoxelizationRasterPass(GraphBuilder, Scene, &View, VirtualVoxelResources, InstanceCullingManager, MacroGroup);
+			}
 		}
 
 		if (GHairVoxelInjectOpaqueDepthEnable > 0)
 		{
 			for (FHairStrandsMacroGroupData& MacroGroup : MacroGroupDatas)
 			{
-				AddVirtualVoxelInjectOpaquePass(GraphBuilder, View, VirtualVoxelResources, MacroGroup);
+				if (MacroGroup.bSupportVoxelization)
+				{
+					AddVirtualVoxelInjectOpaquePass(GraphBuilder, View, VirtualVoxelResources, MacroGroup);
+				}
 			}
 		}
 

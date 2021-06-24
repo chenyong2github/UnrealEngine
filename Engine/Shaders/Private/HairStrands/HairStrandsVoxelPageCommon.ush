@@ -80,6 +80,7 @@ struct FVirtualVoxelNodeDesc
 	uint3	PageIndexResolution;
 	uint3   VirtualResolution;
 	uint    PageIndexOffset;
+	bool    bIsValid;
 };
 
 FVirtualVoxelNodeDesc UnpackVoxelNode(FPackedVirtualVoxelNodeDesc In, uint InPageResolution)
@@ -90,6 +91,7 @@ FVirtualVoxelNodeDesc UnpackVoxelNode(FPackedVirtualVoxelNodeDesc In, uint InPag
 	Out.PageIndexResolution = uint3(In.PackedPageIndexResolution & 0xFF, (In.PackedPageIndexResolution >> 8) & 0xFF, (In.PackedPageIndexResolution >> 16) & 0xFF);
 	Out.VirtualResolution = Out.PageIndexResolution * InPageResolution;
 	Out.PageIndexOffset = In.PageIndexOffset;
+	Out.bIsValid = all(Out.PageIndexResolution != 0);
 	return Out;
 }
 
