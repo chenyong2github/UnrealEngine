@@ -148,6 +148,10 @@ private:
 		{
 			DoReadInputInt(Action);
 		}
+		else if (Type.Equals(TEXT("GetConfirmation"), ESearchCase::IgnoreCase ) )
+		{
+			DoGetUserConfirmation(Action);
+		}
 		else
 		{
 			UE_LOG(LogTurnkeyIO, Error, TEXT("Unknown action type %s"), *Type );
@@ -227,6 +231,30 @@ private:
 				.DefaultValue(DefaultValue)
 				.OnFinished( FOnTurnkeyActionComplete::CreateRaw( this, &FTurnkeyEditorIOServerRunnable::OnActionFinish) )
 			);
+		});
+	}
+
+
+	void DoGetUserConfirmation( TSharedPtr<FJsonObject> JsonObject )
+	{
+		AsyncTask( ENamedThreads::GameThread, [=]()
+		{
+			// read parameters
+			FString Message;
+			JsonObject->TryGetStringField(TEXT("Message"), Message );
+
+			bool bDefaultValue = true;
+			JsonObject->TryGetBoolField(TEXT("DefaultValue"), bDefaultValue );
+
+			// display the message box
+			FText Title = LOCTEXT("Turnkey","Turnkey");
+			EAppReturnType::Type Result = (bDefaultValue ? EAppReturnType::Yes : EAppReturnType::No );
+			Result = FMessageDialog::Open(EAppMsgType::YesNo, Result, FText::FromString(Message), &Title );
+
+			// send empty response
+			TSharedPtr<FJsonObject> JsonResult = MakeShared<FJsonObject>();
+			JsonResult->SetBoolField(TEXT("Result"), (Result == EAppReturnType::Yes) );
+			OnActionFinish( JsonResult );
 		});
 	}
 

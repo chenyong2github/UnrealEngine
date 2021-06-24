@@ -98,5 +98,19 @@ namespace Turnkey
 				}
 			}
 		}
+
+		public override bool GetUserConfirmation(string Message, bool bDefaultValue, bool bAppendNewLine)
+		{
+			string Prompt = string.Format($"{Message} [{(bDefaultValue ? 'Y' : 'y')}/{(bDefaultValue ? 'n' : 'N')}]");
+			string Result = ReadInput(Prompt, bDefaultValue ? "Y" : "N", bAppendNewLine);
+			if (string.IsNullOrEmpty(Result))
+			{
+				return bDefaultValue;
+			}
+			else
+			{
+				return string.Equals( Result.Trim(), "Y", StringComparison.OrdinalIgnoreCase );
+			}
+		}
 	}
 }
