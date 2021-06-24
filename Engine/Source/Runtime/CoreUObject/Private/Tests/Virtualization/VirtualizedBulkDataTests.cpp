@@ -332,13 +332,13 @@ bool FVirtualizationWrapperTestIdentifiers::RunTest(const FString& Parameters)
 		const FGuid OriginalGuid = BulkData.GetIdentifier();
 
 		BulkData.Reset();
-		TestFalse(TEXT("BulkData with no payload should return an invalid identifier"), BulkData.GetIdentifier().IsValid());
+		TestEqual(TEXT("BulkData with no payload should return its original identifier"), BulkData.GetIdentifier(), OriginalGuid);
 
 		BulkData.UpdatePayload(FUniqueBuffer::Alloc(32).MoveToShared());
 		TestEqual(TEXT("Removing a payload then adding a new one should return the original identifier"), BulkData.GetIdentifier(), OriginalGuid);
 
 		BulkData.UpdatePayload(FUniqueBuffer::Alloc(0).MoveToShared());
-		TestFalse(TEXT("Setting a zero length payload should return an invalid identifier"), BulkData.GetIdentifier().IsValid());
+		TestEqual(TEXT("Setting a zero length payload should keep the original identifier"), BulkData.GetIdentifier(), OriginalGuid);
 		
 		BulkData.UpdatePayload(FUniqueBuffer::Alloc(32).MoveToShared());
 		TestEqual(TEXT("Restoring a payload should return the original identifier"), BulkData.GetIdentifier(), OriginalGuid);
@@ -394,7 +394,7 @@ bool FVirtualizationWrapperTestIdentifiers::RunTest(const FString& Parameters)
 			DstData.Serialize(ReaderAr, nullptr);
 		}
 
-		TestFalse(TEXT("After serialization the identifier should be invalid"), DstData.GetIdentifier().IsValid());
+		TestEqual(TEXT("After serialization the identifier should keep its identifier "), DstData.GetIdentifier(), OriginalIdentifier);
 
 		DstData.UpdatePayload(FUniqueBuffer::Alloc(32).MoveToShared());
 		TestEqual(TEXT("After adding a new payload the object should have the original identifier"), DstData.GetIdentifier(), OriginalIdentifier);

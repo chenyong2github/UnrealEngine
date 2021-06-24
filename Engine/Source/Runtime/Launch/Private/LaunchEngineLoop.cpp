@@ -105,6 +105,7 @@
 	#include "Interfaces/IEditorStyleModule.h"
 	#include "PIEPreviewDeviceProfileSelectorModule.h"
 	#include "AssetCompilingManager.h"
+	#include "Serialization/BulkDataRegistry.h"
 	#include "ShaderCompiler.h"
 
 	#if PLATFORM_WINDOWS
@@ -3269,6 +3270,10 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 		// It has to be intialized after the AssetRegistryModule; the editor implementations of PackageResourceManager relies on it
 		IPackageResourceManager::Initialize();
 #endif
+#if WITH_EDITOR
+		// Initialize the BulkDataRegistry, which registers BulkData structs loaded from Packages for later building. It uses the same lifetime as IPackageResourceManager
+		IBulkDataRegistry::Initialize();
+#endif
 
 		FEmbeddedCommunication::ForceTick(5);
 
@@ -4503,6 +4508,10 @@ void FEngineLoop::Exit()
 	// AppPreExit() stops malloc profiler, do it here instead
 	MALLOC_PROFILER( GMalloc->Exec(nullptr, TEXT("MPROF STOP"), *GLog);	);
 #endif // !ANDROID
+
+#if WITH_EDITOR
+	IBulkDataRegistry::Shutdown();
+#endif
 
 	// Stop the rendering thread.
 	StopRenderingThread();

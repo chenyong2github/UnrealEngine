@@ -13,6 +13,7 @@
 #include "EditorDomain/EditorDomainSave.h"
 #include "EditorDomain/EditorDomainUtils.h"
 #include "HAL/CriticalSection.h"
+#include "Interfaces/IPluginManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreDelegates.h"
@@ -76,7 +77,15 @@ FEditorDomain::FEditorDomain()
 
 	bEditorDomainReadEnabled = !FParse::Param(FCommandLine::Get(), TEXT("noeditordomainread"));
 
-	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FEditorDomain::OnPostEngineInit);
+	ELoadingPhase::Type CurrentPhase = IPluginManager::Get().GetLastCompletedLoadingPhase();
+	if (CurrentPhase == ELoadingPhase::None || CurrentPhase < ELoadingPhase::PostEngineInit)
+	{
+		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FEditorDomain::OnPostEngineInit);
+	}
+	else
+	{
+		OnPostEngineInit();
+	}
 }
 
 FEditorDomain::~FEditorDomain()
@@ -143,7 +152,7 @@ bool FEditorDomain::TryFindOrAddPackageSource(const FPackagePath& PackagePath, T
 
 	FString ErrorMessage;
 	FPackageDigest PackageDigest;
-	EPackageDigestResult Result = GetPackageDigest(*AssetRegistry, PackageName, PackageDigest, ErrorMessage, ClassDigests);
+	EPackageDigestResult Result = GetPackageDigest(*AssetRegistry, PackageName, PackageDigest, ErrorMessage);
 	switch (Result)
 	{
 	case EPackageDigestResult::Success:
@@ -178,7 +187,7 @@ void FEditorDomain::PrecachePackageDigest(FName PackageName)
 	TOptional<FAssetPackageData> PackageData = AssetRegistry->GetAssetPackageDataCopy(PackageName);
 	if (PackageData)
 	{
-		UE::EditorDomain::PrecacheClassDigests(PackageData->ImportedClasses, ClassDigests);
+		UE::EditorDomain::PrecacheClassDigests(PackageData->ImportedClasses);
 	}
 }
 
@@ -215,6 +224,7 @@ int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment P
 	FPackagePath* OutUpdatedPath)
 {
 	using namespace UE::EditorDomain;
+	using namespace UE::DerivedData;
 
 	if (PackageSegment != EPackageSegment::Header)
 	{
@@ -263,8 +273,10 @@ int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment P
 				}
 			}
 		};
-		Request = RequestEditorDomainPackage(PackagePath, PackageSource->Digest,
-			UE::DerivedData::EPriority::Highest, MoveTemp(MetaDataGetComplete));
+		// Fetch meta-data only
+		ECachePolicy SkipFlags = ECachePolicy::SkipData & ~ECachePolicy::SkipMeta;
+		Request = RequestEditorDomainPackage(PackagePath, PackageSource->Digest, SkipFlags,
+			EPriority::Highest, MoveTemp(MetaDataGetComplete));
 	}
 	Request.Wait();
 	return FileSize;
@@ -294,7 +306,7 @@ FOpenPackageResult FEditorDomain::OpenReadPackage(const FPackagePath& PackagePat
 	ScopeLock.Unlock();
 
 	UE::DerivedData::FRequest Request = RequestEditorDomainPackage(PackagePath, PackageSourceDigest,
-		UE::DerivedData::EPriority::Normal,
+		UE::DerivedData::ECachePolicy::None, UE::DerivedData::EPriority::Normal,
 		[Result](UE::DerivedData::FCacheGetCompleteParams&& Params)
 		{
 			// Note that ~FEditorDomainReadArchive waits for this callback to be called, so Result cannot dangle
@@ -332,7 +344,7 @@ IAsyncReadFileHandle* FEditorDomain::OpenAsyncReadPackage(const FPackagePath& Pa
 
 	FEditorDomainAsyncReadFileHandle* Result = new FEditorDomainAsyncReadFileHandle(Locks, PackagePath, PackageSource);
 	UE::DerivedData::FRequest Request = RequestEditorDomainPackage(PackagePath, PackageSource->Digest,
-		UE::DerivedData::EPriority::Normal,
+		UE::DerivedData::ECachePolicy::None, UE::DerivedData::EPriority::Normal,
 		[Result](UE::DerivedData::FCacheGetCompleteParams&& Params)
 		{
 			// Note that ~FEditorDomainAsyncReadFileHandle waits for this callback to be called, so Result cannot dangle
@@ -430,7 +442,7 @@ void FEditorDomain::OnEndLoad(TConstArrayView<UPackage*> LoadedPackages)
 
 	for (UPackage* Package : PackagesToSave)
 	{
-		UE::EditorDomain::TrySavePackage(Package, ClassDigests);
+		UE::EditorDomain::TrySavePackage(Package);
 	}
 }
 
@@ -460,7 +472,7 @@ void FEditorDomain::OnPostEngineInit()
 
 	for (UPackage* Package : PackagesToSave)
 	{
-		UE::EditorDomain::TrySavePackage(Package, ClassDigests);
+		UE::EditorDomain::TrySavePackage(Package);
 	}
 }
 

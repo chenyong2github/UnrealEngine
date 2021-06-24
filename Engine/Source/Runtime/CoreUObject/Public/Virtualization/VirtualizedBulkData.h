@@ -51,13 +51,13 @@ class COREUOBJECT_API FVirtualizedUntypedBulkData
 {
 public:
 	FVirtualizedUntypedBulkData() = default;
-	FVirtualizedUntypedBulkData(FVirtualizedUntypedBulkData&&) = default;
-	FVirtualizedUntypedBulkData& operator=(FVirtualizedUntypedBulkData&& ) = default;
+	FVirtualizedUntypedBulkData(FVirtualizedUntypedBulkData&& Other);
+	FVirtualizedUntypedBulkData& operator=(FVirtualizedUntypedBulkData&& Other);
 
 	FVirtualizedUntypedBulkData(const FVirtualizedUntypedBulkData& Other);
 	FVirtualizedUntypedBulkData& operator=(const FVirtualizedUntypedBulkData& Other);
 
-	~FVirtualizedUntypedBulkData() = default;
+	~FVirtualizedUntypedBulkData();
 
 	/** 
 	 * Convenience method to make it easier to convert from BulkData to FVirtualizedBulkData and sets the Guid 
@@ -66,7 +66,7 @@ public:
 	 * @param Guid		A guid associated with the bulkdata object which will be used to identify the payload.
 	 *					This MUST remain the same between sessions so that the payloads key remains consistent!
 	 */
-	void CreateFromBulkData(FUntypedBulkData& BulkData, const FGuid& Guid);
+	void CreateFromBulkData(FUntypedBulkData& BulkData, const FGuid& Guid, UObject* Owner);
 
 	/** 
 	 * Used to serialize the bulkdata to/from a FArchive
@@ -86,14 +86,7 @@ public:
 	/** Unloads the data (if possible) but leaves it in a state where the data can be reloaded */
 	void UnloadData();
 
-	/**
-	 * Returns a unique identifier for the object itself.
-	 * This should only return a valid FGuid as long as the object owns a valid payload.
-	 * If an object with a valid payload, has that payload removed then it should start
-	 * returning an invalid FGuid instead.
-	 * Should that object be given a new payload it should then return the original
-	 * identifier, there is no need to generate a new one.
-	 */
+	/** Returns a unique identifier for the object itself. */
 	FGuid GetIdentifier() const;
 
 	/** Returns an unique identifier for the content of the payload. */
@@ -173,6 +166,33 @@ public:
 	*/
 	FCustomVersionContainer GetCustomVersions(FArchive& InlineArchive);
 
+	/**
+	 * Set this BulkData into Torn-Off mode. It will no longer register with the BulkDataRegistry, even if
+	 * copied from another BulkData, and it will pass on this flag to any BulkData copied/moved from it.
+	 * Use Reset() to remove this state. Torn-off BulkDatas share the guid with the BulkData they copy from.
+	 */
+	void TearOff();
+
+	/** Make a torn-off copy of this bulk data. */
+	FVirtualizedUntypedBulkData CopyTornOff() const { return FVirtualizedUntypedBulkData(*this, ETornOff()); }
+
+	// Functions used by the BulkDataRegistry
+
+	/** Used to serialize the bulkdata to/from a limited cache system used by the BulkDataRegistry. */
+	void SerializeForRegistry(FArchive& Ar);
+	/** Return true if the bulkdata has a source location that persists between editor processes (package file or virtualization). */
+	bool CanSaveForRegistry() const;
+	/** Return whether the BulkData has legacy payload id that needs to be updated from loaded payload before it can be used in DDC. */
+	bool HasPlaceholderPayloadId() const { return EnumHasAnyFlags(Flags, EFlags::LegacyKeyWasGuidDerived); }
+	/** Return whether the BulkData is an in-memory payload without a persistent source location. */
+	bool IsMemoryOnlyPayload() const;
+	/** Load the payload and set the correct payload id, if the bulkdata has a PlaceholderPayloadId. */
+	void UpdatePayloadId();
+
+protected:
+	enum class ETornOff {};
+	FVirtualizedUntypedBulkData(const FVirtualizedUntypedBulkData& Other, ETornOff);
+
 private:
 	/** Flags used to store additional meta information about the bulk data */
 	enum class EFlags : uint32
@@ -192,6 +212,12 @@ private:
 		DisablePayloadCompression	= 1 << 4,
 		/** The legacy file being referenced derived its key from guid and it should be replaced with a key-from-hash when saved */
 		LegacyKeyWasGuidDerived		= 1 << 5,
+		/** The Guid has been registered with the BulkDataRegistry */
+		HasRegistered				= 1 << 6,
+		/** The BulkData object is a copy used only to represent the id and payload; it does not communicate with the BulkDataRegistry, and will point DDC jobs toward the original BulkData */
+		IsTornOff					= 1 << 7,
+
+		TransientFlags				= HasRegistered | IsTornOff,
 	};
 
 	/** Used to control what level of error reporting we return from some methods */
@@ -229,6 +255,9 @@ private:
 	bool IsDataVirtualized() const { return EnumHasAnyFlags(Flags, EFlags::IsVirtualized); }
 	bool HasPayloadSidecarFile() const { return EnumHasAnyFlags(Flags, EFlags::HasPayloadSidecarFile); }
 	bool IsReferencingOldBulkData() const { return EnumHasAnyFlags(Flags, EFlags::ReferencesLegacyFile); }
+
+	void Register(UObject* Owner);
+	void Unregister();
 
 	/** Unique identifier for the bulkdata object itself */
 	FGuid BulkDataId;
@@ -270,6 +299,14 @@ class TVirtualizedBulkData final : public FVirtualizedUntypedBulkData
 public:
 	TVirtualizedBulkData() = default;
 	~TVirtualizedBulkData() = default;
+
+	TVirtualizedBulkData<DataType> CopyTornOff() const
+	{
+		return TVirtualizedBulkData<DataType>(*this, ETornOff());
+	}
+
+protected:
+	TVirtualizedBulkData(const TVirtualizedBulkData<DataType>& Other, ETornOff) : FVirtualizedUntypedBulkData(Other, ETornOff()) {}
 };
 
 using FByteVirtualizedBulkData	= TVirtualizedBulkData<uint8>;

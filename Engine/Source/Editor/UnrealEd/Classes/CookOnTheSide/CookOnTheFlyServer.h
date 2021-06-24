@@ -1132,6 +1132,8 @@ private:
 	float SaveBusyTimeStarted = 0.f;
 	float LoadBusyTimeLastRetry = 0.f;
 	float LoadBusyTimeStarted = 0.f;
+	/** Tracking for the ticking of tickable cook objects */
+	float LastCookableObjectTickTime = 0.f;
 
 	// These helper structs are all TUniquePtr rather than inline members so that we can keep their headers private.  See class header comments for their purpose.
 	TUniquePtr<UE::Cook::FPackageTracker> PackageTracker;

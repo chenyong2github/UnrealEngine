@@ -119,3 +119,121 @@ private:
 
 	static TArray<FTickableEditorObject*>& GetPendingTickableObjects();
 };
+
+/**
+ * The same as FTickableEditorObject, but for systems that need to be ticked periodically during
+ * cooking.
+ * If a system needs to be cooked both during cook commandlet and in editor without the cook commandlet,
+ * it should dual-inherit from both FTickableCookObject and FTickableEditorObject.
+ * TODO: Reduce duplication between  FTickableCookObject and FTickableEditorObject.
+ */
+class UNREALED_API FTickableCookObject : public FTickableObjectBase
+{
+public:
+
+	static void TickObjects(const float DeltaSeconds, bool bCookComplete)
+	{
+		TArray<FTickableCookObject*>& PendingTickableObjects = GetPendingTickableObjects();
+		TArray<FTickableObjectEntry>& TickableObjects = GetTickableObjects();
+
+		for (FTickableCookObject* PendingTickable : PendingTickableObjects)
+		{
+			AddTickableObject(TickableObjects, PendingTickable);
+		}
+		PendingTickableObjects.Empty();
+
+		if (TickableObjects.Num() > 0)
+		{
+			check(!bIsTickingObjects);
+			bIsTickingObjects = true;
+
+			bool bNeedsCleanup = false;
+
+			for (const FTickableObjectEntry& TickableEntry : TickableObjects)
+			{
+				if (FTickableObjectBase* TickableObject = TickableEntry.TickableObject)
+				{
+					if ((TickableEntry.TickType == ETickableTickType::Always) || TickableObject->IsTickable())
+					{
+						FTickableCookObject* CookTickableObject = static_cast<FTickableCookObject*>(TickableObject);
+						ObjectBeingTicked = CookTickableObject;
+						CookTickableObject->TickCook(DeltaSeconds, bCookComplete);
+						ObjectBeingTicked = nullptr;
+					}
+
+					// In case it was removed during tick
+					if (TickableEntry.TickableObject == nullptr)
+					{
+						bNeedsCleanup = true;
+					}
+				}
+				else
+				{
+					bNeedsCleanup = true;
+				}
+			}
+
+			if (bNeedsCleanup)
+			{
+				TickableObjects.RemoveAll([](const FTickableObjectEntry& Entry) { return (Entry.TickableObject == nullptr); });
+			}
+
+			bIsTickingObjects = false;
+		}
+	}
+
+	/** Registers this instance with the static array of tickable objects. */
+	FTickableCookObject()
+	{
+		ensure(IsInGameThread() || IsInAsyncLoadingThread());
+		check(!GetPendingTickableObjects().Contains(this));
+		check(!GetTickableObjects().Contains(this));
+		GetPendingTickableObjects().Add(this);
+	}
+
+	/** Removes this instance from the static array of tickable objects. */
+	virtual ~FTickableCookObject()
+	{
+		ensureMsgf(ObjectBeingTicked != this, TEXT("Detected possible memory stomp. We are in the Tickable objects Tick function but hit its deconstructor, the 'this' pointer for the Object will now be invalid"));
+
+		ensure(IsInGameThread() || IsInAsyncLoadingThread());
+		if (bCollectionIntact && GetPendingTickableObjects().Remove(this) == 0)
+		{
+			RemoveTickableObject(GetTickableObjects(), this, bIsTickingObjects);
+		}
+	}
+
+	virtual void TickCook(float DeltaTime, bool bCookCompete) = 0;
+
+private:
+
+	/**
+	 * Class that avoids crashes when unregistering a tickable editor object too late.
+	 *
+	 * Some tickable objects can outlive the collection
+	 * (global/static destructor order is unpredictable).
+	 */
+	class TTickableObjectsCollection : public TArray<FTickableObjectEntry>
+	{
+	public:
+		~TTickableObjectsCollection()
+		{
+			FTickableCookObject::bCollectionIntact = false;
+		}
+	};
+
+	friend class TTickableObjectsCollection;
+
+	/** True if collection of tickable objects is still intact. */
+	static bool bCollectionIntact;
+	/** True if currently ticking of tickable editor objects. */
+	static bool bIsTickingObjects;
+
+	/** Set if we are in the Tick function for an editor tickable object */
+	static FTickableCookObject* ObjectBeingTicked;
+
+
+	static TArray<FTickableObjectEntry>& GetTickableObjects();
+
+	static TArray<FTickableCookObject*>& GetPendingTickableObjects();
+};
