@@ -104,6 +104,16 @@ ULevelSequence* UTakeRecorderPanel::GetLevelSequence() const
 
 }
 
+ULevelSequence* UTakeRecorderPanel::GetLastRecordedLevelSequence() const
+{
+	if (!ValidateTabContent())
+	{
+		return nullptr;
+	}
+
+	return WeakTabContent.Pin()->GetLastRecordedLevelSequence();
+}
+
 UTakeMetaData* UTakeRecorderPanel::GetTakeMetaData() const
 {
 	if (!ValidateTabContent())

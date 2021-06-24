@@ -205,6 +205,18 @@ ULevelSequence* STakeRecorderTabContent::GetLevelSequence() const
 	}
 }
 
+ULevelSequence* STakeRecorderTabContent::GetLastRecordedLevelSequence() const
+{
+	if (TSharedPtr<STakeRecorderPanel> Panel = WeakPanel.Pin())
+	{
+		return Panel->GetLastRecordedLevelSequence();
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
 UTakeMetaData* STakeRecorderTabContent::GetTakeMetaData() const
 {
 	if (TSharedPtr<STakePresetAssetEditor> AssetEditor = WeakAssetEditor.Pin())

@@ -61,6 +61,8 @@ public:
 
 	ULevelSequence* GetLevelSequence() const;
 
+	ULevelSequence* GetLastRecordedLevelSequence() const;
+
 	ETakeRecorderMode GetTakeRecorderMode() const;
 
 	UTakeMetaData* GetTakeMetaData() const;

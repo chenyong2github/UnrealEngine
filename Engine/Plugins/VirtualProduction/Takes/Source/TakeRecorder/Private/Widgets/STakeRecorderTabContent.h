@@ -43,6 +43,8 @@ public:
 
 	ULevelSequence* GetLevelSequence() const;
 
+	ULevelSequence* GetLastRecordedLevelSequence() const;
+
 	UTakeMetaData* GetTakeMetaData() const;
 
 	FFrameRate GetFrameRate() const;
