@@ -47,13 +47,13 @@ void UNiagaraScriptSource::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id
 
 	// Add in any referenced HLSL files.
 	FSHAHash Hash = GetShaderFileHash((TEXT("/Plugin/FX/Niagara/Private/NiagaraEmitterInstanceShader.usf")), EShaderPlatform::SP_PCD3D_SM5);
-	Id.ReferencedCompileHashes.Emplace(Hash.Hash, sizeof(Hash.Hash)/sizeof(uint8));
+	Id.ReferencedCompileHashes.AddUnique(FNiagaraCompileHash(Hash.Hash, sizeof(Hash.Hash)/sizeof(uint8)));
 	Id.DebugReferencedObjects.Emplace(TEXT("/Plugin/FX/Niagara/Private/NiagaraEmitterInstanceShader.usf"));
 	Hash = GetShaderFileHash((TEXT("/Plugin/FX/Niagara/Private/NiagaraShaderVersion.ush")), EShaderPlatform::SP_PCD3D_SM5);
-	Id.ReferencedCompileHashes.Emplace(Hash.Hash, sizeof(Hash.Hash) / sizeof(uint8));
+	Id.ReferencedCompileHashes.AddUnique(FNiagaraCompileHash(Hash.Hash, sizeof(Hash.Hash)/sizeof(uint8)));
 	Id.DebugReferencedObjects.Emplace(TEXT("/Plugin/FX/Niagara/Private/NiagaraShaderVersion.ush"));
 	Hash = GetShaderFileHash((TEXT("/Engine/Public/ShaderVersion.ush")), EShaderPlatform::SP_PCD3D_SM5);
-	Id.ReferencedCompileHashes.Emplace(Hash.Hash, sizeof(Hash.Hash) / sizeof(uint8));
+	Id.ReferencedCompileHashes.AddUnique(FNiagaraCompileHash(Hash.Hash, sizeof(Hash.Hash)/sizeof(uint8)));
 	Id.DebugReferencedObjects.Emplace(TEXT("/Engine/Public/ShaderVersion.ush"));
 }
 
@@ -108,7 +108,20 @@ UNiagaraScriptSource* UNiagaraScriptSource::CreateCompilationCopy()
 {
 	UNiagaraScriptSource* Result = NewObject<UNiagaraScriptSource>();
 	Result->NodeGraph = NodeGraph->CreateCompilationCopy();
+	Result->bIsCompilationCopy = true;
+	Result->AddToRoot();
 	return Result;
+}
+
+void UNiagaraScriptSource::ReleaseCompilationCopy()
+{
+	if (bIsCompilationCopy && !bIsReleased)
+	{
+		bIsReleased = true;
+		NodeGraph = nullptr;
+		RemoveFromRoot();
+		MarkPendingKill();
+	}
 }
 
 bool UNiagaraScriptSource::IsSynchronized(const FGuid& InChangeId)
@@ -156,6 +169,56 @@ void UNiagaraScriptSource::PostLoadFromEmitter(UNiagaraEmitter& OwningEmitter)
 		}
 		NodeGraph->MarkGraphRequiresSynchronization("Modified while handling a change to the niagara custom version.");
 	}
+}
+
+void FindObjectNamesRecursive(UNiagaraGraph* InGraph, FString EmitterUniqueName, TMap<FName, UNiagaraDataInterface*>& Result)
+{
+	if (!InGraph)
+	{
+		return;
+	}
+	TArray<UNiagaraNode*> Nodes;
+	InGraph->GetNodesOfClass(Nodes);
+	for (UEdGraphNode* Node : Nodes)
+	{
+		if (UNiagaraNode* InNode = Cast<UNiagaraNode>(Node))
+		{
+			UNiagaraNodeInput* InputNode = Cast<UNiagaraNodeInput>(InNode);
+			if (InputNode)
+			{
+				if (InputNode->Input.IsDataInterface())
+				{
+					UNiagaraDataInterface* DataInterface = InputNode->GetDataInterface();
+					bool bIsParameterMapDataInterface = false;
+					FName DIName = FHlslNiagaraTranslator::GetDataInterfaceName(InputNode->Input.GetName(), EmitterUniqueName, bIsParameterMapDataInterface);
+					if (Result.Contains(DIName) && Result[DIName] != DataInterface)
+					{
+						UE_LOG(LogNiagaraEditor, Log, TEXT("Duplicate data interface name %s in graph %s. One of the data interfaces will override the other when resolving the name."), *DIName.ToString(), *InGraph->GetPathName());
+					}
+					Result.Add(DIName, DataInterface);
+				}
+				continue;
+			}
+
+			UNiagaraNodeFunctionCall* FunctionCallNode = Cast<UNiagaraNodeFunctionCall>(InNode);
+			if (FunctionCallNode)
+			{
+				UNiagaraGraph* FunctionGraph = FunctionCallNode->GetCalledGraph();
+				FindObjectNamesRecursive(FunctionGraph, EmitterUniqueName, Result);
+			}
+		}
+	}
+}
+
+TMap<FName, UNiagaraDataInterface*> UNiagaraScriptSource::ComputeObjectNameMap(FString EmitterUniqueName) const
+{
+	TMap<FName, UNiagaraDataInterface*> Result;
+	if (!NodeGraph)
+	{
+		return Result;
+	}
+	FindObjectNamesRecursive(NodeGraph, EmitterUniqueName, Result);
+	return Result;
 }
 
 bool UNiagaraScriptSource::AddModuleIfMissing(FString ModulePath, ENiagaraScriptUsage Usage, bool& bOutFoundModule)
