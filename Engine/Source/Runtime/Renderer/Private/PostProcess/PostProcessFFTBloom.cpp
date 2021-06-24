@@ -705,7 +705,8 @@ FSceneRenderTargetItem* InitDomainAndGetKernel(FRHICommandList& RHICmdList, cons
 		ResizeAndCenterTexture(RHICmdList, View, PhysicalSpaceKernelTextureRef, ImageSize, CenterUV, Intermediates.KernelSupportScale,
 			Intermediates.FrequencySize, SpectralKernelRTItem.UAV, PaddedFrequencySize, Intermediates.bHalfResolutionFFT);
 
-		RHICmdList.Transition(FRHITransitionInfo(SpectralKernelRTItem.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+		// ResizeAndCenterTexture transitioned SpectralKernelRTItem to UAVCompute
+		RHICmdList.Transition(FRHITransitionInfo(SpectralKernelRTItem.ShaderResourceTexture, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
 
 		// Two Dimensional FFT of the physical space kernel.  
 		// Input: SpectralRTItem holds the physical space kernel, on return it will be the spectral space 
