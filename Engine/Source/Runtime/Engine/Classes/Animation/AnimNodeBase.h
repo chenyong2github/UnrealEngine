@@ -966,10 +966,8 @@ protected:
 
 private:
 	// Access functions
-	const FAnimNodeFunctionRef& GetInitializeFunction() const;
 	const FAnimNodeFunctionRef& GetBecomeRelevantFunction() const;
 	const FAnimNodeFunctionRef& GetUpdateFunction() const;
-	const FAnimNodeFunctionRef& GetEvaluateFunction() const;
 	
 private:
 	friend class IAnimClassInterface;
@@ -985,10 +983,6 @@ private:
 	const FAnimNodeData* NodeData = nullptr;
 
 #if WITH_EDITORONLY_DATA
-	// Function called on initialize
-	UPROPERTY(meta=(FoldProperty))
-	FAnimNodeFunctionRef InitializeFunction;
-
 	// Function called on become relevant
 	UPROPERTY(meta=(FoldProperty))
 	FAnimNodeFunctionRef BecomeRelevantFunction;
@@ -996,10 +990,6 @@ private:
 	// Function called on update
 	UPROPERTY(meta=(FoldProperty))
 	FAnimNodeFunctionRef UpdateFunction;
-
-	// Function called on evaluate
-	UPROPERTY(meta=(FoldProperty))
-	FAnimNodeFunctionRef EvaluateFunction;
 #endif
 };
 

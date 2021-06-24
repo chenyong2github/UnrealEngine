@@ -21,6 +21,10 @@ public:
 	/** Prototype function for thread-safe anim node calls */
 	UFUNCTION(BlueprintInternalUseOnly, meta=(BlueprintThreadSafe))
 	void Prototype_ThreadSafeAnimNodeCall(const FAnimExecutionContext& Context, const FAnimNodeReference& Node) {}
+
+	/** Prototype function for thread-safe anim update calls */
+	UFUNCTION(BlueprintInternalUseOnly, meta=(BlueprintThreadSafe))
+	void Prototype_ThreadSafeAnimUpdateCall(const FAnimUpdateContext& Context, const FAnimNodeReference& Node) {}	
 #endif
 	
 	/** Get the anim instance that hosts this anim node */

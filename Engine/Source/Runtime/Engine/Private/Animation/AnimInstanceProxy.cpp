@@ -296,8 +296,6 @@ void FAnimInstanceProxy::InitializeRootNode_WithRoot(FAnimNode_Base* InRootNode)
 	{
 		FAnimationUpdateSharedContext SharedContext;
 		FAnimationInitializeContext InitContext(this, &SharedContext);
-
-		UE::Anim::FNodeFunctionCaller::Initialize(InitContext, *InRootNode);
 		
 		if(InRootNode == RootNode)
 		{
@@ -1292,8 +1290,6 @@ void FAnimInstanceProxy::EvaluateAnimationNode_WithRoot(FPoseContext& Output, FA
 		}
 
 		TRACE_SCOPED_ANIM_NODE(Output);
-
-		UE::Anim::FNodeFunctionCaller::Evaluate(Output, *InRootNode);
 		
 		InRootNode->Evaluate_AnyThread(Output);
 	}

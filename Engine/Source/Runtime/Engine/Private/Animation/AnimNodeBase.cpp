@@ -149,11 +149,6 @@ void FAnimNode_Base::ResetDynamics(ETeleportType InTeleportType)
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
-const FAnimNodeFunctionRef& FAnimNode_Base::GetInitializeFunction() const
-{
-	return GET_ANIM_NODE_DATA(FAnimNodeFunctionRef, InitializeFunction);
-}
-
 const FAnimNodeFunctionRef& FAnimNode_Base::GetBecomeRelevantFunction() const
 {
 	return GET_ANIM_NODE_DATA(FAnimNodeFunctionRef, BecomeRelevantFunction);
@@ -162,11 +157,6 @@ const FAnimNodeFunctionRef& FAnimNode_Base::GetBecomeRelevantFunction() const
 const FAnimNodeFunctionRef& FAnimNode_Base::GetUpdateFunction() const
 {
 	return GET_ANIM_NODE_DATA(FAnimNodeFunctionRef, UpdateFunction);
-}
-
-const FAnimNodeFunctionRef& FAnimNode_Base::GetEvaluateFunction() const
-{
-	return GET_ANIM_NODE_DATA(FAnimNodeFunctionRef, EvaluateFunction);
 }
 
 /////////////////////////////////////////////////////
@@ -214,7 +204,6 @@ void FPoseLinkBase::Initialize(const FAnimationInitializeContext& InContext)
 		FAnimationInitializeContext LinkContext(InContext);
 		LinkContext.SetNodeId(LinkID);
 		TRACE_SCOPED_ANIM_NODE(LinkContext);
-		UE::Anim::FNodeFunctionCaller::Initialize(LinkContext, *LinkedNode);
 		LinkedNode->Initialize_AnyThread(LinkContext);
 	}
 }
@@ -376,7 +365,6 @@ void FPoseLink::Evaluate(FPoseContext& Output)
 		{
 			Output.SetNodeId(LinkID);
 			TRACE_SCOPED_ANIM_NODE(Output);
-			UE::Anim::FNodeFunctionCaller::Evaluate(Output, *LinkedNode);
 			LinkedNode->Evaluate_AnyThread(Output);
 			TRACE_ANIM_NODE_BLENDABLE_ATTRIBUTES(Output, SourceID, LinkID);
 		}
@@ -487,7 +475,6 @@ void FComponentSpacePoseLink::EvaluateComponentSpace(FComponentSpacePoseContext&
 		{
 			Output.SetNodeId(LinkID);
 			TRACE_SCOPED_ANIM_NODE(Output);
-			UE::Anim::FNodeFunctionCaller::EvaluateComponentSpace(Output, *LinkedNode);
 			LinkedNode->EvaluateComponentSpace_AnyThread(Output);
 			TRACE_ANIM_NODE_BLENDABLE_ATTRIBUTES(Output, SourceID, LinkID);
 		}

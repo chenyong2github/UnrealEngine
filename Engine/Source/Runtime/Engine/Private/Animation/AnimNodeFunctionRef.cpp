@@ -28,7 +28,7 @@ namespace UE
 namespace Anim
 {
 
-template<typename ContextType>
+template<typename WrapperType, typename ContextType>
 static void CallFunctionHelper(const FAnimNodeFunctionRef& InFunction, ContextType InContext, FAnimNode_Base& InNode)
 {
 	if(InFunction.IsValid())
@@ -39,21 +39,13 @@ static void CallFunctionHelper(const FAnimNodeFunctionRef& InFunction, ContextTy
 			
 		struct FAnimNodeFunctionParams
 		{
-			FAnimExecutionContext ExecutionContext;
+			WrapperType ExecutionContext;
 			FAnimNodeReference NodeReference;
 		};
 			
-		FAnimNodeFunctionParams Params = { FAnimExecutionContext(ContextData), FAnimNodeReference(AnimInstance, InNode) };
+		FAnimNodeFunctionParams Params = { WrapperType(ContextData), FAnimNodeReference(AnimInstance, InNode) };
 			
 		InFunction.Call(AnimInstance, &Params);
-	}
-}
-
-void FNodeFunctionCaller::Initialize(const FAnimationInitializeContext& InContext, FAnimNode_Base& InNode)
-{
-	if(InNode.NodeData != nullptr)
-	{
-		CallFunctionHelper(InNode.GetInitializeFunction(), InContext, InNode);
 	}
 }
 	
@@ -68,7 +60,7 @@ void FNodeFunctionCaller::BecomeRelevant(const FAnimationUpdateContext& InContex
 			FAnimNodeRelevancyStatus Status = RelevancySubsystem.UpdateNodeRelevancy(InContext, InNode);
 			if(Status.HasJustBecomeRelevant())
 			{
-				CallFunctionHelper(Function, InContext, InNode);
+				CallFunctionHelper<FAnimUpdateContext>(Function, InContext, InNode);
 			}
 		}
 	}
@@ -78,23 +70,7 @@ void FNodeFunctionCaller::Update(const FAnimationUpdateContext& InContext, FAnim
 {
 	if(InNode.NodeData != nullptr)
 	{
-		CallFunctionHelper(InNode.GetUpdateFunction(), InContext, InNode);
-	}
-}
-
-void FNodeFunctionCaller::Evaluate(FPoseContext& InContext, FAnimNode_Base& InNode)
-{
-	if(InNode.NodeData != nullptr)
-	{
-		CallFunctionHelper(InNode.GetEvaluateFunction(), InContext, InNode);
-	}
-}
-
-void FNodeFunctionCaller::EvaluateComponentSpace(FComponentSpacePoseContext& InContext, FAnimNode_Base& InNode)
-{
-	if(InNode.NodeData != nullptr)
-	{
-		CallFunctionHelper(InNode.GetEvaluateFunction(), InContext, InNode);
+		CallFunctionHelper<FAnimUpdateContext>(InNode.GetUpdateFunction(), InContext, InNode);
 	}
 }
 
