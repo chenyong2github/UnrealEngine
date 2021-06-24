@@ -3133,7 +3133,7 @@ void FLevelStreamingGCHelper::PrepareStreamedOutLevelsForGC()
 			// Make sure that this package has been unloaded after GC pass.
 			LevelPackageNames.Add( LevelPackage->GetFName() );
 
-			Level->CleanupLevel();
+			Level->CleanupLevel(true /* bCleanupResources */);
 
 			// Mark world and all other package subobjects as pending kill
 			// This will destroy metadata objects and any other objects left behind
@@ -4758,42 +4758,45 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 #if WITH_EDITOR
 	// Clear standalone flag when switching maps in the Editor. This causes resources placed in the map
 	// package to be garbage collected together with the world.
-	if( GIsEditor && !IsTemplate() && bCleanupResources && this != NewWorld )
+	if( GIsEditor && !IsTemplate() && this != NewWorld )
 	{
-		// Iterate over all objects to find ones that reside in the same package as the world.
-		ForEachObjectWithPackage(GetOutermost(), [this](UObject* CurrentObject)
+		if (bCleanupResources)
 		{
-			if ( CurrentObject != this )
+			// Iterate over all objects to find ones that reside in the same package as the world.
+			ForEachObjectWithPackage(GetOutermost(), [this](UObject* CurrentObject)
 			{
-				CurrentObject->ClearFlags( RF_Standalone );
-			}
-			return true;
-		});
-
-		if (WorldType != EWorldType::PIE)
-		{
-			if (PersistentLevel && PersistentLevel->MapBuildData)
-			{
-				PersistentLevel->MapBuildData->ClearFlags(RF_Standalone);
-
-				// Iterate over all objects to find ones that reside in the same package as the MapBuildData.
-				// Specifically the PackageMetaData
-				ForEachObjectWithPackage(PersistentLevel->MapBuildData->GetOutermost(), [this](UObject* CurrentObject)
+				if ( CurrentObject != this )
 				{
-					if (CurrentObject != this)
+					CurrentObject->ClearFlags( RF_Standalone );
+				}
+				return true;
+			});
+
+			if (WorldType != EWorldType::PIE)
+			{
+				if (PersistentLevel && PersistentLevel->MapBuildData)
+				{
+					PersistentLevel->MapBuildData->ClearFlags(RF_Standalone);
+
+					// Iterate over all objects to find ones that reside in the same package as the MapBuildData.
+					// Specifically the PackageMetaData
+					ForEachObjectWithPackage(PersistentLevel->MapBuildData->GetOutermost(), [this](UObject* CurrentObject)
 					{
-						CurrentObject->ClearFlags(RF_Standalone);
-					}
-					return true;
-				});
+						if (CurrentObject != this)
+						{
+							CurrentObject->ClearFlags(RF_Standalone);
+						}
+						return true;
+					});
+				}
 			}
 		}
-				
-		// Cleanup Persistent level outside of following loop because unitialized worlds don't have a valid Levels array
+
+		// Cleanup Persistent level outside of following loop because uninitialized worlds don't have a valid Levels array
 		// StreamingLevels are not initialized.
 		if (PersistentLevel)
 		{
-			PersistentLevel->CleanupLevel();
+			PersistentLevel->CleanupLevel(bCleanupResources);
 		}
 
 		if (GetNumLevels() > 1)
@@ -4801,7 +4804,7 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 			check(GetLevel(0) == PersistentLevel);
 			for (int32 LevelIndex = 1; LevelIndex < GetNumLevels(); ++LevelIndex)
 			{
-				GetLevel(LevelIndex)->CleanupLevel();
+				GetLevel(LevelIndex)->CleanupLevel(bCleanupResources);
 			}
 		}
 	}
@@ -4830,7 +4833,7 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 		{
 			if (Level)
 			{
-			UWorld* const LevelWorld = CastChecked<UWorld>(Level->GetOuter());
+				UWorld* const LevelWorld = CastChecked<UWorld>(Level->GetOuter());
 				LevelWorld->CleanupWorldInternal(bSessionEnded, bCleanupResources, NewWorld);
 			}
 		}

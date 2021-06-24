@@ -848,8 +848,10 @@ public:
 	/**
 	 * Flag this level instance for destruction.
 	 * This is called by UWorld::CleanupWorld to flag the level and its owned packages for destruction.
+	 *
+	 * @param bCleanupResources Whether to also remove RF_Standalone flags in the editor on level-specific subassets so that they will be garbage collected
 	 */
-	ENGINE_API void CleanupLevel();
+	ENGINE_API void CleanupLevel(bool bCleanupResources);
 
 	/**
 	 * Clears all components of actors associated with this level (aka in Actors array) and 
