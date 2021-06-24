@@ -206,6 +206,13 @@ void SExternalImagePicker::ApplyImage()
 	}
 	else
 	{
+        // This is preventing the "no default image" error display when we don't want a fallback behavior, i.e. iOS optional icons
+        FString DefaultImagePathString(DefaultImagePath);
+        if (DefaultImagePathString.IsEmpty())
+        {
+            return;
+        }
+            
 		TypeOfImage = UsingDummyPlaceholderImage;
 
 		if (bRequiresSpecificSize)
