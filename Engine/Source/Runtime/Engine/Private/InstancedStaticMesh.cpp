@@ -3929,7 +3929,6 @@ void UInstancedStaticMeshComponent::SelectInstance(bool bInSelected, int32 InIns
 				{
 					// Record if the instance is selected
 					FColor HitProxyColor(ForceInit);
-					bool bSelected = SelectedInstances[InstanceIndex] != 0;
 					if (PerInstanceRenderData->HitProxies.IsValidIndex(InstanceIndex))
 					{
 						HitProxyColor = PerInstanceRenderData->HitProxies[InstanceIndex]->Id.GetColor();
@@ -3938,7 +3937,7 @@ void UInstancedStaticMeshComponent::SelectInstance(bool bInSelected, int32 InIns
 					const int32 RenderIndex = GetRenderIndex(InstanceIndex);
 					if (RenderIndex != INDEX_NONE)
 					{
-						InstanceUpdateCmdBuffer.SetEditorData(RenderIndex, HitProxyColor, bSelected);
+						InstanceUpdateCmdBuffer.SetEditorData(RenderIndex, HitProxyColor, bInSelected);
 					}
 				}
 			}			
