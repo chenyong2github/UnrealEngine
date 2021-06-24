@@ -474,13 +474,13 @@ public:
 
 	/** Whether or not this section is active. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	void SetIsActive(bool bInIsActive) { bIsActive = bInIsActive; }
+	void SetIsActive(bool bInIsActive) { if (TryModify()) { bIsActive = bInIsActive; } }
 	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
 	bool IsActive() const { return bIsActive; }
 
 	/** Whether or not this section is locked. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	void SetIsLocked(bool bInIsLocked) { bIsLocked = bInIsLocked; }
+	void SetIsLocked(bool bInIsLocked) { if (TryModify()) { bIsLocked = bInIsLocked; } }
 	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
 	bool IsLocked() const { return bIsLocked; }
 
