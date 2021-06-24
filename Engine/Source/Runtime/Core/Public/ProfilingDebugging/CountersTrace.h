@@ -6,10 +6,12 @@
 #include "Trace/Config.h"
 #include "Trace/Trace.h"
 
+#if !defined(COUNTERSTRACE_ENABLED)
 #if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING
 #define COUNTERSTRACE_ENABLED 1
 #else
 #define COUNTERSTRACE_ENABLED 0
+#endif
 #endif
 
 enum ETraceCounterType
