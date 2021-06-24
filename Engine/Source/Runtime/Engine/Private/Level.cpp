@@ -368,24 +368,27 @@ void ULevel::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collecto
 	Super::AddReferencedObjects( This, Collector );
 }
 
-void ULevel::CleanupLevel()
+void ULevel::CleanupLevel(bool bCleanupResources)
 {
-	OnCleanupLevel.Broadcast();
-	// if the level contains any actor with an external package, clear their metadata standalone flag so that the packages can be properly unloaded.
-	// Do so for any actors outered to the level and not just from the level actors array
-	ForEachObjectWithOuter(this, [](UObject* InObject)
-		{
-			// Currently only actors would have external package, 
-			// but we can ask directly on all objects since the tests validate against object flags before doing a hash lookup
-			if (UPackage* ExternalPackage = InObject->GetExternalPackage())
+	if (bCleanupResources)
+	{
+		OnCleanupLevel.Broadcast();
+		// if the level contains any actor with an external package, clear their metadata standalone flag so that the packages can be properly unloaded.
+		// Do so for any actors outered to the level and not just from the level actors array
+		ForEachObjectWithOuter(this, [](UObject* InObject)
 			{
-				ForEachObjectWithPackage(ExternalPackage, [](UObject* Object)
-					{
-						Object->ClearFlags(RF_Standalone);
-						return true;
-					}, false);
-			}
-		}, false);
+				// Currently only actors would have external package, 
+				// but we can ask directly on all objects since the tests validate against object flags before doing a hash lookup
+				if (UPackage* ExternalPackage = InObject->GetExternalPackage())
+				{
+					ForEachObjectWithPackage(ExternalPackage, [](UObject* Object)
+						{
+							Object->ClearFlags(RF_Standalone);
+							return true;
+						}, false);
+				}
+			}, false);
+	}
 
 	if (UWorldPartition* WorldPartition = GetWorldPartition())
 	{
