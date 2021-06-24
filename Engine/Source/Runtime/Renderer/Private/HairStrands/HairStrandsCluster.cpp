@@ -152,6 +152,11 @@ static void InternalUpdateMacroGroup(FHairStrandsMacroGroupData& MacroGroup, int
 		PrimitiveInfo.GroupIndex = HairGroupPublicData->GetGroupIndex();
 		PrimitiveInfo.PublicDataPtr = HairGroupPublicData;
 		check(PrimitiveInfo.GroupIndex < 32); // Sanity check
+
+		if (HairGroupPublicData->DoesSupportVoxelization())
+		{
+			MacroGroup.bSupportVoxelization = true;
+		}
 	}
 }
 

@@ -170,6 +170,10 @@ FHairTraversalResult ComputeHairCountVirtualVoxel(
 	const float MipLevelDistanceScale = 1.0f / InCommonDesc.VoxelWorldSize;
 
 	FHairTraversalResult Out = InitHairTraversalResult();
+	if (!InNodeDesc.bIsValid)
+	{
+		return Out;
+	}
 
 	int3 CurrentPageIndexCoord = -1;
 	bool bIsPageValid = false;

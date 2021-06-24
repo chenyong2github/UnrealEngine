@@ -13,6 +13,7 @@ uint				TotalPageIndexCount; 	// This is the max page index count;
 uint				PageResolution; 		// Resolution of a page
 uint				MacroGroupCount;
 uint				IndirectDispatchGroupSize;
+uint				bDoesMacroGroupSupportVoxelization;
 
 // For testing parity with CPU version
 float3				CPU_MinAABB;
@@ -39,8 +40,9 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 	bool bIsValid = MacroGroupId < MacroGroupCount;
 	if (bIsValid)
 	{
+		const bool bSupportVoxelization = (bDoesMacroGroupSupportVoxelization >> MacroGroupId) & 0x1;
 		Bound = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
-		if (any(Bound.Min > Bound.Max))
+		if (any(Bound.Min > Bound.Max) || !bSupportVoxelization)
 		{
 			Bound.Min = 0;
 			Bound.Max = 0;
