@@ -2737,12 +2737,16 @@ void FSequencer::SelectInSelectionRange(bool bSelectKeys, bool bSelectSections)
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 	TRange<FFrameNumber> SelectionRange = MovieScene->GetSelectionRange();
 
-	Selection.Empty();
+	// Don't empty all selection, just keys and sections
+	Selection.SuspendBroadcast();
+	Selection.EmptySelectedKeys();
+	Selection.EmptySelectedSections();
 
 	for (const TSharedRef<FSequencerDisplayNode>& DisplayNode : NodeTree->GetRootNodes())
 	{
 		SelectInSelectionRange(DisplayNode, SelectionRange, bSelectKeys, bSelectSections);
 	}
+	Selection.ResumeBroadcast();
 }
 
 void FSequencer::SelectForward()
@@ -2763,11 +2767,14 @@ void FSequencer::SelectForward()
 
 	if (DisplayNodes.Num() > 0)
 	{
-		Selection.Empty();
+		Selection.SuspendBroadcast();
+		Selection.EmptySelectedKeys();
+		Selection.EmptySelectedSections();
 		for (TSharedRef<FSequencerDisplayNode>& DisplayNode : DisplayNodes)
 		{
 			SelectInSelectionRange(DisplayNode, SelectionRange, true, true);
 		}
+		Selection.ResumeBroadcast();
 	}
 }
 
@@ -2790,11 +2797,14 @@ void FSequencer::SelectBackward()
 
 	if (DisplayNodes.Num() > 0)
 	{
-		Selection.Empty();
+		Selection.SuspendBroadcast();
+		Selection.EmptySelectedKeys();
+		Selection.EmptySelectedSections();
 		for (TSharedRef<FSequencerDisplayNode>& DisplayNode : DisplayNodes)
 		{
 			SelectInSelectionRange(DisplayNode, SelectionRange, true, true);
 		}
+		Selection.ResumeBroadcast();
 	}
 }
 
