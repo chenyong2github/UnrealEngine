@@ -605,7 +605,7 @@ bool FDefaultGameMoviePlayer::IsMovieStreamingFinished() const
 void FDefaultGameMoviePlayer::Tick( float DeltaTime )
 {
 	check(IsInRenderingThread());
-	if (MainWindow.IsValid() && VirtualRenderWindow.IsValid() && !IsLoadingFinished())
+	if (MainWindow.IsValid() && VirtualRenderWindow.IsValid() && !IsLoadingFinished() && GDynamicRHI && !GDynamicRHI->RHIIsRenderingSuspended())
 	{
 		FScopeLock SyncMechanismLock(&SyncMechanismCriticalSection);
 		if(SyncMechanism)
