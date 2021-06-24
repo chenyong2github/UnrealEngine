@@ -6,6 +6,7 @@
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "Editor.h"
+#include "ScopedTransaction.h"
 #include "Widgets/Colors/SColorBlock.h"
 #include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
@@ -173,8 +174,6 @@ void FColorStructCustomization::GetSortedChildren(TSharedRef<IPropertyHandle> In
 
 void FColorStructCustomization::CreateColorPicker(bool bUseAlpha)
 {
-	GEditor->BeginTransaction(FText::Format(LOCTEXT("SetColorProperty", "Edit {0}"), StructPropertyHandle->GetPropertyDisplayName()));
-
 	int32 NumObjects = StructPropertyHandle->GetNumOuterObjects();
 
 	SavedPreColorPickerColors.Empty();
@@ -231,8 +230,6 @@ void FColorStructCustomization::CreateColorPicker(bool bUseAlpha)
 
 TSharedRef<SColorPicker> FColorStructCustomization::CreateInlineColorPicker(TWeakPtr<IPropertyHandle> StructWeakHandlePtr)
 {
-	GEditor->BeginTransaction(FText::Format(LOCTEXT("SetColorProperty", "Edit {0}"), StructPropertyHandle->GetPropertyDisplayName()));
-
 	int32 NumObjects = StructPropertyHandle->GetNumOuterObjects();
 
 	SavedPreColorPickerColors.Empty();
@@ -279,24 +276,24 @@ TSharedRef<SColorPicker> FColorStructCustomization::CreateInlineColorPicker(TWea
 
 void FColorStructCustomization::OnSetColorFromColorPicker(FLinearColor NewColor)
 {
-	FString ColorString;
 	if (bIsLinearColor)
 	{
-		ColorString = NewColor.ToString();
+		LastPickerColorString = NewColor.ToString();
 	}
 	else
 	{
 		const bool bSRGB = true;
 		FColor NewFColor = NewColor.ToFColor(bSRGB);
-		ColorString = NewFColor.ToString();
+		LastPickerColorString = NewFColor.ToString();
 	}
 
-	StructPropertyHandle->SetValueFromFormattedString(ColorString, bIsInteractive ? EPropertyValueSetFlags::InteractiveChange : 0);
+	EPropertyValueSetFlags::Type PropertyFlags = EPropertyValueSetFlags::NotTransactable;
+	PropertyFlags |= bIsInteractive ? EPropertyValueSetFlags::InteractiveChange : 0;
+	StructPropertyHandle->SetValueFromFormattedString(LastPickerColorString, PropertyFlags);
 	StructPropertyHandle->NotifyFinishedChangingProperties();
 }
 
-
-void FColorStructCustomization::OnColorPickerCancelled(FLinearColor OriginalColor)
+void FColorStructCustomization::ResetColors()
 {
 	TArray<FString> PerObjectColors;
 
@@ -317,17 +314,25 @@ void FColorStructCustomization::OnColorPickerCancelled(FLinearColor OriginalColo
 	{
 		StructPropertyHandle->SetPerObjectValues(PerObjectColors);
 	}
+}
 
-	GEditor->CancelTransaction(0);
+void FColorStructCustomization::OnColorPickerCancelled(FLinearColor OriginalColor)
+{
+	ResetColors();
+	LastPickerColorString.Reset();
 }
 
 void FColorStructCustomization::OnColorPickerWindowClosed(const TSharedRef<SWindow>& Window)
 {
-	// pushes the last value from the interactive change without the interactive flag
-	FString ColorString;
-	StructPropertyHandle->GetValueAsFormattedString(ColorString);
-	StructPropertyHandle->SetValueFromFormattedString(ColorString);
-	GEditor->EndTransaction();
+	// Transact only at the end to avoid opening a lingering transaction. Reset value before transacting.
+	if (!LastPickerColorString.IsEmpty())
+	{
+		ResetColors();
+		{
+			FScopedTransaction(FText::Format(LOCTEXT("SetColorProperty", "Edit {0}"), StructPropertyHandle->GetPropertyDisplayName()));
+			StructPropertyHandle->SetValueFromFormattedString(LastPickerColorString);
+		}
+	}
 }
 
 

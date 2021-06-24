@@ -191,6 +191,11 @@ public:
 		}
 	}
 
+	/** True if enabled attribute is bound, useful since binding dissapears if bound to no-longer valid property */
+	bool IsEnabledAttributeBound() const
+	{
+		return EnabledState.IsBound();
+	}
 
 	/** Delegate to override color picker creation behavior */
 	DECLARE_DELEGATE_OneParam(FOnColorPickerCreationOverride, const TSharedRef<SColorPicker>&);
