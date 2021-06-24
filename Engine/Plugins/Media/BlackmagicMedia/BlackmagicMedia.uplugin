@@ -12,37 +12,37 @@
 	"CanContainContent": false,
 	"EnabledByDefault": false,
 	"IsBetaVersion": false,
-	"SupportedTargetPlatforms": [ "Win64", "Linux" ],
+	"SupportedTargetPlatforms": [ "Win64" ],
 	"Modules": [
 		{
 			"Name": "BlackmagicMedia",
 			"Type": "Runtime",
 			"LoadingPhase": "PreLoadingScreen",
-			"WhitelistPlatforms": [ "Win64", "Linux" ]
+			"WhitelistPlatforms": [ "Win64" ]
 		},
 		{
 			"Name": "BlackmagicMediaOutput",
 			"Type": "Runtime",
 			"LoadingPhase": "PreLoadingScreen",
-			"WhitelistPlatforms": [ "Win64", "Linux" ]
+			"WhitelistPlatforms": [ "Win64" ]
 		},
 		{
 			"Name": "BlackmagicMediaFactory",
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit",
-			"WhitelistPlatforms": [ "Win64", "Linux" ]
+			"WhitelistPlatforms": [ "Win64" ]
 		},
 		{
 			"Name": "BlackmagicMediaFactory",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PostEngineInit",
-			"WhitelistPlatforms": [ "Win64", "Linux" ]
+			"WhitelistPlatforms": [ "Win64" ]
 		},
 		{
 			"Name": "BlackmagicMediaEditor",
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit",
-			"WhitelistPlatforms": [ "Win64", "Linux" ]
+			"WhitelistPlatforms": [ "Win64" ]
 		}
 	],
 	"Plugins": [
