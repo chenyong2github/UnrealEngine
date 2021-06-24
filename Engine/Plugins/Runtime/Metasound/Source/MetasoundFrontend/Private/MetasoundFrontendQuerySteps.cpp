@@ -18,15 +18,14 @@ namespace Metasound
 	{
 		using namespace Frontend;
 
-		const TArray<const IRegistryTransaction*> Transactions = GetRegistryTransactionsSince(CurrentTransactionID, &CurrentTransactionID);
-
-		for (const IRegistryTransaction* Transaction : Transactions)
+		auto AddEntry = [&OutEntries](const FNodeRegistryTransaction& InTransaction)
 		{
-			if (const FNodeClassInfo* Info = Transaction->GetNodeClassInfo())
-			{
-				FFrontendQueryEntry::FValue Value(TInPlaceType<const IRegistryTransaction*>(), Transaction);
-				OutEntries.Emplace(MoveTemp(Value));
-			}
+			OutEntries.Emplace(FFrontendQueryEntry::FValue(TInPlaceType<FNodeRegistryTransaction>(), InTransaction));
+		};
+		
+		if (FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get())
+		{
+			Registry->ForEachNodeRegistryTransactionSince(CurrentTransactionID, &CurrentTransactionID, AddEntry);
 		}
 	}
 
@@ -41,16 +40,9 @@ namespace Metasound
 
 		FNodeRegistryKey RegistryKey;
 
-		if (ensure(InEntry.Value.IsType<const IRegistryTransaction*>()))
+		if (ensure(InEntry.Value.IsType<FNodeRegistryTransaction>()))
 		{
-			if (const IRegistryTransaction* Transaction = InEntry.Value.Get<const IRegistryTransaction*>())
-			{
-				const FNodeRegistryKey* Key = Transaction->GetNodeRegistryKey();
-				if (nullptr != Key)
-				{
-					RegistryKey = *Key;
-				}
-			}
+			RegistryKey = InEntry.Value.Get<FNodeRegistryTransaction>().GetNodeRegistryKey();
 		}
 
 		return FFrontendQueryEntry::FKey(RegistryKey);
@@ -65,21 +57,23 @@ namespace Metasound
 
 		for (FFrontendQueryEntry* Entry : InEntries)
 		{
-			if (ensure(Entry->Value.IsType<const IRegistryTransaction*>()))
+			if (ensure(Entry->Value.IsType<FNodeRegistryTransaction>()))
 			{
-				if (const IRegistryTransaction* Transaction = Entry->Value.Get<const IRegistryTransaction*>())
+				const FNodeRegistryTransaction& Transaction = Entry->Value.Get<FNodeRegistryTransaction>();
+				
+				switch (Transaction.GetTransactionType())
 				{
-					switch (Transaction->GetTransactionType())
-					{
-						case ETransactionType::Add:
-							State++;
-							FinalEntry = Entry;
-							break;
+					case FNodeRegistryTransaction::ETransactionType::NodeRegistration:
+						State++;
+						FinalEntry = Entry;
+						break;
 
-						case ETransactionType::Remove:
-							State--;
-							break;
-					}
+					case FNodeRegistryTransaction::ETransactionType::NodeUnregistration:
+						State--;
+						break;
+
+					default:
+						break;
 				}
 			}
 		}
@@ -96,17 +90,12 @@ namespace Metasound
 
 		FMetasoundFrontendClass FrontendClass;
 
-		if (ensure(InValue.IsType<const IRegistryTransaction*>()))
+		if (ensure(InValue.IsType<FNodeRegistryTransaction>()))
 		{
-			if (const IRegistryTransaction* Transaction = InValue.Get<const IRegistryTransaction*>())
-			{
-				const FNodeRegistryKey* Key = Transaction->GetNodeRegistryKey();
-				if (nullptr != Key)
-				{
-					bool bSuccess = FMetasoundFrontendRegistryContainer::Get()->FindFrontendClassFromRegistered(*Key, FrontendClass);
-					check(bSuccess);
-				}
-			}
+			const FNodeRegistryTransaction& Transaction = InValue.Get<FNodeRegistryTransaction>();
+			
+			bool bSuccess = FMetasoundFrontendRegistryContainer::Get()->FindFrontendClassFromRegistered(Transaction.GetNodeRegistryKey(), FrontendClass);
+			check(bSuccess);
 		}
 
 		InValue.Set<FMetasoundFrontendClass>(MoveTemp(FrontendClass));

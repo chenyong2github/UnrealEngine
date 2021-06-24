@@ -18,17 +18,6 @@ namespace Metasound
 		class IRegistryTransaction;
 		using FRegistryTransactionID = int32;
 
-		METASOUNDFRONTEND_API FRegistryTransactionID GetCurrentRegistryTransactionID();
-
-		/** Return all registry transactions that have occurred since the given transaction ID. 
-		 *
-		 * @param InTransactionID - Initial transaction ID. 
-		 * @param OutCurrentTransactionID - If not null, this will be set to the current transaction ID.
-		 *
-		 * @return An array of IRegistryTransactions that occurred in the range (InTransactionID, OutCurrentTransactionID].
-		 */
-		METASOUNDFRONTEND_API TArray<const IRegistryTransaction*> GetRegistryTransactionsSince(FRegistryTransactionID InTransactionID, FRegistryTransactionID* OutCurrentTransactionID);
-
 		/** Returns all metadata (name, description, author, what to say if it's missing) for a given node.
 		 *
 		 * @param InInfo - Class info for a already registered external node.

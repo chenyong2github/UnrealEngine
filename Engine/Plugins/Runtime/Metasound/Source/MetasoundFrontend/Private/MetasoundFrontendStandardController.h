@@ -425,7 +425,7 @@ namespace Metasound
 			TArray<FOutputHandle> GetOutputsWithVertexName(const FString& InName) override;
 			TArray<FConstOutputHandle> GetConstOutputsWithVertexName(const FString& InName) const override;
 
-			bool IsRequired(const FMetasoundFrontendArchetype& InArchetype) const override;
+			bool IsRequired() const override;
 
 			/** Returns an input with the given id. 
 			 *
@@ -590,7 +590,7 @@ namespace Metasound
 			void SetDescription(const FText& InDescription) override;
 			void SetDisplayName(const FText& InText) override;
 			const FText& GetDisplayTitle() const override;
-			bool IsRequired(const FMetasoundFrontendArchetype& InArchetype) const override;
+			bool IsRequired() const override;
 
 		protected:
 
@@ -649,7 +649,7 @@ namespace Metasound
 			const FText& GetDescription() const override;
 			const FText& GetDisplayName() const override;
 			const FText& GetDisplayTitle() const override;
-			bool IsRequired(const FMetasoundFrontendArchetype& InArchetype) const override;
+			bool IsRequired() const override;
 			bool IsValid() const override;
 			void SetDescription(const FText& InDescription) override;
 			void SetDisplayName(const FText& InText) override;
@@ -913,6 +913,7 @@ namespace Metasound
 			TArray<FMetasoundFrontendClass> GetDependencies() const override;
 			TArray<FMetasoundFrontendGraphClass> GetSubgraphs() const override;
 			TArray<FMetasoundFrontendClass> GetClasses() const override;
+			const FMetasoundFrontendGraphClass& GetRootGraphClass() const override;
 
 			FConstClassAccessPtr FindDependencyWithID(FGuid InClassID) const override;
 			FConstGraphClassAccessPtr FindSubgraphWithID(FGuid InClassID) const override;
@@ -925,6 +926,9 @@ namespace Metasound
 			FConstClassAccessPtr FindOrAddClass(const FMetasoundFrontendClassMetadata& InMetadata) override;
 
 			virtual FGraphHandle AddDuplicateSubgraph(const IGraphController& InGraph) override;
+
+			virtual const FMetasoundFrontendVersion& GetArchetypeVersion() const override;
+			virtual void SetArchetypeVersion(const FMetasoundFrontendVersion& InVersion) override;
 
 			void SetMetadata(const FMetasoundFrontendDocumentMetadata& InMetadata) override;
 			const FMetasoundFrontendDocumentMetadata& GetMetadata() const override;

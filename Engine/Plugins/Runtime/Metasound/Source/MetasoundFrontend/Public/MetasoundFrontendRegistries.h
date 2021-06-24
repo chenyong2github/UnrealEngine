@@ -10,6 +10,7 @@
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundRouter.h"
+#include "Templates/Function.h"
 
 
 namespace Metasound
@@ -328,39 +329,31 @@ namespace Metasound
 			TArray<FConverterNodeInfo> PotentialConverterNodes;
 		};
 
-
 		using FRegistryTransactionID = int32;
 
-		/** Describes the type of transaction. */
-		enum class ETransactionType : uint8
-		{
-			// TODO: Rename to be more explicit (eg. NodeRegistration, NodeUnregistration)
-			Add,     //< Something was added to the registry.
-			Remove,  //< Something was removed from the registry.
-			Invalid
-		};
-
-		/** Interface for a registry transaction. */
-		class IRegistryTransaction
+		class METASOUNDFRONTEND_API FNodeRegistryTransaction 
 		{
 		public:
-			virtual ~IRegistryTransaction() = default;
-			virtual TUniquePtr<IRegistryTransaction> Clone() const = 0;
+			/** Describes the type of transaction. */
+			enum class ETransactionType : uint8
+			{
+				NodeRegistration,     //< Something was added to the registry.
+				NodeUnregistration,  //< Something was removed from the registry.
+				Invalid
+			};
 
-			/** Returns the type of transaction */
-			virtual ETransactionType GetTransactionType() const = 0;
+			FNodeRegistryTransaction(ETransactionType InType, const FNodeRegistryKey& InKey, const FNodeClassInfo& InNodeClassInfo);
 
-			/** If a FNodeClassInfo added during the transaction, this will return
-			 * a non-null pointer to the FNodeClassInfo. */
-			virtual const FNodeClassInfo* GetNodeClassInfo() const = 0;
-			
-			/** If a node was registered or unregistered during this transaction,
-			 * this returns a valid FNodeRegistryKey. */
-			virtual const FNodeRegistryKey* GetNodeRegistryKey() const = 0;
+			ETransactionType GetTransactionType() const;
+			const FNodeClassInfo& GetNodeClassInfo() const;
+			const FNodeRegistryKey& GetNodeRegistryKey() const;
+
+		private:
+
+			ETransactionType Type;
+			FNodeRegistryKey Key;
+			FNodeClassInfo NodeClassInfo;
 		};
-
-		using FRegistryTransactionPtr = TUniquePtr<IRegistryTransaction>;
-
 	} // namespace Frontend
 } // namespace Metasound
 
@@ -409,8 +402,8 @@ public:
 	// This is called on module startup. This invokes any registration commands enqueued by our registration macros.
 	virtual void RegisterPendingNodes() = 0;
 
-	/** Return registry transactions since a given transaction id. */
-	virtual TArray<const Metasound::Frontend::IRegistryTransaction*> GetRegistryTransactionsSince(Metasound::Frontend::FRegistryTransactionID InSince, Metasound::Frontend::FRegistryTransactionID* OutCurrentRegistryTransactionID) const = 0;
+	/** Perform function for each registry transaction since a given transaction ID. */
+	virtual void ForEachNodeRegistryTransactionSince(Metasound::Frontend::FRegistryTransactionID InSince, Metasound::Frontend::FRegistryTransactionID* OutCurrentRegistryTransactionID, TFunctionRef<void(const Metasound::Frontend::FNodeRegistryTransaction&)> InFunc) const = 0;
 
 	/** Register a data type
 	 * @param InName - Name of data type.

@@ -41,6 +41,22 @@ FMetasoundFrontendNode::FMetasoundFrontendNode(const FMetasoundFrontendClass& In
 
 }
 
+FString FMetasoundFrontendVersion::ToString() const
+{
+	return FString::Format(TEXT("{0} {1}"), { Name.ToString(), Number.ToString() });
+}
+
+bool FMetasoundFrontendVersion::IsValid() const
+{
+	return Number.IsValid() && Name.IsValid();
+}
+
+const FMetasoundFrontendVersion& FMetasoundFrontendVersion::GetInvalid()
+{
+	static const FMetasoundFrontendVersion InvalidVersion { FName(), FMetasoundFrontendVersionNumber::GetInvalid() };
+	return InvalidVersion;
+}
+
 bool FMetasoundFrontendVertex::IsFunctionalEquivalent(const FMetasoundFrontendVertex& InLHS, const FMetasoundFrontendVertex& InRHS)
 {
 	return (InLHS.Name == InRHS.Name) && (InLHS.TypeName == InRHS.TypeName);
@@ -121,5 +137,6 @@ FMetasoundFrontendDocument::FMetasoundFrontendDocument()
 {
 	RootGraph.ID = FGuid::NewGuid();
 	RootGraph.Metadata.Type = EMetasoundFrontendClassType::Graph;
+	ArchetypeVersion = FMetasoundFrontendVersion::GetInvalid();
 }
 

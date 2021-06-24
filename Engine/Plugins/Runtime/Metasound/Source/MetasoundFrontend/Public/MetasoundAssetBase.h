@@ -75,16 +75,16 @@ public:
 	virtual void SetMetadata(FMetasoundFrontendClassMetadata& InMetadata);
 
 	// Returns  a description of the required inputs and outputs for this metasound UClass.
-	virtual const FMetasoundFrontendArchetype& GetArchetype() const = 0;
+	virtual const FMetasoundFrontendVersion& GetDefaultArchetypeVersion() const = 0;
 
 	// Returns true if the archetype is supported by this object.
-	virtual bool IsArchetypeSupported(const FMetasoundFrontendArchetype& InArchetype) const;
+	virtual bool IsArchetypeSupported(const FMetasoundFrontendVersion& InArchetypeVersion) const;
 
 	// Returns an array of archetypes preferred for this class.
-	virtual const TArray<FMetasoundFrontendArchetype>& GetPreferredArchetypes() const = 0;
+	virtual const TArray<FMetasoundFrontendVersion>& GetSupportedArchetypeVersions() const = 0;
 
 	// Returns the preferred archetype for the given document.
-	virtual const FMetasoundFrontendArchetype& GetPreferredArchetypes(const FMetasoundFrontendDocument& InDocument, const FMetasoundFrontendArchetype& InDefaultArchetype) const;
+	virtual FMetasoundFrontendVersion GetPreferredArchetypeVersion(const FMetasoundFrontendDocument& InDocument) const;
 
 	// TODO:
 	//virtual void OnMetaSoundDependencyAdded(const FMetasoundFrontendClassMetadata& InMetadata) = 0;
@@ -120,6 +120,8 @@ public:
 
 	// This must be called on UObject::PostLoad, as well as in this asset's UFactory, to fix up the root document based on the most recent version of the archetype.
 	void ConformDocumentToArchetype();
+
+	bool VersionAsset();
 
 	// Calls the outermost package and marks it dirty. 
 	bool MarkMetasoundDocumentDirty() const;

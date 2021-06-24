@@ -161,7 +161,7 @@ public:
 	// Returns Asset Metadata associated with this MetaSound
 	virtual Metasound::Frontend::FNodeClassInfo GetAssetClassInfo() const override;
 
-	virtual const FMetasoundFrontendArchetype& GetArchetype() const override;
+	virtual const FMetasoundFrontendVersion& GetDefaultArchetypeVersion() const override;
 
 	UObject* GetOwningAsset() override
 	{
@@ -176,7 +176,7 @@ public:
 	TUniquePtr<IAudioInstanceTransmitter> CreateInstanceTransmitter(const FAudioInstanceTransmitterInitParams& InParams) const;
 
 	// Get the most up to date archetype for metasound sources.
-	const TArray<FMetasoundFrontendArchetype>& GetPreferredArchetypes() const override;
+	const TArray<FMetasoundFrontendVersion>& GetSupportedArchetypeVersions() const override;
 
 protected:
 

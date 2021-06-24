@@ -21,10 +21,9 @@ namespace Metasound
 		FOperatorSettings OperatorSettings;
 		FMetasoundFrontendDocument DocumentCopy;
 		FMetasoundEnvironment Environment;
-		int32 NumOutputChannels = 0;
 		FString MetaSoundName;
-		FString OutputName;
-		FString InputName;
+		TArray<FString> AudioOutputNames;
+		FString OnPlayInputName;
 		FString IsFinishedOutputName;
 	};
 

@@ -472,11 +472,7 @@ FGuid UMetasoundEditorGraphOutputNode::GetNodeID() const
 
 bool UMetasoundEditorGraphOutputNode::CanUserDeleteNode() const
 {
-	const FMetasoundAssetBase* ConstMetasoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&GetMetasoundChecked());
-	FMetasoundAssetBase* MetasoundAsset = const_cast<FMetasoundAssetBase*>(ConstMetasoundAsset);
-	const FMetasoundFrontendArchetype& Archetype = MetasoundAsset->GetArchetype();
-
-	return !GetNodeHandle()->IsRequired(Archetype);
+	return !GetNodeHandle()->IsRequired();
 }
 
 void UMetasoundEditorGraphOutputNode::SetNodeID(FGuid InNodeID)

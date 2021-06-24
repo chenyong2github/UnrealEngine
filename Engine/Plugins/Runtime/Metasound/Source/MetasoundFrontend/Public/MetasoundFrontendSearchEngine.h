@@ -2,9 +2,9 @@
 
 #pragma once
 
+#include "MetasoundFrontendArchetypeRegistry.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundNodeInterface.h"
-
 
 namespace Metasound
 {
@@ -35,6 +35,14 @@ namespace Metasound
 
 				/** Find the class with the given ClassName & Major Version. Returns false if not found, true if found. */
 				virtual bool FindClassWithMajorVersion(const FNodeClassName& InName, int32 InMajorVersion, FMetasoundFrontendClass& OutClass) = 0;
+
+				virtual TArray<FMetasoundFrontendArchetype> FindAllArchetypes(bool bInIncludeDeprecated=false) = 0;
+
+				virtual TArray<FMetasoundFrontendVersion> FindAllRegisteredArchetypesWithName(const FName& InArchetypeName) = 0;
+
+				virtual bool FindArchetypeWithHighestVersion(const FName& InArchetypeName, FMetasoundFrontendArchetype& OutArchetype) = 0;
+
+				virtual bool FindArchetypeWithMajorVersion(const FName& InArchetypeName, int32 InMajorVersion, FMetasoundFrontendArchetype& OutArchetype) = 0;
 
 				virtual ~ISearchEngine() = default;
 

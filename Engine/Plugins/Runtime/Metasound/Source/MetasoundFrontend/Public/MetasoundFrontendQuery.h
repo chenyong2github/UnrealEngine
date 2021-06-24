@@ -6,11 +6,12 @@
 #include "Math/NumericLimits.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendRegistries.h"
+#include "MetasoundFrontendArchetypeRegistry.h"
 #include "Misc/TVariant.h"
 
 namespace Metasound
 {
-	/** FFronendQueryKey allows entries to be partitioned by their key. A key
+	/** FFrontendQueryKey allows entries to be partitioned by their key. A key
 	 * can be created by default constructor, int32, FString or FName.
 	 */
 	struct METASOUNDFRONTEND_API FFrontendQueryKey
@@ -45,7 +46,7 @@ namespace Metasound
 	 */
 	struct METASOUNDFRONTEND_API FFrontendQueryEntry
 	{
-		using FValue = TVariant<const Frontend::IRegistryTransaction*, FMetasoundFrontendDocument, FMetasoundFrontendClass, FMetasoundFrontendNode>;
+		using FValue = TVariant<Frontend::FNodeRegistryTransaction, FMetasoundFrontendVersion, FMetasoundFrontendClass, Frontend::FArchetypeRegistryTransaction, FMetasoundFrontendArchetype>;
 		using FKey = FFrontendQueryKey;
 
 		FKey Key;

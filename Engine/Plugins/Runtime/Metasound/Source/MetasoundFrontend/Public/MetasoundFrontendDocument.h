@@ -127,7 +127,7 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendVersionNumber
 
 // General purpose version info for Metasound Frontend objects.
 USTRUCT()
-struct FMetasoundFrontendVersion
+struct METASOUNDFRONTEND_API FMetasoundFrontendVersion
 {
 	GENERATED_BODY()
 
@@ -138,6 +138,62 @@ struct FMetasoundFrontendVersion
 	// Version number.
 	UPROPERTY()
 	FMetasoundFrontendVersionNumber Number;
+
+	FString ToString() const;
+
+	bool IsValid() const;
+
+	static const FMetasoundFrontendVersion& GetInvalid();
+
+	friend bool operator==(const FMetasoundFrontendVersion& InLHS, const FMetasoundFrontendVersion& InRHS)
+	{
+		return InLHS.Name == InRHS.Name && InLHS.Number == InRHS.Number;
+	}
+
+	friend bool operator!=(const FMetasoundFrontendVersion& InLHS, const FMetasoundFrontendVersion& InRHS)
+	{
+		return !(InLHS == InRHS);
+	}
+
+	friend bool operator>(const FMetasoundFrontendVersion& InLHS, const FMetasoundFrontendVersion& InRHS)
+	{
+		if (InRHS.Name.FastLess(InLHS.Name))
+		{
+			return true;
+		}
+
+		if (InLHS.Name == InRHS.Name)
+		{
+			return InLHS.Number > InRHS.Number;
+		}
+
+		return false;
+	}
+
+	friend bool operator>=(const FMetasoundFrontendVersion& InLHS, const FMetasoundFrontendVersion& InRHS)
+	{
+		return InLHS == InRHS || InLHS > InRHS;
+	}
+
+	friend bool operator<(const FMetasoundFrontendVersion& InLHS, const FMetasoundFrontendVersion& InRHS)
+	{
+		if (InLHS.Name.FastLess(InRHS.Name))
+		{
+			return true;
+		}
+
+		if (InLHS.Name == InRHS.Name)
+		{
+			return InLHS.Number < InRHS.Number;
+		}
+
+		return false;
+	}
+
+	friend bool operator<=(const FMetasoundFrontendVersion& InLHS, const FMetasoundFrontendVersion& InRHS)
+	{
+		return InLHS == InRHS || InLHS < InRHS;
+	}
 };
 
 
@@ -784,20 +840,18 @@ struct FMetasoundFrontendArchetypeInterface
 	TArray<FMetasoundFrontendEnvironmentVariable> Environment;
 };
 
-// This is used to describe the required inputs and outputs for a metasound, and is used to make sure we can use a metasound graph for specific applications.
-// For example, a UMetaSoundSource needs to generate audio, so its RequiredOutputs will contain "MainAudioOutput"
+/** Describes the expected minimum interface of a MetaSound root graph. This allows
+ * systems to describe the minimum interface for a MetaSound to work within them. */
 USTRUCT()
 struct FMetasoundFrontendArchetype
 {
 	GENERATED_BODY()
 
-	// Name of the archetype we're using.
+	/** Name and version number of the archetype. */
 	UPROPERTY()
-	FName Name;
+	FMetasoundFrontendVersion Version;
 
-	UPROPERTY()
-	FMetasoundFrontendVersionNumber Version;
-
+	/** Expected minimum interface for MetaSounds satisfying archetype. */
 	UPROPERTY()
 	FMetasoundFrontendArchetypeInterface Interface;
 };
@@ -808,7 +862,6 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendDocument
 {
 	GENERATED_BODY()
 
-	//Metasound::Frontend::TAccessPoint<FMetasoundFrontendDocument> AccessPoint;
 	Metasound::Frontend::FAccessPoint AccessPoint;
 
 	FMetasoundFrontendDocument();
@@ -816,14 +869,17 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendDocument
 	UPROPERTY(EditAnywhere, Category = Metadata)
 	FMetasoundFrontendDocumentMetadata Metadata;
 
+	UPROPERTY()
+	FMetasoundFrontendEditorData EditorData;
+
+	UPROPERTY()
+	FMetasoundFrontendVersion ArchetypeVersion;
+
 	UPROPERTY(EditAnywhere, Category = CustomView)
 	FMetasoundFrontendGraphClass RootGraph;
 
 	UPROPERTY()
 	TArray<FMetasoundFrontendGraphClass> Subgraphs;
-
-	UPROPERTY()
-	FMetasoundFrontendEditorData EditorData;
 
 	UPROPERTY()
 	TArray<FMetasoundFrontendClass> Dependencies;

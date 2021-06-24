@@ -333,7 +333,7 @@ namespace Metasound
 			virtual TArray<FConstOutputHandle> GetConstOutputsWithVertexName(const FString& InName) const = 0;
 
 			/** Returns true if node is required to satisfy the document archetype. */
-			virtual bool IsRequired(const FMetasoundFrontendArchetype& InArchetype) const = 0;
+			virtual bool IsRequired() const = 0;
 
 			/** Returns an input with the given id.
 			 *
@@ -696,6 +696,7 @@ namespace Metasound
 			virtual TArray<FMetasoundFrontendClass> GetDependencies() const = 0;
 			virtual TArray<FMetasoundFrontendGraphClass> GetSubgraphs() const = 0;
 			virtual TArray<FMetasoundFrontendClass> GetClasses() const = 0;
+			virtual const FMetasoundFrontendGraphClass& GetRootGraphClass() const = 0;
 
 			virtual FConstClassAccessPtr FindDependencyWithID(FGuid InClassID) const = 0;
 			virtual FConstGraphClassAccessPtr FindSubgraphWithID(FGuid InClassID) const = 0;
@@ -744,6 +745,9 @@ namespace Metasound
 			 * @return Handle to new graph. On error, an invalid handle is returned.
 			 */
 			virtual FGraphHandle AddDuplicateSubgraph(const IGraphController& InGraph) = 0;
+
+			virtual const FMetasoundFrontendVersion& GetArchetypeVersion() const = 0;
+			virtual void SetArchetypeVersion(const FMetasoundFrontendVersion& InVersion) = 0;
 
 			/** Removes all dependencies which are no longer referenced by any graphs within this document
 			  * and updates dependency Metadata where necessary with that found in the registry.  */

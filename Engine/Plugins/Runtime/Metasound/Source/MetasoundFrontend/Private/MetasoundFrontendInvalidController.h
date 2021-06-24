@@ -169,7 +169,7 @@ namespace Metasound
 
 			const FText& GetDescription() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FText>(); }
 
-			bool IsRequired(const FMetasoundFrontendArchetype& InArchetype) const override { return false; }
+			bool IsRequired() const override { return false; }
 
 			TSharedRef<IGraphController> AsGraph() override;
 			TSharedRef<const IGraphController> AsGraph() const override;
@@ -334,6 +334,10 @@ namespace Metasound
 				TArray<FMetasoundFrontendClass> GetDependencies() const override { return TArray<FMetasoundFrontendClass>(); }
 				TArray<FMetasoundFrontendGraphClass> GetSubgraphs() const override { return TArray<FMetasoundFrontendGraphClass>(); }
 				TArray<FMetasoundFrontendClass> GetClasses() const override { return TArray<FMetasoundFrontendClass>(); }
+				const FMetasoundFrontendGraphClass& GetRootGraphClass() const override
+				{
+					return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FMetasoundFrontendGraphClass>();
+				}
 
 				FConstClassAccessPtr FindDependencyWithID(FGuid InClassID) const override { return FConstClassAccessPtr(); }
 				FConstGraphClassAccessPtr FindSubgraphWithID(FGuid InClassID) const override { return FConstGraphClassAccessPtr(); }
@@ -344,6 +348,9 @@ namespace Metasound
 				FConstClassAccessPtr FindClass(const FMetasoundFrontendClassMetadata& InMetadata) const override{ return FConstClassAccessPtr(); }
 				FConstClassAccessPtr FindOrAddClass(const FMetasoundFrontendClassMetadata& InMetadata) override{ return FConstClassAccessPtr(); }
 				FGraphHandle AddDuplicateSubgraph(const IGraphController& InGraph) override { return FInvalidGraphController::GetInvalid(); }
+
+				virtual const FMetasoundFrontendVersion& GetArchetypeVersion() const override { return FMetasoundFrontendVersion::GetInvalid(); }
+				virtual void SetArchetypeVersion(const FMetasoundFrontendVersion& InVersion) override {}
 
 				void SetMetadata(const FMetasoundFrontendDocumentMetadata& InMetadata) override { }
 				const FMetasoundFrontendDocumentMetadata& GetMetadata() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FMetasoundFrontendDocumentMetadata>(); }

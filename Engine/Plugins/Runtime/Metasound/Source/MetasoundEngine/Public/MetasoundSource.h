@@ -124,7 +124,7 @@ public:
 	// Returns Asset Metadata associated with this MetaSoundSource
 	virtual Metasound::Frontend::FNodeClassInfo GetAssetClassInfo() const override;
 
-	virtual const FMetasoundFrontendArchetype& GetArchetype() const override;
+	virtual const FMetasoundFrontendVersion& GetDefaultArchetypeVersion() const override;
 
 	UObject* GetOwningAsset() override
 	{
@@ -143,11 +143,8 @@ public:
 	virtual TUniquePtr<IAudioInstanceTransmitter> CreateInstanceTransmitter(const FAudioInstanceTransmitterInitParams& InParams) const override;
 
 	// Get the most up to date archetype for metasound sources.
-	const TArray<FMetasoundFrontendArchetype>& GetPreferredArchetypes() const override;
+	const TArray<FMetasoundFrontendVersion>& GetSupportedArchetypeVersions() const override;
 
-	static const FMetasoundFrontendArchetype& GetBaseArchetype();
-	static const FMetasoundFrontendArchetype& GetMonoSourceArchetype();
-	static const FMetasoundFrontendArchetype& GetStereoSourceArchetype();
 
 protected:
 	Metasound::Frontend::FDocumentAccessPtr GetDocument() override
@@ -168,11 +165,4 @@ protected:
 
 private:
 	Metasound::FOperatorSettings GetOperatorSettings(Metasound::FSampleRate InSampleRate) const;
-
-	static const FString& GetOnPlayInputName();
-	static const FString& GetAudioOutputName();
-	static const FString& GetIsFinishedOutputName();
-	static const FString& GetAudioDeviceHandleVariableName();
-	static const FString& GetSoundUniqueIdName();
-	static const FString& GetIsPreviewSoundName();
 };
