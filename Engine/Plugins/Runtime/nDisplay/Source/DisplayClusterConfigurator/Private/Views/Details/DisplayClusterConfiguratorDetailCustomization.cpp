@@ -1468,7 +1468,7 @@ void FDisplayClusterConfiguratorColorGradingProfileCustomization::CustomizeChild
 	check(EnablePostProcessHandle->IsValidHandle());
 
 	EnablePostProcessHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
-		LOCTEXT("EnablePostProcessViewportsDisplayName", "Enable Viewports Color Grading") : LOCTEXT("EnablePostProcessClusterDisplayName", "Enable Inner Frustum Color Grading"));
+		LOCTEXT("EnablePostProcessViewportsDisplayName", "Enable Viewport Color Grading") : LOCTEXT("EnablePostProcessClusterDisplayName", "Enable Inner Frustum Color Grading"));
 
 	/*
 	const TAttribute<bool> EnablePostprocess = TAttribute<bool>::Create([this, EnablePostProcessHandle]()

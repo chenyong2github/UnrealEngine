@@ -52,10 +52,10 @@ enum class EDisplayClusterConfiguration_PostRenderBlur : uint8
 	None      UMETA(DisplayName = "None"),
 
 	// Blur viewport using Gaussian method
-	Gaussian  UMETA(DisplayName = "Gaussian match"),
+	Gaussian  UMETA(DisplayName = "Gaussian"),
 
 	// Blur viewport using Dilate method
-	Dilate    UMETA(DisplayName = "Dilate match"),
+	Dilate    UMETA(DisplayName = "Dilate"),
 };
 
 UENUM()
