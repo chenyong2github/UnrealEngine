@@ -2,31 +2,40 @@
 
 #pragma once
 
-#include "Online/Auth.h"
-#include "Online/OnlineComponent.h"
+#include "CoreMinimal.h"
+#include "Online/AuthCommon.h"
+#include "Containers/Ticker.h"
 
+#if WITH_EOS_SDK
+	#include "eos_auth_types.h"
+#endif
 namespace UE::Online {
 
-class FOnlineServicesCommon;
+class FOnlineServicesEOS;
 
-class ONLINESERVICESCOMMON_API FAuthCommon : public TOnlineComponent<IAuth>
+class ONLINESERVICESEOS_API FAuthEOS : public FAuthCommon
 {
 public:
-	using Super = IAuth;
+	using Super = FAuthCommon;
 
-	FAuthCommon(FOnlineServicesCommon& InServices);
-
+	FAuthEOS(FOnlineServicesEOS& InOwningSubsystem);
 	virtual TOnlineAsyncOpHandle<FAuthLogin> Login(FAuthLogin::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FAuthLogout> Logout(FAuthLogout::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FAuthGenerateAuth> GenerateAuth(FAuthGenerateAuth::Params&& Params) override;
 	virtual TOnlineResult<FAuthGetAccountByLocalUserNum::Result> GetAccountByLocalUserNum(FAuthGetAccountByLocalUserNum::Params&& Params) override;
 	virtual TOnlineResult<FAuthGetAccountByAccountId::Result> GetAccountByAccountId(FAuthGetAccountByAccountId::Params&& Params) override;
-	virtual TOnlineEvent<void(const FLoginStatusChanged&)> OnLoginStatusChanged() override;
 
 protected:
-	FOnlineServicesCommon& Services;
+	TOnlineResult<FAccountId> GetAccountIdByLocalUserNum(int32 LocalUserNum) const;
+	virtual void Tick(float DeltaTime) override;
 
-	TOnlineEventCallable<void(const FLoginStatusChanged&)> OnLoginStatusChangedEvent;
+	class FAccountInfoEOS : public FAccountInfo
+	{
+	public:
+
+	};
+
+	TMap<FAccountId, TSharedRef<FAccountInfoEOS>> AccountInfos;
 };
 
 /* UE::Online */ }

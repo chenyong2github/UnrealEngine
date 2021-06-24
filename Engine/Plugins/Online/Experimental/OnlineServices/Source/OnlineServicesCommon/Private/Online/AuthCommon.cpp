@@ -34,6 +34,16 @@ TOnlineAsyncOpHandle<FAuthGenerateAuth> FAuthCommon::GenerateAuth(FAuthGenerateA
 	return Operation.GetHandle();
 }
 
+TOnlineResult<FAuthGetAccountByLocalUserNum::Result> FAuthCommon::GetAccountByLocalUserNum(FAuthGetAccountByLocalUserNum::Params&& Params)
+{
+	return TOnlineResult<FAuthGetAccountByLocalUserNum::Result>(Errors::Unimplemented());
+}
+
+TOnlineResult<FAuthGetAccountByAccountId::Result> FAuthCommon::GetAccountByAccountId(FAuthGetAccountByAccountId::Params&& Params)
+{
+	return TOnlineResult<FAuthGetAccountByAccountId::Result>(Errors::Unimplemented());
+}
+
 TOnlineEvent<void(const FLoginStatusChanged&)> FAuthCommon::OnLoginStatusChanged()
 {
 	return OnLoginStatusChangedEvent;

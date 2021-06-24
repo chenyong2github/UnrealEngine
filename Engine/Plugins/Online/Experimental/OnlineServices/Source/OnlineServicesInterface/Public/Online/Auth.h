@@ -62,7 +62,7 @@ struct FAuthGenerateAuth
 	};
 };
 
-struct FGetAccountByLocalUserNum
+struct FAuthGetAccountByLocalUserNum
 {
 	struct Params
 	{
@@ -75,7 +75,7 @@ struct FGetAccountByLocalUserNum
 	};
 };
 
-struct FGetAccountByAccountId
+struct FAuthGetAccountByAccountId
 {
 	struct Params
 	{
@@ -113,12 +113,12 @@ public:
 	/**
 	 * Get logged in user by local user num
 	 */ 
-	virtual TOnlineResult<FGetAccountByLocalUserNum::Result> GetAccountByLocalUserNum(FGetAccountByLocalUserNum::Params&& Params) = 0;
+	virtual TOnlineResult<FAuthGetAccountByLocalUserNum::Result> GetAccountByLocalUserNum(FAuthGetAccountByLocalUserNum::Params&& Params) = 0;
 
 	/**
 	 * Get logged in user by account id
 	 */
-	virtual TOnlineResult<FGetAccountByAccountId::Result> GetAccountByAccountId(FGetAccountByAccountId::Params&& Params) = 0;
+	virtual TOnlineResult<FAuthGetAccountByAccountId::Result> GetAccountByAccountId(FAuthGetAccountByAccountId::Params&& Params) = 0;
 
 	/**
 	 * Event triggered when a local user's login status changes
