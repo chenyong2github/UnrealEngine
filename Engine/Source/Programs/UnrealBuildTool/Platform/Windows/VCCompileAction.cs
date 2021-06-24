@@ -219,7 +219,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Whether to use cl-filter
 		/// </summary>
-		bool UsingClFilter => DependencyListFile != null && !DependencyListFile.HasExtension(".json");
+		bool UsingClFilter => DependencyListFile != null && !DependencyListFile.HasExtension(".json") && !DependencyListFile.HasExtension(".d");
 
 		/// <inheritdoc/>
 		FileReference IExternalAction.CommandPath
@@ -388,10 +388,9 @@ namespace UnrealBuildTool
 		public List<string> GetCompilerArguments()
 		{
 			List<string> Arguments = new List<string>();
-
 			if (SourceFile != null)
 			{
-				Arguments.Add(Utils.MakePathSafeToUseWithCommandLine(SourceFile.FullName));
+				VCToolChain.AddSourceFile(Arguments, SourceFile, CompilerType, PreprocessedFile != null);
 			}
 
 			foreach (DirectoryReference IncludePath in IncludePaths)
@@ -413,35 +412,37 @@ namespace UnrealBuildTool
 
 			foreach (FileItem ForceIncludeFile in ForceIncludeFiles)
 			{
-				Arguments.Add(String.Format("/FI\"{0}\"", ForceIncludeFile.Location));
+				VCToolChain.AddForceIncludeFile(Arguments, ForceIncludeFile, CompilerType, PreprocessedFile != null);
 			}
 
 			if (CreatePchFile != null)
 			{
-				Arguments.Add(String.Format("/Yc\"{0}\"", PchThroughHeaderFile.FullName));
-				Arguments.Add(String.Format("/Fp\"{0}\"", CreatePchFile.FullName));
+				VCToolChain.AddCreatePchFile(Arguments, PchThroughHeaderFile, CreatePchFile, CompilerType, PreprocessedFile != null);
 			}
+
 			if (UsingPchFile != null && CompilerType != WindowsCompiler.Clang)
 			{
-				Arguments.Add(String.Format("/Yu\"{0}\"", PchThroughHeaderFile.FullName));
-				Arguments.Add(String.Format("/Fp\"{0}\"", UsingPchFile.FullName));
+				VCToolChain.AddUsingPchFile(Arguments, PchThroughHeaderFile, UsingPchFile, CompilerType, PreprocessedFile != null);
 			}
 
 			if (PreprocessedFile != null)
 			{
-				Arguments.Add("/P"); // Preprocess
-				Arguments.Add("/C"); // Preserve comments when preprocessing
-				Arguments.Add(String.Format("/Fi\"{0}\"", PreprocessedFile)); // Preprocess to a file
+				VCToolChain.AddPreprocessedFile(Arguments, PreprocessedFile, CompilerType, PreprocessedFile != null);
 			}
 
 			if (ObjectFile != null)
 			{
-				Arguments.Add(String.Format("/Fo\"{0}\"", ObjectFile.AbsolutePath));
+				VCToolChain.AddObjectFile(Arguments, ObjectFile, CompilerType, PreprocessedFile != null);
 			}
 
 			if (DependencyListFile != null && DependencyListFile.HasExtension(".json"))
 			{
-				Arguments.Add(String.Format("/sourceDependencies\"{0}\"", DependencyListFile.AbsolutePath));
+				VCToolChain.AddSourceDependenciesFile(Arguments, DependencyListFile, CompilerType, PreprocessedFile != null);
+			}
+
+			if (DependencyListFile != null && DependencyListFile.HasExtension(".d"))
+			{
+				VCToolChain.AddSourceDependsFile(Arguments, DependencyListFile, CompilerType, PreprocessedFile != null);
 			}
 
 			Arguments.AddRange(this.Arguments);
@@ -456,18 +457,21 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				return String.Format("@\"{0}\"", ResponseFile.Location);
+				string ResponseFileString = VCToolChain.NormalizeCommandLinePath(ResponseFile, CompilerType, PreprocessedFile != null);
+				return String.Format("@{0}", Utils.MakePathSafeToUseWithCommandLine(ResponseFileString));
 			}
 		}
 
 		string GetClFilterArguments()
 		{
 			List<string> Arguments = new List<string>();
-			Arguments.Add(String.Format("-dependencies={0}", Utils.MakePathSafeToUseWithCommandLine(DependencyListFile.Location)));
+			string DependencyListFileString = VCToolChain.NormalizeCommandLinePath(DependencyListFile, CompilerType, PreprocessedFile != null);
+			Arguments.Add(String.Format("-dependencies={0}", Utils.MakePathSafeToUseWithCommandLine(DependencyListFileString)));
 
 			if (TimingFile != null)
 			{
-				Arguments.Add(String.Format("-timing={0}", Utils.MakePathSafeToUseWithCommandLine(TimingFile.Location)));
+				string TimingFileString = VCToolChain.NormalizeCommandLinePath(TimingFile, CompilerType, PreprocessedFile != null);
+				Arguments.Add(String.Format("-timing={0}", Utils.MakePathSafeToUseWithCommandLine(TimingFileString)));
 			}
 			if (bShowIncludes)
 			{

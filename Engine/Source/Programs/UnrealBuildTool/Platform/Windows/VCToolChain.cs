@@ -116,43 +116,97 @@ namespace UnrealBuildTool
 			}
 		}
 
-
-		public static void AddIncludePath(List<string> Arguments, DirectoryReference IncludePath, WindowsCompiler Compiler, bool bPreprocessOnly)
+		public static string NormalizeCommandLinePath(FileSystemReference Reference, WindowsCompiler Compiler, bool bPreprocessOnly)
 		{
 			// Try to use a relative path to shorten command line length. Always need the full path when preprocessing because the output file will be in a different place, where include paths cannot be relative.
-			string IncludePathString;
-			if(IncludePath.IsUnderDirectory(Unreal.RootDirectory) && Compiler != WindowsCompiler.Clang && !bPreprocessOnly)
+			if (Reference.IsUnderDirectory(Unreal.RootDirectory) && !bPreprocessOnly)
 			{
-				IncludePathString = IncludePath.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory);
+				return Reference.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory);
+			}
+
+			return Reference.FullName;
+		}
+
+		public static string NormalizeCommandLinePath(FileItem Item, WindowsCompiler Compiler, bool bPreprocessOnly)
+		{
+			return NormalizeCommandLinePath(Item.Location, Compiler, bPreprocessOnly);
+		}
+
+		public static void AddSourceFile(List<string> Arguments, FileItem SourceFile, WindowsCompiler Compiler, bool bPreprocessOnly)
+		{
+			string SourceFileString = NormalizeCommandLinePath(SourceFile, Compiler, bPreprocessOnly);
+			Arguments.Add(Utils.MakePathSafeToUseWithCommandLine(SourceFileString));
+		}
+
+		public static void AddIncludePath(List<string> Arguments, DirectoryReference IncludePath, WindowsCompiler Compiler, bool bPreprocessOnly, bool bSystemInclude = false)
+		{
+			// Try to use a relative path to shorten command line length. Always need the full path when preprocessing because the output file will be in a different place, where include paths cannot be relative.
+			string IncludePathString = NormalizeCommandLinePath(IncludePath, Compiler, bPreprocessOnly);
+
+			if (Compiler == WindowsCompiler.Clang && bSystemInclude)
+			{
+				// Clang has special treatment for system headers; only system include directories are searched when include directives use angle brackets,
+				// and warnings are disabled to allow compiler toolchains to be upgraded separately.
+				Arguments.Add("/imsvc " + Utils.MakePathSafeToUseWithCommandLine(IncludePathString));
 			}
 			else
 			{
-				IncludePathString = IncludePath.FullName;
+				Arguments.Add("/I " + Utils.MakePathSafeToUseWithCommandLine(IncludePathString));
 			}
-
-			// If the value has a space in it and isn't wrapped in quotes, do that now. Make sure it doesn't include a trailing slash, because that will escape the closing quote.
-			if (IncludePathString.Contains(" "))
-			{
-				IncludePathString = "\"" + IncludePathString + "\"";
-			}
-
-			Arguments.Add("/I " + IncludePathString);
 		}
 
 		public static void AddSystemIncludePath(List<string> Arguments, DirectoryReference IncludePath, WindowsCompiler Compiler, bool bPreprocessOnly)
 		{
-			if (Compiler == WindowsCompiler.Clang)
-			{
-				// Clang has special treatment for system headers; only system include directories are searched when include directives use angle brackets,
-				// and warnings are disabled to allow compiler toolchains to be upgraded separately.
-				Arguments.Add(String.Format("/imsvc \"{0}\"", IncludePath));
-			}
-			else
-			{
-				AddIncludePath(Arguments, IncludePath, Compiler, bPreprocessOnly);
-			}
+			AddIncludePath(Arguments, IncludePath, Compiler, bPreprocessOnly, true);
 		}
 
+		public static void AddForceIncludeFile(List<string> Arguments, FileItem ForceIncludeFile, WindowsCompiler Compiler, bool bPreprocessOnly)
+		{
+			string ForceIncludeFileString = NormalizeCommandLinePath(ForceIncludeFile, Compiler, bPreprocessOnly);
+			Arguments.Add($"/FI\"{ForceIncludeFileString}\"");
+		}
+
+		public static void AddCreatePchFile(List<string> Arguments, FileItem PchThroughHeaderFile, FileItem CreatePchFile, WindowsCompiler Compiler, bool bPreprocessOnly)
+		{
+			string PchThroughHeaderFilePath = NormalizeCommandLinePath(PchThroughHeaderFile, Compiler, bPreprocessOnly);
+			string CreatePchFilePath = NormalizeCommandLinePath(CreatePchFile, Compiler, bPreprocessOnly);
+			Arguments.Add($"/Yc\"{PchThroughHeaderFilePath}\"");
+			Arguments.Add($"/Fp\"{CreatePchFilePath}\"");
+		}
+
+		public static void AddUsingPchFile(List<string> Arguments, FileItem PchThroughHeaderFile, FileItem UsingPchFile, WindowsCompiler Compiler, bool bPreprocessOnly)
+		{
+			string PchThroughHeaderFilePath = NormalizeCommandLinePath(PchThroughHeaderFile, Compiler, bPreprocessOnly);
+			string UsingPchFilePath = NormalizeCommandLinePath(UsingPchFile, Compiler, bPreprocessOnly);
+			Arguments.Add($"/Yu\"{PchThroughHeaderFilePath}\"");
+			Arguments.Add($"/Fp\"{UsingPchFilePath}\"");
+		}
+
+		public static void AddPreprocessedFile(List<string> Arguments, FileItem PreprocessedFile, WindowsCompiler Compiler, bool bPreprocessOnly)
+		{
+			string PreprocessedFileString = NormalizeCommandLinePath(PreprocessedFile, Compiler, bPreprocessOnly);
+			Arguments.Add("/P"); // Preprocess
+			Arguments.Add("/C"); // Preserve comments when preprocessing
+			Arguments.Add($"/Fi\"{PreprocessedFileString}\""); // Preprocess to a file
+		}
+
+		public static void AddObjectFile(List<string> Arguments, FileItem ObjectFile, WindowsCompiler Compiler, bool bPreprocessOnly)
+		{
+			string ObjectFileString = NormalizeCommandLinePath(ObjectFile, Compiler, bPreprocessOnly);
+			Arguments.Add($"/Fo\"{ObjectFileString}\"");
+		}
+
+		public static void AddSourceDependenciesFile(List<string> Arguments, FileItem SourceDependenciesFile, WindowsCompiler Compiler, bool bPreprocessOnly)
+		{
+			string SourceDependenciesFileString = NormalizeCommandLinePath(SourceDependenciesFile, Compiler, bPreprocessOnly);
+			Arguments.Add("/sourceDependencies " + Utils.MakePathSafeToUseWithCommandLine(SourceDependenciesFileString));
+		}
+
+		public static void AddSourceDependsFile(List<string> Arguments, FileItem SourceDependsFile, WindowsCompiler Compiler, bool bPreprocessOnly)
+		{
+			string SourceDependsFileString = NormalizeCommandLinePath(SourceDependsFile, Compiler, bPreprocessOnly);
+			Arguments.Add($"/clang:-MD /clang:-MF\"{SourceDependsFileString}\"");
+		}
 
 		protected virtual void AppendCLArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
@@ -1092,7 +1146,8 @@ namespace UnrealBuildTool
 				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
 				{
 					// Generate a CPP File that just includes the precompiled header.
-					string PchCppFile = string.Format("// Compiler: {0}\n#include \"{1}\"\r\n", EnvVars.CompilerVersion, CompileEnvironment.PrecompiledHeaderIncludeFilename.FullName.Replace('\\', '/'));
+					string PrecompiledHeaderIncludeFilenameString = NormalizeCommandLinePath(CompileEnvironment.PrecompiledHeaderIncludeFilename, Target.WindowsPlatform.Compiler, CompileEnvironment.bPreprocessOnly);
+					string PchCppFile = string.Format("// Compiler: {0}\n#include \"{1}\"\r\n", EnvVars.CompilerVersion, PrecompiledHeaderIncludeFilenameString.Replace('\\', '/'));
 					CompileAction.SourceFile = FileItem.GetItemByFileReference(CompileEnvironment.PrecompiledHeaderIncludeFilename.ChangeExtension(".cpp"));
 					Graph.CreateIntermediateTextFile(CompileAction.SourceFile, PchCppFile, StringComparison.Ordinal);
 
@@ -1242,6 +1297,10 @@ namespace UnrealBuildTool
 					if (EnvVars.ToolChainVersion >= VersionNumber.Parse("14.27") && Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2019)
 					{
 						CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.json", SourceFile.Location.GetFileName())));
+					}
+					else if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
+					{
+						CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.d", SourceFile.Location.GetFileName())));
 					}
 					else
 					{
