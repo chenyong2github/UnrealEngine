@@ -211,16 +211,6 @@ public:
 	}
 
 	/**
-	* Helper function for rand implementations.
-	*
-	* @return A random number >= Min and <= Max
-	*/
-	FORCEINLINE double FRandRange(double InMin, double InMax) const
-	{
-		return InMin + (InMax - InMin) * FRand();	// LWC_TODO: Implement FRandDbl() for increased precision
-	}
-
-	/**
 	 * Returns a random vector of unit size.
 	 *
 	 * @return Random unit vector.
@@ -230,11 +220,6 @@ public:
 		return GetUnitVector();
 	}
 
-	/**
-	* Returns a random point contained inside an axis aligned bounding box
-	*
-	* @return Random point within Box.
-	*/
 	FORCEINLINE FVector RandPointInBox(const FBox& Box) const
 	{
 		return FVector(	FRandRange(Box.Min.X, Box.Max.X),
