@@ -138,7 +138,7 @@ bool FDatasmithNativeTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshE
 				SourceModel.RawMeshBulkData.LoadRawMesh( RawMesh );
 				if ( RawMesh.VertexPositions.Num() > 0 )
 				{
-					OutMeshPayload.CollisionPointCloud = LWC::PromoteArrayType<FVector>(RawMesh.VertexPositions);	// LWC_TODO: Perf pessimization. Was MoveTemp.
+					OutMeshPayload.CollisionPointCloud = LWC::ConvertArrayType<FVector>(RawMesh.VertexPositions);	// LWC_TODO: Perf pessimization. Was MoveTemp.
 					break;
 				}
 				ExtractionFailure++;

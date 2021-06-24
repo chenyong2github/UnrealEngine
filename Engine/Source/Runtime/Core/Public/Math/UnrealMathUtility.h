@@ -2191,34 +2191,25 @@ public:
 namespace LWC
 {
 
-
-// Convert array via constructor (for float -> double conversions)
+// Convert array to a new type
 template<typename TDest, typename TSrc, typename InAllocatorType>
-TArray<TDest, InAllocatorType> PromoteArrayType(const TArray<TSrc, InAllocatorType>& From)
+TArray<TDest, InAllocatorType> ConvertArrayType(const TArray<TSrc, InAllocatorType>& From)
 {
-	//static_assert(!std::is_same<TDest, TSrc>::value, "Redundant call to PromoteArrayType");	// Unavoidable if supporting LWC toggle, but a useful check once LWC is locked to enabled.
-	TArray<TDest, InAllocatorType> Converted;
-	Converted.Reserve(From.Num());
-	for (const TSrc& Item : From)
+	//static_assert(!std::is_same<TDest, TSrc>::value, "Redundant call to ConvertArrayType");	// Unavoidable if supporting LWC toggle, but a useful check once LWC is locked to enabled.
+	if constexpr (std::is_same<TDest, TSrc>::value)
 	{
-		Converted.Add(Item);
+		return From;
 	}
-	return Converted;
-}
-
-
-// Convert array via ToFloatType converter (For double -> float conversions)
-template<typename TDest, typename TSrc, typename InAllocatorType>
-TArray<TDest, InAllocatorType> DemoteArrayType(const TArray<TSrc, InAllocatorType>& From)
-{
-	//static_assert(!std::is_same<TDest, TSrc>::value, "Redundant call to DemoteArrayType");	// Unavoidable if supporting LWC toggle, but a useful check once LWC is locked to enabled.
-	TArray<TDest, InAllocatorType> Converted;
-	Converted.Reserve(From.Num());
-	for (const TSrc& Item : From)
+	else
 	{
-		Converted.Add(static_cast<TDest>(Item));
+		TArray<TDest, InAllocatorType> Converted;
+		Converted.Reserve(From.Num());
+		for (const TSrc& Item : From)
+		{
+			Converted.Add(static_cast<TDest>(Item));
+		}
+		return Converted;
 	}
-	return Converted;
 }
 
 }

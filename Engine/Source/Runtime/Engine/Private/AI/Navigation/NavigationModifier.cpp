@@ -345,7 +345,7 @@ void FAreaNavModifier::InitializeConvex(const TNavStatArray<FVector>& InPoints, 
 	check(InPoints.IsValidIndex(FirstIndex) && InPoints.IsValidIndex(LastIndex-1));
 
 	Init(InAreaClass);
-	SetConvex(LWC::DemoteArrayType<FVector3f>(InPoints).GetData(), FirstIndex, LastIndex, ENavigationCoordSystem::Unreal, LocalToWorld);	// LWC_TODO: Perf pessimization
+	SetConvex(LWC::ConvertArrayType<FVector3f>(InPoints).GetData(), FirstIndex, LastIndex, ENavigationCoordSystem::Unreal, LocalToWorld);	// LWC_TODO: Perf pessimization
 }
 
 void FAreaNavModifier::InitializePerInstanceConvex(const TNavStatArray<FVector>& InPoints, const int32 FirstIndex, const int32 LastIndex, const TSubclassOf<UNavAreaBase> InAreaClass)
@@ -353,7 +353,7 @@ void FAreaNavModifier::InitializePerInstanceConvex(const TNavStatArray<FVector>&
 	check(InPoints.IsValidIndex(FirstIndex) && InPoints.IsValidIndex(LastIndex - 1));
 
 	Init(InAreaClass);
-	SetPerInstanceConvex(LWC::DemoteArrayType<FVector3f>(InPoints).GetData(), FirstIndex, LastIndex);	// LWC_TODO: Perf pessimization
+	SetPerInstanceConvex(LWC::ConvertArrayType<FVector3f>(InPoints).GetData(), FirstIndex, LastIndex);	// LWC_TODO: Perf pessimization
 }
 
 FAreaNavModifier::FAreaNavModifier(const UBrushComponent* BrushComponent, const TSubclassOf<UNavAreaBase> InAreaClass)
@@ -895,7 +895,7 @@ void FCompositeNavModifier::CreateAreaModifiers(const UPrimitiveComponent* PrimC
 		const FKConvexElem& ConvexElem = BodySetup->AggGeom.ConvexElems[Idx];
 		if (ConvexElem.VertexData.Num() > 0)
 		{
-			FAreaNavModifier AreaMod(LWC::DemoteArrayType<FVector3f>(ConvexElem.VertexData), 0, ConvexElem.VertexData.Num(), ENavigationCoordSystem::Unreal, PrimComp->GetComponentTransform(), AreaClass);
+			FAreaNavModifier AreaMod(LWC::ConvertArrayType<FVector3f>(ConvexElem.VertexData), 0, ConvexElem.VertexData.Num(), ENavigationCoordSystem::Unreal, PrimComp->GetComponentTransform(), AreaClass);
 			Add(AreaMod);
 		}
 		else

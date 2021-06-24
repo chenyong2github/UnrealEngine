@@ -707,7 +707,7 @@ void USkeletalMeshComponent::UpdateKinematicBonesToAnim(const TArray<FTransform>
 						}
 					}
 				}
-				BodyInstance.UpdateTriMeshVertices(LWC::PromoteArrayType<FVector>(NewPositions));
+				BodyInstance.UpdateTriMeshVertices(LWC::ConvertArrayType<FVector>(NewPositions));
 			}
 			
 			BodyInstance.SetBodyTransform(CurrentLocalToWorld, Teleport);
