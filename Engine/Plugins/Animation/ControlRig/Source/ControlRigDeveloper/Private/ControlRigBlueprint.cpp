@@ -1243,7 +1243,7 @@ URigVMController* UControlRigBlueprint::GetOrCreateController(URigVMGraph* InGra
 	));
 
 	TWeakObjectPtr<URigVMController> WeakController = Controller;
-	Controller->RequestBulkEditDialogDelegate.BindLambda([WeakThis, WeakController](URigVMLibraryNode* InFunction, ERigVMControllerBulkEditType InEditType)
+	Controller->RequestBulkEditDialogDelegate.BindLambda([WeakThis, WeakController](URigVMLibraryNode* InFunction, ERigVMControllerBulkEditType InEditType) -> FRigVMController_BulkEditResult 
 	{
 		if(WeakThis.IsValid() && WeakController.IsValid())
 		{
@@ -1254,7 +1254,7 @@ URigVMController* UControlRigBlueprint::GetOrCreateController(URigVMGraph* InGra
 				return StrongThis->OnRequestBulkEditDialog().Execute(StrongThis, StrongController, InFunction, InEditType);
 			}
 		}
-		return true;
+		return FRigVMController_BulkEditResult();
 	});
 	
 #endif
