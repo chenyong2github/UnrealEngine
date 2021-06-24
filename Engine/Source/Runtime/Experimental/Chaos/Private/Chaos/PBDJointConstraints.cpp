@@ -40,79 +40,79 @@ namespace Chaos
 
 	
 	FPBDJointConstraintHandle::FPBDJointConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex)
-		: TContainerConstraintHandle<FPBDJointConstraints>(StaticType(), InConstraintContainer, InConstraintIndex)
+		: TContainerConstraintHandle<FPBDJointConstraints>(InConstraintContainer, InConstraintIndex)
 	{
 	}
 
 	
 	void FPBDJointConstraintHandle::CalculateConstraintSpace(FVec3& OutXa, FMatrix33& OutRa, FVec3& OutXb, FMatrix33& OutRb) const
 	{
-		ConstraintContainer->CalculateConstraintSpace(ConstraintIndex, OutXa, OutRa, OutXb, OutRb);
+		ConcreteContainer()->CalculateConstraintSpace(ConstraintIndex, OutXa, OutRa, OutXb, OutRb);
 	}
 
 
 	int32 FPBDJointConstraintHandle::GetConstraintIsland() const
 	{
-		return ConstraintContainer->GetConstraintIsland(ConstraintIndex);
+		return ConcreteContainer()->GetConstraintIsland(ConstraintIndex);
 	}
 
 
 	int32 FPBDJointConstraintHandle::GetConstraintLevel() const
 	{
-		return ConstraintContainer->GetConstraintLevel(ConstraintIndex);
+		return ConcreteContainer()->GetConstraintLevel(ConstraintIndex);
 	}
 
 
 	int32 FPBDJointConstraintHandle::GetConstraintColor() const
 	{
-		return ConstraintContainer->GetConstraintColor(ConstraintIndex);
+		return ConcreteContainer()->GetConstraintColor(ConstraintIndex);
 	}
 
 
 	bool FPBDJointConstraintHandle::IsConstraintEnabled() const
 	{
-		return ConstraintContainer->IsConstraintEnabled(ConstraintIndex);
+		return ConcreteContainer()->IsConstraintEnabled(ConstraintIndex);
 	}
 
 	bool FPBDJointConstraintHandle::IsConstraintBreaking() const
 	{
-		return ConstraintContainer->IsConstraintBreaking(ConstraintIndex);
+		return ConcreteContainer()->IsConstraintBreaking(ConstraintIndex);
 	}
 
 	void FPBDJointConstraintHandle::ClearConstraintBreaking()
 	{
-		return ConstraintContainer->ClearConstraintBreaking(ConstraintIndex);
+		return ConcreteContainer()->ClearConstraintBreaking(ConstraintIndex);
 	}
 
 	FVec3 FPBDJointConstraintHandle::GetLinearImpulse() const
 	{
-		return ConstraintContainer->GetConstraintLinearImpulse(ConstraintIndex);
+		return ConcreteContainer()->GetConstraintLinearImpulse(ConstraintIndex);
 	}
 
 	FVec3 FPBDJointConstraintHandle::GetAngularImpulse() const
 	{
-		return ConstraintContainer->GetConstraintAngularImpulse(ConstraintIndex);
+		return ConcreteContainer()->GetConstraintAngularImpulse(ConstraintIndex);
 	}
 
 	
 	const FPBDJointSettings& FPBDJointConstraintHandle::GetSettings() const
 	{
-		return ConstraintContainer->GetConstraintSettings(ConstraintIndex);
+		return ConcreteContainer()->GetConstraintSettings(ConstraintIndex);
 	}
 
 	void FPBDJointConstraintHandle::SetSettings(const FPBDJointSettings& Settings)
 	{
-		ConstraintContainer->SetConstraintSettings(ConstraintIndex, Settings);
+		ConcreteContainer()->SetConstraintSettings(ConstraintIndex, Settings);
 	}
 
 	TVector<FGeometryParticleHandle*, 2> FPBDJointConstraintHandle::GetConstrainedParticles() const 
 	{ 
-		return ConstraintContainer->GetConstrainedParticles(ConstraintIndex); 
+		return ConcreteContainer()->GetConstrainedParticles(ConstraintIndex);
 	}
 
 	void FPBDJointConstraintHandle::SetConstraintEnabled(bool bInEnabled)
 	{
-		return ConstraintContainer->SetConstraintEnabled(ConstraintIndex, bInEnabled);
+		return ConcreteContainer()->SetConstraintEnabled(ConstraintIndex, bInEnabled);
 	}
 
 	//
@@ -318,7 +318,8 @@ namespace Chaos
 
 	
 	FPBDJointConstraints::FPBDJointConstraints(const FPBDJointSolverSettings& InSettings)
-		: Settings(InSettings)
+		: FPBDConstraintContainer(EConstraintContainerType::Joint)
+		, Settings(InSettings)
 		, bJointsDirty(false)
 		, bUpdateVelocityInApplyConstraints(false)
 		, PreApplyCallback(nullptr)

@@ -102,7 +102,8 @@ namespace Chaos
 		const int32 InApplyPairIterations /*= 1*/,
 		const int32 InApplyPushOutPairIterations /*= 1*/,
 		const FReal InRestitutionThreshold /*= (FReal)0*/)
-		: bInAppendOperation(false)
+		: FPBDConstraintContainer(EConstraintContainerType::Collision)
+		, bInAppendOperation(false)
 		, Particles(InParticles)
 		, NumActivePointConstraints(0)
 		, NumActiveSweptPointConstraints(0)

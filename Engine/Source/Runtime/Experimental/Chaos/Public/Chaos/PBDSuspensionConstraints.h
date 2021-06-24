@@ -24,7 +24,7 @@ namespace Chaos
 
 		FPBDSuspensionConstraintHandle() {}
 		FPBDSuspensionConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex);
-		static FConstraintHandle::EType StaticType() { return FConstraintHandle::EType::Suspension; }
+		static EConstraintContainerType StaticType() { return EConstraintContainerType::Suspension; }
 
 		FPBDSuspensionSettings& GetSettings();
 		const FPBDSuspensionSettings& GetSettings() const;
@@ -35,7 +35,7 @@ namespace Chaos
 
 	protected:
 		using Base::ConstraintIndex;
-		using Base::ConstraintContainer;
+		using Base::ConcreteContainer;
 	};
 
 	class CHAOS_API FPBDSuspensionConstraints : public FPBDConstraintContainer
@@ -47,11 +47,13 @@ namespace Chaos
 		using FHandles = TArray<FConstraintContainerHandle*>;
 
 		FPBDSuspensionConstraints(const FPBDSuspensionSolverSettings& InSolverSettings = FPBDSuspensionSolverSettings())
-			: SolverSettings(InSolverSettings)
+			: FPBDConstraintContainer(EConstraintContainerType::Suspension)
+			, SolverSettings(InSolverSettings)
 		{}
 
 		FPBDSuspensionConstraints(TArray<FVec3>&& Locations, TArray<TGeometryParticleHandle<FReal,3>*>&& InConstrainedParticles, TArray<FVec3>&& InLocalOffset, TArray<FPBDSuspensionSettings>&& InConstraintSettings)
-			: ConstrainedParticles(MoveTemp(InConstrainedParticles)), SuspensionLocalOffset(MoveTemp(InLocalOffset)), ConstraintSettings(MoveTemp(InConstraintSettings))
+			: FPBDConstraintContainer(EConstraintContainerType::Suspension)
+			, ConstrainedParticles(MoveTemp(InConstrainedParticles)), SuspensionLocalOffset(MoveTemp(InLocalOffset)), ConstraintSettings(MoveTemp(InConstraintSettings))
 		{
 			if (ConstrainedParticles.Num() > 0)
 			{

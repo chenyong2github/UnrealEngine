@@ -30,6 +30,10 @@ extern CHAOS_API int32 ForceNoCollisionIntoSQ;
 
 namespace Chaos
 {
+namespace Collisions
+{
+	void CHAOS_API ResetChaosCollisionCounters();
+}
 
 extern CHAOS_API int32 FixBadAccelerationStructureRemoval;
 
@@ -467,29 +471,32 @@ public:
 	}
 
 	/** remove a list of constraints from the constraint graph (see AddConstraintsToConstraintGraph) */
-	CHAOS_API void RemoveConstraintsFromConstraintGraph(const TArray<FConstraintHandle*>& Constraints)
+	CHAOS_API void RemoveConstraintsFromConstraintGraph(const FConstraintHandleArray& Constraints)
 	{
 		for (FConstraintHandle* BaseConstraintHandle : Constraints)
 		{
 			if (FPBDJointConstraintHandle* ConstraintHandle = BaseConstraintHandle->As<FPBDJointConstraintHandle>())
 			{
 				// if it is already disabled then it will have already been removed from the graph
-				if (ConstraintHandle->IsConstraintEnabled())
+				if (ConstraintHandle->IsInConstraintGraph())
 				{
-					ConstraintGraph.RemoveConstraint(ConstraintHandle->GetConstraintIndex(), ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
+					ConstraintGraph.RemoveConstraint(ConstraintHandle->GetContainerId(), ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
 				}
 			}
 		}
 	}
 
 	/** Add a list of constraints to the constraint graph (see RemoveConstraintsFromConstraintGraph) */
-	CHAOS_API void AddConstraintsToConstraintGraph(const TArray<FConstraintHandle*>& Constraints)
+	CHAOS_API void AddConstraintsToConstraintGraph(const FConstraintHandleArray& Constraints)
 	{
 		for (FConstraintHandle* BaseConstraintHandle : Constraints)
 		{
 			if (FPBDJointConstraintHandle* ConstraintHandle = BaseConstraintHandle->As<FPBDJointConstraintHandle>())
 			{
-				ConstraintGraph.AddConstraint(ConstraintHandle->GetConstraintIndex(), ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
+				if (!ensure(ConstraintHandle->IsInConstraintGraph()))
+				{
+					ConstraintGraph.AddConstraint(ConstraintHandle->GetContainerId(), ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
+				}
 			}
 		}
 	}

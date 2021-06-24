@@ -16,12 +16,12 @@ namespace Chaos
 	{
 		if (GetType() == FCollisionConstraintBase::FType::SinglePoint)
 		{
-			return ConstraintContainer->Constraints.SinglePointConstraints[ConstraintIndex];
+			return ConcreteContainer()->Constraints.SinglePointConstraints[ConstraintIndex];
 		}
 		else
 		{
 			check(GetType() == FCollisionConstraintBase::FType::SinglePointSwept);
-			return ConstraintContainer->Constraints.SinglePointSweptConstraints[ConstraintIndex];
+			return ConcreteContainer()->Constraints.SinglePointSweptConstraints[ConstraintIndex];
 		}
 	}
 
@@ -29,37 +29,37 @@ namespace Chaos
 	{
 		if (GetType() == FCollisionConstraintBase::FType::SinglePoint)
 		{
-			return ConstraintContainer->Constraints.SinglePointConstraints[ConstraintIndex];
+			return ConcreteContainer()->Constraints.SinglePointConstraints[ConstraintIndex];
 		}
 		else
 		{
 			check(GetType() == FCollisionConstraintBase::FType::SinglePointSwept);
-			return ConstraintContainer->Constraints.SinglePointSweptConstraints[ConstraintIndex];
+			return ConcreteContainer()->Constraints.SinglePointSweptConstraints[ConstraintIndex];
 		}
 	}
 
 	const FRigidBodyPointContactConstraint& FPBDCollisionConstraintHandle::GetPointContact() const
 	{ 
 		check(GetType() == FCollisionConstraintBase::FType::SinglePoint);
-		return ConstraintContainer->Constraints.SinglePointConstraints[ConstraintIndex]; 
+		return ConcreteContainer()->Constraints.SinglePointConstraints[ConstraintIndex];
 	}
 	
 	FRigidBodyPointContactConstraint& FPBDCollisionConstraintHandle::GetPointContact() 
 	{ 
 		check(GetType() == FCollisionConstraintBase::FType::SinglePoint);
-		return ConstraintContainer->Constraints.SinglePointConstraints[ConstraintIndex];
+		return ConcreteContainer()->Constraints.SinglePointConstraints[ConstraintIndex];
 	}
 
 	const FRigidBodySweptPointContactConstraint& FPBDCollisionConstraintHandle::GetSweptPointContact() const
 	{
 		check(GetType() == FCollisionConstraintBase::FType::SinglePointSwept);
-		return ConstraintContainer->Constraints.SinglePointSweptConstraints[ConstraintIndex];
+		return ConcreteContainer()->Constraints.SinglePointSweptConstraints[ConstraintIndex];
 	}
 	
 	FRigidBodySweptPointContactConstraint& FPBDCollisionConstraintHandle::GetSweptPointContact()
 	{
 		check(GetType() == FCollisionConstraintBase::FType::SinglePointSwept);
-		return ConstraintContainer->Constraints.SinglePointSweptConstraints[ConstraintIndex];
+		return ConcreteContainer()->Constraints.SinglePointSweptConstraints[ConstraintIndex];
 	}
 
 }

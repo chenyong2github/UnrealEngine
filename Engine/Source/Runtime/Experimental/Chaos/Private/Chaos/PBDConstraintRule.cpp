@@ -24,8 +24,8 @@ namespace Chaos
 	template<class T_CONSTRAINTS>
 	void TPBDConstraintGraphRuleImpl<T_CONSTRAINTS>::BindToGraph(FPBDConstraintGraph& InContactGraph, uint32 InContainerId)
 	{
+		Constraints.SetContainerId(InContainerId);
 		ConstraintGraph = &InContactGraph;
-		ContainerId = InContainerId;
 	}
 
 	template<class T_CONSTRAINTS>
@@ -44,7 +44,7 @@ namespace Chaos
 		{
 			if (ConstraintHandle->IsEnabled())
 			{
-				ConstraintGraph->AddConstraint(ContainerId, ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
+				ConstraintGraph->AddConstraint(GetContainerId(), ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
 			}
 		}
 

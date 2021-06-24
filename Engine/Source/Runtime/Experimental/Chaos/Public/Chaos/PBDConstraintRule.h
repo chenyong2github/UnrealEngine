@@ -223,10 +223,14 @@ namespace Chaos
 
 		virtual int32 NumConstraints() const override;
 
+		int32 GetContainerId() const
+		{
+			return Constraints.GetContainerId();
+		}
+
 	protected:
 		FConstraints& Constraints;
 		FPBDConstraintGraph* ConstraintGraph;
-		uint32 ContainerId;
 	};
 
 	/**
@@ -241,6 +245,8 @@ namespace Chaos
 		using FConstraints = T_CONSTRAINTS;
 		using FConstraintContainerHandle = typename FConstraints::FConstraintContainerHandle;
 		using FConstraintList = TArray<FConstraintContainerHandle*>;
+
+		using Base::GetContainerId;
 
 		TPBDConstraintIslandRule(FConstraints& InConstraints, int32 InPriority = 0)
 			: TPBDConstraintGraphRuleImpl<T_CONSTRAINTS>(InConstraints, InPriority)
@@ -283,7 +289,7 @@ namespace Chaos
 			for (int32 ConstraintDataIndex : ConstraintDataIndices)
 			{
 				const typename FPBDConstraintGraph::FConstraintData& ConstraintData = ConstraintGraph->GetConstraintData(ConstraintDataIndex);
-				if (ConstraintData.GetContainerId() == ContainerId)
+				if (ConstraintData.GetContainerId() == GetContainerId())
 				{
 					IslandConstraintList.Add(ConstraintData.GetConstraintHandle()->As<FConstraintContainerHandle>());
 				}
@@ -299,7 +305,6 @@ namespace Chaos
 	private:
 		using Base::Constraints;
 		using Base::ConstraintGraph;
-		using Base::ContainerId;
 
 		const TArray<FConstraintContainerHandle*>& GetIslandConstraints(int32 Island) const
 		{
@@ -433,7 +438,7 @@ namespace Chaos
 
 		virtual void UpdateAccelerationStructures(const int32 Island) override
 		{
-			GraphColor.ComputeColor(Island, *ConstraintGraph, ContainerId);
+			GraphColor.ComputeColor(Island, *ConstraintGraph, Constraints.GetContainerId());
 		}
 
 		virtual void SetUseContactGraph(const bool bInUseContactGraph) override
@@ -468,7 +473,6 @@ namespace Chaos
 	private:
 		using Base::Constraints;
 		using Base::ConstraintGraph;
-		using Base::ContainerId;
 
 		const TArray<typename FConstraints::FConstraintContainerHandle*>& GetLevelColorConstraints(const typename FPBDConstraintColor::FLevelToColorToConstraintListMap& LevelToColorToConstraintListMap, int32 Level, int32 Color) const
 		{

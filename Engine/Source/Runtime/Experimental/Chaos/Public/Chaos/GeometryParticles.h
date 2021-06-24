@@ -250,6 +250,8 @@ namespace Chaos
 
 	using FShapesArray = TArray<TUniquePtr<FPerShapeData>, TInlineAllocator<1>>;
 
+	using FConstraintHandleArray = TArray<FConstraintHandle*>;
+
 	void CHAOS_API UpdateShapesArrayFromGeometry(FShapesArray& ShapesArray, TSerializablePtr<FImplicitObject> Geometry, const FRigidTransform3& ActorTM, IPhysicsProxyBase* Proxy);
 
 
@@ -620,7 +622,7 @@ namespace Chaos
 			return WeakHandle;
 		}
 
-		CHAOS_API TArray<FConstraintHandle*>& ParticleConstraints(const int32 Index)
+		CHAOS_API FConstraintHandleArray& ParticleConstraints(const int32 Index)
 		{
 			return MParticleConstraints[Index];
 		}
@@ -772,7 +774,7 @@ public:
 		TArrayCollectionArray<void*> MUserData;
 		TArrayCollectionArray<FSyncState> MSyncState;
 		TArrayCollectionArray<FWeakParticleHandle> MWeakParticleHandle;
-		TArrayCollectionArray<TArray<FConstraintHandle*> > MParticleConstraints;
+		TArrayCollectionArray<FConstraintHandleArray> MParticleConstraints;
 
 		void UpdateShapesArray(const int32 Index)
 		{

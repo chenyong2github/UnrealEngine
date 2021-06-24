@@ -3,7 +3,9 @@
 
 namespace Chaos
 {
-	FPBDConstraintContainer::FPBDConstraintContainer()
+	FPBDConstraintContainer::FPBDConstraintContainer(EConstraintContainerType InConstraintType)
+		: ConstraintContainerType(InConstraintType)
+		, ContainerId(INDEX_NONE)
 	{
 	}
 

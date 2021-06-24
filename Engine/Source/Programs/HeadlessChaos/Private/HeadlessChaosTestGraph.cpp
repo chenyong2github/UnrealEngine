@@ -24,19 +24,16 @@ namespace ChaosTest {
 
 
 	template<int32 T_TYPEID>
-	class TMockGraphConstraintHandle : public FConstraintHandle
+	class TMockGraphConstraintHandle : public TContainerConstraintHandle<TMockGraphConstraints<T_TYPEID>>
 	{
 	public:
 		TMockGraphConstraintHandle(TMockGraphConstraints<T_TYPEID>* InConstraintContainer, int32 ConstraintIndex)
-			: FConstraintHandle(FConstraintHandle::EType::Invalid, ConstraintIndex)
-			, ConstraintContainer(InConstraintContainer)
+			: TContainerConstraintHandle<TMockGraphConstraints<T_TYPEID>>(InConstraintContainer, ConstraintIndex)
 		{
 		}
 
 		virtual void SetEnabled(bool InEnabled) {};
 		virtual bool IsEnabled() const { return true; };
-
-		TMockGraphConstraints<T_TYPEID>* ConstraintContainer;
 	};
 
 	/**
@@ -45,7 +42,7 @@ namespace ChaosTest {
 	 * by using containers with different T_TYPEIDs.
 	 */
 	template<int32 T_TYPEID>
-	class TMockGraphConstraints
+	class TMockGraphConstraints : public FPBDConstraintContainer
 	{
 	public:
 		using FConstraintContainerHandle = TMockGraphConstraintHandle<T_TYPEID>;
@@ -53,6 +50,11 @@ namespace ChaosTest {
 		{
 			TVec2<int32> ConstrainedParticles;
 		};
+
+		TMockGraphConstraints()
+			: FPBDConstraintContainer(EConstraintContainerType::Invalid)	// Hmmm
+		{
+		}
 
 		int32 NumConstraints() const { return Constraints.Num(); }
 
