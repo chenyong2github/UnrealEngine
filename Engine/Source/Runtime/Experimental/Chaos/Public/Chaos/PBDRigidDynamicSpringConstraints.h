@@ -21,16 +21,16 @@ namespace Chaos
 		}
 
 		FPBDRigidDynamicSpringConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) 
-			: TContainerConstraintHandle<FPBDRigidDynamicSpringConstraints>(StaticType(),InConstraintContainer, InConstraintIndex) 
+			: TContainerConstraintHandle<FPBDRigidDynamicSpringConstraints>(InConstraintContainer, InConstraintIndex) 
 		{
 		}
 
-		static FConstraintHandle::EType StaticType() { return FConstraintHandle::EType::DynamicSpring; }
+		static EConstraintContainerType StaticType() { return EConstraintContainerType::DynamicSpring; }
 		TVec2<FGeometryParticleHandle*> GetConstrainedParticles() const;
 
 	protected:
 		using Base::ConstraintIndex;
-		using Base::ConstraintContainer;
+		using Base::ConcreteContainer;
 	};
 
 	class CHAOS_API FPBDRigidDynamicSpringConstraints : public FPBDConstraintContainer
@@ -44,11 +44,18 @@ namespace Chaos
 		using FHandles = TArray<FConstraintContainerHandle*>;
 
 		FPBDRigidDynamicSpringConstraints(const FReal InStiffness = (FReal)1.)
-			: CreationThreshold(1), MaxSprings(1), Stiffness(InStiffness) 
+			: FPBDConstraintContainer(EConstraintContainerType::DynamicSpring)
+			, CreationThreshold(1)
+			, MaxSprings(1)
+			, Stiffness(InStiffness) 
 		{}
 
 		FPBDRigidDynamicSpringConstraints(TArray<FConstrainedParticlePair>&& InConstraints, const FReal InCreationThreshold = (FReal)1., const int32 InMaxSprings = 1, const FReal InStiffness = (FReal)1.)
-			: Constraints(MoveTemp(InConstraints)), CreationThreshold(InCreationThreshold), MaxSprings(InMaxSprings), Stiffness(InStiffness)
+			: FPBDConstraintContainer(EConstraintContainerType::DynamicSpring)
+			, Constraints(MoveTemp(InConstraints))
+			, CreationThreshold(InCreationThreshold)
+			, MaxSprings(InMaxSprings)
+			, Stiffness(InStiffness)
 		{
 			if (Constraints.Num() > 0)
 			{

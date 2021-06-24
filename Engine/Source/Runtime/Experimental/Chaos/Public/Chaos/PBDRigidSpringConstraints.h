@@ -22,11 +22,11 @@ namespace Chaos
 		}
 		
 		FPBDRigidSpringConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) 
-		: TContainerConstraintHandle<FPBDRigidSpringConstraints>(StaticType(), InConstraintContainer, InConstraintIndex) 
+		: TContainerConstraintHandle<FPBDRigidSpringConstraints>(InConstraintContainer, InConstraintIndex) 
 		{
 		}
 
-		static FConstraintHandle::EType StaticType() { return FConstraintHandle::EType::RigidSpring; }
+		static EConstraintContainerType StaticType() { return EConstraintContainerType::RigidSpring; }
 
 		const TVector<FVec3, 2>& GetConstraintPositions() const;
 		void SetConstraintPositions(const TVector<FVec3, 2>& ConstraintPositions);

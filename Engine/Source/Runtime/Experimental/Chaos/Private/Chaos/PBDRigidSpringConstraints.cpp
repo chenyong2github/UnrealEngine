@@ -12,28 +12,28 @@ namespace Chaos
 
 	const TVector<FVec3, 2>& FPBDRigidSpringConstraintHandle::GetConstraintPositions() const
 	{
-		return ConstraintContainer->GetConstraintPositions(ConstraintIndex);
+		return ConcreteContainer()->GetConstraintPositions(ConstraintIndex);
 
 	}
 
 	void FPBDRigidSpringConstraintHandle::SetConstraintPositions(const TVector<FVec3, 2>& ConstraintPositions)
 	{
-		ConstraintContainer->SetConstraintPositions(ConstraintIndex, ConstraintPositions);
+		ConcreteContainer()->SetConstraintPositions(ConstraintIndex, ConstraintPositions);
 	}
 	
 	TVector<typename FPBDRigidSpringConstraintHandle::FGeometryParticleHandle*, 2> FPBDRigidSpringConstraintHandle::GetConstrainedParticles() const
 	{ 
-		return ConstraintContainer->GetConstrainedParticles(ConstraintIndex);
+		return ConcreteContainer()->GetConstrainedParticles(ConstraintIndex);
 	}
 
 	FReal FPBDRigidSpringConstraintHandle::GetRestLength() const
 	{
-		return ConstraintContainer->GetRestLength(ConstraintIndex);
+		return ConcreteContainer()->GetRestLength(ConstraintIndex);
 	}
 
 	void FPBDRigidSpringConstraintHandle::SetRestLength(const FReal SpringLength)
 	{
-		ConstraintContainer->SetRestLength(ConstraintIndex, SpringLength);
+		ConcreteContainer()->SetRestLength(ConstraintIndex, SpringLength);
 	}
 
 	//
@@ -41,6 +41,7 @@ namespace Chaos
 	//
 
 	FPBDRigidSpringConstraints::FPBDRigidSpringConstraints()
+		: FPBDConstraintContainer(EConstraintContainerType::RigidSpring)
 	{}
 
 	FPBDRigidSpringConstraints::~FPBDRigidSpringConstraints()

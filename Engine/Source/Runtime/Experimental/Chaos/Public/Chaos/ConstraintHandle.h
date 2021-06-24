@@ -16,27 +16,18 @@ namespace Chaos
 	class CHAOS_API FConstraintHandle
 	{
 	public:
-		enum class EType : uint8
-		{
-			Invalid = 0,
-			Collision,
-			RigidSpring,
-			DynamicSpring,
-			Position,
-			Joint,
-			Suspension
-		};
-
-
 		using FGeometryParticleHandle = TGeometryParticleHandle<FReal, 3>;
 
-		FConstraintHandle() : Type(EType::Invalid), ConstraintIndex(INDEX_NONE), ConstraintGraphIndex(INDEX_NONE) { }
-		FConstraintHandle(EType InType, int32 InConstraintIndex): Type(InType), ConstraintIndex(InConstraintIndex), ConstraintGraphIndex(INDEX_NONE) {}
+		FConstraintHandle() : ConstraintContainer(nullptr), ConstraintIndex(INDEX_NONE), ConstraintGraphIndex(INDEX_NONE) { }
+
+		FConstraintHandle(FPBDConstraintContainer* InContainer, int32 InConstraintIndex): ConstraintContainer(InContainer), ConstraintIndex(InConstraintIndex), ConstraintGraphIndex(INDEX_NONE) {}
+
 		virtual ~FConstraintHandle() {}
 
 		bool IsValid() const
 		{
-			return (ConstraintIndex != INDEX_NONE && IsEnabled());
+			// @todo(chaos): why does IsValid() also check IsEnabled()?
+			return (ConstraintContainer != nullptr) && (ConstraintIndex != INDEX_NONE) && IsEnabled();
 		}
 
 		int32 GetConstraintIndex() const
@@ -54,17 +45,29 @@ namespace Chaos
 			ConstraintGraphIndex = InIndex;
 		}
 
+		bool IsInConstraintGraph() const
+		{
+			return (ConstraintGraphIndex != INDEX_NONE);
+		}
 
-		virtual void SetEnabled(bool InEnabled) = 0;
-		virtual bool IsEnabled() const = 0;
 
-		template<typename T>  T* As() { return T::StaticType() == Type ? static_cast<T*>(this) : nullptr; }
-		template<typename T>  const T* As() const { return T::StaticType() == Type ? static_cast<const T*>(this) : nullptr; }
+		// Implemented in ConstraintContainer.h
+		int32 GetContainerId() const;
+
+		// Implemented in ConstraintContainer.h
+		void SetEnabled(bool InEnabled);
+
+		// Implemented in ConstraintContainer.h
+		bool IsEnabled() const;
+
+		// Implemented in ConstraintContainer.h
+		template<typename T>  T* As();
+		template<typename T>  const T* As() const;
 
 	protected:
 		friend class FPBDConstraintContainer;
 
-		EType Type;
+		FPBDConstraintContainer* ConstraintContainer;
 		int32 ConstraintIndex;
 		int32 ConstraintGraphIndex; // @todo(chaos): move constraint graph index to base constraint container
 	};
@@ -81,18 +84,33 @@ namespace Chaos
 		using FGeometryParticleHandle = typename Base::FGeometryParticleHandle;
 		using FConstraintContainer = T_CONTAINER;
 
-		TContainerConstraintHandle() : ConstraintContainer(nullptr) {}
-		TContainerConstraintHandle(Base::EType InType, FConstraintContainer* InConstraintContainer, int32 InConstraintIndex)
-			: FConstraintHandle(InType, InConstraintIndex), ConstraintContainer(InConstraintContainer) {}
+		TContainerConstraintHandle()
+		{
+		}
+		
+		TContainerConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex)
+			: FConstraintHandle(InConstraintContainer, InConstraintIndex)
+		{
+		}
 
-		void RemoveConstraint() { ConstraintContainer->RemoveConstraint(ConstraintIndex); }
-
-		void SetEnabled(bool InEnabled) override { ConstraintContainer->SetConstraintEnabled(ConstraintIndex,InEnabled); }
-		bool IsEnabled() const override { return ConstraintContainer->IsConstraintEnabled(ConstraintIndex); }
+		// @todo(chaos): Make this a virtual on FConstraintContainer and move to base class
+		void RemoveConstraint()
+		{
+			ConcreteContainer()->RemoveConstraint(ConstraintIndex);
+		}
 
 	protected:
+		FConstraintContainer* ConcreteContainer()
+		{
+			return static_cast<FConstraintContainer*>(ConstraintContainer);
+		}
+
+		const FConstraintContainer* ConcreteContainer() const
+		{
+			return static_cast<const FConstraintContainer*>(ConstraintContainer);
+		}
+
 		using Base::ConstraintIndex;
-		FConstraintContainer* ConstraintContainer;
 	};
 
 

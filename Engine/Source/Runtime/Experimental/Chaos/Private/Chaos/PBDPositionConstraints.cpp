@@ -6,7 +6,7 @@ namespace Chaos
 {
 	TVector<FGeometryParticleHandle*, 2> FPBDPositionConstraintHandle::GetConstrainedParticles() const 
 	{ 
-		return ConstraintContainer->GetConstrainedParticles(ConstraintIndex); 
+		return ConcreteContainer()->GetConstrainedParticles(ConstraintIndex);
 	}
 
 	bool FPBDPositionConstraints::Apply(const FReal Dt, const TArray<FConstraintContainerHandle*>& ConstraintHandles, const int32 It, const int32 NumIts) const

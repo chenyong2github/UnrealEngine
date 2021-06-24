@@ -546,7 +546,7 @@ public:
 		return GeometryParticles->WeakParticleHandle(ParticleIdx);
 	}
 
-	TArray<FConstraintHandle*>& ParticleConstraints()
+	FConstraintHandleArray& ParticleConstraints()
 	{
 		return GeometryParticles->ParticleConstraints(ParticleIdx);
 	}
@@ -1475,7 +1475,7 @@ public:
 
 	int32 Island() const
 	{
-		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
+		if ((MHandle->CastToRigidParticle() != nullptr) && IsDynamic())
 		{
 			return MHandle->CastToRigidParticle()->Island();
 		}

@@ -5,29 +5,29 @@
 namespace Chaos
 {
 	FPBDSuspensionConstraintHandle::FPBDSuspensionConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) : 
-		TContainerConstraintHandle<FPBDSuspensionConstraints>(StaticType(), InConstraintContainer, InConstraintIndex)
+		TContainerConstraintHandle<FPBDSuspensionConstraints>(InConstraintContainer, InConstraintIndex)
 	{
 	}
 
 	const FPBDSuspensionSettings& FPBDSuspensionConstraintHandle::GetSettings() const
 	{
-		return ConstraintContainer->GetSettings(ConstraintIndex);
+		return ConcreteContainer()->GetSettings(ConstraintIndex);
 	}
 
 	FPBDSuspensionSettings& FPBDSuspensionConstraintHandle::GetSettings()
 	{
-		return ConstraintContainer->GetSettings(ConstraintIndex);
+		return ConcreteContainer()->GetSettings(ConstraintIndex);
 	}
 
 	void FPBDSuspensionConstraintHandle::SetSettings(const FPBDSuspensionSettings& Settings)
 	{
-		ConstraintContainer->SetSettings(ConstraintIndex, Settings);
+		ConcreteContainer()->SetSettings(ConstraintIndex, Settings);
 	}
 
 
 	TVec2<FGeometryParticleHandle*> FPBDSuspensionConstraintHandle::GetConstrainedParticles() const
 	{
-		return ConstraintContainer->GetConstrainedParticles(ConstraintIndex);
+		return ConcreteContainer()->GetConstrainedParticles(ConstraintIndex);
 	}
 
 

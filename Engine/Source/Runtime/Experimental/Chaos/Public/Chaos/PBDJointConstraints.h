@@ -30,7 +30,7 @@ namespace Chaos
 
 		FPBDJointConstraintHandle();
 		FPBDJointConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex);
-		static FConstraintHandle::EType StaticType() { return FConstraintHandle::EType::Joint; }
+		static EConstraintContainerType StaticType() { return EConstraintContainerType::Joint; }
 
 		void SetConstraintEnabled(bool bEnabled);
 
@@ -52,7 +52,7 @@ namespace Chaos
 
 	protected:
 		using Base::ConstraintIndex;
-		using Base::ConstraintContainer;
+		using Base::ConcreteContainer;
 	};
 
 	class CHAOS_API FPBDJointState

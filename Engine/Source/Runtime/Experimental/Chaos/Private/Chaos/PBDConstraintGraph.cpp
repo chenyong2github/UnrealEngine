@@ -311,33 +311,27 @@ void FPBDConstraintGraph::RemoveConstraint(const uint32 InContainerId, FConstrai
 {
 	check(InConstraintHandle);
 
-	int32 EdgeIndex = InConstraintHandle->GetConstraintGraphIndex();
-
-	int32 Index0 = INDEX_NONE, Index1 = INDEX_NONE;
-
-	int32* PNodeIndex0 = (ConstrainedParticles[0]) ? ParticleToNodeIndex.Find(ConstrainedParticles[0]) : nullptr;
-	int32* PNodeIndex1 = (ConstrainedParticles[1]) ? ParticleToNodeIndex.Find(ConstrainedParticles[1]) : nullptr;
-	if (ensure(PNodeIndex0 || PNodeIndex1))
-	{
-		// we should have an valid index at this point
-		if (PNodeIndex0)
-		{
-			Nodes[*PNodeIndex0].Edges.Remove(EdgeIndex);
-			Index0 = *PNodeIndex0;
-		}
-		if (PNodeIndex1)
-		{
-			Nodes[*PNodeIndex1].Edges.Remove(EdgeIndex);
-			Index1 = *PNodeIndex1;
-		}
-	}
-
-	// we need to find the edge index that matches this constraint
-	// if the particles are being removed first and the constraint is being disabled
+	const int32 EdgeIndex = InConstraintHandle->GetConstraintGraphIndex();
 	if (ensure(EdgeIndex != INDEX_NONE))
 	{
-		InConstraintHandle->SetConstraintGraphIndex(INDEX_NONE);
+		const int32* PNodeIndex0 = (ConstrainedParticles[0]) ? ParticleToNodeIndex.Find(ConstrainedParticles[0]) : nullptr;
+		const int32* PNodeIndex1 = (ConstrainedParticles[1]) ? ParticleToNodeIndex.Find(ConstrainedParticles[1]) : nullptr;
+		if (ensure(PNodeIndex0 || PNodeIndex1))
+		{
+			// we should have an valid index at this point
+			if (PNodeIndex0)
+			{
+				Nodes[*PNodeIndex0].Edges.Remove(EdgeIndex);
+			}
+			if (PNodeIndex1)
+			{
+				Nodes[*PNodeIndex1].Edges.Remove(EdgeIndex);
+			}
+		}
+
 		Edges[EdgeIndex] = FGraphEdge();
+
+		InConstraintHandle->SetConstraintGraphIndex(INDEX_NONE);
 	}
 }
 
@@ -640,7 +634,7 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<FPBDRigidParticles>
 	check(IslandToParticles.Num() == IslandToConstraints.Num());
 	check(IslandToParticles.Num() == IslandToData.Num());
 	// @todo(ccaulfield): make a more complex unit test to check island integrity
-	//checkSlow(DebugCheckGraph());
+	checkSlow(DebugCheckGraph());
 }
 
 

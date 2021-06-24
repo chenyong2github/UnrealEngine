@@ -19,13 +19,13 @@ namespace Chaos
 
 		FPBDPositionConstraintHandle() {}
 		FPBDPositionConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) 
-			: TContainerConstraintHandle<FPBDPositionConstraints>(StaticType(), InConstraintContainer, InConstraintIndex) {}
-		static FConstraintHandle::EType StaticType() { return FConstraintHandle::EType::Position; }
+			: TContainerConstraintHandle<FPBDPositionConstraints>(InConstraintContainer, InConstraintIndex) {}
+		static EConstraintContainerType StaticType() { return EConstraintContainerType::Position; }
 		TVector<FGeometryParticleHandle*, 2> GetConstrainedParticles() const;
 
 	protected:
 		using Base::ConstraintIndex;
-		using Base::ConstraintContainer;
+		using Base::ConcreteContainer;
 	};
 
 	class FPBDPositionConstraints : public FPBDConstraintContainer
@@ -39,11 +39,13 @@ namespace Chaos
 		using FHandles = TArray<FConstraintContainerHandle*>;
 
 		FPBDPositionConstraints(const FReal InStiffness = (FReal)1.)
-			: Stiffness(InStiffness)
+			: FPBDConstraintContainer(EConstraintContainerType::Position)
+			, Stiffness(InStiffness)
 		{}
 
 		FPBDPositionConstraints(TArray<FVec3>&& Locations, TArray<FPBDRigidParticleHandle*>&& InConstrainedParticles, const FReal InStiffness = (FReal)1.)
-			: Targets(MoveTemp(Locations)), ConstrainedParticles(MoveTemp(InConstrainedParticles)), Stiffness(InStiffness)
+			: FPBDConstraintContainer(EConstraintContainerType::Position)
+			, Targets(MoveTemp(Locations)), ConstrainedParticles(MoveTemp(InConstrainedParticles)), Stiffness(InStiffness)
 		{
 			if (ConstrainedParticles.Num() > 0)
 			{

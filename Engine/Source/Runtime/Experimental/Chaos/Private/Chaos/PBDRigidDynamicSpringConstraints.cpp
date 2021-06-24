@@ -8,7 +8,7 @@ using namespace Chaos;
 
 TVec2<FGeometryParticleHandle*> FPBDRigidDynamicSpringConstraintHandle::GetConstrainedParticles() const
 {
-	return ConstraintContainer->GetConstrainedParticles(ConstraintIndex);
+	return ConcreteContainer()->GetConstrainedParticles(ConstraintIndex);
 }
 
 void FPBDRigidDynamicSpringConstraints::UpdatePositionBasedState(const FReal Dt)
