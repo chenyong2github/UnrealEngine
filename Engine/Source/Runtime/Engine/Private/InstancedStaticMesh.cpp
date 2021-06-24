@@ -3891,6 +3891,9 @@ void UInstancedStaticMeshComponent::PostEditUndo()
 	Super::PostEditUndo();
 
 	FNavigationSystem::UpdateComponentData(*this);
+
+	InstanceUpdateCmdBuffer.Edit();
+	MarkRenderStateDirty();
 }
 #endif
 
