@@ -1402,6 +1402,8 @@ private:
 	TMap<FName, FMontageActiveSlotTracker> SlotWeightTracker;
 	TMap<FName, FSimpleMulticastDelegate> ExternalNotifyHandlers;
 
+	bool CheckOnInstanceAndMainInstance(TFunctionRef<bool (FAnimInstanceProxy* )> ProxyLambdaFunc);
+
 public:
 	/** 
 	 * Recalculate Required Bones [RequiredBones]
