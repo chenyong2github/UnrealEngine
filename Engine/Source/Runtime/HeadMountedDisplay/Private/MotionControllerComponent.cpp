@@ -442,7 +442,7 @@ void UMotionControllerComponent::RefreshDisplayComponent(const bool bForceDestro
 				}
 			}
 
-			if (NewDisplayComponent != DisplayComponent)
+			if (NewDisplayComponent && NewDisplayComponent != DisplayComponent)
 			{
 				NewDisplayComponent->SetupAttachment(this);
 				// force disable collision - if users wish to use collision, they can setup their own sub-component

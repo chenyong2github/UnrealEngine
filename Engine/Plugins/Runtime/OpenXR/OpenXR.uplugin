@@ -45,7 +45,7 @@
 				"Android",
 				"HoloLens"
 			]
-		},	
+		},
 		{
 			"Name": "OpenXRAR",
 			"Type": "Runtime",
@@ -56,6 +56,14 @@
 				"Linux",
 				"Android",
 				"HoloLens"
+			]
+		},
+		{
+			"Name": "OpenXREditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
 			]
 		}
 	]

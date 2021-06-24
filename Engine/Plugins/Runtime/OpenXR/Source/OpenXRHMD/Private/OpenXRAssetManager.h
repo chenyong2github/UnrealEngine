@@ -31,4 +31,8 @@ private:
 	XrPath LeftHand;
 	XrPath RightHand;
 	TMap<TPair<XrPath, XrPath>, FSoftObjectPath> DeviceMeshes;
+
+	// Oculus Quest platforms use different Touch controllers, but share the same interaction profile
+	FName Quest1, Quest2;
+	TMap<XrPath, FSoftObjectPath> Quest1Meshes, Quest2Meshes;
 };
