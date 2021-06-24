@@ -343,6 +343,49 @@ bool FGlobalShaderMap::IsEmpty() const
 	return true;
 }
 
+bool FGlobalShaderMap::IsComplete(const ITargetPlatform* TargetPlatform) const
+{
+	// TODO: store these in the shadermap before it's start to be compiled?
+	FPlatformTypeLayoutParameters LayoutParams;
+	LayoutParams.InitializeForPlatform(TargetPlatform);
+	const EShaderPermutationFlags PermutationFlags = GetShaderPermutationFlags(LayoutParams);
+
+	FGlobalShaderMapId ShaderMapId(Platform, TargetPlatform);
+
+	// traverse all global shader types
+	for (TLinkedList<FShaderType*>::TIterator ShaderTypeIt(FShaderType::GetTypeList()); ShaderTypeIt; ShaderTypeIt.Next())
+	{
+		FGlobalShaderType* GlobalShaderType = ShaderTypeIt->GetGlobalShaderType();
+		if (!GlobalShaderType)
+		{
+			continue;
+		}
+
+		int32 PermutationCountToCompile = 0;
+		for (int32 PermutationId = 0; PermutationId < GlobalShaderType->GetPermutationCount(); PermutationId++)
+		{
+			if (GlobalShaderType->ShouldCompilePermutation(Platform, PermutationId, PermutationFlags)
+				&& !HasShader(GlobalShaderType, PermutationId))
+			{
+				return false;
+			}
+		}
+	}
+
+	// traverse all pipelines. Note that there's no ShouldCompile call for them. Materials instead test individual stages, but it leads to another problems
+	// like including the standalone types even if they are not going to be used. This code follows VerifyGlobalShaders() logic that includes all global pipelines unconditionally.
+	for (TLinkedList<FShaderPipelineType*>::TIterator ShaderPipelineIt(FShaderPipelineType::GetTypeList()); ShaderPipelineIt; ShaderPipelineIt.Next())
+	{
+		const FShaderPipelineType* Pipeline = *ShaderPipelineIt;
+		if (Pipeline->IsGlobalTypePipeline() && !HasShaderPipeline(Pipeline))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 void FGlobalShaderMap::Empty()
 {
 	for (const auto& It : SectionMap)

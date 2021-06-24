@@ -5494,19 +5494,25 @@ static void SaveGlobalShaderMapToDerivedDataCache(EShaderPlatform Platform)
 	TArray<uint8> SaveData;
 
 	FGlobalShaderMapId ShaderMapId(Platform, TargetPlatform);
-	for (auto const& ShaderFilenameDependencies : ShaderMapId.GetShaderFilenameToDependeciesMap())
+	// avoid saving incomplete shadermaps
+	FGlobalShaderMap* GlobalSM = GetGlobalShaderMap(Platform);
+	if (GlobalSM->IsComplete(TargetPlatform))
 	{
-		FGlobalShaderMapSection* Section = GGlobalShaderMap[Platform]->FindSection(ShaderFilenameDependencies.Key);
-		if (Section)
+		for (auto const& ShaderFilenameDependencies : ShaderMapId.GetShaderFilenameToDependeciesMap())
 		{
-			Section->FinalizeContent();
+			FGlobalShaderMapSection* Section = GlobalSM->FindSection(ShaderFilenameDependencies.Key);
+			if (Section)
+			{
+				Section->FinalizeContent();
 	
-			SaveData.Reset();
-			FMemoryWriter Ar(SaveData, true);
-			Section->Serialize(Ar);
 
-			GetDerivedDataCacheRef().Put(*GetGlobalShaderMapKeyString(ShaderMapId, Platform, TargetPlatform, ShaderFilenameDependencies.Value), SaveData, TEXT("GlobalShaderMap"_SV));
-			COOK_STAT(Timer.AddMiss(SaveData.Num()));
+				SaveData.Reset();
+				FMemoryWriter Ar(SaveData, true);
+				Section->Serialize(Ar);
+
+				GetDerivedDataCacheRef().Put(*GetGlobalShaderMapKeyString(ShaderMapId, Platform, TargetPlatform, ShaderFilenameDependencies.Value), SaveData, TEXT("GlobalShaderMap"_SV));
+				COOK_STAT(Timer.AddMiss(SaveData.Num()));
+			}
 		}
 	}
 }
@@ -6108,7 +6114,7 @@ static inline FShader* ProcessCompiledJob(FShaderCompileJob* SingleJob, const FS
 
 void ProcessCompiledGlobalShaders(const TArray<FShaderCommonCompileJobPtr>& CompilationResults)
 {
-	UE_LOG(LogShaders, Warning, TEXT("Compiled %u global shaders"), CompilationResults.Num());
+	UE_LOG(LogShaders, Verbose, TEXT("Compiled %u global shaders"), CompilationResults.Num());
 
 	TArray<EShaderPlatform> ShaderPlatformsProcessed;
 	TArray<const FShaderPipelineType*> SharedPipelines;
@@ -6146,7 +6152,7 @@ void ProcessCompiledGlobalShaders(const TArray<FShaderCommonCompileJobPtr>& Comp
 		{
 			// Process the shader pipelines that share shaders
 			EShaderPlatform Platform = ShaderPlatformsProcessed[PlatformIndex];
-			auto* GlobalShaderMap = GGlobalShaderMap[Platform];
+			FGlobalShaderMap* GlobalShaderMap = GGlobalShaderMap[Platform];
 			const ITargetPlatform* TargetPlatform = GGlobalShaderTargetPlatform[Platform];
 
 			FPlatformTypeLayoutParameters LayoutParams;

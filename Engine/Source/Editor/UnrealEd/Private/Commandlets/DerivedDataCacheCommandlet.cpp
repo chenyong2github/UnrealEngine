@@ -213,9 +213,9 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 
 			for (int32 FormatIndex = 0; FormatIndex < DesiredShaderFormats.Num(); FormatIndex++)
 			{
-				const EShaderPlatform TargetPlatform = ShaderFormatToLegacyShaderPlatform(DesiredShaderFormats[FormatIndex]);
-				// Kick off global shader compiles for each target platform
-				CompileGlobalShaderMap(TargetPlatform);
+				const EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(DesiredShaderFormats[FormatIndex]);
+				// Kick off global shader compiles for each target platform. Note that shader platform alone is not sufficient to distinguish between WindowsEditor and WindowsClient, which after UE 4.25 have different DDC
+				CompileGlobalShaderMap(ShaderPlatform, Platforms[Index], false);
 			}
 		}
 
