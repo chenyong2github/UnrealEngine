@@ -20,6 +20,11 @@ namespace EpicGames.Serialization
 			public byte[]? Payload;
 		}
 
+		public CbObject ToObject()
+		{
+			return new CbObject(Save());
+		}
+
 		public byte[] Save()
 		{
 			int bufferLength = 1; // field type;

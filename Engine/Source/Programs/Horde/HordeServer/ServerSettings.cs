@@ -255,6 +255,16 @@ namespace HordeServer
 		public DirectoryReference LocalLogsDirRef => DirectoryReference.Combine(Program.DataDir, LocalLogsDir);
 
 		/// <summary>
+		/// Local blob storage directory, if using type filesystem
+		/// </summary>
+		public string LocalBlobsDir { get; set; } = "Blobs";
+
+		/// <summary>
+		/// Gets the full path referred to by LocalStorageDir
+		/// </summary>
+		public DirectoryReference LocalBlobsDirRef => DirectoryReference.Combine(Program.DataDir, LocalBlobsDir);
+
+		/// <summary>
 		/// Local artifact storage directory, if using type filesystem
 		/// </summary>
 		public string LocalArtifactsDir { get; set; } = "Artifacts";

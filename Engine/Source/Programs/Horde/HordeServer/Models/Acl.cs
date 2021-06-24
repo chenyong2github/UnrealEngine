@@ -404,12 +404,18 @@ namespace HordeServer.Models
 
 
 
+
+
 		//// NOTIFICATIONS ////
 
 		/// <summary>
 		/// Ability to subscribe to notifications
 		/// </summary>
 		CreateSubscription,
+
+
+
+
 
 		//// DEVICES ////
 		
@@ -421,8 +427,38 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Ability to write devices
 		/// </summary>
-		DeviceWrite
+		DeviceWrite,
 
+
+
+
+
+		//// STORAGE ////
+
+		/// <summary>
+		/// Ability to read blobs from the storage service
+		/// </summary>
+		ReadBlobs,
+
+		/// <summary>
+		/// Ability to write blobs to the storage service
+		/// </summary>
+		WriteBlobs,
+
+		/// <summary>
+		/// Ability to read refs from the storage service
+		/// </summary>
+		ReadRefs,
+
+		/// <summary>
+		/// Ability to write refs to the storage service
+		/// </summary>
+		WriteRefs, 
+
+		/// <summary>
+		/// Ability to delete refs
+		/// </summary>
+		DeleteRefs,
 	}
 
 	/// <summary>
