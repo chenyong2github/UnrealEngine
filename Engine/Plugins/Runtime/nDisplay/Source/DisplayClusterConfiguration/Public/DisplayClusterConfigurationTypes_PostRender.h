@@ -48,10 +48,10 @@ public:
 	EDisplayClusterConfiguration_PostRenderBlur Mode = EDisplayClusterConfiguration_PostRenderBlur::None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (EditCondition = "Mode != EDisplayClusterConfiguration_PostRenderBlur::None"))
-	int   KernelRadius = 1;
+	int   KernelRadius = 5;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (EditCondition = "Mode != EDisplayClusterConfiguration_PostRenderBlur::None"))
-	float KernelScale = 1;
+	float KernelScale = 20;
 };
 
 USTRUCT(Blueprintable)
