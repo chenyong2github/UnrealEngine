@@ -943,10 +943,17 @@ FText SAnimViewportToolBar::GetLODMenuLabel() const
 	{
 		int32 LODSelectionType = Viewport.Pin()->GetLODSelection();
 
-		if (LODSelectionType > 0)
+		if (Viewport.Pin()->IsTrackingAttachedMeshLOD())
 		{
-			FString TitleLabel = FString::Printf(TEXT("LOD %d"), LODSelectionType - 1);
-			Label = FText::FromString(TitleLabel);
+			Label = FText::Format(LOCTEXT("LODMenu_DebugLabel", "LOD Debug ({0})"), FText::AsNumber(LODSelectionType - 1));
+		}
+		else
+		{
+			if (LODSelectionType > 0)
+			{
+				FString TitleLabel = FString::Printf(TEXT("LOD %d"), LODSelectionType - 1);
+				Label = FText::FromString(TitleLabel);
+			}
 		}
 	}
 	return Label;
@@ -968,6 +975,7 @@ TSharedRef<SWidget> SAnimViewportToolBar::GenerateLODMenu() const
 		// LOD Models
 		InMenuBuilder.BeginSection("AnimViewportPreviewLODs", LOCTEXT("ShowLOD_PreviewLabel", "Preview LODs") );
 		{
+			InMenuBuilder.AddMenuEntry( Actions.LODDebug );
 			InMenuBuilder.AddMenuEntry( Actions.LODAuto );
 			InMenuBuilder.AddMenuEntry( Actions.LOD0 );
 

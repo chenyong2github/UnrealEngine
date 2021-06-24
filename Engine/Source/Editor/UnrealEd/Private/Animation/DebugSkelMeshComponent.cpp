@@ -43,9 +43,23 @@ UDebugSkelMeshComponent::UDebugSkelMeshComponent(const FObjectInitializer& Objec
 	bPauseClothingSimulationWithAnim = false;
 	bPerformSingleClothingTick = false;
 
+	bTrackAttachedInstanceLOD = false;
+
 	BoneRadiusMultiplier = 1.f;
 	
 	CachedClothBounds = FBoxSphereBounds(ForceInit);
+}
+
+void UDebugSkelMeshComponent::SetDebugForcedLOD(int32 InNewForcedLOD)
+{
+	SetForcedLOD(InNewForcedLOD);
+
+#if WITH_EDITOR
+	if (OnDebugForceLODChangedDelegate.IsBound())
+	{
+		OnDebugForceLODChangedDelegate.Execute();
+	}
+#endif
 }
 
 FBoxSphereBounds UDebugSkelMeshComponent::CalcBounds(const FTransform& LocalToWorld) const
@@ -195,6 +209,11 @@ void UDebugSkelMeshComponent::SetPreviewRootMotion(bool bInPreviewRootMotion)
 			SetRelativeLocation(FVector::ZeroVector);
 		}
 	}
+}
+
+bool UDebugSkelMeshComponent::IsTrackingAttachedLOD() const
+{
+	return bTrackAttachedInstanceLOD;
 }
 
 FPrimitiveSceneProxy* UDebugSkelMeshComponent::CreateSceneProxy()
@@ -652,6 +671,18 @@ void UDebugSkelMeshComponent::UnregisterExtendedViewportTextDelegate(const FDele
 	});
 }
 
+FDelegateHandle UDebugSkelMeshComponent::RegisterOnDebugForceLODChangedDelegate(const FOnDebugForceLODChanged& InDelegate)
+{
+	OnDebugForceLODChangedDelegate = InDelegate;
+	return OnDebugForceLODChangedDelegate.GetHandle();
+}
+
+void UDebugSkelMeshComponent::UnregisterOnDebugForceLODChangedDelegate()
+{
+	checkf(OnDebugForceLODChangedDelegate.IsBound(), TEXT("OnDebugForceLODChangedDelegate is not registered"));
+	OnDebugForceLODChangedDelegate.Unbind();
+}
+
 #endif
 
 void UDebugSkelMeshComponent::ToggleClothSectionsVisibility(bool bShowOnlyClothSections)
@@ -797,6 +828,16 @@ void UDebugSkelMeshComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 	if (bRequiredBonesUpToDateDuringTick)
 	{
 		bRequiredBonesUpToDate = false;
+	}
+
+	if (bTrackAttachedInstanceLOD)
+	{
+		UAnimPreviewInstance* AnimPreviewInstance = Cast<UAnimPreviewInstance>(AnimScriptInstance);
+		USkeletalMeshComponent* TargetMeshComp = PreviewInstance->GetDebugSkeletalMeshComponent();
+		if (TargetMeshComp && TargetMeshComp->GetPredictedLODLevel() + 1 != GetForcedLOD())
+		{
+			SetDebugForcedLOD(TargetMeshComp->GetPredictedLODLevel() + 1);
+		}
 	}
 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
