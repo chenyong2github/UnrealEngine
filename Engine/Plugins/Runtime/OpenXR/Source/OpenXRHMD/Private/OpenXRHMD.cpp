@@ -9,6 +9,7 @@
 #include "IOpenXRARModule.h"
 
 #include "Misc/App.h"
+#include "Misc/Parse.h"
 #include "Modules/ModuleManager.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
@@ -1467,7 +1468,10 @@ void FOpenXRHMD::PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHIC
 
 bool FOpenXRHMD::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const
 {
-	return GEngine && GEngine->IsStereoscopic3D(Context.Viewport);
+	// Don't activate the SVE if xr is being used for tracking only purposes
+	static const bool bXrTrackingOnly = FParse::Param(FCommandLine::Get(), TEXT("xrtrackingonly"));
+
+	return GEngine && GEngine->IsStereoscopic3D(Context.Viewport) && !bXrTrackingOnly;
 }
 
 bool CheckPlatformDepthExtensionSupport(const XrInstanceProperties& InstanceProps)
