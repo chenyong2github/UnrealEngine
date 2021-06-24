@@ -425,11 +425,11 @@ FReply SDMXPixelMappingDesignerView::OnDragDetected(const FGeometry& MyGeometry,
 		{
 			// Check the parent chain of each dragged component and ignore those that are children of other dragged components
 			bool bIsChild = false;
-			for (UDMXPixelMappingBaseComponent* Parent = Candidate->GetParent(); Parent; Parent = Parent->GetParent())
+			for (TWeakObjectPtr<UDMXPixelMappingBaseComponent> Parent = Candidate->GetParent(); Parent.IsValid(); Parent = Parent->GetParent())
 			{
 				bIsChild = DraggedComponentCandidates.ContainsByPredicate([Parent](const UDMXPixelMappingOutputComponent* BaseComponent)
 					{ 
-						return BaseComponent == Parent;
+						return BaseComponent == Parent.Get();
 					});
 
 				if (bIsChild)
