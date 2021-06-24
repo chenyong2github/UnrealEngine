@@ -1169,6 +1169,11 @@ FActionMenuContent SGraphEditorImpl::GraphEd_OnGetContextMenuFor(const FGraphCon
 				ToolkitMenuContext->Toolkit = AssetEditorToolkit;
 				Context.AddObject(ToolkitMenuContext);
 
+				if (TSharedPtr<FAssetEditorToolkit> SharedToolKit = AssetEditorToolkit.Pin())
+				{
+					SharedToolKit->InitToolMenuContext(Context);
+				}
+
 				// Need to additionally pass through the asset toolkit to hook up those commands?
 
 				UToolMenus* ToolMenus = UToolMenus::Get();
