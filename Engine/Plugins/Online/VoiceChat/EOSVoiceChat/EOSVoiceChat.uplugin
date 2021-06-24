@@ -15,6 +15,7 @@
 			"Name": "EOSVoiceChat",
 			"Type": "ClientOnlyNoCommandlet",
 			"WhitelistPlatforms": [
+				"Android",
 				"Mac",
 				"Win64"
 			]
