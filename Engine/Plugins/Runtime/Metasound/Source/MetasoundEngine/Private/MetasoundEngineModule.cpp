@@ -4,6 +4,7 @@
 #include "Metasound.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
+#include "MetasoundEngineArchetypes.h"
 #include "MetasoundSource.h"
 #include "MetasoundUObjectRegistry.h"
 #include "MetasoundWave.h"
@@ -17,8 +18,14 @@ class FMetasoundEngineModule : public IMetasoundEngineModule
 {
 	virtual void StartupModule() override
 	{
+		FModuleManager::Get().LoadModuleChecked("MetasoundFrontend");
+		FModuleManager::Get().LoadModuleChecked("AudioCodecEngine");
+
+		Metasound::Engine::RegisterArchetypes();
+
 		// If there is no archetype name, use UMetaSound
-		Metasound::IMetasoundUObjectRegistry::RegisterUClassArchetype<UMetaSound>(TEXT(""));
+		FMetasoundFrontendVersion DefaultVersion;
+		Metasound::IMetasoundUObjectRegistry::RegisterUClassArchetype<UMetaSound>(DefaultVersion);
 
 		// Register preferred archetypes
 		Metasound::IMetasoundUObjectRegistry::RegisterUClassPreferredArchetypes<UMetaSound>();
@@ -26,8 +33,6 @@ class FMetasoundEngineModule : public IMetasoundEngineModule
 
 		// flush node registration queue
 		FMetasoundFrontendRegistryContainer::Get()->RegisterPendingNodes();
-
-		FModuleManager::Get().LoadModuleChecked("AudioCodecEngine");
 
 		UE_LOG(LogMetasoundEngine, Log, TEXT("Metasound Engine Initialized"));
 	}

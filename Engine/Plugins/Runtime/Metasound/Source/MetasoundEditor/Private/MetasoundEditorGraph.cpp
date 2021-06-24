@@ -143,11 +143,7 @@ bool UMetasoundEditorGraphVariable::IsRequired() const
 {
 	using namespace Metasound;
 
-	const FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(GetOutermostObject());
-	check(MetasoundAsset);
-	const FMetasoundFrontendArchetype& Archetype = MetasoundAsset->GetArchetype();
-
-	return GetConstNodeHandle()->IsRequired(Archetype);
+	return GetConstNodeHandle()->IsRequired();
 }
 
 bool UMetasoundEditorGraphVariable::CanRename(const FText& InNewName, FText& OutError) const

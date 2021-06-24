@@ -46,7 +46,7 @@ namespace Metasound
 		virtual ~IMetasoundUObjectRegistryEntry() = default;
 
 		/** Archetype name associated with this entry. */
-		virtual const FName& GetArchetypeName() const = 0;
+		virtual const FMetasoundFrontendVersion& GetArchetypeVersion() const = 0;
 
 		/** UClass associated with this entry. */
 		virtual UClass* GetUClass() const = 0;
@@ -86,16 +86,16 @@ namespace Metasound
 		static_assert(std::is_base_of<UObject, UClassType>::value, "UClass must be derived from UObject");
 
 	public:
-		TMetasoundUObjectRegistryEntry(const FName& InArchetypeName)
-		:	ArchetypeName(InArchetypeName)
+		TMetasoundUObjectRegistryEntry(const FMetasoundFrontendVersion& InArchetypeVersion)
+		:	ArchetypeVersion(InArchetypeVersion)
 		{
 		}
 
 		virtual ~TMetasoundUObjectRegistryEntry() = default;
 
-		const FName& GetArchetypeName() const
+		virtual const FMetasoundFrontendVersion& GetArchetypeVersion() const override
 		{
-			return ArchetypeName;
+			return ArchetypeVersion;
 		}
 
 		UClass* GetUClass() const override
@@ -146,7 +146,7 @@ namespace Metasound
 
 	private:
 
-		FName ArchetypeName;
+		FMetasoundFrontendVersion ArchetypeVersion;
 	};
 
 
@@ -165,49 +165,49 @@ namespace Metasound
 
 			/** Register all preferred archetypes of the UClass. 
 			 *
-			 * All Archtypes returned by the default objects GetPreferredArchetypes() will be registered. 
+			 * All Archtypes returned by the default objects GetSupportedArchetypeVersions() will be registered. 
 			 */
 			template<typename UClassType>
 			static void RegisterUClassPreferredArchetypes()
 			{
 				static_assert(std::is_base_of<FMetasoundAssetBase, UClassType>::value, "UClass must be derived from FMetasoundAssetBase");
 
-				const TArray<FMetasoundFrontendArchetype>& PreferredArchetypes = GetDefault<UClassType>()->GetPreferredArchetypes();
+				const TArray<FMetasoundFrontendVersion>& SupportedArchetypeVersions = GetDefault<UClassType>()->GetSupportedArchetypeVersions();
 
-				for (const FMetasoundFrontendArchetype& Arch : PreferredArchetypes)
+				for (const FMetasoundFrontendVersion& Version : SupportedArchetypeVersions)
 				{
-					IMetasoundUObjectRegistry::RegisterUClassArchetype<UClassType>(Arch.Name);
+					IMetasoundUObjectRegistry::RegisterUClassArchetype<UClassType>(Version);
 				}
 			}
 
 			/** Register an archetype for the UClass. 
 			 *
-			 * @param InArchetypeName - An FMetasoundFrontendDocument to associate with the UClass.
+			 * @param InArchetypeVerison - The version of the FMetasoundFrontendArchetype to associate with the UClass.
 			 */
 			template<typename UClassType>
-			static void RegisterUClassArchetype(const FName& InArchetypeName)
+			static void RegisterUClassArchetype(const FMetasoundFrontendVersion& InArchetypeVersion)
 			{
 				using FRegistryEntryType = TMetasoundUObjectRegistryEntry<UClassType>;
 
-				IMetasoundUObjectRegistry::Get().RegisterUClassArchetype(MakeUnique<FRegistryEntryType>(InArchetypeName));
+				IMetasoundUObjectRegistry::Get().RegisterUClassArchetype(MakeUnique<FRegistryEntryType>(InArchetypeVersion));
 			}
 
 			/** Adds an entry to the registry. */
 			virtual void RegisterUClassArchetype(TUniquePtr<IMetasoundUObjectRegistryEntry>&& InEntry) = 0;
 
 			/** Returns all UClasses registered to the archetype name. */
-			virtual TArray<UClass*> GetUClassesForArchetype(const FName& InArchetypeName) const = 0;
+			virtual TArray<UClass*> GetUClassesForArchetype(const FMetasoundFrontendVersion& InArchetypeVersion) const = 0;
 
 			/** Creates a new object from a metasound document.
 			 *
 			 * @param InClass - A registered UClass to create.
 			 * @param InDocument - The FMetasoundFrontendDocument to use when creating the class.
-			 * @param InArchetype - The FMetasoundFrontendArchetype to use when creating the class.
+			 * @param InArchetypeVersion - The version of the FMetasoundFrontendArchetype to use when creating the class.
 			 * @param InPath - If in editor, the created asset will be stored at this content path.
 			 *
 			 * @return A new object. A nullptr on error.
 			 */
-			virtual UObject* NewObject(UClass* InClass, const FMetasoundFrontendDocument& InDocument, const FMetasoundFrontendArchetype& InArchetype, const FString& InPath) const = 0;
+			virtual UObject* NewObject(UClass* InClass, const FMetasoundFrontendDocument& InDocument, const FString& InPath) const = 0;
 
 			/** Returns true if the InObject is of a class or child class which is registered. */
 			virtual bool IsRegisteredClass(UObject* InObject) const = 0;

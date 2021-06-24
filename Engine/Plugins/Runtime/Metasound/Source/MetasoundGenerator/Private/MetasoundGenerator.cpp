@@ -50,26 +50,18 @@ namespace Metasound
 			FDataReferenceCollection Outputs = GraphOperator->GetOutputs();
 
 			// Get output audio buffers.
-			if (InitParams.NumOutputChannels == 2)
+			for (const FString& AudioOutputName : InitParams.AudioOutputNames)
 			{
-				if (!Outputs.ContainsDataReadReference<FStereoAudioFormat>(InitParams.OutputName))
+				if (!Outputs.ContainsDataReadReference<FAudioBuffer>(AudioOutputName))
 				{
-					UE_LOG(LogMetaSound, Warning, TEXT("MetasoundSource [%s] does not contain stereo output [%s] in output"), *InitParams.MetaSoundName, *InitParams.OutputName);
+					UE_LOG(LogMetaSound, Warning, TEXT("MetasoundSource [%s] does not contain audio output [%s] in output"), *InitParams.MetaSoundName, *AudioOutputName);
 				}
-				OutputBuffers = Outputs.GetDataReadReferenceOrConstruct<FStereoAudioFormat>(InitParams.OutputName, InitParams.OperatorSettings)->GetBuffers();
-			}
-			else if (InitParams.NumOutputChannels == 1)
-			{
-				if (!Outputs.ContainsDataReadReference<FMonoAudioFormat>(InitParams.OutputName))
-				{
-					UE_LOG(LogMetaSound, Warning, TEXT("MetasoundSource [%s] does not contain mono output [%s] in output"), *InitParams.MetaSoundName, *InitParams.OutputName);
-				}
-				OutputBuffers = Outputs.GetDataReadReferenceOrConstruct<FMonoAudioFormat>(InitParams.OutputName, InitParams.OperatorSettings)->GetBuffers();
+				OutputBuffers.Add(Outputs.GetDataReadReferenceOrConstruct<FAudioBuffer>(AudioOutputName, InitParams.OperatorSettings));
 			}
 
 			// References must be cached before moving the operator to the InitParams
 			FDataReferenceCollection Inputs = GraphOperator->GetInputs();
-			FTriggerWriteRef PlayTrigger = Inputs.GetDataWriteReferenceOrConstruct<FTrigger>(InitParams.InputName, InitParams.OperatorSettings, false);
+			FTriggerWriteRef PlayTrigger = Inputs.GetDataWriteReferenceOrConstruct<FTrigger>(InitParams.OnPlayInputName, InitParams.OperatorSettings, false);
 			FTriggerReadRef FinishTrigger = Outputs.GetDataReadReferenceOrConstruct<FTrigger>(InitParams.IsFinishedOutputName, InitParams.OperatorSettings, false);
 
 			FMetasoundGeneratorData GeneratorData
@@ -95,7 +87,7 @@ namespace Metasound
 		, bPendingGraphTrigger(true)
 		, bIsNewGraphPending(true)
 	{
-		NumChannels = InParams.NumOutputChannels;
+		NumChannels = InParams.AudioOutputNames.Num();
 		NumFramesPerExecute = InParams.OperatorSettings.GetNumFramesPerBlock();
 		NumSamplesPerExecute = NumChannels * NumFramesPerExecute;
 

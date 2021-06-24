@@ -81,6 +81,16 @@ namespace Metasound
 						IndexB++;
 					}
 				}
+
+				if (IndexA < SortedA.Num())
+				{
+					OutUniqueA.Append(&SortedA[IndexA], SortedA.Num() - IndexA);
+				}
+
+				if (IndexB < SortedB.Num())
+				{
+					OutUniqueB.Append(&SortedB[IndexB], SortedB.Num() - IndexB);
+				}
 			}
 
 			template<typename FrontendTypeA, typename FrontendTypeB, typename ComparisonType>
@@ -130,6 +140,19 @@ namespace Metasound
 			return bIsInputSetIncluded && bIsOutputSetIncluded && bIsEnvironmentVariableSetIncluded;
 		}
 
+		bool IsSubsetOfClass(const FMetasoundFrontendArchetype& InSubsetArchetype, const FMetasoundFrontendClass& InSupersetClass)
+		{
+			// TODO: Environment variables are ignored as they are poorly supported and classes describe which environment variables are required,
+			// not which are supported 
+			using namespace MetasoundArchetypeIntrinsics;
+
+			const bool bIsInputSetIncluded = IsSetIncluded(InSubsetArchetype.Interface.Inputs, InSupersetClass.Interface.Inputs, &IsLessThanVertex);
+
+			const bool bIsOutputSetIncluded = IsSetIncluded(InSubsetArchetype.Interface.Outputs, InSupersetClass.Interface.Outputs, &IsLessThanVertex);
+
+			return bIsInputSetIncluded && bIsOutputSetIncluded;
+		}
+
 		bool IsEquivalentArchetype(const FMetasoundFrontendArchetype& InInputArchetype, const FMetasoundFrontendArchetype& InTargetArchetype)
 		{
 			using namespace MetasoundArchetypeIntrinsics;
@@ -145,9 +168,9 @@ namespace Metasound
 
 		bool IsEqualArchetype(const FMetasoundFrontendArchetype& InInputArchetype, const FMetasoundFrontendArchetype& InTargetArchetype)
 		{
-			bool bIsMetadataEqual = InInputArchetype.Name == InTargetArchetype.Name;
-			bIsMetadataEqual &= InInputArchetype.Version.Major == InTargetArchetype.Version.Major;
-			bIsMetadataEqual &= InInputArchetype.Version.Minor== InTargetArchetype.Version.Minor;
+			bool bIsMetadataEqual = InInputArchetype.Version.Name == InTargetArchetype.Version.Name;
+			bIsMetadataEqual &= InInputArchetype.Version.Number.Major == InTargetArchetype.Version.Number.Major;
+			bIsMetadataEqual &= InInputArchetype.Version.Number.Minor == InTargetArchetype.Version.Number.Minor;
 
 			if (bIsMetadataEqual)
 			{
@@ -159,13 +182,13 @@ namespace Metasound
 			return false;
 		}
 
-		int32 InputOutputDifferenceCount(const FMetasoundFrontendDocument& InDocument, const FMetasoundFrontendArchetype& InArchetype)
+		int32 InputOutputDifferenceCount(const FMetasoundFrontendClass& InClass, const FMetasoundFrontendArchetype& InArchetype)
 		{
 			using namespace MetasoundArchetypeIntrinsics;
 
-			int32 DiffCount = SetDifferenceCount(InDocument.RootGraph.Interface.Inputs, InArchetype.Interface.Inputs, &IsLessThanVertex);
+			int32 DiffCount = SetDifferenceCount(InClass.Interface.Inputs, InArchetype.Interface.Inputs, &IsLessThanVertex);
 
-			DiffCount += SetDifferenceCount(InDocument.RootGraph.Interface.Outputs, InArchetype.Interface.Outputs, &IsLessThanVertex);
+			DiffCount += SetDifferenceCount(InClass.Interface.Outputs, InArchetype.Interface.Outputs, &IsLessThanVertex);
 
 			return DiffCount;
 		}
@@ -181,7 +204,7 @@ namespace Metasound
 			return DiffCount;
 		}
 
-		void GatherRequiredEnvironmentVariables(const FMetasoundFrontendDocument& InDocument, TArray<FMetasoundFrontendEnvironmentVariable>& OutEnvironmentVariables)
+		void GatherRequiredEnvironmentVariables(const FMetasoundFrontendGraphClass& InRootGraph, const TArray<FMetasoundFrontendClass>& InDependencies, const TArray<FMetasoundFrontendGraphClass>& InSubgraphs, TArray<FMetasoundFrontendEnvironmentVariable>& OutEnvironmentVariables)
 		{
 			auto GatherRequiredEnvironmentVariablesFromClass = [&](const FMetasoundFrontendClass& InClass)
 			{
@@ -205,12 +228,13 @@ namespace Metasound
 				}
 			};
 
-			GatherRequiredEnvironmentVariablesFromClass(InDocument.RootGraph);
-			Algo::ForEach(InDocument.Dependencies, GatherRequiredEnvironmentVariablesFromClass);
-			Algo::ForEach(InDocument.Subgraphs, GatherRequiredEnvironmentVariablesFromClass);
+			GatherRequiredEnvironmentVariablesFromClass(InRootGraph);
+			Algo::ForEach(InDependencies, GatherRequiredEnvironmentVariablesFromClass);
+			Algo::ForEach(InSubgraphs, GatherRequiredEnvironmentVariablesFromClass);
 		}
 
-		const FMetasoundFrontendArchetype* FindMostSimilarArchetypeSupportingEnvironment(const FMetasoundFrontendDocument& InDocument, const TArray<FMetasoundFrontendArchetype>& InCandidateArchetypes)
+		
+		const FMetasoundFrontendArchetype* FindMostSimilarArchetypeSupportingEnvironment(const FMetasoundFrontendGraphClass& InRootGraph, const TArray<FMetasoundFrontendClass>& InDependencies, const TArray<FMetasoundFrontendGraphClass>& InSubgraphs, const TArray<FMetasoundFrontendArchetype>& InCandidateArchetypes)
 		{
 			using namespace MetasoundArchetypeIntrinsics;
 
@@ -218,24 +242,24 @@ namespace Metasound
 
 			TArray<const FMetasoundFrontendArchetype*> CandidateArchs = MakePointerToArrayElements(InCandidateArchetypes);
 
-			TArray<FMetasoundFrontendEnvironmentVariable> AllDocumentEnvironmentVariables;
-			GatherRequiredEnvironmentVariables(InDocument, AllDocumentEnvironmentVariables);
+			TArray<FMetasoundFrontendEnvironmentVariable> AllEnvironmentVariables;
+			GatherRequiredEnvironmentVariables(InRootGraph, InDependencies, InSubgraphs, AllEnvironmentVariables);
 
 			// Remove all archetypes which do not provide all environment variables. 
 			auto DoesNotProvideAllEnvironmentVariables = [&](const FMetasoundFrontendArchetype* CandidateArch)
 			{
-				return !IsSetIncluded(AllDocumentEnvironmentVariables, CandidateArch->Interface.Environment, &IsLessThanEnvironmentVariable);
+				return !IsSetIncluded(AllEnvironmentVariables, CandidateArch->Interface.Environment, &IsLessThanEnvironmentVariable);
 			};
 
 			CandidateArchs.RemoveAll(DoesNotProvideAllEnvironmentVariables);
 
 			// Return the archetype with the least amount of differences.
-			auto DifferencesFromDocument = [&](const FMetasoundFrontendArchetype* CandidateArch) -> int32
+			auto DifferencesFromRootGraph = [&](const FMetasoundFrontendArchetype* CandidateArch) -> int32
 			{ 
-				return InputOutputDifferenceCount(InDocument, *CandidateArch); 
+				return InputOutputDifferenceCount(InRootGraph, *CandidateArch); 
 			};
 
-			Algo::SortBy(CandidateArchs, DifferencesFromDocument);
+			Algo::SortBy(CandidateArchs, DifferencesFromRootGraph);
 
 			if (0 == CandidateArchs.Num())
 			{
@@ -243,6 +267,11 @@ namespace Metasound
 			}
 
 			return CandidateArchs[0];
+		}
+		
+		const FMetasoundFrontendArchetype* FindMostSimilarArchetypeSupportingEnvironment(const FMetasoundFrontendDocument& InDocument, const TArray<FMetasoundFrontendArchetype>& InCandidateArchetypes)
+		{
+			return FindMostSimilarArchetypeSupportingEnvironment(InDocument.RootGraph, InDocument.Dependencies, InDocument.Subgraphs, InCandidateArchetypes);
 		}
 	}
 }

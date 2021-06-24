@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendRegistries.h"
+#include "Algo/ForEach.h"
 
 namespace Metasound
 {
@@ -13,40 +14,88 @@ namespace Metasound
 		/** Returns an ID representing the beginning of the transaction history. */
 		FRegistryTransactionID GetOriginRegistryTransactionID();
 
-		/** Create a node registration transaction. */
-		FRegistryTransactionPtr MakeAddNodeRegistryTransaction(const FNodeRegistryKey& InKey, const FNodeClassInfo& InInfo);
 
-		/** Create a node unregistration transaction. */
-		FRegistryTransactionPtr MakeRemoveNodeRegistryTransaction(const FNodeRegistryKey& InKey, const FNodeClassInfo& InInfo);
-
-		/** Maintains a history of IRegistryTransactions. Calls are threadsafe (excluding
+		/** Maintains a history of TransactionTypes. Calls are threadsafe (excluding
 		 * the constructor and destructor.)
 		 */
-		class FRegistryTransactionHistory
+		template<typename TransactionType>
+		class TRegistryTransactionHistory
 		{
 		public:
-
-			FRegistryTransactionHistory();
-
-			/** Add a transaction to the history. Threadsafe. 
-			 *
-			 * @return The transaction ID associated with the action. */
-			FRegistryTransactionID Add(FRegistryTransactionPtr&& InRegistryTransaction);
+			TRegistryTransactionHistory()
+			: Current(GetOriginRegistryTransactionID())
+			{
+			}
 
 			/** Add a transaction to the history. Threadsafe. 
 			 *
 			 * @return The transaction ID associated with the action. */
-			FRegistryTransactionID Add(const IRegistryTransaction& InRegistryTransaction);
+			FRegistryTransactionID Add(TransactionType&& InRegistryTransaction)
+			{
+				FScopeLock Lock(&RegistryTransactionMutex);
+
+				Current++;
+
+				int32 Index = RegistryTransactions.Num();
+
+				RegistryTransactions.Add(MoveTemp(InRegistryTransaction));
+				RegistryTransactionIndexMap.Add(Current, Index);
+
+				return Current;
+			}
 
 			/** Gets the transaction ID of the most recent transaction. Threadsafe. */
-			FRegistryTransactionID GetCurrent() const;
+			FRegistryTransactionID GetCurrent() const
+			{
+				FScopeLock Lock(&RegistryTransactionMutex);
+				{
+					return Current;
+				}
+			}
 
-			/** Returns an array of transaction pointers. Threadsafe. 
+			/** Invoke a function on all transactions since transaction ID. 
 			 *
-			 * @param InSince - All transactions occuring after this transaction ID will be returned.
+			 * @param InSince - All transactions occurring after this transaction ID will be returned.
 			 * @param OutCurrent - If not null, will be set to the most recent transaction ID returned. 
+			 * @param InCallable - A callable of the form Callable(const TransactionType&)
 			 */
-			TArray<const IRegistryTransaction*> GetTransactions(FRegistryTransactionID InSince, FRegistryTransactionID* OutCurrent) const;
+			template<typename CallableType>
+			void ForEachTransactionSince(FRegistryTransactionID InSince, FRegistryTransactionID* OutCurrent, CallableType InCallable) const
+			{
+				FScopeLock Lock(&RegistryTransactionMutex);
+				{
+					if (nullptr != OutCurrent)
+					{
+						*OutCurrent = Current;
+					}
+
+					int32 Start = INDEX_NONE;
+					
+					if (GetOriginRegistryTransactionID() == InSince)
+					{
+						Start = 0;
+					}
+					else if (const int32* Pos = RegistryTransactionIndexMap.Find(InSince))
+					{
+						Start = *Pos + 1;
+					}
+					
+					if (INDEX_NONE != Start)
+					{
+						const int32 Num = RegistryTransactions.Num();
+
+						if (ensure(Start <= Num))
+						{
+							const int32 OutNum = Num - Start;
+							if (OutNum > 0)
+							{
+								TArrayView<const TransactionType> TransactionsSince = MakeArrayView(&RegistryTransactions[Start], OutNum);
+								Algo::ForEach(TransactionsSince, InCallable);
+							}
+						}
+					}
+				}
+			}
 
 		private:
 
@@ -55,7 +104,7 @@ namespace Metasound
 			FRegistryTransactionID Current;
 
 			TMap<FRegistryTransactionID, int32> RegistryTransactionIndexMap;
-			TArray<FRegistryTransactionPtr> RegistryTransactions;
+			TArray<TransactionType> RegistryTransactions;
 		};
 	}
 }

@@ -134,8 +134,7 @@ namespace Metasound
 
 			bool IsRequired() const
 			{
-				const FMetasoundFrontendArchetype& Archetype = GetMetasoundAssetChecked().GetArchetype();
-				return GetNodeHandle()->IsRequired(Archetype);
+				return GetNodeHandle()->IsRequired();
 			}
 
 			// FEdGraphSchemaAction interface
@@ -346,13 +345,10 @@ namespace Metasound
 			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
 			check(MetasoundAsset);
 
-			Frontend::FDocumentHandle Document = MetasoundAsset->GetDocumentHandle();
-			FName AssetName = Metasound->GetFName();
-			FString AssetPath = Metasound->GetPathName();
-			if (Frontend::FVersionDocument(AssetName, AssetPath).Transform(Document))
+			const bool bDidUpdateAsset = MetasoundAsset->VersionAsset();
+			if (bDidUpdateAsset)
 			{
 				MetasoundAsset->RegisterGraphWithFrontend();
-				Metasound->MarkPackageDirty();
 			}
 			FGraphBuilder::SynchronizeGraph(*Metasound);
 
@@ -775,45 +771,39 @@ namespace Metasound
 
 		void FEditor::Import()
 		{
-			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
-			if (MetasoundAsset)
+			// TODO: Prompt OFD and provide path from user
+			const FString InputPath = FPaths::ProjectIntermediateDir() / TEXT("MetaSounds") + FPaths::ChangeExtension(Metasound->GetPathName(), FMetasoundAssetBase::FileExtension);
+			
+			// TODO: use the same directory as the currently open MetaSound
+			const FString OutputPath = FString("/Game/ImportedMetaSound/GeneratedMetaSound");
+
+			FMetasoundFrontendDocument MetasoundDoc;
+
+			if (Frontend::ImportJSONAssetToMetasound(InputPath, MetasoundDoc))
 			{
-				const FMetasoundFrontendArchetype& Archetype = MetasoundAsset->GetArchetype();
+				TArray<UClass*> ImportClasses = IMetasoundUObjectRegistry::Get().GetUClassesForArchetype(MetasoundDoc.ArchetypeVersion);
 
-				// TODO: Prompt OFD and provide path from user
-				const FString InputPath = FPaths::ProjectIntermediateDir() / TEXT("MetaSounds") + FPaths::ChangeExtension(Metasound->GetPathName(), FMetasoundAssetBase::FileExtension);
-				
-				// TODO: use the same directory as the currently open MetaSound
-				const FString OutputPath = FString("/Game/ImportedMetaSound/GeneratedMetaSound");
-
-				FMetasoundFrontendDocument MetasoundDoc;
-
-				if (Frontend::ImportJSONAssetToMetasound(InputPath, MetasoundDoc))
+				if (ImportClasses.Num() < 1)
 				{
-					TArray<UClass*> ImportClasses = IMetasoundUObjectRegistry::Get().GetUClassesForArchetype(Archetype.Name);
-
-					if (ImportClasses.Num() < 1)
-					{
-						UE_LOG(LogMetaSound, Warning, TEXT("Cannot create UObject from MetaSound document. No UClass supports archetype \"%s\""), *Archetype.Name.ToString());
-					}
-					else
-					{
-						if (ImportClasses.Num() > 1)
-						{
-							for (UClass* Cls : ImportClasses)
-							{
-								// TODO: could do a modal dialog to give user choice of import type.
-								UE_LOG(LogMetaSound, Warning, TEXT("Duplicate UClass support archetype \"%s\" with UClass \"%s\""), *Archetype.Name.ToString(), *Cls->GetName());
-							}
-						}
-
-						IMetasoundUObjectRegistry::Get().NewObject(ImportClasses[0], MetasoundDoc, Archetype, OutputPath);
-					}
+					UE_LOG(LogMetaSound, Warning, TEXT("Cannot create UObject from MetaSound document. No UClass supports archetype \"%s\""), *MetasoundDoc.ArchetypeVersion.ToString());
 				}
 				else
 				{
-					UE_LOG(LogMetaSound, Warning, TEXT("Could not import MetaSound at path: %s"), *InputPath);
+					if (ImportClasses.Num() > 1)
+					{
+						for (UClass* Cls : ImportClasses)
+						{
+							// TODO: could do a modal dialog to give user choice of import type.
+							UE_LOG(LogMetaSound, Warning, TEXT("Duplicate UClass support archetype \"%s\" with UClass \"%s\""), *MetasoundDoc.ArchetypeVersion.ToString(), *Cls->GetName());
+						}
+					}
+
+					IMetasoundUObjectRegistry::Get().NewObject(ImportClasses[0], MetasoundDoc, OutputPath);
 				}
+			}
+			else
+			{
+				UE_LOG(LogMetaSound, Warning, TEXT("Could not import MetaSound at path: %s"), *InputPath);
 			}
 		}
 
@@ -1378,8 +1368,7 @@ namespace Metasound
 
 					FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
 					check(MetasoundAsset);
-					const FMetasoundFrontendArchetype& Archetype = MetasoundAsset->GetArchetype();
-
+					
 					TSharedPtr<FMetasoundGraphNodeSchemaAction> ActionToDelete;
 					for (const TSharedPtr<FEdGraphSchemaAction>& Action : Actions)
 					{
@@ -1389,7 +1378,7 @@ namespace Metasound
 							Frontend::FNodeHandle NodeHandle = MetasoundAction->GetNodeHandle();
 							if (ensure(NodeHandle->IsValid()))
 							{
-								if (NodeHandle->IsRequired(Archetype))
+								if (NodeHandle->IsRequired())
 								{
 									if (MetasoundGraphEditor.IsValid())
 									{

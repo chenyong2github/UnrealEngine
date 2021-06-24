@@ -347,6 +347,7 @@ namespace Metasound
 				FMetasoundFrontendClass FrontendClass;
 			};
 
+
 			// Registry container private implementation.
 			class FRegistryContainerImpl : public FMetasoundFrontendRegistryContainer
 			{
@@ -388,7 +389,7 @@ namespace Metasound
 
 				bool RegisterConversionNode(const FConverterNodeRegistryKey& InNodeKey, const FConverterNodeInfo& InNodeInfo) override;
 
-				TArray<const Metasound::Frontend::IRegistryTransaction*> GetRegistryTransactionsSince(Metasound::Frontend::FRegistryTransactionID InSince, Metasound::Frontend::FRegistryTransactionID* OutCurrentRegistryTransactionID) const override;
+				virtual void ForEachNodeRegistryTransactionSince(FRegistryTransactionID InSince, FRegistryTransactionID* OutCurrentRegistryTransactionID, TFunctionRef<void(const FNodeRegistryTransaction&)> InFunc) const override;
 
 				// Return any data types that can be used as a metasound input type or output type.
 				TArray<FName> GetAllValidDataTypes() override;
@@ -456,7 +457,7 @@ namespace Metasound
 				// Registry in which we keep lists of possible nodes to use to convert between two datatypes
 				TMap<FConverterNodeRegistryKey, FConverterNodeRegistryValue> ConverterNodeRegistry;
 
-				FRegistryTransactionHistory RegistryTransactionHistory;
+				TRegistryTransactionHistory<FNodeRegistryTransaction> RegistryTransactionHistory;
 			};
 
 			void FRegistryContainerImpl::RegisterPendingNodes()
@@ -489,9 +490,9 @@ namespace Metasound
 				return true;
 			}
 
-			TArray<const Metasound::Frontend::IRegistryTransaction*> FRegistryContainerImpl::GetRegistryTransactionsSince(Metasound::Frontend::FRegistryTransactionID InSince, Metasound::Frontend::FRegistryTransactionID* OutCurrentRegistryTransactionID) const 
+			void FRegistryContainerImpl::ForEachNodeRegistryTransactionSince(FRegistryTransactionID InSince, FRegistryTransactionID* OutCurrentRegistryTransactionID, TFunctionRef<void(const FNodeRegistryTransaction&)> InFunc) const 
 			{
-				return RegistryTransactionHistory.GetTransactions(InSince, OutCurrentRegistryTransactionID);
+				return RegistryTransactionHistory.ForEachTransactionSince(InSince, OutCurrentRegistryTransactionID, InFunc);
 			}
 
 			TUniquePtr<Metasound::INode> FRegistryContainerImpl::CreateInputNode(const FName& InDataType, Metasound::FInputNodeConstructorParams&& InParams)
@@ -786,7 +787,7 @@ namespace Metasound
 
 					// Store update to newly registered node in history so nodes
 					// can be queried by transaction ID
-					RegistryTransactionHistory.Add(MakeAddNodeRegistryTransaction(Key, InEntry->GetClassInfo()));
+					RegistryTransactionHistory.Add(FNodeRegistryTransaction(FNodeRegistryTransaction::ETransactionType::NodeRegistration, Key, InEntry->GetClassInfo()));
 
 					// Store registry elements in map so nodes can be queried using registry key.
 					RegisteredNodes.Add(Key, MoveTemp(InEntry));
@@ -801,7 +802,7 @@ namespace Metasound
 				{
 					if (const INodeRegistryEntry* Entry = FindNodeEntry(InKey))
 					{
-						RegistryTransactionHistory.Add(MakeRemoveNodeRegistryTransaction(InKey, Entry->GetClassInfo()));
+						RegistryTransactionHistory.Add(FNodeRegistryTransaction(FNodeRegistryTransaction::ETransactionType::NodeUnregistration, InKey, Entry->GetClassInfo()));
 
 						RegisteredNodes.Remove(InKey);
 						return true;
@@ -978,6 +979,28 @@ namespace Metasound
 				return nullptr;
 			}
 		} // namespace MetasoundFrontendRegistriesPrivate
+
+		FNodeRegistryTransaction::FNodeRegistryTransaction(ETransactionType InType, const FNodeRegistryKey& InKey, const FNodeClassInfo& InNodeClassInfo)
+		: Type(InType)
+		, Key(InKey)
+		, NodeClassInfo(InNodeClassInfo)
+		{
+		}
+
+		FNodeRegistryTransaction::ETransactionType FNodeRegistryTransaction::GetTransactionType() const
+		{
+			return Type;
+		}
+
+		const FNodeClassInfo& FNodeRegistryTransaction::GetNodeClassInfo() const
+		{
+			return NodeClassInfo;
+		}
+
+		const FNodeRegistryKey& FNodeRegistryTransaction::GetNodeRegistryKey() const
+		{
+			return Key;
+		}
 
 		bool IsValidNodeRegistryKey(const FNodeRegistryKey& InKey)
 		{

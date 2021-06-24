@@ -852,12 +852,7 @@ namespace Metasound
 
 			// Ensure referenced MetaSound is up-to-date
 			check(MetaSoundReferencedAsset);
-			FName Name = InMetaSoundReferenced.GetFName();
-			FString Path = InMetaSoundReferenced.GetPathName();
-			if (Frontend::FVersionDocument(Name, Path).Transform(MetaSoundReferencedAsset->GetDocumentHandle()))
-			{
-				InMetaSoundReferenced.MarkPackageDirty();
-			}
+			MetaSoundReferencedAsset->VersionAsset();
 
 			// Ensure asset is registered with frontend so the class
 			// can be queried when reference is added. This may modify
@@ -869,15 +864,13 @@ namespace Metasound
 			// node's interface to the preset.
 			GraphBuilderPrivate::InitializeGraph(InMetaSoundPreset);
 
-			const FMetasoundFrontendArchetype& Archetype = MetaSoundPresetAsset->GetArchetype();
-
 			// 1a. Preset graph topology is considered "read-only", so mark as such
 			FMetasoundFrontendGraphStyle Style = PresetGraphHandle->GetGraphStyle();
 			Style.bIsGraphEditable = false;
 			PresetGraphHandle->SetGraphStyle(Style);
 
 			// 1b. Set archetype accordingly
-			const FMetasoundFrontendArchetype& RefArchetype = MetaSoundReferencedAsset->GetArchetype();
+			const FMetasoundFrontendVersion& RefArchetype = MetaSoundReferencedAsset->GetDocumentHandle()->GetArchetypeVersion();
 			if (ensure(MetaSoundPresetAsset->IsArchetypeSupported(RefArchetype)))
 			{
 				MetaSoundPresetAsset->ConformDocumentToArchetype();
@@ -895,7 +888,7 @@ namespace Metasound
 			{
 				// Required inputs are added via the prior step (archetype conformation).
 				// For these, find the corrisponding input & create an editor node only.
-				const bool bIsRequired = RefGraphInputNode->IsRequired(Archetype);
+				const bool bIsRequired = RefGraphInputNode->IsRequired();
 
 				const FText& DisplayName = RefGraphInputNode->GetDisplayName();
 				const FText& Description = RefGraphInputNode->GetDescription();
@@ -936,7 +929,7 @@ namespace Metasound
 			{
 				// Required inputs are added via the prior step (archetype conformation).
 				// For these, find the corrisponding input & create an editor node only.
-				const bool bIsRequired = RefGraphOutputNode->IsRequired(Archetype);
+				const bool bIsRequired = RefGraphOutputNode->IsRequired();
 
 				const FText& DisplayName = RefGraphOutputNode->GetDisplayName();
 				const FText& Description = RefGraphOutputNode->GetDescription();

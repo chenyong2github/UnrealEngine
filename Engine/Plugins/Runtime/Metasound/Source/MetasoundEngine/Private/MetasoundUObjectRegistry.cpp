@@ -11,6 +11,7 @@
 #include "Engine/AssetManager.h"
 #include "Metasound.h"
 #include "MetasoundAssetBase.h"
+#include "MetasoundFrontendArchetypeRegistry.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendTransform.h"
 #include "MetasoundSource.h"
@@ -151,17 +152,14 @@ void UMetaSoundAssetSubsystem::AddOrUpdateAsset(const FAssetData& InAssetData)
 
 		if (ensure(Object))
 		{
+			
 			FMetasoundAssetBase* MetaSoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Object);
 			check(MetaSoundAsset);
-
-			FDocumentHandle Document = MetaSoundAsset->GetDocumentHandle();
 
 			// Must version to ensure registration uses the correct key,
 			// which must be based off of most up-to-date document model
 			// for safety.
-			const FName AssetName = Object->GetFName();
-			const FString AssetPath = Object->GetPathName();
-			FVersionDocument(AssetName, AssetPath).Transform(Document);
+			MetaSoundAsset->VersionAsset();
 
 			MetaSoundAsset->RegisterGraphWithFrontend();
 		}
@@ -221,20 +219,20 @@ namespace Metasound
 			{
 				if (InEntry.IsValid())
 				{
-					FName ArchetypeName = InEntry->GetArchetypeName();
+					Frontend::FArchetypeRegistryKey Key = Frontend::GetArchetypeRegistryKey(InEntry->GetArchetypeVersion());
 
-					EntriesByArchetype.Add(ArchetypeName, InEntry.Get());
+					EntriesByArchetype.Add(Key, InEntry.Get());
 					Entries.Add(InEntry.Get());
 					Storage.Add(MoveTemp(InEntry));
 				}
 			}
 
-			TArray<UClass*> GetUClassesForArchetype(const FName& InArchetypeName) const override
+			TArray<UClass*> GetUClassesForArchetype(const FMetasoundFrontendVersion& InArchetypeVersion) const override
 			{
 				TArray<UClass*> Classes;
 
 				TArray<const IMetasoundUObjectRegistryEntry*> EntriesForArchetype;
-				EntriesByArchetype.MultiFind(InArchetypeName, EntriesForArchetype);
+				EntriesByArchetype.MultiFind(Frontend::GetArchetypeRegistryKey(InArchetypeVersion), EntriesForArchetype);
 
 				for (const IMetasoundUObjectRegistryEntry* Entry : EntriesForArchetype)
 				{
@@ -250,21 +248,22 @@ namespace Metasound
 				return Classes;
 			}
 
-			UObject* NewObject(UClass* InClass, const FMetasoundFrontendDocument& InDocument, const FMetasoundFrontendArchetype& InArchetype, const FString& InPath) const override
+			UObject* NewObject(UClass* InClass, const FMetasoundFrontendDocument& InDocument, const FString& InPath) const override
 			{
+				TArray<const IMetasoundUObjectRegistryEntry*> EntriesForArchetype;
+				EntriesByArchetype.MultiFind(Frontend::GetArchetypeRegistryKey(InDocument.ArchetypeVersion), EntriesForArchetype);
+
 				auto IsChildClassOfRegisteredClass = [&](const IMetasoundUObjectRegistryEntry* Entry)
 				{
 					return Entry->IsChildClass(InClass);
 				};
 
-				TArray<const IMetasoundUObjectRegistryEntry*> EntriesForClass = FindEntriesByPredicate(IsChildClassOfRegisteredClass);
+			
+				const IMetasoundUObjectRegistryEntry* const* EntryForClass = EntriesForArchetype.FindByPredicate(IsChildClassOfRegisteredClass);
 
-				for (const IMetasoundUObjectRegistryEntry* Entry : EntriesForClass)
+				if (nullptr != EntryForClass)
 				{
-					if (Entry->GetArchetypeName() == InArchetype.Name)
-					{
-						return NewObject(*Entry, InDocument, InPath);
-					}
+					return NewObject(**EntryForClass, InDocument, InPath);
 				}
 
 				return nullptr;
@@ -322,12 +321,7 @@ namespace Metasound
 				if (ensure(nullptr != NewAssetBase))
 				{
 					NewAssetBase->SetDocument(InDocument);
-
-					const FMetasoundFrontendArchetype& Archetype = NewAssetBase->GetArchetype();
-					if (ensure(NewAssetBase->IsArchetypeSupported(Archetype)))
-					{
-						NewAssetBase->ConformDocumentToArchetype();
-					}
+					NewAssetBase->ConformDocumentToArchetype();
 				}
 
 #if WITH_EDITOR
@@ -379,7 +373,7 @@ namespace Metasound
 			}
 
 			TArray<TUniquePtr<IMetasoundUObjectRegistryEntry>> Storage;
-			TMultiMap<FName, const IMetasoundUObjectRegistryEntry*> EntriesByArchetype;
+			TMultiMap<Frontend::FArchetypeRegistryKey, const IMetasoundUObjectRegistryEntry*> EntriesByArchetype;
 			TArray<const IMetasoundUObjectRegistryEntry*> Entries;
 	};
 

@@ -6,6 +6,7 @@
 #include "Internationalization/Text.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundAudioFormats.h"
+#include "MetasoundEngineArchetypes.h"
 #include "MetasoundEngineEnvironment.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendQuery.h"
@@ -101,9 +102,10 @@ Metasound::Frontend::FNodeClassInfo UMetaSound::GetAssetClassInfo() const
 	return { GetDocumentChecked().RootGraph, *GetPathName() };
 }
 
-const FMetasoundFrontendArchetype& UMetaSound::GetArchetype() const
+const FMetasoundFrontendVersion& UMetaSound::GetDefaultArchetypeVersion() const
 {
-	return GetBaseArchetype();
+	static const FMetasoundFrontendVersion DefaultArchetypeVersion = Metasound::Engine::MetasoundV1_0::GetVersion();
+	return DefaultArchetypeVersion;
 }
 
 Metasound::FOperatorSettings UMetaSound::GetOperatorSettings(Metasound::FSampleRate InSampleRate) const
@@ -124,14 +126,14 @@ Metasound::FSendAddress UMetaSound::CreateSendAddress(uint64 InInstanceID, const
 	return Address;
 }
 
-const TArray<FMetasoundFrontendArchetype>& UMetaSound::GetPreferredArchetypes() const
+const TArray<FMetasoundFrontendVersion>& UMetaSound::GetSupportedArchetypeVersions() const
 {
-	static const TArray<FMetasoundFrontendArchetype> Preferred
+	static const TArray<FMetasoundFrontendVersion> Supported
 	{
-		GetBaseArchetype()
+		Metasound::Engine::MetasoundV1_0::GetVersion()
 	};
 
-	return Preferred;
+	return Supported;
 }
 
 const FString& UMetaSound::GetAudioDeviceHandleVariableName()
@@ -140,24 +142,4 @@ const FString& UMetaSound::GetAudioDeviceHandleVariableName()
 	return AudioDeviceHandleVarName;
 }
 
-const FMetasoundFrontendArchetype& UMetaSound::GetBaseArchetype()
-{
-	auto CreateBaseArchetype = []() -> FMetasoundFrontendArchetype
-	{
-		FMetasoundFrontendArchetype Archetype;
-
-		FMetasoundFrontendEnvironmentVariable AudioDeviceHandle;
-		AudioDeviceHandle.Name = GetAudioDeviceHandleVariableName();
-		AudioDeviceHandle.Metadata.DisplayName = FText::FromString(AudioDeviceHandle.Name);
-		AudioDeviceHandle.Metadata.Description = LOCTEXT("AudioDeviceHandleToolTip", "Audio device handle");
-
-		Archetype.Interface.Environment.Add(AudioDeviceHandle);
-
-		return Archetype;
-	};
-
-	static const FMetasoundFrontendArchetype BaseArchetype = CreateBaseArchetype();
-
-	return BaseArchetype;
-}
 #undef LOCTEXT_NAMESPACE // MetaSound

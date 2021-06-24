@@ -25,23 +25,6 @@ namespace Metasound
 {
 	namespace Frontend
 	{
-		TArray<const IRegistryTransaction*> GetRegistryTransactionsSince(FRegistryTransactionID InTransactionID, FRegistryTransactionID* OutCurrentTransactionID)
-		{
-			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
-			if (ensure(nullptr != Registry))
-			{
-				return Registry->GetRegistryTransactionsSince(InTransactionID, OutCurrentTransactionID);
-			}
-			else
-			{
-				if (nullptr != OutCurrentTransactionID)
-				{
-					*OutCurrentTransactionID = GetOriginRegistryTransactionID();
-				}
-				return TArray<const IRegistryTransaction*>();
-			}
-		}
-
 		// gets all metadata (name, description, author, what to say if it's missing) for a given node.
 		FMetasoundFrontendClassMetadata GenerateClassMetadata(const FNodeRegistryKey& InKey)
 		{

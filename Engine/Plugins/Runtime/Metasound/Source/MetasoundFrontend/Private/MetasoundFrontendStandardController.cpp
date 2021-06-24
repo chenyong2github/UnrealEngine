@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "HAL/FileManager.h"
 #include "MetasoundAccessPtr.h"
+#include "MetasoundFrontendArchetypeRegistry.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendDocumentAccessPtr.h"
@@ -1397,7 +1398,7 @@ namespace Metasound
 			return FInvalidInputController::GetInvalid();
 		}
 
-		bool FBaseNodeController::IsRequired(const FMetasoundFrontendArchetype& InArchetype) const
+		bool FBaseNodeController::IsRequired() const
 		{
 			return false;
 		}
@@ -1771,18 +1772,38 @@ namespace Metasound
 			return OutputDisplayTitle;
 		}
 
-		bool FOutputNodeController::IsRequired(const FMetasoundFrontendArchetype& InArchetype) const
+		bool FOutputNodeController::IsRequired() const
 		{
-			if (NodePtr.IsValid() && OwningGraph->IsValid())
+			FConstDocumentHandle OwningDocument = OwningGraph->GetOwningDocument();
+			FConstGraphHandle RootGraph = OwningDocument->GetRootGraph();
+
+			// Test if this node exists on the document's root graph.
+			const bool bIsNodeOnRootGraph = OwningGraph->IsValid() && (RootGraph->GetClassID() == OwningGraph->GetClassID());
+
+			if (bIsNodeOnRootGraph)
 			{
-				const FString& Name = NodePtr->Name;
-				const TArray<FMetasoundFrontendClassVertex>& RequiredOutputs = InArchetype.Interface.Outputs;
-				for (const FMetasoundFrontendClassVertex& OutputVertex : RequiredOutputs)
+				// If the node is on the root graph, test if it is in the archetypes
+				// required inputs or outputs. 
+				FMetasoundFrontendArchetype Archetype;
+
+				FArchetypeRegistryKey ArchetypeKey = GetArchetypeRegistryKey(OwningDocument->GetArchetypeVersion());
+
+				bool bFoundArchetype = IArchetypeRegistry::Get().FindArchetype(ArchetypeKey, Archetype);
+				if (bFoundArchetype)
 				{
-					if (OutputVertex.Name == Name)
+					if (const FMetasoundFrontendNode* Node = NodePtr.Get())
 					{
-						return true;
+						const FString& Name = Node->Name;
+						auto IsVertexWithSameName = [&Name](const FMetasoundFrontendClassVertex& InVertex)
+						{
+							return InVertex.Name == Name;
+						};
+						return Archetype.Interface.Outputs.ContainsByPredicate(IsVertexWithSameName);
 					}
+				}
+				else
+				{
+					UE_LOG(LogMetaSound, Warning, TEXT("Document using unregistered archetype [ArchetypeVersion:%s]"), *OwningDocument->GetArchetypeVersion().ToString());
 				}
 			}
 
@@ -1925,18 +1946,38 @@ namespace Metasound
 			return InputDisplayTitle;
 		}
 
-		bool FInputNodeController::IsRequired(const FMetasoundFrontendArchetype& InArchetype) const
+		bool FInputNodeController::IsRequired() const
 		{
-			if (NodePtr.IsValid() && OwningGraph->IsValid())
+			FConstDocumentHandle OwningDocument = OwningGraph->GetOwningDocument();
+			FConstGraphHandle RootGraph = OwningDocument->GetRootGraph();
+
+			// Test if this node exists on the document's root graph.
+			const bool bIsNodeOnRootGraph = OwningGraph->IsValid() && (RootGraph->GetClassID() == OwningGraph->GetClassID());
+
+			if (bIsNodeOnRootGraph)
 			{
-				const FString& Name = NodePtr->Name;
-				const TArray<FMetasoundFrontendClassVertex>& RequiredInputs = InArchetype.Interface.Inputs;
-				for (const FMetasoundFrontendClassVertex& InputVertex : RequiredInputs)
+				// If the node is on the root graph, test if it is in the archetypes
+				// required inputs or outputs. 
+				FMetasoundFrontendArchetype Archetype;
+
+				FArchetypeRegistryKey ArchetypeKey = GetArchetypeRegistryKey(OwningDocument->GetArchetypeVersion());
+
+				bool bFoundArchetype = IArchetypeRegistry::Get().FindArchetype(ArchetypeKey, Archetype);
+				if (bFoundArchetype)
 				{
-					if (InputVertex.Name == Name)
+					if (const FMetasoundFrontendNode* Node = NodePtr.Get())
 					{
-						return true;
+						const FString& Name = Node->Name;
+						auto IsVertexWithSameName = [&Name](const FMetasoundFrontendClassVertex& InVertex)
+						{
+							return InVertex.Name == Name;
+						};
+						return Archetype.Interface.Inputs.ContainsByPredicate(IsVertexWithSameName);
 					}
+				}
+				else
+				{
+					UE_LOG(LogMetaSound, Warning, TEXT("Document using unregistered archetype [ArchetypeVersion:%s]"), *OwningDocument->GetArchetypeVersion().ToString());
 				}
 			}
 
@@ -3326,6 +3367,15 @@ namespace Metasound
 			return Classes;
 		}
 
+		const FMetasoundFrontendGraphClass& FDocumentController::GetRootGraphClass() const
+		{
+			if (const FMetasoundFrontendDocument* Doc = DocumentPtr.Get())
+			{
+				return Doc->RootGraph;
+			}
+			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FMetasoundFrontendGraphClass>();
+		}
+
 		bool FDocumentController::AddDuplicateSubgraph(const FMetasoundFrontendGraphClass& InGraphToCopy, const FMetasoundFrontendDocument& InOtherDocument)
 		{
 			FMetasoundFrontendDocument* ThisDocument = DocumentPtr.Get();
@@ -3387,6 +3437,23 @@ namespace Metasound
 			}
 
 			return bSuccess;
+		}
+
+		const FMetasoundFrontendVersion& FDocumentController::GetArchetypeVersion() const
+		{
+			if (const FMetasoundFrontendDocument* Doc = DocumentPtr.Get())
+			{
+				return Doc->ArchetypeVersion;
+			}
+			return FMetasoundFrontendVersion::GetInvalid();
+		}
+
+		void FDocumentController::SetArchetypeVersion(const FMetasoundFrontendVersion& InVersion)
+		{
+			if (FMetasoundFrontendDocument* Doc = DocumentPtr.Get())
+			{
+				Doc->ArchetypeVersion = InVersion;
+			}
 		}
 
 		FGraphHandle FDocumentController::AddDuplicateSubgraph(const IGraphController& InGraph)

@@ -6,6 +6,7 @@
 #include "Internationalization/Text.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundAudioFormats.h"
+#include "MetasoundEngineArchetypes.h"
 #include "MetasoundEngineEnvironment.h"
 #include "MetasoundEnvironment.h"
 #include "MetasoundFrontendController.h"
@@ -52,6 +53,7 @@ UMetaSoundSource::UMetaSoundSource(const FObjectInitializer& ObjectInitializer)
 }
 
 #if WITH_EDITOR
+
 void UMetaSoundSource::PreSave(FObjectPreSaveContext SaveContext)
 {
 	Super::PreSave(SaveContext);
@@ -85,17 +87,21 @@ void UMetaSoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 	{
 		ConvertFromPreset();
 
+		bool bDidModifyDocument = false;
 		switch (OutputFormat)
 		{
 			case EMetasoundSourceAudioFormat::Mono:
 			{
 				NumChannels = 1;
+				// TODO: utilize latest version `MetasoudnSourceMono`
+				bDidModifyDocument = Metasound::Frontend::FMatchRootGraphToArchetype(Metasound::Engine::MetasoundSourceMono::GetVersion()).Transform(GetDocumentHandle());
 			}
 			break;
 
 			case EMetasoundSourceAudioFormat::Stereo:
 			{
 				NumChannels = 2;
+				bDidModifyDocument = Metasound::Frontend::FMatchRootGraphToArchetype(Metasound::Engine::MetasoundSourceStereo::GetVersion()).Transform(GetDocumentHandle());
 			}
 			break;
 
@@ -106,9 +112,9 @@ void UMetaSoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 			break;
 		}
 
-		if (ensure(IsArchetypeSupported(GetArchetype())))
+		if (bDidModifyDocument)
 		{
-			ConformDocumentToArchetype();
+			MarkMetasoundDocumentDirty();
 		}
 	}
 }
@@ -165,27 +171,11 @@ bool UMetaSoundSource::SupportsSubtitles() const
 	return Super::SupportsSubtitles();
 }
 
-const FMetasoundFrontendArchetype& UMetaSoundSource::GetArchetype() const
+const FMetasoundFrontendVersion& UMetaSoundSource::GetDefaultArchetypeVersion() const
 {
-	switch (OutputFormat)
-	{
-		case EMetasoundSourceAudioFormat::Mono:
-		{
-			return GetMonoSourceArchetype();
-		}
+	static const FMetasoundFrontendVersion DefaultVersion = Metasound::Engine::MetasoundSourceMono::GetVersion();
 
-		case EMetasoundSourceAudioFormat::Stereo:
-		{
-			return GetStereoSourceArchetype();
-		}
-
-		default:
-		{
-			static_assert(static_cast<int32>(EMetasoundSourceAudioFormat::COUNT) == 2, "Possible missing format switch case coverage.");
-		}
-	}
-
-	return GetBaseArchetype();
+	return DefaultVersion;
 }
 
 float UMetaSoundSource::GetDuration()
@@ -198,6 +188,7 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
+	using namespace Metasound::Engine;
 
 	Duration = INDEFINITELY_LOOPING_DURATION;
 	bLooping = true;
@@ -220,11 +211,9 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 			DeviceHandle = DeviceManager->GetMainAudioDeviceHandle();
 		}
 	}
-	Environment.SetValue<FAudioDeviceHandle>(GetAudioDeviceHandleVariableName(), DeviceHandle);
-
-	// Set the unique object ID as an environment variable
-	Environment.SetValue<uint32>(GetSoundUniqueIdName(), GetUniqueID());
-	Environment.SetValue<bool>(GetIsPreviewSoundName(), InParams.bIsPreviewSound);
+	Environment.SetValue<FAudioDeviceHandle>(MetasoundSource::GetAudioDeviceHandleVariableName(), DeviceHandle);
+	Environment.SetValue<uint32>(MetasoundSource::GetSoundUniqueIdName(), GetUniqueID());
+	Environment.SetValue<bool>(MetasoundSource::GetIsPreviewSoundName(), InParams.bIsPreviewSound);
 
 	const FMetasoundFrontendDocument* OriginalDoc = GetDocument().Get();
 	if (nullptr == OriginalDoc)
@@ -234,12 +223,9 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	}
 
 	// Check version and attempt to version up if out-of-date
-	Frontend::FDocumentHandle Document = GetDocumentHandle();
-	FName AssetName = GetFName();
-	FString AssetPath = GetPathName();
-	if (Frontend::FVersionDocument(AssetName, AssetPath).Transform(Document))
+	if (VersionAsset())
 	{
-		const FMetasoundFrontendDocumentMetadata& Metadata = Document->GetMetadata();
+		const FMetasoundFrontendDocumentMetadata& Metadata = GetDocumentHandle()->GetMetadata();
 		UE_LOG(LogMetaSound, Display,
 			TEXT("Dynamically versioned UMetaSoundSource asset [Name:%s] to %s (Resave to avoid update at runtime)."),
 			*GetName(),
@@ -260,12 +246,33 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 		InSettings,
 		MoveTemp(DocumentWithInjectedReceives),
 		Environment,
-		NumChannels,
 		GetName(),
-		GetAudioOutputName(),
-		GetOnPlayInputName(),
-		GetIsFinishedOutputName()
+		{}, // Channel names still need to be set.
+		MetasoundSource::GetOnPlayInputName(),
+		MetasoundSource::GetIsFinishedOutputName()
 	};
+
+	// Set init params dependent upon output audio format.
+	switch (OutputFormat)
+	{
+		case EMetasoundSourceAudioFormat::Mono:
+		{
+			InitParams.AudioOutputNames = { MetasoundSourceMono::GetAudioOutputName() };
+		}
+		break;
+
+		case EMetasoundSourceAudioFormat::Stereo:
+		{
+			InitParams.AudioOutputNames = { MetasoundSourceStereo::GetLeftAudioOutputName(), MetasoundSourceStereo::GetRightAudioOutputName() };
+		}
+		break;
+
+		default:
+		{
+			static_assert(static_cast<int32>(EMetasoundSourceAudioFormat::COUNT) == 2, "Possible missing format switch case coverage.");
+		}
+		break;
+	}
 
 	return ISoundGeneratorPtr(new FMetasoundGenerator(MoveTemp(InitParams)));
 }
@@ -288,135 +295,15 @@ Metasound::FOperatorSettings UMetaSoundSource::GetOperatorSettings(Metasound::FS
 	return Metasound::FOperatorSettings(InSampleRate, BlockRate);
 }
 
-const TArray<FMetasoundFrontendArchetype>& UMetaSoundSource::GetPreferredArchetypes() const 
+const TArray<FMetasoundFrontendVersion>& UMetaSoundSource::GetSupportedArchetypeVersions() const 
 {
-	static const TArray<FMetasoundFrontendArchetype> Preferred({GetMonoSourceArchetype(), GetStereoSourceArchetype()});
+	static const TArray<FMetasoundFrontendVersion> Supported(
+		{
+			Metasound::Engine::MetasoundSourceMono::GetVersion(),
+			Metasound::Engine::MetasoundSourceStereo::GetVersion()
+		});
 
-	return Preferred;
+	return Supported;
 }
 
-const FString& UMetaSoundSource::GetOnPlayInputName()
-{
-	static const FString TriggerInputName = TEXT("On Play");
-	return TriggerInputName;
-}
-
-const FString& UMetaSoundSource::GetAudioOutputName()
-{
-	static const FString AudioOutputName = TEXT("Generated Audio");
-	return AudioOutputName;
-}
-
-const FString& UMetaSoundSource::GetIsFinishedOutputName()
-{
-	static const FString OnFinishedOutputName = TEXT("On Finished");
-	return OnFinishedOutputName;
-}
-
-const FString& UMetaSoundSource::GetAudioDeviceHandleVariableName()
-{
-	static const FString AudioDeviceHandleVarName = TEXT("AudioDeviceHandle");
-	return AudioDeviceHandleVarName;
-}
-
-const FString& UMetaSoundSource::GetSoundUniqueIdName()
-{
-	static const FString SoundUniqueIdVarName = TEXT("SoundUniqueId");
-	return SoundUniqueIdVarName;
-}
-
-const FString& UMetaSoundSource::GetIsPreviewSoundName()
-{
-	static const FString SoundIsPreviewSoundName = TEXT("IsPreviewSound");
-	return SoundIsPreviewSoundName;
-}
-
-const FMetasoundFrontendArchetype& UMetaSoundSource::GetBaseArchetype()
-{
-	auto CreateBaseArchetype = []() -> FMetasoundFrontendArchetype
-	{
-		FMetasoundFrontendArchetype Archetype;
-		
-		FMetasoundFrontendClassVertex OnPlayTrigger;
-		OnPlayTrigger.Name = UMetaSoundSource::GetOnPlayInputName();
-
-		OnPlayTrigger.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FTrigger>();
-		OnPlayTrigger.Metadata.DisplayName = LOCTEXT("OnPlay", "On Play");
-		OnPlayTrigger.Metadata.Description = LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played.");
-		OnPlayTrigger.VertexID = FGuid::NewGuid();
-
-		Archetype.Interface.Inputs.Add(OnPlayTrigger);
-
-		FMetasoundFrontendClassVertex OnFinished;
-		OnFinished.Name = UMetaSoundSource::GetIsFinishedOutputName();
-
-		OnFinished.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FTrigger>();
-		OnFinished.Metadata.DisplayName = LOCTEXT("OnFinished", "On Finished");
-		OnFinished.Metadata.Description = LOCTEXT("OnFinishedToolTip", "Trigger executed to initiate stopping the source.");
-		OnFinished.VertexID = FGuid::NewGuid();
-
-		Archetype.Interface.Outputs.Add(OnFinished);
-
-		FMetasoundFrontendEnvironmentVariable AudioDeviceHandle;
-		AudioDeviceHandle.Name = UMetaSoundSource::GetAudioDeviceHandleVariableName();
-		AudioDeviceHandle.Metadata.DisplayName = FText::FromString(AudioDeviceHandle.Name);
-		AudioDeviceHandle.Metadata.Description = LOCTEXT("AudioDeviceHandleToolTip", "Audio device handle");
-
-		Archetype.Interface.Environment.Add(AudioDeviceHandle);
-
-		return Archetype;
-	};
-
-	static const FMetasoundFrontendArchetype BaseArchetype = CreateBaseArchetype();
-
-	return BaseArchetype;
-}
-
-const FMetasoundFrontendArchetype& UMetaSoundSource::GetMonoSourceArchetype()
-{
-	auto CreateMonoArchetype = []() -> FMetasoundFrontendArchetype
-	{
-		FMetasoundFrontendArchetype Archetype = GetBaseArchetype();
-		Archetype.Name = "MonoSource";
-
-		FMetasoundFrontendClassVertex GeneratedAudio;
-		GeneratedAudio.Name = UMetaSoundSource::GetAudioOutputName();
-		GeneratedAudio.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FMonoAudioFormat>();
-		GeneratedAudio.Metadata.DisplayName = LOCTEXT("GeneratedMono", "Audio");
-		GeneratedAudio.Metadata.Description = LOCTEXT("GeneratedAudioToolTip", "The resulting output audio from this source.");
-		GeneratedAudio.VertexID = FGuid::NewGuid();
-
-		Archetype.Interface.Outputs.Add(GeneratedAudio);
-
-		return Archetype;
-	};
-
-	static const FMetasoundFrontendArchetype MonoArchetype = CreateMonoArchetype();
-
-	return MonoArchetype;
-}
-
-const FMetasoundFrontendArchetype& UMetaSoundSource::GetStereoSourceArchetype()
-{
-	auto CreateStereoArchetype = []() -> FMetasoundFrontendArchetype
-	{
-		FMetasoundFrontendArchetype Archetype = GetBaseArchetype();
-		Archetype.Name = FName(TEXT("StereoSource"));
-
-		FMetasoundFrontendClassVertex GeneratedAudio;
-		GeneratedAudio.Name = UMetaSoundSource::GetAudioOutputName();
-		GeneratedAudio.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FStereoAudioFormat>();
-		GeneratedAudio.Metadata.DisplayName = LOCTEXT("GeneratedStereo", "Audio");
-		GeneratedAudio.Metadata.Description = LOCTEXT("GeneratedAudioToolTip", "The resulting output audio from this source.");
-		GeneratedAudio.VertexID = FGuid::NewGuid();
-
-		Archetype.Interface.Outputs.Add(GeneratedAudio);
-
-		return Archetype;
-	};
-
-	static const FMetasoundFrontendArchetype StereoArchetype = CreateStereoArchetype();
-
-	return StereoArchetype;
-}
 #undef LOCTEXT_NAMESPACE // MetaSoundSource
