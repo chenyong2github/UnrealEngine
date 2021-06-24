@@ -23,6 +23,9 @@ public:
 	{
 	}
 
+	/** LOD Debug */
+	TSharedPtr< FUICommandInfo > LODDebug;
+
 	/** LOD Auto */
 	TSharedPtr< FUICommandInfo > LODAuto;
 

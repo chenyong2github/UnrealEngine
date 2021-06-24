@@ -13,6 +13,7 @@
 class Error;
 
 DECLARE_DELEGATE_RetVal(FText, FGetExtendedViewportText);
+DECLARE_DELEGATE(FOnDebugForceLODChanged);
 
 USTRUCT()
 struct FSelectedSocketInfo
@@ -293,6 +294,13 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 	UPROPERTY(transient)
 	bool bPauseClothingSimulationWithAnim;
 
+	/** Should the LOD of the debug mesh component track the LOD of the instance being debugged */
+	UPROPERTY(transient)
+	bool bTrackAttachedInstanceLOD;
+
+	// Helper method that sets the forced lod
+	void SetDebugForcedLOD(int32 InNewForcedLOD);
+
 	//~ Begin USceneComponent Interface.
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ End USceneComponent Interface.
@@ -386,6 +394,9 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 	/** Set whether we should be previewing root motion. Note: disabling root motion preview resets transform. */
 	void SetPreviewRootMotion(bool bInPreviewRootMotion);
 
+	/** Whether the current LOD of the debug mesh is being synced with the attached (preview) mesh instance. */
+	bool IsTrackingAttachedLOD() const;
+
 #if WITH_EDITOR
 	//TODO - This is a really poor way to post errors to the user. Work out a better way.
 	struct FAnimNotifyErrors
@@ -408,8 +419,12 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 	void UnregisterExtendedViewportTextDelegate(const FDelegateHandle& InDelegateHandle);
 	const TArray<FGetExtendedViewportText>& GetExtendedViewportTextDelegates() const { return ExtendedViewportTextDelegates; }
 
+	FDelegateHandle RegisterOnDebugForceLODChangedDelegate(const FOnDebugForceLODChanged& InDelegate);
+	void UnregisterOnDebugForceLODChangedDelegate();
+
 private:
 	TArray<FGetExtendedViewportText> ExtendedViewportTextDelegates;
+	FOnDebugForceLODChanged OnDebugForceLODChangedDelegate;
 public:
 
 #endif

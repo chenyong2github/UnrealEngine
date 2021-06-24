@@ -245,6 +245,7 @@ public:
 
 	/** LOD model selection checking function*/
 	bool IsLODModelSelected( int32 LODSelectionType ) const;
+	bool IsTrackingAttachedMeshLOD() const;
 	int32 GetLODSelection() const;
 
 	/** Function to set the current playback speed*/
@@ -290,7 +291,9 @@ public:
 
 	/** Function to set LOD model selection*/
 	void OnSetLODModel(int32 LODSelectionType);
+	void OnSetLODTrackDebuggedInstance();
 	void OnLODModelChanged();
+	void OnDebugForcedLODChanged();
 
 	/** Get the preview scene we are viewing */
 	TSharedRef<class FAnimationEditorPreviewScene> GetPreviewScene() const { return PreviewScenePtr.Pin().ToSharedRef(); }

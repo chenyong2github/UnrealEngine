@@ -931,6 +931,21 @@ void SAnimationEditorViewportTabBody::BindCommands()
 
 	CommandList.BeginGroup(TEXT("LOD"));
 
+	UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
+
+	if (PreviewComponent)
+	{
+		//LOD Debug
+		CommandList.MapAction(
+			ViewportLODMenuCommands.LODDebug,
+			FExecuteAction::CreateSP(this, &SAnimationEditorViewportTabBody::OnSetLODTrackDebuggedInstance),
+			FCanExecuteAction::CreateLambda([PreviewComponent]() { return (bool)PreviewComponent->PreviewInstance->GetDebugSkeletalMeshComponent(); }),
+			FIsActionChecked::CreateLambda([PreviewComponent]() { return PreviewComponent->IsTrackingAttachedLOD(); }),
+			FIsActionButtonVisible::CreateLambda([PreviewComponent]() { return (bool)PreviewComponent->PreviewInstance->GetDebugSkeletalMeshComponent() ; }));
+
+		PreviewComponent->RegisterOnDebugForceLODChangedDelegate(FOnDebugForceLODChanged::CreateSP(this, &SAnimationEditorViewportTabBody::OnDebugForcedLODChanged));
+	}
+
 	//LOD Auto
 	CommandList.MapAction( 
 		ViewportLODMenuCommands.LODAuto,
@@ -1725,7 +1740,24 @@ int32 SAnimationEditorViewportTabBody::GetLODSelection() const
 
 bool SAnimationEditorViewportTabBody::IsLODModelSelected(int32 LODSelectionType) const
 {
+	UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
+	if (PreviewComponent && PreviewComponent->IsTrackingAttachedLOD())
+	{
+		return false;
+	}
+
 	return GetLODSelection() == LODSelectionType;
+}
+
+bool SAnimationEditorViewportTabBody::IsTrackingAttachedMeshLOD() const
+{
+	UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
+	if (PreviewComponent)
+	{
+		return PreviewComponent->IsTrackingAttachedLOD();
+	}
+
+	return false;
 }
 
 void SAnimationEditorViewportTabBody::OnSetLODModel(int32 LODSelectionType)
@@ -1735,9 +1767,18 @@ void SAnimationEditorViewportTabBody::OnSetLODModel(int32 LODSelectionType)
 	if( PreviewComponent )
 	{
 		LODSelection = LODSelectionType;
-		PreviewComponent->SetForcedLOD(LODSelectionType);
-		PopulateUVChoices();
-		GetPreviewScene()->BroadcastOnSelectedLODChanged();
+		PreviewComponent->SetDebugForcedLOD(LODSelectionType);
+		PreviewComponent->bTrackAttachedInstanceLOD = false;
+	}
+}
+
+void SAnimationEditorViewportTabBody::OnSetLODTrackDebuggedInstance()
+{
+	UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
+
+	if (PreviewComponent)
+	{
+		PreviewComponent->bTrackAttachedInstanceLOD = true;
 	}
 }
 
@@ -1749,6 +1790,17 @@ void SAnimationEditorViewportTabBody::OnLODModelChanged()
 	{
 		LODSelection = PreviewComponent->GetForcedLOD();
 		PopulateUVChoices();
+	}
+}
+
+void SAnimationEditorViewportTabBody::OnDebugForcedLODChanged()
+{
+	UDebugSkelMeshComponent* PreviewComponent = GetPreviewScene()->GetPreviewMeshComponent();
+
+	if (PreviewComponent)
+	{
+		PopulateUVChoices();
+		GetPreviewScene()->BroadcastOnSelectedLODChanged();
 	}
 }
 

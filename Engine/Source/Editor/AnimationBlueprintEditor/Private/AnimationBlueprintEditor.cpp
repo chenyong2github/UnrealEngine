@@ -1918,6 +1918,7 @@ void FAnimationBlueprintEditor::HandleSetObjectBeingDebugged(UObject* InObject)
 			{
 				GetPreviewScene()->ShowDefaultMode();
 				GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance->SetDebugSkeletalMeshComponent(nullptr);
+				GetPreviewScene()->GetPreviewMeshComponent()->bTrackAttachedInstanceLOD = false;
 			}
 			else
 			{
@@ -1932,6 +1933,7 @@ void FAnimationBlueprintEditor::HandleSetObjectBeingDebugged(UObject* InObject)
 		// Clear the copy-pose component and set us back to 'normal'
 		GetPreviewScene()->ShowDefaultMode();
 		GetPreviewScene()->GetPreviewMeshComponent()->PreviewInstance->SetDebugSkeletalMeshComponent(nullptr);
+		GetPreviewScene()->GetPreviewMeshComponent()->bTrackAttachedInstanceLOD = false;
 	}
 }
 
