@@ -390,7 +390,7 @@ void FNiagaraRendererSprites::InitializeSortInfo(FParticleSpriteRenderData& Part
 		OutSortInfo.FloatDataStride = ParticleSpriteRenderData.ParticleFloatDataStride;
 		OutSortInfo.HalfDataStride = ParticleSpriteRenderData.ParticleHalfDataStride;
 		OutSortInfo.IntDataStride = ParticleSpriteRenderData.ParticleIntDataStride;
-		OutSortInfo.GPUParticleCountSRV = GetSrvOrDefaultInt(Batcher->GetGPUInstanceCounterManager().GetInstanceCountBuffer());
+		OutSortInfo.GPUParticleCountSRV = GetSrvOrDefaultUInt(Batcher->GetGPUInstanceCounterManager().GetInstanceCountBuffer());
 		OutSortInfo.GPUParticleCountOffset = ParticleSpriteRenderData.SourceParticleData->GetGPUInstanceCountBufferOffset();
 	}
 

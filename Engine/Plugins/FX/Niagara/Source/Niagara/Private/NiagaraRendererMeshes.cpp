@@ -417,7 +417,7 @@ void FNiagaraRendererMeshes::InitializeSortInfo(FParticleMeshRenderData& Particl
 		OutSortInfo.FloatDataStride = ParticleMeshRenderData.ParticleFloatDataStride;
 		OutSortInfo.HalfDataStride = ParticleMeshRenderData.ParticleHalfDataStride;
 		OutSortInfo.IntDataStride = ParticleMeshRenderData.ParticleIntDataStride;
-		OutSortInfo.GPUParticleCountSRV = GetSrvOrDefaultInt(Batcher->GetGPUInstanceCounterManager().GetInstanceCountBuffer());
+		OutSortInfo.GPUParticleCountSRV = GetSrvOrDefaultUInt(Batcher->GetGPUInstanceCounterManager().GetInstanceCountBuffer());
 		OutSortInfo.GPUParticleCountOffset = ParticleMeshRenderData.SourceParticleData->GetGPUInstanceCountBufferOffset();
 	}
 
