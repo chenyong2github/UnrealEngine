@@ -23,6 +23,9 @@
 
 #include "oodle2tex.h"
 
+// Alternate job system - can set UseOodleExampleJobify in engine ini to enable.
+#include "..\Jobify\example_jobify.h"
+
 /**********
 
 Oodle Texture can do both RDO (rate distortion optimization) and non-RDO encoding to BC1-7
@@ -1067,28 +1070,24 @@ public:
 			}
 		}
 
-		bool bIsVT = InBuildSettings.bVirtualStreamable;
-		
 		int CurJobifyNumThreads = OodleJobifyNumThreads;
-		void * CurJobifyUserPointer = OodleJobifyUserPointer;
+		void* CurJobifyUserPointer = OodleJobifyUserPointer;
+
 
 		// @todo check its safe to do TaskGraph waits from inside TaskGraph threads?
 		//	see also VirtualTextureDataBuilder.cpp UsesTaskGraph
 		//const bool bVTDisableInternalThreading = false; // false = DO use internal threads on VT
 		const bool bVTDisableInternalThreading = true; // true = DO NOT use internal threads on VT
-		
-		if ( bIsVT && bVTDisableInternalThreading )
+		bool bIsVT = InBuildSettings.bVirtualStreamable;
+
+		if (bIsVT && bVTDisableInternalThreading)
 		{
 			// VT runs its tiles in a ParallelFor on the TaskGraph
 			// if we use TaskGraph internally there's a chance of deadlock (?)
 			// disable our own internal threading for VT tiles :
-			CurJobifyNumThreads = 1;
+			CurJobifyNumThreads = OODLETEX_JOBS_DISABLE;
 			CurJobifyUserPointer = nullptr;
-
-			// @todo Oodle CurJobifyNumThreads=1 currently does NOT disable jobify in Oodle; need to fix that!
-			//	CurJobifyUserPointer == nullptr is checked in our plugin TFO_RunJob to run jobs immediately
 		}
-
 
 		// encode each slice
 		// @todo Oodle alternatively could do [Image.NumSlices] array of OodleTex_Surface
@@ -1150,73 +1149,53 @@ static uint8 PadToCacheLine2[64];
 
 static OO_U64 OODLE_CALLBACK TFO_RunJob(t_fp_Oodle_Job* JobFunction, void* JobData, OO_U64* Dependencies, int NumDependencies, void* UserPtr)
 {
-	if ( UserPtr == nullptr )
+	FGraphEventArray Prerequisites;
+	if ( NumDependencies > 0 )
 	{
-		// run synchronous
-		// Dependencies must already be done because they also ran to completion on creation
+		// map uint64 dependencies to TaskGraph refs
+		Prerequisites.Reserve(NumDependencies);
 
-		JobFunction(JobData);
-		#define	TFO_SYNCHRONOUS_JOB_HANDLE  (0xD0A)
-		return TFO_SYNCHRONOUS_JOB_HANDLE;
-	}
-	else
-	{
-		FGraphEventArray Prerequisites;
-		if ( NumDependencies > 0 )
+		FScopeLock Lock(&TaskIdMapLock);
+		for (int DependencyIndex = 0; DependencyIndex < NumDependencies; DependencyIndex++)
 		{
-			// map uint64 dependencies to TaskGraph refs
-			Prerequisites.Reserve(NumDependencies);
-
-			FScopeLock Lock(&TaskIdMapLock);
-			for (int DependencyIndex = 0; DependencyIndex < NumDependencies; DependencyIndex++)
-			{
-				uint64 Id = Dependencies[DependencyIndex];
-				FGraphEventRef Task = TaskIdMap[Id];
-				// operator [] does a check that Task was found
-				Prerequisites.Add(Task);
-			}
+			uint64 Id = Dependencies[DependencyIndex];
+			FGraphEventRef Task = TaskIdMap[Id];
+			// operator [] does a check that Task was found
+			Prerequisites.Add(Task);
 		}
-
-		// don't hold TaskIdMapLock while dispatching task
-
-		// Use AnyBackgroundThreadNormalTask priority so we don't use Foreground time in the Editor
-		// @todo maybe it's better to inherit so the outer caller can tell us if we are high priority or not?
-		FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady(
-			[JobFunction, JobData]()
-			{
-				JobFunction(JobData);
-			}, TStatId(), &Prerequisites, IsInGameThread() ? ENamedThreads::AnyThread : ENamedThreads::AnyBackgroundThreadNormalTask);
-	
-		// scope lock for NextTaskId and TaskIdMap
-		TaskIdMapLock.Lock();
-		uint64 Id = NextTaskId++;
-		TaskIdMap.Add(Id, MoveTemp(Task));
-		TaskIdMapLock.Unlock();
-
-		return Id;
 	}
+
+	// don't hold TaskIdMapLock while dispatching task
+
+	// Use AnyBackgroundThreadNormalTask priority so we don't use Foreground time in the Editor
+	// @todo maybe it's better to inherit so the outer caller can tell us if we are high priority or not?
+	FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady(
+		[JobFunction, JobData]()
+		{
+			JobFunction(JobData);
+		}, TStatId(), &Prerequisites, IsInGameThread() ? ENamedThreads::AnyThread : ENamedThreads::AnyBackgroundThreadNormalTask);
+	
+	// scope lock for NextTaskId and TaskIdMap
+	TaskIdMapLock.Lock();
+	uint64 Id = NextTaskId++;
+	TaskIdMap.Add(Id, MoveTemp(Task));
+	TaskIdMapLock.Unlock();
+
+	return Id;
 }
 
 static void OODLE_CALLBACK TFO_WaitJob(OO_U64 JobHandle, void* UserPtr)
 {
-	if ( UserPtr == nullptr )
-	{
-		// must already be done
-		check( JobHandle == TFO_SYNCHRONOUS_JOB_HANDLE );
-	}
-	else
-	{
-		TaskIdMapLock.Lock();
-		FGraphEventRef Task = TaskIdMap[JobHandle];
-		// TMap operator [] checks that value is found
-		// can remove immediately (task may still be running)
-		//	because once WaitJob is called this handle can never be referred to by calling code
-		TaskIdMap.Remove(JobHandle);
-		TaskIdMapLock.Unlock();
+	TaskIdMapLock.Lock();
+	FGraphEventRef Task = TaskIdMap[JobHandle];
+	// TMap operator [] checks that value is found
+	// can remove immediately (task may still be running)
+	//	because once WaitJob is called this handle can never be referred to by calling code
+	TaskIdMap.Remove(JobHandle);
+	TaskIdMapLock.Unlock();
 	
-		// don't hold TaskIdMapLock while waiting
-		FTaskGraphInterface::Get().WaitUntilTaskCompletes(Task);
-	}
+	// don't hold TaskIdMapLock while waiting
+	FTaskGraphInterface::Get().WaitUntilTaskCompletes(Task);
 }
 
 static OO_BOOL OODLE_CALLBACK TFO_OodleAssert(const char* file, const int line, const char* function, const char* message)
@@ -1259,14 +1238,28 @@ static void TFO_InstallPlugins()
 	// this should only be done once
 	// and should be done before any other Oodle calls
 	// plugins to Core/Tex/Net are independent
+	const TCHAR* IniSection = TEXT("TextureFormatOodleSettings");
+	bool UseOodleJobify = false;
+	GConfig->GetBool(IniSection, TEXT("UseOodleExampleJobify"), UseOodleJobify, GEngineIni);
 
-	OodleJobifyUserPointer = (void *)1; //anything non-null
-	OodleJobifyNumThreads = FTaskGraphInterface::Get().GetNumWorkerThreads();
+	if (UseOodleJobify)
+	{
+		UE_LOG(LogTextureFormatOodle, Display, TEXT("Using Oodle Example Jobify"));
 
-	// workaround for pre-2.9.1 bug : clamp OodleJobifyNumThreads to avoid int overflow
-	//OodleJobifyNumThreads = FMath::Min(OodleJobifyNumThreads,16);
+		// Optionally we allow for users to use the internal Oodle job system instead of
+		// thunking to the Unreal task graph.
+		OodleJobifyUserPointer = example_jobify_init();
+		OodleJobifyNumThreads = example_jobify_target_parallelism;
+		OodleTex_Plugins_SetJobSystemAndCount(example_jobify_run_job_fptr, example_jobify_wait_job_fptr, example_jobify_target_parallelism);
+	}
+	else
+	{
+		OodleJobifyUserPointer = (void *)1; //anything non-null
+		OodleJobifyNumThreads = FTaskGraphInterface::Get().GetNumWorkerThreads();
 
-	OodleTex_Plugins_SetJobSystemAndCount(TFO_RunJob, TFO_WaitJob, OodleJobifyNumThreads);
+
+		OodleTex_Plugins_SetJobSystemAndCount(TFO_RunJob, TFO_WaitJob, OodleJobifyNumThreads);
+	}
 
 	OodleTex_Plugins_SetAssertion(TFO_OodleAssert);
 	OodleTex_Plugins_SetPrintf(TFO_OodleLog);
