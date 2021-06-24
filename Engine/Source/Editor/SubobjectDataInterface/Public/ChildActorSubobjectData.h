@@ -15,9 +15,6 @@ struct SUBOBJECTDATAINTERFACE_API FChildActorSubobjectData final : public FInher
 	virtual FText GetDisplayName() const override;
 	virtual FText GetActorDisplayText() const override;
 	virtual bool IsChildActor() const override;
-	virtual bool CanDelete() const override;
-	virtual bool CanReparent() const override;
-	virtual bool CanDuplicate() const override;
 	// End FSubobjectData
 
 	inline const UChildActorComponent* GetChildActorComponent(bool bEvenIfPendingKill = false) const

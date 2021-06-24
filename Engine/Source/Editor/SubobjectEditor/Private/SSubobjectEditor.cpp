@@ -221,7 +221,7 @@ FSubobjectData* FSubobjectEditorTreeNode::GetDataSource() const
 bool FSubobjectEditorTreeNode::IsChildSubtreeNode() const
 {
 	const FSubobjectData* Data = GetDataSource();
-	return Data ? Data->IsChildActor() : false;
+	return Data ? Data->IsChildActorSubtreeObject() : false;
 }
 
 bool FSubobjectEditorTreeNode::IsAttachedTo(FSubobjectEditorTreeNodePtrType InNodePtr) const
@@ -2684,15 +2684,6 @@ bool SSubobjectEditor::CanDeleteNodes() const
 		if (!SelectedNode->IsValid() || !SelectedNode->CanDelete())
 		{
 			return false;
-		}
-		else
-		{
-			// Don't allow nodes that belong to a child actor template to be deleted
-			const bool bIsChildActorSubtreeNode = (SelectedNode->GetDataSource()->IsChildActor());
-			if (bIsChildActorSubtreeNode)
-			{
-				return false;
-			}
 		}
 	}
 	

@@ -129,6 +129,9 @@ public:
 	/* Returns true if this subobject is a component. */
 	virtual bool IsComponent() const;
 	virtual bool IsChildActor() const;
+
+	/** Returns true if this subobject is a part of a child actor's hierarchy and not the root actor.  */
+	virtual bool IsChildActorSubtreeObject() const;
 	virtual bool IsRootActor() const;
 	virtual bool IsActor() const;
 	/** True if this subobject is an instance of an inherited component (its owner is an instanced actor) */
