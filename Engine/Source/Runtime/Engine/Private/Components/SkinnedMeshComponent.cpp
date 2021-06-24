@@ -3978,7 +3978,7 @@ void USkinnedMeshComponent::SetPreSkinningOffsets(int32 LODIndex, TArray<FVector
 		uint32 VertexCount = LODData.GetNumVertices();
 		Offsets.SetNumZeroed(VertexCount);
 
-		Info.PreSkinningOffsets = LWC::DemoteArrayType<FVector3f>(Offsets);	// LWC_TODO: Perf pessimization - was MoveTemp!
+		Info.PreSkinningOffsets = LWC::ConvertArrayType<FVector3f>(Offsets);	// LWC_TODO: Perf pessimization - was MoveTemp!
 
 		MarkRenderDynamicDataDirty();
 	}
@@ -4001,7 +4001,7 @@ void USkinnedMeshComponent::SetPostSkinningOffsets(int32 LODIndex, TArray<FVecto
 		uint32 VertexCount = LODData.GetNumVertices();
 		Offsets.SetNumZeroed(VertexCount);
 
-		Info.PostSkinningOffsets = LWC::DemoteArrayType<FVector3f>(Offsets);	// LWC_TODO: Perf pessimization - was MoveTemp!
+		Info.PostSkinningOffsets = LWC::ConvertArrayType<FVector3f>(Offsets);	// LWC_TODO: Perf pessimization - was MoveTemp!
 
 		MarkRenderDynamicDataDirty();
 	}
