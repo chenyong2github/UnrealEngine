@@ -167,7 +167,7 @@ namespace UnrealBuildTool
 			// If the user explicitly provided an option for dSYM's then do that. If they did not, then we want one for shipping builds or if we're a build machine
 			bool WantDsym = Target.MacPlatform.bGenerateDsymFile ?? (Target.Configuration == UnrealTargetConfiguration.Shipping || IsBuildMachine);
 
-			Target.bUsePDBFiles = !Target.bDisableDebugInfo || WantDsym;
+			Target.bUsePDBFiles = !Target.bDisableDebugInfo && WantDsym;
 
 			// we always deploy - the build machines need to be able to copy the files back, which needs the full bundle
 			Target.bDeployAfterCompile = true;
