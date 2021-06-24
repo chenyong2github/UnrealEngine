@@ -271,6 +271,9 @@ public:
 	/**	Returns whether the editor is currently editing a single blueprint object */
 	bool IsEditingSingleBlueprint() const;
 
+	/** Ensures the blueprint has keyboard focus. */
+	void SetKeyboardFocus();
+
 	/** Getters for the various Kismet2 widgets */
 	TSharedRef<SKismetInspector> GetInspector() const { return Inspector.ToSharedRef(); }
 	TSharedRef<SKismetInspector> GetDefaultEditor() const { return DefaultEditor.ToSharedRef(); }
@@ -677,8 +680,11 @@ public:
 	/** Called by a graph title bar to get any extra information the editor would like to display */
 	virtual FText GetGraphDecorationString(UEdGraph* InGraph) const;
 
+	/** Gets the display name of a graph */
+	static FText GetGraphDisplayName(const UEdGraph* Graph);
+
 	/** Checks to see if the provided graph is contained within the current blueprint */
-	bool IsGraphInCurrentBlueprint(UEdGraph* InGraph) const;
+	bool IsGraphInCurrentBlueprint(const UEdGraph* InGraph) const;
 
 	/** Get the context to use from the Blueprint type */
 	static FName GetContextFromBlueprintType(EBlueprintType InType);

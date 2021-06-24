@@ -85,6 +85,9 @@ void SBlendSpaceEditor::Construct(const FArguments& InArgs)
 							.OnSampleAdded(this, &SBlendSpaceEditor::OnSampleAdded)
 							.OnSampleDuplicated(this, &SBlendSpaceEditor::OnSampleDuplicated)
 							.OnSampleReplaced(this, &SBlendSpaceEditor::OnSampleReplaced)
+							.OnNavigateUp(InArgs._OnBlendSpaceNavigateUp)
+							.OnNavigateDown(InArgs._OnBlendSpaceNavigateDown)
+							.OnCanvasDoubleClicked(InArgs._OnBlendSpaceCanvasDoubleClicked)
 							.OnSampleDoubleClicked(InArgs._OnBlendSpaceSampleDoubleClicked)
 							.OnExtendSampleTooltip(InArgs._OnExtendSampleTooltip)
 							.OnGetBlendSpaceSampleName(InArgs._OnGetBlendSpaceSampleName)
@@ -279,7 +282,7 @@ void SBlendSpaceEditor::UpdatePreviewParameter() const
 			{
 				const FVector PreviewPosition = BlendSpaceGridWidget->GetPreviewPosition();
 				Component->PreviewInstance->SetBlendSpacePosition(PreviewPosition);
-				GetPreviewScene()->InvalidateViews();			
+				GetPreviewScene()->InvalidateViews();
 			}
 		}
 	}

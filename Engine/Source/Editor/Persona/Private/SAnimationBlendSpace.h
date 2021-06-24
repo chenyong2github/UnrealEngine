@@ -26,6 +26,9 @@ public:
 		{}
 	SLATE_ARGUMENT(UBlendSpace*, BlendSpace)
 	SLATE_ARGUMENT(bool, DisplayScrubBar)
+	SLATE_EVENT(FOnBlendSpaceNavigateUp, OnBlendSpaceNavigateUp)
+	SLATE_EVENT(FOnBlendSpaceNavigateDown, OnBlendSpaceNavigateDown)
+	SLATE_EVENT(FOnBlendSpaceCanvasDoubleClicked, OnBlendSpaceCanvasDoubleClicked)
 	SLATE_EVENT(FOnBlendSpaceSampleDoubleClicked, OnBlendSpaceSampleDoubleClicked)
 	SLATE_EVENT(FOnBlendSpaceSampleAdded, OnBlendSpaceSampleAdded)
 	SLATE_EVENT(FOnBlendSpaceSampleDuplicated, OnBlendSpaceSampleDuplicated)
@@ -120,6 +123,6 @@ protected:
 	/** Flag to check whether or not the preview value should be (re-)set on the next tick */
 	bool bShouldSetPreviewPosition = true;
 
-	/** Cross-framed boundary scoped transaction, used for sticking to single transaction for interactive operations (dragging sample or spinbox)*/
+	/** Cross-framed boundary scoped transaction, used for sticking to single transaction for interactive operations (dragging sample or spinbox) */
 	TUniquePtr<FScopedTransaction> SampleMoveTransaction;
 };

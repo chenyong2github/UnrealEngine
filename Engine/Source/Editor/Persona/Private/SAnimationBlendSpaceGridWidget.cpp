@@ -196,6 +196,9 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 	OnSampleMoved = InArgs._OnSampleMoved;
 	OnSampleRemoved = InArgs._OnSampleRemoved;
 	OnSampleReplaced = InArgs._OnSampleReplaced;
+	OnNavigateUp = InArgs._OnNavigateUp;
+	OnNavigateDown = InArgs._OnNavigateDown;
+	OnCanvasDoubleClicked = InArgs._OnCanvasDoubleClicked;
 	OnSampleDoubleClicked = InArgs._OnSampleDoubleClicked;
 	OnGetBlendSpaceSampleName = InArgs._OnGetBlendSpaceSampleName;
 	OnExtendSampleTooltip = InArgs._OnExtendSampleTooltip;
@@ -1204,7 +1207,10 @@ FReply SBlendSpaceGridWidget::OnMouseButtonDoubleClick(const FGeometry& InMyGeom
 			{
 				OnSampleDoubleClicked.ExecuteIfBound(SelectedSampleIndex);
 			}
-
+			else
+			{
+				OnCanvasDoubleClicked.ExecuteIfBound();
+			}
 			return FReply::Handled();
 		}
 	}
@@ -1362,26 +1368,34 @@ FReply SBlendSpaceGridWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyE
 {
 	if(!bReadOnly && BlendSpaceBase.IsSet())
 	{
-		if (BlendSpaceBase.IsSet())
+		// Start previewing when either one of the shift keys is pressed
+		if (IsHovered() && bMouseIsOverGeometry)
 		{
-			// Start previewing when either one of the shift keys is pressed
-			if (IsHovered() && bMouseIsOverGeometry)
+			if ((InKeyEvent.GetKey() == EKeys::LeftControl) || (InKeyEvent.GetKey() == EKeys::RightControl))
 			{
-				if ((InKeyEvent.GetKey() == EKeys::LeftControl) || (InKeyEvent.GetKey() == EKeys::RightControl))
-				{
-					StartPreviewing();
-					DragState = EDragState::Preview;
-					// Make tool tip visible (this will display the current preview sample value)
-					ShowToolTip();
-					return FReply::Handled();
-				}
+				StartPreviewing();
+				DragState = EDragState::Preview;
+				// Make tool tip visible (this will display the current preview sample value)
+				ShowToolTip();
+				return FReply::Handled();
+			}
 		
-				// Set flag for showing advanced preview info in tooltip
-				if ((InKeyEvent.GetKey() == EKeys::LeftAlt) || (InKeyEvent.GetKey() == EKeys::RightAlt))
-				{
-					bAdvancedPreview = true;
-					return FReply::Handled();
-				}
+			// Set flag for showing advanced preview info in tooltip
+			if ((InKeyEvent.GetKey() == EKeys::LeftAlt) || (InKeyEvent.GetKey() == EKeys::RightAlt))
+			{
+				bAdvancedPreview = true;
+				return FReply::Handled();
+			}
+			
+			if (InKeyEvent.GetKey() == EKeys::PageUp)
+			{
+				OnNavigateUp.ExecuteIfBound();
+				return FReply::Handled();
+			}
+			else if (InKeyEvent.GetKey() == EKeys::PageDown)
+			{
+				OnNavigateDown.ExecuteIfBound();
+				return FReply::Handled();
 			}
 		}
 	}
