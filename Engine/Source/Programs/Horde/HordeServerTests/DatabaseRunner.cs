@@ -4,7 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -141,26 +143,15 @@ namespace HordeServerTests
 
 		private static bool IsPortAvailable(int Port)
 		{
-			TcpListener? ListenerAny = null;
-			TcpListener? ListenerLoopback = null;
-			try
+			IPGlobalProperties IpGlobalProperties = IPGlobalProperties.GetIPGlobalProperties();
+
+			IPEndPoint[] Listeners = IpGlobalProperties.GetActiveTcpListeners();
+			if (Listeners.Any(x => x.Port == Port))
 			{
-				ListenerAny = new TcpListener(IPAddress.Loopback, Port);
-				ListenerAny.Start();
-				ListenerLoopback = new TcpListener(IPAddress.Any, Port);
-				ListenerLoopback.Start();
-				return true;
-			}
-			catch (SocketException)
-			{
-			}
-			finally
-			{
-				ListenerAny?.Stop();
-				ListenerLoopback?.Stop();
+				return false;
 			}
 
-			return false;
+			return true;
 		}
 		
 		private static void DeleteDirectory(string Path)
