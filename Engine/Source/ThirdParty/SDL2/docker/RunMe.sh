@@ -19,7 +19,7 @@ BuildSDL2WithDocker()
 	local Arch=$1
 	local Image=$2
 	local ImageName=temp_build_linux_sdl2
-	local LibDir=${SDL_DIR}/lib/Linux/${Arch}
+	local LibDir=${SDL_DIR}/lib/Unix/${Arch}
 
 	echo Building ${Arch}...
 	echo docker run -t --name ${ImageName} -v ${SCRIPT_DIR}/../../Vulkan:/Vulkan -v ${SDL_DIR}:/SDL-gui-backend -v ${SCRIPT_DIR}:/src ${Image} /src/docker-build-sdl2.sh
