@@ -32,7 +32,7 @@ public:
 
 	//@todo change link, now by names
 	// Reference to RootActor components by names
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = NDisplay)
 	TArray<FString> RootActorComponentNames;
 };
 
@@ -109,33 +109,33 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_Chromak
 
 public:
 	// Render chromakey actors from ShowOnlyList into texture
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Use Custom Chromakey"))
 	bool bEnable = false;
 
 	// Debug: override the texture of the camera viewport from this chromakey RTT
-	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category = NDisplay, meta = (EditCondition = "bEnable"))
+	UPROPERTY(BlueprintReadWrite,Category = NDisplay, meta = (EditCondition = "bEnable"))
 	bool bOverrideCameraViewport = false;
 
 	// Performance: Use custom size (low-res) for chromakey RTT frame. Default size same as camera frame
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FDisplayClusterConfigurationICVFX_CustomSize CustomSize;
 
 	// Render actors from this layers to chromakey texture
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable", DisplayName = "Custom Chromakey Content"))
 	FDisplayClusterConfigurationICVFX_VisibilityList ShowOnlyList;
 
 	// Override viewport render from source texture
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FDisplayClusterConfigurationPostRender_Override Override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable", DisplayName = "Post Process Blur"))
 	FDisplayClusterConfigurationPostRender_BlurPostprocess PostprocessBlur;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FDisplayClusterConfigurationPostRender_GenerateMips GenerateMips;
 
 	// Advanced render settings
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	UPROPERTY(BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FDisplayClusterConfigurationICVFX_OverlayAdvancedRenderSettings AdvancedRenderSettings;
 };
 
@@ -152,7 +152,7 @@ public:
 
 public:
 	// Allow chromakey markers rendering (Also require not empty MarkerTileRGBA)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Chromakey Markers"))
 	bool bEnable = true;
 
 	// Color of chromakey marker
@@ -184,7 +184,7 @@ public:
 
 public:
 	// Allow chromakey rendering
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Inner Frustum Chromakey"))
 	bool bEnable = false;
 
 	// Color of chromakey
@@ -192,7 +192,7 @@ public:
 	FLinearColor ChromakeyColor;
 
 	// Settings for chromakey texture source rendering
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable", DisplayName = "Custom Chromakey"))
 	FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings ChromakeyRenderTexture;
 
 	// Global setup for chromakey markers rendering
