@@ -22,6 +22,7 @@ namespace Errors
 {
 	inline FOnlineError Cancelled() { return FOnlineError(); }
 	inline FOnlineError Unimplemented() { return FOnlineError(); }
+	inline FOnlineError UnknownError() { return FOnlineError(); }
 }
 
 /* UE::Online */ }
