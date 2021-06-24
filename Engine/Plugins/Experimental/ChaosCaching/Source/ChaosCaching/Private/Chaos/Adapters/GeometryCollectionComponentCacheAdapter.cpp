@@ -53,7 +53,7 @@ namespace Chaos
 		UGeometryCollectionComponent*    Comp  = CastChecked<UGeometryCollectionComponent>(InComp);
 		FGeometryCollectionPhysicsProxy* Proxy = Comp->GetPhysicsProxy();
 		
-		FPhysScene_Chaos& Scene = *(Comp->GetWorld()->GetPhysicsScene());
+		FPhysScene& Scene = *(Comp->GetWorld()->GetPhysicsScene());
 		
 		if(!Proxy)
 		{

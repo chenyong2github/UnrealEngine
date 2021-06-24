@@ -238,6 +238,8 @@ struct ENGINE_API FPhysicsInterface_PhysX : public FGenericPhysicsInterface, pub
 	// NOTE: Adding this temporarily, until we phase out Handle.IsValid().
 	static bool IsValid(const FPhysicsActorHandle& Handle) { return Handle.IsValid(); }
 
+	static bool IsInScene(const FPhysicsActorHandle& InActorReference);
+
 	template<typename AllocatorType>
 	static int32 GetAllShapes_AssumedLocked(const FPhysicsActorHandle_PhysX& InHandle, TArray<FPhysicsShapeHandle_PhysX, AllocatorType>& OutShapes);
 	static int32 GetNumShapes(const FPhysicsActorHandle_PhysX& InHandle);
@@ -254,7 +256,6 @@ struct ENGINE_API FPhysicsInterface_PhysX : public FGenericPhysicsInterface, pub
 	static bool IsStatic(const FPhysicsActorHandle_PhysX& InHandle);
 	static bool IsKinematic_AssumesLocked(const FPhysicsActorHandle_PhysX& InHandle);
 	static bool IsSleeping(const FPhysicsActorHandle_PhysX& InHandle);
-	static bool IsCcdEnabled(const FPhysicsActorHandle_PhysX& InHandle);
 	static bool IsCcdEnabled(const FPhysicsActorHandle_PhysX& InHandle);
 	static bool IsDisabled(const FPhysicsActorHandle_PhysX& InHandle);
 	static void SetDisabled(const FPhysicsActorHandle_PhysX& InHandle, bool bSetDisabled);
