@@ -290,7 +290,7 @@ int32 UFractureToolAutoUV::ExecuteFracture(const FFractureToolContext& FractureC
 				AutoUVSettings->bDistToOuter ? (int32)EBakeAttributes::DistanceToExternal : 0,
 				AutoUVSettings->bAmbientOcclusion ? (int32)EBakeAttributes::AmbientOcclusion : 0,
 				AutoUVSettings->bSmoothedCurvature ? (int32)EBakeAttributes::Curvature : 0,
-				AutoUVSettings->bZNormal ? (int32)EBakeAttributes::NormalZ : 0
+				0
 			);
 		}
 		else
@@ -312,6 +312,7 @@ int32 UFractureToolAutoUV::ExecuteFracture(const FFractureToolContext& FractureC
 		AttribSettings.Curvature_ThicknessFactor = AutoUVSettings->ThicknessFactor;
 		AttribSettings.Curvature_MaxValue = AutoUVSettings->MaxCurvature;
 		AttribSettings.bNormalZ_TakeAbs = AutoUVSettings->bUseAbsoluteValue;
+		AttribSettings.ClearGutterChannel = 3; // default clear the gutters for the alpha channel, so it shows more clearly the island boundaries
 		UE::PlanarCut::TextureInternalSurfaces(UVLayer, Collection, FMath::CeilToInt(AutoUVSettings->GutterSize), Attributes, AttribSettings, ImageBuilder,
 			AutoUVSettings->TargetMaterialIDs != ETargetMaterialIDs::SelectedIDs, 
 			AutoUVSettings->TargetMaterialIDs == ETargetMaterialIDs::OddIDs ? EmptyMaterialIDs: AutoUVSettings->MaterialIDs);

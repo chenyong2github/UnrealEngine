@@ -565,7 +565,6 @@ void TextureInternalSurfaces(
 			FDynamicMeshUVOverlay* UV = Mesh.Attributes()->PrimaryUV();
 			for (int TID : Mesh.TriangleIndicesItr())
 			{
-				// TODO: separate the concept of inside from the concept of needs texture!!
 				bool bIsTextureTri = IsTriActive(
 					AugmentedDynamicMesh::GetVisibility(Mesh, TID), 
 					Mesh.Attributes()->GetMaterialID()->GetValue(TID), TargetMaterials, true, bOnlyOddMaterials);
@@ -784,9 +783,21 @@ void TextureInternalSurfaces(
 	CopyValuesToChannel(AmbientIdx, AmbientValues);
 	CopyValuesToChannel(CurvatureIdx, CurvatureValues);
 
-	for (TTuple<int64, int64>& GutterToInside : OccupancyMap.GutterTexels)
+	if (AttributeSettings.ClearGutterChannel > -1 && AttributeSettings.ClearGutterChannel < 4)
 	{
-		TextureOut.CopyPixel(GutterToInside.Value, GutterToInside.Key);
+		for (TTuple<int64, int64>& GutterToInside : OccupancyMap.GutterTexels)
+		{
+			FVector4f Pixel = TextureOut.GetPixel(GutterToInside.Value);
+			Pixel[AttributeSettings.ClearGutterChannel] = 0.0f;
+			TextureOut.SetPixel(GutterToInside.Key, Pixel);
+		}
+	}
+	else
+	{
+		for (TTuple<int64, int64>& GutterToInside : OccupancyMap.GutterTexels)
+		{
+			TextureOut.CopyPixel(GutterToInside.Value, GutterToInside.Key);
+		}
 	}
 }
 
