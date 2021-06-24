@@ -1,0 +1,112 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "Containers/Map.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+
+#include "Online/OnlineServices.h"
+
+class FLazySingleton;
+
+namespace UE::Online {
+	
+enum class EOnlineServices : uint8;
+
+class ONLINESERVICESINTERFACE_API IOnlineServicesFactory
+{
+public:
+	/**
+	 * Virtual destructor
+	 */
+	virtual ~IOnlineServicesFactory() {}
+
+	/**
+	 * Create an IOnlineServices instance
+	 *
+	 * @return Initialized IOnlineServices instance
+	 */
+	virtual TSharedPtr<IOnlineServices> Create() = 0;
+};
+
+class FOnlineServicesRegistry
+{
+public:
+	/**
+	 * Get the FOnlineServicesRegistry singleton
+	 * 
+	 * @return The FOnlineServicesRegistry singleton instance
+	 */
+	ONLINESERVICESINTERFACE_API static FOnlineServicesRegistry& Get();
+
+	/**
+	 * Tear down the singleton instance
+	 */
+	ONLINESERVICESINTERFACE_API static void TearDown();
+
+	/**
+	 * Register a factory for creation of IOnlineServices instances
+	 * 
+	 * @param OnlineServices Services that the factory is for
+	 * @param Factory Factory for creation of IOnlineServices instances
+	 * @param Priority Integer priority, allows an existing OnlineServices implementation to be extended and registered with a higher priority so it is used instead
+	 */
+	ONLINESERVICESINTERFACE_API void RegisterServicesFactory(EOnlineServices OnlineServices, TUniquePtr<IOnlineServicesFactory>&& Factory, int32 Priority = 0);
+
+	/**
+	 * Unregister a previously registered IOnlineServices factory
+	 *
+	 * @param OnlineServices Services that the factory is for
+	 * @param Priority Integer priority, will be unregistered only if the priority matches the one that is registered
+	 */
+	ONLINESERVICESINTERFACE_API void UnRegisterServicesFactory(EOnlineServices OnlineServices, int32 Priority = 0);
+
+	/**
+	 * Get a named instance of a specific IOnlineServices
+	 * 
+	 * @param OnlineServices Type of online services for the IOnlineServices instance
+	 * @param InstanceName Name of the instance
+	 * 
+	 * @return The services instance, or an invalid pointer if the OnlineServices is unavailable
+	 */
+	ONLINESERVICESINTERFACE_API TSharedPtr<IOnlineServices> GetNamedServicesInstance(EOnlineServices OnlineServices, FName InstanceName);
+
+	/**
+	 * Destroy a named instance of a specific OnlineServices
+	 *
+	 * @param OnlineServices  Type of online services for the IOnlineServices instance
+	 * @param InstanceName Name of the instance
+	 */
+	ONLINESERVICESINTERFACE_API void DestroyNamedServicesInstance(EOnlineServices OnlineServices, FName InstanceName);
+
+	/**
+	 * Create and initialize a new IOnlineServices instance
+	 *
+	 * @param OnlineServices Type of online services for the IOnlineServices instance
+	 * 
+	 * @return The initialized IOnlineServices instance, or an invalid pointer if the OnlineServices is unavailable
+	 */
+	ONLINESERVICESINTERFACE_API TSharedPtr<IOnlineServices> CreateServices(EOnlineServices OnlineServices);
+
+private:
+	struct FFactoryAndPriority
+	{
+		FFactoryAndPriority(TUniquePtr<IOnlineServicesFactory>&& InFactory, int32 InPriority)
+			: Factory(MoveTemp(InFactory))
+			, Priority(InPriority)
+		{
+		}
+
+		TUniquePtr<IOnlineServicesFactory> Factory;
+		int32 Priority;
+	};
+
+	TMap<EOnlineServices, FFactoryAndPriority> ServicesFactories;
+	TMap<EOnlineServices, TMap<FName, TSharedPtr<IOnlineServices>>> NamedServiceInstances;
+
+	FOnlineServicesRegistry() {}
+	friend FLazySingleton;
+};
+
+/* UE::Online */ }
