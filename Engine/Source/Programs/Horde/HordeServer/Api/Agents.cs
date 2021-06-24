@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using HordeCommon;
 using HordeServer.Models;
 using HordeServer.Utilities;
 using System;
@@ -170,6 +171,12 @@ namespace HordeServer.Api
 		public Dictionary<string, string>? Details { get; set; }
 
 		/// <summary>
+		/// Outcome of the lease
+		/// </summary>
+		public LeaseOutcome? Outcome { get; set; }
+
+
+		/// <summary>
 		/// Parameterless constructor for serialization
 		/// </summary>
 		private GetAgentLeaseResponse()
@@ -190,7 +197,7 @@ namespace HordeServer.Api
 			this.StartTime = Lease.StartTime;
 			this.Executing = Lease.Active;
 			this.FinishTime = Lease.ExpiryTime;
-			this.Details = AgentLease.GetPayloadDetails(Lease.Payload);
+			this.Details = AgentLease.GetPayloadDetails(Lease.Payload);			
 		}
 
 		/// <summary>
@@ -207,6 +214,7 @@ namespace HordeServer.Api
 			this.Executing = (Lease.FinishTime == null);
 			this.FinishTime = Lease.FinishTime;
 			this.Details = AgentLease.GetPayloadDetails(Lease.Payload);
+			this.Outcome = Lease.Outcome;
 		}
 	}
 

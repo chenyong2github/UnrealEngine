@@ -410,6 +410,23 @@ export type BatchUpdatePoolRequest = {
 	deleted?: boolean;
 }
 
+export enum LeaseOutcome {
+    
+    /** Default value. */
+    Unspecified = "Unspecified",
+    
+    /** The lease was executed successfully */
+    Success = "Success",
+    
+    /** The lease was not executed succesfully, but cannot be run again. */
+    Failed = "Failed",
+    
+    /** The lease was cancelled by request */
+    Cancelled = "Cancelled"
+	
+  }
+
+
 /**Response for queries to find a particular lease within an agent */
 export type GetAgentLeaseResponse = {
 
@@ -445,6 +462,10 @@ export type GetAgentLeaseResponse = {
 
 	/**logId of this lease (parsed from Details array) */
 	logId: string;
+
+	/** Outcome of the lease */
+	outcome? : LeaseOutcome;
+
 }
 
 /**Information about an agent session */
