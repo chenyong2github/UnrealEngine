@@ -173,7 +173,7 @@ protected:
 	bool ContextMenu_CollapseSubtree_CanExecute() const;
 	void ContextMenu_CollapseSubtree_Execute();
 	bool ContextMenu_ExportToFile_CanExecute() const;
-	void ContextMenu_ExportToFile_Execute(bool bExportOnlyExpanded);
+	void ContextMenu_ExportToFile_Execute(bool bInExportCollapsed, bool InExportLeafs);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Tree View - Columns' Header
@@ -395,7 +395,7 @@ protected:
 	virtual void ExtendMenu(FMenuBuilder& Menu) {}
 
 	typedef TFunctionRef<void(TArray<Insights::FBaseTreeNodePtr>& InNodes)> WriteToFileCallback;
-	void ExportToFileRec(const FBaseTreeNodePtr& InGroupNode, TArray<Insights::FBaseTreeNodePtr>& InNodes, bool bInExportOnlyExpanded, WriteToFileCallback Callback);
+	void ExportToFileRec(const FBaseTreeNodePtr& InGroupNode, TArray<Insights::FBaseTreeNodePtr>& InNodes, bool bInExportCollapsed, bool InExportLeafs, WriteToFileCallback Callback);
 
 protected:
 	/** Table view model. */
