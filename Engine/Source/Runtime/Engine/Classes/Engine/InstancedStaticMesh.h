@@ -558,6 +558,7 @@ public:
 			if( bHasSelectedInstances )
 			{
 				Result.bDynamicRelevance = true;
+				Result.bStaticRelevance = false;
 			}
 #endif
 		}
