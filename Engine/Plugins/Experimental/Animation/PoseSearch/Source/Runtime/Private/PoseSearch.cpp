@@ -21,6 +21,7 @@
 #include "Animation/AnimationPoseData.h"
 #include "AnimationRuntime.h"
 #include "BonePose.h"
+#include "Trace/PoseSearchTraceLogger.h"
 #include "UObject/ObjectSaveContext.h"
 
 IMPLEMENT_ANIMGRAPH_MESSAGE(UE::PoseSearch::IPoseHistoryProvider);
@@ -3051,6 +3052,11 @@ public: // IPoseSearchProvider
 void FModule::StartupModule()
 {
 	IModularFeatures::Get().RegisterModularFeature(UE::Anim::IPoseSearchProvider::ModularFeatureName, this);
+
+#if UE_POSE_SEARCH_TRACE_ENABLED
+	// Enable the PoseSearch trace channel
+	UE::Trace::ToggleChannel(*FTraceLogger::Name.ToString(), true);
+#endif
 }
 
 void FModule::ShutdownModule()
