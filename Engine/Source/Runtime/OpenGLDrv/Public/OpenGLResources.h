@@ -2259,40 +2259,10 @@ private:
 	FCustomPresentRHIRef CustomPresent;
 };
 
-// Fences
-struct FOpenGLGPUFenceProxy
-{
-	FOpenGLGPUFenceProxy()
-		: bValidSync(false)
-		, bIsSignaled(false)
-	{}
-
-
-	~FOpenGLGPUFenceProxy()
-	{
-		if (bValidSync)
-		{
-			FOpenGL::DeleteSync(Fence);
-		}
-	}
-
-	UGLsync Fence;
-	// We shadow the sync state to know if/when we need to destroy it.
-	bool bValidSync;
-	bool bIsSignaled;
-};
-
-
-// Note that Poll() and WriteInternal() will stall the RHI thread if one is present.
 class FOpenGLGPUFence final : public FRHIGPUFence
 {
 public:
-	FOpenGLGPUFence(FName InName)
-		: FRHIGPUFence(InName)
-	{
-		Proxy = new FOpenGLGPUFenceProxy();
-	}
-
+	FOpenGLGPUFence(FName InName);
 	~FOpenGLGPUFence() override;
 
 	void Clear() override;
@@ -2300,7 +2270,7 @@ public:
 	
 	void WriteInternal();
 private:
-	FOpenGLGPUFenceProxy* Proxy;
+	struct FOpenGLGPUFenceProxy* Proxy;
 };
 
 class FOpenGLStagingBuffer final : public FRHIStagingBuffer
