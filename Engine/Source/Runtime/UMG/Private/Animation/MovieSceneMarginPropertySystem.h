@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Layout/Margin.h"
 #include "Systems/MovieScenePropertySystem.h"
 #include "MovieSceneMarginPropertySystem.generated.h"
 

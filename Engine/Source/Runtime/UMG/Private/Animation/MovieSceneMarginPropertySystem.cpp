@@ -1,12 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/MovieSceneMarginPropertySystem.h"
-#include "Animation/MovieSceneMarginSection.h"
 #include "Animation/MovieSceneUMGComponentTypes.h"
 #include "Systems/FloatChannelEvaluatorSystem.h"
 #include "Systems/MovieScenePiecewiseFloatBlenderSystem.h"
-#include "Systems/MovieScenePropertyInstantiator.h"
-#include "Tracks/MovieScenePropertyTrack.h"
 
 
 UMovieSceneMarginPropertySystem::UMovieSceneMarginPropertySystem(const FObjectInitializer& ObjInit)
