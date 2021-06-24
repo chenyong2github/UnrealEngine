@@ -12,7 +12,7 @@
 #include "Snapping/PointPlanarSnapSolver.h"
 #include "ToolSceneQueriesUtil.h"
 #include "Properties/MeshMaterialProperties.h"
-#include "Properties/CreateMeshObjectTypeProperties.h"
+#include "PropertySets/CreateMeshObjectTypeProperties.h"
 #include "Mechanics/PlaneDistanceFromHitMechanic.h"
 #include "DrawPolygonTool.generated.h"
 

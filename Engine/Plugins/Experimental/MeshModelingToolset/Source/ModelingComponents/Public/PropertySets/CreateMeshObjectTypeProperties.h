@@ -15,16 +15,17 @@ struct FCreateMeshObjectParams;
  * what type of object to create, in creation tools (ie StaticMesh, Volume, etc).
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UCreateMeshObjectTypeProperties : public UInteractiveToolPropertySet
+class MODELINGCOMPONENTS_API UCreateMeshObjectTypeProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
 
 	void InitializeDefault();
+	void InitializeDefaultWithAuto();
 	void Initialize(bool bEnableStaticMeshes = true, bool bEnableVolumes = false, bool bEnableDynamicMeshActor = false);
 
 	/** Type of Object to create */
-	UPROPERTY(EditAnywhere, Category = OutputType, meta = (DisplayName = "Output Type", GetOptions = GetOutputTypeNamesFunc))
+	UPROPERTY(EditAnywhere, Category = OutputType, meta = (DisplayName = "Output Type", GetOptions = GetOutputTypeNamesFunc, NoResetToDefault))
 	FString OutputType;
 
 	/** Type of new Volume to create */
@@ -63,8 +64,15 @@ public:
 	virtual bool ConfigureCreateMeshObjectParams(FCreateMeshObjectParams& ParamsOut) const;
 
 	// constants used for different known types
+	static const FString AutoIdentifier;
 	static const FString StaticMeshIdentifier;
 	static const FString VolumeIdentifier;
 	static const FString DynamicMeshActorIdentifier;
 
+
+	//
+	// Public static values used to configure behavior of this class, set (eg) from Editor settings
+	//
+	static bool bEnableDynamicMeshActorSupport;
+	static FString DefaultObjectTypeIdentifier;
 };

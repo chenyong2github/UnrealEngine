@@ -10,7 +10,7 @@
 #include "Mechanics/CollectSurfacePathMechanic.h"
 #include "Mechanics/ConstructionPlaneMechanic.h"
 #include "Drawing/PolyEditPreviewMesh.h"
-#include "Properties/CreateMeshObjectTypeProperties.h"
+#include "PropertySets/CreateMeshObjectTypeProperties.h"
 #include "Properties/MeshMaterialProperties.h"
 #include "DrawPolyPathTool.generated.h"
 

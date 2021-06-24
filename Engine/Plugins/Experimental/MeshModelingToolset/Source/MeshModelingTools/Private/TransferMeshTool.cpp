@@ -45,10 +45,6 @@ UInteractiveTool* UTransferMeshToolBuilder::BuildTool(const FToolBuilderState& S
  * Tool
  */
 
-UTransferMeshTool::UTransferMeshTool(const FObjectInitializer&)
-{
-}
-
 void UTransferMeshTool::SetWorld(UWorld* World)
 {
 	this->TargetWorld = World;
@@ -64,7 +60,7 @@ void UTransferMeshTool::Setup()
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Transfer"));
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartTool", "Copy mesh from Source object to Target object"),
+		LOCTEXT("OnStartTool", "Copy Mesh from Source object to Target object"),
 		EToolMessageLevel::UserNotification);
 }
 

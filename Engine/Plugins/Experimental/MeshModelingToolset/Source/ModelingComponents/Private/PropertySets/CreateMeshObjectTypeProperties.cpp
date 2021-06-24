@@ -1,16 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Properties/CreateMeshObjectTypeProperties.h"
+#include "PropertySets/CreateMeshObjectTypeProperties.h"
 #include "ModelingObjectsCreationAPI.h"
 
-static TAutoConsoleVariable<int32> CVarEnableDynamicMeshActors(
-	TEXT("geometry.DynamicMeshActor.Enable"),
-	0,
-	TEXT("Enable DynamicMeshActor Output Type in various Modeling Mode Tools"));
 
 const FString UCreateMeshObjectTypeProperties::StaticMeshIdentifier = TEXT("Static Mesh");
 const FString UCreateMeshObjectTypeProperties::VolumeIdentifier = TEXT("Volume");
 const FString UCreateMeshObjectTypeProperties::DynamicMeshActorIdentifier = TEXT("Dynamic Mesh");
+const FString UCreateMeshObjectTypeProperties::AutoIdentifier = TEXT("From Input");
+
+bool UCreateMeshObjectTypeProperties::bEnableDynamicMeshActorSupport = false;
+FString UCreateMeshObjectTypeProperties::DefaultObjectTypeIdentifier = UCreateMeshObjectTypeProperties::StaticMeshIdentifier;
+
 
 void UCreateMeshObjectTypeProperties::InitializeDefault()
 {
@@ -25,6 +26,12 @@ void UCreateMeshObjectTypeProperties::InitializeDefault()
 	Initialize(bStaticMeshes, bVolumes, bDynamicMeshes);
 }
 
+void UCreateMeshObjectTypeProperties::InitializeDefaultWithAuto()
+{
+	InitializeDefault();
+	OutputTypeNamesList.Add(AutoIdentifier);
+}
+
 void UCreateMeshObjectTypeProperties::Initialize(bool bEnableStaticMeshes, bool bEnableVolumes, bool bEnableDynamicMeshActor)
 {
 	if (bEnableStaticMeshes)
@@ -35,14 +42,26 @@ void UCreateMeshObjectTypeProperties::Initialize(bool bEnableStaticMeshes, bool 
 	{
 		OutputTypeNamesList.Add(VolumeIdentifier);
 	}
-	if (bEnableDynamicMeshActor && CVarEnableDynamicMeshActors.GetValueOnGameThread() != 0)
+	if (bEnableDynamicMeshActor && bEnableDynamicMeshActorSupport)
 	{
 		OutputTypeNamesList.Add(DynamicMeshActorIdentifier);
 	}
 
+	if (OutputTypeNamesList.Num() == 0)
+	{
+		return;
+	}
+
 	if ((OutputType.Len() == 0) || (OutputType.Len() > 0 && OutputTypeNamesList.Contains(OutputType) == false))
 	{
-		OutputType = OutputTypeNamesList[0];
+		if (OutputTypeNamesList.Contains(DefaultObjectTypeIdentifier))
+		{
+			OutputType = DefaultObjectTypeIdentifier;
+		}
+		else
+		{
+			OutputType = OutputTypeNamesList[0];
+		}
 	}
 }
 
@@ -84,6 +103,9 @@ void UCreateMeshObjectTypeProperties::UpdatePropertyVisibility()
 
 bool UCreateMeshObjectTypeProperties::ConfigureCreateMeshObjectParams(FCreateMeshObjectParams& ParamsOut) const
 {
+	// client has to handle this case
+	ensure(OutputType != AutoIdentifier);
+
 	if (OutputType == StaticMeshIdentifier)
 	{
 		ParamsOut.TypeHint = ECreateObjectTypeHint::StaticMesh;

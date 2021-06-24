@@ -11,7 +11,7 @@
 #include "InteractiveToolChange.h" //FToolCommandChange
 #include "MeshOpPreviewHelpers.h" //FDynamicMeshOpResult
 #include "Properties/MeshMaterialProperties.h"
-#include "Properties/CreateMeshObjectTypeProperties.h"
+#include "PropertySets/CreateMeshObjectTypeProperties.h"
 #include "Properties/RevolveProperties.h"
 
 #include "DrawAndRevolveTool.generated.h"

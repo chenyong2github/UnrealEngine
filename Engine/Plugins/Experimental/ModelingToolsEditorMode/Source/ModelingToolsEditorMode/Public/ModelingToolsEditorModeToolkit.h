@@ -97,6 +97,7 @@ private:
 	void UpdateAssetLocationMode(TSharedPtr<FString> NewString);
 	void UpdateAssetSaveMode(TSharedPtr<FString> NewString);
 	void UpdateAssetPanelFromSettings();
+	void UpdateObjectCreationOptionsFromSettings();
 	void OnAssetSettingsModified();
 	FDelegateHandle AssetSettingsModifiedHandle;
 	void OnShowAssetSettings();

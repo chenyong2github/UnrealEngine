@@ -25,11 +25,15 @@
 #include "Features/IModularFeatures.h"
 #include "ModelingModeToolExtensions.h"
 
+// for Object Type properties
+#include "PropertySets/CreateMeshObjectTypeProperties.h"
+
 // for LOD setting
 #include "EditorInteractiveToolsFrameworkModule.h"
 #include "Tools/EditorComponentSourceFactory.h"
 #include "ToolTargetManager.h"
 #include "ToolTargets/StaticMeshComponentToolTarget.h"
+
 
 #define LOCTEXT_NAMESPACE "FModelingToolsEditorModeToolkit"
 
@@ -133,6 +137,8 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 
 	GetScriptableEditorMode()->GetInteractiveToolsContext()->OnToolNotificationMessage.AddSP(this, &FModelingToolsEditorModeToolkit::PostNotification);
 	GetScriptableEditorMode()->GetInteractiveToolsContext()->OnToolWarningMessage.AddSP(this, &FModelingToolsEditorModeToolkit::PostWarning);
+
+	UpdateObjectCreationOptionsFromSettings();
 
 	SAssignNew(ViewportOverlayWidget, SHorizontalBox)
 
@@ -552,6 +558,8 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 		ToolbarBuilder.AddToolBarButton(Commands.BeginEditPivotTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginBakeTransformTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginTransferMeshTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginConvertMeshesTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginSplitMeshesTool);
 	}
 	else if (PaletteIndex == DeformTabName)
 	{
@@ -872,8 +880,32 @@ void FModelingToolsEditorModeToolkit::UpdateAssetPanelFromSettings()
 }
 
 
+void FModelingToolsEditorModeToolkit::UpdateObjectCreationOptionsFromSettings()
+{
+	// update DynamicMeshActor Settings
+	const UModelingToolsEditorModeSettings* Settings = GetDefault<UModelingToolsEditorModeSettings>();
+
+	// enable/disable dynamic mesh actors
+	UCreateMeshObjectTypeProperties::bEnableDynamicMeshActorSupport = Settings->bEnableDynamicMeshActors;
+
+	// set configured default type
+	if (Settings->DefaultMeshObjectType == EModelingModeDefaultMeshObjectType::DynamicMeshActor && Settings->bEnableDynamicMeshActors)
+	{
+		UCreateMeshObjectTypeProperties::DefaultObjectTypeIdentifier = UCreateMeshObjectTypeProperties::DynamicMeshActorIdentifier;
+	}
+	else if (Settings->DefaultMeshObjectType == EModelingModeDefaultMeshObjectType::VolumeActor)
+	{
+		UCreateMeshObjectTypeProperties::DefaultObjectTypeIdentifier = UCreateMeshObjectTypeProperties::VolumeIdentifier;
+	}
+	else
+	{
+		UCreateMeshObjectTypeProperties::DefaultObjectTypeIdentifier = UCreateMeshObjectTypeProperties::StaticMeshIdentifier;
+	}
+}
+
 void FModelingToolsEditorModeToolkit::OnAssetSettingsModified()
 {
+	UpdateObjectCreationOptionsFromSettings();
 	UpdateAssetPanelFromSettings();
 }
 

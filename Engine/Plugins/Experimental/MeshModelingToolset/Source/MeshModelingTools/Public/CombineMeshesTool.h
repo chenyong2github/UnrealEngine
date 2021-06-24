@@ -3,25 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
 #include "MultiSelectionTool.h"
 #include "InteractiveToolBuilder.h"
 #include "MeshOpPreviewHelpers.h"
 #include "DynamicMesh/DynamicMesh3.h"
-#include "BaseTools/SingleClickTool.h"
 #include "PropertySets/OnAcceptProperties.h"
+#include "PropertySets/CreateMeshObjectTypeProperties.h"
 #include "CombineMeshesTool.generated.h"
-
 
 // predeclarations
 struct FMeshDescription;
-class UDynamicMeshComponent;
-class IPrimitiveComponentBackedTarget;
-class IMeshDescriptionCommitter;
-class IMeshDescriptionProvider;
-class IMaterialProvider;
-
-
 
 /**
  *
@@ -107,6 +98,9 @@ protected:
 	UCombineMeshesToolProperties* BasicProperties;
 
 	UPROPERTY()
+	UCreateMeshObjectTypeProperties* OutputTypeProperties;
+
+	UPROPERTY()
 	UOnAcceptHandleSourcesProperties* HandleSourceProperties;
 
 protected:
@@ -116,4 +110,7 @@ protected:
 
 	void CreateNewAsset();
 	void UpdateExistingAsset();
+
+
+	void BuildCombinedMaterialSet(TArray<UMaterialInterface*>& NewMaterialsOut, TArray<TArray<int32>>& MaterialIDRemapsOut);
 };

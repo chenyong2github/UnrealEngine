@@ -6,7 +6,7 @@
 #include "BaseTools/SingleSelectionMeshEditingTool.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Physics/CollisionPropertySets.h"
-#include "Properties/CreateMeshObjectTypeProperties.h"
+#include "PropertySets/CreateMeshObjectTypeProperties.h"
 #include "ExtractCollisionGeometryTool.generated.h"
 
 class UPreviewGeometry;

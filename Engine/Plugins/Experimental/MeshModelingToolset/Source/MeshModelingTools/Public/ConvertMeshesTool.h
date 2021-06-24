@@ -5,16 +5,16 @@
 #include "CoreMinimal.h"
 #include "MultiSelectionTool.h"
 #include "InteractiveToolBuilder.h"
-#include "TransferMeshTool.generated.h"
+#include "PropertySets/CreateMeshObjectTypeProperties.h"
+#include "ConvertMeshesTool.generated.h"
 
 /**
  *
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UTransferMeshToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLS_API UConvertMeshesToolBuilder : public UInteractiveToolBuilder
 {
 	GENERATED_BODY()
-
 public:
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
@@ -27,7 +27,7 @@ protected:
  * Standard properties of the Transfer operation
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UTransferMeshToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UConvertMeshesToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -38,7 +38,7 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLS_API UTransferMeshTool : public UMultiSelectionTool
+class MESHMODELINGTOOLS_API UConvertMeshesTool : public UMultiSelectionTool
 {
 	GENERATED_BODY()
 
@@ -53,7 +53,10 @@ public:
 	virtual bool CanAccept() const override;
 
 	UPROPERTY()
-	UTransferMeshToolProperties* BasicProperties;
+	UConvertMeshesToolProperties* BasicProperties;
+
+	UPROPERTY()
+	UCreateMeshObjectTypeProperties* OutputTypeProperties;
 
 protected:
 	UWorld* TargetWorld;

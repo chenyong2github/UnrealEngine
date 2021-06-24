@@ -1,0 +1,139 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "ConvertMeshesTool.h"
+#include "ComponentSourceInterfaces.h"
+#include "InteractiveToolManager.h"
+#include "ToolTargetManager.h"
+#include "ToolBuilderUtil.h"
+#include "ToolSetupUtil.h"
+#include "ModelingToolTargetUtil.h"
+#include "ModelingObjectsCreationAPI.h"
+#include "Selection/ToolSelectionUtil.h"
+
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
+#define LOCTEXT_NAMESPACE "UConvertMeshesTool"
+
+/*
+ * ToolBuilder
+ */
+const FToolTargetTypeRequirements& UConvertMeshesToolBuilder::GetTargetRequirements() const
+{
+	static FToolTargetTypeRequirements TypeRequirements({
+		UMaterialProvider::StaticClass(),
+		UMeshDescriptionProvider::StaticClass(),
+		UPrimitiveComponentBackedTarget::StaticClass()
+		});
+	return TypeRequirements;
+}
+
+bool UConvertMeshesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+{
+	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 0;
+}
+
+UInteractiveTool* UConvertMeshesToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+{
+	UConvertMeshesTool* NewTool = NewObject<UConvertMeshesTool>(SceneState.ToolManager);
+	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
+	NewTool->SetTargets(MoveTemp(Targets));
+	NewTool->SetWorld(SceneState.World);
+	return NewTool;
+}
+
+
+
+/*
+ * Tool
+ */
+
+
+void UConvertMeshesTool::SetWorld(UWorld* World)
+{
+	this->TargetWorld = World;
+}
+
+void UConvertMeshesTool::Setup()
+{
+	UInteractiveTool::Setup();
+
+	OutputTypeProperties = NewObject<UCreateMeshObjectTypeProperties>(this);
+	OutputTypeProperties->RestoreProperties(this, TEXT("ConvertMeshesTool"));
+	OutputTypeProperties->InitializeDefault();
+	OutputTypeProperties->WatchProperty(OutputTypeProperties->OutputType, [this](FString) { OutputTypeProperties->UpdatePropertyVisibility(); });
+	AddToolPropertySource(OutputTypeProperties);
+
+	BasicProperties = NewObject<UConvertMeshesToolProperties>(this);
+	BasicProperties->RestoreProperties(this);
+	AddToolPropertySource(BasicProperties);
+
+	SetToolDisplayName(LOCTEXT("ToolName", "Convert"));
+	GetToolManager()->DisplayMessage(
+		LOCTEXT("OnStartTool", "Convert Meshes to a different Mesh Object type"),
+		EToolMessageLevel::UserNotification);
+}
+
+bool UConvertMeshesTool::CanAccept() const
+{
+	return Super::CanAccept();
+}
+
+void UConvertMeshesTool::Shutdown(EToolShutdownType ShutdownType)
+{
+	OutputTypeProperties->SaveProperties(this, TEXT("ConvertMeshesTool"));
+	BasicProperties->SaveProperties(this);
+
+	if (ShutdownType == EToolShutdownType::Accept)
+	{
+		GetToolManager()->BeginUndoTransaction(LOCTEXT("ConvertMeshesToolTransactionName", "Convert Meshes"));
+
+		TArray<AActor*> NewSelectedActors;
+		TSet<AActor*> DeleteActors;
+
+		for (int32 k = 0; k < Targets.Num(); ++k)
+		{
+			AActor* TargetActor = UE::ToolTarget::GetTargetActor(Targets[k]);
+			check(TargetActor != nullptr);
+			DeleteActors.Add(TargetActor);
+
+			FTransform SourceTransform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Targets[k]);
+			FDynamicMesh3 SourceMesh = UE::ToolTarget::GetDynamicMeshCopy(Targets[k], true);
+			FString AssetName = TargetActor->GetName();
+			FComponentMaterialSet Materials = UE::ToolTarget::GetMaterialSet(Targets[0]);
+			const FComponentMaterialSet* TransferMaterials = (BasicProperties->bTransferMaterials) ? &Materials : nullptr;
+
+			FCreateMeshObjectParams NewMeshObjectParams;
+			NewMeshObjectParams.TargetWorld = TargetWorld;
+			NewMeshObjectParams.Transform = (FTransform)SourceTransform;
+			NewMeshObjectParams.BaseName = AssetName;
+			if (TransferMaterials != nullptr)
+			{
+				NewMeshObjectParams.Materials = TransferMaterials->Materials;
+			}
+			NewMeshObjectParams.SetMesh(MoveTemp(SourceMesh));
+
+			OutputTypeProperties->ConfigureCreateMeshObjectParams(NewMeshObjectParams);
+			FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
+			if (Result.IsOK())
+			{
+				NewSelectedActors.Add(Result.NewActor);
+			}
+		}
+
+		for (AActor* DeleteActor : DeleteActors)
+		{
+			DeleteActor->Destroy();
+		}
+
+		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewSelectedActors);
+
+		GetToolManager()->EndUndoTransaction();
+	}
+}
+
+
+
+
+
+#undef LOCTEXT_NAMESPACE

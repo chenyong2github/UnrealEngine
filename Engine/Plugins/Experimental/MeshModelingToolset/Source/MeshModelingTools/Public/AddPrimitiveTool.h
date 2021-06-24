@@ -8,7 +8,7 @@
 #include "MaterialShared.h"
 #include "PreviewMesh.h"
 #include "Properties/MeshMaterialProperties.h"
-#include "Properties/CreateMeshObjectTypeProperties.h"
+#include "PropertySets/CreateMeshObjectTypeProperties.h"
 #include "UObject/NoExportTypes.h"
 #include "UObject/UObjectGlobals.h"
 
