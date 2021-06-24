@@ -2,7 +2,6 @@
 
 #include "Animation/MovieSceneMarginTrack.h"
 #include "Animation/MovieSceneMarginSection.h"
-#include "Animation/MovieSceneMarginTemplate.h"
 
 
 UMovieSceneMarginTrack::UMovieSceneMarginTrack(const FObjectInitializer& Init)
@@ -22,8 +21,3 @@ UMovieSceneSection* UMovieSceneMarginTrack::CreateNewSection()
 	return NewObject<UMovieSceneMarginSection>(this, NAME_None, RF_Transactional);
 }
 
-
-FMovieSceneEvalTemplatePtr UMovieSceneMarginTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
-{
-	return FMovieSceneMarginSectionTemplate(*CastChecked<UMovieSceneMarginSection>(&InSection), *this);
-}

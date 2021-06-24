@@ -2,11 +2,13 @@
 
 #include "Animation/MovieSceneMarginSection.h"
 #include "Animation/MovieSceneMarginTrack.h"
+#include "Animation/MovieSceneUMGComponentTypes.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Compilation/MovieSceneTemplateInterrogation.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "Evaluation/MovieScenePropertyTemplate.h"
+#include "Tracks/MovieScenePropertyTrack.h"
 
 #if WITH_EDITOR
 
@@ -34,11 +36,6 @@ struct FMarginSectionEditorData
 		ExternalValues[1].OnGetExternalValue = ExtractTopChannel;
 		ExternalValues[2].OnGetExternalValue = ExtractRightChannel;
 		ExternalValues[3].OnGetExternalValue = ExtractBottomChannel;
-
-		ExternalValues[0].OnGetCurrentValueAndWeight = GetLeftChannelValueAndWeight;
-		ExternalValues[1].OnGetCurrentValueAndWeight = GetTopChannelValueAndWeight;
-		ExternalValues[2].OnGetCurrentValueAndWeight = GetRightChannelValueAndWeight;
-		ExternalValues[3].OnGetCurrentValueAndWeight = GetBottomChannelValueAndWeight;
 	}
 
 	static TOptional<float> ExtractLeftChannel(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
@@ -56,65 +53,6 @@ struct FMarginSectionEditorData
 	static TOptional<float> ExtractBottomChannel(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
 	{
 		return Bindings ? Bindings->GetCurrentValue<FMargin>(InObject).Bottom : TOptional<float>();
-	}
-	static void GetLeftChannelValueAndWeight(UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-		float& OutValue, float& OutWeight)
-	{
-		GetValueAndWeight(Object, SectionToKey, 0, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight);
-	}
-	static void GetTopChannelValueAndWeight(UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-		float& OutValue, float& OutWeight)
-	{
-		GetValueAndWeight(Object, SectionToKey, 1, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight);
-	}
-	static void GetRightChannelValueAndWeight(UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-		float& OutValue, float& OutWeight)
-	{
-		GetValueAndWeight(Object, SectionToKey, 2, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight);
-	}
-	static void GetBottomChannelValueAndWeight(UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-		float& OutValue, float& OutWeight)
-	{
-		GetValueAndWeight(Object, SectionToKey, 3, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight);
-	}
-	static void GetValueAndWeight(UObject* Object, UMovieSceneSection*  SectionToKey, int32 Index, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-		float& OutValue, float& OutWeight)
-	{
-		UMovieSceneTrack* Track = SectionToKey->GetTypedOuter<UMovieSceneTrack>();
-		FMovieSceneEvaluationTrack EvalTrack = CastChecked<UMovieSceneMarginTrack>(Track)->GenerateTrackTemplate(Track);
-		FMovieSceneInterrogationData InterrogationData;
-		RootTemplate.CopyActuators(InterrogationData.GetAccumulator());
-
-		FMovieSceneContext Context(FMovieSceneEvaluationRange(KeyTime, TickResolution));
-		EvalTrack.Interrogate(Context, InterrogationData, Object);
-
-		float Left = 0.0f, Right = 0.0f, Top = 0.0f, Bottom = 0.0f;
-
-		for (const FMargin& Margin : InterrogationData.Iterate<FMargin>(UMovieSceneMarginSection::GetMarginInterrogationKey()))
-		{
-			Left = Margin.Left;
-			Right = Margin.Right;
-			Top = Margin.Top;
-			Bottom = Margin.Bottom;
-			break;
-		}
-
-		switch (Index)
-		{
-		case 0:
-			OutValue = Left;
-			break;
-		case 1:
-			OutValue = Top;
-			break;
-		case 2:
-			OutValue = Right;
-			break;
-		case 3:
-			OutValue = Bottom;
-			break;
-		}
-		OutWeight = MovieSceneHelpers::CalculateWeightForBlending(SectionToKey, KeyTime);
 	}
 
 	FMovieSceneChannelMetaData      MetaData[4];
@@ -153,8 +91,23 @@ UMovieSceneMarginSection::UMovieSceneMarginSection( const FObjectInitializer& Ob
 	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(MoveTemp(Channels));
 }
 
-const FMovieSceneInterrogationKey UMovieSceneMarginSection::GetMarginInterrogationKey()
+bool UMovieSceneMarginSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder)
 {
-	const static FMovieSceneAnimTypeID TypeID = FMovieSceneAnimTypeID::Unique();
-	return TypeID;
+	FMovieScenePropertyTrackEntityImportHelper::PopulateEvaluationField(*this, EffectiveRange, InMetaData, OutFieldBuilder);
+	return true;
+}
+
+void UMovieSceneMarginSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+{
+	using namespace UE::MovieScene;
+
+	const FBuiltInComponentTypes* Components = FBuiltInComponentTypes::Get();
+	const FMovieSceneUMGComponentTypes* UMGComponents = FMovieSceneUMGComponentTypes::Get();
+
+	FPropertyTrackEntityImportHelper(UMGComponents->Margin)
+		.AddConditional(Components->FloatChannel[0], &LeftCurve, LeftCurve.HasAnyData())
+		.AddConditional(Components->FloatChannel[1], &TopCurve, TopCurve.HasAnyData())
+		.AddConditional(Components->FloatChannel[2], &RightCurve, RightCurve.HasAnyData())
+		.AddConditional(Components->FloatChannel[3], &BottomCurve, BottomCurve.HasAnyData())
+		.Commit(this, Params, OutImportedEntity);
 }

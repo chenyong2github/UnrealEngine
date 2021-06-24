@@ -148,7 +148,7 @@ protected:
 };
 
 
-struct FMovieScenePropertyTrackEntityImportHelper
+struct MOVIESCENETRACKS_API FMovieScenePropertyTrackEntityImportHelper
 {
 	static const int32 SectionPropertyValueImportingID;
 	static const int32 SectionEditConditionToggleImportingID;
@@ -257,7 +257,7 @@ protected:
 	TEntityBuilder<FAdd> Builder;
 };
 
-struct FPropertyTrackEntityImportHelper : TPropertyTrackEntityImportHelperImpl<>
+struct MOVIESCENETRACKS_API FPropertyTrackEntityImportHelper : TPropertyTrackEntityImportHelperImpl<>
 {
 	template<typename PropertyTraits>
 	FPropertyTrackEntityImportHelper(const TPropertyComponents<PropertyTraits>& PropertyComponents)
