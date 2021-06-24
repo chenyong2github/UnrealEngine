@@ -1401,6 +1401,72 @@ namespace UnrealBuildTool
 						DestFileInfo.Attributes = DestFileInfo.Attributes & ~FileAttributes.ReadOnly;
 					}
 				}
+
+				StringBuilder ContentsJson = new StringBuilder();
+
+				ContentsJson.AppendLine("{");
+				ContentsJson.AppendLine("\"images\" : [");
+				ContentsJson.AppendLine("{");
+				ContentsJson.AppendLine("\"size\" : \"60x60\",");
+				ContentsJson.AppendLine("\"idiom\" : \"iphone\",");
+				ContentsJson.AppendLine("\"filename\" : \"IPhoneIcon60@2x.png\",");
+				ContentsJson.AppendLine("\"scale\" : \"2x\"");
+				ContentsJson.AppendLine("},");
+				ContentsJson.AppendLine("{");
+				ContentsJson.AppendLine("\"size\" : \"76x76\",");
+				ContentsJson.AppendLine("\"idiom\" : \"ipad\",");
+				ContentsJson.AppendLine("\"filename\" : \"IPadIcon76@2x.png\",");
+				ContentsJson.AppendLine("\"scale\" : \"2x\"");
+				ContentsJson.AppendLine("},");
+				ContentsJson.AppendLine("{");
+				ContentsJson.AppendLine("\"size\" : \"83.5x83.5\",");
+				ContentsJson.AppendLine("\"idiom\" : \"ipad\",");
+				ContentsJson.AppendLine("\"filename\" : \"IPadIcon83.5@2x.png\",");
+				ContentsJson.AppendLine("\"scale\" : \"2x\"");
+				ContentsJson.AppendLine("},");
+				ContentsJson.AppendLine("{");
+				ContentsJson.AppendLine("\"size\" : \"1024x1024\",");
+				ContentsJson.AppendLine("\"idiom\" : \"ios-marketing\",");
+				ContentsJson.AppendLine("\"filename\" : \"Icon1024.png\",");
+				ContentsJson.AppendLine("\"scale\" : \"1x\"");
+				ContentsJson.AppendLine("},");
+
+				string[][] IconsInfo = {
+					new string []{ "IPhoneIcon20@2x.png", "\"20x20\"",  "\"iphone\"", "\"2x\"" },
+					new string []{ "IPhoneIcon20@3x.png", "\"20x20\"", "\"iphone\"", "\"3x\"" },
+					new string []{ "IPhoneIcon29@2x.png", "\"29x29\"", "\"iphone\"", "\"2x\"" },
+					new string []{ "IPhoneIcon29@3x.png", "\"29x29\"", "\"iphone\"", "\"3x\"" },
+					new string []{ "IPhoneIcon40@2x.png", "\"40x40\"", "\"iphone\"", "\"2x\"" },
+					new string []{ "IPhoneIcon40@3x.png", "\"40x40\"", "\"iphone\"", "\"3x\"" },
+					new string []{ "IPhoneIcon60@3x.png", "\"60x60\"", "\"iphone\"", "\"3x\"" },
+					new string []{ "IPadIcon20@2x.png", "\"20x20\"", "\"ipad\"", "\"2x\"" },
+					new string []{ "IPadIcon29@2x.png", "\"29x29\"", "\"ipad\"", "\"2x\"" },
+					new string []{ "IPadIcon40@2x.png", "\"40x40\"", "\"ipad\"", "\"2x\"" },
+					};
+
+				for (int Index = 0; Index < IconsInfo.Length; ++Index)
+				{
+					if (File.Exists(Path.Combine(Dir, IconsInfo[Index][0])))
+					{
+						ContentsJson.AppendLine("{");
+						ContentsJson.AppendLine("\"size\" : " + IconsInfo[Index][1] + ",");
+						ContentsJson.AppendLine("\"idiom\" : " + IconsInfo[Index][2] + ",");
+						ContentsJson.AppendLine("\"filename\" : \"" + IconsInfo[Index][0] + "\",");
+						ContentsJson.AppendLine("\"scale\" : " + IconsInfo[Index][3]);
+						ContentsJson.AppendLine("},");
+					}
+				}
+
+				ContentsJson.AppendLine("],");
+				ContentsJson.AppendLine("\"info\" : {");
+				ContentsJson.AppendLine("\"version\" : 1,");
+				ContentsJson.AppendLine("\"author\" : \"xcode\"");
+				ContentsJson.AppendLine("}");
+				ContentsJson.AppendLine("}");
+
+				string ContentsFile = Path.Combine(IntermediateDir, "Resources", "Assets.xcassets", "AppIcon.appiconset", "Contents.json");
+				File.WriteAllText(ContentsFile, ContentsJson.ToString());
+
 			}
 			return new DirectoryReference(ResourcesDir);
 		}
@@ -1449,7 +1515,7 @@ namespace UnrealBuildTool
 				OutputFiles.Add(StripCompleteFile);
 			}
 
-			if (!BinaryLinkEnvironment.bIsBuildingDLL && ShouldCompileAssetCatalog())
+			if (!BinaryLinkEnvironment.bIsBuildingDLL)
 			{
 				// generate the asset catalog
 				bool bUserImagesExist = false;
@@ -1533,11 +1599,6 @@ namespace UnrealBuildTool
 			}
 
 			return OutputFiles;
-		}
-
-		public bool ShouldCompileAssetCatalog()
-		{
-			return Target.Platform == UnrealTargetPlatform.TVOS || (Target.Platform == UnrealTargetPlatform.IOS && Settings.Value.IOSSDKVersionFloat >= 11.0f);
 		}
 
 		public static string GetCodesignPlatformName(UnrealTargetPlatform Platform)
