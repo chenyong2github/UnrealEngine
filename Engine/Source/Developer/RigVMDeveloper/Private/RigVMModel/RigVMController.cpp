@@ -796,11 +796,12 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 						// Warn the user the changes are not undoable
 						if(RequestBulkEditDialogDelegate.IsBound())
 						{
-							if(!RequestBulkEditDialogDelegate.Execute(OuterFunction, ERigVMControllerBulkEditType::AddVariable))
+							FRigVMController_BulkEditResult Result = RequestBulkEditDialogDelegate.Execute(OuterFunction, ERigVMControllerBulkEditType::AddVariable);
+							if(Result.bCanceled)
 							{
 								return nullptr;
 							}
-							bSetupUndoRedo = false;
+							bSetupUndoRedo = Result.bSetupUndoRedo;
 						}
 					}
 				}
@@ -4022,11 +4023,12 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 						FRigVMControllerGraphGuard Guard(this, OuterFunction->GetContainedGraph(), false);
 						if(RequestBulkEditDialogDelegate.IsBound())
 						{
-							if(!RequestBulkEditDialogDelegate.Execute(OuterFunction, ERigVMControllerBulkEditType::RemoveVariable))
+							FRigVMController_BulkEditResult Result = RequestBulkEditDialogDelegate.Execute(OuterFunction, ERigVMControllerBulkEditType::RemoveVariable);
+							if(Result.bCanceled)
 							{
 								return false;
 							}
-							bSetupUndoRedo = false;
+							bSetupUndoRedo = Result.bSetupUndoRedo;
 						}
 					}
 				}
@@ -6472,11 +6474,12 @@ bool URigVMController::RemoveExposedPin(const FName& InPinName, bool bSetupUndoR
 	{
 		if(RequestBulkEditDialogDelegate.IsBound())
 		{
-			if(!RequestBulkEditDialogDelegate.Execute(LibraryNode, ERigVMControllerBulkEditType::RemoveExposedPin))
+			FRigVMController_BulkEditResult Result = RequestBulkEditDialogDelegate.Execute(LibraryNode, ERigVMControllerBulkEditType::RemoveExposedPin);
+			if(Result.bCanceled)
 			{
 				return false;
 			}
-			bSetupUndoRedo = false;
+			bSetupUndoRedo = Result.bSetupUndoRedo;
 		}
 	}
 
@@ -6551,11 +6554,12 @@ bool URigVMController::RenameExposedPin(const FName& InOldPinName, const FName& 
 	{
 		if(RequestBulkEditDialogDelegate.IsBound())
 		{
-			if(!RequestBulkEditDialogDelegate.Execute(LibraryNode, ERigVMControllerBulkEditType::RenameExposedPin))
+			FRigVMController_BulkEditResult Result = RequestBulkEditDialogDelegate.Execute(LibraryNode, ERigVMControllerBulkEditType::RenameExposedPin); 
+			if(Result.bCanceled)
 			{
 				return false;
 			}
-			bSetupUndoRedo = false;
+			bSetupUndoRedo = Result.bSetupUndoRedo;
 		}
 	}
 
@@ -6686,11 +6690,12 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
 	{
 		if(RequestBulkEditDialogDelegate.IsBound())
 		{
-			if(!RequestBulkEditDialogDelegate.Execute(LibraryNode, ERigVMControllerBulkEditType::ChangeExposedPinType))
+			const FRigVMController_BulkEditResult Result = RequestBulkEditDialogDelegate.Execute(LibraryNode, ERigVMControllerBulkEditType::ChangeExposedPinType); 
+			if(Result.bCanceled)
 			{
 				return false;
 			}
-			bSetupUndoRedo = false;
+			bSetupUndoRedo = Result.bSetupUndoRedo;
 		}
 	}
 

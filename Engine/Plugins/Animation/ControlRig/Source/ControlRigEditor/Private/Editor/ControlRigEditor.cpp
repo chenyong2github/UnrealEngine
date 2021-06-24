@@ -4255,13 +4255,13 @@ void FControlRigEditor::OnRequestLocalizeFunctionDialog(URigVMLibraryNode* InFun
 	}
 }
 
-bool FControlRigEditor::OnRequestBulkEditDialog(UControlRigBlueprint* InBlueprint, URigVMController* InController,
+FRigVMController_BulkEditResult FControlRigEditor::OnRequestBulkEditDialog(UControlRigBlueprint* InBlueprint, URigVMController* InController,
 	URigVMLibraryNode* InFunction, ERigVMControllerBulkEditType InEditType)
 {
 	const TArray<FAssetData> FirstLevelReferenceAssets = InController->GetAffectedAssets(InEditType, false, true);
 	if(FirstLevelReferenceAssets.Num() == 0)
 	{
-		return true;
+		return FRigVMController_BulkEditResult();
 	}
 	
 	TSharedRef<SControlRigFunctionBulkEditDialog> BulkEditDialog = SNew(SControlRigFunctionBulkEditDialog)
@@ -4269,8 +4269,11 @@ bool FControlRigEditor::OnRequestBulkEditDialog(UControlRigBlueprint* InBlueprin
 	.Controller(InController)
 	.Function(InFunction)
 	.EditType(InEditType);
-	
-	return BulkEditDialog->ShowModal() != EAppReturnType::Cancel;
+
+	FRigVMController_BulkEditResult Result;
+	Result.bCanceled = BulkEditDialog->ShowModal() == EAppReturnType::Cancel; 
+	Result.bSetupUndoRedo = false;
+	return Result;
 }
 
 void FControlRigEditor::UpdateDefaultValueForVariable(FBPVariableDescription& InVariable, bool bUseCDO)
