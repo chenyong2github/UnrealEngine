@@ -693,32 +693,39 @@ void FDatasmithImporterImpl::FinalizeComponents(FDatasmithImportContext& ImportC
 void FDatasmithImporterImpl::PublicizeSubObjects(UObject& SourceObject, UObject& DestinationObject, TMap< UObject*, UObject* >& ReferencesToRemap, TArray<uint8>& ReusableBuffer)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithImporterImpl::PublicizeSubObjects);
-	ForEachObjectWithOuter( &SourceObject, [&ReferencesToRemap, &ReusableBuffer, &DestinationObject](UObject* SourceSubObject)
+	TArray<UObject*> SourceSubObjects;
+	ForEachObjectWithOuter( &SourceObject, [&SourceSubObjects](UObject* SourceSubObject)
 		{
-			// We don't want to deal with components since this done in finalize components
-			if ( !SourceSubObject->IsA<UActorComponent>() && !SourceSubObject->HasAnyFlags( RF_Transient | RF_TextExportTransient | RF_DuplicateTransient | RF_BeginDestroyed | RF_FinishDestroyed ) )
-			{
-				UObject* DestinationSubObject = FindObjectFast<UObject>( &DestinationObject, SourceSubObject->GetFName() );
-
-				if ( !DestinationSubObject || DestinationSubObject->IsPendingKillOrUnreachable() || DestinationSubObject->GetClass() !=  SourceSubObject->GetClass() )
-				{
-					if ( DestinationSubObject )
-					{
-						// Move away the existing object.
-						DestinationSubObject->Rename( nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional );
-					}
-
-					DestinationSubObject = NewObject<UObject>( &DestinationObject, SourceSubObject->GetClass(), SourceSubObject->GetFName(), SourceSubObject->GetFlags() );
-				}
-
-				CopyObject( *SourceSubObject, *DestinationSubObject, ReusableBuffer );
-
-				ReferencesToRemap.Add( SourceSubObject, DestinationSubObject );
-
-				PublicizeSubObjects( *SourceSubObject, *DestinationSubObject, ReferencesToRemap, ReusableBuffer );
-			}
+			SourceSubObjects.Add(SourceSubObject);
 		}
 		, false );
+
+	for(UObject* SourceSubObject : SourceSubObjects)
+	{
+		// We don't want to deal with components since this done in finalize components
+		if ( !SourceSubObject->IsA<UActorComponent>() && !SourceSubObject->HasAnyFlags( RF_Transient | RF_TextExportTransient | RF_DuplicateTransient | RF_BeginDestroyed | RF_FinishDestroyed ) )
+		{
+			UObject* DestinationSubObject = FindObjectFast<UObject>( &DestinationObject, SourceSubObject->GetFName() );
+
+			if ( !DestinationSubObject || DestinationSubObject->IsPendingKillOrUnreachable() || DestinationSubObject->GetClass() !=  SourceSubObject->GetClass() )
+			{
+				if ( DestinationSubObject )
+				{
+					// Move away the existing object.
+					DestinationSubObject->Rename( nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional );
+				}
+
+				DestinationSubObject = NewObject<UObject>( &DestinationObject, SourceSubObject->GetClass(), SourceSubObject->GetFName(), SourceSubObject->GetFlags() );
+			}
+
+			CopyObject( *SourceSubObject, *DestinationSubObject, ReusableBuffer );
+
+			ReferencesToRemap.Add( SourceSubObject, DestinationSubObject );
+
+			PublicizeSubObjects( *SourceSubObject, *DestinationSubObject, ReferencesToRemap, ReusableBuffer );
+		}
+
+	}
 }
 
 void FDatasmithImporterImpl::CopyObject(UObject& Source, UObject& Destination, TArray<uint8>& TempBuffer)
