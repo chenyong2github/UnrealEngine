@@ -223,7 +223,7 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	}
 
 	// Check version and attempt to version up if out-of-date
-	if (VersionAsset())
+	if (VersionAsset(false /* bMarkDirty */))
 	{
 		const FMetasoundFrontendDocumentMetadata& Metadata = GetDocumentHandle()->GetMetadata();
 		UE_LOG(LogMetaSound, Display,

@@ -241,7 +241,7 @@ void FMetasoundAssetBase::ConformDocumentToArchetype()
 	}
 }
 
-bool FMetasoundAssetBase::VersionAsset()
+bool FMetasoundAssetBase::VersionAsset(bool bInMarkDirty)
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
@@ -266,7 +266,7 @@ bool FMetasoundAssetBase::VersionAsset()
 
 	const bool bDidUpdate = bDidUpdateDocumentVersion || bDidMatchRootGraphToArchetype;
 
-	if (bDidUpdate)
+	if (bInMarkDirty && bDidUpdate)
 	{
 		MarkMetasoundDocumentDirty();
 	}
