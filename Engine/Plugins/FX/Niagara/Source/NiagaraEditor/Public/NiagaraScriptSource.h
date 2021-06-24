@@ -19,11 +19,16 @@ class UNiagaraScriptSource : public UNiagaraScriptSourceBase
 	/** Graph for particle update expression */
 	UPROPERTY()
 	TObjectPtr<class UNiagaraGraph>	NodeGraph;
+
+	bool bIsCompilationCopy = false;
+	bool bIsReleased = false;
 	
 	// UObject interface
 	virtual void PostLoad() override;
 
 	UNiagaraScriptSource* CreateCompilationCopy();
+
+	void ReleaseCompilationCopy();
 
 	// UNiagaraScriptSourceBase interface.
 	//virtual ENiagaraScriptCompileStatus Compile(UNiagaraScript* ScriptOwner, FString& OutGraphLevelErrorMessages) override;
@@ -39,6 +44,8 @@ class UNiagaraScriptSource : public UNiagaraScriptSourceBase
 	virtual FNiagaraCompileHash GetCompileHash(ENiagaraScriptUsage InUsage, const FGuid& InUsageId) const override;
 
 	virtual void PostLoadFromEmitter(UNiagaraEmitter& OwningEmitter) override;
+
+	virtual TMap<FName, UNiagaraDataInterface*> ComputeObjectNameMap(FString EmitterUniqueName) const override;
 
 	NIAGARAEDITOR_API virtual bool AddModuleIfMissing(FString ModulePath, ENiagaraScriptUsage Usage, bool& bOutFoundModule)override;
 
