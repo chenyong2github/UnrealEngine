@@ -32,7 +32,8 @@ public class PoseSearch : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"AnimationCore"
+				"AnimationCore",
+				"TraceLog"
 			}
 		);
 
