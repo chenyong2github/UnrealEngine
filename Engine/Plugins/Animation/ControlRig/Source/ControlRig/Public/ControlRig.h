@@ -309,20 +309,6 @@ public:
 		}
 	}
 
-	/** Turn On Interact, MUST Call SetInteractOff*/
-	FORCEINLINE_DEBUGGABLE void SetInteractOn()
-	{
-		++InteractionBracket;
-		++InterRigSyncBracket;
-	}
-
-	/** Turn Off Interact, MUST Have Called SetInteractOn*/
-	FORCEINLINE_DEBUGGABLE void SetInteractOff()
-	{
-		--InteractionBracket;
-		--InterRigSyncBracket;
-	}
-
 	bool SetControlGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform, bool bNotify = true, const FRigControlModifiedContext& Context = FRigControlModifiedContext(), bool bSetupUndo = true);
 
 	virtual FRigControlValue GetControlValueFromGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform);
@@ -740,7 +726,7 @@ class CONTROLRIG_API FControlRigInteractionScope
 {
 public:
 
-	FORCEINLINE FControlRigInteractionScope(UControlRig* InControlRig)
+	FORCEINLINE_DEBUGGABLE FControlRigInteractionScope(UControlRig* InControlRig)
 		: ControlRig(InControlRig)
 		, InteractionBracketScope(InControlRig->InteractionBracket)
 		, SyncBracketScope(InControlRig->InterRigSyncBracket)
@@ -748,9 +734,9 @@ public:
 		InControlRig->GetHierarchy()->StartInteraction();
 	}
 
-	FORCEINLINE ~FControlRigInteractionScope()
+	FORCEINLINE_DEBUGGABLE ~FControlRigInteractionScope()
 	{
-		if(ControlRig.IsValid())
+		if(ensure(ControlRig.IsValid()))
 		{
 			ControlRig->GetHierarchy()->EndInteraction();
 		}

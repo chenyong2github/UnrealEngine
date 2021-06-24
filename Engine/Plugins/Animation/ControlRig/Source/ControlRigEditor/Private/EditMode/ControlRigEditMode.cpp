@@ -836,7 +836,15 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 				if (GizmoActor->IsSelectable())
 				{
 					FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), IsInLevelEditor() && !GIsTransacting);
-						
+
+					// temporarily disable the interaction scope
+					const bool bInteractionScopePresent = InteractionScope != nullptr; 
+					if (bInteractionScopePresent)
+					{
+						delete InteractionScope;
+						InteractionScope = nullptr;
+					}
+					
 					const FName& ControlName = GizmoActor->ControlName;
 					if (Click.IsShiftDown()) //guess we just select
 					{
@@ -856,7 +864,15 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 						ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::Control));
 						SetRigElementSelection(ERigElementType::Control, ControlName, true);
 					}
-	
+
+					if (bInteractionScopePresent)
+					{
+						if(UControlRig* ControlRig = GetControlRig(true))
+						{
+							InteractionScope = new FControlRigInteractionScope(ControlRig);
+						}
+					}
+
 					// for now we show this menu all the time if body is selected
 					// if we want some global menu, we'll have to move this
 					if (Click.GetKey() == EKeys::RightMouseButton)
