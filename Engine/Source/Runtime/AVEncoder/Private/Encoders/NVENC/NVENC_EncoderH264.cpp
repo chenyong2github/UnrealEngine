@@ -46,6 +46,23 @@ namespace
 		case AVEncoder::FVideoEncoder::MultipassMode::FULL: return NV_ENC_TWO_PASS_FULL_RESOLUTION;
 		}
 	}
+
+	GUID ConvertH264Profile(AVEncoder::FVideoEncoder::H264Profile profile)
+	{
+		switch (profile)
+		{
+		default:
+		case AVEncoder::FVideoEncoder::H264Profile::AUTO: return NV_ENC_CODEC_PROFILE_AUTOSELECT_GUID;
+		case AVEncoder::FVideoEncoder::H264Profile::BASELINE: return NV_ENC_H264_PROFILE_BASELINE_GUID;
+		case AVEncoder::FVideoEncoder::H264Profile::MAIN: return NV_ENC_H264_PROFILE_MAIN_GUID;
+		case AVEncoder::FVideoEncoder::H264Profile::HIGH: return NV_ENC_H264_PROFILE_HIGH_GUID;
+		case AVEncoder::FVideoEncoder::H264Profile::HIGH444: return NV_ENC_H264_PROFILE_HIGH_444_GUID;
+		case AVEncoder::FVideoEncoder::H264Profile::STEREO: return NV_ENC_H264_PROFILE_STEREO_GUID;
+		case AVEncoder::FVideoEncoder::H264Profile::SVC_TEMPORAL_SCALABILITY: return NV_ENC_H264_PROFILE_SVC_TEMPORAL_SCALABILTY;
+		case AVEncoder::FVideoEncoder::H264Profile::PROGRESSIVE_HIGH: return NV_ENC_H264_PROFILE_PROGRESSIVE_HIGH_GUID;
+		case AVEncoder::FVideoEncoder::H264Profile::CONSTRAINED_HIGH: return NV_ENC_H264_PROFILE_CONSTRAINED_HIGH_GUID;
+		}
+	}
 }
 
 namespace AVEncoder
@@ -412,7 +429,7 @@ namespace AVEncoder
         
 		// copy the preset config to our config
         FMemory::Memcpy(&EncoderConfig, &PresetConfig.presetCfg, sizeof(NV_ENC_CONFIG));
-		EncoderConfig.profileGUID = NV_ENC_H264_PROFILE_BASELINE_GUID;
+		EncoderConfig.profileGUID = ConvertH264Profile(CurrentConfig.H264Profile);
 		EncoderConfig.rcParams.version = NV_ENC_RC_PARAMS_VER;
 		EncoderInitParams.encodeConfig = &EncoderConfig;
 
@@ -498,6 +515,8 @@ namespace AVEncoder
 		rateContolParams.maxQP = { maxqp, maxqp, maxqp };
 		rateContolParams.enableMinQP = CurrentConfig.QPMin > -1;
 		rateContolParams.enableMaxQP = CurrentConfig.QPMax > -1;
+
+		EncoderInitParams.encodeConfig->profileGUID = ConvertH264Profile(CurrentConfig.H264Profile);
 
 		auto& h264Config = EncoderInitParams.encodeConfig->encodeCodecConfig.h264Config;
 		h264Config.enableFillerDataInsertion = CurrentConfig.FillData ? 1 : 0;

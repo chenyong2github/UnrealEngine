@@ -25,6 +25,7 @@ namespace PixelStreamingSettings
 	extern TAutoConsoleVariable<FString> CVarPixelStreamingEncoderRateControl;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingEnableFillerData;
 	extern TAutoConsoleVariable<FString> CVarPixelStreamingEncoderMultipass;
+	extern TAutoConsoleVariable<FString> CVarPixelStreamingH264Profile;
 // End Encoder CVars
 
 // Begin Capturer CVars
@@ -50,6 +51,7 @@ namespace PixelStreamingSettings
 	AVEncoder::FVideoEncoder::RateControlMode GetRateControlCVar();
 	AVEncoder::FVideoEncoder::MultipassMode GetMultipassCVar();
 	webrtc::DegradationPreference GetDegradationPreference();
+	AVEncoder::FVideoEncoder::H264Profile GetH264Profile();
 // End utility functions etc.
 
 // Begin Command line args

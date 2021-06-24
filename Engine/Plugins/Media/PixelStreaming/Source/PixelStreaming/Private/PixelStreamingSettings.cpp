@@ -56,6 +56,11 @@ namespace PixelStreamingSettings
 		TEXT("PixelStreaming encoder multipass. Supported modes are `DISABLED`, `QUARTER`, `FULL`"),
 		ECVF_Default);
 
+	TAutoConsoleVariable<FString> CVarPixelStreamingH264Profile(
+		TEXT("PixelStreaming.Encoder.H264Profile"),
+		TEXT("BASELINE"),
+		TEXT("PixelStreaming encoder profile. Supported modes are `AUTO`, `BASELINE`, `MAIN`, `HIGH`, `HIGH444`, `STEREO`, `SVC_TEMPORAL_SCALABILITY`, `PROGRESSIVE_HIGH`, `CONSTRAINED_HIGH`"),
+		ECVF_Default);
 // End Encoder CVars
 
 // Begin Capturer CVars
@@ -144,6 +149,18 @@ namespace PixelStreamingSettings
 		{"FULL", AVEncoder::FVideoEncoder::MultipassMode::FULL },
 	};
 
+	std::map<FString, AVEncoder::FVideoEncoder::H264Profile> const H264ProfileMap{
+		{"AUTO", AVEncoder::FVideoEncoder::H264Profile::AUTO},
+		{"BASELINE", AVEncoder::FVideoEncoder::H264Profile::BASELINE},
+		{"MAIN", AVEncoder::FVideoEncoder::H264Profile::MAIN},
+		{"HIGH", AVEncoder::FVideoEncoder::H264Profile::HIGH},
+		{"HIGH444", AVEncoder::FVideoEncoder::H264Profile::HIGH444},
+		{"STEREO", AVEncoder::FVideoEncoder::H264Profile::STEREO},
+		{"SVC_TEMPORAL_SCALABILITY", AVEncoder::FVideoEncoder::H264Profile::SVC_TEMPORAL_SCALABILITY},
+		{"PROGRESSIVE_HIGH", AVEncoder::FVideoEncoder::H264Profile::PROGRESSIVE_HIGH},
+		{"CONSTRAINED_HIGH", AVEncoder::FVideoEncoder::H264Profile::CONSTRAINED_HIGH},
+	};
+
 	AVEncoder::FVideoEncoder::RateControlMode GetRateControlCVar()
 	{
 		auto const cvarStr = CVarPixelStreamingEncoderRateControl.GetValueOnAnyThread();
@@ -175,6 +192,15 @@ namespace PixelStreamingSettings
 		}
 		// Everything else, return balanced.
 		return webrtc::DegradationPreference::BALANCED;
+	}
+
+	AVEncoder::FVideoEncoder::H264Profile GetH264Profile()
+	{
+		auto const cvarStr = CVarPixelStreamingH264Profile.GetValueOnAnyThread();
+		auto const it = H264ProfileMap.find(cvarStr);
+		if (it == std::end(H264ProfileMap))
+			return AVEncoder::FVideoEncoder::H264Profile::BASELINE;
+		return it->second;
 	}
 // End utility functions etc.
 
@@ -212,6 +238,7 @@ UPixelStreamingSettings::UPixelStreamingSettings(const FObjectInitializer& Objec
 	CommandLineParseValue(TEXT("PixelStreamingEncoderRateControl="), PixelStreamingSettings::CVarPixelStreamingEncoderRateControl);
 	CommandLineParseOption(TEXT("PixelStreamingEnableFillerData"), PixelStreamingSettings::CVarPixelStreamingEnableFillerData);
 	CommandLineParseValue(TEXT("PixelStreamingEncoderMultipass="), PixelStreamingSettings::CVarPixelStreamingEncoderMultipass);
+	CommandLineParseValue(TEXT("PixelStreamingH264Profile="), PixelStreamingSettings::CVarPixelStreamingH264Profile);
 
 	CommandLineParseValue(TEXT("PixelStreamingUseBackBufferCaptureSize="), PixelStreamingSettings::CVarPixelStreamingUseBackBufferCaptureSize);
 	CommandLineParseValue(TEXT("PixelStreamingCaptureSize="), PixelStreamingSettings::CVarPixelStreamingCaptureSize);

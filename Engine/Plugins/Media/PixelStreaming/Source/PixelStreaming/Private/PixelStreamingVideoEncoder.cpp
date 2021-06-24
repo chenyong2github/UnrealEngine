@@ -118,6 +118,7 @@ int32 FPixelStreamingVideoEncoder::Encode(webrtc::VideoFrame const& frame, std::
 	const AVEncoder::FVideoEncoder::RateControlMode RateControlCVar 	= PixelStreamingSettings::GetRateControlCVar();
 	const AVEncoder::FVideoEncoder::MultipassMode MultiPassCVar 		= PixelStreamingSettings::GetMultipassCVar();
 	const bool FillerDataCVar 											= PixelStreamingSettings::CVarPixelStreamingEnableFillerData.GetValueOnRenderThread();
+	const AVEncoder::FVideoEncoder::H264Profile H264Profile				= PixelStreamingSettings::GetH264Profile();
 
 	AVEncoder::FVideoEncoder::FLayerConfig NewConfig = EncoderConfig;
 	NewConfig.MaxBitrate = MaxBitrateCVar > -1 ? MaxBitrateCVar : NewConfig.MaxBitrate;
@@ -127,6 +128,7 @@ int32 FPixelStreamingVideoEncoder::Encode(webrtc::VideoFrame const& frame, std::
 	NewConfig.RateControlMode = RateControlCVar;
 	NewConfig.MultipassMode = MultiPassCVar;
 	NewConfig.FillData = FillerDataCVar;
+	NewConfig.H264Profile = H264Profile;
 
 	if (NewConfig != EncoderConfig)
 	{

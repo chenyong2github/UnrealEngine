@@ -14,6 +14,7 @@ namespace AVEncoder
     public:
         enum class RateControlMode { UNKNOWN, CONSTQP, VBR, CBR };
         enum class MultipassMode { UNKNOWN, DISABLED, QUARTER, FULL };
+		enum class H264Profile { AUTO, BASELINE, MAIN, HIGH, HIGH444, STEREO, SVC_TEMPORAL_SCALABILITY, PROGRESSIVE_HIGH, CONSTRAINED_HIGH };
 
         struct FLayerConfig
         {
@@ -27,6 +28,7 @@ namespace AVEncoder
             RateControlMode RateControlMode = RateControlMode::CBR;
             MultipassMode	MultipassMode = MultipassMode::FULL;
             bool			FillData = false;
+			H264Profile		H264Profile = H264Profile::BASELINE;
 
 			bool operator==(FLayerConfig const& other) const
 			{
@@ -39,7 +41,8 @@ namespace AVEncoder
 					&& QPMin == other.QPMin
 					&& RateControlMode == other.RateControlMode
 					&& MultipassMode == other.MultipassMode
-					&& FillData == other.FillData;
+					&& FillData == other.FillData
+					&& H264Profile == other.H264Profile;
 			}
 
 			bool operator!=(FLayerConfig const& other) const
