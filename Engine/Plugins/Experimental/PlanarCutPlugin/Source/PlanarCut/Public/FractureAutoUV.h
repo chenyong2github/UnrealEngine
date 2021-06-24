@@ -59,6 +59,7 @@ struct FTextureAttributeSettings
 	double Curvature_BlurRadius = 2.5;
 	double Curvature_ThicknessFactor = 3.0; // distance to search for mesh correspondence, as a factor of voxel size
 	double Curvature_MaxValue = .1; // curvatures above this value will be clamped
+	int ClearGutterChannel = -1; // don't copy gutter values for this channel, if specified -- useful for visualizing the UV island borders
 	
 	bool bNormalZ_TakeAbs = true;
 };

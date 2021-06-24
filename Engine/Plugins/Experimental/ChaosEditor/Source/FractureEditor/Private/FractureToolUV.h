@@ -76,8 +76,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = MapSettings)
 	EAutoUVTextureResolution Resolution = EAutoUVTextureResolution::Resolution512;
 
-	/** Space to leave between UV islands, measured in texels */
-	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (ClampMin = "1", ClampMax = "10", UIMax = "4"))
+	/** Approximate space to leave between UV islands, measured in texels */
+	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (ClampMin = "1", ClampMax = "10", UIMax = "6"))
 	int32 GutterSize = 2;
 
 	/** The resulting automatically-generated texture map */
@@ -118,10 +118,6 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, Category = AttributesToBake, meta = (EditCondition = "BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes", EditConditionHides))
 	bool bSmoothedCurvature = true;
-
-	/** Bake the Z-component of the normal to a texture channel (alpha) */
-	UPROPERTY(EditAnywhere, Category = AttributesToBake, meta = (EditCondition = "BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes", EditConditionHides))
-	bool bZNormal = true;
 
 	/** Max distance to search for the outer mesh surface */
 	UPROPERTY(EditAnywhere, Category = DistToOuterSettings, meta = (EditCondition = "BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes && bDistToOuter", EditConditionHides, UIMin = "1", UIMax = "100", ClampMin = ".01", ClampMax = "1000"))
