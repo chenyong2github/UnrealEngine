@@ -251,6 +251,9 @@ void UControlRigGraphNode::RewireOldPinsToNewPins(TArray<UEdGraphPin*>& InOldPin
 		{
 			if(OldPin->PinName == NewPin->PinName && OldPin->PinType == NewPin->PinType && OldPin->Direction == NewPin->Direction)
 			{
+				// make sure to remove invalid entries from the linked to list
+				OldPin->LinkedTo.Remove(nullptr);
+				
 				NewPin->MovePersistentDataFromOldPin(*OldPin);
 				break;
 			}

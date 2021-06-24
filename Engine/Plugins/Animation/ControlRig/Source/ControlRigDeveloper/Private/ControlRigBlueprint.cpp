@@ -3430,14 +3430,20 @@ void UControlRigBlueprint::OnVariableTypeChanged(const FName& InVarName, FEdGrap
 	{
 		if (URigVMController* Controller = GetOrCreateController(Graph))
 		{
+#if WITH_EDITOR
+			const bool bSetupUndoRedo = !GIsTransacting;
+#else
+			const bool bSetupUndoRedo = false;
+#endif
+
 			FRigVMExternalVariable NewVariable = UControlRig::GetExternalVariableFromPinType(InVarName, InNewPinType);
 			if (NewVariable.IsValid(true)) // allow nullptr
 			{
-				Controller->OnExternalVariableTypeChanged(InVarName, NewVariable.TypeName.ToString(), NewVariable.TypeObject, true);
+				Controller->OnExternalVariableTypeChanged(InVarName, NewVariable.TypeName.ToString(), NewVariable.TypeObject, bSetupUndoRedo);
 			}
 			else
 			{
-				Controller->OnExternalVariableRemoved(InVarName, true);
+				Controller->OnExternalVariableRemoved(InVarName, bSetupUndoRedo);
 			}
 		}
 	}

@@ -523,29 +523,8 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 								SourceRigPin->BreakLinkTo(TargetRigPin);
 							}
 
-							for (int32 LinkedPinIndex = 0; LinkedPinIndex < SourceRigPin->LinkedTo.Num();)
-							{
-								if (SourceRigPin->LinkedTo[LinkedPinIndex])
-								{
-									++LinkedPinIndex;
-								}
-								else
-								{
-									SourceRigPin->LinkedTo.RemoveAtSwap(LinkedPinIndex);
-								}
-							}
-
-							for (int32 LinkedPinIndex = 0; LinkedPinIndex < TargetRigPin->LinkedTo.Num();)
-							{
-								if (TargetRigPin->LinkedTo[LinkedPinIndex])
-								{
-									++LinkedPinIndex;
-								}
-								else
-								{
-									TargetRigPin->LinkedTo.RemoveAtSwap(LinkedPinIndex);
-								}
-							}
+							SourceRigPin->LinkedTo.Remove(nullptr);
+							TargetRigPin->LinkedTo.Remove(nullptr);
 						}
 					}
 				}

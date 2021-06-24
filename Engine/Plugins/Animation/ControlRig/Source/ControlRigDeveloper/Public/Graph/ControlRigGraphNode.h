@@ -79,6 +79,11 @@ public:
 
 	UControlRigGraphNode();
 
+	// UObject Interface.
+#if WITH_EDITOR
+	virtual bool Modify( bool bAlwaysMarkDirty=true ) { return false; }
+#endif
+	
 	// UEdGraphNode Interface.
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FLinearColor GetNodeTitleColor() const override;

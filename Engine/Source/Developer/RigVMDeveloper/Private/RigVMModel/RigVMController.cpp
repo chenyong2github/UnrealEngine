@@ -1108,7 +1108,7 @@ void URigVMController::OnExternalVariableRenamed(const FName& InOldVarName, cons
 			{
 				if (VariablePin->GetDefaultValue() == VarNameStr)
 				{
-					RefreshVariableNode(Node->GetFName(), InNewVarName, FString(), nullptr, bSetupUndoRedo);
+					RefreshVariableNode(Node->GetFName(), InNewVarName, FString(), nullptr, bSetupUndoRedo, false);
 					continue;
 				}
 			}
@@ -1198,7 +1198,7 @@ void URigVMController::OnExternalVariableTypeChanged(const FName& InVarName, con
 			{
 				if (VariablePin->GetDefaultValue() == VarNameStr)
 				{
-					RefreshVariableNode(Node->GetFName(), InVarName, InCPPType, InCPPTypeObject, bSetupUndoRedo);
+					RefreshVariableNode(Node->GetFName(), InVarName, InCPPType, InCPPTypeObject, bSetupUndoRedo, false);
 					continue;
 				}
 			}
@@ -7368,7 +7368,7 @@ bool URigVMController::SetLocalVariableType(const FName& InVariableName, const F
 			{
 				if (VariablePin->GetDefaultValue() == InVariableName.ToString())
 				{
-					RefreshVariableNode(Node->GetFName(), InVariableName, InCPPType, InCPPTypeObject, bSetupUndoRedo);
+					RefreshVariableNode(Node->GetFName(), InVariableName, InCPPType, InCPPTypeObject, bSetupUndoRedo, false);
 					continue;
 				}
 			}
