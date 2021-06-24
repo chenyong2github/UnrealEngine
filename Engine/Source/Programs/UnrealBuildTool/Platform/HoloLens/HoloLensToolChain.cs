@@ -704,6 +704,12 @@ namespace UnrealBuildTool
 						CompileAction.ProducedItems.Add(CompileAction.DependencyListFile);
 						CompileAction.CommandArguments = string.Join(" ", CompileAction.CommandArguments, "/sourceDependencies", $"\"{CompileAction.DependencyListFile.AbsolutePath}\"");
 					}
+					else if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
+					{
+						CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.d", SourceFile.Location.GetFileName())));
+						CompileAction.ProducedItems.Add(CompileAction.DependencyListFile);
+						CompileAction.CommandArguments = string.Join(" ", CompileAction.CommandArguments, "/clang:-MD", $"/clang:-MF\"{CompileAction.DependencyListFile.AbsolutePath}\"");
+					}
 					else
 					{
 						List<string> CommandArguments = new List<string>();
