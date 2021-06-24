@@ -771,33 +771,11 @@ TWeakPtr<FRemoteControlProperty> URemoteControlPreset::ExposeProperty(UObject* O
 		DesiredName = *FString::Printf(TEXT("%s (%s)"), *FieldName, *ObjectName);
 	}
 
-#if WITH_EDITOR
-	// Enable property if it has an edit condition.	
-	const FString EditConditionPropertyName = Property->GetMetaData("EditCondition");
-	if (!EditConditionPropertyName.IsEmpty())
-	{
-		FRCFieldPathInfo EditConditionPropertyPath = FieldPath;
-		EditConditionPropertyPath.Segments.Pop();
-		EditConditionPropertyPath.Segments.Emplace(EditConditionPropertyName);
-		if (EditConditionPropertyPath.Resolve(Object))
-		{
-			FRCFieldResolvedData Data = EditConditionPropertyPath.GetResolvedData();
-			if (ensure(Data.IsValid() && Data.Field->IsA(FBoolProperty::StaticClass())))
-			{
-				if (!Data.Field->HasAnyPropertyFlags(CPF_EditConst))
-				{
-					const FScopedTransaction Transaction(FText::Format(LOCTEXT("SetEditConditionState", "Set {0} edit condition state "), FText::FromString(FieldName)));
-					Object->Modify();
-					CastFieldChecked<FBoolProperty>(Data.Field)->SetPropertyValue_InContainer(Data.ContainerAddress, true);
-				}
-			}
-		}			
-	}
-#endif
-
 	FRemoteControlProperty RCProperty{ this, Registry->GenerateUniqueLabel(DesiredName), MoveTemp(FieldPath), { FindOrAddBinding(Object) } };
 
 	TSharedPtr<FRemoteControlProperty> RCPropertyPtr = StaticCastSharedPtr<FRemoteControlProperty>(Expose(MoveTemp(RCProperty), FRemoteControlProperty::StaticStruct(), Args.GroupId));
+
+	RCPropertyPtr->EnableEditCondition();
 
 	if (PropertyShouldBeWatched(RCPropertyPtr))
 	{

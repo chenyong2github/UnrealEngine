@@ -914,6 +914,8 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 		WebSocketHandler->NotifyPropertyChangedRemotely(ActingClientId, *Args.PresetName, RemoteControlProperty->GetId());
 	}
 
+	RemoteControlProperty->EnableEditCondition();
+
 	for (UObject* Object : RemoteControlProperty->GetBoundObjects())
 	{
 		IRemoteControlModule::Get().ResolveObjectProperty(ObjectRef.Access, Object, RemoteControlProperty->FieldPathInfo.ToString(), ObjectRef);

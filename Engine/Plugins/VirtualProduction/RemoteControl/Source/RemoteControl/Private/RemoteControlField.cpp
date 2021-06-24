@@ -195,6 +195,47 @@ TSharedPtr<IRemoteControlPropertyHandle> FRemoteControlProperty::GetPropertyHand
 	return FRemoteControlPropertyHandle::GetPropertyHandle(ThisPtr, Property, ParentProperty, ParentFieldPath, ArrayIndex);
 }
 
+void FRemoteControlProperty::EnableEditCondition()
+{
+#if WITH_EDITOR
+	if (FProperty* Property = GetProperty())
+	{
+		FRCFieldPathInfo EditConditionPath;
+
+		if (CachedEditConditionPath.GetSegmentCount())
+		{
+			EditConditionPath = CachedEditConditionPath;
+		}
+		else
+		{
+			const FString EditConditionPropertyName = Property->GetMetaData("EditCondition");
+			if (!EditConditionPropertyName.IsEmpty())
+			{
+				EditConditionPath = FieldPathInfo;
+				EditConditionPath.Segments.Pop();
+				EditConditionPath.Segments.Emplace(EditConditionPropertyName);
+				CachedEditConditionPath = EditConditionPath;
+			}
+		}
+
+		for (UObject* Object : GetBoundObjects())
+		{
+			if (EditConditionPath.Resolve(Object))
+			{
+				FRCFieldResolvedData Data = EditConditionPath.GetResolvedData();
+				if (ensure(Data.IsValid() && Data.Field->IsA(FBoolProperty::StaticClass())))
+				{
+					if (!Data.Field->HasAnyPropertyFlags(CPF_EditConst))
+					{
+						CastFieldChecked<FBoolProperty>(Data.Field)->SetPropertyValue_InContainer(Data.ContainerAddress, true);
+					}
+				}
+			}
+		}
+	}
+#endif
+}
+
 bool FRemoteControlProperty::IsEditableInPackaged() const
 {
 	return bIsEditableInPackaged || IRemoteControlModule::Get().PropertySupportsRawModificationWithoutEditor(GetProperty());

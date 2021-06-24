@@ -139,6 +139,11 @@ public:
 	 * @return The property handle for exposed property.
 	 */
 	TSharedPtr<IRemoteControlPropertyHandle> GetPropertyHandle() const;
+
+	/**
+	 * Enable the edit condition for the underlying property on the owner objects.
+	 */
+	void EnableEditCondition();
 	
 	/** Returns whether the property is editable in a packaged build. */
 	bool IsEditableInPackaged() const;
@@ -160,6 +165,12 @@ private:
 	/** Whether the property is blueprint read only. */
 	UPROPERTY()
 	bool bIsEditableInPackaged = false;
+
+#if WITH_EDITOR
+	/** Cached edit condition path used to enable the exposed property's edit condition. */
+	FRCFieldPathInfo CachedEditConditionPath;
+#endif
+	
 };
 
 /**
