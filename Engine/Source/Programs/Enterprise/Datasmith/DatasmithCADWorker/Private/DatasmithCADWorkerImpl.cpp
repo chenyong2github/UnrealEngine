@@ -120,11 +120,12 @@ void FDatasmithCADWorkerImpl::ProcessCommand(const FImportParametersCommand& Imp
 	ImportParameters = ImportParametersCommand.ImportParameters;
 }
 
-uint64 DefineMaximumAllowedDuration(const CADLibrary::FFileDescription& FileDescription)
+uint64 DefineMaximumAllowedDuration(const CADLibrary::FFileDescription& FileDescription, CADLibrary::FImportParameters ImportParameters)
 {
 	FFileStatData FileStatData = IFileManager::Get().GetStatData(*FileDescription.Path);
 	double MaxTimePerMb = 5e-6;
-	double SafetyCoeficient = 5;
+	double SafetyCoeficient = (ImportParameters.StitchingTechnique == CADLibrary::EStitchingTechnique::StitchingNone) ? 5 : 15;
+	uint64 MinMaximumAllowedDuration = (ImportParameters.StitchingTechnique == CADLibrary::EStitchingTechnique::StitchingNone) ? 30 : 90;
 	
 	if (FileDescription.Extension.StartsWith(TEXT("sld"))) // SW
 	{
@@ -144,7 +145,7 @@ uint64 DefineMaximumAllowedDuration(const CADLibrary::FFileDescription& FileDesc
 	}
 
 	uint64 MaximumDuration = ((double)FileStatData.FileSize) * MaxTimePerMb * SafetyCoeficient;
-	return FMath::Max(MaximumDuration, (uint64) 30);
+	return FMath::Max(MaximumDuration, MinMaximumAllowedDuration);
 }
 
 
@@ -156,7 +157,8 @@ void FDatasmithCADWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComma
 	FCompletedTaskCommand CompletedTask;
 
 	bProcessIsRunning = true;
-	int64 MaxDuration = DefineMaximumAllowedDuration(FileToProcess);
+	int64 MaxDuration = DefineMaximumAllowedDuration(FileToProcess, ImportParameters);
+
 	FThread TimeCheckerThread = FThread(TEXT("TimeCheckerThread"), [&]() { CheckDuration(FileToProcess, MaxDuration); });
 
 	CADLibrary::FCoreTechFileParser FileParser(ImportParameters, EnginePluginsPath, CachePath);
