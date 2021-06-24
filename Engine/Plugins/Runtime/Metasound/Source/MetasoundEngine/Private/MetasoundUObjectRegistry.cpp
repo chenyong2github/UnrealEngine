@@ -159,7 +159,7 @@ void UMetaSoundAssetSubsystem::AddOrUpdateAsset(const FAssetData& InAssetData)
 			// Must version to ensure registration uses the correct key,
 			// which must be based off of most up-to-date document model
 			// for safety.
-			MetaSoundAsset->VersionAsset();
+			MetaSoundAsset->VersionAsset(false /* bMarkDirty */);
 
 			MetaSoundAsset->RegisterGraphWithFrontend();
 		}

@@ -121,7 +121,7 @@ public:
 	// This must be called on UObject::PostLoad, as well as in this asset's UFactory, to fix up the root document based on the most recent version of the archetype.
 	void ConformDocumentToArchetype();
 
-	bool VersionAsset();
+	bool VersionAsset(bool bInMarkDirty = true);
 
 	// Calls the outermost package and marks it dirty. 
 	bool MarkMetasoundDocumentDirty() const;
