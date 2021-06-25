@@ -52,7 +52,7 @@ void FSessionInstanceInfo::UpdateFromMessage(const FSessionServicePong& Message,
 
 	if (MessageEndpoint.IsValid() && (ApplicationAddress != Context->GetSender()))
 	{
-		MessageEndpoint->Send(new FSessionServiceLogSubscribe(), Context->GetSender());
+		MessageEndpoint->Send(FMessageEndpoint::MakeMessage<FSessionServiceLogSubscribe>(), Context->GetSender());
 	}
 
 	Authorized = Message.Authorized;
