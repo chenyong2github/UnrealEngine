@@ -2682,6 +2682,11 @@ void FSequencer::SetSelectionRangeStart()
 
 void FSequencer::SelectInSelectionRange(const TSharedRef<FSequencerDisplayNode>& DisplayNode, const TRange<FFrameNumber>& SelectionRange, bool bSelectKeys, bool bSelectSections)
 {
+	if (DisplayNode->IsHidden())
+	{
+		return;
+	}
+
 	if (bSelectKeys)
 	{
 		TArray<FKeyHandle> HandlesScratch;

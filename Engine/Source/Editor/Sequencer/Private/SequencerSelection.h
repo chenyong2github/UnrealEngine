@@ -68,7 +68,7 @@ public:
 	void RemoveFromNodesWithSelectedKeysOrSections(TSharedRef<FSequencerDisplayNode> OutlinerNode);
 
 	/** Removes any outliner nodes from the selection that do not relate to the given section */
-	void EmptySelectedOutlinerNodesWithoutSection(UMovieSceneSection* Section);
+	void EmptySelectedOutlinerNodesWithoutSections(const TArray<UMovieSceneSection*>& Sections);
 
 	/** Returns whether or not the key is selected. */
 	bool IsSelected(const FSequencerSelectedKey& Key) const;
@@ -158,4 +158,7 @@ private:
 
 	/** When true there is a pending outliner node selection change which will be broadcast next tick. */
 	bool bOutlinerNodeSelectionChangedBroadcastPending;
+
+	/** When true there is a pending call to remove selected outliner nodes that don't have sections selected. */
+	bool bEmptySelectedOutlinerNodesWithSectionsPending;
 };

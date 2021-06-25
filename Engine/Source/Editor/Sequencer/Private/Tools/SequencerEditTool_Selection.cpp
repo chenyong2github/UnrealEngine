@@ -122,6 +122,7 @@ public:
 			PreviewState = ESelectionPreviewState::Selected;
 
 			// @todo: selection in transactions
+			Sequencer.GetSelection().SuspendBroadcast();
 			Sequencer.GetSelection().Empty();
 		}
 	}
@@ -207,8 +208,6 @@ public:
 		// finish dragging the marquee selection
 		auto& Selection = Sequencer.GetSelection();
 		auto& SelectionPreview = Sequencer.GetSelectionPreview();
-
-		Selection.SuspendBroadcast();
 
 		// Patch everything from the selection preview into the actual selection
 		for (const auto& Pair : SelectionPreview.GetDefinedKeyStates())
