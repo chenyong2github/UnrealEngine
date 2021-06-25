@@ -47,13 +47,13 @@ void FRemoveOccludedTrianglesOp::CalculateResult(FProgressCancel* Progress)
 			return FIndex2i::Invalid();
 		}
 
-		auto SetGroup = [](UE::Geometry::FPolygroupSet& ActiveGroupSet, const TArray<int>& SelectedTris)
+		auto SetGroup = [](FDynamicMesh3& WriteMesh, UE::Geometry::FPolygroupSet& ActiveGroupSet, const TArray<int>& SelectedTris)
 		{
 			int32 JacketGroupID = ActiveGroupSet.AllocateNewGroupID();
 
 			for (int TID : SelectedTris)
 			{
-				ActiveGroupSet.SetGroup(TID, JacketGroupID);
+				ActiveGroupSet.SetGroup(TID, JacketGroupID, WriteMesh);
 			}
 
 			return FIndex2i(JacketGroupID, ActiveGroupSet.GroupLayerIndex);
@@ -62,12 +62,12 @@ void FRemoveOccludedTrianglesOp::CalculateResult(FProgressCancel* Progress)
 		if (!bActiveGroupIsDefault)
 		{
 			UE::Geometry::FPolygroupSet ActiveGroupSet(&Mesh, LayerName);
-			return SetGroup(ActiveGroupSet, SelectedTris);
+			return SetGroup(Mesh, ActiveGroupSet, SelectedTris);
 		}
 		else
 		{
 			UE::Geometry::FPolygroupSet ActiveGroupSet(&Mesh);
-			return SetGroup(ActiveGroupSet, SelectedTris);
+			return SetGroup(Mesh, ActiveGroupSet, SelectedTris);
 		}
 	};
 

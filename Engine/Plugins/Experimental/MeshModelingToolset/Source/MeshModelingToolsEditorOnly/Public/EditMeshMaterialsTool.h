@@ -28,9 +28,18 @@ class MESHMODELINGTOOLSEDITORONLY_API UEditMeshMaterialsToolProperties : public 
 {
 	GENERATED_BODY()
 public:
+	/** */
+	UPROPERTY(EditAnywhere, Category = Materials, meta = (TransientToolProperty, DisplayName = "Active Material", GetOptions = GetMaterialNamesFunc, NoResetToDefault))
+	FString ActiveMaterial;
 
-	UPROPERTY(EditAnywhere, Category = Materials, meta = (ArrayClamp = "Materials"))
-	int SelectedMaterial = 0;
+	UFUNCTION()
+	const TArray<FString>& GetMaterialNamesFunc() { return MaterialNamesList; }
+
+	UPROPERTY(meta = (TransientToolProperty))
+	TArray<FString> MaterialNamesList;
+
+	void UpdateFromMaterialsList();
+	int32 GetSelectedMaterialIndex() const;
 
 	UPROPERTY(EditAnywhere, Category=Materials)
 	TArray<UMaterialInterface*> Materials;
@@ -55,8 +64,8 @@ class MESHMODELINGTOOLSEDITORONLY_API UEditMeshMaterialsEditActions : public UMe
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(CallInEditor, Category = MaterialEdits, meta = (DisplayName = "Assign Selected Material", DisplayPriority = 1))
-	void AssignSelectedMaterial()
+	UFUNCTION(CallInEditor, Category = MaterialEdits, meta = (DisplayName = "Assign Active Material", DisplayPriority = 1))
+	void AssignActiveMaterial()
 	{
 		PostMaterialAction(EEditMeshMaterialsToolActions::AssignMaterial);
 	}
@@ -82,8 +91,6 @@ public:
 	virtual void OnTick(float DeltaTime) override;
 
 	virtual bool CanAccept() const override { return UMeshSelectionTool::CanAccept() || bHaveModifiedMaterials; }
-
-	virtual void OnShutdown(EToolShutdownType ShutdownType) override;
 
 	void RequestMaterialAction(EEditMeshMaterialsToolActions ActionType);
 
@@ -112,6 +119,8 @@ protected:
 
 	FMaterialSetKey InitialMaterialKey;
 	bool bHaveModifiedMaterials = false;
+
+	virtual void ApplyShutdownAction(EToolShutdownType ShutdownType) override;
 
 	void ExternalUpdateMaterialSet(const TArray<UMaterialInterface*>& NewMaterialSet);
 	friend class FEditMeshMaterials_MaterialSetChange;

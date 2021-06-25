@@ -15,14 +15,14 @@ FPolygroupSet::FPolygroupSet(const FPolygroupSet* CopyIn)
 	MaxGroupID = CopyIn->MaxGroupID;
 }
 
-FPolygroupSet::FPolygroupSet(FDynamicMesh3* MeshIn)
+FPolygroupSet::FPolygroupSet(const FDynamicMesh3* MeshIn)
 {
 	Mesh = MeshIn;
 	GroupLayerIndex = -1;
 	RecalculateMaxGroupID();
 }
 
-FPolygroupSet::FPolygroupSet(FDynamicMesh3* MeshIn, FDynamicMeshPolygroupAttribute* PolygroupAttribIn)
+FPolygroupSet::FPolygroupSet(const FDynamicMesh3* MeshIn, const FDynamicMeshPolygroupAttribute* PolygroupAttribIn)
 {
 	Mesh = MeshIn;
 	PolygroupAttrib = PolygroupAttribIn;
@@ -30,7 +30,7 @@ FPolygroupSet::FPolygroupSet(FDynamicMesh3* MeshIn, FDynamicMeshPolygroupAttribu
 	RecalculateMaxGroupID();
 }
 
-FPolygroupSet::FPolygroupSet(FDynamicMesh3* MeshIn, int32 PolygroupLayerIndex)
+FPolygroupSet::FPolygroupSet(const FDynamicMesh3* MeshIn, int32 PolygroupLayerIndex)
 {
 	Mesh = MeshIn;
 	if (ensure(Mesh->Attributes()))
@@ -47,7 +47,7 @@ FPolygroupSet::FPolygroupSet(FDynamicMesh3* MeshIn, int32 PolygroupLayerIndex)
 }
 
 
-FPolygroupSet::FPolygroupSet(FDynamicMesh3* MeshIn, FName AttribName)
+FPolygroupSet::FPolygroupSet(const FDynamicMesh3* MeshIn, FName AttribName)
 {
 	Mesh = MeshIn;
 	PolygroupAttrib = UE::Geometry::FindPolygroupLayerByName(*MeshIn, AttribName);

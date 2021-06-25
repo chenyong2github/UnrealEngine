@@ -18,6 +18,12 @@ namespace Geometry
 DYNAMICMESH_API FDynamicMeshPolygroupAttribute* FindPolygroupLayerByName(FDynamicMesh3& Mesh, FName Name);
 
 /**
+ * Find the first FDynamicMeshPolygroupAttribute with the given FName in a the AttributeSet of a Mesh.
+ * @return nullptr if no Polygroup layer is found
+ */
+DYNAMICMESH_API const FDynamicMeshPolygroupAttribute* FindPolygroupLayerByName(const FDynamicMesh3& Mesh, FName Name);
+
+/**
  * @return index of the first Layer with the given FName in Mesh AttributeSet, or -1 if not found
  */
 DYNAMICMESH_API int32 FindPolygroupLayerIndexByName(const FDynamicMesh3& Mesh, FName Name);
