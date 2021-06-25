@@ -132,17 +132,18 @@ FRHITransientHeap* FRHITransientResourceSystem::AcquireHeap(uint64 FirstAllocati
 	return CreateHeap(HeapInitializer);
 }
 
-void FRHITransientResourceSystem::ForfeitHeaps(TArrayView<FRHITransientHeap* const> InForfeitedHeaps)
+void FRHITransientResourceSystem::ForfeitHeaps(TConstArrayView<FRHITransientHeapState> InForfeitedHeaps)
 {
 	FScopeLock Lock(&HeapCriticalSection);
 
-	for (FRHITransientHeap* Heap : InForfeitedHeaps)
+	Heaps.Reserve(InForfeitedHeaps.Num());
+	for (FRHITransientHeapState const& State : InForfeitedHeaps)
 	{
-		Heap->ForfeitResources();
-		Heap->LastUsedGarbageCollectCycle = GarbageCollectCycle;
-	}
+		State.Heap->ForfeitResources();
+		State.Heap->LastUsedGarbageCollectCycle = GarbageCollectCycle;
 
-	Heaps.Append(InForfeitedHeaps.GetData(), InForfeitedHeaps.Num());
+		Heaps.Add(State.Heap);
+	}
 
 	Algo::Sort(Heaps, [](const FRHITransientHeap* LHS, const FRHITransientHeap* RHS)
 	{
@@ -554,11 +555,11 @@ FRHITransientTexture* FRHITransientResourceAllocator::CreateTexture(
 
 	const FRHITransientHeapAllocation Allocation = Allocate(TextureStats, TextureSize, TextureAlignment, TextureHeapFlags);
 
-	FRHITransientHeap* Heap = Heaps[Allocation.HeapIndex];
+	FRHITransientHeapState& HeapState = Heaps[Allocation.HeapIndex];
 
-	FRHITransientTexture* TransientTexture = Heap->AcquireTexture(CreateInfo, Allocation.Offset, [&] (uint64 Hash)
+	FRHITransientTexture* TransientTexture = HeapState.Heap->AcquireTexture(CreateInfo, Allocation.Offset, [&] (uint64 Hash)
 	{
-		const FResourceInitializer ResourceInitializer(*Heap, Allocation, Hash);
+		const FResourceInitializer ResourceInitializer(*HeapState.Heap, Allocation, Hash);
 		return CreateTextureFunction(ResourceInitializer);
 	});
 
@@ -586,11 +587,11 @@ FRHITransientBuffer* FRHITransientResourceAllocator::CreateBuffer(
 
 	const FRHITransientHeapAllocation Allocation = Allocate(BufferStats, BufferSize, BufferAlignment, ERHITransientHeapFlags::AllowBuffers);
 
-	FRHITransientHeap* Heap = Heaps[Allocation.HeapIndex];
+	FRHITransientHeapState& HeapState = Heaps[Allocation.HeapIndex];
 
-	FRHITransientBuffer* TransientBuffer = Heap->AcquireBuffer(CreateInfo, Allocation.Offset, [&](uint64 Hash)
+	FRHITransientBuffer* TransientBuffer = HeapState.Heap->AcquireBuffer(CreateInfo, Allocation.Offset, [&](uint64 Hash)
 	{
-		const FResourceInitializer ResourceInitializer(*Heap, Allocation, Hash);
+		const FResourceInitializer ResourceInitializer(*HeapState.Heap, Allocation, Hash);
 		return CreateBufferFunction(ResourceInitializer);
 	});
 
@@ -649,14 +650,18 @@ FRHITransientHeapAllocation FRHITransientResourceAllocator::Allocate(FMemoryStat
 	{
 		const uint32 HeapIndex = Heaps.Num();
 
-		FRHITransientHeap* Heap = ParentSystem.AcquireHeap(Size, ResourceHeapFlags);
-		Heaps.Emplace(Heap);
+		FRHITransientHeapState State = {};
+		State.Heap = ParentSystem.AcquireHeap(Size, ResourceHeapFlags);
+		Heaps.Emplace(State);
 
-		FRHITransientHeapAllocator& HeapAllocator = HeapAllocators.Emplace_GetRef(Heap->GetInitializer(), HeapIndex);
+		FRHITransientHeapAllocator& HeapAllocator = HeapAllocators.Emplace_GetRef(State.Heap->GetInitializer(), HeapIndex);
 		Allocation = HeapAllocator.Allocate(Size, Alignment);
 
 		check(Allocation.IsValid());
 	}
+
+	FRHITransientHeapState& State = Heaps[Allocation.HeapIndex];
+	State.CommitSize = FMath::Max(State.CommitSize, Allocation.Offset + Allocation.Size);
 
 	StatsToUpdate.AllocationCount++;
 	StatsToUpdate.TotalSize += Allocation.Size;

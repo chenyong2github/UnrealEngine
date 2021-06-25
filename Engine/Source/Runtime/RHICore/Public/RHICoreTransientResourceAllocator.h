@@ -256,6 +256,15 @@ struct RHICORE_API FRHITransientResourceSystemInitializer
 	bool bSupportsAllHeapFlags = true;
 };
 
+struct FRHITransientHeapState
+{
+	FRHITransientHeap* Heap;
+
+	// The total number of bytes used by an instance of
+	// FRHITransientResourceAllocator for the given heap.
+	uint64 CommitSize = 0;
+};
+
 /** The RHI transient resource system is a base class for the platform implementation. It has a persistent lifetime
  *  and contains a cache of transient heaps. The transient allocator acquires heaps from the system and forfeits them
  *  at the end of its lifetime. Garbage collection of heaps is done using an internal counter that increments with
@@ -308,7 +317,7 @@ private:
 	FRHITransientHeap* AcquireHeap(uint64 FirstAllocationSize, ERHITransientHeapFlags FirstAllocationHeapFlags);
 
 	// Called by the transient allocator to forfeit all acquired heaps back to the cache.
-	void ForfeitHeaps(TArrayView<FRHITransientHeap* const> Heaps);
+	void ForfeitHeaps(TConstArrayView<FRHITransientHeapState> Heaps);
 
 	//////////////////////////////////////////////////////////////////////////
 	//! Platform API
@@ -566,6 +575,12 @@ public:
 	// Called to signify all allocations have completed. Forfeits all resources / heaps back to the parent system.
 	void Freeze(FRHICommandListImmediate& RHICmdList);
 
+	// Returns the array of heaps used by this allocator, including the required commit size for each.
+	inline TConstArrayView<FRHITransientHeapState> GetUsedHeapStates() const
+	{
+		return Heaps;
+	}
+
 private:
 	struct FMemoryStats : FRHITransientMemoryStats
 	{
@@ -581,7 +596,7 @@ private:
 	FRHITransientResourceSystem& ParentSystem;
 
 	// Tracks state on the rendering thread; must be cleared before the destructor.
-	TArray<FRHITransientHeap*, TInlineAllocator<4, TMemStackAllocator<>>> Heaps;
+	TArray<FRHITransientHeapState, TInlineAllocator<4, TMemStackAllocator<>>> Heaps;
 	TArray<FRHITransientHeapAllocator, TInlineAllocator<4, TMemStackAllocator<>>> HeapAllocators;
 	TArray<FRHITransientHeapAllocation, TInlineAllocator<4, TMemStackAllocator<>>> HeapAllocations;
 
@@ -592,7 +607,4 @@ private:
 
 	FMemoryStats TextureStats;
 	FMemoryStats BufferStats;
-
-	uint64 AllocatedTextureSize{};
-	uint64 AllocatedBufferSize{};
 };
