@@ -635,11 +635,11 @@ bool UMovieSceneSequencePlayer::ShouldPause(FFrameTime NewPosition) const
 	{
 		if (!bReversePlayback)
 		{
-			bShouldPause = PauseOnFrame.GetValue() <= NewPosition;
+			bShouldPause = PauseOnFrame.GetValue() <= PlayPosition.GetCurrentPosition();
 		}
 		else
 		{
-			bShouldPause = PauseOnFrame.GetValue() >= NewPosition;
+			bShouldPause = PauseOnFrame.GetValue() >= PlayPosition.GetCurrentPosition();
 		}
 	}
 
