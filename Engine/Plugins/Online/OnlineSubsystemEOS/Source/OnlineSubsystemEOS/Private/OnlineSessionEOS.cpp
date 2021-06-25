@@ -3459,9 +3459,11 @@ uint32 FOnlineSessionEOS::DestroyLobbySession(FNamedOnlineSession* Session, cons
 		check(Session->SessionSettings.bUseLobbiesIfAvailable); // We check if it's a lobby session
 
 		FName SessionName = Session->SessionName;
+		const FUniqueNetIdPtr OwningNetId = Session->OwningUserId;
+		const FUniqueNetIdPtr LocalNetId = EOSSubsystem->UserManager->GetUniquePlayerId(EOSSubsystem->UserManager->GetDefaultLocalUser());
 
 		// If we are the owner of the lobby we will destroy it, since we will trigger an OSS session destruction anyway, forcing everyone else to leave the lobby too
-		if (Session->OwningUserId != nullptr && *EOSSubsystem->UserManager->GetUniquePlayerId(EOSSubsystem->UserManager->GetDefaultLocalUser()) == *Session->OwningUserId)
+		if (OwningNetId != nullptr && LocalNetId  != nullptr && *LocalNetId == *OwningNetId)
 		{
 			// Destroy Lobby
 			EOS_Lobby_DestroyLobbyOptions DestroyOptions = { 0 };
