@@ -14,6 +14,7 @@
 #include "Engine/Texture2D.h"
 #include "IImageWrapperModule.h"
 #include "ImageCore.h"
+#include "Misc/EnumClassFlags.h"
 #include "TextureCompressorModule.h"
 
 #endif // WITH_EDITOR
@@ -31,21 +32,20 @@ namespace UE::DerivedData { class FBuildOutput; }
 void GetTextureDerivedDataKeySuffix(const UTexture& Texture, const FTextureBuildSettings* BuildSettingsPerLayer, FString& OutKeySuffix);
 uint32 PutDerivedDataInCache(FTexturePlatformData* DerivedData, const FString& DerivedDataKeySuffix, const FStringView& TextureName, bool bForceAllMipsToBeInlined, bool bReplaceExistingDDC);
 
-namespace ETextureCacheFlags
+enum class ETextureCacheFlags : uint32
 {
-	enum Type
-	{
-		None			= 0x00,
-		Async			= 0x01,
-		ForceRebuild	= 0x02,
-		InlineMips		= 0x08,
-		AllowAsyncBuild	= 0x10,
-		ForDDCBuild		= 0x20,
-		RemoveSourceMipDataAfterCache = 0x40,
-		AllowAsyncLoading = 0x80,
-		ForVirtualTextureStreamingBuild = 0x100
-	};
+	None			= 0x00,
+	Async			= 0x01,
+	ForceRebuild	= 0x02,
+	InlineMips		= 0x08,
+	AllowAsyncBuild	= 0x10,
+	ForDDCBuild		= 0x20,
+	RemoveSourceMipDataAfterCache = 0x40,
+	AllowAsyncLoading = 0x80,
+	ForVirtualTextureStreamingBuild = 0x100,
 };
+
+ENUM_CLASS_FLAGS(ETextureCacheFlags);
 
 // Everything required to get the texture source data.
 struct FTextureSourceLayerData
@@ -126,7 +126,7 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 	/** DDC2 build function name to use to build this texture (if DDC2 is enabled and the target texture type has a DDC2 build function, empty otherwise) */
 	FString BuildFunctionName;
 	/** Texture cache flags. */
-	uint32 CacheFlags;
+	ETextureCacheFlags CacheFlags;
 	/** Have many bytes were loaded from DDC or built (for telemetry) */
 	uint32 BytesCached = 0;
 	/** Estimate of the peak amount of memory required to complete this task. */
@@ -150,7 +150,7 @@ public:
 		FTexturePlatformData* InDerivedData,
 		UTexture* InTexture,
 		const FTextureBuildSettings* InSettingsPerLayer,
-		uint32 InCacheFlags);
+		ETextureCacheFlags InCacheFlags);
 
 	/** Does the work to cache derived data. Safe to call from any thread. */
 	void DoWork();
@@ -203,7 +203,7 @@ public:
 		FTexturePlatformData* InDerivedData,
 		UTexture* InTexture,
 		const FTextureBuildSettings* InSettingsPerLayer,
-		uint32 InCacheFlags
+		ETextureCacheFlags InCacheFlags
 		)
 		: FAsyncTask<FTextureCacheDerivedDataWorker>(
 			InCompressor,
