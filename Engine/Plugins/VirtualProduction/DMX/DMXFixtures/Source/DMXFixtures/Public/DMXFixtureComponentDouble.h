@@ -42,8 +42,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "DMX")
 	bool IsDMXInterpolationDone(int32 ChannelIndex) const;
 
-	/** Returns the interpolated value for the specified channel */
-	float GetInterpolatedValue(int32 ChannelIndex, float Alpha) const;
+	/** Maps the normalized value to the compoenent's value range */
+	float NormalizedToAbsoluteValue(int32 ChannelIndex, float Alpha) const;
 
 	/** Returns true, if the target value is valid */
 	bool IsTargetValid(int32 ChannelIndex, float Target);
@@ -59,13 +59,32 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX")
 	void SetChannel2ValueNoInterp(float Channel2Value);
 
+
+
+	///////////////////////////////////////
 	// DEPRECATED 4.27
 public:	
-	// DEPRECATED 4.27
-	UE_DEPRECATED(4.27, "Replaced with SetChannelValue to be more expressive about the intent of the function and to avoid the duplicate method Push and SetTarget.")
-	void Push(int32 ChannelIndex, float Target);
+	UE_DEPRECATED(4.27, "Replaced with SetTargetValue (handling both Push and SetTarget).")
+	void Push(int32 ChannelIndex, float Target) { SetTargetValue(ChannelIndex, Target); }
 
-	// DEPRECATED 4.27
-	UE_DEPRECATED(4.27, "Replaced with SetChannelValue to be more expressive about the intent of the function.")
-	void SetTarget(int32 ChannelIndex, float Target);
+	UE_DEPRECATED(4.27, "Replaced with SetTargetValue (handling both Push and SetTarget).")
+	void SetTarget(int32 ChannelIndex, float Target) { SetTargetValue(ChannelIndex, Target); }
+
+	UE_DEPRECATED(4.27, "Replaced with GetDMXInterpolatedStep")
+	float DMXInterpolatedStep(int32 ChannelIndex) { return GetDMXInterpolatedStep(ChannelIndex); }
+
+	UE_DEPRECATED(4.27, "Replaced with GetDMXInterpolatedValue")
+	float DMXInterpolatedValue(int32 ChannelIndex) { return GetDMXInterpolatedValue(ChannelIndex); }
+
+	UE_DEPRECATED(4.27, "Replaced with GetDMXTargetValue")
+	float DMXTargetValue(int32 ChannelIndex) { return GetDMXTargetValue(ChannelIndex); }
+
+	UE_DEPRECATED(4.27, "Replaced with NormalizedToAbsoluteValue")
+	float RemapValue(int32 ChannelIndex, float Alpha) { return NormalizedToAbsoluteValue(ChannelIndex, Alpha); }
+
+	UE_DEPRECATED(4.27, "Replaced with SetChannel1ValueNoInterp")
+	void SetComponentChannel1(float NewValue) { SetChannel1ValueNoInterp(NewValue); }
+
+	UE_DEPRECATED(4.27, "Replaced with SetChannel1ValueNoInterp")
+	void SetComponentChannel2(float NewValue) { SetChannel2ValueNoInterp(NewValue); }
 };

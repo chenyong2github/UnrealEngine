@@ -50,20 +50,20 @@ struct FInterpolationData
 		bFirstValueWasSet = false;
 	}
 
-	bool IsTargetValid(float Value, float SkipThreshold)
+	bool IsTargetValid(float Value, float SkipThreshold) const
 	{
-		return (FMath::Abs(TargetValue - Value) >= SkipThreshold);
+		return FMath::Abs(TargetValue - Value) >= SkipThreshold;
 	}
 
-	void SetTarget(float NewValue)
+	void SetValueNoInterp(float NewValue)
 	{
 		CurrentValue = NewValue;
 		TargetValue = NewValue;
 	}
 
-	bool IsInterpolationDone()
+	bool IsInterpolationDone() const
 	{
-		return (ToTravel < 0.05f);
+		return ToTravel < 0.05f;
 	}
 
 	void EndInterpolation()
@@ -164,8 +164,6 @@ struct FInterpolationData
 	}
 
 };
-
-
 
 struct FCell
 {

@@ -2,11 +2,13 @@
 
 
 #include "DMXFixtureComponent.h"
+
 #include "DMXFixtureActor.h"
 #include "DMXFixtureActorMatrix.h"
-#include "Kismet/KismetMathLibrary.h"
-#include "RHICommandList.h"
+
 #include "RenderingThread.h"
+#include "RHICommandList.h"
+#include "Kismet/KismetMathLibrary.h"
 
 
 UDMXFixtureComponent::UDMXFixtureComponent()

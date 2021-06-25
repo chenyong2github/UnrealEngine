@@ -206,87 +206,82 @@ void ADMXFixtureActorMatrix::PushFixtureMatrixCellData(TArray<FDMXCell> Cells)
 
 	if (HasBeenInitialized)
 	{
-		// Get current components (supports PIE)
-		TInlineComponentArray<UDMXFixtureComponent*> DMXComponents;
-		GetComponents<UDMXFixtureComponent>(DMXComponents);
-
 		// get fixture patch
 		UDMXEntityFixturePatch* FixturePatch = DMX->GetFixturePatch();
 
-		for (int CurrentCellIndex = 0; CurrentCellIndex < Cells.Num(); CurrentCellIndex++)
+		if (FixturePatch)
 		{
-			TMap<FDMXAttributeName, float> NormalizedValuePerAttribute;
-			const FDMXCell& Cell = Cells[CurrentCellIndex];
-			FixturePatch->GetNormalizedMatrixCellValues(Cell.Coordinate, NormalizedValuePerAttribute);
-
-			for (auto& DMXComponent : DMXComponents)
+			for (int CurrentCellIndex = 0; CurrentCellIndex < Cells.Num(); CurrentCellIndex++)
 			{
-				if (DMXComponent->bIsEnabled && DMXComponent->bUsingMatrixData)
+				TMap<FDMXAttributeName, float> NormalizedValuePerAttribute;
+				const FDMXCell& Cell = Cells[CurrentCellIndex];
+				FixturePatch->GetNormalizedMatrixCellValues(Cell.Coordinate, NormalizedValuePerAttribute);
+
+				for (UDMXFixtureComponent* DMXComponent : TInlineComponentArray<UDMXFixtureComponent*>(this))
 				{
-					// set current cell reference
-					DMXComponent->SetCurrentCell(CurrentCellIndex);
-
-					// Color component
-					UDMXFixtureComponentColor* ColorComponent = Cast<UDMXFixtureComponentColor>(DMXComponent);
-					if(ColorComponent)
+					if (DMXComponent->bIsEnabled && DMXComponent->bUsingMatrixData)
 					{
-						if (FLinearColor* CurrentTargetColorPtr = ColorComponent->CurrentTargetColorRef)
-						{
-							const float* FirstTargetValuePtr = NormalizedValuePerAttribute.Find(ColorComponent->DMXChannel1);
-							const float* SecondTargetValuePtr = NormalizedValuePerAttribute.Find(ColorComponent->DMXChannel2);
-							const float* ThirdTargetValuePtr = NormalizedValuePerAttribute.Find(ColorComponent->DMXChannel3);
-							const float* FourthTargetValuePtr = NormalizedValuePerAttribute.Find(ColorComponent->DMXChannel4);
+						// set current cell reference
+						DMXComponent->SetCurrentCell(CurrentCellIndex);
 
-							// 1.f if channel not found
-							const float r = (FirstTargetValuePtr) ? *FirstTargetValuePtr : CurrentTargetColorPtr->R;
-							const float g = (SecondTargetValuePtr) ? *SecondTargetValuePtr : CurrentTargetColorPtr->G;
-							const float b = (ThirdTargetValuePtr) ? *ThirdTargetValuePtr : CurrentTargetColorPtr->B;
-							const float a = (FourthTargetValuePtr) ? *FourthTargetValuePtr : CurrentTargetColorPtr->A;
-
-							FLinearColor NewTargetColor(r, g, b, a);
-							if (ColorComponent->IsColorValid(NewTargetColor))
+						if (UDMXFixtureComponentColor* ColorComponent = Cast<UDMXFixtureComponentColor>(DMXComponent))
+						{						
+							// Color component
+							if (FLinearColor* CurrentTargetColorPtr = ColorComponent->CurrentTargetColorRef)
 							{
-								ColorComponent->SetTargetColor(NewTargetColor);
+								const float* FirstTargetValuePtr = NormalizedValuePerAttribute.Find(ColorComponent->DMXChannel1);
+								const float* SecondTargetValuePtr = NormalizedValuePerAttribute.Find(ColorComponent->DMXChannel2);
+								const float* ThirdTargetValuePtr = NormalizedValuePerAttribute.Find(ColorComponent->DMXChannel3);
+								const float* FourthTargetValuePtr = NormalizedValuePerAttribute.Find(ColorComponent->DMXChannel4);
 
-								// pack data in Matrix structure
-								UpdateMatrixData(0, CurrentCellIndex, 0, NewTargetColor.B);
-								UpdateMatrixData(0, CurrentCellIndex, 1, NewTargetColor.G);
-								UpdateMatrixData(0, CurrentCellIndex, 2, NewTargetColor.R);
-								UpdateMatrixData(0, CurrentCellIndex, 3, NewTargetColor.A);
+								// 1.f if channel not found
+								const float r = (FirstTargetValuePtr) ? *FirstTargetValuePtr : CurrentTargetColorPtr->R;
+								const float g = (SecondTargetValuePtr) ? *SecondTargetValuePtr : CurrentTargetColorPtr->G;
+								const float b = (ThirdTargetValuePtr) ? *ThirdTargetValuePtr : CurrentTargetColorPtr->B;
+								const float a = (FourthTargetValuePtr) ? *FourthTargetValuePtr : CurrentTargetColorPtr->A;
+
+								FLinearColor NewTargetColor(r, g, b, a);
+								if (ColorComponent->IsColorValid(NewTargetColor))
+								{
+									ColorComponent->SetTargetColor(NewTargetColor);
+
+									// pack data in Matrix structure
+									UpdateMatrixData(0, CurrentCellIndex, 0, NewTargetColor.B);
+									UpdateMatrixData(0, CurrentCellIndex, 1, NewTargetColor.G);
+									UpdateMatrixData(0, CurrentCellIndex, 2, NewTargetColor.R);
+									UpdateMatrixData(0, CurrentCellIndex, 3, NewTargetColor.A);
+								}
 							}
 						}
-					}
-
-					// Single channel component - hardcoded for now
-					UDMXFixtureComponentSingle* SingleComponent = Cast<UDMXFixtureComponentSingle>(DMXComponent);
-					if(SingleComponent)
-					{
-						float* d1 = NormalizedValuePerAttribute.Find(SingleComponent->DMXChannel.Name.Name);
-						int ChannelIndex = 0;
-						if (d1)
+						else if (UDMXFixtureComponentSingle* SingleComponent = Cast<UDMXFixtureComponentSingle>(DMXComponent))
 						{
-							if (SingleComponent->DMXChannel.Name.Name == FName("Dimmer"))
+							// Single channel component - hardcoded for now
+							float* D1 = NormalizedValuePerAttribute.Find(SingleComponent->DMXChannel.Name.Name);
+							if (D1)
 							{
-								float TargetValue = SingleComponent->GetInterpolatedValue(*d1);
-								if (SingleComponent->IsTargetValid(TargetValue))
+								if (SingleComponent->DMXChannel.Name.Name == FName("Dimmer"))
 								{
-									UpdateMatrixData(0, CurrentCellIndex, 3, TargetValue);
+									const float TargetValue = SingleComponent->NormalizedToAbsoluteValue(*D1);
+									if (SingleComponent->IsTargetValid(TargetValue))
+									{
+										UpdateMatrixData(0, CurrentCellIndex, 3, TargetValue);
+									}
 								}
-							}
-							else if (SingleComponent->DMXChannel.Name.Name == FName("Pan"))
-							{
-								float TargetValue = SingleComponent->GetInterpolatedValue(*d1);
-								if (SingleComponent->IsTargetValid(TargetValue))
+								else if (SingleComponent->DMXChannel.Name.Name == FName("Pan"))
 								{
-									UpdateMatrixData(1, CurrentCellIndex, 0, TargetValue);
+									const float TargetValue = SingleComponent->NormalizedToAbsoluteValue(*D1);
+									if (SingleComponent->IsTargetValid(TargetValue))
+									{
+										UpdateMatrixData(1, CurrentCellIndex, 0, TargetValue);
+									}
 								}
-							}
-							else if (SingleComponent->DMXChannel.Name.Name == FName("Tilt"))
-							{
-								float TargetValue = SingleComponent->GetInterpolatedValue(*d1);
-								if (SingleComponent->IsTargetValid(TargetValue))
+								else if (SingleComponent->DMXChannel.Name.Name == FName("Tilt"))
 								{
-									UpdateMatrixData(1, CurrentCellIndex, 1, TargetValue);
+									const float TargetValue = SingleComponent->NormalizedToAbsoluteValue(*D1);
+									if (SingleComponent->IsTargetValid(TargetValue))
+									{
+										UpdateMatrixData(1, CurrentCellIndex, 1, TargetValue);
+									}
 								}
 							}
 						}

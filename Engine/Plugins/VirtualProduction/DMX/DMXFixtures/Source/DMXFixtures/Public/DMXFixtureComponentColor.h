@@ -51,4 +51,11 @@ public:
 
 	/** Pointer to the current target color, corresponding to the current cell */
 	FLinearColor* CurrentTargetColorRef;
+
+	
+	///////////////////////////////////////
+	// DEPRECATED 4.27
+public:	
+	UE_DEPRECATED(4.27, "Replaced with SetColorNoInterp")
+	void SetComponent(FLinearColor NewColor) { SetColorNoInterp(NewColor); }
 };
