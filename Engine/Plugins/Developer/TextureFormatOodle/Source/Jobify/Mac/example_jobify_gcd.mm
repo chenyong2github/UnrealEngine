@@ -27,7 +27,7 @@
 
 */
 
-#include "example_jobify.h"
+#include "../example_jobify.h"
 #include "ooex.h" // for platform detection
 
 #ifdef OOEX_PLATFORM_MAC
