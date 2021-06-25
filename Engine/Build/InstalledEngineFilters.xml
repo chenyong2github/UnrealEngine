@@ -461,9 +461,12 @@
 		Engine/Source/ThirdParty/Oculus/LibOVRPlatform/LibOVRPlatform/lib/*.so
 		Engine/Source/ThirdParty/Oculus/LibOVRPlatform/*.tps
 		Engine/Source/ThirdParty/Oculus/LibOVRPlatform/*.xml
-		Engine/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/lib/*/.so
+		Engine/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/lib/*/*.so
+		Engine/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/ExtLibs/*/*.so
+		Engine/Source/ThirdParty/Oculus/OVRPlugin/OVRPlugin/ExtLibs/*.jar
 		Engine/Source/ThirdParty/Oculus/OVRPlugin/*.tps
 		Engine/Source/ThirdParty/Oculus/OVRPlugin/*.xml
+		Engine/Source/ThirdParty/Oculus/OculusOpenXRLoader/OculusOpenXRLoader/Lib/*/*.so
 		Engine/Source/ThirdParty/ResonanceAudioApi/...
 		Engine/Source/ThirdParty/TangoSDK/...
 		Engine/Source/ThirdParty/Vivox/vivox-sdk/Lib/Android/sdk-release.aar
