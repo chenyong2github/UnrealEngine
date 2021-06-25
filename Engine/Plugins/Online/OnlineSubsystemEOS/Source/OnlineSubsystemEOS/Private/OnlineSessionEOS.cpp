@@ -1765,11 +1765,43 @@ bool FOnlineSessionEOS::FindSessions(const FUniqueNetId& SearchingPlayerId, cons
 	return FindSessions(EOSSubsystem->UserManager->GetLocalUserNumFromUniqueNetId(SearchingPlayerId), SearchSettings);
 }
 
-bool FOnlineSessionEOS::FindSessionById(const FUniqueNetId& SearchingUserId, const FUniqueNetId& SessionId, const FUniqueNetId& FriendId, const FOnSingleSessionResultCompleteDelegate& CompletionDelegates)
+bool FOnlineSessionEOS::FindSessionById(const FUniqueNetId& SearchingUserId, const FUniqueNetId& SessionId, const FUniqueNetId& FriendId, const FOnSingleSessionResultCompleteDelegate& CompletionDelegate)
 {
-	FOnlineSessionSearchResult EmptyResult;
-	CompletionDelegates.ExecuteIfBound(EOSSubsystem->UserManager->GetLocalUserNumFromUniqueNetId(SearchingUserId), false, EmptyResult);
-	return true;
+	bool bResult = false;
+
+	// So far there is only a lobby implementation for this
+
+	// We create the search handle
+	EOS_HLobbySearch LobbySearchHandle;
+	EOS_Lobby_CreateLobbySearchOptions CreateLobbySearchOptions = { 0 };
+	CreateLobbySearchOptions.ApiVersion = EOS_LOBBY_CREATELOBBYSEARCH_API_LATEST;
+	CreateLobbySearchOptions.MaxResults = EOS_SESSIONS_MAX_SEARCH_RESULTS;
+
+	EOS_EResult CreateLobbySearchResult = EOS_Lobby_CreateLobbySearch(LobbyHandle, &CreateLobbySearchOptions, &LobbySearchHandle);
+	if (CreateLobbySearchResult == EOS_EResult::EOS_Success)
+	{
+		const FTCHARToUTF8 Utf8LobbyId(*SessionId.ToString());
+		// Set the lobby id we want to use to find lobbies			
+		EOS_LobbySearch_SetLobbyIdOptions SetLobbyIdOptions = { 0 };
+		SetLobbyIdOptions.ApiVersion = EOS_LOBBYSEARCH_SETLOBBYID_API_LATEST;
+		SetLobbyIdOptions.LobbyId = (EOS_LobbyId)Utf8LobbyId.Get();
+
+		EOS_LobbySearch_SetLobbyId(LobbySearchHandle, &SetLobbyIdOptions);
+
+		// Then perform the search
+		CurrentSessionSearch = MakeShareable(new FOnlineSessionSearch());
+		CurrentSessionSearch->SearchState = EOnlineAsyncTaskState::InProgress;
+
+		StartLobbySearch(EOSSubsystem->UserManager->GetLocalUserNumFromUniqueNetId(SearchingUserId), LobbySearchHandle, CurrentSessionSearch.ToSharedRef(), CompletionDelegate);
+
+		bResult = true;
+	}
+	else
+	{
+		UE_LOG_ONLINE_SESSION(Warning, TEXT("[FOnlineSessionEOS::FindSessionById] CreateLobbySearch not successful. Finished with EOS_EResult %s"), ANSI_TO_TCHAR(EOS_EResult_ToString(CreateLobbySearchResult)));
+	}
+
+	return bResult;
 }
 
 void FOnlineSessionEOS::AddSearchAttribute(EOS_HSessionSearch SearchHandle, const EOS_Sessions_AttributeData* Attribute, EOS_EOnlineComparisonOp ComparisonOp)
@@ -2252,6 +2284,8 @@ uint32 FOnlineSessionEOS::JoinLANSession(int32 PlayerNum, FNamedOnlineSession* S
 
 bool FOnlineSessionEOS::FindFriendSession(int32 LocalUserNum, const FUniqueNetId& Friend)
 {
+	bool bResult = false;
+
 	// So far there is only a lobby implementation for this
 
 	// We create the search handle
@@ -2260,24 +2294,34 @@ bool FOnlineSessionEOS::FindFriendSession(int32 LocalUserNum, const FUniqueNetId
 	CreateLobbySearchOptions.ApiVersion = EOS_LOBBY_CREATELOBBYSEARCH_API_LATEST;
 	CreateLobbySearchOptions.MaxResults = EOS_SESSIONS_MAX_SEARCH_RESULTS;
 
-	EOS_Lobby_CreateLobbySearch(LobbyHandle, &CreateLobbySearchOptions, &LobbySearchHandle);
+	EOS_EResult CreateLobbySearchResult = EOS_Lobby_CreateLobbySearch(LobbyHandle, &CreateLobbySearchOptions, &LobbySearchHandle);
+	if (CreateLobbySearchResult == EOS_EResult::EOS_Success)
+	{
+		// Set the user we wan to use to find lobbies
+		EOS_LobbySearch_SetTargetUserIdOptions SetTargetUserIdOptions = { 0 };
+		SetTargetUserIdOptions.ApiVersion = EOS_LOBBYSEARCH_SETTARGETUSERID_API_LATEST;
+		SetTargetUserIdOptions.TargetUserId = EOSSubsystem->UserManager->GetProductUserId(Friend);
 
-	// Set the user we wan to use to find lobbies
-	EOS_LobbySearch_SetTargetUserIdOptions SetTargetUserIdOptions = { 0 };
-	SetTargetUserIdOptions.ApiVersion = EOS_LOBBYSEARCH_SETTARGETUSERID_API_LATEST;
-	SetTargetUserIdOptions.TargetUserId = EOSSubsystem->UserManager->GetProductUserId(Friend);
+		// TODO: Using this as a search parameter only works if we use the owner's id (search for lobbies we're already in). Pending API fix so it works with other users too.
+		EOS_LobbySearch_SetTargetUserId(LobbySearchHandle, &SetTargetUserIdOptions);
 
-	// TODO: Using this as a search parameter only works if we use the owner's id (search for lobbies we're already in). Pending API fix so it works with other users too.
-	EOS_LobbySearch_SetTargetUserId(LobbySearchHandle, &SetTargetUserIdOptions);
+		// Then perform the search
+		CurrentSessionSearch = MakeShareable(new FOnlineSessionSearch());
+		CurrentSessionSearch->SearchState = EOnlineAsyncTaskState::InProgress;
 
-	// Then perform the search
-	TSharedRef<FOnlineSessionSearch> SearchSettings = MakeShareable(new FOnlineSessionSearch());
-	CurrentSessionSearch = SearchSettings;
-	CurrentSessionSearch->SearchState = EOnlineAsyncTaskState::InProgress;
+		StartLobbySearch(LocalUserNum, LobbySearchHandle, CurrentSessionSearch.ToSharedRef(), FOnSingleSessionResultCompleteDelegate::CreateLambda([this](int32 LocalUserNum, bool bWasSuccessful, const FOnlineSessionSearchResult& EOSResult)
+		{
+			TriggerOnFindSessionsCompleteDelegates(bWasSuccessful);
+		}));
 
-	StartLobbySearch(LocalUserNum, LobbySearchHandle, SearchSettings);
+		bResult = true;
+	}
+	else
+	{
+		UE_LOG_ONLINE_SESSION(Warning, TEXT("[FOnlineSessionEOS::FindFriendSession] CreateLobbySearch not successful. Finished with EOS_EResult %s"), ANSI_TO_TCHAR(EOS_EResult_ToString(CreateLobbySearchResult)));
+	}
 
-	return true;
+	return bResult;
 };
 
 bool FOnlineSessionEOS::FindFriendSession(const FUniqueNetId& LocalUserId, const FUniqueNetId& Friend)
@@ -3589,7 +3633,10 @@ uint32 FOnlineSessionEOS::FindLobbySession(int32 SearchingPlayerNum, const TShar
 			AddLobbySearchAttribute(LobbySearchHandle, &Attribute, ToEOSSearchOp(SearchParam.ComparisonOp));
 		}
 
-		StartLobbySearch(SearchingPlayerNum, LobbySearchHandle, SearchSettings);
+		StartLobbySearch(SearchingPlayerNum, LobbySearchHandle, SearchSettings, FOnSingleSessionResultCompleteDelegate::CreateLambda([this](int32 LocalUserNum, bool bWasSuccessful, const FOnlineSessionSearchResult& EOSResult)
+		{
+			TriggerOnFindSessionsCompleteDelegates(bWasSuccessful);
+		}));
 
 		Result = ONLINE_IO_PENDING;
 	}
@@ -3601,19 +3648,17 @@ uint32 FOnlineSessionEOS::FindLobbySession(int32 SearchingPlayerNum, const TShar
 	return Result;
 }
 
-void FOnlineSessionEOS::StartLobbySearch(int32 SearchingPlayerNum, EOS_HLobbySearch LobbySearchHandle, const TSharedRef<FOnlineSessionSearch>& SearchSettings)
+void FOnlineSessionEOS::StartLobbySearch(int32 SearchingPlayerNum, EOS_HLobbySearch LobbySearchHandle, const TSharedRef<FOnlineSessionSearch>& SearchSettings, const FOnSingleSessionResultCompleteDelegate& CompletionDelegate)
 {
 	SessionSearchStartInSeconds = FPlatformTime::Seconds();
 
-	EOS_ProductUserId SearchingUserId = EOSSubsystem->UserManager->GetLocalProductUserId(SearchingPlayerNum);
-
 	EOS_LobbySearch_FindOptions FindOptions = { 0 };
 	FindOptions.ApiVersion = EOS_LOBBYSEARCH_FIND_API_LATEST;
-	FindOptions.LocalUserId = SearchingUserId;
+	FindOptions.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(SearchingPlayerNum);
 
 	FLobbySearchFindCallback* CallbackObj = new FLobbySearchFindCallback();
 	LobbySearchFindCallback = CallbackObj;
-	CallbackObj->CallbackLambda = [this, SearchingUserId, LobbySearchHandle, SearchSettings](const EOS_LobbySearch_FindCallbackInfo* Data)
+	CallbackObj->CallbackLambda = [this, SearchingPlayerNum, LobbySearchHandle, SearchSettings, CompletionDelegate](const EOS_LobbySearch_FindCallbackInfo* Data)
 	{
 		if (Data->ResultCode == EOS_EResult::EOS_Success)
 		{
@@ -3652,7 +3697,7 @@ void FOnlineSessionEOS::StartLobbySearch(int32 SearchingPlayerNum, EOS_HLobbySea
 
 				CurrentSessionSearch->SearchState = EOnlineAsyncTaskState::Done;
 
-				TriggerOnFindSessionsCompleteDelegates(true);
+				CompletionDelegate.ExecuteIfBound(SearchingPlayerNum, true, SearchSettings->SearchResults.Last());
 			}
 			else
 			{
@@ -3660,7 +3705,7 @@ void FOnlineSessionEOS::StartLobbySearch(int32 SearchingPlayerNum, EOS_HLobbySea
 
 				CurrentSessionSearch->SearchState = EOnlineAsyncTaskState::Failed;
 
-				TriggerOnFindSessionsCompleteDelegates(false);
+				CompletionDelegate.ExecuteIfBound(SearchingPlayerNum, false, FOnlineSessionSearchResult());
 			}
 		}
 		else
@@ -3669,7 +3714,7 @@ void FOnlineSessionEOS::StartLobbySearch(int32 SearchingPlayerNum, EOS_HLobbySea
 
 			CurrentSessionSearch->SearchState = EOnlineAsyncTaskState::Failed;
 
-			TriggerOnFindSessionsCompleteDelegates(false);
+			CompletionDelegate.ExecuteIfBound(SearchingPlayerNum, false, FOnlineSessionSearchResult());
 		}
 
 		EOS_LobbySearch_Release(LobbySearchHandle);
