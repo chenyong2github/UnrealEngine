@@ -1672,6 +1672,7 @@ void FRDGBuilder::Clear()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FRDGBuilder::Clear);
 	Passes.Clear();
+	Buffers.Clear();
 	UniformBuffers.Clear();
 	Blackboard.Clear();
 	ActivePooledTextures.Empty();
