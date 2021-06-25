@@ -44,11 +44,6 @@ public class Niagara : ModuleRules
                 "VectorVM",
             }
         );
-        
-        PublicIncludePathModuleNames.AddRange(
-	        new string[] {
-		        "DerivedDataCache",
-	        });
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {

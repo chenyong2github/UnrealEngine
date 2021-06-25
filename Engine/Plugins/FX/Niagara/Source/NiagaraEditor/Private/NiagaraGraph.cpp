@@ -2600,11 +2600,11 @@ void UNiagaraGraph::GatherExternalDependencyData(ENiagaraScriptUsage InUsage, co
 		{
 			if (GNiagaraUseGraphHash == 1)
 			{
-				InReferencedCompileHashes.AddUnique(CachedUsageInfo[i].CompileHashFromGraph);
+				InReferencedCompileHashes.Add(CachedUsageInfo[i].CompileHashFromGraph);
 			}
 			else
 			{
-				InReferencedCompileHashes.AddUnique(CachedUsageInfo[i].CompileHash);
+				InReferencedCompileHashes.Add(CachedUsageInfo[i].CompileHash);
 			}
 			InReferencedObjs.Add(CachedUsageInfo[i].Traversal.Last()->GetPathName());
 

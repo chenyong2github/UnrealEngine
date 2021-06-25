@@ -301,10 +301,6 @@ TSharedPtr<FNiagaraSystemScriptViewModel> FNiagaraSystemViewModel::GetSystemScri
 
 void FNiagaraSystemViewModel::CompileSystem(bool bForce)
 {
-	if (EditMode == ENiagaraSystemViewModelEditMode::EmitterDuringMerge && bForce == false)
-	{
-		return;
-	}
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_SystemViewModel_CompileSystem);
 	FNiagaraEditorUtilities::KillSystemInstances(GetSystem());
 	check(SystemScriptViewModel.IsValid());
