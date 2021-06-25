@@ -121,7 +121,16 @@ struct MOVIESCENE_API FMovieSceneTimeController_AudioClock : FMovieSceneTimeCont
 */
 struct MOVIESCENE_API FMovieSceneTimeController_RelativeTimecodeClock : FMovieSceneTimeController_ExternalClock
 {
+	virtual FFrameTime OnRequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate) override;
 	virtual double GetCurrentTime() const override;
+	virtual void OnStopPlaying(const FQualifiedFrameTime& InStopTime) override;
+
+protected:
+
+	TOptional<FFrameTime> LastCurrentFrameTime;
+	TOptional<double> TimeSinceCurrentFrameTime;
+
+	double AccumulatedFrameTime;
 };
 
 
