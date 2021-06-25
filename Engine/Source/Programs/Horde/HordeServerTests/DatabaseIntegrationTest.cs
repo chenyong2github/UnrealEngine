@@ -57,7 +57,7 @@ namespace HordeServerTests
 	        return TestSetup;
         }
 
-        public static DatabaseService GetDatabaseService(bool ForceDropDatabase = false)
+        public static DatabaseService GetDatabaseService(bool ForceDropDatabase = true)
         {
             if (_mongoDbRunner == null)
             {
