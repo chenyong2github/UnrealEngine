@@ -239,6 +239,9 @@ namespace UnrealVS
 			// Create the project menu quick builder
 			QuickBuilder = new QuickBuild();
 
+			// Create 'Perforce menu' instance
+			P4CommandsGroup = new P4Commands();
+
 			// Call parent implementation
 			base.Initialize();
 
@@ -246,6 +249,7 @@ namespace UnrealVS
 			{
 				StartTicker();
 			}
+
 		}
 
 		private void StartTicker()
@@ -483,6 +487,15 @@ namespace UnrealVS
 		public IVsOutputWindowPane GetOutputPane()
 		{
 			return GetOutputPane(VSConstants.OutputWindowPaneGuid.BuildOutputPane_guid, "Build");
+		}
+
+		/// <summary>
+		/// Gets a Visual Studio pane to output text to for P4 ops, or creates one if not visible.  Does not bring the pane to front (you can call Activate() to do that.)
+		/// </summary>
+		/// <returns>The pane to output to, or null on error</returns>
+		public IVsOutputWindowPane GetP4OutputPane()
+		{
+			return GetOutputPane(VSConstants.OutputWindowPaneGuid.GeneralPane_guid, "UnrealVS.P4");
 		}
 
 		public IEnumerable<string> GetLoadedProjectPaths()
@@ -921,6 +934,9 @@ namespace UnrealVS
 
 		/// Batch Builder button/command handler
 		private BatchBuilder BatchBuilder = new BatchBuilder();
+
+		/// Perforce features
+		private P4Commands P4CommandsGroup;
 
 		/// Ticker thread
 		private Thread Ticker;

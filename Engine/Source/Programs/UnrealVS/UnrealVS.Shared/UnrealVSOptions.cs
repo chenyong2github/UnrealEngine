@@ -23,6 +23,27 @@ namespace UnrealVS
 			set { _HideNonGameStartupProjects = value; }
 		}
 
+		private bool _AllowUnrealVSP4;
+		private bool _AllowUnrealVSCheckoutOnEdit;
+
+		[Category("General")]
+		[DisplayName("Allow UnrealVS to auto checkout files on save")]
+		[Description("Uses p4 ini / environment settings to automatically checkout files on save, use 'RunUAT P4WriteConfig' to initialize those settings")]
+		public bool AllowUnrealVSCheckoutOnEdit
+		{
+			get { return _AllowUnrealVSCheckoutOnEdit; }
+			set { _AllowUnrealVSCheckoutOnEdit = value; }
+		}
+
+		[Category("General")]
+		[DisplayName("Allow UnrealVS to perform perforce operations")]
+		[Description("Uses p4 ini / environment settings to call P4 functionlality, use 'RunUAT P4WriteConfig' to initialize those settings")]
+		public bool AllowUnrealVSP4
+		{
+			get { return _AllowUnrealVSP4; }
+			set { _AllowUnrealVSP4 = value; }
+		}
+
 		protected override void OnApply(PageApplyEventArgs e)
 		{
 			base.OnApply(e);
