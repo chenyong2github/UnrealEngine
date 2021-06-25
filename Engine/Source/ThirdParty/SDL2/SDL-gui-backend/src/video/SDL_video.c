@@ -2766,7 +2766,14 @@ SDL_OnWindowFocusGained(SDL_Window * window)
 
     if (mouse && mouse->relative_mode) {
         SDL_SetMouseFocus(window);
+        
+#ifdef SDL_WITH_EPIC_EXTENSIONS
+        if (mouse->relative_mode_warp) {
+            SDL_WarpMouseInWindow(window, window->w/2, window->h/2);
+        }
+#else
         SDL_WarpMouseInWindow(window, window->w/2, window->h/2);
+#endif
     }
 
     SDL_UpdateWindowGrab(window);
