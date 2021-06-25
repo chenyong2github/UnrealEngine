@@ -78,7 +78,7 @@ void FOnlineSubsystemEOSModule::OnPostEngineInit()
 		SettingsModule->RegisterSettings("Project", "Plugins", "Online Subsystem EOS",
 			LOCTEXT("OSSEOSSettingsName", "Online Subsystem EOS"),
 			LOCTEXT("OSSEOSSettingsDescription", "Configure Online Subsystem EOS"),
-			UEOSSettings::GetSettings());
+			GetMutableDefault<UEOSSettings>());
 	}
 }
 #endif
