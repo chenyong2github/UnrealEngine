@@ -14,11 +14,12 @@ struct FShaderParamTypeDefinition;
 UENUM()
 enum class EShaderFundamentalType : uint8
 {
-	Bool,
-	Int,
-	Uint,
-	Float,
-	Struct
+	Bool	= 0,
+	Int		= 1,
+	Uint	= 2,
+	Float	= 3,
+	Struct	= 4,
+	None	= 255u,
 };
 
 /*

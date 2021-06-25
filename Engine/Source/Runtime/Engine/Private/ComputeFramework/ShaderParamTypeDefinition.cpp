@@ -393,26 +393,34 @@ FArchive& operator<<(FArchive& InArchive, FShaderValueTypeHandle& InHandle)
 		ValueTypePtr = const_cast<FShaderValueType *>(InHandle.ValueTypePtr);
 	}
 
-	InArchive << ValueTypePtr->Type;
-
-	if (ValueTypePtr->Type == EShaderFundamentalType::Struct)
+	if (ValueTypePtr)
 	{
-		InArchive << ValueTypePtr->Name;
-		InArchive << ValueTypePtr->StructElements;
+		InArchive << ValueTypePtr->Type;
+		
+		if (ValueTypePtr->Type == EShaderFundamentalType::Struct)
+		{
+			InArchive << ValueTypePtr->Name;
+			InArchive << ValueTypePtr->StructElements;
+		}
+		else
+		{
+			InArchive << ValueTypePtr->DimensionType;
+
+			if (ValueTypePtr->DimensionType == EShaderFundamentalDimensionType::Vector)
+			{
+				InArchive << ValueTypePtr->VectorElemCount;
+			}
+			else if (ValueTypePtr->DimensionType == EShaderFundamentalDimensionType::Matrix)
+			{
+				InArchive << ValueTypePtr->MatrixRowCount;
+				InArchive << ValueTypePtr->MatrixColumnCount;
+			}
+		}
 	}
-	else
+	else if (InArchive.IsSaving())
 	{
-		InArchive << ValueTypePtr->DimensionType;
-
-		if (ValueTypePtr->DimensionType == EShaderFundamentalDimensionType::Vector)
-		{
-			InArchive << ValueTypePtr->VectorElemCount;
-		}
-		else if (ValueTypePtr->DimensionType == EShaderFundamentalDimensionType::Matrix)
-		{
-			InArchive << ValueTypePtr->MatrixRowCount;
-			InArchive << ValueTypePtr->MatrixColumnCount;
-		}
+		EShaderFundamentalType Type = EShaderFundamentalType::None;
+		InArchive << Type; 
 	}
 
 	if (InArchive.IsLoading())
