@@ -433,6 +433,15 @@ bool FElectraPlayerPlugin::Open(const FString& Url, const IMediaOptions* Options
 
 	// Set up options to initialize the internal player with.
 	Electra::FParamDict PlayerOptions;
+	const TCHAR * const OptionsByString[] = { TEXT("excluded_codecs_video"), TEXT("excluded_codecs_audio"), TEXT("excluded_codecs_subtitles"), TEXT("preferred_codecs_video"), TEXT("preferred_codecs_audio"),TEXT("preferred_codecs_subtitles") };
+	for(auto &StringOption : OptionsByString)
+	{
+		FString Value = Options->GetMediaOption(StringOption, FString());
+		if (Value.Len())
+		{
+			PlayerOptions.Set(StringOption, Electra::FVariantValue(Value));
+		}
+	}
 
 	// Check for one-time initialization options that can't be changed during playback.
 	int64 InitialStreamBitrate = Options->GetMediaOption(TEXT("ElectraInitialBitrate"), (int64)-1);

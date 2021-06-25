@@ -104,6 +104,11 @@ namespace Electra
 		virtual IPlayerStreamFilter* GetStreamFilter() = 0;
 
 		/**
+		 * Returns user configured codec selection priorities.
+		 */
+		virtual const FCodecSelectionPriorities& GetCodecSelectionPriorities(EStreamType ForStream) = 0;
+
+		/**
 		 * Returns the entity cache of this player.
 		 */
 		virtual TSharedPtrTS<IPlayerEntityCache> GetEntityCache() = 0;

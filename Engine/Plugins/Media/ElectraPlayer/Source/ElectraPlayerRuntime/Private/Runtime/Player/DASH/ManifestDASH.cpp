@@ -131,9 +131,19 @@ public:
 private:
 	ELECTRA_IMPL_DEFAULT_ERROR_METHODS(DASHManifest);
 
+	struct FPrioritizedSelection
+	{
+		FStreamCodecInformation CodecInfo;
+		int32 Index = -1;
+		int32 Priority = -1;
+		int32 Bitrate = 0;
+	};
+
 	TSharedPtrTS<FManifestDASHInternal> GetCurrentManifest() const;
 
 	TSharedPtrTS<IPlaybackAssetRepresentation> GetRepresentationFromAdaptationByMaxBandwidth(TWeakPtrTS<IPlaybackAssetAdaptationSet> InAdaptationSet, int32 NotExceedingBandwidth);
+	TSharedPtrTS<IPlaybackAssetRepresentation> GetRepresentationFromAdaptationByPriorityAndMaxBandwidth(TWeakPtrTS<IPlaybackAssetAdaptationSet> InAdaptationSet, int32 NotExceedingBandwidth, EStreamType StreamType);
+
 	enum class ENextSegType
 	{
 		SamePeriodNext,
@@ -146,6 +156,8 @@ private:
 	bool PrepareDRM(const TArray<FManifestDASHInternal::FAdaptationSet::FContentProtection>& InContentProtections);
 
 	void SetupCommonSegmentRequestInfos(TSharedPtrTS<FStreamSegmentRequestFMP4DASH>& InOutSegmentRequest);
+
+	void PrioritizeSelection(TArray<FPrioritizedSelection>& Selection, EStreamType StreamType, bool bAdaptationSetLevel, bool bSortByBitrateDescending);
 
 	TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> SelectAdaptationSetByAttributes(TSharedPtrTS<FBufferSourceInfo>& OutBufferSourceInfo, TSharedPtrTS<FManifestDASHInternal::FPeriod> Period, EStreamType StreamType, const FStreamSelectionAttributes& Attributes);
 
@@ -474,8 +486,57 @@ IManifest::IPlayPeriod::EReadyState FDASHPlayPeriod::GetReadyState()
 	return ReadyState;
 }
 
+void FDASHPlayPeriod::PrioritizeSelection(TArray<FPrioritizedSelection>& Selection, EStreamType StreamType, bool bAdaptationSetLevel, bool bSortByBitrateDescending)
+{
+	const FCodecSelectionPriorities& SelectionPriorities = PlayerSessionServices->GetCodecSelectionPriorities(StreamType);
+	for(auto &Candidate : Selection)
+	{
+		int32 NewPriority = -1;
+		if (bAdaptationSetLevel)
+		{
+			NewPriority = SelectionPriorities.GetClassPriority(Candidate.CodecInfo.GetCodecSpecifierRFC6381());
+		}
+		else
+		{
+			NewPriority = SelectionPriorities.GetStreamPriority(Candidate.CodecInfo.GetCodecSpecifierRFC6381());
+		}
+		if (NewPriority >= 0)
+		{
+			Candidate.Priority = NewPriority;
+		}
+	}
+	// Sort forst by descending bitrate?
+	if (bSortByBitrateDescending)
+	{
+		Selection.StableSort([](const FPrioritizedSelection& a, const FPrioritizedSelection& b)
+		{
+			return a.Bitrate > b.Bitrate;
+		});
+	}
+	// Sort by descending priority.
+	Selection.StableSort([](const FPrioritizedSelection& a, const FPrioritizedSelection& b)
+	{
+		return a.Priority > b.Priority;
+	});
+}
+
+
 TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> FDASHPlayPeriod::SelectAdaptationSetByAttributes(TSharedPtrTS<FBufferSourceInfo>& OutBufferSourceInfo, TSharedPtrTS<FManifestDASHInternal::FPeriod> Period, EStreamType StreamType, const FStreamSelectionAttributes& Attributes)
 {
+	TArray<FPrioritizedSelection> Selection;
+
+	auto AddAdaptationSetToSelection = [](TArray<FPrioritizedSelection>& InOutSelection, const TSharedPtrTS<FManifestDASHInternal::FAdaptationSet>& AS, int32 Index) -> void
+	{
+		if (AS->GetIsUsable() && !AS->GetIsInSwitchGroup())
+		{
+			FPrioritizedSelection Candidate;
+			Candidate.CodecInfo = AS->GetCodec();
+			Candidate.Index = Index;
+			Candidate.Priority = AS->GetSelectionPriority();
+			InOutSelection.Emplace(MoveTemp(Candidate));
+		}
+	};
+
 	TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> AS;
 	int32 NumAdaptationSets = Period->GetNumberOfAdaptationSets(StreamType);
 	if (NumAdaptationSets > 0)
@@ -484,7 +545,20 @@ TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> FDASHPlayPeriod::SelectAdapt
 		// For video just select the first one for now.
 		if (StreamType == EStreamType::Video)
 		{
-			AS = StaticCastSharedPtr<FManifestDASHInternal::FAdaptationSet>(Period->GetAdaptationSetByTypeAndIndex(StreamType, 0));
+			// Create a list of candidate AdaptationSets
+			for(int32 i=0; i<NumAdaptationSets; ++i)
+			{
+				TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> V = StaticCastSharedPtr<FManifestDASHInternal::FAdaptationSet>(Period->GetAdaptationSetByTypeAndIndex(StreamType, i));
+				AddAdaptationSetToSelection(Selection, V, i);
+			}
+			// Prioritize the candidates based on user configuration.
+			PrioritizeSelection(Selection, StreamType, true, false);
+			if (Selection.Num())
+			{
+				// Take the highest prioritized set.
+				SelectedTypeIndex = Selection[0].Index;
+				AS = StaticCastSharedPtr<FManifestDASHInternal::FAdaptationSet>(Period->GetAdaptationSetByTypeAndIndex(StreamType, SelectedTypeIndex));
+			}
 		}
 		else if (StreamType == EStreamType::Audio)
 		{
@@ -492,16 +566,22 @@ TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> FDASHPlayPeriod::SelectAdapt
 			// For now we ignore the track kind.
 			if (Attributes.Language_ISO639.IsSet())
 			{
+				// Create a list of candidate AdaptationSets
 				for(int32 i=0; i<NumAdaptationSets; ++i)
 				{
-					TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> A;
-					A = StaticCastSharedPtr<FManifestDASHInternal::FAdaptationSet>(Period->GetAdaptationSetByTypeAndIndex(StreamType, i));
+					TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> A = StaticCastSharedPtr<FManifestDASHInternal::FAdaptationSet>(Period->GetAdaptationSetByTypeAndIndex(StreamType, i));
 					if (A->GetLanguage().Equals(Attributes.Language_ISO639.GetValue()))
 					{
-						SelectedTypeIndex = i;
-						AS = MoveTemp(A);
-						break;
+						AddAdaptationSetToSelection(Selection, A, i);
 					}
+				}
+				// Prioritize the candidates based on user configuration.
+				PrioritizeSelection(Selection, StreamType, true, false);
+				if (Selection.Num())
+				{
+					// Take the highest prioritized set.
+					SelectedTypeIndex = Selection[0].Index;
+					AS = StaticCastSharedPtr<FManifestDASHInternal::FAdaptationSet>(Period->GetAdaptationSetByTypeAndIndex(StreamType, SelectedTypeIndex));
 				}
 			}
 			// Matching language not found. Is there an explicit index given?
@@ -516,8 +596,19 @@ TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> FDASHPlayPeriod::SelectAdapt
 			// Still nothing? Use the first one.
 			if (!AS.IsValid())
 			{
-				AS = StaticCastSharedPtr<FManifestDASHInternal::FAdaptationSet>(Period->GetAdaptationSetByTypeAndIndex(StreamType, 0));
-				SelectedTypeIndex = 0;
+				Selection.Empty();
+				for(int32 i=0; i<NumAdaptationSets; ++i)
+				{
+					TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> A = StaticCastSharedPtr<FManifestDASHInternal::FAdaptationSet>(Period->GetAdaptationSetByTypeAndIndex(StreamType, i));
+					AddAdaptationSetToSelection(Selection, A, i);
+				}
+				PrioritizeSelection(Selection, StreamType, true, false);
+				if (Selection.Num())
+				{
+					// Take the highest prioritized set.
+					SelectedTypeIndex = Selection[0].Index;
+					AS = StaticCastSharedPtr<FManifestDASHInternal::FAdaptationSet>(Period->GetAdaptationSetByTypeAndIndex(StreamType, SelectedTypeIndex));
+				}
 			}
 		}
 		if (AS.IsValid())
@@ -576,8 +667,21 @@ void FDASHPlayPeriod::Load()
 			ActiveVideoAdaptationSetID = VideoAS->GetUniqueIdentifier();
 
 			// Add encryption schemes, if any.
-			const FManifestDASHInternal::FAdaptationSet* Adapt = static_cast<const FManifestDASHInternal::FAdaptationSet*>(VideoAS.Get());
-			ContentProtections.Append(Adapt->GetPossibleContentProtections());
+			if (VideoAS->GetIsSwitchGroup())
+			{
+				for(auto &SwitchedID : VideoAS->GetSwitchToSetIDs())
+				{
+					TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> SwitchedAS = Period->GetAdaptationSetByUniqueID(SwitchedID);
+					if (SwitchedAS.IsValid())
+					{
+						ContentProtections.Append(SwitchedAS->GetPossibleContentProtections());
+					}
+				}
+			}
+			else
+			{
+				ContentProtections.Append(VideoAS->GetPossibleContentProtections());
+			}
 		}
 
 		TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> AudioAS = SelectAdaptationSetByAttributes(SourceBufferInfoAudio, Period, EStreamType::Audio, AudioStreamPreferences);
@@ -586,8 +690,21 @@ void FDASHPlayPeriod::Load()
 			ActiveAudioAdaptationSetID = AudioAS->GetUniqueIdentifier();
 
 			// Add encryption schemes, if any.
-			const FManifestDASHInternal::FAdaptationSet* Adapt = static_cast<const FManifestDASHInternal::FAdaptationSet*>(AudioAS.Get());
-			ContentProtections.Append(Adapt->GetPossibleContentProtections());
+			if (AudioAS->GetIsSwitchGroup())
+			{
+				for(auto &SwitchedID : AudioAS->GetSwitchToSetIDs())
+				{
+					TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> SwitchedAS = Period->GetAdaptationSetByUniqueID(SwitchedID);
+					if (SwitchedAS.IsValid())
+					{
+						ContentProtections.Append(SwitchedAS->GetPossibleContentProtections());
+					}
+				}
+			}
+			else
+			{
+				ContentProtections.Append(AudioAS->GetPossibleContentProtections());
+			}
 		}
 
 		// Prepare the DRM system for decryption.
@@ -627,7 +744,7 @@ void FDASHPlayPeriod::PrepareForPlay()
 		TSharedPtrTS<FManifestDASHInternal::FAdaptationSet> AudioAS = Period->GetAdaptationSetByUniqueID(ActiveAudioAdaptationSetID);
 		if (AudioAS.IsValid())
 		{
-			TSharedPtrTS<IPlaybackAssetRepresentation> AudioRepr = GetRepresentationFromAdaptationByMaxBandwidth(AudioAS, 256 * 1000);
+			TSharedPtrTS<IPlaybackAssetRepresentation> AudioRepr = GetRepresentationFromAdaptationByPriorityAndMaxBandwidth(AudioAS, 256 * 1000, EStreamType::Audio);
 			ActiveAudioRepresentationID = AudioRepr->GetUniqueIdentifier();
 		}
 
@@ -1333,6 +1450,53 @@ TSharedPtrTS<IPlaybackAssetRepresentation> FDASHPlayPeriod::GetRepresentationFro
 		if (!BestRepr.IsValid())
 		{
 			BestRepr = WorstRepr;
+		}
+	}
+	return BestRepr;
+}
+
+TSharedPtrTS<IPlaybackAssetRepresentation> FDASHPlayPeriod::GetRepresentationFromAdaptationByPriorityAndMaxBandwidth(TWeakPtrTS<IPlaybackAssetAdaptationSet> InAdaptationSet, int32 NotExceedingBandwidth, EStreamType StreamType)
+{
+	TSharedPtrTS<IPlaybackAssetAdaptationSet> AS = InAdaptationSet.Pin();
+	TSharedPtrTS<IPlaybackAssetRepresentation> BestRepr;
+	if (AS.IsValid())
+	{
+		auto AddRepresentationToSelection = [](TArray<FPrioritizedSelection>& InOutSelection, const TSharedPtrTS<FManifestDASHInternal::FRepresentation>& R, int32 Index) -> void
+		{
+			if (R->CanBePlayed())
+			{
+				FPrioritizedSelection Candidate;
+				Candidate.CodecInfo = R->GetCodecInformation();
+				Candidate.Index = Index;
+				Candidate.Priority = R->GetSelectionPriority();
+				Candidate.Bitrate = R->GetBitrate();
+				InOutSelection.Emplace(MoveTemp(Candidate));
+			}
+		};
+		TArray<FPrioritizedSelection> Selection;
+
+		for(int32 i=0; i<AS->GetNumberOfRepresentations(); ++i)
+		{
+			TSharedPtrTS<FManifestDASHInternal::FRepresentation> Repr = StaticCastSharedPtr<FManifestDASHInternal::FRepresentation>(AS->GetRepresentationByIndex(i));
+			AddRepresentationToSelection(Selection, Repr, i);
+		}
+		PrioritizeSelection(Selection, StreamType, false, true);
+		if (Selection.Num())
+		{
+			for(int32 i=0; i<Selection.Num(); ++i)
+			{
+				TSharedPtrTS<FManifestDASHInternal::FRepresentation> Repr = StaticCastSharedPtr<FManifestDASHInternal::FRepresentation>(AS->GetRepresentationByIndex(Selection[i].Index));
+				if (Repr->GetBitrate() <= NotExceedingBandwidth)
+				{
+					BestRepr = Repr;
+					break;
+				}
+			}
+			if (!BestRepr.IsValid())
+			{
+				TSharedPtrTS<FManifestDASHInternal::FRepresentation> Repr = StaticCastSharedPtr<FManifestDASHInternal::FRepresentation>(AS->GetRepresentationByIndex(Selection.Last().Index));
+				BestRepr = Repr;
+			}
 		}
 	}
 	return BestRepr;

@@ -1008,7 +1008,7 @@ namespace Electra
 
 		uint64 FISO23008_2_seq_parameter_set_data::GetConstraintFlags() const
 		{
-			uint64 ConstraintFlags = ((uint64)general_progressive_source_flag << 3) | ((uint64)general_interlaced_source_flag << 2) | ((uint64)general_non_packed_constraint_flag << 1) | ((uint64)general_frame_only_constraint_flag << 44) | general_reserved_zero_44bits;
+			uint64 ConstraintFlags = ((uint64)((general_progressive_source_flag << 3) | (general_interlaced_source_flag << 2) | (general_non_packed_constraint_flag << 1) | general_frame_only_constraint_flag) << 44) | general_reserved_zero_44bits;
 			return ConstraintFlags;
 		}
 
@@ -1031,11 +1031,11 @@ namespace Electra
 
 			if (general_profile_space == 0)
 			{
-				return FString::Printf(TEXT("%s.%d.%X%c%d%s"), SampleTypePrefix, general_profile_idc, cf, general_tier_flag ? TCHAR('H') : TCHAR('L'), general_level_idc, *cfs);
+				return FString::Printf(TEXT("%s.%d.%X.%c%d%s"), SampleTypePrefix, general_profile_idc, cf, general_tier_flag ? TCHAR('H') : TCHAR('L'), general_level_idc, *cfs);
 			}
 			else
 			{
-				return FString::Printf(TEXT("%s.%c%d.%X%c%d%s"), SampleTypePrefix, TCHAR('A')+general_profile_space-1, general_profile_idc, cf, general_tier_flag ? TCHAR('H') : TCHAR('L'), general_level_idc, *cfs);
+				return FString::Printf(TEXT("%s.%c%d.%X.%c%d%s"), SampleTypePrefix, TCHAR('A')+general_profile_space-1, general_profile_idc, cf, general_tier_flag ? TCHAR('H') : TCHAR('L'), general_level_idc, *cfs);
 			}
 		}
 

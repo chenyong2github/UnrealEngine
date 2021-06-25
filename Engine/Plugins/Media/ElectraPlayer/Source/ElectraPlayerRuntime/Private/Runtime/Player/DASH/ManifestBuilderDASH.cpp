@@ -109,6 +109,15 @@ namespace DASHAttributeHelpers
 			{
 				return &Attributes[i];
 			}
+			// If not found in the desired namespace and it doesn't exist in the default namespace let's see if there is a match
+			// in a some other namespace. This sounds counter-intuitive but namespaces can be chosen arbitrarily.
+			// Since there are usually no attribute conflicts that warrant a namespace let's see if the attribute exists in some
+			// unexpected namespace.
+			NameWithNS = FString::Printf(TEXT(":%s"), InAttribute);
+			if (Attributes[i].GetName().EndsWith(NameWithNS, ESearchCase::CaseSensitive))
+			{
+				return &Attributes[i];
+			}
 		}
 		return nullptr;
 	}
@@ -1234,7 +1243,8 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 
 		Period->AdaptationSets.Empty();
 		const TArray<TSharedPtrTS<FDashMPD_AdaptationSetType>>& MPDAdaptationSets = MPDPeriod->GetAdaptationSets();
-		for(int32 nAdapt=0, nAdaptMax=MPDAdaptationSets.Num(); nAdapt<nAdaptMax; ++nAdapt)
+		int32 nAdapt=0, nAdaptMax=MPDAdaptationSets.Num();
+		for(; nAdapt<nAdaptMax; ++nAdapt)
 		{
 			const TSharedPtrTS<FDashMPD_AdaptationSetType>& MPDAdaptationSet = MPDAdaptationSets[nAdapt];
 			TSharedPtrTS<FAdaptationSet> AdaptationSet = MakeSharedTS<FAdaptationSet>();
@@ -1248,6 +1258,7 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 			AdaptationSet->AdaptationSet = MPDAdaptationSet;
 			AdaptationSet->PAR = MPDAdaptationSet->GetPAR();
 			AdaptationSet->Language = ISO639::RFC5646To639_1(MPDAdaptationSet->GetLanguage());
+			AdaptationSet->SelectionPriority = (int32) MPDAdaptationSet->GetSelectionPriority();
 
 			// Content components are not supported.
 			if (MPDAdaptationSet->GetContentComponents().Num())
@@ -1590,6 +1601,104 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 				Period->AdaptationSets.Emplace(AdaptationSet);
 			}
 		}
+
+		// Go over the AdaptationSets that are now remaining and check if they are set to switch between.
+		for(auto &AdaptationSet : Period->GetAdaptationSets())
+		{
+			TArray<TSharedPtrTS<FDashMPD_DescriptorType>> SwitchedSets;
+			TSharedPtrTS<FDashMPD_AdaptationSetType> MPDAdaptationSet = AdaptationSet->AdaptationSet.Pin();
+			SwitchedSets = MPDAdaptationSet->GetSupplementalProperties().FilterByPredicate([](const TSharedPtrTS<FDashMPD_DescriptorType>& d)
+				{ return d->GetSchemeIdUri().Equals(TEXT("urn:mpeg:dash:adaptation-set-switching:2016")); });
+			if (SwitchedSets.Num())
+			{
+				const TCHAR* const CommaDelimiter = TEXT(",");
+				for(auto &SwitchDesc : SwitchedSets)
+				{
+					// Get the IDs of the switched-to adaptation sets from the comma separated @value of the descriptor.
+					TArray<FString> SwitchedToIDs;
+					SwitchDesc->GetValue().ParseIntoArray(SwitchedToIDs, CommaDelimiter, true);
+					for(auto &SwitchID : SwitchedToIDs)
+					{
+						// The ID is the ID of the AdaptationSet in the MPD, not the one of the FAdaptationSet!
+						// Locate the FAdaptationSet that wraps the MPD's AdaptationSet with the given ID.
+						// This may be NULL when that AdaptationSet was not usable or flat out does not exist.
+						TSharedPtrTS<FAdaptationSet> SwitchedAS = Period->GetAdaptationSetByMPDID(SwitchID.TrimStartAndEnd());
+						if (SwitchedAS.IsValid())
+						{
+							// Check that this is not the same adaptation set we are currently handling!
+							if (SwitchedAS == AdaptationSet)
+							{
+								LogMessage(PlayerSessionServices, IInfoLog::ELevel::Warning, FString::Printf(TEXT("AdaptationSet references self in adaptation-set-switching property!")));
+								continue;
+							}
+							// Cross reference the switch-to and switching-from sets.
+							AdaptationSet->SwitchToSetIDs.AddUnique(SwitchedAS->GetUniqueIdentifier());
+							SwitchedAS->SwitchedFromSetIDs.AddUnique(AdaptationSet->GetUniqueIdentifier());
+						}
+					}
+				}
+			}
+		}
+
+		// Build special switching AdaptationSets that aggregate all representations from the referenced sets.
+		TArray<TSharedPtrTS<FAdaptationSet>> SwitchingAdaptationSets;
+		for(auto &AdaptationSet : Period->GetAdaptationSets())
+		{
+			TArray<FString> SwitchGroupIDs;
+			struct FSwitchGroupBuilder
+			{
+				static void AddSet(TArray<FString>& SwitchGroupIDs, const TSharedPtrTS<const FPeriod>& P, const TSharedPtrTS<FAdaptationSet>& AS)
+				{
+					if (AS.IsValid() && !SwitchGroupIDs.Contains(AS->GetUniqueIdentifier()))
+					{
+						SwitchGroupIDs.Add(AS->GetUniqueIdentifier());
+						for(auto &N : AS->GetSwitchToSetIDs())
+						{
+							AddSet(SwitchGroupIDs, P, P->GetAdaptationSetByUniqueID(N));
+						}
+						for(auto &N : AS->GetSwitchedFromSetIDs())
+						{
+							AddSet(SwitchGroupIDs, P, P->GetAdaptationSetByUniqueID(N));
+						}
+					}
+				}
+			};
+			// If this set is referencing others or is itself being referenced
+			if (!AdaptationSet->bIsInSwitchGroup && (AdaptationSet->GetSwitchToSetIDs().Num() || AdaptationSet->GetSwitchedFromSetIDs().Num()))
+			{
+				FSwitchGroupBuilder::AddSet(SwitchGroupIDs, Period, AdaptationSet);
+
+				TSharedPtrTS<FAdaptationSet> SwitchSet = MakeSharedTS<FAdaptationSet>();
+				SwitchSet->UniqueSequentialSetIndex = nAdapt++;
+				SwitchSet->bIsSwitchGroup = true;
+				SwitchSet->SwitchToSetIDs = MoveTemp(SwitchGroupIDs);
+				SwitchSet->bIsUsable = true;
+				SwitchSet->bIsEnabled = true;
+				for(int32 i=0; i<SwitchSet->SwitchToSetIDs.Num(); ++i)
+				{
+					TSharedPtrTS<FAdaptationSet> SwitchedAS = Period->GetAdaptationSetByUniqueID(SwitchSet->SwitchToSetIDs[i]);
+					SwitchedAS->bIsInSwitchGroup = true;
+					if (i == 0)
+					{
+						SwitchSet->Roles = SwitchedAS->Roles;
+						SwitchSet->Accessibilities = SwitchedAS->Accessibilities;
+						SwitchSet->PAR = SwitchedAS->PAR;
+						SwitchSet->Language = SwitchedAS->Language;
+					}
+					if (SwitchedAS->MaxBandwidth > SwitchSet->MaxBandwidth)
+					{
+						SwitchSet->MaxBandwidth = SwitchedAS->MaxBandwidth;
+						SwitchSet->Codec = SwitchedAS->Codec;
+					}
+
+					SwitchSet->Representations.Append(SwitchedAS->Representations);
+				}
+				// Note: We do not aggregate encryption information here. These get accessed through the original adaptation sets.
+				SwitchingAdaptationSets.Emplace(MoveTemp(SwitchSet));
+			}
+		}
+		Period->AdaptationSets.Append(MoveTemp(SwitchingAdaptationSets));
+
 		Period->SetHasBeenPrepared(true);
 	}
 }
