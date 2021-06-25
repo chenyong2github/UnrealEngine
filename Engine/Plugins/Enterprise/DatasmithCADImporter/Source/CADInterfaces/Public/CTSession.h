@@ -63,7 +63,12 @@ public:
 	 */
 	void SetImportParameters(float ChordTolerance, float MaxEdgeLength, float NormalTolerance, CADLibrary::EStitchingTechnique StitchingTechnique, bool bScaleUVMap);
 	
-	CADLibrary::FImportParameters& GetImportParameters()
+	void SetModelCoordinateSystem(FDatasmithUtils::EModelCoordSystem NewCoordinateSystem)
+	{
+		ImportParams.ModelCoordSys = NewCoordinateSystem;
+	}
+
+	const CADLibrary::FImportParameters& GetImportParameters() const
 	{
 		return ImportParams;
 	}

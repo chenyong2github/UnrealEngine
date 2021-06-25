@@ -3182,14 +3182,14 @@ bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAt
 		// Ref. visitBRep
 		const FDatasmithOpenNurbsOptions& TessellationOptions = OpenNurbsOptions;
 		LocalSession->SetImportParameters(TessellationOptions.ChordTolerance, TessellationOptions.MaxEdgeLength, TessellationOptions.NormalTolerance, (CADLibrary::EStitchingTechnique) TessellationOptions.StitchingTechnique, false);
-		LocalSession->GetImportParameters().ModelCoordSys = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy;
+		LocalSession->SetModelCoordinateSystem(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy);
 
 		LocalSession->ClearData();
 		LocalSession->SetSceneUnit(GetMetricUnit());
 
 		LocalSession->AddBRep(*Brep, Offset);
 
-		FString FilePath = LocalSession->GetImportParameters().DefineCADFilePath(*OutputPath, *Name);
+		FString FilePath = FPaths::Combine(OutputPath, Name) += TEXT(".ct");
 		if (LocalSession->SaveBrep(FilePath))
 		{
 			MeshElement->SetFile(*FilePath);
@@ -3508,7 +3508,7 @@ bool FDatasmithOpenNurbsTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMe
 
 		if (ImportParameters.bEnableKernelIOTessellation)
 		{
-			CoreTechSurface::AddSurfaceDataForMesh(MeshElement, ImportParameters, MeshParameters, OpenNurbsOptions, OutMeshPayload);
+			CoreTechSurface::AddSurfaceDataForMesh(MeshElement->GetFile(), ImportParameters, MeshParameters, OpenNurbsOptions, OutMeshPayload);
 		}
 		else
 		{

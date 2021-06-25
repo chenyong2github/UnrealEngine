@@ -5,9 +5,9 @@
 
 #include "CADData.h"
 #include "CADOptions.h"
+#include "MeshDescription.h"
 
 struct FCTMesh;
-struct FMeshDescription;
 class FBodyMesh;
 class FCADMaterial;
 class IDatasmithMaterialIDElement;
@@ -26,5 +26,13 @@ namespace CADLibrary
 
 	CADLIBRARY_API bool ConvertBodyMeshToMeshDescription(const FImportParameters& ImportParams, const FMeshParameters& MeshParameters, FBodyMesh& Body, FMeshDescription& MeshDescription);
 	CADLIBRARY_API void CopyPatchGroups(FMeshDescription& MeshSource, FMeshDescription& MeshDestination);
+
+	/** 
+	 * Enable per-triangle integer attribute named PolyTriGroups 
+	 * This integer defines the identifier of the PolyTriGroup containing the triangle.
+	 * In case of mesh coming from a CAD file, a PolyTriGroup is associated to a CAD topological face
+	 */
+	CADLIBRARY_API TPolygonAttributesRef<int32> EnableCADPatchGroups(FMeshDescription& OutMeshDescription);
+	CADLIBRARY_API void GetExistingPatches(FMeshDescription& MeshDestination, TSet<int32>& OutPatchIdSet);
 
 } // namespace CADLibrary

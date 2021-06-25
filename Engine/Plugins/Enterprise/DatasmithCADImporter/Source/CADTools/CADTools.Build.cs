@@ -12,7 +12,6 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
                     "Core",
-					"CADKernel",
 					"DatasmithCore"
 				}
 			);

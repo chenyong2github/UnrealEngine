@@ -33,7 +33,6 @@ private:
 	virtual void Serialize(FArchive& Ar) override;
 };
 
-class IDatasmithMeshElement;
 struct FDatasmithMeshElementPayload;
 
 namespace CADLibrary
@@ -44,5 +43,5 @@ namespace CADLibrary
 
 namespace CADKernelSurface
 {
-	void CADKERNELSURFACE_API AddSurfaceDataForMesh(const TSharedRef<IDatasmithMeshElement>& InMeshElement, const CADLibrary::FImportParameters& InSceneParameters, const CADLibrary::FMeshParameters&, const FDatasmithTessellationOptions& InTessellationOptions, FDatasmithMeshElementPayload& OutMeshPayload);
+	void CADKERNELSURFACE_API AddSurfaceDataForMesh(const TCHAR* CADKernelArchive, const CADLibrary::FImportParameters& InSceneParameters, const CADLibrary::FMeshParameters&, const FDatasmithTessellationOptions& InTessellationOptions, FDatasmithMeshElementPayload& OutMeshPayload);
 }
