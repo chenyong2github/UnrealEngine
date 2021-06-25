@@ -11,7 +11,7 @@
 
 struct FMetalPooledBufferArgs
 {
-    FMetalPooledBufferArgs() : Device(nil), Size(0), Flags(0), Storage(mtlpp::StorageMode::Shared) {}
+    FMetalPooledBufferArgs() : Device(nil), Size(0), Flags(0), Storage(mtlpp::StorageMode::Shared), CpuCacheMode(mtlpp::CpuCacheMode::DefaultCache) {}
 	
     FMetalPooledBufferArgs(mtlpp::Device InDevice, uint32 InSize, uint32 InFlags, mtlpp::StorageMode InStorage, mtlpp::CpuCacheMode InCpuCacheMode = mtlpp::CpuCacheMode::DefaultCache)
 	: Device(InDevice)
@@ -415,6 +415,13 @@ class FMetalResourceHeap
         NumUsageTypes = 2
     };
     
+    enum CPUCacheMode
+    {
+		Default,
+		WriteCombined,
+		NumCacheModes
+    };
+    
 public:
 	FMetalResourceHeap(void);
 	~FMetalResourceHeap();
@@ -454,7 +461,7 @@ private:
     TArray<FMetalSubBufferHeap*> BufferHeaps[NumUsageTypes][NumAllocTypes][NumHeapSizes];
 	
 	/** Larger buffers (up-to 32MB) that are subject to bucketing & pooling rather than sub-allocation */
-	FMetalBufferPool Buffers[NumAllocTypes];
+	FMetalBufferPool Buffers[NumAllocTypes][NumCacheModes];
 #if PLATFORM_MAC // All managed buffers are bucketed & pooled rather than sub-allocated to avoid memory consistency complexities
 	FMetalBufferPool ManagedBuffers;
 	TArray<FMetalSubBufferLinear*> ManagedSubHeaps;

@@ -1399,7 +1399,7 @@ void FMetalCommandEncoder::SetVisibilityResultMode(mtlpp::VisibilityResultMode c
 	
 #pragma mark - Public Shader Resource Mutators -
 
-void FMetalCommandEncoder::SetShaderBuffer(mtlpp::FunctionType const FunctionType, FMetalBuffer const& Buffer, NSUInteger const Offset, NSUInteger const Length, NSUInteger index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format)
+void FMetalCommandEncoder::SetShaderBuffer(mtlpp::FunctionType const FunctionType, FMetalBuffer const& Buffer, NSUInteger const Offset, NSUInteger const Length, NSUInteger index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format, NSUInteger const ElementRowPitch)
 {
 	check(index < ML_MaxBuffers);
     if(GetMetalDeviceContext().SupportsFeature(EMetalFeaturesSetBufferOffset) && Buffer && (ShaderBuffers[uint32(FunctionType)].Bound & (1 << index)) && ShaderBuffers[uint32(FunctionType)].Buffers[index] == Buffer)
@@ -1409,8 +1409,8 @@ void FMetalCommandEncoder::SetShaderBuffer(mtlpp::FunctionType const FunctionTyp
 			FenceResource(Buffer);
 		}
 		SetShaderBufferOffset(FunctionType, Offset, Length, index);
-		ShaderBuffers[uint32(FunctionType)].Lengths[(index*2)+1] = GMetalBufferFormats[Format].DataFormat;
 		ShaderBuffers[uint32(FunctionType)].Usage[index] = Usage;
+		ShaderBuffers[uint32(FunctionType)].SetBufferMetaData(index, Length, GMetalBufferFormats[Format].DataFormat, ElementRowPitch);
 	}
     else
     {
@@ -1426,8 +1426,7 @@ void FMetalCommandEncoder::SetShaderBuffer(mtlpp::FunctionType const FunctionTyp
 		ShaderBuffers[uint32(FunctionType)].Bytes[index] = nil;
 		ShaderBuffers[uint32(FunctionType)].Offsets[index] = Offset;
 		ShaderBuffers[uint32(FunctionType)].Usage[index] = Usage;
-		ShaderBuffers[uint32(FunctionType)].Lengths[index*2] = Length;
-		ShaderBuffers[uint32(FunctionType)].Lengths[(index*2)+1] = GMetalBufferFormats[Format].DataFormat;
+		ShaderBuffers[uint32(FunctionType)].SetBufferMetaData(index, Length, GMetalBufferFormats[Format].DataFormat, ElementRowPitch);
 		
 		SetShaderBufferInternal(FunctionType, index);
     }
@@ -1438,7 +1437,7 @@ void FMetalCommandEncoder::SetShaderBuffer(mtlpp::FunctionType const FunctionTyp
 	}
 }
 
-void FMetalCommandEncoder::SetShaderData(mtlpp::FunctionType const FunctionType, FMetalBufferData* Data, NSUInteger const Offset, NSUInteger const Index, EPixelFormat const Format)
+void FMetalCommandEncoder::SetShaderData(mtlpp::FunctionType const FunctionType, FMetalBufferData* Data, NSUInteger const Offset, NSUInteger const Index, EPixelFormat const Format, NSUInteger const ElementRowPitch)
 {
 	check(Index < ML_MaxBuffers);
 	
@@ -1455,9 +1454,7 @@ void FMetalCommandEncoder::SetShaderData(mtlpp::FunctionType const FunctionType,
 	ShaderBuffers[uint32(FunctionType)].Bytes[Index] = Data;
 	ShaderBuffers[uint32(FunctionType)].Offsets[Index] = Offset;
 	ShaderBuffers[uint32(FunctionType)].Usage[Index] = mtlpp::ResourceUsage::Read;
-	ShaderBuffers[uint32(FunctionType)].Lengths[Index*2] = Data ? (Data->Len - Offset) : 0;
-	ShaderBuffers[uint32(FunctionType)].Lengths[(Index*2)+1] = GMetalBufferFormats[Format].DataFormat;
-	
+	ShaderBuffers[uint32(FunctionType)].SetBufferMetaData(Index, Data ? (Data->Len - Offset) : 0, GMetalBufferFormats[Format].DataFormat, ElementRowPitch);
 	SetShaderBufferInternal(FunctionType, Index);
 }
 
@@ -1504,8 +1501,7 @@ void FMetalCommandEncoder::SetShaderBytes(mtlpp::FunctionType const FunctionType
 		ShaderBuffers[uint32(FunctionType)].Bytes[Index] = nil;
 		ShaderBuffers[uint32(FunctionType)].Offsets[Index] = 0;
 		ShaderBuffers[uint32(FunctionType)].Usage[Index] = mtlpp::ResourceUsage::Read;
-		ShaderBuffers[uint32(FunctionType)].Lengths[Index*2] = Length;
-		ShaderBuffers[uint32(FunctionType)].Lengths[(Index*2)+1] = GMetalBufferFormats[PF_Unknown].DataFormat;
+		ShaderBuffers[uint32(FunctionType)].SetBufferMetaData(Index, Length, GMetalBufferFormats[PF_Unknown].DataFormat, 0);
 	}
 	else
 	{
@@ -1515,8 +1511,7 @@ void FMetalCommandEncoder::SetShaderBytes(mtlpp::FunctionType const FunctionType
 		ShaderBuffers[uint32(FunctionType)].Bytes[Index] = nil;
 		ShaderBuffers[uint32(FunctionType)].Offsets[Index] = 0;
 		ShaderBuffers[uint32(FunctionType)].Usage[Index] = mtlpp::ResourceUsage(0);
-		ShaderBuffers[uint32(FunctionType)].Lengths[Index*2] = 0;
-		ShaderBuffers[uint32(FunctionType)].Lengths[(Index*2)+1] = GMetalBufferFormats[PF_Unknown].DataFormat;
+		ShaderBuffers[uint32(FunctionType)].SetBufferMetaData(Index, 0, GMetalBufferFormats[PF_Unknown].DataFormat, 0);
 	}
 	
 	SetShaderBufferInternal(FunctionType, Index);
@@ -1528,8 +1523,7 @@ void FMetalCommandEncoder::SetShaderBufferOffset(mtlpp::FunctionType FunctionTyp
     checkf(ShaderBuffers[uint32(FunctionType)].Buffers[index] && (ShaderBuffers[uint32(FunctionType)].Bound & (1 << index)), TEXT("Buffer must already be bound"));
 	check(GetMetalDeviceContext().SupportsFeature(EMetalFeaturesSetBufferOffset));
 	ShaderBuffers[uint32(FunctionType)].Offsets[index] = Offset;
-	ShaderBuffers[uint32(FunctionType)].Lengths[index*2] = Length;
-	ShaderBuffers[uint32(FunctionType)].Lengths[(index*2)+1] = GMetalBufferFormats[PF_Unknown].DataFormat;
+	ShaderBuffers[uint32(FunctionType)].SetBufferMetaData(index, Length, GMetalBufferFormats[PF_Unknown].DataFormat, 0);
 	switch (FunctionType)
 	{
 		case mtlpp::FunctionType::Vertex:
@@ -1595,8 +1589,8 @@ void FMetalCommandEncoder::SetShaderTexture(mtlpp::FunctionType FunctionType, FM
 		{
 			Swizzle[0] = Swizzle[1] = Swizzle[2] = Swizzle[3] = 1;
 		}
-		FMemory::Memcpy(&ShaderBuffers[uint32(FunctionType)].Lengths[(ML_MaxBuffers*2)+(index*2)], Swizzle, sizeof(Swizzle));
-		ShaderBuffers[uint32(FunctionType)].Lengths[(ML_MaxBuffers*2)+(index*2)+1] = 0;
+		
+		ShaderBuffers[uint32(FunctionType)].SetTextureSwizzle(index, Swizzle);
 		TextureBindingHistory.Add(ns::AutoReleased<FMetalTexture>(Texture));
 	}
 }

@@ -77,7 +77,7 @@ public:
 	 * @param Usage The resource usage flags.
 	 * @param Format The UAV pixel format.
 	 */
-	void SetShaderBuffer(EMetalShaderStages const Frequency, FMetalBuffer const& Buffer, FMetalBufferData* const Bytes, NSUInteger const Offset, NSUInteger const Length, NSUInteger const Index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format = PF_Unknown);
+	void SetShaderBuffer(EMetalShaderStages const Frequency, FMetalBuffer const& Buffer, FMetalBufferData* const Bytes, NSUInteger const Offset, NSUInteger const Length, NSUInteger const Index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format = PF_Unknown, NSUInteger const ElementRowPitch = 0);
 	
 	/*
 	 * Set a global texture for the specified shader frequency at the given bind point index.
@@ -195,6 +195,8 @@ private:
 		NSUInteger Offset;
 		/** The bound buffer lengths or 0. */
 		NSUInteger Length;
+		/** The bound buffer element row pitch or 0 */
+		NSUInteger ElementRowPitch;
 		/** The bound buffer usage or 0 */
 		mtlpp::ResourceUsage Usage;
 	};

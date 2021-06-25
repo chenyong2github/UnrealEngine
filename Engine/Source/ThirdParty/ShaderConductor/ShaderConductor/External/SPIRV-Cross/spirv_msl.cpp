@@ -4823,42 +4823,25 @@ void CompilerMSL::emit_custom_functions()
 		// Emulate texture2D atomic operations
 		case SPVFuncImplImage2DAtomicCoords:
 		{
-			if (msl_options.supports_msl_version(1, 2))
-			{
-				statement("// The required alignment of a linear texture of R32Uint format.");
-				statement("constant uint spvLinearTextureAlignmentOverride [[function_constant(",
-				          msl_options.r32ui_alignment_constant_id, ")]];");
-				statement("constant uint spvLinearTextureAlignment = ",
-				          "is_function_constant_defined(spvLinearTextureAlignmentOverride) ? ",
-				          "spvLinearTextureAlignmentOverride : ", msl_options.r32ui_linear_texture_alignment, ";");
-			}
-			else
-			{
-				statement("// The required alignment of a linear texture of R32Uint format.");
-				statement("constant uint spvLinearTextureAlignment = ", msl_options.r32ui_linear_texture_alignment,
-				          ";");
-			}
 			statement("// Returns buffer coords corresponding to 2D texture coords for emulating 2D texture atomics");
-			// UE Change Begin: Add support for Image3D atomic emulation
+			// UE Change Begin: Add support for Image2/3D atomic emulation
+			// Take into account the image pitch
 			statement("template<typename T>");
-			statement("inline uint spvImageAtomicCoord(texture2d<T> tex, uint2 tc)");
+			statement("inline uint spvImageAtomicCoord(texture2d<T> tex, uint2 tc, uint element_pitch)");
 			begin_scope();
-			statement("const uint aligned_width = ((tex.get_width() + spvLinearTextureAlignment / 4 - 1) & "
-			          "~(spvLinearTextureAlignment / 4 - 1));");
+			statement("const uint aligned_width = element_pitch;");
 			statement("return tc.y * aligned_width + tc.x;");
 			end_scope();
 			statement("");
 
 			statement("template <typename T>");
-			statement("inline uint spvImageAtomicCoord(texture3d<T> tex, uint3 tc)");
+			statement("inline uint spvImageAtomicCoord(texture3d<T> tex, uint3 tc, uint element_pitch)");
 			begin_scope();
-			statement("const uint aligned_width = ((tex.get_width() + spvLinearTextureAlignment / 4 - 1) & "
-			          "~(spvLinearTextureAlignment / 4 - 1));");
-			statement("const uint aligned_height = ((tex.get_height() + spvLinearTextureAlignment / 4 - 1) & "
-			          "~(spvLinearTextureAlignment / 4 - 1));");
+			statement("const uint aligned_width = element_pitch;");
+			statement("const uint aligned_height = tex.get_height();");
 			statement("return (tc.z * aligned_height + tc.y) * aligned_width + tc.x;");
 			end_scope();
-			// UE Change End: Add support for Image3D atomic emulation
+			// UE Change End: Add support for Image2/3D atomic emulation
 			statement("");
 			break;
 		}
@@ -4868,7 +4851,7 @@ void CompilerMSL::emit_custom_functions()
 		case SPVFuncImplStorageBufferCoords:
 		{
 			statement("// Returns buffer coords clamped to storage buffer size");
-			statement("#define spvStorageBufferCoords(idx, sizes, type, coord) metal::min((coord), (sizes[(idx)*2] / "
+			statement("#define spvStorageBufferCoords(idx, sizes, type, coord) metal::min((coord), (sizes[(idx)*3] / "
 			          "sizeof(type)) - 1)");
 			statement("");
 			break;
@@ -7785,18 +7768,18 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 
 			std::string coord = to_expression(ops[3]);
 			auto &type = expression_type(ops[2]);
-			// UE Change Begin: Add support for Image3D atomic emulation
+			// UE Change Begin: Add support for Image2/3D atomic emulation
+			const auto *var_type = var ? maybe_get<SPIRType>(var->basetype) : nullptr;
+			uint32_t var_index = get_metal_resource_index(*var, var_type->basetype);
 			if (type.image.dim == Dim2D || type.image.dim == Dim3D)
 			{
-				coord = join("spvImageAtomicCoord(", to_expression(ops[2]), ", ", coord, ")");
+				coord = join("spvImageAtomicCoord(", to_expression(ops[2]), ", ", coord, ", ", "spvBufferSizeConstants[(", convert_to_string(var_index), "*3)+2])");
 			}
-			// UE Change End: Add support for Image3D atomic emulation
+			// UE Change End: Add support for Image2/3D atomic emulation
 
 			// UE Change Begin: Clamp access to SSBOs to the size of the buffer
 			if (msl_options.enforce_storge_buffer_bounds)
 			{
-				const auto *var_type = var ? maybe_get<SPIRType>(var->basetype) : nullptr;
-				uint32_t var_index = get_metal_resource_index(*var, var_type->basetype);
 				const auto &innertype =
 				    var_type->basetype == SPIRType::Image ? get<SPIRType>(var_type->image.type) : *var_type;
 				uint32_t desc_set = get_decoration(ops[2], DecorationDescriptorSet);

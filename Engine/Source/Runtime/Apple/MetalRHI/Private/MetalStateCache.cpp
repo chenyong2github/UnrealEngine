@@ -219,6 +219,7 @@ FMetalStateCache::~FMetalStateCache()
 			ShaderBuffers[Frequency].Buffers[i].Buffer = nil;
 			ShaderBuffers[Frequency].Buffers[i].Bytes = nil;
 			ShaderBuffers[Frequency].Buffers[i].Length = 0;
+			ShaderBuffers[Frequency].Buffers[i].ElementRowPitch = 0;
 			ShaderBuffers[Frequency].Buffers[i].Offset = 0;
 			ShaderBuffers[Frequency].Buffers[i].Usage = mtlpp::ResourceUsage(0);
 			ShaderBuffers[Frequency].Formats[i] = PF_Unknown;
@@ -274,6 +275,7 @@ void FMetalStateCache::Reset(void)
 			ShaderBuffers[Frequency].Buffers[i].Buffer = nil;
 			ShaderBuffers[Frequency].Buffers[i].Bytes = nil;
 			ShaderBuffers[Frequency].Buffers[i].Length = 0;
+			ShaderBuffers[Frequency].Buffers[i].ElementRowPitch = 0;
 			ShaderBuffers[Frequency].Buffers[i].Offset = 0;
 			ShaderBuffers[Frequency].Formats[i] = PF_Unknown;
 		}
@@ -1319,7 +1321,7 @@ bool FMetalStateCache::NeedsToSetRenderTarget(const FRHIRenderPassInfo& InRender
 	return bAllChecksPassed == false;
 }
 
-void FMetalStateCache::SetShaderBuffer(EMetalShaderStages const Frequency, FMetalBuffer const& Buffer, FMetalBufferData* const Bytes, NSUInteger const Offset, NSUInteger const Length, NSUInteger const Index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format)
+void FMetalStateCache::SetShaderBuffer(EMetalShaderStages const Frequency, FMetalBuffer const& Buffer, FMetalBufferData* const Bytes, NSUInteger const Offset, NSUInteger const Length, NSUInteger const Index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format, NSUInteger const ElementRowPitch)
 {
 	check(Frequency < EMetalShaderStages::Num);
 	check(Index < ML_MaxBuffers);
@@ -1328,6 +1330,7 @@ void FMetalStateCache::SetShaderBuffer(EMetalShaderStages const Frequency, FMeta
 		ShaderBuffers[Frequency].Buffers[Index].Bytes != Bytes ||
 		ShaderBuffers[Frequency].Buffers[Index].Offset != Offset ||
 		ShaderBuffers[Frequency].Buffers[Index].Length != Length ||
+		ShaderBuffers[Frequency].Buffers[Index].ElementRowPitch != ElementRowPitch ||
 		!(ShaderBuffers[Frequency].Buffers[Index].Usage & Usage) ||
 		ShaderBuffers[Frequency].Formats[Index] != Format)
 	{
@@ -1335,6 +1338,7 @@ void FMetalStateCache::SetShaderBuffer(EMetalShaderStages const Frequency, FMeta
 		ShaderBuffers[Frequency].Buffers[Index].Bytes = Bytes;
 		ShaderBuffers[Frequency].Buffers[Index].Offset = Offset;
 		ShaderBuffers[Frequency].Buffers[Index].Length = Length;
+		ShaderBuffers[Frequency].Buffers[Index].ElementRowPitch = ElementRowPitch;
 		ShaderBuffers[Frequency].Buffers[Index].Usage = Usage;
 		
 		ShaderBuffers[Frequency].Formats[Index] = Format;
@@ -1571,8 +1575,11 @@ void FMetalStateCache::SetShaderUnorderedAccessView(EMetalShaderStages ShaderSta
 				
 				if ((Source->Flags & (TexCreate_UAV|TexCreate_NoTiling)) == (TexCreate_UAV|TexCreate_NoTiling) && Surface->Texture.GetBuffer())
 				{
+					uint32 BytesPerRow = Surface->Texture.GetBufferBytesPerRow();
+					uint32 ElementsPerRow = BytesPerRow / GPixelFormats[(EPixelFormat)Texture->GetFormat()].BlockBytes;
+				
 					FMetalBuffer Buffer(Surface->Texture.GetBuffer(), false);
-					SetShaderBuffer(ShaderStage, Buffer, nullptr, 0, Surface->Texture.GetBuffer().GetLength(), BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Write), PF_MAX);
+					SetShaderBuffer(ShaderStage, Buffer, nullptr, 0, Surface->Texture.GetBuffer().GetLength(), BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Write), PF_MAX, ElementsPerRow);
 				}
 			}
 			else
@@ -2181,7 +2188,7 @@ void FMetalStateCache::CommitResourceTable(EMetalShaderStages const Frequency, m
 			FMetalBufferBinding& Binding = BufferBindings.Buffers[Index];
 			if (Binding.Buffer)
 			{
-				CommandEncoder.SetShaderBuffer(Type, Binding.Buffer, Binding.Offset, Binding.Length, Index, Binding.Usage, BufferBindings.Formats[Index]);
+				CommandEncoder.SetShaderBuffer(Type, Binding.Buffer, Binding.Offset, Binding.Length, Index, Binding.Usage, BufferBindings.Formats[Index], Binding.ElementRowPitch);
 				
 				if (Binding.Buffer.IsSingleUse())
 				{
@@ -2190,7 +2197,7 @@ void FMetalStateCache::CommitResourceTable(EMetalShaderStages const Frequency, m
 			}
 			else if (Binding.Bytes)
 			{
-				CommandEncoder.SetShaderData(Type, Binding.Bytes, Binding.Offset, Index, BufferBindings.Formats[Index]);
+				CommandEncoder.SetShaderData(Type, Binding.Bytes, Binding.Offset, Index, BufferBindings.Formats[Index], Binding.ElementRowPitch);
 			}
 		}
 	}

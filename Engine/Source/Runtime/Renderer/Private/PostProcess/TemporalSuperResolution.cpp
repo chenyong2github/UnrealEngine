@@ -622,11 +622,17 @@ void AddTemporalSuperResolutionPasses(
 	FRDGTextureRef PrevClosestDepthTexture;
 	{
 		{
+			ETextureCreateFlags TexCreateFlagsAtomicCompatible = TexCreate_ShaderResource | TexCreate_UAV;
+			if(IsMetalPlatform(View.GetShaderPlatform()))
+			{
+				TexCreateFlagsAtomicCompatible |= TexCreate_NoTiling;
+			}
+			
 			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 				InputExtent,
 				PF_R32_UINT,
 				FClearValueBinding::None,
-				/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
+				/* InFlags = */ TexCreateFlagsAtomicCompatible);
 
 			PrevUseCountTexture = GraphBuilder.CreateTexture(Desc, TEXT("TSR.PrevUseCountTexture"));
 			PrevClosestDepthTexture = GraphBuilder.CreateTexture(Desc, TEXT("TSR.PrevClosestDepthTexture"));
