@@ -17,6 +17,11 @@
 #include "Selections/MeshConnectedComponents.h"
 #include "Selections/MeshFaceSelection.h"
 #include "ModelingToolTargetUtil.h"
+#include "Properties/MeshStatisticsProperties.h"
+#include "Drawing/MeshElementsVisualizer.h"
+#include "Properties/MeshUVChannelProperties.h"
+#include "PropertySets/PolygroupLayersProperties.h"
+#include "Polygroups/PolygroupUtil.h"
 
 #include "Algo/MaxElement.h"
 
@@ -70,6 +75,23 @@ void UMeshSelectionTool::Setup()
 	SelectionProps->RestoreProperties(this);
 	AddToolPropertySource(SelectionProps);
 
+	PolygroupLayerProperties = NewObject<UPolygroupLayersProperties>(this);
+	PolygroupLayerProperties->RestoreProperties(this);
+	PreviewMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh) { PolygroupLayerProperties->InitializeGroupLayers(&ReadMesh); });
+	PolygroupLayerProperties->WatchProperty(PolygroupLayerProperties->ActiveGroupLayer, [&](FName) { UpdateActiveGroupLayer(); bColorsUpdatePending = true; bFullMeshInvalidationPending = true; });
+	AddToolPropertySource(PolygroupLayerProperties);
+	UpdateActiveGroupLayer();
+
+	UVChannelProperties = NewObject<UMeshUVChannelProperties>(this);
+	UVChannelProperties->RestoreProperties(this);
+	PreviewMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh) { UVChannelProperties->Initialize(&ReadMesh, false); });
+	UVChannelProperties->ValidateSelection(true);
+	UVChannelProperties->WatchProperty(UVChannelProperties->UVChannel, [this](const FString& NewValue) { CacheUVIslandIDs(); bColorsUpdatePending = true; bFullMeshInvalidationPending = true; });
+	AddToolPropertySource(UVChannelProperties);
+
+	// we could probably calculate this on-demand but we need to do it before making any mesh changes? or update?
+	CacheUVIslandIDs();
+
 	AddSubclassPropertySets();
 
 	SelectionActions = NewObject<UMeshSelectionEditActions>(this);
@@ -81,9 +103,6 @@ void UMeshSelectionTool::Setup()
 
 	// set autocalculated tangents
 	PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
-
-	// enable wireframe on component
-	PreviewMesh->EnableWireframe(SelectionProps->bShowWireframe);
 
 	// disable shadows
 	PreviewMesh->SetShadowsEnabled(false);
@@ -109,9 +128,6 @@ void UMeshSelectionTool::Setup()
 	SelectedVertices = TBitArray<>(false, Mesh->MaxVertexID());
 	SelectedTriangles = TBitArray<>(false, Mesh->MaxTriangleID());
 
-	// we could probably calculate this on-demand but we need to do it before making any mesh changes? or update?
-	CacheUVIslandIDs();
-
 	this->Selection = NewObject<UMeshSelectionSet>(this);
 	Selection->GetOnModified().AddLambda([this](USelectionSet* SelectionObj)
 	{
@@ -119,16 +135,38 @@ void UMeshSelectionTool::Setup()
 	});
 
 	// rebuild octree if mesh changes
-	PreviewMesh->GetOnMeshChanged().AddLambda([this]() { bOctreeValid = false; bFullMeshInvalidationPending = true; });
+	PreviewMesh->GetOnMeshChanged().AddLambda([this]() { 
+		bOctreeValid = false; 
+		bFullMeshInvalidationPending = true; 
+		bColorsUpdatePending = true; 
+		CacheUVIslandIDs(); 
+		UpdateActiveGroupLayer();
+	});
 
-	SelectionProps->WatchProperty(SelectionProps->bShowWireframe,
-								  [this](bool bNewValue) { PreviewMesh->EnableWireframe(bNewValue); });
 	SelectionProps->WatchProperty(SelectionProps->FaceColorMode,
 								  [this](EMeshFacesColorMode NewValue)
 								  {
 									  bColorsUpdatePending = true; UpdateVisualization(false);
 								  });
 	bColorsUpdatePending = (SelectionProps->FaceColorMode != EMeshFacesColorMode::None);
+
+	MeshElementsDisplay = NewObject<UMeshElementsVisualizer>(this);
+	MeshElementsDisplay->CreateInWorld(PreviewMesh->GetWorld(), PreviewMesh->GetTransform());
+	if (ensure(MeshElementsDisplay->Settings))
+	{
+		MeshElementsDisplay->Settings->bShowWireframe = true;
+		MeshElementsDisplay->Settings->bShowUVSeams = false;
+		MeshElementsDisplay->Settings->bShowNormalSeams = false;
+		MeshElementsDisplay->Settings->bShowColorSeams = false;
+		MeshElementsDisplay->Settings->RestoreProperties(this, TEXT("MeshSelection"));
+		AddToolPropertySource(MeshElementsDisplay->Settings);
+	}
+	MeshElementsDisplay->SetMeshAccessFunction([this](UMeshElementsVisualizer::ProcessDynamicMeshFunc ProcessFunc) {
+		PreviewMesh->ProcessMesh(ProcessFunc);
+	});
+
+	MeshStatisticsProperties = NewObject<UMeshStatisticsProperties>(this);
+	AddToolPropertySource(MeshStatisticsProperties);
 
 	RecalculateBrushRadius();
 	UpdateVisualization(true);
@@ -152,14 +190,10 @@ UMeshSelectionToolActionPropertySet* UMeshSelectionTool::CreateEditActions()
 
 
 
-void UMeshSelectionTool::OnShutdown(EToolShutdownType ShutdownType)
+void UMeshSelectionTool::ApplyShutdownAction(EToolShutdownType ShutdownType)
 {
-	SelectionProps->SaveProperties(this);
-	BrushProperties->SaveProperties(this);
-
 	if (bHaveModifiedMesh && ShutdownType == EToolShutdownType::Accept)
 	{
-		// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("MeshSelectionToolTransactionName", "Edit Mesh"));
 		UE::ToolTarget::CommitDynamicMeshUpdate(Target, *PreviewMesh->GetMesh(), true);
 		GetToolManager()->EndUndoTransaction();
@@ -171,6 +205,23 @@ void UMeshSelectionTool::OnShutdown(EToolShutdownType ShutdownType)
 			Spawned->Destroy();
 		}
 	}
+}
+
+
+void UMeshSelectionTool::OnShutdown(EToolShutdownType ShutdownType)
+{
+	SelectionProps->SaveProperties(this);
+	BrushProperties->SaveProperties(this);
+	UVChannelProperties->SaveProperties(this);
+	PolygroupLayerProperties->SaveProperties(this);
+
+	if (ensure(MeshElementsDisplay->Settings))
+	{
+		MeshElementsDisplay->Settings->SaveProperties(this, TEXT("MeshSelection"));
+	}
+	MeshElementsDisplay->Disconnect();
+
+	ApplyShutdownAction(ShutdownType);
 }
 
 
@@ -203,13 +254,6 @@ void UMeshSelectionTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 		EModifierKey::None, EKeys::Delete,
 		[this]() { DeleteSelectedTriangles(); });
 
-
-	ActionSet.RegisterAction(this, (int32)EStandardToolActions::ToggleWireframe,
-		TEXT("ToggleWireframe"),
-		LOCTEXT("ToggleWireframe", "Toggle Wireframe"),
-		LOCTEXT("ToggleWireframeTooltip", "Toggle visibility of wireframe overlay"),
-		EModifierKey::Alt, EKeys::W,
-		[this]() { SelectionProps->bShowWireframe = !SelectionProps->bShowWireframe; });
 
 #if WITH_EDITOR  	// enum HasMetaData()  is not available at runtime
 	ActionSet.RegisterAction(this, (int32)EMeshSelectionToolActions::CycleSelectionMode,
@@ -500,7 +544,7 @@ void UMeshSelectionTool::UpdateFaceSelection(const FBrushStampData& Stamp, const
 	else if (SelectionProps->SelectionMode == EMeshSelectionToolPrimaryMode::AllInGroup)
 	{
 		FMeshConnectedComponents::GrowToConnectedTriangles(Mesh, TriangleROI, LocalROI, &TemporaryBuffer, &TemporarySet,
-			[Mesh](int t1, int t2) { return Mesh->GetTriangleGroup(t1) == Mesh->GetTriangleGroup(t2); } );
+			[&](int t1, int t2) { return ActiveGroupSet->GetTriangleGroup(t1) == ActiveGroupSet->GetTriangleGroup(t2); } );
 		UseROI = &LocalROI;
 	}
 	else if (SelectionProps->SelectionMode == EMeshSelectionToolPrimaryMode::ByMaterial)
@@ -700,7 +744,19 @@ void UMeshSelectionTool::UpdateVisualization(bool bSelectionModified)
 {
 	check(SelectionType == EMeshSelectionElementType::Face);  // only face selection supported so far
 
-	bFullMeshInvalidationPending = false;
+	SetToolPropertySourceEnabled(UVChannelProperties,
+								 SelectionProps->SelectionMode == EMeshSelectionToolPrimaryMode::ByUVIsland ||
+								 SelectionProps->FaceColorMode == EMeshFacesColorMode::ByUVIsland);
+
+	if (bFullMeshInvalidationPending)
+	{
+		PreviewMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
+		{
+			MeshStatisticsProperties->Update(ReadMesh);
+		});
+		MeshElementsDisplay->NotifyMeshChanged();
+		bFullMeshInvalidationPending = false;
+	}
 
 	// force an update of renderbuffers
 	if (bSelectionModified)
@@ -735,7 +791,7 @@ FColor UMeshSelectionTool::GetCurrentFaceColor(const FDynamicMesh3* Mesh, int Tr
 {
 	if (SelectionProps->FaceColorMode == EMeshFacesColorMode::ByGroup)
 	{
-		return LinearColors::SelectFColor(Mesh->GetTriangleGroup(TriangleID));
+		return LinearColors::SelectFColor(ActiveGroupSet->GetTriangleGroup(TriangleID));
 	}
 	else if (SelectionProps->FaceColorMode == EMeshFacesColorMode::ByMaterialID)
 	{
@@ -757,7 +813,8 @@ void UMeshSelectionTool::CacheUVIslandIDs()
 
 	TriangleToUVIsland.SetNum(Mesh->MaxTriangleID());
 
-	const FDynamicMeshUVOverlay* UV = Mesh->Attributes()->GetUVLayer(0);
+	int32 ActiveUVLayer = UVChannelProperties->GetSelectedChannelIndex(true);
+	const FDynamicMeshUVOverlay* UV = Mesh->Attributes()->GetUVLayer(ActiveUVLayer);
 
 	Components.FindConnectedTriangles([&](int32 TriIdx0, int32 TriIdx1)
 	{
@@ -772,6 +829,26 @@ void UMeshSelectionTool::CacheUVIslandIDs()
 			TriangleToUVIsland[TriIdx] = ci;
 		}
 	}
+}
+
+
+void UMeshSelectionTool::UpdateActiveGroupLayer()
+{
+	// todo: need this to be const
+	const FDynamicMesh3* SourceMesh = PreviewMesh->GetMesh();
+
+	if (PolygroupLayerProperties->HasSelectedPolygroup() == false)
+	{
+		ActiveGroupSet = MakeShared<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe>(SourceMesh);
+	}
+	else
+	{
+		FName SelectedName = PolygroupLayerProperties->ActiveGroupLayer;
+		const FDynamicMeshPolygroupAttribute* FoundAttrib = UE::Geometry::FindPolygroupLayerByName(*SourceMesh, SelectedName);
+		ensureMsgf(FoundAttrib, TEXT("Selected Attribute Not Found! Falling back to Default group layer."));
+		ActiveGroupSet = MakeShared<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe>(SourceMesh, FoundAttrib);
+	}
+
 }
 
 
@@ -815,6 +892,13 @@ void UMeshSelectionTool::OnTick(float DeltaTime)
 		bHavePendingAction = false;
 		PendingAction = EMeshSelectionToolActions::NoAction;
 	}
+
+	if (bFullMeshInvalidationPending)
+	{
+		UpdateVisualization(false);
+	}
+
+	MeshElementsDisplay->OnTick(DeltaTime);
 }
 
 
@@ -1061,18 +1145,18 @@ void UMeshSelectionTool::GrowShrinkSelection(bool bGrow)
 			}
 		}
 	}
-	if( Mesh->HasTriangleGroups() && (SelectionProps->SelectionMode == EMeshSelectionToolPrimaryMode::AllInGroup) )
+	if( SelectionProps->SelectionMode == EMeshSelectionToolPrimaryMode::AllInGroup )
 	{
 		TSet<int32> AdjacentFaces{ChangeFaces};
 		TSet<int32> AdjacentGroups{};
 		ChangeFaces.Empty();
 		for ( int32 TID : AdjacentFaces )
 		{
-			AdjacentGroups.Add(Mesh->GetTriangleGroup(TID));
+			AdjacentGroups.Add(ActiveGroupSet->GetTriangleGroup(TID));
 		}
 		for ( int32 TID : Mesh->TriangleIndicesItr() )
 		{
-			if ( AdjacentGroups.Contains(Mesh->GetTriangleGroup(TID)) )
+			if ( AdjacentGroups.Contains(ActiveGroupSet->GetTriangleGroup(TID)) )
 			{
 				ChangeFaces.Add(TID);
 			}
@@ -1463,7 +1547,7 @@ void UMeshSelectionTool::AssignNewGroupToSelectedTriangles()
 	// assign new groups to triangles
 	// note: using an FMeshChange is kind of overkill here
 	TUniquePtr<FMeshChange> MeshChange = PreviewMesh->TrackedEditMesh(
-		[&SelectedFaces](FDynamicMesh3& Mesh, FDynamicMeshChangeTracker& ChangeTracker)
+		[&SelectedFaces, this](FDynamicMesh3& Mesh, FDynamicMeshChangeTracker& ChangeTracker)
 	{
 		// each component gets its own group id
 		FMeshConnectedComponents Components(&Mesh);
@@ -1475,7 +1559,7 @@ void UMeshSelectionTool::AssignNewGroupToSelectedTriangles()
 			for (int tid : Component.Indices)
 			{
 				ChangeTracker.SaveTriangle(tid, true);
-				Mesh.SetTriangleGroup(tid, NewGroupID);
+				ActiveGroupSet->SetGroup(tid, NewGroupID, Mesh);
 			}
 		}
 	});

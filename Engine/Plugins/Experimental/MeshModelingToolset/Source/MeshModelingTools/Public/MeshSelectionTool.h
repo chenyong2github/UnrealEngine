@@ -7,7 +7,13 @@
 #include "SelectionSet.h"
 #include "Changes/MeshSelectionChange.h"
 #include "DynamicMesh/DynamicMeshOctree3.h"
+#include "Polygroups/PolygroupSet.h"
 #include "MeshSelectionTool.generated.h"
+
+class UMeshStatisticsProperties;
+class UMeshElementsVisualizer;
+class UMeshUVChannelProperties;
+class UPolygroupLayersProperties;
 
 /**
  *
@@ -74,57 +80,65 @@ class MESHMODELINGTOOLS_API UMeshSelectionEditActions : public UMeshSelectionToo
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayName = "Select All", DisplayPriority = 1))
-	void SelectAll()
-	{
-		PostAction(EMeshSelectionToolActions::SelectAll);
-	}
-
-	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayName = "Clear", DisplayPriority = 1))
+	/** Clear the active triangle selection */
+	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayPriority = 0))
 	void Clear()
 	{
 		PostAction(EMeshSelectionToolActions::ClearSelection);
 	}
 
-	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayName = "Invert", DisplayPriority = 2))
+	/** Select all triangles in the mesh */
+	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayPriority = 1))
+	void SelectAll()
+	{
+		PostAction(EMeshSelectionToolActions::SelectAll);
+	}
+
+	/** Invert the active triangle selection */
+	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayPriority = 2))
 	void Invert()
 	{
 		PostAction(EMeshSelectionToolActions::InvertSelection);
 	}
 
-
-	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayName = "Grow", DisplayPriority = 3))
+	/** Grow the active triangle selection to include any triangles touching a vertex on the selection boundary */
+	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayPriority = 3))
 	void Grow()
 	{
 		PostAction(EMeshSelectionToolActions::GrowSelection);
 	}
 
-	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayName = "Shrink", DisplayPriority = 4))
+	/** Shrink the active triangle selection by removing any triangles touching a vertex on the selection boundary */
+	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = ( DisplayPriority = 4))
 	void Shrink()
 	{
 		PostAction(EMeshSelectionToolActions::ShrinkSelection);
 	}
 
-	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayName = "ExpandToConnected", DisplayPriority = 5))
-	void ExpandToConnected()
+	/** Grow the active selection to include any triangle connected via shared edges (ie flood-fill) */
+	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayPriority = 5))
+	void FloodFill()
 	{
 		PostAction(EMeshSelectionToolActions::ExpandToConnected);
 	}
 
-	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayName = "SelectLargestComponentByTriCount", DisplayPriority = 5))
-	void SelectLargestComponentByTriCount()
+	/** Select the largest connected mesh component by triangle count */
+	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayPriority = 6))
+	void LargestAreaPart()
 	{
 		PostAction(EMeshSelectionToolActions::SelectLargestComponentByTriCount);
 	}
 
-	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayName = "SelectLargestComponentByArea", DisplayPriority = 5))
-	void SelectLargestComponentByArea()
+	/** Select the largest connected mesh component by mesh area */
+	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayPriority = 7))
+	void LargestTriCountPart()
 	{
 		PostAction(EMeshSelectionToolActions::SelectLargestComponentByArea);
 	}
 
-	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayName = "OptimizeSelection", DisplayPriority = 5))
-	void OptimizeSelection()
+	/** Optimize the selection border */
+	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayPriority = 8))
+	void OptimizeBorder()
 	{
 		PostAction(EMeshSelectionToolActions::OptimizeSelection);
 	}
@@ -140,35 +154,41 @@ class MESHMODELINGTOOLS_API UMeshSelectionMeshEditActions : public UMeshSelectio
 	GENERATED_BODY()
 
 public:
+	/** Delete the selected triangles */
 	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Delete", DisplayPriority = 1))
-	void DeleteTriangles()
+	void Delete()
 	{
 		PostAction(EMeshSelectionToolActions::DeleteSelected);
 	}
 
-	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Separate", DisplayPriority = 2))
-	void SeparateTriangles() 
-	{
-		PostAction(EMeshSelectionToolActions::SeparateSelected);
-	}
-
+	/** Disconnected the selected triangles from their neighbours, to create mesh boundaries along the selection borders */
 	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Disconnect", DisplayPriority = 3))
-	void DisconnectTriangles() 
+	void Disconnect() 
 	{
 		PostAction(EMeshSelectionToolActions::DisconnectSelected);
 	}
 
+	/** Flip the normals of the selected triangles. This will create hard normals at selection borders. */
 	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Flip Normals", DisplayPriority = 4))
 	void FlipNormals() 
 	{
 		PostAction(EMeshSelectionToolActions::FlipSelected);
 	}
 
+	/** Assign a new unique Polygroup index to the selected triangles */
 	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Create Polygroup", DisplayPriority = 5))
 	void CreatePolygroup()
 	{
 		PostAction(EMeshSelectionToolActions::CreateGroup);
 	}
+
+	/** Delete the selected triangles from the active Mesh Object and create a new Mesh containing those triangles */
+	UFUNCTION(CallInEditor, Category = MeshEdits, meta = (DisplayName = "Separate", DisplayPriority = 10))
+	void Separate() 
+	{
+		PostAction(EMeshSelectionToolActions::SeparateSelected);
+	}
+
 };
 
 
@@ -241,14 +261,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = Selection)
 	bool bHitBackFaces = true;
 
-	/** Toggle drawing of wireframe overlay on/off [Alt+W] */
-	UPROPERTY(EditAnywhere, Category = Selection)
-	bool bShowWireframe = true;
-
 	/** Toggle drawing of highlight points on/off */
 	UPROPERTY(EditAnywhere, Category = Selection)
 	bool bShowPoints = false;
 
+	/** Color each triangle based on the selected mesh attribute */
 	UPROPERTY(EditAnywhere, Category = Selection)
 	EMeshFacesColorMode FaceColorMode = EMeshFacesColorMode::None;
 };
@@ -302,6 +319,17 @@ public:
 	UPROPERTY()
 	UMeshSelectionToolActionPropertySet* EditActions;
 
+	UPROPERTY()
+	UMeshStatisticsProperties* MeshStatisticsProperties;
+
+	UPROPERTY()
+	UMeshElementsVisualizer* MeshElementsDisplay;
+
+	UPROPERTY()
+	UMeshUVChannelProperties* UVChannelProperties = nullptr;
+
+	UPROPERTY()
+	UPolygroupLayersProperties* PolygroupLayerProperties = nullptr;
 
 protected:
 	virtual UMeshSelectionToolActionPropertySet* CreateEditActions();
@@ -385,10 +413,15 @@ protected:
 	void SeparateSelectedTriangles(); // separates out selected triangles to a new mesh, removing them from the current mesh
 	void FlipSelectedTriangles();
 	void AssignNewGroupToSelectedTriangles();
-	
+
+	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> ActiveGroupSet;
+	void OnSelectedGroupLayerChanged();
+	void UpdateActiveGroupLayer();
 
 	// if true, mesh has been edited
 	bool bHaveModifiedMesh = false;
+
+	virtual void ApplyShutdownAction(EToolShutdownType ShutdownType);
 };
 
 

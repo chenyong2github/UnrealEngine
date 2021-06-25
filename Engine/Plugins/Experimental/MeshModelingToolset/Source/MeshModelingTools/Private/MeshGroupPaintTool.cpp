@@ -556,7 +556,7 @@ void UMeshGroupPaintTool::SyncMeshWithGroupBuffer(FDynamicMesh3* Mesh)
 
 		ActiveGroupEditBuilder->SaveTriangle(TriIdx, CurGroupID, ROIGroupBuffer[k]);
 
-		ActiveGroupSet->SetGroup(TriIdx, ROIGroupBuffer[k]);
+		ActiveGroupSet->SetGroup(TriIdx, ROIGroupBuffer[k], *Mesh);
 
 		//ActiveVertexChange->UpdateVertexColor(VertIdx, OrigColor, NewColor);
 	}
@@ -831,7 +831,7 @@ void UMeshGroupPaintTool::SetTrianglesToGroupID(const TSet<int32>& Triangles, in
 	ActiveGroupEditBuilder->SaveTriangles(TempROIBuffer);
 	for (int32 tid : TempROIBuffer)
 	{
-		ActiveGroupSet->SetGroup(tid, ToGroupID);
+		ActiveGroupSet->SetGroup(tid, ToGroupID, *GetSculptMesh());
 	}
 	ActiveGroupEditBuilder->SaveTriangles(TempROIBuffer);
 
@@ -1227,7 +1227,7 @@ void UMeshGroupPaintTool::GrowCurrentGroupAction()
 	ActiveGroupEditBuilder->SaveTriangles(TempROIBuffer);
 	for (int32 tid : TempROIBuffer)
 	{
-		ActiveGroupSet->SetGroup(tid, CurrentGroupID);
+		ActiveGroupSet->SetGroup(tid, CurrentGroupID, *GetSculptMesh());
 	}
 	ActiveGroupEditBuilder->SaveTriangles(TempROIBuffer);
 
@@ -1254,7 +1254,7 @@ void UMeshGroupPaintTool::ShrinkCurrentGroupAction()
 	for (int32 tid : TempROIBuffer)
 	{
 		// todo: could probably guess boundary groups here...
-		ActiveGroupSet->SetGroup(tid, 0);
+		ActiveGroupSet->SetGroup(tid, 0, *GetSculptMesh());
 	}
 	ActiveGroupEditBuilder->SaveTriangles(TempROIBuffer);
 
@@ -1282,7 +1282,7 @@ void UMeshGroupPaintTool::ClearCurrentGroupAction()
 	ActiveGroupEditBuilder->SaveTriangles(TempROIBuffer);
 	for (int32 tid : TempROIBuffer)
 	{
-		ActiveGroupSet->SetGroup(tid, 0);
+		ActiveGroupSet->SetGroup(tid, 0, *GetSculptMesh());
 	}
 	ActiveGroupEditBuilder->SaveTriangles(TempROIBuffer);
 
@@ -1311,7 +1311,7 @@ void UMeshGroupPaintTool::FloodFillCurrentGroupAction()
 	ActiveGroupEditBuilder->SaveTriangles(TempROIBuffer);
 	for (int32 tid : TempROIBuffer)
 	{
-		ActiveGroupSet->SetGroup(tid, SetGroupID);
+		ActiveGroupSet->SetGroup(tid, SetGroupID, *GetSculptMesh());
 	}
 	ActiveGroupEditBuilder->SaveTriangles(TempROIBuffer);
 
@@ -1338,7 +1338,7 @@ void UMeshGroupPaintTool::ClearAllGroupsAction()
 	ActiveGroupEditBuilder->SaveTriangles(TempROIBuffer);
 	for (int32 tid : TempROIBuffer)
 	{
-		ActiveGroupSet->SetGroup(tid, 0);
+		ActiveGroupSet->SetGroup(tid, 0, *GetSculptMesh());
 	}
 	ActiveGroupEditBuilder->SaveTriangles(TempROIBuffer);
 

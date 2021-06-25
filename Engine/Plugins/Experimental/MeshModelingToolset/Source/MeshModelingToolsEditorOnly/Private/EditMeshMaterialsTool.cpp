@@ -13,10 +13,9 @@
 #include "MeshRegionBoundaryLoops.h"
 #include "DynamicMesh/MeshIndexUtil.h"
 #include "ToolSetupUtil.h"
+#include "ModelingToolTargetUtil.h"
+#include "Materials/MaterialInterface.h"
 
-#include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -30,6 +29,50 @@ void UEditMeshMaterialsEditActions::PostMaterialAction(EEditMeshMaterialsToolAct
 		Cast<UEditMeshMaterialsTool>(ParentTool)->RequestMaterialAction(Action);
 	}
 }
+
+
+
+void UEditMeshMaterialsToolProperties::UpdateFromMaterialsList()
+{
+	MaterialNamesList.Reset();
+
+	for ( int32 k = 0; k < Materials.Num(); ++k)
+	{
+		UMaterialInterface* Mat = Materials[k];
+		FString MatName = (Mat != nullptr) ? Mat->GetName() : "(none)";
+		FString UseName = FString::Printf(TEXT("[%d] %s"), k, *MatName);
+		MaterialNamesList.Add(UseName);
+	}
+
+	if (MaterialNamesList.Num() == 0)
+	{
+		ActiveMaterial = TEXT("(no materials)");
+		return;
+	}
+
+	// udpate active material if it no longer exists
+	for (int32 k = 0; k < MaterialNamesList.Num(); ++k)
+	{
+		if (MaterialNamesList[k] == ActiveMaterial)
+		{
+			return;
+		}
+	}
+	ActiveMaterial = MaterialNamesList[0];
+}
+
+int32 UEditMeshMaterialsToolProperties::GetSelectedMaterialIndex() const
+{
+	for (int32 k = 0; k < MaterialNamesList.Num(); ++k)
+	{
+		if (MaterialNamesList[k] == ActiveMaterial)
+		{
+			return k;
+		}
+	}
+	return 0;
+}
+
 
 
 /*
@@ -54,9 +97,7 @@ void UEditMeshMaterialsTool::Setup()
 
 	PreviewMesh->ClearOverrideRenderMaterial();
 
-	IMaterialProvider* TargetMaterial = Cast<IMaterialProvider>(Target);
-	FComponentMaterialSet AssetMaterials;
-	TargetMaterial->GetMaterialSet(AssetMaterials, true);
+	FComponentMaterialSet AssetMaterials = UE::ToolTarget::GetMaterialSet(Target, true);
 	MaterialProps->Materials = AssetMaterials.Materials;
 	CurrentMaterials = MaterialProps->Materials;
 	InitialMaterialKey = GetMaterialKey();
@@ -65,8 +106,7 @@ void UEditMeshMaterialsTool::Setup()
 		[this](){ return GetMaterialKey(); },
 		[this](FMaterialSetKey NewKey) { OnMaterialSetChanged(); });
 
-	FComponentMaterialSet ComponentMaterials;
-	TargetMaterial->GetMaterialSet(ComponentMaterials, false);
+	FComponentMaterialSet ComponentMaterials = UE::ToolTarget::GetMaterialSet(Target, false);
 	if (ComponentMaterials != AssetMaterials)
 	{
 		GetToolManager()->DisplayMessage(
@@ -154,7 +194,7 @@ void UEditMeshMaterialsTool::AssignMaterialToSelectedTriangles()
 	TUniquePtr<FToolCommandChange> SelectionChange = EndChange();
 	ChangeSeq->AppendChange(Selection, MoveTemp(SelectionChange));
 
-	int32 SetMaterialID = MaterialProps->SelectedMaterial;
+	int32 SetMaterialID = MaterialProps->GetSelectedMaterialIndex();
 
 	// assign new groups to triangles
 	// note: using an FMeshChange is kind of overkill here
@@ -176,6 +216,7 @@ void UEditMeshMaterialsTool::AssignMaterialToSelectedTriangles()
 	// emit combined change sequence
 	GetToolManager()->EmitObjectChange(this, MoveTemp(ChangeSeq), LOCTEXT("MeshSelectionToolAssignMaterial", "Assign Material"));
 
+	bFullMeshInvalidationPending = true;
 	OnExternalSelectionChange();
 	bHaveModifiedMesh = true;
 }
@@ -195,6 +236,8 @@ void UEditMeshMaterialsTool::OnMaterialSetChanged()
 
 	GetToolManager()->EmitObjectChange(this, MoveTemp(MaterialChange), LOCTEXT("MaterialSetChange", "Material Change"));
 
+	MaterialProps->UpdateFromMaterialsList();
+
 	bHaveModifiedMaterials = true;
 }
 
@@ -212,13 +255,8 @@ void UEditMeshMaterialsTool::ExternalUpdateMaterialSet(const TArray<UMaterialInt
 
 
 
-
-
-void UEditMeshMaterialsTool::OnShutdown(EToolShutdownType ShutdownType)
+void UEditMeshMaterialsTool::ApplyShutdownAction(EToolShutdownType ShutdownType)
 {
-	// this is a bit of a hack, UMeshSelectionTool::OnShutdown will also do this...
-	SelectionProps->SaveProperties(this);
-
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("EditMeshMaterialsTransactionName", "Edit Materials"));
@@ -227,12 +265,19 @@ void UEditMeshMaterialsTool::OnShutdown(EToolShutdownType ShutdownType)
 		{
 			FComponentMaterialSet NewMaterialSet;
 			NewMaterialSet.Materials = CurrentMaterials;
-			Cast<IMaterialProvider>(Target)->CommitMaterialSetUpdate(NewMaterialSet, true);
+			UE::ToolTarget::CommitMaterialSetUpdate(Target, NewMaterialSet, true);
 		}
 
-		UMeshSelectionTool::OnShutdown(ShutdownType);
+		if (bHaveModifiedMesh)
+		{
+			UE::ToolTarget::CommitDynamicMeshUpdate(Target, *PreviewMesh->GetMesh(), true);
+		}
 
 		GetToolManager()->EndUndoTransaction();
+	}
+	else
+	{
+		UMeshSelectionTool::ApplyShutdownAction(ShutdownType);
 	}
 }
 

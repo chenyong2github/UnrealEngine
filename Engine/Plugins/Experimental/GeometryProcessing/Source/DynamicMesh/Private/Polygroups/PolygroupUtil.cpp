@@ -20,6 +20,20 @@ FDynamicMeshPolygroupAttribute* UE::Geometry::FindPolygroupLayerByName(FDynamicM
 	return nullptr;
 }
 
+const FDynamicMeshPolygroupAttribute* UE::Geometry::FindPolygroupLayerByName(const FDynamicMesh3& Mesh, FName Name)
+{
+	const FDynamicMeshAttributeSet* AttributeSet = Mesh.Attributes();
+	if (AttributeSet == nullptr) return nullptr;
+	int32 NumPolygroupLayers = AttributeSet->NumPolygroupLayers();
+	for (int32 k = 0; k < NumPolygroupLayers; ++k)
+	{
+		if (AttributeSet->GetPolygroupLayer(k)->GetName() == Name)
+		{
+			return AttributeSet->GetPolygroupLayer(k);
+		}
+	}
+	return nullptr;
+}
 
 int32 UE::Geometry::FindPolygroupLayerIndexByName(const FDynamicMesh3& Mesh, FName Name)
 {

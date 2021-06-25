@@ -80,7 +80,7 @@ public:
 	ERecomputeUVsIslandMode IslandMode = ERecomputeUVsIslandMode::PolyGroups;
 
 	UPROPERTY(EditAnywhere, Category = "Compute UVs")
-	ERecomputeUVsUnwrapType UnwrapType = ERecomputeUVsUnwrapType::ExpMap;
+	ERecomputeUVsUnwrapType UnwrapType = ERecomputeUVsUnwrapType::Conformal;
 
 	UPROPERTY(EditAnywhere, Category = "UV Layout")
 	bool bAutoPack = true;
