@@ -306,7 +306,7 @@ namespace PlmXml
 
 				if (ImportParameters.bEnableKernelIOTessellation)
 				{
-					CoreTechSurface::AddSurfaceDataForMesh(MeshElement, ImportParameters, MeshParameters, TessellationOptions, OutMeshPayload);
+					CoreTechSurface::AddSurfaceDataForMesh(MeshElement->GetFile(), ImportParameters, MeshParameters, TessellationOptions, OutMeshPayload);
 				}
 				else
 				{

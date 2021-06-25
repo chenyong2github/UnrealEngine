@@ -399,7 +399,7 @@ void BRepToKernelIOBodyTranslator::CreateCTFace(const ON_BrepFace& Face, TArray<
 
 bool FRhinoCoretechWrapper::Tessellate(FMeshDescription& Mesh, CADLibrary::FMeshParameters& MeshParameters)
 {
-	return CoreTechSurface::Tessellate(MainObjectId, ImportParams, Mesh, MeshParameters);
+	return CoreTechSurface::Tessellate(MainObjectId, ImportParams, MeshParameters, Mesh);
 }
 
 uint64 BRepToKernelIOBodyTranslator::CreateBody(const ON_3dVector& Offset)

@@ -15,6 +15,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"Core",
 					"CADKernel",
+					"CADLibrary",
 					"CADTools",
 					"DatasmithCore"
 				}

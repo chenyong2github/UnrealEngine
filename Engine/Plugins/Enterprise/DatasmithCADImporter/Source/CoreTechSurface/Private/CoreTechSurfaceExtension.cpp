@@ -73,7 +73,7 @@ bool UCoreTechParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const F
 			CADLibrary::CopyPatchGroups(*DestinationMeshDescription, MeshDescription);
 		}
 
-		if (CoreTechSurface::LoadFile(ResourceFile, MeshDescription, ImportParameters, CadMeshParameters))
+		if (CoreTechSurface::LoadFile(ResourceFile, ImportParameters, CadMeshParameters, MeshDescription))
 		{
 			// To update the SectionInfoMap 
 			{

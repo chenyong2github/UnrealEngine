@@ -16,7 +16,7 @@ typedef uint32 TriangleIndex[3];
 
 namespace CoreTechSurface
 {
-	bool Tessellate(uint64 MainObjectId, const CADLibrary::FImportParameters& ImportParams, FMeshDescription& MeshDesc, CADLibrary::FMeshParameters& MeshParameters)
+	bool Tessellate(uint64 MainObjectId, const CADLibrary::FImportParameters& ImportParams, const CADLibrary::FMeshParameters& MeshParameters, FMeshDescription& MeshDesc)
 	{
 		CADLibrary::CTKIO_SetCoreTechTessellationState(ImportParams);
 
@@ -39,7 +39,7 @@ namespace CoreTechSurface
 		return true;
 	}
 
-	bool LoadFile(const FString& FileName, FMeshDescription& MeshDescription, const CADLibrary::FImportParameters& ImportParameters, CADLibrary::FMeshParameters& MeshParameters)
+	bool LoadFile(const FString& FileName, const CADLibrary::FImportParameters& ImportParameters, const CADLibrary::FMeshParameters& MeshParameters, FMeshDescription& MeshDescription)
 	{
 		CADLibrary::FCoreTechSessionBase Session(TEXT("CoreTechMeshLoader::LoadFile"));
 		if (!Session.IsSessionValid())
@@ -60,23 +60,20 @@ namespace CoreTechSurface
 			CADLibrary::CTKIO_Repair(MainObjectID, CADLibrary::EStitchingTechnique::StitchingSew);
 		}
 
-		return Tessellate(MainObjectID, ImportParameters, MeshDescription, MeshParameters);
+		return Tessellate(MainObjectID, ImportParameters, MeshParameters, MeshDescription);
 	}
 
-	// TODO: convert to FCoreTechSceneParameters/FCoreTechMeshParameters ?
-	void AddSurfaceDataForMesh(const TSharedRef<IDatasmithMeshElement>& InMeshElement, const CADLibrary::FImportParameters& InSceneParameters, const CADLibrary::FMeshParameters& InMeshParameters, const FDatasmithTessellationOptions& InTessellationOptions, FDatasmithMeshElementPayload& OutMeshPayload)
+	void AddSurfaceDataForMesh(const TCHAR* InFilePath, const CADLibrary::FImportParameters& InSceneParameters, const CADLibrary::FMeshParameters& InMeshParameters, const FDatasmithTessellationOptions& InTessellationOptions, FDatasmithMeshElementPayload& OutMeshPayload)
 	{
 		if (ICADInterfacesModule::GetAvailability() == ECADInterfaceAvailability::Available)
 		{
-			// Store CoreTech additional data if provided
-			FString CoretechFile = InMeshElement->GetFile(); 
-			if (FPaths::FileExists(*CoretechFile))
+			if (FPaths::FileExists(InFilePath))
 			{
 				TArray<uint8> ByteArray;
-				if (FFileHelper::LoadFileToArray(ByteArray, *CoretechFile))
+				if (FFileHelper::LoadFileToArray(ByteArray, InFilePath))
 				{
 					UCoreTechParametricSurfaceData* CoreTechData = Datasmith::MakeAdditionalData<UCoreTechParametricSurfaceData>();
-					CoreTechData->SourceFile = CoretechFile;
+					CoreTechData->SourceFile = InFilePath;
 					CoreTechData->RawData = MoveTemp(ByteArray);
 					CoreTechData->SceneParameters.ModelCoordSys = uint8(InSceneParameters.ModelCoordSys);
 					CoreTechData->SceneParameters.MetricUnit = InSceneParameters.MetricUnit;

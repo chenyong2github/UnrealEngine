@@ -15,6 +15,7 @@ public class CADLibrary : ModuleRules
 			{
 				"Core",
 				"CADTools",
+				"CADKernel",
 				"DatasmithCore",
 				"MeshDescription",
 				"StaticMeshDescription"

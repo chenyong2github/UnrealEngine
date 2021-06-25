@@ -20,6 +20,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"Core",
 					"CoreUObject",
+					"CADTools",
                     "DatasmithContent",
 					"DatasmithTranslator",
 				}

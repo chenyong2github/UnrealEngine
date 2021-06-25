@@ -7,7 +7,6 @@
 #include "CADOptions.h"
 #include "DatasmithPayload.h"
 #include "Engine/StaticMesh.h"
-#include "IDatasmithSceneElements.h"
 #include "MeshDescription.h"
 #include "MeshDescriptionHelper.h"
 #include "StaticMeshAttributes.h"
@@ -69,7 +68,7 @@ bool UCADKernelParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const 
 		// Tesselate the model
 		TSharedRef<CADKernel::FModelMesh> CADKernelModelMesh = CADKernel::FEntity::MakeShared<CADKernel::FModelMesh>();
 
-		FCADKernelTools::DefineMeshCriteria(CADKernelModelMesh, ImportParameters);
+		CADLibrary::FCADKernelTools::DefineMeshCriteria(CADKernelModelMesh, ImportParameters);
 
 		CADKernel::FParametricMesher Mesher(CADKernelModelMesh);
 		Mesher.MeshEntity(CADKernelModel);
@@ -79,13 +78,12 @@ bool UCADKernelParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const 
 		{
 			return bSuccessfulTessellation;
 		}
-		const TSharedRef<CADKernel::FBody> Body = CADKernelBodies[0].ToSharedRef();
 
 		CADLibrary::FBodyMesh BodyMesh;
 		uint32 DefaultMaterialHash = 0;
 
-		FCADKernelTools::GetBodyTessellation(CADKernelModelMesh, Body, BodyMesh, DefaultMaterialHash, [](CADLibrary::FObjectDisplayDataId, CADLibrary::FObjectDisplayDataId, int32) {;});
-		if (CADLibrary::ConvertBodyMeshToMeshDescription(ImportParameters, CadMeshParameters, BodyMesh, MeshDescription))
+		TSharedRef<CADKernel::FTopologicalEntity> Body = StaticCastSharedRef<CADKernel::FTopologicalEntity>(CADKernelBodies[0].ToSharedRef());
+		if(CADLibrary::FCADKernelTools::Tessellate(Body, ImportParameters, CadMeshParameters, MeshDescription))
 		{
 			// To update the SectionInfoMap 
 			TPolygonGroupAttributesConstRef<FName> MaterialSlotNames = MeshDescriptionAttributes.GetPolygonGroupMaterialSlotNames();
@@ -113,14 +111,13 @@ bool UCADKernelParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const 
 
 namespace CADKernelSurface
 {
-	void AddSurfaceDataForMesh(const TSharedRef<IDatasmithMeshElement>& InMeshElement, const CADLibrary::FImportParameters& InSceneParameters, const CADLibrary::FMeshParameters& InMeshParameters, const FDatasmithTessellationOptions& InTessellationOptions, FDatasmithMeshElementPayload& OutMeshPayload)
+	void AddSurfaceDataForMesh(const TCHAR* CADKernelArchive, const CADLibrary::FImportParameters& InSceneParameters, const CADLibrary::FMeshParameters& InMeshParameters, const FDatasmithTessellationOptions& InTessellationOptions, FDatasmithMeshElementPayload& OutMeshPayload)
 	{
-		// Store CoreTech additional data if provided
-		FString CADKernelDatabase = InMeshElement->GetFile();
-		if (FPaths::FileExists(*CADKernelDatabase))
+		// Store CADKernel archive if provided
+		if (FPaths::FileExists(CADKernelArchive))
 		{
 			TArray<uint8> ByteArray;
-			if (FFileHelper::LoadFileToArray(ByteArray, *CADKernelDatabase))
+			if (FFileHelper::LoadFileToArray(ByteArray, CADKernelArchive))
 			{
 				UCADKernelParametricSurfaceData* CADKernelData = Datasmith::MakeAdditionalData<UCADKernelParametricSurfaceData>();
 				CADKernelData->RawData = MoveTemp(ByteArray);

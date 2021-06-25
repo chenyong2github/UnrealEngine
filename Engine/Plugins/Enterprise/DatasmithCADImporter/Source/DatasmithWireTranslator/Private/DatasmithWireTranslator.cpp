@@ -13,7 +13,6 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "OpenModelUtils.h"
-#include "Utility/DatasmithMeshHelper.h"
 
 #include "StaticMeshDescription.h"
 #include "StaticMeshOperations.h"
@@ -26,8 +25,9 @@
 #include "Modules/ModuleManager.h"
 #endif
 
-#include "AliasCoretechWrapper.h" // requires CoreTech as public dependency
+#include "AliasModelToCoretechConverter.h" // requires CoreTech as public dependency
 #include "CADInterfacesModule.h"
+#include "AliasBrepConverter.h"
 #include "CoreTechSurfaceExtension.h"
 #include "CoreTechSurfaceHelper.h"
 
@@ -141,27 +141,44 @@ public:
 		DatasmithScene->SetProductName(TEXT("Alias Tools"));
 		DatasmithScene->SetProductVersion(TEXT("Alias 2019"));
 
-		LocalSession = FAliasCoretechWrapper::GetSharedSession();
+		bool bEnableKernelIOTessellation = true;
+		if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("ds.CADTranslator.EnableKernelIOTessellation")))
+		{
+			bEnableKernelIOTessellation = CVar->GetInt() != 0;
+		}
+
+		if (bEnableKernelIOTessellation)
+		{
+			TSharedRef<FAliasModelToCoretechConverter> AliasToCoretechConverter = MakeShared<FAliasModelToCoretechConverter>(TEXT("Al2CTSharedSession"));
+			CADModelConverter = AliasToCoretechConverter;
+			AliasBRepConverter = AliasToCoretechConverter;
+		}
+		else
+		{
+			//TSharedRef<FAliasCADKernelWrapper> AliasCoretechWrapper = MakeShared<FAliasCADKernelWrapper>(TEXT("Al2CTSharedSession"));
+			//CADWrapper = AliasCoretechWrapper;
+			//AliasWrapper = AliasCoretechWrapper;
+		}
 	}
 
 	~FWireTranslatorImpl()
 	{
 		AlUniverse::deleteAll();
-		LocalSession.Reset();
 	}
 
 	bool Read();
-	TOptional<FMeshDescription> GetMeshDescription(TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters);
+	TOptional<FMeshDescription> GetMeshDescription(TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& OutMeshParameters);
 	TOptional<FMeshDescription> GetMeshDescription(TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters, TSharedRef<BodyData> BodyTemp);
 
 	void SetTessellationOptions(const FDatasmithTessellationOptions& Options);
 	void SetOutputPath(const FString& Path) { OutputPath = Path; }
 
-	CADLibrary::FImportParameters& GetImportParameters()
-	{
-		return LocalSession->GetImportParameters();
-	}
+	bool LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload, const FDatasmithTessellationOptions& InTessellationOptions);
 
+	void AddSurfaceDataForMesh(const TCHAR* InFilePath, const FMeshParameters& InMeshParameters, const FDatasmithTessellationOptions& InTessellationOptions, FDatasmithMeshElementPayload& OutMeshPayload) const
+	{
+		CADModelConverter->AddSurfaceDataForMesh(InFilePath, InMeshParameters, InTessellationOptions, OutMeshPayload);
+	}
 
 private:
 
@@ -255,6 +272,7 @@ private:
 	FString SceneFullPath;
 
 	FDatasmithTessellationOptions TessellationOptions;
+
 	// Hash value of the scene file used to check if the file has been modified for re-import
 	uint32 SceneFileHash;
 
@@ -282,7 +300,9 @@ private:
 	// If > 0, then the archive is corrupt.
 	int32 NumCRCErrors;
 
-	TSharedPtr<FAliasCoretechWrapper> LocalSession;
+	TSharedPtr<ICADModelConverter> CADModelConverter;
+	TSharedPtr<IAliasBRepConverter> AliasBRepConverter;
+
 };
 
 void FWireTranslatorImpl::SetTessellationOptions(const FDatasmithTessellationOptions& Options)
@@ -301,7 +321,7 @@ bool FWireTranslatorImpl::Read()
 		return false;
 	}
 
-	LocalSession->SetImportParameters(TessellationOptions.ChordTolerance, TessellationOptions.MaxEdgeLength, TessellationOptions.NormalTolerance, (CADLibrary::EStitchingTechnique) TessellationOptions.StitchingTechnique, true);
+	CADModelConverter->SetImportParameters(TessellationOptions.ChordTolerance, TessellationOptions.MaxEdgeLength, TessellationOptions.NormalTolerance, (CADLibrary::EStitchingTechnique) TessellationOptions.StitchingTechnique, true);
 
 	AlRetrieveOptions options;
 	AlUniverse::retrieveOptions(options);
@@ -1728,12 +1748,9 @@ bool FWireTranslatorImpl::RecurseDagForLeavesNoMerge(AlDagNode* FirstDagNode, co
 
 TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(AlDagNode& DagNode, TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters)
 {
-	LocalSession->ClearData();
-
-
 	// Wire unit is cm
-	LocalSession->SetSceneUnit(0.01);
-	
+	CADModelConverter->InitializeProcess(0.01);
+
 	EAliasObjectReference ObjectReference = EAliasObjectReference::LocalReference;
 
 	if (MeshParameters.bIsSymmetric)
@@ -1742,62 +1759,53 @@ TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(A
 		ObjectReference = EAliasObjectReference::WorldReference;
 	}
 
-	TArray<AlDagNode*> DagNodeSet;
-	DagNodeSet.Add(&DagNode);
-	LocalSession->AddBRep(DagNodeSet, ObjectReference);
+	AliasBRepConverter->AddBRep(DagNode, ObjectReference);
 
-	FString FilePath = LocalSession->GetImportParameters().DefineCADFilePath(*OutputPath, MeshElement->GetName());
-	if (LocalSession->SaveBrep(FilePath))
-	{
-		MeshElement->SetFile(*FilePath);
-	}
+	CADModelConverter->RepairTopology();
+
+	CADModelConverter->SaveBRep(*OutputPath, MeshElement);
 
 	FMeshDescription MeshDescription;
 	DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
 
-	LocalSession->Tessellate(MeshDescription, MeshParameters);
+	CADModelConverter->Tessellate(MeshParameters, MeshDescription);
 
 	return MoveTemp(MeshDescription);
 }
 
 TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(TSharedRef<BodyData> Body, TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters)
 {
-	LocalSession->ClearData();
-
 	// Wire unit is cm
-	LocalSession->SetSceneUnit(0.01);
-	
+	CADModelConverter->InitializeProcess(0.01);
+
 	EAliasObjectReference ObjectReference = EAliasObjectReference::LocalReference;
 	if (MeshParameters.bIsSymmetric)
 	{
 		// All actors of a Alias symmetric layer are defined in the world Reference i.e. they have identity transform. So Mesh actor has to be defined in the world reference. 
 		ObjectReference = EAliasObjectReference::WorldReference;
 	}
-	else if (GetImportParameters().StitchingTechnique == StitchingSew)
+	else if (TessellationOptions.StitchingTechnique == EDatasmithCADStitchingTechnique::StitchingSew)
 	{
 		// In the case of StitchingSew, AlDagNode children of a GroupNode are merged together. To be merged, they have to be defined in the reference of parent GroupNode.
 		ObjectReference = EAliasObjectReference::ParentReference;
 	}
 
-	LocalSession->AddBRep(Body->ShellSet, ObjectReference);
-
-	FString FilePath = LocalSession->GetImportParameters().DefineCADFilePath(*OutputPath, MeshElement->GetName());
-	if (LocalSession->SaveBrep(FilePath))
+	for(AlDagNode* DagNode : Body->ShellSet)
 	{
-		MeshElement->SetFile(*FilePath);
+		AliasBRepConverter->AddBRep(*DagNode, ObjectReference);
 	}
 
-	FMeshDescription MeshDescription;
-	DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
+	CADModelConverter->SaveBRep(*OutputPath, MeshElement);
 
-	LocalSession->Tessellate(MeshDescription, MeshParameters);
+	FMeshDescription MeshDescription;
+	CADModelConverter->Tessellate(MeshParameters, MeshDescription);
 
 	return MoveTemp(MeshDescription);
 }
 
 TOptional<FMeshDescription> FWireTranslatorImpl::GetMeshOfShellNode(AlDagNode& DagNode, TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters)
 {
-	if (LocalSession->IsSessionValid())
+	if (CADModelConverter->IsSessionValid())
 	{
 		TOptional< FMeshDescription > UEMesh = MeshDagNodeWithExternalMesher(DagNode, MeshElement, MeshParameters);
 		return UEMesh;
@@ -1861,7 +1869,6 @@ TOptional<FMeshDescription> FWireTranslatorImpl::GetMeshOfNodeMesh(AlMeshNode& M
 	return TOptional< FMeshDescription >();
 }
 
-
 TOptional<FMeshDescription> FWireTranslatorImpl::GetMeshDescription(TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters, TSharedRef<BodyData> Body)
 {
 	if(Body->ShellSet.Num() == 0 )
@@ -1895,7 +1902,6 @@ TOptional<FMeshDescription> FWireTranslatorImpl::GetMeshDescription(TSharedRef<I
 		return GetMeshOfMeshBody(Body, MeshElement, MeshParameters);
 	}
 }
-
 
 TOptional<FMeshDescription> FWireTranslatorImpl::GetMeshDescription(TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters)
 {
@@ -1970,6 +1976,18 @@ TOptional< FMeshDescription > FWireTranslatorImpl::ImportMesh(AlMesh& CurrentMes
 
 	return MoveTemp(MeshDescription);
 }
+
+bool FWireTranslatorImpl::LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload, const FDatasmithTessellationOptions& InTessellationOptions)
+{
+	CADLibrary::FMeshParameters MeshParameters;
+	if (TOptional< FMeshDescription > Mesh = GetMeshDescription(MeshElement, MeshParameters))
+	{
+		OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
+		AddSurfaceDataForMesh(MeshElement->GetFile(), MeshParameters, InTessellationOptions, OutMeshPayload);
+	}
+	return OutMeshPayload.LodMeshes.Num() > 0;
+}
+
 
 #endif
 
@@ -2073,25 +2091,12 @@ void FDatasmithWireTranslator::UnloadScene()
 bool FDatasmithWireTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload)
 {
 #ifdef USE_OPENMODEL
-	CADLibrary::FImportParameters& ImportParameters = Translator->GetImportParameters();
-	CADLibrary::FMeshParameters MeshParameters;
-	if (TOptional< FMeshDescription > Mesh = Translator->GetMeshDescription(MeshElement, MeshParameters))
+	if (Translator)
 	{
-		OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
-
-		if (ImportParameters.bEnableKernelIOTessellation)
-		{
-			CoreTechSurface::AddSurfaceDataForMesh(MeshElement, ImportParameters, MeshParameters, GetCommonTessellationOptions(), OutMeshPayload);
-		}
-		else
-		{
-			//CADKernelSurface::AddSurfaceDataForMesh(MeshElement, ImportParameters, MeshParameters, GetCommonTessellationOptions(), OutMeshPayload);
-		}
+		return Translator->LoadStaticMesh(MeshElement, OutMeshPayload, GetCommonTessellationOptions());
 	}
-	return OutMeshPayload.LodMeshes.Num() > 0;
-#else
-	return false;
 #endif
+	return false;
 }
 
 void FDatasmithWireTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
