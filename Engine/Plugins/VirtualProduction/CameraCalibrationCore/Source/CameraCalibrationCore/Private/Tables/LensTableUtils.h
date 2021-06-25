@@ -21,6 +21,36 @@ namespace LensDataTableUtils
     	}
 	}
 
+	/** Gets all point info for specific data table */
+	template<typename FPointInfoType, typename FDataTableType>
+	TArray<FPointInfoType> GetAllPointsInfo(const FDataTableType& InTable)
+	{
+		TArray<FPointInfoType> PointsInfoType;
+
+		for (const typename FDataTableType::FocusPointType& Point : InTable.FocusPoints)
+		{
+			// Get Focus Value
+			const float FocusValue = Point.Focus;
+
+			// Loop through all zoom points
+			const int32 ZoomPointsNum = Point.GetNumPoints();
+			for (int32 ZoomPointIndex = 0; ZoomPointIndex < ZoomPointsNum; ++ZoomPointIndex)
+			{
+				// Get Zoom Value
+				const float ZoomValue = Point.GetZoom(ZoomPointIndex);
+
+				// Zoom point should be valid
+				typename FPointInfoType::TypeInfo PointInfo;
+				ensure(InTable.GetPoint(FocusValue, ZoomValue, PointInfo));
+
+				// Add Point into Array
+				PointsInfoType.Add({FocusValue, ZoomValue, MoveTemp(PointInfo)});
+			}
+		}
+
+		return PointsInfoType;
+	}
+
 	/** Removes a zoom point for a given focus value in a container */
 	template<typename FocusPointType>
 	void RemoveZoomPoint(TArray<FocusPointType>& Container, float InFocus, float InZoom)

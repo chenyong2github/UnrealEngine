@@ -33,19 +33,19 @@ public:
 public:
 
 	/** Model name of the lens */
-	UPROPERTY(EditAnywhere, Category = "Lens Info")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens Info")
 	FString LensModelName;
 
 	/** Serial number of the lens */
-	UPROPERTY(EditAnywhere, Category = "Lens Info")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens Info")
 	FString LensSerialNumber;
 
 	/** Model of the lens (spherical, anamorphic, etc...) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lens Info")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens Info")
 	TSubclassOf<ULensModel> LensModel;
 
 	/** Width and height of the calibrated camera's sensor, in millimeters */
-	UPROPERTY(EditAnywhere, Category = "Lens Info")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens Info")
 	FVector2D SensorDimensions = FVector2D(23.76f, 13.365f);
 };
 
@@ -76,7 +76,7 @@ struct CAMERACALIBRATIONCORE_API FFocalLengthInfo
 public:
 
 	/** Value expected to be normalized (unitless) */
-	UPROPERTY(EditAnywhere, Category = "Camera")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
 	FVector2D FxFy = FVector2D(1.0f, (16.0f / 9.0f));
 };
 
@@ -94,7 +94,7 @@ public:
 	 * RG channels are expected to have undistortion map (from distorted to undistorted)
 	 * BA channels are expected to have distortion map (from undistorted (CG) to distorted)
 	 */
-	UPROPERTY(EditAnywhere, Category = "Distortion")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion")
 	UTexture* DistortionMap = nullptr;
 };
 
@@ -108,7 +108,7 @@ struct CAMERACALIBRATIONCORE_API FImageCenterInfo
 
 public:
 	/** Value expected to be normalized [0,1] */
-	UPROPERTY(EditAnywhere, Category = "Camera", meta = (DisplayName = "Image Center"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera", meta = (DisplayName = "Image Center"))
 	FVector2D PrincipalPoint = FVector2D(0.5f, 0.5f);
 };
 
@@ -122,10 +122,10 @@ struct CAMERACALIBRATIONCORE_API FNodalPointOffset
 
 public:
 
-	UPROPERTY(EditAnywhere, Category = "Nodal point")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nodal point")
 	FVector LocationOffset = FVector::ZeroVector;
 
-	UPROPERTY(EditAnywhere, Category = "Nodal point")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nodal point")
 	FQuat RotationOffset = FQuat::Identity;
 };
 
@@ -139,12 +139,162 @@ struct CAMERACALIBRATIONCORE_API FDistortionData
 
 	public:
 
-	UPROPERTY(VisibleAnywhere, Category = "Distortion")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Distortion")
 	TArray<FVector2D> DistortedUVs;
 
 	/** Estimated overscan factor based on distortion to have distorted cg covering full size */
-	UPROPERTY(EditAnywhere, Category = "Distortion")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion")
 	float OverscanFactor = 1.0f;
+};
+
+/**
+ * Base struct for point info wrapper which holds focus and zoom
+ * Child classes should hold the point info itself
+ */
+USTRUCT(BlueprintType)
+struct CAMERACALIBRATIONCORE_API FDataTablePointInfoBase
+{
+	GENERATED_BODY()
+
+	FDataTablePointInfoBase()
+		: Focus(0.f)
+		, Zoom(0.f)
+	{}
+
+	FDataTablePointInfoBase(const float InFocus, const float InZoom)
+		: Focus(InFocus)
+		, Zoom(InZoom)
+	{}
+
+	/** Point Focus Value */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Point")
+	float Focus;
+
+	/** Point Zoom Value */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Point")
+	float Zoom;
+};
+
+
+/**
+ * Distortion Point Info struct
+ */
+USTRUCT(BlueprintType)
+struct CAMERACALIBRATIONCORE_API FDistortionPointInfo : public FDataTablePointInfoBase
+{
+	GENERATED_BODY()
+
+	using TypeInfo = FDistortionInfo;
+
+	FDistortionPointInfo()
+		: FDataTablePointInfoBase()
+	{}
+
+	FDistortionPointInfo(const float InFocus, const float InZoom, const FDistortionInfo& InDistortionInfo)
+		: FDataTablePointInfoBase(InFocus, InZoom)
+		, DistortionInfo(InDistortionInfo)
+	{}
+
+	/** Lens distortion parameter */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Point")
+	FDistortionInfo DistortionInfo;
+};
+
+
+/**
+ * Focal Length Point Info struct
+ */
+USTRUCT(BlueprintType)
+struct CAMERACALIBRATIONCORE_API FFocalLengthPointInfo : public FDataTablePointInfoBase
+{
+	GENERATED_BODY()
+
+	using TypeInfo = FFocalLengthInfo;
+
+	FFocalLengthPointInfo()
+		: FDataTablePointInfoBase()
+	{}
+
+	FFocalLengthPointInfo(const float InFocus, const float InZoom, const TypeInfo& InFocalLengthInfo)
+		: FDataTablePointInfoBase(InFocus, InZoom)
+		, FocalLengthInfo(InFocalLengthInfo)
+	{}
+
+	/** Focal Length parameter */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Point")
+	FFocalLengthInfo FocalLengthInfo;
+};
+
+/**
+ * ST Map Point Info struct
+ */
+USTRUCT(BlueprintType)
+struct CAMERACALIBRATIONCORE_API FSTMapPointInfo : public FDataTablePointInfoBase
+{
+	GENERATED_BODY()
+
+	using TypeInfo = FSTMapInfo;
+
+	FSTMapPointInfo()
+		: FDataTablePointInfoBase()
+	{}
+
+	FSTMapPointInfo(const float InFocus, const float InZoom, const TypeInfo& InSTMapInfo)
+		: FDataTablePointInfoBase(InFocus, InZoom)
+		, STMapInfo(InSTMapInfo)
+	{}
+
+	/** ST Map parameter */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Point")
+	FSTMapInfo STMapInfo;
+};
+
+/**
+ * Image Center Point Info struct
+ */
+USTRUCT(BlueprintType)
+struct CAMERACALIBRATIONCORE_API FImageCenterPointInfo : public FDataTablePointInfoBase
+{
+	GENERATED_BODY()
+
+	using TypeInfo = FImageCenterInfo;
+
+	FImageCenterPointInfo()
+		: FDataTablePointInfoBase()
+	{}
+
+	FImageCenterPointInfo(const float InFocus, const float InZoom, const TypeInfo& InImageCenterInfo)
+		: FDataTablePointInfoBase(InFocus, InZoom)
+		, ImageCenterInfo(InImageCenterInfo)
+	{}
+
+	/** Image Center parameter */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Point")
+	FImageCenterInfo ImageCenterInfo;
+};
+
+/**
+ * Nodal Point Point Info struct
+ */
+USTRUCT(BlueprintType)
+struct CAMERACALIBRATIONCORE_API FNodalOffsetPointInfo : public FDataTablePointInfoBase
+{
+	GENERATED_BODY()
+
+	using TypeInfo = FNodalPointOffset;
+
+	FNodalOffsetPointInfo()
+		: FDataTablePointInfoBase()
+	{}
+
+	FNodalOffsetPointInfo(const float InFocus, const float InZoom, const TypeInfo& InNodalPointOffset)
+		: FDataTablePointInfoBase(InFocus, InZoom)
+		, NodalPointOffset(InNodalPointOffset)
+	{}
+
+	/** Nodal Point parameter */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Point")
+	FNodalPointOffset NodalPointOffset;
 };
 
 
