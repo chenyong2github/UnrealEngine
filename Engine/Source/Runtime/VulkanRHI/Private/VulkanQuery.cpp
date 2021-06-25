@@ -165,8 +165,11 @@ bool FVulkanOcclusionQueryPool::InternalTryGetResults(bool bWait)
 				++NumLoops;
 			}
 
-			GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUQuery] += FPlatformTime::Cycles() - IdleStart;
-			GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForGPUQuery]++;
+			if (IsInActualRenderingThread())
+			{
+				GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUQuery] += FPlatformTime::Cycles() - IdleStart;
+				GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForGPUQuery]++;
+			}
 
 			State = EState::RT_PostGetResults;
 			return true;
