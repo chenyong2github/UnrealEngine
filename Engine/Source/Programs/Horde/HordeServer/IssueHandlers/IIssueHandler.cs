@@ -28,11 +28,15 @@ namespace HordeServer.IssueHandlers
 			".mm",
 			".rc",
 			".cs",
+			".csproj",
 			".h",
 			".hpp",
 			".inl",
+			".usf",
+			".ush",
 			".uproject",
-			".uplugin"
+			".uplugin",
+			".sln"
 		};
 
 		/// <summary>
