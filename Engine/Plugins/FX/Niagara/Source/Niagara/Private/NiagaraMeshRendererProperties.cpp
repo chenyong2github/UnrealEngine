@@ -98,18 +98,13 @@ UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
 	, LockedAxis(0.0f, 0.0f, 1.0f)
 	, LockedAxisSpace(ENiagaraMeshLockedAxisSpace::Simulation)
 {
+	// Initialize the array with a single, defaulted entry
+	Meshes.AddDefaulted();
+
 #if WITH_EDITORONLY_DATA
 	FlipbookSuffixFormat = TEXT("_{frame_number}");
 	FlipbookSuffixNumDigits = 1;
 	NumFlipbookFrames = 1;
-
-	// Initialize the array with a single, defaulted entry
-	Meshes.AddDefaulted();
-	
-	UStaticMesh* DefaultMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Niagara/DefaultAssets/S_Gnomon.S_Gnomon"));
-	ensure(DefaultMesh);
-	
-	Meshes[0].Mesh = DefaultMesh;
 #endif
 
 	AttributeBindings.Reserve(21);
