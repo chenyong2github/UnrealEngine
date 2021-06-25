@@ -95,14 +95,25 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_Colo
 	GENERATED_BODY()
 
 		FDisplayClusterConfigurationViewport_ColorGradingWhiteBalanceSettings()
-		: bOverride_WhiteTemp(0)
+		: bOverride_TemperatureType(0)
+		, bOverride_WhiteTemp(0)
 		, bOverride_WhiteTint(0)
 	{};
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_TemperatureType:1;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_WhiteTemp:1;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_WhiteTint:1;
+
+	/**
+	* Selects the type of temperature calculation.
+	* White Balance uses the Temperature value to control the virtual camera's White Balance. This is the default selection.
+	* Color Temperature uses the Temperature value to adjust the color temperature of the scene, which is the inverse of the White Balance operation.
+	*/
+	UPROPERTY(interp, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Temperature Type", EditCondition = "bOverride_TemperatureType"))
+	TEnumAsByte<enum ETemperatureMethod> TemperatureType = ETemperatureMethod::TEMP_WhiteBalance;
 
 	// White temperature
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "White Balance", meta = (UIMin = "1500.0", UIMax = "15000.0", EditCondition = "bOverride_WhiteTemp", DisplayName = "Temp"))

@@ -253,6 +253,17 @@ void FDisplayClusterViewportConfigurationHelpers_Postprocess::BlendPostProcessSe
 	PP_CONDITIONAL_BLEND(+, , , , AutoExposureBias, , );
 	PP_CONDITIONAL_BLEND(+, , , , ColorCorrectionHighlightsMin, , );
 	PP_CONDITIONAL_BLEND(+, , , , ColorCorrectionShadowsMax, , );
+	
+	// Prioritize viewport post process settings over cluster.
+	OutputPP.bOverride_TemperatureType = ClusterPPSettings.WhiteBalance.bOverride_TemperatureType || ViewportPPSettings.WhiteBalance.bOverride_TemperatureType;
+	if ((ClusterPPSettings.WhiteBalance.bOverride_TemperatureType && ViewportPPSettings.WhiteBalance.bOverride_TemperatureType) || ViewportPPSettings.WhiteBalance.bOverride_TemperatureType)
+	{ 
+		OutputPP.TemperatureType = ViewportPPSettings.WhiteBalance.TemperatureType; 
+	} 
+	else if (ClusterPPSettings.WhiteBalance.bOverride_TemperatureType) 
+	{ 
+		OutputPP.TemperatureType = ClusterPPSettings.WhiteBalance.TemperatureType;
+	}
 
 	PP_CONDITIONAL_BLEND(+, , , WhiteBalance., WhiteTemp, +, -6500.0f);
 	PP_CONDITIONAL_BLEND(+, , , WhiteBalance., WhiteTint, , );
@@ -301,6 +312,7 @@ void FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyPPSStructCondi
 		PP_CONDITIONAL_COPY(, , , ColorCorrectionHighlightsMin);
 		PP_CONDITIONAL_COPY(, , , ColorCorrectionShadowsMax);
 
+		PP_CONDITIONAL_COPY(, WhiteBalance., , TemperatureType);
 		PP_CONDITIONAL_COPY(, WhiteBalance., , WhiteTemp);
 		PP_CONDITIONAL_COPY(, WhiteBalance., , WhiteTint);
 
@@ -346,6 +358,7 @@ void FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyPPSStruct(FDis
 		PP_COPY(, , , ColorCorrectionHighlightsMin);
 		PP_COPY(, , , ColorCorrectionShadowsMax);
 
+		PP_COPY(, WhiteBalance., , TemperatureType);
 		PP_COPY(, WhiteBalance., , WhiteTemp);
 		PP_COPY(, WhiteBalance., , WhiteTint);
 
