@@ -107,6 +107,7 @@
 	#include "AssetCompilingManager.h"
 	#include "Serialization/BulkDataRegistry.h"
 	#include "ShaderCompiler.h"
+	#include "Virtualization/VirtualizationManager.h"
 
 	#if PLATFORM_WINDOWS
 		#include "Windows/AllowWindowsPlatformTypes.h"
@@ -2840,6 +2841,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		// Ensure that DDC is initialized from the game thread.
 		GetDerivedDataCacheRef();
 		GetDerivedDataBuildRef();
+
+#if WITH_EDITOR
+		// Make sure that FVirtualizationManager is first called from the game thread
+		UE::Virtualization::FVirtualizationManager::Get();
+#endif //WITH_EDITOR
 
 		check(!GDistanceFieldAsyncQueue);
 		GDistanceFieldAsyncQueue = new FDistanceFieldAsyncQueue();
