@@ -677,6 +677,8 @@ FMetalSurface::FMetalSurface(ERHIResourceType ResourceType, EPixelFormat Format,
 , ImageSurfaceRef(nullptr)
 , bTextureView(false)
 {
+	check(SizeX > 0 && SizeY > 0 && NumMips > 0);
+	
 	// get a unique key for this surface's format
 	TMap<uint64, uint8>& PixelFormatKeyMap = GetMetalPixelFormatKeyMap();
 	if (PixelFormatKeyMap.Num() == 0)
@@ -902,7 +904,10 @@ FMetalSurface::FMetalSurface(ERHIResourceType ResourceType, EPixelFormat Format,
 			FMetalPooledBufferArgs Args(Device, SizeAlign.Size, BUF_Dynamic, mtlpp::StorageMode::Private, Desc.GetCpuCacheMode());
 			FMetalBuffer Buffer = GetMetalDeviceContext().CreatePooledBuffer(Args);
 
-			Texture = Buffer.NewTexture(Desc, 0, Align(SizeAlign.Size / SizeY, 256));
+			const uint32 MinimumByteAlignment = GetMetalDeviceContext().GetDevice().GetMinimumLinearTextureAlignmentForPixelFormat(MTLFormat);
+			const NSUInteger BytesPerRow = Align(SizeAlign.Size / SizeY, MinimumByteAlignment);
+			
+			Texture = Buffer.NewTexture(Desc, 0, BytesPerRow);
 		}
 		
 		METAL_FATAL_ASSERT(Texture, TEXT("Failed to create texture, desc %s"), *FString([Desc description]));
