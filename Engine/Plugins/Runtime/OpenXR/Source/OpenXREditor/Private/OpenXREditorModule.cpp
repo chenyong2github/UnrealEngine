@@ -2,6 +2,7 @@
 
 #include "OpenXREditorModule.h"
 #include "OpenXRAssetDirectory.h"
+#include "Modules/ModuleManager.h"
 
 void FOpenXREditorModule::StartupModule()
 {
