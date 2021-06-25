@@ -182,9 +182,23 @@ public:
 	}
 };
 
-struct FTextureAsyncCacheDerivedDataTask : public FAsyncTask<FTextureCacheDerivedDataWorker>
+struct FTextureAsyncCacheDerivedDataTask
 {
-	FTextureAsyncCacheDerivedDataTask(
+	virtual ~FTextureAsyncCacheDerivedDataTask() = default;
+	virtual void Finalize(bool& bOutFoundInCache, uint64& OutProcessedByteCount) = 0;
+	virtual EQueuedWorkPriority GetPriority() const = 0;
+	virtual bool SetPriority(EQueuedWorkPriority InQueuedWorkPriority) = 0;
+	virtual bool Cancel() = 0;
+	virtual void Wait() = 0;
+	virtual bool WaitWithTimeout(float TimeLimitSeconds) = 0;
+	virtual bool Poll() const = 0;
+};
+
+class FTextureAsyncCacheDerivedDataWorkerTask final : public FTextureAsyncCacheDerivedDataTask, public FAsyncTask<FTextureCacheDerivedDataWorker>
+{
+public:
+	FTextureAsyncCacheDerivedDataWorkerTask(
+		FQueuedThreadPool* InQueuedPool,
 		ITextureCompressorModule* InCompressor,
 		FTexturePlatformData* InDerivedData,
 		UTexture* InTexture,
@@ -198,8 +212,49 @@ struct FTextureAsyncCacheDerivedDataTask : public FAsyncTask<FTextureCacheDerive
 			InSettingsPerLayer,
 			InCacheFlags
 			)
+		, QueuedPool(InQueuedPool)
 	{
 	}
+
+	void Finalize(bool& bOutFoundInCache, uint64& OutProcessedByteCount) final
+	{
+		GetTask().Finalize();
+		bOutFoundInCache = GetTask().WasLoadedFromDDC();
+		OutProcessedByteCount = GetTask().GetBytesCached();
+	}
+
+	EQueuedWorkPriority GetPriority() const final
+	{
+		return FAsyncTask<FTextureCacheDerivedDataWorker>::GetPriority();
+	}
+
+	bool SetPriority(EQueuedWorkPriority InQueuedWorkPriority) final
+	{
+		return FAsyncTask<FTextureCacheDerivedDataWorker>::Reschedule(QueuedPool, InQueuedWorkPriority);
+	}
+
+	bool Cancel() final
+	{
+		return FAsyncTask<FTextureCacheDerivedDataWorker>::IsDone() || FAsyncTask<FTextureCacheDerivedDataWorker>::Cancel();
+	}
+
+	void Wait() final
+	{
+		FAsyncTask<FTextureCacheDerivedDataWorker>::EnsureCompletion();
+	}
+
+	bool WaitWithTimeout(float TimeLimitSeconds) final
+	{
+		return FAsyncTask<FTextureCacheDerivedDataWorker>::WaitCompletionWithTimeout(TimeLimitSeconds);
+	}
+
+	bool Poll() const final
+	{
+		return FAsyncTask<FTextureCacheDerivedDataWorker>::IsWorkDone();
+	}
+
+private:
+	FQueuedThreadPool* QueuedPool;
 };
 
 #endif // WITH_EDITOR

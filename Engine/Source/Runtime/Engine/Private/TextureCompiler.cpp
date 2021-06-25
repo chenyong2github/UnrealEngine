@@ -274,7 +274,7 @@ void FTextureCompilingManager::FinishCompilation(TArrayView<UTexture* const> InT
 
 	if (PendingTextures.Num())
 	{
-		class FCompilableTexture : public AsyncCompilationHelpers::TCompilableAsyncTask<FTextureAsyncCacheDerivedDataTask>
+		class FCompilableTexture final : public AsyncCompilationHelpers::ICompilable
 		{
 		public:
 			FCompilableTexture(UTexture* InTexture)
@@ -282,7 +282,7 @@ void FTextureCompilingManager::FinishCompilation(TArrayView<UTexture* const> InT
 			{
 			}
 
-			FTextureAsyncCacheDerivedDataTask* GetAsyncTask() override
+			FTextureAsyncCacheDerivedDataTask* GetAsyncTask()
 			{
 				if (FTexturePlatformData** PlatformDataPtr = Texture->GetRunningPlatformData())
 				{
@@ -295,8 +295,26 @@ void FTextureCompilingManager::FinishCompilation(TArrayView<UTexture* const> InT
 				return nullptr;
 			}
 
-			TStrongObjectPtr<UTexture> Texture;
+			void Reschedule(FQueuedThreadPool* InThreadPool, EQueuedWorkPriority InPriority) final
+			{
+				if (FTextureAsyncCacheDerivedDataTask* AsyncTask = GetAsyncTask())
+				{
+					AsyncTask->SetPriority(InPriority);
+				}
+			}
+		
+			bool WaitCompletionWithTimeout(float TimeLimitSeconds) final
+			{
+				if (FTextureAsyncCacheDerivedDataTask* AsyncTask = GetAsyncTask())
+				{
+					return AsyncTask->WaitWithTimeout(TimeLimitSeconds);
+				}
+				return true;
+			}
+
 			FName GetName() override { return Texture->GetOutermost()->GetFName(); }
+
+			TStrongObjectPtr<UTexture> Texture;
 		};
 
 		TArray<UTexture*> UniqueTextures(PendingTextures.Array());
@@ -455,7 +473,7 @@ bool FTextureCompilingManager::RequestPriorityChange(UTexture* InTexture, EQueue
 				EQueuedWorkPriority OldPriority = AsyncTask->GetPriority();
 				if (OldPriority != InPriority)
 				{
-					if (AsyncTask->Reschedule(GetThreadPool(), InPriority))
+					if (AsyncTask->SetPriority(InPriority))
 					{
 						UE_LOG(
 							LogTexture,

@@ -780,8 +780,9 @@ void FTexturePlatformData::Cache(
 		FQueuedThreadPool*  TextureThreadPool = FTextureCompilingManager::Get().GetThreadPool();
 		EQueuedWorkPriority BasePriority      = FTextureCompilingManager::Get().GetBasePriority(&InTexture);
 
-		AsyncTask = new FTextureAsyncCacheDerivedDataTask(Compressor, this, &InTexture, InSettingsPerLayer, Flags);
-		AsyncTask->StartBackgroundTask(TextureThreadPool, BasePriority, EQueuedWorkFlags::DoNotRunInsideBusyWait, AsyncTask->GetTask().GetRequiredMemoryEstimate());
+		FTextureAsyncCacheDerivedDataWorkerTask* LocalTask = new FTextureAsyncCacheDerivedDataWorkerTask(TextureThreadPool, Compressor, this, &InTexture, InSettingsPerLayer, Flags);
+		AsyncTask = LocalTask;
+		LocalTask->StartBackgroundTask(TextureThreadPool, BasePriority, EQueuedWorkFlags::DoNotRunInsideBusyWait, LocalTask->GetTask().GetRequiredMemoryEstimate());
 	}
 	else
 	{
@@ -797,16 +798,12 @@ void FTexturePlatformData::Cache(
 
 bool FTexturePlatformData::TryCancelCache()
 {
-	if (AsyncTask)
+	if (AsyncTask && AsyncTask->Cancel())
 	{
-		if (AsyncTask->IsDone() || AsyncTask->Cancel())
-		{
-			delete AsyncTask;
-			AsyncTask = nullptr;
-		}
+		delete AsyncTask;
+		AsyncTask = nullptr;
 	}
-
-	return AsyncTask == nullptr;
+	return !AsyncTask;
 }
 
 void FTexturePlatformData::CancelCache()
@@ -822,7 +819,7 @@ void FTexturePlatformData::CancelCache()
 
 bool FTexturePlatformData::IsAsyncWorkComplete() const
 {
-	return AsyncTask == nullptr || AsyncTask->IsWorkDone();
+	return !AsyncTask || AsyncTask->Poll();
 }
 
 void FTexturePlatformData::FinishCache()
@@ -832,13 +829,14 @@ void FTexturePlatformData::FinishCache()
 		TRACE_CPUPROFILER_EVENT_SCOPE(FTexturePlatformData::FinishCache)
 		{
 			COOK_STAT(auto Timer = TextureCookStats::UsageStats.TimeAsyncWait());
-			AsyncTask->EnsureCompletion();
-			FTextureCacheDerivedDataWorker& Worker = AsyncTask->GetTask();
-			Worker.Finalize();
-			COOK_STAT(Timer.AddHitOrMiss(Worker.WasLoadedFromDDC() ? FCookStats::CallStats::EHitOrMiss::Hit : FCookStats::CallStats::EHitOrMiss::Miss, Worker.GetBytesCached()));
+			bool bFoundInCache = false;
+			uint64 ProcessedByteCount = 0;
+			AsyncTask->Wait();
+			AsyncTask->Finalize(bFoundInCache, ProcessedByteCount);
+			COOK_STAT(Timer.AddHitOrMiss(bFoundInCache ? FCookStats::CallStats::EHitOrMiss::Hit : FCookStats::CallStats::EHitOrMiss::Miss, int64(ProcessedByteCount)));
 		}
 		delete AsyncTask;
-		AsyncTask = NULL;
+		AsyncTask = nullptr;
 	}
 }
 
@@ -995,7 +993,7 @@ FTexturePlatformData::FTexturePlatformData()
 	, PixelFormat(PF_Unknown)
 	, VTData(nullptr)
 #if WITH_EDITORONLY_DATA
-	, AsyncTask(NULL)
+	, AsyncTask(nullptr)
 #endif // #if WITH_EDITORONLY_DATA
 {
 }
@@ -1005,9 +1003,9 @@ FTexturePlatformData::~FTexturePlatformData()
 #if WITH_EDITOR
 	if (AsyncTask)
 	{
-		AsyncTask->EnsureCompletion();
+		AsyncTask->Wait();
 		delete AsyncTask;
-		AsyncTask = NULL;
+		AsyncTask = nullptr;
 	}
 #endif
 	if (VTData) delete VTData;
@@ -1832,30 +1830,32 @@ void UTexture::ClearAllCachedCookedPlatformData()
 	}
 }
 
-bool UTexture::IsCachedCookedPlatformDataLoaded( const ITargetPlatform* TargetPlatform ) 
+bool UTexture::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform)
 { 
-	const TMap<FString, FTexturePlatformData*> *CookedPlatformDataPtr = GetCookedPlatformData();
-	if ( CookedPlatformDataPtr == NULL )
-		return true; // we should always have cookedplatformDataPtr in the case of WITH_EDITOR
+	const TMap<FString, FTexturePlatformData*>* CookedPlatformDataPtr = GetCookedPlatformData();
+	if (!CookedPlatformDataPtr)
+	{
+		return true; // we should always have CookedPlatformDataPtr in the case of WITH_EDITOR
+	}
 
 	FTextureBuildSettings BuildSettings;
 	TArray<FTexturePlatformData*> PlatformDataToSerialize;
 	GetTextureBuildSettings(*this, TargetPlatform->GetTextureLODSettings(), *TargetPlatform, BuildSettings);
 
-	TArray< TArray<FTextureBuildSettings> > BuildSettingsToCache;
+	TArray<TArray<FTextureBuildSettings>> BuildSettingsToCache;
 	GetBuildSettingsPerFormat(*this, BuildSettings, TargetPlatform, BuildSettingsToCache);
 
-	for (int32 SettingIndex = 0; SettingIndex < BuildSettingsToCache.Num(); SettingIndex++)
+	for (const TArray<FTextureBuildSettings>& PlatformBuildSettings : BuildSettingsToCache)
 	{
-		check(BuildSettingsToCache[SettingIndex].Num() == Source.GetNumLayers());
+		check(PlatformBuildSettings.Num() == Source.GetNumLayers());
 
 		FString DerivedDataKey;
-		GetTextureDerivedDataKey(*this, BuildSettingsToCache[SettingIndex].GetData(), DerivedDataKey);
+		GetTextureDerivedDataKey(*this, PlatformBuildSettings.GetData(), DerivedDataKey);
 
-		FTexturePlatformData *PlatformData= (*CookedPlatformDataPtr).FindRef(DerivedDataKey);
+		FTexturePlatformData* PlatformData = (*CookedPlatformDataPtr).FindRef(DerivedDataKey);
 
 		// begin cache hasn't been called
-		if ( !PlatformData )
+		if (!PlatformData)
 		{
 			if (!HasAnyFlags(RF_ClassDefaultObject) && Source.SizeX != 0 && Source.SizeY != 0)
 			{
@@ -1865,12 +1865,12 @@ bool UTexture::IsCachedCookedPlatformDataLoaded( const ITargetPlatform* TargetPl
 			return false;
 		}
 
-		if ( (PlatformData->AsyncTask != NULL) && ( PlatformData->AsyncTask->IsWorkDone() == true ) )
+		if (PlatformData->AsyncTask && PlatformData->AsyncTask->Poll())
 		{
 			PlatformData->FinishCache();
 		}
 
-		if ( PlatformData->AsyncTask)
+		if (PlatformData->AsyncTask)
 		{
 			return false;
 		}
@@ -1881,28 +1881,24 @@ bool UTexture::IsCachedCookedPlatformDataLoaded( const ITargetPlatform* TargetPl
 
 bool UTexture::IsAsyncCacheComplete() const
 {
-	const FTexturePlatformData* const* RunningPlatformDataPtr = const_cast<UTexture*>(this)->GetRunningPlatformData();
-	if (RunningPlatformDataPtr)
+	if (const FTexturePlatformData* const* RunningPlatformDataPtr = const_cast<UTexture*>(this)->GetRunningPlatformData())
 	{
-		const FTexturePlatformData* RunningPlatformData = *RunningPlatformDataPtr;
-		if (RunningPlatformData)
+		if (const FTexturePlatformData* PlatformData = *RunningPlatformDataPtr)
 		{
-			if (RunningPlatformData->AsyncTask != nullptr && !RunningPlatformData->AsyncTask->IsWorkDone())
-		{
+			if (PlatformData->AsyncTask && !PlatformData->AsyncTask->Poll())
+			{
 				return false;
 			}
 		}
 	}
 
-	const TMap<FString,FTexturePlatformData*>* CookedPlatformDataPtr = const_cast<UTexture*>(this)->GetCookedPlatformData();
-	if (CookedPlatformDataPtr)
+	if (const TMap<FString, FTexturePlatformData*>* CookedPlatformDataPtr = const_cast<UTexture*>(this)->GetCookedPlatformData())
 	{
 		for (const TTuple<FString, FTexturePlatformData*>& Kvp : *CookedPlatformDataPtr)
 		{
-			const FTexturePlatformData* PlatformData = Kvp.Value;
-			if (PlatformData)
+			if (const FTexturePlatformData* PlatformData = Kvp.Value)
 			{
-				if (PlatformData->AsyncTask != nullptr && !PlatformData->AsyncTask->IsWorkDone())
+				if (PlatformData->AsyncTask && !PlatformData->AsyncTask->Poll())
 				{
 					return false;
 				}
