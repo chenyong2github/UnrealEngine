@@ -115,3 +115,10 @@ def decode_message(msg_in_bytes):
     msg_as_str = ''.join(msg_in_bytes)
     msg_json = json.loads(msg_as_str)
     return msg_json
+
+def create_minimize_windows_message():
+    cmd_id = uuid.uuid4()
+    cmd = {'command': 'minimize windows', 'id': str(cmd_id)}
+    message = json.dumps(cmd).encode() + b'\x00'
+    return (cmd_id, message)
+

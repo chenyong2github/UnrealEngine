@@ -23,6 +23,7 @@ struct FSwitchboardGetSyncStatusTask;
 struct FSwitchboardRefreshMosaicsTask;
 struct FSwitchboardRedeployListenerTask;
 struct FSwitchboardFixExeFlagsTask;
+struct FSwitchboardMinimizeWindowsTask;
 
 class FInternetAddr;
 class FSocket;
@@ -122,6 +123,7 @@ private:
 	bool Task_GetSyncStatus(const FSwitchboardGetSyncStatusTask& InGetSyncStatusTask);
 	bool Task_RefreshMosaics(const FSwitchboardRefreshMosaicsTask& InRefreshMosaicsTask);
 	bool Task_FixExeFlags(const FSwitchboardFixExeFlagsTask& InFixExeFlagsTask);
+	bool Task_MinimizeWindows(const FSwitchboardMinimizeWindowsTask& InRefreshMosaicsTask);
 
 	bool KillProcessNow(FRunningProcess* InProcess, float SoftKillTimeout = 0.0f);
 	FRunningProcess* FindOrStartFlipModeMonitorForUUID(const FGuid& UUID);

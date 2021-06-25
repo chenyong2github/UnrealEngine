@@ -278,6 +278,11 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 		OutTask = MakeUnique<FSwitchboardRefreshMosaicsTask>(MessageID, InEndpoint);
 		return true;
 	}
+	else if (CommandName == TEXT("minimize windows"))
+	{
+		OutTask = MakeUnique<FSwitchboardMinimizeWindowsTask>(MessageID, InEndpoint);
+		return true;
+	}
 
 	return false;
 }

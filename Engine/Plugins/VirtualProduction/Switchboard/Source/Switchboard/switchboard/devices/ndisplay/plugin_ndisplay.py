@@ -314,6 +314,13 @@ class DevicenDisplay(DeviceUnreal):
             tool_tip="Remember the last populated list of config files",
             show_ui=False,
         ),
+        'minimize_before_launch': Setting(
+            attr_name='minimize_before_launch',
+            nice_name="Minimize Before Launch",
+            value=True,
+            tool_tip="Minimizes windows before launch",
+            show_ui=True,
+        ),
     }
 
     ndisplay_monitor_ui = None
@@ -608,6 +615,10 @@ class DevicenDisplay(DeviceUnreal):
             return
 
         if not (self.pending_transfer_cfg or self.pending_transfer_uasset):
+
+            if DevicenDisplay.csettings['minimize_before_launch'].get_value(True):
+                self.minimize_windows()
+
             super().launch(map_name=self.map_name_to_launch)
 
     def on_get_sync_status(self, message):

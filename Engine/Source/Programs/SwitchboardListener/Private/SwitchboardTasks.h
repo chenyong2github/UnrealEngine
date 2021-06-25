@@ -20,6 +20,7 @@ enum class ESwitchboardTaskType : uint8
 	FixExeFlags,
 	RedeployListener,
 	RefreshMosaics,
+	MinimizeWindows,
 };
 
 
@@ -223,3 +224,11 @@ struct FSwitchboardKeepAliveTask : public FSwitchboardTask
 		: FSwitchboardTask{ESwitchboardTaskType::KeepAlive, TEXT("keep alive"), InTaskId, InEndpoint}
 	{}
 };
+
+struct FSwitchboardMinimizeWindowsTask : public FSwitchboardTask
+{
+	FSwitchboardMinimizeWindowsTask(const FGuid& InTaskId, const FIPv4Endpoint& InEndpoint)
+		: FSwitchboardTask{ ESwitchboardTaskType::MinimizeWindows, TEXT("minimize windows"), InTaskId, InEndpoint }
+	{}
+};
+
