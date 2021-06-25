@@ -9,12 +9,6 @@
 class FOpenXRHMD;
 class UStaticMesh;
 
-// On some platforms the XrPath type becomes ambigious for overloading
-FORCEINLINE uint32 GetTypeHash(const TPair<XrPath, FSoftObjectPath>& Pair)
-{
-	return HashCombine(GetTypeHash((uint64)Pair.Key), GetTypeHash(Pair.Value));
-}
-
 /**
  *
  */
