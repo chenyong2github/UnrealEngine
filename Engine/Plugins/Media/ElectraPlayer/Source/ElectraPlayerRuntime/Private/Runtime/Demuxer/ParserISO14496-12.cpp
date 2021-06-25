@@ -597,6 +597,7 @@ private:
 		static const IParserISO14496_12::FBoxType kBox_stsd = MAKE_BOX_ATOM('s', 't', 's', 'd');
 		static const IParserISO14496_12::FBoxType kBox_btrt = MAKE_BOX_ATOM('b', 't', 'r', 't');
 		static const IParserISO14496_12::FBoxType kBox_pasp = MAKE_BOX_ATOM('p', 'a', 's', 'p');
+		static const IParserISO14496_12::FBoxType kBox_fiel = MAKE_BOX_ATOM('f', 'i', 'e', 'l');
 		static const IParserISO14496_12::FBoxType kBox_avcC = MAKE_BOX_ATOM('a', 'v', 'c', 'C');
 		static const IParserISO14496_12::FBoxType kBox_hvcC = MAKE_BOX_ATOM('h', 'v', 'c', 'C');
 		static const IParserISO14496_12::FBoxType kBox_esds = MAKE_BOX_ATOM('e', 's', 'd', 's');
@@ -4492,6 +4493,7 @@ private:
 						// Boxes we ignore for now.
 						case FMP4Box::kBox_tref:
 						case FMP4Box::kBox_colr:
+						case FMP4Box::kBox_fiel:
 						case FMP4Box::kBox_trep:
 						case FMP4Box::kBox_sdtp:
 						case FMP4Box::kBox_gmhd:

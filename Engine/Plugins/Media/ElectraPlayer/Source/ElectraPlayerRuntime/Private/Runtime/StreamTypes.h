@@ -652,6 +652,56 @@ namespace Electra
 	};
 
 
+	
+	class FCodecSelectionPriorities
+	{
+	public:
+		/**
+		 * Initializes this selector with a priority string in the following FORMAT:
+		 *   FORMAT = CLASSPRIO 0*[COMMA CLASSPRIO]
+		 *   COMMA = ,
+		 *   EQ = =
+		 *   PRIO = 1*DIGIT
+		 *   PREFIX = 1*VCHAR    ; except , = { }
+		 *   CLASS = PREFIX
+		 *   CODECPRIO = CLASS EQ PRIO
+		 *   CLASSWITHPRIO = CODECPRIO 0*[ { CODECPRIO 0*[ COMMA CODECPRIO ] } ]
+		 *   CLASSWITHOUTPRIO = CLASS 1*[ { CODECPRIO 0*[ COMMA CODECPRIO ] } ]
+		 *   CLASSPRIO = CLASSWITHPRIO / CLASSWITHOUTPRIO
+		 * 
+		 * Examples: hvc=2,hev=2,avc=1
+		 *           mp4a{mp4a.40.5=0,mp4a.40.2=1}
+		 * 
+		 * First codec priorities are given for an entire codec class (eg. "hvc").
+		 * Within each class, where it makes sense, individual streams can be prioritized.
+		 * Say within a class "mp4a" there are two AAC streams. One LC and one HE.
+		 * To use the LC over the HE stream the "mp4a" class gives more detailed codec
+		 * prefixes and their priorities like the above example.
+		 * 
+		 * If used with DASH streams the class priority can be thought of the priority
+		 * of an AdaptationSet and the stream priority of that of a Representation.
+		 * User defined priorities override the @selectionPriority attribute of a
+		 * DASH AdaptationSet or Representation.
+		 */
+		bool Initialize(const FString& ConfigurationString);
+		int32 GetClassPriority(const FString& CodecSpecifierRFC6381) const;
+		int32 GetStreamPriority(const FString& CodecSpecifierRFC6381) const;
+	private:
+		bool ParseInternal(const FString& ConfigurationString);
+		struct FStreamPriority
+		{
+			FString Prefix;
+			int32 Priority = -1;
+		};
+		struct FClassPriority
+		{
+			FString Prefix;
+			int32 Priority = -1;
+			TArray<FStreamPriority> StreamPriorities;
+		};
+		TArray<FClassPriority> ClassPriorities;
+	};
+
 
 
 	struct FPlayerLoopState

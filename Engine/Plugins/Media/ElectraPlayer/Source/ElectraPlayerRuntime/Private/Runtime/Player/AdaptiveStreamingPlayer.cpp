@@ -230,15 +230,15 @@ void FAdaptiveStreamingPlayer::Initialize(const FParamDict& Options)
 	// compared against these limits and those that exceed the limit will not be considered for playback.
 
 	// Maximum allowed vertical resolution specified?
-	if (PlayerOptions.HaveKey("max_resoY"))
+	if (PlayerOptions.HaveKey(TEXT("max_resoY")))
 	{
-		PlayerConfig.H264LimitUpto30fps.MaxResolution.Height = (int32) PlayerOptions.GetValue("max_resoY").GetInt64();
-		PlayerConfig.H264LimitAbove30fps.MaxResolution.Height = (int32) PlayerOptions.GetValue("max_resoY").GetInt64();
+		PlayerConfig.H264LimitUpto30fps.MaxResolution.Height = (int32) PlayerOptions.GetValue(TEXT("max_resoY")).GetInt64();
+		PlayerConfig.H264LimitAbove30fps.MaxResolution.Height = (int32) PlayerOptions.GetValue(TEXT("max_resoY")).GetInt64();
 	}
 	// A limit in vertical resolution for streams with more than 30fps?
-	if (PlayerOptions.HaveKey("max_resoY_above_30fps"))
+	if (PlayerOptions.HaveKey(TEXT("max_resoY_above_30fps")))
 	{
-		PlayerConfig.H264LimitAbove30fps.MaxResolution.Height = (int32) PlayerOptions.GetValue("max_resoY_above_30fps").GetInt64();
+		PlayerConfig.H264LimitAbove30fps.MaxResolution.Height = (int32) PlayerOptions.GetValue(TEXT("max_resoY_above_30fps")).GetInt64();
 	}
 	// Note: We could add additional limits here if need be.
 	//       Eventually these need to be differentiated based on codec as well.
@@ -263,9 +263,9 @@ void FAdaptiveStreamingPlayer::Initialize(const FParamDict& Options)
 		}
 
 		// If this is software decoding only and there is limit for this in place on Windows, apply it.
-		if (PlayerOptions.HaveKey("max_resoY_windows_software") && Capability.DecoderSupportType == IVideoDecoderH264::FStreamDecodeCapability::ESupported::SoftwareOnly)
+		if (PlayerOptions.HaveKey(TEXT("max_resoY_windows_software")) && Capability.DecoderSupportType == IVideoDecoderH264::FStreamDecodeCapability::ESupported::SoftwareOnly)
 		{
-			int32 MaxWinSWHeight = (int32) PlayerOptions.GetValue("max_resoY_windows_software").GetInt64();
+			int32 MaxWinSWHeight = (int32) PlayerOptions.GetValue(TEXT("max_resoY_windows_software")).GetInt64();
 			PlayerConfig.H264LimitUpto30fps.MaxResolution.Height = Utils::Min(PlayerConfig.H264LimitUpto30fps.MaxResolution.Height, MaxWinSWHeight);
 			PlayerConfig.H264LimitAbove30fps.MaxResolution.Height = Utils::Min(PlayerConfig.H264LimitAbove30fps.MaxResolution.Height, MaxWinSWHeight);
 		}
@@ -279,6 +279,40 @@ void FAdaptiveStreamingPlayer::Initialize(const FParamDict& Options)
 			PlayerConfig.H264LimitAbove30fps.MaxTierProfileLevel.Level = 10;
 		}
 	}
+
+	// Check for codecs that are not to be used as per the user's choice, even if the device supports them.
+	auto GetExcludedCodecPrefixes = [](TArray<FString>& OutList, const FParamDict& InOptions, const FString& InKey) -> void
+	{
+		if (InOptions.HaveKey(InKey))
+		{
+			const TCHAR* const CommaDelimiter = TEXT(",");
+			TArray<FString> Prefixes;
+			FString Value = InOptions.GetValue(InKey).GetFString();
+			Value.TrimQuotesInline();
+			Value.ParseIntoArray(Prefixes, CommaDelimiter, true);
+			for(auto &Prefix : Prefixes)
+			{
+				OutList.Emplace(Prefix.TrimStartAndEnd().TrimQuotes().TrimStartAndEnd());
+			}
+		}
+	};
+	GetExcludedCodecPrefixes(ExcludedVideoDecoderPrefixes,    PlayerOptions, TEXT("excluded_codecs_video"));
+	GetExcludedCodecPrefixes(ExcludedAudioDecoderPrefixes,    PlayerOptions, TEXT("excluded_codecs_audio"));
+	GetExcludedCodecPrefixes(ExcludedSubtitleDecoderPrefixes, PlayerOptions, TEXT("excluded_codecs_subtitles"));
+
+	auto GetCodecSelectionPriorities = [this](FCodecSelectionPriorities& OutPriorities, const FParamDict& InOptions, const FString& InKey, const TCHAR* const InType) -> void
+	{
+		if (InOptions.HaveKey(InKey))
+		{
+			if (!OutPriorities.Initialize(InOptions.GetValue(InKey).GetFString()))
+			{
+				PostLog(Facility::EFacility::Player, IInfoLog::ELevel::Warning, FString::Printf(TEXT("Failed to parse %s codec selection priority configuration"), InType));
+			}
+		}
+	};
+	GetCodecSelectionPriorities(CodecPrioritiesVideo,     PlayerOptions, TEXT("preferred_codecs_video"),     TEXT("video"));
+	GetCodecSelectionPriorities(CodecPrioritiesAudio,     PlayerOptions, TEXT("preferred_codecs_audio"),     TEXT("audio"));
+	GetCodecSelectionPriorities(CodecPrioritiesSubtitles, PlayerOptions, TEXT("preferred_codecs_subtitles"), TEXT("subtitle"));
 }
 
 
@@ -829,12 +863,11 @@ void FAdaptiveStreamingPlayer::DestroyRenderers()
 
 
 
-void FAdaptiveStreamingPlayer::PostLog(Facility::EFacility FromFacility, IInfoLog::ELevel inLogLevel, const FString &Message)
+void FAdaptiveStreamingPlayer::PostLog(Facility::EFacility FromFacility, IInfoLog::ELevel InLogLevel, const FString &Message)
 {
 	int64 millisNow = SynchronizedUTCTime->GetTime().GetAsMilliseconds();
-	//FString msg = FString::Printf("[%s] %s: %s", IInfoLog::GetLevelName(inLogLevel), Facility::GetName(FromFacility), Message.c_str());
 	FString msg = FString::Printf(TEXT("%s: %s"), Facility::GetName(FromFacility), *Message);
-	DispatchEvent(FMetricEvent::ReportLogMessage(inLogLevel, msg, millisNow));
+	DispatchEvent(FMetricEvent::ReportLogMessage(InLogLevel, msg, millisNow));
 }
 
 void FAdaptiveStreamingPlayer::PostError(const FErrorDetail& InError)
@@ -926,10 +959,53 @@ IPlayerStreamFilter* FAdaptiveStreamingPlayer::GetStreamFilter()
 	return this;
 }
 
+const FCodecSelectionPriorities& FAdaptiveStreamingPlayer::GetCodecSelectionPriorities(EStreamType ForStream)
+{
+	switch(ForStream)
+	{
+		case EStreamType::Video:
+		{
+			return CodecPrioritiesVideo;
+		}
+		case EStreamType::Audio:
+		{
+			return CodecPrioritiesAudio;
+		}
+		case EStreamType::Subtitle:
+		{
+			return CodecPrioritiesSubtitles;
+		}
+		default:
+		{
+			static FCodecSelectionPriorities Dummy;
+			return Dummy;
+		}
+	}
+}
+
 bool FAdaptiveStreamingPlayer::CanDecodeStream(const FStreamCodecInformation& InStreamCodecInfo) const
 {
+	auto IsCodecPrefixExcluded = [](const FString& InCodec, const TArray<FString>& InExcludedPrefixes) -> bool
+	{
+		for(auto &Prefix : InExcludedPrefixes)
+		{
+			if (InCodec.StartsWith(Prefix, ESearchCase::IgnoreCase))
+			{
+				return true;
+			}
+		}
+		return false;
+	};
+
+
 	if (InStreamCodecInfo.IsVideoCodec())
 	{
+		// Check against user specified codec prefix exclusions
+		if (IsCodecPrefixExcluded(InStreamCodecInfo.GetCodecSpecifierRFC6381(), ExcludedVideoDecoderPrefixes))
+		{
+			return false;
+		}
+
 		double Rate = InStreamCodecInfo.GetFrameRate().IsValid() ? InStreamCodecInfo.GetFrameRate().GetAsDouble() : 30.0;
 		if (InStreamCodecInfo.GetCodec() == FStreamCodecInformation::ECodec::H264)
 		{
@@ -982,6 +1058,22 @@ bool FAdaptiveStreamingPlayer::CanDecodeStream(const FStreamCodecInformation& In
 			#else
 				return false;
 			#endif
+		}
+	}
+	else if (InStreamCodecInfo.IsAudioCodec())
+	{
+		// Check against user specified codec prefix exclusions
+		if (IsCodecPrefixExcluded(InStreamCodecInfo.GetCodecSpecifierRFC6381(), ExcludedAudioDecoderPrefixes))
+		{
+			return false;
+		}
+	}
+	else if (InStreamCodecInfo.IsSubtitleCodec())
+	{
+		// Check against user specified codec prefix exclusions
+		if (IsCodecPrefixExcluded(InStreamCodecInfo.GetCodecSpecifierRFC6381(), ExcludedSubtitleDecoderPrefixes))
+		{
+			return false;
 		}
 	}
 
@@ -2467,7 +2559,7 @@ void FAdaptiveStreamingPlayer::HandlePendingMediaSegmentRequests()
 				break;
 			}
 			case EStreamType::Video:
-				{
+			{
 				SegmentPlayPeriod = CurrentPlayPeriodVideo;
 				break;
 			}
@@ -3102,8 +3194,14 @@ bool FAdaptiveStreamingPlayer::InternalStartAt(const FSeekParam& NewPosition)
 void FAdaptiveStreamingPlayer::InternalSetPlaybackEnded()
 {
 	PostrollVars.Clear();
+
+	FTimeRange TimelineRange;
+	PlaybackState.GetTimelineRange(TimelineRange);
+	PlaybackState.SetPlayPosition(TimelineRange.End);
+
 	PlaybackState.SetHasEnded(true);
 	StreamState = EStreamState::eStream_ReachedEnd;
+
 	// Go to pause mode now.
 	InternalPause();
 	DispatchEvent(FMetricEvent::ReportPlaybackEnded());

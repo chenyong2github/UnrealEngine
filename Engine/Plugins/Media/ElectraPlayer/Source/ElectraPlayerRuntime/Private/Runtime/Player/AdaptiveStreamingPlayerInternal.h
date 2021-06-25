@@ -771,6 +771,7 @@ private:
 	virtual TSharedPtrTS<IAdaptiveStreamSelector> GetStreamSelector() override;
 	virtual void GetStreamBufferStats(FAccessUnitBufferInfo& OutBufferStats, EStreamType ForStream) override;
 	virtual IPlayerStreamFilter* GetStreamFilter() override;
+	virtual const FCodecSelectionPriorities& GetCodecSelectionPriorities(EStreamType ForStream) override;
 	virtual	TSharedPtrTS<IPlaylistReader> GetManifestReader() override;
 	virtual TSharedPtrTS<IPlayerEntityCache> GetEntityCache() override;
 	virtual IAdaptiveStreamingPlayerAEMSHandler* GetAEMSEventHandler() override;
@@ -1527,6 +1528,13 @@ private:
 	TSharedPtrTS<FStreamSelectionAttributes>							PendingTrackSelectionVid;
 	TSharedPtrTS<FStreamSelectionAttributes>							PendingTrackSelectionAud;
 	TSharedPtrTS<FStreamSelectionAttributes>							PendingTrackSelectionTxt;
+
+	TArray<FString>														ExcludedVideoDecoderPrefixes;
+	TArray<FString>														ExcludedAudioDecoderPrefixes;
+	TArray<FString>														ExcludedSubtitleDecoderPrefixes;
+	FCodecSelectionPriorities											CodecPrioritiesVideo;
+	FCodecSelectionPriorities											CodecPrioritiesAudio;
+	FCodecSelectionPriorities											CodecPrioritiesSubtitles;
 
 	EPlayerState														CurrentState;
 	EPipelineState														PipelineState;

@@ -227,6 +227,7 @@ public:
 
 		void GetSegmentInformation(TArray<IManifest::IPlayPeriod::FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const TSharedPtrTS<IPlaybackAssetAdaptationSet>& AdaptationSet);
 
+		int32 GetSelectionPriority() const { return SelectionPriority; }
 
 
 		//----------------------------------------------
@@ -272,6 +273,7 @@ public:
 		FString ID;
 		int32 Bitrate = MAX_int32;
 		int32 QualityIndex = -1;
+		int32 SelectionPriority = 1;
 		bool bIsUsable = false;
 		bool bIsEnabled = true;
 		bool bWarnedAboutTimelineStartGap = false;
@@ -301,7 +303,10 @@ public:
 		const FTimeFraction& GetPAR() const											{ return PAR; }
 		//const FString& GetLanguage() const											{ return Language; }
 		int32 GetMaxBandwidth() const												{ return MaxBandwidth; }
+		int32 GetSelectionPriority() const											{ return SelectionPriority; }
 		bool GetIsUsable() const													{ return bIsUsable; }
+		bool GetIsInSwitchGroup() const												{ return bIsInSwitchGroup; }
+		bool GetIsSwitchGroup() const												{ return bIsSwitchGroup; }
 
 		TSharedPtrTS<FRepresentation> GetRepresentationByUniqueID(const FString& UniqueIdentifier) const
 		{
@@ -467,6 +472,9 @@ public:
 		const FString& GetCommonEncryptionScheme() const { return CommonEncryptionScheme; }
 		const FString& GetDefaultKID() const { return DefaultKID; }
 
+		const TArray<FString>& GetSwitchToSetIDs() const { return SwitchToSetIDs; }
+		const TArray<FString>& GetSwitchedFromSetIDs() const { return SwitchedFromSetIDs; }
+
 		//----------------------------------------------
 		// Methods from IPlaybackAssetAdaptationSet
 		//
@@ -508,6 +516,7 @@ public:
 		FTimeFraction PAR;
 		FString Language;
 		int32 MaxBandwidth = 0;
+		int32 SelectionPriority = 1;
 		int32 UniqueSequentialSetIndex = 0;
 		bool bIsUsable = false;
 		bool bIsEnabled = true;
@@ -515,6 +524,11 @@ public:
 		TArray<FContentProtection> PossibleContentProtections;
 		FString CommonEncryptionScheme;
 		FString DefaultKID;
+		// Switching related
+		TArray<FString> SwitchToSetIDs;
+		TArray<FString> SwitchedFromSetIDs;
+		bool bIsInSwitchGroup = false;
+		bool bIsSwitchGroup = false;
 	};
 
 	class FPeriod : public ITimelineMediaAsset
@@ -558,6 +572,20 @@ public:
 			}
 			return nullptr;
 		}
+
+		TSharedPtrTS<FAdaptationSet> GetAdaptationSetByMPDID(const FString& MPDID) const
+		{
+			for(int32 i=0; i<AdaptationSets.Num(); ++i)
+			{
+				TSharedPtrTS<FDashMPD_AdaptationSetType> MPDAdaptationSet = AdaptationSets[i]->AdaptationSet.Pin();
+				if (MPDAdaptationSet.IsValid() && MPDAdaptationSet->GetID_AsStr().Equals(MPDID))
+				{
+					return AdaptationSets[i];
+				}
+			}
+			return nullptr;
+		}
+
 
 		void EndPresentationAt(const FTimeValue& EndsAt)
 		{
@@ -641,7 +669,7 @@ public:
 			{
 				TSharedPtrTS<IPlaybackAssetAdaptationSet> AdaptationSet = GetAdaptationSetByTypeAndIndex(OfStreamType, i);
 				const FAdaptationSet* Adapt = static_cast<const FAdaptationSet*>(AdaptationSet.Get());
-				if (Adapt && Adapt->GetIsUsable())
+				if (Adapt && Adapt->GetIsUsable() && !Adapt->GetIsInSwitchGroup())
 				{
 					FTrackMetadata tm;
 					Adapt->GetMetaData(tm, OfStreamType);

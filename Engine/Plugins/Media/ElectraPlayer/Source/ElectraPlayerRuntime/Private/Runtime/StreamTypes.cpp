@@ -223,4 +223,178 @@ namespace Electra
 			return false;
 		}
 	}
+
+
+
+
+
+	bool FCodecSelectionPriorities::Initialize(const FString& ConfigurationString)
+	{
+		ClassPriorities.Empty();
+		if (ConfigurationString.Len() && !ParseInternal(ConfigurationString))
+		{
+			ClassPriorities.Empty();
+			return false;
+		}
+		return true;
+	}
+	bool FCodecSelectionPriorities::ParseInternal(const FString& ConfigurationString)
+	{
+		auto SkipWhiteSpaces = [](StringHelpers::FStringIterator& it) -> void
+		{
+			while(it && TChar<TCHAR>::IsWhitespace(*it))
+			{
+				++it;
+			}
+		};
+
+		auto ParsePriority = [](int32& OutPrio, StringHelpers::FStringIterator& it, bool bInClass) -> bool
+		{
+			int64 Prio = 0;
+			bool bEmpty = true;
+			while(it && TChar<TCHAR>::IsDigit(*it))
+			{
+				bEmpty = false;
+				Prio *= 10;
+				Prio += *it - TCHAR('0');
+				++it;
+			}
+			while(it && TChar<TCHAR>::IsWhitespace(*it))
+			{
+				++it;
+			}
+			// Did we end the priority properly?
+			if (!bEmpty && (!it || *it == TCHAR(',') || (bInClass && *it == TCHAR('{'))))
+			{
+				OutPrio = Prio;
+				return true;
+			}
+			// Unexpected next character. Fail!
+			return false;
+		};
+
+		const TCHAR* const CommaDelimiter = TEXT(",");
+		StringHelpers::FStringIterator it(ConfigurationString);
+		while(it)
+		{
+			FClassPriority ClassPriority;
+			SkipWhiteSpaces(it);
+			while(it && *it != TCHAR('=') && *it != TCHAR('{') && *it != TCHAR(','))
+			{
+				ClassPriority.Prefix += *it++;
+			}
+			if (ClassPriority.Prefix.Len() == 0)
+			{
+				return false;
+			}
+
+			// Is the next char assigning a priority?
+			if (it && *it == TCHAR('='))
+			{
+				// Get the class priority
+				++it;
+				if (!ParsePriority(ClassPriority.Priority, it, true))
+				{
+					return false;
+				}
+			}
+			// If no priority then there must now be a group for stream specific priorities.
+			else if (!it || *it != TCHAR('{'))
+			{
+				return false;
+			}
+			// Do stream specific priorities follow?
+			if (it && *it == TCHAR('{'))
+			{
+				int32 GroupStart = it.GetIndex();
+				// Look for the end of the group.
+				while(it && *it != TCHAR('}'))
+				{
+					++it;
+				}
+				if (!it || *it != TCHAR('}'))
+				{
+					return false;
+				}
+				++it;
+				FString Group = ConfigurationString.Mid(GroupStart+1, it.GetIndex()-GroupStart-2);
+				TArray<FString> StreamPriorities;
+				Group.ParseIntoArray(StreamPriorities, CommaDelimiter, true);
+				if (StreamPriorities.Num() == 0)
+				{
+					return false;
+				}
+				for(auto &sp : StreamPriorities)
+				{
+					FStreamPriority StreamPriority;
+					StringHelpers::FStringIterator spIt(sp);
+					while(spIt)
+					{
+						SkipWhiteSpaces(spIt);
+						while(spIt && *spIt != TCHAR('=') && *spIt != TCHAR('{') && *spIt != TCHAR(','))
+						{
+							StreamPriority.Prefix += *spIt++;
+						}
+						if (StreamPriority.Prefix.Len() == 0)
+						{
+							return false;
+						}
+						if (spIt && *spIt == TCHAR('='))
+						{
+							++spIt;
+							if (!ParsePriority(StreamPriority.Priority, spIt, false))
+							{
+								return false;
+							}
+						}
+						else
+						{
+							return false;
+						}
+					}
+					ClassPriority.StreamPriorities.Emplace(MoveTemp(StreamPriority));
+				}
+			}
+			// Either there's a comma separating successive entries or we are done.
+			SkipWhiteSpaces(it);
+			if (it && *it != TCHAR(','))
+			{
+				return false;
+			}
+			++it;
+			ClassPriorities.Emplace(MoveTemp(ClassPriority));
+		}
+		return true;
+	}
+	
+	int32 FCodecSelectionPriorities::GetClassPriority(const FString& CodecSpecifierRFC6381) const
+	{
+		for(auto &CodecClass : ClassPriorities)
+		{
+			if (CodecSpecifierRFC6381.StartsWith(CodecClass.Prefix, ESearchCase::IgnoreCase))
+			{
+				return CodecClass.Priority;
+			}
+		}
+		return -1;
+	}
+	
+	int32 FCodecSelectionPriorities::GetStreamPriority(const FString& CodecSpecifierRFC6381) const
+	{
+		for(auto &CodecClass : ClassPriorities)
+		{
+			if (CodecSpecifierRFC6381.StartsWith(CodecClass.Prefix, ESearchCase::IgnoreCase))
+			{
+				for(auto &CodecStream : CodecClass.StreamPriorities)
+				{
+					if (CodecSpecifierRFC6381.StartsWith(CodecStream.Prefix, ESearchCase::IgnoreCase))
+					{
+						return CodecStream.Priority;
+					}
+				}
+			}
+		}
+		return -1;
+	}
+
 } // namespace Electra
