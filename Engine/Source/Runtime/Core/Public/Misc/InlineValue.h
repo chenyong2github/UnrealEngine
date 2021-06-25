@@ -42,6 +42,16 @@ public:
 	}
 
 	/**
+	 * In-place construction of BaseType from a set of arguments.
+	 */
+	template<typename... ArgTypes>
+	TInlineValue(EInPlace, ArgTypes&&... Args)
+		: bIsValid(false)
+	{
+		InitializeFrom<BaseType>(Forward<ArgTypes>(Args)...);
+	}
+
+	/**
 	 * Destructor
 	 */
 	~TInlineValue()
