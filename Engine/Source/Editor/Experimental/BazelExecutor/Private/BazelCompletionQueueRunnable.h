@@ -7,13 +7,29 @@
 #include "HAL/RunnableThread.h"
 #include "Misc/SingleThreadRunnable.h"
 
-THIRD_PARTY_INCLUDES_START
-UE_PUSH_MACRO("TEXT")
-#undef TEXT
-#include <grpcpp/grpcpp.h>
-#include "build\bazel\remote\execution\v2\remote_execution.grpc.pb.h"
-UE_POP_MACRO("TEXT");
-THIRD_PARTY_INCLUDES_END
+namespace grpc
+{
+	class ClientContext;
+	class Status;
+	template <class R>
+	class ClientAsyncReader;
+	template <class R>
+	class ClientAsyncResponseReader;
+	class CompletionQueue;
+}
+
+namespace google
+{
+	namespace longrunning
+	{
+		class Operation;
+	}
+
+	namespace protobuf
+	{
+		class Message;
+	}
+}
 
 
 using TStartCallFunction = TUniqueFunction<void(void* Tag, bool Ok)>;
@@ -43,7 +59,7 @@ private:
 
 	bool Running;
 	TMap<void*, FQueuedItem> QueuedItems;
-	grpc::CompletionQueue CompletionQueue;
+	TUniquePtr<grpc::CompletionQueue> CompletionQueue;
 
 	void ProcessNext(void* Tag, bool Ok);
 
@@ -77,39 +93,7 @@ public:
 	bool AddAsyncResponse(
 		TUniquePtr<grpc::ClientContext> ClientContext,
 		TUniquePtr<grpc::ClientAsyncResponseReader<MessageType>> Reader,
-		TFinishFunction OnFinish = nullptr)
-	{
-		static_assert(std::is_base_of<google::protobuf::Message, MessageType>::value, "MessageType is not derived from google::protobuf::Message");
-		if (!Running || !ClientContext.IsValid() || !Reader.IsValid())
-		{
-			return false;
-		}
-
-		grpc::ClientAsyncResponseReader<MessageType>* AsyncReader = Reader.Get();
-
-		// Keep Reader in scope for the lifetime of this async call
-		TFinishFunction OnFinishResponse = [Reader = MoveTemp(Reader), OnFinish = MoveTemp(OnFinish)](void* Tag, bool Ok, const grpc::Status& Status, const google::protobuf::Message& Message)
-		{
-			if (OnFinish)
-			{
-				OnFinish(Tag, Ok, Status, Message);
-			}
-		};
-
-		MessageType* Response = new MessageType();
-		grpc::Status* Status = new grpc::Status();
-
-		FQueuedItem Item;
-		Item.State = FQueuedItem::EState::Finishing;
-		Item.Status.Reset(Status);
-		Item.Message.Reset(Response);
-		Item.ClientContext = MoveTemp(ClientContext);
-		Item.Finish = MoveTemp(OnFinishResponse);
-		QueuedItems.Add(AsyncReader, MoveTemp(Item));
-		AsyncReader->StartCall();
-		AsyncReader->Finish(Response, Status, AsyncReader);
-		return true;
-	}
+		TFinishFunction OnFinish = nullptr);
 
 	grpc::CompletionQueue* GetCompletionQueue();
 };

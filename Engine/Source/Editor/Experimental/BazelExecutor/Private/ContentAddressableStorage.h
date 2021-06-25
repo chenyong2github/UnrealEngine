@@ -5,20 +5,22 @@
 #include "CoreMinimal.h"
 #include "IContentAddressableStorage.h"
 
-THIRD_PARTY_INCLUDES_START
-UE_PUSH_MACRO("TEXT")
-#undef TEXT
-#include "build\bazel\remote\execution\v2\remote_execution.grpc.pb.h"
-UE_POP_MACRO("TEXT");
-THIRD_PARTY_INCLUDES_END
+#include <memory>
+
+namespace grpc
+{
+	class Channel;
+	class ClientContext;
+}
 
 class FBazelCompletionQueueRunnable;
+class FContentAddressableStorageStub;
 
 
 class FContentAddressableStorage : public IContentAddressableStorage
 {
 private:
-	TUniquePtr<build::bazel::remote::execution::v2::ContentAddressableStorage::Stub> Stub;
+	TUniquePtr<FContentAddressableStorageStub> ContentAddressableStorageStub;
 	TSharedPtr<FBazelCompletionQueueRunnable> CompletionQueueRunnable;
 	TMap<FString, FString> Headers;
 

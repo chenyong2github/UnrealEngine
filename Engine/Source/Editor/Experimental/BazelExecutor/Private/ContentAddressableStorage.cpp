@@ -12,12 +12,27 @@ THIRD_PARTY_INCLUDES_START
 UE_PUSH_MACRO("TEXT")
 #undef TEXT
 #include <grpcpp/grpcpp.h>
+#include "build\bazel\remote\execution\v2\remote_execution.grpc.pb.h"
 UE_POP_MACRO("TEXT");
 THIRD_PARTY_INCLUDES_END
 
+#include "BazelCompletionQueueRunnable.inl"
+
+
+// Stub class so grpc isn't included in the header and everything can be forward declared
+class FContentAddressableStorageStub
+{
+public:
+	TUniquePtr<build::bazel::remote::execution::v2::ContentAddressableStorage::Stub> Stub;
+	FContentAddressableStorageStub(build::bazel::remote::execution::v2::ContentAddressableStorage::Stub* Stub)
+		: Stub(Stub)
+	{
+	}
+};
+
 
 FContentAddressableStorage::FContentAddressableStorage(const std::shared_ptr<grpc::Channel>& Channel, TSharedPtr<FBazelCompletionQueueRunnable> CompletionQueueRunnable, const TMap<FString, FString>& Headers) :
-	Stub(build::bazel::remote::execution::v2::ContentAddressableStorage::NewStub(Channel).release()),
+	ContentAddressableStorageStub(new FContentAddressableStorageStub(build::bazel::remote::execution::v2::ContentAddressableStorage::NewStub(Channel).release())),
 	CompletionQueueRunnable(CompletionQueueRunnable),
 	Headers(Headers)
 {
@@ -56,7 +71,7 @@ FStatus FContentAddressableStorage::FindMissingBlobs(const FFindMissingBlobsRequ
 	ProtoConverter::ToProto(Request, ProtoRequest);
 
 	build::bazel::remote::execution::v2::FindMissingBlobsResponse ProtoResponse;
-	grpc::Status ProtoStatus = Stub->FindMissingBlobs(&ClientContext, ProtoRequest, &ProtoResponse);
+	grpc::Status ProtoStatus = ContentAddressableStorageStub->Stub->FindMissingBlobs(&ClientContext, ProtoRequest, &ProtoResponse);
 	FStatus Status;
 	ProtoConverter::FromProto(ProtoStatus, Status);
 	ProtoConverter::FromProto(ProtoResponse, Response);
@@ -73,7 +88,7 @@ FStatus FContentAddressableStorage::BatchUpdateBlobs(const FBatchUpdateBlobsRequ
 	ProtoConverter::ToProto(Request, ProtoRequest);
 
 	build::bazel::remote::execution::v2::BatchUpdateBlobsResponse ProtoResponse;
-	grpc::Status ProtoStatus = Stub->BatchUpdateBlobs(&ClientContext, ProtoRequest, &ProtoResponse);
+	grpc::Status ProtoStatus = ContentAddressableStorageStub->Stub->BatchUpdateBlobs(&ClientContext, ProtoRequest, &ProtoResponse);
 	FStatus Status;
 	ProtoConverter::FromProto(ProtoStatus, Status);
 	ProtoConverter::FromProto(ProtoResponse, Response);
@@ -90,7 +105,7 @@ FStatus FContentAddressableStorage::BatchReadBlobs(const FBatchReadBlobsRequest&
 	ProtoConverter::ToProto(Request, ProtoRequest);
 
 	build::bazel::remote::execution::v2::BatchReadBlobsResponse ProtoResponse;
-	grpc::Status ProtoStatus = Stub->BatchReadBlobs(&ClientContext, ProtoRequest, &ProtoResponse);
+	grpc::Status ProtoStatus = ContentAddressableStorageStub->Stub->BatchReadBlobs(&ClientContext, ProtoRequest, &ProtoResponse);
 	FStatus Status;
 	ProtoConverter::FromProto(ProtoStatus, Status);
 	ProtoConverter::FromProto(ProtoResponse, Response);
@@ -107,7 +122,7 @@ TFuture<TPair<FStatus, FFindMissingBlobsResponse>> FContentAddressableStorage::F
 	ProtoConverter::ToProto(Request, ProtoRequest);
 
 	TUniquePtr<grpc::ClientAsyncResponseReader<build::bazel::remote::execution::v2::FindMissingBlobsResponse>> ProtoReader(
-		Stub->PrepareAsyncFindMissingBlobs(ClientContext.Get(), ProtoRequest, CompletionQueueRunnable->GetCompletionQueue()).release());
+		ContentAddressableStorageStub->Stub->PrepareAsyncFindMissingBlobs(ClientContext.Get(), ProtoRequest, CompletionQueueRunnable->GetCompletionQueue()).release());
 
 	TSharedPtr<TPromise<TPair<FStatus, FFindMissingBlobsResponse>>> ReturnPromise = MakeShared<TPromise<TPair<FStatus, FFindMissingBlobsResponse>>>(MoveTemp(CompletionCallback));
 
@@ -152,7 +167,7 @@ TFuture<TPair<FStatus, FBatchUpdateBlobsResponse>> FContentAddressableStorage::B
 	ProtoConverter::ToProto(Request, ProtoRequest);
 
 	TUniquePtr<grpc::ClientAsyncResponseReader<build::bazel::remote::execution::v2::BatchUpdateBlobsResponse>> ProtoReader(
-		Stub->PrepareAsyncBatchUpdateBlobs(ClientContext.Get(), ProtoRequest, CompletionQueueRunnable->GetCompletionQueue()).release());
+		ContentAddressableStorageStub->Stub->PrepareAsyncBatchUpdateBlobs(ClientContext.Get(), ProtoRequest, CompletionQueueRunnable->GetCompletionQueue()).release());
 
 	TSharedPtr<TPromise<TPair<FStatus, FBatchUpdateBlobsResponse>>> ReturnPromise = MakeShared<TPromise<TPair<FStatus, FBatchUpdateBlobsResponse>>>(MoveTemp(CompletionCallback));
 
@@ -196,7 +211,7 @@ TFuture<TPair<FStatus, FBatchReadBlobsResponse>> FContentAddressableStorage::Bat
 	ProtoConverter::ToProto(Request, ProtoRequest);
 
 	TUniquePtr<grpc::ClientAsyncResponseReader<build::bazel::remote::execution::v2::BatchReadBlobsResponse>> ProtoReader(
-		Stub->PrepareAsyncBatchReadBlobs(ClientContext.Get(), ProtoRequest, CompletionQueueRunnable->GetCompletionQueue()).release());
+		ContentAddressableStorageStub->Stub->PrepareAsyncBatchReadBlobs(ClientContext.Get(), ProtoRequest, CompletionQueueRunnable->GetCompletionQueue()).release());
 
 	TSharedPtr<TPromise<TPair<FStatus, FBatchReadBlobsResponse>>> ReturnPromise = MakeShared<TPromise<TPair<FStatus, FBatchReadBlobsResponse>>>(MoveTemp(CompletionCallback));
 
