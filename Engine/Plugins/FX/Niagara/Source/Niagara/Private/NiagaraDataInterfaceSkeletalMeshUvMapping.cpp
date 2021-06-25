@@ -285,8 +285,6 @@ FSkeletalMeshUvMapping::FSkeletalMeshUvMapping(TWeakObjectPtr<USkeletalMesh> InM
 	, TriangleIndexQuadTree(8 /* Internal node capacity */, 8 /* Maximum tree depth */)
 	, CpuQuadTreeUserCount(0)
 	, GpuQuadTreeUserCount(0)
-	, ReleasedByRT(false)
-	, QueuedForRelease(false)
 {
 }
 
@@ -344,22 +342,19 @@ void FSkeletalMeshUvMapping::ReleaseQuadTree()
 
 void FSkeletalMeshUvMapping::BuildGpuQuadTree()
 {
-	FrozenQuadTreeProxy.Initialize(*this);
-	BeginInitResource(&FrozenQuadTreeProxy);
+	check(FrozenQuadTreeProxy == nullptr);
+	FrozenQuadTreeProxy.Reset(new FSkeletalMeshUvMappingBufferProxy());
+	FrozenQuadTreeProxy->Initialize(*this);
+	BeginInitResource(FrozenQuadTreeProxy.Get());
 }
 
 void FSkeletalMeshUvMapping::ReleaseGpuQuadTree()
 {
-	QueuedForRelease = true;
-	ReleasedByRT = false;
-	FThreadSafeBool* Released = &ReleasedByRT;
-
-	BeginReleaseResource(&FrozenQuadTreeProxy);
-
 	ENQUEUE_RENDER_COMMAND(BeginDestroyCommand)(
-		[Released](FRHICommandListImmediate& RHICmdList)
+		[RT_Proxy=FrozenQuadTreeProxy.Release()](FRHICommandListImmediate& RHICmdList)
 		{
-			*Released = true;
+			RT_Proxy->ReleaseResource();
+			delete RT_Proxy;
 		});
 }
 
@@ -371,7 +366,7 @@ bool FSkeletalMeshUvMapping::IsUsed() const
 
 bool FSkeletalMeshUvMapping::CanBeDestroyed() const
 {
-	return !IsUsed() && (!QueuedForRelease || ReleasedByRT);
+	return !IsUsed();
 }
 
 void FSkeletalMeshUvMapping::RegisterUser(FSkeletalMeshUvMappingUsage Usage, bool bNeedsDataImmediately)
@@ -504,7 +499,7 @@ const FSkeletalMeshLODRenderData* FSkeletalMeshUvMapping::GetLodRenderData() con
 
 const FSkeletalMeshUvMappingBufferProxy* FSkeletalMeshUvMapping::GetQuadTreeProxy() const
 {
-	return &FrozenQuadTreeProxy;
+	return FrozenQuadTreeProxy.Get();
 }
 
 void

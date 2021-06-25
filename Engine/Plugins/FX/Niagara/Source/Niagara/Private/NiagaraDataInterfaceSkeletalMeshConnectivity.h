@@ -57,10 +57,7 @@ private:
 	static const FSkeletalMeshLODRenderData* GetLodRenderData(const USkeletalMesh& Mesh, int32 LodIndex);
 
 	TWeakObjectPtr<USkeletalMesh> MeshObject;
-	FSkeletalMeshConnectivityProxy Proxy;
+	TUniquePtr<FSkeletalMeshConnectivityProxy> Proxy;
 
 	std::atomic<int32> GpuUserCount;
-
-	FThreadSafeBool ReleasedByRT;
-	bool QueuedForRelease;
 };

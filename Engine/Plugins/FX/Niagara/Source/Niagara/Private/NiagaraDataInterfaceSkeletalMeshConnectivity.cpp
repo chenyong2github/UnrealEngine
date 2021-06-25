@@ -80,8 +80,6 @@ FSkeletalMeshConnectivity::FSkeletalMeshConnectivity(TWeakObjectPtr<USkeletalMes
 	: LodIndex(InLodIndex)
 	, MeshObject(InMeshObject)
 	, GpuUserCount(0)
-	, ReleasedByRT(false)
-	, QueuedForRelease(false)
 {
 }
 
@@ -92,7 +90,7 @@ bool FSkeletalMeshConnectivity::IsUsed() const
 
 bool FSkeletalMeshConnectivity::CanBeDestroyed() const
 {
-	return !IsUsed() && (!QueuedForRelease || ReleasedByRT);
+	return !IsUsed();
 }
 
 void FSkeletalMeshConnectivity::RegisterUser(FSkeletalMeshConnectivityUsage Usage, bool bNeedsDataImmediately)
@@ -101,8 +99,10 @@ void FSkeletalMeshConnectivity::RegisterUser(FSkeletalMeshConnectivityUsage Usag
 	{
 		if (GpuUserCount++ == 0)
 		{
-			Proxy.Initialize(*this);
-			BeginInitResource(&Proxy);
+			check(Proxy == nullptr);
+			Proxy.Reset(new FSkeletalMeshConnectivityProxy());
+			Proxy->Initialize(*this);
+			BeginInitResource(Proxy.Get());
 		}
 	}
 }
@@ -113,24 +113,20 @@ void FSkeletalMeshConnectivity::UnregisterUser(FSkeletalMeshConnectivityUsage Us
 	{
 		if (--GpuUserCount == 0)
 		{
-			QueuedForRelease = true;
-			ReleasedByRT = false;
-			FThreadSafeBool* Released = &ReleasedByRT;
-
-			BeginReleaseResource(&Proxy);
-
 			ENQUEUE_RENDER_COMMAND(BeginDestroyCommand)(
-				[Released](FRHICommandListImmediate& RHICmdList)
+				[RT_Proxy=Proxy.Release()](FRHICommandListImmediate& RHICmdList)
 				{
-					*Released = true;
-				});
+					RT_Proxy->ReleaseResource();
+					delete RT_Proxy;
+				}
+			);
 		}
 	}
 }
 
 bool FSkeletalMeshConnectivity::CanBeUsed(const TWeakObjectPtr<USkeletalMesh>& InMeshObject, int32 InLodIndex) const
 {
-	return !QueuedForRelease && LodIndex == InLodIndex && MeshObject == InMeshObject;
+	return IsUsed() && LodIndex == InLodIndex && MeshObject == InMeshObject;
 }
 
 bool FSkeletalMeshConnectivity::IsValidMeshObject(TWeakObjectPtr<USkeletalMesh>& MeshObject, int32 InLodIndex)
@@ -210,7 +206,7 @@ FString FSkeletalMeshConnectivity::GetMeshName() const
 
 const FSkeletalMeshConnectivityProxy* FSkeletalMeshConnectivity::GetProxy() const
 {
-	return &Proxy;
+	return Proxy.Get();
 }
 
 struct FAdjacencyVertexOverlapKey
