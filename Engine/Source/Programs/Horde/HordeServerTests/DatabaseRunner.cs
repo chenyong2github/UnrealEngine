@@ -143,15 +143,41 @@ namespace HordeServerTests
 
 		private static bool IsPortAvailable(int Port)
 		{
-			IPGlobalProperties IpGlobalProperties = IPGlobalProperties.GetIPGlobalProperties();
-
-			IPEndPoint[] Listeners = IpGlobalProperties.GetActiveTcpListeners();
-			if (Listeners.Any(x => x.Port == Port))
+			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
+				IPGlobalProperties IpGlobalProperties = IPGlobalProperties.GetIPGlobalProperties();
+
+				IPEndPoint[] Listeners = IpGlobalProperties.GetActiveTcpListeners();
+				if (Listeners.Any(x => x.Port == Port))
+				{
+					return false;
+				}
+
+				return true;
+			}
+			else
+			{
+				TcpListener? ListenerAny = null;
+				TcpListener? ListenerLoopback = null;
+				try
+				{
+					ListenerAny = new TcpListener(IPAddress.Loopback, Port);
+					ListenerAny.Start();
+					ListenerLoopback = new TcpListener(IPAddress.Any, Port);
+					ListenerLoopback.Start();
+					return true;
+				}
+				catch (SocketException)
+				{
+				}
+				finally
+				{
+					ListenerAny?.Stop();
+					ListenerLoopback?.Stop();
+				}
+
 				return false;
 			}
-
-			return true;
 		}
 		
 		private static void DeleteDirectory(string Path)
