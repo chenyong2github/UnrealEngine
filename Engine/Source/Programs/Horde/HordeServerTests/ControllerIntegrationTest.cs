@@ -35,17 +35,17 @@ namespace HordeServerTests
 
     public class ControllerIntegrationTest
     {
-        private static HttpClient? _client;
-        private static TestWebApplicationFactory<Startup>? _factory;
+        private HttpClient? _client;
+        private TestWebApplicationFactory<Startup>? _factory;
         protected readonly HttpClient client;
-        private static Fixture? _fixture;
+        private Fixture? _fixture;
 
         public ControllerIntegrationTest()
         {
             client = GetClientForTestServer();
         }
 
-        public static async Task<Fixture> GetFixture()
+        public async Task<Fixture> GetFixture()
         {
             if (_fixture != null) return _fixture;
 
@@ -65,7 +65,7 @@ namespace HordeServerTests
         }
 
         [MethodImpl(MethodImplOptions.Synchronized)]
-        public static HttpClient GetClientForTestServer()
+        public HttpClient GetClientForTestServer()
         {
             if (_client != null) return _client;
 
@@ -75,7 +75,7 @@ namespace HordeServerTests
         }
 
         [MethodImpl(MethodImplOptions.Synchronized)]
-        static TestWebApplicationFactory<Startup> GetFactory()
+        TestWebApplicationFactory<Startup> GetFactory()
         {
             if (_factory != null) return _factory;
             _factory = new TestWebApplicationFactory<Startup>();
