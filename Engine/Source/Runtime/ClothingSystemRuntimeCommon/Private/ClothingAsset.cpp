@@ -317,7 +317,7 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 	for (uint32 OriginalIndex : IndexView)
 	{
 		const int32 TempIndex = (int32)OriginalIndex - (int32)OriginalSection.BaseVertexIndex;
-		if (ensure(RenderIndices.IsValidIndex(TempIndex)))
+		if (ensure(RenderPositions.IsValidIndex(TempIndex)))
 		{
 			RenderIndices.Add(TempIndex);
 		}
