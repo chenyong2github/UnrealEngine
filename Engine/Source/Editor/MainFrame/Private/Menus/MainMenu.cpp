@@ -156,7 +156,29 @@ void FMainMenu::RegisterEditMenu()
 			}
 		}));
 
-		Section.AddMenuEntry(FMainFrameCommands::Get().ConnectToSourceControl);
+		Section.AddDynamicEntry("ConnectToSourceControl", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+		{
+			ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
+			
+			if (ISourceControlModule::Get().IsEnabled() && ISourceControlModule::Get().GetProvider().IsAvailable())
+			{
+				InSection.AddMenuEntry(
+					FMainFrameCommands::Get().ChangeSourceControlSettings,
+					TAttribute<FText>(),
+					TAttribute<FText>(),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.ChangeSettings")
+				);
+			}
+			else
+			{
+				InSection.AddMenuEntry(
+					FMainFrameCommands::Get().ConnectToSourceControl,
+					TAttribute<FText>(),
+					TAttribute<FText>(),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Connect")
+				);
+			}
+		}));
 	}
 }
 
