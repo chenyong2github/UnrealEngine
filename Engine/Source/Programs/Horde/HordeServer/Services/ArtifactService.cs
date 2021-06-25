@@ -91,6 +91,11 @@ namespace HordeServer.Services
 				Logger.LogError("Tried to find artifact that didn't exist at {0}!", ArtifactFile.FullName);
 				throw;
 			}
+			catch (DirectoryNotFoundException)
+			{
+				Logger.LogError("Tried to find artifact that didn't exist at {0}!", ArtifactFile.FullName);
+				throw;
+			}
 		}
 
 		/// <inheritdoc/>

@@ -119,7 +119,7 @@ namespace HordeServerTests
 
 		protected virtual void ConfigureSettings(ServerSettings Settings)
 		{
-			DirectoryReference BaseDir = new DirectoryReference("TempData");
+			DirectoryReference BaseDir = DirectoryReference.Combine(Program.DataDir, "Tests");
 			try
 			{
 				FileUtils.ForceDeleteDirectoryContents(BaseDir);
@@ -132,9 +132,9 @@ namespace HordeServerTests
 			Settings.AdminClaimValue = "app-horde-admins";
 
 			DirectoryReference DataDir = DirectoryReference.Combine(BaseDir, Guid.NewGuid().ToString("N"));
-			Settings.LocalLogsDir = DataDir.FullName;
-			Settings.LocalArtifactsDir = DataDir.FullName;
-			Settings.LocalBlobsDir = DataDir.FullName;
+			Settings.LocalLogsDir = DirectoryReference.Combine(DataDir, "Logs").FullName;
+			Settings.LocalArtifactsDir = DirectoryReference.Combine(DataDir, "Artifacts").FullName;
+			Settings.LocalBlobsDir = DirectoryReference.Combine(DataDir, "Blobs").FullName;
 		}
 
 		protected virtual void ConfigureServices(IServiceCollection Services)
