@@ -433,7 +433,7 @@ struct FStackEntryAddAction
 
 	// The mode of the AddStackEntryAction: when the action is applied to a UNiagaraEmitterConversionContext during Finalize(), the mode chooses what form of stack entry to add.
 	UPROPERTY()
-	EStackEntryAddActionMode Mode;
+	EStackEntryAddActionMode Mode = EStackEntryAddActionMode::Module;
 
 	// If Mode is Module, represents the pending module script to create a stack entry for. Otherwise this value is ignored.
 	UPROPERTY()

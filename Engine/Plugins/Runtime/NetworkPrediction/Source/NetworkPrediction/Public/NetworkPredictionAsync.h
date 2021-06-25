@@ -1024,6 +1024,11 @@ struct FTempMockInputCmd
 	UPROPERTY(BlueprintReadWrite,Category="Input")
 	bool bBrakesPressed = false;
 
+	FTempMockInputCmd()
+		: Force(ForceInitToZero)
+	{
+	}
+
 	void NetSerialize(FArchive& Ar)
 	{
 		Ar << Force;
