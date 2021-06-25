@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "DMXModulator.h"
+#include "Modulators/DMXModulator.h"
 
 #include "DMXModulator_RGBtoCMY.generated.h"
 
