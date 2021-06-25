@@ -120,7 +120,7 @@ class AddnDisplayDialog(AddDeviceDialog):
         if SETTINGS.LAST_BROWSED_PATH and os.path.exists(SETTINGS.LAST_BROWSED_PATH):
             start_path = SETTINGS.LAST_BROWSED_PATH
 
-        cfg_path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select nDisplay config file", start_path, "nDisplay Config (*.cfg;*.ndisplay;*.uasset)")
+        cfg_path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select nDisplay config file", start_path, "nDisplay Config (*.ndisplay;*.uasset)")
 
         if len(cfg_path) > 0 and os.path.exists(cfg_path):
             self.cbConfigs.setCurrentText(cfg_path)
@@ -139,7 +139,7 @@ class AddnDisplayDialog(AddDeviceDialog):
 
         for dirpath, _, files in os.walk(configs_path):
             for name in files:
-                if not name.lower().endswith(('.uasset','.cfg','.ndisplay')):
+                if not name.lower().endswith(('.uasset','.ndisplay')):
                     continue
 
                 if name not in config_names:
@@ -603,7 +603,7 @@ class DevicenDisplay(DeviceUnreal):
                 LOGGER.info(f"{self.name}: nDisplay uasset successfully transferred to {destination} on host")
             else:
                 LOGGER.error(f"{self.name}: nDisplay uasset transfer failed: {error}")
-        elif (ext in ('.ndisplay', '.cfg')) and self.pending_transfer_cfg:
+        elif (ext in ('.ndisplay')) and self.pending_transfer_cfg:
             self.pending_transfer_cfg = False
             self.path_to_config_on_host = destination
             if succeeded:
@@ -705,97 +705,6 @@ class DevicenDisplay(DeviceUnreal):
         return cls.parse_config_json_string(jsstr)
 
     @classmethod
-    def parse_config_cfg(cls, cfg_file):
-        ''' Parses nDisplay config file in the original format (currently version 23) '''
-        nodes = []
-
-        cluster_node_lines = []
-        window_lines = []
-        with open(cfg_file, 'r') as cfg:
-            for line in cfg:
-                line = line.strip().lower()
-                if not line.startswith('#'):
-                    if "[cluster_node]" in line:
-                        cluster_node_lines.append(line)
-                    elif "[window]" in line:
-                        window_lines.append(line)
-
-        for line in cluster_node_lines:
-
-            def parse_value(key, line):
-                val = line.split(f"{key}=")[1]
-                val = val.split(' ', 1)[0]
-                val = val.replace('"', '')
-                return val
-
-            name = parse_value(key='id', line=line)
-            node_window = parse_value(key='window', line=line)
-
-            try:
-                port_ce = int(parse_value(key='port_ce', line=line))
-            except (IndexError, ValueError):
-                port_ce = 41003
-
-            try:
-                master = parse_value(key='master', line=line)
-                master = True if (('true' in master.lower()) or (master == "1")) else False
-            except:
-                master = False
-
-            kwargs = {
-                "ue_command_line": "",
-            }
-
-            for window_line in window_lines:
-                if node_window in window_line:
-                    try:
-                        winx = int(parse_value(key='winx', line=window_line))
-                    except (IndexError,ValueError):
-                        winx = 0
-
-                    try:
-                        winy = int(parse_value(key='winy', line=window_line))
-                    except (IndexError,ValueError):
-                        winy = 0
-
-                    try:
-                        resx = int(parse_value(key='resx', line=window_line))
-                    except (IndexError,ValueError):
-                        resx = 0
-
-                    try:
-                        resy = int(parse_value(key='resy', line=window_line))
-                    except (IndexError,ValueError):
-                        resy = 0
-
-                    try:
-                        fullscreen = window_line.split("fullscreen=")[1]
-                        fullscreen = fullscreen.split(' ', 1)[0]
-                        fullscreen = True if (('true' in fullscreen.lower()) or (fullscreen == "1")) else False
-                    except IndexError:
-                        fullscreen = False
-
-                    kwargs["window_position"] = (int(winx), int(winy))
-                    kwargs["window_resolution"] = (int(resx), int(resy))
-                    kwargs["fullscreen"] = fullscreen
-
-                    break
-
-            addr = line.split("addr=")[1]
-            addr = addr.split(' ', 1)[0]
-            addr = addr.replace('"', '')
-
-            nodes.append({
-                "name": name, 
-                "ip_address": addr,
-                "master": master,
-                "port_ce": port_ce,
-                "kwargs": kwargs,
-            })
-
-        return (nodes, None)
-
-    @classmethod
     def parse_config(cls, cfg_file) -> Tuple[List, Optional[str]]:
         ''' Parses an nDisplay file and returns the nodes with the relevant information '''
         ext = os.path.splitext(cfg_file)[1].lower()
@@ -803,9 +712,6 @@ class DevicenDisplay(DeviceUnreal):
         try:
             if ext == '.ndisplay':
                 return cls.parse_config_json(cfg_file)
-
-            if ext == '.cfg':
-                return cls.parse_config_cfg(cfg_file)
 
             if ext == '.uasset':
                 return cls.parse_config_uasset(cfg_file)
