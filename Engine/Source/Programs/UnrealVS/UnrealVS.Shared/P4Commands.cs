@@ -396,6 +396,12 @@ namespace UnrealVS
 
 		private void OpenForEdit(string FileName)
 		{
+			// Don't open for edit if the file is already writable
+			if (!File.Exists(FileName) || !File.GetAttributes(FileName).HasFlag(FileAttributes.ReadOnly))
+			{
+				return;
+			}
+
 			TryP4Command($"edit \"{FileName}");
 		}
 
