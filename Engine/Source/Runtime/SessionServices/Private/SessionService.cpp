@@ -123,7 +123,7 @@ void FSessionService::SendPong(const TSharedRef<IMessageContext, ESPMode::Thread
 		return;
 	}
 
-	FSessionServicePong* Message = new FSessionServicePong();
+	FSessionServicePong* Message = FMessageEndpoint::MakeMessage<FSessionServicePong>();
 	{
 		Message->Authorized = FApp::IsAuthorizedUser(UserName);
 		Message->BuildDate = FApp::GetBuildDate();
