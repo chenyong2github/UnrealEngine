@@ -52,7 +52,7 @@ struct FQosPingServerInfo
 	FString Address;
 	/** Port of server */
 	UPROPERTY()
-	int32 Port;
+	int32 Port = 0;
 };
 
 /**
