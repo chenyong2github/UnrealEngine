@@ -9,7 +9,7 @@ namespace UnrealBuildTool.Rules
 	{
 		public BazelExecutor(ReadOnlyTargetRules Target) : base(Target)
 		{
-			if (!IsVcPackageSupported)
+			if (Target.Platform != UnrealTargetPlatform.Win64)
 			{
 				// Grpc is currently only supported for Win64, Linux, & LinuxAArch64, set to external to prevent compiling for any other platform
 				Type = ModuleType.External;
