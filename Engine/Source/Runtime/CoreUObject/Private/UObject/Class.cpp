@@ -3512,29 +3512,16 @@ int32 FStructUtils::AttemptToFindUninitializedScriptStructMembers()
 			{
 				if (!UninitializedPropertiesZeroed.Contains(Property))
 				{
-					ELogVerbosity::Type Verbosity = ELogVerbosity::Display;
-
 					++UninitializedScriptStructMemberCount;
-
-					UPackage* ScriptPackage = ScriptStruct->GetOutermost();
-					FName ScriptModuleName = FPackageName::GetShortFName(ScriptPackage->GetName());
-					IModuleInterface* ScriptModule = FModuleManager::Get().GetModule(ScriptModuleName);
-					const bool bIsEngineModule = (ScriptModule != nullptr) && !ScriptModule->IsGameModule();
-
-					if (bIsEngineModule)
-					{
-						Verbosity = ELogVerbosity::Error;
-					}
-
 					if (Property->IsA<FObjectPropertyBase>())
 					{
 						++UninitializedObjectPropertyCount;
-						Verbosity = ELogVerbosity::Error;
+						UE_LOG(LogClass, Warning, TEXT("%s %s%s::%s is not initialized properly.%s"), *Property->GetClass()->GetName(), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP(), *GetStructLocation(ScriptStruct));
 					}
-
-#if !NO_LOGGING
-					FMsg::Logf(__FILE__, __LINE__, LogClass.GetCategoryName(), Verbosity, TEXT("%s %s%s::%s is not initialized properly.%s"), *Property->GetClass()->GetName(), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP(), *GetStructLocation(ScriptStruct));
-#endif
+					else
+					{
+						UE_LOG(LogClass, Display, TEXT("%s %s%s::%s is not initialized properly.%s"), *Property->GetClass()->GetName(), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP(), *GetStructLocation(ScriptStruct));
+					}
 				}
 			}
 		}
