@@ -61,7 +61,7 @@ public:
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Artifact Settings")
 	FString EncryptionKey;
 
-	FEOSArtifactSettings ToNative() const;
+	//FEOSArtifactSettings ToNative() const; // See note #1
 };
 
 /** Native version of the UObject based config data */
@@ -158,16 +158,21 @@ public:
 	/** Find the Settings for an artifact by name */
 	static bool GetSettingsForArtifact(const FString& ArtifactName, FEOSArtifactSettings& OutSettings);
 
-	static FEOSSettings GetSettings();
-	FEOSSettings ToNative() const;
+	static const FEOSSettings& GetSettings();
+	//FEOSSettings ToNative() const; // See note #1
 
 private:
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
-	static bool AutoGetSettingsForArtifact(const FString& ArtifactName, FEOSArtifactSettings& OutSettings);
+	//static bool AutoGetSettingsForArtifact(const FString& ArtifactName, FEOSArtifactSettings& OutSettings); // See note #1
 	static bool ManualGetSettingsForArtifact(const FString& ArtifactName, FEOSArtifactSettings& OutSettings);
 
-	static FEOSSettings AutoGetSettings();
-	static FEOSSettings ManualGetSettings();
+	//static FEOSSettings AutoGetSettings(); // See note #1
+	static const FEOSSettings& ManualGetSettings();
 };
+
+/* Notes
+* 
+*  #1: CDO Usage was unreliable in some platforms, so it will be deactivated for now
+*/

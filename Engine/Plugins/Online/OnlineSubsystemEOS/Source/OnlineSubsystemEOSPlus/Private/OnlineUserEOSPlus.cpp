@@ -487,7 +487,9 @@ bool FOnlineUserEOSPlus::Login(int32 LocalUserNum, const FOnlineAccountCredentia
 
 void FOnlineUserEOSPlus::OnLoginChanged(int32 LocalUserNum)
 {
-	bool bForward = GetDefault<UEOSSettings>()->bUseEAS || GetDefault<UEOSSettings>()->bUseEOSConnect;
+	const FEOSSettings& EOSSettings = UEOSSettings::GetSettings();
+
+	bool bForward = EOSSettings.bUseEAS || EOSSettings.bUseEOSConnect;
 
 	ELoginStatus::Type LoginStatus = BaseIdentityInterface->GetLoginStatus(LocalUserNum);
 	if (LoginStatus == ELoginStatus::LoggedIn || LoginStatus == ELoginStatus::UsingLocalProfile)
@@ -516,7 +518,9 @@ void FOnlineUserEOSPlus::OnLoginChanged(int32 LocalUserNum)
 
 void FOnlineUserEOSPlus::OnEOSLoginChanged(int32 LocalUserNum)
 {
-	if (!GetDefault<UEOSSettings>()->bUseEAS && !GetDefault<UEOSSettings>()->bUseEOSConnect)
+	const FEOSSettings& EOSSettings = UEOSSettings::GetSettings();
+
+	if (!EOSSettings.bUseEAS && !EOSSettings.bUseEOSConnect)
 	{
 		return;
 	}
@@ -537,7 +541,9 @@ void FOnlineUserEOSPlus::OnLoginStatusChanged(int32 LocalUserNum, ELoginStatus::
 {
 	if (NewStatus == ELoginStatus::UsingLocalProfile)
 	{
-		if (!GetDefault<UEOSSettings>()->bUseEAS && !GetDefault<UEOSSettings>()->bUseEOSConnect)
+		const FEOSSettings& EOSSettings = UEOSSettings::GetSettings();
+
+		if (!EOSSettings.bUseEAS && !EOSSettings.bUseEOSConnect)
 		{
 			EOSIdentityInterface->Logout(LocalUserNum);
 		}
@@ -919,7 +925,7 @@ bool FOnlineUserEOSPlus::ReadFriendsList(int32 LocalUserNum, const FString& List
 		FOnReadFriendsListComplete::CreateLambda([this, IntermediateComplete = FOnReadFriendsListComplete(Delegate)](int32 LocalUserNum, bool bWasSuccessful, const FString& ListName, const FString& ErrorStr)
 	{
 		// Skip reading EAS if not in use and if we errored at the platform level
-		if (!GetDefault<UEOSSettings>()->bUseEAS || !bWasSuccessful)
+		if (!UEOSSettings::GetSettings().bUseEAS || !bWasSuccessful)
 		{
 			IntermediateComplete.ExecuteIfBound(LocalUserNum, bWasSuccessful, ListName, ErrorStr);
 			return;
@@ -1043,7 +1049,7 @@ bool FOnlineUserEOSPlus::GetFriendsList(int32 LocalUserNum, const FString& ListN
 		OutFriends.Add(GetFriend(Friend));
 	}
 
-	if (GetDefault<UEOSSettings>()->bUseEAS)
+	if (UEOSSettings::GetSettings().bUseEAS)
 	{
 		Friends.Reset();
 		bWasSuccessful |= EOSFriendsInterface->GetFriendsList(LocalUserNum, ListName, Friends);
@@ -1085,7 +1091,7 @@ bool FOnlineUserEOSPlus::IsFriend(int32 LocalUserNum, const FUniqueNetId& Friend
 	{
 		bIsFriend = BaseFriendsInterface->IsFriend(LocalUserNum, *NetIdPlusToBaseNetId[FriendId.ToString()], ListName);
 	}
-	if (!bIsFriend && GetDefault<UEOSSettings>()->bUseEAS && NetIdPlusToEOSNetId.Contains(FriendId.ToString()))
+	if (!bIsFriend && UEOSSettings::GetSettings().bUseEAS && NetIdPlusToEOSNetId.Contains(FriendId.ToString()))
 	{
 		bIsFriend = EOSFriendsInterface->IsFriend(LocalUserNum, *NetIdPlusToEOSNetId[FriendId.ToString()], ListName);
 	}
@@ -1328,7 +1334,7 @@ void FOnlineUserEOSPlus::SetPresence(const FUniqueNetId& User, const FOnlineUser
 		FOnPresenceTaskCompleteDelegate::CreateLambda([this, NetIdPlus, StatusCopy = FOnlineUserPresenceStatus(Status), IntermediateComplete = FOnPresenceTaskCompleteDelegate(Delegate)](const FUniqueNetId& UserId, const bool bWasSuccessful)
 	{
 		// Skip setting EAS presence if not mirrored or if we errored at the platform level or the EOS user isn't found
-		if (!bWasSuccessful || !NetIdPlus->GetEOSNetId().IsValid() || !GetDefault<UEOSSettings>()->bMirrorPresenceToEAS)
+		if (!bWasSuccessful || !NetIdPlus->GetEOSNetId().IsValid() || !UEOSSettings::GetSettings().bMirrorPresenceToEAS)
 		{
 			IntermediateComplete.ExecuteIfBound(UserId, bWasSuccessful);
 			return;
