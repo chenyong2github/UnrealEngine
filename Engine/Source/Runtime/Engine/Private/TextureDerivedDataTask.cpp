@@ -685,7 +685,11 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 	static const bool bBuildFunctionEnabled = FParse::Param(FCommandLine::Get(), TEXT("DDC2TextureBuilds"));
 	if (bBuildFunctionEnabled && !bForVirtualTextureStreamingBuild && (BuildSettingsPerLayer.Num() == 1))
 	{
-		BuildFunctionName = GetTextureBuildFunctionName(BuildSettingsPerLayer[0]);
+		TStringBuilder<64> FunctionName;
+		if (TryFindTextureBuildFunction(FunctionName, BuildSettingsPerLayer[0]))
+		{
+			BuildFunctionName = FunctionName;
+		}
 	}
 
 	// FVirtualTextureDataBuilder always wants to load ImageWrapper module
