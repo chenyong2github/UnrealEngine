@@ -1295,7 +1295,7 @@ FORCENOINLINE void TestVectorExpLogFunctions()
 			for (VectorRegisterType const& Value : ValuesArray)
 			{
 				const VectorRegisterType TestValue = VectorMultiply(Sign, Value);
-				const FloatType GenericTestTolerance = FloatType(1e-4);
+				const FloatType GenericTestTolerance = FloatType(1e-3);
 				LogTest<FloatType>(TEXT("Exp: Ref vs Vec"), TestVectorFunction1Param<FloatType, VectorRegisterType, FMath::Exp, VectorExp>(ReferenceResult, VectorResult, TestValue, GenericTestTolerance));
 				LogTest<FloatType>(TEXT("Exp2: Ref vs Vec"), TestVectorFunction1Param<FloatType, VectorRegisterType, FMath::Exp2, VectorExp2>(ReferenceResult, VectorResult, TestValue, GenericTestTolerance));
 			}
