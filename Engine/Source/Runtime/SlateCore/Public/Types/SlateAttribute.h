@@ -37,9 +37,9 @@
  *
  * TSlateAttribute makes the attribute system viable for invalidation and more performance-friendly while keeping the benefits of attributes intact.
  * TSlateAttributes are updated once per frame in the Prepass update phase. If the cached value of the TSlateAttribute changes, then it will invalidate the widget.
- * The TSlateAttributes are updated in the order the variables are defined in the SWidget definition (by default).
- * TSlateManagedAttribute are updated in a random order (after TSlateAttribute).
- * The update order of TSlateAttribute can be defined/override by setting a Prerequisite (see bellow for an example).
+ * The member attributes are updated in the order the variables are defined in the SWidget definition (by default).
+ * The managed attributes are updated in a random order (after TSlateAttribute).
+ * The update order of member attributes can be defined/override by setting a Prerequisite (see bellow for an example).
  * The invalidation reason can be a predicate (see bellow for an example).
  * The invalidation reason can be override per SWidget. Use override with precaution since it can break the invalidation of widget's parent.
  * The widget attributes are updated only if the widget is visible/not collapsed.
@@ -255,5 +255,7 @@ struct FSlateDeprecatedTAttribute
 
 #include "Types/Attributes/SlateAttributeDefinition.inl"
 #include "Types/Attributes/SlateAttributeBase.inl"
+
+#include "Types/Attributes/SlateAttributeContained.inl"
 #include "Types/Attributes/SlateAttributeManaged.inl"
 #include "Types/Attributes/SlateAttributeMember.inl"

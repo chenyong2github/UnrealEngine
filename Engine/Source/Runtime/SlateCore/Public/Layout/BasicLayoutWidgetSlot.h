@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SlotBase.h"
+#include "Layout/WidgetSlotWithAttributeSupport.h"
 #include "Layout/FlowDirection.h"
 #include "Layout/Margin.h"
 #include "Misc/Optional.h"
@@ -447,36 +447,34 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /** A templated basic slot that can be used by layout. */
 template <typename SlotType>
-class TBasicLayoutWidgetSlot : public TSlotBase<SlotType>
+class TBasicLayoutWidgetSlot : public TWidgetSlotWithAttributeSupport<SlotType>
 	, public TPaddingWidgetSlotMixin<SlotType>
 	, public TAlignmentWidgetSlotMixin<SlotType>
 {
 public:
 	TBasicLayoutWidgetSlot()
-		: TSlotBase<SlotType>()
+		: TWidgetSlotWithAttributeSupport<SlotType>()
 		, TPaddingWidgetSlotMixin<SlotType>()
 		, TAlignmentWidgetSlotMixin<SlotType>()
 	{}
 
 	TBasicLayoutWidgetSlot(FChildren& InOwner)
-		: TSlotBase<SlotType>(InOwner)
+		: TWidgetSlotWithAttributeSupport<SlotType>(InOwner)
 		, TPaddingWidgetSlotMixin<SlotType>()
 		, TAlignmentWidgetSlotMixin<SlotType>()
-	{
-	}
+	{}
 
 	TBasicLayoutWidgetSlot(const EHorizontalAlignment InHAlign, const EVerticalAlignment InVAlign)
-		: TSlotBase<SlotType>()
+		: TWidgetSlotWithAttributeSupport<SlotType>()
 		, TPaddingWidgetSlotMixin<SlotType>()
 		, TAlignmentWidgetSlotMixin<SlotType>(InHAlign, InVAlign)
 	{}
 
 	TBasicLayoutWidgetSlot(FChildren& InOwner, const EHorizontalAlignment InHAlign, const EVerticalAlignment InVAlign)
-		: TSlotBase<SlotType>(InOwner)
+		: TWidgetSlotWithAttributeSupport<SlotType>(InOwner)
 		, TPaddingWidgetSlotMixin<SlotType>()
 		, TAlignmentWidgetSlotMixin<SlotType>(InHAlign, InVAlign)
-	{
-	}
+	{}
 
 public:
 	SLATE_SLOT_BEGIN_ARGS_TwoMixins(TBasicLayoutWidgetSlot, TSlotBase<SlotType>, TPaddingWidgetSlotMixin<SlotType>, TAlignmentWidgetSlotMixin<SlotType>)
@@ -484,7 +482,7 @@ public:
 
 	void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
 	{
-		TSlotBase<SlotType>::Construct(SlotOwner, MoveTemp(InArgs));
+		TWidgetSlotWithAttributeSupport<SlotType>::Construct(SlotOwner, MoveTemp(InArgs));
 		TPaddingWidgetSlotMixin<SlotType>::ConstructMixin(SlotOwner, MoveTemp(InArgs));
 		TAlignmentWidgetSlotMixin<SlotType>::ConstructMixin(SlotOwner, MoveTemp(InArgs));
 	}

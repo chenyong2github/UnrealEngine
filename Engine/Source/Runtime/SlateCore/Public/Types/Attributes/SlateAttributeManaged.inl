@@ -9,17 +9,14 @@ namespace SlateAttributePrivate
 	 *
 	 */
 	template<typename InObjectType, typename InInvalidationReasonPredicate, typename InComparePredicate>
-	struct TSlateManagedAttribute : protected TSlateAttributeBase<InObjectType, InInvalidationReasonPredicate, InComparePredicate, ESlateAttributeType::Managed>
+	struct TSlateManagedAttribute : protected TSlateAttributeBase<SWidget, InObjectType, InInvalidationReasonPredicate, InComparePredicate, ESlateAttributeType::Managed>
 	{
 	private:
-		using Super = TSlateAttributeBase<InObjectType, InInvalidationReasonPredicate, InComparePredicate, ESlateAttributeType::Managed>;
+		using Super = TSlateAttributeBase<SWidget, InObjectType, InInvalidationReasonPredicate, InComparePredicate, ESlateAttributeType::Managed>;
 
 	public:
-		using ObjectType = typename Super::ObjectType;
-		using FInvalidationReasonPredicate = typename Super::FInvalidationReasonPredicate;
 		using FGetter = typename Super::FGetter;
-		using FComparePredicate = typename Super::FComparePredicate;
-		static const bool IsMemberType = false;
+		using ObjectType = typename Super::ObjectType;
 
 		static EInvalidateWidgetReason GetInvalidationReason(const SWidget& Widget) { return Super::GetInvalidationReason(Widget); }
 		static bool IdenticalTo(const SWidget& Widget, const ObjectType& Lhs, const ObjectType& Rhs) { return Super::IdenticalTo(Widget, Lhs, Rhs); }

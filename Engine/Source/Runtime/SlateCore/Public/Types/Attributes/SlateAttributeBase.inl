@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <type_traits>
+
 /** */
 namespace SlateAttributePrivate
 {
@@ -13,24 +15,30 @@ namespace SlateAttributePrivate
 	 * InComparePredicateType - Predicate to compare the cached value with the Getter.
 	 * bInIsExternal - The attribute life is not controlled by the SWidget.
 	 */
-	template<typename InObjectType, typename InInvalidationReasonPredicate, typename InComparePredicateType, ESlateAttributeType InAttributeType>
+	template<typename ContainerType, typename InObjectType, typename InInvalidationReasonPredicate, typename InComparePredicateType, ESlateAttributeType InAttributeType>
 	struct TSlateAttributeBase : public FSlateAttributeImpl
 	{
 	public:
 		template<typename AttributeMemberType>
 		friend struct TSlateMemberAttributeRef;
-		friend FSlateAttributeContainer;
 
 		using ObjectType = InObjectType;
 		using FInvalidationReasonPredicate = InInvalidationReasonPredicate;
 		using FGetter = typename TAttribute<ObjectType>::FGetter;
 		using FComparePredicate = InComparePredicateType;
 
+		static const ESlateAttributeType AttributeType = InAttributeType;
+		static constexpr bool HasDefinedInvalidationReason = !std::is_same<InInvalidationReasonPredicate, FSlateAttributeNoInvalidationReason>::value;
+
+		static_assert(std::is_same<ContainerType, SWidget>::value || std::is_same<ContainerType, ISlateAttributeContainer>::value, "The SlateAttribute container is not supported.");
+
 		static EInvalidateWidgetReason GetInvalidationReason(const SWidget& Widget) { return FInvalidationReasonPredicate::GetInvalidationReason(Widget); }
+		static EInvalidateWidgetReason GetInvalidationReason(const ISlateAttributeContainer& Container) { return FInvalidationReasonPredicate::GetInvalidationReason(Container.GetContainerWidget()); }
 		static bool IdenticalTo(const SWidget& Widget, const ObjectType& Lhs, const ObjectType& Rhs) { return FComparePredicate::IdenticalTo(Widget, Lhs, Rhs); }
+		static bool IdenticalTo(const ISlateAttributeContainer& Container, const ObjectType& Lhs, const ObjectType& Rhs) { return FComparePredicate::IdenticalTo(Container.GetContainerWidget(), Lhs, Rhs); }
 
 	private:
-		void UpdateNowOnBind(SWidget& Widget)
+		void UpdateNowOnBind(ContainerType& Widget)
 		{
 #if UE_SLATE_WITH_ATTRIBUTE_INITIALIZATION_ON_BIND
 			ProtectedUpdateNow(Widget, InAttributeType);
@@ -43,6 +51,10 @@ namespace SlateAttributePrivate
 			checkf(&Widget == Debug_OwningWidget || Debug_OwningWidget == nullptr,
 				TEXT("The Owning Widget is not the same as used at construction. This will cause bad memory access."));
 #endif
+		}
+
+		void VerifyOwningWidget(const ISlateAttributeContainer& Widget) const
+		{
 		}
 
 		void VerifyNan() const
@@ -214,7 +226,7 @@ namespace SlateAttributePrivate
 		}
 
 		/** Update the cached value and invalidate the widget if needed. */
-		void UpdateNow(SWidget& Widget)
+		void UpdateNow(ContainerType& Widget)
 		{
 			VerifyOwningWidget(Widget);
 			ProtectedUpdateNow(Widget, InAttributeType);
@@ -225,7 +237,7 @@ namespace SlateAttributePrivate
 		 * Unbind the SlateAttribute and set its value. It may invalidate the Widget if the value is different.
 		 * @return true if the value is considered different and an invalidation occurred.
 		 */
-		bool Set(SWidget& Widget, const ObjectType& NewValue)
+		bool Set(ContainerType& Widget, const ObjectType& NewValue)
 		{
 			VerifyOwningWidget(Widget);
 			ProtectedUnregisterAttribute(Widget, InAttributeType);
@@ -243,7 +255,7 @@ namespace SlateAttributePrivate
 		 * Unbind the SlateAttribute and set its value. It may invalidate the Widget if the value is different.
 		 * @return true if the value is considered different and an invalidation occurred.
 		 */
-		bool Set(SWidget& Widget, ObjectType&& NewValue)
+		bool Set(ContainerType& Widget, ObjectType&& NewValue)
 		{
 			VerifyOwningWidget(Widget);
 			ProtectedUnregisterAttribute(Widget, InAttributeType);
@@ -263,7 +275,7 @@ namespace SlateAttributePrivate
 		 * (If enabled) Update the value from the Getter. If the value is different, then invalidate the widget.
 		 * The SlateAttribute will now be updated every frame from the Getter.
 		 */
-		void Bind(SWidget& Widget, const FGetter& Getter)
+		void Bind(ContainerType& Widget, const FGetter& Getter)
 		{
 			VerifyOwningWidget(Widget);
 			if (Getter.IsBound())
@@ -281,7 +293,7 @@ namespace SlateAttributePrivate
 		 * (If enabled) Update the value from the Getter. If the value is different, then invalidate the widget.
 		 * The SlateAttribute will now be updated every frame from the Getter.
 		 */
-		void Bind(SWidget& Widget, FGetter&& Getter)
+		void Bind(ContainerType& Widget, FGetter&& Getter)
 		{
 			VerifyOwningWidget(Widget);
 			if (Getter.IsBound())
@@ -299,7 +311,7 @@ namespace SlateAttributePrivate
 		 * (If enabled) Update the value from the getter. If the value is different, then invalidate the widget.
 		 * The SlateAttribute will now be updated every frame from the Getter.
 		 */
-		template<typename WidgetType, typename U = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
+		template<typename WidgetType, typename U = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value && std::is_same<ContainerType, SWidget>::value>::type>
 		void Bind(WidgetType& Widget, typename FGetter::template TConstMethodPtr<WidgetType> MethodPtr)
 		{
 			Bind(Widget, FGetter::CreateSP(&Widget, MethodPtr));
@@ -318,7 +330,7 @@ namespace SlateAttributePrivate
 		 * @see Set
 		 * @return true if the getter was assigned or if the value is considered different and an invalidation occurred.
 		 */
-		bool Assign(SWidget& Widget, const TAttribute<ObjectType>& OtherAttribute)
+		bool Assign(ContainerType& Widget, const TAttribute<ObjectType>& OtherAttribute)
 		{
 			VerifyOwningWidget(Widget);
 			if (OtherAttribute.IsBound())
@@ -336,7 +348,7 @@ namespace SlateAttributePrivate
 			}
 		}
 
-		bool Assign(SWidget& Widget, TAttribute<ObjectType>&& OtherAttribute)
+		bool Assign(ContainerType& Widget, TAttribute<ObjectType>&& OtherAttribute)
 		{
 			VerifyOwningWidget(Widget);
 			if (OtherAttribute.IsBound())
@@ -354,7 +366,7 @@ namespace SlateAttributePrivate
 			}
 		}
 
-		bool Assign(SWidget& Widget, const TAttribute<ObjectType>& OtherAttribute, const ObjectType& DefaultValue)
+		bool Assign(ContainerType& Widget, const TAttribute<ObjectType>& OtherAttribute, const ObjectType& DefaultValue)
 		{
 			VerifyOwningWidget(Widget);
 			if (OtherAttribute.IsBound())
@@ -371,7 +383,7 @@ namespace SlateAttributePrivate
 			}
 		}
 
-		bool Assign(SWidget& Widget, TAttribute<ObjectType>&& OtherAttribute, const ObjectType& DefaultValue)
+		bool Assign(ContainerType& Widget, TAttribute<ObjectType>&& OtherAttribute, const ObjectType& DefaultValue)
 		{
 			VerifyOwningWidget(Widget);
 			if (OtherAttribute.IsBound())
@@ -388,7 +400,7 @@ namespace SlateAttributePrivate
 			}
 		}
 
-		bool Assign(SWidget& Widget, const TAttribute<ObjectType>& OtherAttribute, ObjectType&& DefaultValue)
+		bool Assign(ContainerType& Widget, const TAttribute<ObjectType>& OtherAttribute, ObjectType&& DefaultValue)
 		{
 			VerifyOwningWidget(Widget);
 			if (OtherAttribute.IsBound())
@@ -405,7 +417,7 @@ namespace SlateAttributePrivate
 			}
 		}
 
-		bool Assign(SWidget& Widget, TAttribute<ObjectType>&& OtherAttribute, ObjectType&& DefaultValue)
+		bool Assign(ContainerType& Widget, TAttribute<ObjectType>&& OtherAttribute, ObjectType&& DefaultValue)
 		{
 			VerifyOwningWidget(Widget);
 			if (OtherAttribute.IsBound())
@@ -426,7 +438,7 @@ namespace SlateAttributePrivate
 		 * Remove the Getter function.
 		 * The Slate Attribute will not be updated anymore and will keep its current cached value.
 		 */
-		void Unbind(SWidget& Widget)
+		void Unbind(ContainerType& Widget)
 		{
 			VerifyOwningWidget(Widget);
 			ProtectedUnregisterAttribute(Widget, InAttributeType);
@@ -434,7 +446,7 @@ namespace SlateAttributePrivate
 
 	public:
 		/** Build a Attribute from this SlateAttribute. */
-		UE_NODISCARD TAttribute<ObjectType> ToAttribute(const SWidget& Widget) const
+		UE_NODISCARD TAttribute<ObjectType> ToAttribute(const ContainerType& Widget) const
 		{
 			if (ISlateAttributeGetter* Delegate = ProtectedFindGetter(Widget, InAttributeType))
 			{
@@ -444,14 +456,14 @@ namespace SlateAttributePrivate
 		}
 
 		/** @return True if the SlateAttribute is bound to a getter function. */
-		UE_NODISCARD bool IsBound(const SWidget& Widget) const
+		UE_NODISCARD bool IsBound(const ContainerType& Widget) const
 		{
 			VerifyOwningWidget(Widget);
 			return ProtectedIsBound(Widget, InAttributeType);
 		}
 
 		/** @return True if they have the same Getter or the same value. */
-		UE_NODISCARD bool IdenticalTo(const SWidget& Widget, const TSlateAttributeBase& Other) const
+		UE_NODISCARD bool IdenticalTo(const ContainerType& Widget, const TSlateAttributeBase& Other) const
 		{
 			VerifyOwningWidget(Widget);
 			FDelegateHandle ThisDelegateHandle = ProtectedFindGetterHandle(Widget, InAttributeType);
@@ -468,7 +480,7 @@ namespace SlateAttributePrivate
 		}
 
 		/** @return True if they have the same Getter or, if the Attribute is set, the same value. */
-		UE_NODISCARD bool IdenticalTo(const SWidget& Widget, const TAttribute<ObjectType>& Other) const
+		UE_NODISCARD bool IdenticalTo(const ContainerType& Widget, const TAttribute<ObjectType>& Other) const
 		{
 			VerifyOwningWidget(Widget);
 			FDelegateHandle ThisDelegateHandle = ProtectedFindGetterHandle(Widget, InAttributeType);
@@ -480,21 +492,21 @@ namespace SlateAttributePrivate
 		}
 
 	private:
-		void ConstructWrapper(SWidget& Widget, const FGetter& Getter)
+		void ConstructWrapper(ContainerType& Widget, const FGetter& Getter)
 		{
 			TUniquePtr<ISlateAttributeGetter> Wrapper = MakeUniqueGetter(*this, Getter);
 			ProtectedRegisterAttribute(Widget, InAttributeType, MoveTemp(Wrapper));
 			UpdateNowOnBind(Widget);
 		}
 
-		void ConstructWrapper(SWidget& Widget, FGetter&& Getter)
+		void ConstructWrapper(ContainerType& Widget, FGetter&& Getter)
 		{
 			TUniquePtr<ISlateAttributeGetter> Wrapper = MakeUniqueGetter(*this, MoveTemp(Getter));
 			ProtectedRegisterAttribute(Widget, InAttributeType, MoveTemp(Wrapper));
 			UpdateNowOnBind(Widget);
 		}
 
-		bool AssignBinding(SWidget& Widget, const FGetter& Getter)
+		bool AssignBinding(ContainerType& Widget, const FGetter& Getter)
 		{
 			const FDelegateHandle PreviousGetterHandle = ProtectedFindGetterHandle(Widget, InAttributeType);
 			if (PreviousGetterHandle != Getter.GetHandle())
@@ -505,7 +517,7 @@ namespace SlateAttributePrivate
 			return false;
 		}
 
-		bool AssignBinding(SWidget& Widget, FGetter&& Getter)
+		bool AssignBinding(ContainerType& Widget, FGetter&& Getter)
 		{
 			const FDelegateHandle PreviousGetterHandle = ProtectedFindGetterHandle(Widget, InAttributeType);
 			if (PreviousGetterHandle != Getter.GetHandle())

@@ -27,18 +27,29 @@ namespace SlateAttributePrivate
 	{
 		Member		= 0,	// Member of a SWidget (are not allowed to move).
 		Managed		= 1,	// External to the SWidget, global variable or member that can moved.
-		Unused0		= 2,
-		Unused1		= 3,
-		// We use the attribute type in a bit field in FSlateAttributeMetaData. Only 4 value are allowed.
+		Contained		= 2,	// Inside a FSlot or other container that use dynamic memory (always attached to one and only one SWidget).
 	};
 
 
 	class ISlateAttributeGetter;
-	template<typename ObjectType, typename InvalidationReasonPredicate, typename FComparePredicate, ESlateAttributeType AttributeType>
+	template<typename ContainerType, typename ObjectType, typename InvalidationReasonPredicate, typename FComparePredicate, ESlateAttributeType AttributeType>
 	struct TSlateAttributeBase;
-	struct FSlateAttributeContainer;
 	template<typename AttributeMemberType>
 	struct TSlateMemberAttributeRef;
+
+
+	/** Interface for structure that can be used to contain a SlateAttribute instead of a SWidget. */
+	class SLATECORE_API ISlateAttributeContainer
+	{
+	public:
+		virtual SWidget& GetContainerWidget() const = 0;
+		virtual FName GetContainerName() const = 0;
+		virtual uint32 GetContainerSortOrder() const = 0;
+
+	protected:
+		void RemoveContainerWidget(SWidget& Widget);
+		void UpdateContainerSortOrder(SWidget& Widget);
+	};
 
 
 	/** */
@@ -72,18 +83,29 @@ namespace SlateAttributePrivate
 	struct SLATECORE_API FSlateAttributeImpl : public FSlateAttributeBase
 	{
 	protected:
-		bool ProtectedIsWidgetInDestructionPath(SWidget* Widget) const;
-		bool ProtectedIsImplemented(const SWidget& Widget) const;
 		void ProtectedUnregisterAttribute(SWidget& Widget, ESlateAttributeType AttributeType) const;
 		void ProtectedRegisterAttribute(SWidget& Widget, ESlateAttributeType AttributeType, TUniquePtr<ISlateAttributeGetter>&& Wrapper);
 		void ProtectedInvalidateWidget(SWidget& Widget, ESlateAttributeType AttributeType, EInvalidateWidgetReason InvalidationReason) const;
 		bool ProtectedIsBound(const SWidget& Widget, ESlateAttributeType AttributeType) const;
 		ISlateAttributeGetter* ProtectedFindGetter(const SWidget& Widget, ESlateAttributeType AttributeType) const;
 		FDelegateHandle ProtectedFindGetterHandle(const SWidget& Widget, ESlateAttributeType AttributeType) const;
-		bool ProtectedIsIdenticalTo(const SWidget& Widget, ESlateAttributeType AttributeType, const FSlateAttributeBase& Other, const bool bHasSameValue) const;
-		bool ProtectedIsIdenticalToAttribute(const SWidget& Widget, ESlateAttributeType AttributeType, const void* Other, const bool bHasSameValue) const;
 		void ProtectedUpdateNow(SWidget& Widget, ESlateAttributeType AttributeType);
+
+		//~ For Member
+		bool ProtectedIsWidgetInDestructionPath(SWidget* Widget) const;
+		bool ProtectedIsImplemented(const SWidget& Widget) const;
+
+		//~ For Manage
 		void ProtectedMoveAttribute(SWidget& Widget, ESlateAttributeType AttributeType, const FSlateAttributeBase* Other);
+
+		//~ For Contain
+		void ProtectedUnregisterAttribute(ISlateAttributeContainer& Widget, ESlateAttributeType AttributeType) const;
+		void ProtectedRegisterAttribute(ISlateAttributeContainer& Widget, ESlateAttributeType AttributeType, TUniquePtr<ISlateAttributeGetter>&& Wrapper);
+		void ProtectedInvalidateWidget(ISlateAttributeContainer& Widget, ESlateAttributeType AttributeType, EInvalidateWidgetReason InvalidationReason) const;
+		bool ProtectedIsBound(const ISlateAttributeContainer& Widget, ESlateAttributeType AttributeType) const;
+		ISlateAttributeGetter* ProtectedFindGetter(const ISlateAttributeContainer& Widget, ESlateAttributeType AttributeType) const;
+		FDelegateHandle ProtectedFindGetterHandle(const ISlateAttributeContainer& Widget, ESlateAttributeType AttributeType) const;
+		void ProtectedUpdateNow(ISlateAttributeContainer& Widget, ESlateAttributeType AttributeType);
 	};
 
 } // SlateAttributePrivate

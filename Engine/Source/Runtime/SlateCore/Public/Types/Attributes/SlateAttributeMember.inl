@@ -9,17 +9,17 @@ namespace SlateAttributePrivate
 	 *
 	 */
 	template<typename InObjectType, typename InInvalidationReasonPredicate, typename InComparePredicate>
-	struct TSlateMemberAttribute : public TSlateAttributeBase<InObjectType, InInvalidationReasonPredicate, InComparePredicate, ESlateAttributeType::Member>
+	struct TSlateMemberAttribute : public TSlateAttributeBase<SWidget, InObjectType, InInvalidationReasonPredicate, InComparePredicate, ESlateAttributeType::Member>
 	{
 	private:
-		using Super = TSlateAttributeBase<InObjectType, InInvalidationReasonPredicate, InComparePredicate, ESlateAttributeType::Member>;
+		using Super = TSlateAttributeBase<SWidget, InObjectType, InInvalidationReasonPredicate, InComparePredicate, ESlateAttributeType::Member>;
 
 		template<typename WidgetType, typename U = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
 		static void VerifyAttributeAddress(const WidgetType& Widget, const TSlateMemberAttribute& Self)
 		{
 			checkf((UPTRINT)&Self >= (UPTRINT)&Widget && (UPTRINT)&Self < (UPTRINT)&Widget + sizeof(WidgetType),
 				TEXT("Use TAttribute or TSlateManagedAttribute instead. See SlateAttribute.h for more info."));
-			ensureAlwaysMsgf((HasDefinedInvalidationReason || Self.ProtectedIsImplemented(Widget)),
+			ensureAlwaysMsgf((Super::HasDefinedInvalidationReason || Self.ProtectedIsImplemented(Widget)),
 				TEXT("The TSlateAttribute could not be found in the SlateAttributeDescriptor.\n")
 				TEXT("Use the SLATE_DECLARE_WIDGET and add the attribute in PrivateRegisterAttributes,\n")
 				TEXT("Or use TSlateAttribute with a valid Invalidation Reason instead."));
@@ -28,8 +28,6 @@ namespace SlateAttributePrivate
 	public:
 		using FGetter = typename Super::FGetter;
 		using ObjectType = typename Super::ObjectType;
-		static const bool IsMemberType = true;
-		static constexpr bool HasDefinedInvalidationReason = !std::is_same<InInvalidationReasonPredicate, FSlateAttributeNoInvalidationReason>::value;
 
 	public:
 		//~ You can only register Attribute that are defined in a SWidget (member of the class).
