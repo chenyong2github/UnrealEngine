@@ -66,11 +66,8 @@ private:
 	TWeakObjectPtr<USkeletalMesh> MeshObject;
 
 	FNiagaraUvQuadTree TriangleIndexQuadTree;
-	FSkeletalMeshUvMappingBufferProxy FrozenQuadTreeProxy;
+	TUniquePtr<FSkeletalMeshUvMappingBufferProxy> FrozenQuadTreeProxy;
 
 	std::atomic<int32> CpuQuadTreeUserCount;
 	std::atomic<int32> GpuQuadTreeUserCount;
-
-	FThreadSafeBool ReleasedByRT;
-	bool QueuedForRelease;
 };
