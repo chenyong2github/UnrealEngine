@@ -67,9 +67,20 @@ bool FExecution::Execute(const FExecuteRequest& Request, FExecuteResponse& Respo
 			}
 			ProtoConverter::FromProto(ProtoResponse, Response);
 			if ((grpc::StatusCode)ProtoResponse.status().code() != grpc::StatusCode::OK) {
-				UE_LOG(LogBazelExecutor, Error, TEXT("Execute: %s Error: %s"),
-					UTF8_TO_TCHAR(Operation.name().c_str()),
-					UTF8_TO_TCHAR(ProtoResponse.status().message().c_str()));
+
+				if ((Response.Status.Code == EStatusCode::RESOURCE_EXHAUSTED) ||
+					(Response.Status.Code == EStatusCode::UNAVAILABLE))
+				{
+					UE_LOG(LogBazelExecutor, Display, TEXT("Execute: %s Info: %s"),
+						UTF8_TO_TCHAR(Operation.name().c_str()),
+						UTF8_TO_TCHAR(ProtoResponse.status().message().c_str()));
+				}
+				else
+				{
+					UE_LOG(LogBazelExecutor, Error, TEXT("Execute: %s Error: %s"),
+						UTF8_TO_TCHAR(Operation.name().c_str()),
+						UTF8_TO_TCHAR(ProtoResponse.status().message().c_str()));
+				}
 				break;
 			}
 			return true;
