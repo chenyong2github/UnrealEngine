@@ -537,6 +537,11 @@ void FNiagaraVMExecutableDataId::AppendKeyString(FString& KeyString, const FStri
 	}
 	KeyString += Delimiter;
 
+	if (bAppendObjectForDebugging)
+	{
+		KeyString += TEXT("[AdditionalDefines]") + Delimiter;
+	}
+
 	if (bUsesRapidIterationParams)
 	{
 		KeyString += TEXT("USESRI") + Delimiter;
@@ -546,20 +551,10 @@ void FNiagaraVMExecutableDataId::AppendKeyString(FString& KeyString, const FStri
 		KeyString += TEXT("NORI") + Delimiter;
 	}
 
-	if (bAppendObjectForDebugging)
-	{
-		KeyString += TEXT("[AdditionalDefines]") + Delimiter;
-	}
-
 	for (int32 Idx = 0; Idx < AdditionalDefines.Num(); Idx++)
 	{
 		KeyString += AdditionalDefines[Idx];
 		KeyString += Delimiter;
-	}
-
-	if (bAppendObjectForDebugging)
-	{
-		KeyString += TEXT("[AdditionalVariables]") + Delimiter;
 	}
 
 	for (int32 Idx = 0; Idx < AdditionalVariables.Num(); Idx++)
@@ -812,8 +807,9 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 			HashState.GetHash(DataHash.GetData());
 
 			FNiagaraCompileHash Hash(DataHash);
-			Id.ReferencedCompileHashes.AddUnique(Hash);
+			Id.ReferencedCompileHashes.Add(Hash);
 			Id.DebugReferencedObjects.Add(TEXT("SimulationStageHeaders"));
+
 		}
 	}
 
@@ -897,7 +893,7 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 		HashState.GetHash(DataHash.GetData());
 
 		FNiagaraCompileHash Hash(DataHash);
-		Id.ReferencedCompileHashes.AddUnique(Hash);
+		Id.ReferencedCompileHashes.Add(Hash);
 		Id.DebugReferencedObjects.Add(TEXT("RIParams"));
 	}
 
@@ -920,11 +916,6 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 			UE_LOG(LogNiagara, Display, TEXT("/*%04d*/\t\t%s"), i + 1, *OutputByLines[i]);
 		}
 	}
-
-	// normalize the order
-	Id.AdditionalDefines.Sort();
-	Id.ReferencedCompileHashes.Sort([](const FNiagaraCompileHash& Lhs, const FNiagaraCompileHash& Rhs) { return Lhs.ToString() < Rhs.ToString(); });
-	Id.AdditionalVariables.Sort([](const FNiagaraVariableBase& Lhs, const FNiagaraVariableBase& Rhs) { return Lhs.GetName().LexicalLess(Rhs.GetName()); });
 
 	LastGeneratedVMId = Id;
 }
@@ -2065,9 +2056,9 @@ FVersionedNiagaraScriptData* FVersionedNiagaraScript::GetScriptData() const
 }
 #endif
 
-UNiagaraDataInterface* ResolveDataInterface(const TMap<FName, UNiagaraDataInterface*>& ObjectNameMap, FName VariableName)
+UNiagaraDataInterface* ResolveDataInterface(FNiagaraCompileRequestDataBase* InBase, FName VariableName)
 {
-	UNiagaraDataInterface* const* FoundDI = ObjectNameMap.Find(VariableName);
+	UNiagaraDataInterface* const* FoundDI = InBase->GetObjectNameMap().Find(VariableName);
 	if (FoundDI && *(FoundDI))
 	{
 		return *FoundDI;
@@ -2075,31 +2066,20 @@ UNiagaraDataInterface* ResolveDataInterface(const TMap<FName, UNiagaraDataInterf
 	return nullptr;
 }
 
-void DumpNameMap(const TMap<FName, UNiagaraDataInterface*>& ObjectNameMap)
+void DumpNameMap(FNiagaraCompileRequestDataBase* InBase)
 {
-	for (const TPair<FName, UNiagaraDataInterface*>& Pair : ObjectNameMap)
+	for (const TPair<FName, UNiagaraDataInterface*>& Pair : InBase->GetObjectNameMap())
 	{
 		UE_LOG(LogNiagara, Log, TEXT("%s -> %s"), *Pair.Key.ToString(), *GetPathNameSafe(Pair.Value));
 	}
 }
 
-FName ResolveEmitterAlias(const FName& InName, const FString& InAlias)
-{
-	// If the alias is empty than the name can't be resolved.
-	if (InAlias.IsEmpty())
-	{
-		return InName;
-	}
 
-	FNiagaraVariable Var(FNiagaraTypeDefinition::GetFloatDef(), InName);
-	FNiagaraAliasContext ResolveAliasesContext(FNiagaraAliasContext::ERapidIterationParameterMode::EmitterOrParticleScript);
-	ResolveAliasesContext.ChangeEmitterToEmitterName(InAlias);
-	Var = FNiagaraUtilities::ResolveAliases(Var, ResolveAliasesContext);
-	return Var.GetName();
-}
 
-void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& InCompileId, FNiagaraVMExecutableData& InScriptVM, FString EmitterUniqueName, const TMap<FName, UNiagaraDataInterface*>& ObjectNameMap)
+void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& InCompileId, FNiagaraVMExecutableData& InScriptVM, FNiagaraCompileRequestDataBase* InRequestData)
 {
+	check(InRequestData != nullptr);
+
 	CachedScriptVMId = InCompileId;
 	CachedScriptVM = InScriptVM;
 	CachedParameterCollectionReferences.Empty();
@@ -2124,13 +2104,13 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 	{
 		int32 Idx = CachedDefaultDataInterfaces.AddDefaulted();
 		CachedDefaultDataInterfaces[Idx].UserPtrIdx = Info.UserPtrIdx;
-		CachedDefaultDataInterfaces[Idx].Name = ResolveEmitterAlias(Info.Name, EmitterUniqueName);
+		CachedDefaultDataInterfaces[Idx].Name = InRequestData->ResolveEmitterAlias(Info.Name);
 		CachedDefaultDataInterfaces[Idx].Type = Info.Type;
-		CachedDefaultDataInterfaces[Idx].RegisteredParameterMapRead = ResolveEmitterAlias(Info.RegisteredParameterMapRead, EmitterUniqueName);
-		CachedDefaultDataInterfaces[Idx].RegisteredParameterMapWrite = ResolveEmitterAlias(Info.RegisteredParameterMapWrite, EmitterUniqueName);
+		CachedDefaultDataInterfaces[Idx].RegisteredParameterMapRead = InRequestData->ResolveEmitterAlias(Info.RegisteredParameterMapRead);
+		CachedDefaultDataInterfaces[Idx].RegisteredParameterMapWrite = InRequestData->ResolveEmitterAlias(Info.RegisteredParameterMapWrite);
 
 		// We compiled it just a bit ago, so we should be able to resolve it from the table that we passed in.
-		UNiagaraDataInterface* FindDIById = ResolveDataInterface(ObjectNameMap, CachedDefaultDataInterfaces[Idx].Name);
+		UNiagaraDataInterface* FindDIById = ResolveDataInterface(InRequestData, CachedDefaultDataInterfaces[Idx].Name);
 		if (FindDIById != nullptr )
 		{
 			CachedDefaultDataInterfaces[Idx].DataInterface = CopyDataInterface(FindDIById, this);
@@ -2140,14 +2120,14 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 		if (CachedDefaultDataInterfaces[Idx].DataInterface == nullptr)
 		{
 			// Use the CDO since we didn't have a default..
-			UObject* Obj = Info.Type.GetClass()->GetDefaultObject(true);
+			UObject* Obj = const_cast<UClass*>(Info.Type.GetClass())->GetDefaultObject(true);
 			CachedDefaultDataInterfaces[Idx].DataInterface = Cast<UNiagaraDataInterface>(CopyDataInterface(CastChecked<UNiagaraDataInterface>(Obj), this));
 
 			if (Info.bIsPlaceholder == false)
 			{
 				UE_LOG(LogNiagara, Warning, TEXT("We somehow ended up with a data interface that we couldn't match post compile. This shouldn't happen. Creating a dummy to prevent crashes. DataInterfaceInfoName:%s Object:%s"), *Info.Name.ToString(), *GetPathNameSafe(this));
 				UE_LOG(LogNiagara, Log, TEXT("Object to Name map contents:"));
-				DumpNameMap(ObjectNameMap);
+				DumpNameMap(InRequestData);
 			}
 		}
 		check(CachedDefaultDataInterfaces[Idx].DataInterface != nullptr);
@@ -2222,7 +2202,7 @@ void UNiagaraScript::RequestCompile(const FGuid& ScriptVersion, bool bForceCompi
 			if (BinaryToExecData(this, OutData, ExeData))
 			{
 				COOK_STAT(Timer.AddHit(OutData.Num()));
-				SetVMCompilationResults(LastGeneratedVMId, ExeData, FString(), RequestData->GetObjectNameMap());
+				SetVMCompilationResults(LastGeneratedVMId, ExeData, RequestData.Get());
 				return;
 			}
 		}
@@ -2235,7 +2215,7 @@ void UNiagaraScript::RequestCompile(const FGuid& ScriptVersion, bool bForceCompi
 		TSharedPtr<FNiagaraVMExecutableData> ExeData = NiagaraModule.GetCompileJobResult(JobHandle, true);
 		if (ExeData)
 		{
-			SetVMCompilationResults(LastGeneratedVMId, *ExeData, FString(), RequestData->GetObjectNameMap());
+			SetVMCompilationResults(LastGeneratedVMId, *ExeData, RequestData.Get());
 			// save result to the ddc
 			if (ExecToBinaryData(this, OutData, *ExeData))
 			{
@@ -2267,7 +2247,6 @@ bool UNiagaraScript::RequestExternallyManagedAsyncCompile(const TSharedPtr<FNiag
 			OutAsyncHandle = (uint32)INDEX_NONE;
 			CachedScriptVM.LastCompileStatus = ENiagaraScriptCompileStatus::NCS_Unknown;
 			CachedScriptVMId = LastGeneratedVMId;
-			UE_LOG(LogNiagara, Warning, TEXT("Requested compile of script '%s', which cannot be compiled!"), *GetFullName());
 			return false;
 		}
 

@@ -1206,7 +1206,7 @@ void UNiagaraNodeFunctionCall::GatherExternalDependencyData(ENiagaraScriptUsage 
 				FNiagaraCompileHash FoundCompileHash = FunctionGraph->GetCompileDataHash((ENiagaraScriptUsage)i, FGuid(0, 0, 0, 0));
 				if (FoundGuid.IsValid() && FoundCompileHash.IsValid())
 				{
-					InReferencedCompileHashes.AddUnique(FoundCompileHash);
+					InReferencedCompileHashes.Add(FoundCompileHash);
 					InReferencedObjs.Add(FunctionGraph->GetPathName());
 					FunctionGraph->GatherExternalDependencyData((ENiagaraScriptUsage)i, FGuid(0, 0, 0, 0), InReferencedCompileHashes, InReferencedObjs);
 				}

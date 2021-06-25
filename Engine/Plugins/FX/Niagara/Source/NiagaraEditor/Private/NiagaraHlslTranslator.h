@@ -105,7 +105,7 @@ public:
 	TMap<UClass*, UObject*> CDOs;
 	FString EmitterUniqueName;
 	TArray<TSharedPtr<FNiagaraCompileRequestData, ESPMode::ThreadSafe>> EmitterData;
-	TWeakObjectPtr<UNiagaraScriptSource> Source;
+	UNiagaraScriptSource* Source;
 	FString SourceName;
 	bool bUseRapidIterationParams = true;
 	bool bSimulationStagesEnabled = false;
