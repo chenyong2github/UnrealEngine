@@ -4,6 +4,7 @@
 
 #include "Blueprint/UserWidget.h"
 #include "CanvasItem.h"
+#include "CanvasTypes.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Input/HittestGrid.h"
 #include "Slate/WidgetRenderer.h"
