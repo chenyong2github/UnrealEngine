@@ -735,7 +735,7 @@ void FTexturePlatformData::Cache(
 	// Flush any existing async task and ignore results.
 	CancelCache();
 
-	uint32 Flags = InFlags;
+	ETextureCacheFlags Flags = ETextureCacheFlags(InFlags);
 
 	static bool bForDDC = FString(FCommandLine::Get()).Contains(TEXT("Run=DerivedDataCache"));
 	static bool bDDCShippingTextures = FParse::Param(FCommandLine::Get(), TEXT("DDCShippingTextures"));
@@ -744,8 +744,8 @@ void FTexturePlatformData::Cache(
 		Flags |= ETextureCacheFlags::ForDDCBuild;
 	}
 
-	bool bForceRebuild = (Flags & ETextureCacheFlags::ForceRebuild) != 0;
-	bool bAsync = (Flags & ETextureCacheFlags::Async) != 0;
+	bool bForceRebuild = EnumHasAnyFlags(Flags, ETextureCacheFlags::ForceRebuild);
+	bool bAsync = EnumHasAnyFlags(Flags, ETextureCacheFlags::Async);
 	GetTextureDerivedDataKey(InTexture, InSettingsPerLayer, DerivedDataKey);
 
 	if ((!bForDDC || bDDCShippingTextures) && !bForceRebuild && InSettingsPerLayer[0].bHasEditorOnlyData)
@@ -1671,12 +1671,12 @@ void UTexture::CachePlatformData(bool bAsyncCache, bool bAllowAsyncBuild, bool b
 				{
 					PlatformDataLink = new FTexturePlatformData();
 				}
-				int32 CacheFlags = 
+				ETextureCacheFlags CacheFlags = 
 					(bAsyncCache ? ETextureCacheFlags::Async : ETextureCacheFlags::None) |
 					(bAllowAsyncBuild? ETextureCacheFlags::AllowAsyncBuild : ETextureCacheFlags::None) |
 					(bAllowAsyncLoading? ETextureCacheFlags::AllowAsyncLoading : ETextureCacheFlags::None);
 
-				PlatformDataLink->Cache(*this, BuildSettings.GetData(), CacheFlags, Compressor);
+				PlatformDataLink->Cache(*this, BuildSettings.GetData(), uint32(CacheFlags), Compressor);
 			}
 		}
 		else if (PlatformDataLink == NULL)
@@ -1755,7 +1755,7 @@ void UTexture::BeginCacheForCookedPlatformData( const ITargetPlatform *TargetPla
 			PlatformDataToCache->Cache(
 				*this,
 				BuildSettingsToCache[SettingsIndex].GetData(),
-				ETextureCacheFlags::Async | ETextureCacheFlags::InlineMips | ETextureCacheFlags::AllowAsyncBuild | ETextureCacheFlags::AllowAsyncLoading,
+				uint32(ETextureCacheFlags::Async | ETextureCacheFlags::InlineMips | ETextureCacheFlags::AllowAsyncBuild | ETextureCacheFlags::AllowAsyncLoading),
 				nullptr
 				);
 			CookedPlatformData.Add(BuildSettingsCacheKeys[SettingsIndex], PlatformDataToCache);
@@ -1994,7 +1994,7 @@ void UTexture::ForceRebuildPlatformData()
 		PlatformDataLink->Cache(
 			*this,
 			BuildSettings.GetData(),
-			ETextureCacheFlags::ForceRebuild,
+			uint32(ETextureCacheFlags::ForceRebuild),
 			nullptr
 			);
 	}
@@ -2124,7 +2124,7 @@ void UTexture::SerializeCookedPlatformData(FArchive& Ar)
 					if (PlatformDataPtr == NULL)
 					{
 						PlatformDataPtr = new FTexturePlatformData();
-						PlatformDataPtr->Cache(*this, BuildSettingsToCache[SettingIndex].GetData(), ETextureCacheFlags::InlineMips | ETextureCacheFlags::Async, nullptr);
+						PlatformDataPtr->Cache(*this, BuildSettingsToCache[SettingIndex].GetData(), uint32(ETextureCacheFlags::InlineMips | ETextureCacheFlags::Async), nullptr);
 
 						CookedPlatformDataPtr->Add(DerivedDataKey, PlatformDataPtr);
 

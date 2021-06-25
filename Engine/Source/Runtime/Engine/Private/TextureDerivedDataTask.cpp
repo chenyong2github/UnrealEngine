@@ -278,7 +278,7 @@ void FTextureCacheDerivedDataWorker::ConsumeBuildFunctionOutput(const UE::Derive
 
 	if (DerivedData->Mips.Num())
 	{
-		const bool bInlineMips = (CacheFlags & ETextureCacheFlags::InlineMips) != 0;
+		const bool bInlineMips = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::InlineMips);
 
 		for (int32 MipIndex = 0; MipIndex < DerivedData->Mips.Num(); ++MipIndex)
 		{
@@ -334,7 +334,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCacheDerivedDataWorker::BuildTexture);
 
 	const bool bHasValidMip0 = TextureData.Blocks.Num() && TextureData.Blocks[0].MipsPerLayer.Num() && TextureData.Blocks[0].MipsPerLayer[0].Num();
-	const bool bForVirtualTextureStreamingBuild = (CacheFlags & ETextureCacheFlags::ForVirtualTextureStreamingBuild) != 0;	
+	const bool bForVirtualTextureStreamingBuild = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::ForVirtualTextureStreamingBuild);
 
 	FFormatNamedArguments Args;
 	Args.Add(TEXT("TextureName"), FText::FromString(Texture.GetName()));
@@ -394,7 +394,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 
 			if (DerivedData->VTData->Chunks.Num())
 			{
-				const bool bInlineMips = (CacheFlags & ETextureCacheFlags::InlineMips) != 0;
+				const bool bInlineMips = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::InlineMips);
 				bSucceeded = !bInlineMips || DerivedData->TryInlineMipData(BuildSettingsPerLayer[0].LODBiasWithCinematicMips, &Texture);
 				if (!bSucceeded)
 				{
@@ -622,7 +622,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 
 			if (DerivedData->Mips.Num())
 			{
-				const bool bInlineMips = (CacheFlags & ETextureCacheFlags::InlineMips) != 0;
+				const bool bInlineMips = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::InlineMips);
 				bSucceeded = !bInlineMips || DerivedData->TryInlineMipData(BuildSettingsPerLayer[0].LODBiasWithCinematicMips, &Texture);
 				if (!bSucceeded)
 				{
@@ -642,7 +642,7 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 	FTexturePlatformData* InDerivedData,
 	UTexture* InTexture,
 	const FTextureBuildSettings* InSettingsPerLayer,
-	uint32 InCacheFlags
+	ETextureCacheFlags InCacheFlags
 	)
 	: Compressor(InCompressor)
 	, ImageWrapper(nullptr)
@@ -678,9 +678,9 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 	UTexture::GetPixelFormatEnum();
 	GetTextureDerivedDataKeySuffix(Texture, InSettingsPerLayer, KeySuffix);
 		
-	const bool bAllowAsyncBuild = (CacheFlags & ETextureCacheFlags::AllowAsyncBuild) != 0;
-	const bool bAllowAsyncLoading = (CacheFlags & ETextureCacheFlags::AllowAsyncLoading) != 0;
-	const bool bForVirtualTextureStreamingBuild = (CacheFlags & ETextureCacheFlags::ForVirtualTextureStreamingBuild) != 0;
+	const bool bAllowAsyncBuild = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::AllowAsyncBuild);
+	const bool bAllowAsyncLoading = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::AllowAsyncLoading);
+	const bool bForVirtualTextureStreamingBuild = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::ForVirtualTextureStreamingBuild);
 
 	static const bool bBuildFunctionEnabled = FParse::Param(FCommandLine::Get(), TEXT("DDC2TextureBuilds"));
 	if (bBuildFunctionEnabled && !bForVirtualTextureStreamingBuild && (BuildSettingsPerLayer.Num() == 1))
@@ -740,10 +740,10 @@ void FTextureCacheDerivedDataWorker::DoWork()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCacheDerivedDataWorker::DoWork);
 
-	const bool bForceRebuild = (CacheFlags & ETextureCacheFlags::ForceRebuild) != 0;
-	const bool bAllowAsyncBuild = (CacheFlags & ETextureCacheFlags::AllowAsyncBuild) != 0;
-	const bool bAllowAsyncLoading = (CacheFlags & ETextureCacheFlags::AllowAsyncLoading) != 0;
-	const bool bForVirtualTextureStreamingBuild = (CacheFlags & ETextureCacheFlags::ForVirtualTextureStreamingBuild) != 0;
+	const bool bForceRebuild = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::ForceRebuild);
+	const bool bAllowAsyncBuild = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::AllowAsyncBuild);
+	const bool bAllowAsyncLoading = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::AllowAsyncLoading);
+	const bool bForVirtualTextureStreamingBuild = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::ForVirtualTextureStreamingBuild);
 	bool bInvalidVirtualTextureCompression = false;
 
 	TArray<uint8> RawDerivedData;
@@ -765,8 +765,8 @@ void FTextureCacheDerivedDataWorker::DoWork()
 
 	if (bLoadedFromDDC)
 	{
-		const bool bInlineMips = (CacheFlags & ETextureCacheFlags::InlineMips) != 0;
-		const bool bForDDC = (CacheFlags & ETextureCacheFlags::ForDDCBuild) != 0;
+		const bool bInlineMips = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::InlineMips);
+		const bool bForDDC = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::ForDDCBuild);
 
 		BytesCached = RawDerivedData.Num();
 		FMemoryReader Ar(RawDerivedData, /*bIsPersistent=*/ true);
