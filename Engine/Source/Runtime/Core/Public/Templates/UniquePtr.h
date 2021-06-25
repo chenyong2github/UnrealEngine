@@ -101,7 +101,7 @@ struct TDefaultDelete<T[]>
 };
 
 template <typename T, typename Deleter = TDefaultDelete<T>>
-class TUniquePtr : public /*private*/ Deleter // @todo loadtime: can we go back to private? I get this: error C2243: 'static_cast': conversion from 'T *' to 'Base *' exists, but is inaccessible
+class TUniquePtr : private Deleter
 {
 	DECLARE_INLINE_TYPE_LAYOUT_EXPLICIT_BASES(TUniquePtr, NonVirtual, Deleter);
 
