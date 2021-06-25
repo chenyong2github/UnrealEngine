@@ -40,7 +40,12 @@ struct FControlRigGraphNodeContextMenuContext
 {
 	GENERATED_BODY()
 
-	FControlRigGraphNodeContextMenuContext() = default;
+	FControlRigGraphNodeContextMenuContext()
+		: Graph(nullptr)
+		, Node(nullptr)
+		, Pin(nullptr)
+	{
+	}
 	
 	FControlRigGraphNodeContextMenuContext(TObjectPtr<const URigVMGraph> InGraph, TObjectPtr<const URigVMNode> InNode, TObjectPtr<const URigVMPin> InPin)
 		: Graph(InGraph)
