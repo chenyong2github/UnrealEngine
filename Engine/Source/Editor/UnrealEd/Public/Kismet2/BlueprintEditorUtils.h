@@ -1313,7 +1313,7 @@ public:
 	static bool IsVariableComponent(const FBPVariableDescription& Variable);
 
 	/** Indicates if the variable is used on any graphs in this Blueprint*/
-	static bool IsVariableUsed(const UBlueprint* Blueprint, const FName& Name, UEdGraph* LocalGraphScope = nullptr);
+	static bool IsVariableUsed(const UBlueprint* VariableBlueprint, const FName& VariableName, UEdGraph* LocalGraphScope = nullptr);
 
 	/** 
 	 * Copies the value from the passed in string into a property. ContainerMem points to the Struct or Class containing Property 
