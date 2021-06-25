@@ -213,7 +213,7 @@ public:
 	/** Is a point inside the clipping state? */
 	bool IsPointInside(const FVector2D& Point) const;
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_SLATE_DEBUGGING
 	/** Set the state index that this clipping state originated from.  We just do this for debugging purposes. */
 	FORCEINLINE void SetDebuggingStateIndex(int32 InStateIndex) const
 	{
