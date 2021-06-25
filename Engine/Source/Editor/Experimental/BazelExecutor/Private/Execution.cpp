@@ -12,12 +12,27 @@ THIRD_PARTY_INCLUDES_START
 UE_PUSH_MACRO("TEXT")
 #undef TEXT
 #include <grpcpp/grpcpp.h>
+#include "build\bazel\remote\execution\v2\remote_execution.grpc.pb.h"
 UE_POP_MACRO("TEXT");
 THIRD_PARTY_INCLUDES_END
 
+#include "BazelCompletionQueueRunnable.inl"
+
+
+// Stub class so grpc isn't included in the header and everything can be forward declared
+class FExecutionStub
+{
+public:
+	TUniquePtr<build::bazel::remote::execution::v2::Execution::Stub> Stub;
+	FExecutionStub(build::bazel::remote::execution::v2::Execution::Stub* Stub)
+		: Stub(Stub)
+	{
+	}
+};
+
 
 FExecution::FExecution(const std::shared_ptr<grpc::Channel>& Channel, TSharedPtr<FBazelCompletionQueueRunnable> CompletionQueueRunnable, const TMap<FString, FString>& Headers) :
-	Stub(build::bazel::remote::execution::v2::Execution::NewStub(Channel).release()),
+	ExecutionStub(new FExecutionStub(build::bazel::remote::execution::v2::Execution::NewStub(Channel).release())),
 	CompletionQueueRunnable(CompletionQueueRunnable),
 	Headers(Headers)
 {
@@ -35,7 +50,7 @@ bool FExecution::Execute(const FExecuteRequest& Request, FExecuteResponse& Respo
 	build::bazel::remote::execution::v2::ExecuteRequest ProtoRequest;
 	ProtoConverter::ToProto(Request, ProtoRequest);
 
-	std::unique_ptr<grpc::ClientReader<google::longrunning::Operation>> Call = Stub->Execute(&ClientContext, ProtoRequest);
+	std::unique_ptr<grpc::ClientReader<google::longrunning::Operation>> Call = ExecutionStub->Stub->Execute(&ClientContext, ProtoRequest);
 	Call->WaitForInitialMetadata();
 	while (true)
 	{
@@ -99,7 +114,7 @@ TFuture<FExecuteResponse> FExecution::ExecuteAsync(const FExecuteRequest& Reques
 	ProtoConverter::ToProto(Request, ProtoRequest);
 
 	TUniquePtr<grpc::ClientAsyncReader<google::longrunning::Operation>> OperationReader(
-		Stub->PrepareAsyncExecute(ClientContext.Get(), ProtoRequest, CompletionQueueRunnable->GetCompletionQueue()).release());
+		ExecutionStub->Stub->PrepareAsyncExecute(ClientContext.Get(), ProtoRequest, CompletionQueueRunnable->GetCompletionQueue()).release());
 
 	TSharedPtr<TPromise<FExecuteResponse>> ReturnPromise = MakeShared<TPromise<FExecuteResponse>>(MoveTemp(CompletionCallback));
 

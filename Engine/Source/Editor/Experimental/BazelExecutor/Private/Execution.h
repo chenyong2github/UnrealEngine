@@ -5,20 +5,22 @@
 #include "CoreMinimal.h"
 #include "IExecution.h"
 
-THIRD_PARTY_INCLUDES_START
-UE_PUSH_MACRO("TEXT")
-#undef TEXT
-#include "build\bazel\remote\execution\v2\remote_execution.grpc.pb.h"
-UE_POP_MACRO("TEXT");
-THIRD_PARTY_INCLUDES_END
+#include <memory>
+
+namespace grpc
+{
+	class Channel;
+	class ClientContext;
+}
 
 class FBazelCompletionQueueRunnable;
+class FExecutionStub;
 
 
 class FExecution : public IExecution
 {
 private:
-	TUniquePtr<build::bazel::remote::execution::v2::Execution::Stub> Stub;
+	TUniquePtr<FExecutionStub> ExecutionStub;
 	TSharedPtr<FBazelCompletionQueueRunnable> CompletionQueueRunnable;
 	TMap<FString, FString> Headers;
 

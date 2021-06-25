@@ -4,8 +4,17 @@
 
 #include <chrono>
 
+THIRD_PARTY_INCLUDES_START
+UE_PUSH_MACRO("TEXT")
+#undef TEXT
+#include <grpcpp/grpcpp.h>
+#include "build\bazel\remote\execution\v2\remote_execution.grpc.pb.h"
+UE_POP_MACRO("TEXT");
+THIRD_PARTY_INCLUDES_END
+
 
 FBazelCompletionQueueRunnable::FBazelCompletionQueueRunnable()
+	: CompletionQueue(new grpc::CompletionQueue())
 {
 }
 
@@ -85,7 +94,7 @@ uint32 FBazelCompletionQueueRunnable::Run()
 {
 	void* Tag;
 	bool Ok = false;
-	while (Running && CompletionQueue.Next(&Tag, &Ok))
+	while (Running && CompletionQueue->Next(&Tag, &Ok))
 	{
 		if (!Running)
 		{
@@ -100,7 +109,7 @@ void FBazelCompletionQueueRunnable::Stop()
 {
 	// Request shutdown of the CompletionQueue
 	Running = false;
-	CompletionQueue.Shutdown();
+	CompletionQueue->Shutdown();
 }
 
 void FBazelCompletionQueueRunnable::Exit()
@@ -110,7 +119,7 @@ void FBazelCompletionQueueRunnable::Exit()
 	// Drain the completion queue
 	void* Tag;
 	bool Ok;
-	while (CompletionQueue.Next(&Tag, &Ok)) {}
+	while (CompletionQueue->Next(&Tag, &Ok)) {}
 
 	for (const TPair<void*,FQueuedItem>& Pair : QueuedItems)
 	{
@@ -141,7 +150,7 @@ void FBazelCompletionQueueRunnable::Tick()
 	const std::chrono::time_point Deadline = std::chrono::system_clock::now() + std::chrono::microseconds(100);
 	while (Running && std::chrono::system_clock::now() < Deadline)
 	{
-		grpc::CompletionQueue::NextStatus Status = CompletionQueue.AsyncNext(&Tag, &Ok, Deadline);
+		grpc::CompletionQueue::NextStatus Status = CompletionQueue->AsyncNext(&Tag, &Ok, Deadline);
 		if (Status == grpc::CompletionQueue::NextStatus::GOT_EVENT)
 		{
 			ProcessNext(Tag, Ok);
@@ -186,5 +195,5 @@ grpc::CompletionQueue* FBazelCompletionQueueRunnable::GetCompletionQueue()
 		return nullptr;
 	}
 
-	return &CompletionQueue;
+	return CompletionQueue.Get();
 }
