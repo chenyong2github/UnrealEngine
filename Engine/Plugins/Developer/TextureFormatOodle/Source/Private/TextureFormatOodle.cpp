@@ -24,7 +24,7 @@
 #include "oodle2tex.h"
 
 // Alternate job system - can set UseOodleExampleJobify in engine ini to enable.
-#include "../Jobify/example_jobify.h"
+#include "example_jobify.h"
 
 /**********
 
