@@ -46,6 +46,7 @@
 #include "UObject/UnrealType.h"
 #include "Widgets/SWidget.h"
 
+
 #if WITH_OPENCV
 #include "OpenCVHelper.h"
 OPENCV_INCLUDES_START
@@ -466,7 +467,7 @@ void FCameraCalibrationStepsController::CreateComp()
 			return;
 		}
 
-		MediaPlayer->PlayOnOpen = false;
+		MediaPlayer->PlayOnOpen = true;
 
 		// Create MediaTexture
 
@@ -481,19 +482,39 @@ void FCameraCalibrationStepsController::CreateComp()
 			MediaInput->MediaSource = MediaTexture.Get();
 		}
 
-		// Play the first time-synchronizable media source.
+		// Play the media source, preferring time-synchronizable sources.
 		if (const UMediaProfile* MediaProfile = IMediaProfileManager::Get().GetCurrentMediaProfile())
 		{
+			bool bFoundPreferredMediaSource = false;
+
 			for (int32 MediaSourceIdx = 0; MediaSourceIdx < MediaProfile->NumMediaSources(); ++MediaSourceIdx)
 			{
-				if (UTimeSynchronizableMediaSource* TSMediaSource = Cast<UTimeSynchronizableMediaSource>(
-					MediaProfile->GetMediaSource(MediaSourceIdx)))
+				UMediaSource* MediaSource = MediaProfile->GetMediaSource(MediaSourceIdx);
+
+				if (Cast<UTimeSynchronizableMediaSource>(MediaSource))
 				{
-					MediaPlayer->OpenSource(TSMediaSource);
+					MediaPlayer->OpenSource(MediaSource);
 					MediaPlayer->Play();
+
+					bFoundPreferredMediaSource = true;
 
 					// Break since we don't need to look for more MediaSources.
 					break;
+				}
+			}
+
+			if (!bFoundPreferredMediaSource)
+			{
+				for (int32 MediaSourceIdx = 0; MediaSourceIdx < MediaProfile->NumMediaSources(); ++MediaSourceIdx)
+				{
+					if (UMediaSource* MediaSource = MediaProfile->GetMediaSource(MediaSourceIdx))
+					{
+						MediaPlayer->OpenSource(MediaSource);
+						MediaPlayer->Play();
+
+						// Break since we don't need to look for more MediaSources.
+						break;
+					}
 				}
 			}
 		}
@@ -912,15 +933,14 @@ bool FCameraCalibrationStepsController::SetMediaSourceUrl(const FString& InMedia
 
 	for (int32 MediaSourceIdx = 0; MediaSourceIdx < MediaProfile->NumMediaSources(); ++MediaSourceIdx)
 	{
-		UTimeSynchronizableMediaSource* TSMediaSource = Cast<UTimeSynchronizableMediaSource>(
-			MediaProfile->GetMediaSource(MediaSourceIdx));
+		UMediaSource* MediaSource = MediaProfile->GetMediaSource(MediaSourceIdx);
 
-		if (!TSMediaSource || TSMediaSource->GetUrl() != InMediaSourceUrl)
+		if (!MediaSource || (MediaSource->GetUrl() != InMediaSourceUrl))
 		{
 			continue;
 		}
 
-		MediaPlayer->OpenSource(TSMediaSource);
+		MediaPlayer->OpenSource(MediaSource);
 		MediaPlayer->Play();
 
 		return true;
@@ -951,10 +971,9 @@ void FCameraCalibrationStepsController::FindMediaSourceUrls(TArray<TSharedPtr<FS
 
 	for (int32 MediaSourceIdx = 0; MediaSourceIdx < MediaProfile->NumMediaSources(); ++MediaSourceIdx)
 	{
-		if (UTimeSynchronizableMediaSource* TSMediaSource = Cast<UTimeSynchronizableMediaSource>(
-			MediaProfile->GetMediaSource(MediaSourceIdx)))
+		if (const UMediaSource* MediaSource = MediaProfile->GetMediaSource(MediaSourceIdx))
 		{
-			OutMediaSourceUrls.Add(MakeShareable(new FString(TSMediaSource->GetUrl())));
+			OutMediaSourceUrls.Add(MakeShareable(new FString(MediaSource->GetUrl())));
 		}
 	}
 }
