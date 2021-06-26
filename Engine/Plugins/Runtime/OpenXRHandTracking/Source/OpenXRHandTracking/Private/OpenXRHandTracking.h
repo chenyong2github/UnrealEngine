@@ -50,6 +50,10 @@ public:
 	virtual ~FOpenXRHandTracking();
 
 	/** IOpenXRExtensionPlugin */
+	virtual FString GetDisplayName() override
+	{
+		return FString(TEXT("OpenXRHandTracking"));
+	}
 	virtual bool GetRequiredExtensions(TArray<const ANSICHAR*>& OutExtensions) override;
 	virtual const void* OnGetSystem(XrInstance InInstance, const void* InNext) override;
 	virtual const void* OnCreateSession(XrInstance InInstance, XrSystemId InSystem, const void* InNext) override;

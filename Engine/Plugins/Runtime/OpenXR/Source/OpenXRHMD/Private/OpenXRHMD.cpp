@@ -449,11 +449,11 @@ bool FOpenXRHMDPlugin::EnableExtensions(const TArray<const ANSICHAR*>& RequiredE
 	{
 		if (AvailableExtensions.Contains(Ext))
 		{
-			UE_LOG(LogHMD, Verbose, TEXT("Required extension %s enabled"), ANSI_TO_TCHAR(Ext));
+			UE_LOG(LogHMD, Verbose, TEXT("Required extension %S enabled"), Ext);
 		}
 		else
 		{
-			UE_LOG(LogHMD, Warning, TEXT("Required extension %s is not available"), ANSI_TO_TCHAR(Ext));
+			UE_LOG(LogHMD, Warning, TEXT("Required extension %S is not available"), Ext);
 			ExtensionMissing = true;
 		}
 	}
@@ -472,12 +472,12 @@ bool FOpenXRHMDPlugin::EnableExtensions(const TArray<const ANSICHAR*>& RequiredE
 	{
 		if (AvailableExtensions.Contains(Ext))
 		{
-			UE_LOG(LogHMD, Verbose, TEXT("Optional extension %s enabled"), ANSI_TO_TCHAR(Ext));
+			UE_LOG(LogHMD, Verbose, TEXT("Optional extension %S enabled"), Ext);
 			OutExtensions.Add(Ext);
 		}
 		else
 		{
-			UE_LOG(LogHMD, Log, TEXT("Optional extension %s is not available"), ANSI_TO_TCHAR(Ext));
+			UE_LOG(LogHMD, Log, TEXT("Optional extension %S is not available"), Ext);
 		}
 	}
 
@@ -628,7 +628,8 @@ bool FOpenXRHMDPlugin::InitInstance()
 		if (!EnableExtensions(RequiredExtensions, OptionalExtensions, Extensions))
 		{
 			// Ignore the plugin if the required extension could not be enabled
-			UE_LOG(LogHMD, Log, TEXT("Could not enable all required OpenXR extensions for OpenXRExtensionPlugin on current system. This plugin will be loaded but ignored, but will be enabled on a target platform that supports the required extension."));
+			FString ModuleName = Plugin->GetDisplayName();
+			UE_LOG(LogHMD, Log, TEXT("Could not enable all required OpenXR extensions for %s on current system. This plugin will be loaded but ignored, but will be enabled on a target platform that supports the required extension."), *ModuleName);
 			continue;
 		}
 		ExtensionSet.Append(Extensions);
@@ -711,7 +712,11 @@ bool FOpenXRHMDPlugin::InitInstance()
 	XrResult Result = xrCreateInstance(&Info, &Instance);
 	if (XR_FAILED(Result))
 	{
-		UE_LOG(LogHMD, Log, TEXT("Failed to create an OpenXR instance, result is %s. Please check if you have an OpenXR runtime installed."), OpenXRResultToString(Result));
+		UE_LOG(LogHMD, Log, TEXT("Failed to create an OpenXR instance, result is %s. Please check if you have an OpenXR runtime installed. The following extensions were enabled:"), OpenXRResultToString(Result));
+		for (const char* Extension : EnabledExtensions)
+		{
+			UE_LOG(LogHMD, Log, TEXT("- %S"), Extension);
+		}
 		return false;
 	}
 

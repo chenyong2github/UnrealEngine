@@ -127,6 +127,11 @@ public:
 		IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
 	}
 
+	virtual FString GetDisplayName()
+	{
+		return FString(TEXT("OpenXRExtensionPlugin"));
+	}
+
 	/**
 	* Optionally provide a custom loader for the OpenXR plugin.
 	*/

@@ -15,6 +15,11 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
+	virtual FString GetDisplayName() override
+	{
+		return FString(TEXT("HP Motion Controller"));
+	}
+
 	bool GetRequiredExtensions(TArray<const ANSICHAR*>& OutExtensions) override;
 	void PostCreateInstance(XrInstance InInstance) override;
 	bool GetInteractionProfile(XrInstance InInstance, FString& OutKeyPrefix, XrPath& OutPath, bool& OutHasHaptics) override;
