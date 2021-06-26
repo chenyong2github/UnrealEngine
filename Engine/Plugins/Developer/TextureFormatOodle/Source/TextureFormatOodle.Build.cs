@@ -25,7 +25,8 @@ public class TextureFormatOodle : ModuleRules
 
         PrivatePCHHeaderFile = "Private/TextureFormatOodlePCH.h";
 
-        PublicIncludePaths.Add(IncludeDirectory);
+        PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Private", "Jobify"));
+        PrivateIncludePaths.Add(IncludeDirectory);
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
