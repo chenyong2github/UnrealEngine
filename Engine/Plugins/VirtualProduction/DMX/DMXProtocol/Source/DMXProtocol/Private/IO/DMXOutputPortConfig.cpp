@@ -69,51 +69,69 @@ FDMXOutputPortConfig::FDMXOutputPortConfig(const FGuid& InPortGuid, const FDMXOu
 
 void FDMXOutputPortConfig::MakeValid()
 {
-	checkf(PortGuid.IsValid(), TEXT("The port guid has to be valid to make a valid config. Use related constructor."))
-
-	// Test the protocol name and make it valid if needed
-	IDMXProtocolPtr Protocol = IDMXProtocol::Get(ProtocolName);	
-	if (!Protocol.IsValid())
+	if (!ensureAlwaysMsgf(PortGuid.IsValid(), TEXT("Invalid GUID for Input Port %s. Generating a new one. Blueprint nodes referencing the port will no longer be functional."), *PortName))
 	{
+		PortGuid = FGuid::NewGuid();
+	}
+
+	// Try to restore the protocol if it is not valid.
+	// Allow NAME_None as an option if no protocol should be loaded (e.g. in projects that play a dmx show from sequencer only).
+	IDMXProtocolPtr Protocol = IDMXProtocol::Get(ProtocolName);	
+	if (!Protocol.IsValid() && !ProtocolName.IsNone())
+	{
+		UE_LOG(LogDMXProtocol, Warning, TEXT("DMX Protocol %s is not available or failed to load. Attempting to chose a valid protocol instead.."), *ProtocolName.ToString());
+
 		const TArray<FName> ProtocolNames = IDMXProtocol::GetProtocolNames();
 		if (ProtocolNames.Num() > 0)
 		{
 			ProtocolName = ProtocolNames[0];
 			Protocol = IDMXProtocol::Get(ProtocolName);
 		}
-	}
-	checkf(Protocol.IsValid(), TEXT("Protocols not loaded or no protocols available. Use of port configs is only supported after the engine is fully loaded (PostEngineInit)."));
 
-	// If the extern universe ID is out of the protocol's supported range, mend it.
-	ExternUniverseStart = Protocol->MakeValidUniverseID(ExternUniverseStart);
-
-	// Only Local universes > 1 are supported, even if the protocol supports universes < 1.
-	LocalUniverseStart = LocalUniverseStart < 1 ? 1 : LocalUniverseStart;
-
-	// Limit the num universes relatively to the max extern universe of the protocol and int32 max
-	const int64 MaxNumUniverses = Protocol->GetMaxUniverseID() - Protocol->GetMinUniverseID() + 1;
-	const int64 DesiredNumUniverses = NumUniverses > MaxNumUniverses ? MaxNumUniverses : NumUniverses;
-	const int64 DesiredLocalUniverseEnd = static_cast<int64>(LocalUniverseStart) + DesiredNumUniverses - 1;
-
-	if (DesiredLocalUniverseEnd > TNumericLimits<int32>::Max())
-	{
-		NumUniverses = TNumericLimits<int32>::Max() - DesiredLocalUniverseEnd;
-	}
-
-	// Fix the communication type if it is not supported by the protocol
-	TArray<EDMXCommunicationType> CommunicationTypes = Protocol->GetOutputPortCommunicationTypes();
-	if (!CommunicationTypes.Contains(CommunicationType))
-	{
-		if (CommunicationTypes.Num() > 0)
+		if (Protocol.IsValid())
 		{
-			CommunicationType = CommunicationTypes[0];
+			UE_LOG(LogDMXProtocol, Warning, TEXT("Restored invalid DMX Protocol. Output Port %s now using DMX Protocol %s."), *PortName, *ProtocolName.ToString());
 		}
 		else
 		{
-			// The protocol can specify none to suggest internal only
-			CommunicationType = EDMXCommunicationType::InternalOnly;
+			UE_LOG(LogDMXProtocol, Warning, TEXT("Failed to restore DMX Protocol for Output Port %s. The Port can only be used for internal loopback."), *PortName);
+			return;
 		}
-	}	
+	}
+
+	if (Protocol.IsValid())
+	{
+		// If the extern universe ID is out of the protocol's supported range, mend it.
+		ExternUniverseStart = Protocol->MakeValidUniverseID(ExternUniverseStart);
+
+		// Only Local universes > 1 are supported, even if the protocol supports universes < 1.
+		LocalUniverseStart = LocalUniverseStart < 1 ? 1 : LocalUniverseStart;
+
+		// Limit the num universes relatively to the max extern universe of the protocol and int32 max
+		const int64 MaxNumUniverses = Protocol->GetMaxUniverseID() - Protocol->GetMinUniverseID() + 1;
+		const int64 DesiredNumUniverses = NumUniverses > MaxNumUniverses ? MaxNumUniverses : NumUniverses;
+		const int64 DesiredLocalUniverseEnd = static_cast<int64>(LocalUniverseStart) + DesiredNumUniverses - 1;
+
+		if (DesiredLocalUniverseEnd > TNumericLimits<int32>::Max())
+		{
+			NumUniverses = TNumericLimits<int32>::Max() - DesiredLocalUniverseEnd;
+		}
+
+		// Fix the communication type if it is not supported by the protocol
+		TArray<EDMXCommunicationType> CommunicationTypes = Protocol->GetOutputPortCommunicationTypes();
+		if (!CommunicationTypes.Contains(CommunicationType))
+		{
+			if (CommunicationTypes.Num() > 0)
+			{
+				CommunicationType = CommunicationTypes[0];
+			}
+			else
+			{
+				// The protocol can specify none to suggest internal only
+				CommunicationType = EDMXCommunicationType::InternalOnly;
+			}
+		}
+	}
 }
 
 void FDMXOutputPortConfig::GenerateUniquePortName()

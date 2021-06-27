@@ -75,6 +75,11 @@ int32 FDMXProtocolArtNet::MakeValidUniverseID(int32 DesiredUniverseID) const
 	return FMath::Clamp(DesiredUniverseID, static_cast<int32>(ARTNET_MIN_UNIVERSE), static_cast<int32>(ARTNET_MAX_UNIVERSE));
 }
 
+bool FDMXProtocolArtNet::SupportsPrioritySettings() const
+{
+	return false;
+}
+
 const TArray<EDMXCommunicationType> FDMXProtocolArtNet::GetInputPortCommunicationTypes() const
 {
 	return InputPortCommunicationTypes;
@@ -175,8 +180,7 @@ TSharedPtr<IDMXSender> FDMXProtocolArtNet::RegisterOutputPort(const FDMXOutputPo
 		}
 		else
 		{
-			// Invalid Communication Type
-			checkNoEntry();
+			UE_LOG(LogDMXProtocol, Error, TEXT("Cannot create DMX Protocol Art-Net Sender. The communication type specified is not supported."));
 		}
 	}
 

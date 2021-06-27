@@ -54,13 +54,6 @@ bool FDMXPort::IsValidPortSlow() const
 	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 	TSharedPtr<FInternetAddr> IPInternetAddr = SocketSubsystem->CreateInternetAddr();
 
-	// Find if the port is valid
-	if (!Protocol.IsValid())
-	{
-		UE_LOG(LogDMXProtocol, Warning, TEXT("Cannot create DMX Port: Invalid Protocol in port %s."), *PortName);
-		return false;
-	}
-
 	int32 FinalUniverseStart = LocalUniverseStart + ExternUniverseStart;
 	if (FinalUniverseStart < Protocol->GetMinUniverseID())
 	{

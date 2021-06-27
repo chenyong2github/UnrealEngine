@@ -33,29 +33,35 @@ protected:
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 	// ~End IPropertyTypecustomization Interface
 
-	/** Returns the name of the Protocol Name property */
-	virtual FName GetProtocolNamePropertyNameChecked() const = 0;
+	/** Returns the name of the Protocol Name property, or NAME_None if it doesn't exist */
+	virtual FName GetProtocolNamePropertyName() const = 0;
 
-	/** Returns the name of the Communication Type property */
-	virtual FName GetCommunicationTypePropertyNameChecked() const = 0;
+	/** Returns the name of the Communication Type property, or NAME_None if it doesn't exist */
+	virtual FName GetCommunicationTypePropertyName() const = 0;
 
-	/** Returns the name of the Device Address property */
-	virtual FName GetDeviceAddressPropertyNameChecked() const = 0;
+	/** Returns the name of the Device Address property, or NAME_None if it doesn't exist */
+	virtual FName GetDeviceAddressPropertyName() const = 0;
 
-	/** Returns the name of the Port Guid property */
-	virtual FName GetPortGuidPropertyNameChecked() const = 0;
+	/** Returns the name of the Pirority Strategy property, or NAME_None if it doesn't exist */
+	virtual FName GetDestinationAddressPropertyName() const = 0;
+
+	/** Returns the name of the Pirority Strategy property, or NAME_None if it doesn't exist */
+	virtual FName GetPriorityStrategyPropertyName() const = 0;
+
+	/** Returns the name of the Priority property, or NAME_None if it doesn't exist */
+	virtual FName GetPriorityPropertyName() const = 0;
+
+	/** Returns the name of the Port Guid property, or NAME_None if it doesn't exist */
+	virtual FName GetPortGuidPropertyName() const = 0;
 
 	/** Returns an array of supported communication types */
 	virtual const TArray<EDMXCommunicationType> GetSupportedCommunicationTypes() const = 0;
 
 	/** Gets the protocol, checks if it is valid */
-	IDMXProtocolPtr GetProtocolChecked() const;
+	IDMXProtocolPtr GetProtocol() const;
 
 	/** Helper function that gets the Guid of the edited port */
 	FGuid GetPortGuid() const;
-
-	/** Helper function that gets the Guid of the edited port, checked version */
-	FGuid GetPortGuidChecked() const;
 
 	/** Gets the communication type */
 	EDMXCommunicationType GetCommunicationType() const;

@@ -231,9 +231,13 @@ TArray<TSharedPtr<FDMXPortSelectorItem>> SDMXPortSelector::MakeComboBoxSource()
 
 		for (const FDMXInputPortConfig& InputPortConfig : ProtocolSettings->InputPortConfigs)
 		{
-			TSharedRef<FDMXPortSelectorItem> Item = FDMXPortSelectorItem::CreateItem(InputPortConfig);
+			// Only show ports with valid guids. Let the config log and mend invalid Guids and ignore them quietly here.
+			if (InputPortConfig.GetPortGuid().IsValid())
+			{
+				TSharedRef<FDMXPortSelectorItem> Item = FDMXPortSelectorItem::CreateItem(InputPortConfig);
 
-			NewComboBoxSource.Add(Item);
+				NewComboBoxSource.Add(Item);
+			}
 		}
 	}
 
@@ -243,10 +247,14 @@ TArray<TSharedPtr<FDMXPortSelectorItem>> SDMXPortSelector::MakeComboBoxSource()
 		NewComboBoxSource.Add(FDMXPortSelectorItem::CreateTitleRowItem(TEXT("Outputs")));
 
 		for (const FDMXOutputPortConfig& OutputPortConfig : ProtocolSettings->OutputPortConfigs)
-		{
-			TSharedRef<FDMXPortSelectorItem> Item = FDMXPortSelectorItem::CreateItem(OutputPortConfig);
+		{			
+			// Only show ports with valid guids. Let the config log and mend invalid Guids and ignore them quietly here.
+			if (OutputPortConfig.GetPortGuid().IsValid())
+			{
+				TSharedRef<FDMXPortSelectorItem> Item = FDMXPortSelectorItem::CreateItem(OutputPortConfig);
 
-			NewComboBoxSource.Add(Item);
+				NewComboBoxSource.Add(Item);
+			}
 		}
 	}
 

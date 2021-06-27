@@ -245,12 +245,9 @@ void FDMXOutputPort::SendDMXToRemoteUniverse(const TMap<int32, uint8>& ChannelTo
 			}
 
 			// Loopback to Listeners
-			if (bNeedsSendDMX || bNeedsLoopbackToEngine)
+			for (const TSharedRef<FDMXRawListener>& RawListener : RawListeners)
 			{
-				for (const TSharedRef<FDMXRawListener>& RawListener : RawListeners)
-				{
-					RawListener->EnqueueSignal(this, Signal);
-				}
+				RawListener->EnqueueSignal(this, Signal);
 			}
 		}
 	}
@@ -258,7 +255,7 @@ void FDMXOutputPort::SendDMXToRemoteUniverse(const TMap<int32, uint8>& ChannelTo
 
 bool FDMXOutputPort::Register()
 {
-	if (IsValidPortSlow() && CommunicationDeterminator.IsSendDMXEnabled() && !FDMXPortManager::Get().AreProtocolsSuspended())
+	if (Protocol.IsValid() && IsValidPortSlow() && CommunicationDeterminator.IsSendDMXEnabled() && !FDMXPortManager::Get().AreProtocolsSuspended())
 	{
 		DMXSender = Protocol->RegisterOutputPort(SharedThis(this));
 
@@ -277,9 +274,10 @@ void FDMXOutputPort::Unregister()
 {
 	if (IsRegistered())
 	{
-		check(Protocol.IsValid());
-
-		Protocol->UnregisterOutputPort(SharedThis(this));
+		if (Protocol.IsValid())
+		{
+			Protocol->UnregisterOutputPort(SharedThis(this));
+		}
 
 		DMXSender = nullptr;
 	}

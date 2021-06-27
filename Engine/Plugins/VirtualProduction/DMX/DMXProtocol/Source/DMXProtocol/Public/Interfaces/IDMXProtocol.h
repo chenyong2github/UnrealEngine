@@ -130,6 +130,14 @@ public:
 	 */
 	virtual const TArray<EDMXCommunicationType> GetOutputPortCommunicationTypes() const = 0;
 
+
+	/**
+	 * Returns true if the Protocol supports a priority setting to filter inbound and outbound signals
+	 * 
+	 * @return						Whether the protocol supports Priority settings.
+	 */
+	virtual bool SupportsPrioritySettings() const = 0;
+
 	/** 
 	 * Called to register a DMXInputPort with the protocol. 
 	 * This should be implemented so each port can only register once (see Art-Net for an example). 

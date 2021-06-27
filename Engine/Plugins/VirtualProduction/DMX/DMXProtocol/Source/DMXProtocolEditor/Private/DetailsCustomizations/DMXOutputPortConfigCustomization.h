@@ -18,10 +18,13 @@ public:
 
 protected:
 	// ~Begin DMXPortConfigCustomizationBase Interface
-	virtual FName GetProtocolNamePropertyNameChecked() const override;
-	virtual FName GetCommunicationTypePropertyNameChecked() const override;
-	virtual FName GetDeviceAddressPropertyNameChecked() const override;
-	virtual FName GetPortGuidPropertyNameChecked() const override;
+	virtual FName GetProtocolNamePropertyName() const override;
+	virtual FName GetCommunicationTypePropertyName() const override;
+	virtual FName GetDeviceAddressPropertyName() const override;
+	virtual FName GetDestinationAddressPropertyName() const override;
+	virtual FName GetPriorityStrategyPropertyName() const override;
+	virtual FName GetPriorityPropertyName() const override;
+	virtual FName GetPortGuidPropertyName() const override;
 	virtual const TArray<EDMXCommunicationType> GetSupportedCommunicationTypes() const override;
 	// ~End DMXPortConfigCustomizationBase Interface
 };
