@@ -72,6 +72,7 @@ using HordeServer.Notifications;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using System.Runtime.InteropServices;
 using HordeServer.Storage.Collections;
+using Amazon.S3;
 
 namespace HordeServer
 {
@@ -415,6 +416,9 @@ namespace HordeServer
 			Services.AddSingleton<IStorageService, SimpleStorageService>(SP => new SimpleStorageService(SP.GetRequiredService<FileSystemStorageBackend>()));
 
 			Services.AddSingleton<DeviceService>();
+
+			Services.AddDefaultAWSOptions(Configuration.GetAWSOptions());
+			Services.AddAWSService<IAmazonS3>();
 
 			ConfigureStorageProvider(Services, Settings);
 			ConfigureLogStorage(Services);
