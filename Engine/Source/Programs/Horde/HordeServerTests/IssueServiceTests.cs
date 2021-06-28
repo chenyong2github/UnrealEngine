@@ -17,7 +17,6 @@ using HordeServer.Models;
 using HordeServer.Notifications;
 using HordeServer.Services;
 using HordeServer.Services.Impl;
-using HordeServer.Storage.Impl;
 using HordeServer.Utilities;
 using HordeServerTests.Stubs.Collections;
 using HordeServerTests.Stubs.Services;

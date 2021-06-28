@@ -27,20 +27,20 @@ namespace HordeServer.Storage
 	public interface IBlobCollection
 	{
 		/// <summary>
-		/// Adds an item to storage
-		/// </summary>
-		/// <param name="NamespaceId">Namespace to operate on</param>
-		/// <param name="Hash">Hash of the blob</param>
-		/// <param name="Blob">The blob stream data</param>
-		Task AddAsync(NamespaceId NamespaceId, IoHash Hash, Stream Blob);
-
-		/// <summary>
 		/// Opens a blob read stream
 		/// </summary>
 		/// <param name="NamespaceId">Namespace to operate on</param>
 		/// <param name="Hash">Hash of the blob</param>
 		/// <returns>Stream for the blob, or null if it does not exist</returns>
-		Task<Stream?> GetAsync(NamespaceId NamespaceId, IoHash Hash);
+		Task<Stream?> ReadAsync(NamespaceId NamespaceId, IoHash Hash);
+
+		/// <summary>
+		/// Adds an item to storage
+		/// </summary>
+		/// <param name="NamespaceId">Namespace to operate on</param>
+		/// <param name="Hash">Hash of the blob</param>
+		/// <param name="Stream">The stream to write</param>
+		Task WriteAsync(NamespaceId NamespaceId, IoHash Hash, Stream Stream);
 
 		/// <summary>
 		/// Determines which of a set of blobs exist
@@ -57,31 +57,27 @@ namespace HordeServer.Storage
 	public static class BlobCollectionExtensions
 	{
 		/// <summary>
-		/// Adds a blob to the collection
-		/// </summary>
-		/// <param name="Collection"></param>
-		/// <param name="NamespaceId"></param>
-		/// <param name="Blob"></param>
-		/// <returns></returns>
-		public static async Task<IoHash> AddAsync(this IBlobCollection Collection, NamespaceId NamespaceId, ReadOnlyMemory<byte> Blob)
-		{
-			IoHash Hash = IoHash.Compute(Blob.Span);
-			await AddAsync(Collection, NamespaceId, Hash, Blob);
-			return Hash;
-		}
-
-		/// <summary>
-		/// Adds a blob to the collection
+		/// Gets a blob as a byte array
 		/// </summary>
 		/// <param name="Collection"></param>
 		/// <param name="NamespaceId"></param>
 		/// <param name="Hash"></param>
-		/// <param name="Blob"></param>
 		/// <returns></returns>
-		public static Task AddAsync(this IBlobCollection Collection, NamespaceId NamespaceId, IoHash Hash, ReadOnlyMemory<byte> Blob)
+		public static async Task<byte[]?> ReadBytesAsync(this IBlobCollection Collection, NamespaceId NamespaceId, IoHash Hash)
 		{
-			using ReadOnlyMemoryStream Stream = new ReadOnlyMemoryStream(Blob);
-			return Collection.AddAsync(NamespaceId, Hash, Stream);
+			using (MemoryStream OutputStream = new MemoryStream())
+			{
+				using (Stream? InputStream = await Collection.ReadAsync(NamespaceId, Hash))
+				{
+					if(InputStream == null)
+					{
+						return null;
+					}
+
+					await InputStream.CopyToAsync(OutputStream);
+					return OutputStream.ToArray();
+				}
+			}
 		}
 
 		/// <summary>
@@ -89,19 +85,29 @@ namespace HordeServer.Storage
 		/// </summary>
 		/// <param name="Collection"></param>
 		/// <param name="NamespaceId"></param>
-		/// <param name="Hash"></param>
+		/// <param name="Data">The data to be written</param>
 		/// <returns></returns>
-		public static async Task<byte[]?> GetByteArrayAsync(this IBlobCollection Collection, NamespaceId NamespaceId, IoHash Hash)
+		public static async Task<IoHash> WriteBytesAsync(this IBlobCollection Collection, NamespaceId NamespaceId, ReadOnlyMemory<byte> Data)
 		{
-			using Stream? Stream = await Collection.GetAsync(NamespaceId, Hash);
-			if(Stream == null)
-			{
-				return null;
-			}
+			IoHash Hash = IoHash.Compute(Data.Span);
+			await WriteBytesAsync(Collection, NamespaceId, Hash, Data);
+			return Hash;
+		}
 
-			byte[] Data = new byte[Stream.Length];
-			Stream.Read(Data);
-			return Data;
+		/// <summary>
+		/// Gets a blob as a byte array
+		/// </summary>
+		/// <param name="Collection"></param>
+		/// <param name="NamespaceId"></param>
+		/// <param name="Hash">Expected hash of the data</param>
+		/// <param name="Data">The data to be written</param>
+		/// <returns></returns>
+		public static async Task WriteBytesAsync(this IBlobCollection Collection, NamespaceId NamespaceId, IoHash Hash, ReadOnlyMemory<byte> Data)
+		{
+			using (ReadOnlyMemoryStream Stream = new ReadOnlyMemoryStream(Data))
+			{
+				await Collection.WriteAsync(NamespaceId, Hash, Stream);
+			}
 		}
 
 		/// <summary>

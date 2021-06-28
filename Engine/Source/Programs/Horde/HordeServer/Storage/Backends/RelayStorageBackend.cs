@@ -10,12 +10,12 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 
-namespace HordeServer.Storage.Impl
+namespace HordeServer.Storage.Backends
 {
 	/// <summary>
 	/// Implementation of ILogFileStorage which forwards requests to another server
 	/// </summary>
-	public sealed class RelayStorageBackend : IStorageBackend
+	public sealed class RelayStorageBackend : IStorageBackend, IDisposable
 	{
 		/// <summary>
 		/// The client to connect with
@@ -36,9 +36,9 @@ namespace HordeServer.Storage.Impl
 		/// Constructor
 		/// </summary>
 		/// <param name="Settings">Settings for the server instance</param>
-		public RelayStorageBackend(IOptionsMonitor<ServerSettings> Settings)
+		public RelayStorageBackend(IOptions<ServerSettings> Settings)
 		{
-			ServerSettings CurrentSettings = Settings.CurrentValue;
+			ServerSettings CurrentSettings = Settings.Value;
 			if (CurrentSettings.LogRelayServer == null)
 			{
 				throw new InvalidDataException("Missing LogRelayServer in server configuration");
@@ -60,19 +60,12 @@ namespace HordeServer.Storage.Impl
 		public void Dispose()
 		{
 			Client.Dispose();
-			LocalStorage.Dispose();
 		}
 
 		/// <inheritdoc/>
-		public Task<bool> TouchAsync(string Path)
+		public async Task<Stream?> ReadAsync(string Path)
 		{
-			throw new NotImplementedException();
-		}
-
-		/// <inheritdoc/>
-		public async Task<ReadOnlyMemory<byte>?> ReadAsync(string Path)
-		{
-			ReadOnlyMemory<byte>? LocalResult = await LocalStorage.ReadAsync(Path);
+			Stream? LocalResult = await LocalStorage.ReadAsync(Path);
 			if (LocalResult != null)
 			{
 				return LocalResult;
@@ -84,8 +77,8 @@ namespace HordeServer.Storage.Impl
 				if (Response.IsSuccessStatusCode)
 				{
 					byte[] ResponseData = await Response.Content.ReadAsByteArrayAsync();
-					await LocalStorage.WriteAsync(Path, ResponseData);
-					return ResponseData;
+					await LocalStorage.WriteBytesAsync(Path, ResponseData);
+					return new MemoryStream(ResponseData);
 				}
 			}
 
@@ -93,9 +86,15 @@ namespace HordeServer.Storage.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task WriteAsync(string Path, ReadOnlyMemory<byte> Data)
+		public Task WriteAsync(string Path, Stream Stream)
 		{
-			return LocalStorage.WriteAsync(Path, Data);
+			return LocalStorage.WriteAsync(Path, Stream);
+		}
+
+		/// <inheritdoc/>
+		public Task<bool> ExistsAsync(string Path)
+		{
+			throw new NotSupportedException();
 		}
 
 		/// <inheritdoc/>

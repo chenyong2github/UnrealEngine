@@ -33,7 +33,7 @@ namespace HordeServer.Logs.Readers
 		/// </summary>
 		/// <param name="StorageProvider">The storage provider</param>
 		/// <param name="Logger">Logging provider</param>
-		public PersistentLogStorage(IStorageBackend StorageProvider, ILogger Logger)
+		public PersistentLogStorage(IStorageBackend StorageProvider, ILogger<PersistentLogStorage> Logger)
 		{
 			this.StorageProvider = StorageProvider;
 			this.Logger = Logger;
@@ -42,7 +42,6 @@ namespace HordeServer.Logs.Readers
 		/// <inheritdoc/>
 		public void Dispose()
 		{
-			StorageProvider.Dispose();
 		}
 
 		/// <inheritdoc/>
@@ -51,7 +50,7 @@ namespace HordeServer.Logs.Readers
 			Logger.LogDebug("Reading log {LogId} index length {Length} from persistent storage", LogId, Length);
 
 			string Path = $"{LogId}/index_{Length}";
-			ReadOnlyMemory<byte>? Data = await StorageProvider.ReadAsync(Path);
+			ReadOnlyMemory<byte>? Data = await StorageProvider.ReadBytesAsync(Path);
 			if (Data == null)
 			{
 				return null;
@@ -66,7 +65,7 @@ namespace HordeServer.Logs.Readers
 
 			string Path = $"{LogId}/index_{Length}";
 			ReadOnlyMemory<byte> Data = IndexData.ToByteArray();
-			return StorageProvider.WriteAsync(Path, Data);
+			return StorageProvider.WriteBytesAsync(Path, Data);
 		}
 
 		/// <inheritdoc/>
@@ -75,7 +74,7 @@ namespace HordeServer.Logs.Readers
 			Logger.LogDebug("Reading log {LogId} chunk offset {Offset} from persistent storage", LogId, Offset);
 
 			string Path = $"{LogId}/offset_{Offset}";
-			ReadOnlyMemory<byte>? Data = await StorageProvider.ReadAsync(Path);
+			ReadOnlyMemory<byte>? Data = await StorageProvider.ReadBytesAsync(Path);
 			if(Data == null)
 			{
 				return null;
@@ -103,7 +102,7 @@ namespace HordeServer.Logs.Readers
 			Writer.WriteLogChunkData(ChunkData);
 			Writer.CheckOffset(Data.Length);
 
-			return StorageProvider.WriteAsync(Path, Data);
+			return StorageProvider.WriteBytesAsync(Path, Data);
 		}
 	}
 }

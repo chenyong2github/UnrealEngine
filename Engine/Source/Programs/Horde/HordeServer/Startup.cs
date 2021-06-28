@@ -51,7 +51,6 @@ using HordeCommon;
 using Microsoft.AspNetCore.DataProtection;
 using StackExchange.Redis;
 using HordeServer.Storage;
-using HordeServer.Storage.Impl;
 using HordeServer.Logs;
 using HordeServer.Logs.Builder;
 using HordeServer.Logs.Storage;
@@ -62,7 +61,6 @@ using HordeServer.Services.Impl;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using HordeServer.Authentication;
 using HordeServer.Rpc;
-using HordeServer.Storage.Services;
 using HordeServer.Tasks.Impl;
 using HordeServer.Tasks;
 using StatsdClient;
@@ -75,6 +73,8 @@ using HordeServer.Storage.Collections;
 using Amazon.Extensions.NETCore.Setup;
 using Amazon.S3;
 using Amazon.Runtime;
+using HordeServer.Storage.Backends;
+using HordeServer.Storage.Services;
 
 namespace HordeServer
 {
@@ -321,7 +321,7 @@ namespace HordeServer
 			Services.AddSingleton<IDeviceCollection, DeviceCollection>();
 
 			// Storage
-			Services.AddSingleton<IBlobCollection, FileSystemBlobCollection>();
+			Services.AddSingleton<IBlobCollection, BlobCollection>();
 			Services.AddSingleton<IBucketCollection, BucketCollection>();
 			Services.AddSingleton<INamespaceCollection, NamespaceCollection>();
 			Services.AddSingleton<IObjectCollection, ObjectCollection>();
@@ -414,9 +414,6 @@ namespace HordeServer
 			Services.AddSingleton<ContentStorageService>();
 			Services.AddSingleton<ExecutionService>();
 
-			Services.AddSingleton<FileSystemStorageBackend>();
-			Services.AddSingleton<IStorageService, SimpleStorageService>(SP => new SimpleStorageService(SP.GetRequiredService<FileSystemStorageBackend>()));
-
 			Services.AddSingleton<DeviceService>();
 
 			AWSOptions Options = Configuration.GetAWSOptions();
@@ -424,12 +421,11 @@ namespace HordeServer
 			{
 				Options.Credentials = new AssumeRoleAWSCredentials(FallbackCredentialsFactory.GetCredentials(), Settings.S3AssumeArn, "Horde");
 			}
-
 			Services.AddDefaultAWSOptions(Options);
-			Services.AddAWSService<IAmazonS3>();
 
-			ConfigureStorageProvider(Services, Settings);
+			ConfigureStorageBackend(Services, Settings);
 			ConfigureLogStorage(Services);
+			Services.AddSingleton<IStorageService, SimpleStorageService>();
 			//			ConfigureLogFileWriteCache(Services, Settings);
 
 			AuthenticationBuilder AuthBuilder = Services.AddAuthentication(Options =>
@@ -593,7 +589,7 @@ namespace HordeServer
 			Options.Converters.Add(new JsonDateTimeConverter());
 		}
 
-		private static void ConfigureStorageProvider(IServiceCollection Services, ServerSettings Settings)
+		private static void ConfigureStorageBackend(IServiceCollection Services, ServerSettings Settings)
 		{
 			switch (Settings.ExternalStorageProviderType)
 			{
@@ -628,9 +624,12 @@ namespace HordeServer
 					return new RedisLogBuilder(RedisService.ConnectionPool, Provider.GetRequiredService<ILogger<RedisLogBuilder>>());
 				}
 			});
+
+			Services.AddSingleton<PersistentLogStorage>();
+
 			Services.AddSingleton<ILogStorage>(Provider =>
 			{
-				ILogStorage Storage = new PersistentLogStorage(Provider.GetRequiredService<IStorageBackend>(), Provider.GetRequiredService<ILogger<PersistentLogStorage>>());
+				ILogStorage Storage = Provider.GetRequiredService<PersistentLogStorage>();
 
 //				IDatabase? RedisDb = Provider.GetService<IDatabase>();
 //				if (RedisDb != null)

@@ -19,7 +19,7 @@ using HordeServer.Logs.Storage;
 using HordeServer.Logs.Storage.Impl;
 using HordeServer.Models;
 using HordeServer.Services;
-using HordeServer.Storage.Impl;
+using HordeServer.Storage.Backends;
 using HordeServer.Utilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -47,7 +47,7 @@ namespace HordeServerTests
             IConfiguration Config = new ConfigurationBuilder().Build();
 
 			ILogBuilder LogBuilder = new RedisLogBuilder(GetRedisConnectionPool(), NullLogger.Instance);
-			ILogStorage LogStorage = new PersistentLogStorage(new TransientStorageBackend(), NullLogger.Instance);
+			ILogStorage LogStorage = new PersistentLogStorage(new TransientStorageBackend(), NullLogger<PersistentLogStorage>.Instance);
 			LogFileService = new LogFileService(LogFileCollection, null!, LogBuilder, LogStorage, Logger);
         }
 

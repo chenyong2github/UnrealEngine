@@ -13,111 +13,49 @@ namespace HordeServer.Storage.Collections
 {
 	using NamespaceId = StringId<INamespace>;
 
-	class FileSystemBlobCollection : IBlobCollection
+	class BlobCollection : IBlobCollection
 	{
 		/// <summary>
-		/// Base directory for log files
+		/// The inner storage provider
 		/// </summary>
-		private readonly DirectoryReference BaseDir;
-
-		/// <summary>
-		/// Unique identifier for this instance
-		/// </summary>
-		private string InstanceId;
+		IStorageBackend StorageBackend;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Settings">Current Horde Settings</param>
-		public FileSystemBlobCollection(IOptions<ServerSettings> Settings)
+		/// <param name="StorageBackend"></param>
+		public BlobCollection(IStorageBackend StorageBackend)
 		{
-			ServerSettings CurrentSettings = Settings.Value;
-			BaseDir = CurrentSettings.LocalBlobsDirRef;
-			InstanceId = Guid.NewGuid().ToString("N");
-			DirectoryReference.CreateDirectory(BaseDir);
+			this.StorageBackend = StorageBackend;
 		}
 
 		/// <inheritdoc/>
-		public async Task AddAsync(NamespaceId NamespaceId, IoHash Hash, Stream Input)
+		public Task<Stream?> ReadAsync(NamespaceId NamespaceId, IoHash Hash)
 		{
-			FileReference Location = GetPath(NamespaceId, Hash);
-			DirectoryReference.CreateDirectory(Location.Directory);
-
-			FileReference TempLocation = new FileReference($"{Location}.{InstanceId}");
-
-			Blake3.Hasher Hasher = Blake3.Hasher.New();
-			using (FileStream Output = FileReference.Open(TempLocation, FileMode.Create, FileAccess.Write, FileShare.Read))
-			{
-				byte[] ReadBuffer = new byte[64 * 1024];
-				Task<int> ReadTask = Task.Run(() => Input.ReadAsync(ReadBuffer, 0, ReadBuffer.Length));
-
-				byte[] WriteBuffer = new byte[64 * 1024];
-				int WriteLength = await ReadTask;
-
-				while (WriteLength > 0)
-				{
-					(WriteBuffer, ReadBuffer) = (ReadBuffer, WriteBuffer);
-
-					ReadTask = Task.Run(() => Input.ReadAsync(ReadBuffer, 0, ReadBuffer.Length));
-					Task WriteTask = Task.Run(() => Output.WriteAsync(WriteBuffer, 0, WriteLength));
-
-					Hasher.Update(WriteBuffer.AsSpan(0, WriteLength));
-
-					await Task.WhenAll(ReadTask, WriteTask);
-					WriteLength = await ReadTask;
-				}
-			}
-
-			IoHash ActualHash = new IoHash(Hasher);
-			if (ActualHash != Hash)
-			{
-				throw new ArgumentException($"Hash for blob is incorrect; should be {ActualHash}, not {Hash}");
-			}
-
-			try
-			{
-				FileReference.Move(TempLocation, Location, true);
-			}
-			catch (IOException) // Already exists
-			{
-				if (FileReference.Exists(Location))
-				{
-					FileReference.Delete(TempLocation);
-				}
-				else
-				{
-					throw;
-				}
-			}
+			string Path = GetPath(NamespaceId, Hash);
+			return StorageBackend.ReadAsync(Path);
 		}
 
 		/// <inheritdoc/>
-		public Task<Stream?> GetAsync(NamespaceId NamespaceId, IoHash Hash)
+		public Task WriteAsync(NamespaceId NamespaceId, IoHash Hash, Stream Stream)
 		{
-			FileReference Location = GetPath(NamespaceId, Hash);
-			if (!FileReference.Exists(Location))
-			{
-				return Task.FromResult<Stream?>(null);
-			}
-
-			try
-			{
-				return Task.FromResult<Stream?>(FileReference.Open(Location, FileMode.Open, FileAccess.Read, FileShare.Read));
-			}
-			catch (DirectoryNotFoundException)
-			{
-				return Task.FromResult<Stream?>(null);
-			}
-			catch (FileNotFoundException)
-			{
-				return Task.FromResult<Stream?>(null);
-			}
+			string Path = GetPath(NamespaceId, Hash);
+			return StorageBackend.WriteAsync(Path, Stream);
 		}
 
 		/// <inheritdoc/>
-		public Task<List<IoHash>> ExistsAsync(NamespaceId NamespaceId, IEnumerable<IoHash> Hashes)
+		public async Task<List<IoHash>> ExistsAsync(NamespaceId NamespaceId, IEnumerable<IoHash> Hashes)
 		{
-			return Task.FromResult<List<IoHash>>(Hashes.Where(x => FileReference.Exists(GetPath(NamespaceId, x))).ToList());
+			List<Task<IoHash?>> Tasks = new List<Task<IoHash?>>();
+			foreach (IoHash Hash in Hashes)
+			{
+				string Path = GetPath(NamespaceId, Hash);
+				Tasks.Add(Task.Run(async () => await StorageBackend.ExistsAsync(Path)? (IoHash?)Hash : null));
+			}
+
+			await Task.WhenAll(Tasks);
+
+			return Tasks.Where(x => x.Result != null).Select(x => (IoHash)x.Result!).ToList();
 		}
 
 		/// <summary>
@@ -126,10 +64,10 @@ namespace HordeServer.Storage.Collections
 		/// <param name="NsId">The namespace id</param>
 		/// <param name="Hash">Hash of the blob</param>
 		/// <returns></returns>
-		FileReference GetPath(NamespaceId NsId, IoHash Hash)
+		static string GetPath(NamespaceId NsId, IoHash Hash)
 		{
 			string HashText = Hash.ToString();
-			return FileReference.Combine(BaseDir, NsId.ToString(), HashText[0..2], HashText[2..4], $"{HashText}.blob");
+			return $"blobs/{NsId}/{HashText[0..2]}/{HashText[2..4]}/{HashText}.blob";
 		}
 	}
 }

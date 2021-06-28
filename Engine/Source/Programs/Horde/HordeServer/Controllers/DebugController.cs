@@ -515,7 +515,7 @@ namespace HordeServer.Controllers
 				return Forbid();
 			}
 
-			ReadOnlyMemory<byte>? Data = await StorageProvider.ReadAsync(Path);
+			ReadOnlyMemory<byte>? Data = await StorageProvider.ReadBytesAsync(Path);
 			if (Data == null)
 			{
 				return NotFound();

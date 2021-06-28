@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace HordeServer.Storage.Impl
+namespace HordeServer.Storage.Backends
 {
 	/// <summary>
 	/// In-memory implementation of ILogFileStorage
@@ -15,44 +17,42 @@ namespace HordeServer.Storage.Impl
 		/// <summary>
 		/// Data storage
 		/// </summary>
-		Dictionary<string, byte[]> PathToData = new Dictionary<string, byte[]>();
+		ConcurrentDictionary<string, byte[]> PathToData = new ConcurrentDictionary<string, byte[]>();
 
 		/// <inheritdoc/>
-		public void Dispose()
+		public Task<Stream?> ReadAsync(string Path)
 		{
+			byte[]? Data;
+			if (PathToData.TryGetValue(Path, out Data))
+			{
+				return Task.FromResult<Stream?>(new MemoryStream(Data, false));
+			}
+			else
+			{
+				return Task.FromResult<Stream?>(null);
+			}
 		}
 
 		/// <inheritdoc/>
-		public Task<bool> TouchAsync(string Path)
+		public async Task WriteAsync(string Path, Stream Stream)
+		{
+			using (MemoryStream Buffer = new MemoryStream())
+			{
+				await Stream.CopyToAsync(Buffer);
+				PathToData[Path] = Buffer.ToArray();
+			}
+		}
+
+		/// <inheritdoc/>
+		public Task<bool> ExistsAsync(string Path)
 		{
 			return Task.FromResult(PathToData.ContainsKey(Path));
 		}
 
 		/// <inheritdoc/>
-		public Task<ReadOnlyMemory<byte>?> ReadAsync(string Path)
-		{
-			byte[]? Data;
-			if (PathToData.TryGetValue(Path, out Data))
-			{
-				return Task.FromResult<ReadOnlyMemory<byte>?>(Data);
-			}
-			else
-			{
-				return Task.FromResult<ReadOnlyMemory<byte>?>(null);
-			}
-		}
-
-		/// <inheritdoc/>
-		public Task WriteAsync(string Path, ReadOnlyMemory<byte> Data)
-		{
-			PathToData[Path] = Data.Span.ToArray();
-			return Task.CompletedTask;
-		}
-
-		/// <inheritdoc/>
 		public Task DeleteAsync(string Path)
 		{
-			PathToData.Remove(Path);
+			PathToData.TryRemove(Path, out _);
 			return Task.CompletedTask;
 		}
 	}

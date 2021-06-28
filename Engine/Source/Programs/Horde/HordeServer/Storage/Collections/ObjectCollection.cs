@@ -30,16 +30,13 @@ namespace HordeServer.Storage.Collections
 		public async Task AddAsync(NamespaceId NsId, IoHash Hash, CbObject Obj)
 		{
 			ReadOnlyMemory<byte> Memory = Obj.GetView();
-			using (ReadOnlyMemoryStream Stream = new ReadOnlyMemoryStream(Memory))
-			{
-				await BlobCollection.AddAsync(NsId, Hash, Stream);
-			}
+			await BlobCollection.WriteBytesAsync(NsId, Hash, Memory);
 		}
 
 		/// <inheritdoc/>
 		public async Task<CbObject?> GetAsync(NamespaceId NsId, IoHash Hash)
 		{
-			byte[]? Data = await BlobCollection.GetByteArrayAsync(NsId, Hash);
+			byte[]? Data = await BlobCollection.ReadBytesAsync(NsId, Hash);
 			if(Data == null)
 			{
 				return null;
