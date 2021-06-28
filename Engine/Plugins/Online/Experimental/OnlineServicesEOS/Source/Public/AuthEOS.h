@@ -7,8 +7,8 @@
 #include "Containers/Ticker.h"
 
 #if WITH_EOS_SDK
-	#include "eos_auth_types.h"
-#endif
+#include "eos_auth_types.h"
+
 namespace UE::Online {
 
 class FOnlineServicesEOS;
@@ -39,3 +39,4 @@ protected:
 };
 
 /* UE::Online */ }
+#endif
