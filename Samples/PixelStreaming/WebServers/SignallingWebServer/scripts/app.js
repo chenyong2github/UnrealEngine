@@ -935,11 +935,8 @@ function emitUIInteraction(descriptor) {
 //    "{ ConsoleCommand: <string> }"
 //
 // 2. A command to change the resolution to the given width and height.
-//    "{ Resolution: { Width: <value>, Height: <value> } }"
+//    "{ Resolution.Width: <value>, Resolution.Height: <value> } }"
 //
-// 3. A command to change the encoder settings by reducing the bitrate by the
-//    given percentage.
-//    "{ Encoder: { BitrateReduction: <value> } }"
 function emitCommand(descriptor) {
 	emitDescriptor(MessageType.Command, descriptor);
 }

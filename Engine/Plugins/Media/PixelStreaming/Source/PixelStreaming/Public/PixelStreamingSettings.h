@@ -45,6 +45,7 @@ namespace PixelStreamingSettings
 // Begin Pixel Streaming Plugin CVars
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingHudStats;
 	extern TAutoConsoleVariable<int32> CVarFreezeFrameQuality;
+	extern TAutoConsoleVariable<bool> CVarSendPlayerIdAsInteger;
 // Ends Pixel Streaming Plugin CVars
 
 // Begin utility functions etc.

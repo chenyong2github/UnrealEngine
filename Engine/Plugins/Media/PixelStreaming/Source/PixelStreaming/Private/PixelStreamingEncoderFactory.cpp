@@ -83,7 +83,7 @@ void FPixelStreamingVideoEncoderFactory::OnEncodedImage(const webrtc::EncodedIma
 void FPixelStreamingVideoEncoderFactory::ReleaseVideoEncoder(FPixelStreamingVideoEncoder* encoder)
 {
 	ActiveEncoders.Remove(encoder);
-	if (ActiveEncoders.Num() == 0)
+	if (ActiveEncoders.Num() == 0 && EncoderContext.Encoder != nullptr)
 	{
 		EncoderContext.Encoder->Shutdown();
 		EncoderContext.Encoder = nullptr;

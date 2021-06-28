@@ -38,9 +38,6 @@ console.log("Config: " + JSON.stringify(config, null, '\t'));
 
 var http = require('http').Server(app);
 
-var sessionMonitor = require('./modules/sessionMonitor.js');
-sessionMonitor.init();
-
 if (config.UseHTTPS) {
 	//HTTPS certificate details
 	const options = {
@@ -243,8 +240,9 @@ if (config.UseHTTPS) {
 	});
 }
 
-let WebSocket = require('ws');
+console.logColor(logging.Cyan, `Running Cirrus - The Pixel Streaming reference implementation signalling server for Unreal Engine 4.27.`);
 
+let WebSocket = require('ws');
 let streamerServer = new WebSocket.Server({ port: streamerPort, backlog: 1 });
 console.logColor(logging.Green, `WebSocket listening to Streamer connections on :${streamerPort}`)
 let streamer; // WebSocket connected to Streamer
@@ -272,6 +270,13 @@ streamerServer.on('connection', function (ws, req) {
 
 			let playerId = msg.playerId;
 			delete msg.playerId; // no need to send it to the player
+
+			// Convert incoming playerId to a string if it is an integer, if needed. (We support receiving it as an int or string).
+			if(playerId && typeof playerId === 'number')
+			{
+				playerId = playerId.toString();
+			}
+
 			let player = players.get(playerId);
 			if (!player) {
 				console.log(`dropped message ${msg.type} as the player ${playerId} is not found`);
@@ -384,13 +389,11 @@ playerServer.on('connection', function (ws, req) {
 
 	function onPlayerDisconnected() {
 		try {
-			console.log("calling onPlayerDisconnected...");
 			players.delete(playerId);
 			streamer.send(JSON.stringify({type: 'playerDisconnected', playerId: playerId}));
 			sendPlayerDisconnectedToFrontend();
 			sendPlayerDisconnectedToMatchmaker();
 			sendPlayersCount();
-			console.log("CALLED onPlayerDisconnected");
 		} catch(err) {
 			console.logColor(loggin.Red, `ERROR:: onPlayerDisconnected error: ${err.message}`);
 		}
@@ -563,7 +566,6 @@ function sendServerDisconnect() {
 	if (!config.UseFrontend)
 		return;
 	try {
-		console.log("calling sendServerDisconnect...");
 		webRequest.get(`${FRONTEND_WEBSERVER}/server/serverDisconnected?gameSessionId=${gameSessionId}&appName=${querystring.escape(clientConfig.AppName)}`,
 			function (response, body) {
 				if (response.statusCode === 200) {
@@ -584,7 +586,6 @@ function sendServerDisconnect() {
 					console.error(err);
 				}
 			});
-		console.log("calling sendServerDisconnect...");
 	} catch(err) {
 		console.logColor(logging.Red, `ERROR::: sendServerDisconnect error: ${err.message}`);
 	}
@@ -595,7 +596,6 @@ function sendPlayerConnectedToFrontend() {
 	if (!config.UseFrontend)
 		return;
 	try {
-		console.log("calling sendPlayerConnectedToFrontend...");
 		webRequest.get(`${FRONTEND_WEBSERVER}/server/clientConnected?gameSessionId=${gameSessionId}&appName=${querystring.escape(clientConfig.AppName)}`,
 			function (response, body) {
 				if (response.statusCode === 200) {
@@ -616,7 +616,6 @@ function sendPlayerConnectedToFrontend() {
 					console.error(err);
 				}
 			});
-		console.log("CALLED sendPlayerConnectedToFrontend");
 	} catch(err) {
 		console.logColor(logging.Red, `ERROR::: sendPlayerConnectedToFrontend error: ${err.message}`);
 	}
@@ -627,7 +626,6 @@ function sendPlayerDisconnectedToFrontend() {
 	if (!config.UseFrontend)
 		return;
 	try {
-		console.log("calling sendPlayerDisconnectedToFrontend...");
 		webRequest.get(`${FRONTEND_WEBSERVER}/server/clientDisconnected?gameSessionId=${gameSessionId}&appName=${querystring.escape(clientConfig.AppName)}`,
 			function (response, body) {
 				if (response.statusCode === 200) {
@@ -649,7 +647,6 @@ function sendPlayerDisconnectedToFrontend() {
 					console.error(err);
 				}
 			});
-		console.log("CALLED sendPlayerDisconnectedToFrontend");
 	} catch(err) {
 		console.logColor(logging.Red, `ERROR::: sendPlayerDisconnectedToFrontend error: ${err.message}`);
 	}
@@ -659,12 +656,10 @@ function sendStreamerConnectedToMatchmaker() {
 	if (!config.UseMatchmaker)
 		return;
 	try {
-		console.log("sendStreamerConnectedToMatchmaker started...");
 		message = {
 			type: 'streamerConnected'
 		};
 		matchmaker.write(JSON.stringify(message));
-		console.log("sendStreamerConnectedToMatchmaker FINISHED");
 	} catch (err) {
 		console.logColor(logging.Red, `ERROR sending streamerConnected: ${err.message}`);
 	}
@@ -673,17 +668,14 @@ function sendStreamerConnectedToMatchmaker() {
 function sendStreamerDisconnectedToMatchmaker() {
 	if (!config.UseMatchmaker)
 	{
-		console.log("WARNING:::sendStreamerDisconnectedToMatchmaker not using matchmaker for some reason???");
 		return;
 	}
 
 	try {
-		console.log("sendStreamerDisconnectedToMatchmaker started...");
 		message = {
 			type: 'streamerDisconnected'
 		};
 		matchmaker.write(JSON.stringify(message));	
-		console.log("sendStreamerDisconnectedToMatchmaker FINISHED");
 	} catch (err) {
 		console.logColor(logging.Red, `ERROR sending streamerDisconnected: ${err.message}`);
 	}
@@ -695,12 +687,10 @@ function sendPlayerConnectedToMatchmaker() {
 	if (!config.UseMatchmaker)
 		return;
 	try {
-		console.log("sendPlayerConnectedToMatchmaker started...");
 		message = {
 			type: 'clientConnected'
 		};
 		matchmaker.write(JSON.stringify(message));
-		console.log("sendPlayerConnectedToMatchmaker FINISHED");
 	} catch (err) {
 		console.logColor(logging.Red, `ERROR sending clientConnected: ${err.message}`);
 	}
@@ -712,12 +702,10 @@ function sendPlayerDisconnectedToMatchmaker() {
 	if (!config.UseMatchmaker)
 		return;
 	try {
-		console.log("sendPlayerDisconnectedToMatchmaker started...");
 		message = {
 			type: 'clientDisconnected'
 		};
 		matchmaker.write(JSON.stringify(message));
-		console.log("sendPlayerDisconnectedToMatchmaker FINISHED");
 	} catch (err) {
 		console.logColor(logging.Red, `ERROR sending clientDisconnected: ${err.message}`);
 	}

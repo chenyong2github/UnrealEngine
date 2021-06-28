@@ -131,8 +131,13 @@ namespace PixelStreamingSettings
 		TEXT("PixelStreaming.FreezeFrameQuality"),
 		100,
 		TEXT("Compression quality of the freeze frame"),
-		ECVF_Default
-	);
+		ECVF_Default);
+
+	TAutoConsoleVariable<bool> CVarSendPlayerIdAsInteger(
+		TEXT("PixelStreaming.SendPlayerIdAsInteger"),
+		true,
+		TEXT("If true transmit the player id as an integer (for backward compatibility) or as a string."),
+		ECVF_Default);
 
 // Ends Pixel Streaming Plugin CVars
 
@@ -252,6 +257,7 @@ UPixelStreamingSettings::UPixelStreamingSettings(const FObjectInitializer& Objec
 
 	CommandLineParseOption(TEXT("PixelStreamingHudStats"), PixelStreamingSettings::CVarPixelStreamingHudStats);
 	CommandLineParseValue(TEXT("FreezeFrameQuality="), PixelStreamingSettings::CVarFreezeFrameQuality);
+	CommandLineParseOption(TEXT("PixelStreamingSendPlayerIdAsInteger="), PixelStreamingSettings::CVarSendPlayerIdAsInteger);
 }
 
 FName UPixelStreamingSettings::GetCategoryName() const

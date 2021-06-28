@@ -31,16 +31,22 @@ bool UPixelStreamerInputComponent::OnCommand(const FString& Descriptor)
 	if (bSuccess)
 	{
 		GetJsonStringValue(Descriptor, TEXT("Resolution.Height"), HeightString, bSuccess);
-	}
-	if (!bSuccess)
-	{
-		return false;
+
+		int Width = FCString::Atoi(*WidthString);
+		int Height = FCString::Atoi(*HeightString);
+
+		if(Width < 1 || Height < 1)
+		{
+			return false;
+		}
+
+		FString ChangeResCommand = FString::Printf(TEXT("r.SetRes %dx%d"), Width, Height);
+		return GEngine->Exec(GetWorld(), *ChangeResCommand);
+
 	}
 
-	FIntPoint Resolution = { FCString::Atoi(*WidthString), FCString::Atoi(*HeightString) };
-	GEngine->GameUserSettings->SetScreenResolution(Resolution);
-	GEngine->GameUserSettings->ApplySettings(false);
-	return true;
+	return false;	
+
 }
 
 void UPixelStreamerInputComponent::SendPixelStreamingResponse(const FString& Descriptor)

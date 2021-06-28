@@ -5,6 +5,7 @@
 #include "PixelStreamingPrivate.h"
 #include "ProtocolDefs.h"
 #include "HAL/ThreadSafeBool.h"
+#include "PlayerId.h"
 
 class FStreamer;
 class FInputDevice;

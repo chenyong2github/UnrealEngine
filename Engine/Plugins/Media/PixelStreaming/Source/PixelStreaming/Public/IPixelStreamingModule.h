@@ -7,6 +7,7 @@
 #include "Modules/ModuleManager.h"
 #include "IInputDeviceModule.h"
 #include "Templates/SharedPointer.h"
+#include "PlayerId.h"
 
 class UTexture2D;
 class IMediaPlayer;

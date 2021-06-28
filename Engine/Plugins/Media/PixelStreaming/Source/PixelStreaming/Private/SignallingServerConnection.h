@@ -11,6 +11,7 @@
 #include "Dom/JsonObject.h"
 #include "Delegates/IDelegateInstance.h"
 #include "Engine/EngineTypes.h"
+#include "PlayerId.h"
 
 class IWebSocket;
 
@@ -70,6 +71,8 @@ private:
 	void OnPlayerIceCandidate(const FJsonObjectPtr& Json);
 	void OnPlayerCount(const FJsonObjectPtr& Json);
 	void OnPlayerDisconnected(const FJsonObjectPtr& Json);
+	void SetPlayerIdJson(FJsonObjectPtr& JsonObject, FPlayerId PlayerId);
+	bool GetPlayerIdJson(const FJsonObjectPtr& Json, FPlayerId& OutPlayerId);
 
 private:
 	FSignallingServerConnectionObserver& Observer;

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "PixelStreamingPrivate.h"
+#include "PlayerId.h"
 #include "HAL/ThreadSafeBool.h"
 #include "WebRTCIncludes.h"
 #include "VideoEncoder.h"
