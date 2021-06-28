@@ -35,20 +35,20 @@ namespace HordeServerTests
 			byte[] TestData = Encoding.UTF8.GetBytes("Hello world");
 			IoHash Hash = IoHash.Compute(TestData);
 
-			Assert.IsNull(await BlobCollection.GetAsync(NamespaceId, Hash));
+			Assert.IsNull(await BlobCollection.ReadAsync(NamespaceId, Hash));
 			Assert.IsFalse(await BlobCollection.ExistsAsync(NamespaceId, Hash));
 
-			IoHash ReturnedHash = await BlobCollection.AddAsync(NamespaceId, TestData);
+			IoHash ReturnedHash = await BlobCollection.WriteBytesAsync(NamespaceId, TestData);
 			Assert.AreEqual(Hash, ReturnedHash);
 			Assert.IsTrue(await BlobCollection.ExistsAsync(NamespaceId, Hash));
 
-			byte[]? StoredData = await BlobCollection.GetByteArrayAsync(NamespaceId, Hash);
+			byte[]? StoredData = await BlobCollection.ReadBytesAsync(NamespaceId, Hash);
 			Assert.IsNotNull(StoredData);
 			Assert.IsTrue(TestData.AsSpan().SequenceEqual(StoredData));
 			Assert.IsTrue(await BlobCollection.ExistsAsync(NamespaceId, Hash));
 
 			NamespaceId OtherNamespaceId = new NamespaceId("other-ns");
-			Assert.IsNull(await BlobCollection.GetAsync(OtherNamespaceId, Hash));
+			Assert.IsNull(await BlobCollection.ReadAsync(OtherNamespaceId, Hash));
 			Assert.IsFalse(await BlobCollection.ExistsAsync(OtherNamespaceId, Hash));
 		}
 
@@ -137,9 +137,9 @@ namespace HordeServerTests
 			Assert.IsFalse(Ref!.Finalized);
 
 			// Add blobs A, B and C and check that the object can be finalized
-			await BlobCollection.AddAsync(NamespaceId, HashA, BlobA);
-			await BlobCollection.AddAsync(NamespaceId, HashB, BlobB);
-			await BlobCollection.AddAsync(NamespaceId, HashC, BlobC);
+			await BlobCollection.WriteBytesAsync(NamespaceId, HashA, BlobA);
+			await BlobCollection.WriteBytesAsync(NamespaceId, HashB, BlobB);
+			await BlobCollection.WriteBytesAsync(NamespaceId, HashC, BlobC);
 
 			MissingHashes = await RefCollection.FinalizeAsync(Ref);
 			Assert.AreEqual(0, MissingHashes.Count);

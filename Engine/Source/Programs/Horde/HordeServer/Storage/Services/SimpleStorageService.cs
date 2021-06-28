@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using HordeServer.Storage.Impl;
 using HordeServer.Storage.Primitives;
 using Microsoft.Extensions.Options;
 using System;
@@ -57,7 +56,7 @@ namespace HordeServer.Storage.Services
 		public async Task<ReadOnlyMemory<byte>?> TryGetBlobAsync(IoHash Hash, DateTime Deadline = default)
 		{
 			string Path = GetItemPath(BlobsPath, Hash);
-			return await Backend.ReadAsync(Path);
+			return await Backend.ReadBytesAsync(Path);
 		}
 
 		/// <inheritdoc/>
@@ -70,9 +69,9 @@ namespace HordeServer.Storage.Services
 			}
 
 			string Path = GetItemPath(BlobsPath, Hash);
-			if (!await Backend.TouchAsync(Path))
+			if (!await Backend.ExistsAsync(Path))
 			{
-				await Backend.WriteAsync(Path, Value);
+				await Backend.WriteBytesAsync(Path, Value);
 			}
 		}
 
@@ -93,21 +92,20 @@ namespace HordeServer.Storage.Services
 			}
 			else
 			{
-				await Backend.WriteAsync(Path, Value.Value.Memory);
+				await Backend.WriteBytesAsync(Path, Value.Value.Memory);
 			}
 		}
 
 		/// <inheritdoc/>
-		public async Task TouchRefAsync(IoHash Key)
+		public Task TouchRefAsync(IoHash Key)
 		{
-			string Path = GetItemPath(RefsPath, Key);
-			await Backend.TouchAsync(Path);
+			return Task.CompletedTask;
 		}
 
 		/// <inheritdoc/>
 		public async Task<IoHash?> GetRefAsync(IoHash Key, TimeSpan MaxDrift = default)
 		{
-			ReadOnlyMemory<byte>? Memory = await Backend.ReadAsync(GetItemPath(RefsPath, Key));
+			ReadOnlyMemory<byte>? Memory = await Backend.ReadBytesAsync(GetItemPath(RefsPath, Key));
 			if (Memory == null)
 			{
 				return null;

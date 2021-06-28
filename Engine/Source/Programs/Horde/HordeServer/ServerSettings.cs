@@ -55,7 +55,6 @@ namespace HordeServer
 		Aws,
 	}
 
-	
 	/// <summary>
 	/// Settings for a remote execution instance
 	///
@@ -245,24 +244,14 @@ namespace HordeServer
 		public StorageProviderType ExternalStorageProviderType { get; set; } = StorageProviderType.FileSystem;
 
 		/// <summary>
-		/// Local log/artifact storage directory, if using type filesystem
+		/// Local storage directory, if using type filesystem
 		/// </summary>
-		public string LocalLogsDir { get; set; } = "Logs";
+		public string LocalStorageDir { get; set; } = "Storage";
 
 		/// <summary>
 		/// Gets the full path referred to by LocalStorageDir
 		/// </summary>
-		public DirectoryReference LocalLogsDirRef => DirectoryReference.Combine(Program.DataDir, LocalLogsDir);
-
-		/// <summary>
-		/// Local blob storage directory, if using type filesystem
-		/// </summary>
-		public string LocalBlobsDir { get; set; } = "Blobs";
-
-		/// <summary>
-		/// Gets the full path referred to by LocalStorageDir
-		/// </summary>
-		public DirectoryReference LocalBlobsDirRef => DirectoryReference.Combine(Program.DataDir, LocalBlobsDir);
+		public DirectoryReference LocalStorageDirRef => DirectoryReference.Combine(Program.DataDir, LocalStorageDir);
 
 		/// <summary>
 		/// Local artifact storage directory, if using type filesystem
@@ -282,7 +271,7 @@ namespace HordeServer
 		/// <summary>
 		/// Arn to assume for s3.  "Basic", "AssumeRole", "AssumeRoleWebIdentity" only
 		/// </summary>
-		public string S3CredentialType { get; set; } = null!;
+		public string? S3CredentialType { get; set; }
 
 		/// <summary>
 		/// S3 Client username (used in Basic auth type only)

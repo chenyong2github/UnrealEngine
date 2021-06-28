@@ -22,8 +22,8 @@ using HordeServer.Rpc;
 using HordeServer.Services;
 using HordeServer.Services.Impl;
 using HordeServer.Storage;
+using HordeServer.Storage.Backends;
 using HordeServer.Storage.Collections;
-using HordeServer.Storage.Impl;
 using HordeServer.Storage.Services;
 using HordeServer.Tasks.Impl;
 using HordeServer.Utilities;
@@ -132,9 +132,8 @@ namespace HordeServerTests
 			Settings.AdminClaimValue = "app-horde-admins";
 
 			DirectoryReference DataDir = DirectoryReference.Combine(BaseDir, Guid.NewGuid().ToString("N"));
-			Settings.LocalLogsDir = DirectoryReference.Combine(DataDir, "Logs").FullName;
 			Settings.LocalArtifactsDir = DirectoryReference.Combine(DataDir, "Artifacts").FullName;
-			Settings.LocalBlobsDir = DirectoryReference.Combine(DataDir, "Blobs").FullName;
+			Settings.LocalStorageDir = DataDir.FullName;
 		}
 
 		protected virtual void ConfigureServices(IServiceCollection Services)
@@ -211,14 +210,14 @@ namespace HordeServerTests
 			Services.AddSingleton<ContentStorageService>();
 			Services.AddSingleton<ExecutionService>();
 
-			Services.AddSingleton<IBlobCollection, FileSystemBlobCollection>();
+			Services.AddSingleton<IBlobCollection, BlobCollection>();
 			Services.AddSingleton<IObjectCollection, ObjectCollection>();
 			Services.AddSingleton<IRefCollection, RefCollection>();
 			Services.AddSingleton<INamespaceCollection, NamespaceCollection>();
 			Services.AddSingleton<IBucketCollection, BucketCollection>();
 
-			Services.AddSingleton<FileSystemStorageBackend>();
-			Services.AddSingleton<IStorageService, SimpleStorageService>(SP => new SimpleStorageService(SP.GetRequiredService<FileSystemStorageBackend>()));
+			Services.AddSingleton<IStorageBackend, FileSystemStorageBackend>();
+			Services.AddSingleton<IStorageService, SimpleStorageService>(SP => new SimpleStorageService(SP.GetRequiredService<IStorageBackend>()));
 
 			Services.AddSingleton<ISingletonDocument<GlobalPermissions>>(new SingletonDocumentStub<GlobalPermissions>());
 			Services.AddSingleton<ISingletonDocument<AgentSoftwareChannels>>(new SingletonDocumentStub<AgentSoftwareChannels>());

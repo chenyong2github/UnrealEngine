@@ -91,7 +91,7 @@ namespace HordeServer.Storage.Controllers
 
 			using (Stream Stream = File.OpenReadStream())
 			{
-				await BlobCollection.AddAsync(NamespaceId, Hash, Stream);
+				await BlobCollection.WriteAsync(NamespaceId, Hash, Stream);
 			}
 
 			return new PutBlobResponse { Hash = Hash };
@@ -136,7 +136,7 @@ namespace HordeServer.Storage.Controllers
 				return Forbid();
 			}
 
-			Stream? Stream = await BlobCollection.GetAsync(NamespaceId, Hash);
+			Stream? Stream = await BlobCollection.ReadAsync(NamespaceId, Hash);
 			if (Stream == null)
 			{
 				return NotFound();
