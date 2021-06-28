@@ -420,14 +420,11 @@ namespace HordeServer
 			Services.AddSingleton<DeviceService>();
 
 			AWSOptions Options = Configuration.GetAWSOptions();
-
-			Serilog.Log.Logger.Information("AWS: {Key}={Value}", "CredentialsType", Options.Credentials?.GetType()?.Name);
-			Serilog.Log.Logger.Information("AWS: {Key}={Value}", "DefaultCredentialsType", FallbackCredentialsFactory.GetCredentials()?.GetType()?.Name);
-
-			if (Settings.S3CredentialType == "AssumeRole" && !String.IsNullOrEmpty(Settings.S3AssumeArn) && Options.Credentials != null)
+			if (Settings.S3CredentialType == "AssumeRole" && !String.IsNullOrEmpty(Settings.S3AssumeArn))
 			{
-				Options.Credentials = new AssumeRoleAWSCredentials(Options.Credentials, Settings.S3AssumeArn, "Horde");
+				Options.Credentials = new AssumeRoleAWSCredentials(FallbackCredentialsFactory.GetCredentials(), Settings.S3AssumeArn, "Horde");
 			}
+
 			Services.AddDefaultAWSOptions(Options);
 			Services.AddAWSService<IAmazonS3>();
 
