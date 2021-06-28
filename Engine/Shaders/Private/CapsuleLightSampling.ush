@@ -141,8 +141,7 @@ float CapsuleIntersect(float3 Rd, float3 Center, float3 Axis, float Radius2, flo
 		// caps
 		float3 oc = oa - (sign(y) * 0.5 * Length) * ba;
 		b = dot(Rd, oc);
-		c = dot(oc, oc) - Radius2;
-		h = b * b - c;
+		h = Radius2 - length2(oc - b * Rd);
 		if (h > 0.0)
 		{
 			return -b - sqrt(h);
