@@ -242,10 +242,9 @@ bool UCameraNodalOffsetAlgoAruco::PopulatePoints(FText& OutErrorMessage)
 			// Build calibrator point name based on the detected marker
 			const FString MarkerName = FString::Printf(TEXT("%s-%d-%s"), *DictionaryInfo.Name, MarkerIds[MarkerIdx], *CornerNames[CornerIdx]); //-V557
 
-			// Find the corresponding calibrator point
-			const UCalibrationPointComponent* CalibrationPointComponent = GetCalibrationPointComponentFromName(MarkerName);
+			FCalibratorPointCache PointCache;
 
-			if (!CalibrationPointComponent)
+			if (!CalibratorPointCacheFromName(MarkerName, PointCache))
 			{
 				continue;
 			}
@@ -257,7 +256,7 @@ bool UCameraNodalOffsetAlgoAruco::PopulatePoints(FText& OutErrorMessage)
 			Row->Point2D.X = float(MarkerCorners[MarkerIdx][CornerIdx].x) / Size.X;
 			Row->Point2D.Y = float(MarkerCorners[MarkerIdx][CornerIdx].y) / Size.Y;
 
-			Row->CalibratorPointData.Location = CalibrationPointComponent->GetComponentLocation();
+			Row->CalibratorPointData.Location = PointCache.Location;
 			Row->CalibratorPointData.Name = MarkerName;
 			Row->CalibratorPointData.bIsValid = true;
 

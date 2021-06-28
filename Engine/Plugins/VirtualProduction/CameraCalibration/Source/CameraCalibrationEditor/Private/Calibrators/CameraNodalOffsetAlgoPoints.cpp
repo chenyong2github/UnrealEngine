@@ -143,17 +143,12 @@ void UCameraNodalOffsetAlgoPoints::Tick(float DeltaTime)
 					continue;
 				}
 
-				const UCalibrationPointComponent* CalibrationPointComponent = GetCalibrationPointComponentFromName(CalibratorPoint->Name);
+				FCalibratorPointCache PointCache;
 
-				if (!CalibrationPointComponent)
+				if (!CalibratorPointCacheFromName(CalibratorPoint->Name, PointCache))
 				{
 					continue;
 				}
-
-				FCalibratorPointCache PointCache;
-				PointCache.Name = CalibratorPoint->Name;
-				PointCache.Location = CalibrationPointComponent->GetComponentLocation();
-				PointCache.bIsValid = true;
 
 				LastCalibratorPoints.Emplace(MoveTemp(PointCache));
 			}
@@ -356,14 +351,15 @@ bool UCameraNodalOffsetAlgoPoints::GetCurrentCalibratorPointLocation(FVector& Ou
 	{
 		return false;
 	}
-	const UCalibrationPointComponent* CalibrationPointComponent = GetCalibrationPointComponentFromName(CalibratorPointData->Name);
 
-	if (!CalibrationPointComponent)
+	FCalibratorPointCache PointCache;
+
+	if (!CalibratorPointCacheFromName(CalibratorPointData->Name, PointCache))
 	{
 		return false;
 	}
 
-	OutLocation = CalibrationPointComponent->GetComponentLocation();
+	OutLocation = PointCache.Location;
 
 	return true;
 }
@@ -1332,11 +1328,13 @@ AActor* UCameraNodalOffsetAlgoPoints::FindFirstCalibrator() const
 	return nullptr;
 }
 
-const UCalibrationPointComponent* UCameraNodalOffsetAlgoPoints::GetCalibrationPointComponentFromName(const FString& Name) const
+bool UCameraNodalOffsetAlgoPoints::CalibratorPointCacheFromName(const FString& Name, FCalibratorPointCache& CalibratorPointCache) const
 {
+	CalibratorPointCache.bIsValid = false;
+
 	if (!Calibrator.IsValid())
 	{
-		return nullptr;
+		return false;
 	}
 
 	TArray<UCalibrationPointComponent*, TInlineAllocator<4>> CalibrationPoints;
@@ -1344,13 +1342,15 @@ const UCalibrationPointComponent* UCameraNodalOffsetAlgoPoints::GetCalibrationPo
 
 	for (const UCalibrationPointComponent* CalibrationPoint : CalibrationPoints)
 	{
-		if (CalibrationPoint->GetName() == Name)
+		if (CalibrationPoint->GetWorldLocation(Name, CalibratorPointCache.Location))
 		{
-			return CalibrationPoint;
+			CalibratorPointCache.bIsValid = true;
+			CalibratorPointCache.Name = Name;
+			return true;
 		}
 	}
 
-	return nullptr;
+	return false;
 }
 
 void UCameraNodalOffsetAlgoPoints::SetCalibrator(AActor* InCalibrator)
@@ -1371,7 +1371,14 @@ void UCameraNodalOffsetAlgoPoints::SetCalibrator(AActor* InCalibrator)
 
 	for (const UCalibrationPointComponent* CalibrationPoint : CalibrationPoints)
 	{
-		CurrentCalibratorPoints.Add(MakeShared<FCalibratorPointData>(CalibrationPoint->GetName()));
+		TArray<FString> PointNames;
+
+		CalibrationPoint->GetNamespacedPointNames(PointNames);
+
+		for (FString& PointName : PointNames)
+		{
+			CurrentCalibratorPoints.Add(MakeShared<FCalibratorPointData>(PointName));
+		}
 	}
 
 	// Notify combobox

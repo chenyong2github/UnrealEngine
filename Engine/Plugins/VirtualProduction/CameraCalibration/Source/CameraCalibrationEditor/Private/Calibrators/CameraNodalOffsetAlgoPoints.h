@@ -61,7 +61,7 @@ protected:
 	/** Holds item information a given calibrator point in the calibrator model */
 	struct FCalibratorPointData
 	{
-		FCalibratorPointData(FString&& InName)
+		FCalibratorPointData(FString& InName)
 			: Name(InName)
 		{}
 
@@ -183,8 +183,15 @@ protected:
 	/** Clears the list of calibration sample rows */
 	void ClearCalibrationRows();
 
-	/** Retrieves by name the UCalibrationPointComponent of the currently selected calibrator */
-	const UCalibrationPointComponent* GetCalibrationPointComponentFromName(const FString& Name) const;
+	/** 
+	 * Retrieves by name the calibration point data of the currently selected calibrator.
+	 * 
+	 * @param Name The name of the point (namespaced if it is a subpoint).
+	 * @param CalibratorPointCache This data structure will be populated with the information found.
+	 * 
+	 * @return True if successful.
+	 */
+	bool CalibratorPointCacheFromName(const FString& Name, FCalibratorPointCache& CalibratorPointCache) const;
 
 	/** Returns the world 3d location of the currently selected calibrator */
 	bool GetCurrentCalibratorPointLocation(FVector& OutLocation);
