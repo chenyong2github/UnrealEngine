@@ -173,6 +173,9 @@
 		<!-- Build files -->
 		Engine/Build/Build.version
 		Engine/Build/Target.cs.template
+		
+		<!-- Source code and demos for container images -->
+		Engine/Extras/Containers/...
 	</Property>
 	
 	<!-- Files which can exist under any engine or engine-platform directory -->
