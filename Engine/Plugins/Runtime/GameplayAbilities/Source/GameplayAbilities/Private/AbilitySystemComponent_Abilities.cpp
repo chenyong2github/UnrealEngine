@@ -924,12 +924,6 @@ void UAbilitySystemComponent::DestroyActiveState()
 		// Avoid re-entrancy (ie if during CancelAbilities() an EndAbility callback destroys the Actor owning this ability system)
 		bDestroyActiveStateInitiated = true;
 
-		if (!HasBeenInitialized())
-		{
-			// If we're destroyed before abilities were added, don't try to remove them
-			return;
-		}
-
 		// Cancel all abilities before we are destroyed.
 		FGameplayAbilityActorInfo* ActorInfo = AbilityActorInfo.Get();
 		
