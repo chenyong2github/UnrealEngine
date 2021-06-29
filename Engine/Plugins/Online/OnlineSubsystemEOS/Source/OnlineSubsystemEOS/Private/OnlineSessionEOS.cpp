@@ -3334,40 +3334,47 @@ void FOnlineSessionEOS::SetLobbyAttributes(EOS_HLobbyModification LobbyModificat
 	check(Session != nullptr);
 
 	// The first will let us find it on session searches
-	FString SearchPresence(TEXT("FOSS=") + SEARCH_PRESENCE.ToString());
-	FLobbyAttributeOptions SearchPresenceAttribute(TCHAR_TO_UTF8(*SearchPresence), true);
+	const FString SearchPresence(TEXT("FOSS=") + SEARCH_PRESENCE.ToString());
+	const FLobbyAttributeOptions SearchPresenceAttribute(TCHAR_TO_UTF8(*SearchPresence), true);
 	AddLobbyAttribute(LobbyModificationHandle, &SearchPresenceAttribute);
 
 	// The second will let us find it on lobby searches
-	FString SearchLobbies(TEXT("FOSS=") + SEARCH_LOBBIES.ToString());
-	FLobbyAttributeOptions SearchLobbiesAttribute(TCHAR_TO_UTF8(*SearchLobbies), true);
+	const FString SearchLobbies(TEXT("FOSS=") + SEARCH_LOBBIES.ToString());
+	const FLobbyAttributeOptions SearchLobbiesAttribute(TCHAR_TO_UTF8(*SearchLobbies), true);
 	AddLobbyAttribute(LobbyModificationHandle, &SearchLobbiesAttribute);
 
 	// The second will let us find it on lobby searches
 	FString Keyword;
 	Session->SessionSettings.Get(SEARCH_KEYWORDS, Keyword);
-	FString SearchKeywords(TEXT("FOSS=") + SEARCH_KEYWORDS.ToString());
-	FLobbyAttributeOptions SearchKeywordsAttribute(TCHAR_TO_UTF8(*SearchKeywords), TCHAR_TO_UTF8(*Keyword));
+	const FString SearchKeywords(TEXT("FOSS=") + SEARCH_KEYWORDS.ToString());
+	const FLobbyAttributeOptions SearchKeywordsAttribute(TCHAR_TO_UTF8(*SearchKeywords), TCHAR_TO_UTF8(*Keyword));
 	AddLobbyAttribute(LobbyModificationHandle, &SearchKeywordsAttribute);
 
+	// We set the session's owner id and name
+	const FLobbyAttributeOptions OwnerId("OwningUserId", TCHAR_TO_UTF8(*Session->OwningUserId->ToString()));
+	AddLobbyAttribute(LobbyModificationHandle, &OwnerId);
+
+	const FLobbyAttributeOptions OwnerName("OwningUserName", TCHAR_TO_UTF8(*Session->OwningUserName));
+	AddLobbyAttribute(LobbyModificationHandle, &OwnerName);
+
 	// Now the session settings
-	FLobbyAttributeOptions Opt1("NumPrivateConnections", Session->SessionSettings.NumPrivateConnections);
+	const FLobbyAttributeOptions Opt1("NumPrivateConnections", Session->SessionSettings.NumPrivateConnections);
 	AddLobbyAttribute(LobbyModificationHandle, &Opt1);
 
-	FLobbyAttributeOptions Opt2("NumPublicConnections", Session->SessionSettings.NumPublicConnections);
+	const FLobbyAttributeOptions Opt2("NumPublicConnections", Session->SessionSettings.NumPublicConnections);
 	AddLobbyAttribute(LobbyModificationHandle, &Opt2);
 
-	FLobbyAttributeOptions Opt5("bAntiCheatProtected", Session->SessionSettings.bAntiCheatProtected);
+	const FLobbyAttributeOptions Opt5("bAntiCheatProtected", Session->SessionSettings.bAntiCheatProtected);
 	AddLobbyAttribute(LobbyModificationHandle, &Opt5);
 
-	FLobbyAttributeOptions Opt6("bUsesStats", Session->SessionSettings.bUsesStats);
+	const FLobbyAttributeOptions Opt6("bUsesStats", Session->SessionSettings.bUsesStats);
 	AddLobbyAttribute(LobbyModificationHandle, &Opt6);
 
 	// Likely unnecessary for lobbies
-	FLobbyAttributeOptions Opt7("bIsDedicated", Session->SessionSettings.bIsDedicated);
+	const FLobbyAttributeOptions Opt7("bIsDedicated", Session->SessionSettings.bIsDedicated);
 	AddLobbyAttribute(LobbyModificationHandle, &Opt7);
 
-	FLobbyAttributeOptions Opt8("BuildUniqueId", Session->SessionSettings.BuildUniqueId);
+	const FLobbyAttributeOptions Opt8("BuildUniqueId", Session->SessionSettings.BuildUniqueId);
 	AddLobbyAttribute(LobbyModificationHandle, &Opt8);
 
 	// Add all of the custom settings
@@ -3382,7 +3389,7 @@ void FOnlineSessionEOS::SetLobbyAttributes(EOS_HLobbyModification LobbyModificat
 			continue;
 		}
 
-		FLobbyAttributeOptions Attribute(TCHAR_TO_UTF8(*KeyName.ToString()), Setting.Data);
+		const FLobbyAttributeOptions Attribute(TCHAR_TO_UTF8(*KeyName.ToString()), Setting.Data);
 		AddLobbyAttribute(LobbyModificationHandle, &Attribute);
 	}
 
@@ -3403,7 +3410,7 @@ void FOnlineSessionEOS::SetLobbyAttributes(EOS_HLobbyModification LobbyModificat
 					continue;
 				}
 
-				FLobbyAttributeOptions Attribute(TCHAR_TO_UTF8(*KeyName.ToString()), Setting.Data);
+				const FLobbyAttributeOptions Attribute(TCHAR_TO_UTF8(*KeyName.ToString()), Setting.Data);
 				AddLobbyMemberAttribute(LobbyModificationHandle, &Attribute);
 			}
 		}
@@ -3838,8 +3845,16 @@ void FOnlineSessionEOS::CopyLobbyAttributes(EOS_HLobbyDetails LobbyDetailsHandle
 		EOS_EResult ResultCode = EOS_LobbyDetails_CopyAttributeByIndex(LobbyDetailsHandle, &AttrOptions, &Attribute);
 		if (ResultCode == EOS_EResult::EOS_Success)
 		{
-			FString Key = Attribute->Data->Key;
-			if (Key == TEXT("NumPublicConnections"))
+			FString Key = UTF8_TO_TCHAR(Attribute->Data->Key);
+			if (Key == TEXT("OwningUserId"))
+			{
+				OutSession.OwningUserId = FUniqueNetIdEOS::Create(UTF8_TO_TCHAR(Attribute->Data->Value.AsUtf8));
+			}
+			else if (Key == TEXT("OwningUserName"))
+			{
+				OutSession.OwningUserName = UTF8_TO_TCHAR(Attribute->Data->Value.AsUtf8);
+			}
+			else if (Key == TEXT("NumPublicConnections"))
 			{
 				OutSession.SessionSettings.NumPublicConnections = Attribute->Data->Value.AsInt64;
 			}
