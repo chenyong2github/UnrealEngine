@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using HordeServer.Services;
 using HordeServer.Storage.Primitives;
 using Microsoft.Extensions.Options;
 using System;
@@ -36,7 +37,7 @@ namespace HordeServer.Storage.Services
 		/// Constructor
 		/// </summary>
 		/// <param name="Backend">The storage backend</param>
-		public SimpleStorageService(IStorageBackend Backend)
+		public SimpleStorageService(IStorageBackend<ArtifactService> Backend)
 		{
 			this.Backend = Backend;
 		}

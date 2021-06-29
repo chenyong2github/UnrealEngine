@@ -14,6 +14,7 @@ using HordeServer.Collections.Impl;
 using HordeServer.Controllers;
 using HordeServer.Logs;
 using HordeServer.Logs.Builder;
+using HordeServer.Logs.Readers;
 using HordeServer.Logs.Storage.Impl;
 using HordeServer.Models;
 using HordeServer.Notifications;
@@ -130,10 +131,6 @@ namespace HordeServerTests
 
 			Settings.AdminClaimType = HordeClaimTypes.Role;
 			Settings.AdminClaimValue = "app-horde-admins";
-
-			DirectoryReference DataDir = DirectoryReference.Combine(BaseDir, Guid.NewGuid().ToString("N"));
-			Settings.LocalArtifactsDir = DirectoryReference.Combine(DataDir, "Artifacts").FullName;
-			Settings.LocalStorageDir = DataDir.FullName;
 		}
 
 		protected virtual void ConfigureServices(IServiceCollection Services)
@@ -216,8 +213,12 @@ namespace HordeServerTests
 			Services.AddSingleton<INamespaceCollection, NamespaceCollection>();
 			Services.AddSingleton<IBucketCollection, BucketCollection>();
 
-			Services.AddSingleton<IStorageBackend, FileSystemStorageBackend>();
-			Services.AddSingleton<IStorageService, SimpleStorageService>(SP => new SimpleStorageService(SP.GetRequiredService<IStorageBackend>()));
+			Services.AddSingleton(new Startup.StorageBackendSettings<PersistentLogStorage> { Type = StorageProviderType.Transient });
+			Services.AddSingleton(new Startup.StorageBackendSettings<ArtifactService> { Type = StorageProviderType.Transient });
+			Services.AddSingleton(new Startup.StorageBackendSettings<BlobCollection> { Type = StorageProviderType.Transient });
+			Services.AddSingleton(typeof(IStorageBackend<>), typeof(Startup.StorageBackendFactory<>));
+
+			Services.AddSingleton<IStorageService, SimpleStorageService>();
 
 			Services.AddSingleton<ISingletonDocument<GlobalPermissions>>(new SingletonDocumentStub<GlobalPermissions>());
 			Services.AddSingleton<ISingletonDocument<AgentSoftwareChannels>>(new SingletonDocumentStub<AgentSoftwareChannels>());

@@ -24,7 +24,7 @@ namespace HordeServer.Storage.Collections
 		/// Constructor
 		/// </summary>
 		/// <param name="StorageBackend"></param>
-		public BlobCollection(IStorageBackend StorageBackend)
+		public BlobCollection(IStorageBackend<BlobCollection> StorageBackend)
 		{
 			this.StorageBackend = StorageBackend;
 		}

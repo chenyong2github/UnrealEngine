@@ -1,7 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using HordeServer.Logs.Readers;
+using HordeServer.Models;
 using HordeServer.Services;
+using HordeServer.Storage;
+using HordeServer.Storage.Backends;
+using HordeServer.Storage.Collections;
 using HordeServer.Utilities;
 using System;
 using System.Collections.Generic;
@@ -246,12 +251,7 @@ namespace HordeServer
 		/// <summary>
 		/// Local storage directory, if using type filesystem
 		/// </summary>
-		public string LocalStorageDir { get; set; } = "Storage";
-
-		/// <summary>
-		/// Gets the full path referred to by LocalStorageDir
-		/// </summary>
-		public DirectoryReference LocalStorageDirRef => DirectoryReference.Combine(Program.DataDir, LocalStorageDir);
+		public string LocalLogsDir { get; set; } = "Logs";
 
 		/// <summary>
 		/// Local artifact storage directory, if using type filesystem
@@ -259,9 +259,9 @@ namespace HordeServer
 		public string LocalArtifactsDir { get; set; } = "Artifacts";
 
 		/// <summary>
-		/// Gets the full path referred to by LocalStorageDir
+		/// Local artifact storage directory, if using type filesystem
 		/// </summary>
-		public DirectoryReference LocalArtifactsDirRef => DirectoryReference.Combine(Program.DataDir, LocalArtifactsDir);
+		public string LocalBlobsDir { get; set; } = "Blobs";
 
 		/// <summary>
 		/// S3 bucket region for logfile storage
@@ -297,6 +297,11 @@ namespace HordeServer
 		/// S3 artifact bucket name
 		/// </summary>
 		public string S3ArtifactBucketName { get; set; } = null!;
+
+		/// <summary>
+		/// S3 blob bucket name
+		/// </summary>
+		public string S3BlobBucketName { get; set; } = null!;
 
 		/// <summary>
 		/// When using a relay storage provider, specifies the remote server to use

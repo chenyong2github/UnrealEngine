@@ -12,7 +12,7 @@ namespace HordeServer.Storage.Backends
 	/// <summary>
 	/// In-memory implementation of ILogFileStorage
 	/// </summary>
-	public sealed class TransientStorageBackend : IStorageBackend
+	public class TransientStorageBackend : IStorageBackend
 	{
 		/// <summary>
 		/// Data storage

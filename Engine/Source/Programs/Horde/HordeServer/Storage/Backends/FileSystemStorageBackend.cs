@@ -13,7 +13,21 @@ using System.Threading.Tasks;
 
 namespace HordeServer.Storage.Backends
 {
-	class FileSystemStorageBackend : IStorageBackend
+	/// <summary>
+	/// Options for the filesystem backend
+	/// </summary>
+	public interface IFileSystemStorageOptions
+	{
+		/// <summary>
+		/// Base directory for storing files
+		/// </summary>
+		public string? BaseDir { get; }
+	}
+
+	/// <summary>
+	/// Storage backend using the filesystem
+	/// </summary>
+	public class FileSystemStorageBackend : IStorageBackend
 	{
 		/// <summary>
 		/// Base directory for log files
@@ -33,11 +47,10 @@ namespace HordeServer.Storage.Backends
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Settings">Current Horde Settings</param>
-		public FileSystemStorageBackend(IOptions<ServerSettings> Settings)
+		/// <param name="Options">Current Horde Settings</param>
+		public FileSystemStorageBackend(IFileSystemStorageOptions Options)
 		{
-			ServerSettings CurrentSettings = Settings.Value;
-			this.BaseDir = CurrentSettings.LocalStorageDirRef;
+			this.BaseDir = DirectoryReference.Combine(Program.DataDir, Options.BaseDir ?? "Storage");
 			this.InstanceId = Guid.NewGuid().ToString("N");
 			DirectoryReference.CreateDirectory(BaseDir);
 		}

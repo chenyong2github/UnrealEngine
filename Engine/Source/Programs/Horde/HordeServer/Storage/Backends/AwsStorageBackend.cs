@@ -9,9 +9,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -35,6 +37,22 @@ namespace HordeServer.Storage.Backends
 	}
 
 	/// <summary>
+	/// Options for AWS
+	/// </summary>
+	public interface IAwsStorageOptions
+	{
+		/// <summary>
+		/// Name of the bucket to use
+		/// </summary>
+		public string? BucketName { get; }
+
+		/// <summary>
+		/// Base path within the bucket 
+		/// </summary>
+		public string? BucketPath { get; }
+	}
+
+	/// <summary>
 	/// FileStorage implementation using an s3 bucket
 	/// </summary>
 	public sealed class AwsStorageBackend : IStorageBackend, IDisposable
@@ -45,9 +63,9 @@ namespace HordeServer.Storage.Backends
 		private readonly IAmazonS3 Client;
 
 		/// <summary>
-		/// S3 bucket name
+		/// Options for AWs
 		/// </summary>
-		private readonly string BucketName;
+		private IAwsStorageOptions Options;
 
 		/// <summary>
 		/// Semaphore for connecting to AWS
@@ -62,14 +80,13 @@ namespace HordeServer.Storage.Backends
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="AwsOptions">The AWS options</param>
-		/// <param name="ServerSettings">Options for configuring AWS</param>
+		/// <param name="AwsOptions">AWS options</param>
+		/// <param name="Options">Storage options</param>
 		/// <param name="Logger">Logger interface</param>
-		public AwsStorageBackend(AWSOptions AwsOptions, IOptions<ServerSettings> ServerSettings, ILogger<AwsStorageBackend> Logger)
+		public AwsStorageBackend(AWSOptions AwsOptions, IAwsStorageOptions Options, ILogger<AwsStorageBackend> Logger)
 		{
-			ServerSettings OptionsValue = ServerSettings.Value;
 			this.Client = AwsOptions.CreateServiceClient<IAmazonS3>();
-			this.BucketName = OptionsValue.S3LogBucketName;
+			this.Options = Options;
 			this.Semaphore = new SemaphoreSlim(16);
 			this.Logger = Logger;
 		}
@@ -129,9 +146,28 @@ namespace HordeServer.Storage.Backends
 			}
 		}
 
+		string GetFullPath(string Path)
+		{
+			if (Options.BucketPath == null)
+			{
+				return Path;
+			}
+
+			StringBuilder Result = new StringBuilder();
+			Result.Append(Options.BucketPath);
+			if (Result.Length > 0 && Result[Result.Length - 1] != '/')
+			{
+				Result.Append('/');
+			}
+			Result.Append(Path);
+			return Result.ToString();
+		}
+
 		/// <inheritdoc/>
 		public async Task<Stream?> ReadAsync(string Path)
 		{
+			string FullPath = GetFullPath(Path);
+
 			IDisposable? Lock = null;
 			GetObjectResponse? Response = null;
 			try
@@ -139,8 +175,8 @@ namespace HordeServer.Storage.Backends
 				Lock = await Semaphore.UseWaitAsync();
 
 				GetObjectRequest NewGetRequest = new GetObjectRequest();
-				NewGetRequest.BucketName = BucketName;
-				NewGetRequest.Key = Path;
+				NewGetRequest.BucketName = Options.BucketName;
+				NewGetRequest.Key = FullPath;
 
 				Response = await Client.GetObjectAsync(NewGetRequest);
 
@@ -148,7 +184,7 @@ namespace HordeServer.Storage.Backends
 			}
 			catch (Exception Ex)
 			{
-				Logger.LogWarning(Ex, "Unable to read {Path} from S3", Path);
+				Logger.LogWarning(Ex, "Unable to read {Path} from S3", FullPath);
 
 				Lock?.Dispose();
 				Response?.Dispose();
@@ -168,20 +204,22 @@ namespace HordeServer.Storage.Backends
 				TimeSpan.FromSeconds(10.0),
 			};
 
+			string FullPath = GetFullPath(Path);
 			for (int Attempt = 0; ; Attempt++)
 			{
 				try
 				{
-					await WriteInternalAsync(Path, InputStream);
+					using IDisposable Lock = await Semaphore.UseWaitAsync();
+					await WriteInternalAsync(FullPath, InputStream);
 					Logger.LogDebug("Written data to {Path}", Path);
 					break;
 				}
 				catch (Exception Ex)
 				{
-					Logger.LogError(Ex, "Unable to write data to {Path} ({Attempt}/{AttemptCount})", Path, Attempt + 1, RetryTimes.Length + 1);
+					Logger.LogError(Ex, "Unable to write data to {Path} ({Attempt}/{AttemptCount})", FullPath, Attempt + 1, RetryTimes.Length + 1);
 					if (Attempt >= RetryTimes.Length)
 					{
-						throw new AwsException($"Unable to write to bucket {BucketName} path {Path}", Ex);
+						throw new AwsException($"Unable to write to bucket {Options.BucketName} path {FullPath}", Ex);
 					}
 				}
 
@@ -190,16 +228,99 @@ namespace HordeServer.Storage.Backends
 		}
 
 		/// <inheritdoc/>
-		public async Task WriteInternalAsync(string Path, Stream InputStream)
+		public async Task WriteInternalAsync(string FullPath, Stream Stream)
 		{
-			using (await Semaphore.UseWaitAsync())
+			const int MinPartSize = 5 * 1024 * 1024;
+
+			long StreamLen = Stream.Length;
+			if (StreamLen < MinPartSize)
 			{
-				PutObjectRequest NewUploadRequest = new PutObjectRequest();
-				NewUploadRequest.BucketName = BucketName;
-				NewUploadRequest.Key = Path;
-				NewUploadRequest.InputStream = InputStream;
-				NewUploadRequest.Metadata.Add("bytes-written", InputStream.Length.ToString(CultureInfo.InvariantCulture));
-				await Client.PutObjectAsync(NewUploadRequest);
+				PutObjectRequest UploadRequest = new PutObjectRequest();
+				UploadRequest.BucketName = Options.BucketName;
+				UploadRequest.Key = FullPath;
+				UploadRequest.InputStream = Stream;
+				UploadRequest.Metadata.Add("bytes-written", StreamLen.ToString(CultureInfo.InvariantCulture));
+				await Client.PutObjectAsync(UploadRequest);
+			}
+			else
+			{
+				// Initiate a multi-part upload
+				InitiateMultipartUploadRequest InitiateRequest = new InitiateMultipartUploadRequest();
+				InitiateRequest.BucketName = Options.BucketName;
+				InitiateRequest.Key = FullPath;
+
+				InitiateMultipartUploadResponse InitiateResponse = await Client.InitiateMultipartUploadAsync(InitiateRequest);
+				try
+				{
+					// Buffer for reading the data
+					byte[] Buffer = new byte[MinPartSize];
+
+					// Upload all the parts
+					List<PartETag> PartTags = new List<PartETag>();
+					for (long StreamPos = 0; StreamPos < StreamLen;)
+					{
+						// Read the next chunk of data into the buffer
+						int BufferLen = (int)Math.Min((long)MinPartSize, StreamLen - StreamPos);
+						await ReadExactLengthAsync(Stream, Buffer, BufferLen);
+						StreamPos += BufferLen;
+
+						// Upload the part
+						using (MemoryStream InputStream = new MemoryStream(Buffer, 0, BufferLen))
+						{
+							UploadPartRequest PartRequest = new UploadPartRequest();
+							PartRequest.BucketName = Options.BucketName;
+							PartRequest.Key = FullPath;
+							PartRequest.UploadId = InitiateResponse.UploadId;
+							PartRequest.InputStream = InputStream;
+							PartRequest.PartSize = BufferLen;
+							PartRequest.PartNumber = PartTags.Count + 1;
+							PartRequest.IsLastPart = (StreamPos == StreamLen);
+
+							UploadPartResponse PartResponse = await Client.UploadPartAsync(PartRequest);
+							PartTags.Add(new PartETag(PartResponse.PartNumber, PartResponse.ETag));
+						}
+					}
+
+					// Mark the upload as complete
+					CompleteMultipartUploadRequest CompleteRequest = new CompleteMultipartUploadRequest();
+					CompleteRequest.BucketName = Options.BucketName;
+					CompleteRequest.Key = FullPath;
+					CompleteRequest.UploadId = InitiateResponse.UploadId;
+					CompleteRequest.PartETags = PartTags;
+					await Client.CompleteMultipartUploadAsync(CompleteRequest);
+				}
+				catch
+				{
+					// Abort the upload
+					AbortMultipartUploadRequest AbortRequest = new AbortMultipartUploadRequest();
+					AbortRequest.BucketName = Options.BucketName;
+					AbortRequest.Key = FullPath;
+					AbortRequest.UploadId = InitiateResponse.UploadId;
+					await Client.AbortMultipartUploadAsync(AbortRequest);
+
+					throw;
+				}
+			}
+		}
+
+		/// <summary>
+		/// Reads data of an exact length into a stream
+		/// </summary>
+		/// <param name="Stream">The stream to read from</param>
+		/// <param name="Buffer">The buffer to read into</param>
+		/// <param name="Length">Length of the data to read</param>
+		/// <returns>Async task</returns>
+		static async Task ReadExactLengthAsync(System.IO.Stream Stream, byte[] Buffer, int Length)
+		{
+			int BufferPos = 0;
+			while (BufferPos < Length)
+			{
+				int BytesRead = await Stream.ReadAsync(Buffer, BufferPos, Length - BufferPos);
+				if (BytesRead == 0)
+				{
+					throw new InvalidOperationException("Unexpected end of stream");
+				}
+				BufferPos += BytesRead;
 			}
 		}
 
@@ -207,8 +328,8 @@ namespace HordeServer.Storage.Backends
 		public async Task DeleteAsync(string Path)
 		{
 			DeleteObjectRequest NewDeleteRequest = new DeleteObjectRequest();
-			NewDeleteRequest.BucketName = BucketName;
-			NewDeleteRequest.Key = Path;
+			NewDeleteRequest.BucketName = Options.BucketName;
+			NewDeleteRequest.Key = GetFullPath(Path);
 			await Client.DeleteObjectAsync(NewDeleteRequest);
 		}
 
@@ -218,8 +339,8 @@ namespace HordeServer.Storage.Backends
 			try
 			{
 				GetObjectMetadataRequest Request = new GetObjectMetadataRequest();
-				Request.BucketName = BucketName;
-				Request.Key = Path;
+				Request.BucketName = Options.BucketName;
+				Request.Key = GetFullPath(Path);
 				await Client.GetObjectMetadataAsync(Request);
 				return true;
 			}

@@ -232,7 +232,7 @@ namespace HordeServer.Controllers
 			}
 
 			// Fun, filestream result automatically closes the stream!
-			return new FileStreamResult(ArtifactService.OpenArtifactReadStream(Artifact), Artifact.MimeType);
+			return new FileStreamResult(await ArtifactService.OpenArtifactReadStreamAsync(Artifact), Artifact.MimeType);
 		}
 		
 		/// <summary>
@@ -261,7 +261,7 @@ namespace HordeServer.Controllers
 			}
 
 			Artifact Artifact = Artifacts[0];
-			return new FileStreamResult(ArtifactService.OpenArtifactReadStream(Artifact), Artifact.MimeType);
+			return new FileStreamResult(await ArtifactService.OpenArtifactReadStreamAsync(Artifact), Artifact.MimeType);
 		}
 
 		/// <summary>
@@ -334,7 +334,7 @@ namespace HordeServer.Controllers
 				return Forbid();
 			}
 
-			return new InlineFileStreamResult(ArtifactService.OpenArtifactReadStream(Artifact), Artifact.MimeType, Path.GetFileName(Artifact.Name));
+			return new InlineFileStreamResult(await ArtifactService.OpenArtifactReadStreamAsync(Artifact), Artifact.MimeType, Path.GetFileName(Artifact.Name));
 		}
 
 		/// <summary>
@@ -400,7 +400,7 @@ namespace HordeServer.Controllers
 					{
 						foreach (Artifact Artifact in ZipArtifacts)
 						{
-							await using (System.IO.Stream ArtifactStream = ArtifactService.OpenArtifactReadStream(Artifact))
+							await using (System.IO.Stream ArtifactStream = await ArtifactService.OpenArtifactReadStreamAsync(Artifact))
 							{
 								// tack on the step name into the directory if it exists
 								string StepName = string.Empty;
