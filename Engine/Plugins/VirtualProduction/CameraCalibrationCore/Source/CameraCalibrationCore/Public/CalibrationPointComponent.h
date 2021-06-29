@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Components/SceneComponent.h"
+#include "ProceduralMeshComponent.h"
 
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
@@ -16,26 +16,50 @@
  * make a 3d-2d correspondence with the 2d points detected in the live action media.
  */
 UCLASS(ClassGroup = (Calibration), meta = (BlueprintSpawnableComponent), meta = (DisplayName = "Calibration Point"))
-class CAMERACALIBRATIONCORE_API UCalibrationPointComponent : public USceneComponent
+class CAMERACALIBRATIONCORE_API UCalibrationPointComponent : public UProceduralMeshComponent
 {
-	GENERATED_BODY() 
+	GENERATED_BODY()
+
+public:
+
+	UCalibrationPointComponent(const FObjectInitializer& ObjectInitializer);
+
+	//~ Begin UActorComponent Interface
+	virtual void OnRegister() override;
+	//~ End UActorComponent Interface
+
+	//~ Begin UObject Interface
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+	//~ End UObject Interface
 
 public:
 
 	/** 
 	 * A way to group many points in a single component. 
 	 */
-	UPROPERTY(EditAnywhere, Category="Calibration")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Calibration")
 	TMap<FString,FVector> SubPoints;
 
 	/** Optional pointer to mesh that the point(s) belong to */
-	UPROPERTY(EditInstanceOnly, Category = "Calibration", meta = (UseComponentPicker, AllowedClasses = "StaticMeshComponent", DisallowedClasses = "CalibrationPointComponent"))
-	FComponentReference Mesh;
+	UPROPERTY(EditInstanceOnly, Category = "Calibration", meta = (UseComponentPicker, AllowedClasses = "MeshComponent", DisallowedClasses = "CalibrationPointComponent"))
+	FComponentReference MeshReference;
+
+	/** Draws a visual representation of the calibration points */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Calibration")
+	bool bVisualizePointsInEditor = false;
+
+	/** Scales up/down the size of the point visualization meshes */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Calibration")
+	float PointVisualizationScale = 1.0f;
+
+public:
 
 	/** 
 	 * Returns the World location of the subpoint (or the component) specified by name 
 	 * 
-	 * @param InPointName Name of the point or subpoint. If not namespaced the component name wil have priority over subpoint name.
+	 * @param InPointName Name of the point or subpoint. If not namespaced the component name will have priority over subpoint name.
 	 * @param OutLocation World location of the specified subpoint.
 	 * 
 	 * @return True if successful.
@@ -61,4 +85,8 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Calibration")
 	void GetNamespacedPointNames(TArray<FString>& OutNamespacedNames) const;
+
+	/** Rebuilds the point visualization. */
+	UFUNCTION(BlueprintCallable, Category = "Calibration")
+	void RebuildVertices();
 };
