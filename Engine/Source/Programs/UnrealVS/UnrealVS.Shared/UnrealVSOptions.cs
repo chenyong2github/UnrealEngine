@@ -23,11 +23,8 @@ namespace UnrealVS
 			set { _HideNonGameStartupProjects = value; }
 		}
 
-		private bool _AllowUnrealVSP4;
-		private bool _AllowUnrealVSCheckoutOnEdit;
-
-		[Category("General")]
-		[DisplayName("Allow UnrealVS to auto checkout files on save")]
+		[Category("Unreal.P4")]
+		[DisplayName("Enable auto checkout on save")]
 		[Description("Uses p4 ini / environment settings to automatically checkout files on save, use 'RunUAT P4WriteConfig' to initialize those settings")]
 		public bool AllowUnrealVSCheckoutOnEdit
 		{
@@ -35,14 +32,27 @@ namespace UnrealVS
 			set { _AllowUnrealVSCheckoutOnEdit = value; }
 		}
 
-		[Category("General")]
-		[DisplayName("Allow UnrealVS to perform perforce operations")]
+		private bool _AllowUnrealVSCheckoutOnEdit;
+
+		[Category("Unreal.P4")]
+		[DisplayName("Override VS compare options")]
+		[Description("Unreal VS will override built in diff settings to the ideal for code, does not alter P4")]
+		public bool AllowUnrealVSOverrideDiffSettings
+		{
+			get { return _AllowUnrealVSOverrideDiffSettings; }
+			set { _AllowUnrealVSOverrideDiffSettings = value; }
+		}
+		private bool _AllowUnrealVSOverrideDiffSettings;
+
+		[Category("Unreal.P4")]
+		[DisplayName("Allow perforce operations")]
 		[Description("Uses p4 ini / environment settings to call P4 functionlality, use 'RunUAT P4WriteConfig' to initialize those settings")]
 		public bool AllowUnrealVSP4
 		{
 			get { return _AllowUnrealVSP4; }
 			set { _AllowUnrealVSP4 = value; }
 		}
+		private bool _AllowUnrealVSP4;
 
 		protected override void OnApply(PageApplyEventArgs e)
 		{
@@ -54,4 +64,6 @@ namespace UnrealVS
 			}
 		}
 	}
+
+
 }
