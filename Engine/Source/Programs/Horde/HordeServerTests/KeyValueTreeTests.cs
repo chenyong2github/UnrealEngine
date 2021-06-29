@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using HordeServer.Services;
 using HordeServer.Storage;
 using HordeServer.Storage.Backends;
 using HordeServer.Storage.Primitives;
@@ -66,7 +67,7 @@ namespace HordeServerTests
 		[TestMethod]
 		public async Task TestBasicInsertion()
 		{
-			TransientStorageBackend Backend = new TransientStorageBackend();
+			IStorageBackend<ArtifactService> Backend = new TransientStorageBackend().ForType<ArtifactService>();
 			SimpleStorageService Storage = new SimpleStorageService(Backend);
 
 			BlobRef<TestTreeMax2> Tree = await Storage.CreateKeyValueTreeAsync<TestTreeMax2>();
@@ -121,7 +122,7 @@ namespace HordeServerTests
 		{
 			Random Random = new Random(0x12345678);
 
-			TransientStorageBackend Backend = new TransientStorageBackend();
+			IStorageBackend<ArtifactService> Backend = new TransientStorageBackend().ForType<ArtifactService>();
 			SimpleStorageService Storage = new SimpleStorageService(Backend);
 
 			BlobRef<TestTreeMax256> Tree = await Storage.CreateKeyValueTreeAsync<TestTreeMax256>();

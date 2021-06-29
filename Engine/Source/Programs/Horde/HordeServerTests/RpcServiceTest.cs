@@ -271,7 +271,7 @@ namespace HordeServerTests
 
 			Artifact? Artifact = await TestSetup.ArtifactService.GetArtifactAsync(ObjectId.Parse(Res.Id));
 			Assert.IsNotNull(Artifact);
-			Stream Stream = TestSetup.ArtifactService.OpenArtifactReadStream(Artifact!);
+			Stream Stream = await TestSetup.ArtifactService.OpenArtifactReadStreamAsync(Artifact!);
 			StreamReader Reader = new StreamReader(Stream);
 			string text = Reader.ReadToEnd();
 			Assert.AreEqual(DataStr, text);

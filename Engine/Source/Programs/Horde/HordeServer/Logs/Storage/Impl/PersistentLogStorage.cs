@@ -2,6 +2,7 @@
 
 using EpicGames.Core;
 using HordeServer.Models;
+using HordeServer.Services;
 using HordeServer.Storage;
 using HordeServer.Utilities;
 using Microsoft.Extensions.Logging;
@@ -33,7 +34,7 @@ namespace HordeServer.Logs.Readers
 		/// </summary>
 		/// <param name="StorageProvider">The storage provider</param>
 		/// <param name="Logger">Logging provider</param>
-		public PersistentLogStorage(IStorageBackend StorageProvider, ILogger<PersistentLogStorage> Logger)
+		public PersistentLogStorage(IStorageBackend<PersistentLogStorage> StorageProvider, ILogger<PersistentLogStorage> Logger)
 		{
 			this.StorageProvider = StorageProvider;
 			this.Logger = Logger;

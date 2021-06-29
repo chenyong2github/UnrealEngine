@@ -6,6 +6,7 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using HordeServer.Api;
 using HordeServer.Models;
+using HordeServer.Storage;
 using HordeServer.Utilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
@@ -25,307 +26,14 @@ using System.Threading.Tasks;
 namespace HordeServer.Services
 {
 	/// <summary>
-	/// Interface for a artifact storage implementation
-	/// </summary>
-	public interface IArtifactStorage
-	{
-		/// <summary>
-		/// Gets an artifact from a storage device
-		/// </summary>
-		/// <param name="JobId">the job id</param>
-		/// <param name="StepId">the step id</param>
-		/// <param name="Name">The artifact name</param>
-		/// <returns>Stream to an artifact if found, null otherwise</returns>
-		System.IO.Stream OpenReadStream(ObjectId JobId, SubResourceId? StepId, string Name);
-
-		/// <summary>
-		/// Writes artifact data
-		/// </summary>
-		/// <param name="JobId">the job id</param>
-		/// <param name="StepId">the step id</param>
-		/// <param name="Name">The artifact name</param>
-		/// <param name="Data">The data to write</param>
-		/// <returns>Whether or not the update completed</returns>
-		Task WriteAsync(ObjectId JobId, SubResourceId? StepId, string Name, System.IO.Stream Data);
-	}
-
-	/// <summary>
-	/// FileStorage implementation using the file system
-	/// </summary>
-	public sealed class FSExternalArtifactStorage : IArtifactStorage
-	{
-		/// <summary>
-		/// Base directory for artifacts
-		/// </summary>
-		private readonly DirectoryInfo BaseDir;
-
-		/// <summary>
-		/// Information Logger
-		/// </summary>
-		private readonly ILogger<ArtifactService> Logger;
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="CurrentSettings">Current Horde Settings</param>
-		/// <param name="Logger">Logger interface</param>
-		public FSExternalArtifactStorage(ServerSettings CurrentSettings, ILogger<ArtifactService> Logger)
-		{
-			this.Logger = Logger;
-			this.BaseDir = new DirectoryInfo(CurrentSettings.LocalArtifactsDirRef.FullName);
-
-			Directory.CreateDirectory(this.BaseDir.FullName);
-		}
-
-		/// <inheritdoc/>
-		public System.IO.Stream OpenReadStream(ObjectId JobId, SubResourceId? StepId, string Name)
-		{
-			string FilePath = Path.Combine(BaseDir.ToString(), JobId.ToString(), StepId.ToString() ?? string.Empty, Name);
-			FileInfo ArtifactFile = new FileInfo(FilePath);
-			try
-			{
-				return new FileStream(ArtifactFile.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 4096, true);
-			}
-			catch (FileNotFoundException)
-			{
-				Logger.LogError("Tried to find artifact that didn't exist at {0}!", ArtifactFile.FullName);
-				throw;
-			}
-			catch (DirectoryNotFoundException)
-			{
-				Logger.LogError("Tried to find artifact that didn't exist at {0}!", ArtifactFile.FullName);
-				throw;
-			}
-		}
-
-		/// <inheritdoc/>
-		public async Task WriteAsync(ObjectId JobId, SubResourceId? StepId, string Name, System.IO.Stream Data)
-		{
-			string FilePath = Path.Combine(BaseDir.FullName, JobId.ToString(), StepId.ToString() ?? string.Empty, Name);
-			FileInfo ArtifactFile = new FileInfo(FilePath);
-			Directory.CreateDirectory(ArtifactFile.Directory.FullName);
-			using (FileStream FileWriter = File.Open(ArtifactFile.FullName, FileMode.Create, FileAccess.Write, FileShare.Read))
-			{
-				await Data.CopyToAsync(FileWriter);
-			}
-		}
-	}
-
-	/// <summary>
-	/// FileStorage implementation using an s3 bucket
-	/// </summary>
-	public sealed class S3ExternalArtifactStorage : IArtifactStorage
-	{
-		/// <summary>
-		/// S3 Client
-		/// </summary>
-		private readonly IAmazonS3 Client;
-
-		/// <summary>
-		/// S3 bucket name
-		/// </summary>
-		private readonly string BucketName;
-
-		/// <summary>
-		/// Information Logger
-		/// </summary>
-		private readonly ILogger<ArtifactService> Logger;
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="CurrentSettings">Current Horde Settings</param>
-		/// <param name="Configuration">Configuration</param>
-		/// <param name="Logger">Logger interface</param>
-		public S3ExternalArtifactStorage(ServerSettings CurrentSettings, IConfiguration Configuration, ILogger<ArtifactService> Logger)
-		{
-			this.Logger = Logger;
-			AWSOptions Options = Configuration.GetAWSOptions();
-			Options.Credentials = GetCredentials(CurrentSettings);
-
-			this.Client = Options.CreateServiceClient<IAmazonS3>();
-			this.BucketName = CurrentSettings.S3ArtifactBucketName;
-		}
-
-		enum AWSCredentialsType
-		{
-			Basic,
-			AssumeRole,
-			AssumeRoleWebIdentity
-		}
-
-		/// <summary>
-		/// Gets auth credentials based on type
-		/// </summary>
-		/// <param name="Settings">Horde settings</param>
-		/// <returns></returns>
-		public AWSCredentials GetCredentials(ServerSettings Settings)
-		{
-			AWSCredentialsType AuthType;
-			if (!Enum.TryParse(Settings.S3CredentialType, true, out AuthType))
-			{
-				Logger.LogError("Could not determine auth type from appsettings. Should be Basic, AssumeRole, or AssumeRoleWebIdentity!");
-				return null!;
-			}
-			switch (AuthType)
-			{
-				case AWSCredentialsType.Basic:
-					return new BasicAWSCredentials(Settings.S3ClientKeyId, Settings.S3ClientSecret);
-				case AWSCredentialsType.AssumeRole:
-					return new AssumeRoleAWSCredentials(FallbackCredentialsFactory.GetCredentials(), Settings.S3AssumeArn, "Horde");
-				case AWSCredentialsType.AssumeRoleWebIdentity:
-					return AssumeRoleWithWebIdentityCredentials.FromEnvironmentVariables();
-				default:
-					return null!;
-			}
-		}
-
-		/// <inheritdoc/>
-		public System.IO.Stream OpenReadStream(ObjectId JobId, SubResourceId? StepId, string Name)
-		{
-			string BucketPath = Path.Combine(JobId.ToString(), StepId.ToString() ?? string.Empty, Name);
-			try
-			{
-				GetObjectRequest NewGetRequest = new GetObjectRequest
-				{
-					BucketName = this.BucketName,
-					Key = BucketPath
-				};
-
-				return this.Client.GetObjectAsync(NewGetRequest).Result.ResponseStream;
-			}
-			catch (AmazonS3Exception Ex)
-			{
-				if (Ex.ErrorCode == "NoSuchKey")
-				{
-					Logger.LogError("Tried to find artifact that didn't exist at {0}!", BucketPath);
-				}
-				throw;
-			}
-		}
-
-		/// <inheritdoc/>
-		public async Task WriteAsync(ObjectId JobId, SubResourceId? StepId, string Name, System.IO.Stream Stream)
-		{
-			const int MinPartSize = 5 * 1024 * 1024;
-
-			string Key = Path.Combine(JobId.ToString(), StepId.ToString() ?? string.Empty, Name);
-
-			long StreamLen = Stream.Length;
-			if (StreamLen < MinPartSize)
-			{
-				// Read the data into memory
-				byte[] Buffer = new byte[StreamLen];
-				await ReadExactLengthAsync(Stream, Buffer, (int)StreamLen);
-
-				// Upload it to S3
-				using (MemoryStream InputStream = new MemoryStream(Buffer))
-				{
-					PutObjectRequest UploadRequest = new PutObjectRequest();
-					UploadRequest.BucketName = BucketName;
-					UploadRequest.Key = Key;
-					UploadRequest.InputStream = InputStream;
-					await Client.PutObjectAsync(UploadRequest);
-				}
-			}
-			else
-			{
-				// Initiate a multi-part upload
-				InitiateMultipartUploadRequest InitiateRequest = new InitiateMultipartUploadRequest();
-				InitiateRequest.BucketName = BucketName;
-				InitiateRequest.Key = Key;
-
-				InitiateMultipartUploadResponse InitiateResponse = await Client.InitiateMultipartUploadAsync(InitiateRequest);
-				try
-				{
-					// Buffer for reading the data
-					byte[] Buffer = new byte[MinPartSize];
-
-					// Upload all the parts
-					List<PartETag> PartTags = new List<PartETag>();
-					for(long StreamPos = 0; StreamPos < StreamLen; )
-					{
-						// Read the next chunk of data into the buffer
-						int BufferLen = (int)Math.Min((long)MinPartSize, StreamLen - StreamPos);
-						await ReadExactLengthAsync(Stream, Buffer, BufferLen);
-						StreamPos += BufferLen;
-
-						// Upload the part
-						using (MemoryStream InputStream = new MemoryStream(Buffer, 0, BufferLen))
-						{
-							UploadPartRequest PartRequest = new UploadPartRequest();
-							PartRequest.BucketName = BucketName;
-							PartRequest.Key = Key;
-							PartRequest.UploadId = InitiateResponse.UploadId;
-							PartRequest.InputStream = InputStream;
-							PartRequest.PartSize = BufferLen;
-							PartRequest.PartNumber = PartTags.Count + 1;
-							PartRequest.IsLastPart = (StreamPos == StreamLen);
-
-							UploadPartResponse PartResponse = await Client.UploadPartAsync(PartRequest);
-							PartTags.Add(new PartETag(PartResponse.PartNumber, PartResponse.ETag));
-						}
-					}
-
-					// Mark the upload as complete
-					CompleteMultipartUploadRequest CompleteRequest = new CompleteMultipartUploadRequest();
-					CompleteRequest.BucketName = BucketName;
-					CompleteRequest.Key = Key;
-					CompleteRequest.UploadId = InitiateResponse.UploadId;
-					CompleteRequest.PartETags = PartTags;
-					await Client.CompleteMultipartUploadAsync(CompleteRequest);
-				}
-				catch
-				{
-					// Abort the upload
-					AbortMultipartUploadRequest AbortRequest = new AbortMultipartUploadRequest();
-					AbortRequest.BucketName = BucketName;
-					AbortRequest.Key = Key;
-					AbortRequest.UploadId = InitiateResponse.UploadId;
-					await Client.AbortMultipartUploadAsync(AbortRequest);
-
-					throw;
-				}
-			}
-		}
-
-		/// <summary>
-		/// Reads data of an exact length into a stream
-		/// </summary>
-		/// <param name="Stream">The stream to read from</param>
-		/// <param name="Buffer">The buffer to read into</param>
-		/// <param name="Length">Length of the data to read</param>
-		/// <returns>Async task</returns>
-		static async Task ReadExactLengthAsync(System.IO.Stream Stream, byte[] Buffer, int Length)
-		{
-			int BufferPos = 0;
-			while (BufferPos < Length)
-			{
-				int BytesRead = await Stream.ReadAsync(Buffer, BufferPos, Length - BufferPos);
-				if (BytesRead == 0)
-				{
-					throw new InvalidOperationException("Unexpected end of stream");
-				}
-				BufferPos += BytesRead;
-			}
-		}
-	}
-
-	/// <summary>
 	/// Wraps functionality for manipulating artifacts
 	/// </summary>
 	public class ArtifactService
 	{
-		private enum ProviderTypes
-		{
-			S3,
-			FileSystem
-		};
-
 		/// <summary>
 		/// Backend storage container
 		/// </summary>
-		private readonly IArtifactStorage ExternalStorageProvider;
+		private readonly IStorageBackend StorageBackend;
 
 		/// <summary>
 		/// Information Logger
@@ -341,28 +49,12 @@ namespace HordeServer.Services
 		/// Constructor
 		/// </summary>
 		/// <param name="DatabaseService">The database service</param>
-		/// <param name="Configuration">The configuration</param>
-		/// <param name="Settings">Connection settings</param>
+		/// <param name="StorageBackend">The storage backend</param>
 		/// <param name="Logger">Log interface</param>
-		public ArtifactService(DatabaseService DatabaseService, IOptionsMonitor<ServerSettings> Settings, IConfiguration Configuration, ILogger<ArtifactService> Logger)
+		public ArtifactService(DatabaseService DatabaseService, IStorageBackend<ArtifactService> StorageBackend, ILogger<ArtifactService> Logger)
 		{
+			this.StorageBackend = StorageBackend;
 			this.Logger = Logger;
-
-			// Initialize Cache provider
-			ServerSettings CurrentSettings = Settings.CurrentValue;
-			switch (CurrentSettings.ExternalStorageProviderType)
-			{
-				case StorageProviderType.FileSystem:
-					this.ExternalStorageProvider = new FSExternalArtifactStorage(CurrentSettings, Logger);
-					break;
-				case StorageProviderType.S3:
-					this.ExternalStorageProvider = new S3ExternalArtifactStorage(CurrentSettings, Configuration, Logger);
-					break;
-				default:
-					// shouldn't be possible to get here, but default to file system worst case.
-					this.ExternalStorageProvider = new FSExternalArtifactStorage(CurrentSettings, Logger);
-					break;
-			}
 
 			// Initialize Artifacts table
 			Artifacts = DatabaseService.Artifacts;
@@ -385,7 +77,7 @@ namespace HordeServer.Services
 		{
 			// upload first
 			string ArtifactName = ValidateName(Name);
-			await ExternalStorageProvider.WriteAsync(JobId, StepId, ArtifactName, Data);
+			await StorageBackend.WriteAsync(GetPath(JobId, StepId, ArtifactName), Data);
 
 			// then create entry
 			Artifact NewArtifact = new Artifact(JobId, StepId, ArtifactName, Data.Length, MimeType);
@@ -477,7 +169,7 @@ namespace HordeServer.Services
 
 				// re-upload the data to external
 				string ArtifactName = ValidateName(Artifact.Name);
-				await ExternalStorageProvider.WriteAsync(Artifact.JobId, Artifact.StepId, ArtifactName, NewData);
+				await StorageBackend.WriteAsync(GetPath(Artifact.JobId, Artifact.StepId, ArtifactName), NewData);
 
 				if (await TryUpdateArtifactAsync(Artifact, UpdateBuilder.Combine(Updates)))
 				{
@@ -494,9 +186,33 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="Artifact">The artifact</param>
 		/// <returns>The chunk data</returns>
-		public System.IO.Stream OpenArtifactReadStream(Artifact Artifact)
+		public async Task<System.IO.Stream> OpenArtifactReadStreamAsync(Artifact Artifact)
 		{
-			return ExternalStorageProvider.OpenReadStream(Artifact.JobId, Artifact.StepId, Artifact.Name);
+			System.IO.Stream? Stream = await StorageBackend.ReadAsync(GetPath(Artifact.JobId, Artifact.StepId, Artifact.Name));
+			if (Stream == null)
+			{
+				throw new Exception($"Unable to get artifact {Artifact.Id}");
+			}
+			return Stream;
+		}
+
+		/// <summary>
+		/// Get the path for an artifact
+		/// </summary>
+		/// <param name="JobId"></param>
+		/// <param name="StepId"></param>
+		/// <param name="Name"></param>
+		/// <returns></returns>
+		private static string GetPath(ObjectId JobId, SubResourceId? StepId, string Name)
+		{
+			if (StepId == null)
+			{
+				return $"{JobId}/{Name}";
+			}
+			else
+			{
+				return $"{JobId}/{StepId.Value}/{Name}";
+			}
 		}
 
 		/// <summary>

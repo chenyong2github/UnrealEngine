@@ -359,7 +359,7 @@ namespace HordeServer
 						StatsdServerName = DatadogAgentHost,
 						StatsdPort = 8125,
 					};
-					
+
 					DogStatsdService DogStatsdService = new DogStatsdService();
 					DogStatsdService.Configure(Config);
 					return DogStatsdService;
@@ -384,7 +384,7 @@ namespace HordeServer
 			else if (!String.IsNullOrEmpty(Settings.PerforceBridge))
 			{
 				// Python P4 bridge service
-				Services.AddSingleton<IPerforceService, BridgePerforceService>(SP => new BridgePerforceService(Settings.PerforceBridge!, SP.GetRequiredService<ILogger<BridgePerforceService>>()));				
+				Services.AddSingleton<IPerforceService, BridgePerforceService>(SP => new BridgePerforceService(Settings.PerforceBridge!, SP.GetRequiredService<ILogger<BridgePerforceService>>()));
 			}
 			else if (!String.IsNullOrEmpty(Settings.P4BridgeServer))
 			{
@@ -416,14 +416,18 @@ namespace HordeServer
 
 			Services.AddSingleton<DeviceService>();
 
-			AWSOptions Options = Configuration.GetAWSOptions();
-			if (Settings.S3CredentialType == "AssumeRole" && !String.IsNullOrEmpty(Settings.S3AssumeArn))
+			AWSOptions AwsOptions = Configuration.GetAWSOptions();
+			if (Settings.S3AssumeArn != null)
 			{
-				Options.Credentials = new AssumeRoleAWSCredentials(FallbackCredentialsFactory.GetCredentials(), Settings.S3AssumeArn, "Horde");
+				AwsOptions.Credentials = new AssumeRoleAWSCredentials(FallbackCredentialsFactory.GetCredentials(), Settings.S3AssumeArn, "Horde");
 			}
-			Services.AddDefaultAWSOptions(Options);
+			Services.AddSingleton(AwsOptions);
 
-			ConfigureStorageBackend(Services, Settings);
+			Services.AddSingleton(new StorageBackendSettings<PersistentLogStorage> { Type = Settings.ExternalStorageProviderType, BaseDir = Settings.LocalLogsDir, BucketName = Settings.S3LogBucketName });
+			Services.AddSingleton(new StorageBackendSettings<ArtifactService> { Type = Settings.ExternalStorageProviderType, BaseDir = Settings.LocalArtifactsDir, BucketName = Settings.S3ArtifactBucketName });
+			Services.AddSingleton(new StorageBackendSettings<BlobCollection> { Type = Settings.ExternalStorageProviderType, BaseDir = Settings.LocalBlobsDir, BucketName = Settings.S3LogBucketName, BucketPath = "blobs/" });
+			Services.AddSingleton(typeof(IStorageBackend<>), typeof(StorageBackendFactory<>));
+
 			ConfigureLogStorage(Services);
 			Services.AddSingleton<IStorageService, SimpleStorageService>();
 			//			ConfigureLogFileWriteCache(Services, Settings);
@@ -589,25 +593,59 @@ namespace HordeServer
 			Options.Converters.Add(new JsonDateTimeConverter());
 		}
 
-		private static void ConfigureStorageBackend(IServiceCollection Services, ServerSettings Settings)
+		public class StorageBackendSettings<T> : IFileSystemStorageOptions, IAwsStorageOptions
 		{
-			switch (Settings.ExternalStorageProviderType)
+			/// <summary>
+			/// The type of storage backend to use
+			/// </summary>
+			public StorageProviderType Type { get; set; }
+
+			/// <inheritdoc/>
+			public string? BaseDir { get; set; }
+
+			/// <inheritdoc/>
+			public string? BucketName { get; set; }
+
+			/// <inheritdoc/>
+			public string? BucketPath { get; set; }
+		}
+
+		public class StorageBackendFactory<T> : IStorageBackend<T>
+		{
+			IStorageBackend Inner;
+
+			public StorageBackendFactory(IServiceProvider ServiceProvider, StorageBackendSettings<T> Options)
 			{
-				case StorageProviderType.FileSystem:
-					Services.AddSingleton<IStorageBackend, FileSystemStorageBackend>();
-					break;
-				case StorageProviderType.S3:
-					Services.AddSingleton<IStorageBackend, AwsStorageBackend>();
-					break;
-				case StorageProviderType.Transient:
-					Services.AddSingleton<IStorageBackend, TransientStorageBackend>();
-					break;
-				case StorageProviderType.Relay:
-					Services.AddSingleton<IStorageBackend, RelayStorageBackend>();
-					break;
-				default:
-					throw new NotImplementedException();
+				switch (Options.Type)
+				{
+					case StorageProviderType.S3:
+						Inner = new AwsStorageBackend(ServiceProvider.GetRequiredService<AWSOptions>(), Options, ServiceProvider.GetRequiredService<ILogger<AwsStorageBackend>>());
+						break;
+					case StorageProviderType.FileSystem:
+						Inner = new FileSystemStorageBackend(Options);
+						break;
+					case StorageProviderType.Transient:
+						Inner = new TransientStorageBackend();
+						break;
+					case StorageProviderType.Relay:
+						Inner = new RelayStorageBackend(ServiceProvider.GetRequiredService<IOptions<ServerSettings>>());
+						break;
+					default:
+						throw new NotImplementedException();
+				}
 			}
+
+			/// <inheritdoc/>
+			public Task<Stream?> ReadAsync(string Path) => Inner.ReadAsync(Path);
+
+			/// <inheritdoc/>
+			public Task WriteAsync(string Path, Stream Stream) => Inner.WriteAsync(Path, Stream);
+
+			/// <inheritdoc/>
+			public Task DeleteAsync(string Path) => Inner.DeleteAsync(Path);
+
+			/// <inheritdoc/>
+			public Task<bool> ExistsAsync(string Path) => Inner.ExistsAsync(Path);
 		}
 
 		private static void ConfigureLogStorage(IServiceCollection Services)

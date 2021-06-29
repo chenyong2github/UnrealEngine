@@ -1192,7 +1192,7 @@ namespace HordeServer.Controllers
 			}
 
 			Artifact Artifact = Artifacts[0];
-			return new FileStreamResult(ArtifactService.OpenArtifactReadStream(Artifact), Artifact.MimeType);
+			return new FileStreamResult(await ArtifactService.OpenArtifactReadStreamAsync(Artifact), Artifact.MimeType);
 		}
 
 		/// <summary>
@@ -1229,7 +1229,7 @@ namespace HordeServer.Controllers
 			{
 				if (Artifact.Name.Equals("trace.json", StringComparison.OrdinalIgnoreCase))
 				{
-					return new FileStreamResult(ArtifactService.OpenArtifactReadStream(Artifact), "text/json");
+					return new FileStreamResult(await ArtifactService.OpenArtifactReadStreamAsync(Artifact), "text/json");
 				}
 			}
 			return NotFound();

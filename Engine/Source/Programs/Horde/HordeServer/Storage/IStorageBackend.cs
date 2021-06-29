@@ -44,10 +44,56 @@ namespace HordeServer.Storage
 	}
 
 	/// <summary>
+	/// Generic version of IStorageBackend, to allow for dependency injection of different singletons
+	/// </summary>
+	/// <typeparam name="T">Type distinguishing different singletons</typeparam>
+	public interface IStorageBackend<T> : IStorageBackend
+	{
+	}
+
+	/// <summary>
 	/// Extension methods for <see cref="IStorageBackend"/>
 	/// </summary>
 	public static class StorageBackendExtensions
 	{
+		/// <summary>
+		/// Wrapper for <see cref="IStorageBackend"/>
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		class StorageBackend<T> : IStorageBackend<T>
+		{
+			IStorageBackend Inner;
+
+			/// <summary>
+			/// Constructor
+			/// </summary>
+			/// <param name="Inner"></param>
+			public StorageBackend(IStorageBackend Inner) => this.Inner = Inner;
+
+			/// <inheritdoc/>
+			public Task<Stream?> ReadAsync(string Path) => Inner.ReadAsync(Path);
+
+			/// <inheritdoc/>
+			public Task WriteAsync(string Path, Stream Stream) => Inner.WriteAsync(Path, Stream);
+
+			/// <inheritdoc/>
+			public Task DeleteAsync(string Path) => Inner.DeleteAsync(Path);
+
+			/// <inheritdoc/>
+			public Task<bool> ExistsAsync(string Path) => Inner.ExistsAsync(Path);
+		}
+
+		/// <summary>
+		/// Creates a typed wrapper around the given storage backend
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="Backend"></param>
+		/// <returns></returns>
+		public static IStorageBackend<T> ForType<T>(this IStorageBackend Backend)
+		{
+			return new StorageBackend<T>(Backend);
+		}
+
 		/// <summary>
 		/// Writes a block of memory to storage
 		/// </summary>

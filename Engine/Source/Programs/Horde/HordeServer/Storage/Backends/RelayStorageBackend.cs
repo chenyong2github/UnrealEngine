@@ -17,6 +17,11 @@ namespace HordeServer.Storage.Backends
 	/// </summary>
 	public sealed class RelayStorageBackend : IStorageBackend, IDisposable
 	{
+		class FileSystemSettings : IFileSystemStorageOptions
+		{
+			public string? BaseDir { get; set; }
+		}
+
 		/// <summary>
 		/// The client to connect with
 		/// </summary>
@@ -53,7 +58,7 @@ namespace HordeServer.Storage.Backends
 			Client = new HttpClient();
 			Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CurrentSettings.LogRelayBearerToken);
 
-			LocalStorage = new FileSystemStorageBackend(Settings);
+			LocalStorage = new FileSystemStorageBackend(new FileSystemSettings { BaseDir = "RelayCache" });
 		}
 
 		/// <inheritdoc/>
