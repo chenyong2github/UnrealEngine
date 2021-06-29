@@ -6,6 +6,7 @@ using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.OLE.Interop;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using Microsoft.VisualStudio.Editor;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
@@ -14,7 +15,24 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
+using Microsoft.VisualStudio.TextManager.Interop;
 using Thread = System.Threading.Thread;
+using System;
+using System.Runtime.InteropServices;
+using System.Windows.Forms;
+using Microsoft.VisualStudio.ComponentModelHost;
+using Microsoft.VisualStudio.Editor;
+using Microsoft.VisualStudio.OLE.Interop;
+using Microsoft.VisualStudio.Shell.Interop;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Text;
+using Microsoft.VisualStudio.Text.Editor;
+using Microsoft.VisualStudio.TextManager.Interop;
+using IOleServiceProvider = Microsoft.VisualStudio.OLE.Interop.IServiceProvider;
+using Microsoft.VisualStudio.Utilities;
+using Microsoft.VisualStudio.Text.Projection;
+using Microsoft.VisualStudio;
+using System.Collections.Generic;
 
 namespace UnrealVS
 {
@@ -200,6 +218,11 @@ namespace UnrealVS
 			// shell that are useful for writing extensions.
 			DTE = await GetServiceAsync(typeof(DTE)) as DTE;
 			Logging.WriteLine("DTE version " + DTE.Version);
+
+			//TextManager = await GetServiceAsync(typeof(VsTextManagerClass)) as IVsTextManager3;
+
+			var componentModel = (IComponentModel)GetGlobalService(typeof(SComponentModel));
+			EditorOptionsFactory = componentModel.GetService<IEditorOptionsFactoryService>();
 
 			// Get selection manager and register to receive events
 			SelectionManager =
@@ -387,6 +410,18 @@ namespace UnrealVS
 				}
 				return _DTE2;
 			}
+		}
+
+		//public IVsTextManager3 TextManager
+		//{
+		//	get;
+		//	private set;
+		//}
+
+		public IEditorOptionsFactoryService EditorOptionsFactory
+		{
+			get;
+			private set;
 		}
 
 		/// The package's options page
