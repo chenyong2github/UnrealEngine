@@ -214,9 +214,9 @@ void UCalibrationPointComponent::RebuildVertices()
 	{
 		const FString MaterialPath = TEXT("/CameraCalibrationCore/Materials/M_VertexColors.M_VertexColors");
 
-		if (UMaterial* Material = Cast<UMaterial>(FSoftObjectPath(MaterialPath).TryLoad()))
+		if (UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(FSoftObjectPath(MaterialPath).TryLoad()))
 		{
-			SetMaterial(SectionIndex, Material);
+			SetMaterial(SectionIndex, MaterialInterface);
 		}
 	}
 }
