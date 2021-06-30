@@ -1222,7 +1222,7 @@ public:
 
 	int32 CollisionGroup() const
 	{
-		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
+		if (MHandle->CastToRigidParticle())
 		{
 			return MHandle->CastToRigidParticle()->CollisionGroup();
 		}
