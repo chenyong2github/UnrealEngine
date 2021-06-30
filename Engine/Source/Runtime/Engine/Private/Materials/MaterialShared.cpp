@@ -1294,6 +1294,11 @@ float FMaterialResource::GetOpacityMaskClipValue() const
 	return MaterialInstance ? MaterialInstance->GetOpacityMaskClipValue() : Material->GetOpacityMaskClipValue();
 }
 
+int32 FMaterialResource::GetTranslucentSortPriority() const
+{
+	return MaterialInstance ? MaterialInstance->GetTranslucentSortPriority() : Material->GetTranslucentSortPriority();
+}
+
 bool FMaterialResource::GetCastDynamicShadowAsMasked() const
 {
 	return MaterialInstance ? MaterialInstance->GetCastDynamicShadowAsMasked() : Material->GetCastDynamicShadowAsMasked();
@@ -3536,6 +3541,7 @@ void DoMaterialAttributeReorder(FExpressionInput* Input, int32 UE4Ver, int32 Ren
 
 FMaterialInstanceBasePropertyOverrides::FMaterialInstanceBasePropertyOverrides()
 	:bOverride_OpacityMaskClipValue(false)
+	,bOverride_TranslucentSortPriority(false)
 	,bOverride_BlendMode(false)
 	,bOverride_ShadingModel(false)
 	,bOverride_DitheredLODTransition(false)
@@ -3546,7 +3552,8 @@ FMaterialInstanceBasePropertyOverrides::FMaterialInstanceBasePropertyOverrides()
 	,bCastDynamicShadowAsMasked(false)
 	,BlendMode(BLEND_Opaque)
 	,ShadingModel(MSM_DefaultLit)
-	, OpacityMaskClipValue(.333333f)
+	,OpacityMaskClipValue(.333333f)
+	,TranslucentSortPriority(0)
 {
 
 }
@@ -3559,6 +3566,7 @@ bool FMaterialInstanceBasePropertyOverrides::operator==(const FMaterialInstanceB
 			bOverride_TwoSided == Other.bOverride_TwoSided &&
 			bOverride_DitheredLODTransition == Other.bOverride_DitheredLODTransition &&
 			OpacityMaskClipValue == Other.OpacityMaskClipValue &&
+			TranslucentSortPriority == Other.TranslucentSortPriority &&
 			BlendMode == Other.BlendMode &&
 			ShadingModel == Other.ShadingModel &&
 			TwoSided == Other.TwoSided &&

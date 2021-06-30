@@ -17,6 +17,10 @@ struct ENGINE_API FMaterialInstanceBasePropertyOverrides
 	UPROPERTY(EditAnywhere, Category = Material)
 	uint8 bOverride_OpacityMaskClipValue : 1;
 
+	/** Enables override of the translucent sort priority. */
+	UPROPERTY(EditAnywhere, Category = Material)
+	uint8 bOverride_TranslucentSortPriority : 1;
+
 	/** Enables override of the blend mode. */
 	UPROPERTY(EditAnywhere, Category = Material)
 	uint8 bOverride_BlendMode : 1;
@@ -60,6 +64,10 @@ struct ENGINE_API FMaterialInstanceBasePropertyOverrides
 	/** If BlendMode is BLEND_Masked, the surface is not rendered where OpacityMask < OpacityMaskClipValue. */
 	UPROPERTY(EditAnywhere, Category = Material, meta = (editcondition = "bOverride_OpacityMaskClipValue", NoSpinbox = true))
 	float OpacityMaskClipValue;
+
+	/** Translucent Material's sort priority. */
+	UPROPERTY(EditAnywhere, Category = Material, meta = (editcondition = "bOverride_TranslucentSortPriority", NoSpinbox = true))
+	int32 TranslucentSortPriority;
 
 	FMaterialInstanceBasePropertyOverrides();
 

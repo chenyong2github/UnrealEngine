@@ -4037,7 +4037,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bDisableDepthTest)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bUseTranslucencyVertexFog)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bComputeFogPerPixel)
-			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bOutputTranslucentVelocity))
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bOutputTranslucentVelocity)
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, TranslucentSortPriority)
+			)
 		{
 			return MaterialDomain != MD_DeferredDecal && IsTranslucentBlendMode(BlendMode);
 		}
@@ -5700,6 +5702,11 @@ static FAutoConsoleCommand CmdListSceneColorMaterials(
 float UMaterial::GetOpacityMaskClipValue() const
 {
 	return OpacityMaskClipValue;
+}
+
+int32 UMaterial::GetTranslucentSortPriority() const
+{
+	return TranslucentSortPriority;
 }
 
 bool UMaterial::GetCastDynamicShadowAsMasked() const

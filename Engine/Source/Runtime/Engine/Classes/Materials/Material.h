@@ -798,6 +798,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Translucency, AdvancedDisplay, meta = (DisplayName = "Allow Custom Depth Writes"))
 	uint8 AllowTranslucentCustomDepthWrites : 1;
 
+	/** Translucent material's sort priority. */
+	UPROPERTY(EditAnywhere, Category = Translucency, AdvancedDisplay, meta = (UIMin = "0", UIMax = "32767", DisplayName = "Sort Priority"))
+	uint32 TranslucentSortPriority;
+
 	/** Used for particle instancing batch. */
 	UPROPERTY(EditAnywhere, Category = ParticleSystem, meta = (UIMin = "0", UIMax = "4095", DisplayName = "Particle Instancing Batch ID"))
 	uint32 ParticleInstancingBatchId;
@@ -1045,6 +1049,7 @@ public:
 	ENGINE_API virtual void RecacheUniformExpressions(bool bRecreateUniformBuffer) const override;
 	
 	ENGINE_API virtual float GetOpacityMaskClipValue() const override;
+	ENGINE_API virtual int32 GetTranslucentSortPriority() const override;
 	ENGINE_API virtual bool GetCastDynamicShadowAsMasked() const override;
 	ENGINE_API virtual EBlendMode GetBlendMode() const override;
 	ENGINE_API virtual FMaterialShadingModelField GetShadingModels() const override;

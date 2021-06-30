@@ -85,11 +85,13 @@ private:
 	EVisibility IsOverriddenAndVisible(TAttribute<bool> IsOverridden) const;
 
 	bool OverrideOpacityClipMaskValueEnabled() const;
+	bool OverrideTranslucentSortPriorityEnabled() const;
 	bool OverrideBlendModeEnabled() const;
 	bool OverrideShadingModelEnabled() const;
 	bool OverrideTwoSidedEnabled() const;
 	bool OverrideDitheredLODTransitionEnabled() const;
 	void OnOverrideOpacityClipMaskValueChanged(bool NewValue);
+	void OnOverrideTranslucentSortPriorityChanged(bool NewValue);
 	void OnOverrideBlendModeChanged(bool NewValue);
 	void OnOverrideShadingModelChanged(bool NewValue);
 	void OnOverrideTwoSidedChanged(bool NewValue);

@@ -517,6 +517,11 @@ float UMaterialInterface::GetOpacityMaskClipValue() const
 	return 0.0f;
 }
 
+int32 UMaterialInterface::GetTranslucentSortPriority() const
+{
+	return 0;
+}
+
 EBlendMode UMaterialInterface::GetBlendMode() const
 {
 	return BLEND_Opaque;
