@@ -487,33 +487,7 @@ bool FOnlineUserEOSPlus::Login(int32 LocalUserNum, const FOnlineAccountCredentia
 
 void FOnlineUserEOSPlus::OnLoginChanged(int32 LocalUserNum)
 {
-	const FEOSSettings& EOSSettings = UEOSSettings::GetSettings();
-
-	bool bForward = EOSSettings.bUseEAS || EOSSettings.bUseEOSConnect;
-
-	ELoginStatus::Type LoginStatus = BaseIdentityInterface->GetLoginStatus(LocalUserNum);
-	if (LoginStatus == ELoginStatus::LoggedIn || LoginStatus == ELoginStatus::UsingLocalProfile)
-	{
-		// When the platform logs in we need to conditionally log into EAS/EOS
-		if (bForward)
-		{
-			EOSIdentityInterface->AutoLogin(LocalUserNum);
-		}
-		else
-		{
-			AddPlayer(LocalUserNum);
-			TriggerOnLoginChangedDelegates(LocalUserNum);
-		}
-	}
-	else if (LoginStatus == ELoginStatus::NotLoggedIn)
-	{
-		// Log out of EAS/EOS if configured
-		if (bForward)
-		{
-			Logout(LocalUserNum);
-		}
-		TriggerOnLoginChangedDelegates(LocalUserNum);
-	}
+	TriggerOnLoginChangedDelegates(LocalUserNum);
 }
 
 void FOnlineUserEOSPlus::OnEOSLoginChanged(int32 LocalUserNum)
@@ -574,12 +548,29 @@ void FOnlineUserEOSPlus::OnLoginComplete(int32 LocalUserNum, bool bWasSuccessful
 
 void FOnlineUserEOSPlus::OnBaseLoginComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& ErrorStr)
 {
-	check(LocalUserNumToLastLoginCredentials.Contains(LocalUserNum));
-	EOSIdentityInterface->Login(LocalUserNum, *LocalUserNumToLastLoginCredentials[LocalUserNum]);
+	if (!bWasSuccessful)
+	{
+		TriggerOnLoginCompleteDelegates(LocalUserNum, bWasSuccessful, UserId, ErrorStr);
+		return;
+	}
+
+	const FEOSSettings& EOSSettings = UEOSSettings::GetSettings();
+	const bool bForward = EOSSettings.bUseEAS || EOSSettings.bUseEOSConnect;
+	if (bForward)
+	{
+		check(LocalUserNumToLastLoginCredentials.Contains(LocalUserNum));
+		EOSIdentityInterface->Login(LocalUserNum, *LocalUserNumToLastLoginCredentials[LocalUserNum]);
+	}
+	else
+	{
+		AddPlayer(LocalUserNum);
+		TriggerOnLoginCompleteDelegates(LocalUserNum);
+	}
 }
 
 void FOnlineUserEOSPlus::OnLogoutComplete(int32 LocalUserNum, bool bWasSuccessful)
 {
+	// TODO: Make logout work the same way login does, triggering EOS after completion of Base
 	TriggerOnLogoutCompleteDelegates(LocalUserNum, bWasSuccessful);
 }
 
