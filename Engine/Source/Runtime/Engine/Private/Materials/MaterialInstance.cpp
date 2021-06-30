@@ -1749,6 +1749,11 @@ float UMaterialInstanceDynamic::GetOpacityMaskClipValue() const
 	return Parent ? Parent->GetOpacityMaskClipValue() : 0.0f;
 }
 
+int32 UMaterialInstanceDynamic::GetTranslucentSortPriority() const
+{
+	return Parent ? Parent->GetTranslucentSortPriority() : 0;
+}
+
 bool UMaterialInstanceDynamic::GetCastDynamicShadowAsMasked() const
 {
 	return Parent ? Parent->GetCastDynamicShadowAsMasked() : false;
@@ -2675,6 +2680,16 @@ void UMaterialInstance::UpdateOverridableBaseProperties()
 	{
 		OpacityMaskClipValue = Parent->GetOpacityMaskClipValue();
 		BasePropertyOverrides.OpacityMaskClipValue = OpacityMaskClipValue;
+	}
+
+	if (BasePropertyOverrides.bOverride_TranslucentSortPriority)
+	{
+		TranslucentSortPriority = BasePropertyOverrides.TranslucentSortPriority;
+	}
+	else
+	{
+		TranslucentSortPriority = Parent->GetTranslucentSortPriority();
+		BasePropertyOverrides.TranslucentSortPriority = TranslucentSortPriority;
 	}
 
 	if ( BasePropertyOverrides.bOverride_CastDynamicShadowAsMasked )
@@ -4415,6 +4430,15 @@ void UMaterialInstance::GetBasePropertyOverridesHash(FSHAHash& OutHash)const
 		bHasOverrides = true;
 	}
 
+	int32 UsedTranslucentSortPriority = GetTranslucentSortPriority();
+	if (UsedTranslucentSortPriority != Mat->GetTranslucentSortPriority())
+	{
+		const FString HashString = TEXT("bOverride_GetTranslucentSortPriority");
+		Hash.UpdateWithString(*HashString, HashString.Len());
+		Hash.Update((const uint8*)&UsedTranslucentSortPriority, sizeof(UsedTranslucentSortPriority));
+		bHasOverrides = true;
+	}
+
 	bool bUsedCastDynamicShadowAsMasked = GetCastDynamicShadowAsMasked();
 	if ( bUsedCastDynamicShadowAsMasked != Mat->GetCastDynamicShadowAsMasked() )
 	{
@@ -4471,6 +4495,7 @@ bool UMaterialInstance::HasOverridenBaseProperties()const
 	const UMaterial* Material = GetMaterial_Concurrent();
 	if (Parent && Material && Material->bUsedAsSpecialEngineMaterial == false &&
 		((FMath::Abs(GetOpacityMaskClipValue() - Parent->GetOpacityMaskClipValue()) > SMALL_NUMBER) ||
+		(GetTranslucentSortPriority() != Parent->GetTranslucentSortPriority()) ||
 		(GetBlendMode() != Parent->GetBlendMode()) ||
 		(GetShadingModels() != Parent->GetShadingModels()) ||
 		(IsTwoSided() != Parent->IsTwoSided()) ||
@@ -4487,6 +4512,11 @@ bool UMaterialInstance::HasOverridenBaseProperties()const
 float UMaterialInstance::GetOpacityMaskClipValue() const
 {
 	return OpacityMaskClipValue;
+}
+
+int32 UMaterialInstance::GetTranslucentSortPriority() const
+{
+	return TranslucentSortPriority;
 }
 
 bool UMaterialInstance::GetCastDynamicShadowAsMasked() const

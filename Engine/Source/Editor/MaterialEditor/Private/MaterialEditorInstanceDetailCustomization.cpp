@@ -1135,6 +1135,7 @@ void FMaterialInstanceParameterDetails::CreateBasePropertyOverrideWidgets(IDetai
 	IDetailGroup& BasePropertyOverrideGroup = MaterialPropertyOverrideGroup;
 
 	TAttribute<bool> IsOverrideOpacityClipMaskValueEnabled = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FMaterialInstanceParameterDetails::OverrideOpacityClipMaskValueEnabled));
+	TAttribute<bool> IsOverrideTranslucentSortPriorityEnabled = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FMaterialInstanceParameterDetails::OverrideTranslucentSortPriorityEnabled));
 	TAttribute<bool> IsOverrideBlendModeEnabled = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FMaterialInstanceParameterDetails::OverrideBlendModeEnabled));
 	TAttribute<bool> IsOverrideShadingModelEnabled = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FMaterialInstanceParameterDetails::OverrideShadingModelEnabled));
 	TAttribute<bool> IsOverrideTwoSidedEnabled = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FMaterialInstanceParameterDetails::OverrideTwoSidedEnabled));
@@ -1142,6 +1143,7 @@ void FMaterialInstanceParameterDetails::CreateBasePropertyOverrideWidgets(IDetai
 
 	TSharedRef<IPropertyHandle> BasePropertyOverridePropery = DetailLayout.GetProperty("BasePropertyOverrides");
 	TSharedPtr<IPropertyHandle> OpacityClipMaskValueProperty = BasePropertyOverridePropery->GetChildHandle("OpacityMaskClipValue");
+	TSharedPtr<IPropertyHandle> TranslucentSortPriorityProperty = BasePropertyOverridePropery->GetChildHandle("TranslucentSortPriority");
 	TSharedPtr<IPropertyHandle> BlendModeProperty = BasePropertyOverridePropery->GetChildHandle("BlendMode");
 	TSharedPtr<IPropertyHandle> ShadingModelProperty = BasePropertyOverridePropery->GetChildHandle("ShadingModel");
 	TSharedPtr<IPropertyHandle> TwoSidedProperty = BasePropertyOverridePropery->GetChildHandle("TwoSided");
@@ -1164,6 +1166,24 @@ void FMaterialInstanceParameterDetails::CreateBasePropertyOverrideWidgets(IDetai
 		.EditCondition(IsOverrideOpacityClipMaskValueEnabled, FOnBooleanValueChanged::CreateSP(this, &FMaterialInstanceParameterDetails::OnOverrideOpacityClipMaskValueChanged))
 		.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FMaterialInstanceParameterDetails::IsOverriddenAndVisible, IsOverrideOpacityClipMaskValueEnabled)))
 		.OverrideResetToDefault(ResetOpacityClipMaskValuePropertyOverride);
+
+	FIsResetToDefaultVisible IsTranslucentSortPriorityPropertyResetVisible = FIsResetToDefaultVisible::CreateLambda([this](TSharedPtr<IPropertyHandle> InHandle) {
+		return MaterialEditorInstance->Parent != nullptr ? MaterialEditorInstance->BasePropertyOverrides.TranslucentSortPriority != MaterialEditorInstance->Parent->GetTranslucentSortPriority() : false;
+	});
+	FResetToDefaultHandler ResetTranslucentSortPriorityPropertyHandler = FResetToDefaultHandler::CreateLambda([this](TSharedPtr<IPropertyHandle> InHandle) {
+		if (MaterialEditorInstance->Parent != nullptr)
+		{
+			MaterialEditorInstance->BasePropertyOverrides.TranslucentSortPriority = MaterialEditorInstance->Parent->GetTranslucentSortPriority();
+		}
+	});
+	FResetToDefaultOverride ResetTranslucentSortPriorityPropertyOverride = FResetToDefaultOverride::Create(IsTranslucentSortPriorityPropertyResetVisible, ResetTranslucentSortPriorityPropertyHandler);
+	IDetailPropertyRow& TranslucentSortPriorityPropertyRow = BasePropertyOverrideGroup.AddPropertyRow(TranslucentSortPriorityProperty.ToSharedRef());
+	TranslucentSortPriorityPropertyRow
+		.DisplayName(TranslucentSortPriorityProperty->GetPropertyDisplayName())
+		.ToolTip(TranslucentSortPriorityProperty->GetToolTipText())
+		.EditCondition(IsOverrideTranslucentSortPriorityEnabled, FOnBooleanValueChanged::CreateSP(this, &FMaterialInstanceParameterDetails::OnOverrideTranslucentSortPriorityChanged))
+		.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FMaterialInstanceParameterDetails::IsOverriddenAndVisible, IsOverrideTranslucentSortPriorityEnabled)))
+		.OverrideResetToDefault(ResetTranslucentSortPriorityPropertyOverride);
 
 	FIsResetToDefaultVisible IsBlendModePropertyResetVisible = FIsResetToDefaultVisible::CreateLambda([this](TSharedPtr<IPropertyHandle> InHandle) {
 		return MaterialEditorInstance->Parent != nullptr ? MaterialEditorInstance->BasePropertyOverrides.BlendMode != MaterialEditorInstance->Parent->GetBlendMode() : false;
@@ -1274,6 +1294,11 @@ bool FMaterialInstanceParameterDetails::OverrideOpacityClipMaskValueEnabled() co
 	return MaterialEditorInstance->BasePropertyOverrides.bOverride_OpacityMaskClipValue;
 }
 
+bool FMaterialInstanceParameterDetails::OverrideTranslucentSortPriorityEnabled() const
+{
+	return MaterialEditorInstance->BasePropertyOverrides.bOverride_TranslucentSortPriority;
+}
+
 bool FMaterialInstanceParameterDetails::OverrideBlendModeEnabled() const
 {
 	return MaterialEditorInstance->BasePropertyOverrides.bOverride_BlendMode;
@@ -1297,6 +1322,13 @@ bool FMaterialInstanceParameterDetails::OverrideDitheredLODTransitionEnabled() c
 void FMaterialInstanceParameterDetails::OnOverrideOpacityClipMaskValueChanged(bool NewValue)
 {
 	MaterialEditorInstance->BasePropertyOverrides.bOverride_OpacityMaskClipValue = NewValue;
+	MaterialEditorInstance->PostEditChange();
+	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
+}
+
+void FMaterialInstanceParameterDetails::OnOverrideTranslucentSortPriorityChanged(bool NewValue)
+{
+	MaterialEditorInstance->BasePropertyOverrides.bOverride_TranslucentSortPriority = NewValue;
 	MaterialEditorInstance->PostEditChange();
 	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
 }

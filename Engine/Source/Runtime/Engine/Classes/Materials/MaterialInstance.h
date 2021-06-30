@@ -363,6 +363,7 @@ class UMaterialInstance : public UMaterialInterface
 
 	//Cached copies of the base property overrides or the value from the parent to avoid traversing the parent chain for each access.
 	float OpacityMaskClipValue;
+	int32 TranslucentSortPriority;
 
 	FORCEINLINE bool GetReentrantFlag() const
 	{
@@ -543,6 +544,7 @@ public:
 #endif // WITH_EDITOR
 
 	ENGINE_API virtual float GetOpacityMaskClipValue() const override;
+	ENGINE_API virtual int32 GetTranslucentSortPriority() const override;
 	ENGINE_API virtual bool GetCastDynamicShadowAsMasked() const override;
 	ENGINE_API virtual EBlendMode GetBlendMode() const override;
 	ENGINE_API virtual FMaterialShadingModelField GetShadingModels() const override;

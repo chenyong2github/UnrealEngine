@@ -1595,6 +1595,7 @@ public:
 	virtual bool IsShadingModelFromMaterialExpression() const = 0;
 	virtual enum ETranslucencyLightingMode GetTranslucencyLightingMode() const { return TLM_VolumetricNonDirectional; };
 	virtual float GetOpacityMaskClipValue() const = 0;
+	virtual int32 GetTranslucentSortPriority() const { return 0; }
 	virtual bool GetCastDynamicShadowAsMasked() const = 0;
 	virtual bool IsDistorted() const { return false; };
 	virtual float GetTranslucencyDirectionalLightingIntensity() const { return 1.0f; }
@@ -2443,6 +2444,7 @@ public:
 	ENGINE_API virtual bool IsShadingModelFromMaterialExpression() const override;
 	ENGINE_API virtual enum ETranslucencyLightingMode GetTranslucencyLightingMode() const override;
 	ENGINE_API virtual float GetOpacityMaskClipValue() const override;
+	ENGINE_API virtual int32 GetTranslucentSortPriority() const override;
 	ENGINE_API virtual bool GetCastDynamicShadowAsMasked() const override;
 	ENGINE_API virtual bool IsDistorted() const override;
 	ENGINE_API virtual float GetTranslucencyDirectionalLightingIntensity() const override;
