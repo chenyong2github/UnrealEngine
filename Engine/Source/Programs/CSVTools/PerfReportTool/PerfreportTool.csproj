@@ -44,6 +44,7 @@
   <ItemGroup>
     <Compile Include="CsvFileCache..cs" />
     <Compile Include="PerfReportTool.cs" />
+    <Compile Include="SummaryTableData.cs" />
     <Compile Include="SummaryTypes.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ReportGraph.cs" />
