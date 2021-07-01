@@ -42,10 +42,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Calibration")
 	TMap<FString,FVector> SubPoints;
 
-	/** Optional pointer to mesh that the point(s) belong to */
-	UPROPERTY(EditInstanceOnly, Category = "Calibration", meta = (UseComponentPicker, AllowedClasses = "MeshComponent", DisallowedClasses = "CalibrationPointComponent"))
-	FComponentReference MeshReference;
-
 	/** Draws a visual representation of the calibration points */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Calibration")
 	bool bVisualizePointsInEditor = false;

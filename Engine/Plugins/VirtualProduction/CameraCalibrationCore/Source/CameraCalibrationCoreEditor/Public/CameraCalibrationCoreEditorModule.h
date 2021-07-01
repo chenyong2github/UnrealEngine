@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 
+#include "ICalibrationPointComponentDetailsRow.h"
 #include "Delegates/IDelegateInstance.h"
 #include "Modules/ModuleInterface.h"
 
@@ -26,6 +27,15 @@ public:
 	virtual void ShutdownModule() override;
 	//~ End IModuleInterface interface
 
+	/** Register a details row generator for CalibrationPointComponent */
+	CAMERACALIBRATIONCOREEDITOR_API void RegisterCalibrationPointDetailsRow(const TWeakPtr<ICalibrationPointComponentDetailsRow> Row);
+
+	/** Unregister a details row generator for CalibrationPointComponent */
+	CAMERACALIBRATIONCOREEDITOR_API void UnregisterCalibrationPointDetailsRow(const TWeakPtr<ICalibrationPointComponentDetailsRow> Row);
+
+	/** Returns a copy of the set of registered calibration point details rows */
+	TArray<TWeakPtr<ICalibrationPointComponentDetailsRow>> GetRegisteredCalibrationPointComponentDetailsRows();
+
 private:
 
 	/** Register items to show up in the Place Actors panel. */
@@ -43,4 +53,7 @@ private:
 	FDelegateHandle PostEngineInitHandle;
 
 	TArray<TOptional<FPlacementModeID>> PlaceActors;
+
+	/** Array of registered details rows for CalibrationPointComponents */
+	TArray<TWeakPtr<ICalibrationPointComponentDetailsRow>> RegisteredCalibrationPointComponentDetailsRows;
 };
