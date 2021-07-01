@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
@@ -123,9 +124,11 @@ namespace PerfSummaries
 				string outputDirectory = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(htmlFileName));
 				string outputMapFilename = System.IO.Path.Combine(outputDirectory, destImageFilename);
 
-				if (!System.IO.File.Exists(outputMapFilename))
+				if (!File.Exists(outputMapFilename))
 				{
-					System.IO.File.Copy(sourceImagePath, outputMapFilename);
+					// Copy the file to the reports folder and reset attributes to ensure it's not readonly if the source is
+					File.Copy(sourceImagePath, outputMapFilename);
+					File.SetAttributes(outputMapFilename, FileAttributes.Normal);
 				}
 
 				// Check if the file exists in the output directory
