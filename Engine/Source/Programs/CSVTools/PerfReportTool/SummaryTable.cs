@@ -83,6 +83,9 @@ namespace PerfSummaries
 				columnFilterList.AddRange(filterEl.Value.Split(','));
 			}
 
+			bReverseSortRows = tableElement.GetSafeAttibute<bool>("reverseSortRows", false);
+			bScrollableFormatting = tableElement.GetSafeAttibute<bool>("scrollableFormatting", false);
+
 			foreach (XElement sectionBoundaryEl in tableElement.Elements("sectionBoundary"))
 			{
 				if (sectionBoundaryEl != null)
@@ -106,9 +109,15 @@ namespace PerfSummaries
 			rowSortList.AddRange(rowSortStr.Split(','));
 		}
 
+		public SummaryTableInfo()
+		{
+		}
+
 		public List<string> rowSortList = new List<string>();
 		public List<string> columnFilterList = new List<string>();
 		public List<SummarySectionBoundaryInfo> sectionBoundaries = new List<SummarySectionBoundaryInfo>();
+		public bool bReverseSortRows;
+		public bool bScrollableFormatting;
 		public string weightByColumn = null;
 	}
 
