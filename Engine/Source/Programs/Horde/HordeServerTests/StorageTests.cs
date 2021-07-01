@@ -61,7 +61,7 @@ namespace HordeServerTests
 
 			CbObject ObjectD = CbObject.Build(Writer =>
 			{
-				Writer.AddString("hello", "field");
+				Writer.WriteString("hello", "field");
 			});
 			IoHash HashD = ObjectD.GetHash();
 
@@ -95,16 +95,16 @@ namespace HordeServerTests
 
 			CbObject ObjectD = CbObject.Build(Writer =>
 			{
-				Writer.AddBinaryAttachment(HashA, "A");
-				Writer.AddBinaryAttachment(HashB, "B");
-				Writer.AddBinaryAttachment(HashC, "C");
+				Writer.WriteBinaryAttachment("A", HashA);
+				Writer.WriteBinaryAttachment("B", HashB);
+				Writer.WriteBinaryAttachment("C", HashC);
 			});
 			IoHash HashD = ObjectD.GetHash();
 
 			CbObject ObjectE = CbObject.Build(Writer =>
 			{
-				Writer.AddBinaryAttachment(HashA, "A");
-				Writer.AddCompactBinaryAttachment(HashD, "D");
+				Writer.WriteBinaryAttachment("A", HashA);
+				Writer.WriteObjectAttachment("D", HashD);
 			});
 			IoHash HashE = ObjectE.GetHash();
 

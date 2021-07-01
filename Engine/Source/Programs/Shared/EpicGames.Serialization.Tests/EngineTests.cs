@@ -41,11 +41,11 @@ namespace EpicGames.Serialization.Tests
 
 		Dictionary<CbFieldType, CbFieldAccessors> TypeAccessors = new Dictionary<CbFieldType, CbFieldAccessors>
 		{
-			[CbFieldType.Object] = new CbFieldAccessors(CbObject.Empty, x => x.IsObject(), x => x.AsObjectView(), (x, y) => x.AsObjectView()),
-			[CbFieldType.UniformObject] = new CbFieldAccessors(CbObject.Empty, x => x.IsObject(), x => x.AsObjectView(), (x, y) => x.AsObjectView()),
-			[CbFieldType.Array] = new CbFieldAccessors(CbArray.Empty, x => x.IsArray(), x => x.AsArrayView(), (x, y) => x.AsArrayView()),
-			[CbFieldType.UniformArray] = new CbFieldAccessors(CbArray.Empty, x => x.IsArray(), x => x.AsArrayView(), (x, y) => x.AsArrayView()),
-			[CbFieldType.Binary] = CbFieldAccessors.FromStruct<ReadOnlyMemory<byte>>(x => x.IsBinary(), (x, y) => x.AsBinaryView(y), (x, y) => x.Span.SequenceEqual(y.Span)),
+			[CbFieldType.Object] = new CbFieldAccessors(CbObject.Empty, x => x.IsObject(), x => x.AsObject(), (x, y) => x.AsObject()),
+			[CbFieldType.UniformObject] = new CbFieldAccessors(CbObject.Empty, x => x.IsObject(), x => x.AsObject(), (x, y) => x.AsObject()),
+			[CbFieldType.Array] = new CbFieldAccessors(CbArray.Empty, x => x.IsArray(), x => x.AsArray(), (x, y) => x.AsArray()),
+			[CbFieldType.UniformArray] = new CbFieldAccessors(CbArray.Empty, x => x.IsArray(), x => x.AsArray(), (x, y) => x.AsArray()),
+			[CbFieldType.Binary] = CbFieldAccessors.FromStruct<ReadOnlyMemory<byte>>(x => x.IsBinary(), (x, y) => x.AsBinary(y), (x, y) => x.Span.SequenceEqual(y.Span)),
 			[CbFieldType.String] = new CbFieldAccessors(ReadOnlyUtf8String.Empty, x => x.IsString(), x => x.AsString(), (x, Default) => x.AsString((ReadOnlyUtf8String)Default)),
 			[CbFieldType.IntegerPositive] = CbFieldAccessors.FromStruct<ulong>(x => x.IsInteger(), (x, y) => x.AsUInt64(y)),
 			[CbFieldType.IntegerNegative] = CbFieldAccessors.FromStruct<long>(x => x.IsInteger(), (x, y) => x.AsInt64(y)),
@@ -249,12 +249,12 @@ namespace EpicGames.Serialization.Tests
 				TestIntObject(Object, 0, 1);
 
 				// Find fields that do not exist.
-				Assert.IsFalse(Object.FindView("Field").HasValue());
-				Assert.IsFalse(Object.FindViewIgnoreCase("Field").HasValue());
+				Assert.IsFalse(Object.Find("Field").HasValue());
+				Assert.IsFalse(Object.FindIgnoreCase("Field").HasValue());
 				Assert.IsFalse(Object["Field"].HasValue());
 
 				// Advance an iterator past the last field.
-				CbFieldIterator It = Object.CreateViewIterator();
+				CbFieldIterator It = Object.CreateIterator();
 				Assert.IsFalse((bool)It);
 				Assert.IsTrue(!It);
 				for (int Count = 16; Count > 0; --Count)
@@ -272,14 +272,14 @@ namespace EpicGames.Serialization.Tests
 				byte[] Payload = { 12, IntType, 1, (byte)'A', 1, IntType, 1, (byte)'B', 2, IntType, 1, (byte)'C', 3 };
 				CbField Field = new CbField(Payload, CbFieldType.Object);
 				TestField(CbFieldType.Object, Field, new CbObject(Payload, CbFieldType.Object));
-				CbObject Object = CbObject.Clone(Field.AsObjectView());
+				CbObject Object = CbObject.Clone(Field.AsObject());
 				TestIntObject(Object, 3, Payload.Length);
-				TestIntObject(Field.AsObjectView(), 3, Payload.Length);
-				Assert.IsTrue(Object.Equals(Field.AsObjectView()));
-				Assert.AreEqual(Object.FindView("B").AsInt32(), 2);
-				Assert.AreEqual(Object.FindView("b").AsInt32(4), 4);
-				Assert.AreEqual(Object.FindViewIgnoreCase("B").AsInt32(), 2);
-				Assert.AreEqual(Object.FindViewIgnoreCase("b").AsInt32(), 2);
+				TestIntObject(Field.AsObject(), 3, Payload.Length);
+				Assert.IsTrue(Object.Equals(Field.AsObject()));
+				Assert.AreEqual(Object.Find("B").AsInt32(), 2);
+				Assert.AreEqual(Object.Find("b").AsInt32(4), 4);
+				Assert.AreEqual(Object.FindIgnoreCase("B").AsInt32(), 2);
+				Assert.AreEqual(Object.FindIgnoreCase("b").AsInt32(), 2);
 				Assert.AreEqual(Object["B"].AsInt32(), 2);
 				Assert.AreEqual(Object["b"].AsInt32(4), 4);
 			}
@@ -290,17 +290,17 @@ namespace EpicGames.Serialization.Tests
 				byte[] Payload = { 10, IntType, 1, (byte)'A', 1, 1, (byte)'B', 2, 1, (byte)'C', 3 };
 				CbField Field = new CbField(Payload, CbFieldType.UniformObject);
 				TestField(CbFieldType.UniformObject, Field, new CbObject(Payload, CbFieldType.UniformObject));
-				CbObject Object = CbObject.Clone(Field.AsObjectView());
+				CbObject Object = CbObject.Clone(Field.AsObject());
 				TestIntObject(Object, 3, Payload.Length);
 				TestIntObject(Field.AsObject(), 3, Payload.Length);
 				Assert.IsTrue(Object.Equals(Field.AsObject()));
-				Assert.AreEqual(Object.FindView("B").AsInt32(), 2);
 				Assert.AreEqual(Object.Find("B").AsInt32(), 2);
-				Assert.AreEqual(Object.FindView("b").AsInt32(4), 4);
+				Assert.AreEqual(Object.Find("B").AsInt32(), 2);
 				Assert.AreEqual(Object.Find("b").AsInt32(4), 4);
-				Assert.AreEqual(Object.FindViewIgnoreCase("B").AsInt32(), 2);
+				Assert.AreEqual(Object.Find("b").AsInt32(4), 4);
 				Assert.AreEqual(Object.FindIgnoreCase("B").AsInt32(), 2);
-				Assert.AreEqual(Object.FindViewIgnoreCase("b").AsInt32(), 2);
+				Assert.AreEqual(Object.FindIgnoreCase("B").AsInt32(), 2);
+				Assert.AreEqual(Object.FindIgnoreCase("b").AsInt32(), 2);
 				Assert.AreEqual(Object.FindIgnoreCase("b").AsInt32(), 2);
 				Assert.AreEqual(Object["B"].AsInt32(), 2);
 				Assert.AreEqual(Object["b"].AsInt32(4), 4);
@@ -312,15 +312,15 @@ namespace EpicGames.Serialization.Tests
 
 				// CopyTo
 				byte[] CopyBytes = new byte[Payload.Length + 1];
-				Field.AsObjectView().CopyTo(CopyBytes);
+				Field.AsObject().CopyTo(CopyBytes);
 				Assert.IsTrue(Payload.AsSpan().SequenceEqual(CopyBytes.AsSpan(1)));
-				NamedField.AsObjectView().CopyTo(CopyBytes);
+				NamedField.AsObject().CopyTo(CopyBytes);
 				Assert.IsTrue(Payload.AsSpan().SequenceEqual(CopyBytes.AsSpan(1)));
 
 				// TryGetView
 				ReadOnlyMemory<byte> View;
-				Assert.IsFalse(Field.AsObjectView().TryGetView(out View));
-				Assert.IsFalse(NamedField.AsObjectView().TryGetView(out View));
+				Assert.IsFalse(Field.AsObject().TryGetView(out View));
+				Assert.IsFalse(NamedField.AsObject().TryGetView(out View));
 			}
 
 			// Test CbField(None) as Object
@@ -358,7 +358,7 @@ namespace EpicGames.Serialization.Tests
 			{
 				int Count = 0;
 				CbObject Object = CbObject.Empty;
-				for (CbFieldIterator It = CbFieldIterator.MakeSingle(Object.AsFieldView()); It; ++It)
+				for (CbFieldIterator It = CbFieldIterator.MakeSingle(Object.AsField()); It; ++It)
 				{
 					CbField Field = It.Current;
 					Assert.IsTrue(Field.IsObject());
@@ -376,7 +376,7 @@ namespace EpicGames.Serialization.Tests
 				Assert.AreEqual(Array.Num(), ExpectedNum);
 
 				int ActualNum = 0;
-				for (CbFieldIterator It = Array.CreateViewIterator(); It; ++It)
+				for (CbFieldIterator It = Array.CreateIterator(); It; ++It)
 				{
 					++ActualNum;
 					Assert.AreEqual(It.Current.AsInt32(), ActualNum);
@@ -392,7 +392,7 @@ namespace EpicGames.Serialization.Tests
 				Assert.AreEqual(ActualNum, ExpectedNum);
 
 				ActualNum = 0;
-				foreach (CbField Field in Array.AsFieldView())
+				foreach (CbField Field in Array.AsField())
 				{
 					++ActualNum;
 					Assert.AreEqual(Field.AsInt32(), ActualNum);
@@ -409,7 +409,7 @@ namespace EpicGames.Serialization.Tests
 				TestIntArray(Array, 0, 2);
 
 				// Advance an iterator past the last field.
-				CbFieldIterator It = Array.CreateViewIterator();
+				CbFieldIterator It = Array.CreateIterator();
 				Assert.IsFalse((bool)It);
 				Assert.IsTrue(!It);
 				for (int Count = 16; Count > 0; --Count)
@@ -427,10 +427,10 @@ namespace EpicGames.Serialization.Tests
 				byte[] Payload = new byte[]{ 7, 3, IntType, 1, IntType, 2, IntType, 3 };
 				CbField Field = new CbField(Payload, CbFieldType.Array);
 				TestField(CbFieldType.Array, Field, new CbArray(Payload, CbFieldType.Array));
-				CbArray Array = CbArray.Clone(Field.AsArrayView());
+				CbArray Array = CbArray.Clone(Field.AsArray());
 				TestIntArray(Array, 3, Payload.Length);
-				TestIntArray(Field.AsArrayView(), 3, Payload.Length);
-				Assert.IsTrue(Array.Equals(Field.AsArrayView()));
+				TestIntArray(Field.AsArray(), 3, Payload.Length);
+				Assert.IsTrue(Array.Equals(Field.AsArray()));
 			}
 
 			// Test CbField(UniformArray)
@@ -439,32 +439,32 @@ namespace EpicGames.Serialization.Tests
 				byte[] Payload = new byte[]{ 5, 3, IntType, 1, 2, 3 };
 				CbField Field = new CbField(Payload, CbFieldType.UniformArray);
 				TestField(CbFieldType.UniformArray, Field, new CbArray(Payload, CbFieldType.UniformArray));
-				CbArray Array = CbArray.Clone(Field.AsArrayView());
+				CbArray Array = CbArray.Clone(Field.AsArray());
 				TestIntArray(Array, 3, Payload.Length);
-				TestIntArray(Field.AsArrayView(), 3, Payload.Length);
-				Assert.IsTrue(Array.Equals(Field.AsArrayView()));
+				TestIntArray(Field.AsArray(), 3, Payload.Length);
+				Assert.IsTrue(Array.Equals(Field.AsArray()));
 
 //				Assert.IsTrue(Array.GetOuterBuffer() == Array.AsField().AsArray().GetOuterBuffer());
 
 				// Equals
 				byte[] NamedPayload = new byte[]{ 1, (byte)'A', 5, 3, IntType, 1, 2, 3 };
 				CbField NamedField = new CbField(NamedPayload, CbFieldType.UniformArray | CbFieldType.HasFieldName);
-				Assert.IsTrue(Field.AsArrayView().Equals(NamedField.AsArrayView()));
-				Assert.IsTrue(Field.Equals(Field.AsArrayView().AsFieldView()));
-				Assert.IsTrue(NamedField.Equals(NamedField.AsArrayView().AsFieldView()));
+				Assert.IsTrue(Field.AsArray().Equals(NamedField.AsArray()));
+				Assert.IsTrue(Field.Equals(Field.AsArray().AsField()));
+				Assert.IsTrue(NamedField.Equals(NamedField.AsArray().AsField()));
 
 				// CopyTo
 				byte[] CopyBytes = new byte[Payload.Length + 1];
-				Field.AsArrayView().CopyTo(CopyBytes);
+				Field.AsArray().CopyTo(CopyBytes);
 				Assert.IsTrue(Payload.AsSpan().SequenceEqual(CopyBytes.AsSpan(1)));
-				NamedField.AsArrayView().CopyTo(CopyBytes);
+				NamedField.AsArray().CopyTo(CopyBytes);
 				Assert.IsTrue(Payload.AsSpan().SequenceEqual(CopyBytes.AsSpan(1)));
 
 				// TryGetView
 				ReadOnlyMemory<byte> View;
 //				Assert.IsTrue(Array.TryGetView(out View) && View == Array.GetOuterBuffer().GetView());
-				Assert.IsFalse(Field.AsArrayView().TryGetView(out View));
-				Assert.IsFalse(NamedField.AsArrayView().TryGetView(out View));
+				Assert.IsFalse(Field.AsArray().TryGetView(out View));
+				Assert.IsFalse(NamedField.AsArray().TryGetView(out View));
 
 //				// GetBuffer
 //				Assert.IsTrue(Array.GetBuffer().Flatten().GetView() == Array.GetOuterBuffer().GetView());
@@ -519,7 +519,7 @@ namespace EpicGames.Serialization.Tests
 			{
 				uint Count = 0;
 				CbArray Array = new CbArray();
-				for (CbFieldIterator Iter = CbFieldIterator.MakeSingle(Array.AsFieldView()); Iter; ++Iter)
+				for (CbFieldIterator Iter = CbFieldIterator.MakeSingle(Array.AsField()); Iter; ++Iter)
 				{
 					CbField Field = Iter.Current;
 					Assert.IsTrue(Field.IsArray());
@@ -588,7 +588,7 @@ namespace EpicGames.Serialization.Tests
 			// Test CbField(String, OutOfRangeSize)
 			{
 				byte[] Payload = new byte[9];
-				BitUtils.WriteVarUInt((ulong)(1) << 31, Payload);
+				VarInt.Write(Payload, (ulong)(1) << 31);
 				TestFieldError(CbFieldType.String, Payload, CbFieldError.RangeError, new ReadOnlyUtf8String("ABC"));
 			}
 
@@ -631,7 +631,7 @@ namespace EpicGames.Serialization.Tests
 		{
 			byte[] Payload = new byte[9];
 			ulong Negative = (ulong)((byte)FieldType & 1);
-			BitUtils.WriteVarUInt(Magnitude - Negative, Payload);
+			VarInt.Write(Payload, Magnitude - Negative);
 			ulong DefaultValue = 8;
 			ulong ExpectedValue = (Negative != 0)? (ulong)(-(long)(Magnitude)) : Magnitude;
 			CbField Field = new CbField(Payload, FieldType);
@@ -724,7 +724,7 @@ namespace EpicGames.Serialization.Tests
 			// Test CbField(Integer+, MaxBinary32) as Float
 			{
 				byte[] Payload = new byte[9];
-				BitUtils.WriteVarUInt(((ulong)(1) << 24) - 1, Payload); // 16,777,215
+				VarInt.Write(Payload, ((ulong)(1) << 24) - 1); // 16,777,215
 				CbField Field = new CbField(Payload, CbFieldType.IntegerPositive);
 				TestField(CbFieldType.Float32, Field, 16_777_215.0f);
 				TestField(CbFieldType.Float64, Field, 16_777_215.0);
@@ -733,7 +733,7 @@ namespace EpicGames.Serialization.Tests
 			// Test CbField(Integer+, MaxBinary32+1) as Float
 			{
 				byte[] Payload = new byte[9];
-				BitUtils.WriteVarUInt((ulong)(1) << 24, Payload); // 16,777,216
+				VarInt.Write(Payload, (ulong)(1) << 24); // 16,777,216
 				CbField Field = new CbField(Payload, CbFieldType.IntegerPositive);
 				TestFieldError(CbFieldType.Float32, Field, CbFieldError.RangeError, 8.0f);
 				TestField(CbFieldType.Float64, Field, 16_777_216.0);
@@ -742,7 +742,7 @@ namespace EpicGames.Serialization.Tests
 			// Test CbField(Integer+, MaxBinary64) as Float
 			{
 				byte[] Payload = new byte[9];
-				BitUtils.WriteVarUInt(((ulong)(1) << 53) - 1, Payload); // 9,007,199,254,740,991
+				VarInt.Write(Payload, ((ulong)(1) << 53) - 1); // 9,007,199,254,740,991
 				CbField Field = new CbField(Payload, CbFieldType.IntegerPositive);
 				TestFieldError(CbFieldType.Float32, Field, CbFieldError.RangeError, 8.0f);
 				TestField(CbFieldType.Float64, Field, 9_007_199_254_740_991.0);
@@ -751,7 +751,7 @@ namespace EpicGames.Serialization.Tests
 			// Test CbField(Integer+, MaxBinary64+1) as Float
 			{
 				byte[] Payload = new byte[9];
-				BitUtils.WriteVarUInt((ulong)(1) << 53, Payload); // 9,007,199,254,740,992
+				VarInt.Write(Payload, (ulong)(1) << 53); // 9,007,199,254,740,992
 				CbField Field = new CbField(Payload, CbFieldType.IntegerPositive);
 				TestFieldError(CbFieldType.Float32, Field, CbFieldError.RangeError, 8.0f);
 				TestFieldError(CbFieldType.Float64, Field, CbFieldError.RangeError, 8.0);
@@ -760,7 +760,7 @@ namespace EpicGames.Serialization.Tests
 			// Test CbField(Integer+, MaxUInt64) as Float
 			{
 				byte[] Payload = new byte[9];
-				BitUtils.WriteVarUInt(~(ulong)0, Payload); // Max uint64
+				VarInt.Write(Payload, ~(ulong)0); // Max uint64
 				CbField Field = new CbField(Payload, CbFieldType.IntegerPositive);
 				TestFieldError(CbFieldType.Float32, Field, CbFieldError.RangeError, 8.0f);
 				TestFieldError(CbFieldType.Float64, Field, CbFieldError.RangeError, 8.0);
@@ -769,7 +769,7 @@ namespace EpicGames.Serialization.Tests
 			// Test CbField(Integer-, MaxBinary32) as Float
 			{
 				byte[] Payload = new byte[9];
-				BitUtils.WriteVarUInt(((ulong)(1) << 24) - 2, Payload); // -16,777,215
+				VarInt.Write(Payload, ((ulong)(1) << 24) - 2); // -16,777,215
 				CbField Field = new CbField(Payload, CbFieldType.IntegerNegative);
 				TestField(CbFieldType.Float32, Field, -16_777_215.0f);
 				TestField(CbFieldType.Float64, Field, -16_777_215.0);
@@ -778,7 +778,7 @@ namespace EpicGames.Serialization.Tests
 			// Test CbField(Integer-, MaxBinary32+1) as Float
 			{
 				byte[] Payload = new byte[9];
-				BitUtils.WriteVarUInt(((ulong)(1) << 24) - 1, Payload); // -16,777,216
+				VarInt.Write(Payload, ((ulong)(1) << 24) - 1); // -16,777,216
 				CbField Field = new CbField(Payload, CbFieldType.IntegerNegative);
 				TestFieldError(CbFieldType.Float32, Field, CbFieldError.RangeError, 8.0f);
 				TestField(CbFieldType.Float64, Field, -16_777_216.0);
@@ -787,7 +787,7 @@ namespace EpicGames.Serialization.Tests
 			// Test CbField(Integer-, MaxBinary64) as Float
 			{
 				byte[] Payload = new byte[9];
-				BitUtils.WriteVarUInt(((ulong)(1) << 53) - 2, Payload); // -9,007,199,254,740,991
+				VarInt.Write(Payload, ((ulong)(1) << 53) - 2); // -9,007,199,254,740,991
 				CbField Field = new CbField(Payload, CbFieldType.IntegerNegative);
 				TestFieldError(CbFieldType.Float32, Field, CbFieldError.RangeError, 8.0f);
 				TestField(CbFieldType.Float64, Field, -9_007_199_254_740_991.0);
@@ -796,7 +796,7 @@ namespace EpicGames.Serialization.Tests
 			// Test CbField(Integer-, MaxBinary64+1) as Float
 			{
 				byte[] Payload = new byte[9];
-				BitUtils.WriteVarUInt(((ulong)(1) << 53) - 1, Payload); // -9,007,199,254,740,992
+				VarInt.Write(Payload, ((ulong)(1) << 53) - 1); // -9,007,199,254,740,992
 				CbField Field = new CbField(Payload, CbFieldType.IntegerNegative);
 				TestFieldError(CbFieldType.Float32, Field, CbFieldError.RangeError, 8.0f);
 				TestFieldError(CbFieldType.Float64, Field, CbFieldError.RangeError, 8.0);
@@ -1621,7 +1621,7 @@ namespace EpicGames.Serialization.Tests
 			// way, each field will only be visited once even if the loop needs to execute several times.
 			ParseObjectType ParseObject = (CbObject Object, ref uint A, ref uint B, ref uint C, ref uint D) =>
 			{
-				for (CbFieldIterator It = Object.CreateViewIterator(); It;)
+				for (CbFieldIterator It = Object.CreateIterator(); It;)
 				{
 					CbFieldIterator Last = It;
 					if (It.Current.GetName().Equals("A"))
