@@ -42,9 +42,23 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CsvFileCache..cs" />
     <Compile Include="PerfReportTool.cs" />
-    <Compile Include="PerfSummaries.cs" />
+    <Compile Include="SummaryTypes.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ReportGraph.cs" />
+    <Compile Include="ReportType.cs" />
+    <Compile Include="ReportXml.cs" />
+    <Compile Include="Summaries\BoundedStatValuesSummary.cs" />
+    <Compile Include="Summaries\EventSummary.cs" />
+    <Compile Include="Summaries\ExtraLinksSummary.cs" />
+    <Compile Include="Summaries\FPSChartSummary.cs" />
+    <Compile Include="Summaries\HistogramSummary.cs" />
+    <Compile Include="Summaries\HitchSummary.cs" />
+    <Compile Include="Summaries\MapOverlaySummary.cs" />
+    <Compile Include="Summaries\PeakSummary.cs" />
+    <Compile Include="Summary.cs" />
+    <Compile Include="SummaryTable.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
