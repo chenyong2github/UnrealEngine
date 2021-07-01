@@ -72,10 +72,13 @@ namespace EpicGames.Serialization.Tests
 
 			CbWriter writer = new CbWriter();
 			writer.BeginObject();
-			writer.AddUniformArray(new IoHash[] { hash1, hash2 }, CbFieldType.Hash, "needs");
+			writer.BeginUniformArray("needs", CbFieldType.Hash);
+			writer.WriteHashValue(hash1);
+			writer.WriteHashValue(hash2);
+			writer.EndUniformArray();
 			writer.EndObject();
 
-			byte[] objectData = writer.Save();
+			byte[] objectData = writer.ToByteArray();
 			ReadOnlyMemory<byte> memory = new ReadOnlyMemory<byte>(objectData);
 			CbField o = new CbField(memory);
 
@@ -97,11 +100,11 @@ namespace EpicGames.Serialization.Tests
 
 			CbWriter writer = new CbWriter();
 			writer.BeginObject();
-			writer.AddString("test", "string");
-			writer.AddBinaryAttachment(hash1, "hash");
+			writer.WriteString("string", "test");
+			writer.WriteBinaryAttachment("hash", hash1);
 			writer.EndObject();
 
-			byte[] objectData = writer.Save();
+			byte[] objectData = writer.ToByteArray();
 			ReadOnlyMemory<byte> memory = new ReadOnlyMemory<byte>(objectData);
 			CbField o = new CbField(memory);
 

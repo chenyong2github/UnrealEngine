@@ -6,6 +6,7 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using System.Text;
@@ -466,6 +467,28 @@ namespace EpicGames.Serialization
 	}
 
 	/// <summary>
+	/// Simplified view of <see cref="CbField"/> in the debugger, for fields with a name
+	/// </summary>
+	class CbFieldWithNameDebugView
+	{
+		public string? Name;
+		public object? Value;
+	}
+
+	/// <summary>
+	/// Simplified view of <see cref="CbField"/> for the debugger
+	/// </summary>
+	class CbFieldDebugView
+	{
+		public CbFieldDebugView(CbField Field) => Value = Field.HasName()
+				? new CbFieldWithNameDebugView { Name = Field.Name.ToString(), Value = Field.Value } 
+				: Field.Value;
+
+		[DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
+		public object? Value { get; }
+	}
+
+	/// <summary>
 	/// An atom of data in the compact binary format.
 	///
 	/// Accessing the value of a field is always a safe operation, even if accessed as the wrong type.
@@ -482,8 +505,28 @@ namespace EpicGames.Serialization
 	/// addressable when encoded, which means a zero-byte field is not permitted, and only arises in a
 	/// uniform array of fields with no payload, where the answer is to encode as a non-uniform array.
 	/// </summary>
+	[DebuggerDisplay("{DebugValue,nq}")]
+	[DebuggerTypeProxy(typeof(CbFieldDebugView))]
 	public class CbField : IEquatable<CbField>, IEnumerable<CbField>
 	{
+		/// <summary>
+		/// Type returned for none values
+		/// </summary>
+		[DebuggerDisplay("<none>")]
+		class NoneValueType
+		{
+		}
+
+		/// <summary>
+		/// Special value returned for "none" fields.
+		/// </summary>
+		static NoneValueType None { get; } = new NoneValueType();
+
+		/// <summary>
+		/// Formatter for the debug string
+		/// </summary>
+		object? DebugValue => HasName() ? $"{Name} = {Value}" : Value;
+
 		/// <summary>
 		/// Default empty field
 		/// </summary>
@@ -551,7 +594,7 @@ namespace EpicGames.Serialization
 
 			if (CbFieldUtils.HasFieldName(Type))
 			{
-				NameLen = (int)BitUtils.ReadVarUInt(Data.Slice(Offset).Span, out int NameLenByteCount);
+				NameLen = (int)VarInt.Read(Data.Slice(Offset).Span, out int NameLenByteCount);
 				Offset += NameLenByteCount + NameLen;
 			}
 
@@ -566,6 +609,58 @@ namespace EpicGames.Serialization
 		/// Returns the name of the field if it has a name, otherwise an empty view.
 		/// </summary>
 		public ReadOnlyUtf8String Name => new ReadOnlyUtf8String(Memory.Slice(PayloadOffset - NameLen, NameLen));
+
+		/// <summary>
+		/// Gets the value of this field
+		/// </summary>
+		public object? Value
+		{
+			get
+			{
+				CbFieldType FieldType = CbFieldUtils.GetType(TypeWithFlags);
+				switch (FieldType)
+				{
+					case CbFieldType.None:
+						return None;
+					case CbFieldType.Null:
+						return null;
+					case CbFieldType.Object:
+					case CbFieldType.UniformObject:
+						return AsObject();
+					case CbFieldType.Array:
+					case CbFieldType.UniformArray:
+						return AsArray();
+					case CbFieldType.Binary:
+						return AsBinary();
+					case CbFieldType.String:
+						return AsString();
+					case CbFieldType.IntegerPositive:
+						return AsUInt64();
+					case CbFieldType.IntegerNegative:
+						return AsInt64();
+					case CbFieldType.Float32:
+						return AsFloat();
+					case CbFieldType.Float64:
+						return AsDouble();
+					case CbFieldType.BoolFalse:
+						return false;
+					case CbFieldType.BoolTrue:
+						return true;
+					case CbFieldType.ObjectAttachment:
+					case CbFieldType.BinaryAttachment:
+					case CbFieldType.Hash:
+						return AsAttachment();
+					case CbFieldType.Uuid:
+						return AsUuid();
+					case CbFieldType.DateTime:
+						return AsDateTime();
+					case CbFieldType.TimeSpan:
+						return AsTimeSpan();
+					default:
+						throw new NotImplementedException($"Unknown field type ({FieldType})");
+				}
+			}
+		}
 
 		/// <inheritdoc cref="Name"/>
 		public ReadOnlyUtf8String GetName() => Name;
@@ -589,12 +684,6 @@ namespace EpicGames.Serialization
 		}
 
 		/// <summary>
-		/// Access the field as an object. Defaults to an empty object on error. 
-		/// </summary>
-		/// <returns></returns>
-		public CbObject AsObjectView() => AsObject();
-
-		/// <summary>
 		/// Access the field as an array. Defaults to an empty array on error. 
 		/// </summary>
 		/// <returns></returns>
@@ -613,12 +702,6 @@ namespace EpicGames.Serialization
 		}
 
 		/// <summary>
-		/// Access the field as an array. Defaults to an empty array on error. 
-		/// </summary>
-		/// <returns></returns>
-		public CbArray AsArrayView() => AsArray();
-
-		/// <summary>
 		/// Access the field as binary data.
 		/// </summary>
 		/// <returns></returns>
@@ -627,7 +710,9 @@ namespace EpicGames.Serialization
 			if (CbFieldUtils.IsBinary(TypeWithFlags))
 			{
 				Error = CbFieldError.None;
-				return BitUtils.GetVarUIntSizedPayload(GetPayloadView());
+
+				ulong Length = VarInt.Read(Memory.Span, out int BytesRead);
+				return Memory.Slice(BytesRead, (int)Length);
 			}
 			else
 			{
@@ -635,13 +720,6 @@ namespace EpicGames.Serialization
 				return Default;
 			}
 		}
-
-		/// <summary>
-		/// Access the field as binary data.
-		/// </summary>
-		/// <returns></returns>
-		public ReadOnlyMemory<byte> AsBinaryView(ReadOnlyMemory<byte> Default = default) => AsBinary(Default);
-
 
 		/// <summary>
 		/// Access the field as a UTF-8 string. Returns the provided default on error.
@@ -652,7 +730,7 @@ namespace EpicGames.Serialization
 		{
 			if (CbFieldUtils.IsString(TypeWithFlags))
 			{
-				ulong ValueSize = BitUtils.ReadVarUInt(Payload.Span, out int ValueSizeByteCount);
+				ulong ValueSize = VarInt.Read(Payload.Span, out int ValueSizeByteCount);
 				if (ValueSize >= (1UL << 31))
 				{
 					Error = CbFieldError.RangeError;
@@ -751,7 +829,7 @@ namespace EpicGames.Serialization
 				ulong IsNegative = (ulong)(byte)(TypeWithFlags) & 1;
 
 				int MagnitudeByteCount;
-				ulong Magnitude = BitUtils.ReadVarUInt(Payload.Span, out MagnitudeByteCount);
+				ulong Magnitude = VarInt.Read(Payload.Span, out MagnitudeByteCount);
 				ulong Value = Magnitude ^ (ulong)-(long)(IsNegative);
 
 				if ((Magnitude & OutOfRangeMask) == 0 && (IsNegative == 0 || IsSigned))
@@ -788,7 +866,7 @@ namespace EpicGames.Serialization
 						ulong OutOfRangeMask = ~((1UL << /*FLT_MANT_DIG*/ 24) - 1);
 
 						int MagnitudeByteCount;
-						ulong Magnitude = BitUtils.ReadVarUInt(Payload.Span, out MagnitudeByteCount) + IsNegative;
+						ulong Magnitude = VarInt.Read(Payload.Span, out MagnitudeByteCount) + IsNegative;
 						bool IsInRange = (Magnitude & OutOfRangeMask) == 0;
 						Error = IsInRange ? CbFieldError.None : CbFieldError.RangeError;
 						return IsInRange ? (float)((IsNegative != 0) ? (float)-(long)Magnitude : (float)Magnitude) : Default;
@@ -821,7 +899,7 @@ namespace EpicGames.Serialization
 						ulong OutOfRangeMask = ~((1UL << /*DBL_MANT_DIG*/ 53) - 1);
 
 						int MagnitudeByteCount;
-						ulong Magnitude = BitUtils.ReadVarUInt(Payload.Span, out MagnitudeByteCount) + IsNegative;
+						ulong Magnitude = VarInt.Read(Payload.Span, out MagnitudeByteCount) + IsNegative;
 						bool IsInRange = (Magnitude & OutOfRangeMask) == 0;
 						Error = IsInRange ? CbFieldError.None : CbFieldError.RangeError;
 						return IsInRange ? (double)((IsNegative != 0) ? (double)-(long)Magnitude : (double)Magnitude) : Default;
@@ -1232,22 +1310,16 @@ namespace EpicGames.Serialization
 		/// Create an iterator for the fields of an array or object, otherwise an empty iterator.
 		/// </summary>
 		/// <returns></returns>
-		public CbFieldIterator CreateIterator() => CreateViewIterator();
-
-		/// <summary>
-		/// Create an iterator for the fields of an array or object, otherwise an empty iterator.
-		/// </summary>
-		/// <returns></returns>
-		public CbFieldIterator CreateViewIterator()
+		public CbFieldIterator CreateIterator()
 		{
 			CbFieldType LocalTypeWithFlags = TypeWithFlags;
 			if (CbFieldUtils.HasFields(LocalTypeWithFlags))
 			{
 				ReadOnlyMemory<byte> PayloadBytes = Payload;
 				int PayloadSizeByteCount;
-				int PayloadSize = (int)BitUtils.ReadVarUInt(PayloadBytes.Span, out PayloadSizeByteCount);
+				int PayloadSize = (int)VarInt.Read(PayloadBytes.Span, out PayloadSizeByteCount);
 				PayloadBytes = PayloadBytes.Slice(PayloadSizeByteCount);
-				int NumByteCount = CbFieldUtils.IsArray(LocalTypeWithFlags) ? (int)BitUtils.MeasureVarUInt(PayloadBytes.Span) : 0;
+				int NumByteCount = CbFieldUtils.IsArray(LocalTypeWithFlags) ? (int)VarInt.Measure(PayloadBytes.Span) : 0;
 				if (PayloadSize > NumByteCount)
 				{
 					PayloadBytes = PayloadBytes.Slice(NumByteCount);
@@ -1268,7 +1340,7 @@ namespace EpicGames.Serialization
 		/// <inheritdoc/>
 		public IEnumerator<CbField> GetEnumerator()
 		{
-			for (CbFieldIterator Iter = CreateViewIterator(); Iter; Iter.MoveNext())
+			for (CbFieldIterator Iter = CreateIterator(); Iter; Iter.MoveNext())
 			{
 				yield return Iter.Current;
 			}
@@ -1278,21 +1350,12 @@ namespace EpicGames.Serialization
 		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
 		/// <summary>
-		/// Returns a view of the field, including the type and name when present.
-		/// </summary>
-		/// <returns></returns>
-		internal ReadOnlyMemory<byte> GetView()
-		{
-			return Memory;
-		}
-
-		/// <summary>
 		/// Returns a view of the name and value payload, which excludes the type.
 		/// </summary>
 		/// <returns></returns>
 		private ReadOnlyMemory<byte> GetViewNoType()
 		{
-			int NameSize = CbFieldUtils.HasFieldName(TypeWithFlags) ? NameLen + (int)BitUtils.MeasureVarUInt((uint)NameLen) : 0;
+			int NameSize = CbFieldUtils.HasFieldName(TypeWithFlags) ? NameLen + (int)VarInt.Measure((uint)NameLen) : 0;
 			return Memory.Slice(PayloadOffset - NameSize);
 		}
 
@@ -1337,13 +1400,13 @@ namespace EpicGames.Serialization
 				case CbFieldType.Binary:
 				case CbFieldType.String:
 					{
-						ulong PayloadSize = BitUtils.ReadVarUInt(Payload.Span, out int BytesRead);
+						ulong PayloadSize = VarInt.Read(Payload.Span, out int BytesRead);
 						return PayloadSize + (ulong)BytesRead;
 					}
 				case CbFieldType.IntegerPositive:
 				case CbFieldType.IntegerNegative:
 					{
-						return (ulong)BitUtils.MeasureVarUInt(Payload.Span);
+						return (ulong)VarInt.Measure(Payload.Span);
 					}
 				case CbFieldType.Float32:
 					return 4;
@@ -1368,39 +1431,6 @@ namespace EpicGames.Serialization
 			}
 		}
 
-		/*
-				/// <summary>
-				/// Enumerate fields within this field. (Originally CreateFieldViewIterator).
-				/// </summary>
-				private IEnumerable<CbField> Fields
-				{
-				   get
-				   {
-					   for (CbFieldIterator Iterator = CreateViewIterator(); Iterator; Iterator.MoveNext())
-					   {
-						   yield return Iterator.Current;
-					   }
-				   }
-			   }
-
-			   public CbFieldIterator CreateIterator() => CreateViewIterator();
-
-			   public static CbField MakeView(CbField Field) => Field;
-			   public CbField Find(ReadOnlyUtf8String Name) => FindView(Name);
-			   public CbField FindIgnoreCase(ReadOnlyUtf8String Name) => FindViewIgnoreCase(Name);
-			   public CbField FindView(ReadOnlyUtf8String Name) => this[Name];
-			   public CbField FindViewIgnoreCase(ReadOnlyUtf8String Name) => Fields.FirstOrDefault(Field => ReadOnlyUtf8StringComparer.OrdinalIgnoreCase.Equals(Field.Name, Name)) ?? new CbField();
-
-			   /// <summary>
-			   /// Fetch a field by index. This operation is O(n); prefer to iterate through fields once.
-			   /// </summary>
-			   /// <param name="Index"></param>
-			   /// <returns></returns>
-			   public CbField? this[int Index]
-			   {
-				   get { return Fields.Skip(Index).FirstOrDefault(); }
-			   }
-		*/
 		#region Mimic inheritance from TCbBufferFactory
 
 		public static CbField Clone(ReadOnlyMemory<byte> Data) => Clone(new CbField(Data));
@@ -1687,55 +1717,28 @@ namespace EpicGames.Serialization
 			return !A.Current.Equals(B.Current);
 		}
 	}
-	/*
+
 	/// <summary>
-	/// Iterator for fields
+	/// Simplified view of <see cref="CbArray"/> for display in the debugger
 	/// </summary>
-	public class CbFieldIterator : IEnumerable<CbField>
+	class CbArrayDebugView
 	{
-		/// <summary>
-		/// The underlying buffer
-		/// </summary>
-		ReadOnlyMemory<byte> Data;
+		CbArray Array;
 
-		/// <summary>
-		/// Type for all fields
-		/// </summary>
-		CbFieldType UniformType;
+		public CbArrayDebugView(CbArray Array) => this.Array = Array;
 
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="Data"></param>
-		/// <param name="UniformType"></param>
-		public CbFieldIterator(ReadOnlyMemory<byte> Data, CbFieldType UniformType)
-		{
-			this.Data = Data;
-			this.UniformType = UniformType;
-		}
-
-		/// <inheritdoc/>
-		public IEnumerator<CbField> GetEnumerator()
-		{
-			ReadOnlyMemory<byte> LocalData = Data;
-			while (LocalData.Length > 0)
-			{
-				CbField Field = new CbField(LocalData, UniformType);
-				yield return Field;
-				LocalData = LocalData.Slice(Field.Memory.Length);
-			}
-		}
-
-		/// <inheritdoc/>
-		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+		[DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
+		public object?[] Value => Array.Select(x => x.Value).ToArray();
 	}
-	*/
+
 	/// <summary>
 	/// Array of CbField that have no names.
 	///
 	/// Accessing a field of the array requires iteration. Access by index is not provided because the
 	/// cost of accessing an item by index scales linearly with the index.
 	/// </summary>
+	[DebuggerDisplay("Count = {Count}")]
+	[DebuggerTypeProxy(typeof(CbArrayDebugView))]
 	public class CbArray : IEnumerable<CbField>
 	{
 		/// <summary>
@@ -1776,14 +1779,16 @@ namespace EpicGames.Serialization
 		}
 
 		/// <summary>
-		/// Returns the number of items in the array.
+		/// Number of items in this array
 		/// </summary>
-		/// <returns></returns>
-		public int Num()
+		public int Count
 		{
-			ReadOnlyMemory<byte> PayloadBytes = InnerField.Payload;
-			PayloadBytes = PayloadBytes.Slice(BitUtils.MeasureVarUInt(PayloadBytes.Span));
-			return (int)BitUtils.ReadVarUInt(PayloadBytes.Span, out int NumByteCount);
+			get
+			{
+				ReadOnlyMemory<byte> PayloadBytes = InnerField.Payload;
+				PayloadBytes = PayloadBytes.Slice(VarInt.Measure(PayloadBytes.Span));
+				return (int)VarInt.Read(PayloadBytes.Span, out int NumByteCount);
+			}
 		}
 
 		/// <summary>
@@ -1793,23 +1798,11 @@ namespace EpicGames.Serialization
 		public CbField AsField() => InnerField;
 
 		/// <summary>
-		/// Access the array as an array field.
-		/// </summary>
-		/// <returns></returns>
-		public CbField AsFieldView() => InnerField;
-
-		/// <summary>
 		/// Construct an array from an array field. No type check is performed!
 		/// </summary>
 		/// <param name="Field"></param>
 		/// <returns></returns>
 		public static CbArray FromFieldNoCheck(CbField Field) => new CbArray(Field);
-
-		/// <summary>
-		/// Whether the array has any fields.
-		/// </summary>
-		/// <param name="Array"></param>
-		public static explicit operator bool(CbArray Array) => Array.Num() > 0;
 
 		/// <summary>
 		/// Returns the size of the array in bytes if serialized by itself with no name.
@@ -1878,7 +1871,7 @@ namespace EpicGames.Serialization
 		}
 
 		/** Invoke the visitor for every attachment in the array. */
-		public void IterateAttachments(Action<CbField> Visitor) => CreateViewIterator().IterateRangeAttachments(Visitor);
+		public void IterateAttachments(Action<CbField> Visitor) => CreateIterator().IterateRangeAttachments(Visitor);
 
 		/// <summary>
 		/// Try to get a view of the array as it would be serialized, such as by CopyTo.
@@ -1898,9 +1891,6 @@ namespace EpicGames.Serialization
 
 		/// <inheritdoc cref="CbField.CreateIterator"/>
 		public CbFieldIterator CreateIterator() => InnerField.CreateIterator();
-
-		/// <inheritdoc cref="CbField.CreateViewIterator"/>
-		public CbFieldIterator CreateViewIterator() => InnerField.CreateViewIterator();
 
 		/// <inheritdoc/>
 		public IEnumerator<CbField> GetEnumerator() => InnerField.GetEnumerator();
@@ -1929,6 +1919,26 @@ namespace EpicGames.Serialization
 	}
 
 	/// <summary>
+	/// Simplified view of <see cref="CbObject"/> for display in the debugger
+	/// </summary>
+	class CbObjectDebugView
+	{
+		[DebuggerDisplay("{Name}: {Value}")]
+		public class Property
+		{
+			public string? Name { get; set; }
+			public object? Value { get; set; }
+		}
+
+		CbObject Object;
+
+		public CbObjectDebugView(CbObject Object) => this.Object = Object;
+
+		[DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
+		public Property[] Properties => Object.Select(x => new Property { Name = x.Name.ToString(), Value = x.Value }).ToArray();
+	}
+
+	/// <summary>
 	/// Array of CbField that have unique names.
 	///
 	/// Accessing the fields of an object is always a safe operation, even if the requested field does
@@ -1936,6 +1946,7 @@ namespace EpicGames.Serialization
 	/// is not found in the object, the field that it returns has no value (evaluates to false) though
 	/// attempting to access the empty field is also safe, as described by FCbFieldView.
 	/// </summary>
+	[DebuggerTypeProxy(typeof(CbObjectDebugView))]
 	public class CbObject : IEnumerable<CbField>
 	{
 		/// <summary>
@@ -1977,11 +1988,8 @@ namespace EpicGames.Serialization
 			Writer.BeginObject();
 			Build(Writer);
 			Writer.EndObject();
-			return new CbObject(Writer.Save());
+			return new CbObject(Writer.ToByteArray());
 		}
-
-		/// <inheritdoc cref="FindView(ReadOnlyUtf8String)"/>
-		public CbField Find(ReadOnlyUtf8String Name) => FindView(Name);
 
 		/// <summary>
 		/// Find a field by case-sensitive name comparison.
@@ -1991,17 +1999,14 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="Name">The name of the field.</param>
 		/// <returns>The matching field if found, otherwise a field with no value.</returns>
-		public CbField FindView(ReadOnlyUtf8String Name) => InnerField[Name];
-
-		/// <inheritdoc cref="FindView(ReadOnlyUtf8String)"/>
-		public CbField FindIgnoreCase(ReadOnlyUtf8String Name) => FindViewIgnoreCase(Name);
+		public CbField Find(ReadOnlyUtf8String Name) => InnerField[Name];
 
 		/// <summary>
 		/// Find a field by case-insensitive name comparison.
 		/// </summary>
 		/// <param name="Name">The name of the field.</param>
 		/// <returns>The matching field if found, otherwise a field with no value.</returns>
-		public CbField FindViewIgnoreCase(ReadOnlyUtf8String Name) => InnerField.FirstOrDefault(Field => ReadOnlyUtf8StringComparer.OrdinalIgnoreCase.Equals(Field.Name, Name)) ?? new CbField();
+		public CbField FindIgnoreCase(ReadOnlyUtf8String Name) => InnerField.FirstOrDefault(Field => ReadOnlyUtf8StringComparer.OrdinalIgnoreCase.Equals(Field.Name, Name)) ?? new CbField();
 
 		/// <summary>
 		/// Find a field by case-sensitive name comparison.
@@ -2014,26 +2019,11 @@ namespace EpicGames.Serialization
 		public CbField AsField() => InnerField;
 
 		/// <summary>
-		/// Access the object as an object field.
-		/// </summary>
-		/// <returns></returns>
-		public CbField AsFieldView() => InnerField;
-
-		/// <summary>
 		/// Construct an object from an object field. No type check is performed!
 		/// </summary>
 		/// <param name="Field"></param>
 		/// <returns></returns>
 		public static CbObject FromFieldNoCheck(CbField Field) => new CbObject(Field);
-
-		/// <summary>
-		/// Whether the object has any fields.
-		/// </summary>
-		/// <param name="Object"></param>
-		public static explicit operator bool(CbObject Object)
-		{
-			throw new NotImplementedException();
-		}
 
 		/// <summary>
 		/// Returns the size of the object in bytes if serialized by itself with no name.
@@ -2106,7 +2096,7 @@ namespace EpicGames.Serialization
 		/// Invoke the visitor for every attachment in the object.
 		/// </summary>
 		/// <param name="Visitor"></param>
-		public void IterateAttachments(Action<CbField> Visitor) => CreateViewIterator().IterateRangeAttachments(Visitor);
+		public void IterateAttachments(Action<CbField> Visitor) => CreateIterator().IterateRangeAttachments(Visitor);
 
 		/// <summary>
 		/// Creates a view of the object, excluding the name
@@ -2144,9 +2134,6 @@ namespace EpicGames.Serialization
 
 		/// <inheritdoc cref="CbField.CreateIterator"/>
 		public CbFieldIterator CreateIterator() => InnerField.CreateIterator();
-
-		/// <inheritdoc cref="CbField.CreateViewIterator"/>
-		public CbFieldIterator CreateViewIterator() => InnerField.CreateViewIterator();
 
 		/// <inheritdoc/>
 		public IEnumerator<CbField> GetEnumerator() => InnerField.GetEnumerator();
@@ -2249,115 +2236,5 @@ namespace EpicGames.Serialization
 			}
 		}
 		#endregion
-	}
-
-	/// <summary>
-	/// Methods for reading VarUInt values
-	/// </summary>
-	public static class BitUtils
-	{
-		/// <summary>
-		/// Extracts the payload from a buffer prefixed with a variable-length value
-		/// </summary>
-		/// <param name="Memory"></param>
-		/// <returns></returns>
-		public static ReadOnlyMemory<byte> GetVarUIntSizedPayload(ReadOnlyMemory<byte> Memory)
-		{
-			ulong Length = ReadVarUInt(Memory.Span, out int BytesRead);
-			return Memory.Slice(BytesRead, (int)Length);
-		}
-
-		/// <summary>
-		/// Read a variable-length unsigned integer.
-		/// </summary>
-		/// <param name="Buffer">A variable-length encoding of an unsigned integer</param>
-		/// <param name="BytesRead">The number of bytes consumed from the input</param>
-		/// <returns></returns>
-		public static ulong ReadVarUInt(ReadOnlySpan<byte> Buffer, out int BytesRead)
-		{
-			BytesRead = (int)MeasureVarUInt(Buffer);
-
-			ulong Value = (ulong)(Buffer[0] & (0xff >> BytesRead));
-			for (int i = 1; i < BytesRead; i++)
-			{
-				Value <<= 8;
-				Value |= Buffer[i];
-			}
-			return Value;
-		}
-
-		/// <summary>
-		/// Measure the length in bytes (1-9) of an encoded variable-length integer.
-		/// </summary>
-		/// <param name="Buffer">A variable-length encoding of an(signed or unsigned) integer.</param>
-		/// <returns>The number of bytes used to encode the integer, in the range 1-9.</returns>
-		public static int MeasureVarUInt(ReadOnlySpan<byte> Buffer)
-		{
-			byte b = Buffer[0];
-			b = (byte)~b;
-			return BitOperations.LeadingZeroCount(b) - 23;
-		}
-
-		/// <summary>
-		/// Measure the number of bytes (1-5) required to encode the 32-bit input.
-		/// </summary>
-		/// <param name="Value"></param>
-		/// <returns></returns>
-		public static int MeasureVarUInt(int Value)
-		{
-			return MeasureVarUInt((uint)Value);
-		}
-
-		/// <summary>
-		/// Measure the number of bytes (1-5) required to encode the 32-bit input.
-		/// </summary>
-		/// <param name="Value"></param>
-		/// <returns></returns>
-		public static int MeasureVarUInt(uint Value)
-		{
-			return BitOperations.Log2(Value) / 7 + 1;
-		}
-
-		/// <summary>
-		/// Measure the number of bytes (1-9) required to encode the 64-bit input.
-		/// </summary>
-		/// <param name="value"></param>
-		/// <returns></returns>
-		public static int MeasureVarUInt(ulong value)
-		{
-			return Math.Min(BitOperations.Log2(value) / 7 + 1, 9);
-		}
-
-		/// <summary>
-		/// Write a variable-length unsigned integer.
-		/// </summary>
-		/// <param name="Value">An unsigned integer to encode</param>
-		/// <param name="Buffer">A buffer of at least 9 bytes to write the output to.</param>
-		/// <param name="BufferOffset"></param>
-		/// <returns>The number of bytes used in the output</returns>
-		public static int WriteVarUInt(long Value, byte[] Buffer, int BufferOffset = 0)
-		{
-			return WriteVarUInt((ulong)Value, Buffer, BufferOffset);
-		}
-
-		/// <summary>
-		/// Write a variable-length unsigned integer.
-		/// </summary>
-		/// <param name="Value">An unsigned integer to encode</param>
-		/// <param name="Buffer">A buffer of at least 9 bytes to write the output to.</param>
-		/// <param name="BufferOffset"></param>
-		/// <returns>The number of bytes used in the output</returns>
-		public static int WriteVarUInt(ulong Value, byte[] Buffer, int BufferOffset = 0)
-		{
-			int ByteCount = MeasureVarUInt(Value);
-
-			for (uint Idx = 1; Idx < ByteCount; Idx++)
-			{
-				Buffer[BufferOffset + ByteCount - Idx] = (byte)Value;
-				Value >>= 8;
-			}
-			Buffer[BufferOffset] = (byte)((0xff << (9 - (int)ByteCount)) | (byte)Value);
-			return ByteCount;
-		}
 	}
 }
