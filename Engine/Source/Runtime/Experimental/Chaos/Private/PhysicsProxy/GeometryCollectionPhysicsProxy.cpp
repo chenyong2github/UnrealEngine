@@ -156,7 +156,6 @@ void PopulateSimulatedParticle(
 	const int16 CollisionGroup)
 {
 	SCOPE_CYCLE_COUNTER(STAT_PopulateSimulatedParticle);
-
 	Handle->SetDisabledLowLevel(false);
 	Handle->SetX(WorldTransform.GetTranslation());
 	Handle->SetV(Chaos::FVec3(0.f));
@@ -688,7 +687,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 
 			FFieldSystemMetaDataProcessingResolution* ResolutionData = new FFieldSystemMetaDataProcessingResolution(EFieldResolutionType::Field_Resolution_Maximum);
 
-			Cmd.MetaData.Add(FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution, TUniquePtr<FFieldSystemMetaDataProcessingResolution>(ResolutionData));
+			Cmd.MetaData.Add( FFieldSystemMetaData::EMetaType::ECommandData_ProcessingResolution, TUniquePtr<FFieldSystemMetaDataProcessingResolution>(ResolutionData));
 			Commands.Add(Cmd);
 		}
 		Parameters.InitializationCommands.Empty();
@@ -2166,7 +2165,10 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 									FCollisionStructureManager::NewImplicitConvex(
 										(*TransformToConvexIndices)[TransformGroupIndex].Array(),
 										ConvexGeometry,
-										SizeSpecificData.CollisionShapesData[0].CollisionType));
+										SizeSpecificData.CollisionShapesData[0].CollisionType,
+										CollectionMassToLocal[TransformGroupIndex]
+									)
+							);
 						}
 					}
 					else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Capsule)
@@ -2445,7 +2447,10 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 								FCollisionStructureManager::NewImplicitConvex(
 									(*TransformToConvexIndices)[TransformGroupIndex].Array(),
 									ConvexGeometry,
-									SizeSpecificData.CollisionShapesData[0].CollisionType));
+									SizeSpecificData.CollisionShapesData[0].CollisionType,
+									CollectionMassToLocal[TransformGroupIndex]
+								)
+							);
 						}
 					}
 					else if (SizeSpecificData.CollisionShapesData[0].ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Capsule)

@@ -107,7 +107,8 @@ public:
 	static FImplicit* NewImplicitConvex(
 		const TArray<int32>& ConvexIndices,
 		const TManagedArray<TUniquePtr<Chaos::FConvex>>* ConvexGeometry,
-		const ECollisionTypeEnum CollisionType);
+		const ECollisionTypeEnum CollisionType,
+		const FTransform& MassTransform);
 
 	static FImplicit* NewImplicitLevelset(
 		Chaos::FErrorReporter ErrorReporter,
