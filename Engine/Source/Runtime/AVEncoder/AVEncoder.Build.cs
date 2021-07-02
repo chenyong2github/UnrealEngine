@@ -43,11 +43,6 @@ public class AVEncoder : ModuleRules
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) || Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PrivateDependencyModuleNames.AddRange(new string[] {
-				"nvEncode",
-				"Amf"
-			});
-
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
 			PrivateIncludePathModuleNames.Add("VulkanRHI");
 
@@ -70,13 +65,13 @@ public class AVEncoder : ModuleRules
 					"mfuuid.lib"
 				});
 				
-				PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private/Windows"));
+				// PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private/Windows"));
 			}
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
 			PrivateDependencyModuleNames.Add("CUDA");
-			PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private/Linux"));
+			// PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private/Linux"));
 		}
 
 		// TEMPORARY: set this to zero for all platforms until CUDA TPS review clears

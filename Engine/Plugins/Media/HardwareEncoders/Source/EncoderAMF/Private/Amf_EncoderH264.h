@@ -4,12 +4,11 @@
 
 #include "Amf_Common.h"
 
-#if PLATFORM_DESKTOP && !PLATFORM_APPLE
+#include "HAL/Thread.h"
+#include "HAL/Event.h"
 
 #include "VideoEncoderFactory.h"
 #include "VideoEncoderInputImpl.h"
-
-#define AVENCODER_VIDEO_ENCODER_AVAILABLE_AMF_H264
 
 namespace AVEncoder
 {
@@ -47,6 +46,7 @@ namespace AVEncoder
 			bool Setup();
 			bool CreateSession();
 			bool CreateInitialConfig();
+			void UpdateConfig();
 
 			template<class T> 
 			bool GetProperty(const TCHAR* PropertyToQuery, T& outProperty, const T& (*func)(const AMFVariantStruct*)) const;
@@ -54,7 +54,7 @@ namespace AVEncoder
 			template<class T>
 			bool GetCapability(const TCHAR* CapToQuery, T& OutCap) const;
 
-			void Encode(FVideoEncoderInputFrameImpl const* frame, FEncodeOptions const& options);
+			AMF_RESULT Encode(FVideoEncoderInputFrameImpl const* frame, FEncodeOptions const& options);
 			void Flush();
 			void Shutdown();
 			void UpdateBitrate(uint32 InMaxBitRate, uint32 InTargetBitRate);
@@ -63,8 +63,8 @@ namespace AVEncoder
 			FVideoEncoderAmf_H264& Encoder;
 			FAmfCommon& Amf;
 			uint32 LayerIndex;
-			AMFComponentPtr AmfEncoder;
-			bool bAsyncMode = true;
+			AMFComponentPtr AmfEncoder = NULL;
+			FThreadSafeCounter PendingFrames;
 			FDateTime LastKeyFrameTime = 0;
 			bool bForceNextKeyframe = false;
 
@@ -79,7 +79,6 @@ namespace AVEncoder
 				virtual ~FInputOutput()
 				{
 					SourceFrame->Release();
-					Surface->Release();
 				}
 
 				const FVideoEncoderInputFrameImpl* SourceFrame;
@@ -92,37 +91,23 @@ namespace AVEncoder
 			TSharedPtr<FInputOutput> GetOrCreateSurface(const FVideoEncoderInputFrameImpl* InFrame);
 			bool CreateSurface(TSharedPtr<FInputOutput>& OutBuffer, const FVideoEncoderInputFrameImpl* SourceFrame, void* TextureToCompress);
 
-			void ProcessNextPendingFrame();
-
 			TArray<TSharedPtr<FInputOutput>> CreatedSurfaces;
-			FCriticalSection ProtectedWaitingForPending;
-			bool WaitingForPendingActive = false;
 			FThreadSafeBool bUpdateConfig = false;
 		};
+
+		void ProcessFrameThreadFunc();
+		TUniquePtr<FThread> ProcessFrameThread;
+		FThreadSafeBool bShouldRunProcessingThread = true;
+		FThreadSafeBool bWaitingForFrames = true;
+		FEventRef FramesPending;
 
 		FAmfCommon& Amf;
 		EVideoFrameFormat FrameFormat = EVideoFrameFormat::Undefined;
 		void* EncoderDevice;
 
 		uint32 MaxFramerate = 0;
-		int32 MinQP = -1;
+		amf_int64 MinQP = -1;
 		RateControlMode RateMode = RateControlMode::CBR;
 		bool FillData = false;
-
-		// event thread for amf async (supported on all platforms)
-		void OnEvent(void* InEvent, TUniqueFunction<void()>&& InCallback);
-		void StartEventThread();
-		void StopEventThread();
-		void EventLoop();
-
-		TUniquePtr<FThread> EventThread;
-		FCriticalSection ProtectEventThread;
-		bool bExitEventThread = false;
-
-		void* EventThreadCheckEvent = nullptr;
-
-		using FWaitForEvent = TPair<void*, TUniqueFunction<void()>>;
-		TArray<FWaitForEvent> EventThreadWaitingFor;
-    };
+	};
 }
-#endif // PLATFORM_DESKTOP && !PLATFORM_APPLE

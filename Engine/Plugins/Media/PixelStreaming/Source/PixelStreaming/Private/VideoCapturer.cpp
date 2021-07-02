@@ -19,6 +19,8 @@
 #include "CudaModule.h"
 #endif
 
+#include "VulkanRHIPrivate.h"
+
 extern TAutoConsoleVariable<FString> CVarPixelStreamingEncoderTargetSize;
 
 FVideoCapturer::FVideoCapturer()
@@ -31,16 +33,35 @@ FVideoCapturer::FVideoCapturer()
 
 #if PLATFORM_WINDOWS
 		if (RHIName == TEXT("D3D11"))
-			VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), Width, Height, true);
+		{
+			VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), Width, Height, true, IsRHIDeviceAMD());
+		}
 		else if (RHIName == TEXT("D3D12"))
-			VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForD3D12(GDynamicRHI->RHIGetNativeDevice(), Width, Height, true);
-		else
+		{
+				VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForD3D12(GDynamicRHI->RHIGetNativeDevice(), Width, Height, true, IsRHIDeviceNVIDIA());
+		}
+		else if (RHIName == TEXT("Vulkan"))
 #endif
+		{
+			if (IsRHIDeviceAMD())
+			{
+				FVulkanDynamicRHI* DynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);		
+				AVEncoder::FVulkanDataStruct VulkanData = { DynamicRHI->GetInstance(), DynamicRHI->GetDevice()->GetPhysicalHandle(), DynamicRHI->GetDevice()->GetInstanceHandle() };
+
+				VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForVulkan(&VulkanData, Width, Height, true);
+			}
+			else if (IsRHIDeviceNVIDIA())
+			{
 #if WITH_CUDA
-			VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForCUDA(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext(), Width, Height, true);
+				if(true) // TODO check if CUDA Driver API is avaliable
+				{
+					VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForCUDA(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext(), Width, Height, true);
+				}
 #else
 			unimplemented();
 #endif
+			}
+		}
 	}
 }
 
@@ -109,124 +130,136 @@ AVEncoder::FVideoEncoderInputFrame* FVideoCapturer::ObtainInputFrame()
 		if (RHIName == TEXT("D3D11"))
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
-			FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV, ERHIAccess::CopyDest, CreateInfo);
-			InputFrame->SetTexture((ID3D11Texture2D*)Texture->GetNativeResource(), [&, InputFrame](ID3D11Texture2D* NativeTexture) { BackBuffers.Remove(InputFrame); });
+			FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable, ERHIAccess::CopyDest, CreateInfo);
+			InputFrame->SetTexture((ID3D11Texture2D*)Texture->GetNativeResource(), [&](ID3D11Texture2D* NativeTexture) { BackBuffers.Remove(InputFrame); });
 			BackBuffers.Add(InputFrame, Texture);
 		}
 		else if (RHIName == TEXT("D3D12"))
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
-			FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV, ERHIAccess::CopyDest, CreateInfo);
-			InputFrame->SetTexture((ID3D12Resource*)Texture->GetNativeResource(), [&, InputFrame](ID3D12Resource* NativeTexture) { BackBuffers.Remove(InputFrame); });
+			FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable, ERHIAccess::CopyDest, CreateInfo);
+			InputFrame->SetTexture((ID3D12Resource*)Texture->GetNativeResource(), [&](ID3D12Resource* NativeTexture) { BackBuffers.Remove(InputFrame); });
 			BackBuffers.Add(InputFrame, Texture);
 		}
 #endif // PLATFORM_WINDOWS
-#if WITH_CUDA
 #if PLATFORM_WINDOWS
 		else if (RHIName == TEXT("Vulkan"))
 #endif // PLATFORM_WINDOWS
 		{
-			FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
+			if (IsRHIDeviceNVIDIA())
+			{	
+#if WITH_CUDA
+				FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
 
-			// TODO (M84FIX) Replace with CUDA texture
-			// Create a texture that can be exposed to external memory
-			FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV, ERHIAccess::CopyDest, CreateInfo);
+				// Create a texture that can be exposed to external memory
+				FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV, ERHIAccess::CopyDest, CreateInfo);
 
-			FVulkanTexture2D* VulkanTexture = static_cast<FVulkanTexture2D*>(Texture.GetReference());
+				FVulkanTexture2D* VulkanTexture = static_cast<FVulkanTexture2D*>(Texture.GetReference());
 
-			FVulkanDynamicRHI* device = static_cast<FVulkanDynamicRHI*>(GDynamicRHI)->GetDevice()->GetInstanceHandle();
+				FVulkanDynamicRHI* device = static_cast<FVulkanDynamicRHI*>(GDynamicRHI)->GetDevice()->GetInstanceHandle();
 
-			// Get the CUarray to that textures memory making sure the clear it when done
-			int fd;
+				// Get the CUarray to that textures memory making sure the clear it when done
+				int fd;
 
-			{    // Generate VkMemoryGetFdInfoKHR
-				VkMemoryGetFdInfoKHR vkMemoryGetFdInfoKHR = {};
-				vkMemoryGetFdInfoKHR.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
-				vkMemoryGetFdInfoKHR.pNext = NULL;
-				vkMemoryGetFdInfoKHR.memory = VulkanTexture->Surface.GetAllocationHandle();
-				vkMemoryGetFdInfoKHR.handleType =
-					VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT_KHR;
+				{    // Generate VkMemoryGetFdInfoKHR
+					VkMemoryGetFdInfoKHR vkMemoryGetFdInfoKHR = {};
+					vkMemoryGetFdInfoKHR.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
+					vkMemoryGetFdInfoKHR.pNext = NULL;
+					vkMemoryGetFdInfoKHR.memory = VulkanTexture->Surface.GetAllocationHandle();
+					vkMemoryGetFdInfoKHR.handleType =
+						VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT_KHR;
 
-				auto fpGetMemoryFdKHR = (PFN_vkGetMemoryFdKHR)VulkanRHI::vkGetDeviceProcAddr(device, "vkGetMemoryFdKHR");
-				VERIFYVULKANRESULT(fpGetMemoryFdKHR(device, &vkMemoryGetFdInfoKHR, &fd));
-			}
-
-			cuCtxPushCurrent(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext());
-
-			CUexternalMemory mappedExternalMemory = nullptr;
-
-			{
-				// generate a cudaExternalMemoryHandleDesc
-				CUDA_EXTERNAL_MEMORY_HANDLE_DESC cudaExtMemHandleDesc = {};
-				cudaExtMemHandleDesc.type = CU_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD;
-				cudaExtMemHandleDesc.handle.fd = fd;
-				cudaExtMemHandleDesc.size = VulkanTexture->Surface.GetAllocationOffset() + VulkanTexture->Surface.GetMemorySize();
-
-				// import external memory
-				auto result = cuImportExternalMemory(&mappedExternalMemory, &cudaExtMemHandleDesc);
-				if (result != CUDA_SUCCESS)
-				{
-					UE_LOG(PixelStreamer, Error, TEXT("Failed to import external memory from vulkan error: %d"), result);
+					auto fpGetMemoryFdKHR = (PFN_vkGetMemoryFdKHR)VulkanRHI::vkGetDeviceProcAddr(device, "vkGetMemoryFdKHR");
+					VERIFYVULKANRESULT(fpGetMemoryFdKHR(device, &vkMemoryGetFdInfoKHR, &fd));
 				}
-			}
 
-			CUmipmappedArray mappedMipArray = nullptr;
-			CUarray mappedArray = nullptr;
+				cuCtxPushCurrent(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext());
 
-			{
-				CUDA_EXTERNAL_MEMORY_MIPMAPPED_ARRAY_DESC mipmapDesc = {};
-				mipmapDesc.numLevels = 1;
-				mipmapDesc.offset = VulkanTexture->Surface.GetAllocationOffset();
-				mipmapDesc.arrayDesc.Width = Texture->GetSizeX();
-				mipmapDesc.arrayDesc.Height = Texture->GetSizeY();
-				mipmapDesc.arrayDesc.Depth = 0;
-				mipmapDesc.arrayDesc.NumChannels = 4;
-				mipmapDesc.arrayDesc.Format = CU_AD_FORMAT_UNSIGNED_INT8;
-				mipmapDesc.arrayDesc.Flags = CUDA_ARRAY3D_SURFACE_LDST | CUDA_ARRAY3D_COLOR_ATTACHMENT;
+				CUexternalMemory mappedExternalMemory = nullptr;
+
+				{
+					// generate a cudaExternalMemoryHandleDesc
+					CUDA_EXTERNAL_MEMORY_HANDLE_DESC cudaExtMemHandleDesc = {};
+					cudaExtMemHandleDesc.type = CU_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD;
+					cudaExtMemHandleDesc.handle.fd = fd;
+					cudaExtMemHandleDesc.size = VulkanTexture->Surface.GetAllocationOffset() + VulkanTexture->Surface.GetMemorySize();
+
+					// import external memory
+					auto result = cuImportExternalMemory(&mappedExternalMemory, &cudaExtMemHandleDesc);
+					if (result != CUDA_SUCCESS)
+					{
+						UE_LOG(PixelStreamer, Error, TEXT("Failed to import external memory from vulkan error: %d"), result);
+					}
+				}
+
+				CUmipmappedArray mappedMipArray = nullptr;
+				CUarray mappedArray = nullptr;
+
+				{
+					CUDA_EXTERNAL_MEMORY_MIPMAPPED_ARRAY_DESC mipmapDesc = {};
+					mipmapDesc.numLevels = 1;
+					mipmapDesc.offset = VulkanTexture->Surface.GetAllocationOffset();
+					mipmapDesc.arrayDesc.Width = Texture->GetSizeX();
+					mipmapDesc.arrayDesc.Height = Texture->GetSizeY();
+					mipmapDesc.arrayDesc.Depth = 0;
+					mipmapDesc.arrayDesc.NumChannels = 4;
+					mipmapDesc.arrayDesc.Format = CU_AD_FORMAT_UNSIGNED_INT8;
+					mipmapDesc.arrayDesc.Flags = CUDA_ARRAY3D_SURFACE_LDST | CUDA_ARRAY3D_COLOR_ATTACHMENT;
+
+					// get the CUarray from the external memory
+					auto result = cuExternalMemoryGetMappedMipmappedArray(&mappedMipArray, mappedExternalMemory, &mipmapDesc);
+					if (result != CUDA_SUCCESS)
+					{
+						UE_LOG(PixelStreamer, Error, TEXT("Failed to bind mipmappedArray error: %d"), result);
+					}
+				}
 
 				// get the CUarray from the external memory
-				auto result = cuExternalMemoryGetMappedMipmappedArray(&mappedMipArray, mappedExternalMemory, &mipmapDesc);
-				if (result != CUDA_SUCCESS)
+				CUresult mipMapArrGetLevelErr = cuMipmappedArrayGetLevel(&mappedArray, mappedMipArray, 0);
+				if (mipMapArrGetLevelErr != CUDA_SUCCESS)
 				{
-					UE_LOG(PixelStreamer, Error, TEXT("Failed to bind mipmappedArray error: %d"), result);
+					UE_LOG(PixelStreamer, Error, TEXT("Failed to bind to mip 0."));
 				}
-			}
 
-			// get the CUarray from the external memory
-			CUresult mipMapArrGetLevelErr = cuMipmappedArrayGetLevel(&mappedArray, mappedMipArray, 0);
-			if (mipMapArrGetLevelErr != CUDA_SUCCESS)
-			{
-				UE_LOG(PixelStreamer, Error, TEXT("Failed to bind to mip 0."));
-			}
+				cuCtxPopCurrent(NULL);
 
-			cuCtxPopCurrent(NULL);
-
-			InputFrame->SetTexture(mappedArray, [&, InputFrame](CUarray NativeTexture)
-				{
-					// free the cuda types
-					cuCtxPushCurrent(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext());
-
-					if (mappedArray)
+				InputFrame->SetTexture(mappedArray, [&, InputFrame](CUarray NativeTexture)
 					{
-						cuArrayDestroy(mappedArray);
-					}
-					if (mappedMipArray)
-					{
-						cuMipmappedArrayDestroy(mappedMipArray);
-					}
-					if (mappedExternalMemory)
-					{
-						cuDestroyExternalMemory(mappedExternalMemory);
-					}
+						// free the cuda types
+						cuCtxPushCurrent(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext());
 
-					cuCtxPopCurrent(NULL);
+						if (mappedArray)
+						{
+							cuArrayDestroy(mappedArray);
+						}
+						if (mappedMipArray)
+						{
+							cuMipmappedArrayDestroy(mappedMipArray);
+						}
+						if (mappedExternalMemory)
+						{
+							cuDestroyExternalMemory(mappedExternalMemory);
+						}
 
-					// finally remove the input frame
-					BackBuffers.Remove(InputFrame);
-				});
-			BackBuffers.Add(InputFrame, Texture);
-		}
+						cuCtxPopCurrent(NULL);
+
+						// finally remove the input frame
+						BackBuffers.Remove(InputFrame);
+					});
+				BackBuffers.Add(InputFrame, Texture);
 #endif // WITH_CUDA
+			}
+			else if (IsRHIDeviceAMD())
+			{
+				FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
+				FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV, ERHIAccess::Present, CreateInfo);
+				FVulkanTexture2D* VulkanTexture = static_cast<FVulkanTexture2D*>(Texture.GetReference());
+				
+				InputFrame->SetTexture(VulkanTexture->Surface.Image, [&](VkImage_T* NativeTexture) { BackBuffers.Remove(InputFrame); });
+
+				BackBuffers.Add(InputFrame, Texture);
+			}
+		}
 
 		UE_LOG(PixelStreamer, Log, TEXT("%d backbuffers currently allocated"), BackBuffers.Num());
 	}

@@ -16,6 +16,8 @@
 struct ID3D11DeviceContext;
 #endif
 
+struct VkInstance_T;
+struct VkPhysicalDevice_T;
 struct VkDevice_T;
 
 namespace AVEncoder
@@ -38,17 +40,23 @@ public:
 	bool SetupForDummy(uint32 InWidth, uint32 InHeight);
 	bool SetupForYUV420P(uint32 InWidth, uint32 InHeight);
 
-	// set up for an encoder that encodes a D3D11 texture
+	// set up for an encoder that encodes a D3D11 texture (nvenc)
 	bool SetupForD3D11(void* InApplicationD3DDevice, uint32 InWidth, uint32 InHeight);
-
-	// set up for an encoder that encodes a D3D12 texture in the context of a D3D11 device (i.e. nvenc)
+	
+	// set up for an encoder that encodes a D3D11 texture within a feature level 11.1 D3D11 device (amf)
+	bool SetupForD3D11Shared(void* InApplicationD3DDevice, uint32 InWidth, uint32 InHeight);
+	
+	// set up for an encoder that encodes a D3D12 texture (amf)
 	bool SetupForD3D12(void* InApplicationD3DDevice, uint32 InWidth, uint32 InHeight);
 
-	// set up an encoder that encodes a CUArray in the CUDA context
+	// set up for an encoder that encodes a D3D12 texture in the context of a D3D11 device (i.e. nvenc)
+	bool SetupForD3D12Shared(void* InApplicationD3DDevice, uint32 InWidth, uint32 InHeight);
+
+	// set up an encoder that encodes a CUArray in a CUDA context
 	bool SetupForCUDA(void* InApplicationContext, uint32 InWidth, uint32 InHeight);
 
 	// set up an encoder that encodes a VkImage in the context of a VkDevice
-	bool SetupForVulkan(void* InApplicationContext, uint32 InWidth, uint32 InHeight);
+	bool SetupForVulkan(VkInstance_T* InApplicationVulkanInstance, VkPhysicalDevice_T* InApplicationVulkanPhysicalDevice, VkDevice_T* InApplicationVulkanDevice, uint32 InWidth, uint32 InHeight);
 
 	// --- available encoders
 
@@ -75,18 +83,17 @@ public:
 
 	// --- input properties
 
-	// TODO (M84FIX) make compile no matter the platform
 #if PLATFORM_WINDOWS
-	TRefCountPtr<ID3D11Device> GetD3D11EncoderDevice() const;
-	TRefCountPtr<ID3D11Device> ForceD3D11InputFrames();
+	TRefCountPtr<ID3D11Device> GetD3D11EncoderDevice() const override;
+	TRefCountPtr<ID3D12Device> GetD3D12EncoderDevice() const override;
 #endif
 
 #if WITH_CUDA
-	CUcontext GetCUDAEncoderContext() const;
+	CUcontext GetCUDAEncoderContext() const override;
 #endif
 
 #if PLATFORM_WINDOWS || PLATFORM_LINUX
-	VkDevice_T* GetVulkanDevice() const;
+	void* GetVulkanEncoderDevice() const override;
 #endif
 
 private:
@@ -100,6 +107,7 @@ private:
 	void SetupFrameYUV420P(FVideoEncoderInputFrameImpl* Frame);
 	void SetupFrameD3D11(FVideoEncoderInputFrameImpl* Frame);
 	void SetupFrameD3D12(FVideoEncoderInputFrameImpl* Frame);
+	void SetupFrameVulkan(FVideoEncoderInputFrameImpl* Frame);
 	void SetupFrameCUDA(FVideoEncoderInputFrameImpl* Frame);
 
 	struct FFrameInfoDummy
@@ -125,17 +133,11 @@ private:
 #if WITH_CUDA
 	struct FFrameInfoCUDA
 	{
-		// HACK (M84FIX)
 		CUcontext					EncoderContextCUDA;
 	}								FrameInfoCUDA;
 #endif
 
-#if PLATFORM_WINDOWS || PLATFORM_LINUX
-	struct FFrameInfoVulkan
-	{
-		VkDevice_T*					VulkanDevice;
-	}								FrameInfoVulkan;
-#endif
+	FVulkanDataStruct				FrameInfoVulkan;
 
 	mutable FCriticalSection				ProtectFrames;
 	TQueue<FVideoEncoderInputFrameImpl*>	AvailableFrames;

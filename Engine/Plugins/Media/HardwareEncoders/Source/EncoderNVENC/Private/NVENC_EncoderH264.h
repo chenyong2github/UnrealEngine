@@ -4,12 +4,8 @@
 
 #include "NVENC_Common.h"
 
-#if PLATFORM_DESKTOP && !PLATFORM_APPLE
-
 #include "VideoEncoderFactory.h"
 #include "VideoEncoderInputImpl.h"
-
-#define AVENCODER_VIDEO_ENCODER_AVAILABLE_NVENC_H264
 
 namespace AVEncoder
 {
@@ -141,4 +137,3 @@ namespace AVEncoder
     };
 
 }
-#endif // PLATFORM_DESKTOP && !PLATFORM_APPLE

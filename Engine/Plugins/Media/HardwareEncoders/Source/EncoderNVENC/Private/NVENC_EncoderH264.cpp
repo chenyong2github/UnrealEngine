@@ -3,11 +3,10 @@
 #include "NVENC_EncoderH264.h"
 #include "HAL/Platform.h"
 
-#if PLATFORM_DESKTOP && !PLATFORM_APPLE
-
 #include "VideoEncoderCommon.h"
 #include "CodecPacket.h"
 #include "AVEncoderDebug.h"
+#include "RHI.h"
 #include "HAL/Event.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformProcess.h"
@@ -84,7 +83,7 @@ namespace AVEncoder
     void FVideoEncoderNVENC_H264::Register(FVideoEncoderFactory& InFactory)
     {
         FNVENCCommon& NVENC = FNVENCCommon::Setup();
-        if (NVENC.GetIsAvailable())
+        if (NVENC.GetIsAvailable() && IsRHIDeviceNVIDIA())
         {
             FVideoEncoderInfo	EncoderInfo;
             if (GetEncoderInfo(NVENC, EncoderInfo))
@@ -110,7 +109,7 @@ namespace AVEncoder
     {
         if (!NVENC.GetIsAvailable())
         {
-            UE_LOG(LogVideoEncoder, Error, TEXT("NVENC not avaliable"));
+            UE_LOG(LogEncoderNVENC, Error, TEXT("NVENC not avaliable"));
             return false;
         }
 
@@ -122,7 +121,7 @@ namespace AVEncoder
     #if PLATFORM_WINDOWS
         case AVEncoder::EVideoFrameFormat::D3D11_R8G8B8A8_UNORM:
         case AVEncoder::EVideoFrameFormat::D3D12_R8G8B8A8_UNORM:
-            EncoderDevice = Input->ForceD3D11InputFrames();
+            EncoderDevice = Input->GetD3D11EncoderDevice();
             break;
     #endif
     #if WITH_CUDA
@@ -132,13 +131,13 @@ namespace AVEncoder
     #endif
         case AVEncoder::EVideoFrameFormat::Undefined:
         default:
-            UE_LOG(LogVideoEncoder, Error, TEXT("Frame format %s is not supported by NVENC_Encoder on this platform."), *ToString(FrameFormat));
+            UE_LOG(LogEncoderNVENC, Error, TEXT("Frame format %s is not supported by NVENC_Encoder on this platform."), *ToString(FrameFormat));
             return false;
         }
 
         if (!EncoderDevice)
         {
-            UE_LOG(LogVideoEncoder, Error, TEXT("NVENC needs encoder device."));
+            UE_LOG(LogEncoderNVENC, Error, TEXT("NVENC needs encoder device."));
             return false;
         }
 
@@ -205,7 +204,7 @@ namespace AVEncoder
         EventThreadWaitingFor.Emplace(FWaitForEvent(InEvent, MoveTemp(InCallback)));
         SetEvent(EventThreadCheckEvent);
 #else
-        UE_LOG(LogVideoEncoder, Fatal, TEXT("FVideoEncoderNVENC_H264::OnEvent should not be called as NVENC async mode only works on Windows!"))
+        UE_LOG(LogEncoderNVENC, Fatal, TEXT("FVideoEncoderNVENC_H264::OnEvent should not be called as NVENC async mode only works on Windows!"))
 #endif
     }
 
@@ -224,7 +223,7 @@ namespace AVEncoder
             EventThread = MakeUnique<FThread>(TEXT("NVENC_EncoderCommon"), [this]() { EventLoop(); });
         }
 #else
-        UE_LOG(LogVideoEncoder, Fatal, TEXT("FVideoEncoderNVENC_H264::StartEventThread should not be called as NVENC async mode only works on Windows!"))
+        UE_LOG(LogEncoderNVENC, Fatal, TEXT("FVideoEncoderNVENC_H264::StartEventThread should not be called as NVENC async mode only works on Windows!"))
 #endif
     }
 
@@ -241,7 +240,7 @@ namespace AVEncoder
             StopThread->Join();
         }
 #else
-        UE_LOG(LogVideoEncoder, Fatal, TEXT("FVideoEncoderNVENC_H264::StopEventThread should not be called as NVENC async mode only works on Windows!"))
+        UE_LOG(LogEncoderNVENC, Fatal, TEXT("FVideoEncoderNVENC_H264::StopEventThread should not be called as NVENC async mode only works on Windows!"))
 #endif
     }
 
@@ -262,7 +261,7 @@ namespace AVEncoder
             (LPTSTR)&lpMsgBuf,
             0, NULL);
 
-        UE_LOG(LogVideoEncoder, Error, TEXT("%s failed with error %d: %s"), lpszFunction, dw, lpMsgBuf);
+        UE_LOG(LogEncoderNVENC, Error, TEXT("%s failed with error %d: %s"), lpszFunction, dw, lpMsgBuf);
 
         LocalFree(lpMsgBuf);
     }
@@ -327,7 +326,7 @@ namespace AVEncoder
             }
         }
 #else
-        UE_LOG(LogVideoEncoder, Fatal, TEXT("FVideoEncoderNVENC_H264::EventLoop should not be called as NVENC async mode only works on Windows!"))
+        UE_LOG(LogEncoderNVENC, Fatal, TEXT("FVideoEncoderNVENC_H264::EventLoop should not be called as NVENC async mode only works on Windows!"))
 #endif
     }
 
@@ -353,7 +352,7 @@ namespace AVEncoder
 			auto const result = NVENC.nvEncInitializeEncoder(NVEncoder, &EncoderInitParams);
 			if (result != NV_ENC_SUCCESS)
 			{
-				UE_LOG(LogVideoEncoder, Error, TEXT("Unable to initialize NvEnc encoder (%s)."), *NVENC.GetErrorString(NVEncoder, result));
+				UE_LOG(LogEncoderNVENC, Error, TEXT("Unable to initialize NvEnc encoder (%s)."), *NVENC.GetErrorString(NVEncoder, result));
 			}
 			else
 				return true;
@@ -381,7 +380,7 @@ namespace AVEncoder
                 OpenEncodeSessionExParams.deviceType = NV_ENC_DEVICE_TYPE_CUDA;
                 break;
             default:
-                UE_LOG(LogVideoEncoder, Error, TEXT("FrameFormat %s unavailable."), *ToString(Encoder.FrameFormat));
+                UE_LOG(LogEncoderNVENC, Error, TEXT("FrameFormat %s unavailable."), *ToString(Encoder.FrameFormat));
                 return false;
                 break;
             }
@@ -389,7 +388,7 @@ namespace AVEncoder
 			auto const result = NVENC.nvEncOpenEncodeSessionEx(&OpenEncodeSessionExParams, &NVEncoder);
             if (result != NV_ENC_SUCCESS)
             {
-                UE_LOG(LogVideoEncoder, Error, TEXT("Unable to open NvEnc encoding session (%s)."), *NVENC.GetErrorString(NVEncoder, result));
+                UE_LOG(LogEncoderNVENC, Error, TEXT("Unable to open NvEnc encoding session (%s)."), *NVENC.GetErrorString(NVEncoder, result));
 				NVEncoder = nullptr;
 				return false;
             }
@@ -423,7 +422,7 @@ namespace AVEncoder
         auto const result = NVENC.nvEncGetEncodePresetConfigEx(NVEncoder, EncoderInitParams.encodeGUID, EncoderInitParams.presetGUID, EncoderInitParams.tuningInfo, &PresetConfig);
         if (result != NV_ENC_SUCCESS)
         {
-            UE_LOG(LogVideoEncoder, Error, TEXT("Unable to get NvEnc preset config (%s)."), *NVENC.GetErrorString(NVEncoder, result));
+            UE_LOG(LogEncoderNVENC, Error, TEXT("Unable to get NvEnc preset config (%s)."), *NVENC.GetErrorString(NVEncoder, result));
             return false;
         }
         
@@ -493,7 +492,7 @@ namespace AVEncoder
 
 			auto const result = NVENC.nvEncReconfigureEncoder(NVEncoder, &ReconfigureParams);
 			if (result != NV_ENC_SUCCESS)
-				UE_LOG(LogVideoEncoder, Error, TEXT("Failed to update NVENC encoder configuration (%s)"), *NVENC.GetErrorString(NVEncoder, result));
+				UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to update NVENC encoder configuration (%s)"), *NVENC.GetErrorString(NVEncoder, result));
 
 			NeedsReconfigure = false;
 		}
@@ -565,7 +564,7 @@ namespace AVEncoder
                 }
                 else
                 {
-                    UE_LOG(LogVideoEncoder, Error, TEXT("NVENC.nvEncEncodePicture(NVEncoder, &PicParams); -> %s"), *NVENC.GetErrorString(NVEncoder, result));
+                    UE_LOG(LogEncoderNVENC, Error, TEXT("NVENC.nvEncEncodePicture(NVEncoder, &PicParams); -> %s"), *NVENC.GetErrorString(NVEncoder, result));
                     // release input frame
                     if (Buffer->SourceFrame)
                     {
@@ -594,7 +593,7 @@ namespace AVEncoder
         auto const result = NVENC.nvEncEncodePicture(NVEncoder, &PicParams);
 		if (result != NV_ENC_SUCCESS)
 		{
-			UE_LOG(LogVideoEncoder, Warning, TEXT("Failed to flush NVENC encoder (%s)"), *NVENC.GetErrorString(NVEncoder, result));
+			UE_LOG(LogEncoderNVENC, Warning, TEXT("Failed to flush NVENC encoder (%s)"), *NVENC.GetErrorString(NVEncoder, result));
 		}
         else
         {
@@ -620,7 +619,7 @@ namespace AVEncoder
             auto const result = NVENC.nvEncDestroyEncoder(NVEncoder);
 			if (result != NV_ENC_SUCCESS)
 			{
-				UE_LOG(LogVideoEncoder, Error, TEXT("Failed to destroy NVENC encoder (%s)."), *NVENC.GetErrorString(NVEncoder, result));
+				UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to destroy NVENC encoder (%s)."), *NVENC.GetErrorString(NVEncoder, result));
 			}
             NVEncoder = nullptr;
             bAsyncMode = false;
@@ -647,7 +646,7 @@ namespace AVEncoder
                         Packet.DataSize = Buffer->BitstreamDataSize;
                         if (Buffer->PictureType == NV_ENC_PIC_TYPE_IDR)
                         {
-                            UE_LOG(LogVideoEncoder, Verbose, TEXT("Generated IDR Frame"));
+                            UE_LOG(LogEncoderNVENC, Verbose, TEXT("Generated IDR Frame"));
                             Packet.IsKeyFrame = true;
                         }
                         Packet.VideoQP = Buffer->FrameAvgQP;
@@ -716,7 +715,7 @@ namespace AVEncoder
         auto const result = NVENC.nvEncGetEncodeCaps(NVEncoder, CodecGUID, &CapsParam, &CapsValue);
         if (result != NV_ENC_SUCCESS)
         {
-            UE_LOG(LogVideoEncoder, Warning, TEXT("Failed to query for NVENC capability %d (%s)."), CapsToQuery, *NVENC.GetErrorString(NVEncoder, result));
+            UE_LOG(LogEncoderNVENC, Warning, TEXT("Failed to query for NVENC capability %d (%s)."), CapsToQuery, *NVENC.GetErrorString(NVEncoder, result));
             return 0;
         }
         return CapsValue;
@@ -730,9 +729,11 @@ namespace AVEncoder
         {
     #if PLATFORM_WINDOWS
         case EVideoFrameFormat::D3D11_R8G8B8A8_UNORM:
-        case EVideoFrameFormat::D3D12_R8G8B8A8_UNORM:
             TextureToCompress = InFrame->GetD3D11().EncoderTexture;
             break;
+        case EVideoFrameFormat::D3D12_R8G8B8A8_UNORM:
+            UE_LOG(LogEncoderNVENC, Error, TEXT("NVENC got passed a DX12 texture which it does not support, make sure it has been shared with a DX11 context and pass that texture instead."));
+            return nullptr; // NVENC cant encode a D3D12 texture directly this should be converted to D3D11
     #endif
     #if WITH_CUDA
         case EVideoFrameFormat::CUDA_R8G8B8A8_UNORM:
@@ -746,7 +747,7 @@ namespace AVEncoder
 
         if (!TextureToCompress)
         {
-            UE_LOG(LogVideoEncoder, Fatal, TEXT("Got passed a null texture to encode."));
+            UE_LOG(LogEncoderNVENC, Fatal, TEXT("Got passed a null texture to encode."));
             return nullptr;
         }
 
@@ -806,7 +807,7 @@ namespace AVEncoder
 			auto const result = NVENC.nvEncCreateBitstreamBuffer(NVEncoder, &CreateParam);
 			if (result != NV_ENC_SUCCESS)
 			{
-				UE_LOG(LogVideoEncoder, Error, TEXT("Failed to create NVENC output buffer (%s)."), *NVENC.GetErrorString(NVEncoder, result));
+				UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to create NVENC output buffer (%s)."), *NVENC.GetErrorString(NVEncoder, result));
 				DestroyBuffer(Buffer);
 				return nullptr;
 			}
@@ -825,12 +826,12 @@ namespace AVEncoder
             auto const result = NVENC.nvEncRegisterAsyncEvent(NVEncoder, &EventParams);
             if (result != NV_ENC_SUCCESS)
             {
-                UE_LOG(LogVideoEncoder, Error, TEXT("Failed to register completion event with NVENC (%s)."), *NVENC.GetErrorString(NVEncoder, result));
+                UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to register completion event with NVENC (%s)."), *NVENC.GetErrorString(NVEncoder, result));
                 DestroyBuffer(Buffer);
                 return nullptr;
             }
     #else
-            UE_LOG(LogVideoEncoder, Fatal, TEXT("FVideoEncoderNVENC_H264::FNVENCLayer::CreateBuffer should not have hit here as NVENC async mode only works on Windows!"))
+            UE_LOG(LogEncoderNVENC, Fatal, TEXT("FVideoEncoderNVENC_H264::FNVENCLayer::CreateBuffer should not have hit here as NVENC async mode only works on Windows!"))
     #endif
         }
 
@@ -849,7 +850,7 @@ namespace AVEncoder
             auto const result = NVENC.nvEncDestroyBitstreamBuffer(NVEncoder, InBuffer->OutputBitstream);
             if (result != NV_ENC_SUCCESS)
             {
-                UE_LOG(LogVideoEncoder, Warning, TEXT("Failed to destroy NVENC output buffer (%s)."), *NVENC.GetErrorString(NVEncoder, result));
+                UE_LOG(LogEncoderNVENC, Warning, TEXT("Failed to destroy NVENC output buffer (%s)."), *NVENC.GetErrorString(NVEncoder, result));
             }
             InBuffer->OutputBitstream = nullptr;
         }
@@ -863,12 +864,12 @@ namespace AVEncoder
             auto const result = NVENC.nvEncUnregisterAsyncEvent(NVEncoder, &EventParams);
             if (result != NV_ENC_SUCCESS)
             {
-                UE_LOG(LogVideoEncoder, Warning, TEXT("Failed to unregister NVENC completions event (%s)."), *NVENC.GetErrorString(NVEncoder, result));
+                UE_LOG(LogEncoderNVENC, Warning, TEXT("Failed to unregister NVENC completions event (%s)."), *NVENC.GetErrorString(NVEncoder, result));
             }
             CloseHandle(InBuffer->CompletionEvent);
             InBuffer->CompletionEvent = nullptr;
     #else
-            UE_LOG(LogVideoEncoder, Fatal, TEXT("FVideoEncoderNVENC_H264::FNVENCLayer::DestroyBuffer should not have hit here as NVENC async mode only works on Windows!"))
+            UE_LOG(LogEncoderNVENC, Fatal, TEXT("FVideoEncoderNVENC_H264::FNVENCLayer::DestroyBuffer should not have hit here as NVENC async mode only works on Windows!"))
     #endif
         }
 
@@ -910,7 +911,7 @@ namespace AVEncoder
             InBuffer.BufferFormat = NV_ENC_BUFFER_FORMAT_ARGB;
             break;
         default:
-            UE_LOG(LogVideoEncoder, Error, TEXT("Invalid input texture format for NVENC (%d)"), Desc.Format);
+            UE_LOG(LogEncoderNVENC, Error, TEXT("Invalid input texture format for NVENC (%d)"), Desc.Format);
             return;
         }
 
@@ -972,7 +973,7 @@ namespace AVEncoder
             NVENCSTATUS	Result = NVENC.nvEncRegisterResource(NVEncoder, &RegisterParam);
             if (Result != NV_ENC_SUCCESS)
             {
-                UE_LOG(LogVideoEncoder, Error, TEXT("Failed to register input texture with NVENC (%s)"), *NVENC.GetErrorString(NVEncoder, Result));
+                UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to register input texture with NVENC (%s)"), *NVENC.GetErrorString(NVEncoder, Result));
                 return false;
             }
             InBuffer.RegisteredInput = RegisterParam.registeredResource;
@@ -989,7 +990,7 @@ namespace AVEncoder
             NVENCSTATUS	Result = NVENC.nvEncUnregisterResource(NVEncoder, InBuffer.RegisteredInput);
             if (Result != NV_ENC_SUCCESS)
             {
-                UE_LOG(LogVideoEncoder, Error, TEXT("Failed to unregister input texture with NVENC (%s)"), *NVENC.GetErrorString(NVEncoder, Result));
+                UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to unregister input texture with NVENC (%s)"), *NVENC.GetErrorString(NVEncoder, Result));
                 InBuffer.InputTexture = nullptr;
                 InBuffer.RegisteredInput = nullptr;
                 return false;
@@ -1009,7 +1010,7 @@ namespace AVEncoder
             NVENCSTATUS		Result = NVENC.nvEncMapInputResource(NVEncoder, &MapInputResource);
             if (Result != NV_ENC_SUCCESS)
             {
-                UE_LOG(LogVideoEncoder, Error, TEXT("Failed to map input texture buffer (%s)"), *NVENC.GetErrorString(NVEncoder, Result));
+                UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to map input texture buffer (%s)"), *NVENC.GetErrorString(NVEncoder, Result));
                 return false;
             }
             InBuffer.MappedInput = MapInputResource.mappedResource;
@@ -1025,7 +1026,7 @@ namespace AVEncoder
             NVENCSTATUS		Result = NVENC.nvEncUnmapInputResource(NVEncoder, InBuffer.MappedInput);
             if (Result != NV_ENC_SUCCESS)
             {
-                UE_LOG(LogVideoEncoder, Error, TEXT("Failed to unmap input texture buffer (%s)"), *NVENC.GetErrorString(NVEncoder, Result));
+                UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to unmap input texture buffer (%s)"), *NVENC.GetErrorString(NVEncoder, Result));
                 InBuffer.MappedInput = nullptr;
                 return false;
             }
@@ -1044,7 +1045,7 @@ namespace AVEncoder
             NVENCSTATUS Result = NVENC.nvEncLockBitstream(NVEncoder, &LockBitstreamParam);
             if (Result != NV_ENC_SUCCESS)
             {
-                UE_LOG(LogVideoEncoder, Error, TEXT("Failed to lock output bitstream for NVENC encoder (%s)."), *NVENC.GetErrorString(NVEncoder, Result));
+                UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to lock output bitstream for NVENC encoder (%s)."), *NVENC.GetErrorString(NVEncoder, Result));
                 return false;
             }
             else
@@ -1066,7 +1067,7 @@ namespace AVEncoder
             NVENCSTATUS		Result = NVENC.nvEncUnlockBitstream(NVEncoder, InBuffer.OutputBitstream);
             if (Result != NV_ENC_SUCCESS)
             {
-                UE_LOG(LogVideoEncoder, Error, TEXT("Failed to unlock output bitstream for NVENC encoder (%s)."), *NVENC.GetErrorString(NVEncoder, Result));
+                UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to unlock output bitstream for NVENC encoder (%s)."), *NVENC.GetErrorString(NVEncoder, Result));
                 return false;
             }
             else
@@ -1088,7 +1089,7 @@ namespace AVEncoder
         HRESULT		Result = CreateDXGIFactory1(__uuidof(IDXGIFactory1), (void**)DXGIFactory1.GetInitReference());
         if (Result != S_OK)
         {
-            UE_LOG(LogVideoEncoder, Error, TEXT("Failed to create DX factory for NVENC."));
+            UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to create DX factory for NVENC."));
             return false;
         }
 
@@ -1096,7 +1097,7 @@ namespace AVEncoder
         {
             if ((Result = DXGIFactory1->EnumAdapters(GpuIndex, Adapter.GetInitReference())) != S_OK)
             {
-                UE_LOG(LogVideoEncoder, Error, TEXT("Failed to enum GPU #%d for NVENC."), GpuIndex);
+                UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to enum GPU #%d for NVENC."), GpuIndex);
                 return false;
             }
 
@@ -1111,16 +1112,16 @@ namespace AVEncoder
                 NULL, 0, D3D11_SDK_VERSION, OutEncoderDevice.GetInitReference(),
                 NULL, OutEncoderDeviceContext.GetInitReference())) != S_OK)
             {
-                UE_LOG(LogVideoEncoder, Error, TEXT("Failed to create D3D11 device for NVENC."));
+                UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to create D3D11 device for NVENC."));
             }
             else
             {
-                UE_LOG(LogVideoEncoder, Log, TEXT("Created D3D11 device for NVENC on '%s'."), AdapterDesc.Description);
+                UE_LOG(LogEncoderNVENC, Log, TEXT("Created D3D11 device for NVENC on '%s'."), AdapterDesc.Description);
                 return true;
             }
         }
 
-        UE_LOG(LogVideoEncoder, Error, TEXT("No compatible devices found for NVENC."));
+        UE_LOG(LogEncoderNVENC, Error, TEXT("No compatible devices found for NVENC."));
         return false;
     }
 #endif
@@ -1136,10 +1137,10 @@ namespace AVEncoder
         OpenEncodeSessionExParams.apiVersion = NVENCAPI_VERSION;
 
         NVENCSTATUS		NvResult = NVENC.nvEncOpenEncodeSessionEx(&OpenEncodeSessionExParams, &EncoderSession);
-        // UE_LOG(LogVideoEncoder, Error, TEXT("NVENC.nvEncOpenEncodeSessionEx(&OpenEncodeSessionExParams, &EncoderSession); -> %d"), NvResult);
+        // UE_LOG(LogEncoderNVENC, Error, TEXT("NVENC.nvEncOpenEncodeSessionEx(&OpenEncodeSessionExParams, &EncoderSession); -> %d"), NvResult);
         if (NvResult != NV_ENC_SUCCESS)
         {
-            UE_LOG(LogVideoEncoder, Error, TEXT("Unable to open NvEnc encoding session (status: %d)."), NvResult);
+            UE_LOG(LogEncoderNVENC, Error, TEXT("Unable to open NvEnc encoding session (status: %d)."), NvResult);
             EncoderSession = nullptr;
         }
         return EncoderSession;
@@ -1157,10 +1158,10 @@ namespace AVEncoder
         OpenEncodeSessionExParams.apiVersion = NVENCAPI_VERSION;
 
         NVENCSTATUS		NvResult = NVENC.nvEncOpenEncodeSessionEx(&OpenEncodeSessionExParams, &EncoderSession);
-        //	UE_LOG(LogVideoEncoder, Error, TEXT("NVENC.nvEncOpenEncodeSessionEx(&OpenEncodeSessionExParams, &EncoderSession); -> %d"), NvResult);
+        //	UE_LOG(LogEncoderNVENC, Error, TEXT("NVENC.nvEncOpenEncodeSessionEx(&OpenEncodeSessionExParams, &EncoderSession); -> %d"), NvResult);
         if (NvResult != NV_ENC_SUCCESS)
         {
-            UE_LOG(LogVideoEncoder, Error, TEXT("Unable to open NvEnc encoding session (status: %d)."), NvResult);
+            UE_LOG(LogEncoderNVENC, Error, TEXT("Unable to open NvEnc encoding session (status: %d)."), NvResult);
             EncoderSession = nullptr;
         }
         return EncoderSession;
@@ -1173,10 +1174,10 @@ namespace AVEncoder
         NVENCStruct(NV_ENC_CAPS_PARAM, CapsParam);
         CapsParam.capsToQuery = InCapsToQuery;
         NVENCSTATUS Result = NVENC.nvEncGetEncodeCaps(InEncoder, NV_ENC_CODEC_H264_GUID, &CapsParam, &CapsValue);
-        //	UE_LOG(LogVideoEncoder, Error, TEXT("NVENC.nvEncGetEncodeCaps(InEncoder, NV_ENC_CODEC_H264_GUID, &CapsParam, &CapsValue); -> %d"), Result);
+        //	UE_LOG(LogEncoderNVENC, Error, TEXT("NVENC.nvEncGetEncodeCaps(InEncoder, NV_ENC_CODEC_H264_GUID, &CapsParam, &CapsValue); -> %d"), Result);
         if (Result != NV_ENC_SUCCESS)
         {
-            UE_LOG(LogVideoEncoder, Warning, TEXT("Failed to query for NVENC capability %d (error %d)."), InCapsToQuery, Result);
+            UE_LOG(LogEncoderNVENC, Warning, TEXT("Failed to query for NVENC capability %d (error %d)."), InCapsToQuery, Result);
             return 0;
         }
         return CapsValue;
@@ -1190,10 +1191,10 @@ namespace AVEncoder
 
         OutSupportedProfiles = 0;
         NVENCSTATUS		Result = NVENC.nvEncGetEncodeProfileGUIDs(InEncoder, NV_ENC_CODEC_H264_GUID, ProfileGUIDs, MaxProfileGUIDs, &NumProfileGUIDs);
-        //	UE_LOG(LogVideoEncoder, Error, TEXT("NVENC.nvEncGetEncodeProfileGUIDs(InEncoder, NV_ENC_CODEC_H264_GUID, ProfileGUIDs, MaxProfileGUIDs, &NumProfileGUIDs); -> %d"), Result);
+        //	UE_LOG(LogEncoderNVENC, Error, TEXT("NVENC.nvEncGetEncodeProfileGUIDs(InEncoder, NV_ENC_CODEC_H264_GUID, ProfileGUIDs, MaxProfileGUIDs, &NumProfileGUIDs); -> %d"), Result);
         if (Result != NV_ENC_SUCCESS)
         {
-            UE_LOG(LogVideoEncoder, Error, TEXT("Unable to query profiles supported by NvEnc (error: %d)."), Result);
+            UE_LOG(LogEncoderNVENC, Error, TEXT("Unable to query profiles supported by NvEnc (error: %d)."), Result);
             return false;
         }
         for (uint32 Index = 0; Index < NumProfileGUIDs; ++Index)
@@ -1230,7 +1231,7 @@ namespace AVEncoder
         NVENCSTATUS		Result = NVENC.nvEncGetInputFormats(InEncoder, NV_ENC_CODEC_H264_GUID, InputFormats, MaxInputFmtCount, &InputFmtCount);
         if (Result != NV_ENC_SUCCESS)
         {
-            UE_LOG(LogVideoEncoder, Error, TEXT("Unable to query input formats supported by NvEnc (error: %d)."), Result);
+            UE_LOG(LogEncoderNVENC, Error, TEXT("Unable to query input formats supported by NvEnc (error: %d)."), Result);
             return false;
         }
 
@@ -1299,7 +1300,7 @@ namespace AVEncoder
         }
         else
         {
-            UE_LOG(LogVideoEncoder, Error, TEXT("Failed to query min/max h264 level supported by NvEnc (reported min/max=%d/%d)."), LevelMin, LevelMax);
+            UE_LOG(LogEncoderNVENC, Error, TEXT("Failed to query min/max h264 level supported by NvEnc (reported min/max=%d/%d)."), LevelMin, LevelMax);
             bSuccess = false;
         }
 
@@ -1321,5 +1322,3 @@ namespace AVEncoder
 } /* namespace AVEncoder */
 
 #undef MIN_UPDATE_FRAMERATE_SECS
-
-#endif // PLATFORM_DESKTOP && !PLATFORM_APPLE

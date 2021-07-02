@@ -7,7 +7,7 @@
 #include "PlayerSession.h"
 #include "HUDStats.h"
 #include "UnrealEngine.h"
-#include "HAL/PlatformFileManager.h"
+#include "HAL/PlatformFilemanager.h"
 #include "Misc/Paths.h"
 #include "PixelStreamingSettings.h"
 #include "LatencyTester.h"
@@ -136,7 +136,7 @@ int32 FPixelStreamingVideoEncoder::Encode(webrtc::VideoFrame const& frame, std::
 	}
 
 	AVEncoder::FVideoEncoder::FEncodeOptions EncodeOptions;
-	if (frame_types && (*frame_types)[0] == webrtc::VideoFrameType::kVideoFrameKey || ForceNextKeyframe)
+	if ((frame_types && (*frame_types)[0] == webrtc::VideoFrameType::kVideoFrameKey) || ForceNextKeyframe)
 	{
 		EncodeOptions.bForceKeyFrame = true;
 		ForceNextKeyframe = false;

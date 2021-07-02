@@ -1,0 +1,735 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Amf_EncoderH264.h"
+#include "HAL/Platform.h"
+
+#include "VideoEncoderCommon.h"
+#include "CodecPacket.h"
+#include "AVEncoderDebug.h"
+#include "VulkanRHIBridge.h"
+
+#include "RHI.h"
+
+#include <stdio.h>
+
+#define MAX_GPU_INDEXES 50
+#define DEFAULT_BITRATE 1000000u
+#define MAX_FRAMERATE_DIFF 0
+#define MIN_UPDATE_FRAMERATE_SECS 15
+
+#define AMF_VIDEO_ENCODER_START_TS L"StartTs"
+#define AMF_BUFFER_INPUT_FRAME L"BufferInputFrame"
+
+namespace
+{
+	AMF_VIDEO_ENCODER_RATE_CONTROL_METHOD_ENUM ConvertRateControlModeAMF(AVEncoder::FVideoEncoder::RateControlMode mode)
+	{
+		switch (mode)
+		{
+		case AVEncoder::FVideoEncoder::RateControlMode::CONSTQP: return AMF_VIDEO_ENCODER_RATE_CONTROL_METHOD_CONSTANT_QP;
+		case AVEncoder::FVideoEncoder::RateControlMode::VBR: return AMF_VIDEO_ENCODER_RATE_CONTROL_METHOD_LATENCY_CONSTRAINED_VBR;
+		default:
+		case AVEncoder::FVideoEncoder::RateControlMode::CBR: return AMF_VIDEO_ENCODER_RATE_CONTROL_METHOD_CBR;
+		}
+	}
+
+	uint64 ConvertH264Profile(AVEncoder::FVideoEncoder::H264Profile profile)
+	{
+		switch (profile)
+		{
+		case AVEncoder::FVideoEncoder::H264Profile::CONSTRAINED_BASELINE: return AMF_VIDEO_ENCODER_PROFILE_CONSTRAINED_BASELINE;
+		case AVEncoder::FVideoEncoder::H264Profile::BASELINE: return AMF_VIDEO_ENCODER_PROFILE_BASELINE;
+		case AVEncoder::FVideoEncoder::H264Profile::MAIN: return AMF_VIDEO_ENCODER_PROFILE_MAIN;
+		case AVEncoder::FVideoEncoder::H264Profile::CONSTRAINED_HIGH: return AMF_VIDEO_ENCODER_PROFILE_CONSTRAINED_HIGH;
+		case AVEncoder::FVideoEncoder::H264Profile::HIGH: return AMF_VIDEO_ENCODER_PROFILE_HIGH;
+		default:
+		case AVEncoder::FVideoEncoder::H264Profile::AUTO: return AMF_VIDEO_ENCODER_PROFILE_BASELINE;
+		}
+	}
+}
+
+namespace AVEncoder
+{
+	static bool GetEncoderInfo(FAmfCommon& Amf, FVideoEncoderInfo& EncoderInfo);
+
+	bool FVideoEncoderAmf_H264::GetIsAvailable(FVideoEncoderInputImpl& InInput, FVideoEncoderInfo& OutEncoderInfo)
+	{
+		FAmfCommon& Amf = FAmfCommon::Setup();
+		bool bIsAvailable = Amf.GetIsAvailable();
+		if (bIsAvailable)
+		{
+			OutEncoderInfo.CodecType = ECodecType::H264;
+		}
+		return bIsAvailable;
+	}
+
+	void FVideoEncoderAmf_H264::Register(FVideoEncoderFactory& InFactory)
+	{
+		FAmfCommon& Amf = FAmfCommon::Setup();
+		if (Amf.GetIsAvailable() && IsRHIDeviceAMD())
+		{
+			FVideoEncoderInfo	EncoderInfo;
+			if (GetEncoderInfo(Amf, EncoderInfo))
+			{
+				InFactory.Register(EncoderInfo, []() {
+					return TUniquePtr<FVideoEncoder>(new FVideoEncoderAmf_H264());
+				});
+			}
+		}
+	}
+
+	FVideoEncoderAmf_H264::FVideoEncoderAmf_H264()
+		: Amf(FAmfCommon::Setup())
+	{
+	}
+
+	FVideoEncoderAmf_H264::~FVideoEncoderAmf_H264()
+	{
+		Shutdown();
+	}
+
+	bool FVideoEncoderAmf_H264::Setup(TSharedRef<FVideoEncoderInput> input, FLayerConfig const& config)
+	{
+		if (!Amf.GetIsAvailable())
+		{
+			UE_LOG(LogEncoderAMF, Error, TEXT("Amf not avaliable."));
+			return false;
+		}
+				
+		TSharedRef<FVideoEncoderInputImpl>	Input(StaticCastSharedRef<FVideoEncoderInputImpl>(input));
+
+		FString RHIName = "null";
+
+		// TODO fix initializing contexts
+		FrameFormat = input->GetFrameFormat();
+		switch (FrameFormat)
+		{
+#if PLATFORM_WINDOWS
+		case AVEncoder::EVideoFrameFormat::D3D11_R8G8B8A8_UNORM:
+			EncoderDevice = Input->GetD3D11EncoderDevice();
+			RHIName = "D3D11";
+			break;
+		case AVEncoder::EVideoFrameFormat::D3D12_R8G8B8A8_UNORM:
+			EncoderDevice = Input->GetD3D12EncoderDevice();
+			RHIName = "D3D12";
+			break;
+#endif
+		case AVEncoder::EVideoFrameFormat::VULKAN_R8G8B8A8_UNORM:
+			EncoderDevice = Input->GetVulkanEncoderDevice();
+			RHIName = "Vulkan";
+			break;
+		case AVEncoder::EVideoFrameFormat::Undefined:
+		default:
+			UE_LOG(LogEncoderAMF, Error, TEXT("Frame format %s is not currently supported by Amf Encoder on this platform."), *ToString(FrameFormat));
+			return false;
+		}
+
+		if (!EncoderDevice)
+		{
+			UE_LOG(LogEncoderAMF, Error, TEXT("Amf needs an encoder device."));
+			return false;
+		}
+				
+		if (!Amf.GetIsCtxInitialized())
+		{	
+			if (RHIName != "Vulkan")
+			{
+				if (!Amf.InitializeContext(GDynamicRHI->GetName(), EncoderDevice))
+				{
+					UE_LOG(LogEncoderAMF, Error, TEXT("Amf component not initialised"));
+				}
+			}
+			else
+			{
+				FVulkanDataStruct* VulkanData = static_cast<FVulkanDataStruct*>(EncoderDevice);
+				if (!Amf.InitializeContext(GDynamicRHI->GetName(), VulkanData->VulkanDevice, VulkanData->VulkanInstance, VulkanData->VulkanPhysicalDevice))
+				{
+					UE_LOG(LogEncoderAMF, Error, TEXT("Amf component not initialised"));
+				}
+			}
+		}
+
+		FLayerConfig mutableConfig = config;
+		if (mutableConfig.MaxFramerate == 0)
+			mutableConfig.MaxFramerate = 60;
+
+		return AddLayer(config);
+	}
+
+	FVideoEncoder::FLayer* FVideoEncoderAmf_H264::CreateLayer(uint32 layerIdx, FLayerConfig const& config)
+	{
+		auto const layer = new FAMFLayer(layerIdx, config, *this);
+		if (!layer->Setup())
+		{
+			delete layer;
+			return nullptr;
+		}
+
+		if (ProcessFrameThread == nullptr)
+		{
+			ProcessFrameThread = MakeUnique<FThread>(TEXT("AmfFrameProcessingThread"), [this]() { ProcessFrameThreadFunc(); });
+		}
+
+		return layer;
+	}
+
+	void FVideoEncoderAmf_H264::DestroyLayer(FLayer* layer)
+	{
+		delete layer;
+	}
+
+	void FVideoEncoderAmf_H264::Encode(FVideoEncoderInputFrame const* frame, FEncodeOptions const& options)
+	{
+		// todo: reconfigure encoder
+		auto const amfFrame = static_cast<const FVideoEncoderInputFrameImpl*>(frame);
+		for (auto&& layer : Layers)
+		{
+			auto const amfLayer = static_cast<FAMFLayer*>(layer);
+			AMF_RESULT Res = amfLayer->Encode(amfFrame, options);
+
+			if (Res == AMF_OK)
+			{
+				FramesPending->Trigger();
+			}
+		}
+	}
+
+	void FVideoEncoderAmf_H264::Flush()
+	{
+		for (auto&& layer : Layers)
+		{
+			auto const amfLayer = static_cast<FAMFLayer*>(layer);
+			amfLayer->Flush();
+		}
+	}
+
+	void FVideoEncoderAmf_H264::Shutdown()
+	{
+		for (auto&& layer : Layers)
+		{
+			auto const amfLayer = static_cast<FAMFLayer*>(layer);
+			amfLayer->Shutdown();
+			DestroyLayer(amfLayer);
+		}
+
+		Layers.Reset();
+
+		if (ProcessFrameThread != nullptr)
+		{
+			bShouldRunProcessingThread = false;
+			FramesPending->Trigger();
+			ProcessFrameThread->Join();
+			ProcessFrameThread = nullptr;
+		}
+	}
+
+	// --- Amf_EncoderH264::FLayer ------------------------------------------------------------
+	FVideoEncoderAmf_H264::FAMFLayer::FAMFLayer(uint32 layerIdx, FLayerConfig const& config, FVideoEncoderAmf_H264& encoder)
+		: FLayer(config)
+		, Encoder(encoder)
+		, Amf(FAmfCommon::Setup())
+		, LayerIndex(layerIdx)
+	{
+	}
+
+	FVideoEncoderAmf_H264::FAMFLayer::~FAMFLayer()
+	{
+	}
+
+	bool FVideoEncoderAmf_H264::FAMFLayer::Setup()
+	{
+		return CreateSession() && CreateInitialConfig();
+	}
+
+	bool FVideoEncoderAmf_H264::FAMFLayer::CreateSession()
+	{
+		if (AmfEncoder == NULL)
+		{
+			Amf.CreateEncoder(AmfEncoder);
+		}
+
+		return AmfEncoder != NULL;
+	}
+
+	// TODO (M84FIX) need to parameterize this
+	bool FVideoEncoderAmf_H264::FAMFLayer::CreateInitialConfig()
+	{
+		AMF_RESULT Result = AMF_OK;
+
+		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_USAGE, AMF_VIDEO_ENCODER_USAGE_ULTRA_LOW_LATENCY);
+
+		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_PROFILE, ConvertH264Profile(CurrentConfig.H264Profile));
+		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_PROFILE_LEVEL, 51);
+
+		AMFRate frameRate = { CurrentConfig.MaxFramerate, 1 };
+		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_FRAMERATE, frameRate);
+
+		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_RATE_CONTROL_METHOD, ConvertRateControlModeAMF(CurrentConfig.RateControlMode));
+
+		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_PEAK_BITRATE, CurrentConfig.MaxBitrate > -1 ? CurrentConfig.MaxBitrate : DEFAULT_BITRATE);
+		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_TARGET_BITRATE, CurrentConfig.TargetBitrate > -1 ? CurrentConfig.TargetBitrate : DEFAULT_BITRATE);
+
+		// TODO Amf enables B frames by default NVENC does not should test both options
+        Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_QUALITY_PRESET, AMF_VIDEO_ENCODER_QUALITY_PRESET_QUALITY);
+		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_B_PIC_PATTERN, 0);
+
+		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_MIN_QP, 0);
+		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_MAX_QP, 51);
+
+		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_QUERY_TIMEOUT, 16);
+		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_IDR_PERIOD, 60);
+
+		Result = AmfEncoder->Init(AMF_SURFACE_BGRA, CurrentConfig.Width, CurrentConfig.Height);
+
+		return Result == AMF_OK;
+	}
+
+	void FVideoEncoderAmf_H264::FAMFLayer::MaybeReconfigure(TSharedPtr<FInputOutput> buffer)
+	{
+		if (bForceNextKeyframe)
+		{
+			if (buffer->Surface->SetProperty(AMF_VIDEO_ENCODER_FORCE_PICTURE_TYPE, AMF_VIDEO_ENCODER_PICTURE_TYPE_IDR) != AMF_OK)
+			{
+				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to force IDR picture type"));
+			}
+
+			if (buffer->Surface->SetProperty(AMF_VIDEO_ENCODER_INSERT_SPS, true) != AMF_OK)
+			{				
+				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to force SPS"));
+			}		
+				
+			if (buffer->Surface->SetProperty(AMF_VIDEO_ENCODER_INSERT_PPS, true) != AMF_OK)
+			{				
+				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to force PPS"));
+			}
+
+			bForceNextKeyframe = false;
+		}
+
+		FScopeLock lock(&ConfigMutex);
+		if (NeedsReconfigure)
+		{		
+			if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_RATE_CONTROL_METHOD, ConvertRateControlModeAMF(CurrentConfig.RateControlMode)) != AMF_OK)
+			{
+				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to set rate control method"));
+			}
+
+			if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_FILLER_DATA_ENABLE, CurrentConfig.FillData) != AMF_OK)
+			{
+				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to enable filler data to maintain CBR"));
+			}
+
+			if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_MIN_QP, CurrentConfig.QPMin > -1 ? FMath::Clamp<uint64>(CurrentConfig.QPMin, 0, 51) : 0) != AMF_OK)
+			{
+				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to set min qp"));
+			}
+
+			if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_MAX_QP, CurrentConfig.QPMax > -1 ? FMath::Clamp<uint64>(CurrentConfig.QPMax, 0, 51) : 51) != AMF_OK)
+			{
+				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to set target bitrate"));
+			}
+
+			if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_TARGET_BITRATE, CurrentConfig.TargetBitrate) != AMF_OK)
+			{
+				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to set target bitrate"));
+			}
+
+			if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_PEAK_BITRATE, CurrentConfig.MaxBitrate) != AMF_OK)
+			{
+				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to set max bitrate"));
+			}
+		}
+	}
+
+	AMF_RESULT FVideoEncoderAmf_H264::FAMFLayer::Encode(FVideoEncoderInputFrameImpl const* frame, FEncodeOptions const& options)
+	{
+		AMF_RESULT Result = AMF_FAIL;
+		TSharedPtr<FInputOutput> Buffer = GetOrCreateSurface(frame);
+
+		if (Buffer)
+		{
+			Buffer->Surface->SetPts(frame->GetTimestampRTP());
+			Buffer->Surface->SetProperty(AMF_VIDEO_ENCODER_START_TS, FTimespan::FromSeconds(FPlatformTime::Seconds()).GetTicks());
+			Buffer->Surface->SetProperty(AMF_BUFFER_INPUT_FRAME, uintptr_t(frame));
+			Buffer->Surface->SetProperty(AMF_VIDEO_ENCODER_STATISTICS_FEEDBACK, true);
+
+			bForceNextKeyframe = options.bForceKeyFrame;
+			MaybeReconfigure(Buffer);
+
+			if (Buffer.IsValid())
+			{
+				Result = AmfEncoder->SubmitInput(Buffer->Surface);
+
+				if (Result == AMF_NEED_MORE_INPUT)
+				{
+				}
+				else if (Result != AMF_OK)
+				{
+					UE_LOG(LogEncoderAMF, Error, TEXT("Amf submit error with %d"), Result);
+					// release input frame
+					if (Buffer->SourceFrame)
+					{
+						Buffer->SourceFrame->Release();
+					}
+				}
+				else
+				{
+					PendingFrames.Increment();
+				}
+			}
+		}
+
+		return Result;
+	}
+
+	void FVideoEncoderAmf_H264::FAMFLayer::Flush()
+	{
+		AmfEncoder->Flush();
+	}
+
+	void FVideoEncoderAmf_H264::FAMFLayer::Shutdown()
+	{
+		Flush();
+		CreatedSurfaces.Empty();
+
+		if (AmfEncoder != NULL)
+		{
+			AmfEncoder->Terminate();
+			AmfEncoder = NULL;
+		}
+	}
+
+	void FVideoEncoderAmf_H264::ProcessFrameThreadFunc()
+	{
+		bool bHasProcessedFrame = false;
+		while (bShouldRunProcessingThread)
+		{
+			if (bWaitingForFrames) {
+				FramesPending->Wait();
+			}
+
+			for (auto&& Layer : Layers)
+			{
+				FAMFLayer* AmfLayer = static_cast<FAMFLayer*>(Layer);
+				if (AmfLayer->PendingFrames.GetValue() > 0)
+				{
+					AmfLayer->PendingFrames.Decrement();
+
+					amf::AMFDataPtr data;
+					AMF_RESULT Result = AmfLayer->AmfEncoder->QueryOutput(&data);
+
+					if (Result == AMF_OK && data != NULL)
+					{
+						AMFBufferPtr OutBuffer(data);
+
+						// create packet with buffer contents
+						FCodecPacketImpl Packet;
+
+						Packet.Data = static_cast<const uint8*>(OutBuffer->GetNative());
+						Packet.DataSize = OutBuffer->GetSize();
+						uint32 PictureType = AMF_VIDEO_ENCODER_PICTURE_TYPE_NONE;
+						if (OutBuffer->GetProperty(AMF_VIDEO_ENCODER_OUTPUT_DATA_TYPE, &PictureType) != AMF_OK)
+						{
+							UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to get picture type."));
+						}
+						else if (PictureType == AMF_VIDEO_ENCODER_OUTPUT_DATA_TYPE_IDR)
+						{
+							UE_LOG(LogEncoderAMF, Verbose, TEXT("Generated IDR Frame"));
+							Packet.IsKeyFrame = true;
+						}
+
+						if (OutBuffer->GetProperty(AMF_VIDEO_ENCODER_STATISTIC_FRAME_QP, &Packet.VideoQP) != AMF_OK)
+						{
+							UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to get frame QP."));
+						}
+
+						amf_int64 StartTs;
+						if (OutBuffer->GetProperty(AMF_VIDEO_ENCODER_START_TS, &StartTs) != AMF_OK)
+						{
+							UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to get encode start time."));
+						}
+						Packet.Timings.StartTs = FTimespan(StartTs);
+
+						Packet.Timings.FinishTs = FTimespan::FromSeconds(FPlatformTime::Seconds());
+						Packet.Framerate = AmfLayer->GetConfig().MaxFramerate;
+
+						FVideoEncoderInputFrameImpl* frame;
+						if (OutBuffer->GetProperty(AMF_BUFFER_INPUT_FRAME, (uintptr_t*)&frame) != AMF_OK)
+						{
+							UE_LOG(LogEncoderAMF, Fatal, TEXT("Amf failed to get buffer input frame."));
+						}
+
+						if (AmfLayer->Encoder.OnEncodedPacket)
+						{
+							AmfLayer->Encoder.OnEncodedPacket(AmfLayer->LayerIndex, frame, Packet);
+						}
+
+						bHasProcessedFrame = true;
+					}
+				}
+			}
+
+			if (!bHasProcessedFrame)
+			{
+				bWaitingForFrames = true;
+			}
+
+			bHasProcessedFrame = false;
+		}
+	}
+
+	template<class T>
+	bool FVideoEncoderAmf_H264::FAMFLayer::GetCapability(const TCHAR* CapToQuery, T& OutCap) const
+	{
+		amf::AMFCapsPtr EncoderCaps;
+		
+		if (AmfEncoder->GetCaps(&EncoderCaps) != AMF_OK)
+		{
+			return false;
+		}
+
+		if (EncoderCaps->GetProperty(CapToQuery, &OutCap))
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	amf::AMFVulkanSurface* CreateVulkanSurface(VkImage_T* Image, VkDeviceMemory_T* DeviceMemory, EVideoFrameFormat Format, uint32 Size, uint32 Width, uint32 Height)
+	{
+		amf_int32 pixelFormat = 0;
+		int pixelSize = 0;
+		switch (Format) {
+		default:
+		case EVideoFrameFormat::VULKAN_R8G8B8A8_UNORM:
+			pixelFormat = VK_FORMAT_B8G8R8A8_UNORM;
+			break;
+		}
+
+		amf::AMFVulkanSurface* SurfaceTexture = new amf::AMFVulkanSurface();
+		SurfaceTexture->cbSizeof = sizeof(amf::AMFVulkanSurface);
+		SurfaceTexture->hImage = Image;
+		SurfaceTexture->eUsage = amf::AMF_SURFACE_USAGE_DEFAULT;
+		SurfaceTexture->hMemory = DeviceMemory;
+		SurfaceTexture->iSize = Size;
+		SurfaceTexture->eFormat = pixelFormat;
+		SurfaceTexture->iWidth = Width;
+		SurfaceTexture->iHeight = Height;
+
+		SurfaceTexture->Sync.cbSizeof = sizeof(SurfaceTexture->Sync);
+		SurfaceTexture->Sync.hSemaphore = VK_NULL_HANDLE;
+		SurfaceTexture->Sync.bSubmitted = false;
+
+		SurfaceTexture->eCurrentLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+		return SurfaceTexture;
+	}
+
+	TSharedPtr<FVideoEncoderAmf_H264::FAMFLayer::FInputOutput> FVideoEncoderAmf_H264::FAMFLayer::GetOrCreateSurface(const FVideoEncoderInputFrameImpl* InFrame)
+	{
+		void* TextureToCompress = nullptr;
+
+		switch (InFrame->GetFormat())
+		{
+#if PLATFORM_WINDOWS
+		case EVideoFrameFormat::D3D11_R8G8B8A8_UNORM:
+			TextureToCompress = InFrame->GetD3D11().EncoderTexture;
+			break;
+		case EVideoFrameFormat::D3D12_R8G8B8A8_UNORM:
+			TextureToCompress = InFrame->GetD3D12().EncoderTexture;
+			break;
+#endif
+		case EVideoFrameFormat::VULKAN_R8G8B8A8_UNORM:
+		{
+			const FVideoEncoderInputFrame::FVulkan& Frame = InFrame->GetVulkan();
+			if (!Frame.EncoderSurface)
+			{
+				Frame.EncoderSurface = CreateVulkanSurface(Frame.EncoderTexture,
+					Frame.EncoderDeviceMemory,
+					InFrame->GetFormat(),
+					Frame.EncoderMemorySize,
+					InFrame->GetWidth(),
+					InFrame->GetHeight()
+				);
+			}
+			TextureToCompress = Frame.EncoderSurface;
+			InFrame->OnReleaseVulkanSurface = [](void* Surface){ delete (amf::AMFVulkanSurface*) Surface; };
+			break;
+		}
+		case EVideoFrameFormat::Undefined:
+		default:
+			UE_LOG(LogEncoderAMF, Error, TEXT("Video Frame Format %s not supported by Amf on this platform."), *ToString(InFrame->GetFormat()));
+			break;
+		}
+
+		if (!TextureToCompress)
+		{
+			UE_LOG(LogEncoderAMF, Fatal, TEXT("Got passed a null pointer."));
+				return nullptr;
+		}
+
+		// Check if texture already has a buffer surface
+		TSharedPtr<FInputOutput> Buffer = nullptr;
+		for (TSharedPtr<FInputOutput> SearchBuffer : CreatedSurfaces)
+		{
+			if (SearchBuffer->TextureToCompress == TextureToCompress)
+			{
+				Buffer = SearchBuffer;
+				break;
+			}
+		}
+
+		// if texture does not already have a buffer surface create one
+		if (!Buffer)
+		{
+			if (!CreateSurface(Buffer, InFrame, TextureToCompress))
+			{
+				InFrame->Release();
+				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to create buffer."));
+			}
+			else
+			{
+				CreatedSurfaces.Push(Buffer);
+			}
+		}
+
+		return Buffer;
+	}
+
+	bool FVideoEncoderAmf_H264::FAMFLayer::CreateSurface(TSharedPtr<FVideoEncoderAmf_H264::FAMFLayer::FInputOutput>& OutBuffer, const FVideoEncoderInputFrameImpl* SourceFrame, void* TextureToCompress)
+	{
+		AMF_RESULT Result = AMF_OK;
+
+		OutBuffer = MakeShared<FInputOutput>();
+		OutBuffer->SourceFrame = SourceFrame;
+		OutBuffer->TextureToCompress = TextureToCompress;
+
+		if (TextureToCompress)
+		{
+			switch (SourceFrame->GetFormat())
+			{
+#if PLATFORM_WINDOWS
+			case EVideoFrameFormat::D3D11_R8G8B8A8_UNORM:
+				Result = Amf.GetContext()->CreateSurfaceFromDX11Native(TextureToCompress, &(OutBuffer->Surface), OutBuffer.Get());
+				break;
+			case EVideoFrameFormat::D3D12_R8G8B8A8_UNORM:
+				Result = amf::AMFContext2Ptr(Amf.GetContext())->CreateSurfaceFromDX12Native(TextureToCompress, &(OutBuffer->Surface), OutBuffer.Get());
+				break;
+#endif
+			case EVideoFrameFormat::VULKAN_R8G8B8A8_UNORM:
+				Result = amf::AMFContext2Ptr(Amf.GetContext())->CreateSurfaceFromVulkanNative(TextureToCompress, &(OutBuffer->Surface), OutBuffer.Get());
+				break;
+			case EVideoFrameFormat::Undefined:
+			default:
+				UE_LOG(LogEncoderAMF, Error, TEXT("Video format %s not inplemented for Amf on this platform"), *ToString(SourceFrame->GetFormat()));
+				break;
+			}
+		}
+		else
+		{
+			UE_LOG(LogEncoderAMF, Error, TEXT("Amf recieved nullptr to texture."));
+			return false;
+		}
+
+		return Result == AMF_OK;
+	}
+
+	static bool GetEncoderSupportedProfiles(AMFCapsPtr EncoderCaps, uint32& OutSupportedProfiles)
+	{
+		uint32 maxProfile;
+		if (EncoderCaps->GetProperty(AMF_VIDEO_ENCODER_CAP_MAX_PROFILE, &maxProfile) != AMF_OK)
+		{
+			return false;
+		}
+
+		if (maxProfile >= AMF_VIDEO_ENCODER_PROFILE_BASELINE)
+		{
+			OutSupportedProfiles |= H264Profile_Baseline;
+		}
+
+		if (maxProfile >= AMF_VIDEO_ENCODER_PROFILE_MAIN)
+		{
+			OutSupportedProfiles |= H264Profile_Main;
+		}
+
+		if (maxProfile >= AMF_VIDEO_ENCODER_PROFILE_HIGH)
+		{
+			OutSupportedProfiles |= H264Profile_High;
+		}
+
+		if (maxProfile >= AMF_VIDEO_ENCODER_PROFILE_CONSTRAINED_BASELINE)
+		{
+			OutSupportedProfiles |= H264Profile_ConstrainedBaseline;
+		}
+
+		if (maxProfile >= AMF_VIDEO_ENCODER_PROFILE_CONSTRAINED_HIGH)
+		{
+			OutSupportedProfiles |= H264Profile_ConstrainedHigh;
+		}
+
+		return true;
+	}
+
+	static bool GetEncoderSupportedInputFormats(AMFIOCapsPtr IOCaps, TArray<EVideoFrameFormat>& OutSupportedInputFormats)
+	{
+		// TODO check if we actually need to query Amf for this
+
+#if PLATFORM_WINDOWS
+		OutSupportedInputFormats.Push(EVideoFrameFormat::D3D11_R8G8B8A8_UNORM);
+		OutSupportedInputFormats.Push(EVideoFrameFormat::D3D12_R8G8B8A8_UNORM);
+#endif
+		OutSupportedInputFormats.Push(EVideoFrameFormat::VULKAN_R8G8B8A8_UNORM);
+
+		return true;
+	}
+
+
+	static bool GetEncoderInfo(FAmfCommon& AMF, FVideoEncoderInfo& EncoderInfo)
+	{
+		bool bSuccess = true;
+
+		AMF.InitializeContext(GDynamicRHI->GetName(), NULL);
+
+		EncoderInfo.CodecType = ECodecType::H264;
+		
+		// Create temp component
+		AMFComponentPtr TempEncoder;
+		AMF.CreateEncoder(TempEncoder);
+
+		AMFCapsPtr EncoderCaps;
+		TempEncoder->GetCaps(&EncoderCaps);
+
+		AMFIOCapsPtr InputCaps;
+		EncoderCaps->GetInputCaps(&InputCaps);
+
+		uint32 LevelMin = 1;
+		uint32 LevelMax;
+		if (EncoderCaps->GetProperty(AMF_VIDEO_ENCODER_CAP_MAX_LEVEL, &LevelMax) == AMF_OK)
+		{
+			EncoderInfo.H264.MinLevel = (LevelMin > 9) ? LevelMin : 9;							// Like NVENC we hard min at 9
+			EncoderInfo.H264.MaxLevel = (LevelMax < 9) ? 9 : (LevelMax > 52) ? 52 : LevelMax;	// Like NVENC we hard max at 52
+		}
+		else
+		{
+			UE_LOG(LogEncoderAMF, Error, TEXT("Failed to query min/max h264 level supported by Amf (reported min/max=%d/%d)."), LevelMin, LevelMax);
+			bSuccess = false;
+		}
+
+		if (!GetEncoderSupportedProfiles(EncoderCaps, EncoderInfo.H264.SupportedProfiles) ||
+			!GetEncoderSupportedInputFormats(InputCaps, EncoderInfo.SupportedInputFormats))
+		{
+			bSuccess = false;
+		}
+
+		TempEncoder->Terminate();
+		TempEncoder = nullptr;
+
+		AMF.DestroyContext();
+
+		return bSuccess;
+	}
+
+} /* namespace AVEncoder */
+
+#undef MIN_UPDATE_FRAMERATE_SECS

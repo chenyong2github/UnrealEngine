@@ -19,7 +19,7 @@
 			"Name": "PixelStreaming",
 			"Type": "Runtime",
 			"LoadingPhase": "PostDefault",
-			"WhitelistPlatforms": [ "Win32", "Win64" ],
+			"WhitelistPlatforms": [ "Win32", "Win64", "Linux" ],
 			"BlacklistTargets": [ "Server" ]
 		}
 	],

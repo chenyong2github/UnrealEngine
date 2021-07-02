@@ -14,7 +14,7 @@ namespace AVEncoder
     public:
         enum class RateControlMode { UNKNOWN, CONSTQP, VBR, CBR };
         enum class MultipassMode { UNKNOWN, DISABLED, QUARTER, FULL };
-		enum class H264Profile { AUTO, BASELINE, MAIN, HIGH, HIGH444, STEREO, SVC_TEMPORAL_SCALABILITY, PROGRESSIVE_HIGH, CONSTRAINED_HIGH };
+		enum class H264Profile { AUTO, CONSTRAINED_BASELINE, BASELINE, MAIN, CONSTRAINED_HIGH, HIGH, HIGH444, STEREO, SVC_TEMPORAL_SCALABILITY, PROGRESSIVE_HIGH };
 
         struct FLayerConfig
         {

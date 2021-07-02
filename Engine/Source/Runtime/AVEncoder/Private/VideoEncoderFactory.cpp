@@ -4,14 +4,6 @@
 #include "VideoEncoderInputImpl.h"
 #include "RHI.h"
 
-#if (PLATFORM_WINDOWS && PLATFORM_DESKTOP) || WITH_CUDA
-#include "Encoders/NVENC/NVENC_EncoderH264.h"
-#endif
-
-#if PLATFORM_DESKTOP && !PLATFORM_APPLE
-#include "Encoders/Amf/Amf_EncoderH264.h"
-#endif
-
 #include "Encoders/VideoEncoderH264_Dummy.h"
 
 namespace AVEncoder
@@ -72,17 +64,10 @@ void FVideoEncoderFactory::Register(const FVideoEncoderInfo& InInfo, const Creat
 void FVideoEncoderFactory::RegisterDefaultCodecs()
 {
 
-#if defined(AVENCODER_VIDEO_ENCODER_AVAILABLE_NVENC_H264)
-	FVideoEncoderNVENC_H264::Register(*this);
-#endif
-	
-#if defined(AVENCODER_VIDEO_ENCODER_AVAILABLE_AMF_H264)
-	FVideoEncoderAmf_H264::Register(*this);
-#endif
-
 #if defined(AVENCODER_VIDEO_ENCODER_AVAILABLE_H264_DUMMY)
 	FVideoEncoderH264_Dummy::Register(*this);
 #endif
+
 }
 
 bool FVideoEncoderFactory::GetInfo(uint32 InID, FVideoEncoderInfo& OutInfo) const
@@ -120,21 +105,36 @@ TUniquePtr<FVideoEncoder> FVideoEncoderFactory::Create(uint32 InID, const FVideo
 		{
 			Result = CreateEncoders[Index]();
 
-			// HACK (M84FIX) work with other RHI
-			if (GDynamicRHI->GetName() == FString("D3D11"))
-			{
-				TSharedRef<FVideoEncoderInput> Input = FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), config.Width, config.Height).ToSharedRef();
+			FString RHIName = GDynamicRHI->GetName();
 
+			if (RHIName == TEXT("D3D11"))
+			{	
+				TSharedRef<FVideoEncoderInput> Input = FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), config.Width, config.Height, true, IsRHIDeviceAMD()).ToSharedRef();
+				
 				if (Result && !Result->Setup(Input, config))
 				{
 					Result.Reset();
 				}
 				break;
 			}
-			else if (GDynamicRHI->GetName() == FString("D3D12"))
+			else if (RHIName == TEXT("D3D12"))
+			{				
+				TSharedRef<FVideoEncoderInput> Input = FVideoEncoderInput::CreateForD3D12(GDynamicRHI->RHIGetNativeDevice(), config.Width, config.Height, true, IsRHIDeviceNVIDIA()).ToSharedRef();
+				
+				if (Result && !Result->Setup(Input, config))
+				{
+					Result.Reset();
+				}
+				break;
+			}
+			else if (RHIName == TEXT("Vulkan"))
 			{
-				TSharedRef<FVideoEncoderInput> Input = FVideoEncoderInput::CreateForD3D12(GDynamicRHI->RHIGetNativeDevice(), config.Width, config.Height).ToSharedRef();
+				AVEncoder::FVulkanDataStruct VulkanData = {	static_cast<VkInstance_T*>(GDynamicRHI->RHIGetNativeInstance()), 
+															static_cast<VkPhysicalDevice_T*>(GDynamicRHI->RHIGetNativePhysicalDevice()), 
+															static_cast<VkDevice_T*>(GDynamicRHI->RHIGetNativeDevice())};
 
+				TSharedRef<FVideoEncoderInput> Input = FVideoEncoderInput::CreateForVulkan( &VulkanData, config.Width, config.Height, true).ToSharedRef();
+				
 				if (Result && !Result->Setup(Input, config))
 				{
 					Result.Reset();

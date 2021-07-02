@@ -114,7 +114,8 @@ namespace UnrealBuildTool.Rules
 				"Sockets",
 				"MediaUtils",
 				"AVEncoder",
-				"DeveloperSettings"
+				"DeveloperSettings",
+				"Amf"
 			});
 			
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
@@ -140,17 +141,20 @@ namespace UnrealBuildTool.Rules
 				PrivateDependencyModuleNames.Add("HeadMountedDisplay");
 			}
 
-			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
+			// required for casting UE4 BackBuffer to Vulkan Texture2D for NvEnc
+			PrivateDependencyModuleNames.AddRange(new string[] { "CUDA", "VulkanRHI", "nvEncode"});
+			
+			PrivateIncludePathModuleNames.Add("VulkanRHI");
+			PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private"));
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
+
+			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 			{
-				// required for casting UE4 BackBuffer to Vulkan Texture2D for NvEnc
-				PrivateDependencyModuleNames.AddRange(new string[] { "CUDA", "VulkanRHI", "nvEncode"});
-				PrivateIncludePaths.AddRange(new string[]
-				{
-					Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private"),
-					Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Linux"),
-				});
-
-
+				Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Windows");
+			} 
+			else if ( Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
+			{
+				Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Linux");
 			}
 			
 			AddSignallingServer();
