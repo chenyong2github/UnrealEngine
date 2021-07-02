@@ -208,30 +208,34 @@ void UConstraintInstanceBlueprintLibrary::GetLinearBreakable(
 void UConstraintInstanceBlueprintLibrary::SetLinearPlasticity(
 	FConstraintInstanceAccessor& Accessor,
 	bool bLinearPlasticity,
-	float LinearPlasticityThreshold
+	float LinearPlasticityThreshold,
+	TEnumAsByte<EConstraintPlasticityType> PlasticityType
 	)
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
-		ConstraintInstance->SetLinearPlasticity(bLinearPlasticity, LinearPlasticityThreshold);
+		ConstraintInstance->SetLinearPlasticity(bLinearPlasticity, LinearPlasticityThreshold,PlasticityType);
 	}
 }
 
 void UConstraintInstanceBlueprintLibrary::GetLinearPlasticity(
 	FConstraintInstanceAccessor& Accessor,
 	bool& bLinearPlasticity,
-	float& LinearPlasticityThreshold
+	float& LinearPlasticityThreshold,
+	TEnumAsByte<EConstraintPlasticityType>& PlasticityType
 	)
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
 	{
 		bLinearPlasticity = ConstraintInstance->HasLinearPlasticity();
 		LinearPlasticityThreshold = ConstraintInstance->GetLinearPlasticityThreshold();
+		PlasticityType = ConstraintInstance->GetLinearPlasticityType();
 	}
 	else
 	{
 		bLinearPlasticity = false;
 		LinearPlasticityThreshold = 0.0f;
+		PlasticityType = EConstraintPlasticityType::CCPT_Free;
 	}
 }
 

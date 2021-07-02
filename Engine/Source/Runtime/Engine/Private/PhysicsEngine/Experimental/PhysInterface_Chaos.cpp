@@ -371,7 +371,7 @@ void FPhysInterface_Chaos::UpdateTwistLimitParams_AssumesLocked(const FPhysicsCo
 	}
 }
 
-void FPhysInterface_Chaos::UpdateLinearDrive_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, const FLinearDriveConstraint& InDriveParams)
+void FPhysInterface_Chaos::UpdateLinearDrive_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, const FLinearDriveConstraint& InDriveParams, bool InInitialize)
 {
 	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
@@ -391,7 +391,7 @@ void FPhysInterface_Chaos::UpdateLinearDrive_AssumesLocked(const FPhysicsConstra
 				Constraint->SetLinearPositionDriveXEnabled(InDriveParams.XDrive.bEnablePositionDrive);
 				Constraint->SetLinearPositionDriveYEnabled(InDriveParams.YDrive.bEnablePositionDrive);
 				Constraint->SetLinearPositionDriveZEnabled(InDriveParams.ZDrive.bEnablePositionDrive);
-				if (FMath::IsNearlyEqual(Constraint->GetLinearPlasticityLimit(), (Chaos::FReal)FLT_MAX))
+				if (InInitialize || FMath::IsNearlyEqual(Constraint->GetLinearPlasticityLimit(), (Chaos::FReal)FLT_MAX))
 				{
 					Constraint->SetLinearDrivePositionTarget(InDriveParams.PositionTarget);
 				}
@@ -413,7 +413,7 @@ void FPhysInterface_Chaos::UpdateLinearDrive_AssumesLocked(const FPhysicsConstra
 	}
 }
 
-void FPhysInterface_Chaos::UpdateAngularDrive_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, const FAngularDriveConstraint& InDriveParams)
+void FPhysInterface_Chaos::UpdateAngularDrive_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, const FAngularDriveConstraint& InDriveParams, bool InInitialize)
 {
 	if (InConstraintRef.IsValid() && InConstraintRef.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
@@ -440,7 +440,7 @@ void FPhysInterface_Chaos::UpdateAngularDrive_AssumesLocked(const FPhysicsConstr
 					Constraint->SetAngularSLerpPositionDriveEnabled(InDriveParams.SlerpDrive.bEnablePositionDrive);
 				}
 
-				if (FMath::IsNearlyEqual(Constraint->GetAngularPlasticityLimit(), (Chaos::FReal)FLT_MAX))
+				if (InInitialize || FMath::IsNearlyEqual(Constraint->GetAngularPlasticityLimit(), (Chaos::FReal)FLT_MAX))
 				{
 					// Plastic joints should not be re-targeted after initialization. 
 					Constraint->SetAngularDrivePositionTarget(Chaos::FRotation3(InDriveParams.OrientationTarget.Quaternion()));
@@ -481,12 +481,12 @@ void FPhysInterface_Chaos::UpdateAngularDrive_AssumesLocked(const FPhysicsConstr
 	}
 }
 
-void FPhysInterface_Chaos::UpdateDriveTarget_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, const FLinearDriveConstraint& InLinDrive, const FAngularDriveConstraint& InAngDrive)
+void FPhysInterface_Chaos::UpdateDriveTarget_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, const FLinearDriveConstraint& InLinDrive, const FAngularDriveConstraint& InAngDrive, bool InInitialize)
 {
 	if (InConstraintRef.IsValid())
 	{
-		UpdateLinearDrive_AssumesLocked(InConstraintRef, InLinDrive);
-		UpdateAngularDrive_AssumesLocked(InConstraintRef, InAngDrive);
+		UpdateLinearDrive_AssumesLocked(InConstraintRef, InLinDrive, InInitialize);
+		UpdateAngularDrive_AssumesLocked(InConstraintRef, InAngDrive, InInitialize);
 	}
 }
 

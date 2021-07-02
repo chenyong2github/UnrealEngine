@@ -169,7 +169,8 @@ namespace Chaos
 		, AngularDriveDamping(0)
 		, LinearBreakForce(FLT_MAX)
 		, LinearPlasticityLimit(FLT_MAX)
-		, InitCOMDistance(-1)
+		, LinearPlasticityType(EPlasticityType::Free)
+		, LinearPlasticityInitialDistanceSquared(FLT_MAX)
 		, AngularBreakTorque(FLT_MAX)
 		, AngularPlasticityLimit(FLT_MAX)
 		, UserData(nullptr)
@@ -730,14 +731,22 @@ namespace Chaos
 
 			// Plasticity should not be turned on in the middle of simulation.
 			const bool bUseLinearPlasticity = JointSettings.LinearPlasticityLimit != FLT_MAX;
-			if(bUseLinearPlasticity)
+			if (bUseLinearPlasticity)
 			{
-				const bool bIsCOMDistanceInitialized = JointSettings.InitCOMDistance >= 0;
-				if(!bIsCOMDistanceInitialized)
+				const bool bIsCOMDistanceInitialized = !FMath::IsNearlyEqual(JointSettings.LinearPlasticityInitialDistanceSquared, (FReal)FLT_MAX);
+				if (!bIsCOMDistanceInitialized)
 				{
-					ConstraintSettings[JointIndex].InitCOMDistance = (FParticleUtilitiesXR::GetCoMWorldPosition(Particle0) - FParticleUtilitiesXR::GetCoMWorldPosition(Particle1)).Size();
+					// Joint plasticity is baed on the distance of one of the moment arms of the joint. Typically, plasticity
+					// will get setup from the joint pivot to the child COM (centor of mass), so that is found first. However, when 
+					// the pivot is at the child COM then we fall back to the distance between thge pivot and parent COM.
+					ConstraintSettings[JointIndex].LinearPlasticityInitialDistanceSquared = JointSettings.ConnectorTransforms[1].GetTranslation().SizeSquared();
+					if (FMath::IsNearlyZero(ConstraintSettings[JointIndex].LinearPlasticityInitialDistanceSquared))
+					{
+						ConstraintSettings[JointIndex].LinearPlasticityInitialDistanceSquared = JointSettings.ConnectorTransforms[0].GetTranslation().SizeSquared();
+					}
+					ensureMsgf(!FMath::IsNearlyZero(ConstraintSettings[JointIndex].LinearPlasticityInitialDistanceSquared), TEXT("Plasticity made inactive due to Zero length difference between parent and child rigid body."));
 				}
-			} 
+			}
 		}
 	}
 
@@ -1239,26 +1248,44 @@ namespace Chaos
 		Q1.EnforceShortestArcWith(ConstraintFramesGlobal[0].GetRotation());
 		ConstraintFramesGlobal[1].SetRotation(Q1);
 
-		if(bHasLinearPlasticityLimit)
+		if (bHasLinearPlasticityLimit)
 		{
 			FVec3 LinearDisplacement = ConstraintFramesGlobal[0].InverseTransformPositionNoScale(ConstraintFramesGlobal[1].GetTranslation());
 
 			// @todo(chaos): still need to warn against the case where all position drives are not enabled or all dimensions are locked. Warning should print out the joint names and should only print out once to avoid spamming.
-			for(int32 Axis = 0; Axis < 3; Axis++)
+			for (int32 Axis = 0; Axis < 3; Axis++)
 			{
-				if(!JointSettings.bLinearPositionDriveEnabled[Axis] || JointSettings.LinearMotionTypes[Axis] == EJointMotionType::Locked)
+				if (!JointSettings.bLinearPositionDriveEnabled[Axis] || JointSettings.LinearMotionTypes[Axis] == EJointMotionType::Locked)
 				{
 					LinearDisplacement[Axis] = 0;
 				}
 			}
 			// Assuming that the dimensions which are locked or have no targets are 0. in LinearDrivePositionTarget
-			FReal LinearPlasticityDistanceThreshold = JointSettings.LinearPlasticityLimit * JointSettings.InitCOMDistance;
-			if((LinearDisplacement - JointSettings.LinearDrivePositionTarget).SizeSquared() > LinearPlasticityDistanceThreshold * LinearPlasticityDistanceThreshold)
+			FReal LinearPlasticityDistanceThreshold = JointSettings.LinearPlasticityLimit * JointSettings.LinearPlasticityLimit * JointSettings.LinearPlasticityInitialDistanceSquared;
+			if ((LinearDisplacement - JointSettings.LinearDrivePositionTarget).SizeSquared() > LinearPlasticityDistanceThreshold)
 			{
-				JointSettings.LinearDrivePositionTarget = LinearDisplacement;
+				if (JointSettings.LinearPlasticityType == EPlasticityType::Free)
+				{
+					JointSettings.LinearDrivePositionTarget = LinearDisplacement;
+				}
+				else // EPlasticityType::Shrink || EPlasticityType::Grow
+				{
+					// Shrink and Grow are based on the distance between the joint pivot and the child. 
+					// Note, if the pivot is located at the COM of the child then shrink will not do anything. 
+					FVector CurrentDelta = ConstraintFramesLocal[Index0].TransformPosition(LinearDisplacement);
+					FVector StartDelta = ConstraintFramesLocal[Index0].TransformPosition(JointSettings.LinearDrivePositionTarget);
+
+					if (JointSettings.LinearPlasticityType == EPlasticityType::Shrink && CurrentDelta.SizeSquared() < StartDelta.SizeSquared())
+					{
+						JointSettings.LinearDrivePositionTarget = LinearDisplacement;
+					}
+					else if (JointSettings.LinearPlasticityType == EPlasticityType::Grow && CurrentDelta.SizeSquared() > StartDelta.SizeSquared())
+					{
+						JointSettings.LinearDrivePositionTarget = LinearDisplacement;
+					}
+				}
 			}
 		}
-
 		if(bHasAngularPlasticityLimit)
 		{
 			FRotation3 Swing, Twist; FPBDJointUtilities::DecomposeSwingTwistLocal(ConstraintFramesGlobal[0].GetRotation(), ConstraintFramesGlobal[1].GetRotation(), Swing, Twist);

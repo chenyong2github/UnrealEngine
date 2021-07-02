@@ -153,6 +153,7 @@ void FJointConstraintPhysicsProxy::PushStateOnGameThread(Chaos::FPBDRigidsSolver
 			if (Constraint->IsDirty(Chaos::EJointConstraintFlags::LinearBreakForce))
 			{
 				JointSettingsBuffer.LinearBreakForce = Constraint->GetLinearBreakForce();
+				JointSettingsBuffer.LinearPlasticityType = Constraint->GetLinearPlasticityType();
 				JointSettingsBuffer.LinearPlasticityLimit = Constraint->GetLinearPlasticityLimit();
 				DirtyFlagsBuffer.MarkDirty(Chaos::EJointConstraintFlags::LinearBreakForce);
 			}
@@ -318,6 +319,7 @@ void FJointConstraintPhysicsProxy::PushStateOnPhysicsThread(Chaos::FPBDRigidsSol
 			if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::LinearBreakForce))
 			{
 				ConstraintSettings.LinearBreakForce = JointSettingsBuffer.LinearBreakForce;
+				ConstraintSettings.LinearPlasticityType = JointSettingsBuffer.LinearPlasticityType;
 				ConstraintSettings.LinearPlasticityLimit = FMath::Clamp((float)JointSettingsBuffer.LinearPlasticityLimit, 0.f, FLT_MAX);
 			}
 

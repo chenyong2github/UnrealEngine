@@ -32,6 +32,14 @@ namespace Chaos
 		Force,
 	};
 
+	enum class EPlasticityType : int32
+	{
+		Free,
+		Shrink,
+		Grow,
+	};
+
+
 	/**
 	 * The order of the angular constraints (for settings held in vectors etc)
 	 */
@@ -173,7 +181,8 @@ namespace Chaos
 
 		FReal LinearBreakForce;
 		FReal LinearPlasticityLimit;
-		FReal InitCOMDistance;
+		EPlasticityType LinearPlasticityType;
+		FReal LinearPlasticityInitialDistanceSquared;
 		FReal AngularBreakTorque;
 		FReal AngularPlasticityLimit;
 

@@ -85,6 +85,10 @@ namespace Chaos
 		//void SetLinearPlasticityLimit(FReal InLinearPlasticityLimit);
 		//FReal GetLinearPlasticityLimit() const
 
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(EPlasticityType, LinearPlasticityType, EJointConstraintFlags::LinearBreakForce, JointSettings.LinearPlasticityType);
+		//void SetLinearPlasticityType(EPlasticityType InLinearPlasticityType);
+		//EPlasticityType GetLinearPlasticityType() const
+
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, AngularBreakTorque, EJointConstraintFlags::AngularBreakTorque, JointSettings.AngularBreakTorque);
 		//void SetAngularBreakTorque(FReal InAngularBreakTorque);
 		//FReal GetAngularBreakTorque() const

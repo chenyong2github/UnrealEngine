@@ -278,7 +278,7 @@ public:
 	*	@param LinearPlasticityThreshold	Percent deformation needed to reset the rest length of the joint
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Components|PhysicsConstraint")
-	void SetLinearPlasticity(bool bLinearPlasticity, float LinearPlasticityThreshold);
+	void SetLinearPlasticity(bool bLinearPlasticity, float LinearPlasticityThreshold, EConstraintPlasticityType PlasticityType);
 
 	/** Sets the Angular Breakable properties
 	*	@param bAngularBreakable		Whether it is possible to break the joint with angular force

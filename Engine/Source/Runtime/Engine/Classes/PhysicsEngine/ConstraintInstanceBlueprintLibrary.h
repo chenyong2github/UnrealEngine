@@ -188,7 +188,8 @@ public:
 		static void SetLinearPlasticity(
 			UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 			bool bLinearPlasticity,
-			float LinearPlasticityThreshold
+			float LinearPlasticityThreshold,
+			TEnumAsByte<EConstraintPlasticityType> PlasticityType
 		);
 
 	/** Sets Constraint Linear Plasticity properties
@@ -200,7 +201,8 @@ public:
 		static void GetLinearPlasticity(
 			UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 			bool& bLinearPlasticity,
-			float& LinearPlasticityThreshold
+			float& LinearPlasticityThreshold,
+			TEnumAsByte<EConstraintPlasticityType>& PlasticityType
 		);
 
 	//---------------------------------------------------------------------------------------------------
