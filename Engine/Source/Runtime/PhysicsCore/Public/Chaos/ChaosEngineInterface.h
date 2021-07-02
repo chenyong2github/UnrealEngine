@@ -164,6 +164,21 @@ namespace PhysicsInterfaceTypes
 	typedef TArray<FPhysicsShapeHandle, TInlineAllocator<NumInlinedPxShapeElements>> FInlineShapeArray;
 }
 
+
+// LINEAR CCPT
+UENUM()
+enum EConstraintPlasticityType
+{
+	/** */
+	CCPT_Free	UMETA(DisplayName = "Free"),
+	/** */
+	CCPT_Shrink	UMETA(DisplayName = "Shirnk"),
+	/** */
+	CCPT_Grow	UMETA(DisplayName = "Grow"),
+
+	CCPT_MAX,
+};
+
 // LINEAR DOF
 UENUM()
 enum ELinearConstraintMotion
@@ -483,7 +498,7 @@ public:
 	static void SetProjectionEnabled_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef,bool bInProjectionEnabled,float InLinearAlpah = 1.0f,float InAngularAlpha = 0.0f);
 	static void SetParentDominates_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef,bool bInParentDominates);
 	static void SetBreakForces_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef,float InLinearBreakForce,float InAngularBreakForce);
-	static void SetPlasticityLimits_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float InLinearPlasticityLimit, float InAngularPlasticityLimit);
+	static void SetPlasticityLimits_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float InLinearPlasticityLimit, float InAngularPlasticityLimit, EConstraintPlasticityType InLinearPlasticityType);
 	static void SetLocalPose(const FPhysicsConstraintHandle& InConstraintRef, const FTransform& InPose, EConstraintFrame::Type InFrame);
 
 	static void SetDrivePosition(const FPhysicsConstraintHandle& InConstraintRef,const FVector& InPosition);

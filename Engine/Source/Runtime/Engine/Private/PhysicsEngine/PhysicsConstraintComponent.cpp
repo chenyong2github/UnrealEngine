@@ -670,9 +670,9 @@ void UPhysicsConstraintComponent::SetLinearBreakable(bool bLinearBreakable, floa
 	ConstraintInstance.SetLinearBreakable(bLinearBreakable, LinearBreakThreshold);
 }
 
-void UPhysicsConstraintComponent::SetLinearPlasticity(bool bLinearPlasticity, float LinearPlasticityThreshold)
+void UPhysicsConstraintComponent::SetLinearPlasticity(bool bLinearPlasticity, float LinearPlasticityThreshold, EConstraintPlasticityType PlasticityType)
 {
-	ConstraintInstance.SetLinearPlasticity(bLinearPlasticity, LinearPlasticityThreshold);
+	ConstraintInstance.SetLinearPlasticity(bLinearPlasticity, LinearPlasticityThreshold, PlasticityType);
 }
 
 void UPhysicsConstraintComponent::SetAngularBreakable(bool bAngularBreakable, float AngularBreakThreshold)

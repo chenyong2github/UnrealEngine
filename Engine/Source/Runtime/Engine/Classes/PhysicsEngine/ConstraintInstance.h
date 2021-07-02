@@ -121,10 +121,14 @@ struct ENGINE_API FConstraintProfileProperties
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Linear)
 	uint8 bLinearPlasticity : 1;
 
+	/** Whether linear plasticity has a operation mode [free]*/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Linear)
+	TEnumAsByte<enum EConstraintPlasticityType> LinearPlasticityType;
+
 	FConstraintProfileProperties();
 
 	/** Updates physx joint properties from unreal properties (limits, drives, flags, etc...) */
-	void Update_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float AverageMass, float UseScale) const;
+	void Update_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float AverageMass, float UseScale, bool InInitialize = false) const;
 
 	/** Updates joint breakable properties (threshold, etc...)*/
 	void UpdateBreakable_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef) const;
@@ -544,10 +548,11 @@ public:
 	*	@param bInLinearPlasticity 	Whether it is possible to reset the target angles
 	*	@param InLinearPlasticityThreshold	Delta from target needed to reset the target joint
 	*/
-	void SetLinearPlasticity(bool bInLinearPlasticity, float InLinearPlasticityThreshold)
+	void SetLinearPlasticity(bool bInLinearPlasticity, float InLinearPlasticityThreshold, EConstraintPlasticityType InLinearPlasticityType)
 	{
 		ProfileInstance.bLinearPlasticity = bInLinearPlasticity;
 		ProfileInstance.LinearPlasticityThreshold = InLinearPlasticityThreshold;
+		ProfileInstance.LinearPlasticityType = InLinearPlasticityType;
 		UpdatePlasticity();
 	}
 
@@ -561,6 +566,12 @@ public:
 	float GetLinearPlasticityThreshold() const
 	{
 		return ProfileInstance.LinearPlasticityThreshold;
+	}
+
+	/** Gets Plasticity Type from joint */
+	TEnumAsByte<enum EConstraintPlasticityType> GetLinearPlasticityType() const
+	{
+		return ProfileInstance.LinearPlasticityType;
 	}
 
 	/** Sets the Angular Breakable properties

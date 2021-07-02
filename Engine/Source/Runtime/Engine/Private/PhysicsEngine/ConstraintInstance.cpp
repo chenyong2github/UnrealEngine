@@ -131,7 +131,7 @@ FConstraintProfileProperties::FConstraintProfileProperties()
 	, ProjectionLinearAlpha(1.0f)
 	, ProjectionAngularAlpha(0.0f)
 	, LinearBreakThreshold(300.f)
-	, LinearPlasticityThreshold(10.f)
+	, LinearPlasticityThreshold(0.1f)
 	, AngularBreakThreshold(500.f)
 	, AngularPlasticityThreshold(10.f)
 	, bDisableCollision(false)
@@ -142,6 +142,7 @@ FConstraintProfileProperties::FConstraintProfileProperties()
 	, bAngularPlasticity(false)
 	, bLinearBreakable(false)
 	, bLinearPlasticity(false)
+	, LinearPlasticityType(EConstraintPlasticityType::CCPT_Free)
 {
 }
 
@@ -192,7 +193,7 @@ void FConstraintProfileProperties::UpdatePlasticity_AssumesLocked(const FPhysics
 	const float LinearPlasticityLimit = bLinearPlasticity ? LinearPlasticityThreshold : FLT_MAX;
 	const float AngularPlasticityLimit = bAngularPlasticity ? FMath::DegreesToRadians(AngularPlasticityThreshold) : MAX_FLT;
 
-	FPhysicsInterface::SetPlasticityLimits_AssumesLocked(InConstraintRef, LinearPlasticityLimit, AngularPlasticityLimit);
+	FPhysicsInterface::SetPlasticityLimits_AssumesLocked(InConstraintRef, LinearPlasticityLimit, AngularPlasticityLimit, LinearPlasticityType);
 #endif
 }
 
@@ -502,7 +503,7 @@ void FConstraintInstance::InitConstraint_AssumesLocked(const FPhysicsActorHandle
 	// update mass
 	UpdateAverageMass_AssumesLocked(ActorRef1, ActorRef2);
 
-	ProfileInstance.Update_AssumesLocked(ConstraintHandle, AverageMass, bScaleLinearLimits ? LastKnownScale : 1.f);
+	ProfileInstance.Update_AssumesLocked(ConstraintHandle, AverageMass, bScaleLinearLimits ? LastKnownScale : 1.f, true);
 
 	// Put the bodies back to sleep both bodies were asleep
 	if (bActor1WasAsleep && bActor2WasAsleep)
@@ -519,7 +520,7 @@ void FConstraintInstance::InitConstraint_AssumesLocked(const FPhysicsActorHandle
 	}
 }
 
-void FConstraintProfileProperties::Update_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float AverageMass, float UseScale) const
+void FConstraintProfileProperties::Update_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float AverageMass, float UseScale, bool InInitialize) const
 {
 	// flags and projection settings
 	UpdateConstraintFlags_AssumesLocked(InConstraintRef);
@@ -532,12 +533,8 @@ void FConstraintProfileProperties::Update_AssumesLocked(const FPhysicsConstraint
 	UpdateBreakable_AssumesLocked(InConstraintRef);
 	UpdatePlasticity_AssumesLocked(InConstraintRef);
 
-	// Motors
-	FPhysicsInterface::UpdateLinearDrive_AssumesLocked(InConstraintRef, LinearDrive);
-	FPhysicsInterface::UpdateAngularDrive_AssumesLocked(InConstraintRef, AngularDrive);
-
 	// Target
-	FPhysicsInterface::UpdateDriveTarget_AssumesLocked(InConstraintRef, LinearDrive, AngularDrive);
+	FPhysicsInterface::UpdateDriveTarget_AssumesLocked(InConstraintRef, LinearDrive, AngularDrive, InInitialize);
 }
 
 void FConstraintInstance::TermConstraint()
