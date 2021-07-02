@@ -148,29 +148,7 @@ namespace EpicGames.Serialization
 		{
 			Scope Scope = CurrentScope;
 			Scope.Length = CurrentOffset - Scope.Offset;
-			Scope.SizeOfChildHeaders = 0;
-
-			if (Scope.Children != null)
-			{
-				foreach (Scope ChildScope in Scope.Children)
-				{
-					switch (ChildScope.FieldType)
-					{
-						case CbFieldType.Object:
-						case CbFieldType.UniformObject:
-							Scope.SizeOfChildHeaders += ChildScope.SizeOfChildHeaders + VarInt.Measure(ChildScope.Length + ChildScope.SizeOfChildHeaders);
-							break;
-						case CbFieldType.Array:
-						case CbFieldType.UniformArray:
-							int ArrayCountLength = VarInt.Measure(Scope.Count);
-							Scope.SizeOfChildHeaders += ChildScope.SizeOfChildHeaders + VarInt.Measure(ChildScope.Length + ChildScope.SizeOfChildHeaders + ArrayCountLength) + ArrayCountLength;
-							break;
-						default:
-							throw new InvalidOperationException();
-					}
-				}
-			}
-
+			Scope.SizeOfChildHeaders = ComputeSizeOfChildHeaders(Scope);
 			OpenScopes.Pop();
 		}
 
@@ -593,7 +571,8 @@ namespace EpicGames.Serialization
 			{
 				throw new CbWriterException("Unfinished scope in writer");
 			}
-			return CurrentOffset + CurrentScope.SizeOfChildHeaders;
+
+			return CurrentOffset + ComputeSizeOfChildHeaders(CurrentScope);
 		}
 
 		/// <summary>
@@ -625,6 +604,15 @@ namespace EpicGames.Serialization
 		}
 
 		/// <summary>
+		/// Convert the data into a compact binary object
+		/// </summary>
+		/// <returns></returns>
+		public CbObject ToObject()
+		{
+			return new CbObject(ToByteArray());
+		}
+
+		/// <summary>
 		/// Convert the data into a flat array
 		/// </summary>
 		/// <returns></returns>
@@ -633,6 +621,36 @@ namespace EpicGames.Serialization
 			byte[] Buffer = new byte[GetSize()];
 			CopyTo(Buffer);
 			return Buffer;
+		}
+
+		/// <summary>
+		/// Comptues the size of any child headers
+		/// </summary>
+		/// <param name="Scope"></param>
+		static int ComputeSizeOfChildHeaders(Scope Scope)
+		{
+			int SizeOfChildHeaders = 0;
+			if (Scope.Children != null)
+			{
+				foreach (Scope ChildScope in Scope.Children)
+				{
+					switch (ChildScope.FieldType)
+					{
+						case CbFieldType.Object:
+						case CbFieldType.UniformObject:
+							SizeOfChildHeaders += ChildScope.SizeOfChildHeaders + VarInt.Measure(ChildScope.Length + ChildScope.SizeOfChildHeaders);
+							break;
+						case CbFieldType.Array:
+						case CbFieldType.UniformArray:
+							int ArrayCountLength = VarInt.Measure(Scope.Count);
+							SizeOfChildHeaders += ChildScope.SizeOfChildHeaders + VarInt.Measure(ChildScope.Length + ChildScope.SizeOfChildHeaders + ArrayCountLength) + ArrayCountLength;
+							break;
+						default:
+							throw new InvalidOperationException();
+					}
+				}
+			}
+			return SizeOfChildHeaders;
 		}
 
 		/// <summary>
