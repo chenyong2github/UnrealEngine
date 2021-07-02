@@ -133,7 +133,7 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Array of file type bases, with order matching <see cref="FileTypeBase"/>
 		/// </summary>
-		static ReadOnlyUtf8String[] BaseNames =
+		static Utf8String[] BaseNames =
 		{
 			"text",
 			"binary",

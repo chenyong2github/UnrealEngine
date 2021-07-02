@@ -608,7 +608,7 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Returns the name of the field if it has a name, otherwise an empty view.
 		/// </summary>
-		public ReadOnlyUtf8String Name => new ReadOnlyUtf8String(Memory.Slice(PayloadOffset - NameLen, NameLen));
+		public Utf8String Name => new Utf8String(Memory.Slice(PayloadOffset - NameLen, NameLen));
 
 		/// <summary>
 		/// Gets the value of this field
@@ -663,7 +663,7 @@ namespace EpicGames.Serialization
 		}
 
 		/// <inheritdoc cref="Name"/>
-		public ReadOnlyUtf8String GetName() => Name;
+		public Utf8String GetName() => Name;
 
 		/// <summary>
 		/// Access the field as an object. Defaults to an empty object on error. 
@@ -726,7 +726,7 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="Default">Default value to return</param>
 		/// <returns></returns>
-		public ReadOnlyUtf8String AsString(ReadOnlyUtf8String Default = default)
+		public Utf8String AsString(Utf8String Default = default)
 		{
 			if (CbFieldUtils.IsString(TypeWithFlags))
 			{
@@ -739,7 +739,7 @@ namespace EpicGames.Serialization
 				else
 				{
 					Error = CbFieldError.None;
-					return new ReadOnlyUtf8String(Payload.Slice(ValueSizeByteCount, (int)ValueSize));
+					return new Utf8String(Payload.Slice(ValueSizeByteCount, (int)ValueSize));
 				}
 			}
 			else
@@ -1301,7 +1301,7 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="Name"></param>
 		/// <returns></returns>
-		public CbField this[ReadOnlyUtf8String Name]
+		public CbField this[Utf8String Name]
 		{
 			get { return this.FirstOrDefault(Field => Field.Name == Name) ?? CbField.Empty; }
 		}
@@ -1999,21 +1999,21 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="Name">The name of the field.</param>
 		/// <returns>The matching field if found, otherwise a field with no value.</returns>
-		public CbField Find(ReadOnlyUtf8String Name) => InnerField[Name];
+		public CbField Find(Utf8String Name) => InnerField[Name];
 
 		/// <summary>
 		/// Find a field by case-insensitive name comparison.
 		/// </summary>
 		/// <param name="Name">The name of the field.</param>
 		/// <returns>The matching field if found, otherwise a field with no value.</returns>
-		public CbField FindIgnoreCase(ReadOnlyUtf8String Name) => InnerField.FirstOrDefault(Field => ReadOnlyUtf8StringComparer.OrdinalIgnoreCase.Equals(Field.Name, Name)) ?? new CbField();
+		public CbField FindIgnoreCase(Utf8String Name) => InnerField.FirstOrDefault(Field => Utf8StringComparer.OrdinalIgnoreCase.Equals(Field.Name, Name)) ?? new CbField();
 
 		/// <summary>
 		/// Find a field by case-sensitive name comparison.
 		/// </summary>
 		/// <param name="Name">The name of the field.</param>
 		/// <returns>The matching field if found, otherwise a field with no value.</returns>
-		public CbField this[ReadOnlyUtf8String Name] => InnerField[Name];
+		public CbField this[Utf8String Name] => InnerField[Name];
 
 		/// <inheritdoc cref="AsFieldView"/>
 		public CbField AsField() => InnerField;

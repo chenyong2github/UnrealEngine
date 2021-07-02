@@ -20,10 +20,10 @@ namespace EpicGames.Perforce
 	/// </summary>
 	static class StringConstants
 	{
-		public static readonly ReadOnlyUtf8String True = new ReadOnlyUtf8String("true");
-		public static readonly ReadOnlyUtf8String New = new ReadOnlyUtf8String("new");
-		public static readonly ReadOnlyUtf8String None = new ReadOnlyUtf8String("none");
-		public static readonly ReadOnlyUtf8String Default = new ReadOnlyUtf8String("default");
+		public static readonly Utf8String True = new Utf8String("true");
+		public static readonly Utf8String New = new Utf8String("new");
+		public static readonly Utf8String None = new Utf8String("none");
+		public static readonly Utf8String Default = new Utf8String("default");
 	}
 
 	/// <summary>
@@ -34,7 +34,7 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Name of the tag. Specified in the attribute or inferred from the field name.
 		/// </summary>
-		public ReadOnlyUtf8String Name;
+		public Utf8String Name;
 
 		/// <summary>
 		/// Whether this tag is optional or not.
@@ -54,7 +54,7 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Parser for this field type
 		/// </summary>
-		public Action<object, ReadOnlyUtf8String> SetFromString;
+		public Action<object, Utf8String> SetFromString;
 
 		/// <summary>
 		/// Index into the bitmask of required types
@@ -68,7 +68,7 @@ namespace EpicGames.Perforce
 		/// <param name="Optional"></param>
 		/// <param name="Field"></param>
 		/// <param name="RequiredTagBitMask"></param>
-		public CachedTagInfo(ReadOnlyUtf8String Name, bool Optional, FieldInfo Field, ulong RequiredTagBitMask)
+		public CachedTagInfo(Utf8String Name, bool Optional, FieldInfo Field, ulong RequiredTagBitMask)
 		{
 			this.Name = Name;
 			this.Optional = Optional;
@@ -108,7 +108,7 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Map of name to tag info
 		/// </summary>
-		public Dictionary<ReadOnlyUtf8String, CachedTagInfo> NameToInfo = new Dictionary<ReadOnlyUtf8String, CachedTagInfo>();
+		public Dictionary<Utf8String, CachedTagInfo> NameToInfo = new Dictionary<Utf8String, CachedTagInfo>();
 
 		/// <summary>
 		/// Bitmask of all the required tags. Formed by bitwise-or'ing the RequiredTagBitMask fields for each required CachedTagInfo.
@@ -170,7 +170,7 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Map of name to value
 		/// </summary>
-		public Dictionary<ReadOnlyUtf8String, int> NameToValue = new Dictionary<ReadOnlyUtf8String, int>();
+		public Dictionary<Utf8String, int> NameToValue = new Dictionary<Utf8String, int>();
 
 		/// <summary>
 		/// List of name/value pairs
@@ -196,7 +196,7 @@ namespace EpicGames.Perforce
 					object? Value = Field.GetValue(null);
 					if (Value != null)
 					{
-						ReadOnlyUtf8String Name = new ReadOnlyUtf8String(Attribute.Name);
+						Utf8String Name = new Utf8String(Attribute.Name);
 						NameToValue[Name] = (int)Value;
 
 						NameValuePairs.Add(new KeyValuePair<string, int>(Attribute.Name, (int)Value));
@@ -220,7 +220,7 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="Text">The text to parse</param>
 		/// <returns>The enum value corresponding to the given text</returns>
-		public object ParseString(ReadOnlyUtf8String Text)
+		public object ParseString(Utf8String Text)
 		{
 			return Enum.ToObject(EnumType, ParseToInteger(Text));
 		}
@@ -230,7 +230,7 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="Text"></param>
 		/// <returns></returns>
-		public int ParseToInteger(ReadOnlyUtf8String Name)
+		public int ParseToInteger(Utf8String Name)
 		{
 			if (bHasFlagsAttribute)
 			{
@@ -251,7 +251,7 @@ namespace EpicGames.Perforce
 						}
 
 						// Take the subset
-						ReadOnlyUtf8String Item = Name.Slice(StartOffset, Offset - StartOffset);
+						Utf8String Item = Name.Slice(StartOffset, Offset - StartOffset);
 
 						// Get the value
 						int ItemValue;
@@ -419,7 +419,7 @@ namespace EpicGames.Perforce
 							Record.RequiredTagsBitMask |= RequiredTagBitMask;
 						}
 
-						CachedTagInfo TagInfo = new CachedTagInfo(new ReadOnlyUtf8String(TagName), TagAttribute.Optional, Field, RequiredTagBitMask);
+						CachedTagInfo TagInfo = new CachedTagInfo(new Utf8String(TagName), TagAttribute.Optional, Field, RequiredTagBitMask);
 
 						Type FieldType = Field.FieldType;
 
@@ -491,12 +491,12 @@ namespace EpicGames.Perforce
 			return Record;
 		}
 
-		static object ParseString(ReadOnlyUtf8String String)
+		static object ParseString(Utf8String String)
 		{
 			return String.ToString();
 		}
 
-		static object ParseStringAsDateTime(ReadOnlyUtf8String String)
+		static object ParseStringAsDateTime(Utf8String String)
 		{
 			string Text = String.ToString();
 
@@ -511,17 +511,17 @@ namespace EpicGames.Perforce
 			}
 		}
 
-		static object ParseStringAsBool(ReadOnlyUtf8String String)
+		static object ParseStringAsBool(Utf8String String)
 		{
 			return String.Length == 0 || String == StringConstants.True;
 		}
 
-		static object ParseStringAsNullableBool(ReadOnlyUtf8String String)
+		static object ParseStringAsNullableBool(Utf8String String)
 		{
 			return String == StringConstants.True;
 		}
 
-		static object ParseStringAsInt(ReadOnlyUtf8String String)
+		static object ParseStringAsInt(Utf8String String)
 		{
 			int Value;
 			int BytesConsumed;
@@ -547,7 +547,7 @@ namespace EpicGames.Perforce
 			}
 		}
 
-		static object ParseStringAsLong(ReadOnlyUtf8String String)
+		static object ParseStringAsLong(Utf8String String)
 		{
 			long Value;
 			int BytesConsumed;
@@ -558,7 +558,7 @@ namespace EpicGames.Perforce
 			return Value;
 		}
 
-		static object ParseStringAsNullableDateTimeOffset(ReadOnlyUtf8String String)
+		static object ParseStringAsNullableDateTimeOffset(Utf8String String)
 		{
 			string Text = String.ToString();
 			return DateTimeOffset.Parse(Regex.Replace(Text, "[a-zA-Z ]*$", "")); // Strip timezone name (eg. "EST")

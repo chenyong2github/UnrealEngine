@@ -19,12 +19,12 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Map of name to file within the directory
 		/// </summary>
-		public Dictionary<ReadOnlyUtf8String, StreamFileInfo> NameToFile = new Dictionary<ReadOnlyUtf8String, StreamFileInfo>();
+		public Dictionary<Utf8String, StreamFileInfo> NameToFile = new Dictionary<Utf8String, StreamFileInfo>();
 
 		/// <summary>
 		/// Map of name to subdirectory
 		/// </summary>
-		public Dictionary<ReadOnlyUtf8String, IoHash> NameToSubDirectory = new Dictionary<ReadOnlyUtf8String, IoHash>(FileUtils.PlatformPathComparerUtf8);
+		public Dictionary<Utf8String, IoHash> NameToSubDirectory = new Dictionary<Utf8String, IoHash>(FileUtils.PlatformPathComparerUtf8);
 	}
 
 	/// <summary>
@@ -50,7 +50,7 @@ namespace EpicGames.Perforce.Managed
 			int NumSubDirectories = Reader.ReadInt32();
 			for (int Idx = 0; Idx < NumSubDirectories; Idx++)
 			{
-				ReadOnlyUtf8String Name = Reader.ReadString();
+				Utf8String Name = Reader.ReadString();
 				DirectoryInfo.NameToSubDirectory[Name] = Reader.ReadIoHash();
 			}
 
@@ -71,7 +71,7 @@ namespace EpicGames.Perforce.Managed
 			}
 
 			Writer.WriteInt32(DirectoryInfo.NameToSubDirectory.Count);
-			foreach ((ReadOnlyUtf8String Name, IoHash Hash) in DirectoryInfo.NameToSubDirectory)
+			foreach ((Utf8String Name, IoHash Hash) in DirectoryInfo.NameToSubDirectory)
 			{
 				Writer.WriteString(Name);
 				Writer.WriteIoHash(Hash);

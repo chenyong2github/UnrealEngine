@@ -27,7 +27,7 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Name of this file
 		/// </summary>
-		public ReadOnlyUtf8String Name { get; }
+		public Utf8String Name { get; }
 
 		/// <summary>
 		/// Length of the file, as reported by the server (actual size on disk may be different due to workspace options).
@@ -42,12 +42,12 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Depot path for this file
 		/// </summary>
-		public ReadOnlyUtf8String DepotFileAndRevision { get; }
+		public Utf8String DepotFileAndRevision { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public StreamFileInfo(ReadOnlyUtf8String Name, long Length, FileContentId ContentId, ReadOnlyUtf8String DepotPathAndRevision)
+		public StreamFileInfo(Utf8String Name, long Length, FileContentId ContentId, Utf8String DepotPathAndRevision)
 		{
 			this.Name = Name;
 			this.Length = Length;
@@ -67,10 +67,10 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="Reader">Binary reader to read data from</param>
 		public static StreamFileInfo ReadStreamFileInfo(this MemoryReader Reader)
 		{
-			ReadOnlyUtf8String Name = Reader.ReadString();
+			Utf8String Name = Reader.ReadString();
 			long Length = Reader.ReadInt64();
 			FileContentId ContentId = Reader.ReadFileContentId();
-			ReadOnlyUtf8String DepotPathAndRevision = Reader.ReadString();
+			Utf8String DepotPathAndRevision = Reader.ReadString();
 			return new StreamFileInfo(Name, Length, ContentId, DepotPathAndRevision);
 		}
 

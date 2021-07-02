@@ -19,25 +19,25 @@ namespace EpicGames.Perforce.Managed
 	class WorkspaceFileInfo
 	{
 		public readonly WorkspaceDirectoryInfo Directory;
-		public readonly ReadOnlyUtf8String Name;
+		public readonly Utf8String Name;
 		public long Length;
 		public long LastModifiedTicks;
 		public bool bReadOnly;
 		public readonly FileContentId ContentId;
 
-		public WorkspaceFileInfo(WorkspaceDirectoryInfo Directory, ReadOnlyUtf8String Name, FileContentId ContentId)
+		public WorkspaceFileInfo(WorkspaceDirectoryInfo Directory, Utf8String Name, FileContentId ContentId)
 		{
 			this.Directory = Directory;
 			this.Name = Name;
 			this.ContentId = ContentId;
 		}
 
-		public WorkspaceFileInfo(WorkspaceDirectoryInfo Directory, ReadOnlyUtf8String Name, FileInfo Info, FileContentId ContentId)
+		public WorkspaceFileInfo(WorkspaceDirectoryInfo Directory, Utf8String Name, FileInfo Info, FileContentId ContentId)
 			: this(Directory, Name, Info.Length, Info.LastWriteTimeUtc.Ticks, Info.Attributes.HasFlag(FileAttributes.ReadOnly), ContentId)
 		{
 		}
 
-		public WorkspaceFileInfo(WorkspaceDirectoryInfo Directory, ReadOnlyUtf8String Name, long Length, long LastModifiedTicks, bool bReadOnly, FileContentId ContentId)
+		public WorkspaceFileInfo(WorkspaceDirectoryInfo Directory, Utf8String Name, long Length, long LastModifiedTicks, bool bReadOnly, FileContentId ContentId)
 		{
 			this.Directory = Directory;
 			this.Name = Name;
@@ -102,7 +102,7 @@ namespace EpicGames.Perforce.Managed
 	{
 		public static WorkspaceFileInfo ReadWorkspaceFileInfo(this MemoryReader Reader, WorkspaceDirectoryInfo Directory)
 		{
-			ReadOnlyUtf8String Name = Reader.ReadString();
+			Utf8String Name = Reader.ReadString();
 			long Length = Reader.ReadInt64();
 			long LastModifiedTicks = Reader.ReadInt64();
 			bool bReadOnly = Reader.ReadBoolean();

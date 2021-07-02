@@ -80,7 +80,7 @@ namespace EpicGames.Perforce
 		/// <returns>The boolean value</returns>
 		public bool AsBool()
 		{
-			ReadOnlyUtf8String String = GetString();
+			Utf8String String = GetString();
 			return String.Length == 0 || String == StringConstants.True;
 		}
 
@@ -96,7 +96,7 @@ namespace EpicGames.Perforce
 			}
 			else if (Type == PerforceValueType.String)
 			{
-				ReadOnlyUtf8String String = GetString();
+				Utf8String String = GetString();
 
 				int Value;
 				int BytesConsumed;
@@ -133,7 +133,7 @@ namespace EpicGames.Perforce
 		/// <returns>The converted value</returns>
 		public long AsLong()
 		{
-			ReadOnlyUtf8String String = AsString();
+			Utf8String String = AsString();
 
 			long Value;
 			int BytesConsumed;
@@ -159,14 +159,14 @@ namespace EpicGames.Perforce
 		/// Converts this value to a string
 		/// </summary>
 		/// <returns>The converted value</returns>
-		public ReadOnlyUtf8String AsString()
+		public Utf8String AsString()
 		{
 			switch(Type)
 			{
 				case PerforceValueType.String:
 					return GetString();
 				case PerforceValueType.Integer:
-					return new ReadOnlyUtf8String(GetInteger().ToString());
+					return new Utf8String(GetInteger().ToString());
 				default:
 					throw new NotImplementedException();
 			}
@@ -189,13 +189,13 @@ namespace EpicGames.Perforce
 		/// Gets the contents of this string
 		/// </summary>
 		/// <returns></returns>
-		public ReadOnlyUtf8String GetString()
+		public Utf8String GetString()
 		{
 			if(Type != PerforceValueType.String)
 			{
 				throw new InvalidOperationException("Value is not a string");
 			}
-			return new ReadOnlyUtf8String(Data.Slice(5));
+			return new Utf8String(Data.Slice(5));
 		}
 
 		/// <summary>
@@ -216,14 +216,14 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// The rows in this record
 		/// </summary>
-		public List<KeyValuePair<ReadOnlyUtf8String, PerforceValue>> Rows;
+		public List<KeyValuePair<Utf8String, PerforceValue>> Rows;
 
 		/// <summary>
 		/// Copy this record into the given array of values. This method is O(n) if every record key being in the list of keys in the same order, but O(n^2) if not.
 		/// </summary>
 		/// <param name="Keys">List of keys to parse</param>
 		/// <param name="Values">Array to receive the list of values</param>
-		public void CopyInto(ReadOnlyUtf8String[] Keys, PerforceValue[] Values)
+		public void CopyInto(Utf8String[] Keys, PerforceValue[] Values)
 		{
 			// Clear out the current values array
 			for (int ValueIdx = 0; ValueIdx < Values.Length; ValueIdx++)
@@ -238,10 +238,10 @@ namespace EpicGames.Perforce
 				int InitialRowIdx = RowIdx;
 
 				// Find the key that matches this row.
-				ReadOnlyUtf8String RowKey = Rows[RowIdx].Key;
+				Utf8String RowKey = Rows[RowIdx].Key;
 				for (int KeyIdx = 0; KeyIdx < Keys.Length; KeyIdx++)
 				{
-					ReadOnlyUtf8String Key = Keys[KeyIdx];
+					Utf8String Key = Keys[KeyIdx];
 					if (RowKey == Key)
 					{
 						// Copy the value to the output array, then move to the next row, and try to match that against the next key.

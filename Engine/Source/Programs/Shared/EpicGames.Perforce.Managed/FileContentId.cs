@@ -19,12 +19,12 @@ namespace EpicGames.Perforce.Managed
 			get;
 		}
 
-		public ReadOnlyUtf8String Type
+		public Utf8String Type
 		{
 			get;
 		}
 
-		public FileContentId(Digest<Md5> Digest, ReadOnlyUtf8String Type)
+		public FileContentId(Digest<Md5> Digest, Utf8String Type)
 		{
 			this.Digest = Digest;
 			this.Type = Type;
@@ -46,7 +46,7 @@ namespace EpicGames.Perforce.Managed
 		public static FileContentId ReadFileContentId(this MemoryReader Reader)
 		{
 			Digest<Md5> Digest = Reader.ReadDigest<Md5>();
-			ReadOnlyUtf8String Type = Reader.ReadString();
+			Utf8String Type = Reader.ReadString();
 			return new FileContentId(Digest, Type);
 		}
 
