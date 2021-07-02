@@ -250,14 +250,22 @@ FCollisionStructureManager::FImplicit*
 FCollisionStructureManager::NewImplicitConvex(
 	const TArray<int32>& ConvexIndices,
 	const TManagedArray<TUniquePtr<Chaos::FConvex>>* ConvexGeometry,
-	const ECollisionTypeEnum CollisionType)
+	const ECollisionTypeEnum CollisionType,
+	const FTransform& MassTransform)
 {
 	if (ConvexIndices.Num())
 	{
 		TArray<TUniquePtr<Chaos::FImplicitObject>> Implicits;
 		for (auto& Index : ConvexIndices)
 		{
-			Chaos::FImplicitObject* Implicit = new Chaos::FConvex((*ConvexGeometry)[Index]->GetVertices(), (*ConvexGeometry)[Index]->GetMargin());
+			TArray<Chaos::FVec3> ConvexVertices = (*ConvexGeometry)[Index]->GetVertices();
+			for (int32 Idx = 0; Idx < ConvexVertices.Num(); Idx++)
+			{
+				ConvexVertices[Idx] = MassTransform.InverseTransformPosition(ConvexVertices[Idx]);
+			}
+
+			Chaos::FReal Margin = (Chaos::FReal)(*ConvexGeometry)[Index]->BoundingBox().Extents().Min() * (Chaos::FReal)0.1;
+			Chaos::FImplicitObject* Implicit = new Chaos::FConvex(ConvexVertices, Margin);
 			UpdateImplicitFlags(Implicit, CollisionType);
 			Implicits.Add(TUniquePtr<Chaos::FImplicitObject>(Implicit));
 		}
