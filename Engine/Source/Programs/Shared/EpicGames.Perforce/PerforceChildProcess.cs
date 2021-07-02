@@ -30,10 +30,10 @@ namespace EpicGames.Perforce
 		/// </summary>
 		static class ReadOnlyUtf8StringConstants
 		{
-			public static ReadOnlyUtf8String Code = "code";
-			public static ReadOnlyUtf8String Stat = "stat";
-			public static ReadOnlyUtf8String Info = "info";
-			public static ReadOnlyUtf8String Error = "error";
+			public static Utf8String Code = "code";
+			public static Utf8String Stat = "stat";
+			public static Utf8String Info = "info";
+			public static Utf8String Error = "error";
 		}
 
 		/// <summary>
@@ -426,7 +426,7 @@ namespace EpicGames.Perforce
 		public async Task ReadRecordsAsync(Action<PerforceRecord> HandleRecord, CancellationToken CancellationToken)
 		{
 			PerforceRecord Record = new PerforceRecord();
-			Record.Rows = new List<KeyValuePair<ReadOnlyUtf8String, PerforceValue>>();
+			Record.Rows = new List<KeyValuePair<Utf8String, PerforceValue>>();
 
 			for(; ;)
 			{
@@ -500,7 +500,7 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="Rows">List of rows to read into</param>
 		/// <returns>True if a record could be read; false if more data is required</returns>
-		bool ReadRecord(List<KeyValuePair<ReadOnlyUtf8String, PerforceValue>> Rows)
+		bool ReadRecord(List<KeyValuePair<Utf8String, PerforceValue>> Rows)
 		{
 			Rows.Clear();
 
@@ -537,7 +537,7 @@ namespace EpicGames.Perforce
 				}
 
 				// Read the tag
-				ReadOnlyUtf8String Key;
+				Utf8String Key;
 				if (!TryReadString(out Key))
 				{
 					return false;
@@ -557,7 +557,7 @@ namespace EpicGames.Perforce
 				PerforceValue Value;
 				if (ValueType == 's')
 				{
-					ReadOnlyUtf8String String;
+					Utf8String String;
 					if (!TryReadString(out String))
 					{
 						return false;
@@ -605,7 +605,7 @@ namespace EpicGames.Perforce
 			}
 			BufferPos += Prefix.Length;
 
-			ReadOnlyUtf8String Code;
+			Utf8String Code;
 			if (!TryReadString(out Code))
 			{
 				Response = null;
@@ -616,7 +616,7 @@ namespace EpicGames.Perforce
 			object? Record;
 			if (Code == ReadOnlyUtf8StringConstants.Stat && StatRecordInfo != null)
 			{
-				if(!TryReadTypedRecord(ReadOnlyUtf8String.Empty, StatRecordInfo, out Record))
+				if(!TryReadTypedRecord(Utf8String.Empty, StatRecordInfo, out Record))
 				{
 					Response = null;
 					return false;
@@ -624,7 +624,7 @@ namespace EpicGames.Perforce
 			}
 			else if (Code == ReadOnlyUtf8StringConstants.Info)
 			{
-				if(!TryReadTypedRecord(ReadOnlyUtf8String.Empty, PerforceReflection.InfoRecordInfo, out Record))
+				if(!TryReadTypedRecord(Utf8String.Empty, PerforceReflection.InfoRecordInfo, out Record))
 				{
 					Response = null;
 					return false;
@@ -632,7 +632,7 @@ namespace EpicGames.Perforce
 			}
 			else if (Code == ReadOnlyUtf8StringConstants.Error)
 			{
-				if (!TryReadTypedRecord(ReadOnlyUtf8String.Empty, PerforceReflection.ErrorRecordInfo, out Record))
+				if (!TryReadTypedRecord(Utf8String.Empty, PerforceReflection.ErrorRecordInfo, out Record))
 				{
 					Response = null;
 					return false;
@@ -661,7 +661,7 @@ namespace EpicGames.Perforce
 		/// <param name="RequiredSuffix">The required suffix for any subobject arrays.</param>
 		/// <param name="RecordInfo">Reflection information for the type being serialized into.</param>
 		/// <returns>The parsed object.</returns>
-		bool TryReadTypedRecord(ReadOnlyUtf8String RequiredSuffix, CachedRecordInfo RecordInfo, [NotNullWhen(true)] out object? Record)
+		bool TryReadTypedRecord(Utf8String RequiredSuffix, CachedRecordInfo RecordInfo, [NotNullWhen(true)] out object? Record)
 		{
 			// Create a bitmask for all the required tags
 			ulong RequiredTagsBitMask = 0;
@@ -699,7 +699,7 @@ namespace EpicGames.Perforce
 				BufferPos++;
 
 				// Read the tag
-				ReadOnlyUtf8String Tag;
+				Utf8String Tag;
 				if(!TryReadString(out Tag))
 				{
 					Record = null;
@@ -714,7 +714,7 @@ namespace EpicGames.Perforce
 				}
 
 				// Separate the key into tag and suffix
-				ReadOnlyUtf8String Suffix = Tag.Slice(SuffixIdx);
+				Utf8String Suffix = Tag.Slice(SuffixIdx);
 				Tag = Tag.Slice(0, SuffixIdx);
 
 				// Try to find the matching field
@@ -833,7 +833,7 @@ namespace EpicGames.Perforce
 			// Parse the appropriate value
 			if (ValueType == 's')
 			{
-				ReadOnlyUtf8String String;
+				Utf8String String;
 				if (!TryReadString(out String))
 				{
 					return false;
@@ -904,12 +904,12 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="String">Receives the value that was read</param>
 		/// <returns>True if a string was read from the buffer, false if there was not enough data</returns>
-		bool TryReadStringWithType(out ReadOnlyUtf8String String)
+		bool TryReadStringWithType(out Utf8String String)
 		{
 			byte ValueType;
 			if(!TryReadByte(out ValueType))
 			{
-				String = new ReadOnlyUtf8String();
+				String = new Utf8String();
 				return false;
 			}
 			if (ValueType != 's')
@@ -924,22 +924,22 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="String">Receives the value that was read</param>
 		/// <returns>True if a string was read from the buffer, false if there was not enough data</returns>
-		bool TryReadString(out ReadOnlyUtf8String String)
+		bool TryReadString(out Utf8String String)
 		{
 			int Length;
 			if(!TryReadInt(out Length))
 			{
-				String = new ReadOnlyUtf8String();
+				String = new Utf8String();
 				return false;
 			}
 
 			if(BufferPos + Length > BufferEnd)
 			{
-				String = new ReadOnlyUtf8String();
+				String = new Utf8String();
 				return false;
 			}
 
-			String = new ReadOnlyUtf8String(Buffer, BufferPos, Length);
+			String = new Utf8String(Buffer, BufferPos, Length);
 			BufferPos += Length;
 			return true;
 		}
@@ -951,7 +951,7 @@ namespace EpicGames.Perforce
 		/// <param name="Prefix">The required prefix</param>
 		/// <param name="Index">The required index</param>
 		/// <returns>True if the index is correct</returns>
-		static bool IsCorrectIndex(ReadOnlyUtf8String Text, ReadOnlyUtf8String Prefix, int Index)
+		static bool IsCorrectIndex(Utf8String Text, Utf8String Prefix, int Index)
 		{
 			if (Prefix.Length > 0)
 			{

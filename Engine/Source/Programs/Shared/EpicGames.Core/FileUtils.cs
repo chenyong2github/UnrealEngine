@@ -51,7 +51,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Utf8 string comparer that should be used for native path comparisons
 		/// </summary>
-		public static IEqualityComparer<ReadOnlyUtf8String> PlatformPathComparerUtf8 = RuntimePlatform.IsLinux ? ReadOnlyUtf8StringComparer.Ordinal : ReadOnlyUtf8StringComparer.OrdinalIgnoreCase;
+		public static IEqualityComparer<Utf8String> PlatformPathComparerUtf8 = RuntimePlatform.IsLinux ? Utf8StringComparer.Ordinal : Utf8StringComparer.OrdinalIgnoreCase;
 
 		/// <summary>
 		/// Read all text for a file

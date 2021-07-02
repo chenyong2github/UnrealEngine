@@ -180,7 +180,7 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="Type"></param>
 		/// <param name="Name"></param>
-		void WriteField(CbFieldType Type, ReadOnlyUtf8String Name)
+		void WriteField(CbFieldType Type, Utf8String Name)
 		{
 			Scope Scope = CurrentScope;
 			if (!CbFieldUtils.IsObject(Scope.FieldType))
@@ -219,7 +219,7 @@ namespace EpicGames.Serialization
 		/// Begin writing an object field
 		/// </summary>
 		/// <param name="Name">Name of the field</param>
-		public void BeginObject(ReadOnlyUtf8String Name)
+		public void BeginObject(Utf8String Name)
 		{
 			WriteField(CbFieldType.Object, Name);
 			PushScope(CbFieldType.Object, CbFieldType.None);
@@ -246,7 +246,7 @@ namespace EpicGames.Serialization
 		/// Begin writing a named array field
 		/// </summary>
 		/// <param name="Name"></param>
-		public void BeginArray(ReadOnlyUtf8String Name)
+		public void BeginArray(Utf8String Name)
 		{
 			WriteField(CbFieldType.Array, Name);
 			PushScope(CbFieldType.Array, CbFieldType.None);
@@ -276,7 +276,7 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="Name">Name of the field</param>
 		/// <param name="FieldType">The field type for elements in the array</param>
-		public void BeginUniformArray(ReadOnlyUtf8String Name, CbFieldType FieldType)
+		public void BeginUniformArray(Utf8String Name, CbFieldType FieldType)
 		{
 			WriteField(CbFieldType.UniformArray, Name);
 			PushScope(CbFieldType.UniformArray, FieldType);
@@ -303,7 +303,7 @@ namespace EpicGames.Serialization
 		/// Write a named null field
 		/// </summary>
 		/// <param name="Name">Name of the field</param>
-		public void WriteNull(ReadOnlyUtf8String Name)
+		public void WriteNull(Utf8String Name)
 		{
 			WriteField(CbFieldType.Null, Name);
 		}
@@ -342,7 +342,7 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="Name">Name of the field</param>
 		/// <param name="Value">Value to be written</param>
-		public void WriteInteger(ReadOnlyUtf8String Name, long Value)
+		public void WriteInteger(Utf8String Name, long Value)
 		{
 			if (Value >= 0)
 			{
@@ -371,7 +371,7 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="Name">Name of the field</param>
 		/// <param name="Value">Value to be written</param>
-		public void WriteInteger(ReadOnlyUtf8String Name, ulong Value)
+		public void WriteInteger(Utf8String Name, ulong Value)
 		{
 			WriteField(CbFieldType.IntegerPositive, Name);
 			WriteIntegerPayload(Value);
@@ -402,7 +402,7 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="Name">Name of the field</param>
 		/// <param name="Value">Value to be written</param>
-		public void WriteDateTime(ReadOnlyUtf8String Name, DateTime Value)
+		public void WriteDateTime(Utf8String Name, DateTime Value)
 		{
 			WriteField(CbFieldType.DateTime, Name);
 			WriteDateTimePayload(Value);
@@ -433,7 +433,7 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="Name">Name of the field</param>
 		/// <param name="Value">Value to be written</param>
-		public void WriteHash(ReadOnlyUtf8String Name, IoHash Value)
+		public void WriteHash(Utf8String Name, IoHash Value)
 		{
 			WriteField(CbFieldType.Hash, Name);
 			WriteHashPayload(Value);
@@ -454,7 +454,7 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="Name">Name of the field</param>
 		/// <param name="Hash">Hash of the attachment</param>
-		public void WriteBinaryAttachment(ReadOnlyUtf8String Name, IoHash Hash)
+		public void WriteBinaryAttachment(Utf8String Name, IoHash Hash)
 		{
 			WriteField(CbFieldType.BinaryAttachment, Name);
 			WriteHashPayload(Hash);
@@ -475,7 +475,7 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="Name">Name of the field</param>
 		/// <param name="Hash">Hash of the attachment</param>
-		public void WriteObjectAttachment(ReadOnlyUtf8String Name, IoHash Hash)
+		public void WriteObjectAttachment(Utf8String Name, IoHash Hash)
 		{
 			WriteField(CbFieldType.ObjectAttachment, Name);
 			WriteHashPayload(Hash);
@@ -510,7 +510,7 @@ namespace EpicGames.Serialization
 		/// Writes an unnamed string value
 		/// </summary>
 		/// <param name="Value">Value to be written</param>
-		public void WriteStringValue(ReadOnlyUtf8String Value)
+		public void WriteStringValue(Utf8String Value)
 		{
 			WriteField(CbFieldType.String);
 			WriteBinaryPayload(Value.Span);
@@ -521,7 +521,7 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="Name">Name of the field</param>
 		/// <param name="Value">Value to be written</param>
-		public void WriteString(ReadOnlyUtf8String Name, ReadOnlyUtf8String Value)
+		public void WriteString(Utf8String Name, Utf8String Value)
 		{
 			WriteField(CbFieldType.String, Name);
 			WriteBinaryPayload(Value.Span);
@@ -542,7 +542,7 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="Name">Name of the field</param>
 		/// <param name="Value">Value to be written</param>
-		public void WriteBinary(ReadOnlyUtf8String Name, ReadOnlySpan<byte> Value)
+		public void WriteBinary(Utf8String Name, ReadOnlySpan<byte> Value)
 		{
 			WriteField(CbFieldType.Binary, Name);
 			WriteBinaryPayload(Value);

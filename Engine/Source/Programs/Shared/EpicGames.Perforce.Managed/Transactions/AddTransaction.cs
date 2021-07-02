@@ -88,7 +88,7 @@ namespace EpicGames.Perforce.Managed
 
 			// Update all the subdirectories
 			StreamDirectoryInfo StreamDir = StreamSnapshot.Lookup(StreamDirHash);
-			foreach((ReadOnlyUtf8String SubDirName, IoHash SubDirHash) in StreamDir.NameToSubDirectory)
+			foreach((Utf8String SubDirName, IoHash SubDirHash) in StreamDir.NameToSubDirectory)
 			{
 				WorkspaceDirectoryInfo? WorkspaceSubDir;
 				if(WorkspaceDir.NameToSubDirectory.TryGetValue(SubDirName, out WorkspaceSubDir))
@@ -124,7 +124,7 @@ namespace EpicGames.Perforce.Managed
 			Directory.CreateDirectory(NewWorkspaceDir.GetFullName());
 
 			// Add all the sub directories and files
-			foreach((ReadOnlyUtf8String SubDirName, IoHash SubDirHash) in StreamDir.NameToSubDirectory)
+			foreach((Utf8String SubDirName, IoHash SubDirHash) in StreamDir.NameToSubDirectory)
 			{
 				AddSubDirectory(SubDirName, NewWorkspaceDir, SubDirHash, Queue);
 			}
@@ -134,14 +134,14 @@ namespace EpicGames.Perforce.Managed
 			}
 		}
 
-		void MergeSubDirectory(ReadOnlyUtf8String Name, WorkspaceDirectoryInfo WorkspaceSubDir, IoHash StreamSubDirHash, WorkspaceDirectoryInfo NewWorkspaceDir, ThreadPoolWorkQueue Queue)
+		void MergeSubDirectory(Utf8String Name, WorkspaceDirectoryInfo WorkspaceSubDir, IoHash StreamSubDirHash, WorkspaceDirectoryInfo NewWorkspaceDir, ThreadPoolWorkQueue Queue)
 		{
 			WorkspaceDirectoryInfo NewWorkspaceSubDir = new WorkspaceDirectoryInfo(NewWorkspaceDir, Name, StreamSubDirHash);
 			NewWorkspaceDir.NameToSubDirectory.Add(Name, NewWorkspaceSubDir);
 			Queue.Enqueue(() => MergeDirectory(WorkspaceSubDir, NewWorkspaceSubDir, StreamSubDirHash, Queue));
 		}
 
-		void AddSubDirectory(ReadOnlyUtf8String Name, WorkspaceDirectoryInfo NewWorkspaceDir, IoHash StreamSubDirHash, ThreadPoolWorkQueue Queue)
+		void AddSubDirectory(Utf8String Name, WorkspaceDirectoryInfo NewWorkspaceDir, IoHash StreamSubDirHash, ThreadPoolWorkQueue Queue)
 		{
 			WorkspaceDirectoryInfo NewWorkspaceSubDir = new WorkspaceDirectoryInfo(NewWorkspaceDir, Name, StreamSubDirHash);
 			NewWorkspaceDir.NameToSubDirectory.Add(Name, NewWorkspaceSubDir);

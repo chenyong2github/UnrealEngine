@@ -23,7 +23,7 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Name of this directory
 		/// </summary>
-		public ReadOnlyUtf8String Name { get; }
+		public Utf8String Name { get; }
 
 		/// <summary>
 		/// Digest of the matching stream directory info. This should be set to zero if the workspace is modified.
@@ -33,12 +33,12 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Map of name to file
 		/// </summary>
-		public Dictionary<ReadOnlyUtf8String, WorkspaceFileInfo> NameToFile { get; set; }
+		public Dictionary<Utf8String, WorkspaceFileInfo> NameToFile { get; set; }
 
 		/// <summary>
 		/// Map of name to subdirectory
 		/// </summary>
-		public Dictionary<ReadOnlyUtf8String, WorkspaceDirectoryInfo> NameToSubDirectory { get; set; }
+		public Dictionary<Utf8String, WorkspaceDirectoryInfo> NameToSubDirectory { get; set; }
 
 		/// <summary>
 		/// Constructor
@@ -55,13 +55,13 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="ParentDirectory">The parent directory</param>
 		/// <param name="Name">Name of this directory</param>
 		/// <param name="Digest">The corresponding stream digest</param>
-		public WorkspaceDirectoryInfo(WorkspaceDirectoryInfo? ParentDirectory, ReadOnlyUtf8String Name, IoHash Digest)
+		public WorkspaceDirectoryInfo(WorkspaceDirectoryInfo? ParentDirectory, Utf8String Name, IoHash Digest)
 		{
 			this.ParentDirectory = ParentDirectory;
 			this.Name = Name;
 			this.StreamDirectoryDigest = Digest;
-			this.NameToFile = new Dictionary<ReadOnlyUtf8String, WorkspaceFileInfo>(ReadOnlyUtf8StringComparer.Ordinal);
-			this.NameToSubDirectory = new Dictionary<ReadOnlyUtf8String, WorkspaceDirectoryInfo>(FileUtils.PlatformPathComparerUtf8);
+			this.NameToFile = new Dictionary<Utf8String, WorkspaceFileInfo>(Utf8StringComparer.Ordinal);
+			this.NameToSubDirectory = new Dictionary<Utf8String, WorkspaceDirectoryInfo>(FileUtils.PlatformPathComparerUtf8);
 		}
 
 		/// <summary>
@@ -72,7 +72,7 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="LastModifiedTicks">Last modified time of the file</param>
 		/// <param name="bReadOnly">Whether the file is read only</param>
 		/// <param name="ContentId">Unique identifier for the server content</param>
-		public void AddFile(ReadOnlyUtf8String Path, long Length, long LastModifiedTicks, bool bReadOnly, FileContentId ContentId)
+		public void AddFile(Utf8String Path, long Length, long LastModifiedTicks, bool bReadOnly, FileContentId ContentId)
 		{
 			StreamDirectoryDigest = IoHash.Zero;
 
@@ -83,7 +83,7 @@ namespace EpicGames.Perforce.Managed
 			}
 			else
 			{
-				ReadOnlyUtf8String Name = Path.Slice(0, Idx);
+				Utf8String Name = Path.Slice(0, Idx);
 
 				WorkspaceDirectoryInfo? SubDirectory;
 				if (!NameToSubDirectory.TryGetValue(Name, out SubDirectory))
@@ -115,7 +115,7 @@ namespace EpicGames.Perforce.Managed
 		{
 			Files.AddRange(NameToFile.Values);
 
-			foreach (KeyValuePair<ReadOnlyUtf8String, WorkspaceDirectoryInfo> Pair in NameToSubDirectory)
+			foreach (KeyValuePair<Utf8String, WorkspaceDirectoryInfo> Pair in NameToSubDirectory)
 			{
 				Pair.Value.GetFilesInternal(Files);
 			}
@@ -150,7 +150,7 @@ namespace EpicGames.Perforce.Managed
 		void Refresh(DirectoryInfo Info, bool bRemoveUntracked, ConcurrentBag<FileInfo> FilesToDelete, ConcurrentBag<DirectoryInfo> DirectoriesToDelete, ThreadPoolWorkQueue Queue)
 		{
 			// Recurse through subdirectories
-			Dictionary<ReadOnlyUtf8String, WorkspaceDirectoryInfo> NewNameToSubDirectory = new Dictionary<ReadOnlyUtf8String, WorkspaceDirectoryInfo>(NameToSubDirectory.Count, NameToSubDirectory.Comparer);
+			Dictionary<Utf8String, WorkspaceDirectoryInfo> NewNameToSubDirectory = new Dictionary<Utf8String, WorkspaceDirectoryInfo>(NameToSubDirectory.Count, NameToSubDirectory.Comparer);
 			foreach (DirectoryInfo SubDirectoryInfo in Info.EnumerateDirectories())
 			{
 				WorkspaceDirectoryInfo? SubDirectory;
@@ -167,7 +167,7 @@ namespace EpicGames.Perforce.Managed
 			NameToSubDirectory = NewNameToSubDirectory;
 
 			// Figure out which files have changed.
-			Dictionary<ReadOnlyUtf8String, WorkspaceFileInfo> NewNameToFile = new Dictionary<ReadOnlyUtf8String, WorkspaceFileInfo>(NameToFile.Count, NameToFile.Comparer);
+			Dictionary<Utf8String, WorkspaceFileInfo> NewNameToFile = new Dictionary<Utf8String, WorkspaceFileInfo>(NameToFile.Count, NameToFile.Comparer);
 			foreach (FileInfo File in Info.EnumerateFiles())
 			{
 				WorkspaceFileInfo? StagedFile;
@@ -228,7 +228,7 @@ namespace EpicGames.Perforce.Managed
 		void FindDifferences(DirectoryInfo Directory, string Path, ConcurrentBag<string> Paths, ThreadPoolWorkQueue Queue)
 		{
 			// Recurse through subdirectories
-			HashSet<ReadOnlyUtf8String> RemainingSubDirectoryNames = new HashSet<ReadOnlyUtf8String>(NameToSubDirectory.Keys);
+			HashSet<Utf8String> RemainingSubDirectoryNames = new HashSet<Utf8String>(NameToSubDirectory.Keys);
 			foreach (DirectoryInfo SubDirectory in Directory.EnumerateDirectories())
 			{
 				WorkspaceDirectoryInfo? StagedSubDirectory;
@@ -240,13 +240,13 @@ namespace EpicGames.Perforce.Managed
 				}
 				Paths.Add(String.Format("+{0}{1}/...", Path, SubDirectory.Name));
 			}
-			foreach (ReadOnlyUtf8String RemainingSubDirectoryName in RemainingSubDirectoryNames)
+			foreach (Utf8String RemainingSubDirectoryName in RemainingSubDirectoryNames)
 			{
 				Paths.Add(String.Format("-{0}{1}/...", Path, RemainingSubDirectoryName));
 			}
 
 			// Search through files
-			HashSet<ReadOnlyUtf8String> RemainingFileNames = new HashSet<ReadOnlyUtf8String>(NameToFile.Keys);
+			HashSet<Utf8String> RemainingFileNames = new HashSet<Utf8String>(NameToFile.Keys);
 			foreach (FileInfo File in Directory.EnumerateFiles())
 			{
 				WorkspaceFileInfo? StagedFile;
@@ -264,7 +264,7 @@ namespace EpicGames.Perforce.Managed
 					RemainingFileNames.Remove(File.Name);
 				}
 			}
-			foreach (ReadOnlyUtf8String RemainingFileName in RemainingFileNames)
+			foreach (Utf8String RemainingFileName in RemainingFileNames)
 			{
 				Paths.Add(String.Format("-{0}{1}", Path, RemainingFileName));
 			}
@@ -356,7 +356,7 @@ namespace EpicGames.Perforce.Managed
 			int NumSubDirectories = Reader.ReadInt32();
 			for (int Idx = 0; Idx < NumSubDirectories; Idx++)
 			{
-				ReadOnlyUtf8String Name = Reader.ReadString();
+				Utf8String Name = Reader.ReadString();
 
 				WorkspaceDirectoryInfo SubDirectory = new WorkspaceDirectoryInfo(DirectoryInfo, Name, IoHash.Zero);
 				Reader.ReadWorkspaceDirectoryInfo(SubDirectory, Version);

@@ -11,12 +11,12 @@ namespace EpicGames.Core
 	/// <summary>
 	/// Represents a memory region which can be treated as a utf-8 string.
 	/// </summary>
-	public struct ReadOnlyUtf8String : IEquatable<ReadOnlyUtf8String>
+	public struct Utf8String : IEquatable<Utf8String>
 	{
 		/// <summary>
 		/// An empty string
 		/// </summary>
-		public static readonly ReadOnlyUtf8String Empty = new ReadOnlyUtf8String();
+		public static readonly Utf8String Empty = new Utf8String();
 
 		/// <summary>
 		/// The data represented by this string
@@ -61,7 +61,7 @@ namespace EpicGames.Core
 		/// Constructor
 		/// </summary>
 		/// <param name="Text">Text to construct from</param>
-		public ReadOnlyUtf8String(string Text)
+		public Utf8String(string Text)
 		{
 			this.Memory = Encoding.UTF8.GetBytes(Text);
 		}
@@ -70,7 +70,7 @@ namespace EpicGames.Core
 		/// Constructor
 		/// </summary>
 		/// <param name="Memory">The data to construct from</param>
-		public ReadOnlyUtf8String(ReadOnlyMemory<byte> Memory)
+		public Utf8String(ReadOnlyMemory<byte> Memory)
 		{
 			this.Memory = Memory;
 		}
@@ -81,7 +81,7 @@ namespace EpicGames.Core
 		/// <param name="Buffer">The buffer to construct from</param>
 		/// <param name="Offset">Offset within the buffer</param>
 		/// <param name="Length">Length of the string within the buffer</param>
-		public ReadOnlyUtf8String(byte[] Buffer, int Offset, int Length)
+		public Utf8String(byte[] Buffer, int Offset, int Length)
 		{
 			this.Memory = new ReadOnlyMemory<byte>(Buffer, Offset, Length);
 		}
@@ -92,7 +92,7 @@ namespace EpicGames.Core
 		/// <param name="A">The first string to compare</param>
 		/// <param name="B">The second string to compare</param>
 		/// <returns>True if the strings are equal</returns>
-		public static bool operator ==(ReadOnlyUtf8String A, ReadOnlyUtf8String B)
+		public static bool operator ==(Utf8String A, Utf8String B)
 		{
 			return A.Equals(B);
 		}
@@ -103,7 +103,7 @@ namespace EpicGames.Core
 		/// <param name="A">The first string to compare</param>
 		/// <param name="B">The second string to compare</param>
 		/// <returns>True if the strings are not equal</returns>
-		public static bool operator !=(ReadOnlyUtf8String A, ReadOnlyUtf8String B)
+		public static bool operator !=(Utf8String A, Utf8String B)
 		{
 			return !A.Equals(B);
 		}
@@ -113,7 +113,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Other">The other string to compare to</param>
 		/// <returns>True if the strings are equal</returns>
-		public bool Equals(ReadOnlyUtf8String Other)
+		public bool Equals(Utf8String Other)
 		{
 			return Span.SequenceEqual(Other.Span);
 		}
@@ -123,7 +123,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Other">The string to check against</param>
 		/// <returns>True if this string starts with the other string</returns>
-		public bool StartsWith(ReadOnlyUtf8String Other)
+		public bool StartsWith(Utf8String Other)
 		{
 			return Span.StartsWith(Other.Span);
 		}
@@ -133,7 +133,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Other">The string to check against</param>
 		/// <returns>True if this string ends with the other string</returns>
-		public bool EndsWith(ReadOnlyUtf8String Other)
+		public bool EndsWith(Utf8String Other)
 		{
 			return Span.EndsWith(Other.Span);
 		}
@@ -143,9 +143,9 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Start">Start position</param>
 		/// <returns>String starting at the given position</returns>
-		public ReadOnlyUtf8String Slice(int Start)
+		public Utf8String Slice(int Start)
 		{
-			return new ReadOnlyUtf8String(Memory.Slice(Start));
+			return new Utf8String(Memory.Slice(Start));
 		}
 
 		/// <summary>
@@ -153,9 +153,9 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Start">Start position</param>
 		/// <returns>String starting at the given position</returns>
-		public ReadOnlyUtf8String Slice(int Start, int Count)
+		public Utf8String Slice(int Start, int Count)
 		{
-			return new ReadOnlyUtf8String(Memory.Slice(Start, Count));
+			return new Utf8String(Memory.Slice(Start, Count));
 		}
 
 		/// <summary>
@@ -165,7 +165,7 @@ namespace EpicGames.Core
 		/// <returns>True if the objects are equivalent</returns>
 		public override bool Equals(object? obj)
 		{
-			ReadOnlyUtf8String? Other = obj as ReadOnlyUtf8String?;
+			Utf8String? Other = obj as Utf8String?;
 			return Other != null && Equals(Other.Value);
 		}
 
@@ -196,35 +196,35 @@ namespace EpicGames.Core
 		/// Converts a string to a utf-8 string
 		/// </summary>
 		/// <param name="Text">Text to convert</param>
-		public static implicit operator ReadOnlyUtf8String(string Text)
+		public static implicit operator Utf8String(string Text)
 		{
-			return new ReadOnlyUtf8String(new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes(Text)));
+			return new Utf8String(new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes(Text)));
 		}
 	}
 
 	/// <summary>
 	/// Comparison classes for utf8 strings
 	/// </summary>
-	public abstract class ReadOnlyUtf8StringComparer : IEqualityComparer<ReadOnlyUtf8String>, IComparer<ReadOnlyUtf8String>
+	public abstract class Utf8StringComparer : IEqualityComparer<Utf8String>, IComparer<Utf8String>
 	{
 		/// <summary>
 		/// Ordinal comparer for utf8 strings
 		/// </summary>
-		class OrdinalComparer : ReadOnlyUtf8StringComparer
+		class OrdinalComparer : Utf8StringComparer
 		{
 			/// <inheritdoc/>
-			public override bool Equals(ReadOnlyUtf8String StrA, ReadOnlyUtf8String StrB)
+			public override bool Equals(Utf8String StrA, Utf8String StrB)
 			{
 				return StrA.Equals(StrB);
 			}
 
 			/// <inheritdoc/>
-			public override int GetHashCode(ReadOnlyUtf8String String)
+			public override int GetHashCode(Utf8String String)
 			{
 				return String.GetHashCode();
 			}
 
-			public override int Compare(ReadOnlyUtf8String StrA, ReadOnlyUtf8String StrB)
+			public override int Compare(Utf8String StrA, Utf8String StrB)
 			{
 				return StrA.Span.SequenceCompareTo(StrB.Span);
 			}
@@ -233,10 +233,10 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Comparison between ReadOnlyUtf8String objects that ignores case for ASCII characters
 		/// </summary>
-		class OrdinalIgnoreCaseComparer : ReadOnlyUtf8StringComparer 
+		class OrdinalIgnoreCaseComparer : Utf8StringComparer 
 		{
 			/// <inheritdoc/>
-			public override bool Equals(ReadOnlyUtf8String StrA, ReadOnlyUtf8String StrB)
+			public override bool Equals(Utf8String StrA, Utf8String StrB)
 			{
 				if (StrA.Length != StrB.Length)
 				{
@@ -255,7 +255,7 @@ namespace EpicGames.Core
 			}
 
 			/// <inheritdoc/>
-			public override int GetHashCode(ReadOnlyUtf8String String)
+			public override int GetHashCode(Utf8String String)
 			{
 				HashCode HashCode = new HashCode();
 				for (int Idx = 0; Idx < String.Length; Idx++)
@@ -266,7 +266,7 @@ namespace EpicGames.Core
 			}
 
 			/// <inheritdoc/>
-			public override int Compare(ReadOnlyUtf8String StrA, ReadOnlyUtf8String StrB)
+			public override int Compare(Utf8String StrA, Utf8String StrB)
 			{
 				ReadOnlySpan<byte> SpanA = StrA.Span;
 				ReadOnlySpan<byte> SpanB = StrB.Span;
@@ -302,21 +302,21 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Static instance of the ordinal utf8 ordinal comparer
 		/// </summary>
-		public static ReadOnlyUtf8StringComparer Ordinal = new OrdinalComparer();
+		public static Utf8StringComparer Ordinal = new OrdinalComparer();
 
 		/// <summary>
 		/// Static instance of the case-insensitive utf8 ordinal string comparer
 		/// </summary>
-		public static ReadOnlyUtf8StringComparer OrdinalIgnoreCase = new OrdinalIgnoreCaseComparer();
+		public static Utf8StringComparer OrdinalIgnoreCase = new OrdinalIgnoreCaseComparer();
 
 		/// <inheritdoc/>
-		public abstract bool Equals(ReadOnlyUtf8String StrA, ReadOnlyUtf8String StrB);
+		public abstract bool Equals(Utf8String StrA, Utf8String StrB);
 
 		/// <inheritdoc/>
-		public abstract int GetHashCode(ReadOnlyUtf8String String);
+		public abstract int GetHashCode(Utf8String String);
 
 		/// <inheritdoc/>
-		public abstract int Compare(ReadOnlyUtf8String StrA, ReadOnlyUtf8String StrB);
+		public abstract int Compare(Utf8String StrA, Utf8String StrB);
 	}
 
 	/// <summary>
@@ -328,11 +328,11 @@ namespace EpicGames.Core
 		/// Reads a null-terminated utf8 string from the buffer
 		/// </summary>
 		/// <returns>The string data</returns>
-		public static ReadOnlyUtf8String ReadString(this MemoryReader Reader)
+		public static Utf8String ReadString(this MemoryReader Reader)
 		{
 			ReadOnlySpan<byte> Span = Reader.Span;
 			int Length = Span.IndexOf((byte)0);
-			ReadOnlyUtf8String Value = new ReadOnlyUtf8String(Reader.ReadFixedLengthBytes(Length));
+			Utf8String Value = new Utf8String(Reader.ReadFixedLengthBytes(Length));
 			Reader.ReadInt8();
 			return Value;
 		}
@@ -342,7 +342,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Writer">The memory writer to serialize to</param>
 		/// <param name="String">String to write</param>
-		public static void WriteString(this MemoryWriter Writer, ReadOnlyUtf8String String)
+		public static void WriteString(this MemoryWriter Writer, Utf8String String)
 		{
 			Writer.WriteFixedLengthBytes(String.Span);
 			Writer.WriteInt8(0);
@@ -353,7 +353,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="String">The string to measure</param>
 		/// <returns>Size of the serialized string</returns>
-		public static int GetSerializedSize(this ReadOnlyUtf8String String)
+		public static int GetSerializedSize(this Utf8String String)
 		{
 			return String.Length + 1;
 		}

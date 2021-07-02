@@ -945,7 +945,7 @@ namespace EpicGames.Perforce.Managed
 				foreach (WhereRecord WriteFile in WriteFiles)
 				{
 					string Path = Regex.Replace(WriteFile.ClientFile, "^//[^/]+/", "");
-					Workspace.AddFile(new ReadOnlyUtf8String(Path), 0, 0, false, new FileContentId(Digest<Md5>.Zero, default));
+					Workspace.AddFile(new Utf8String(Path), 0, 0, false, new FileContentId(Digest<Md5>.Zero, default));
 				}
 				await SaveAsync(TransactionState.Clean, CancellationToken.None);
 			}
@@ -1350,26 +1350,26 @@ namespace EpicGames.Perforce.Managed
 			}
 
 			public static readonly string[] FieldNames = Enum.GetNames(typeof(Field));
-			public static readonly ReadOnlyUtf8String[] Utf8FieldNames = Array.ConvertAll(FieldNames, x => new ReadOnlyUtf8String(x));
+			public static readonly Utf8String[] Utf8FieldNames = Array.ConvertAll(FieldNames, x => new Utf8String(x));
 
 			public PerforceValue[] Values = new PerforceValue[FieldNames.Length];
 
-			public ReadOnlyUtf8String DepotFile
+			public Utf8String DepotFile
 			{
 				get { return Values[(int)Field.depotFile].GetString(); }
 			}
 
-			public ReadOnlyUtf8String ClientFile
+			public Utf8String ClientFile
 			{
 				get { return Values[(int)Field.clientFile].GetString(); }
 			}
 
-			public ReadOnlyUtf8String HeadType
+			public Utf8String HeadType
 			{
 				get { return Values[(int)Field.headType].GetString(); }
 			}
 
-			public ReadOnlyUtf8String HaveRev
+			public Utf8String HaveRev
 			{
 				get { return Values[(int)Field.haveRev].GetString(); }
 			}
@@ -1379,7 +1379,7 @@ namespace EpicGames.Perforce.Managed
 				get { return Values[(int)Field.fileSize].AsLong(); }
 			}
 
-			public ReadOnlyUtf8String Digest
+			public Utf8String Digest
 			{
 				get { return Values[(int)Field.digest].GetString(); }
 			}
@@ -1402,11 +1402,11 @@ namespace EpicGames.Perforce.Managed
 				Stopwatch Timer = Stopwatch.StartNew();
 
 				// Get the expected prefix for any paths in client syntax
-				ReadOnlyUtf8String ClientPrefix = $"//{PerforceClient.ClientName}/";
+				Utf8String ClientPrefix = $"//{PerforceClient.ClientName}/";
 
 				// List of the last path fragments. Since file records that are returned are typically sorted by their position in the tree, we can save quite a lot of processing by
 				// reusing as many fragemnts as possible.
-				List<(ReadOnlyUtf8String, StreamSnapshotBuilder)> Fragments = new List<(ReadOnlyUtf8String, StreamSnapshotBuilder)>();
+				List<(Utf8String, StreamSnapshotBuilder)> Fragments = new List<(Utf8String, StreamSnapshotBuilder)>();
 
 				// Handler for each returned record
 				FStatIndexedRecord Record = new FStatIndexedRecord();
@@ -1452,7 +1452,7 @@ namespace EpicGames.Perforce.Managed
 						}
 
 						// Get the fragment text
-						ReadOnlyUtf8String Fragment = new ReadOnlyUtf8String(Record.ClientFile.Memory.Slice(FragmentMinIdx, FragmentMaxIdx - FragmentMinIdx));
+						Utf8String Fragment = new Utf8String(Record.ClientFile.Memory.Slice(FragmentMinIdx, FragmentMaxIdx - FragmentMinIdx));
 
 						// If this fragment matches the same fragment from the previous iteration, take the last stream directory straight away
 						if (FragmentIdx < Fragments.Count)
@@ -1470,7 +1470,7 @@ namespace EpicGames.Perforce.Managed
 						// Otherwise, find or add a directory for this fragment into the last directory
 						if (FragmentIdx >= Fragments.Count)
 						{
-							ReadOnlyUtf8String UnescapedFragment = PerforceUtils.UnescapePath(Fragment);
+							Utf8String UnescapedFragment = PerforceUtils.UnescapePath(Fragment);
 
 							StreamSnapshotBuilder? NextStreamDirectory;
 							if (!LastStreamDirectory.NameToSubDirectory.TryGetValue(UnescapedFragment, out NextStreamDirectory))
@@ -1495,10 +1495,10 @@ namespace EpicGames.Perforce.Managed
 					Record.DepotFile.Span.CopyTo(DepotFileAndRevisionData.AsSpan());
 					DepotFileAndRevisionData[Record.DepotFile.Length] = (byte)'#';
 					Record.HaveRev.Span.CopyTo(DepotFileAndRevisionData.AsSpan(Record.DepotFile.Length + 1));
-					ReadOnlyUtf8String DepotFileAndRevision = new ReadOnlyUtf8String(DepotFileAndRevisionData.AsMemory());
+					Utf8String DepotFileAndRevision = new Utf8String(DepotFileAndRevisionData.AsMemory());
 
 					// Add a new StreamFileInfo to the last directory object
-					ReadOnlyUtf8String FileName = PerforceUtils.UnescapePath(Record.ClientFile.Slice(FragmentMinIdx));
+					Utf8String FileName = PerforceUtils.UnescapePath(Record.ClientFile.Slice(FragmentMinIdx));
 					LastStreamDirectory.NameToFile.Add(FileName, new StreamFileInfo(FileName, Record.FileSize, ContentId, DepotFileAndRevision));
 				};
 
@@ -1849,7 +1849,7 @@ namespace EpicGames.Perforce.Managed
 			await SaveAsync(TransactionState.Clean, CancellationToken);
 		}
 
-		static readonly ReadOnlyUtf8String StatsFileName = "StatsV2.json";
+		static readonly Utf8String StatsFileName = "StatsV2.json";
 
 		/// <summary>
 		/// Syncs a batch of files

@@ -46,7 +46,7 @@ namespace EpicGames.Serialization.Tests
 			[CbFieldType.Array] = new CbFieldAccessors(CbArray.Empty, x => x.IsArray(), x => x.AsArray(), (x, y) => x.AsArray()),
 			[CbFieldType.UniformArray] = new CbFieldAccessors(CbArray.Empty, x => x.IsArray(), x => x.AsArray(), (x, y) => x.AsArray()),
 			[CbFieldType.Binary] = CbFieldAccessors.FromStruct<ReadOnlyMemory<byte>>(x => x.IsBinary(), (x, y) => x.AsBinary(y), (x, y) => x.Span.SequenceEqual(y.Span)),
-			[CbFieldType.String] = new CbFieldAccessors(ReadOnlyUtf8String.Empty, x => x.IsString(), x => x.AsString(), (x, Default) => x.AsString((ReadOnlyUtf8String)Default)),
+			[CbFieldType.String] = new CbFieldAccessors(Utf8String.Empty, x => x.IsString(), x => x.AsString(), (x, Default) => x.AsString((Utf8String)Default)),
 			[CbFieldType.IntegerPositive] = CbFieldAccessors.FromStruct<ulong>(x => x.IsInteger(), (x, y) => x.AsUInt64(y)),
 			[CbFieldType.IntegerNegative] = CbFieldAccessors.FromStruct<long>(x => x.IsInteger(), (x, y) => x.AsInt64(y)),
 			[CbFieldType.Float32] = CbFieldAccessors.FromStruct<float>(x => x.IsFloat(), (x, y) => x.AsFloat(y)),
@@ -373,7 +373,7 @@ namespace EpicGames.Serialization.Tests
 			Action<CbArray, int, int> TestIntArray = (CbArray Array, int ExpectedNum, int ExpectedPayloadSize) =>
 			{
 				Assert.AreEqual(Array.GetSize(), ExpectedPayloadSize + sizeof(CbFieldType));
-				Assert.AreEqual(Array.Num(), ExpectedNum);
+				Assert.AreEqual(Array.Count, ExpectedNum);
 
 				int ActualNum = 0;
 				for (CbFieldIterator It = Array.CreateIterator(); It; ++It)
@@ -582,20 +582,20 @@ namespace EpicGames.Serialization.Tests
 			// Test CbField(String, Value)
 			{
 				byte[] Payload = { 3, (byte)'A', (byte)'B', (byte)'C' }; // Size: 3, Data: ABC
-				TestField(CbFieldType.String, Payload, new ReadOnlyUtf8String(Payload.AsMemory(1, 3)));
+				TestField(CbFieldType.String, Payload, new Utf8String(Payload.AsMemory(1, 3)));
 			}
 
 			// Test CbField(String, OutOfRangeSize)
 			{
 				byte[] Payload = new byte[9];
 				VarInt.Write(Payload, (ulong)(1) << 31);
-				TestFieldError(CbFieldType.String, Payload, CbFieldError.RangeError, new ReadOnlyUtf8String("ABC"));
+				TestFieldError(CbFieldType.String, Payload, CbFieldError.RangeError, new Utf8String("ABC"));
 			}
 
 			// Test CbField(None) as String
 			{
 				CbField Field = new CbField();
-				TestFieldError(CbFieldType.String, Field, CbFieldError.TypeError, new ReadOnlyUtf8String("ABC"));
+				TestFieldError(CbFieldType.String, Field, CbFieldError.TypeError, new Utf8String("ABC"));
 			}
 		}
 

@@ -33,7 +33,7 @@ namespace EpicGames.Perforce
 			return NewPath;
 		}
 
-		static public ReadOnlyUtf8String UnescapePath(ReadOnlyUtf8String Path)
+		static public Utf8String UnescapePath(Utf8String Path)
 		{
 			ReadOnlySpan<byte> PathSpan = Path.Span;
 			for (int InputIdx = 0; InputIdx < PathSpan.Length - 2; InputIdx++)
@@ -69,7 +69,7 @@ namespace EpicGames.Perforce
 					}
 
 					// Copy the last chunk of data to the output buffer
-					Path = new ReadOnlyUtf8String(Buffer.AsMemory(0, OutputIdx));
+					Path = new Utf8String(Buffer.AsMemory(0, OutputIdx));
 					break;
 				}
 			}
