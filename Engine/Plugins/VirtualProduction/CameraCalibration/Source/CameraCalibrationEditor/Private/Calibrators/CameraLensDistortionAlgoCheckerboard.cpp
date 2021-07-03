@@ -327,7 +327,7 @@ bool UCameraLensDistortionAlgoCheckerboard::AddCalibrationRow(FText& OutErrorMes
 	if (bShouldShowDetectionWindow)
 	{
 		FCameraCalibrationWidgetHelpers::DisplayTextureInWindowAlmostFullScreen(
-			FCameraCalibrationStepsController::TextureFromCvMat(CvFrame),
+			FOpenCVHelper::TextureFromCvMat(CvFrame),
 			LOCTEXT("CheckerboardDetection", "Checkerboard Detection")
 		);
 	}
@@ -340,7 +340,7 @@ bool UCameraLensDistortionAlgoCheckerboard::AddCalibrationRow(FText& OutErrorMes
 		const int32 ResolutionDivider = 4;
 		cv::resize(CvFrame, CvThumbnail, cv::Size(CvFrame.cols / ResolutionDivider, CvFrame.rows / ResolutionDivider));
 
-		if (UTexture2D* ThumbnailTexture = FCameraCalibrationStepsController::TextureFromCvMat(CvThumbnail))
+		if (UTexture2D* ThumbnailTexture = FOpenCVHelper::TextureFromCvMat(CvThumbnail))
 		{
 			Row->Thumbnail = SNew(SSimulcamViewport, ThumbnailTexture);
 		}

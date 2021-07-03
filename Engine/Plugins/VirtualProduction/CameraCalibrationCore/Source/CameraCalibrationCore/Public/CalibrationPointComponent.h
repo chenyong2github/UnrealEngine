@@ -9,6 +9,15 @@
 
 #include "CalibrationPointComponent.generated.h"
 
+
+/** Ways of visualizing the calibration points */
+UENUM(BlueprintType)
+enum ECalibrationPointVisualization
+{
+	CalibrationPointVisualizationCube    UMETA(DisplayName = "Cubes"),
+	CalibrationPointVisualizationPyramid UMETA(DisplayName = "Pyramids"),
+};
+
 /**
  * One or more instances of this component can be added to an actor (e.g. a static mesh actor blueprint), 
  * and should be placed at geometrically and visually distinct landmarks of the object.
@@ -36,9 +45,7 @@ public:
 
 public:
 
-	/** 
-	 * A way to group many points in a single component. 
-	 */
+	/** A way to group many points in a single component */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Calibration")
 	TMap<FString,FVector> SubPoints;
 
@@ -49,6 +56,10 @@ public:
 	/** Scales up/down the size of the point visualization meshes */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Calibration")
 	float PointVisualizationScale = 1.0f;
+
+	/** Shape used to visualize the calibration (sub)points */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Calibration")
+	TEnumAsByte<ECalibrationPointVisualization> VisualizationShape = ECalibrationPointVisualization::CalibrationPointVisualizationCube;
 
 public:
 

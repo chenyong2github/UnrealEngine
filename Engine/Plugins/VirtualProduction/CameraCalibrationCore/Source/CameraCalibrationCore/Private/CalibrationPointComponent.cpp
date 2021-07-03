@@ -104,15 +104,25 @@ void UCalibrationPointComponent::RebuildVertices()
 	TArray<int32> Triangles;
 	TArray<FLinearColor> VertexColors;
 
-	auto AddVerticesForPoint = [&](const FVector& Location, const FTransform Transform)
+	// Coordinate system
+	// 
+	// Top View
+	// 
+	// x ^
+	//   |
+	//   o--->
+	//  z    y
+	// 
+	// Front View
+	// 
+	// z ^
+	//   |
+	//   x--->
+	//  x    y
+	// 
+
+	auto AddPyramidVerticesForPoint = [&](const FVector& Location, const FTransform Transform)
 	{
-		// Coordinate system (top view)
-		// 
-		// x ^
-		//   |
-		//   o--->
-		//  z    y
-		// 
 		// Top view
 		//
 		//    3
@@ -125,7 +135,7 @@ void UCalibrationPointComponent::RebuildVertices()
 		//    \ /
 		//     0
 
-		// Vertices and colors
+		// Vertices
 
 		const float Side = 1.0f;
 		const float H = Side * FMath::Sqrt(3.0f) / 2.0f;
@@ -142,7 +152,7 @@ void UCalibrationPointComponent::RebuildVertices()
 			Vertices[VertexIdx] = Location + PointVisualizationScale * Transform.TransformVector(Vertices[VertexIdx]);
 		}
 
-		// Triangles
+		// Triangles (CCW when looking at face)
 
 		Triangles.Add(BaseIndex + 0); Triangles.Add(BaseIndex + 2); Triangles.Add(BaseIndex + 1);
 		Triangles.Add(BaseIndex + 0); Triangles.Add(BaseIndex + 3); Triangles.Add(BaseIndex + 2);
@@ -162,7 +172,7 @@ void UCalibrationPointComponent::RebuildVertices()
 		VertexColors.Add(Vertex3Color);
 	};
 
-	auto AddMeshForPoint = [&](const FVector& Location)
+	auto AddPyramidMeshForPoint = [&](const FVector& Location)
 	{
 		// This will build a mesh composed of a shape repeated 4 times, each in one of the 4 directions
 		// of the vertices of a triangular pyramid, from its center.
@@ -186,7 +196,95 @@ void UCalibrationPointComponent::RebuildVertices()
 		// The 4 repetitions of the shape, each with a different orientation
 		for (const FTransform& Transform : Transforms)
 		{
-			AddVerticesForPoint(Location, Transform);
+			AddPyramidVerticesForPoint(Location, Transform);
+		}
+	};
+
+	auto AddCubeMeshForPoint = [&](const FVector& Location)
+	{
+		// Left-view   Front-view   Right-view   Back-view
+		//
+		// 4---0       0---1        1---6        6---4
+		// |   |       |   |        |   |        |   |
+		// 5---3       3---2        2---7        7---5
+		//
+		//             Top-view     Bot-view
+		//             
+		//             4---6        3---2
+		//             |   |        |   |
+		//             0---1        5---7
+		//
+
+		const int32 BaseIndex = Vertices.Num();
+
+		// Vertices
+
+		Vertices.Add(FVector(-1, -1,  1) / 2); // 0
+		Vertices.Add(FVector(-1,  1,  1) / 2); // 1
+		Vertices.Add(FVector(-1,  1, -1) / 2); // 2
+		Vertices.Add(FVector(-1, -1, -1) / 2); // 3
+		Vertices.Add(FVector( 1, -1,  1) / 2); // 4
+		Vertices.Add(FVector( 1, -1, -1) / 2); // 5
+		Vertices.Add(FVector( 1,  1,  1) / 2); // 6
+		Vertices.Add(FVector( 1,  1, -1) / 2); // 7
+
+		// Colors
+		{
+			const FLinearColor Color(FVector(1, 0, 1));
+
+			for (int32 VertexIdx = BaseIndex; VertexIdx < Vertices.Num(); ++VertexIdx)
+			{
+				VertexColors.Add(Color);
+			}
+		}
+
+		// Apply scale and translate to point location.
+		for (int32 VertexIdx = BaseIndex; VertexIdx < Vertices.Num(); ++VertexIdx)
+		{
+			Vertices[VertexIdx] = Location + PointVisualizationScale * Vertices[VertexIdx];
+		}
+
+		// Triangles (CCW when looking at face)
+
+		// Front
+		Triangles.Add(BaseIndex + 0); Triangles.Add(BaseIndex + 3); Triangles.Add(BaseIndex + 2);
+		Triangles.Add(BaseIndex + 0); Triangles.Add(BaseIndex + 2); Triangles.Add(BaseIndex + 1);
+
+		// Left
+		Triangles.Add(BaseIndex + 4); Triangles.Add(BaseIndex + 3); Triangles.Add(BaseIndex + 0);
+		Triangles.Add(BaseIndex + 4); Triangles.Add(BaseIndex + 5); Triangles.Add(BaseIndex + 3);
+		
+		// Right
+		Triangles.Add(BaseIndex + 1); Triangles.Add(BaseIndex + 7); Triangles.Add(BaseIndex + 6);
+		Triangles.Add(BaseIndex + 1); Triangles.Add(BaseIndex + 2); Triangles.Add(BaseIndex + 7);
+		
+		// Back
+		Triangles.Add(BaseIndex + 6); Triangles.Add(BaseIndex + 5); Triangles.Add(BaseIndex + 4);
+		Triangles.Add(BaseIndex + 6); Triangles.Add(BaseIndex + 7); Triangles.Add(BaseIndex + 5);
+
+		// Top
+		Triangles.Add(BaseIndex + 4); Triangles.Add(BaseIndex + 1); Triangles.Add(BaseIndex + 6);
+		Triangles.Add(BaseIndex + 4); Triangles.Add(BaseIndex + 0); Triangles.Add(BaseIndex + 1);
+		
+		// Bottom
+		Triangles.Add(BaseIndex + 3); Triangles.Add(BaseIndex + 7); Triangles.Add(BaseIndex + 2);
+		Triangles.Add(BaseIndex + 3); Triangles.Add(BaseIndex + 5); Triangles.Add(BaseIndex + 7);
+	};
+
+	auto AddMeshForPoint = [&](const FVector& Location)
+	{
+		switch (VisualizationShape)
+		{
+		case CalibrationPointVisualizationCube:
+			AddCubeMeshForPoint(Location);
+			break;
+
+		case CalibrationPointVisualizationPyramid:
+			AddPyramidMeshForPoint(Location);
+			break;
+
+		default:
+			break;
 		}
 	};
 

@@ -28,7 +28,8 @@ public class OpenCVHelper: ModuleRules
 				"CoreUObject",
 				"Engine",
                 "Projects",
-                "OpenCV"
+                "OpenCV",
+				"RHI",
             }
         );
 	}
