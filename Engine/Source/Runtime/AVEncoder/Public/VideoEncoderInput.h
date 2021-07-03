@@ -10,6 +10,10 @@
 #include "CudaModule.h"
 #endif
 
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
+#include "vulkan/vulkan_core.h"
+#endif
+
 #if PLATFORM_WINDOWS
 struct ID3D11Device;
 struct ID3D11Texture2D;
@@ -17,12 +21,6 @@ struct ID3D12Device;
 struct ID3D12Resource;
 #endif
 
-// vulkan forward declaration
-struct VkImage_T;
-struct VkDeviceMemory_T;
-struct VkInstance_T;
-struct VkPhysicalDevice_T;
-struct VkDevice_T;
 
 namespace amf {
 	struct AMFVulkanSurface;
@@ -32,12 +30,14 @@ namespace AVEncoder
 {
 	class FVideoEncoderInputFrame;
 
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
 	struct FVulkanDataStruct
 	{
-		void* VulkanInstance = nullptr;
-		void* VulkanPhysicalDevice = nullptr;
-		void* VulkanDevice = nullptr;
+		VkInstance VulkanInstance;
+		VkPhysicalDevice VulkanPhysicalDevice;
+		VkDevice VulkanDevice;
 	};
+#endif
 
 	class AVENCODER_API FVideoEncoderInput
 	{
@@ -101,7 +101,7 @@ namespace AVEncoder
 		virtual CUcontext GetCUDAEncoderContext() const = 0;
 	#endif
 
-	#if PLATFORM_WINDOWS || PLATFORM_LINUX
+	#if PLATFORM_DESKTOP && !PLATFORM_APPLE
 		virtual void* GetVulkanEncoderDevice() const = 0;
 	#endif
 
@@ -229,27 +229,27 @@ namespace AVEncoder
 
 #endif // WITH_CUDA
 
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
 		// --- Vulkan
 		struct FVulkan
 		{
-			VkImage_T*				EncoderTexture = nullptr;
-			VkDeviceMemory_T*		EncoderDeviceMemory = nullptr;
-			uint64					EncoderMemorySize = 0;
-			VkDevice_T*				EncoderDevice = nullptr;
-			mutable void*			EncoderSurface = nullptr;
+			VkImage				EncoderTexture;
+			VkDeviceMemory		EncoderDeviceMemory;
+			uint64				EncoderMemorySize = 0;
+			VkDevice			EncoderDevice;
+			mutable void*		EncoderSurface = nullptr;
 		};
 
 		const FVulkan& GetVulkan() const { return Vulkan; }
 		FVulkan& GetVulkan() { return Vulkan; }
 
 		// the callback type used to create a registered encoder
-		using FReleaseVulkanTextureCallback = TFunction<void(VkImage_T*)>;
+		using FReleaseVulkanTextureCallback = TFunction<void(VkImage)>;
 		using FReleaseVulkanSurfaceCallback = TFunction<void(void*)>;
 		mutable FReleaseVulkanSurfaceCallback OnReleaseVulkanSurface;
 
-#if PLATFORM_WINDOWS || PLATFORM_LINUX
-		void SetTexture(VkImage_T* InTexture, FReleaseVulkanTextureCallback InOnReleaseTexture);
-		void SetTexture(VkImage_T* InTexture, VkDeviceMemory_T* InTextureDeviceMemory, uint64 InTextureSize, FReleaseVulkanTextureCallback InOnReleaseTexture);
+		void SetTexture(VkImage InTexture, FReleaseVulkanTextureCallback InOnReleaseTexture);
+		void SetTexture(VkImage InTexture, VkDeviceMemory InTextureDeviceMemory, uint64 InTextureSize, FReleaseVulkanTextureCallback InOnReleaseTexture);
 #endif
 
 	protected:
@@ -279,8 +279,10 @@ namespace AVEncoder
 		FReleaseCUDATextureCallback				OnReleaseCUDATexture;
 #endif
 
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
 		FVulkan									Vulkan;
 		FReleaseVulkanTextureCallback			OnReleaseVulkanTexture;
+#endif
 	};
 
 

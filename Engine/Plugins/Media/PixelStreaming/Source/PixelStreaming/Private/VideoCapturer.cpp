@@ -255,7 +255,7 @@ AVEncoder::FVideoEncoderInputFrame* FVideoCapturer::ObtainInputFrame()
 				FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV, ERHIAccess::Present, CreateInfo);
 				FVulkanTexture2D* VulkanTexture = static_cast<FVulkanTexture2D*>(Texture.GetReference());
 				
-				InputFrame->SetTexture(VulkanTexture->Surface.Image, [&](VkImage_T* NativeTexture) { BackBuffers.Remove(InputFrame); });
+				InputFrame->SetTexture(VulkanTexture->Surface.Image, [&](VkImage NativeTexture) { BackBuffers.Remove(InputFrame); });
 
 				BackBuffers.Add(InputFrame, Texture);
 			}

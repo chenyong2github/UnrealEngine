@@ -127,11 +127,12 @@ TUniquePtr<FVideoEncoder> FVideoEncoderFactory::Create(uint32 InID, const FVideo
 				}
 				break;
 			}
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
 			else if (RHIName == TEXT("Vulkan"))
 			{
-				AVEncoder::FVulkanDataStruct VulkanData = {	static_cast<VkInstance_T*>(GDynamicRHI->RHIGetNativeInstance()), 
-															static_cast<VkPhysicalDevice_T*>(GDynamicRHI->RHIGetNativePhysicalDevice()), 
-															static_cast<VkDevice_T*>(GDynamicRHI->RHIGetNativeDevice())};
+				AVEncoder::FVulkanDataStruct VulkanData = {	static_cast<VkInstance>(GDynamicRHI->RHIGetNativeInstance()), 
+															static_cast<VkPhysicalDevice>(GDynamicRHI->RHIGetNativePhysicalDevice()), 
+															static_cast<VkDevice>(GDynamicRHI->RHIGetNativeDevice())};
 
 				TSharedRef<FVideoEncoderInput> Input = FVideoEncoderInput::CreateForVulkan( &VulkanData, config.Width, config.Height, true).ToSharedRef();
 				
@@ -141,6 +142,7 @@ TUniquePtr<FVideoEncoder> FVideoEncoderFactory::Create(uint32 InID, const FVideo
 				}
 				break;
 			}
+#endif
 		}
 	}
 	return Result;

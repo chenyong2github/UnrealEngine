@@ -496,7 +496,7 @@ namespace AVEncoder
 		return true;
 	}
 
-	amf::AMFVulkanSurface* CreateVulkanSurface(VkImage_T* Image, VkDeviceMemory_T* DeviceMemory, EVideoFrameFormat Format, uint32 Size, uint32 Width, uint32 Height)
+	amf::AMFVulkanSurface* CreateVulkanSurface(VkImage Image, VkDeviceMemory DeviceMemory, EVideoFrameFormat Format, uint32 Size, uint32 Width, uint32 Height)
 	{
 		amf_int32 pixelFormat = 0;
 		int pixelSize = 0;

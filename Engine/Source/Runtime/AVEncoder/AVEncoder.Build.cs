@@ -48,6 +48,8 @@ public class AVEncoder : ModuleRules
 
 			PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private"));
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
+
+			PublicIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/ThirdParty/Vulkan/Include"));
 		}
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
@@ -64,14 +66,11 @@ public class AVEncoder : ModuleRules
 					"mfplat.lib",
 					"mfuuid.lib"
 				});
-				
-				// PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private/Windows"));
 			}
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
 			PrivateDependencyModuleNames.Add("CUDA");
-			// PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private/Linux"));
 		}
 
 		// TEMPORARY: set this to zero for all platforms until CUDA TPS review clears

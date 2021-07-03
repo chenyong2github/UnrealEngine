@@ -16,10 +16,6 @@
 struct ID3D11DeviceContext;
 #endif
 
-struct VkInstance_T;
-struct VkPhysicalDevice_T;
-struct VkDevice_T;
-
 namespace AVEncoder
 {
 class FVideoEncoderInputFrameImpl;
@@ -54,9 +50,11 @@ public:
 
 	// set up an encoder that encodes a CUArray in a CUDA context
 	bool SetupForCUDA(void* InApplicationContext, uint32 InWidth, uint32 InHeight);
-
+	
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
 	// set up an encoder that encodes a VkImage in the context of a VkDevice
-	bool SetupForVulkan(VkInstance_T* InApplicationVulkanInstance, VkPhysicalDevice_T* InApplicationVulkanPhysicalDevice, VkDevice_T* InApplicationVulkanDevice, uint32 InWidth, uint32 InHeight);
+	bool SetupForVulkan(VkInstance InApplicationVulkanInstance, VkPhysicalDevice InApplicationVulkanPhysicalDevice, VkDevice InApplicationVulkanDevice, uint32 InWidth, uint32 InHeight);
+#endif
 
 	// --- available encoders
 
@@ -92,7 +90,7 @@ public:
 	CUcontext GetCUDAEncoderContext() const override;
 #endif
 
-#if PLATFORM_WINDOWS || PLATFORM_LINUX
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
 	void* GetVulkanEncoderDevice() const override;
 #endif
 
@@ -137,7 +135,9 @@ private:
 	}								FrameInfoCUDA;
 #endif
 
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
 	FVulkanDataStruct				FrameInfoVulkan;
+#endif
 
 	mutable FCriticalSection				ProtectFrames;
 	TQueue<FVideoEncoderInputFrameImpl*>	AvailableFrames;

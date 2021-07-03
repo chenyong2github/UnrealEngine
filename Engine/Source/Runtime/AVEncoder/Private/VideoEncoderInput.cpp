@@ -7,7 +7,7 @@
 #include "AVEncoderDebug.h"
 #include "Misc/Paths.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_LINUX
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
 #include "VulkanRHIBridge.h"
 #endif
 
@@ -116,6 +116,7 @@ TSharedPtr<FVideoEncoderInput> FVideoEncoderInput::CreateForCUDA(void* InApplica
 #endif
 }
 
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
 TSharedPtr<FVideoEncoderInput> FVideoEncoderInput::CreateForVulkan(void* InApplicationVulkanData, uint32 InWidth, uint32 InHeight, bool bIsResizable)
 {
 	TSharedPtr<FVideoEncoderInputImpl>	Input = MakeShared<FVideoEncoderInputImpl>();
@@ -123,15 +124,14 @@ TSharedPtr<FVideoEncoderInput> FVideoEncoderInput::CreateForVulkan(void* InAppli
 
 	FVulkanDataStruct* VulkanData = static_cast<FVulkanDataStruct*>(InApplicationVulkanData);
 
-	if (!Input->SetupForVulkan(	static_cast<VkInstance_T*>(VulkanData->VulkanInstance), 
-								static_cast<VkPhysicalDevice_T*>(VulkanData->VulkanPhysicalDevice), 
-								static_cast<VkDevice_T*>(VulkanData->VulkanDevice), InWidth, InHeight))
+	if (!Input->SetupForVulkan(	VulkanData->VulkanInstance, VulkanData->VulkanPhysicalDevice, VulkanData->VulkanDevice, InWidth, InHeight))
 	{
 		Input.Reset();
 	}
 
 	return Input;
 }
+#endif
 
 void FVideoEncoderInput::SetResolution(uint32 InWidth, uint32 InHeight)
 {
@@ -413,7 +413,8 @@ bool FVideoEncoderInputImpl::SetupForCUDA(void* InApplicationContext, uint32 InW
 	return false;
 }
 
-bool FVideoEncoderInputImpl::SetupForVulkan(VkInstance_T* InApplicationVulkanInstance, VkPhysicalDevice_T* InApplicationVulkanPhysicalDevice, VkDevice_T* InApplicationVulkanDevice, uint32 InWidth, uint32 InHeight)
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
+bool FVideoEncoderInputImpl::SetupForVulkan(VkInstance InApplicationVulkanInstance, VkPhysicalDevice InApplicationVulkanPhysicalDevice, VkDevice InApplicationVulkanDevice, uint32 InWidth, uint32 InHeight)
 {
 	FrameInfoVulkan.VulkanInstance = InApplicationVulkanInstance;
 	FrameInfoVulkan.VulkanPhysicalDevice = InApplicationVulkanPhysicalDevice;
@@ -426,6 +427,7 @@ bool FVideoEncoderInputImpl::SetupForVulkan(VkInstance_T* InApplicationVulkanIns
 	CollectAvailableEncoders();
 	return true;
 }
+#endif
 
 // --- available encoders -------------------------------------------------------------------------
 
@@ -636,13 +638,13 @@ void FVideoEncoderInputImpl::SetupFrameD3D12(FVideoEncoderInputFrameImpl* Frame)
 
 void FVideoEncoderInputImpl::SetupFrameVulkan(FVideoEncoderInputFrameImpl* Frame)
 {
-#if PLATFORM_WINDOWS
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
 	Frame->SetFormat(FrameFormat);
 	Frame->SetWidth(this->Width);
 	Frame->SetHeight(this->Height);
 
 	FVideoEncoderInputFrame::FVulkan& Data = Frame->GetVulkan();
-	Data.EncoderDevice = static_cast<VkDevice_T*>(FrameInfoVulkan.VulkanDevice);
+	Data.EncoderDevice = FrameInfoVulkan.VulkanDevice;
 #endif
 }
 
@@ -680,7 +682,7 @@ CUcontext FVideoEncoderInputImpl::GetCUDAEncoderContext() const
 
 #endif
 
-#if PLATFORM_WINDOWS || PLATFORM_LINUX
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
 void* FVideoEncoderInputImpl::GetVulkanEncoderDevice() const
 {
 	return (void*)&FrameInfoVulkan;
@@ -792,7 +794,8 @@ FVideoEncoderInputFrame::~FVideoEncoderInputFrame()
 		CUDA.EncoderTexture = nullptr;
 	}
 #endif
-	
+
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
 	if (Vulkan.EncoderTexture)
 	{
 		OnReleaseVulkanTexture(Vulkan.EncoderTexture);
@@ -802,6 +805,7 @@ FVideoEncoderInputFrame::~FVideoEncoderInputFrame()
 	{
 		OnReleaseVulkanSurface(Vulkan.EncoderSurface);
 	}
+#endif
 }
 
 void FVideoEncoderInputFrame::AllocateYUV420P()
@@ -952,8 +956,8 @@ void FVideoEncoderInputFrame::SetTexture(CUarray InTexture, FReleaseCUDATextureC
 #endif
 
 
-#if PLATFORM_WINDOWS || PLATFORM_LINUX
-void FVideoEncoderInputFrame::SetTexture(VkImage_T* InTexture, FReleaseVulkanTextureCallback InOnReleaseTexture)
+#if PLATFORM_DESKTOP && !PLATFORM_APPLE
+void FVideoEncoderInputFrame::SetTexture(VkImage InTexture, FReleaseVulkanTextureCallback InOnReleaseTexture)
 {
 	if (Format == EVideoFrameFormat::VULKAN_R8G8B8A8_UNORM)
 	{
@@ -966,7 +970,7 @@ void FVideoEncoderInputFrame::SetTexture(VkImage_T* InTexture, FReleaseVulkanTex
 	}
 }
 
-void FVideoEncoderInputFrame::SetTexture(VkImage_T* InTexture, VkDeviceMemory_T* InTextureDeviceMemory, uint64 InTextureMemorySize, FReleaseVulkanTextureCallback InOnReleaseTexture)
+void FVideoEncoderInputFrame::SetTexture(VkImage InTexture, VkDeviceMemory InTextureDeviceMemory, uint64 InTextureMemorySize, FReleaseVulkanTextureCallback InOnReleaseTexture)
 {
 	if (Format == EVideoFrameFormat::VULKAN_R8G8B8A8_UNORM)
 	{
