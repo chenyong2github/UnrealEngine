@@ -20,6 +20,8 @@ namespace Chaos
 	using FParticles = TParticles<FReal, 3>;
 }
 
+
+
 class CHAOS_API FCollisionStructureManager
 {
 public:
@@ -108,7 +110,8 @@ public:
 		const TArray<int32>& ConvexIndices,
 		const TManagedArray<TUniquePtr<Chaos::FConvex>>* ConvexGeometry,
 		const ECollisionTypeEnum CollisionType,
-		const FTransform& MassTransform);
+		const FTransform& MassTransform,
+		const Chaos::FReal CollisionMarginFraction);
 
 	static FImplicit* NewImplicitLevelset(
 		Chaos::FErrorReporter ErrorReporter,

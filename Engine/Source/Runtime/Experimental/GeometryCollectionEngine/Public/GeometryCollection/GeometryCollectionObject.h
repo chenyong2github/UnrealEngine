@@ -158,6 +158,14 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionCollisionTypeData
 	UPROPERTY(EditAnywhere, Category = "Collisions")
 	float CollisionObjectReductionPercentage;
 
+	/**
+	* A collision margin is a fraction of size used by some boxes and convex shapes to improve collision detection results.
+	* The core geometry of shapes that support a margin are reduced in size by the margin, and the margin
+	* is added back on during collision detection. The net result is a shape of the same size but with rounded corners.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Collisions", meta = (EditCondition = "ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Convex || ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Box", EditConditionHides))
+	float CollisionMarginFraction;
+
 };
 
 
