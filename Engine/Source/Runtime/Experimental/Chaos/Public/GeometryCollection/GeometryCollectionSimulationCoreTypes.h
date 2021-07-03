@@ -50,6 +50,7 @@ struct FCollectionCollisionTypeData
 		, LevelSetData()
 		, CollisionParticleData()
 		, CollisionObjectReductionPercentage(0.f)
+		, CollisionMarginFraction(0.1f)
 	{
 	}
 
@@ -58,6 +59,7 @@ struct FCollectionCollisionTypeData
 	FCollectionLevelSetData LevelSetData;
 	FCollectionCollisionParticleData CollisionParticleData;
 	float CollisionObjectReductionPercentage;
+	float CollisionMarginFraction;
 };
 
 struct FSharedSimulationSizeSpecificData
@@ -115,8 +117,9 @@ struct FSharedSimulationParameters
 		, float InMaximumBoundingExtentClamp
 		, float InMinimumInertiaTensorDiagonalClamp
 		, float InMaximumInertiaTensorDiagonalClamp
-		,float InCollisionParticlesFraction
-		,int32 InMaximumCollisionParticleCount)
+		, float InCollisionParticlesFraction
+		, int32 InMaximumCollisionParticleCount
+		, float InCollisionMarginFraction)
 	: bMassAsDensity(InMassAsDensity)
 	, Mass(InMass)
 	, MinimumMassClamp(InMinimumMassClamp)
@@ -132,6 +135,7 @@ struct FSharedSimulationParameters
 		{
 			SizeSpecificData[0].CollisionShapesData[0].CollisionType = InCollisionType;
 			SizeSpecificData[0].CollisionShapesData[0].ImplicitType = InImplicitType;
+			SizeSpecificData[0].CollisionShapesData[0].CollisionMarginFraction = InCollisionMarginFraction;
 			SizeSpecificData[0].CollisionShapesData[0].LevelSetData.MinLevelSetResolution = InMinLevelSetResolution;
 			SizeSpecificData[0].CollisionShapesData[0].LevelSetData.MaxLevelSetResolution = InMaxLevelSetResolution;
 			SizeSpecificData[0].CollisionShapesData[0].LevelSetData.MinClusterLevelSetResolution = InMinClusterLevelSetResolution;

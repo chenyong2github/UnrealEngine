@@ -2164,7 +2164,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 										(*TransformToConvexIndices)[TransformGroupIndex].Array(),
 										ConvexGeometry,
 										SizeSpecificData.CollisionShapesData[0].CollisionType,
-										CollectionMassToLocal[TransformGroupIndex]
+										CollectionMassToLocal[TransformGroupIndex],
+										(Chaos::FReal)SizeSpecificData.CollisionShapesData[0].CollisionMarginFraction
 									)
 							);
 						}
@@ -2446,8 +2447,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 									(*TransformToConvexIndices)[TransformGroupIndex].Array(),
 									ConvexGeometry,
 									SizeSpecificData.CollisionShapesData[0].CollisionType,
-									CollectionMassToLocal[TransformGroupIndex]
-								)
+									CollectionMassToLocal[TransformGroupIndex],
+									(Chaos::FReal)SizeSpecificData.CollisionShapesData[0].CollisionMarginFraction)
 							);
 						}
 					}
