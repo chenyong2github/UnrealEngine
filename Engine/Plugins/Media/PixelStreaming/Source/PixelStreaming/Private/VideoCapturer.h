@@ -3,6 +3,7 @@
 #pragma once
 
 #include "PixelStreamingPrivate.h"
+#include "WebRTCIncludes.h"
 #include "RHI.h"
 #include "VideoEncoderInput.h"
 

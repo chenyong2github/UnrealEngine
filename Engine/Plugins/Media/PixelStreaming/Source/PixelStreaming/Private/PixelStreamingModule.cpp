@@ -10,6 +10,8 @@
 #include "HUDStats.h"
 #include "PixelStreamingPrivate.h"
 #include "PixelStreamingSettings.h"
+#include "PlayerSession.h"
+#include "PixelStreamingAudioSink.h"
 #include "LatencyTester.h"
 
 #include "CoreMinimal.h"
@@ -419,6 +421,38 @@ void FPixelStreamingModule::Tick(float DeltaTime)
 TStatId FPixelStreamingModule::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FPixelStreamingModule, STATGROUP_Tickables);
+}
+
+FPixelStreamingAudioSink* FPixelStreamingModule::GetPeerAudioSink(FPlayerId PlayerId)
+{
+	if(!this->Streamer.IsValid())
+	{
+		return nullptr;
+	}
+	FPlayerSession* Session = this->Streamer->GetPlayerSession(PlayerId);
+
+	if(!Session)
+	{
+		return nullptr;
+	}
+
+	return &Session->GetAudioSink();
+}
+
+FPixelStreamingAudioSink* FPixelStreamingModule::GetUnlistenedAudioSink()
+{
+	if(!this->Streamer.IsValid())
+	{
+		return nullptr;
+	}
+	FPlayerSession* Session = this->Streamer->GetUnlistenedPlayerSession();
+
+	if(!Session)
+	{
+		return nullptr;
+	}
+
+	return &Session->GetAudioSink();
 }
 
 IMPLEMENT_MODULE(FPixelStreamingModule, PixelStreaming)

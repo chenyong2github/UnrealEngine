@@ -13,6 +13,7 @@ class FSceneViewport;
 class FStreamer;
 class UPixelStreamerInputComponent;
 class SWindow;
+class FPixelStreamingAudioSink;
 
 /**
  * This plugin allows the back buffer to be sent as a compressed video across
@@ -42,6 +43,8 @@ private:
 
 	void FreezeFrame(UTexture2D* Texture) override;
 	void UnfreezeFrame() override;
+	FPixelStreamingAudioSink* GetPeerAudioSink(FPlayerId PlayerId) override;
+	FPixelStreamingAudioSink* GetUnlistenedAudioSink() override;
 
 	// FTickableGameObject
 	bool IsTickableWhenPaused() const override;

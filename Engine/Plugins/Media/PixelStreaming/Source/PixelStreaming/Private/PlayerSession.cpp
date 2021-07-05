@@ -12,6 +12,10 @@
 #include "PixelStreamingVideoEncoder.h"
 #include "PixelStreamingSettings.h"
 #include "LatencyTester.h"
+#include "WebRTCIncludes.h"
+#include "Modules/ModuleManager.h"
+#include "Containers/UnrealString.h"
+#include "PixelStreamingAudioSink.h"
 #include <chrono>
 
 FPlayerSession::FPlayerSession(FStreamer& InStreamer, FPlayerId InPlayerId, bool bInOriginalQualityController)
@@ -49,6 +53,45 @@ void FPlayerSession::SetPeerConnection(const rtc::scoped_refptr<webrtc::PeerConn
 FPlayerId FPlayerSession::GetPlayerId() const
 {
 	return PlayerId;
+}
+
+void FPlayerSession::ModifyAudioTransceiverDirection()
+{
+	//virtual std::vector<rtc::scoped_refptr<RtpTransceiverInterface>>GetTransceivers()
+	std::vector<rtc::scoped_refptr<webrtc::RtpTransceiverInterface>> Transceivers = this->PeerConnection->GetTransceivers();
+	for(auto& Transceiver : Transceivers)
+	{
+		if(Transceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
+		{
+
+			bool bTransmitUEAudio = !PixelStreamingSettings::CVarPixelStreamingWebRTCDisableTransmitAudio.GetValueOnAnyThread();
+			bool bReceiveBrowserAudio = !PixelStreamingSettings::CVarPixelStreamingWebRTCDisableReceiveAudio.GetValueOnAnyThread();
+
+			// Determine the direction of the transceiver
+			webrtc::RtpTransceiverDirection AudioTransceiverDirection;
+			if(bTransmitUEAudio && bReceiveBrowserAudio)
+			{
+				AudioTransceiverDirection = webrtc::RtpTransceiverDirection::kSendRecv;
+			}
+			else if(bTransmitUEAudio)
+			{
+				AudioTransceiverDirection = webrtc::RtpTransceiverDirection::kSendOnly;
+			}
+			else if(bReceiveBrowserAudio)
+			{
+				AudioTransceiverDirection = webrtc::RtpTransceiverDirection::kRecvOnly;
+			}
+			else
+			{
+				AudioTransceiverDirection = webrtc::RtpTransceiverDirection::kInactive;
+			}
+
+			Transceiver->SetDirection(AudioTransceiverDirection);
+
+			
+
+		}
+	}
 }
 
 void FPlayerSession::OnOffer(TUniquePtr<webrtc::SessionDescriptionInterface> SDP)
@@ -140,9 +183,10 @@ void FPlayerSession::OnOffer(TUniquePtr<webrtc::SessionDescriptionInterface> SDP
 
 	auto OnSetRemoteDescriptionSuccess = [this, CreateAnswerObserver, OnCreateAnswerSuccess = MoveTemp(OnCreateAnswerSuccess)]()
 	{
+		// Note: these offer to receive at superseded now we are use transceivers to setup our peer connection media
 		int offer_to_receive_video = 0;
-		int offer_to_receive_audio = 0; // ToDo: Make CVar to receive browser audio.
-		bool voice_activity_detection = true;
+		int offer_to_receive_audio = PixelStreamingSettings::CVarPixelStreamingWebRTCDisableReceiveAudio.GetValueOnAnyThread() ? 0 : 1;
+		bool voice_activity_detection = false;
 		bool ice_restart = true;
 		bool use_rtp_mux = true;
 
@@ -154,6 +198,9 @@ void FPlayerSession::OnOffer(TUniquePtr<webrtc::SessionDescriptionInterface> SDP
 			use_rtp_mux
 		};
 		
+		// modify audio transceiver direction based on CVars just before creating answer
+		this->ModifyAudioTransceiverDirection();
+
 		PeerConnection->CreateAnswer(CreateAnswerObserver, AnswerOption);
 	};
 
@@ -186,6 +233,11 @@ void FPlayerSession::DisconnectPlayer(const FString& Reason)
 
 	bDisconnecting = true;
 	Streamer.GetSignallingServerConnection()->SendDisconnectPlayer(PlayerId, Reason);
+}
+
+FPixelStreamingAudioSink& FPlayerSession::GetAudioSink()
+{
+	return this->AudioSink;
 }
 
 bool FPlayerSession::IsOriginalQualityController() const
@@ -443,6 +495,24 @@ void FPlayerSession::OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface>
 			break;
 	}
 
+
+	rtc::scoped_refptr<webrtc::RtpReceiverInterface> Receiver = transceiver->receiver();
+	if(mediaType != cricket::MediaType::MEDIA_TYPE_AUDIO)
+	{
+		return;
+	}
+
+	rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> MediaStreamTrack = Receiver->track();
+	FString TrackEnabledStr = MediaStreamTrack->enabled() ? FString("Enabled") : FString("Disabled");
+	FString TrackStateStr = MediaStreamTrack->state() == webrtc::MediaStreamTrackInterface::TrackState::kLive ? FString("Live") : FString("Ended");
+	UE_LOG(PixelStreamer, Log, TEXT("MediaStreamTrack id: %s | Is enabled: %s | State: %s"), *FString(MediaStreamTrack->id().c_str()), *TrackEnabledStr, *TrackStateStr);
+
+	webrtc::AudioTrackInterface* AudioTrack = static_cast<webrtc::AudioTrackInterface*>(MediaStreamTrack.get());
+	webrtc::AudioSourceInterface* AudioSource = AudioTrack->GetSource();
+	FString AudioSourceStateStr = AudioSource->state() == webrtc::MediaSourceInterface::SourceState::kLive ? FString("Live") : FString("Not live");
+	FString AudioSourceRemoteStr = AudioSource->remote() ? FString("Remote") : FString("Local");
+	UE_LOG(PixelStreamer, Log, TEXT("AudioSource | State: %s | Locality: %s"), *AudioSourceStateStr, *AudioSourceRemoteStr);
+	AudioSource->AddSink(&this->AudioSink);
 }
 
 void FPlayerSession::OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver)

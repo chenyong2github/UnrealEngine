@@ -93,6 +93,12 @@ namespace PixelStreamingSettings
 		TEXT("Maximum fps WebRTC will try to request. Default: 60"),
 		ECVF_Default);
 
+	TAutoConsoleVariable<int32> CVarPixelStreamingWebRTCStartBitrate(
+		TEXT("PixelStreaming.WebRTC.StartBitrate"),
+		10000000,
+		TEXT("Start bitrate (bps) that WebRTC will try begin the stream with. Must be between Min/Max bitrates. Default: 10000000"),
+		ECVF_RenderThreadSafe);
+
 	TAutoConsoleVariable<int32> CVarPixelStreamingWebRTCMinBitrate(
 		TEXT("PixelStreaming.WebRTC.MinBitrate"),
 		100000,
@@ -108,13 +114,37 @@ namespace PixelStreamingSettings
 	TAutoConsoleVariable<int> CVarPixelStreamingWebRTCLowQpThreshold(
 		TEXT("PixelStreaming.WebRTC.LowQpThreshold"),
 		25,
-		TEXT("Only useful when MinQP=-1. If WebRTC is getting frames below this QP it will try to increase resolution when not in MAINTAIN_RESOLUTION mode."),
+		TEXT("Only useful when MinQP=-1. Value between 1-51 (default: 25). If WebRTC is getting frames below this QP it will try to increase resolution when not in MAINTAIN_RESOLUTION mode."),
 		ECVF_Default);
 
 	TAutoConsoleVariable<int> CVarPixelStreamingWebRTCHighQpThreshold(
 		TEXT("PixelStreaming.WebRTC.HighQpThreshold"),
 		37,
-		TEXT("Only useful when MinQP=-1. If WebRTC is getting frames above this QP it will decrease resolution when not in MAINTAIN_RESOLUTION mode."),
+		TEXT("Only useful when MinQP=-1. Value between 1-51 (default: 37). If WebRTC is getting frames above this QP it will decrease resolution when not in MAINTAIN_RESOLUTION mode."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableReceiveAudio(
+		TEXT("PixelStreaming.WebRTC.DisableReceiveAudio"),
+		false,
+		TEXT("Disables receiving audio from the browser into UE."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableTransmitAudio(
+		TEXT("PixelStreaming.WebRTC.DisableTransmitAudio"),
+		false,
+		TEXT("Disables transmission of UE audio to the browser."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableAudioSync(
+		TEXT("PixelStreaming.WebRTC.DisableAudioSync"),
+		false,
+		TEXT("Disables the synchronization of audio and video tracks in WebRTC. This can be useful in low latency usecases where synchronization is not required."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCUseLegacyAudioDevice(
+		TEXT("PixelStreaming.WebRTC.UseLegacyAudioDevice"),
+		false,
+		TEXT("Whether put audio and video in the same stream (which will make WebRTC try to sync them)."),
 		ECVF_Default);
 
 // End WebRTC CVars
@@ -235,29 +265,36 @@ void CommandLineParseOption(const TCHAR* Match, TAutoConsoleVariable<bool>& CVar
 UPixelStreamingSettings::UPixelStreamingSettings(const FObjectInitializer& ObjectInitlaizer)
 	: Super(ObjectInitlaizer)
 {
+
+	// Values parse from commands line
 	CommandLineParseValue(TEXT("PixelStreamingEncoderTargetBitrate="), PixelStreamingSettings::CVarPixelStreamingEncoderTargetBitrate);
 	CommandLineParseValue(TEXT("PixelStreamingEncoderMaxBitrate="), PixelStreamingSettings::CVarPixelStreamingEncoderMaxBitrate);
-	CommandLineParseOption(TEXT("PixelStreamingDebugDumpFrame"), PixelStreamingSettings::CVarPixelStreamingDebugDumpFrame);
 	CommandLineParseValue(TEXT("PixelStreamingEncoderMinQP="), PixelStreamingSettings::CVarPixelStreamingEncoderMinQP);
 	CommandLineParseValue(TEXT("PixelStreamingEncoderMaxQP="), PixelStreamingSettings::CVarPixelStreamingEncoderMaxQP);
 	CommandLineParseValue(TEXT("PixelStreamingEncoderRateControl="), PixelStreamingSettings::CVarPixelStreamingEncoderRateControl);
-	CommandLineParseOption(TEXT("PixelStreamingEnableFillerData"), PixelStreamingSettings::CVarPixelStreamingEnableFillerData);
 	CommandLineParseValue(TEXT("PixelStreamingEncoderMultipass="), PixelStreamingSettings::CVarPixelStreamingEncoderMultipass);
 	CommandLineParseValue(TEXT("PixelStreamingH264Profile="), PixelStreamingSettings::CVarPixelStreamingH264Profile);
-
 	CommandLineParseValue(TEXT("PixelStreamingUseBackBufferCaptureSize="), PixelStreamingSettings::CVarPixelStreamingUseBackBufferCaptureSize);
 	CommandLineParseValue(TEXT("PixelStreamingCaptureSize="), PixelStreamingSettings::CVarPixelStreamingCaptureSize);
-
 	CommandLineParseValue(TEXT("PixelStreamingDegradationPreference="), PixelStreamingSettings::CVarPixelStreamingDegradationPreference);
 	CommandLineParseValue(TEXT("PixelStreamingWebRTCMaxFps="), PixelStreamingSettings::CVarPixelStreamingWebRTCMaxFps);
+	CommandLineParseValue(TEXT("PixelStreamingWebRTCStartBitrate="), PixelStreamingSettings::CVarPixelStreamingWebRTCStartBitrate);
 	CommandLineParseValue(TEXT("PixelStreamingWebRTCMinBitrate="), PixelStreamingSettings::CVarPixelStreamingWebRTCMinBitrate);
 	CommandLineParseValue(TEXT("PixelStreamingWebRTCMaxBitrate="), PixelStreamingSettings::CVarPixelStreamingWebRTCMaxBitrate);
 	CommandLineParseValue(TEXT("PixelStreamingWebRTCLowQpThreshold="), PixelStreamingSettings::CVarPixelStreamingWebRTCLowQpThreshold);
 	CommandLineParseValue(TEXT("PixelStreamingWebRTCHighQpThreshold="), PixelStreamingSettings::CVarPixelStreamingWebRTCHighQpThreshold);
-
-	CommandLineParseOption(TEXT("PixelStreamingHudStats"), PixelStreamingSettings::CVarPixelStreamingHudStats);
 	CommandLineParseValue(TEXT("FreezeFrameQuality="), PixelStreamingSettings::CVarFreezeFrameQuality);
-	CommandLineParseOption(TEXT("PixelStreamingSendPlayerIdAsInteger="), PixelStreamingSettings::CVarSendPlayerIdAsInteger);
+
+	// Options parse (if these exist they are set to true)
+	CommandLineParseOption(TEXT("PixelStreamingHudStats"), PixelStreamingSettings::CVarPixelStreamingHudStats);
+	CommandLineParseOption(TEXT("PixelStreamingDebugDumpFrame"), PixelStreamingSettings::CVarPixelStreamingDebugDumpFrame);
+	CommandLineParseOption(TEXT("PixelStreamingEnableFillerData"), PixelStreamingSettings::CVarPixelStreamingEnableFillerData);
+	CommandLineParseOption(TEXT("PixelStreamingWebRTCDisableReceiveAudio"), PixelStreamingSettings::CVarPixelStreamingWebRTCDisableReceiveAudio);
+	CommandLineParseOption(TEXT("PixelStreamingWebRTCDisableTransmitAudio"), PixelStreamingSettings::CVarPixelStreamingWebRTCDisableTransmitAudio);
+	CommandLineParseOption(TEXT("PixelStreamingWebRTCDisableAudioSync"), PixelStreamingSettings::CVarPixelStreamingWebRTCDisableAudioSync);
+	CommandLineParseOption(TEXT("PixelStreamingSendPlayerIdAsInteger"), PixelStreamingSettings::CVarSendPlayerIdAsInteger);
+	CommandLineParseOption(TEXT("PixelStreamingWebRTCUseLegacyAudioDevice"), PixelStreamingSettings::CVarPixelStreamingWebRTCUseLegacyAudioDevice);
+
 }
 
 FName UPixelStreamingSettings::GetCategoryName() const

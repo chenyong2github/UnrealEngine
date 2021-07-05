@@ -32,21 +32,40 @@
 
 
 		//If this is true in Chrome 89+ SDP is sent that is incompatible with UE WebRTC and breaks.
+        // Note: 4.27 Pixel Streaming does not need this set to false as it support `offerExtmapAllowMixed`
+        // Uncomment for old versions of Pixel Streaming though.
         //this.cfg.offerExtmapAllowMixed = false;
+
         this.pcClient = null;
         this.dcClient = null;
         this.tnClient = null;
 
         this.sdpConstraints = {
           offerToReceiveAudio: 1, //Note: if you don't need audio you can get improved latency by turning this off.
-          offerToReceiveVideo: 1
+          offerToReceiveVideo: 1,
+          voiceActivityDetection: false
         };
 
         // See https://www.w3.org/TR/webrtc/#dom-rtcdatachannelinit for values
         this.dataChannelOptions = {ordered: true};
 
-        // ToDo: get this useMic from url string like ?useMic or similar
-        //this.useMic = false;
+        // To enable mic in browser use SSL/localhost and have ?useMic in the query string.
+        const urlParams = new URLSearchParams(window.location.search);
+        this.useMic = urlParams.has('useMic');
+        if(!this.useMic)
+        {
+            console.log("Microphone access is not enabled. Pass ?useMic in the url to enable it.");
+        }
+
+        // When ?useMic check for SSL or localhost
+        let isLocalhostConnection = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+        let isHttpsConnection = location.protocol === 'https:';
+        if(this.useMic && !isLocalhostConnection && !isHttpsConnection)
+        {
+            this.useMic = false;
+            console.error("Microphone access in the browser will not work if you are not on HTTPS or localhost. Disabling mic access.");
+            console.error("For testing you can enable HTTP microphone access Chrome by visiting chrome://flags/ and enabling 'unsafely-treat-insecure-origin-as-secure'");
+        }
 
         //**********************
         //Variables
@@ -54,39 +73,39 @@
         this.latencyTestTimings = 
         {
             TestStartTimeMs: null,
-            ReceiptTimeMs: null,
-            PreCaptureTimeMs: null,
-            PostCaptureTimeMs: null,
-            PreEncodeTimeMs: null,
-            PostEncodeTimeMs: null,
+            UEReceiptTimeMs: null,
+            UEPreCaptureTimeMs: null,
+            UEPostCaptureTimeMs: null,
+            UEPreEncodeTimeMs: null,
+            UEPostEncodeTimeMs: null,
             FrameDisplayTimeMs: null,
             Reset: function()
             {
                 this.TestStartTimeMs = null;
-                this.ReceiptTimeMs = null;
-                this.PreCaptureTimeMs = null;
-                this.PostCaptureTimeMs = null;
-                this.PreEncodeTimeMs = null;
-                this.PostEncodeTimeMs = null;
+                this.UEReceiptTimeMs = null;
+                this.UEPreCaptureTimeMs = null;
+                this.UEPostCaptureTimeMs = null;
+                this.UEPreEncodeTimeMs = null;
+                this.UEPostEncodeTimeMs = null;
                 this.FrameDisplayTimeMs = null;
             },
             HasAllTimings: function()
             {
                 return this.TestStartTimeMs && 
-                this.ReceiptTimeMs && 
-                this.PreCaptureTimeMs && 
-                this.PostCaptureTimeMs && 
-                this.PreEncodeTimeMs && 
-                this.PostEncodeTimeMs && 
+                this.UEReceiptTimeMs && 
+                this.UEPreCaptureTimeMs && 
+                this.UEPostCaptureTimeMs && 
+                this.UEPreEncodeTimeMs && 
+                this.UEPostEncodeTimeMs && 
                 this.FrameDisplayTimeMs;
             },
             SetUETimings: function(UETimings)
             {
-                this.ReceiptTimeMs = UETimings.ReceiptTimeMs;
-                this.PreCaptureTimeMs = UETimings.PreCaptureTimeMs;
-                this.PostCaptureTimeMs = UETimings.PostCaptureTimeMs;
-                this.PreEncodeTimeMs = UETimings.PreEncodeTimeMs;
-                this.PostEncodeTimeMs = UETimings.PostEncodeTimeMs;
+                this.UEReceiptTimeMs = UETimings.ReceiptTimeMs;
+                this.UEPreCaptureTimeMs = UETimings.PreCaptureTimeMs;
+                this.UEPostCaptureTimeMs = UETimings.PostCaptureTimeMs;
+                this.UEPreEncodeTimeMs = UETimings.PreEncodeTimeMs;
+                this.UEPostEncodeTimeMs = UETimings.PostEncodeTimeMs;
                 if(this.HasAllTimings())
                 {
                     this.OnAllLatencyTimingsReady(this);
@@ -113,6 +132,8 @@
 
             video.id = "streamingVideo";
             video.playsInline = true;
+            video.disablepictureinpicture = true;
+            video.muted = false;
 			
             video.addEventListener('loadedmetadata', function(e){
                 if(self.onVideoInitialised){
@@ -168,16 +189,37 @@
 			
 			if(e.track.kind == "audio")
 			{
-				return;
+                handleOnAudioTrack(e.streams[0]);
+                return;
 			}
-			
-            if (self.video.srcObject !== e.streams[0]) {
+            else(e.track.kind == "video" && self.video.srcObject !== e.streams[0])
+            {
                 self.video.srcObject = e.streams[0];
-				console.log('Set video stream from ontrack');
-				
+				console.log('Set video source from video track ontrack.');
+                return;
             }
 			
         };
+
+        handleOnAudioTrack = function(audioMediaStream)
+        {
+            // do nothing the video has the same media stream as the audio track we have here (they are linked)
+            if(self.video.srcObject == audioMediaStream)
+            {
+                return;
+            }
+            // video element has some other media stream that is not associated with this audio track
+            else if(self.video.srcObject && self.video.srcObject !== audioMediaStream)
+            {
+                // create a new audio element
+                let audioElem = document.createElement("Audio");
+                audioElem.autoplay = true;
+                audioElem.srcObject = audioMediaStream;
+                audioElem.play();
+                console.log('Created new audio element to play seperate audio stream.');
+            }
+
+        }
 
         setupDataChannel = function(pc, label, options) {
             try {
@@ -220,17 +262,27 @@
 
         handleCreateOffer = function (pc) {
             pc.createOffer(self.sdpConstraints).then(function (offer) {
+                
+                // Munging is where we modifying the sdp string to set parameters that are not exposed to the browser's WebRTC API
+                mungeSDPOffer(offer);
+
+                // Set our munged SDP on the local peer connection so it is "set" and will be send across
             	pc.setLocalDescription(offer);
             	if (self.onWebRtcOffer) {
-            		// (andriy): increase start bitrate from 300 kbps to 20 mbps and max bitrate from 2.5 mbps to 100 mbps
-                    // (100 mbps means we don't restrict encoder at all)
-                    // after we `setLocalDescription` because other browsers are not c happy to see google-specific config
-            		offer.sdp = offer.sdp.replace(/(a=fmtp:\d+ .*level-asymmetry-allowed=.*)\r\n/gm, "$1;x-google-start-bitrate=10000;x-google-max-bitrate=100000\r\n");
-                    //offer.sdp = offer.sdp.replace("http://www.webrtc.org/experiments/rtp-hdrext/playout-delay", "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay 0 0\r\na=name:playout-delay");
             		self.onWebRtcOffer(offer);
                 }
             },
             function () { console.warn("Couldn't create offer") });
+        }
+
+        mungeSDPOffer = function (offer) {
+
+            //offer.sdp = offer.sdp.replace("http://www.webrtc.org/experiments/rtp-hdrext/playout-delay", "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay 0 0\r\na=name:playout-delay");
+
+
+            // this indicate we support stereo (Chrome needs this)
+            offer.sdp = offer.sdp.replace('useinbandfec=1', 'useinbandfec=1;stereo=1;sprop-maxcapturerate=48000');
+
         }
         
         setupPeerConnection = function (pc) {
@@ -329,14 +381,42 @@
         };
 
         setupTracksToSendAsync = async function(pc){
-            const stream = await navigator.mediaDevices.getUserMedia({video: false, audio: false});
-            if(stream)
+            
+            // Setup a transceiver for getting UE video
+            pc.addTransceiver("video", { direction: "recvonly" });
+
+            // Setup a transceiver for sending mic audio to UE and receiving audio from UE
+            if(!self.useMic)
             {
-                for (const track of stream.getTracks()) {
-                    if(track.kind && track.kind == "audio")
-                    {
-                        pc.addTrack(track);
+                pc.addTransceiver("audio", { direction: "recvonly" });
+            }
+            else
+            {
+                let audioSendOptions = self.useMic ? 
+                {
+                    autoGainControl: false,
+                    channelCount: 1,
+                    echoCancellation: false,
+                    latency: 0,
+                    noiseSuppression: false,
+                    sampleRate: 16000,
+                    volume: 1.0
+                } : false;
+
+                // Note using mic on android chrome requires SSL or chrome://flags/ "unsafely-treat-insecure-origin-as-secure"
+                const stream = await navigator.mediaDevices.getUserMedia({video: false, audio: audioSendOptions});
+                if(stream)
+                {
+                    for (const track of stream.getTracks()) {
+                        if(track.kind && track.kind == "audio")
+                        {
+                            pc.addTransceiver(track, { direction: "sendrecv" });
+                        }
                     }
+                }
+                else
+                {
+                    pc.addTransceiver("audio", { direction: "recvonly" });
                 }
             }
         };
@@ -420,29 +500,19 @@
             }
             self.pcClient = new RTCPeerConnection(self.cfg);
 
-            setupPeerConnection(self.pcClient);
-            
-            // At this stage Pixel Streaming does not support transmission of any audio/video from browser, so indicate recvonly
-            self.videoTransceiver = self.pcClient.addTransceiver("audio", { direction: "recvonly" });
-            self.audioTransceiver = self.pcClient.addTransceiver("video", { direction: "recvonly" });
-
-            
-            self.dcClient = setupDataChannel(self.pcClient, 'cirrus', self.dataChannelOptions);
-            handleCreateOffer(self.pcClient);
-
-            //if we were going to support browser sending mic/video into UE
-            // setupTracksToSendAsync(self.pcClient).finally(function()
-            // {
-            //     setupPeerConnection(self.pcClient);
-            //     self.dcClient = setupDataChannel(self.pcClient, 'cirrus', self.dataChannelOptions);
-            //     handleCreateOffer(self.pcClient);
-            // });
+            setupTracksToSendAsync(self.pcClient).finally(function()
+            {
+                setupPeerConnection(self.pcClient);
+                self.dcClient = setupDataChannel(self.pcClient, 'cirrus', self.dataChannelOptions);
+                handleCreateOffer(self.pcClient);
+            });
             
         };
 
         //Called externaly when an answer is received from the server
         this.receiveAnswer = function(answer) {
-            console.log(`Received answer:\n${answer}`);
+            console.log('Received answer:');
+            console.log(answer);
             var answerDesc = new RTCSessionDescription(answer);
             self.pcClient.setRemoteDescription(answerDesc);
 

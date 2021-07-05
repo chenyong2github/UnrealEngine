@@ -85,6 +85,7 @@ void FPixelStreamingVideoEncoderFactory::ReleaseVideoEncoder(FPixelStreamingVide
 	ActiveEncoders.Remove(encoder);
 	if (ActiveEncoders.Num() == 0 && EncoderContext.Encoder != nullptr)
 	{
+		EncoderContext.Encoder->ClearOnEncodedPacket();
 		EncoderContext.Encoder->Shutdown();
 		EncoderContext.Encoder = nullptr;
 	}

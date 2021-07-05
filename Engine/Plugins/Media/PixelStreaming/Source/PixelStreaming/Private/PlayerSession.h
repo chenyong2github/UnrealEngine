@@ -5,6 +5,7 @@
 #include "PixelStreamingPrivate.h"
 #include "ProtocolDefs.h"
 #include "HAL/ThreadSafeBool.h"
+#include "PixelStreamingAudioSink.h"
 #include "PlayerId.h"
 
 class FStreamer;
@@ -34,7 +35,10 @@ public:
 	bool IsQualityController() const;
 	void SetQualityController(bool bControlsQuality);
 
+
 	void SendKeyFrame();
+
+	FPixelStreamingAudioSink& GetAudioSink();
 
 	bool SendMessage(PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor) const;
 
@@ -44,6 +48,9 @@ public:
 	void SendInitialSettings() const;
 
 private:
+
+	void ModifyAudioTransceiverDirection();
+
 	//
 	// webrtc::PeerConnectionObserver implementation.
 	//
@@ -78,4 +85,5 @@ private:
 	rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel;
 	FThreadSafeBool bDisconnecting = false;
 	FInputDevice& InputDevice;
+	FPixelStreamingAudioSink AudioSink;
 };

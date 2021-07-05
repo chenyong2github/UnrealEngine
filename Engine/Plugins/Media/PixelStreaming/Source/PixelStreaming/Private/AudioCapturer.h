@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "PixelStreamingPrivate.h"
-
+#include "WebRTCIncludes.h"
 #include "AudioMixerDevice.h"
 #include "HAL/CriticalSection.h"
 
+// This class is only used if -PixelStreamingWebRTCUseLegacyAudioDevice or related CVar are used.
+// This class will likely be removed in the future once the new ADM is confirmed stable.
 class FAudioCapturer
 	: public webrtc::AudioDeviceModule
 	, public ISubmixBufferListener

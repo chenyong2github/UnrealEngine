@@ -2,16 +2,6 @@
 
 #pragma once
 
-#include "WebRTCIncludes.h"
-
-// TODO: Add back in when we implement decoder.
-// #if PLATFORM_WINDOWS || PLATFORM_XBOXONE
-// #include "WmfIncludes.h"
-// #endif
-
-
-#include "VideoEncoder.h"
-
 #include "HAL/IConsoleManager.h"
 #include "Logging/LogMacros.h"
 

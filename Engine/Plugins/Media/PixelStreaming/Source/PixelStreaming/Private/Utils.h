@@ -18,7 +18,7 @@
 #include "Policies/CondensedJsonPrintPolicy.h"
 #include "Serialization/JsonSerializer.h"
 #include "Templates/Atomic.h"
-
+#include "WebRTCIncludes.h"
 #include <string>
 
 #if PLATFORM_WINDOWS || PLATFORM_XBOXONE

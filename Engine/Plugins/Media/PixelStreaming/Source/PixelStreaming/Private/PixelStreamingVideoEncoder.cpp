@@ -234,17 +234,64 @@ bool FPixelStreamingVideoEncoder::IsRegisteredWithWebRTC()
 	return OnEncodedImageCallback != nullptr;
 }
 
-void FPixelStreamingVideoEncoder::CreateAVEncoder(TSharedPtr<AVEncoder::FVideoEncoderInput> encoderInput)
+void CreateH264FragmentHeader(uint8 const* CodedData, size_t CodedDataSize, webrtc::RTPFragmentationHeader& Fragments)
 {
-	// TODO: When we have multiple HW encoders do some factory checking and find the best encoder.
-	auto& Available = AVEncoder::FVideoEncoderFactory::Get().GetAvailable();
-
-	Context->Encoder = AVEncoder::FVideoEncoderFactory::Get().Create(Available[0].ID, encoderInput, EncoderConfig);
-	Context->Encoder->SetOnEncodedPacket([this](uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket) { OnEncodedPacket(InLayerIndex, InFrame, InPacket); });
+	// count the number of nal units
+	for (int pass = 0; pass < 2; ++pass)
+	{
+		size_t num_nal = 0;
+		size_t offset = 0;
+		while (offset < CodedDataSize)
+		{
+			// either a 0,0,1 or 0,0,0,1 sequence indicates a new 'nal'
+			size_t nal_maker_length = 3;
+			if (offset < (CodedDataSize - 3) && CodedData[offset] == 0 &&
+				CodedData[offset + 1] == 0 && CodedData[offset + 2] == 1)
+			{
+			}
+			else if (offset < (CodedDataSize - 4) && CodedData[offset] == 0 &&
+				CodedData[offset + 1] == 0 && CodedData[offset + 2] == 0 &&
+				CodedData[offset + 3] == 1)
+			{
+				nal_maker_length = 4;
+			}
+			else
+			{
+				++offset;
+				continue;
+			}
+			if (pass == 1)
+			{
+				Fragments.fragmentationOffset[num_nal] = offset + nal_maker_length;
+				Fragments.fragmentationLength[num_nal] = 0;
+				if (num_nal > 0)
+				{
+					Fragments.fragmentationLength[num_nal - 1] = offset - Fragments.fragmentationOffset[num_nal - 1];
+				}
+			}
+			offset += nal_maker_length;
+			++num_nal;
+		}
+		if (pass == 0)
+		{
+			Fragments.VerifyAndAllocateFragmentationHeader(num_nal);
+		}
+		else if (pass == 1 && num_nal > 0)
+		{
+			Fragments.fragmentationLength[num_nal - 1] = offset - Fragments.fragmentationOffset[num_nal - 1];
+		}
+	}
 }
 
-void FPixelStreamingVideoEncoder::OnEncodedPacket(uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket)
+//Note: this is a free function on purpose as it is not tied to the object life cycle of a given PixelStreamingVideoEncoder
+void OnEncodedPacket(FEncoderContext* Context, uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket)
 {
+	// During shutdown this can function can sometimes be called by a queued encode if timing is unfortunate and the context is null
+	if(Context == nullptr)
+	{
+		return;
+	}
+
 	webrtc::EncodedImage Image;
 
 	webrtc::RTPFragmentationHeader FragHeader;
@@ -305,51 +352,12 @@ void FPixelStreamingVideoEncoder::OnEncodedPacket(uint32 InLayerIndex, const AVE
 	}
 }
 
-void FPixelStreamingVideoEncoder::CreateH264FragmentHeader(uint8 const* CodedData, size_t CodedDataSize, webrtc::RTPFragmentationHeader& Fragments) const
+void FPixelStreamingVideoEncoder::CreateAVEncoder(TSharedPtr<AVEncoder::FVideoEncoderInput> encoderInput)
 {
-	// count the number of nal units
-	for (int pass = 0; pass < 2; ++pass)
-	{
-		size_t num_nal = 0;
-		size_t offset = 0;
-		while (offset < CodedDataSize)
-		{
-			// either a 0,0,1 or 0,0,0,1 sequence indicates a new 'nal'
-			size_t nal_maker_length = 3;
-			if (offset < (CodedDataSize - 3) && CodedData[offset] == 0 &&
-				CodedData[offset + 1] == 0 && CodedData[offset + 2] == 1)
-			{
-			}
-			else if (offset < (CodedDataSize - 4) && CodedData[offset] == 0 &&
-				CodedData[offset + 1] == 0 && CodedData[offset + 2] == 0 &&
-				CodedData[offset + 3] == 1)
-			{
-				nal_maker_length = 4;
-			}
-			else
-			{
-				++offset;
-				continue;
-			}
-			if (pass == 1)
-			{
-				Fragments.fragmentationOffset[num_nal] = offset + nal_maker_length;
-				Fragments.fragmentationLength[num_nal] = 0;
-				if (num_nal > 0)
-				{
-					Fragments.fragmentationLength[num_nal - 1] = offset - Fragments.fragmentationOffset[num_nal - 1];
-				}
-			}
-			offset += nal_maker_length;
-			++num_nal;
-		}
-		if (pass == 0)
-		{
-			Fragments.VerifyAndAllocateFragmentationHeader(num_nal);
-		}
-		else if (pass == 1 && num_nal > 0)
-		{
-			Fragments.fragmentationLength[num_nal - 1] = offset - Fragments.fragmentationOffset[num_nal - 1];
-		}
-	}
+	// TODO: When we have multiple HW encoders do some factory checking and find the best encoder.
+	auto& Available = AVEncoder::FVideoEncoderFactory::Get().GetAvailable();
+
+	Context->Encoder = AVEncoder::FVideoEncoderFactory::Get().Create(Available[0].ID, encoderInput, EncoderConfig);
+	FEncoderContext* ContextPtr = this->Context;
+	Context->Encoder->SetOnEncodedPacket([ContextPtr](uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket) { OnEncodedPacket(ContextPtr, InLayerIndex, InFrame, InPacket); });
 }

@@ -12,6 +12,7 @@
 class UTexture2D;
 class IMediaPlayer;
 class IMediaEventSink;
+class FPixelStreamingAudioSink;
 
 /**
 * The public interface to this module
@@ -28,7 +29,7 @@ public:
 	*/
 	static inline IPixelStreamingModule& Get()
 	{
-		return FModuleManager::LoadModuleChecked<IPixelStreamingModule>("PixelStreamer");
+		return FModuleManager::LoadModuleChecked<IPixelStreamingModule>("PixelStreaming");
 	}
 
 	/**
@@ -38,7 +39,7 @@ public:
 	*/
 	static inline bool IsAvailable()
 	{
-		return FModuleManager::Get().IsModuleLoaded("PixelStreamer");
+		return FModuleManager::Get().IsModuleLoaded("PixelStreaming");
 	}
 
 	/**
@@ -80,5 +81,16 @@ public:
 	 * Unfreeze Pixel Streaming.
 	 */
 	virtual void UnfreezeFrame() = 0;
+	
+	/**
+	 * Get the audio sink associated with a specific peer/player.
+	 */
+	virtual FPixelStreamingAudioSink* GetPeerAudioSink(FPlayerId PlayerId) = 0;
+
+	/**
+	 * Get an audio sink that has no peers/players listening to it.
+	 */
+	virtual FPixelStreamingAudioSink* GetUnlistenedAudioSink() = 0;
+
 };
 

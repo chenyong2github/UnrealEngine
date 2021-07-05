@@ -36,10 +36,15 @@ namespace PixelStreamingSettings
 // Begin WebRTC CVars
 	extern TAutoConsoleVariable<FString> CVarPixelStreamingDegradationPreference;
 	extern TAutoConsoleVariable<int32> CVarPixelStreamingWebRTCMaxFps;
+	extern TAutoConsoleVariable<int32> CVarPixelStreamingWebRTCStartBitrate;
 	extern TAutoConsoleVariable<int32> CVarPixelStreamingWebRTCMinBitrate;
 	extern TAutoConsoleVariable<int32> CVarPixelStreamingWebRTCMaxBitrate;
 	extern TAutoConsoleVariable<int> CVarPixelStreamingWebRTCLowQpThreshold;
 	extern TAutoConsoleVariable<int> CVarPixelStreamingWebRTCHighQpThreshold;
+	extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableReceiveAudio;
+	extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableTransmitAudio;
+	extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableAudioSync;
+	extern TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCUseLegacyAudioDevice;
 // End WebRTC CVars
 
 // Begin Pixel Streaming Plugin CVars

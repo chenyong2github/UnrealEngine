@@ -614,12 +614,12 @@ function onWebRtcAnswer(webRTCData) {
 	webRtcPlayerObj.latencyTestTimings.OnAllLatencyTimingsReady = function(timings)
 	{
 		let endToEndLatency = timings.FrameDisplayTimeMs - timings.TestStartTimeMs;
-		let browserToUELatency = timings.ReceiptTimeMs - timings.TestStartTimeMs;
-		let ueToDisplayLatency = timings.FrameDisplayTimeMs - timings.PreCaptureTimeMs;
-		let uePreCapture = timings.PreCaptureTimeMs - timings.ReceiptTimeMs;
-		let uePixelStreamLatency = timings.PostEncodeTimeMs - timings.PreCaptureTimeMs;
-		let captureLatency = timings.PostCaptureTimeMs - timings.PreCaptureTimeMs;
-		let encodeLatency = timings.PostEncodeTimeMs - timings.PreEncodeTimeMs;
+		let browserToUELatency = timings.UEReceiptTimeMs - timings.TestStartTimeMs;
+		let ueToDisplayLatency = timings.FrameDisplayTimeMs - timings.UEPreCaptureTimeMs;
+		let uePreCapture = timings.UEPreCaptureTimeMs - timings.UEReceiptTimeMs;
+		let uePixelStreamLatency = timings.UEPostEncodeTimeMs - timings.UEPreCaptureTimeMs;
+		let captureLatency = timings.UEPostCaptureTimeMs - timings.UEPreCaptureTimeMs;
+		let encodeLatency = timings.UEPostEncodeTimeMs - timings.UEPreEncodeTimeMs;
 		let browserSideLatency = endToEndLatency - uePreCapture - uePixelStreamLatency - (browserToUELatency * 2.0);
 		
 		let latencyStatsInnerHTML = '';

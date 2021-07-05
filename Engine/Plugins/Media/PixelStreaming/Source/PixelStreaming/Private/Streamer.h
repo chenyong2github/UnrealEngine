@@ -35,7 +35,12 @@ public:
 	// data coming from the engine
 	void OnFrameBufferReady(const FTexture2DRHIRef& FrameBuffer);
 
+	FPlayerSession* GetPlayerSession(FPlayerId PlayerId);
+	FPlayerSession* GetUnlistenedPlayerSession();
+
 private:
+	webrtc::AudioProcessing* SetupAudioProcessingModule();
+
 	// Procedure for WebRTC inter-thread communication
 	void StartWebRtcSignallingThread();
 	void ConnectToSignallingServer();
@@ -51,8 +56,9 @@ private:
 	void CreatePlayerSession(FPlayerId PlayerId);
 	void DeletePlayerSession(FPlayerId PlayerId);
 	void DeleteAllPlayerSessions();
-	FPlayerSession* GetPlayerSession(FPlayerId PlayerId);
 	void AddStreams(FPlayerId PlayerId);
+	void SetupVideoTrack(FPlayerSession* Session, FString const VideoStreamId, FString const VideoTrackLabel);
+	void SetupAudioTrack(FPlayerSession* Session, FString const AudioStreamId, FString const AudioTrackLabel);
 
 private:
 	FString SignallingServerUrl;
@@ -69,6 +75,7 @@ private:
 	FPixelStreamingVideoEncoderFactory* VideoEncoderFactory;
 	rtc::scoped_refptr<FVideoCapturer> VideoSource;
 	rtc::scoped_refptr<webrtc::AudioSourceInterface> AudioSource;
+	cricket::AudioOptions AudioSourceOptions;
 
 	TMap<FPlayerId, TUniquePtr<FPlayerSession>> Players;
 	// `Players` is modified only in WebRTC signalling thread, but can be accessed (along with contained `FPlayerSession` instances) 
