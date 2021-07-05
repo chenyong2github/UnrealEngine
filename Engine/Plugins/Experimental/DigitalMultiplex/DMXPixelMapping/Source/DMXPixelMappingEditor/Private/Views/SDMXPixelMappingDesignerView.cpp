@@ -438,22 +438,9 @@ FReply SDMXPixelMappingDesignerView::OnDragDetected(const FGeometry& MyGeometry,
 				}
 			}
 
-			if (!bIsChild)
+			if (!bIsChild && !Candidate->IsLockInDesigner())
 			{
-				// Make sure the component as well as its parent output components aren't lock in designer
-				bool bIsLockInDesigner = false;
-				for (UDMXPixelMappingOutputComponent* OutputComponent = Candidate; OutputComponent; OutputComponent = Cast<UDMXPixelMappingOutputComponent>(OutputComponent->GetParent()))
-				{
-					if (OutputComponent->IsLockInDesigner())
-					{
-						bIsLockInDesigner = true;
-					}
-				}
-
-				if (!bIsLockInDesigner)
-				{
-					DraggedComponents.Add(Candidate);
-				}
+				DraggedComponents.Add(Candidate);
 			}
 		}
 
@@ -1025,34 +1012,32 @@ void SDMXPixelMappingDesignerView::CreateExtensionWidgetsForSelection()
 	// Get the selected widgets as an array
 	const TArray<FDMXPixelMappingComponentReference>& Selected = GetSelectedComponents().Array();
 
-	// With the current implementation, only one component could be selected
-	if (!Selected.Num())
+	constexpr int32 NumSelectedItems = 1;
+	if (Selected.Num() == NumSelectedItems)
 	{
-		return;
-	}
+		if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(Selected[0].GetComponent()))
+		{
+			if (OutputComponent->IsVisible() &&	!OutputComponent->IsLockInDesigner())
+			{
+				// Add transform handles
+				constexpr float Offset = 10.f;
+				const TSharedPtr<SDMXPixelMappingDesignerView> Self = SharedThis(this);
+				TransformHandles.Add(SNew(SDMXPixelMappingTransformHandle, Self, EDMXPixelMappingTransformDirection::CenterRight, FVector2D(Offset, 0.f)));
+				TransformHandles.Add(SNew(SDMXPixelMappingTransformHandle, Self, EDMXPixelMappingTransformDirection::BottomCenter, FVector2D(0.f, Offset)));
+				TransformHandles.Add(SNew(SDMXPixelMappingTransformHandle, Self, EDMXPixelMappingTransformDirection::BottomRight, FVector2D(Offset, Offset)));
 
-	UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(Selected[0].GetComponent());
-	if (OutputComponent == nullptr)
-	{
-		return;
-	}
-
-	// Add transform handles
-	const float Offset = 10;
-	TSharedPtr<SDMXPixelMappingDesignerView> Self = SharedThis(this);
-	TransformHandles.Add(SNew(SDMXPixelMappingTransformHandle, Self, EDMXPixelMappingTransformDirection::CenterRight, FVector2D(Offset, 0)));
-	TransformHandles.Add(SNew(SDMXPixelMappingTransformHandle, Self, EDMXPixelMappingTransformDirection::BottomCenter, FVector2D(0, Offset)));
-	TransformHandles.Add(SNew(SDMXPixelMappingTransformHandle, Self, EDMXPixelMappingTransformDirection::BottomRight, FVector2D(Offset, Offset)));
-
-	// Add Widgets to designer surface
-	for (TSharedPtr<SDMXPixelMappingTransformHandle>& Handle : TransformHandles)
-	{
-		ExtensionWidgetCanvas->AddSlot()
-			.Position(TAttribute<FVector2D>::Create(TAttribute<FVector2D>::FGetter::CreateSP(this, &SDMXPixelMappingDesignerView::GetExtensionPosition, Handle)))
-			.Size(TAttribute<FVector2D>::Create(TAttribute<FVector2D>::FGetter::CreateSP(this, &SDMXPixelMappingDesignerView::GetExtensionSize, Handle)))
-			[
-				Handle.ToSharedRef()
-			];
+				// Add Widgets to designer surface
+				for (TSharedPtr<SDMXPixelMappingTransformHandle>& Handle : TransformHandles)
+				{
+					ExtensionWidgetCanvas->AddSlot()
+						.Position(TAttribute<FVector2D>::Create(TAttribute<FVector2D>::FGetter::CreateSP(this, &SDMXPixelMappingDesignerView::GetExtensionPosition, Handle)))
+						.Size(TAttribute<FVector2D>::Create(TAttribute<FVector2D>::FGetter::CreateSP(this, &SDMXPixelMappingDesignerView::GetExtensionSize, Handle)))
+						[
+							Handle.ToSharedRef()
+						];
+				}
+			}
+		}
 	}
 }
 

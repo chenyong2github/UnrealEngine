@@ -82,22 +82,15 @@ FReply SDMXPixelMappingTransformHandle::OnMouseButtonUp(const FGeometry& MyGeome
 		if (TSharedPtr<FDMXPixelMappingToolkit> Toolkit = DesignerViewWeakPtr.Pin()->GetToolkit())
 		{
 			const FDMXPixelMappingComponentReference& ComponentReference = DesignerViewWeakPtr.Pin()->GetSelectedComponent();
-			if (UDMXPixelMappingBaseComponent* ResizedComponent = ComponentReference.GetComponent())
+			if (UDMXPixelMappingOutputComponent* ResizedComponent = Cast<UDMXPixelMappingOutputComponent>(ComponentReference.GetComponent()))
 			{
-				constexpr bool bRecursive = true;
-				for(UDMXPixelMappingBaseComponent* ChildComponent : TArray<UDMXPixelMappingBaseComponent*>(ResizedComponent->Children))
+				if (ResizedComponent->HasValidParent() &&
+					!ResizedComponent->IsOverParent())
 				{
-					if (UDMXPixelMappingOutputComponent* ChildOuptputComponent = Cast<UDMXPixelMappingOutputComponent>(ChildComponent))
-					{
-						if (!ChildOuptputComponent->IsOverParent())
-						{
-							ChildOuptputComponent->SetFlags(RF_Transactional);
-							ChildOuptputComponent->Modify();
-							ResizedComponent->Modify();
+					ResizedComponent->SetFlags(RF_Transactional);
+					ResizedComponent->Modify();
 
-							ResizedComponent->RemoveChild(ChildOuptputComponent);
-						}
-					}
+					ResizedComponent->GetParent()->RemoveChild(ResizedComponent);
 				}
 			}
 		}

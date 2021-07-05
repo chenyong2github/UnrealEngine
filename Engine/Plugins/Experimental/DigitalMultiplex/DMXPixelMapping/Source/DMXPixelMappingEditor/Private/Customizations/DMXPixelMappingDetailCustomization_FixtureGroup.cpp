@@ -67,6 +67,10 @@ void FDMXPixelMappingDetailCustomization_FixtureGroup::CustomizeDetails(IDetailL
 						{
 							return GroupItemComponent->FixturePatchRef.GetFixturePatch() == FixturePatch;
 						}
+						else if (UDMXPixelMappingMatrixComponent*  MatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(BaseComponent))
+						{
+							return MatrixComponent->FixturePatchRef.GetFixturePatch() == FixturePatch;
+						}
 						return false;
 					});
 
