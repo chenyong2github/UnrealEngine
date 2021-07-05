@@ -21,13 +21,13 @@ FDMXInputPortConfigParams::FDMXInputPortConfigParams(const FDMXInputPortConfig& 
 	, ExternUniverseStart(InputPortConfig.GetExternUniverseStart())
 {}
 
+
+FDMXInputPortConfig::FDMXInputPortConfig()
+	: PortGuid(FGuid::NewGuid())
+{}
+
 FDMXInputPortConfig::FDMXInputPortConfig(const FGuid& InPortGuid)
-	: CommunicationType(EDMXCommunicationType::InternalOnly)
-	, DeviceAddress(TEXT("127.0.0.1"))
-	, LocalUniverseStart(1)
-	, NumUniverses(10)
-	, ExternUniverseStart(1)
-	, PortGuid(InPortGuid)
+	: PortGuid(InPortGuid)
 {
 	// Cannot create port configs before the protocol module is up (it is required to sanetize protocol names).
 	check(FModuleManager::Get().IsModuleLoaded("DMXProtocol"));
@@ -118,6 +118,19 @@ void FDMXInputPortConfig::MakeValid()
 			}
 		}
 	}
+}
+
+FString FDMXInputPortConfig::GetDeviceAddress() const
+{
+	// Allow to override the listener ip from commandline
+	const FString DMXInputPortCommandLine = FString::Printf(TEXT("dmxinputportip=%s:"), *PortName);
+	FString OverrideIP;
+	FParse::Value(FCommandLine::Get(), *DMXInputPortCommandLine, OverrideIP);
+	if (!OverrideIP.IsEmpty())
+	{
+		return OverrideIP;
+	}
+	return DeviceAddress;
 }
 
 void FDMXInputPortConfig::GenerateUniquePortName()

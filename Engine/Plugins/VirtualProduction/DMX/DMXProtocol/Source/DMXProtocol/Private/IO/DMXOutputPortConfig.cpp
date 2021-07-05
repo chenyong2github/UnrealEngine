@@ -24,16 +24,13 @@ FDMXOutputPortConfigParams::FDMXOutputPortConfigParams(const FDMXOutputPortConfi
 	, Priority(OutputPortConfig.GetPriority())
 {}
 
+
+FDMXOutputPortConfig::FDMXOutputPortConfig()
+	: PortGuid(FGuid::NewGuid())
+{}
+
 FDMXOutputPortConfig::FDMXOutputPortConfig(const FGuid& InPortGuid)
-	: CommunicationType(EDMXCommunicationType::InternalOnly)
-	, DeviceAddress(TEXT("127.0.0.1"))
-	, DestinationAddress(TEXT("None"))
-	, bLoopbackToEngine(true)
-	, LocalUniverseStart(1)
-	, NumUniverses(10)
-	, ExternUniverseStart(1)
-	, Priority(100)
-	, PortGuid(InPortGuid)
+	: PortGuid(InPortGuid)
 {
 	// Cannot create port configs before the protocol module is up (it is required to sanetize protocol names).
 	check(FModuleManager::Get().IsModuleLoaded("DMXProtocol"));
@@ -132,6 +129,19 @@ void FDMXOutputPortConfig::MakeValid()
 			}
 		}
 	}
+}
+
+FString FDMXOutputPortConfig::GetDeviceAddress() const
+{
+	// Allow to override the source ip from commandline
+	const FString DMXOutputPortCommandLine = FString::Printf(TEXT("dmxoutputportip=%s:"), *PortName);
+	FString OverrideIP;
+	FParse::Value(FCommandLine::Get(), *DMXOutputPortCommandLine, OverrideIP);
+	if (!OverrideIP.IsEmpty())
+	{
+		return OverrideIP;
+	}
+	return DeviceAddress;
 }
 
 void FDMXOutputPortConfig::GenerateUniquePortName()

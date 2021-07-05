@@ -157,27 +157,7 @@ void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 		(InputPortConfigStruct && InputPortConfigStruct == PropertyOwnerStruct) ||
 		(OutputPortConfigStruct && OutputPortConfigStruct == PropertyOwnerStruct))
 	{
-		if (PropertyChangedChainEvent.ChangeType == EPropertyChangeType::ArrayAdd)
-		{
-			// If a new config was added, create a guid for that. We cannot do that in the ctor because the engine
-			// expects identical default values for its structs, FGuid::NewGuid as a default doesn't work with that.
-			for (FDMXInputPortConfig& Config : InputPortConfigs)
-			{
-				if (!Config.GetPortGuid().IsValid())
-				{
-					Config = FDMXInputPortConfig(FGuid::NewGuid());
-				}
-			}
-
-			for (FDMXOutputPortConfig& Config : OutputPortConfigs)
-			{
-				if (!Config.GetPortGuid().IsValid())
-				{
-					Config = FDMXOutputPortConfig(FGuid::NewGuid());
-				}
-			}
-		}
-		else if (PropertyChangedChainEvent.ChangeType == EPropertyChangeType::Duplicate)
+		if (PropertyChangedChainEvent.ChangeType == EPropertyChangeType::Duplicate)
 		{
 			// When duplicating configs, the guid will be duplicated, so we have to create unique ones instead
 

@@ -45,7 +45,7 @@ struct DMXPROTOCOL_API FDMXOutputPortConfig
 
 public:
 	/** Default constructor, only for Default Objects */
-	FDMXOutputPortConfig() = default;
+	FDMXOutputPortConfig();
 
 	/** Constructs a config from the guid */
 	explicit FDMXOutputPortConfig(const FGuid & InPortGuid);
@@ -59,7 +59,7 @@ public:
 	FORCEINLINE const FString& GetPortName() const { return PortName; }
 	FORCEINLINE const FName& GetProtocolName() const { return ProtocolName; }
 	FORCEINLINE EDMXCommunicationType GetCommunicationType() const { return CommunicationType; }
-	FORCEINLINE const FString& GetDeviceAddress() const { return DeviceAddress; }
+	FString GetDeviceAddress() const;
 	FORCEINLINE const FString& GetDestinationAddress() const { return DestinationAddress; }
 	FORCEINLINE bool NeedsLoopbackToEngine() const { return bLoopbackToEngine; }
 	FORCEINLINE int32 GetLocalUniverseStart() const { return LocalUniverseStart; }
@@ -88,38 +88,38 @@ protected:
 
 	/** The type of communication used with this port */
 	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config")
-	EDMXCommunicationType CommunicationType;
+	EDMXCommunicationType CommunicationType = EDMXCommunicationType::InternalOnly;
 
 	/** The IP address of the network interface card over which outbound DMX is sent */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Network Interface Card IP Address"))
-	FString DeviceAddress;
+	FString DeviceAddress = TEXT("127.0.0.1");
 
 	/** For Unicast, the IP address outbound DMX is sent to */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Destination IP Address"))
-	FString DestinationAddress; 
+	FString DestinationAddress = TEXT("None");
 
 	/** If true, the signals of output to this port is input into to the engine. It will still show only under output ports and is not visible in Monitors as Input. */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Input into Engine"))
-	bool bLoopbackToEngine;
+	bool bLoopbackToEngine = true;
 
 	/** Local Start Universe */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
-	int32 LocalUniverseStart;
+	int32 LocalUniverseStart = 1;
 
 	/** Number of Universes */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Amount of Universes"))
-	int32 NumUniverses;
+	int32 NumUniverses = 10;
 
 	/** 
 	 * The start address this being transposed to. 
 	 * E.g. if LocalUniverseStart is 1 and this is 100, Local Universe 1 is sent/received as Universe 100.
 	 */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
-	int32 ExternUniverseStart;
+	int32 ExternUniverseStart = 1;
 
 	/** Priority on which packets are being sent */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
-	int32 Priority;
+	int32 Priority = 100;
 
 protected:
 	/** Generates a unique port name (unique for those stored in project settings) */
@@ -129,6 +129,6 @@ protected:
 	 * Unique identifier, shared with the port instance.
 	 * Note: This needs be BlueprintReadWrite to be accessible to property type customization, but is hidden by customization.
 	 */
-	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config Guid")
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config Guid", meta = (IgnoreForMemberInitializationTest))
 	FGuid PortGuid;
 };
