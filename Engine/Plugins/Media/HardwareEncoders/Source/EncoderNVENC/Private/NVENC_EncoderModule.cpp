@@ -19,7 +19,11 @@ public:
 
 		if (NVENC.GetIsAvailable())
 		{
+#if PLATFORM_LINUX && WITH_CUDA
+			FModuleManager::LoadModuleChecked<FCUDAModule>("CUDA").OnPostCUDAInit.AddLambda([]() {FVideoEncoderNVENC_H264::Register(FVideoEncoderFactory::Get());});
+#else
 			FCoreDelegates::OnPostEngineInit.AddLambda([]() {FVideoEncoderNVENC_H264::Register(FVideoEncoderFactory::Get());});
+#endif
 		}
 	}
 };

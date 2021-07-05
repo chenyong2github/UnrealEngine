@@ -166,18 +166,12 @@ void FPixelStreamingModule::StartupModule()
 		return;
 	}
 	else if( GDynamicRHI->GetName() == FString(TEXT("D3D11")) || 
-		   	 GDynamicRHI->GetName() == FString(TEXT("D3D12")) || (GDynamicRHI->GetName() == FString(TEXT("Vulkan")) && IsRHIDeviceAMD()))
+		   	 GDynamicRHI->GetName() == FString(TEXT("D3D12")) ||
+			 GDynamicRHI->GetName() == FString(TEXT("Vulkan")))
 	{
 		// By calling InitStreamer post engine init we can use pixel streaming in standalone editor mode
 		FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FPixelStreamingModule::InitStreamer);
 	}
-	else if (GDynamicRHI->GetName() == FString(TEXT("Vulkan")))
-	{
-#if PLATFORM_LINUX && WITH_CUDA
-		FModuleManager::LoadModuleChecked<FCUDAModule>("CUDA").OnPostCUDAInit.AddRaw(this, &FPixelStreamingModule::InitStreamer);
-#endif
-	}
-
 }
 
 void FPixelStreamingModule::ShutdownModule()
