@@ -675,7 +675,7 @@ namespace EpicGames.Perforce.Managed
 					HashSet<FileContentId>[] FilesInStream = new HashSet<FileContentId>[StreamNames.Count];
 					for (int Idx = 0; Idx < StreamNames.Count; Idx++)
 					{
-						List<StreamFileInfo> Files = StreamState[Idx].Item2.GetFiles();
+						List<StreamFile> Files = StreamState[Idx].Item2.GetFiles();
 						FilesInStream[Idx] = new HashSet<FileContentId>(Files.Select(x => x.ContentId));
 					}
 
@@ -691,7 +691,7 @@ namespace EpicGames.Perforce.Managed
 					// Populate the table
 					for (int RowIdx = 0; RowIdx < StreamNames.Count; RowIdx++)
 					{
-						List<StreamFileInfo> Files = StreamState[RowIdx].Item2.GetFiles();
+						List<StreamFile> Files = StreamState[RowIdx].Item2.GetFiles();
 						for (int ColIdx = 0; ColIdx < StreamNames.Count; ColIdx++)
 						{
 							long DiffSize = Files.Where(x => !FilesInStream[ColIdx].Contains(x.ContentId)).Sum(x => x.Length);
@@ -861,10 +861,10 @@ namespace EpicGames.Perforce.Managed
 				}
 				else
 				{
-					Contents = await TryLoadClientContentsAsync(CacheFile, CancellationToken);
+					Contents = await TryLoadClientContentsAsync(CacheFile, StreamName, CancellationToken);
 					if(Contents == null)
 					{
-						Contents = await FindAndSaveClientContentsAsync(Perforce, ChangeNumber, bFakeSync, CacheFile, CancellationToken);
+						Contents = await FindAndSaveClientContentsAsync(Perforce, StreamName, ChangeNumber, bFakeSync, CacheFile, CancellationToken);
 					}
 				}
 
@@ -945,7 +945,7 @@ namespace EpicGames.Perforce.Managed
 				foreach (WhereRecord WriteFile in WriteFiles)
 				{
 					string Path = Regex.Replace(WriteFile.ClientFile, "^//[^/]+/", "");
-					Workspace.AddFile(new Utf8String(Path), 0, 0, false, new FileContentId(Digest<Md5>.Zero, default));
+					Workspace.AddFile(new Utf8String(Path), 0, 0, false, new FileContentId(Md5Hash.Zero, default));
 				}
 				await SaveAsync(TransactionState.Clean, CancellationToken.None);
 			}
@@ -1043,8 +1043,8 @@ namespace EpicGames.Perforce.Managed
 					Dictionary<FileContentId, long> ContentIdToLength = new Dictionary<FileContentId, long>();
 					for(int Idx = 0; Idx < Requests.Count; Idx++)
 					{
-						List<StreamFileInfo> Files = StreamState[Idx].Item2.GetFiles();
-						foreach(StreamFileInfo File in Files)
+						List<StreamFile> Files = StreamState[Idx].Item2.GetFiles();
+						foreach(StreamFile File in Files)
 						{
 							ContentIdToLength[File.ContentId] = File.Length;
 						}
@@ -1487,19 +1487,13 @@ namespace EpicGames.Perforce.Managed
 						FragmentMinIdx = FragmentMaxIdx + 1;
 					}
 
-					byte[] DigestBytes = StringUtils.ParseHexString(Record.Digest.Span);
-					FileContentId ContentId = new FileContentId(DigestBytes, Record.HeadType);
-
-					// Get the depot file and revision
-					byte[] DepotFileAndRevisionData = new byte[Record.DepotFile.Length + 1 + Record.HaveRev.Length];
-					Record.DepotFile.Span.CopyTo(DepotFileAndRevisionData.AsSpan());
-					DepotFileAndRevisionData[Record.DepotFile.Length] = (byte)'#';
-					Record.HaveRev.Span.CopyTo(DepotFileAndRevisionData.AsSpan(Record.DepotFile.Length + 1));
-					Utf8String DepotFileAndRevision = new Utf8String(DepotFileAndRevisionData.AsMemory());
+					Md5Hash Digest = Md5Hash.Parse(Record.Digest);
+					FileContentId ContentId = new FileContentId(Digest, Record.HeadType);
+					int Revision = (int)Utf8String.ParseUnsignedInt(Record.HaveRev);
 
 					// Add a new StreamFileInfo to the last directory object
 					Utf8String FileName = PerforceUtils.UnescapePath(Record.ClientFile.Slice(FragmentMinIdx));
-					LastStreamDirectory.NameToFile.Add(FileName, new StreamFileInfo(FileName, Record.FileSize, ContentId, DepotFileAndRevision));
+					LastStreamDirectory.NameToFile.Add(FileName, new StreamFile(Record.DepotFile, Record.FileSize, ContentId, Revision));
 				};
 
 				// Create the workspace, and add records for all the files. Exclude deleted files with digest = null.
@@ -1516,9 +1510,10 @@ namespace EpicGames.Perforce.Managed
 		/// Loads the contents of a client from disk
 		/// </summary>
 		/// <param name="CacheFile">The cache file to read from</param>
+		/// <param name="BasePath">Default path for the stream</param>
 		/// <param name="CancellationToken">Cancellation token</param>
 		/// <returns>Contents of the workspace</returns>
-		async Task<StreamSnapshot?> TryLoadClientContentsAsync(FileReference CacheFile, CancellationToken CancellationToken)
+		async Task<StreamSnapshot?> TryLoadClientContentsAsync(FileReference CacheFile, Utf8String BasePath, CancellationToken CancellationToken)
 		{
 			StreamSnapshot? Contents = null;
 			if (FileReference.Exists(CacheFile))
@@ -1527,7 +1522,7 @@ namespace EpicGames.Perforce.Managed
 				using (ILoggerProgress Scope = Logger.BeginProgressScope($"Reading cached metadata from {CacheFile}..."))
 				{
 					Stopwatch Timer = Stopwatch.StartNew();
-					Contents = await StreamSnapshotFromMemory.TryLoadAsync(CacheFile, CancellationToken);
+					Contents = await StreamSnapshotFromMemory.TryLoadAsync(CacheFile, BasePath, CancellationToken);
 					Scope.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
 				}
 			}
@@ -1538,12 +1533,13 @@ namespace EpicGames.Perforce.Managed
 		/// Finds the contents of a workspace, and saves it to disk
 		/// </summary>
 		/// <param name="PerforceClient">The client connection</param>
+		/// <param name="BasePath">Base path for the stream</param>
 		/// <param name="ChangeNumber">The change number being synced. This must be specified in order to get the digest at the correct revision.</param>
 		/// <param name="bFakeSync">Whether this is for a fake sync. Poisons the file type to ensure that the cache is not corrupted.</param>
 		/// <param name="CacheFile">Location of the file to save the cached contents</param>
 		/// <param name="CancellationToken">Cancellation token</param>
 		/// <returns>Contents of the workspace</returns>
-		private async Task<StreamSnapshotFromMemory> FindAndSaveClientContentsAsync(PerforceClientConnection PerforceClient, int ChangeNumber, bool bFakeSync, FileReference CacheFile, CancellationToken CancellationToken)
+		private async Task<StreamSnapshotFromMemory> FindAndSaveClientContentsAsync(PerforceClientConnection PerforceClient, Utf8String BasePath, int ChangeNumber, bool bFakeSync, FileReference CacheFile, CancellationToken CancellationToken)
 		{
 			StreamSnapshotFromMemory Contents = await FindClientContentsAsync(PerforceClient, ChangeNumber, bFakeSync, CancellationToken);
 
@@ -1554,7 +1550,7 @@ namespace EpicGames.Perforce.Managed
 
 				// Handle the case where two machines may try to write to the cache file at once by writing to a temporary file
 				FileReference TempCacheFile = new FileReference(String.Format("{0}.{1}", CacheFile, Guid.NewGuid()));
-				await Contents.Save(TempCacheFile);
+				await Contents.Save(TempCacheFile, BasePath);
 
 				// Try to move it into place
 				try
@@ -1879,16 +1875,16 @@ namespace EpicGames.Perforce.Managed
 				{
 					for (int Idx = BeginIdx; Idx < EndIdx; Idx++)
 					{
-						Writer.WriteLine(FilesToSync[Idx].StreamFile.DepotFileAndRevision);
+						Writer.WriteLine("{0}#{1}", FilesToSync[Idx].StreamFile.Path, FilesToSync[Idx].StreamFile.Revision);
 					}
 				}
 
-				WorkspaceFileToSync? StatsFile = FilesToSync[BeginIdx..EndIdx].FirstOrDefault(x => x.StreamFile.Name == StatsFileName);
+				WorkspaceFileToSync? StatsFile = FilesToSync[BeginIdx..EndIdx].FirstOrDefault(x => x.StreamFile.Path.EndsWith(StatsFileName));
 				if(StatsFile != null)
 				{
 					for (int Idx = BeginIdx; Idx < EndIdx; Idx++)
 					{
-						Logger.LogInformation("Sync: {DepotFile}", FilesToSync[Idx].StreamFile.DepotFileAndRevision);
+						Logger.LogInformation("Sync: {DepotFile}#{Revision}", FilesToSync[Idx].StreamFile.Path, FilesToSync[Idx].StreamFile.Revision);
 					}
 					await LogFortniteStatsInfoAsync(Client);
 				}
@@ -1949,7 +1945,7 @@ namespace EpicGames.Perforce.Managed
 								}
 								else if (Idx == 4)
 								{
-									Records = await Client.SyncAsync(SyncOptions.Force, -1, new string[] { StatsFile.StreamFile.DepotFileAndRevision.ToString() }, CancellationToken);
+									Records = await Client.SyncAsync(SyncOptions.Force, -1, new string[] { $"{StatsFile.StreamFile.Path}#{StatsFile.StreamFile.Revision}" }, CancellationToken);
 									PrintSyncRecords(Records);
 								}
 								else if (Idx == 5)

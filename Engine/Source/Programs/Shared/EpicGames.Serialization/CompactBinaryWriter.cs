@@ -461,6 +461,27 @@ namespace EpicGames.Serialization
 		}
 
 		/// <summary>
+		/// Writes an object directly into the writer
+		/// </summary>
+		/// <param name="Object">Object to write</param>
+		public void WriteObject(CbObject Object)
+		{
+			WriteField(CbFieldType.Object);
+			WriteBinaryPayload(Object.AsField().Payload.Span);
+		}
+
+		/// <summary>
+		/// Writes an object directly into the writer
+		/// </summary>
+		/// <param name="Name">Name of the object</param>
+		/// <param name="Object">Object to write</param>
+		public void WriteObject(Utf8String Name, CbObject Object)
+		{
+			WriteField(CbFieldType.Object, Name);
+			WriteBinaryPayload(Object.AsField().Payload.Span);
+		}
+
+		/// <summary>
 		/// Writes an unnamed reference to an object attachment
 		/// </summary>
 		/// <param name="Hash">Hash of the attachment</param>
@@ -600,6 +621,7 @@ namespace EpicGames.Serialization
 				ReadOnlySpan<byte> LastSourceData = Chunk.Data.AsSpan(SourceOffset - Chunk.Offset, (Chunk.Offset + Chunk.Length) - SourceOffset);
 				LastSourceData.CopyTo(Buffer.Slice(BufferOffset));
 				BufferOffset += LastSourceData.Length;
+				SourceOffset += LastSourceData.Length;
 			}
 		}
 
@@ -642,7 +664,7 @@ namespace EpicGames.Serialization
 							break;
 						case CbFieldType.Array:
 						case CbFieldType.UniformArray:
-							int ArrayCountLength = VarInt.Measure(Scope.Count);
+							int ArrayCountLength = VarInt.Measure(ChildScope.Count);
 							SizeOfChildHeaders += ChildScope.SizeOfChildHeaders + VarInt.Measure(ChildScope.Length + ChildScope.SizeOfChildHeaders + ArrayCountLength) + ArrayCountLength;
 							break;
 						default:

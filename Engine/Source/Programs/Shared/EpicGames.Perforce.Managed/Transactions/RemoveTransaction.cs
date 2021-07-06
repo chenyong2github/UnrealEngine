@@ -32,17 +32,17 @@ namespace EpicGames.Perforce.Managed
 			}
 		}
 
-		void Merge(WorkspaceDirectoryInfo WorkspaceDir, WorkspaceDirectoryInfo NewWorkspaceDir, IoHash StreamDirHash, ThreadPoolWorkQueue Queue)
+		void Merge(WorkspaceDirectoryInfo WorkspaceDir, WorkspaceDirectoryInfo NewWorkspaceDir, StreamTreeRef StreamTreeRef, ThreadPoolWorkQueue Queue)
 		{
-			StreamDirectoryInfo StreamDir = StreamSnapshot.Lookup(StreamDirHash);
+			StreamTree StreamDir = StreamSnapshot.Lookup(StreamTreeRef);
 
 			// Update all the subdirectories
 			foreach(WorkspaceDirectoryInfo WorkspaceSubDir in WorkspaceDir.NameToSubDirectory.Values)
 			{
-				IoHash StreamSubDirHash;
-				if(StreamDir.NameToSubDirectory.TryGetValue(WorkspaceSubDir.Name, out StreamSubDirHash))
+				StreamTreeRef? StreamSubTreeRef;
+				if(StreamDir.NameToTree.TryGetValue(WorkspaceSubDir.Name, out StreamSubTreeRef))
 				{
-					MergeSubDirectory(WorkspaceSubDir.Name, NewWorkspaceDir, WorkspaceSubDir, StreamSubDirHash, Queue);
+					MergeSubDirectory(WorkspaceSubDir.Name, NewWorkspaceDir, WorkspaceSubDir, StreamSubTreeRef, Queue);
 				}
 				else
 				{
@@ -53,7 +53,7 @@ namespace EpicGames.Perforce.Managed
 			// Update the staged files
 			foreach(WorkspaceFileInfo WorkspaceFile in WorkspaceDir.NameToFile.Values)
 			{
-				StreamFileInfo? StreamFile;
+				StreamFile? StreamFile;
 				if(StreamDir != null && StreamDir.NameToFile.TryGetValue(WorkspaceFile.Name, out StreamFile) && StreamFile.ContentId.Equals(WorkspaceFile.ContentId))
 				{
 					NewWorkspaceDir.NameToFile.Add(WorkspaceFile.Name, WorkspaceFile);
@@ -65,11 +65,11 @@ namespace EpicGames.Perforce.Managed
 			}
 		}
 
-		void MergeSubDirectory(Utf8String Name, WorkspaceDirectoryInfo NewWorkspaceDir, WorkspaceDirectoryInfo WorkspaceSubDir, IoHash StreamSubDirHash, ThreadPoolWorkQueue Queue)
+		void MergeSubDirectory(Utf8String Name, WorkspaceDirectoryInfo NewWorkspaceDir, WorkspaceDirectoryInfo WorkspaceSubDir, StreamTreeRef StreamSubTreeRef, ThreadPoolWorkQueue Queue)
 		{
-			WorkspaceDirectoryInfo NewWorkspaceSubDir = new WorkspaceDirectoryInfo(NewWorkspaceDir, Name, StreamSubDirHash);
+			WorkspaceDirectoryInfo NewWorkspaceSubDir = new WorkspaceDirectoryInfo(NewWorkspaceDir, Name, StreamSubTreeRef);
 			NewWorkspaceDir.NameToSubDirectory.Add(NewWorkspaceSubDir.Name, NewWorkspaceSubDir);
-			Queue.Enqueue(() => Merge(WorkspaceSubDir, NewWorkspaceSubDir, StreamSubDirHash, Queue));
+			Queue.Enqueue(() => Merge(WorkspaceSubDir, NewWorkspaceSubDir, StreamSubTreeRef, Queue));
 		}
 
 		void RemoveDirectory(WorkspaceDirectoryInfo WorkspaceDir, ThreadPoolWorkQueue Queue)
