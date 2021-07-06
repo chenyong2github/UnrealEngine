@@ -60,30 +60,11 @@ namespace UnrealBuildTool.Rules
 			}
 		}
 
-		private void AddWebRTCServers()
-		{
-			string webRTCRevision = "31262";
-			string webRTCRevisionDirectory = "./ThirdParty/WebRTC/rev." + webRTCRevision;
-			string webRTCProgramsDirectory = Path.Combine(webRTCRevisionDirectory, "programs/Win64/VS2015/Release");
-
-			List<string> DependenciesToAdd = new List<string>();
-			DependenciesToAdd.AddRange(Directory.GetFiles(webRTCProgramsDirectory, "*.exe"));
-			DependenciesToAdd.AddRange(Directory.GetFiles(webRTCProgramsDirectory, "*.pdb"));
-			DependenciesToAdd.AddRange(Directory.GetFiles(webRTCProgramsDirectory, "*.bat"));
-			DependenciesToAdd.AddRange(Directory.GetFiles(webRTCProgramsDirectory, "*.ps1"));
-
-			foreach (string Dependency in DependenciesToAdd)
-			{
-				RuntimeDependencies.Add(Dependency, StagedFileType.NonUFS);
-			}
-		}
-
 		public PixelStreaming(ReadOnlyTargetRules Target) : base(Target)
 		{
 			// use private PCH to include lots of WebRTC headers
 			PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 			PrivatePCHHeaderFile = "Private/PCH.h";
-			//PCHUsage = PCHUsageMode.NoPCHs;
 
 			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 
@@ -92,7 +73,6 @@ namespace UnrealBuildTool.Rules
 				{
 					Path.Combine(EngineDir, "Source/Runtime/AudioMixer/Private"),
 					Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private"),
-					Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Linux"),
 				});
 
 			PrivateDependencyModuleNames.AddRange(new string[]
@@ -114,57 +94,29 @@ namespace UnrealBuildTool.Rules
 				"Sockets",
 				"MediaUtils",
 				"AVEncoder",
-				"DeveloperSettings",
-				"Amf"
+				"DeveloperSettings"
 			});
-			
+
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
 
-			if (Target.Type == TargetType.Editor)
-			{
-				PrivateDependencyModuleNames.Add("UnrealEd");
-			}
-
-			DynamicallyLoadedModuleNames.AddRange(new string[]
-			{
-				"Media",
-			});
-
-			PrivateIncludePathModuleNames.AddRange(new string[]
-			{
-				"Media"
-			});
-
-			if (Target.bCompileAgainstEngine)
-			{
-				PrivateDependencyModuleNames.Add("Engine");
-				PrivateDependencyModuleNames.Add("HeadMountedDisplay");
-			}
-
 			// required for casting UE4 BackBuffer to Vulkan Texture2D for NvEnc
-			PrivateDependencyModuleNames.AddRange(new string[] { "CUDA", "VulkanRHI", "nvEncode"});
-			
+			PrivateDependencyModuleNames.AddRange(new string[] { "CUDA", "VulkanRHI", "nvEncode" });
+
 			PrivateIncludePathModuleNames.Add("VulkanRHI");
 			PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private"));
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
 
 			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 			{
-				Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Windows");
-			} 
-			else if ( Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
-			{
-				Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Linux");
+				PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Windows"));
 			}
-			
+			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
+			{
+				PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private/Linux"));
+			}
+
 			AddSignallingServer();
 			AddMatchmakingServer();
-			
-			// We have not been able to build these yet for M84 (these are the WebRTC bundled sample STUN/TURN servers).
-			// For future I think we should advise use of COTURN instead of the WebRTC sample servers.
-			// if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64) {
-			//     AddWebRTCServers();
-			// }
 		}
 	}
 }
