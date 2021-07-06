@@ -51,6 +51,22 @@ float3 ComposeIcvfxOverlay(float3 OutColor, float2 OverlayUV)
 	return FinalColor;
 }
 
+float4 GetChromakeyMarkerColor(float2 InMarkersUV)
+{
+	float2 ChromakeyMarkerScaledUV = frac(InMarkersUV * ChromakeyMarkerScale) * (1+ChromakeyMarkerDistance);
+	float2 ChromakeyMarkerUV = saturate(ChromakeyMarkerScaledUV);
+
+	float4 ChromakeyMarkerTextureColor = ChromakeyMarkerTexture.Sample(ChromakeyMarkerSampler, ChromakeyMarkerUV);
+
+	// Support markers distance feature:
+	if(ChromakeyMarkerScaledUV.x > 1 || ChromakeyMarkerScaledUV.y > 1)
+	{
+		return float4(ChromakeyMarkerColor.xyz, 0);
+	}
+
+	return float4(ChromakeyMarkerColor.xyz, ChromakeyMarkerTextureColor.w);
+}
+
 float4 GetInnerCameraColor(float4 WarpedUV, OutputVS IN)
 {
 	// Transform WarpedUV to Camera ScreenSpaceUV
@@ -93,19 +109,10 @@ float4 GetInnerCameraColor(float4 WarpedUV, OutputVS IN)
 #endif
 
 #if CHROMAKEY_MARKER
-	float2 MarkerUV = frac(IN.UV_Chromakey.xy * ChromakeyMarkerScale) * (1+ChromakeyMarkerDistance);
-	float2 ChromakeyMarkerUV = saturate(MarkerUV);
-	// Border pixels always invisible
-	float ChromakeyAlphaMult = 1.f;
-	if(any(ChromakeyMarkerUV - MarkerUV))
-	{
-		ChromakeyAlphaMult = 0.f;
-	}
-	float4 ChromakeyMarkerTextureColor = ChromakeyMarkerTexture.Sample(ChromakeyMarkerSampler, ChromakeyMarkerUV);
-	
-	float4 OverlayChromakeyMarkerColor = float4(ChromakeyMarkerColor.xyz, ChromakeyMarkerTextureColor.w);
-	
-	OverlayChromakeyColor.xyz = lerp(OverlayChromakeyColor.xyz, OverlayChromakeyMarkerColor.xyz, OverlayChromakeyMarkerColor.w * ChromakeyAlphaMult);
+	float4 ChromakeyMarkerTextureColor = GetChromakeyMarkerColor(IN.UV_Chromakey.xy);
+
+	// Blend marker color with chromakey
+	OverlayChromakeyColor.xyz = lerp(OverlayChromakeyColor.xyz, ChromakeyMarkerTextureColor.xyz, ChromakeyMarkerTextureColor.w);
 #endif
 
 	CameraColor.xyz = lerp(CameraColor.xyz, OverlayChromakeyColor.xyz, 1-OverlayChromakeyColor.w);
