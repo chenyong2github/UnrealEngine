@@ -9,6 +9,7 @@
 #include "LensDistortionTool.h"
 #include "LiveLinkCameraController.h"
 #include "Misc/MessageDialog.h"
+#include "ScopedTransaction.h"
 #include "SNodalOffsetToolPanel.h"
 
 #define LOCTEXT_NAMESPACE "NodalOffsetTool"
@@ -165,8 +166,8 @@ void UNodalOffsetTool::OnSaveCurrentNodalOffset()
 		return;
 	}
 
+	FScopedTransaction Transaction(LOCTEXT("SaveCurrentNodalOffset", "Save Current Nodal Offset"));
 	LensFile->Modify();
-
 	LensFile->AddNodalOffsetPoint(Focus, Zoom, NodalOffset);
 
 	// Force bApplyNodalOffset in the LiveLinkCameraController so that we can see the effect right away

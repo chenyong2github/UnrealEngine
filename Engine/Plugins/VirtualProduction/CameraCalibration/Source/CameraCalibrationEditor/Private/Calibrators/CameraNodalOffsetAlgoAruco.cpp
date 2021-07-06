@@ -151,6 +151,20 @@ bool UCameraNodalOffsetAlgoAruco::PopulatePoints(FText& OutErrorMessage)
 					DictionaryInfo = Dictionary;
 					break;
 				}
+
+				for (const TPair<FString, FVector>& SubPoint: CalibrationPoint->SubPoints)
+				{
+					if (SubPoint.Key.StartsWith(FString::Printf(TEXT("%s-"), *Dictionary.Name)))
+					{
+						DictionaryInfo = Dictionary;
+						break;
+					}
+				}
+
+				if (!DictionaryInfo.Dict.empty())
+				{
+					break;
+				}
 			}
 
 			if (!DictionaryInfo.Dict.empty())

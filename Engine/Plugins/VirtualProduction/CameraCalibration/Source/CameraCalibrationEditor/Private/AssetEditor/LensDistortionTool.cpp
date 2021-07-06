@@ -9,6 +9,7 @@
 #include "LensInfoStep.h"
 #include "Misc/MessageDialog.h"
 #include "Models/SphericalLensModel.h"
+#include "ScopedTransaction.h"
 #include "SLensDistortionToolPanel.h"
 #include "UObject/Class.h"
 #include "UObject/UObjectIterator.h"
@@ -211,6 +212,8 @@ void ULensDistortionTool::OnSaveCurrentCalibrationData()
 		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
 		return;
 	}
+
+	FScopedTransaction Transaction(LOCTEXT("SaveCurrentDistortionData", "Save Current Distortion Data"));
 
  	LensFile->Modify();
 

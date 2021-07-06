@@ -18,6 +18,7 @@
 #include "Misc/MessageDialog.h"
 #include "PropertyCustomizationHelpers.h"
 #include "UI/SFilterableActorPicker.h"
+#include "ScopedTransaction.h"
 #include "SphericalLensDistortionModelHandler.h"
 #include "UI/CameraCalibrationWidgetHelpers.h"
 #include "Widgets/Input/SButton.h"
@@ -542,6 +543,7 @@ bool UCameraNodalOffsetAlgoPoints::BasicCalibrationChecksPass(FText& OutErrorMes
 	{
 		if (!ensure(Row.IsValid()))
 		{
+			OutErrorMessage = LOCTEXT("InvalidRow", "Invalid Row");
 			return false;
 		}
 	}
@@ -900,6 +902,7 @@ TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildCalibrationActionButtons(
 			.VAlign(VAlign_Center)
 			.OnClicked_Lambda([&]() -> FReply
 			{
+				FScopedTransaction Transaction(LOCTEXT("ApplyNodalOffsetToCalibrator", "Applying Nodal Offset to Calibrator"));
 				ApplyNodalOffsetToCalibrator();
 				return FReply::Handled();
 			})
@@ -912,22 +915,24 @@ TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildCalibrationActionButtons(
 			.VAlign(VAlign_Center)
 			.OnClicked_Lambda([&]() -> FReply
 			{
+				FScopedTransaction Transaction(LOCTEXT("ApplyNodalOffsetToTrackingOrigin", "Applying Nodal Offset to Tracking Origin"));
 				ApplyNodalOffsetToTrackingOrigin();
 				return FReply::Handled();
 			})
 		]
 		+ SVerticalBox::Slot() // Apply To Calibrator Parent
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("ApplyToCalibratorParent", "Apply To Calibrator Parent"))
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.OnClicked_Lambda([&]() -> FReply
-				{
-					ApplyNodalOffsetToCalibratorParent();
-					return FReply::Handled();
-				})
-			]
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("ApplyToCalibratorParent", "Apply To Calibrator Parent"))
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.OnClicked_Lambda([&]() -> FReply
+			{
+				FScopedTransaction Transaction(LOCTEXT("ApplyNodalOffsetToCalibratorParent", "Applying Nodal Offset to Calibrator Parent"));
+				ApplyNodalOffsetToCalibratorParent();
+				return FReply::Handled();
+			})
+		]
 		;
 }
 
@@ -1028,6 +1033,7 @@ bool UCameraNodalOffsetAlgoPoints::ApplyNodalOffsetToCalibrator()
 	const FTransform DesiredCalibratorPose = LastRow->CameraData.CalibratorPose * DesiredCameraPose.Inverse() * LastRow->CameraData.Pose;
 
 	// apply the new calibrator transform
+	Calibrator->Modify();
 	Calibrator->SetActorTransform(DesiredCalibratorPose);
 
 	// Since the offset was applied, there is no further use for the current samples.
@@ -1110,6 +1116,7 @@ bool UCameraNodalOffsetAlgoPoints::ApplyNodalOffsetToTrackingOrigin()
 	const FTransform DesiredParentPose = LastRow->CameraData.ParentPose * LastRow->CameraData.Pose.Inverse() * DesiredCameraPose;
 
 	// apply the new parent transform
+	ParentActor->Modify();
 	ParentActor->SetActorTransform(DesiredParentPose);
 
 	// Since the offset was applied, there is no further use for the current samples.
@@ -1232,6 +1239,7 @@ bool UCameraNodalOffsetAlgoPoints::ApplyNodalOffsetToCalibratorParent()
 	const FTransform DesiredCalibratorPose = LastRow->CameraData.CalibratorPose * DesiredCameraPose.Inverse() * LastRow->CameraData.Pose;
 
 	// Apply the new calibrator parent transform
+	ParentActor->Modify();
 	ParentActor->SetActorTransform(LastRow->CameraData.CalibratorParentPose * LastRow->CameraData.CalibratorPose.Inverse() * DesiredCalibratorPose);
 
 	// Since the offset was applied, there is no further use for the current samples.
