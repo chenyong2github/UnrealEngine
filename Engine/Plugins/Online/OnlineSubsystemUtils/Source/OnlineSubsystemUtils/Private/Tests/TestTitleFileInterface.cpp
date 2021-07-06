@@ -30,13 +30,16 @@ FTestTitleFileInterface::FTestTitleFileInterface(const FString& InSubsystemName)
 
 void FTestTitleFileInterface::FinishTest()
 {
-	UE_LOG_ONLINE_TITLEFILE(Log, TEXT("Test finished"));
-
 	if (OnlineTitleFile.IsValid())
 	{
+		OnlineTitleFile->DeleteCachedFiles(false);
+
 		OnlineTitleFile->ClearOnEnumerateFilesCompleteDelegate_Handle(OnEnumerateFilesCompleteDelegateHandle);
 		OnlineTitleFile->ClearOnReadFileCompleteDelegate_Handle      (OnReadFileCompleteDelegateHandle);
 	}
+
+	UE_LOG_ONLINE_TITLEFILE(Log, TEXT("Test finished"));
+
 	delete this;
 }
 
