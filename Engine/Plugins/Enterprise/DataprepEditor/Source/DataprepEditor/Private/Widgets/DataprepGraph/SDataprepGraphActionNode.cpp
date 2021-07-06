@@ -558,7 +558,8 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 						SNew( SHorizontalBox )
 						+ SHorizontalBox::Slot()
 						.AutoWidth()
-						.Padding(5.f, 5.f, 5.f, 2.f)
+						.Padding(5.f, 0, 5.f, 0)
+						.VAlign(EVerticalAlignment::VAlign_Center)
 						[
 							InlineEditableText.ToSharedRef()
 						]
@@ -570,7 +571,7 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 
 						+ SHorizontalBox::Slot()
 						.AutoWidth()
-						.Padding(5.f, 5.f, 5.f, 2.f)
+						.Padding(5.f, 5.f, 5.f, 5.f)
 						[
 							SAssignNew(ExpandActionButton, SButton)
 							.ButtonStyle(FEditorStyle::Get(), "FlatButton.Primary")
@@ -595,13 +596,13 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 
 					+ SVerticalBox::Slot()
 					.AutoHeight()
-					.Padding(5.f, 2.f)
+					.Padding(FMargin(5.0f, 0.0f, 7.0f, 2.0f))
 					[
 						SNew( SSeparator )
 						.SeparatorImage(FEditorStyle::GetBrush( "ThinLine.Horizontal" ))
 						.Thickness(1.f)
 						.Orientation(EOrientation::Orient_Horizontal)
-						.ColorAndOpacity(FDataprepEditorStyle::GetColor("Dataprep.TextSeparator.Color"))
+						.ColorAndOpacity(FDataprepEditorStyle::GetColor("Dataprep.TextSeparatorActionNode.Color"))
 						.Visibility_Lambda([this]() { return DataprepActionPtr->GetAppearance()->bIsExpanded ? EVisibility::Visible : EVisibility::Collapsed; })
 					]
 
@@ -1119,7 +1120,7 @@ void SDataprepGraphActionGroupNode::UpdateGraphNode()
 						.SeparatorImage(FEditorStyle::GetBrush( "ThinLine.Horizontal" ))
 						.Thickness(1.f)
 						.Orientation(EOrientation::Orient_Horizontal)
-						.ColorAndOpacity(FDataprepEditorStyle::GetColor("Dataprep.TextSeparator.Color"))
+						.ColorAndOpacity(FDataprepEditorStyle::GetColor("Dataprep.TextSeparatorActionNode.Color"))
 					]
 
 					+ SVerticalBox::Slot()

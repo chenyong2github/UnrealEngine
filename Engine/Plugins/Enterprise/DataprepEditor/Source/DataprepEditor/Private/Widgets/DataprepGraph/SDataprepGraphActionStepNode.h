@@ -69,6 +69,7 @@ private:
 	FSlateColor GetBlockOverlayColor() const;
 
 	FMargin GetBlockPadding();
+	FMargin GetBlockDisabledPadding();
 
 	FMargin GetArrowPadding();
 
