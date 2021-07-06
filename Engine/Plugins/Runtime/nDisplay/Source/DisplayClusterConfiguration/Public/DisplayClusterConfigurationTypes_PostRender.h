@@ -59,10 +59,6 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPostRender_Ge
 {
 	GENERATED_BODY()
 
-	FDisplayClusterConfigurationPostRender_GenerateMips()
-		: bOverride_MaxNumMips(0)
-	{};
-
 	// Allow autogenerate num mips for this target
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render")
 	bool bAutoGenerateMips = false;
@@ -79,9 +75,11 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPostRender_Ge
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (EditCondition = "bAutoGenerateMips"))
 	TEnumAsByte<enum TextureAddress> MipsAddressV = TA_Clamp;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle, EditCondition = "bAutoGenerateMips"))
-	uint8 bOverride_MaxNumMips : 1;
+	// Performance: Allows a limited number of MIPs for high resolution.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Enable Maximum Number of Mips", EditCondition = "bAutoGenerateMips"))
+	bool bEnabledMaxNumMips = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Maximum Number of Mips", EditCondition = "bOverride_MaxNumMips"))
+	// Performance: Use this value as the maximum number of MIPs for high resolution.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "NDisplay Render", meta = (DisplayName = "Maximum Number of Mips", EditCondition = "bAutoGenerateMips && bEnabledMaxNumMips"))
 	int MaxNumMips = 0;
 };

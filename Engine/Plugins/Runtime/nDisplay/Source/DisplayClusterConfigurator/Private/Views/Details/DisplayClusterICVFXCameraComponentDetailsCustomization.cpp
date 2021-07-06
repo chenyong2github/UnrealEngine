@@ -142,12 +142,15 @@ void FDisplayClusterICVFXCameraComponentDetailsCustomization::CustomizeDetails(I
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.FrustumRotation)
 		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.FrustumOffset)
 
-		CREATE_NESTED_PROPERTY_EDITCONDITION_2ARG(CameraAndMipsEditCondition, NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bEnable, CameraSettings.RenderSettings.GenerateMips.bAutoGenerateMips);
-	
-		ADD_NESTED_PROPERTY_ENABLE_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.GenerateMips, CameraAndMipsEditCondition)
-		HIDE_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.GenerateMips.bAutoGenerateMips)
+		ADD_NESTED_PROPERTY_ENABLE_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.GenerateMips, CameraEnabledEditCondition)
 		HIDE_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.GenerateMips.MipsAddressU)
 		HIDE_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.GenerateMips.MipsAddressV)
+		
+		if (!bIsCDO)
+		{
+			HIDE_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.GenerateMips.bEnabledMaxNumMips)
+			HIDE_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.RenderSettings.GenerateMips.MaxNumMips)
+		}
 
 		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.CameraMotionBlur, CameraEnabledEditCondition)
 

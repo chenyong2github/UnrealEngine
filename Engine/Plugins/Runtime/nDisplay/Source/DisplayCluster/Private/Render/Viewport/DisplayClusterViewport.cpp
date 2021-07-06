@@ -245,13 +245,13 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InViewPassNum, co
 		return false;
 	}
 
-	if (PostRenderSettings.GenerateMips.bAutoGenerateMips)
+	if (PostRenderSettings.GenerateMips.IsEnabled())
 	{
 		//Check if current projection policy supports this feature
 		if (!ProjectionPolicy.IsValid() || !ProjectionPolicy->ShouldUseSourceTextureWithMips())
 		{
 			// Don't create unused mips texture
-			PostRenderSettings.GenerateMips.bAutoGenerateMips = false;
+			PostRenderSettings.GenerateMips.Reset();
 		}
 	}
 

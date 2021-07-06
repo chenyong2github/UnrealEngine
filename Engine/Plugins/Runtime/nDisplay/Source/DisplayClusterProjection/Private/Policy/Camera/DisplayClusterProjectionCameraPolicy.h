@@ -35,6 +35,9 @@ public:
 	virtual bool IsWarpBlendSupported() override
 	{ return false; }
 
+	virtual bool ShouldUseSourceTextureWithMips() const override
+	{ return true; }
+
 public:
 	void SetCamera(UCameraComponent* const NewCamera, const FDisplayClusterProjectionCameraPolicySettings& InCameraSettings);
 
