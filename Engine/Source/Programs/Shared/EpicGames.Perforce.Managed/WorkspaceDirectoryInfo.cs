@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Serialization;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -26,7 +27,7 @@ namespace EpicGames.Perforce.Managed
 		public Utf8String Name { get; }
 
 		/// <summary>
-		/// Digest of the matching stream directory info. This should be set to zero if the workspace is modified.
+		/// Digest of the matching stream directory info with the base path. This should be set to zero if the workspace is modified.
 		/// </summary>
 		public IoHash StreamDirectoryDigest { get; set; }
 
@@ -45,7 +46,7 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="RootDir"></param>
 		public WorkspaceDirectoryInfo(DirectoryReference RootDir)
-			: this(null, RootDir.FullName, IoHash.Zero)
+			: this(null, RootDir.FullName, null)
 		{
 		}
 
@@ -54,12 +55,12 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="ParentDirectory">The parent directory</param>
 		/// <param name="Name">Name of this directory</param>
-		/// <param name="Digest">The corresponding stream digest</param>
-		public WorkspaceDirectoryInfo(WorkspaceDirectoryInfo? ParentDirectory, Utf8String Name, IoHash Digest)
+		/// <param name="Ref">The corresponding stream digest</param>
+		public WorkspaceDirectoryInfo(WorkspaceDirectoryInfo? ParentDirectory, Utf8String Name, StreamTreeRef? Ref)
 		{
 			this.ParentDirectory = ParentDirectory;
 			this.Name = Name;
-			this.StreamDirectoryDigest = Digest;
+			this.StreamDirectoryDigest = (Ref == null) ? IoHash.Zero : Ref.GetHash();
 			this.NameToFile = new Dictionary<Utf8String, WorkspaceFileInfo>(Utf8StringComparer.Ordinal);
 			this.NameToSubDirectory = new Dictionary<Utf8String, WorkspaceDirectoryInfo>(FileUtils.PlatformPathComparerUtf8);
 		}
@@ -88,7 +89,7 @@ namespace EpicGames.Perforce.Managed
 				WorkspaceDirectoryInfo? SubDirectory;
 				if (!NameToSubDirectory.TryGetValue(Name, out SubDirectory))
 				{
-					SubDirectory = new WorkspaceDirectoryInfo(this, Name, IoHash.Zero);
+					SubDirectory = new WorkspaceDirectoryInfo(this, Name, null);
 					NameToSubDirectory[Name] = SubDirectory;
 				}
 
@@ -358,7 +359,7 @@ namespace EpicGames.Perforce.Managed
 			{
 				Utf8String Name = Reader.ReadString();
 
-				WorkspaceDirectoryInfo SubDirectory = new WorkspaceDirectoryInfo(DirectoryInfo, Name, IoHash.Zero);
+				WorkspaceDirectoryInfo SubDirectory = new WorkspaceDirectoryInfo(DirectoryInfo, Name, null);
 				Reader.ReadWorkspaceDirectoryInfo(SubDirectory, Version);
 				DirectoryInfo.NameToSubDirectory[SubDirectory.Name] = SubDirectory;
 			}

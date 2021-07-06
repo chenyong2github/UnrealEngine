@@ -14,7 +14,7 @@ namespace EpicGames.Perforce.Managed
 	[DebuggerDisplay("{Digest} ({Type})")]
 	public class FileContentId
 	{
-		public Digest<Md5> Digest
+		public Md5Hash Digest
 		{
 			get;
 		}
@@ -24,7 +24,7 @@ namespace EpicGames.Perforce.Managed
 			get;
 		}
 
-		public FileContentId(Digest<Md5> Digest, Utf8String Type)
+		public FileContentId(Md5Hash Digest, Utf8String Type)
 		{
 			this.Digest = Digest;
 			this.Type = Type;
@@ -45,14 +45,14 @@ namespace EpicGames.Perforce.Managed
 	{
 		public static FileContentId ReadFileContentId(this MemoryReader Reader)
 		{
-			Digest<Md5> Digest = Reader.ReadDigest<Md5>();
+			Md5Hash Digest = Reader.ReadMd5Hash();
 			Utf8String Type = Reader.ReadString();
 			return new FileContentId(Digest, Type);
 		}
 
 		public static void WriteFileContentId(this MemoryWriter Writer, FileContentId FileContentId)
 		{
-			Writer.WriteDigest<Md5>(FileContentId.Digest);
+			Writer.WriteMd5Hash(FileContentId.Digest);
 			Writer.WriteString(FileContentId.Type);
 		}
 

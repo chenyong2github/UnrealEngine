@@ -191,7 +191,11 @@ namespace EpicGames.Perforce
 		/// <returns></returns>
 		public Utf8String GetString()
 		{
-			if(Type != PerforceValueType.String)
+			if (IsEmpty)
+			{
+				return Utf8String.Empty;
+			}
+			if (Type != PerforceValueType.String)
 			{
 				throw new InvalidOperationException("Value is not a string");
 			}

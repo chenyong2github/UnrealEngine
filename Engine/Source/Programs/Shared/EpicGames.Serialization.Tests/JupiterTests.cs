@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using EpicGames.Core;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -12,6 +13,41 @@ namespace EpicGames.Serialization.Tests
 	[TestClass]
 	public class JupiterTests
 	{
+		[TestMethod]
+		public void OverflowTest()
+		{
+			CbWriter Writer = new CbWriter();
+
+			Writer.BeginArray();
+			for (int Idx = 0; Idx < 128; Idx++)
+			{
+				Writer.WriteNullValue();
+			}
+			Writer.EndArray();
+
+			byte[] Data = Writer.ToByteArray();
+		}
+
+		[TestMethod]
+		public void EmbeddedObject()
+		{
+			CbWriter Writer1 = new CbWriter();
+			Writer1.BeginObject();
+			Writer1.WriteInteger("a", 1);
+			Writer1.WriteString("b", "hello");
+			Writer1.EndObject();
+
+			CbObject Object1 = Writer1.ToObject();
+
+			CbWriter Writer2 = new CbWriter();
+			Writer2.BeginObject();
+			Writer2.WriteObject("ref", Object1);
+			Writer2.EndObject();
+
+			CbObject Object2 = Writer2.ToObject();
+			Assert.AreEqual(Object2.GetSize(), 22);
+		}
+
 		[TestMethod]
 		public void BuildObject()
 		{

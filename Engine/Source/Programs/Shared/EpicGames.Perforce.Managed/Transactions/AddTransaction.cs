@@ -13,11 +13,11 @@ namespace EpicGames.Perforce.Managed
 {
 	class WorkspaceFileToMove
 	{
-		public StreamFileInfo StreamFile;
+		public StreamFile StreamFile;
 		public CachedFileInfo TrackedFile;
 		public WorkspaceFileInfo WorkspaceFile;
 
-		public WorkspaceFileToMove(StreamFileInfo StreamFile, CachedFileInfo TrackedFile, WorkspaceFileInfo WorkspaceFile)
+		public WorkspaceFileToMove(StreamFile StreamFile, CachedFileInfo TrackedFile, WorkspaceFileInfo WorkspaceFile)
 		{
 			this.StreamFile = StreamFile;
 			this.TrackedFile = TrackedFile;
@@ -27,11 +27,11 @@ namespace EpicGames.Perforce.Managed
 
 	class WorkspaceFileToCopy
 	{
-		public StreamFileInfo StreamFile;
+		public StreamFile StreamFile;
 		public WorkspaceFileInfo SourceWorkspaceFile;
 		public WorkspaceFileInfo TargetWorkspaceFile;
 
-		public WorkspaceFileToCopy(StreamFileInfo StreamFile, WorkspaceFileInfo SourceWorkspaceFile, WorkspaceFileInfo TargetWorkspaceFile)
+		public WorkspaceFileToCopy(StreamFile StreamFile, WorkspaceFileInfo SourceWorkspaceFile, WorkspaceFileInfo TargetWorkspaceFile)
 		{
 			this.StreamFile = StreamFile;
 			this.SourceWorkspaceFile = SourceWorkspaceFile;
@@ -41,10 +41,10 @@ namespace EpicGames.Perforce.Managed
 
 	class WorkspaceFileToSync
 	{
-		public StreamFileInfo StreamFile;
+		public StreamFile StreamFile;
 		public WorkspaceFileInfo WorkspaceFile;
 
-		public WorkspaceFileToSync(StreamFileInfo StreamFile, WorkspaceFileInfo WorkspaceFile)
+		public WorkspaceFileToSync(StreamFile StreamFile, WorkspaceFileInfo WorkspaceFile)
 		{
 			this.StreamFile = StreamFile;
 			this.WorkspaceFile = WorkspaceFile;
@@ -81,78 +81,78 @@ namespace EpicGames.Perforce.Managed
 			}
 		}
 
-		void MergeDirectory(WorkspaceDirectoryInfo WorkspaceDir, WorkspaceDirectoryInfo NewWorkspaceDir, IoHash StreamDirHash, ThreadPoolWorkQueue Queue)
+		void MergeDirectory(WorkspaceDirectoryInfo WorkspaceDir, WorkspaceDirectoryInfo NewWorkspaceDir, StreamTreeRef StreamTreeRef, ThreadPoolWorkQueue Queue)
 		{
 			// Make sure the directory exists
 			Directory.CreateDirectory(WorkspaceDir.GetFullName());
 
 			// Update all the subdirectories
-			StreamDirectoryInfo StreamDir = StreamSnapshot.Lookup(StreamDirHash);
-			foreach((Utf8String SubDirName, IoHash SubDirHash) in StreamDir.NameToSubDirectory)
+			StreamTree StreamDir = StreamSnapshot.Lookup(StreamTreeRef);
+			foreach((Utf8String SubDirName, StreamTreeRef SubDirRef) in StreamDir.NameToTree)
 			{
 				WorkspaceDirectoryInfo? WorkspaceSubDir;
 				if(WorkspaceDir.NameToSubDirectory.TryGetValue(SubDirName, out WorkspaceSubDir))
 				{
-					MergeSubDirectory(SubDirName, WorkspaceSubDir, SubDirHash, NewWorkspaceDir, Queue);
+					MergeSubDirectory(SubDirName, WorkspaceSubDir, SubDirRef, NewWorkspaceDir, Queue);
 				}
 				else
 				{
-					AddSubDirectory(SubDirName, NewWorkspaceDir, SubDirHash, Queue);
+					AddSubDirectory(SubDirName, NewWorkspaceDir, SubDirRef, Queue);
 				}
 			}
 
 			// Move files into this folder
-			foreach(StreamFileInfo StreamFile in StreamDir.NameToFile.Values)
+			foreach((Utf8String Name, StreamFile StreamFile) in StreamDir.NameToFile)
 			{
 				WorkspaceFileInfo? WorkspaceFile;
-				if(WorkspaceDir.NameToFile.TryGetValue(StreamFile.Name.ToString(), out WorkspaceFile))
+				if(WorkspaceDir.NameToFile.TryGetValue(Name, out WorkspaceFile))
 				{
 					NewWorkspaceDir.NameToFile.Add(WorkspaceFile.Name, WorkspaceFile);
 				}
 				else
 				{
-					AddFile(NewWorkspaceDir, StreamFile);
+					AddFile(NewWorkspaceDir, Name, StreamFile);
 				}
 			}
 		}
 
-		void AddDirectory(WorkspaceDirectoryInfo NewWorkspaceDir, IoHash StreamDirHash, ThreadPoolWorkQueue Queue)
+		void AddDirectory(WorkspaceDirectoryInfo NewWorkspaceDir, StreamTreeRef StreamTreeRef, ThreadPoolWorkQueue Queue)
 		{
-			StreamDirectoryInfo StreamDir = StreamSnapshot.Lookup(StreamDirHash);
+			StreamTree StreamDir = StreamSnapshot.Lookup(StreamTreeRef);
 
 			// Make sure the directory exists
 			Directory.CreateDirectory(NewWorkspaceDir.GetFullName());
 
 			// Add all the sub directories and files
-			foreach((Utf8String SubDirName, IoHash SubDirHash) in StreamDir.NameToSubDirectory)
+			foreach((Utf8String SubDirName, StreamTreeRef SubDirRef) in StreamDir.NameToTree)
 			{
-				AddSubDirectory(SubDirName, NewWorkspaceDir, SubDirHash, Queue);
+				AddSubDirectory(SubDirName, NewWorkspaceDir, SubDirRef, Queue);
 			}
-			foreach(StreamFileInfo StreamFile in StreamDir.NameToFile.Values)
+			foreach((Utf8String Name, StreamFile StreamFile) in StreamDir.NameToFile)
 			{
-				AddFile(NewWorkspaceDir, StreamFile);
+				AddFile(NewWorkspaceDir, Name, StreamFile);
 			}
 		}
 
-		void MergeSubDirectory(Utf8String Name, WorkspaceDirectoryInfo WorkspaceSubDir, IoHash StreamSubDirHash, WorkspaceDirectoryInfo NewWorkspaceDir, ThreadPoolWorkQueue Queue)
+		void MergeSubDirectory(Utf8String Name, WorkspaceDirectoryInfo WorkspaceSubDir, StreamTreeRef StreamSubTreeRef, WorkspaceDirectoryInfo NewWorkspaceDir, ThreadPoolWorkQueue Queue)
 		{
-			WorkspaceDirectoryInfo NewWorkspaceSubDir = new WorkspaceDirectoryInfo(NewWorkspaceDir, Name, StreamSubDirHash);
+			WorkspaceDirectoryInfo NewWorkspaceSubDir = new WorkspaceDirectoryInfo(NewWorkspaceDir, Name, StreamSubTreeRef);
 			NewWorkspaceDir.NameToSubDirectory.Add(Name, NewWorkspaceSubDir);
-			Queue.Enqueue(() => MergeDirectory(WorkspaceSubDir, NewWorkspaceSubDir, StreamSubDirHash, Queue));
+			Queue.Enqueue(() => MergeDirectory(WorkspaceSubDir, NewWorkspaceSubDir, StreamSubTreeRef, Queue));
 		}
 
-		void AddSubDirectory(Utf8String Name, WorkspaceDirectoryInfo NewWorkspaceDir, IoHash StreamSubDirHash, ThreadPoolWorkQueue Queue)
+		void AddSubDirectory(Utf8String Name, WorkspaceDirectoryInfo NewWorkspaceDir, StreamTreeRef StreamSubTreeRef, ThreadPoolWorkQueue Queue)
 		{
-			WorkspaceDirectoryInfo NewWorkspaceSubDir = new WorkspaceDirectoryInfo(NewWorkspaceDir, Name, StreamSubDirHash);
+			WorkspaceDirectoryInfo NewWorkspaceSubDir = new WorkspaceDirectoryInfo(NewWorkspaceDir, Name, StreamSubTreeRef);
 			NewWorkspaceDir.NameToSubDirectory.Add(Name, NewWorkspaceSubDir);
-			Queue.Enqueue(() => AddDirectory(NewWorkspaceSubDir, StreamSubDirHash, Queue));
+			Queue.Enqueue(() => AddDirectory(NewWorkspaceSubDir, StreamSubTreeRef, Queue));
 		}
 
-		void AddFile(WorkspaceDirectoryInfo NewWorkspaceDir, StreamFileInfo StreamFile)
+		void AddFile(WorkspaceDirectoryInfo NewWorkspaceDir, Utf8String Name, StreamFile StreamFile)
 		{
 			// Create a new file for this workspace
-			WorkspaceFileInfo WorkspaceFile = new WorkspaceFileInfo(NewWorkspaceDir, StreamFile.Name.ToString(), StreamFile.ContentId);
-			NewWorkspaceDir.NameToFile.Add(StreamFile.Name.ToString(), WorkspaceFile);
+			WorkspaceFileInfo WorkspaceFile = new WorkspaceFileInfo(NewWorkspaceDir, Name, StreamFile.ContentId);
+			NewWorkspaceDir.NameToFile.Add(Name, WorkspaceFile);
 
 			// Try to add it to the cache
 			CachedFileInfo? TrackedFile;

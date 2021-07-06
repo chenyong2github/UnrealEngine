@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -15,7 +16,7 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Map of name to file within the directory
 		/// </summary>
-		public Dictionary<Utf8String, StreamFileInfo> NameToFile = new Dictionary<Utf8String, StreamFileInfo>();
+		public Dictionary<Utf8String, StreamFile> NameToFile = new Dictionary<Utf8String, StreamFile>();
 
 		/// <summary>
 		/// Map of name to subdirectory
@@ -42,17 +43,17 @@ namespace EpicGames.Perforce.Managed
 		/// Construct a stream snapshot from the given subtree
 		/// </summary>
 		/// <param name="Snapshot"></param>
-		/// <param name="Hash"></param>
-		public StreamSnapshotBuilder(StreamSnapshot Snapshot, IoHash Hash)
+		/// <param name="StreamTreeRef"></param>
+		public StreamSnapshotBuilder(StreamSnapshot Snapshot, StreamTreeRef StreamTreeRef)
 		{
-			StreamDirectoryInfo OldDirectory = Snapshot.Lookup(Hash);
-			foreach ((Utf8String Name, StreamFileInfo File) in OldDirectory.NameToFile)
+			StreamTree OldDirectory = Snapshot.Lookup(StreamTreeRef);
+			foreach ((Utf8String Name, StreamFile File) in OldDirectory.NameToFile)
 			{
 				NameToFile[Name] = File;
 			}
-			foreach ((Utf8String Name, IoHash SubDirHash) in OldDirectory.NameToSubDirectory)
+			foreach ((Utf8String Name, StreamTreeRef SubDirRef) in OldDirectory.NameToTree)
 			{
-				NameToSubDirectory[Name] = new StreamSnapshotBuilder(Snapshot, SubDirHash);
+				NameToSubDirectory[Name] = new StreamSnapshotBuilder(Snapshot, SubDirRef);
 			}
 		}
 
@@ -61,27 +62,23 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="HashToDirectory"></param>
 		/// <returns></returns>
-		public IoHash Encode(Dictionary<IoHash, StreamDirectoryInfo> HashToDirectory)
+		public StreamTreeRef Encode(Dictionary<IoHash, CbObject> HashToDirectory)
 		{
 			// Create the stream directory object
-			StreamDirectoryInfo Directory = new StreamDirectoryInfo();
+			StreamTree Directory = new StreamTree();
 			Directory.NameToFile = NameToFile;
-			foreach ((Utf8String Name, StreamSnapshotBuilder SubDirBuilder) in NameToSubDirectory)
+			foreach ((Utf8String SubDirName, StreamSnapshotBuilder SubDirBuilder) in NameToSubDirectory)
 			{
-				Directory.NameToSubDirectory[Name] = SubDirBuilder.Encode(HashToDirectory);
+				Directory.NameToTree[SubDirName] = SubDirBuilder.Encode(HashToDirectory);
 			}
 
-			// Serialize it
-			byte[] Data = new byte[Directory.GetSerializedSize()];
+			// Get the base directory
+			Utf8String BasePath = Directory.FindBasePath();
+			CbObject Object = Directory.ToCbObject(BasePath);
+			IoHash Hash = Object.GetHash();
+			HashToDirectory[Hash] = Object;
 
-			MemoryWriter Writer = new MemoryWriter(Data);
-			Writer.WriteStreamDirectoryInfo(Directory);
-			Writer.CheckOffset(Data.Length);
-
-			IoHash Hash = IoHash.Compute(Data);
-			HashToDirectory[Hash] = Directory;
-
-			return Hash;
+			return new StreamTreeRef(BasePath, Hash);
 		}
 	}
 }

@@ -35,5 +35,65 @@ namespace EpicGames.Core
 				yield return Elements;
 			}
 		}
+
+		/// <summary>
+		/// Finds the minimum element by a given field
+		/// </summary>
+		/// <typeparam name="TElement"></typeparam>
+		/// <param name="Sequence"></param>
+		/// <param name="Selector"></param>
+		/// <returns></returns>
+		public static TElement MinBy<TElement>(this IEnumerable<TElement> Sequence, Func<TElement, int> Selector)
+		{
+			IEnumerator<TElement> Enumerator = Sequence.GetEnumerator();
+			if (!Enumerator.MoveNext())
+			{
+				throw new Exception("Collection is empty");
+			}
+
+			TElement MinElement = Enumerator.Current;
+
+			int MinValue = Selector(MinElement);
+			while (Enumerator.MoveNext())
+			{
+				int Value = Selector(Enumerator.Current);
+				if (Value < MinValue)
+				{
+					MinElement = Enumerator.Current;
+				}
+			}
+
+			return MinElement;
+		}
+
+		/// <summary>
+		/// Finds the maximum element by a given field
+		/// </summary>
+		/// <typeparam name="TElement"></typeparam>
+		/// <param name="Sequence"></param>
+		/// <param name="Selector"></param>
+		/// <returns></returns>
+		public static TElement MaxBy<TElement>(this IEnumerable<TElement> Sequence, Func<TElement, int> Selector)
+		{
+			IEnumerator<TElement> Enumerator = Sequence.GetEnumerator();
+			if (!Enumerator.MoveNext())
+			{
+				throw new Exception("Collection is empty");
+			}
+
+			TElement MaxElement = Enumerator.Current;
+
+			int MaxValue = Selector(MaxElement);
+			while (Enumerator.MoveNext())
+			{
+				int Value = Selector(Enumerator.Current);
+				if (Value > MaxValue)
+				{
+					MaxElement = Enumerator.Current;
+				}
+			}
+
+			return MaxElement;
+		}
 	}
 }

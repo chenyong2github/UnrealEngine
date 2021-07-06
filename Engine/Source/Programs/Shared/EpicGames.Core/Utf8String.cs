@@ -11,7 +11,7 @@ namespace EpicGames.Core
 	/// <summary>
 	/// Represents a memory region which can be treated as a utf-8 string.
 	/// </summary>
-	public struct Utf8String : IEquatable<Utf8String>
+	public struct Utf8String : IEquatable<Utf8String>, IComparable<Utf8String>
 	{
 		/// <summary>
 		/// An empty string
@@ -108,14 +108,41 @@ namespace EpicGames.Core
 			return !A.Equals(B);
 		}
 
-		/// <summary>
-		/// Tests whether two strings are equal
-		/// </summary>
-		/// <param name="Other">The other string to compare to</param>
-		/// <returns>True if the strings are equal</returns>
+		/// <inheritdoc/>
 		public bool Equals(Utf8String Other)
 		{
 			return Span.SequenceEqual(Other.Span);
+		}
+
+		/// <inheritdoc/>
+		public int CompareTo(Utf8String Other)
+		{
+			return Span.SequenceCompareTo(Other.Span);
+		}
+
+		/// <inheritdoc cref="String.IndexOf(char)"/>
+		public int IndexOf(byte Char)
+		{
+			return Span.IndexOf(Char);
+		}
+
+		/// <inheritdoc cref="String.IndexOf(char)"/>
+		public int IndexOf(char Char)
+		{
+			if (Char < 0x80)
+			{
+				return Span.IndexOf((byte)Char);
+			}
+			else
+			{
+				return Span.IndexOf(Encoding.UTF8.GetBytes(new[] { Char }));
+			}
+		}
+
+		/// <inheritdoc cref="String.IndexOf(string)"/>
+		public int IndexOf(Utf8String String)
+		{
+			return Span.IndexOf(String.Span);
 		}
 
 		/// <summary>
@@ -190,6 +217,46 @@ namespace EpicGames.Core
 		public override string ToString()
 		{
 			return Encoding.UTF8.GetString(Span);
+		}
+
+		/// <summary>
+		/// Parse a string as an unsigned integer
+		/// </summary>
+		/// <param name="Text"></param>
+		/// <returns></returns>
+		public static uint ParseUnsignedInt(Utf8String Text)
+		{
+			ReadOnlySpan<byte> Bytes = Text.Span;
+			if (Bytes.Length == 0)
+			{
+				throw new Exception("Cannot parse empty string as an integer");
+			}
+
+			uint Value = 0;
+			for (int Idx = 0; Idx < Bytes.Length; Idx++)
+			{
+				uint Digit = (uint)(Bytes[Idx] - '0');
+				if (Digit > 9)
+				{
+					throw new Exception($"Cannot parse '{Text}' as an integer");
+				}
+				Value = (Value * 10) + Digit;
+			}
+			return Value;
+		}
+
+		/// <summary>
+		/// Appends two strings
+		/// </summary>
+		/// <param name="A"></param>
+		/// <param name="B"></param>
+		/// <returns></returns>
+		public static Utf8String operator +(Utf8String A, Utf8String B)
+		{
+			byte[] Buffer = new byte[A.Length + B.Length];
+			A.Span.CopyTo(Buffer);
+			B.Span.CopyTo(Buffer.AsSpan(A.Length));
+			return new Utf8String(Buffer);
 		}
 
 		/// <summary>

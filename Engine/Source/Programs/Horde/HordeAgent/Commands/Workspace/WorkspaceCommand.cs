@@ -19,9 +19,9 @@ namespace HordeAgent.Commands.Workspace
 {
 	abstract class WorkspaceCommand : Command
 	{
-		[CommandLine("-Server", Required = true)]
+		[CommandLine("-Server")]
 		[Description("Specifies the Perforce server and port")]
-		protected string ServerAndPort = null!;
+		protected string? ServerAndPort = null;
 
 		[CommandLine("-User")]
 		[Description("Specifies the Perforce username")]

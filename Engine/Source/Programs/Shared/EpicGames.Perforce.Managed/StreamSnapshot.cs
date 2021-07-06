@@ -24,14 +24,14 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// The root digest
 		/// </summary>
-		public abstract IoHash Root { get; }
+		public abstract StreamTreeRef Root { get; }
 
 		/// <summary>
-		/// Lookup a directory by digest
+		/// Lookup a directory by reference
 		/// </summary>
-		/// <param name="Hash">The hash value</param>
+		/// <param name="Ref">The reference</param>
 		/// <returns></returns>
-		public abstract StreamDirectoryInfo Lookup(IoHash Hash);
+		public abstract StreamTree Lookup(StreamTreeRef Ref);
 	}
 
 	/// <summary>
@@ -43,9 +43,9 @@ namespace EpicGames.Perforce.Managed
 		/// Get all the files in this directory
 		/// </summary>
 		/// <returns>List of files</returns>
-		public static List<StreamFileInfo> GetFiles(this StreamSnapshot Snapshot)
+		public static List<StreamFile> GetFiles(this StreamSnapshot Snapshot)
 		{
-			List<StreamFileInfo> Files = new List<StreamFileInfo>();
+			List<StreamFile> Files = new List<StreamFile>();
 			AppendFiles(Snapshot, Snapshot.Root, Files);
 			return Files;
 		}
@@ -54,12 +54,12 @@ namespace EpicGames.Perforce.Managed
 		/// Append the contents of this directory and subdirectories to a list
 		/// </summary>
 		/// <param name="Files">List to append to</param>
-		static void AppendFiles(StreamSnapshot Snapshot, IoHash DirHash, List<StreamFileInfo> Files)
+		static void AppendFiles(StreamSnapshot Snapshot, StreamTreeRef TreeRef, List<StreamFile> Files)
 		{
-			StreamDirectoryInfo DirectoryInfo = Snapshot.Lookup(DirHash);
-			foreach (IoHash SubDirHash in DirectoryInfo.NameToSubDirectory.Values)
+			StreamTree DirectoryInfo = Snapshot.Lookup(TreeRef);
+			foreach (StreamTreeRef SubDirRef in DirectoryInfo.NameToTree.Values)
 			{
-				AppendFiles(Snapshot, SubDirHash, Files);
+				AppendFiles(Snapshot, SubDirRef, Files);
 			}
 			Files.AddRange(DirectoryInfo.NameToFile.Values);
 		}
