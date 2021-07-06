@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "DMXProtocolModule.h"
 #include "DMXProtocolTypes.h"
 
 #include "CoreMinimal.h"
@@ -101,7 +102,7 @@ protected:
 
 	/** DMX Protocol */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
-	FName ProtocolName;
+	FName ProtocolName = FDMXProtocolModule::DefaultProtocolArtNetName;
 
 	/** The type of communication used with this port */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")

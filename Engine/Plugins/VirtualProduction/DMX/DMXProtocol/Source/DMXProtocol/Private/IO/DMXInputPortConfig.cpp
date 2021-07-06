@@ -2,7 +2,6 @@
 
 #include "IO/DMXInputPortConfig.h"
 
-#include "DMXProtocolModule.h"
 #include "DMXProtocolSettings.h"
 #include "DMXProtocolUtils.h"
 #include "Interfaces/IDMXProtocol.h"
@@ -71,8 +70,6 @@ void FDMXInputPortConfig::MakeValid()
 	// Allow NAME_None as an option if no protocol should be loaded (e.g. in projects that play a dmx show from sequencer only).
 	if (!Protocol.IsValid() && !ProtocolName.IsNone())
 	{
-		UE_LOG(LogDMXProtocol, Warning, TEXT("DMX Protocol %s is not available or failed to load. Attempting to chose a valid protocol instead."), *ProtocolName.ToString());
-
 		const TArray<FName> ProtocolNames = IDMXProtocol::GetProtocolNames();
 		if (ProtocolNames.Num() > 0)
 		{
@@ -80,13 +77,12 @@ void FDMXInputPortConfig::MakeValid()
 			Protocol = IDMXProtocol::Get(ProtocolName);
 		}
 
-		if (Protocol.IsValid())
+		if (!Protocol.IsValid())
 		{
-			UE_LOG(LogDMXProtocol, Warning, TEXT("Restored invalid DMX Protocol. Input Port %s now using DMX Protocol %s."), *PortName, *ProtocolName.ToString());
-		}
-		else
-		{
-			UE_LOG(LogDMXProtocol, Error, TEXT("Failed to restore a valid DMX Protocol for Input Port %s. The Port cannot be used."), *PortName);
+			// Mind, while it makes sense for output ports to specify no protocol to internally loopback,  
+			// there is no reason to have an input port but no use for it. To the opposite, it may cause
+			// undesired behaviour as in 3rd party interference. Hence this is logged as a warning. 
+			UE_LOG(LogDMXProtocol, Warning, TEXT("No valid DMX Protocol specified for Input Port %s. The Port cannot be used."), *PortName);
 			return;
 		}
 	}

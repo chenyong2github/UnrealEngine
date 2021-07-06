@@ -67,6 +67,9 @@ public:
 	virtual void ShutdownModule() override;
 	//~ End IModuleInterface implementation
 
+	static const FName DefaultProtocolArtNetName;
+	static const FName DefaultProtocolSACNName;
+
 private:
 	/** Called after each loading phase during startup */
 	void OnPluginLoadingPhaseComplete(ELoadingPhase::Type LoadingPhase, bool bPhaseSuccessful);
@@ -75,9 +78,6 @@ private:
 	void ShutdownAllDMXProtocols();
 
 private:
-	static const FName DefaultProtocolArtNetName;
-	static const FName DefaultProtocolSACNName;
-
 	static FDMXOnRequestProtocolRegistrationEvent OnRequestProtocolRegistrationEvent;
 	static FDMXOnRequestProtocolBlocklistEvent OnRequestProtocolBlocklistEvent;
 

@@ -46,7 +46,7 @@ FName FDMXInputPortConfigCustomization::GetDeviceAddressPropertyName() const
 
 FName FDMXInputPortConfigCustomization::GetDestinationAddressPropertyName() const
 {
-	return FDMXOutputPortConfig::GetDestinationAddressPropertyNameChecked();
+	return NAME_None;
 }
 
 FName FDMXInputPortConfigCustomization::GetPriorityStrategyPropertyName() const
@@ -68,7 +68,7 @@ const TArray<EDMXCommunicationType> FDMXInputPortConfigCustomization::GetSupport
 {
 	if (IDMXProtocolPtr Protocol = GetProtocol())
 	{
-		return Protocol->GetOutputPortCommunicationTypes();
+		return Protocol->GetInputPortCommunicationTypes();
 	}
 
 	return TArray<EDMXCommunicationType>();

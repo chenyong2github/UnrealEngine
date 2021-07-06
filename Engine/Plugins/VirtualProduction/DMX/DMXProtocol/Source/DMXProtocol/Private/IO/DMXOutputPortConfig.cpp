@@ -2,7 +2,6 @@
 
 #include "IO/DMXOutputPortConfig.h"
 
-#include "DMXProtocolModule.h"
 #include "DMXProtocolSettings.h"
 #include "DMXProtocolUtils.h"
 #include "Interfaces/IDMXProtocol.h"
@@ -72,12 +71,9 @@ void FDMXOutputPortConfig::MakeValid()
 	}
 
 	// Try to restore the protocol if it is not valid.
-	// Allow NAME_None as an option if no protocol should be loaded (e.g. in projects that play a dmx show from sequencer only).
 	IDMXProtocolPtr Protocol = IDMXProtocol::Get(ProtocolName);	
-	if (!Protocol.IsValid() && !ProtocolName.IsNone())
+	if (!Protocol.IsValid())
 	{
-		UE_LOG(LogDMXProtocol, Warning, TEXT("DMX Protocol %s is not available or failed to load. Attempting to chose a valid protocol instead.."), *ProtocolName.ToString());
-
 		const TArray<FName> ProtocolNames = IDMXProtocol::GetProtocolNames();
 		if (ProtocolNames.Num() > 0)
 		{
@@ -85,13 +81,11 @@ void FDMXOutputPortConfig::MakeValid()
 			Protocol = IDMXProtocol::Get(ProtocolName);
 		}
 
-		if (Protocol.IsValid())
+		if (!Protocol.IsValid())
 		{
-			UE_LOG(LogDMXProtocol, Warning, TEXT("Restored invalid DMX Protocol. Output Port %s now using DMX Protocol %s."), *PortName, *ProtocolName.ToString());
-		}
-		else
-		{
-			UE_LOG(LogDMXProtocol, Warning, TEXT("Failed to restore DMX Protocol for Output Port %s. The Port can only be used for internal loopback."), *PortName);
+			// Accept NAME_None was specified as a protocol, but log that it will only be useful for internal loopback.
+			// This is a temporary solution for projects that want to use DMX, but not send or receive DMX over the network.
+			UE_LOG(LogDMXProtocol, Log, TEXT("No protocol specified for Output Port %s. The Port can be used for internal loopback only."), *PortName);
 			return;
 		}
 	}

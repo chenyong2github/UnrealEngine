@@ -65,7 +65,7 @@ public:
 	TArray<FDMXOutputPortConfig> OutputPortConfigs;
 		
 	/** Rate at which DMX is sent, in Hz from 1 to 1000. 44Hz is recommended. */
-	UPROPERTY(Config, EditAnywhere, Category = "DMX|Sending Settings", Meta = (ClampMin = "1", ClampMax = "1000"), Meta = (DisplayName = "DMX Send Rate"))
+	UPROPERTY(Config, EditAnywhere, Category = "DMX|Communication Settings", Meta = (ClampMin = "1", ClampMax = "1000"), Meta = (DisplayName = "DMX Send Rate"))
 	uint32 SendingRefreshRate;
 
 	/** Rate at which DMX is received, in Hz from 1 to 1000. 44Hz is recommended */
@@ -100,11 +100,11 @@ public:
 
 private:
 	/** Whether DMX is received from the network. Recalled whenever editor or game starts. */
-	UPROPERTY(Config, EditAnywhere, Category = "DMX|Sending Settings", Meta = (AllowPrivateAccess = true, DisplayName = "Send DMX by default"))
+	UPROPERTY(Config, EditAnywhere, Category = "DMX|Communication Settings", Meta = (AllowPrivateAccess = true, DisplayName = "Send DMX by default"))
 	bool bDefaultSendDMXEnabled;
 
 	/** Whether DMX is sent to the network. Recalled whenever editor or game starts.  */
-	UPROPERTY(Config, EditAnywhere, Category = "DMX|Receiving Settings", Meta = (AllowPrivateAccess = true, DisplayName = "Receive DMX by default"))
+	UPROPERTY(Config, EditAnywhere, Category = "DMX|Communication Settings", Meta = (AllowPrivateAccess = true, DisplayName = "Receive DMX by default"))
 	bool bDefaultReceiveDMXEnabled;
 
 	/** Overrides the default bDefaultSendDMXEnabled value at runtime */
