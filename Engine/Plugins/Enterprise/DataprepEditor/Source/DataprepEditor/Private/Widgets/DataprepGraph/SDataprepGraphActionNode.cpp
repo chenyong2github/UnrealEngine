@@ -628,7 +628,7 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 				.Padding(OuterPadding)
 				[
 					SNew(SImage)
-					.ColorAndOpacity(FLinearColor(0.25f, 0.25f, 0.25f, 0.5f))
+					.ColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.5f))
 					.Image(FDataprepEditorStyle::GetBrush("DataprepEditor.Node.Body"))
 					.Visibility_Lambda([&]()
 					{
@@ -1140,7 +1140,7 @@ void SDataprepGraphActionGroupNode::UpdateGraphNode()
 				.Padding(OuterPadding)
 				[
 					SNew(SImage)
-					.ColorAndOpacity(FLinearColor(0.25f, 0.25f, 0.25f, 0.5f))
+					.ColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.5f))
 					.Image(FDataprepEditorStyle::GetBrush("DataprepEditor.Node.Body"))
 					.Visibility_Lambda([&]()
 					{
