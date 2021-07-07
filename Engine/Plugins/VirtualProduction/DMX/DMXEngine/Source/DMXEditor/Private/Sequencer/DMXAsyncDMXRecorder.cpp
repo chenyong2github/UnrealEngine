@@ -174,7 +174,7 @@ FDMXFunctionChannelData::FDMXFunctionChannelData(UDMXEntityFixturePatch* InFixtu
 		if (bCellChannel)
 		{
 			FDMXFixtureMatrix MatrixProperties;
-			if (!FixturePatch->GetMatrixProperties(MatrixProperties))
+			if (FixturePatch->GetMatrixProperties(MatrixProperties))
 			{
 				CellIndex = MatrixProperties.XCells * FunctionChannel->CellCoordinate.Y + FunctionChannel->CellCoordinate.X;
 			}

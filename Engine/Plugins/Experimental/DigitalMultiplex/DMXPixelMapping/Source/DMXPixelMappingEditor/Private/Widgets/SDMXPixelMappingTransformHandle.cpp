@@ -95,6 +95,16 @@ FReply SDMXPixelMappingTransformHandle::OnMouseButtonUp(const FGeometry& MyGeome
 			}
 		}
 
+		// Set the final size transacted
+		const FDMXPixelMappingComponentReference& ComponentReference = DesignerViewWeakPtr.Pin()->GetSelectedComponent();
+		UDMXPixelMappingBaseComponent* Component = ComponentReference.GetComponent();
+
+		const FVector2D Delta = MouseEvent.GetScreenSpacePosition() - MouseDownPosition;
+		const FVector2D TranslateAmount = Delta * (1.0f / (DesignerViewWeakPtr.Pin()->GetPreviewScale() * MyGeometry.Scale));
+
+		Component->Modify();
+		Resize(Component, DragDirection, TranslateAmount);
+
 		ScopedTransaction.Reset();
 
 		return FReply::Handled().ReleaseMouseCapture();

@@ -141,7 +141,7 @@ void UTakeRecorderDMXLibrarySource::PostEditChangeProperty(FPropertyChangedEvent
 	{
 		// Prevent from selecting the same patch twice
 		int32 ChangedIndex = PropertyChangedEvent.GetArrayIndex(PropertyName.ToString());
-		if (ensure(FixturePatchRefs.IsValidIndex(ChangedIndex)))
+		if (FixturePatchRefs.IsValidIndex(ChangedIndex))
 		{
 			UDMXEntityFixturePatch* SelectedPatch = FixturePatchRefs[ChangedIndex].GetFixturePatch();
 

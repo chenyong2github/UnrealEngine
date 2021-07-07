@@ -73,6 +73,12 @@ void UDMXPixelMappingOutputComponent::PostEditChangeProperty(FPropertyChangedEve
 			PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeX) ||
 			PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeY))
 		{
+			PositionX = FMath::RoundHalfToZero(PositionX);
+			PositionY = FMath::RoundHalfToZero(PositionY);
+
+			SizeX = FMath::RoundHalfToZero(SizeX);
+			SizeY = FMath::RoundHalfToZero(SizeY);
+
 			// Remove self if not over parent
 			if (!IsOverParent())
 			{
@@ -83,24 +89,6 @@ void UDMXPixelMappingOutputComponent::PostEditChangeProperty(FPropertyChangedEve
 					GetParent()->Modify();
 					GetParent()->RemoveChild(this);
 				}
-			}
-			else
-			{
-				// Remove children not over this
-				constexpr bool RemoveChildNotOverThisRecursively = true;
-				ForEachChildOfClass<UDMXPixelMappingOutputComponent>([this](UDMXPixelMappingOutputComponent* ChildComponent)
-					{
-						if (!ChildComponent->IsOverParent())
-						{
-							ChildComponent->Modify();
-							Modify();
-
-							if (ensureMsgf(ChildComponent->HasValidParent(), TEXT("No valid Parent when trying to remove PixelMapping Component %s."), *ChildComponent->GetUserFriendlyName()))
-							{
-								ChildComponent->GetParent()->RemoveChild(ChildComponent);
-							}
-						}
-					}, RemoveChildNotOverThisRecursively);
 			}
 		}
 	}

@@ -134,27 +134,27 @@ void UDMXPixelMappingMatrixComponent::PostEditChangeProperty(FPropertyChangedEve
 	}
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeX) ||
 		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeY) ||
-		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, CellSize) ||
-		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, CoordinateGrid))
+		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, CellSize))
 	{
-		HandleSizeOrMatrixChanged();
+		HandleSizeChanged();
 
 		// Update size again from the new CellSize that results from handling size or matrix changes
 		SizeX = CellSize.X * CoordinateGrid.X;
 		SizeY = CellSize.Y * CoordinateGrid.Y;
 	}
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, FixturePatchRef))
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, FixturePatchRef) ||
+		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, CoordinateGrid))
 	{
 		if (UDMXPixelMapping* PixelMapping = GetPixelMapping())
 		{
-			HandleSizeOrMatrixChanged();
+			HandleMatrixChanged();
 		}
 	}
 	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FDMXEntityReference, DMXLibrary))
 	{
 		if (UDMXPixelMapping* PixelMapping = GetPixelMapping())
 		{
-			HandleSizeOrMatrixChanged();
+			HandleMatrixChanged();
 		}
 	}
 }
@@ -187,7 +187,7 @@ void UDMXPixelMappingMatrixComponent::PostEditUndo()
 	// Override Output Component, but not UObject
 	UObject::PostEditUndo();
 
-	HandleSizeOrMatrixChanged();
+	HandleMatrixChanged();
 	HandlePositionChanged();
 
 	const EVisibility NewVisibility = IsVisible() ? EVisibility::Visible : EVisibility::Collapsed;
@@ -387,7 +387,7 @@ void UDMXPixelMappingMatrixComponent::Tick(float DeltaTime)
 
 		if (bShouldRebuildChildren)
 		{
-			HandleSizeOrMatrixChanged();
+			HandleMatrixChanged();
 
 			LogInvalidProperties();
 		}
@@ -415,7 +415,7 @@ void UDMXPixelMappingMatrixComponent::SetSize(const FVector2D& NewSize)
 	SizeX = FMath::Max(SizeX, 1.f);
 	SizeY = FMath::Max(SizeY, 1.f);
 
-	HandleSizeOrMatrixChanged();
+	HandleSizeChanged();
 }
 
 void UDMXPixelMappingMatrixComponent::HandlePositionChanged()
@@ -436,10 +436,46 @@ void UDMXPixelMappingMatrixComponent::HandlePositionChanged()
 #endif
 }
 
-void UDMXPixelMappingMatrixComponent::HandleSizeOrMatrixChanged()
+void UDMXPixelMappingMatrixComponent::HandleSizeChanged()
+{
+	CellSize = FVector2D::ZeroVector;
+	if (CoordinateGrid.X > 0 && CoordinateGrid.Y > 0)
+	{
+		CellSize = FVector2D(FMath::RoundToFloat(GetSize().X / CoordinateGrid.X), FMath::RoundToFloat(GetSize().Y / CoordinateGrid.Y));
+
+		// Propagonate to children
+		constexpr bool bUpdateSizeRecursive = false;
+		ForEachChildOfClass<UDMXPixelMappingMatrixCellComponent>([this](UDMXPixelMappingMatrixCellComponent* ChildComponent)
+			{
+				ChildComponent->SetSize(CellSize);
+				ChildComponent->SetPosition(GetPosition() + FVector2D(CellSize * ChildComponent->GetCellCoordinate()));
+
+			}, bUpdateSizeRecursive);
+	}
+
+	if (Children.Num() > 0)
+	{
+		// Update size again from the new CellSize
+		SizeX = CellSize.X * CoordinateGrid.X;
+		SizeY = CellSize.Y * CoordinateGrid.Y;
+	}
+	else
+	{
+		// Set the default size
+		SizeX = 150.f;
+		SizeY = 150.f;
+	}
+
+	if (ComponentWidget.IsValid())
+	{
+		ComponentWidget->SetSize(FVector2D(SizeX, SizeY));
+	}
+}
+
+void UDMXPixelMappingMatrixComponent::HandleMatrixChanged()
 {
 	CoordinateGrid = 0;
-	
+
 	// Remove all existing children and rebuild them anew
 	for (UDMXPixelMappingBaseComponent* Child : TArray<UDMXPixelMappingBaseComponent*>(Children))
 	{
@@ -459,7 +495,7 @@ void UDMXPixelMappingMatrixComponent::HandleSizeOrMatrixChanged()
 
 					// Set distribution
 					Distribution = ModePtr->FixtureMatrixConfig.PixelMappingDistribution;
-					
+
 					// Set Num Cells
 					FIntPoint NewCoordinateGrid = FIntPoint(FixtureMatrixConfig.XCells, FixtureMatrixConfig.YCells);
 					if (NewCoordinateGrid != CoordinateGrid)
@@ -505,33 +541,7 @@ void UDMXPixelMappingMatrixComponent::HandleSizeOrMatrixChanged()
 		}
 	}
 
-	CellSize = FVector2D::ZeroVector;
-	if (CoordinateGrid.X > 0 && CoordinateGrid.Y > 0)
-	{
-		CellSize = FVector2D(FMath::RoundToFloat(GetSize().X / CoordinateGrid.X), FMath::RoundToFloat(GetSize().Y / CoordinateGrid.Y));
-
-		// Propagonate to children
-		constexpr bool bUpdateSizeRecursive = false;
-		ForEachChildOfClass<UDMXPixelMappingMatrixCellComponent>([this](UDMXPixelMappingMatrixCellComponent* ChildComponent)
-			{
-				ChildComponent->SetSize(CellSize);
-				ChildComponent->SetPosition(GetPosition() + FVector2D(CellSize * ChildComponent->GetCellCoordinate()));
-
-			}, bUpdateSizeRecursive);
-	}
-
-	if (Children.Num() > 0)
-	{
-		// Update size again from the new CellSize
-		SizeX = CellSize.X * CoordinateGrid.X;
-		SizeY = CellSize.Y * CoordinateGrid.Y;
-	}
-	else
-	{
-		// Set the default size
-		SizeX = 150.f;
-		SizeY = 150.f;
-	}
+	HandleSizeChanged();
 
 	GetOnMatrixChanged().Broadcast(GetPixelMapping(), this);
 }

@@ -79,7 +79,10 @@ public:
 	void HandlePositionChanged();
 
 	/** Handles changes in size or in matrix */
-	void HandleSizeOrMatrixChanged();
+	void HandleSizeChanged();
+
+	/** Handles changes in size or in matrix */
+	void HandleMatrixChanged();
 
 protected:
 #if WITH_EDITORONLY_DATA
