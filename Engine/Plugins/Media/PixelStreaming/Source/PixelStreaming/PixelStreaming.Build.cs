@@ -102,6 +102,8 @@ namespace UnrealBuildTool.Rules
 			// required for casting UE4 BackBuffer to Vulkan Texture2D for NvEnc
 			PrivateDependencyModuleNames.AddRange(new string[] { "CUDA", "VulkanRHI", "nvEncode" });
 
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
+			
 			PrivateIncludePathModuleNames.Add("VulkanRHI");
 			PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/VulkanRHI/Private"));
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
