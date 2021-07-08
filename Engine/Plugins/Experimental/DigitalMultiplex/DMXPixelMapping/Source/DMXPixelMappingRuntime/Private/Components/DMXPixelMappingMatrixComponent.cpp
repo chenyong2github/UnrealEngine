@@ -466,10 +466,12 @@ void UDMXPixelMappingMatrixComponent::HandleSizeChanged()
 		SizeY = 150.f;
 	}
 
+#if WITH_EDITOR
 	if (ComponentWidget.IsValid())
 	{
 		ComponentWidget->SetSize(FVector2D(SizeX, SizeY));
 	}
+#endif
 }
 
 void UDMXPixelMappingMatrixComponent::HandleMatrixChanged()
