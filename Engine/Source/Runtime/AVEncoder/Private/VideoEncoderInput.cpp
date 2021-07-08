@@ -6,6 +6,7 @@
 #include "VideoEncoderFactory.h"
 #include "AVEncoderDebug.h"
 #include "Misc/Paths.h"
+#include "GenericPlatform/GenericPlatformMath.h"
 
 #if PLATFORM_DESKTOP && !PLATFORM_APPLE
 #include "VulkanRHIBridge.h"
@@ -135,8 +136,18 @@ TSharedPtr<FVideoEncoderInput> FVideoEncoderInput::CreateForVulkan(void* InAppli
 
 void FVideoEncoderInput::SetResolution(uint32 InWidth, uint32 InHeight)
 {
-	this->Width = InWidth;
-	this->Height = InHeight;
+	Width = InWidth;
+	Height = InHeight;
+}
+
+void FVideoEncoderInput::SetMaxNumBuffers(uint32 InMaxNumBuffers)
+{
+	MaxNumBuffers = InMaxNumBuffers;
+}
+
+void FVideoEncoderInput::SetNumFramesUntilStale(uint32 InNumFramesUntilStale)
+{
+	NumFramesUntilStale = InNumFramesUntilStale;
 }
 
 // --- encoder input frames -----------------------------------------------------------------------
@@ -484,19 +495,44 @@ void FVideoEncoderInputImpl::DestroyBuffer(FVideoEncoderInputFrame* InBuffer)
 
 // --- encoder input frames -----------------------------------------------------------------------
 
+bool FVideoEncoderInputImpl::IsFrameStale(FVideoEncoderInputFrame* InFrame)
+{
+	return FGenericPlatformMath::Abs(((int64)InFrame->GetFrameID()) - ((int64)NextFrameID)) > NumFramesUntilStale;
+}
+
+uint32 FVideoEncoderInput::NextFrameID = 1;
+
 FVideoEncoderInputFrame* FVideoEncoderInputImpl::ObtainInputFrame()
 {
-	static uint32 NextFrameID = 1;
-
 	FVideoEncoderInputFrameImpl*	Frame = nullptr;
 	FScopeLock						Guard(&ProtectFrames);
+
 	if (!AvailableFrames.IsEmpty())
 	{
-		AvailableFrames.Dequeue(Frame);
+		while(true)
+		{
+			AvailableFrames.Dequeue(Frame);
+			// cull any old frames we haven't used in a while but recycle at least one of them
+			if(AvailableFrames.IsEmpty() || !IsFrameStale(Frame))
+			{
+				break;
+			}
+
+			UE_LOG(LogVideoEncoder, Verbose, TEXT("Back buffer stale, deleted"))
+			ProtectFrames.Unlock();
+			delete Frame;
+			NumBuffers--;
+			ProtectFrames.Lock();
+		}
+		
 	}
-	else
+	else if(MaxNumBuffers == 0 || NumBuffers < MaxNumBuffers)
 	{
+		// create new frame if we haven't hit our configured number of maximum buffers
 		Frame = CreateFrame();
+	}
+	else {
+		UE_LOG(LogVideoEncoder, Verbose, TEXT("Maximum number of back buffers reached, frame dropped"))
 	}
 	if (Frame)
 	{
@@ -511,6 +547,7 @@ FVideoEncoderInputFrame* FVideoEncoderInputImpl::ObtainInputFrame()
 FVideoEncoderInputFrameImpl* FVideoEncoderInputImpl::CreateFrame()
 {
 	FVideoEncoderInputFrameImpl*	Frame = new FVideoEncoderInputFrameImpl(this);
+	NumBuffers++;
 	switch (FrameFormat)
 	{
 	case EVideoFrameFormat::Undefined:
@@ -562,6 +599,7 @@ void FVideoEncoderInputImpl::ReleaseInputFrame(FVideoEncoderInputFrame* InFrame)
 		{
 			ProtectFrames.Unlock();
 			delete InFrameImpl;
+			NumBuffers--;
 			// ProtectFrames.Lock();
 			return;
 		}
@@ -571,6 +609,7 @@ void FVideoEncoderInputImpl::ReleaseInputFrame(FVideoEncoderInputFrame* InFrame)
 		{
 			ProtectFrames.Unlock();
 			delete InFrameImpl;
+			NumBuffers--;
 			return;
 		}
 
@@ -587,6 +626,7 @@ void FVideoEncoderInputImpl::Flush()
 		AvailableFrames.Dequeue(Frame);
 		ProtectFrames.Unlock();
 		delete Frame;
+		NumBuffers--;
 		ProtectFrames.Lock();
 	}
 	ProtectFrames.Unlock();
@@ -796,7 +836,7 @@ FVideoEncoderInputFrame::~FVideoEncoderInputFrame()
 #endif
 
 #if PLATFORM_DESKTOP && !PLATFORM_APPLE
-	if (Vulkan.EncoderTexture)
+	if (Vulkan.EncoderTexture != VK_NULL_HANDLE)
 	{
 		OnReleaseVulkanTexture(Vulkan.EncoderTexture);
 	}

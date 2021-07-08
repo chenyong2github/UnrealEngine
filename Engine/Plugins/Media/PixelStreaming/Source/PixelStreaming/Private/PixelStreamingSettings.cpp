@@ -65,9 +65,9 @@ namespace PixelStreamingSettings
 
 // Begin Capturer CVars
 
-	TAutoConsoleVariable<int32> CVarPixelStreamingUseBackBufferCaptureSize(
+	TAutoConsoleVariable<bool> CVarPixelStreamingUseBackBufferCaptureSize(
 		TEXT("PixelStreaming.Capturer.UseBackBufferSize"),
-		3,
+		true,
 		TEXT("Whether to use back buffer size or custom size"),
 		ECVF_Default);
 
@@ -75,6 +75,18 @@ namespace PixelStreamingSettings
 		TEXT("PixelStreaming.Capturer.CaptureSize"),
 		TEXT("1920x1080"),
 		TEXT("Capture size in format widthxheight. Recommended to UseBackBufferSize instead."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<int32> CVarPixelStreamingMaxNumBackBuffers(
+		TEXT("PixelStreaming.Capturer.MaxNumBackBuffers"),
+		8,
+		TEXT("Maximum number of back buffers to use. A value of 0 will not limit the number of back buffers."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<int32> CVarPixelStreamingNumFramesUntilBackBufferStale(
+		TEXT("PixelStreaming.Capturer.NumFramesUntilBackBufferStale"),
+		1,
+		TEXT("Cull back buffers that haven't been used for this many frames."),
 		ECVF_Default);
 
 // End Capturer CVars
@@ -258,8 +270,21 @@ void CommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<FString>& CV
 
 void CommandLineParseOption(const TCHAR* Match, TAutoConsoleVariable<bool>& CVar)
 {
-	if (FParse::Param(FCommandLine::Get(), Match))
+	FString ValueMatch(Match);
+	ValueMatch.Append(TEXT("="));
+	FString Value;
+	if (FParse::Value(FCommandLine::Get(), *ValueMatch, Value)) {
+		if (Value.Equals(FString(TEXT("true")), ESearchCase::IgnoreCase)) {
+			CVar->Set(true, ECVF_SetByCommandline);
+		}
+		else if (Value.Equals(FString(TEXT("false")), ESearchCase::IgnoreCase)) {
+			CVar->Set(false, ECVF_SetByCommandline);
+		}
+	}
+	else if (FParse::Param(FCommandLine::Get(), Match))
+	{
 		CVar->Set(true, ECVF_SetByCommandline);
+	}
 };
 
 UPixelStreamingSettings::UPixelStreamingSettings(const FObjectInitializer& ObjectInitlaizer)
@@ -274,8 +299,9 @@ UPixelStreamingSettings::UPixelStreamingSettings(const FObjectInitializer& Objec
 	CommandLineParseValue(TEXT("PixelStreamingEncoderRateControl="), PixelStreamingSettings::CVarPixelStreamingEncoderRateControl);
 	CommandLineParseValue(TEXT("PixelStreamingEncoderMultipass="), PixelStreamingSettings::CVarPixelStreamingEncoderMultipass);
 	CommandLineParseValue(TEXT("PixelStreamingH264Profile="), PixelStreamingSettings::CVarPixelStreamingH264Profile);
-	CommandLineParseValue(TEXT("PixelStreamingUseBackBufferCaptureSize="), PixelStreamingSettings::CVarPixelStreamingUseBackBufferCaptureSize);
 	CommandLineParseValue(TEXT("PixelStreamingCaptureSize="), PixelStreamingSettings::CVarPixelStreamingCaptureSize);
+	CommandLineParseValue(TEXT("PixelStreamingMaxNumBackBuffers="), PixelStreamingSettings::CVarPixelStreamingMaxNumBackBuffers);
+	CommandLineParseValue(TEXT("PixelStreamingMaxNumBackBuffers="), PixelStreamingSettings::CVarPixelStreamingNumFramesUntilBackBufferStale);
 	CommandLineParseValue(TEXT("PixelStreamingDegradationPreference="), PixelStreamingSettings::CVarPixelStreamingDegradationPreference);
 	CommandLineParseValue(TEXT("PixelStreamingWebRTCMaxFps="), PixelStreamingSettings::CVarPixelStreamingWebRTCMaxFps);
 	CommandLineParseValue(TEXT("PixelStreamingWebRTCStartBitrate="), PixelStreamingSettings::CVarPixelStreamingWebRTCStartBitrate);
@@ -289,6 +315,7 @@ UPixelStreamingSettings::UPixelStreamingSettings(const FObjectInitializer& Objec
 	CommandLineParseOption(TEXT("PixelStreamingHudStats"), PixelStreamingSettings::CVarPixelStreamingHudStats);
 	CommandLineParseOption(TEXT("PixelStreamingDebugDumpFrame"), PixelStreamingSettings::CVarPixelStreamingDebugDumpFrame);
 	CommandLineParseOption(TEXT("PixelStreamingEnableFillerData"), PixelStreamingSettings::CVarPixelStreamingEnableFillerData);
+	CommandLineParseOption(TEXT("PixelStreamingUseBackBufferCaptureSize"), PixelStreamingSettings::CVarPixelStreamingUseBackBufferCaptureSize);
 	CommandLineParseOption(TEXT("PixelStreamingWebRTCDisableReceiveAudio"), PixelStreamingSettings::CVarPixelStreamingWebRTCDisableReceiveAudio);
 	CommandLineParseOption(TEXT("PixelStreamingWebRTCDisableTransmitAudio"), PixelStreamingSettings::CVarPixelStreamingWebRTCDisableTransmitAudio);
 	CommandLineParseOption(TEXT("PixelStreamingWebRTCDisableAudioSync"), PixelStreamingSettings::CVarPixelStreamingWebRTCDisableAudioSync);

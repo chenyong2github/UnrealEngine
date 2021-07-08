@@ -78,6 +78,8 @@ void FVideoCapturer::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
 		CurrentState = webrtc::MediaSourceInterface::SourceState::kLive;
 
 	AVEncoder::FVideoEncoderInputFrame* InputFrame = ObtainInputFrame();
+	if(InputFrame == nullptr) return;
+
 	const int32 FrameId = InputFrame->GetFrameID();
 	InputFrame->SetTimestampUs(TimestampUs);
 
@@ -121,7 +123,10 @@ void FVideoCapturer::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
 
 AVEncoder::FVideoEncoderInputFrame* FVideoCapturer::ObtainInputFrame()
 {
+	VideoEncoderInput->SetMaxNumBuffers((uint32)PixelStreamingSettings::CVarPixelStreamingMaxNumBackBuffers.GetValueOnRenderThread());
+	VideoEncoderInput->SetNumFramesUntilStale((uint32)PixelStreamingSettings::CVarPixelStreamingNumFramesUntilBackBufferStale.GetValueOnRenderThread());
 	AVEncoder::FVideoEncoderInputFrame* InputFrame = VideoEncoderInput->ObtainInputFrame();
+	if (InputFrame == nullptr) return nullptr;
 
 	if (!BackBuffers.Contains(InputFrame))
 	{
@@ -334,7 +339,7 @@ bool FVideoCapturer::AdaptCaptureFrame(const int64 TimestampUs, FIntPoint Resolu
 	}
 
 	// Set resolution of encoder using user-defined params (i.e. not the back buffer).
-	if (PixelStreamingSettings::CVarPixelStreamingUseBackBufferCaptureSize.GetValueOnRenderThread() == 0)
+	if (!PixelStreamingSettings::CVarPixelStreamingUseBackBufferCaptureSize.GetValueOnRenderThread())
 	{
 		// set resolution based on cvars
 		FString CaptureSize = PixelStreamingSettings::CVarPixelStreamingCaptureSize.GetValueOnRenderThread();

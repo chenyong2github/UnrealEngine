@@ -29,8 +29,11 @@ namespace PixelStreamingSettings
 // End Encoder CVars
 
 // Begin Capturer CVars
-	extern TAutoConsoleVariable<int32> CVarPixelStreamingUseBackBufferCaptureSize;
+	extern TAutoConsoleVariable<bool> CVarPixelStreamingUseBackBufferCaptureSize;
 	extern TAutoConsoleVariable<FString> CVarPixelStreamingCaptureSize;
+	extern TAutoConsoleVariable<int32> CVarPixelStreamingMaxNumBackBuffers;
+	extern TAutoConsoleVariable<int32> CVarPixelStreamingNumFramesUntilBackBufferStale;
+
 // End Capturer CVars
 
 // Begin WebRTC CVars
