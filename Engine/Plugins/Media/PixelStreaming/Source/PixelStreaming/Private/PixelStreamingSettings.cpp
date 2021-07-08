@@ -149,7 +149,7 @@ namespace PixelStreamingSettings
 
 	TAutoConsoleVariable<bool> CVarPixelStreamingWebRTCDisableAudioSync(
 		TEXT("PixelStreaming.WebRTC.DisableAudioSync"),
-		false,
+		true,
 		TEXT("Disables the synchronization of audio and video tracks in WebRTC. This can be useful in low latency usecases where synchronization is not required."),
 		ECVF_Default);
 
@@ -180,6 +180,14 @@ namespace PixelStreamingSettings
 		true,
 		TEXT("If true transmit the player id as an integer (for backward compatibility) or as a string."),
 		ECVF_Default);
+
+	TAutoConsoleVariable<bool> CVarPixelStreamingDisableLatencyTester(
+		TEXT("PixelStreaming.DisableLatencyTester"),
+		false,
+		TEXT("If true disables latency tester being triggerable."),
+		ECVF_Default);
+
+	
 
 // Ends Pixel Streaming Plugin CVars
 
@@ -321,6 +329,8 @@ UPixelStreamingSettings::UPixelStreamingSettings(const FObjectInitializer& Objec
 	CommandLineParseOption(TEXT("PixelStreamingWebRTCDisableAudioSync"), PixelStreamingSettings::CVarPixelStreamingWebRTCDisableAudioSync);
 	CommandLineParseOption(TEXT("PixelStreamingSendPlayerIdAsInteger"), PixelStreamingSettings::CVarSendPlayerIdAsInteger);
 	CommandLineParseOption(TEXT("PixelStreamingWebRTCUseLegacyAudioDevice"), PixelStreamingSettings::CVarPixelStreamingWebRTCUseLegacyAudioDevice);
+	CommandLineParseOption(TEXT("PixelStreamingDisableLatencyTester"), PixelStreamingSettings::CVarPixelStreamingDisableLatencyTester);
+	
 
 }
 

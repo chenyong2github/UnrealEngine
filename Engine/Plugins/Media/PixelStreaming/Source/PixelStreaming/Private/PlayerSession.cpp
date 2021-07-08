@@ -557,7 +557,7 @@ void FPlayerSession::OnMessage(const webrtc::DataBuffer& Buffer)
 		// Have to parse even though we already have this so that pointer arithmetic lines up when we parse the rest of the data
 		MsgType = PixelStreamingProtocol::ParseBuffer<PixelStreamingProtocol::EToStreamerMsg>(Data, Size);
 		FString TestStartTimeInBrowserMs = PixelStreamingProtocol::ParseString(Data, Size);
-		FLatencyTester::Start();
+		FLatencyTester::Start(this->GetPlayerId());
 		FLatencyTester::RecordReceiptTime();
 		unsigned long long NowMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		UE_LOG(PixelStreamer, Log, TEXT("Browser start time: %s | UE start time: %llu"), *TestStartTimeInBrowserMs, NowMs);

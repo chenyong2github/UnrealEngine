@@ -109,12 +109,13 @@ void FVideoCapturer::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
 	if(FLatencyTester::IsTestRunning() && FLatencyTester::GetTestStage() == FLatencyTester::ELatencyTestStage::POST_CAPTURE)
 	{
 		// Render a fully red frame for latency testing purposes
-		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		FTexture2DRHIRef& DestinationTexture = BackBuffers[InputFrame];
-		FRHIRenderPassInfo RPInfo(DestinationTexture, ERenderTargetActions::Load_Store);
-		RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearRT"));
-        DrawClearQuad(RHICmdList, FLinearColor::Red);
-        RHICmdList.EndRenderPass();
+		// FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+		// FTexture2DRHIRef& DestinationTexture = BackBuffers[InputFrame];
+		// FRHIRenderPassInfo RPInfo(DestinationTexture, ERenderTargetActions::Load_Store);
+		// RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearRT"));
+        // DrawClearQuad(RHICmdList, FLinearColor::Red);
+        // RHICmdList.EndRenderPass();
+		// We don't do the red frame latency test anymore, but if we want to enable it in future we can uncomment above ^^
 		FLatencyTester::RecordPostCaptureTime(FrameId);
 	}
 

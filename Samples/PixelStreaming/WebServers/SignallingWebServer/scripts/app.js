@@ -581,16 +581,16 @@ function onWebRtcAnswer(webRTCData) {
 		statsText += `<div>Duration: ${timeFormat.format(runTimeHours)}:${timeFormat.format(runTimeMinutes)}:${timeFormat.format(runTimeSeconds)}</div>`;
 		statsText += `<div>Video Resolution: ${
 			aggregatedStats.hasOwnProperty('frameWidth') && aggregatedStats.frameWidth && aggregatedStats.hasOwnProperty('frameHeight') && aggregatedStats.frameHeight ?
-				aggregatedStats.frameWidth + 'x' + aggregatedStats.frameHeight : 'N/A'
+				aggregatedStats.frameWidth + 'x' + aggregatedStats.frameHeight : 'Chrome only'
 			}</div>`;
 		statsText += `<div>Received (${receivedBytesMeasurement}): ${numberFormat.format(receivedBytes)}</div>`;
-		statsText += `<div>Frames Decoded: ${aggregatedStats.hasOwnProperty('framesDecoded') ? numberFormat.format(aggregatedStats.framesDecoded) : 'N/A'}</div>`;
-		statsText += `<div>Packets Lost: ${aggregatedStats.hasOwnProperty('packetsLost') ? numberFormat.format(aggregatedStats.packetsLost) : 'N/A'}</div>`;
-		statsText += `<div style="color: ${color}">Bitrate (kbps): ${aggregatedStats.hasOwnProperty('bitrate') ? numberFormat.format(aggregatedStats.bitrate) : 'N/A'}</div>`;
-		statsText += `<div>Framerate: ${aggregatedStats.hasOwnProperty('framerate') ? numberFormat.format(aggregatedStats.framerate) : 'N/A'}</div>`;
-		statsText += `<div>Frames dropped: ${aggregatedStats.hasOwnProperty('framesDropped') ? numberFormat.format(aggregatedStats.framesDropped) : 'N/A'}</div>`;
-		statsText += `<div>Net RTT (ms): ${aggregatedStats.hasOwnProperty('currentRoundTripTime') ? numberFormat.format(aggregatedStats.currentRoundTripTime * 1000) : 'N/A'}</div>`;
-		statsText += `<div>Browser receive to composite (ms): ${aggregatedStats.hasOwnProperty('receiveToCompositeMs') ? numberFormat.format(aggregatedStats.receiveToCompositeMs) : 'N/A'}</div>`;
+		statsText += `<div>Frames Decoded: ${aggregatedStats.hasOwnProperty('framesDecoded') ? numberFormat.format(aggregatedStats.framesDecoded) : 'Chrome only'}</div>`;
+		statsText += `<div>Packets Lost: ${aggregatedStats.hasOwnProperty('packetsLost') ? numberFormat.format(aggregatedStats.packetsLost) : 'Chrome only'}</div>`;
+		statsText += `<div style="color: ${color}">Bitrate (kbps): ${aggregatedStats.hasOwnProperty('bitrate') ? numberFormat.format(aggregatedStats.bitrate) : 'Chrome only'}</div>`;
+		statsText += `<div>Framerate: ${aggregatedStats.hasOwnProperty('framerate') ? numberFormat.format(aggregatedStats.framerate) : 'Chrome only'}</div>`;
+		statsText += `<div>Frames dropped: ${aggregatedStats.hasOwnProperty('framesDropped') ? numberFormat.format(aggregatedStats.framesDropped) : 'Chrome only'}</div>`;
+		statsText += `<div>Net RTT (ms): ${aggregatedStats.hasOwnProperty('currentRoundTripTime') ? numberFormat.format(aggregatedStats.currentRoundTripTime * 1000) : 'Can\'t calculate'}</div>`;
+		statsText += `<div>Browser receive to composite (ms): ${aggregatedStats.hasOwnProperty('receiveToCompositeMs') ? numberFormat.format(aggregatedStats.receiveToCompositeMs) : 'Chrome only'}</div>`;
 		statsText += `<div style="color: ${color}">Video Quantization Parameter: ${VideoEncoderQP}</div>`;
 
 		let statsDiv = document.getElementById("stats");
@@ -613,24 +613,41 @@ function onWebRtcAnswer(webRTCData) {
 
 	webRtcPlayerObj.latencyTestTimings.OnAllLatencyTimingsReady = function(timings)
 	{
-		let endToEndLatency = timings.FrameDisplayTimeMs - timings.TestStartTimeMs;
-		let browserToUELatency = timings.UEReceiptTimeMs - timings.TestStartTimeMs;
-		let ueToDisplayLatency = timings.FrameDisplayTimeMs - timings.UEPreCaptureTimeMs;
-		let uePreCapture = timings.UEPreCaptureTimeMs - timings.UEReceiptTimeMs;
-		let uePixelStreamLatency = timings.UEPostEncodeTimeMs - timings.UEPreCaptureTimeMs;
+		
+		if(!timings.BrowserReceiptTimeMs)
+		{
+			return;
+		}
+
+		let latencyExcludingDecode = timings.BrowserReceiptTimeMs - timings.TestStartTimeMs;
+		let uePixelStreamLatency = timings.UEPreEncodeTimeMs == 0 || timings.UEPreCaptureTimeMs == 0 ? "???" : timings.UEPostEncodeTimeMs - timings.UEPreCaptureTimeMs;
 		let captureLatency = timings.UEPostCaptureTimeMs - timings.UEPreCaptureTimeMs;
 		let encodeLatency = timings.UEPostEncodeTimeMs - timings.UEPreEncodeTimeMs;
-		let browserSideLatency = endToEndLatency - uePreCapture - uePixelStreamLatency - (browserToUELatency * 2.0);
+		let ueLatency = timings.UETransmissionTimeMs - timings.UEReceiptTimeMs;
+		let networkLatency = latencyExcludingDecode - ueLatency;
+		let browserSendLatency = latencyExcludingDecode - networkLatency - ueLatency;
+		
+		//these ones depend on FrameDisplayDeltaTimeMs
+		let endToEndLatency = null;
+		let browserSideLatency = null;
+		
+		if(timings.FrameDisplayDeltaTimeMs && timings.BrowserReceiptTimeMs)
+		{
+			endToEndLatency = timings.FrameDisplayDeltaTimeMs + latencyExcludingDecode;
+			browserSideLatency = endToEndLatency - networkLatency - ueLatency;
+		}
 		
 		let latencyStatsInnerHTML = '';
-		latencyStatsInnerHTML += `<div>Total stream latency (ms): ${endToEndLatency}</div>`;
-		latencyStatsInnerHTML += `<div>Browser to UE network (ms): ${browserToUELatency}</div>`;
-		latencyStatsInnerHTML += `<div>UE Capture to Browser Display (ms): ${ueToDisplayLatency}</div>`;
-		latencyStatsInnerHTML += `<div>UE Pre-capture (ms): ${uePreCapture}</div>`;
+		latencyStatsInnerHTML += `<div>Net latency RTT (ms): ${networkLatency}</div>`;
 		latencyStatsInnerHTML += `<div>UE Capture+Encode (ms): ${uePixelStreamLatency}</div>`;
 		latencyStatsInnerHTML += `<div>UE Capture (ms): ${captureLatency}</div>`;
 		latencyStatsInnerHTML += `<div>UE Encode (ms): ${encodeLatency}</div>`;
-		latencyStatsInnerHTML += `<div>Browser receive to display (ms): ${browserSideLatency}</div>`;
+		latencyStatsInnerHTML += `<div>Total UE latency (ms): ${ueLatency}</div>`;
+		latencyStatsInnerHTML += `<div>Browser send latency (ms): ${browserSendLatency}</div>`
+		latencyStatsInnerHTML += timings.FrameDisplayDeltaTimeMs && timings.BrowserReceiptTimeMs ? `<div>Browser receive latency (ms): ${timings.FrameDisplayDeltaTimeMs}</div>` : "";
+		latencyStatsInnerHTML += browserSideLatency ? `<div>Total browser latency (ms): ${browserSideLatency}</div>` : "";
+		latencyStatsInnerHTML += `<div>Total latency (excluding browser) (ms): ${latencyExcludingDecode}</div>`;
+		latencyStatsInnerHTML += endToEndLatency ? `<div>Total latency (ms): ${endToEndLatency}</div>` : "";
 		document.getElementById("LatencyStats").innerHTML = latencyStatsInnerHTML;		
 	}
 }

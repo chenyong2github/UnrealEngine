@@ -409,10 +409,15 @@ void FPixelStreamingModule::Tick(float DeltaTime)
 	if(FLatencyTester::IsTestRunning() && FLatencyTester::GetTestStage() == FLatencyTester::ELatencyTestStage::RESULTS_READY)
 	{
 		FString LatencyResults;
-		bool bEnded = FLatencyTester::End(LatencyResults);
+		FPlayerId LatencyTestPlayerId;
+		bool bEnded = FLatencyTester::End(LatencyResults, LatencyTestPlayerId);
 		if(bEnded)
 		{
-			Streamer->SendPlayerMessage(PixelStreamingProtocol::EToPlayerMsg::LatencyTest, LatencyResults);
+			FPlayerSession* PlayerSession = Streamer->GetPlayerSession(LatencyTestPlayerId);
+			if(PlayerSession != nullptr)
+			{
+				PlayerSession->SendMessage(PixelStreamingProtocol::EToPlayerMsg::LatencyTest, LatencyResults);
+			}
 		}
 	}
 	

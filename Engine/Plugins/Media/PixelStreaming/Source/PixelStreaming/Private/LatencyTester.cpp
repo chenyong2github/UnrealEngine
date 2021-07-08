@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LatencyTester.h"
+#include "PixelStreamingSettings.h"
 #include <chrono>
 
 FLatencyTester& FLatencyTester::GetInstance()
@@ -20,14 +21,22 @@ FLatencyTester::ELatencyTestStage FLatencyTester::GetTestStage()
 }
 
 // Start latency tester, this makes the RecordXXX functions do stuff (otherwise they no-op).
-void FLatencyTester::Start()
+void FLatencyTester::Start(FPlayerId PlayerWhoTriggeredTest)
 {
+    bool bDisableLatencyTester = PixelStreamingSettings::CVarPixelStreamingDisableLatencyTester.GetValueOnAnyThread();
+    if(bDisableLatencyTester)
+    {
+        return;
+    }
+
+    FLatencyTester::GetInstance().PlayerWhoTriggeredTest = PlayerWhoTriggeredTest;
     FLatencyTester::GetInstance().TestStage.store(FLatencyTester::ELatencyTestStage::STARTED);
     FLatencyTester::GetInstance().ReceiptTimeMs = 0;
     FLatencyTester::GetInstance().PreCaptureTimeMs = 0;
     FLatencyTester::GetInstance().PostCaptureTimeMs = 0;
     FLatencyTester::GetInstance().PreEncodeTimeMs = 0;
     FLatencyTester::GetInstance().PostEncodeTimeMs = 0;
+    FLatencyTester::GetInstance().TransmissionTimeMs = 0;
 }
 
 bool FLatencyTester::RecordReceiptTime()
@@ -86,20 +95,23 @@ bool FLatencyTester::RecordPostEncodeTime(uint32 FrameId)
     return false;
 }
 
-// Ends latency testing, resets all the internally recorded timings and makes subsequent calls to RecordXXX functions a no-op.
-bool FLatencyTester::End(FString& OutJSONString)
+// Ends latency testing, makes subsequent calls to RecordXXX functions a no-op.
+bool FLatencyTester::End(FString& OutJSONString, FPlayerId& OutPlayerId)
 {
     if(FLatencyTester::GetInstance().GetTestStage() == FLatencyTester::ELatencyTestStage::RESULTS_READY)
     {
+        FLatencyTester::GetInstance().TransmissionTimeMs = FLatencyTester::GetInstance().EpochMillisNow();
         FLatencyTester::GetInstance().TestStage.store(FLatencyTester::ELatencyTestStage::INACTIVE);
         OutJSONString = FString::Printf( 
-            TEXT( "{ \"ReceiptTimeMs\": %llu, \"PreCaptureTimeMs\": %llu, \"PostCaptureTimeMs\": %llu, \"PreEncodeTimeMs\": %llu, \"PostEncodeTimeMs\": %llu }" ), 
+            TEXT( "{ \"ReceiptTimeMs\": %llu, \"PreCaptureTimeMs\": %llu, \"PostCaptureTimeMs\": %llu, \"PreEncodeTimeMs\": %llu, \"PostEncodeTimeMs\": %llu, \"TransmissionTimeMs\": %llu }" ), 
             FLatencyTester::GetInstance().ReceiptTimeMs,
             FLatencyTester::GetInstance().PreCaptureTimeMs,
             FLatencyTester::GetInstance().PostCaptureTimeMs,
             FLatencyTester::GetInstance().PreEncodeTimeMs,
-            FLatencyTester::GetInstance().PostEncodeTimeMs
+            FLatencyTester::GetInstance().PostEncodeTimeMs,
+            FLatencyTester::GetInstance().TransmissionTimeMs
         );
+        OutPlayerId = FLatencyTester::GetInstance().PlayerWhoTriggeredTest;
         return true;
     }
     

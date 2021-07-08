@@ -30,12 +30,14 @@
         // this.cfg.rtcAudioJitterBufferFastAccelerate = true;
         // this.cfg.rtcAudioJitterBufferMinDelayMs = 0;
 
-
-		//If this is true in Chrome 89+ SDP is sent that is incompatible with UE WebRTC and breaks.
-        // Note: 4.27 Pixel Streaming does not need this set to false as it support `offerExtmapAllowMixed`
-        // Uncomment for old versions of Pixel Streaming though.
+		// If this is true in Chrome 89+ SDP is sent that is incompatible with UE Pixel Streaming 4.26 and below.
+        // However 4.27 Pixel Streaming does not need this set to false as it supports `offerExtmapAllowMixed`.
+        // tdlr; uncomment this line for older versions of Pixel Streaming that need Chrome 89+.
         //this.cfg.offerExtmapAllowMixed = false;
 
+        //**********************
+        //Variables
+        //**********************
         this.pcClient = null;
         this.dcClient = null;
         this.tnClient = null;
@@ -46,7 +48,7 @@
           voiceActivityDetection: false
         };
 
-        // See https://www.w3.org/TR/webrtc/#dom-rtcdatachannelinit for values
+        // See https://www.w3.org/TR/webrtc/#dom-rtcdatachannelinit for values (this is needed for Firefox to be consistent with Chrome.)
         this.dataChannelOptions = {ordered: true};
 
         // To enable mic in browser use SSL/localhost and have ?useMic in the query string.
@@ -67,9 +69,7 @@
             console.error("For testing you can enable HTTP microphone access Chrome by visiting chrome://flags/ and enabling 'unsafely-treat-insecure-origin-as-secure'");
         }
 
-        //**********************
-        //Variables
-        //**********************
+        // Latency tester
         this.latencyTestTimings = 
         {
             TestStartTimeMs: null,
@@ -78,7 +78,9 @@
             UEPostCaptureTimeMs: null,
             UEPreEncodeTimeMs: null,
             UEPostEncodeTimeMs: null,
-            FrameDisplayTimeMs: null,
+            UETransmissionTimeMs: null,
+            BrowserReceiptTimeMs: null,
+            FrameDisplayDeltaTimeMs: null,
             Reset: function()
             {
                 this.TestStartTimeMs = null;
@@ -87,17 +89,9 @@
                 this.UEPostCaptureTimeMs = null;
                 this.UEPreEncodeTimeMs = null;
                 this.UEPostEncodeTimeMs = null;
-                this.FrameDisplayTimeMs = null;
-            },
-            HasAllTimings: function()
-            {
-                return this.TestStartTimeMs && 
-                this.UEReceiptTimeMs && 
-                this.UEPreCaptureTimeMs && 
-                this.UEPostCaptureTimeMs && 
-                this.UEPreEncodeTimeMs && 
-                this.UEPostEncodeTimeMs && 
-                this.FrameDisplayTimeMs;
+                this.UETransmissionTimeMs = null;
+                this.BrowserReceiptTimeMs = null;
+                this.FrameDisplayDeltaTimeMs = null;
             },
             SetUETimings: function(UETimings)
             {
@@ -106,16 +100,15 @@
                 this.UEPostCaptureTimeMs = UETimings.PostCaptureTimeMs;
                 this.UEPreEncodeTimeMs = UETimings.PreEncodeTimeMs;
                 this.UEPostEncodeTimeMs = UETimings.PostEncodeTimeMs;
-                if(this.HasAllTimings())
-                {
-                    this.OnAllLatencyTimingsReady(this);
-                }
+                this.UETransmissionTimeMs = UETimings.TransmissionTimeMs;
+                this.BrowserReceiptTimeMs = Date.now();
+                this.OnAllLatencyTimingsReady(this);
             },
-            SetFrameDisplayTime: function(TimeMs)
+            SetFrameDisplayDeltaTime: function(DeltaTimeMs)
             {
-                this.FrameDisplayTimeMs = TimeMs;
-                if(this.HasAllTimings())
+                if(this.FrameDisplayDeltaTimeMs == null)
                 {
+                    this.FrameDisplayDeltaTimeMs = Math.round(DeltaTimeMs);
                     this.OnAllLatencyTimingsReady(this);
                 }
             },
@@ -371,6 +364,7 @@
 				if(self.aggregatedStats.receiveToCompositeMs)
 				{
 					newStat.receiveToCompositeMs = self.aggregatedStats.receiveToCompositeMs;
+                    self.latencyTestTimings.SetFrameDisplayDeltaTime(self.aggregatedStats.receiveToCompositeMs);
 				}
 				
                 self.aggregatedStats = newStat;
@@ -432,53 +426,10 @@
             {
                 return;
             }
-            let videoCanvas = document.createElement("canvas");
-            videoCanvas.style.display = 'none';
-            var ctx = videoCanvas.getContext('2d');
-            videoCanvas.width = self.video.videoWidth;
-            videoCanvas.height = self.video.videoHeight;
 
             self.latencyTestTimings.Reset();
-            self.video.focus();
-
-            let checkCanvasSpecialLatencyPixels = function()
-            {
-                // Once we have our canvas pixel checker running we consider the test started properly
-                if(self.latencyTestTimings.TestStartTimeMs == null)
-                {
-                    self.latencyTestTimings.TestStartTimeMs = Date.now();
-                    onTestStarted(self.latencyTestTimings.TestStartTimeMs);
-                }
-
-                // If we have not found the special latency frame in 1 seconds we abort the test as this test is expensive.
-                let testDeltaMs = Date.now() - self.latencyTestTimings.TestStartTimeMs;
-                if(testDeltaMs > 1000)
-                {
-                    return;
-                }
-
-                // draw the video to the canvas so we can analyse pixels in the canvas
-                ctx.drawImage(self.video, 0,0);
-                let middlePixelW = self.video.videoWidth * 0.5
-                let middlePixelH = self.video.videoHeight * 0.5
-                let data = ctx.getImageData(middlePixelW, middlePixelH, 1, 1).data;
-                let rgb = [ data[0], data[1], data[2] ];
-                let redValue = rgb[0];
-                if(redValue == 255)
-                {
-                    delete videoCanvas;
-                    console.log("Got special latency frame!");
-                    self.latencyTestTimings.SetFrameDisplayTime(Date.now());
-                }
-                else
-                {
-                    window.requestAnimationFrame(checkCanvasSpecialLatencyPixels);
-                }
-            }
-
-            // start checking for special latency pixels
-            window.requestAnimationFrame(checkCanvasSpecialLatencyPixels);
-            
+            self.latencyTestTimings.TestStartTimeMs = Date.now();
+            onTestStarted(self.latencyTestTimings.TestStartTimeMs);            
         }
 
         //This is called when revceiving new ice candidates individually instead of part of the offer
