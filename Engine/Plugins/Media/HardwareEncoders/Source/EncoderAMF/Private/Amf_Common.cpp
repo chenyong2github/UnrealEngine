@@ -3,12 +3,6 @@
 #include "Amf_Common.h"
 #include "RHI.h"
 
-#if PLATFORM_WINDOWS
-	#undef VK_USE_PLATFORM_WIN32_KHR // AMF also defines so need to remove to avoid warning
-#endif
-
-#include "VulkanRHIPrivate.h"
-
 DEFINE_LOG_CATEGORY(LogEncoderAMF);
 
 namespace AVEncoder

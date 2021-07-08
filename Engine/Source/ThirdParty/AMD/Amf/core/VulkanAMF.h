@@ -34,13 +34,8 @@
 #define __VulkanAMF_h__
 #pragma once 
 #include "Platform.h"
-#ifdef _WIN32
-    #define VK_USE_PLATFORM_WIN32_KHR
-#elif defined(__linux)
-    #define VK_USE_PLATFORM_XLIB_KHR
-#endif
 
-#include "vulkan/vulkan.h"
+#include "vulkan/vulkan_core.h"
 
 #if defined(__cplusplus)
 namespace amf

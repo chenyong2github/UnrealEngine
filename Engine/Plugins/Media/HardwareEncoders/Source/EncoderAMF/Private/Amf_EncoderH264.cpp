@@ -33,7 +33,7 @@ namespace
 		}
 	}
 
-	uint64 ConvertH264Profile(AVEncoder::FVideoEncoder::H264Profile profile)
+	AMF_VIDEO_ENCODER_PROFILE_ENUM ConvertH264Profile(AVEncoder::FVideoEncoder::H264Profile profile)
 	{
 		switch (profile)
 		{
@@ -251,30 +251,35 @@ namespace AVEncoder
 		return AmfEncoder != NULL;
 	}
 
-	// TODO (M84FIX) need to parameterize this
 	bool FVideoEncoderAmf_H264::FAMFLayer::CreateInitialConfig()
 	{
 		AMF_RESULT Result = AMF_OK;
 
-		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_USAGE, AMF_VIDEO_ENCODER_USAGE_ULTRA_LOW_LATENCY);
+		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_USAGE, AMF_VIDEO_ENCODER_USAGE_LOW_LATENCY);
 
-		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_PROFILE, ConvertH264Profile(CurrentConfig.H264Profile));
+		AMF_VIDEO_ENCODER_PROFILE_ENUM H264Profile = ConvertH264Profile(CurrentConfig.H264Profile);
+		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_PROFILE, H264Profile);
 		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_PROFILE_LEVEL, 51);
 
 		AMFRate frameRate = { CurrentConfig.MaxFramerate, 1 };
 		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_FRAMERATE, frameRate);
 
+#if PLATFORM_WINDOWS
 		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_RATE_CONTROL_METHOD, ConvertRateControlModeAMF(CurrentConfig.RateControlMode));
-
-		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_PEAK_BITRATE, CurrentConfig.MaxBitrate > -1 ? CurrentConfig.MaxBitrate : DEFAULT_BITRATE);
+		if (CurrentConfig.RateControlMode == RateControlMode::CBR)
+		{
+			AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_FILLER_DATA_ENABLE, true);
+		}
+		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_PEAK_BITRATE, CurrentConfig.MaxBitrate > -1 ? CurrentConfig.MaxBitrate : 10 * DEFAULT_BITRATE);
+#endif
+	
 		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_TARGET_BITRATE, CurrentConfig.TargetBitrate > -1 ? CurrentConfig.TargetBitrate : DEFAULT_BITRATE);
 
-		// TODO Amf enables B frames by default NVENC does not should test both options
         Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_QUALITY_PRESET, AMF_VIDEO_ENCODER_QUALITY_PRESET_QUALITY);
 		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_B_PIC_PATTERN, 0);
 
-		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_MIN_QP, 0);
-		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_MAX_QP, 51);
+		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_MIN_QP, FMath::Clamp<amf_long>(CurrentConfig.QPMin, 0, 51));
+		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_MAX_QP, CurrentConfig.QPMax > -1 ? FMath::Clamp<amf_long>(CurrentConfig.QPMax, 0, 51) : 51);
 
 		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_QUERY_TIMEOUT, 16);
 		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_IDR_PERIOD, 60);
@@ -309,35 +314,42 @@ namespace AVEncoder
 		FScopeLock lock(&ConfigMutex);
 		if (NeedsReconfigure)
 		{		
+#if PLATFORM_WINDOWS
 			if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_RATE_CONTROL_METHOD, ConvertRateControlModeAMF(CurrentConfig.RateControlMode)) != AMF_OK)
 			{
 				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to set rate control method"));
 			}
 
-			if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_FILLER_DATA_ENABLE, CurrentConfig.FillData) != AMF_OK)
+			if (CurrentConfig.RateControlMode == RateControlMode::CBR)
 			{
-				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to enable filler data to maintain CBR"));
+				if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_FILLER_DATA_ENABLE, CurrentConfig.FillData) != AMF_OK)
+				{
+					UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to enable filler data to maintain CBR"));
+				}
 			}
+#endif
 
-			if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_MIN_QP, CurrentConfig.QPMin > -1 ? FMath::Clamp<uint64>(CurrentConfig.QPMin, 0, 51) : 0) != AMF_OK)
+			if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_MIN_QP, FMath::Clamp<amf_long>(CurrentConfig.QPMin, 0, 51)) != AMF_OK)
 			{
 				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to set min qp"));
 			}
 
-			if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_MAX_QP, CurrentConfig.QPMax > -1 ? FMath::Clamp<uint64>(CurrentConfig.QPMax, 0, 51) : 51) != AMF_OK)
+			if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_MAX_QP, CurrentConfig.QPMax > -1 ? FMath::Clamp<amf_long>(CurrentConfig.QPMax, 0, 51) : 51) != AMF_OK)
 			{
-				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to set target bitrate"));
+				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to set max qp"));
 			}
 
 			if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_TARGET_BITRATE, CurrentConfig.TargetBitrate) != AMF_OK)
 			{
 				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to set target bitrate"));
 			}
-
+			
+#if PLATFORM_WINDOWS
 			if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_PEAK_BITRATE, CurrentConfig.MaxBitrate) != AMF_OK)
 			{
-				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to set max bitrate"));
+				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to set peak bitrate"));
 			}
+#endif
 		}
 	}
 
@@ -349,9 +361,13 @@ namespace AVEncoder
 		if (Buffer)
 		{
 			Buffer->Surface->SetPts(frame->GetTimestampRTP());
-			Buffer->Surface->SetProperty(AMF_VIDEO_ENCODER_START_TS, FTimespan::FromSeconds(FPlatformTime::Seconds()).GetTicks());
+			amf_long Start_ts = FTimespan::FromSeconds(FPlatformTime::Seconds()).GetTicks();
+			Buffer->Surface->SetProperty(AMF_VIDEO_ENCODER_START_TS, Start_ts);
 			Buffer->Surface->SetProperty(AMF_BUFFER_INPUT_FRAME, uintptr_t(frame));
+
+#if PLATFORM_WINDOWS
 			Buffer->Surface->SetProperty(AMF_VIDEO_ENCODER_STATISTICS_FEEDBACK, true);
+#endif
 
 			bForceNextKeyframe = options.bForceKeyFrame;
 			MaybeReconfigure(Buffer);
@@ -438,10 +454,12 @@ namespace AVEncoder
 							Packet.IsKeyFrame = true;
 						}
 
+#if PLATFORM_WINDOWS
 						if (OutBuffer->GetProperty(AMF_VIDEO_ENCODER_STATISTIC_FRAME_QP, &Packet.VideoQP) != AMF_OK)
 						{
 							UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to get frame QP."));
 						}
+#endif
 
 						amf_int64 StartTs;
 						if (OutBuffer->GetProperty(AMF_VIDEO_ENCODER_START_TS, &StartTs) != AMF_OK)
@@ -703,16 +721,15 @@ namespace AVEncoder
 		AMFIOCapsPtr InputCaps;
 		EncoderCaps->GetInputCaps(&InputCaps);
 
-		uint32 LevelMin = 1;
 		uint32 LevelMax;
 		if (EncoderCaps->GetProperty(AMF_VIDEO_ENCODER_CAP_MAX_LEVEL, &LevelMax) == AMF_OK)
 		{
-			EncoderInfo.H264.MinLevel = (LevelMin > 9) ? LevelMin : 9;							// Like NVENC we hard min at 9
+			EncoderInfo.H264.MinLevel = 9;							// Like NVENC we hard min at 9
 			EncoderInfo.H264.MaxLevel = (LevelMax < 9) ? 9 : (LevelMax > 52) ? 52 : LevelMax;	// Like NVENC we hard max at 52
 		}
 		else
 		{
-			UE_LOG(LogEncoderAMF, Error, TEXT("Failed to query min/max h264 level supported by Amf (reported min/max=%d/%d)."), LevelMin, LevelMax);
+			UE_LOG(LogEncoderAMF, Error, TEXT("Failed to query min/max h264 level supported by Amf (reported max=%d)."), LevelMax);
 			bSuccess = false;
 		}
 

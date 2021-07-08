@@ -25,27 +25,49 @@ public:
 
 			if(AMF.GetIsAvailable())
 			{
+#if PLATFORM_WINDOWS
 				const TCHAR* DynamicRHIModuleName = GetSelectedDynamicRHIModuleName(false);
-				
+#elif PLATFORM_LINUX
+				const TCHAR* DynamicRHIModuleName = TEXT("VulkanRHI");
+#endif
 				if(FString("VulkanRHI") == FString(DynamicRHIModuleName))
 				{
 					AMF.InitializeContext("Vulkan", NULL);
 					amf::AMFContext1Ptr pContext1(AMF.GetContext());
 
 					amf_size NumDeviceExtensions = 0;
-					const char** DeviceExtensions = nullptr;
-					pContext1->GetVulkanDeviceExtensions(&NumDeviceExtensions, DeviceExtensions);
+					pContext1->GetVulkanDeviceExtensions(&NumDeviceExtensions, nullptr);
+
+					TArray<const ANSICHAR*> ExtentionsToAdd; 
+					ExtentionsToAdd.AddUninitialized(5);
+
+					pContext1->GetVulkanDeviceExtensions(&NumDeviceExtensions, ExtentionsToAdd.GetData());
 
 					AMF.DestroyContext();
 
-					const TArray<const ANSICHAR*> ExtentionsToAdd(DeviceExtensions, NumDeviceExtensions);
 					VulkanRHIBridge::AddEnabledDeviceExtensionsAndLayers(ExtentionsToAdd, TArray<const ANSICHAR*>());
 				}
 
 				FCoreDelegates::OnPostEngineInit.AddLambda([]() {FVideoEncoderAmf_H264::Register(FVideoEncoderFactory::Get());});
+				
+				AMFStarted = true;
 			}
 		}
 	}
+
+	void ShutdownModule()
+	{
+		using namespace AVEncoder;
+		if(AMFStarted)
+		{
+			FAmfCommon& AMF = FAmfCommon::Setup();
+			AMF.Shutdown();
+			AMFStarted = false;
+		}
+	}
+
+private:
+	bool AMFStarted = false;
 };
 
 IMPLEMENT_MODULE(FAMFEncoderModule, EncoderAMF);

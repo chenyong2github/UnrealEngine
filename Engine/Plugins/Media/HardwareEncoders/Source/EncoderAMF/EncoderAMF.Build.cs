@@ -53,7 +53,6 @@ public class EncoderAMF : ModuleRules
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
 			PrivateIncludePaths.Add(Path.Combine(EngineSourceDirectory, "Source/Runtime/VulkanRHI/Private/Linux"));
-			PublicSystemIncludePaths.Add("/usr/include");
 		}
 	}
 }

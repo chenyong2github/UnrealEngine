@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include <CoreMinimal.h>
-#include <HAL/Thread.h>
+#include "CoreMinimal.h"
+#include "HAL/Thread.h"
+#include "VulkanRHIPrivate.h"
+
+#include <string.h>
 
 THIRD_PARTY_INCLUDES_START
 

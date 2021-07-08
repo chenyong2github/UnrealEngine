@@ -16,7 +16,7 @@
 			"Name": "EncoderAMF",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
-			"WhitelistPlatforms": [ "Win32", "Win64"]
+			"WhitelistPlatforms": [ "Win32", "Win64", "Linux" ]
 		},
 		{
 			"Name": "EncoderNVENC",
