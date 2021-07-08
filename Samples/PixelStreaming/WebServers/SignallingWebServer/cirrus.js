@@ -118,9 +118,11 @@ try {
 		FRONTEND_WEBSERVER = config.FrontendUrl;
 	}
 
-	if (typeof config.PeerConnectionOptions != 'undefined') {
-		clientConfig.PeerConnectionOptions = JSON.parse(config.PeerConnectionOptions);
-		console.log(`PeerConnectionOptions = ${JSON.stringify(clientConfig.PeerConnectionOptions)}`);
+	if (typeof config.peerConnectionOptions != 'undefined') {
+		clientConfig.peerConnectionOptions = JSON.parse(config.peerConnectionOptions);
+		console.log(`peerConnectionOptions = ${JSON.stringify(clientConfig.peerConnectionOptions)}`);
+	} else {
+		console.log("No peerConnectionConfig")
 	}
 
 	if (typeof config.MatchmakerAddress != 'undefined') {
