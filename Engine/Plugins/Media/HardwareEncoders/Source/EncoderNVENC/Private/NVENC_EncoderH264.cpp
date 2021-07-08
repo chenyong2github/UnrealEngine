@@ -239,8 +239,6 @@ namespace AVEncoder
             Guard.Unlock();
             StopThread->Join();
         }
-#else
-        UE_LOG(LogEncoderNVENC, Fatal, TEXT("FVideoEncoderNVENC_H264::StopEventThread should not be called as NVENC async mode only works on Windows!"))
 #endif
     }
 

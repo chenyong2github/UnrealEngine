@@ -9,19 +9,19 @@
 	"CreatedByURL": "http://epicgames.com",
 	"EnabledByDefault": true,
 	"CanContainContent": false,
-	"IsBetaVersion": false,
+	"IsBetaVersion": true,
 	"Installed": false,
 	"Modules": [
 		{
 			"Name": "EncoderAMF",
 			"Type": "Runtime",
-			"LoadingPhase": "PreDefault",
+			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [ "Win32", "Win64"]
 		},
 		{
 			"Name": "EncoderNVENC",
 			"Type": "Runtime",
-			"LoadingPhase": "PreDefault",
+			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [ "Win32", "Win64", "Linux" ]
 		},
 	]

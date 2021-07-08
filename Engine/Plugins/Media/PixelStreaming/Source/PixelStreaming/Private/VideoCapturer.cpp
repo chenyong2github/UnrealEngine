@@ -31,36 +31,49 @@ FVideoCapturer::FVideoCapturer()
 	{
 		FString RHIName = GDynamicRHI->GetName();
 
-#if PLATFORM_WINDOWS
-		if (RHIName == TEXT("D3D11"))
+		bool bIsRHISupported = false;
+
+		if (RHIName == TEXT("Vulkan"))
 		{
-			VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), Width, Height, true, IsRHIDeviceAMD());
-		}
-		else if (RHIName == TEXT("D3D12"))
-		{
-				VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForD3D12(GDynamicRHI->RHIGetNativeDevice(), Width, Height, true, IsRHIDeviceNVIDIA());
-		}
-		else if (RHIName == TEXT("Vulkan"))
-#endif
-		{
-			if (IsRHIDeviceAMD())
+			if(IsRHIDeviceAMD())
 			{
 				FVulkanDynamicRHI* DynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);		
 				AVEncoder::FVulkanDataStruct VulkanData = { DynamicRHI->GetInstance(), DynamicRHI->GetDevice()->GetPhysicalHandle(), DynamicRHI->GetDevice()->GetInstanceHandle() };
 
 				VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForVulkan(&VulkanData, Width, Height, true);
+				bIsRHISupported = true;
 			}
 			else if (IsRHIDeviceNVIDIA())
 			{
 #if WITH_CUDA
-				if(true) // TODO check if CUDA Driver API is avaliable
+				if(FModuleManager::Get().IsModuleLoaded("CUDA"))
 				{
 					VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForCUDA(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext(), Width, Height, true);
+					bIsRHISupported = true;
 				}
-#else
-			unimplemented();
+				else
+				{
+					UE_LOG(PixelStreamer, Error, TEXT("CUDA module is not loaded!"));
+				}
 #endif
 			}
+		}
+#if PLATFORM_WINDOWS
+		else if (RHIName == TEXT("D3D11"))
+		{	
+			VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), Width, Height, true, IsRHIDeviceAMD());
+			bIsRHISupported = true;
+		}
+		else if (RHIName == TEXT("D3D12"))
+		{
+			VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForD3D12(GDynamicRHI->RHIGetNativeDevice(), Width, Height, true, IsRHIDeviceNVIDIA());
+			bIsRHISupported = true;
+		}
+#endif
+
+		if(!bIsRHISupported)
+		{
+			unimplemented();
 		}
 	}
 }
@@ -136,18 +149,16 @@ AVEncoder::FVideoEncoderInputFrame* FVideoCapturer::ObtainInputFrame()
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
 			FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable, ERHIAccess::CopyDest, CreateInfo);
-			InputFrame->SetTexture((ID3D11Texture2D*)Texture->GetNativeResource(), [&](ID3D11Texture2D* NativeTexture) { BackBuffers.Remove(InputFrame); });
+			InputFrame->SetTexture((ID3D11Texture2D*)Texture->GetNativeResource(), [this, InputFrame](ID3D11Texture2D* NativeTexture) { BackBuffers.Remove(InputFrame); });
 			BackBuffers.Add(InputFrame, Texture);
 		}
 		else if (RHIName == TEXT("D3D12"))
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
 			FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable, ERHIAccess::CopyDest, CreateInfo);
-			InputFrame->SetTexture((ID3D12Resource*)Texture->GetNativeResource(), [&](ID3D12Resource* NativeTexture) { BackBuffers.Remove(InputFrame); });
+			InputFrame->SetTexture((ID3D12Resource*)Texture->GetNativeResource(), [this, InputFrame](ID3D12Resource* NativeTexture) { BackBuffers.Remove(InputFrame); });
 			BackBuffers.Add(InputFrame, Texture);
 		}
-#endif // PLATFORM_WINDOWS
-#if PLATFORM_WINDOWS
 		else if (RHIName == TEXT("Vulkan"))
 #endif // PLATFORM_WINDOWS
 		{
@@ -156,17 +167,19 @@ AVEncoder::FVideoEncoderInputFrame* FVideoCapturer::ObtainInputFrame()
 #if WITH_CUDA
 				FRHIResourceCreateInfo CreateInfo(TEXT("VideoCapturerBackBuffer"));
 
+				FVulkanDynamicRHI* VulkanDynamicRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);
+
 				// Create a texture that can be exposed to external memory
-				FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV, ERHIAccess::CopyDest, CreateInfo);
+				FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV, ERHIAccess::Present, CreateInfo);
 
 				FVulkanTexture2D* VulkanTexture = static_cast<FVulkanTexture2D*>(Texture.GetReference());
 
-				FVulkanDynamicRHI* device = static_cast<FVulkanDynamicRHI*>(GDynamicRHI)->GetDevice()->GetInstanceHandle();
+				VkDevice device = static_cast<FVulkanDynamicRHI*>(GDynamicRHI)->GetDevice()->GetInstanceHandle();
 
 				// Get the CUarray to that textures memory making sure the clear it when done
 				int fd;
 
-				{    // Generate VkMemoryGetFdInfoKHR
+				{   // Generate VkMemoryGetFdInfoKHR
 					VkMemoryGetFdInfoKHR vkMemoryGetFdInfoKHR = {};
 					vkMemoryGetFdInfoKHR.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
 					vkMemoryGetFdInfoKHR.pNext = NULL;
@@ -178,7 +191,7 @@ AVEncoder::FVideoEncoderInputFrame* FVideoCapturer::ObtainInputFrame()
 					VERIFYVULKANRESULT(fpGetMemoryFdKHR(device, &vkMemoryGetFdInfoKHR, &fd));
 				}
 
-				cuCtxPushCurrent(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext());
+				FCUDAModule::CUDA().cuCtxPushCurrent(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext());
 
 				CUexternalMemory mappedExternalMemory = nullptr;
 
@@ -190,7 +203,7 @@ AVEncoder::FVideoEncoderInputFrame* FVideoCapturer::ObtainInputFrame()
 					cudaExtMemHandleDesc.size = VulkanTexture->Surface.GetAllocationOffset() + VulkanTexture->Surface.GetMemorySize();
 
 					// import external memory
-					auto result = cuImportExternalMemory(&mappedExternalMemory, &cudaExtMemHandleDesc);
+					auto result = FCUDAModule::CUDA().cuImportExternalMemory(&mappedExternalMemory, &cudaExtMemHandleDesc);
 					if (result != CUDA_SUCCESS)
 					{
 						UE_LOG(PixelStreamer, Error, TEXT("Failed to import external memory from vulkan error: %d"), result);
@@ -212,7 +225,7 @@ AVEncoder::FVideoEncoderInputFrame* FVideoCapturer::ObtainInputFrame()
 					mipmapDesc.arrayDesc.Flags = CUDA_ARRAY3D_SURFACE_LDST | CUDA_ARRAY3D_COLOR_ATTACHMENT;
 
 					// get the CUarray from the external memory
-					auto result = cuExternalMemoryGetMappedMipmappedArray(&mappedMipArray, mappedExternalMemory, &mipmapDesc);
+					auto result = FCUDAModule::CUDA().cuExternalMemoryGetMappedMipmappedArray(&mappedMipArray, mappedExternalMemory, &mipmapDesc);
 					if (result != CUDA_SUCCESS)
 					{
 						UE_LOG(PixelStreamer, Error, TEXT("Failed to bind mipmappedArray error: %d"), result);
@@ -220,34 +233,48 @@ AVEncoder::FVideoEncoderInputFrame* FVideoCapturer::ObtainInputFrame()
 				}
 
 				// get the CUarray from the external memory
-				CUresult mipMapArrGetLevelErr = cuMipmappedArrayGetLevel(&mappedArray, mappedMipArray, 0);
+				CUresult mipMapArrGetLevelErr = FCUDAModule::CUDA().cuMipmappedArrayGetLevel(&mappedArray, mappedMipArray, 0);
 				if (mipMapArrGetLevelErr != CUDA_SUCCESS)
 				{
 					UE_LOG(PixelStreamer, Error, TEXT("Failed to bind to mip 0."));
 				}
 
-				cuCtxPopCurrent(NULL);
+				FCUDAModule::CUDA().cuCtxPopCurrent(NULL);
 
-				InputFrame->SetTexture(mappedArray, [&, InputFrame](CUarray NativeTexture)
+				InputFrame->SetTexture(mappedArray, [this, mappedArray, mappedMipArray, mappedExternalMemory, InputFrame](CUarray NativeTexture)
 					{
 						// free the cuda types
-						cuCtxPushCurrent(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext());
-
+						FCUDAModule::CUDA().cuCtxPushCurrent(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext());
+						
 						if (mappedArray)
 						{
-							cuArrayDestroy(mappedArray);
+							auto result = FCUDAModule::CUDA().cuArrayDestroy(mappedArray);
+							if (result != CUDA_SUCCESS)
+							{
+								UE_LOG(PixelStreamer, Error, TEXT("Failed to destroy mappedArray: %d"), result);
+							}
 						}
+
 						if (mappedMipArray)
 						{
-							cuMipmappedArrayDestroy(mappedMipArray);
+							auto result = FCUDAModule::CUDA().cuMipmappedArrayDestroy(mappedMipArray);
+							if (result != CUDA_SUCCESS)
+							{
+								UE_LOG(PixelStreamer, Error, TEXT("Failed to destroy mappedMipArray: %d"), result);
+							}
 						}
+
 						if (mappedExternalMemory)
 						{
-							cuDestroyExternalMemory(mappedExternalMemory);
+							auto result = FCUDAModule::CUDA().cuDestroyExternalMemory(mappedExternalMemory);
+							if (result != CUDA_SUCCESS)
+							{
+								UE_LOG(PixelStreamer, Error, TEXT("Failed to destroy mappedExternalMemoryArray: %d"), result);
+							}
 						}
 
-						cuCtxPopCurrent(NULL);
-
+						FCUDAModule::CUDA().cuCtxPopCurrent(NULL);
+						
 						// finally remove the input frame
 						BackBuffers.Remove(InputFrame);
 					});
@@ -260,7 +287,7 @@ AVEncoder::FVideoEncoderInputFrame* FVideoCapturer::ObtainInputFrame()
 				FTexture2DRHIRef Texture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV, ERHIAccess::Present, CreateInfo);
 				FVulkanTexture2D* VulkanTexture = static_cast<FVulkanTexture2D*>(Texture.GetReference());
 				
-				InputFrame->SetTexture(VulkanTexture->Surface.Image, [&](VkImage NativeTexture) { BackBuffers.Remove(InputFrame); });
+				InputFrame->SetTexture(VulkanTexture->Surface.Image, [this, InputFrame](VkImage NativeTexture) { BackBuffers.Remove(InputFrame); });
 
 				BackBuffers.Add(InputFrame, Texture);
 			}

@@ -2,6 +2,11 @@
 
 #include "Modules/ModuleManager.h"
 
+#include "VulkanRHIPrivate.h"
+#include "VulkanRHIBridge.h"
+
+#include "DynamicRHI.h"
+
 #include "NVENC_Common.h"
 #include "NVENC_EncoderH264.h"
 #include "VideoEncoderFactory.h"
@@ -14,16 +19,30 @@ public:
 	void StartupModule()
 	{
 		using namespace AVEncoder;
-
-		FNVENCCommon& NVENC = FNVENCCommon::Setup();
-
-		if (NVENC.GetIsAvailable())
+		if(FApp::CanEverRender())
 		{
-#if PLATFORM_LINUX && WITH_CUDA
-			FModuleManager::LoadModuleChecked<FCUDAModule>("CUDA").OnPostCUDAInit.AddLambda([]() {FVideoEncoderNVENC_H264::Register(FVideoEncoderFactory::Get());});
-#else
-			FCoreDelegates::OnPostEngineInit.AddLambda([]() {FVideoEncoderNVENC_H264::Register(FVideoEncoderFactory::Get());});
+			FNVENCCommon& NVENC = FNVENCCommon::Setup();
+
+			if (NVENC.GetIsAvailable())
+			{
+#if PLATFORM_WINDOWS
+                const TCHAR* DynamicRHIModuleName = GetSelectedDynamicRHIModuleName(false);
+#elif PLATFORM_LINUX
+                const TCHAR* DynamicRHIModuleName = TEXT("VulkanRHI");
 #endif
+				
+				if(FString("VulkanRHI") == FString(DynamicRHIModuleName))
+				{
+					const TArray<const ANSICHAR*> ExtentionsToAdd{ VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME, VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME };
+					VulkanRHIBridge::AddEnabledDeviceExtensionsAndLayers(ExtentionsToAdd, TArray<const ANSICHAR*>());
+				}
+
+#if PLATFORM_LINUX && WITH_CUDA
+				FModuleManager::LoadModuleChecked<FCUDAModule>("CUDA").OnPostCUDAInit.AddLambda([]() {FVideoEncoderNVENC_H264::Register(FVideoEncoderFactory::Get());});
+#else
+				FCoreDelegates::OnPostEngineInit.AddLambda([]() {FVideoEncoderNVENC_H264::Register(FVideoEncoderFactory::Get());});
+#endif
+			}
 		}
 	}
 };

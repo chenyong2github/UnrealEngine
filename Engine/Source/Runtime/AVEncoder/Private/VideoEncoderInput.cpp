@@ -104,7 +104,7 @@ TSharedPtr<FVideoEncoderInput> FVideoEncoderInput::CreateForD3D12(void* InApplic
 
 TSharedPtr<FVideoEncoderInput> FVideoEncoderInput::CreateForCUDA(void* InApplicationContext, uint32 InWidth, uint32 InHeight, bool bIsResizable)
 {
-	TSharedPtr<FVideoEncoderInputImpl>	Input = MakeShared<FVideoEncoderInputImpl>();
+	TSharedPtr<FVideoEncoderInputImpl> Input = MakeShared<FVideoEncoderInputImpl>();
 #if WITH_CUDA
 	Input->bIsResizable = bIsResizable;
 		
@@ -112,9 +112,8 @@ TSharedPtr<FVideoEncoderInput> FVideoEncoderInput::CreateForCUDA(void* InApplica
 	{
 		Input.Reset();
 	}
-#else
-	return Input;
 #endif
+	return Input;
 }
 
 #if PLATFORM_DESKTOP && !PLATFORM_APPLE
