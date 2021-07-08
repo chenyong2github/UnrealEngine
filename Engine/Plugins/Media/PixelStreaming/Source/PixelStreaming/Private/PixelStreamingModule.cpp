@@ -420,6 +420,23 @@ void FPixelStreamingModule::Tick(float DeltaTime)
 			}
 		}
 	}
+
+	// Send video encoder averaged QP approx every 1 second
+	if(this->Streamer.IsValid() && this->Streamer->GetNumPlayers() > 0)
+	{
+		double Now = FPlatformTime::Seconds();
+		if (Now - LastVideoEncoderQPReportTime > 1)
+		{
+			TArray<FPlayerSession*> PlayerSessions;
+			Streamer->GetPlayerSessions(PlayerSessions);
+			for(FPlayerSession* PlayerSession : PlayerSessions)
+			{
+				PlayerSession->SendVideoEncoderQP();
+			}
+
+			LastVideoEncoderQPReportTime = FPlatformTime::Seconds();
+		}
+	}
 	
 }
 

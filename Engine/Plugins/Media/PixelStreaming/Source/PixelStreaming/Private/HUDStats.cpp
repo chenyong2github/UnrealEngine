@@ -41,7 +41,7 @@ void FHUDStats::Tick()
 
 	GEngine->AddOnScreenDebugMessage(7, 0, FColor::Green, *FString::Printf(TEXT("Encoder bitrate: %.3f Mbps"), EncoderBitrateMbps.Get()), false /* newer on top */);
 
-	GEngine->AddOnScreenDebugMessage(8, 0, FColor::Green, *FString::Printf(TEXT("QP: %d"), EncoderQP), false /* newer on top */);
+	GEngine->AddOnScreenDebugMessage(8, 0, FColor::Green, *FString::Printf(TEXT("QP: %d"), EncoderQP.Get()), false /* newer on top */);
 	
 }
 
@@ -51,5 +51,5 @@ void FHUDStats::Reset()
 	EncoderLatencyMs.Reset();
 	EncoderBitrateMbps.Reset();
 	CaptureLatencyMs.Reset();
-	EncoderQP = 0;
+	EncoderQP.Reset();
 }

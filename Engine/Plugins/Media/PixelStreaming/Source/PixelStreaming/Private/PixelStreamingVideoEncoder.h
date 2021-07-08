@@ -42,6 +42,7 @@ public:
 	bool IsRegisteredWithWebRTC();
 
 	void ForceKeyFrame() { ForceNextKeyframe = true; }
+	int32_t GetSmoothedAverageQP() const;
 
 private:
 	void CreateAVEncoder(TSharedPtr<AVEncoder::FVideoEncoderInput> encoderInput);

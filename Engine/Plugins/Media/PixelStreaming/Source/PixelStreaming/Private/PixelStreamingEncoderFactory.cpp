@@ -78,6 +78,9 @@ void FPixelStreamingVideoEncoderFactory::OnEncodedImage(const webrtc::EncodedIma
 			Encoder->SendEncodedImage(encoded_image, codec_specific_info, fragmentation);
 		}
 	}
+
+	// Store the QP of this encoded image as we send the smoothed value to the peers as a proxy for encoding quality
+	EncoderContext.SmoothedAvgQP.Update(encoded_image.qp_);
 }
 
 void FPixelStreamingVideoEncoderFactory::ReleaseVideoEncoder(FPixelStreamingVideoEncoder* encoder)

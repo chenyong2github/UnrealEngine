@@ -335,14 +335,14 @@ void OnEncodedPacket(FEncoderContext* Context, uint32 InLayerIndex, const AVEnco
 		Stats.EncoderBitrateMbps.Update(BitrateMbps);
 		Stats.EncoderFPS.Update(InPacket.Framerate);
 		Stats.CaptureLatencyMs.Update(CaptureMs);
-		Stats.EncoderQP = InPacket.VideoQP;
+		Stats.EncoderQP.Update(InPacket.VideoQP);
 	}
 
-	UE_LOG(PixelStreamer, VeryVerbose, TEXT("QP %d/%d, capture latency %.0f ms, latency %.0f/%.0f ms, bitrate %.3f/%.3f Mbps, %d bytes")
-		, InPacket.VideoQP, Stats.EncoderQP
-		, Stats.CaptureLatencyMs.Get()
-		, LatencyMs, Stats.EncoderLatencyMs.Get()
-		, BitrateMbps, Stats.EncoderBitrateMbps.Get()
+	UE_LOG(PixelStreamer, VeryVerbose, TEXT("QP %d, capture latency %.0f ms, encode latency %.0f ms, bitrate %.3f Mbps, %d bytes")
+		, InPacket.VideoQP
+		, CaptureMs
+		, LatencyMs
+		, BitrateMbps
 		, (int)InPacket.DataSize);
 
 	// If we are running a latency test then record pre-encode timing
@@ -360,4 +360,13 @@ void FPixelStreamingVideoEncoder::CreateAVEncoder(TSharedPtr<AVEncoder::FVideoEn
 	Context->Encoder = AVEncoder::FVideoEncoderFactory::Get().Create(Available[0].ID, encoderInput, EncoderConfig);
 	FEncoderContext* ContextPtr = this->Context;
 	Context->Encoder->SetOnEncodedPacket([ContextPtr](uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket) { OnEncodedPacket(ContextPtr, InLayerIndex, InFrame, InPacket); });
+}
+
+int32_t FPixelStreamingVideoEncoder::GetSmoothedAverageQP() const
+{
+	if(this->Context == nullptr)
+	{
+		return -1;
+	}
+	return (int32_t)this->Context->SmoothedAvgQP.Get();
 }

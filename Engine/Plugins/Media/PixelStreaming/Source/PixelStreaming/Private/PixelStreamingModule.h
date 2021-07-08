@@ -67,4 +67,5 @@ private:
 	TArray<UPixelStreamerInputComponent*> InputComponents;
 	bool bFrozen = false;
 	bool bCaptureNextBackBufferAndStream = false;
+	double LastVideoEncoderQPReportTime = 0;
 };

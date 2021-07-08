@@ -577,3 +577,16 @@ size_t FPlayerSession::SerializeToBuffer(rtc::CopyOnWriteBuffer& Buffer, size_t 
 	FMemory::Memcpy(&Buffer[Pos], reinterpret_cast<const uint8_t*>(Data), DataSize);
 	return Pos + DataSize;
 }
+
+void FPlayerSession::SendVideoEncoderQP() const
+{
+	if(this->VideoEncoder == nullptr)
+	{
+		return;
+	}
+	int32_t QP = this->VideoEncoder->GetSmoothedAverageQP();
+	if (!SendMessage(PixelStreamingProtocol::EToPlayerMsg::VideoEncoderAvgQP, FString::FromInt(QP)))
+	{
+		UE_LOG(PixelStreamer, Error, TEXT("Failed to send video encoder QP to peer."));
+	}
+}

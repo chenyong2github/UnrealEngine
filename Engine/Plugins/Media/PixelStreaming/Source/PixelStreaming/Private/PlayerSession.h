@@ -46,6 +46,7 @@ public:
 	void SendFreezeFrame(const TArray64<uint8>& JpegBytes) const;
 	void SendUnfreezeFrame() const;
 	void SendInitialSettings() const;
+	void SendVideoEncoderQP() const;
 
 private:
 

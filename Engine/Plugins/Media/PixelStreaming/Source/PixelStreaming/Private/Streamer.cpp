@@ -169,6 +169,24 @@ void FStreamer::OnSignallingServerDisconnected()
 	ConnectToSignallingServer();
 }
 
+int FStreamer::GetNumPlayers() const
+{
+	return this->Players.Num();
+}
+
+void FStreamer::GetPlayerSessions(TArray<FPlayerSession*>& OutPlayerSessions)
+{
+	FScopeLock PlayersLock(&PlayersCS);
+	for (auto& Entry : Players)
+	{
+		TUniquePtr<FPlayerSession>& Session = Entry.Value;
+		if(Session.IsValid())
+		{
+			OutPlayerSessions.Add(Session.Get());
+		}
+	}
+}
+
 FPlayerSession* FStreamer::GetPlayerSession(FPlayerId PlayerId)
 {
 	TUniquePtr<FPlayerSession>* Player = Players.Find(PlayerId);
@@ -177,6 +195,7 @@ FPlayerSession* FStreamer::GetPlayerSession(FPlayerId PlayerId)
 
 FPlayerSession* FStreamer::GetUnlistenedPlayerSession()
 {
+	FScopeLock PlayersLock(&PlayersCS);
 	for (auto& Entry : Players)
 	{
 		TUniquePtr<FPlayerSession>& Session = Entry.Value;

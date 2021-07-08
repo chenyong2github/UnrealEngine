@@ -35,6 +35,8 @@ public:
 	// data coming from the engine
 	void OnFrameBufferReady(const FTexture2DRHIRef& FrameBuffer);
 
+	int GetNumPlayers() const;
+	void GetPlayerSessions(TArray<FPlayerSession*>& OutPlayerSessions);
 	FPlayerSession* GetPlayerSession(FPlayerId PlayerId);
 	FPlayerSession* GetUnlistenedPlayerSession();
 
