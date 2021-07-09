@@ -14,6 +14,7 @@
 #include "Misc/NotifyHook.h"
 #include "EditorUndoClient.h"
 
+class FScopedTransaction;
 class SBlendSpaceGridWidget;
 
 class SBlendSpaceEditor : public SAnimEditorBase, public FNotifyHook, public FSelfRegisteringEditorUndoClient
