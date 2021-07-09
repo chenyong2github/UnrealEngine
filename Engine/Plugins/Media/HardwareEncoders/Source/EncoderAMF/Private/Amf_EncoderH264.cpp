@@ -278,8 +278,8 @@ namespace AVEncoder
         Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_QUALITY_PRESET, AMF_VIDEO_ENCODER_QUALITY_PRESET_QUALITY);
 		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_B_PIC_PATTERN, 0);
 
-		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_MIN_QP, FMath::Clamp<amf_long>(CurrentConfig.QPMin, 0, 51));
-		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_MAX_QP, CurrentConfig.QPMax > -1 ? FMath::Clamp<amf_long>(CurrentConfig.QPMax, 0, 51) : 51);
+		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_MIN_QP, FMath::Clamp<amf_int64>(CurrentConfig.QPMin, 0, 51));
+		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_MAX_QP, CurrentConfig.QPMax > -1 ? FMath::Clamp<amf_int64>(CurrentConfig.QPMax, 0, 51) : 51);
 
 		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_QUERY_TIMEOUT, 16);
 		Result = AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_IDR_PERIOD, 60);
@@ -329,12 +329,12 @@ namespace AVEncoder
 			}
 #endif
 
-			if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_MIN_QP, FMath::Clamp<amf_long>(CurrentConfig.QPMin, 0, 51)) != AMF_OK)
+			if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_MIN_QP, FMath::Clamp<amf_int64>(CurrentConfig.QPMin, 0, 51)) != AMF_OK)
 			{
 				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to set min qp"));
 			}
 
-			if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_MAX_QP, CurrentConfig.QPMax > -1 ? FMath::Clamp<amf_long>(CurrentConfig.QPMax, 0, 51) : 51) != AMF_OK)
+			if (AmfEncoder->SetProperty(AMF_VIDEO_ENCODER_MAX_QP, CurrentConfig.QPMax > -1 ? FMath::Clamp<amf_int64>(CurrentConfig.QPMax, 0, 51) : 51) != AMF_OK)
 			{
 				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to set max qp"));
 			}
@@ -361,7 +361,7 @@ namespace AVEncoder
 		if (Buffer)
 		{
 			Buffer->Surface->SetPts(frame->GetTimestampRTP());
-			amf_long Start_ts = FTimespan::FromSeconds(FPlatformTime::Seconds()).GetTicks();
+			amf_int64 Start_ts = FTimespan::FromSeconds(FPlatformTime::Seconds()).GetTicks();
 			Buffer->Surface->SetProperty(AMF_VIDEO_ENCODER_START_TS, Start_ts);
 			Buffer->Surface->SetProperty(AMF_BUFFER_INPUT_FRAME, uintptr_t(frame));
 
