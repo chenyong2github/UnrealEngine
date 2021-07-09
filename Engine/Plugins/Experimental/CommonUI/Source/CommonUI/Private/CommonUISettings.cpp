@@ -7,6 +7,7 @@
 #include "UObject/Class.h"
 #include "UObject/ReflectedTypeAccessors.h"
 #include "GameplayTagContainer.h"
+#include "Misc/ConfigCacheIni.h"
 
 UCommonUISettings::UCommonUISettings(const FObjectInitializer& Initializer)
 	: Super(Initializer)

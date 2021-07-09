@@ -9,6 +9,7 @@
 #include "Engine/GameInstance.h"
 #include "CommonInputSubsystem.h"
 #include "UObject/UObjectHash.h"
+#include "UObject/UObjectIterator.h"
 #include "ICommonUIModule.h"
 #include "CommonUISettings.h"
 
