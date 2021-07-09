@@ -780,6 +780,10 @@ namespace HordeServer
 				Endpoints.MapGrpcService<CapabilitiesService>();
 				Endpoints.MapGrpcService<ContentStorageService>();
 				Endpoints.MapGrpcService<ExecutionService>();
+
+				Endpoints.MapGrpcService<BlobRpc>();
+				Endpoints.MapGrpcService<RefRpc>();
+
 				Endpoints.MapGrpcReflectionService();
 
 				Endpoints.MapControllers();
