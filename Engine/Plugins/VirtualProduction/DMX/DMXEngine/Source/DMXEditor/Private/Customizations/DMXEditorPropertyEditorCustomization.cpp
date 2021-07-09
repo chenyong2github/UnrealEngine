@@ -623,6 +623,9 @@ void FDMXFixturePatchesDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLay
 	FSimpleDelegate OnAutoAssignAddressChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXFixturePatchesDetails::OnAutoAssignAddressChanged);
 	AutoAssignAddressHandle->SetOnPropertyValueChanged(OnAutoAssignAddressChangedDelegate);
 
+	// Handle mode changes of the parent fixture type
+	UDMXEntityFixtureType::GetDataTypeChangeDelegate().AddSP(this, &FDMXFixturePatchesDetails::OnModesChanged);
+
 	// Make a Fixture Types dropdown for the Fixture Type template property
 	ParentFixtureTypeHandle = DetailLayout.GetProperty(UDMXEntityFixturePatch::GetParentFixtureTypeTemplatePropertyNameChecked());
 	check(ParentFixtureTypeHandle.IsValid() && ParentFixtureTypeHandle->IsValidHandle());
@@ -676,7 +679,6 @@ void FDMXFixturePatchesDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLay
 			.OptionsSource(&ActiveModeOptions)
 			.OnGenerateWidget(this, &FDMXFixturePatchesDetails::GenerateActiveModeOptionWidget)
 			.OnSelectionChanged(this, &FDMXFixturePatchesDetails::OnActiveModeChanged)
-			.OnComboBoxOpening(this, &FDMXFixturePatchesDetails::OnActiveComboBoxOpening)
 			.InitiallySelectedItem(DefaultSelectedActiveMode)
 			[
 				SNew(STextBlock)
@@ -723,6 +725,19 @@ void FDMXFixturePatchesDetails::OnAutoAssignAddressChanged()
 
 			FDMXEditorUtils::AutoAssignedAddresses(FixturePatches);
 		}
+	}
+}
+
+void FDMXFixturePatchesDetails::OnModesChanged(const UDMXEntityFixtureType* FixtureType, const FDMXFixtureMode& Mode)
+{
+	UObject* FixtureTypeObj = nullptr;
+	ensure(ParentFixtureTypeHandle->GetValue(FixtureTypeObj) == FPropertyAccess::Success);
+
+	if (FixtureTypeObj && FixtureTypeObj == FixtureType)
+	{
+		GenerateActiveModeOptions();
+
+		ActiveModeOptionsWidget->RefreshOptions();
 	}
 }
 
@@ -800,13 +815,6 @@ void FDMXFixturePatchesDetails::OnActiveModeChanged(const TSharedPtr<uint32> InS
 	{
 		ActiveModeHandle->SetValue(*InSelectedMode);
 	}
-}
-
-void FDMXFixturePatchesDetails::OnActiveComboBoxOpening()
-{
-	GenerateActiveModeOptions();
-
-	ActiveModeOptionsWidget->RefreshOptions();
 }
 
 FText FDMXFixturePatchesDetails::GetCurrentActiveModeLabel() const

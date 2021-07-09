@@ -22,7 +22,12 @@ struct FDMXProtocolRegistrationParams
 
 
 
-/** Implements the Protocol Module, that enables specific Protocol implementations */
+/** 
+ * Implements the Protocol Module, that enables specific Protocol implementations.
+ * 
+ * For use in Engine, see comments in DMXPortManager.h
+ * For protocol development, see comments in IDMXProtocol.h
+ */
 class DMXPROTOCOL_API FDMXProtocolModule 
 	: public IModuleInterface
 {

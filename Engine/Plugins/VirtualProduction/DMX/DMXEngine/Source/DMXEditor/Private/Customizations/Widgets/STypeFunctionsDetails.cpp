@@ -525,38 +525,36 @@ FText SDMXFunctionItemListViewBox::GetCellAttributesHeader() const
 	if (CurrentModeHandle.IsValid())
 	{
 		TSharedPtr<IPropertyHandle> FixtureMatrixConfigHandle = CurrentModeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, FixtureMatrixConfig));
-		check(FixtureMatrixConfigHandle.IsValid());
-
 		TSharedPtr<IPropertyHandle> XCellsHandle = FixtureMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, XCells));
-		check(XCellsHandle.IsValid());
-
 		TSharedPtr<IPropertyHandle> YCellsHandle = FixtureMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, YCells));
-		check(YCellsHandle.IsValid());
 
 		int32 XCells = 0;
-		ensure(XCellsHandle->GetValue(XCells) == FPropertyAccess::Success);
 		int32 YCells = 0;
-		ensure(YCellsHandle->GetValue(YCells) == FPropertyAccess::Success);
 
-		TSharedPtr<IPropertyHandle> CellAttributesHandle = FixtureMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, CellAttributes));
-		check(CellAttributesHandle.IsValid());
-
-		TSharedPtr<IPropertyHandleArray> CellAttributesHandleArray = CellAttributesHandle->AsArray();
-		check(CellAttributesHandleArray.IsValid());
-
-		uint32 NumCellFunctions = 0;
-		if (CellAttributesHandleArray->GetNumElements(NumCellFunctions) != FPropertyAccess::Success)
+		// Try to access the properties. May fail when removing modes
+		if (XCellsHandle->GetValue(XCells) == FPropertyAccess::Success &&
+			YCellsHandle->GetValue(YCells) == FPropertyAccess::Success)
 		{
-			return LOCTEXT("DMXFixtureMatrix.ErrorAccessFunctions", "Unable to retrieve FixtureMode Functions value.");
-		}
+			TSharedPtr<IPropertyHandle> CellAttributesHandle = FixtureMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, CellAttributes));
+			check(CellAttributesHandle.IsValid());
 
-		int32 NumElements = XCells * YCells * NumCellFunctions;
-		if (NumElements < 0)
-		{
-			return LOCTEXT("DMXFixtureMatrix.InvalidCellMatrixValues", "Invalid Cell Matrix values.");
-		}
+			TSharedPtr<IPropertyHandleArray> CellAttributesHandleArray = CellAttributesHandle->AsArray();
+			check(CellAttributesHandleArray.IsValid());
 
-		return FText::FromString(FString::Printf(TEXT("Cell Functions %d elements"), NumElements));
+			uint32 NumCellFunctions = 0;
+			if (CellAttributesHandleArray->GetNumElements(NumCellFunctions) != FPropertyAccess::Success)
+			{
+				return LOCTEXT("DMXFixtureMatrix.ErrorAccessFunctions", "Unable to retrieve FixtureMode Functions value.");
+			}
+
+			int32 NumElements = XCells * YCells * NumCellFunctions;
+			if (NumElements < 0)
+			{
+				return LOCTEXT("DMXFixtureMatrix.InvalidCellMatrixValues", "Invalid Cell Matrix values.");
+			}
+
+			return FText::FromString(FString::Printf(TEXT("Cell Functions %d elements"), NumElements));
+		}
 	}
 	
 	return FText();
@@ -572,24 +570,27 @@ FText SDMXFunctionItemListViewBox::GetFixtureMatrixWarning() const
 		TSharedPtr<IPropertyHandle> YCellsHandle = FixtureMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, YCells));
 
 		int32 XCells = 0;
-		ensure(XCellsHandle->GetValue(XCells) == FPropertyAccess::Success);
 		int32 YCells = 0;
-		ensure(YCellsHandle->GetValue(YCells) == FPropertyAccess::Success);
 
-		if (XCells == 0 || YCells == 0)
+		// Try to get the values, may fail when removing modes
+		if (XCellsHandle->GetValue(XCells) == FPropertyAccess::Success &&
+			YCellsHandle->GetValue(YCells) == FPropertyAccess::Success)
 		{
-			return LOCTEXT("DMXFixtureMatrix.NoFixtureMatrixCellsPresentWarning", "Invalid Fixture Matrix: 0 Cells");
-		}
+			if (XCells == 0 || YCells == 0)
+			{
+				return LOCTEXT("DMXFixtureMatrix.NoFixtureMatrixCellsPresentWarning", "Invalid Fixture Matrix: 0 Cells");
+			}
 
-		TSharedPtr<IPropertyHandle> CellAttributesHandle = FixtureMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, CellAttributes));
-		TSharedPtr<IPropertyHandleArray> CellAttributesHandleArray = CellAttributesHandle->AsArray();
-		check(CellAttributesHandleArray.IsValid());
+			TSharedPtr<IPropertyHandle> CellAttributesHandle = FixtureMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXFixtureMatrix, CellAttributes));
+			TSharedPtr<IPropertyHandleArray> CellAttributesHandleArray = CellAttributesHandle->AsArray();
+			check(CellAttributesHandleArray.IsValid());
 
-		uint32 NumAttributes = 0;
-		CellAttributesHandleArray->GetNumElements(NumAttributes);
-		if (NumAttributes == 0)
-		{
-			return LOCTEXT("DMXFixtureMatrix.NoFixtureMatrixAttributesPresentWarning", "Invalid Fixture Matrix: No Attributes added");
+			uint32 NumAttributes = 0;
+			CellAttributesHandleArray->GetNumElements(NumAttributes);
+			if (NumAttributes == 0)
+			{
+				return LOCTEXT("DMXFixtureMatrix.NoFixtureMatrixAttributesPresentWarning", "Invalid Fixture Matrix: No Attributes added");
+			}
 		}
 	}
 

@@ -344,15 +344,41 @@ void FDMXFixtureTypeSharedData::AddMode(const FScopedTransaction& TransactionSco
 		}
 		NewMode.ModeName = FDMXEditorUtils::GenerateUniqueNameFromExisting(ModeNames, LOCTEXT("DMXFixtureTypeSharedData.DefaultModeName", "Mode").ToString());
 
-		// Transaction
-		const FScopedTransaction Transaction = FScopedTransaction(LOCTEXT("DMXFixtureTypeSharedData.ModeDuplicated", "DMX Editor: Duplicated Fixture Type Mode"));
+		FProperty* ModesProperty = UDMXEntityFixtureType::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UDMXEntityFixtureType, Modes));
+		check(ModesProperty);
 
-		FixtureType->PreEditChange(UDMXEntityFixtureType::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UDMXEntityFixtureType, Modes)));
+		// Raise a property changed event with array index
+		FEditPropertyChain PropertyChain;
+		PropertyChain.AddHead(ModesProperty);
+		PropertyChain.SetActivePropertyNode(ModesProperty);
+
+		FixtureType->PreEditChange(PropertyChain);
 		FixtureType->Modify();
 
-		FixtureType->Modes.Add(NewMode);		
+		FixtureType->Modes.Add(NewMode);	
+		
+		TMap<FString, int32> IndexMap;
+		TArray<UObject*> ObjectsBeingEdited;
+		for (TWeakObjectPtr<UDMXEntityFixtureType> Object : FixtureTypesBeingEdited)
+		{
+			if (Object.IsValid())
+			{
+				ObjectsBeingEdited.Add(Object.Get());
+			}
+		}
 
-		FixtureType->PostEditChange();
+		FPropertyChangedEvent PropertyChangedEvent(ModesProperty->GetOwnerProperty(), EPropertyChangeType::ArrayAdd, MakeArrayView(ObjectsBeingEdited));
+		FPropertyChangedChainEvent PropertyChangedChainEvent(PropertyChain, PropertyChangedEvent);
+
+		IndexMap.Add(FString(ModesProperty->GetName()), FixtureType->Modes.Num() - 1);
+
+		TArray<TMap<FString, int32>> IndexPerObject;
+		IndexPerObject.Add(IndexMap);
+
+		PropertyChangedChainEvent.SetArrayIndexPerObject(IndexPerObject);
+		PropertyChangedChainEvent.ObjectIteratorIndex = 0;
+
+		FixtureType->PostEditChangeChainProperty(PropertyChangedChainEvent);
 	}
 }
 
@@ -705,6 +731,7 @@ void FDMXFixtureTypeSharedData::DeleteFunctions(const TArray<TSharedPtr<FDMXFixt
 
 	FPropertyChangedEvent PropertyChangedEvent(FunctionsProperty, EPropertyChangeType::ArrayRemove);
 	FPropertyChangedChainEvent PropertyChangedChainEvent(PropertyChain, PropertyChangedEvent);
+
 	FixtureType->PostEditChangeChainProperty(PropertyChangedChainEvent);
 
 	FDMXEditorUtils::AutoAssignedAddresses(FixtureType);
