@@ -3,8 +3,6 @@
 #include "RigUnit_PBIK.h"
 #include "Units/RigUnitContext.h"
 
-//#pragma optimize("", off)
-
 FRigUnit_PBIK_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -140,7 +138,14 @@ FRigUnit_PBIK_Execute()
 		const FPBIKEffector& Effector = Effectors[E];
 		FVector Position = Effector.Transform.GetLocation();
 		FQuat Rotation = Effector.Transform.GetRotation();
-		Solver.SetEffectorGoal(EffectorSolverIndices[E], Position, Rotation, Effector.OffsetAlpha, Effector.StrengthAlpha);
+		Solver.SetEffectorGoal(
+			EffectorSolverIndices[E],
+			Position,
+			Rotation,
+			Effector.OffsetAlpha,
+			Effector.StrengthAlpha,
+			Effector.PullChainAlpha,
+			Effector.bPinRotation);
 	}
 
 	// solve

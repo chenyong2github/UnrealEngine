@@ -59,7 +59,7 @@ private:
 
 	FVector GetPositionCorrection(FVector& OutBodyToA, FVector& OutBodyToB) const;
 
-	void ApplyRotationCorrection(FQuat PureRotA, FQuat PureRotB) const;
+	void ApplyRotationCorrection(FQuat DeltaQ) const;
 
 	void UpdateJointLimits();
 

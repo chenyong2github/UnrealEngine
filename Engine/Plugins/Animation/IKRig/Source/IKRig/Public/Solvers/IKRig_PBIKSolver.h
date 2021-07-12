@@ -24,6 +24,12 @@ public:
 	
 	UPROPERTY(EditAnywhere, Category = "Full Body IK Effector", meta = (ClampMin = "0", ClampMax = "1", UIMin = "0.0", UIMax = "1.0"))
 	float StrengthAlpha = 1.0f;
+	
+	UPROPERTY(EditAnywhere, Category = "Full Body IK Effector", meta = (ClampMin = "0", ClampMax = "1", UIMin = "0.0", UIMax = "1.0"))
+	float PullChainAlpha = 1.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Full Body IK Effector")
+	bool bPinRotation = true;
 
 	UPROPERTY(Transient)
 	int32 IndexInSolver = -1;
@@ -31,6 +37,8 @@ public:
 	void CopySettings(const UIKRig_FBIKEffector* Other)
 	{
 		StrengthAlpha = Other->StrengthAlpha;
+		PullChainAlpha = Other->PullChainAlpha;
+		bPinRotation = Other->bPinRotation;
 	}
 };
 
@@ -130,7 +138,7 @@ public:
 	FName RootBone;
 
 	/** High iteration counts can help solve complex joint configurations with competing constraints, but will increase runtime cost. Default is 20. */
-	UPROPERTY(EditAnywhere, Category = SolverSettings, meta = (ClampMin = "0", UIMin = "0.0", UIMax = "200.0"))
+	UPROPERTY(EditAnywhere, Category = SolverSettings, meta = (ClampMin = "0", UIMin = "0.0", UIMax = "100.0"))
 	int32 Iterations = 20;
 
 	/** A global mass multiplier; higher values will make the joints more stiff, but require more iterations. Typical range is 0.0 to 10.0. */
@@ -144,6 +152,10 @@ public:
 	/** If true, joints will translate to reach the effectors; causing bones to lengthen if necessary. Good for cartoon effects. Default is false. */
 	UPROPERTY(EditAnywhere, Category = SolverSettings)
 	bool bAllowStretch = false;
+
+	/** If true, solver will pre-process the skeleton to approximate a solved pose before running constraint iterations. Default is true. */
+	UPROPERTY(EditAnywhere, Category = SolverSettings)
+	bool bPreProcessPose = true;
 
 	/** Lock the position and rotation of the solver root bone in-place (at animated position). Useful for partial-body solves. Default is false. */
 	UPROPERTY(EditAnywhere, Category = SolverSettings)

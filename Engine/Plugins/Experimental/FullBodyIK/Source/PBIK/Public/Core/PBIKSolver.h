@@ -16,9 +16,9 @@ namespace PBIK
 static float GLOBAL_UNITS = 100.0f; // (1.0f = meters), (100.0f = centimeters)
 
 // A long tail ease out function. Input range, 0-1. 
-FORCEINLINE static void QuarticEaseOut(float& InOut){ InOut = (FMath::Pow(InOut-1.0f, 4.0f) * -1.0f) + 1.0f; };
+FORCEINLINE static float QuarticEaseOut(const float& Input){ return (FMath::Pow(Input-1.0f, 4.0f) * -1.0f) + 1.0f; };
 // An ease out function. Input range, 0-1.
-FORCEINLINE static void SquaredEaseOut(float& InOut){ InOut = (FMath::Pow(InOut-1.0f, 2.0f) * -1.0f) + 1.0f; };
+FORCEINLINE static float SquaredEaseOut(const float& Input){ return (FMath::Pow(Input-1.0f, 2.0f) * -1.0f) + 1.0f; };
 
 struct FRigidBody;
 
@@ -35,11 +35,17 @@ struct FEffector
 
 	FBone* Bone;
 	TWeakPtr<FPinConstraint> Pin;
+	bool bPinRotation;
 	FRigidBody* ParentSubRoot = nullptr;
-	float LengthOfChainInInputPose;
+	float DistanceToSubRootInInputPose;
+	float DistToRootAlongBones;
 
 	float TransformAlpha;
 	float StrengthAlpha;
+	
+	float PullChainAlpha;
+	TArray<float> DistancesFromEffector;
+	float DistToSubRootAlongBones;
 
 	FEffector(FBone* InBone);
 
@@ -47,10 +53,11 @@ struct FEffector
 		const FVector& InPositionGoal,
 		const FQuat& InRotationGoal,
 		float InTransformAlpha,
-		float InStrengthAlpha);
+		float InStrengthAlpha,
+		float InPullChainAlpha,
+		bool bInPinRotation);
 
-	void UpdateFromInputs();
-
+	void UpdateFromInputs(const FBone& SolverRoot);
 	void ApplyPreferredAngles();
 };
 
@@ -80,6 +87,10 @@ struct PBIK_API FPBIKSolverSettings
 	/** Lock the position and rotation of the solver root bone in-place (at animated position). Useful for partial-body solves. Default is false. */
 	UPROPERTY(EditAnywhere, Category = SolverSettings)
 	bool bPinRoot = false;
+
+	/** If true, solver will kinematically rotate skeleton limbs to approximate a solved pose before running constraint iterations. This can decrease the amount of iterations needed to achieve a converged pose. Default is true. */
+	UPROPERTY(EditAnywhere, Category = SolverSettings)
+	bool bPreProcessPose = true;
 
 	/** When true, the solver is reset each tick to start from the current input pose. If false, incoming animated poses are ignored and the solver starts from the results of the previous solve. Default is true. */
 	UPROPERTY(EditAnywhere, Category = SolverSettings)
@@ -120,7 +131,9 @@ public:
 		const FVector& InPosition, 
 		const FQuat& InRotation, 
 		const float OffsetAlpha, 
-		const float StrengthAlpha);
+		const float StrengthAlpha,
+		const float PullChainAlpha,
+		const bool bPinRotation);
 
 	void GetBoneGlobalTransform(const int32 Index, FTransform& OutTransform);
 
@@ -150,6 +163,14 @@ private:
 	bool InitConstraints();
 
 	void AddBodyForBone(PBIK::FBone* Bone);
+
+	void UpdateBodies(const FPBIKSolverSettings& Settings);
+
+	void SolveConstraints(const int32 Iterations, const bool bMoveRoots, const bool bAllowStretch);
+	
+	void PullRootTowardsEffectors();
+	
+	void PullChainsTowardsEffectors();
 
 private:
 
