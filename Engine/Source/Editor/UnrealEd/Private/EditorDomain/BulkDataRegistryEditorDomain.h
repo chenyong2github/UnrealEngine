@@ -2,12 +2,15 @@
 
 #pragma once
 
+#include "Async/AsyncWork.h"
+#include "Async/Future.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "Containers/RingBuffer.h"
 #include "DerivedDataRequest.h"
 #include "HAL/CriticalSection.h"
 #include "Serialization/BulkDataRegistry.h"
+#include "Templates/RefCounting.h"
 #include "TickableEditorObject.h"
 #include "Virtualization/VirtualizedBulkData.h"
 
@@ -21,16 +24,17 @@ namespace UE::BulkDataRegistry::Private
 class FBulkDataRegistryEditorDomain;
 
 /** Struct for storage of a BulkData in the registry, including the BulkData itself and data about cache status. */
-struct FBulkSource
+struct FRegisteredBulk
 {
-	FBulkSource() = default;
-	FBulkSource(UE::Virtualization::FVirtualizedUntypedBulkData&& InBulkData, FName InPackageNameToUpdate = NAME_None)
+	FRegisteredBulk() = default;
+	FRegisteredBulk(UE::Virtualization::FVirtualizedUntypedBulkData&& InBulkData, FName InPackageNameToUpdate = NAME_None)
 		:BulkData(MoveTemp(InBulkData)), PackageNameToUpdate(InPackageNameToUpdate)
 	{
 	}
 
 	UE::Virtualization::FVirtualizedUntypedBulkData BulkData;
 	FName PackageNameToUpdate;
+	bool bHasTempPayload = false;
 };
 
 /** Serialize an array of BulkDatas into or out of bytes saved/load from the registry's persistent cache. */
@@ -75,6 +79,42 @@ struct FTempLoadedPayload
 	double EndTime;
 };
 
+/** An Active flag and a lock around it for informing AutoDeleteAsyncTasks that their shared data is no longer available. */
+class FTaskSharedDataLock : public FThreadSafeRefCountedObject
+{
+public:
+	FRWLock ActiveLock;
+	bool bActive = true;
+};
+
+/** A worker that updates the PayloadId for a BulkData that is missing its RawHash. */
+class FUpdatePayloadWorker : public FNonAbandonableTask
+{
+public:
+	FUpdatePayloadWorker(FBulkDataRegistryEditorDomain* InBulkDataRegistry,
+		const UE::Virtualization::FVirtualizedUntypedBulkData& InSourceBulk);
+
+	void DoWork();
+	TStatId GetStatId() const
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FUpdatePayloadWorker, STATGROUP_ThreadPoolAsyncTasks);
+	}
+
+private:
+	UE::Virtualization::FVirtualizedUntypedBulkData BulkData;
+	TRefCountPtr<FTaskSharedDataLock> SharedDataLock;
+	FBulkDataRegistryEditorDomain* BulkDataRegistry;
+};
+
+/** Data storage for the FUpdatePayloadWorker that is updated while in flight for additional requesters. */
+struct FUpdatingPayload
+{
+	/** Pointer to the task. Once set to non-null, is never modified. The task ensure this FUpdatingPayload is destroyed before the task destructs. */
+	FAutoDeleteAsyncTask<FUpdatePayloadWorker>* AsyncTask = nullptr;
+	TArray<TUniqueFunction<void(bool bValid, const FCompressedBuffer& Buffer)>> Requesters;
+};
+
+
 /** Implementation of a BulkDataRegistry that stores its persistent data in a DDC bucket. */
 class FBulkDataRegistryEditorDomain : public IBulkDataRegistry, public FTickableEditorObject, public FTickableCookObject
 {
@@ -96,18 +136,24 @@ public:
 
 private:
 	void AddPendingPackageBulkData(FName PackageName, const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData);
+	void AddPendingPackageBulkDataInsideLock(FName PackageName, const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData);
 	void PollPendingPackages(bool bWaitForCooldown);
 	void AddTempLoadedPayload(const FGuid& RegistryKey, uint64 PayloadSize);
 	void PruneTempLoadedPayloads();
 	friend class FPendingPackage;
+	friend class FUpdatePayloadWorker;
 
-	FCriticalSection PendingPackageLock;
+	// All three locks can  be held at the same time. They must always be entered in order: SharedDataLock, RegistryLock, PendingPackageLock.
+	TRefCountPtr<FTaskSharedDataLock> SharedDataLock;
 	FRWLock RegistryLock;
-	TMap<FGuid, FBulkSource> Registry;
+	FCriticalSection PendingPackageLock;
+
+	TMap<FGuid, FRegisteredBulk> Registry;
+	TMap<FGuid, FUpdatingPayload> UpdatingPayloads;
 	TMap<FName, TUniquePtr<FPendingPackage>> PendingPackages;
 	TRingBuffer<FTempLoadedPayload> TempLoadedPayloads;
 	uint64 TempLoadedPayloadsSize = 0;
-	bool bAllowCacheUpdates = true;
+	bool bActive = true;
 };
 
 } // namespace UE::BulkDataRegistry::Private
