@@ -3,6 +3,17 @@
 #include "PostProcess/PostProcessAA.h"
 #include "PostProcess/PostProcessing.h"
 
+TAutoConsoleVariable<int32> CVarFXAAQuality(
+	TEXT("r.FXAA.Quality"), 4,
+	TEXT("Selects the quality permutation of FXAA.\n")
+	TEXT(" 0: Console\n")
+	TEXT(" 1: PC medium-dither 3-sample\n")
+	TEXT(" 2: PC medium-dither 5-sample\n")
+	TEXT(" 3: PC medium-dither 8-sample\n")
+	TEXT(" 4: PC low-dither 12-sample (Default)\n")
+	TEXT(" 5: PC extrem quality 12-samples"),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
 BEGIN_SHADER_PARAMETER_STRUCT(FFXAAParameters, )
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureInput, Input)
 	SHADER_PARAMETER(FVector4, fxaaConsoleRcpFrameOpt)
@@ -53,9 +64,7 @@ IMPLEMENT_GLOBAL_SHADER(FFXAAPS, "/Engine/Private/FXAAShader.usf", "FxaaPS", SF_
 
 EFXAAQuality GetFXAAQuality()
 {
-	const EPostProcessAAQuality PostProcessAAQuality = GetPostProcessAAQuality();
-	static_assert(uint32(EPostProcessAAQuality::MAX) == uint32(EFXAAQuality::MAX), "FXAA quality levels don't match post process AA quality levels. Can't trivially convert.");
-	return static_cast<EFXAAQuality>(PostProcessAAQuality);
+	return EFXAAQuality(FMath::Clamp(CVarFXAAQuality.GetValueOnRenderThread(), 0, 5));
 }
 
 FScreenPassTexture AddFXAAPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FFXAAInputs& Inputs)

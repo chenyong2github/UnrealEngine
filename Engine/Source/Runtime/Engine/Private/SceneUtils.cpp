@@ -67,8 +67,6 @@ ENGINE_API EAntiAliasingMethod GetDefaultAntiAliasingMethod(const FStaticFeature
 
 	static auto* MSAACountCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MSAACount"));
 
-	static auto* PostProcessAAQualityCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PostProcessAAQuality"));
-
 	EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(InFeatureLevel);
 
 	if (AntiAliasingMethod == EAntiAliasingMethod::AAM_None)
@@ -77,25 +75,11 @@ ENGINE_API EAntiAliasingMethod GetDefaultAntiAliasingMethod(const FStaticFeature
 	}
 	else if (AntiAliasingMethod == EAntiAliasingMethod::AAM_FXAA)
 	{
-		int32 Quality = PostProcessAAQualityCVar->GetValueOnAnyThread();
-
-		if (Quality <= 0)
-		{
-			AntiAliasingMethod = EAntiAliasingMethod::AAM_None;
-		}
+		// NOP
 	}
 	else if (AntiAliasingMethod == EAntiAliasingMethod::AAM_TemporalAA)
 	{
-		int32 Quality = PostProcessAAQualityCVar->GetValueOnAnyThread();
-
-		if (Quality <= 0)
-		{
-			AntiAliasingMethod = EAntiAliasingMethod::AAM_None;
-		}
-		else if (Quality == 1 || Quality == 2)
-		{
-			AntiAliasingMethod = AAM_FXAA;
-		}
+		// NOP
 	}
 	else if (AntiAliasingMethod == EAntiAliasingMethod::AAM_MSAA)
 	{

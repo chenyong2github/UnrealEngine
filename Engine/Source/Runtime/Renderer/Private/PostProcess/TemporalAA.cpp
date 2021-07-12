@@ -41,10 +41,12 @@ TAutoConsoleVariable<float> CVarTemporalAACurrentFrameWeight(
 	TEXT("Weight of current frame's contribution to the history.  Low values cause blurriness and ghosting, high values fail to hide jittering."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-TAutoConsoleVariable<int32> CVarTemporalAAUpsampleFiltered(
-	TEXT("r.TemporalAAUpsampleFiltered"),
-	1,
-	TEXT("Use filtering to fetch color history during TamporalAA upsampling (see AA_FILTERED define in TAA shader). Disabling this makes TAAU faster, but lower quality. "),
+TAutoConsoleVariable<int32> CVarTemporalAAQuality(
+	TEXT("r.TemporalAA.Quality"), 2,
+	TEXT("Quality of the main Temporal AA pass.\n")
+	TEXT(" 0: Disable input filtering;\n")
+	TEXT(" 1: Enable input filtering;\n")
+	TEXT(" 2: Enable input filtering, enable mobility based anti-ghosting (Default)"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<float> CVarTemporalAAHistorySP(
@@ -85,17 +87,15 @@ class FTemporalAACS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FTemporalAACS, FGlobalShader);
 
 	class FTAAPassConfigDim : SHADER_PERMUTATION_ENUM_CLASS("TAA_PASS_CONFIG", ETAAPassConfig);
-	class FTAAFastDim : SHADER_PERMUTATION_BOOL("TAA_FAST");
+	class FTAAQualityDim : SHADER_PERMUTATION_ENUM_CLASS("TAA_QUALITY", ETAAQuality);
 	class FTAAResponsiveDim : SHADER_PERMUTATION_BOOL("TAA_RESPONSIVE");
 	class FTAAScreenPercentageDim : SHADER_PERMUTATION_INT("TAA_SCREEN_PERCENTAGE_RANGE", 4);
-	class FTAAUpsampleFilteredDim : SHADER_PERMUTATION_BOOL("TAA_UPSAMPLE_FILTERED");
 	class FTAADownsampleDim : SHADER_PERMUTATION_BOOL("TAA_DOWNSAMPLE");
 
 	using FPermutationDomain = TShaderPermutationDomain<
 		FTAAPassConfigDim,
-		FTAAFastDim,
+		FTAAQualityDim,
 		FTAAScreenPercentageDim,
-		FTAAUpsampleFilteredDim,
 		FTAADownsampleDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -156,9 +156,48 @@ class FTemporalAACS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
 	END_SHADER_PARAMETER_STRUCT()
 
+	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
+	{
+		if (PermutationVector.Get<FTAAPassConfigDim>() == ETAAPassConfig::Main ||
+			PermutationVector.Get<FTAAPassConfigDim>() == ETAAPassConfig::MainUpsampling)
+		{
+			// No point downsampling if not using the faster quality permutation already.
+			if (PermutationVector.Get<FTAAQualityDim>() == ETAAQuality::High)
+			{
+				PermutationVector.Set<FTAADownsampleDim>(false);
+			}
+		}
+		else if (
+			PermutationVector.Get<FTAAPassConfigDim>() == ETAAPassConfig::DiaphragmDOF ||
+			PermutationVector.Get<FTAAPassConfigDim>() == ETAAPassConfig::DiaphragmDOFUpsampling)
+		{
+			// DOF pass allow only quality 1 and 2
+			PermutationVector.Set<FTAAQualityDim>(ETAAQuality(FMath::Max(int(PermutationVector.Get<FTAAQualityDim>()), int(ETAAQuality::Medium))));
+
+			// Only the Main and Main Upsampling can downsample the output.
+			PermutationVector.Set<FTAADownsampleDim>(false);
+		}
+		else
+		{
+			// Only the Main and Main Upsampling have quality options 0, 1, 2.
+			PermutationVector.Set<FTAAQualityDim>(ETAAQuality::High);
+
+			// Only the Main and Main Upsampling can downsample the output.
+			PermutationVector.Set<FTAADownsampleDim>(false);
+		}
+
+		return PermutationVector;
+	}
+
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		// Don't compile the shader permutation if gets remaped at runtime.
+		if (PermutationVector != RemapPermutation(PermutationVector))
+		{
+			return false;
+		}
 
 		// Screen percentage dimension is only for upsampling permutation.
 		if (!IsTAAUpsamplingConfig(PermutationVector.Get<FTAAPassConfigDim>()) &&
@@ -174,59 +213,11 @@ class FTemporalAACS : public FGlobalShader
 			{
 				return false;
 			}
-
-			// No point disabling filtering.
-			if (!PermutationVector.Get<FTAAUpsampleFilteredDim>())
-			{
-				return false;
-			}
-
-			// No point doing a fast permutation since it is PC only.
-			if (PermutationVector.Get<FTAAFastDim>())
-			{
-				return false;
-			}
-		}
-
-		// No point disabling filtering if not using the fast permutation already.
-		if (!PermutationVector.Get<FTAAUpsampleFilteredDim>() &&
-			!PermutationVector.Get<FTAAFastDim>())
-		{
-			return false;
-		}
-
-		// No point downsampling if not using the fast permutation already.
-		if (PermutationVector.Get<FTAADownsampleDim>() &&
-			!PermutationVector.Get<FTAAFastDim>())
-		{
-			return false;
 		}
 
 		// Screen percentage range 3 is only for super sampling.
 		if (PermutationVector.Get<FTAAPassConfigDim>() != ETAAPassConfig::MainSuperSampling &&
 			PermutationVector.Get<FTAAScreenPercentageDim>() == 3)
-		{
-			return false;
-		}
-
-		// Fast dimensions is only for Main and Diaphragm DOF.
-		if (PermutationVector.Get<FTAAFastDim>() &&
-			!IsMainTAAConfig(PermutationVector.Get<FTAAPassConfigDim>()) &&
-			!IsDOFTAAConfig(PermutationVector.Get<FTAAPassConfigDim>()))
-		{
-			return false;
-		}
-
-		// Non filtering option is only for upsampling.
-		if (!PermutationVector.Get<FTAAUpsampleFilteredDim>() &&
-			PermutationVector.Get<FTAAPassConfigDim>() != ETAAPassConfig::MainUpsampling)
-		{
-			return false;
-		}
-
-		// TAA_DOWNSAMPLE is only only for Main and MainUpsampling configs.
-		if (PermutationVector.Get<FTAADownsampleDim>() &&
-			!IsMainTAAConfig(PermutationVector.Get<FTAAPassConfigDim>()))
 		{
 			return false;
 		}
@@ -340,17 +331,24 @@ const TCHAR* const kTAAOutputNames[] = {
 };
 
 const TCHAR* const kTAAPassNames[] = {
-	TEXT("Gen4 Main"),
-	TEXT("Gen4 MainUpsampling"),
-	TEXT("Gen4 MainSuperSampling"),
+	TEXT("Main"),
+	TEXT("MainUpsampling"),
+	TEXT("MainSuperSampling"),
 	TEXT("ScreenSpaceReflections"),
 	TEXT("LightShaft"),
 	TEXT("DOF"),
 	TEXT("DOFUpsampling"),
 };
 
+const TCHAR* const kTAAQualityNames[] = {
+	TEXT("Low"),
+	TEXT("Medium"),
+	TEXT("High"),
+};
+
 static_assert(UE_ARRAY_COUNT(kTAAOutputNames) == int32(ETAAPassConfig::MAX), "Missing TAA output name.");
 static_assert(UE_ARRAY_COUNT(kTAAPassNames) == int32(ETAAPassConfig::MAX), "Missing TAA pass name.");
+static_assert(UE_ARRAY_COUNT(kTAAQualityNames) == int32(ETAAQuality::MAX), "Missing TAA quality name.");
 } //! namespace
 
 bool IsTemporalAASceneDownsampleAllowed(const FViewInfo& View)
@@ -464,7 +462,7 @@ FTAAOutputs AddTemporalAAPass(
 
 	{
 		EPixelFormat HistoryPixelFormat = PF_FloatRGBA;
-		if (bIsMainPass && Inputs.bUseFast && !bSupportsAlpha && CVarTAAR11G11B10History.GetValueOnRenderThread())
+		if (bIsMainPass && Inputs.Quality != ETAAQuality::High && !bSupportsAlpha && CVarTAAR11G11B10History.GetValueOnRenderThread())
 		{
 			HistoryPixelFormat = PF_FloatR11G11B10;
 		}
@@ -524,15 +522,11 @@ FTAAOutputs AddTemporalAAPass(
 	{
 		FTemporalAACS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FTemporalAACS::FTAAPassConfigDim>(Inputs.Pass);
-		PermutationVector.Set<FTemporalAACS::FTAAFastDim>(Inputs.bUseFast);
+		PermutationVector.Set<FTemporalAACS::FTAAQualityDim>(Inputs.Quality);
 		PermutationVector.Set<FTemporalAACS::FTAADownsampleDim>(Inputs.bDownsample);
-		PermutationVector.Set<FTemporalAACS::FTAAUpsampleFilteredDim>(true);
 
 		if (IsTAAUpsamplingConfig(Inputs.Pass))
 		{
-			const bool bUpsampleFiltered = CVarTemporalAAUpsampleFiltered.GetValueOnRenderThread() != 0 || Inputs.Pass != ETAAPassConfig::MainUpsampling;
-			PermutationVector.Set<FTemporalAACS::FTAAUpsampleFilteredDim>(bUpsampleFiltered);
-
 			// If screen percentage > 100% on X or Y axes, then use screen percentage range = 2 shader permutation to disable LDS caching.
 			if (SrcRect.Width() > DestRect.Width() ||
 				SrcRect.Height() > DestRect.Height())
@@ -553,6 +547,8 @@ FTAAOutputs AddTemporalAAPass(
 				PermutationVector.Set<FTemporalAACS::FTAAScreenPercentageDim>(1);
 			}
 		}
+
+		PermutationVector = FTemporalAACS::RemapPermutation(PermutationVector);
 
 		FTemporalAACS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTemporalAACS::FParameters>();
 
@@ -754,8 +750,9 @@ FTAAOutputs AddTemporalAAPass(
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("TAA Gen4 %s%s %dx%d -> %dx%d",
-				PassName, Inputs.bUseFast ? TEXT(" Fast") : TEXT(""),
+			RDG_EVENT_NAME("TAA(%s Quality=%s) %dx%d -> %dx%d",
+				PassName,
+				kTAAQualityNames[int32(PermutationVector.Get<FTemporalAACS::FTAAQualityDim>())],
 				PracticableSrcRect.Width(), PracticableSrcRect.Height(),
 				PracticableDestRect.Width(), PracticableDestRect.Height()),
 			ComputeShader,
@@ -801,9 +798,7 @@ static void AddGen4MainTemporalAAPasses(
 
 	TAAParameters.SetupViewRect(View);
 
-	const EPostProcessAAQuality LowQualityTemporalAA = EPostProcessAAQuality::Medium;
-
-	TAAParameters.bUseFast = GetPostProcessAAQuality() == LowQualityTemporalAA;
+	TAAParameters.Quality = ETAAQuality(FMath::Clamp(CVarTemporalAAQuality.GetValueOnRenderThread(), 0, 2));
 
 	const FIntRect SecondaryViewRect = TAAParameters.OutputViewRect;
 
@@ -819,7 +814,7 @@ static void AddGen4MainTemporalAAPasses(
 			TAAParameters.OutputViewRect.Height() * HistoryUpscaleFactor);
 
 		TAAParameters.Pass = ETAAPassConfig::MainSuperSampling;
-		TAAParameters.bUseFast = false;
+		TAAParameters.Quality = ETAAQuality::High;
 
 		TAAParameters.OutputViewRect.Min.X = 0;
 		TAAParameters.OutputViewRect.Min.Y = 0;
@@ -828,7 +823,7 @@ static void AddGen4MainTemporalAAPasses(
 
 	TAAParameters.DownsampleOverrideFormat = PassInputs.DownsampleOverrideFormat;
 
-	TAAParameters.bDownsample = PassInputs.bAllowDownsampleSceneColor && TAAParameters.bUseFast;
+	TAAParameters.bDownsample = PassInputs.bAllowDownsampleSceneColor && TAAParameters.Quality != ETAAQuality::High;
 
 	TAAParameters.SceneDepthTexture = PassInputs.SceneDepthTexture;
 	TAAParameters.SceneVelocityTexture = PassInputs.SceneVelocityTexture;

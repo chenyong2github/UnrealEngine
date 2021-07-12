@@ -218,7 +218,6 @@ private:
 	FConsoleVariableSwapperTempl<int32> DefaultFeature_AntiAliasing;
 	FConsoleVariableSwapperTempl<int32> DefaultFeature_AutoExposure;
 	FConsoleVariableSwapperTempl<int32> DefaultFeature_MotionBlur;
-	FConsoleVariableSwapperTempl<int32> PostProcessAAQuality;
 	FConsoleVariableSwapperTempl<int32> MotionBlurQuality;
 	FConsoleVariableSwapperTempl<int32> ScreenSpaceReflectionQuality;
 	FConsoleVariableSwapperTempl<int32> EyeAdaptationQuality;

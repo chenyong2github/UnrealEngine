@@ -235,7 +235,6 @@ FAutomationTestScreenshotEnvSetup::FAutomationTestScreenshotEnvSetup()
 	: DefaultFeature_AntiAliasing(TEXT("r.AntiAliasingMethod"))
 	, DefaultFeature_AutoExposure(TEXT("r.DefaultFeature.AutoExposure"))
 	, DefaultFeature_MotionBlur(TEXT("r.DefaultFeature.MotionBlur"))
-	, PostProcessAAQuality(TEXT("r.PostProcessAAQuality"))
 	, MotionBlurQuality(TEXT("r.MotionBlurQuality"))
 	, ScreenSpaceReflectionQuality(TEXT("r.SSR.Quality"))
 	, EyeAdaptationQuality(TEXT("r.EyeAdaptationQuality"))
@@ -261,7 +260,6 @@ void FAutomationTestScreenshotEnvSetup::Setup(UWorld* InWorld, FAutomationScreen
 		DefaultFeature_AntiAliasing.Set(0);
 		DefaultFeature_AutoExposure.Set(0);
 		DefaultFeature_MotionBlur.Set(0);
-		PostProcessAAQuality.Set(0);
 		MotionBlurQuality.Set(0);
 		ScreenSpaceReflectionQuality.Set(0);
 		ContactShadows.Set(0);
@@ -307,7 +305,6 @@ void FAutomationTestScreenshotEnvSetup::Restore()
 	DefaultFeature_AntiAliasing.Restore();
 	DefaultFeature_AutoExposure.Restore();
 	DefaultFeature_MotionBlur.Restore();
-	PostProcessAAQuality.Restore();
 	MotionBlurQuality.Restore();
 	ScreenSpaceReflectionQuality.Restore();
 	EyeAdaptationQuality.Restore();

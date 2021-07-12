@@ -1426,7 +1426,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 		TAAParameters.SetupViewRect(View, PrefilteringResolutionDivisor);
 		TAAParameters.TopLeftCornerViewRects();
 
-		TAAParameters.bUseFast = CVarDOFTemporalAAQuality.GetValueOnRenderThread() == 0;
+		TAAParameters.Quality = CVarDOFTemporalAAQuality.GetValueOnRenderThread() == 0 ? ETAAQuality::Medium : ETAAQuality::High;
 	}
 
 	// Size of the view in GatherColorSetup.

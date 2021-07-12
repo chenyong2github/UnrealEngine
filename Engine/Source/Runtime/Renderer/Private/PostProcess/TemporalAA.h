@@ -77,6 +77,14 @@ struct FTAAOutputs
 	FRDGTexture* DownsampledSceneColor = nullptr;
 };
 
+/** Quality of TAA. */
+enum class ETAAQuality : uint8
+{
+	Low,
+	Medium,
+	High,
+	MAX
+};
 
 /** Configuration of TAA. */
 struct FTAAPassParameters
@@ -85,7 +93,7 @@ struct FTAAPassParameters
 	ETAAPassConfig Pass = ETAAPassConfig::Main;
 
 	// Whether to use the faster shader permutation.
-	bool bUseFast = false;
+	ETAAQuality Quality = ETAAQuality::High;
 
 	// Whether output texture should be render targetable.
 	bool bOutputRenderTargetable = false;

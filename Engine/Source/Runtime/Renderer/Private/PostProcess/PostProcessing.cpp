@@ -144,13 +144,6 @@ bool IsPostProcessingWithAlphaChannelSupported()
 	return CVarPostProcessingPropagateAlpha.GetValueOnAnyThread() != 0;
 }
 
-EPostProcessAAQuality GetPostProcessAAQuality()
-{
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PostProcessAAQuality"));
-
-	return static_cast<EPostProcessAAQuality>(FMath::Clamp(CVar->GetValueOnAnyThread(), 0, static_cast<int32>(EPostProcessAAQuality::MAX) - 1));
-}
-
 class FComposeSeparateTranslucencyPS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FComposeSeparateTranslucencyPS);

@@ -2297,13 +2297,6 @@ static TAutoConsoleVariable<int32> CVarMotionBlurQuality(
 	TEXT(" 0:off, 1:low, 2:medium, 3:high (default), 4: very high"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarPostProcessAAQuality(
-	TEXT("r.PostProcessAAQuality"),
-	4,
-	TEXT("Defines the postprocess anti aliasing method which allows to adjust for quality or performance.\n")
-	TEXT(" 0:off, 1:very low (faster FXAA), 2:low (FXAA), 3:medium (faster TemporalAA), 4:high (default TemporalAA), 5:very high, 6:max"),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<int32> CVarFullscreenMode(
 	TEXT("r.FullScreenMode"),
 	1,

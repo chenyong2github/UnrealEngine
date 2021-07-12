@@ -14,24 +14,6 @@ namespace Nanite
 	struct FRasterResults;
 }
 
-enum class EPostProcessAAQuality : uint32
-{
-	Disabled,
-	// Faster FXAA
-	VeryLow,
-	// FXAA
-	Low,
-	// Faster Temporal AA
-	Medium,
-	// Temporal AA
-	High,
-	VeryHigh,
-	MAX
-};
-
-// Returns the quality of post process anti-aliasing defined by CVar.
-EPostProcessAAQuality GetPostProcessAAQuality();
-
 // Returns whether the full post process pipeline is enabled. Otherwise, the minimal set of operations are performed.
 bool IsPostProcessingEnabled(const FViewInfo& View);
 

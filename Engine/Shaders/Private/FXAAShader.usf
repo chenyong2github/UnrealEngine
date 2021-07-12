@@ -17,13 +17,13 @@ SamplerState Input_Sampler;
 	#define FXAA_QUALITY__PRESET 10
 	#define FXAA_PC_CONSOLE 1
 #elif FXAA_PRESET == 1
-	#define FXAA_QUALITY__PRESET 15
-	#define FXAA_PC_CONSOLE 1
+	#define FXAA_QUALITY__PRESET 10
+	#define FXAA_PC 1
 #elif FXAA_PRESET == 2
-	#define FXAA_QUALITY__PRESET 20
-	#define FXAA_PC_CONSOLE 1
+	#define FXAA_QUALITY__PRESET 13
+	#define FXAA_PC 1
 #elif FXAA_PRESET == 3
-	#define FXAA_QUALITY__PRESET 20
+	#define FXAA_QUALITY__PRESET 15
 	#define FXAA_PC 1
 #elif FXAA_PRESET == 4
 	#define FXAA_QUALITY__PRESET 29
