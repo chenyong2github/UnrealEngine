@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Linq;
 using Tools.DotNETCommon;
 
@@ -188,8 +189,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		public void Run()
 		{
-			Thread T = new Thread(ThreadFunc);
-			T.Start();
+			// Use the task framework to run the action on a background thread. The default scheduler has a MaximumConcurrencyLevel
+			// of MaxValue so unlike ThreadPool.QueueUserWorkItem, this will run straight away.
+			// Note - in 4.27 we moved from manual thread creation to tasks to workaround an issue in Mono on Apple Silicon.
+			// Benchmarking on Mac and Win64 showed a negligible performance gain.
+			Task.Run(() => ThreadFunc());
 		}
 	};
 
@@ -401,6 +405,7 @@ namespace UnrealBuildTool
 									try
 									{
 										ActionThread.Run();
+										Log.TraceVerbose("Created Task for {0}", Action.CommandPath);
 									}
 									catch (Exception ex)
 									{
