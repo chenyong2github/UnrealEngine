@@ -173,6 +173,10 @@ void FNormalFlowRemesher::TrackedFaceProjectionPass(double& MaxDistanceMoved, bo
 	// First compute all rotated triangles and store their corner positions and weights
 	ParallelFor(Mesh->MaxTriangleID(), [this, NormalProjTarget, bIsTuningIteration, SmoothAreaDistance, UseSmoothFunc, MaxStepDistance](int32 TriangleIndex)
 	{
+		if (!Mesh->IsTriangle(TriangleIndex))
+		{
+			return;
+		}
 		FVector3d TriangleNormal, Centroid;
 		double Area;
 		Mesh->GetTriInfo(TriangleIndex, TriangleNormal, Area, Centroid);

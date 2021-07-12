@@ -246,6 +246,10 @@ public:
 		}
 		ParallelFor(Mesh->MaxTriangleID(), [&](int tid)
 		{
+			if (!Mesh->IsTriangle(tid))
+			{
+				return;
+			}
 			int MatIdx;
 			MaterialID->GetValue(tid, &MatIdx);
 			if (MatIdx >= 0 && MatIdx < NumMaterials)
