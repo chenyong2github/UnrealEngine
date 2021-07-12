@@ -399,9 +399,6 @@ RENDERER_API FHairCullInfo GetHairStrandsCullInfo();
 
 RENDERER_API bool IsHairRayTracingEnabled();
 
-// Return true if the hair should be rendered using the sub-pixel lighting path, false if the regular gbuffer lighting path should be used
-RENDERER_API bool IsHairStrandsComplexLightingEnabled();
-
 // Return true if hair simulation is enabled.
 RENDERER_API bool IsHairStrandsSimulationEnable();
 

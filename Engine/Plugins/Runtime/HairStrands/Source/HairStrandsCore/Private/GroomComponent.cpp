@@ -816,7 +816,7 @@ public:
 		FMeshBatch& Mesh = Collector.AllocateMesh();
 
 		const bool bUseCardsOrMeshes = GeometryType == EHairGeometryType::Cards || GeometryType == EHairGeometryType::Meshes;
-		Mesh.CastShadow = !IsHairStrandsComplexLightingEnabled() || bUseCardsOrMeshes;
+		Mesh.CastShadow = bUseCardsOrMeshes;
 		Mesh.bUseForMaterial  = true;
 		Mesh.bUseForDepthPass = bUseCardsOrMeshes;
 		Mesh.SegmentIndex = 0;
