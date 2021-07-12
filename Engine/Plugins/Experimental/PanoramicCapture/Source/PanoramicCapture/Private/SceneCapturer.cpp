@@ -472,8 +472,8 @@ void USceneCapturer::RemoveAllBlendables(USceneCaptureComponent2D* CaptureCompon
 // Disable screen space post processes we cannot use while capturing
 void USceneCapturer::DisableUnsupportedPostProcesses(USceneCaptureComponent2D* CaptureComponent)
 {
-	CaptureComponent->PostProcessSettings.bOverride_GrainIntensity = true;
-	CaptureComponent->PostProcessSettings.GrainIntensity = 0.0f;
+	CaptureComponent->PostProcessSettings.bOverride_FilmGrainIntensity = true;
+	CaptureComponent->PostProcessSettings.FilmGrainIntensity = 0.0f;
 	CaptureComponent->PostProcessSettings.bOverride_MotionBlurAmount = true;
 	CaptureComponent->PostProcessSettings.MotionBlurAmount = 0.0f;
 	CaptureComponent->PostProcessSettings.bOverride_ScreenSpaceReflectionIntensity = true;
