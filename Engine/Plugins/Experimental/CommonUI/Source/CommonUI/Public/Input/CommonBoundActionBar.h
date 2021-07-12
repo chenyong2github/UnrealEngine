@@ -43,5 +43,8 @@ private:
 	UPROPERTY(EditAnywhere, Category = Display)
 	bool bDisplayOwningPlayerActionsOnly = true;
 
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Display)
+	bool bIgnoreDuplicateActions = true;
+
 	bool bIsRefreshQueued = false;
 };

@@ -92,6 +92,10 @@ struct COMMONUI_API FCommonInputActionDataBase : public FTableRowBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CommonInput")
 	FText HoldDisplayName;
 
+	/** Priority in nav-bar */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "CommonInput")
+	int32 NavBarPriority = 0;
+
 protected:
 	/**
 	* Key to bind to for each input method

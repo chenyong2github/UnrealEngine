@@ -1127,6 +1127,10 @@ bool FActivatableTreeRoot::UpdateLeafmostActiveNode(FActivatableTreeNodePtr Base
 
 	// Starting from the provided candidate, find the leafmost active node (which may well just be the candidate itself)
 	FActivatableTreeNodePtr NewLeafmostNode = BaseCandidateNode ? FindLeafmostActiveChild(BaseCandidateNode.ToSharedRef()) : nullptr;
+
+	// Always trigger on valid canidates to allow to bound actions to update
+	OnLeafmostActiveNodeChanged.ExecuteIfBound();
+
 	if (NewLeafmostNode != LeafmostActiveNode)
 	{
 		if (LeafmostActiveNode.IsValid())
@@ -1151,7 +1155,6 @@ bool FActivatableTreeRoot::UpdateLeafmostActiveNode(FActivatableTreeNodePtr Base
 			}
 		}
 
-		OnLeafmostActiveNodeChanged.ExecuteIfBound();
 		return true;
 	}
 	return false;
