@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "HairStrandsVisibilityCommonStruct.ush" 
 #include "../Common.ush"
 #include "../CommonViewUniformBuffer.ush"
 
@@ -89,13 +90,8 @@ void FastResolvePS(in FScreenVertexOutput Input)
 
 int2 OutputResolution;
 uint bComposeDofDepth;
-uint bEmissiveEnable;
 
-Texture2D<float4>	HairEmissiveTexture;
 Texture2D<float>	HairDOFDepthTexture;
-Texture2D<uint>		HairSampleCount;
-Texture2D<uint4>	HairCategorizationTexture;
-Texture2D<uint>		HairVisibilityNodeOffsetAndCount;
 Texture2D<float4>	HairLightingSampleBuffer;
 
 float4 EvaluateVolumetric(float3 WorldPosition)
@@ -146,18 +142,18 @@ void ComposeSamplePS(
 	OutColor = 0.0f;
 	const uint3 PixelCoord = uint3(floor(Input.Position.xy), 0);
 
-	FNodeDesc NodeDesc = DecodeNodeDesc(HairVisibilityNodeOffsetAndCount.Load(PixelCoord));
+	FNodeDesc NodeDesc = DecodeNodeDesc(HairStrands.HairSampleOffset.Load(PixelCoord));
 	if (NodeDesc.Count == 0)
 	{
 		discard;
 	}
 
-	const FCategorizationData CatData = DecodeCategorizationData(HairCategorizationTexture.Load(PixelCoord));
+	const FCategorizationData CatData = DecodeCategorizationData(HairStrands.HairCategorizationTexture.Load(PixelCoord));
 	const float PixelCoverage = min(CatData.PixelCoverage, 1);
 	if (PixelCoverage == 0)
 		discard;
 
-	const uint TotalNodeCount = HairSampleCount.Load(uint3(0, 0, 0));
+	const uint TotalNodeCount = HairStrands.HairSampleCount.Load(uint3(0, 0, 0));
 	const uint Resolution = uint(ceil(sqrt(float(TotalNodeCount))));
 
 	const float3 ClosetPointWorldPosition = SvPositionToWorld(float4(Input.Position.xy, CatData.ClosestDepth, 1.0));;
@@ -170,7 +166,7 @@ void ComposeSamplePS(
 		const uint LocalOffset = NodeDesc.Offset + SampleIt;
 		const uint2 Coord = uint2(LocalOffset % Resolution, LocalOffset / Resolution);
 		const float4 LightingSample = HairLightingSampleBuffer.Load(uint3(Coord,0));
-		const float4 EmissiveSample = HairEmissiveTexture.Load(uint3(Coord, 0));
+		const float4 EmissiveSample = HairStrands.HairEmissiveTexture.Load(uint3(Coord, 0));
 		LocalAccColor += LightingSample.rgb + EmissiveSample.rgb;
 	}
 	OutColor.rgb = LocalAccColor * Volumetric.a + Volumetric.rgb;
