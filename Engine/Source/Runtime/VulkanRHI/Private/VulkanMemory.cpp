@@ -2610,12 +2610,13 @@ namespace VulkanRHI
 
 	FVulkanSubresourceAllocator::FVulkanSubresourceAllocator(EVulkanAllocationType InType, FMemoryManager* InOwner, uint8 InSubresourceAllocatorFlags, FDeviceMemoryAllocation* InDeviceMemoryAllocation,
 		uint32 InMemoryTypeIndex, VkMemoryPropertyFlags InMemoryPropertyFlags,
-		uint32 InAlignment, VkBuffer InBuffer, uint32 InBufferId, VkBufferUsageFlags InBufferUsageFlags, int32 InPoolSizeIndex)
+		uint32 InAlignment, VkBuffer InBuffer, uint32 InBufferSize, uint32 InBufferId, VkBufferUsageFlags InBufferUsageFlags, int32 InPoolSizeIndex)
 		: Type(InType)
 		, Owner(InOwner)
 		, MemoryTypeIndex(InMemoryTypeIndex)
 		, MemoryPropertyFlags(InMemoryPropertyFlags)
 		, MemoryAllocation(InDeviceMemoryAllocation)
+		, MaxSize(InBufferSize)
 		, Alignment(InAlignment)
 		, FrameFreed(0)
 		, UsedSize(0)
@@ -2628,7 +2629,6 @@ namespace VulkanRHI
 
 	{
 		FMemory::Memzero(MemoryUsed);
-		MaxSize = InDeviceMemoryAllocation->GetSize();
 
 		if(InDeviceMemoryAllocation->IsMapped())
 		{
@@ -2830,7 +2830,7 @@ namespace VulkanRHI
 			BufferId = ++GVulkanBufferHandleIdCounter;
 		}
 		FVulkanSubresourceAllocator* SubresourceAllocator = new FVulkanSubresourceAllocator(EVulkanAllocationPooledBuffer, this, AllocationFlags, DeviceMemoryAllocation, MemoryTypeIndex,
-			MemoryPropertyFlags, MemReqs.alignment, Buffer, BufferId, BufferUsageFlags, PoolSize);
+			MemoryPropertyFlags, MemReqs.alignment, Buffer, BufferSize, BufferId, BufferUsageFlags, PoolSize);
 
 		RegisterSubresourceAllocator(SubresourceAllocator);
 		UsedBufferAllocations[PoolSize].Add(SubresourceAllocator);
