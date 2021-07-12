@@ -389,9 +389,9 @@ void FModelingToolsEditorModeToolkit::UpdateActiveToolProperties()
 	}
 }
 
-void FModelingToolsEditorModeToolkit::RefreshPropertyObject(UObject* ChangedObject)
+void FModelingToolsEditorModeToolkit::InvalidateCachedDetailPanelState(UObject* ChangedObject)
 {
-	ModeDetailsView->ForceRefresh();
+	ModeDetailsView->InvalidateCachedState();
 }
 
 
@@ -722,7 +722,7 @@ void FModelingToolsEditorModeToolkit::OnToolStarted(UInteractiveToolManager* Man
 
 	UInteractiveTool* CurTool = GetScriptableEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
 	CurTool->OnPropertySetsModified.AddSP(this, &FModelingToolsEditorModeToolkit::UpdateActiveToolProperties);
-	CurTool->OnPropertyModifiedDirectlyByTool.AddSP(this, &FModelingToolsEditorModeToolkit::RefreshPropertyObject);
+	CurTool->OnPropertyModifiedDirectlyByTool.AddSP(this, &FModelingToolsEditorModeToolkit::InvalidateCachedDetailPanelState);
 
 	ModeHeaderArea->SetVisibility(EVisibility::Collapsed);
 	ActiveToolName = CurTool->GetToolInfo().ToolDisplayName;

@@ -29,6 +29,9 @@ public:
 	/** Causes the details view to be refreshed (new widgets generated) with the current set of objects */
 	virtual void ForceRefresh() override;
 
+	/** Invalidates cached state such as the "revert to default" arrow and edit conditions, without rebuilding the entire panel. */
+	virtual void InvalidateCachedState() override;
+
 	/** Move the scrolling offset (by item), but do not refresh the tree*/
 	void MoveScrollOffset(int32 DeltaOffset) override;
 
