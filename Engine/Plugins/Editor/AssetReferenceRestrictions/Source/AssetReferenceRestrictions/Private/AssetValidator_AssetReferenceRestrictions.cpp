@@ -19,11 +19,6 @@ UAssetValidator_AssetReferenceRestrictions::UAssetValidator_AssetReferenceRestri
 
 bool UAssetValidator_AssetReferenceRestrictions::CanValidateAsset_Implementation(UObject* InAsset) const
 {
-	if (!GetDefault<UAssetReferencingPolicySettings>()->bEnableAssetValidator_TEMP)
-	{
-		return false;
-	}
-
 	if (InAsset)
 	{
 		const FAssetData AssetData(InAsset);
