@@ -1,13 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ISequencerModule.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
-#include "MovieSceneImagePlateSection.h"
 #include "PropertyEditorModule.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
-#include "ImagePlateTrackEditor.h"
 #include "AssetTypeActions_ImagePlateFileSequence.h"
 #include "IAssetTools.h"
 #include "ISettingsModule.h"
@@ -68,10 +65,6 @@ public:
 	virtual void StartupModule() override
 	{
 		FImagePlateEditorStyle::Get();
-
-		ISequencerModule& SequencerModule = FModuleManager::Get().LoadModuleChecked<ISequencerModule>("Sequencer");
-		TrackEditorBindingHandle = SequencerModule.RegisterPropertyTrackEditor<FImagePlateTrackEditor>();
-
 		AssetTypeActions = MakeShared<FAssetTypeActions_ImagePlateFileSequence>();
 
 		IAssetTools& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
@@ -89,12 +82,6 @@ public:
 	{
 		FImagePlateEditorStyle::Destroy();
 
-		ISequencerModule* SequencerModulePtr = FModuleManager::Get().GetModulePtr<ISequencerModule>("Sequencer");
-		if (SequencerModulePtr)
-		{
-			SequencerModulePtr->UnRegisterTrackEditor(TrackEditorBindingHandle);
-		}
-
 		FAssetToolsModule* AssetToolsModule = FModuleManager::Get().GetModulePtr<FAssetToolsModule>("AssetTools");
 		if (AssetToolsModule)
 		{
@@ -110,7 +97,6 @@ public:
 	}
 
 	TSharedPtr<FAssetTypeActions_ImagePlateFileSequence> AssetTypeActions;
-	FDelegateHandle TrackEditorBindingHandle;
 };
 
 IMPLEMENT_MODULE(FImagePlateEditorModule, ImagePlateEditor);
