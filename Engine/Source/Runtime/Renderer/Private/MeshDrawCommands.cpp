@@ -1134,7 +1134,10 @@ bool FParallelMeshDrawCommandPass::IsOnDemandShaderCreationEnabled()
 	// GL rhi does not support multithreaded shader creation, however the engine can be configured to not run mesh drawing tasks in threads other than the RT 
 	// (see FRHICommandListExecutor::UseParallelAlgorithms()): if this condition is true, on demand shader creation can be enabled.
 	const bool bIsMobileRenderer = FSceneInterface::GetShadingPath(GMaxRHIFeatureLevel) == EShadingPath::Mobile;
-	return GAllowOnDemandShaderCreation && 
+	// Creating shaders on multiple threads in D3D11 can trigger driver heuristics that cause creation call to be blocking, and reportedly introduce hitches.
+	// Unfortunately without being able to set per-RHI CVars we have to exclude D3D11 explicitly, and the best check atm is the RHI name (which can have _Validation appended to it, so checking just the beginning only)
+	static bool bIsD3D11 = GDynamicRHI && GDynamicRHI->GetName() && (FCString::Strncmp(GDynamicRHI->GetName(), TEXT("D3D11"), 5) == 0);
+	return GAllowOnDemandShaderCreation && !bIsD3D11 &&
 		(RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform) || (bIsMobileRenderer && (!GSupportsParallelRenderingTasksWithSeparateRHIThread && IsRunningRHIInSeparateThread())));
 }
 
