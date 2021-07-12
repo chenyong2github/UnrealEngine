@@ -113,9 +113,10 @@ void FNiagaraScriptToolkit::RegisterTabSpawners(const TSharedRef<class FTabManag
 		.SetDisplayName(LOCTEXT("ParametersTab2", "Legacy Parameters"))
 		.SetGroup(WorkspaceMenuCategoryRef);
 		
-	InTabManager->RegisterTabSpawner(ParameterDefinitionsTabId, FOnSpawnTab::CreateSP(this, &FNiagaraScriptToolkit::SpawnTabParameterDefinitions))
-		.SetDisplayName(LOCTEXT("ParameterDefinitions", "Parameter Definitions"))
-		.SetGroup(WorkspaceMenuCategoryRef);
+	//@todo(ng) disable parameter definitions panel pending bug fixes
+// 	InTabManager->RegisterTabSpawner(ParameterDefinitionsTabId, FOnSpawnTab::CreateSP(this, &FNiagaraScriptToolkit::SpawnTabParameterDefinitions))
+// 		.SetDisplayName(LOCTEXT("ParameterDefinitions", "Parameter Definitions"))
+// 		.SetGroup(WorkspaceMenuCategoryRef);
 
 	InTabManager->RegisterTabSpawner(StatsTabId, FOnSpawnTab::CreateSP(this, &FNiagaraScriptToolkit::SpawnTabStats))
 		.SetDisplayName(LOCTEXT("StatsTab", "Stats"))
@@ -140,7 +141,8 @@ void FNiagaraScriptToolkit::UnregisterTabSpawners(const TSharedRef<class FTabMan
 	InTabManager->UnregisterTabSpawner(SelectedDetailsTabId);
 	InTabManager->UnregisterTabSpawner(ParametersTabId);
 	InTabManager->UnregisterTabSpawner(ParametersTabId2);
-	InTabManager->UnregisterTabSpawner(ParameterDefinitionsTabId);
+	//@todo(ng) disable parameter definitions panel pending bug fixes
+	//InTabManager->UnregisterTabSpawner(ParameterDefinitionsTabId);
 	InTabManager->UnregisterTabSpawner(StatsTabId);
 	InTabManager->UnregisterTabSpawner(VersioningTabID);
 }
