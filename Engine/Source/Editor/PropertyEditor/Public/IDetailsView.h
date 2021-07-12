@@ -388,6 +388,12 @@ public:
 
 	/** Force refresh */
 	virtual void ForceRefresh() = 0;
+
+	/** Invalidates any cached state without necessarily doing a complete rebuild. */
+	virtual void InvalidateCachedState()
+	{
+		ForceRefresh();
+	}
 	
 	/** Sets an optional object filter to use for more complex handling of what a details panel is viewing. */
 	virtual void SetObjectFilter(TSharedPtr<FDetailsViewObjectFilter> InFilter) = 0;

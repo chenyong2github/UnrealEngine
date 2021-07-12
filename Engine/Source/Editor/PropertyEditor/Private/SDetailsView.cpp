@@ -912,6 +912,11 @@ void SDetailsView::SetOnObjectArrayChanged(FOnObjectArrayChanged OnObjectArrayCh
 
 void SDetailsView::OnPostUndoRedo()
 {
+	InvalidateCachedState();
+}
+
+void SDetailsView::InvalidateCachedState()
+{
 	for (const TSharedPtr<FComplexPropertyNode>& RootNode : RootPropertyNodes)
 	{
 		RootNode->InvalidateCachedState();

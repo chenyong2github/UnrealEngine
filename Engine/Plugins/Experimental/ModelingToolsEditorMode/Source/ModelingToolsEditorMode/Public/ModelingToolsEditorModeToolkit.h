@@ -74,7 +74,7 @@ private:
 
 	TSharedPtr<SWidget> ToolkitWidget;
 	void UpdateActiveToolProperties();
-	void RefreshPropertyObject(UObject* ChangedObject);
+	void InvalidateCachedDetailPanelState(UObject* ChangedObject);
 
 	TSharedPtr<SWidget> ViewportOverlayWidget;
 
