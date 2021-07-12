@@ -835,16 +835,12 @@ namespace Metasound
 			{
 				FNodeAccessPtr Node;
 				FConstClassAccessPtr Class;
-
-				bool IsValid() const { return Node.IsValid() && Class.IsValid(); }
 			};
 
 			struct FConstNodeAndClass
 			{
 				FConstNodeAccessPtr Node;
 				FConstClassAccessPtr Class;
-
-				bool IsValid() const { return Node.IsValid() && Class.IsValid(); }
 			};
 
 			bool ContainsNodesAndClassesByPredicate(TFunctionRef<bool (const FMetasoundFrontendClass&, const FMetasoundFrontendNode&)> InPredicate) const;
@@ -952,10 +948,6 @@ namespace Metasound
 
 			bool ExportToJSONAsset(const FString& InAbsolutePath) const override;
 			FString ExportToJSON() const override;
-
-			static bool IsMatchingMetasoundClass(const FMetasoundFrontendClassMetadata& InMetadataA, const FMetasoundFrontendClassMetadata& InMetadataB);
-			static bool IsMatchingMetasoundClass(const FNodeClassInfo& InNodeClass, const FMetasoundFrontendClassMetadata& InMetadata);
-			static bool IsMatchingMetasoundClass(const FNodeRegistryKey& InKey, const FMetasoundFrontendClassMetadata& InMetadata);
 
 		protected:
 			FDocumentAccess ShareAccess() override;

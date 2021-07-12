@@ -54,15 +54,6 @@ namespace Metasound
 
 			static Type FallbackObject;
 
-			/** Returns true if object is valid. Should only be called in same
-			 * thread which created the token. */
-			bool IsValid() const { return (Get() != nullptr); }
-
-			FORCEINLINE explicit operator bool() const
-			{
-				return IsValid();
-			}
-
 			/** Returns a pointer to the accessible object. If the object is 
 			 * inaccessible, a nullptr is returned. 
 			 */
@@ -70,36 +61,10 @@ namespace Metasound
 			{
 #if METASOUND_FRONTEND_ACCESSPTR_DEBUG_INFO 
 				CachedObjectPtr = GetObject();
-#endif
+				return CachedObjectPtr;
+#else
 				return GetObject();
-			}
-
-			/** Returns a pointer to the accessible object. If the object is 
-			 * inaccessible, an assert is triggered and the static fallback object
-			 * is returned. 
-			 */
-			Type& operator*() const
-			{
-				if (Type* Object = Get())
-				{
-					return *Object;
-				}
-
-				checkNoEntry();
-				return FallbackObject;
-			}
-
-			/** Returns a pointer to the accessible object. If the object is 
-			 * inaccessible, a nullptr is returned. 
-			 */
-			Type* operator->() const
-			{
-				if (Type* Object = Get())
-				{
-					return Object;
-				}
-
-				return &FallbackObject;
+#endif
 			}
 
 			/** Returns an access pointer to a member of the wrapped object. 
@@ -114,11 +79,11 @@ namespace Metasound
 			{
 				using MemberType = typename AccessPtrType::ObjectType;
 
-				TFunction<MemberType*()> GetMemberFromObject = [=]() -> MemberType*
+				TFunction<MemberType*()> GetMemberFromObject = [GetObject=this->GetObject, GetMember=MoveTemp(InGetMember)]() -> MemberType*
 				{
-					if (Type* Object = Get())
+					if (Type* Object = GetObject())
 					{
-						return InGetMember(*Object);
+						return GetMember(*Object);
 					}
 					return static_cast<MemberType*>(nullptr);
 				};
@@ -139,7 +104,7 @@ namespace Metasound
 			{
 				Type* RefPtr = &InRef;
 
-				GetObject = [=]() -> Type*
+				GetObject = [AccessToken=MoveTemp(AccessToken), RefPtr]() -> Type*
 				{
 					Type* Object = nullptr;
 					if (AccessToken.IsValid())
@@ -158,10 +123,9 @@ namespace Metasound
 			template<typename OtherType>
 			TAccessPtr(const TAccessPtr<OtherType>& InOther, EConstCast InTag)
 			{
-				TFunction<OtherType*()> OtherGetObject = InOther.GetObject;
-				GetObject = [=]() -> Type*
+				GetObject = [GetOtherObject=InOther.GetObject]() -> Type*
 				{
-					return const_cast<Type*>(OtherGetObject());
+					return const_cast<Type*>(GetOtherObject());
 				};
 #if METASOUND_FRONTEND_ACCESSPTR_DEBUG_INFO 
 				Get();
@@ -175,11 +139,9 @@ namespace Metasound
 			>
 			TAccessPtr(const TAccessPtr<OtherType>& InOther, EDerivedCopy InTag=EDerivedCopy::Tag)
 			{
-				TFunction<OtherType*()> OtherGetObject = InOther.GetObject;
-
-				GetObject = [=]() -> Type*
+				GetObject = [GetOtherObject=InOther.GetObject]() -> Type*
 				{
-					return static_cast<Type*>(OtherGetObject());
+					return static_cast<Type*>(GetOtherObject());
 				};
 #if METASOUND_FRONTEND_ACCESSPTR_DEBUG_INFO 
 				Get();
