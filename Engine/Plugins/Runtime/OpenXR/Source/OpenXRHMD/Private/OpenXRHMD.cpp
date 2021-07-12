@@ -2044,12 +2044,13 @@ bool FOpenXRHMD::OnStereoTeardown()
 void FOpenXRHMD::DestroySession()
 {
 	FWriteScopeLock DeviceLock(DeviceMutex);
+	
+	// FlushRenderingCommands must be called outside of SessionLock since some rendering threads will also lock this mutex.
+	FlushRenderingCommands();
 	FWriteScopeLock SessionLock(SessionHandleMutex);
 
 	if (Session != XR_NULL_HANDLE)
 	{
-		FlushRenderingCommands();
-
 		// We need to reset all swapchain references to ensure there are no attempts
 		// to destroy swapchain handles after the session is already destroyed.
 		ForEachLayer([&](uint32 /* unused */, FOpenXRLayer& Layer)
