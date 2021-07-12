@@ -370,7 +370,7 @@ static void SkinnedMeshToRawMeshes(USkinnedMeshComponent* InSkinnedMeshComponent
 						}
 					}
 
-					if (LODData.StaticVertexBuffers.ColorVertexBuffer.IsInitialized())
+					if (LODData.StaticVertexBuffers.ColorVertexBuffer.IsInitialized() && LODData.StaticVertexBuffers.ColorVertexBuffer.GetNumVertices() > 0)
 					{
 						RawMesh.WedgeColors.Add(LODData.StaticVertexBuffers.ColorVertexBuffer.VertexColor(VertexIndexForWedge));
 						RawMeshTracker.bValidColors = true;
