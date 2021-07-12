@@ -957,12 +957,12 @@ IMPLEMENT_VM_FUNCTION(EX_CallMath, execCallMathFunction);
 void UObject::CallFunction( FFrame& Stack, RESULT_DECL, UFunction* Function )
 {
 #if PER_FUNCTION_SCRIPT_STATS
-	const bool bShouldTrackFunction = (Stack.DepthCounter <= GMaxFunctionStatDepth) && (Stats::IsThreadCollectingData() || UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel));
+	const bool bShouldTrackFunction = (Stack.DepthCounter <= GMaxFunctionStatDepth) && Stats::IsThreadCollectingData();
 	FScopeCycleCounterUObject FunctionScope(bShouldTrackFunction ? Function : nullptr);
 #endif // PER_FUNCTION_SCRIPT_STATS
 
 #if STATS || ENABLE_STATNAMEDEVENTS
-	const bool bShouldTrackObject = (GVerboseScriptStats && Stats::IsThreadCollectingData()) || UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel);
+	const bool bShouldTrackObject = GVerboseScriptStats && Stats::IsThreadCollectingData();
 	FScopeCycleCounterUObject ContextScope(bShouldTrackObject ? this : nullptr);
 #endif
 

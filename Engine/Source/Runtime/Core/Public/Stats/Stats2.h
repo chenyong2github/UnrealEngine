@@ -2325,7 +2325,7 @@ namespace Stats
 	FORCEINLINE bool IsThreadCollectingData()
 	{
 #if STATS
-		return FThreadStats::IsCollectingData();
+		return UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel) || FThreadStats::IsCollectingData();
 #else
 		return GCycleStatsShouldEmitNamedEvents > 0;
 #endif
