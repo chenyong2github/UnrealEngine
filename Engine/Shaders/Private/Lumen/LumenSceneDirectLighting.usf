@@ -276,7 +276,7 @@ void LumenCardDirectLightingPS(
 							#if HARDWARE_RAYTRACING_SHADOW_PASS_COMBINE
 							{
 								uint ShadowValue = ShadowMaskAtlas.Load(uint3(CardInterpolants.AtlasUV * LumenCardScene.PhysicalAtlasSize, 0));
-								uint ShadowMask = 1 << ShadowMaskIndex;
+								uint ShadowMask = 1u << ShadowMaskIndex;
 								ShadowFactor = (ShadowValue & ShadowMask) > 0 ? 1.0 : 0.0;
 							}
 							#else

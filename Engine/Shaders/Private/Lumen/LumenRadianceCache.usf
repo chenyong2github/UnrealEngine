@@ -282,7 +282,7 @@ void SetupProbeIndirectArgsCS()
 	RWCalculateProbeIrradianceIndirectArgs[1] = 1;
 	RWCalculateProbeIrradianceIndirectArgs[2] = NumProbesToTrace;
 
-	uint FinalOcclusionProbeResolution = OcclusionProbeResolution + 2 * (1 << FinalRadianceAtlasMaxMip);
+	uint FinalOcclusionProbeResolution = OcclusionProbeResolution + 2 * (1u << FinalRadianceAtlasMaxMip);
 	RWPrepareProbeOcclusionIndirectArgs[0] = (FinalOcclusionProbeResolution + TraceFromProbesGroupSizeXY - 1) / TraceFromProbesGroupSizeXY;
 	RWPrepareProbeOcclusionIndirectArgs[1] = (FinalOcclusionProbeResolution + TraceFromProbesGroupSizeXY - 1) / TraceFromProbesGroupSizeXY;
 	RWPrepareProbeOcclusionIndirectArgs[2] = NumProbesToTrace;
@@ -900,11 +900,13 @@ void TraceFromProbesCS(
 
 			float3 Lighting = SharedTraceRadiance[GroupThreadId.y][GroupThreadId.x];
 
-			for (uint Y = 0; Y < UpsampleFactor; Y++)
 			{
-				for (uint X = 0; X < UpsampleFactor; X++)
+				for (uint Y = 0; Y < UpsampleFactor; Y++)
 				{
-					RWRadianceProbeAtlasTexture[ProbeAtlasBaseCoord + uint2(X, Y)] = Lighting;
+					for (uint X = 0; X < UpsampleFactor; X++)
+					{
+						RWRadianceProbeAtlasTexture[ProbeAtlasBaseCoord + uint2(X, Y)] = Lighting;
+					}
 				}
 			}
 
@@ -929,11 +931,13 @@ void TraceFromProbesCS(
 			{
 				float3 Lighting = 0;
 
-				for (uint Y = 0; Y < DownsampleFactor; Y++)
 				{
-					for (uint X = 0; X < DownsampleFactor; X++)
+					for (uint Y = 0; Y < DownsampleFactor; Y++)
 					{
-						Lighting += SharedTraceRadiance[GroupThreadId.y * DownsampleFactor + Y][GroupThreadId.x * DownsampleFactor + X];
+						for (uint X = 0; X < DownsampleFactor; X++)
+						{
+							Lighting += SharedTraceRadiance[GroupThreadId.y * DownsampleFactor + Y][GroupThreadId.x * DownsampleFactor + X];
+						}
 					}
 				}
 
@@ -1200,26 +1204,28 @@ void CalculateProbeIrradianceCS(
 
 #define DOWNSAMPLE_TO_SHARED_MEMORY 1
 #if DOWNSAMPLE_TO_SHARED_MEMORY
-	for (uint DestY = GroupThreadId.y; DestY < DOWNSAMPLED_RADIANCE_SIZE; DestY += THREADGROUP_SIZE)
 	{
-		for (uint DestX = GroupThreadId.x; DestX < DOWNSAMPLED_RADIANCE_SIZE; DestX += THREADGROUP_SIZE)
+		for (uint DestY = GroupThreadId.y; DestY < DOWNSAMPLED_RADIANCE_SIZE; DestY += THREADGROUP_SIZE)
 		{
-			float3 Radiance = 0;
-			float TotalWeight = 0;
-
-			for (uint YOffset = 0; YOffset < DownsampleFactor; YOffset++)
+			for (uint DestX = GroupThreadId.x; DestX < DOWNSAMPLED_RADIANCE_SIZE; DestX += THREADGROUP_SIZE)
 			{
-				for (uint XOffset = 0; XOffset < DownsampleFactor; XOffset++)
-				{
-					uint2 SourceTexelCoord = uint2(DestX * DownsampleFactor + XOffset, DestY * DownsampleFactor + YOffset);
-					float2 ProbeUV = (SourceTexelCoord + float2(.5f, .5f)) / (float)RadianceProbeResolution;
-					float SolidAngle = OctahedralSolidAngleLUT(ProbeUV, RadianceProbeResolution);
-					Radiance += RadianceProbeAtlasTexture.Load(uint3(AtlasBaseCoord + SourceTexelCoord, 0)).xyz * SolidAngle;
-					TotalWeight += SolidAngle;
-				}
-			}
+				float3 Radiance = 0;
+				float TotalWeight = 0;
 
-			SharedDownsampledProbeRadiance[DestY][DestX] = Radiance / TotalWeight;
+				for (uint YOffset = 0; YOffset < DownsampleFactor; YOffset++)
+				{
+					for (uint XOffset = 0; XOffset < DownsampleFactor; XOffset++)
+					{
+						uint2 SourceTexelCoord = uint2(DestX * DownsampleFactor + XOffset, DestY * DownsampleFactor + YOffset);
+						float2 ProbeUV = (SourceTexelCoord + float2(.5f, .5f)) / (float)RadianceProbeResolution;
+						float SolidAngle = OctahedralSolidAngleLUT(ProbeUV, RadianceProbeResolution);
+						Radiance += RadianceProbeAtlasTexture.Load(uint3(AtlasBaseCoord + SourceTexelCoord, 0)).xyz * SolidAngle;
+						TotalWeight += SolidAngle;
+					}
+				}
+
+				SharedDownsampledProbeRadiance[DestY][DestX] = Radiance / TotalWeight;
+			}
 		}
 	}
 
@@ -1287,11 +1293,11 @@ void PrepareProbeOcclusionCS(
 	uint ProbeIndex = GetProbeIndexFromProbeTraceData(ProbeTraceIndex);
 
 	uint2 FinalDepthTexelCoord = DispatchThreadId.xy;
-	uint FinalOcclusionProbeResolution = OcclusionProbeResolution + 2 * (1 << FinalRadianceAtlasMaxMip);
+	uint FinalOcclusionProbeResolution = OcclusionProbeResolution + 2 * (1u << FinalRadianceAtlasMaxMip);
 
 	if (all(FinalDepthTexelCoord < FinalOcclusionProbeResolution))
 	{
-		uint2 ProbeDepthTexelCoord = OctahedralMapWrapBorder(FinalDepthTexelCoord, FinalOcclusionProbeResolution, 1 << FinalRadianceAtlasMaxMip);
+		uint2 ProbeDepthTexelCoord = OctahedralMapWrapBorder(FinalDepthTexelCoord, FinalOcclusionProbeResolution, 1u << FinalRadianceAtlasMaxMip);
 		uint2 AtlasBaseCoord = uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);;
 		uint DownsampleFactor = RadianceProbeResolution / OcclusionProbeResolution;
 		uint DepthKernel = DownsampleFactor * 1;
@@ -1336,7 +1342,7 @@ void CopyProbesAndFixupBordersCS(
 
 	if (all(FinalProbeTexelCoord < FinalProbeResolution))
 	{
-		uint2 ProbeTexelCoord = OctahedralMapWrapBorder(FinalProbeTexelCoord, FinalProbeResolution, 1 << FinalRadianceAtlasMaxMip);
+		uint2 ProbeTexelCoord = OctahedralMapWrapBorder(FinalProbeTexelCoord, FinalProbeResolution, 1u << FinalRadianceAtlasMaxMip);
 		uint2 AtlasCoord = ProbeTexelCoord + RadianceProbeResolution * uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);
 
 		float3 Lighting = RadianceProbeAtlasTexture.Load(uint3(AtlasCoord, 0)).xyz;

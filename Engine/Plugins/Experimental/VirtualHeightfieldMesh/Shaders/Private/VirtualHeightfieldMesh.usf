@@ -60,9 +60,9 @@ uint GetVirtualLevelFromPhysicalAddress(uint InPhysicalAddress)
 float2 VirtualToPhysicalUV(float2 InVirtualUV, uint InPhysicalAddress, float4 InTransformFactors, uint InNumAddressBits)
 {
 	// See packing in PageTableUpdate.usf
-	float PageX = (float)((InPhysicalAddress >> 4) & ((1 << InNumAddressBits) - 1));
+	float PageX = (float)((InPhysicalAddress >> 4) & ((1u << InNumAddressBits) - 1));
 	float PageY = (float)(InPhysicalAddress >> (4 + InNumAddressBits));
-	float UVScale = 1.f / (float)(1 << GetVirtualLevelFromPhysicalAddress(InPhysicalAddress));
+	float UVScale = 1.f / (float)(1u << GetVirtualLevelFromPhysicalAddress(InPhysicalAddress));
 
 	float2 BaseUV = float2(PageX, PageY) * InTransformFactors.x;
 	float2 PageUV = InVirtualUV * InTransformFactors.y;
@@ -76,7 +76,7 @@ float2 VirtualToPhysicalUV(float2 InVirtualUV, uint InPhysicalAddress, float4 In
 float3 GetVirtualToPhysicalUVTransform(uint2 InPos, uint InLevel, uint InPhysicalAddress, float4 InTransformFactors, uint InNumAddressBits)
 {
 	uint LodShift = (uint)max((int)GetVirtualLevelFromPhysicalAddress(InPhysicalAddress) - (int)InLevel, 0);
-	float PosDivider = 1.f / (float)(1 << LodShift);
+	float PosDivider = 1.f / (float)(1u << LodShift);
 	float2 MinVirtualUV = frac((float2)InPos * PosDivider);
 	float2 MaxVirtualUV = MinVirtualUV + PosDivider;
 
@@ -195,9 +195,9 @@ void InitBuffersCS()
 
 	for (uint Level = 0; Level < NumForceLoadLods; ++Level)
 	{
-		for (int Y = 0; Y < (1 << Level); ++Y)
+		for (uint Y = 0; Y < (1u << Level); ++Y)
 		{
-			for (int X = 0; X < (1 << Level); ++X)
+			for (uint X = 0; X < (1u << Level); ++X)
 			{
 				uint LevelPlusOne = 1 + MaxLevel - Level;
 				uint Feedback = X | (Y << 12) | (LevelPlusOne << 24) | PageTableFeedbackId;
@@ -255,7 +255,7 @@ void CollectQuadsCS(
 			bool bOcclude = !OcclusionTest(Pos, Level);
 
 			// Get UV bounding box
-			float2 Scale = (float)(1 << Level) * PageTableSize.zw;
+			float2 Scale = (float)(1u << Level) * PageTableSize.zw;
 			
 			float2 UV0 = ((float2)Pos + float2(0, 0)) * Scale;
 			float2 UV1 = ((float2)Pos + float2(1, 1)) * Scale;
@@ -382,7 +382,7 @@ void CullInstancesCS( uint3 DispatchThreadId : SV_DispatchThreadID )
 	bool bCull = Item.bCull;
 #else
 	// Cull against planes for this view.
-	float2 Scale = (float)(1 << Level) * PageTableSize.zw;
+	float2 Scale = (float)(1u << Level) * PageTableSize.zw;
 	float2 UV0 = ((float2)Pos + float2(0, 0)) * Scale;
 	float2 UV1 = ((float2)Pos + float2(1, 1)) * Scale;
 

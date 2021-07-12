@@ -196,7 +196,7 @@ float2 GetProbeScreenCoord(FProbeInfo ProbeInfo)
 uint2 GetProbePixelPos(FProbeInfo ProbeInfo, uint HierarchyLevelId)
 {
 	float2 ScreenPos = GetProbeScreenCoord(ProbeInfo);
-	uint2 PixelPos = uint2(ScreenPosToViewportUV(ScreenPos) * View.ViewSizeAndInvSize.xy) / (PROBE_HIERARCHY_EMIT_TILE_SIZE << HierarchyLevelId);
+	uint2 PixelPos = uint2(ScreenPosToViewportUV(ScreenPos) * View.ViewSizeAndInvSize.xy) / (uint(PROBE_HIERARCHY_EMIT_TILE_SIZE) << HierarchyLevelId);
 	return PixelPos;
 }
 

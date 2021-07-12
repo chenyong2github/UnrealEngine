@@ -15,7 +15,7 @@ float2 SnapToClosestPixelCenterUVEx(float2 SampleUV, float2 TextureSize, float2 
 
 float2 SnapToClosestPixelCenterUV(float2 SampleUV, float2 TextureSize, float2 TextureInvSize, const uint MipLevel = 0)
 {
-	return SnapToClosestPixelCenterUVEx(SampleUV, TextureSize, TextureInvSize, 1 << MipLevel, rcp(float(1 << MipLevel)));
+	return SnapToClosestPixelCenterUVEx(SampleUV, TextureSize, TextureInvSize, 1u << MipLevel, rcp(float(1u << MipLevel)));
 }
 
 
@@ -58,7 +58,7 @@ FBilinearSampleInfos GetBilinearSampleLevelInfosEx(float2 SampleUV, float2 Textu
 
 FBilinearSampleInfos GetBilinearSampleLevelInfos(float2 SampleUV, float2 TextureSize, float2 TextureInvSize, const uint MipLevel = 0)
 {
-	return GetBilinearSampleLevelInfosEx(SampleUV, TextureSize, TextureInvSize, 1 << MipLevel, rcp(float(1 << MipLevel)));
+	return GetBilinearSampleLevelInfosEx(SampleUV, TextureSize, TextureInvSize, 1u << MipLevel, rcp(float(1u << MipLevel)));
 }
 
 /** Return the weight of a sample <SampleId>. */

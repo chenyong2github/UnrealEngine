@@ -373,7 +373,7 @@ void ReduceCS(
 			}
 		}
 
-		uint ScatteringGroupMask = 1 << ScatteringGroupIndex;
+		uint ScatteringGroupMask = 1u << ScatteringGroupIndex;
 		
 		const float ScatterFactorThreshold = 0.01;
 		bool bScatterThisColor = ScatterFactor > ScatterFactorThreshold;
@@ -610,7 +610,7 @@ void ReduceCS(
 		for (uint i = 0; i < (DIM_REDUCE_MIP_COUNT - 1); i++)
 		{
 			// Multiplier that needs to be applied on Coc computation to be resolution independent.
-			const uint TileSize = THREADGROUP_TILE_SIZE / (1 << (i + 1));
+			const uint TileSize = THREADGROUP_TILE_SIZE / (1u << (i + 1));
 			const uint ReduceBankSize = TileSize * TileSize;
 		
 			// GroupSharedArray has been written before.
@@ -618,7 +618,7 @@ void ReduceCS(
 		
 			if (GroupThreadIndex < ReduceBankSize)
 			{
-				DownsampleParams.CocRadiusMultiplier = 0.5 / float(1 << (i));
+				DownsampleParams.CocRadiusMultiplier = 0.5 / float(1u << (i));
 
 				// Reduce.
 				ReduceOperator(DownsampleParams, GroupThreadIndex, ReduceBankSize);

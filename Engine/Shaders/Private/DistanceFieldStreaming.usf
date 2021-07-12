@@ -15,7 +15,7 @@ void CopyDistanceFieldAtlasCS(
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
-	RWDistanceFieldBrickAtlas[DispatchThreadId] = DistanceFieldBrickTexture[DispatchThreadId];
+	RWDistanceFieldBrickAtlas[DispatchThreadId] = DistanceFieldBrickTexture[DispatchThreadId].x;
 }
 
 Buffer<uint4> BrickUploadCoordinates;
@@ -37,7 +37,7 @@ void ScatterUploadDistanceFieldAtlasCS(
 		uint BrickIndex = StartBrickIndex + BrickOffsetIndex;
 		uint3 VoxelCoordinate = DispatchThreadId % BrickSize;
 		uint UploadDataReadIndex = BrickIndex * BrickSize * BrickSize * BrickSize + (VoxelCoordinate.z * BrickSize + VoxelCoordinate.y) * BrickSize + VoxelCoordinate.x;
-		uint3 BrickAtlasCoordinate = BrickUploadCoordinates[BrickIndex];
+		uint3 BrickAtlasCoordinate = BrickUploadCoordinates[BrickIndex].xyz;
 		RWDistanceFieldBrickAtlas[BrickAtlasCoordinate * BrickSize + VoxelCoordinate] = BrickUploadData[UploadDataReadIndex];
 	}
 }

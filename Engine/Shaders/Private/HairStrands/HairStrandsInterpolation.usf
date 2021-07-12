@@ -739,7 +739,7 @@ RWBuffer<uint4> OutBuffer;
 
 #define GROUP_SIZE 64
 [numthreads(GROUP_SIZE, 1, 1)]
-void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	const uint Index = GetHairStrandsVertexFetchIndex(DispatchThreadId, GROUP_SIZE, DispatchCountX);
 	if (Index >= ElementCount)
@@ -765,7 +765,7 @@ RWBuffer<uint4> OutDeformedBuffer;
 
 #define GROUP_SIZE 64
 [numthreads(GROUP_SIZE, 1, 1)]
-void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	const uint Index = GetHairStrandsVertexFetchIndex(DispatchThreadId, GROUP_SIZE, DispatchCountX);
 	if (Index >= ElementCount)
@@ -780,7 +780,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		InAnimatedBuffer[Index3+2]);
 		
 	uint4 PackedRestPosition = InRestPoseBuffer[Index];
-	float3 HairPositionOffset = InDeformedOffsetBuffer[0];
+	float3 HairPositionOffset = InDeformedOffsetBuffer[0].xyz;
 	float3 WorldVertexPosition = InAnimatedPosition - HairPositionOffset;
 
 	FHairControlPoint CP = UnpackHairControlPoint(PackedRestPosition, float3(0, 0, 0), 1, 1, 1);

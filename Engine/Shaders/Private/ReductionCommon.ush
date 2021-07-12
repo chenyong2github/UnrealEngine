@@ -31,7 +31,7 @@ uint2 InitialTilePixelPositionForReduction2x2(const uint TileSizeLog2, uint Shar
 	for (uint i = 0; i < TileSizeLog2; i++)
 	{
 		const uint DestBitId = TileSizeLog2 - 1 - i;
-		const uint DestBitMask = 1 << DestBitId;
+		const uint DestBitMask = 1u << DestBitId;
 		x |= DestBitMask & SignedRightShift(SharedArrayId, int(DestBitId) - int(i * 2 + 0));
 		y |= DestBitMask & SignedRightShift(SharedArrayId, int(DestBitId) - int(i * 2 + 1));
 	}
@@ -51,7 +51,7 @@ uint2 InitialTilePixelPositionForReduction2x2(const uint TileSizeLog2, const uin
 
 	SharedArrayId = SharedArrayId >> (2 * ReduceCount);
 
-	const uint RemainingSize = 1 << (TileSizeLog2 - ReduceCount);
+	const uint RemainingSize = 1u << (TileSizeLog2 - ReduceCount);
 
 	p.x |= ((SharedArrayId % RemainingSize) << ReduceCount);
 	p.y |= ((SharedArrayId / RemainingSize) << ReduceCount);

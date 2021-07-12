@@ -62,7 +62,7 @@ groupshared float4 SharedLighting[PROBE_HIERARCHY_RESOLUTION * PROBE_HIERARCHY_R
 
 uint ComputeLDSIndex(uint FaceIndex, uint2 FacePixelIndex, uint MipLevel)
 {
-	return FaceIndex * ((PROBE_HIERARCHY_RESOLUTION * PROBE_HIERARCHY_RESOLUTION) >> (2 * MipLevel)) + dot(FacePixelIndex, uint2(1, PROBE_HIERARCHY_RESOLUTION >> MipLevel));
+	return FaceIndex * (uint(PROBE_HIERARCHY_RESOLUTION * PROBE_HIERARCHY_RESOLUTION) >> (2 * MipLevel)) + dot(FacePixelIndex, uint2(1, uint(PROBE_HIERARCHY_RESOLUTION) >> MipLevel));
 }
 
 
@@ -160,7 +160,7 @@ void MainCS(
 			float Translucency;
 			#if DIM_DOWNSAMPLE && 1
 			{
-				const uint SubSampleMask = HierarchyLevel.SuperSampling == 4 ? (0x00050005 << (4 * SampleId)) : (0x00000101 << (2 * SampleId));
+				const uint SubSampleMask = HierarchyLevel.SuperSampling == 4 ? (0x00050005u << (4 * SampleId)) : (0x00000101u << (2u * SampleId));
 
 				float Multiplier = rcp(float(DownsampleKernelSize * DownsampleKernelSize));
 
@@ -371,7 +371,7 @@ void MainCS(
 		{
 			const uint MipLevel = 1;
 
-			uint InputCubemapRes = PROBE_HIERARCHY_RESOLUTION >> MipLevel;
+			uint InputCubemapRes = uint(PROBE_HIERARCHY_RESOLUTION) >> MipLevel;
 
 			uint2 ProbeAtlasCoord = ComputeProbeAtlasCoord(HierarchyLevel, ProbeIndex, MipLevel);
 

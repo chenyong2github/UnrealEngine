@@ -95,7 +95,7 @@ void GetEdgeNeighbor(uint AxisId, bool bNegativeAxis, bool2 EdgeId, out uint Out
 	const uint LUTAxisIdBit1   = 0x00003333;
 
 	uint LUTIndex = (AxisInfoToFaceIndex(AxisId, bNegativeAxis) * 4) | (bVEdge ? 0x2 : 0x0) | (bHighEdge ? 0x1 : 0x0);
-	uint LUTMask = 1 << LUTIndex;
+	uint LUTMask = 1u << LUTIndex;
 
 	OutAxisId        = ((LUTAxisIdBit0   & LUTMask) ? 0x1 : 0x0) | ((LUTAxisIdBit1 & LUTMask) ? 0x2 : 0x0);
 	bOutNegativeAxis =  (LUTNegativeAxis & LUTMask) != 0;
@@ -312,7 +312,7 @@ float3 SampleProbeHierarchy(
 	}
 	#endif
 
-	bool bAlreadySampled = (FullResSampleMask & (0x1 << (2 * PixelRayIndex))) != 0;
+	bool bAlreadySampled = (FullResSampleMask & (0x1u << (2 * PixelRayIndex))) != 0;
 
 	return bAlreadySampled ? float3(0, 0, 0) : ProbeLighting;
 }

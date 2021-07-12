@@ -50,7 +50,7 @@ float ComputeCellNearViewDepthFromZSlice(uint ZSlice)
 void ComputeCellViewAABB(uint3 GridCoordinate, out float3 ViewTileMin, out float3 ViewTileMax)
 {
 	// Compute extent of tiles in clip-space. Note that the last tile may extend a bit outside of view if view size is not evenly divisible tile size.
-	const float2 InvCulledGridSizeF = (1 << ForwardLightData.LightGridPixelSizeShift) * View.ViewSizeAndInvSize.zw;
+	const float2 InvCulledGridSizeF = (1u << ForwardLightData.LightGridPixelSizeShift) * View.ViewSizeAndInvSize.zw;
 	const float2 TileSize = float2(2.0f, -2.0f) * InvCulledGridSizeF.xy;
 	const float2 UnitPlaneMin = float2(-1.0f, 1.0f);
 

@@ -198,7 +198,7 @@ void HZBBuildCS(
 		UNROLL
 		for (uint MipLevel = 1; MipLevel < DIM_MIP_LEVEL_COUNT; MipLevel++)
 		{
-			const uint TileSize = GROUP_TILE_SIZE >> MipLevel;
+			const uint TileSize = uint(GROUP_TILE_SIZE) >> MipLevel;
 			const uint ReduceBankSize = TileSize * TileSize;
 			
 			// LDS has been written before.

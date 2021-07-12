@@ -77,7 +77,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	float2 LocalUV = (float2)VertexCoord / (float)(GRID_SIZE - 1);
 
 	// Calculate vertex UV details before morphing
-	float2 XY = ((float2)Pos + LocalUV) * (float)(1 << Level);
+	float2 XY = ((float2)Pos + LocalUV) * (float)(1u << Level);
 	float2 NormalizedPos = (XY * VHM.PageTableSize.zw);
 	float SampleLevel = Level;
 
@@ -108,7 +108,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		// Apply morph to vertex postion.
 		LocalUV = MorphVertex(LocalUV, GRID_SIZE - 1, (uint)LodMorphFloor, LodMorphFrac);
 		// Adjust other position variables to match the new morphed position.
-		XY = ((float2)Pos + LocalUV) * (float)(1 << Level);
+		XY = ((float2)Pos + LocalUV) * (float)(1u << Level);
 		NormalizedPos = (XY * VHM.PageTableSize.zw);
 
 		// Use LOD level as sample level but bias to keep sample level in a good range.

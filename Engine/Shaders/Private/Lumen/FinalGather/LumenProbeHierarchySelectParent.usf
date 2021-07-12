@@ -107,7 +107,7 @@ void MainCS(
 	float2 ScreenPos = GetProbeScreenCoord(ProbeInfo);
 	float2 ViewportUV = ScreenPosToViewportUV(ScreenPos);
 	uint2 PixelPosition = ViewportUV * View.ViewSizeAndInvSize.xy;
-	uint2 ResolveTileCoord = clamp((PixelPosition + ParentTilePixelOffset) / (PROBE_HIERARCHY_TILE_CLASSIFICATION_SIZE << ParentHierarchyId), uint2(0, 0), ParentResolveTileBoundary);
+	uint2 ResolveTileCoord = clamp((PixelPosition + ParentTilePixelOffset) / (uint(PROBE_HIERARCHY_TILE_CLASSIFICATION_SIZE) << ParentHierarchyId), uint2(0, 0), ParentResolveTileBoundary);
 
 	const uint ResolveTileIndex = dot(ResolveTileCoord, uint2(1, ResolveTileStorageExtent.x));
 	const uint ProbeCount = ReadProbeCountForTile(ParentHierarchyId, ResolveTileIndex);
@@ -161,14 +161,14 @@ void MainCS(
 			
 			float ProbeProbability = ComputeProbeProbability(ProbeInfo, ParentProbeInfo);
 
-			ProbeProbability = ((1 << ProbeTileIndex) & TakenMask) == 0 ? ProbeProbability : 0.0;
+			ProbeProbability = ((1u << ProbeTileIndex) & TakenMask) == 0 ? ProbeProbability : 0.0;
 
 			if (DesiredRand < ProbeProbability && ParentProbeList.ProbeIndex[ParentId] == PROBE_INVALID_INDEX)
 			{
 				ParentProbeList.ProbeIndex[ParentId] = ProbeIndex;
 				ParentProbeList.Weight[ParentId] = 1; //ProbeProbability;
 
-				TakenMask |= 1 << ProbeTileIndex;
+				TakenMask |= 1u << ProbeTileIndex;
 			}
 			else
 			{

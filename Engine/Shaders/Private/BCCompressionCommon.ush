@@ -531,10 +531,12 @@ uint4 CompressBC6HBlock(in float3 BlockRGB[16])
 	// Compute initial endpoints
 	float3 BlockMin = BlockRGB[0];
 	float3 BlockMax = BlockRGB[0];
-	for (uint TexelIndex = 1; TexelIndex < 16; ++TexelIndex)
 	{
-		BlockMin = min(BlockMin, BlockRGB[TexelIndex]);
-		BlockMax = max(BlockMax, BlockRGB[TexelIndex]);
+		for (uint TexelIndex = 1; TexelIndex < 16; ++TexelIndex)
+		{
+			BlockMin = min(BlockMin, BlockRGB[TexelIndex]);
+			BlockMax = max(BlockMax, BlockRGB[TexelIndex]);
+		}
 	}
 
 	float3 BlockVector = BlockMax - BlockMin;
@@ -655,10 +657,12 @@ uint4 CompressBC7Block(in float3 BlockRGB[16])
 	// Compute initial endpoints
 	float3 BlockMin = BlockRGB[0];
 	float3 BlockMax = BlockRGB[0];
-	for (uint TexelIndex = 1; TexelIndex < 16; ++TexelIndex)
 	{
-		BlockMin = min(BlockMin, BlockRGB[TexelIndex]);
-		BlockMax = max(BlockMax, BlockRGB[TexelIndex]);
+		for (uint TexelIndex = 1; TexelIndex < 16; ++TexelIndex)
+		{
+			BlockMin = min(BlockMin, BlockRGB[TexelIndex]);
+			BlockMax = max(BlockMax, BlockRGB[TexelIndex]);
+		}
 	}
 
 	#if LEAST_SQUARES_ENDPOINT_OPTIMIZATION

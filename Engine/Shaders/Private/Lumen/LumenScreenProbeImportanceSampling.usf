@@ -490,8 +490,6 @@ uint SubdivideRaysSerialReference(uint2 GroupThreadId)
 
 	if (ThreadIndex == 0)
 	{
-		uint PassIndex = 0;
-
 		for (uint PassIndex = 0; PassIndex < MaxPasses; PassIndex++)
 		{
 			float HighestPDF = 0.0f;
@@ -662,7 +660,7 @@ void ScreenProbeGenerateRaysCS(
 
 				if (OtherSortKey < SortKey
 					// Provide sort stability and resolve collisions based on unsorted array index
-					|| OtherSortKey == SortKey && OtherRayIndex > RayIndex)
+					|| (OtherSortKey == SortKey && OtherRayIndex > RayIndex))
 				{
 					NumSmaller++;
 				}
