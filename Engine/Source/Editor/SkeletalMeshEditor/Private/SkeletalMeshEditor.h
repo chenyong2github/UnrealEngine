@@ -174,6 +174,7 @@ private:
 private:
 	void ExtendMenu();
 
+	void BakeMaterials();
 	void ExtendToolbar();
 
 	void BindCommands();

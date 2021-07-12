@@ -54,6 +54,8 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Misc/CoreMisc.h"
+#include "Toolkits/AssetEditorToolkitMenuContext.h"
+#include "MeshMergeModule.h"
 
 const FName SkeletalMeshEditorAppIdentifier = FName(TEXT("SkeletalMeshEditorApp"));
 
@@ -449,6 +451,11 @@ void FSkeletalMeshEditor::BindCommands()
 
 	ToolkitCommands->MapAction(FPersonaCommonCommands::Get().TogglePlay,
 		FExecuteAction::CreateRaw(&GetPersonaToolkit()->GetPreviewScene().Get(), &IPersonaPreviewScene::TogglePlayback));
+
+	// Bake Materials
+	ToolkitCommands->MapAction(FSkeletalMeshEditorCommands::Get().BakeMaterials,
+		FExecuteAction::CreateSP(this, &FSkeletalMeshEditor::BakeMaterials),
+		FCanExecuteAction());
 }
 
 TSharedPtr<FSkeletalMeshEditor> FSkeletalMeshEditor::GetSkeletalMeshEditor(const FToolMenuContext& InMenuContext)
@@ -1348,6 +1355,27 @@ void FSkeletalMeshEditor::ExtendMenu()
 
 	ISkeletalMeshEditorModule& SkeletalMeshEditorModule = FModuleManager::GetModuleChecked<ISkeletalMeshEditorModule>("SkeletalMeshEditor");
 	AddMenuExtender(SkeletalMeshEditorModule.GetMenuExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
+
+	UToolMenu* AssetMenu = UToolMenus::Get()->ExtendMenu("MainFrame.MainMenu.Asset");
+	FToolMenuSection& AssetSection = AssetMenu->FindOrAddSection("AssetEditorActions");
+	FToolMenuEntry& Entry = AssetSection.AddDynamicEntry("AssetManagerEditorSkeletalMeshCommands", FNewToolMenuSectionDelegate::CreateLambda([this](FToolMenuSection& InSection)
+		{
+			UAssetEditorToolkitMenuContext* MenuContext = InSection.FindContext<UAssetEditorToolkitMenuContext>();
+			if (MenuContext && MenuContext->Toolkit.IsValid() && MenuContext->Toolkit.Pin()->GetToolkitFName() == GetToolkitFName())
+			{
+				InSection.AddMenuEntry(FSkeletalMeshEditorCommands::Get().BakeMaterials);
+			}
+		}
+	));
+}
+
+void FSkeletalMeshEditor::BakeMaterials()
+{
+	if (GetPersonaToolkit()->GetPreviewMeshComponent() != nullptr)
+	{
+		const IMeshMergeModule& Module = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities");
+		Module.GetUtilities().BakeMaterialsForComponent(GetPersonaToolkit()->GetPreviewMeshComponent());
+	}
 }
 
 void FSkeletalMeshEditor::HandleObjectsSelected(const TArray<UObject*>& InObjects)
