@@ -10,7 +10,7 @@
 
 bool UAssetReferencingPolicySubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
-	return GetDefault<UAssetReferencingPolicySettings>()->bEnableAssetFiltering_TEMP;
+	return true;
 }
 
 void UAssetReferencingPolicySubsystem::Initialize(FSubsystemCollectionBase& Collection)
