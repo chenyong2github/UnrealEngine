@@ -24,6 +24,11 @@
 			"Name": "InterchangeEditorPipelines",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "InterchangeResultsBrowser",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [

@@ -19,12 +19,7 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"InterchangeCore",
-					"InterchangeImport",
-					"InterchangeNodes",
-					"InterchangeExport",
-					"InterchangeDispatcher",
-					"InterchangeFbxParser"
+					"InterchangeCore"
 				}
 			);
 		}

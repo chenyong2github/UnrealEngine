@@ -13,8 +13,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"InterchangeCore",
-					"InterchangeEngine",
-					"InterchangeNodes",
+					"InterchangeEngine"
 				}
 			);
 

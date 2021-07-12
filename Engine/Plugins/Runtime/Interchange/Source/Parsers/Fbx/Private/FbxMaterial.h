@@ -18,22 +18,28 @@ namespace UE
 	{
 		namespace Private
 		{
+			class FFbxParser;
+
 			class FFbxMaterial
 			{
 			public:
+				explicit FFbxMaterial(FFbxParser& InParser)
+					: Parser(InParser)
+				{}
+
 				/**
 				 * Create a UInterchangeFextureNode and add it to the NodeContainer for all texture of type FbxFileTexture the fbx file contain.
 				 *
 				 * @note - Any node that already exist in the NodeContainer will not be created or modify.
 				 */
-				static void AddAllTextures(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages);
+				void AddAllTextures(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer);
 				
 				/**
 				 * Create a UInterchangeMaterialNode and add it to the NodeContainer for all material of type FbxSurfaceMaterial the fbx file contain.
 				 * 
 				 * @note - Any node that already exist in the NodeContainer will not be created or modify.
 				 */
-				static void AddAllMaterials(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages);
+				void AddAllMaterials(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer);
 
 				/**
 				 * Create a UInterchangeMaterialNode and add it to the NodeContainer for all material of type FbxSurfaceMaterial the fbx ParentFbxNode contain.
@@ -41,13 +47,16 @@ namespace UE
 				 * 
 				 * @note - Any material node that already exist in the NodeContainer will simply be add has a dependency.
 				 */
-				static void AddAllNodeMaterials(UInterchangeSceneNode* SceneNode, FbxNode* ParentFbxNode, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages);
+				void AddAllNodeMaterials(UInterchangeSceneNode* SceneNode, FbxNode* ParentFbxNode, UInterchangeBaseNodeContainer& NodeContainer);
+
 			protected:
-				static UInterchangeMaterialNode* CreateMaterialNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUID, const FString& NodeName, TArray<FString>& JSonErrorMessages);
-				static UInterchangeTexture2DNode* CreateTexture2DNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUID, const FString& TextureFilePath, TArray<FString>& JSonErrorMessages);
+				UInterchangeMaterialNode* CreateMaterialNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUID, const FString& NodeName);
+				UInterchangeTexture2DNode* CreateTexture2DNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUID, const FString& TextureFilePath);
 
 			private:
-				static UInterchangeMaterialNode* AddNodeMaterial(FbxSurfaceMaterial* SurfaceMaterial, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages);
+				UInterchangeMaterialNode* AddNodeMaterial(FbxSurfaceMaterial* SurfaceMaterial, UInterchangeBaseNodeContainer& NodeContainer);
+
+				FFbxParser& Parser;
 			};
 		}//ns Private
 	}//ns Interchange

@@ -9,6 +9,7 @@
 #include "Material/InterchangeMaterialFactory.h"
 #include "Mesh/InterchangeSkeletalMeshFactory.h"
 #include "Mesh/InterchangeSkeletonFactory.h"
+#include "Mesh/InterchangeStaticMeshFactory.h"
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 #include "Texture/InterchangeBMPTranslator.h"
@@ -68,6 +69,7 @@ void FInterchangeImportModule::StartupModule()
 		InterchangeManager.RegisterFactory(UInterchangeMaterialFactory::StaticClass());
 		InterchangeManager.RegisterFactory(UInterchangeSkeletonFactory::StaticClass());
 		InterchangeManager.RegisterFactory(UInterchangeSkeletalMeshFactory::StaticClass());
+		InterchangeManager.RegisterFactory(UInterchangeStaticMeshFactory::StaticClass());
 	};
 
 	if (GEngine)

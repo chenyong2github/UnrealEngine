@@ -6,6 +6,7 @@
 #include "InterchangeFactoryBase.h"
 #include "InterchangeEngineLogPrivate.h"
 #include "InterchangeManager.h"
+#include "InterchangeResult.h"
 #include "InterchangeSourceData.h"
 #include "InterchangeTranslatorBase.h"
 #include "Misc/Paths.h"
@@ -57,6 +58,18 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 		return;
 	}
 
+	//The create package thread must always execute on the game thread
+	check(IsInGameThread());
+
+	// Create factory
+	UInterchangeFactoryBase* Factory = NewObject<UInterchangeFactoryBase>(GetTransientPackage(), FactoryClass);
+	Factory->SetResultsContainer(AsyncHelper->AssetImportResult->GetResults());
+
+	{
+		FScopeLock Lock(&AsyncHelper->CreatedFactoriesLock);
+		AsyncHelper->CreatedFactories.Add(Node->GetUniqueID(), Factory);
+	}
+
 	UPackage* Pkg = nullptr;
 	FString PackageName;
 	FString AssetName;
@@ -74,23 +87,28 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 		}
 		else
 		{
-			const FText Message = FText::Format(NSLOCTEXT("Interchange", "CannotFindPackageDuringReimportErrorMsg", "Cannot find package named '{0}', for asset {1}."), FText::FromString(PackageName), FText::FromString(AssetName));
-			UE_LOG(LogInterchangeEngine, Warning, TEXT("%s"), *Message.ToString());
+			UInterchangeResultError_Generic* Message = Factory->AddMessage<UInterchangeResultError_Generic>();
+			Message->SourceAssetName = AsyncHelper->SourceDatas[SourceIndex]->GetFilename();
+			Message->DestinationAssetName = AssetName;
+			Message->AssetType = Node->GetAssetClass();
+			Message->Text = NSLOCTEXT("Interchange", "CannotFindPackageDuringReimport", "Cannot find an existing package.");
+
 			//Skip this asset
 			return;
 		}
 	}
 	else
 	{
-		//The create package thread must always execute on the game thread
-		check(IsInGameThread());
-
 		Private::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, Node, PackageName, AssetName);
 		// We can not create assets that share the name of a map file in the same location
 		if (UE::Interchange::FPackageUtils::IsMapPackageAsset(PackageName))
 		{
-			const FText Message = FText::Format(NSLOCTEXT("Interchange", "AssetNameInUseByMap", "You can not create an asset named '{0}' because there is already a map file with this name in this folder."), FText::FromString(AssetName));
-			UE_LOG(LogInterchangeEngine, Warning, TEXT("%s"), *Message.ToString());
+			UInterchangeResultError_Generic* Message = Factory->AddMessage<UInterchangeResultError_Generic>();
+			Message->SourceAssetName = AsyncHelper->SourceDatas[SourceIndex]->GetFilename();
+			Message->DestinationAssetName = AssetName;
+			Message->AssetType = Node->GetAssetClass();
+			Message->Text = NSLOCTEXT("Interchange", "MapExistsWithSameName", "You cannot create an asset with this name, as there is already a map file with the same name in this folder.");
+
 			//Skip this asset
 			return;
 		}
@@ -98,8 +116,12 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 		Pkg = CreatePackage(*PackageName);
 		if (Pkg == nullptr)
 		{
-			const FText Message = FText::Format(NSLOCTEXT("Interchange", "CannotCreatePackageErrorMsg", "Cannot create package named '{0}', will not import asset {1}."), FText::FromString(PackageName), FText::FromString(AssetName));
-			UE_LOG(LogInterchangeEngine, Warning, TEXT("%s"), *Message.ToString());
+			UInterchangeResultError_Generic* Message = Factory->AddMessage<UInterchangeResultError_Generic>();
+			Message->SourceAssetName = AsyncHelper->SourceDatas[SourceIndex]->GetFilename();
+			Message->DestinationAssetName = AssetName;
+			Message->AssetType = Node->GetAssetClass();
+			Message->Text = FText::Format(NSLOCTEXT("Interchange", "CouldntCreatePackage", "It was not possible to create a package named '{0}'; the asset will not be imported."), FText::FromString(PackageName));
+
 			//Skip this asset
 			return;
 		}
@@ -135,6 +157,7 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 			Node->ReferenceObject = FSoftObjectPath(NodeAsset);
 		}
 	}
+
 	// Make sure the destination package is loaded
 	Pkg->FullyLoad();
 	
@@ -150,12 +173,18 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 	INTERCHANGE_TRACE_ASYNCHRONOUS_TASK(CreateAsset)
 #endif
 	TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
-	check(WeakAsyncHelper.IsValid());
+	check(AsyncHelper.IsValid());
 
 	//Verify if the task was cancel
 	if (AsyncHelper->bCancel)
 	{
 		return;
+	}
+
+	UInterchangeFactoryBase* Factory = nullptr;
+	{
+		FScopeLock Lock(&AsyncHelper->CreatedFactoriesLock);
+		Factory = AsyncHelper->CreatedFactories.FindChecked(Node->GetUniqueID());
 	}
 
 	UPackage* Pkg = nullptr;
@@ -190,15 +219,22 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 
 		if (!PkgPtr || !(*PkgPtr))
 		{
-			const FText Message = FText::Format(NSLOCTEXT("Interchange", "CannotCreateAssetNoPackageErrorMsg", "Cannot create asset named '{1}', package '{0}'was not created properly."), FText::FromString(PackageName), FText::FromString(AssetName));
-			UE_LOG(LogInterchangeEngine, Warning, TEXT("%s"), *Message.ToString());
+			UInterchangeResultError_Generic* Message = Factory->AddMessage<UInterchangeResultError_Generic>();
+			Message->SourceAssetName = AsyncHelper->SourceDatas[SourceIndex]->GetFilename();
+			Message->DestinationAssetName = AssetName;
+			Message->AssetType = Node->GetAssetClass();
+			Message->Text = NSLOCTEXT("Interchange", "BadPackage", "It was not possible to create the asset as its package was not created correctly.");
+
 			return;
 		}
 
 		if (!AsyncHelper->SourceDatas.IsValidIndex(SourceIndex) || !AsyncHelper->Translators.IsValidIndex(SourceIndex))
 		{
-			const FText Message = FText::Format(NSLOCTEXT("Interchange", "CannotCreateAssetMissingDataErrorMsg", "Cannot create asset named '{0}', Source data or translator is invalid."), FText::FromString(AssetName));
-			UE_LOG(LogInterchangeEngine, Warning, TEXT("%s"), *Message.ToString());
+			UInterchangeResultError_Generic* Message = Factory->AddMessage<UInterchangeResultError_Generic>();
+			Message->DestinationAssetName = AssetName;
+			Message->AssetType = Node->GetAssetClass();
+			Message->Text = NSLOCTEXT("Interchange", "SourceDataOrTranslatorInvalid", "It was not possible to create the asset as its translator was not created correctly.");
+
 			return;
 		}
 
@@ -249,6 +285,22 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 				AssetInfo.ImportAsset = NodeAsset;
 				AssetInfo.Factory = Factory;
 				AssetInfo.NodeUniqueId = Node->GetUniqueID();
+			}
+
+			// Fill in destination asset and type in any results which have been added previously by a translator or pipeline, now that we have a corresponding factory.
+			UInterchangeResultsContainer* Results = AsyncHelper->AssetImportResult->GetResults();
+			for (UInterchangeResult* Result : Results->GetResults())
+			{
+				if (!Result->InterchangeKey.IsEmpty() && (Result->DestinationAssetName.IsEmpty() || Result->AssetType == nullptr))
+				{
+					TArray<FString> TargetAssets;
+					Node->GetTargetAssetUids(TargetAssets);
+					if (TargetAssets.Contains(Result->InterchangeKey))
+					{
+						Result->DestinationAssetName = NodeAsset->GetPathName();
+						Result->AssetType = NodeAsset->GetClass();
+					}
+				}
 			}
 		}
 

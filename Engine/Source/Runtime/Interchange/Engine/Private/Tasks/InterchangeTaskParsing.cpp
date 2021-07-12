@@ -39,7 +39,7 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 		TArray<FString> Dependencies;
 		FGraphEventRef GraphEventRef;
 		FGraphEventArray Prerequistes;
-		UInterchangeFactoryBase* Factory;
+		const UClass* FactoryClass;
 	};
 
 
@@ -64,18 +64,19 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 			{
 				if (Node->GetAssetClass() != nullptr)
 				{
-					UInterchangeFactoryBase* NodeFactory = InterchangeManager->GetRegisterFactory(Node->GetAssetClass());
-					if (!NodeFactory)
+					const UClass* RegisteredFactoryClass = InterchangeManager->GetRegisteredFactoryClass(Node->GetAssetClass());
+					if (!RegisteredFactoryClass)
 					{
 						//nothing we can import from this element
 						return;
 					}
+
 					FTaskData& NodeTaskData = TaskDatas.AddDefaulted_GetRef();
 					NodeTaskData.UniqueID = Node->GetUniqueID();
 					NodeTaskData.SourceIndex = SourceIndex;
 					NodeTaskData.Node = Node;
 					Node->GetFactoryDependencies(NodeTaskData.Dependencies);
-					NodeTaskData.Factory = NodeFactory;
+					NodeTaskData.FactoryClass = RegisteredFactoryClass;
 				}
 			});
 		}
@@ -110,13 +111,22 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 			}
 		}
 
+		const int32 SourceIndex = TaskDatas[TaskIndex].SourceIndex;
+		const UClass* const FactoryClass = TaskDatas[TaskIndex].FactoryClass;
+		UInterchangeBaseNode* const FactoryNode = TaskDatas[TaskIndex].Node;
+		const bool bFactoryCanRunOnAnyThread = FactoryClass->GetDefaultObject<UInterchangeFactoryBase>()->CanExecuteOnAnyThread();
+
 		//Add create package task has a prerequisite of FTaskCreateAsset. Create package task is a game thread task
 		FGraphEventArray CreatePackagePrerequistes;
-		int32 CreatePackageTaskIndex = AsyncHelper->CreatePackageTasks.Add(TGraphTask<FTaskCreatePackage>::CreateTask(&(TaskDatas[TaskIndex].Prerequistes)).ConstructAndDispatchWhenReady(PackageBasePath, TaskDatas[TaskIndex].SourceIndex, WeakAsyncHelper, TaskDatas[TaskIndex].Node, TaskDatas[TaskIndex].Factory));
+		int32 CreatePackageTaskIndex = AsyncHelper->CreatePackageTasks.Add(
+			TGraphTask<FTaskCreatePackage>::CreateTask(&(TaskDatas[TaskIndex].Prerequistes)).ConstructAndDispatchWhenReady(PackageBasePath, SourceIndex, WeakAsyncHelper, FactoryNode, FactoryClass)
+		);
 		CreatePackagePrerequistes.Add(AsyncHelper->CreatePackageTasks[CreatePackageTaskIndex]);
 
 		FGraphEventArray PostPipelinePrerequistes;
-		int32 CreateTaskIndex = AsyncHelper->CreateAssetTasks.Add(TGraphTask<FTaskCreateAsset>::CreateTask(&(CreatePackagePrerequistes)).ConstructAndDispatchWhenReady(PackageBasePath, TaskDatas[TaskIndex].SourceIndex, WeakAsyncHelper, TaskDatas[TaskIndex].Node, TaskDatas[TaskIndex].Factory));
+		int32 CreateTaskIndex = AsyncHelper->CreateAssetTasks.Add(
+			TGraphTask<FTaskCreateAsset>::CreateTask(&(CreatePackagePrerequistes)).ConstructAndDispatchWhenReady(PackageBasePath, SourceIndex, WeakAsyncHelper, FactoryNode, bFactoryCanRunOnAnyThread)
+		);
 		PostPipelinePrerequistes.Add(AsyncHelper->CreateAssetTasks[CreateTaskIndex]);
 		
 		TaskDatas[TaskIndex].GraphEventRef = AsyncHelper->CreateAssetTasks[CreateTaskIndex];
@@ -124,7 +134,9 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 		for (int32 GraphPipelineIndex = 0; GraphPipelineIndex < AsyncHelper->Pipelines.Num(); ++GraphPipelineIndex)
 		{
 			int32 GraphPipelineTaskIndex = INDEX_NONE;
-			GraphPipelineTaskIndex = AsyncHelper->PipelinePostImportTasks.Add(TGraphTask<FTaskPipelinePostImport>::CreateTask(&(PostPipelinePrerequistes)).ConstructAndDispatchWhenReady(TaskDatas[TaskIndex].SourceIndex, GraphPipelineIndex, WeakAsyncHelper));
+			GraphPipelineTaskIndex = AsyncHelper->PipelinePostImportTasks.Add(
+				TGraphTask<FTaskPipelinePostImport>::CreateTask(&(PostPipelinePrerequistes)).ConstructAndDispatchWhenReady(SourceIndex, GraphPipelineIndex, WeakAsyncHelper)
+			);
 			//Ensure we run the pipeline in the same order we create the task, since pipeline modify the node container, its important that its not process in parallel, Adding the one we start to the prerequisites
 			//is the way to go here
 			PostPipelinePrerequistes.Add(AsyncHelper->PipelinePostImportTasks[GraphPipelineTaskIndex]);

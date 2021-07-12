@@ -27,6 +27,7 @@ namespace UnrealBuildTool.Rules
 					"IESFile",
 					"ImageWrapper",
 					"InterchangeDispatcher",
+					"InterchangeMessages",
 					"Json",
 					"RHI",
 					"TextureUtilitiesCommon",

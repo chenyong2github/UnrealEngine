@@ -25,18 +25,17 @@ public:
 	UInterchangeUDIMTranslator();
 
 	/*
-	 * return true if the translator can translate the specified file.
+	 * return true if the translator can translate the specified source data.
 	 */
 	virtual bool CanImportSourceData(const UInterchangeSourceData* InSourceData) const override;
 
 	/**
-	 * Translate a source data into a node hold by the specified nodes container.
+	 * Translates the associated source data into a node hold by the specified nodes container.
 	 *
-	 * @param SourceData - The source data containing the data to translate
 	 * @param BaseNodeContainer - The unreal objects descriptions container where to put the translated source data.
 	 * @return true if the translator can translate the source data, false otherwise.
 	 */
-	virtual bool Translate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer) const override;
+	virtual bool Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const override;
 
 	/**
 	 * Once the translation is done, the import process need a way to retrieve payload data.

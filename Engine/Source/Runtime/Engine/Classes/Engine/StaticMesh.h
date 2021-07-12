@@ -1320,6 +1320,22 @@ public:
 	ENGINE_API bool ModifyHiResMeshDescription(bool bAlwaysMarkDirty = true);
 
 	/**
+	 * Get AssetImportData for the static mesh
+	 */
+	class UAssetImportData* GetAssetImportData() const
+	{
+		return AssetImportData;
+	}
+
+	/**
+	 * Set AssetImportData for the static mesh
+	 */
+	void SetAssetImportData(class UAssetImportData* InAssetImportData)
+	{
+		AssetImportData = InAssetImportData;
+	}
+
+	/**
 	 * Adds an empty UV channel at the end of the existing channels on the given LOD of a StaticMesh.
 	 * @param	LODIndex			Index of the StaticMesh LOD.
 	 * @return true if a UV channel was added.

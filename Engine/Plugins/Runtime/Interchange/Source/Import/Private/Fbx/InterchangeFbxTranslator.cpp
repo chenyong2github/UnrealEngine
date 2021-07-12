@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
+
 #include "Fbx/InterchangeFbxTranslator.h"
 
 #include "Dom/JsonValue.h"
@@ -21,6 +22,7 @@
 #include "Texture/InterchangeTexturePayloadData.h"
 #include "UObject/GCObjectScopeGuard.h"
 
+
 UInterchangeFbxTranslator::UInterchangeFbxTranslator(const class FObjectInitializer& ObjectInitializer)
 {
 	Dispatcher = nullptr;
@@ -34,9 +36,9 @@ bool UInterchangeFbxTranslator::CanImportSourceData(const UInterchangeSourceData
 	return FbxExtension.StartsWith(Extension,ESearchCase::IgnoreCase);
 }
 
-bool UInterchangeFbxTranslator::Translate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer) const
+bool UInterchangeFbxTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const
 {
-	FString Filename = SourceData->GetFilename();
+	FString Filename = GetSourceData()->GetFilename();
 	if (!FPaths::FileExists(Filename))
 	{
 		return false;
@@ -81,7 +83,7 @@ bool UInterchangeFbxTranslator::Translate(const UInterchangeSourceData* SourceDa
 	}
 
 	//Create a json command to read the fbx file
-	FString JsonCommand = CreateLoadFbxFileCommand(SourceData->GetFilename());
+	FString JsonCommand = CreateLoadFbxFileCommand(Filename);
 	int32 TaskIndex = Dispatcher->AddTask(JsonCommand);
 
 	//Blocking call until all tasks are executed
@@ -89,10 +91,14 @@ bool UInterchangeFbxTranslator::Translate(const UInterchangeSourceData* SourceDa
 		
 	UE::Interchange::ETaskState TaskState;
 	FString JsonResult;
-	TArray<FString> JSonMessages;
-	Dispatcher->GetTaskState(TaskIndex, TaskState, JsonResult, JSonMessages);
+	TArray<FString> JsonMessages;
+	Dispatcher->GetTaskState(TaskIndex, TaskState, JsonResult, JsonMessages);
 
-	//TODO: Parse the JSonMessage and add the message to the interchange not yet develop error messaging
+	// Parse the Json messages into UInterchangeResults
+	for (const FString& JsonMessage : JsonMessages)
+	{
+		AddMessage(UInterchangeResult::FromJson(JsonMessage));
+	}
 
 	if(TaskState != UE::Interchange::ETaskState::ProcessOk)
 	{
@@ -127,7 +133,7 @@ void UInterchangeFbxTranslator::ImportFinish()
 }
 
 
-TOptional<UE::Interchange::FImportImage> UInterchangeFbxTranslator::GetTexturePayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
+TOptional<UE::Interchange::FImportImage> UInterchangeFbxTranslator::GetTexturePayloadData(const UInterchangeSourceData* InSourceData, const FString& PayLoadKey) const
 {
 	UInterchangeSourceData* PayloadSourceData = UInterchangeManager::GetInterchangeManager().CreateSourceData(PayLoadKey);
 	FGCObjectScopeGuard ScopedSourceData(PayloadSourceData);
@@ -146,10 +152,88 @@ TOptional<UE::Interchange::FImportImage> UInterchangeFbxTranslator::GetTexturePa
 	return TextureTranslator->GetTexturePayloadData(PayloadSourceData, PayLoadKey);
 }
 
-TOptional<UE::Interchange::FStaticMeshPayloadData> UInterchangeFbxTranslator::GetStaticMeshPayloadData(const FString& PayLoadKey) const
+TFuture<TOptional<UE::Interchange::FStaticMeshPayloadData>> UInterchangeFbxTranslator::GetStaticMeshPayloadData(const FString& PayLoadKey) const
 {
-	//Not implemented, currently we do not have any payload data for static meshes
-	return TOptional<UE::Interchange::FStaticMeshPayloadData>();
+	TSharedPtr<TPromise<TOptional<UE::Interchange::FStaticMeshPayloadData>>> Promise = MakeShared<TPromise<TOptional<UE::Interchange::FStaticMeshPayloadData>>>();
+
+	if (!Dispatcher.IsValid())
+	{
+		Promise->SetValue(TOptional<UE::Interchange::FStaticMeshPayloadData>());
+		return Promise->GetFuture();
+	}
+
+	// Create a json command to read the fbx file
+	FString JsonCommand = CreateFetchPayloadFbxCommand(PayLoadKey);
+	const int32 CreatedTaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, Promise](const int32 TaskIndex)
+	{
+		UE::Interchange::ETaskState TaskState;
+		FString JsonResult;
+		TArray<FString> JsonMessages;
+		Dispatcher->GetTaskState(TaskIndex, TaskState, JsonResult, JsonMessages);
+
+		// Parse the Json messages into UInterchangeResults
+		for (const FString& JsonMessage : JsonMessages)
+		{
+			AddMessage(UInterchangeResult::FromJson(JsonMessage));
+		}
+
+		if (TaskState != UE::Interchange::ETaskState::ProcessOk)
+		{
+			Promise->SetValue(TOptional<UE::Interchange::FStaticMeshPayloadData>());
+			return;
+		}
+
+		// Grab the result file and fill the BaseNodeContainer
+		UE::Interchange::FJsonFetchPayloadCmd::JsonResultParser ResultParser;
+		ResultParser.FromJson(JsonResult);
+		FString StaticMeshPayloadFilename = ResultParser.GetResultFilename();
+
+		if (!ensure(FPaths::FileExists(StaticMeshPayloadFilename)))
+		{
+			// TODO log an error saying the payload file does not exist even if the get payload command succeeded
+			Promise->SetValue(TOptional<UE::Interchange::FStaticMeshPayloadData>());
+			return;
+		}
+
+		UE::Interchange::FStaticMeshPayloadData StaticMeshPayload;
+		StaticMeshPayload.MeshDescription.Empty();
+
+		// All sub object should be gone with the reset
+		TArray64<uint8> Buffer;
+		FFileHelper::LoadFileToArray(Buffer, *StaticMeshPayloadFilename);
+		uint8* FileData = Buffer.GetData();
+		int64 FileDataSize = Buffer.Num();
+		if (FileDataSize < 1)
+		{
+			// Nothing to load from this file
+			Promise->SetValue(TOptional<UE::Interchange::FStaticMeshPayloadData>());
+			return;
+		}
+
+		// Buffer keeps the ownership of the data, the large memory reader is use to serialize the TMap
+		FLargeMemoryReader Ar(FileData, FileDataSize);
+		StaticMeshPayload.MeshDescription.Serialize(Ar);
+
+		// This is a static mesh and the payload should never contain skinned data
+		bool bFetchSkinnedData = false;
+		Ar << bFetchSkinnedData;
+		if (bFetchSkinnedData)
+		{
+			// TODO log an error saying the payload file is the wrong type for a static mesh
+			Promise->SetValue(TOptional<UE::Interchange::FStaticMeshPayloadData>());
+			return;
+		}
+
+		Promise->SetValue(MoveTemp(StaticMeshPayload));
+	}));
+
+	// The task was not added to the dispatcher
+	if (CreatedTaskIndex == INDEX_NONE)
+	{
+		Promise->SetValue(TOptional<UE::Interchange::FStaticMeshPayloadData>{});
+	}
+
+	return Promise->GetFuture();
 }
 
 TFuture<TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>> UInterchangeFbxTranslator::GetSkeletalMeshLodPayloadData(const FString& PayLoadKey) const
@@ -167,10 +251,15 @@ TFuture<TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>> UInterchangeFbx
 	{
 		UE::Interchange::ETaskState TaskState;
 		FString JsonResult;
-		TArray<FString> JSonMessages;
-		Dispatcher->GetTaskState(TaskIndex, TaskState, JsonResult, JSonMessages);
+		TArray<FString> JsonMessages;
+		Dispatcher->GetTaskState(TaskIndex, TaskState, JsonResult, JsonMessages);
 
-		//TODO: Parse the JSonMessage and add the message to the interchange not yet develop error messaging
+		// Parse the Json messages into UInterchangeResults
+		for (const FString& JsonMessage : JsonMessages)
+		{
+			AddMessage(UInterchangeResult::FromJson(JsonMessage));
+		}
+
 		if (TaskState != UE::Interchange::ETaskState::ProcessOk)
 		{
 			Promise->SetValue(TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>{});
@@ -240,10 +329,14 @@ TFuture<TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>> UInterch
 	{
 		UE::Interchange::ETaskState TaskState;
 		FString JsonResult;
-		TArray<FString> JSonMessages;
-		Dispatcher->GetTaskState(TaskIndex, TaskState, JsonResult, JSonMessages);
+		TArray<FString> JsonMessages;
+		Dispatcher->GetTaskState(TaskIndex, TaskState, JsonResult, JsonMessages);
 
-		//TODO: Parse the JSonMessage and add the message to the interchange not yet develop error messaging
+		// Parse the Json messages into UInterchangeResults
+		for (const FString& JsonMessage : JsonMessages)
+		{
+			AddMessage(UInterchangeResult::FromJson(JsonMessage));
+		}
 
 		if (TaskState != UE::Interchange::ETaskState::ProcessOk)
 		{

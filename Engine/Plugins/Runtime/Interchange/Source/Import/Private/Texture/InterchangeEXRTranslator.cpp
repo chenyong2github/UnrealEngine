@@ -22,21 +22,23 @@ bool UInterchangeEXRTranslator::CanImportSourceData(const UInterchangeSourceData
 	return EXRExtension.StartsWith(Extension);
 }
 
-bool UInterchangeEXRTranslator::Translate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer) const
+bool UInterchangeEXRTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const
 {
-	return UE::Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(SourceData, BaseNodeContainer);
+	return UE::Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(GetSourceData(), BaseNodeContainer);
 }
 
-TOptional<UE::Interchange::FImportImage> UInterchangeEXRTranslator::GetTexturePayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
+TOptional<UE::Interchange::FImportImage> UInterchangeEXRTranslator::GetTexturePayloadData(const UInterchangeSourceData* PayloadSourceData, const FString& PayLoadKey) const
 {
-	if (!SourceData)
+	check(PayloadSourceData == GetSourceData());
+
+	if (!GetSourceData())
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import EXR, bad source data."));
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 
 	TArray64<uint8> SourceDataBuffer;
-	FString Filename = SourceData->GetFilename();
+	FString Filename = GetSourceData()->GetFilename();
 	
 	//Make sure the key fit the filename, The key should always be valid
 	if (!Filename.Equals(PayLoadKey))

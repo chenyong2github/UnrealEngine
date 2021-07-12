@@ -10,6 +10,7 @@ public class InterchangeCore : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"Json"
 			}
 		);
 	}

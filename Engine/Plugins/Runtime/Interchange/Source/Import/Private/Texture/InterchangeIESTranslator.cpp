@@ -18,21 +18,23 @@ bool UInterchangeIESTranslator::CanImportSourceData(const UInterchangeSourceData
 	return IESExtension.StartsWith(Extension);
 }
 
-bool UInterchangeIESTranslator::Translate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer) const
+bool UInterchangeIESTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const
 {
-	return UE::Interchange::FTextureTranslatorUtilities::GenericTextureLightProfileTranslate(SourceData, BaseNodeContainer);
+	return UE::Interchange::FTextureTranslatorUtilities::GenericTextureLightProfileTranslate(GetSourceData(), BaseNodeContainer);
 }
 
-TOptional<UE::Interchange::FImportLightProfile> UInterchangeIESTranslator::GetLightProfilePayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
+TOptional<UE::Interchange::FImportLightProfile> UInterchangeIESTranslator::GetLightProfilePayloadData(const UInterchangeSourceData* PayloadSourceData, const FString& PayLoadKey) const
 {
-	if (!SourceData)
+	check(GetSourceData() == PayloadSourceData);
+
+	if (!GetSourceData())
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import IES, bad source data."));
 		return {};
 	}
 
 	TArray64<uint8> SourceDataBuffer;
-	FString Filename = SourceData->GetFilename();
+	FString Filename = GetSourceData()->GetFilename();
 
 	//Make sure the key fit the filename, The key should always be valid
 	if (!Filename.Equals(PayLoadKey))

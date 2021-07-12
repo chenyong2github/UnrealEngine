@@ -13,6 +13,8 @@
 #include "InterchangeTextureNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 
+#define LOCTEXT_NAMESPACE "InterchangeFbxParser"
+
 namespace UE
 {
 	namespace Interchange
@@ -24,7 +26,7 @@ namespace UE
 				PayloadContexts.Empty();
 			}
 
-			bool FFbxParser::LoadFbxFile(const FString& Filename, TArray<FString>& JSonErrorMessages)
+			bool FFbxParser::LoadFbxFile(const FString& Filename)
 			{
 				SourceFilename = Filename;
 				int32 SDKMajor, SDKMinor, SDKRevision;
@@ -33,7 +35,8 @@ namespace UE
 				SDKManager = FbxManager::Create();
 				if (!SDKManager)
 				{
-					JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot create fbx sdk manager\"}}"));
+					UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
+					Message->Text = LOCTEXT("CannotCreateFBXManager", "Cannot create FBX SDK manager.");
 					return false;
 				}
 
@@ -57,7 +60,8 @@ namespace UE
 				SDKScene = FbxScene::Create(SDKManager, "My Scene");
 				if (!SDKScene)
 				{
-					JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot create fbx sdk scene\"}}"));
+					UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
+					Message->Text = LOCTEXT("CannotCreateFBXScene", "Cannot create FBX SDK scene.");
 					return false;
 				}
 				
@@ -72,7 +76,12 @@ namespace UE
 				const bool bImportStatus = SDKImporter->Initialize(TCHAR_TO_UTF8(*Filename));
 				if (!bImportStatus)
 				{
-					JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot open fbx filename\"}}"));
+					FFormatNamedArguments FilenameText
+					{
+						{ TEXT("Filename"), FText::FromString(Filename) }
+					};
+					UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
+					Message->Text = FText::Format(LOCTEXT("CannotOpenFBXFile", "Cannot open FBX file '{Filename}'."), FilenameText);
 					return false;
 				}
 
@@ -89,28 +98,35 @@ namespace UE
 				return true;
 			}
 
-			void FFbxParser::FillContainerWithFbxScene(UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages)
+			void FFbxParser::FillContainerWithFbxScene(UInterchangeBaseNodeContainer& NodeContainer)
 			{
-				CleanupFbxData(JSonErrorMessages);
-				FFbxMaterial::AddAllTextures(SDKScene, NodeContainer, JSonErrorMessages);
-				FFbxMaterial::AddAllMaterials(SDKScene, NodeContainer, JSonErrorMessages);
-				FFbxMesh::AddAllMeshes(SDKScene, SDKGeometryConverter, NodeContainer, JSonErrorMessages, PayloadContexts);
-				FFbxScene::AddHierarchy(SDKScene, NodeContainer, JSonErrorMessages);
+				CleanupFbxData();
+
+				FFbxMaterial FbxMaterial(*this);
+				FbxMaterial.AddAllTextures(SDKScene, NodeContainer);
+				FbxMaterial.AddAllMaterials(SDKScene, NodeContainer);
+
+				FFbxMesh FbxMesh(*this);
+				FbxMesh.AddAllMeshes(SDKScene, SDKGeometryConverter, NodeContainer, PayloadContexts);
+
+				FFbxScene FbxScene(*this);
+				FbxScene.AddHierarchy(SDKScene, NodeContainer);
 			}
 
-			bool FFbxParser::FetchPayloadData(const FString& PayloadKey, const FString& PayloadFilepath, TArray<FString>& JSonErrorMessages)
+			bool FFbxParser::FetchPayloadData(const FString& PayloadKey, const FString& PayloadFilepath)
 			{
 				if (!PayloadContexts.Contains(PayloadKey))
 				{
-					JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot retrieve payload, payload key doesnt have any context.\"}}"));
+					UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
+					Message->Text = LOCTEXT("CannotRetrievePayload", "Cannot retrieve payload; payload key doesn't have any context.");
 					return false;
 				}
 
 				TSharedPtr<FPayloadContextBase>& PayloadContext = PayloadContexts.FindChecked(PayloadKey);
-				return PayloadContext->FetchPayloadToFile(PayloadFilepath, JSonErrorMessages);
+				return PayloadContext->FetchPayloadToFile(*this, PayloadFilepath);
 			}
 
-			void FFbxParser::CleanupFbxData(TArray<FString>& JSonErrorMessages)
+			void FFbxParser::CleanupFbxData()
 			{
 				//////////////////////////////////////////////////////////////////////////
 				// Make sure there is a valid bind pose
@@ -123,7 +139,8 @@ namespace UE
 				const int32 NbPoses = SDKScene->GetFbxManager()->GetBindPoseCount(SDKScene);
 				if (NbPoses != Default_NbPoses)
 				{
-					JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Warning\",\n\"Msg\" : \"FbxParser: Missing bind pose, the fbx sdk create one.\"}}"));
+					UInterchangeResultWarning_Generic* Message = AddMessage<UInterchangeResultWarning_Generic>();
+					Message->Text = LOCTEXT("MissingBindPose", "Missing bind pose - the FBX SDK has created one.");
 				}
 
 				//////////////////////////////////////////////////////////////////////////
@@ -132,3 +149,5 @@ namespace UE
 		} //ns Private
 	} //ns Interchange
 } //ns UE
+
+#undef LOCTEXT_NAMESPACE

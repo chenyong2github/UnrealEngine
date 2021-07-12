@@ -751,6 +751,12 @@ namespace UE
 				return AttributeKey;
 			}
 
+			static const FString& TargetAssetIDsKey()
+			{
+				static FString Key(TEXT("__TARGET_ASSET_IDS_"));
+				return Key;
+			}
+
 			static const FString& GetFactoryDependenciesBaseKey()
 			{
 				static FString BaseNodeFactoryDependencies_BaseKey = TEXT("__BaseNodeFactoryDependencies__");
@@ -803,6 +809,7 @@ public:
 	{
 		Attributes = MakeShared<UE::Interchange::FAttributeStorage, ESPMode::ThreadSafe>();
 		FactoryDependencies.Initialize(Attributes, UE::Interchange::FBaseNodeStaticData::GetFactoryDependenciesBaseKey());
+		TargetAssets.Initialize(Attributes, UE::Interchange::FBaseNodeStaticData::TargetAssetIDsKey());
 		RegisterAttribute<bool>(UE::Interchange::FBaseNodeStaticData::IsEnabledKey(), true);
 		RegisterAttribute<uint8>(UE::Interchange::FBaseNodeStaticData::NodeContainerTypeKey(), static_cast<uint8>(EInterchangeNodeContainerType::NodeContainerType_None));
 	}
@@ -865,6 +872,20 @@ public:
 		else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FBaseNodeStaticData::GetFactoryDependenciesBaseKey()))
 		{
 			KeyDisplayName = TEXT("Factory Dependencies Index ");
+			const FString IndexKey = UE::Interchange::FNameAttributeArrayHelper::IndexKey();
+			int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
+			if (IndexPosition < NodeAttributeKey.Key.Len())
+			{
+				KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
+			}
+		}
+		else if (NodeAttributeKey.Key.Equals(UE::Interchange::FBaseNodeStaticData::TargetAssetIDsKey()))
+		{
+			KeyDisplayName = TEXT("Target Asset Count");
+		}
+		else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FBaseNodeStaticData::TargetAssetIDsKey()))
+		{
+			KeyDisplayName = TEXT("Target Asset Index ");
 			const FString IndexKey = UE::Interchange::FNameAttributeArrayHelper::IndexKey();
 			int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
 			if (IndexPosition < NodeAttributeKey.Key.Len())
@@ -1005,13 +1026,37 @@ public:
 	 * Add one dependency to this object.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool SetFactoryDependencyUid(const FString& DependencyUid);
+	bool AddFactoryDependencyUid(const FString& DependencyUid);
 
 	/**
 	 * Remove one dependency from this object.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
 	bool RemoveFactoryDependencyUid(const FString& DependencyUid);
+
+	/**
+	 * Get number of target assets relating to this object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	int32 GetTargetAssetCount() const;
+
+	/**
+	 * Get target assets relating to this object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	void GetTargetAssetUids(TArray<FString>& OutTargetAssets) const;
+
+	/**
+	 * Add asset node UID relating to this object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool AddTargetAssetUid(const FString& AssetUid);
+
+	/**
+	 * Remove asset node UID relating to this object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool RemoveTargetAssetUid(const FString& AssetUid);
 
 	/**
 	 * IsEnable true mean that the node will be import/export, if false it will be discarded.
@@ -1110,4 +1155,9 @@ protected:
 	 *          Material factory node will have dependencies on texture factory node
 	 */
 	UE::Interchange::FNameAttributeArrayHelper FactoryDependencies;
+
+	/**
+	 * This tracks the IDs of asset nodes which are the target of factories
+	 */
+	UE::Interchange::FNameAttributeArrayHelper TargetAssets;
 };

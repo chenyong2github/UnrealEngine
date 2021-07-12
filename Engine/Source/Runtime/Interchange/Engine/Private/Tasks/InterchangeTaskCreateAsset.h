@@ -25,27 +25,28 @@ namespace UE
 			int32 SourceIndex;
 			TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
 			UInterchangeBaseNode* Node;
-			UInterchangeFactoryBase* Factory;
+			const UClass* FactoryClass;
 
 		public:
-			FTaskCreatePackage(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, UInterchangeBaseNode* InNode, UInterchangeFactoryBase* InFactory)
+			FTaskCreatePackage(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, UInterchangeBaseNode* InNode, const UClass* InFactoryClass)
 				: PackageBasePath(InPackageBasePath)
 				, SourceIndex(InSourceIndex)
 				, WeakAsyncHelper(InAsyncHelper)
 				, Node(InNode)
-				, Factory(InFactory)
+				, FactoryClass(InFactoryClass)
 			{
 				check(Node);
-				check(Factory);
+				check(FactoryClass);
 			}
 
-			ENamedThreads::Type GetDesiredThread()
+			ENamedThreads::Type GetDesiredThread() const
 			{
-				if (WeakAsyncHelper.IsValid() && WeakAsyncHelper.Pin()->TaskData.ReimportObject)
-				{
-					//When doing a reimport the package already exist, so we can get it outside of the main thread
-					return ENamedThreads::AnyBackgroundThreadNormalTask;
-				}
+				// This is no longer true now that we have to construct a factory here
+				//if (WeakAsyncHelper.IsValid() && WeakAsyncHelper.Pin()->TaskData.ReimportObject)
+				//{
+				//	//When doing a reimport the package already exist, so we can get it outside of the main thread
+				//	return ENamedThreads::AnyBackgroundThreadNormalTask;
+				//}
 				return ENamedThreads::GameThread;
 			}
 
@@ -69,23 +70,22 @@ namespace UE
 			int32 SourceIndex;
 			TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
 			UInterchangeBaseNode* Node;
-			UInterchangeFactoryBase* Factory;
+			bool bCanRunOnAnyThread;
 
 		public:
-			FTaskCreateAsset(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, UInterchangeBaseNode* InNode, UInterchangeFactoryBase* InFactory)
+			FTaskCreateAsset(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, UInterchangeBaseNode* InNode, bool bInCanRunOnAnyThread)
 				: PackageBasePath(InPackageBasePath)
 				, SourceIndex(InSourceIndex)
 				, WeakAsyncHelper(InAsyncHelper)
 				, Node(InNode)
-				, Factory(InFactory)
+				, bCanRunOnAnyThread(bInCanRunOnAnyThread)
 			{
 				check(Node);
-				check(Factory);
 			}
 
-			ENamedThreads::Type GetDesiredThread()
+			ENamedThreads::Type GetDesiredThread() const
 			{
-				return Factory->CanExecuteOnAnyThread() ? ENamedThreads::AnyBackgroundThreadNormalTask : ENamedThreads::GameThread;
+				return bCanRunOnAnyThread ? ENamedThreads::AnyBackgroundThreadNormalTask : ENamedThreads::GameThread;
 			}
 
 			static ESubsequentsMode::Type GetSubsequentsMode()

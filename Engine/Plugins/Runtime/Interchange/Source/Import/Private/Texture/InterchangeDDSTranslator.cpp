@@ -79,12 +79,12 @@ bool UInterchangeDDSTranslator::CanImportSourceData(const UInterchangeSourceData
 	return DDSLoadHelper.IsValid2DTexture() || DDSLoadHelper.IsValidCubemapTexture() || DDSLoadHelper.IsValidArrayTexture();
 }
 
-bool UInterchangeDDSTranslator::Translate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer) const
+bool UInterchangeDDSTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const
 {
 	/*
 	 * DDS file can also be a cube map so we have to open the file and see if its a valid 2D texture.
 	 */
-	FString Filename = SourceData->GetFilename();
+	FString Filename = GetSourceData()->GetFilename();
 	if (!FPaths::FileExists(Filename))
 	{
 		return false;
@@ -100,31 +100,33 @@ bool UInterchangeDDSTranslator::Translate(const UInterchangeSourceData* SourceDa
 	FDDSLoadHelper DDSLoadHelper(HeaderDataBuffer.GetData(), HeaderDataBuffer.Num());
 	if (DDSLoadHelper.IsValid2DTexture())
 	{
-		return UE::Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(SourceData, BaseNodeContainer);
+		return UE::Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(GetSourceData(), BaseNodeContainer);
 	}
 
 	if (DDSLoadHelper.IsValidCubemapTexture())
 	{
-		return UE::Interchange::FTextureTranslatorUtilities::GenericTextureCubeTranslate(SourceData, BaseNodeContainer);
+		return UE::Interchange::FTextureTranslatorUtilities::GenericTextureCubeTranslate(GetSourceData(), BaseNodeContainer);
 	}
 
 	if (DDSLoadHelper.IsValidArrayTexture())
 	{
-		return UE::Interchange::FTextureTranslatorUtilities::GenericTexture2DArrayTranslate(SourceData, BaseNodeContainer);
+		return UE::Interchange::FTextureTranslatorUtilities::GenericTexture2DArrayTranslate(GetSourceData(), BaseNodeContainer);
 	}
 
 	return false;
 }
 
-TOptional<UE::Interchange::FImportImage> UInterchangeDDSTranslator::GetTexturePayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
+TOptional<UE::Interchange::FImportImage> UInterchangeDDSTranslator::GetTexturePayloadData(const UInterchangeSourceData* PayloadSourceData, const FString& PayLoadKey) const
 {
-	if (!SourceData)
+	check(PayloadSourceData == GetSourceData());
+
+	if (!GetSourceData())
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import DDS, bad source data."));
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 
-	FString Filename = SourceData->GetFilename();
+	FString Filename = GetSourceData()->GetFilename();
 	
 	//Make sure the key fit the filename, The key should always be valid
 	if (!Filename.Equals(PayLoadKey))
@@ -206,15 +208,17 @@ TOptional<UE::Interchange::FImportImage> UInterchangeDDSTranslator::GetTexturePa
 	return PayloadData;
 }
 
-TOptional<UE::Interchange::FImportSlicedImage> UInterchangeDDSTranslator::GetSlicedTexturePayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
+TOptional<UE::Interchange::FImportSlicedImage> UInterchangeDDSTranslator::GetSlicedTexturePayloadData(const UInterchangeSourceData* PayloadSourceData, const FString& PayLoadKey) const
 {
-	if (!SourceData)
+	check(PayloadSourceData == GetSourceData());
+
+	if (!GetSourceData())
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import DDS, bad source data."));
 		return TOptional<UE::Interchange::FImportSlicedImage>();
 	}
 
-	FString Filename = SourceData->GetFilename();
+	FString Filename = GetSourceData()->GetFilename();
 	
 	//Make sure the key fit the filename, The key should always be valid
 	if (!Filename.Equals(PayLoadKey))

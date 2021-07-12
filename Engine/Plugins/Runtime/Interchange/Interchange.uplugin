@@ -27,6 +27,11 @@
 			"LoadingPhase": "Default"
 		},
 		{
+			"Name": "InterchangeMessages",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "InterchangeExport",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"

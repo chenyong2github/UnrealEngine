@@ -9,9 +9,8 @@
 #include "Delegates/DelegateCombinations.h"
 #include "HAL/Thread.h"
 #include "HAL/ThreadSafeBool.h"
-#include "InterchangeFactoryBase.h"
-#include "InterchangePipelineBase.h"
 #include "InterchangePipelineConfigurationBase.h"
+#include "InterchangeResultsContainer.h"
 #include "InterchangeSourceData.h"
 #include "InterchangeTranslatorBase.h"
 #include "InterchangeWriterBase.h"
@@ -25,6 +24,9 @@
 #include "InterchangeManager.generated.h"
 
 class FAsyncTaskNotification;
+class UInterchangeFactoryBase;
+class UInterchangePipelineBase;
+
 namespace UE
 {
 	namespace Interchange
@@ -104,6 +106,9 @@ namespace UE
 			// Helper to get the first asset of a certain class. Use when expecting a single asset of that class to be imported since the order isn't deterministic.
 			UObject* GetFirstAssetOfClass(UClass* InClass) const;
 
+			// Return the results of this asset import operation
+			UInterchangeResultsContainer* GetResults() const { return Results; }
+
 			// Adds an asset to the list of imported assets.
 			void AddImportedAsset(UObject* ImportedAsset);
 
@@ -119,6 +124,7 @@ namespace UE
 
 			TArray< UObject* > ImportedAssets;
 			mutable FRWLock ImportedAssetsRWLock;
+			UInterchangeResultsContainer* Results;
 
 			FGraphEventRef GraphEvent; // WaitUntilDone waits for this event to be triggered.
 
@@ -142,13 +148,11 @@ namespace UE
 
 			//The following Arrays are per source data
 			TArray<TStrongObjectPtr<UInterchangeBaseNodeContainer>> BaseNodeContainers;
-			TArray<UInterchangeSourceData* > SourceDatas;
-			TArray<UInterchangeTranslatorBase* > Translators;
-			TArray<UInterchangeFactoryBase* > Factories;
+			TArray<UInterchangeSourceData*> SourceDatas;
+			TArray<UInterchangeTranslatorBase*> Translators;
 
 			//Pipelines array is not per source data 
-			TArray<UInterchangePipelineBase* > Pipelines;
-			
+			TArray<UInterchangePipelineBase*> Pipelines;
 
 			TArray<FGraphEventRef> TranslatorTasks;
 			TArray<FGraphEventRef> PipelinePreImportTasks;
@@ -163,6 +167,10 @@ namespace UE
 			//Create package map, Key is package name. We cannot create package asynchronously so we have to create a game thread task to do this
 			FCriticalSection CreatedPackagesLock;
 			TMap<FString, UPackage*> CreatedPackages;
+
+			// Created factories map, Key is factory node UID
+			FCriticalSection CreatedFactoriesLock;
+			TMap<FString, UInterchangeFactoryBase*> CreatedFactories;
 
 			struct FImportedAssetInfo
 			{
@@ -234,12 +242,14 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FInterchangeOnAssetPostImport, UObject*);
 	/** delegate type fired when new assets have been reimported. Note: InCreatedObject can be NULL if import failed. Params: UObject* InCreatedObject */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FInterchangeOnAssetPostReimport, UObject*);
-	
+	/** delegate type fired when import results in an error */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FInterchangeOnBatchImportComplete, TStrongObjectPtr<UInterchangeResultsContainer>);
 
 	// Delegates used to register and unregister
 
 	FInterchangeOnAssetPostImport OnAssetPostImport;
 	FInterchangeOnAssetPostReimport OnAssetPostReimport;
+	FInterchangeOnBatchImportComplete OnBatchImportComplete;
 	// Called when before the application is exiting.
 	FSimpleMulticastDelegate OnPreDestroyInterchangeManager;
 
@@ -335,20 +345,10 @@ public:
 	/**
 	* Script helper to get a registered factory for a specified class
 	* @Param FactoryClass: The class we search a registerd factory
-	* @return: if found, we return the factory that is registered. Return NULL if nothing found.
+	* @return: if found, we return the factory class that is registered. Return NULL if nothing found.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Import Manager")
-	UInterchangeFactoryBase* GetRegisterFactory(UClass* FactoryClass)
-	{
-		for (auto Kvp : RegisteredFactories)
-		{
-			if (FactoryClass->IsChildOf(Kvp.Key))
-			{
-				return Kvp.Value;
-			}
-		}
-		return nullptr;
-	}
+	const UClass* GetRegisteredFactoryClass(const UClass* ClassToMake) const;
 
 	/**
 	 * Return an FImportAsynHelper pointer. The pointer is deleted when ReleaseAsyncHelper is call.
@@ -447,16 +447,16 @@ private:
 
 	//The manager will create translator at every import, translator must be able to retrieve payload information when the factory ask for it.
 	//The translator stored has value is only use to know if we can use this type of translator.
-	UPROPERTY()
-	TArray<TObjectPtr<UInterchangeTranslatorBase>> RegisteredTranslators;
+//	UPROPERTY()
+//	TArray<TObjectPtr<UInterchangeTranslatorBase>> RegisteredTranslators;
 	
 	//The manager will create only one pipeline per type
-	UPROPERTY()
-	TMap<TObjectPtr<const UClass>, TObjectPtr<UInterchangePipelineBase> > RegisteredPipelines;
+//	UPROPERTY()
+//	TMap<TObjectPtr<const UClass>, TObjectPtr<UInterchangePipelineBase> > RegisteredPipelines;
 
 	//The manager will create only one factory per type
 	UPROPERTY()
-	TMap<TObjectPtr<const UClass>, TObjectPtr<UInterchangeFactoryBase> > RegisteredFactories;
+	TMap<TObjectPtr<const UClass>, TObjectPtr<const UClass> > RegisteredFactoryClasses;
 
 	//The manager will create only one writer per type
 	UPROPERTY()

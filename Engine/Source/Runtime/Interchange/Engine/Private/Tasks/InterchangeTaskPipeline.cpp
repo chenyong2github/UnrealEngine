@@ -23,6 +23,8 @@ void UE::Interchange::FTaskPipelinePreImport::DoTask(ENamedThreads::Type Current
 
 	if (UInterchangePipelineBase* Pipeline = PipelineBase.Get())
 	{
+		Pipeline->SetResultsContainer(AsyncHelper->AssetImportResult->GetResults());
+
 		for (int32 GraphIndex = 0; GraphIndex < AsyncHelper->BaseNodeContainers.Num(); ++GraphIndex)
 		{
 			//Verify if the task was cancel
@@ -86,6 +88,8 @@ void UE::Interchange::FTaskPipelinePostImport::DoTask(ENamedThreads::Type Curren
 		return;
 	}
 	UInterchangePipelineBase* Pipeline = AsyncHelper->Pipelines[PipelineIndex];
+	Pipeline->SetResultsContainer(AsyncHelper->AssetImportResult->GetResults());
+
 	//Call the pipeline outside of the lock, we do this in case the pipeline take a long time. We call it for each asset created by this import
 	for (int32 AssetIndex = 0; AssetIndex < ImportAssets.Num(); ++AssetIndex)
 	{

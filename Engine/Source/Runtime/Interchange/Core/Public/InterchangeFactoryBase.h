@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "InterchangeResultsContainer.h"
 #include "UObject/Class.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
@@ -126,4 +127,32 @@ public:
 		check(IsInGameThread());
 		return;
 	}
+
+	/**
+	 * This function is used to add the given message object directly into the results for this operation.
+	 */
+	template <typename T>
+	T* AddMessage() const
+	{
+		check(Results != nullptr);
+		T* Item = Results->Add<T>();
+		return Item;
+	}
+
+
+	void AddMessage(UInterchangeResult* Item) const
+	{
+		check(Results != nullptr);
+		Results->Add(Item);
+	}
+	
+
+	void SetResultsContainer(UInterchangeResultsContainer* InResults)
+	{
+		Results = InResults;
+	}
+
+
+	UPROPERTY()
+	UInterchangeResultsContainer* Results;
 };

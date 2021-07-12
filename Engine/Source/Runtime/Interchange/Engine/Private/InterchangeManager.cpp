@@ -78,22 +78,10 @@ UE::Interchange::FImportAsyncHelper::FImportAsyncHelper()
 
 void UE::Interchange::FImportAsyncHelper::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	for (UInterchangeSourceData* SourceData : SourceDatas)
-	{
-		Collector.AddReferencedObject(SourceData);
-	}
-	for (UInterchangeTranslatorBase* Translator : Translators)
-	{
-		Collector.AddReferencedObject(Translator);
-	}
-	for (UInterchangePipelineBase* Pipeline : Pipelines)
-	{
-		Collector.AddReferencedObject(Pipeline);
-	}
-	for (UInterchangeFactoryBase* Factory : Factories)
-	{
-		Collector.AddReferencedObject(Factory);
-	}
+	Collector.AddReferencedObjects(SourceDatas);
+	Collector.AddReferencedObjects(Translators);
+	Collector.AddReferencedObjects(Pipelines);
+	Collector.AddReferencedObjects(CreatedFactories);
 }
 
 void UE::Interchange::FImportAsyncHelper::ReleaseTranslatorsSource()
@@ -177,7 +165,6 @@ void UE::Interchange::FImportAsyncHelper::CleanUp()
 		{
 			SourceData->RemoveFromRoot();
 			SourceData->MarkPendingKill();
-			SourceData = nullptr;
 		}
 	}
 	SourceDatas.Empty();
@@ -189,7 +176,6 @@ void UE::Interchange::FImportAsyncHelper::CleanUp()
 			Translator->ImportFinish();
 			Translator->RemoveFromRoot();
 			Translator->MarkPendingKill();
-			Translator = nullptr;
 		}
 	}
 	Translators.Empty();
@@ -200,18 +186,25 @@ void UE::Interchange::FImportAsyncHelper::CleanUp()
 		{
 			Pipeline->RemoveFromRoot();
 			Pipeline->MarkPendingKill();
-			Pipeline = nullptr;
 		}
 	}
 	Pipelines.Empty();
 
-	//Factories are not instantiate, we use the registered one directly
-	Factories.Empty();
+	for (const TPair<FString, UInterchangeFactoryBase*>& FactoryKeyAndValue : CreatedFactories)
+	{
+		if (FactoryKeyAndValue.Value)
+		{
+			FactoryKeyAndValue.Value->RemoveFromRoot();
+			FactoryKeyAndValue.Value->MarkPendingKill();
+		}
+	}
+	CreatedFactories.Empty();
 }
 
 UE::Interchange::FAssetImportResult::FAssetImportResult()
 	: ImportStatus(EStatus::Invalid)
 {
+	Results = NewObject<UInterchangeResultsContainer>(GetTransientPackage());
 }
 
 UE::Interchange::FAssetImportResult::EStatus UE::Interchange::FAssetImportResult::GetStatus() const
@@ -295,6 +288,7 @@ void UE::Interchange::FAssetImportResult::AddReferencedObjects(FReferenceCollect
 {
 	FReadScopeLock ReadScopeLock(ImportedAssetsRWLock);
 	Collector.AddReferencedObjects(ImportedAssets);
+	Collector.AddReferencedObject(Results);
 }
 
 void UE::Interchange::SanitizeObjectPath(FString& ObjectPath)
@@ -365,48 +359,34 @@ UInterchangeManager& UInterchangeManager::GetInterchangeManager()
 
 bool UInterchangeManager::RegisterTranslator(const UClass* TranslatorClass)
 {
-	if(!TranslatorClass)
+	if (!TranslatorClass)
 	{
 		return false;
 	}
 
-	decltype(RegisteredTranslatorsClass)::ElementType TranslatorAsKey(TranslatorClass);
-	uint32 TranslatorClassHash = GetTypeHash(TranslatorAsKey);
-	if(RegisteredTranslatorsClass.ContainsByHash(TranslatorClassHash, TranslatorAsKey))
-	{
-		return true;
-	}
-	RegisteredTranslatorsClass.AddByHash(TranslatorClassHash, TranslatorAsKey);
-
-
-	UInterchangeTranslatorBase* TranslatorToRegister = NewObject<UInterchangeTranslatorBase>(GetTransientPackage(), TranslatorClass, NAME_None);
-	if(!TranslatorToRegister)
-	{
-		return false;
-	}
-	RegisteredTranslators.Add(TranslatorToRegister);
+	RegisteredTranslatorsClass.Add(TranslatorClass);
 	return true;
 }
 
 bool UInterchangeManager::RegisterFactory(const UClass* FactoryClass)
 {
-	if (!FactoryClass)
+	if (!FactoryClass || !FactoryClass->IsChildOf<UInterchangeFactoryBase>())
 	{
 		return false;
 	}
 
-	UInterchangeFactoryBase* FactoryToRegister = NewObject<UInterchangeFactoryBase>(GetTransientPackage(), FactoryClass, NAME_None);
-	if (!FactoryToRegister)
+	UClass* ClassToMake = FactoryClass->GetDefaultObject<UInterchangeFactoryBase>()->GetFactoryClass();
+	if (ClassToMake)
 	{
-		return false;
+		if (!RegisteredFactoryClasses.Contains(ClassToMake))
+		{
+			RegisteredFactoryClasses.Add(ClassToMake, FactoryClass);
+		}
+
+		return true;
 	}
-	if (FactoryToRegister->GetFactoryClass() == nullptr || RegisteredFactories.Contains(FactoryToRegister->GetFactoryClass()))
-	{
-		FactoryToRegister->MarkPendingKill();
-		return FactoryToRegister->GetFactoryClass() == nullptr ? false : true;
-	}
-	RegisteredFactories.Add(FactoryToRegister->GetFactoryClass(), FactoryToRegister);
-	return true;
+
+	return false;
 }
 
 bool UInterchangeManager::RegisterWriter(const UClass* WriterClass)
@@ -416,7 +396,7 @@ bool UInterchangeManager::RegisterWriter(const UClass* WriterClass)
 		return false;
 	}
 
-	if (RegisteredFactories.Contains(WriterClass))
+	if (RegisteredWriters.Contains(WriterClass))
 	{
 		return true;
 	}
@@ -597,8 +577,9 @@ UE::Interchange::FAssetImportResultRef UInterchangeManager::ImportAssetAsync(con
 		check(AsyncHelper->BaseNodeContainers[SourceDataIndex].IsValid());
 	}
 
+	const UInterchangeProjectSettings* InterchangeProjectSettings = GetDefault<UInterchangeProjectSettings>();
 	UInterchangePipelineConfigurationBase* RegisteredPipelineConfiguration = nullptr;
-	TSoftClassPtr <UInterchangePipelineConfigurationBase> PipelineConfigurationDialogClass = GetDefault<UInterchangeProjectSettings>()->PipelineConfigurationDialogClass;
+	TSoftClassPtr <UInterchangePipelineConfigurationBase> PipelineConfigurationDialogClass = InterchangeProjectSettings->PipelineConfigurationDialogClass;
 	if (PipelineConfigurationDialogClass.IsValid())
 	{
 		UClass* PipelineConfigurationClass = PipelineConfigurationDialogClass.LoadSynchronous();
@@ -614,11 +595,11 @@ UE::Interchange::FAssetImportResultRef UInterchangeManager::ImportAssetAsync(con
 		const bool bIsUnattended = FApp::IsUnattended() || GIsAutomationTesting;
 
 		const bool bShowPipelineStacksConfigurationDialog = !bIsUnattended
-															&& GetDefault<UInterchangeProjectSettings>()->bShowPipelineStacksConfigurationDialog
+															&& InterchangeProjectSettings->bShowPipelineStacksConfigurationDialog
 															&& !bImportAllWithDefault;
 
-		const FName DefaultPipelineStackName = GetDefault<UInterchangeProjectSettings>()->DefaultPipelineStack;
-		const TMap<FName, FInterchangePipelineStack>& DefaultPipelineStacks = GetDefault<UInterchangeProjectSettings>()->PipelineStacks;
+		const FName DefaultPipelineStackName = InterchangeProjectSettings->DefaultPipelineStack;
+		const TMap<FName, FInterchangePipelineStack>& DefaultPipelineStacks = InterchangeProjectSettings->PipelineStacks;
 		
 		//If we reimport we want to load the original pipeline and the original pipeline settings
 		if (OriginalAssetImportData && OriginalAssetImportData->Pipelines.Num() > 0)
@@ -664,12 +645,12 @@ UE::Interchange::FAssetImportResultRef UInterchangeManager::ImportAssetAsync(con
 				{
 					bImportAllWithDefault = true;
 				}
-				PipelineStackName = GetDefault<UInterchangeProjectSettings>()->DefaultPipelineStack;
+				PipelineStackName = InterchangeProjectSettings->DefaultPipelineStack;
 			}
 			if (!bImportCancel)
 			{
 				//Get the latest PipelineStacks (the Dialog can change the CDO)
-				const TMap<FName, FInterchangePipelineStack>& PipelineStacks = GetDefault<UInterchangeProjectSettings>()->PipelineStacks;
+				const TMap<FName, FInterchangePipelineStack>& PipelineStacks = InterchangeProjectSettings->PipelineStacks;
 				if (!PipelineStacks.Contains(PipelineStackName))
 				{
 					if (PipelineStacks.Contains(DefaultPipelineStackName))
@@ -767,6 +748,26 @@ UInterchangeSourceData* UInterchangeManager::CreateSourceData(const FString& InF
 	return SourceDataAsset;
 }
 
+const UClass* UInterchangeManager::GetRegisteredFactoryClass(const UClass* ClassToMake) const
+{
+	const UClass* BestClassToMake = nullptr;
+	const UClass* Result = nullptr;
+
+	for (const auto& Kvp : RegisteredFactoryClasses)
+	{
+		if (ClassToMake->IsChildOf(Kvp.Key))
+		{
+			// Find the factory which handles the most derived registered type 
+			if (BestClassToMake == nullptr || Kvp.Key->IsChildOf(BestClassToMake))
+			{
+				BestClassToMake = Kvp.Key.Get();
+				Result = Kvp.Value.Get();
+			}
+		}
+	}
+	return Result;
+}
+
 TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> UInterchangeManager::CreateAsyncHelper(const UE::Interchange::FImportAsyncHelperData& Data)
 {
 	TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = MakeShared<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe>();
@@ -816,11 +817,12 @@ void UInterchangeManager::ReleaseAsyncHelper(TWeakPtr<UE::Interchange::FImportAs
 UInterchangeTranslatorBase* UInterchangeManager::GetTranslatorForSourceData(const UInterchangeSourceData* SourceData) const
 {
 	// Find the translator
-	for (UInterchangeTranslatorBase* Translator : RegisteredTranslators)
+	for (const UClass* TranslatorClass : RegisteredTranslatorsClass)
 	{
-		if (Translator->CanImportSourceData(SourceData))
+		if (TranslatorClass->GetDefaultObject<UInterchangeTranslatorBase>()->CanImportSourceData(SourceData))
 		{
-			UInterchangeTranslatorBase* SourceDataTranslator = NewObject<UInterchangeTranslatorBase>(GetTransientPackage(), Translator->GetClass(), NAME_None);
+			UInterchangeTranslatorBase* SourceDataTranslator = NewObject<UInterchangeTranslatorBase>(GetTransientPackage(), TranslatorClass, NAME_None);
+			SourceDataTranslator->SourceData = SourceData;
 			return SourceDataTranslator;
 		}
 	}
@@ -856,12 +858,13 @@ bool UInterchangeManager::CanTranslateSourceDataWithPayloadInterface(const UInte
 UInterchangeTranslatorBase* UInterchangeManager::GetTranslatorSupportingPayloadInterfaceForSourceData(const UInterchangeSourceData* SourceData, const UClass* PayloadInterfaceClass) const
 {
 	// Find the translator
-	for (UInterchangeTranslatorBase* Translator : RegisteredTranslators)
+	for (const UClass* TranslatorClass : RegisteredTranslatorsClass)
 	{
-		const UClass* TranslatorClass = Translator->GetClass();
-		if (TranslatorClass->ImplementsInterface(PayloadInterfaceClass) && Translator->CanImportSourceData(SourceData))
+		if (TranslatorClass->ImplementsInterface(PayloadInterfaceClass) &&
+			TranslatorClass->GetDefaultObject<UInterchangeTranslatorBase>()->CanImportSourceData(SourceData))
 		{
 			UInterchangeTranslatorBase* SourceDataTranslator = NewObject<UInterchangeTranslatorBase>(GetTransientPackage(), TranslatorClass, NAME_None);
+			SourceDataTranslator->SourceData = SourceData;
 			return SourceDataTranslator;
 		}
 	}
@@ -908,7 +911,7 @@ void UInterchangeManager::FindPipelineCandidate(TArray<UClass*>& PipelineCandida
 		PipelineCandidates.AddUnique(Class);
 	}
 
-//Blueprint and python script discoverability is available only if we compile with the engine
+	//Blueprint and python script discoverability is available only if we compile with the engine
 	// Load the asset registry module
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked< FAssetRegistryModule >(FName("AssetRegistry"));
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();

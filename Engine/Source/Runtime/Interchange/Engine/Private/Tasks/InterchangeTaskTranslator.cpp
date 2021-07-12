@@ -25,11 +25,10 @@ void UE::Interchange::FTaskTranslator::DoTask(ENamedThreads::Type CurrentThread,
 	{
 		return;
 	}
-	const UInterchangeSourceData* SourceData = AsyncHelper->SourceDatas.IsValidIndex(SourceIndex) ? AsyncHelper->SourceDatas[SourceIndex] : nullptr;
-	if (!SourceData)
-	{
-		return;
-	}
+
+	check(AsyncHelper->AssetImportResult->GetResults() != nullptr);
+	check(Translator->SourceData != nullptr);
+	Translator->SetResultsContainer(AsyncHelper->AssetImportResult->GetResults());
 
 	if (!AsyncHelper->BaseNodeContainers.IsValidIndex(SourceIndex) || !AsyncHelper->BaseNodeContainers[SourceIndex].IsValid())
 	{
@@ -44,5 +43,5 @@ void UE::Interchange::FTaskTranslator::DoTask(ENamedThreads::Type CurrentThread,
 
 	//Translate the source data
 	UInterchangeBaseNodeContainer& BaseNodeContainer = *(AsyncHelper->BaseNodeContainers[SourceIndex].Get());
-	Translator->Translate(SourceData, BaseNodeContainer);
+	Translator->Translate(BaseNodeContainer);
 }

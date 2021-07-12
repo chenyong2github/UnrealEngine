@@ -1937,6 +1937,20 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 			SlowTask.CompletedWork = FilesAndDestinations.Num();
 		}
 	}
+
+	struct FInterchangeImportStatus
+	{
+		explicit FInterchangeImportStatus(int32 NumFiles)
+			: InterchangeResultsContainer(NewObject<UInterchangeResultsContainer>(GetTransientPackage())),
+			  ImportCount(NumFiles)
+		{}
+
+		TStrongObjectPtr<UInterchangeResultsContainer> InterchangeResultsContainer;
+		std::atomic<int32> ImportCount;
+	};
+
+	TSharedPtr<FInterchangeImportStatus, ESPMode::ThreadSafe> ImportStatus = MakeShared<FInterchangeImportStatus>(FilesAndDestinations.Num());
+
 	// Now iterate over the input files and use the same factory object for each file with the same extension
 	for(int32 FileIdx = 0; FileIdx < FilesAndDestinations.Num() && !bImportWasCancelled; ++FileIdx)
 	{
@@ -1965,7 +1979,19 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 				ImportAssetParameters.bIsAutomated = bAutomatedImport;
 				ImportAssetParameters.ReimportAsset = nullptr;
 
-				InterchangeManager.ImportAsset(DestinationPath, ScopedSourceData.GetSourceData(), ImportAssetParameters);
+				UE::Interchange::FAssetImportResultRef InterchangeResult = (InterchangeManager.ImportAssetAsync(DestinationPath, ScopedSourceData.GetSourceData(), ImportAssetParameters));
+				InterchangeResult->OnDone(
+					// Note: ImportStatus captured by value so that the lambda keeps the shared ptr alive
+					[ImportStatus](UE::Interchange::FAssetImportResult& Result)
+					{
+						ImportStatus->InterchangeResultsContainer->Append(Result.GetResults());
+						if (--ImportStatus->ImportCount == 0)
+						{
+							UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
+							InterchangeManager.OnBatchImportComplete.Broadcast(ImportStatus->InterchangeResultsContainer);
+						}
+					});
+
 				InterchangeManager.OnAssetPostImport.Remove(PostImportHandle);
 				//Import done, iterate the next file and destination
 				
