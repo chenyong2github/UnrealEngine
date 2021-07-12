@@ -9,7 +9,6 @@
 #include "RenderGraphUtils.h"
 #include "PostProcessing.h"
 #include "HairStrandsRendering.h"
-#include "HairStrandsScatter.h"
 #include "HairStrandsTile.h"
 #include "FogRendering.h"
 
