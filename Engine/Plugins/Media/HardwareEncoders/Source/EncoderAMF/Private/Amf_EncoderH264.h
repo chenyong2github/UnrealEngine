@@ -68,20 +68,9 @@ namespace AVEncoder
 			FDateTime LastKeyFrameTime = 0;
 			bool bForceNextKeyframe = false;
 
-			class FInputOutput : public AMFSurfaceObserver
+			class FInputOutput
 			{
 			public:
-				virtual void AMF_STD_CALL OnSurfaceDataRelease(AMFSurface* pSurface) override
-				{
-					SourceFrame->Release();
-				}
-
-				virtual ~FInputOutput()
-				{
-					SourceFrame->Release();
-				}
-
-				const FVideoEncoderInputFrameImpl* SourceFrame;
 				void* TextureToCompress;
 				AMFSurfacePtr Surface;
 			};

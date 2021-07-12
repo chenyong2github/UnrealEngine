@@ -10,6 +10,8 @@
 
 #include "RHI.h"
 
+// #include "VulkanContext.h"
+
 #include <stdio.h>
 
 #define MAX_GPU_INDEXES 50
@@ -383,10 +385,7 @@ namespace AVEncoder
 				{
 					UE_LOG(LogEncoderAMF, Error, TEXT("Amf submit error with %d"), Result);
 					// release input frame
-					if (Buffer->SourceFrame)
-					{
-						Buffer->SourceFrame->Release();
-					}
+					frame->Release();
 				}
 				else
 				{
@@ -454,12 +453,13 @@ namespace AVEncoder
 							Packet.IsKeyFrame = true;
 						}
 
-#if PLATFORM_WINDOWS
-						if (OutBuffer->GetProperty(AMF_VIDEO_ENCODER_STATISTIC_FRAME_QP, &Packet.VideoQP) != AMF_OK)
+						if (FString(GDynamicRHI->GetName()) != FString("Vulkan")) // Amf with Vulkan doesn't currently support statistics
 						{
-							UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to get frame QP."));
+							if (OutBuffer->GetProperty(AMF_VIDEO_ENCODER_STATISTIC_FRAME_QP, &Packet.VideoQP) != AMF_OK)
+							{
+								UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to get frame QP."));
+							}
 						}
-#endif
 
 						amf_int64 StartTs;
 						if (OutBuffer->GetProperty(AMF_VIDEO_ENCODER_START_TS, &StartTs) != AMF_OK)
@@ -471,15 +471,15 @@ namespace AVEncoder
 						Packet.Timings.FinishTs = FTimespan::FromSeconds(FPlatformTime::Seconds());
 						Packet.Framerate = AmfLayer->GetConfig().MaxFramerate;
 
-						FVideoEncoderInputFrameImpl* frame;
-						if (OutBuffer->GetProperty(AMF_BUFFER_INPUT_FRAME, (uintptr_t*)&frame) != AMF_OK)
+						FVideoEncoderInputFrameImpl* SourceFrame;
+						if (OutBuffer->GetProperty(AMF_BUFFER_INPUT_FRAME, (intptr_t*)&SourceFrame) != AMF_OK)
 						{
 							UE_LOG(LogEncoderAMF, Fatal, TEXT("Amf failed to get buffer input frame."));
 						}
 
 						if (AmfLayer->Encoder.OnEncodedPacket)
 						{
-							AmfLayer->Encoder.OnEncodedPacket(AmfLayer->LayerIndex, frame, Packet);
+							AmfLayer->Encoder.OnEncodedPacket(AmfLayer->LayerIndex, SourceFrame, Packet);
 						}
 
 						bHasProcessedFrame = true;
@@ -569,8 +569,22 @@ namespace AVEncoder
 					Frame.EncoderMemorySize,
 					InFrame->GetWidth(),
 					InFrame->GetHeight()
-				);
+				);				
 			}
+	
+			//TODO there seems to be some some concurrency issues under Windows might be that we are not adding semaphores
+			// will revisit later 	
+			// VulkanRHI::FSemaphore* WaitSemaphore = new VulkanRHI::FSemaphore(*(GVulkanRHI->GetDevice()));
+			// static_cast<amf::AMFVulkanSurface*>(Frame.EncoderSurface)->Sync.hSemaphore = WaitSemaphore->GetHandle();
+			// static_cast<amf::AMFVulkanSurface*>(Frame.EncoderSurface)->Sync.bSubmitted = true;
+
+			// ENQUEUE_RENDER_COMMAND(FAddAmfSemaphore)([WaitSemaphore, Device=GVulkanRHI->GetDevice()](FRHICommandListImmediate& RHICmdList)
+			// {
+			// 	FVulkanCommandBufferManager* CmdBufferMgr = Device->GetImmediateContext().GetCommandBufferManager();
+			// 	FVulkanCmdBuffer* CmdBuffer = CmdBufferMgr->GetUploadCmdBuffer();
+			// 	CmdBuffer->AddWaitSemaphore(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, WaitSemaphore);
+			// });
+
 			TextureToCompress = Frame.EncoderSurface;
 			InFrame->OnReleaseVulkanSurface = [](void* Surface){ delete (amf::AMFVulkanSurface*) Surface; };
 			break;
@@ -615,13 +629,28 @@ namespace AVEncoder
 		return Buffer;
 	}
 
+	class FSampleObserver : public AMFSurfaceObserver
+	{
+	public:
+		FSampleObserver(const FVideoEncoderInputFrameImpl *Frame) : SourceFrame(Frame) {}
+		virtual ~FSampleObserver() {}
+
+	protected:
+		virtual void AMF_STD_CALL OnSurfaceDataRelease(AMFSurface *pSurface)
+		{
+			SourceFrame->Release();
+			delete this;
+		}
+
+	private:
+		const FVideoEncoderInputFrameImpl* SourceFrame;
+	};
+
 	bool FVideoEncoderAmf_H264::FAMFLayer::CreateSurface(TSharedPtr<FVideoEncoderAmf_H264::FAMFLayer::FInputOutput>& OutBuffer, const FVideoEncoderInputFrameImpl* SourceFrame, void* TextureToCompress)
 	{
 		AMF_RESULT Result = AMF_OK;
 
 		OutBuffer = MakeShared<FInputOutput>();
-		OutBuffer->SourceFrame = SourceFrame;
-		OutBuffer->TextureToCompress = TextureToCompress;
 
 		if (TextureToCompress)
 		{
@@ -629,14 +658,14 @@ namespace AVEncoder
 			{
 #if PLATFORM_WINDOWS
 			case EVideoFrameFormat::D3D11_R8G8B8A8_UNORM:
-				Result = Amf.GetContext()->CreateSurfaceFromDX11Native(TextureToCompress, &(OutBuffer->Surface), OutBuffer.Get());
+				Result = Amf.GetContext()->CreateSurfaceFromDX11Native(TextureToCompress, &(OutBuffer->Surface), new FSampleObserver(SourceFrame));
 				break;
 			case EVideoFrameFormat::D3D12_R8G8B8A8_UNORM:
-				Result = amf::AMFContext2Ptr(Amf.GetContext())->CreateSurfaceFromDX12Native(TextureToCompress, &(OutBuffer->Surface), OutBuffer.Get());
+				Result = amf::AMFContext2Ptr(Amf.GetContext())->CreateSurfaceFromDX12Native(TextureToCompress, &(OutBuffer->Surface), new FSampleObserver(SourceFrame));
 				break;
 #endif
 			case EVideoFrameFormat::VULKAN_R8G8B8A8_UNORM:
-				Result = amf::AMFContext2Ptr(Amf.GetContext())->CreateSurfaceFromVulkanNative(TextureToCompress, &(OutBuffer->Surface), OutBuffer.Get());
+				Result = amf::AMFContext2Ptr(Amf.GetContext())->CreateSurfaceFromVulkanNative(TextureToCompress, &(OutBuffer->Surface), new FSampleObserver(SourceFrame));
 				break;
 			case EVideoFrameFormat::Undefined:
 			default:
@@ -724,7 +753,7 @@ namespace AVEncoder
 		uint32 LevelMax;
 		if (EncoderCaps->GetProperty(AMF_VIDEO_ENCODER_CAP_MAX_LEVEL, &LevelMax) == AMF_OK)
 		{
-			EncoderInfo.H264.MinLevel = 9;							// Like NVENC we hard min at 9
+			EncoderInfo.H264.MinLevel = 9;														// Like NVENC we hard min at 9
 			EncoderInfo.H264.MaxLevel = (LevelMax < 9) ? 9 : (LevelMax > 52) ? 52 : LevelMax;	// Like NVENC we hard max at 52
 		}
 		else
