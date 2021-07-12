@@ -89,7 +89,10 @@ public:
 				return Index;
 			}
 		}
+#pragma push_macro("UNDEF_MAX")
+#undef max
 		return std::numeric_limits<uint32>::max();
+#pragma pop_macro("UNDEF_MAX")
 	}
 	//~ End ISlateAttributeContainer interface
 };
