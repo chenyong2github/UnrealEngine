@@ -75,7 +75,7 @@ namespace SubobjectEditorUtils
 		for (FSubobjectEditorTreeNodePtrType NodePtr : InNodePtrs)
 		{
 			const FSubobjectData* Data = NodePtr ? NodePtr->GetDataSource() : nullptr;
-			if (Data && Data->IsChildActor())
+			if (Data && Data->IsChildActorSubtreeObject())
 			{
 				return true;
 			}
