@@ -318,7 +318,7 @@ private:
 			{
 				cancelled = true;
 			}
-			if (cancelled)
+			if (cancelled || !Mesh->IsTriangle(TID))
 			{
 				return;
 			}
