@@ -3,8 +3,6 @@
 #include "Core/PBIKBody.h"
 #include "Core/PBIKSolver.h"
 
-//#pragma optimize("", off)
-
 namespace PBIK
 {
 
@@ -20,7 +18,6 @@ FBone::FBone(
 	Position = InOrigPosition;
 	Rotation = InOrigRotation;
 	bIsSolverRoot = bInIsSolverRoot;
-	bIsSolved = false; // default
 }
 
 bool FBone::HasChild(const FBone* Bone)
@@ -36,6 +33,18 @@ bool FBone::HasChild(const FBone* Bone)
 	return false;
 }
 
+void FBone::UpdateFromInputs()
+{
+	if (!Parent)
+	{
+		return;
+	}
+
+	LocalPositionOrig = Parent->Rotation.Inverse() * (Position - Parent->Position);
+	LocalRotationOrig = Parent->Rotation.Inverse() * Rotation;
+	Length = LocalPositionOrig.Size();
+}
+
 FRigidBody::FRigidBody(FBone* InBone)
 {
 	Bone = InBone;
@@ -45,16 +54,16 @@ FRigidBody::FRigidBody(FBone* InBone)
 void FRigidBody::Initialize(FBone* SolverRoot)
 {
 	FVector Centroid = Bone->Position;
-	Length = 0.0f;
+	Mass = 0.0f;
 	for(const FBone* Child : Bone->Children)
 	{
 		Centroid += Child->Position;
-		Length += (Bone->Position - Child->Position).Size();
+		Mass += (Bone->Position - Child->Position).Size();
 	}
-	Centroid = Centroid * (1.0f / ((float)Bone->Children.Num() + 1.0f));
+	Centroid = Centroid * (1.0f / (Bone->Children.Num() + 1.0f));
 
 	Position = Centroid;
-	Rotation = RotationOrig = Bone->Rotation;
+	Rotation = InitialRotation = Bone->Rotation;
 	BoneLocalPosition = Rotation.Inverse() * (Bone->Position - Centroid);
 
 	for (FBone* Child : Bone->Children)
@@ -80,12 +89,13 @@ void FRigidBody::UpdateFromInputs(const FPBIKSolverSettings& Settings)
 		// set to input pose
 		Position = Bone->Position - Bone->Rotation * BoneLocalPosition;
 		Rotation = Bone->Rotation;
+		InputPosition = Position;
 	}
 
-	// Body.Length used as rough approximation of the mass of the body
 	// for fork joints (multiple solved children) we sum lengths to all children (see Initialize)
-	MaxInvMass = 1.0f / ( Length * ((Settings.MassMultiplier * GLOBAL_UNITS) + 0.5f));
-	MinInvMass = 1.0f / ( Length * ((Settings.MinMassMultiplier * GLOBAL_UNITS) + 0.5f));
+	const float MinMass = 0.5f; // prevent mass ever hitting zero
+	MaxInvMass = 1.0f / (Mass * ((Settings.MassMultiplier * GLOBAL_UNITS) + MinMass));
+	MinInvMass = 1.0f / (Mass * ((Settings.MinMassMultiplier * GLOBAL_UNITS) + MinMass));
 }
 
 int FRigidBody::GetNumBonesToRoot() const
@@ -111,9 +121,9 @@ void FRigidBody::ApplyPushToRotateBody(const FVector& Push, const FVector& Offse
 	}
 	
 	// equation 8 in "Detailed Rigid Body Simulation with XPBD"
-	FVector Omega = InvMass * (1.0f - J.RotationStiffness) * FVector::CrossProduct(Offset, Push);
-	FQuat OQ(Omega.X, Omega.Y, Omega.Z, 0.0f);
-	ApplyRotationDelta(OQ, false);
+	const FVector Omega = InvMass * (1.0f - J.RotationStiffness) * FVector::CrossProduct(Offset, Push);
+	const FQuat DeltaQ(Omega.X, Omega.Y, Omega.Z, 0.0f);
+	ApplyRotationDelta(DeltaQ);
 }
 
 void FRigidBody::ApplyPushToPosition(const FVector& Push)
@@ -121,23 +131,23 @@ void FRigidBody::ApplyPushToPosition(const FVector& Push)
 	Position += Push * (1.0f - J.PositionStiffness);
 }
 
-void FRigidBody::ApplyRotationDelta(const FQuat& InDelta, const bool bNegated)
+void FRigidBody::ApplyRotationDelta(const FQuat& DeltaQ)
 {
 	if (Pin && Pin->bEnabled && Pin->bPinRotation)
 	{
 		return; // rotation of this body is pinned
 	}
 
-	/** InDelta is assumed to be a "pure" quaternion representing an infintesimal rotation */
-	FQuat Delta = InDelta * Rotation;
+	/** DeltaQ is assumed to be a "pure" quaternion representing an infintesimal rotation */
+	FQuat Delta = DeltaQ * Rotation;
 	Delta.X *= 0.5f;
 	Delta.Y *= 0.5f;
 	Delta.Z *= 0.5f;
 	Delta.W *= 0.5f;
-	Rotation.X = Rotation.X + (bNegated ? -Delta.X : Delta.X);
-	Rotation.Y = Rotation.Y + (bNegated ? -Delta.Y : Delta.Y);
-	Rotation.Z = Rotation.Z + (bNegated ? -Delta.Z : Delta.Z);
-	Rotation.W = Rotation.W + (bNegated ? -Delta.W : Delta.W);
+	Rotation.X = Rotation.X + Delta.X;
+	Rotation.Y = Rotation.Y + Delta.Y;
+	Rotation.Z = Rotation.Z + Delta.Z;
+	Rotation.W = Rotation.W + Delta.W;
 	Rotation.Normalize();
 }
 } // namespace

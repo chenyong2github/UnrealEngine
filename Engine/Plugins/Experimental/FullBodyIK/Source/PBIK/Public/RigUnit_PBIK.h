@@ -63,6 +63,12 @@ struct FPBIKEffector
 
 	UPROPERTY()
 	float StrengthAlpha = 1.0f;
+	
+	UPROPERTY()
+	float PullChainAlpha = 1.0f;
+
+	UPROPERTY()
+	bool bPinRotation = true;
 };
 
 USTRUCT(meta=(DisplayName="Full Body IK", Category="Hierarchy", Keywords="Position Based, PBIK, IK, Full Body, Multi, Effector, N-Chain, FB"))

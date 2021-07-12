@@ -19,9 +19,6 @@ struct FBone
 {
 	FName Name;
 	int32 ParentIndex = -2; // -2 is unset, -1 for root, or 0...n otherwise
-	bool bIsSolverRoot = false;
-	bool bIsSolved = false;
-	bool bIsSubRoot = false;
 	FVector Position;
 	FQuat Rotation;
 	FVector LocalPositionOrig;
@@ -31,6 +28,10 @@ struct FBone
 	FRigidBody* Body = nullptr;
 	FBone* Parent = nullptr;
 	TArray<FBone*> Children;
+	bool bIsSolverRoot = false;
+	bool bIsSolved = false;
+	bool bIsSubRoot = false;
+	float Length = 0.f;
 	// initialized
 
 	FBone(
@@ -41,6 +42,7 @@ struct FBone
 		bool bInIsSolverRoot);
 
 	bool HasChild(const FBone* Bone);
+	void UpdateFromInputs();
 };
 
 enum class ELimitType : uint8
@@ -80,14 +82,15 @@ struct FRigidBody
 
 	FVector Position;
 	FQuat Rotation;
-	FQuat RotationOrig;
+	FVector InputPosition;
+	FQuat InitialRotation;
 	FVector BoneLocalPosition;
 	TArray<FVector> ChildLocalPositions;
 
-	float InvMass = 0.0f;
-	float MaxInvMass = 0.0f;
-	float MinInvMass = 0.0f;
-	float Length;
+	float InvMass = 0.f;
+	float MaxInvMass = 0.f;
+	float MinInvMass = 0.f;
+	float Mass = 0.f;
 	
 private:
 
@@ -109,7 +112,7 @@ public:
 	
 	void ApplyPushToPosition(const FVector& Push);
 
-	void ApplyRotationDelta(const FQuat& InDelta, const bool bNegated);
+	void ApplyRotationDelta(const FQuat& InDelta);
 };
 
 // for sorting Bodies hierarchically (root to leaf order)

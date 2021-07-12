@@ -96,7 +96,9 @@ void UIKRigPBIKSolver::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 			Goal.FinalBlendedPosition,
 			Goal.FinalBlendedRotation,
 			OffsetAlpha,
-			Effector->StrengthAlpha);
+			Effector->StrengthAlpha,
+			Effector->PullChainAlpha,
+			Effector->bPinRotation);
 	}
 
 	// update settings
@@ -107,6 +109,7 @@ void UIKRigPBIKSolver::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 	Settings.MinMassMultiplier = MinMassMultiplier;
 	Settings.bPinRoot = bPinRoot;
 	Settings.bStartSolveFromInputPose = bStartSolveFromInputPose;
+	Settings.bPreProcessPose = bPreProcessPose;
 
 	// solve
 	Solver.Solve(Settings);
@@ -130,6 +133,7 @@ void UIKRigPBIKSolver::UpdateSolverSettings(UIKRigSolver* InSettings)
 		MinMassMultiplier = Settings->MinMassMultiplier;
 		bPinRoot = Settings->bPinRoot;
 		bStartSolveFromInputPose = Settings->bStartSolveFromInputPose;
+		bPreProcessPose = Settings->bPreProcessPose;
 
 		// copy effector settings
 		for (const UIKRig_FBIKEffector* InEffector : Settings->Effectors)

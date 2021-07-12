@@ -16,9 +16,9 @@ FJointConstraint::FJointConstraint(FRigidBody* InA, FRigidBody* InB)
 	PinPointLocalToA = A->Rotation.Inverse() * (PinPoint - A->Position);
 	PinPointLocalToB = B->Rotation.Inverse() * (PinPoint - B->Position);
 
-	XOrig = B->RotationOrig * FVector(1, 0, 0);
-	YOrig = B->RotationOrig * FVector(0, 1, 0);
-	ZOrig = B->RotationOrig * FVector(0, 0, 1);
+	XOrig = B->InitialRotation * FVector(1, 0, 0);
+	YOrig = B->InitialRotation * FVector(0, 1, 0);
+	ZOrig = B->InitialRotation * FVector(0, 0, 1);
 
 	AngleX = AngleY = AngleZ = 0;
 }
@@ -86,10 +86,10 @@ FVector FJointConstraint::GetPositionCorrection(FVector& OutBodyToA, FVector& Ou
 	return (PinPointOnB - PinPointOnA);
 }
 
-void FJointConstraint::ApplyRotationCorrection(FQuat PureRotA, FQuat PureRotB) const
+void FJointConstraint::ApplyRotationCorrection(FQuat DeltaQ) const
 {
-	A->ApplyRotationDelta(PureRotA, false);
-	B->ApplyRotationDelta(PureRotB, true);
+	A->ApplyRotationDelta(DeltaQ);
+	B->ApplyRotationDelta(DeltaQ * -1.0f);
 }
 
 void FJointConstraint::UpdateJointLimits()
@@ -114,7 +114,18 @@ void FJointConstraint::UpdateJointLimits()
 	const bool bLockY = (J.Y == ELimitType::Locked) || (J.Y == ELimitType::Limited && ((J.MaxY - J.MinY) < 2.0f));
 	const bool bLockZ = (J.Z == ELimitType::Locked) || (J.Z == ELimitType::Limited && ((J.MaxZ - J.MinZ) < 2.0f));
 
-	// determine which axes should be treated as a hinge (mutually exclusive)
+	// when locked on THREE axes, consider the bone FIXED
+	if (bLockX && bLockY && bLockZ)
+	{
+		const FQuat OrigOffset = A->InitialRotation * B->InitialRotation.Inverse();
+		const FQuat CurrentOffset = A->Rotation * B->Rotation.Inverse();
+		const FQuat DeltaOffset = OrigOffset * CurrentOffset.Inverse();
+		const FQuat DeltaQ = FQuat(DeltaOffset.X, DeltaOffset.Y, DeltaOffset.Z, 0.0f) * 2.0f;
+		ApplyRotationCorrection(DeltaQ);
+		return; // fixed bones cannot move at all
+	}
+
+	// when locked on TWO axes, consider the bone a HINGE (mutually exclusive)
 	const bool bXHinge = !bLockX && bLockY && bLockZ;
 	const bool bYHinge = bLockX && !bLockY && bLockZ;
 	const bool bZHinge = bLockX && bLockY && !bLockZ;
@@ -167,15 +178,15 @@ void FJointConstraint::RotateToAlignAxes(const FVector& AxisA, const FVector& Ax
 	FVector Axis;
 	float Magnitude;
 	ACrossB.ToDirectionAndLength(Axis, Magnitude);
-	const float EffectiveInvMass = FVector::DotProduct(Axis, Axis);
+	const float EffectiveInvMass = FVector::DotProduct(Axis, Axis); // Todo incorporate Body Mass here?
 	if (EffectiveInvMass < KINDA_SMALL_NUMBER)
 	{
 		return;
 	}
 	const float DeltaLambda = Magnitude / EffectiveInvMass;
 	const FVector Push = Axis * DeltaLambda;
-	const FQuat PureRotA = FQuat(Push.X, Push.Y, Push.Z, 0.0f);
-	ApplyRotationCorrection(PureRotA, PureRotA);
+	const FQuat DeltaQ = FQuat(Push.X, Push.Y, Push.Z, 0.0f);
+	ApplyRotationCorrection(DeltaQ);
 }
 
 void FJointConstraint::RotateWithinLimits(
@@ -200,8 +211,8 @@ void FJointConstraint::RotateWithinLimits(
 
 void FJointConstraint::UpdateLocalRotateAxes(bool bX, bool bY, bool bZ)
 {
-	const FQuat ARot = A->Rotation * A->RotationOrig.Inverse();
-	const FQuat BRot = B->Rotation * B->RotationOrig.Inverse();
+	const FQuat ARot = A->Rotation * A->InitialRotation.Inverse();
+	const FQuat BRot = B->Rotation * B->InitialRotation.Inverse();
 
 	if (bX)
 	{
@@ -224,8 +235,8 @@ void FJointConstraint::UpdateLocalRotateAxes(bool bX, bool bY, bool bZ)
 
 void FJointConstraint::DecomposeRotationAngles()
 {
-	const FQuat ARot = A->Rotation * A->RotationOrig.Inverse();
-	const FQuat BRot = B->Rotation * B->RotationOrig.Inverse();
+	const FQuat ARot = A->Rotation * A->InitialRotation.Inverse();
+	const FQuat BRot = B->Rotation * B->InitialRotation.Inverse();
 
 	XA = ARot * XOrig;
 	YA = ARot * YOrig;
@@ -250,7 +261,7 @@ float FJointConstraint::SignedAngleBetweenNormals(
 {
 	const float FromDotTo = FVector::DotProduct(From, To);
 	const float Angle = FMath::RadiansToDegrees(FMath::Acos(FromDotTo));
-	const FVector Cross = FVector::CrossProduct(From, To); // TODO may be backwards?
+	const FVector Cross = FVector::CrossProduct(From, To);
 	const float Dot = FVector::DotProduct(Cross, Axis);
 	return Dot >= 0 ? Angle : -Angle;
 }
