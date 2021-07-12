@@ -205,10 +205,6 @@ $ bCompilerTrace : Outputs compile timing information so that it can be analyzed
 
 $ bShowIncludes : Print out files that are included by each source file
 
-### PS4Platform
-
-$ bUseLiveCodeEdit : Enable support for edit and continue code modification on ps4
-
 ### ModuleConfiguration
 
 $ DisableUnityBuild : List of modules to disable unity builds for
@@ -636,46 +632,4 @@ $ SshPrivateKey : If set, instead of looking for RemoteToolChainPrivate.key in t
 $ RsyncAuthentication : The authentication used for Rsync (for the -e rsync flag).
 
 $ SshAuthentication : The authentication used for SSH (probably similar to RsyncAuthentication).
-
-### GDKPlatform
-
-$ bVerifyLibGDKEditions : Whether to verify that any libs the application links to are using the same GDK edition
-
-$ bVerifyDLLGDKEditions : Whether to verify that any DLLs the application links to are using the same GDK edition
-
-$ bBuildForIteration : Whether to automatically enable incremental linking etc. when building non-shipping, non-formal builds. Can speed up building but can cause instability, and on very large projects PDB generation may fail.
-
-### PS4ProjectGenerator
-
-$ bUseApplicationDebugger : No documentation available.
-
-### PS5ProjectGenerator
-
-$ bUseApplicationDebugger : When enabled, generates project files that default to using the PS5 application debugger.
-
-$ bUseGP5File : When enabled, generates project files where the PS5 local debugger is set to use a .gp5 file from the StagedBuild directory. Otherwise, the StagedBuild directory itself is set as the working directory, and the title is launched without the help of a .gp5 file.
-
-### PS5Platform
-
-$ bUseLiveCodeEdit : Enable support for edit and continue code modification
-
-### XboxCommonPlatform
-
-$ Compiler : Override the default compiler
-
-$ CompilerVersion : Override the default compiler version
-
-$ bNoXboxCommonGDKWarning : Whether to log out a warning when linking against modules in an XboxCommonGDK path
-
-$ bPackageDebugAssistance : Assistance for debugging an installed xvc package: Disables the F5 debugger and copies the executable to an overlay folder instead. Can only be done on the default devkit
-
-$ PackageDebugOverrideName : Custom app package name for package debugging assistance. e.g. GameName_1.0.0.0_neutral__z844xmwvfmpty
-
-### XboxOneGDKProjectGenerator
-
-$ bRemoveExtraDeployFiles : 
-
-### XSXProjectGenerator
-
-$ bRemoveExtraDeployFiles : 
 
