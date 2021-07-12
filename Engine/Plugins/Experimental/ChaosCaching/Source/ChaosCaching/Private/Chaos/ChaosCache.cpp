@@ -3,12 +3,96 @@
 #include "Chaos/ChaosCache.h"
 #include "Chaos/ChaosCachingPlugin.h"
 #include "Components/PrimitiveComponent.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
+#include "GeometryCollection/GeometryCollectionComponent.h"
+#include "GeometryCollection/GeometryCollectionObject.h"
 
 UChaosCache::UChaosCache()
 	: CurrentRecordCount(0)
 	, CurrentPlaybackCount(0)
+	, bStripMassToLocal(false)
 {
+	// Default Version. If a Version was archived, this will be overwritten during Serialize() 
+	Version = 0;
+}
 
+void UChaosCache::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
+	Super::Serialize(Ar);
+
+	if (Ar.IsLoading())
+	{ 
+		// Older versions of GeometryCollection caches had MassToLocal transform baked into the stored transforms. This unfortunately means
+		// that evaluating the cache outside the context of the PhysicsThread is unlikely to be accurate. To make this work, we need to
+		// strip the MassToLocal from the existing cached transforms.
+		if ((Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::GeometryCollectionCacheRemovesMassToLocal) && (Version == 0))
+		{
+			bStripMassToLocal = true;
+		}
+	}	
+}
+
+void UChaosCache::PostLoad()
+{
+	if (bStripMassToLocal)
+	{ 
+		// Am I a GeometryCollection cache?
+		UObject* DuplicatedTemplate = Spawnable.DuplicatedTemplate;
+		if (UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(DuplicatedTemplate))
+		{
+			// Get the referenced RestCollection
+			if (const UGeometryCollection* RestCollection = GeometryCollectionComponent->GetRestCollection())
+			{
+				const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollection = RestCollection->GetGeometryCollection();
+
+				// Get the MassToLocal transforms
+				if (GeometryCollection->HasAttribute(TEXT("MassToLocal"), FTransformCollection::TransformGroup))
+				{
+					const TManagedArray<FTransform>& CollectionMassToLocal = GeometryCollection->GetAttribute<FTransform>(TEXT("MassToLocal"), FTransformCollection::TransformGroup);
+				
+					// Strip out the MassToLocal transforms from all cached transforms
+					int32 NumTracks = TrackToParticle.Num();
+					int32 NumParticles = CollectionMassToLocal.Num();
+					for (int32 TrackIdx = 0; TrackIdx < NumTracks; ++TrackIdx)
+					{
+						int32 ParticleIdx = TrackToParticle[TrackIdx];
+						if (ParticleIdx < NumParticles)
+						{ 
+							const FTransform& MassToLocal = CollectionMassToLocal[ParticleIdx];
+
+							FParticleTransformTrack& TransformData = ParticleTracks[TrackIdx].TransformData;
+							FRawAnimSequenceTrack& AnimTrack = TransformData.RawTransformTrack;
+
+							if (ensure((AnimTrack.PosKeys.Num() == AnimTrack.RotKeys.Num()) && (AnimTrack.RotKeys.Num() == AnimTrack.ScaleKeys.Num())))
+							{ 
+								int32 NumKeys = AnimTrack.PosKeys.Num();
+								for (int32 KeyIdx = 0; KeyIdx < NumKeys; ++KeyIdx)
+								{
+									FTransform MassTransform(AnimTrack.RotKeys[KeyIdx], AnimTrack.PosKeys[KeyIdx], AnimTrack.ScaleKeys[KeyIdx]);
+									FTransform LocalTransform = MassToLocal.Inverse() * MassTransform;
+									FQuat LocalRotation = LocalTransform.GetRotation();
+									FVector LocalTranslation = LocalTransform.GetTranslation();
+
+									AnimTrack.RotKeys[KeyIdx] = LocalRotation;
+									AnimTrack.PosKeys[KeyIdx] = LocalTranslation;
+								}
+							}
+						}
+					}
+				
+					bStripMassToLocal = false;
+										
+				}
+			}
+		}
+	}
+
+	// Up-to-date now
+	Version = CurrentVersion;
+
+	Super::PostLoad();
 }
 
 void UChaosCache::FlushPendingFrames()
@@ -161,6 +245,9 @@ void UChaosCache::EndRecord(FCacheUserToken& InOutToken)
 		InOutToken.bIsOpen = false;
 		InOutToken.Owner = nullptr;
 		CurrentRecordCount--;
+
+		// Set the Version appropriately
+		Version = CurrentVersion;
 	}
 	else
 	{
