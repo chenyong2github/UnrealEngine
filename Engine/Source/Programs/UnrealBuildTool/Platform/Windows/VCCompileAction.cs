@@ -428,6 +428,9 @@ namespace UnrealBuildTool
 			if (PreprocessedFile != null)
 			{
 				VCToolChain.AddPreprocessedFile(Arguments, PreprocessedFile, CompilerType, PreprocessedFile != null);
+
+				// this is parsed by external tools wishing to open this file directly.
+				Log.TraceInformation("PreProcessPath: " + PreprocessedFile);
 			}
 
 			if (ObjectFile != null)
