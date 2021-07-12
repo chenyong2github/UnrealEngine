@@ -1039,14 +1039,15 @@ bool FD3D12CommandListManager::IsComplete(const FD3D12CLSyncPoint& hSyncPoint, u
 
 CommandListState FD3D12CommandListManager::GetCommandListState(const FD3D12CLSyncPoint& hSyncPoint)
 {
-	check(hSyncPoint);
-	if (hSyncPoint.IsComplete())
-	{
-		return CommandListState::kFinished;
-	}
-	else if (hSyncPoint.Generation == hSyncPoint.CommandList.CurrentGeneration())
+	// hSyncPoint in rare conditions goes invalid in multi-gpu environment so "check(hSyncPoint)" causes engine to crash. 
+	// Instead this plug would let the command list continue if synchpoint is invalid.
+	if (!hSyncPoint || hSyncPoint.Generation == hSyncPoint.CommandList.CurrentGeneration())
 	{
 		return CommandListState::kOpen;
+	}
+	else if (hSyncPoint.IsComplete())
+	{
+		return CommandListState::kFinished;
 	}
 	else
 	{
