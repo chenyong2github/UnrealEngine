@@ -140,6 +140,10 @@ namespace UnrealBuildTool
 			{
 				BuildToolOverride = "-2019";
 			}
+			else if (InArguments.HasOption("-2022"))
+			{
+				BuildToolOverride = "-2022";
+			}
 		}
 
 		public override string[] GetTargetArguments(string[] Arguments)
