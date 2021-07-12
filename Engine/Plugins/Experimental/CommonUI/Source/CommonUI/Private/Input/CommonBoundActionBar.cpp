@@ -135,7 +135,8 @@ void UCommonBoundActionBar::HandleDeferredDisplayUpdate()
 					const ECommonInputType PlayerInputType = InputSubsystem.GetCurrentInputType();
 					const FName& PlayerGamepadName = InputSubsystem.GetCurrentGamepadName();
 
-					TArray<FUIActionBindingHandle> FilteredBindings = ActionRouter->GatherActiveBindings().FilterByPredicate([PlayerInputType, PlayerGamepadName](const FUIActionBindingHandle& Handle)
+					TSet<FName> AcceptedBindings;
+					TArray<FUIActionBindingHandle> FilteredBindings = ActionRouter->GatherActiveBindings().FilterByPredicate([PlayerInputType, PlayerGamepadName, &AcceptedBindings](const FUIActionBindingHandle& Handle) mutable
 						{
 							if (TSharedPtr<FUIActionBinding> Binding = FUIActionBinding::FindBinding(Handle))
 							{
@@ -156,7 +157,9 @@ void UCommonBoundActionBar::HandleDeferredDisplayUpdate()
 									return false; //@todo(josh.gross) - allow non-legacy bindings
 								}
 
-								return true;
+								bool bAlreadyAccepted = false;
+								AcceptedBindings.Add(Binding->ActionName, &bAlreadyAccepted);
+								return !bAlreadyAccepted;
 							}
 
 							return false;
@@ -199,6 +202,10 @@ void UCommonBoundActionBar::HandleDeferredDisplayUpdate()
 								if (bAIsBack && !bBIsBack)
 								{
 									return false;
+								}
+								else if (LegacyDataA->NavBarPriority != LegacyDataB->NavBarPriority)
+								{
+									return LegacyDataA->NavBarPriority < LegacyDataB->NavBarPriority;
 								}
 							}
 

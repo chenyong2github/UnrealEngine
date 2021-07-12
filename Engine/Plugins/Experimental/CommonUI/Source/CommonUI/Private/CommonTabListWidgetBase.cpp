@@ -322,7 +322,10 @@ void UCommonTabListWidgetBase::NativeDestruct()
 
 	ActiveTabID = NAME_None;
 	RemoveAllTabs();
-	TabButtonGroup->RemoveAll();
+	if (TabButtonGroup)
+	{
+		TabButtonGroup->RemoveAll();
+	}
 }
 
 void UCommonTabListWidgetBase::HandlePreLinkedSwitcherChanged()

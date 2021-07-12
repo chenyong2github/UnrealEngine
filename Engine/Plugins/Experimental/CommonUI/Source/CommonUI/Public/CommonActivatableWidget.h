@@ -40,15 +40,35 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = ActivatableWidget)
 	void DeactivateWidget();
+	
+	/**
+	 * Visibilities to use for when bound widgets in BindVisibilityToActivation are activated.
+	 *
+	 * @param	OnActivatedVisibility	- Visibility for when bound widgets are active
+	 * @param	OnDeactivatedVisibility - Visibility for when bound widgets are not active, not used if this widget has activation / deactivation visibilities
+	 * @param	bInAllActive			- True if we should switch to activated visibility only when all bound widgets are active
+	 */
+	UFUNCTION(BlueprintCallable, Category = ActivatableWidget, meta=(BlueprintProtected = "true"))
+	void SetBindVisibilities(ESlateVisibility OnActivatedVisibility, ESlateVisibility OnDeactivatedVisibility, UPARAM(DisplayName = "All Active") bool bInAllActive);
+
+	/**
+	 * Bind our visibility to the activation of another widget, useful for making mouse collisions behave similiar to console navigation w.r.t activation
+	 * Will immediately update visibility based on the bound widget activation & visibilites set by SetBindVisibilities.
+	 *
+	 * @param	ActivatableWidget		- The widget whose activation / deactivation will modify our visibility 
+	 */
+	UFUNCTION(BlueprintCallable, Category = ActivatableWidget)
+	void BindVisibilityToActivation(UCommonActivatableWidget* ActivatableWidget);
+
+	/** Returns the desired widget to focus when this Widget Activates. */
+	UFUNCTION(BlueprintCallable, Category = ActivatableWidget)
+	UWidget* GetDesiredFocusTarget() const;
 
 	FSimpleMulticastDelegate& OnActivated() const { return OnActivatedEvent; }
 	FSimpleMulticastDelegate& OnDeactivated() const { return OnDeactivatedEvent; }
 
 //COMMONUI_SCOPE:
 public:
-
-	/** Returns the desired widget to focus when this Widget Activates. */
-	UWidget* GetDesiredFocusTarget() const;
 	
 	virtual TOptional<FUICameraConfig> GetDesiredCameraConfig() const;
 	/**
@@ -154,6 +174,9 @@ protected:
 	bool bAutoRestoreFocus = false;
 	
 private:
+	/** See BindVisibilityToMultipleActivations */
+	void HandleVisibilityBoundWidgetActivations();
+
 	UPROPERTY(EditAnywhere, Category = Activation, meta = (InlineEditConditionToggle = "ActivatedVisibility"))
 	bool bSetVisibilityOnActivated = false;
 
@@ -176,6 +199,22 @@ private:
 	
 	UPROPERTY(BlueprintReadOnly, Category = ActivatableWidget, meta = (AllowPrivateAccess = true))
 	bool bIsActive = false;
+
+	/** List of widgets whose collective activation controls our visibility. */
+	UPROPERTY(Transient)
+	TArray<TWeakObjectPtr<UCommonActivatableWidget>> VisibilityBoundWidgets;
+
+	/** Visibility to use when widgets we are bound to are activated */
+	ESlateVisibility ActivatedBindVisibility = ESlateVisibility::SelfHitTestInvisible;
+
+	/** Visibility to use when widgets we are bound to are deactivated, not used if widget has activation / deactivation visibilities */
+	ESlateVisibility DeactivatedBindVisibility = ESlateVisibility::SelfHitTestInvisible;
+
+	/** True if we should switch to activated visibility only when all bound widgets are active */
+	bool bAllActive = true;
+
+	/** Handle to default back action, if bound */
+	FUIActionBindingHandle DefaultBackActionHandle;
 
 	mutable FSimpleMulticastDelegate OnActivatedEvent;
 	mutable FSimpleMulticastDelegate OnDeactivatedEvent;
