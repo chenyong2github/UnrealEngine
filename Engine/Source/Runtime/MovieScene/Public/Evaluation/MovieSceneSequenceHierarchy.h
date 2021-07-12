@@ -193,18 +193,12 @@ struct FMovieSceneSubSequenceTreeEntry
 {
 	GENERATED_BODY()
 
-	friend FArchive& operator<<(FArchive& Ar, FMovieSceneSubSequenceTreeEntry& InOutEntry)
-	{
-		return Ar << InOutEntry.SequenceID << InOutEntry.Flags;
-	}
-
-	friend bool operator==(FMovieSceneSubSequenceTreeEntry A, FMovieSceneSubSequenceTreeEntry B)
-	{
-		return A.SequenceID == B.SequenceID && A.Flags == B.Flags;
-	}
+	friend FArchive& operator<<(FArchive& Ar, FMovieSceneSubSequenceTreeEntry& InOutEntry);
+	friend bool operator==(FMovieSceneSubSequenceTreeEntry A, FMovieSceneSubSequenceTreeEntry B);
 
 	FMovieSceneSequenceID SequenceID;
 	ESectionEvaluationFlags Flags;
+	FMovieSceneWarpCounter RootToSequenceWarpCounter;
 };
 
 USTRUCT()
@@ -303,12 +297,15 @@ struct FMovieSceneSequenceHierarchy
 	 */
 	void Add(const FMovieSceneSubSequenceData& Data, FMovieSceneSequenceIDRef ThisSequenceID, FMovieSceneSequenceIDRef ParentID);
 
+	/**
+	 * Remove the specified sub sequence datas from the hierarchy.
+	 */
 	void Remove(TArrayView<const FMovieSceneSequenceID> SequenceIDs);
 
-	void AddRange(FMovieSceneSequenceIDRef InSequenceID, const TRange<FFrameNumber>& RootSpaceRange, ESectionEvaluationFlags InFlags)
-	{
-		Tree.Data.AddUnique(RootSpaceRange, FMovieSceneSubSequenceTreeEntry{ InSequenceID, InFlags });
-	}
+	/**
+	 * Add an entry for the given sub sequence with the given root time range
+	 */
+	void AddRange(const TRange<FFrameNumber>& RootSpaceRange, FMovieSceneSequenceIDRef InSequenceID, ESectionEvaluationFlags InFlags, FMovieSceneWarpCounter RootToSequenceWarpCounter);
 	
 	/** Get all sub-sequence IDs */
 	void AllSubSequenceIDs(TArray<FMovieSceneSequenceID>& OutSequenceIDs) const

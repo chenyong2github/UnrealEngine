@@ -135,6 +135,9 @@ struct CORE_API FReleaseObjectVersion
 		// Serialize the number of bytes written when serializing function arguments
 		RemoteControlSerializeFunctionArgumentsSize,
 
+		// Add loop counters to sequencer's compiled sub-sequence data
+		AddedSubSequenceEntryWarpCounter,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

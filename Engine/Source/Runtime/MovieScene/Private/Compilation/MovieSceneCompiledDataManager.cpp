@@ -1466,7 +1466,7 @@ void UMovieSceneCompiledDataManager::PopulateSubSequenceTree(UMovieSceneSubTrack
 		checkf(SubData, TEXT("Unable to locate sub-data for a sub section that appears in the track's evaluation field - this indicates that the section is being evaluated even though it is not active"));
 
 		// Add the sub sequence to the tree
-		InOutHierarchy->AddRange(SubSequenceID, EffectiveRange, Entry.Flags | Params.Flags);
+		InOutHierarchy->AddRange(EffectiveRange, SubSequenceID, Entry.Flags | Params.Flags, FMovieSceneWarpCounter());
 
 		// Recurse into the sub sequence
 		RootPath->PushGeneration(SubSequenceID, SubData->DeterministicSequenceID);
@@ -1482,4 +1482,10 @@ void UMovieSceneCompiledDataManager::PopulateSubSequenceTree(UMovieSceneSubTrack
 		}
 		RootPath->PopGenerations(1);
 	}
+}
+
+TOptional<FFrameNumber> UMovieSceneCompiledDataManager::GetLoopingSubSectionEndTime(const UMovieSceneSequence* InRootSequence, const UMovieSceneSubSection* SubSection, const FGatherParameters& Params)
+{
+	// Stub only for now, implementation to come later.
+	return TOptional<FFrameNumber>();
 }

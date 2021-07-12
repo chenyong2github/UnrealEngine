@@ -86,6 +86,21 @@ struct FMovieSceneWarpCounter
 		AddWarpingLevel(FMovieSceneTimeWarping::InvalidWarpCount);
 	}
 
+	int32 NumWarpCounts() const
+	{
+		return WarpCounts.Num();
+	}
+
+	uint32 LastWarpCount() const
+	{
+		return WarpCounts.Num() > 0 ? WarpCounts[WarpCounts.Num() - 1] : FMovieSceneTimeWarping::InvalidWarpCount;
+	}
+
+	friend bool operator==(const FMovieSceneWarpCounter& A, const FMovieSceneWarpCounter& B)
+	{
+		return A.WarpCounts == B.WarpCounts;
+	}
+
 	UPROPERTY()
 	TArray<uint32> WarpCounts;
 };

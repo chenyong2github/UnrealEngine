@@ -5,6 +5,7 @@
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
 #include "MovieSceneTimeHelpers.h"
+#include "UObject/ReleaseObjectVersion.h"
 
 FMovieSceneSubSequenceData::FMovieSceneSubSequenceData()
 	: Sequence(nullptr)
@@ -178,3 +179,29 @@ void FMovieSceneSequenceHierarchy::Remove(TArrayView<const FMovieSceneSequenceID
 		IDsToRemove.RemoveAt(0, NumRemaining);
 	}
 }
+
+void FMovieSceneSequenceHierarchy::AddRange(const TRange<FFrameNumber>& RootSpaceRange, FMovieSceneSequenceIDRef InSequenceID, ESectionEvaluationFlags InFlags, FMovieSceneWarpCounter RootToSequenceWarpCounter)
+{
+	Tree.Data.AddUnique(RootSpaceRange, FMovieSceneSubSequenceTreeEntry{ InSequenceID, InFlags, RootToSequenceWarpCounter });
+}
+
+FArchive& operator<<(FArchive& Ar, FMovieSceneSubSequenceTreeEntry& InOutEntry)
+{
+	Ar << InOutEntry.SequenceID << InOutEntry.Flags;
+
+	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::AddedSubSequenceEntryWarpCounter)
+	{
+		FMovieSceneWarpCounter::StaticStruct()->SerializeTaggedProperties(
+				Ar, (uint8*)&InOutEntry.RootToSequenceWarpCounter, FMovieSceneWarpCounter::StaticStruct(), nullptr);
+	}
+
+	return Ar;
+}
+
+bool operator==(FMovieSceneSubSequenceTreeEntry A, FMovieSceneSubSequenceTreeEntry B)
+{
+	return A.SequenceID == B.SequenceID 
+		&& A.Flags == B.Flags
+		&& A.RootToSequenceWarpCounter == B.RootToSequenceWarpCounter;
+}
+
