@@ -490,8 +490,7 @@ namespace Chaos
 				}
 
 				// Evaluated transform is in Cache Manager space with MassToLocal removed. We need it in World space.
-				// Note that before Version 1, MassToLocal is burned into the evaluated transform.
-				FTransform WorldTransform = (InCache->Version < 1) ? EvaluatedTransform : MassToLocal[ParticleIndex] * EvaluatedTransform;
+				FTransform WorldTransform = MassToLocal[ParticleIndex] * EvaluatedTransform;
 				
 				Handle->SetP(WorldTransform.GetTranslation());
 				Handle->SetQ(WorldTransform.GetRotation());
@@ -512,7 +511,7 @@ namespace Chaos
 							// This will result in multiple transform sets happening to the parent but allows us to mostly ignore
 							// that it exists, if it doesn't the child still gets set to the correct position.
 							FTransform ChildTransform = Handle->ChildToParent();
-							FTransform Result = ChildTransform.Inverse() * EvaluatedTransform;
+							FTransform Result = ChildTransform.Inverse() * WorldTransform;
 							Parent->SetP(Result.GetTranslation());
 							Parent->SetX(Result.GetTranslation());
 							Parent->SetQ(Result.GetRotation());
@@ -664,8 +663,6 @@ namespace Chaos
 	bool FGeometryCollectionCacheAdapter::InitializeForRecord(UPrimitiveComponent* InComponent, UChaosCache* InCache)
 	{
 		ensure(IsInGameThreadContext());
-		
-		InCache->Version = 1;
 		
 		UGeometryCollectionComponent*    Comp     = CastChecked<UGeometryCollectionComponent>(InComponent);
 		FGeometryCollectionPhysicsProxy* Proxy    = Comp->GetPhysicsProxy();

@@ -252,6 +252,11 @@ public:
 
 	UChaosCache();
 
+	//~ UObject interface
+	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
+	//~ UObject interface END
+
 	/**
 	 * As we record post-simulate of physics, we're almost always taking data from a non-main thread (physics thread).
 	 * Because of this we can't directly write into the cache, but instead into a pending frame queue that needs to be
@@ -348,14 +353,6 @@ public:
 	UPROPERTY()
 	TMap<FName, FRichCurve> CurveData;
 
-	// Version for introducing new features to caches. If cache recording changes content or format of any caches,
-	// the version should be incremented and cache playback should accommodate older cache versions.
-	// The cache version is during InitializeForRecord in the appropriate adapter.
-	// 0
-	// 1 : Removed MassToLocal transform for GeometryCollection caches
-	UPROPERTY()
-	int32 Version;
-
 	template<typename T>
 	FCacheEventTrack& FindOrAddEventTrack(FName InName)
 	{
@@ -382,10 +379,21 @@ private:
 	UPROPERTY()
 	FGuid AdapterGuid;
 
+	/** Version for controlling conditioning of older caches to work with current system. Newly created caches should always be saved as CurrentVersion. */
+	UPROPERTY()
+	int32 Version;
+
+	// Version 0 : Pre versioning.
+	// Version 1 : Introduction of actor space transforms & removal of baked MassTOLocal transform in GeometryCollections.
+	static constexpr int32 CurrentVersion = 1;
+
 	/** Pending writes from all threads to be consumed on the game thread, triggered by the recording cache manager */
 	TQueue<FPendingFrameWrite, EQueueMode::Mpsc> PendingWrites;
 
 	/** Counts for current number of users, should only ever have one recorder, and if we do no playbacks */
 	std::atomic<int32> CurrentRecordCount;
 	std::atomic<int32> CurrentPlaybackCount;
+
+	/** Indicates that we need to strip MassToLocal before playing the cache. */
+	bool bStripMassToLocal;
 };

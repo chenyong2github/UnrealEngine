@@ -167,7 +167,6 @@ namespace Chaos
 	
 	bool FStaticMeshCacheAdapter::InitializeForRecord(UPrimitiveComponent* InComponent, UChaosCache* InCache)
 	{
-		InCache->Version = 1;
 		return true;
 	}
 
