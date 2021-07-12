@@ -243,12 +243,11 @@ void FShaderCompileUtilities::ApplyFetchEnvironment(FShaderCompilerDefines& SrcD
 
 
 // if we change the logic, increment this number to force a DDC key change
-static const int32 GBufferGeneratorVersion = 3;
+static const int32 GBufferGeneratorVersion = 4;
 
 bool NeedsVelocityDepth(EShaderPlatform TargetPlatform)
 {
-	static const auto CMeshSDFVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
-	return (CMeshSDFVar->GetValueOnAnyThread() != 0 && FDataDrivenShaderPlatformInfo::GetSupportsLumenGI(TargetPlatform)) 
+	return (DoesProjectSupportDistanceFields() && FDataDrivenShaderPlatformInfo::GetSupportsLumenGI(TargetPlatform)) 
 		|| FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(TargetPlatform);
 }
 

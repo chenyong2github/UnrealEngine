@@ -1113,7 +1113,7 @@ class FCullObjectsToClipmapCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileGlobalDistanceFieldShader(Parameters);
+		return ShouldCompileDistanceFieldShaders(Parameters.Platform);
 	}
 
 	static int32 GetGroupSize()
@@ -1142,7 +1142,7 @@ class FClearIndirectArgBufferCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileGlobalDistanceFieldShader(Parameters);
+		return ShouldCompileDistanceFieldShaders(Parameters.Platform);
 	}
 
 	static int32 GetGroupSize()
@@ -1179,7 +1179,7 @@ class FBuildGridTilesCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileGlobalDistanceFieldShader(Parameters);
+		return ShouldCompileDistanceFieldShaders(Parameters.Platform);
 	}
 
 	static int32 GetGroupSize()
@@ -1219,7 +1219,7 @@ class FCullObjectsToGridCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileGlobalDistanceFieldShader(Parameters);
+		return ShouldCompileDistanceFieldShaders(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -1274,7 +1274,7 @@ class FComposeObjectsIntoPagesCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileGlobalDistanceFieldShader(Parameters);
+		return ShouldCompileDistanceFieldShaders(Parameters.Platform);
 	}
 
 	static FIntVector GetGroupSize()
@@ -1307,7 +1307,7 @@ class FInitPageFreeListCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileGlobalDistanceFieldShader(Parameters);
+		return ShouldCompileDistanceFieldShaders(Parameters.Platform);
 	}
 
 	static uint32 GetGroupSize()
@@ -1383,7 +1383,7 @@ class FAllocatePagesCS : public FGlobalShader
 			return false;
 		}
 
-		return ShouldCompileGlobalDistanceFieldShader(Parameters);
+		return ShouldCompileDistanceFieldShaders(Parameters.Platform);
 	}
 
 	static FIntVector GetGroupSize()
@@ -1415,7 +1415,7 @@ class FPageFreeListReturnIndirectArgBufferCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileGlobalDistanceFieldShader(Parameters);
+		return ShouldCompileDistanceFieldShaders(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -1444,7 +1444,7 @@ class FPageFreeListReturnCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileGlobalDistanceFieldShader(Parameters);
+		return ShouldCompileDistanceFieldShaders(Parameters.Platform);
 	}
 
 	static uint32 GetGroupSize()
@@ -1490,7 +1490,7 @@ class FPropagateMipDistanceCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileGlobalDistanceFieldShader(Parameters);
+		return ShouldCompileDistanceFieldShaders(Parameters.Platform);
 	}
 
 	static FIntVector GetGroupSize()

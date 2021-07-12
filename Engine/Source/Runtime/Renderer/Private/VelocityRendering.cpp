@@ -341,8 +341,7 @@ void FSceneRenderer::RenderVelocities(
 EPixelFormat FVelocityRendering::GetFormat(EShaderPlatform ShaderPlatform)
 {
 	// Lumen needs velocity depth
-	static const auto CMeshSDFVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
-	const bool bNeedVelocityDepth = (CMeshSDFVar->GetValueOnRenderThread() != 0 && FDataDrivenShaderPlatformInfo::GetSupportsLumenGI(ShaderPlatform)) 
+	const bool bNeedVelocityDepth = (DoesProjectSupportDistanceFields() && FDataDrivenShaderPlatformInfo::GetSupportsLumenGI(ShaderPlatform)) 
 		|| FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(ShaderPlatform);
 
 	// Android platform doesn't support unorm G16R16 format, use G16R16F instead.

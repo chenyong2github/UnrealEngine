@@ -677,9 +677,7 @@ private:
 
 	float GetDistanceFieldShadowDistance() const
 	{
-		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
-
-		if (CVar->GetValueOnRenderThread() == 0)
+		if (DoesProjectSupportDistanceFields())
 		{
 			// Meshes must have distance fields generated
 			return 0;

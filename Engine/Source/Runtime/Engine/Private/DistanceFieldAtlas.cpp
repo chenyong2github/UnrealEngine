@@ -58,6 +58,13 @@ static TAutoConsoleVariable<int32> CVarDistField(
 	TEXT("Enabling will increase mesh build times and memory usage.  Changing this value will cause a rebuild of all static meshes."),
 	ECVF_ReadOnly);
 
+static TAutoConsoleVariable<int32> CVarDistFieldSupportWhenHardwareRayTracingEnabled(
+	TEXT("r.DistanceFields.SupportEvenIfHardwareRayTracingSupported"),
+	1,
+	TEXT("Whether to support distance fields when hardware ray tracing is supported.\n")
+	TEXT("Setting it to 0 will skip distance field overhead when hardware ray tracing is supported."),
+	ECVF_ReadOnly);
+
 static TAutoConsoleVariable<int32> CVarDistFieldRes(
 	TEXT("r.DistanceFields.MaxPerMeshResolution"),
 	512,	
