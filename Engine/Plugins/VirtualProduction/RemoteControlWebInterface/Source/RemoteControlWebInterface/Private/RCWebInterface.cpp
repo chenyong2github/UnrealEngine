@@ -25,10 +25,13 @@ void FRemoteControlWebInterfaceModule::StartupModule()
 	bRCWebInterfaceDisable = FParse::Param(FCommandLine::Get(), TEXT("RCWebInterfaceDisable")) || IsRunningCommandlet();
 
 	WebApp = MakeShared<FRemoteControlWebInterfaceProcess>();
-	
 	if (!bRCWebInterfaceDisable)
 	{
-		WebApp->Start();
+		TSharedPtr<FRemoteControlWebInterfaceProcess> WebAppLocal = WebApp;
+		FCoreDelegates::OnFEngineLoopInitComplete.AddLambda([WebAppLocal]()
+		{
+			WebAppLocal->Start();
+		});
 	}
 
 	if (IWebRemoteControlModule* WebRemoteControlModule = FModuleManager::GetModulePtr<IWebRemoteControlModule>("WebRemoteControl"))
@@ -63,6 +66,8 @@ void FRemoteControlWebInterfaceModule::ShutdownModule()
 	{
 		WebApp->Shutdown();
 	}
+
+	FCoreDelegates::OnFEngineLoopInitComplete.RemoveAll(this);
 
 #if WITH_EDITOR
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);

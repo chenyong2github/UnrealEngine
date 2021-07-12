@@ -13,3 +13,4 @@ export * from './Toggle';
 export * from './ValueInput';
 export * from './VectorDrawer';
 export * from './Search';
+export * from './SliderWheel';

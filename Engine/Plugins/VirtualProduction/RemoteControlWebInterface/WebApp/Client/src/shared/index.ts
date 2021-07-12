@@ -48,6 +48,13 @@ export type JoystickValue = { [key: string]: number };
 
 export type AxisInfo = [string, number];
 
+export type IHsvColor = {
+  h: number;
+  s: number;
+  v: number;
+  a: number;
+};
+
 export interface IFunctionParameter {
   Name: string;
   Description: string;
@@ -111,12 +118,15 @@ export interface IGroup {
 export interface IPreset {
   Path: string;
   Name: string;
+  ID: string;
   Groups: IGroup[];
   
   ExposedProperties?: IExposedProperty[];
   ExposedFunctions?: IExposedFunction[];
   Exposed?: Record<string, IExposedProperty | IExposedFunction>;
 }
+
+export type IPresets = { [preset: string]: IPreset };
 
 export interface IObject {
   Name: string;
@@ -178,7 +188,7 @@ export interface IPanel {
 export interface IColorPickerList {
   id?: string;
   widget: WidgetTypes.ColorPickerList;
-  properties: string[];
+  items: ICustomStackProperty[];
 }
 
 export enum TabLayout {
