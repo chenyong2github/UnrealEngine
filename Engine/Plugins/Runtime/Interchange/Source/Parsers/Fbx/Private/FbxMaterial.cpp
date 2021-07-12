@@ -3,10 +3,12 @@
 #include "FbxMaterial.h"
 
 #include "CoreMinimal.h"
+#include "FbxAPI.h"
 #include "FbxConvert.h"
 #include "FbxHelper.h"
 #include "FbxInclude.h"
 #include "InterchangeMaterialNode.h"
+#include "InterchangeResultsContainer.h"
 #include "InterchangeSceneNode.h"
 #include "InterchangeTexture2DNode.h"
 #include "InterchangeTextureNode.h"
@@ -14,18 +16,21 @@
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Misc/Paths.h"
 
+#define LOCTEXT_NAMESPACE "InterchangeFbxMaterial"
+
 namespace UE
 {
 	namespace Interchange
 	{
 		namespace Private
 		{
-			UInterchangeMaterialNode* FFbxMaterial::CreateMaterialNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUid, const FString& NodeName, TArray<FString>& JSonErrorMessages)
+			UInterchangeMaterialNode* FFbxMaterial::CreateMaterialNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUid, const FString& NodeName)
 			{
 				UInterchangeMaterialNode* MaterialNode = NewObject<UInterchangeMaterialNode>(&NodeContainer, NAME_None);
 				if (!ensure(MaterialNode))
 				{
-					JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot allocate a node when importing fbx\"}}"));
+					UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
+					Message->Text = LOCTEXT("CannotAllocateNode", "Cannot allocate a node when importing FBX.");
 					return nullptr;
 				}
 				// Creating a UMaterialInterface
@@ -35,13 +40,14 @@ namespace UE
 				return MaterialNode;
 			}
 
-			UInterchangeTexture2DNode* FFbxMaterial::CreateTexture2DNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUid, const FString& TextureFilePath, TArray<FString>& JSonErrorMessages)
+			UInterchangeTexture2DNode* FFbxMaterial::CreateTexture2DNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUid, const FString& TextureFilePath)
 			{
 				FString DisplayLabel = FPaths::GetBaseFilename(TextureFilePath);
 				UInterchangeTexture2DNode* TextureNode = NewObject<UInterchangeTexture2DNode>(&NodeContainer, NAME_None);
 				if (!ensure(TextureNode))
 				{
-					JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot allocate a node when importing fbx\"}}"));
+					UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
+					Message->Text = LOCTEXT("CannotAllocateNode", "Cannot allocate a node when importing FBX.");
 					return nullptr;
 				}
 				// Creating a UTexture2D
@@ -54,7 +60,7 @@ namespace UE
 				return TextureNode;
 			}
 
-			UInterchangeMaterialNode* FFbxMaterial::AddNodeMaterial(FbxSurfaceMaterial* SurfaceMaterial, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages)
+			UInterchangeMaterialNode* FFbxMaterial::AddNodeMaterial(FbxSurfaceMaterial* SurfaceMaterial, UInterchangeBaseNodeContainer& NodeContainer)
 			{
 				//Create a material node
 				FString MaterialName = FFbxHelper::GetFbxObjectName(SurfaceMaterial);
@@ -62,14 +68,19 @@ namespace UE
 				UInterchangeMaterialNode* MaterialNode = Cast<UInterchangeMaterialNode>(NodeContainer.GetNode(NodeUid));
 				if (!MaterialNode)
 				{
-					MaterialNode = CreateMaterialNode(NodeContainer, NodeUid, MaterialName, JSonErrorMessages);
+					MaterialNode = CreateMaterialNode(NodeContainer, NodeUid, MaterialName);
 					if (MaterialNode == nullptr)
 					{
-						JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot create fbx material (" + MaterialName + TEXT(")\"}}")));
+						FFormatNamedArguments Args
+						{
+							{ TEXT("MaterialName"), FText::FromString(MaterialName) }
+						};
+						UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
+						Message->Text = FText::Format(LOCTEXT("CannotCreateFBXMaterial", "Cannot create FBX material '{MaterialName}'."), Args);
 						return nullptr;
 					}
 
-					auto SetMaterialParameter = [&NodeContainer, &MaterialNode, &SurfaceMaterial, &JSonErrorMessages, &MaterialName](const char* FbxMaterialProperty, EInterchangeMaterialNodeParameterName MaterialParameterName)
+					auto SetMaterialParameter = [this, &NodeContainer, &MaterialNode, &SurfaceMaterial, &MaterialName](const char* FbxMaterialProperty, EInterchangeMaterialNodeParameterName MaterialParameterName)
 					{
 						bool bSetMaterial = false;
 						FbxProperty FbxProperty = SurfaceMaterial->FindProperty(FbxMaterialProperty);
@@ -81,7 +92,12 @@ namespace UE
 							bool bFoundValidTexture = false;
 							if (UnsupportedTextureCount > 0)
 							{
-								JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Warning\",\n\"Msg\" : \"Layered or procedural Textures are not supported (material" + MaterialName + TEXT(")\"}}")));
+								FFormatNamedArguments Args
+								{
+									{ TEXT("MaterialName"), FText::FromString(MaterialName) }
+								};
+								UInterchangeResultWarning_Generic* Message = Parser.AddMessage<UInterchangeResultWarning_Generic>();
+								Message->Text = FText::Format(LOCTEXT("TextureTypeNotSupported", "Layered or procedural textures are not supported (material '{MaterialName}')."), Args);
 							}
 							else if (TextureCount > 0)
 							{
@@ -100,7 +116,7 @@ namespace UE
 									UInterchangeTexture2DNode* TextureNode = Cast<UInterchangeTexture2DNode>(NodeContainer.GetNode(NodeUid));
 									if (!TextureNode)
 									{
-										TextureNode = CreateTexture2DNode(NodeContainer, NodeUid, TextureFilename, JsonErrorMessage);
+										TextureNode = CreateTexture2DNode(NodeContainer, NodeUid, TextureFilename);
 									}
 									// add/find UVSet and set it to the texture, we pass index 0 here, I think pipeline should be able to get the UVIndex channel from the name
 									// and modify the parameter to set the correct value.
@@ -174,7 +190,7 @@ namespace UE
 				return MaterialNode;
 			}
 
-			void FFbxMaterial::AddAllTextures(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages)
+			void FFbxMaterial::AddAllTextures(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer)
 			{
 				int32 TextureCount = SDKScene->GetSrcObjectCount<FbxFileTexture>();
 				for (int32 TextureIndex = 0; TextureIndex < TextureCount; ++TextureIndex)
@@ -192,32 +208,34 @@ namespace UE
 					UInterchangeTexture2DNode* TextureNode = Cast<UInterchangeTexture2DNode>(NodeContainer.GetNode(NodeUid));
 					if (!TextureNode)
 					{
-						TextureNode = CreateTexture2DNode(NodeContainer, NodeUid, TextureFilename, JsonErrorMessage);
+						TextureNode = CreateTexture2DNode(NodeContainer, NodeUid, TextureFilename);
 					}
 				}
 			}
 			
-			void FFbxMaterial::AddAllNodeMaterials(UInterchangeSceneNode* SceneNode, FbxNode* ParentFbxNode, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages)
+			void FFbxMaterial::AddAllNodeMaterials(UInterchangeSceneNode* SceneNode, FbxNode* ParentFbxNode, UInterchangeBaseNodeContainer& NodeContainer)
 			{
 				int32 MaterialCount = ParentFbxNode->GetMaterialCount();
 				for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
 				{
 					FbxSurfaceMaterial* SurfaceMaterial = ParentFbxNode->GetMaterial(MaterialIndex);
-					UInterchangeMaterialNode* MaterialNode = AddNodeMaterial(SurfaceMaterial, NodeContainer, JSonErrorMessages);
+					UInterchangeMaterialNode* MaterialNode = AddNodeMaterial(SurfaceMaterial, NodeContainer);
 					//The dependencies order is important because mesh will use index in that order to determine material use by a face
 					SceneNode->AddMaterialDependencyUid(MaterialNode->GetUniqueID());
 				}
 			}
 
-			void FFbxMaterial::AddAllMaterials(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages)
+			void FFbxMaterial::AddAllMaterials(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer)
 			{
 				int32 MaterialCount = SDKScene->GetMaterialCount();
 				for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
 				{
 					FbxSurfaceMaterial* SurfaceMaterial = SDKScene->GetMaterial(MaterialIndex);
-					AddNodeMaterial(SurfaceMaterial, NodeContainer, JSonErrorMessages);
+					AddNodeMaterial(SurfaceMaterial, NodeContainer);
 				}
 			}
 		} //ns Private
 	} //ns Interchange
 }//ns UE
+
+#undef LOCTEXT_NAMESPACE

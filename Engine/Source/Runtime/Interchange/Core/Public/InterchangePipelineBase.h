@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
+#include "InterchangeResultsContainer.h"
 #include "InterchangeSourceData.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
@@ -93,6 +94,29 @@ public:
 
 	void SaveSettings(const FName PipelineStackName);
 
+	/**
+	 * This function is used to add the given message object directly into the results for this operation.
+	 */
+	template <typename T>
+	T* AddMessage() const
+	{
+		check(Results != nullptr);
+		T* Item = Results->Add<T>();
+		return Item;
+	}
+
+	void AddMessage(UInterchangeResult* Item) const
+	{
+		check(Results != nullptr);
+		Results->Add(Item);
+	}
+	
+	void SetResultsContainer(UInterchangeResultsContainer* InResults)
+	{
+		Results = InResults;
+	}
+
+
 protected:
 
 	/**
@@ -131,4 +155,8 @@ protected:
 	{
 		return false;
 	}
+
+
+	UPROPERTY()
+	TObjectPtr<UInterchangeResultsContainer> Results;
 };

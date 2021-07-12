@@ -15,10 +15,13 @@ class UInterchangeMaterialFactoryNode;
 class UInterchangeMaterialNode;
 class UInterchangeMeshNode;
 class UInterchangePipelineMeshesUtilities;
+class UInterchangeResult;
 class UInterchangeSceneNode;
 class UInterchangeSkeletalMeshFactoryNode;
 class UInterchangeSkeletalMeshLodDataNode;
 class UInterchangeSkeletonFactoryNode;
+class UInterchangeStaticMeshFactoryNode;
+class UInterchangeStaticMeshLodDataNode;
 class UInterchangeTexture2DArrayFactoryNode;
 class UInterchangeTexture2DArrayNode;
 class UInterchangeTextureCubeFactoryNode;
@@ -188,14 +191,11 @@ private:
 	/** Skeletal mesh factory assets nodes */
 	TArray<UInterchangeSkeletalMeshFactoryNode*> SkeletalMeshFactoryNodes;
 	
-	/** Static mesh factory assets nodes */
-	//TArray<UInterchangeStaticMeshFactoryNode*> StaticMeshFactoryNodes;
-	
 	/**
 	 * This function can create a UInterchangeSkeletalMeshFactoryNode
 	 * @param MeshUidsPerLodIndex - The MeshUids can represent a SceneNode pointing on a MeshNode or directly a MeshNode
 	 */
-	UInterchangeSkeletalMeshFactoryNode* CreateSkeletalMeshFactoryNode(const FString& RootJointUid, const TMap<int32, TArray<FString>> MeshUidsPerLodIndex);
+	UInterchangeSkeletalMeshFactoryNode* CreateSkeletalMeshFactoryNode(const FString& RootJointUid, const TMap<int32, TArray<FString>>& MeshUidsPerLodIndex);
 	
 	/** This function can create a UInterchangeSkeletalMeshLodDataNode which represent the LOD data need by the factory to create a lod mesh */
 	UInterchangeSkeletalMeshLodDataNode* CreateSkeletalMeshLodDataNode(const FString& NodeName, const FString& NodeUniqueID);
@@ -205,6 +205,30 @@ private:
 	 * @param NodeUidsPerLodIndex - The NodeUids can be a UInterchangeSceneNode or a UInterchangeMeshNode. The scene node can bake each instance of the mesh versus the mesh node will import only the modelled mesh.
 	 */
 	void AddLodDataToSkeletalMesh(const UInterchangeSkeletonFactoryNode* SkeletonFactoryNode, UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode, const TMap<int32, TArray<FString>>& NodeUidsPerLodIndex);
+
+
+	/** Static mesh factory assets nodes */
+	TArray<UInterchangeStaticMeshFactoryNode*> StaticMeshFactoryNodes;
+
+	/**
+	 * This function can create a UInterchangeStaticMeshFactoryNode
+	 * @param MeshUidsPerLodIndex - The MeshUids can represent a SceneNode pointing on a MeshNode or directly a MeshNode
+	 */
+	UInterchangeStaticMeshFactoryNode* CreateStaticMeshFactoryNode(const TMap<int32, TArray<FString>>& MeshUidsPerLodIndex);
+	
+	/** This function can create a UInterchangeStaticMeshLodDataNode which represents the LOD data needed by the factory to create a lod mesh */
+	UInterchangeStaticMeshLodDataNode* CreateStaticMeshLodDataNode(const FString& NodeName, const FString& NodeUniqueID);
+
+	/**
+	 * This function add all lod data nodes to the static mesh.
+	 * @param NodeUidsPerLodIndex - The NodeUids can be a UInterchangeSceneNode or a UInterchangeMeshNode. The scene node can bake each instance of the mesh versus the mesh node will import only the modelled mesh.
+	 */
+	void AddLodDataToStaticMesh(UInterchangeStaticMeshFactoryNode* StaticMeshFactoryNode, const TMap<int32, TArray<FString>>& NodeUidsPerLodIndex);
+
+	/**
+	 * Return a reasonable UID and display label for a new mesh factory node.
+	 */
+	bool MakeMeshFactoryNodeUidAndDisplayLabel(const TMap<int32, TArray<FString>>& MeshUidsPerLodIndex, int32 LodIndex, FString& NewMeshUid, FString& DisplayLabel);
 
 	/** Translated scene nodes */
 	TArray<UInterchangeSceneNode*> SceneNodes;

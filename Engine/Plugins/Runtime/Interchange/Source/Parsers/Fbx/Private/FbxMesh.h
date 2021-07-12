@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "FbxAPI.h"
 #include "FbxHelper.h"
 #include "FbxInclude.h"
 
@@ -17,10 +18,12 @@ namespace UE
 	{
 		namespace Private
 		{
+			class FFbxMesh;
+
 			class FMeshDescriptionImporter
 			{
 			public:
-				FMeshDescriptionImporter(FMeshDescription* InMeshDescription, FbxScene* InSDKScene, FbxGeometryConverter* InSDKGeometryConverter);
+				FMeshDescriptionImporter(FFbxParser& InParser, FMeshDescription* InMeshDescription, FbxScene* InSDKScene, FbxGeometryConverter* InSDKGeometryConverter);
 				
 				/*
 				 * Fill the mesh description using the Mesh parameter.
@@ -36,6 +39,18 @@ namespace UE
 				 * Fill the mesh description using the Shape parameter.
 				 */
 				bool FillMeshDescriptionFromFbxShape(FbxShape* Shape);
+
+				/**
+				 * Add messages to the message log
+				 */
+				template <typename T>
+				T* AddMessage(FbxGeometryBase* FbxNode) const
+				{
+					T* Item = Parser.AddMessage<T>();
+					Item->MeshName = FFbxHelper::GetMeshName(FbxNode);
+					Item->InterchangeKey = FFbxHelper::GetMeshUniqueID(FbxNode);
+					return Item;
+				}
 
 			private:
 				
@@ -60,6 +75,8 @@ namespace UE
 					);
 					return (Basis.Determinant() < 0) ? -1.0f : +1.0f;
 				}
+
+				FFbxParser& Parser;
 				FMeshDescription* MeshDescription;
 				FbxScene* SDKScene;
 				FbxGeometryConverter* SDKGeometryConverter;
@@ -71,7 +88,7 @@ namespace UE
 			public:
 				virtual ~FMeshPayloadContext() {}
 				virtual FString GetPayloadType() const override { return TEXT("Mesh-PayloadContext"); }
-				virtual bool FetchPayloadToFile(const FString& PayloadFilepath, TArray<FString>& JSonErrorMessages) override;
+				virtual bool FetchPayloadToFile(FFbxParser& Parser, const FString& PayloadFilepath) override;
 				FbxMesh* Mesh = nullptr;
 				FbxScene* SDKScene = nullptr;
 				FbxGeometryConverter* SDKGeometryConverter = nullptr;
@@ -82,7 +99,7 @@ namespace UE
 			public:
 				virtual ~FShapePayloadContext() {}
 				virtual FString GetPayloadType() const override { return TEXT("Shape-PayloadContext"); }
-				virtual bool FetchPayloadToFile(const FString& PayloadFilepath, TArray<FString>& JSonErrorMessages) override;
+				virtual bool FetchPayloadToFile(FFbxParser& Parser, const FString& PayloadFilepath) override;
 				FbxShape* Shape = nullptr;
 				FbxScene* SDKScene = nullptr;
 				FbxGeometryConverter* SDKGeometryConverter = nullptr;
@@ -91,15 +108,25 @@ namespace UE
 			class FFbxMesh
 			{
 			public:
+				explicit FFbxMesh(FFbxParser& InParser)
+					: Parser(InParser)
+				{}
+
+#if 0
 				static FString GetMeshName(FbxGeometryBase* Mesh);
 				static FString GetMeshUniqueID(FbxGeometryBase* Mesh);
-				static void ExtractSkinnedMeshNodeJoints(FbxScene* SDKScene, FbxMesh* Mesh, UInterchangeMeshNode* MeshNode, TArray<FString>& JSonErrorMessages);
-
-				static void AddAllMeshes(FbxScene* SDKScene, FbxGeometryConverter* SDKGeometryConverter, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts);
+#endif
+				void ExtractSkinnedMeshNodeJoints(FbxScene* SDKScene, FbxMesh* Mesh, UInterchangeMeshNode* MeshNode);
+				void AddAllMeshes(FbxScene* SDKScene, FbxGeometryConverter* SDKGeometryConverter, UInterchangeBaseNodeContainer& NodeContainer, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts);
 			
 			protected:
-				static UInterchangeMeshNode* CreateMeshNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeName, const FString& NodeUniqueID, TArray<FString>& JSonErrorMessages);
+				UInterchangeMeshNode* CreateMeshNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeName, const FString& NodeUniqueID);
+#if 0
 				static FString GetUniqueIDString(const uint64 UniqueID);
+#endif
+
+			private:
+				FFbxParser& Parser;
 			};
 		}//ns Private
 	}//ns Interchange

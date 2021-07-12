@@ -7,6 +7,7 @@
 #include "InterchangeEngineLogPrivate.h"
 #include "InterchangeFactoryBase.h"
 #include "InterchangeManager.h"
+#include "InterchangeResultsContainer.h"
 #include "Stats/Stats.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/Object.h"
@@ -36,6 +37,8 @@ void UE::Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread,
 	//No need anymore of the translators sources
 	AsyncHelper->ReleaseTranslatorsSource();
 
+	UInterchangeResultsContainer* Results = AsyncHelper->AssetImportResult->GetResults();
+
 	for(TPair<int32, TArray<FImportAsyncHelper::FImportedAssetInfo>>& AssetInfosPerSourceIndexPair : AsyncHelper->ImportedAssetsPerSourceIndex)
 	{
 		//Verify if the task was cancel
@@ -43,8 +46,10 @@ void UE::Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread,
 		{
 			break;
 		}
+
 		const int32 SourceIndex = AssetInfosPerSourceIndexPair.Key;
 		const bool bCallPostImportGameThreadCallback = ensure(AsyncHelper->SourceDatas.IsValidIndex(SourceIndex));
+
 		for (const FImportAsyncHelper::FImportedAssetInfo& AssetInfo : AssetInfosPerSourceIndexPair.Value)
 		{
 			UObject* Asset = AssetInfo.ImportAsset;
@@ -58,6 +63,14 @@ void UE::Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread,
 				Arguments.NodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
 				Arguments.Pipelines = AsyncHelper->Pipelines;
 				AssetInfo.Factory->PostImportGameThreadCallback(Arguments);
+			}
+
+			if (Asset)
+			{
+				UInterchangeResultSuccess* Message = Results->Add<UInterchangeResultSuccess>();
+				Message->SourceAssetName = AsyncHelper->SourceDatas[SourceIndex]->GetFilename();
+				Message->DestinationAssetName = Asset->GetPathName();
+				Message->AssetType = Asset->GetClass();
 			}
 
 			//Clear any async flag from the created asset

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
+#include "InterchangeResultsContainer.h"
 #include "UObject/StrongObjectPtr.h"
 
 namespace UE
@@ -43,11 +44,23 @@ namespace UE
 				}
 				return FString();
 			}
-			TArray<FString> GetJsonLoadMessages() const { return JsonLoadMessages; }
+
+			/**
+			 * Transform the results container into an array of Json strings
+			 */
+			TArray<FString> GetJsonLoadMessages() const;
+
+			template <typename T>
+			T* AddMessage()
+			{
+				return ResultsContainer->Add<T>();
+			}
+
 
 		private:
+			TObjectPtr<UInterchangeResultsContainer> ResultsContainer = nullptr;
+			FString SourceFilename;
 			FString ResultFilepath;
-			TArray<FString> JsonLoadMessages;
 			TMap<FString, FString> ResultPayloads;
 			TUniquePtr<UE::Interchange::Private::FFbxParser> FbxParserPrivate;
 		};

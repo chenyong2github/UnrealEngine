@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
+#include "InterchangeResultsContainer.h"
 #include "InterchangeSourceData.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
@@ -16,20 +17,19 @@ class INTERCHANGECORE_API UInterchangeTranslatorBase : public UObject
 	GENERATED_BODY()
 public:
 
-	/** return true if the translator can translate the specified file. */
-	virtual bool CanImportSourceData(const UInterchangeSourceData* SourceData) const
+	/** return true if the translator can translate the given source data. */
+	virtual bool CanImportSourceData(const UInterchangeSourceData* InSourceData) const
 	{
 		return false;
 	}
 
 	/**
-	 * Translate a source data into node(s) that are hold in the specified nodes container.
+	 * Translate the associated source data into node(s) that are hold in the specified nodes container.
 	 *
-	 * @param SourceData - The source data containing the data to translate
 	 * @param BaseNodeContainer - The nodes container where to put the translated source data result.
 	 * @return true if the translator can translate the source data, false otherwise.
 	 */
-	virtual bool Translate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer) const
+	virtual bool Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const
 	{
 		return false;
 	}
@@ -53,4 +53,47 @@ public:
 	{
 		return;
 	}
+
+	/**
+	 * This function is used to add the given message object directly into the results for this operation.
+	 */
+	template <typename T>
+	T* AddMessage() const
+	{
+		check(Results != nullptr);
+		check(SourceData != nullptr);
+		T* Item = Results->Add<T>();
+		Item->SourceAssetName = SourceData->GetFilename();
+		return Item;
+	}
+
+
+	void AddMessage(UInterchangeResult* Item) const
+	{
+		check(Results != nullptr);
+		check(SourceData != nullptr);
+		Results->Add(Item);
+		Item->SourceAssetName = SourceData->GetFilename();
+	}
+	
+
+	void SetResultsContainer(UInterchangeResultsContainer* InResults)
+	{
+		Results = InResults;
+	}
+
+	/**
+	 * Get the associated source data for this translator.
+	 */
+	const UInterchangeSourceData* GetSourceData() const
+	{
+		return SourceData;
+	}
+
+
+	UPROPERTY()
+	TObjectPtr<UInterchangeResultsContainer> Results;
+
+	UPROPERTY()
+	TObjectPtr<const UInterchangeSourceData> SourceData;
 };

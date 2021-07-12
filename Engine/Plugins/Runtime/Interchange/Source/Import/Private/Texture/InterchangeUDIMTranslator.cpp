@@ -160,9 +160,9 @@ bool UInterchangeUDIMTranslator::CanImportSourceData(const UInterchangeSourceDat
 	return false;
 }
 
-bool UInterchangeUDIMTranslator::Translate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer) const
+bool UInterchangeUDIMTranslator::Translate(UInterchangeBaseNodeContainer& BaseNodeContainer) const
 {
-	FString Filename = SourceData->GetFilename();
+	FString Filename = GetSourceData()->GetFilename();
 	if (!FPaths::FileExists(Filename))
 	{
 		return false;
@@ -188,7 +188,7 @@ bool UInterchangeUDIMTranslator::Translate(const UInterchangeSourceData* SourceD
 	UInterchangeSourceData* TempSourceData = NewObject<UInterchangeSourceData>(GetTransientPackage(), UInterchangeSourceData::StaticClass());
 	UE::Interchange::Private::InterchangeUDIMTranslator::FScopedClearAsyncFlag AsyncFlagGuard(TempSourceData);
 
-	if (UInterchangeTranslatorBase* Translator = InterchangeManager.GetTranslatorSupportingPayloadInterfaceForSourceData(SourceData, UInterchangeTexturePayloadInterface::StaticClass()))
+	if (UInterchangeTranslatorBase* Translator = InterchangeManager.GetTranslatorSupportingPayloadInterfaceForSourceData(GetSourceData(), UInterchangeTexturePayloadInterface::StaticClass()))
 	{
 		UE::Interchange::Private::InterchangeUDIMTranslator::FScopedClearAsyncFlag AsyncFlagGuardTranslator(Translator);
 

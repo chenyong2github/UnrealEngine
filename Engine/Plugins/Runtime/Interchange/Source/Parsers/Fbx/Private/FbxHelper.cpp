@@ -14,6 +14,62 @@ namespace UE
 	{
 		namespace Private
 		{
+			FString FFbxHelper::GetMeshName(FbxGeometryBase* Mesh)
+			{
+				FString MeshName = FFbxHelper::GetFbxObjectName(Mesh);
+				if (MeshName.IsEmpty())
+				{
+					if (Mesh->GetNodeCount() > 0)
+					{
+						if (Mesh->GetAttributeType() == FbxNodeAttribute::eMesh)
+						{
+							MeshName = TEXT("Mesh_");
+						}
+						else if (Mesh->GetAttributeType() == FbxNodeAttribute::eShape)
+						{
+							MeshName = TEXT("Shape_");
+						}
+						MeshName += FFbxHelper::GetFbxObjectName(Mesh->GetNode(0));
+					}
+					else
+					{
+						uint64 UniqueFbxObjectID = Mesh->GetUniqueID();
+						MeshName += GetUniqueIDString(UniqueFbxObjectID);
+					}
+				}
+				return MeshName;
+			}
+
+			FString FFbxHelper::GetMeshUniqueID(FbxGeometryBase* Mesh)
+			{
+				FString MeshUniqueID;
+				if (Mesh->GetAttributeType() == FbxNodeAttribute::eMesh)
+				{
+					MeshUniqueID = TEXT("\\Mesh\\");
+				}
+				else if (Mesh->GetAttributeType() == FbxNodeAttribute::eShape)
+				{
+					MeshUniqueID = TEXT("\\Shape\\");
+				}
+				FString MeshName = FFbxHelper::GetFbxObjectName(Mesh);
+				if (MeshName.IsEmpty())
+				{
+					if (Mesh->GetNodeCount() > 0)
+					{
+						MeshUniqueID += FFbxHelper::GetFbxNodeHierarchyName(Mesh->GetNode(0));
+					}
+					else
+					{
+						MeshUniqueID += GetMeshName(Mesh);
+					}
+				}
+				else
+				{
+					MeshUniqueID += MeshName;
+				}
+				return MeshUniqueID;
+			}
+
 			FString FFbxHelper::GetFbxObjectName(const FbxObject* Object)
 			{
 				if (!Object)
@@ -54,6 +110,13 @@ namespace UE
 				return UniqueID;
 			}
 
+			FString FFbxHelper::GetUniqueIDString(const uint64 UniqueID)
+			{
+				FStringFormatNamedArguments FormatArguments;
+				FormatArguments.Add(TEXT("UniqueID"), UniqueID);
+				return FString::Format(TEXT("{UniqueID}"), FormatArguments);
+			}
+#if 0
 			void FFbxHelper::FindSkeletalMeshes(FbxScene* SDKScene, TArray< TArray<FbxNode*> >& outSkelMeshArray, bool bCombineSkeletalMesh, bool bForceFindRigid)
 			{
 				TArray<FbxNode*> SkeletonArray;
@@ -965,7 +1028,7 @@ namespace UE
 					}
 				}
 			}
-
+#endif
 		}//ns Private
 	}//ns Interchange
 }//ns UE

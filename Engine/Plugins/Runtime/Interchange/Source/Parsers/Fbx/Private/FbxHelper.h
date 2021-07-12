@@ -11,17 +11,22 @@ namespace UE
 	{
 		namespace Private
 		{
+			class FFbxParser;
+
 			class FPayloadContextBase
 			{
 			public:
 				virtual ~FPayloadContextBase() {}
 				virtual FString GetPayloadType() const { return FString(); }
-				virtual bool FetchPayloadToFile(const FString& PayloadFilepath, TArray<FString>& JSonErrorMessages) { return false; }
+				virtual bool FetchPayloadToFile(FFbxParser& Parser, const FString& PayloadFilepath) { return false; }
 			};
 
 			struct FFbxHelper
 			{
 			public:
+
+				static FString GetMeshName(FbxGeometryBase* Mesh);
+				static FString GetMeshUniqueID(FbxGeometryBase* Mesh);
 
 				/**
 				 * Return the name of an FbxObject, return empty string if the object is null.
@@ -35,6 +40,12 @@ namespace UE
 				 */
 				static FString GetFbxNodeHierarchyName(const FbxNode* Node);
 
+			protected:
+				static FString GetUniqueIDString(const uint64 UniqueID);
+
+#if 0
+				// This stuff is moved to FbxSkelMesh.h
+				// 
 				//Skeletalmesh helper
 				static void FindSkeletalMeshes(FbxScene* SDKScene, TArray< TArray<FbxNode*> >& outSkelMeshArray, bool bCombineSkeletalMesh, bool bForceFindRigid);
 				static void FindAllLODGroupNode(TArray<FbxNode*>& OutNodeInLod, FbxNode* NodeLodGroup, int32 LodIndex);
@@ -57,6 +68,7 @@ namespace UE
 				static void RecursiveFixSkeleton(FbxScene* SDKScene, FbxNode* Node, TArray<FbxNode*>& SkelMeshes, bool bImportNestedMeshes);
 
 				/* Skletalmesh private helper end */
+#endif
 			};
 		}//ns Private
 	}//ns Interchange

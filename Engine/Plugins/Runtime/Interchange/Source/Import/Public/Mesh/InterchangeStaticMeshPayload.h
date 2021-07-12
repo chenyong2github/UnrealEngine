@@ -11,7 +11,8 @@ namespace UE
 	{
 		struct FStaticMeshPayloadData
 		{
-			TArray<FMeshDescription> MeshDescriptions;
+			FMeshDescription MeshDescription;
 		};
-	}//ns Interchange
-}//ns UE
+
+	} // namespace Interchange
+} // namespace UE

@@ -3,16 +3,21 @@
 #include "FbxMesh.h"
 
 #include "CoreMinimal.h"
+#include "FbxAPI.h"
 #include "FbxConvert.h"
 #include "FbxHelper.h"
 #include "FbxInclude.h"
+#include "Fbx/InterchangeFbxMessages.h"
 #include "InterchangeMeshNode.h"
+#include "InterchangeResultsContainer.h"
 #include "MeshDescription.h"
 #include "Misc/FileHelper.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "SkeletalMeshAttributes.h"
 #include "StaticMeshAttributes.h"
+
+#define LOCTEXT_NAMESPACE "InterchangeFbxMesh"
 
 namespace UE
 {
@@ -24,8 +29,9 @@ namespace UE
 			struct FFBXUVs
 			{
 				// constructor
-				FFBXUVs(FbxMesh* Mesh)
-					: UniqueUVCount(0)
+				FFBXUVs(FMeshDescriptionImporter& InMeshDescriptionImporter, FbxMesh* Mesh)
+					: MeshDescriptionImporter(InMeshDescriptionImporter)
+					, UniqueUVCount(0)
 				{
 					check(Mesh);
 
@@ -140,8 +146,8 @@ namespace UE
 
 					if (UniqueUVCount > MAX_MESH_TEXTURE_COORDS_MD)
 					{
-						//TODO Error Message
-						//FbxImporter->AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, FText::Format(LOCTEXT("Error_TooMuchUVChannel", "Reached the maximum number of UV Channels for a Static Mesh({0}) - discarding {1} UV Channels"), FText::AsNumber(MAX_MESH_TEXTURE_COORDS_MD), FText::AsNumber(UniqueUVCount - MAX_MESH_TEXTURE_COORDS_MD))), FFbxErrors::Generic_Mesh_TooMuchUVChannels);
+						UInterchangeResultMeshWarning_TooManyUVs* Message = MeshDescriptionImporter.AddMessage<UInterchangeResultMeshWarning_TooManyUVs>(Mesh);
+						Message->ExcessUVs = UniqueUVCount - MAX_MESH_TEXTURE_COORDS_MD;
 					}
 
 					UniqueUVCount = FMath::Min<int32>(UniqueUVCount, MAX_MESH_TEXTURE_COORDS_MD);
@@ -178,6 +184,7 @@ namespace UE
 					UVMappingMode.Empty();
 				}
 
+				FMeshDescriptionImporter& MeshDescriptionImporter;
 				TArray<FString> UVSets;
 				TArray<FbxLayerElementUV const*> LayerElementUV;
 				TArray<FbxLayerElement::EReferenceMode> UVReferenceMode;
@@ -185,8 +192,9 @@ namespace UE
 				int32 UniqueUVCount;
 			};
 
-			FMeshDescriptionImporter::FMeshDescriptionImporter(FMeshDescription* InMeshDescription, FbxScene* InSDKScene, FbxGeometryConverter* InSDKGeometryConverter)
-				: MeshDescription(InMeshDescription)
+			FMeshDescriptionImporter::FMeshDescriptionImporter(FFbxParser& InParser, FMeshDescription* InMeshDescription, FbxScene* InSDKScene, FbxGeometryConverter* InSDKGeometryConverter)
+				: Parser(InParser)
+				, MeshDescription(InMeshDescription)
 				, SDKScene(InSDKScene)
 				, SDKGeometryConverter(InSDKGeometryConverter)
 			{
@@ -265,8 +273,9 @@ namespace UE
 						FVertexID AddedVertexId = MeshDescription->CreateVertex();
 						if (AddedVertexId.GetValue() != RealVertexIndex)
 						{
-							//TODO add an error log
-							//AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("Error_CannotCreateVertex", "Cannot create valid vertex for mesh '{0}'"), FText::FromString(Mesh->GetName()))), FFbxErrors::StaticMesh_BuildError);
+							UInterchangeResultMeshError_Generic* Message = AddMessage<UInterchangeResultMeshError_Generic>(Shape);
+							Message->Text = LOCTEXT("CantCreateVertex", "Cannot create valid vertex for the mesh '{MeshName}'.");
+
 							return false;
 						}
 						//Add the delta position, so we do not have to recompute it later
@@ -286,6 +295,9 @@ namespace UE
 					return false;
 				}
 
+				UInterchangeResultMeshWarning_Generic* TestMessage = AddMessage<UInterchangeResultMeshWarning_Generic>(Mesh);
+				TestMessage->Text = LOCTEXT("TestMessage", "Test message for mesh '{MeshName}'.");
+
 				FStaticMeshAttributes Attributes(*MeshDescription);
 				Attributes.Register();
 
@@ -293,11 +305,12 @@ namespace UE
 				FbxLayer* BaseLayer = Mesh->GetLayer(0);
 				if (BaseLayer == NULL)
 				{
-					//TODO add error message
+					UInterchangeResultMeshError_Generic* Message = AddMessage<UInterchangeResultMeshError_Generic>(Mesh);
+					Message->Text = LOCTEXT("CantGetLayer", "Unable to get FBX base layer for the mesh '{MeshName}'.");
 					return false;
 				}
 
-				FFBXUVs FBXUVs(Mesh);
+				FFBXUVs FBXUVs(*this, Mesh);
 
 				FbxNode* MeshNode = Mesh->GetNodeCount() > 0 ? Mesh->GetNode() : nullptr; //Get the first node using the mesh to setup default asset materials
 				//
@@ -339,7 +352,9 @@ namespace UE
 					}
 					else
 					{
-						//TODO add an error message
+						UInterchangeResultMeshError_Generic* Message = AddMessage<UInterchangeResultMeshError_Generic>(Mesh);
+						Message->Text = LOCTEXT("TriangulationError", "Unable to triangulate the mesh '{MeshName}'.");
+
 						MeshDescription->Empty();
 						return false;
 					}
@@ -485,8 +500,9 @@ namespace UE
 
 					if (PolygonCount == 0)
 					{
-						//TODO add an error log
-						//AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("Error_NoPolygonFoundInMesh", "No polygon were found on mesh  '{0}'"), FText::FromString(Mesh->GetName()))), FFbxErrors::StaticMesh_NoTriangles);
+						UInterchangeResultMeshError_Generic* Message = AddMessage<UInterchangeResultMeshError_Generic>(Mesh);
+						Message->Text = LOCTEXT("NoPolygons", "No polygons were found in the mesh '{MeshName}'.");
+
 						return false;
 					}
 
@@ -546,8 +562,9 @@ namespace UE
 						VertexPositions[AddedVertexId] = VertexPosition;
 						if (AddedVertexId.GetValue() != RealVertexIndex)
 						{
-							//TODO add an error log
-							//AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("Error_CannotCreateVertex", "Cannot create valid vertex for mesh '{0}'"), FText::FromString(Mesh->GetName()))), FFbxErrors::StaticMesh_BuildError);
+							UInterchangeResultMeshError_Generic* Message = AddMessage<UInterchangeResultMeshError_Generic>(Mesh);
+							Message->Text = LOCTEXT("CannotCreateVertex", "Cannot create valid vertex for mesh '{MeshName}'.");
+
 							return false;
 						}
 					}
@@ -586,8 +603,8 @@ namespace UE
 							// Skip invalid edges, i.e. one of the ends is invalid, or degenerated ones
 							if (EdgeStartVertexIndex == -1 || EdgeEndVertexIndex == -1 || EdgeStartVertexIndex == EdgeEndVertexIndex)
 							{
-								//TODO log a user error
-								//UE_LOG(LogFbx, Warning, TEXT("Skipping invalid edge on mesh %s"), *FString(Mesh->GetName()));
+								UInterchangeResultMeshWarning_Generic* Message = AddMessage<UInterchangeResultMeshWarning_Generic>(Mesh);
+								Message->Text = LOCTEXT("SkippingEdge", "Skipping invalid edge on mesh '{MeshName}'.");
 								continue;
 							}
 							FVertexID EdgeVertexStart(EdgeStartVertexIndex + VertexOffset);
@@ -678,8 +695,9 @@ namespace UE
 
 								if (AddedVertexInstanceId.GetValue() != VertexInstanceIndex)
 								{
-									//TODO add an error log
-									//AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("Error_CannotCreateVertexInstance", "Cannot create valid vertex instance for mesh '{0}'"), FText::FromString(Mesh->GetName()))), FFbxErrors::StaticMesh_BuildError);
+									UInterchangeResultMeshError_Generic* Message = AddMessage<UInterchangeResultMeshError_Generic>(Mesh);
+									Message->Text = LOCTEXT("CannotCreateVertexInstance", "Cannot create valid vertex instance for the mesh '{MeshName}'.");
+
 									return false;
 								}
 
@@ -1102,23 +1120,29 @@ namespace UE
 			//////////////////////////////////////////////////////////////////////////
 			/// FMeshPayloadContext implementation
 
-			bool FMeshPayloadContext::FetchPayloadToFile(const FString& PayloadFilepath, TArray<FString>& JSonErrorMessages)
+			bool FMeshPayloadContext::FetchPayloadToFile(FFbxParser& Parser, const FString& PayloadFilepath)
 			{
 				if (!ensure(SDKScene != nullptr))
 				{
-					JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot fetch fbx mesh payload because the fbx scene is null\"}}"));
+					UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
+					Message->InterchangeKey = FFbxHelper::GetMeshUniqueID(Mesh);
+					Message->Text = LOCTEXT("FBXSceneNull", "Cannot fetch FBX mesh payload because the FBX scene is null.");
 					return false;
 				}
 
 				if (!ensure(Mesh != nullptr))
 				{
-					JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot fetch fbx mesh payload because the fbx mesh is null\"}}"));
+					UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
+					Message->InterchangeKey = FFbxHelper::GetMeshUniqueID(Mesh);
+					Message->Text = LOCTEXT("FBXMeshNull", "Cannot fetch FBX mesh payload because the FBX mesh is null.");
 					return false;
 				}
 
 				if (!ensure(SDKGeometryConverter != nullptr))
 				{
-					JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot fetch fbx mesh payload because the fbx scene geometry converter is null\"}}"));
+					UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
+					Message->InterchangeKey = FFbxHelper::GetMeshUniqueID(Mesh);
+					Message->Text = LOCTEXT("FBXConverterNull", "Cannot fetch FBX mesh payload because the FBX geometry converter is null.");
 					return false;
 				}
 
@@ -1131,10 +1155,12 @@ namespace UE
 				{
 					FSkeletalMeshAttributes SkeletalMeshAttribute(MeshDescription);
 					SkeletalMeshAttribute.Register();
-					FMeshDescriptionImporter MeshDescriptionImporter(&MeshDescription, SDKScene, SDKGeometryConverter);
+					FMeshDescriptionImporter MeshDescriptionImporter(Parser, &MeshDescription, SDKScene, SDKGeometryConverter);
 					if (!MeshDescriptionImporter.FillSkinnedMeshDescriptionFromFbxMesh(Mesh, JointUniqueNames))
 					{
-						JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot fetch skinned mesh payload because there was an error when creating the FMeshDescription\"}}"));
+						UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
+						Message->InterchangeKey = FFbxHelper::GetMeshUniqueID(Mesh);
+						Message->Text = LOCTEXT("MeshDescriptionError", "Cannot fetch skinned mesh payload because there was an error when creating the MeshDescription.");
 						return false;
 					}
 				}
@@ -1142,10 +1168,12 @@ namespace UE
 				{
 					FStaticMeshAttributes StaticMeshAttribute(MeshDescription);
 					StaticMeshAttribute.Register();
-					FMeshDescriptionImporter MeshDescriptionImporter(&MeshDescription, SDKScene, SDKGeometryConverter);
+					FMeshDescriptionImporter MeshDescriptionImporter(Parser, &MeshDescription, SDKScene, SDKGeometryConverter);
 					if (!MeshDescriptionImporter.FillStaticMeshDescriptionFromFbxMesh(Mesh))
 					{
-						JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot fetch static mesh payload because there was an error when creating the FMeshDescription\"}}"));
+						UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
+						Message->InterchangeKey = FFbxHelper::GetMeshUniqueID(Mesh);
+						Message->Text = LOCTEXT("MeshDescriptionError", "Cannot fetch static mesh payload because there was an error when creating the MeshDescription.");
 						return false;
 					}
 				}
@@ -1172,7 +1200,7 @@ namespace UE
 			//////////////////////////////////////////////////////////////////////////
 			/// FShapePayloadContext implementation
 
-			bool FShapePayloadContext::FetchPayloadToFile(const FString& PayloadFilepath, TArray<FString>& JSonErrorMessages)
+			bool FShapePayloadContext::FetchPayloadToFile(FFbxParser& Parser, const FString& PayloadFilepath)
 			{
 				if (!ensure(Shape))
 				{
@@ -1183,10 +1211,13 @@ namespace UE
 				FMeshDescription ShapeMeshDescription;
 				FStaticMeshAttributes StaticMeshAttribute(ShapeMeshDescription);
 				StaticMeshAttribute.Register();
-				FMeshDescriptionImporter MeshDescriptionImporter(&ShapeMeshDescription, SDKScene, SDKGeometryConverter);
+				FMeshDescriptionImporter MeshDescriptionImporter(Parser, &ShapeMeshDescription, SDKScene, SDKGeometryConverter);
 				if (!MeshDescriptionImporter.FillMeshDescriptionFromFbxShape(Shape))
 				{
-					//Todo log an error
+					UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
+					Message->InterchangeKey = FFbxHelper::GetMeshUniqueID(Shape);
+					Message->Text = LOCTEXT("MeshDescriptionBlendShapeError", "Unable to create MeshDescription from FBX blend shape.");
+
 					return false;
 				}
 
@@ -1204,7 +1235,7 @@ namespace UE
 
 			//////////////////////////////////////////////////////////////////////////
 			/// FFbxMesh implementation
-			
+#if 0
 			FString FFbxMesh::GetUniqueIDString(const uint64 UniqueID)
 			{
 				FStringFormatNamedArguments FormatArguments;
@@ -1267,8 +1298,9 @@ namespace UE
 				}
 				return MeshUniqueID;
 			}
+#endif
 
-			void FFbxMesh::ExtractSkinnedMeshNodeJoints(FbxScene* SDKScene, FbxMesh* Mesh, UInterchangeMeshNode* MeshNode, TArray<FString>& JSonErrorMessages)
+			void FFbxMesh::ExtractSkinnedMeshNodeJoints(FbxScene* SDKScene, FbxMesh* Mesh, UInterchangeMeshNode* MeshNode)
 			{
 				TArray<FString> JointNodeUniqueIDs;
 				const int32 SkinDeformerCount = Mesh->GetDeformerCount(FbxDeformer::eSkin);
@@ -1303,7 +1335,7 @@ namespace UE
 				}
 			}
 
-			void FFbxMesh::AddAllMeshes(FbxScene* SDKScene, FbxGeometryConverter* SDKGeometryConverter, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts)
+			void FFbxMesh::AddAllMeshes(FbxScene* SDKScene, FbxGeometryConverter* SDKGeometryConverter, UInterchangeBaseNodeContainer& NodeContainer, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts)
 			{
 				int32 GeometryCount = SDKScene->GetGeometryCount();
 				for (int32 GeometryIndex = 0; GeometryIndex < GeometryCount; ++GeometryIndex)
@@ -1318,17 +1350,17 @@ namespace UE
 					{
 						continue;
 					}
-					FString MeshName = GetMeshName(Mesh);
-					FString MeshUniqueID = GetMeshUniqueID(Mesh);
+					FString MeshName = FFbxHelper::GetMeshName(Mesh);
+					FString MeshUniqueID = FFbxHelper::GetMeshUniqueID(Mesh);
 					UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(NodeContainer.GetNode(MeshUniqueID));
 					if (!MeshNode)
 					{
-						MeshNode = CreateMeshNode(NodeContainer, MeshName, MeshUniqueID, JSonErrorMessages);
+						MeshNode = CreateMeshNode(NodeContainer, MeshName, MeshUniqueID);
 						if (Geometry->GetDeformerCount(FbxDeformer::eSkin) > 0)
 						{
 							//Set the skinned mesh attribute
 							MeshNode->SetSkinnedMesh(true);
-							ExtractSkinnedMeshNodeJoints(SDKScene, Mesh, MeshNode, JSonErrorMessages);
+							ExtractSkinnedMeshNodeJoints(SDKScene, Mesh, MeshNode);
 						}
 						Mesh->ComputeBBox();
 						const int32 MeshVertexCount = Mesh->GetControlPointsCount();
@@ -1421,12 +1453,12 @@ namespace UE
 										}
 										ensure(!ShapeNameToFbxShape.Contains(ShapeName));
 										ShapeNameToFbxShape.Add(ShapeName, Shape);
-										FString ShapeAttributeName = GetMeshName(Shape);
-										FString ShapeUniqueID = GetMeshUniqueID(Shape);
+										FString ShapeAttributeName = FFbxHelper::GetMeshName(Shape);
+										FString ShapeUniqueID = FFbxHelper::GetMeshUniqueID(Shape);
 										UInterchangeMeshNode* ShapeNode = Cast<UInterchangeMeshNode>(NodeContainer.GetNode(ShapeUniqueID));
 										if (!ShapeNode)
 										{
-											ShapeNode = CreateMeshNode(NodeContainer, ShapeAttributeName, ShapeUniqueID, JSonErrorMessages);
+											ShapeNode = CreateMeshNode(NodeContainer, ShapeAttributeName, ShapeUniqueID);
 											const bool bIsBlendShape = true;
 											ShapeNode->SetBlendShape(bIsBlendShape);
 											ShapeNode->SetBlendShapeName(ShapeName);
@@ -1451,14 +1483,16 @@ namespace UE
 				}
 			}
 
-			UInterchangeMeshNode* FFbxMesh::CreateMeshNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeName, const FString& NodeUniqueID, TArray<FString>& JSonErrorMessages)
+			UInterchangeMeshNode* FFbxMesh::CreateMeshNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeName, const FString& NodeUniqueID)
 			{
 				FString DisplayLabel(NodeName);
 				FString NodeUid(NodeUniqueID);
 				UInterchangeMeshNode* MeshNode = NewObject<UInterchangeMeshNode>(&NodeContainer, NAME_None);
 				if (!ensure(MeshNode))
 				{
-					JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot allocate a mesh node when importing fbx\"}}"));
+					UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
+					Message->InterchangeKey = NodeUniqueID;
+					Message->Text = LOCTEXT("NodeAllocationError", "Mesh node allocation failed when importing FBX.");
 					return nullptr;
 				}
 				// Creating a UMaterialInterface
@@ -1469,3 +1503,5 @@ namespace UE
 		} //ns Private
 	} //ns Interchange
 }//ns UE
+
+#undef LOCTEXT_NAMESPACE

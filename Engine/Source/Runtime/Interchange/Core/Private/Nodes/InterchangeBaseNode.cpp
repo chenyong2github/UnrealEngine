@@ -118,7 +118,7 @@ void UInterchangeBaseNode::GetFactoryDependencies(TArray<FString>& OutDependenci
 	FactoryDependencies.GetNames(OutDependencies);
 }
 
-bool UInterchangeBaseNode::SetFactoryDependencyUid(const FString& DependencyUid)
+bool UInterchangeBaseNode::AddFactoryDependencyUid(const FString& DependencyUid)
 {
 	return FactoryDependencies.AddName(DependencyUid);
 }
@@ -209,6 +209,26 @@ bool UInterchangeBaseNode::SetAssetName(const FString& AssetName)
 		return Handle.IsValid();
 	}
 	return false;
+}
+
+int32 UInterchangeBaseNode::GetTargetAssetCount() const
+{
+	return TargetAssets.GetCount();
+}
+
+void UInterchangeBaseNode::GetTargetAssetUids(TArray<FString>& OutTargetAssets) const
+{
+	TargetAssets.GetNames(OutTargetAssets);
+}
+
+bool UInterchangeBaseNode::AddTargetAssetUid(const FString& AssetUid)
+{
+	return TargetAssets.AddName(AssetUid);
+}
+
+bool UInterchangeBaseNode::RemoveTargetAssetUid(const FString& AssetUid)
+{
+	return TargetAssets.RemoveName(AssetUid);
 }
 
 FString UInterchangeBaseNode::InvalidNodeUid()

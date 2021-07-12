@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "FbxInclude.h"
+#include "InterchangeResultsContainer.h"
+
 
 #define FBX_METADATA_PREFIX TEXT("FBX.")
 #define INVALID_UNIQUE_ID 0xFFFFFFFFFFFFFFFF
@@ -29,22 +31,45 @@ namespace UE
 			class FFbxParser
 			{
 			public:
+				explicit FFbxParser(UInterchangeResultsContainer* InResultsContainer)
+					: ResultsContainer(InResultsContainer)
+				{}
+
 				~FFbxParser();
 
 				/* Load an fbx file into the fbx sdk, return false if the file could not be load. */
-				bool LoadFbxFile(const FString& Filename, TArray<FString>& JsonErrorMessages);
+				bool LoadFbxFile(const FString& Filename);
 
 				/* Extract the fbx data from the sdk into our node container */
-				void FillContainerWithFbxScene(UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JsonErrorMessages);
+				void FillContainerWithFbxScene(UInterchangeBaseNodeContainer& NodeContainer);
 
 				/* Extract the fbx data from the sdk into our node container */
-				bool FetchPayloadData(const FString& PayloadKey, const FString& PayloadFilepath, TArray<FString>& JSonErrorMessages);
+				bool FetchPayloadData(const FString& PayloadKey, const FString& PayloadFilepath);
 			
+				/**
+				 * This function is used to add the given message object directly into the results for this operation.
+				 */
+				template <typename T>
+				T* AddMessage() const
+				{
+					check(ResultsContainer != nullptr);
+					T* Item = ResultsContainer->Add<T>();
+					Item->SourceAssetName = SourceFilename;
+					return Item;
+				}
+
+
+				void AddMessage(UInterchangeResult* Item) const
+				{
+					check(ResultsContainer != nullptr);
+					ResultsContainer->Add(Item);
+					Item->SourceAssetName = SourceFilename;
+				}
 			private:
 
-				void CleanupFbxData(TArray<FString>& JSonErrorMessages);
+				void CleanupFbxData();
 
-
+				UInterchangeResultsContainer* ResultsContainer;
 				FbxManager* SDKManager = nullptr;
 				FbxScene* SDKScene = nullptr;
 				FbxImporter* SDKImporter = nullptr;
