@@ -49,6 +49,12 @@ uint2 GetVoxelPageIndexOccupancy(uint3 InPageIndexCoord, uint3 InPageIndexResolu
 	return VirtualVoxel.PageIndexOccupancyBuffer.Load(LinearPageIndexCoord);
 }
 
+FFontColor GetOccupancyColor(float In)
+{
+	float3 Color = lerp(float3(0, 1, 0), float3(1, 0, 0), saturate(In));
+	return InitFontColor(Color);
+}
+
 [numthreads(8, 8, 1)]
 void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
@@ -98,57 +104,56 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			float2 StartPos = float2(50.0f, 100.0f ) / OutputResolution;
 			float2 Pos = StartPos;
 
-			Pos = ShaderPrintText(Pos, TEXT("General"));
-			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
-
-			Pos = ShaderPrintText(Pos, TEXT(" Voxel World Size "));
-			Pos = ShaderPrint(Pos, VirtualVoxel.VoxelWorldSize);
+			Pos = ShaderPrintText(Pos, TEXT("Voxel World Size "), FontOrange);
+			Pos = ShaderPrint(Pos, VirtualVoxel.VoxelWorldSize, FontOrange);
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 			
-			Pos = ShaderPrintText(Pos, TEXT(" Page Res         "));
+			Pos = ShaderPrintText(Pos, TEXT("Page Res         "));
 			Pos = ShaderPrint(Pos, VirtualVoxel.PageResolution);
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 
-			Pos = ShaderPrintText(Pos, TEXT(" Page Count Res   "));
+			Pos = ShaderPrintText(Pos, TEXT("Page Count Res   "));
 			Pos = ShaderPrint(Pos, VirtualVoxel.PageCountResolution.x);
 			Pos = ShaderPrint(Pos, VirtualVoxel.PageCountResolution.y);
 			Pos = ShaderPrint(Pos, VirtualVoxel.PageCountResolution.z);
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 
-			Pos = ShaderPrintText(Pos, TEXT(" Page Texture Res  "));
-			Pos = ShaderPrint(Pos, VirtualVoxel.PageTextureResolution.x);
-			Pos = ShaderPrint(Pos, VirtualVoxel.PageTextureResolution.y);
-			Pos = ShaderPrint(Pos, VirtualVoxel.PageTextureResolution.z);
+			Pos = ShaderPrintText(Pos, TEXT("Page Texture Res  "), FontEmerald);
+			Pos = ShaderPrint(Pos, VirtualVoxel.PageTextureResolution.x, FontEmerald);
+			Pos = ShaderPrint(Pos, VirtualVoxel.PageTextureResolution.y, FontEmerald);
+			Pos = ShaderPrint(Pos, VirtualVoxel.PageTextureResolution.z, FontEmerald);
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 
 			// Total page indices stats
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 
-			Pos = ShaderPrintText(Pos, TEXT(" Total Allocated Page Index  "));
+			Pos = ShaderPrintText(Pos, TEXT("Total Allocated Page Index  "));
 			Pos = ShaderPrint(Pos, TotalAllocatedPageCount);
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 
-			Pos = ShaderPrintText(Pos, TEXT(" Total Page Index            "));
+			Pos = ShaderPrintText(Pos, TEXT("Total Page Index            "));
 			Pos = ShaderPrint(Pos, TotalPageIndexCount);
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 
-			Pos = ShaderPrintText(Pos, TEXT(" Page Index Occupancy         "));
-			Pos = ShaderPrint(Pos, TotalAllocatedPageCount / float(TotalPageIndexCount) * 100.f);
+			const float PageIndexOccupancy = TotalAllocatedPageCount / float(TotalPageIndexCount);
+			Pos = ShaderPrintText(Pos, TEXT("Page Index Occupancy         "), FontOrange);
+			Pos = ShaderPrint(Pos, PageIndexOccupancy * 100.f, GetOccupancyColor(PageIndexOccupancy));
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 
 			// Total pages stats
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 
-			Pos = ShaderPrintText(Pos, TEXT(" Total Allocated Valid Page  "));
+			Pos = ShaderPrintText(Pos, TEXT("Total Allocated Valid Page  "));
 			Pos = ShaderPrint(Pos, TotalAllocatedValidPageCount);
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 
-			Pos = ShaderPrintText(Pos, TEXT(" Total Page                  "));
+			Pos = ShaderPrintText(Pos, TEXT("Total Page                  "));
 			Pos = ShaderPrint(Pos, TotalPageCount);
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 
-			Pos = ShaderPrintText(Pos, TEXT(" Page Occupancy              "));
-			Pos = ShaderPrint(Pos, TotalAllocatedValidPageCount / float(TotalPageCount) * 100.f);
+			const float PageOccupancy = TotalAllocatedValidPageCount / float(TotalPageCount);
+			Pos = ShaderPrintText(Pos, TEXT("Page Occupancy              "), FontOrange);
+			Pos = ShaderPrint(Pos, PageOccupancy * 100.f, GetOccupancyColor(PageOccupancy));
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 		}
 
@@ -156,31 +161,62 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		//  Page Index Resolution: X Y Z (Linear/Total - %) 
 		//  Virtual Resolution   : X Y Z
 		//  Page Index Offset    : O
+		if (MacroGroupId == 0)
 		{
-			float2 StartPos = float2(50.0f, 420.0f + float(MacroGroupId) * 100.0f) / OutputResolution;
+			float2 StartPos = float2(50.0f, 420.0f) / OutputResolution;
 			float2 Pos = StartPos;
 
-			Pos = ShaderPrintText(Pos, TEXT("Macro Group    "));
-			Pos = ShaderPrint(Pos, MacroGroupId);
+			Pos = ShaderPrintText(Pos, TEXT("Macro Group        "), FontOrange);
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 
-			Pos = ShaderPrintText(Pos, TEXT(" Virtual Res       "));
-			Pos = ShaderPrint(Pos, NodeDesc.VirtualResolution.x);
-			Pos = ShaderPrint(Pos, NodeDesc.VirtualResolution.y);
-			Pos = ShaderPrint(Pos, NodeDesc.VirtualResolution.z);
+			Pos = ShaderPrintText(Pos, TEXT(" Virtual Res X     "), FontEmerald);
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+			Pos = ShaderPrintText(Pos, TEXT(" Virtual Res Y     "), FontEmerald);
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+			Pos = ShaderPrintText(Pos, TEXT(" Virtual Res Z     "), FontEmerald);
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 
-			Pos = ShaderPrintText(Pos, TEXT(" Page Index Res    "));
-			Pos = ShaderPrint(Pos, NodeDesc.PageIndexResolution.x);
-			Pos = ShaderPrint(Pos, NodeDesc.PageIndexResolution.y);
-			Pos = ShaderPrint(Pos, NodeDesc.PageIndexResolution.z);
-			Pos = ShaderPrintText(Pos, TEXT(" "));
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+
+			Pos = ShaderPrintText(Pos, TEXT(" Page Index Res X  "));
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+			Pos = ShaderPrintText(Pos, TEXT(" Page Index Res Y  "));
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+			Pos = ShaderPrintText(Pos, TEXT(" Page Index Res Z  "));
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 
 			Pos = ShaderPrintText(Pos, TEXT(" Page Index Offset "));
-			Pos = ShaderPrint(Pos, NodeDesc.PageIndexOffset);
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+		}
+
+		{
+			float2 StartPos = float2(250.0f + float(MacroGroupId) * 35.0f, 420.0f) / OutputResolution;
+			float2 Pos = StartPos;
+
+			Pos = ShaderPrint(Pos, MacroGroupId, FontOrange);
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 
+			Pos = ShaderPrint(Pos, NodeDesc.VirtualResolution.x, FontEmerald);
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+			Pos = ShaderPrint(Pos, NodeDesc.VirtualResolution.y, FontEmerald);
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+			Pos = ShaderPrint(Pos, NodeDesc.VirtualResolution.z, FontEmerald);
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+
+			Pos = ShaderPrint(Pos, NodeDesc.PageIndexResolution.x, FontYellow);
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+			Pos = ShaderPrint(Pos, NodeDesc.PageIndexResolution.y, FontYellow);
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+			Pos = ShaderPrint(Pos, NodeDesc.PageIndexResolution.z, FontYellow);
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+
+			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
+
+			Pos = ShaderPrint(Pos, NodeDesc.PageIndexOffset, FontSilver);
 			Pos = ShaderPrintNewline(Pos); Pos.x = StartPos.x;
 		}
 	}
