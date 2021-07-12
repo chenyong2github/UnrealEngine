@@ -54,6 +54,10 @@
 	// Min max samples that are within distance from output pixel. 
 	#define HISTORY_CLAMPING_BOX_SAMPLE_DISTANCE 2
 
+/** Qualities */
+	#define TAA_QUALITY_LOW 0
+	#define TAA_QUALITY_MEDIUM 1
+	#define TAA_QUALITY_HIGH 2
 
 //------------------------------------------------------- CONFIGS
 
@@ -71,13 +75,24 @@
 	#define AA_BICUBIC 1
 	#define AA_CROSS 2
 	#define AA_DYNAMIC 1
-	#define AA_FILTERED 1
 	#define AA_MANUALLY_CLAMP_HISTORY_UV 1
 	#define AA_TONE 1
 	#define AA_YCOCG 1
 
-	#if !TAA_FAST
+	#if TAA_QUALITY == TAA_QUALITY_LOW
+		#define AA_FILTERED 0
+		#define AA_DYNAMIC_ANTIGHOST 0
+
+	#elif TAA_QUALITY == TAA_QUALITY_MEDIUM
+		#define AA_FILTERED 1
+		#define AA_DYNAMIC_ANTIGHOST 0
+
+	#elif TAA_QUALITY == TAA_QUALITY_HIGH
+		#define AA_FILTERED 1
 		#define AA_DYNAMIC_ANTIGHOST 1
+
+	#else
+		#error Unknown TAA quality
 	#endif
 
 	#if COMPUTESHADER
@@ -113,7 +128,6 @@
 	#define AA_BICUBIC 1
 	#define AA_CROSS 1
 	#define AA_DYNAMIC 1
-	#define AA_FILTERED TAA_UPSAMPLE_FILTERED
 	#define AA_MANUALLY_CLAMP_HISTORY_UV 1
 	#define AA_TONE 1
 	#if SWITCH_PROFILE || SWITCH_PROFILE_FORWARD
@@ -124,24 +138,31 @@
 	
 	#define AA_UPSAMPLE 1
 	#define AA_UPSAMPLE_ADAPTIVE_FILTERING 1
-	
-	#if TAA_FAST
-		// When doing TAA downsampling, still need the 9 samples.
-		#if AA_DOWNSAMPLE
-			#define AA_SAMPLES 9
+
+	#if TAA_QUALITY == TAA_QUALITY_LOW
+		#define AA_FILTERED 0
+		#if SWITCH_PROFILE || SWITCH_PROFILE_FORWARD || AA_MOBILE_CONFIG
+			#define AA_SAMPLES 5
 		#else
-			#if SWITCH_PROFILE || SWITCH_PROFILE_FORWARD || AA_MOBILE_CONFIG
-				#define AA_SAMPLES 5
-			#else
-				#define AA_SAMPLES 6
-			#endif
+			#define AA_SAMPLES 6
 		#endif
 
-	#else
+	#elif TAA_QUALITY == TAA_QUALITY_MEDIUM
+		#define AA_FILTERED 1
+		#if SWITCH_PROFILE || SWITCH_PROFILE_FORWARD || AA_MOBILE_CONFIG
+			#define AA_SAMPLES 5
+		#else
+			#define AA_SAMPLES 6
+		#endif
+
+	#elif TAA_QUALITY == TAA_QUALITY_HIGH
 		#define AA_HISTORY_CLAMPING_BOX (HISTORY_CLAMPING_BOX_SAMPLE_DISTANCE)
+		#define AA_FILTERED 1
 		#define AA_DYNAMIC_ANTIGHOST 1
 		#define AA_SAMPLES 9
 
+	#else
+		#error Unknown TAA quality
 	#endif
 
 	// Do not use LDS caching for screen percentage > 100% or < 50%.
@@ -179,14 +200,20 @@
 	#else
 		#define AA_UPSAMPLE 0
 	#endif
-	
-	#if !TAA_FAST
+
+	#if TAA_QUALITY == TAA_QUALITY_MEDIUM
+		#if AA_UPSAMPLE
+			#define AA_BICUBIC 1
+			#define AA_FILTERED 1
+		#endif
+
+	#elif TAA_QUALITY == TAA_QUALITY_HIGH
 		#define AA_BICUBIC 1
 		#define AA_FILTERED 1
 		#define AA_YCOCG 1
-	#elif AA_UPSAMPLE
-		#define AA_BICUBIC 1
-		#define AA_FILTERED 1
+
+	#else
+		#error Unknown TAA quality
 	#endif
 
 	#if TAA_SCREEN_PERCENTAGE_RANGE != 2 && AA_UPSAMPLE
