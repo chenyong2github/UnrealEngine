@@ -15,18 +15,21 @@
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "ViewModels/TNiagaraViewModelManager.h"
 
-class UNiagaraSystem;
-class FNiagaraSystemViewModel;
-class FNiagaraSystemGraphSelectionViewModel;
-class UNiagaraGraph;
-class FNiagaraScriptViewModel;
-class FDelegateHandle;
 struct FCreateWidgetForActionData;
-class FNiagaraObjectSelection;
-class UNiagaraScriptVariable;
+class FDelegateHandle;
 struct FNiagaraGraphParameterReference;
-class UNiagaraParameterDefinitions;
+class FNiagaraObjectSelection;
+class FNiagaraScriptViewModel;
+class FNiagaraSystemGraphSelectionViewModel;
+class FNiagaraSystemViewModel;
 class SEditableTextBox;
+class UNiagaraGraph;
+class UNiagaraNodeAssignment;
+class UNiagaraParameterDefinitions;
+class UNiagaraScript;
+class UNiagaraScriptVariable;
+class UNiagaraSystem;
+
 
 namespace FNiagaraParameterUtilities
 {
@@ -247,7 +250,7 @@ protected:
 	mutable TMap<FNiagaraVariable, UNiagaraScriptVariable*> TransientParameterToScriptVarMap;
 };
 
-class FNiagaraSystemToolkitParameterPanelViewModel : public INiagaraParameterPanelViewModel
+class FNiagaraSystemToolkitParameterPanelViewModel : public INiagaraParameterPanelViewModel, public TNiagaraViewModelManager<UNiagaraSystem, FNiagaraSystemToolkitParameterPanelViewModel>
 {
 public:
 	/** Construct a SystemToolkit Parameter Panel View Model from a System View Model and an optional SystemGraphSelectionViewModel. */
@@ -298,6 +301,8 @@ public:
 	virtual bool GetCanHandleDragDropOperation(TSharedPtr<FDragDropOperation> DragDropOperation) const override;
 	//~ End INiagaraParameterPanelViewModel interface
 
+	TSharedRef<SWidget> CreateAddParameterMenuForAssignmentNode(UNiagaraNodeAssignment* AssignmentNode, const TSharedPtr<SComboButton>& AddButton) const;
+
 private:
 	const TArray<UNiagaraGraph*> GetAllGraphsConst() const;
 
@@ -336,6 +341,8 @@ private:
 
 	static TArray<FNiagaraParameterPanelCategory> DefaultCategories;
 	static TArray<FNiagaraParameterPanelCategory> DefaultAdvancedCategories;
+
+	TNiagaraViewModelManager<UNiagaraSystem, FNiagaraSystemToolkitParameterPanelViewModel>::Handle RegisteredHandle;
 };
 
 class FNiagaraScriptToolkitParameterPanelViewModel : public INiagaraParameterPanelViewModel, public TNiagaraViewModelManager<UNiagaraScript, FNiagaraScriptToolkitParameterPanelViewModel>

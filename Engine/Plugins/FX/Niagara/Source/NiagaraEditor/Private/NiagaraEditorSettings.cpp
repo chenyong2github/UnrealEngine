@@ -455,6 +455,28 @@ FNiagaraNamespaceMetadata UNiagaraEditorSettings::GetMetaDataForId(const FGuid& 
 	return DefaultNamespaceMetadata;
 }
 
+const FGuid& UNiagaraEditorSettings::GetIdForUsage(ENiagaraScriptUsage Usage) const
+{
+	switch (Usage) {
+	case ENiagaraScriptUsage::SystemSpawnScript:
+	case ENiagaraScriptUsage::SystemUpdateScript:
+		return FNiagaraEditorGuids::SystemNamespaceMetaDataGuid;
+	case ENiagaraScriptUsage::EmitterSpawnScript:
+	case ENiagaraScriptUsage::EmitterUpdateScript:
+		return FNiagaraEditorGuids::EmitterNamespaceMetaDataGuid;
+	case ENiagaraScriptUsage::ParticleSpawnScript:
+	case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
+	case ENiagaraScriptUsage::ParticleUpdateScript:
+	case ENiagaraScriptUsage::ParticleEventScript:
+	case ENiagaraScriptUsage::ParticleGPUComputeScript:
+	case ENiagaraScriptUsage::ParticleSimulationStageScript:
+		return FNiagaraEditorGuids::ParticleAttributeNamespaceMetaDataGuid;
+	default:
+		ensureMsgf(false, TEXT("Encounted unexpected usage when finding namespace metadata!"));
+		return DefaultNamespaceMetadata.GetGuid();
+	}
+}
+
 const TArray<FNiagaraNamespaceMetadata>& UNiagaraEditorSettings::GetAllNamespaceMetadata() const
 {
 	return NamespaceMetadata;

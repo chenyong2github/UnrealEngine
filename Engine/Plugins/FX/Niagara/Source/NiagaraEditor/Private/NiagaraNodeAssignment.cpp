@@ -21,8 +21,10 @@
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
+#include "ViewModels/NiagaraParameterPanelViewModel.h"
 #include "ViewModels/Stack/INiagaraStackItemGroupAddUtilities.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
+#include "ViewModels/TNiagaraViewModelManager.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SNiagaraParameterName.h"
 #include "NiagaraCustomVersion.h"
@@ -68,6 +70,16 @@ FText UNiagaraNodeAssignment::GetTooltipText() const
 	}
 
 	return FText::Join(FText::FromString("\n"), TargetNames);
+}
+
+TSharedRef<SWidget> UNiagaraNodeAssignment::CreateAddParameterMenu(const TSharedPtr<SComboButton>& AddButton)
+{
+	TSharedPtr<FNiagaraSystemToolkitParameterPanelViewModel> ParameterPanelViewModel = TNiagaraViewModelManager<UNiagaraSystem, FNiagaraSystemToolkitParameterPanelViewModel>::GetExistingViewModelForObject(GetTypedOuter<UNiagaraSystem>());
+	if (ParameterPanelViewModel.IsValid())
+	{
+		return ParameterPanelViewModel->CreateAddParameterMenuForAssignmentNode(this, AddButton);
+	}
+	return SNullWidget::NullWidget;
 }
 
 bool UNiagaraNodeAssignment::RefreshFromExternalChanges()

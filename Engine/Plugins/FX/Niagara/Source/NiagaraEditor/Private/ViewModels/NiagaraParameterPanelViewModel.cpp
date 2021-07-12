@@ -40,6 +40,8 @@
 #define LOCTEXT_NAMESPACE "NiagaraParameterPanelViewModel"
 
 template<> TMap<UNiagaraScript*, TArray<FNiagaraScriptToolkitParameterPanelViewModel*>> TNiagaraViewModelManager<UNiagaraScript, FNiagaraScriptToolkitParameterPanelViewModel>::ObjectsToViewModels{};
+template<> TMap<UNiagaraSystem*, TArray<FNiagaraSystemToolkitParameterPanelViewModel*>> TNiagaraViewModelManager<UNiagaraSystem, FNiagaraSystemToolkitParameterPanelViewModel>::ObjectsToViewModels{};
+
 
 TArray<FNiagaraParameterPanelCategory> FNiagaraSystemToolkitParameterPanelViewModel::DefaultCategories;
 TArray<FNiagaraParameterPanelCategory> FNiagaraSystemToolkitParameterPanelViewModel::DefaultAdvancedCategories;
@@ -750,6 +752,8 @@ FNiagaraSystemToolkitParameterPanelViewModel::FNiagaraSystemToolkitParameterPane
 
 void FNiagaraSystemToolkitParameterPanelViewModel::Cleanup()
 {
+	UnregisterViewModelWithMap(RegisteredHandle);
+
 	UNiagaraSystem& System = SystemViewModel->GetSystem();
 
 	auto GetGraphFromScript = [](UNiagaraScript* Script)->UNiagaraGraph* {
@@ -879,6 +883,8 @@ void FNiagaraSystemToolkitParameterPanelViewModel::Init(const FSystemToolkitUICo
 			}
 		}
 	}
+
+	RegisteredHandle = RegisterViewModelWithMap(&System, this);
 }
 
 const TArray<UNiagaraScriptVariable*> FNiagaraSystemToolkitParameterPanelViewModel::GetEditableScriptVariablesWithName(const FName ParameterName) const
@@ -1282,6 +1288,48 @@ bool FNiagaraSystemToolkitParameterPanelViewModel::GetCanHandleDragDropOperation
 	}
 
 	return true;
+}
+
+TSharedRef<SWidget> FNiagaraSystemToolkitParameterPanelViewModel::CreateAddParameterMenuForAssignmentNode(UNiagaraNodeAssignment* AssignmentNode, const TSharedPtr<SComboButton>& AddButton) const
+{
+	auto AddParameterLambda = [this, AssignmentNode](const FNiagaraVariable& NewParameter) {
+		const FString VarDefaultValue = FNiagaraConstants::GetAttributeDefaultValue(NewParameter);
+		FNiagaraParameterPanelCategory TempCategory = FNiagaraParameterPanelCategory(FNiagaraEditorUtilities::GetNamespaceMetaDataForVariableName(NewParameter.GetName()));
+		const bool bRequestRename = true;
+		AddParameter(NewParameter, TempCategory, bRequestRename);
+		AssignmentNode->AddParameter(NewParameter, VarDefaultValue);
+	};
+
+	auto AddScriptVarLambda = [this, AssignmentNode](const UNiagaraScriptVariable* NewScriptVar) {
+		const FString VarDefaultValue = FNiagaraConstants::GetAttributeDefaultValue(NewScriptVar->Variable);
+		AddScriptVariable(NewScriptVar);
+		AssignmentNode->AddParameter(NewScriptVar->Variable, VarDefaultValue);
+	};
+
+	// Collect args for add menu widget construct
+	TArray<UNiagaraGraph*> InGraphs = { AssignmentNode->GetNiagaraGraph() };
+	UNiagaraSystem* OwningSystem = AssignmentNode->GetTypedOuter<UNiagaraSystem>();
+
+	const bool bSkipSubscribedLibraries = false;
+	const bool bIsParameterRead = true;
+	FGuid NamespaceId;
+
+	TSharedRef<SNiagaraAddParameterFromPanelMenu> MenuWidget = SNew(SNiagaraAddParameterFromPanelMenu)
+		.Graphs(InGraphs)
+		.AvailableParameterDefinitions(SystemViewModel->GetAvailableParameterDefinitions(bSkipSubscribedLibraries))
+		.SubscribedParameterDefinitions(SystemViewModel->GetSubscribedParameterDefinitions())
+		.OnAddParameter_Lambda(AddParameterLambda)
+		.OnAddScriptVar_Lambda(AddScriptVarLambda)
+		.OnAddParameterDefinitions(this, &FNiagaraSystemToolkitParameterPanelViewModel::AddParameterDefinitions)
+		.OnAllowMakeType_UObject(AssignmentNode, &UNiagaraNodeWithDynamicPins::AllowNiagaraTypeForAddPin)
+		.AllowCreatingNew(true)
+		.NamespaceId(FNiagaraEditorUtilities::GetNamespaceIdForUsage(FNiagaraStackGraphUtilities::GetOutputNodeUsage(*AssignmentNode)))
+		.ShowNamespaceCategory(false)
+		.ShowGraphParameters(false)
+		.AutoExpandMenu(false);
+
+	AddButton->SetMenuContentWidgetToFocus(MenuWidget->GetSearchBox());
+	return MenuWidget;
 }
 
 TArray<FNiagaraVariable> FNiagaraSystemToolkitParameterPanelViewModel::GetEditableStaticSwitchParameters() const

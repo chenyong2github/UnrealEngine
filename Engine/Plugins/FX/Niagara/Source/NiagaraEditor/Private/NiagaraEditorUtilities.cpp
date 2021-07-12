@@ -2693,6 +2693,11 @@ const FNiagaraNamespaceMetadata FNiagaraEditorUtilities::GetNamespaceMetaDataFor
 	return GetDefault<UNiagaraEditorSettings>()->GetMetaDataForId(NamespaceId);
 }
 
+const FGuid& FNiagaraEditorUtilities::GetNamespaceIdForUsage(ENiagaraScriptUsage Usage)
+{
+	return GetDefault<UNiagaraEditorSettings>()->GetIdForUsage(Usage);
+}
+
 TArray<UNiagaraParameterDefinitions*> FNiagaraEditorUtilities::GetAllParameterDefinitions()
 {
 	TArray<UNiagaraParameterDefinitions*> OutParameterDefinitions;

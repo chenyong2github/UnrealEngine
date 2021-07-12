@@ -57,6 +57,8 @@ public:
 
 	FSimpleMulticastDelegate& OnAssignmentTargetsChanged() { return AssignmentTargetsChangedDelegate; }
 
+	TSharedRef<SWidget> CreateAddParameterMenu(const TSharedPtr<SComboButton>& AddButton);
+
 protected:
 
 	UPROPERTY()

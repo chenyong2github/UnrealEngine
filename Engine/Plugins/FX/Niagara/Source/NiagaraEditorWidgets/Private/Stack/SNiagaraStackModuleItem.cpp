@@ -446,31 +446,11 @@ TSharedRef<SWidget> SNiagaraStackModuleItem::RaiseActionMenuClicked()
 {
 	if (CanRaiseActionMenu())
 	{
-		TSharedPtr<SGraphActionMenu> GraphActionMenu;
-
-		TSharedRef<SBorder> MenuWidget = SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
-		.Padding(5)
-		[
-			SNew(SBox)
-			.MinDesiredWidth(300)
-			.HeightOverride(400)
-			[
-				SAssignNew(GraphActionMenu, SGraphActionMenu)
-				.OnActionSelected_Static(OnActionSelected)
-				.OnCollectAllActions(this, &SNiagaraStackModuleItem::CollectParameterActions)
-				.AutoExpandActionMenu(false)
-				.ShowFilterTextBox(true)
-				.OnCreateCustomRowExpander_Static(&SNiagaraStackModuleItem::CreateCustomActionExpander)
-				.OnCreateWidgetForAction_Lambda([](const FCreateWidgetForActionData* InData)
-				{
-					return SNew(SNiagaraGraphActionWidget, InData);
-				})
-			]
-		];
-
-		AddButton->SetMenuContentWidgetToFocus(GraphActionMenu->GetFilterTextBox()->AsShared());
-		return MenuWidget;
+		UNiagaraNodeAssignment* AssignmentNode = Cast<UNiagaraNodeAssignment>(&ModuleItem->GetModuleNode());
+		if (AssignmentNode != nullptr)
+		{
+			return AssignmentNode->CreateAddParameterMenu(AddButton);
+		}
 	}
 	return SNullWidget::NullWidget;
 }

@@ -317,6 +317,8 @@ namespace FNiagaraEditorUtilities
 
 	const FNiagaraNamespaceMetadata GetNamespaceMetaDataForId(const FGuid& NamespaceId);
 
+	const FGuid& GetNamespaceIdForUsage(ENiagaraScriptUsage Usage);
+
 	TArray<UNiagaraParameterDefinitions*> GetAllParameterDefinitions();
 
 	bool GetAvailableParameterDefinitions(const TArray<FString>& ExternalPackagePaths, TArray<FAssetData>& OutParameterDefinitionsAssetData);

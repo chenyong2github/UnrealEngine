@@ -295,6 +295,7 @@ public:
 	FNiagaraNamespaceMetadata GetDefaultNamespaceMetadata() const;
 	FNiagaraNamespaceMetadata GetMetaDataForNamespaces(TArray<FName> Namespaces) const;
 	FNiagaraNamespaceMetadata GetMetaDataForId(const FGuid& NamespaceId) const;
+	const FGuid& GetIdForUsage(ENiagaraScriptUsage Usage) const;
 	const TArray<FNiagaraNamespaceMetadata>& GetAllNamespaceMetadata() const;
 
 	FNiagaraNamespaceMetadata GetDefaultNamespaceModifierMetadata() const;

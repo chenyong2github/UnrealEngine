@@ -444,7 +444,6 @@ void SNiagaraAddParameterFromPanelMenu::CollectAllActions(FGraphActionListBuilde
 						continue;
 					}
 				}
-				ensureMsgf(false, TEXT("Encountered existing variable of unknown type when collecting graph parameters!"));
 			}
 		}
 	}
