@@ -68,3 +68,11 @@ static_assert(!(ELogVerbosity::VerbosityMask & ELogVerbosity::BreakOnLog), "Bad 
  * @returns String representation of the verbosity enum
  */
 CORE_API const TCHAR* ToString(ELogVerbosity::Type Verbosity);
+
+/**
+ * Converts a string to verbosity 
+ * @param VerbosityString verbosity in string form (e.g., "Log", "Display", or "Fatal")
+ * @returns Parsed verbosity from the string (or Log if the string was invalid)
+ */
+extern CORE_API ELogVerbosity::Type ParseLogVerbosityFromString(const FString& VerbosityString);
+
