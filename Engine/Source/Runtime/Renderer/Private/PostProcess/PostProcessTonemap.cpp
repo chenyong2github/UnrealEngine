@@ -15,6 +15,8 @@
 #include "PostProcess/PostProcessing.h"
 #include "ClearQuad.h"
 #include "PipelineStateCache.h"
+#include "Rendering/Texture2DResource.h"
+#include "Math/Halton.h"
 
 namespace
 {
@@ -87,6 +89,11 @@ TAutoConsoleVariable<float> CVarGamma(
 	TEXT("Gamma on output"),
 	ECVF_RenderThreadSafe);
 
+TAutoConsoleVariable<int32> CVarFilmGrainSequenceLength(
+	TEXT("r.FilmGrain.SequenceLength"), 97,
+	TEXT("Length of the random sequence for film grain (preferably a prime number, default=97)."),
+	ECVF_RenderThreadSafe);
+
 const int32 GTonemapComputeTileSizeX = 8;
 const int32 GTonemapComputeTileSizeY = 8;
 
@@ -95,10 +102,9 @@ namespace TonemapperPermutation
 // Shared permutation dimensions between deferred and mobile renderer.
 class FTonemapperBloomDim          : SHADER_PERMUTATION_BOOL("USE_BLOOM");
 class FTonemapperGammaOnlyDim      : SHADER_PERMUTATION_BOOL("USE_GAMMA_ONLY");
-class FTonemapperGrainIntensityDim : SHADER_PERMUTATION_BOOL("USE_GRAIN_INTENSITY");
 class FTonemapperVignetteDim       : SHADER_PERMUTATION_BOOL("USE_VIGNETTE");
 class FTonemapperSharpenDim        : SHADER_PERMUTATION_BOOL("USE_SHARPEN");
-class FTonemapperGrainJitterDim    : SHADER_PERMUTATION_BOOL("USE_GRAIN_JITTER");
+class FTonemapperFilmGrainDim      : SHADER_PERMUTATION_BOOL("USE_FILM_GRAIN");
 class FTonemapperSwitchAxis        : SHADER_PERMUTATION_BOOL("NEEDTOSWITCHVERTICLEAXIS");
 class FTonemapperMsaaDim           : SHADER_PERMUTATION_BOOL("METAL_MSAA_HDR_DECODE");
 class FTonemapperEyeAdaptationDim  : SHADER_PERMUTATION_BOOL("EYEADAPTATION_EXPOSURE_FIX");
@@ -107,10 +113,9 @@ class FTonemapperUseFXAA           : SHADER_PERMUTATION_BOOL("USE_FXAA");
 using FCommonDomain = TShaderPermutationDomain<
 	FTonemapperBloomDim,
 	FTonemapperGammaOnlyDim,
-	FTonemapperGrainIntensityDim,
 	FTonemapperVignetteDim,
 	FTonemapperSharpenDim,
-	FTonemapperGrainJitterDim,
+	FTonemapperFilmGrainDim,
 	FTonemapperSwitchAxis,
 	FTonemapperMsaaDim,
 	FTonemapperUseFXAA>;
@@ -138,10 +143,9 @@ bool ShouldCompileCommonPermutation(const FGlobalShaderPermutationParameters& Pa
 	if (PermutationVector.Get<FTonemapperGammaOnlyDim>())
 	{
 		return !PermutationVector.Get<FTonemapperBloomDim>() &&
-			!PermutationVector.Get<FTonemapperGrainIntensityDim>() &&
 			!PermutationVector.Get<FTonemapperVignetteDim>() &&
 			!PermutationVector.Get<FTonemapperSharpenDim>() &&
-			!PermutationVector.Get<FTonemapperGrainJitterDim>() &&
+			!PermutationVector.Get<FTonemapperFilmGrainDim>() &&
 			!PermutationVector.Get<FTonemapperMsaaDim>();
 	}
 	return true;
@@ -164,10 +168,9 @@ FCommonDomain BuildCommonPermutationDomain(const FViewInfo& View, bool bGammaOnl
 	}
 
 	const FPostProcessSettings& Settings = View.FinalPostProcessSettings;
-	PermutationVector.Set<FTonemapperGrainIntensityDim>(Settings.GrainIntensity > 0.0f);
 	PermutationVector.Set<FTonemapperVignetteDim>(Settings.VignetteIntensity > 0.0f);
 	PermutationVector.Set<FTonemapperBloomDim>(Settings.BloomIntensity > 0.0);
-	PermutationVector.Set<FTonemapperGrainJitterDim>(Settings.GrainJitter > 0.0f);
+	PermutationVector.Set<FTonemapperFilmGrainDim>(View.FilmGrainTexture != nullptr);
 	PermutationVector.Set<FTonemapperSharpenDim>(CVarTonemapperSharpen.GetValueOnRenderThread() > 0.0f);	
 	PermutationVector.Set<FTonemapperSwitchAxis>(bSwitchVerticalAxis);
 	PermutationVector.Set<FTonemapperMsaaDim>(bMetalMSAAHDRDecode);
@@ -201,13 +204,11 @@ FDesktopDomain RemapPermutation(FDesktopDomain PermutationVector, ERHIFeatureLev
 
 	// Grain jitter or intensity looks bad anyway.
 	bool bFallbackToSlowest = false;
-	bFallbackToSlowest = bFallbackToSlowest || CommonPermutationVector.Get<FTonemapperGrainIntensityDim>();
-	bFallbackToSlowest = bFallbackToSlowest || CommonPermutationVector.Get<FTonemapperGrainJitterDim>();
+	bFallbackToSlowest = bFallbackToSlowest || CommonPermutationVector.Get<FTonemapperFilmGrainDim>();
 
 	if (bFallbackToSlowest)
 	{
-		CommonPermutationVector.Set<FTonemapperGrainIntensityDim>(true);
-		CommonPermutationVector.Set<FTonemapperGrainJitterDim>(true);
+		CommonPermutationVector.Set<FTonemapperFilmGrainDim>(true);
 		CommonPermutationVector.Set<FTonemapperSharpenDim>(true);
 
 		PermutationVector.Set<FTonemapperColorFringeDim>(true);
@@ -257,15 +258,6 @@ bool ShouldCompileDesktopPermutation(const FGlobalShaderPermutationParameters& P
 
 } // namespace TonemapperPermutation
 } // namespace
-
-void GrainPostSettings(FVector3f* RESTRICT const Constant, const FPostProcessSettings* RESTRICT const Settings)
-{
-	float GrainJitter = Settings->GrainJitter;
-	float GrainIntensity = Settings->GrainIntensity;
-	Constant->X = GrainIntensity;
-	Constant->Y = 1.0f + (-0.5f * GrainIntensity);
-	Constant->Z = GrainJitter;
-}
 
 FTonemapperOutputDeviceParameters GetTonemapperOutputDeviceParameters(const FSceneViewFamily& Family)
 {
@@ -320,29 +312,11 @@ FTonemapperOutputDeviceParameters GetTonemapperOutputDeviceParameters(const FSce
 
 BEGIN_SHADER_PARAMETER_STRUCT(FFilmGrainParameters, )
 	SHADER_PARAMETER(FVector3f, GrainRandomFull)
-	SHADER_PARAMETER(FVector3f, GrainScaleBiasJitter)
+	SHADER_PARAMETER(float, FilmGrainMul)
+	SHADER_PARAMETER(float, FilmGrainAdd)
+	SHADER_PARAMETER_TEXTURE(Texture2D, FilmGrainTexture)
+	SHADER_PARAMETER(FScreenTransform, ScreenPosToFilmGrainTextureUV)
 END_SHADER_PARAMETER_STRUCT()
-
-FFilmGrainParameters GetFilmGrainParameters(const FViewInfo& View)
-{
-	FVector3f GrainRandomFullValue;
-	{
-		uint8 FrameIndexMod8 = 0;
-		if (View.State)
-		{
-			FrameIndexMod8 = View.ViewState->GetFrameIndex(8);
-		}
-		GrainRandomFromFrame(&GrainRandomFullValue, FrameIndexMod8);
-	}
-
-	FVector3f GrainScaleBiasJitter;
-	GrainPostSettings(&GrainScaleBiasJitter, &View.FinalPostProcessSettings);
-
-	FFilmGrainParameters Parameters;
-	Parameters.GrainRandomFull = GrainRandomFullValue;
-	Parameters.GrainScaleBiasJitter = GrainScaleBiasJitter;
-	return Parameters;
-}
 
 BEGIN_SHADER_PARAMETER_STRUCT(FTonemapParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -575,7 +549,47 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 
 	FTonemapParameters CommonParameters;
 	CommonParameters.View = View.ViewUniformBuffer;
-	CommonParameters.FilmGrain = GetFilmGrainParameters(View);
+
+	{
+		uint8 FrameIndexMod8 = 0;
+		if (View.State)
+		{
+			FrameIndexMod8 = View.ViewState->GetFrameIndex(8);
+		}
+		GrainRandomFromFrame(&CommonParameters.FilmGrain.GrainRandomFull, FrameIndexMod8);
+	}
+
+	if (View.FilmGrainTexture)
+	{
+		check(View.FilmGrainTexture);
+
+		// (FilmGrainTexture * FilmGrainDecodeMultiply + FilmGrainDecodeAdd) * View.FinalPostProcessSettings.FilmGrainIntensity + 1.0f - View.FinalPostProcessSettings.FilmGrainIntensity
+		CommonParameters.FilmGrain.FilmGrainMul = View.FinalPostProcessSettings.FilmGrainDecodeMultiply * View.FinalPostProcessSettings.FilmGrainIntensity;
+		CommonParameters.FilmGrain.FilmGrainAdd = View.FinalPostProcessSettings.FilmGrainDecodeAdd * View.FinalPostProcessSettings.FilmGrainIntensity + 1.0f - View.FinalPostProcessSettings.FilmGrainIntensity;
+		CommonParameters.FilmGrain.FilmGrainTexture = View.FilmGrainTexture->GetTexture2DRHI();
+
+		int32 RandomSequenceLength = CVarFilmGrainSequenceLength.GetValueOnRenderThread();
+		int32 RandomSequenceIndex = (View.ViewState ? View.ViewState->FrameIndex : 0) % RandomSequenceLength;
+
+		FVector2D RandomGrainTextureUVOffset;
+		RandomGrainTextureUVOffset.X = Halton(RandomSequenceIndex + 1, 2);
+		RandomGrainTextureUVOffset.Y = Halton(RandomSequenceIndex + 1, 3);
+
+		FVector2D TextureSize(View.FilmGrainTexture->GetSizeX(), View.FilmGrainTexture->GetSizeY());
+		FVector2D OutputSizeF(OutputViewport.Rect.Width(), OutputViewport.Rect.Height());
+
+		CommonParameters.FilmGrain.ScreenPosToFilmGrainTextureUV = 
+			FScreenTransform::ScreenPosToViewportUV *
+			((OutputSizeF / TextureSize) * (1.0f / View.FinalPostProcessSettings.FilmGrainTexelSize)) + RandomGrainTextureUVOffset;
+	}
+	else
+	{
+		CommonParameters.FilmGrain.FilmGrainMul = 0.0f;
+		CommonParameters.FilmGrain.FilmGrainAdd = 1.0f;
+		CommonParameters.FilmGrain.FilmGrainTexture = GWhiteTexture->TextureRHI;
+		CommonParameters.FilmGrain.ScreenPosToFilmGrainTextureUV = FScreenTransform::ScreenPosToViewportUV;
+	}
+
 	CommonParameters.OutputDevice = GetTonemapperOutputDeviceParameters(ViewFamily);
 	CommonParameters.Color = GetScreenPassTextureViewportParameters(SceneColorViewport);
 	if (Inputs.Bloom.Texture)

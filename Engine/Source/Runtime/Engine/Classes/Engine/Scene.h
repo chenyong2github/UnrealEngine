@@ -927,11 +927,20 @@ struct FPostProcessSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_VignetteIntensity:1;
 
+	UPROPERTY()
+	uint8 bOverride_GrainIntensity_DEPRECATED:1;
+
+	UPROPERTY()
+	uint8 bOverride_GrainJitter_DEPRECATED:1;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
-	uint8 bOverride_GrainIntensity:1;
+	uint8 bOverride_FilmGrainIntensity:1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
-	uint8 bOverride_GrainJitter:1;
+	uint8 bOverride_FilmGrainTexelSize:1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_FilmGrainTexture : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_AmbientOcclusionIntensity:1;
@@ -1696,13 +1705,31 @@ struct FPostProcessSettings
 	UPROPERTY(interp, BlueprintReadWrite, Category="Lens|Image Effects", meta=(UIMin = "0.0", UIMax = "1.0", editcondition = "bOverride_VignetteIntensity"))
 	float VignetteIntensity;
 
-	/** 0..1 grain jitter */
-	UPROPERTY(interp, BlueprintReadWrite, Category = "Lens|Image Effects", meta=(UIMin = "0.0", UIMax = "1.0", editcondition = "bOverride_GrainJitter"))
-	float GrainJitter;
+	UPROPERTY()
+	float GrainJitter_DEPRECATED;
 
-	/** 0..1 grain intensity */
-	UPROPERTY(interp, BlueprintReadWrite, Category="Lens|Image Effects", meta=(UIMin = "0.0", UIMax = "1.0", editcondition = "bOverride_GrainIntensity"))
-	float GrainIntensity;
+	UPROPERTY()
+	float GrainIntensity_DEPRECATED;
+
+	/** 0..1 Film grain intensity to apply. LinearSceneColor *= lerp(1.0, DecodedFilmGrainTexture, FilmGrainIntensity) */
+	UPROPERTY(interp, BlueprintReadWrite, Category = "Film|Grain", meta = (UIMin = "0.0", UIMax = "1.0", editcondition = "bOverride_FilmGrainIntensity"))
+	float FilmGrainIntensity;
+
+	/** Size of texel of FilmGrainTexture on screen. */
+	UPROPERTY(interp, BlueprintReadWrite, Category = "Film|Grain", meta = (UIMin = "0.0", UIMax = "4.0", editcondition = "bOverride_FilmGrainTexelSize"))
+	float FilmGrainTexelSize;
+
+	/** Defines film grain texture to use. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Film|Grain", meta = (editcondition = "bOverride_FilmGrainTexture"))
+	TObjectPtr<class UTexture2D> FilmGrainTexture;
+
+	/** Multiply the FilmGrainTexture. DecodedFilmGrainTexture = FilmGrainTexture * FilmGrainDecodeMultiply + FilmGrainDecodeAdd */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Film|Grain", meta = (editcondition = "bOverride_FilmGrainTexture"))
+	float FilmGrainDecodeMultiply;
+
+	/** Add to the FilmGrainTexture. DecodedFilmGrainTexture = FilmGrainTexture * FilmGrainDecodeMultiply + FilmGrainDecodeAdd */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Film|Grain", meta = (editcondition = "bOverride_FilmGrainTexture"))
+	float FilmGrainDecodeAdd;
 
 	/** 0..1 0=off/no ambient occlusion .. 1=strong ambient occlusion, defines how much it affects the non direct lighting after base pass */
 	UPROPERTY(interp, BlueprintReadWrite, Category="Rendering Features|Ambient Occlusion", meta=(ClampMin = "0.0", ClampMax = "1.0", editcondition = "bOverride_AmbientOcclusionIntensity", DisplayName = "Intensity"))

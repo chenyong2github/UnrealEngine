@@ -2951,6 +2951,14 @@ void UEngine::LoadDefaultBloomTexture()
 	}
 }
 
+void UEngine::LoadDefaultFilmGrainTexture()
+{
+	if (DefaultFilmGrainTexture == nullptr && DefaultFilmGrainTextureName.IsValid())
+	{
+		LoadEngineTexture(DefaultFilmGrainTexture, *DefaultFilmGrainTextureName.ToString());
+	}
+}
+
 void UEngine::InitializePortalServices()
 {
 	IMessagingRpcModule* MessagingRpcModule = nullptr;

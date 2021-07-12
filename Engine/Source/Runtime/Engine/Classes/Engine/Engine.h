@@ -840,6 +840,14 @@ public:
 	/** Path of the texture used to bloom when using FFT, mimics characteristic bloom produced in a camera from a signle bright source */
 	UPROPERTY(globalconfig)
 	FSoftObjectPath DefaultBloomKernelTextureName;
+	
+	/** Texture used to film grain by default. */
+	UPROPERTY()
+	TObjectPtr<class UTexture2D> DefaultFilmGrainTexture;
+
+	/** Path of the texture used by film grain by default. */
+	UPROPERTY(globalconfig)
+	FSoftObjectPath DefaultFilmGrainTextureName;
 
 	/** The material used to render wireframe meshes. */
 	UPROPERTY()
@@ -1727,6 +1735,9 @@ public:
 	* The texture is uncompressed and contains no mips so it can't be streamed.
 	*/
 	void LoadDefaultBloomTexture();
+
+	/** Delay loading this texture until it is needed by the renderer. */
+	void LoadDefaultFilmGrainTexture();
 
 private:
 	#if WITH_DYNAMIC_RESOLUTION

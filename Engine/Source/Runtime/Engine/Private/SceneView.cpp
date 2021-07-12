@@ -1436,8 +1436,8 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		LERP_PP(LensFlareBokehSize);
 		LERP_PP(LensFlareThreshold);
 		LERP_PP(VignetteIntensity);
-		LERP_PP(GrainIntensity);
-		LERP_PP(GrainJitter);
+		LERP_PP(FilmGrainIntensity);
+		LERP_PP(FilmGrainTexelSize);
 		LERP_PP(AmbientOcclusionIntensity);
 		LERP_PP(AmbientOcclusionStaticFraction);
 		LERP_PP(AmbientOcclusionRadius);
@@ -1658,6 +1658,14 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		IF_PP(BloomConvolutionTexture)
 		{
 			Dest.BloomConvolutionTexture = Src.BloomConvolutionTexture;
+		}
+
+		// actual texture cannot be blended but the film grain intensity can be blended
+		IF_PP(FilmGrainTexture)
+		{
+			Dest.FilmGrainTexture = Src.FilmGrainTexture;
+			Dest.FilmGrainDecodeMultiply = Src.FilmGrainDecodeMultiply;
+			Dest.FilmGrainDecodeAdd = Src.FilmGrainDecodeAdd;
 		}
 
 		// A continuous blending of this value would result trashing the pre-convolved bloom kernel cache.
@@ -1887,12 +1895,7 @@ void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewIn
 
 		if(Quality < 4)
 		{
-			FinalPostProcessSettings.GrainIntensity = 0;
-		}
-
-		if(Quality < 5)
-		{
-			FinalPostProcessSettings.GrainJitter = 0;
+			FinalPostProcessSettings.FilmGrainIntensity = 0;
 		}
 	}
 
@@ -1919,8 +1922,7 @@ void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewIn
 
 	if(!Family->EngineShowFlags.Grain)
 	{
-		FinalPostProcessSettings.GrainIntensity = 0;
-		FinalPostProcessSettings.GrainJitter = 0;
+		FinalPostProcessSettings.FilmGrainIntensity = 0.0f;
 	}
 
 	if(!Family->EngineShowFlags.CameraImperfections)
