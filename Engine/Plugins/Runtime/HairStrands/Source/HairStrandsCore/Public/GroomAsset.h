@@ -507,6 +507,10 @@ public:
 	void UpdateResource();
 #endif
 	void ReleaseResource();
+	void ReleaseGuidesResource(uint32 GroupIndex);
+	void ReleaseStrandsResource(uint32 GroupIndex);
+	void ReleaseCardsResource(uint32 GroupIndex);
+	void ReleaseMeshesResource(uint32 GroupIndex);
 
 	void SetNumGroup(uint32 InGroupCount, bool bResetGroupData=true);
 	bool AreGroupsValid() const;
