@@ -863,7 +863,7 @@ struct FTemporalAAHistory
 	static constexpr int32 kLowResRenderTargetCount = 1;
 
 	// Number of render target in the history.
-	static constexpr int32 kRenderTargetCount = 4;
+	static constexpr int32 kRenderTargetCount = 5;
 
 	// Number of render target in the history.
 	static constexpr int32 kSuperResRenderTargetCount = 2;

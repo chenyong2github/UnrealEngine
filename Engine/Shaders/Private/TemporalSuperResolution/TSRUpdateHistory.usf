@@ -12,8 +12,6 @@
 
 #define CONFIG_CLAMP 1
 
-#define CONFIG_RESPONSIVE_STENCIL 1
-
 #define CONFIG_SAMPLES 5
 
 #define CONFIG_MANUAL_LDS_SPILL (CONFIG_COMPILE_FP16)
@@ -22,9 +20,17 @@
 
 #define CONFIG_TRANSLUCENCY_REJECTION 1
 
-#define CONFIG_VFX_SURVIVAL 1
-
 #define CONFIG_REJECTION_ANTI_ALIASING (DIM_REJECTION_ANTI_ALIASING)
+
+#if DIM_SEPARATE_TRANSLUCENCY == 1
+	#define CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY 1
+	#define CONFIG_VFX_SURVIVAL 0
+	#define CONFIG_RESPONSIVE_STENCIL 0
+#else
+	#define CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY 0
+	#define CONFIG_VFX_SURVIVAL 1
+	#define CONFIG_RESPONSIVE_STENCIL 1
+#endif
 
 #if CONFIG_COMPILE_FP16
 	// Take advantage of RDNA's v_pk_*_{uif}16 instructions
@@ -43,6 +49,8 @@
 
 Texture2D<taa_half3> InputSceneColorTexture;
 Texture2D<uint2> InputSceneStencilTexture;
+Texture2D<taa_half4> InputSceneTranslucencyTexture;
+
 Texture2D<taa_half> HistoryRejectionTexture;
 Texture2D<taa_half> TranslucencyRejectionTexture;
 
@@ -61,11 +69,13 @@ Texture2D<taa_half3> PrevHistory_Textures_0;
 Texture2D<taa_half3> PrevHistory_Textures_1;
 Texture2D<taa_half2> PrevHistory_Textures_2;
 Texture2D<taa_subpixel_details> PrevHistory_Textures_3;
+Texture2D<taa_half4> PrevHistory_Textures_4;
 
 RWTexture2D<taa_half3> HistoryOutput_Textures_0;
 RWTexture2D<taa_half3> HistoryOutput_Textures_1;
 RWTexture2D<taa_half2> HistoryOutput_Textures_2;
 RWTexture2D<taa_subpixel_details> HistoryOutput_Textures_3;
+RWTexture2D<taa_half4> HistoryOutput_Textures_4;
 
 RWTexture2D<taa_half3> SceneColorOutput;
 
@@ -107,6 +117,13 @@ taa_half2 ComputeFallbackContribution(taa_half2 HistoryValidity)
 taa_half3x2 TransformColorForClampingBox(taa_half3x2 Color)
 {
 	return RGBToYCoCg(Color);
+}
+
+taa_half3x2 GetColorChannel(taa_half4x2 Color)
+{
+	return dpv_interleave_registers(
+		dpv_lo(Color).rgb,
+		dpv_hi(Color).rgb);
 }
 
 void ComputeInputKernelSamplePosition(
@@ -308,7 +325,7 @@ void MainCS(
 	}
 
 	// Reject the translucency to respond quicker on firefliers.
-	#if CONFIG_TRANSLUCENCY_REJECTION
+	#if CONFIG_TRANSLUCENCY_REJECTION && CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY == 0
 		LowFrequencyRejection = min(LowFrequencyRejection, TranslucencyRejection);
 	#endif
 	
@@ -326,6 +343,11 @@ void MainCS(
 	taa_half3x2 FilteredInputColor;
 	taa_half3x2 InputMinColor;
 	taa_half3x2 InputMaxColor;
+	
+	taa_half4x2 FilteredTranslucencyColor;
+	taa_half4x2 TranslucencyMinColor;
+	taa_half4x2 TranslucencyMaxColor;
+
 	taa_half2 InputPixelAlignement;
 	taa_half2 ClosestInputLuma4;
 	
@@ -374,6 +396,10 @@ void MainCS(
 			taa_half3x2 InputColor = dpv_interleave_registers(
 				InputSceneColorTexture[dpv_lo(SampleInputPixelPos)],
 				InputSceneColorTexture[dpv_hi(SampleInputPixelPos)]);
+			
+			taa_half4x2 TranslucencyColor = dpv_interleave_registers(
+				InputSceneTranslucencyTexture[dpv_lo(SampleInputPixelPos)],
+				InputSceneTranslucencyTexture[dpv_hi(SampleInputPixelPos)]);
 
 			taa_half2x2 dPP = PixelOffset - dKO;
 			taa_half2 SampleSpatialWeight = ComputeSampleWeigth(FinalInputToHistoryFactor, dPP, /* MinimalContribution = */ float(0.005));
@@ -395,11 +421,17 @@ void MainCS(
 				ClosestInputLuma4 = Luma4(InputColor);
 				InputMinColor = TransformColorForClampingBox(InputColor);
 				InputMaxColor = TransformColorForClampingBox(InputColor);
+
+				FilteredTranslucencyColor = TranslucencyColor;
+				TranslucencyMinColor = TranslucencyColor;
+				TranslucencyMaxColor = TranslucencyColor;
 			}
 			else
 			{
 				InputMinColor = min(InputMinColor, TransformColorForClampingBox(InputColor));
 				InputMaxColor = max(InputMaxColor, TransformColorForClampingBox(InputColor));
+				TranslucencyMinColor = min(TranslucencyMinColor, TranslucencyColor);
+				TranslucencyMaxColor = max(TranslucencyMaxColor, TranslucencyColor);
 			}
 		}
 		
@@ -434,6 +466,8 @@ void MainCS(
 	taa_half3x2 PrevHistoryMoment1;
 	taa_half2 PrevHistoryValidity;
 	
+	taa_half4x2 PrevHistoryTranslucency;
+	
 	taa_half3x2 PrevHistoryMommentMin;
 	taa_half3x2 PrevHistoryMommentMax;
 
@@ -448,6 +482,7 @@ void MainCS(
 		taa_half3x2 RawHistory0 = taa_half(0);
 		taa_half3x2 RawHistory1 = taa_half(0);
 		taa_half2x2 RawHistory2 = taa_half(0);
+		taa_half4x2 RawHistory4 = taa_half(0);
 
 		taa_half3x2 RawHistory1Min = INFINITE_FLOAT;
 		taa_half3x2 RawHistory1Max = -INFINITE_FLOAT;
@@ -480,6 +515,9 @@ void MainCS(
 					taa_half2x2 Sample2 = dpv_interleave_registers(
 						PrevHistory_Textures_2.SampleLevel(GlobalBilinearClampedSampler, SampleUV0, 0),
 						PrevHistory_Textures_2.SampleLevel(GlobalBilinearClampedSampler, SampleUV1, 0));
+					taa_half4x2 Sample4 = dpv_interleave_registers(
+						PrevHistory_Textures_4.SampleLevel(GlobalBilinearClampedSampler, SampleUV0, 0),
+						PrevHistory_Textures_4.SampleLevel(GlobalBilinearClampedSampler, SampleUV1, 0));
 
 					taa_half2 InvWeight = SafeRcp(Sample2[1]);
 
@@ -491,6 +529,7 @@ void MainCS(
 					RawHistory0 += dpv_scale(Sample0, KernelWeight);
 					RawHistory1 += dpv_scale(Sample1, KernelWeight);
 					RawHistory2 += dpv_scale(Sample2, KernelWeight);
+					RawHistory4 += dpv_scale(Sample4, KernelWeight);
 				}
 				
 				taa_half2 FinalMultiplier = dpv_interleave_registers(taa_half(Samples0.FinalMultiplier), taa_half(Samples1.FinalMultiplier));
@@ -525,6 +564,7 @@ void MainCS(
 			RawHistory0 = -dpv_min(-RawHistory0, taa_half(0.0).xxx);
 			RawHistory1 = -dpv_min(-RawHistory1, taa_half(0.0).xxx);
 			RawHistory2 = -dpv_min(-RawHistory2, taa_half(0.0).xx);
+			RawHistory4 = -dpv_min(-RawHistory4, taa_half(0.0).xxxx);
 		}
 		
 		// Unpack history.
@@ -537,6 +577,8 @@ void MainCS(
 
 			PrevHistoryMoment1 = RawHistory1;
 			PrevHistoryValidity = RawHistory2[1];
+
+			PrevHistoryTranslucency = RawHistory4;
 		}
 
 		// Correct history
@@ -850,6 +892,31 @@ void MainCS(
 			FinalFallbackColor = dpv_scale(ClampedFallbackColor, Weights[0]) + dpv_scale(FilteredInputColor, Weights[1]);
 		}
 	}
+	
+	// Compute the fallback history
+	taa_half4x2 FinalTranslucencyColor;
+	#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
+	{
+		taa_half4x2 ClampedPrevHistoryTranslucency = clamp(PrevHistoryTranslucency, TranslucencyMinColor, TranslucencyMaxColor);
+		
+		taa_half2 HighFrequencyTranslucencyRejection = MeasureRejectionFactor(
+			GetColorChannel(PrevHistoryTranslucency), GetColorChannel(ClampedPrevHistoryTranslucency),
+			GetColorChannel(FilteredTranslucencyColor), GetColorChannel(TranslucencyMinColor), GetColorChannel(TranslucencyMaxColor),
+			taa_half(0.0));
+		
+		taa_half2 BlendFinal = max(taa_half(0.2) * InputPixelAlignement, taa_half(1.0) - TranslucencyRejection * HighFrequencyTranslucencyRejection);
+
+		FLATTEN
+		if (bCameraCut)
+		{
+			BlendFinal = taa_half(1.0);
+		}
+
+		taa_half2 OneMinusBlendFinal = taa_half(1.0) - BlendFinal;
+
+		FinalTranslucencyColor = dpv_scale(PrevHistoryTranslucency, OneMinusBlendFinal) + dpv_scale(FilteredTranslucencyColor, BlendFinal);
+	}
+	#endif
 
 	// Update subpixel detail
 	taa_subpixel_details2 FinalSubpixelDetails;
@@ -944,6 +1011,11 @@ void MainCS(
 		#else
 			FinalOutputColor = dpv_scale(FinalFallbackColor, Weights[0]) + dpv_scale(NormalizedFinalHistoryMoment1, Weights[1]);
 		#endif
+
+		#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
+			FinalOutputColor = dpv_scale(FinalOutputColor, FinalTranslucencyColor[3]) + dpv_interleave_registers(
+				dpv_lo(FinalTranslucencyColor).rgb, dpv_hi(FinalTranslucencyColor).rgb);
+		#endif
 	}
 
 
@@ -996,12 +1068,18 @@ void MainCS(
 			HistoryOutput_Textures_1[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(FinalHistoryMoment1);
 			HistoryOutput_Textures_2[dpv_lo(LocalHistoryPixelPos)] = taa_half2(dpv_lo(FinalFallbackWeight), dpv_lo(FinalHistoryValidity));
 			HistoryOutput_Textures_3[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(FinalSubpixelDetails);
-			
+			#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
+				HistoryOutput_Textures_4[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(FinalTranslucencyColor);
+			#endif
+
 			#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
 				HistoryOutput_Textures_0[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(FinalFallbackColor);
 				HistoryOutput_Textures_1[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(FinalHistoryMoment1);
 				HistoryOutput_Textures_2[dpv_hi(LocalHistoryPixelPos)] = taa_half2(dpv_hi(FinalFallbackWeight), dpv_hi(FinalHistoryValidity));
 				HistoryOutput_Textures_3[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(FinalSubpixelDetails);
+				#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
+					HistoryOutput_Textures_4[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(FinalTranslucencyColor);
+				#endif
 			#endif
 		}
 

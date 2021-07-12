@@ -323,6 +323,8 @@ void AddTemporalAA2Passes(
 	FRDGTextureRef* OutSceneColorTexture,
 	FIntRect* OutSceneColorViewRect);
 
+bool ComposeSeparateTranslucencyInTSR(const FViewInfo& View);
+
 void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults, FInstanceCullingManager& InstanceCullingManager)
 {
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderPostProcessing);
@@ -545,6 +547,13 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 
 		const bool bBloomEnabled = View.FinalPostProcessSettings.BloomIntensity > 0.0f;
 
+
+		// Temporal Anti-aliasing. Also may perform a temporal upsample from primary to secondary view rect.
+		EMainTAAPassConfig TAAConfig = ITemporalUpscaler::GetMainTAAPassConfig(View);
+
+		// Whether separate translucency is composed in TSR.
+		bool bComposeSeparateTranslucencyInTSR = TAAConfig == EMainTAAPassConfig::TSR && ComposeSeparateTranslucencyInTSR(View);
+
 		const FPostProcessMaterialChain PostProcessMaterialAfterTonemappingChain = GetPostProcessMaterialChain(View, BL_AfterTonemapping);
 
 		PassSequence.SetEnabled(EPass::MotionBlur, bVisualizeMotionBlur || bMotionBlurEnabled);
@@ -585,11 +594,19 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 
 			if (bDepthOfFieldEnabled)
 			{
-				LocalSceneColorTexture = DiaphragmDOF::AddPasses(GraphBuilder, SceneTextureParameters, View, SceneColor.Texture, *Inputs.SeparateTranslucencyTextures);
+				FSeparateTranslucencyDimensions DummyTranslucencyDimensions;
+				FSeparateTranslucencyTextures DummyTranslucency(DummyTranslucencyDimensions);
+
+				LocalSceneColorTexture = DiaphragmDOF::AddPasses(
+					GraphBuilder,
+					SceneTextureParameters,
+					View,
+					SceneColor.Texture,
+					bComposeSeparateTranslucencyInTSR ? DummyTranslucencyDimensions : *Inputs.SeparateTranslucencyTextures);
 			}
 
 			// DOF passes were not added, therefore need to compose Separate translucency manually.
-			if (LocalSceneColorTexture == SceneColor.Texture)
+			if (LocalSceneColorTexture == SceneColor.Texture && !bComposeSeparateTranslucencyInTSR)
 			{
 				LocalSceneColorTexture = AddPostDOFTranslucencyCompositionPass(GraphBuilder, View, SceneColor, SceneDepth, *Inputs.SeparateTranslucencyTextures);
 			}
@@ -617,8 +634,6 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		// Scene color view rectangle after temporal AA upscale to secondary screen percentage.
 		FIntRect SecondaryViewRect = PrimaryViewRect;
 
-		// Temporal Anti-aliasing. Also may perform a temporal upsample from primary to secondary view rect.
-		EMainTAAPassConfig TAAConfig = ITemporalUpscaler::GetMainTAAPassConfig(View);
 		if (TAAConfig != EMainTAAPassConfig::Disabled)
 		{
 			// Whether we allow the temporal AA pass to downsample scene color. It may choose not to based on internal context,
