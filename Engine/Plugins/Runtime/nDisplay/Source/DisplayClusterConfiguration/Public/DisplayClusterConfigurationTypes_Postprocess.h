@@ -133,7 +133,11 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_Colo
 		: bOverride_BlueCorrection(0)
 		, bOverride_ExpandGamut(0)
 		, bOverride_SceneColorTint(0)
-	{};
+		, BlueCorrection(0)
+		, ExpandGamut(0)
+		, SceneColorTint(ForceInitToZero)
+	{
+	}
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_BlueCorrection:1;
@@ -164,7 +168,14 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_PerV
 		: bOverride_AutoExposureBias(0)
 		, bOverride_ColorCorrectionHighlightsMin(0)
 		, bOverride_ColorCorrectionShadowsMax(0)
-	{};
+		, Global()
+		, Shadows()
+		, ColorCorrectionShadowsMax(0)
+		, Midtones()
+		, Highlights()
+		, ColorCorrectionHighlightsMin(0)
+	{
+	}
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_AutoExposureBias:1;
