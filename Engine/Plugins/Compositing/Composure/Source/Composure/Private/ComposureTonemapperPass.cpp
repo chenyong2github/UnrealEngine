@@ -24,8 +24,8 @@ void FComposureTonemapperUtils::ApplyTonemapperSettings(const FColorGradingSetti
 		OutSettings.bOverride_VignetteIntensity = true;
 		OutSettings.VignetteIntensity = 0;
 
-		OutSettings.bOverride_GrainIntensity = true;
-		OutSettings.GrainIntensity = 0;
+		OutSettings.bOverride_FilmGrainIntensity = true;
+		OutSettings.FilmGrainIntensity = 0;
 
 		OutSettings.bOverride_BloomDirtMask = true;
 		OutSettings.BloomDirtMask = nullptr;
