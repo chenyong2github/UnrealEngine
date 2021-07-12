@@ -2,6 +2,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "Engine/Engine.h"
 #include "MetasoundAssetBase.h"
 #include "Subsystems/EngineSubsystem.h"
 #include "UObject/Object.h"
