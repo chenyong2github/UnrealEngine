@@ -315,6 +315,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FFilmGrainParameters, )
 	SHADER_PARAMETER(float, FilmGrainMul)
 	SHADER_PARAMETER(float, FilmGrainAdd)
 	SHADER_PARAMETER_TEXTURE(Texture2D, FilmGrainTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, FilmGrainSampler)
 	SHADER_PARAMETER(FScreenTransform, ScreenPosToFilmGrainTextureUV)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -567,6 +568,7 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 		CommonParameters.FilmGrain.FilmGrainMul = View.FinalPostProcessSettings.FilmGrainDecodeMultiply * View.FinalPostProcessSettings.FilmGrainIntensity;
 		CommonParameters.FilmGrain.FilmGrainAdd = View.FinalPostProcessSettings.FilmGrainDecodeAdd * View.FinalPostProcessSettings.FilmGrainIntensity + 1.0f - View.FinalPostProcessSettings.FilmGrainIntensity;
 		CommonParameters.FilmGrain.FilmGrainTexture = View.FilmGrainTexture->GetTexture2DRHI();
+		CommonParameters.FilmGrain.FilmGrainSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap>::GetRHI();
 
 		int32 RandomSequenceLength = CVarFilmGrainSequenceLength.GetValueOnRenderThread();
 		int32 RandomSequenceIndex = (View.ViewState ? View.ViewState->FrameIndex : 0) % RandomSequenceLength;
@@ -587,6 +589,7 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 		CommonParameters.FilmGrain.FilmGrainMul = 0.0f;
 		CommonParameters.FilmGrain.FilmGrainAdd = 1.0f;
 		CommonParameters.FilmGrain.FilmGrainTexture = GWhiteTexture->TextureRHI;
+		CommonParameters.FilmGrain.FilmGrainSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap>::GetRHI();
 		CommonParameters.FilmGrain.ScreenPosToFilmGrainTextureUV = FScreenTransform::ScreenPosToViewportUV;
 	}
 
