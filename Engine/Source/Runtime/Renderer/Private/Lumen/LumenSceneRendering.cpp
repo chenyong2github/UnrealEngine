@@ -262,10 +262,9 @@ bool ShouldRenderLumenForViewFamily(const FScene* Scene, const FSceneViewFamily&
 		&& DoesPlatformSupportLumenGI(Scene->GetShaderPlatform());
 }
 
-bool Lumen::IsSoftwareRayTracingAllowed()
+bool Lumen::IsSoftwareRayTracingSupported()
 {
-	static const auto CMeshSDFVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
-	return CMeshSDFVar->GetValueOnRenderThread() != 0;
+	return DoesProjectSupportDistanceFields();
 }
 
 bool Lumen::IsLumenFeatureAllowedForView(const FScene* Scene, const FViewInfo& View, bool bSkipTracingDataCheck)
@@ -277,7 +276,7 @@ bool Lumen::IsLumenFeatureAllowedForView(const FScene* Scene, const FViewInfo& V
 		&& !View.bIsSceneCapture
 		&& !View.bIsReflectionCapture
 		&& View.ViewState
-		&& (bSkipTracingDataCheck || Lumen::UseHardwareRayTracing() || IsSoftwareRayTracingAllowed());
+		&& (bSkipTracingDataCheck || Lumen::UseHardwareRayTracing() || IsSoftwareRayTracingSupported());
 }
 
 int32 Lumen::GetGlobalDFResolution()

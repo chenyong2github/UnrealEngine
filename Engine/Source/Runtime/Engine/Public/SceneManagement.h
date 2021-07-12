@@ -1065,11 +1065,26 @@ inline bool DoesPlatformSupportDistanceFieldAO(EShaderPlatform Platform)
 	return DoesPlatformSupportDistanceFields(Platform);
 }
 
+inline bool DoesProjectSupportDistanceFields()
+{
+	static const auto CVarGenerateDF = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
+	static const auto CVarDFIfNoHWRT = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DistanceFields.SupportEvenIfHardwareRayTracingSupported"));
+
+	return DoesPlatformSupportDistanceFields(GMaxRHIShaderPlatform)
+		&& CVarGenerateDF->GetValueOnAnyThread() != 0
+		&& (CVarDFIfNoHWRT->GetValueOnAnyThread() != 0 || !IsRayTracingEnabled());
+}
+
 inline bool ShouldAllPrimitivesHaveDistanceField(EShaderPlatform ShaderPlatform)
 {
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
+	return (DoesPlatformSupportDistanceFieldAO(ShaderPlatform) || DoesPlatformSupportDistanceFieldShadowing(ShaderPlatform))
+		&& IsUsingDistanceFields(ShaderPlatform)
+		&& DoesProjectSupportDistanceFields();
+}
 
-	return (DoesPlatformSupportDistanceFieldAO(ShaderPlatform) || DoesPlatformSupportDistanceFieldShadowing(ShaderPlatform)) && CVar->GetValueOnGameThread() != 0 && IsUsingDistanceFields(ShaderPlatform);
+inline bool ShouldCompileDistanceFieldShaders(EShaderPlatform ShaderPlatform)
+{
+	return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5) && DoesPlatformSupportDistanceFieldAO(ShaderPlatform) && IsUsingDistanceFields(ShaderPlatform);
 }
 
 /**

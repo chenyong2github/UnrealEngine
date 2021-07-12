@@ -41,7 +41,7 @@ namespace Lumen
 	bool AnyLumenHardwareRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
 	int32 GetGlobalDFResolution();
 	float GetGlobalDFClipmapExtent();
-	bool IsSoftwareRayTracingAllowed();
+	bool IsSoftwareRayTracingSupported();
 	bool IsLumenFeatureAllowedForView(const FScene* Scene, const FViewInfo& View, bool bSkipTracingDataCheck = false);
 	bool ShouldVisualizeHardwareRayTracing();
 	bool ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);

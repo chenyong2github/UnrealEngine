@@ -6,11 +6,6 @@
 
 #pragma once
 
-bool ShouldCompileGlobalDistanceFieldShader(const FGlobalShaderPermutationParameters& Parameters)
-{
-	return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && DoesPlatformSupportDistanceFieldAO(Parameters.Platform) && IsUsingDistanceFields(Parameters.Platform);
-}
-
 class FMarkHeightfieldPagesCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FMarkHeightfieldPagesCS);
@@ -39,7 +34,7 @@ class FMarkHeightfieldPagesCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileGlobalDistanceFieldShader(Parameters);
+		return ShouldCompileDistanceFieldShaders(Parameters.Platform);
 	}
 
 	static FIntVector GetGroupSize()
@@ -71,7 +66,7 @@ class FBuildHeightfieldComposeTilesIndirectArgBufferCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileGlobalDistanceFieldShader(Parameters);
+		return ShouldCompileDistanceFieldShaders(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -102,7 +97,7 @@ class FBuildHeightfieldComposeTilesCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileGlobalDistanceFieldShader(Parameters);
+		return ShouldCompileDistanceFieldShaders(Parameters.Platform);
 	}
 
 	static FIntVector GetGroupSize()
@@ -153,7 +148,7 @@ class FComposeHeightfieldsIntoPagesCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileGlobalDistanceFieldShader(Parameters);
+		return ShouldCompileDistanceFieldShaders(Parameters.Platform);
 	}
 
 	static FIntVector GetGroupSize()

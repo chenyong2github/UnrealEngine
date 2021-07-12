@@ -380,7 +380,7 @@ bool ShouldRenderLumenReflections(const FViewInfo& View, bool bSkipTracingDataCh
 			&& View.FinalPostProcessSettings.ReflectionMethod == EReflectionMethod::Lumen
 			&& View.Family->EngineShowFlags.LumenReflections 
 			&& GAllowLumenReflections
-			&& (bSkipTracingDataCheck || Lumen::UseHardwareRayTracedReflections() || Lumen::IsSoftwareRayTracingAllowed());
+			&& (bSkipTracingDataCheck || Lumen::UseHardwareRayTracedReflections() || Lumen::IsSoftwareRayTracingSupported());
 	}
 	
 	return false;

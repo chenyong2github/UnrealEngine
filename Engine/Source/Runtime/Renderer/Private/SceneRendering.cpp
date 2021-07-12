@@ -2318,7 +2318,7 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyCon
 			{
 				FilmGrainTexture = ViewInfo->FinalPostProcessSettings.FilmGrainTexture;
 			}
-
+			  
 			bool bIsValid = FilmGrainTexture != nullptr;
 
 			if (bIsValid)
@@ -2982,8 +2982,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 		}
 		const bool bShowSkinCacheOOM = CVarSkinCacheOOM != nullptr && GPUSkinCacheExtraRequiredMemory > 0;
 
-		static const auto* CVarGenerateMeshDistanceFields = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
-		const bool bMeshDistanceFieldEnabled = CVarGenerateMeshDistanceFields != nullptr && CVarGenerateMeshDistanceFields->GetValueOnRenderThread() > 0;
+		const bool bMeshDistanceFieldEnabled = DoesProjectSupportDistanceFields();
 		extern bool UseDistanceFieldAO();
 		const bool bShowDFAODisabledWarning = !UseDistanceFieldAO() && (ViewFamily.EngineShowFlags.VisualizeDistanceFieldAO);
 		const bool bShowDFDisabledWarning = !bMeshDistanceFieldEnabled && (ViewFamily.EngineShowFlags.VisualizeMeshDistanceFields || ViewFamily.EngineShowFlags.VisualizeGlobalDistanceField || ViewFamily.EngineShowFlags.VisualizeDistanceFieldAO);
@@ -3227,7 +3226,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 						if (bLumenEnabledButHasNoDataForTracing)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "LumenCantDisplay", 
-								"Lumen is enable, but has no ray tracing data and won't operate correctly.\n"
+								"Lumen is enabled, but has no ray tracing data and won't operate correctly.\n"
 								"Either configure Lumen to use software distance field ray tracing and enable 'Generate Mesh Distancefields' in project settings\n"
 								"or configure Lumen to use Hardware Ray Tracing and enable 'Support Hardware Ray Tracing' in project settings.");
 							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));

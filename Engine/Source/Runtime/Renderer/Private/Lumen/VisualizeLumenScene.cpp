@@ -395,7 +395,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 
 	if (Lumen::IsLumenFeatureAllowedForView(Scene, View) 
 		&& bAnyLumenActive 
-		&& (Lumen::ShouldVisualizeHardwareRayTracing() || Lumen::IsSoftwareRayTracingAllowed()))
+		&& (Lumen::ShouldVisualizeHardwareRayTracing() || Lumen::IsSoftwareRayTracingSupported()))
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "VisualizeLumenScene");
 

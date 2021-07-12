@@ -688,9 +688,7 @@ bool UParticleModuleCollisionGPU::IsValidForLODLevel(UParticleLODLevel* LODLevel
 
 	if (CollisionMode == EParticleCollisionMode::DistanceField)
 	{
-		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
-
-		if (CVar->GetValueOnGameThread() == 0)
+		if (DoesProjectSupportDistanceFields())
 		{
 			OutErrorString = NSLOCTEXT("UnrealEd", "CollisionWithoutDistanceField", "Distance Field collision requires the 'Generate Mesh Distance Fields' Renderer project setting to be enabled.").ToString();
 			return false;
