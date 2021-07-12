@@ -50,14 +50,19 @@ TAutoConsoleVariable<int32> CVarTSREnableAntiInterference(
 	TEXT("Enable heuristic to detect geometric interference between input pixel grid alignement and structured geometry."),
 	ECVF_RenderThreadSafe);
 
-TAutoConsoleVariable<int32> CVarTSRRejectTranslucency(
-	TEXT("r.TSR.RejectSeparateTranslucency"), 0,
-	TEXT("Enable heuristic to reject based on the Separate Translucency."),
+TAutoConsoleVariable<int32> CVarTSRTranslucencyPreviousFrameRejection(
+	TEXT("r.TSR.Translucency.PreviousFrameRejection"), 0,
+	TEXT("Enable heuristic to reject Separate translucency based on previous frame translucency."),
+	ECVF_RenderThreadSafe);
+
+TAutoConsoleVariable<int32> CVarTSRTranslucencySeparateTemporalAccumulation(
+	TEXT("r.TSR.Translucency.SeparateTemporalAccumulation"), 0,
+	TEXT("Accumulates separate translucency separatly."),
 	ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<int32> CVarTSREnableResponiveAA(
-	TEXT("r.TSR.EnableResponiveAA"), 1,
-	TEXT("Whether the responsive AA should be enabled."),
+	TEXT("r.TSR.Translucency.EnableResponiveAA"), 1,
+	TEXT("Whether the responsive AA should keep history fully clamped."),
 	ECVF_RenderThreadSafe);
 
 #if COMPILE_TSR_DEBUG_PASSES
@@ -112,7 +117,10 @@ FTSRHistoryUAVs CreateUAVs(FRDGBuilder& GraphBuilder, const FTSRHistoryTextures&
 	}
 	for (int32 i = 0; i < Textures.Textures.Num(); i++)
 	{
-		UAVs.Textures[i] = GraphBuilder.CreateUAV(Textures.Textures[i]);
+		if (Textures.Textures[i])
+		{
+			UAVs.Textures[i] = GraphBuilder.CreateUAV(Textures.Textures[i]);
+		}
 	}
 	for (int32 i = 0; i < Textures.SuperResTextures.Num(); i++)
 	{
@@ -409,13 +417,16 @@ class FTSRUpdateHistoryCS : public FTSRShader
 	SHADER_USE_PARAMETER_STRUCT(FTSRUpdateHistoryCS, FTSRShader);
 
 	class FRejectionAADim : SHADER_PERMUTATION_BOOL("DIM_REJECTION_ANTI_ALIASING");
+	class FSeparateTranslucencyDim : SHADER_PERMUTATION_BOOL("DIM_SEPARATE_TRANSLUCENCY");
 
-	using FPermutationDomain = TShaderPermutationDomain<FRejectionAADim>;
+	using FPermutationDomain = TShaderPermutationDomain<FRejectionAADim, FSeparateTranslucencyDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRCommonParameters, CommonParameters)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneColorTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, InputSceneStencilTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneTranslucencyTexture)
+
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryRejectionTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, TranslucencyRejectionTexture)
 
@@ -486,6 +497,11 @@ DECLARE_GPU_STAT(TemporalSuperResolution)
 
 FVector ComputePixelFormatQuantizationError(EPixelFormat PixelFormat);
 
+bool ComposeSeparateTranslucencyInTSR(const FViewInfo& View)
+{
+	return CVarTSRTranslucencySeparateTemporalAccumulation.GetValueOnRenderThread() != 0;
+}
+
 void AddTemporalSuperResolutionPasses(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
@@ -506,7 +522,9 @@ void AddTemporalSuperResolutionPasses(
 
 	bool bEnableInterferenceHeuristic = CVarTSREnableAntiInterference.GetValueOnRenderThread() != 0;
 
-	bool bRejectSeparateTranslucency = PassInputs.SeparateTranslucencyTextures != nullptr && CVarTSRRejectTranslucency.GetValueOnRenderThread() != 0;
+	bool bRejectSeparateTranslucency = PassInputs.SeparateTranslucencyTextures != nullptr && CVarTSRTranslucencyPreviousFrameRejection.GetValueOnRenderThread() != 0;
+
+	bool bAccumulateSeparateTranslucency = PassInputs.SeparateTranslucencyTextures != nullptr && CVarTSRTranslucencySeparateTemporalAccumulation.GetValueOnRenderThread() != 0;
 
 	int32 RejectionAntiAliasingQuality = FMath::Clamp(CVarTSRRejectionAntiAliasingQuality.GetValueOnRenderThread(), 0, 2);
 
@@ -579,7 +597,7 @@ void AddTemporalSuperResolutionPasses(
 	FRDGTextureRef BlackDummy = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
 	FRDGTextureRef WhiteDummy = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
 
-	FRDGTextureRef SeparateTranslucencyTexture = bRejectSeparateTranslucency ?
+	FRDGTextureRef SeparateTranslucencyTexture = (bRejectSeparateTranslucency || bAccumulateSeparateTranslucency) ?
 		PassInputs.SeparateTranslucencyTextures->GetColorForRead(GraphBuilder) : nullptr;
 
 	FTSRCommonParameters CommonParameters;
@@ -779,6 +797,16 @@ void AddTemporalSuperResolutionPasses(
 
 		Desc.Format = PF_R16_UINT;
 		History.Textures[3] = GraphBuilder.CreateTexture(Desc, TEXT("TSR.History.SubpixelInfo"));
+
+		if (bAccumulateSeparateTranslucency)
+		{
+			Desc.Format = PF_FloatRGBA;
+			History.Textures[4] = GraphBuilder.CreateTexture(Desc, TEXT("TSR.History.Translucency"));
+		}
+		else
+		{
+			History.Textures[4] = nullptr;
+		}
 	}
 
 	{
@@ -1316,6 +1344,7 @@ void AddTemporalSuperResolutionPasses(
 		PassParameters->InputSceneColorTexture = PassInputs.SceneColorTexture;
 		PassParameters->InputSceneStencilTexture = GraphBuilder.CreateSRV(
 			FRDGTextureSRVDesc::CreateWithPixelFormat(PassInputs.SceneDepthTexture, PF_X24_G8));
+		PassParameters->InputSceneTranslucencyTexture = SeparateTranslucencyTexture;
 		PassParameters->HistoryRejectionTexture = DilatedHistoryRejectionTexture;
 		PassParameters->TranslucencyRejectionTexture = TranslucencyRejectionTexture ? TranslucencyRejectionTexture : BlackDummy;
 
@@ -1340,6 +1369,7 @@ void AddTemporalSuperResolutionPasses(
 
 		FTSRUpdateHistoryCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FTSRUpdateHistoryCS::FRejectionAADim>(RejectionAntiAliasingQuality > 0);
+		PermutationVector.Set<FTSRUpdateHistoryCS::FSeparateTranslucencyDim>(bAccumulateSeparateTranslucency);
 
 		TShaderMapRef<FTSRUpdateHistoryCS> ComputeShader(View.ShaderMap, PermutationVector);
 		ClearUnusedGraphResources(ComputeShader, PassParameters);
@@ -1366,9 +1396,10 @@ void AddTemporalSuperResolutionPasses(
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("TSR UpdateHistory(%s%s) %dx%d", 
+			RDG_EVENT_NAME("TSR UpdateHistory(%s%s%s) %dx%d", 
 				History.Textures[0]->Desc.Format == PF_FloatR11G11B10 ? TEXT("R11G11B10") : TEXT(""),
 				PermutationVector.Get<FTSRUpdateHistoryCS::FRejectionAADim>() ? TEXT(" RejectionAA") : TEXT(""),
+				PermutationVector.Get<FTSRUpdateHistoryCS::FSeparateTranslucencyDim>() ? TEXT(" SeparateTranslucency") : TEXT(""),
 				HistorySize.X, HistorySize.Y),
 			ComputeShader,
 			PassParameters,
@@ -1433,6 +1464,13 @@ void AddTemporalSuperResolutionPasses(
 		{
 			GraphBuilder.QueueTextureExtraction(
 				SeparateTranslucencyTexture, &View.ViewState->PrevFrameViewInfo.SeparateTranslucency);
+		}
+
+		// Extract the output for next frame SSR so that separate translucency shows up in SSR.
+		if (bAccumulateSeparateTranslucency)
+		{
+			GraphBuilder.QueueTextureExtraction(
+				SceneColorOutputTexture, &View.ViewState->PrevFrameViewInfo.CustomSSRInput);
 		}
 	}
 
