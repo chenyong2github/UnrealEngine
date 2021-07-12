@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	UnClass.cpp: Object class implementation.
-=============================================================================*/
-
 #include "UObject/Class.h"
 #include "HAL/ThreadSafeBool.h"
 #include "HAL/LowLevelMemTracker.h"
@@ -3455,6 +3451,61 @@ int32 FStructUtils::AttemptToFindUninitializedScriptStructMembers()
 		return StructLocation;
 	};
 
+	auto DetermineIfModuleIsEngine = [](const UScriptStruct* ScriptStruct) -> bool
+	{
+		UPackage* ScriptPackage = ScriptStruct->GetOutermost();
+		const FName ScriptModuleName = FPackageName::GetShortFName(ScriptPackage->GetName());
+
+		FModuleStatus ScriptModuleStatus;
+		if (FModuleManager::Get().QueryModule(ScriptModuleName, /*out*/ ScriptModuleStatus))
+		{
+			const bool bIsProjectModule = ScriptModuleStatus.FilePath.StartsWith(FPaths::ConvertRelativePathToFull(FPaths::ProjectDir()));
+			return !bIsProjectModule;
+		}
+		else
+		{
+			// Default to project if we can't determine it (shouldn't ever happen tho)
+			return false;
+		}
+	};
+
+	struct FScriptStructSettings
+	{
+		ELogVerbosity::Type ProjectVerbosity = ELogVerbosity::Display;
+		ELogVerbosity::Type EngineVerbosity = ELogVerbosity::Display;
+		ELogVerbosity::Type PointerVerbosity = ELogVerbosity::Warning;
+
+		FScriptStructSettings()
+		{
+			{
+				FString ProjectSettingString;
+				if (GConfig->GetString(TEXT("CoreUObject.UninitializedScriptStructMembersCheck"), TEXT("ProjectModuleReflectedUninitializedPropertyVerbosity"), ProjectSettingString, GEngineIni))
+				{
+					ProjectVerbosity = ParseLogVerbosityFromString(ProjectSettingString);
+				}
+			}
+
+			{
+				FString EngineSettingString;
+				if (GConfig->GetString(TEXT("CoreUObject.UninitializedScriptStructMembersCheck"), TEXT("EngineModuleReflectedUninitializedPropertyVerbosity"), EngineSettingString, GEngineIni))
+				{
+					EngineVerbosity = ParseLogVerbosityFromString(EngineSettingString);
+				}
+			}
+
+			//@TODO: Remove this eventually and change the default to Error (or maybe even Fatal)
+			{
+				FString PointerSettingString;
+				if (GConfig->GetString(TEXT("CoreUObject.UninitializedScriptStructMembersCheck"), TEXT("ObjectReferenceReflectedUninitializedPropertyVerbosity"), PointerSettingString, GEngineIni))
+				{
+					PointerVerbosity = ParseLogVerbosityFromString(PointerSettingString);
+				}
+			}
+		}
+	};
+
+	static FScriptStructSettings Settings;
+
 	int32 UninitializedScriptStructMemberCount = 0;
 	int32 UninitializedObjectPropertyCount = 0;
 	UScriptStruct* TestUninitializedScriptStructMembersTestStruct = TBaseStructure<FTestUninitializedScriptStructMembersTest>::Get();
@@ -3513,15 +3564,18 @@ int32 FStructUtils::AttemptToFindUninitializedScriptStructMembers()
 				if (!UninitializedPropertiesZeroed.Contains(Property))
 				{
 					++UninitializedScriptStructMemberCount;
+
+					ELogVerbosity::Type Verbosity = DetermineIfModuleIsEngine(ScriptStruct) ? Settings.EngineVerbosity : Settings.ProjectVerbosity;
+
 					if (Property->IsA<FObjectPropertyBase>())
 					{
 						++UninitializedObjectPropertyCount;
-						UE_LOG(LogClass, Warning, TEXT("%s %s%s::%s is not initialized properly.%s"), *Property->GetClass()->GetName(), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP(), *GetStructLocation(ScriptStruct));
+						Verbosity = FMath::Min(Verbosity, Settings.PointerVerbosity);
 					}
-					else
-					{
-						UE_LOG(LogClass, Display, TEXT("%s %s%s::%s is not initialized properly.%s"), *Property->GetClass()->GetName(), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP(), *GetStructLocation(ScriptStruct));
-					}
+
+#if !NO_LOGGING
+					FMsg::Logf(__FILE__, __LINE__, LogClass.GetCategoryName(), Verbosity, TEXT("%s %s%s::%s is not initialized properly.%s"), *Property->GetClass()->GetName(), ScriptStruct->GetPrefixCPP(), *ScriptStruct->GetName(), *Property->GetNameCPP(), *GetStructLocation(ScriptStruct));
+#endif
 				}
 			}
 		}
