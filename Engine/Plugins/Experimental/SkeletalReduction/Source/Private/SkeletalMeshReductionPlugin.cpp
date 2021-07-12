@@ -1968,58 +1968,91 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 
 	// get the relative to ref pose matrices
 	TArray<FMatrix> RelativeToRefPoseMatrices;
-	RelativeToRefPoseMatrices.AddUninitialized(NumBones);
+	RelativeToRefPoseMatrices.AddDefaulted(NumBones);
+
+	// Set initial matrices to identity
+	for (int32 Index = 0; Index < NumBones; ++Index)
+	{
+		RelativeToRefPoseMatrices[Index] = FMatrix::Identity;
+	}
+
 	// if it has bake pose, gets ref to local matrices using bake pose
 	if (const UAnimSequence* BakePoseAnim = SkeletalMesh.GetLODInfo(LODIndex)->BakePose)
-	{
-		TArray<FTransform> BonePoses;
-		UAnimationBlueprintLibrary::GetBonePosesForFrame(BakePoseAnim, BoneNames, 0, true, BonePoses, &SkeletalMesh);
-
+	{	
 		const FReferenceSkeleton& RefSkeleton = SkeletalMesh.GetRefSkeleton();
 		const TArray<FTransform>& RefPoseInLocal = RefSkeleton.GetRefBonePose();
 
-		// get component ref pose
-		TArray<FTransform> RefPoseInCS;
-		FAnimationRuntime::FillUpComponentSpaceTransforms(RefSkeleton, RefPoseInLocal, RefPoseInCS);
-
-		// calculate component space bake pose
-		TArray<FMatrix> ComponentSpacePose, ComponentSpaceRefPose, AnimPoseMatrices;
-		ComponentSpacePose.AddUninitialized(NumBones);
-		ComponentSpaceRefPose.AddUninitialized(NumBones);
-		AnimPoseMatrices.AddUninitialized(NumBones);
-
-		// to avoid scale issue, we use matrices here
-		for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+		// Get component space retarget base pose, will be equivalent of ref-pose if not edited
+		TArray<FTransform> ComponentSpaceRefPose;
+		FAnimationRuntime::FillUpComponentSpaceTransformsRetargetBasePose(&SkeletalMesh, ComponentSpaceRefPose); 
+		
+		// Retrieve bone indices which will be removed
+		if (MeshBoneReductionInterface != nullptr)
 		{
-			ComponentSpaceRefPose[BoneIndex] = RefPoseInCS[BoneIndex].ToMatrixWithScale();
-			AnimPoseMatrices[BoneIndex] = BonePoses[BoneIndex].ToMatrixWithScale();
+			MeshBoneReductionInterface->GetBoneReductionData(&SkeletalMesh, LODIndex, BonesToRemove);
 		}
 
+		// Setup BoneContainer and CompactPose
+		TArray<FBoneIndexType> RequiredBoneIndexArray;
+		RequiredBoneIndexArray.AddUninitialized(RefSkeleton.GetNum());
+		for (int32 BoneIndex = 0; BoneIndex < RequiredBoneIndexArray.Num(); ++BoneIndex)
+		{
+			RequiredBoneIndexArray[BoneIndex] = BoneIndex;
+		}
+
+		FBoneContainer RequiredBones(RequiredBoneIndexArray, false, *(&SkeletalMesh));
+		RequiredBones.SetUseRAWData(true);
+
+		FCompactPose Pose;
+		Pose.SetBoneContainer(&RequiredBones);
+
+		// Retrieve animated pose from anim sequence (including retargeting)
+		BuildPoseFromRawData(BakePoseAnim->GetRawAnimationData(), BakePoseAnim->GetRawTrackToSkeletonMapTable(), Pose, 0.f, EAnimInterpolationType::Step, BakePoseAnim->GetNumberOfFrames(), BakePoseAnim->SequenceLength, SkeletalMesh.GetSkeleton()->GetRetargetSourceForMesh(&SkeletalMesh));
+		
+		// Calculate component space animated pose matrices
+		TArray<FMatrix> ComponentSpaceAnimatedPose;
+		ComponentSpaceAnimatedPose.AddDefaulted(NumBones);
+
 		for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
 		{
+			const FCompactPoseBoneIndex PoseBoneIndex(BoneIndex);
 			const int32 ParentIndex = RefSkeleton.GetParentIndex(BoneIndex);
 			if (ParentIndex != INDEX_NONE)
 			{
-				ComponentSpacePose[BoneIndex] = AnimPoseMatrices[BoneIndex] * ComponentSpacePose[ParentIndex];
+				// If the bone will be removed, get the local-space retarget-ed animation bone transform
+				if (BonesToRemove.Contains(BoneIndex))
+				{
+					ComponentSpaceAnimatedPose[BoneIndex] = Pose[PoseBoneIndex].ToMatrixWithScale() * ComponentSpaceAnimatedPose[ParentIndex];
+				}
+				// Otherwise use the component-space retarget base pose transform
+				else
+				{
+					ComponentSpaceAnimatedPose[BoneIndex] = ComponentSpaceRefPose[BoneIndex].ToMatrixWithScale();
+				}
 			}
 			else
 			{
-				ComponentSpacePose[BoneIndex] = AnimPoseMatrices[BoneIndex];
+				// If the bone will be removed, get the retarget-ed animation bone transform
+				if (BonesToRemove.Contains(BoneIndex))
+				{
+					ComponentSpaceAnimatedPose[BoneIndex] = Pose[PoseBoneIndex].ToMatrixWithScale();
+				}
+				// Otherwise use the retarget base pose transform
+				else
+				{
+					ComponentSpaceAnimatedPose[BoneIndex] = ComponentSpaceRefPose[BoneIndex].ToMatrixWithScale();
+				}
 			}
 		}
 
-		// calculate relative to ref pose transform and convert to matrices
+		// Calculate relative to retarget base (ref) pose matrix
 		for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
 		{
-			RelativeToRefPoseMatrices[BoneIndex] = ComponentSpaceRefPose[BoneIndex].Inverse() * ComponentSpacePose[BoneIndex];
+			RelativeToRefPoseMatrices[BoneIndex] = ComponentSpaceRefPose[BoneIndex].ToMatrixWithScale().Inverse() * ComponentSpaceAnimatedPose[BoneIndex];
 		}
-	}
-	else
-	{
-		for (int32 Index = 0; Index < NumBones; ++Index)
-		{
-			RelativeToRefPoseMatrices[Index] = FMatrix::Identity;
-		}
+
+		// Reset map for later usage
+		BonesToRemove.Empty();
 	}
 
 	FSkeletalMeshLODModel* NewModel = new FSkeletalMeshLODModel();
