@@ -10,8 +10,10 @@
 #include "EdGraph/EdGraphSchema.h"
 #include "Input/Events.h"
 #include "Input/Reply.h"
+#include "NiagaraScript.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtrTemplates.h"
+#include "ViewModels/TNiagaraViewModelManager.h"
 
 class UNiagaraSystem;
 class FNiagaraSystemViewModel;
@@ -336,7 +338,7 @@ private:
 	static TArray<FNiagaraParameterPanelCategory> DefaultAdvancedCategories;
 };
 
-class FNiagaraScriptToolkitParameterPanelViewModel : public INiagaraParameterPanelViewModel
+class FNiagaraScriptToolkitParameterPanelViewModel : public INiagaraParameterPanelViewModel, public TNiagaraViewModelManager<UNiagaraScript, FNiagaraScriptToolkitParameterPanelViewModel>
 {
 public:
 	/** Construct a ScriptToolkit Parameter Panel View Model from a Script View Model. */
@@ -390,6 +392,10 @@ public:
 	virtual bool GetCanHandleDragDropOperation(TSharedPtr<FDragDropOperation> DragDropOperation) const override;
 	//~ End INiagaraParameterPanelViewModel interface
 
+	void RenameParameter(const UNiagaraScriptVariable* ScriptVarToRename, const FName NewName) const;
+
+	void RenameParameter(const FNiagaraVariable& VariableToRename, const FName NewName) const;
+
 private:
 	void SetParameterIsOverridingLibraryDefaultValue(const FNiagaraParameterPanelItem ItemToModify, const bool bOverriding) const;
 
@@ -419,6 +425,8 @@ private:
 
 	static TArray<FNiagaraParameterPanelCategory> DefaultCategories;
 	static TArray<FNiagaraParameterPanelCategory> DefaultAdvancedCategories;
+
+	TNiagaraViewModelManager<UNiagaraScript, FNiagaraScriptToolkitParameterPanelViewModel>::Handle RegisteredHandle;
 };
 
 class FNiagaraParameterDefinitionsToolkitParameterPanelViewModel : public INiagaraParameterPanelViewModel

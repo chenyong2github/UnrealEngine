@@ -82,7 +82,7 @@ public:
 
 		if (FoundItem->Num() > WhichIdx && WhichIdx >= 0)
 		{
-			return (*FoundItem)[WhichIdx]->AsShared();
+			return StaticCastSharedRef<ViewModelType>((*FoundItem)[WhichIdx]->AsShared());
 		}
 		else
 		{
