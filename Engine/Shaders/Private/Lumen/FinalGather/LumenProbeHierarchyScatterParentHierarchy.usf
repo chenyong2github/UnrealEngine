@@ -124,12 +124,12 @@ void MainCS(
 		UNROLL
 		for (uint i = 0; i < IterationCount; i++)
 		{
-			bool bBottomLaneTakeMax = !( ((GroupThreadIndex & (2 << i)) == 0) && (i != (IterationCount - 1)) );
+			bool bBottomLaneTakeMax = !( ((GroupThreadIndex & (2u << i)) == 0) && (i != (IterationCount - 1)) );
 
 			LOOP
 			for (uint j = 0; j <= i; j++)
 			{
-				const uint SwapMask = 1 << (i - j);
+				const uint SwapMask = 1u << (i - j);
 
 				uint I1 = GroupThreadIndex ^ SwapMask;
 

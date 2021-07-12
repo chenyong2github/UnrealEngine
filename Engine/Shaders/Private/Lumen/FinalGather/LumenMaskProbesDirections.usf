@@ -52,7 +52,7 @@ uint ComputeDirectionMask(float3 L)
 
 	uint DirectionMaskBitId = FaceIndex * (PROBE_MASK_RESOLUTION * PROBE_MASK_RESOLUTION) + dot(DirectionMaskTexelCoord, uint2(1, PROBE_MASK_RESOLUTION));
 
-	return 0x1 << DirectionMaskBitId;
+	return 0x1u << DirectionMaskBitId;
 }
 
 
@@ -109,7 +109,7 @@ void MainCS(
 
 					FBxDFSample BxDFSample = SampleBxDF(TermMask, GBuffer, V, E);
 
-					bool bAlreadySampled = (FullResSampleMask & (0x1 << (2 * TracingRayIndex))) != 0;
+					bool bAlreadySampled = (FullResSampleMask & (0x1u << (2 * TracingRayIndex))) != 0;
 
 					if (!bAlreadySampled)
 						ProbeDirectionMask |= ComputeDirectionMask(BxDFSample.L);
@@ -131,7 +131,7 @@ void MainCS(
 
 				FBxDFSample BxDFSample = SampleBxDF(SHADING_TERM_SPECULAR, GBuffer, V, E);
 
-				bool bAlreadySampled = (FullResSampleMask & (0x1 << (2 * TracingRayIndex))) != 0;
+				bool bAlreadySampled = (FullResSampleMask & (0x1u << (2 * TracingRayIndex))) != 0;
 
 				if (!bAlreadySampled)
 					ProbeDirectionMask |= ComputeDirectionMask(BxDFSample.L);

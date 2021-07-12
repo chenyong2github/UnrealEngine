@@ -43,7 +43,7 @@ void PageTableUpdateVS(
 
 	uint vLevel = ( UpdatePacked.w >> 0 ) & 0xff;
 	uint vLogSize = ( UpdatePacked.w >> 8 ) & 0xff;
-	uint vSize = 1 << vLogSize;
+	uint vSize = 1u << vLogSize;
 
 	// Little Endian
 	uint vAddress = UpdatePacked.x | (UpdatePacked.y << 16);

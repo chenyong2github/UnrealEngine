@@ -150,21 +150,23 @@ void MainCS(
 
 		float TotalProbability = 0.0;
 
-		LOOP
-		for (uint ProbeTileIndex = 0; ProbeTileIndex < ProbeCount; ProbeTileIndex++)
 		{
-			uint ProbeIndex;
-			FProbeInfo ProbeInfo;
-			LoadProbeInfoFromLDS(ProbeTileIndex, /* out */ ProbeInfo, /* out */ ProbeIndex);
+			LOOP
+			for (uint ProbeTileIndex = 0; ProbeTileIndex < ProbeCount; ProbeTileIndex++)
+			{
+				uint ProbeIndex;
+				FProbeInfo ProbeInfo;
+				LoadProbeInfoFromLDS(ProbeTileIndex, /* out */ ProbeInfo, /* out */ ProbeIndex);
 
-			float ProbeProbability = ComputeProbeProbability(TranslatedWorldPosition, MostPreciseProbeRadius, ProbeInfo);
+				float ProbeProbability = ComputeProbeProbability(TranslatedWorldPosition, MostPreciseProbeRadius, ProbeInfo);
 
-			//if (ProbeTileIndex == 0)
-			//{
-			//	DebugOutput[PixelCoord] = float4(GetProbeScreenCoord(ProbeInfo) * 0.5 + 0.5, GetProbeDepth(ProbeInfo), 0);
-			//}
+				//if (ProbeTileIndex == 0)
+				//{
+				//	DebugOutput[PixelCoord] = float4(GetProbeScreenCoord(ProbeInfo) * 0.5 + 0.5, GetProbeDepth(ProbeInfo), 0);
+				//}
 
-			TotalProbability += ProbeProbability;
+				TotalProbability += ProbeProbability;
+			}
 		}
 		
 		float PixelDesiredRand = TotalProbability * InterleavedGradientNoise(PixelCoord + 0.5, View.StateFrameIndexMod8);

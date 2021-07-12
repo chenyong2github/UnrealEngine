@@ -133,7 +133,7 @@ struct FHairClusterDebugInfo
 bool IsLODVisible(FHairClusterInfo InInfo, float LOD)
 {
 	const uint iLOD = clamp(floor(LOD), 0, InInfo.LODCount - 1);
-	return InInfo.LOD_bIsVisible & (1 << iLOD);
+	return InInfo.LOD_bIsVisible & (1u << iLOD);
 }
 
 // Compute the hair LOD based on the cluster screen size

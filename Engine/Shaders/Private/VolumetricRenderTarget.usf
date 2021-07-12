@@ -662,7 +662,7 @@ void ComposeVolumetricRTOverScenePS(
 			}
 		}
 
-		if(!bIsWaterPixel || bIsWaterPixel && ValidSampleCount == 0 && bAnyCloudSamplesInFrontOfWater)
+		if(!bIsWaterPixel || (bIsWaterPixel && ValidSampleCount == 0 && bAnyCloudSamplesInFrontOfWater))
 		{
 			// Depth discontinuities edges
 			float4 weights = 1.0f / (depth4Diff * weightMultiplier + 1.0f);

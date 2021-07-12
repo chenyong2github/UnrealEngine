@@ -553,7 +553,7 @@ void MainCS(
 			DiffuseColor.b += f16tof32(Row1 >> 16);
 			AmbientOcclusion += f16tof32(Row1 >> 0);
 
-			SampleMask |= (f16tof32(Row1 >> 0) > 0.0) ? (1 << RaySequenceId) : 0;
+			SampleMask |= (f16tof32(Row1 >> 0) > 0.0) ? (1u << RaySequenceId) : 0;
 		}
 
 		#if CONFIG_RAY_COUNT > 1

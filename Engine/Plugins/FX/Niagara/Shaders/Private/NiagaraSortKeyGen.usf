@@ -63,9 +63,9 @@ groupshared uint CullGroupCount;
 float GetFloat(uint RegisterIdx, uint InstanceID)
 {
 	BRANCH
-	if (RegisterIdx & (1 << 31U))
+	if (RegisterIdx & (1u << 31U))
 	{
-		RegisterIdx &= ~(1 << 31U);
+		RegisterIdx &= ~(1u << 31U);
 		return NiagaraParticleDataHalf[RegisterIdx * HalfDataStride + InstanceID];
 	}
 	else

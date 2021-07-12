@@ -471,7 +471,7 @@ void MainCS(
 			#if CONFIG_IS_FIRST_PASS
 			{
 				RaySequenceId = i;
-				bTraceRay = ((DiffuseSampleMask & (0x2 << (2 * RaySequenceId))) == 0);
+				bTraceRay = ((DiffuseSampleMask & (0x2u << (2 * RaySequenceId))) == 0);
 				
 				#if !CONFIG_DIFFUSE_SAMPLE_OCCLUSION
 				{
@@ -486,7 +486,7 @@ void MainCS(
 				if (bTraceRay)
 				{
 					uint NextAvailableBit = uint(firstbitlow(RemainingMask));
-					RemainingMask &= ~(0x1 << NextAvailableBit);
+					RemainingMask &= ~(0x1u << NextAvailableBit);
 					RaySequenceId = NextAvailableBit / 2;
 				}
 				else
@@ -516,7 +516,7 @@ void MainCS(
 					/* out */ bFullyTraced,
 					/* out */ bHit);
 
-				uint RaySampleMask = ((bHit ? 0x1 : 0x0) | (bFullyTraced ? 0x2 : 0x0)) << (2 * RaySequenceId);
+				uint RaySampleMask = ((bHit ? 0x1u : 0x0u) | (bFullyTraced ? 0x2u : 0x0u)) << (2 * RaySequenceId);
 				
 				float RaySpecularWeight = ComputeSpecularRayFromDiffuseRayWeight(
 					PixelInfos.GBuffer.WorldNormal, PixelInfos.V, RayInfos.BxDFSample.L, PixelInfos.GBuffer.Roughness);
@@ -532,7 +532,7 @@ void MainCS(
 		if (bAdditionalSpecularRay)
 		{
 			const uint RaySequenceId = 0;
-			bool bTraceRay = ((SpecularSampleMask & (0x2 << (2 * RaySequenceId))) == 0);
+			bool bTraceRay = ((SpecularSampleMask & (0x2u << (2 * RaySequenceId))) == 0);
 
 			#if CONFIG_IS_FIRST_PASS && !CONFIG_DIFFUSE_SAMPLE_OCCLUSION
 			{
@@ -589,7 +589,7 @@ void MainCS(
 					/* out */ bFullyTraced,
 					/* out */ bHit);
 
-				uint RaySampleMask = ((bHit ? 0x1 : 0x0) | (bFullyTraced ? 0x2 : 0x0)) << (2 * RaySequenceId);
+				uint RaySampleMask = ((bHit ? 0x1u : 0x0u) | (bFullyTraced ? 0x2u : 0x0u)) << (2 * RaySequenceId);
 				
 				float RaySpecularWeight = 1.0; ComputeSpecularRayFromDiffuseRayWeight(
 					PixelInfos.GBuffer.WorldNormal, PixelInfos.V, RayInfos.BxDFSample.L, PixelInfos.GBuffer.Roughness);

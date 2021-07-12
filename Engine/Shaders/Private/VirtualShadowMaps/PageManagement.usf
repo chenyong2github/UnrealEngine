@@ -418,7 +418,7 @@ void GenerateHierarchicalPageFlags(uint2 ThreadId : SV_DispatchThreadID, uint2 G
 		// Loop over H flag levels, this builds a mip pyramid over _each_ mip level in the page table
 		// the 0-th level in this hiearchy is the page table mip level itself.
 		uint MaxHLevel = VSM_MAX_MIP_LEVELS - MipLevel;
-		uint HLevelSizePages = VSM_LEVEL0_DIM_PAGES_XY >> MipLevel;
+		uint HLevelSizePages = uint(VSM_LEVEL0_DIM_PAGES_XY) >> MipLevel;
 		// Note: starting from 1 as level 0 is the ordinary flag mip level
 		for (uint HMipLevel = 1U; HMipLevel < MaxHLevel; ++HMipLevel)
 		{
@@ -599,7 +599,7 @@ void CreatePageMappings(uint2 ThreadId : SV_DispatchThreadID, uint2 GroupId : SV
 		
 		uint2 Child = vPage & 1;
 		uint ChildIndex = Child.x + Child.y * 2;
-		AllCovered = (Flag || bIsAllCovered) ? (1 << ChildIndex) : 0;
+		AllCovered = (Flag || bIsAllCovered) ? (1u << ChildIndex) : 0;
 		
 		uint PackedCoverage;
 		PackedCoverage  = AllCovered;
@@ -679,7 +679,7 @@ void PropagateMappedMips(uint2 ThreadId : SV_DispatchThreadID, uint2 GroupId : S
 				FVirtualShadowMapProjectionShaderData LevelProjectionData = GetVirtualShadowMapProjectionData(ClipmapLevelId);								
 				int2 LevelOffset = OffsetScale * LevelProjectionData.ClipmapCornerOffset;
 
-				const int LevelScale = 1 << ClipmapOffset;
+				const int LevelScale = 1u << ClipmapOffset;
 				int2 LevelPage = (BasePage + LevelScale * LevelOffset) / LevelScale;
 
 				if (all(LevelPage >= 0) && all(LevelPage < VSM_LEVEL0_DIM_PAGES_XY))
@@ -996,7 +996,7 @@ void CalculatePageRects(uint3 DispatchThreadID : SV_DispatchThreadID)
 	for (uint MipLevel = 0; MipLevel < VSM_MAX_MIP_LEVELS; ++MipLevel)
 	{
 		// Early out for out of bounds 
-		if (any(vPage >= uint2(VSM_LEVEL0_DIM_PAGES_XY >> MipLevel, VSM_LEVEL0_DIM_PAGES_XY >> MipLevel)))
+		if (any(vPage >= uint2(uint(VSM_LEVEL0_DIM_PAGES_XY) >> MipLevel, uint(VSM_LEVEL0_DIM_PAGES_XY) >> MipLevel)))
 		{
 			return;
 		}

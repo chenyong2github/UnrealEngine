@@ -128,7 +128,7 @@ void InitProbeTracingContext(out FProbeTracingCtx Ctx, const uint InterleavingCo
 		Ctx.PixelSampleMask = ProbeAtlasSampleMaskOutput[Ctx.AtlasCoord];
 	}
 
-	bool bIsAlreadyFullyTraced = (Ctx.PixelSampleMask & (0x2 << (2 * Ctx.PixelRayId))) != 0;
+	bool bIsAlreadyFullyTraced = (Ctx.PixelSampleMask & (0x2u << (2 * Ctx.PixelRayId))) != 0;
 
 	Ctx.bTraceRay = !bIsAlreadyFullyTraced;
 
@@ -138,7 +138,7 @@ void InitProbeTracingContext(out FProbeTracingCtx Ctx, const uint InterleavingCo
 
 		uint DirectionMaskBitId = (Ctx.FaceIndex * (PROBE_MASK_RESOLUTION * PROBE_MASK_RESOLUTION) + dot(DirectionMaskTexelCoord, uint2(1, PROBE_MASK_RESOLUTION)));
 
-		Ctx.bTraceRay = Ctx.bTraceRay && ((Ctx.ProbeInfo.DirectionMask & (0x1 << DirectionMaskBitId)) != 0);
+		Ctx.bTraceRay = Ctx.bTraceRay && ((Ctx.ProbeInfo.DirectionMask & (0x1u << DirectionMaskBitId)) != 0);
 	}
 
 	// Compute the direction of the ray.
@@ -172,7 +172,7 @@ void GetProbeTracingRange(FProbeTracingCtx Ctx, out float TMin, out float TMax)
 void OutputProbeRays(FProbeTracingCtx Ctx, float3 RayLighting, bool bFullyTraced, bool bHit)
 {
 	float3 Lighting = RayLighting;
-	uint SampleMask = ((bHit ? 0x1 : 0x0) | (bFullyTraced ? 0x2 : 0x0)) << (2 * Ctx.PixelRayId);
+	uint SampleMask = ((bHit ? 0x1u : 0x0u) | (bFullyTraced ? 0x2u : 0x0u)) << (2 * Ctx.PixelRayId);
 
 	#if DIM_TRACING_PERMUTATION != MULTIPLE_PROBE_PER_WAVE
 	BRANCH

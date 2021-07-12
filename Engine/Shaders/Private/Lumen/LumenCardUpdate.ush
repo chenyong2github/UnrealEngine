@@ -72,7 +72,7 @@ bool ShouldUpdateCardPage(
 
 		uint HashMapUInt32 = Resources.CardPagesToRenderHashMap[HashMapUInt32Id];
 
-		if (HashMapUInt32 & (1 << HashMapBitId))
+		if (HashMapUInt32 & (1u << HashMapBitId))
 		{
 			return true;
 		}

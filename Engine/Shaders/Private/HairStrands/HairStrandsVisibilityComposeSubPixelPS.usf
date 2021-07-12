@@ -211,7 +211,7 @@ void DOFDepthPS(
 	float SceneDepth = 0;
 	float SceneCoC = 0; // Radius in pixel
 	{
-		SceneDeviceZ = SceneDepthTexture.Load(PixelCoord);
+		SceneDeviceZ = SceneDepthTexture.Load(PixelCoord).x;
 		SceneDepth = ConvertFromDeviceZ(SceneDeviceZ);
 		SceneDeviceZ = 1 - SceneDeviceZ;
 		SceneCoC = DepthToCoc(SceneDepth) * HalfResToFullRes;

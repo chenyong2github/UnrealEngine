@@ -573,7 +573,7 @@ Texture2D<float3> ScreenProbeRadiance;
 
 float3 InterpolateFromScreenProbes(float3 ConeDirection, float MipLevel, uint2 ScreenProbeAtlasCoord[4], float4 InterpolationWeights)
 {
-	float BorderSize = 1 << (uint)ScreenProbeGatherMaxMip;
+	float BorderSize = 1u << (uint)ScreenProbeGatherMaxMip;
 	float2 ProbeCoord = UnitVectorToOctahedron(ConeDirection) * ScreenProbeGatherOctahedronResolution;
 					
 	float2 InvBufferSize = 1.0f / (float2)(ScreenProbeGatherOctahedronResolutionWithBorder * ScreenProbeAtlasBufferSize);
@@ -970,7 +970,7 @@ void ScreenProbeIndirectCS(
 
 			float MinRoughnessForProbeImportanceSampling = MaxRoughnessToTrace - RoughnessFadeLength;
 
-			if (DiffuseLerp < 1.0f && GBufferData.Roughness >= MinRoughnessForProbeImportanceSampling || GBufferData.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
+			if ((DiffuseLerp < 1.0f && GBufferData.Roughness >= MinRoughnessForProbeImportanceSampling) || GBufferData.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
 			{
 				GBufferData.WorldNormal = GetClearCoatBottomNormal(GBufferData, GBufferData.WorldNormal);
 

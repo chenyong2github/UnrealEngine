@@ -261,11 +261,11 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 
 			if (NumBits <= 30)
 			{
-				Result = lerp(float4(0.0f, 1.0f, 0.0f, 0.0f), float4(1.0f, 1.0f, 1.0f, 0.0f), NumBits / 30.0f);
+				Result = lerp(float3(0.0f, 1.0f, 0.0f), float3(1.0f, 1.0f, 1.0f), NumBits / 30.0f);
 			}
 			else
 			{
-				Result = lerp(float4(1.0f, 1.0f, 1.0f, 1.0f), float4(1.0f, 0.0f, 0.0f, 0.0f), (NumBits - 30) / (float)(3 * 16 - 30));
+				Result = lerp(float3(1.0f, 1.0f, 1.0f), float3(1.0f, 0.0f, 0.0f), (NumBits - 30) / (float)(3 * 16 - 30));
 			}
 		}
 	}
@@ -277,7 +277,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		{
 			if (SceneDepth[PixelPos] > 0.0f) // only visualize written fragments
 			{
-				Result = float4(1, 0, 0, 0);
+				Result = float3(1, 0, 0);
 			}
 		}
 	}

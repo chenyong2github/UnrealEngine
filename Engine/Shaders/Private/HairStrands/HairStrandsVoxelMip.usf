@@ -186,9 +186,9 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			if (Density > 0)
 			{
 				if (BitIndex < 32)
-					Occupancy.x = Occupancy.x | (1 << BitIndex);
+					Occupancy.x = Occupancy.x | (1u << BitIndex);
 				else
-					Occupancy.y = Occupancy.y | (1 << (BitIndex-32));
+					Occupancy.y = Occupancy.y | (1u << (BitIndex-32));
 			}
 			++BitIndex;
 		}

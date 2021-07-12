@@ -53,47 +53,47 @@ uint EncodeTileStencilZBaseDelta(float MinDepth, float MaxDepth, uint XX, uint S
 
 	if ((ZDiff & BitFieldMaskU32(1, 13)) != 0)
 	{
-		ZDelta = (0xF << 2u) | BitFieldExtractU32(ZDiff, 2, 11);
+		ZDelta = (0xFu << 2u) | BitFieldExtractU32(ZDiff, 2, 11);
 	}
 	else if ((ZDiff & BitFieldMaskU32(1, 12)) != 0)
 	{
-		ZDelta = (0xE << 2u) | BitFieldExtractU32(ZDiff, 2, 10);
+		ZDelta = (0xEu << 2u) | BitFieldExtractU32(ZDiff, 2, 10);
 	}
 	else if ((ZDiff & BitFieldMaskU32(1, 11)) != 0)
 	{
-		ZDelta = (0xD << 2u) | BitFieldExtractU32(ZDiff, 2, 9);
+		ZDelta = (0xDu << 2u) | BitFieldExtractU32(ZDiff, 2, 9);
 	}
 	else if ((ZDiff & BitFieldMaskU32(1, 10)) != 0)
 	{
-		ZDelta = (0xC << 2u) | BitFieldExtractU32(ZDiff, 2, 8);
+		ZDelta = (0xCu << 2u) | BitFieldExtractU32(ZDiff, 2, 8);
 	}
 	else if ((ZDiff & BitFieldMaskU32(1, 9)) != 0)
 	{
-		ZDelta = (0xB << 2u) | BitFieldExtractU32(ZDiff, 2, 7);
+		ZDelta = (0xBu << 2u) | BitFieldExtractU32(ZDiff, 2, 7);
 	}
 	else if ((ZDiff & BitFieldMaskU32(1, 8)) != 0)
 	{
-		ZDelta = (0xA << 2u) | BitFieldExtractU32(ZDiff, 2, 6);
+		ZDelta = (0xAu << 2u) | BitFieldExtractU32(ZDiff, 2, 6);
 	}
 	else if ((ZDiff & BitFieldMaskU32(1, 7)) != 0)
 	{
-		ZDelta = (0x9 << 2u) | BitFieldExtractU32(ZDiff, 2, 5);
+		ZDelta = (0x9u << 2u) | BitFieldExtractU32(ZDiff, 2, 5);
 	}
 	else if ((ZDiff & BitFieldMaskU32(1, 6)) != 0)
 	{
-		ZDelta = (0x8 << 2u) | BitFieldExtractU32(ZDiff, 2, 4);
+		ZDelta = (0x8u << 2u) | BitFieldExtractU32(ZDiff, 2, 4);
 	}
 	else if ((ZDiff & BitFieldMaskU32(1, 5)) != 0)
 	{
-		ZDelta = (0x3 << 3u) | BitFieldExtractU32(ZDiff, 3, 2);
+		ZDelta = (0x3u << 3u) | BitFieldExtractU32(ZDiff, 3, 2);
 	}
 	else if ((ZDiff & BitFieldMaskU32(1, 4)) != 0)
 	{
-		ZDelta = (0x2 << 3u) | BitFieldExtractU32(ZDiff, 3, 1);
+		ZDelta = (0x2u << 3u) | BitFieldExtractU32(ZDiff, 3, 1);
 	}
 	else
 	{
-		ZDelta = (0x0 << 4u) | BitFieldExtractU32(ZDiff, 4, 0);
+		ZDelta = (0x0u << 4u) | BitFieldExtractU32(ZDiff, 4, 0);
 	}
 
 	uint HTileValue = 0;
@@ -144,7 +144,7 @@ uint DecodeDepthDelta(uint DeltaZ)
 	const uint Code        = BitFieldExtractU32(DeltaZ, 3, DeltaBits);
 
 	const uint LeadingOne = Code + (TwoBitDelta ? 6 : 2);
-	const uint Ones = (1 << (LeadingOne + 1)) - 1;
+	const uint Ones = (1u << (LeadingOne + 1)) - 1;
 	const uint DeltaStart = (LeadingOne >= DeltaBits) ? (LeadingOne - DeltaBits) : 0;
 
 	const uint Mask = BitFieldMaskU32(DeltaBits, DeltaStart);

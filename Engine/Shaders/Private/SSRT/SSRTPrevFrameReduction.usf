@@ -255,7 +255,7 @@ void MainCS(
 		UNROLL
 		for (uint MipLevel = 1; MipLevel < 3; MipLevel++)
 		{
-			const uint ReductionAmount = 1 << MipLevel;
+			const uint ReductionAmount = 1u << MipLevel;
 			const uint NumberPixelInMip = GROUP_PIXEL_COUNT / (ReductionAmount * ReductionAmount);
 			
 			if (GroupThreadIndex < NumberPixelInMip)

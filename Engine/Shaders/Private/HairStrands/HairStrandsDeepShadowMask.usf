@@ -342,7 +342,7 @@ void MainPS(
 {
 	const float2 UV = Input.UV;
 	const uint2 PixelCoord = floor(Input.Position.xy);
-	const float SceneDepth = ConvertFromDeviceZ(SceneDepthTexture.Load(uint3(PixelCoord, 0)));
+	const float SceneDepth = ConvertFromDeviceZ(SceneDepthTexture.Load(uint3(PixelCoord, 0)).x);
 	const FCategorizationData Categorization = DecodeCategorizationData(HairStrands.HairCategorizationTexture.Load(uint3(PixelCoord, 0)));
 	const bool bIsHairPixel = Categorization.PixelCoverage >= 1;
 
@@ -445,7 +445,7 @@ void MainPS(
 {
 	const float2 UV = Input.UV;
 	const uint2 PixelCoord = floor(Input.Position.xy);
-	const float SceneDepth = ConvertFromDeviceZ(SceneDepthTexture.Load(uint3(PixelCoord, 0)));
+	const float SceneDepth = ConvertFromDeviceZ(SceneDepthTexture.Load(uint3(PixelCoord, 0)).x);
 
 	const FCategorizationData Categorization = DecodeCategorizationData(HairStrands.HairCategorizationTexture.Load(uint3(PixelCoord, 0)));
 	const bool bIsHairPixel = Categorization.PixelCoverage >= 1;

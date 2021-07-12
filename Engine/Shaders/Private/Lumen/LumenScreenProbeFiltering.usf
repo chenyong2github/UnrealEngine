@@ -614,7 +614,7 @@ void ScreenProbeFixupBordersCS(
 
 		if (SceneDepth > 0.0f)
 		{
-			uint2 ProbeTexelCoord = OctahedralMapWrapBorder(ProbeTexelCoordWithBorder, ScreenProbeGatherOctahedronResolutionWithBorder, 1 << (uint)ScreenProbeGatherMaxMip);
+			uint2 ProbeTexelCoord = OctahedralMapWrapBorder(ProbeTexelCoordWithBorder, ScreenProbeGatherOctahedronResolutionWithBorder, 1u << (uint)ScreenProbeGatherMaxMip);
 			uint2 ReadIndex = ScreenProbeAtlasCoord * ScreenProbeGatherOctahedronResolution + ProbeTexelCoord;
 			RWScreenProbeRadiance[DispatchThreadId.xy] = ScreenProbeRadiance.Load(int3(ReadIndex, 0)).xyz;
 		}

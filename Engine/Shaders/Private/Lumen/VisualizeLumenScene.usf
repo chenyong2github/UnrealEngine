@@ -262,8 +262,8 @@ void VisualizeLumenVoxelsCS(
 		if (RayVoxelEntryFace < 6)
 		{
 			int3 LightingVolumeCoord = VoxelCoord;
-			LightingVolumeCoord.y += VoxelLightingGridResolution * VoxelClipmapIndex;
-			LightingVolumeCoord.z += VoxelLightingGridResolution * RayVoxelEntryFace;
+			LightingVolumeCoord.y += VoxelLightingGridResolution.y * VoxelClipmapIndex;
+			LightingVolumeCoord.z += VoxelLightingGridResolution.z * RayVoxelEntryFace;
 
 			float4 StepLighting;
 			StepLighting = VoxelLighting.Load(int4(LightingVolumeCoord, 0));

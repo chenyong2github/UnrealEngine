@@ -83,7 +83,7 @@ void Main(
 	if (RefractionMipLevel < 0.001f)
 	{
 		// Sample the full res MSAA source texture
-		OutColor = SceneColorMSAATexture.Load(int2(TexCoord * View.BufferSizeAndInvSize.xy), SampleIndex);
+		OutColor = SceneColorMSAATexture.Load(int2(TexCoord.xy * View.BufferSizeAndInvSize.xy), SampleIndex);
 	}
 	else
 	{
