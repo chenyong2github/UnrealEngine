@@ -1701,7 +1701,11 @@ void FWidgetBlueprintEditorUtils::ImportWidgetsFromText(UWidgetBlueprint* BP, co
 			TArray<UPanelSlot*> PanelSlots = PanelWidget->GetSlots();
 			for (int32 i = 0; i < PanelWidget->GetChildrenCount(); i++)
 			{
-				PanelWidget->GetChildAt(i)->Slot = PanelSlots[i];
+				UWidget* PanelChild = PanelWidget->GetChildAt(i);
+				if (ensure(PanelChild))
+				{
+					PanelChild->Slot = PanelSlots[i];
+				}
 			}
 		}
 
