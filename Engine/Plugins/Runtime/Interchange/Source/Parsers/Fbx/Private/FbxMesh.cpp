@@ -295,9 +295,6 @@ namespace UE
 					return false;
 				}
 
-				UInterchangeResultMeshWarning_Generic* TestMessage = AddMessage<UInterchangeResultMeshWarning_Generic>(Mesh);
-				TestMessage->Text = LOCTEXT("TestMessage", "Test message for mesh '{MeshName}'.");
-
 				FStaticMeshAttributes Attributes(*MeshDescription);
 				Attributes.Register();
 
