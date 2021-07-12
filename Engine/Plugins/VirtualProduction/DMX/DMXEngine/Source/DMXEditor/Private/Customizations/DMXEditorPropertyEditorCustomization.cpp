@@ -616,6 +616,8 @@ void FDMXFixturePatchesDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLay
 {
 	FDMXCustomization::CustomizeDetails(DetailLayout);
 
+	PropertyUtilities = DetailLayout.GetPropertyUtilities();
+
 	// Bind to auto assign address changes to assign channels when it gets enabled
 	AutoAssignAddressHandle = DetailLayout.GetProperty(UDMXEntityFixturePatch::GetAutoAssignAddressPropertyNameChecked());
 	check(AutoAssignAddressHandle.IsValid() && AutoAssignAddressHandle->IsValidHandle());
@@ -730,15 +732,7 @@ void FDMXFixturePatchesDetails::OnAutoAssignAddressChanged()
 
 void FDMXFixturePatchesDetails::OnModesChanged(const UDMXEntityFixtureType* FixtureType, const FDMXFixtureMode& Mode)
 {
-	UObject* FixtureTypeObj = nullptr;
-	ensure(ParentFixtureTypeHandle->GetValue(FixtureTypeObj) == FPropertyAccess::Success);
-
-	if (FixtureTypeObj && FixtureTypeObj == FixtureType)
-	{
-		GenerateActiveModeOptions();
-
-		ActiveModeOptionsWidget->RefreshOptions();
-	}
+	PropertyUtilities->ForceRefresh();
 }
 
 void FDMXFixturePatchesDetails::GenerateActiveModeOptions()
@@ -801,8 +795,12 @@ TSharedRef<SWidget> FDMXFixturePatchesDetails::GenerateActiveModeOptionWidget(co
 	{
 		if (UDMXEntityFixtureType* Patch = Cast<UDMXEntityFixtureType>(Object))
 		{
-			return SNew(STextBlock)
-				.Text(FText::FromString(Patch->Modes[*InMode].ModeName));
+			if (InMode.IsValid() && 
+				Patch->Modes.IsValidIndex(*InMode))
+			{
+				return SNew(STextBlock)
+					.Text(FText::FromString(Patch->Modes[*InMode].ModeName));
+			}
 		}
 	}
 
