@@ -289,6 +289,7 @@ namespace Metasound
 					if (Entry->UpdateRootGraphArchetype(InDocument))
 					{
 						bDidEdit = true;
+						InDocument->SetArchetypeVersion(Entry->GetArchetype().Version);
 					}
 				}
 			}
