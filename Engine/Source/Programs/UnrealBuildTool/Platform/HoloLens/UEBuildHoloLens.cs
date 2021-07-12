@@ -22,8 +22,9 @@ namespace UnrealBuildTool
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "CompilerVersion")]
 		[XmlConfigFile(Category = "HoloLensPlatform")]
 		[CommandLine("-2015", Value = "VisualStudio2015")]
-		[CommandLine("-2017", Value = "VisualStudio2017")]
-		[CommandLine("-2019", Value = "VisualStudio2019")]
+		[CommandLine("-2017", Value = nameof(WindowsCompiler.VisualStudio2017))]
+		[CommandLine("-2019", Value = nameof(WindowsCompiler.VisualStudio2019))]
+		[CommandLine("-2022", Value = nameof(WindowsCompiler.VisualStudio2022))]
 		public WindowsCompiler Compiler = WindowsCompiler.Default;
 
 		/// <summary>
