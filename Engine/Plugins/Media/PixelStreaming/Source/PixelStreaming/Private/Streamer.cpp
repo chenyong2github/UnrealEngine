@@ -255,6 +255,11 @@ void FStreamer::CreatePlayerSession(FPlayerId PlayerId)
 		FScopeLock PlayersLock(&PlayersCS);
 		Players.Add(PlayerId) = MoveTemp(Session);
 	}
+
+	if (UPixelStreamerDelegates* Delegates = UPixelStreamerDelegates::GetPixelStreamerDelegates())
+	{
+		Delegates->OnNewConnection.Broadcast(PlayerId, bOriginalQualityController);
+	}
 }
 
 void FStreamer::DeletePlayerSession(FPlayerId PlayerId)
@@ -273,6 +278,12 @@ void FStreamer::DeletePlayerSession(FPlayerId PlayerId)
 		Players.Remove(PlayerId);
 	}
 
+	UPixelStreamerDelegates* Delegates = UPixelStreamerDelegates::GetPixelStreamerDelegates();
+	if (Delegates)
+	{
+		Delegates->OnClosedConnection.Broadcast(PlayerId, bWasQualityController);
+	}
+
 	// this is called from WebRTC signalling thread, the only thread were `Players` map is modified, so no need to lock it
 	if (Players.Num() == 0)
 	{
@@ -280,7 +291,6 @@ void FStreamer::DeletePlayerSession(FPlayerId PlayerId)
 
 		// Inform the application-specific blueprint that nobody is viewing or
 		// interacting with the app. This is an opportunity to reset the app.
-		UPixelStreamerDelegates* Delegates = UPixelStreamerDelegates::GetPixelStreamerDelegates();
 		if (Delegates)
 			Delegates->OnAllConnectionsClosed.Broadcast();
 	}

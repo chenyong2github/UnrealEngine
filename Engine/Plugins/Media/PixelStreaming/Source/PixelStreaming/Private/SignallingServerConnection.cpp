@@ -13,6 +13,7 @@
 #include "Logging/LogMacros.h"
 #include "PixelStreamingSettings.h"
 #include "TimerManager.h"
+#include "PixelStreamerDelegates.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingSS, Log, VeryVerbose);
 DEFINE_LOG_CATEGORY(LogPixelStreamingSS);
@@ -216,6 +217,11 @@ void FSignallingServerConnection::OnConnected()
 
 	//Send message to keep connection alive every 60 seconds
 	GWorld->GetTimerManager().SetTimer(TimerHandle_KeepAlive, std::bind(&FSignallingServerConnection::KeepAlive, this), KEEP_ALIVE_INTERVAL, true);
+
+	if (UPixelStreamerDelegates* Delegates = UPixelStreamerDelegates::GetPixelStreamerDelegates())
+	{
+		Delegates->OnConnecedToSignallingServer.Broadcast();
+	}
 }
 
 void FSignallingServerConnection::OnConnectionError(const FString& Error)
@@ -223,6 +229,11 @@ void FSignallingServerConnection::OnConnectionError(const FString& Error)
 	UE_LOG(LogPixelStreamingSS, Error, TEXT("Failed to connect to SS: %s"), *Error);
 	Observer.OnSignallingServerDisconnected();
 	GWorld->GetTimerManager().ClearTimer(TimerHandle_KeepAlive);
+
+	if (UPixelStreamerDelegates* Delegates = UPixelStreamerDelegates::GetPixelStreamerDelegates())
+	{
+		Delegates->OnDisconnectedFromSignallingServer.Broadcast();
+	}
 }
 
 void FSignallingServerConnection::OnClosed(int32 StatusCode, const FString& Reason, bool bWasClean)
@@ -230,6 +241,11 @@ void FSignallingServerConnection::OnClosed(int32 StatusCode, const FString& Reas
 	UE_LOG(LogPixelStreamingSS, Log, TEXT("Connection to SS closed: \n\tstatus %d\n\treason: %s\n\twas clean: %s"), StatusCode, *Reason, bWasClean ? TEXT("true") : TEXT("false"));
 	Observer.OnSignallingServerDisconnected();
 	GWorld->GetTimerManager().ClearTimer(TimerHandle_KeepAlive);
+
+	if (UPixelStreamerDelegates* Delegates = UPixelStreamerDelegates::GetPixelStreamerDelegates())
+	{
+		Delegates->OnDisconnectedFromSignallingServer.Broadcast();
+	}
 }
 
 void FSignallingServerConnection::OnMessage(const FString& Msg)
