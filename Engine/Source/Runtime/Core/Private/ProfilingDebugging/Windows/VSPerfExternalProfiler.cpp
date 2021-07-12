@@ -104,7 +104,13 @@ public:
 		// Try to load the VSPerf DLL
 		// NOTE: VSPerfXXX.dll is installed into /Windows/System32 when Visual Studio is installed.  The XXX is the version number of
 		// Visual Studio.  For example, for Visual Studio 2013, the file name is VSPerf120.dll.
-#if _MSC_VER >= 1900
+#if _MSC_VER >= 1930
+		DLLHandle = FPlatformProcess::GetDllHandle(TEXT("VSPerf170.dll"));	// Visual Studio 2022
+#elif _MSC_VER >= 1920
+		DLLHandle = FPlatformProcess::GetDllHandle(TEXT("VSPerf160.dll"));	// Visual Studio 2019
+#elif _MSC_VER >= 1910
+		DLLHandle = FPlatformProcess::GetDllHandle(TEXT("VSPerf150.dll"));	// Visual Studio 2017
+#elif _MSC_VER >= 1900
 		DLLHandle = FPlatformProcess::GetDllHandle(TEXT("VSPerf140.dll"));	// Visual Studio 2015
 #elif _MSC_VER >= 1800
 		DLLHandle = FPlatformProcess::GetDllHandle(TEXT("VSPerf120.dll"));	// Visual Studio 2013
