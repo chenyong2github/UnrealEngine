@@ -112,13 +112,13 @@ struct FDataDrivenPlatformInfo
 	// some platforms are here just for IniParentChain needs and are not concrete platforms
 	bool bIsFakePlatform = false;
 
-	// the name of the ini section to use to load audio compression settings (used at runtime and cooktime)
-	FString AudioCompressionSettingsIniSectionName;
+	// the name of the ini section to use to load target platform settings (used at runtime and cooktime)
+	FString TargetSettingsIniSectionName;
 
-	// list of additonal restricted folders
+	// list of additional restricted folders
 	TArray<FString> AdditionalRestrictedFolders;
 
-	// GUID to prepresent this platform forever
+	// GUID to represent this platform forever
 	FGuid GlobalIdentifier;
 
 	// MemoryFreezing information, matches FPlatformTypeLayoutParameters - defaults are clang, noneditor
