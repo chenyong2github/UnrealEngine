@@ -376,15 +376,5 @@ namespace HordeServer.Models
 				return PerforceClusters.FirstOrDefault(x => String.Equals(x.Name, Name, StringComparison.OrdinalIgnoreCase));
 			}
 		}
-
-		/// <inheritdoc/>
-		public override void PostLoad()
-		{
-			base.PostLoad();
-
-			DateTimeOffset Now = DateTimeOffset.Now;
-			Notices.RemoveAll(x => x.FinishTime != null && x.FinishTime < Now);
-			ScheduledDowntime.RemoveAll(x => x.FinishTime < Now);
-		}
 	}
 }
