@@ -28,6 +28,11 @@ Buffer<int> HairMacroGroupAABBBuffer;
 #define MATERIAL_DATA 1
 #define DETAIL_DATA 1
 
+void AddNewLine(float2 OriginalPos, inout float2 Pos)
+{
+	Pos = ShaderPrintNewline(Pos); Pos.x = OriginalPos.x;
+}
+
 [numthreads(1, 1, 1)]
 void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
 {	
@@ -50,46 +55,17 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		// Pixel coord
 		float2 OriginalPos = float2(50, 50) / float2(MaxResolution);
 		float2 Pos = OriginalPos;
-		Pos = ShaderPrintSymbol(Pos, _T_);
-		Pos = ShaderPrintSymbol(Pos, _O_);
-		Pos = ShaderPrintSymbol(Pos, _T_);
-		Pos = ShaderPrintSymbol(Pos, _A_);
-		Pos = ShaderPrintSymbol(Pos, _L_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _S_);
-		Pos = ShaderPrintSymbol(Pos, _A_);
-		Pos = ShaderPrintSymbol(Pos, _M_);
-		Pos = ShaderPrintSymbol(Pos, _P_);
-		Pos = ShaderPrintSymbol(Pos, _L_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _C_);
-		Pos = ShaderPrintSymbol(Pos, _O_);
-		Pos = ShaderPrintSymbol(Pos, _U_);
-		Pos = ShaderPrintSymbol(Pos, _N_);
-		Pos = ShaderPrintSymbol(Pos, _T_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, TotalSampleCount);
+		Pos = ShaderPrintText(Pos, TEXT("Total Sample Count "), FontCyan);
+		Pos = ShaderPrint(Pos, TotalSampleCount, FontCyan);
+		AddNewLine(OriginalPos, Pos);
 
-		Pos = ShaderPrintNewline(Pos);
-		Pos.x = OriginalPos.x;
+		Pos = ShaderPrintText(Pos, TEXT("Equivalent Res     "), FontCyan);
+		Pos = ShaderPrint(Pos, EquivalentResolution, FontCyan);
+		AddNewLine(OriginalPos, Pos);
 
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _Q_);
-		Pos = ShaderPrintSymbol(Pos, _U_);
-		Pos = ShaderPrintSymbol(Pos, _I_);
-		Pos = ShaderPrintSymbol(Pos, _V_);
-		Pos = ShaderPrintSymbol(Pos, _A_);
-		Pos = ShaderPrintSymbol(Pos, _L_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _N_);
-		Pos = ShaderPrintSymbol(Pos, _T_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _R_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _S_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, EquivalentResolution);
+		Pos = ShaderPrintText(Pos, TEXT("MacroGroup Count   "), FontYellow);
+		Pos = ShaderPrint(Pos, HairMacroGroupCount, FontYellow);
+		AddNewLine(OriginalPos, Pos);
 	}
 
 	const float2 PixelPos = PixelCoord;
@@ -106,7 +82,8 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	const float ViewHairCount = HairCountTexture.Load(uint3(PixelPos, 0));
 	const float ViewHairCountUint = HairCountUintTexture.Load(uint3(PixelPos, 0)) /  1000.f;
 
-	const float2 OriginalPos = PixelPos / float2(MaxResolution);
+//	const float2 OriginalPos = PixelPos / float2(MaxResolution);
+	const float2 OriginalPos = float2(50,500) / float2(MaxResolution);
 	float2 Pos = OriginalPos;
 
 	uint Total8BitCoverage = 0;
@@ -120,200 +97,95 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	}
 
 	// Pixel coord
-	Pos = ShaderPrintSymbol(Pos, _P_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _X_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrint(Pos, PixelCoord);
-
-	Pos = ShaderPrintNewline(Pos);
-	Pos.x = OriginalPos.x;
-
-#if MATERIAL_DATA
-	// Dispatch thread id
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _H_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _D_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _D_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrint(Pos, uint4(PixelCoord.x/GroupSize.x, PixelCoord.x % GroupSize.x, PixelCoord.y / GroupSize.y, PixelCoord.y % GroupSize.y));
-
-	Pos = ShaderPrintNewline(Pos);
-	Pos.x = OriginalPos.x;
-#endif
+	Pos = ShaderPrintText(Pos, TEXT("Pixel           "), FontTurquoise);
+	Pos = ShaderPrint(Pos, PixelCoord, FontTurquoise);
+	AddNewLine(OriginalPos, Pos);
 
 	// Max sample
-	Pos = ShaderPrintSymbol(Pos, _M_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _X_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _S_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _M_);
-	Pos = ShaderPrintSymbol(Pos, _P_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
+	Pos = ShaderPrintText(Pos, TEXT("Max Sample      "));
 	Pos = ShaderPrint(Pos, MaxSampleCount);
-
-	Pos = ShaderPrintNewline(Pos);
-	Pos.x = OriginalPos.x;
+	AddNewLine(OriginalPos, Pos);
 
 	// Unique sample
-	Pos = ShaderPrintSymbol(Pos, _S_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _M_);
-	Pos = ShaderPrintSymbol(Pos, _P_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrint(Pos, CatData.SampleCount);
-
-	Pos = ShaderPrintNewline(Pos);
-	Pos.x = OriginalPos.x;
+	Pos = ShaderPrintText(Pos, TEXT("Sample          "), FontOrange);
+	Pos = ShaderPrint(Pos, CatData.SampleCount, FontOrange);
+	AddNewLine(OriginalPos, Pos);
 
 	// Accurate coverage (if coverage pass is activated)
-	Pos = ShaderPrintSymbol(Pos, _H_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _C_);
-	Pos = ShaderPrintSymbol(Pos, _O_);
-	Pos = ShaderPrintSymbol(Pos, _U_);
-	Pos = ShaderPrintSymbol(Pos, _N_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
+	Pos = ShaderPrintText(Pos, TEXT("Hair Count      "));
 	Pos = ShaderPrint(Pos, ViewHairCount);
-
-	Pos = ShaderPrintNewline(Pos);
-	Pos.x = OriginalPos.x;
+	AddNewLine(OriginalPos, Pos);
 
 	// Accurate coverage (if coverage pass is activated) uint
-	Pos = ShaderPrintSymbol(Pos, _H_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _C_);
-	Pos = ShaderPrintSymbol(Pos, _O_);
-	Pos = ShaderPrintSymbol(Pos, _U_);
-	Pos = ShaderPrintSymbol(Pos, _N_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _U_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _N_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
+	Pos = ShaderPrintText(Pos, TEXT("Hair Count Uint "));
 	Pos = ShaderPrint(Pos, ViewHairCountUint);
-
-	Pos = ShaderPrintNewline(Pos);
-	Pos.x = OriginalPos.x;
+	AddNewLine(OriginalPos, Pos);
 	
 	// Accurate coverage (if coverage pass is activated)
-	Pos = ShaderPrintSymbol(Pos, _C_);
-	Pos = ShaderPrintSymbol(Pos, _O_);
-	Pos = ShaderPrintSymbol(Pos, _V_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _G_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrint(Pos, CatData.PixelCoverage);
-
-	Pos = ShaderPrintNewline(Pos);
-	Pos.x = OriginalPos.x;
+	Pos = ShaderPrintText(Pos, TEXT("Coverage        "), FontOrange);
+	Pos = ShaderPrint(Pos, CatData.PixelCoverage, FontOrange);
+	AddNewLine(OriginalPos, Pos);
 
 	// 8 bit Coverage (cateogory texture)
-	Pos = ShaderPrintSymbol(Pos, _C_);
-	Pos = ShaderPrintSymbol(Pos, _O_);
-	Pos = ShaderPrintSymbol(Pos, _V_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _G_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _8_); 
-	Pos = ShaderPrintSymbol(Pos, _B_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _S_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
+	Pos = ShaderPrintText(Pos, TEXT("Coverage 8bits  "));
 	Pos = ShaderPrint(Pos, CatData.TotalCoverage8bit);
 	Pos = ShaderPrint(Pos, CatData.TotalCoverage8bit / 255.f);
-	
-	Pos = ShaderPrintNewline(Pos);
-	Pos.x = OriginalPos.x;
+	AddNewLine(OriginalPos, Pos);
 
 	// 8 bit Coverage (summed)
-	Pos = ShaderPrintSymbol(Pos, _S_);
-	Pos = ShaderPrintSymbol(Pos, _U_);
-	Pos = ShaderPrintSymbol(Pos, _M_);
-	Pos = ShaderPrintSymbol(Pos, _M_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _D_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _C_);
-	Pos = ShaderPrintSymbol(Pos, _O_);
-	Pos = ShaderPrintSymbol(Pos, _V_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _A_);
-	Pos = ShaderPrintSymbol(Pos, _G_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
-	Pos = ShaderPrintSymbol(Pos, _8_); 
-	Pos = ShaderPrintSymbol(Pos, _B_);
-	Pos = ShaderPrintSymbol(Pos, _I_);
-	Pos = ShaderPrintSymbol(Pos, _T_);
-	Pos = ShaderPrintSymbol(Pos, _S_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
+	Pos = ShaderPrintText(Pos, TEXT("Sum cov. 8bits  "));
 	Pos = ShaderPrint(Pos, Total8BitCoverage);
-
-	Pos = ShaderPrintNewline(Pos);
-	Pos.x = OriginalPos.x;
+	AddNewLine(OriginalPos, Pos);
 
 	// Resolve type
 	const uint Stencil = DepthStencilTexture.Load(uint3(PixelPos,0)).y;
 	const bool bIsFastResolve = (Stencil & FastResolveMask) != 0;
-	Pos = ShaderPrintSymbol(Pos, _R_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _S_);
-	Pos = ShaderPrintSymbol(Pos, _O_);
-	Pos = ShaderPrintSymbol(Pos, _L_);
-	Pos = ShaderPrintSymbol(Pos, _V_);
-	Pos = ShaderPrintSymbol(Pos, _E_);
-	Pos = ShaderPrintSymbol(Pos, _SPC_);
+	Pos = ShaderPrintText(Pos, TEXT("Resolve         "));
+
 	if (bIsFastResolve)
 	{
-		Pos = ShaderPrintSymbol(Pos, _F_);
-		Pos = ShaderPrintSymbol(Pos, _A_);
-		Pos = ShaderPrintSymbol(Pos, _S_);
-		Pos = ShaderPrintSymbol(Pos, _T_);
+		Pos = ShaderPrintText(Pos, TEXT("Fast"), FontEmerald);
 	}
 	else
 	{
-		Pos = ShaderPrintSymbol(Pos, _R_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _G_);
-		Pos = ShaderPrintSymbol(Pos, _U_);
-		Pos = ShaderPrintSymbol(Pos, _L_);
-		Pos = ShaderPrintSymbol(Pos, _A_);
-		Pos = ShaderPrintSymbol(Pos, _R_);
+		Pos = ShaderPrintText(Pos, TEXT("Regular"), FontEmerald);
 	}
 
-	Pos = ShaderPrintNewline(Pos);
-	Pos.x = OriginalPos.x;
+	AddNewLine(OriginalPos, Pos);
+	AddNewLine(OriginalPos, Pos);
+
+	const float2 ColumnPos = Pos;
+
+	// Sample Description
+	{	
+		Pos = ShaderPrintText(Pos, TEXT("Sample ID       "), FontWhite);	AddNewLine(OriginalPos, Pos);
+	#if MATERIAL_DATA
+		Pos = ShaderPrintText(Pos, TEXT(".Base Color R   "), FontRed);		AddNewLine(OriginalPos, Pos); 
+		Pos = ShaderPrintText(Pos, TEXT(".Base Color G   "), FontGreen);	AddNewLine(OriginalPos, Pos);
+		Pos = ShaderPrintText(Pos, TEXT(".Base Color B   "), FontBlue);		AddNewLine(OriginalPos, Pos);
+		AddNewLine(OriginalPos, Pos);
+
+		Pos = ShaderPrintText(Pos, TEXT(".Tangent X      "), FontEmerald);	AddNewLine(OriginalPos, Pos); 
+		Pos = ShaderPrintText(Pos, TEXT(".Tangent Y      "), FontEmerald);	AddNewLine(OriginalPos, Pos);
+		Pos = ShaderPrintText(Pos, TEXT(".Tangent Z      "), FontEmerald);	AddNewLine(OriginalPos, Pos);
+		AddNewLine(OriginalPos, Pos);
+
+		Pos = ShaderPrintText(Pos, TEXT(".Roughness      "), FontOrange);	AddNewLine(OriginalPos, Pos);
+		Pos = ShaderPrintText(Pos, TEXT(".Specular       "), FontEmerald);	AddNewLine(OriginalPos, Pos);
+		Pos = ShaderPrintText(Pos, TEXT(".Backlit        "), FontOrange);	AddNewLine(OriginalPos, Pos);
+		AddNewLine(OriginalPos, Pos);
+	#endif 													  
+	#if DETAIL_DATA											  
+		Pos = ShaderPrintText(Pos, TEXT(".Light Channels "), FontEmerald);	AddNewLine(OriginalPos, Pos);
+		Pos = ShaderPrintText(Pos, TEXT(".Scatter Scene  "), FontOrange);	AddNewLine(OriginalPos, Pos);
+		Pos = ShaderPrintText(Pos, TEXT(".Depth          "), FontEmerald);	AddNewLine(OriginalPos, Pos);
+		AddNewLine(OriginalPos, Pos);
+
+		Pos = ShaderPrintText(Pos, TEXT(".Macro Group ID "), FontYellow);	AddNewLine(OriginalPos, Pos);
+		Pos = ShaderPrintText(Pos, TEXT(".Primitive		 "), FontEmerald);	AddNewLine(OriginalPos, Pos);
+	#endif													  
+		Pos = ShaderPrintText(Pos, TEXT(".Coverage       "), FontOrange);	AddNewLine(OriginalPos, Pos);
+	}
 
 	// Per sample description
 	for (uint SampleIt = 0; SampleIt < NodeDesc.Count; SampleIt++)
@@ -322,227 +194,40 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		const FPackedHairSample NodeData = HairVisibilityNodeData[LocalOffset];		
 		const FHairSample Sample = UnpackHairSample(NodeData);
 
-		// Base Color
-		Pos = ShaderPrintSymbol(Pos, _MINUS_);
-		Pos = ShaderPrintSymbol(Pos, _MINUS_);
-		Pos = ShaderPrintSymbol(Pos, _MINUS_);
-		Pos = ShaderPrintSymbol(Pos, _MINUS_);
-		Pos = ShaderPrintSymbol(Pos, _MINUS_);
-		Pos = ShaderPrintSymbol(Pos, _MINUS_);
-		Pos = ShaderPrintSymbol(Pos, _MINUS_);
-		Pos = ShaderPrintSymbol(Pos, _MINUS_);
-		Pos = ShaderPrintSymbol(Pos, _MINUS_);
-		Pos = ShaderPrintSymbol(Pos, _MINUS_);
-		Pos = ShaderPrintSymbol(Pos, _MINUS_);
-		Pos = ShaderPrintSymbol(Pos, _MINUS_);
-		Pos = ShaderPrintSymbol(Pos, _MINUS_);
-		Pos = ShaderPrintSymbol(Pos, _MINUS_);
-		Pos = ShaderPrintSymbol(Pos, _MINUS_);
-		Pos = ShaderPrintSymbol(Pos, _MINUS_);
-		Pos = ShaderPrintSymbol(Pos, _MINUS_);
-		Pos = ShaderPrintSymbol(Pos, _MINUS_);
-		Pos = ShaderPrintSymbol(Pos, _MINUS_);
-		Pos = ShaderPrintSymbol(Pos, _MINUS_);
+		float2 StartSamplePos = ColumnPos + float2(150.f + 80.f * SampleIt, 0.f) / float2(MaxResolution);
+		Pos = StartSamplePos;
 
-		Pos = ShaderPrintNewline(Pos);
-		Pos.x = OriginalPos.x;
+		Pos = ShaderPrint(Pos, SampleIt, FontWhite);									AddNewLine(StartSamplePos, Pos);
 
-#if MATERIAL_DATA
-		// Base Color
-		Pos = ShaderPrintSymbol(Pos, _DOT_);
-		Pos = ShaderPrintSymbol(Pos, _B_);
-		Pos = ShaderPrintSymbol(Pos, _A_);
-		Pos = ShaderPrintSymbol(Pos, _S_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _C_);
-		Pos = ShaderPrintSymbol(Pos, _O_);
-		Pos = ShaderPrintSymbol(Pos, _L_);
-		Pos = ShaderPrintSymbol(Pos, _O_);
-		Pos = ShaderPrintSymbol(Pos, _R_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, Sample.BaseColor);
-		
-		Pos = ShaderPrintNewline(Pos);
-		Pos.x = OriginalPos.x;
+	#if MATERIAL_DATA
+		Pos = ShaderPrint(Pos, Sample.BaseColor.x,	FontRed);							AddNewLine(StartSamplePos, Pos);
+		Pos = ShaderPrint(Pos, Sample.BaseColor.y,	FontGreen);							AddNewLine(StartSamplePos, Pos);
+		Pos = ShaderPrint(Pos, Sample.BaseColor.z,	FontBlue);							AddNewLine(StartSamplePos, Pos);
+		AddNewLine(StartSamplePos, Pos);
 
-		// Roughness
-		Pos = ShaderPrintSymbol(Pos, _DOT_);
-		Pos = ShaderPrintSymbol(Pos, _R_);
-		Pos = ShaderPrintSymbol(Pos, _O_);
-		Pos = ShaderPrintSymbol(Pos, _U_);
-		Pos = ShaderPrintSymbol(Pos, _G_);
-		Pos = ShaderPrintSymbol(Pos, _H_);
-		Pos = ShaderPrintSymbol(Pos, _N_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _S_);
-		Pos = ShaderPrintSymbol(Pos, _S_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, Sample.Roughness);
+		Pos = ShaderPrint(Pos, Sample.Tangent.x,	FontEmerald);						AddNewLine(StartSamplePos, Pos);
+		Pos = ShaderPrint(Pos, Sample.Tangent.y,	FontEmerald);						AddNewLine(StartSamplePos, Pos);
+		Pos = ShaderPrint(Pos, Sample.Tangent.z,	FontEmerald);						AddNewLine(StartSamplePos, Pos);
+		AddNewLine(StartSamplePos, Pos);
 
-		Pos = ShaderPrintNewline(Pos);
-		Pos.x = OriginalPos.x;
+		Pos = ShaderPrint(Pos, Sample.Roughness,	FontOrange);						AddNewLine(StartSamplePos, Pos);
+		Pos = ShaderPrint(Pos, Sample.Specular,		FontEmerald);						AddNewLine(StartSamplePos, Pos);
+		Pos = ShaderPrint(Pos, Sample.Backlit,		FontOrange);						AddNewLine(StartSamplePos, Pos);
+		AddNewLine(StartSamplePos, Pos);
+	#endif 
 
-		// Specular
-		Pos = ShaderPrintSymbol(Pos, _DOT_);
-		Pos = ShaderPrintSymbol(Pos, _S_);
-		Pos = ShaderPrintSymbol(Pos, _P_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _C_);
-		Pos = ShaderPrintSymbol(Pos, _U_);
-		Pos = ShaderPrintSymbol(Pos, _L_);
-		Pos = ShaderPrintSymbol(Pos, _A_);
-		Pos = ShaderPrintSymbol(Pos, _R_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, Sample.Specular);
+	#if DETAIL_DATA
+		Pos = ShaderPrint(Pos,(Sample.LightChannelMask & 0x1) ? 1u : 0u, FontEmerald);	AddNewLine(StartSamplePos, Pos);
+//		Pos = ShaderPrint(Pos,(Sample.LightChannelMask & 0x1) ? 1u : 0u);				AddNewLine(StartSamplePos, Pos);
+//		Pos = ShaderPrint(Pos,(Sample.LightChannelMask & 0x2) ? 1u : 0u);				AddNewLine(StartSamplePos, Pos);
+//		Pos = ShaderPrint(Pos,(Sample.LightChannelMask & 0x4) ? 1u : 0u);				AddNewLine(StartSamplePos, Pos);
+		Pos = ShaderPrint(Pos, Sample.bScatterSceneLighting ? 1u : 0u, FontOrange);		AddNewLine(StartSamplePos, Pos);
+		Pos = ShaderPrint(Pos, Sample.Depth, FontEmerald);								AddNewLine(StartSamplePos, Pos);
+		AddNewLine(StartSamplePos, Pos);
 
-		Pos = ShaderPrintNewline(Pos);
-		Pos.x = OriginalPos.x;
-
-		// Backlit
-		Pos = ShaderPrintSymbol(Pos, _DOT_);
-		Pos = ShaderPrintSymbol(Pos, _B_);
-		Pos = ShaderPrintSymbol(Pos, _A_);
-		Pos = ShaderPrintSymbol(Pos, _C_);
-		Pos = ShaderPrintSymbol(Pos, _K_);
-		Pos = ShaderPrintSymbol(Pos, _L_);
-		Pos = ShaderPrintSymbol(Pos, _I_);
-		Pos = ShaderPrintSymbol(Pos, _T_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, Sample.Backlit);
-
-		Pos = ShaderPrintNewline(Pos);
-		Pos.x = OriginalPos.x;
-
-		// Tangent
-		Pos = ShaderPrintSymbol(Pos, _DOT_);
-		Pos = ShaderPrintSymbol(Pos, _T_);
-		Pos = ShaderPrintSymbol(Pos, _A_);
-		Pos = ShaderPrintSymbol(Pos, _N_);
-		Pos = ShaderPrintSymbol(Pos, _G_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _N_);
-		Pos = ShaderPrintSymbol(Pos, _T_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, Sample.Tangent);
-
-		Pos = ShaderPrintNewline(Pos);
-		Pos.x = OriginalPos.x;
-#endif 
-
-#if DETAIL_DATA
-		// PrimitiveId
-		Pos = ShaderPrintSymbol(Pos, _DOT_);
-		Pos = ShaderPrintSymbol(Pos, _P_);
-		Pos = ShaderPrintSymbol(Pos, _R_);
-		Pos = ShaderPrintSymbol(Pos, _I_);
-		Pos = ShaderPrintSymbol(Pos, _M_);
-		Pos = ShaderPrintSymbol(Pos, _I_);
-		Pos = ShaderPrintSymbol(Pos, _T_);
-		Pos = ShaderPrintSymbol(Pos, _I_);
-		Pos = ShaderPrintSymbol(Pos, _V_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, Sample.PrimitiveId);
-
-		Pos = ShaderPrintNewline(Pos);
-		Pos.x = OriginalPos.x;
-
-		// MacroGroupId
-		Pos = ShaderPrintSymbol(Pos, _DOT_);
-		Pos = ShaderPrintSymbol(Pos, _M_);
-		Pos = ShaderPrintSymbol(Pos, _A_);
-		Pos = ShaderPrintSymbol(Pos, _C_);
-		Pos = ShaderPrintSymbol(Pos, _R_);
-		Pos = ShaderPrintSymbol(Pos, _O_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _G_);
-		Pos = ShaderPrintSymbol(Pos, _R_);
-		Pos = ShaderPrintSymbol(Pos, _O_);
-		Pos = ShaderPrintSymbol(Pos, _U_);
-		Pos = ShaderPrintSymbol(Pos, _P_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _I_);
-		Pos = ShaderPrintSymbol(Pos, _D_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, Sample.MacroGroupId);
-
-		Pos = ShaderPrintNewline(Pos);
-		Pos.x = OriginalPos.x;		
-
-		// Light channel mask
-		Pos = ShaderPrintSymbol(Pos, _DOT_);
-		Pos = ShaderPrintSymbol(Pos, _L_);
-		Pos = ShaderPrintSymbol(Pos, _I_);
-		Pos = ShaderPrintSymbol(Pos, _G_);
-		Pos = ShaderPrintSymbol(Pos, _H_);
-		Pos = ShaderPrintSymbol(Pos, _T_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _C_);
-		Pos = ShaderPrintSymbol(Pos, _H_);
-		Pos = ShaderPrintSymbol(Pos, _A_);
-		Pos = ShaderPrintSymbol(Pos, _N_);
-		Pos = ShaderPrintSymbol(Pos, _N_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _L_);
-		Pos = ShaderPrintSymbol(Pos, _S_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, (Sample.LightChannelMask & 0x1) ? 1u : 0u);
-		Pos = ShaderPrint(Pos, (Sample.LightChannelMask & 0x2) ? 1u : 0u);
-		Pos = ShaderPrint(Pos, (Sample.LightChannelMask & 0x4) ? 1u : 0u);
-
-		Pos = ShaderPrintNewline(Pos);
-		Pos.x = OriginalPos.x;
-
-		// Scene lighting scatter
-		Pos = ShaderPrintSymbol(Pos, _DOT_);
-		Pos = ShaderPrintSymbol(Pos, _S_);
-		Pos = ShaderPrintSymbol(Pos, _C_);
-		Pos = ShaderPrintSymbol(Pos, _A_);
-		Pos = ShaderPrintSymbol(Pos, _T_);
-		Pos = ShaderPrintSymbol(Pos, _T_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _R_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrintSymbol(Pos, _S_);
-		Pos = ShaderPrintSymbol(Pos, _C_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _N_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, Sample.bScatterSceneLighting ? 1u : 0u);
-
-		Pos = ShaderPrintNewline(Pos);
-		Pos.x = OriginalPos.x;
-
-		// Depth
-		Pos = ShaderPrintSymbol(Pos, _DOT_);
-		Pos = ShaderPrintSymbol(Pos, _D_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _P_);
-		Pos = ShaderPrintSymbol(Pos, _T_);
-		Pos = ShaderPrintSymbol(Pos, _H_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, Sample.Depth);
-
-		Pos = ShaderPrintNewline(Pos);
-		Pos.x = OriginalPos.x;
-#endif
-
-		// Coverage8bit
-		Pos = ShaderPrintSymbol(Pos, _DOT_);
-		Pos = ShaderPrintSymbol(Pos, _C_);
-		Pos = ShaderPrintSymbol(Pos, _O_);
-		Pos = ShaderPrintSymbol(Pos, _V_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _R_);
-		Pos = ShaderPrintSymbol(Pos, _A_);
-		Pos = ShaderPrintSymbol(Pos, _G_);
-		Pos = ShaderPrintSymbol(Pos, _E_);
-		Pos = ShaderPrintSymbol(Pos, _SPC_);
-		Pos = ShaderPrint(Pos, Sample.Coverage8bit);
-
-		Pos = ShaderPrintNewline(Pos);
-		Pos.x = OriginalPos.x;
+		Pos = ShaderPrint(Pos, Sample.MacroGroupId, FontYellow);						AddNewLine(StartSamplePos, Pos);
+		Pos = ShaderPrint(Pos, Sample.PrimitiveId, FontEmerald);						AddNewLine(StartSamplePos, Pos);
+	#endif
+		Pos = ShaderPrint(Pos, Sample.Coverage8bit, FontOrange);						AddNewLine(StartSamplePos, Pos);
 	}
 }
