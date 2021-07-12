@@ -56,7 +56,6 @@ void UContentBrowserAssetDataSource::Initialize(const bool InAutoRegister)
 	AssetRegistry->OnFilesLoaded().AddUObject(this, &UContentBrowserAssetDataSource::OnScanCompleted);
 
 	// Listen for when assets are loaded or changed
-	FCoreUObjectDelegates::OnAssetLoaded.AddUObject(this, &UContentBrowserAssetDataSource::OnAssetLoaded);
 	FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject(this, &UContentBrowserAssetDataSource::OnObjectPropertyChanged);
 
 	// Listen for new mount roots
@@ -180,7 +179,6 @@ void UContentBrowserAssetDataSource::Shutdown()
 		AssetRegistry->OnPathRemoved().RemoveAll(this);
 	}
 
-	FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
 	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
 
 	AssetViewUtils::OnAlwaysShowPath().RemoveAll(this);
@@ -1659,19 +1657,6 @@ void UContentBrowserAssetDataSource::OnAssetUpdated(const FAssetData& InAssetDat
 	if (ContentBrowserAssetData::IsPrimaryAsset(InAssetData))
 	{
 		QueueItemDataUpdate(FContentBrowserItemDataUpdate::MakeItemModifiedUpdate(CreateAssetFileItem(InAssetData)));
-	}
-}
-
-void UContentBrowserAssetDataSource::OnAssetLoaded(UObject* InAsset)
-{
-	if (InAsset && !InAsset->GetOutermost()->HasAnyPackageFlags(PKG_ForDiffing | PKG_PlayInEditor) &&
-		!UE::AssetRegistry::FFiltering::ShouldSkipAsset(InAsset))
-	{
-		FAssetData AssetData(InAsset);
-		if (ContentBrowserAssetData::IsPrimaryAsset(AssetData))
-		{
-			QueueItemDataUpdate(FContentBrowserItemDataUpdate::MakeItemModifiedUpdate(CreateAssetFileItem(AssetData)));
-		}
 	}
 }
 

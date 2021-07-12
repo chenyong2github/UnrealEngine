@@ -280,8 +280,6 @@ private:
 
 	void OnAssetUpdated(const FAssetData& InAssetData);
 
-	void OnAssetLoaded(UObject* InAsset);
-
 	void OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InPropertyChangedEvent);
 
 	void OnPathAdded(const FString& InPath);
