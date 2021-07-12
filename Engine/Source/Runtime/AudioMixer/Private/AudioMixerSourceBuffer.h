@@ -117,7 +117,7 @@ namespace Audio
 
 		void SubmitInitialPCMBuffers();
 		void SubmitInitialRealtimeBuffers();
-		void SubmitRealTimeSourceData(const bool bLooped);
+		void SubmitRealTimeSourceData(const bool bFinishedOrLooped);
 		void ProcessRealTimeSource();
 		void SubmitBuffer(TSharedPtr<FMixerSourceVoiceBuffer, ESPMode::ThreadSafe> InSourceVoiceBuffer);
 		void DeleteDecoder();

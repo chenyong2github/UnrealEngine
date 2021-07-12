@@ -109,9 +109,11 @@ namespace Audio
 	struct FProceduralAudioTaskResults
 	{
 		int32 NumSamplesWritten;
+		bool bIsFinished;
 
 		FProceduralAudioTaskResults()
 			: NumSamplesWritten(0)
+			, bIsFinished(false)
 		{}
 	};
 
@@ -119,10 +121,10 @@ namespace Audio
 	struct FDecodeAudioTaskResults
 	{
 		// Whether or not the audio buffer looped
-		bool bLooped;
+		bool bIsFinishedOrLooped;
 
 		FDecodeAudioTaskResults()
-			: bLooped(false)
+			: bIsFinishedOrLooped(false)
 		{}
 	};
 

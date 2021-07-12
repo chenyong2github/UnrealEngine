@@ -78,7 +78,8 @@ namespace Metasound
 	}
 
 	FMetasoundGenerator::FMetasoundGenerator(FMetasoundGeneratorInitParams&& InParams)
-		: bIsFinished(false)
+		: bIsFinishTriggered(false)
+		, bIsFinished(false)
 		, NumChannels(0)
 		, NumFramesPerExecute(0)
 		, NumSamplesPerExecute(0)
@@ -198,6 +199,12 @@ namespace Metasound
 
 	int32 FMetasoundGenerator::OnGenerateAudio(float* OutAudio, int32 NumSamplesRemaining)
 	{
+		// Defer finishing the metasound generator one block
+		if (bIsFinishTriggered)
+		{
+			bIsFinished = true;
+		}
+
 		if (NumSamplesRemaining <= 0)
 		{
 			return 0;
@@ -266,7 +273,7 @@ namespace Metasound
 
 		if (*OnFinishedTriggerRef)
 		{
-			bIsFinished = true;
+			bIsFinishTriggered = true;
 		}
 
 		return NumSamplesWritten;
