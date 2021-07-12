@@ -33,7 +33,7 @@
 		// If this is true in Chrome 89+ SDP is sent that is incompatible with UE Pixel Streaming 4.26 and below.
         // However 4.27 Pixel Streaming does not need this set to false as it supports `offerExtmapAllowMixed`.
         // tdlr; uncomment this line for older versions of Pixel Streaming that need Chrome 89+.
-        //this.cfg.offerExtmapAllowMixed = false;
+        this.cfg.offerExtmapAllowMixed = false;
 
         //**********************
         //Variables
@@ -234,7 +234,7 @@
                 }
 
                 datachannel.onmessage = function (e) {
-                  console.log(`Got message (${label})`, e.data)
+                  //console.log(`Got message (${label})`, e.data)
                   if (self.onDataChannelMessage)
                     self.onDataChannelMessage(e.data);
                 }

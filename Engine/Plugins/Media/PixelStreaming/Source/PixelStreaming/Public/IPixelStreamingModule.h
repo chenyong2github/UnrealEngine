@@ -13,6 +13,7 @@ class UTexture2D;
 class IMediaPlayer;
 class IMediaEventSink;
 class FPixelStreamingAudioSink;
+class UPixelStreamerInputComponent;
 
 /**
 * The public interface to this module
@@ -91,6 +92,24 @@ public:
 	 * Get an audio sink that has no peers/players listening to it.
 	 */
 	virtual FPixelStreamingAudioSink* GetUnlistenedAudioSink() = 0;
+
+	/**
+	 * Tell the input device about a new pixel streaming input component.
+	 * @param InInputComponent - The new pixel streaming input component.
+	 */
+	virtual void AddInputComponent(UPixelStreamerInputComponent* InInputComponent) = 0;
+
+	/*
+	 * Tell the input device that a pixel streaming input component is no longer
+	 * relevant.
+	 * @param InInputComponent - The pixel streaming input component which is no longer relevant.
+	 */
+	virtual void RemoveInputComponent(UPixelStreamerInputComponent* InInputComponent) = 0;
+
+	/*
+	 * Get the input components currently attached to Pixel Streaming.
+	 */
+	virtual const TArray<UPixelStreamerInputComponent*> GetInputComponents() = 0;
 
 };
 

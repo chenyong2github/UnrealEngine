@@ -3,10 +3,9 @@
 #include "InputDevice.h"
 #include "PixelStreamerInputComponent.h"
 #include "PixelStreamingSettings.h"
-#include "IPixelStreamingModule.h"
+#include "PixelStreamingModule.h"
 #include "ProtocolDefs.h"
 #include "JavaScriptKeyCodes.inl"
-#include "IPixelStreamingModule.h"
 #include "Engine/Engine.h"
 #include "Engine/GameEngine.h"
 #include "Engine/GameViewportClient.h"
@@ -114,10 +113,9 @@ public:
 
 const FVector2D FInputDevice::UnfocusedPos(-1.0f, -1.0f);
 
-FInputDevice::FInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler, TArray<UPixelStreamerInputComponent*>& InInputComponents)
+FInputDevice::FInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)
 	: PixelStreamerApplicationWrapper(MakeShareable(new FApplicationWrapper(FSlateApplication::Get().GetPlatformApplication())))
 	, MessageHandler(InMessageHandler)
-	, InputComponents(InInputComponents)
 	, bAllowCommands(PixelStreamingSettings::IsAllowPixelStreamingCommands())
 	, bFakingTouchEvents(FSlateApplication::Get().IsFakingTouchEvents())
 	, FocusedPos(UnfocusedPos)
@@ -342,7 +340,7 @@ void FInputDevice::Tick(float DeltaTime)
 	FString UIInteraction;
 	while (UIInteractions.Dequeue(UIInteraction))
 	{
-		for (UPixelStreamerInputComponent* InputComponent : InputComponents)
+		for (UPixelStreamerInputComponent* InputComponent : this->PixelStreamingModule->GetInputComponents())
 		{
 			InputComponent->OnInputEvent.Broadcast(UIInteraction);
 			UE_LOG(PixelStreamerInputDevice, Verbose, TEXT("UIInteraction = %s"), *UIInteraction);
@@ -352,7 +350,7 @@ void FInputDevice::Tick(float DeltaTime)
 	FString Command;
 	while (Commands.Dequeue(Command))
 	{
-		for (UPixelStreamerInputComponent* InputComponent : InputComponents)
+		for (UPixelStreamerInputComponent* InputComponent : this->PixelStreamingModule->GetInputComponents())
 		{
 			if (InputComponent->OnCommand(Command))
 			{

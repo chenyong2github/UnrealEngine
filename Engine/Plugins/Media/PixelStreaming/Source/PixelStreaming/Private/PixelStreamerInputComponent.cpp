@@ -2,7 +2,7 @@
 
 #include "PixelStreamerInputComponent.h"
 #include "IPixelStreamingModule.h"
-
+#include "InputDevice.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
@@ -13,6 +13,20 @@
 UPixelStreamerInputComponent::UPixelStreamerInputComponent()
 	: PixelStreamingModule(FModuleManager::Get().GetModulePtr<IPixelStreamingModule>("PixelStreaming"))
 {
+}
+
+void UPixelStreamerInputComponent::BeginPlay()
+{
+	Super::BeginPlay();
+	// When this component is initializing it registers itself with the Pixel Streaming module.
+	this->PixelStreamingModule->AddInputComponent(this);
+}
+
+void UPixelStreamerInputComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+	// When this component is destructing it unregisters itself with the Pixel Streaming module.
+	this->PixelStreamingModule->RemoveInputComponent(this);
 }
 
 bool UPixelStreamerInputComponent::OnCommand(const FString& Descriptor)

@@ -40,6 +40,9 @@ private:
 	 * @return The shared pointer to the input device.
 	 */
 	TSharedPtr<FInputDevice> GetInputDevicePtr();
+	void AddInputComponent(UPixelStreamerInputComponent* InInputComponent) override;
+	void RemoveInputComponent(UPixelStreamerInputComponent* InInputComponent) override;
+	const TArray<UPixelStreamerInputComponent*> GetInputComponents() override;
 
 	void FreezeFrame(UTexture2D* Texture) override;
 	void UnfreezeFrame() override;

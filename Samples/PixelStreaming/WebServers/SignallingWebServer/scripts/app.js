@@ -453,7 +453,7 @@ function setupWebRtcPlayer(htmlElement, config) {
 			invalidateFreezeFrameOverlay();
 		} else if (view[0] === ToClientMessageType.VideoEncoderAvgQP) {
 			VideoEncoderQP = new TextDecoder("utf-16").decode(data.slice(1));
-			console.log(`received VideoEncoderAvgQP ${VideoEncoderQP}`);
+			//console.log(`received VideoEncoderAvgQP ${VideoEncoderQP}`);
 		} else if(view[0] == ToClientMessageType.LatencyTest){
 			let latencyTimingsAsString = new TextDecoder("utf-16").decode(data.slice(1));
 			console.log("Got latency timings from UE.")

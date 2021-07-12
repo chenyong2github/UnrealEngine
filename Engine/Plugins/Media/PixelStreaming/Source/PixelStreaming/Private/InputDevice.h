@@ -18,26 +18,7 @@ public:
 	 * @param InMessageHandler - The message handler which events should be passed to.
 	 * @param InInputComponents - The preexisting list of pixel streaming input components.
 	 */
-	FInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler, TArray<class UPixelStreamerInputComponent*>& InInputComponents);
-
-	/**
-	 * Tell the input device about a new pixel streaming input component.
-	 * @param InInputComponent - The new pixel streaming input component.
-	 */
-	void AddInputComponent(class UPixelStreamerInputComponent* InInputComponent)
-	{
-		InputComponents.Add(InInputComponent);
-	}
-
-	/*
-	 * Tell the input device that a pixel streaming input component is no longer
-	 * relevant.
-	 * @param InInputComponent - The pixel streaming input component which is no longer relevant.
-	 */
-	void RemoveInputComponent(class UPixelStreamerInputComponent* InInputComponent)
-	{
-		InputComponents.Remove(InInputComponent);
-	}
+	FInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler);
 
 	/** Tick the interface (e.g. check for new controllers) */
 	virtual void Tick(float DeltaTime) override;
@@ -380,12 +361,6 @@ private:
 
 	/** The queue of events which are awaiting processing. */
 	TQueue<FEvent> Events;
-
-	/**
-	 * Pixel streaming input components contain a delegate which will broadcast
-	 * UI integrations to interested parties.
-	 */
-	TArray<UPixelStreamerInputComponent*> InputComponents;
 
 	/**
 	 * A queue of UI interaction descriptor strings which contain arbitrary

@@ -255,7 +255,7 @@ void FPixelStreamingModule::OnBackBufferReady_RenderThread(SWindow& SlateWindow,
 
 TSharedPtr<class IInputDevice> FPixelStreamingModule::CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)
 {
-	InputDevice = MakeShareable(new FInputDevice(InMessageHandler, InputComponents));
+	InputDevice = MakeShareable(new FInputDevice(InMessageHandler));
 	return InputDevice;
 }
 
@@ -267,6 +267,21 @@ FInputDevice& FPixelStreamingModule::GetInputDevice()
 TSharedPtr<FInputDevice> FPixelStreamingModule::GetInputDevicePtr()
 {
 	return InputDevice;
+}
+
+void FPixelStreamingModule::AddInputComponent(UPixelStreamerInputComponent* InInputComponent)
+{
+	this->InputComponents.Add(InInputComponent);
+}
+
+void FPixelStreamingModule::RemoveInputComponent(UPixelStreamerInputComponent* InInputComponent)
+{
+	this->InputComponents.Remove(InInputComponent);
+}
+
+const TArray<UPixelStreamerInputComponent*> FPixelStreamingModule::GetInputComponents()
+{
+	return this->InputComponents;
 }
 
 void FPixelStreamingModule::FreezeFrame(UTexture2D* Texture)
@@ -339,38 +354,12 @@ void FPixelStreamingModule::SendCommand(const FString& Descriptor)
 
 void FPixelStreamingModule::OnGameModePostLogin(AGameModeBase* GameMode, APlayerController* NewPlayer)
 {
-	UWorld* NewPlayerWorld = NewPlayer->GetWorld();
-	for (TObjectIterator<UPixelStreamerInputComponent> ObjIt; ObjIt; ++ObjIt)
-	{
-		UPixelStreamerInputComponent* InputComponent = *ObjIt;
-		UWorld* InputComponentWorld = InputComponent->GetWorld();
-		if (InputComponentWorld == NewPlayerWorld)
-		{
-			InputComponents.Push(InputComponent);
-		}
-	}
-	if (InputComponents.Num() == 0)
-	{
-		UPixelStreamerInputComponent* InputComponent = NewObject<UPixelStreamerInputComponent>(NewPlayer);
-		InputComponent->RegisterComponent();
-		InputComponents.Push(InputComponent);
-	}
-	if (InputDevice.IsValid())
-	{
-		for (UPixelStreamerInputComponent* InputComponent : InputComponents)
-		{
-			InputDevice->AddInputComponent(InputComponent);
-		}
-	}
+	
 }
 
 void FPixelStreamingModule::OnGameModeLogout(AGameModeBase* GameMode, AController* Exiting)
 {
-	for (UPixelStreamerInputComponent* InputComponent : InputComponents)
-	{
-		InputDevice->RemoveInputComponent(InputComponent);
-	}
-	InputComponents.Empty();
+	
 }
 
 void FPixelStreamingModule::SendJpeg(TArray<FColor> RawData, const FIntRect& Rect)
