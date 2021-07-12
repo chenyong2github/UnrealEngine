@@ -694,6 +694,8 @@ public:
 	};
 
 private:
+
+	FCriticalSection DeleteTaskCS;
 	TQueue<FAsyncTask<FD3D12AsyncDeletionWorker>*> DeleteTasks;
 
 };

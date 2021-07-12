@@ -69,6 +69,8 @@ void FD3D12DeferredDeletionQueue::EnqueueResource(ID3D12Object* pResource, FD3D1
 
 bool FD3D12DeferredDeletionQueue::ReleaseResources(bool bDeleteImmediately, bool bIsShutDown)
 {
+	FScopeLock ScopeLock(&DeleteTaskCS);
+
 	FD3D12Adapter* Adapter = GetParentAdapter();
 
 	if (GD3D12AsyncDeferredDeletion)
