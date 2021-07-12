@@ -7971,6 +7971,17 @@ URigVMSelectNode* URigVMController::AddSelectNode(const FString& InCPPType, cons
 	return Node;
 }
 
+URigVMSelectNode* URigVMController::AddSelectNodeFromStruct(UScriptStruct* InScriptStruct, const FVector2D& InPosition,
+	const FString& InNodeName, bool bSetupUndoRedo)
+{
+	if (!InScriptStruct)
+	{
+		return nullptr;
+	}
+
+	return AddSelectNode(InScriptStruct->GetStructCPPName(), FName(InScriptStruct->GetPathName()), InPosition, InNodeName, bSetupUndoRedo);
+}
+
 URigVMPrototypeNode* URigVMController::AddPrototypeNode(const FName& InNotation, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo)
 {
 	if (!IsValidGraph())
