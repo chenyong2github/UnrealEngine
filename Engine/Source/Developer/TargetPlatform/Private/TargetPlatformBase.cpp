@@ -44,7 +44,8 @@ bool FTargetPlatformBase::UsesSelectiveBasePassOutputs() const
 
 bool FTargetPlatformBase::UsesDistanceFields() const
 {
-	return true;
+	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DistanceFields"));
+	return CVar ? (CVar->GetInt() != 0) : false;
 }
 
 bool FTargetPlatformBase::UsesRayTracing() const

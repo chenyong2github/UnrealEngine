@@ -9,6 +9,7 @@
 #include "PipelineStateCache.h"
 #include "Misc/ConfigCacheIni.h"
 #include "RenderGraphResourcePool.h"
+#include "Misc/DataDrivenPlatformInfoRegistry.h"
 
 #if WITH_EDITOR
 #include "Misc/CoreMisc.h"
@@ -1397,10 +1398,38 @@ RENDERCORE_API void RenderUtilsInit()
 		}
 	}
 #else
+
 	if (IsMobilePlatform(GMaxRHIShaderPlatform))
 	{
 		GDBufferPlatformMask = 0;
 		GBasePassVelocityPlatformMask = 0;
+	}
+
+	// Load runtime values from and *.ini file used by a current platform
+	// Should be code shared between cook and game, but unfortunately can't be done before we untangle non data driven platforms
+	const FString PlatformName(FPlatformProperties::IniPlatformName());
+	const FDataDrivenPlatformInfo& PlatformInfo = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(PlatformName);
+
+	const FString CategoryName = PlatformInfo.TargetSettingsIniSectionName;
+	if (!CategoryName.IsEmpty())
+	{
+		FConfigFile PlatformIniFile;
+		if (FConfigCacheIni::LoadLocalIniFile(PlatformIniFile, TEXT("Engine"), /*bIsBaseIniName*/ true, *PlatformName))
+		{
+			bool bDistanceFields = false;
+			PlatformIniFile.GetBool(*CategoryName, TEXT("bEnableDistanceFields"), bDistanceFields);
+			if (!bDistanceFields)
+			{
+				GDistanceFieldsPlatformMask = 0;
+			}
+
+			bool bRayTracing = false;
+			PlatformIniFile.GetBool(*CategoryName, TEXT("bEnableRayTracing"), bRayTracing);
+			if (!bRayTracing)
+			{
+				GRayTracingPlaformMask = 0;
+			}
+		}
 	}
 #endif // WITH_EDITOR
 

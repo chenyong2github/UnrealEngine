@@ -464,6 +464,14 @@ public:
 		return TProperties::GetVariantPriority();
 	}
 
+	virtual bool UsesDistanceFields() const override
+	{
+		bool bEnableDistanceFields = false;
+		GConfig->GetBool(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("bEnableDistanceFields"), bEnableDistanceFields, GEngineIni);
+
+		return bEnableDistanceFields && TSuper::UsesDistanceFields();
+	}
+
 	virtual bool UsesRayTracing() const override
 	{
 		bool bEnableRayTracing = false;

@@ -1651,7 +1651,8 @@ void FStaticMeshRenderData::Serialize(FArchive& Ar, UStaticMesh* Owner, bool bCo
 		uint8 ClassDataStripFlags = 0;
 
 #if WITH_EDITOR
-		const bool bWantToStripDistanceFieldData = Ar.IsCooking() && !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::DistanceFieldAO);
+		const bool bWantToStripDistanceFieldData = Ar.IsCooking() 
+			&& (!Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::DistanceFieldAO) || !Ar.CookingTarget()->UsesDistanceFields());
 
 		ClassDataStripFlags |= (bWantToStripDistanceFieldData ? DistanceFieldDataStripFlag : 0);
 #endif
