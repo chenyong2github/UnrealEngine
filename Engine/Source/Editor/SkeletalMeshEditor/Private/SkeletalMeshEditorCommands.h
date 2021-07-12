@@ -28,4 +28,7 @@ public:
 
 	// selecting mesh section using hit proxies
 	TSharedPtr<FUICommandInfo> MeshSectionSelection;
+
+	// bake materials for this skeletal mesh
+	TSharedPtr<FUICommandInfo> BakeMaterials;
 };
