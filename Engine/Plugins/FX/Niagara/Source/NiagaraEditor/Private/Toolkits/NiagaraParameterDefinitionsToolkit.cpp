@@ -341,6 +341,7 @@ void FNiagaraParameterDefinitionsToolkit::OnApply()
 	// If the ChangeIdHash is different, apply to all scripts/emitters/systems in editor. Record the last synced ChangeIdHash to detect future changes.
 	if (ParameterDefinitionsInstance->GetChangeIdHash() != LastSyncedDefinitionsChangeIdHash)
 	{
+		FScopedTransaction Transaction(LOCTEXT("ApplyParameterDefinitionsChanges", "Apply Parameter Definitions Changes"));
 		FRefreshAllScriptsFromExternalChangesArgs Args;
 		Args.OriginatingParameterDefinitions = ParameterDefinitionsSource;
 		FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(Args);
