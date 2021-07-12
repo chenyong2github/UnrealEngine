@@ -314,14 +314,16 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 
 					TRACE_CPUPROFILER_EVENT_SCOPE(DensityBucket);
 
-					FMaterialRenderProxy* MaterialRenderProxy = (WireframeMaterialInstance != nullptr) ? WireframeMaterialInstance : WaterQuadTree.GetWaterMaterials()[MaterialIndex];
+					const FMaterialRenderProxy* MaterialRenderProxy = (WireframeMaterialInstance != nullptr) ? WireframeMaterialInstance : WaterQuadTree.GetWaterMaterials()[MaterialIndex];
 					check (MaterialRenderProxy != nullptr);
-					const FMaterial* BucketMaterial = MaterialRenderProxy->GetMaterialNoFallback(GetScene().GetFeatureLevel());
 
-					// If the material is not ready for render, just skip :
-					if (BucketMaterial == nullptr)
+					bool bUseForDepthPass = false;
+
+					// If there's a valid material, use that to figure out the depth pass status
+					if (const FMaterial* BucketMaterial = MaterialRenderProxy->GetMaterialNoFallback(GetScene().GetFeatureLevel()))
 					{
-						continue;
+						// Preemptively turn off depth rendering for this mesh batch if the material doesn't need it
+						bUseForDepthPass = !BucketMaterial->GetShadingModels().HasShadingModel(MSM_SingleLayerWater) && BucketMaterial->GetBlendMode() != EBlendMode::BLEND_Translucent;
 					}
 
 					bMaterialDrawn = true;
@@ -339,7 +341,7 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 						Mesh.bUseForMaterial = true;
 						Mesh.CastShadow = false;
 						// Preemptively turn off depth rendering for this mesh batch if the material doesn't need it
-						Mesh.bUseForDepthPass = !BucketMaterial->GetShadingModels().HasShadingModel(MSM_SingleLayerWater) && BucketMaterial->GetBlendMode() != EBlendMode::BLEND_Translucent;
+						Mesh.bUseForDepthPass = bUseForDepthPass;
 						Mesh.bUseAsOccluder = false;
 
 #if WITH_WATER_SELECTION_SUPPORT
@@ -383,6 +385,8 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 						}
 					}
 
+					// Note : we're repurposing the BucketInstanceCounts array here for storing the actual offset in the buffer. This means that effectively from this point on, BucketInstanceCounts doesn't actually 
+					//  contain the number of instances anymore : 
 					WaterInstanceData.BucketInstanceCounts[BucketIndex] = InstanceDataOffset;
 					InstanceDataOffset += InstanceCount;
 				}
@@ -409,7 +413,9 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 
 				for (int32 StreamIdx = 0; StreamIdx < WaterInstanceDataBuffersType::NumBuffers; ++StreamIdx)
 				{
-					FMemory::Memcpy(WaterInstanceDataBuffers->GetBufferMemory(StreamIdx) + WriteStartOffset, FarDistanceWaterInstanceData.Streams[StreamIdx].GetData(), NumFarInstances * sizeof(FVector4));
+					TArrayView<FVector4> BufferMemory = WaterInstanceDataBuffers->GetBufferMemory(StreamIdx);
+					check(WriteStartOffset + NumFarInstances <= BufferMemory.Num());
+					FMemory::Memcpy(BufferMemory.GetData() + WriteStartOffset, FarDistanceWaterInstanceData.Streams[StreamIdx].GetData(), NumFarInstances * sizeof(FVector4));
 				}
 			}
 		}

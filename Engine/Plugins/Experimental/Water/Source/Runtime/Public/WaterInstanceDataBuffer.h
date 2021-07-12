@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/ArrayView.h"
 
 template <bool bWithWaterSelectionSupport>
 class TWaterInstanceDataBuffers
@@ -23,7 +24,7 @@ public:
 				for (int32 i = 0; i < NumBuffers; ++i)
 				{
 					Buffer[i] = RHICreateVertexBuffer(SizeInBytes, BUF_Dynamic, CreateInfo);
-					BufferMemory[i] = nullptr;
+					BufferMemory[i] = TArrayView<FVector4>();
 				}
 			}
 		);
@@ -50,7 +51,7 @@ public:
 		for (int32 i = 0; i < NumBuffers; ++i)
 		{
 			Unlock(i);
-			BufferMemory[i] = nullptr;
+			BufferMemory[i] = TArrayView<FVector4>();
 		}
 	}
 
@@ -59,14 +60,14 @@ public:
 		return Buffer[InBufferID];
 	}
 
-	FVector4* GetBufferMemory(int32 InBufferID) const
+	TArrayView<FVector4> GetBufferMemory(int32 InBufferID) const
 	{
-		check(BufferMemory[InBufferID]);
+		check(!BufferMemory[InBufferID].IsEmpty());
 		return BufferMemory[InBufferID];
 	}
 
 private:
-	FVector4* Lock(int32 InInstanceCount, int32 InBufferID)
+	TArrayView<FVector4> Lock(int32 InInstanceCount, int32 InBufferID)
 	{
 		check(IsInRenderingThread());
 
@@ -84,7 +85,8 @@ private:
 			Buffer[InBufferID] = RHICreateVertexBuffer(AlignedSizeInBytes, BUF_Dynamic, CreateInfo);
 		}
 
-		return reinterpret_cast<FVector4*>(RHILockBuffer(Buffer[InBufferID], 0, SizeInBytes, RLM_WriteOnly));
+		FVector4* Data = reinterpret_cast<FVector4*>(RHILockBuffer(Buffer[InBufferID], 0, SizeInBytes, RLM_WriteOnly));
+		return TArrayView<FVector4>(Data, InInstanceCount);
 	}
 
 	void Unlock(int32 InBufferID)
@@ -93,5 +95,5 @@ private:
 	}
 
 	FBufferRHIRef Buffer[NumBuffers];
-	FVector4* BufferMemory[NumBuffers];
+	TArrayView<FVector4> BufferMemory[NumBuffers];
 };
