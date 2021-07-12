@@ -62,6 +62,7 @@ public:
 					// Pre-zero the buffer before calling into the generator code as a convenience to implementers
 					FMemory::Memzero(ProceduralTaskData.AudioData, ProceduralTaskData.NumSamples * sizeof(float));
 					ProceduralResult.NumSamplesWritten = ProceduralTaskData.SoundGenerator->GetNextBuffer(ProceduralTaskData.AudioData, ProceduralTaskData.NumSamples);
+					ProceduralResult.bIsFinished = ProceduralTaskData.SoundGenerator->IsFinished();
 				}
 				else
 				{
@@ -150,11 +151,11 @@ public:
 				int32 NumBytesStreamed = kPCMBufferSize;
 				if (DecodeTaskData.BufferType == EBufferType::Streaming)
 				{
-					DecodeResult.bLooped = DecodeTaskData.DecompressionState->StreamCompressedData(DecodeBuffer.GetData(), DecodeTaskData.bLoopingMode, kPCMBufferSize, NumBytesStreamed);
+					DecodeResult.bIsFinishedOrLooped = DecodeTaskData.DecompressionState->StreamCompressedData(DecodeBuffer.GetData(), DecodeTaskData.bLoopingMode, kPCMBufferSize, NumBytesStreamed);
 				}
 				else
 				{
-					DecodeResult.bLooped = DecodeTaskData.DecompressionState->ReadCompressedData(DecodeBuffer.GetData(), DecodeTaskData.bLoopingMode, kPCMBufferSize);
+					DecodeResult.bIsFinishedOrLooped = DecodeTaskData.DecompressionState->ReadCompressedData(DecodeBuffer.GetData(), DecodeTaskData.bLoopingMode, kPCMBufferSize);
 				}
 
 				// Convert the decoded PCM data into a float buffer while still in the async task

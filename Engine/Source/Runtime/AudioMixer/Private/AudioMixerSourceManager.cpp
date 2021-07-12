@@ -1679,15 +1679,6 @@ namespace Audio
 				if (ensure(SourceInfo.MixerSourceBuffer.IsValid()))
 				{
 					SourceInfo.MixerSourceBuffer->OnBufferEnd();
-					if (SourceInfo.MixerSourceBuffer->IsGeneratorFinished())
-					{
-						SourceInfo.bIsPlaying = false;
-						SourceInfo.bIsPaused = false;
-						SourceInfo.bIsActive = false;
-						SourceInfo.bIsStopping = false;
-						SourceInfo.bIsLastBuffer = true;
-						break;
-					}
 				}
 			}
 

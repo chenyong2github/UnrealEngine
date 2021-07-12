@@ -157,6 +157,7 @@ namespace Metasound
 		FExecuter RootExecuter;
 
 		bool bIsGraphBuilding;
+		bool bIsFinishTriggered;
 		bool bIsFinished;
 
 		int32 NumChannels;
