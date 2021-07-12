@@ -2307,6 +2307,65 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyCon
 			ViewInfo->bCameraCut = true;
 		}
 		#endif
+
+		// Handle the film grain texture
+		if (ViewInfo->FinalPostProcessSettings.FilmGrainIntensity > 0.0f)
+		{
+			GEngine->LoadDefaultFilmGrainTexture();
+
+			UTexture2D* FilmGrainTexture = GEngine->DefaultFilmGrainTexture;
+			if (ViewInfo->FinalPostProcessSettings.FilmGrainTexture)
+			{
+				FilmGrainTexture = ViewInfo->FinalPostProcessSettings.FilmGrainTexture;
+			}
+
+			bool bIsValid = FilmGrainTexture != nullptr;
+
+			if (bIsValid)
+			{
+				const int32 CinematicTextureGroups = 0;
+				const float Seconds = 5.0f;
+				FilmGrainTexture->SetForceMipLevelsToBeResident(Seconds, CinematicTextureGroups);
+			}
+
+			const uint32 FramesPerWarning = 15;
+
+			if (bIsValid && FilmGrainTexture->IsFullyStreamedIn() == false)
+			{
+				if ((ViewInfo->Family->FrameNumber % FramesPerWarning) == 0)
+				{
+					UE_LOG(LogRenderer, Warning, TEXT("The film grain texture is not streamed in."));
+				}
+
+				bIsValid = false;
+			}
+
+			if (bIsValid && FilmGrainTexture->bHasStreamingUpdatePending == true)
+			{
+				if ((ViewInfo->Family->FrameNumber % FramesPerWarning) == 0)
+				{
+					UE_LOG(LogRenderer, Warning, TEXT("The film grain texture has pending update."));
+				}
+
+				bIsValid = false;
+			}
+
+			if (bIsValid)
+			{
+				const FTextureResource* TextureResource = FilmGrainTexture->GetResource();
+				if (TextureResource)
+				{
+					ViewInfo->FilmGrainTexture = TextureResource->GetTexture2DResource();
+				}
+
+				if (FilmGrainTexture == GEngine->DefaultFilmGrainTexture)
+				{
+					// Decode Texture2D'/Engine/EngineMaterials/Marcie_Grain_1024_M5_555_A0.Marcie_Grain_1024_M5_555_A0'
+					ViewInfo->FinalPostProcessSettings.FilmGrainDecodeMultiply = (1.0f / 0.18f);
+					ViewInfo->FinalPostProcessSettings.FilmGrainDecodeAdd = 0.0f;
+				}
+			}
+		}
 	}
 
 	// Catches inconsistency one engine show flags for screen percentage and whether it is supported or not.

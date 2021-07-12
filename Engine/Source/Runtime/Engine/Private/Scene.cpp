@@ -349,6 +349,12 @@ static void DoPostProcessSettingsSanityCheck()
 		RenameMap.Add(TEXT("FilmShadowTint"), TEXT(""));
 		RenameMap.Add(TEXT("FilmShadowTintBlend"), TEXT(""));
 		RenameMap.Add(TEXT("FilmShadowTintAmount"), TEXT(""));
+		// Film Grain are ignored
+		RenameMap.Add(TEXT("FilmGrainIntensity"), TEXT(""));
+		RenameMap.Add(TEXT("FilmGrainTexelSize"), TEXT(""));
+		RenameMap.Add(TEXT("FilmGrainTexture"), TEXT(""));
+		RenameMap.Add(TEXT("FilmGrainDecodeMultiply"), TEXT(""));
+		RenameMap.Add(TEXT("FilmGrainDecodeAdd"), TEXT(""));
 		VerifyPostProcessingProperties(TEXT("Film"),
 			TArray<const UStruct*>({FFilmStockSettings::StaticStruct()}),
 			RenameMap);
@@ -493,8 +499,12 @@ FPostProcessSettings::FPostProcessSettings()
 	LensFlareBokehSize = 3.0f;
 	LensFlareThreshold = 8.0f;
 	VignetteIntensity = 0.4f;
-	GrainIntensity = 0.0f;
-	GrainJitter = 0.0f;
+	GrainIntensity_DEPRECATED = 0.0f;
+	GrainJitter_DEPRECATED = 0.0f;
+	FilmGrainIntensity = 0.0f;
+	FilmGrainTexelSize = 1.0f;
+	FilmGrainDecodeMultiply = 1.0f;
+	FilmGrainDecodeAdd = 0.0f;
 	// next value might get overwritten by r.DefaultFeature.AmbientOcclusion
 	AmbientOcclusionIntensity = .5f;
 	// next value might get overwritten by r.DefaultFeature.AmbientOcclusionStaticFraction
@@ -694,8 +704,11 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_LensFlareBokehShape(Settings.bOverride_LensFlareBokehShape)
 	, bOverride_LensFlareThreshold(Settings.bOverride_LensFlareThreshold)
 	, bOverride_VignetteIntensity(Settings.bOverride_VignetteIntensity)
-	, bOverride_GrainIntensity(Settings.bOverride_GrainIntensity)
-	, bOverride_GrainJitter(Settings.bOverride_GrainJitter)
+	, bOverride_GrainIntensity_DEPRECATED(Settings.bOverride_GrainIntensity_DEPRECATED)
+	, bOverride_GrainJitter_DEPRECATED(Settings.bOverride_GrainJitter_DEPRECATED)
+	, bOverride_FilmGrainIntensity(Settings.bOverride_FilmGrainIntensity)
+	, bOverride_FilmGrainTexelSize(Settings.bOverride_FilmGrainTexelSize)
+	, bOverride_FilmGrainTexture(Settings.bOverride_FilmGrainTexture)
 	, bOverride_AmbientOcclusionIntensity(Settings.bOverride_AmbientOcclusionIntensity)
 	, bOverride_AmbientOcclusionStaticFraction(Settings.bOverride_AmbientOcclusionStaticFraction)
 	, bOverride_AmbientOcclusionRadius(Settings.bOverride_AmbientOcclusionRadius)
@@ -886,8 +899,13 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, LensFlareThreshold(Settings.LensFlareThreshold)
 	, LensFlareBokehShape(Settings.LensFlareBokehShape)
 	, VignetteIntensity(Settings.VignetteIntensity)
-	, GrainJitter(Settings.GrainJitter)
-	, GrainIntensity(Settings.GrainIntensity)
+	, GrainJitter_DEPRECATED(Settings.GrainJitter_DEPRECATED)
+	, GrainIntensity_DEPRECATED(Settings.GrainIntensity_DEPRECATED)
+	, FilmGrainIntensity(Settings.FilmGrainIntensity)
+	, FilmGrainTexelSize(Settings.FilmGrainTexelSize)
+	, FilmGrainTexture(Settings.FilmGrainTexture)
+	, FilmGrainDecodeMultiply(Settings.FilmGrainDecodeMultiply)
+	, FilmGrainDecodeAdd(Settings.FilmGrainDecodeAdd)
 	, AmbientOcclusionIntensity(Settings.AmbientOcclusionIntensity)
 	, AmbientOcclusionStaticFraction(Settings.AmbientOcclusionStaticFraction)
 	, AmbientOcclusionRadius(Settings.AmbientOcclusionRadius)
