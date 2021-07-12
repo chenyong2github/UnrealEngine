@@ -61,6 +61,7 @@ float3 GrainRandomFull;
 float FilmGrainMul;
 float FilmGrainAdd;
 Texture2D<half3> FilmGrainTexture;
+SamplerState FilmGrainSampler;
 float4 ScreenPosToFilmGrainTextureUV;
 
 float EditorNITLevel;
@@ -565,7 +566,7 @@ float4 TonemapCommonPS(
 		{
 			float2 FilmGrainUV = ApplyScreenTransform(ScreenPos, ScreenPosToFilmGrainTextureUV);
 
-			half3 RawGrain = FilmGrainTexture.SampleLevel(GlobalBilinearWrappedSampler, FilmGrainUV, 0);
+			half3 RawGrain = FilmGrainTexture.SampleLevel(FilmGrainSampler, FilmGrainUV, 0);
 			half3 FinalGrain = RawGrain * half(FilmGrainMul) + half(FilmGrainAdd);
 
 			LinearColor.rgb *= FinalGrain;
