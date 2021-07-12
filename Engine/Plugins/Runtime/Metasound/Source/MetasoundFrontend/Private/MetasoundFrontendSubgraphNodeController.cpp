@@ -73,16 +73,19 @@ namespace Metasound
 
 		FNodeHandle FSubgraphNodeController::CreateNodeHandle(const FSubgraphNodeController::FInitParams& InParams)
 		{
-			if (InParams.NodePtr.IsValid() && InParams.ClassPtr.IsValid())
+			if (FMetasoundFrontendNode* Node = InParams.NodePtr.Get())
 			{
-				// Cannot make a valid node handle if the node description and class description differ
-				if (InParams.NodePtr->ClassID == InParams.ClassPtr->ID)
+				if (const FMetasoundFrontendClass* Class = InParams.ClassPtr.Get())
 				{
-					return MakeShared<FSubgraphNodeController>(EPrivateToken::Token, InParams);
-				}
-				else
-				{
-					UE_LOG(LogMetaSound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *InParams.NodePtr->ID.ToString(), *InParams.NodePtr->ClassID.ToString(), *InParams.ClassPtr->ID.ToString());
+					// Cannot make a valid node handle if the node description and class description differ
+					if (Node->ClassID == Class->ID)
+					{
+						return MakeShared<FSubgraphNodeController>(EPrivateToken::Token, InParams);
+					}
+					else
+					{
+						UE_LOG(LogMetaSound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *Node->ID.ToString(), *Node->ClassID.ToString(), *Class->ID.ToString());
+					}
 				}
 			}
 			return FInvalidNodeController::GetInvalid();
@@ -90,16 +93,19 @@ namespace Metasound
 
 		FConstNodeHandle FSubgraphNodeController::CreateConstNodeHandle(const FSubgraphNodeController::FInitParams& InParams)
 		{
-			if (InParams.NodePtr.IsValid() && InParams.ClassPtr.IsValid())
+			if (FMetasoundFrontendNode* Node = InParams.NodePtr.Get())
 			{
-				// Cannot make a valid node handle if the node description and class description differ
-				if (InParams.NodePtr->ClassID == InParams.ClassPtr->ID)
+				if (const FMetasoundFrontendClass* Class = InParams.ClassPtr.Get())
 				{
-					return MakeShared<const FSubgraphNodeController>(EPrivateToken::Token, InParams);
-				}
-				else
-				{
-					UE_LOG(LogMetaSound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *InParams.NodePtr->ID.ToString(), *InParams.NodePtr->ClassID.ToString(), *InParams.ClassPtr->ID.ToString());
+					// Cannot make a valid node handle if the node description and class description differ
+					if (Node->ClassID == Class->ID)
+					{
+						return MakeShared<const FSubgraphNodeController>(EPrivateToken::Token, InParams);
+					}
+					else
+					{
+						UE_LOG(LogMetaSound, Warning, TEXT("Frontend Node [NodeID:%s, ClassID:%s] is not of expected class class [ClassID:%s]"), *Node->ID.ToString(), *Node->ClassID.ToString(), *Class->ID.ToString());
+					}
 				}
 			}
 			return FInvalidNodeController::GetInvalid();
@@ -107,7 +113,7 @@ namespace Metasound
 
 		bool FSubgraphNodeController::IsValid() const
 		{
-			return FBaseNodeController::IsValid() && GraphPtr.IsValid();
+			return FBaseNodeController::IsValid() && (nullptr != GraphPtr.Get());
 		}
 
 		int32 FSubgraphNodeController::GetNumInputs() const

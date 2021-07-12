@@ -53,12 +53,6 @@ namespace Metasound
 				}
 			}
 
-			// All registry keys should be created through this function to ensure consistency.
-			Frontend::FNodeRegistryKey GetRegistryKey(EMetasoundFrontendClassType InType, const FString& InFullClassName, int32 InMajorVersion, int32 InMinorVersion)
-			{
-				FString RegistryKey = FString::Format(TEXT("{0}_{1}_{2}.{3}"), {*GetClassTypeString(InType), *InFullClassName, InMajorVersion, InMinorVersion});
-				return RegistryKey;
-			}
 
 			// Return the compatible literal with the most descriptive type.
 			// TODO: Currently TIsParsable<> allows for implicit conversion of
@@ -775,7 +769,7 @@ namespace Metasound
 
 				if (InEntry.IsValid())
 				{
-					Key = FMetasoundFrontendRegistryContainer::GetRegistryKey(InEntry->GetClassInfo());
+					Key = NodeRegistryKey::CreateKey(InEntry->GetClassInfo());
 
 					// check to see if an identical node was already registered, and log
 					ensureAlwaysMsgf(
@@ -904,7 +898,7 @@ namespace Metasound
 			{
 				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataTypeName))
 				{
-					OutKey = GetRegistryKey(Entry->GetFrontendInputClass().Metadata);
+					OutKey = NodeRegistryKey::CreateKey(Entry->GetFrontendInputClass().Metadata);
 					return true;
 				}
 				return false;
@@ -914,7 +908,7 @@ namespace Metasound
 			{
 				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataTypeName))
 				{
-					OutKey = GetRegistryKey(Entry->GetFrontendVariableClass().Metadata);
+					OutKey = NodeRegistryKey::CreateKey(Entry->GetFrontendVariableClass().Metadata);
 					return true;
 				}
 				return false;
@@ -924,7 +918,7 @@ namespace Metasound
 			{
 				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataTypeName))
 				{
-					OutKey = GetRegistryKey(Entry->GetFrontendOutputClass().Metadata);
+					OutKey = NodeRegistryKey::CreateKey(Entry->GetFrontendOutputClass().Metadata);
 					return true;
 				}
 				return false;
@@ -1002,9 +996,77 @@ namespace Metasound
 			return Key;
 		}
 
+		namespace NodeRegistryKey
+		{
+			// All registry keys should be created through this function to ensure consistency.
+			FNodeRegistryKey CreateKey(EMetasoundFrontendClassType InType, const FString& InFullClassName, int32 InMajorVersion, int32 InMinorVersion)
+			{
+				using namespace MetasoundFrontendRegistryPrivate;
+
+				FString RegistryKey = FString::Format(TEXT("{0}_{1}_{2}.{3}"), {*GetClassTypeString(InType), *InFullClassName, InMajorVersion, InMinorVersion});
+
+				return RegistryKey;
+			}
+
+			bool IsValid(const FNodeRegistryKey& InKey)
+			{
+				return !InKey.IsEmpty();
+			}
+
+			bool IsEqual(const FNodeRegistryKey& InLHS, const FNodeRegistryKey& InRHS)
+			{
+				return InLHS == InRHS;
+			}
+
+			bool IsEqual(const FMetasoundFrontendClassMetadata& InLHS, const FMetasoundFrontendClassMetadata& InRHS)
+			{
+				if (InLHS.ClassName == InRHS.ClassName)
+				{
+					if (InLHS.Type == InRHS.Type)
+					{
+						if (InLHS.Version == InRHS.Version)
+						{
+							return true;
+						}
+					}
+				}
+				return false;
+			}
+
+			bool IsEqual(const FNodeClassInfo& InLHS, const FMetasoundFrontendClassMetadata& InRHS)
+			{
+				if (InLHS.ClassName == InRHS.ClassName)
+				{
+					if (InLHS.Type == InRHS.Type)
+					{
+						if (InLHS.Version == InRHS.Version)
+						{
+							return true;
+						}
+					}
+				}
+				return false;
+			}
+
+			FNodeRegistryKey CreateKey(const FNodeClassMetadata& InNodeMetadata)
+			{
+				return CreateKey(EMetasoundFrontendClassType::External, InNodeMetadata.ClassName.GetFullName().ToString(), InNodeMetadata.MajorVersion, InNodeMetadata.MinorVersion);
+			}
+
+			FNodeRegistryKey CreateKey(const FMetasoundFrontendClassMetadata& InNodeMetadata)
+			{
+				return CreateKey(InNodeMetadata.Type, InNodeMetadata.ClassName.GetFullName().ToString(), InNodeMetadata.Version.Major, InNodeMetadata.Version.Minor);
+			}
+
+			FNodeRegistryKey CreateKey(const FNodeClassInfo& InClassInfo)
+			{
+				return CreateKey(InClassInfo.Type, InClassInfo.ClassName.GetFullName().ToString(), InClassInfo.Version.Major, InClassInfo.Version.Minor);
+			}
+		}
+
 		bool IsValidNodeRegistryKey(const FNodeRegistryKey& InKey)
 		{
-			return !InKey.IsEmpty();
+			return NodeRegistryKey::IsValid(InKey);
 		}
 
 		FNodeClassInfo::FNodeClassInfo(const FMetasoundFrontendClassMetadata& InMetadata)
@@ -1059,17 +1121,17 @@ void FMetasoundFrontendRegistryContainer::ShutdownMetasoundFrontend()
 
 Metasound::Frontend::FNodeRegistryKey FMetasoundFrontendRegistryContainer::GetRegistryKey(const FNodeClassMetadata& InNodeMetadata)
 {
-	return Metasound::Frontend::MetasoundFrontendRegistryPrivate::GetRegistryKey(EMetasoundFrontendClassType::External, InNodeMetadata.ClassName.GetFullName().ToString(), InNodeMetadata.MajorVersion, InNodeMetadata.MinorVersion);
+	return Metasound::Frontend::NodeRegistryKey::CreateKey(InNodeMetadata);
 }
 
 Metasound::Frontend::FNodeRegistryKey FMetasoundFrontendRegistryContainer::GetRegistryKey(const FMetasoundFrontendClassMetadata& InNodeMetadata)
 {
-	return Metasound::Frontend::MetasoundFrontendRegistryPrivate::GetRegistryKey(InNodeMetadata.Type, InNodeMetadata.ClassName.GetFullName().ToString(), InNodeMetadata.Version.Major, InNodeMetadata.Version.Minor);
+	return Metasound::Frontend::NodeRegistryKey::CreateKey(InNodeMetadata);
 }
 
 Metasound::Frontend::FNodeRegistryKey FMetasoundFrontendRegistryContainer::GetRegistryKey(const FNodeClassInfo& InClassInfo)
 {
-	return Metasound::Frontend::MetasoundFrontendRegistryPrivate::GetRegistryKey(InClassInfo.Type, InClassInfo.ClassName.GetFullName().ToString(), InClassInfo.Version.Major, InClassInfo.Version.Minor);
+	return Metasound::Frontend::NodeRegistryKey::CreateKey(InClassInfo);
 }
 
 bool FMetasoundFrontendRegistryContainer::GetFrontendClassFromRegistered(const FNodeRegistryKey& InKey, FMetasoundFrontendClass& OutClass)

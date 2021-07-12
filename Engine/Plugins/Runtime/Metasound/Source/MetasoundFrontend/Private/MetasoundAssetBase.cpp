@@ -10,6 +10,7 @@
 #include "MetasoundArchetype.h"
 #include "MetasoundFrontendArchetypeRegistry.h"
 #include "MetasoundFrontendController.h"
+#include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendGraph.h"
 #include "MetasoundFrontendSearchEngine.h"
 #include "MetasoundFrontendTransform.h"
@@ -109,9 +110,9 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend()
 	};
 
 	FNodeClassInfo ClassInfo = GetAssetClassInfo();
-	FNodeRegistryKey RegistryKey = FMetasoundFrontendRegistryContainer::Get()->GetRegistryKey(ClassInfo);
+	FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(ClassInfo);
 
-	if (IsValidNodeRegistryKey(RegistryKey))
+	if (NodeRegistryKey::IsValid(RegistryKey))
 	{
 		// Unregister prior version if it exists.
 		if (bHasRegistered)
@@ -125,7 +126,7 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend()
 		RegistryKey = FMetasoundFrontendRegistryContainer::Get()->RegisterNode(MakeUnique<FNodeRegistryEntry>(AssetName, *Doc, ClassInfo.AssetPath));
 	}
 
-	if (IsValidNodeRegistryKey(RegistryKey))
+	if (NodeRegistryKey::IsValid(RegistryKey))
 	{
 		bHasRegistered = true;
 
@@ -545,8 +546,8 @@ Metasound::Frontend::FConstGraphHandle FMetasoundAssetBase::GetRootGraphHandle()
 
 bool FMetasoundAssetBase::ImportFromJSON(const FString& InJSON)
 {
-	Metasound::Frontend::FDocumentAccessPtr Document = GetDocument();
-	if (ensure(Document.IsValid()))
+	FMetasoundFrontendDocument* Document = GetDocument().Get();
+	if (ensure(nullptr != Document))
 	{
 		bool bSuccess = Metasound::Frontend::ImportJSONToMetasound(InJSON, *Document);
 
@@ -562,8 +563,8 @@ bool FMetasoundAssetBase::ImportFromJSON(const FString& InJSON)
 
 bool FMetasoundAssetBase::ImportFromJSONAsset(const FString& InAbsolutePath)
 {
-	Metasound::Frontend::FDocumentAccessPtr Document = GetDocument();
-	if (ensure(Document.IsValid()))
+	Metasound::Frontend::FDocumentAccessPtr DocumentPtr = GetDocument();
+	if (FMetasoundFrontendDocument* Document = DocumentPtr.Get())
 	{
 		bool bSuccess = Metasound::Frontend::ImportJSONAssetToMetasound(InAbsolutePath, *Document);
 
@@ -579,17 +580,16 @@ bool FMetasoundAssetBase::ImportFromJSONAsset(const FString& InAbsolutePath)
 
 FMetasoundFrontendDocument& FMetasoundAssetBase::GetDocumentChecked()
 {
-	Metasound::Frontend::FDocumentAccessPtr DocAccessPtr = GetDocument();
-
-	check(DocAccessPtr.IsValid());
-	return *DocAccessPtr;
+	FMetasoundFrontendDocument* Document = GetDocument().Get();
+	check(nullptr != Document);
+	return *Document;
 }
 
 const FMetasoundFrontendDocument& FMetasoundAssetBase::GetDocumentChecked() const
 {
-	Metasound::Frontend::FConstDocumentAccessPtr DocAccessPtr = GetDocument();
+	const FMetasoundFrontendDocument* Document = GetDocument().Get();
 
-	check(DocAccessPtr.IsValid());
-	return *DocAccessPtr;
+	check(nullptr != Document);
+	return *Document;
 }
 #undef LOCTEXT_NAMESPACE // "MetaSound"

@@ -55,6 +55,7 @@ namespace Metasound
 	{
 		using FNodeRegistryKey = FString;
 
+
 		// Returns true if the registry key is a valid key. 
 		//
 		// This does *not* connote that the registry key exists in the registry.
@@ -354,6 +355,33 @@ namespace Metasound
 			FNodeRegistryKey Key;
 			FNodeClassInfo NodeClassInfo;
 		};
+
+		namespace NodeRegistryKey
+		{
+			// Returns true if the registry key is a valid key. 
+			//
+			// This does *not* connote that the registry key exists in the registry.
+			METASOUNDFRONTEND_API bool IsValid(const FNodeRegistryKey& InKey);
+
+			// Returns true if both keys represent the same entry in the node registry.
+			METASOUNDFRONTEND_API bool IsEqual(const FNodeRegistryKey& InLHS, const FNodeRegistryKey& InRHS);
+
+			// Returns true if the class metadata and key represent the same entry in the node registry.
+			METASOUNDFRONTEND_API bool IsEqual(const FMetasoundFrontendClassMetadata& InLHS, const FNodeRegistryKey& InRHS);
+
+			// Returns true if the class info and key represent the same entry in the node registry.
+			METASOUNDFRONTEND_API bool IsEqual(const FNodeClassInfo& InLHS, const FNodeRegistryKey& InRHS);
+
+			// Returns true if the class metadatas represent the same entry in the node registry.
+			METASOUNDFRONTEND_API bool IsEqual(const FMetasoundFrontendClassMetadata& InLHS, const FMetasoundFrontendClassMetadata& InRHS);
+
+			// Returns true if the class info and class metadata represent the same entry in the node registry.
+			METASOUNDFRONTEND_API bool IsEqual(const FNodeClassInfo& InLHS, const FMetasoundFrontendClassMetadata& InRHS);
+
+			METASOUNDFRONTEND_API FNodeRegistryKey CreateKey(const FNodeClassMetadata& InNodeMetadata);
+			METASOUNDFRONTEND_API FNodeRegistryKey CreateKey(const FMetasoundFrontendClassMetadata& InNodeMetadata);
+			METASOUNDFRONTEND_API FNodeRegistryKey CreateKey(const FNodeClassInfo& ClassInfo);
+		}
 	} // namespace Frontend
 } // namespace Metasound
 
