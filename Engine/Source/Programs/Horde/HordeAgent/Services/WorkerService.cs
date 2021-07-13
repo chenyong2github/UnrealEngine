@@ -803,7 +803,7 @@ namespace HordeAgent.Services
 
 				try
 				{
-					await Executor.ExecuteActionAsync(LeaseId, ActionTask, LeaseDir, ActionTaskStartTime);
+					await Executor.ExecuteActionAsync(LeaseId, ActionTask, LeaseDir, ActionTaskStartTime, CancellationToken);
 				}
 				catch (Exception re)
 				{
