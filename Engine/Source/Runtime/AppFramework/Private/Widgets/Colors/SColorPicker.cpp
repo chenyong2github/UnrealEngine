@@ -106,7 +106,7 @@ void SColorPicker::Construct( const FArguments& InArgs )
 
 	bool bAdvancedSectionExpanded = false;
 
-	if (!FPaths::FileExists(GEditorPerProjectIni))
+	if (FPaths::FileExists(GEditorPerProjectIni))
 	{
 		bool WheelMode = true;
 
