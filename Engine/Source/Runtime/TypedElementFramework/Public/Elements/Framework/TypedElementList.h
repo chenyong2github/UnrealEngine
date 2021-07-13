@@ -428,7 +428,25 @@ public:
 	}
 
 	/**
-	 * Append the given element handles to this element list, for any that already in the list.
+	 * Append another element list to this element list.
+	 */
+	void Append(FTypedElementListConstRef InElementList)
+	{
+		if (this != &InElementList.Get())
+		{
+			FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*this);
+
+			Reserve(Num() + InElementList->Num());
+			InElementList->ForEachElementHandle([this](const FTypedElementHandle& ElementHandle)
+			{
+				AddElementImpl(CopyTemp(ElementHandle));
+				return true;
+			});
+		}
+	}
+
+	/**
+	 * Append the given element handles to this element list.
 	 */
 	void Append(TArrayView<const FTypedElementHandle> InElementHandles)
 	{
@@ -442,7 +460,7 @@ public:
 	}
 
 	/**
-	 * Append the given element owners to this element list, for any that already in the list.
+	 * Append the given element owners to this element list.
 	 */
 	template <typename ElementDataType>
 	FORCEINLINE void Append(const TArray<TTypedElementOwner<ElementDataType>>& InElementOwners)
@@ -451,7 +469,7 @@ public:
 	}
 
 	/**
-	 * Append the given element owners to this element list, for any that already in the list.
+	 * Append the given element owners to this element list.
 	 */
 	template <typename ElementDataType>
 	void Append(TArrayView<const TTypedElementOwner<ElementDataType>> InElementOwners)

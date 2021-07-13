@@ -22,7 +22,6 @@
 #include "Modes/PlacementModeSubsystem.h"
 #include "ActorFactories/ActorFactory.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"
-#include "Elements/SMInstance/SMInstanceElementData.h" // For SMInstanceElementDataUtil::SMInstanceElementsEnabled
 
 bool UPlacementToolBuilderBase::CanBuildTool(const FToolBuilderState& SceneState) const
 {	
@@ -262,9 +261,9 @@ FTransform UPlacementBrushToolBase::FinalizeTransform(const FTransform& Original
 	return FinalizedTransform;
 }
 
-TArray<FTypedElementHandle> UPlacementBrushToolBase::GetElementsInBrushRadius(const FInputDeviceRay& DragPos) const
+FTypedElementListRef UPlacementBrushToolBase::GetElementsInBrushRadius(const FInputDeviceRay& DragPos) const
 {
-	TArray<FTypedElementHandle> ElementHandles;
+	FTypedElementListRef ElementHandles = UTypedElementRegistry::GetInstance()->CreateElementList();
 
 	// We need the 2D device screen space position to test against hit proxies.
 	if (!DragPos.bHas2D)
@@ -295,27 +294,29 @@ TArray<FTypedElementHandle> UPlacementBrushToolBase::GetElementsInBrushRadius(co
 	AreaToCheck.Max.X = FMath::Min<int32>(ViewportSize.X, DragPos.ScreenPosition.X + HalfBrushRadius);
 	AreaToCheck.Max.Y = FMath::Min<int32>(ViewportSize.Y, DragPos.ScreenPosition.Y + HalfBrushRadius);
 
-	FBoxSphereBounds WorldBrushSphereBounds(FSphere(LastBrushStamp.WorldPosition, LastBrushStamp.Radius));
-	TSet<FTypedElementHandle> HitElementHandles;
+	// Get the raw hit proxies within the rect
+	FTypedElementListRef HitElementHandles = UTypedElementRegistry::GetInstance()->CreateElementList();
 	Viewport->GetElementHandlesInRect(AreaToCheck, HitElementHandles);
-	for (const FTypedElementHandle& HitHandle : HitElementHandles)
+
+	// Work out which elements to actually select in the viewport, and also verify that we're actually intersecting with the sphere from the brush in world space.
+	FBoxSphereBounds WorldBrushSphereBounds(FSphere(LastBrushStamp.WorldPosition, LastBrushStamp.Radius));
+	HitElementHandles->ForEachElementHandle([SelectionSet, ElementHandles, &WorldBrushSphereBounds](const FTypedElementHandle& HitHandle)
 	{
 		FTypedElementHandle ResolvedHandle = SelectionSet->GetSelectionElement(HitHandle, ETypedElementSelectionMethod::Primary);
-		if (TTypedElement<UTypedElementWorldInterface> WorldInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementWorldInterface>(ResolvedHandle))
+		if (TTypedElement<UTypedElementWorldInterface> WorldInterface = SelectionSet->GetElementList()->GetElement<UTypedElementWorldInterface>(ResolvedHandle))
 		{
-			// Since the viewport gives us back hit proxies in a rect, we also want to verify that we're actually intersecting with the sphere from the brush in world space.
 			FBoxSphereBounds ElementBounds;
 			WorldInterface.GetBounds(ElementBounds);
 			if (ElementBounds.SpheresIntersect(ElementBounds, WorldBrushSphereBounds))
 			{
-				ElementHandles.Add(MoveTemp(ResolvedHandle));
+				ElementHandles->Add(MoveTemp(ResolvedHandle));
 			}
 		}
-	}
+		return true;
+	});
 
 	// Handle the IFA for the brush stroke level if needed for ISMs
-	const bool bAreFoliageSMInstancesEnabled = SMInstanceElementDataUtil::SMInstanceElementsEnabled() && FoliageElementUtil::FoliageInstanceElementsEnabled();
-	if (!bAreFoliageSMInstancesEnabled)
+	if (!FoliageElementUtil::FoliageInstanceElementsEnabled())
 	{
 		if (UActorPartitionSubsystem* PartitionSubsystem = UWorld::GetSubsystem<UActorPartitionSubsystem>(GEditor->GetEditorWorldContext().World()))
 		{
@@ -338,7 +339,7 @@ TArray<FTypedElementHandle> UPlacementBrushToolBase::GetElementsInBrushRadius(co
 					if (Instances.Num())
 					{
 						// For now, return the whole foliage actor, and allow the calling code to drill down, since we do not have element handles at the instance level just yet
-						ElementHandles.Emplace(UEngineElementsLibrary::AcquireEditorActorElementHandle(FoliageActor));
+						ElementHandles->Add(UEngineElementsLibrary::AcquireEditorActorElementHandle(FoliageActor));
 						break;
 					}
 				}

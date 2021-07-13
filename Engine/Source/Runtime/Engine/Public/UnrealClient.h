@@ -509,7 +509,6 @@ public:
 	 * If the hit proxies are not cached, this will call ViewportClient->Draw with a hit-testing canvas.
 	 */
 	ENGINE_API void GetElementHandlesInRect(FIntRect InRect, FTypedElementListRef OutElementHandles);
-	ENGINE_API void GetElementHandlesInRect(FIntRect InRect, TSet<FTypedElementHandle>& OutElementHandles);
 
 	/**
 	 * Retrieves the interface to the viewport's frame, if it has one.
@@ -645,14 +644,6 @@ protected:
 	void HighResScreenshot();
 
 private:
-
-	/**
-	 * Returns all element handles found within a specified region.
-	 * InRect must be entirely within the viewport's client area.
-	 * If the hit proxies are not cached, this will call ViewportClient->Draw with a hit-testing canvas.
-	 */
-	template <typename ContainerType>
-	void GetElementHandlesInRectImpl(FIntRect InRect, ContainerType& OutElementHandles);
 
 	/**
 	 * Enumerate all valid hit proxies found within a specified region.

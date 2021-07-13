@@ -1866,24 +1866,13 @@ FTypedElementHandle FViewport::GetElementHandleAtPoint(int32 X, int32 Y)
 
 void FViewport::GetElementHandlesInRect(FIntRect InRect, FTypedElementListRef OutElementHandles)
 {
-	GetElementHandlesInRectImpl(InRect, *OutElementHandles);
-}
-
-void FViewport::GetElementHandlesInRect(FIntRect InRect, TSet<FTypedElementHandle>& OutElementHandles)
-{
-	GetElementHandlesInRectImpl(InRect, OutElementHandles);
-}
-
-template <typename ContainerType>
-void FViewport::GetElementHandlesInRectImpl(FIntRect InRect, ContainerType& OutElementHandles)
-{
-	OutElementHandles.Reset();
+	OutElementHandles->Reset();
 
 	EnumerateHitProxiesInRect(InRect, [&OutElementHandles](HHitProxy* HitProxy)
 	{
 		if (FTypedElementHandle ElementHandle = HitProxy->GetElementHandle())
 		{
-			OutElementHandles.Add(MoveTemp(ElementHandle));
+			OutElementHandles->Add(MoveTemp(ElementHandle));
 		}
 		return true;
 	});

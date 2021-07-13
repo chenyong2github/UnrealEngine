@@ -29,5 +29,5 @@ public:
 	constexpr static TCHAR ToolName[] = TEXT("LassoSelectTool");
 
 private:
-	TSet<FTypedElementHandle> ElementsFromDrag;
+	FTypedElementListPtr ElementsFromDrag;
 };
