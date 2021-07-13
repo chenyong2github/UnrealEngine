@@ -10,7 +10,9 @@ namespace UE
 namespace Geometry
 {
 
-/** Resample image */
+/**
+ * A mesh evaluator for sampling 2D texture data. 
+ */
 class DYNAMICMESH_API FMeshResampleImageEvaluator : public FMeshMapEvaluator
 {
 public:
@@ -21,7 +23,7 @@ public:
 
 public:
 	// Begin FMeshMapEvaluator interface
-	virtual void Setup(const FMeshMapBaker& Baker, FEvaluationContext& Context) override;
+	virtual void Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context) override;
 
 	virtual EMeshMapEvaluatorType Type() const override { return EMeshMapEvaluatorType::ResampleImage; }
 	// End FMeshMapEvaluator interface
@@ -29,6 +31,8 @@ public:
 	static void EvaluateSample(float*& Out, const FCorrespondenceSample& Sample, void* EvalData);
 
 	static void EvaluateDefault(float*& Out, void* EvalData);
+
+	static void EvaluateColor(const int DataIdx, float*& In, FVector4f& Out, void* EvalData);
 
 protected:
 	// Cached data
@@ -38,7 +42,9 @@ private:
 	FVector4f ImageSampleFunction(const FCorrespondenceSample& Sample);
 };
 
-/** Resample multi texture by material ID */
+/**
+ * A mesh evaluator for sampling multiple 2D textures by material ID
+ */
 class DYNAMICMESH_API FMeshMultiResampleImageEvaluator : public FMeshResampleImageEvaluator
 {
 public:
@@ -46,7 +52,7 @@ public:
 
 public:
 	// Begin FMeshMapEvaluator interface
-	virtual void Setup(const FMeshMapBaker& Baker, FEvaluationContext& Context) override;
+	virtual void Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context) override;
 
 	virtual EMeshMapEvaluatorType Type() const override { return EMeshMapEvaluatorType::MultiResampleImage; }
 	// End FMeshMapEvaluator interface

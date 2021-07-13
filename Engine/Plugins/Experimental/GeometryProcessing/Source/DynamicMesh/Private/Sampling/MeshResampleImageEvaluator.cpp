@@ -10,10 +10,11 @@ using namespace UE::Geometry;
 // FMeshResampleImage Evaluator
 //
 
-void FMeshResampleImageEvaluator::Setup(const FMeshMapBaker& Baker, FEvaluationContext& Context)
+void FMeshResampleImageEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context)
 {
 	Context.Evaluate = &EvaluateSample;
 	Context.EvaluateDefault = &EvaluateDefault;
+	Context.EvaluateColor = &EvaluateColor;
 	Context.EvalData = this;
 	Context.AccumulateMode = EAccumulateMode::Add;
 	Context.DataLayout = { EComponents::Float4 };
@@ -34,6 +35,12 @@ void FMeshResampleImageEvaluator::EvaluateDefault(float*& Out, void* EvalData)
 	WriteToBuffer(Out, FVector4f(0.0f, 0.0f, 0.0f, 1.0f));
 }
 
+void FMeshResampleImageEvaluator::EvaluateColor(const int DataIdx, float*& In, FVector4f& Out, void* EvalData)
+{
+	Out = FVector4f(In[0], In[1], In[2], In[3]);
+	In += 4;
+}
+
 FVector4f FMeshResampleImageEvaluator::ImageSampleFunction(const FCorrespondenceSample& SampleData)
 {
 	FVector4f Color = DefaultColor;
@@ -51,10 +58,11 @@ FVector4f FMeshResampleImageEvaluator::ImageSampleFunction(const FCorrespondence
 // FMeshMultiResampleImage Evaluator
 //
 
-void FMeshMultiResampleImageEvaluator::Setup(const FMeshMapBaker& Baker, FEvaluationContext& Context)
+void FMeshMultiResampleImageEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context)
 {
 	Context.Evaluate = &EvaluateSampleMulti;
 	Context.EvaluateDefault = &EvaluateDefault;
+	Context.EvaluateColor = &EvaluateColor;
 	Context.EvalData = this;
 	Context.AccumulateMode = EAccumulateMode::Add;
 	Context.DataLayout = { EComponents::Float4 };

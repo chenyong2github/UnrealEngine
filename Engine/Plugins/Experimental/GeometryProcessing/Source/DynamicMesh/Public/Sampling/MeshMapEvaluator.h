@@ -9,10 +9,11 @@ namespace UE
 namespace Geometry
 {
 
-class FMeshMapBaker;
+class FMeshBaseBaker;
 
 enum class EMeshMapEvaluatorType
 {
+	Constant,
 	Normal,
 	Occlusion,
 	Curvature,
@@ -59,7 +60,7 @@ public:
 	 * 1. The evaluation functions.
 	 * 2. The accumulation method for data samples.
 	 * 3. The number of output results/targets for this evaluator.
-	 * 3. The data layout of each output result/target for this evaluator.
+	 * 4. The data layout of each output result/target for this evaluator.
 	 */
 	struct FEvaluationContext
 	{
@@ -68,7 +69,7 @@ public:
 		 * float buffer. This function should:
 		 * 
 		 * - assume that the size of the buffer is correct.
-		 * - advance the the buffer pointer by the DataLayout stride.
+		 * - advance the buffer pointer by the DataLayout stride.
 		 * 
 		 * @param Out the buffer to populate.
 		 * @param Sample the detail/target mesh correspondence sample data.
@@ -87,7 +88,7 @@ public:
 		 * This function should:
 		 * 
 		 * - assume that the size of the buffer is correct.
-		 * - advance the the buffer pointer by the DataLayout stride.
+		 * - advance the buffer pointer by the DataLayout stride.
 		 * 
 		 * @param Out the buffer to populate.
 		 * @param Sample the detail/target mesh correspondence sample data.
@@ -95,6 +96,25 @@ public:
 		 */
 		using EvaluateDefaultFn = void(*)(float*& Out, void* EvalData);
 		EvaluateDefaultFn EvaluateDefault = nullptr;
+
+		/**
+		 * Function pointer to evaluate the color representation of
+		 * an evaluated sample result.
+		 *
+		 * This function will be invoked once per pixel after the
+		 * evaluated samples have been accumulated. This function
+		 * should:
+		 *
+		 * - assume that the size of the buffer is correct.
+		 * - advance the [In] buffer pointer by the DataLayout stride.
+		 *
+		 * @param DataIdx the index into the DataLayout being processed.
+		 * @param In the buffer containing the accumulated sample result.
+		 * @param Out the output float4 color to populate
+		 * @param EvalData custom data pointer provided by the evaluation context.
+		 */
+		using EvaluateColorFn = void(*)(const int DataIdx, float*& In, FVector4f& Out, void* EvalData);
+		EvaluateColorFn EvaluateColor = nullptr;
 
 		/** Define custom data to be passed to the evaluation function. */
 		void* EvalData = nullptr;
@@ -121,7 +141,7 @@ public:
 	 * @param Baker the baker that owns this evaluator.
 	 * @param Context [out] the evaluation context.
 	 */
-	virtual void Setup(const FMeshMapBaker& Baker, FEvaluationContext& Context) = 0;
+	virtual void Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context) = 0;
 
 	/** @return the type of evaluator. */
 	virtual EMeshMapEvaluatorType Type() const = 0;

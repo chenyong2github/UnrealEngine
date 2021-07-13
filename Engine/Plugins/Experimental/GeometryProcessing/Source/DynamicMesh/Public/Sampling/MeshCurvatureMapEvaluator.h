@@ -11,6 +11,9 @@ namespace Geometry
 
 class FMeshVertexCurvatureCache;
 
+/**
+ * A mesh evaluator for mesh curvatures.
+ */
 class DYNAMICMESH_API FMeshCurvatureMapEvaluator : public FMeshMapEvaluator
 {
 public:
@@ -51,7 +54,7 @@ public:
 
 public:
 	// Begin FMeshMapEvaluator interface
-	virtual void Setup(const FMeshMapBaker& Baker, FEvaluationContext& Context) override;
+	virtual void Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context) override;
 
 	virtual EMeshMapEvaluatorType Type() const override { return EMeshMapEvaluatorType::Curvature; }
 	// End FMeshMapEvaluator interface
@@ -59,6 +62,8 @@ public:
 	static void EvaluateSample(float*& Out, const FCorrespondenceSample& Sample, void* EvalData);
 
 	static void EvaluateDefault(float*& Out, void* EvalData);
+
+	static void EvaluateColor(const int DataIdx, float*& In, FVector4f& Out, void* EvalData);
 
 	/** Populate Curvatures member if valid data has not been provided */
 	void CacheDetailCurvatures(const FDynamicMesh3* DetailMesh);

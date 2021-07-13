@@ -15,9 +15,13 @@ enum class EMeshPropertyMapType
 	Normal = 2,
 	FacetNormal = 3,
 	UVPosition = 4,
-	MaterialID = 5
+	MaterialID = 5,
+	VertexColor = 6
 };
 
+/**
+ * A mesh evaluator for mesh properties as color data.
+ */
 class DYNAMICMESH_API FMeshPropertyMapEvaluator : public FMeshMapEvaluator
 {
 public:
@@ -25,7 +29,7 @@ public:
 
 public:
 	// Begin FMeshMapEvaluator interface
-	virtual void Setup(const FMeshMapBaker& Baker, FEvaluationContext& Context) override;
+	virtual void Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context) override;
 
 	virtual EMeshMapEvaluatorType Type() const override { return EMeshMapEvaluatorType::Property; }
 	// End FMeshMapEvaluator interface
@@ -34,11 +38,14 @@ public:
 
 	static void EvaluateDefault(float*& Out, void* EvalData);
 
+	static void EvaluateColor(const int DataIdx, float*& In, FVector4f& Out, void* EvalData);
+
 protected:
 	// Cached data
 	const FDynamicMesh3* DetailMesh = nullptr;
 	const FDynamicMeshNormalOverlay* DetailNormalOverlay = nullptr;
 	const FDynamicMeshUVOverlay* DetailUVOverlay = nullptr;
+	const FDynamicMeshColorOverlay* DetailColorOverlay = nullptr;
 	FAxisAlignedBox3d Bounds;
 	FVector3f DefaultValue = FVector3f::Zero();
 

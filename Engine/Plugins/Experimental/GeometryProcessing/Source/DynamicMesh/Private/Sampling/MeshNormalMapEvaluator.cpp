@@ -7,10 +7,11 @@
 using namespace UE::Geometry;
 
 
-void FMeshNormalMapEvaluator::Setup(const FMeshMapBaker& Baker, FEvaluationContext& Context)
+void FMeshNormalMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context)
 {
 	Context.Evaluate = &EvaluateSample;
 	Context.EvaluateDefault = &EvaluateDefault;
+	Context.EvaluateColor = &EvaluateColor;
 	Context.EvalData = this;
 	Context.AccumulateMode = EAccumulateMode::Add;
 	Context.DataLayout = { EComponents::Float3 };
@@ -25,21 +26,26 @@ void FMeshNormalMapEvaluator::Setup(const FMeshMapBaker& Baker, FEvaluationConte
 void FMeshNormalMapEvaluator::EvaluateSample(float*& Out, const FCorrespondenceSample& Sample, void* EvalData)
 {
 	FMeshNormalMapEvaluator* Eval = static_cast<FMeshNormalMapEvaluator*>(EvalData);
-	FVector3f SampleResult = Eval->SampleFunction(Sample);
-	// Map normal space [-1,1] to floating point color space [0,1]
-	FVector3f Result = (SampleResult + FVector3f::One()) * 0.5f;
-	WriteToBuffer(Out, Result);
+	const FVector3f SampleResult = Eval->SampleFunction(Sample);
+	WriteToBuffer(Out, SampleResult);
 }
 
 void FMeshNormalMapEvaluator::EvaluateDefault(float*& Out, void* EvalData)
 {
 	FMeshNormalMapEvaluator* Eval = static_cast<FMeshNormalMapEvaluator*>(EvalData);
-	// Map normal space [-1,1] to floating point color space [0,1]
-	FVector3f Normal = (Eval->DefaultNormal + FVector3f::One()) * 0.5f;
-	WriteToBuffer(Out, Normal);
+	WriteToBuffer(Out, Eval->DefaultNormal);
 }
 
-FVector3f FMeshNormalMapEvaluator::SampleFunction(const FCorrespondenceSample& SampleData)
+void FMeshNormalMapEvaluator::EvaluateColor(const int DataIdx, float*& In, FVector4f& Out, void* EvalData)
+{
+	// Map normal space [-1,1] to color space [0,1]
+	const FVector3f Normal(In[0], In[1], In[2]);
+	const FVector3f Color = (Normal + FVector3f::One()) * 0.5f;
+	Out = FVector4f(Color.X, Color.Y, Color.Z, 1.0f);
+	In += 3;
+}
+
+FVector3f FMeshNormalMapEvaluator::SampleFunction(const FCorrespondenceSample& SampleData) const
 {
 	int32 DetailTriID = SampleData.DetailTriID;
 	if (DetailMesh->IsTriangle(DetailTriID))
