@@ -274,7 +274,7 @@ AActor* FWorldPartitionActorDesc::Load() const
 		if (Package)
 		{
 			ActorPtr = FindObject<AActor>(nullptr, *ActorPath.ToString());
-			check(ActorPtr.IsValid());
+			UE_CLOG(!ActorPtr.IsValid(), LogWorldPartition, Warning, TEXT("Can't load actor %s"), *GetActorName().ToString());
 		}
 	}
 
