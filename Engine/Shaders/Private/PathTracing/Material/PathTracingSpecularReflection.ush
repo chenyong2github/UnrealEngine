@@ -10,20 +10,19 @@ PathTracingSpecularReflection.usf: Singular Mirror BRDF sampling functions
 
 void SpecularReflection_SampleMaterial(
 	float3 RayDirection,
-	FMaterialClosestHitPayload Payload,
+	FPathTracingPayload Payload,
 	out float3 OutDirection,
 	out float3 OutWeight,
 	out float OutPdf)
 {
-	float3 N_World = GetWorldNormal(Payload);
-	float3 SpecularColor = GetSpecularColor(Payload);
+	float3 N_World = Payload.WorldNormal;
 
 	float3 V_World = normalize(-RayDirection);
 	OutDirection = reflect(-V_World, N_World);
 
 	float NoV = abs(dot(V_World, N_World));
 
-	OutWeight = F_Schlick(SpecularColor, NoV);
+	OutWeight = F_Schlick(Payload.SpecularColor, NoV);
 	OutPdf = POSITIVE_INFINITY;
 }
 

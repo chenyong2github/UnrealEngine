@@ -77,7 +77,7 @@ void GenerateCosineNormalRay(
 
 	// Perform cosine-hemispherical sampling and convert to world-space
 	float4 Direction_Tangent = CosineSampleHemisphere(RandSample);
-	TangentDirection = Direction_Tangent;
+	TangentDirection = Direction_Tangent.xyz;
 	float3 Direction_World = TangentToWorld(Direction_Tangent.xyz, WorldNormal);
 
 	RayOrigin = WorldPosition;
@@ -158,13 +158,13 @@ void AccumulateRadiance(inout float3 TotalRadiance, float3 PathRadiance)
 	}
 }
 
-FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool IsCameraRay, bool LastBounce, bool IncludeEmission, uint2 LaunchIndex, uint NumLights, inout RandomSequence RandSequence, inout float3 PathThroughput, inout float3 Radiance)
+FPathTracingPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool IsCameraRay, bool LastBounce, bool IncludeEmission, uint2 LaunchIndex, uint NumLights, inout RandomSequence RandSequence, inout float3 PathThroughput, inout float3 Radiance)
 {
 	const uint RayFlags = IsCameraRay && EnableCameraBackfaceCulling ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
 	const uint MissShaderIndex = 0;
 	float SelectionWeightSum = 0;
 	float3 PayloadThroughput = PathThroughput;
-	FMaterialClosestHitPayload Payload;
+	FPathTracingPayload Payload;
 	if (!IncludeEmission && LastBounce)
 	{
 		Payload.SetMiss();
@@ -173,17 +173,11 @@ FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bo
 	}
 	for (;;)
 	{
-		FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
-		// Set payload inputs
-		PackedPayload.SetRayCone(RayCone);
-		PackedPayload.SetPixelCoord(LaunchIndex);
-		if (!IsCameraRay)
-		{
-			// avoid double counting what was captured by the skylight
-			// also avoid noise from hot spots (they can be properly
-			// importance sampled if a capturing skylight is added)
-			PackedPayload.SetIgnoreSkyMaterials();
-		}
+		// avoid double counting what was captured by the skylight
+		// also avoid noise from hot spots (they can be properly
+		// importance sampled if a capturing skylight is added)
+		const bool bIgnoreSky = !IsCameraRay;
+		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(RayCone, LaunchIndex, bIgnoreSky);
 		// Trace the ray
 		TraceRay(
 			TLAS,
@@ -212,7 +206,7 @@ FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bo
 		}
 
 		// Unpack the payload
-		FMaterialClosestHitPayload HitPayload = UnpackPathTracingPayload(PackedPayload, Ray);
+		FPathTracingPayload HitPayload = UnpackPathTracingPayload(PackedPayload, Ray);
 
 		if (HitPayload.BlendingMode == RAY_TRACING_BLEND_MODE_ADDITIVE ||
 			HitPayload.BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT)
@@ -294,15 +288,7 @@ float3 TraceTransparentVisibilityRay(RayDesc Ray, uint2 PixelCoord, float PathRo
 	const uint MultiplierForGeometryContributionToShaderIndex = RAY_TRACING_NUM_SHADER_SLOTS;
 	const uint MissShaderIndex = 0;
 
-	FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
-
-	// Signal to the Any hit shader we want to evaluate the opacity
-	// The payload is used to carry the path throughput (for transparent shadows)
-	// and current path roughness (for approximate caustics)
-	PackedPayload.SetPathTracingVisibilityRay();
-	PackedPayload.SetRayThroughput(1.0);
-	PackedPayload.SetPathRoughness(PathRoughness);
-	PackedPayload.SetPixelCoord(PixelCoord);
+	FPackedPathTracingPayload PackedPayload = InitPathTracingVisibilityPayload(PixelCoord, PathRoughness);
 
 	// Trace the ray
 	TraceRay(
@@ -381,7 +367,7 @@ void PathTracingKernel(
 		const bool bIsLastBounce = Bounce == MaxBounces;
 		const bool bIncludeEmissive = (EnableDirectLighting != 0 || Bounce > 1) &&
 									  (EnableEmissive       != 0 || bIsCameraRay);
-		FMaterialClosestHitPayload Payload = (FMaterialClosestHitPayload)0;
+		FPathTracingPayload Payload = (FPathTracingPayload)0;
 		
 		if (bIsCameraRay)
 		{
@@ -416,7 +402,7 @@ void PathTracingKernel(
 			break;
 		}
 		
-		if (!Payload.IsFrontFace() && !IsMaterialTransmissive(Payload))
+		if (!Payload.IsFrontFace() && !Payload.IsMaterialTransmissive())
 		{
 			bIsValidSample = false;
 			break;
@@ -519,7 +505,7 @@ void PathTracingKernel(
 			float3 WorldNormal = Payload.WorldNormal;
 			uint PrimitiveLightingChannelMask = Payload.PrimitiveLightingChannelMask;
 
-			bool IsTransmissiveMaterial = ENABLE_TRANSMISSION && IsMaterialTransmissive(Payload);
+			bool IsTransmissiveMaterial = ENABLE_TRANSMISSION && Payload.IsMaterialTransmissive();
 
 			for (uint Index = 0, Num = LightLoopCount.NumLights; Index < Num; ++Index)
 			{
@@ -717,7 +703,7 @@ void PathTracingKernel(
 		NumVisibleLights = 0;
 		
 		// update ray cone for the next bounce
-		RayCone = Payload.GetRayCone();
+		RayCone = Payload.RayCone;
 	}
 	
 #if USE_IRRADIANCE_CACHING

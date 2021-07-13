@@ -12,12 +12,12 @@ PathTracingSolidGlass.ush: Microfacet Refractive BSDF for solid glass
 
 FMaterialSample RoughGlass_SampleMaterial(
 	float3 RayDirection,
-	FMaterialClosestHitPayload Payload,
+	FPathTracingPayload Payload,
 	float4 RandSample)
 {
 	// NOTE: IsFrontFace() determines polygon orientation, because the normal is always flipped towards in the incoming ray
 	bool bIsEntering = Payload.IsFrontFace();
-	float3 N_World = GetWorldNormal(Payload);
+	float3 N_World = Payload.WorldNormal;
 	float3 V_World = -RayDirection;
 
 	// #dxr_todo: Maintain a refraction stack on the path tracing payload
@@ -62,14 +62,14 @@ FMaterialSample RoughGlass_SampleMaterial(
 FMaterialEval RoughGlass_EvalMaterial(
 	float3 IncomingDirection,
 	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload
+	FPathTracingPayload Payload
 )
 {
 	// NOTE: IsFrontFace() determines polygon orientation, because the normal is always flipped towards in the incoming ray
 	bool bIsEntering = Payload.IsFrontFace();
 	float3 V_World = -IncomingDirection;
 	float3 L_World = OutgoingDirection;
-	float3 N_World = GetWorldNormal(Payload);
+	float3 N_World = Payload.WorldNormal;
 
 	// #dxr_todo: Maintain a refraction stack on the path tracing payload
 	float Ior = Payload.Ior;

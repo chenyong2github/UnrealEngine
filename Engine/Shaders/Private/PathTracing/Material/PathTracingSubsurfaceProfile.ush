@@ -13,32 +13,32 @@
 #include "PathTracingMaterialCommon.ush"
 #include "PathTracingFresnel.ush"
 
-float2 SubsurfaceProfile_LobeCdf(float3 V, FMaterialClosestHitPayload Payload)
+float2 SubsurfaceProfile_LobeCdf(float3 V, FPathTracingPayload Payload)
 {
 	// TODO: This could be improved if we had a directional albedo tabulation, but this formulation will at least prevent
 	// under-sampling when one lobe is black (like with metals)
 
-	float3 Diff = GetDiffuseColor(Payload);
-	float3 Spec = GetSpecularColor(Payload);
+	float3 Diff = Payload.DiffuseColor;
+	float3 Spec = Payload.SpecularColor;
 
 	float DiffuseProb = LobeSelectionProb(Diff, Spec);
-	float SpecMix = GetDualRoughnessSpecular(Payload).z;
+	float SpecMix = Payload.GetDualRoughnessSpecular().z;
 	return float2(DiffuseProb, DiffuseProb + (1 - DiffuseProb) * (1 - SpecMix));
 }
 
 FMaterialEval SubsurfaceProfile_EvalMaterial(
 	float3 IncomingDirection,
 	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload
+	FPathTracingPayload Payload
 )
 {
 	FMaterialEval Result = NullMaterialEval();
 
 	const float3 V_World = -IncomingDirection;
 	const float3 L_World = OutgoingDirection;
-	const float3 N_World = GetWorldNormal(Payload);
+	const float3 N_World = Payload.WorldNormal;
 
-	float3 DualRoughnessData = GetDualRoughnessSpecular(Payload);
+	float3 DualRoughnessData = Payload.GetDualRoughnessSpecular();
 	float2 Alpha0 = 0;
 	float2 Alpha1 = 0;
 	const float3x3 Basis = GetGGXBasis(DualRoughnessData.x, Payload.WorldNormal, Alpha0);
@@ -56,12 +56,12 @@ FMaterialEval SubsurfaceProfile_EvalMaterial(
 	const float3 LobeProb = float3(LobeCdf.x, LobeCdf.y - LobeCdf.x, 1 - LobeCdf.y);
 
 	// Diffuse Lobe
-	AddLobeWithMIS(Result.Weight, Result.Pdf, GetDiffuseColor(Payload), NoL / PI, LobeProb.x);
+	AddLobeWithMIS(Result.Weight, Result.Pdf, Payload.DiffuseColor, NoL / PI, LobeProb.x);
 
 	// Specular lobes
 	const float2 GGXResult0 = GGXEvalReflection(L, V, H, Alpha0);
 	const float2 GGXResult1 = GGXEvalReflection(L, V, H, Alpha1);
-	const float3 F = F_Schlick(GetSpecularColor(Payload), VoH);
+	const float3 F = F_Schlick(Payload.SpecularColor, VoH);
 	AddLobeWithMIS(Result.Weight, Result.Pdf, (1 - DualRoughnessData.z) * F * GGXResult0.x, GGXResult0.y, LobeProb.y);
 	AddLobeWithMIS(Result.Weight, Result.Pdf, (    DualRoughnessData.z) * F * GGXResult1.x, GGXResult1.y, LobeProb.z);
 
@@ -70,17 +70,17 @@ FMaterialEval SubsurfaceProfile_EvalMaterial(
 
 FMaterialSample SubsurfaceProfile_SampleMaterial(
 	float3 RayDirection,
-	FMaterialClosestHitPayload Payload,
+	FPathTracingPayload Payload,
 	float4 RandSample
 )
 {
-	float3 N = GetWorldNormal(Payload);
+	float3 N = Payload.WorldNormal;
 	float3 V = -RayDirection;
 
 	const float2 LobeCdf = SubsurfaceProfile_LobeCdf(V, Payload);
 	const float3 LobeProb = float3(LobeCdf.x, LobeCdf.y - LobeCdf.x, 1 - LobeCdf.y);
 
-	float3 DualRoughnessData = GetDualRoughnessSpecular(Payload);
+	float3 DualRoughnessData = Payload.GetDualRoughnessSpecular();
 	float2 Alpha0 = 0;
 	float2 Alpha1 = 0;
 	const float3x3 Basis = GetGGXBasis(DualRoughnessData.x, Payload.WorldNormal, Alpha0);
@@ -147,12 +147,12 @@ FMaterialSample SubsurfaceProfile_SampleMaterial(
 	float OutPdf = 0;
 
 	// Diffuse Lobe
-	AddLobeWithMIS(OutWeight, OutPdf, GetDiffuseColor(Payload), NoL / PI, LobeProb.x);
+	AddLobeWithMIS(OutWeight, OutPdf, Payload.DiffuseColor, NoL / PI, LobeProb.x);
 
 	// Specular lobe
 	const float2 GGXResult0 = GGXEvalReflection(L, V, H, Alpha0);
 	const float2 GGXResult1 = GGXEvalReflection(L, V, H, Alpha1);
-	const float3 F = F_Schlick(GetSpecularColor(Payload), VoH);
+	const float3 F = F_Schlick(Payload.SpecularColor, VoH);
 	AddLobeWithMIS(OutWeight, OutPdf, (1 - DualRoughnessData.z) * F * GGXResult0.x, GGXResult0.y, LobeProb.y);
 	AddLobeWithMIS(OutWeight, OutPdf, (    DualRoughnessData.z) * F * GGXResult1.x, GGXResult1.y, LobeProb.z);
 

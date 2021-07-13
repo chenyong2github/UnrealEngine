@@ -49,7 +49,7 @@ float2 InverseConcentricMapping(float2 p)
 }
 
 FMaterialSample RadianceProbe_SampleMaterial(
-	FMaterialClosestHitPayload Payload,
+	FPathTracingPayload Payload,
 	float4 RandSample
 )
 {
@@ -113,7 +113,7 @@ FMaterialSample RadianceProbe_SampleMaterial(
 #endif
 #endif
 
-	float3 N_World = GetWorldNormal(Payload);
+	float3 N_World = Payload.WorldNormal;
 
 	float4 SampledValue = CosineSampleHemisphereConcentric(RandSample.xy);
 	float3 OutDirection = TangentToWorld(SampledValue.xyz, N_World);
@@ -126,9 +126,9 @@ FMaterialSample RadianceProbe_SampleMaterial(
 	return CreateMaterialSample(OutDirection, OutWeight, OutPdf, 1.0, 1.0);
 }
 
-float RadianceProbe_Pdf(float3 OutgoingDirection, FMaterialClosestHitPayload Payload)
+float RadianceProbe_Pdf(float3 OutgoingDirection, FPathTracingPayload Payload)
 {
-	float3 N_World = GetWorldNormal(Payload);
+	float3 N_World = Payload.WorldNormal;
 	
 	float PdfAdjust = 1.0f;	
 #ifdef LIGHTMAP_PATH_TRACING_MAIN_RG
@@ -194,10 +194,10 @@ float RadianceProbe_Pdf(float3 OutgoingDirection, FMaterialClosestHitPayload Pay
 
 FMaterialEval RadianceProbe_EvalMaterial(
 	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload
+	FPathTracingPayload Payload
 )
 {
-	float3 N_World = GetWorldNormal(Payload);
+	float3 N_World = Payload.WorldNormal;
 	
 	float PdfAdjust = 1.0f;
 	
@@ -270,32 +270,32 @@ FMaterialEval RadianceProbe_EvalMaterial(
 #else
 
 FMaterialSample RadianceProbe_SampleMaterial(
-	FMaterialClosestHitPayload Payload,
+	FPathTracingPayload Payload,
 	float4 RandSample)
 {
-	float3 N_World = GetWorldNormal(Payload);
+	float3 N_World = Payload.WorldNormal;
 
 	float4 SampledValue = CosineSampleHemisphere(RandSample.xy);
 
 	return CreateMaterialSample(TangentToWorld(SampledValue.xyz, N_World), 1.0, SampledValue.w, 1.0, 1.0);
 }
 
-float RadianceProbe_Pdf(float3 OutgoingDirection, FMaterialClosestHitPayload Payload)
+float RadianceProbe_Pdf(float3 OutgoingDirection, FPathTracingPayload Payload)
 {
-	float3 N_World = GetWorldNormal(Payload);
+	float3 N_World = Payload.WorldNormal;
 	float NoL = saturate(dot(N_World, OutgoingDirection));
 	return NoL / PI;
 }
 
 FMaterialEval RadianceProbe_EvalMaterial(
 	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload
+	FPathTracingPayload Payload
 )
 {
-	float3 N_World = GetWorldNormal(Payload);
+	float3 N_World = Payload.WorldNormal;
 	float NoL = saturate(dot(N_World, OutgoingDirection));
 
-	return CreateMaterialEval(GetDiffuseColor(Payload), NoL / PI);
+	return CreateMaterialEval(Payload.DiffuseColor, NoL / PI);
 }
 
 #endif

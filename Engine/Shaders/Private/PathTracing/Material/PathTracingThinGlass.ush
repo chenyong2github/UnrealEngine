@@ -51,12 +51,12 @@ SlabWeights ComputeThinSlabWeights(float3 SlabColor, float CosV, float Eta)
 FMaterialEval RoughThinGlass_EvalMaterial(
 	float3 IncomingDirection,
 	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload
+	FPathTracingPayload Payload
 )
 {
 	float3 V_World = -IncomingDirection;
 	float3 L_World = OutgoingDirection;
-	float3 N_World = GetWorldNormal(Payload);
+	float3 N_World = Payload.WorldNormal;
 
 
 	float2 Alpha;
@@ -100,10 +100,10 @@ FMaterialEval RoughThinGlass_EvalMaterial(
 
 FMaterialSample RoughThinGlass_SampleMaterial(
 	float3 RayDirection,
-	FMaterialClosestHitPayload Payload,
+	FPathTracingPayload Payload,
 	float4 RandSample)
 {
-	float3 N_World = GetWorldNormal(Payload);
+	float3 N_World = Payload.WorldNormal;
 	float3 V_World = -RayDirection;
 
 	float Eta = Payload.Ior;
