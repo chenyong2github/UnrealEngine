@@ -21,7 +21,7 @@ using namespace UE::Geometry;
 const FVector3d FMeshOcclusionMapEvaluator::DefaultTangentNormal = FVector3d::UnitZ();
 const FVector3d FMeshOcclusionMapEvaluator::DefaultObjectNormal = FVector3d::Zero();
 
-void FMeshOcclusionMapEvaluator::Setup(const FMeshMapBaker& Baker, FEvaluationContext& Context)
+void FMeshOcclusionMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context)
 {
 	if (WANT_ALL(OcclusionType))
 	{
@@ -29,11 +29,13 @@ void FMeshOcclusionMapEvaluator::Setup(const FMeshMapBaker& Baker, FEvaluationCo
 		{
 			Context.Evaluate = &EvaluateSample<EMeshOcclusionMapType::All, ESpace::Tangent>;
 			Context.EvaluateDefault = &EvaluateDefault<EMeshOcclusionMapType::All, ESpace::Tangent>;
+			Context.EvaluateColor = &EvaluateColor<EMeshOcclusionMapType::All, ESpace::Tangent>;
 		}
 		else // NormalSpace == ESpace::Object
 		{
 			Context.Evaluate = &EvaluateSample<EMeshOcclusionMapType::All, ESpace::Object>;
 			Context.EvaluateDefault = &EvaluateDefault<EMeshOcclusionMapType::All, ESpace::Object>;
+			Context.EvaluateColor = &EvaluateColor<EMeshOcclusionMapType::All, ESpace::Object>;
 		}
 		Context.EvalData = this;
 		Context.AccumulateMode = EAccumulateMode::Add;
@@ -43,6 +45,7 @@ void FMeshOcclusionMapEvaluator::Setup(const FMeshMapBaker& Baker, FEvaluationCo
 	{
 		Context.Evaluate = &EvaluateSample<EMeshOcclusionMapType::AmbientOcclusion, ESpace::Tangent>;
 		Context.EvaluateDefault = &EvaluateDefault<EMeshOcclusionMapType::AmbientOcclusion, ESpace::Tangent>;
+		Context.EvaluateColor = &EvaluateColor<EMeshOcclusionMapType::AmbientOcclusion, ESpace::Tangent>;
 		Context.EvalData = this;
 		Context.AccumulateMode = EAccumulateMode::Add;
 		Context.DataLayout = { EComponents::Float1 };
@@ -53,11 +56,13 @@ void FMeshOcclusionMapEvaluator::Setup(const FMeshMapBaker& Baker, FEvaluationCo
 		{
 			Context.Evaluate = &EvaluateSample<EMeshOcclusionMapType::BentNormal, ESpace::Tangent>;
 			Context.EvaluateDefault = &EvaluateDefault<EMeshOcclusionMapType::BentNormal, ESpace::Tangent>;
+			Context.EvaluateColor = &EvaluateColor<EMeshOcclusionMapType::BentNormal, ESpace::Tangent>;
 		}
 		else // NormalSpace == ESpace::Object
 		{
 			Context.Evaluate = &EvaluateSample<EMeshOcclusionMapType::BentNormal, ESpace::Object>;
 			Context.EvaluateDefault = &EvaluateDefault<EMeshOcclusionMapType::BentNormal, ESpace::Object>;
+			Context.EvaluateColor = &EvaluateColor<EMeshOcclusionMapType::BentNormal, ESpace::Object>;
 		}
 		Context.EvalData = this;
 		Context.AccumulateMode = EAccumulateMode::Add;
@@ -105,13 +110,13 @@ void FMeshOcclusionMapEvaluator::Setup(const FMeshMapBaker& Baker, FEvaluationCo
 	}
 
 	// Map occlusion ray hemisphere to conical area (SpreadAngle/2)
-	double ConicalAngle = FMathd::Clamp(SpreadAngle * 0.5, 0.0001, 90.0);
+	const double ConicalAngle = FMathd::Clamp(SpreadAngle * 0.5, 0.0001, 90.0);
 	for (int32 k = 0; k < RayDirections.Num(); ++k)
 	{
 		FVector3d& RayDir = RayDirections[k];
-		double RayAngle = AngleD(RayDir, FVector3d::UnitZ());
+		const double RayAngle = AngleD(RayDir, FVector3d::UnitZ());
 		FVector3d RayCross = RayDir.Cross(FVector3d::UnitZ());
-		double RotationAngle = RayAngle - FMathd::Lerp(0.0, ConicalAngle, RayAngle / 90.0);
+		const double RotationAngle = RayAngle - FMathd::Lerp(0.0, ConicalAngle, RayAngle / 90.0);
 		FQuaterniond Rotation(RayCross, RotationAngle, true);
 		RayDir = Rotation * RayDir;
 	}
@@ -134,9 +139,7 @@ void FMeshOcclusionMapEvaluator::EvaluateSample(float*& Out, const FCorresponden
 
 	if constexpr (WANT_BENT_NORMAL(ComputeType))
 	{
-		// Map normal space[-1, 1] to floating point color space[0, 1]
-		FVector3f NormalColor = (FVector3f(BentNormal.X, BentNormal.Y, BentNormal.Z) + FVector3f::One()) * 0.5;
-		WriteToBuffer(Out, NormalColor);
+		WriteToBuffer(Out, BentNormal);
 	}
 }
 
@@ -151,10 +154,38 @@ void FMeshOcclusionMapEvaluator::EvaluateDefault(float*& Out, void* EvalData)
 	if constexpr (WANT_BENT_NORMAL(ComputeType))
 	{
 		const FVector3d& DefaultNormal = ComputeSpace == ESpace::Tangent ? DefaultTangentNormal : DefaultObjectNormal;
+		WriteToBuffer(Out, DefaultNormal);
+	}
+}
 
-		// Map normal space [-1,1] to floating point color space [0,1]
-		FVector3f Normal = (DefaultObjectNormal + FVector3f::One()) * 0.5f;
-		WriteToBuffer(Out, Normal);
+template <EMeshOcclusionMapType ComputeType, FMeshOcclusionMapEvaluator::ESpace ComputeSpace>
+void FMeshOcclusionMapEvaluator::EvaluateColor(const int DataIdx, float*& In, FVector4f& Out, void* EvalData)
+{
+	auto EvalOcclusion = [&In, &Out]()
+	{
+		Out = FVector4f(In[0], In[0], In[0], 1.0f);
+		In += 1;
+	};
+
+	auto EvalNormal = [&In, &Out]()
+	{
+		const FVector3f Normal(In[0], In[1], In[2]);
+		const FVector3f Color = (Normal + FVector3f::One()) * 0.5f;
+		Out = FVector4f(Color.X, Color.Y, Color.Z, 1.0f);
+		In += 3;
+	};
+
+	if constexpr (WANT_AMBIENT_OCCLUSION(ComputeType) && WANT_BENT_NORMAL(ComputeType))
+	{
+		DataIdx == 0 ? EvalOcclusion() : EvalNormal();
+	}
+	else if constexpr (WANT_AMBIENT_OCCLUSION(ComputeType))
+	{
+		EvalOcclusion();
+	}
+	else if constexpr (WANT_BENT_NORMAL(ComputeType))
+	{
+		EvalNormal();
 	}
 }
 

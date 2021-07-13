@@ -60,7 +60,8 @@ static constexpr EBakeMapType ALL_BAKE_MAP_TYPES[] =
 	EBakeMapType::FaceNormalImage,
 	EBakeMapType::PositionImage,
 	EBakeMapType::MaterialID,
-	EBakeMapType::MultiTexture
+	EBakeMapType::MultiTexture,
+	EBakeMapType::VertexColorImage
 };
 
 
@@ -121,11 +122,11 @@ public:
 
 	// Map Type settings
 	EBakeMapType Maps;
-	UBakeMeshAttributeMapsTool::FNormalMapSettings NormalSettings;
-	UBakeMeshAttributeMapsTool::FOcclusionMapSettings OcclusionSettings;
-	UBakeMeshAttributeMapsTool::FCurvatureMapSettings CurvatureSettings;
-	UBakeMeshAttributeMapsTool::FMeshPropertyMapSettings PropertySettings;
-	UBakeMeshAttributeMapsTool::FTexture2DImageSettings TextureSettings;
+	FNormalMapSettings NormalSettings;
+	FOcclusionMapSettings OcclusionSettings;
+	FCurvatureMapSettings CurvatureSettings;
+	FMeshPropertyMapSettings PropertySettings;
+	FTexture2DImageSettings TextureSettings;
 
 	// Texture2DImage & MultiTexture settings
 	using ImagePtr = TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>;
@@ -235,6 +236,13 @@ public:
 			{
 				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyBaker = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
 				PropertyBaker->Property = EMeshPropertyMapType::MaterialID;
+				Baker->AddBaker(PropertyBaker);
+				break;
+			}
+			case EBakeMapType::VertexColorImage:
+			{
+				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyBaker = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
+				PropertyBaker->Property = EMeshPropertyMapType::VertexColor;
 				Baker->AddBaker(PropertyBaker);
 				break;
 			}
@@ -469,7 +477,8 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshMapBaker>> UBakeMeshAttribute
 	if ((bool)(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::NormalImage) ||
 		(bool)(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::FaceNormalImage) ||
 		(bool)(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::PositionImage) ||
-		(bool)(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::MaterialID))
+		(bool)(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::MaterialID) ||
+		(bool)(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::VertexColorImage))
 	{
 		Op->PropertySettings = CachedMeshPropertyMapSettings;
 	}
@@ -552,6 +561,9 @@ void UBakeMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 					break;
 				case EBakeMapType::MaterialID:
 					TexName = FString::Printf(TEXT("%s_MaterialIDImg"), *BaseName);
+					break;
+				case EBakeMapType::VertexColorImage:
+					TexName = FString::Printf(TEXT("%s_VertexColorIDImg"), *BaseName);
 					break;
 				case EBakeMapType::PositionImage:
 					TexName = FString::Printf(TEXT("%s_PositionImg"), *BaseName);
@@ -801,7 +813,8 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 	if ((bool)(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::NormalImage) ||
 		(bool)(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::FaceNormalImage) ||
 		(bool)(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::PositionImage) ||
-		(bool)(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::MaterialID))
+		(bool)(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::MaterialID) ||
+		(bool)(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::VertexColorImage))
 	{
 		OpState |= UpdateResult_MeshProperty();
 	}
@@ -967,102 +980,6 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_MeshProperty()
 	}
 	return ResultState;
 }
-
-
-
-
-
-
-
-
-class FTempTextureAccess
-{
-public:
-	FTempTextureAccess(UTexture2D* DisplacementMap)
-		: DisplacementMap(DisplacementMap)
-	{
-		check(DisplacementMap);
-		OldCompressionSettings = DisplacementMap->CompressionSettings;
-		bOldSRGB = DisplacementMap->SRGB;
-#if WITH_EDITOR
-		OldMipGenSettings = DisplacementMap->MipGenSettings;
-#endif
-		DisplacementMap->CompressionSettings = TextureCompressionSettings::TC_VectorDisplacementmap;
-		DisplacementMap->SRGB = false;
-#if WITH_EDITOR
-		DisplacementMap->MipGenSettings = TextureMipGenSettings::TMGS_NoMipmaps;
-#endif
-		DisplacementMap->UpdateResource();
-
-		FormattedImageData = reinterpret_cast<const FColor*>(DisplacementMap->PlatformData->Mips[0].BulkData.LockReadOnly());
-	}
-	FTempTextureAccess(const FTempTextureAccess&) = delete;
-	FTempTextureAccess(FTempTextureAccess&&) = delete;
-	void operator=(const FTempTextureAccess&) = delete;
-	void operator=(FTempTextureAccess&&) = delete;
-
-	~FTempTextureAccess()
-	{
-		DisplacementMap->PlatformData->Mips[0].BulkData.Unlock();
-
-		DisplacementMap->CompressionSettings = OldCompressionSettings;
-		DisplacementMap->SRGB = bOldSRGB;
-#if WITH_EDITOR
-		DisplacementMap->MipGenSettings = OldMipGenSettings;
-#endif
-
-		DisplacementMap->UpdateResource();
-	}
-
-	bool HasData() const
-	{
-		return FormattedImageData != nullptr;
-	}
-	const FColor* GetData() const
-	{
-		return FormattedImageData;
-	}
-
-	FImageDimensions GetDimensions() const
-	{
-		int32 Width = DisplacementMap->PlatformData->Mips[0].SizeX;
-		int32 Height = DisplacementMap->PlatformData->Mips[0].SizeY;
-		return FImageDimensions(Width, Height);
-	}
-
-
-	bool CopyTo(TImageBuilder<FVector4f>& DestImage) const
-	{
-		if (!HasData()) return false;
-
-		FImageDimensions TextureDimensions = GetDimensions();
-		if (ensure(DestImage.GetDimensions() == TextureDimensions) == false)
-		{
-			return false;
-		}
-
-		int64 Num = TextureDimensions.Num();
-		for (int32 i = 0; i < Num; ++i)
-		{
-			FColor ByteColor = FormattedImageData[i];
-			FLinearColor FloatColor(ByteColor);
-			DestImage.SetPixel(i, FVector4f(FloatColor));
-		}
-		return true;
-	}
-
-private:
-	UTexture2D* DisplacementMap{ nullptr };
-	TextureCompressionSettings OldCompressionSettings{};
-	TextureMipGenSettings OldMipGenSettings{};
-	bool bOldSRGB{ false };
-	const FColor* FormattedImageData{ nullptr };
-};
-
-
-
-
-
 
 
 EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_Texture2DImage()
@@ -1234,6 +1151,7 @@ void UBakeMeshAttributeMapsTool::UpdateVisualization()
 			case EBakeMapType::MaterialID:
 			case EBakeMapType::Texture2DImage:
 			case EBakeMapType::MultiTexture:
+			case EBakeMapType::VertexColorImage:
 				PreviewMaterial->SetTextureParameterValue(TEXT("NormalMap"), EmptyNormalMap);
 				PreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), EmptyColorMapWhite);
 				PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), PreviewMap);
@@ -1272,6 +1190,7 @@ void UBakeMeshAttributeMapsTool::UpdateOnModeChange()
 		case EBakeMapType::FaceNormalImage:
 		case EBakeMapType::PositionImage:
 		case EBakeMapType::MaterialID:
+		case EBakeMapType::VertexColorImage:
 			break;
 		case EBakeMapType::Texture2DImage:
 			SetToolPropertySourceEnabled(Texture2DProps, true);
@@ -1385,6 +1304,9 @@ void UBakeMeshAttributeMapsTool::OnMapsUpdated(const TUniquePtr<FMeshMapBaker>& 
 				break;
 			case EMeshPropertyMapType::MaterialID:
 				MapType = EBakeMapType::MaterialID;
+				break;
+			case EMeshPropertyMapType::VertexColor:
+				MapType = EBakeMapType::VertexColorImage;
 				break;
 			case EMeshPropertyMapType::UVPosition:
 			default:

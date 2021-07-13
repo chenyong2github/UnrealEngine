@@ -76,6 +76,7 @@
 #include "AlignObjectsTool.h"
 #include "EditUVIslandsTool.h"
 #include "BakeMeshAttributeMapsTool.h"
+#include "BakeMeshAttributeVertexTool.h"
 #include "MeshAttributePaintTool.h"
 #include "ParameterizeMeshTool.h"
 #include "RecomputeUVsTool.h"
@@ -551,6 +552,9 @@ void UModelingToolsEditorMode::Enter()
 
 	auto BakeMeshAttributeMapsToolBuilder = NewObject<UBakeMeshAttributeMapsToolBuilder>();
 	RegisterTool(ToolManagerCommands.BeginBakeMeshAttributeMapsTool, TEXT("BeginBakeMeshAttributeMapsTool"), BakeMeshAttributeMapsToolBuilder);
+
+	auto BakeMeshAttributeVertexToolBuilder = NewObject<UBakeMeshAttributeVertexToolBuilder>();
+	RegisterTool(ToolManagerCommands.BeginBakeMeshAttributeVertexTool, TEXT("BeginBakeMeshAttributeVertexTool"), BakeMeshAttributeVertexToolBuilder);
 
 	// analysis tools
 

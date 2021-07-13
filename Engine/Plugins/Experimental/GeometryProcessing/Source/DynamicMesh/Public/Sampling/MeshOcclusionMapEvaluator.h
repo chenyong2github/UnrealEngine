@@ -22,6 +22,9 @@ enum class EMeshOcclusionMapType : uint8
 };
 ENUM_CLASS_FLAGS(EMeshOcclusionMapType);
 
+/**
+ * A mesh evaluator for occlusion data (Ambient Occlusion & Bent Normals).
+ */
 class DYNAMICMESH_API FMeshOcclusionMapEvaluator : public FMeshMapEvaluator
 {
 public:
@@ -53,7 +56,7 @@ public:
 
 public:
 	// Begin FMeshMapEvaluator interface
-	virtual void Setup(const FMeshMapBaker& Baker, FEvaluationContext& Context) override;
+	virtual void Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context) override;
 
 	virtual EMeshMapEvaluatorType Type() const override { return EMeshMapEvaluatorType::Occlusion; }
 	// End FMeshMapEvaluator interface
@@ -63,6 +66,9 @@ public:
 
 	template <EMeshOcclusionMapType OcclusionType, ESpace NormalSpace>
 	static void EvaluateDefault(float*& Out, void* EvalData);
+
+	template <EMeshOcclusionMapType OcclusionType, ESpace NormalSpace>
+	static void EvaluateColor(const int DataIdx, float*& In, FVector4f& Out, void* EvalData);
 
 protected:
 	// Cached data

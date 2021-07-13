@@ -18,13 +18,14 @@ void FMeshCurvatureMapEvaluator::CacheDetailCurvatures(const FDynamicMesh3* Deta
 	check(Curvatures->Num() == DetailMeshIn->MaxVertexID());
 }
 
-void FMeshCurvatureMapEvaluator::Setup(const FMeshMapBaker& Baker, FEvaluationContext& Context)
+void FMeshCurvatureMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context)
 {
 	Context.Evaluate = &EvaluateSample;
 	Context.EvaluateDefault = &EvaluateDefault;
+	Context.EvaluateColor = &EvaluateColor;
 	Context.EvalData = this;
 	Context.AccumulateMode = EAccumulateMode::Add;
-	Context.DataLayout = { EComponents::Float3 };
+	Context.DataLayout = { EComponents::Float1 };
 
 	// Cache data from the baker
 	DetailMesh = Baker.GetDetailMesh();
@@ -65,7 +66,7 @@ void FMeshCurvatureMapEvaluator::Setup(const FMeshMapBaker& Baker, FEvaluationCo
 	{
 		ClampMax = RangeScale * OverrideRangeMax;
 	}
-	double MinClamp = MinRangeScale * ClampMax;
+	const double MinClamp = MinRangeScale * ClampMax;
 	ClampRange = FInterval1d(MinClamp, ClampMax);
 
 	GetColorMapRange(NegativeColor, ZeroColor, PositiveColor);
@@ -74,17 +75,25 @@ void FMeshCurvatureMapEvaluator::Setup(const FMeshMapBaker& Baker, FEvaluationCo
 void FMeshCurvatureMapEvaluator::EvaluateSample(float*& Out, const FCorrespondenceSample& Sample, void* EvalData)
 {
 	FMeshCurvatureMapEvaluator* Eval = static_cast<FMeshCurvatureMapEvaluator*>(EvalData);
-	double Curvature = Eval->SampleFunction(Sample);
-	double Sign = FMathd::Sign(Curvature);
-	float T = (float)Eval->ClampRange.GetT(FMathd::Abs(Curvature));
-	FVector3f CurvatureColor = (Sign < 0) ?
-		Lerp(Eval->ZeroColor, Eval->NegativeColor, T) : Lerp(Eval->ZeroColor, Eval->PositiveColor, T);
-	WriteToBuffer(Out, CurvatureColor);
+	const float Curvature = (float) Eval->SampleFunction(Sample);
+	WriteToBuffer(Out, Curvature);
 }
 
 void FMeshCurvatureMapEvaluator::EvaluateDefault(float*& Out, void* EvalData)
 {
-	WriteToBuffer(Out, FVector3f::Zero());
+	WriteToBuffer(Out, 0.0f);
+}
+
+void FMeshCurvatureMapEvaluator::EvaluateColor(const int DataIdx, float*& In, FVector4f& Out, void* EvalData)
+{
+	FMeshCurvatureMapEvaluator* Eval = static_cast<FMeshCurvatureMapEvaluator*>(EvalData);
+	const float Curvature = In[0];
+	const float Sign = FMathf::Sign(Curvature);
+	const float T = Eval->ClampRange.GetT(FMathf::Abs(Curvature));
+	FVector3f CurvatureColor = (Sign < 0) ?
+		Lerp(Eval->ZeroColor, Eval->NegativeColor, T) : Lerp(Eval->ZeroColor, Eval->PositiveColor, T);
+	Out = FVector4f(CurvatureColor[0], CurvatureColor[1], CurvatureColor[2], 1.0f);
+	In += 1;
 }
 
 double FMeshCurvatureMapEvaluator::SampleFunction(const FCorrespondenceSample& SampleData)

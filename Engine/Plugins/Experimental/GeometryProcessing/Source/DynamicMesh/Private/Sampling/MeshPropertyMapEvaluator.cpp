@@ -7,10 +7,11 @@
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
-void FMeshPropertyMapEvaluator::Setup(const FMeshMapBaker& Baker, FEvaluationContext& Context)
+void FMeshPropertyMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context)
 {
 	Context.Evaluate = &EvaluateSample;
 	Context.EvaluateDefault = &EvaluateDefault;
+	Context.EvaluateColor = &EvaluateColor;
 	Context.EvalData = this;
 	Context.AccumulateMode = EAccumulateMode::Add;
 	Context.DataLayout = { EComponents::Float3 };
@@ -20,6 +21,7 @@ void FMeshPropertyMapEvaluator::Setup(const FMeshMapBaker& Baker, FEvaluationCon
 	DetailNormalOverlay = Baker.GetDetailMeshNormals();
 	check(DetailNormalOverlay);
 	DetailUVOverlay = Baker.GetDetailMeshUVs();
+	DetailColorOverlay = Baker.GetDetailMeshColors();
 
 	Bounds = DetailMesh->GetBounds();
 	for (int32 j = 0; j < 3; ++j)
@@ -48,6 +50,9 @@ void FMeshPropertyMapEvaluator::Setup(const FMeshMapBaker& Baker, FEvaluationCon
 	case EMeshPropertyMapType::MaterialID:
 		DefaultValue = FVector3f(LinearColors::LightPink3f());
 		break;
+	case EMeshPropertyMapType::VertexColor:
+		DefaultValue = FVector3f::One();
+		break;
 	}
 }
 
@@ -61,6 +66,13 @@ void FMeshPropertyMapEvaluator::EvaluateSample(float*& Out, const FCorrespondenc
 void FMeshPropertyMapEvaluator::EvaluateDefault(float*& Out, void* EvalData)
 {
 	WriteToBuffer(Out, FVector3f::Zero());
+}
+
+void FMeshPropertyMapEvaluator::EvaluateColor(const int DataIdx, float*& In, FVector4f& Out, void* EvalData)
+{
+	// TODO: Move property color space transformation from EvaluateSample/Default to here.
+	Out = FVector4f(In[0], In[1], In[2], 1.0f);
+	In += 3;
 }
 
 FVector3f FMeshPropertyMapEvaluator::SampleFunction(const FCorrespondenceSample& SampleData)
@@ -111,6 +123,16 @@ FVector3f FMeshPropertyMapEvaluator::SampleFunction(const FCorrespondenceSample&
 				const FDynamicMeshMaterialAttribute* DetailMaterialIDAttrib = DetailMesh->Attributes()->GetMaterialID();
 				const int32 MatID = DetailMaterialIDAttrib->GetValue(DetailTriID);
 				Color = LinearColors::SelectColor<FVector3f>(MatID);
+			}
+		}
+		break;
+		case EMeshPropertyMapType::VertexColor:
+		{
+			if (DetailColorOverlay && DetailColorOverlay->IsSetTriangle(DetailTriID))
+			{
+				FVector4d DetailColor;
+				DetailColorOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailColor.X);
+				Color = FVector3f(DetailColor.X, DetailColor.Y, DetailColor.Z);
 			}
 		}
 		break;
