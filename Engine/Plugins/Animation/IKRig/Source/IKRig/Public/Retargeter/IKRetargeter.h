@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "Engine/SkeletalMesh.h"
 #include "Containers/UnrealString.h"
-#include "Math/TransformNonVectorized.h"
 
 #include "IKRigDefinition.h"
 #include "IKRigProcessor.h"
@@ -298,7 +296,8 @@ public:
 
 private:
 
-	FIKRigProcessor IKRigProcessor;
+	UPROPERTY(Transient)
+	TObjectPtr<UIKRigProcessor> IKRigProcessor;
 	
 	TArray<FRetargetChainPairFK> ChainPairsFK;
 	

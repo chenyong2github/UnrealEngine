@@ -4,8 +4,7 @@
 #include "IKRigDefinition.h"
 #include "IKRigSolver.h"
 
-
-void FIKRigProcessor::Initialize(UIKRigDefinition* InRigAsset, const FReferenceSkeleton& RefSkeleton, UObject* Outer)
+void UIKRigProcessor::Initialize(UIKRigDefinition* InRigAsset, const FReferenceSkeleton& RefSkeleton)
 {
 	// we instantiate UObjects here which MUST be done on game thread...
 	check(IsInGameThread());
@@ -16,6 +15,24 @@ void FIKRigProcessor::Initialize(UIKRigDefinition* InRigAsset, const FReferenceS
 	if (!InRigAsset)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRigProcessor with a null IKRigDefinition asset."));
+		return;
+	}
+
+	if (InRigAsset->Skeleton.BoneNames.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRigProcessor with a IKRigDefinition that has no skeleton."));
+		return;
+	}
+
+	if (InRigAsset->Solvers.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRigProcessor with a IKRigDefinition that has no solvers."));
+		return;
+	}
+
+	if (InRigAsset->Goals.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRigProcessor with a IKRigDefinition that has no goals."));
 		return;
 	}
 
@@ -85,8 +102,7 @@ void FIKRigProcessor::Initialize(UIKRigDefinition* InRigAsset, const FReferenceS
 		// new solver name
 		FString Name = IKRigSolver->GetName() + "_SolverInstance_";
 		Name.AppendInt(SolverIndex++);
-		UIKRigSolver* Solver = DuplicateObject(IKRigSolver, Outer, FName(*Name));
-		Solver->AddToRoot();
+		UIKRigSolver* Solver = DuplicateObject(IKRigSolver, this, FName(*Name));
 		Solver->Initialize(Skeleton);
 		Solvers.Add(Solver);
 	}
@@ -95,7 +111,7 @@ void FIKRigProcessor::Initialize(UIKRigDefinition* InRigAsset, const FReferenceS
 	bInitialized = true;
 }
 
-void FIKRigProcessor::SetInputPoseGlobal(const TArray<FTransform>& InGlobalBoneTransforms) 
+void UIKRigProcessor::SetInputPoseGlobal(const TArray<FTransform>& InGlobalBoneTransforms) 
 {
 	check(bInitialized);
 	check(InGlobalBoneTransforms.Num() == Skeleton.CurrentPoseGlobal.Num());
@@ -103,31 +119,31 @@ void FIKRigProcessor::SetInputPoseGlobal(const TArray<FTransform>& InGlobalBoneT
 	Skeleton.UpdateAllLocalTransformFromGlobal();
 }
 
-void FIKRigProcessor::SetInputPoseToRefPose()
+void UIKRigProcessor::SetInputPoseToRefPose()
 {
 	check(bInitialized);
 	Skeleton.CurrentPoseGlobal = Skeleton.RefPoseGlobal;
 	Skeleton.UpdateAllLocalTransformFromGlobal();
 }
 
-void FIKRigProcessor::SetIKGoal(const FIKRigGoal& InGoal)
+void UIKRigProcessor::SetIKGoal(const FIKRigGoal& InGoal)
 {
 	check(bInitialized);
 	GoalContainer.SetIKGoal(InGoal);
 }
 
-void FIKRigProcessor::SetIKGoal(const UIKRigEffectorGoal* InGoal)
+void UIKRigProcessor::SetIKGoal(const UIKRigEffectorGoal* InGoal)
 {
 	check(bInitialized);
 	GoalContainer.SetIKGoal(InGoal);
 }
 
-void FIKRigProcessor::Solve()
+void UIKRigProcessor::Solve(const FTransform& ComponentToWorld)
 {
 	check(bInitialized);
-
-	// blend goals towards input pose by alpha
-	BlendGoalsByAlpha();
+	
+	// convert goals into component space and blend towards input pose by alpha
+	ResolveFinalGoalTransforms(ComponentToWorld);
 
 	// run all the solvers
 	for (UIKRigSolver* Solver : Solvers)
@@ -142,12 +158,12 @@ void FIKRigProcessor::Solve()
 	Skeleton.NormalizeRotations(Skeleton.CurrentPoseGlobal);
 }
 
-void FIKRigProcessor::CopyOutputGlobalPoseToArray(TArray<FTransform>& OutputPoseGlobal) const
+void UIKRigProcessor::CopyOutputGlobalPoseToArray(TArray<FTransform>& OutputPoseGlobal) const
 {
 	OutputPoseGlobal = Skeleton.CurrentPoseGlobal;
 }
 
-void FIKRigProcessor::CopyAllInputsFromSourceAssetAtRuntime(UIKRigDefinition* IKRigAsset)
+void UIKRigProcessor::CopyAllInputsFromSourceAssetAtRuntime(UIKRigDefinition* IKRigAsset)
 {
 	// copy goal settings
 	for (const UIKRigEffectorGoal* AssetGoal : IKRigAsset->Goals)
@@ -164,7 +180,7 @@ void FIKRigProcessor::CopyAllInputsFromSourceAssetAtRuntime(UIKRigDefinition* IK
 	}
 }
 
-bool FIKRigProcessor::NeedsInitialized(UIKRigDefinition* IKRigAsset) const
+bool UIKRigProcessor::NeedsInitialized(UIKRigDefinition* IKRigAsset) const
 {
 	if (!bInitialized)
 	{
@@ -184,20 +200,19 @@ bool FIKRigProcessor::NeedsInitialized(UIKRigDefinition* IKRigAsset) const
 	return false;
 }
 
-const FIKRigGoalContainer& FIKRigProcessor::GetGoalContainer() const
+const FIKRigGoalContainer& UIKRigProcessor::GetGoalContainer() const
 {
 	check(bInitialized);
 	return GoalContainer;
 }
 
-FIKRigSkeleton& FIKRigProcessor::GetSkeleton()
+FIKRigSkeleton& UIKRigProcessor::GetSkeleton()
 {
 	check(bInitialized);
 	return Skeleton;
 }
 
-
-void FIKRigProcessor::BlendGoalsByAlpha()
+void UIKRigProcessor::ResolveFinalGoalTransforms(const FTransform& WorldToComponent)
 {
 	for (TPair<FName, FIKRigGoal>& GoalPair : GoalContainer.Goals)
 	{
@@ -211,15 +226,59 @@ void FIKRigProcessor::BlendGoalsByAlpha()
 		FIKRigGoal& Goal = GoalPair.Value;
 		const FGoalBone& GoalBone = GoalBones[Goal.Name];
 		const FTransform& InputPoseBoneTransform = Skeleton.CurrentPoseGlobal[GoalBone.BoneIndex];
+
+		FVector ComponentSpaceGoalPosition = Goal.Position;
+		FQuat ComponentSpaceGoalRotation = Goal.Rotation.Quaternion();
+
+		// put goal POSITION in Component Space
+		switch (Goal.PositionSpace)
+		{
+		case EIKRigGoalSpace::Additive:
+			// add position offset to bone position
+			ComponentSpaceGoalPosition = Skeleton.CurrentPoseGlobal[GoalBone.BoneIndex].GetLocation() + Goal.Position;
+			break;
+		case EIKRigGoalSpace::Component:
+			// was already supplied in Component Space
+			break;
+		case EIKRigGoalSpace::World:
+			// convert from World Space to Component Space
+			ComponentSpaceGoalPosition = WorldToComponent.TransformPosition(Goal.Position);
+			break;
+		default:
+			checkNoEntry();
+			break;
+		}
 		
+		// put goal ROTATION in Component Space
+		switch (Goal.RotationSpace)
+		{
+		case EIKRigGoalSpace::Additive:
+			// add rotation offset to bone rotation
+			ComponentSpaceGoalRotation = Goal.Rotation.Quaternion() * Skeleton.CurrentPoseGlobal[GoalBone.BoneIndex].GetRotation();
+			break;
+		case EIKRigGoalSpace::Component:
+			// was already supplied in Component Space
+			break;
+		case EIKRigGoalSpace::World:
+			// convert from World Space to Component Space
+			ComponentSpaceGoalRotation = WorldToComponent.TransformRotation(Goal.Rotation.Quaternion());
+			break;
+		default:
+			checkNoEntry();
+			break;
+		}
+
+		// blend by alpha from the input pose, to the supplied goal transform
+		// when Alpha is 0, the goal transform matches the bone transform at the input pose.
+		// when Alpha is 1, the goal transform is left fully intact
 		Goal.FinalBlendedPosition = FMath::Lerp(
             InputPoseBoneTransform.GetTranslation(),
-            Goal.Position,
+            ComponentSpaceGoalPosition,
             Goal.PositionAlpha);
 		
 		Goal.FinalBlendedRotation = FQuat::FastLerp(
             InputPoseBoneTransform.GetRotation(),
-            Goal.Rotation.Quaternion(),
+            ComponentSpaceGoalRotation,
             Goal.RotationAlpha);
 	}
 }

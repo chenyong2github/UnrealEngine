@@ -20,13 +20,13 @@ struct FGoalBone
 	int32 BoneIndex;
 };
 
-USTRUCT()
-struct IKRIG_API FIKRigProcessor
+UCLASS()
+class IKRIG_API UIKRigProcessor : public UObject
 {
 	GENERATED_BODY()
-
+	
 public:
-
+	
 	/** the runtime for an IKRig to convert an input pose into
 	*   a solved output pose given a set of IK Rig Goals:
 	*   
@@ -40,7 +40,7 @@ public:
 	 
 	/** setup a new processor to run the given IKRig asset
 	 *  NOTE!! this function creates new UObjects and consequently MUST be called from the main thread!!	 */
-	void Initialize(UIKRigDefinition* InRigAsset, const FReferenceSkeleton& RefSkeleton, UObject* Outer);
+	void Initialize(UIKRigDefinition* InRigAsset, const FReferenceSkeleton& RefSkeleton);
 
 	//
 	// BEGIN UPDATE SEQUENCE FUNCTIONS
@@ -60,8 +60,9 @@ public:
 	/** Set a named IK goal to go to a specific location and rotation (assumed in component space) blended by separate position/rotation alpha (0-1)*/
 	void SetIKGoal(const UIKRigEffectorGoal* Goal);
 
-	/** Run entire stack of solvers */
-	void Solve();
+	/** Run entire stack of solvers.
+	 * If any Goals were supplied in World Space, a valid WorldToComponent transform must be provided.  */
+	void Solve(const FTransform& WorldToComponent = FTransform::Identity);
 
 	/** Get the results after calling Solve() */
 	void CopyOutputGlobalPoseToArray(TArray<FTransform>& OutputPoseGlobal) const;
@@ -84,8 +85,8 @@ public:
 	
 private:
 
-	/** Update the final pos/rot of all the goals based on their alpha values. */
-	void BlendGoalsByAlpha();
+	/** Update the final pos/rot of all the goals based on their alpha values and their space settings. */
+	void ResolveFinalGoalTransforms(const FTransform& WorldToComponent);
 
 	/** the stack of solvers to run in order */
 	UPROPERTY(Transient)

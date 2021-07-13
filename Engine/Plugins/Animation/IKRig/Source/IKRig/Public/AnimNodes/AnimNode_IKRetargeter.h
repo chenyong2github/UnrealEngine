@@ -58,7 +58,8 @@ private:
 	TWeakObjectPtr<USkeletalMeshComponent>	CurrentlyUsedSourceMeshComponent;
 	TWeakObjectPtr<USkeletalMesh>			CurrentlyUsedSourceMesh;
 	TWeakObjectPtr<USkeletalMesh>			CurrentlyUsedTargetMesh;
-	TWeakObjectPtr<UIKRetargeter>			CurrentlyUsedRetargeter;
+	UPROPERTY(Transient)
+	TObjectPtr<UIKRetargeter>				CurrentlyUsedRetargeter = nullptr;
 	TWeakObjectPtr<UIKRigDefinition>		CurrentlyUsedSourceIKRig;
 	TWeakObjectPtr<UIKRigDefinition>		CurrentlyUsedTargetIKRig;
 

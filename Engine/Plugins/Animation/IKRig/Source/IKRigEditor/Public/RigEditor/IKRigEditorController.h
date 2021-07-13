@@ -65,7 +65,8 @@ public:
 	UDebugSkelMeshComponent* SkelMeshComponent;
 
 	/** viewport anim instance */
-	UIKRigAnimInstance* AnimInstance; 
+	UPROPERTY(transient, NonTransactional)
+	TObjectPtr<class UIKRigAnimInstance> AnimInstance;
 
 	/** asset properties tab */
 	TSharedPtr<class IDetailsView> DetailsView;

@@ -3,6 +3,8 @@
 #pragma once
 
 #include "AnimPreviewInstance.h"
+#include "IKRigProcessor.h"
+#include "AnimNodes/AnimNode_IKRig.h"
 
 #include "IKRigAnimInstance.generated.h"
 
@@ -19,4 +21,7 @@ public:
 
 protected:
 	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;
+
+	UPROPERTY(Transient)
+	FAnimNode_IKRig IKRigNode;
 };

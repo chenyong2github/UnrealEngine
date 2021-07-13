@@ -10,10 +10,11 @@
 
 
 FAnimNode_IKRig::FAnimNode_IKRig()
-	: RigDefinitionAsset (nullptr)
+	:	RigDefinitionAsset (nullptr),
 #if WITH_EDITORONLY_DATA
-	, bEnableDebugDraw(false)
+		bEnableDebugDraw(false),
 #endif
+		IKRigProcessor(nullptr)
 {
 }
 
@@ -30,12 +31,12 @@ void FAnimNode_IKRig::Evaluate_AnyThread(FPoseContext& Output)
 		Output.ResetToRefPose();
 	}
 
-	if (!RigDefinitionAsset)
+	if (!(RigDefinitionAsset && IKRigProcessor))
 	{
 		return;
 	}
 
-	if (IKRigProcessor.NeedsInitialized(RigDefinitionAsset))
+	if (IKRigProcessor->NeedsInitialized(RigDefinitionAsset))
 	{
 		return;
 	}
@@ -44,8 +45,9 @@ void FAnimNode_IKRig::Evaluate_AnyThread(FPoseContext& Output)
 	CopyInputPoseToSolver(Output.Pose);
 	// update target goal transforms
 	AssignGoalTargets();
-	// run stack of solvers, 
-	IKRigProcessor.Solve();
+	// run stack of solvers,
+	const FTransform WorldToComponent =  Output.AnimInstanceProxy->GetComponentTransform().Inverse();
+	IKRigProcessor->Solve(WorldToComponent);
 	// updates transforms with new pose
 	CopyOutputPoseToAnimGraph(Output.Pose);
 	
@@ -58,13 +60,13 @@ void FAnimNode_IKRig::CopyInputPoseToSolver(FCompactPose& InputPose)
 	// start Solve() from REFERENCE pose
 	if (bStartFromRefPose)
 	{
-		IKRigProcessor.SetInputPoseToRefPose();
+		IKRigProcessor->SetInputPoseToRefPose();
 		return;
 	}
 	
 	// start Solve() from INPUT pose
 	// copy local bone transforms into IKRigProcessor skeleton
-	FIKRigSkeleton& IKRigSkeleton = IKRigProcessor.GetSkeleton();
+	FIKRigSkeleton& IKRigSkeleton = IKRigProcessor->GetSkeleton();
 	for (FCompactPoseBoneIndex CPIndex : InputPose.ForEachBoneIndex())
 	{
 		int32* Index = CompactPoseToRigIndices.Find(CPIndex);
@@ -86,26 +88,26 @@ void FAnimNode_IKRig::AssignGoalTargets()
 	// this is used to live preview results from the IK Rig editor
 	if (bDriveWithSourceAsset)
 	{
-		IKRigProcessor.CopyAllInputsFromSourceAssetAtRuntime(RigDefinitionAsset);
+		IKRigProcessor->CopyAllInputsFromSourceAssetAtRuntime(RigDefinitionAsset);
 		return;
 	}
 	
 	// copy transforms from this anim node's goal pins from blueprint
 	for (const FIKRigGoal& Goal : Goals)
 	{
-		IKRigProcessor.SetIKGoal(Goal);
+		IKRigProcessor->SetIKGoal(Goal);
 	}
 
 	// override any goals that were manually set with goals from goal creator components (they take precedence)
 	for (const TPair<FName, FIKRigGoal>& GoalPair : GoalsFromGoalCreators)
 	{
-		IKRigProcessor.SetIKGoal(GoalPair.Value);
+		IKRigProcessor->SetIKGoal(GoalPair.Value);
 	}
 }
 
 void FAnimNode_IKRig::CopyOutputPoseToAnimGraph(FCompactPose& OutputPose)
 {
-	FIKRigSkeleton& IKRigSkeleton = IKRigProcessor.GetSkeleton();
+	FIKRigSkeleton& IKRigSkeleton = IKRigProcessor->GetSkeleton();
 	
 	// update local transforms of current IKRig pose
 	IKRigSkeleton.UpdateAllLocalTransformFromGlobal();
@@ -159,12 +161,17 @@ void FAnimNode_IKRig::Update_AnyThread(const FAnimationUpdateContext& Context)
 
 void FAnimNode_IKRig::PreUpdate(const UAnimInstance* InAnimInstance)
 {
-	if (IKRigProcessor.NeedsInitialized(RigDefinitionAsset))
+	if (!IsValid(IKRigProcessor))
+	{
+		IKRigProcessor = NewObject<UIKRigProcessor>(InAnimInstance->GetOwningComponent());	
+	}
+	
+	if (IKRigProcessor->NeedsInitialized(RigDefinitionAsset))
 	{
 		// get the retargeted local ref pose to initialize the IK with
 		const FReferenceSkeleton& RefSkeleton = InAnimInstance->CurrentSkeleton->GetReferenceSkeleton();
 		// initialize the IK Rig (will only try once on the current version of the rig asset)
-		IKRigProcessor.Initialize(RigDefinitionAsset, RefSkeleton, InAnimInstance->GetSkelMeshComponent());
+		IKRigProcessor->Initialize(RigDefinitionAsset, RefSkeleton);
 	}
 	
 	// cache list of goal creator components on the actor
@@ -192,49 +199,6 @@ void FAnimNode_IKRig::PreUpdate(const UAnimInstance* InAnimInstance)
 	{
 		GoalCreator->AddIKGoals_Implementation(GoalsFromGoalCreators);
 	}
-}
-
-bool FAnimNode_IKRig::RebuildGoalList()
-{
-	if (!RigDefinitionAsset)
-	{
-		return false;
-	}
-
-	// number of goals changed
-	const int32 NumGoalsInRig = RigDefinitionAsset->Goals.Num();
-	if (Goals.Num() != NumGoalsInRig)
-	{
-		Goals.SetNum(NumGoalsInRig);
-		for (int32 i=0; i<NumGoalsInRig; ++i)
-		{
-			Goals[i].Name = RigDefinitionAsset->Goals[i]->GoalName;
-		}
-		return true;
-	}
-
-	// potentially number of goals remains identical, but only names changed
-	bool bNameUpdated = false;
-	for (int32 i=0; i<NumGoalsInRig; ++i)
-	{
-		if (Goals[i].Name != RigDefinitionAsset->Goals[i]->GoalName)
-		{
-			Goals[i].Name = RigDefinitionAsset->Goals[i]->GoalName;
-			bNameUpdated = true;
-		}
-	}
-
-	return bNameUpdated;
-}
-
-FName FAnimNode_IKRig::GetGoalName(int32 Index) const
-{
-	if (RigDefinitionAsset && RigDefinitionAsset->Goals.IsValidIndex(Index))
-	{
-		return RigDefinitionAsset->Goals[Index]->GoalName;	
-	}
-
-	return NAME_None;
 }
 
 void FAnimNode_IKRig::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
