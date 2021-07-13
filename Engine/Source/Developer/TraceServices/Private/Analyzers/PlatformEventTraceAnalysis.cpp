@@ -39,6 +39,9 @@ bool FPlatformEventTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FO
 		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
 		uint32 CoreNumber = EventData.GetValue<uint8>("CoreNumber");
 		ContextSwitchProvider.Add(ThreadId, Start, End, CoreNumber);
+
+		Session.UpdateDurationSeconds(End);
+
 		break;
 	}
 
@@ -48,6 +51,9 @@ bool FPlatformEventTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FO
 		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
 		const TArrayReader<uint64>& Addresses = EventData.GetArray<uint64>("Addresses");
 		StackSampleProvider.Add(ThreadId, Time, Addresses.Num(), Addresses.GetData());
+
+		Session.UpdateDurationSeconds(Time);
+
 		break;
 	}
 
@@ -58,6 +64,7 @@ bool FPlatformEventTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FO
 
 void FPlatformEventTraceAnalyzer::OnThreadInfo(const FThreadInfo& ThreadInfo)
 {
+	FAnalysisSessionEditScope _(Session);
 	ContextSwitchProvider.AddThreadInfo(ThreadInfo.GetId(), ThreadInfo.GetSystemId());
 }
 
