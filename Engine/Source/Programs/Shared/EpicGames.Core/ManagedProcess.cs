@@ -75,14 +75,31 @@ namespace EpicGames.Core
 			public UIntPtr PeakProcessMemoryUsed;
 			public UIntPtr PeakJobMemoryUsed;
 		}
+		
+		[StructLayout(LayoutKind.Sequential)]
+		struct JOBOBJECT_BASIC_ACCOUNTING_INFORMATION
+		{
+			public UInt64 TotalUserTime;
+			public UInt64 TotalKernelTime;
+			public UInt64 ThisPeriodTotalUserTime;
+			public UInt64 ThisPeriodTotalKernelTime;
+			public UInt32 TotalPageFaultCount;
+			public UInt32 TotalProcesses;
+			public UInt32 ActiveProcesses;
+			public UInt32 TotalTerminatedProcesses;
+		}
 
 		[DllImport("kernel32.dll", SetLastError=true)]
 		static extern SafeFileHandle CreateJobObject(IntPtr SecurityAttributes, IntPtr Name);
 
+		const int JobObjectBasicAccountingInformation = 1;
 		const int JobObjectExtendedLimitInformation = 9;
 
         [DllImport("kernel32.dll", SetLastError=true)]
         static extern int SetInformationJobObject(SafeFileHandle hJob, int JobObjectInfoClass, IntPtr lpJobObjectInfo, int cbJobObjectInfoLength);
+		
+		[DllImport("kernel32.dll", SetLastError = true)]
+		static extern bool QueryInformationJobObject(SafeFileHandle hJob, int JobObjectInformationClass, ref JOBOBJECT_BASIC_ACCOUNTING_INFORMATION lpJobObjectInformation, int cbJobObjectInformationLength);
 
 		/// <summary>
 		/// Handle to the native job object that this process is added to. This handle is closed by the Dispose() method (and will automatically be closed by the OS on process exit),
@@ -128,6 +145,23 @@ namespace EpicGames.Core
 				{
 					throw new Win32Exception();
 				}
+			}
+		}
+
+		/// <summary>
+		/// Returns the total CPU time usage for this job.
+		/// </summary>
+		public TimeSpan TotalProcessorTime
+		{
+			get
+			{
+				JOBOBJECT_BASIC_ACCOUNTING_INFORMATION AccountingInformation = new JOBOBJECT_BASIC_ACCOUNTING_INFORMATION();
+				if (QueryInformationJobObject(JobHandle!, JobObjectBasicAccountingInformation, ref AccountingInformation, Marshal.SizeOf(typeof(JOBOBJECT_BASIC_ACCOUNTING_INFORMATION))) == false) 
+				{
+					throw new Win32Exception();
+				}
+
+				return new TimeSpan((long)AccountingInformation.TotalUserTime + (long)AccountingInformation.TotalKernelTime);
 			}
 		}
 
@@ -260,6 +294,9 @@ namespace EpicGames.Core
 		[DllImport("kernel32.dll", SetLastError=true)]
 		static extern UInt32 WaitForSingleObject(SafeHandleZeroOrMinusOneIsInvalid hHandle, UInt32 dwMilliseconds);
 
+		[DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+		public static extern bool GetProcessTimes(SafeHandleZeroOrMinusOneIsInvalid handle, out long creation, out long exit, out long kernel, out long user);
+
 		const int ERROR_ACCESS_DENIED = 5;
 
 		/// <summary>
@@ -337,6 +374,11 @@ namespace EpicGames.Core
 		/// inherit pipes meant for other processes, they won't be closed until both terminate.
 		/// </summary>
 		static object LockObject = new object();
+
+		/// <summary>
+		/// Used to perform CPU usage and resource accounting of all children process involved in a single compilation unit.
+		/// </summary>
+		ManagedProcessGroup? AccountingProcessGroup;
 
 		/// <summary>
 		/// Spawns a new managed process.
@@ -541,7 +583,7 @@ namespace EpicGames.Core
 					// Add it to our job object
 					if (Group != null && AssignProcessToJobObject(Group.JobHandle, ProcessInfo.hProcess) == 0)
 					{
-						// Support for nested job objects was only addeed in Windows 8; prior to that, assigning processes to job objects would fail. Figure out if we're already in a job, and ignore the error if we are.
+						// Support for nested job objects was only added in Windows 8; prior to that, assigning processes to job objects would fail. Figure out if we're already in a job, and ignore the error if we are.
 						int OriginalError = Marshal.GetLastWin32Error();
 
 						bool bProcessInJob;
@@ -550,6 +592,16 @@ namespace EpicGames.Core
 						if (!bProcessInJob)
 						{
 							throw new Win32ExceptionWithCode(OriginalError, "Unable to assign process to job object");
+						}
+					}
+
+					// Create a JobObject for each spawned process to do CPU usage accounting of spawned process and all its children
+					AccountingProcessGroup = new ManagedProcessGroup();
+					if (AccountingProcessGroup != null)
+					{
+						if (AssignProcessToJobObject(AccountingProcessGroup.JobHandle, ProcessInfo.hProcess) == 0) 
+						{
+							throw new Win32Exception();
 						}
 					}
 
@@ -749,6 +801,10 @@ namespace EpicGames.Core
 				StdOutRead.Dispose();
 				StdOutRead = null;
 			}
+			if (AccountingProcessGroup != null) 
+			{
+				AccountingProcessGroup.Dispose();
+			}
 			if(FrameworkProcess != null)
 			{
 				if(!FrameworkProcess.HasExited)
@@ -919,6 +975,40 @@ namespace EpicGames.Core
 		public async Task<string?> ReadLineAsync()
 		{
 			return await StdOutText!.ReadLineAsync();
+		}
+
+		public TimeSpan TotalProcessorTime
+		{
+			get
+			{
+				// Prefer the job accounting over the GetProcessTimes because we need to account for children process spawned by cl-filter too.
+				long AccountingProcessorTime = 0;
+				if (AccountingProcessGroup != null && AccountingProcessGroup.TotalProcessorTime.Ticks != 0) 
+				{
+					return AccountingProcessGroup.TotalProcessorTime;
+				}
+
+				// Normal process accounting is better than nothing if the processgroup one is not available
+				if (FrameworkProcess == null) 
+				{
+					long creation = 0;
+					long exit = 0;
+					long kernel = 0;
+					long user = 0;
+					if (GetProcessTimes(ProcessHandle!, out creation, out exit, out kernel, out user)) 
+					{
+						return new TimeSpan(Math.Max(user + kernel, AccountingProcessorTime));
+					}
+					else 
+					{
+						throw new Win32Exception();
+					}
+				}
+				else 
+				{
+					return FrameworkProcess.TotalProcessorTime;
+				}
+			}
 		}
 
 		/// <summary>

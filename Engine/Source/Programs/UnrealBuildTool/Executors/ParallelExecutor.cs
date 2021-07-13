@@ -29,6 +29,9 @@ namespace UnrealBuildTool
 			public List<string> LogLines = new List<string>();
 			public int ExitCode = -1;
 
+			public TimeSpan ExecutionTime;
+			public TimeSpan ProcessorTime;
+
 			public BuildAction(LinkedAction Inner)
 			{
 				this.Inner = Inner;
@@ -62,6 +65,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		[XmlConfigFile]
 		bool bStopCompilationAfterErrors = false;
+
+		/// <summary>
+		/// Whether to show compilation times along with worst offenders or not.
+		/// </summary>
+		[XmlConfigFile]
+		bool bShowCompilationTimes = false;
 
 		/// <summary>
 		/// How many processes that will be executed in parallel
@@ -167,6 +176,8 @@ namespace UnrealBuildTool
 				}
 			}
 
+			List<BuildAction> AllCompletedActions = new List<BuildAction>();
+
 			// Execute the actions
 			using (LogIndentScope Indent = new LogIndentScope("  "))
 			{
@@ -175,6 +186,7 @@ namespace UnrealBuildTool
 				Dictionary<BuildAction, Thread> ExecutingActions = new Dictionary<BuildAction, Thread>();
 				List<BuildAction> CompletedActions = new List<BuildAction>();
 
+				TimeSpan TotalProcessingTime;
 				using (ManagedProcessGroup ProcessGroup = new ManagedProcessGroup())
 				{
 					using (AutoResetEvent CompletedEvent = new AutoResetEvent(false))
@@ -236,6 +248,8 @@ namespace UnrealBuildTool
 											Log.TraceInformation(Line);
 										}
 
+										AllCompletedActions.Add(CompletedAction);
+
 										// Check the exit code
 										if (CompletedAction.ExitCode == 0)
 										{
@@ -276,6 +290,27 @@ namespace UnrealBuildTool
 							}
 						}
 					}
+
+					TotalProcessingTime = ProcessGroup.TotalProcessorTime;
+				}
+
+				if (bShowCompilationTimes)
+				{
+					Log.TraceInformation("");
+					Log.TraceInformation("Total CPU Time: {0} s", TotalProcessingTime.TotalSeconds);
+					Log.TraceInformation("");
+
+					if (AllCompletedActions.Count > 0)
+					{
+						Log.TraceInformation("Compilation Time Top {0}", Math.Min(20, AllCompletedActions.Count));
+						Log.TraceInformation("");
+						foreach (BuildAction Action in AllCompletedActions.OrderByDescending(x => x.ExecutionTime).Take(20))
+						{
+							string Description = $"{(Action.Inner.CommandDescription != null ? Action.Inner.CommandDescription : Action.Inner.CommandPath.GetFileName())} {Action.Inner.StatusDescription}".Trim();
+							Log.TraceInformation("{0} [ Wall Time {1:0.00} s / CPU Time {2:0.00} s ]", Description, Action.ExecutionTime.TotalSeconds, Action.ProcessorTime.TotalSeconds);
+						}
+						Log.TraceInformation("");
+					}
 				}
 
 				return bResult;
@@ -293,10 +328,13 @@ namespace UnrealBuildTool
 		{
 			try
 			{
+				DateTime StartTime = DateTime.Now;
 				using (ManagedProcess Process = new ManagedProcess(ProcessGroup, Action.Inner.CommandPath.FullName, Action.Inner.CommandArguments, Action.Inner.WorkingDirectory.FullName, null, null, ProcessPriorityClass.BelowNormal))
 				{
 					Action.LogLines.AddRange(Process.ReadAllLines());
 					Action.ExitCode = Process.ExitCode;
+					Action.ExecutionTime = DateTime.Now - StartTime;
+					Action.ProcessorTime = Process.TotalProcessorTime;
 				}
 			}
 			catch (Exception Ex)
