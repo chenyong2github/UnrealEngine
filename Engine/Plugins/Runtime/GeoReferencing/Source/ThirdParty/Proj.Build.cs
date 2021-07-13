@@ -17,7 +17,6 @@ public class PROJ : ModuleRules
 
 			string LibPath = Path.Combine(ModuleDirectory, VcPkgInstalled, "overlay-x64-windows", "lib");
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "proj.lib"));
-			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "sqlite3.lib"));
 		}
         else if (Target.Platform == UnrealTargetPlatform.Mac)
         {
@@ -25,7 +24,6 @@ public class PROJ : ModuleRules
 
             string LibPath = Path.Combine(ModuleDirectory, VcPkgInstalled, "overlay-x64-osx", "lib");
             PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libproj.a"));
-            PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libsqlite3.a"));
         }
         else if (Target.Platform == UnrealTargetPlatform.IOS)
         {
@@ -33,7 +31,6 @@ public class PROJ : ModuleRules
 
             string LibPath = Path.Combine(ModuleDirectory, VcPkgInstalled, "overlay-arm64-ios", "lib");
             PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libproj.a"));
-            PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libsqlite3.a"));
         }
 		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
@@ -43,7 +40,6 @@ public class PROJ : ModuleRules
 
 				string LibPath = Path.Combine(ModuleDirectory, VcPkgInstalled, "overlay-x64-uwp", "lib");
 				PublicAdditionalLibraries.Add(Path.Combine(LibPath, "proj.lib"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibPath, "sqlite3.lib"));
 			}
 			else if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64) // device target, bBuildForDevice
 			{
@@ -51,7 +47,6 @@ public class PROJ : ModuleRules
 
 				string LibPath = Path.Combine(ModuleDirectory, VcPkgInstalled, "overlay-arm64-uwp", "lib");
 				PublicAdditionalLibraries.Add(Path.Combine(LibPath, "proj.lib"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibPath, "sqlite3.lib"));
 			}
 			else
 			{
@@ -64,7 +59,6 @@ public class PROJ : ModuleRules
 
 			string LibPath = Path.Combine(ModuleDirectory, VcPkgInstalled, "overlay-x64-linux", "lib");
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libproj.a"));
-			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libsqlite3.a"));
 		}
 		else if(Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{
@@ -81,7 +75,6 @@ public class PROJ : ModuleRules
 			{
 				string LibPath = Path.Combine(ModuleDirectory, VcPkgInstalled, Triplet, "lib");
 				PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libproj.a"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libsqlite3.a"));
 			}
 		}
 	}

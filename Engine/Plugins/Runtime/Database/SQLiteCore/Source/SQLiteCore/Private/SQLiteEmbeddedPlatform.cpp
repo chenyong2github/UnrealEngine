@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopeLock.h"
 #include "Math/RandomStream.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/PlatformFileManager.h"
@@ -253,7 +254,42 @@ struct FSQLiteFile
 	FString Filename;
 	int LockMode;
 	bool bDeleteOnClose;
+	bool bIsReadOnly;
+	
+	static FCriticalSection CurrentlyOpenAsReadOnlySection;
+	static TSet<FString> CurrentlyOpenAsReadOnly;
+	static bool AllowOpenAsReadOnly(const TCHAR* InFilename);
+	static void CloseAsReadOnly(const TCHAR* InFilename);
 };
+
+FCriticalSection FSQLiteFile::CurrentlyOpenAsReadOnlySection;
+TSet<FString> FSQLiteFile::CurrentlyOpenAsReadOnly;
+
+bool FSQLiteFile::AllowOpenAsReadOnly(const TCHAR* InFilename)
+{
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+	FString CanonFilename = PlatformFile.GetFilenameOnDisk(InFilename);
+
+	// for consistency's sake we try our best to enforce only opening each file _once_
+	//  if we open for write we obtain a lock to the file, but not for read-only
+	//  instead implement a tracking list of files that have been opened
+	bool bIsAlreadyInSet = false;
+	FScopeLock Lock(&CurrentlyOpenAsReadOnlySection);
+	bool bAdded = CurrentlyOpenAsReadOnly.Add(CanonFilename, &bIsAlreadyInSet).IsValidId();
+	check(bAdded);
+
+	// only succeed if we were the call to add it to the set
+	return !bIsAlreadyInSet;
+}
+
+void FSQLiteFile::CloseAsReadOnly(const TCHAR* InFilename)
+{
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+	FString CanonFilename = PlatformFile.GetFilenameOnDisk(InFilename);
+	FScopeLock Lock(&CurrentlyOpenAsReadOnlySection);
+	int32 NumRemoved = CurrentlyOpenAsReadOnly.Remove(CanonFilename);
+	check(NumRemoved > 0);
+}
 
 /**
  * File functions used by SQLite (see sqlite3_io_methods and sqlite3_vfs)
@@ -349,9 +385,31 @@ private:
 			return SQLITE_IOERR;
 		}
 
-		// The Unreal HAL doesn't support granular file locking so we always obtain a write handle to any file regardless of what SQLite asked for
-		// This prevents concurrent access to the files and makes the locking operations a no-op (though we still track the requested lock mode)
-		File->FileHandle = PlatformFile.OpenWrite(*File->Filename, /*bAppend*/true, /*bAllowRead*/true);
+		// Stat the file to fetch its write-ability.
+		File->bIsReadOnly = PlatformFile.IsReadOnly(*File->Filename);
+		if (!File->bIsReadOnly)
+		{
+			// The Unreal HAL doesn't support granular file locking so we always obtain a write handle to any file regardless of what SQLite asked for
+			// This prevents concurrent access to the files and makes the locking operations a no-op (though we still track the requested lock mode)
+			File->FileHandle = PlatformFile.OpenWrite(*File->Filename, /*bAppend*/true, /*bAllowRead*/true);
+		}
+		else if (InFlags & SQLITE_OPEN_READONLY)
+		{
+			if (FSQLiteFile::AllowOpenAsReadOnly(*File->Filename))
+			{
+				// If we are unable to open for write, the file could be stored in a read-only way (Pak)
+				// If we only require read access, attempt to open the in read-only mode
+				// This assumes there won't be any contention (it's impossible to open for write)
+				File->FileHandle = PlatformFile.OpenRead(*File->Filename);
+
+				// Our open operation failed for a reason, make sure to keep bookkeeping up to date
+				if (!File->FileHandle)
+				{
+					FSQLiteFile::CloseAsReadOnly(*File->Filename);
+				}
+			}
+		}
+
 		if (File->FileHandle)
 		{
 			File->FileHandle->Seek(0);
@@ -368,7 +426,7 @@ private:
 		// Set-up the output flags
 		if (OutFlagsPtr)
 		{
-			if (PlatformFile.IsReadOnly(*File->Filename))
+			if (File->bIsReadOnly)
 			{
 				*OutFlagsPtr = SQLITE_OPEN_READONLY;
 			}
@@ -382,6 +440,12 @@ private:
 	{
 		FSQLiteFile* File = (FSQLiteFile*)InFile;
 		check(File && File->FileHandle);
+
+		// Make sure to bookeep our special read-only file list
+		if (File->bIsReadOnly)
+		{
+			FSQLiteFile::CloseAsReadOnly(*File->Filename);
+		}
 
 		// Deleting the handle instance closes the file
 		delete File->FileHandle;

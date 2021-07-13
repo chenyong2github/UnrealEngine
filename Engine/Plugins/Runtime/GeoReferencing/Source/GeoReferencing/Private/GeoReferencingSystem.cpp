@@ -9,15 +9,19 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
-#include "proj.h"
 
-#if WITH_EDITOR
-#include "LevelEditor.h"
-#endif
+#include "HAL/PlatformFileManager.h"
+#include "IPlatformFilePak.h"
+
+#include "UFSProjSupport.h"
+
+THIRD_PARTY_INCLUDES_START
+#include "sqlite3.h"
+#include "proj.h"
+THIRD_PARTY_INCLUDES_END
 
 #define ECEF_EPSG_FSTRING FString(TEXT("EPSG:4978"))
 
-DECLARE_LOG_CATEGORY_EXTERN(LogGeoReferencing, Log, All);
 DEFINE_LOG_CATEGORY(LogGeoReferencing);
 
 AGeoReferencingSystem* AGeoReferencingSystem::GetGeoReferencingSystem(UObject* WorldContextObject)
@@ -714,27 +718,59 @@ void AGeoReferencingSystem::ApplySettings()
 	return;
 }
 
+static void ProjLog(void* app_data, int level, const char* message)
+{
+	FUTF8ToTCHAR Message (message);
+	switch (level)
+	{
+	case PJ_LOG_ERROR:
+		UE_LOG(LogGeoReferencing, Error, TEXT("%s"), Message.Get());
+		break;
+	case PJ_LOG_DEBUG:
+		UE_LOG(LogGeoReferencing, Verbose, TEXT("%s"), Message.Get());
+		break;
+	case PJ_LOG_TRACE:
+		UE_LOG(LogGeoReferencing, VeryVerbose, TEXT("%s"), Message.Get());
+		break;
+	}
+}
+
 void AGeoReferencingSystem::FGeoReferencingSystemInternals::InitPROJLibrary()
 {
 	// Initialize proj context
-
-	// Get the base directory of this plugin
-	FString BaseDir;
-	BaseDir = IPluginManager::Get().FindPlugin("GeoReferencing")->GetBaseDir();
-
-	// Add on the relative location of the third party dll and load it
-	FString ProjDataPathPath;
-	ProjDataPathPath = FPaths::Combine(*BaseDir, TEXT("Resources/PROJ"));
-
-	UE_LOG(LogGeoReferencing, Display, TEXT("Initializing Proj context using Data in '%s'"), *ProjDataPathPath);
 	ProjContext = proj_context_create();
 	if (ProjContext == nullptr)
 	{
-		UE_LOG(LogGeoReferencing, Error, TEXT("proj_context_create() failed - Check DLL dependencies"));
+		UE_LOG(LogGeoReferencing, Error, TEXT("proj_context_create() failed"));
+		return;
 	}
-	FTCHARToUTF8 Convert(*ProjDataPathPath);
-	const ANSICHAR* Temp = Convert.Get();
-	proj_context_set_search_paths(ProjContext, 1, &Temp);
+
+	// Connect PROJ logging
+	proj_log_func(ProjContext, nullptr, ProjLog);
+	proj_log_level(ProjContext, PJ_LOG_TRACE);
+
+	// Calculate and register the search path to the PROJ data
+	FString PluginBaseDir = IPluginManager::Get().FindPlugin("GeoReferencing")->GetBaseDir();
+	FString ProjDataPath = FPaths::Combine(*PluginBaseDir, TEXT("Resources/PROJ"));
+	FTCHARToUTF8 Utf8ProjDataPath(*ProjDataPath);
+	const char* ProjSearchPaths[] =
+	{
+		Utf8ProjDataPath.Get(),
+	};
+	proj_context_set_search_paths(ProjContext, sizeof(ProjSearchPaths)/sizeof(ProjSearchPaths[0]), ProjSearchPaths);
+
+	// Non-editor builds use UFS extensions to read PROJ data from UFS/Pak
+	if (!GIsEditor)
+	{
+		// Connect the UFS support for SQLite to PROJ
+		proj_context_set_sqlite3_vfs_name(ProjContext, "unreal-fs");
+
+		// Setup UFS for PROJ
+		if (!proj_context_set_fileapi(ProjContext, &FUFSProj::FunctionTable, nullptr))
+		{
+			UE_LOG(LogGeoReferencing, Error, TEXT("proj_context_set_fileapi() failed"));
+		}
+	}
 }
 
 void AGeoReferencingSystem::FGeoReferencingSystemInternals::DeInitPROJLibrary()
