@@ -21,7 +21,8 @@ struct FActiveGizmo
 {
 	GENERATED_BODY()
 
-	UInteractiveGizmo* Gizmo;
+	UPROPERTY()
+	TObjectPtr<UInteractiveGizmo> Gizmo = nullptr;
 	FString BuilderIdentifier;
 	FString InstanceIdentifier;
 	void* Owner = nullptr;
