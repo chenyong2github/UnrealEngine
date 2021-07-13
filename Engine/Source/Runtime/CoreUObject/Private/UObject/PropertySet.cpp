@@ -293,7 +293,7 @@ void FSetProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 		int32 NumElementsToRemove = 0;
 		FStructuredArchive::FArray ElementsToRemoveArray = Record.EnterArray(SA_FIELD_NAME(TEXT("ElementsToRemove")), NumElementsToRemove);
 
-		if (SetHelper.Num() == 0) // Faster loading path when loading elements into an empty set
+		if (!Defaults || SetHelper.Num() == 0) // Faster loading path when loading elements into an empty set
 		{
 			if (NumElementsToRemove)
 			{

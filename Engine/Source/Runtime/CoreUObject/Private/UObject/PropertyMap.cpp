@@ -336,7 +336,7 @@ void FMapProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 		int32 NumKeysToRemove = 0;
 		FStructuredArchive::FArray KeysToRemoveArray = Record.EnterArray(SA_FIELD_NAME(TEXT("KeysToRemove")), NumKeysToRemove);
 
-		if (MapHelper.Num() == 0) // Faster loading path when loading into an empty map
+		if (!Defaults || MapHelper.Num() == 0) // Faster loading path when loading into an empty map
 		{
 			if (NumKeysToRemove)
 			{
