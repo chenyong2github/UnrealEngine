@@ -44,9 +44,13 @@ void UWidgetBlueprintThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, 
 	UClass* ClassToGenerate = WidgetBlueprintToRender->GeneratedClass;
 	if (bIsBlueprintValid && ClassToGenerate->IsChildOf(UWidget::StaticClass()))
 	{
-		UWidget* WidgetInstance = NewObject<UWidget>(GetTransientPackage(), ClassToGenerate);
-		WidgetInstance->SetDesignerFlags(EWidgetDesignFlags::Designing | EWidgetDesignFlags::ExecutePreConstruct);
-		WindowContent = WidgetInstance->TakeWidget();
+		if (UUserWidget* WidgetInstance = NewObject<UUserWidget>(GetTransientPackage(), ClassToGenerate))
+		{
+			WidgetInstance->Initialize();
+			WidgetInstance->SetDesignerFlags(EWidgetDesignFlags::Designing | EWidgetDesignFlags::ExecutePreConstruct);
+
+			WindowContent = WidgetInstance->TakeWidget();
+		}
 	}
 
 	if (WindowContent == nullptr)
