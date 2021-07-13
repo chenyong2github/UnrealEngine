@@ -155,6 +155,19 @@ namespace EFixedFoveationLevels
 	};
 }
 
+UENUM()
+namespace EMobileAntiAliasingMethod
+{
+	enum Type
+	{
+		None = AAM_None UMETA(DisplayName = "None"),
+		FXAA = AAM_FXAA UMETA(DisplayName = "Fast Approximate Anti-Aliasing (FXAA)"),
+		TemporalAA = AAM_TemporalAA UMETA(DisplayName = "Temporal Anti-Aliasing (TAA)"),
+		/** Only supported with forward shading.  MSAA sample count is controlled by r.MSAACount. */
+		MSAA = AAM_MSAA UMETA(DisplayName = "Multisample Anti-Aliasing (MSAA)"),
+	};
+}
+
 namespace EDefaultBackBufferPixelFormat
 {
 	ENGINE_API EPixelFormat Convert2PixelFormat(EDefaultBackBufferPixelFormat::Type InDefaultBackBufferPixelFormat);
@@ -208,7 +221,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (
 		ConsoleVariable = "r.Mobile.AntiAliasing", DisplayName = "Mobile Anti-Aliasing Method",
 		ToolTip = "The mobile default anti-aliasing method."))
-	TEnumAsByte<EAntiAliasingMethod> MobileAntiAliasing;
+	TEnumAsByte<EMobileAntiAliasingMethod::Type> MobileAntiAliasing;
 
 	UPROPERTY(config, EditAnywhere, Category = Mobile, meta=(
 		ConsoleVariable="r.Mobile.AllowDitheredLODTransition", DisplayName="Allow Dithered LOD Transition",
