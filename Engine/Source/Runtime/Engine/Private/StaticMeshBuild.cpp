@@ -444,6 +444,7 @@ bool UStaticMesh::ExecuteBuildInternal(bool bInSilent, TArray<FText>* OutErrors)
 
 	// Free existing render data and recache.
 	CacheDerivedData();
+	PrepareDerivedDataForActiveTargetPlatforms();
 
 	// InitResources will send commands to other threads that will
 	// use our RenderData, we must mark it as ready to be used since

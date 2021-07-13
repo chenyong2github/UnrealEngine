@@ -1464,6 +1464,10 @@ public:
 	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	ENGINE_API virtual void PostEditUndo() override;
 	ENGINE_API virtual void GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTagMetadata>& OutMetadata) const override;
+	
+	ENGINE_API virtual void WillNeverCacheCookedPlatformDataAgain() override;
+	ENGINE_API virtual void ClearCachedCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
+	ENGINE_API virtual void ClearAllCachedCookedPlatformData() override;
 	ENGINE_API virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
 	ENGINE_API virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
 	ENGINE_API void SetLODGroup(FName NewGroup, bool bRebuildImmediately = true);
@@ -1878,6 +1882,11 @@ public:
 	 * Caches derived renderable data.
 	 */
 	ENGINE_API void CacheDerivedData();
+
+	/**
+	 * Caches derived renderable for cooked platforms currently active.
+	 */
+	ENGINE_API void PrepareDerivedDataForActiveTargetPlatforms();
 
 private:
 	// Filled at CommitDescription time and reused during build
