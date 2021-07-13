@@ -145,7 +145,7 @@ public:
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 
 	/** Extract the source component */
-	void ExtractSourceComponent(FNiagaraSystemInstance* SystemInstance);
+	void ExtractSourceComponent(FNiagaraSystemInstance* SystemInstance, FTransform& LocalTransform);
 
 	/** Get the number of boxes*/
 	void GetNumBoxes(FVectorVMContext& Context);

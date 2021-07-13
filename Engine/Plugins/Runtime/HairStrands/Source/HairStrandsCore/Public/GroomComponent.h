@@ -160,7 +160,7 @@ public:
 	void SetEnableSimulation(bool bInEnableSimulation);
 
 	void SetStableRasterization(bool bEnable);
-	void SetGroomAsset(UGroomAsset* Asset, UGroomBindingAsset* InBinding);
+	void SetGroomAsset(UGroomAsset* Asset, UGroomBindingAsset* InBinding, const bool bUpdateSimulation = true);
 	void SetHairRootScale(float Scale);
 	void SetHairWidth(float HairWidth);
 	void SetScatterSceneLighting(bool Enable);
@@ -221,6 +221,9 @@ public:
 	void ResetAnimationTime();
 	float GetAnimationTime() const;
 	bool IsLooping() const { return bLooping; }
+
+	/** Build the local simulation transform that could be used in strands simulation */
+	void BuildSimulationTransform(FTransform& SimulationTransform) const;
 
 private:
 	void UpdateGroomCache(float Time);

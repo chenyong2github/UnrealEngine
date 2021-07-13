@@ -342,17 +342,43 @@ struct HAIRSTRANDSCORE_API FHairSimulationConstraints
 };
 
 USTRUCT(BlueprintType)
-struct HAIRSTRANDSCORE_API FHairSimulationSettings
+struct HAIRSTRANDSCORE_API FHairSimulationSetup
 {
 	GENERATED_USTRUCT_BODY()
 
 	/** Reset the simulation in time*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "GroupsSimulation", meta = (ToolTip = "Boolean to control if we want to reset trhe simulation at some point in time"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "SimulationSetup", meta = (ToolTip = "Boolean to control if we want to reset trhe simulation at some point in time"))
 	bool bResetSimulation = false;
 
+	/** Boolean to make the simulation strands visible */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "SimulationSetup", meta = (ToolTip = "Boolean to make the simulation strands visible"))
+	bool bDebugSimulation = false;
+
+	/** Strands simulation is done in local space */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "SimulationSetup", meta = (ToolTip = "Strands simulation is done in local space"))
+	bool bLocalSimulation = false;
+
+	/** Bone used for the simulation local space */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "SimulationSetup", meta = (ToolTip = "Bone used for the simulation local space", EditCondition = "bLocalSimulation"))
+	FString LocalBone;
+
+	/** Teleport distance threshold to reset the simulation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "SimulationSetup", meta = (ToolTip = "Teleport distance threshold to reset the simulation"))
+	float TeleportDistance = 50.0;
+};
+
+USTRUCT(BlueprintType)
+struct HAIRSTRANDSCORE_API FHairSimulationSettings
+{
+	GENERATED_USTRUCT_BODY()
+
 	/** Override the asset simulation settings */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "GroupsSimulation", meta = (ToolTip = "Boolean to control if we are going to override the groom asset physics settings"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "GroupsPhysics", meta = (ToolTip = "Boolean to control if we are going to override the groom asset physics settings"))
 	bool bOverrideSettings = false;
+
+	/** Solver settings */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "GroupsPhysics", meta = (ToolTip = "Solver Settings for the hair physics"))
+	FHairSimulationSetup SimulationSetup;
 
 	/** Solver settings */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "GroupsPhysics", meta = (ToolTip = "Solver Settings for the hair physics", EditCondition = "bOverrideSettings"))

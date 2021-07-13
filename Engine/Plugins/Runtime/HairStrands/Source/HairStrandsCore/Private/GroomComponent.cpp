@@ -1357,7 +1357,7 @@ void UGroomComponent::UpdateHairSimulation()
 			if (!NiagaraComponent)
 			{
 				NiagaraComponent = NewObject<UNiagaraComponent>(this, NAME_None, RF_Transient);
-				NiagaraComponent->SetVisibleFlag(false);
+				NiagaraComponent->SetVisibleFlag(SimulationSettings.SimulationSetup.bDebugSimulation);
 			}
 			if (GetWorld() && GetWorld()->bIsWorldInitialized)
 			{
@@ -1393,7 +1393,7 @@ void UGroomComponent::SetGroomAsset(UGroomAsset* Asset)
 	SetGroomAsset(Asset, BindingAsset);
 }
 
-void UGroomComponent::SetGroomAsset(UGroomAsset* Asset, UGroomBindingAsset* InBinding)
+void UGroomComponent::SetGroomAsset(UGroomAsset* Asset, UGroomBindingAsset* InBinding, const bool bUpdateSimulation)
 {
 	ReleaseResources();
 	if (Asset && Asset->IsValid())
@@ -1439,7 +1439,7 @@ void UGroomComponent::SetGroomAsset(UGroomAsset* Asset, UGroomBindingAsset* InBi
 	}
 
 	UpdateHairGroupsDesc();
-	UpdateHairSimulation();
+	if(bUpdateSimulation) UpdateHairSimulation();
 	if (!GroomAsset || !GroomAsset->IsValid())
 	{
 		return;
@@ -2713,7 +2713,7 @@ void UGroomComponent::PostLoad()
 	}
 
 	// This call will handle the GroomAsset properly if it's still being loaded
-	SetGroomAsset(GroomAsset, BindingAsset);
+	SetGroomAsset(GroomAsset, BindingAsset, false);
 
 #if WITH_EDITOR
 	if (GroomAsset && !bIsGroomAssetCallbackRegistered)
@@ -2931,6 +2931,23 @@ void UGroomComponent::TickAtThisTime(const float Time, bool bInIsRunning, bool b
 	}
 }
 
+void UGroomComponent::BuildSimulationTransform(FTransform& SimulationTransform) const
+{
+	SimulationTransform = FTransform::Identity;
+	if (SimulationSettings.SimulationSetup.bLocalSimulation)
+	{
+		const USkeletalMeshComponent* SkeletelMeshComponent = Cast<const USkeletalMeshComponent>(RegisteredMeshComponent);
+		if (SkeletelMeshComponent && SkeletelMeshComponent->SkeletalMesh && !SimulationSettings.SimulationSetup.LocalBone.IsEmpty())
+		{
+			const FReferenceSkeleton& RefSkeleton = SkeletelMeshComponent->SkeletalMesh->GetRefSkeleton();
+			const FName BoneName(SimulationSettings.SimulationSetup.LocalBone);
+			const int32 BoneIndex = RefSkeleton.FindBoneIndex(BoneName);
+
+			SimulationTransform = SkeletelMeshComponent->GetBoneTransform(BoneIndex);
+		}
+	}
+}
+
 void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);	
@@ -2965,23 +2982,26 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 	bResetSimulation = bInitSimulation;
 	if (!bInitSimulation)
 	{
-		if (USkeletalMeshComponent* ParentComp = Cast<USkeletalMeshComponent>(GetAttachParent()))
+		if (!SimulationSettings.SimulationSetup.bLocalSimulation)
 		{
-			if (ParentComp->GetNumBones() > 0)
+			if (USkeletalMeshComponent* ParentComp = Cast<USkeletalMeshComponent>(GetAttachParent()))
 			{
-				const int32 BoneIndex = FMath::Min(1, ParentComp->GetNumBones() - 1);
-				const FMatrix NextBoneMatrix = ParentComp->GetBoneMatrix(BoneIndex);
-
-				const float BoneDistance = FVector::DistSquared(PrevBoneMatrix.GetOrigin(), NextBoneMatrix.GetOrigin());
-				if (ParentComp->GetTeleportDistanceThreshold() > 0.0 && BoneDistance >
-					ParentComp->GetTeleportDistanceThreshold() * ParentComp->GetTeleportDistanceThreshold())
+				if (ParentComp->GetNumBones() > 0)
 				{
-					bResetSimulation = true;
+					const int32 BoneIndex = FMath::Min(1, ParentComp->GetNumBones() - 1);
+					const FMatrix NextBoneMatrix = ParentComp->GetBoneMatrix(BoneIndex);
+
+					const float BoneDistance = FVector::DistSquared(PrevBoneMatrix.GetOrigin(), NextBoneMatrix.GetOrigin());
+					if (SimulationSettings.SimulationSetup.TeleportDistance > 0.0 && BoneDistance >
+						SimulationSettings.SimulationSetup.TeleportDistance * SimulationSettings.SimulationSetup.TeleportDistance)
+					{
+						bResetSimulation = true;
+					}
+					PrevBoneMatrix = NextBoneMatrix;
 				}
-				PrevBoneMatrix = NextBoneMatrix;
 			}
 		}
-		bResetSimulation |= SimulationSettings.bResetSimulation;
+		bResetSimulation |= SimulationSettings.SimulationSetup.bResetSimulation;
 	}
 	bInitSimulation = false;
 
