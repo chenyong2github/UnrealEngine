@@ -117,6 +117,18 @@ class UK2Node_FunctionEntry : public UK2Node_FunctionTerminator
 	{
 		ExtraFlags &= ~InFlags;
 	}
+	
+	/** Used to safely check whether the passed in flag is set. */
+	BLUEPRINTGRAPH_API bool HasAnyExtraFlags(int32 FlagsToCheck) const
+	{
+		return (ExtraFlags & FlagsToCheck) != 0 || FlagsToCheck == ~0;
+	}
+
+	/** Used to safely check whether all of the passed in flags are set. */
+	BLUEPRINTGRAPH_API bool HasAllExtraFlags(int32 FlagsToCheck) const
+	{
+		return ((ExtraFlags & FlagsToCheck) == FlagsToCheck);
+	}
 
 protected:
 	/** Copies data from any local variables matching properties in VariableStruct into the VariableStructData */

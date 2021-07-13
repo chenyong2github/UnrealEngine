@@ -5829,6 +5829,13 @@ void UFunction::PostLoad()
 	{
 		OwningClass->ClassFlags &= ~CLASS_ReplicationDataIsSetUp;
 	}
+	
+	// fix deprecated state. 
+	if (HasAllFunctionFlags(FUNC_Const | FUNC_Static))
+	{
+		// static functions can't be marked const
+		FunctionFlags &= ~FUNC_Const;
+	}
 }
 
 FProperty* UFunction::GetReturnProperty() const
