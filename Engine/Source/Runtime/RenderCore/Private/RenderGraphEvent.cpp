@@ -270,8 +270,6 @@ FRDGGPUStatScopeOpArray FRDGGPUStatScopeStack::CompilePassEpilogue()
 	return {};
 }
 
-#endif
-
 FRDGGPUScopeOpArrays FRDGGPUScopeStacksByPipeline::CompilePassPrologue(const FRDGPass* Pass, FRHIGPUMask GPUMask)
 {
 	return GetScopeStacks(Pass->GetPipeline()).CompilePassPrologue(Pass, GPUMask);
@@ -281,6 +279,8 @@ FRDGGPUScopeOpArrays FRDGGPUScopeStacksByPipeline::CompilePassEpilogue(const FRD
 {
 	return GetScopeStacks(Pass->GetPipeline()).CompilePassEpilogue();
 }
+
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 // CPU Scopes
