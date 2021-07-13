@@ -477,6 +477,7 @@ void NiagaraEmitterInstanceBatcher::ProcessPendingTicksFlush(FRHICommandListImme
 
 			// Execute all ticks that we can support without invalid simulations
 			PreInitViews(RHICmdList, true);
+			GPUInstanceCounterManager.UpdateDrawIndirectBuffers(*this, RHICmdList, FeatureLevel);
 			PostInitViews(RHICmdList, View.ViewUniformBuffer, true);
 			PostRenderOpaque(RHICmdList, View.ViewUniformBuffer, &FSceneTextureUniformParameters::StaticStructMetadata, CreateSceneTextureUniformBuffer(RHICmdList, FeatureLevel, SceneUniformBufSetupMode), true);
 			break;
