@@ -155,13 +155,20 @@ namespace EpicGames.Core
 		{
 			get
 			{
-				JOBOBJECT_BASIC_ACCOUNTING_INFORMATION AccountingInformation = new JOBOBJECT_BASIC_ACCOUNTING_INFORMATION();
-				if (QueryInformationJobObject(JobHandle!, JobObjectBasicAccountingInformation, ref AccountingInformation, Marshal.SizeOf(typeof(JOBOBJECT_BASIC_ACCOUNTING_INFORMATION))) == false) 
+				if (SupportsJobObjects)
 				{
-					throw new Win32Exception();
-				}
+					JOBOBJECT_BASIC_ACCOUNTING_INFORMATION AccountingInformation = new JOBOBJECT_BASIC_ACCOUNTING_INFORMATION();
+					if (QueryInformationJobObject(JobHandle!, JobObjectBasicAccountingInformation, ref AccountingInformation, Marshal.SizeOf(typeof(JOBOBJECT_BASIC_ACCOUNTING_INFORMATION))) == false)
+					{
+						throw new Win32Exception();
+					}
 
-				return new TimeSpan((long)AccountingInformation.TotalUserTime + (long)AccountingInformation.TotalKernelTime);
+					return new TimeSpan((long)AccountingInformation.TotalUserTime + (long)AccountingInformation.TotalKernelTime);
+				}
+				else
+				{
+					return new TimeSpan();
+				}
 			}
 		}
 
@@ -981,32 +988,13 @@ namespace EpicGames.Core
 		{
 			get
 			{
-				// Prefer the job accounting over the GetProcessTimes because we need to account for children process spawned by cl-filter too.
-				long AccountingProcessorTime = 0;
-				if (AccountingProcessGroup != null && AccountingProcessGroup.TotalProcessorTime.Ticks != 0) 
+				if (AccountingProcessGroup != null)
 				{
 					return AccountingProcessGroup.TotalProcessorTime;
 				}
-
-				// Normal process accounting is better than nothing if the processgroup one is not available
-				if (FrameworkProcess == null) 
+				else
 				{
-					long creation = 0;
-					long exit = 0;
-					long kernel = 0;
-					long user = 0;
-					if (GetProcessTimes(ProcessHandle!, out creation, out exit, out kernel, out user)) 
-					{
-						return new TimeSpan(Math.Max(user + kernel, AccountingProcessorTime));
-					}
-					else 
-					{
-						throw new Win32Exception();
-					}
-				}
-				else 
-				{
-					return FrameworkProcess.TotalProcessorTime;
+					return new TimeSpan();
 				}
 			}
 		}

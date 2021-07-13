@@ -297,8 +297,11 @@ namespace UnrealBuildTool
 				if (bShowCompilationTimes)
 				{
 					Log.TraceInformation("");
-					Log.TraceInformation("Total CPU Time: {0} s", TotalProcessingTime.TotalSeconds);
-					Log.TraceInformation("");
+					if (TotalProcessingTime.Ticks > 0)
+					{
+						Log.TraceInformation("Total CPU Time: {0} s", TotalProcessingTime.TotalSeconds);
+						Log.TraceInformation("");
+					}
 
 					if (AllCompletedActions.Count > 0)
 					{
@@ -307,7 +310,14 @@ namespace UnrealBuildTool
 						foreach (BuildAction Action in AllCompletedActions.OrderByDescending(x => x.ExecutionTime).Take(20))
 						{
 							string Description = $"{(Action.Inner.CommandDescription != null ? Action.Inner.CommandDescription : Action.Inner.CommandPath.GetFileName())} {Action.Inner.StatusDescription}".Trim();
-							Log.TraceInformation("{0} [ Wall Time {1:0.00} s / CPU Time {2:0.00} s ]", Description, Action.ExecutionTime.TotalSeconds, Action.ProcessorTime.TotalSeconds);
+							if (Action.ProcessorTime.Ticks > 0)
+							{
+								Log.TraceInformation("{0} [ Wall Time {1:0.00} s / CPU Time {2:0.00} s ]", Description, Action.ExecutionTime.TotalSeconds, Action.ProcessorTime.TotalSeconds);
+							}
+							else
+							{
+								Log.TraceInformation("{0} [ Time {1:0.00} s ]", Description, Action.ExecutionTime.TotalSeconds);
+							}
 						}
 						Log.TraceInformation("");
 					}
