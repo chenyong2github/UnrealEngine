@@ -705,7 +705,7 @@ EVisibility SOculusToolWidget::MobileMultiViewVisibility(FName tag) const
 FReply SOculusToolWidget::MobileMSAAEnable(bool text)
 {
 	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
-	Settings->MobileAntiAliasing = EAntiAliasingMethod::AAM_MSAA;
+	Settings->MobileAntiAliasing = EMobileAntiAliasingMethod::MSAA;
 	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, MobileAntiAliasing)), Settings->GetDefaultConfigFilename());
 	Settings->MSAASampleCount = ECompositingSampleCount::Four;
 	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, MSAASampleCount)), Settings->GetDefaultConfigFilename());
