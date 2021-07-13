@@ -66,6 +66,7 @@ void SInterchangePipelineStacksTreeView::Construct(const FArguments& InArgs)
 				UInterchangePipelineBase* GeneratedPipeline = NewObject<UInterchangePipelineBase>(GetTransientPackage(), PipelineClass, NAME_None, RF_NoFlags);
 				//Load the settings for this pipeline
 				GeneratedPipeline->LoadSettings(NameAndPipelineStack.Key);
+				GeneratedPipeline->PreDialogCleanup(NameAndPipelineStack.Key);
 				TSharedPtr<FInterchangePipelineStacksTreeNodeItem> PipelineNode = MakeShared<FInterchangePipelineStacksTreeNodeItem>();
 				PipelineNode->StackName = NameAndPipelineStack.Key;
 				PipelineNode->Pipeline = GeneratedPipeline;

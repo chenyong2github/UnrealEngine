@@ -7,12 +7,10 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
-#include "InterchangeSkeletalMeshFactory.generated.h"
-
-class USkeletalMesh;
+#include "InterchangePhysicsAssetFactory.generated.h"
 
 UCLASS(BlueprintType)
-class INTERCHANGEIMPORT_API UInterchangeSkeletalMeshFactory : public UInterchangeFactoryBase
+class INTERCHANGEIMPORT_API UInterchangePhysicsAssetFactory : public UInterchangeFactoryBase
 {
 	GENERATED_BODY()
 public:
@@ -23,7 +21,7 @@ public:
 	virtual UClass* GetFactoryClass() const override;
 	virtual UObject* CreateEmptyAsset(const FCreateAssetParams& Arguments) const override;
 	virtual UObject* CreateAsset(const FCreateAssetParams& Arguments) const override;
-	virtual void PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) const override;
+	//virtual void PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) const override;
 	//virtual void PostImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) const override;
 
 	// Interchange factory base interface end

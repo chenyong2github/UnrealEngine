@@ -21,7 +21,7 @@ public:
 	virtual UClass* GetFactoryClass() const override;
 	virtual UObject* CreateEmptyAsset(const FCreateAssetParams& Arguments) const override;
 	virtual UObject* CreateAsset(const FCreateAssetParams& Arguments) const override;
-	//virtual void PostImportGameThreadCallback(const FPostImportGameThreadCallbackParams& Arguments) const override;
+	//virtual void PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) const override;
 
 	// Interchange factory base interface end
 	//////////////////////////////////////////////////////////////////////////

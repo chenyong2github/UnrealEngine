@@ -33,6 +33,7 @@ template<class T> class TSubclassOf;
 #define COMMON_CATEGORY "Common"
 #define COMMON_MESHES_CATEGORY "Common Meshes"
 #define STATIC_MESHES_CATEGORY "Static Meshes"
+#define COMMON_SKELETAL_ANIMATIONS_CATEGORY "Common Skeletal Mesh and Animations"
 #define SKELETAL_MESHES_CATEGORY "Skeletal Meshes"
 #define ANIMATIONS_CATEGORY "Animations"
 #define MATERIALS_CATEGORY "Materials"
@@ -79,15 +80,15 @@ public:
 
 
 	/** Allow to convert mesh to a particular type */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = COMMON_MESHES_CATEGORY)
-	TEnumAsByte<enum EForceMeshType> ForceAllMeshHasType = EForceMeshType::FMT_None;
+// 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = COMMON_MESHES_CATEGORY)
+// 	TEnumAsByte<enum EForceMeshType> ForceAllMeshHasType = EForceMeshType::FMT_None;
 
 	/** If enable, meshes LODs will be imported. Note that it required the advanced bBakeMesh property to be enabled. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = COMMON_MESHES_CATEGORY, meta = (editcondition = "bBakeMeshes"))
 	bool bImportLods = true;
 
-	/** If enable, meshes will be baked with the hierarchy transform. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = COMMON_MESHES_CATEGORY)
+	/** If enable, meshes will be baked with the scene instance hierarchy transform. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = COMMON_MESHES_CATEGORY)
 	bool bBakeMeshes = true;
 
 	
@@ -103,6 +104,14 @@ public:
 	bool bCombineStaticMeshes = false;
 
 	
+	//////  COMMON_SKELETAL_ANIMATIONS_CATEGORY //////
+
+
+	/** Skeleton to use for imported asset. When importing a skeletal mesh, leaving this as "None" will create a new skeleton. When importing an animation this MUST be specified to import the asset. */
+ 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = COMMON_SKELETAL_ANIMATIONS_CATEGORY)
+ 	TObjectPtr<class USkeleton> Skeleton;
+
+	
 	//////	SKELETAL_MESHES_CATEGORY Properties //////
 
 	
@@ -110,17 +119,28 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SKELETAL_MESHES_CATEGORY)
 	bool bImportSkeletalMeshes = true;
 
-	/** If enable all translated skinned mesh node will be imported has a one skeletal mesh, note that it can still create several skeletal mesh for each different root joint. */
+	/** If enable all translated skinned mesh node will be imported has a one skeletal mesh, note that it can still create several skeletal mesh for each different skeleton root joint. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SKELETAL_MESHES_CATEGORY)
 	bool bCombineSkeletalMeshes = true;
 
+	/** If enable any morph target shape will be imported. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SKELETAL_MESHES_CATEGORY)
+	bool bImportMorphTargets = true;
+
+	/** If checked, create new PhysicsAsset if it doesn't have it */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SKELETAL_MESHES_CATEGORY)
+	uint32 bCreatePhysicsAsset : 1;
+
+	/** If this is set, use this specified PhysicsAsset. If its not set and bCreatePhysicsAsset is false, the importer will not generate or set any physic asset. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SKELETAL_MESHES_CATEGORY, meta = (editcondition = "!bCreatePhysicsAsset"))
+	TObjectPtr<class UPhysicsAsset> PhysicsAsset;
 	
 	//////	ANIMATIONS_CATEGORY Properties //////
 
 
 	/** If enable, import the animation asset find in the sources. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ANIMATIONS_CATEGORY)
-	bool bImportAnimations = true;
+// 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ANIMATIONS_CATEGORY)
+// 	bool bImportAnimations = true;
 
 
 	//////	MATERIALS_CATEGORY Properties //////
@@ -142,11 +162,13 @@ public:
 	// END Pre import pipeline properties
 	//////////////////////////////////////////////////////////////////////////
 
+	virtual void PreDialogCleanup(const FName PipelineStackName) override;
+
 protected:
 
 	virtual bool ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas) override;
 
-	//virtual bool ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FName& NodeKey, UObject* CreatedAsset) override;
+	virtual bool ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* InBaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset) override;
 
 	virtual bool CanExecuteOnAnyThread(EInterchangePipelineTask PipelineTask) override
 	{
@@ -179,9 +201,9 @@ private:
 	UInterchangeMaterialFactoryNode* CreateMaterialFactoryNode(const UInterchangeMaterialNode* MaterialNode);
 
 	
-	/** Mesh translated assets nodes */
-	TArray<UInterchangeMeshNode*> MeshNodes;
-	
+	/************************************************************************/
+	/* Skeletal mesh API BEGIN                                              */
+
 	/** Skeleton factory assets nodes */
 	TArray<UInterchangeSkeletonFactoryNode*> SkeletonFactoryNodes;
 
@@ -205,6 +227,19 @@ private:
 	 * @param NodeUidsPerLodIndex - The NodeUids can be a UInterchangeSceneNode or a UInterchangeMeshNode. The scene node can bake each instance of the mesh versus the mesh node will import only the modelled mesh.
 	 */
 	void AddLodDataToSkeletalMesh(const UInterchangeSkeletonFactoryNode* SkeletonFactoryNode, UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode, const TMap<int32, TArray<FString>>& NodeUidsPerLodIndex);
+
+	/**
+	 * This function will create any skeletalmesh we need to create according to the pipeline options
+	 */
+	bool ExecutePreImportPipelineSkeletalMesh();
+
+	/**
+	 * This function will finish creating the physics asset with the skeletalmesh render data
+	 */
+	void PostImportPhysicsAssetImport(UObject* CreatedAsset, UInterchangeBaseNode* Node);
+
+	/* Skeletal mesh API END                                                */
+	/************************************************************************/
 
 
 	/** Static mesh factory assets nodes */
@@ -230,11 +265,17 @@ private:
 	 */
 	bool MakeMeshFactoryNodeUidAndDisplayLabel(const TMap<int32, TArray<FString>>& MeshUidsPerLodIndex, int32 LodIndex, FString& NewMeshUid, FString& DisplayLabel);
 
-	/** Translated scene nodes */
-	TArray<UInterchangeSceneNode*> SceneNodes;
 
 	/* Meshes utilities, to parse the translated graph and extract the meshes informations. */
 	UInterchangePipelineMeshesUtilities* PipelineMeshesUtilities;
+
+	/**
+	 * Implement pipeline option bUseSourceNameForAsset
+	 */
+	void ImplementUseSourceNameForAssetOption();
+
+	/** Specialize for skeletalmesh */
+	void ImplementUseSourceNameForAssetOptionSkeletalMesh(const int32 MeshesAndAnimsImportedNodeCount);
 };
 
 

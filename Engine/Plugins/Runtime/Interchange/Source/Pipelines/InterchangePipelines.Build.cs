@@ -17,6 +17,16 @@ namespace UnrealBuildTool.Rules
 					"InterchangeNodes"
 				}
 			);
+
+			if (Target.Type == TargetType.Editor)
+			{
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"PhysicsUtilities",
+					}
+				);
+			}
 		}
 	}
 }

@@ -26,20 +26,17 @@ void UE::Interchange::FTaskPreAsyncCompletion::DoTask(ENamedThreads::Type Curren
 	AsyncHelper->ReleaseTranslatorsSource();
 }
 
-void UE::Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+void UE::Interchange::FTaskPreCompletion::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
 #if INTERCHANGE_TRACE_ASYNCHRONOUS_TASK_ENABLED
-	INTERCHANGE_TRACE_ASYNCHRONOUS_TASK(Completion)
+	INTERCHANGE_TRACE_ASYNCHRONOUS_TASK(PreCompletion)
 #endif
 	TSharedPtr<FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
 	check(AsyncHelper.IsValid());
 
-	//No need anymore of the translators sources
-	AsyncHelper->ReleaseTranslatorsSource();
-
 	UInterchangeResultsContainer* Results = AsyncHelper->AssetImportResult->GetResults();
 
-	for(TPair<int32, TArray<FImportAsyncHelper::FImportedAssetInfo>>& AssetInfosPerSourceIndexPair : AsyncHelper->ImportedAssetsPerSourceIndex)
+	for (TPair<int32, TArray<FImportAsyncHelper::FImportedAssetInfo>>& AssetInfosPerSourceIndexPair : AsyncHelper->ImportedAssetsPerSourceIndex)
 	{
 		//Verify if the task was cancel
 		if (AsyncHelper->bCancel)
@@ -54,15 +51,15 @@ void UE::Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread,
 		{
 			UObject* Asset = AssetInfo.ImportAsset;
 			//In case Some factory code cannot run outside of the main thread we offer this callback to finish the work before calling post edit change (building the asset)
-			if(bCallPostImportGameThreadCallback && AssetInfo.Factory)
+			if (bCallPostImportGameThreadCallback && AssetInfo.Factory)
 			{
-				UInterchangeFactoryBase::FPostImportGameThreadCallbackParams Arguments;
+				UInterchangeFactoryBase::FImportPreCompletedCallbackParams Arguments;
 				Arguments.ImportedObject = Asset;
 				Arguments.SourceData = AsyncHelper->SourceDatas[SourceIndex];
 				Arguments.NodeUniqueID = AssetInfo.NodeUniqueId;
 				Arguments.NodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
 				Arguments.Pipelines = AsyncHelper->Pipelines;
-				AssetInfo.Factory->PostImportGameThreadCallback(Arguments);
+				AssetInfo.Factory->PreImportPreCompletedCallback(Arguments);
 			}
 
 			if (Asset == nullptr)
@@ -85,6 +82,50 @@ void UE::Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread,
 			Asset->PostEditChange();
 #endif
 			//Post import broadcast
+			if (!AsyncHelper->TaskData.ReimportObject)
+			{
+				//Notify the asset registry, only when we have created the asset
+				FAssetRegistryModule::AssetCreated(Asset);
+			}
+			AsyncHelper->AssetImportResult->AddImportedAsset(Asset);
+			//In case Some factory code cannot run outside of the main thread we offer this callback to finish the work after calling post edit change (building the asset)
+			//Its possible the build of the asset to be asynchronous, the factory must handle is own asset correctly
+			if (bCallPostImportGameThreadCallback && AssetInfo.Factory)
+			{
+				UInterchangeFactoryBase::FImportPreCompletedCallbackParams Arguments;
+				Arguments.ImportedObject = Asset;
+				Arguments.SourceData = AsyncHelper->SourceDatas[SourceIndex];
+				Arguments.NodeUniqueID = AssetInfo.NodeUniqueId;
+				Arguments.NodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
+				Arguments.Pipelines = AsyncHelper->Pipelines;
+				AssetInfo.Factory->PostImportPreCompletedCallback(Arguments);
+			}
+		}
+	}
+}
+
+
+void UE::Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+{
+#if INTERCHANGE_TRACE_ASYNCHRONOUS_TASK_ENABLED
+	INTERCHANGE_TRACE_ASYNCHRONOUS_TASK(Completion)
+#endif
+	TSharedPtr<FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
+	check(AsyncHelper.IsValid());
+
+	//No need anymore of the translators sources
+	AsyncHelper->ReleaseTranslatorsSource();
+	for(TPair<int32, TArray<FImportAsyncHelper::FImportedAssetInfo>>& AssetInfosPerSourceIndexPair : AsyncHelper->ImportedAssetsPerSourceIndex)
+	{
+		//Verify if the task was cancel
+		if (AsyncHelper->bCancel)
+		{
+			break;
+		}
+		const int32 SourceIndex = AssetInfosPerSourceIndexPair.Key;
+		for (const FImportAsyncHelper::FImportedAssetInfo& AssetInfo : AssetInfosPerSourceIndexPair.Value)
+		{
+			UObject* Asset = AssetInfo.ImportAsset;
 			if (AsyncHelper->TaskData.ReimportObject)
 			{
 				InterchangeManager->OnAssetPostReimport.Broadcast(Asset);
@@ -92,11 +133,7 @@ void UE::Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread,
 			else
 			{
 				InterchangeManager->OnAssetPostImport.Broadcast(Asset);
-				//Notify the asset registry, only when we have created the asset
-				FAssetRegistryModule::AssetCreated(Asset);
 			}
-
-			AsyncHelper->AssetImportResult->AddImportedAsset(Asset);
 		}
 	}
 

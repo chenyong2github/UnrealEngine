@@ -57,7 +57,7 @@ void UE::Interchange::FTaskPipelinePostImport::DoTask(ENamedThreads::Type Curren
 		return;
 	}
 	UInterchangePipelineBase* PipelineBase = AsyncHelper->Pipelines[PipelineIndex];
-	TArray<FName> NodeUniqueIDs;
+	TArray<FString> NodeUniqueIDs;
 	TArray<UObject*> ImportAssets;
 	//Create a lock scope to read the Imported asset infos map
 	{
@@ -69,7 +69,7 @@ void UE::Interchange::FTaskPipelinePostImport::DoTask(ENamedThreads::Type Curren
 			ImportAssets.Reserve(ImportedInfos.Num());
 			for (UE::Interchange::FImportAsyncHelper::FImportedAssetInfo& ImportedInfo : ImportedInfos)
 			{
-				NodeUniqueIDs.Add(FName(*ImportedInfo.NodeUniqueId));
+				NodeUniqueIDs.Add(ImportedInfo.NodeUniqueId);
 				ImportAssets.Add(ImportedInfo.ImportAsset);
 			}
 		}

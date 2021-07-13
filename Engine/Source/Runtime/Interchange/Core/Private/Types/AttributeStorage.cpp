@@ -64,6 +64,7 @@ namespace UE
 				case EAttributeTypes::FrameNumber: { AttributeTypeString = TEXT("FrameNumber"); } break;
 				case EAttributeTypes::FrameRate: { AttributeTypeString = TEXT("FrameRate"); } break;
 				case EAttributeTypes::FrameTime: { AttributeTypeString = TEXT("FrameTime"); } break;
+				case EAttributeTypes::SoftObjectPath: { AttributeTypeString = TEXT("SoftObjectPath"); } break;
 				default:
 				{
 					//Ensure if we ask an unknown type
@@ -465,6 +466,52 @@ namespace UE
 
 			//Create the FName and copy it to OutValue
 			OutValue = FName(*ValueStr);
+
+			return EAttributeStorageResult::Operation_Success;
+		}
+
+		EAttributeStorageResult FAttributeStorage::GetAttribute(const FAttributeKey& ElementAttributeKey, FSoftObjectPath& OutValue, TSpecializeType<FSoftObjectPath >) const
+		{
+			static_assert(TAttributeTypeTraits<FSoftObjectPath>::GetType() != EAttributeTypes::None, "Not a supported type for the attributes. Check EAttributeTypes for supported types");
+
+			//Lock the storage
+			FScopeLock ScopeLock(&StorageMutex);
+
+			const EAttributeTypes ValueType = TAttributeTypeTraits<FSoftObjectPath>::GetType();
+
+
+			const FAttributeAllocationInfo* AttributeAllocationInfo = AttributeAllocationTable.Find(ElementAttributeKey);
+			if (AttributeAllocationInfo)
+			{
+				if (AttributeAllocationInfo->Type != ValueType)
+				{
+					return EAttributeStorageResult::Operation_Error_WrongType;
+				}
+				if (!AttributeStorage.IsValidIndex(AttributeAllocationInfo->Offset))
+				{
+					return EAttributeStorageResult::Operation_Error_AttributeAllocationCorrupted;
+				}
+			}
+			else
+			{
+				//The key do not exist
+				return EAttributeStorageResult::Operation_Error_CannotFoundKey;
+			}
+
+
+			if (AttributeAllocationInfo->Size == 0)
+			{
+				OutValue = TEXT("");
+				return EAttributeStorageResult::Operation_Success;
+			}
+
+			FString ValueStr;
+
+			//Share the code with FString from here
+			ExtractFStringAttributeFromStorage(AttributeStorage.GetData(), AttributeAllocationInfo, ValueStr);
+
+			//Create the FSoftObjectPath and copy it to OutValue
+			OutValue = FSoftObjectPath(ValueStr);
 
 			return EAttributeStorageResult::Operation_Success;
 		}

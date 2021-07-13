@@ -29,10 +29,12 @@ void UInterchangePipelineBase::LoadSettings(const FName PipelineStackName)
 	UClass* Class = this->GetClass();
 	for (FProperty* Property = Class->PropertyLink; Property; Property = Property->PropertyLinkNext)
 	{
-// 		if (!Property->HasAnyPropertyFlags(CPF_Config))
-// 		{
-// 			continue;
-// 		}
+		//Do not load a transient property
+		if (Property->HasAnyPropertyFlags(CPF_Transient))
+		{
+			continue;
+		}
+
 		FString Section = UE::Interchange::PipelinePrivate::CreateConfigSectionName(PipelineStackName, Class);
 		FString Key = Property->GetName();
 
@@ -124,10 +126,12 @@ void UInterchangePipelineBase::SaveSettings(const FName PipelineStackName)
 	UClass* Class = this->GetClass();
 	for (FProperty* Property = Class->PropertyLink; Property; Property = Property->PropertyLinkNext)
 	{
-// 		if (!Property->HasAnyPropertyFlags(CPF_Config))
-// 		{
-// 			continue;
-// 		}
+		//Do not save a transient property
+		if (Property->HasAnyPropertyFlags(CPF_Transient))
+		{
+			continue;
+		}
+
 		FString Section = UE::Interchange::PipelinePrivate::CreateConfigSectionName(PipelineStackName, Class);
 		FString Key = Property->GetName();
 

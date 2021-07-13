@@ -109,7 +109,7 @@ public:
 	/**
 	 * Parameters to pass to CreateAsset function
 	 */
-	struct FPostImportGameThreadCallbackParams
+	struct FImportPreCompletedCallbackParams
 	{
 		/** The source data, mainly use to set the asset import data file. TODO: we have to refactor UAssetImportData, the source data should be the base class for this now */
 		const UInterchangeSourceData* SourceData = nullptr;
@@ -121,8 +121,22 @@ public:
 		TArray<UInterchangePipelineBase*> Pipelines;
 ;
 	};
-	/* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets*/
-	virtual void PostImportGameThreadCallback(const FPostImportGameThreadCallbackParams& Arguments) const
+
+	/*
+	 * This function is call in the pre completion task on the main thread, use it to call main thread post creation step for your assets
+	 * @note - This function is called when starting the pre completion task (before PostEditChange is called for the asset).
+	 */
+	virtual void PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) const
+	{
+		check(IsInGameThread());
+		return;
+	}
+	
+	/*
+	 * This function is call in the pre completion task on the main thread, use it to call main thread post creation step for your assets
+	 * @note - This function is called at the end of the pre completion task (after PostEditChange is called for the asset).
+	 */
+	virtual void PostImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) const
 	{
 		check(IsInGameThread());
 		return;
