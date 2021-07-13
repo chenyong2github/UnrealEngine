@@ -47,6 +47,22 @@ namespace MeshCut
 			Init(WorkingMesh);
 		}
 
+		// get the direction of the first non-degenerate edge (or a default vector if all edges were degenerate)
+		static FVector3d GetDegenTriangleEdgeDirection(const FDynamicMesh3* Mesh, int TID, FVector3d DefaultDir = FVector3d::ZAxisVector)
+		{ 
+			FVector3d V[3];
+			Mesh->GetTriVertices(TID, V[0], V[1], V[2]);
+			for (int Prev = 2, Idx = 0; Idx < 3; Prev = Idx++)
+			{
+				FVector3d E = V[Idx] - V[Prev];
+				if (E.Normalize())
+				{
+					return E;
+				}
+			}
+			return DefaultDir;
+		}
+
 		void Init(FDynamicMesh3* WorkingMesh)
 		{
 			BaseFaceNormals.SetNumUninitialized(WorkingMesh->MaxTriangleID());
@@ -86,7 +102,7 @@ namespace MeshCut
 		TArray<FSegmentToElements> Segments;
 
 
-		void AddSegments(const MeshIntersection::FIntersectionsQueryResult& Intersections, TMap<FVector3d, int>& SegVtxMap, int WhichSide)
+		void AddSegments(const MeshIntersection::FIntersectionsQueryResult& Intersections, int WhichSide)
 		{
 			int SegStart = Segments.Num();
 			Segments.SetNum(SegStart + Intersections.Segments.Num());
@@ -97,26 +113,20 @@ namespace MeshCut
 				const MeshIntersection::FSegmentIntersection& Seg = Intersections.Segments[SegIdx];
 				FSegmentToElements& SegToEls = Segments[SegStart+SegIdx];
 				SegToEls.BaseTID = Seg.TriangleID[WhichSide];
+
+				FTriangle3d Tri;
+				Mesh->GetTriVertices(SegToEls.BaseTID, Tri.V[0], Tri.V[1], Tri.V[2]);
+				FIndex3i TriVIDs = Mesh->GetTriangle(SegToEls.BaseTID);
+				int PrevOnEdgeIdx = -1;
+				FVector3d PrevOnEdgePos;
 				for (int SegPtIdx = 0; SegPtIdx < 2; SegPtIdx++)
 				{
-					// re-use intersection vertices for exact position matches
-					int* ExistingSegVertexIdx = SegVtxMap.Find(Seg.Point[SegPtIdx]);
-					if (ExistingSegVertexIdx)
-					{
-						SegToEls.PtOnMeshIdx[SegPtIdx] = *ExistingSegVertexIdx;
-					}
-
 					int NewPtIdx = IntersectionVerts.Num();
 					FPtOnMesh& PtOnMesh = IntersectionVerts.Emplace_GetRef();
 					PtOnMesh.Pos = Seg.Point[SegPtIdx];
 					SegToEls.PtOnMeshIdx[SegPtIdx] = NewPtIdx;
-					SegVtxMap.Add(Seg.Point[SegPtIdx], NewPtIdx);
 
 					// decide whether the point is on a vertex, edge or triangle
-
-					FTriangle3d Tri;
-					Mesh->GetTriVertices(SegToEls.BaseTID, Tri.V[0], Tri.V[1], Tri.V[2]);
-					FIndex3i TriVIDs = Mesh->GetTriangle(SegToEls.BaseTID);
 
 					int OnVertexIdx = OnVertex(Tri, PtOnMesh.Pos);
 					if (OnVertexIdx > -1)
@@ -126,15 +136,27 @@ namespace MeshCut
 						continue;
 					}
 
-					// check  for an edge match
+					// check for an edge match
 					int OnEdgeIdx = OnEdge(Tri, PtOnMesh.Pos);
 					if (OnEdgeIdx > -1)
 					{
+						// if segment is degenerate and stuck to one edge, see if it could cross
+						if (PrevOnEdgeIdx == OnEdgeIdx && FVector3d::DistSquared(PrevOnEdgePos, PtOnMesh.Pos) < SnapToleranceSq)
+						{
+							int OnEdgeReplaceIdx = OnEdgeWithSkip(Tri, PtOnMesh.Pos, OnEdgeIdx);
+							if (OnEdgeReplaceIdx > -1)
+							{
+								OnEdgeIdx = OnEdgeReplaceIdx;
+							}
+						}
 						PtOnMesh.Type = EVertexType::Edge;
 						PtOnMesh.ElemID = Mesh->GetTriEdge(SegToEls.BaseTID, OnEdgeIdx);
 
 						check(PtOnMesh.ElemID > -1);
 						EdgeVertices.Add(PtOnMesh.ElemID, NewPtIdx);
+
+						PrevOnEdgeIdx = OnEdgeIdx;
+						PrevOnEdgePos = PtOnMesh.Pos;
 
 						continue;
 					}
@@ -343,40 +365,51 @@ namespace MeshCut
 				FMeshSurfacePath SurfacePath(Mesh);
 				int StartTID = Mesh->GetVtxSingleTriangle(PtA.ElemID); // TODO: would be faster to have a PlanarWalk call that takes a start vertex ID !
 				FVector3d WalkPlaneNormal = BaseFaceNormals[Seg.BaseTID].Cross(PtB.Pos - PtA.Pos);
-				if (ensure(Normalize(WalkPlaneNormal) > 0))
+				if (Normalize(WalkPlaneNormal) == 0)
 				{
-					bool bWalkSuccess = SurfacePath.AddViaPlanarWalk(StartTID, PtA.ElemID,
-						Mesh->GetVertex(PtA.ElemID), -1, PtB.ElemID,
-						Mesh->GetVertex(PtB.ElemID), WalkPlaneNormal, nullptr /*TODO: transform fn goes here?*/, false, FMathd::ZeroTolerance, SnapToleranceSq, .001);
-					if (!bWalkSuccess)
+					if (FVector3d::DistSquared(PtA.Pos, PtB.Pos) > SnapToleranceSq)
 					{
-						bSuccess = false;
+						// path points are separated, expect degeneracy to come from colinear triangle vertices
+						// this implies vertices are spread along the original edges, which would already be connected
+						// so we shouldn't need to do any additional work to connect things
+						continue;
 					}
-					else
+					// Path points are not separated; we may need to connect across a (likely degenerate) triangle
+					// Use a walk normal that can separate the triangle vertices (even if the triangle's collapsed to a line segment)
+					WalkPlaneNormal = GetDegenTriangleEdgeDirection(Mesh, StartTID);
+					if (!ensure(Normalize(WalkPlaneNormal) > 0))
 					{
-						EmbeddedPath.Reset();
-						if (SurfacePath.EmbedSimplePath(false, EmbeddedPath, false, SnapToleranceSq))
-						{
-							ensure(EmbeddedPath.Num() > 0 && EmbeddedPath[0] == PtA.ElemID);
-							if (VertexChains)
-							{
-								if (SegmentToChain)
-								{
-									(*SegmentToChain)[SegIdx] = VertexChains->Num();
-								}
-								VertexChains->Add(EmbeddedPath.Num());
-								VertexChains->Append(EmbeddedPath);
-							}
-						}
-						else
-						{
-							bSuccess = false;
-						}
+						// there was no non-degenerate edge; triangle is a point, nothing to walk here
+						continue;
 					}
+				}
+				bool bWalkSuccess = SurfacePath.AddViaPlanarWalk(StartTID, PtA.ElemID,
+					Mesh->GetVertex(PtA.ElemID), -1, PtB.ElemID,
+					Mesh->GetVertex(PtB.ElemID), WalkPlaneNormal, nullptr /*TODO: transform fn goes here?*/, false, FMathd::ZeroTolerance, SnapToleranceSq, .001);
+				if (!bWalkSuccess)
+				{
+					bSuccess = false;
 				}
 				else
 				{
-					bSuccess = false;
+					EmbeddedPath.Reset();
+					if (SurfacePath.EmbedSimplePath(false, EmbeddedPath, false, SnapToleranceSq))
+					{
+						ensure(EmbeddedPath.Num() > 0 && EmbeddedPath[0] == PtA.ElemID);
+						if (VertexChains)
+						{
+							if (SegmentToChain)
+							{
+								(*SegmentToChain)[SegIdx] = VertexChains->Num();
+							}
+							VertexChains->Add(EmbeddedPath.Num());
+							VertexChains->Append(EmbeddedPath);
+						}
+					}
+					else
+					{
+						bSuccess = false;
+					}
 				}
 			}
 			
@@ -470,6 +503,27 @@ namespace MeshCut
 			return BestIdx;
 		}
 
+		int OnEdgeWithSkip(const FTriangle3d& Tri, const FVector3d& V, int SkipIdx)
+		{
+			double BestDSq = SnapToleranceSq;
+			int BestIdx = -1;
+			for (int Idx = 0; Idx < 3; Idx++)
+			{
+				if (Idx == SkipIdx)
+				{
+					continue;
+				}
+				FSegment3d Seg{ Tri.V[Idx], Tri.V[(Idx + 1) % 3] };
+				double DSq = Seg.DistanceSquared(V);
+				if (DSq < BestDSq)
+				{
+					BestDSq = DSq;
+					BestIdx = Idx;
+				}
+			}
+			return BestIdx;
+		}
+
 		int ClosestEdge(FIndex2i EIDs, const FVector3d& Pos)
 		{
 			double BestIdx = -1;
@@ -528,9 +582,8 @@ bool FMeshSelfCut::Cut(const MeshIntersection::FIntersectionsQueryResult& Inters
 	ResetOutputs();
 
 	MeshCut::FCutWorkingInfo WorkingInfo(Mesh, SnapTolerance);
-	TMap<FVector3d, int> SegVtxMap;
-	WorkingInfo.AddSegments(Intersections, SegVtxMap, 0);
-	WorkingInfo.AddSegments(Intersections, SegVtxMap, 1);
+	WorkingInfo.AddSegments(Intersections, 0);
+	WorkingInfo.AddSegments(Intersections, 1);
 	WorkingInfo.InsertFaceVertices();
 	WorkingInfo.InsertEdgeVertices();
 	return WorkingInfo.ConnectEdges(bTrackInsertedVertices ? &VertexChains : nullptr);
@@ -549,8 +602,7 @@ bool FMeshMeshCut::Cut(const MeshIntersection::FIntersectionsQueryResult& Inters
 	for (int MeshIdx = 0; MeshIdx < MeshesToProcess; MeshIdx++)
 	{
 		MeshCut::FCutWorkingInfo WorkingInfo(Mesh[MeshIdx], SnapTolerance);
-		TMap<FVector3d, int> SegVtxMap;
-		WorkingInfo.AddSegments(Intersections, SegVtxMap, MeshIdx); // add intersection segments
+		WorkingInfo.AddSegments(Intersections, MeshIdx); // add intersection segments
 		WorkingInfo.InsertFaceVertices(); // insert vertices for intersection segments w/ endpoints on faces
 		WorkingInfo.InsertEdgeVertices(); // insert vertices for intersection segments w/ endpoints on edges
 
