@@ -7,6 +7,7 @@
 #include "LevelEditor.h"
 #include "EdModeInteractiveToolsContext.h"
 #include "UnrealEdGlobals.h"
+#include "LevelEditorSequencerIntegration.h"
 
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "MotionTrailTool.h"
