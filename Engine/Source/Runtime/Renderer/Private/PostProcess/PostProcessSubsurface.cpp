@@ -129,8 +129,6 @@ namespace
 // Define the size of subsurface group. @TODO: Set to 16 to use LDS.
 const uint32 kSubsurfaceGroupSize = 8;
 
-ENGINE_API IPooledRenderTarget* GetSubsufaceProfileTexture_RT(FRHICommandListImmediate& RHICmdList);
-
 enum class ESubsurfaceMode : uint32
 {
 	// Performs a full resolution scattering filter.
@@ -185,17 +183,6 @@ int32 GetSSSQuality()
 int32 GetSSSBurleyBilateralFilterKernelFunctionType()
 {
 	return CVarSSSBurleyBilateralFilterKernelFunctionType.GetValueOnRenderThread();
-}
-
-// Returns the SS profile texture with a black fallback texture if none exists yet.
-// Actually we do not need this for the burley normalized SSS.
-FRHITexture* GetSubsurfaceProfileTexture(FRHICommandListImmediate& RHICmdList)
-{
-	if (const IPooledRenderTarget* ProfileTextureTarget = GetSubsufaceProfileTexture_RT(RHICmdList))
-	{
-		return ProfileTextureTarget->GetShaderResourceRHI();
-	}
-	return GBlackTexture->TextureRHI;
 }
 
 // Returns the current subsurface mode required by the current view.
@@ -253,7 +240,7 @@ FSubsurfaceParameters GetSubsurfaceCommonParameters(FRDGBuilder& GraphBuilder, c
 	Parameters.SubsurfaceParams = FVector4(SSSScaleX, SSSScaleZ, SSSOverrideNumSamples, 0);
 	Parameters.ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters.SceneTextures = SceneTextures;
-	Parameters.SSProfilesTexture = GetSubsurfaceProfileTexture(GraphBuilder.RHICmdList);
+	Parameters.SSProfilesTexture = GetSubsurfaceProfileTextureWithFallback();
 	return Parameters;
 }
 

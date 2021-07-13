@@ -1411,7 +1411,7 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_MeshPassDrawImmediate);
 
-		WaitForMeshPassSetupTask();
+		WaitForMeshPassSetupTask(EWaitThread::Task);
 
 		if (TaskContext.bUseGPUScene)
 		{

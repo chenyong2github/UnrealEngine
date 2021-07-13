@@ -522,10 +522,10 @@ void UpdateHistory(
 	if (BentNormalHistoryState && GAOUseHistory)
 	{
 #if WITH_MGPU
+		RDG_GPU_STAT_SCOPE(GraphBuilder, AFRWaitForDistanceFieldAOHistory);
 		AddPass(GraphBuilder, [&View](FRHICommandList& RHICmdList)
 		{
 			static const FName NameForTemporalEffect("DistanceFieldAOHistory");
-			SCOPED_GPU_STAT(RHICmdList, AFRWaitForDistanceFieldAOHistory);
 			RHICmdList.WaitForTemporalEffect(FName(NameForTemporalEffect, View.ViewState->UniqueID));
 		});
 #endif

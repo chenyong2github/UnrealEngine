@@ -462,8 +462,6 @@ static void RenderViewFog(FRHICommandList& RHICmdList, const FViewInfo& View, bo
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
-	SCOPED_GPU_STAT(RHICmdList, Fog);
-
 	// Set the device viewport for the view.
 	RHICmdList.SetViewport(Params.ViewRect.Min.X, Params.ViewRect.Min.Y, 0.0f, Params.ViewRect.Max.X, Params.ViewRect.Max.Y, 1.0f);
 			
@@ -500,6 +498,7 @@ void FDeferredShadingSceneRenderer::RenderFog(
 		&& !IsForwardShadingEnabled(ShaderPlatform))
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "ExponentialHeightFog");
+		RDG_GPU_STAT_SCOPE(GraphBuilder, Fog);
 
 		const bool bShouldRenderVolumetricFog = ShouldRenderVolumetricFog();
 
@@ -545,6 +544,7 @@ void FDeferredShadingSceneRenderer::RenderUnderWaterFog(
 		&& !IsForwardShadingEnabled(ShaderPlatform))
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "ExponentialHeightFog");
+		RDG_GPU_STAT_SCOPE(GraphBuilder, Fog);
 
 		FRDGTextureRef LinearDepthTexture = SceneWithoutWaterTextures.DepthTexture;
 		check(LinearDepthTexture);

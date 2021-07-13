@@ -274,7 +274,7 @@ FRHICOMMAND_MACRO(FRHICommandStat)
 	}
 };
 
-void FRHICommandListImmediate::SetCurrentStat(TStatId Stat)
+void FRHICommandListBase::SetCurrentStat(TStatId Stat)
 {
 	if (!Bypass())
 	{
@@ -1643,60 +1643,27 @@ void FRHICommandListBase::QueueAsyncCommandListSubmit(FGraphEventRef& AnyThreadC
 	}
 }
 
-DECLARE_DWORD_COUNTER_STAT(TEXT("Num RT Chains Links"), STAT_RTChainLinkCount, STATGROUP_RHICMDLIST);
-DECLARE_CYCLE_STAT(TEXT("Wait for RT CmdList"), STAT_RTChainWait, STATGROUP_RHICMDLIST);
-DECLARE_CYCLE_STAT(TEXT("RT Chain Execute"), STAT_RTChainExecute, STATGROUP_RHICMDLIST);
-
 FRHICOMMAND_MACRO(FRHICommandWaitForAndSubmitRTSubList)
 {
 	FGraphEventRef EventToWaitFor;
 	FRHICommandList* RHICmdList;
+
 	FORCEINLINE_DEBUGGABLE FRHICommandWaitForAndSubmitRTSubList(FGraphEventRef& InEventToWaitFor, FRHICommandList* InRHICmdList)
 		: EventToWaitFor(InEventToWaitFor)
 		, RHICmdList(InRHICmdList)
-	{
-	}
+	{}
+
 	void Execute(FRHICommandListBase& CmdList)
 	{
-		INC_DWORD_STAT_BY(STAT_RTChainLinkCount, 1);
-		{
-			if (EventToWaitFor.GetReference() && !EventToWaitFor->IsComplete())
-			{
-			SCOPE_CYCLE_COUNTER(STAT_RTChainWait);
-				check(!IsRunningRHIInSeparateThread() || !IsInRHIThread()); // things should not be dispatched if they can't complete without further waits
-				if (IsInRenderingThread())
-				{
-					ENamedThreads::Type RenderThread_Local = ENamedThreads::GetRenderThread_Local();
-					if (FTaskGraphInterface::Get().IsThreadProcessingTasks(RenderThread_Local))
-					{
-						// this is a deadlock. RT tasks must be done by now or they won't be done. We could add a third queue...
-						UE_LOG(LogRHI, Fatal, TEXT("Deadlock in command list processing."));
-					}
-					FTaskGraphInterface::Get().WaitUntilTaskCompletes(EventToWaitFor, RenderThread_Local);
-				}
-				else
-				{
-					FTaskGraphInterface::Get().WaitUntilTaskCompletes(EventToWaitFor);
-				}
-			}
-		}
-		{
-			SCOPE_CYCLE_COUNTER(STAT_RTChainExecute);
-			RHICmdList->CopyContext(CmdList);
-			delete RHICmdList;
-		}
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(EventToWaitFor);
+		RHICmdList->CopyContext(CmdList);
+		delete RHICmdList;
 	}
 };
 
 void FRHICommandListBase::QueueRenderThreadCommandListSubmit(FGraphEventRef& RenderThreadCompletionEvent, class FRHICommandList* CmdList)
 {
-	check(!IsInRHIThread());
-
-	if (RenderThreadCompletionEvent.GetReference())
-	{
-		check(!IsInActualRenderingThread() && !IsInGameThread() && !IsImmediate());
-		RTTasks.Add(RenderThreadCompletionEvent);
-	}
+	check(IsRunningRHIInSeparateThread() && IsInActualRenderingThread());
 	ALLOC_COMMAND(FRHICommandWaitForAndSubmitRTSubList)(RenderThreadCompletionEvent, CmdList);
 
 #if WITH_MGPU

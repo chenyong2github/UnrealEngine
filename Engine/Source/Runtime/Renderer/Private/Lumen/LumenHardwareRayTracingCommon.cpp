@@ -72,7 +72,7 @@ void SetLumenHardwareRayTracingSharedParameters(
 	// Lighting data
 	SharedParameters->LightDataPacked = View.RayTracingLightData.UniformBuffer;
 	SharedParameters->LightDataBuffer = View.RayTracingLightData.LightBufferSRV;
-	SharedParameters->SSProfilesTexture = GraphBuilder.RegisterExternalTexture(View.RayTracingSubSurfaceProfileTexture);
+	SharedParameters->SSProfilesTexture = View.RayTracingSubSurfaceProfileTexture;
 
 	// Use surface cache, instead
 	GetLumenCardTracingParameters(View, TracingInputs, SharedParameters->TracingParameters);

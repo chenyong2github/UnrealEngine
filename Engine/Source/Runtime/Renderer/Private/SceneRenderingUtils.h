@@ -13,7 +13,7 @@ inline void AddSimpleElementCollectorPass(const FSimpleElementCollector& SimpleE
 		RDG_EVENT_NAME("EditorPrimitives"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[&View, &SimpleElementCollector, DrawRenderState](FRHICommandList& RHICmdList)
+		[&View, &SimpleElementCollector, DrawRenderState](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
@@ -30,7 +30,7 @@ inline void AddSimpleElementCollectorPass(const FSimpleElementCollector& SimpleE
 		RDG_EVENT_NAME("EditorPrimitives"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[&View, &SimpleElementCollector, DrawRenderState, SceneDepthPriorityGroup](FRHICommandList& RHICmdList)
+		[&View, &SimpleElementCollector, DrawRenderState, SceneDepthPriorityGroup](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
@@ -46,7 +46,7 @@ inline void AddBatchedElementsPass(const FBatchedElements& BatchedElements, FRDG
 		RDG_EVENT_NAME("BatchedElements"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[&View, &BatchedElements, DrawRenderState, bNeedToSwitchVerticalAxis](FRHICommandList& RHICmdList)
+		[&View, &BatchedElements, DrawRenderState, bNeedToSwitchVerticalAxis](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 

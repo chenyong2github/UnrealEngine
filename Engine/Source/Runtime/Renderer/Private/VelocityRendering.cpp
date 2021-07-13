@@ -310,7 +310,7 @@ void FSceneRenderer::RenderVelocities(
 					RDG_EVENT_NAME("Velocity"),
 					PassParameters,
 					ERDGPassFlags::Raster,
-					[this, &View, &ParallelMeshPass, PassParameters](FRHICommandListImmediate& RHICmdList)
+					[this, &View, &ParallelMeshPass, PassParameters](FRHICommandList& RHICmdList)
 				{
 					SetStereoViewport(RHICmdList, View);
 					ParallelMeshPass.DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);

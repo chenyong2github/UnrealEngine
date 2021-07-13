@@ -844,7 +844,7 @@ class FWholeSceneDirectionalShadowStencilVS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FWholeSceneDirectionalShadowStencilVS, "/Engine/Private/ShadowProjectionVertexShader.usf", "WholeSceneDirectionalShadowStencilVS", SF_Vertex);
 
 void FProjectedShadowInfo::SetupProjectionStencilMask(
-	FRHICommandListImmediate& RHICmdList, 
+	FRHICommandList& RHICmdList, 
 	const FViewInfo* View, 
 	int32 ViewIndex, 
 	const FSceneRenderer* SceneRender,
@@ -1139,14 +1139,14 @@ void FProjectedShadowInfo::RenderProjection(
 		RDG_EVENT_NAME("%s", *EventName),
 		PassParameters,
 		ERDGPassFlags::Raster | PassFlags,
-		[this, SceneRender, View, ViewIndex, LightSceneProxy, bProjectingForForwardShading, bMobileModulatedProjections, &InstanceCullingDrawParams, bSubPixelShadow, PassParameters](FRHICommandListImmediate& RHICmdList)
+		[this, SceneRender, View, ViewIndex, LightSceneProxy, bProjectingForForwardShading, bMobileModulatedProjections, &InstanceCullingDrawParams, bSubPixelShadow, PassParameters](FRHICommandList& RHICmdList)
 	{
 		RenderProjectionInternal(RHICmdList, ViewIndex, View, LightSceneProxy, SceneRender, bProjectingForForwardShading, bMobileModulatedProjections, InstanceCullingDrawParams, bSubPixelShadow && PassParameters->HairStrands ? PassParameters->HairStrands.GetUniformBuffer()->GetRHI() : nullptr);
 	});
 }
 
 void FProjectedShadowInfo::RenderProjectionInternal(
-	FRHICommandListImmediate& RHICmdList,
+	FRHICommandList& RHICmdList,
 	int32 ViewIndex,
 	const FViewInfo* View,
 	const FLightSceneProxy* LightSceneProxy,

@@ -651,7 +651,7 @@ void RenderDirectLightIntoLumenCards(
 				GlobalShaderMap,
 				TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One>::GetRHI(),
 				RHICmdList,
-				[LightFunctionMaterialProxy, &Material, &View](FRHICommandListImmediate& RHICmdList, TShaderRefBase<FLumenCardDirectLightingPS, FShaderMapPointerTable> Shader, FRHIPixelShader* ShaderRHI, const FLumenCardDirectLightingPS::FParameters& Parameters)
+				[LightFunctionMaterialProxy, &Material, &View](FRHICommandList& RHICmdList, TShaderRefBase<FLumenCardDirectLightingPS, FShaderMapPointerTable> Shader, FRHIPixelShader* ShaderRHI, const FLumenCardDirectLightingPS::FParameters& Parameters)
 				{
 					Shader->SetParameters(RHICmdList, ShaderRHI, LightFunctionMaterialProxy, Material, View);
 				},

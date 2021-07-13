@@ -1448,7 +1448,7 @@ public:
 	FGraphEventRef									RayTracingMaterialBindingsTask;
 
 	// Common resources used for lighting in ray tracing effects
-	TRefCountPtr<IPooledRenderTarget>				RayTracingSubSurfaceProfileTexture;
+	TRefCountPtr<FRHITexture>						RayTracingSubSurfaceProfileTexture;
 	FShaderResourceViewRHIRef						RayTracingSubSurfaceProfileSRV;
 	FRayTracingLightData							RayTracingLightData;
 #endif // RHI_RAYTRACING

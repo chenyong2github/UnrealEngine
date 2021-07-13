@@ -1111,14 +1111,15 @@ void RenderScreenSpaceReflections(
 		
 		TShaderMapRef<FScreenSpaceReflectionsStencilPS> PixelShader(View.ShaderMap, PermutationVector);
 		ClearUnusedGraphResources(PixelShader, PassParameters);
-		
+
+		RDG_GPU_STAT_SCOPE(GraphBuilder, ScreenSpaceReflections);
+
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("SSR StencilSetup %dx%d", View.ViewRect.Width(), View.ViewRect.Height()),
 			PassParameters,
 			ERDGPassFlags::Raster,
 			[PassParameters, &View, PixelShader](FRHICommandList& RHICmdList)
 		{
-			SCOPED_GPU_STAT(RHICmdList, ScreenSpaceReflections);
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 		
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
@@ -1194,10 +1195,12 @@ void RenderScreenSpaceReflections(
 
 	TShaderMapRef<FScreenSpaceReflectionsPS> PixelShader(View.ShaderMap, PermutationVector);
 
+	RDG_GPU_STAT_SCOPE(GraphBuilder, ScreenSpaceReflections);
+
 	if (TiledScreenSpaceReflection == nullptr)
 	{
 		ClearUnusedGraphResources(PixelShader, PassParameters);
-		
+
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("SSR RayMarch(Quality=%d RayPerPixel=%d%s) %dx%d",
 				SSRQuality, RayTracingConfigs.RayCountPerPixel, bDenoiser ? TEXT(" DenoiserOutput") : TEXT(""),
@@ -1206,7 +1209,6 @@ void RenderScreenSpaceReflections(
 			ERDGPassFlags::Raster,
 			[PassParameters, &View, PixelShader, SSRStencilPrePass](FRHICommandList& RHICmdList)
 		{
-			SCOPED_GPU_STAT(RHICmdList, ScreenSpaceReflections);
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 		
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
@@ -1245,7 +1247,6 @@ void RenderScreenSpaceReflections(
 			ERDGPassFlags::Raster,
 			[PassParameters, &View, VertexShader, PixelShader, SSRStencilPrePass](FRHICommandList& RHICmdList)
 		{
-			SCOPED_GPU_STAT(RHICmdList, ScreenSpaceReflections);
 			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;

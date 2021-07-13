@@ -166,8 +166,6 @@ void FRDGBarrierBatchBegin::Submit(FRHIComputeCommandList& RHICmdList, ERHIPipel
 {
 	if (Transition)
 	{
-		check(EnumHasAnyFlags(PipelinesToBegin, Pipeline));
-		EnumRemoveFlags(PipelinesToBegin, Pipeline);
 		TransitionsToBegin.Emplace(Transition);
 	}
 
@@ -202,20 +200,38 @@ void FRDGBarrierBatchEnd::AddDependency(FRDGBarrierBatchBegin* BeginBatch)
 	}
 #endif
 
-	Dependencies.AddUnique(BeginBatch);
+	{
+		const FRDGBarrierBatchEndId Id(Pass->GetHandle(), BarrierLocation);
+
+		FRDGBarrierBatchEndId& EarliestEndId = BeginBatch->BarriersToEnd[Pass->GetPipeline()];
+
+		if (EarliestEndId == Id)
+		{
+			return;
+		}
+		const FRDGBarrierBatchEndId MinId(
+			FRDGPassHandle::Min(EarliestEndId.PassHandle, Id.PassHandle),
+			(ERDGBarrierLocation)FMath::Min((int32)EarliestEndId.BarrierLocation, (int32)Id.BarrierLocation));
+
+		if (MinId == Id)
+		{
+			Dependencies.Add(BeginBatch);
+			EarliestEndId = MinId;
+		}
+	}
 }
 
 void FRDGBarrierBatchEnd::Submit(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline)
 {
+	const FRDGBarrierBatchEndId Id(Pass->GetHandle(), BarrierLocation);
+
 	FRDGTransitionQueue Transitions;
 	Transitions.Reserve(Dependencies.Num());
 
 	for (FRDGBarrierBatchBegin* Dependent : Dependencies)
 	{
-		if (EnumHasAnyFlags(Dependent->PipelinesToEnd, Pipeline))
+		if (Dependent->BarriersToEnd[Pipeline] == Id)
 		{
-			check(Dependent->Transition);
-			EnumRemoveFlags(Dependent->PipelinesToEnd, Pipeline);
 			Transitions.Emplace(Dependent->Transition);
 		}
 	}
@@ -275,7 +291,7 @@ FRDGBarrierBatchEnd& FRDGPass::GetEpilogueBarriersToEnd(FRDGAllocator& Allocator
 {
 	if (!EpilogueBarriersToEnd)
 	{
-		EpilogueBarriersToEnd = Allocator.AllocNoDestruct<FRDGBarrierBatchEnd>(this);
+		EpilogueBarriersToEnd = Allocator.AllocNoDestruct<FRDGBarrierBatchEnd>(this, ERDGBarrierLocation::Epilogue);
 	}
 	return *EpilogueBarriersToEnd;
 }
@@ -288,7 +304,7 @@ FRDGPass::FRDGPass(
 	, ParameterStruct(InParameterStruct)
 	, Flags(InFlags)
 	, Pipeline(EnumHasAnyFlags(Flags, ERDGPassFlags::AsyncCompute) ? ERHIPipeline::AsyncCompute : ERHIPipeline::Graphics)
-	, PrologueBarriersToEnd(this)
+	, PrologueBarriersToEnd(this, ERDGBarrierLocation::Prologue)
 	, EpilogueBarriersToBeginForGraphics(Pipeline, ERHIPipeline::Graphics, GetEpilogueBarriersToBeginDebugName(ERHIPipeline::Graphics), this)
 {}
 

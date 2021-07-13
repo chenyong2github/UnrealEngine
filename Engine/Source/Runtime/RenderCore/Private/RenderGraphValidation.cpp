@@ -79,7 +79,7 @@ void FRDGResource::MarkResourceAsUsed()
 void FRDGResource::ValidateRHIAccess() const
 {
 	check(DebugData);
-	checkf(DebugData->bAllowRHIAccess || GRDGAllowRHIAccess,
+	checkf(DebugData->bAllowRHIAccess || GRDGAllowRHIAccess || IsParallelExecuteEnabled(),
 		TEXT("Accessing the RHI resource of %s at this time is not allowed. If you hit this check in pass, ")
 		TEXT("that is due to this resource not being referenced in the parameters of your pass."),
 		Name);
@@ -163,7 +163,6 @@ FRDGUserValidation::FRDGUserValidation(FRDGAllocator& InAllocator)
 FRDGUserValidation::~FRDGUserValidation()
 {
 	checkf(bHasExecuted, TEXT("Render graph execution is required to ensure consistency with immediate mode."));
-	GRDGBuilderActive = false;
 }
 
 void FRDGUserValidation::ExecuteGuard(const TCHAR* Operation, const TCHAR* ResourceName)
@@ -853,6 +852,7 @@ void FRDGUserValidation::ValidateExecuteEnd()
 	check(bHasExecuteBegun);
 
 	bHasExecuted = true;
+	GRDGBuilderActive = false;
 
 	if (GRDGDebug)
 	{
@@ -909,7 +909,10 @@ void FRDGUserValidation::ValidateExecuteEnd()
 
 void FRDGUserValidation::ValidateExecutePassBegin(const FRDGPass* Pass)
 {
-	check(Pass);
+	if (IsParallelExecuteEnabled())
+	{
+		return;
+	}
 
 	SetAllowRHIAccess(Pass, true);
 
@@ -1006,6 +1009,11 @@ void FRDGUserValidation::ValidateExecutePassBegin(const FRDGPass* Pass)
 
 void FRDGUserValidation::ValidateExecutePassEnd(const FRDGPass* Pass)
 {
+	if (IsParallelExecuteEnabled())
+	{
+		return;
+	}
+
 	SetAllowRHIAccess(Pass, false);
 
 	const FRDGParameterStruct PassParameters = Pass->GetParameters();

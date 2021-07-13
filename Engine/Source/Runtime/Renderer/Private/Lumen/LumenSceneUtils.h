@@ -202,7 +202,7 @@ void DrawQuadsToAtlas(
 	const PassParametersType* PassParameters,
 	FGlobalShaderMap* GlobalShaderMap,
 	FRHIBlendState* BlendState,
-	FRHICommandListImmediate& RHICmdList,
+	FRHICommandList& RHICmdList,
 	bool bRectBufferSrc = false,
 	bool bRectBufferDst = false)
 {
@@ -219,7 +219,7 @@ void DrawQuadsToAtlas(
 		GlobalShaderMap, 
 		BlendState, 
 		RHICmdList, 
-		[](FRHICommandListImmediate& RHICmdList, TShaderRefBase<PixelShaderType, FShaderMapPointerTable> Shader, FRHIPixelShader* ShaderRHI, const typename PixelShaderType::FParameters& Parameters)
+		[](FRHICommandList& RHICmdList, TShaderRefBase<PixelShaderType, FShaderMapPointerTable> Shader, FRHIPixelShader* ShaderRHI, const typename PixelShaderType::FParameters& Parameters)
 	{
 	});
 }
@@ -232,7 +232,7 @@ void DrawQuadsToAtlas(
 	const PassParametersType* PassParameters,
 	FGlobalShaderMap* GlobalShaderMap,
 	FRHIBlendState* BlendState,
-	FRHICommandListImmediate& RHICmdList,
+	FRHICommandList& RHICmdList,
 	SetParametersLambdaType&& SetParametersLambda,
 	uint32 CardIndirectArgOffset = 0)
 {

@@ -317,7 +317,7 @@ void DrawDecalMeshCommands(
 		RDG_EVENT_NAME("MeshDecals"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[&View, DecalRenderStage, RenderTargetMode](FRHICommandList& RHICmdList)
+		[&View, DecalRenderStage, RenderTargetMode](FRHICommandListImmediate& RHICmdList)
 	{
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 

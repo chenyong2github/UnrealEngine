@@ -119,6 +119,9 @@ FPassPacket::FPassPacket(const UE::Trace::IAnalyzer::FOnEventContext& Context)
 	, bAsyncComputeEnd(Context.EventData.GetValue<bool>("IsAsyncComputeEnd"))
 	, bSkipRenderPassBegin(Context.EventData.GetValue<bool>("SkipRenderPassBegin"))
 	, bSkipRenderPassEnd(Context.EventData.GetValue<bool>("SkipRenderPassEnd"))
+	, bParallelExecuteBegin(Context.EventData.GetValue<bool>("IsParallelExecuteBegin"))
+	, bParallelExecuteEnd(Context.EventData.GetValue<bool>("IsParallelExecuteEnd"))
+	, bParallelExecute(Context.EventData.GetValue<bool>("IsParallelExecute"))
 	, bImmediateCommandList(Context.EventData.GetValue<bool>("UsesImmediateCommandList"))
 {}
 

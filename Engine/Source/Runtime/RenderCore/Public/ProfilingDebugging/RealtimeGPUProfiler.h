@@ -304,6 +304,29 @@ class FRealtimeGPUProfilerEvent;
 class FRealtimeGPUProfilerFrame;
 class FRenderQueryPool;
 
+class FRealtimeGPUProfilerQuery
+{
+public:
+	FRealtimeGPUProfilerQuery() = default;
+	FRealtimeGPUProfilerQuery(FRHIGPUMask InGPUMask, FRHIRenderQuery* InQuery)
+		: GPUMask(InGPUMask)
+		, Query(InQuery)
+	{}
+
+	void Submit(FRHICommandList& RHICmdList) const
+	{
+		if (Query)
+		{
+			SCOPED_GPU_MASK(RHICmdList, GPUMask);
+			RHICmdList.EndRenderQuery(Query);
+		}
+	}
+
+private:
+	FRHIGPUMask GPUMask;
+	FRHIRenderQuery* Query{};
+};
+
 /**
 * FRealtimeGPUProfiler class. This manages recording and reporting all for GPU stats
 */
@@ -326,8 +349,13 @@ public:
 	RENDERCORE_API void Release();
 
 	/** Push/pop events */
-	void PushEvent(FRHICommandListImmediate& RHICmdList, const FName& Name, const FName& StatName);
-	void PopEvent(FRHICommandListImmediate& RHICmdList);
+	FRealtimeGPUProfilerQuery PushEvent(FRHIGPUMask GPUMask, const FName& Name, const FName& StatName);
+	FRealtimeGPUProfilerQuery PopEvent();
+
+	int32 GetCurrentEventIndex() const;
+
+	void PushEventOverride(int32 EventIndex);
+	void PopEventOverride();
 
 	/** Push/pop stats which do additional draw call tracking on top of events. */
 	void PushStat(FRHICommandListImmediate& RHICmdList, const FName& Name, const FName& StatName, int32 (*InNumDrawCallsPtr)[MAX_NUM_GPUS]);
@@ -350,6 +378,7 @@ private:
 	FRenderQueryPoolRHIRef RenderQueryPool;
 	bool bStatGatheringPaused;
 	bool bInBeginEndBlock;
+	bool bLocked = false;
 };
 
 /**

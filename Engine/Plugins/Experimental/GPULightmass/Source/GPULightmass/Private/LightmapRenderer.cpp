@@ -2089,7 +2089,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 								RDG_EVENT_NAME("LightmapGBuffer"),
 								PassParameters,
 								ERDGPassFlags::Raster,
-								[this, ReferenceView = Scene->ReferenceView, &PendingGITileRequests, &PendingGIRenderPassIndices, GPUIndex, AAvsGIMultiplier](FRHICommandList& RHICmdList)
+								[this, ReferenceView = Scene->ReferenceView, &PendingGITileRequests, &PendingGIRenderPassIndices, GPUIndex, AAvsGIMultiplier](FRHICommandListImmediate& RHICmdList)
 							{
 								for (int32 Index = 0; Index < PendingGITileRequests.Num(); Index++)
 								{
@@ -2232,7 +2232,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 									PassParameters->IESTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy, TEXT("IESTexture"));
 									PassParameters->IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-									PassParameters->SSProfilesTexture = GetSubsufaceProfileTexture_RT(GraphBuilder.RHICmdList)->GetShaderResourceRHI();
+									PassParameters->SSProfilesTexture = GetSubsurfaceProfileTexture();
 
 
 									FLightmapPathTracingRGS::FPermutationDomain PermutationVector;
@@ -2524,7 +2524,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 							RDG_EVENT_NAME("LightmapGBuffer"),
 							PassParameters,
 							ERDGPassFlags::Raster,
-							[this, ReferenceView = Scene->ReferenceView, &PendingShadowTileRequests, &LightSampleIndexArray](FRHICommandList& RHICmdList)
+							[this, ReferenceView = Scene->ReferenceView, &PendingShadowTileRequests, &LightSampleIndexArray](FRHICommandListImmediate& RHICmdList)
 						{
 							for (int32 TileIndex = 0; TileIndex < PendingShadowTileRequests.Num(); TileIndex++)
 							{

@@ -575,7 +575,7 @@ void AddMotionBlurVelocityPass(
 			RDG_EVENT_NAME("VelocityTileScatter %dx%d", VelocityTileCount.X, VelocityTileCount.Y),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[VertexShader, PixelShader, VelocityTileCount, PassParameters](FRHICommandListImmediate& RHICmdList)
+			[VertexShader, PixelShader, VelocityTileCount, PassParameters](FRHICommandList& RHICmdList)
 		{
 			FRHIVertexShader* RHIVertexShader = VertexShader.GetVertexShader();
 

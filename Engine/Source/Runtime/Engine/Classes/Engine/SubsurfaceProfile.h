@@ -190,7 +190,7 @@ public:
 
 	// @return can be 0 if there is no SubsurfaceProfile
 	struct IPooledRenderTarget* GetTexture(FRHICommandListImmediate& RHICmdList);
-
+	struct IPooledRenderTarget* GetTexture();
 
 	//~ Begin FRenderResource Interface.
 	/**
@@ -243,3 +243,12 @@ static const int32 SUBSURFACE_KERNEL_SIZE = 3;
 
 // lives on the render thread
 extern ENGINE_API TGlobalResource<FSubsurfaceProfileTexture> GSubsurfaceProfileTextureObject;
+
+// Initializes or updates the contents of the subsurface profile texture.
+ENGINE_API void UpdateSubsurfaceProfileTexture(FRHICommandListImmediate& RHICmdList);
+
+// Returns the subsurface profile texture if it exists, or null.
+ENGINE_API FRHITexture* GetSubsurfaceProfileTexture();
+
+// Returns the subsurface profile texture if it exists, or black.
+ENGINE_API FRHITexture* GetSubsurfaceProfileTextureWithFallback();

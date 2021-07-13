@@ -1453,7 +1453,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 			PassParameters->AlbedoTexture   = GraphBuilder.CreateUAV(AlbedoTexture);
 			PassParameters->NormalTexture   = GraphBuilder.CreateUAV(NormalTexture);
 
-			PassParameters->SSProfilesTexture = GetSubsufaceProfileTexture_RT(GraphBuilder.RHICmdList)->GetShaderResourceRHI();
+			PassParameters->SSProfilesTexture = GetSubsurfaceProfileTexture();
 
 			// TODO: in multi-gpu case, split image into tiles
 			PassParameters->TileOffset.X = 0;
@@ -1476,7 +1476,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 					: RDG_EVENT_NAME("Path Tracer Compute (%d x %d) Sample=%d/%d NumLights=%d", View.ViewRect.Size().X, View.ViewRect.Size().Y, View.ViewState->PathTracingSampleIndex, MaxSPP, PassParameters->SceneLightCount),
 				PassParameters,
 				ERDGPassFlags::Compute,
-				[PassParameters, RayGenShader, DispatchSizeX, DispatchSizeY, &View](FRHICommandListImmediate& RHICmdList)
+				[PassParameters, RayGenShader, DispatchSizeX, DispatchSizeY, &View](FRHICommandList& RHICmdList)
 			{
 				FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
 			

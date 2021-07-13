@@ -634,7 +634,7 @@ void CullMeshSDFObjectsToViewGrid(
 				RDG_EVENT_NAME("ScatterMeshSDFsToGrid"),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[CullGridSize, bReverseCulling, VertexShader, PixelShader, PassParameters](FRHICommandListImmediate& RHICmdList)
+				[CullGridSize, bReverseCulling, VertexShader, PixelShader, PassParameters](FRHICommandList& RHICmdList)
 			{
 				FGraphicsPipelineStateInitializer GraphicsPSOInit;
 				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);

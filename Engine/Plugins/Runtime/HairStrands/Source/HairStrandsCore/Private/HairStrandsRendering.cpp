@@ -1957,7 +1957,7 @@ void ComputeHairStrandsInterpolation(
 					GraphBuilder.AddPass(
 						RDG_EVENT_NAME("HairUpdateBLAS(Cards)"),
 						ERDGPassFlags::NeverCull,
-						[Instance, HairLODIndex, bNeedUpdate](FRHICommandList& RHICmdList)
+						[Instance, HairLODIndex, bNeedUpdate](FRHICommandListImmediate& RHICmdList)
 					{
 						FHairGroupInstance::FCards::FLOD& LocalLOD = Instance->Cards.LODs[HairLODIndex];
 
@@ -2020,7 +2020,7 @@ void ComputeHairStrandsInterpolation(
 					GraphBuilder.AddPass(
 						RDG_EVENT_NAME("HairUpdateBLAS(Meshes)"),
 						ERDGPassFlags::NeverCull,
-						[Instance, HairLODIndex, bNeedUpdate](FRHICommandList& RHICmdList)
+						[Instance, HairLODIndex, bNeedUpdate](FRHICommandListImmediate& RHICmdList)
 					{
 						FHairGroupInstance::FMeshes::FLOD& LocalLOD = Instance->Meshes.LODs[HairLODIndex];				
 						const bool bLocalNeedBuild = !LocalLOD.RaytracingResource->bIsRTGeometryInitialized;

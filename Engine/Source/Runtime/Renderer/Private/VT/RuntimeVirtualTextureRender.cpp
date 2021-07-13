@@ -738,7 +738,7 @@ namespace RuntimeVirtualTexture
 			RDG_EVENT_NAME("VirtualTextureCopy"),
 			Parameters,
 			ERDGPassFlags::Raster,
-			[VertexShader, PixelShader, Parameters, TextureSize](FRHICommandListImmediate& RHICmdList)
+			[VertexShader, PixelShader, Parameters, TextureSize](FRHICommandList& RHICmdList)
 		{
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);

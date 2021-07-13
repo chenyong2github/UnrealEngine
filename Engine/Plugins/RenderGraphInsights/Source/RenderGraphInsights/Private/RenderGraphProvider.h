@@ -127,6 +127,9 @@ public:
 	bool bAsyncComputeEnd{};
 	bool bSkipRenderPassBegin{};
 	bool bSkipRenderPassEnd{};
+	bool bParallelExecuteBegin{};
+	bool bParallelExecuteEnd{};
+	bool bParallelExecute{};
 	bool bImmediateCommandList{};
 
 	FPassPacket(const UE::Trace::IAnalyzer::FOnEventContext& Context);

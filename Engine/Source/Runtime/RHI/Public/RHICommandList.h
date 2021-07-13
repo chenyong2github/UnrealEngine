@@ -412,8 +412,8 @@ public:
 	void operator delete(void *RawMemory);
 
 	inline void Flush();
-	inline bool IsImmediate();
-	inline bool IsImmediateAsyncCompute();
+	inline bool IsImmediate() const;
+	inline bool IsImmediateAsyncCompute() const;
 
 	const int32 GetUsedMemory() const;
 	void QueueAsyncCommandListSubmit(FGraphEventRef& AnyThreadCompletionEvent, class FRHICommandList* CmdList);
@@ -425,6 +425,8 @@ public:
 	void WaitForDispatch();
 	void WaitForRHIThreadTasks();
 	void HandleRTThreadTaskCompletion(const FGraphEventRef& MyCompletionGraphEvent);
+
+	void SetCurrentStat(TStatId Stat);
 
 	FORCEINLINE_DEBUGGABLE void* Alloc(int32 AllocSize, int32 Alignment)
 	{
@@ -810,6 +812,23 @@ struct FRHICommand : public FRHICommandBase
 	}
 
 	virtual void StoreDebugInfo(FRHICommandListDebugContext& Context) {};
+};
+
+template <typename RHICmdListType, typename LAMBDA>
+struct TRHILambdaCommand final : public FRHICommandBase
+{
+	LAMBDA Lambda;
+
+	TRHILambdaCommand(LAMBDA&& InLambda)
+		: Lambda(Forward<LAMBDA>(InLambda))
+	{}
+
+	void ExecuteAndDestruct(FRHICommandListBase& CmdList, FRHICommandListDebugContext&) override final
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL(TRHILambdaCommand, RHICommandsChannel);
+		Lambda(*static_cast<RHICmdListType*>(&CmdList));
+		Lambda.~LAMBDA();
+	}
 };
 
 #define FRHICOMMAND_MACRO(CommandName)								\
@@ -2367,6 +2386,19 @@ public:
 	void* operator new(size_t Size);
 	void operator delete(void *RawMemory);
 
+	template <typename LAMBDA>
+	FORCEINLINE_DEBUGGABLE void EnqueueLambda(LAMBDA&& Lambda)
+	{
+		if (IsBottomOfPipe())
+		{
+			Lambda(*this);
+		}
+		else
+		{
+			ALLOC_COMMAND(TRHILambdaCommand<FRHIComputeCommandList, LAMBDA>)(Forward<LAMBDA>(Lambda));
+		}
+	}
+
 	inline FRHIComputeShader* GetBoundComputeShader() const { return BoundComputeShaderRHI; }
 
 	UE_DEPRECATED(5.0, "Please rename to SetStaticUniformBuffers")
@@ -3025,6 +3057,19 @@ public:
 	inline FRHIAmplificationShader* GetBoundAmplificationShader() const { return BoundShaderInput.AmplificationShaderRHI; }
 	inline FRHIPixelShader* GetBoundPixelShader() const { return BoundShaderInput.PixelShaderRHI; }
 	inline FRHIGeometryShader* GetBoundGeometryShader() const { return BoundShaderInput.GeometryShaderRHI; }
+
+	template <typename LAMBDA>
+	FORCEINLINE_DEBUGGABLE void EnqueueLambda(LAMBDA&& Lambda)
+	{
+		if (IsBottomOfPipe())
+		{
+			Lambda(*this);
+		}
+		else
+		{
+			ALLOC_COMMAND(TRHILambdaCommand<FRHICommandList, LAMBDA>)(Forward<LAMBDA>(Lambda));
+		}
+	}
 
 	FORCEINLINE_DEBUGGABLE void BeginUpdateMultiFrameResource(FRHITexture* Texture)
 	{
@@ -4005,23 +4050,6 @@ extern RHI_API ERHIAccess RHIGetDefaultResourceState(EBufferUsageFlags InUsage, 
 
 class RHI_API FRHICommandListImmediate : public FRHICommandList
 {
-	template <typename LAMBDA>
-	struct TRHILambdaCommand final : public FRHICommandBase
-	{
-		LAMBDA Lambda;
-
-		TRHILambdaCommand(LAMBDA&& InLambda)
-			: Lambda(Forward<LAMBDA>(InLambda))
-		{}
-
-		void ExecuteAndDestruct(FRHICommandListBase& CmdList, FRHICommandListDebugContext&) override final
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL(TRHILambdaCommand, RHICommandsChannel);
-			Lambda(*static_cast<FRHICommandListImmediate*>(&CmdList));
-			Lambda.~LAMBDA();
-		}
-	};
-
 	friend class FRHICommandListExecutor;
 	FRHICommandListImmediate()
 		: FRHICommandList(FRHIGPUMask::All())
@@ -4039,8 +4067,6 @@ public:
 	void UnStallRHIThread();
 	static bool IsStalled();
 
-	void SetCurrentStat(TStatId Stat);
-
 	static FGraphEventRef RenderThreadTaskFence();
 	static FGraphEventArray& GetRenderThreadTaskArray();
 	static void WaitOnRenderThreadTaskFence(FGraphEventRef& Fence);
@@ -4049,16 +4075,6 @@ public:
 
 	//Queue the given async compute commandlists in order with the current immediate commandlist
 	void QueueAsyncCompute(FRHIComputeCommandList& RHIComputeCmdList);
-
-	FORCEINLINE bool IsBottomOfPipe()
-	{
-		return Bypass() || IsExecuting();
-	}
-
-	FORCEINLINE bool IsTopOfPipe()
-	{
-		return !IsBottomOfPipe();
-	}
 
 	template <typename LAMBDA>
 	FORCEINLINE_DEBUGGABLE void EnqueueLambda(LAMBDA&& Lambda)
@@ -4069,7 +4085,7 @@ public:
 		}
 		else
 		{
-			ALLOC_COMMAND(TRHILambdaCommand<LAMBDA>)(Forward<LAMBDA>(Lambda));
+			ALLOC_COMMAND(TRHILambdaCommand<FRHICommandListImmediate, LAMBDA>)(Forward<LAMBDA>(Lambda));
 		}
 	}
 

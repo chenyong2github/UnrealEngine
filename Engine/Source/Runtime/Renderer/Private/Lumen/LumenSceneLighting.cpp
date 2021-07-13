@@ -460,7 +460,7 @@ void CombineLumenSceneLighting(
 			RDG_EVENT_NAME("LightingCombine"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[MaxAtlasSize = Scene->LumenSceneData->GetPhysicalAtlasSize(), PassParameters, GlobalShaderMap](FRHICommandListImmediate& RHICmdList)
+			[MaxAtlasSize = Scene->LumenSceneData->GetPhysicalAtlasSize(), PassParameters, GlobalShaderMap](FRHICommandList& RHICmdList)
 		{
 			FLumenCardLightingInitializePS::FPermutationDomain PermutationVector;
 			auto PixelShader = GlobalShaderMap->GetShader< FLumenCardLightingInitializePS >(PermutationVector);
@@ -498,7 +498,7 @@ void CopyLumenCardAtlas(
 		RDG_EVENT_NAME("CopyLumenCardAtlas"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[MaxAtlasSize = Scene->LumenSceneData->GetPhysicalAtlasSize(), PassParameters, GlobalShaderMap](FRHICommandListImmediate& RHICmdList)
+		[MaxAtlasSize = Scene->LumenSceneData->GetPhysicalAtlasSize(), PassParameters, GlobalShaderMap](FRHICommandList& RHICmdList)
 	{
 		FLumenCardCopyAtlasPS::FPermutationDomain PermutationVector;
 		auto PixelShader = GlobalShaderMap->GetShader< FLumenCardCopyAtlasPS >(PermutationVector);
@@ -543,7 +543,7 @@ void ApplyLumenCardAlbedo(
 		RDG_EVENT_NAME("ApplyLumenCardAlbedo"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[MaxAtlasSize = Scene->LumenSceneData->GetPhysicalAtlasSize(), PassParameters, GlobalShaderMap](FRHICommandListImmediate& RHICmdList)
+		[MaxAtlasSize = Scene->LumenSceneData->GetPhysicalAtlasSize(), PassParameters, GlobalShaderMap](FRHICommandList& RHICmdList)
 	{
 		FLumenCardCopyAtlasPS::FPermutationDomain PermutationVector;
 		auto PixelShader = GlobalShaderMap->GetShader< FLumenCardBlendAlbedoPS >(PermutationVector);

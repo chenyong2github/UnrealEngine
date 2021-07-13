@@ -589,7 +589,7 @@ public:
 			RDG_EVENT_NAME("LandscapeGrass"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[this, &View](FRHICommandList& RHICmdList)
+			[this, &View](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.SetViewport(View->UnscaledViewRect.Min.X, View->UnscaledViewRect.Min.Y, 0.0f, View->UnscaledViewRect.Max.X, View->UnscaledViewRect.Max.Y, 1.0f);
 			RHICmdList.SetScissorRect(false, 0, 0, 0, 0);

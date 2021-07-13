@@ -692,7 +692,7 @@ void FDeferredShadingSceneRenderer::RenderDistortion(FRDGBuilder& GraphBuilder, 
 				{},
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[this, &View, PassParameters](FRHICommandListImmediate& RHICmdList)
+				[this, &View, PassParameters](FRHICommandList& RHICmdList)
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRender_RenderDistortion_Accumulate_Meshes);
 				SetStereoViewport(RHICmdList, View);

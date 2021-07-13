@@ -393,7 +393,7 @@ namespace ShaderPrint
 				RDG_EVENT_NAME("DrawSymbols"),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[VertexShader, PixelShader, PassParameters](FRHICommandListImmediate& RHICmdListImmediate)
+				[VertexShader, PixelShader, PassParameters](FRHICommandList& RHICmdListImmediate)
 			{
 				FGraphicsPipelineStateInitializer GraphicsPSOInit;
 				RHICmdListImmediate.ApplyCachedRenderTargets(GraphicsPSOInit);

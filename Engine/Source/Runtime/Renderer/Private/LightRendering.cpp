@@ -23,6 +23,7 @@
 #include "Strata/Strata.h"
 #include "VirtualShadowMaps/VirtualShadowMapProjection.h"
 #include "HairStrands/HairStrandsData.h"
+#include "Engine/SubsurfaceProfile.h"
 
 // ENABLE_DEBUG_DISCARD_PROP is used to test the lighting code by allowing to discard lights to see how performance scales
 // It ought never to be enabled in a shipping build, and is probably only really useful when woring on the shading code.
@@ -42,7 +43,6 @@ IMPLEMENT_TYPE_LAYOUT(FShadowProjectionShaderParameters);
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDeferredLightUniformStruct, "DeferredLightUniforms");
 
 extern int32 GUseTranslucentLightingVolumes;
-ENGINE_API IPooledRenderTarget* GetSubsufaceProfileTexture_RT(FRHICommandListImmediate& RHICmdList);
 
 extern TAutoConsoleVariable<int32> CVarVirtualShadowOnePassProjection;
 
@@ -658,13 +658,7 @@ private:
 
 		if( TransmissionProfilesTexture.IsBound() )
 		{
-			FRHITexture* SubsurfaceTextureRHI = GBlackTexture->TextureRHI;
-
-			if (auto* SubsurfaceRT = GetSubsufaceProfileTexture_RT((FRHICommandListImmediate&)RHICmdList))
-			{
-				// no subsurface profile was used yet
-				SubsurfaceTextureRHI = SubsurfaceRT->GetShaderResourceRHI();
-			}
+			FRHITexture* SubsurfaceTextureRHI = GetSubsurfaceProfileTextureWithFallback();
 
 			SetTextureParameter(RHICmdList,
 				ShaderRHI,
