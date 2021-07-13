@@ -74,12 +74,6 @@ public:
 	UPROPERTY(EditAnywhere, config, Category="OS Info", Meta=(DisplayName = "Minimum OS Version"))
 	EMinimumSupportedOS MinimumOSVersion;
 
-	/**
-	 * Determines if data is cooked for 32bit (or 64bit) exe
-	 */
-	UPROPERTY(EditAnywhere, config, Category = "OS Info", Meta = (DisplayName = "Target 32bit", ConfigRestartRequired=true))
-	bool bTarget32Bit;
-
 	/** Sample rate to run the audio mixer with. */
 	UPROPERTY(config, EditAnywhere, Category = "Audio", Meta = (DisplayName = "Audio Mixer Sample Rate"))
 	int32 AudioSampleRate;
