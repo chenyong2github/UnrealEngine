@@ -570,7 +570,7 @@ void FStreamingTextureLevelContext::ProcessMaterial(const FBoxSphereBounds& Comp
 		{
 			for (const FStreamingTextureBuildInfo& BuildInfo : *ComponentBuildData)
 			{
-				if (LevelStreamingTextures.IsValidIndex(BuildInfo.TextureLevelIndex))
+				if (ensure(LevelStreamingTextures.IsValidIndex(BuildInfo.TextureLevelIndex)))
 				{
 					if (UTexture* Texture = LevelStreamingTextures[BuildInfo.TextureLevelIndex])
 					{
