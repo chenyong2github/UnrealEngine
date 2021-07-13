@@ -191,7 +191,8 @@ bool UWorldPartitionHLODsBuilder::RequiresCommandletRendering() const
 {
 	// Commandlet requires rendering only for building HLODs
 	// Building will occur either if -BuildHLODs is provided or no explicit step arguments are provided
-	return bBuildHLODs || bSingleBuildStep;
+	// Currently required with -SetupHLODs as we want to build texture streaming data for HLODs on save.
+	return bSetupHLODs || bBuildHLODs || bSingleBuildStep;
 }
 
 bool UWorldPartitionHLODsBuilder::ValidateParams() const
@@ -458,7 +459,12 @@ bool UWorldPartitionHLODsBuilder::BuildHLODActors()
 
 		UE_LOG(LogWorldPartitionHLODsBuilder, Display, TEXT("    [%d/%d] Building HLOD actor %s..."), CurrentActor, HLODActorsToBuild.Num(), *HLODActor->GetActorLabel());
 
-		HLODActor->BuildHLOD();
+		if (HLODActor->GetSubActorsHLODLayer()->GetLayerType() != EHLODLayerType::Instancing)
+		{
+			continue;
+		}
+
+		HLODActor->BuildHLOD(true);
 
 		UPackage* ActorPackage = HLODActor->GetPackage();
 		if (ActorPackage->IsDirty())
