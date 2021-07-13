@@ -943,7 +943,7 @@ void AWorldSettings::UpdateBookmarkClass()
 
 FSoftClassPath AWorldSettings::GetAISystemClassName() const
 {
-	return bEnableAISystem ? AISystemClass.Get() : FSoftClassPath();
+	return bEnableAISystem ? FSoftClassPath(AISystemClass.ToString()) : FSoftClassPath();
 }
 
 void AWorldSettings::RewindForReplay()
