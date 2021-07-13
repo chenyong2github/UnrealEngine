@@ -304,7 +304,8 @@ private:
 		};
 		AssetPickerConfig.bShowPathInColumnView = false;
 		AssetPickerConfig.bShowTypeInColumnView = false;
-
+		AssetPickerConfig.bFocusSearchBoxWhenOpened = false;
+		
 		SkeletonContainer->ClearChildren();
 		SkeletonContainer->AddSlot()
 		[
