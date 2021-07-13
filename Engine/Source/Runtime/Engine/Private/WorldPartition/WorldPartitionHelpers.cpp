@@ -29,7 +29,7 @@ void FWorldPartitionHelpers::ForEachActorDesc(UWorldPartition* WorldPartition, T
 	}
 }
 
-void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldPartition, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(AActor*)> Predicate)
+void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldPartition, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate)
 {
 	// Recursive loading of references 
 	TFunction<void(const FGuid&, TMap<FGuid, FWorldPartitionReference>&)> LoadReferences = [WorldPartition, &LoadReferences](const FGuid& ActorGuid, TMap<FGuid, FWorldPartitionReference>& InOutActorReferences)
@@ -55,35 +55,40 @@ void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldParti
 	TMap<FGuid, FWorldPartitionReference> ActorReferences;
 	TArray<FGuid> ActorsToProcess;
 
+	auto DoCollectGarbage = [&ActorReferences]()
+	{
+		ActorReferences.Empty();
+
+		const FPlatformMemoryStats MemStatsBefore = FPlatformMemory::GetStats();
+		CollectGarbage(RF_NoFlags, true);
+		const FPlatformMemoryStats MemStatsAfter = FPlatformMemory::GetStats();
+
+		UE_LOG(LogWorldPartition, Log, TEXT("GC Performed - Available Physical: %.2fGB, Available Virtual: %.2fGB"),
+			(int64)MemStatsAfter.AvailablePhysical / (1024.0 * 1024.0 * 1024.0),
+			(int64)MemStatsAfter.AvailableVirtual / (1024.0 * 1024.0 * 1024.0)
+		);
+	};
+
 	ForEachActorDesc(WorldPartition, ActorClass, [&](const FWorldPartitionActorDesc* ActorDesc)
 	{
 		const FGuid& ActorGuid = ActorDesc->GetGuid();
 		LoadReferences(ActorGuid, ActorReferences);
 
 		FWorldPartitionReference ActorReference(WorldPartition, ActorGuid);
-		AActor* Actor = ActorReference.Get()->GetActor();
-
-		if (!Predicate(Actor))
+		if (!Predicate(ActorReference.Get()))
 		{
 			return false;
 		}
 
 		if (HasExceededMaxMemory())
 		{
-			ActorReferences.Empty();
-
-			const FPlatformMemoryStats MemStatsBefore = FPlatformMemory::GetStats();
-			CollectGarbage(RF_NoFlags, true);
-			const FPlatformMemoryStats MemStatsAfter = FPlatformMemory::GetStats();
-
-			UE_LOG(LogWorldPartition, Log, TEXT("GC Performed - Available Physical: %.2fGB, Available Virtual: %.2fGB"),
-				(int64)MemStatsAfter.AvailablePhysical / (1024.0 * 1024.0 * 1024.0),
-				(int64)MemStatsAfter.AvailableVirtual / (1024.0 * 1024.0 * 1024.0)
-			);
+			DoCollectGarbage();
 		}
 
 		return true;
 	});
+
+	DoCollectGarbage();
 }
 
 bool FWorldPartitionHelpers::HasExceededMaxMemory()

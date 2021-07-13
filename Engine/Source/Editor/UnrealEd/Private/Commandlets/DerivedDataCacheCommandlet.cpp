@@ -350,10 +350,13 @@ void UDerivedDataCacheCommandlet::CacheWorldPackages(UWorld* World, uint8 Packag
 		UWorldPartition* WorldPartition = World->GetWorldPartition();
 		check(WorldPartition);
 
-		FWorldPartitionHelpers::ForEachActorWithLoading(WorldPartition, [this, PackageFilter, &Platforms](AActor* Actor)
+		FWorldPartitionHelpers::ForEachActorWithLoading(WorldPartition, [this, PackageFilter, &Platforms](const FWorldPartitionActorDesc* ActorDesc)
 		{
-			UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Loaded actor %s"), *Actor->GetName());
-			CacheLoadedPackages(Actor->GetPackage(), PackageFilter, Platforms);
+			if (AActor* Actor = ActorDesc->GetActor())
+			{
+				UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Loaded actor %s"), *Actor->GetName());
+				CacheLoadedPackages(Actor->GetPackage(), PackageFilter, Platforms);
+			}
 			return true;
 		});
 	}
