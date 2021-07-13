@@ -151,10 +151,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = SmoothedCurvatureSettings, meta = (EditCondition = "BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes && bSmoothedCurvature", EditConditionHides, UIMin = ".01", UIMax = "1", ClampMin = ".0001", ClampMax = "10"))
 	double MaxCurvature = .1;
 
-	/** Whether to use the absolute value of the Z-Component of the normal */
-	UPROPERTY(EditAnywhere, Category = ZNormalSettings, meta = (EditCondition = "BakeTextureType == ETextureType::ThicknessAndSurfaceAttributes && bZNormal", EditConditionHides))
-	bool bUseAbsoluteValue = true;
-
 };
 
 
