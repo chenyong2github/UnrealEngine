@@ -465,10 +465,10 @@ bool UPrimitiveComponent::BuildTextureStreamingData(ETextureStreamingBuildType B
 {
 	bool bSupportsBuildTextureStreamingData = false;
 	bIsValidTextureStreamingBuiltData = false;
-	if (!FApp::CanEverRender())
-	{
-		return false;
-	}
+#if WITH_EDITOR
+	bIsActorTextureStreamingBuiltData = false;
+#endif
+	
 	bool Result = BuildTextureStreamingDataImpl(BuildType, QualityLevel, FeatureLevel, DependentResources, bSupportsBuildTextureStreamingData);
 	if (Result && bSupportsBuildTextureStreamingData)
 	{

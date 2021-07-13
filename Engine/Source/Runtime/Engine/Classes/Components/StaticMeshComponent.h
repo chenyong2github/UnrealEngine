@@ -686,6 +686,9 @@ private:
 
 	/** Called when the StaticMesh property gets overwritten without us knowing about it */
 	void OutdatedKnownStaticMeshDetected() const;
+
+	/** Clears texture streaming data. */
+	void ClearStreamingTextureData();
 #endif
 protected:
 
