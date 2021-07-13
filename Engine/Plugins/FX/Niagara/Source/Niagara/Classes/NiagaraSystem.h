@@ -3,20 +3,21 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
-#include "Particles/ParticleSystem.h"
-#include "Particles/ParticlePerfStats.h"
+
+#include "NiagaraBakerSettings.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDataSet.h"
 #include "NiagaraDataSetAccessor.h"
-#include "NiagaraEmitterInstance.h"
-#include "NiagaraEmitterHandle.h"
-#include "NiagaraBakerSettings.h"
-#include "NiagaraParameterCollection.h"
-#include "NiagaraUserRedirectionParameterStore.h"
 #include "NiagaraEffectType.h"
+#include "NiagaraEmitterHandle.h"
+#include "NiagaraEmitterInstance.h"
+#include "NiagaraParameterCollection.h"
 #include "NiagaraParameterDefinitionsSubscriber.h"
+#include "NiagaraUserRedirectionParameterStore.h"
+#include "Particles/ParticlePerfStats.h"
+#include "Particles/ParticleSystem.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 
 #include "NiagaraSystem.generated.h"
 
@@ -150,13 +151,94 @@ struct FEmitterCompiledScriptPair
 {
 	GENERATED_USTRUCT_BODY()
 	
-	bool bResultsReady;
-	UNiagaraEmitter* Emitter;
-	UNiagaraScript* CompiledScript;
+	bool bResultsReady = false;
+	UNiagaraEmitter* Emitter = nullptr;
+	UNiagaraScript* CompiledScript = nullptr;
 	uint32 PendingJobID = INDEX_NONE; // this is the ID for any active shader compiler worker job
 	FNiagaraVMExecutableDataId CompileId;
 	TSharedPtr<FNiagaraVMExecutableData> CompileResults;
 	int32 ParentIndex = INDEX_NONE;
+};
+
+UENUM()
+enum class ENiagaraCompilationState : uint8
+{
+	CheckDDC,
+	Precompile,
+	StartCompileJob,
+	AwaitResult,
+	ProcessResult,
+	PutToDDC,
+	Finished,
+	Aborted
+};
+
+struct FNiagaraLazyPrecompileReference
+{
+	TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> GetPrecompileData(UNiagaraScript* ForScript);
+	
+	UNiagaraSystem* System = nullptr;
+	TArray<UNiagaraScript*> Scripts;
+	TMap<UNiagaraScript*, int32> EmitterScriptIndex;
+	TArray<TObjectPtr<UObject>>* CompilationRootObjects;
+	TArray<FNiagaraVariable> EncounteredExposedVars;
+
+private:
+	TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> SystemPrecompiledData;
+	TMap<UNiagaraScript*, TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe>> EmitterMapping;
+};
+
+struct FNiagaraAsyncTaskSharedData
+{
+	FNiagaraAsyncTaskSharedData();
+	~FNiagaraAsyncTaskSharedData();
+	
+	
+};
+
+class FNiagaraAsyncCompileTask
+{
+#if WITH_EDITORONLY_DATA
+public:
+	FString DDCKey;
+	FString AssetPath;
+	FString UniqueEmitterName;
+	uint32 TaskHandle = 0;
+
+	double StartTaskTime = 0;
+	double DDCFetchTime = 0;
+	double StartCompileTime = 0;
+	bool bWaitForCompileJob = false;
+	bool bUsedShaderCompilerWorker = false;
+	FEmitterCompiledScriptPair ScriptPair;
+
+	ENiagaraCompilationState CurrentState;
+
+	TSharedPtr<FNiagaraVMExecutableData> ExeData;
+	TArray<uint8> DDCOutData;
+
+	// this data is shared between the ddc thread and the game thread that starts the compilation
+	TSharedPtr<FNiagaraLazyPrecompileReference, ESPMode::ThreadSafe> PrecompileReference;
+	TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> ComputedPrecompileData;
+
+	FNiagaraAsyncCompileTask(FString InAssetPath, const FEmitterCompiledScriptPair& InScriptPair);
+
+	const FEmitterCompiledScriptPair& GetScriptPair() const { return ScriptPair; };
+	void WaitAndResolveResult();
+	void AbortTask();
+
+	void CheckDDCResult();
+	void PutToDDC();
+	void ProcessCurrentState();
+	void MoveToState(ENiagaraCompilationState NewState);
+	bool IsDone() const;
+
+	void PrecompileData();
+	void StartCompileJob();
+	bool AwaitResult();
+	void ProcessResult();
+
+#endif
 };
 
 USTRUCT()
@@ -169,13 +251,12 @@ struct FNiagaraSystemCompileRequest
 	UPROPERTY()
 	TArray<TObjectPtr<UObject>> RootObjects;
 
-	TArray<FEmitterCompiledScriptPair> EmitterCompiledScriptPairs;
+	TArray<TSharedPtr<FNiagaraAsyncCompileTask, ESPMode::ThreadSafe>> DDCTasks;
 	
-	TMap<UNiagaraScript*, TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> > MappedData;
-
 	bool bIsValid = true;
-
 	bool bForced = false;
+
+	float CombinedCompileTime = 0.0f;
 };
 
 struct FNiagaraEmitterExecutionIndex
@@ -361,6 +442,9 @@ public:
 
 	/** Blocks until all active compile jobs have finished */
 	void WaitForCompilationComplete(bool bIncludingGPUShaders = false, bool bShowProgress = true);
+
+	/** Tries to abort all running shader compilations */
+	void KillAllActiveCompilations();
 
 	/** Invalidates any active compilation requests which will ignore their results. */
 	void InvalidateActiveCompiles();
@@ -571,15 +655,13 @@ public:
 
 private:
 #if WITH_EDITORONLY_DATA
-	/** Checks the ddc for vm execution data for the given script. Return true if the data was loaded from the ddc, false otherwise. */
-	bool GetFromDDC(FEmitterCompiledScriptPair& ScriptPair);
 
 	/** Since the shader compilation is done in another process, this is used to check if the result for any ongoing compilations is done.
-	*   If bWait is true then this *blocks* the game thread (and ui) until all running compilations are finished.
+	*   If bWait is true then this *blocks* the game thread (and ui) until all shader compilations are finished.
 	*/
 	bool QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotApply = false);
 
-	bool ProcessCompilationResult(FEmitterCompiledScriptPair& ScriptPair, bool bWait, bool bDoNotApply);
+	void PreProcessWaitingDDCTasks(bool bProcessForWait);
 
 	bool CompilationResultsValid(FNiagaraSystemCompileRequest& CompileRequest) const;
 
@@ -595,6 +677,7 @@ private:
 
 	/** Helper for filling in attribute datasets per emitter. */
 	void InitEmitterDataSetCompiledData(FNiagaraDataSetCompiledData& DataSetToInit, const UNiagaraEmitter* InAssociatedEmitter, const FNiagaraEmitterHandle& InAssociatedEmitterHandle);
+	void PrepareRapidIterationParametersForCompilation();
 #endif
 
 	void ResolveScalabilitySettings();

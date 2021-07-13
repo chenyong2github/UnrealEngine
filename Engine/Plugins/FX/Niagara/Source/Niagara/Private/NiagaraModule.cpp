@@ -69,6 +69,14 @@ static FAutoConsoleVariableRef CVarUseGlobalFXBudget(
 	ECVF_Default
 );
 
+static float GNiagaraMaxCompilePollTimePerFrame = 0.016f;
+static FAutoConsoleVariableRef CVarNiagaraMaxCompilePollTimePerFrame(
+	TEXT("fx.Niagara.MaxCompilePollTimePerFrame"),
+	GNiagaraMaxCompilePollTimePerFrame,
+	TEXT("When a lot of system compile tasks queue up, this is the max time per frame that is used to advance them."),
+	ECVF_Default
+);
+
 void INiagaraModule::OnUseGlobalFXBudgetChanged(IConsoleVariable* Variable)
 {
 	//Warn if we're enabling Niagara's use of budgeting but the budgeting itself is disabled.
@@ -368,8 +376,28 @@ void INiagaraModule::OnPreExit()
 #endif
 }
 
+#if WITH_EDITOR
+void PollSystemCompilations()
+{
+	double Start = FPlatformTime::Seconds();
+	for (TObjectIterator<UNiagaraSystem> SysIt; SysIt; ++SysIt)
+	{
+		UNiagaraSystem* System = *SysIt;
+		System->PollForCompilationComplete();
+		if (FPlatformTime::Seconds() - Start > GNiagaraMaxCompilePollTimePerFrame)
+		{
+			break;
+		}
+	}
+}
+#endif
+
 void INiagaraModule::OnWorldTickStart(UWorld* World, ELevelTick TickType, float DeltaSeconds)
 {
+#if WITH_EDITOR
+	PollSystemCompilations();
+#endif
+	
 #if NIAGARA_PERF_BASELINES
 	if (BaselineHandler.IsValid())
 	{

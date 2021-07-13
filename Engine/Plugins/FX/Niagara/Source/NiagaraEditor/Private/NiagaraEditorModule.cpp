@@ -381,7 +381,7 @@ void CompileEmitterStandAlone(UNiagaraEmitter* Emitter, TSet<UNiagaraEmitter*>& 
 		}
 
 		Emitter->MarkPackageDirty();
-		UNiagaraSystem* TransientSystem = NewObject<UNiagaraSystem>(GetTransientPackage(), NAME_None, RF_Transient);
+		UNiagaraSystem* TransientSystem = NewObject<UNiagaraSystem>(GetTransientPackage(), FName("StandaloneEmitter_TempSystem"), RF_Transient);
 		UNiagaraSystemFactoryNew::InitializeSystem(TransientSystem, true);
 		TransientSystem->AddEmitterHandle(*Emitter, TEXT("Emitter"));
 		FNiagaraStackGraphUtilities::RebuildEmitterNodes(*TransientSystem);
@@ -755,7 +755,7 @@ void FNiagaraEditorModule::OnPreExit()
 		UNiagaraSystem* Sys = *It;
 		if (Sys)
 		{
-			Sys->WaitForCompilationComplete();
+			Sys->KillAllActiveCompilations();
 		}
 	}
 	ClearObjectPool();
