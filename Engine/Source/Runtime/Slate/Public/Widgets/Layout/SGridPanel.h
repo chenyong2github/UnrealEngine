@@ -15,9 +15,10 @@ class FArrangedChildren;
 class FPaintArgs;
 class FSlateWindowElementList;
 
-class SLATE_API SGridPanel
-	: public SPanel
+class SLATE_API SGridPanel : public SPanel
 {
+	SLATE_DECLARE_WIDGET(SGridPanel, SPanel)
+
 public:
 	// Used by the mandatory named parameter in FSlot
 	class Layer

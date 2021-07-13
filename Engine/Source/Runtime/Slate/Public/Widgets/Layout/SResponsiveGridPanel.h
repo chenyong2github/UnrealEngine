@@ -33,9 +33,9 @@ namespace SResponsiveGridSize
  * The SResponsiveGridPanel is still in development and the API may change drastically in the future
  * or maybe removed entirely.
  */
-class SLATE_API SResponsiveGridPanel
-	: public SPanel
+class SLATE_API SResponsiveGridPanel : public SPanel
 {
+	SLATE_DECLARE_WIDGET(SResponsiveGridPanel, SPanel)
 public:
 
 	class FSlot : public TBasicLayoutWidgetSlot< FSlot >
@@ -159,7 +159,7 @@ public:
 
 public:
 
-	// SWidget interface
+	//~ SWidget interface
 
 	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
 	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
@@ -167,9 +167,9 @@ public:
 	virtual FChildren* GetChildren() override;
 
 protected:
-	// Begin SWidget overrides.
+	//~ Begin SWidget overrides.
 	virtual FVector2D ComputeDesiredSize(float) const override;
-	// End SWidget overrides.
+	//~ End SWidget overrides.
 
 private:
 

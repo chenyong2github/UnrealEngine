@@ -5,25 +5,39 @@
 #include "Layout/ArrangedChildren.h"
 
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
+SLATE_IMPLEMENT_WIDGET(SCanvas)
+void SCanvas::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+	FSlateWidgetSlotAttributeInitializer Initializer = SLATE_ADD_PANELCHILDREN_DEFINITION(AttributeInitializer, Children);
+	FSlot::RegisterAttributes(Initializer);
+}
+
+void SCanvas::FSlot::RegisterAttributes(FSlateWidgetSlotAttributeInitializer& AttributeInitializer)
+{
+	TWidgetSlotWithAttributeSupport::RegisterAttributes(AttributeInitializer);
+	SLATE_ADD_SLOT_ATTRIBUTE_DEFINITION_WITH_NAME(FSlot, AttributeInitializer, "Slot.Size", Size, EInvalidateWidgetReason::Paint);
+	SLATE_ADD_SLOT_ATTRIBUTE_DEFINITION_WITH_NAME(FSlot, AttributeInitializer, "Slot.Position", Position, EInvalidateWidgetReason::Paint)
+		.UpdatePrerequisite("Slot.Size");
+}
+
 void SCanvas::FSlot::Construct(const FChildren& SlotOwner, FSlotArguments&& InArg)
 {
-	TSlotBase<FSlot>::Construct(SlotOwner, MoveTemp(InArg));
-	if (InArg._Position.IsSet())
-	{
-		PositionAttr = MoveTemp(InArg._Position);
-	}
+	TWidgetSlotWithAttributeSupport<FSlot>::Construct(SlotOwner, MoveTemp(InArg));
 	if (InArg._Size.IsSet())
 	{
-		SizeAttr = MoveTemp(InArg._Size);
+		Size.Assign(*this, MoveTemp(InArg._Size));
 	}
+	if (InArg._Position.IsSet())
+	{
+		Position.Assign(*this, MoveTemp(InArg._Position));
+	}
+
 	TAlignmentWidgetSlotMixin<FSlot>::ConstructMixin(SlotOwner, MoveTemp(InArg));
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 
 SCanvas::SCanvas()
-	: Children(this)
+	: Children(this, GET_MEMBER_NAME_CHECKED(SCanvas, Children))
 {
 	SetCanTick(false);
 	bCanSupportFocus = false;

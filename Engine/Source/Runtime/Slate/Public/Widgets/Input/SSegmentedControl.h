@@ -106,6 +106,7 @@ public:
 		TAttribute<const FSlateBrush*> _Icon;
 
 		OptionType _Value;
+		TWeakPtr<SCheckBox> _CheckBox;
 	};
 
 	static typename FSlot::FSlotArguments Slot(const OptionType& InValue)
@@ -144,6 +145,7 @@ public:
 
 	SSegmentedControl()
 		: Children(this)
+		, CurrentValue(*this)
 	{}
 
 	void Construct( const FArguments& InArgs )
@@ -153,7 +155,8 @@ public:
 		Style = InArgs._Style;
 		TextStyle = InArgs._TextStyle;
 
-		CurrentValue = InArgs._Value;
+		CurrentValueIsBound = InArgs._Value.IsBound();
+		CurrentValue.Assign(*this, InArgs._Value);
 		OnValueChanged = InArgs._OnValueChanged;
 
 		UniformPadding = InArgs._UniformPadding;
@@ -165,15 +168,24 @@ public:
 
 	void RebuildChildren()
 	{
-		TSharedPtr<SUniformGridPanel> UniformBox =
-			SNew(SUniformGridPanel);
+		TSharedPtr<SUniformGridPanel> UniformBox = SNew(SUniformGridPanel);
 
 		const int32 NumSlots = Children.Num();
 		for ( int32 SlotIndex = 0; SlotIndex < NumSlots; ++SlotIndex )
 		{
 			TSharedRef<SWidget> Child = Children[SlotIndex].GetWidget();
 			FSlot* ChildSlotPtr = &Children[SlotIndex];
-			OptionType& ChildValue = ChildSlotPtr->_Value;
+			const OptionType ChildValue = ChildSlotPtr->_Value;
+
+			TAttribute<FVector2D> SpacerLambda = FVector::ZeroVector;
+			if (ChildSlotPtr->_Icon.IsBound() || ChildSlotPtr->_Text.IsBound())
+			{
+				SpacerLambda = MakeAttributeLambda([ChildSlotPtr]() { return (ChildSlotPtr->_Icon.Get() != nullptr && !ChildSlotPtr->_Text.Get().IsEmpty()) ? FVector2D(8.0f, 1.0f) : FVector2D::ZeroVector; });
+			}
+			else
+			{
+				SpacerLambda = (ChildSlotPtr->_Icon.Get() != nullptr && !ChildSlotPtr->_Text.Get().IsEmpty()) ? FVector2D(8.0f, 1.0f) : FVector2D::ZeroVector;
+			}
 
 			if (Child == SNullWidget::NullWidget)
 			{
@@ -192,7 +204,7 @@ public:
 				.AutoWidth()
 				[
 					SNew(SSpacer)
-					.Size_Lambda( [ChildSlotPtr] () { return (ChildSlotPtr->_Icon.Get() != nullptr && !ChildSlotPtr->_Text.Get().IsEmpty()) ? FVector2D(8.0f, 1.0f) : FVector2D::ZeroVector; })
+					.Size(SpacerLambda)
 				]
 
 				+SHorizontalBox::Slot()
@@ -212,12 +224,12 @@ public:
 			// Note HAlignment is applied at the check box level because if it were applied here it would make the slots look physically disconnected from each other 
 			.VAlign(ChildSlotPtr->GetVerticalAlignment())
 			[
-				SNew(SCheckBox)
+				SAssignNew(ChildSlotPtr->_CheckBox, SCheckBox)
 				.Clipping(EWidgetClipping::ClipToBounds)
 				.HAlign(ChildSlotPtr->GetHorizontalAlignment())
 				.ToolTipText(ChildSlotPtr->_Tooltip)
 				.Style(ColumnIndex == 0 ? &Style->FirstControlStyle : ColumnIndex == (NumSlots - 1) ? &Style->LastControlStyle : &Style->ControlStyle)
-				.IsChecked(this, &SSegmentedControl::IsCurrentValue, ChildValue)
+				.IsChecked(GetCheckBoxStateAttribute(ChildValue))
 				.OnCheckStateChanged(this, &SSegmentedControl::CommitValue, ChildValue)
 				.Padding(UniformPadding)
 				[
@@ -259,39 +271,74 @@ public:
 		return Children.Num();
 	}
 
-	/** See the Value attribute */
-	OptionType& GetValue() const { return CurrentValue.Get(); }
-	void SetValue(const TAttribute<OptionType>& InValue) 
+	OptionType GetValue() const
 	{
-		CurrentValue = InValue; 
+		return CurrentValue.Get();
 	}
 
-	ECheckBoxState IsCurrentValue(OptionType InValue) const
+	/** See the Value attribute */
+	void SetValue(TAttribute<OptionType> InValue) 
 	{
-		return InValue == CurrentValue.Get() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-	}	
+		CurrentValueIsBound = InValue.IsBound();
+		CurrentValue.Assign(*this, MoveTemp(InValue));
 
-	void CommitValue(const ECheckBoxState InCheckState, OptionType InValue) 
+		if (!CurrentValueIsBound)
+		{
+			for (int32 Index = 0; Index < Children.Num(); ++Index)
+			{
+				const FSlot& Slot = Children[Index];
+				if (TSharedPtr<SCheckBox> CheckBox = Slot._CheckBox.Pin())
+				{
+					CheckBox->SetIsChecked(Slot._Value == CurrentValue.Get() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked);
+				}
+			}
+		}
+	}
+
+private:
+	TAttribute<ECheckBoxState> GetCheckBoxStateAttribute(OptionType InValue) const
+	{
+		auto Lambda = [this, InValue]()
+		{
+			return InValue == CurrentValue.Get() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		};
+
+		if (CurrentValueIsBound)
+		{
+			return MakeAttributeLambda(Lambda);
+		}
+
+		return Lambda();
+	}
+
+	void CommitValue(const ECheckBoxState InCheckState, OptionType InValue)
 	{
 		if (InCheckState == ECheckBoxState::Checked)
 		{
-			// don't overwrite the bound attribute, but still notify that a
-			if (!CurrentValue.IsBound())
+			// don't overwrite the bound attribute, but still notify that the value was committed.
+			if (!CurrentValueIsBound)
 			{
-				CurrentValue.Set(InValue);
+				CurrentValue.Set(*this, InValue);
+				for (int32 Index = 0; Index < Children.Num(); ++Index)
+				{
+					const FSlot& Slot = Children[Index];
+					if (TSharedPtr<SCheckBox> CheckBox = Slot._CheckBox.Pin())
+					{
+						CheckBox->SetIsChecked(Slot._Value == CurrentValue.Get() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked);
+					}
+			    }
 			}
 
 			OnValueChanged.ExecuteIfBound( InValue );
 		}
 	}
 
-
-protected:
+private:
 	TPanelChildren<FSlot> Children;
 
 	FOnValueChanged OnValueChanged;
 
-	TAttribute<OptionType> CurrentValue;
+	TSlateAttribute<OptionType, EInvalidateWidgetReason::Paint> CurrentValue;
 
 	TAttribute<FMargin> UniformPadding;
 
@@ -300,4 +347,6 @@ protected:
 	const FTextBlockStyle* TextStyle;
 
 	int32 MaxSegmentsPerLine = 0;
+
+	bool CurrentValueIsBound = false;
 };

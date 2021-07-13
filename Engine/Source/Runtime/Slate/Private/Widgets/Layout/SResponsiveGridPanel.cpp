@@ -4,13 +4,20 @@
 #include "Layout/ArrangedChildren.h"
 #include "Layout/LayoutUtils.h"
 
+SLATE_IMPLEMENT_WIDGET(SResponsiveGridPanel)
+void SResponsiveGridPanel::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+	FSlateWidgetSlotAttributeInitializer Initializer = SLATE_ADD_PANELCHILDREN_DEFINITION(AttributeInitializer, Slots);
+	FSlot::RegisterAttributes(Initializer);
+}
+
 /**
  *  !!!!!!!!!!!!!!!!!   EXPERIMENTAL  !!!!!!!!!!!!!!!!!   
  * The SResponsiveGridPanel is still in development and the API may change drastically in the future
  * or maybe removed entirely.
  */
 SResponsiveGridPanel::SResponsiveGridPanel()
-: Slots(this)
+: Slots(this, GET_MEMBER_NAME_CHECKED(SResponsiveGridPanel, Slots))
 {}
 
 SResponsiveGridPanel::FScopedWidgetSlotArguments SResponsiveGridPanel::AddSlot(int32 Row)

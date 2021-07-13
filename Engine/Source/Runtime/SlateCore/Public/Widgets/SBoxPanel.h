@@ -10,6 +10,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "SlotBase.h"
 #include "Widgets/SWidget.h"
+#include "Layout/BasicLayoutWidgetSlot.h"
 #include "Layout/Children.h"
 #include "Widgets/SPanel.h"
 #include "Layout/ArrangedChildren.h"
@@ -23,6 +24,8 @@ class FArrangedChildren;
  */
 class SLATECORE_API SBoxPanel : public SPanel
 {
+	SLATE_DECLARE_WIDGET(SBoxPanel, SPanel)
+
 protected:
 	/**
 	 * A BoxPanel contains one BoxPanel child and describes how that
@@ -41,35 +44,57 @@ protected:
 		/** Default values for a slot. */
 		TSlot()
 			: TBasicLayoutWidgetSlot<SlotType>(HAlign_Fill, VAlign_Fill)
-			, SizeParam(FStretch(1.f))
-			, MaxSize(0.0f)
+			, SizeRule(FSizeParam::SizeRule_Stretch)
+			, SizeValue(*this, 1.f)
+			, MaxSize(*this, 0.0f)
 		{ }
 
 	public:
 		void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
 		{
 			TBasicLayoutWidgetSlot<SlotType>::Construct(SlotOwner, MoveTemp(InArgs));
-			if (InArgs._SizeParam.IsSet())
-			{
-				SizeParam = MoveTemp(InArgs._SizeParam.GetValue());
-			}
 			if (InArgs._MaxSize.IsSet())
 			{
-				MaxSize = MoveTemp(InArgs._MaxSize);
+				SetMaxSize(MoveTemp(InArgs._MaxSize));
+			}
+			if (InArgs._SizeParam.IsSet())
+			{
+				SetSizeParam(MoveTemp(InArgs._SizeParam.GetValue()));
 			}
 		}
 
-		/** Get the space param this slot should occupy along panel's direction. */
-		const FSizeParam& GetSizeParam() const { return SizeParam; }
+		static void RegisterAttributes(FSlateWidgetSlotAttributeInitializer& AttributeInitializer)
+		{
+			TBasicLayoutWidgetSlot<SlotType>::RegisterAttributes(AttributeInitializer);
+			SLATE_ADD_SLOT_ATTRIBUTE_DEFINITION_WITH_NAME(TSlot<SlotType>, AttributeInitializer, "Slot.MaxSize", MaxSize, EInvalidateWidgetReason::Layout);
+			SLATE_ADD_SLOT_ATTRIBUTE_DEFINITION_WITH_NAME(TSlot<SlotType>, AttributeInitializer, "Slot.SizeValue", SizeValue, EInvalidateWidgetReason::Layout)
+				.UpdatePrerequisite("Slot.MaxSize");
+		}
+
+		/** Get the space rule this slot should occupy along panel's direction. */
+		FSizeParam::ESizeRule GetSizeRule() const
+		{
+			return SizeRule;
+		}
+
+		/** Get the space rule value this slot should occupy along panel's direction. */
+		float GetSizeValue() const
+		{
+			return SizeValue.Get();
+		}
+
 		/** Get the max size the slot can be.*/
-		float GetMaxSize() const { return MaxSize.Get(); }
+		float GetMaxSize() const
+		{
+			return MaxSize.Get();
+		}
 
 	public:
 		/** Set the size Param of the slot, It could be a FStretch or a FAuto. */
 		void SetSizeParam(FSizeParam InSizeParam)
 		{
-			SizeParam = MoveTemp(InSizeParam);
-			FSlotBase::Invalidate(EInvalidateWidget::Layout);
+			SizeRule = InSizeParam.SizeRule;
+			SizeValue.Assign(*this, MoveTemp(InSizeParam.Value));
 		}
 
 		/** The widget's DesiredSize will be used as the space required. */
@@ -87,8 +112,7 @@ protected:
 		/** Set the max size in SlateUnit this slot can be. */
 		void SetMaxSize(TAttribute<float> InMaxSize)
 		{
-			MaxSize = MoveTemp(InMaxSize);
-			FSlotBase::Invalidate(EInvalidateWidget::Layout);
+			MaxSize.Assign(*this, MoveTemp(InMaxSize));
 		}
 
 	private:
@@ -99,10 +123,15 @@ protected:
 		 * peer Widgets depending on the Value property. Available space is space remaining after all the
 		 * peers' SizeRule_Auto requirements have been satisfied.
 		 */
-		FSizeParam SizeParam;
+
+		/** The sizing rule to use. */
+		FSizeParam::ESizeRule SizeRule;
+
+		/** The actual value this size parameter stores. */
+		typename TBasicLayoutWidgetSlot<SlotType>::template TSlateSlotAttribute<float> SizeValue;
 
 		/** The max size that this slot can be (0 if no max) */
-		TAttribute<float> MaxSize;
+		typename TBasicLayoutWidgetSlot<SlotType>::template TSlateSlotAttribute<float> MaxSize;
 	};
 
 public:
@@ -192,6 +221,7 @@ protected:
 /** A Horizontal Box Panel. See SBoxPanel for more info. */
 class SLATECORE_API SHorizontalBox : public SBoxPanel
 {
+	SLATE_DECLARE_WIDGET(SHorizontalBox, SBoxPanel)
 public:
 	class FSlot : public SBoxPanel::TSlot<FSlot>
 	{
@@ -294,6 +324,7 @@ public:
 /** A Vertical Box Panel. See SBoxPanel for more info. */
 class SLATECORE_API SVerticalBox : public SBoxPanel
 {
+	SLATE_DECLARE_WIDGET(SVerticalBox, SBoxPanel)
 public:
 	class FSlot : public SBoxPanel::TSlot<FSlot>
 	{

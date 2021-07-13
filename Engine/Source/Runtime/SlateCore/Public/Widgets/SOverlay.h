@@ -31,9 +31,9 @@ class FSlateWindowElementList;
  *
  *		Note that SWidget3 will be drawn on top of SWidget2 and SWidget1.
  */
-class SLATECORE_API SOverlay
-	: public SPanel
+class SLATECORE_API SOverlay : public SPanel
 {
+	SLATE_DECLARE_WIDGET(SOverlay, SPanel)
 public:	
 
 	/** A slot that support alignment of content and padding and z-order */
@@ -50,13 +50,12 @@ public:
 			SLATE_ARGUMENT(TOptional<int32>, ZOrder)
 		SLATE_SLOT_END_ARGS()
 
-		void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
-		{
-			TBasicLayoutWidgetSlot<FOverlaySlot>::Construct(SlotOwner, MoveTemp(InArgs));
-			ZOrder = InArgs._ZOrder.Get(ZOrder);
-		}
+		void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs);
 
-		int32 GetZOrder() const { return ZOrder; }
+		int32 GetZOrder() const
+		{
+			return ZOrder;
+		}
 
 		void SetZOrder(int32 InOrder)
 		{
@@ -117,16 +116,16 @@ public:
 	/** @return a new slot. Slots contain children for SOverlay */
 	static FOverlaySlot::FSlotArguments Slot();
 
-	// SWidget interface
+	//~ Begin of SWidget interface
 	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
 	virtual FChildren* GetChildren() override;
 	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
-	// End of SWidget interface
+	//~ End of SWidget interface
 
 protected:
-	// Begin SWidget overrides.
+	//~ Begin SWidget overrides.
 	virtual FVector2D ComputeDesiredSize(float) const override;
-	// End SWidget overrides.
+	//~ End SWidget overrides.
 
 protected:
 	/** The SOverlay's slots; each slot contains a child widget. */

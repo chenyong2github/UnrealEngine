@@ -18,9 +18,10 @@ class FSlateWindowElementList;
 /**
  * Canvas is a layout widget that allows you to arbitrary position and size child widgets in a relative coordinate space
  */
-class SLATE_API SCanvas
-	: public SPanel
+class SLATE_API SCanvas : public SPanel
 {
+	SLATE_DECLARE_WIDGET(SCanvas, SPanel)
+
 public:
 
 	/**
@@ -49,8 +50,7 @@ public:
 	 * 
 	 *  Note: FILL is NOT supported.
 	 */
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	class SLATE_API FSlot : public TSlotBase<FSlot>, public TAlignmentWidgetSlotMixin<FSlot>
+	class SLATE_API FSlot : public TWidgetSlotWithAttributeSupport<FSlot>, public TAlignmentWidgetSlotMixin<FSlot>
 	{
 	public:
 		SLATE_SLOT_BEGIN_ARGS_OneMixin(FSlot, TSlotBase<FSlot>, TAlignmentWidgetSlotMixin<FSlot>)
@@ -60,43 +60,49 @@ public:
 
 		void SetPosition( TAttribute<FVector2D> InPosition )
 		{
-			PositionAttr = MoveTemp(InPosition);
+			Position.Assign(*this, MoveTemp(InPosition));
 		}
 		FVector2D GetPosition() const
 		{
-			return PositionAttr.Get();
+			return Position.Get();
 		}
 
 		void SetSize( TAttribute<FVector2D> InSize )
 		{
-			SizeAttr = MoveTemp(InSize);
+			Size.Assign(*this, MoveTemp(InSize));
 		}
 		FVector2D GetSize() const
 		{
-			return SizeAttr.Get();
+			return Size.Get();
 		}
 
 	public:
-		/** Position */
+#if WITH_EDITORONLY_DATA
 		UE_DEPRECATED(5.0, "Direct access to PositionAttr is now deprecated. Use the getter or setter.")
-		TAttribute<FVector2D> PositionAttr;
-
-		/** Size */
+		FSlateDeprecatedTAttribute<FVector2D> PositionAttr;
 		UE_DEPRECATED(5.0, "Direct access to SizeAttr is now deprecated. Use the getter or setter.")
-		TAttribute<FVector2D> SizeAttr;
+		FSlateDeprecatedTAttribute<FVector2D> SizeAttr;
+#endif
 
 	public:
 		/** Default values for a slot. */
 		FSlot()
-			: TSlotBase<FSlot>()
+			: TWidgetSlotWithAttributeSupport<FSlot>()
 			, TAlignmentWidgetSlotMixin<FSlot>(HAlign_Left, VAlign_Top)
-			, PositionAttr( FVector2D::ZeroVector )
-			, SizeAttr( FVector2D( 1.0f, 1.0f ) )
+			, Position(*this, FVector2D::ZeroVector)
+			, Size(*this, FVector2D(1.0f, 1.0f))
 		{ }
 
 		void Construct(const FChildren& SlotOwner, FSlotArguments&& InArg);
+		static void RegisterAttributes(FSlateWidgetSlotAttributeInitializer& AttributeInitializer);
+
+	private:
+		/** Position */
+		TSlateSlotAttribute<FVector2D> Position;
+
+		/** Size */
+		TSlateSlotAttribute<FVector2D> Size;
 	};
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	SLATE_BEGIN_ARGS( SCanvas )
 		{
@@ -140,16 +146,15 @@ public:
 
 public:
 
-	// SWidget overrides
-
+	//~ SWidget overrides
 	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
 	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
 	virtual FChildren* GetChildren() override;
 
 protected:
-	// Begin SWidget overrides.
+	//~ Begin SWidget overrides.
 	virtual FVector2D ComputeDesiredSize(float) const override;
-	// End SWidget overrides.
+	//~ End SWidget overrides.
 
 protected:
 

@@ -6,9 +6,23 @@
 #include "Layout/LayoutUtils.h"
 #include "Rendering/DrawElements.h"
 
+SLATE_IMPLEMENT_WIDGET(SOverlay)
+void SOverlay::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+	FSlateWidgetSlotAttributeInitializer Initializer = SLATE_ADD_PANELCHILDREN_DEFINITION(AttributeInitializer, Children);
+	FOverlaySlot::RegisterAttributes(Initializer);
+}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+void SOverlay::FOverlaySlot::Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
+{
+	TBasicLayoutWidgetSlot<FOverlaySlot>::Construct(SlotOwner, MoveTemp(InArgs));
+	ZOrder = InArgs._ZOrder.Get(ZOrder);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 SOverlay::SOverlay()
-	: Children(this)
+	: Children(this, GET_MEMBER_NAME_CHECKED(SOverlay, Children))
 {
 	SetCanTick(false);
 	bCanSupportFocus = false;

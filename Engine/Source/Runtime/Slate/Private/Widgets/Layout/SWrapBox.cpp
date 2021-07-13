@@ -3,8 +3,20 @@
 #include "Widgets/Layout/SWrapBox.h"
 #include "Layout/LayoutUtils.h"
 
+SLATE_IMPLEMENT_WIDGET(SWrapBox)
+void SWrapBox::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+	FSlateWidgetSlotAttributeInitializer SlotInitializer = SLATE_ADD_PANELCHILDREN_DEFINITION(AttributeInitializer, Slots);
+	FSlot::RegisterAttributes(SlotInitializer);
+
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, PreferredSize, EInvalidateWidgetReason::Layout);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, HAlign, EInvalidateWidgetReason::Layout);
+}
+
 SWrapBox::SWrapBox()
-	: Slots(this)
+	: PreferredSize(*this, 100.f)
+	, HAlign(*this, EHorizontalAlignment::HAlign_Left)
+	, Slots(this, GET_MEMBER_NAME_CHECKED(SWrapBox, Slots))
 {
 }
 
@@ -18,30 +30,34 @@ int32 SWrapBox::RemoveSlot( const TSharedRef<SWidget>& SlotWidget )
 	return Slots.Remove(SlotWidget);
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void SWrapBox::Construct( const FArguments& InArgs )
 {
-	PreferredSize = InArgs._PreferredSize;
+	PreferredSize.Assign(*this, InArgs._PreferredSize);
 
 	// Handle deprecation of PreferredWidth
-	if (!PreferredSize.IsSet() && !PreferredSize.IsBound())
+	if (!InArgs._PreferredSize.IsSet() && !InArgs._PreferredSize.IsBound())
 	{
-		PreferredSize = InArgs._PreferredWidth;
+		PreferredSize.Assign(*this, InArgs._PreferredWidth);
 	}
 
 	InnerSlotPadding = InArgs._InnerSlotPadding;
 	bUseAllottedSize = InArgs._UseAllottedSize || InArgs._UseAllottedWidth;
 	Orientation = InArgs._Orientation;
-	HAlign = InArgs._HAlign;
+	HAlign.Assign(*this, InArgs._HAlign);
 
 	// Build the children from the declaration to the widget
 	Slots.AddSlots(MoveTemp(const_cast<TArray<FSlot::FSlotArguments>&>(InArgs._Slots)));
+
+	SetCanTick(bUseAllottedSize);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void SWrapBox::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
 {
 	if (bUseAllottedSize)
 	{
-		PreferredSize = Orientation == EOrientation::Orient_Vertical ? AllottedGeometry.GetLocalSize().Y : AllottedGeometry.GetLocalSize().X;
+		PreferredSize.Set(*this, Orientation == EOrientation::Orient_Vertical ? AllottedGeometry.GetLocalSize().Y : AllottedGeometry.GetLocalSize().X);
 	}
 }
 
@@ -408,7 +424,7 @@ FVector2D SWrapBox::ComputeDesiredSize( float ) const
 
 FChildren* SWrapBox::GetChildren()
 {
-	return &Slots;	
+	return &Slots;
 }
 
 void SWrapBox::SetInnerSlotPadding(FVector2D InInnerSlotPadding)
@@ -420,23 +436,19 @@ void SWrapBox::SetInnerSlotPadding(FVector2D InInnerSlotPadding)
 	}
 }
 
-void SWrapBox::SetWrapWidth(const TAttribute<float>& InWrapWidth)
+void SWrapBox::SetWrapWidth(TAttribute<float> InWrapWidth)
 {
-	SetAttribute(PreferredSize, InWrapWidth, EInvalidateWidgetReason::Layout);
+	SetWrapSize(MoveTemp(InWrapWidth));
 }
 
-void SWrapBox::SetWrapSize(const TAttribute<float>& InWrapSize)
+void SWrapBox::SetWrapSize(TAttribute<float> InWrapSize)
 {
-	SetAttribute(PreferredSize, InWrapSize, EInvalidateWidgetReason::Layout);
+	PreferredSize.Assign(*this, MoveTemp(InWrapSize));
 }
 
 void SWrapBox::SetUseAllottedWidth(bool bInUseAllottedWidth)
 {
-	if (bUseAllottedSize != bInUseAllottedWidth)
-	{
-		bUseAllottedSize = bInUseAllottedWidth;
-		Invalidate(EInvalidateWidgetReason::Layout);
-	}
+	SetUseAllottedSize(bInUseAllottedWidth);
 }
 
 void SWrapBox::SetUseAllottedSize(bool bInUseAllottedSize)
@@ -444,6 +456,7 @@ void SWrapBox::SetUseAllottedSize(bool bInUseAllottedSize)
 	if (bUseAllottedSize != bInUseAllottedSize)
 	{
 		bUseAllottedSize = bInUseAllottedSize;
+		SetCanTick(bUseAllottedSize);
 		Invalidate(EInvalidateWidgetReason::Layout);
 	}
 }
@@ -459,5 +472,5 @@ void SWrapBox::SetOrientation(EOrientation InOrientation)
 
 void SWrapBox::SetHorizontalAlignment(TAttribute<EHorizontalAlignment> InHAlignment)
 {
-	SetAttribute(HAlign, InHAlignment, EInvalidateWidgetReason::Layout);
+	HAlign.Assign(*this, MoveTemp(InHAlignment));
 }
