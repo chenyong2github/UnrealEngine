@@ -576,7 +576,11 @@ public:
 						{
 							GEditor->BeginTransaction(LOCTEXT("RemoteCallTransaction", "Remote Call Transaction Wrap"));
 						}
-						InCall.CallRef.Object->Modify();
+
+						if (ensureAlways(InCall.CallRef.Object.IsValid()))
+						{
+							InCall.CallRef.Object->Modify();
+						}
 					}
 				}
 			}
@@ -587,7 +591,10 @@ public:
 			
 #endif
 			FEditorScriptExecutionGuard ScriptGuard;
-			InCall.CallRef.Object->ProcessEvent(InCall.CallRef.Function.Get(), InCall.ParamStruct.GetStructMemory());
+			if (ensureAlways(InCall.CallRef.Object.IsValid()))
+			{
+				InCall.CallRef.Object->ProcessEvent(InCall.CallRef.Function.Get(), InCall.ParamStruct.GetStructMemory());
+			}
 
 #if WITH_EDITOR
 			if (CVarRemoteControlEnableOngoingChangeOptimization.GetValueOnAnyThread() == 1)
