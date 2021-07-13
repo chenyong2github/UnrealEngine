@@ -42,6 +42,7 @@ public:
 	// BEGIN ControlRig
 	virtual void Initialize(bool bInitRigUnits = true) override;
 	virtual void ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEventName) override;
+	virtual void SetBoneInitialTransformsFromSkeletalMeshComponent(USkeletalMeshComponent* InSkelMeshComp, bool bUseAnimInstance = false) override;
 	// END ControlRig
 
 	// utility function to 
@@ -61,6 +62,7 @@ private:
 	/** Create RigElements - bone hierarchy and curves - from incoming skeleton */
 	void CreateRigElements(const USkeletalMesh* InReferenceMesh);
 	void CreateRigElements(const FReferenceSkeleton& InReferenceSkeleton, const FSmartNameMapping* InSmartNameMapping);
+	void SetControlOffsetsFromBoneInitials();
 
 	UPROPERTY()
 	TArray<bool> IsControlActive;

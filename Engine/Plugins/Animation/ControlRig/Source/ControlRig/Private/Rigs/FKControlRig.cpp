@@ -5,6 +5,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "IControlRigObjectBinding.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Execution/RigUnit_PrepareForExecution.h"
 #include "Units/Execution/RigUnit_BeginExecution.h"
 #include "Units/Execution/RigUnit_InverseExecution.h"
 
@@ -36,6 +37,16 @@ void UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InE
 		return;
 	}
 
+#if WITH_EDITOR
+	if(URigHierarchy* Hierarchy = GetHierarchy())
+	{
+		if(Hierarchy->IsTracingChanges())
+		{
+			Hierarchy->StorePoseForTrace(TEXT("UFKControlRig::BeginExecuteUnits"));
+		}
+	}
+#endif	
+
 	if (InEventName == FRigUnit_BeginExecution::EventName)
 	{
 		FRigVMExecuteContext VMContext;
@@ -53,13 +64,19 @@ void UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InE
 				{
 					case EControlRigFKRigExecuteMode::Replace:
 					{
-						GetHierarchy()->SetTransform(BoneElement, LocalTransform, ERigTransformType::CurrentLocal, true, false);
+						const FTransform OffsetTransform = GetHierarchy()->GetControlOffsetTransform(Control, ERigTransformType::InitialLocal);
+						FTransform Transform = LocalTransform * OffsetTransform;
+						Transform.NormalizeRotation();
+						Transform.SetScale3D(FVector::OneVector);
+						GetHierarchy()->SetTransform(BoneElement, Transform, ERigTransformType::CurrentLocal, true, false);
 						break;
 					}
 					case EControlRigFKRigExecuteMode::Additive:
 					{
 						const FTransform PreviousTransform = GetHierarchy()->GetTransform(BoneElement, ERigTransformType::CurrentLocal);
-						const FTransform Transform = LocalTransform * PreviousTransform;
+						FTransform Transform = LocalTransform * PreviousTransform;
+						Transform.NormalizeRotation();
+						Transform.SetScale3D(FVector::OneVector);
 						GetHierarchy()->SetTransform(BoneElement, Transform, ERigTransformType::CurrentLocal, true, false);
 						break;
 					}
@@ -102,20 +119,33 @@ void UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InE
 		const bool bNotify = true;
 		const FRigControlModifiedContext Context = FRigControlModifiedContext();
 		const bool bSetupUndo = false;
-		GetHierarchy()->ForEach<FRigBoneElement>([&](FRigBoneElement* BoneElement) -> bool
-        {
-            const FName ControlName = GetControlName(BoneElement->GetName());
+
+		GetHierarchy()->Traverse([&](FRigBaseElement* InElement, bool& bContinue)
+		{
+			if(!InElement->IsA<FRigBoneElement>())
+			{
+				bContinue = false;
+				return;
+			}
+
+			FRigBoneElement* BoneElement = CastChecked<FRigBoneElement>(InElement);
+
+			const FName ControlName = GetControlName(BoneElement->GetName());
 			const FRigElementKey ControlKey(ControlName, ERigElementType::Control);
 			const int32 ControlIndex = GetHierarchy()->GetIndex(ControlKey);
 			
-			if (IsControlActive[ControlIndex])
-			{
-				const FEulerTransform EulerTransform(GetHierarchy()->GetTransform(BoneElement, ERigTransformType::CurrentLocal));
-				SetControlValue(ControlName, FRigControlValue::Make(EulerTransform), bNotify, Context, bSetupUndo);
-			}
+			// during inversion we assume Replace Mode
+			FRigControlElement* Control = GetHierarchy()->GetChecked<FRigControlElement>(ControlIndex);
+			const FTransform Offset = GetHierarchy()->GetControlOffsetTransform(Control, ERigTransformType::InitialLocal);
+			const FTransform Current = GetHierarchy()->GetTransform(BoneElement, ERigTransformType::CurrentLocal);
 			
-			return true;
-		});
+			FTransform Transform = Current.GetRelativeTransform(Offset);
+			Transform.NormalizeRotation();
+			Transform.SetScale3D(FVector::OneVector);
+
+			GetHierarchy()->SetTransform(Control, Transform, ERigTransformType::CurrentLocal, true);
+
+		}, true);
 
 		GetHierarchy()->ForEach<FRigCurveElement>([&](FRigCurveElement* CurveElement) -> bool
         {
@@ -123,15 +153,41 @@ void UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InE
 			const FRigElementKey ControlKey(ControlName, ERigElementType::Control);
 			const int32 ControlIndex = GetHierarchy()->GetIndex(ControlKey);
 
-			if (IsControlActive[ControlIndex])
-			{
-				const float CurveValue = GetHierarchy()->GetCurveValue(CurveElement);
-				SetControlValue(ControlName, FRigControlValue::Make(CurveValue), bNotify, Context, bSetupUndo);
-			}
+			const float CurveValue = GetHierarchy()->GetCurveValue(CurveElement);
+			SetControlValue(ControlName, FRigControlValue::Make(CurveValue), bNotify, Context, bSetupUndo);
 
 			return true;
 		});
 	}
+
+#if WITH_EDITOR
+	if(URigHierarchy* Hierarchy = GetHierarchy())
+	{
+		if(Hierarchy->IsTracingChanges())
+		{
+			Hierarchy->StorePoseForTrace(TEXT("UFKControlRig::EndExecuteUnits"));
+			Hierarchy->DumpTransformStackToFile();
+		}
+	}
+#endif	
+}
+
+void UFKControlRig::SetBoneInitialTransformsFromSkeletalMeshComponent(USkeletalMeshComponent* InSkelMeshComp,
+	bool bUseAnimInstance)
+{
+	Super::SetBoneInitialTransformsFromSkeletalMeshComponent(InSkelMeshComp, bUseAnimInstance);
+
+#if WITH_EDITOR
+	if(URigHierarchy* Hierarchy = GetHierarchy())
+	{
+		if(Hierarchy->IsTracingChanges())
+		{
+			Hierarchy->StorePoseForTrace(TEXT("UFKControlRig::SetBoneInitialTransformsFromSkeletalMeshComponent"));
+		}
+	}
+#endif	
+
+	SetControlOffsetsFromBoneInitials();
 }
 
 void UFKControlRig::Initialize(bool bInitRigUnits /*= true*/)
@@ -220,27 +276,23 @@ void UFKControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkele
 	{
 		const FName BoneName = BoneElement->GetName();
 		const FName ControlName = GetControlName(BoneName); // name conflict?
-		FRigElementKey ParentKey = GetHierarchy()->GetFirstParent(BoneElement->GetKey());
+		const FRigElementKey ParentKey = GetHierarchy()->GetFirstParent(BoneElement->GetKey());
 
-		FTransform OffsetTransform;
-		if (ParentKey.IsValid())
-		{
-			FTransform GlobalTransform = GetHierarchy()->GetGlobalTransform(BoneElement->GetIndex());
-			FTransform ParentTransform = GetHierarchy()->GetGlobalTransform(ParentKey);
-			OffsetTransform = GlobalTransform.GetRelativeTransform(ParentTransform);
-		}
-		else
-		{
-			OffsetTransform = GetHierarchy()->GetLocalTransform(BoneElement->GetIndex());
-		}
+		FTransform OffsetTransform = FTransform::Identity;
 
 		FRigControlSettings Settings;
 		Settings.ControlType = ERigControlType::EulerTransform;
 		Settings.DisplayName = BoneName;
+
+		OffsetTransform.NormalizeRotation();
+		OffsetTransform.SetScale3D(FVector::OneVector);
+		
 		Controller->AddControl(ControlName, ParentKey, Settings, FRigControlValue::Make(FEulerTransform::Identity), OffsetTransform, FTransform::Identity, false);
 
 		return true;
 	});
+
+	SetControlOffsetsFromBoneInitials();
 	
 	GetHierarchy()->ForEach<FRigCurveElement>([&](FRigCurveElement* CurveElement) -> bool
     {
@@ -263,6 +315,47 @@ void UFKControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkele
 			bIsActive = true;
 		}
 	}
+}
+
+void UFKControlRig::SetControlOffsetsFromBoneInitials()
+{
+	GetHierarchy()->Traverse([&](FRigBaseElement* InElement, bool& bContinue)
+	{
+		if(!InElement->IsA<FRigBoneElement>())
+		{
+			bContinue = false;
+			return;
+		}
+
+		FRigBoneElement* BoneElement = CastChecked<FRigBoneElement>(InElement);
+		const FName BoneName = BoneElement->GetName();
+		const FName ControlName = GetControlName(BoneName); // name conflict?
+
+		FRigControlElement* ControlElement = GetHierarchy()->Find<FRigControlElement>(FRigElementKey(ControlName, ERigElementType::Control));
+		if(ControlElement == nullptr)
+		{
+			return;
+		}
+			
+		const FRigElementKey ParentKey = GetHierarchy()->GetFirstParent(BoneElement->GetKey());
+
+		FTransform OffsetTransform;
+		if (ParentKey.IsValid())
+		{
+			FTransform GlobalTransform = GetHierarchy()->GetGlobalTransformByIndex(BoneElement->GetIndex(), true);
+			FTransform ParentTransform = GetHierarchy()->GetGlobalTransform(ParentKey, true);
+			OffsetTransform = GlobalTransform.GetRelativeTransform(ParentTransform);
+		}
+		else
+		{
+			OffsetTransform = GetHierarchy()->GetLocalTransformByIndex(BoneElement->GetIndex(), true);
+		}
+
+		OffsetTransform.NormalizeRotation();
+
+		GetHierarchy()->SetControlOffsetTransform(ControlElement, OffsetTransform, ERigTransformType::InitialLocal, false, false, true);
+
+	}, true);
 }
 
 void UFKControlRig::CreateRigElements(const USkeletalMesh* InReferenceMesh)

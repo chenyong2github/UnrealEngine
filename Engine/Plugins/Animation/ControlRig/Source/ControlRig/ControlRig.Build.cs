@@ -49,6 +49,7 @@ namespace UnrealBuildTool.Rules
                         "Json",
                         "Serialization",
                         "JsonUtilities",
+                        "AnimationBlueprintLibrary",
                     }
                 );
 

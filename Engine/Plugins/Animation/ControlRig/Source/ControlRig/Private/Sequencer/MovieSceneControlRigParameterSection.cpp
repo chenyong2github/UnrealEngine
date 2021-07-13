@@ -16,6 +16,10 @@
 #include "Animation/AnimSequenceHelpers.h"
 #include "Components/SkeletalMeshComponent.h"
 
+#if WITH_EDITOR
+#include "AnimPose.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "MovieSceneControlParameterRigSection"
 
 #if WITH_EDITOR
@@ -2160,15 +2164,22 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 			SourceHierarchy->SetCurveValue(FRigElementKey(Curve.Name.DisplayName, ERigElementType::Curve), Val);
 		}
 
-		for(int32 TrackIndex = 0; TrackIndex < BoneAnimationTracks.Num(); ++TrackIndex)
-		{
-			const FBoneAnimationTrack& AnimationTrack = BoneAnimationTracks[TrackIndex];
+		// retrieve the pose using the services that persona and sequencer rely on
+		// rather than accessing the low level raw tracks.
+		FAnimPose AnimPose;
+		UAnimPoseExtensions::GetAnimPoseAtTime(AnimSequence, SequenceSecond, FAnimPoseEvaluationOptions(), AnimPose);
 
-			FName BoneName = SkelMeshComp->SkeletalMesh->GetSkeleton()->GetReferenceSkeleton().GetBoneName(AnimationTrack.BoneTreeIndex);
-			FTransform BoneTransform;
-			UE::Anim::GetBoneTransformFromModel(DataModel, BoneTransform, TrackIndex, SequenceSecond, EAnimInterpolationType::Linear);
-			SourceHierarchy->SetLocalTransform(FRigElementKey(BoneName, ERigElementType::Bone), BoneTransform);
+		TArray<FName> BoneNames;
+		UAnimPoseExtensions::GetBoneNames(AnimPose, BoneNames);
+		for(const FName& BoneName : BoneNames)
+		{
+			if(FRigBoneElement* BoneElement = SourceHierarchy->Find<FRigBoneElement>(FRigElementKey(BoneName, ERigElementType::Bone)))
+			{
+				FTransform LocalTransform = UAnimPoseExtensions::GetBonePose(AnimPose, BoneName, EAnimPoseSpaces::Local);
+				SourceHierarchy->SetLocalTransform(BoneElement->GetIndex(), LocalTransform, true, false);
+			}
 		}
+
 		if (Index == 0)
 		{
 			//to make sure the first frame looks good we need to do this first. UE-100069
