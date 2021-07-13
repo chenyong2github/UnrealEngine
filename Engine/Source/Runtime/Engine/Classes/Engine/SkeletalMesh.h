@@ -820,6 +820,7 @@ public:
     /** Warn if the platform supports the minimal number of per vertex bone weights */
 	void ValidateBoneWeights(const ITargetPlatform* TargetPlatform);
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
+	virtual void ClearAllCachedCookedPlatformData() override;
 #endif
 
 	/** Get the data to use for rendering. */

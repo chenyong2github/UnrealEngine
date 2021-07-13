@@ -4369,6 +4369,11 @@ void USkeletalMesh::BeginCacheForCookedPlatformData(const ITargetPlatform* Targe
 	ValidateBoneWeights(TargetPlatform);
 }
 
+void USkeletalMesh::ClearAllCachedCookedPlatformData()
+{
+	GetResourceForRendering()->NextCachedRenderData.Reset();
+}
+
 extern FString BuildSkeletalMeshDerivedDataKey(const ITargetPlatform* TargetPlatform, USkeletalMesh* SkelMesh);
 FString USkeletalMesh::GetDerivedDataKey()
 {

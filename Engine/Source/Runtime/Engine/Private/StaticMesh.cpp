@@ -4061,17 +4061,6 @@ void UStaticMesh::GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTagMetad
 }
 #endif
 
-#if WITH_EDITOR
-void UStaticMesh::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
-{
-}
-
-bool UStaticMesh::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform)
-{
-	return !IsCompiling();
-}
-#endif
-
 
 /*------------------------------------------------------------------------------
 	FStaticMeshSourceModel
@@ -4240,6 +4229,33 @@ static FStaticMeshRenderData& GetPlatformStaticMeshRenderData(UStaticMesh* Mesh,
 	return *PlatformRenderData;
 }
 
+void UStaticMesh::WillNeverCacheCookedPlatformDataAgain()
+{
+}
+
+void UStaticMesh::ClearCachedCookedPlatformData(const ITargetPlatform* TargetPlatform)
+{
+}
+
+void UStaticMesh::ClearAllCachedCookedPlatformData()
+{
+	GetRenderData()->NextCachedRenderData.Reset();
+}
+
+void UStaticMesh::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
+{
+}
+
+bool UStaticMesh::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform)
+{
+	if (IsCompiling())
+	{
+		return false;
+	}
+	
+	GetPlatformStaticMeshRenderData(this, TargetPlatform);
+	return true;
+}
 
 #if WITH_EDITORONLY_DATA
 
@@ -4669,8 +4685,12 @@ void UStaticMesh::CacheDerivedData()
 
 	SetRenderData(MakeUnique<FStaticMeshRenderData>());
 	GetRenderData()->Cache(RunningPlatform, this, LODSettings);
+}
 
-	// Additionally cache derived data for any other platforms we care about.
+void UStaticMesh::PrepareDerivedDataForActiveTargetPlatforms()
+{
+	ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
+	ITargetPlatform* RunningPlatform = TargetPlatformManager.GetRunningTargetPlatform();
 	const TArray<ITargetPlatform*>& TargetPlatforms = TargetPlatformManager.GetActiveTargetPlatforms();
 	for (int32 PlatformIndex = 0; PlatformIndex < TargetPlatforms.Num(); ++PlatformIndex)
 	{
@@ -4680,6 +4700,10 @@ void UStaticMesh::CacheDerivedData()
 			GetPlatformStaticMeshRenderData(this, Platform);
 		}
 	}
+
+	// Now that they are in local DDC cache, clear them to save memory
+	// next time they are read it will be fast anyway.
+	ClearAllCachedCookedPlatformData();
 }
 
 #endif // #if WITH_EDITORONLY_DATA
@@ -5623,6 +5647,15 @@ void UStaticMesh::ExecutePostLoadInternal(FStaticMeshPostLoadContext& Context)
 			}
 		}
 	}
+
+	// Additionally cache derived data for any other platforms we care about.
+	// This must be done after the sectioninfomap fixups to make sure the DDC key matches
+	// the one the cooker will generate during save.
+	if (!Context.bIsCookedForEditor)
+	{
+		PrepareDerivedDataForActiveTargetPlatforms();
+	}
+
 	ReleaseAsyncProperty(EStaticMeshAsyncProperties::SectionInfoMap);
 	ReleaseAsyncProperty(EStaticMeshAsyncProperties::OriginalSectionInfoMap);
 
