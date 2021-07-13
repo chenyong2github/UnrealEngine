@@ -17,7 +17,7 @@ class UAnimNotifyState_MotionWarping;
 DECLARE_LOG_CATEGORY_EXTERN(LogMotionWarping, Log, All);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-struct FMotionWarpingCVars
+struct MOTIONWARPING_API FMotionWarpingCVars
 {
 	static TAutoConsoleVariable<int32> CVarMotionWarpingDisable;
 	static TAutoConsoleVariable<int32> CVarMotionWarpingDebug;
@@ -122,6 +122,7 @@ public:
 	int32 AddModifier(URootMotionModifier* Modifier);
 
 	/** Mark all the modifiers as Disable */
+	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
 	void DisableAllRootMotionModifiers();
 
 	URootMotionModifier* AddModifierFromTemplate(URootMotionModifier* Template, const UAnimSequenceBase* Animation, float StartTime, float EndTime);
