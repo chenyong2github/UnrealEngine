@@ -222,11 +222,11 @@ void GeneratePageFlagsFromPixels(
 	bool   bIsValid		 = false;
 	#if PERMUTATION_INPUT_TYPE == INPUT_TYPE_HAIRSTRANDS
 	{
-		FCategorizationData CatData = DecodeCategorizationData(HairStrands.HairCategorizationTexture.Load(uint3(PixelPos, 0)));
-		FScreenPixelData HairPixel = GetScreenPixelData(PixelPos, CatData.ClosestDepth);
+		const float HairDeviceZ = HairStrands.HairOnlyDepthTexture.Load(uint3(PixelPos, 0)).x;
+		FScreenPixelData HairPixel = GetScreenPixelData(PixelPos, HairDeviceZ);
 		WorldPosition = HairPixel.WorldPosition;
 		SceneDepth = HairPixel.SceneDepth;
-		bIsValid = CatData.PixelCoverage > 0;
+		bIsValid = HairDeviceZ > 0;
 	}
 	#else // PERMUTATION_INPUT_TYPE == INPUT_TYPE_GBUFFER || PERMUTATION_INPUT_TYPE == INPUT_TYPE_NANITE
 	{
