@@ -155,6 +155,16 @@ void QuantizeAndNormalize(const FVector2D& InPos, uint16& OutX, uint16& OutY)
 	OutY = InPos.Y / SizeXY.Y * 65536.0f;
 }
 
+bool FilterKey(const FKey& Key)
+{
+	for (auto&& FilteredKey : PixelStreamingSettings::FilteredKeys)
+	{
+		if (FilteredKey == Key)
+			return false;
+	}
+	return true;
+}
+
 void FInputDevice::Tick(float DeltaTime)
 {
 	FEvent Event;
@@ -173,13 +183,16 @@ void FInputDevice::Tick(float DeltaTime)
 			bool IsRepeat;
 			Event.GetKeyDown(JavaScriptKeyCode, IsRepeat);
 			const FKey* AgnosticKey = JavaScriptKeyCodeToFKey[JavaScriptKeyCode];
-			const uint32* KeyCodePtr;
-			const uint32* CharacterCodePtr;
-			FInputKeyManager::Get().GetCodesFromKey(*AgnosticKey, KeyCodePtr, CharacterCodePtr);
-			uint32 KeyCode = KeyCodePtr ? *KeyCodePtr : 0;
-			uint32 CharacterCode = CharacterCodePtr ? *CharacterCodePtr : 0;
-			MessageHandler->OnKeyDown(KeyCode, CharacterCode, IsRepeat);
-			UE_LOG(PixelStreamerInputDevice, Verbose, TEXT("KEY_DOWN: KeyCode = %d; CharacterCode = %d; IsRepeat = %s"), KeyCode, CharacterCode, IsRepeat ? TEXT("True") : TEXT("False"));
+			if (FilterKey(*AgnosticKey))
+			{
+				const uint32* KeyCodePtr;
+				const uint32* CharacterCodePtr;
+				FInputKeyManager::Get().GetCodesFromKey(*AgnosticKey, KeyCodePtr, CharacterCodePtr);
+				uint32 KeyCode = KeyCodePtr ? *KeyCodePtr : 0;
+				uint32 CharacterCode = CharacterCodePtr ? *CharacterCodePtr : 0;
+				MessageHandler->OnKeyDown(KeyCode, CharacterCode, IsRepeat);
+				UE_LOG(PixelStreamerInputDevice, Verbose, TEXT("KEY_DOWN: KeyCode = %d; CharacterCode = %d; IsRepeat = %s"), KeyCode, CharacterCode, IsRepeat ? TEXT("True") : TEXT("False"));
+			}
 		}
 		break;
 		case EventType::KEY_UP:
@@ -187,13 +200,16 @@ void FInputDevice::Tick(float DeltaTime)
 			uint8 JavaScriptKeyCode;
 			Event.GetKeyUp(JavaScriptKeyCode);
 			const FKey* AgnosticKey = JavaScriptKeyCodeToFKey[JavaScriptKeyCode];
-			const uint32* KeyCodePtr;
-			const uint32* CharacterCodePtr;
-			FInputKeyManager::Get().GetCodesFromKey(*AgnosticKey, KeyCodePtr, CharacterCodePtr);
-			uint32 KeyCode = KeyCodePtr ? *KeyCodePtr : 0;
-			uint32 CharacterCode = CharacterCodePtr ? *CharacterCodePtr : 0;
-			MessageHandler->OnKeyUp(KeyCode, CharacterCode, false);   // Key up events are never repeats.
-			UE_LOG(PixelStreamerInputDevice, Verbose, TEXT("KEY_UP: KeyCode = %d; CharacterCode = %d"), KeyCode, CharacterCode);
+			if (FilterKey(*AgnosticKey))
+			{
+				const uint32* KeyCodePtr;
+				const uint32* CharacterCodePtr;
+				FInputKeyManager::Get().GetCodesFromKey(*AgnosticKey, KeyCodePtr, CharacterCodePtr);
+				uint32 KeyCode = KeyCodePtr ? *KeyCodePtr : 0;
+				uint32 CharacterCode = CharacterCodePtr ? *CharacterCodePtr : 0;
+				MessageHandler->OnKeyUp(KeyCode, CharacterCode, false);   // Key up events are never repeats.
+				UE_LOG(PixelStreamerInputDevice, Verbose, TEXT("KEY_UP: KeyCode = %d; CharacterCode = %d"), KeyCode, CharacterCode);
+			}
 		}
 		break;
 		case EventType::KEY_PRESS:

@@ -7,7 +7,6 @@
 namespace PixelStreamingSettings
 {
 // Begin Encoder CVars
-
 	TAutoConsoleVariable<int32> CVarPixelStreamingEncoderTargetBitrate(
 		TEXT("PixelStreaming.Encoder.TargetBitrate"),
 		-1,
@@ -64,7 +63,6 @@ namespace PixelStreamingSettings
 // End Encoder CVars
 
 // Begin Capturer CVars
-
 	TAutoConsoleVariable<bool> CVarPixelStreamingUseBackBufferCaptureSize(
 		TEXT("PixelStreaming.Capturer.UseBackBufferSize"),
 		true,
@@ -88,11 +86,9 @@ namespace PixelStreamingSettings
 		1,
 		TEXT("Cull back buffers that haven't been used for this many frames."),
 		ECVF_Default);
-
 // End Capturer CVars
 
 // Begin WebRTC CVars
-
 	TAutoConsoleVariable<FString> CVarPixelStreamingDegradationPreference(
 		TEXT("PixelStreaming.WebRTC.DegradationPreference"),
 		TEXT("MAINTAIN_RESOLUTION"),
@@ -158,11 +154,9 @@ namespace PixelStreamingSettings
 		false,
 		TEXT("Whether put audio and video in the same stream (which will make WebRTC try to sync them)."),
 		ECVF_Default);
-
 // End WebRTC CVars
 
 // Begin Pixel Streaming Plugin CVars
-
 	TAutoConsoleVariable<bool> CVarPixelStreamingHudStats(
 		TEXT("PixelStreaming.HUDStats"),
 		false,
@@ -187,8 +181,25 @@ namespace PixelStreamingSettings
 		TEXT("If true disables latency tester being triggerable."),
 		ECVF_Default);
 
-	
+	 TAutoConsoleVariable<FString> CVarPixelStreamingKeyFilter(
+	 	TEXT("PixelStreaming.KeyFilter"),
+		"",
+		TEXT("Comma separated list of keys to ignore from streaming clients."),
+		ECVF_Default);
 
+	TArray<FKey> FilteredKeys;
+
+	void OnFilteredKeysChanged(IConsoleVariable* Var)
+	{
+		FString CommaList = Var->GetString();
+		TArray<FString> KeyStringArray;
+		CommaList.ParseIntoArray(KeyStringArray, TEXT(","), true);
+		FilteredKeys.Empty();
+		for (auto&& KeyString : KeyStringArray)
+		{
+			FilteredKeys.Add(FKey(*KeyString));
+		}
+	}
 // Ends Pixel Streaming Plugin CVars
 
 // Begin utility functions etc.
@@ -258,7 +269,6 @@ namespace PixelStreamingSettings
 		return it->second;
 	}
 // End utility functions etc.
-
 }
 
 template<typename T>
@@ -298,6 +308,7 @@ void CommandLineParseOption(const TCHAR* Match, TAutoConsoleVariable<bool>& CVar
 UPixelStreamingSettings::UPixelStreamingSettings(const FObjectInitializer& ObjectInitlaizer)
 	: Super(ObjectInitlaizer)
 {
+	PixelStreamingSettings::CVarPixelStreamingKeyFilter.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&PixelStreamingSettings::OnFilteredKeysChanged));
 
 	// Values parse from commands line
 	CommandLineParseValue(TEXT("PixelStreamingEncoderTargetBitrate="), PixelStreamingSettings::CVarPixelStreamingEncoderTargetBitrate);
@@ -318,6 +329,7 @@ UPixelStreamingSettings::UPixelStreamingSettings(const FObjectInitializer& Objec
 	CommandLineParseValue(TEXT("PixelStreamingWebRTCLowQpThreshold="), PixelStreamingSettings::CVarPixelStreamingWebRTCLowQpThreshold);
 	CommandLineParseValue(TEXT("PixelStreamingWebRTCHighQpThreshold="), PixelStreamingSettings::CVarPixelStreamingWebRTCHighQpThreshold);
 	CommandLineParseValue(TEXT("FreezeFrameQuality="), PixelStreamingSettings::CVarFreezeFrameQuality);
+	CommandLineParseValue(TEXT("PixelStreamingKeyFilter="), PixelStreamingSettings::CVarPixelStreamingKeyFilter);
 
 	// Options parse (if these exist they are set to true)
 	CommandLineParseOption(TEXT("PixelStreamingHudStats"), PixelStreamingSettings::CVarPixelStreamingHudStats);
@@ -330,8 +342,6 @@ UPixelStreamingSettings::UPixelStreamingSettings(const FObjectInitializer& Objec
 	CommandLineParseOption(TEXT("PixelStreamingSendPlayerIdAsInteger"), PixelStreamingSettings::CVarSendPlayerIdAsInteger);
 	CommandLineParseOption(TEXT("PixelStreamingWebRTCUseLegacyAudioDevice"), PixelStreamingSettings::CVarPixelStreamingWebRTCUseLegacyAudioDevice);
 	CommandLineParseOption(TEXT("PixelStreamingDisableLatencyTester"), PixelStreamingSettings::CVarPixelStreamingDisableLatencyTester);
-	
-
 }
 
 FName UPixelStreamingSettings::GetCategoryName() const

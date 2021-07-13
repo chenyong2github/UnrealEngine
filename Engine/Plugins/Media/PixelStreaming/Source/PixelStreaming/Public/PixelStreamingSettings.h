@@ -33,7 +33,6 @@ namespace PixelStreamingSettings
 	extern TAutoConsoleVariable<FString> CVarPixelStreamingCaptureSize;
 	extern TAutoConsoleVariable<int32> CVarPixelStreamingMaxNumBackBuffers;
 	extern TAutoConsoleVariable<int32> CVarPixelStreamingNumFramesUntilBackBufferStale;
-
 // End Capturer CVars
 
 // Begin WebRTC CVars
@@ -55,6 +54,7 @@ namespace PixelStreamingSettings
 	extern TAutoConsoleVariable<int32> CVarFreezeFrameQuality;
 	extern TAutoConsoleVariable<bool> CVarSendPlayerIdAsInteger;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingDisableLatencyTester;
+	extern TArray<FKey> FilteredKeys;
 // Ends Pixel Streaming Plugin CVars
 
 // Begin utility functions etc.
