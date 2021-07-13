@@ -230,6 +230,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category=Rendering)
 	uint8 bUseAttachParentBound:1;
 
+	/** If true, this component will use its current bounds transformed back into local space instead of calling CalcBounds with an identity transform. */
+	UPROPERTY()
+	uint8 bComputeFastLocalBounds : 1;
+
+	/** If true, this component will cache its bounds during cooking and never recompute it for cooked builds. This is for components that are known to be static. */
+	UPROPERTY()
+	uint8 bComputeBoundsOnceDuringCook : 1;
+
+	/** Get the current local bounds of the component */
+	FBoxSphereBounds GetLocalBounds() const;
+
 	/** Clears the skip update overlaps flag. This should be called any time a change to state would prevent the result of UpdateOverlaps. For example attachment, changing collision settings, etc... */
 	void ClearSkipUpdateOverlaps();
 
@@ -881,6 +892,7 @@ public:
 	virtual void PreNetReceive() override;
 	virtual void PostNetReceive() override;
 	virtual void PostRepNotifies() override;
+	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITORONLY_DATA
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 #endif
@@ -1010,7 +1022,7 @@ public:
 	/** Calculate the local bounds of the component. Default behavior is calling CalcBounds with an identity transform. */
 	virtual FBoxSphereBounds CalcLocalBounds() const 
 	{ 
-		return CalcBounds(FTransform::Identity);
+		return GetLocalBounds();
 	}
 
 	/**

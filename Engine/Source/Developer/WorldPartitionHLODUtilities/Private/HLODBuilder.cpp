@@ -27,6 +27,14 @@ void FHLODBuilder::Build(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InH
 	TArray<UPrimitiveComponent*> HLODPrimitives = CreateComponents(InHLODActor, InHLODLayer, SubComponents);
 	HLODPrimitives.RemoveSwap(nullptr);
 
+	for (UPrimitiveComponent* HLODPrimitive : HLODPrimitives)
+	{
+		DisableCollisions(HLODPrimitive);
+
+		HLODPrimitive->bComputeFastLocalBounds = true;
+		HLODPrimitive->bComputeBoundsOnceDuringCook = true;
+	}
+
 	if (!HLODPrimitives.IsEmpty())
 	{
 		InHLODActor->Modify();

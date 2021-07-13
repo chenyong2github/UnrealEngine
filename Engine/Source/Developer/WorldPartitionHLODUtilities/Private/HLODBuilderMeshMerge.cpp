@@ -35,7 +35,6 @@ TArray<UPrimitiveComponent*> FHLODBuilder_MeshMerge::CreateComponents(AWorldPart
 			Component = NewObject<UStaticMeshComponent>(InHLODActor);
 			Component->SetStaticMesh(static_cast<UStaticMesh*>(Asset));
 			Component->SetWorldLocation(MergedActorLocation);
-			DisableCollisions(Component);
 		}
 	});
 

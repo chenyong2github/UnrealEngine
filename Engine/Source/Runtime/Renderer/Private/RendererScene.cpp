@@ -1216,7 +1216,7 @@ void FScene::AddPrimitive(UPrimitiveComponent* Primitive)
 		RenderMatrix,
 		Primitive->Bounds,
 		AttachmentRootPosition,
-		Primitive->CalcBounds(FTransform::Identity)
+		Primitive->GetLocalBounds()
 	};
 
 	// Help track down primitive with bad bounds way before the it gets to the Renderer
@@ -1348,7 +1348,7 @@ void FScene::UpdatePrimitiveTransform(UPrimitiveComponent* Primitive)
 			UpdateParams.WorldBounds = Primitive->Bounds;
 			UpdateParams.LocalToWorld = Primitive->GetRenderMatrix();
 			UpdateParams.AttachmentRootPosition = AttachmentRootPosition;
-			UpdateParams.LocalBounds = Primitive->CalcBounds(FTransform::Identity);
+			UpdateParams.LocalBounds = Primitive->GetLocalBounds();
 			UpdateParams.PreviousTransform = FMotionVectorSimulation::Get().GetPreviousTransform(Primitive);
 
 			// Help track down primitive with bad bounds way before the it gets to the renderer.

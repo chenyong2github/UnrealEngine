@@ -15,6 +15,9 @@ struct CORE_API FUE5PrivateFrostyStreamObjectVersion
 		// Added HLODBatchingPolicy member to UPrimitiveComponent, which replaces the confusing bUseMaxLODAsImposter & bBatchImpostersAsInstances.
 		HLODBatchingPolicy,
 
+		// Serialize scene components static bounds
+		SerializeSceneComponentStaticBounds,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

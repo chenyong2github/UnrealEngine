@@ -116,9 +116,6 @@ TArray<UPrimitiveComponent*> FHLODBuilder_Instancing::CreateComponents(AWorldPar
 
 		UInstancedStaticMeshComponent* Component = ISMComponentDescriptor.CreateComponent(InHLODActor);
 		Component->SetForcedLodModel(Component->GetStaticMesh()->GetNumLODs());
-
-		DisableCollisions(Component);
-
 		Component->NumCustomDataFloats = EntryInstancingData.NumCustomDataFloats;
 		Component->AddInstances(EntryInstancingData.InstancesTransforms, /*bShouldReturnIndices*/false, /*bWorldSpace*/true);
 		Component->PerInstanceSMCustomData = MoveTemp(EntryInstancingData.InstancesCustomData);
