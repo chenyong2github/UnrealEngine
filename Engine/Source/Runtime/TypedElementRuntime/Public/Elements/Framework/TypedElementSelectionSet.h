@@ -159,6 +159,7 @@ public:
 	virtual void PostEditUndo() override;
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 #endif	// WITH_EDITOR
+	virtual void BeginDestroy() override;
 	virtual void Serialize(FArchive& Ar) override;
 
 	/**

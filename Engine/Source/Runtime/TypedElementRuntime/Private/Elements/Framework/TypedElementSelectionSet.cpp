@@ -86,6 +86,16 @@ bool UTypedElementSelectionSet::Modify(bool bAlwaysMarkDirty)
 }
 #endif	// WITH_EDITOR
 
+void UTypedElementSelectionSet::BeginDestroy()
+{
+	if (ElementList)
+	{
+		ElementList->Empty();
+	}
+
+	Super::BeginDestroy();
+}
+
 void UTypedElementSelectionSet::Serialize(FArchive& Ar)
 {
 	checkf(!Ar.IsPersistent(), TEXT("UTypedElementSelectionSet can only be serialized by transient archives!"));
