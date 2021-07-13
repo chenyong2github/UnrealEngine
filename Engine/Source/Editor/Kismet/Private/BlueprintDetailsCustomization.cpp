@@ -5046,15 +5046,16 @@ ECheckBoxState FBlueprintGraphActionDetails::GetIsPureFunction() const
 
 bool FBlueprintGraphActionDetails::IsConstFunctionVisible() const
 {
-	bool bSupportedType = false;
-	bool bIsEditable = false;
-	UK2Node_EditablePinBase* FunctionEntryNode = FunctionEntryNodePtr.Get();
-	if(FunctionEntryNode)
+	bool bVisible = false;
+	UFunction* Function = FindFunction();
+	UK2Node_FunctionEntry* EntryNode = Cast<UK2Node_FunctionEntry>(FunctionEntryNodePtr.Get());
+	if(Function && EntryNode)
 	{
-		bSupportedType = FunctionEntryNode->IsA<UK2Node_FunctionEntry>();
-		bIsEditable = FunctionEntryNode->IsEditable();
+		const bool bIsStatic = EntryNode->GetFunctionFlags() & FUNC_Static;
+		const bool bIsEditable = EntryNode->IsEditable();
+		bVisible = bIsEditable && !bIsStatic;
 	}
-	return bSupportedType && bIsEditable;
+	return bVisible;
 }
 
 void FBlueprintGraphActionDetails::OnIsConstFunctionModified( const ECheckBoxState NewCheckedState )

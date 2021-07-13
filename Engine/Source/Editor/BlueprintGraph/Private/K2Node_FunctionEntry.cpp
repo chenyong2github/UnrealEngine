@@ -233,6 +233,13 @@ void UK2Node_FunctionEntry::PostLoad()
 
 		UpdateLoadedDefaultValues();
 	}
+
+	// fix deprecated state.
+	if (HasAllExtraFlags(FUNC_Const | FUNC_Static))
+	{
+		// static functions can't be marked const
+		SetExtraFlags(GetFunctionFlags() & ~FUNC_Const);
+	}
 }
 
 void UK2Node_FunctionEntry::Serialize(FArchive& Ar)
