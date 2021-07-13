@@ -142,6 +142,11 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 			NestedPropertyHelper.GetNestedPropertyKeys(TEXT("CurrentConfigData.Cluster.Nodes.Viewports"), ViewportNames);
 		}
 
+		// Manually add the transform properties' data to the layout builder's property in order to generate property handles for them.
+		InLayoutBuilder.AddObjectPropertyData({EditedObject->DisplayClusterRootComponent}, USceneComponent::GetRelativeLocationPropertyName());
+		InLayoutBuilder.AddObjectPropertyData({EditedObject->DisplayClusterRootComponent}, USceneComponent::GetRelativeRotationPropertyName());
+		InLayoutBuilder.AddObjectPropertyData({EditedObject->DisplayClusterRootComponent}, USceneComponent::GetRelativeScale3DPropertyName());
+
 		CREATE_NESTED_PROPERTY_EDITCONDITION_1ARG(EnableICVFXEditCondition, NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable);
 
 		// Manually labeling the ICVFX category because UE4 will automatically put a space after the dash if the label is generated automatically
