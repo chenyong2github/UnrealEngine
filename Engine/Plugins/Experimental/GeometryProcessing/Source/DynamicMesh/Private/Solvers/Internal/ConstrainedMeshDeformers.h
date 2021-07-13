@@ -25,6 +25,10 @@ public:
 	FConstrainedMeshDeformer(const FDynamicMesh3& DynamicMesh, const ELaplacianWeightScheme LaplacianType);
 	~FConstrainedMeshDeformer() override {}
 
+	// Generic mesh type, assume uniform weight scheme
+	template<typename MeshT>
+	FConstrainedMeshDeformer(const MeshT& Mesh);
+	
 	bool Deform(TArray<FVector3d>& PositionBuffer) override;
 
 private:
@@ -33,6 +37,33 @@ private:
 	FSOAPositions OriginalInteriorPositions;
 };
 
+// Generic mesh type, assume uniform weight scheme
+template<typename MeshT>
+FConstrainedMeshDeformer::FConstrainedMeshDeformer(const MeshT& Mesh) :
+	FConstrainedMeshDeformationSolver(Mesh, EMatrixSolverType::LU),
+	LaplacianVectors(FConstrainedMeshDeformationSolver::InternalVertexCount)
+{
+	// The current vertex positions 
+	// Note: the OriginalInteriorPositions are being stored as member data 
+	// for use if the solver is iterative.
+	// FSOAPositions OriginalInteriorPositions; 
+	ExtractInteriorVertexPositions(Mesh, OriginalInteriorPositions);
+
+	// The biharmonic part of the constrained solver
+	//   Biharmonic := Laplacian^{T} * Laplacian
+
+	const auto& Biharmonic = ConstrainedSolver->Biharmonic();
+
+	// Compute the Laplacian Vectors
+	//    := Biharmonic * VertexPostion
+	// In the case of the cotangent laplacian this can be identified as the mean curvature * normal.
+	checkSlow(LaplacianVectors.Num() == OriginalInteriorPositions.Num());
+
+	for (int32 i = 0; i < 3; ++i)
+	{
+		LaplacianVectors.Array(i) = Biharmonic * OriginalInteriorPositions.Array(i);
+	}
+}
 
 
 /**

@@ -5,35 +5,6 @@
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
-// Utility to compute the number of elements in the sparse laplacian matrix
-int32 UE::MeshDeformation::ComputeNumMatrixElements(const FDynamicMesh3& DynamicMesh, const TArray<int32>& ToVtxId)
-{
-	const int32 NumVerts = ToVtxId.Num();
-	TArray<int32> OneRingSize;
-	{
-		OneRingSize.SetNumUninitialized(NumVerts);
-
-		for (int32 i = 0; i < NumVerts; ++i)
-		{
-			const int32 VertId = ToVtxId[i];
-			OneRingSize[i] = DynamicMesh.GetVtxEdgeCount(VertId);
-		}
-	}
-
-	// Compute the total number of entries in the sparse matrix
-	int32 NumMatrixEntries = 0;
-	{
-		for (int32 i = 0; i < NumVerts; ++i)
-		{
-			NumMatrixEntries += 1 + OneRingSize[i]; // myself plus my neighbors
-		}
-
-	}
-
-	return NumMatrixEntries;
-}
-
-
 
 UE::MeshDeformation::CotanTriangleData::CotanTriangleData(const CotanTriangleData& Other)
 {

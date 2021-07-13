@@ -23,16 +23,19 @@ class FVertexLinearization : public FElementLinearization
 {
 public:
 	FVertexLinearization() = default;
-	FVertexLinearization(const FDynamicMesh3& DynamicMesh)
+
+	template<typename MeshType>
+	FVertexLinearization(const MeshType& Mesh)
 	{
-		Reset(DynamicMesh);
+		Reset(Mesh);
 	}
 
-	void Reset(const FDynamicMesh3& DynamicMesh)
+	template<typename MeshType>
+	void Reset(const MeshType& Mesh)
 	{
 		Empty();
-		FElementLinearization::Populate(DynamicMesh.MaxVertexID(), DynamicMesh.VertexCount(), DynamicMesh.VertexIndicesItr());
-		RemapBoundaryVerts(DynamicMesh);
+		FElementLinearization::Populate(Mesh.MaxVertexID(), Mesh.VertexCount(), Mesh.VertexIndicesItr());
+		RemapBoundaryVerts(Mesh);
 	}
 
 	int32 NumVerts() const { return FElementLinearization::NumIds(); }
@@ -42,7 +45,8 @@ public:
 private:
 
 	// Moves the boundary verts to the end of the arrays and records the number of boundary verts
-	void RemapBoundaryVerts(const FDynamicMesh3& DynamicMesh)
+	template<typename MeshType>
+	void RemapBoundaryVerts(const MeshType& DynamicMesh)
 	{
 		int32 VertCount = NumVerts();
 

@@ -12,7 +12,34 @@ namespace UE
 		using namespace UE::Geometry;
 
 		// Utility to compute the number of elements in the sparse laplacian matrix
-		DYNAMICMESH_API int32 ComputeNumMatrixElements(const FDynamicMesh3& DynamicMesh, const TArray<int32>& ToVtxId);
+		template<typename MeshT>
+		DYNAMICMESH_API int32 ComputeNumMatrixElements(const MeshT& DynamicMesh, const TArray<int32>& ToVtxId)
+		{
+			const int32 NumVerts = ToVtxId.Num();
+			TArray<int32> OneRingSize;
+			{
+				OneRingSize.SetNumUninitialized(NumVerts);
+
+				for (int32 i = 0; i < NumVerts; ++i)
+				{
+					const int32 VertId = ToVtxId[i];
+					OneRingSize[i] = DynamicMesh.GetVtxEdgeCount(VertId);
+				}
+			}
+
+			// Compute the total number of entries in the sparse matrix
+			int32 NumMatrixEntries = 0;
+			{
+				for (int32 i = 0; i < NumVerts; ++i)
+				{
+					NumMatrixEntries += 1 + OneRingSize[i]; // myself plus my neighbors
+				}
+
+			}
+
+			return NumMatrixEntries;
+		}
+
 
 		/**
 		* The per-triangle data used in constructing the cotangent weighted laplacian.

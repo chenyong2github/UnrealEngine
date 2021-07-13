@@ -6,7 +6,7 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Solvers/MeshLaplacian.h"
 #include "Solvers/MeshLinearization.h"
-
+#include "Solvers/LaplacianMatrixAssembly.h"
 #include "FSparseMatrixD.h"
 
 // this is a private header
@@ -55,10 +55,6 @@ TUniquePtr<FSparseMatrixD> ConstructLaplacian(const ELaplacianWeightScheme Schem
 	FVertexLinearization& VertexMap,
 	TArray<int32>* BoundaryVerts = NULL);
 
-TUniquePtr<FSparseMatrixD> ConstructUniformLaplacian(const FDynamicMesh3& DynamicMesh,
-	FVertexLinearization& VertexMap,
-	TArray<int32>* BoundaryVerts = NULL);
-
 TUniquePtr<FSparseMatrixD> ConstructUmbrellaLaplacian(const FDynamicMesh3& DynamicMesh,
 	FVertexLinearization& VertexMap,
 	TArray<int32>* BoundaryVerts = NULL);
@@ -80,3 +76,39 @@ TUniquePtr<FSparseMatrixD> ConstructCotangentLaplacian(const FDynamicMesh3& Dyna
 TUniquePtr<FSparseMatrixD> ConstructMeanValueWeightLaplacian(const FDynamicMesh3& DynamicMesh,
 	FVertexLinearization& VertexMap,
 	TArray<int32>* BoundaryVerts = NULL);
+
+void ExtractBoundaryVerts(const FVertexLinearization& VertexMap, TArray<int32>& BoundaryVerts);
+
+
+template<typename MeshType>
+void ConstructUniformLaplacian(const MeshType& Mesh, FVertexLinearization& VertexMap, FSparseMatrixD& LaplacianInterior, FSparseMatrixD& LaplacianBoundary)
+{
+	// Sync the mapping between the mesh vertex ids and their offsets in a nominal linear array.
+	VertexMap.Reset(Mesh);
+	const int32 NumVerts = VertexMap.NumVerts();
+	const int32 NumBoundaryVerts = VertexMap.NumBoundaryVerts();
+	const int32 NumInteriorVerts = NumVerts - NumBoundaryVerts;
+
+	FEigenSparseMatrixAssembler Interior(NumInteriorVerts, NumInteriorVerts);
+	FEigenSparseMatrixAssembler Boundary(NumInteriorVerts, NumBoundaryVerts);
+	UE::MeshDeformation::ConstructUniformLaplacian<double>(Mesh, VertexMap, Interior, Boundary);
+	Interior.ExtractResult(LaplacianInterior);
+	Boundary.ExtractResult(LaplacianBoundary);
+}
+
+template<typename MeshType>
+TUniquePtr<FSparseMatrixD> ConstructUniformLaplacian(const MeshType& Mesh, FVertexLinearization& VertexMap, TArray<int32>* BoundaryVerts)
+{
+	TUniquePtr<FSparseMatrixD> LaplacianMatrix(new FSparseMatrixD);
+	FSparseMatrixD BoundaryMatrix;
+
+	ConstructUniformLaplacian(Mesh, VertexMap, *LaplacianMatrix, BoundaryMatrix);
+
+	if (BoundaryVerts)
+	{
+		ExtractBoundaryVerts(VertexMap, *BoundaryVerts);
+	}
+
+	return LaplacianMatrix;
+}
+

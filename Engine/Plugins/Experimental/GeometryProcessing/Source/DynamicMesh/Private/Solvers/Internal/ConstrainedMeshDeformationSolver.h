@@ -4,10 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "LaplacianOperators.h"
 #include "Solvers/MatrixInterfaces.h"
 #include "Solvers/MeshLaplacian.h"
 #include "Solvers/MeshLinearization.h"
 #include "Solvers/ConstrainedMeshSolver.h"
+#include "ConstrainedPoissonSolver.h"
 
 #include "MatrixBase.h"
 
@@ -17,7 +19,6 @@ namespace UE
 namespace Geometry
 {
 
-class FConstrainedSolver;
 
 /**
  * FConstrainedMeshDeformationSolver is an implmentation of IConstrainedMeshSolver that solves
@@ -33,9 +34,12 @@ class DYNAMICMESH_API FConstrainedMeshDeformationSolver : public UE::Solvers::IC
 public:
 	typedef UE::Solvers::FPositionConstraint  FConstraintPosition;
 
-
 	FConstrainedMeshDeformationSolver(const FDynamicMesh3& DynamicMesh, const ELaplacianWeightScheme Scheme, const EMatrixSolverType MatrixSolverType);
 	virtual ~FConstrainedMeshDeformationSolver();
+
+	// Create the solver using a generic mesh type. Assume uniform weight scheme.
+	template<typename MeshType>
+	FConstrainedMeshDeformationSolver(const MeshType& Mesh, const EMatrixSolverType MatrixSolverType);
 
 	// Add constraint associated with given vertex id.  Boundary vertices will be ignored
 	void AddConstraint(const int32 VtxId, const double Weight, const FVector3d& Pos, const bool bPostFix) override;
@@ -74,8 +78,68 @@ public:
 
 protected:
 
+	// Call this from constructors after building matrices
+	template<typename MeshType>
+	void Init(const MeshType& Mesh, const ELaplacianWeightScheme Scheme, const EMatrixSolverType MatrixSolverType, const FSparseMatrixD& LaplacianInternal, const FSparseMatrixD& LaplacianBoundary)
+	{
+		// Copy the original boundary vertex locations
+		const int32 BoundaryVertexCount = VtxLinearization.NumBoundaryVerts();
 
-	void ExtractInteriorVertexPositions(const FDynamicMesh3& DynamicMesh, FSOAPositions& Positions) const;
+		// Number of vertices in the interior of the mesh
+		InternalVertexCount = VertexCount - BoundaryVertexCount;
+
+		// Copy the original boundary vertex locations
+		{
+			const auto ToVertId = VtxLinearization.ToId();
+			BoundaryPositions.SetZero(BoundaryVertexCount);
+			for (int32 i = 0; i < BoundaryVertexCount; ++i)
+			{
+				const int32 VtxId = ToVertId[i + InternalVertexCount];
+				const FVector3d Pos = Mesh.GetVertex(VtxId);
+				BoundaryPositions.SetXYZ(i, Pos);
+			}
+		}
+
+		checkSlow(LaplacianInternal.rows() == LaplacianInternal.cols());
+
+		TUniquePtr<FSparseMatrixD> LTLPtr(new FSparseMatrixD(LaplacianInternal.rows(), LaplacianInternal.cols()));
+		FSparseMatrixD& LTLMatrix = *(LTLPtr);
+
+		bool bIsLaplacianSymmetric = (Scheme == ELaplacianWeightScheme::Valence || Scheme == ELaplacianWeightScheme::Uniform);
+
+		if (bIsLaplacianSymmetric)
+		{
+			// Laplacian is symmetric, i.e. equal to its transpose
+			LTLMatrix = LaplacianInternal * LaplacianInternal;
+			BoundaryOperator = -1. * LaplacianInternal * LaplacianBoundary;
+
+			ConstrainedSolver.Reset(new FConstrainedSolver(LTLPtr, MatrixSolverType));
+		}
+		else
+		{
+			// the laplacian 
+			LTLMatrix = LaplacianInternal.transpose() * LaplacianInternal;
+			BoundaryOperator = -1. * LaplacianInternal.transpose() * LaplacianBoundary;
+
+			ConstrainedSolver.Reset(new FConstrainedSolver(LTLPtr, MatrixSolverType));
+		}
+	}
+	
+	template<typename MeshType>
+	void ExtractInteriorVertexPositions(const MeshType& Mesh, FSOAPositions& VertexPositions) const
+	{
+		VertexPositions.SetZero(InternalVertexCount);
+
+		const auto& ToVtxId = VtxLinearization.ToId();
+
+		for (int32 i = 0; i < InternalVertexCount; ++i)
+		{
+			const int32 VtxId = ToVtxId[i];
+			const FVector3d& Pos = Mesh.GetVertex(VtxId);
+			VertexPositions.SetXYZ(i, Pos);
+		}
+	}
+
 
 	//void UpdateMeshWithConstraints();
 	// Respect any bPostFix constraints by moving those vertices to position defined by said constraint.
@@ -122,9 +186,16 @@ protected:
 
 
 
+template<typename MeshType>
+FConstrainedMeshDeformationSolver::FConstrainedMeshDeformationSolver(const MeshType& Mesh, const EMatrixSolverType MatrixSolverType)
+	: VertexCount(Mesh.VertexCount())
+{
+	FSparseMatrixD LaplacianInternal;
+	FSparseMatrixD LaplacianBoundary;
+	ConstructUniformLaplacian(Mesh, VtxLinearization, LaplacianInternal, LaplacianBoundary);
 
-
-
+	Init(Mesh, ELaplacianWeightScheme::Uniform, MatrixSolverType, LaplacianInternal, LaplacianBoundary);
+}
 
 /**
  * FSoftMeshDeformationSolver is an implmentation of IConstrainedLaplacianMeshSolver that solves

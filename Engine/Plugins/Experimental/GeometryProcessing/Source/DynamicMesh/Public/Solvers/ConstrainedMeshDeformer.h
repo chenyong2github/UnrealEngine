@@ -7,6 +7,7 @@
 #include "Solvers/ConstrainedMeshSolver.h"
 #include "Solvers/MeshLaplacian.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "Curve/DynamicGraph3.h"
 
 namespace UE
 {
@@ -56,6 +57,35 @@ namespace UE
 		*   // Update Mesh?
 		*/
 		TUniquePtr<UE::Solvers::IConstrainedMeshSolver> DYNAMICMESH_API ConstructConstrainedMeshDeformer(const ELaplacianWeightScheme WeightScheme, const FDynamicMesh3& DynamicMesh);
+
+
+		/**
+		 * Interface for a mesh with only edges and vertices
+		 */
+		//class IVertexEdgeGraph
+		//{
+		//public:
+		//	virtual const FVector3d& GetVertex(int) const = 0;
+		//	virtual int VertexCount() const = 0;
+		//	virtual int MaxVertexID() const = 0;
+		//	virtual FRefCountVector::IndexEnumerable VertexIndicesItr() const = 0;
+		//	virtual FSmallListSet::MappedValueEnumerable VtxVerticesItr(int VID) const = 0;
+		//	virtual int GetVtxEdgeCount(int VID) const = 0;
+
+		//	// Required for FVertexLinearization
+		//	virtual bool IsBoundaryVertex(int VID) const = 0;
+		//};
+
+		/**
+		 * Construct a Mesh Deformer object for the given generic mesh that uses Biharmonic Laplacian Mesh Deformation 
+		 * to solve for the deformed vertex positions.
+		 *
+		 * Similar to ConstructConstrainedMeshDeformer() however a uniform-weighted Laplacian is always used.
+		 * This allows for the solution of deformation problems on a more generic mesh type (triangles or faces are
+		 * not required.)
+		 * 
+		 */
+		TUniquePtr<UE::Solvers::IConstrainedMeshSolver> DYNAMICMESH_API ConstructUniformConstrainedMeshDeformer(const FDynamicGraph3d& Graph);
 
 
 		/**

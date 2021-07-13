@@ -66,53 +66,11 @@ FConstrainedMeshDeformationSolver::~FConstrainedMeshDeformationSolver()
 FConstrainedMeshDeformationSolver::FConstrainedMeshDeformationSolver(const FDynamicMesh3& DynamicMesh, const ELaplacianWeightScheme Scheme, const EMatrixSolverType MatrixSolverType)
 	: VertexCount(DynamicMesh.VertexCount())
 {
-
 	FSparseMatrixD LaplacianInternal;
 	FSparseMatrixD LaplacianBoundary;
 	ConstructLaplacian(Scheme, DynamicMesh, VtxLinearization, LaplacianInternal, LaplacianBoundary);
 
-	// Copy the original boundary vertex locations
-	const int32 BoundaryVertexCount = VtxLinearization.NumBoundaryVerts();
-
-	// Number of vertices in the interior of the mesh
-	InternalVertexCount = VertexCount - BoundaryVertexCount;
-
-	// Copy the original boundary vertex locations
-	{
-		const auto ToVertId = VtxLinearization.ToId();
-		BoundaryPositions.SetZero(BoundaryVertexCount);
-		for (int32 i = 0; i < BoundaryVertexCount; ++i)
-		{
-			const int32 VtxId = ToVertId[i + InternalVertexCount];
-			const FVector3d Pos = DynamicMesh.GetVertex(VtxId);
-			BoundaryPositions.SetXYZ(i, Pos);
-		}
-	}
-
-	checkSlow(LaplacianInternal.rows() == LaplacianInternal.cols());
-
-	TUniquePtr<FSparseMatrixD> LTLPtr(new FSparseMatrixD(LaplacianInternal.rows(), LaplacianInternal.cols()));
-	FSparseMatrixD& LTLMatrix = *(LTLPtr);
-
-	bool bIsLaplacianSymmetric = (Scheme == ELaplacianWeightScheme::Valence || Scheme == ELaplacianWeightScheme::Uniform);
-
-	if (bIsLaplacianSymmetric)
-	{
-		// Laplacian is symmetric, i.e. equal to its transpose
-		LTLMatrix = LaplacianInternal * LaplacianInternal;
-		BoundaryOperator = -1. * LaplacianInternal * LaplacianBoundary;
-
-		ConstrainedSolver.Reset(new FConstrainedSolver(LTLPtr, MatrixSolverType));
-	}
-	else
-	{
-		// the laplacian 
-		LTLMatrix = LaplacianInternal.transpose() * LaplacianInternal;
-		BoundaryOperator = -1. * LaplacianInternal.transpose() * LaplacianBoundary;
-
-		ConstrainedSolver.Reset(new FConstrainedSolver(LTLPtr, MatrixSolverType));
-	}
-
+	Init(DynamicMesh, Scheme, MatrixSolverType, LaplacianInternal, LaplacianBoundary);
 }
 
 void FConstrainedMeshDeformationSolver::AddConstraint(const int32 VtxId, const double Weight, const FVector3d& Pos, const bool bPostFix)
@@ -288,19 +246,6 @@ bool FConstrainedMeshDeformationSolver::CopyBoundaryPositions(TArray<FVector3d>&
 }
 
 
-void FConstrainedMeshDeformationSolver::ExtractInteriorVertexPositions(const FDynamicMesh3& DynamicMesh, FSOAPositions& VertexPositions) const
-{
-	VertexPositions.SetZero(InternalVertexCount);
-
-	const auto& ToVtxId = VtxLinearization.ToId();
-
-	for (int32 i = 0; i < InternalVertexCount; ++i)
-	{
-		const int32 VtxId = ToVtxId[i];
-		const FVector3d& Pos = DynamicMesh.GetVertex(VtxId);
-		VertexPositions.SetXYZ(i, Pos);
-	}
-}
 
 void FConstrainedMeshDeformationSolver::UpdateWithPostFixConstraints(FSOAPositions& PositionVector) const
 {

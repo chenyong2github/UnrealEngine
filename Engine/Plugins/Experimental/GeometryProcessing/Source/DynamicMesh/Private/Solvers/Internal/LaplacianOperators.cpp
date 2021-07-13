@@ -3,7 +3,7 @@
 #include "LaplacianOperators.h"
 
 #include "Solvers/MatrixInterfaces.h"
-#include "Solvers/LaplacianMatrixAssembly.h"
+
 
 #include <cmath> // double version of sqrt
 #include <vector> // used by eigen to initialize sparse matrix
@@ -27,22 +27,6 @@ PRAGMA_DEFAULT_VISIBILITY_END
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
-
-
-void ConstructUniformLaplacian(const FDynamicMesh3& DynamicMesh, FVertexLinearization& VertexMap, FSparseMatrixD& LaplacianInterior, FSparseMatrixD& LaplacianBoundary)
-{
-	// Sync the mapping between the mesh vertex ids and their offsets in a nominal linear array.
-	VertexMap.Reset(DynamicMesh);
-	const int32 NumVerts = VertexMap.NumVerts();
-	const int32 NumBoundaryVerts = VertexMap.NumBoundaryVerts();
-	const int32 NumInteriorVerts = NumVerts - NumBoundaryVerts;
-
-	FEigenSparseMatrixAssembler Interior(NumInteriorVerts, NumInteriorVerts);
-	FEigenSparseMatrixAssembler Boundary(NumInteriorVerts, NumBoundaryVerts);
-	UE::MeshDeformation::ConstructUniformLaplacian<double>(DynamicMesh, VertexMap, Interior, Boundary);
-	Interior.ExtractResult(LaplacianInterior);
-	Boundary.ExtractResult(LaplacianBoundary);
-}
 
 
 void ConstructUmbrellaLaplacian(const FDynamicMesh3& DynamicMesh, FVertexLinearization& VertexMap, FSparseMatrixD& LaplacianInterior, FSparseMatrixD& LaplacianBoundary)
@@ -226,7 +210,7 @@ void ConstructLaplacian(const ELaplacianWeightScheme Scheme, const FDynamicMesh3
 //
 
 
-static void ExtractBoundaryVerts(const FVertexLinearization& VertexMap, TArray<int32>& BoundaryVerts)
+void ExtractBoundaryVerts(const FVertexLinearization& VertexMap, TArray<int32>& BoundaryVerts)
 {
 	int32 NumBoundaryVerts = VertexMap.NumBoundaryVerts();
 	int32 NumInternalVerts = VertexMap.NumVerts() - NumBoundaryVerts;
@@ -239,23 +223,6 @@ static void ExtractBoundaryVerts(const FVertexLinearization& VertexMap, TArray<i
 		BoundaryVerts.Add(VtxId);
 	}
 }
-
-TUniquePtr<FSparseMatrixD> ConstructUniformLaplacian(const FDynamicMesh3& DynamicMesh, FVertexLinearization& VertexMap, TArray<int32>* BoundaryVerts)
-{
-	TUniquePtr<FSparseMatrixD> LaplacianMatrix(new FSparseMatrixD);
-	FSparseMatrixD BoundaryMatrix;
-
-	ConstructUniformLaplacian(DynamicMesh, VertexMap, *LaplacianMatrix, BoundaryMatrix);
-
-	if (BoundaryVerts)
-	{
-		ExtractBoundaryVerts(VertexMap, *BoundaryVerts);
-	}
-
-	return LaplacianMatrix;
-}
-
-
 
 TUniquePtr<FSparseMatrixD> ConstructUmbrellaLaplacian(const FDynamicMesh3& DynamicMesh, FVertexLinearization& VertexMap, TArray<int32>* BoundaryVerts)
 {
