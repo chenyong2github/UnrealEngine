@@ -12,6 +12,7 @@ DEFINE_LOG_CATEGORY( LogNetVersion );
 
 FNetworkVersion::FGetLocalNetworkVersionOverride FNetworkVersion::GetLocalNetworkVersionOverride;
 FNetworkVersion::FIsNetworkCompatibleOverride FNetworkVersion::IsNetworkCompatibleOverride;
+FNetworkVersion::FGetReplayCompatibleChangeListOverride FNetworkVersion::GetReplayCompatibleChangeListOverride;
 
 FString& FNetworkVersion::GetProjectVersion_Internal()
 {
@@ -85,6 +86,15 @@ uint32 FNetworkVersion::GetNetworkCompatibleChangelist()
 
 uint32 FNetworkVersion::GetReplayCompatibleChangelist()
 {
+	// Use the override if it's bound
+	if (GetReplayCompatibleChangeListOverride.IsBound())
+	{
+		const uint32 Changelist = GetReplayCompatibleChangeListOverride.Execute();
+
+		UE_LOG(LogNetVersion, Log, TEXT("Replay changelist override: %d"), Changelist);
+		return Changelist;
+	}
+
 	return FEngineVersion::CompatibleWith().GetChangelist();
 }
 
