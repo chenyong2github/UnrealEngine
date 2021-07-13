@@ -22,7 +22,8 @@ class FHairStrandsTilePassVS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(int32, bRectPrimitive)
-		SHADER_PARAMETER(FIntPoint, TileOutputResolution)
+		SHADER_PARAMETER(FIntPoint, ViewMin)
+		SHADER_PARAMETER(FVector2D, ViewInvSize)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, TileDataBuffer)
 		RDG_BUFFER_ACCESS(TileIndirectBuffer, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
@@ -31,8 +32,7 @@ class FHairStrandsTilePassVS : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 };
 
-FHairStrandsTilePassVS::FParameters GetHairStrandsTileParameters(const FHairStrandsTiles& In, FHairStrandsTiles::ETileType TileType = FHairStrandsTiles::ETileType::Hair);
-FHairStrandsTilePassVS::FParameters GetHairStrandsTileParameters(const FHairStrandsTiles& In, const FIntPoint& InOutputResolution, FHairStrandsTiles::ETileType TileType = FHairStrandsTiles::ETileType::Hair);
+FHairStrandsTilePassVS::FParameters GetHairStrandsTileParameters(const FViewInfo& InView, const FHairStrandsTiles& In, FHairStrandsTiles::ETileType TileType = FHairStrandsTiles::ETileType::Hair);
 
 FHairStrandsTiles AddHairStrandsGenerateTilesPass(
 	FRDGBuilder& GraphBuilder,

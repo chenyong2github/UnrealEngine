@@ -62,7 +62,7 @@ void InternalCommonDrawPass(
 	const bool bUseTile = TileData.IsValid();
 	if (TileData.IsValid())
 	{
-		PassParamters->TileData = GetHairStrandsTileParameters(TileData);
+		PassParamters->TileData = GetHairStrandsTileParameters(View, TileData);
 	}
 	GraphBuilder.AddPass(
 		Forward<FRDGEventName>(EventName),
@@ -134,6 +134,8 @@ void InternalCommonDrawPass(
 		}
 
 		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParamters);
+		RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
+
 		if (bUseTile)
 		{
 			SetShaderParameters(RHICmdList, TileVertexShader, TileVertexShader.GetVertexShader(), ParametersVS);
@@ -142,7 +144,6 @@ void InternalCommonDrawPass(
 		}
 		else
 		{
-			RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
 			DrawRectangle(
 				RHICmdList,
 				0, 0,

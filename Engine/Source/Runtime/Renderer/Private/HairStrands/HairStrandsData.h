@@ -45,7 +45,7 @@ struct FHairStrandsTiles
 {
 	enum class ETileType : uint8 { Hair, Other };
 
-	FIntPoint			Resolution = FIntPoint(0, 0);
+	FIntPoint			BufferResolution = FIntPoint(0, 0);
 	static const uint32 GroupSize = 64;
 	static const uint32	TileSize = 8;
 	static const uint32	TilePerThread_GroupSize = 64;
