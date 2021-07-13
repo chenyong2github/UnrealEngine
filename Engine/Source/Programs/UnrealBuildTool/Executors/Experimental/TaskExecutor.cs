@@ -45,6 +45,12 @@ namespace UnrealBuildTool
 		bool bStopCompilationAfterErrors = false;
 
 		/// <summary>
+		/// Whether to show compilation times along with worst offenders or not.
+		/// </summary>
+		[XmlConfigFile]
+		bool bShowCompilationTimes = false;
+
+		/// <summary>
 		/// How many processes that will be executed in parallel
 		/// </summary>
 		public int NumParallelProcesses { get; private set; }
@@ -97,7 +103,16 @@ namespace UnrealBuildTool
 		{
 			public List<string> LogLines { get; private set; }
 			public int ExitCode { get; private set; }
+			public TimeSpan ExecutionTime { get; private set; }
+			public TimeSpan ProcessorTime { get; private set; }
 
+			public ExecuteResults(List<string> LogLines, int ExitCode, TimeSpan ExecutionTime, TimeSpan ProcessorTime)
+			{
+				this.LogLines = LogLines;
+				this.ExitCode = ExitCode;
+				this.ProcessorTime = ProcessorTime;
+				this.ExecutionTime = ExecutionTime;
+			}
 			public ExecuteResults(List<string> LogLines, int ExitCode)
 			{
 				this.LogLines = LogLines;
@@ -144,6 +159,25 @@ namespace UnrealBuildTool
 			// Wait for all tasks to complete
 			Task.WaitAll(AllTasks.ToArray());
 
+			if (bShowCompilationTimes)
+			{
+				Log.TraceInformation("");
+				Log.TraceInformation("Total CPU Time: {0} s", ProcessGroup.TotalProcessorTime.TotalSeconds);
+				Log.TraceInformation("");
+
+				if (Tasks.Count > 0)
+				{
+					Log.TraceInformation("Compilation Time Top {0}", Math.Min(20, Tasks.Count));
+					Log.TraceInformation("");
+					foreach (var Pair in Tasks.OrderByDescending(x => x.Value.Result.ExecutionTime).Take(20))
+					{
+						string Description = $"{(Pair.Key.Inner.CommandDescription != null ? Pair.Key.Inner.CommandDescription : Pair.Key.Inner.CommandPath.GetFileNameWithoutExtension())} {Pair.Key.Inner.StatusDescription}".Trim();
+						Log.TraceInformation("{0} [ Wall Time {1:0.00} s / CPU Time {2:0.00} s ]", Description, Pair.Value.Result.ExecutionTime.TotalSeconds, Pair.Value.Result.ProcessorTime.TotalSeconds);
+					}
+					Log.TraceInformation("");
+				}
+			}
+
 			// Return if all tasks succeeded
 			return Tasks.Values.All(x => x.Result.ExitCode == 0);
 		}
@@ -172,6 +206,9 @@ namespace UnrealBuildTool
 				string Description = string.Empty;
 				List<string> LogLines;
 				int ExitCode;
+				DateTime StartTime = DateTime.Now;
+				TimeSpan ExecutionTime;
+				TimeSpan ProcessorTime;
 				using (ManagedProcess Process = new ManagedProcess(ProcessGroup, Action.CommandPath.FullName, Action.CommandArguments, Action.WorkingDirectory.FullName, null, null, ProcessPriorityClass.BelowNormal))
 				{
 					MemoryStream StdOutStream = new MemoryStream();
@@ -179,9 +216,11 @@ namespace UnrealBuildTool
 					CancellationToken.ThrowIfCancellationRequested();
 					LogLines = Console.OutputEncoding.GetString(StdOutStream.GetBuffer(), 0, Convert.ToInt32(StdOutStream.Length)).Split(LineEndingSplit, StringSplitOptions.RemoveEmptyEntries).ToList();
 					ExitCode = Process.ExitCode;
+					ProcessorTime = Process.TotalProcessorTime;
+					ExecutionTime = DateTime.Now - StartTime;
 				}
 
-				return new ExecuteResults(LogLines, ExitCode);
+				return new ExecuteResults(LogLines, ExitCode, ExecutionTime, ProcessorTime);
 			}
 			catch (OperationCanceledException)
 			{
