@@ -783,15 +783,19 @@ bool UIKRetargeter::InitializeBoneChainPairs()
 bool UIKRetargeter::InitializeIKRig(UObject* Outer, const FReferenceSkeleton& InRefSkeleton)
 {	
 	// initialize IK Rig runtime processor
-	IKRigProcessor.Initialize(TargetIKRigAsset, InRefSkeleton, Outer);
-	if (IKRigProcessor.NeedsInitialized(TargetIKRigAsset))
+	if (!IKRigProcessor)
+	{
+		IKRigProcessor = NewObject<UIKRigProcessor>(Outer);	
+	}
+	IKRigProcessor->Initialize(TargetIKRigAsset, InRefSkeleton);
+	if (IKRigProcessor->NeedsInitialized(TargetIKRigAsset))
 	{
 		return false;
 	}
 
 	// validate that all IK bone chains have an associated Goal
 	TArray<FName> GoalNames;
-	IKRigProcessor.GetGoalContainer().Goals.GenerateKeyArray(GoalNames);
+	IKRigProcessor->GetGoalContainer().Goals.GenerateKeyArray(GoalNames);
 	for (FRetargetChainPairIK& ChainPair : ChainPairsIK)
 	{
 		// does the IK rig have the IK goal this bone chain requires?
@@ -876,13 +880,13 @@ void UIKRetargeter::RunIKRetarget(
 			OutIKGoal.EndEffectorRotation,
 			1.0f,
 			1.0f);
-		IKRigProcessor.SetIKGoal(Goal);
+		IKRigProcessor->SetIKGoal(Goal);
 	}
 
 	// copy input pose to start IK solve from
-	IKRigProcessor.SetInputPoseGlobal(OutGlobalPose);
+	IKRigProcessor->SetInputPoseGlobal(OutGlobalPose);
 	// run IK solve
-	IKRigProcessor.Solve();
+	IKRigProcessor->Solve();
 	// copy results of solve
-	IKRigProcessor.CopyOutputGlobalPoseToArray(OutGlobalPose);
+	IKRigProcessor->CopyOutputGlobalPoseToArray(OutGlobalPose);
 }

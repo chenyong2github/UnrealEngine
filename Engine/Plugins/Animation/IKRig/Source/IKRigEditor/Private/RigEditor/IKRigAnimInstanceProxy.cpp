@@ -7,8 +7,9 @@ FIKRigAnimInstanceProxy::FIKRigAnimInstanceProxy()
 {
 }
 
-FIKRigAnimInstanceProxy::FIKRigAnimInstanceProxy(UAnimInstance* InAnimInstance)
-	: FAnimPreviewInstanceProxy(InAnimInstance)
+FIKRigAnimInstanceProxy::FIKRigAnimInstanceProxy(UAnimInstance* InAnimInstance, FAnimNode_IKRig* InIKRigNode)
+	: FAnimPreviewInstanceProxy(InAnimInstance),
+	IKRigNode(InIKRigNode)
 {
 }
 
@@ -19,26 +20,26 @@ FIKRigAnimInstanceProxy::~FIKRigAnimInstanceProxy()
 void FIKRigAnimInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 {
 	FAnimInstanceProxy::Initialize(InAnimInstance);
-	IKRigNode.Source.SetLinkNode(&SingleNode);
+	IKRigNode->Source.SetLinkNode(&SingleNode);
 
 	// force this instance of the IK Rig evaluation to copy setting from the source IK Rig asset
-	IKRigNode.bDriveWithSourceAsset = true; 
+	IKRigNode->bDriveWithSourceAsset = true; 
 }
 
 bool FIKRigAnimInstanceProxy::Evaluate(FPoseContext& Output)
 {
-	IKRigNode.Evaluate_AnyThread(Output);
+	IKRigNode->Evaluate_AnyThread(Output);
 	return true;
 }
 
 FAnimNode_Base* FIKRigAnimInstanceProxy::GetCustomRootNode()
 {
-	return &IKRigNode;
+	return IKRigNode;
 }
 
 void FIKRigAnimInstanceProxy::GetCustomNodes(TArray<FAnimNode_Base*>& OutNodes)
 {
-	OutNodes.Add(&IKRigNode);
+	OutNodes.Add(IKRigNode);
 }
 
 void FIKRigAnimInstanceProxy::UpdateAnimationNode(const FAnimationUpdateContext& InContext)
@@ -49,11 +50,12 @@ void FIKRigAnimInstanceProxy::UpdateAnimationNode(const FAnimationUpdateContext&
 	}
 	else
 	{
-		IKRigNode.Update_AnyThread(InContext);
+		IKRigNode->Update_AnyThread(InContext);
 	}
 }
 
 void FIKRigAnimInstanceProxy::SetIKRigAsset(UIKRigDefinition* InIKRigAsset)
 {
-	IKRigNode.RigDefinitionAsset = InIKRigAsset;
+	IKRigNode->RigDefinitionAsset = InIKRigAsset;
 }
+

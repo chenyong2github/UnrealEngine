@@ -11,8 +11,8 @@
 
 class IIKGoalCreatorInterface;
 class UIKRigDefinition;
-class UIKRigProcessor;
 
+	
 USTRUCT(BlueprintInternalUseOnly)
 struct IKRIG_API FAnimNode_IKRig : public FAnimNode_Base
 {
@@ -27,7 +27,7 @@ struct IKRIG_API FAnimNode_IKRig : public FAnimNode_Base
 	UIKRigDefinition* RigDefinitionAsset;
 
 	/** The input goal transforms used by the IK Rig solvers.*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, EditFixedSize, Category = Goal, meta = (PinShownByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Goal, meta = (PinShownByDefault))
 	TArray<FIKRigGoal> Goals;
 
 	/** optionally ignore the input pose and start from the reference pose each solve */
@@ -47,7 +47,7 @@ private:
 
 	/** IK Rig runtime processor */
 	UPROPERTY(Transient)
-	FIKRigProcessor IKRigProcessor;
+	TObjectPtr<UIKRigProcessor> IKRigProcessor;
 
 	/** a cached list of components on the owning actor that implement the goal creator interface */
 	TArray<IIKGoalCreatorInterface*> GoalCreators;
@@ -68,14 +68,14 @@ public:
 	virtual bool HasPreUpdate() const override { return true; }
 	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
 	// End of FAnimNode_Base interface
-
+	
 private:
+	
 	void CopyInputPoseToSolver(FCompactPose& InputPose);
 	void AssignGoalTargets();
-	void CopyOutputPoseToAnimGraph(FCompactPose& OutputPose);
-	
-	bool RebuildGoalList();
-	FName GetGoalName(int32 Index) const;
+	void CopyOutputPoseToAnimGraph(FCompactPose& OutputPose);	
 	void QueueDrawInterface(FAnimInstanceProxy* AnimProxy, const FTransform& ComponentToWorld) const;
+	
 	friend class UAnimGraphNode_IKRig;
+	friend struct FIKRigAnimInstanceProxy;
 };

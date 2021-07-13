@@ -17,7 +17,7 @@ struct FIKRigAnimInstanceProxy : public FAnimPreviewInstanceProxy
 public:
 	
 	FIKRigAnimInstanceProxy();
-	FIKRigAnimInstanceProxy(UAnimInstance* InAnimInstance);
+	FIKRigAnimInstanceProxy(UAnimInstance* InAnimInstance, FAnimNode_IKRig* IKRigNode);
 	virtual ~FIKRigAnimInstanceProxy();
 
 	/** FAnimPreviewInstanceProxy interface */
@@ -34,6 +34,5 @@ public:
 
 	void SetIKRigAsset(UIKRigDefinition* InIKRigAsset);
 
-	UPROPERTY(Transient)
-	FAnimNode_IKRig IKRigNode;
+	FAnimNode_IKRig* IKRigNode;
 };

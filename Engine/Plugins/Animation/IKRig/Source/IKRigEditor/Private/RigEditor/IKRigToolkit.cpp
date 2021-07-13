@@ -163,6 +163,7 @@ FString FIKRigEditorToolkit::GetWorldCentricTabPrefix() const
 
 void FIKRigEditorToolkit::AddReferencedObjects(FReferenceCollector& Collector)
 {
+	// hold the asset we are working on
 	UIKRigDefinition* Asset = EditorController->AssetController->GetAsset();
 	Collector.AddReferencedObject(Asset);
 }
@@ -182,8 +183,8 @@ void FIKRigEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPersonaPre
 	EditorController->SkelMeshComponent = NewObject<UDebugSkelMeshComponent>(Actor);
 
 	// setup an apply an anim instance to the skeletal mesh component
-	UIKRigAnimInstance* IKRigAnimInstance = NewObject<UIKRigAnimInstance>(EditorController->SkelMeshComponent, TEXT("IKRigAnimScriptInstance"));
-	SetupAnimInstance(IKRigAnimInstance);
+	EditorController->AnimInstance = NewObject<UIKRigAnimInstance>(EditorController->SkelMeshComponent, TEXT("IKRigAnimScriptInstance"));
+	SetupAnimInstance();
 
 	// set the skeletal mesh on the component
 	// NOTE: this must be done AFTER setting the AnimInstance so that the correct root anim node is loaded
@@ -213,8 +214,8 @@ void FIKRigEditorToolkit::HandlePreviewMeshChanged(USkeletalMesh* InOldSkeletalM
 	if (EditorSkelComp)
 	{
 		bool bWasCreated = false;
-		UIKRigAnimInstance* AnimInstance = FAnimCustomInstanceHelper::BindToSkeletalMeshComponent<UIKRigAnimInstance>(EditorSkelComp , bWasCreated);
-		SetupAnimInstance(AnimInstance);
+		EditorController->AnimInstance = FAnimCustomInstanceHelper::BindToSkeletalMeshComponent<UIKRigAnimInstance>(EditorSkelComp , bWasCreated);
+		SetupAnimInstance();
 	}
 
 	EditorController->SkelMeshComponent->SetSkeletalMesh(InNewSkeletalMesh);
@@ -238,8 +239,9 @@ void FIKRigEditorToolkit::HandleReset()
 	EditorController.Get().Reset();
 }
 
-void FIKRigEditorToolkit::SetupAnimInstance(UIKRigAnimInstance* InAnimInstance)
+void FIKRigEditorToolkit::SetupAnimInstance()
 {
+	UIKRigAnimInstance* InAnimInstance = EditorController->AnimInstance.Get();
 	InAnimInstance->SetIKRigAsset(EditorController->AssetController->GetAsset());
 	EditorController->SkelMeshComponent->PreviewInstance = InAnimInstance;
 	InAnimInstance->InitializeAnimation();

@@ -3,7 +3,6 @@
 #include "AnimNodes/AnimNode_IKRetargeter.h"
 #include "Animation/AnimInstanceProxy.h"
 
-//#pragma optimize("", off)
 
 void FAnimNode_IKRetargeter::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
@@ -94,7 +93,7 @@ void FAnimNode_IKRetargeter::EnsureInitialized(const UAnimInstance* InAnimInstan
 	   CurrentlyUsedSourceMeshComponent.IsValid()
     && CurrentlyUsedSourceMesh.IsValid()
     && CurrentlyUsedTargetMesh.IsValid()
-	&& CurrentlyUsedRetargeter.IsValid()
+	&& CurrentlyUsedRetargeter
 	&& CurrentlyUsedSourceIKRig.IsValid()
 	&& CurrentlyUsedTargetIKRig.IsValid();
 	if (!bPartsLoaded)
@@ -141,7 +140,7 @@ void FAnimNode_IKRetargeter::InitializeRetargetData(const UAnimInstance* InAnimI
 	}
 
 	const bool bRetargeterIsValid =
-	   CurrentlyUsedRetargeter.IsValid()
+	   CurrentlyUsedRetargeter
 	&& CurrentlyUsedSourceIKRig.IsValid()
 	&& CurrentlyUsedTargetIKRig.IsValid();
 	if (!bRetargeterIsValid)

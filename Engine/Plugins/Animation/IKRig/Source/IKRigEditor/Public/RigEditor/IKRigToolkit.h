@@ -88,7 +88,7 @@ private:
 	void HandlePreviewMeshChanged(USkeletalMesh* InOldSkeletalMesh, USkeletalMesh* InNewSkeletalMesh);
 	void HandleDetailsCreated(const TSharedRef<class IDetailsView>& InDetailsView);
 	void OnFinishedChangingDetails(const FPropertyChangedEvent& PropertyChangedEvent);
-	void SetupAnimInstance(UIKRigAnimInstance* InAnimInstance);
+	void SetupAnimInstance();
 	/** END preview scene setup */
 	
 	/** centralized management of selection across skeleton view and viewport */

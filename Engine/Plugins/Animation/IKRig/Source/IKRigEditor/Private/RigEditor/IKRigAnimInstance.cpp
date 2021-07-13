@@ -17,5 +17,5 @@ void UIKRigAnimInstance::SetIKRigAsset(UIKRigDefinition* InIKRigAsset)
 
 FAnimInstanceProxy* UIKRigAnimInstance::CreateAnimInstanceProxy()
 {
-	return new FIKRigAnimInstanceProxy(this);
+	return new FIKRigAnimInstanceProxy(this, &IKRigNode);
 }
