@@ -500,10 +500,10 @@ void FEOSVoiceChatUser::UnblockPlayers(const TArray<FString>& PlayerNames)
 	}
 }
 
-void FEOSVoiceChatUser::JoinChannel(const FString& ChannelName, const FString& ChannelCredentials, EVoiceChatChannelType ChannelType, const FOnVoiceChatChannelJoinCompleteDelegate& Delegate, TOptional<FVoiceChatChannel3dProperties> Channel3dProperties)
+void FEOSVoiceChatUser::JoinChannel(const FString& ChannelName, const FString& ChannelCredentialsStr, EVoiceChatChannelType ChannelType, const FOnVoiceChatChannelJoinCompleteDelegate& Delegate, TOptional<FVoiceChatChannel3dProperties> Channel3dProperties)
 {
 	FVoiceChatResult Result = FVoiceChatResult::CreateSuccess();
-	FEOSVoiceChannelConnectionInfo EOSChannelCredentials;
+	FEOSVoiceChatChannelCredentials ChannelCredentials;
 
 	if (!IsInitialized())
 	{
@@ -525,7 +525,7 @@ void FEOSVoiceChatUser::JoinChannel(const FString& ChannelName, const FString& C
 	{
 		Result = VoiceChat::Errors::InvalidArgument(TEXT("ChannelName invalid characters"));
 	}
-	else if (!EOSChannelCredentials.FromJson(ChannelCredentials))
+	else if (!ChannelCredentials.FromJson(ChannelCredentialsStr))
 	{
 		Result = VoiceChat::Errors::CredentialsInvalid(TEXT("Failed to deserialize ChannelCredentials"));
 	}
@@ -548,9 +548,9 @@ void FEOSVoiceChatUser::JoinChannel(const FString& ChannelName, const FString& C
 		}
 		else
 		{
-			if (!EOSChannelCredentials.OverrideUserId.IsEmpty())
+			if (!ChannelCredentials.OverrideUserId.IsEmpty())
 			{
-				ChannelSession.PlayerName = EOSChannelCredentials.OverrideUserId;
+				ChannelSession.PlayerName = ChannelCredentials.OverrideUserId;
 			}
 			else
 			{
@@ -568,8 +568,8 @@ void FEOSVoiceChatUser::JoinChannel(const FString& ChannelName, const FString& C
 			ApplySendingOptions(ChannelSession);
 
 			const FTCHARToUTF8 Utf8RoomName(*ChannelName);
-			const FTCHARToUTF8 Utf8ClientBaseUrl(*EOSChannelCredentials.ClientBaseUrl);
-			const FTCHARToUTF8 Utf8ParticipantToken(*EOSChannelCredentials.ParticipantToken);
+			const FTCHARToUTF8 Utf8ClientBaseUrl(*ChannelCredentials.ClientBaseUrl);
+			const FTCHARToUTF8 Utf8ParticipantToken(*ChannelCredentials.ParticipantToken);
 			const FTCHARToUTF8 Utf8ParticipantId(*ChannelSession.PlayerName);
 
 			// Call UpdateReceiving once to set the default receiving state for all participants
@@ -880,14 +880,14 @@ FString FEOSVoiceChatUser::InsecureGetLoginToken(const FString& PlayerName)
 
 FString FEOSVoiceChatUser::InsecureGetJoinToken(const FString& ChannelName, EVoiceChatChannelType ChannelType, TOptional<FVoiceChatChannel3dProperties> Channel3dProperties)
 {
-	FEOSVoiceChannelConnectionInfo ConnectionInfo;
-	GConfig->GetString(TEXT("EOSVoiceChat"), TEXT("InsecureClientBaseUrl"), ConnectionInfo.ClientBaseUrl, GEngineIni);
+	FEOSVoiceChatChannelCredentials ChannelCredentials;
+	GConfig->GetString(TEXT("EOSVoiceChat"), TEXT("InsecureClientBaseUrl"), ChannelCredentials.ClientBaseUrl, GEngineIni);
 
-	ConnectionInfo.ParticipantToken = TEXT("0:EOSVoiceChatTest:`UserName:`RoomName:sss");
-	ConnectionInfo.ParticipantToken.ReplaceInline(TEXT("`UserName"), *GetLoggedInPlayerName());
-	ConnectionInfo.ParticipantToken.ReplaceInline(TEXT("`RoomName"), *ChannelName);
+	ChannelCredentials.ParticipantToken = TEXT("0:EOSVoiceChatTest:`UserName:`RoomName:sss");
+	ChannelCredentials.ParticipantToken.ReplaceInline(TEXT("`UserName"), *GetLoggedInPlayerName());
+	ChannelCredentials.ParticipantToken.ReplaceInline(TEXT("`RoomName"), *ChannelName);
 
-	return ConnectionInfo.ToJson(false);
+	return ChannelCredentials.ToJson(false);
 }
 #pragma endregion IVoiceChatUser
 
