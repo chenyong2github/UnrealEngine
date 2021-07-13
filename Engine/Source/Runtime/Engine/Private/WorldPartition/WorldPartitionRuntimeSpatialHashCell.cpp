@@ -17,7 +17,8 @@ static FAutoConsoleVariableRef CVarRuntimeSpatialHashCellToSourceAngleContributi
 UWorldPartitionRuntimeSpatialHashCell::UWorldPartitionRuntimeSpatialHashCell(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 , Level(0)
-, CachedSourceMinDistanceSquare(0.f)
+, CachedIsBlockingSource(false)
+, CachedBlockingMinDistanceSquare(MAX_FLT)
 , CachedSourceMinSortDistance(0.f)
 {}
 
@@ -40,7 +41,12 @@ void UWorldPartitionRuntimeSpatialHashCell::PostDuplicate(bool bDuplicateForPIE)
 bool UWorldPartitionRuntimeSpatialHashCell::CacheStreamingSourceInfo(const FWorldPartitionStreamingSource& Source) const
 {
 	const bool bWasCacheDirtied = Super::CacheStreamingSourceInfo(Source);
-	
+	if (bWasCacheDirtied)
+	{
+		CachedIsBlockingSource = false;
+		CachedBlockingMinDistanceSquare = MAX_FLT;
+	}
+
 	const float AngleContribution = FMath::Clamp(GRuntimeSpatialHashCellToSourceAngleContributionToCellImportance, 0.f, 1.f);
 	const float SqrDistance = FVector::DistSquared(Source.Location, Position);
 	float AngleFactor = 1.f;
@@ -57,7 +63,13 @@ bool UWorldPartitionRuntimeSpatialHashCell::CacheStreamingSourceInfo(const FWorl
 
 	// If cache was dirtied, use value, else use minimum with existing cached value
 	CachedSourceMinSortDistance = bWasCacheDirtied ? ModulatedDistance : FMath::Min(ModulatedDistance, CachedSourceMinSortDistance);
-	CachedSourceMinDistanceSquare = bWasCacheDirtied ? SqrDistance : FMath::Min(SqrDistance, CachedSourceMinDistanceSquare);
+	
+	// Only consider blocking sources
+	if (Source.bBlockOnSlowLoading)
+	{
+		CachedIsBlockingSource = true;
+		CachedBlockingMinDistanceSquare = FMath::Min(SqrDistance, CachedBlockingMinDistanceSquare);
+	}
 
 	return bWasCacheDirtied;
 }

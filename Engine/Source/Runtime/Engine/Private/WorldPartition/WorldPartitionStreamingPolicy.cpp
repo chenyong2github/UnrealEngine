@@ -94,7 +94,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 		const FVector ViewLocationLocal = WorldToLocal.TransformPosition(ViewLocation);
 		const FRotator ViewRotationLocal = WorldToLocal.TransformRotation(ViewRotation.Quaternion()).Rotator();
 		static const FName NAME_SIE(TEXT("SIE"));
-		StreamingSources.Add(FWorldPartitionStreamingSource(NAME_SIE, ViewLocationLocal, ViewRotationLocal, EStreamingSourceTargetState::Activated));
+		StreamingSources.Add(FWorldPartitionStreamingSource(NAME_SIE, ViewLocationLocal, ViewRotationLocal, EStreamingSourceTargetState::Activated, /*bBlockOnSlowLoading=*/false));
 	}
 	else
 #endif
@@ -116,7 +116,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 					// Transform to Local
 					ViewLocation = WorldToLocal.TransformPosition(ViewLocation);
 					ViewRotation = WorldToLocal.TransformRotation(ViewRotation.Quaternion()).Rotator();
-					StreamingSources.Add(FWorldPartitionStreamingSource(Player->GetFName(), ViewLocation, ViewRotation, EStreamingSourceTargetState::Activated));
+					StreamingSources.Add(FWorldPartitionStreamingSource(Player->GetFName(), ViewLocation, ViewRotation, EStreamingSourceTargetState::Activated, /*bBlockOnSlowLoading=*/true));
 				}
 			}
 		}
