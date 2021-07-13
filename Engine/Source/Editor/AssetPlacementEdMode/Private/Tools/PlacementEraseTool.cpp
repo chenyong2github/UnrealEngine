@@ -66,12 +66,10 @@ void UPlacementModeEraseTool::OnTick(float DeltaTime)
 		return;
 	}
 
-	FTypedElementListRef ElementsToDelete = UTypedElementRegistry::GetInstance()->CreateElementList();
-
-	TArray<FTypedElementHandle> HitElements = GetElementsInBrushRadius(LastDeviceInputRay);
-	for (const FTypedElementHandle& HitElement : HitElements)
+	FTypedElementListRef ElementsToDelete = GetElementsInBrushRadius(LastDeviceInputRay);
+	if (!FoliageElementUtil::FoliageInstanceElementsEnabled())
 	{
-		if (TTypedElement<UTypedElementObjectInterface> ObjectInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementObjectInterface>(HitElement))
+		ElementsToDelete->RemoveAll<UTypedElementObjectInterface>([this](const TTypedElement<UTypedElementObjectInterface>& ObjectInterface)
 		{
 			// Since the foliage static mesh instances do not currently operate with element handles, we have to drill in manually here.
 			if (AInstancedFoliageActor* FoliageActor = ObjectInterface.GetObjectAs<AInstancedFoliageActor>())
@@ -88,12 +86,10 @@ void UPlacementModeEraseTool::OnTick(float DeltaTime)
 					}
 					return true; // continue iteration
 				});
+				return true; // Foliage - remove from the normal element delete
 			}
-			else
-			{
-				ElementsToDelete->Add(HitElement);
-			}
-		}
+			return false; // Not foliage - will be processed via the normal element delete
+		});
 	}
 
 	if (ElementsToDelete->HasElements())

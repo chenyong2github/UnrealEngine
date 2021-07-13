@@ -213,6 +213,21 @@ bool UTypedElementSelectionSet::SelectElements(TArrayView<const FTypedElementHan
 	return bSelectionChanged;
 }
 
+bool UTypedElementSelectionSet::SelectElements(FTypedElementListConstRef InElementList, const FTypedElementSelectionOptions InSelectionOptions)
+{
+	FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
+
+	bool bSelectionChanged = false;
+
+	InElementList->ForEachElementHandle([this, &bSelectionChanged, &InSelectionOptions](const FTypedElementHandle& ElementHandle)
+	{
+		bSelectionChanged |= SelectElement(ElementHandle, InSelectionOptions);
+		return true;
+	});
+
+	return bSelectionChanged;
+}
+
 bool UTypedElementSelectionSet::DeselectElement(const FTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions)
 {
 	bool bSelectionChanged = false;
@@ -263,6 +278,21 @@ bool UTypedElementSelectionSet::DeselectElements(TArrayView<const FTypedElementH
 	return bSelectionChanged;
 }
 
+bool UTypedElementSelectionSet::DeselectElements(FTypedElementListConstRef InElementList, const FTypedElementSelectionOptions InSelectionOptions)
+{
+	FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
+
+	bool bSelectionChanged = false;
+
+	InElementList->ForEachElementHandle([this, &bSelectionChanged, &InSelectionOptions](const FTypedElementHandle& ElementHandle)
+	{
+		bSelectionChanged |= DeselectElement(ElementHandle, InSelectionOptions);
+		return true;
+	});
+
+	return bSelectionChanged;
+}
+
 bool UTypedElementSelectionSet::ClearSelection(const FTypedElementSelectionOptions InSelectionOptions)
 {
 	FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
@@ -306,6 +336,18 @@ bool UTypedElementSelectionSet::SetSelection(TArrayView<const FTypedElementHandl
 
 	bSelectionChanged |= ClearSelection(InSelectionOptions);
 	bSelectionChanged |= SelectElements(InElementHandles, InSelectionOptions);
+
+	return bSelectionChanged;
+}
+
+bool UTypedElementSelectionSet::SetSelection(FTypedElementListConstRef InElementList, const FTypedElementSelectionOptions InSelectionOptions)
+{
+	FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
+
+	bool bSelectionChanged = false;
+
+	bSelectionChanged |= ClearSelection(InSelectionOptions);
+	bSelectionChanged |= SelectElements(InElementList, InSelectionOptions);
 
 	return bSelectionChanged;
 }

@@ -4,7 +4,7 @@
 
 #include "InputState.h"
 #include "BaseTools/BaseBrushTool.h"
-#include "Elements/Framework/TypedElementHandle.h"
+#include "Elements/Framework/TypedElementListFwd.h"
 
 #include "PlacementBrushToolBase.generated.h"
 
@@ -53,7 +53,7 @@ protected:
 	// Updates the last generated rotation to realign with the current brush position and normal.
 	static FQuat AlignRotationWithNormal(const FQuat& InRotation, const FVector& InNormal, EAxis::Type InAlignmentAxis, bool bInvertAxis);
 	static FTransform FinalizeTransform(const FTransform& OriginalTransform, const FVector& InNormal, const UAssetPlacementSettings* PlacementSettings);
-	TArray<FTypedElementHandle> GetElementsInBrushRadius(const FInputDeviceRay& DragPos) const;
+	FTypedElementListRef GetElementsInBrushRadius(const FInputDeviceRay& DragPos) const;
 
 	float LastBrushStampWorldToPixelScale;
 	FInputDeviceRay LastDeviceInputRay = FInputDeviceRay(FRay());

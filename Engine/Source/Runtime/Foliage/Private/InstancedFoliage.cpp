@@ -50,6 +50,7 @@ InstancedFoliage.cpp: Instanced foliage implementation.
 #include "LevelUtils.h"
 #include "FoliageHelper.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/SMInstance/SMInstanceElementData.h" // For SMInstanceElementDataUtil::SMInstanceElementsEnabled
 #include "Algo/Transform.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"
 #include "Misc/CoreMisc.h"
@@ -88,7 +89,7 @@ static FAutoConsoleVariableRef CVarEnableFoliageInstanceElements(
 
 bool FoliageInstanceElementsEnabled()
 {
-	return GEnableFoliageInstanceElements != 0;
+	return SMInstanceElementDataUtil::SMInstanceElementsEnabled() && GEnableFoliageInstanceElements != 0;
 }
 
 }

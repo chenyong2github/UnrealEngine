@@ -36,7 +36,7 @@ void UPlacementModeLassoSelectTool::OnBeginDrag(const FRay& Ray)
 {
 	Super::OnBeginDrag(Ray);
 
-	ElementsFromDrag.Empty();
+	ElementsFromDrag.Reset();
 	GetToolManager()->BeginUndoTransaction(NSLOCTEXT("AssetPlacementEdMode", "BrushSelect", "Select Elements"));
 }
 
@@ -44,48 +44,49 @@ void UPlacementModeLassoSelectTool::OnEndDrag(const FRay& Ray)
 {
 	if (IAssetEditorContextInterface* AssetEditorContext = GetToolManager()->GetContextObjectStore()->FindContext<IAssetEditorContextInterface>())
 	{
-		if (UTypedElementSelectionSet* SelectionSet = AssetEditorContext->GetMutableSelectionSet())
+		UTypedElementSelectionSet* SelectionSet = AssetEditorContext->GetMutableSelectionSet();
+		if (SelectionSet && ElementsFromDrag)
 		{
 			bool bSelectElements = !bCtrlToggle;
-			for (const FTypedElementHandle& HitElement : ElementsFromDrag)
+
+			if (!FoliageElementUtil::FoliageInstanceElementsEnabled())
 			{
-				if (!FoliageElementUtil::FoliageInstanceElementsEnabled())
+				ElementsFromDrag->RemoveAll<UTypedElementObjectInterface>([this, bSelectElements](const TTypedElement<UTypedElementObjectInterface>& ObjectInterface)
 				{
-					if (TTypedElement<UTypedElementObjectInterface> ObjectInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementObjectInterface>(HitElement))
+					// Since the foliage static mesh instances do not currently operate with element handles, we have to drill in manually here.
+					if (AInstancedFoliageActor* FoliageActor = ObjectInterface.GetObjectAs<AInstancedFoliageActor>())
 					{
-						if (AInstancedFoliageActor* FoliageActor = ObjectInterface.GetObjectAs<AInstancedFoliageActor>())
+						FoliageActor->ForEachFoliageInfo([this, bSelectElements](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
 						{
-							FoliageActor->ForEachFoliageInfo([this, bSelectElements](UFoliageType* InFoliageType, FFoliageInfo& InFoliageInfo)
-								{
-									FTypedElementHandle SourceObjectHandle = UEngineElementsLibrary::AcquireEditorObjectElementHandle(InFoliageType->GetSource());
-									if (GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesCurrentPaletteSupportElement(SourceObjectHandle))
-									{
-										TArray<int32> Instances;
-										FSphere SphereToCheck(LastBrushStamp.WorldPosition, LastBrushStamp.Radius);
-										InFoliageInfo.GetInstancesInsideSphere(SphereToCheck, Instances);
-										InFoliageInfo.SelectInstances(bSelectElements, Instances);
-									}
-									return true;
-								});
-
-							continue;
-						}
+							FTypedElementHandle SourceObjectHandle = UEngineElementsLibrary::AcquireEditorObjectElementHandle(FoliageType->GetSource());
+							if (GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesCurrentPaletteSupportElement(SourceObjectHandle))
+							{
+								TArray<int32> Instances;
+								FSphere SphereToCheck(LastBrushStamp.WorldPosition, LastBrushStamp.Radius);
+								FoliageInfo.GetInstancesInsideSphere(SphereToCheck, Instances);
+								FoliageInfo.SelectInstances(bSelectElements, Instances);
+							}
+							return true; // continue iteration
+						});
+						return true; // Foliage - remove from the normal element select
 					}
-				}
+					return false; // Not foliage - will be processed via the normal element select
+				});
+			}
 
-				if (bSelectElements)
-				{
-					SelectionSet->SelectElement(HitElement, PlacementModeLassoToolInternal::SelectionOptions);
-				}
-				else
-				{
-					SelectionSet->DeselectElement(HitElement, PlacementModeLassoToolInternal::SelectionOptions);
-				}
+			if (bSelectElements)
+			{
+				SelectionSet->SelectElements(ElementsFromDrag.ToSharedRef(), PlacementModeLassoToolInternal::SelectionOptions);
+			}
+			else
+			{
+				SelectionSet->DeselectElements(ElementsFromDrag.ToSharedRef(), PlacementModeLassoToolInternal::SelectionOptions);
 			}
 		}
 	}
 
 	GetToolManager()->EndUndoTransaction();
+	ElementsFromDrag.Reset();
 
 	Super::OnEndDrag(Ray);
 }
@@ -97,5 +98,13 @@ void UPlacementModeLassoSelectTool::OnTick(float DeltaTime)
 		return;
 	}
 
-	ElementsFromDrag.Append(GetElementsInBrushRadius(LastDeviceInputRay));
+	FTypedElementListRef HitElements = GetElementsInBrushRadius(LastDeviceInputRay);
+	if (ElementsFromDrag)
+	{
+		ElementsFromDrag->Append(HitElements);
+	}
+	else
+	{
+		ElementsFromDrag = HitElements;
+	}
 }

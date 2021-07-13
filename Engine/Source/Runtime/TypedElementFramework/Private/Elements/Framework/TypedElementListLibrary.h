@@ -195,7 +195,7 @@ public:
 	}
 
 	/**
-	 * Append the given element handles to this element list, for any that already in the list.
+	 * Append the given element handles to this element list.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List", meta=(ScriptMethod))
 	static void Append(FTypedElementListProxy ElementList, const TArray<FTypedElementHandle>& ElementHandles)
@@ -203,6 +203,20 @@ public:
 		if (FTypedElementListPtr ElementListPtr = ElementList.GetElementList())
 		{
 			ElementListPtr->Append(ElementHandles);
+		}
+	}
+
+	/**
+	 * Append the another element list to this element list.
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|List", meta=(ScriptMethod))
+	static void AppendList(FTypedElementListProxy ElementList, const FTypedElementListProxy OtherElementList)
+	{
+		FTypedElementListPtr ElementListPtr = ElementList.GetElementList();
+		FTypedElementListConstPtr OtherElementListPtr = OtherElementList.GetElementList();
+		if (ElementListPtr && OtherElementListPtr)
+		{
+			ElementListPtr->Append(OtherElementListPtr.ToSharedRef());
 		}
 	}
 
