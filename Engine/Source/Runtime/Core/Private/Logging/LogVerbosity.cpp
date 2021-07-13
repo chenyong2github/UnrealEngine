@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Logging/LogVerbosity.h"
+#include "Containers/UnrealString.h"
 
 const TCHAR* ToString(ELogVerbosity::Type Verbosity)
 {

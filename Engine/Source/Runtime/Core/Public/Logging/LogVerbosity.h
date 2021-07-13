@@ -4,6 +4,8 @@
 
 #include "CoreTypes.h"
 
+class FString;
+
 /** 
  * Enum that defines the verbosity levels of the logging system.
  * Also defines some non-verbosity levels that are hacks that allow
