@@ -632,7 +632,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(EWorldPartitionStreami
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionRuntimeSpatialHash::GenerateStreaming);
 	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
 
-	UE_SCOPED_TIMER(TEXT("GenerateStreaming"), LogWorldPartition);
+	UE_SCOPED_TIMER(TEXT("GenerateStreaming"), LogWorldPartition, Display);
 	
 	if (!Grids.Num())
 	{

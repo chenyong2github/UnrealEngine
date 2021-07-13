@@ -46,12 +46,12 @@ bool UWorldPartitionMiniMapBuilder::RunInternal(UWorld* World, const FBox& Bound
 		UWorldPartition* WorldPartition = World->GetWorldPartition();
 
 		TSet<FGuid> AllSubActors;
-		for (UActorDescContainer::TIterator<AWorldPartitionHLOD> HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
+		for (FActorDescList::TIterator<AWorldPartitionHLOD> HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
 		{
 			AllSubActors.Append(HLODIterator->GetSubActors());
 		}
 
-		for (UActorDescContainer::TIterator<AWorldPartitionHLOD> HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
+		for (FActorDescList::TIterator<AWorldPartitionHLOD> HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
 		{
 			// Only include top level HLODs - If an HLOD actor isn't included as a subactor it means it is top level
 			if (!AllSubActors.Contains(HLODIterator->GetGuid()))

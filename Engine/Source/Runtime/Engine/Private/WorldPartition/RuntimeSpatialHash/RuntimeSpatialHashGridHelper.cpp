@@ -98,7 +98,7 @@ int32 FSquare2DGridHelper::ForEachIntersectingCells(const FSphere& InSphere, TFu
 #if WITH_EDITOR
 void FSquare2DGridHelper::ValidateSingleActorReferer()
 {
-	UE_SCOPED_TIMER(TEXT("ValidateSingleActorReferer"), LogWorldPartition);
+	UE_SCOPED_TIMER(TEXT("ValidateSingleActorReferer"), LogWorldPartition, Display);
 
 	TSet<FActorInstance> ActorUsage;
 	for (int32 Level = 0; Level < Levels.Num() - 1; Level++)
@@ -131,7 +131,7 @@ FSquare2DGridHelper GetGridHelper(const FBox& WorldBounds, int32 GridCellSize)
 FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, const FBox& WorldBounds, const FSpatialHashRuntimeGrid& Grid, const TArray<const FActorClusterInstance*>& GridActors)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(GetPartitionedActors);
-	UE_SCOPED_TIMER(TEXT("GetPartitionedActors"), LogWorldPartition);
+	UE_SCOPED_TIMER(TEXT("GetPartitionedActors"), LogWorldPartition, Display);
 
 	//
 	// Create the hierarchical grids for the game

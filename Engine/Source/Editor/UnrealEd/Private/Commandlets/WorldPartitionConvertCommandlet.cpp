@@ -423,7 +423,7 @@ void UWorldPartitionConvertCommandlet::FixupSoftObjectPaths(UPackage* OuterPacka
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionConvertCommandlet::FixupSoftObjectPaths);
 
-	UE_SCOPED_TIMER(TEXT("FixupSoftObjectPaths"), LogWorldPartitionConvertCommandlet);
+	UE_SCOPED_TIMER(TEXT("FixupSoftObjectPaths"), LogWorldPartitionConvertCommandlet, Display);
 
 	struct FSoftPathFixupSerializer : public FArchiveUObject
 	{
@@ -695,7 +695,7 @@ void UWorldPartitionConvertCommandlet::CreateWorldMiniMapTexture(UWorld* World)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionConvertCommandlet::CreateWorldMiniMapTexture);
 
-	UE_SCOPED_TIMER(TEXT("CreateWorldMiniMapTexture"), LogWorldPartitionConvertCommandlet);
+	UE_SCOPED_TIMER(TEXT("CreateWorldMiniMapTexture"), LogWorldPartitionConvertCommandlet, Display);
 
 	AWorldPartitionMiniMap* WorldMiniMap = FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(World, /*bCreateNewMiniMap*/true);
 	if (!WorldMiniMap)
@@ -711,7 +711,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionConvertCommandlet::Main);
 
-	UE_SCOPED_TIMER(TEXT("Conversion"), LogWorldPartitionConvertCommandlet);
+	UE_SCOPED_TIMER(TEXT("Conversion"), LogWorldPartitionConvertCommandlet, Display);
 
 	TArray<FString> Tokens, Switches;
 	ParseCommandLine(*Params, Tokens, Switches);
@@ -783,7 +783,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	// Delete existing result from running the commandlet, even if not using the suffix mode to cleanup previous conversion
 	if (!bReportOnly)
 	{
-		UE_SCOPED_TIMER(TEXT("Deleting existing conversion results"), LogWorldPartitionConvertCommandlet);
+		UE_SCOPED_TIMER(TEXT("Deleting existing conversion results"), LogWorldPartitionConvertCommandlet, Display);
 
 		FString OldLevelName = Tokens[0] + ConversionSuffix;
 		FString ExternalActorsPath = ULevel::GetExternalActorsPath(OldLevelName);
@@ -1031,7 +1031,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		// do loop after as it may modify Level->Actors
 		if (IFAs.Num())
 		{
-			UE_SCOPED_TIMER(TEXT("PartitionFoliage"), LogWorldPartitionConvertCommandlet);
+			UE_SCOPED_TIMER(TEXT("PartitionFoliage"), LogWorldPartitionConvertCommandlet, Display);
 
 			for (AInstancedFoliageActor* IFA : IFAs)
 			{
@@ -1041,7 +1041,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 		if (LandscapeInfos.Num())
 		{
-			UE_SCOPED_TIMER(TEXT("PartitionLandscape"), LogWorldPartitionConvertCommandlet);
+			UE_SCOPED_TIMER(TEXT("PartitionLandscape"), LogWorldPartitionConvertCommandlet, Display);
 
 			for (ULandscapeInfo* LandscapeInfo : LandscapeInfos)
 			{
