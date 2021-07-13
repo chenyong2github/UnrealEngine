@@ -28,7 +28,7 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 		const FHairStrandsDeformedResource*  HairStrandsDeformedResource, 
 		const FHairStrandsRestRootResource* HairStrandsRestRootResource, 
 		const FHairStrandsDeformedRootResource* HairStrandsDeformedRootResource,
-		const TStaticArray<float, 32 * NumScales>& InParamsScale);  
+		const TStaticArray<float, 32 * NumScales>& InParamsScale);
 
 	/** Set the asset that will be used to affect the buffer */
 	void Update(
@@ -99,6 +99,7 @@ struct FNDIHairStrandsData
 	inline void ResetDatas()
 	{
 		WorldTransform.SetIdentity();
+		BoneTransform.SetIdentity();
 		GlobalInterpolation = false;
 		HairGroupInstance = nullptr;
 
@@ -144,6 +145,7 @@ struct FNDIHairStrandsData
 			ParamsScale[i] = 1.0;
 		}
 		SkeletalMeshes = 0;
+		LocalSimulation = false;
 	}
 
 	inline void CopyDatas(const FNDIHairStrandsData* OtherDatas)
@@ -153,6 +155,7 @@ struct FNDIHairStrandsData
 			HairStrandsBuffer = OtherDatas->HairStrandsBuffer;
 
 			WorldTransform = OtherDatas->WorldTransform;
+			BoneTransform = OtherDatas->BoneTransform;
 
 			GlobalInterpolation = OtherDatas->GlobalInterpolation;
 			BindingType = OtherDatas->BindingType;
@@ -198,11 +201,15 @@ struct FNDIHairStrandsData
 			SkeletalMeshes = OtherDatas->SkeletalMeshes;
 
 			TickingGroup = OtherDatas->TickingGroup;
+			LocalSimulation = OtherDatas->LocalSimulation;
 		}
 	}
 
 	/** Cached World transform. */
 	FTransform WorldTransform;
+
+	/** Bone transform that will be used for local strands simulation */
+	FTransform BoneTransform;
 
 	/** Global Interpolation */
 	bool GlobalInterpolation;
@@ -305,6 +312,9 @@ struct FNDIHairStrandsData
 
 	/** The instance ticking group */
 	ETickingGroup TickingGroup;
+
+	/** Check if the simulation is running in local coordinate */
+	bool LocalSimulation;
 };
 
 /** Data Interface for the strand base */
@@ -593,11 +603,20 @@ public:
 	/** Name of the bounding box offsets*/
 	static const FString BoundingBoxOffsetsName;
 
-	/** Name of the world transform */
+	/** Name of the world inverse transform */
 	static const FString WorldInverseName;
 
 	/** Name of the world rotation */
 	static const FString WorldRotationName;
+
+	/** Name of the bone transform */
+	static const FString BoneTransformName;
+
+	/** Name of the bone inverse transform */
+	static const FString BoneInverseName;
+
+	/** Name of the world rotation */
+	static const FString BoneRotationName;
 
 	/** Name of the number of strands */
 	static const FString NumStrandsName;
@@ -622,6 +641,9 @@ public:
 
 	/** Param to check if we need to update the rest pose */
 	static const FString RestUpdateName;
+
+	/** Param to check if the simulation is going to be run in local space */
+	static const FString LocalSimulationName;
 
 	/** boolean to check if we need to rest the simulation*/
 	static const FString ResetSimulationName;

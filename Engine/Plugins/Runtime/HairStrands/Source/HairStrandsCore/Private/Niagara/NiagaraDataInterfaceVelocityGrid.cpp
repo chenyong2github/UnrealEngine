@@ -174,6 +174,12 @@ void FNDIVelocityGridParametersCS::Set(FRHICommandList& RHICmdList, const FNiaga
 		FNDIVelocityGridBuffer* CurrentGridBuffer = ProxyData->CurrentGridBuffer;
 		FNDIVelocityGridBuffer* DestinationGridBuffer = ProxyData->DestinationGridBuffer;
 
+		FRHITransitionInfo Transitions[] = {
+			FRHITransitionInfo(CurrentGridBuffer->GridDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
+			FRHITransitionInfo(DestinationGridBuffer->GridDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
+		};
+		RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
+
 		SetUAVParameter(RHICmdList, ComputeShaderRHI, GridDestinationBuffer, DestinationGridBuffer->GridDataBuffer.UAV);
 		SetSRVParameter(RHICmdList, ComputeShaderRHI, GridCurrentBuffer, CurrentGridBuffer->GridDataBuffer.SRV);
 
@@ -601,6 +607,11 @@ inline void ClearBuffer(FRHICommandList& RHICmdList, FNDIVelocityGridBuffer* Des
 
 	if (DestinationGridBufferUAV != nullptr )
 	{
+		FRHITransitionInfo Transitions[] = {
+			FRHITransitionInfo(DestinationGridBufferUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+		};
+		RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
+
 		RHICmdList.ClearUAVUint(DestinationGridBufferUAV, FUintVector4(0, 0, 0, 0));
 	}
 }

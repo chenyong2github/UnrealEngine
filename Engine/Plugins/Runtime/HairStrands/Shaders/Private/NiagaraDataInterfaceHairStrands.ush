@@ -29,6 +29,9 @@ struct FDIHairStrandsContext
 	float4x4			WorldTransform;
 	float4x4			WorldInverse;
 	float4				WorldRotation;
+	float4x4			BoneTransform;
+	float4x4			BoneInverse;
+	float4				BoneRotation;
 	int					NumStrands;
 	int					StrandSize;
 	int					InterpolationMode;
@@ -38,6 +41,7 @@ struct FDIHairStrandsContext
 	Buffer<float4>		DeformedPositionOffset;
 	bool				ResetSimulation;
 	bool				RestUpdate;
+	bool				LocalSimulation;
 	int					SampleCount;
 	int4				BoundingBoxOffsets;
 	Buffer<float4>		RestSamplePositionsBuffer;
@@ -59,6 +63,9 @@ Buffer<uint>		RootBarycentricCoordinatesBuffer_##NAME;\
 float4x4			WorldTransform_##NAME;\
 float4x4			WorldInverse_##NAME;\
 float4				WorldRotation_##NAME;\
+float4x4			BoneTransform_##NAME;\
+float4x4			BoneInverse_##NAME;\
+float4				BoneRotation_##NAME;\
 int					NumStrands_##NAME;\
 int					StrandSize_##NAME;\
 int					InterpolationMode_##NAME;\
@@ -68,6 +75,7 @@ float3				RestPositionOffset_##NAME;\
 Buffer<float4>		DeformedPositionOffset_##NAME;\
 bool				ResetSimulation_##NAME;\
 bool				RestUpdate_##NAME;\
+bool				LocalSimulation_##NAME;\
 RWBuffer<uint>	    BoundingBoxBuffer_##NAME;\
 int					SampleCount_##NAME;\
 int4				BoundingBoxOffsets_##NAME;\
@@ -91,6 +99,9 @@ DIContext.RootBarycentricCoordinatesBuffer = RootBarycentricCoordinatesBuffer_##
 DIContext.WorldTransform = WorldTransform_##NAME;\
 DIContext.WorldInverse = WorldInverse_##NAME;\
 DIContext.WorldRotation = WorldRotation_##NAME;\
+DIContext.BoneTransform = BoneTransform_##NAME;\
+DIContext.BoneInverse = BoneInverse_##NAME;\
+DIContext.BoneRotation = BoneRotation_##NAME;\
 DIContext.NumStrands = NumStrands_##NAME;\
 DIContext.StrandSize = StrandSize_##NAME;\
 DIContext.InterpolationMode =	InterpolationMode_##NAME;\
@@ -100,6 +111,7 @@ DIContext.RestPositionOffset =	RestPositionOffset_##NAME;\
 DIContext.DeformedPositionOffset = DeformedPositionOffset_##NAME;\
 DIContext.ResetSimulation = ResetSimulation_##NAME;\
 DIContext.RestUpdate = RestUpdate_##NAME;\
+DIContext.LocalSimulation = LocalSimulation_##NAME;\
 RWBuffer<uint> DIContext_BoundingBoxBuffer = BoundingBoxBuffer_##NAME;\
 DIContext.SampleCount = SampleCount_##NAME;\
 DIContext.BoundingBoxOffsets = BoundingBoxOffsets_##NAME;\
@@ -322,6 +334,11 @@ void DIHairStrands_SetNodePosition(in FDIHairStrandsContext DIContext, in bool R
 						   f16tof32(DIContext.RestPositionBuffer[PointOffset+PointNext].xyz) * NodeAlpha;
 	}
 	OutNodePosition = mul(float4( OutNodePosition+DIContext.RestPositionOffset, 1.0), DIContext.WorldTransform).xyz;
+
+	if(DIContext.LocalSimulation)
+	{
+		OutNodePosition = mul(float4( OutNodePosition, 1.0), DIContext.BoneInverse).xyz;
+	}
 }
 
 // Compute the node position by linear interpolation over the points
@@ -701,8 +718,6 @@ void DIHairStrands_UpdatePointPosition(in FDIHairStrandsContext DIContext, in fl
 	const int PointEnd = DIContext.CurvesOffsetsBuffer[StrandIndex + 1];
 	const int PointCount = PointEnd - PointBegin;
 
-	const float3 PositionOffset = DIContext.RestPositionOffset - DIContext.DeformedPositionOffset[0].xyz;
-
 	for (int PointIndex = 0; PointIndex < PointCount; ++PointIndex)
 	{
 		const float PointCoord = (float) (PointIndex) / (PointCount - 1.0);
@@ -800,26 +815,49 @@ void DIHairStrands_UpdateAngularVelocity(in FDIHairStrandsContext DIContext, in 
 // Compute rest position
 void DIHairStrands_ComputeRestPosition(in FDIHairStrandsContext DIContext, in float3 NodePosition, out float3 OutRestPosition)
 {	
-	OutRestPosition = mul(float4( NodePosition, 1.0), DIContext.WorldInverse).xyz;
+	OutRestPosition = DIContext.LocalSimulation ? mul(float4( NodePosition, 1.0), DIContext.BoneTransform).xyz : NodePosition;
+	OutRestPosition = mul(float4( OutRestPosition, 1.0), DIContext.WorldInverse).xyz;
 }
 
 // Compute rest orientation
 void DIHairStrands_ComputeRestOrientation(in FDIHairStrandsContext DIContext, in float4 NodeOrientation, out float4 OutRestOrientation)
 {	
-	OutRestOrientation = NormalizeQuat( MultiplyQuat(InverseQuat(DIContext.WorldRotation),NodeOrientation) );
+	OutRestOrientation = DIContext.LocalSimulation ? NormalizeQuat( MultiplyQuat(DIContext.BoneRotation,NodeOrientation) ) : NodeOrientation;
+	OutRestOrientation = NormalizeQuat( MultiplyQuat(InverseQuat(DIContext.WorldRotation),OutRestOrientation) );
 }
 
 // Update Node Position
 void DIHairStrands_AttachNodePosition(in FDIHairStrandsContext DIContext, in float3 RestPosition, out float3 OutNodePosition)
 {
 	OutNodePosition = mul(float4( RestPosition, 1.0), DIContext.WorldTransform).xyz;
+	if(DIContext.LocalSimulation)
+	{
+		OutNodePosition = mul(float4( OutNodePosition, 1.0), DIContext.BoneInverse).xyz;
+	}
 }
 
 // Update Node Orientation
 void DIHairStrands_AttachNodeOrientation(in FDIHairStrandsContext DIContext, in float4 RestOrientation, out float4 OutNodeOrientation)
 {
 	OutNodeOrientation = NormalizeQuat( MultiplyQuat(DIContext.WorldRotation,RestOrientation) );
+	if(DIContext.LocalSimulation)
+	{
+		OutNodeOrientation = NormalizeQuat( MultiplyQuat(InverseQuat(DIContext.BoneRotation),OutNodeOrientation) );
+	}
 }
+
+// Get World Vector
+void DIHairStrands_GetWorldVector(in FDIHairStrandsContext DIContext, in float3 LocalVector, in bool IsPosition, out float3 OutWorldVector)
+{	
+	OutWorldVector = DIContext.LocalSimulation ? mul(float4( LocalVector, (float)IsPosition), DIContext.BoneTransform).xyz : LocalVector;
+}
+
+// Get Local Vector
+void DIHairStrands_GetLocalVector(in FDIHairStrandsContext DIContext, in float3 WorldVector, in bool IsPosition, out float3 OutLocalVector)
+{
+	OutLocalVector = DIContext.LocalSimulation ? mul(float4( WorldVector, (float)IsPosition), DIContext.BoneInverse).xyz : WorldVector;
+}
+
 
 /* -----------------------------------------------------------------
  * Attached the root to the skinned cache
