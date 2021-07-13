@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Windows/MinimalWindowsApi.h"
-#include "Windows/WindowsHWrapper.h"
+#include "Microsoft/MinimalWindowsApi.h"
+#include "Microsoft/WindowsHWrapper.h"
 
 // Check that constants are what we expect them to be
 static_assert(WINDOWS_MAX_PATH == MAX_PATH, "Value of WINDOWSAPI_MAX_PATH is not correct");
