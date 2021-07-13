@@ -39,10 +39,11 @@ namespace UE
 		*
 		*   LaplacianInterior * Vector_InteriorVerts + LaplacianBoundary * Vector_BoundaryVerts = Full Laplacian applied to interior vertices.
 		*/
-		template<typename RealType>
-		void ConstructUniformLaplacian(const FDynamicMesh3& DynamicMesh, const FVertexLinearization& VertexMap,
-			UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianInterior, 
-			UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianBoundary);
+		template<typename RealType, typename MeshType>
+		void ConstructUniformLaplacian(const MeshType& Mesh,
+									   const FVertexLinearization& VertexMap,
+									   UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianInterior,
+									   UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianBoundary);
 
 		/**
 		* Construct a sparse matrix representation of an umbrella weighted Laplacian.
@@ -211,10 +212,11 @@ namespace UE
 
 
 
-template<typename RealType>
-void UE::MeshDeformation::ConstructUniformLaplacian(const FDynamicMesh3& DynamicMesh, const FVertexLinearization& VertexMap,
-	UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianInterior, 
-	UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianBoundary)
+template<typename RealType, typename MeshType>
+void UE::MeshDeformation::ConstructUniformLaplacian(const MeshType& Mesh, 
+													const FVertexLinearization& VertexMap,
+													UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianInterior,
+													UE::Solvers::TSparseMatrixAssembler<RealType>& LaplacianBoundary)
 {
 	//check(VertexMap_is_good)
 	const TArray<int32>& ToMeshV = VertexMap.ToId();
@@ -224,7 +226,7 @@ void UE::MeshDeformation::ConstructUniformLaplacian(const FDynamicMesh3& Dynamic
 	const int32 NumInteriorVerts = NumVerts - NumBoundaryVerts;
 
 	// pre-allocate space when possible
-	int32 NumMatrixEntries = ComputeNumMatrixElements(DynamicMesh, ToMeshV);
+	int32 NumMatrixEntries = ComputeNumMatrixElements(Mesh, ToMeshV);
 	LaplacianInterior.ReserveEntriesFunc(NumMatrixEntries);
 
 	// Construct Laplacian Matrix: loop over verts constructing the corresponding matrix row.
@@ -236,7 +238,7 @@ void UE::MeshDeformation::ConstructUniformLaplacian(const FDynamicMesh3& Dynamic
 
 		checkSlow(!DynamicMesh.IsBoundaryVertex(VertId));  // we should only be looping over the internal verts
 
-		for (int32 NeighborVertId : DynamicMesh.VtxVerticesItr(VertId))
+		for (int32 NeighborVertId : Mesh.VtxVerticesItr(VertId))
 		{
 			const int32 j = ToIndex[NeighborVertId];
 			RealType NeighborWeight = RealType(1);

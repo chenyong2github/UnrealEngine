@@ -10,6 +10,11 @@ TUniquePtr<UE::Solvers::IConstrainedMeshSolver> UE::MeshDeformation::ConstructCo
 	return Deformer;
 }
 
+TUniquePtr<UE::Solvers::IConstrainedMeshSolver> UE::MeshDeformation::ConstructUniformConstrainedMeshDeformer(const UE::MeshDeformation::FDynamicGraph3d& Graph)
+{
+	TUniquePtr<UE::Solvers::IConstrainedMeshSolver> Deformer(new FConstrainedMeshDeformer(Graph));
+	return Deformer;
+}
 
 TUniquePtr<UE::Solvers::IConstrainedLaplacianMeshSolver> UE::MeshDeformation::ConstructSoftMeshDeformer(const FDynamicMesh3& DynamicMesh)
 {
