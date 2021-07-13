@@ -109,6 +109,8 @@ public:
 		InitialPosition = CurrentPosition = VirtualTrackArea.PhysicalToVirtual(LocalMousePos);
 		CurrentMousePos = LocalMousePos;
 
+		Sequencer.GetSelection().SuspendBroadcast();
+
 		if (MouseEvent.IsShiftDown())
 		{
 			PreviewState = ESelectionPreviewState::Selected;
@@ -122,7 +124,6 @@ public:
 			PreviewState = ESelectionPreviewState::Selected;
 
 			// @todo: selection in transactions
-			Sequencer.GetSelection().SuspendBroadcast();
 			Sequencer.GetSelection().Empty();
 		}
 	}
