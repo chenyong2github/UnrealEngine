@@ -406,6 +406,8 @@ void UFractureToolFlushEmbeddedGeometry::Execute(TWeakPtr<FFractureEditorModeToo
 
 				if (FlushEmbeddedGeometrySettings->bExtractAsStaticMeshActors)
 				{
+					FActorSpawnParameters SpawnParameters;
+					
 					FTransform ComponentSpace = Context.GetGeometryCollectionComponent()->GetComponentTransform();
 					
 					if (UWorld* TargetWorld = Context.GetGeometryCollectionComponent()->GetOwner()->GetWorld())
@@ -420,7 +422,7 @@ void UFractureToolFlushEmbeddedGeometry::Execute(TWeakPtr<FFractureEditorModeToo
 
 								for (const FTransform& Transform : It->Value)
 								{
-									ActorFactory->CreateActor(LoadedExemplarAsset, TargetWorld->GetCurrentLevel(), ComponentSpace*Transform, RF_Transactional);
+									ActorFactory->CreateActor(LoadedExemplarAsset, TargetWorld->GetCurrentLevel(), ComponentSpace*Transform, SpawnParameters);
 								}
 							}
 
