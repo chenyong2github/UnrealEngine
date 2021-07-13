@@ -307,7 +307,7 @@ void FNiagaraCompileRequestData::VisitReferencedGraphsRecursive(UNiagaraGraph* I
 					{
 						EmitterNode->SyncEnabledState(); // Just to be safe, sync here while we likely still have the handle source.
 						EmitterNode->SetOwnerSystem(nullptr);
-						EmitterNode->SetCachedVariablesForCompilation(*Ptr->EmitterUniqueName, Ptr->NodeGraphDeepCopy.Get(), Ptr->Source);
+						EmitterNode->SetCachedVariablesForCompilation(*Ptr->EmitterUniqueName, Ptr->NodeGraphDeepCopy.Get(), Ptr->Source.Get());
 					}
 				}
 			}
@@ -499,12 +499,28 @@ void FNiagaraCompileRequestData::ReleaseCompilationCopies()
 	// clean up graph copies
 	for (auto& ClonedGraph : ClonedGraphs)
 	{
-		ClonedGraph->ReleaseCompilationCopy();
+		if (ClonedGraph.IsValid())
+		{
+			ClonedGraph->ReleaseCompilationCopy();
+		}
 	}
+	ClonedGraphs.Empty();
+	
 	for (auto& EmitterCompileData : EmitterData)
 	{
-		EmitterCompileData->ReleaseCompilationCopies();
+		if (EmitterCompileData.IsValid())
+		{
+			EmitterCompileData->ReleaseCompilationCopies();
+		}
 	}
+	EmitterData.Empty();
+
+	// clean up script source
+	if (Source.IsValid())
+	{
+		Source->ReleaseCompilationCopy();
+	}
+	Source = nullptr;
 }
 
 void FNiagaraCompileRequestData::FinishPrecompile(const TArray<FNiagaraVariable>& EncounterableVariables, ENiagaraScriptUsage InUsage, FCompileConstantResolver ConstantResolver, const TArray<UNiagaraSimulationStageBase*>* SimStages)
@@ -876,8 +892,8 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 
 			FNiagaraUtilities::PrepareRapidIterationParameters(Scripts, ScriptDependencyMap, ScriptToEmitterMap);
 
-			BasePtr->AddRapidIterationParameters(System->GetSystemSpawnScript()->RapidIterationParameters, EmptyResolver);
-			BasePtr->AddRapidIterationParameters(System->GetSystemUpdateScript()->RapidIterationParameters, EmptyResolver);
+			BasePtr->AddRapidIterationParameters(System->GetSystemSpawnScript()->RapidIterationParameters, FCompileConstantResolver(System, ENiagaraScriptUsage::SystemSpawnScript));
+			BasePtr->AddRapidIterationParameters(System->GetSystemUpdateScript()->RapidIterationParameters, FCompileConstantResolver(System, ENiagaraScriptUsage::SystemUpdateScript));
 
 			// Now we can finish off the emitters.
 			for (int32 i = 0; i < System->GetEmitterHandles().Num(); i++)
@@ -960,6 +976,7 @@ int32 FNiagaraEditorModule::CompileScript(const FNiagaraCompileRequestDataBase* 
 	int32 JobID = Compiler->CompileScript(CompileRequest, InCompileOptions, TranslateResults, &Translator.GetTranslateOutput(), Translator.GetTranslatedHLSL());
 	ActiveCompilations.Add(JobID, Compiler);
 	return JobID;
+	
 }
 
 TSharedPtr<FNiagaraVMExecutableData> FNiagaraEditorModule::GetCompilationResult(int32 JobID, bool bWait)

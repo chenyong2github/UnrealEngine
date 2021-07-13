@@ -520,7 +520,8 @@ void UNiagaraNodeParameterMapGet::GatherExternalDependencyData(ENiagaraScriptUsa
 		UNiagaraParameterCollection* Collection = Schema->VariableIsFromParameterCollection(Var);
 		if (Collection)
 		{
-			InReferencedCompileHashes.Add(Collection->GetCompileHash());
+			FNiagaraCompileHash Hash = Collection->GetCompileHash();
+			InReferencedCompileHashes.AddUnique(Hash);
 			InReferencedObjs.Add(Collection->GetPathName());
 		}
 	}
