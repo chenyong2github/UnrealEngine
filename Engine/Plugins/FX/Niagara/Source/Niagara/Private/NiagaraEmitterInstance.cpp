@@ -217,7 +217,7 @@ void FNiagaraEmitterInstance::Dump()const
 	}
 	else
 	{
-		ParticleDataSet->Dump(0, INDEX_NONE, TEXT("Particle Data"));
+		ParticleDataSet->Dump(0, INDEX_NONE, TEXT("Particle Data"), TEXT("UniqueID"));
 	}
 }
 
