@@ -86,27 +86,7 @@ class CONTROLRIG_API URigHierarchy : public UObject
 
 public:
 
-	URigHierarchy()
-	: TopologyVersion(0)
-	, bEnableDirtyPropagation(true)
-	, Elements()
-	, IndexLookup()
-	, TransformStackIndex(0)
-	, bTransactingForTransformChange(false)
-	, bIsInteracting(false)
-	, LastInteractedKey()
-	, bSuspendNotifications(false)
-	, ResetPoseHash(INDEX_NONE)
-#if WITH_EDITOR
-	, bPropagatingChange(false)
-	, bForcePropagation(false)
-	, TraceFramesLeft(0)
-	, TraceFramesCaptured(0)
-#endif
-	{
-		Reset();
-	}
-
+	URigHierarchy();
 	virtual ~URigHierarchy();
 
 	// UObject interface
