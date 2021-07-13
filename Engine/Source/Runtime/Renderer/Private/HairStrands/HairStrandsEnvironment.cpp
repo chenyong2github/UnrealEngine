@@ -111,12 +111,9 @@ class FHairEnvironmentAO : public FGlobalShader
 		SHADER_PARAMETER(FVector2D, Output_InvResolution)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairCategorizationTexture)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, VirtualVoxel)
-
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
 
 		RENDER_TARGET_BINDING_SLOTS()
@@ -128,7 +125,6 @@ IMPLEMENT_GLOBAL_SHADER(FHairEnvironmentAO, "/Engine/Private/HairStrands/HairStr
 static void AddHairStrandsEnvironmentAOPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const FHairStrandsVisibilityData& VisibilityResources,
 	const FHairStrandsVoxelResources& VoxelResources,
 	const FHairStrandsMacroGroupData& MacroGroupData,
 	FRDGTextureRef Output)
@@ -147,7 +143,7 @@ static void AddHairStrandsEnvironmentAOPass(
 	PassParameters->VirtualVoxel = VoxelResources.UniformBuffer;
 
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-	PassParameters->HairCategorizationTexture = VisibilityResources.CategorizationTexture;
+	PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
 	const FFinalPostProcessSettings& Settings = View.FinalPostProcessSettings;
 	PassParameters->AO_Power = Settings.AmbientOcclusionPower;
 	PassParameters->AO_Intensity = Settings.AmbientOcclusionIntensity;
@@ -543,6 +539,6 @@ void RenderHairStrandsAmbientOcclusion(
 
 	for (const FHairStrandsMacroGroupData& MacroGroupData : View.HairStrandsViewData.MacroGroupDatas)
 	{
-		AddHairStrandsEnvironmentAOPass(GraphBuilder, View, VisibilityData, VoxelResources, MacroGroupData, InAOTexture);
+		AddHairStrandsEnvironmentAOPass(GraphBuilder, View, VoxelResources, MacroGroupData, InAOTexture);
 	}
 }

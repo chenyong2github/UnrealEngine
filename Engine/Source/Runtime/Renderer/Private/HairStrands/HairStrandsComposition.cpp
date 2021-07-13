@@ -237,12 +237,10 @@ class FHairDOFDepthPS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsTilePassVS::FParameters, TileData)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairSampleCount)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairCategorizationTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairVisibilityNodeOffsetAndCount)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairLightingSampleBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -276,9 +274,7 @@ static FRDGTextureRef AddHairDOFDepthPass(
 	}
 
 	FHairDOFDepthPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairDOFDepthPS::FParameters>();
-	Parameters->HairSampleCount = VisibilityData.NodeCount;
-	Parameters->HairCategorizationTexture = CategorizationTexture;
-	Parameters->HairVisibilityNodeOffsetAndCount = VisibilityData.NodeIndex;
+	Parameters->HairStrands = View.HairStrandsViewData.UniformBuffer;
 	Parameters->HairLightingSampleBuffer = VisibilityData.SampleLightingBuffer;
 	Parameters->SceneColorTexture = InColorTexture;
 	Parameters->SceneDepthTexture = InDepthTexture;
@@ -452,9 +448,7 @@ class FHairVisibilityGBufferWritePS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsTilePassVS::FParameters, TileData)
 		SHADER_PARAMETER(uint32, bWriteDummyData)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CategorizationTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, NodeIndex)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, NodeData)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -483,9 +477,6 @@ static void AddHairVisibilityGBufferWritePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const bool bWriteDummyData,
-	const FRDGTextureRef& CategorizationTexture,
-	const FRDGTextureRef& NodeIndex,
-	const FRDGBufferRef& NodeData,
 	const FHairStrandsTiles& TileData,
 	FRDGTextureRef OutGBufferATexture,
 	FRDGTextureRef OutGBufferBTexture,
@@ -509,9 +500,7 @@ static void AddHairVisibilityGBufferWritePass(
 
 	FHairVisibilityGBufferWritePS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairVisibilityGBufferWritePS::FParameters>();
 	Parameters->bWriteDummyData = bWriteDummyData ? 1 : 0;
-	Parameters->CategorizationTexture = CategorizationTexture;
-	Parameters->NodeIndex = NodeIndex;
-	Parameters->NodeData = GraphBuilder.CreateSRV(NodeData);
+	Parameters->HairStrands = View.HairStrandsViewData.UniformBuffer;
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutGBufferATexture, ERenderTargetLoadAction::ELoad);
 	Parameters->RenderTargets[1] = FRenderTargetBinding(OutGBufferBTexture, ERenderTargetLoadAction::ELoad);	
 	if (bWriteFullGBuffer)
@@ -629,9 +618,6 @@ static void InternalRenderHairComposition(
 							GraphBuilder,
 							View,
 							bWriteDummyData,
-							VisibilityData.CategorizationTexture,
-							VisibilityData.NodeIndex,
-							VisibilityData.NodeData,
 							VisibilityData.TileData,
 							GBufferATexture,
 							GBufferBTexture,
@@ -646,9 +632,6 @@ static void InternalRenderHairComposition(
 							GraphBuilder,
 							View,
 							bWriteDummyData,
-							VisibilityData.CategorizationTexture,
-							VisibilityData.NodeIndex,
-							VisibilityData.NodeData,
 							VisibilityData.TileData,
 							GBufferATexture,
 							GBufferBTexture,
