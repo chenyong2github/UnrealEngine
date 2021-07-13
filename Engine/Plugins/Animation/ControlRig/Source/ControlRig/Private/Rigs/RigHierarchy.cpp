@@ -36,6 +36,7 @@ static void RigHierarchyCaptureCallStack(FString& OutCallstack, uint32 NumCallsT
 static TAutoConsoleVariable<int32> CVarControlRigHierarchyTraceAlways(TEXT("ControlRig.Hierarchy.TraceAlways"), 0, TEXT("if nonzero we will record all transform changes."));
 static TAutoConsoleVariable<int32> CVarControlRigHierarchyTraceCallstack(TEXT("ControlRig.Hierarchy.TraceCallstack"), 0, TEXT("if nonzero we will record the callstack for any trace entry.\nOnly works if(ControlRig.Hierarchy.TraceEnabled != 0)"));
 static TAutoConsoleVariable<int32> CVarControlRigHierarchyTracePrecision(TEXT("ControlRig.Hierarchy.TracePrecision"), 3, TEXT("sets the number digits in a float when tracing hierarchies."));
+static TAutoConsoleVariable<int32> CVarControlRigHierarchyTraceOnSpawn(TEXT("ControlRig.Hierarchy.TraceOnSpawn"), 0, TEXT("sets the number of frames to trace when a new hierarchy is spawned"));
 static int32 sRigHierarchyLastTrace = INDEX_NONE;
 static TCHAR sRigHierarchyTraceFormat[16];
 
@@ -79,6 +80,30 @@ FAutoConsoleCommandWithWorldAndArgs FCmdControlRigHierarchyTraceFrames
 ////////////////////////////////////////////////////////////////////////////////
 
 const TArray<FRigBaseElement*> URigHierarchy::EmptyElementArray;
+
+URigHierarchy::URigHierarchy()
+: TopologyVersion(0)
+, bEnableDirtyPropagation(true)
+, Elements()
+, IndexLookup()
+, TransformStackIndex(0)
+, bTransactingForTransformChange(false)
+, bIsInteracting(false)
+, LastInteractedKey()
+, bSuspendNotifications(false)
+, ResetPoseHash(INDEX_NONE)
+#if WITH_EDITOR
+, bPropagatingChange(false)
+, bForcePropagation(false)
+, TraceFramesLeft(0)
+, TraceFramesCaptured(0)
+#endif
+{
+	Reset();
+#if WITH_EDITOR
+	TraceFrames(CVarControlRigHierarchyTraceOnSpawn->GetInt());
+#endif
+}
 
 URigHierarchy::~URigHierarchy()
 {
