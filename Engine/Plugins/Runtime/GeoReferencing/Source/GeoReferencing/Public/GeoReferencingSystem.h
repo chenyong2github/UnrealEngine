@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Info.h"
+#include "Logging/LogMacros.h"
 #include "Templates/PimplPtr.h"
 
 // Double precision structures
@@ -17,6 +18,8 @@
 #include "Matrix4d.h"
 
 #include "GeoReferencingSystem.generated.h"
+
+DECLARE_LOG_CATEGORY_EXTERN(LogGeoReferencing, Log, All);
 
 UENUM(BlueprintType)
 enum class EPlanetShape : uint8 {

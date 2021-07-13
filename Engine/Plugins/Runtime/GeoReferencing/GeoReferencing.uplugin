@@ -20,10 +20,12 @@
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
-				"Mac",
+				"Android",
+				"HoloLens",
+				"IOS",
 				"Linux",
-				"Win64",
-				"HoloLens"
+				"Mac",
+				"Win64"
 			]
 		},
 		{
@@ -31,16 +33,22 @@
 			"Type": "Editor",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
-				"Mac",
+				"Android",
+				"HoloLens",
+				"IOS",
 				"Linux",
-				"Win64",
-				"HoloLens"
+				"Mac",
+				"Win64"
 			]
 		}
 	],
 	"Plugins": [
 		{
 			"Name": "GeometryProcessing",
+			"Enabled": true
+		},
+		{
+			"Name": "SQLiteCore",
 			"Enabled": true
 		}
 	]
