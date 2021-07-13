@@ -70,7 +70,7 @@ public:
 	/**
 	* Adds a function to the given blueprint
 	*
-	* @param Blueprint	The blueprint to remove the function from
+	* @param Blueprint	The blueprint to add the function to
 	* @param FuncName	Name of the function to add
 	*
 	* @return UEdGraph*
