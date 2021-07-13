@@ -66,6 +66,10 @@ struct CORE_API FNetworkVersion
 	DECLARE_DELEGATE_RetVal_TwoParams( bool, FIsNetworkCompatibleOverride, uint32, uint32 );
 	static FIsNetworkCompatibleOverride IsNetworkCompatibleOverride;
 
+	/** Called in GetReplayCompatibleChangelist if bound */
+	DECLARE_DELEGATE_RetVal(uint32, FGetReplayCompatibleChangeListOverride);
+	static FGetReplayCompatibleChangeListOverride GetReplayCompatibleChangeListOverride;
+
 	static uint32 GetNetworkCompatibleChangelist();
 	static uint32 GetReplayCompatibleChangelist();
 	static uint32 GetEngineNetworkProtocolVersion();
