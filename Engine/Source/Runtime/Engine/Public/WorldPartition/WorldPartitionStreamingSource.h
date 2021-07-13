@@ -84,15 +84,17 @@ enum class EStreamingSourcePriority : int32
 struct ENGINE_API FWorldPartitionStreamingSource
 {
 	FWorldPartitionStreamingSource()
-		: Priority(EStreamingSourcePriority::Default)
+		: bBlockOnSlowLoading(false)
+		, Priority(EStreamingSourcePriority::Default)
 		, Velocity(0.f)
 	{}
 
-	FWorldPartitionStreamingSource(FName InName, const FVector& InLocation, const FRotator& InRotation, EStreamingSourceTargetState InTargetState, EStreamingSourcePriority InPriority = EStreamingSourcePriority::Default, float InVelocity = 0.f)
+	FWorldPartitionStreamingSource(FName InName, const FVector& InLocation, const FRotator& InRotation, EStreamingSourceTargetState InTargetState, bool bInBlockOnSlowLoading, EStreamingSourcePriority InPriority = EStreamingSourcePriority::Default, float InVelocity = 0.f)
 		: Name(InName)
 		, Location(InLocation)
 		, Rotation(InRotation)
 		, TargetState(InTargetState)
+		, bBlockOnSlowLoading(bInBlockOnSlowLoading)
 		, Priority(InPriority)
 		, Velocity(InVelocity)
 	{
@@ -104,6 +106,7 @@ struct ENGINE_API FWorldPartitionStreamingSource
 	FVector Location;
 	FRotator Rotation;
 	EStreamingSourceTargetState TargetState;
+	bool bBlockOnSlowLoading;
 	EStreamingSourcePriority Priority;
 	float Velocity; // Computed automatically
 };

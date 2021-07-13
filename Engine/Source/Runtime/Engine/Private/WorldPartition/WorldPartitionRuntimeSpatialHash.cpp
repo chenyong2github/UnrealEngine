@@ -1161,17 +1161,21 @@ EWorldPartitionStreamingPerformance UWorldPartitionRuntimeSpatialHash::GetStream
 	check(StreamingGrid && *StreamingGrid);
 	
 	const float LoadingRange = (*StreamingGrid)->LoadingRange;
-	const float Distance = FMath::Sqrt(StreamingCell->CachedSourceMinDistanceSquare) - ((float)(*StreamingGrid)->GetCellSize(StreamingCell->Level) / 2.f);
 
-	const float Ratio = Distance / LoadingRange;
+	if (StreamingCell->CachedIsBlockingSource)
+	{
+		const float Distance = FMath::Sqrt(StreamingCell->CachedBlockingMinDistanceSquare) - ((float)(*StreamingGrid)->GetCellSize(StreamingCell->Level) / 2.f);
 
-	if (Ratio < GBlockOnSlowStreamingRatio)
-	{
-		return EWorldPartitionStreamingPerformance::Critical;
-	}
-	else if (Ratio < BlockOnSlowStreamingWarningRatio)
-	{
-		return EWorldPartitionStreamingPerformance::Slow;
+		const float Ratio = Distance / LoadingRange;
+
+		if (Ratio < GBlockOnSlowStreamingRatio)
+		{
+			return EWorldPartitionStreamingPerformance::Critical;
+		}
+		else if (Ratio < BlockOnSlowStreamingWarningRatio)
+		{
+			return EWorldPartitionStreamingPerformance::Slow;
+		}
 	}
 
 	return EWorldPartitionStreamingPerformance::Good;
