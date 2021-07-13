@@ -584,6 +584,11 @@ uint64 FD3D12CommandListManager::ExecuteAndIncrementFence(FD3D12CommandListPaylo
 	}
 
 	checkf(Fence.GetGPUMask() == GetGPUMask(), TEXT("Fence GPU masks does not fit with the command list mask!"));
+
+#if DEBUG_FENCES
+	LogExecuteCommandLists(Payload.NumCommandLists, Payload.CommandLists);
+#endif
+
 	return Fence.Signal(QueueType);
 }
 
