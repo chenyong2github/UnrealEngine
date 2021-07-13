@@ -20,15 +20,17 @@ public:
 	 * @param WorldContextObject Context object to determine which world to take the snapshot in
 	 * @param FileName The desired asset file name
 	 * @param FolderPath The desired asset location
+	 * @param bShouldCreateUniqueFileName If true, the asset name will have a number incrementally added to the file name if an asset with a similar name already exists. If false, the existing asset will be overwritten.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "LevelSnapshots", meta = (DevelopmentOnly, WorldContext = "WorldContextObject"))
-	static ULevelSnapshot* TakeLevelSnapshotAndSaveToDisk(const UObject* WorldContextObject, const FString FileName, const FString FolderPath, const FString Description);
+	static ULevelSnapshot* TakeLevelSnapshotAndSaveToDisk(
+		const UObject* WorldContextObject, const FString& FileName, const FString& FolderPath, const FString& Description, const bool bShouldCreateUniqueFileName = true);
 
 	/**
 	 * Uses TakeLevelSnapshotAndSaveToDisk() and assumes Editor World
 	 */
 	UFUNCTION(BlueprintCallable, Category = "LevelSnapshots")
-	static void TakeAndSaveLevelSnapshotEditorWorld(const FString FileName, const FString FolderPath, const FString Description);
+	static void TakeAndSaveLevelSnapshotEditorWorld(const FString& FileName, const FString& FolderPath, const FString& Description);
 
 	/* If the snapshot is saved in the registry, takes a screenshot of the editor scene and sets it as thumnail for the snapshot. */
 	UFUNCTION(BlueprintCallable, Category = "LevelSnapshots")
