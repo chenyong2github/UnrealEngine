@@ -49,6 +49,7 @@ FFractureEditorStyle::FFractureEditorStyle()
 
 	Set("FractureEditor.AddEmbeddedGeometry",  new IMAGE_BRUSH_SVG("FractureEmbed", IconSize));
 	Set("FractureEditor.AutoEmbedGeometry",    new IMAGE_BRUSH_SVG("FractureAutoEmbed", IconSize));
+	Set("FractureEditor.FlushEmbedGeometry",   new IMAGE_BRUSH_SVG("FractureFlushEmbed", IconSize));
 
 	Set("FractureEditor.AutoUV",               new IMAGE_BRUSH_SVG("FractureAutoUV", IconSize));
 
