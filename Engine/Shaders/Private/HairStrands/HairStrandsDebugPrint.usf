@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "HairStrandsVisibilityCommonStruct.ush"
+
 #include "../Common.ush"
 #include "../ShaderPrintCommon.ush"
 #include "../ShaderDrawDebug.ush"
@@ -10,17 +12,14 @@ int2 PixelCoord;
 int2 MaxResolution;
 uint FastResolveMask;
 uint HairMacroGroupCount;
-uint MaxSampleCount;
 uint2 GroupSize; 
 uint HairVisibilityNodeGroupSize;
 
 Texture2D<float> HairCountTexture;
 Texture2D<uint> HairCountUintTexture;
-Texture2D<uint4> CategorizationTexture;
+
 Texture2D<uint2> DepthStencilTexture;
 SamplerState LinearSampler;
-Texture2D<uint> HairVisibilityNodeOffsetAndCount;
-StructuredBuffer<FPackedHairSample> HairVisibilityNodeData;
 Buffer<uint> HairVisibilityIndirectArgsBuffer;
 
 Buffer<int> HairMacroGroupAABBBuffer;
@@ -46,7 +45,6 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			AddAABB(Bound.Min, Bound.Max, InstanceBoundColor);
 		}
 
-
 		const uint DispatchX = HairVisibilityIndirectArgsBuffer[0];
 		const uint DispatchY = HairVisibilityIndirectArgsBuffer[1];
 		const uint TotalSampleCount = DispatchX * DispatchY * HairVisibilityNodeGroupSize;
@@ -57,6 +55,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		float2 Pos = OriginalPos;
 		Pos = ShaderPrintText(Pos, TEXT("Total Sample Count "), FontCyan);
 		Pos = ShaderPrint(Pos, TotalSampleCount, FontCyan);
+		Pos = ShaderPrint(Pos, HairStrands.HairSampleCount.Load(uint3(0,0,0)), FontCyan);
 		AddNewLine(OriginalPos, Pos);
 
 		Pos = ShaderPrintText(Pos, TEXT("Equivalent Res     "), FontCyan);
@@ -74,8 +73,9 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 	ShaderPrintFilter(true);
 
-	const FCategorizationData CatData = DecodeCategorizationData(CategorizationTexture.Load(uint3(PixelPos,0)));
-	const bool bIsValid = CatData.PixelCoverage > 0;
+	const FCategorizationData CatData = DecodeCategorizationData(HairStrands.HairCategorizationTexture.Load(uint3(PixelPos,0)));
+	const float HairPixelCoverage = CatData.PixelCoverage;
+	const bool bIsValid = HairPixelCoverage > 0;
 	if (!bIsValid)
 		return;
 
@@ -87,11 +87,11 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	float2 Pos = OriginalPos;
 
 	uint Total8BitCoverage = 0;
-	const FNodeDesc NodeDesc = DecodeNodeDesc(HairVisibilityNodeOffsetAndCount.Load(uint3(PixelCoord, 0)));
+	const FNodeDesc NodeDesc = DecodeNodeDesc(HairStrands.HairSampleOffset.Load(uint3(PixelCoord, 0)));
 	for (uint SampleIt0 = 0; SampleIt0 < NodeDesc.Count; SampleIt0++)
 	{
 		const uint LocalOffset = NodeDesc.Offset + SampleIt0;
-		const FPackedHairSample NodeData = HairVisibilityNodeData[LocalOffset];
+		const FPackedHairSample NodeData = HairStrands.HairSampleData[LocalOffset];
 		const FHairSample Sample = UnpackHairSample(NodeData);
 		Total8BitCoverage += Sample.Coverage8bit;
 	}
@@ -103,12 +103,12 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 	// Max sample
 	Pos = ShaderPrintText(Pos, TEXT("Max Sample      "));
-	Pos = ShaderPrint(Pos, MaxSampleCount);
+	Pos = ShaderPrint(Pos, HairStrands.MaxSamplePerPixelCount);
 	AddNewLine(OriginalPos, Pos);
 
 	// Unique sample
 	Pos = ShaderPrintText(Pos, TEXT("Sample          "), FontOrange);
-	Pos = ShaderPrint(Pos, CatData.SampleCount, FontOrange);
+	Pos = ShaderPrint(Pos, NodeDesc.Count, FontOrange);
 	AddNewLine(OriginalPos, Pos);
 
 	// Accurate coverage (if coverage pass is activated)
@@ -123,13 +123,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	
 	// Accurate coverage (if coverage pass is activated)
 	Pos = ShaderPrintText(Pos, TEXT("Coverage        "), FontOrange);
-	Pos = ShaderPrint(Pos, CatData.PixelCoverage, FontOrange);
-	AddNewLine(OriginalPos, Pos);
-
-	// 8 bit Coverage (cateogory texture)
-	Pos = ShaderPrintText(Pos, TEXT("Coverage 8bits  "));
-	Pos = ShaderPrint(Pos, CatData.TotalCoverage8bit);
-	Pos = ShaderPrint(Pos, CatData.TotalCoverage8bit / 255.f);
+	Pos = ShaderPrint(Pos, HairPixelCoverage, FontOrange);
 	AddNewLine(OriginalPos, Pos);
 
 	// 8 bit Coverage (summed)
@@ -191,8 +185,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	for (uint SampleIt = 0; SampleIt < NodeDesc.Count; SampleIt++)
 	{
 		const uint LocalOffset = NodeDesc.Offset + SampleIt;
-		const FPackedHairSample NodeData = HairVisibilityNodeData[LocalOffset];		
-		const FHairSample Sample = UnpackHairSample(NodeData);
+		const FHairSample Sample = UnpackHairSample(HairStrands.HairSampleData[LocalOffset]);
 
 		float2 StartSamplePos = ColumnPos + float2(150.f + 80.f * SampleIt, 0.f) / float2(MaxResolution);
 		Pos = StartSamplePos;

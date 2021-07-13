@@ -1,24 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "HairStrandsVisibilityCommonStruct.ush"
 #include "../Common.ush"
-#include "HairStrandsVisibilityCommon.ush"
 #include "../ColorMap.ush"
+#include "HairStrandsVisibilityCommon.ush"
 
 float2 OutputResolution;
 uint FastResolveMask;
 uint DebugMode;
 int SampleIndex;
-uint MaxSampleCount;
 
-Texture2D<uint4> CategorizationTexture;
-Texture2D<float> ViewTransmittanceTexture;
 Texture2D<uint2> DepthStencilTexture;
-Texture2D<uint> NodeIndex;
-StructuredBuffer<FPackedHairSample> NodeData;
 SamplerState LinearSampler;
-
-Texture2D<uint> HairCountUintTexture;
-Texture2D<float> HairCountTexture;
 
 #define DEBUG_MODE_SAMPLE_COUNT 0 
 #define DEBUG_MODE_COVERAGE_TYPE 1
@@ -38,35 +31,24 @@ void MainPS(
 	const float2 UV = Input.UV;
 	const float2 PixelPos = UV * OutputResolution;
 
-	//if (DebugMode == DEBUG_MODE_SAMPLE_COUNT)
-	//{
-	//	const float HairCount = HairCountUintTexture.Load(uint3(PixelPos, 0)) / 1000.f;
-	//	//const float HairCount = HairCountTexture.Load(uint3(PixelPos, 0));
-	//
-	//	if (HairCount==0)
-	//		discard;
-	//	OutColor = float4(float3(1, 0, 0), 1);
-	//
-	//	OutColor = float4(GetHSVDebugColor(HairCount / float(32)), 1);
-	//
-	//	return;
-	//}
-
-	const FCategorizationData CatData = DecodeCategorizationData(CategorizationTexture.Load(uint3(PixelPos,0)));
-	const bool bIsValid = CatData.PixelCoverage > 0 || DebugMode == DEBUG_MODE_TILE;
+	const FCategorizationData CatData = DecodeCategorizationData(HairStrands.HairCategorizationTexture.Load(uint3(PixelPos,0)));
+	const float HairPixelCoverage = CatData.PixelCoverage;
+	const bool bIsValid = HairPixelCoverage > 0 || DebugMode == DEBUG_MODE_TILE;
 	if (!bIsValid)
 		discard;
+
+	const FNodeDesc NodeDesc = DecodeNodeDesc(HairStrands.HairSampleOffset.Load(uint3(PixelPos, 0)));
 
 	float3 Color = 0;
 	float Alpha = 1;
 	if (DebugMode == DEBUG_MODE_SAMPLE_COUNT)
 	{
-		Color = GetHSVDebugColor(CatData.SampleCount/float(MaxSampleCount));
+		Color = GetHSVDebugColor(NodeDesc.Count/float(HairStrands.MaxSamplePerPixelCount));
 	}
 
 	if (DebugMode == DEBUG_MODE_COVERAGE_TYPE)
 	{
-		const bool bIsFullyCovered = CatData.PixelCoverage >= 1;
+		const bool bIsFullyCovered = HairPixelCoverage >= 1;
 		Color = bIsFullyCovered ? float3(0.25,0.85,0.25) : float3(0.85,0.25,0.25);
 	}
 
@@ -79,7 +61,7 @@ void MainPS(
 
 	if (DebugMode == DEBUG_MODE_COVERAGE)
 	{
-		Color = GetHSVDebugColor(saturate(CatData.PixelCoverage));
+		Color = GetHSVDebugColor(saturate(HairPixelCoverage));
 	}
 
 	const bool bIsDebugModeMaterial =
@@ -89,7 +71,6 @@ void MainPS(
 		DebugMode == DEBUG_MODE_SPECULAR || 
 		DebugMode == DEBUG_MODE_TANGENT;
 
-	const FNodeDesc NodeDesc = DecodeNodeDesc(NodeIndex.Load(uint3(PixelPos, 0)));
 	if (NodeDesc.Count > 0 && bIsDebugModeMaterial)
 	{
 		const int LocalSampleIndex = SampleIndex; 
@@ -104,7 +85,7 @@ void MainPS(
 		for (uint NodeIt = 0; NodeIt < NodeDesc.Count; ++NodeIt)
 		{
 			const uint NodeOffset = NodeDesc.Offset + NodeIt;
-			const FPackedHairSample Data = NodeData[NodeOffset];
+			const FPackedHairSample Data = HairStrands.HairSampleData[NodeOffset];
 			const FHairSample Sample = UnpackHairSample(Data);
 
 			if (bAverageAllSamples)

@@ -22,6 +22,7 @@ static TRDGUniformBufferRef<FHairStrandsViewUniformParameters> InternalCreateHai
 		Parameters->HairSampleCoords = GraphBuilder.CreateSRV(In->NodeCoord, FHairStrandsVisibilityData::NodeCoordFormat);
 		Parameters->HairSampleCount = In->NodeCount;
 		Parameters->HairSampleViewportResolution = In->SampleLightingViewportResolution;
+		Parameters->MaxSamplePerPixelCount = In->MaxSampleCount;
 
 		if (In->EmissiveTexture)
 		{
@@ -83,6 +84,7 @@ static TRDGUniformBufferRef<FHairStrandsViewUniformParameters> InternalCreateHai
 		Parameters->HairSampleViewportResolution = FIntPoint(0, 0);
 		Parameters->HairEmissiveTexture = BlackTexture;
 		Parameters->bHasEmissive = 0u;
+		Parameters->MaxSamplePerPixelCount = 0u;
 
 		Parameters->HairTileData = DummyBufferR32SRV;
 		Parameters->HairTileCount = DummyBufferRG16SRV;

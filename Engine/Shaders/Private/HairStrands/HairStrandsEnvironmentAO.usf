@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
   
+#include "HairStrandsVisibilityCommonStruct.ush"
 #include "HairStrandsVoxelPageCommonStruct.ush"
 
 #include "../Common.ush"
@@ -150,15 +151,15 @@ void MainPS(
 	bool bIsValid = false;
 	if (bHalfRes)
 	{
-		float Coverage0 = DecodeCategorizationData(HairCategorizationTexture.Load(uint3(PixelCoord              , 0))).PixelCoverage;
-		float Coverage1 = DecodeCategorizationData(HairCategorizationTexture.Load(uint3(PixelCoord + uint2(1, 0), 0))).PixelCoverage;
-		float Coverage2 = DecodeCategorizationData(HairCategorizationTexture.Load(uint3(PixelCoord + uint2(0, 1), 0))).PixelCoverage;
-		float Coverage3 = DecodeCategorizationData(HairCategorizationTexture.Load(uint3(PixelCoord + uint2(1, 1), 0))).PixelCoverage;
+		float Coverage0 = DecodeCategorizationData(HairStrands.HairCategorizationTexture.Load(uint3(PixelCoord              , 0))).PixelCoverage;
+		float Coverage1 = DecodeCategorizationData(HairStrands.HairCategorizationTexture.Load(uint3(PixelCoord + uint2(1, 0), 0))).PixelCoverage;
+		float Coverage2 = DecodeCategorizationData(HairStrands.HairCategorizationTexture.Load(uint3(PixelCoord + uint2(0, 1), 0))).PixelCoverage;
+		float Coverage3 = DecodeCategorizationData(HairStrands.HairCategorizationTexture.Load(uint3(PixelCoord + uint2(1, 1), 0))).PixelCoverage;
 		bIsValid = Coverage0 < 1 || Coverage1 < 1 || Coverage2 < 1 || Coverage3 < 1 || GBuffer.ShadingModelID != SHADINGMODELID_UNLIT;
 	}
 	else
 	{
-		bIsValid = DecodeCategorizationData(HairCategorizationTexture.Load(uint3(PixelCoord, 0))).PixelCoverage < 1;
+		bIsValid = DecodeCategorizationData(HairStrands.HairCategorizationTexture.Load(uint3(PixelCoord, 0))).PixelCoverage < 1;
 	}
 
 	if (bIsValid)

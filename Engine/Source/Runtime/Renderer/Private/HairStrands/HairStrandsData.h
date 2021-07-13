@@ -19,8 +19,8 @@ struct FMeshBatch;
 // HairStrands uniform buffer
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairStrandsViewUniformParameters, )	
-//	SHADER_PARAMETER(uint32, SampleCount)
 	SHADER_PARAMETER(FIntPoint, HairTileCountXY)										// Tile count in X/Y
+	SHADER_PARAMETER(uint32, MaxSamplePerPixelCount)									// Max number of sample per pixel
 	SHADER_PARAMETER(float, HairDualScatteringRoughnessOverride)						// Override the roughness used for dual scattering (for hack/test purpose only)
 	SHADER_PARAMETER(FIntPoint, HairSampleViewportResolution)							// Maximum viewport resolution of the sample space
 	SHADER_PARAMETER(uint32, bHairTileValid)											// True if tile data are valid
@@ -85,8 +85,8 @@ struct FHairStrandsVisibilityData
 
 	FRDGTextureRef LightChannelMaskTexture = nullptr;
 
-	uint32			MaxSampleCount = 8;
-	uint32			MaxNodeCount = 0;
+	uint32			MaxSampleCount = 8; // Sample count per pixel
+	uint32			MaxNodeCount = 0;	// Total sample count
 	FRDGTextureRef	NodeCount = nullptr;
 	FRDGTextureRef	NodeIndex = nullptr;
 	FRDGBufferRef	NodeData = nullptr;
