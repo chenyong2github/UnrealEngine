@@ -910,6 +910,7 @@ void FMovieSceneFloatChannel::GetKeyTimes(TArrayView<const FKeyHandle> InHandles
 void FMovieSceneFloatChannel::SetKeyTimes(TArrayView<const FKeyHandle> InHandles, TArrayView<const FFrameNumber> InKeyTimes)
 {
 	GetData().SetKeyTimes(InHandles, InKeyTimes);
+	AutoSetTangents();
 }
 
 void FMovieSceneFloatChannel::DuplicateKeys(TArrayView<const FKeyHandle> InHandles, TArrayView<FKeyHandle> OutNewHandles)
@@ -920,6 +921,7 @@ void FMovieSceneFloatChannel::DuplicateKeys(TArrayView<const FKeyHandle> InHandl
 void FMovieSceneFloatChannel::DeleteKeys(TArrayView<const FKeyHandle> InHandles)
 {
 	GetData().DeleteKeys(InHandles);
+	AutoSetTangents();
 }
 
 void FMovieSceneFloatChannel::DeleteKeysFrom(FFrameNumber InTime, bool bDeleteKeysBefore)
@@ -939,6 +941,7 @@ void FMovieSceneFloatChannel::DeleteKeysFrom(FFrameNumber InTime, bool bDeleteKe
 	}
 
 	GetData().DeleteKeysFrom(InTime, bDeleteKeysBefore);
+	AutoSetTangents();
 }
 
 void FMovieSceneFloatChannel::ChangeFrameResolution(FFrameRate SourceRate, FFrameRate DestinationRate)
@@ -982,6 +985,7 @@ void FMovieSceneFloatChannel::PostEditChange()
 void FMovieSceneFloatChannel::Offset(FFrameNumber DeltaPosition)
 {
 	GetData().Offset(DeltaPosition);
+	AutoSetTangents();
 }
 
 void FMovieSceneFloatChannel::Optimize(const FKeyDataOptimizationParams& Params)
@@ -1075,6 +1079,7 @@ void FMovieSceneFloatChannel::AddKeys(const TArray<FFrameNumber>& InTimes, const
 	{
 		KeyHandles.AllocateHandle(Index);
 	}
+	AutoSetTangents();
 }
 
 bool FMovieSceneFloatChannel::Serialize(FArchive& Ar)
