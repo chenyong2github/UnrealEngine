@@ -588,7 +588,7 @@ void FProjectedShadowInfo::RenderTranslucencyDepths(FRDGBuilder& GraphBuilder, F
 		RDG_EVENT_NAME("%s", *EventName),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[this, SimpleMeshDrawCommandPass, PassParameters](FRHICommandListImmediate& RHICmdList)
+		[this, SimpleMeshDrawCommandPass, PassParameters](FRHICommandList& RHICmdList)
 	{
 		FMeshPassProcessorRenderState DrawRenderState;
 

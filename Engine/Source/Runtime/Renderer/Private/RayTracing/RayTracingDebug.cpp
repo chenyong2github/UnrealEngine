@@ -195,14 +195,14 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 
 	FIntRect ViewRect = View.ViewRect;
 
+	RDG_GPU_STAT_SCOPE(GraphBuilder, RayTracingDebug);
+
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("RayTracingDebug"),
 		RayGenParameters,
 		ERDGPassFlags::Compute,
 		[this, RayGenParameters, RayGenShader, &View, Pipeline, ViewRect](FRHICommandList& RHICmdList)
 	{
-		SCOPED_GPU_STAT(RHICmdList, RayTracingDebug);
-
 		FRayTracingShaderBindingsWriter GlobalResources;
 		SetShaderParameters(GlobalResources, RayGenShader, *RayGenParameters);
 

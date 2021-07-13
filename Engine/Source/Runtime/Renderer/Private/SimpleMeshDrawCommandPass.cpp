@@ -61,7 +61,7 @@ void FSimpleMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuilde
 	BuildRenderingCommands(GraphBuilder, View, Scene.GPUScene, OutInstanceCullingDrawParams);
 }
 
-void FSimpleMeshDrawCommandPass::SubmitDraw(FRHICommandListImmediate& RHICmdList, const FInstanceCullingDrawParams& InstanceCullingDrawParams) const
+void FSimpleMeshDrawCommandPass::SubmitDraw(FRHICommandList& RHICmdList, const FInstanceCullingDrawParams& InstanceCullingDrawParams) const
 {
 	if (VisibleMeshDrawCommands.Num() > 0)
 	{

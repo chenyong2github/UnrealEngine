@@ -155,7 +155,7 @@ static bool CaptureNeedsSceneColor(ESceneCaptureSource CaptureSource)
 	return CaptureSource != SCS_FinalColorLDR && CaptureSource != SCS_FinalColorHDR && CaptureSource != SCS_FinalToneCurveHDR;
 }
 
-static TFunction<void(FRHICommandListImmediate& RHICmdList)> CopyCaptureToTargetSetViewportFn;
+static TFunction<void(FRHICommandList& RHICmdList)> CopyCaptureToTargetSetViewportFn;
 
 void FDeferredShadingSceneRenderer::CopySceneCaptureComponentToTarget(
 	FRDGBuilder& GraphBuilder,
@@ -215,7 +215,7 @@ void FDeferredShadingSceneRenderer::CopySceneCaptureComponentToTarget(
 				RDG_EVENT_NAME("View(%d)", ViewIndex),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[PassParameters, GraphicsPSOInit, VertexShader, PixelShader, &View] (FRHICommandListImmediate& RHICmdList)
+				[PassParameters, GraphicsPSOInit, VertexShader, PixelShader, &View] (FRHICommandList& RHICmdList)
 			{
 				FGraphicsPipelineStateInitializer LocalGraphicsPSOInit = GraphicsPSOInit;
 				RHICmdList.ApplyCachedRenderTargets(LocalGraphicsPSOInit);
@@ -272,7 +272,7 @@ static void UpdateSceneCaptureContentDeferred_RenderThread(
 
 		if (ResolveParams.DestRect.IsValid())
 		{
-			CopyCaptureToTargetSetViewportFn = [ResolveParams](FRHICommandListImmediate& RHICmdList)
+			CopyCaptureToTargetSetViewportFn = [ResolveParams](FRHICommandList& RHICmdList)
 			{
 				RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
 				RHICmdList.SetViewport
@@ -288,7 +288,7 @@ static void UpdateSceneCaptureContentDeferred_RenderThread(
 		}
 		else
 		{
-			CopyCaptureToTargetSetViewportFn = [](FRHICommandListImmediate& RHICmdList) {};
+			CopyCaptureToTargetSetViewportFn = [](FRHICommandList& RHICmdList) {};
 		}
 
 		// Render the scene normally
@@ -333,7 +333,7 @@ static void ODSCapture_RenderThread(
 		RDG_EVENT_NAME("ODSCapture"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[VertexShader, PixelShader, OutputTexture](FRHICommandListImmediate& RHICmdList)
+		[VertexShader, PixelShader, OutputTexture](FRHICommandList& RHICmdList)
 	{
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
 		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);

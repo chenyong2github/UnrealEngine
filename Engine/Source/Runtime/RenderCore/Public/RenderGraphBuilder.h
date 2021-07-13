@@ -180,6 +180,12 @@ public:
 	/** A hint to the builder to flush work to the RHI thread after the last queued pass on the execution timeline. */
 	void AddDispatchHint();
 
+	/** Tells the builder to delete unused RHI resources. The behavior of this method depends on whether RDG immediate mode is enabled:
+	 *   Deferred:  RHI resource flushes are performed prior to execution.
+	 *   Immediate: RHI resource flushes are performed immediately.
+	 */
+	void SetFlushResourcesRHI();
+
 	/** Queues a buffer upload operation prior to execution. The resource lifetime is extended and the data is uploaded prior to executing passes. */
 	void QueueBufferUpload(FRDGBufferRef Buffer, const void* InitialData, uint64 InitialDataSize, ERDGInitialDataFlags InitialDataFlags = ERDGInitialDataFlags::None);
 
@@ -334,20 +340,6 @@ private:
 		return Passes.Last();
 	}
 
-	/** Barrier location controls where the barrier is 'Ended' relative to the pass lambda being executed.
-	 *  Most barrier locations are done in the prologue prior to the executing lambda. But certain cases
-	 *  like an aliasing discard operation need to be done *after* the pass being invoked. Therefore, when
-	 *  adding a transition the user can specify where to place the barrier.
-	 */
-	enum class EBarrierLocation
-	{
-		/** The barrier occurs in the prologue of the pass (before execution). */
-		Prologue,
-
-		/** The barrier occurs in the epilogue of the pass (after execution). */
-		Epilogue
-	};
-
 	/** Prologue and Epilogue barrier passes are used to plan transitions around RHI render pass merging,
 	 *  as it is illegal to issue a barrier during a render pass. If passes [A, B, C] are merged together,
 	 *  'A' becomes 'B's prologue pass and 'C' becomes 'A's epilogue pass. This way, any transitions that
@@ -410,9 +402,9 @@ private:
 
 	/** Utility function to add an immediate barrier dependency in either the prologue or epilogue of the provided pass, depending on BarrierLocation. */
 	template <typename FunctionType>
-	void AddToBarriers(FRDGPassHandle PassHandle, EBarrierLocation BarrierLocation, FunctionType Function)
+	void AddToBarriers(FRDGPassHandle PassHandle, ERDGBarrierLocation BarrierLocation, FunctionType Function)
 	{
-		if (BarrierLocation == EBarrierLocation::Prologue)
+		if (BarrierLocation == ERDGBarrierLocation::Prologue)
 		{
 			AddToPrologueBarriers(PassHandle, Function);
 		}
@@ -513,6 +505,21 @@ private:
 
 	TArray<FUploadedBuffer, FRDGArrayAllocator> UploadedBuffers;
 
+	struct FParallelPassSet
+	{
+		FParallelPassSet() = default;
+		FParallelPassSet(FRDGPass* const* InPasses, int32 InPassCount)
+			: Passes(InPasses, InPassCount)
+		{}
+
+		TArray<FRDGPass*, FRDGArrayAllocator> Passes;
+		FGraphEventRef Event;
+		FRHICommandList* RHICmdList{};
+	};
+
+	TArray<FParallelPassSet, FRDGArrayAllocator> ParallelPassSets;
+	FGraphEventArray ParallelPassEvents;
+
 	/** Array of all pooled references held during execution. */
 	FRDGPooledTextureArray ActivePooledTextures;
 	FRDGPooledBufferArray ActivePooledBuffers;
@@ -530,6 +537,8 @@ private:
 	IF_RDG_ENABLE_TRACE(FRDGTrace Trace);
 
 	bool bDispatchHint = false;
+	bool bFlushResourcesRHI = false;
+	bool bParallelExecuteEnabled = false;
 
 #if RDG_ENABLE_DEBUG
 	FRDGUserValidation UserValidation;
@@ -599,12 +608,15 @@ private:
 	void EndResourceRHI(FRDGPassHandle, FRDGTexture* Texture, uint32 ReferenceCount);
 	void EndResourceRHI(FRDGPassHandle, FRDGBuffer* Buffer, uint32 ReferenceCount);
 
-	void UploadBuffers();
+	void SubmitBufferUploads();
+	void BeginFlushResourcesRHI();
+	void EndFlushResourcesRHI();
 
 	void SetupPassInternal(FRDGPass* Pass, FRDGPassHandle PassHandle, ERHIPipeline PassPipeline, bool bEmptyParameters);
 	FRDGPass* SetupPass(FRDGPass* Pass);
 	FRDGPass* SetupEmptyPass(FRDGPass* Pass);
-	void ExecutePass(FRDGPass* Pass);
+	void CompilePassOps(FRDGPass* Pass);
+	void ExecutePass(FRDGPass* Pass, FRHIComputeCommandList& RHICmdListPass);
 
 	void ExecutePassPrologue(FRHIComputeCommandList& RHICmdListPass, FRDGPass* Pass);
 	void ExecutePassEpilogue(FRHIComputeCommandList& RHICmdListPass, FRDGPass* Pass);
@@ -624,20 +636,20 @@ private:
 		FRDGPassHandle PassHandle,
 		FRDGTextureRef Texture,
 		const FRDGTextureTransientSubresourceStateIndirect& StateAfter,
-		EBarrierLocation BarrierLocation = EBarrierLocation::Prologue);
+		ERDGBarrierLocation BarrierLocation = ERDGBarrierLocation::Prologue);
 
 	void AddTransition(
 		FRDGPassHandle PassHandle,
 		FRDGBufferRef Buffer,
 		FRDGSubresourceState StateAfter,
-		EBarrierLocation BarrierLocation = EBarrierLocation::Prologue);
+		ERDGBarrierLocation BarrierLocation = ERDGBarrierLocation::Prologue);
 
 	void AddTransition(
 		FRDGParentResource* Resource,
 		FRDGSubresourceState StateBefore,
 		FRDGSubresourceState StateAfter,
 		const FRHITransitionInfo& TransitionInfo,
-		EBarrierLocation BarrierLocation);
+		ERDGBarrierLocation BarrierLocation);
 
 	bool IsTransient(FRDGTextureRef Texture) const;
 	bool IsTransient(FRDGBufferRef Buffer) const;

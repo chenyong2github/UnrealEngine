@@ -22,18 +22,19 @@ FORCEINLINE_DEBUGGABLE void FRHICommandListBase::Flush()
 	}
 }
 
-FORCEINLINE_DEBUGGABLE bool FRHICommandListBase::IsImmediate()
+FORCEINLINE_DEBUGGABLE bool FRHICommandListBase::IsImmediate() const
 {
 	return this == &FRHICommandListExecutor::GetImmediateCommandList();
 }
 
-FORCEINLINE_DEBUGGABLE bool FRHICommandListBase::IsImmediateAsyncCompute()
+FORCEINLINE_DEBUGGABLE bool FRHICommandListBase::IsImmediateAsyncCompute() const
 {
 	return this == &FRHICommandListExecutor::GetImmediateAsyncComputeCommandList();
 }
 
 FORCEINLINE_DEBUGGABLE bool FRHICommandListBase::Bypass() const
 {
+	check(!IsImmediate() || IsInRenderingThread() || IsInRHIThread());
 	return GRHICommandList.Bypass();
 }
 

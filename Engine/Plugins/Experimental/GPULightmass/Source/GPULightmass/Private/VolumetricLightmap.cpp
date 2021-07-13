@@ -521,7 +521,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 
 		// manually handle transitions since the buffers are not (yet) managed by RDG
 		GraphBuilder.AddPass(RDG_EVENT_NAME("Transition Buffers"), ERDGPassFlags::None,
-			[this](FRHICommandListImmediate& RHICmdList) {
+			[this](FRHICommandList& RHICmdList) {
 			RHICmdList.Transition({
 				FRHITransitionInfo(VolumetricLightmapData.BrickData.AmbientVector.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
 				FRHITransitionInfo(VolumetricLightmapData.BrickData.SHCoefficients[0].UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
@@ -584,14 +584,14 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 
 					PassParameters->IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-					PassParameters->SSProfilesTexture = GetSubsufaceProfileTexture_RT(GraphBuilder.RHICmdList)->GetShaderResourceRHI();
+					PassParameters->SSProfilesTexture = GetSubsurfaceProfileTexture();
 
 					FSceneRenderState* SceneRenderState = Scene; // capture member variable
 					GraphBuilder.AddPass(
 						RDG_EVENT_NAME("VolumetricLightmapPathTracing %d bricks %d rays", BricksToCalcThisFrame, BricksToCalcThisFrame * (BrickSize + 1) * (BrickSize + 1) * (BrickSize + 1)),
 						PassParameters,
 						ERDGPassFlags::Compute,
-						[PassParameters, RayGenShader, SceneRenderState, BricksToCalcThisFrame](FRHICommandListImmediate& RHICmdList)
+						[PassParameters, RayGenShader, SceneRenderState, BricksToCalcThisFrame](FRHICommandList& RHICmdList)
 					{
 						FRayTracingShaderBindingsWriter GlobalResources;
 						SetShaderParameters(GlobalResources, RayGenShader, *PassParameters);
@@ -608,7 +608,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 			{
 				// manually handle transitions since the buffers are not (yet) managed by RDG
 				GraphBuilder.AddPass(RDG_EVENT_NAME("Transition Buffers"), ERDGPassFlags::None,
-					[this](FRHICommandListImmediate& RHICmdList) {
+					[this](FRHICommandList& RHICmdList) {
 					RHICmdList.Transition({
 						FRHITransitionInfo(AccumulationBrickData.AmbientVector.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
 						FRHITransitionInfo(AccumulationBrickData.SHCoefficients[0].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
@@ -649,7 +649,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 
 				// manually handle transitions since the buffers are not (yet) managed by RDG
 				GraphBuilder.AddPass(RDG_EVENT_NAME("Transition Buffers"), ERDGPassFlags::None,
-					[this](FRHICommandListImmediate& RHICmdList) {
+					[this](FRHICommandList& RHICmdList) {
 					RHICmdList.Transition({
 						FRHITransitionInfo(AccumulationBrickData.AmbientVector.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
 						FRHITransitionInfo(AccumulationBrickData.SHCoefficients[0].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
@@ -693,7 +693,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 
 					// manually handle transitions since the buffers are not (yet) managed by RDG
 					GraphBuilder.AddPass(RDG_EVENT_NAME("Transition Buffers"), ERDGPassFlags::None,
-						[this](FRHICommandListImmediate& RHICmdList) {
+						[this](FRHICommandList& RHICmdList) {
 						RHICmdList.Transition({
 							FRHITransitionInfo(AccumulationBrickData.AmbientVector.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
 							FRHITransitionInfo(AccumulationBrickData.SHCoefficients[0].UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),

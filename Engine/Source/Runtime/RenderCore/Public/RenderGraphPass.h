@@ -6,7 +6,7 @@
 #include "RenderGraphEvent.h"
 #include "Containers/SortedMap.h"
 
-using FRDGTransitionQueue = TArray<const FRHITransition*, TInlineAllocator<4, FRDGArrayAllocator>>;
+using FRDGTransitionQueue = TArray<const FRHITransition*, TInlineAllocator<8>>;
 
 struct FRDGBarrierBatchBeginId
 {
@@ -31,6 +31,42 @@ struct FRDGBarrierBatchBeginId
 
 	FRDGPassHandlesByPipeline Passes;
 	ERHIPipeline PipelinesAfter = ERHIPipeline::None;
+};
+
+/** Barrier location controls where the barrier is 'Ended' relative to the pass lambda being executed.
+ *  Most barrier locations are done in the prologue prior to the executing lambda. But certain cases
+ *  like an aliasing discard operation need to be done *after* the pass being invoked. Therefore, when
+ *  adding a transition the user can specify where to place the barrier.
+ */
+enum class ERDGBarrierLocation : uint8
+{
+	/** The barrier occurs in the prologue of the pass (before execution). */
+	Prologue,
+
+	/** The barrier occurs in the epilogue of the pass (after execution). */
+	Epilogue
+};
+
+struct FRDGBarrierBatchEndId
+{
+	FRDGBarrierBatchEndId() = default;
+	FRDGBarrierBatchEndId(FRDGPassHandle InPassHandle, ERDGBarrierLocation InBarrierLocation)
+		: PassHandle(InPassHandle)
+		, BarrierLocation(InBarrierLocation)
+	{}
+
+	bool operator == (FRDGBarrierBatchEndId Other) const
+	{
+		return PassHandle == Other.PassHandle && BarrierLocation == Other.BarrierLocation;
+	}
+
+	bool operator != (FRDGBarrierBatchEndId Other) const
+	{
+		return *this == Other;
+	}
+
+	FRDGPassHandle PassHandle;
+	ERDGBarrierLocation BarrierLocation = ERDGBarrierLocation::Epilogue;
 };
 
 class RENDERCORE_API FRDGBarrierBatchBegin
@@ -66,14 +102,13 @@ public:
 
 private:
 	const FRHITransition* Transition = nullptr;
-	TArray<FRHITransitionInfo, TInlineAllocator<1, FRDGArrayAllocator>> Transitions;
+	TArray<FRHITransitionInfo, FRDGArrayAllocator> Transitions;
 	TArray<FRHITransientAliasingInfo, FRDGArrayAllocator> Aliases;
 	ERHITransitionCreateFlags TransitionFlags = ERHITransitionCreateFlags::NoFence;
-	bool bTransitionNeeded = false;
-
-	/** These pipelines masks are set at creation time and reset with each submission. */
 	ERHIPipeline PipelinesToBegin;
 	ERHIPipeline PipelinesToEnd;
+	TRHIPipelineArray<FRDGBarrierBatchEndId> BarriersToEnd;
+	bool bTransitionNeeded = false;
 
 #if RDG_ENABLE_DEBUG
 	FRDGPassesByPipeline DebugPasses;
@@ -84,7 +119,6 @@ private:
 	ERHIPipeline DebugPipelinesToEnd;
 #endif
 
-	friend class FRDGBarrierBatchBegin;
 	friend class FRDGBarrierBatchEnd;
 	friend class FRDGBarrierValidation;
 };
@@ -94,10 +128,9 @@ using FRDGTransitionCreateQueue = TArray<FRDGBarrierBatchBegin*, FRDGArrayAlloca
 class RENDERCORE_API FRDGBarrierBatchEnd
 {
 public:
-	FRDGBarrierBatchEnd(FRDGPass* InPass)
-#if RDG_ENABLE_DEBUG
+	FRDGBarrierBatchEnd(FRDGPass* InPass, ERDGBarrierLocation InBarrierLocation)
 		: Pass(InPass)
-#endif
+		, BarrierLocation(InBarrierLocation)
 	{}
 
 	/** Inserts a dependency on a begin batch. A begin batch can be inserted into more than one end batch. */
@@ -112,11 +145,10 @@ public:
 
 private:
 	TArray<FRDGBarrierBatchBegin*, TInlineAllocator<4, FRDGArrayAllocator>> Dependencies;
-
-#if RDG_ENABLE_DEBUG
 	FRDGPass* Pass;
-#endif
+	ERDGBarrierLocation BarrierLocation;
 
+	friend class FRDGBarrierBatchBegin;
 	friend class FRDGBarrierValidation;
 };
 
@@ -160,6 +192,11 @@ public:
 	FORCEINLINE FRDGPassHandle GetHandle() const
 	{
 		return Handle;
+	}
+
+	bool IsImmediateCommandList() const
+	{
+		return bImmediateCommandList;
 	}
 
 	bool IsMergedRenderPassBegin() const
@@ -336,6 +373,19 @@ protected:
 			/** If set, dispatches to the RHI thread before executing this pass. */
 			uint32 bDispatchAfterExecute : 1;
 
+			/** If set, marks the begin / end of a span of passes executed in parallel in a task. */
+			uint32 bParallelExecuteBegin : 1;
+			uint32 bParallelExecuteEnd : 1;
+
+			/** If set, marks that a pass is executing in parallel. */
+			uint32 bParallelExecute : 1;
+
+			/** If set, the pass should set its command list stat. */
+			uint32 bSetCommandListStat : 1;
+
+			/** If set, the pass will wait on the assigned mGPU temporal effect. */
+			uint32 bWaitForTemporalEffect : 1;
+
 			/** Whether this pass allocated a texture through the pool. */
 			IF_RDG_ENABLE_DEBUG(uint32 bFirstTextureAllocated : 1);
 		};
@@ -412,14 +462,24 @@ protected:
 
 	EAsyncComputeBudget AsyncComputeBudget = EAsyncComputeBudget::EAll_4;
 
+	uint16 ParallelPassSetIndex = 0;
+
 #if WITH_MGPU
 	FRHIGPUMask GPUMask;
 #endif
 
 	IF_RDG_CMDLIST_STATS(TStatId CommandListStat);
 
-	IF_RDG_CPU_SCOPES(FRDGCPUScopes CPUScopes);
-	IF_RDG_GPU_SCOPES(FRDGGPUScopes GPUScopes);
+#if RDG_CPU_SCOPES
+	FRDGCPUScopes CPUScopes;
+	FRDGCPUScopeOpArrays CPUScopeOps;
+#endif
+
+#if RDG_GPU_SCOPES
+	FRDGGPUScopes GPUScopes;
+	FRDGGPUScopeOpArrays GPUScopeOpsPrologue;
+	FRDGGPUScopeOpArrays GPUScopeOpsEpilogue;
+#endif
 
 #if RDG_GPU_SCOPES && RDG_ENABLE_TRACE
 	const FRDGEventScope* TraceEventScope = nullptr;
@@ -486,7 +546,7 @@ public:
 private:
 	void Execute(FRHIComputeCommandList& RHICmdList) override
 	{
-		check(!kSupportsRaster || RHICmdList.IsImmediate());
+		check(!kSupportsRaster || RHICmdList.IsGraphics());
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FRDGPass_Execute);
 		RHICmdList.SetStaticUniformBuffers(ParameterStruct.GetStaticUniformBuffers());
 		ExecuteLambda(static_cast<TRHICommandList&>(RHICmdList));

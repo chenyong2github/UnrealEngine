@@ -313,7 +313,7 @@ static void DoRenderHitProxies(
 			RDG_EVENT_NAME("RenderHitProxies"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[SceneRenderer, &View, LocalScene, FeatureLevel, bNeedToSwitchVerticalAxis, PassParameters](FRHICommandList& RHICmdList)
+			[SceneRenderer, &View, LocalScene, FeatureLevel, bNeedToSwitchVerticalAxis, PassParameters](FRHICommandListImmediate& RHICmdList)
 		{
 			FMeshPassProcessorRenderState DrawRenderState;
 
@@ -470,7 +470,7 @@ static void DoRenderHitProxies(
 			RDG_EVENT_NAME("HitProxies"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[&Views, HitProxyTextureExtent, HitProxyTexture, ViewFamilyTexture, FeatureLevel, bNeedToSwitchVerticalAxis](FRHICommandList& RHICmdList)
+			[&Views, HitProxyTextureExtent, HitProxyTexture, ViewFamilyTexture, FeatureLevel, bNeedToSwitchVerticalAxis](FRHICommandListImmediate& RHICmdList)
 		{
 			// Set up a FTexture that is used to draw the hit proxy buffer to the view family's render target.
 			FTexture HitProxyRenderTargetTexture;

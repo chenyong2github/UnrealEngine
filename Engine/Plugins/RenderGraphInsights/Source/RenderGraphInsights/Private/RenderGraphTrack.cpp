@@ -504,11 +504,29 @@ void FRenderGraphTrack::Draw(const ITimingTrackDrawContext& Context) const
 			const float PassLineStride = GraphLineStride / float(PassCount);
 
 			FVector2D RenderPassMergeMin = FVector2D::ZeroVector;
+			FVector2D ParallelExecuteMin = FVector2D::ZeroVector;
 
 			for (uint32 PassIndex = 0; PassIndex < PassCount; ++PassIndex)
 			{
 				const FPassPacket& Pass = Graph.Passes[PassIndex];
 				const FVisiblePass& VisiblePass = VisibleGraph.GetVisiblePass(Pass);
+
+				if (Pass.bParallelExecuteBegin)
+				{
+					ParallelExecuteMin = VisiblePass.Min;
+				}
+
+				if (Pass.bParallelExecuteEnd)
+				{
+					const FVector2D ParallelExecuteMax = VisiblePass.Max;
+					const float RenderPassMarginY = 10.0f;
+					const float W = ParallelExecuteMax.X - ParallelExecuteMin.X;
+					const float H = (ParallelExecuteMax.Y - ParallelExecuteMin.Y) * 0.25f;
+					const float X = ParallelExecuteMin.X;
+					const float Y = ParallelExecuteMin.Y - H - RenderPassMarginY;
+
+					DrawClampedBox(LineLayerId, X, TrackY + Y, W, H, FLinearColor(1.0f, 1.0f, 1.0f, 0.75f));
+				}
 
 				if (!Pass.bSkipRenderPassBegin && Pass.bSkipRenderPassEnd)
 				{
@@ -1429,6 +1447,11 @@ void FRenderGraphTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEve
 			{
 				Tooltip.AddNameValueTextLine(TEXT("Used Textures:"), FString::Printf(TEXT("%d"), Pass.Textures.Num()));
 				Tooltip.AddNameValueTextLine(TEXT("Used Buffers:"), FString::Printf(TEXT("%d"), Pass.Buffers.Num()));
+			}
+
+			if (Pass.bParallelExecute)
+			{
+				Tooltip.AddTextLine(TEXT("Parallel Execute"), FLinearColor::Red);
 			}
 
 			if (Pass.bSkipRenderPassBegin || Pass.bSkipRenderPassEnd)

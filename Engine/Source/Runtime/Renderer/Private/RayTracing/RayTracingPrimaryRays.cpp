@@ -45,7 +45,7 @@ class FRayTracingPrimaryRaysRGS : public FGlobalShader
 
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_SRV(StructuredBuffer<FRTLightingData>, LightDataBuffer)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SSProfilesTexture)
+		SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FRaytracingLightDataPacked, LightDataPacked)
@@ -152,9 +152,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingPrimaryRaysView(
 
 	PassParameters->ColorOutput = GraphBuilder.CreateUAV(*InOutColorTexture);
 	PassParameters->RayHitDistanceOutput = GraphBuilder.CreateUAV(*InOutRayHitDistanceTexture);
-
-	// TODO: should be converted to RDG
-	PassParameters->SSProfilesTexture = GraphBuilder.RegisterExternalTexture(View.RayTracingSubSurfaceProfileTexture);
+	PassParameters->SSProfilesTexture = View.RayTracingSubSurfaceProfileTexture;
 
 	FRayTracingPrimaryRaysRGS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FRayTracingPrimaryRaysRGS::FEnableTwoSidedGeometryForShadowDim>(EnableRayTracingShadowTwoSidedGeometry());
@@ -163,14 +161,15 @@ void FDeferredShadingSceneRenderer::RenderRayTracingPrimaryRaysView(
 
 	ClearUnusedGraphResources(RayGenShader, PassParameters);
 
+	RDG_GPU_STAT_SCOPE(GraphBuilder, RayTracingPrimaryRays);
+
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("RayTracingPrimaryRays %dx%d", RayTracingResolution.X, RayTracingResolution.Y),
 		PassParameters,
 		ERDGPassFlags::Compute,
 		[PassParameters, this, &View, RayGenShader, RayTracingResolution](FRHICommandList& RHICmdList)
 	{
-		SCOPED_GPU_STAT(RHICmdList, RayTracingPrimaryRays);
-	FRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
+		FRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
 
 		FRayTracingShaderBindingsWriter GlobalResources;
 		SetShaderParameters(GlobalResources, RayGenShader, *PassParameters);

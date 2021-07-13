@@ -204,7 +204,7 @@ namespace
 
 	template<typename TSetupFunction>
 	void DrawScreenPass(
-		FRHICommandListImmediate& RHICmdList,
+		FRHICommandList& RHICmdList,
 		const FSceneView& View,
 		const FScreenPassTextureViewport& OutputViewport,
 		const FScreenPassTextureViewport& InputViewport,
@@ -541,7 +541,7 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 					RDG_EVENT_NAME("ColorCorrectRegions_ClearViewport"),
 					Parameters,
 					ERDGPassFlags::Raster,
-					[&View, ScreenPassVS, CopyPixelShader, RegionViewport, Parameters, DefaultBlendState](FRHICommandListImmediate& RHICmdList)
+					[&View, ScreenPassVS, CopyPixelShader, RegionViewport, Parameters, DefaultBlendState](FRHICommandList& RHICmdList)
 				{
 					DrawScreenPass(
 						RHICmdList,
@@ -549,7 +549,7 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 						RegionViewport,
 						RegionViewport,
 						FScreenPassPipelineState(ScreenPassVS, CopyPixelShader, DefaultBlendState),
-						[&](FRHICommandListImmediate&)
+						[&](FRHICommandList&)
 					{
 						SetShaderParameters(RHICmdList, CopyPixelShader, CopyPixelShader.GetPixelShader(), *Parameters);
 					});
@@ -573,7 +573,7 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 				CCShadows,
 				CCMidtones,
 				CCHighlights,
-				bIsAdvanced](FRHICommandListImmediate& RHICmdList)
+				bIsAdvanced](FRHICommandList& RHICmdList)
 			{
 				
 				DrawScreenPass(
@@ -582,7 +582,7 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 					RegionViewport, // Output Viewport
 					RegionViewport, // Input Viewport
 					FScreenPassPipelineState(VertexShader, PixelShader, DefaultBlendState, DepthStencilState),
-					[&](FRHICommandListImmediate& RHICmdList)
+					[&](FRHICommandList& RHICmdList)
 				{
 					SetUniformBufferParameterImmediate(RHICmdList, PixelShader.GetPixelShader(), PixelShader->GetUniformBufferParameter<FCCRRegionDataInputParameter>(), RegionData);
 					SetUniformBufferParameterImmediate(RHICmdList, PixelShader.GetPixelShader(), PixelShader->GetUniformBufferParameter<FCCRColorCorrectParameter>(), CCBase);
@@ -623,7 +623,7 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 				RDG_EVENT_NAME("ColorCorrectRegions_CopyViewport"),
 				Parameters,
 				ERDGPassFlags::Raster,
-				[&View, ScreenPassVS, CopyPixelShader, RegionViewport, Parameters, CopyBlendState](FRHICommandListImmediate& RHICmdList)
+				[&View, ScreenPassVS, CopyPixelShader, RegionViewport, Parameters, CopyBlendState](FRHICommandList& RHICmdList)
 			{
 				DrawScreenPass(
 					RHICmdList,
@@ -631,7 +631,7 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 					RegionViewport,
 					RegionViewport,
 					FScreenPassPipelineState(ScreenPassVS, CopyPixelShader, CopyBlendState),
-					[&](FRHICommandListImmediate&)
+					[&](FRHICommandList&)
 				{
 					SetShaderParameters(RHICmdList, CopyPixelShader, CopyPixelShader.GetPixelShader(), *Parameters);
 				});

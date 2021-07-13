@@ -306,6 +306,12 @@ FAutoConsoleVariableRef CVarRDGUseTransientAllocator(
 	TEXT(" 2: enables the transient allocator for resources with FastVRAM flag only"),
 	ECVF_RenderThreadSafe);
 
+int32 GRDGParallelExecutePassMin = 0;
+FAutoConsoleVariableRef CVarRDGParallelExecute(
+	TEXT("r.RDG.ParallelExecutePassMin"), GRDGParallelExecutePassMin,
+	TEXT("The minimum span of contiguous passes eligible for parallel execution for the span to be offloaded to a task."),
+	ECVF_RenderThreadSafe);
+
 // Fix for random GPU crashes on draw indirects on multiple IHVs. Force all indirect arg buffers as non transient (see UE-115982)
 int32 GRDGTransientIndirectArgBuffers = 0;
 FAutoConsoleVariableRef CVarRDGIndirectArgBufferTransientAllocated(
@@ -369,9 +375,11 @@ DEFINE_STAT(STAT_RDG_AliasingCount);
 DEFINE_STAT(STAT_RDG_TransitionBatchCount);
 DEFINE_STAT(STAT_RDG_SetupTime);
 DEFINE_STAT(STAT_RDG_CompileTime);
+DEFINE_STAT(STAT_RDG_ExecuteTime);
 DEFINE_STAT(STAT_RDG_CollectResourcesTime);
 DEFINE_STAT(STAT_RDG_CollectBarriersTime);
 DEFINE_STAT(STAT_RDG_ClearTime);
+DEFINE_STAT(STAT_RDG_FlushRHIResources);
 DEFINE_STAT(STAT_RDG_MemoryWatermark);
 #endif
 

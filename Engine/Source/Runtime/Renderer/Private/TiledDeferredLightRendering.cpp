@@ -162,22 +162,12 @@ public:
 
 		if (TransmissionProfilesTexture.IsBound())
 		{
-			const IPooledRenderTarget* PooledRT = GetSubsufaceProfileTexture_RT((FRHICommandListImmediate&)RHICmdList);
-
-			if (!PooledRT)
-			{
-				// no subsurface profile was used yet
-				PooledRT = GSystemTextures.BlackDummy;
-			}
-
-			const FSceneRenderTargetItem& Item = PooledRT->GetRenderTargetItem();
-
 			SetTextureParameter(RHICmdList,
 				ShaderRHI,
 				TransmissionProfilesTexture,
 				TransmissionProfilesLinearSampler,
 				TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
-				Item.ShaderResourceTexture);
+				GetSubsurfaceProfileTextureWithFallback());
 		}
 
 		static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));

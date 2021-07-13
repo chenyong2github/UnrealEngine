@@ -428,11 +428,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 	// Fill Scene Texture parameters
 	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
 
-	FRHITexture* SubsurfaceProfileTexture = GBlackTexture->TextureRHI;
-	if (IPooledRenderTarget* SubsurfaceProfileRT = GetSubsufaceProfileTexture_RT(GraphBuilder.RHICmdList))
-	{
-		SubsurfaceProfileTexture = SubsurfaceProfileRT->GetShaderResourceRHI();
-	}
+	FRHITexture* SubsurfaceProfileTexture = GetSubsurfaceProfileTextureWithFallback();
 
 	int32 ViewIndex = 0;
 	for (FViewInfo& View : Views)
@@ -610,7 +606,7 @@ void FDeferredShadingSceneRenderer::CompositeRayTracingSkyLight(
 			RDG_EVENT_NAME("GlobalIlluminationComposite"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[this, &View, PassParameters, SceneTextureExtent = SceneTextures.Config.Extent](FRHICommandListImmediate& RHICmdList)
+			[this, &View, PassParameters, SceneTextureExtent = SceneTextures.Config.Extent](FRHICommandList& RHICmdList)
 		{
 			TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 			TShaderMapRef<FCompositeSkyLightPS> PixelShader(View.ShaderMap);

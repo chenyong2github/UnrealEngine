@@ -112,7 +112,7 @@ void FOpenColorIODisplayExtension::SetupView(FSceneViewFamily& InViewFamily, FSc
 namespace {
 	template<typename TSetupFunction>
 	void DrawScreenPass(
-		FRHICommandListImmediate& RHICmdList,
+		FRHICommandList& RHICmdList,
 		const FSceneView& View,
 		const FScreenPassTextureViewport& OutputViewport,
 		const FScreenPassTextureViewport& InputViewport,
@@ -252,7 +252,7 @@ FScreenPassTexture FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_Ren
 				DepthStencilState,
 				SceneColorViewport,
 				BackBufferViewport,
-				Parameters](FRHICommandListImmediate& RHICmdList)
+				Parameters](FRHICommandList& RHICmdList)
 			{
 				DrawScreenPass(
 					RHICmdList,
@@ -260,7 +260,7 @@ FScreenPassTexture FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_Ren
 					BackBufferViewport,
 					SceneColorViewport,
 					FScreenPassPipelineState(VertexShader, OCIOPixelShader, DefaultBlendState, DepthStencilState),
-					[&](FRHICommandListImmediate& RHICmdList)
+					[&](FRHICommandList& RHICmdList)
 				{
 					SetShaderParameters(RHICmdList, OCIOPixelShader, OCIOPixelShader.GetPixelShader(), *Parameters);
 				});

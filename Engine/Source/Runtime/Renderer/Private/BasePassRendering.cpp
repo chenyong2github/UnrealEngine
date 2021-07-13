@@ -540,12 +540,7 @@ void SetupSharedBasePassParameters(
 	SetupReflectionUniformParameters(View, SharedParameters.Reflection);
 	SetupPlanarReflectionUniformParameters(View, ReflectionSceneProxy, SharedParameters.PlanarReflection);
 
-	SharedParameters.SSProfilesTexture = GBlackTexture->TextureRHI;
-
-	if (const IPooledRenderTarget* PooledRT = GetSubsufaceProfileTexture_RT(GraphBuilder.RHICmdList))
-	{
-		SharedParameters.SSProfilesTexture = PooledRT->GetShaderResourceRHI();
-	}
+	SharedParameters.SSProfilesTexture = GetSubsurfaceProfileTextureWithFallback();
 
 	// Skip base pass skylight if Lumen GI is enabled, as Lumen handles the skylight.
 	// Ideally we would choose a different shader permutation to skip skylight, but Lumen GI is only known per-view
@@ -945,7 +940,7 @@ static void RenderEditorPrimitivesForDPG(
 		RDG_EVENT_NAME("%s", *UEnum::GetValueAsString(DepthPriorityGroup)),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[&View, DrawRenderState, DepthPriorityGroup](FRHICommandList& RHICmdList)
+		[&View, DrawRenderState, DepthPriorityGroup](FRHICommandListImmediate& RHICmdList)
 	{
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 

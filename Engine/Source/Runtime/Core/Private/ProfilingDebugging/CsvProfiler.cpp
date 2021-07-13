@@ -3438,7 +3438,7 @@ void FCsvProfiler::EnableCategoryByIndex(uint32 CategoryIndex, bool bEnable) con
 
 bool FCsvProfiler::IsCapturing_Renderthread()
 {
-	check(IsInRenderingThread());
+	check(IsInParallelRenderingThread());
 	return GCsvProfilerIsCapturingRT;
 }
 

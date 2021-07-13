@@ -109,6 +109,7 @@ extern int32 GRDGMergeRenderPasses;
 extern int32 GRDGTransientAllocator;
 extern int32 GRDGTransientIndirectArgBuffers;
 extern int32 GRDGDrain;
+extern int32 GRDGParallelExecutePassMin;
 
 #if CSV_PROFILER
 extern int32 GRDGVerboseCSVStats;
@@ -154,9 +155,11 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Resource Transition Batches"), STAT_RDG_
 
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Setup"), STAT_RDG_SetupTime, STATGROUP_RDG, RENDERCORE_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Compile"), STAT_RDG_CompileTime, STATGROUP_RDG, RENDERCORE_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Execute"), STAT_RDG_ExecuteTime, STATGROUP_RDG, RENDERCORE_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Collect Resources"), STAT_RDG_CollectResourcesTime, STATGROUP_RDG, RENDERCORE_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Collect Barriers"), STAT_RDG_CollectBarriersTime, STATGROUP_RDG, RENDERCORE_API);
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Clear"), STAT_RDG_ClearTime, STATGROUP_RDG, RENDERCORE_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Flush RHI Resources"), STAT_RDG_FlushRHIResources, STATGROUP_RDG, RENDERCORE_API);
 
 DECLARE_MEMORY_STAT_EXTERN(TEXT("Builder Watermark"), STAT_RDG_MemoryWatermark, STATGROUP_RDG, RENDERCORE_API);
 #endif
@@ -189,6 +192,15 @@ FORCEINLINE bool IsImmediateMode()
 FORCEINLINE bool IsRenderPassMergeEnabled()
 {
 	return GRDGMergeRenderPasses != 0 && !IsImmediateMode();
+}
+
+FORCEINLINE bool IsParallelExecuteEnabled()
+{
+	return GRDGParallelExecutePassMin > 0
+		&& !GRHICommandList.Bypass()
+		&& !IsImmediateMode()
+		&& !GRDGDebug
+		&& !GRDGTransitionLog;
 }
 
 template <typename ResourceRegistryType, typename FunctionType>

@@ -30,8 +30,7 @@
 #include "HairStrands/HairStrandsRendering.h"
 #include "Strata/Strata.h"
 #include "SimpleMeshDrawCommandPass.h"
-
-ENGINE_API IPooledRenderTarget* GetSubsufaceProfileTexture_RT(FRHICommandListImmediate& RHICmdList);
+#include "Engine/SubsurfaceProfile.h"
 
 class FPrimitiveSceneInfo;
 class FPrimitiveSceneProxy;
@@ -517,7 +516,7 @@ public:
 		bool bSubPixelShadow) const;
 
 	void RenderProjectionInternal(
-		FRHICommandListImmediate& RHICmdList,
+		FRHICommandList& RHICmdList,
 		int32 ViewIndex,
 		const FViewInfo* View,
 		const FLightSceneProxy* LightSceneProxy,
@@ -841,7 +840,7 @@ private:
 	void SetupFrustumForProjection(const FViewInfo* View, TArray<FVector4, TInlineAllocator<8>>& OutFrustumVertices, bool& bOutCameraInsideShadowFrustum, FPlane* OutPlanes) const;
 
 	void SetupProjectionStencilMask(
-		FRHICommandListImmediate& RHICmdList,
+		FRHICommandList& RHICmdList,
 		const FViewInfo* View, 
 		int32 ViewIndex,
 		const class FSceneRenderer* SceneRender,
@@ -1167,19 +1166,7 @@ public:
 			Scene = View.Family->Scene->GetRenderScene();
 		}
 
-		{
-			const IPooledRenderTarget* PooledRT = GetSubsufaceProfileTexture_RT((FRHICommandListImmediate&)RHICmdList);
-
-			if (!PooledRT)
-			{
-				// no subsurface profile was used yet
-				PooledRT = GSystemTextures.BlackDummy;
-			}
-
-			const FSceneRenderTargetItem& Item = PooledRT->GetRenderTargetItem();
-
-			SetTextureParameter(RHICmdList, ShaderRHI, TransmissionProfilesTexture, Item.ShaderResourceTexture);
-		}
+		SetTextureParameter(RHICmdList, ShaderRHI, TransmissionProfilesTexture, GetSubsurfaceProfileTextureWithFallback());
 	}
 
 protected:
@@ -1506,19 +1493,7 @@ public:
 			SetUniformBufferParameter(RHICmdList, ShaderRHI, StrataGlobalParameters, StrataUniformBuffer->GetRHIRef());
 		}
 
-		{
-			const IPooledRenderTarget* PooledRT = GetSubsufaceProfileTexture_RT((FRHICommandListImmediate&)RHICmdList);
-
-			if (!PooledRT)
-			{
-				// no subsurface profile was used yet
-				PooledRT = GSystemTextures.BlackDummy;
-			}
-
-			const FSceneRenderTargetItem& Item = PooledRT->GetRenderTargetItem();
-
-			SetTextureParameter(RHICmdList, ShaderRHI, TransmissionProfilesTexture, Item.ShaderResourceTexture);
-		}
+		SetTextureParameter(RHICmdList, ShaderRHI, TransmissionProfilesTexture, GetSubsurfaceProfileTextureWithFallback());
 
 		FScene* Scene = nullptr;
 

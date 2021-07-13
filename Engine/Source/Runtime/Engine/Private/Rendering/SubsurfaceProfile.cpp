@@ -98,6 +98,11 @@ void FSubsurfaceProfileTexture::UpdateProfile(int32 AllocationId, const FSubsurf
 	GSSProfiles.SafeRelease();
 }
 
+IPooledRenderTarget* FSubsurfaceProfileTexture::GetTexture()
+{
+	return GSSProfiles;
+}
+
 IPooledRenderTarget* FSubsurfaceProfileTexture::GetTexture(FRHICommandListImmediate& RHICmdList)
 {
 	if (!GSSProfiles)
@@ -486,13 +491,19 @@ void FSubsurfaceProfileTexture::Dump()
 #endif
 }
 
-
-
-ENGINE_API IPooledRenderTarget* GetSubsufaceProfileTexture_RT(FRHICommandListImmediate& RHICmdList)
+FRHITexture* GetSubsurfaceProfileTexture()
 {
-	check(IsInRenderingThread());
+	return GSSProfiles ? GSSProfiles->GetShaderResourceRHI() : nullptr;
+}
 
-	return GSubsurfaceProfileTextureObject.GetTexture(RHICmdList);
+FRHITexture* GetSubsurfaceProfileTextureWithFallback()
+{
+	return GSSProfiles ? GSSProfiles->GetShaderResourceRHI() : static_cast<FRHITexture*>(GBlackTexture->TextureRHI);
+}
+
+void UpdateSubsurfaceProfileTexture(FRHICommandListImmediate& RHICmdList)
+{
+	GSubsurfaceProfileTextureObject.GetTexture(RHICmdList);
 }
 
 // ------------------------------------------------------

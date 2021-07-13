@@ -31,7 +31,7 @@ public:
 	 */
 	RENDERER_API void BuildRenderingCommands(FRDGBuilder& GraphBuilder, const FSceneView& View, const FGPUScene& GPUScene, FInstanceCullingDrawParams& OutInstanceCullingDrawParams);
 	RENDERER_API void BuildRenderingCommands(FRDGBuilder& GraphBuilder, const FSceneView& View, const FScene& Scene, FInstanceCullingDrawParams& OutInstanceCullingDrawParams);
-	RENDERER_API void SubmitDraw(FRHICommandListImmediate& RHICmdList, const FInstanceCullingDrawParams& InstanceCullingDrawParams) const;
+	RENDERER_API void SubmitDraw(FRHICommandList& RHICmdList, const FInstanceCullingDrawParams& InstanceCullingDrawParams) const;
 
 	FDynamicPassMeshDrawListContext* GetDynamicPassMeshDrawListContext() { return &DynamicPassMeshDrawListContext; }
 
@@ -86,7 +86,7 @@ void AddSimpleMeshPass(FRDGBuilder& GraphBuilder, PassParametersType* PassParame
 		MoveTemp(PassName),
 		PassParameters,
 		PassFlags,
-		[SimpleMeshDrawCommandPass, PassParameters, PassPrologueCallback](FRHICommandListImmediate& RHICmdList)
+		[SimpleMeshDrawCommandPass, PassParameters, PassPrologueCallback](FRHICommandList& RHICmdList)
 		{
 			PassPrologueCallback(RHICmdList);
 
@@ -101,7 +101,7 @@ void AddSimpleMeshPass(FRDGBuilder& GraphBuilder, PassParametersType* PassParame
 	AddMeshBatchesCallbackLambdaType AddMeshBatchesCallback)
 {
 	AddSimpleMeshPass(GraphBuilder, PassParameters, Scene, View, InstanceCullingManager, MoveTemp(PassName), ERDGPassFlags::Raster, AddMeshBatchesCallback,
-		[ViewPortRect](FRHICommandListImmediate& RHICmdList)
+		[ViewPortRect](FRHICommandList& RHICmdList)
 		{
 			RHICmdList.SetViewport(ViewPortRect.Min.X, ViewPortRect.Min.Y, 0.0f, ViewPortRect.Max.X, ViewPortRect.Max.Y, 1.0f);
 		}
@@ -116,7 +116,7 @@ void AddSimpleMeshPass(FRDGBuilder& GraphBuilder, PassParametersType* PassParame
 	AddMeshBatchesCallbackLambdaType AddMeshBatchesCallback)
 {
 	AddSimpleMeshPass(GraphBuilder, PassParameters, Scene, View, InstanceCullingManager, MoveTemp(PassName), PassFlags, AddMeshBatchesCallback,
-		[ViewPortRect](FRHICommandListImmediate& RHICmdList)
+		[ViewPortRect](FRHICommandList& RHICmdList)
 		{
 			RHICmdList.SetViewport(ViewPortRect.Min.X, ViewPortRect.Min.Y, 0.0f, ViewPortRect.Max.X, ViewPortRect.Max.Y, 1.0f);
 		}
@@ -146,7 +146,7 @@ void AddSimpleMeshPass(FRDGBuilder& GraphBuilder, PassParametersType* PassParame
 		MoveTemp(PassName),
 		PassParameters,
 		PassFlags,
-		[SimpleMeshDrawCommandPass, PassParameters, PassPrologueCallback](FRHICommandListImmediate& RHICmdList)
+		[SimpleMeshDrawCommandPass, PassParameters, PassPrologueCallback](FRHICommandList& RHICmdList)
 		{
 			PassPrologueCallback(RHICmdList);
 
@@ -161,7 +161,7 @@ void AddSimpleMeshPass(FRDGBuilder& GraphBuilder, PassParametersType* PassParame
 	AddMeshBatchesCallbackLambdaType AddMeshBatchesCallback)
 {
 	AddSimpleMeshPass(GraphBuilder, PassParameters, GPUScene, View, InstanceCullingManager, MoveTemp(PassName), ERDGPassFlags::Raster, AddMeshBatchesCallback,
-		[ViewPortRect](FRHICommandListImmediate& RHICmdList)
+		[ViewPortRect](FRHICommandList& RHICmdList)
 		{
 			RHICmdList.SetViewport(ViewPortRect.Min.X, ViewPortRect.Min.Y, 0.0f, ViewPortRect.Max.X, ViewPortRect.Max.Y, 1.0f);
 		}
@@ -176,7 +176,7 @@ void AddSimpleMeshPass(FRDGBuilder& GraphBuilder, PassParametersType* PassParame
 	AddMeshBatchesCallbackLambdaType AddMeshBatchesCallback)
 {
 	AddSimpleMeshPass(GraphBuilder, PassParameters, GPUScene, View, InstanceCullingManager, MoveTemp(PassName), PassFlags, AddMeshBatchesCallback,
-		[ViewPortRect](FRHICommandListImmediate& RHICmdList)
+		[ViewPortRect](FRHICommandList& RHICmdList)
 		{
 			RHICmdList.SetViewport(ViewPortRect.Min.X, ViewPortRect.Min.Y, 0.0f, ViewPortRect.Max.X, ViewPortRect.Max.Y, 1.0f);
 		}

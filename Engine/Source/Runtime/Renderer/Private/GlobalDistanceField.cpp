@@ -1522,8 +1522,7 @@ void UpdateGlobalDistanceFieldVolume(
 	bool bLumenEnabled,
 	FGlobalDistanceFieldInfo& GlobalDistanceFieldInfo)
 {
-	RDG_GPU_STAT_SCOPE(GraphBuilder, GlobalDistanceFieldUpdate);
-	SCOPED_GPU_STAT(GraphBuilder.RHICmdList, GlobalDistanceFieldUpdate);
+	RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, GlobalDistanceFieldUpdate);
 
 	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 

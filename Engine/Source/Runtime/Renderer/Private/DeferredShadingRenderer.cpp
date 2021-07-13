@@ -64,6 +64,7 @@
 #include "RayTracingGeometryManager.h"
 #include "InstanceCulling/InstanceCullingManager.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Engine/SubsurfaceProfile.h"
 
 extern int32 GNaniteShowStats;
 
@@ -89,14 +90,6 @@ static FAutoConsoleVariableRef CVarEnableAsyncComputeTranslucencyLightingVolumeC
 	GbEnableAsyncComputeTranslucencyLightingVolumeClear,
 	TEXT("Whether to clear the translucency lighting volume using async compute.\n"),
 	ECVF_RenderThreadSafe | ECVF_Scalability
-);
-
-int32 GDoPrepareDistanceFieldSceneAfterRHIFlush = 1;
-static FAutoConsoleVariableRef CVarDoPrepareDistanceFieldSceneAfterRHIFlush(
-	TEXT("r.DoPrepareDistanceFieldSceneAfterRHIFlush"),
-	GDoPrepareDistanceFieldSceneAfterRHIFlush,
-	TEXT("If true, then do the distance field scene after the RHI sync and flush. Improves pipelining."),
-	ECVF_RenderThreadSafe
 );
 
 static int32 GRayTracing = 0;
@@ -249,7 +242,6 @@ namespace Nanite
 	extern void ListStatFilters(FSceneRenderer* SceneRenderer);
 }
 
-DECLARE_CYCLE_STAT(TEXT("PostInitViews FlushDel"), STAT_PostInitViews_FlushDel, STATGROUP_InitViews);
 DECLARE_CYCLE_STAT(TEXT("InitViews Intentional Stall"), STAT_InitViews_Intentional_Stall, STATGROUP_InitViews);
 
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer UpdateDownsampledDepthSurface"), STAT_FDeferredShadingSceneRenderer_UpdateDownsampledDepthSurface, STATGROUP_SceneRendering);
@@ -451,7 +443,7 @@ static void RenderOpaqueFX(
 		// Add a pass which extracts the RHI handle from the scene textures UB and sends it to the FX system.
 		FRenderOpaqueFXPassParameters* ExtractUBPassParameters = GraphBuilder.AllocParameters<FRenderOpaqueFXPassParameters>();
 		ExtractUBPassParameters->SceneTextures = SceneTexturesUniformBuffer;
-		GraphBuilder.AddPass({}, ExtractUBPassParameters, UBPassFlags, [ExtractUBPassParameters, FXSystem](FRHICommandList&)
+		GraphBuilder.AddPass({}, ExtractUBPassParameters, UBPassFlags, [ExtractUBPassParameters, FXSystem](FRHICommandListImmediate&)
 		{
 			FXSystem->SetSceneTexturesUniformBuffer(ExtractUBPassParameters->SceneTextures->GetRHIRef());
 		});
@@ -459,7 +451,7 @@ static void RenderOpaqueFX(
 		FXSystem->PostRenderOpaque(GraphBuilder, Views, true /*bAllowGPUParticleUpdate*/);
 
 		// Clear the scene textures UB pointer on the FX system. Use the same pass parameters to extend resource lifetimes.
-		GraphBuilder.AddPass({}, ExtractUBPassParameters, UBPassFlags, [FXSystem](FRHICommandList&)
+		GraphBuilder.AddPass({}, ExtractUBPassParameters, UBPassFlags, [FXSystem](FRHICommandListImmediate&)
 		{
 			FXSystem->SetSceneTexturesUniformBuffer(nullptr);
 		});
@@ -1351,13 +1343,9 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRHICommandLis
 
 	// Initialize common resources used for lighting in ray tracing effects
 
-	ReferenceView.RayTracingSubSurfaceProfileTexture = GetSubsufaceProfileTexture_RT(RHICmdList);
-	if (!ReferenceView.RayTracingSubSurfaceProfileTexture)
-	{
-		ReferenceView.RayTracingSubSurfaceProfileTexture = GSystemTextures.BlackDummy;
-	}
+	ReferenceView.RayTracingSubSurfaceProfileTexture = GetSubsurfaceProfileTextureWithFallback();
 
-	ReferenceView.RayTracingSubSurfaceProfileSRV = RHICreateShaderResourceView(ReferenceView.RayTracingSubSurfaceProfileTexture->GetRenderTargetItem().ShaderResourceTexture, 0);
+	ReferenceView.RayTracingSubSurfaceProfileSRV = RHICreateShaderResourceView(ReferenceView.RayTracingSubSurfaceProfileTexture, 0);
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
@@ -1874,6 +1862,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		// Initialize global system textures (pass-through if already initialized).
 		GSystemTextures.InitializeTextures(GraphBuilder.RHICmdList, FeatureLevel);
+
+		// Force the subsurface profile texture to be updated.
+		UpdateSubsurfaceProfileTexture(GraphBuilder.RHICmdList);
 	}
 
 	const FSceneTexturesConfig SceneTexturesConfig = FSceneTexturesConfig::Create(ViewFamily);
@@ -1974,17 +1965,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, GPUSceneUpdate);
 
-		auto FlushResourcesPass = [this](FRHICommandListImmediate& InRHICmdList)
+		if (!ViewFamily.bIsRenderedImmediatelyAfterAnotherViewFamily)
 		{
-			// we will probably stall on occlusion queries, so might as well have the RHI thread and GPU work while we wait.
-			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PostInitViews_FlushDel);
-			SCOPE_CYCLE_COUNTER(STAT_PostInitViews_FlushDel);
-			InRHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
-		};
-
-		if (!ViewFamily.bIsRenderedImmediatelyAfterAnotherViewFamily && GDoPrepareDistanceFieldSceneAfterRHIFlush && (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass()))
-		{
-			AddPass(GraphBuilder, FlushResourcesPass);
+			GraphBuilder.SetFlushResourcesRHI();
 		}
 
 		Scene->GPUScene.Update(GraphBuilder, *Scene);
@@ -2016,19 +1999,13 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		if (!bDoInitViewAftersPrepass)
 		{
-			bool bSplitDispatch = !GDoPrepareDistanceFieldSceneAfterRHIFlush;
-			PrepareDistanceFieldScene(GraphBuilder, bSplitDispatch);
+			PrepareDistanceFieldScene(GraphBuilder, false);
 		}
 
 		if (Views.Num() > 0)
 		{
 			FViewInfo& View = Views[0];
 			Scene->UpdatePhysicsField(GraphBuilder, View);
-		}
-
-		if (!GDoPrepareDistanceFieldSceneAfterRHIFlush && (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass()))
-		{
-			AddPass(GraphBuilder, FlushResourcesPass);
 		}
 	}
 

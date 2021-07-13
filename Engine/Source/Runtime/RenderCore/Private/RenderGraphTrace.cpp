@@ -35,6 +35,9 @@ UE_TRACE_EVENT_BEGIN(RDGTrace, PassMessage)
 	UE_TRACE_EVENT_FIELD(bool, IsAsyncComputeEnd)
 	UE_TRACE_EVENT_FIELD(bool, SkipRenderPassBegin)
 	UE_TRACE_EVENT_FIELD(bool, SkipRenderPassEnd)
+	UE_TRACE_EVENT_FIELD(bool, IsParallelExecuteBegin)
+	UE_TRACE_EVENT_FIELD(bool, IsParallelExecuteEnd)
+	UE_TRACE_EVENT_FIELD(bool, IsParallelExecute)
 	UE_TRACE_EVENT_FIELD(bool, UsesImmediateCommandList)
 UE_TRACE_EVENT_END()
 
@@ -147,6 +150,9 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 			<< PassMessage.IsAsyncComputeEnd(Pass->bAsyncComputeEnd != 0)
 			<< PassMessage.SkipRenderPassBegin(Pass->bSkipRenderPassBegin != 0)
 			<< PassMessage.SkipRenderPassEnd(Pass->bSkipRenderPassEnd != 0)
+			<< PassMessage.IsParallelExecuteBegin(Pass->bParallelExecuteBegin != 0)
+			<< PassMessage.IsParallelExecuteEnd(Pass->bParallelExecuteEnd != 0)
+			<< PassMessage.IsParallelExecute(Pass->bParallelExecute != 0)
 			<< PassMessage.UsesImmediateCommandList(Pass->bImmediateCommandList != 0);
 	}
 
@@ -163,40 +169,50 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 		TMap<const FRDGEventScope*, int32> ScopeToIndex;
 		int32 Depth = 0;
 
-		TRDGScopeStackHelper<FRDGEventScope> ScopeStackHelper;
+		TRDGScopeStackHelper<FRDGEventScopeOp> ScopeStackHelper;
 
 		for (FRDGPassHandle Handle = Passes.Begin(); Handle != Passes.End(); ++Handle)
 		{
+			const auto Replay = [&](const TRDGScopeOpArray<FRDGEventScopeOp>& Ops)
+			{
+				for (int32 Index = 0; Index < Ops.Num(); ++Index)
+				{
+					FRDGEventScopeOp Op = Ops[Index];
+
+					if (Op.IsScope())
+					{
+						if (Op.IsPush())
+						{
+							ScopeToIndex.Emplace(Op.Scope, Scopes.Num());
+
+							FScopeInfo ScopeInfo;
+							ScopeInfo.Name = Op.Scope->Name.GetTCHAR();
+							ScopeInfo.FirstPass = Handle;
+							ScopeInfo.Depth = Depth;
+							Scopes.Add(ScopeInfo);
+
+							Depth++;
+						}
+						else
+						{
+							FScopeInfo& ScopeInfo = Scopes[ScopeToIndex.FindChecked(Op.Scope)];
+							ScopeInfo.LastPass = FRDGPassHandle(Handle.GetIndex() - 1);
+
+							Depth--;
+						}
+					}
+				}
+			};
+
 			const FRDGPass* Pass = Passes[Handle];
 
 			const FRDGEventScope* ParentScope = Pass->TraceEventScope;
 
-			const auto PushScope = [&](const FRDGEventScope* ScopeToPush)
-			{
-				ScopeToIndex.Emplace(ScopeToPush, Scopes.Num());
-
-				FScopeInfo ScopeInfo;
-				ScopeInfo.Name = ScopeToPush->Name.GetTCHAR();
-				ScopeInfo.FirstPass = Handle;
-				ScopeInfo.Depth = Depth;
-				Scopes.Add(ScopeInfo);
-
-				Depth++;
-			};
-
-			const auto PopScope = [&](const FRDGEventScope* ScopeToPop)
-			{
-				FScopeInfo& ScopeInfo = Scopes[ScopeToIndex.FindChecked(ScopeToPop)];
-				ScopeInfo.LastPass = FRDGPassHandle(Handle.GetIndex() - 1);
-
-				Depth--;
-			};
-
-			ScopeStackHelper.BeginExecutePass(ParentScope, PushScope, PopScope);
+			Replay(ScopeStackHelper.CompilePassPrologue(ParentScope, nullptr));
 
 			if (Handle == Passes.Last())
 			{
-				ScopeStackHelper.EndExecute(PopScope);
+				Replay(ScopeStackHelper.EndCompile());
 			}
 		}
 
