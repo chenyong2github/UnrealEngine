@@ -67,7 +67,6 @@ TArray<UPrimitiveComponent*> FHLODBuilder_MeshSimplify::CreateComponents(AWorldP
 		{
 			Component = NewObject<UStaticMeshComponent>(InHLODActor);
 			Component->SetStaticMesh(static_cast<UStaticMesh*>(Asset));
-			DisableCollisions(Component);
 		}
 	});
 

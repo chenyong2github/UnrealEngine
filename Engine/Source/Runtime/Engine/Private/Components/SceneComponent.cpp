@@ -28,6 +28,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Components/ChildActorComponent.h"
 #include "UObject/UObjectThreadContext.h"
+#include "UObject/UE5PrivateFrostyStreamObjectVersion.h"
 #include "Engine/SCS_Node.h"
 #include "EngineGlobals.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
@@ -1214,9 +1215,12 @@ void USceneComponent::UpdateBounds()
 	}
 	else
 	{
-		SCOPE_CYCLE_COUNTER(STAT_ComponentCalcBounds);
 		// Calculate new bounds
-		Bounds = CalcBounds(GetComponentTransform());
+		if (!bComputeBoundsOnceDuringCook || !FPlatformProperties::RequiresCookedData())
+		{
+			SCOPE_CYCLE_COUNTER(STAT_ComponentCalcBounds);
+			Bounds = CalcBounds(GetComponentTransform());
+		}
 	}
 
 
@@ -3310,6 +3314,27 @@ void USceneComponent::PostRepNotifies()
 	}
 }
 
+void USceneComponent::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FUE5PrivateFrostyStreamObjectVersion::GUID);
+
+	Super::Serialize(Ar);
+
+	if (bComputeBoundsOnceDuringCook)
+	{
+		if(Ar.CustomVer(FUE5PrivateFrostyStreamObjectVersion::GUID) >= FUE5PrivateFrostyStreamObjectVersion::SerializeSceneComponentStaticBounds)
+		{
+			bool bIsCooked = Ar.IsCooking();
+			Ar << bIsCooked;
+
+			if (bIsCooked)
+			{
+				Ar << Bounds;
+			}
+		}
+	}
+}
+
 void USceneComponent::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -3721,6 +3746,15 @@ bool FScopedMovementUpdate::SetWorldLocationAndRotation(FVector NewLocation, con
 		return Owner->InternalSetWorldLocationAndRotation(NewLocation, NewQuat, bNoPhysics, Teleport);
 	}
 	return false;
+}
+
+FBoxSphereBounds USceneComponent::GetLocalBounds() const
+{
+	if (bComputeFastLocalBounds)
+	{
+		return Bounds.TransformBy(ComponentToWorld.Inverse());
+	}
+	return CalcBounds(FTransform::Identity);
 }
 
 void USceneComponent::ClearSkipUpdateOverlaps()

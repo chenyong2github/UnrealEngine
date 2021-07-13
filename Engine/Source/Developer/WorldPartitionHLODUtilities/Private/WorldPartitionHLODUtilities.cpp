@@ -74,7 +74,7 @@ static uint32 ComputeHLODHash(AWorldPartitionHLOD* InHLODActor, const TArray<FWo
 	FArchiveCrc32 Ar;
 
 	// Base key, changing this will force a rebuild of all HLODs
-	FString HLODBaseKey = "E7DBB5E1B39947FB84E72A38074B7711";
+	FString HLODBaseKey = "E0745F6E31AC49EC89BDD6D1F6A87968";
 	Ar << HLODBaseKey;
 
 	// HLOD Layer

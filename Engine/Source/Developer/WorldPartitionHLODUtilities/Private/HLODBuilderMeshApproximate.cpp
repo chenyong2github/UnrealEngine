@@ -135,7 +135,6 @@ TArray<UPrimitiveComponent*> FHLODBuilder_MeshApproximate::CreateComponents(AWor
 		{
 			UStaticMeshComponent* Component = NewObject<UStaticMeshComponent>(InHLODActor);
 			Component->SetStaticMesh(StaticMesh);
-			DisableCollisions(Component);
 
 			Components.Add(Component);
 		}
