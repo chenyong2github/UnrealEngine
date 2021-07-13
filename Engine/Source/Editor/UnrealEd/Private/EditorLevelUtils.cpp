@@ -769,7 +769,7 @@ bool UEditorLevelUtils::RemoveLevelsFromWorld(TArray<ULevel*> InLevels, bool bCl
 	}
 
 	FText TransResetText(LOCTEXT("RemoveLevelTransReset", "Removing Levels from World"));
-	if (bResetTransBuffer)
+	if (bResetTransBuffer && GEditor->Trans)
 	{
 		GEditor->Trans->Reset(TransResetText);
 	}
