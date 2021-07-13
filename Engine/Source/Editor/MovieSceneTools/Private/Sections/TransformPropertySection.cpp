@@ -61,6 +61,26 @@ void FTransformSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilder, const
 			})
 		);
 	};
+	MenuBuilder.BeginSection(NAME_None, LOCTEXT("MotionTrailOptions", "Motion Trail Options"));
+	{
+
+		FUIAction Action_ConfigureTexturesForSprites(
+			FExecuteAction::CreateLambda([]
+				{
+					FName ControlRigMotionTrailTab("ControlRigMotionTrailTab");
+					FGlobalTabmanager::Get()->TryInvokeTab(ControlRigMotionTrailTab);
+				}
+		));
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ShowMotionTrailOptions", "Show Motion Trail Options"),
+			LOCTEXT("ShowMotionTrailOptionsTooltip", "Show various motion trail options"),
+			FSlateIcon(),
+			Action_ConfigureTexturesForSprites,
+			NAME_None,
+			EUserInterfaceActionType::Button);
+	}
+	MenuBuilder.EndSection();
 
 	MenuBuilder.BeginSection(NAME_None, LOCTEXT("TransformChannelsText", "Active Channels"));
 	{

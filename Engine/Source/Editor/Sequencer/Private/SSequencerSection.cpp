@@ -1028,8 +1028,8 @@ int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 	const bool bLocked = SectionObject->IsLocked() || SectionObject->IsReadOnly();
 
 	bool bSetSectionToKey = false;
-
-	if (Track && Track->GetSectionToKey() == SectionObject)
+    // Only show section to key border if we have more than one section
+	if (Track && Track->GetAllSections().Num() > 1 && Track->GetSectionToKey() == SectionObject)
 	{
 		bSetSectionToKey = true;
 	}

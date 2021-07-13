@@ -842,6 +842,30 @@ FORCEINLINE_DEBUGGABLE FQuat FRigControlValue::SetFromString<FQuat>(const FStrin
 	return Value;
 }
 
+enum class EControlRigContextChannelToKey : uint32
+{
+	None = 0x000,
+
+	TranslationX = 0x001,
+	TranslationY = 0x002,
+	TranslationZ = 0x004,
+	Translation = TranslationX | TranslationY | TranslationZ,
+
+	RotationX = 0x008,
+	RotationY = 0x010,
+	RotationZ = 0x020,
+	Rotation = RotationX | RotationY | RotationZ,
+
+	ScaleX = 0x040,
+	ScaleY = 0x080,
+	ScaleZ = 0x100,
+	Scale = ScaleX | ScaleY | ScaleZ,
+
+	AllTransform = Translation | Rotation | Scale,
+
+};
+ENUM_CLASS_FLAGS(EControlRigContextChannelToKey)
+
 USTRUCT(BlueprintType)
 struct CONTROLRIG_API FRigControlModifiedContext
 {
@@ -849,25 +873,30 @@ struct CONTROLRIG_API FRigControlModifiedContext
 
 	FRigControlModifiedContext()
 	: SetKey(EControlRigSetKey::DoNotCare)
+	, KeyMask((uint32)EControlRigContextChannelToKey::AllTransform)
 	, LocalTime(FLT_MAX)
 	, EventName(NAME_None)
 	{}
 
 	FRigControlModifiedContext(EControlRigSetKey InSetKey)
 		: SetKey(InSetKey)
+		, KeyMask((uint32)EControlRigContextChannelToKey::AllTransform)
 		, LocalTime(FLT_MAX)
 		, EventName(NAME_None)
 	{}
 
-	FRigControlModifiedContext(EControlRigSetKey InSetKey, float InLocalTime, const FName& InEventName = NAME_None)
+	FRigControlModifiedContext(EControlRigSetKey InSetKey, float InLocalTime, const FName& InEventName = NAME_None, EControlRigContextChannelToKey InKeyMask = EControlRigContextChannelToKey::AllTransform)
 		: SetKey(InSetKey)
+		, KeyMask((uint32)InKeyMask)
 		, LocalTime(InLocalTime)
 		, EventName(InEventName)
 	{}
-
+	
 	EControlRigSetKey SetKey;
+	uint32 KeyMask;
 	float LocalTime;
 	FName EventName;
+	
 };
 
 /*

@@ -469,20 +469,12 @@ bool FSkeletalAnimationTrackEditMode::StartTracking(FEditorViewportClient* InVie
 
 bool FSkeletalAnimationTrackEditMode::UsesTransformWidget() const
 {
-	if (IsSomethingSelected())
-	{
-		return true;
-	}
-	return FEdMode::UsesTransformWidget();
+	return IsSomethingSelected();
 }
 
 bool FSkeletalAnimationTrackEditMode::UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const
 {
-	if (IsSomethingSelected())
-	{
-		return true;
-	}
-	return FEdMode::UsesTransformWidget(CheckMode);
+	return IsSomethingSelected();
 }
 
 FVector FSkeletalAnimationTrackEditMode::GetWidgetLocation() const
@@ -517,7 +509,7 @@ bool FSkeletalAnimationTrackEditMode::HandleClick(FEditorViewportClient* InViewp
 			}
 		}
 	}
-	return FEdMode::HandleClick(InViewportClient, HitProxy, Click);
+	return false;
 }
 
 bool FSkeletalAnimationTrackEditMode::IsSomethingSelected() const

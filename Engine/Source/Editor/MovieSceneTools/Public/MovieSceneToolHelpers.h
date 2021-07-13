@@ -539,6 +539,25 @@ public:
 	*/
 	static void GetActorWorldTransforms(ISequencer* Sequencer, const FActorForWorldTransforms& Actors, const TArray<FFrameNumber>& Frames, TArray<FTransform>& OutWorldTransforms);
 
+	/* Set or add a key onto a float channel.
+	* @param ChannelData Channel to set or add
+	* @param Time Frame to add or set the value
+	* @param Value  Value to Set
+	*/
+	static void SetOrAddKey(TMovieSceneChannelData<FMovieSceneFloatValue>& ChannelData, FFrameNumber Time, float Value);
+
+	
+	/*
+	*  Get an actors world transforms at the specified times using a player
+	* @param Player Player to evaluate
+	* @param InSequence  Sequence to evaluate
+	* @param Template  Sequence ID of the template to play
+    * @param ActorForWorldTransforms The actor and possible component and socket that we want to get the world transforms for.
+	* @param Frames The times we want to get the world transforms
+	* @param OutWorldTransforms The calculated world transforms, one for each specified frame.
+	*/
+	static void GetActorWorldTransforms(IMovieScenePlayer* Player, UMovieSceneSequence* InSequence, FMovieSceneSequenceIDRef Template,const FActorForWorldTransforms& Actors, const TArray<FFrameNumber>& Frames, TArray<FTransform>& OutWorldTransforms);
+
 };
 
 // Helper to make spawnables persist throughout the export process and then restore properly afterwards

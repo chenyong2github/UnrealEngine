@@ -861,6 +861,16 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 					}
 					else
 					{
+						//also need to clear actor selection. Sequencer will handle this automatically if done in Sequencder UI but not if done by clicking
+						if (IsInLevelEditor())
+						{
+							if (GEditor && GEditor->GetSelectedActorCount())
+							{
+								const FScopedTransaction Transaction(NSLOCTEXT("Sequencer", "UpdatingActorComponentSelectionNone", "Select None"), !GIsTransacting);
+								GEditor->SelectNone(false, true);
+								GEditor->NoteSelectionChange();
+							}
+						}
 						ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::Control));
 						SetRigElementSelection(ERigElementType::Control, ControlName, true);
 					}

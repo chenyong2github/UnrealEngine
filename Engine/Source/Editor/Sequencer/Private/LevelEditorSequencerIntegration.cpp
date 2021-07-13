@@ -558,9 +558,13 @@ void FLevelEditorSequencerIntegration::UpdateDetails(bool bForceRefresh)
 
 void FLevelEditorSequencerIntegration::ActivateSequencerEditorMode()
 {
+
 	// Release the sequencer mode if we already enabled it
 	FName ResourceName("SequencerMode");
 	AcquiredResources.Release(ResourceName);
+
+	FEditorModeID ModeID = TEXT("SequencerToolsEditMode");
+	GLevelEditorModeTools().ActivateMode(ModeID);
 
 	GLevelEditorModeTools().ActivateMode( FSequencerEdMode::EM_SequencerMode );
 	FSequencerEdMode* SequencerEdMode = (FSequencerEdMode*)GLevelEditorModeTools().GetActiveMode(FSequencerEdMode::EM_SequencerMode);
@@ -578,6 +582,13 @@ void FLevelEditorSequencerIntegration::ActivateSequencerEditorMode()
 	AcquiredResources.Add(
 		ResourceName,
 		[] {
+
+			FEditorModeID ModeID = TEXT("SequencerToolsEditMode");
+
+			if (GLevelEditorModeTools().IsModeActive(ModeID))
+			{
+				GLevelEditorModeTools().DeactivateMode(ModeID);
+			}
 			if (GLevelEditorModeTools().IsModeActive(FSequencerEdMode::EM_SequencerMode))
 			{
 				GLevelEditorModeTools().DeactivateMode(FSequencerEdMode::EM_SequencerMode);

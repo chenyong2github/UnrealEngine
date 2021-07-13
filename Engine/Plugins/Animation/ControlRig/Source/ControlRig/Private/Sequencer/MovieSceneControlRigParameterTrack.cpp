@@ -318,7 +318,15 @@ void UMovieSceneControlRigParameterTrack::SetSectionToKey(UMovieSceneSection* In
 
 UMovieSceneSection* UMovieSceneControlRigParameterTrack::GetSectionToKey() const
 {
-	return SectionToKey;
+	if (SectionToKey)
+	{
+		return SectionToKey;
+	}
+	else if(Sections.Num() >0)
+	{
+		return Sections[0];
+	}
+	return nullptr;
 }
 
 void UMovieSceneControlRigParameterTrack::ReconstructControlRig()

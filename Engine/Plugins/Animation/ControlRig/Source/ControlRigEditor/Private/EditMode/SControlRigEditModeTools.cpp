@@ -29,6 +29,10 @@
 #include "IControlRigEditorModule.h"
 #include "Framework/Docking/TabManager.h"
 #include "ControlRigEditorStyle.h"
+#include "LevelEditor.h"
+#include "EditorModeManager.h"
+#include "InteractiveToolManager.h"
+#include "EdModeInteractiveToolsContext.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigRootCustomization"
 
@@ -515,21 +519,22 @@ void SControlRigEditModeTools::CustomizeToolBarPalette(FToolBarBuilder& ToolBarB
 	ToolBarBuilder.AddToolBarButton(
 		FUIAction(
 			FExecuteAction::CreateLambda([this] {
-		FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName));
-		if (ControlRigEditMode)
-		{
-			ControlRigEditMode->SetOnlySelectRigControls(!ControlRigEditMode->GetOnlySelectRigControls());
-		}
-	}),
+			FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName));
+			if (ControlRigEditMode)
+			{
+				ControlRigEditMode->SetOnlySelectRigControls(!ControlRigEditMode->GetOnlySelectRigControls());
+			}
+			}),
 			FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([this] {
-		FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName));
-		if (ControlRigEditMode)
-		{
-			return ControlRigEditMode->GetOnlySelectRigControls();
-		}
-		return false;
-	})
+			FIsActionChecked::CreateLambda([this] {
+			FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName));
+			if (ControlRigEditMode)
+			{
+				return ControlRigEditMode->GetOnlySelectRigControls();
+			}
+			return false;
+			})
+
 		),
 		NAME_None,
 		LOCTEXT("OnlySelectControls", "Select"),
@@ -569,17 +574,46 @@ void SControlRigEditModeTools::CustomizeToolBarPalette(FToolBarBuilder& ToolBarB
 		FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.SnapperTool")),
 		EUserInterfaceActionType::Button
 	);
-	/*
-	// Pivot
+
+	// Motion Trail
 	ToolBarBuilder.AddToolBarButton(
-		FExecuteAction::CreateSP(this, &SControlRigEditModeTools::MakeTempPivotDialog),
+		FExecuteAction::CreateSP(this, &SControlRigEditModeTools::MakeMotionTrailDialog),
 		NAME_None,
-		LOCTEXT("TempPivot", "Temp Pivot"),
-		LOCTEXT("TempPivotTooltip", "Create a temporary pivot to transform the selected Control"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "AnimationEditor.ApplyAnimation"), //MZ todo replace with correct icon
+		LOCTEXT("MotionTrails", "Motion Trails"),
+		LOCTEXT("MotionTrailsTooltip", "Display motion trails for animated objects"),
+		FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.SnapperTool")),
 		EUserInterfaceActionType::Button
 	);
-	*/
+	//Pivot
+	ToolBarBuilder.AddToolBarButton(
+		FUIAction(
+		FExecuteAction::CreateSP(this, &SControlRigEditModeTools::ToggleEditPivotMode),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([] {
+				if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor")))
+				{
+					TSharedPtr<ILevelEditor> LevelEditorPtr = LevelEditorModule->GetLevelEditorInstance().Pin();
+
+					if (LevelEditorPtr.IsValid())
+					{
+						FString ActiveToolName = LevelEditorPtr->GetEditorModeManager().GetInteractiveToolsContext()->ToolManager->GetActiveToolName(EToolSide::Left);
+						if (ActiveToolName == TEXT("SequencerPivotTool"))
+						{
+							return true;
+						}
+					}
+				}
+				return false;
+
+			})
+		),
+		NAME_None,
+		LOCTEXT("TempPivot", "Temp Pivot"),
+		LOCTEXT("TempPivotTooltip", "Create a temporary pivot to rotate the selected Control"),
+		FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.SnapperTool")),
+		EUserInterfaceActionType::ToggleButton
+		);
+	
 	ToolBarBuilder.AddSeparator();
 }
 
@@ -601,7 +635,6 @@ void SControlRigEditModeTools::MakeTweenDialog()
 	}
 }
 
-
 void SControlRigEditModeTools::MakeSnapperDialog()
 {
 	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName));
@@ -611,14 +644,35 @@ void SControlRigEditModeTools::MakeSnapperDialog()
 	}
 }
 
-
-
-void SControlRigEditModeTools::MakeTempPivotDialog()
+void SControlRigEditModeTools::MakeMotionTrailDialog()
 {
-	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName));
+	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
 	if (ControlRigEditMode)
 	{
-		FGlobalTabmanager::Get()->TryInvokeTab(IControlRigEditorModule::ControlRigTempPivotTab);
+		FGlobalTabmanager::Get()->TryInvokeTab(IControlRigEditorModule::ControlRigMotionTrailTab);
+	}
+}
+
+void SControlRigEditModeTools::ToggleEditPivotMode()
+{
+	if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor")))
+	{
+		TSharedPtr<ILevelEditor> LevelEditorPtr = LevelEditorModule->GetLevelEditorInstance().Pin();
+
+		if (LevelEditorPtr.IsValid())
+		{
+			FString ActiveToolName = LevelEditorPtr->GetEditorModeManager().GetInteractiveToolsContext()->ToolManager->GetActiveToolName(EToolSide::Left);
+			if(ActiveToolName == TEXT("SequencerPivotTool"))
+			{
+				LevelEditorPtr->GetEditorModeManager().GetInteractiveToolsContext()->ToolManager->DeactivateTool(EToolSide::Left, EToolShutdownType::Completed);
+			}
+			else
+			{
+				LevelEditorPtr->GetEditorModeManager().GetInteractiveToolsContext()->ToolManager->SelectActiveToolType(EToolSide::Left, TEXT("SequencerPivotTool"));
+				LevelEditorPtr->GetEditorModeManager().GetInteractiveToolsContext()->ToolManager->ActivateTool(EToolSide::Left);
+
+			}
+		}
 	}
 }
 
