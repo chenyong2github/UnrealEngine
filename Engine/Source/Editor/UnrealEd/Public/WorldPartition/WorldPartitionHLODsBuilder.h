@@ -78,6 +78,7 @@ protected:
 	bool BuildHLODActors();
 	bool DeleteHLODActors();
 	bool SubmitHLODActors();
+	bool DumpStats();
 
 	bool GenerateBuildManifest(TMap<FString, int32>& FilesToBuilderMap) const;
 	bool GetHLODActorsToBuild(TArray<FGuid>& HLODActorsToBuild) const;
@@ -97,12 +98,16 @@ private:
 	bool bBuildHLODs;
 	bool bDeleteHLODs;
 	bool bSubmitHLODs;
+	bool bDumpStats;
 	bool bSingleBuildStep;
 	bool bAutoSubmit;
 	bool bDistributedBuild;
 	FString BuildManifest;
 	int32 BuilderIdx;
 	int32 BuilderCount;
+	bool bResumeBuild;
+	int32 ResumeBuildIndex;
+
 
 	const FString DistributedBuildWorkingDir;
 	const FString DistributedBuildManifest;
