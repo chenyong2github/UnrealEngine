@@ -91,12 +91,6 @@ FSkeletalMeshEditor::~FSkeletalMeshEditor()
 	{
 		Editor->UnregisterForUndo(this);
 	}
-
-	if(PersonaToolkit.IsValid())
-	{
-		UPersonaSelectionComponent* SelectionComponent = PersonaToolkit->GetPreviewScene()->GetSelectionComponent();
-		SelectionComponent->GetWorld()->RemoveActor(SelectionComponent->GetOwner(), true);
-	}
 }
 
 bool IsReductionParentBaseLODUseSkeletalMeshBuildWorkflow(USkeletalMesh* SkeletalMesh, int32 TestLODIndex)
@@ -203,6 +197,21 @@ bool FSkeletalMeshEditor::OnRequestClose()
 	}
 	return bAllowClose;
 }
+
+
+void FSkeletalMeshEditor::OnClose()
+{
+	UPersonaSelectionComponent* SelectionComponent = PersonaToolkit->GetPreviewScene()->GetSelectionComponent();
+
+	if (SelectionComponent)
+	{
+		SelectionComponent->OnUpdateCapsules().Unbind();
+		SelectionComponent->GetWorld()->RemoveActor(SelectionComponent->GetOwner(), true);
+	}
+
+	ISkeletalMeshEditor::OnClose();
+}
+
 
 void FSkeletalMeshEditor::UpdateCapsules()
 {
