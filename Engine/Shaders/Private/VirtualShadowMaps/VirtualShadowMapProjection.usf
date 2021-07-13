@@ -411,9 +411,8 @@ void VirtualShadowMapProjection(
 	#if HAS_HAIR_STRANDS
 	if (InputType == INPUT_TYPE_HAIRSTRANDS)
 	{
-		FCategorizationData CatData = DecodeCategorizationData(HairStrands.HairCategorizationTexture.Load( int3(PixelPos, 0 ) ) );
-		DeviceZ = CatData.ClosestDepth;
-		if (CatData.PixelCoverage == 0)
+		DeviceZ = HairStrands.HairOnlyDepthTexture.Load(int3(PixelPos, 0));
+		if (DeviceZ == 0)
 		{
 			return;
 		}

@@ -60,13 +60,13 @@ void NeedTraceHair(
 	inout bool bTraceHairRay,
 	inout float HairDeviceZ)
 {
-	const FCategorizationData Categorization = DecodeCategorizationData(HairStrands.HairCategorizationTexture.Load(uint3(PixelCoord, 0)));
+	const float HairSampleDepth = DecodeCategorizationData(HairStrands.HairOnlyDepthTexture.Load(uint3(PixelCoord, 0)));
 	bTraceHairRay = false;
 	HairDeviceZ = 0;
-	if (Categorization.PixelCoverage > 0)
+	if (HairSampleDepth > 0)
 	{
 		const uint HairLightChannel = HairLightChannelMaskTexture.Load(uint3(PixelCoord, 0));
-		HairDeviceZ = Categorization.ClosestDepth;
+		HairDeviceZ = HairSampleDepth;
 		bTraceHairRay = (HairLightChannel & LightingChannelMask) != 0;
 	}
 }
