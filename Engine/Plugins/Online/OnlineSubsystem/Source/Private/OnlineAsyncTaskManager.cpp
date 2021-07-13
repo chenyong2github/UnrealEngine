@@ -25,7 +25,7 @@ namespace OSSConsoleVariables
 #endif
 
 /** The default value for the polling interval when not set by config */
-#define POLLING_INTERVAL_MS 50
+#define POLLING_INTERVAL_MS 20
 
 FOnlineAsyncTaskManager::FOnlineAsyncTaskManager() :
 	ActiveTask(nullptr),
