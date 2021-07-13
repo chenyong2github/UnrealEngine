@@ -462,8 +462,9 @@ public:
 
 #if !WITH_EDITOR
 		SourceMesh = nullptr;
-#endif
+#else
 		SourceMesh = StaticMesh->GetMeshDescription(LODIndex);
+#endif
 		Adapter = MakeUnique<FMeshDescriptionTriangleMeshSurfaceAdapter>(SourceMesh, StaticMesh);
 
 		if (SourceMesh && Adapter)
