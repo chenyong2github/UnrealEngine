@@ -11,9 +11,9 @@ static TRDGUniformBufferRef<FHairStrandsViewUniformParameters> InternalCreateHai
 {
 	FHairStrandsViewUniformParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsViewUniformParameters>();
 	Parameters->HairDualScatteringRoughnessOverride = GetHairDualScatteringRoughnessOverride();
-	if (In && In->CategorizationTexture)
+	if (In && In->CoverageTexture)
 	{
-		Parameters->HairCategorizationTexture = In->CategorizationTexture;
+		Parameters->HairCoverageTexture = In->CoverageTexture;
 		Parameters->HairOnlyDepthTexture = In->HairOnlyDepthTexture;
 		Parameters->HairOnlyDepthClosestHZBTexture = In->HairOnlyDepthClosestHZBTexture;
 		Parameters->HairOnlyDepthFurthestHZBTexture = In->HairOnlyDepthFurthestHZBTexture;
@@ -76,7 +76,7 @@ static TRDGUniformBufferRef<FHairStrandsViewUniformParameters> InternalCreateHai
 		Parameters->HairOnlyDepthTexture = FarDepth;
 		Parameters->HairOnlyDepthFurthestHZBTexture = BlackTexture;
 		Parameters->HairOnlyDepthClosestHZBTexture = Parameters->HairOnlyDepthFurthestHZBTexture;
-		Parameters->HairCategorizationTexture = ZeroRGBA16_UINT;
+		Parameters->HairCoverageTexture = BlackTexture;
 		Parameters->HairSampleCount = ZeroR32_UINT;
 		Parameters->HairSampleOffset = ZeroR32_UINT;
 		Parameters->HairSampleCoords = DummyBufferRG16SRV;
@@ -175,7 +175,7 @@ void RenderHairBasePass(
 			}
 		}
 		
-		if (View.HairStrandsViewData.VisibilityData.CategorizationTexture)
+		if (View.HairStrandsViewData.VisibilityData.CoverageTexture)
 		{			
 			View.HairStrandsViewData.UniformBuffer = InternalCreateHairStrandsViewUniformBuffer(GraphBuilder, &View.HairStrandsViewData.VisibilityData);
 			View.HairStrandsViewData.bIsValid = true;

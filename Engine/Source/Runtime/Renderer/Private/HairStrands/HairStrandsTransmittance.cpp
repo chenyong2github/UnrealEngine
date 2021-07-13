@@ -966,7 +966,7 @@ void RenderHairStrandsShadowMask(
 	{
 		if (HairStrands::HasViewHairStrandsData(View))
 		{
-			check(View.HairStrandsViewData.VisibilityData.CategorizationTexture);
+			check(View.HairStrandsViewData.VisibilityData.CoverageTexture);
 			InternalRenderHairStrandsShadowMask(
 				GraphBuilder, 
 				View, 

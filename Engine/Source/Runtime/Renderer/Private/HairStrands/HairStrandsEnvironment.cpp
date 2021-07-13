@@ -499,7 +499,7 @@ static void InternalRenderHairStrandsEnvironmentLighting(
 
 	const FHairStrandsVisibilityData& VisibilityData = View.HairStrandsViewData.VisibilityData;
 	const FHairStrandsVoxelResources& VoxelResources = View.HairStrandsViewData.VirtualVoxelResources;
-	const bool bRenderHairLighting = VoxelResources.IsValid() && VisibilityData.CategorizationTexture;
+	const bool bRenderHairLighting = VoxelResources.IsValid() && VisibilityData.CoverageTexture;
 	if (!bRenderHairLighting)
 	{
 		return;
@@ -534,7 +534,7 @@ void RenderHairStrandsAmbientOcclusion(
 
 	const FHairStrandsVisibilityData& VisibilityData = View.HairStrandsViewData.VisibilityData;
 	const FHairStrandsVoxelResources& VoxelResources = View.HairStrandsViewData.VirtualVoxelResources;
-	const bool bRenderHairLighting = VoxelResources.IsValid() && VisibilityData.CategorizationTexture;
+	const bool bRenderHairLighting = VoxelResources.IsValid() && VisibilityData.CoverageTexture;
 	check(bRenderHairLighting);
 
 	for (const FHairStrandsMacroGroupData& MacroGroupData : View.HairStrandsViewData.MacroGroupDatas)

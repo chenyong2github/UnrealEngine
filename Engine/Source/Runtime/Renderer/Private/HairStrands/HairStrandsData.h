@@ -25,7 +25,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairStrandsViewUniformParameters, )
 	SHADER_PARAMETER(FIntPoint, HairSampleViewportResolution)							// Maximum viewport resolution of the sample space
 	SHADER_PARAMETER(uint32, bHairTileValid)											// True if tile data are valid
 	SHADER_PARAMETER(uint32, bHasEmissive)												// True if emissive is enabled
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint4>, HairCategorizationTexture)			// Categorization texture aggregating hair info in screen space (closest depth, coverage, ...)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, HairCoverageTexture)					// Hair pixel's coverage
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairOnlyDepthTexture)						// Depth texture containing only hair depth (not strongly typed for legacy shader code reason)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairOnlyDepthClosestHZBTexture)				// HZB closest depth texture containing only hair depth (not strongly typed for legacy shader code reason)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairOnlyDepthFurthestHZBTexture)			// HZB furthest depth texture containing only hair depth (not strongly typed for legacy shader code reason)
@@ -74,7 +74,7 @@ struct FHairStrandsVisibilityData
 {
 	FRDGTextureRef VelocityTexture = nullptr;
 	FRDGTextureRef ResolveMaskTexture = nullptr;
-	FRDGTextureRef CategorizationTexture = nullptr;
+	FRDGTextureRef CoverageTexture = nullptr;
 	FRDGTextureRef ViewHairCountTexture = nullptr;
 	FRDGTextureRef ViewHairCountUintTexture = nullptr;
 	FRDGTextureRef EmissiveTexture = nullptr;
@@ -97,6 +97,7 @@ struct FHairStrandsVisibilityData
 	FHairStrandsTiles TileData;
 
 	const static EPixelFormat NodeCoordFormat = PF_R16G16_UINT;
+	const static EPixelFormat CoverageFormat = PF_R16F;
 
 	// Hair lighting is accumulated within this buffer
 	// Allocated conservatively
