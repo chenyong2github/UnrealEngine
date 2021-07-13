@@ -25,14 +25,14 @@ public:
 	}
 
 	template<class ActorClass = AActor>
-	static void ForEachActorWithLoading(UWorldPartition* WorldPartition, TFunctionRef<bool(AActor*)> Func)
+	static void ForEachActorWithLoading(UWorldPartition* WorldPartition, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func)
 	{
 		ForEachActorWithLoading(WorldPartition, ActorClass::StaticClass(), Func);
 	}
 
 	static void ForEachIntersectingActorDesc(UWorldPartition* WorldPartition, const FBox& Box, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func);
 	static void ForEachActorDesc(UWorldPartition* WorldPartition, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func);
-	static void ForEachActorWithLoading(UWorldPartition* WorldPartition, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(AActor*)> Func);
+	static void ForEachActorWithLoading(UWorldPartition* WorldPartition, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Func);
 
 	static bool HasExceededMaxMemory();
 };

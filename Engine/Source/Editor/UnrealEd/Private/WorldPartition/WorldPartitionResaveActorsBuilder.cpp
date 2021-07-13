@@ -44,10 +44,27 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FBox& 
 		return false;
 	}
 
-	FWorldPartitionHelpers::ForEachActorWithLoading(WorldPartition, ActorClass, [&SaveCount, &FailCount, &SCCHelper](AActor* Actor)
+	TArray<FString> PackagesToDelete;
+	FWorldPartitionHelpers::ForEachActorWithLoading(WorldPartition, ActorClass, [&SaveCount, &FailCount, &SCCHelper, &PackagesToDelete](const FWorldPartitionActorDesc* ActorDesc)
 	{
-		if (UPackage* Package = Actor->GetExternalPackage())
+		ON_SCOPE_EXIT
 		{
+			UE_LOG(LogWorldPartitionResaveActorsBuilder, Display, TEXT("Processed %d packages (%d Saved / %d Failed)"), SaveCount + FailCount, SaveCount, FailCount);
+		};
+
+		AActor* Actor = ActorDesc->GetActor();
+
+		if (!Actor)
+		{
+			PackagesToDelete.Add(ActorDesc->GetActorPackage().ToString());
+			++FailCount;
+			return true;
+		}
+		else
+		{		
+			UPackage* Package = Actor->GetExternalPackage();
+			check(Package);
+
 			if (SCCHelper.Checkout(Package))
 			{
 				// Save package
@@ -62,6 +79,7 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FBox& 
 				// It is possible the resave can't checkout everything. Continue processing.
 				UE_LOG(LogWorldPartitionResaveActorsBuilder, Display, TEXT("Saved package %s."), *Package->GetName());
 				++SaveCount;
+				return true;
 			}
 			else
 			{
@@ -70,14 +88,21 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FBox& 
 				++FailCount;
 				return true;
 			}
-
-			UE_LOG(LogWorldPartitionResaveActorsBuilder, Display, TEXT("Processed %d packages (%d Saved / %d Failed)"), SaveCount + FailCount, SaveCount, FailCount);
 		}
 
 		return true;
 	});
 
 	UPackage::WaitForAsyncFileWrites();
+
+	for (const FString& PackageToDelete : PackagesToDelete)
+	{
+		if (SCCHelper.Delete(PackageToDelete))
+		{
+			UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error deleting package %s."), *PackageToDelete);
+			return true;
+		}
+	}
 
 	return true;
 }
