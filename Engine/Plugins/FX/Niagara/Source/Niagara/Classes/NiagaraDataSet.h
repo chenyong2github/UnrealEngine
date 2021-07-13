@@ -310,6 +310,8 @@ General storage class for all per instance simulation data in Niagara.
 class NIAGARA_API FNiagaraDataSet
 {
 	friend FNiagaraDataBuffer;
+	friend class NiagaraEmitterInstanceBatcher;
+
 public:
 
 	FNiagaraDataSet();
