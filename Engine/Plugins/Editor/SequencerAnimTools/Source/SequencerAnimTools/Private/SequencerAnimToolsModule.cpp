@@ -8,10 +8,10 @@
 #include "EdModeInteractiveToolsContext.h"
 #include "UnrealEdGlobals.h"
 
-#include "BaseGizmos\TransformGizmoUtil.h"
+#include "BaseGizmos/TransformGizmoUtil.h"
 #include "MotionTrailTool.h"
 #include "EditPivotTool.h"
-#include "Tools\MotionTrailOptions.h"
+#include "Tools/MotionTrailOptions.h"
 
 #define LOCTEXT_NAMESPACE "FSequencerAnimToolsModule"
 
