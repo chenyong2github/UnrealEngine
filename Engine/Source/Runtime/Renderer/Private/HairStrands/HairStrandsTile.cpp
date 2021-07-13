@@ -16,18 +16,14 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FHairStrandsTilePassVS::FParameters GetHairStrandsTileParameters(const FHairStrandsTiles& In, FHairStrandsTiles::ETileType TileType)
-{
-	return GetHairStrandsTileParameters(In, In.Resolution, TileType);
-}
-
-FHairStrandsTilePassVS::FParameters GetHairStrandsTileParameters(const FHairStrandsTiles& In, const FIntPoint& InOutputResolution, FHairStrandsTiles::ETileType TileType)
+FHairStrandsTilePassVS::FParameters GetHairStrandsTileParameters(const FViewInfo& InView, const FHairStrandsTiles& InTile, FHairStrandsTiles::ETileType TileType)
 {
 	FHairStrandsTilePassVS::FParameters Out;
-	Out.bRectPrimitive			= In.bRectPrimitive ? 1 : 0;
-	Out.TileOutputResolution	= InOutputResolution;
-	Out.TileDataBuffer			= TileType == FHairStrandsTiles::ETileType::Hair ? In.TileDataSRV : In.TileClearSRV;
-	Out.TileIndirectBuffer		= TileType == FHairStrandsTiles::ETileType::Hair ? In.TileIndirectDrawBuffer : In.TileClearIndirectDrawBuffer;
+	Out.bRectPrimitive			= InTile.bRectPrimitive ? 1 : 0;
+	Out.ViewMin					= InView.ViewRect.Min;
+	Out.ViewInvSize				= FVector2D(1.f / InView.ViewRect.Width(), 1.f / InView.ViewRect.Height());
+	Out.TileDataBuffer			= TileType == FHairStrandsTiles::ETileType::Hair ? InTile.TileDataSRV : InTile.TileClearSRV;
+	Out.TileIndirectBuffer		= TileType == FHairStrandsTiles::ETileType::Hair ? InTile.TileIndirectDrawBuffer : InTile.TileClearIndirectDrawBuffer;
 	return Out;
 }
 
@@ -86,7 +82,7 @@ void AddHairStrandsCopyArgsTilesPass(
 
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("HairStrandsTileCopyArgs"),
+		RDG_EVENT_NAME("HairStrands::TileCopyArgs"),
 		ComputeShader,
 		PassParameters,
 		FIntVector(1, 1, 1));
@@ -104,7 +100,7 @@ class FHairStrandsTileGenerationPassCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER(FIntPoint, ViewResolution)
+		SHADER_PARAMETER(FIntPoint, BufferResolution)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint4>, InputTexture)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileCountBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileDataBuffer)
@@ -136,7 +132,7 @@ FHairStrandsTiles AddHairStrandsGenerateTilesPass(
 	const FIntPoint InputResolution = InputTexture->Desc.Extent;
 	Out.TileCountXY = FIntPoint(FMath::CeilToInt(InputResolution.X / float(FHairStrandsTiles::TileSize)), FMath::CeilToInt(InputResolution.Y / float(FHairStrandsTiles::TileSize)));
 	Out.TileCount = Out.TileCountXY.X * Out.TileCountXY.Y;
-	Out.Resolution = InputResolution;
+	Out.BufferResolution = InputResolution;
 	Out.bRectPrimitive = GRHISupportsRectTopology;
 	Out.TileCountBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, 2), TEXT("Hair.TileCountBuffer"));
 	Out.TileIndirectDrawBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(1), TEXT("Hair.TileIndirectDrawBuffer"));
@@ -152,7 +148,7 @@ FHairStrandsTiles AddHairStrandsGenerateTilesPass(
 
 	TShaderMapRef<FHairStrandsTileGenerationPassCS> ComputeShader(View.ShaderMap);
 	FHairStrandsTileGenerationPassCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairStrandsTileGenerationPassCS::FParameters>();
-	PassParameters->ViewResolution = View.ViewRect.Size();
+	PassParameters->BufferResolution = InputResolution;//View.ViewRect.Size();
 	PassParameters->InputTexture = InputTexture;
 	PassParameters->TileDataBuffer = GraphBuilder.CreateUAV(Out.TileDataBuffer, PF_R16G16_UINT);
 	PassParameters->TileClearBuffer = GraphBuilder.CreateUAV(Out.TileClearBuffer, PF_R16G16_UINT);
@@ -160,7 +156,7 @@ FHairStrandsTiles AddHairStrandsGenerateTilesPass(
 
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("HairStrandsTileClassification"),
+		RDG_EVENT_NAME("HairStrands::TileClassification"),
 		ComputeShader,
 		PassParameters,
 		FComputeShaderUtils::GetGroupCount(InputResolution, FHairStrandsTiles::TileSize));
@@ -227,11 +223,10 @@ void AddHairStrandsDebugTilePass(
 	const FRDGTextureRef& ColorTexture,
 	const FHairStrandsTiles& TileData)
 {	
-	const FIntPoint OutputResolution = View.ViewRect.Size();
+	const FIntRect Viewport = View.ViewRect;
 	
 	FHairStrandsTileDebugPassPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairStrandsTileDebugPassPS::FParameters>();
-	PassParameters->TileParameters = GetHairStrandsTileParameters(TileData, OutputResolution);
-	PassParameters->OutputResolution = OutputResolution; // Use the Original Buffer for 
+	PassParameters->TileParameters = GetHairStrandsTileParameters(View, TileData);
 
 	TShaderMapRef<FHairStrandsTilePassVS> VertexShader(View.ShaderMap);
 	TShaderMapRef<FHairStrandsTileDebugPassPS> PixelShader(View.ShaderMap);
@@ -239,10 +234,10 @@ void AddHairStrandsDebugTilePass(
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(ColorTexture, ERenderTargetLoadAction::ELoad);
 	
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("HairStrandsTileDebugPass"),
+		RDG_EVENT_NAME("HairStrands::TileDebugPass"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[PassParameters, VertexShader, PixelShader, OutputResolution](FRHICommandList& RHICmdList)
+		[PassParameters, VertexShader, PixelShader, Viewport](FRHICommandList& RHICmdList)
 		{
 			FHairStrandsTilePassVS::FParameters ParametersVS = PassParameters->TileParameters;
 
@@ -260,7 +255,7 @@ void AddHairStrandsDebugTilePass(
 			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersVS);
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 
-			RHICmdList.SetViewport(0, 0, 0.0f, OutputResolution.X, OutputResolution.Y, 1.0f);
+			RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
 			RHICmdList.SetStreamSource(0, nullptr, 0);
 			RHICmdList.DrawPrimitiveIndirect(PassParameters->TileParameters.TileIndirectBuffer->GetRHI(), 0);
 		});
