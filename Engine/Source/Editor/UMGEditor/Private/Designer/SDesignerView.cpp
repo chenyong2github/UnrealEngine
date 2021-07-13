@@ -2169,7 +2169,7 @@ void SDesignerView::PopulateWidgetGeometryCache_Loop(FArrangedWidget& CurrentWid
 int32 SDesignerView::HandleEffectsPainting(const FOnPaintHandlerParams& PaintArgs)
 {
 	DrawSelectionAndHoverOutline(PaintArgs);
-	//DrawSafeZone(PaintArgs);
+	DrawSafeZone(PaintArgs);
 
 	return PaintArgs.Layer + 1;
 }
