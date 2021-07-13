@@ -3,6 +3,23 @@
 #include "Widgets/SBoxPanel.h"
 #include "Layout/LayoutUtils.h"
 
+SLATE_IMPLEMENT_WIDGET(SBoxPanel)
+void SBoxPanel::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+	FSlateWidgetSlotAttributeInitializer Initializer = SLATE_ADD_PANELCHILDREN_DEFINITION(AttributeInitializer, Children);
+	FSlot::RegisterAttributes(Initializer);
+}
+
+SLATE_IMPLEMENT_WIDGET(SHorizontalBox)
+void SHorizontalBox::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+}
+
+SLATE_IMPLEMENT_WIDGET(SVerticalBox)
+void SVerticalBox::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+}
+
 void SHorizontalBox::Construct( const SHorizontalBox::FArguments& InArgs )
 {
 	Children.Reserve(InArgs._Slots.Num());
@@ -83,10 +100,10 @@ static void ArrangeChildrenAlong(EFlowDirection InLayoutFlow, const TPanelChildr
 				// All widgets contribute their margin to the fixed space requirement
 				FixedTotal += CurChild.GetPadding().template GetTotalSpaceAlong<Orientation>();
 
-				if ( CurChild.GetSizeParam().SizeRule == FSizeParam::SizeRule_Stretch )
+				if ( CurChild.GetSizeRule() == FSizeParam::SizeRule_Stretch )
 				{
 					// for stretch children we save sum up the stretch coefficients
-					StretchCoefficientTotal += CurChild.GetSizeParam().Value.Get();
+					StretchCoefficientTotal += CurChild.GetSizeValue();
 				}
 				else
 				{
@@ -129,12 +146,12 @@ static void ArrangeChildrenAlong(EFlowDirection InLayoutFlow, const TPanelChildr
 			if (ChildVisibility != EVisibility::Collapsed)
 			{
 				// The size of the widget depends on its size type
-				if (CurChild.GetSizeParam().SizeRule == FSizeParam::SizeRule_Stretch)
+				if (CurChild.GetSizeRule() == FSizeParam::SizeRule_Stretch)
 				{
 					if (StretchCoefficientTotal > 0)
 					{
 						// Stretch widgets get a fraction of the space remaining after all the fixed-space requirements are met
-						ChildSize = NonFixedSpace * CurChild.GetSizeParam().Value.Get() / StretchCoefficientTotal;
+						ChildSize = NonFixedSpace * CurChild.GetSizeValue() / StretchCoefficientTotal;
 					}
 				}
 				else
@@ -294,7 +311,7 @@ void SBoxPanel::ClearChildren()
 }
 
 SBoxPanel::SBoxPanel( EOrientation InOrientation )
-	: Children(this)
+	: Children(this, GET_MEMBER_NAME_CHECKED(SBoxPanel, Children))
 	, Orientation(InOrientation)
 {
 

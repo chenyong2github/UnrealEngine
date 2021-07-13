@@ -223,9 +223,11 @@ template <typename MixedIntoType>
 class TPaddingWidgetSlotMixin
 {
 public:
-	TPaddingWidgetSlotMixin() = default;
+	TPaddingWidgetSlotMixin()
+		: SlotPaddingAttribute(*static_cast<MixedIntoType*>(this))
+	{}
 	TPaddingWidgetSlotMixin(const FMargin& Margin)
-		: SlotPadding(Margin)
+		: SlotPaddingAttribute(*static_cast<MixedIntoType*>(this), Margin)
 	{}
 
 public:
@@ -266,8 +268,13 @@ protected:
 	{
 		if (InArgs._Padding.IsSet())
 		{
-			SlotPadding = MoveTemp(InArgs._Padding);
+			SlotPaddingAttribute.Assign(*static_cast<MixedIntoType*>(this), MoveTemp(InArgs._Padding));
 		}
+	}
+
+	static void RegisterAttributesMixin(FSlateWidgetSlotAttributeInitializer& AttributeInitializer)
+	{
+		SLATE_ADD_SLOT_ATTRIBUTE_DEFINITION_WITH_NAME(MixedIntoType, AttributeInitializer, "Slot.Padding", SlotPaddingAttribute, EInvalidateWidgetReason::Layout);
 	}
 
 public:
@@ -302,18 +309,22 @@ public:
 public:
 	void SetPadding(TAttribute<FMargin> InPadding)
 	{
-		SlotPadding = MoveTemp(InPadding);
-		static_cast<MixedIntoType*>(this)->Invalidate(EInvalidateWidgetReason::LayoutAndVolatility);
+		SlotPaddingAttribute.Assign(static_cast<MixedIntoType&>(*this), MoveTemp(InPadding));
 	}
 
 	FMargin GetPadding() const
 	{
-		return SlotPadding.Get();
+		return SlotPaddingAttribute.Get();
 	}
 
 public:
 	UE_DEPRECATED(5.0, "Direct access to SlotPadding is now deprecated. Use the setter or getter.")
-	TAttribute<FMargin> SlotPadding;
+	FSlateDeprecatedTAttribute<FMargin> SlotPadding;
+
+private:
+	using SlotCompareType = TSlateAttributeComparePredicate<>;
+	using SlotType = ::SlateAttributePrivate::TSlateContainedAttribute<FMargin, ::SlateAttributePrivate::FSlateAttributeNoInvalidationReason, SlotCompareType>;
+	SlotType SlotPaddingAttribute;
 };
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
@@ -485,6 +496,12 @@ public:
 		TWidgetSlotWithAttributeSupport<SlotType>::Construct(SlotOwner, MoveTemp(InArgs));
 		TPaddingWidgetSlotMixin<SlotType>::ConstructMixin(SlotOwner, MoveTemp(InArgs));
 		TAlignmentWidgetSlotMixin<SlotType>::ConstructMixin(SlotOwner, MoveTemp(InArgs));
+	}
+
+	static void RegisterAttributes(FSlateWidgetSlotAttributeInitializer& AttributeInitializer)
+	{
+		TWidgetSlotWithAttributeSupport<SlotType>::RegisterAttributes(AttributeInitializer);
+		TPaddingWidgetSlotMixin<SlotType>::RegisterAttributesMixin(AttributeInitializer);
 	}
 };
 

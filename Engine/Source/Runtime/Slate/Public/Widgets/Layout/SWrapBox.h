@@ -49,6 +49,7 @@ class FArrangedChildren;
 
 class SLATE_API SWrapBox : public SPanel
 {
+	SLATE_DECLARE_WIDGET(SWrapBox, SPanel)
 public:
 
 	/** A slot that support alignment of content and padding */
@@ -136,9 +137,9 @@ public:
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SLATE_BEGIN_ARGS(SWrapBox)
-		: _PreferredWidth(100.f)
-		, _PreferredSize(100.f)
+		: _PreferredSize(100.f)
 		, _HAlign(HAlign_Left)
 		, _InnerSlotPadding(FVector2D::ZeroVector)
 		, _UseAllottedWidth(false)
@@ -152,6 +153,7 @@ public:
 		SLATE_SLOT_ARGUMENT( FSlot, Slots )
 
 		/** The preferred width, if not set will fill the space */
+		UE_DEPRECATED(5.0, "PreferredWidth is deprecated. Use PreferredSize instead.")
 		SLATE_ATTRIBUTE( float, PreferredWidth )
 
 		/** The preferred size, if not set will fill the space */
@@ -164,14 +166,16 @@ public:
 		SLATE_ARGUMENT( FVector2D, InnerSlotPadding )
 
 		/** if true, the PreferredWidth will always match the room available to the SWrapBox  */
+		UE_DEPRECATED(5.0, "UseAllottedWidth is deprecated. Use UseAllottedSize instead.")
 		SLATE_ARGUMENT( bool, UseAllottedWidth )
 
 		/** if true, the PreferredSize will always match the room available to the SWrapBox  */
 		SLATE_ARGUMENT( bool, UseAllottedSize )
 
 		/** Determines if the wrap box needs to arrange the slots left-to-right or top-to-bottom.*/
-		SLATE_ARGUMENT_DEFAULT(EOrientation, Orientation) { EOrientation::Orient_Horizontal };
+		SLATE_ARGUMENT(EOrientation, Orientation);
 	SLATE_END_ARGS()
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	SWrapBox();
 
@@ -207,10 +211,10 @@ public:
 
 	/** Set the width at which the wrap panel should wrap its content. */
 	UE_DEPRECATED(4.26, "Deprecated, please use SetWrapSize() instead")
-	void SetWrapWidth(const TAttribute<float>& InWrapWidth);
+	void SetWrapWidth(TAttribute<float> InWrapWidth);
 
 	/** Set the size at which the wrap panel should wrap its content. */
-	void SetWrapSize( const TAttribute<float>& InWrapSize );
+	void SetWrapSize(TAttribute<float> InWrapSize );
 
 	/** When true, use the WrapWidth property to determine where to wrap to the next line. */
 	UE_DEPRECATED(4.26, "Deprecated, please use SetUseAllottedSize() instead")
@@ -226,16 +230,11 @@ public:
 	void SetHorizontalAlignment(TAttribute<EHorizontalAlignment> InHAlignment);
 
 private:
-
-	/** How wide this panel should appear to be. Any widgets past this line will be wrapped onto the next line. */
-	UE_DEPRECATED(4.26, "Deprecated, please use PreferredSize instead")
-	TAttribute<float> PreferredWidth;
-
 	/** How wide or long, dependently of the orientation, this panel should appear to be. Any widgets past this line will be wrapped onto the next line. */
-	TAttribute<float> PreferredSize;
+	TSlateAttribute<float> PreferredSize;
 
 	/** How to distribute the elements among any extra space in a given row */
-	TAttribute< EHorizontalAlignment > HAlign;
+	TSlateAttribute< EHorizontalAlignment > HAlign;
 
 	/** The slots that contain this panel's children. */
 	TPanelChildren<FSlot> Slots;
@@ -243,15 +242,11 @@ private:
 	/** When two slots end up sharing a border, this will put that much padding between then, but otherwise wont. */
 	FVector2D InnerSlotPadding;
 
-	/** If true the box will have a preferred width equal to its alloted width  */
-	UE_DEPRECATED(4.26, "Deprecated, please use bUseAllottedSize instead")
-	bool bUseAllottedWidth;
-
 	/** If true the box will have a preferred size equal to its alloted size  */
 	bool bUseAllottedSize;
 
 	/** Determines if the wrap box needs to arrange the slots left-to-right or top-to-bottom.*/
-	EOrientation Orientation = EOrientation::Orient_Horizontal;
+	EOrientation Orientation;
 
 	class FChildArranger;
 	friend class SWrapBox::FChildArranger;

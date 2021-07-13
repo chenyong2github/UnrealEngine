@@ -7,6 +7,13 @@
 #include "Layout/LayoutUtils.h"
 
 
+SLATE_IMPLEMENT_WIDGET(SGridPanel)
+void SGridPanel::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+	FSlateWidgetSlotAttributeInitializer Initializer = SLATE_ADD_PANELCHILDREN_DEFINITION(AttributeInitializer, Slots);
+	FSlot::RegisterAttributes(Initializer);
+}
+
 void SGridPanel::FSlot::Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
 {
 	TBasicLayoutWidgetSlot<FSlot>::Construct(SlotOwner, MoveTemp(InArgs));
@@ -37,7 +44,7 @@ void SGridPanel::FSlot::Construct(const FChildren& SlotOwner, FSlotArguments&& I
 }
 
 SGridPanel::SGridPanel()
-	: Slots(this)
+	: Slots(this, GET_MEMBER_NAME_CHECKED(SGridPanel, Slots))
 {
 	SetCanTick(false);
 }

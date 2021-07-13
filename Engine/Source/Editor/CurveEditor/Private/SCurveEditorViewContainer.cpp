@@ -53,7 +53,7 @@ FVector2D SCurveEditorViewContainer::ComputeDesiredSize(float) const
 			// That will be the desired width of the whole panel.
 			MyDesiredSize.X = FMath::Max(MyDesiredSize.X, ChildDesiredSize.X + SlotPadding.GetTotalSpaceAlong<Orient_Horizontal>());
 
-			if (Child.GetSizeParam().SizeRule == FSizeParam::SizeRule_Stretch)
+			if (Child.GetSizeRule() == FSizeParam::SizeRule_Stretch)
 			{
 				++NumStretchPanels;
 			}
