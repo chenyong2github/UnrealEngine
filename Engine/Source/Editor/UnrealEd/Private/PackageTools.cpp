@@ -866,7 +866,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 				UObject* OldObject = RepointedObjectPair.Key;
 				UObject* NewObject = RepointedObjectPair.Value;
 
-				if (OldObject->IsAsset())
+				if (OldObject && OldObject->IsAsset())
 				{
 					if (const UBlueprint* OldBlueprint = Cast<UBlueprint>(OldObject))
 					{
