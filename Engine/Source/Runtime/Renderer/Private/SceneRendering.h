@@ -860,47 +860,53 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 struct FTemporalAAHistory
 {
 	// Number of render target in the history.
-	static constexpr int32 kLowResRenderTargetCount = 1;
-
-	// Number of render target in the history.
-	static constexpr int32 kRenderTargetCount = 5;
-
-	// Number of render target in the history.
-	static constexpr int32 kSuperResRenderTargetCount = 2;
+	static constexpr int32 kRenderTargetCount = 2;
 
 	// Render targets holding's pixel history.
 	//  scene color's RGBA are in OutputRT[0].
-	TStaticArray<TRefCountPtr<IPooledRenderTarget>, kLowResRenderTargetCount> LowResRT;
 	TStaticArray<TRefCountPtr<IPooledRenderTarget>, kRenderTargetCount> RT;
-	TStaticArray<TRefCountPtr<IPooledRenderTarget>, kSuperResRenderTargetCount> SuperResRT;
 
 	// Reference size of RT. Might be different than RT's actual size to handle down res.
 	FIntPoint ReferenceBufferSize;
 
 	// Viewport coordinate of the history in RT according to ReferenceBufferSize.
-	FIntRect LowResViewportRect;
 	FIntRect ViewportRect;
 
 
 	void SafeRelease()
 	{
-		for (int32 i = 0; i < LowResRT.Num(); i++)
-		{
-			LowResRT[i].SafeRelease();
-		}
-		for (int32 i = 0; i < RT.Num(); i++)
-		{
-			RT[i].SafeRelease();
-		}
-		for (int32 i = 0; i < SuperResRT.Num(); i++)
-		{
-			SuperResRT[i].SafeRelease();
-		}
+		*this = FTemporalAAHistory();
 	}
 
 	bool IsValid() const
 	{
 		return RT[0].IsValid();
+	}
+};
+
+// Structure in charge of storing all information about TSR's history.
+struct FTSRHistory
+{
+	// Filterable output resolution.
+	TRefCountPtr<IPooledRenderTarget> LowFrequency;
+	TRefCountPtr<IPooledRenderTarget> HighFrequency;
+	TRefCountPtr<IPooledRenderTarget> Metadata;
+	TRefCountPtr<IPooledRenderTarget> Translucency;
+
+	// Non-filterable output resolution
+	TRefCountPtr<IPooledRenderTarget> SubpixelDetails;
+
+	FIntRect OutputViewportRect;
+
+
+	void SafeRelease()
+	{
+		*this = FTSRHistory();
+	}
+
+	bool IsValid() const
+	{
+		return LowFrequency.IsValid();
 	}
 };
 
@@ -1009,6 +1015,9 @@ struct FPreviousViewInfo
 
 	// Temporal AA result of last frame
 	FTemporalAAHistory TemporalAAHistory;
+
+	// Temporal Super Resolution result of last frame
+	FTSRHistory TSRHistory;
 
 	// Custom Temporal AA result of last frame, used by plugins
 	TRefCountPtr<ICustomTemporalAAHistory> CustomTemporalAAHistory;

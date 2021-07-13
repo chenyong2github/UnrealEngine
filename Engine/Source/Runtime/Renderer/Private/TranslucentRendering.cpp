@@ -755,6 +755,11 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 				PrevSceneColorTexture = GetRDG(View.PrevViewInfo.CustomSSRInput);
 				PrevSceneColorPreExposureInvValue = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
 			}
+			else if (View.PrevViewInfo.TSRHistory.IsValid())
+			{
+				PrevSceneColorTexture = GetRDG(View.PrevViewInfo.TSRHistory.LowFrequency);
+				PrevSceneColorPreExposureInvValue = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
+			}
 			else if (View.PrevViewInfo.TemporalAAHistory.IsValid())
 			{
 				PrevSceneColorTexture = GetRDG(View.PrevViewInfo.TemporalAAHistory.RT[0]);
