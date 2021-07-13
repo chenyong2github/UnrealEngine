@@ -247,7 +247,21 @@ void FTimingEventsTrack::Draw(const ITimingTrackDrawContext& Context) const
 	}
 
 	DrawEvents(Context, 1.0f);
-	DrawHeader(Context);
+
+	if (!IsChildTrack())
+	{
+		DrawHeader(Context);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingEventsTrack::PostDraw(const ITimingTrackDrawContext& Context) const
+{
+	if (ChildTrack.IsValid())
+	{
+		ChildTrack->PostDraw(Context);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -258,21 +272,20 @@ void FTimingEventsTrack::DrawEvents(const ITimingTrackDrawContext& Context, cons
 
 	if (Context.GetEventFilter().IsValid() || HasCustomFilter())
 	{
-		Helper.DrawFadedEvents(*DrawState, *this, OffsetY, 0.1f);
+		Helper.DrawFadedEvents(GetDrawState(), *this, OffsetY, 0.1f);
 
-		if (FilteredDrawStateInfo.Opacity == 1.0f)
+		if (UpdateFilteredDrawStateOpacity())
 		{
-			Helper.DrawEvents(*FilteredDrawState, *this, OffsetY);
+			Helper.DrawEvents(GetFilteredDrawState(), *this, OffsetY);
 		}
 		else
 		{
-			FilteredDrawStateInfo.Opacity = FMath::Min(1.0f, FilteredDrawStateInfo.Opacity + 0.05f);
-			Helper.DrawFadedEvents(*FilteredDrawState, *this, OffsetY, FilteredDrawStateInfo.Opacity);
+			Helper.DrawFadedEvents(GetFilteredDrawState(), *this, OffsetY, GetFilteredDrawStateOpacity());
 		}
 	}
 	else
 	{
-		Helper.DrawEvents(*DrawState, *this, OffsetY);
+		Helper.DrawEvents(GetDrawState(), *this, OffsetY);
 	}
 }
 
@@ -284,12 +297,12 @@ void FTimingEventsTrack::DrawMarkers(const ITimingTrackDrawContext& Context, flo
 
 	if (Context.GetEventFilter().IsValid())
 	{
-		Helper.DrawMarkers(*DrawState, LineY, LineH, 0.2f);
-		Helper.DrawMarkers(*FilteredDrawState, LineY, LineH, 0.75f * FilteredDrawStateInfo.Opacity);
+		Helper.DrawMarkers(GetDrawState(), LineY, LineH, 0.2f);
+		Helper.DrawMarkers(GetFilteredDrawState(), LineY, LineH, 0.75f * GetFilteredDrawStateOpacity());
 	}
 	else
 	{
-		Helper.DrawMarkers(*DrawState, LineY, LineH, 0.2f);
+		Helper.DrawMarkers(GetDrawState(), LineY, LineH, 0.2f);
 	}
 }
 
@@ -313,12 +326,6 @@ int32 FTimingEventsTrack::GetHeaderTextLayerId(const ITimingTrackDrawContext& Co
 
 void FTimingEventsTrack::DrawHeader(const ITimingTrackDrawContext& Context) const
 {
-	if (IsChildTrack())
-	{
-		// Do not draw the header for child tracks for now
-		return;
-	}
-
 	const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
 	Helper.DrawTrackHeader(*this);
 }

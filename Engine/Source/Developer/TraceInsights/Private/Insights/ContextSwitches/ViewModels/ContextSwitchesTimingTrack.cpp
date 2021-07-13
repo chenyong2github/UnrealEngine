@@ -168,8 +168,110 @@ void FContextSwitchesTimingTrack::BuildFilteredDrawState(ITimingEventsTrackDrawS
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FContextSwitchesTimingTrack::Draw(const ITimingTrackDrawContext& Context) const
+{
+	DrawLineEvents(Context, 1.0f);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FContextSwitchesTimingTrack::DrawLineEvents(const ITimingTrackDrawContext& Context, const float OffsetY) const
+{
+	const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
+
+	if (Context.GetEventFilter().IsValid() || HasCustomFilter())
+	{
+		Helper.DrawFadedLineEvents(GetDrawState(), *this, OffsetY, 0.1f);
+
+		if (UpdateFilteredDrawStateOpacity())
+		{
+			Helper.DrawLineEvents(GetFilteredDrawState(), *this, OffsetY);
+		}
+		else
+		{
+			Helper.DrawFadedLineEvents(GetFilteredDrawState(), *this, OffsetY, GetFilteredDrawStateOpacity());
+		}
+	}
+	else
+	{
+		Helper.DrawLineEvents(GetDrawState(), *this, OffsetY);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FContextSwitchesTimingTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 {
+	float LineY1 = 0.0f;
+	float LineY2 = 0.0f;
+	ETimingTrackLocation LocalLocation = ETimingTrackLocation::None;
+	TSharedPtr<FBaseTimingTrack> LocalParentTrack = GetParentTrack().Pin();
+	if (LocalParentTrack)
+	{
+		LineY1 = LocalParentTrack->GetPosY();
+		LineY2 = LineY1 + LocalParentTrack->GetHeight();
+		LocalLocation = LocalParentTrack->GetLocation();
+	}
+	else
+	{
+		LineY1 = GetPosY();
+		LineY2 = LineY1 + GetHeight();
+		LocalLocation = GetLocation();
+	}
+
+	const FTimingTrackViewport& Viewport = Context.GetViewport();
+	switch (LocalLocation)
+	{
+		case ETimingTrackLocation::Scrollable:
+		{
+			const float TopY = Viewport.GetTopOffset();
+			if (LineY1 < TopY)
+			{
+				LineY1 = TopY;
+			}
+			const float BottomY = Viewport.GetHeight() - Viewport.GetBottomOffset();
+			if (LineY2 > BottomY)
+			{
+				LineY2 = BottomY;
+			}
+			break;
+		}
+		case ETimingTrackLocation::TopDocked:
+		{
+			const float TopY = 0.0f;
+			if (LineY1 < TopY)
+			{
+				LineY1 = TopY;
+			}
+			const float BottomY = Viewport.GetTopOffset();
+			if (LineY2 > BottomY)
+			{
+				LineY2 = BottomY;
+			}
+			break;
+		}
+		case ETimingTrackLocation::BottomDocked:
+		{
+			const float TopY = Viewport.GetHeight() - Viewport.GetBottomOffset();
+			if (LineY1 < TopY)
+			{
+				LineY1 = TopY;
+			}
+			const float BottomY = Viewport.GetHeight();
+			if (LineY2 > BottomY)
+			{
+				LineY2 = BottomY;
+			}
+			break;
+		}
+	}
+
+	const float LineH = LineY2 - LineY1;
+	if (LineH > 0.0f)
+	{
+		const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
+		Helper.DrawContextSwitchMarkers(GetDrawState(), LineY1, LineH, 0.25f);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
