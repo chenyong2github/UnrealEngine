@@ -73,8 +73,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 	ShaderPrintFilter(true);
 
-	const FCategorizationData CatData = DecodeCategorizationData(HairStrands.HairCategorizationTexture.Load(uint3(PixelPos,0)));
-	const float HairPixelCoverage = CatData.PixelCoverage;
+	const float HairPixelCoverage = HairStrands.HairCoverageTexture.Load(uint3(PixelPos, 0));
 	const bool bIsValid = HairPixelCoverage > 0;
 	if (!bIsValid)
 		return;

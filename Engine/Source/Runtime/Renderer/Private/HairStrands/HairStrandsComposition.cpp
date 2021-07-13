@@ -554,7 +554,7 @@ static void InternalRenderHairComposition(
 			{
 				const FHairStrandsVisibilityData& VisibilityData = View.HairStrandsViewData.VisibilityData;
 
-				if (!VisibilityData.CategorizationTexture)
+				if (!VisibilityData.CoverageTexture)
 				{
 					return; // Automatically skip for any view not rendering hair
 				}
@@ -567,7 +567,7 @@ static void InternalRenderHairComposition(
 						GraphBuilder,
 						View,
 						VisibilityData,
-						VisibilityData.CategorizationTexture,
+						VisibilityData.CoverageTexture,
 						SceneColorTexture,
 						SceneDepthTexture);
 				}
@@ -576,7 +576,7 @@ static void InternalRenderHairComposition(
 					GraphBuilder,
 					View,
 					VisibilityData,
-					VisibilityData.CategorizationTexture,
+					VisibilityData.CoverageTexture,
 					DOFDepth,
 					SceneColorTexture,
 					SceneDepthTexture);

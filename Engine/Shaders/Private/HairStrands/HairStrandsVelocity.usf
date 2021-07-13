@@ -20,7 +20,7 @@ float CoverageThreshold;
 Texture2D<uint> NodeIndex;
 Buffer<float2> NodeVelocity;
 StructuredBuffer<FNodeVis> NodeVis; 
-Texture2D<uint4> CategorizationTexture;
+Texture2D<float> CoverageTexture;
 
 #define VELOCITY_TYPE_NONE 0
 #define VELOCITY_TYPE_AVG 1  
@@ -65,8 +65,8 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		float MaxVelocityMagnitude2 = 0;
 		#endif		
 
-		const FCategorizationData CatData = DecodeCategorizationData(CategorizationTexture.Load(uint3(PixelCoord,0)));
-		if (CatData.PixelCoverage >= CoverageThreshold)
+		const float HairPixelCoverage = CoverageTexture.Load(uint3(PixelCoord,0));
+		if (HairPixelCoverage >= CoverageThreshold)
 		{
 			for (uint NodeIt = 0; NodeIt < NodeDesc.Count; ++NodeIt)
 			{

@@ -31,8 +31,7 @@ void MainPS(
 	const float2 UV = Input.UV;
 	const float2 PixelPos = UV * OutputResolution;
 
-	const FCategorizationData CatData = DecodeCategorizationData(HairStrands.HairCategorizationTexture.Load(uint3(PixelPos,0)));
-	const float HairPixelCoverage = CatData.PixelCoverage;
+	const float HairPixelCoverage = HairStrands.HairCoverageTexture.Load(uint3(PixelPos, 0));
 	const bool bIsValid = HairPixelCoverage > 0 || DebugMode == DEBUG_MODE_TILE;
 	if (!bIsValid)
 		discard;

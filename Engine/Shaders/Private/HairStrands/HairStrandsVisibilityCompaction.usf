@@ -32,7 +32,7 @@ RWTexture2D<uint> OutCompactNodeIndex;
 	RWStructuredBuffer<FPackedHairSample> OutCompactNodeData;
 #endif
 RWBuffer<uint2> OutCompactNodeCoord;
-RWTexture2D<uint4> OutCategorizationTexture;
+RWTexture2D<float> OutCoverageTexture;
 
 #ifndef PERMUTATION_VELOCITY
 	#error Velocity permutation needs to be defined
@@ -75,14 +75,14 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	uint2 PixelCoord = DispatchThreadId.xy + ResolutionOffset;
 	const uint FirstNodeIndex = PPLLNodeIndex[PixelCoord];
 
-	FCategorizationData Categorization = (FCategorizationData)0;
+	float ClosestDepth = 0; // Inverse-Z
+	float PixelCoverage = 0;
 
 #if PERMUTATION_VELOCITY != VELOCITY_TYPE_NONE
 	float2 AverageVelocity = 0;
 	uint ValidVelocityCount = 0;
 
 	float2 ClosestVelocity = 0;
-	float ClosestDepth = 0;
 
 	float2 MaxVelocity = 0;
 	float MaxVelocityMagnitude2 = 0;
@@ -202,13 +202,12 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			uint Coverage16bit = 0;
 			FPPLLNodeData PPLLNode = PPLLNodeData[NodePPLLIndex];
 
-			// Coverage8bit is a weight normalising to 1 the contribution of all the compacted samples. Because later it is weighted by Categorization.PixelCoverage.
+			// Coverage8bit is a weight normalising to 1 the contribution of all the compacted samples. Because later it is weighted by PixelCoverage.
 			// Patch the coverage on the out node
 			const float PatchedCoverage8bit = To8bitCoverage(SortedCoverage[j] / float(ValidPixelSampleTotalCoverage));
 			FPackedHairSample OutNodeData = ConvertToPackedHairSample(PPLLNode, PatchedCoverage8bit);
 
-			Categorization.TotalCoverage8bit += PatchedCoverage8bit;
-			Categorization.ClosestDepth = max(Categorization.ClosestDepth, OutNodeData.Depth); // Inverse-Z
+			ClosestDepth = max(ClosestDepth, OutNodeData.Depth); // Inverse-Z
 
 			// TODOAGREGATE if last, Create FPackedHairSample from aggregated  data
 			OutCompactNodeData[OffsetInStorage + j] = OutNodeData;
@@ -244,7 +243,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		#endif		
 		}
 
-		Categorization.PixelCoverage = TransmittanceToCoverage(TotalTransmittance, CoverageThreshold);
+		PixelCoverage = TransmittanceToCoverage(TotalTransmittance, CoverageThreshold);
 
 	#if PERMUTATION_VELOCITY != VELOCITY_TYPE_NONE
 		float2 VelocityOutput = 0;
@@ -269,8 +268,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	NodeDesc.Offset = OffsetInStorage;
 	OutCompactNodeIndex[PixelCoord] = EncodeNodeDesc(NodeDesc);
 
-	Categorization.SampleCount = PixelRenderNodecount;
-	OutCategorizationTexture[PixelCoord] = EncodeCategorizationData(Categorization);
+	OutCoverageTexture[PixelCoord] = PixelCoverage;
 }
 
 #else // PERMUTATION_PPLL or PERMUTATION_VISIBILITY
@@ -468,7 +466,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	GroupMemoryBarrierWithGroupSync();
 
 	// Allocate node space
-	FCategorizationData Categorization = (FCategorizationData)0;
+	float PixelCoverage = 0;
 	if (NodeDesc.Count > 0)
 	{
 		NodeDesc.Offset += AllocationNodeOffset;
@@ -476,19 +474,19 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		// Store final sort node data 
 		if (NodeDesc.Offset + NodeDesc.Count < MaxNodeCount)
 		{
+			float ClosestDepth = 0; // Inverse-Z
 			for (uint OutIndex = 0; OutIndex < NodeDesc.Count; ++OutIndex)
 			{
 				const FHairVisSample VisSample = UnpackHairVisSample(Samples[OutIndex].x);
 
-				// VisibilityData.Coverage8bit is a weight normalising to 1 the contribution of all the compacted samples. Because later it is weighted by Categorization.PixelCoverage.
+				// VisibilityData.Coverage8bit is a weight normalising to 1 the contribution of all the compacted samples. Because later it is weighted by PixelCoverage.
 				FNodeVis OutNodeVis;
 				OutNodeVis.PrimitiveId	= VisSample.PrimitiveId;
 				OutNodeVis.Depth		= asfloat(Samples[OutIndex].w); // MSAA_DepthTexture.Load(PixelCoord, Samples[OutIndex].z);
 				OutNodeVis.Coverage8bit = To8bitCoverage(Samples[OutIndex].y / float(SampleDesc.ValidSampleCount));
 				OutNodeVis.MaterialId	= VisSample.MaterialId;
 
-				Categorization.TotalCoverage8bit += OutNodeVis.Coverage8bit;
-				Categorization.ClosestDepth = max(Categorization.ClosestDepth, OutNodeVis.Depth); // Inverse-Z
+				ClosestDepth = max(ClosestDepth, OutNodeVis.Depth); // Inverse-Z
 
 				const uint StoreIndex = NodeDesc.Offset + OutIndex;
 				OutCompactNodeData[StoreIndex] = OutNodeVis;
@@ -496,18 +494,17 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			}
 
 			NodeDesc.Count = NodeDesc.Count;
-			Categorization.SampleCount = NodeDesc.Count;
 
 		#if PERMUTATION_VIEWTRANSMITTANCE == 1
-			Categorization.PixelCoverage = TransmittanceToCoverage(ViewTransmittanceTexture.Load(uint3(PixelCoord, 0)), CoverageThreshold);
+			PixelCoverage = TransmittanceToCoverage(ViewTransmittanceTexture.Load(uint3(PixelCoord, 0)), CoverageThreshold);
 		#else
-			Categorization.PixelCoverage = SampleDesc.ValidSampleCount / float(PERMUTATION_MSAACOUNT);
+			PixelCoverage = SampleDesc.ValidSampleCount / float(PERMUTATION_MSAACOUNT);
 		#endif
 		}
 	}
 
 	OutCompactNodeIndex[PixelCoord] = EncodeNodeDesc(NodeDesc);
-	OutCategorizationTexture[PixelCoord] = EncodeCategorizationData(Categorization);
+	OutCoverageTexture[PixelCoord] = PixelCoverage;
 }
 
 #endif // PERMUTATION_PPLL or PERMUTATION_VISIBILITY

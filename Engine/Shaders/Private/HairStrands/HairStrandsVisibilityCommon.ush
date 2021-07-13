@@ -224,38 +224,9 @@ uint GetPackedHairSampleCoverage8bit(in FPackedHairSample In)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Hair categorization
+// Hair velocity
 
-// Rename FHairCatetorizationData
-struct FCategorizationData
-{
-	uint  TotalCoverage8bit;
-	uint  SampleCount;
-	float PixelCoverage;
-	float ClosestDepth;
-};
-
-uint4 EncodeCategorizationData(FCategorizationData Data)
-{
-	const uint ClosestDepthUint = asuint(Data.ClosestDepth);
-	const uint ClosestDepthLow  = ClosestDepthUint & 0xFFFF;
-	const uint ClosestDepthHigh	= (ClosestDepthUint >> 16) & 0xFFFF;
-	const uint ComponentX		= min(Data.TotalCoverage8bit, uint(0xFF)) | ((Data.SampleCount & 0xFF)<<8);
-	return uint4(ComponentX, f32tof16(Data.PixelCoverage), ClosestDepthLow, ClosestDepthHigh);
-}
-
-FCategorizationData DecodeCategorizationData(uint4 Data)
-{
-	FCategorizationData Out;
-	Out.TotalCoverage8bit		= Data.x & 0xFF;
-	Out.SampleCount				=(Data.x>>8) & 0xFF;
-	Out.PixelCoverage			= f16tof32(Data.y);
-	const uint ClosestDepthLow	= Data.z & 0xFFFF;
-	const uint ClosestDepthHigh	=(Data.w & 0xFFFF) << 16;
-	Out.ClosestDepth			= asfloat(ClosestDepthHigh | ClosestDepthLow);
-
-	return Out;
-}
+float3 DecodeVelocityFromTexture(float4 EncodedV);
 
 // Return true if the underlying pixel need to run with TAA fast resolve. This is the case when 
 // the velocity is larger than a certain threshold.

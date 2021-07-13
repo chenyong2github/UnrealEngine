@@ -712,8 +712,7 @@ float3 ComputeThinTransmission(FGBufferData GBuffer, float2 ScreenPosition, floa
 	const float3 V = -CameraToPixel;
 	const float3 T = GBuffer.WorldNormal;
 
-	const FCategorizationData CatData = DecodeCategorizationData(HairStrands.HairCategorizationTexture.Load(uint3(PixelPosition, 0)));
-	const float PixelCoverage = min(CatData.PixelCoverage, 1);
+	const float PixelCoverage = min(HairStrands.HairCoverageTexture.Load(uint3(PixelPosition, 0)), 1);
 	
 	// The scene color is attenuated propertionnaly to the hair coverage. In order to retrieve the actual lighting buffer 
 	// value, we divide by the hair coverage

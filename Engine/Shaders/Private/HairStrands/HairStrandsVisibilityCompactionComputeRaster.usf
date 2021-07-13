@@ -40,7 +40,7 @@ RWTexture2D<uint> 				OutCompactNodeCounter;
 RWTexture2D<uint> 				OutCompactNodeIndex;
 RWStructuredBuffer<FNodeVis> 	OutCompactNodeData;
 RWBuffer<uint2>					OutCompactNodeCoord;
-RWTexture2D<uint4> 				OutCategorizationTexture;
+RWTexture2D<float> 				OutCoverageTexture;
 
 groupshared uint AllocationNodeCount;
 groupshared uint AllocationNodeOffset;
@@ -177,7 +177,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	GroupMemoryBarrierWithGroupSync();
 
 	// Allocate node space
-	FCategorizationData Categorization = (FCategorizationData)0;
+	float PixelCoverage = 0;
 	if (NodeDesc.Count > 0)
 	{
 		NodeDesc.Offset += AllocationNodeOffset;
@@ -194,21 +194,15 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 				OutNodeVis.Depth		= Vis_Depth_Cov[OutIndex].x;
 				OutNodeVis.Coverage8bit = To8bitCoverage(Vis_Depth_Cov[OutIndex].y / TotalCoverage); 
 
-				Categorization.TotalCoverage8bit += OutNodeVis.Coverage8bit;
-				Categorization.ClosestDepth = max(Categorization.ClosestDepth, OutNodeVis.Depth); // Inverse-Z
-
 				const uint StoreIndex = NodeDesc.Offset + OutIndex;
 				OutCompactNodeData[StoreIndex] = OutNodeVis;
 				OutCompactNodeCoord[StoreIndex] = PixelCoord;
 			}
 
-			NodeDesc.Count = NodeDesc.Count;
-			Categorization.SampleCount = NodeDesc.Count;
-
-			Categorization.PixelCoverage = TransmittanceToCoverage(ViewTransmittanceTexture.Load(uint3(PixelCoord, 0)), CoverageThreshold);
+			PixelCoverage = TransmittanceToCoverage(ViewTransmittanceTexture.Load(uint3(PixelCoord, 0)), CoverageThreshold);
 		}
 	}
 
 	OutCompactNodeIndex[PixelCoord] = EncodeNodeDesc(NodeDesc);
-	OutCategorizationTexture[PixelCoord] = EncodeCategorizationData(Categorization);
+	OutCoverageTexture[PixelCoord] = PixelCoverage;
 }
