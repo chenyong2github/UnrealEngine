@@ -412,7 +412,7 @@ void FAdaptiveVirtualTexture::QueuePackedAllocationRequests(uint32 const* InRequ
 	for (uint32 RequestIndex = 0; RequestIndex < InNumRequests; ++RequestIndex)
 	{
 		// Skip duplicates.
-		if (RequestIndex > 0 && InRequests[RequestIndex] != InRequests[RequestIndex - 1])
+		if (RequestIndex == 0 || InRequests[RequestIndex] != InRequests[RequestIndex - 1])
 		{
 			FPackedAdaptiveAllocationRequest Request;
 			Request.PackedValue = InRequests[RequestIndex];
