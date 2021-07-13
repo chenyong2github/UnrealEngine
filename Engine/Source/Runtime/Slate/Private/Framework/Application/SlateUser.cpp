@@ -6,9 +6,9 @@
 #include "Widgets/SWindow.h"
 #include "Widgets/SWeakWidget.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#if PLATFORM_MICROSOFT
 // Needed to be able to use RECT
-#include "Windows/WindowsHWrapper.h"
+#include "Microsoft/WindowsHWrapper.h"
 #endif
 
 DECLARE_CYCLE_STAT(TEXT("QueryCursor"), STAT_SlateQueryCursor, STATGROUP_Slate);

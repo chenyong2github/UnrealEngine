@@ -4,7 +4,7 @@
 #include "GenericPlatform/GenericApplication.h"
 
 // Windows has special needs with RECT, and we don't need this class on Windows anyway, so just skip it
-#if !PLATFORM_WINDOWS && !PLATFORM_HOLOLENS
+#if !PLATFORM_MICROSOFT
 
 FGenericPlatformSoftwareCursor::FGenericPlatformSoftwareCursor() 
 	: CurrentType(EMouseCursor::None)
