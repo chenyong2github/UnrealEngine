@@ -35,7 +35,7 @@
 	
 	<Agent Name="HLOD Setup" Type="Win64">
 		<Node Name="HLOD Setup" Requires="$(HLODSetupDependencies)">
-			<Commandlet Name="WorldPartitionBuilderCommandlet" Project="$(ProjectName)" Arguments="$(HLODCommonBuilderArgs) $(HLODBuilderSCC_None) -SetupHLODs -BuilderCount=$(BuilderCount)"/>
+			<Commandlet Name="WorldPartitionBuilderCommandlet" Project="$(ProjectName)" Arguments="$(HLODCommonBuilderArgs) $(HLODBuilderSCC_None) -AllowCommandletRendering -SetupHLODs -BuilderCount=$(BuilderCount)"/>
 			<GatherBuildProductsFromFile BuildProductsFile="$(RootDir)/HLODTemp/BuildProducts.txt"/>
 		</Node>
 	</Agent>
