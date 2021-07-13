@@ -1096,7 +1096,8 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 			for (FCompilerData& CompilerData : CurrentlyCompilingBPs)
 			{
 				if (CompilerData.JobType == ECompilationManagerJobType::Normal &&
-					!CompilerData.BP->bIsRegeneratingOnLoad)
+					!CompilerData.BP->bIsRegeneratingOnLoad &&
+					 CompilerData.BP->GeneratedClass)
 				{
 					const UClass* ParentClass = CompilerData.BP->ParentClass;
 					while (const UBlueprint* ParentBP = UBlueprint::GetBlueprintFromClass(ParentClass))
