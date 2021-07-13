@@ -312,8 +312,7 @@ void UTextBlock::SetText(FText InText)
 	TextDelegate.Unbind();
 	if ( MyTextBlock.IsValid() )
 	{
-		TAttribute<FText> TextBinding = GetDisplayText();
-		MyTextBlock->SetText(TextBinding);
+		MyTextBlock->SetText(GetDisplayText());
 	}
 }
 
