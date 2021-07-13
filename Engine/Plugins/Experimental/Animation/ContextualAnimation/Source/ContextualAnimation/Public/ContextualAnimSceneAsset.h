@@ -83,7 +83,20 @@ public:
 
 	FORCEINLINE float GetRadius() const { return Radius; }
 
+	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Asset")
 	bool Query(const FName& Role, FContextualAnimQueryResult& OutResult, const FContextualAnimQueryParams& QueryParams, const FTransform& ToWorldTransform) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Asset")
+	UAnimMontage* GetAnimationForRoleAtIndex(FName Role, int32 Index) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Asset")
+	int32 FindAnimIndex(FName Role, UAnimMontage* Animation) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Asset")
+	FTransform ExtractAlignmentTransformAtTime(FName Role, int32 AnimDataIndex, float Time) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Asset")
+	FTransform ExtractIKTargetTransformAtTime(FName Role, int32 AnimDataIndex, FName TrackName, float Time) const;
 
 	bool QueryCompositeTrack(const FContextualAnimCompositeTrack* Track, FContextualAnimQueryResult& OutResult, const FContextualAnimQueryParams& QueryParams, const FTransform& ToWorldTransform) const;
 
