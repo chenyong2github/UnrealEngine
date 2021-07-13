@@ -909,8 +909,6 @@ public:
 class FD3D12UnorderedAccessView : public FRHIUnorderedAccessView, public FD3D12View < D3D12_UNORDERED_ACCESS_VIEW_DESC >, public FD3D12LinkedAdapterObject<FD3D12UnorderedAccessView>
 {
 public:
-	TRefCountPtr<FD3D12Resource> CounterResource;
-	bool CounterResourceInitialized;
 
 	FD3D12UnorderedAccessView(FD3D12Device* InParent, D3D12_UNORDERED_ACCESS_VIEW_DESC& InDesc, FD3D12ResourceLocation& InResourceLocation, FD3D12Resource* InCounterResource = nullptr)
 		: FD3D12View(InParent, ViewSubresourceSubsetFlags_None)
@@ -919,6 +917,16 @@ public:
 	{
 		CreateViewWithCounter(InDesc, InResourceLocation, InCounterResource);
 	}
+
+	bool IsCounterResourceInitialized() const { return CounterResourceInitialized; }
+	void MarkCounterResourceInitialized() { CounterResourceInitialized = true; }
+
+	FD3D12Resource* GetCounterResource() { return CounterResource; }
+
+private:
+
+	TRefCountPtr<FD3D12Resource> CounterResource;
+	bool CounterResourceInitialized;
 };
 
 #if USE_STATIC_ROOT_SIGNATURE
