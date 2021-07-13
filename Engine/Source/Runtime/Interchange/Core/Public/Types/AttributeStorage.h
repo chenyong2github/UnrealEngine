@@ -10,6 +10,7 @@
 #include "Misc/FrameRate.h"
 #include "Misc/NetworkGuid.h"
 #include "Misc/ScopeLock.h"
+#include "UObject/SoftObjectPath.h"
 
 //Interchange namespace
 namespace UE
@@ -192,6 +193,7 @@ namespace UE
 			FrameNumber			= 45,
 			FrameRate			= 46,
 			FrameTime			= 47,
+			SoftObjectPath		= 48,
 		};
 
 		/**
@@ -772,6 +774,16 @@ namespace UE
 				});
 			}
 
+			EAttributeStorageResult SetAttribute(FAttributeAllocationInfo* AttributeAllocationInfo, const FSoftObjectPath& Value, TSpecializeType<FSoftObjectPath >)
+			{
+				//FSoftObjectPath can be hold has a FString and restore from it
+				FString ValueStr = Value.ToString();
+				return MultiSizeSetAttribute(AttributeAllocationInfo, Value, [&ValueStr]()->uint8*
+				{
+					return (uint8*)(*ValueStr);
+				});
+			}
+
 			template<typename T>
 			EAttributeStorageResult GetAttribute(const FAttributeKey& ElementAttributeKey, T& OutValue, TSpecializeType<T>) const
 			{
@@ -826,6 +838,8 @@ namespace UE
 
 			EAttributeStorageResult GetAttribute(const FAttributeKey& ElementAttributeKey, FName& OutValue, TSpecializeType<FName >) const;
 
+			EAttributeStorageResult GetAttribute(const FAttributeKey& ElementAttributeKey, FSoftObjectPath& OutValue, TSpecializeType<FSoftObjectPath >) const;
+
 			template<typename T>
 			static uint64 GetValueSize(const T& Value, TSpecializeType<T>)
 			{
@@ -840,6 +854,12 @@ namespace UE
 			static uint64 GetValueSize(const FString& Value, TSpecializeType<FString >);
 
 			static uint64 GetValueSize(const FName& Value, TSpecializeType<FName>)
+			{
+				FString ValueStr = Value.ToString();
+				return GetValueSize(ValueStr, TSpecializeType<FString >());
+			}
+
+			static uint64 GetValueSize(const FSoftObjectPath& Value, TSpecializeType<FSoftObjectPath>)
 			{
 				FString ValueStr = Value.ToString();
 				return GetValueSize(ValueStr, TSpecializeType<FString >());
@@ -1311,6 +1331,12 @@ namespace UE
 		template<> struct TAttributeTypeTraits<FFrameTime>
 		{
 			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::FrameTime; }
+		};
+
+		/** Implements variant type traits for the built-in SoftObjectPath type. */
+		template<> struct TAttributeTypeTraits<FSoftObjectPath>
+		{
+			static CONSTEXPR EAttributeTypes GetType() { return EAttributeTypes::SoftObjectPath; }
 		};
 
 	} //ns interchange

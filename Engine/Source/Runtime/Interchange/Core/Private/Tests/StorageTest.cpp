@@ -98,13 +98,30 @@ bool FAttributeStorageTest::RunTest(const FString& Parameters)
 		FAttributeKey Key = CreateUniqueKey();
 		if (!IsAttributeStorageResultSuccess(TestStorage.RegisterAttribute(Key, RefValue)))
 		{
-			AddError(FString(TEXT("`AttributeStorage` must handle adding FAttributeKey attribute")));
+			AddError(FString(TEXT("`AttributeStorage` must handle adding FName attribute")));
 		}
 		FName StoredValue;
 		TestStorage.GetAttributeHandle<FName>(Key).Get(StoredValue);
 		if(StoredValue != RefValue)
 		{
-			TestEqual(TEXT("`AttributeStorage` must handle add and retrieve FAttributeKey attribute"), StoredValue.ToString(), RefValue.ToString());
+			TestEqual(TEXT("`AttributeStorage` must handle add and retrieve FName attribute"), StoredValue.ToString(), RefValue.ToString());
+		}
+	}
+
+	//Adding FSoftObjectPath
+	{
+
+		const FSoftObjectPath RefValue(UClass::StaticClass());
+		FAttributeKey Key = CreateUniqueKey();
+		if (!IsAttributeStorageResultSuccess(TestStorage.RegisterAttribute(Key, RefValue)))
+		{
+			AddError(FString(TEXT("`AttributeStorage` must handle adding FSoftObjectPath attribute")));
+		}
+		FSoftObjectPath StoredValue;
+		TestStorage.GetAttributeHandle<FSoftObjectPath>(Key).Get(StoredValue);
+		if (StoredValue != RefValue)
+		{
+			TestEqual(TEXT("`AttributeStorage` must handle add and retrieve FSoftObjectPath attribute"), StoredValue.ToString(), RefValue.ToString());
 		}
 	}
 

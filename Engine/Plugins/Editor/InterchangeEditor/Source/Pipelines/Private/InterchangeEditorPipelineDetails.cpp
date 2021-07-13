@@ -184,6 +184,12 @@ void FInterchangeBaseNodeDetailsCustomization::AddAttributeRow(UE::Interchange::
 		}
 		break;
 
+		case UE::Interchange::EAttributeTypes::SoftObjectPath:
+		{
+			BuildStringValueContent<FSoftObjectPath>(AttributeCategory, AttributeKey);
+		}
+		break;
+
 		default:
 		{
 			FText AttributeName = FText::FromString(InterchangeBaseNode->GetKeyDisplayName(AttributeKey));
@@ -355,6 +361,16 @@ void FInterchangeBaseNodeDetailsCustomization::BuildStringValueContent(IDetailCa
 						AttributeHandle.Get(Value);
 					}
 					ReturnText = FText::FromName(Value);
+				}
+				else if (AttributeType == UE::Interchange::EAttributeTypes::SoftObjectPath)
+				{
+					UE::Interchange::FAttributeStorage::TAttributeHandle<FSoftObjectPath> AttributeHandle = InterchangeBaseNode->GetAttributeHandle<FSoftObjectPath>(AttributeKey);
+					FSoftObjectPath Value;
+					if (AttributeHandle.IsValid())
+					{
+						AttributeHandle.Get(Value);
+					}
+					ReturnText = FText::FromString(Value.ToString());
 				}
                 return ReturnText;
             })

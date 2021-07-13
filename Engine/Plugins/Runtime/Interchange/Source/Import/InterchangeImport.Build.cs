@@ -24,6 +24,7 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"AssetRegistry",
 					"IESFile",
 					"ImageWrapper",
 					"InterchangeDispatcher",

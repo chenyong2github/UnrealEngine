@@ -135,6 +135,10 @@ void UE::Interchange::FImportAsyncHelper::CancelAndWaitUntilDoneSynchronously()
 	{
 		TasksToComplete.Add(PreAsyncCompletionTask);
 	}
+	if (PreCompletionTask.GetReference())
+	{
+		TasksToComplete.Add(PreCompletionTask);
+	}
 	if (CompletionTask.GetReference())
 	{
 		//Completion task will make sure any created asset before canceling will be mark for delete

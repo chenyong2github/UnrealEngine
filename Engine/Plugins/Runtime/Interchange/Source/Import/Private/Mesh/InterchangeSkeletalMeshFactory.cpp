@@ -215,7 +215,7 @@ namespace UE
 				}
 			}
 
-			bool CopyBlendShapesMeshDescriptionToSkeletalMeshImportData(const TMap<FString, TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>>& LodBlendShapeMeshDescriptions, FSkeletalMeshImportData& DestinationSkeletalMeshImportData)
+			void CopyBlendShapesMeshDescriptionToSkeletalMeshImportData(const TMap<FString, TOptional<UE::Interchange::FSkeletalMeshBlendShapePayloadData>>& LodBlendShapeMeshDescriptions, FSkeletalMeshImportData& DestinationSkeletalMeshImportData)
 			{
 				const int32 OriginalMorphTargetCount = LodBlendShapeMeshDescriptions.Num();
 				TArray<FString> Keys;
@@ -242,6 +242,13 @@ namespace UE
 					Keys.Add(Pair.Key);
 					MorphTargetCount++;
 				}
+
+				//No morph target to import
+				if (MorphTargetCount == 0)
+				{
+					return;
+				}
+
 				ensure(Keys.Num() == MorphTargetCount);
 				//Allocate the data
 				DestinationSkeletalMeshImportData.MorphTargetNames.AddDefaulted(MorphTargetCount);
@@ -250,6 +257,9 @@ namespace UE
 
 				int32 NumMorphGroup = FMath::Min(FPlatformMisc::NumberOfWorkerThreadsToSpawn(), MorphTargetCount);
 				const int32 MorphTargetGroupSize = FMath::Max(FMath::CeilToInt(static_cast<float>(MorphTargetCount) / static_cast<float>(NumMorphGroup)), 1);
+				//Re-Adjust the group Number in case we have a reminder error (exemple MorphTargetGroupSize = 4.8 -> 5 so the number of group can be lower if there is a large amount of Group)
+				NumMorphGroup = FMath::CeilToInt(static_cast<float>(MorphTargetCount) / static_cast<float>(MorphTargetGroupSize));
+
 				ParallelFor(NumMorphGroup, [MorphTargetGroupSize,
 							MorphTargetCount,
 							NumMorphGroup,
@@ -264,7 +274,7 @@ namespace UE
 						if (!Keys.IsValidIndex(MorphTargetIndex))
 						{
 							ensure(MorphTargetGroupIndex + 1 == NumMorphGroup);
-							//Executing the last morph target group, and we do not have a full group.
+							//Executing the last morph target group, in case we do not have a full last group.
 							break;
 						}
 						const FString BlendShapeKey(Keys[MorphTargetIndex]);
@@ -319,10 +329,11 @@ namespace UE
 					}
 				}
 				, EParallelForFlags::BackgroundPriority);
-				return true;
+				return;
 			}
 
-			void RetrieveAllSkeletalMeshPayloadsAndFillImportData(FSkeletalMeshImportData& DestinationImportData
+			void RetrieveAllSkeletalMeshPayloadsAndFillImportData(const UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode
+																  , FSkeletalMeshImportData& DestinationImportData
 																  , TArray<FMeshNodeContext>& MeshReferences
 																  , TArray<SkeletalMeshImportData::FBone>& RefBonesBinary
 																  , const UInterchangeSkeletalMeshFactory::FCreateAssetParams& Arguments
@@ -341,6 +352,9 @@ namespace UE
 					AppendSettings.bMergeUVChannels[ChannelIdx] = true;
 				}
 
+				bool bImportMorphTarget = true;
+				SkeletalMeshFactoryNode->GetCustomImportMorphTarget(bImportMorphTarget);
+
 				TMap<FString, TFuture<TOptional<UE::Interchange::FSkeletalMeshLodPayloadData>>> LodMeshPayloadPerTranslatorPayloadKey;
 				LodMeshPayloadPerTranslatorPayloadKey.Reserve(MeshReferences.Num());
 
@@ -352,7 +366,7 @@ namespace UE
 					//Add the payload entry key, the payload data will be fill later in bulk by the translator
 					LodMeshPayloadPerTranslatorPayloadKey.Add(MeshNodeContext.TranslatorPayloadKey, SkeletalMeshTranslatorPayloadInterface->GetSkeletalMeshLodPayloadData(MeshNodeContext.TranslatorPayloadKey));
 					//Count the blend shape dependencies so we can reserve the right amount
-					BlendShapeCount += MeshNodeContext.MeshNode ? MeshNodeContext.MeshNode->GetShapeDependeciesCount() : 0;
+					BlendShapeCount += (bImportMorphTarget && MeshNodeContext.MeshNode) ? MeshNodeContext.MeshNode->GetShapeDependeciesCount() : 0;
 				}
 				BlendShapeMeshDescriptionsPerBlendShapeName.Reserve(BlendShapeCount);
 
@@ -404,13 +418,15 @@ namespace UE
 					}
 					FStaticMeshOperations::AppendMeshDescription(LodMeshPayload->LodMeshDescription, LodMeshDescription, AppendSettings);
 					FSkeletalMeshOperations::AppendSkinWeight(LodMeshPayload->LodMeshDescription, LodMeshDescription, SkeletalMeshAppendSettings);
-
-					FillBlendShapeMeshDescriptionsPerBlendShapeName(MeshNodeContext
-																	, BlendShapeMeshDescriptionsPerBlendShapeName
-																	, SkeletalMeshTranslatorPayloadInterface
-																	, VertexOffset
-																	, Arguments.NodeContainer
-																	, Arguments.AssetName);
+					if (bImportMorphTarget)
+					{
+						FillBlendShapeMeshDescriptionsPerBlendShapeName(MeshNodeContext
+																		, BlendShapeMeshDescriptionsPerBlendShapeName
+																		, SkeletalMeshTranslatorPayloadInterface
+																		, VertexOffset
+																		, Arguments.NodeContainer
+																		, Arguments.AssetName);
+					}
 				}
 
 				DestinationImportData = FSkeletalMeshImportData::CreateFromMeshDescription(LodMeshDescription);
@@ -640,8 +656,6 @@ namespace UE
 					}
 				}
 			}
-
-
 		} //Namespace Private
 	} //namespace Interchange
 } //namespace UE
@@ -854,12 +868,26 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 					continue;
 				}
 				
+				FSoftObjectPath SpecifiedSkeleton;
+				SkeletalMeshFactoryNode->GetCustomSkeletonSoftObjectPath(SpecifiedSkeleton);
+				bool bSpecifiedSkeleton = SpecifiedSkeleton.IsValid();
 				if(SkeletonReference == nullptr)
 				{
-					UObject* SkeletonObject = SkeletonNode->ReferenceObject.ResolveObject();
+					UObject* SkeletonObject = nullptr;
+					
+					if (SpecifiedSkeleton.IsValid())
+					{
+						SkeletonObject = SpecifiedSkeleton.TryLoad();
+					}
+					else if (SkeletonNode->ReferenceObject.IsValid())
+					{
+						SkeletonObject = SkeletonNode->ReferenceObject.TryLoad();
+					}
+
 					if (SkeletonObject)
 					{
 						SkeletonReference = Cast<USkeleton>(SkeletonObject);
+						
 					}
 					if (!ensure(SkeletonReference))
 					{
@@ -878,12 +906,16 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 				int32 SkeletonDepth = 0;
 				TArray<SkeletalMeshImportData::FBone> RefBonesBinary;
 				UE::Interchange::Private::ProcessImportMeshSkeleton(SkeletonReference, SkeletalMesh->GetRefSkeleton(), SkeletonDepth, Arguments.NodeContainer, RootJointNodeId, RefBonesBinary);
-
+				if (bSpecifiedSkeleton && !SkeletonReference->IsCompatibleMesh(SkeletalMesh))
+				{
+					UE_LOG(LogInterchangeImport, Warning, TEXT("The skeleton %s is incompatible with the imported skeletalmesh asset %s"), *SkeletonReference->GetName() , *Arguments.AssetName);
+				}
 				//Add the lod mesh data to the skeletalmesh
 				FSkeletalMeshImportData SkeletalMeshImportData;
 				
 				//Get all meshes and blend shapes payload and fill the SkeletalMeshImportData structure
-				UE::Interchange::Private::RetrieveAllSkeletalMeshPayloadsAndFillImportData(SkeletalMeshImportData
+				UE::Interchange::Private::RetrieveAllSkeletalMeshPayloadsAndFillImportData(SkeletalMeshFactoryNode
+																						   , SkeletalMeshImportData
 																						   , MeshReferences
 																						   , RefBonesBinary
 																						   , Arguments
@@ -950,6 +982,20 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 
 			/** Apply all SkeletalMeshFactoryNode custom attributes to the material asset */
 			SkeletalMeshFactoryNode->ApplyAllCustomAttributeToAsset(SkeletalMesh);
+
+			bool bCreatePhysicsAsset = false;
+			SkeletalMeshFactoryNode->GetCustomCreatePhysicsAsset(bCreatePhysicsAsset);
+			
+			if (!bCreatePhysicsAsset)
+			{
+				FSoftObjectPath SpecifiedPhysicAsset;
+				SkeletalMeshFactoryNode->GetCustomPhysicAssetSoftObjectPath(SpecifiedPhysicAsset);
+				if (SpecifiedPhysicAsset.IsValid())
+				{
+					UPhysicsAsset* PhysicsAsset = Cast<UPhysicsAsset>(SpecifiedPhysicAsset.TryLoad());
+					SkeletalMesh->SetPhysicsAsset(PhysicsAsset);
+				}
+			}
 		}
 		
 		//Getting the file Hash will cache it into the source data
@@ -969,10 +1015,10 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 }
 
 /* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets*/
-void UInterchangeSkeletalMeshFactory::PostImportGameThreadCallback(const FPostImportGameThreadCallbackParams& Arguments) const
+void UInterchangeSkeletalMeshFactory::PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) const
 {
 	check(IsInGameThread());
-	Super::PostImportGameThreadCallback(Arguments);
+	Super::PreImportPreCompletedCallback(Arguments);
 
 	//TODO make sure this work at runtime
 #if WITH_EDITORONLY_DATA

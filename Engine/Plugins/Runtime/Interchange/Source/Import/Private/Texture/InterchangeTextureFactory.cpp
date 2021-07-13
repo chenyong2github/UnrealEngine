@@ -725,10 +725,10 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 }
 
 /* This function is call in the completion task on the main thread, use it to call main thread post creation step for your assets*/
-void UInterchangeTextureFactory::PostImportGameThreadCallback(const FPostImportGameThreadCallbackParams& Arguments) const
+void UInterchangeTextureFactory::PreImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments) const
 {
 	check(IsInGameThread());
-	Super::PostImportGameThreadCallback(Arguments);
+	Super::PreImportPreCompletedCallback(Arguments);
 	//TODO make sure this work at runtime
 #if WITH_EDITORONLY_DATA
 	if (ensure(Arguments.ImportedObject && Arguments.SourceData))
