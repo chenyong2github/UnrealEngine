@@ -258,7 +258,7 @@ static void GatherHLODGrids(UWorldPartition* WorldPartition, TMap<FName, FSpatia
 	// Gather up all HLODLayer referenced by the actors
 	TSet<UHLODLayer*> HLODLayers;
 
-	for (UActorDescContainer::TIterator<> ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
+	for (FActorDescList::TIterator<> ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
 	{
 		const FWorldPartitionActorDesc& ActorDesc = **ActorDescIterator;
 		if (!ActorDesc.GetActorClass()->IsChildOf<AWorldPartitionHLOD>())
@@ -495,7 +495,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 
 	TSet<FWorldPartitionHandle> InvalidHLODActors;
 
-	for (UActorDescContainer::TIterator<AWorldPartitionHLOD> HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
+	for (FActorDescList::TIterator<AWorldPartitionHLOD> HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
 	{
 		uint64 CellHash = HLODIterator->GetCellHash();
 

@@ -23,7 +23,7 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionBuilderCommandlet::Main);
 
-	UE_SCOPED_TIMER(TEXT("Execution"), LogWorldPartitionBuilderCommandlet);
+	UE_SCOPED_TIMER(TEXT("Execution"), LogWorldPartitionBuilderCommandlet, Display);
 
 	TArray<FString> Tokens, Switches;
 	ParseCommandLine(*Params, Tokens, Switches);

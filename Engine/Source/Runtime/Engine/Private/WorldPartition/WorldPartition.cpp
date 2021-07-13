@@ -335,7 +335,7 @@ FName UWorldPartition::GetWorldPartitionEditorName()
 
 void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 {
-	UE_SCOPED_TIMER(TEXT("WorldPartition initialize"), LogWorldPartition);
+	UE_SCOPED_TIMER(TEXT("WorldPartition initialize"), LogWorldPartition, Display);
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartition::Initialize);
 	
 	check(!World || (World == InWorld));
@@ -409,7 +409,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 			ReplaceTo = DestWorldName + TEXT(".") + DestWorldName;
 		}
 
-		for (UActorDescContainer::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
+		for (FActorDescList::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 		{
 			if (bIsInstanced)
 			{
