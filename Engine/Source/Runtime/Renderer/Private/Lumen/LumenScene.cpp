@@ -66,7 +66,7 @@ bool FLumenPrimitiveGroup::HasMergedInstances() const
 		for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : Primitives)
 		{
 			const TConstArrayView<FPrimitiveInstance> InstanceSceneData = PrimitiveSceneInfo->Proxy->GetInstanceSceneData();
-			NumInstances += FMath::Min(InstanceSceneData.Num(), 1);
+			NumInstances += FMath::Max(InstanceSceneData.Num(), 1);
 
 			if (NumInstances > 1)
 			{
@@ -627,8 +627,9 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 		{
 			const TConstArrayView<FPrimitiveInstance> InstanceSceneData = ScenePrimitiveInfo->Proxy->GetInstanceSceneData();
 
+			int32 NumInstances = FMath::Max(InstanceSceneData.Num(), 1);
+
 			// #lumen_todo: Remove after non-Nanite per instance ISM capture is fixed (now every instance draws entire ISM)
-			int32 NumInstances = FMath::Min(InstanceSceneData.Num(), 1);
 			if (!ScenePrimitiveInfo->Proxy->IsNaniteMesh())
 			{
 				NumInstances = 1;
