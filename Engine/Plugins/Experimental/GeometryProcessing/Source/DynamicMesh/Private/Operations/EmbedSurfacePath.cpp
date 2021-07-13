@@ -422,30 +422,44 @@ bool WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, int StartVID, FVect
 	// note we don't even check that the barycoords match in the edge case -- conceptually the path can only cross the edge at one point, so it 'should' be fine to treat them as close enough, and having two points on the same edge would mess up the simple embedding code
 	if (WalkedPath.Num() && WalkedPath[0].Key.PointType == ESurfacePointType::Triangle)
 	{
-		RefineSurfacePtFromTriangleToSubElement(Mesh, WalkedPath[0].Key.Pos(Mesh), WalkedPath[0].Key, PtOnPlaneThresholdSq);
-		if (WalkedPath.Num() > 1 &&
-			WalkedPath[0].Key.PointType != ESurfacePointType::Triangle &&
-			WalkedPath[0].Key.PointType == WalkedPath[1].Key.PointType &&
-			WalkedPath[0].Key.ElementID == WalkedPath[1].Key.ElementID)
+		FMeshSurfacePoint& SurfacePt = WalkedPath[0].Key;
+		
+		// special case code to handle if we started on an exact vertex ID, to ensure refinement gets the same vertex ID
+		// (note we do this after-the-fact fix rather than refining up-front to keep the traversal logic simpler)
+		if (StartVIDIndex > -1 && SurfacePt.BaryCoord[StartVIDIndex] == 1.0) // if we had an exact start vertex
 		{
-			if (WalkedPath.Last().Key.PointType == ESurfacePointType::Edge) // copy closer barycoord
+			FIndex3i TriVertIDs = Mesh->GetTriangle(SurfacePt.ElementID);
+			SurfacePt.ElementID = TriVertIDs[StartVIDIndex];
+			SurfacePt.PointType = ESurfacePointType::Vertex;
+		}
+		else
+		{
+			RefineSurfacePtFromTriangleToSubElement(Mesh, SurfacePt.Pos(Mesh), SurfacePt, PtOnPlaneThresholdSq);
+		}
+		if (WalkedPath.Num() > 1 &&
+			SurfacePt.PointType != ESurfacePointType::Triangle &&
+			SurfacePt.PointType == WalkedPath[1].Key.PointType &&
+			SurfacePt.ElementID == WalkedPath[1].Key.ElementID)
+		{
+			if (SurfacePt.PointType == ESurfacePointType::Edge) // copy closer barycoord
 			{
-				WalkedPath[1].Key.BaryCoord = WalkedPath[0].Key.BaryCoord;
+				WalkedPath[1].Key.BaryCoord = SurfacePt.BaryCoord;
 			}
 			WalkedPath.RemoveAt(0);
 		}
 	}
 	if (WalkedPath.Num() && WalkedPath.Last().Key.PointType == ESurfacePointType::Triangle)
 	{
-		RefineSurfacePtFromTriangleToSubElement(Mesh, WalkedPath.Last().Key.Pos(Mesh), WalkedPath.Last().Key, PtOnPlaneThresholdSq);
+		FMeshSurfacePoint& SurfacePt = WalkedPath.Last().Key;
+		RefineSurfacePtFromTriangleToSubElement(Mesh, SurfacePt.Pos(Mesh), SurfacePt, PtOnPlaneThresholdSq);
 		if (WalkedPath.Num() > 1 &&
-			WalkedPath.Last().Key.PointType != ESurfacePointType::Triangle &&
-			WalkedPath.Last().Key.PointType == WalkedPath.Last(1).Key.PointType &&
-			WalkedPath.Last().Key.ElementID == WalkedPath.Last(1).Key.ElementID)
+			SurfacePt.PointType != ESurfacePointType::Triangle &&
+			SurfacePt.PointType == WalkedPath.Last(1).Key.PointType &&
+			SurfacePt.ElementID == WalkedPath.Last(1).Key.ElementID)
 		{
-			if (WalkedPath.Last().Key.PointType == ESurfacePointType::Edge) // copy closer barycoord
+			if (SurfacePt.PointType == ESurfacePointType::Edge) // copy closer barycoord
 			{
-				WalkedPath.Last(1).Key.BaryCoord = WalkedPath.Last().Key.BaryCoord;
+				WalkedPath.Last(1).Key.BaryCoord = SurfacePt.BaryCoord;
 			}
 			WalkedPath.Pop();
 		}

@@ -153,6 +153,35 @@ public:
 		// Get the plane of Triangle0.
 		TPlane3<Real> Plane0(Triangle0.V[0], Triangle0.V[1], Triangle0.V[2]);
 
+		if (Plane0.Normal == FVector3<Real>::Zero())
+		{
+			// This function was written assuming triangle 0 has a valid normal;
+			//  if it's degenerate, try swapping the triangles
+			TPlane3<Real> Plane1(Triangle1.V[0], Triangle1.V[1], Triangle1.V[2]);
+			if (Plane1.Normal != FVector3<Real>::Zero())
+			{
+				// Find the intersection with the triangles swapped
+				TIntrTriangle3Triangle3<Real> SwappedTrisIntr(Triangle1, Triangle0);
+				SwappedTrisIntr.Tolerance = Tolerance;
+				SwappedTrisIntr.bReportCoplanarIntersection = bReportCoplanarIntersection;
+				bool bRes = SwappedTrisIntr.Find();
+				// copy results back
+				Result = SwappedTrisIntr.Result;
+				Type = SwappedTrisIntr.Type;
+				Quantity = SwappedTrisIntr.Quantity;
+				for (int PtIdx = 0; PtIdx < 6; PtIdx++)
+				{
+					Points[PtIdx] = SwappedTrisIntr.Points[PtIdx];
+				}
+				return bRes;
+			}
+			else
+			{
+				// both triangles degenerate; we don't handle this
+				return false;
+			}
+		}
+
 		// Compute the signed distances of Triangle1 vertices to Plane0.  Use
 		// an epsilon-thick plane test.
 		int pos1, neg1, zero1;
@@ -544,11 +573,11 @@ public:
 			for (i = 0; i < 3; ++i)
 			{
 				projTri.V[i] = GetYZ(triangle.V[i]);
-				projEnd0.X = end0.Y;
-				projEnd0.Y = end0.Z;
-				projEnd1.X = end1.Y;
-				projEnd1.Y = end1.Z;
 			}
+			projEnd0.X = end0.Y;
+			projEnd0.Y = end0.Z;
+			projEnd1.X = end1.Y;
+			projEnd1.Y = end1.Z;
 		}
 		else if (maxNormal == 1)
 		{
@@ -556,11 +585,11 @@ public:
 			for (i = 0; i < 3; ++i)
 			{
 				projTri.V[i] = GetXZ(triangle.V[i]);
-				projEnd0.X = end0.X;
-				projEnd0.Y = end0.Z;
-				projEnd1.X = end1.X;
-				projEnd1.Y = end1.Z;
 			}
+			projEnd0.X = end0.X;
+			projEnd0.Y = end0.Z;
+			projEnd1.X = end1.X;
+			projEnd1.Y = end1.Z;
 		}
 		else
 		{
@@ -568,11 +597,11 @@ public:
 			for (i = 0; i < 3; ++i)
 			{
 				projTri.V[i] = GetXY(triangle.V[i]);
-				projEnd0.X = end0.X;
-				projEnd0.Y = end0.Y;
-				projEnd1.X = end1.X;
-				projEnd1.Y = end1.Y;
 			}
+			projEnd0.X = end0.X;
+			projEnd0.Y = end0.Y;
+			projEnd1.X = end1.X;
+			projEnd1.Y = end1.Y;
 		}
 
 		TSegment2<Real> projSeg(projEnd0, projEnd1);
