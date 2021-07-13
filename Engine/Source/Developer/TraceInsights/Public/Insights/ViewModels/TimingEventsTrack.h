@@ -41,6 +41,7 @@ public:
 	virtual void PostUpdate(const ITimingTrackUpdateContext& Context) override;
 
 	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
+	virtual void PostDraw(const ITimingTrackDrawContext& Context) const override;
 	virtual void DrawEvent(const ITimingTrackDrawContext& Context, const ITimingEvent& InTimingEvent, EDrawEventMode InDrawMode) const override;
 
 	virtual const TSharedPtr<const ITimingEvent> GetEvent(float InPosX, float InPosY, const FTimingTrackViewport& Viewport) const override;
@@ -55,6 +56,23 @@ public:
 protected:
 	int32 GetNumLanes() const { return NumLanes; }
 	void SetNumLanes(int32 InNumLanes) { NumLanes = InNumLanes; }
+
+	const struct FTimingEventsTrackDrawState& GetDrawState() const { return *DrawState; }
+	const struct FTimingEventsTrackDrawState& GetFilteredDrawState() const { return *FilteredDrawState; }
+
+	float GetFilteredDrawStateOpacity() const { return FilteredDrawStateInfo.Opacity; }
+	bool UpdateFilteredDrawStateOpacity() const
+	{
+		if (FilteredDrawStateInfo.Opacity == 1.0f)
+		{
+			return true;
+		}
+		else
+		{
+			FilteredDrawStateInfo.Opacity = FMath::Min(1.0f, FilteredDrawStateInfo.Opacity + 0.05f);
+			return false;
+		}
+	}
 
 	void UpdateTrackHeight(const ITimingTrackUpdateContext& Context);
 

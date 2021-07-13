@@ -226,6 +226,7 @@ void FTimingEventsTrackDrawStateBuilder::AddEvent(double EventStartTime, double 
 			DrawText.X = EventX1 + 2.0f;
 			DrawText.Text = Name.Left(LastWholeCharacterIndex + 1);
 			DrawText.bWhite = bIsDarkColor;
+			DrawText.Color = FLinearColor(EventColorFill.R * BorderColorFactor, EventColorFill.G * BorderColorFactor, EventColorFill.B * BorderColorFactor, EventColorFill.A);
 		}
 	}
 }
@@ -269,6 +270,7 @@ FTimingViewDrawHelper::FTimingViewDrawHelper(const FDrawContext& InDrawContext, 
 	, HoveredEventBorderBrush(FInsightsStyle::Get().GetBrush("HoveredEventBorder"))
 	, SelectedEventBorderBrush(FInsightsStyle::Get().GetBrush("SelectedEventBorder"))
 	, BackgroundAreaBrush(WhiteBrush)
+	, IdleAreaBrush(FInsightsStyle::Get().GetBrush("DashedBrush"))
 	, ValidAreaColor(0.07f, 0.07f, 0.07f, 1.0f)
 	, InvalidAreaColor(0.1f, 0.07f, 0.07f, 1.0f)
 	, EdgeColor(0.05f, 0.05f, 0.05f, 1.0f)
@@ -302,9 +304,7 @@ void FTimingViewDrawHelper::DrawBackground() const
 
 void FTimingViewDrawHelper::DrawEvents(const FTimingEventsTrackDrawState& DrawState, const FTimingEventsTrack& Track, const float OffsetY) const
 {
-	const float TrackY = Track.GetPosY();
 	const float TrackH = Track.GetHeight();
-
 	if (TrackH > 0.0f)
 	{
 		const FTimingViewLayout& Layout = Viewport.GetLayout();
@@ -312,7 +312,7 @@ void FTimingViewDrawHelper::DrawEvents(const FTimingEventsTrackDrawState& DrawSt
 		NumEvents += DrawState.GetNumEvents();
 		NumMergedBoxes += DrawState.GetNumMergedBoxes();
 
-		float TopLaneY = TrackY;
+		float TopLaneY = Track.GetPosY();
 		if (!Track.IsChildTrack())
 		{
 			TopLaneY += OffsetY + Layout.TimelineDY;
@@ -379,9 +379,7 @@ void FTimingViewDrawHelper::DrawEvents(const FTimingEventsTrackDrawState& DrawSt
 
 void FTimingViewDrawHelper::DrawFadedEvents(const FTimingEventsTrackDrawState& DrawState, const FTimingEventsTrack& Track, const float OffsetY, const float Opacity) const
 {
-	const float TrackY = Track.GetPosY();
 	const float TrackH = Track.GetHeight();
-
 	if (TrackH > 0.0f)
 	{
 		const FTimingViewLayout& Layout = Viewport.GetLayout();
@@ -389,7 +387,7 @@ void FTimingViewDrawHelper::DrawFadedEvents(const FTimingEventsTrackDrawState& D
 		NumEvents += DrawState.GetNumEvents();
 		NumMergedBoxes += DrawState.GetNumMergedBoxes();
 
-		float TopLaneY = TrackY;
+		float TopLaneY = Track.GetPosY();
 		if (!Track.IsChildTrack())
 		{
 			TopLaneY += OffsetY + Layout.TimelineDY;
@@ -451,6 +449,156 @@ void FTimingViewDrawHelper::DrawFadedEvents(const FTimingEventsTrackDrawState& D
 				DrawContext.DrawText(EventTextLayerId, Text.X, Y, Text.Text, EventFont, Text.bWhite ? WhiteColor : BlackColor);
 			}
 			NumDrawTexts += DrawState.Texts.Num();
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingViewDrawHelper::DrawLineEvents(const FTimingEventsTrackDrawState& DrawState, const FTimingEventsTrack& Track, const float OffsetY) const
+{
+	const float TrackH = Track.GetHeight();
+
+	if (TrackH > 0.0f)
+	{
+		const FTimingViewLayout& Layout = Viewport.GetLayout();
+
+		NumEvents += DrawState.GetNumEvents();
+		NumMergedBoxes += DrawState.GetNumMergedBoxes();
+
+		float TopLaneY = Track.GetPosY();
+		if (!Track.IsChildTrack())
+		{
+			TopLaneY += OffsetY + Layout.TimelineDY;
+		}
+		if (Track.GetChildTrack().IsValid())
+		{
+			TopLaneY += Track.ChildTrack->GetHeight() + Layout.ChildTimelineDY;
+		}
+
+		constexpr float LineH = 3.0f;
+		constexpr float LineEndsDH = 1.0f;
+		constexpr float LineEndsH = LineH + 2 * LineEndsDH;
+
+		// Draw filled boxes (merged borders).
+		//if (Layout.EventH > 0.0f)
+		{
+			const int32 EventFillLayerId = ReservedLayerId + ToInt32(EDrawLayer::EventFill);
+			const float Y = TopLaneY + Layout.EventH - LineEndsH + LineEndsDH + 1.0f;
+			for (const FTimingEventsTrackDrawState::FBoxPrimitive& Box : DrawState.Boxes)
+			{
+				DrawContext.DrawBox(EventFillLayerId, Box.X, Y, Box.W, LineEndsH, WhiteBrush, Box.Color);
+			}
+			NumDrawBoxes += DrawState.Boxes.Num();
+		}
+
+		// Draw filled boxes (event inside area).
+		if (Layout.EventH > 2.0f)
+		{
+			const int32 EventFillLayerId = ReservedLayerId + ToInt32(EDrawLayer::EventFill);
+			const float Y = TopLaneY + Layout.EventH - LineEndsH + LineEndsDH + 2.0f;
+			for (const FTimingEventsTrackDrawState::FBoxPrimitive& Box : DrawState.InsideBoxes)
+			{
+				DrawContext.DrawBox(EventFillLayerId, Box.X, Y, Box.W, LineH, WhiteBrush, Box.Color);
+			}
+			NumDrawBoxes += DrawState.InsideBoxes.Num();
+		}
+
+		// Draw borders (just two vertical lines at ends).
+		//if (Layout.EventH > 0.0f)
+		{
+			const int32 EventBorderLayerId = ReservedLayerId + ToInt32(EDrawLayer::EventBorder);
+			const float Y = TopLaneY + Layout.EventH - LineEndsH + LineEndsDH + 1.0f;
+			for (const FTimingEventsTrackDrawState::FBoxPrimitive& Box : DrawState.Borders)
+			{
+				DrawContext.DrawBox(EventBorderLayerId, Box.X, Y, 1.0f, LineEndsH, WhiteBrush, Box.Color);
+				DrawContext.DrawBox(EventBorderLayerId, Box.X + Box.W - 1.0f, Y, 1.0f, LineEndsH, WhiteBrush, Box.Color);
+			}
+			NumDrawBorders += DrawState.Borders.Num();
+		}
+
+		// Draw texts.
+		if (Layout.EventH > 10.0f)
+		{
+			const int32 EventTextLayerId = ReservedLayerId + ToInt32(EDrawLayer::EventText);
+			const float Y = TopLaneY;
+			for (const FTimingEventsTrackDrawState::FTextPrimitive& Text : DrawState.Texts)
+			{
+				DrawContext.DrawText(EventTextLayerId, Text.X, Y, Text.Text, EventFont, Text.Color);
+			}
+			NumDrawTexts += DrawState.Texts.Num();
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingViewDrawHelper::DrawFadedLineEvents(const FTimingEventsTrackDrawState& DrawState, const FTimingEventsTrack& Track, const float OffsetY, const float Opacity) const
+{
+	// TODO
+	DrawLineEvents(DrawState, Track, OffsetY);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingViewDrawHelper::DrawContextSwitchMarkers(const FTimingEventsTrackDrawState& DrawState, float LineY, float LineH, float Opacity) const
+{
+	if (LineH > 0.0f)
+	{
+		const int32 LayerId = ReservedLayerId + ToInt32(EDrawLayer::EventHighlight);
+
+		// Draw vertical lines (merged into large boxes).
+		for (const FTimingEventsTrackDrawState::FBoxPrimitive& Box : DrawState.Boxes)
+		{
+			const FLinearColor Color = Box.Color.CopyWithNewOpacity(Opacity);
+			DrawContext.DrawBox(LayerId, Box.X, LineY, Box.W, LineH, WhiteBrush, Color);
+		}
+
+		// Draw vertical lines (edges of larger events).
+		for (const FTimingEventsTrackDrawState::FBoxPrimitive& Box : DrawState.Borders)
+		{
+			const FLinearColor Color = Box.Color.CopyWithNewOpacity(Opacity);
+			DrawContext.DrawBox(LayerId, Box.X, LineY, 1.0f, LineH, WhiteBrush, Color);
+			DrawContext.DrawBox(LayerId, Box.X + Box.W - 1.0f, LineY, 1.0f, LineH, WhiteBrush, Color);
+		}
+
+		// Draw overlay for idle areas.
+		const FSlateBrush* IdleBrush = IdleAreaBrush;
+		const FLinearColor IdleColor(1.0f, 1.0f, 1.0f, 0.5f);
+		const int32 Count1 = DrawState.Boxes.Num();
+		const int32 Count2 = DrawState.Borders.Num();
+		int32 Index1 = 0;
+		int32 Index2 = 0;
+		const float MinX = Viewport.TimeToSlateUnitsRounded(Viewport.GetMinValidTime());
+		float CurrentX = MinX;
+		while (Index1 < Count1 || Index2 < Count2)
+		{
+			const float X1 = (Index1 < Count1) ? DrawState.Boxes[Index1].X : FLT_MAX;
+			const float X2 = (Index2 < Count2) ? DrawState.Borders[Index2].X : FLT_MAX;
+			if (X1 < X2)
+			{
+				if (X1 - CurrentX > 0.0f)
+				{
+					DrawContext.DrawBox(LayerId, CurrentX, LineY, X1 - CurrentX, LineH, IdleBrush, IdleColor);
+				}
+				CurrentX = FMath::Max(CurrentX, X1 + DrawState.Boxes[Index1].W);
+				++Index1;
+			}
+			else
+			{
+				if (X2 - CurrentX > 0.0f)
+				{
+					DrawContext.DrawBox(LayerId, CurrentX, LineY, X2 - CurrentX, LineH, IdleBrush, IdleColor);
+				}
+				CurrentX = FMath::Max(CurrentX, X2 + DrawState.Borders[Index2].W);
+				++Index2;
+			}
+		}
+		const float MaxX = Viewport.TimeToSlateUnitsRounded(Viewport.GetMaxValidTime());
+		const float LastAreaW = FMath::Min(MaxX, Viewport.GetWidth()) - CurrentX;
+		if (LastAreaW > 0.0f)
+		{
+			DrawContext.DrawBox(LayerId, CurrentX, LineY, LastAreaW, LineH, IdleBrush, IdleColor);
 		}
 	}
 }

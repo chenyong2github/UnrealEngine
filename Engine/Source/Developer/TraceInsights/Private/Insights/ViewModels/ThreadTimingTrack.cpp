@@ -935,6 +935,11 @@ void FThreadTimingTrack::BuildFilteredDrawState(ITimingEventsTrackDrawStateBuild
 
 void FThreadTimingTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 {
+	if (ChildTrack.IsValid())
+	{
+		ChildTrack->PostDraw(Context);
+	}
+
 	const TSharedPtr<const ITimingEvent> SelectedEventPtr = Context.GetSelectedEvent();
 	if (SelectedEventPtr.IsValid() &&
 		SelectedEventPtr->CheckTrack(this) &&
