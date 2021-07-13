@@ -1895,7 +1895,7 @@ FLinearColor FControlRigEditor::GetWorldCentricTabColorScale() const
 
 void FControlRigEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
 {
-	FAssetEditorToolkit::InitToolMenuContext(MenuContext);
+	FBlueprintEditor::InitToolMenuContext(MenuContext);
 
 	if (UControlRigBlueprint* RigBlueprint = GetControlRigBlueprint())
 	{
