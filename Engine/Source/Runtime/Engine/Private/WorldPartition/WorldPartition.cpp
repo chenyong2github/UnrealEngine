@@ -835,15 +835,15 @@ bool UWorldPartition::UpdateEditorCells(TFunctionRef<bool(TArray<UWorldPartition
 		// Only prompt if the actor will get unloaded by the unloading cells
 		if (ActorDesc->GetHardRefCount() == Pair.Value)
 		{
-			AActor* LoadedActor = ActorDesc->GetActor();
-			checkf(LoadedActor, TEXT("Can't find loaded actor %s"), *ActorDesc->ToString());
-
-			UPackage* ActorPackage = LoadedActor->GetExternalPackage();
-			if (ActorPackage && ActorPackage->IsDirty())
+			if (AActor* LoadedActor = ActorDesc->GetActor())
 			{
-				ModifiedPackages.Add(ActorPackage);
+				UPackage* ActorPackage = LoadedActor->GetExternalPackage();
+				if (ActorPackage && ActorPackage->IsDirty())
+				{
+					ModifiedPackages.Add(ActorPackage);
+				}
+				bIsUpdateUnloadingActors = true;
 			}
-			bIsUpdateUnloadingActors = true;
 		}
 	}
 
@@ -954,10 +954,6 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 		for (UWorldPartitionEditorCell::FActorHandle& ActorHandle: Cell->Actors)
 		{
 			AActor* Actor = ActorHandle->GetActor();
-
-			// The actor could be either loaded but with no cells loaded (in the case of a reference from another actor, for example)
-			// or directly referenced by a loaded cell.
-			check(Actor || !ActorHandle->GetHardRefCount());
 
 			// Filter actor against DataLayers
 			if (ShouldActorBeLoadedByEditorCells(*ActorHandle))
