@@ -3,3 +3,4 @@
 #pragma once
 
 void InitDerivedDataBuildRemoteExecutor();
+void DumpDerivedDataBuildRemoteExecutorStats();
