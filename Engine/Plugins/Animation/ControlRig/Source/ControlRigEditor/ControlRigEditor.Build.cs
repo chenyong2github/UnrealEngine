@@ -62,6 +62,7 @@ namespace UnrealBuildTool.Rules
 					"ContentBrowserData",
                     "LevelEditor",
                     "SceneOutliner",
+                    "EditorInteractiveToolsFramework",
                     "LevelSequence",
                     "GraphEditor",
                     "PropertyPath",

@@ -81,7 +81,8 @@ private:
 	void MakePoseDialog();
 	void MakeTweenDialog();
 	void MakeSnapperDialog();
-	void MakeTempPivotDialog();
+	void MakeMotionTrailDialog();
+	void ToggleEditPivotMode();
 
 	//TODO may put back void MakeSelectionSetDialog();
 	//TWeakPtr<SWindow> SelectionSetWindow;

@@ -182,30 +182,6 @@ bool FControlRigSnapper::GetControlRigControlTransforms(UWorld* World,ULevelSequ
 	return false;
 }
 
-//Matinee version of this doesn't actually set the key it only adds..sigh
-static void SetOrAddKey(TMovieSceneChannelData<FMovieSceneFloatValue>& ChannelData, FFrameNumber Time, float Value)
-{
-	int32 ExistingIndex = ChannelData.FindKey(Time);
-	if (ExistingIndex != INDEX_NONE)
-	{
-		FMovieSceneFloatValue& FloatValue = ChannelData.GetValues()[ExistingIndex]; //-V758
-		FloatValue.Value = Value;
-	}
-	else
-	{
-		FMovieSceneFloatValue NewKey(Value);
-		ERichCurveTangentWeightMode WeightedMode = RCTWM_WeightedNone;
-		NewKey.InterpMode = ERichCurveInterpMode::RCIM_Cubic;
-		NewKey.TangentMode = ERichCurveTangentMode::RCTM_Auto;
-		NewKey.Tangent.ArriveTangent = 0.0f;
-		NewKey.Tangent.LeaveTangent = 0.0f;
-		NewKey.Tangent.TangentWeightMode = WeightedMode;
-		NewKey.Tangent.ArriveTangentWeight = 0.0f;
-		NewKey.Tangent.LeaveTangentWeight = 0.0f;
-		ChannelData.AddKey(Time, NewKey);
-	}
-}
-
 struct FGuidAndActor
 {
 	FGuidAndActor(FGuid InGuid, AActor* InActor) : Guid(InGuid), Actor(InActor) {};
@@ -322,30 +298,30 @@ struct FGuidAndActor
 			if (SnapSettings->bSnapPosition)
 			{
 				TMovieSceneChannelData<FMovieSceneFloatValue> ChannelData = Channels[0]->GetData();
-				SetOrAddKey(ChannelData, Frame, Location.X);
+				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Location.X);
 				ChannelData = Channels[1]->GetData();
-				SetOrAddKey(ChannelData, Frame, Location.Y);
+				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Location.Y);
 				ChannelData = Channels[2]->GetData();
-				SetOrAddKey(ChannelData, Frame, Location.Z);
+				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Location.Z);
 			}
 			if (SnapSettings->bSnapRotation)
 			{
 				//todo winding
 				TMovieSceneChannelData<FMovieSceneFloatValue> ChannelData = Channels[3]->GetData();
-				SetOrAddKey(ChannelData, Frame, Rotation.Yaw);
+				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Rotation.Yaw);
 				ChannelData = Channels[4]->GetData();
-				SetOrAddKey(ChannelData, Frame, Rotation.Pitch);
+				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Rotation.Pitch);
 				ChannelData = Channels[5]->GetData();
-				SetOrAddKey(ChannelData, Frame, Rotation.Roll);
+				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Rotation.Roll);
 			}
 			if (SnapSettings->bSnapScale)
 			{
 				TMovieSceneChannelData<FMovieSceneFloatValue> ChannelData = Channels[6]->GetData();
-				SetOrAddKey(ChannelData, Frame, Scale3D.X);
+				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Scale3D.X);
 				ChannelData = Channels[7]->GetData();
-				SetOrAddKey(ChannelData, Frame, Scale3D.X);
+				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Scale3D.X);
 				ChannelData = Channels[8]->GetData();
-				SetOrAddKey(ChannelData, Frame, Scale3D.X);
+				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Scale3D.X);
 			}		
 		}
 		//now we need to set auto tangents

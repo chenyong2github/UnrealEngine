@@ -29,6 +29,7 @@
 #include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 #include "SequencerSectionPainter.h"
 #include "MovieSceneToolHelpers.h"
+#include "Tools/MotionTrailOptions.h"
 
 const FEditorModeID FSequencerEdMode::EM_SequencerMode(TEXT("EM_SequencerMode"));
 
@@ -36,6 +37,13 @@ static TAutoConsoleVariable<bool> CVarDrawMeshTrails(
 	TEXT("Sequencer.DrawMeshTrails"),
 	true,
 	TEXT("Toggle to show or hide Level Sequencer VR Editor trails"));
+
+//if true still use old motion trails for sequencer objects.
+TAutoConsoleVariable<bool> CVarUseOldSequencerMotionTrails(
+	TEXT("Sequencer.UseOldSequencerTrails"),
+	false,
+	TEXT("If true show old motion trails, if false use new editable motion trails."));
+
 
 namespace UE
 {
@@ -532,6 +540,11 @@ void FSequencerEdMode::DrawTransformTrack(const TSharedPtr<ISequencer>& Sequence
 
 void FSequencerEdMode::DrawTracks3D(FPrimitiveDrawInterface* PDI)
 {
+
+	if (CVarUseOldSequencerMotionTrails->GetBool() == false)
+	{
+		return;
+	}
 	for (TWeakPtr<FSequencer> WeakSequencer : Sequencers)
 	{
 		TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
