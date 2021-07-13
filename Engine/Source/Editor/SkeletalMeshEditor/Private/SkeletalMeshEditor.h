@@ -79,6 +79,7 @@ public:
 	
 	//~ Begin FAssetEditorToolkit Interface.
 	virtual bool OnRequestClose() override;
+	virtual void OnClose() override;
 	//~ End FAssetEditorToolkit Interface.
 
 	/** FEditorUndoClient interface */
