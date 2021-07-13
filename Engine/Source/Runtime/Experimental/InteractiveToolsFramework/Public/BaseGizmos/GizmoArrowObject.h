@@ -49,7 +49,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	float Offset = 0.0f;
 
+	UPROPERTY()
 	TObjectPtr<UGizmoCylinderObject> CylinderObject;
+
+	UPROPERTY()
 	TObjectPtr<UGizmoConeObject> ConeObject;
+
+	UPROPERTY()
 	TObjectPtr<UGizmoBoxObject> BoxObject;
 };
