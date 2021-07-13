@@ -8,61 +8,7 @@
 #include "../DeferredShadingCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"   
 
-#if SHADER_SUBCOLOR
-
-Texture2D<float4> SubPixelColorTexture;
-
-void SubColorPS(
-	in FScreenVertexOutput Input,
-	out float4 OutColor  : SV_Target0, 
-	out float  OutDepth : SV_DEPTH)
-{
-	const uint2 PixelCoord = floor(Input.Position.xy);
-	OutColor = SubPixelColorTexture.Load(uint3(PixelCoord, 0));
-
-	// Early out writing to not write stencil value for full coverred pixels (or not covered at all)
-	//if (OutColor.a == 0)
-	//	discard;
-
-	OutDepth = HairStrands.HairOnlyDepthTexture.Load(uint3(Input.Position.xy, 0));
-}
-
-#endif // SHADER_SUBCOLOR
-
 ////////////////////////////////////////////////////////////////////////////////////////////////
-
-#if SHADER_FASTRESOLVE_MSAA
-
-#ifndef PERMUTATION_MSAACOUNT 
-#error PERMUTATION_MSAACOUNT is not defined
-#endif
-
-float VelocityThreshold;
-Texture2DMS<float2, PERMUTATION_MSAACOUNT> HairVisibilityVelocityTexture;
-
-void FastResolvePS(in FScreenVertexOutput Input)
-{
-	const uint2 PixelCoord = floor(Input.Position.xy);
-
-	bool bNeedFastResolve = false;
-	for (uint SampleIt = 0; SampleIt < PERMUTATION_MSAACOUNT; ++SampleIt)
-	{
-		const float2 EncodedVelocity = HairVisibilityVelocityTexture.Load(PixelCoord, SampleIt);
-		const float2 Velocity = DecodeVelocityFromTexture(float4(EncodedVelocity, 0.0, 0.0)).xy;
-		const float VelocityMagnitude = sqrt(dot(Velocity, Velocity));
-		if (EncodedVelocity.x > 0 && VelocityMagnitude > VelocityThreshold)
-		{
-			bNeedFastResolve = true;
-			break;
-		}
-	}
-
-	if (!bNeedFastResolve)
-		discard;
-}
-
-#endif // SHADER_FASTRESOLVE_MSAA
-
 
 #if SHADER_FASTRESOLVE_MASK
 
