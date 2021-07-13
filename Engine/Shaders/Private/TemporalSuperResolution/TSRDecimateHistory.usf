@@ -26,13 +26,11 @@ Texture2D<uint> PrevUseCountTexture;
 Texture2D<uint> PrevClosestDepthTexture;
 Texture2D<uint> ParallaxFactorTexture;
 
-Texture2D<taa_half3> PrevHistory_Textures_0;
-Texture2D<taa_half3> PrevHistory_Textures_1;
-Texture2D<taa_half2> PrevHistory_Textures_2;
-Texture2D<uint>      PrevHistory_Textures_3;
-Texture2D<taa_half>  PrevHistory_LowResTextures_0;
-Texture2D<uint>      PrevHistory_SuperResTextures_0;
-Texture2D<uint>      PrevHistory_SuperResTextures_1;
+Texture2D<taa_half3> PrevHistory_LowFrequency;
+Texture2D<taa_half3> PrevHistory_HighFrequency;
+Texture2D<taa_half2> PrevHistory_Metadata;
+Texture2D<taa_half4> PrevHistory_Translucency;
+Texture2D<taa_subpixel_details> PrevHistory_SubpixelDetails;
 
 RWTexture2D<taa_half3> HalfResSceneColorOutput;
 RWTexture2D<taa_half3> HalfResPredictionSceneColorOutput;
@@ -243,18 +241,18 @@ void MainCS(
 		}
 		#endif
 
-		taa_half PrevUninterferenceSeed = PrevHistory_LowResTextures_0.SampleLevel(GlobalBilinearClampedSampler, PrevInputBufferUV, 0);
-		taa_half PrevUninterferenceLuma = PrevUninterferenceSeed * HdrWeightInvY(PrevUninterferenceSeed);
+		//taa_half PrevUninterferenceSeed = PrevHistory_LowResTextures_0.SampleLevel(GlobalBilinearClampedSampler, PrevInputBufferUV, 0);
+		//taa_half PrevUninterferenceLuma = PrevUninterferenceSeed * HdrWeightInvY(PrevUninterferenceSeed);
 
 		#if !CONFIG_OUTPUT_INTERFERENCE_SEEDS
 		{
-			DecimatedColor = PrevHistory_Textures_0.SampleLevel(GlobalBilinearClampedSampler, KernelHistoryBufferUV, 0);
+			DecimatedColor = PrevHistory_LowFrequency.SampleLevel(GlobalBilinearClampedSampler, KernelHistoryBufferUV, 0);
 			
 			// Cancels out the flickering Luma component with the interference free luma from the inteference seed of the history.
-			if (bEnableInterferenceHeuristic)
-			{
-				DecimatedColor *= PrevUninterferenceLuma * SafeRcp(Luma4(DecimatedColor));
-			}
+			//if (bEnableInterferenceHeuristic)
+			//{
+			//	DecimatedColor *= PrevUninterferenceLuma * SafeRcp(Luma4(DecimatedColor));
+			//}
 		}
 		#else
 		{
@@ -270,7 +268,7 @@ void MainCS(
 					PrevHistoryInfo_UVViewportBilinearMin,
 					PrevHistoryInfo_UVViewportBilinearMax);
 				
-				taa_half3 HistorySample = PrevHistory_Textures_0.SampleLevel(GlobalBilinearClampedSampler, SampleBufferUV, 0);
+				taa_half3 HistorySample = PrevHistory_LowFrequency.SampleLevel(GlobalBilinearClampedSampler, SampleBufferUV, 0);
 
 				// Cancels out the flickering Luma component with the interference free luma from the inteference seed of the history.
 				if (bEnableInterferenceHeuristic)
@@ -286,7 +284,7 @@ void MainCS(
 		#endif
 
 		// Compute the parallax rejection factor of the details in the history.
-		FSubpixelNeighborhood SubpixelNeigborhood = GatherPrevSubpixelNeighborhood(PrevHistory_Textures_3, KernelHistoryBufferUV);
+		FSubpixelNeighborhood SubpixelNeigborhood = GatherPrevSubpixelNeighborhood(PrevHistory_SubpixelDetails, KernelHistoryBufferUV);
 		{
 			uint EncodedHistoryMaxRejectionFactor = 0;
 

@@ -840,6 +840,15 @@ FPrevSceneColorMip ReducePrevSceneColorMip(
 			PassParameters->PrevSceneDepth = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.DepthBuffer);
 			PassParameters->PrevSceneDepthSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 		}
+		else if (View.PrevViewInfo.TSRHistory.IsValid())
+		{
+			PassParameters->PrevSceneColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.TSRHistory.LowFrequency);
+			PassParameters->PrevSceneColorSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
+
+			BufferSize = PassParameters->PrevSceneColor->Desc.Extent;
+			ViewportOffset = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Min;
+			ViewportExtent = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Size();
+		}
 		else
 		{
 			BufferSize = View.PrevViewInfo.TemporalAAHistory.ReferenceBufferSize;
