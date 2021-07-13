@@ -217,9 +217,10 @@ public:
 	* @param ContextHandle			The owning context of the subobjects that should be removed
 	* @param SubobjectsToDelete		Array of subobject handles that should be deleted
 	* @param OutComponentToSelect	Populates this handle with a valid selection in the component hierarchy if desired
+	* @param bForce					If true then this will attempt to delete a subobject even if the CanDelete function flags otherwise.
 	* @return 	The number of subobjects successfully deleted
 	*/
-	int32 DeleteSubobjects(const FSubobjectDataHandle& ContextHandle, const TArray<FSubobjectDataHandle>& SubobjectsToDelete, FSubobjectDataHandle& OutComponentToSelect, UBlueprint* BPContext = nullptr);
+	int32 DeleteSubobjects(const FSubobjectDataHandle& ContextHandle, const TArray<FSubobjectDataHandle>& SubobjectsToDelete, FSubobjectDataHandle& OutComponentToSelect, UBlueprint* BPContext = nullptr, bool bForce = false);
 
 	/**
 	* Attempts to delete the given subobject from its blueprint context 

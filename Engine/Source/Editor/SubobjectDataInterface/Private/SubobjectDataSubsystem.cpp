@@ -1066,7 +1066,7 @@ FSubobjectDataHandle USubobjectDataSubsystem::AddNewSubobject(const FAddNewSubob
 	return NewDataHandle;
 }
 
-int32 USubobjectDataSubsystem::DeleteSubobjects(const FSubobjectDataHandle& ContextHandle, const TArray<FSubobjectDataHandle>& SubobjectsToDelete, FSubobjectDataHandle& OutComponentToSelect, UBlueprint* BPContext/* = nullptr*/)
+int32 USubobjectDataSubsystem::DeleteSubobjects(const FSubobjectDataHandle& ContextHandle, const TArray<FSubobjectDataHandle>& SubobjectsToDelete, FSubobjectDataHandle& OutComponentToSelect, UBlueprint* BPContext/* = nullptr*/, bool bForce /* = false */)
 {
 	int32 NumDeletedSubobjects = 0;
 
@@ -1088,7 +1088,7 @@ int32 USubobjectDataSubsystem::DeleteSubobjects(const FSubobjectDataHandle& Cont
 			{
 				if (const FSubobjectData* Data = Handle.GetData())
 				{
-					if (!Data->CanDelete())
+					if (!Data->CanDelete() && !bForce)
 					{
 						UE_LOG(LogSubobjectSubsystem, Warning, TEXT("Cannot delete subobject '%s' from '%s'!"), *Data->GetDisplayString(), *BPContext->GetFullName());
 						continue;
@@ -1456,7 +1456,9 @@ bool USubobjectDataSubsystem::MakeNewSceneRoot(const FSubobjectDataHandle& Conte
 
 			if (bWasDefaultSceneRoot)
 			{
-				DeleteSubobject(Context, OldSceneRoot, Blueprint);
+				TArray<FSubobjectDataHandle> ToDelete { OldSceneRoot };
+				FSubobjectDataHandle NewSelection = FSubobjectDataHandle::InvalidHandle;
+				DeleteSubobjects(Context, ToDelete, NewSelection, Blueprint, /* bForce */ true);
 			}
 		}
 	}
