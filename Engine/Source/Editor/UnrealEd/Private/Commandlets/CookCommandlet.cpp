@@ -43,6 +43,7 @@
 #include "AssetRegistryModule.h"
 #include "StudioAnalytics.h"
 #include "Cooker/CookProfiling.h"
+#include "DerivedDataBuildRemoteExecutor.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCookCommandlet, Log, All);
 
@@ -351,6 +352,9 @@ namespace DetailedCookStats
 				UE_LOG(LogCookCommandlet, Display, TEXT("%-16s=%10s"), *Attr.Key, *Attr.Value);
 			}
 		}
+
+		DumpDerivedDataBuildRemoteExecutorStats();
+
 		if (DDCResourceUsageStats.Num() > 0)
 		{
 			// sort the list
