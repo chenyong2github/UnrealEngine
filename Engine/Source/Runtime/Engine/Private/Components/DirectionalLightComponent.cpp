@@ -677,7 +677,7 @@ private:
 
 	float GetDistanceFieldShadowDistance() const
 	{
-		if (DoesProjectSupportDistanceFields())
+		if (!DoesProjectSupportDistanceFields())
 		{
 			// Meshes must have distance fields generated
 			return 0;
