@@ -1,0 +1,45 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+using System.IO;
+using UnrealBuildTool;
+
+public class Boost : ModuleRules
+{
+	public Boost(ReadOnlyTargetRules Target) : base(Target)
+	{
+		Type = ModuleType.External;
+
+		string BoostVersion = "1_70_0";
+		string[] BoostLibraries = { "atomic", "chrono", "iostreams", "program_options", "python37", "regex", "system", "thread" };
+
+		string BoostVersionDir = "boost-" + BoostVersion;
+
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			string BoostToolsetVersion = "vc141";
+
+			string BoostPath = Path.Combine(Target.UEThirdPartySourceDirectory, "Boost", BoostVersionDir);
+			string BoostIncludePath = Path.Combine(BoostPath, "include");
+			PublicSystemIncludePaths.Add(BoostIncludePath);
+
+			string BoostLibPath = Path.Combine(BoostPath, "lib", "Win64");
+			string BoostVersionShort = BoostVersion.Substring(BoostVersion.Length - 2) == "_0" ? BoostVersion.Substring(0, BoostVersion.Length - 2) : BoostVersion;
+
+			foreach (string BoostLib in BoostLibraries)
+			{
+				string BoostLibName = "boost_" + BoostLib + "-" + BoostToolsetVersion + "-mt-x64" + "-" + BoostVersionShort;
+				PublicAdditionalLibraries.Add(Path.Combine(BoostLibPath, BoostLibName + ".lib"));
+				RuntimeDependencies.Add("$(TargetOutputDir)/" + BoostLibName + ".dll", Path.Combine(BoostLibPath, BoostLibName + ".dll"));
+			}
+
+			PublicDefinitions.Add("BOOST_LIB_TOOLSET=\"vc141\"");
+			PublicDefinitions.Add("BOOST_ALL_NO_LIB");
+		}
+		else
+		{
+			string Err = "Platform " + Target.Platform.ToString() + " not supported!";
+			System.Console.WriteLine(Err);
+			throw new BuildException(Err);
+		}
+	}
+}
