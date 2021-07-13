@@ -522,6 +522,7 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.AddEmbeddedGeometry);
 		ToolbarBuilder.AddToolBarButton(Commands.AutoEmbedGeometry);
+		ToolbarBuilder.AddToolBarButton(Commands.FlushEmbeddedGeometry);
 	}
 	else if (PaletteIndex == TEXT("UV"))
 	{
