@@ -695,7 +695,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 				}
 
 				// reset the pose to initial such that setup event can run from a deterministic initial state
-				GetHierarchy()->ResetPoseToInitial();
+				GetHierarchy()->ResetPoseToInitial(ERigElementType::Control);
 
 				if (PreSetupEvent.IsBound())
 				{
