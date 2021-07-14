@@ -1058,7 +1058,6 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 			TEXT("MergeActors"),
 			TEXT("InputBindingEditor"),
 			TEXT("AudioEditor"),
-			TEXT("TimeManagementEditor"),
 			TEXT("EditorInteractiveToolsFramework"),
 			TEXT("TraceInsights"),
 			TEXT("StaticMeshEditor"),
