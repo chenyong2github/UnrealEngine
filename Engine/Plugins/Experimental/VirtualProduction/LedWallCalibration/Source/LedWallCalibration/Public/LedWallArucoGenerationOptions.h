@@ -77,7 +77,7 @@ public:
 #if WITH_EDITOR
 		return EnumPtr->GetDisplayNameTextByIndex(static_cast<uint8>(ArucoDictionary.GetValue())).ToString();
 #else
-		return EnumPtr->GetEnumName(static_cast<uint8>(ArucoDictionary.GetValue()));
+		return EnumPtr->GetNameStringByIndex(static_cast<uint8>(ArucoDictionary.GetValue()));
 #endif
 	}
 };
