@@ -301,6 +301,13 @@ AActor* UEditorUtilityLibrary::GetActorReference(FString PathToActor)
 #endif //WITH_EDITOR
 }
 
+bool UEditorUtilityLibrary::GetCurrentContentBrowserPath(FString& OutPath)
+{
+	IContentBrowserSingleton& ContentBrowser = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
+	OutPath = ContentBrowser.GetCurrentPath(EContentBrowserPathType::Internal);
+	return !OutPath.IsEmpty();
+}
+
 #endif
 
 #undef LOCTEXT_NAMESPACE

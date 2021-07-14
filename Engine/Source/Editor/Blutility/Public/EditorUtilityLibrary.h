@@ -158,5 +158,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Development|Editor")
 	AActor* GetActorReference(FString PathToActor);
 
+	/**
+	 * Attempts to get the path for the active content browser, returns false if there is no active content browser
+	 * @param	OutPath	The returned path if successfully found
+	 * @return	Whether a path was successfully returned
+	 */
+	UFUNCTION(BlueprintPure, Category = "Development|Editor")
+	static bool GetCurrentContentBrowserPath(FString& OutPath);
 #endif
 };
