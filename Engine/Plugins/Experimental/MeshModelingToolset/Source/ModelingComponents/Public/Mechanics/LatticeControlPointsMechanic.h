@@ -39,9 +39,13 @@ public:
 
 	// TODO: Snapping
 
-	// This delegate is called every time the control points are altered.
+	// This delegate is called every time the control points are moved.
 	DECLARE_MULTICAST_DELEGATE(OnPointsChangedEvent);
 	OnPointsChangedEvent OnPointsChanged;
+
+	// This delegate is called every time the control point selection changes.
+	DECLARE_MULTICAST_DELEGATE(OnSelectionChangedEvent);
+	OnSelectionChangedEvent OnSelectionChanged;
 
 	virtual void Initialize(const TArray<FVector3d>& Points, 
 							const TArray<FVector2i>& Edges,
@@ -49,6 +53,7 @@ public:
 
 	void SetWorld(UWorld* World);
 	const TArray<FVector3d>& GetControlPoints() const;
+	void UpdateControlPointPositions(const TArray<FVector3d>& NewPoints);
 
 	void SetCoordinateSystem(EToolContextCoordinateSystem InCoordinateSystem);
 	EToolContextCoordinateSystem GetCoordinateSystem() const;
@@ -74,6 +79,33 @@ public:
 	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
 
 	bool bHasChanged = false;
+
+	bool ControlPointIsSelected(int32 Index)
+	{
+		return SelectedPointIDs.Contains(Index);
+	}
+
+	const TSet<int32>& GetSelectedPointIDs() const
+	{
+		return SelectedPointIDs;
+	}
+
+	void SetPointColorOverride(int32 Index, const FColor& NewColor)
+	{
+		ColorOverrides.FindOrAdd(Index) = NewColor;
+	}
+
+	void ClearPointColorOverride(int32 Index)
+	{
+		ColorOverrides.Remove(Index);
+	}
+
+	void ClearAllPointColorOverrides()
+	{
+		ColorOverrides.Reset();
+	}
+
+	void UpdateDrawables();
 
 protected:
 
@@ -167,10 +199,11 @@ protected:
 	void UpdatePointLocations(const TMap<int32, FVector3d>& NewLocations);
 
 	void RebuildDrawables();
-	void UpdateDrawables();
 
 	// Used for expiring undo/redo changes, which compare this to their stored value and expire themselves if they do not match.
 	int32 CurrentChangeStamp = 0;
+
+	TMap<int32, FColor> ColorOverrides;
 
 	friend class FLatticeControlPointsMechanicSelectionChange;
 	friend class FLatticeControlPointsMechanicMovementChange;

@@ -9,6 +9,8 @@
 #include "SingleSelectionTool.h" //USingleSelectionTool
 #include "Operations/FFDLattice.h"
 #include "BaseTools/SingleSelectionMeshEditingTool.h"
+#include "Solvers/ConstrainedMeshDeformer.h"
+
 #include "LatticeDeformerTool.generated.h"
 
 class ULatticeControlPointsMechanic;
@@ -34,6 +36,13 @@ enum class ELatticeInterpolationType : uint8
 	Cubic UMETA(DisplayName = "Cubic")
 };
 
+UENUM()
+enum class ELatticeDeformerToolAction  : uint8
+{
+	NoAction,
+	Constrain,
+	ClearConstraints
+};
 
 UCLASS()
 class MESHMODELINGTOOLS_API ULatticeDeformerToolProperties : public UInteractiveToolPropertySet
@@ -41,6 +50,9 @@ class MESHMODELINGTOOLS_API ULatticeDeformerToolProperties : public UInteractive
 	GENERATED_BODY()
 
 public:
+	TWeakObjectPtr<ULatticeDeformerTool> ParentTool;
+	void Initialize(ULatticeDeformerTool* ParentToolIn) { ParentTool = ParentToolIn; }
+	void PostAction(ELatticeDeformerToolAction Action);
 
 	/** Number of lattice vertices along the X axis */
 	UPROPERTY(EditAnywhere, Category = Resolution, meta = (UIMin = "2", ClampMin = "2", EditCondition = "bCanChangeResolution", HideEditConditionToggle))
@@ -78,6 +90,24 @@ public:
 	UPROPERTY(EditAnywhere, Category = Gizmo)
 	bool bSetPivotMode = false;
 
+	/** Whether to use soft deformation of the lattice */
+	UPROPERTY(EditAnywhere, Category = Deformation)
+	bool bSoftDeformation = false;
+
+	/** Constrain selected lattice points */
+	UFUNCTION(CallInEditor, Category = Deformation, meta = (DisplayName = "Constrain"))
+	void Constrain() 
+	{
+		PostAction(ELatticeDeformerToolAction::Constrain);
+	}
+
+	/** Clear all constrained lattice points */
+	UFUNCTION(CallInEditor, Category = Deformation, meta = (DisplayName = "Clear Constraints"))
+	void ClearConstraints()
+	{
+		PostAction(ELatticeDeformerToolAction::ClearConstraints);
+	}
+
 };
 
 
@@ -102,6 +132,8 @@ class MESHMODELINGTOOLS_API ULatticeDeformerTool : public USingleSelectionMeshEd
 	GENERATED_BODY()
 
 public:
+
+	virtual ~ULatticeDeformerTool() = default;
 
 	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI) override;
 
@@ -143,5 +175,55 @@ protected:
 
 	void StartPreview();
 
+	TUniquePtr<UE::Solvers::IConstrainedMeshSolver> DeformationSolver;
+	TPimplPtr<UE::Geometry::FDynamicGraph3d> LatticeGraph;
+
+	TMap<int, FVector3d> ConstrainedLatticePoints;
+	void ConstrainSelectedPoints();
+	void ClearConstrainedPoints();
+	void UpdateMechanicColorOverrides();
+
+	void RebuildDeformer();
+	void SoftDeformLattice();
+
+	int32 CurrentChangeStamp = 0;
+
+	ELatticeDeformerToolAction PendingAction = ELatticeDeformerToolAction::NoAction;
+	void RequestAction(ELatticeDeformerToolAction Action);
+	void ApplyAction(ELatticeDeformerToolAction Action);
+
 	friend class ULatticeDeformerOperatorFactory;
+	friend class ULatticeDeformerToolProperties;
+	friend class FLatticeDeformerToolConstrainedPointsChange;
+};
+
+
+// Set of constrained points change
+class MESHMODELINGTOOLS_API FLatticeDeformerToolConstrainedPointsChange : public FToolCommandChange
+{
+public:
+
+	FLatticeDeformerToolConstrainedPointsChange(const TMap<int, FVector3d>& PrevConstrainedLatticePointsIn,
+												const TMap<int, FVector3d>& NewConstrainedLatticePointsIn,
+												int32 ChangeStampIn) :
+		PrevConstrainedLatticePoints(PrevConstrainedLatticePointsIn),
+		NewConstrainedLatticePoints(NewConstrainedLatticePointsIn),
+		ChangeStamp(ChangeStampIn)
+	{}
+
+	virtual void Apply(UObject* Object) override;
+	virtual void Revert(UObject* Object) override;
+
+	virtual bool HasExpired(UObject* Object) const override
+	{
+		return Cast<ULatticeDeformerTool>(Object)->CurrentChangeStamp != ChangeStamp;
+	}
+
+	virtual FString ToString() const override;
+
+protected:
+
+	TMap<int, FVector3d> PrevConstrainedLatticePoints;
+	TMap<int, FVector3d> NewConstrainedLatticePoints;
+	int32 ChangeStamp;
 };
