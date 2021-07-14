@@ -1839,6 +1839,10 @@ FSkeletalMeshImportData FSkeletalMeshImportData::CreateFromMeshDescription(const
 			Wedge.MatIndex = Face.MatIndex;
 			const bool bSRGB = false; //avoid linear to srgb conversion
 			Wedge.Color = FLinearColor(VertexInstanceColors[VertexInstanceID]).ToFColor(bSRGB);
+			if (Wedge.Color != FColor::White)
+			{
+				SkelMeshImportData.bHasVertexColors = true;
+			}
 			for (int32 UVChannelIndex = 0; UVChannelIndex < (int32)(SkelMeshImportData.NumTexCoords); ++UVChannelIndex)
 			{
 				Wedge.UVs[UVChannelIndex] = VertexInstanceUVs.Get(VertexInstanceID, UVChannelIndex);

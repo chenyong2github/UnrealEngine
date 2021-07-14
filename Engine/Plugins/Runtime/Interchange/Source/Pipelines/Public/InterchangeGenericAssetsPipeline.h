@@ -41,16 +41,29 @@ template<class T> class TSubclassOf;
 
 /** Force mesh type, if user want to import all meshes as one type*/
 UENUM(BlueprintType)
-enum EForceMeshType
+enum EInterchangeForceMeshType
 {
 	/** Will import from the source type, no conversion */
-	FMT_None UMETA(DisplayName = "None"),
+	IFMT_None UMETA(DisplayName = "None"),
 	/** Will import any mesh to static mesh. */
-	FMT_StaticMesh UMETA(DisplayName = "Static Mesh"),
+	IFMT_StaticMesh UMETA(DisplayName = "Static Mesh"),
 	/** Will import any mesh to skeletal mesh. */
-	FMT_SkeletalMesh UMETA(DisplayName = "Skeletal Mesh"),
+	IFMT_SkeletalMesh UMETA(DisplayName = "Skeletal Mesh"),
 
-	FMT_MAX,
+	IFMT_MAX
+};
+
+UENUM(BlueprintType)
+enum EInterchangeVertexColorImportOption
+{
+	/** Import the mesh using the vertex colors from the translated source. */
+	IVCIO_Replace UMETA(DisplayName = "Replace"),
+	/** Ignore vertex colors from the translated source. In case of a re-import keep the existing mesh vertex colors. */
+	IVCIO_Ignore UMETA(DisplayName = "Ignore"),
+	/** Override all vertex colors with the specified color. */
+	IVCIO_Override UMETA(DisplayName = "Override"),
+
+	IVCIO_MAX
 };
 
 /**
@@ -91,6 +104,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = COMMON_MESHES_CATEGORY)
 	bool bBakeMeshes = true;
 
+	/** Specify how vertex colors should be imported */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = COMMON_MESHES_CATEGORY)
+	TEnumAsByte<enum EInterchangeVertexColorImportOption> VertexColorImportOption;
+
+	/** Specify override color in the case that VertexColorImportOption is set to Override */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = COMMON_MESHES_CATEGORY)
+	FColor VertexOverrideColor;
 	
 	//////	STATIC_MESHES_CATEGORY Properties //////
 

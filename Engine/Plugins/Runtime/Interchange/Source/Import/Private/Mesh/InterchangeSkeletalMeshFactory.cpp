@@ -920,6 +920,44 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 																						   , RefBonesBinary
 																						   , Arguments
 																						   , SkeletalMeshTranslatorPayloadInterface);
+				//////////////////////////////////////////////////////////////////////////
+				//Manage vertex color, we want to use the translated source data
+				//Replace -> do nothing
+				//Ignore -> remove vertex color from import data (when we re-import, ignore have to put back the current mesh vertex color)
+				//Override -> replace the vertex color by the override color
+				{
+					bool bReplaceVertexColor = false;
+					SkeletalMeshFactoryNode->GetCustomVertexColorReplace(bReplaceVertexColor);
+					if (!bReplaceVertexColor)
+					{
+						bool bIgnoreVertexColor = false;
+						SkeletalMeshFactoryNode->GetCustomVertexColorIgnore(bIgnoreVertexColor);
+						if (bIgnoreVertexColor)
+						{
+							//Flush the vertex color, if we re-import we have to fill it with the old data
+							SkeletalMeshImportData.bHasVertexColors = false;
+							for (SkeletalMeshImportData::FVertex& Wedge : SkeletalMeshImportData.Wedges)
+							{
+								Wedge.Color = FColor::White;
+							}
+						}
+						else
+						{
+							FColor OverrideVertexColor;
+							if (SkeletalMeshFactoryNode->GetCustomVertexColorOverride(OverrideVertexColor))
+							{
+								SkeletalMeshImportData.bHasVertexColors = true;
+								for(SkeletalMeshImportData::FVertex& Wedge : SkeletalMeshImportData.Wedges)
+								{
+									Wedge.Color = OverrideVertexColor;
+								}
+							}
+						}
+					}
+					// Store whether or not this mesh has vertex colors
+					SkeletalMesh->SetHasVertexColors(SkeletalMeshImportData.bHasVertexColors);
+					SkeletalMesh->SetVertexColorGuid(SkeletalMesh->GetHasVertexColors() ? FGuid::NewGuid() : FGuid());
+				}
 
 				ensure(ImportedResource->LODModels.Add(new FSkeletalMeshLODModel()) == CurrentLodIndex);
 				FSkeletalMeshLODModel& LODModel = ImportedResource->LODModels[CurrentLodIndex];

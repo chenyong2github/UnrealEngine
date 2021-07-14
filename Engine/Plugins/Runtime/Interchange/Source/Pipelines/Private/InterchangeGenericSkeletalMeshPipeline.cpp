@@ -606,6 +606,26 @@ UInterchangeSkeletalMeshFactoryNode* UInterchangeGenericAssetsPipeline::CreateSk
 	}
 #endif
 
+	const bool bTrueValue = true;
+	switch (VertexColorImportOption)
+	{
+		case EInterchangeVertexColorImportOption::IVCIO_Replace:
+		{
+			SkeletalMeshFactoryNode->SetCustomVertexColorReplace(bTrueValue);
+		}
+		break;
+		case EInterchangeVertexColorImportOption::IVCIO_Ignore:
+		{
+			SkeletalMeshFactoryNode->SetCustomVertexColorIgnore(bTrueValue);
+		}
+		break;
+		case EInterchangeVertexColorImportOption::IVCIO_Override:
+		{
+			SkeletalMeshFactoryNode->SetCustomVertexColorOverride(VertexOverrideColor);
+		}
+		break;
+	}
+
 	return SkeletalMeshFactoryNode;
 }
 
