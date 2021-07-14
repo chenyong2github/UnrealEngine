@@ -1238,7 +1238,11 @@ public:
 template <typename ViewType>
 inline FCbField TCbBuffer<ViewType>::operator[](FAnsiStringView Name) const
 {
-	return FCbField::MakeView(ViewType::operator[](Name), GetOuterBuffer());
+	if (FCbFieldView Field = ViewType::operator[](Name))
+	{
+		return FCbField::MakeView(Field, GetOuterBuffer());
+	}
+	return FCbField();
 }
 
 /**
@@ -1305,7 +1309,11 @@ private:
 template <typename ViewType>
 inline FCbFieldIterator TCbBuffer<ViewType>::CreateIterator() const
 {
-	return FCbFieldIterator::MakeRangeView(ViewType::CreateViewIterator(), GetOuterBuffer());
+	if (FCbFieldViewIterator It = ViewType::CreateViewIterator())
+	{
+		return FCbFieldIterator::MakeRangeView(It, GetOuterBuffer());
+	}
+	return FCbFieldIterator();
 }
 
 template <typename ViewType>
