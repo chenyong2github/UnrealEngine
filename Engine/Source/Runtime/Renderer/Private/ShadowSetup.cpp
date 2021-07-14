@@ -3593,7 +3593,10 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 					SizeX = SizeY = GetCubeShadowDepthZResolution(FeatureLevel, GetCubeShadowDepthZIndex(FeatureLevel, MaxDesiredResolution));
 				}
 
-				const bool bNeedsVirtualShadowMap = VirtualShadowMapArray.IsEnabled() && !ProjectedShadowInitializer.bRayTracedDistanceField;
+				const bool bNeedsVirtualShadowMap =
+					LightSceneInfo->Proxy->UseVirtualShadowMaps() &&
+					VirtualShadowMapArray.IsEnabled() &&
+					!ProjectedShadowInitializer.bRayTracedDistanceField;
 
 				int32 NumShadowMaps = 1;
 				EShadowDepthCacheMode CacheMode[2] = { SDCM_Uncached, SDCM_Uncached };
@@ -4512,7 +4515,10 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 	// Note: it is possible for a non-directional light to set up a proxy that requests a view-dependent SM (or several)
 	// Unmodified UE does not use this, so the virtual SM ignores this path for the time being (more likely to be removed).
 	const bool bDirectionalLight = LightSceneInfo.Proxy->GetLightType() == LightType_Directional;
-	const bool bNeedsVirtualShadowMap = VirtualShadowMapArray.IsEnabled() && bDirectionalLight;
+	const bool bNeedsVirtualShadowMap =
+		LightSceneInfo.Proxy->UseVirtualShadowMaps() &&
+		VirtualShadowMapArray.IsEnabled() &&
+		bDirectionalLight;
 
 	// Allow each view to create a whole scene view dependent shadow
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)

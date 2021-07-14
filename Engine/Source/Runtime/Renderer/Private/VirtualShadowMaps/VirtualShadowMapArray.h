@@ -267,7 +267,6 @@ public:
 	FRDGBufferRef PageRectBoundsRDG = nullptr;
 	FRDGBufferRef AllocatedPageRectBoundsRDG = nullptr;
 	FRDGBufferRef ShadowMapProjectionDataRDG = nullptr;
-	TArray< FRDGBufferRef, SceneRenderingAllocator > VirtualShadowMapIdRemapRDG;
 
 	// HZB generated for the *current* frame's physical page pool
 	// We use the *previous* frame's HZB (from VirtualShadowMapCacheManager) for culling the current frame

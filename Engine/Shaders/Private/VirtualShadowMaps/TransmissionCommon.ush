@@ -1,0 +1,85 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+VirtualShadowMaps/TransmissionCommon.ush:
+=============================================================================*/
+#pragma once
+
+#include "../Common.ush"
+#include "../SceneTexturesCommon.ush"
+#include "../DeferredShadingCommon.ush"
+#include "ProjectionCommon.ush"
+
+// TODO: Support strata
+#ifndef STRATA_ENABLED
+#define STRATA_ENABLED 0
+#endif
+
+// TODO: Once strata is set up this function should be shared with ShadowProjectionPixelShader
+// and possibly also the contact shadow trace
+half GetSubsurfaceOpacityFromGbuffer(uint2 PixelPos)
+{
+	half Opacity = 1.0;
+
+#if STRATA_ENABLED
+	// TODO: VSM projection shaders are not set up for strata yet, but added a skeleton of the logic
+	const FStrataClassification StrataData = StrataUnpackClassificationData(Strata.ClassificationTexture.Load(PixelPos));
+	if (StrataData.bIsStrataMaterial)
+	{
+		if (StrataData.bHasSubsurface)
+		{
+			const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(SVPos.xy, 0)));
+			if (SSSData.IsValid())
+			{
+				Opacity = SSSData.bIsProfile ? SSSData.ProfileRadiusScale : 1.0;
+			}
+		}
+	}
+#else // STRATA_ENABLED
+	FGBufferData GBufferData = GetGBufferDataUint(PixelPos);
+
+	// TODO: SUBSURFACE_PROFILE with fancy transmission
+	if (GBufferData.ShadingModelID == SHADINGMODELID_SUBSURFACE ||
+		GBufferData.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN ||
+		GBufferData.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+	{
+		Opacity = GBufferData.CustomData.a;
+	}
+#endif // STRATA_ENABLED
+
+	return Opacity;
+}
+
+/**
+* Sample VSM to determine approximate thickness and compute simple subsurface transmission matching the
+* PCF path.
+*/
+half ComputeSimpleSubsurfaceTransmissionFromVirtualShadowMap(
+	int VirtualShadowMapId, 
+	float3 WorldPosition,
+	half SubsurfaceOpacity)
+{
+	// If the receiver is a subsurface material, we do a very simple transmission approximation
+	// This matches the logic in the PCF kernel (ShadowFilteringCommon.ush) and the contact
+	// shadows trace (DeferredLightingCommon.ush). Ideally these should all be unified in a single location.
+	// Could optimize this in the case where we are doing single-sample VSM lookup anyways, but we would need
+	// exclude contact shadows overwriting the occluder distance. Single sample direct shadows are not currently
+	// a common case.
+
+	// Do a separate unfiltered lookup to get approximate occluder distance
+	FVirtualShadowMapSampleResult SSSResult = SampleVirtualShadowMap(
+		VirtualShadowMapId,
+		WorldPosition,
+		0.0f // RayStartDistance
+	);
+
+	if ( SSSResult.bValid && SSSResult.ShadowFactor < 1.0f )
+	{
+		float Density = SubsurfaceDensityFromOpacity( SubsurfaceOpacity );
+		float Occlusion = 1.0f - saturate( exp( -Density * SSSResult.OccluderDistance ) );
+		// NOTE: This square is arbitrary, but we have to be consistent with the PCF path
+		return Square( 1.0f - Occlusion * ( 1.0f - SSSResult.ShadowFactor ) );
+	}
+
+	return 1.0f;
+}

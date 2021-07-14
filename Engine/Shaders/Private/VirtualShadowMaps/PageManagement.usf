@@ -47,8 +47,8 @@ void StatsBufferInterlockedAdd(uint Index, uint Value)
 RWStructuredBuffer<uint> OutPageRequestFlags;
 
 Texture2D<UlongType> VisBuffer64;
-StructuredBuffer<int> VirtualShadowMapIdRemap;
-uint NumDirectionalLightSmInds;
+StructuredBuffer<int> DirectionalLightIds;
+
 uint bPostBasePass;
 float ResolutionLodBiasLocal;
 float PageDilationBorderSize;
@@ -256,9 +256,9 @@ void GeneratePageFlagsFromPixels(
 	}
 	
 	// Directional lights
-	for (uint Index = 0; Index < NumDirectionalLightSmInds; ++Index)
+	for (uint Index = 0; Index < VirtualShadowMap.NumDirectionalLights; ++Index)
 	{
-		int ClipmapStartId = VirtualShadowMapIdRemap[Index];
+		int ClipmapStartId = DirectionalLightIds[Index];
 		FVirtualShadowMapProjectionShaderData BaseProjectionData = GetVirtualShadowMapProjectionData(ClipmapStartId);
 
 		// Possibly use a single shadow projection data for the whole clipmap with just scales/biases for
@@ -285,15 +285,14 @@ void GeneratePageFlagsFromPixels(
 			const FLocalLightData LightData = GetLocalLightData(CulledLightGridData.DataStartIndex + Index, EyeIndex);
 			const uint LightGridLightIndex = ForwardLightData.CulledLightDataGrid[CulledLightGridData.DataStartIndex + Index];
 
-			float3 ToLight = normalize(LightData.LightPositionAndInvRadius.xyz - WorldPosition);
 			// Also do precise cone test, since froxels are pretty coarse at times.
+			float3 ToLight = normalize(LightData.LightPositionAndInvRadius.xyz - WorldPosition);
 			if (dot(ToLight, LightData.LightDirectionAndShadowMask.xyz) < LightData.SpotAnglesAndSourceRadiusPacked.x)
 			{
 				continue;
 			}
 
-			// The Virtual Shadow Remap stores directional lights first
-			int VirtualShadowMapId = VirtualShadowMapIdRemap[NumDirectionalLightSmInds + LightGridLightIndex];
+			int VirtualShadowMapId = LightData.VirtualShadowMapId;
 			if (VirtualShadowMapId != INDEX_NONE)
 			{
 				bool bSpotLight = LightData.SpotAnglesAndSourceRadiusPacked.x > -2.0f;

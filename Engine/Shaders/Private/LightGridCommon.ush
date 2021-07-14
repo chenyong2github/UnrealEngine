@@ -177,6 +177,9 @@ struct FLocalLightData
 	bool bClusteredDeferredSupported; 
 	/** Flag is true if it is a simple light. They are always first / together.*/
 	bool bIsSimpleLight;
+	/** Virtual shadow map ID or INDEX_NONE if not present. */
+	int VirtualShadowMapId;
+
 };
 
 FLocalLightData GetLocalLightData(uint GridIndex, uint EyeIndex)
@@ -198,6 +201,7 @@ FLocalLightData GetLocalLightData(uint GridIndex, uint EyeIndex)
 		Result.SpotAnglesAndSourceRadiusPacked = ForwardLightData.ForwardLocalLightBuffer[LocalLightBaseIndex + 3];
 		Result.LightTangentAndSoftSourceRadius = ForwardLightData.ForwardLocalLightBuffer[LocalLightBaseIndex + 4];
 		Result.RectBarnDoor = ForwardLightData.ForwardLocalLightBuffer[LocalLightBaseIndex + 5];
+		Result.VirtualShadowMapId = asint(ForwardLightData.ForwardLocalLightBuffer[LocalLightBaseIndex + 5].z);
 #if INSTANCED_STEREO
 	}
 	else
@@ -211,6 +215,8 @@ FLocalLightData GetLocalLightData(uint GridIndex, uint EyeIndex)
 		Result.LightDirectionAndShadowMask = ForwardLightDataISR.ForwardLocalLightBuffer[LocalLightBaseIndex + 2];
 		Result.SpotAnglesAndSourceRadiusPacked = ForwardLightDataISR.ForwardLocalLightBuffer[LocalLightBaseIndex + 3];
 		Result.LightTangentAndSoftSourceRadius = ForwardLightDataISR.ForwardLocalLightBuffer[LocalLightBaseIndex + 4];
+		Result.RectBarnDoor = ForwardLightData.ForwardLightDataISR[LocalLightBaseIndex + 5];
+		Result.VirtualShadowMapId = asint(ForwardLightData.ForwardLightDataISR[LocalLightBaseIndex + 5].z);
 	}
 #endif
 
