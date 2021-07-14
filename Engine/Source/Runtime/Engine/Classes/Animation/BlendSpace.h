@@ -662,7 +662,7 @@ protected:
 	/** Initialize Per Bone Blend **/
 	void InitializePerBoneBlend();
 
-	void TickFollowerSamples(TArray<FBlendSampleData> &SampleDataList, const int32 HighestWeightIndex, FAnimAssetTickContext &Context, bool bResetMarkerDataOnFollowers) const;
+	void TickFollowerSamples(TArray<FBlendSampleData> &SampleDataList, const int32 HighestWeightIndex, FAnimAssetTickContext &Context, bool bResetMarkerDataOnFollowers, const UMirrorDataTable* MirrorDataTable = nullptr) const;
 
 	/** Utility function to calculate animation length from sample data list **/
 	float GetAnimationLengthFromSampleData(const TArray<FBlendSampleData> & SampleDataList) const;
