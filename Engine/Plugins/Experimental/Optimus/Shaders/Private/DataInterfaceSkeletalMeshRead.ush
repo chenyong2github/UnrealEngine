@@ -162,10 +162,118 @@ DI_IMPL_READ(ReadBlendMatrix, float3x4, uint VertexIndex)
 	return BlendMatrix;
 }
 
-DI_IMPL_READ(ReadBoneMatrix, float3x4, uint BoneIndex)
+DI_IMPL_READ(ReadNumVertexBones, uint, uint VertexIndex)
 {
-	return DI_LOCAL(GetBoneMatrix)(BoneIndex);
+#if GPUSKIN_UNLIMITED_BONE_INFLUENCE
+	uint BlendOffsetCount = DI_LOCAL(InputWeightLookupStream)[VertexIndex];
+	return BlendOffsetCount & 0xff;
+#else // GPUSKIN_UNLIMITED_BONE_INFLUENCE
+#if !GPUSKIN_USE_EXTRA_INFLUENCES
+	return 4;
+#else
+	return 8;
+#endif // GPUSKIN_USE_EXTRA_INFLUENCES
+	
+#endif
 }
+
+
+DI_IMPL_READ(ReadBoneMatrix, float3x4, uint VertexIndex, uint BoneIndex)
+{
+#if GPUSKIN_UNLIMITED_BONE_INFLUENCE
+	uint BlendOffsetCount = DI_LOCAL(InputWeightLookupStream)[VertexIndex];
+	int StreamOffset = BlendOffsetCount >> 8;
+
+	int BoneIndexOffset = StreamOffset + (DI_LOCAL(InputWeightIndexSize) * BoneIndex);
+	int BoneGlobalIndex = DI_LOCAL(InputWeightStream)[BoneIndexOffset];
+	if (DI_LOCAL(InputWeightIndexSize) > 1)
+	{
+		BoneGlobalIndex = DI_LOCAL(InputWeightStream)[BoneIndexOffset + 1] << 8 | BoneGlobalIndex;
+	}
+	return GetBoneMatrix(BoneGlobalIndex);
+	
+#else // GPUSKIN_UNLIMITED_BONE_INFLUENCE
+	uint StreamOffset = DI_LOCAL(InputWeightStart) + (VertexIndex * (DI_LOCAL(InputWeightStride) / 4));
+	int4 BlendIndices = DI_LOCAL(GetBlendIndices)(StreamOffset, 0);
+
+	switch(BoneIndex)
+	{
+	case 0:
+		return DI_LOCAL(GetBoneMatrix)(BlendIndices.x);
+	case 1:
+		return DI_LOCAL(GetBoneMatrix)(BlendIndices.y);
+	case 2:
+		return DI_LOCAL(GetBoneMatrix)(BlendIndices.z);
+	case 3:
+		return DI_LOCAL(GetBoneMatrix)(BlendIndices.w);		
+	}
+#if GPUSKIN_USE_EXTRA_INFLUENCES
+	BlendIndices = DI_LOCAL(GetBlendIndices)(StreamOffset, 1);
+
+	switch(BoneIndex)
+	{
+	case 4:
+		return DI_LOCAL(GetBoneMatrix)(BlendIndices.x);
+	case 5:
+		return DI_LOCAL(GetBoneMatrix)(BlendIndices.y);
+	case 6:
+		return DI_LOCAL(GetBoneMatrix)(BlendIndices.z);
+	case 7:
+		return DI_LOCAL(GetBoneMatrix)(BlendIndices.w);		
+	}
+
+#endif
+	
+#endif
+	return (float3x4)0;
+}
+
+DI_IMPL_READ(ReadBoneWeight, float, uint VertexIndex, uint BoneIndex)
+{
+#if GPUSKIN_UNLIMITED_BONE_INFLUENCE
+	uint BlendOffsetCount = DI_LOCAL(InputWeightLookupStream)[VertexIndex];
+	int NumBoneInfluences = BlendOffsetCount & 0xff;
+	int StreamOffset = BlendOffsetCount >> 8;
+	int WeightsOffset = StreamOffset + (DI_LOCAL(InputWeightIndexSize) * NumBoneInfluences);
+
+	return float(DI_LOCAL(InputWeightStream)[WeightsOffset + BoneIndex]) / 255.0f;
+	
+#else // GPUSKIN_UNLIMITED_BONE_INFLUENCE
+	uint StreamOffset = DI_LOCAL(InputWeightStart) + (VertexIndex * (DI_LOCAL(InputWeightStride) / 4));
+	float4 BlendWeights = DI_LOCAL(GetBlendWeights)(StreamOffset, 0);
+
+	switch(BoneIndex)
+	{
+	case 0:
+		return BlendWeights.x;
+	case 1:
+		return BlendWeights.y;
+	case 2:
+		return BlendWeights.z;
+	case 3:
+		return BlendWeights.w;		
+	}
+#if GPUSKIN_USE_EXTRA_INFLUENCES
+	float4 BlendWeights = DI_LOCAL(GetBlendWeights)(StreamOffset, 1);
+
+	switch(BoneIndex)
+	{
+	case 4:
+		return BlendWeights.x;
+	case 5:
+		return BlendWeights.y;
+	case 6:
+		return BlendWeights.z;
+	case 7:
+		return BlendWeights.w;		
+	}
+
+#endif
+	
+#endif
+	return 0;
+}
+
 
 DI_IMPL_READ(ReadMorphDeltaPosition, float3, uint VertexIndex)
 {

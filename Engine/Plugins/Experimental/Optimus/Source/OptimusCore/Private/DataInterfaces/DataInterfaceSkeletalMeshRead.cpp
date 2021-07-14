@@ -26,6 +26,8 @@ TArray<FOptimusCDIPinDefinition> USkeletalMeshReadDataInterface::GetPinDefinitio
 	Defs.Add({"TangentZ", "ReadTangentZ", "ReadNumVertices", "Vertex"});
 	Defs.Add({"BindMatrix", "ReadBlendMatrix", "ReadNumVertices", "Vertex"});
 
+	Defs.Add({"BoneMatrix", "ReadBoneMatrix", {"ReadNumVertices", "ReadNumVertexBones"}, "Vertex"});
+	Defs.Add({"BoneWeight", "ReadBoneWeight", {"ReadNumVertices", "ReadNumVertexBones"}, "Vertex"});
 	return Defs;
 }
 
@@ -127,18 +129,6 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 	}
 	{
 		FShaderFunctionDefinition Fn;
-		Fn.Name = TEXT("ReadBoneMatrix");
-		Fn.bHasReturnType = true;
-		FShaderParamTypeDefinition ReturnParam = {};
-		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 3, 4);
-		Fn.ParamTypes.Add(ReturnParam);
-		FShaderParamTypeDefinition Param0 = {};
-		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
-		Fn.ParamTypes.Add(Param0);
-		OutFunctions.Add(Fn);
-	}
-	{
-		FShaderFunctionDefinition Fn;
 		Fn.Name = TEXT("ReadBlendMatrix");
 		Fn.bHasReturnType = true;
 		FShaderParamTypeDefinition ReturnParam = {};
@@ -149,6 +139,51 @@ void USkeletalMeshReadDataInterface::GetSupportedInputs(TArray<FShaderFunctionDe
 		Fn.ParamTypes.Add(Param0);
 		OutFunctions.Add(Fn);
 	}
+
+	{
+		FShaderFunctionDefinition Fn;
+		Fn.Name = TEXT("ReadNumVertexBones");
+		Fn.bHasReturnType = true;
+		FShaderParamTypeDefinition ReturnParam = {};
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
+		Fn.ParamTypes.Add(ReturnParam);
+		FShaderParamTypeDefinition Param0 = {};
+		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
+		Fn.ParamTypes.Add(Param0);
+		OutFunctions.Add(Fn);
+	}
+
+	{
+		FShaderFunctionDefinition Fn;
+		Fn.Name = TEXT("ReadBoneMatrix");
+		Fn.bHasReturnType = true;
+		FShaderParamTypeDefinition ReturnParam = {};
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float, 3, 4);
+		Fn.ParamTypes.Add(ReturnParam);
+		FShaderParamTypeDefinition Param0 = {};
+		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
+		Fn.ParamTypes.Add(Param0);
+		FShaderParamTypeDefinition Param1 = {};
+		Param1.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
+		Fn.ParamTypes.Add(Param0);
+		OutFunctions.Add(Fn);
+	}
+	{
+		FShaderFunctionDefinition Fn;
+		Fn.Name = TEXT("ReadBoneWeight");
+		Fn.bHasReturnType = true;
+		FShaderParamTypeDefinition ReturnParam = {};
+		ReturnParam.ValueType = FShaderValueType::Get(EShaderFundamentalType::Float);
+		Fn.ParamTypes.Add(ReturnParam);
+		FShaderParamTypeDefinition Param0 = {};
+		Param0.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
+		Fn.ParamTypes.Add(Param0);
+		FShaderParamTypeDefinition Param1 = {};
+		Param1.ValueType = FShaderValueType::Get(EShaderFundamentalType::Uint);
+		Fn.ParamTypes.Add(Param0);
+		OutFunctions.Add(Fn);
+	}
+	
 	{
 		FShaderFunctionDefinition Fn;
 		Fn.Name = TEXT("ReadMorphDeltaPosition");

@@ -114,23 +114,35 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 
 	TMap<EOptimusResourceContext, bool> SeenContexts;
 
-	auto GetContextForBinding = [](const UOptimusNodePin* Pin, const TArray<FOptimus_ShaderContextBinding>& Bindings)
+	auto GetContextsForBinding = [](const UOptimusNodePin* Pin, const TArray<FOptimus_ShaderContextBinding>& Bindings)
 	{
 		for (const FOptimus_ShaderContextBinding& Binding: Bindings)
 		{
 			if (Binding.Name == Pin->GetFName())
 			{
-				return Binding.Context;
+				return Binding.Contexts;
 			}
 		}
 		check(false);
-		return EOptimusResourceContext::Vertex;
+		return TArray<EOptimusResourceContext>{};
 	};
 
 	auto GetPinIndex = [](const UOptimusNodePin* InPin)
 	{
 		// FIXME: We're not handling sub-pins right now. 
 		return InPin->GetNode()->GetPins().IndexOfByKey(InPin);
+	};
+
+	auto GetIndexNames = [](const TArray<EOptimusResourceContext> &Contexts)
+	{
+		TArray<FString> IndexNames;
+
+		for (EOptimusResourceContext Context: Contexts)
+		{
+			FString ContextName = StaticEnum<EOptimusResourceContext>()->GetAuthoredNameStringByIndex(static_cast<int64>(Context));
+			IndexNames.Add(FString::Printf(TEXT("%sIndex"), *ContextName));
+		}
+		return IndexNames;
 	};
 	
 	// Wrap functions for unconnected resource pins (or value pins) that return default values
@@ -207,7 +219,12 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 				// For resources we need the index parameter.
 				if (Pin->GetStorageType() == EOptimusNodePinStorageType::Resource)
 				{
-					FuncDef.ParamTypes.Add(IndexParamDef);
+					TArray<EOptimusResourceContext> Contexts = GetContextsForBinding(Pin, InputBindings);
+
+					for (int32 Count = 0; Count < Contexts.Num(); Count++)
+					{
+						FuncDef.ParamTypes.Add(IndexParamDef);
+					}
 				}
 
 				FString WrapFunctionName = FString::Printf(TEXT("Read%s"), *Pin->GetName());
@@ -226,8 +243,20 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 				}
 				else
 				{
+					TArray<EOptimusResourceContext> Contexts = GetContextsForBinding(Pin, InputBindings);
+					
 					ValueStr = GetShaderParamDefaultValueString(Pin->GetDataType());
-					OptionalParamStr = "uint Index";
+
+					// No output connections, leave a stub function. The compiler will be in charge
+					// of optimizing out anything that causes us to ends up here.
+					TArray<FString> StubIndexes;
+					
+					for (const FString &IndexName: GetIndexNames(Contexts))
+					{
+						StubIndexes.Add(*FString::Printf(TEXT("uint %s"), *IndexName));
+					}
+				
+					OptionalParamStr = *FString::Join(StubIndexes, TEXT(", "));
 				}
 
 				StubWrapFunctions.Add(
@@ -235,8 +264,12 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 						*ValueType->ToString(), *Pin->GetName(), *OptionalParamStr, *ValueStr));
 			}
 		}
-			else if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
-			{
+		else if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
+		{
+			TArray<EOptimusResourceContext> Contexts = GetContextsForBinding(Pin, OutputBindings);
+			
+			TArray<FString> IndexNames = GetIndexNames(Contexts);
+
 			if (!ConnectedPins.IsEmpty())
 			{
 				// If we have an output connection going to multiple data interfaces, then we
@@ -283,7 +316,7 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 				}
 
 				TArray<FString> WrapFunctionNameCalls;
-				
+
 				for (const FWriteConnectionDef& WriteConnectionDef: WriteConnectionDefs)
 				{
 					const FString DataFunctionName = WriteConnectionDef.DataFunctionName;
@@ -293,7 +326,10 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 				
 					FShaderParamTypeDefinition ParamDef;
 					CopyValueType(ValueType, ParamDef);
-					FuncDef.ParamTypes.Add(IndexParamDef);
+					for (int32 Count = 0; Count < Contexts.Num(); Count++)
+					{
+						FuncDef.ParamTypes.Add(IndexParamDef);
+					}
 					FuncDef.ParamTypes.Emplace(ParamDef);
 
 					TArray<FShaderFunctionDefinition> WriteFunctions;
@@ -304,7 +340,7 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 					if (WriteConnectionDefs.Num() > 1)
 					{
 						WrapFunctionName = FString::Printf(TEXT("Write%sTo%s"), *Pin->GetName(), *WriteConnectionDef.WriteToName);
-						WrapFunctionNameCalls.Add(FString::Printf(TEXT("    %s(Index, Value)"), *WrapFunctionName));
+						WrapFunctionNameCalls.Add(FString::Printf(TEXT("    %s(%s, Value)"), *WrapFunctionName, *FString::Join(IndexNames, TEXT(", "))));
 					}
 					else
 					{
@@ -316,19 +352,32 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 
 				if (!WrapFunctionNameCalls.IsEmpty())
 				{
+					TArray<FString> IndexParamNames;
+					for (const FString& IndexName: IndexNames)
+					{
+						IndexParamNames.Add(FString::Printf(TEXT("uint %s"), *IndexName));
+					}
+					
 					// Add a wrapper function that calls all the write functions in one shot.
 					StubWrapFunctions.Add(
-						FString::Printf(TEXT("void Write%s(uint Index, %s Value)\n{\n%s;\n}"),
-							*Pin->GetName(), *ValueType->ToString(), *FString::Join(WrapFunctionNameCalls, TEXT(";\n"))));
+						FString::Printf(TEXT("void Write%s(%s, %s Value)\n{\n%s;\n}"),
+							*Pin->GetName(), *FString::Join(IndexParamNames, TEXT(", ")), *ValueType->ToString(), *FString::Join(WrapFunctionNameCalls, TEXT(";\n"))));
 				}
 			}
 			else
 			{
 				// No output connections, leave a stub function. The compiler will be in charge
 				// of optimizing out anything that causes us to ends up here.
+				TArray<FString> StubIndexes;
+
+				for (const FString &IndexName: IndexNames)
+				{
+					StubIndexes.Add(*FString::Printf(TEXT("uint %s"), *IndexName));
+				}
+				
 				StubWrapFunctions.Add(
-					FString::Printf(TEXT("void Write%s(uint, %s) { }"),
-						*Pin->GetName(), *ValueType->ToString()));
+					FString::Printf(TEXT("void Write%s(%s, %s) { }"),
+						*Pin->GetName(), *FString::Join(StubIndexes, TEXT(", ")), *ValueType->ToString()));
 			}
 		}
 	}
@@ -397,18 +446,25 @@ void UOptimusNode_ComputeKernel::PostEditChangeProperty(
 	}
 	else if (PropertyChangedEvent.ChangeType & EPropertyChangeType::ArrayAdd)
 	{
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FOptimus_ShaderContextBinding, Contexts))
+		{
+			UpdatePinContextAndDimensionality(EOptimusNodePinDirection::Input);
+			UpdatePreamble();
+			return;
+		}
+		
 		EOptimusNodePinDirection Direction = EOptimusNodePinDirection::Unknown;
 		FOptimus_ShaderBinding *Binding = nullptr;
 		FName Name;
 		UOptimusNodePin *BeforePin = nullptr;
-		EOptimusNodePinStorageType StorageType = EOptimusNodePinStorageType::Resource;
+		FOptimusNodePinStorageConfig StorageConfig;
 
 		if (BasePropertyName == ParametersName)
 		{
 			Direction = EOptimusNodePinDirection::Input;
 			Binding = &Parameters.Last();
 			Name = FName("Param");
-			StorageType = EOptimusNodePinStorageType::Value;
+			StorageConfig = {};
 
 			if (!InputBindings.IsEmpty())
 			{
@@ -420,12 +476,17 @@ void UOptimusNode_ComputeKernel::PostEditChangeProperty(
 			Direction = EOptimusNodePinDirection::Input;
 			Binding = &InputBindings.Last();
 			Name = FName("Input");
+
+			// FIXME: Dimensionlity and context.
+			StorageConfig = FOptimusNodePinStorageConfig(1, TEXT("Vertex"));
 		}
 		else if (BasePropertyName == OutputBindingsName)
 		{
 			Direction = EOptimusNodePinDirection::Output;
 			Binding = &OutputBindings.Last();
 			Name = FName("Output");
+
+			StorageConfig = FOptimusNodePinStorageConfig(1, TEXT("Vertex"));
 		}
 
 		if (ensure(Binding))
@@ -433,7 +494,7 @@ void UOptimusNode_ComputeKernel::PostEditChangeProperty(
 			Binding->Name = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusNodePin::StaticClass(), Name);
 			Binding->DataType = FOptimusDataTypeRegistry::Get().FindType(*FFloatProperty::StaticClass());
 
-			AddPin(Binding->Name, Direction, StorageType, Binding->DataType, BeforePin);
+			AddPin(Binding->Name, Direction, StorageConfig, Binding->DataType, BeforePin);
 
 			UpdatePreamble();
 		}
@@ -560,6 +621,44 @@ void UOptimusNode_ComputeKernel::UpdatePinNames(
 	}
 }
 
+void UOptimusNode_ComputeKernel::UpdatePinContextAndDimensionality(EOptimusNodePinDirection InPinDirection)
+{
+	TArray<int32> Dimensionalities;
+
+	if (InPinDirection == EOptimusNodePinDirection::Input)
+	{
+		for (const FOptimus_ShaderBinding& Binding: Parameters)
+		{
+			Dimensionalities.Add(0);
+		}
+		for (const FOptimus_ShaderContextBinding& Binding: InputBindings)
+		{
+			Dimensionalities.Add(Binding.Contexts.Num());
+		}
+	}
+	else if (InPinDirection == EOptimusNodePinDirection::Output)
+	{
+		for (const FOptimus_ShaderContextBinding& Binding: OutputBindings)
+		{
+			Dimensionalities.Add(Binding.Contexts.Num());
+		}
+	}	
+	
+	// Let's try and figure out which pin got changed.
+	const TArray<UOptimusNodePin *> KernelPins = GetKernelPins(InPinDirection);
+
+	if (ensure(Dimensionalities.Num() == KernelPins.Num()))
+	{
+		for (int32 Index = 0; Index < KernelPins.Num(); Index++)
+		{
+			if (KernelPins[Index]->GetResourceDimensionality() != Dimensionalities[Index])
+			{
+				SetPinContextAndDimensionality(KernelPins[Index], Dimensionalities[Index]);
+			}
+		}
+	}
+}
+
 
 void UOptimusNode_ComputeKernel::UpdatePreamble()
 {
@@ -602,37 +701,51 @@ void UOptimusNode_ComputeKernel::UpdatePreamble()
 	// FIXME: Lump input/output functions together into single context.
 	TSet<EOptimusResourceContext> SeenContexts;
 	TArray<FOptimus_ShaderContextBinding> Bindings = InputBindings;
-	Bindings.Sort([](const FOptimus_ShaderContextBinding& A, const FOptimus_ShaderContextBinding &B) { return A.Context < B.Context; });
+	Bindings.Sort([](const FOptimus_ShaderContextBinding& A, const FOptimus_ShaderContextBinding &B) { return A.Contexts[0] < B.Contexts[0]; });
 	for (const FOptimus_ShaderContextBinding& Binding: Bindings)
 	{
-		if (SeenContexts.Contains(Binding.Context))
+		if (SeenContexts.Contains(Binding.Contexts[0]))
 		{
-			FString ContextName = StaticEnum<EOptimusResourceContext>()->GetAuthoredNameStringByIndex(static_cast<int64>(Binding.Context));
+			FString ContextName = StaticEnum<EOptimusResourceContext>()->GetAuthoredNameStringByIndex(static_cast<int64>(Binding.Contexts[0]));
 
 			Declarations.Add(FString::Printf(TEXT("// Context %s"), *ContextName));
 			Declarations.Add(FString::Printf(TEXT("uint Get%sCount();"), *ContextName));
-			SeenContexts.Add(Binding.Context);
+			SeenContexts.Add(Binding.Contexts[0]);
+		}
+
+		TArray<FString> Indexes;
+		for (const auto& Context: Binding.Contexts)
+		{
+			FString ContextName = StaticEnum<EOptimusResourceContext>()->GetAuthoredNameStringByIndex(static_cast<int64>(Context));
+			Indexes.Add(FString::Printf(TEXT("uint %sIndex"), *ContextName));
 		}
 		
-		Declarations.Add(FString::Printf(TEXT("%s Read%s(uint Index);"),
-			*Binding.DataType->ShaderValueType->ToString(), *Binding.Name.ToString()));
+		Declarations.Add(FString::Printf(TEXT("%s Read%s(%s);"),
+			*Binding.DataType->ShaderValueType->ToString(), *Binding.Name.ToString(), *FString::Join(Indexes, TEXT(", "))));
 	}
 
 	Bindings = OutputBindings;
-	Bindings.Sort([](const FOptimus_ShaderContextBinding& A, const FOptimus_ShaderContextBinding &B) { return A.Context < B.Context; });
+	Bindings.Sort([](const FOptimus_ShaderContextBinding& A, const FOptimus_ShaderContextBinding &B) { return A.Contexts[0] < B.Contexts[0]; });
 	for (const FOptimus_ShaderContextBinding& Binding: Bindings)
 	{
-		if (SeenContexts.Contains(Binding.Context))
+		if (SeenContexts.Contains(Binding.Contexts[0]))
 		{
-			FString ContextName = StaticEnum<EOptimusResourceContext>()->GetAuthoredNameStringByIndex(static_cast<int64>(Binding.Context));
+			FString ContextName = StaticEnum<EOptimusResourceContext>()->GetAuthoredNameStringByIndex(static_cast<int64>(Binding.Contexts[0]));
 
 			Declarations.Add(FString::Printf(TEXT("// Context %s"), *ContextName));
 			Declarations.Add(FString::Printf(TEXT("uint Get%sCount();"), *ContextName));
-			SeenContexts.Add(Binding.Context);
+			SeenContexts.Add(Binding.Contexts[0]);
+		}
+
+		TArray<FString> Indexes;
+		for (const auto& Context: Binding.Contexts)
+		{
+			FString ContextName = StaticEnum<EOptimusResourceContext>()->GetAuthoredNameStringByIndex(static_cast<int64>(Context));
+			Indexes.Add(FString::Printf(TEXT("uint %sIndex"), *ContextName));
 		}
 		
-		Declarations.Add(FString::Printf(TEXT("void Write%s(uint Index, %s Value);"),
-			*Binding.Name.ToString(), *Binding.DataType->ShaderValueType->ToString()));
+		Declarations.Add(FString::Printf(TEXT("void Write%s(%s, %s Value);"),
+			*Binding.Name.ToString(), *FString::Join(Indexes, TEXT(", ")), *Binding.DataType->ShaderValueType->ToString()));
 	}
 
 	ShaderSource.Declarations.Reset();
@@ -670,6 +783,8 @@ TArray<UOptimusNodePin*> UOptimusNode_ComputeKernel::GetKernelPins(
 
 FString UOptimusNode_ComputeKernel::GetWrappedShaderSource() const
 {
+	// FIXME: Create source range mappings so that we can go from error location to
+	// our source.
 	FString Source = ShaderSource.ShaderText;
 
 #if PLATFORM_WINDOWS
@@ -677,22 +792,34 @@ FString UOptimusNode_ComputeKernel::GetWrappedShaderSource() const
 	Source.ReplaceInline(TEXT("\r"), TEXT(""));
 #endif
 
-	TArray<FString> Lines;
-	Source.ParseIntoArray(Lines, TEXT("\n"));
-
-	for (FString& Line: Lines)
-	{
-		Line.InsertAt(0, TEXT("    "));
-	}
+	const bool bHasKernelKeyword = Source.Contains(TEXT("KERNEL"));
 	
-	// FIXME: Handle presence of KERNEL {} keyword
-	return FString::Printf(
-	TEXT(
-		"[numthreads(%d,1,1)]\n"
-		"void %s(uint3 DTid : SV_DispatchThreadID)\n"
-		"{\n"
-		"   uint Index = DTid.x;\n"
-		"%s\n"
-		"}\n"
-		), ThreadCount, *KernelName, *FString::Join(Lines, TEXT("\n")));
+	const FString KernelFunc = FString::Printf(TEXT("[numthreads(%d,1,1)] void %s(uint3 DTid : SV_DispatchThreadID)"), ThreadCount, *KernelName);
+	
+	if (bHasKernelKeyword)
+	{
+		Source.ReplaceInline(TEXT("KERNEL"), TEXT("void __kernel_func(uint Index)"));
+
+		return FString::Printf(TEXT("%s\n\n%s { __kernel_func(DTid.x); }\n"), *Source, *KernelFunc);
+	}
+	else
+	{
+		TArray<FString> Lines;
+		Source.ParseIntoArray(Lines, TEXT("\n"));
+		
+		for (FString& Line: Lines)
+		{
+			Line.InsertAt(0, TEXT("    "));
+		}
+	
+		// FIXME: Handle presence of KERNEL {} keyword
+		return FString::Printf(
+		TEXT(
+			"%s\n"
+			"{\n"
+			"   uint Index = DTid.x;\n"
+			"%s\n"
+			"}\n"
+			), *KernelFunc, *FString::Join(Lines, TEXT("\n")));
+	}
 }

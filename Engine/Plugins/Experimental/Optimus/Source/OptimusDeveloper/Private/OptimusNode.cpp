@@ -246,7 +246,11 @@ void UOptimusNode::PostCreateNode()
 {
 	CachedPinLookup.Empty();
 	Pins.Empty();
-	CreatePins();
+
+	{
+		TGuardValue<bool> BlockNotify(bNotifyPinAdded, false);
+		CreatePins();
+	}
 }
 
 
@@ -276,21 +280,55 @@ void UOptimusNode::CreatePins()
 
 
 UOptimusNodePin* UOptimusNode::AddPin(
-	FName InName, 
-	EOptimusNodePinDirection InDirection, 
-	EOptimusNodePinStorageType InStorageType, 
-	FOptimusDataTypeRef InDataType,
-	UOptimusNodePin* InBeforePin
+    FName InName,
+    EOptimusNodePinDirection InDirection,
+    FOptimusNodePinStorageConfig InStorageConfig,
+    FOptimusDataTypeRef InDataType,
+    UOptimusNodePin* InBeforePin,
+    UOptimusNodePin* InParentPin
 	)
 {
-	UOptimusNodePin* Pin = CreatePinFromDataType(InName, InDirection, InStorageType, InDataType, InBeforePin);
+	UObject* PinParent = InParentPin ? Cast<UObject>(InParentPin) : this;
+	UOptimusNodePin* Pin = NewObject<UOptimusNodePin>(PinParent, InName);
 
-	if (Pin)
+	Pin->Initialize(InDirection, InStorageConfig, InDataType);
+
+	if (InParentPin)
+	{
+		InParentPin->AddSubPin(Pin, InBeforePin);
+	}
+	else
+	{
+		int32 Index = Pins.Num();
+		if (InBeforePin && ensure(Pins.IndexOfByKey(InBeforePin) != INDEX_NONE))
+		{
+			Index = Pins.IndexOfByKey(InBeforePin); 
+		}
+		Pins.Insert(Pin, Index);
+	}
+
+	// Add sub-pins, if the registered type is set to show them but only for value types.
+	if (InStorageConfig.Type == EOptimusNodePinStorageType::Value &&
+		EnumHasAnyFlags(InDataType->TypeFlags, EOptimusDataTypeFlags::ShowElements))
+	{
+		if (const UScriptStruct* Struct = Cast<const UScriptStruct>(InDataType->TypeObject))
+		{
+			CreatePinsFromStructLayout(Struct, Pin);
+		}
+	}
+
+	if (bNotifyPinAdded)
 	{
 		Pin->Notify(EOptimusGraphNotifyType::PinAdded);
 	}
 
 	return Pin;
+}
+
+
+bool UOptimusNode::RemovePin(UOptimusNodePin* InPin)
+{
+	return false;
 }
 
 
@@ -372,45 +410,13 @@ bool UOptimusNode::SetPinName(UOptimusNodePin* InPin, FName InNewName)
 }
 
 
-UOptimusNodePin* UOptimusNode::CreatePinFromDataType(
-    FName InName,
-    EOptimusNodePinDirection InDirection,
-    EOptimusNodePinStorageType InStorageType,
-    FOptimusDataTypeRef InDataType,
-    UOptimusNodePin* InBeforePin,
-    UOptimusNodePin* InParentPin
+bool UOptimusNode::SetPinContextAndDimensionality(
+	UOptimusNodePin* InPin,
+	int32 InResourceDimensionality
 	)
 {
-	UObject* PinParent = InParentPin ? Cast<UObject>(InParentPin) : this;
-	UOptimusNodePin* Pin = NewObject<UOptimusNodePin>(PinParent, InName);
-
-	Pin->Initialize(InDirection, InStorageType, InDataType);
-
-	if (InParentPin)
-	{
-		InParentPin->AddSubPin(Pin, InBeforePin);
-	}
-	else
-	{
-		int32 Index = Pins.Num();
-		if (InBeforePin && ensure(Pins.IndexOfByKey(InBeforePin) != INDEX_NONE))
-		{
-			Index = Pins.IndexOfByKey(InBeforePin); 
-		}
-		Pins.Insert(Pin, Index);
-	}
-
-	// Add sub-pins, if the registered type is set to show them but only for value types.
-	if (InStorageType == EOptimusNodePinStorageType::Value &&
-		EnumHasAnyFlags(InDataType->TypeFlags, EOptimusDataTypeFlags::ShowElements))
-	{
-		if (const UScriptStruct* Struct = Cast<const UScriptStruct>(InDataType->TypeObject))
-		{
-			CreatePinsFromStructLayout(Struct, Pin);
-		}
-	}
-
-	return Pin;
+	InPin->ResourceDimensionality = InResourceDimensionality;
+	return true;
 }
 
 
@@ -492,7 +498,7 @@ UOptimusNodePin* UOptimusNode::CreatePinFromProperty(
 		return nullptr;
 	}
 
-	EOptimusNodePinStorageType StorageType = EOptimusNodePinStorageType::Value;
+	FOptimusNodePinStorageConfig StorageConfig{};
 	if (InProperty->HasMetaData(PropertyMeta::Resource))
 	{
 		if (!ensure(!InParentPin))
@@ -508,11 +514,11 @@ UOptimusNodePin* UOptimusNode::CreatePinFromProperty(
 			return nullptr;
 		}
 
-		StorageType = EOptimusNodePinStorageType::Resource;
+		StorageConfig = FOptimusNodePinStorageConfig(1, TEXT("Vertex"));
 	}
 
 
-	return CreatePinFromDataType(InProperty->GetFName(), InDirection, StorageType, DataType, nullptr, InParentPin);
+	return AddPin(InProperty->GetFName(), InDirection, StorageConfig, DataType, nullptr, InParentPin);
 }
 
 UOptimusActionStack* UOptimusNode::GetActionStack() const

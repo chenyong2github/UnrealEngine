@@ -463,7 +463,7 @@ TSharedRef<ITableRow> SOptimusEditorGraphNode::MakeTableRowWidget(
 
 	TSharedRef<SOptimusEditorGraphPinTreeRow> TreeRow = SNew(SOptimusEditorGraphPinTreeRow, OwnerTable)
 		.LeftAligned(bIsInput)
-		// .ToolTipText(InItem->GetTooltipText())
+		.ToolTipText(InModelPin->GetTooltipText())
 		;
 
 	UOptimusEditorGraphNode* EditorGraphNode = GetEditorGraphNode();

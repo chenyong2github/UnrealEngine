@@ -89,8 +89,13 @@ struct FOptimus_ShaderContextBinding :
 {
 	GENERATED_BODY()
 
+	FOptimus_ShaderContextBinding()
+	{
+		Contexts.Add(EOptimusResourceContext::Vertex);
+	}
+	
 	UPROPERTY(EditAnywhere, Category = Binding)
-	EOptimusResourceContext Context = EOptimusResourceContext::Vertex;
+	TArray<EOptimusResourceContext> Contexts;
 };
 
 
@@ -154,6 +159,10 @@ private:
 	void UpdatePinNames(
 	    EOptimusNodePinDirection InPinDirection);
 
+	void UpdatePinContextAndDimensionality(
+		EOptimusNodePinDirection InPinDirection
+		);
+	
 	void UpdatePreamble();
 
 	TArray<UOptimusNodePin *> GetKernelPins(
