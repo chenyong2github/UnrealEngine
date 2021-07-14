@@ -217,6 +217,7 @@ namespace UnrealBuildTool
 				string Description = string.Empty;
 				List<string> LogLines;
 				int ExitCode;
+				DateTime StartTime = DateTime.Now;
 				TimeSpan ExecutionTime;
 				TimeSpan ProcessorTime;
 				using (ManagedProcess Process = new ManagedProcess(ProcessGroup, Action.CommandPath.FullName, Action.CommandArguments, Action.WorkingDirectory.FullName, null, null, ProcessPriorityClass.BelowNormal))
@@ -227,7 +228,7 @@ namespace UnrealBuildTool
 					LogLines = Console.OutputEncoding.GetString(StdOutStream.GetBuffer(), 0, Convert.ToInt32(StdOutStream.Length)).Split(LineEndingSplit, StringSplitOptions.RemoveEmptyEntries).ToList();
 					ExitCode = Process.ExitCode;
 					ProcessorTime = Process.TotalProcessorTime;
-					ExecutionTime = Process.ExitTime - Process.StartTime;
+					ExecutionTime = DateTime.Now - StartTime;
 				}
 
 				return new ExecuteResults(LogLines, ExitCode, ExecutionTime, ProcessorTime);

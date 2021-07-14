@@ -301,33 +301,8 @@ namespace EpicGames.Core
 		[DllImport("kernel32.dll", SetLastError=true)]
 		static extern UInt32 WaitForSingleObject(SafeHandleZeroOrMinusOneIsInvalid hHandle, UInt32 dwMilliseconds);
 
-		[DllImport("kernel32.dll", SetLastError = true)]
-		[return: MarshalAs(UnmanagedType.Bool)]
-		static extern bool GetProcessTimes(SafeHandleZeroOrMinusOneIsInvalid hProcess,
-			out System.Runtime.InteropServices.ComTypes.FILETIME lpCreationTime,
-			out System.Runtime.InteropServices.ComTypes.FILETIME lpExitTime,
-			out System.Runtime.InteropServices.ComTypes.FILETIME lpKernelTime,
-			out System.Runtime.InteropServices.ComTypes.FILETIME lpUserTime);
-
-		/// <summary>
-		/// Converts FILETIME to DateTime.
-		/// </summary>
-		/// <param name="Time">Input FILETIME structure</param>
-		/// <returns>Converted DateTime</returns>
-		static DateTime FileTimeToDateTime(System.Runtime.InteropServices.ComTypes.FILETIME Time)
-		{
-			ulong High = (ulong)Time.dwHighDateTime;
-			uint Low = (uint)Time.dwLowDateTime;
-			long FileTime = (long)((High << 32) + Low);
-			try
-			{
-				return DateTime.FromFileTimeUtc(FileTime);
-			}
-			catch (ArgumentOutOfRangeException)
-			{
-				return DateTime.MinValue;
-			}
-		}
+		[DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+		public static extern bool GetProcessTimes(SafeHandleZeroOrMinusOneIsInvalid handle, out long creation, out long exit, out long kernel, out long user);
 
 		const int ERROR_ACCESS_DENIED = 5;
 
@@ -1091,51 +1066,6 @@ namespace EpicGames.Core
 				else
 				{
 					return FrameworkProcess.ExitCode;
-				}
-			}
-		}
-
-		/// <summary>
-		/// The creation time of the process.
-		/// </summary>
-		public DateTime StartTime
-		{
-			get
-			{
-				if (FrameworkProcess == null)
-				{
-					System.Runtime.InteropServices.ComTypes.FILETIME CreationTime;
-					if (!GetProcessTimes(ProcessHandle!, out CreationTime, out _, out _, out _))
-					{
-						throw new Win32Exception();
-					}
-					return FileTimeToDateTime(CreationTime);
-				}
-				else
-				{
-					return FrameworkProcess.StartTime;
-				}
-			}
-		}
-		/// <summary>
-		/// The exit time of the process. Throws an exception if the process has not terminated.
-		/// </summary>
-		public DateTime ExitTime
-		{
-			get
-			{
-				if (FrameworkProcess == null)
-				{
-					System.Runtime.InteropServices.ComTypes.FILETIME ExitTime;
-					if (!GetProcessTimes(ProcessHandle!, out _, out ExitTime, out _, out _))
-					{
-						throw new Win32Exception();
-					}
-					return FileTimeToDateTime(ExitTime);
-				}
-				else
-				{
-					return FrameworkProcess.ExitTime;
 				}
 			}
 		}
