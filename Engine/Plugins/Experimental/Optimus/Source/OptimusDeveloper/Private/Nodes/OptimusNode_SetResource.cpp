@@ -11,11 +11,10 @@ void UOptimusNode_SetResource::CreatePins()
 	UOptimusResourceDescription* Res = GetResourceDescription();
 	if (Res)
 	{
-		CreatePinFromDataType(
+		AddPin(
 		    Res->ResourceName,
 		    EOptimusNodePinDirection::Input,
-		    EOptimusNodePinStorageType::Resource,
-		    Res->DataType,
-		    nullptr);
+		    FOptimusNodePinStorageConfig(1, TEXT("Vertex")),
+		    Res->DataType);
 	}
 }

@@ -30,6 +30,31 @@ enum class EOptimusNodePinStorageType : uint8
 	Resource			/** Resource binding of some type */
 };
 
+USTRUCT()
+struct FOptimusNodePinStorageConfig
+{
+	GENERATED_BODY()
+	
+	// Create a storage config for a value pin.
+	FOptimusNodePinStorageConfig() = default;
+	
+	// Create a storage config for a resource pin.
+	FOptimusNodePinStorageConfig(int32 InDimensionality, FName InContext) :
+		Type(EOptimusNodePinStorageType::Resource),
+		ResourceDimensionality(InDimensionality),
+		ResourceContext(InContext)
+	{ }
+	
+	UPROPERTY()
+	EOptimusNodePinStorageType Type = EOptimusNodePinStorageType::Value;
+
+	UPROPERTY()
+	int32 ResourceDimensionality = 0;
+
+	UPROPERTY()
+	FName ResourceContext;
+};
+
 
 UCLASS(BlueprintType)
 class OPTIMUSDEVELOPER_API UOptimusNodePin : public UObject
@@ -65,6 +90,9 @@ public:
 	/** Returns a user-friendly display name for this pin */
 	FText GetDisplayName() const;
 
+	/** Returns a tooltip to use when hovering over the pin in the graph */
+	FText GetTooltipText() const;
+
 	/// Returns the path of the pin from the graph collection owner root.
 	/// E.g: SetupGraph/LinearBlendSkinning1.Direction.X
 	FString GetPinPath() const;
@@ -77,6 +105,12 @@ public:
 
 	/** Returns the storage type for this pin, either a value or a bound resource */
 	EOptimusNodePinStorageType GetStorageType() const { return StorageType; }
+
+	/** Returns the expected dimensionality of the resource */
+	int32 GetResourceDimensionality() const
+	{
+		return StorageType == EOptimusNodePinStorageType::Resource ? ResourceDimensionality : 0;
+	}
 
 	/** Returns the FProperty object for this pin. This can be used to directly address the
 	  * node data represented by this pin. Not all pins have an underlying resource so this can
@@ -118,7 +152,7 @@ protected:
 	// Initialize the pin data from the given direction and property.
 	void Initialize(
 		EOptimusNodePinDirection InDirection, 
-		EOptimusNodePinStorageType InStorageType,
+		FOptimusNodePinStorageConfig InStorageConfig,
 		FOptimusDataTypeRef InDataTypeRef
 		);
 
@@ -149,6 +183,12 @@ private:
 
 	UPROPERTY()
 	EOptimusNodePinStorageType StorageType = EOptimusNodePinStorageType::Value;
+
+	UPROPERTY()
+	int32 ResourceDimensionality = 0;
+
+	UPROPERTY()
+	FName ResourceContext;
 
 	UPROPERTY()
 	FOptimusDataTypeRef DataType;

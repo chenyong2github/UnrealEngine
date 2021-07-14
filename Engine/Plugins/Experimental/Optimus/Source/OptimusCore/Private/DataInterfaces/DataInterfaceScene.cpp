@@ -19,8 +19,8 @@ FString USceneDataInterface::GetDisplayName() const
 TArray<FOptimusCDIPinDefinition> USceneDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
-	Defs.Add({"GameTime", "ReadGameTime", {}, {}});
-	Defs.Add({"FrameNumber", "ReadFrameNumber", {}, {}});
+	Defs.Add({"GameTime", "ReadGameTime", "Singleton"});
+	Defs.Add({"FrameNumber", "ReadFrameNumber", "Singleton"});
 	return Defs;
 }
 

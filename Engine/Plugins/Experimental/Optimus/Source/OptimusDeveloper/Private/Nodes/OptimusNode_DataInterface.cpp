@@ -83,18 +83,11 @@ void UOptimusNode_DataInterface::CreatePinFromDefinition(
 	// TBD: Context
 	const FOptimusDataTypeRegistry& TypeRegistry = FOptimusDataTypeRegistry::Get();
 
-	EOptimusNodePinDirection PinDirection = EOptimusNodePinDirection::Unknown;
-	EOptimusNodePinStorageType PinStorageType = EOptimusNodePinStorageType::Value;
-	FOptimusDataTypeRef PinDataType;
-	
 	// If there's no count function, then we have a value pin. The data function should
 	// have a return parameter but no input parameters. The value function only exists in 
 	// the read function map and so can only be an output pin.
-	if (InDefinition.CountFunctionName.IsEmpty())
+	if (InDefinition.CountFunctionNames.IsEmpty())
 	{
-		PinDirection = EOptimusNodePinDirection::Output;
-		PinStorageType = EOptimusNodePinStorageType::Value;
-		
 		if (!InReadFunctionMap.Contains(InDefinition.DataFunctionName))
 		{
 			UE_LOG(LogOptimusDeveloper, Error, TEXT("Data function %s given for pin %s in %s does not exist"),
@@ -111,7 +104,7 @@ void UOptimusNode_DataInterface::CreatePinFromDefinition(
 		}
 
 		const FShaderValueTypeHandle ValueTypeHandle = FuncDef->ParamTypes[0].ValueType;
-		PinDataType = TypeRegistry.FindType(ValueTypeHandle);
+		const FOptimusDataTypeRef PinDataType = TypeRegistry.FindType(ValueTypeHandle);
 		if (!PinDataType.IsValid())
 		{
 			UE_LOG(LogOptimusDeveloper, Error, TEXT("Data function %s given for pin %s in %s uses unsupported type '%s'"),
@@ -119,28 +112,32 @@ void UOptimusNode_DataInterface::CreatePinFromDefinition(
 				*ValueTypeHandle->ToString());
 			return;
 		}
+
+		AddPin(InDefinition.PinName, EOptimusNodePinDirection::Output, {}, PinDataType);
 	}
 	else if (!InDefinition.DataFunctionName.IsEmpty())
 	{
-		PinStorageType = EOptimusNodePinStorageType::Resource;
-
-		FShaderValueTypeHandle ValueTypeHandle;
-		
 		// The count function is always in the read function list.
-		if (!InReadFunctionMap.Contains(InDefinition.CountFunctionName))
+		for (const FString& CountFunctionName: InDefinition.CountFunctionNames)
 		{
-			UE_LOG(LogOptimusDeveloper, Error, TEXT("Count function %s given for pin %s in %s does not exist"),
-				*InDefinition.CountFunctionName, *InDefinition.PinName.ToString(), *DataInterfaceClass->GetName());
-			return;
+			if (!InReadFunctionMap.Contains(CountFunctionName))
+			{
+				UE_LOG(LogOptimusDeveloper, Error, TEXT("Count function %s given for pin %s in %s does not exist"),
+					*CountFunctionName, *InDefinition.PinName.ToString(), *DataInterfaceClass->GetName());
+				return;
+			}
 		}
 
+		FShaderValueTypeHandle ValueTypeHandle;
+		EOptimusNodePinDirection PinDirection;
+		
 		if (InReadFunctionMap.Contains(InDefinition.DataFunctionName))
 		{
 			PinDirection = EOptimusNodePinDirection::Output;
 			const FShaderFunctionDefinition* FuncDef = InReadFunctionMap[InDefinition.DataFunctionName];
 
 			// FIXME: Ensure it takes a scalar uint/int as input index.
-			if (!FuncDef->bHasReturnType || FuncDef->ParamTypes.Num() != 2)
+			if (!FuncDef->bHasReturnType || FuncDef->ParamTypes.Num() != (1 + InDefinition.CountFunctionNames.Num()))
 			{
 				UE_LOG(LogOptimusDeveloper, Error, TEXT("Data read function %s given for pin %s in %s is not properly declared."),
 					*InDefinition.DataFunctionName, *InDefinition.PinName.ToString(), *DataInterfaceClass->GetName());
@@ -157,7 +154,7 @@ void UOptimusNode_DataInterface::CreatePinFromDefinition(
 			const FShaderFunctionDefinition* FuncDef = InWriteFunctionMap[InDefinition.DataFunctionName];
 
 			// FIXME: Ensure it takes a scalar uint/int as input index.
-			if (FuncDef->bHasReturnType || FuncDef->ParamTypes.Num() != 2)
+			if (FuncDef->bHasReturnType || FuncDef->ParamTypes.Num() != (1 + InDefinition.CountFunctionNames.Num()))
 			{
 				UE_LOG(LogOptimusDeveloper, Error, TEXT("Data write function %s given for pin %s in %s is not properly declared."),
 					*InDefinition.DataFunctionName, *InDefinition.PinName.ToString(), *DataInterfaceClass->GetName());
@@ -174,7 +171,7 @@ void UOptimusNode_DataInterface::CreatePinFromDefinition(
 			return;
 		}
 
-		PinDataType = TypeRegistry.FindType(ValueTypeHandle);
+		const FOptimusDataTypeRef PinDataType = TypeRegistry.FindType(ValueTypeHandle);
 		if (!PinDataType.IsValid())
 		{
 			UE_LOG(LogOptimusDeveloper, Error, TEXT("Data function %s given for pin %s in %s uses unsupported type '%s'"),
@@ -182,16 +179,13 @@ void UOptimusNode_DataInterface::CreatePinFromDefinition(
 				*ValueTypeHandle->ToString());
 			return;
 		}
-		
+
+		const FOptimusNodePinStorageConfig StorageConfig(InDefinition.CountFunctionNames.Num(), InDefinition.ContextName);
+		AddPin(InDefinition.PinName, PinDirection, StorageConfig, PinDataType);
 	}
 	else
 	{
 		UE_LOG(LogOptimusDeveloper, Error, TEXT("No data function given for pin %s in %s"),
 			*InDefinition.PinName.ToString(), *DataInterfaceClass->GetName());
-	}
-
-	if (PinDataType.IsValid())
-	{
-		CreatePinFromDataType(InDefinition.PinName, PinDirection, PinStorageType, PinDataType);
 	}
 }

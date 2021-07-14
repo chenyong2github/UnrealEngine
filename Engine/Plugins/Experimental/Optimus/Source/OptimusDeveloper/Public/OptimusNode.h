@@ -10,6 +10,7 @@
 
 #include "OptimusNode.generated.h"
 
+struct FOptimusNodePinStorageConfig;
 enum class EOptimusNodePinDirection : uint8;
 enum class EOptimusNodePinStorageType : uint8;
 class UOptimusActionStack;
@@ -150,16 +151,17 @@ protected:
 
 	virtual void CreatePins();
 
-	// Add a new pin and notify the world.
+	/** Create a pin and add it to the node in the location specified. */ 
 	UOptimusNodePin* AddPin(
-	    FName InName,
-	    EOptimusNodePinDirection InDirection,
-	    EOptimusNodePinStorageType InStorageType,
-	    FOptimusDataTypeRef InDataType,
-	    UOptimusNodePin* InBeforePin = nullptr
+		FName InName,
+		EOptimusNodePinDirection InDirection,
+		FOptimusNodePinStorageConfig InStorageConfig,
+		FOptimusDataTypeRef InDataType,
+		UOptimusNodePin* InBeforePin = nullptr,
+		UOptimusNodePin* InParentPin = nullptr
 		);
 
-	// Remove the gi
+	// Remove the pin.
 	bool RemovePin(
 		UOptimusNodePin* InPin
 		);
@@ -176,16 +178,11 @@ protected:
 	    FName InNewName
 		);
 
-
-	UOptimusNodePin* CreatePinFromDataType(
-		FName InName,
-	    EOptimusNodePinDirection InDirection,
-	    EOptimusNodePinStorageType InStorageType,
-		FOptimusDataTypeRef InDataType,
-		UOptimusNodePin* InBeforePin = nullptr,
-	    UOptimusNodePin* InParentPin = nullptr
+	bool SetPinContextAndDimensionality(
+		UOptimusNodePin* InPin,
+		int32 InResourceDimensionality
 		);
-
+	
 	void SetPinExpanded(const UOptimusNodePin* InPin, bool bInExpanded);
 	bool GetPinExpanded(const UOptimusNodePin* InPin) const;
 
@@ -195,7 +192,7 @@ private:
 	void Notify(
 		EOptimusGraphNotifyType InNotifyType
 	);
-
+	
 	void CreatePinsFromStructLayout(
 		const UStruct *InStruct, 
 		UOptimusNodePin *InParentPin = nullptr
@@ -220,6 +217,10 @@ private:
 	// The revision number. Incremented each time Modify is called. Can be used to check
 	// if the object is now different and may need to be involved in updating the compute graph.
 	int32 Revision = 0;
+
+	// A safety valve because we don't want notifications on pin added to be fired if a pin
+	// is added during CreatePins.
+	bool bNotifyPinAdded = true;
 
 	/// Cached pin lookups
 	mutable TMap<TArray<FName>, UOptimusNodePin*> CachedPinLookup;

@@ -11,38 +11,66 @@
 
 struct FOptimusCDIPinDefinition
 {
-	// The name of the pin.
+	// Singleton value read/write
+	FOptimusCDIPinDefinition(
+		FName InPinName,
+		FString InDataFunctionName,
+		FName InContextName
+		) :
+		PinName(InPinName),
+		DataFunctionName(InDataFunctionName),
+		ContextName(InContextName)
+	{ }
+
+	FOptimusCDIPinDefinition(
+		FName InPinName,
+		FString InDataFunctionName,
+		FString InCountFunctionName,
+		FName InContextName
+		) :
+		PinName(InPinName),
+		DataFunctionName(InDataFunctionName),
+		CountFunctionNames{{InCountFunctionName}},
+		ContextName(InContextName)
+	{ }
+
+	FOptimusCDIPinDefinition(
+		FName InPinName,
+		FString InDataFunctionName,
+		TArray<FString> InCountFunctionNames,
+		FName InContextName
+		) :
+		PinName(InPinName),
+		DataFunctionName(InDataFunctionName),
+		CountFunctionNames(InCountFunctionNames),
+		ContextName(InContextName)
+	{ }
+
+	
+	// The name of the pin as seen by the user.
 	FName PinName;
 
-	// The name of the function that underlies the data access by the pin
+	// The name of the function that underlies the data access by the pin. The data functions
+	// are used to either read or write to data interfaces, whether explicit or implicit.
+	// The read functions take zero to N uint indices, determined by the number of count 
+	// functions below, and return a value. The write functions take zero to N uint indices,
+	// followed by the value, with no return value.
 	FString DataFunctionName;
 
-	// The function to call to get the item count for the data. If there is no count function
+	// The function to calls to get the item count for the data. If there is no count function
 	// name then the data is assumed to be a singleton and will be shown as a value pin rather
-	// than a resource pin.
-	FString CountFunctionName;
+	// than a resource pin. Otherwise, the number of count functions defines the dimensionality
+	// of the lookup. The first count function returns the count required for the context and
+	// should accept no arguments. The second count function takes as index any number between
+	// zero and the result of the first count function. E.g:
+	// uint GetFirstDimCount();
+	// uint GetSecondDimCount(uint Index);
+	// These two results then bound the indices used to call the data function.
+	TArray<FString> CountFunctionNames;
 
-	// The data context. Connections of different contexts cannot be made.
+	// The data context for the primary dimension. Connections of different contexts cannot be
+	// made, nor connections of the 
 	FName ContextName;
-
-	struct FExtraDataFunction
-	{
-		FString Suffix;
-		FString DataFunctionName;
-	};
-	
-	TArray<FExtraDataFunction> ExtraDataFunctions;
-
-	// Add an extra data function that operates on the same data but with possibly different
-	// semantics. 
-	FOptimusCDIPinDefinition& AddExtraFunction(
-		const FString& InSuffix,
-		const FString& InDataFunctionName
-		)
-	{
-		ExtraDataFunctions.Add({InSuffix, InDataFunctionName});
-		return *this;
-	}
 };
 
 

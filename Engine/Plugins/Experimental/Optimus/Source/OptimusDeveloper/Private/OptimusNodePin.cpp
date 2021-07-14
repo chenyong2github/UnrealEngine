@@ -88,6 +88,12 @@ FText UOptimusNodePin::GetDisplayName() const
 }
 
 
+FText UOptimusNodePin::GetTooltipText() const
+{
+	return FText::FromString("Who farted, y'all?");
+}
+
+
 FString UOptimusNodePin::GetPinPath() const
 {
 	return FString::Printf(TEXT("%s.%s"), *GetNode()->GetNodePath(), *GetUniqueName().ToString());
@@ -369,6 +375,28 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 		return false;
 	}
 
+	// If it's resource -> resource, check that the dimensionality is the same.
+	if (OutputPin->StorageType == EOptimusNodePinStorageType::Resource &&
+		InputPin->StorageType == EOptimusNodePinStorageType::Resource)
+	{
+		if (OutputPin->ResourceDimensionality != InputPin->ResourceDimensionality)
+		{
+			if (OutReason)
+			{
+				*OutReason = FString::Printf(TEXT("Can't connect resources with different dimensionality (%d vs %d)."),
+					OutputPin->ResourceDimensionality, InputPin->ResourceDimensionality);
+			}			
+		}
+		if (OutputPin->ResourceContext != InputPin->ResourceContext)
+		{
+			if (OutReason)
+			{
+				*OutReason = FString::Printf(TEXT("Can't connect resources with different context types (%s vs %s)."),
+					*OutputPin->ResourceContext.ToString(), *InputPin->ResourceContext.ToString());
+			}			
+		}
+	}
+
 	return true;
 }
 
@@ -389,12 +417,17 @@ bool UOptimusNodePin::GetIsExpanded() const
 
 void UOptimusNodePin::Initialize(
     EOptimusNodePinDirection InDirection,
-    EOptimusNodePinStorageType InStorageType,
+    FOptimusNodePinStorageConfig InStorageConfig,
     FOptimusDataTypeRef InDataTypeRef
 	)
 {
 	Direction = InDirection;
-	StorageType = InStorageType;
+	StorageType = InStorageConfig.Type;
+	if (StorageType == EOptimusNodePinStorageType::Resource)
+	{
+		ResourceDimensionality = InStorageConfig.ResourceDimensionality;
+		ResourceContext = InStorageConfig.ResourceContext;
+	}
 	DataType = InDataTypeRef;
 }
 
