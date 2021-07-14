@@ -296,6 +296,12 @@ protected:
 	/** If true, the resource has been queued for an upload operation. */
 	uint8 bQueuedForUpload : 1;
 
+	/** If true, this resource is a swap chain texture. */
+	uint8 bSwapChain : 1;
+
+	/** If true, the swap chain transition has been moved to occur at the latest possible time. */
+	uint8 bSwapChainAlreadyMoved : 1;
+
 	FRDGPassHandle FirstPass;
 	FRDGPassHandle LastPass;
 
@@ -464,6 +470,7 @@ private:
 		MergeState.SetNum(SubresourceCount);
 		LastProducers.Reserve(SubresourceCount);
 		LastProducers.SetNum(SubresourceCount);
+		bSwapChain = EnumHasAnyFlags(Desc.Flags, ETextureCreateFlags::Presentable);
 	}
 
 	/** Assigns a pooled render target as the backing RHI resource. */
