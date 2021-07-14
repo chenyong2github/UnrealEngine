@@ -8,6 +8,7 @@
 
 class FCanvas;
 class FRenderTarget;
+class UTextureRenderTarget2D;
 
 UCLASS()
 class UMGEDITOR_API UWidgetBlueprintThumbnailRenderer : public UDefaultSizedThumbnailRenderer
@@ -20,5 +21,8 @@ class UMGEDITOR_API UWidgetBlueprintThumbnailRenderer : public UDefaultSizedThum
 
 private:
 	TTuple<FVector2D, FVector2D> GetScaledSizeAndOffset(float ImgWidth, float ImgHeight, float ThumbnailWidth, float ThumbnailHeight) const;
+
+	UPROPERTY(Transient)
+	UTextureRenderTarget2D* RenderTarget2D;
 
 };
