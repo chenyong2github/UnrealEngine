@@ -17,7 +17,7 @@ class IKRIG_API UIKRigEffectorGoal : public UObject
 
 public:
 	
-	UIKRigEffectorGoal() : GoalName("DefaultGoal"), BoneName(NAME_None) {}
+	UIKRigEffectorGoal() : GoalName("DefaultGoal"), BoneName(NAME_None){}
 	
 	UIKRigEffectorGoal(const FName& InGoalName, const FName& InBoneName) :  GoalName(InGoalName), BoneName(InBoneName){}
 
@@ -46,6 +46,12 @@ public:
 	float GizmoThickness = 0.7f;
 
 	bool operator==(const UIKRigEffectorGoal& Other) const { return GoalName == Other.GoalName; }
+
+	virtual void PostLoad() override
+	{
+		Super::PostLoad();
+		SetFlags(RF_Transactional);
+	}
 };
 
 USTRUCT(Blueprintable)
@@ -120,7 +126,7 @@ public:
 	UPROPERTY(VisibleAnywhere, instanced, Category = "IK")
 	TArray<UIKRigSolver*> Solvers;
 
-	/** goals, used by solvers that support them */
+	/** goals, used as effectors by solvers that support them */
 	UPROPERTY(VisibleAnywhere, Category = "IK")
 	TArray<UIKRigEffectorGoal*> Goals;
 

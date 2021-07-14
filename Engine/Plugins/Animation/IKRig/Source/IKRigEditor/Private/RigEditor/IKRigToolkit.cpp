@@ -173,6 +173,16 @@ TStatId FIKRigEditorToolkit::GetStatId() const
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FIKRigEditorToolkit, STATGROUP_Tickables);
 }
 
+void FIKRigEditorToolkit::PostUndo(bool bSuccess)
+{
+	EditorController->RefreshAllViews();
+}
+
+void FIKRigEditorToolkit::PostRedo(bool bSuccess)
+{
+	EditorController->RefreshAllViews();
+}
+
 void FIKRigEditorToolkit::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene)
 {
 	AAnimationEditorPreviewActor* Actor = InPersonaPreviewScene->GetWorld()->SpawnActor<AAnimationEditorPreviewActor>(AAnimationEditorPreviewActor::StaticClass(), FTransform::Identity);
@@ -203,6 +213,11 @@ void FIKRigEditorToolkit::HandlePreviewMeshChanged(USkeletalMesh* InOldSkeletalM
 	if (!InOldSkeletalMesh)
 	{
 		return; // first time setup
+	}
+
+	if (InOldSkeletalMesh == InNewSkeletalMesh)
+	{
+		return; // already set to this skeletal mesh
 	}
 	
 	// update asset with new skeletal mesh (will copy new skeleton data)

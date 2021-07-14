@@ -35,7 +35,7 @@ class FIKRigEditorToolkit :
 	public FPersonaAssetEditorToolkit,
 	public IHasPersonaToolkit,
 	public FGCObject,
-	public FEditorUndoClient,
+	public FSelfRegisteringEditorUndoClient,
 	public FTickableEditorObject
 {
 public:
@@ -71,6 +71,11 @@ public:
 	/** IHasPersonaToolkit interface */
 	virtual TSharedRef<IPersonaToolkit> GetPersonaToolkit() const override { return PersonaToolkit.ToSharedRef(); }
 	/** END IHasPersonaToolkit interface */
+
+	/** FSelfRegisteringEditorUndoClient interface */
+	virtual void PostUndo( bool bSuccess );
+	virtual void PostRedo( bool bSuccess );
+	/** END FSelfRegisteringEditorUndoClient interface */
 
 	TSharedRef<FIKRigEditorController> GetController() const {return EditorController;};
 

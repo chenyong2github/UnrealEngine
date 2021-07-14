@@ -72,4 +72,12 @@ public:
 	/** return true if the supplied Bone is affected by this solver - this provides UI feedback for user */
 	virtual bool IsBoneAffectedBySolver(const FName& BoneName, const FIKRigSkeleton& IKRigSkeleton) const {return false;};
 	//** END ROOT BONE */
+
+	/** UObject interface */
+	void PostLoad() override
+	{
+		Super::PostLoad();
+		SetFlags(RF_Transactional); // patch old solvers to enable undo/redo
+	}; 
+	/** END UObject interface */
 };

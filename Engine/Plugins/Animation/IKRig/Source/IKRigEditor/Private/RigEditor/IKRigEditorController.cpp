@@ -21,6 +21,13 @@ void FIKRigEditorController::Reset() const
 	}
 }
 
+void FIKRigEditorController::RefreshAllViews() const
+{
+	SolverStackView->RefreshStackView();
+	SkeletonView->RefreshTreeView();
+	DetailsView->ForceRefresh();
+}
+
 bool FIKRigEditorController::IsGoalSelected(const FName& GoalName)
 {
 	return SelectedGoals.Contains(GoalName);

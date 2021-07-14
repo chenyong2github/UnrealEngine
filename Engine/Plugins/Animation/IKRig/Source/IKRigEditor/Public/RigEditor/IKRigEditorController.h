@@ -33,6 +33,8 @@ public:
 	void HandleGoalsSelectedInTreeView(const TArray<FName>& GoalNames);
 	/** reset all goals to initial transforms */
 	void Reset() const;
+	/** refresh all views */
+	void RefreshAllViews() const;
 
 	/** return list of those solvers in the stack that are selected by user */
 	void GetSelectedSolvers(TArray<TSharedPtr<FSolverStackElement> >& OutSelectedSolvers);
