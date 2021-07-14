@@ -218,22 +218,22 @@ struct TSlateAttributeInvalidationReason
 
 /** A structure used to help the user identify deprecated TAttribute that are now TSlateAttribute. */
 template<typename ObjectType>
-struct FSlateDeprecatedTAttribute
+struct TSlateDeprecatedTAttribute
 {
-	FSlateDeprecatedTAttribute() = default;
+	TSlateDeprecatedTAttribute() = default;
 
 	using FGetter = typename TAttribute<ObjectType>::FGetter;
 
 	template<typename OtherType>
-	FSlateDeprecatedTAttribute(const OtherType& InInitialValue)	{ }
+	TSlateDeprecatedTAttribute(const OtherType& InInitialValue)	{ }
 
-	FSlateDeprecatedTAttribute(ObjectType&& InInitialValue)	{ }
+	TSlateDeprecatedTAttribute(ObjectType&& InInitialValue)	{ }
 
 	template<class SourceType>
-	FSlateDeprecatedTAttribute(TSharedRef<SourceType> InUserObject, typename FGetter::template TConstMethodPtr< SourceType > InMethodPtr) {}
+	TSlateDeprecatedTAttribute(TSharedRef<SourceType> InUserObject, typename FGetter::template TConstMethodPtr< SourceType > InMethodPtr) {}
 
 	template< class SourceType >
-	FSlateDeprecatedTAttribute(SourceType* InUserObject, typename FGetter::template TConstMethodPtr< SourceType > InMethodPtr) { }
+	TSlateDeprecatedTAttribute(SourceType* InUserObject, typename FGetter::template TConstMethodPtr< SourceType > InMethodPtr) { }
 
 	bool IsSet() const { return false; }
 

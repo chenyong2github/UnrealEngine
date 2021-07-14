@@ -74,8 +74,8 @@ protected:
 	TSlateAttributeRef<TOptional<int32>> GetBlurRadiusAttribute() const { return TSlateAttributeRef<TOptional<int32>>{SharedThis(this), BlurRadiusAttribute}; }
 
 #if WITH_EDITORONLY_DATA
-	FSlateDeprecatedTAttribute<float> BlurStrength;
-	FSlateDeprecatedTAttribute<TOptional<int32>> BlurRadius;
+	TSlateDeprecatedTAttribute<float> BlurStrength;
+	TSlateDeprecatedTAttribute<TOptional<int32>> BlurRadius;
 #endif
 
 	bool bApplyAlphaToBlur;

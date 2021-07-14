@@ -121,11 +121,11 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(5.0, "Direct access to SelectedColor is now deprecated. Use the setter or getter.")
-	FSlateDeprecatedTAttribute<FLinearColor> SelectedColor;
+	TSlateDeprecatedTAttribute<FLinearColor> SelectedColor;
 	UE_DEPRECATED(5.0, "Direct access to DesiredWheelSize is now deprecated. Use the setter or getter.")
-	FSlateDeprecatedTAttribute<int32> DesiredWheelSize;
+	TSlateDeprecatedTAttribute<int32> DesiredWheelSize;
 	UE_DEPRECATED(5.0, "Direct access to DesiredSizeOverride is now deprecated. Use the setter or getter.")
-	FSlateDeprecatedTAttribute<float> ExponentDisplacement;
+	TSlateDeprecatedTAttribute<float> ExponentDisplacement;
 #endif
 
 private:

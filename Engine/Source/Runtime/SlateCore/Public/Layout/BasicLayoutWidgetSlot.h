@@ -319,7 +319,7 @@ public:
 
 public:
 	UE_DEPRECATED(5.0, "Direct access to SlotPadding is now deprecated. Use the setter or getter.")
-	FSlateDeprecatedTAttribute<FMargin> SlotPadding;
+	TSlateDeprecatedTAttribute<FMargin> SlotPadding;
 
 private:
 	using SlotPaddingCompareType = TSlateAttributeComparePredicate<>;
@@ -421,7 +421,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(5.0, "Direct access to SlotPadding is now deprecated. Use the setter or getter.")
-	FSlateDeprecatedTAttribute<FMargin> SlotPadding;
+	TSlateDeprecatedTAttribute<FMargin> SlotPadding;
 #endif
 
 public:

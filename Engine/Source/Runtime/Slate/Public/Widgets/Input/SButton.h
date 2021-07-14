@@ -271,7 +271,7 @@ private:
 protected:
 #if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(5.0, "Direct access to ContentPadding is now deprecated. Use the setter or getter.")
-	FSlateDeprecatedTAttribute<FMargin> ContentPadding;
+	TSlateDeprecatedTAttribute<FMargin> ContentPadding;
 	/** Brush resource that represents a button */
 	UE_DEPRECATED(5.0, "NormalImage is now deprecated. Use the ButtonStyle.")
 	const FSlateBrush* NormalImage;

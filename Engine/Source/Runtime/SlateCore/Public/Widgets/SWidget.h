@@ -1865,13 +1865,13 @@ protected:
 #if WITH_EDITORONLY_DATA
 	/** Whether or not this widget is enabled */
 	UE_DEPRECATED(5.0, "Direct access to EnabledState is now deprecated. Use the setter or getter.")
-	FSlateDeprecatedTAttribute<bool> EnabledState;
+	TSlateDeprecatedTAttribute<bool> EnabledState;
 	/** Is this widget visible, hidden or collapsed */
 	UE_DEPRECATED(5.0, "Direct access to Visibility is now deprecated. Use the setter or getter.")
-	FSlateDeprecatedTAttribute<EVisibility> Visibility;
+	TSlateDeprecatedTAttribute<EVisibility> Visibility;
 	/** Render transform of this widget. TOptional<> to allow code to skip expensive overhead if there is no render transform applied. */
 	UE_DEPRECATED(5.0, "Direct access to RenderTransform is now deprecated. Use the setter or getter.")
-	FSlateDeprecatedTAttribute< TOptional<FSlateRenderTransform> > RenderTransform;
+	TSlateDeprecatedTAttribute< TOptional<FSlateRenderTransform> > RenderTransform;
 	/** Render transform pivot of this widget (in normalized local space) */
 	UE_DEPRECATED(5.0, "Direct access to RenderTransformPivot is now deprecated. Use the setter or getter.")
 	TAttribute<FVector2D> RenderTransformPivot;

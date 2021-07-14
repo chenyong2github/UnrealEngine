@@ -62,7 +62,7 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(5.0, "Direct access to DPIScale is now deprecated. Use the setter or getter.")
-	FSlateDeprecatedTAttribute<float> DPIScale;
+	TSlateDeprecatedTAttribute<float> DPIScale;
 #endif
 
 	struct FDPIScalerOneChildSlot : ::TSingleWidgetChildrenWithBasicLayoutSlot<EInvalidateWidgetReason::None> // we want to add it to the Attribute descriptor
