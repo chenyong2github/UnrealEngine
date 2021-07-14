@@ -1591,6 +1591,11 @@ FRigElementKey URigHierarchyController::RenameElement(FRigElementKey InElement, 
 		TransactionPtr->Cancel();
 	}
 	TransactionPtr.Reset();
+
+	if (bRenamed)
+	{
+		ClearSelection();
+	}
 #endif
 
 	return bRenamed ? Element->GetKey() : FRigElementKey();
