@@ -351,6 +351,11 @@ static void DoPostProcessSettingsSanityCheck()
 		RenameMap.Add(TEXT("FilmShadowTintAmount"), TEXT(""));
 		// Film Grain are ignored
 		RenameMap.Add(TEXT("FilmGrainIntensity"), TEXT(""));
+		RenameMap.Add(TEXT("FilmGrainIntensityShadows"), TEXT(""));
+		RenameMap.Add(TEXT("FilmGrainIntensityMidtones"), TEXT(""));
+		RenameMap.Add(TEXT("FilmGrainIntensityHighlights"), TEXT(""));
+		RenameMap.Add(TEXT("FilmGrainShadowsMax"), TEXT(""));
+		RenameMap.Add(TEXT("FilmGrainHighlightsMin"), TEXT(""));
 		RenameMap.Add(TEXT("FilmGrainTexelSize"), TEXT(""));
 		RenameMap.Add(TEXT("FilmGrainTexture"), TEXT(""));
 		RenameMap.Add(TEXT("FilmGrainDecodeMultiply"), TEXT(""));
@@ -501,10 +506,18 @@ FPostProcessSettings::FPostProcessSettings()
 	VignetteIntensity = 0.4f;
 	GrainIntensity_DEPRECATED = 0.0f;
 	GrainJitter_DEPRECATED = 0.0f;
+
+	// Film Grain
 	FilmGrainIntensity = 0.0f;
+	FilmGrainIntensityShadows = 1.0f;
+	FilmGrainIntensityMidtones = 1.0f;
+	FilmGrainIntensityHighlights = 1.0f;
+	FilmGrainShadowsMax = 0.09f;
+	FilmGrainHighlightsMin = 0.5f;
 	FilmGrainTexelSize = 1.0f;
 	FilmGrainDecodeMultiply = 1.0f;
 	FilmGrainDecodeAdd = 0.0f;
+
 	// next value might get overwritten by r.DefaultFeature.AmbientOcclusion
 	AmbientOcclusionIntensity = .5f;
 	// next value might get overwritten by r.DefaultFeature.AmbientOcclusionStaticFraction
@@ -707,6 +720,11 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_GrainIntensity_DEPRECATED(Settings.bOverride_GrainIntensity_DEPRECATED)
 	, bOverride_GrainJitter_DEPRECATED(Settings.bOverride_GrainJitter_DEPRECATED)
 	, bOverride_FilmGrainIntensity(Settings.bOverride_FilmGrainIntensity)
+	, bOverride_FilmGrainIntensityShadows(Settings.bOverride_FilmGrainIntensityShadows)
+	, bOverride_FilmGrainIntensityMidtones(Settings.bOverride_FilmGrainIntensityMidtones)
+	, bOverride_FilmGrainIntensityHighlights(Settings.bOverride_FilmGrainIntensityHighlights)
+	, bOverride_FilmGrainShadowsMax(Settings.bOverride_FilmGrainShadowsMax)
+	, bOverride_FilmGrainHighlightsMin(Settings.bOverride_FilmGrainHighlightsMin)
 	, bOverride_FilmGrainTexelSize(Settings.bOverride_FilmGrainTexelSize)
 	, bOverride_FilmGrainTexture(Settings.bOverride_FilmGrainTexture)
 	, bOverride_AmbientOcclusionIntensity(Settings.bOverride_AmbientOcclusionIntensity)
@@ -902,6 +920,11 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, GrainJitter_DEPRECATED(Settings.GrainJitter_DEPRECATED)
 	, GrainIntensity_DEPRECATED(Settings.GrainIntensity_DEPRECATED)
 	, FilmGrainIntensity(Settings.FilmGrainIntensity)
+	, FilmGrainIntensityShadows(Settings.FilmGrainIntensityShadows)
+	, FilmGrainIntensityMidtones(Settings.FilmGrainIntensityMidtones)
+	, FilmGrainIntensityHighlights(Settings.FilmGrainIntensityHighlights)
+	, FilmGrainShadowsMax(Settings.FilmGrainShadowsMax)
+	, FilmGrainHighlightsMin(Settings.FilmGrainHighlightsMin)
 	, FilmGrainTexelSize(Settings.FilmGrainTexelSize)
 	, FilmGrainTexture(Settings.FilmGrainTexture)
 	, FilmGrainDecodeMultiply(Settings.FilmGrainDecodeMultiply)
