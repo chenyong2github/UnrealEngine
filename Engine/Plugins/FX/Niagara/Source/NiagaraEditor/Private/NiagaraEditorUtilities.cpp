@@ -2835,8 +2835,8 @@ void FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(FRefreshAllSc
 				UNiagaraScript* Script = *It;
 				if (Script->IsParticleScript() || Script->IsEmitterSpawnScript() || Script->IsEmitterUpdateScript())
 				{
-					UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(Script->GetOuter());
-					if (Emitter->GetIsSubscribedToParameterDefinitions(OriginatingParameterDefinitions))
+					UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(Script->GetTypedOuter<UNiagaraEmitter>());
+					if (Emitter && Emitter->GetIsSubscribedToParameterDefinitions(OriginatingParameterDefinitions))
 					{
 						Emitter->SynchronizeWithParameterDefinitions();
 						bMatchedOriginatingParameterDefinitions = true;
@@ -2844,8 +2844,8 @@ void FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(FRefreshAllSc
 				}
 				else if (Script->IsSystemSpawnScript() || Script->IsSystemUpdateScript())
 				{
-					UNiagaraSystem* System = Cast<UNiagaraSystem>(Script->GetOuter());
-					if(System->GetIsSubscribedToParameterDefinitions(OriginatingParameterDefinitions))
+					UNiagaraSystem* System = Cast<UNiagaraSystem>(Script->GetTypedOuter<UNiagaraSystem>());
+					if(System && System->GetIsSubscribedToParameterDefinitions(OriginatingParameterDefinitions))
 					{
 						System->SynchronizeWithParameterDefinitions();
 						bMatchedOriginatingParameterDefinitions = true;
@@ -2912,7 +2912,7 @@ void FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(FRefreshAllSc
 	{
 		if (Script->IsParticleScript() || Script->IsEmitterSpawnScript() || Script->IsEmitterUpdateScript())
 		{
-			UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(Script->GetOuter());
+			UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(Script->GetTypedOuter<UNiagaraEmitter>());
 			if (Emitter)
 			{
 				AffectedEmitters.AddUnique(Emitter);
@@ -2920,7 +2920,7 @@ void FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(FRefreshAllSc
 		}
 		else if (Script->IsSystemSpawnScript() || Script->IsSystemUpdateScript())
 		{
-			UNiagaraSystem* System = Cast<UNiagaraSystem>(Script->GetOuter());
+			UNiagaraSystem* System = Cast<UNiagaraSystem>(Script->GetTypedOuter<UNiagaraSystem>());
 			if (System)
 			{
 				for (int32 i = 0; i < System->GetNumEmitters(); i++)
