@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/Classes/Engine/Texture2D.h"
 #include "MultiSelectionTool.h"
 #include "Image/ImageBuilder.h"
 #include "Image/ImageDimensions.h"
@@ -11,7 +12,6 @@
 // Pre-declarations
 using UE::Geometry::FImageDimensions;
 using UE::Geometry::TImageBuilder;
-class UTexture2D;
 
 
 /**
