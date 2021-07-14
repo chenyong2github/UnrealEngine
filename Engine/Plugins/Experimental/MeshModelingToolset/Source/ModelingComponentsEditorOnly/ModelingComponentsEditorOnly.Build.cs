@@ -50,16 +50,21 @@ public class ModelingComponentsEditorOnly : ModuleRules
                 "RenderCore",
 				"PhysicsCore",
                 "RHI",
-
-				"OpenSubdiv",
-
 				"AssetTools",
 				"UnrealEd"			// required for asset factories
-
 			}
 			);
-		
-		
+
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"OpenSubdiv", // currently Win64-only
+				}
+				);
+		}
+
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]
 			{
