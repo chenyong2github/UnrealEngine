@@ -15,6 +15,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "GameplayMediaEncoder/Private/GameplayMediaEncoderCommon.h"
 #include "Logging/MessageLog.h"
+#include "Misc/MessageDialog.h"
 #include "UObject/MetaData.h"
 #include "UObject/Package.h"
 #include "Widgets/Notifications/SNotificationList.h"
