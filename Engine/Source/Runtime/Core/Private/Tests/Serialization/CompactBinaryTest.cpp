@@ -467,6 +467,10 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("FCbField(ObjectWithName)::GetBuffer()"), FCbField(FSharedBuffer::MakeView(MakeMemoryView(Buffer))).GetBuffer().Flatten().GetView().EqualBytes(MakeMemoryView(Buffer)));
 		TestTrue(TEXT("FCbField(ObjectWithNameNoType)::GetBuffer()"),
 			FCbField(FCbFieldView(Buffer + 1, ECbFieldType(ObjectType)), FSharedBuffer::MakeView(MakeMemoryView(Buffer))).GetBuffer().Flatten().GetView().EqualBytes(MakeMemoryView(Buffer)));
+
+		// Access Missing Field
+		ObjectClone["M"_ASV];
+		ObjectClone.AsField()["M"_ASV];
 	}
 
 	// Test FCbObjectView as FCbFieldViewIterator
@@ -492,6 +496,15 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 			++Count;
 		}
 		TestEqual(TEXT("FCbObject::AsFieldView() as Iterator Count"), Count, 1u);
+	}
+
+	// Test FCbObject(Empty) as FCbFieldIterator
+	{
+		const uint8 Buffer[] = { uint8(ECbFieldType::Object), 0 };
+		const FCbObject Object = FCbObject::Clone(Buffer);
+		for (FCbField& Field : Object)
+		{
+		}
 	}
 
 	return true;
@@ -673,6 +686,15 @@ bool FCbFieldArrayTest::RunTest(const FString& Parameters)
 			++Count;
 		}
 		TestEqual(TEXT("FCbArray::AsFieldView() as Iterator Count"), Count, 1u);
+	}
+
+	// Test FCbArray(Empty) as FCbFieldIterator
+	{
+		const uint8 Buffer[] = { uint8(ECbFieldType::Array), 1, 0 };
+		const FCbArray Array = FCbArray::Clone(Buffer);
+		for (FCbField& Field : Array)
+		{
+		}
 	}
 
 	return true;
