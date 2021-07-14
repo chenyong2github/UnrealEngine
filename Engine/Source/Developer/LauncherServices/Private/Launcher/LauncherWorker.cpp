@@ -695,9 +695,9 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 		{
 			UATCommand += TEXT(" -cookonthefly");
 			
-			if (InProfile->IsUsingIoStore())
+			if (InProfile->IsUsingZenStore())
 			{
-				UATCommand += TEXT(" -iostore");
+				UATCommand += TEXT(" -zenstore");
 			}
 
 			//if UAT doesn't stick around as long as the process we are going to run, then we can't kill the COTF server when UAT goes down because the program
@@ -724,9 +724,9 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 	case ELauncherProfileCookModes::OnTheFlyInEditor:
 		UATCommand += MapList;
 		UATCommand += " -skipcook -cookonthefly -CookInEditor";
-		if (InProfile->IsUsingIoStore())
+		if (InProfile->IsUsingZenStore())
 		{
-			UATCommand += TEXT(" -iostore");
+			UATCommand += TEXT(" -zenstore");
 		}
 		break;
 	case ELauncherProfileCookModes::ByTheBookInEditor:

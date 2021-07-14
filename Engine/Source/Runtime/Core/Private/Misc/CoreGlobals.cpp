@@ -720,12 +720,16 @@ bool IsRunningCookOnTheFly()
 	static struct FCookOnTheFlyCommandline
 	{
 		bool bParsed;
-		FCookOnTheFlyCommandline()
+		FCookOnTheFlyCommandline(const TCHAR* CmdLine)
 		{
 			FString Host;
-			bParsed = FParse::Value(FCommandLine::Get(), TEXT("-CookOnTheFlyHost="), Host) || FParse::Value(FCommandLine::Get(), TEXT("-FileHostIP="), Host);
+			bParsed = FParse::Param(CmdLine, TEXT("CookOnTheFly")) && FParse::Value(CmdLine, TEXT("-ZenStoreHost="), Host);
+			if (!bParsed)	
+			{
+				bParsed = FParse::Value(CmdLine, TEXT("-FileHostIP="), Host);
+			}
 		}
-	} CookOnTheFlyCommandline;
+	} CookOnTheFlyCommandline(FCommandLine::Get());
 	
 	return CookOnTheFlyCommandline.bParsed;
 #else

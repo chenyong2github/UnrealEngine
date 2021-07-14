@@ -3896,7 +3896,7 @@ public partial class Project : CommandUtils
 			string FileHostParams = " ";
 			if (Params.CookOnTheFly || Params.FileServer)
 			{
-				FileHostParams += Params.IoStore ? "-cookontheflyhost=" : "-filehostip=";
+				FileHostParams += Params.ZenStore ? "-cookonthefly -zenstorehost=" : "-filehostip=";
 				// add localhost first for platforms using redirection
 				const string LocalHost = "127.0.0.1";
 				if (!IsNullOrEmpty(Params.Port))
@@ -4013,14 +4013,7 @@ public partial class Project : CommandUtils
 					}
 				}
 
-				if (Params.IoStore)
-				{
-					FileHostParams += string.Format(" -storageserverhost={0} ", Params.StorageServerHost);
-				}
-				else
-				{
-					FileHostParams += " ";
-				}
+				FileHostParams += " ";
 			}
 
 			String ProjectFile = String.Format("{0} ", SC.ProjectArgForCommandLines);

@@ -595,7 +595,18 @@ public:
 
 	virtual IPackageStoreWriter* GetPackageStoreWriter(const FName& PlatformName) override
 	{
-		return Cooker.GetPackageStoreWriter(PlatformName);
+		if (Cooker.CookOnTheFlyOptions.bZenStore)
+		{
+			for (FSavePackageContext* Context : Cooker.SavePackageContexts)
+			{
+				if (FName(*Context->TargetPlatform->PlatformName()) == PlatformName)
+				{
+					return Context->PackageStoreWriter;
+				}
+			}
+		}
+
+		return nullptr;
 	}
 
 	DECLARE_DERIVED_EVENT(UCookOnTheFlyServer::FCookOnTheFlyServerInterface, UE::Cook::ICookOnTheFlyServer::FFlushEvent, FFlushEvent);
@@ -620,7 +631,7 @@ public:
 
 		UE_LOG(LogCook, Log, TEXT("Flushing..."));
 
-		if (Cooker.CookOnTheFlyOptions.bIoStore)
+		if (Cooker.CookOnTheFlyOptions.bZenStore)
 		{
 			for (FSavePackageContext* Context : Cooker.SavePackageContexts)
 			{
@@ -804,16 +815,17 @@ bool UCookOnTheFlyServer::StartCookOnTheFly(FCookOnTheFlyOptions InCookOnTheFlyO
 	}
 	}
 
-	if (CookOnTheFlyOptions.bIoStore)
+	UE_LOG(LogCook, Display, TEXT("Starting '%s' cook-on-the-fly server"),
+		CookOnTheFlyOptions.bZenStore ? TEXT("Zen") : TEXT("Network File"));
+
+	if (CookOnTheFlyOptions.bZenStore)
 	{
-		UE_LOG(LogCook, Display, TEXT("Initializing I/O store cook on the fly server"));
 		UE::Cook::FIoStoreCookOnTheFlyServerOptions ServerOptions;
 		ServerOptions.Port = -1; // Use default
 		CookOnTheFlyRequestManager = UE::Cook::MakeIoStoreCookOnTheFlyRequestManager(*CookOnTheFlyServerInterface, MoveTemp(ServerOptions));
 	}
 	else
 	{
-		UE_LOG(LogCook, Display, TEXT("Initializing Network File cook on the fly server"));
 		FNetworkFileServerOptions ServerOptions;
 		ServerOptions.Protocol = NFSP_Tcp;
 		ServerOptions.Port = CookOnTheFlyOptions.bBindAnyPort ? 0 : -1;
@@ -1285,12 +1297,12 @@ bool UCookOnTheFlyServer::IsUsingShaderCodeLibrary() const
 
 bool UCookOnTheFlyServer::IsUsingIoStore() const
 {
-	return (IsCookByTheBookMode() && CookByTheBookOptions->bIoStore) || (IsCookOnTheFlyMode() && CookOnTheFlyOptions.bIoStore);
+	return (IsCookByTheBookMode() && CookByTheBookOptions->bIoStore) || (IsCookOnTheFlyMode() && CookOnTheFlyOptions.bZenStore);
 }
 
 bool UCookOnTheFlyServer::IsUsingZenStore() const
 {
-	return (IsCookByTheBookMode() && CookByTheBookOptions->bZenStore) || (IsCookOnTheFlyMode() && CookOnTheFlyOptions.bIoStore);
+	return (IsCookByTheBookMode() && CookByTheBookOptions->bZenStore) || (IsCookOnTheFlyMode() && CookOnTheFlyOptions.bZenStore);
 }
 
 bool UCookOnTheFlyServer::IsCookOnTheFlyMode() const

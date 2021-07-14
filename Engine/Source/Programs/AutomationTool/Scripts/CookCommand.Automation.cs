@@ -65,9 +65,9 @@ public partial class Project : CommandUtils
 					COTFCommandLine += " -ddc=" + Params.DDCGraph;
 				}
 
-				if (Params.IoStore)
+				if (Params.ZenStore)
 				{
-					COTFCommandLine += " -iostore";
+					COTFCommandLine += " -zenstore";
 				}
 
 				var ServerLogFile = CombinePaths(LogFolderOutsideOfSandbox, "Server.log");

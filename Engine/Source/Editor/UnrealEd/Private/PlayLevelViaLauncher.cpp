@@ -288,7 +288,7 @@ void UEditorEngine::StartPlayUsingLauncherSession(FRequestPlaySessionParams& InR
 	if (LauncherProfile->GetCookMode() == ELauncherProfileCookModes::OnTheFlyInEditor || LauncherProfile->GetCookMode() == ELauncherProfileCookModes::OnTheFly)
 	{
 		LauncherProfile->SetDeploymentMode(ELauncherProfileDeploymentModes::FileServer);
-		LauncherProfile->SetUseIoStore(EditorPlaySettings->EnableIoStoreCookOnTheFlyMode);
+		LauncherProfile->SetUseZenStore(EditorPlaySettings->EnableZenCookOnTheFlyMode);
 	}
 
 	switch(EditorPlaySettings->PackFilesForLaunch)

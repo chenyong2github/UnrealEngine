@@ -424,7 +424,7 @@ bool UCookCommandlet::CookOnTheFly( FGuid InstanceId, int32 Timeout, bool bForce
 
 	UCookOnTheFlyServer::FCookOnTheFlyOptions CookOnTheFlyStartupOptions;
 	CookOnTheFlyStartupOptions.bBindAnyPort = InstanceId.IsValid();
-	CookOnTheFlyStartupOptions.bIoStore = bUseIoStore;
+	CookOnTheFlyStartupOptions.bZenStore = Switches.Contains(TEXT("ZenStore"));
 	CookOnTheFlyStartupOptions.TargetPlatforms = TargetPlatforms;
 
 	if (CookOnTheFlyServer->StartCookOnTheFly(MoveTemp(CookOnTheFlyStartupOptions)) == false)
@@ -635,7 +635,6 @@ int32 UCookCommandlet::Main(const FString& CmdLineParams)
 	bPartialGC = Switches.Contains(TEXT("Partialgc"));
 	ShowErrorCount = !Switches.Contains(TEXT("DIFFONLY"));
 	ShowProgress = !Switches.Contains(TEXT("DIFFONLY"));
-	bUseIoStore = Switches.Contains(TEXT("IoStore"));
 	bNoShaderCooking = bCookOnTheFly; // Do not cook any shaders into the shader maps. Always true if we are running w/ cook on the fly
 
 	COOK_STAT(DetailedCookStats::CookProject = FApp::GetProjectName());

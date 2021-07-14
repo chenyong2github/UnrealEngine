@@ -629,9 +629,9 @@ public partial class Project : CommandUtils
 
 			if (Params.CookOnTheFly || Params.FileServer)
 			{
-				if (Params.IoStore)
+				if (Params.ZenStore)
 				{
-					TempCmdLine += "-cookontheflyhost=";
+					TempCmdLine += "-cookonthefly -zenstorehost=";
 				}
 				else
 				{
@@ -753,14 +753,7 @@ public partial class Project : CommandUtils
 					}
 				}
 
-				if (Params.IoStore)
-				{
-					TempCmdLine += string.Format(" -storageserverhost={0} ", Params.StorageServerHost);
-				}
-				else
-				{
-					TempCmdLine += " ";
-				}
+				TempCmdLine += " ";
 
 				if (Params.CookOnTheFlyStreaming)
 				{

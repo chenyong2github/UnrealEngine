@@ -112,7 +112,7 @@ public:
 	STORAGESERVERCLIENT_API FStorageServerConnection();
 	STORAGESERVERCLIENT_API ~FStorageServerConnection();
 
-	STORAGESERVERCLIENT_API bool Initialize(const TCHAR* Host, int32 Port, const TCHAR* ProjectNameOverride = nullptr, const TCHAR* PlatformNameOverride = nullptr);
+	STORAGESERVERCLIENT_API bool Initialize(TArrayView<const FString> HostAddresses, int32 Port, const TCHAR* ProjectNameOverride = nullptr, const TCHAR* PlatformNameOverride = nullptr);
 
 	STORAGESERVERCLIENT_API void FileManifestRequest(TFunctionRef<void(FIoChunkId Id, FStringView Path)> Callback);
 	STORAGESERVERCLIENT_API int64 FileSizeRequest(int32 FileIndex);
@@ -121,12 +121,14 @@ public:
 	STORAGESERVERCLIENT_API bool ReadChunkRequest(const FIoChunkId& ChunkId, uint64 Offset, uint64 Size, TFunctionRef<void(FStorageServerResponse&)> OnResponse);
 	STORAGESERVERCLIENT_API FStorageServerChunkBatchRequest NewChunkBatchRequest();
 
+	STORAGESERVERCLIENT_API FString GetHostAddr() const;
+
 private:
 	friend class FStorageServerRequest;
 	friend class FStorageServerResponse;
 	friend class FStorageServerChunkBatchRequest;
 
-	int32 HandshakeRequest();
+	int32 HandshakeRequest(TArrayView<const TSharedPtr<FInternetAddr>> HostAddresses);
 	FSocket* AcquireSocket();
 	void ReleaseSocket(FSocket* Socket, bool bKeepAlive);
 
