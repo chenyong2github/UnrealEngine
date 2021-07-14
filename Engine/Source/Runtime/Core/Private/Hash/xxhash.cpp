@@ -1,59 +1,116 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Hash/xxhash.h"
-#include "Misc/AssertionMacros.h"
-
-#if 0	// Temporary workaround for Mac build
-
-//////////////////////////////////////////////////////////////////////////
+#include "Memory/CompositeBuffer.h"
+#include "Memory/MemoryView.h"
 
 THIRD_PARTY_INCLUDES_START
-
-#define XXH_NAMESPACE UE4XXH
-
-#include "ThirdParty/xxhash/xxhash.c"
-#include "ThirdParty/xxhash/xxh3.h"
-
+#define XXH_INLINE_ALL
+#include "ThirdParty/xxhash/xxhash.h"
 THIRD_PARTY_INCLUDES_END
 
-//////////////////////////////////////////////////////////////////////////
-
-uint32 
-FXxHash::HashBuffer32(const void* BlockPtr, SIZE_T BlockSize)
+FXxHash64 FXxHash64::HashBuffer(FMemoryView View)
 {
-	XXH64_state_t State;
-	XXH64_reset(&State, 0);
-
-	XXH64_update(&State, BlockPtr, BlockSize);
-	return uint32(XXH64_digest(&State));
+	return {XXH3_64bits(View.GetData(), View.GetSize())};
 }
 
-uint64 
-FXxHash::HashBuffer64(const void* BlockPtr, SIZE_T BlockSize)
+FXxHash64 FXxHash64::HashBuffer(const void* Data, uint64 Size)
 {
-	XXH64_state_t State;
-	XXH64_reset(&State, 0);
-
-	XXH64_update(&State, BlockPtr, BlockSize);
-	return XXH64_digest(&State);
+	return {XXH3_64bits(Data, Size)};
 }
 
-#else
-
-uint32
-FXxHash::HashBuffer32(const void* BlockPtr, SIZE_T BlockSize)
+FXxHash64 FXxHash64::HashBuffer(const FCompositeBuffer& Buffer)
 {
-	unimplemented();
-
-	return 0;
+	FXxHash64Builder Builder;
+	Builder.Update(Buffer);
+	return Builder.Finalize();
 }
 
-uint64
-FXxHash::HashBuffer64(const void* BlockPtr, SIZE_T BlockSize)
+FXxHash128 FXxHash128::HashBuffer(FMemoryView View)
 {
-	unimplemented();
-
-	return 0;
+	const XXH128_hash_t Value = XXH3_128bits(View.GetData(), View.GetSize());
+	return {Value.low64, Value.high64};
 }
 
-#endif
+FXxHash128 FXxHash128::HashBuffer(const void* Data, uint64 Size)
+{
+	const XXH128_hash_t Value = XXH3_128bits(Data, Size);
+	return {Value.low64, Value.high64};
+}
+
+FXxHash128 FXxHash128::HashBuffer(const FCompositeBuffer& Buffer)
+{
+	FXxHash128Builder Builder;
+	Builder.Update(Buffer);
+	return Builder.Finalize();
+}
+
+void FXxHash64Builder::Reset()
+{
+	static_assert(sizeof(StateBytes) == sizeof(XXH3_state_t), "Adjust the allocation in FXxHash64Builder to match XXH3_state_t");
+	XXH3_state_t& State = reinterpret_cast<XXH3_state_t&>(StateBytes);
+	XXH3_64bits_reset(&State);
+}
+
+void FXxHash64Builder::Update(FMemoryView View)
+{
+	XXH3_state_t& State = reinterpret_cast<XXH3_state_t&>(StateBytes);
+	XXH3_64bits_update(&State, View.GetData(), View.GetSize());
+}
+
+void FXxHash64Builder::Update(const void* Data, uint64 Size)
+{
+	XXH3_state_t& State = reinterpret_cast<XXH3_state_t&>(StateBytes);
+	XXH3_64bits_update(&State, Data, Size);
+}
+
+void FXxHash64Builder::Update(const FCompositeBuffer& Buffer)
+{
+	XXH3_state_t& State = reinterpret_cast<XXH3_state_t&>(StateBytes);
+	for (const FSharedBuffer& Segment : Buffer.GetSegments())
+	{
+		XXH3_64bits_update(&State, Segment.GetData(), Segment.GetSize());
+	}
+}
+
+FXxHash64 FXxHash64Builder::Finalize() const
+{
+	const XXH3_state_t& State = reinterpret_cast<const XXH3_state_t&>(StateBytes);
+	const XXH64_hash_t Hash = XXH3_64bits_digest(&State);
+	return {Hash};
+}
+
+void FXxHash128Builder::Reset()
+{
+	static_assert(sizeof(StateBytes) == sizeof(XXH3_state_t), "Adjust the allocation in FXxHash128Builder to match XXH3_state_t");
+	XXH3_state_t& State = reinterpret_cast<XXH3_state_t&>(StateBytes);
+	XXH3_128bits_reset(&State);
+}
+
+void FXxHash128Builder::Update(FMemoryView View)
+{
+	XXH3_state_t& State = reinterpret_cast<XXH3_state_t&>(StateBytes);
+	XXH3_128bits_update(&State, View.GetData(), View.GetSize());
+}
+
+void FXxHash128Builder::Update(const void* Data, uint64 Size)
+{
+	XXH3_state_t& State = reinterpret_cast<XXH3_state_t&>(StateBytes);
+	XXH3_128bits_update(&State, Data, Size);
+}
+
+void FXxHash128Builder::Update(const FCompositeBuffer& Buffer)
+{
+	XXH3_state_t& State = reinterpret_cast<XXH3_state_t&>(StateBytes);
+	for (const FSharedBuffer& Segment : Buffer.GetSegments())
+	{
+		XXH3_128bits_update(&State, Segment.GetData(), Segment.GetSize());
+	}
+}
+
+FXxHash128 FXxHash128Builder::Finalize() const
+{
+	const XXH3_state_t& State = reinterpret_cast<const XXH3_state_t&>(StateBytes);
+	const XXH128_hash_t Hash = XXH3_128bits_digest(&State);
+	return {Hash.low64, Hash.high64};
+}
