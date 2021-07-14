@@ -15,7 +15,7 @@
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "PipelineStateCache.h"
 
-#if NV_GEFORCENOW
+#if defined(NV_GEFORCENOW) && NV_GEFORCENOW
 #include "GeForceNOWWrapper.h"
 #endif
 
@@ -284,7 +284,7 @@ void RHIInit(bool bHasEditorToken)
 	}
 
 #if PLATFORM_WINDOWS || PLATFORM_MAC
-#if NV_GEFORCENOW
+#if defined(NV_GEFORCENOW) && NV_GEFORCENOW
 	bool bDetectAndWarnBadDrivers = true;
 	if (IsRHIDeviceNVIDIA() && !!CVarDisableDriverWarningPopupIfGFN.GetValueOnAnyThread())
 	{

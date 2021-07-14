@@ -10,7 +10,7 @@
 
 #include "Windows/WindowsPlatformApplicationMisc.h"
 
-#if NV_GEFORCENOW
+#if defined(NV_GEFORCENOW) && NV_GEFORCENOW
 #include "GeForceNOWWrapper.h"
 #endif
 
@@ -90,7 +90,7 @@ static bool PreferFeatureLevelES31()
 	if (!GIsEditor)
 	{
 		bool bIsRunningInGFN = false;
-#if NV_GEFORCENOW
+#if defined(NV_GEFORCENOW) && NV_GEFORCENOW
 		//Prevent ES31 from being forced since we have other ways of setting scalability issues on GFN.
 		GeForceNOWWrapper::Get().Initialize();
 		bIsRunningInGFN = GeForceNOWWrapper::Get().IsRunningInGFN();
