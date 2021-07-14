@@ -12,10 +12,13 @@ public:
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraGenerateMipsCS, FGlobalShader)
 
 	class FGenMipsSRGB : SHADER_PERMUTATION_BOOL("GENMIPS_SRGB");
-	using FPermutationDomain = TShaderPermutationDomain<FGenMipsSRGB>;
+	class FGaussianBlur : SHADER_PERMUTATION_BOOL("GENMIPS_GAUSSIAN");
+	using FPermutationDomain = TShaderPermutationDomain<FGenMipsSRGB, FGaussianBlur>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector2D, TexelSize)
+		SHADER_PARAMETER(FVector2D, SrcTexelSize)
+		SHADER_PARAMETER(FVector2D, DstTexelSize)
+		SHADER_PARAMETER(int32, KernelHWidth)
 		SHADER_PARAMETER(FIntPoint, MipOutSize)
 		SHADER_PARAMETER_UAV(RWTexture2D<float4>, MipOutUAV)
 		SHADER_PARAMETER_SRV(Texture2D, MipInSRV)
@@ -36,7 +39,7 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FNiagaraGenerateMipsCS, "/Plugin/FX/Niagara/Private/NiagaraGenerateMips.usf", "MainCS", SF_Compute);
 
-void NiagaraGenerateMips::GenerateMips(FRHICommandList& RHICmdList, FRHITexture2D* TextureRHI)
+void NiagaraGenerateMips::GenerateMips(FRHICommandList& RHICmdList, FRHITexture2D* TextureRHI, ENiagaraMipMapGenerationType GenType)
 {
 	SCOPED_DRAW_EVENT(RHICmdList, NiagaraGenerateMips);
 
@@ -50,10 +53,15 @@ void NiagaraGenerateMips::GenerateMips(FRHICommandList& RHICmdList, FRHITexture2
 	}
 #endif
 
+	const bool bBlurMips = GenType >= ENiagaraMipMapGenerationType::Blur1;
+
 	FNiagaraGenerateMipsCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FNiagaraGenerateMipsCS::FGenMipsSRGB>(bMipsSRGB);
+	PermutationVector.Set<FNiagaraGenerateMipsCS::FGaussianBlur>(bBlurMips);
 	TShaderMapRef<FNiagaraGenerateMipsCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 	FRHIComputeShader* ShaderRHI = ComputeShader.GetComputeShader();
+
+	const int32 KernelHWidth = bBlurMips ? (int32(GenType) + 1 - int32(ENiagaraMipMapGenerationType::Blur1)) : 1;
 
 	const int32 NumMips = TextureRHI->GetNumMips();
 	for ( int32 iDstMip=1; iDstMip < NumMips; ++iDstMip)
@@ -66,10 +74,12 @@ void NiagaraGenerateMips::GenerateMips(FRHICommandList& RHICmdList, FRHITexture2
 		FUnorderedAccessViewRHIRef MipOutUAV = RHICreateUnorderedAccessView(TextureRHI, iDstMip);
 
 		FNiagaraGenerateMipsCS::FParameters PassParameters;
-		PassParameters.TexelSize	= FVector2D(1.0f / float(DstMipSize.X), 1.0f / float(DstMipSize.Y));
+		PassParameters.SrcTexelSize	= FVector2D(1.0f / float(SrcMipSize.X), 1.0f / float(SrcMipSize.Y));
+		PassParameters.DstTexelSize = FVector2D(1.0f / float(DstMipSize.X), 1.0f / float(DstMipSize.Y));
+		PassParameters.KernelHWidth = KernelHWidth;
 		PassParameters.MipOutSize	= DstMipSize;
 		PassParameters.MipInSRV		= MipInSRV;
-		PassParameters.MipInSampler	= TStaticSamplerState<SF_Bilinear>::GetRHI();
+		PassParameters.MipInSampler	= GenType == ENiagaraMipMapGenerationType::Unfiltered ? TStaticSamplerState<SF_Point>::GetRHI() : TStaticSamplerState<SF_Bilinear>::GetRHI();
 		PassParameters.MipOutUAV	= MipOutUAV;
 
 		const FIntVector NumThreadGroups = FComputeShaderUtils::GetGroupCount(DstMipSize, FComputeShaderUtils::kGolden2DGroupSize);
