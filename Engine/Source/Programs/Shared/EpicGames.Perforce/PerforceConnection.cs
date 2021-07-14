@@ -3010,5 +3010,55 @@ namespace EpicGames.Perforce
 			return CommandAsync<UndoRecord>(Arguments.ToString(), null, CancellationToken);
 		}
 		#endregion
+
+		#region p4 annotate
+
+		/// <summary>
+		/// Runs the annotate p4 command
+		/// </summary>
+		/// <param name="FileSpec">Depot path to the file</param>
+		/// <param name="Options">Options for the anotate command</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of annotate records</returns>
+		public async Task<List<AnnotateRecord>> AnnotateAsync(string FileSpec, AnnotateOptions Options, CancellationToken CancellationToken)
+		{
+			return (await TryAnnotateAsync(FileSpec, Options, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Runs the annotate p4 command 
+		/// </summary>
+		/// <param name="FileSpec">Depot path to the file</param>
+		/// <param name="Options">Options for the anotate command</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of annotate records</returns>
+		public Task<PerforceResponseList<AnnotateRecord>> TryAnnotateAsync(string FileSpec, AnnotateOptions Options, CancellationToken CancellationToken)
+		{
+			PerforceResponseList<AnnotateRecord> Responses = new PerforceResponseList<AnnotateRecord>();
+			StringBuilder Arguments = new StringBuilder("annotate ");
+			if ((Options & AnnotateOptions.IncludeDeletedFilesAndLines) != 0)
+			{
+				Arguments.Append(" -a");
+			}
+			if ((Options & AnnotateOptions.IgnoreWhiteSpaceChanges) != 0)
+			{
+				Arguments.Append(" -db");
+			}
+			if ((Options & AnnotateOptions.OutputUserAndDate) != 0)
+			{
+				Arguments.Append(" -u");
+			}
+			if ((Options & AnnotateOptions.FollowIntegrations) != 0)
+			{
+				Arguments.Append(" -I");
+			}
+
+			Arguments.AppendFormat(" {0}", FileSpec);
+
+			return CommandAsync<AnnotateRecord>(Arguments.ToString(), null, CancellationToken);
+		}
+
+		#endregion
+
 	}
 }

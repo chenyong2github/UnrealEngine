@@ -23,6 +23,8 @@ namespace P4VUtils
 		public bool ShowConsole { get; set; }
 		public bool RefreshUI { get; set; } = true;
 		public string Shortcut { get; set; } = "";
+		public bool PromptForArgument { get; set; } = false;
+		public string PromptText { get; set; } = "";
 
 		public CustomToolInfo(string Name, string Arguments)
 		{
@@ -47,6 +49,7 @@ namespace P4VUtils
 		{
 			["describe"] = new DescribeCommand(),
 			["findlastedit"] = new FindLastEditCommand(),
+			["p4blame"] = new P4BlameCommand(),
 			["snapshot"] = new SnapshotCommand(),
 			["copyclnum"] = new CopyCLCommand(),
 		};
@@ -300,6 +303,17 @@ namespace P4VUtils
 							XmlElement Refresh = Document.CreateElement("Refresh");
 							Refresh.InnerText = CustomTool.RefreshUI ? "true" : "false";
 							ToolDef.AppendChild(Refresh);
+						}
+
+						if (CustomTool.PromptForArgument)
+						{
+							XmlElement Prompt = Document.CreateElement("Prompt");
+							{
+								XmlElement PromptText = Document.CreateElement("PromptText");
+								PromptText.InnerText = CustomTool.PromptText.Length > 0 ? CustomTool.PromptText : "Argument";
+								Prompt.AppendChild(PromptText);
+							}
+							ToolDef.AppendChild(Prompt);
 						}
 
 						XmlElement AddToContext = Document.CreateElement("AddToContext");
