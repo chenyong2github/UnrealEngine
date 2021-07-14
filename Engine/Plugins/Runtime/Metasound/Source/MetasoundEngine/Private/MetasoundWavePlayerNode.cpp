@@ -547,8 +547,11 @@ namespace Metasound
 
 						*LoopPercent = 0.0f;
 
-						// Now seek to the loop start frame
-						SeekDecoder(LoopSeekTime);
+						// Now seek to the loop start frame if we are looping a custom amount. Otherwise, we let the decoder do the looping.
+						if (LoopDurationSeconds->GetSeconds() > 0.0f)
+						{
+							SeekDecoder(LoopSeekTime);
+						}
 					}
 					else
 					{
