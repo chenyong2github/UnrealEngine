@@ -11,6 +11,7 @@
 // Pre-declarations
 using UE::Geometry::FImageDimensions;
 using UE::Geometry::TImageBuilder;
+class UTexture2D;
 
 
 /**

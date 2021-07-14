@@ -14,6 +14,9 @@
 #include "BakeMeshAttributeToolCommon.h"
 #include "BakeMeshAttributeVertexTool.generated.h"
 
+// predeclarations
+class UMaterialInstanceDynamic;
+
 
 /**
  * Tool Builder
