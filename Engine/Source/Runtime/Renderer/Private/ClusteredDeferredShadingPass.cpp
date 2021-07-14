@@ -23,6 +23,7 @@
 #include "ScenePrivate.h"
 #include "ShaderPrintParameters.h"
 #include "ShaderPrint.h"
+#include "VirtualShadowMaps/VirtualShadowMapArray.h"
 
 #include "SceneFilterRendering.h"
 #include "PostProcessing.h"
@@ -103,6 +104,7 @@ class FClusteredShadingPS : public FGlobalShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ShadowMaskBits)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMapSamplingParameters)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, HairTransmittanceBuffer)
 
 		SHADER_PARAMETER_TEXTURE(Texture2D, LTCMatTexture)
@@ -127,6 +129,7 @@ class FClusteredShadingPS : public FGlobalShader
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
+		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 	}
 };
 
@@ -145,6 +148,7 @@ static void InternalAddClusteredDeferredShadingPass(
 	const FSortedLightSetSceneInfo &SortedLightsSet,
 	EClusterPassInputType InputType,
 	FRDGTextureRef ShadowMaskBits,
+	FVirtualShadowMapArray& VirtualShadowMapArray,
 	FRDGBufferSRVRef HairTransmittanceBuffer)
 {
 	check(SortedLightsSet.ClusteredSupportedEnd > 0);
@@ -157,6 +161,7 @@ static void InternalAddClusteredDeferredShadingPass(
 	PassParameters->Forward = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
 	PassParameters->SceneTextures = SceneTextures.UniformBuffer;
 	PassParameters->ShadowMaskBits = ShadowMaskBits;
+	PassParameters->VirtualShadowMapSamplingParameters = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 	PassParameters->HairTransmittanceBuffer = HairTransmittanceBuffer;
 
 	PassParameters->LTCMatTexture = GSystemTextures.LTCMat->GetShaderResourceRHI();
@@ -258,6 +263,7 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 				SortedLightsSet,
 				EClusterPassInputType::GBuffer,
 				ShadowMaskBits,
+				VirtualShadowMapArray,
 				nullptr);
 
 			if (HairStrands::HasViewHairStrandsData(View))
@@ -270,6 +276,7 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 					SortedLightsSet,
 					EClusterPassInputType::HairStrands,
 					HairStrandsShadowMaskBits,
+					VirtualShadowMapArray,
 					GraphBuilder.CreateSRV(TransmittanceMask.TransmittanceMask, FHairStrandsTransmittanceMaskData::Format));
 			}
 		}

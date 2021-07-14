@@ -130,6 +130,7 @@ void CompositeVirtualShadowMapMask(
 	FRDGBuilder& GraphBuilder,
 	const FIntRect ScissorRect,
 	const FRDGTextureRef Input,
+	bool bDirectionalLight,
 	FRDGTextureRef OutputShadowMaskTexture)
 {
 	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
@@ -139,8 +140,13 @@ void CompositeVirtualShadowMapMask(
 
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputShadowMaskTexture, ERenderTargetLoadAction::ELoad);
 
-	// See FProjectedShadowInfo::GetBlendStateForProjection, but we don't want any of the special cascade behavior, etc. as this is a post-denoised mask.
-	FRHIBlendState* BlendState = TStaticBlendState<CW_BA, BO_Min, BF_One, BF_One, BO_Min, BF_One, BF_One>::GetRHI();
+	FRHIBlendState* BlendState = FProjectedShadowInfo::GetBlendStateForProjection(
+		0,					// ShadowMapChannel
+		bDirectionalLight,	// bIsWholeSceneDirectionalShadow,
+		false,				// bUseFadePlane
+		false,				// bProjectingForForwardShading, 
+		false				// bMobileModulatedProjections
+	);
 
 	auto PixelShader = ShaderMap->GetShader<FVirtualShadowMapProjectionCompositePS>();
 	ValidateShaderParameters(PixelShader, *PassParameters);
@@ -191,7 +197,6 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, InputType)
 		// One pass projection parameters
 		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, VirtualShadowMapIdRemap)	// TODO: Move to VSM UB? Per-view though
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D< uint >, RWShadowMaskBits)
 		// Pass per light parameters
 		SHADER_PARAMETER_STRUCT(FLightShaderParameters, Light)
@@ -280,7 +285,6 @@ static void RenderVirtualShadowMapProjectionCommon(
 	{
 		// One pass projection
 		PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
-		PassParameters->VirtualShadowMapIdRemap = GraphBuilder.CreateSRV( VirtualShadowMapArray.VirtualShadowMapIdRemapRDG[0] );	// FIXME Index proper view
 		PassParameters->RWShadowMaskBits = GraphBuilder.CreateUAV( OutputTexture );	
 	}
 	else
@@ -381,7 +385,7 @@ static FRDGTextureRef CreateShadowFactorTexture(FRDGBuilder& GraphBuilder, FIntP
 
 	FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 		Extent,
-		PF_R32_FLOAT,
+		PF_G16R16,
 		FClearValueBinding(ClearColor),
 		TexCreate_ShaderResource | TexCreate_UAV);
 
@@ -390,16 +394,18 @@ static FRDGTextureRef CreateShadowFactorTexture(FRDGBuilder& GraphBuilder, FIntP
 	return Texture;
 }
 
-FRDGTextureRef RenderVirtualShadowMapProjection(
+void RenderVirtualShadowMapProjection(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
 	const FViewInfo& View,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
 	EVirtualShadowMapProjectionInputType InputType,
-	FProjectedShadowInfo* ShadowInfo)
+	FProjectedShadowInfo* ShadowInfo,
+	FRDGTextureRef OutputShadowMaskTexture)
 {
-	FRDGTextureRef OutputTexture = CreateShadowFactorTexture(GraphBuilder, SceneTextures.Config.Extent);
+	FRDGTextureRef VirtualShadowMaskTexture = CreateShadowFactorTexture(GraphBuilder, SceneTextures.Config.Extent);
+
 	RenderVirtualShadowMapProjectionCommon(
 		GraphBuilder,
 		SceneTextures,
@@ -407,22 +413,30 @@ FRDGTextureRef RenderVirtualShadowMapProjection(
 		VirtualShadowMapArray,
 		ScissorRect,
 		InputType,
-		OutputTexture,
+		VirtualShadowMaskTexture,
 		ShadowInfo->GetLightSceneInfo().Proxy,
 		ShadowInfo->VirtualShadowMaps[0]->ID);
-	return OutputTexture;
+
+	CompositeVirtualShadowMapMask(
+		GraphBuilder,
+		ScissorRect,
+		VirtualShadowMaskTexture,
+		false,	// bDirectionalLight
+		OutputShadowMaskTexture);
 }
 
-FRDGTextureRef RenderVirtualShadowMapProjection(
+void RenderVirtualShadowMapProjection(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
 	const FViewInfo& View,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
 	EVirtualShadowMapProjectionInputType InputType,
-	const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap)
+	const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap,
+	FRDGTextureRef OutputShadowMaskTexture)
 {
-	FRDGTextureRef OutputTexture = CreateShadowFactorTexture(GraphBuilder, SceneTextures.Config.Extent);
+	FRDGTextureRef VirtualShadowMaskTexture = CreateShadowFactorTexture(GraphBuilder, SceneTextures.Config.Extent);
+
 	RenderVirtualShadowMapProjectionCommon(
 		GraphBuilder,
 		SceneTextures,
@@ -430,8 +444,14 @@ FRDGTextureRef RenderVirtualShadowMapProjection(
 		VirtualShadowMapArray,		
 		ScissorRect,
 		InputType,
-		OutputTexture,
+		VirtualShadowMaskTexture,
 		Clipmap->GetLightSceneInfo().Proxy,
 		Clipmap->GetVirtualShadowMap()->ID);
-	return OutputTexture;
+	
+	CompositeVirtualShadowMapMask(
+		GraphBuilder,
+		ScissorRect,
+		VirtualShadowMaskTexture,
+		true,	// bDirectionalLight
+		OutputShadowMaskTexture);
 }

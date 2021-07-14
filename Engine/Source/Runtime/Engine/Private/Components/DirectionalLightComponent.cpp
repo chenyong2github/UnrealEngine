@@ -483,6 +483,12 @@ public:
 
 	virtual FVector2D GetDirectionalLightDistanceFadeParameters(ERHIFeatureLevel::Type InFeatureLevel, bool bPrecomputedLightingIsValid, int32 MaxNearCascades) const override
 	{
+		// Virtual shadow maps do not use cascade distance fading
+		if (UseVirtualShadowMaps())
+		{
+			return FVector2D(0, 0);
+		}
+
 		float FarDistance = GetCSMMaxDistance(bPrecomputedLightingIsValid, MaxNearCascades);
 		{
 			if (ShouldCreateRayTracedCascade(InFeatureLevel, bPrecomputedLightingIsValid, MaxNearCascades))

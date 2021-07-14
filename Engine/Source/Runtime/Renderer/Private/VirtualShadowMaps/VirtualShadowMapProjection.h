@@ -18,23 +18,25 @@ enum class EVirtualShadowMapProjectionInputType
 	HairStrands = 1
 };
 
-FRDGTextureRef RenderVirtualShadowMapProjection(
+void RenderVirtualShadowMapProjection(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
 	const FViewInfo& View,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
 	EVirtualShadowMapProjectionInputType InputType,
-	const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap);
+	const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap,
+	FRDGTextureRef OutputShadowMaskTexture);
 
-FRDGTextureRef RenderVirtualShadowMapProjection(
+void RenderVirtualShadowMapProjection(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
 	const FViewInfo& View,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
 	EVirtualShadowMapProjectionInputType InputType,
-	FProjectedShadowInfo* ShadowInfo);
+	FProjectedShadowInfo* ShadowInfo,
+	FRDGTextureRef OutputShadowMaskTexture);
 
 FRDGTextureRef RenderVirtualShadowMapProjectionOnePass(
 	FRDGBuilder& GraphBuilder,
@@ -47,4 +49,5 @@ void CompositeVirtualShadowMapMask(
 	FRDGBuilder& GraphBuilder,
 	const FIntRect ScissorRect,
 	const FRDGTextureRef Input,
+	bool bDirectionalLight,
 	FRDGTextureRef OutputShadowMaskTexture);

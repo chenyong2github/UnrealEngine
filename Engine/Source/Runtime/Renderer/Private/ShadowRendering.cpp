@@ -2034,64 +2034,60 @@ void FSceneRenderer::RenderShadowProjections(
 				if (ScissorRect.Area() > 0)
 				{
 					// Project virtual shadow maps
-					FRDGTextureRef ShadowFactorTexture;
 					if (VisibleLightInfo.VirtualShadowMapClipmaps.Num() > 0)
 					{
-						ShadowFactorTexture = RenderVirtualShadowMapProjection(
+						RenderVirtualShadowMapProjection(
 							GraphBuilder,
 							SceneTextures,
 							View,
 							VirtualShadowMapArray,
 							ScissorRect,
 							EVirtualShadowMapProjectionInputType::GBuffer,
-							VisibleLightInfo.FindShadowClipmapForView(&View));
+							VisibleLightInfo.FindShadowClipmapForView(&View),
+							ScreenShadowMaskTexture);
 					}
 					else
 					{
 						check(VirtualShadowMaps.Num() == 1);
-						ShadowFactorTexture = RenderVirtualShadowMapProjection(
+						RenderVirtualShadowMapProjection(
 							GraphBuilder,
 							SceneTextures,
 							View,
 							VirtualShadowMapArray,
 							ScissorRect,
 							EVirtualShadowMapProjectionInputType::GBuffer,
-							VirtualShadowMaps[0]);
+							VirtualShadowMaps[0],
+							ScreenShadowMaskTexture);
 					}
-
-					// Composite into screen shadow mask
-					CompositeVirtualShadowMapMask(GraphBuilder, ScissorRect, ShadowFactorTexture, ScreenShadowMaskTexture);
 
 					// Sub-pixel shadow (no denoising for hair)
 					if (HairStrands::HasViewHairStrandsData(View) && ScreenShadowMaskSubPixelTexture)
 					{
-						FRDGTextureRef HairShadowFactorTexture;
 						if (VisibleLightInfo.VirtualShadowMapClipmaps.Num() > 0)
 						{
-							HairShadowFactorTexture = RenderVirtualShadowMapProjection(
+							RenderVirtualShadowMapProjection(
 								GraphBuilder,
 								SceneTextures,
 								View,
 								VirtualShadowMapArray,
 								ScissorRect,
 								EVirtualShadowMapProjectionInputType::HairStrands,
-								VisibleLightInfo.FindShadowClipmapForView(&View));
+								VisibleLightInfo.FindShadowClipmapForView(&View),
+								ScreenShadowMaskSubPixelTexture);
 						}
 						else
 						{
 							check(VirtualShadowMaps.Num() == 1);
-							HairShadowFactorTexture = RenderVirtualShadowMapProjection(
+							RenderVirtualShadowMapProjection(
 								GraphBuilder,
 								SceneTextures,
 								View,
 								VirtualShadowMapArray,
 								ScissorRect,
 								EVirtualShadowMapProjectionInputType::HairStrands,
-								VirtualShadowMaps[0]);
+								VirtualShadowMaps[0],
+								ScreenShadowMaskSubPixelTexture);
 						}
-
-						// Composite into sub pixel mask
-						CompositeVirtualShadowMapMask(GraphBuilder, ScissorRect, HairShadowFactorTexture, ScreenShadowMaskSubPixelTexture);
 					}
 				}
 			}

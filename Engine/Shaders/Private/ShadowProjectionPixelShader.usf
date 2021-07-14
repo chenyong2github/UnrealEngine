@@ -282,77 +282,58 @@ void Main(
 		BRANCH
 		if (bIsSubsurfaceCompatible && bHasSubsurface)
 		{
-		#if STRATA_ENABLED
-			const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(SVPos.xy, 0)));
-
-			float Opacity = 1;
 			float Density = 1;
-			if (!bIsEyeOrHair && SSSData.bIsValid)
+			if (!bIsEyeOrHair)
 			{
-				Opacity = SSSData.bIsProfile ? SSSData.ProfileRadiusScale : 1.0f;
-				Density = SubsurfaceDensityFromOpacity(Opacity);
+			#if STRATA_ENABLED
+				const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(SVPos.xy, 0)));
+				if (SSSData.bIsValid)
+				{
+					float Opacity = SSSData.bIsProfile ? SSSData.ProfileRadiusScale : 1.0f;
+					Density = SubsurfaceDensityFromOpacity(Opacity);
+				}
+			#else // STRATA_ENABLED
+				Density = SubsurfaceDensityFromOpacity(GBufferData.CustomData.a);
+			#endif // STRATA_ENABLED
 			}
-		#else // STRATA_ENABLED
-			float Opacity = GBufferData.CustomData.a;
-			float Density = SubsurfaceDensityFromOpacity(Opacity);
-			if (bIsEyeOrHair)
-			{
-				Opacity = 1;
-				Density = 1;
-			}
-		#endif // STRATA_ENABLED
-
-			//@todo - Use a larger kernel filter based on material opacity
-			// This is not being done currently because a varying opacity causes discontinuities in the shadow result
-			// Note: Snapping based on the largest size kernel is done in FProjectedShadowInfo::FProjectedShadowInfo, MaxDownsampleFactor is set to 4
-			// Only factors of MaxDownsampleFactor will be stable
-			float SquareRootFilterScale = lerp(1.999f, 0, Opacity);
-			int SquareRootFilterScaleInt = int(SquareRootFilterScale) + 1;
-
-			#if UNFILTERED_SHADOW_PROJECTION
-				float ShadowMapDepth = Texture2DSampleLevel(ShadowDepthTexture, ShadowDepthTextureSampler, ShadowPosition.xy, 0).x;
-				SSSTransmission = CalculateSubsurfaceOcclusion(Density, LightSpacePixelDepthForSSS, ShadowMapDepth.xxx).x;
-			#else
-		
-				// default code path
-				FPCFSamplerSettings Settings;
+								
+			FPCFSamplerSettings Settings;
 				
-				Settings.ShadowDepthTexture = ShadowDepthTexture;
-				Settings.ShadowDepthTextureSampler = ShadowDepthTextureSampler;
-				Settings.ShadowBufferSize = ShadowBufferSize;
-				Settings.TransitionScale = SoftTransitionScale.z;
-				Settings.SceneDepth = LightSpacePixelDepthForSSS + ProjectionDepthBiasParameters.x;
-				Settings.bSubsurface = true;
-				Settings.bTreatMaxDepthUnshadowed = false;
-				Settings.DensityMulConstant = Density * ProjectionDepthBiasParameters.w;
-				Settings.ProjectionDepthBiasParameters = ProjectionDepthBiasParameters.xw;
+			Settings.ShadowDepthTexture = ShadowDepthTexture;
+			Settings.ShadowDepthTextureSampler = ShadowDepthTextureSampler;
+			Settings.ShadowBufferSize = ShadowBufferSize;
+			Settings.TransitionScale = SoftTransitionScale.z;
+			Settings.SceneDepth = LightSpacePixelDepthForSSS + ProjectionDepthBiasParameters.x;
+			Settings.bSubsurface = true;
+			Settings.bTreatMaxDepthUnshadowed = false;
+			Settings.DensityMulConstant = Density * ProjectionDepthBiasParameters.w;
+			Settings.ProjectionDepthBiasParameters = ProjectionDepthBiasParameters.xw;
 
-			  #if USE_TRANSMISSION
-				if (bHasSubsurfaceTransmission)
-				{
-				#if STRATA_ENABLED
-					const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerNormalTexture.Load(uint3(SVPos.xy, 0)));
-					const float3 WorldNormal = TopLayerData.WorldNormal;
+			#if USE_TRANSMISSION
+			if (bHasSubsurfaceTransmission)
+			{
+			#if STRATA_ENABLED
+				const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerNormalTexture.Load(uint3(SVPos.xy, 0)));
+				const float3 WorldNormal = TopLayerData.WorldNormal;
 
-					// For non-profile version, use default transmission parameters (only NormalScale & ExtinctionScale are used)
-					FTransmissionProfileParams TransmissionParams = InitTransmissionProfileParams();
-					if (StrataData.bHasSubsurfaceProfile)
-					{
-						TransmissionParams = GetTransmissionProfileParams(SSSData.ProfileId);
-					}
-				#else // STRATA_ENABLED
-					float3 WorldNormal = GBufferData.WorldNormal;
-					FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(GBufferData);
-				#endif // STRATA_ENABLED
-					SSSTransmission = CalcTransmissionThickness(ScreenPosition.xyz, LightPositionAndInvRadius.xyz, WorldNormal, TransmissionParams, Settings);
-				}
-				else
-			  #endif
+				// For non-profile version, use default transmission parameters (only NormalScale & ExtinctionScale are used)
+				FTransmissionProfileParams TransmissionParams = InitTransmissionProfileParams();
+				if (StrataData.bHasSubsurfaceProfile)
 				{
-					// ideally we use a larger filter kernel for SSSbut as Gather4 makes that harder
-					SSSTransmission = ManualPCF(ShadowPosition.xy, Settings);
+					TransmissionParams = GetTransmissionProfileParams(SSSData.ProfileId);
 				}
+			#else // STRATA_ENABLED
+				float3 WorldNormal = GBufferData.WorldNormal;
+				FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(GBufferData);
+			#endif // STRATA_ENABLED
+				SSSTransmission = CalcTransmissionThickness(ScreenPosition.xyz, LightPositionAndInvRadius.xyz, WorldNormal, TransmissionParams, Settings);
+			}
+			else
 			#endif
+			{
+				// ideally we use a larger filter kernel for SSSbut as Gather4 makes that harder
+				SSSTransmission = ManualPCF(ShadowPosition.xy, Settings);
+			}
 		}
 
 	#endif

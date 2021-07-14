@@ -1516,6 +1516,7 @@ public:
 	inline bool AffectsTranslucentLighting() const { return bAffectTranslucentLighting; }
 	inline bool Transmission() const { return bTransmission; }
 	inline bool UseRayTracedDistanceFieldShadows() const { return bUseRayTracedDistanceFieldShadows; }
+	inline bool UseVirtualShadowMaps() const { return bUseVirtualShadowMaps; }
 	inline float GetRayStartOffsetDepthScale() const { return RayStartOffsetDepthScale; }
 	inline bool IsTiledDeferredLightingSupported() const { return bTiledDeferredLightingSupported;  }
 	inline uint8 GetLightType() const { return LightType; }
@@ -1725,6 +1726,9 @@ protected:
 
 	/** Whether to use ray traced distance field area shadows. */
 	const uint8 bUseRayTracedDistanceFieldShadows : 1;
+
+	/** Whether to use virtual shadow maps. */
+	uint8 bUseVirtualShadowMaps : 1;
 
 	/** Whether the light will cast modulated shadows when using the forward renderer (mobile). */
 	uint8 bCastModulatedShadows : 1;

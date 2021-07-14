@@ -22,6 +22,7 @@
 #include "ShadingModels.ush"
 #include "LightGridCommon.ush"
 #include "DeferredLightingCommon.ush"
+#include "VirtualShadowMaps/TransmissionCommon.ush"
 
 #if USE_HAIR_LIGHTING == 1
 	#include "HairStrands/HairStrandsCommon.ush"
@@ -59,7 +60,9 @@ float4 GetLightGridLocalLighting(const FCulledLightsGridData InLightGridData, fl
 	// This prevents GPU hangs when the PS tries to read from uninitialized NumCulledLightsGrid buffer
 	const uint NumLocalLights = min(InLightGridData.NumLocalLights, GetNumLocalLights(EyeIndex));
 
-	uint ShadowMask = ~ShadowMaskBits[ int2( ScreenUV.xy * View.BufferSizeAndInvSize.xy ) ];
+	int2 PixelPos = int2( ScreenUV.xy * View.BufferSizeAndInvSize.xy );
+	uint ShadowMask = ~ShadowMaskBits[ PixelPos ];
+	half SubsurfaceOpacity = GetSubsurfaceOpacityFromGbuffer( PixelPos );
 
 	LOOP
 	for (uint LocalLightListIndex = FirstNonSimpleLightIndex; LocalLightListIndex < NumLocalLights; LocalLightListIndex++)
@@ -120,15 +123,21 @@ float4 GetLightGridLocalLighting(const FCulledLightsGridData InLightGridData, fl
 		// Static shadowing uses ShadowMapChannel, dynamic shadows are packed into light attenuation using PreviewShadowMapChannel
 		LightData.ShadowMapChannelMask = UnpackShadowMapChannelMask(LightTypeAndPackedShadowMapChannelMask);
 
-		// This matches tiled deferred, since there is no dynamic shadow on the lights used for clustered shading.
-		float4 LightAttenuation = 1.0f;
+		float4 LightAttenuation = float4(1, 1, 1, 1);
 
 		LightData.ShadowedBits = 1;
 		// Be careful with the shift here as the shift amount is mod 32, so >>32 is a noop rather than zero
 		// We treat lights past the 10th as unshadowed
 		if (LocalLightListIndex < GetShadowMaskMaxLightCount())
 		{
-			LightAttenuation = UnpackShadowMask(ShadowMask, LocalLightListIndex);
+			LightAttenuation = UnpackShadowMask(ShadowMask, LocalLightListIndex).xxxx;
+		}
+
+		if ( SubsurfaceOpacity < 1.0f )
+		{
+			// Replace SSS portion for subsurface materials
+			half SSSTransmission = ComputeSimpleSubsurfaceTransmissionFromVirtualShadowMap(LocalLight.VirtualShadowMapId, WorldPosition, SubsurfaceOpacity);
+			LightAttenuation.yw = SSSTransmission;
 		}
 
 		LightData.HairTransmittance = InitHairTransmittanceData();
