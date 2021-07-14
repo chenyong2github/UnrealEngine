@@ -31,6 +31,9 @@ public:
 	virtual FText GetBaseToolkitName() const override;
 	virtual TSharedPtr<class SWidget> GetInlineContent() const override { return ToolkitWidget; }
 
+	// initialize toolkit widgets that need to wait until mode is initialized/entered
+	virtual void InitializeAfterModeSetup();
+
 	// set/clear notification message area
 	virtual void PostNotification(const FText& Message);
 	virtual void ClearNotification();
@@ -106,6 +109,7 @@ private:
 	TSharedPtr<STextBlock> AssetLODModeLabel;
 	TSharedPtr<STextComboBox> AssetLODMode;
 
+	bool bFirstInitializeAfterModeSetup = true;
 
 	// custom accept/cancel/complete handlers
 };
