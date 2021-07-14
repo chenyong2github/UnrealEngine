@@ -397,7 +397,7 @@ bool FWorldRenderCapture::CaptureMRSFromPosition(
 	ViewFamily.EngineShowFlags.SetContactShadows(false);
 
 	//ViewFamily.EngineShowFlags.SetScreenPercentage(false);
-	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.f, false));
+	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.f));
 
 	// This is called in various other places, unclear if we should be doing this too
 	//EngineShowFlagOverride(EShowFlagInitMode::ESFIM_Game, ViewModeIndex, ViewFamily.EngineShowFlags, true);
@@ -535,7 +535,7 @@ bool FWorldRenderCapture::CaptureEmissiveFromPosition(
 	NewView->CurrentBufferVisualizationMode = FName("PreTonemapHDRColor");
 	ViewFamily.Views.Add(NewView);
 
-	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.0f, false));
+	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.0f));
 
 	ViewFamily.EngineShowFlags.DisableAdvancedFeatures();
 	ViewFamily.EngineShowFlags.LOD = 0;
@@ -643,7 +643,7 @@ namespace Internal
 		NewView->CurrentBufferVisualizationMode = VisualizationMode;
 		ViewFamily.Views.Add(NewView);
 
-		ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.0f, false));
+		ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.0f));
 
 		// should we cache the FCanvas?
 		FCanvas Canvas(RenderTargetResource, NULL, FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime, Scene->GetFeatureLevel());

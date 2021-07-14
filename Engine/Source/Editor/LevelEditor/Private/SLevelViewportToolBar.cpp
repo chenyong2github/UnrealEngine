@@ -1333,8 +1333,8 @@ void SLevelViewportToolBar::OnFOVValueChanged( float NewValue )
 
 TSharedRef<SWidget> SLevelViewportToolBar::GenerateScreenPercentageMenu() const
 {
-	const int32 PreviewScreenPercentageMin = FSceneViewScreenPercentageConfig::kMinTAAUpsampleResolutionFraction * 100.0f;
-	const int32 PreviewScreenPercentageMax = FSceneViewScreenPercentageConfig::kMaxTAAUpsampleResolutionFraction * 100.0f;
+	const int32 PreviewScreenPercentageMin = ISceneViewFamilyScreenPercentage::kMinTAAUpsampleResolutionFraction * 100.0f;
+	const int32 PreviewScreenPercentageMax = ISceneViewFamilyScreenPercentage::kMaxTAAUpsampleResolutionFraction * 100.0f;
 
 	return
 		SNew(SBox)

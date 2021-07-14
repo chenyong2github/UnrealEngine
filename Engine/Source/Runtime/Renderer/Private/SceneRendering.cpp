@@ -520,17 +520,17 @@ public:
 		}
 
 		return new FLegacyScreenPercentageDriver(
-			ForkedViewFamily, /* GlobalResolutionFraction = */ MaxResolutionFraction, /* AllowPostProcessSettingsScreenPercentage = */ false);
+			ForkedViewFamily, /* GlobalResolutionFraction = */ MaxResolutionFraction);
 	}
 
-	virtual void ComputePrimaryResolutionFractions_RenderThread(TArray<FSceneViewScreenPercentageConfig>& OutViewScreenPercentageConfigs) const override
+	virtual float GetPrimaryResolutionFraction_RenderThread() const override
 	{
 		check(IsInRenderingThread());
 
 		// Early return if no screen percentage should be done.
 		if (!ViewFamily.EngineShowFlags.ScreenPercentage)
 		{
-			return;
+			return 1.0f;
 		}
 
 		uint32 FrameId = 0;
@@ -540,12 +540,7 @@ public:
 		{
 			FrameId = ViewState->GetFrameIndex(8);
 		}
-		float ResolutionFraction = FrameId == 0 ? MaxResolutionFraction : FMath::Lerp(MinResolutionFraction, MaxResolutionFraction, 0.5f + 0.5f * FMath::Cos((FrameId + 0.25) * PI / 8));
-	
-		for (int32 i = 0; i < ViewFamily.Views.Num(); i++)
-		{
-			OutViewScreenPercentageConfigs[i].PrimaryResolutionFraction = ResolutionFraction;
-		}
+		return FrameId == 0 ? MaxResolutionFraction : FMath::Lerp(MinResolutionFraction, MaxResolutionFraction, 0.5f + 0.5f * FMath::Cos((FrameId + 0.25) * PI / 8));
 	}
 
 private:
@@ -2446,7 +2441,7 @@ FIntPoint FSceneRenderer::ApplyResolutionFraction(const FSceneViewFamily& ViewFa
 {
 	FIntPoint ViewSize;
 
-	// CeilToInt so tha view size is at least 1x1 if ResolutionFraction == FSceneViewScreenPercentageConfig::kMinResolutionFraction.
+	// CeilToInt so tha view size is at least 1x1 if ResolutionFraction == ISceneViewFamilyScreenPercentage::kMinResolutionFraction.
 	ViewSize.X = FMath::CeilToInt(UnscaledViewSize.X * ResolutionFraction);
 	ViewSize.Y = FMath::CeilToInt(UnscaledViewSize.Y * ResolutionFraction);
 
@@ -2547,9 +2542,6 @@ void FSceneRenderer::PrepareViewRectsForRendering()
 		return;
 	}
 
-	TArray<FSceneViewScreenPercentageConfig> ViewScreenPercentageConfigs;
-	ViewScreenPercentageConfigs.Reserve(Views.Num());
-
 	// Checks that view rects were still not initialized.
 	for (FViewInfo& View : Views)
 	{
@@ -2571,22 +2563,11 @@ void FSceneRenderer::PrepareViewRectsForRendering()
 				View.AntiAliasingMethod = AAM_None;
 			}
 		}
-
-		FSceneViewScreenPercentageConfig Config;
-		ViewScreenPercentageConfigs.Add(FSceneViewScreenPercentageConfig());
 	}
 
 	check(ViewFamily.ScreenPercentageInterface);
-	ViewFamily.ScreenPercentageInterface->ComputePrimaryResolutionFractions_RenderThread(ViewScreenPercentageConfigs);
-
-	check(ViewScreenPercentageConfigs.Num() == Views.Num());
-
-	// Checks that view rects are correctly initialized.
-	for (int32 i = 0; i < Views.Num(); i++)
+	float PrimaryResolutionFraction = ViewFamily.ScreenPercentageInterface->GetPrimaryResolutionFraction_RenderThread();
 	{
-		FViewInfo& View = Views[i];
-		float PrimaryResolutionFraction = ViewScreenPercentageConfigs[i].PrimaryResolutionFraction;
-
 		// Ensure screen percentage show flag is respected. Prefer to check() rather rendering at a differen screen percentage
 		// to make sure the renderer does not lie how a frame as been rendering to a dynamic resolution heuristic.
 		if (!ViewFamily.EngineShowFlags.ScreenPercentage)
@@ -2597,11 +2578,17 @@ void FSceneRenderer::PrepareViewRectsForRendering()
 		// Make sure the screen percentage interface has not lied to the renderer about the upper bound.
 		checkf(PrimaryResolutionFraction <= ViewFamily.GetPrimaryResolutionFractionUpperBound(),
 			TEXT("ISceneViewFamilyScreenPercentage::GetPrimaryResolutionFractionUpperBound() should not lie to the renderer."));
-		
-		check(FSceneViewScreenPercentageConfig::IsValidResolutionFraction(PrimaryResolutionFraction));
-		
-		// Compute final resolution fraction.
-		float ResolutionFraction = PrimaryResolutionFraction * ViewFamily.SecondaryViewFraction;
+
+		check(ISceneViewFamilyScreenPercentage::IsValidResolutionFraction(PrimaryResolutionFraction));
+	}
+
+	// Compute final resolution fraction.
+	float ResolutionFraction = PrimaryResolutionFraction * ViewFamily.SecondaryViewFraction;
+
+	// Checks that view rects are correctly initialized.
+	for (int32 i = 0; i < Views.Num(); i++)
+	{
+		FViewInfo& View = Views[i];
 
 		FIntPoint ViewSize = ApplyResolutionFraction(ViewFamily, View.UnscaledViewRect.Size(), ResolutionFraction);
 		FIntPoint ViewRectMin = QuantizeViewRectMin(FIntPoint(

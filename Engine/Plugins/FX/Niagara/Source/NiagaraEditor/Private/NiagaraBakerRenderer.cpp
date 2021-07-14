@@ -150,7 +150,7 @@ bool FNiagaraBakerRenderer::RenderView(UTextureRenderTarget2D* RenderTarget, FCa
 			NewView->CurrentBufferVisualizationMode = SourceName;
 			ViewFamily.Views.Add(NewView);
 
-			ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.0f, false));
+			ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.0f));
 
 			GetRendererModule().BeginRenderingViewFamily(Canvas, &ViewFamily);
 

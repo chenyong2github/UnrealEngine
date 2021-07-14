@@ -1395,7 +1395,6 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 				ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(
 					ViewFamily,
 					DynamicResolutionStateInfos.ResolutionFractionApproximation,
-					/* AllowPostProcessSettingsScreenPercentage = */ false,
 					DynamicResolutionStateInfos.ResolutionFractionUpperBound));
 
 				bUsesDynamicResolution = true;
@@ -1664,7 +1663,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 			}
 
 			ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(
-				ViewFamily, GlobalResolutionFraction, AllowPostProcessSettingsScreenPercentage));
+				ViewFamily, GlobalResolutionFraction));
 		}
 
 		check(ViewFamily.GetScreenPercentageInterface() != nullptr);

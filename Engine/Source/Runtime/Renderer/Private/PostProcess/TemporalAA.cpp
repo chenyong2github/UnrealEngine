@@ -921,11 +921,11 @@ public:
 
 	virtual float GetMinUpsampleResolutionFraction() const override
 	{
-		return FSceneViewScreenPercentageConfig::kMinTAAUpsampleResolutionFraction;
+		return ISceneViewFamilyScreenPercentage::kMinTAAUpsampleResolutionFraction;
 	}
 	virtual float GetMaxUpsampleResolutionFraction() const override
 	{
-		return FSceneViewScreenPercentageConfig::kMaxTAAUpsampleResolutionFraction;
+		return ISceneViewFamilyScreenPercentage::kMaxTAAUpsampleResolutionFraction;
 	}
 };
 

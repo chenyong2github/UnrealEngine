@@ -420,8 +420,7 @@ void FTrackEditorThumbnailCache::DrawViewportThumbnail(FTrackEditorThumbnail& Tr
 	ViewFamily.Views.Add(NewView);
 
 	const float GlobalResolutionFraction = 1.f;
-	const bool  AllowPostProcessSettingsScreenPercentage = false;
-	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, GlobalResolutionFraction, AllowPostProcessSettingsScreenPercentage));
+	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, GlobalResolutionFraction));
 
 	FCanvas Canvas(TrackEditorThumbnail.GetRenderTarget(), nullptr, FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime, World->Scene->GetFeatureLevel());
 	Canvas.Clear(FLinearColor::Transparent);

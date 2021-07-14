@@ -2670,8 +2670,8 @@ int32 FEditorViewportClient::GetPreviewScreenPercentage() const
 	// We expose the resolution fraction derived from DPI, to not lie to the artist when screen percentage = 100%.
 	return FMath::RoundToInt(FMath::Clamp(
 		PreviewResolutionFraction,
-		FSceneViewScreenPercentageConfig::kMinTAAUpsampleResolutionFraction,
-		FSceneViewScreenPercentageConfig::kMaxTAAUpsampleResolutionFraction) * 100.0f);
+		ISceneViewFamilyScreenPercentage::kMinTAAUpsampleResolutionFraction,
+		ISceneViewFamilyScreenPercentage::kMaxTAAUpsampleResolutionFraction) * 100.0f);
 }
 
 void FEditorViewportClient::SetPreviewScreenPercentage(int32 PreviewScreenPercentage)
@@ -3858,7 +3858,7 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 
 			// In editor viewport, we ignore r.ScreenPercentage and FPostProcessSettings::ScreenPercentage by design.
 			ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(
-				ViewFamily, GlobalResolutionFraction, /* AllowPostProcessSettingsScreenPercentage = */ false));
+				ViewFamily, GlobalResolutionFraction));
 		}
 
 		check(ViewFamily.GetScreenPercentageInterface() != nullptr);

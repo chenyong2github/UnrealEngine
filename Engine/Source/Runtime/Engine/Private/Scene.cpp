@@ -565,7 +565,7 @@ FPostProcessSettings::FPostProcessSettings()
 	MotionBlurMax = 5.0f;
 	MotionBlurTargetFPS = 30;
 	MotionBlurPerObjectSize = 0.5f;
-	ScreenPercentage = 100.0f;
+	ScreenPercentage_DEPRECATED = 100.0f;
 	ReflectionsType_DEPRECATED = EReflectionsType::RayTracing;
 	ReflectionMethod = EReflectionMethod::Lumen;
 	LumenReflectionQuality = 1;
@@ -751,7 +751,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_MotionBlurAmount(Settings.bOverride_MotionBlurAmount)
 	, bOverride_MotionBlurMax(Settings.bOverride_MotionBlurMax)
 	, bOverride_MotionBlurPerObjectSize(Settings.bOverride_MotionBlurPerObjectSize)
-	, bOverride_ScreenPercentage(Settings.bOverride_ScreenPercentage)
+	, bOverride_ScreenPercentage_DEPRECATED(Settings.bOverride_ScreenPercentage_DEPRECATED)
 	, bOverride_ReflectionMethod(Settings.bOverride_ReflectionMethod)
 	, bOverride_LumenReflectionQuality(Settings.bOverride_LumenReflectionQuality)
 	, bOverride_ScreenSpaceReflectionIntensity(Settings.bOverride_ScreenSpaceReflectionIntensity)
@@ -957,7 +957,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, PathTracingMaxPathExposure(Settings.PathTracingMaxPathExposure)
 	, PathTracingEnableDenoiser(Settings.PathTracingEnableDenoiser)
 
-	, ScreenPercentage(Settings.ScreenPercentage)
+	, ScreenPercentage_DEPRECATED(Settings.ScreenPercentage_DEPRECATED)
 
 	, WeightedBlendables(Settings.WeightedBlendables)
 	//, Blendables_DEPRECATED(Settings.Blendables_DEPRECATED)

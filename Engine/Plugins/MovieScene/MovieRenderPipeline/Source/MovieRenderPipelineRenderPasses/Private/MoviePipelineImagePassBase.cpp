@@ -95,7 +95,7 @@ TSharedPtr<FSceneViewFamilyContext> UMoviePipelineImagePassBase::CalculateViewFa
 	// If UMoviePipelineViewFamilySetting never set a Screen percentage interface we fallback to default.
 	if (OutViewFamily->GetScreenPercentageInterface() == nullptr)
 	{
-		OutViewFamily->SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(*OutViewFamily, IsScreenPercentageSupported() ? InOutSampleState.GlobalScreenPercentageFraction : 1.f, IsScreenPercentageSupported()));
+		OutViewFamily->SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(*OutViewFamily, IsScreenPercentageSupported() ? InOutSampleState.GlobalScreenPercentageFraction : 1.f));
 	}
 
 

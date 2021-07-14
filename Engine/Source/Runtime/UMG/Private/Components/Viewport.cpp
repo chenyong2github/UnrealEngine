@@ -175,7 +175,7 @@ void FUMGViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 	FSceneView* View = CalcSceneView(&ViewFamily);
 
 	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(
-		ViewFamily, GlobalResolutionFraction, /* AllowPostProcessSettingsScreenPercentage = */ false));
+		ViewFamily, GlobalResolutionFraction));
 
 	//SetupViewForRendering(ViewFamily, *View);
 

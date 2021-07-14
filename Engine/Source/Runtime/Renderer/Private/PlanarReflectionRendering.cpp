@@ -633,10 +633,6 @@ void FScene::UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureC
 
 			CaptureComponent->ProjectionWithExtraFOV[ViewIndex] = SceneCaptureViewInfo[ViewIndex].ProjectionMatrix;
 
-			// Plumb down the main view's screen percentage to the planar reflection.
-			SceneRenderer->Views[ViewIndex].FinalPostProcessSettings.ScreenPercentage =
-				MainSceneRenderer.Views[ViewIndex].FinalPostProcessSettings.ScreenPercentage;
-
 			const bool bIsStereo = IStereoRendering::IsStereoEyeView(MainSceneRenderer.Views[0]);
 
 			const FMatrix ProjectionMatrix = SceneCaptureViewInfo[ViewIndex].ProjectionMatrix;
