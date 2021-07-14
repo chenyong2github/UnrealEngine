@@ -113,11 +113,11 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(5.0, "Direct access to ContentScale is now deprecated. Use the setter or getter.")
-	FSlateDeprecatedTAttribute<FVector2D> ContentScale;
+	TSlateDeprecatedTAttribute<FVector2D> ContentScale;
 	UE_DEPRECATED(5.0, "Direct access to ColorAndOpacity is now deprecated. Use the setter or getter.")
-	FSlateDeprecatedTAttribute<FLinearColor> ColorAndOpacity;
+	TSlateDeprecatedTAttribute<FLinearColor> ColorAndOpacity;
 	UE_DEPRECATED(5.0, "Direct access to ForegroundColor is now deprecated. Use the setter or getter.")
-	FSlateDeprecatedTAttribute<FSlateColor> ForegroundColor;
+	TSlateDeprecatedTAttribute<FSlateColor> ForegroundColor;
 #endif
 
 private:

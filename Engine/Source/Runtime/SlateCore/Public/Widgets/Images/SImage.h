@@ -95,9 +95,9 @@ protected:
 	UE_DEPRECATED(5.0, "Direct access to Image is now deprecated. Use the setter or getter.")
 	FInvalidatableBrushAttribute Image;
 	UE_DEPRECATED(5.0, "Direct access to ColorAndOpacity is now deprecated. Use the setter or getter.")
-	FSlateDeprecatedTAttribute<FSlateColor> ColorAndOpacity;
+	TSlateDeprecatedTAttribute<FSlateColor> ColorAndOpacity;
 	UE_DEPRECATED(5.0, "Direct access to DesiredSizeOverride is now deprecated. Use the setter or getter.")
-	FSlateDeprecatedTAttribute<TOptional<FVector2D>> DesiredSizeOverride;
+	TSlateDeprecatedTAttribute<TOptional<FVector2D>> DesiredSizeOverride;
 #endif
 
 private:

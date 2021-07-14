@@ -149,11 +149,11 @@ protected:
 	UE_DEPRECATED(5.0, "Direct access to BorderImage is now deprecated. Use the setter or getter.")
 	FInvalidatableBrushAttribute BorderImage;
 	UE_DEPRECATED(5.0, "Direct access to BorderBackgroundColor is now deprecated. Use the setter or getter.")
-	FSlateDeprecatedTAttribute<FSlateColor> BorderBackgroundColor;
+	TSlateDeprecatedTAttribute<FSlateColor> BorderBackgroundColor;
 	UE_DEPRECATED(5.0, "Direct access to DesiredSizeScale is now deprecated. Use the setter or getter.")
-	FSlateDeprecatedTAttribute<FVector2D> DesiredSizeScale;
+	TSlateDeprecatedTAttribute<FVector2D> DesiredSizeScale;
 	UE_DEPRECATED(5.0, "Direct access to ShowDisabledEffect is now deprecated. Use the setter or getter.")
-	FSlateDeprecatedTAttribute<bool> ShowDisabledEffect;
+	TSlateDeprecatedTAttribute<bool> ShowDisabledEffect;
 #endif
 
  private:
