@@ -960,7 +960,7 @@ FSubobjectDataHandle USubobjectDataSubsystem::AddNewSubobject(const FAddNewSubob
 				}
 			}
 
-			if (ActorInstance && ParentObjData)
+			if (ActorInstance)
 			{
 				ActorInstance->Modify();
 
