@@ -9,8 +9,8 @@
 #include "CoreTypes.h"
 #include "Templates/SharedPointer.h"
 
-#if PLATFORM_WINDOWS
-	#include "Windows/WindowsHWrapper.h"
+#if PLATFORM_MICROSOFT
+	#include "Microsoft/WindowsHWrapper.h"
 #endif
 
 typedef uint32  UEMediaError;
