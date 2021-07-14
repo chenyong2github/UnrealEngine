@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BakeMeshAttributeToolCommon.h"
-#include "Engine/Classes/Engine/Texture2D.h"
 
 FTempTextureAccess::FTempTextureAccess(UTexture2D* DisplacementMap)
 	: DisplacementMap(DisplacementMap)
