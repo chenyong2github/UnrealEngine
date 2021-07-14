@@ -349,6 +349,8 @@ public:
 	void AddRelation(TUniquePtr<ITimingEventRelation>& Relation) { CurrentRelations.Add(MoveTemp(Relation)); }
 	void ClearRelations();
 
+	TSharedPtr<FUICommandList> GetCommandList() { return CommandList; }
+
 protected:
 	virtual FVector2D ComputeDesiredSize(float) const override
 	{

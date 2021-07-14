@@ -150,25 +150,12 @@ void FTaskTimingSharedState::SetTaskId(uint32 InTaskId)
 
 bool FTaskTimingSharedState::ExtendGlobalContextMenu(ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder)
 {
-	if (!CommandList.IsValid())
-	{
-		return false;
-	}
-
 	if (&InSession != TimingView)
 	{
 		return false;
 	}
 
-	InMenuBuilder.PushCommandList(CommandList.ToSharedRef());
-
-	InMenuBuilder.BeginSection(TEXT("Event"), LOCTEXT("Event", "Event"));
-
 	InMenuBuilder.AddSubMenu(LOCTEXT("Tasks", "Tasks"), LOCTEXT("Task", "Task Graph Insights settings"), FNewMenuDelegate::CreateSP(this, &FTaskTimingSharedState::BuildTasksSubMenu));
-
-	InMenuBuilder.EndSection();
-
-	InMenuBuilder.PopCommandList();
 
 	return true;
 }
@@ -220,14 +207,10 @@ void FTaskTimingSharedState::BuildTasksSubMenu(FMenuBuilder& MenuBuilder)
 
 void FTaskTimingSharedState::InitCommandList()
 {
-	if (CommandList.IsValid())
-	{
-		return;
-	}
+	TSharedPtr<FUICommandList> CommandList = TimingView->GetCommandList();
+	ensure(CommandList);
 
 	FTaskTimingStateCommands::Register();
-
-	CommandList = MakeShared<FUICommandList>();
 
 	CommandList->MapAction(
 		FTaskTimingStateCommands::Get().Command_ShowTaskDependencies,
