@@ -712,7 +712,7 @@ namespace EpicGames.Serialization
 				Error = CbFieldError.None;
 
 				ulong Length = VarInt.Read(Payload.Span, out int BytesRead);
-				return Memory.Slice(BytesRead, (int)Length);
+				return Payload.Slice(BytesRead, (int)Length);
 			}
 			else
 			{
