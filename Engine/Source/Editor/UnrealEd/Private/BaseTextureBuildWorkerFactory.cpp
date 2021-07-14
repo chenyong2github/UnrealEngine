@@ -8,6 +8,7 @@
 #include "Misc/PathViews.h"
 #include "Misc/StringBuilder.h"
 #include "Templates/Tuple.h"
+#include "TextureBuildFunction.h"
 
 // TODO: These explicit Win64 worker factories will be replaced a worker discovery mechanism possibly using the target receipt files produced by the build system.
 
@@ -65,10 +66,13 @@ public:
 		Builder.SetHostPlatform(TEXT("Win64"));
 		Builder.SetBuildSystemVersion(FGuid(TEXT("ac0574e5-62bd-4c2e-84ec-f2efe48c0fef")));
 
-		// Hard coded to match current contents of TextureFormatUncompressed.  Will be fetched from target receipt in the future.
+		// Hard coded to match current contents of the various texture build functions linked to this worker.  Will be fetched from target receipt in the future.
 		Builder.AddFunction(TEXT("UncompressedTexture"), FGuid(TEXT("c04fe27a-53f6-402e-85b3-648ac6b1ad87")));
-		// Hard coded to match current contents of TextureFormatOodle.  Will be fetched from target receipt in the future.
 		Builder.AddFunction(TEXT("OodleTexture"), FGuid(TEXT("e6b8884f-923a-44a1-8da1-298fb48865b2")));
+		Builder.AddFunction(TEXT("DXTTexture"), FGuid(TEXT("c2d5dbc5-131c-4525-a332-843230076d99")));
+		Builder.AddFunction(TEXT("ATSCTexture"), FGuid(TEXT("4788dab5-b99c-479f-bc34-6d7df1cf30e3")));
+		Builder.AddFunction(TEXT("ETC2Texture"), FGuid(TEXT("af5192f4-351f-422f-b539-f6bd4abadfae")));
+		Builder.AddFunction(TEXT("IntelISPCTexCompTexture"), FGuid(TEXT("19d413ad-f529-4687-902a-3b71919cfd72")));
 
 		for (int32 ExecutableIndex = 0; ExecutableIndex < ExecutablePaths.Num(); ++ExecutableIndex)
 		{
@@ -154,6 +158,9 @@ public:
 		OutPaths.Emplace(EngineDir, TEXT("Binaries/Win64/BaseTextureBuildWorker.exe"), TEXT("Engine"));
 		OutPaths.Emplace(EngineDir, TEXT("Binaries/ThirdParty/nvTextureTools/Win64/AVX2/nvtt_64.dll"), TEXT("Engine"));
 		OutPaths.Emplace(EngineDir, TEXT("Binaries/ThirdParty/nvTextureTools/Win64/nvtt_64.dll"), TEXT("Engine"));
+		OutPaths.Emplace(EngineDir, TEXT("Binaries/ThirdParty/Intel/ISPCTexComp/Win64-Release/ispc_texcomp.dll"), TEXT("Engine"));
+		OutPaths.Emplace(EngineDir, TEXT("Binaries/ThirdParty/QualComm/Win64/TextureConverter.dll"), TEXT("Engine"));
+		OutPaths.Emplace(EngineDir, TEXT("Binaries/ThirdParty/ARM/Win32/astcenc.exe"), TEXT("Engine"));
 	}
 
 private:

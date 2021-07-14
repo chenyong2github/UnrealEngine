@@ -61,19 +61,20 @@ public class DerivedDataBuildWorker : ModuleRules
 	{
 		PublicIncludePaths.Add("Runtime/Launch/Public");
 		PublicIncludePaths.Add("Developer/DerivedDataCache/Public");
-
 		PrivateIncludePaths.Add("Runtime/Launch/Private");		// For LaunchEngineLoop.cpp include
 
-		PrivateDependencyModuleNames.AddRange(
-			new string[] {
+		PrivateDependencyModuleNames.AddRange(new string[]
+		{
 				"Core",
-				"Projects",
 				"DerivedDataCache",
-			});
+				"Projects",
+		});
 
 		if (Target.bCompileAgainstApplicationCore)
 		{
 			PrivateDependencyModuleNames.Add("ApplicationCore");
 		}
+
+		AdditionalPropertiesForReceipt.Add("DerivedDataBuildWorker", "true");
 	}
 }

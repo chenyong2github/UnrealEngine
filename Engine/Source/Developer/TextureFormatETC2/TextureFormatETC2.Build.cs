@@ -6,21 +6,21 @@ public class TextureFormatETC2 : ModuleRules
 {
 	public TextureFormatETC2(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePathModuleNames.AddRange(
-			new string[] {
-				"TargetPlatform",
-				"TextureCompressor",
-				"Engine"
-			}
-			);
+		PrivateIncludePathModuleNames.AddRange(new string[]
+		{
+			"DerivedDataCache",
+			"Engine",
+			"TargetPlatform",
+			"TextureCompressor",
+		});
 
-		PrivateDependencyModuleNames.AddRange(
-			new string[] {
-				"Core",
-				"ImageCore",
-				"ImageWrapper"
-			}
-			);
+		PrivateDependencyModuleNames.AddRange(new string[]
+		{
+			"Core",
+			"ImageCore",
+			"ImageWrapper",
+			"TextureBuild",
+		});
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{

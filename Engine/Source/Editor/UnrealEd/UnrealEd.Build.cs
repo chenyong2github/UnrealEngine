@@ -67,7 +67,8 @@ public class UnrealEd : ModuleRules
 				"NavigationSystem",
 				"Media",
 				"VirtualTexturingEditor",
-				"RemoteExecution"
+				"RemoteExecution",
+				"TextureBuild"
 			}
 		);
 

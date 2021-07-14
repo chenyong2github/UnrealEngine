@@ -23,29 +23,27 @@ public class TextureFormatOodle : ModuleRules
 	{
 		ShortName = "TextureFormatOodle";
 
-        PrivatePCHHeaderFile = "Private/TextureFormatOodlePCH.h";
+		PrivatePCHHeaderFile = "Private/TextureFormatOodlePCH.h";
 
-        PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Private", "Jobify"));
-        PrivateIncludePaths.Add(IncludeDirectory);
+		PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Private", "Jobify"));
+		PrivateIncludePaths.Add(IncludeDirectory);
 
-		PrivateIncludePathModuleNames.AddRange(
-			new string[] {
-				"CoreUObject",
-				"DerivedDataCache",
-				"Engine",
-				"TargetPlatform",
-				"TextureCompressor",
-			}
-        );
+		PrivateIncludePathModuleNames.AddRange(new string[]
+		{
+			"CoreUObject",
+			"DerivedDataCache",
+			"Engine",
+			"TargetPlatform",
+			"TextureCompressor",
+		});
 
-		PrivateDependencyModuleNames.AddRange(
-			new string[] {
-				"Core",
-				"ImageCore",
-				"ImageWrapper",
-				"TextureBuild"
-			}
-        );
+		PrivateDependencyModuleNames.AddRange(new string[]
+		{
+			"Core",
+			"ImageCore",
+			"ImageWrapper",
+			"TextureBuild",
+		});
 
 		string ReleaseLib = null;
 		string DebugLib = null;
@@ -57,22 +55,22 @@ public class TextureFormatOodle : ModuleRules
 
 		bool bSkipLibrarySetup = false;
 
-        if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
-        {
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
+		{
 			ReleaseLib = "oo2tex_win64.lib";
 			DebugLib = "oo2tex_win64_debug.lib";
 			PlatformDir = "Win64";
-        }
-        else if (Target.Platform == UnrealTargetPlatform.Mac)
-        {
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Mac)
+		{
 			ReleaseLib = "liboo2texmac64.a";
 			DebugLib = "liboo2texmac64_dbg.a";
-        }
-        else if (Target.Platform == UnrealTargetPlatform.Linux)
-        {
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Linux)
+		{
 			ReleaseLib = "liboo2texlinux64.a";
 			DebugLib = "liboo2texlinux64_dbg.a";
-        }
+		}
 		else if (Target.Platform == UnrealTargetPlatform.LinuxArm64)
 		{
 			ReleaseLib = "liboo2texlinuxarm64.a";

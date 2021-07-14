@@ -4,7 +4,7 @@ using UnrealBuildTool;
 using System.Collections.Generic;
 
 [SupportedPlatforms(UnrealPlatformClass.Desktop)]
-public class BaseTextureBuildWorkerTarget : DerivedDataBuildWorkerTarget
+public class BaseTextureBuildWorkerTarget : TextureBuildWorkerTarget
 {
 	public BaseTextureBuildWorkerTarget(TargetInfo Target) : base(Target)
 	{
