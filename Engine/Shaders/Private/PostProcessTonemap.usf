@@ -56,10 +56,17 @@ float4 ColorScale1;
 // from the postprocess settings, x:VignetteIntensity, y:SharpenDiv6
 float4 TonemapperParams;
 
-// Film grain
+// Grain quantization
 float3 GrainRandomFull;
+
+// Film grain
 float FilmGrainMul;
 float FilmGrainAdd;
+float FilmGrainIntensityShadows;
+float FilmGrainIntensityMidtones;
+float FilmGrainIntensityHighlights;
+float FilmGrainShadowsMax;
+float FilmGrainHighlightsMin;
 Texture2D<half3> FilmGrainTexture;
 SamplerState FilmGrainSampler;
 float4 ScreenPosToFilmGrainTextureUV;
@@ -110,6 +117,32 @@ half3 LinearToPostTonemapSpace(half3 lin)
 	return LinearToSrgbBranchless(lin);
 #endif
 }
+
+
+// Nuke-style Color Correct
+float ComputeFilmGrainIntensity(float3 LinearColorRGBGamut)
+{
+	const float3x3 sRGB_2_AP1 = mul( XYZ_2_AP1_MAT, mul( D65_2_D60_CAT, sRGB_2_XYZ_MAT ) );
+	const float3x3 AP1_2_sRGB = mul( XYZ_2_sRGB_MAT, mul( D60_2_D65_CAT, AP1_2_XYZ_MAT ) );
+
+	float3 ColorAP1 = mul(sRGB_2_AP1, LinearColorRGBGamut);
+	
+	//float Luma = dot(ColorAP1, AP1_RGB2Y);
+	float Luma = dot(LinearColorRGBGamut,  mul(AP1_2_sRGB, AP1_RGB2Y));
+
+	float CCWeightShadows = 1 - smoothstep(0, FilmGrainShadowsMax, Luma);
+	float CCWeightHighlights = smoothstep(FilmGrainHighlightsMin, 1, Luma);
+	float CCWeightMidtones = 1 - CCWeightShadows - CCWeightHighlights;
+	
+	// Blend Shadow, Midtone and Highlight CCs
+	float FilmGrainIntensity = (
+		FilmGrainIntensityShadows * CCWeightShadows +
+		FilmGrainIntensityMidtones * CCWeightMidtones +
+		FilmGrainIntensityHighlights * CCWeightHighlights);
+	
+	return FilmGrainIntensity;
+}
+
 
 // LUT for color grading
 #if USE_VOLUME_LUT == 1
@@ -564,12 +597,14 @@ float4 TonemapCommonPS(
 
 		#if USE_FILM_GRAIN
 		{
+			half FilmGrainIntensity = ComputeFilmGrainIntensity(LinearColor);
+
 			float2 FilmGrainUV = ApplyScreenTransform(ScreenPos, ScreenPosToFilmGrainTextureUV);
 
 			half3 RawGrain = FilmGrainTexture.SampleLevel(FilmGrainSampler, FilmGrainUV, 0);
 			half3 FinalGrain = RawGrain * half(FilmGrainMul) + half(FilmGrainAdd);
 
-			LinearColor.rgb *= FinalGrain;
+			LinearColor.rgb *= lerp(1.0, FinalGrain, FilmGrainIntensity);
 		}
 		#endif
 

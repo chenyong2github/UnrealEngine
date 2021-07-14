@@ -1437,6 +1437,11 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		LERP_PP(LensFlareThreshold);
 		LERP_PP(VignetteIntensity);
 		LERP_PP(FilmGrainIntensity);
+		LERP_PP(FilmGrainIntensityShadows);
+		LERP_PP(FilmGrainIntensityMidtones);
+		LERP_PP(FilmGrainIntensityHighlights);
+		LERP_PP(FilmGrainShadowsMax);
+		LERP_PP(FilmGrainHighlightsMin);
 		LERP_PP(FilmGrainTexelSize);
 		LERP_PP(AmbientOcclusionIntensity);
 		LERP_PP(AmbientOcclusionStaticFraction);

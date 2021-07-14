@@ -314,6 +314,11 @@ BEGIN_SHADER_PARAMETER_STRUCT(FFilmGrainParameters, )
 	SHADER_PARAMETER(FVector3f, GrainRandomFull)
 	SHADER_PARAMETER(float, FilmGrainMul)
 	SHADER_PARAMETER(float, FilmGrainAdd)
+	SHADER_PARAMETER(float, FilmGrainIntensityShadows)
+	SHADER_PARAMETER(float, FilmGrainIntensityMidtones)
+	SHADER_PARAMETER(float, FilmGrainIntensityHighlights)
+	SHADER_PARAMETER(float, FilmGrainShadowsMax)
+	SHADER_PARAMETER(float, FilmGrainHighlightsMin)
 	SHADER_PARAMETER_TEXTURE(Texture2D, FilmGrainTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, FilmGrainSampler)
 	SHADER_PARAMETER(FScreenTransform, ScreenPosToFilmGrainTextureUV)
@@ -564,9 +569,15 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 	{
 		check(View.FilmGrainTexture);
 
-		// (FilmGrainTexture * FilmGrainDecodeMultiply + FilmGrainDecodeAdd) * View.FinalPostProcessSettings.FilmGrainIntensity + 1.0f - View.FinalPostProcessSettings.FilmGrainIntensity
-		CommonParameters.FilmGrain.FilmGrainMul = View.FinalPostProcessSettings.FilmGrainDecodeMultiply * View.FinalPostProcessSettings.FilmGrainIntensity;
-		CommonParameters.FilmGrain.FilmGrainAdd = View.FinalPostProcessSettings.FilmGrainDecodeAdd * View.FinalPostProcessSettings.FilmGrainIntensity + 1.0f - View.FinalPostProcessSettings.FilmGrainIntensity;
+		// (FilmGrainTexture * FilmGrainDecodeMultiply + FilmGrainDecodeAdd)
+		CommonParameters.FilmGrain.FilmGrainMul = View.FinalPostProcessSettings.FilmGrainDecodeMultiply;
+		CommonParameters.FilmGrain.FilmGrainAdd = View.FinalPostProcessSettings.FilmGrainDecodeAdd;
+		CommonParameters.FilmGrain.FilmGrainIntensityShadows    = View.FinalPostProcessSettings.FilmGrainIntensity * View.FinalPostProcessSettings.FilmGrainIntensityShadows;
+		CommonParameters.FilmGrain.FilmGrainIntensityMidtones   = View.FinalPostProcessSettings.FilmGrainIntensity * View.FinalPostProcessSettings.FilmGrainIntensityMidtones;
+		CommonParameters.FilmGrain.FilmGrainIntensityHighlights = View.FinalPostProcessSettings.FilmGrainIntensity * View.FinalPostProcessSettings.FilmGrainIntensityHighlights;
+		CommonParameters.FilmGrain.FilmGrainShadowsMax = View.FinalPostProcessSettings.FilmGrainShadowsMax;
+		CommonParameters.FilmGrain.FilmGrainHighlightsMin = View.FinalPostProcessSettings.FilmGrainHighlightsMin;
+
 		CommonParameters.FilmGrain.FilmGrainTexture = View.FilmGrainTexture->GetTexture2DRHI();
 		CommonParameters.FilmGrain.FilmGrainSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap>::GetRHI();
 
@@ -588,6 +599,11 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 	{
 		CommonParameters.FilmGrain.FilmGrainMul = 0.0f;
 		CommonParameters.FilmGrain.FilmGrainAdd = 1.0f;
+		CommonParameters.FilmGrain.FilmGrainIntensityShadows = 0.0f;
+		CommonParameters.FilmGrain.FilmGrainIntensityMidtones = 0.0f;
+		CommonParameters.FilmGrain.FilmGrainIntensityHighlights = 0.0f;
+		CommonParameters.FilmGrain.FilmGrainShadowsMax = 0.09f;
+		CommonParameters.FilmGrain.FilmGrainHighlightsMin = 0.5f;
 		CommonParameters.FilmGrain.FilmGrainTexture = GWhiteTexture->TextureRHI;
 		CommonParameters.FilmGrain.FilmGrainSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap>::GetRHI();
 		CommonParameters.FilmGrain.ScreenPosToFilmGrainTextureUV = FScreenTransform::ScreenPosToViewportUV;
