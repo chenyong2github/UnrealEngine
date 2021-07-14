@@ -98,7 +98,9 @@ void SRCPanelExposedEntitiesList::OnObjectPropertyChange(UObject* InObject, FPro
 		return PropertyClass && (PropertyClass == FArrayProperty::StaticClass() || PropertyClass == FSetProperty::StaticClass() || PropertyClass == FMapProperty::StaticClass());
 	};
 
-	if ((InChangeEvent.ChangeType & TypesNeedingRefresh) != 0 && InChangeEvent.MemberProperty && IsRelevantProperty(InChangeEvent.MemberProperty->GetClass()))
+	if ((InChangeEvent.ChangeType & TypesNeedingRefresh) != 0 
+		&& (InChangeEvent.MemberProperty && IsRelevantProperty(InChangeEvent.MemberProperty->GetClass())
+			|| InChangeEvent.Property && IsRelevantProperty(InChangeEvent.Property->GetClass())))
 	{
 		if (TSharedPtr<FRCPanelWidgetRegistry> Registry = WidgetRegistry.Pin())
 		{
