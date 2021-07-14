@@ -82,7 +82,6 @@ private:
 	bool bResetOnNextTick = false;
 
 	TSharedPtr<FTaskTimingTrack> TaskTrack;
-	TSharedPtr<FUICommandList> CommandList;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

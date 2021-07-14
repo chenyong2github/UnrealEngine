@@ -33,24 +33,31 @@ public:
 	virtual void OnEndSession(Insights::ITimingViewSession& InSession) override;
 	virtual void Tick(Insights::ITimingViewSession& InSession, const TraceServices::IAnalysisSession& InAnalysisSession) override;
 	virtual void ExtendFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) override;
-	virtual bool ExtendGlobalContextMenu(ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) override { return false; }
+	virtual bool ExtendGlobalContextMenu(ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder) override;
 
 	//////////////////////////////////////////////////
 
-	bool IsContextSwitchesToggleOn() const { return bShowHideContextSwitchesTrack; }
-	void SetContextSwitchesToggle(bool bOnOff) { bShowHideContextSwitchesTrack = bOnOff; }
+	bool IsContextSwitchesToggleOn() const { return bShowContextSwitchesTrack; }
+	void SetContextSwitchesToggle(bool bOnOff) { bShowContextSwitchesTrack = bOnOff; }
 	void ShowContextSwitches() { SetContextSwitchesToggle(true); }
 	void HideContextSwitches() { SetContextSwitchesToggle(false); }
 
 	STimingView* GetTimingView() { return TimingView; }
+	void AddCommands();
 
 private:
-	void InitCommandList();
+	void ContextMenu_ShowContextSwitches_Execute();
+	bool ContextMenu_ShowContextSwitches_CanExecute();
+	bool ContextMenu_ShowContextSwitches_IsChecked();
+
+	void AddContextSwitchesChildTracks();
+	void RemoveContextSwitchesChildTracks();
+
 
 private:
 	STimingView* TimingView;
 
-	bool bShowHideContextSwitchesTrack;
+	bool bShowContextSwitchesTrack = true;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

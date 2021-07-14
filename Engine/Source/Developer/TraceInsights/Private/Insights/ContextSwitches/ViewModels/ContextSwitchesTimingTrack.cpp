@@ -46,8 +46,11 @@ public:
 	PRAGMA_DISABLE_OPTIMIZATION
 	virtual void RegisterCommands() override
 	{
+		UI_COMMAND(Command_ShowContextSwitches, "Show Context Switches ", "Show/hide context switches events as header tracks", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Shift, EKeys::C));
 	}
 	PRAGMA_ENABLE_OPTIMIZATION
+
+	TSharedPtr<FUICommandInfo> Command_ShowContextSwitches;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -77,6 +80,8 @@ void FContextSwitchesSharedState::OnEndSession(Insights::ITimingViewSession& InS
 	{
 		return;
 	}
+
+	AddContextSwitchesChildTracks();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -88,6 +93,58 @@ void FContextSwitchesSharedState::Tick(Insights::ITimingViewSession& InSession, 
 		return;
 	}
 
+	if (!FInsightsManager::Get()->IsAnalysisComplete() && bShowContextSwitchesTrack)
+	{
+		AddContextSwitchesChildTracks();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FContextSwitchesSharedState::ExtendFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InOutMenuBuilder)
+{
+	if (&InSession != TimingView)
+	{
+		return;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FContextSwitchesSharedState::ExtendGlobalContextMenu(ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder)
+{
+	InMenuBuilder.AddMenuEntry
+	(
+		FContextSwitchesStateCommands::Get().Command_ShowContextSwitches,
+		NAME_None,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon()
+	);
+
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FContextSwitchesSharedState::AddCommands()
+{
+	FContextSwitchesStateCommands::Register();
+
+	TSharedPtr<FUICommandList> CommandList = TimingView->GetCommandList();
+	ensure(CommandList.IsValid());
+
+	CommandList->MapAction(
+		FContextSwitchesStateCommands::Get().Command_ShowContextSwitches,
+		FExecuteAction::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowContextSwitches_Execute),
+		FCanExecuteAction::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowContextSwitches_CanExecute),
+		FIsActionChecked::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowContextSwitches_IsChecked));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FContextSwitchesSharedState::AddContextSwitchesChildTracks()
+{
 	TSharedPtr<FThreadTimingSharedState> TimingSharedState = TimingView->GetThreadTimingSharedState();
 
 	if (!TimingSharedState.IsValid())
@@ -110,19 +167,54 @@ void FContextSwitchesSharedState::Tick(Insights::ITimingViewSession& InSession, 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FContextSwitchesSharedState::ExtendFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InOutMenuBuilder)
+void FContextSwitchesSharedState::RemoveContextSwitchesChildTracks()
 {
-	if (&InSession != TimingView)
+	TSharedPtr<FThreadTimingSharedState> TimingSharedState = TimingView->GetThreadTimingSharedState();
+
+	if (!TimingSharedState.IsValid())
 	{
 		return;
+	}
+
+	const TMap<uint32, TSharedPtr<FCpuTimingTrack>>& CpuTracks = TimingSharedState->GetAllCpuTracks();
+
+	for (const TPair<uint32, TSharedPtr<FCpuTimingTrack>>& MapEntry : CpuTracks)
+	{
+		if (MapEntry.Value.IsValid() && MapEntry.Value->GetChildTrack().IsValid() && MapEntry.Value->GetChildTrack()->Is<FContextSwitchesTimingTrack>())
+		{
+			MapEntry.Value->SetChildTrack(nullptr);
+		}
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FContextSwitchesSharedState::InitCommandList()
+void FContextSwitchesSharedState::ContextMenu_ShowContextSwitches_Execute()
 {
-	FContextSwitchesStateCommands::Register();
+	SetContextSwitchesToggle(!bShowContextSwitchesTrack);
+
+	if (bShowContextSwitchesTrack)
+	{
+		AddContextSwitchesChildTracks();
+	}
+	else
+	{
+		RemoveContextSwitchesChildTracks();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FContextSwitchesSharedState::ContextMenu_ShowContextSwitches_CanExecute()
+{
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FContextSwitchesSharedState::ContextMenu_ShowContextSwitches_IsChecked()
+{
+	return IsContextSwitchesToggleOn();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

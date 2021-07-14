@@ -157,6 +157,7 @@ bool FContextSwitchesProfilerManager::Tick(float DeltaTime)
 				if (!ContextSwitchesSharedState.IsValid())
 				{
 					ContextSwitchesSharedState = MakeShared<FContextSwitchesSharedState>(TimingView.Get());
+					ContextSwitchesSharedState->AddCommands();
 					IModularFeatures::Get().RegisterModularFeature(Insights::TimingViewExtenderFeatureName, ContextSwitchesSharedState.Get());
 				}
 			}
