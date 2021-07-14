@@ -99,8 +99,8 @@ void SRCPanelExposedEntitiesList::OnObjectPropertyChange(UObject* InObject, FPro
 	};
 
 	if ((InChangeEvent.ChangeType & TypesNeedingRefresh) != 0 
-		&& (InChangeEvent.MemberProperty && IsRelevantProperty(InChangeEvent.MemberProperty->GetClass())
-			|| InChangeEvent.Property && IsRelevantProperty(InChangeEvent.Property->GetClass())))
+		&& ((InChangeEvent.MemberProperty && IsRelevantProperty(InChangeEvent.MemberProperty->GetClass()))
+			|| (InChangeEvent.Property && IsRelevantProperty(InChangeEvent.Property->GetClass()))))
 	{
 		if (TSharedPtr<FRCPanelWidgetRegistry> Registry = WidgetRegistry.Pin())
 		{
