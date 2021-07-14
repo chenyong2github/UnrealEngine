@@ -1514,6 +1514,13 @@ static void ShaderAutogenInit()
 			}
 		}
 	}
+
+	// also do this for the editor mobile preview
+	EShaderPlatform MobilePreviewShaderPlatform = GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1];
+	if (MobilePreviewShaderPlatform != SP_NumPlatforms)
+	{
+		FShaderCompileUtilities::GenerateBrdfHeaders(MobilePreviewShaderPlatform);
+	}
 }
 #endif // WITH_EDITOR
 
