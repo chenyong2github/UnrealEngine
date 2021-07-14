@@ -82,11 +82,14 @@ void UWidgetBlueprintThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, 
 	WidgetRenderer->SetIsPrepassNeeded(false);
 	const bool bIsLinearSpace = !bApplyGammaCorrection;
 
-	UTextureRenderTarget2D* RenderTarget2D = NewObject<UTextureRenderTarget2D>();
-	RenderTarget2D->Filter = TF_Bilinear;
-	RenderTarget2D->ClearColor = FLinearColor::Transparent;
-	RenderTarget2D->SRGB = true;
-	RenderTarget2D->TargetGamma = 1;
+	if (!RenderTarget2D)
+	{
+		RenderTarget2D  = NewObject<UTextureRenderTarget2D>();
+		RenderTarget2D->Filter = TF_Bilinear;
+		RenderTarget2D->ClearColor = FLinearColor::Transparent;
+		RenderTarget2D->SRGB = true;
+		RenderTarget2D->TargetGamma = 1;
+	}
 
 	const EPixelFormat RequestedFormat = FSlateApplication::Get().GetRenderer()->GetSlateRecommendedColorFormat();
 	RenderTarget2D->InitCustomFormat(DesiredSizeWindow.X, DesiredSizeWindow.Y, RequestedFormat, true);
@@ -101,6 +104,7 @@ void UWidgetBlueprintThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, 
 
 	FCanvasTileItem CanvasTile(FVector2D(X + DrawOffset.X, Y + DrawOffset.Y), RenderTarget2D->GetResource(), WidgetSize, FLinearColor::White);
 	CanvasTile.BlendMode = SE_BLEND_Translucent;
+	FlushRenderingCommands();
 	CanvasTile.Draw(Canvas);
 
 	if (WidgetRenderer)
