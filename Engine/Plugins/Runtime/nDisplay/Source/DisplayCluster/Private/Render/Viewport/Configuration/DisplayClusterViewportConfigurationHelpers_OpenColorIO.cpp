@@ -20,25 +20,31 @@ bool FDisplayClusterViewportConfigurationHelpers_OpenColorIO::ImplUpdateOuterVie
 	{
 		for (const FDisplayClusterConfigurationOCIOProfile& OCIOProfileIt : StageSettings.PerViewportOCIOProfiles)
 		{
-			for (const FString& ViewportNameIt : OCIOProfileIt.ApplyOCIOToObjects)
+			if (OCIOProfileIt.bIsEnabled)
 			{
-				if (DstViewport.GetId().Compare(ViewportNameIt, ESearchCase::IgnoreCase) == 0)
+				for (const FString& ViewportNameIt : OCIOProfileIt.ApplyOCIOToObjects)
 				{
-					// Use per-viewport OCIO overrides
-					if (FDisplayClusterViewportConfigurationHelpers_OpenColorIO::ImplUpdate(DstViewport, OCIOProfileIt.OCIOConfiguration))
+					if (DstViewport.GetId().Compare(ViewportNameIt, ESearchCase::IgnoreCase) == 0)
 					{
-						return true;
-					}
+						// Use per-viewport OCIO overrides
+						if (FDisplayClusterViewportConfigurationHelpers_OpenColorIO::ImplUpdate(DstViewport, OCIOProfileIt.OCIOConfiguration))
+						{
+							return true;
+						}
 
-					break;
+						break;
+					}
 				}
 			}
 		}
 
 		// use all viewports OCIO RootActor
-		if (ImplUpdate(DstViewport, StageSettings.AllViewportsOCIOConfiguration))
+		if (StageSettings.AllViewportsOCIOConfiguration.bIsEnabled)
 		{
-			return true;
+			if (ImplUpdate(DstViewport, StageSettings.AllViewportsOCIOConfiguration.OCIOConfiguration))
+			{
+				return true;
+			}
 		}
 	}
 
@@ -83,24 +89,27 @@ bool FDisplayClusterViewportConfigurationHelpers_OpenColorIO::UpdateICVFXCameraV
 		{
 			for (const FDisplayClusterConfigurationOCIOProfile& OCIOProfileIt : CameraSettings.PerNodeOCIOProfiles)
 			{
-				for (const FString& ClusterNodeIt : OCIOProfileIt.ApplyOCIOToObjects)
+				if (OCIOProfileIt.bIsEnabled)
 				{
-					if (ClusterNodeId.Compare(ClusterNodeIt, ESearchCase::IgnoreCase) == 0)
+					for (const FString& ClusterNodeIt : OCIOProfileIt.ApplyOCIOToObjects)
 					{
-						// Use cluster node OCIO
-						if (FDisplayClusterViewportConfigurationHelpers_OpenColorIO::ImplUpdate(DstViewport, OCIOProfileIt.OCIOConfiguration))
+						if (ClusterNodeId.Compare(ClusterNodeIt, ESearchCase::IgnoreCase) == 0)
 						{
-							return true;
-						}
+							// Use cluster node OCIO
+							if (FDisplayClusterViewportConfigurationHelpers_OpenColorIO::ImplUpdate(DstViewport, OCIOProfileIt.OCIOConfiguration))
+							{
+								return true;
+							}
 
-						break;
+							break;
+						}
 					}
 				}
 			}
 		}
 
 		// cluster node OCIO override not found, use all nodes configuration
-		if (ImplUpdate(DstViewport, CameraSettings.AllNodesOCIOConfiguration))
+		if (ImplUpdate(DstViewport, CameraSettings.AllNodesOCIOConfiguration.OCIOConfiguration))
 		{
 			return true;
 		}

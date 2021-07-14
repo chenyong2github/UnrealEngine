@@ -214,7 +214,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
 	FDisplayClusterConfigurationPostRender_Override Override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
+	UPROPERTY()
 	FDisplayClusterConfigurationPostRender_BlurPostprocess PostprocessBlur;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
@@ -312,7 +312,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay)
 	FDisplayClusterConfigurationPostRender_Override Override;
 
-	UPROPERTY(BlueprintReadWrite, Category = NDisplay)
+	UPROPERTY()
 	FDisplayClusterConfigurationPostRender_BlurPostprocess PostprocessBlur;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Mipmapping"))
@@ -378,6 +378,8 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraS
 {
 	GENERATED_BODY()
 
+	FDisplayClusterConfigurationICVFX_CameraSettings();
+
 public:
 	// Enable this camera
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Inner Frustum"))
@@ -418,18 +420,22 @@ public:
 
 	// OCIO Display look configuration for this camera
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "All Nodes OCIO Configuration", EditCondition = "bEnable"))
-	FOpenColorIODisplayConfiguration AllNodesOCIOConfiguration;
+	FDisplayClusterConfigurationOCIOConfiguration AllNodesOCIOConfiguration;
 
 	// Define special OCIO for cluster nodes for this camera
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "Per-Node OCIO Overrides", ConfigurationMode = "ClusterNodes", EditCondition = "bEnable"))
 	TArray<FDisplayClusterConfigurationOCIOProfile> PerNodeOCIOProfiles;
 
+	// Apply the global cluster post process settings to all viewports
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inner Frustum Color Grading", meta = (DisplayName = "Enable Inner Frustum Color Grading"))
+	bool bUseInnerFrustumColorGrading = false;
+
 	// Inner Frustum Color Grading look configuration
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inner Frustum Color Grading", meta = (DisplayName = "All Nodes Color Grading", EditCondition = "bEnable"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inner Frustum Color Grading", meta = (DisplayName = "All Nodes Color Grading", EditCondition = "bEnable && bUseInnerFrustumColorGrading"))
 	FDisplayClusterConfigurationViewport_ColorGradingConfiguration AllNodesColorGradingConfiguration;
 
 	// Define special per-node Inner Frustum Color Grading
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inner Frustum Color Grading", meta = (DisplayName = "Per-Node Color Grading", ConfigurationMode = "ClusterNodes", EditCondition = "bEnable"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inner Frustum Color Grading", meta = (DisplayName = "Per-Node Color Grading Overrides", ConfigurationMode = "ClusterNodes", EditCondition = "bEnable && bUseInnerFrustumColorGrading"))
 	TArray<FDisplayClusterConfigurationViewport_ColorGradingProfile> PerNodeColorGradingProfiles;
 
 	// Special hide list for this camera viewport
@@ -441,9 +447,6 @@ USTRUCT(Blueprintable)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_StageSettings
 {
 	GENERATED_BODY()
-
-public:
-	FDisplayClusterConfigurationICVFX_StageSettings();
 
 public:
 	// Allow ICVFX features
@@ -476,26 +479,26 @@ public:
 	FDisplayClusterConfigurationICVFX_VisibilityList OuterViewportHideList;
 
 	// Apply the global cluster post process settings to all viewports
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Enable Entire Cluster Color Grading", EditCondition = "bEnable"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Enable Entire Cluster Color Grading"))
 	bool bUseOverallClusterPostProcess = true;
 
 	// Global cluster post process settings
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Entire Cluster Color Grading", EditCondition = "bEnable && bUseOverallClusterPostProcess"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Entire Cluster", EditCondition = "bUseOverallClusterPostProcess"))
 	FDisplayClusterConfigurationViewport_PerViewportSettings OverallClusterPostProcessSettings;
 
 	// Define special per-viewport Color Grading
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Per-Viewport Color Grading", ConfigurationMode = "Viewports", EditCondition = "bEnable && bUseOverallClusterPostProcess"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Per-Viewport", ConfigurationMode = "Viewports", EditCondition = "bUseOverallClusterPostProcess"))
 	TArray<FDisplayClusterConfigurationViewport_ColorGradingProfile> PerViewportColorGradingProfiles;
 
 	// Apply the global cluster OCIO settings to all viewports
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "Enable Viewport OCIO", EditCondition = "bEnable"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "Enable Viewport OCIO"))
 	bool bUseOverallClusterOCIOConfiguration = true;
 
 	// OCIO Display look configuration for outer viewports
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "All Viewports Color Configuration", EditCondition = "bEnable && bUseOverallClusterOCIOConfiguration"))
-	FOpenColorIODisplayConfiguration AllViewportsOCIOConfiguration;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "All Viewports Color Configuration", EditCondition = "bUseOverallClusterOCIOConfiguration"))
+	FDisplayClusterConfigurationOCIOConfiguration AllViewportsOCIOConfiguration;
 
 	// Define special OCIO for outer viewports
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "Per-Viewport OCIO Overrides", ConfigurationMode = "Viewports", EditCondition = "bEnable && bUseOverallClusterOCIOConfiguration"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "Per-Viewport OCIO Overrides", ConfigurationMode = "Viewports", EditCondition = "bUseOverallClusterOCIOConfiguration"))
 	TArray<FDisplayClusterConfigurationOCIOProfile> PerViewportOCIOProfiles;
 };

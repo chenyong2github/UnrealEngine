@@ -131,11 +131,6 @@ FDisplayClusterConfigurationProjection::FDisplayClusterConfigurationProjection()
 	Type = TEXT("simple");
 }
 
-FDisplayClusterConfigurationICVFX_StageSettings::FDisplayClusterConfigurationICVFX_StageSettings()
-{
-	AllViewportsOCIOConfiguration.bIsEnabled = true;
-}
-
 const float UDisplayClusterConfigurationViewport::ViewportMinimumSize = 1.0f;
 const float UDisplayClusterConfigurationViewport::ViewportMaximumSize = 15360.0f;
 
@@ -337,4 +332,19 @@ FDisplayClusterConfigurationICVFX_CameraRenderSettings::FDisplayClusterConfigura
 {
 	// Setup incamera defaults:
 	GenerateMips.bAutoGenerateMips = true;
+}
+
+FDisplayClusterConfigurationOCIOConfiguration::FDisplayClusterConfigurationOCIOConfiguration()
+{
+	OCIOConfiguration.bIsEnabled = true;
+}
+
+FDisplayClusterConfigurationOCIOProfile::FDisplayClusterConfigurationOCIOProfile()
+{
+	OCIOConfiguration.bIsEnabled = true;
+}
+
+FDisplayClusterConfigurationICVFX_CameraSettings::FDisplayClusterConfigurationICVFX_CameraSettings()
+{
+	AllNodesColorGradingConfiguration.bIsEnabled = true;
 }

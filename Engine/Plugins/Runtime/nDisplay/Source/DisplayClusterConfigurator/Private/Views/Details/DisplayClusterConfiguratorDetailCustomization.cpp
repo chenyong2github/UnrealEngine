@@ -1327,6 +1327,7 @@ void FDisplayClusterConfiguratorNodeSelection::GenerateSelectionWidget(
 		[
 			PropertyHandle->CreatePropertyNameWidget()
 		]
+		.IsEnabled(IsEnabledAttr)
 		.ValueContent()
 		[
 			SAssignNew(OptionsComboBox, SDisplayClusterConfigurationSearchableComboBox)
@@ -1335,6 +1336,7 @@ void FDisplayClusterConfiguratorNodeSelection::GenerateSelectionWidget(
 				.OnSelectionChanged(this, &FDisplayClusterConfiguratorNodeSelection::OnOptionSelected, PropertyHandle)
 				.ContentPadding(2)
 				.MaxListHeight(200.0f)
+				.IsEnabled(IsEnabledAttr)
 				.Content()
 				[
 					SNew(STextBlock)
@@ -1407,32 +1409,44 @@ void FDisplayClusterConfiguratorOCIOProfileCustomization::CustomizeHeader(TShare
 	];
 }
 
+#define GET_CHILD_PROPERTY_HANDLE(InPropertyHandle, OutputPropertyHandle, PropertyClass, PropertyName) \
+	const TSharedPtr<IPropertyHandle> OutputPropertyHandle = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(PropertyClass, PropertyName)); \
+	check(OutputPropertyHandle.IsValid()); \
+	check(OutputPropertyHandle->IsValidHandle());
+
 void FDisplayClusterConfiguratorOCIOProfileCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle,
 	IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
-	const TSharedPtr<IPropertyHandle> OCIOHandle = PropertyHandle->GetChildHandle(
-		GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationOCIOProfile, OCIOConfiguration));
-	check(OCIOHandle->IsValidHandle());
+	GET_CHILD_PROPERTY_HANDLE(PropertyHandle, EnableOCIOHandle, FDisplayClusterConfigurationOCIOProfile, bIsEnabled);
+	
+	GET_CHILD_PROPERTY_HANDLE(PropertyHandle, OCIOConfigurationHandle, FDisplayClusterConfigurationOCIOProfile, OCIOConfiguration);
+	GET_CHILD_PROPERTY_HANDLE(OCIOConfigurationHandle, OCIOHandle, FOpenColorIODisplayConfiguration, ColorConfiguration);
 
-	const TSharedPtr<IPropertyHandle> EnableOCIOHandle = OCIOHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOpenColorIODisplayConfiguration, bIsEnabled));
-	check(EnableOCIOHandle->IsValidHandle());
+	GET_CHILD_PROPERTY_HANDLE(PropertyHandle, ArrayHandle,      FDisplayClusterConfigurationOCIOProfile, ApplyOCIOToObjects);
 	
 	EnableOCIOHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
 		LOCTEXT("EnableOCIOViewportsDisplayName", "Enable Per-Viewport OCIO") : LOCTEXT("EnableOCIOClusterDisplayName", "Enable Per-Node OCIO"));
-	
-	const TSharedPtr<IPropertyHandle> ArrayHandle = PropertyHandle->GetChildHandle(
-		GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationOCIOProfile, ApplyOCIOToObjects));
-	check(ArrayHandle->IsValidHandle());
-	
+
 	OCIOHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
 		LOCTEXT("OCIOViewportsModeDisplayName", "Viewport OCIO") : LOCTEXT("OCIOClusterModeDisplayName", "Inner Frustum OCIO"));
+
 	ArrayHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
 		LOCTEXT("DataViewportsModeDisplayName", "Apply OCIO to Viewports") : LOCTEXT("DataClusterModeDisplayName", "Apply OCIO to Nodes"));
 	ArrayHandle->SetToolTipText(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
 		LOCTEXT("DataViewportsModeToolTip", "Select viewports to receive this OCIO profile.") :
 		LOCTEXT("DataClusterModeToolTip", "Select cluster nodes to receive this OCIO profile."));
 	
-	ChildBuilder.AddProperty(OCIOHandle.ToSharedRef());
+	const TAttribute<bool> OCIOEnabledEditCondition = TAttribute<bool>::Create([this, EnableOCIOHandle]()
+	{
+		bool bCond1 = false;
+		EnableOCIOHandle->GetValue(bCond1);
+		return bCond1;
+	});
+
+	ChildBuilder.AddProperty(EnableOCIOHandle.ToSharedRef());
+	ChildBuilder.AddProperty(OCIOHandle.ToSharedRef()).EditCondition(OCIOEnabledEditCondition, nullptr);
+
+	NodeSelection->IsEnabled(OCIOEnabledEditCondition);
 	NodeSelection->CreateArrayBuilder(ArrayHandle.ToSharedRef(), ChildBuilder);
 }
 
@@ -1457,31 +1471,18 @@ void FDisplayClusterConfiguratorColorGradingProfileCustomization::CustomizeHeade
 void FDisplayClusterConfiguratorColorGradingProfileCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle,
 	IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
-	const TSharedPtr<IPropertyHandle> PostProcessSettingsHandle = PropertyHandle->GetChildHandle(
-		GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_ColorGradingProfile, PostProcessSettings));
-	check(PostProcessSettingsHandle->IsValidHandle());
+	GET_CHILD_PROPERTY_HANDLE(PropertyHandle, IsEnabledHandle, FDisplayClusterConfigurationViewport_ColorGradingProfile, bIsEnabled);
+
+	GET_CHILD_PROPERTY_HANDLE(PropertyHandle, ExcludeFromOverallClusterPostProcessHandle, FDisplayClusterConfigurationViewport_ColorGradingProfile, bExcludeFromOverallClusterPostProcess);
+	GET_CHILD_PROPERTY_HANDLE(PropertyHandle, ExcludeFromAllNodesPostProcessHandle, FDisplayClusterConfigurationViewport_ColorGradingProfile, bExcludeFromAllNodesPostProcess);
+	GET_CHILD_PROPERTY_HANDLE(PropertyHandle, PostProcessSettingsHandle, FDisplayClusterConfigurationViewport_ColorGradingProfile, PostProcessSettings);
+	GET_CHILD_PROPERTY_HANDLE(PropertyHandle, ArrayHandle, FDisplayClusterConfigurationViewport_ColorGradingProfile, ApplyPostProcessToObjects);
+
+	IsEnabledHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
+		LOCTEXT("EnablePostProcessViewportsDisplayName", "Enable Viewport Color Grading") : LOCTEXT("EnablePostProcessClusterDisplayName", "Enable Inner Frustum Color Grading"));
 
 	PostProcessSettingsHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
 		LOCTEXT("PostProcessViewportsModeDisplayName", "Color Grading") : LOCTEXT("PostProcessClusterModeDisplayName", "Color Grading"));
-
-	const TSharedPtr<IPropertyHandle> EnablePostProcessHandle = PostProcessSettingsHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_ColorGradingConfiguration, bIsEnabled));
-	check(EnablePostProcessHandle->IsValidHandle());
-
-	EnablePostProcessHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
-		LOCTEXT("EnablePostProcessViewportsDisplayName", "Enable Viewport Color Grading") : LOCTEXT("EnablePostProcessClusterDisplayName", "Enable Inner Frustum Color Grading"));
-
-	/*
-	const TAttribute<bool> EnablePostprocess = TAttribute<bool>::Create([this, EnablePostProcessHandle]()
-	{
-		bool bEnable = false;
-		EnablePostProcessHandle->GetValue(bEnable);
-		return bEnable;
-	});
-	*/
-
-	const TSharedPtr<IPropertyHandle> ArrayHandle = PropertyHandle->GetChildHandle(
-		GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_ColorGradingProfile, ApplyPostProcessToObjects));
-	check(ArrayHandle->IsValidHandle());
 
 	ArrayHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
 		LOCTEXT("PostProcessDataViewportsModeDisplayName", "Apply Color Grading to Viewports") : LOCTEXT("PostProcessDataClusterModeDisplayName", "Apply Color Grading to Nodes"));
@@ -1489,7 +1490,28 @@ void FDisplayClusterConfiguratorColorGradingProfileCustomization::CustomizeChild
 		LOCTEXT("PostProcessDataViewportsModeToolTip", "Select viewports to receive this Color Grading profile.") :
 		LOCTEXT("PostProcessDataClusterModeToolTip", "Select cluster nodes to receive this Color Grading profile."));
 
-	ChildBuilder.AddProperty(PostProcessSettingsHandle.ToSharedRef());
+	const TAttribute<bool> IsEnabledEditCondition = TAttribute<bool>::Create([this, IsEnabledHandle]()
+	{
+		bool bCond1 = false;
+		IsEnabledHandle->GetValue(bCond1);
+		return bCond1;
+	});
+
+	ChildBuilder.AddProperty(ExcludeFromOverallClusterPostProcessHandle.ToSharedRef());
+
+	if (Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::ClusterNodes)
+	{
+		ChildBuilder.AddProperty(ExcludeFromAllNodesPostProcessHandle.ToSharedRef());
+	}
+
+	ChildBuilder.AddProperty(IsEnabledHandle.ToSharedRef());
+	ChildBuilder.AddProperty(PostProcessSettingsHandle.ToSharedRef()).EditCondition(IsEnabledEditCondition, nullptr);
+
+	const TAttribute<bool> IsArrayHandleEnabledEditCondition = TAttribute<bool>::Create([this]()
+	{
+		return true;
+	});
+	NodeSelection->IsEnabled(IsArrayHandleEnabledEditCondition);
 	NodeSelection->CreateArrayBuilder(ArrayHandle.ToSharedRef(), ChildBuilder);
 }
 #undef LOCTEXT_NAMESPACE

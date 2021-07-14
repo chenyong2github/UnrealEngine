@@ -407,6 +407,12 @@ public:
 
 	void CreateArrayBuilder(const TSharedRef<IPropertyHandle>& InPropertyHandle, IDetailChildrenBuilder& InChildBuilder);
 
+	FDisplayClusterConfiguratorNodeSelection& IsEnabled(const TAttribute<bool>& InIsEnabled)
+	{
+		IsEnabledAttr = InIsEnabled;
+		return *this;
+	}
+
 	static EOperationMode GetOperationModeFromProperty(FProperty* Property);
 
 protected:
@@ -417,6 +423,8 @@ protected:
 	FText GetSelectedOptionText(TSharedRef<IPropertyHandle> InPropertyHandle) const;
 
 private:
+	TAttribute<bool> IsEnabledAttr;
+
 	TSharedPtr<SDisplayClusterConfigurationSearchableComboBox> OptionsComboBox;
 	TArray<TSharedPtr<FString>> Options;
 

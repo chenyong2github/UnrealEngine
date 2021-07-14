@@ -184,8 +184,8 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_PerV
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_ColorCorrectionShadowsMax:1;
 
-	// Blend weight
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	// Not Implemented: Blend weight
+	UPROPERTY()
 	float BlendWeight = 1.0f;
 
 	// Exposure compensation
@@ -247,9 +247,25 @@ struct FDisplayClusterConfigurationViewport_ColorGradingProfile
 {
 	GENERATED_BODY()
 
-	// Post process settings
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings")
-	FDisplayClusterConfigurationViewport_ColorGradingConfiguration PostProcessSettings;
+	// Allow using a profile for this viewport
+	UPROPERTY()
+	bool bIsProfileEnabled = true;
+
+	// Allow using a separate post process for this viewport
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Enable Viewport Color Grading"))
+	bool bIsEnabled = true;
+
+	// Exclude this viewport from the global cluster post process
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Ignore Entire Cluster Color Grading"))
+	bool bExcludeFromOverallClusterPostProcess = false;
+
+	// Exclude this viewport from the all-nodes cluster post process
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Ignore All-Nodes Cluster Color Grading"))
+	bool bExcludeFromAllNodesPostProcess = false;
+
+	// Color Grading look configuration
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Color Grading", EditCondition = "bIsEnabled"))
+	FDisplayClusterConfigurationViewport_PerViewportSettings PostProcessSettings;
 
 	/** The data to receive the profile information. This will either be viewports or nodes. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Viewport Settings")
