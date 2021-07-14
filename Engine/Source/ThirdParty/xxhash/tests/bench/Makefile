@@ -1,6 +1,6 @@
 # ################################################################
-# xxHash Makefile
-# Copyright (C) Yann Collet 2012-present
+# xxHash benchHash Makefile
+# Copyright (C) 2019-2020 Yann Collet
 #
 # GPL v2 License
 #
@@ -18,11 +18,12 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
-# You can contact the author at :
-#  - xxHash source repository : http://code.google.com/p/xxhash/
+# You can contact the author at:
+#   - xxHash homepage: https://www.xxhash.com
+#   - xxHash source repository: https://github.com/Cyan4973/xxHash
 # ################################################################
-# benchHash : generic benchmark for hash algorithms
-#             measuring throughput, latency and bandwidth
+# benchHash: A generic benchmark for hash algorithms
+#            measuring throughput, latency and bandwidth
 # ################################################################
 
 
@@ -31,6 +32,7 @@ CFLAGS   ?= -O3
 CFLAGS   += -std=c99 -Wall -Wextra -Wstrict-aliasing=1
 CFLAGS   += $(MOREFLAGS)   # custom way to add flags
 CXXFLAGS ?= -O3
+LDFLAGS  += $(MOREFLAGS)
 
 
 OBJ_LIST  = main.o bhDisplay.o benchHash.o benchfn.o timefn.o
