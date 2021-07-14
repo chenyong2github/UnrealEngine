@@ -280,16 +280,14 @@ void UControlRigComponent::OnPostSetup_Implementation(UControlRigComponent* Comp
 	OnPostSetupDelegate.Broadcast(Component);
 }
 
-void UControlRigComponent::OnPreUpdate_Implementation(UControlRigComponent* Component)
+void UControlRigComponent::OnPreForwardsSolve_Implementation(UControlRigComponent* Component)
 {
-	TransferInputs();
-	OnPreUpdateDelegate.Broadcast(Component);
+	OnPreForwardsSolveDelegate.Broadcast(Component);
 }
 
-void UControlRigComponent::OnPostUpdate_Implementation(UControlRigComponent* Component)
+void UControlRigComponent::OnPostForwardsSolve_Implementation(UControlRigComponent* Component)
 {
-	TransferOutputs();
-	OnPostUpdateDelegate.Broadcast(Component);
+	OnPostForwardsSolveDelegate.Broadcast(Component);
 }
 
 void UControlRigComponent::Initialize()
@@ -365,17 +363,9 @@ void UControlRigComponent::Update(float DeltaTime)
 					Hierarchy->ResetTransformStack();
 				}
 			}
-
-			if (bUpdateInEditor)
-			{
-				FEditorScriptExecutionGuard AllowScripts;
-				OnPreUpdate(this);
-			}
-			else
 #endif
-			{
-				OnPreUpdate(this);
-			}
+
+			TransferInputs();
 
 #if WITH_EDITOR
 			if(URigHierarchy* Hierarchy = CR->GetHierarchy())
@@ -1123,6 +1113,8 @@ UControlRig* UControlRigComponent::SetupControlRigIfRequired()
 			ControlRig->OnInitialized_AnyThread().RemoveAll(this);
 			ControlRig->OnPreSetup_AnyThread().RemoveAll(this);
 			ControlRig->OnPostSetup_AnyThread().RemoveAll(this);
+			ControlRig->OnPreForwardsSolve_AnyThread().RemoveAll(this);
+			ControlRig->OnPostForwardsSolve_AnyThread().RemoveAll(this);
 			ControlRig->OnExecuted_AnyThread().RemoveAll(this);
 			ControlRig = nullptr;
 		}
@@ -1155,6 +1147,8 @@ void UControlRigComponent::SetControlRig(UControlRig* InControlRig)
 	ControlRig->OnInitialized_AnyThread().AddUObject(this, &UControlRigComponent::HandleControlRigInitializedEvent);
 	ControlRig->OnPreSetup_AnyThread().AddUObject(this, &UControlRigComponent::HandleControlRigPreSetupEvent);
 	ControlRig->OnPostSetup_AnyThread().AddUObject(this, &UControlRigComponent::HandleControlRigPostSetupEvent);
+	ControlRig->OnPreForwardsSolve_AnyThread().AddUObject(this, &UControlRigComponent::HandleControlRigPreForwardsSolveEvent);
+	ControlRig->OnPostForwardsSolve_AnyThread().AddUObject(this, &UControlRigComponent::HandleControlRigPostForwardsSolveEvent);
 	ControlRig->OnExecuted_AnyThread().AddUObject(this, &UControlRigComponent::HandleControlRigExecutedEvent);
 
 	ControlRig->GetDataSourceRegistry()->RegisterDataSource(UControlRig::OwnerComponent, this);
@@ -1550,22 +1544,39 @@ void UControlRigComponent::HandleControlRigPostSetupEvent(UControlRig* InControl
 	}
 }
 
+void UControlRigComponent::HandleControlRigPreForwardsSolveEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
+{
+#if WITH_EDITOR
+	if (bUpdateInEditor)
+	{
+		FEditorScriptExecutionGuard AllowScripts;
+		OnPreForwardsSolve(this);
+	}
+	else
+#endif
+	{
+		OnPreForwardsSolve(this);
+	}
+}
+
+void UControlRigComponent::HandleControlRigPostForwardsSolveEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
+{
+#if WITH_EDITOR
+	if (bUpdateInEditor)
+	{
+		FEditorScriptExecutionGuard AllowScripts;
+		OnPostForwardsSolve(this);
+	}
+	else
+#endif
+	{
+		OnPostForwardsSolve(this);
+	}
+}
+
 void UControlRigComponent::HandleControlRigExecutedEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
 {
-	if (InEventName == FRigUnit_BeginExecution::EventName)
-	{
-#if WITH_EDITOR
-		if (bUpdateInEditor)
-		{
-			FEditorScriptExecutionGuard AllowScripts;
-			OnPostUpdate(this);
-		}
-		else
-#endif
-		{
-			OnPostUpdate(this);
-		}
-	}
+	TransferOutputs();
 }
 
 void UControlRigComponent::ConvertTransformToRigSpace(FTransform& InOutTransform, EControlRigComponentSpace FromSpace)

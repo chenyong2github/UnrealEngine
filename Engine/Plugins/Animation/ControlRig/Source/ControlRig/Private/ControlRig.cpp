@@ -23,6 +23,7 @@
 #include "Engine/Blueprint.h"
 #include "EdGraphSchema_K2.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Settings/ControlRigSettings.h"
 #endif// WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "ControlRig"
@@ -91,6 +92,8 @@ void UControlRig::BeginDestroy()
 	InitializedEvent.Clear();
 	PreSetupEvent.Clear();
 	PostSetupEvent.Clear();
+	PreForwardsSolveEvent.Clear();
+	PostForwardsSolveEvent.Clear();
 	ExecutedEvent.Clear();
 	SetInteractionRig(nullptr);
 
@@ -680,19 +683,34 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 					GetHierarchy()->CopyPose(CDO->GetHierarchy(), false, true);
 				}
 			}
-
-			if (PreSetupEvent.IsBound())
+			
 			{
-				FControlRigBracketScope BracketScope(PreSetupBracket);
-				PreSetupEvent.Broadcast(this, EControlRigState::Update, FRigUnit_PrepareForExecution::EventName);
-			}
+				// save the current control values to preserve user intention
+				// the control values are reapplied to the rig after setup event as it goes out of scope
+				TUniquePtr<UControlRig::FControlValueScope> ValueScope;
+				if (!bSetupModeEnabled && !UControlRigEditorSettings::Get()->bResetControlsOnCompile)
+				{
+					// only do this in non-setup mode because 
+					// when setup mode is enabled, the control values are cleared before reaching here (too late to save them)
+					ValueScope = MakeUnique<UControlRig::FControlValueScope>(this);
+				}
 
-			ExecuteUnits(Context, FRigUnit_PrepareForExecution::EventName);
+				// reset the pose to initial such that setup event can run from a deterministic initial state
+				GetHierarchy()->ResetPoseToInitial();
 
-			if (PostSetupEvent.IsBound())
-			{
-				FControlRigBracketScope BracketScope(PostSetupBracket);
-				PostSetupEvent.Broadcast(this, EControlRigState::Update, FRigUnit_PrepareForExecution::EventName);
+				if (PreSetupEvent.IsBound())
+				{
+					FControlRigBracketScope BracketScope(PreSetupBracket);
+					PreSetupEvent.Broadcast(this, EControlRigState::Update, FRigUnit_PrepareForExecution::EventName);
+				}
+
+				ExecuteUnits(Context, FRigUnit_PrepareForExecution::EventName);
+
+				if (PostSetupEvent.IsBound())
+				{
+					FControlRigBracketScope BracketScope(PostSetupBracket);
+					PostSetupEvent.Broadcast(this, EControlRigState::Update, FRigUnit_PrepareForExecution::EventName);
+				}
 			}
 
 			if (bSetupModeEnabled)
@@ -708,7 +726,6 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 
 	if (!bSetupModeEnabled)
 	{
-
 		if(!IsExecuting())
 		{ 
 
@@ -721,8 +738,26 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 			}
 #endif
 
+			if (InState == EControlRigState::Update && InEventName == FRigUnit_BeginExecution::EventName)
+			{
+				if (PreForwardsSolveEvent.IsBound())
+				{
+					FControlRigBracketScope BracketScope(PreForwardsSolveBracket);
+					PreForwardsSolveEvent.Broadcast(this, EControlRigState::Update, FRigUnit_BeginExecution::EventName);
+				}
+			}
+
 			ExecuteUnits(Context, InEventName);
 
+			if (InState == EControlRigState::Update && InEventName == FRigUnit_BeginExecution::EventName)
+			{
+				if (PostForwardsSolveEvent.IsBound())
+				{
+					FControlRigBracketScope BracketScope(PostForwardsSolveBracket);
+					PostForwardsSolveEvent.Broadcast(this, EControlRigState::Update, FRigUnit_BeginExecution::EventName);
+				}
+			}
+			
 			if (InState == EControlRigState::Init)
 			{
 				ExecuteUnits(Context, FRigUnit_BeginExecution::EventName);
@@ -2601,6 +2636,33 @@ void UControlRig::OnHierarchyTransformUndoRedo(URigHierarchy* InHierarchy, const
 	}
 }
 
+UControlRig::FControlValueScope::FControlValueScope(UControlRig* InControlRig)
+{
+	check(InControlRig);
+
+	TArray<FRigControlElement*> Controls = InControlRig->AvailableControls();
+	for (FRigControlElement* ControlElement : Controls)
+	{
+		ControlValues.Add(ControlElement->GetName(), InControlRig->GetControlValue(ControlElement->GetName()));
+	}
+
+	ControlRig = InControlRig;
+}
+
+UControlRig::FControlValueScope::~FControlValueScope()
+{
+	check(ControlRig);
+
+	for (const TPair<FName, FRigControlValue>& Pair : ControlValues)
+	{
+		if (ControlRig->FindControl(Pair.Key))
+		{
+			// bNotify = false such that it won't trigger sequencer auto key
+			ControlRig->SetControlValue(Pair.Key, Pair.Value, false, FRigControlModifiedContext(), false);
+		}
+	}
+}
+ 
 #undef LOCTEXT_NAMESPACE
 
 

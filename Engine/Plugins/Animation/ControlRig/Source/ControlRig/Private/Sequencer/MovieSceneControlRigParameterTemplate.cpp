@@ -746,6 +746,69 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 
 		if (UControlRig* ControlRig = Cast<UControlRig>(&Object))
 		{
+			TArray<FRigControlElement*> Controls = ControlRig->AvailableControls();
+			FRigControlValue Value;
+			
+			for (FRigControlElement* ControlElement : Controls)
+			{
+				switch (ControlElement->Settings.ControlType)
+				{
+					case ERigControlType::Bool:
+					{
+						const bool Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<bool>();
+						Token.BoolValues.Add(TNameAndValue<bool>{ ControlElement->GetName(), Val });
+						break;
+					}
+					case ERigControlType::Integer:
+					{
+						const int32 Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<int32>();
+						Token.IntegerValues.Add(TNameAndValue<int32>{ ControlElement->GetName(), Val });
+						break;
+					}
+					case ERigControlType::Float:
+					{
+						const float Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<float>();
+						Token.ScalarValues.Add(TNameAndValue<float>{ ControlElement->GetName(), Val });
+						break;
+					}
+					case ERigControlType::Vector2D:
+					{
+						const FVector2D Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector2D>();
+						Token.Vector2DValues.Add(TNameAndValue<FVector2D>{ ControlElement->GetName(), Val });
+						break;
+					}
+					case ERigControlType::Position:
+					case ERigControlType::Scale:
+					case ERigControlType::Rotator:
+					{
+						const FVector Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector>();
+						Token.VectorValues.Add(TNameAndValue<FVector>{ ControlElement->GetName(), Val });
+						//mz todo specify rotator special so we can do quat interps
+						break;
+					}
+					case ERigControlType::Transform:
+					{
+						const FTransform Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FTransform>();
+						Token.TransformValues.Add(TNameAndValue<FTransform>{ ControlElement->GetName(), Val });
+						break;
+					}
+					case ERigControlType::TransformNoScale:
+					{
+						const FTransformNoScale NoScale = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FTransformNoScale>();
+						FTransform Val = NoScale;
+						Token.TransformValues.Add(TNameAndValue<FTransform>{ ControlElement->GetName(), Val });
+						break;
+					}
+					case ERigControlType::EulerTransform:
+					{
+						const FEulerTransform Euler = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FEulerTransform>();
+						FTransform Val = Euler.ToFTransform();
+						Token.TransformValues.Add(TNameAndValue<FTransform>{ ControlElement->GetName(), Val });
+						break;
+					}
+				}
+			}
+
 			if (ControlRig->GetObjectBinding())
 			{
 				if (UControlRigComponent* ControlRigComponent = Cast<UControlRigComponent>(ControlRig->GetObjectBinding()->GetBoundObject()))
@@ -762,69 +825,6 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 				else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(ControlRig->GetObjectBinding()->GetBoundObject()))
 				{
 					Token.SetSkelMesh(SkeletalMeshComponent);
-				}
-			}
-
-			TArray<FRigControlElement*> Controls = ControlRig->AvailableControls();
-			FRigControlValue Value;
-			
-			for (FRigControlElement* ControlElement : Controls)
-			{
-				switch (ControlElement->Settings.ControlType)
-				{
-				case ERigControlType::Bool:
-				{
-					const bool Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<bool>();
-					Token.BoolValues.Add(TNameAndValue<bool>{ ControlElement->GetName(), Val });
-					break;
-				}
-				case ERigControlType::Integer:
-				{
-					const int32 Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<int32>();
-					Token.IntegerValues.Add(TNameAndValue<int32>{ ControlElement->GetName(), Val });
-					break;
-				}
-				case ERigControlType::Float:
-				{
-					const float Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<float>();
-					Token.ScalarValues.Add(TNameAndValue<float>{ ControlElement->GetName(), Val });
-					break;
-				}
-				case ERigControlType::Vector2D:
-				{
-					const FVector2D Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector2D>();
-					Token.Vector2DValues.Add(TNameAndValue<FVector2D>{ ControlElement->GetName(), Val });
-					break;
-				}
-				case ERigControlType::Position:
-				case ERigControlType::Scale:
-				case ERigControlType::Rotator:
-				{
-					const FVector Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector>();
-					Token.VectorValues.Add(TNameAndValue<FVector>{ ControlElement->GetName(), Val });
-					//mz todo specify rotator special so we can do quat interps
-					break;
-				}
-				case ERigControlType::Transform:
-				{
-					const FTransform Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FTransform>();
-					Token.TransformValues.Add(TNameAndValue<FTransform>{ ControlElement->GetName(), Val });
-					break;
-				}
-				case ERigControlType::TransformNoScale:
-				{
-					const FTransformNoScale NoScale = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FTransformNoScale>();
-					FTransform Val = NoScale;
-					Token.TransformValues.Add(TNameAndValue<FTransform>{ ControlElement->GetName(), Val });
-					break;
-				}
-				case ERigControlType::EulerTransform:
-				{
-					const FEulerTransform Euler = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FEulerTransform>();
-					FTransform Val = Euler.ToFTransform();
-					Token.TransformValues.Add(TNameAndValue<FTransform>{ ControlElement->GetName(), Val });
-					break;
-				}
 				}
 			}
 		}
