@@ -686,6 +686,15 @@ void URemoteControlPreset::PostLoad()
 	CreatePropertyWatchers();
 }
 
+void URemoteControlPreset::PostDuplicate(bool bDuplicateForPIE)
+{
+	Super::PostDuplicate(bDuplicateForPIE);
+	if (!bDuplicateForPIE)
+	{
+		PresetId = FGuid::NewGuid();
+	}
+}
+
 void URemoteControlPreset::BeginDestroy()
 {
 	UnregisterDelegates();
