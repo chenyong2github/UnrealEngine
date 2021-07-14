@@ -17,7 +17,7 @@ void UThumbnailRenderer::RenderViewFamily(FCanvas* Canvas, FSceneViewFamily* Vie
 {
 	ViewFamily->EngineShowFlags.ScreenPercentage = false;
 	ViewFamily->SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(
-		*ViewFamily, /* GlobalResolutionFraction = */ 1.0f, /* AllowPostProcessSettingsScreenPercentage = */ false));
+		*ViewFamily, /* GlobalResolutionFraction = */ 1.0f));
 
 	GetRendererModule().BeginRenderingViewFamily(Canvas, ViewFamily);
 }

@@ -164,7 +164,7 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 				{
 					// Screen percentage is still not supported in scene capture.
 					ViewFamily.EngineShowFlags.ScreenPercentage = false;
-					ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.0f, false));
+					ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, 1.0f));
 
 					ViewFamily.bIsRenderedImmediatelyAfterAnotherViewFamily = bIsRenderedImmediatelyAfterAnotherViewFamily;
 

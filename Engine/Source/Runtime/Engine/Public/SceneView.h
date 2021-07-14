@@ -1405,18 +1405,16 @@ struct FDisplayInternalsData
 
 //////////////////////////////////////////////////////////////////////////
 
-/** Exposed screen percentage settings to ISceneViewFamilyScreenPercentage. */
-struct FSceneViewScreenPercentageConfig
+
+/*
+ * Game thread and render thread interface that takes care of a FSceneViewFamily's screen percentage.
+ *
+ * The renderer reserves the right to delete and replace the view family's screen percentage interface
+ * for testing purposes with the r.Test.OverrideScreenPercentageInterface CVar.
+ */
+class ENGINE_API ISceneViewFamilyScreenPercentage
 {
-	// Screen percentage / 100 to apply to a given view of the view family.
-	float PrimaryResolutionFraction;
-
-
-	FSceneViewScreenPercentageConfig()
-		: PrimaryResolutionFraction(1.f)
-	{ }
-
-
+public:
 	// Sets the minimal and max screen percentage.
 	static constexpr float kMinResolutionFraction = 0.01f;
 	static constexpr float kMaxResolutionFraction = 4.0f;
@@ -1429,24 +1427,13 @@ struct FSceneViewScreenPercentageConfig
 	static constexpr float kMinTAAUpsampleResolutionFraction = 0.5f;
 	static constexpr float kMaxTAAUpsampleResolutionFraction = 2.0f;
 
+#if DO_CHECK || USING_CODE_ANALYSIS
+	static bool IsValidResolutionFraction(float ResolutionFraction)
+	{
+		return ResolutionFraction >= kMinResolutionFraction && ResolutionFraction <= kMaxResolutionFraction;
+	}
+#endif
 
-	#if DO_CHECK || USING_CODE_ANALYSIS
-		static bool IsValidResolutionFraction(float ResolutionFraction)
-		{
-			return ResolutionFraction >= kMinResolutionFraction && ResolutionFraction <= kMaxResolutionFraction;
-		}
-	#endif
-};
-
-
-/*
- * Game thread and render thread interface that takes care of a FSceneViewFamily's screen percentage.
- *
- * The renderer reserves the right to delete and replace the view family's screen percentage interface
- * for testing purposes with the r.Test.OverrideScreenPercentageInterface CVar.
- */
-class ENGINE_API ISceneViewFamilyScreenPercentage
-{
 protected:
 	/** 
 	 * Called by the destructor of the view family.
@@ -1455,20 +1442,19 @@ protected:
 	virtual ~ISceneViewFamilyScreenPercentage() {};
 
 	/** 
-	 * Method to know the maximum value that can be set in FSceneViewScreenPercentageConfig::ResolutionFraction.
+	 * Method to know the maximum value that can be returned by GetPrimaryResolutionFraction_RenderThread().
 	 * Can be called on game or rendering thread. This should return >= 1 if screen percentage show flag is disabled.
 	 */
 	virtual float GetPrimaryResolutionFractionUpperBound() const = 0;
 
-	/** Create a new screen percentage interface for a new view family. */
-	virtual ISceneViewFamilyScreenPercentage* Fork_GameThread(const class FSceneViewFamily& ViewFamily) const = 0;
-
 	/**
 	 * Setup view family's view's screen percentage on rendering thread.
 	 * This should leave ResolutionFraction == 1 if screen percentage show flag is disabled.
-	 * @param OutViewScreenPercentageConfigs Screen percentage config to set on the view of the view family.
 	 */
-	virtual void ComputePrimaryResolutionFractions_RenderThread(TArray<FSceneViewScreenPercentageConfig>& OutViewScreenPercentageConfigs) const = 0;
+	virtual float GetPrimaryResolutionFraction_RenderThread() const = 0;
+
+	/** Create a new screen percentage interface for a new view family. */
+	virtual ISceneViewFamilyScreenPercentage* Fork_GameThread(const class FSceneViewFamily& ViewFamily) const = 0;
 
 	friend class FSceneViewFamily;
 	friend class FSceneRenderer;
@@ -1727,13 +1713,13 @@ public:
 
 	FORCEINLINE bool AllowTranslucencyAfterDOF() const { return bAllowTranslucencyAfterDOF; }
 
-	/* Returns the maximum FSceneViewScreenPercentageConfig::PrimaryResolutionFraction. */
+	/* Returns the maximum PrimaryResolutionFraction. */
 	FORCEINLINE float GetPrimaryResolutionFractionUpperBound() const
 	{
 		check(ScreenPercentageInterface != nullptr);
 		float PrimaryUpperBoundFraction = ScreenPercentageInterface->GetPrimaryResolutionFractionUpperBound();
 
-		checkf(FSceneViewScreenPercentageConfig::IsValidResolutionFraction(PrimaryUpperBoundFraction),
+		checkf(ISceneViewFamilyScreenPercentage::IsValidResolutionFraction(PrimaryUpperBoundFraction),
 			TEXT("ISceneViewFamilyScreenPercentage::GetPrimaryResolutionFractionUpperBound()")
 			TEXT(" should return a valide value."));
 

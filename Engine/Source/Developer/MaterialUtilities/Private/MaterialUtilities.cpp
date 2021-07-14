@@ -789,7 +789,7 @@ static void RenderSceneToTexture(
 	ViewFamily.Views.Add(NewView);
 
 	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(
-		ViewFamily, /* GlobalResolutionFraction = */ 1.0f, /* AllowPostProcessSettingsScreenPercentage = */ false));
+		ViewFamily, /* GlobalResolutionFraction = */ 1.0f));
 
 	FCanvas Canvas(RenderTargetResource, NULL, FApp::GetCurrentTime() - GStartTime, FApp::GetDeltaTime(), FApp::GetCurrentTime() - GStartTime, Scene->GetFeatureLevel());
 	Canvas.Clear(FLinearColor::Transparent);

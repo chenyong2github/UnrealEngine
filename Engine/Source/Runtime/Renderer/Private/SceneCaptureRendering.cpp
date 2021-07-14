@@ -675,7 +675,7 @@ static FSceneRenderer* CreateSceneRendererForSceneCapture(
 	// Screen percentage is still not supported in scene capture.
 	ViewFamily.EngineShowFlags.ScreenPercentage = false;
 	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(
-		ViewFamily, /* GlobalResolutionFraction = */ 1.0f, /* AllowPostProcessSettingsScreenPercentage = */ false));
+		ViewFamily, /* GlobalResolutionFraction = */ 1.0f));
 
 	return FSceneRenderer::CreateSceneRenderer(&ViewFamily, nullptr);
 }

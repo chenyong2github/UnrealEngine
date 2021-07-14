@@ -1471,7 +1471,6 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		LERP_PP(MotionBlurAmount);
 		LERP_PP(MotionBlurMax);
 		LERP_PP(MotionBlurPerObjectSize);
-		LERP_PP(ScreenPercentage);
 		LERP_PP(ScreenSpaceReflectionQuality);
 		LERP_PP(ScreenSpaceReflectionIntensity);
 		LERP_PP(ScreenSpaceReflectionMaxRoughness);
@@ -2125,15 +2124,6 @@ void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewIn
 		}
 	}
 #endif // WITH_EDITOR
-
-	if (Family->EngineShowFlags.ScreenPercentage)
-	{
-		FinalPostProcessSettings.ScreenPercentage = FMath::Clamp(FinalPostProcessSettings.ScreenPercentage, 1.f, 400.0f);
-	}
-	else
-	{
-		FinalPostProcessSettings.ScreenPercentage = 100;
-	}
 
 	check(VerifyMembersChecks());
 

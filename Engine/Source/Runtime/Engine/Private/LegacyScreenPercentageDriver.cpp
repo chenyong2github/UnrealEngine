@@ -11,14 +11,12 @@
 FLegacyScreenPercentageDriver::FLegacyScreenPercentageDriver(
 	const FSceneViewFamily& InViewFamily,
 	float InGlobalResolutionFraction,
-	bool InAllowPostProcessSettingsScreenPercentage,
 	float InGlobalResolutionFractionUpperBound)
 	: ViewFamily(InViewFamily)
 	, GlobalResolutionFraction(InGlobalResolutionFraction)
 	, GlobalResolutionFractionUpperBound(InGlobalResolutionFractionUpperBound)
-	, AllowPostProcessSettingsScreenPercentage(InAllowPostProcessSettingsScreenPercentage)
 {
-	if (AllowPostProcessSettingsScreenPercentage || GlobalResolutionFraction != 1.0f)
+	if (GlobalResolutionFraction != 1.0f)
 	{
 		check(ViewFamily.EngineShowFlags.ScreenPercentage);
 	}
@@ -31,22 +29,26 @@ float FLegacyScreenPercentageDriver::GetPrimaryResolutionFractionUpperBound() co
 		return 1.0f;
 	}
 
-	float ResolutionFractionUpperBound = 0;
-
-	for (int32 i = 0; i < ViewFamily.Views.Num(); i++)
-	{
-		float ResolutionFraction = GlobalResolutionFractionUpperBound;
-		if (AllowPostProcessSettingsScreenPercentage)
-		{
-			ResolutionFraction *= ViewFamily.Views[i]->FinalPostProcessSettings.ScreenPercentage / 100.0f;
-		}
-		ResolutionFractionUpperBound = FMath::Max(ResolutionFractionUpperBound, ResolutionFraction);
-	}
-		
 	return FMath::Clamp(
-		ResolutionFractionUpperBound,
-		FSceneViewScreenPercentageConfig::kMinResolutionFraction,
-		FSceneViewScreenPercentageConfig::kMaxResolutionFraction);
+		GlobalResolutionFractionUpperBound,
+		ISceneViewFamilyScreenPercentage::kMinResolutionFraction,
+		ISceneViewFamilyScreenPercentage::kMaxResolutionFraction);
+}
+
+float FLegacyScreenPercentageDriver::GetPrimaryResolutionFraction_RenderThread() const
+{
+	check(IsInRenderingThread());
+
+	// Early return if no screen percentage should be done.
+	if (!ViewFamily.EngineShowFlags.ScreenPercentage)
+	{
+		return 1.0f;
+	}
+
+	return FMath::Clamp(
+		GlobalResolutionFraction,
+		ISceneViewFamilyScreenPercentage::kMinResolutionFraction,
+		ISceneViewFamilyScreenPercentage::kMaxResolutionFraction);
 }
 
 ISceneViewFamilyScreenPercentage* FLegacyScreenPercentageDriver::Fork_GameThread(
@@ -55,33 +57,7 @@ ISceneViewFamilyScreenPercentage* FLegacyScreenPercentageDriver::Fork_GameThread
 	check(IsInGameThread());
 
 	return new FLegacyScreenPercentageDriver(
-		ForkedViewFamily, GlobalResolutionFraction, AllowPostProcessSettingsScreenPercentage, GlobalResolutionFractionUpperBound);
-}
-
-void FLegacyScreenPercentageDriver::ComputePrimaryResolutionFractions_RenderThread(
-	TArray<FSceneViewScreenPercentageConfig>& OutViewScreenPercentageConfigs) const
-{
-	check(IsInRenderingThread());
-
-	// Early return if no screen percentage should be done.
-	if (!ViewFamily.EngineShowFlags.ScreenPercentage)
-	{
-		return;
-	}
-
-	for (int32 i = 0; i < ViewFamily.Views.Num(); i++)
-	{
-		float ResolutionFraction = GlobalResolutionFraction;
-		if (AllowPostProcessSettingsScreenPercentage)
-		{
-			ResolutionFraction *= ViewFamily.Views[i]->FinalPostProcessSettings.ScreenPercentage / 100.0f;
-		}
-
-		OutViewScreenPercentageConfigs[i].PrimaryResolutionFraction = FMath::Clamp(
-			ResolutionFraction,
-			FSceneViewScreenPercentageConfig::kMinResolutionFraction,
-			FSceneViewScreenPercentageConfig::kMaxResolutionFraction);
-	}
+		ForkedViewFamily, GlobalResolutionFraction, GlobalResolutionFractionUpperBound);
 }
 
 // static

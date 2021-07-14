@@ -44,7 +44,7 @@ namespace ThumbnailGeneratorImpl
 		);
 
 		ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(
-			ViewFamily, /* GlobalResolutionFraction = */ 1.0f, /* AllowPostProcessSettingsScreenPercentage = */ false));
+			ViewFamily, /* GlobalResolutionFraction = */ 1.0f));
 
 		FSceneViewInitOptions ViewInitOptions;
 		ViewInitOptions.SetViewRectangle(FIntRect(0, 0, TargetSize.X, TargetSize.Y));

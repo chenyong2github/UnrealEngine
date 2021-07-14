@@ -471,28 +471,23 @@ public:
 		return Proxy->GetResolutionFractionUpperBound();
 	}
 
-	virtual ISceneViewFamilyScreenPercentage* Fork_GameThread(const class FSceneViewFamily& ForkedViewFamily) const override
-	{
-		check(IsInGameThread());
-
-		return new FDefaultDynamicResolutionDriver(Proxy, ForkedViewFamily);
-	}
-
-	virtual void ComputePrimaryResolutionFractions_RenderThread(TArray<FSceneViewScreenPercentageConfig>& OutViewScreenPercentageConfigs) const override
+	virtual float GetPrimaryResolutionFraction_RenderThread() const override
 	{
 		check(IsInRenderingThread());
 
 		if (!ViewFamily.EngineShowFlags.ScreenPercentage)
 		{
-			return;
+			return 1.0f;
 		}
 
-		float GlobalResolutionFraction = Proxy->QueryCurentFrameResolutionFraction_RenderThread();
+		return Proxy->QueryCurentFrameResolutionFraction_RenderThread();
+	}
 
-		for (int32 i = 0; i < OutViewScreenPercentageConfigs.Num(); i++)
-		{
-			OutViewScreenPercentageConfigs[i].PrimaryResolutionFraction = GlobalResolutionFraction;
-		}
+	virtual ISceneViewFamilyScreenPercentage* Fork_GameThread(const class FSceneViewFamily& ForkedViewFamily) const override
+	{
+		check(IsInGameThread());
+
+		return new FDefaultDynamicResolutionDriver(Proxy, ForkedViewFamily);
 	}
 
 private:

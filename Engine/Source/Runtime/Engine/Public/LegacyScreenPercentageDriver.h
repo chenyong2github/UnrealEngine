@@ -17,15 +17,13 @@ class ENGINE_API FLegacyScreenPercentageDriver : public ISceneViewFamilyScreenPe
 public:
 	FORCEINLINE FLegacyScreenPercentageDriver(
 		const FSceneViewFamily& InViewFamily,
-		float InGlobalResolutionFraction,
-		bool InAllowPostProcessSettingsScreenPercentage)
-		: FLegacyScreenPercentageDriver(InViewFamily, InGlobalResolutionFraction, InAllowPostProcessSettingsScreenPercentage, InGlobalResolutionFraction)
+		float InGlobalResolutionFraction)
+		: FLegacyScreenPercentageDriver(InViewFamily, InGlobalResolutionFraction, InGlobalResolutionFraction)
 	{ }
 
 	FLegacyScreenPercentageDriver(
 		const FSceneViewFamily& InViewFamily,
 		float InGlobalResolutionFraction,
-		bool InAllowPostProcessSettingsScreenPercentage,
 		float InGlobalResolutionFractionUpperBound);
 
 	/** Gets the view rect fraction from the r.ScreenPercentage cvar. */
@@ -42,13 +40,9 @@ private:
 	// ViewRect fraction to apply to all view of the view family.
 	const float GlobalResolutionFractionUpperBound;
 
-	// Whether FPostProcessSettings::ScreenPercentage should be applied or not.
-	const bool AllowPostProcessSettingsScreenPercentage;
-
 
 	// Implements ISceneViewFamilyScreenPercentage
 	virtual float GetPrimaryResolutionFractionUpperBound() const override;
+	virtual float GetPrimaryResolutionFraction_RenderThread() const override;
 	virtual ISceneViewFamilyScreenPercentage* Fork_GameThread(const class FSceneViewFamily& ForkedViewFamily) const override;
-	virtual void ComputePrimaryResolutionFractions_RenderThread(
-		TArray<FSceneViewScreenPercentageConfig>& OutViewScreenPercentageConfigs) const override;
 };

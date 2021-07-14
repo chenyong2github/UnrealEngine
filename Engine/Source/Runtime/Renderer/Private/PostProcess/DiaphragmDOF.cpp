@@ -729,9 +729,9 @@ class FDiaphragmDOFCocFlattenCS : public FDiaphragmDOFShader
 		SHADER_PARAMETER_STRUCT(FDOFTileClassificationUAVs, TileOutput)
 	END_SHADER_PARAMETER_STRUCT()
 
-	static_assert(FSceneViewScreenPercentageConfig::kMinTAAUpsampleResolutionFraction == 0.5f,
+	static_assert(ISceneViewFamilyScreenPercentage::kMinTAAUpsampleResolutionFraction == 0.5f,
 		"Gather4 shader permutation assumes with min TAAU screen percentage = 50%.");
-	static_assert(FSceneViewScreenPercentageConfig::kMaxTAAUpsampleResolutionFraction == 2.0f,
+	static_assert(ISceneViewFamilyScreenPercentage::kMaxTAAUpsampleResolutionFraction == 2.0f,
 		"Gather4 shader permutation assumes with max TAAU screen percentage = 200%.");
 };
 

@@ -1116,8 +1116,8 @@ struct FPostProcessSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_MotionBlurPerObjectSize:1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
-	uint8 bOverride_ScreenPercentage:1;
+	UPROPERTY()
+	uint8 bOverride_ScreenPercentage_DEPRECATED:1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_ReflectionMethod:1;
@@ -1980,15 +1980,8 @@ struct FPostProcessSettings
 	UPROPERTY()
 	float LPVDirectionalOcclusionFadeRange_DEPRECATED;
 
-	/**
-	* To render with lower or high resolution than it is presented,
-	* controlled by console variable,
-	* 100:off, needs to be <99 to get upsampling and lower to get performance,
-	* >100 for super sampling (slower but higher quality),
-	* only applied in game
-	*/
-	UPROPERTY(interp, BlueprintReadWrite, Category="Rendering Features|Misc", meta=(ClampMin = "0.0", ClampMax = "400.0", editcondition = "bOverride_ScreenPercentage"))
-	float ScreenPercentage;
+	UPROPERTY()
+	float ScreenPercentage_DEPRECATED;
 
 
 
