@@ -34,7 +34,7 @@ UObject* UInterchangeMaterialFactory::CreateEmptyAsset(const FCreateAssetParams&
 	UObject* Material = nullptr;
 
 #if WITH_EDITORONLY_DATA
-	if (!Arguments.AssetNode || !Arguments.AssetNode->GetAssetClass()->IsChildOf(GetFactoryClass()))
+	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
 		return nullptr;
 	}
@@ -52,7 +52,7 @@ UObject* UInterchangeMaterialFactory::CreateEmptyAsset(const FCreateAssetParams&
 		return nullptr;
 	}
 
-	const UClass* MaterialClass = MaterialFactoryNode->GetAssetClass();
+	const UClass* MaterialClass = MaterialFactoryNode->GetObjectClass();
 	if (!ensure(MaterialClass && MaterialClass->IsChildOf(GetFactoryClass())))
 	{
 		return nullptr;
@@ -91,7 +91,7 @@ UObject* UInterchangeMaterialFactory::CreateAsset(const UInterchangeMaterialFact
 
 #else
 
-	if (!Arguments.AssetNode || !Arguments.AssetNode->GetAssetClass()->IsChildOf(GetFactoryClass()))
+	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
 		return nullptr;
 	}
@@ -109,7 +109,7 @@ UObject* UInterchangeMaterialFactory::CreateAsset(const UInterchangeMaterialFact
 		return nullptr;
 	}
 
-	const UClass* MaterialClass = MaterialFactoryNode->GetAssetClass();
+	const UClass* MaterialClass = MaterialFactoryNode->GetObjectClass();
 	check(MaterialClass && MaterialClass->IsChildOf(GetFactoryClass()));
 
 	// create an asset if it doesn't exist

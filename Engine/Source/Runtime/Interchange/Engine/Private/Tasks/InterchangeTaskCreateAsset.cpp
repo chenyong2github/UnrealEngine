@@ -90,7 +90,7 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 			UInterchangeResultError_Generic* Message = Factory->AddMessage<UInterchangeResultError_Generic>();
 			Message->SourceAssetName = AsyncHelper->SourceDatas[SourceIndex]->GetFilename();
 			Message->DestinationAssetName = AssetName;
-			Message->AssetType = Node->GetAssetClass();
+			Message->AssetType = Node->GetObjectClass();
 			Message->Text = NSLOCTEXT("Interchange", "CannotFindPackageDuringReimport", "Cannot find an existing package.");
 
 			//Skip this asset
@@ -106,7 +106,7 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 			UInterchangeResultError_Generic* Message = Factory->AddMessage<UInterchangeResultError_Generic>();
 			Message->SourceAssetName = AsyncHelper->SourceDatas[SourceIndex]->GetFilename();
 			Message->DestinationAssetName = AssetName;
-			Message->AssetType = Node->GetAssetClass();
+			Message->AssetType = Node->GetObjectClass();
 			Message->Text = NSLOCTEXT("Interchange", "MapExistsWithSameName", "You cannot create an asset with this name, as there is already a map file with the same name in this folder.");
 
 			//Skip this asset
@@ -119,7 +119,7 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 			UInterchangeResultError_Generic* Message = Factory->AddMessage<UInterchangeResultError_Generic>();
 			Message->SourceAssetName = AsyncHelper->SourceDatas[SourceIndex]->GetFilename();
 			Message->DestinationAssetName = AssetName;
-			Message->AssetType = Node->GetAssetClass();
+			Message->AssetType = Node->GetObjectClass();
 			Message->Text = FText::Format(NSLOCTEXT("Interchange", "CouldntCreatePackage", "It was not possible to create a package named '{0}'; the asset will not be imported."), FText::FromString(PackageName));
 
 			//Skip this asset
@@ -222,7 +222,7 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 			UInterchangeResultError_Generic* Message = Factory->AddMessage<UInterchangeResultError_Generic>();
 			Message->SourceAssetName = AsyncHelper->SourceDatas[SourceIndex]->GetFilename();
 			Message->DestinationAssetName = AssetName;
-			Message->AssetType = Node->GetAssetClass();
+			Message->AssetType = Node->GetObjectClass();
 			Message->Text = NSLOCTEXT("Interchange", "BadPackage", "It was not possible to create the asset as its package was not created correctly.");
 
 			return;
@@ -232,7 +232,7 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 		{
 			UInterchangeResultError_Generic* Message = Factory->AddMessage<UInterchangeResultError_Generic>();
 			Message->DestinationAssetName = AssetName;
-			Message->AssetType = Node->GetAssetClass();
+			Message->AssetType = Node->GetObjectClass();
 			Message->Text = NSLOCTEXT("Interchange", "SourceDataOrTranslatorInvalid", "It was not possible to create the asset as its translator was not created correctly.");
 
 			return;

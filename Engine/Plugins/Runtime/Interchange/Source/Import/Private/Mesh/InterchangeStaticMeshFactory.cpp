@@ -42,7 +42,7 @@ UObject* UInterchangeStaticMeshFactory::CreateEmptyAsset(const FCreateAssetParam
 
 #else
 	UStaticMesh* StaticMesh = nullptr;
-	if (!Arguments.AssetNode || !Arguments.AssetNode->GetAssetClass()->IsChildOf(GetFactoryClass()))
+	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
 		return nullptr;
 	}
@@ -88,7 +88,7 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const UInterchangeStaticMesh
 
 #else
 
-	if (!Arguments.AssetNode || !Arguments.AssetNode->GetAssetClass()->IsChildOf(GetFactoryClass()))
+	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
 		return nullptr;
 	}
@@ -106,7 +106,7 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const UInterchangeStaticMesh
 		return nullptr;
 	}
 
-	const UClass* StaticMeshClass = StaticMeshFactoryNode->GetAssetClass();
+	const UClass* StaticMeshClass = StaticMeshFactoryNode->GetObjectClass();
 	check(StaticMeshClass && StaticMeshClass->IsChildOf(GetFactoryClass()));
 
 	// create an asset if it doesn't exist

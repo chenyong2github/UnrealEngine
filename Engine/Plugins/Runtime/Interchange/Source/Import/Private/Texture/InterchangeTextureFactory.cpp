@@ -523,7 +523,7 @@ UObject* UInterchangeTextureFactory::CreateEmptyAsset(const FCreateAssetParams& 
 		return nullptr;
 	}
 
-	const UClass* TextureClass = Arguments.AssetNode->GetAssetClass();
+	const UClass* TextureClass = Arguments.AssetNode->GetObjectClass();
 	if (!TextureClass || !TextureClass->IsChildOf(UTexture::StaticClass()))
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Asset node parameter class doesnt derive from UTexture."));
@@ -596,7 +596,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 		return nullptr;
 	}
 
-	const UClass* TextureClass = Arguments.AssetNode->GetAssetClass();
+	const UClass* TextureClass = Arguments.AssetNode->GetObjectClass();
 	if (!TextureClass || !TextureClass->IsChildOf(UTexture::StaticClass()))
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Asset node parameter class doesnt derive from UTexture."));

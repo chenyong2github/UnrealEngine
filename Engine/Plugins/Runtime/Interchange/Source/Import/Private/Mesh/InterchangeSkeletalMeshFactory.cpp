@@ -677,7 +677,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateEmptyAsset(const FCreateAssetPar
 
 #else
 	USkeletalMesh* SkeletalMesh = nullptr;
-	if (!Arguments.AssetNode || !Arguments.AssetNode->GetAssetClass()->IsChildOf(GetFactoryClass()))
+	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
 		return nullptr;
 	}
@@ -725,7 +725,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 
 #else
 
-	if (!Arguments.AssetNode || !Arguments.AssetNode->GetAssetClass()->IsChildOf(GetFactoryClass()))
+	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
 		return nullptr;
 	}
@@ -743,7 +743,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletal
 		return nullptr;
 	}
 
-	const UClass* SkeletalMeshClass = SkeletalMeshFactoryNode->GetAssetClass();
+	const UClass* SkeletalMeshClass = SkeletalMeshFactoryNode->GetObjectClass();
 	check(SkeletalMeshClass && SkeletalMeshClass->IsChildOf(GetFactoryClass()));
 
 	// create an asset if it doesn't exist

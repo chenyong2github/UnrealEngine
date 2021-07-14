@@ -86,7 +86,7 @@ public:
 		check(InterchangeNode);
 		check(InterchangeBaseNodeContainer);
 
-		UClass* IconClass = InterchangeNode->GetAssetClass();
+		UClass* IconClass = InterchangeNode->GetObjectClass();
 		const FSlateBrush* TypeIcon = nullptr;
 		FName IconName = InterchangeNode->GetIconName();
 		if (IconClass)
@@ -106,9 +106,9 @@ public:
 
 		//Prepare the tooltip
 		FString Tooltip = InterchangeNode->GetDisplayLabel();
-		if (InterchangeNode->GetAssetClass())
+		if (InterchangeNode->GetObjectClass())
 		{
-			Tooltip += TEXT(" [") + InterchangeNode->GetAssetClass()->GetName() + TEXT("]");
+			Tooltip += TEXT(" [") + InterchangeNode->GetObjectClass()->GetName() + TEXT("]");
 		}
 
 		this->ChildSlot

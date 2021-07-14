@@ -20,7 +20,7 @@ UObject* UInterchangeSkeletonFactory::CreateEmptyAsset(const FCreateAssetParams&
 	UObject* Skeleton = nullptr;
 
 #if WITH_EDITORONLY_DATA
-	if (!Arguments.AssetNode || !Arguments.AssetNode->GetAssetClass()->IsChildOf(GetFactoryClass()))
+	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
 		return nullptr;
 	}
@@ -66,7 +66,7 @@ UObject* UInterchangeSkeletonFactory::CreateAsset(const UInterchangeSkeletonFact
 
 #else
 
-	if (!Arguments.AssetNode || !Arguments.AssetNode->GetAssetClass()->IsChildOf(GetFactoryClass()))
+	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
 		return nullptr;
 	}
@@ -77,7 +77,7 @@ UObject* UInterchangeSkeletonFactory::CreateAsset(const UInterchangeSkeletonFact
 		return nullptr;
 	}
 
-	const UClass* SkeletonClass = SkeletonNode->GetAssetClass();
+	const UClass* SkeletonClass = SkeletonNode->GetObjectClass();
 	check(SkeletonClass && SkeletonClass->IsChildOf(GetFactoryClass()));
 
 	// create an asset if it doesn't exist

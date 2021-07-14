@@ -105,7 +105,7 @@ public:
 
 	/** Get the class this node want to create */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
-	virtual class UClass* GetAssetClass() const override
+	virtual class UClass* GetObjectClass() const override
 	{
 		ensure(bIsNodeClassInitialized);
 #if WITH_ENGINE
