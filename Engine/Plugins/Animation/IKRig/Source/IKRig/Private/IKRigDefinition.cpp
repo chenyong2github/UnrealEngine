@@ -46,10 +46,7 @@ USkeletalMesh* UIKRigDefinition::GetPreviewMesh() const
 bool UIKRigDefinition::Modify(bool bAlwaysMarkDirty /*=true*/)
 {
 	const bool bSavedToTransactionBuffer = Super::Modify(bAlwaysMarkDirty);
-	if (bSavedToTransactionBuffer)
-	{
-		AssetVersion++; // inform any runtime/editor systems they should copy-up modifications	
-	}
+	AssetVersion++; // inform any runtime/editor systems they should copy-up modifications	
 	return bSavedToTransactionBuffer;
 }
 #endif

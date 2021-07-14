@@ -51,6 +51,7 @@ void UIKRigController::AddBoneSetting(const FName& BoneName, int32 SolverIndex) 
 	}
 
 	FScopedTransaction Transaction(LOCTEXT("AddBoneSetting_Label", "Add Bone Setting"));
+	Solver->Modify();
 	IKRigAsset->Modify();
 
 	Solver->AddBoneSetting(BoneName);
@@ -91,7 +92,8 @@ void UIKRigController::RemoveBoneSetting(const FName& BoneName, int32 SolverInde
 		return; // bone doesn't exist
 	}
 
-	FScopedTransaction Transaction(LOCTEXT("AddBoneSetting_Label", "Add Bone Setting"));
+	FScopedTransaction Transaction(LOCTEXT("RemoveBoneSetting_Label", "Remove Bone Setting"));
+	Solver->Modify();
 	IKRigAsset->Modify();
 
 	Solver->RemoveBoneSetting(BoneName);
@@ -224,7 +226,7 @@ int32 UIKRigController::AddSolver(TSubclassOf<UIKRigSolver> InIKRigSolverClass) 
 	FScopedTransaction Transaction(LOCTEXT("AddSolver_Label", "Add Solver"));
 	IKRigAsset->Modify();
 
-	UIKRigSolver* NewSolver = NewObject<UIKRigSolver>(IKRigAsset, InIKRigSolverClass);
+	UIKRigSolver* NewSolver = NewObject<UIKRigSolver>(IKRigAsset, InIKRigSolverClass, NAME_None, RF_Transactional);
 	check(NewSolver);
 
 	return IKRigAsset->Solvers.Add(NewSolver);
@@ -296,9 +298,11 @@ void UIKRigController::SetRootBone(const FName& RootBoneName, int32 SolverIndex)
 	}
 
 	FScopedTransaction Transaction(LOCTEXT("SetRootBone_Label", "Set Root Bone"));
+	UIKRigSolver* Solver = IKRigAsset->Solvers[SolverIndex];
+	Solver->Modify();
 	IKRigAsset->Modify();
 
-	IKRigAsset->Solvers[SolverIndex]->SetRootBone(RootBoneName);
+	Solver->SetRootBone(RootBoneName);
 }
 
 const TArray<UIKRigSolver*>& UIKRigController::GetSolverArray() const
@@ -320,7 +324,7 @@ UIKRigEffectorGoal* UIKRigController::AddNewGoal(const FName& GoalName, const FN
 	FScopedTransaction Transaction(LOCTEXT("AddSetting_Label", "Add Bone Setting"));
 	IKRigAsset->Modify();
 
-	UIKRigEffectorGoal* NewGoal = NewObject<UIKRigEffectorGoal>(GetAsset(), UIKRigEffectorGoal::StaticClass());
+	UIKRigEffectorGoal* NewGoal = NewObject<UIKRigEffectorGoal>(GetAsset(), UIKRigEffectorGoal::StaticClass(), NAME_None, RF_Transactional);
 	NewGoal->BoneName = BoneName;
 	NewGoal->GoalName = GoalName;
 	IKRigAsset->Goals.Add(NewGoal);
@@ -347,6 +351,7 @@ bool UIKRigController::RemoveGoal(const FName& GoalName) const
 	const FName& GoalToRemove = IKRigAsset->Goals[GoalIndex]->GoalName;
 	for (UIKRigSolver* Solver : IKRigAsset->Solvers)
 	{
+		Solver->Modify();
 		Solver->RemoveGoal(GoalToRemove);
 	}
 
@@ -379,11 +384,13 @@ FName UIKRigController::RenameGoal(const FName& OldName, const FName& PotentialN
 	IKRigAsset->Modify();
 
 	// rename in core
+	IKRigAsset->Goals[GoalIndex]->Modify();
 	IKRigAsset->Goals[GoalIndex]->GoalName = NewName;
 
 	// rename in solvers
 	for (UIKRigSolver* Solver : IKRigAsset->Solvers)
 	{
+		Solver->Modify();
 		Solver->RenameGoal(OldName, NewName);
 	}
 
@@ -418,6 +425,7 @@ bool UIKRigController::SetGoalBone(const FName& GoalName, const FName& NewBoneNa
 	// update in solvers
 	for (UIKRigSolver* Solver : IKRigAsset->Solvers)
 	{
+		Solver->Modify();
 		Solver->SetGoalBone(GoalName, NewBoneName);
 	}
 
@@ -448,9 +456,11 @@ bool UIKRigController::ConnectGoalToSolver(const UIKRigEffectorGoal& Goal, int32
 	check(IKRigAsset->Solvers.IsValidIndex(SolverIndex))
 
 	FScopedTransaction Transaction(LOCTEXT("AddGoalToSolver_Label", "Add Goal"));
+	UIKRigSolver* Solver = IKRigAsset->Solvers[SolverIndex];
+	Solver->Modify();
 	IKRigAsset->Modify();
 	
-	IKRigAsset->Solvers[SolverIndex]->AddGoal(Goal);
+	Solver->AddGoal(Goal);
 	return true;
 }
 
@@ -462,9 +472,11 @@ bool UIKRigController::DisconnectGoalFromSolver(const FName& GoalToRemove, int32
 	check(IKRigAsset->Solvers.IsValidIndex(SolverIndex))
 
     FScopedTransaction Transaction(LOCTEXT("RemoveGoalFromSolver_Label", "Remove Goal"));
+	UIKRigSolver* Solver = IKRigAsset->Solvers[SolverIndex];
+	Solver->Modify();
 	IKRigAsset->Modify();
 	
-	IKRigAsset->Solvers[SolverIndex]->RemoveGoal(GoalToRemove);
+	Solver->RemoveGoal(GoalToRemove);
 	return true;
 }
 
