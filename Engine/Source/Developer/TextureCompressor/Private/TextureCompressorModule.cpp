@@ -2133,7 +2133,7 @@ static bool CompressMipChain(
 				Work.DestMip
 			);
 		}
-	}, EParallelForFlags::Unbalanced);
+	}, EParallelForFlags::Unbalanced | EParallelForFlags::BackgroundPriority);
 
 	for (int32 TaskIndex = 0; TaskIndex < AsyncCompressionTasks.Num(); ++TaskIndex)
 	{
