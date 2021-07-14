@@ -190,6 +190,18 @@ void FInterchangeBaseNodeDetailsCustomization::AddAttributeRow(UE::Interchange::
 		}
 		break;
 
+		case UE::Interchange::EAttributeTypes::Color:
+		{
+			BuildColorValueContent(AttributeCategory, AttributeKey);
+		}
+		break;
+
+		case UE::Interchange::EAttributeTypes::LinearColor:
+		{
+			BuildLinearColorValueContent(AttributeCategory, AttributeKey);
+		}
+		break;
+
 		default:
 		{
 			FText AttributeName = FText::FromString(InterchangeBaseNode->GetKeyDisplayName(AttributeKey));
@@ -505,6 +517,236 @@ void FInterchangeBaseNodeDetailsCustomization::BuildTransformValueContent(IDetai
     ];
 }
 
+void FInterchangeBaseNodeDetailsCustomization::BuildColorValueContent(IDetailCategoryBuilder& AttributeCategory, UE::Interchange::FAttributeKey& AttributeKey)
+{
+	UE::Interchange::EAttributeTypes AttributeType = InterchangeBaseNode->GetAttributeType(AttributeKey);
+	if (AttributeType == UE::Interchange::EAttributeTypes::Color)
+	{
+		const UE::Interchange::FAttributeStorage::TAttributeHandle<FColor> AttributeHandle = InterchangeBaseNode->GetAttributeHandle<FColor>(AttributeKey);
+		if (!AttributeHandle.IsValid())
+		{
+			CreateInvalidHandleRow(AttributeCategory, AttributeKey);
+			return;
+		}
+	}
+	else
+	{
+		ensure(AttributeType == UE::Interchange::EAttributeTypes::Color);
+		CreateInvalidHandleRow(AttributeCategory, AttributeKey);
+		return;
+	}
+	InternalBuildColorValueContent<FColor, uint8>(AttributeCategory, AttributeKey, 255);
+}
+
+void FInterchangeBaseNodeDetailsCustomization::BuildLinearColorValueContent(IDetailCategoryBuilder& AttributeCategory, UE::Interchange::FAttributeKey& AttributeKey)
+{
+	UE::Interchange::EAttributeTypes AttributeType = InterchangeBaseNode->GetAttributeType(AttributeKey);
+	if (AttributeType == UE::Interchange::EAttributeTypes::LinearColor)
+	{
+		const UE::Interchange::FAttributeStorage::TAttributeHandle<FColor> AttributeHandle = InterchangeBaseNode->GetAttributeHandle<FColor>(AttributeKey);
+		if (!AttributeHandle.IsValid())
+		{
+			CreateInvalidHandleRow(AttributeCategory, AttributeKey);
+			return;
+		}
+	}
+	else
+	{
+		ensure(AttributeType == UE::Interchange::EAttributeTypes::LinearColor);
+		CreateInvalidHandleRow(AttributeCategory, AttributeKey);
+		return;
+	}
+	InternalBuildColorValueContent<FLinearColor, float>(AttributeCategory, AttributeKey, 1.0f);
+}
+
+template<typename AttributeType, typename NumericType>
+void FInterchangeBaseNodeDetailsCustomization::InternalBuildColorValueContent(IDetailCategoryBuilder& AttributeCategory, UE::Interchange::FAttributeKey& AttributeKey, NumericType DefaultTypeValue)
+{
+	const bool bAdvancedProperty = false;
+	const FString GroupName = InterchangeBaseNode->GetKeyDisplayName(AttributeKey);
+	IDetailGroup& Group = AttributeCategory.AddGroup(FName(*GroupName), FText::FromString(GroupName), bAdvancedProperty);
+	FDetailWidgetRow& GroupHeaderRow = Group.HeaderRow();
+	GroupHeaderRow.NameContent().Widget = SNew(SBox)
+	[
+		CreateNameWidget(AttributeKey)
+	];
+
+	auto GetRValue = [DefaultTypeValue](int32 ComponentIndex, UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key)->NumericType
+	{
+		AttributeType Value;
+		const UE::Interchange::FAttributeStorage::TAttributeHandle<AttributeType> AttributeHandle = BaseNode->GetAttributeHandle<AttributeType>(Key);
+		if (AttributeHandle.IsValid())
+		{
+			AttributeHandle.Get(Value);
+		}
+		else
+		{
+			//Error return white color
+			return DefaultTypeValue;
+		}
+		return Value.R;
+	};
+
+	auto SetRValue = [](int32 ComponentIndex, UInterchangeBaseNode* BaseNode, const NumericType& Value, UE::Interchange::FAttributeKey& Key)
+	{
+		AttributeType ColorValue;
+		UE::Interchange::FAttributeStorage::TAttributeHandle<AttributeType> AttributeHandle = BaseNode->GetAttributeHandle<AttributeType>(Key);
+		if (AttributeHandle.IsValid())
+		{
+			AttributeHandle.Get(ColorValue);
+			ColorValue.R = Value;
+			AttributeHandle.Set(ColorValue);
+		}
+	};
+
+	auto GetGValue = [DefaultTypeValue](int32 ComponentIndex, UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key)->NumericType
+	{
+		AttributeType Value;
+		const UE::Interchange::FAttributeStorage::TAttributeHandle<AttributeType> AttributeHandle = BaseNode->GetAttributeHandle<AttributeType>(Key);
+		if (AttributeHandle.IsValid())
+		{
+			AttributeHandle.Get(Value);
+		}
+		else
+		{
+			//Error return white color
+			return DefaultTypeValue;
+		}
+		return Value.G;
+	};
+
+	auto SetGValue = [](int32 ComponentIndex, UInterchangeBaseNode* BaseNode, const NumericType& Value, UE::Interchange::FAttributeKey& Key)
+	{
+		AttributeType ColorValue;
+		UE::Interchange::FAttributeStorage::TAttributeHandle<AttributeType> AttributeHandle = BaseNode->GetAttributeHandle<AttributeType>(Key);
+		if (AttributeHandle.IsValid())
+		{
+			AttributeHandle.Get(ColorValue);
+			ColorValue.G = Value;
+			AttributeHandle.Set(ColorValue);
+		}
+	};
+
+	auto GetBValue = [DefaultTypeValue](int32 ComponentIndex, UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key)->NumericType
+	{
+		AttributeType Value;
+		const UE::Interchange::FAttributeStorage::TAttributeHandle<AttributeType> AttributeHandle = BaseNode->GetAttributeHandle<AttributeType>(Key);
+		if (AttributeHandle.IsValid())
+		{
+			AttributeHandle.Get(Value);
+		}
+		else
+		{
+			//Error return white color
+			return DefaultTypeValue;
+		}
+		return Value.B;
+	};
+
+	auto SetBValue = [](int32 ComponentIndex, UInterchangeBaseNode* BaseNode, const NumericType& Value, UE::Interchange::FAttributeKey& Key)
+	{
+		AttributeType ColorValue;
+		UE::Interchange::FAttributeStorage::TAttributeHandle<AttributeType> AttributeHandle = BaseNode->GetAttributeHandle<AttributeType>(Key);
+		if (AttributeHandle.IsValid())
+		{
+			AttributeHandle.Get(ColorValue);
+			ColorValue.B = Value;
+			AttributeHandle.Set(ColorValue);
+		}
+	};
+
+	auto GetAValue = [DefaultTypeValue](int32 ComponentIndex, UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key)->NumericType
+	{
+		AttributeType Value;
+		const UE::Interchange::FAttributeStorage::TAttributeHandle<AttributeType> AttributeHandle = BaseNode->GetAttributeHandle<AttributeType>(Key);
+		if (AttributeHandle.IsValid())
+		{
+			AttributeHandle.Get(Value);
+		}
+		else
+		{
+			//Error return white color
+			return DefaultTypeValue;
+		}
+		return Value.A;
+	};
+
+	auto SetAValue = [](int32 ComponentIndex, UInterchangeBaseNode* BaseNode, const NumericType& Value, UE::Interchange::FAttributeKey& Key)
+	{
+		AttributeType ColorValue;
+		UE::Interchange::FAttributeStorage::TAttributeHandle<AttributeType> AttributeHandle = BaseNode->GetAttributeHandle<AttributeType>(Key);
+		if (AttributeHandle.IsValid())
+		{
+			AttributeHandle.Get(ColorValue);
+			ColorValue.A = Value;
+			AttributeHandle.Set(ColorValue);
+		}
+	};
+
+	const FString RName = TEXT("Red");
+	Group.AddWidgetRow()
+    .NameContent()
+    [
+        CreateSimpleNameWidget(RName)
+    ]
+    .ValueContent()
+    [
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			MakeNumericWidget<NumericType>(0, GetRValue, SetRValue, AttributeKey)
+		]
+    ];
+	const FString GName = TEXT("Green");
+	Group.AddWidgetRow()
+    .NameContent()
+    [
+        CreateSimpleNameWidget(GName)
+    ]
+    .ValueContent()
+    [
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			MakeNumericWidget<NumericType>(0, GetGValue, SetGValue, AttributeKey)
+		]
+    ];
+
+	const FString BName = TEXT("Blue");
+	Group.AddWidgetRow()
+    .NameContent()
+    [
+        CreateSimpleNameWidget(BName)
+    ]
+    .ValueContent()
+    [
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			MakeNumericWidget<NumericType>(0, GetBValue, SetBValue, AttributeKey)
+		]
+    ];
+
+	const FString AName = TEXT("Alpha");
+	Group.AddWidgetRow()
+    .NameContent()
+    [
+        CreateSimpleNameWidget(AName)
+    ]
+    .ValueContent()
+    [
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			MakeNumericWidget<NumericType>(0, GetAValue, SetAValue, AttributeKey)
+		]
+    ];
+}
+
 void FInterchangeBaseNodeDetailsCustomization::BuildBoxValueContent(IDetailCategoryBuilder& AttributeCategory, UE::Interchange::FAttributeKey& AttributeKey)
 {
 	UE::Interchange::EAttributeTypes AttributeType = InterchangeBaseNode->GetAttributeType(AttributeKey);
@@ -777,4 +1019,5 @@ TSharedRef<SWidget> FInterchangeBaseNodeDetailsCustomization::MakeNumericWidget(
 			.OnValueChanged_Lambda(SetValueChangedLambda)
 			.AllowSpin(false);
 }
+
 #undef LOCTEXT_NAMESPACE

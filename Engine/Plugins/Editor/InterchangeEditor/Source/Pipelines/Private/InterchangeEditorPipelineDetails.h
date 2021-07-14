@@ -58,6 +58,17 @@ private:
 	//Any numeric field are read/write
 	void BuildTransformValueContent(IDetailCategoryBuilder& AttributeCategory, UE::Interchange::FAttributeKey& AttributeKey);
 
+	//FColor: Add a row to the category that contain the RGBA value
+	//Any numeric field are read/write
+	void BuildColorValueContent(IDetailCategoryBuilder& AttributeCategory, UE::Interchange::FAttributeKey& AttributeKey);
+
+	//FLinearColor: Add a row to the category that contain the RGBA value
+	//Any numeric field are read/write
+	void BuildLinearColorValueContent(IDetailCategoryBuilder& AttributeCategory, UE::Interchange::FAttributeKey& AttributeKey);
+
+	template<typename AttributeType, typename NumericType>
+	void InternalBuildColorValueContent(IDetailCategoryBuilder& AttributeCategory, UE::Interchange::FAttributeKey& AttributeKey, NumericType DefaultTypeValue);
+
 	//FBox: Add a group to the category that contain the Minimum corner position(FVector), and the maximum corner position(FVector)
 	//Any numeric field are read/write
 	void BuildBoxValueContent(IDetailCategoryBuilder& AttributeCategory, UE::Interchange::FAttributeKey& AttributeKey);

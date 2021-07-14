@@ -507,6 +507,24 @@ UInterchangeStaticMeshFactoryNode* UInterchangeGenericAssetsPipeline::CreateStat
 
 	AddLodDataToStaticMesh(StaticMeshFactoryNode, MeshUidsPerLodIndex);
 
+	switch (VertexColorImportOption)
+	{
+		case EInterchangeVertexColorImportOption::IVCIO_Replace:
+		{
+			StaticMeshFactoryNode->SetCustomVertexColorReplace(true);
+		}
+		break;
+		case EInterchangeVertexColorImportOption::IVCIO_Ignore:
+		{
+			StaticMeshFactoryNode->SetCustomVertexColorIgnore(true);
+		}
+		break;
+		case EInterchangeVertexColorImportOption::IVCIO_Override:
+		{
+			StaticMeshFactoryNode->SetCustomVertexColorOverride(VertexOverrideColor);
+		}
+		break;
+	}
 	return StaticMeshFactoryNode;
 }
 

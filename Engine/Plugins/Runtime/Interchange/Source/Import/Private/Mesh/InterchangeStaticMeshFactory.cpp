@@ -268,6 +268,42 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const UInterchangeStaticMesh
 					FStaticMeshOperations::AppendMeshDescription(LodMeshPayload->MeshDescription, *LodMeshDescription, AppendSettings);
 				}
 
+				//////////////////////////////////////////////////////////////////////////
+				//Manage vertex color
+				//Replace -> do nothing, we want to use the translated source data
+				//Ignore -> remove vertex color from import data (when we re-import, ignore have to put back the current mesh vertex color)
+				//Override -> replace the vertex color by the override color
+				{
+					FStaticMeshAttributes Attributes(*LodMeshDescription);
+					TVertexInstanceAttributesRef<FVector4> VertexInstanceColors = Attributes.GetVertexInstanceColors();
+					bool bReplaceVertexColor = false;
+					StaticMeshFactoryNode->GetCustomVertexColorReplace(bReplaceVertexColor);
+					if (!bReplaceVertexColor)
+					{
+						bool bIgnoreVertexColor = false;
+						StaticMeshFactoryNode->GetCustomVertexColorIgnore(bIgnoreVertexColor);
+						if (bIgnoreVertexColor)
+						{
+							//Flush the vertex color, if we re-import we have to fill it with the old data
+							for (const FVertexInstanceID& VertexInstanceID : LodMeshDescription->VertexInstances().GetElementIDs())
+							{
+								VertexInstanceColors[VertexInstanceID] = FVector4(FLinearColor(FColor::White));
+							}
+						}
+						else
+						{
+							FColor OverrideVertexColor;
+							if (StaticMeshFactoryNode->GetCustomVertexColorOverride(OverrideVertexColor))
+							{
+								for (const FVertexInstanceID& VertexInstanceID : LodMeshDescription->VertexInstances().GetElementIDs())
+								{
+									VertexInstanceColors[VertexInstanceID] = FVector4(FLinearColor(OverrideVertexColor));
+								}
+							}
+						}
+					}
+				}
+
 				StaticMesh->CommitMeshDescription(CurrentLodIndex);
 
 				// Handle materials
