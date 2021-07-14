@@ -936,7 +936,15 @@ FUnrealPackageDefinitionInfo& FUnrealPropertyDefinitionInfo::GetPackageDef() con
 	{
 		return GetUnrealSourceFile().GetPackageDef();
 	}
-	return GTypeDefinitionInfoMap.FindChecked<FUnrealPackageDefinitionInfo>(GetProperty()->GetOutermost());
+	for (FUnrealTypeDefinitionInfo* TempOuter = GetOuter(); TempOuter; TempOuter = TempOuter->GetOuter())
+	{
+		if (FUnrealPackageDefinitionInfo* PackageDef = UHTCast<FUnrealPackageDefinitionInfo>(TempOuter))
+		{
+			return *PackageDef;
+		}
+	}
+	checkf(false, TEXT("Object does not have a package outer"));
+	return *(FUnrealPackageDefinitionInfo*)(nullptr);
 }
 
 bool FUnrealPropertyDefinitionInfo::SameType(const FUnrealPropertyDefinitionInfo& Other) const
@@ -957,7 +965,15 @@ FUnrealPackageDefinitionInfo& FUnrealObjectDefinitionInfo::GetPackageDef() const
 	{
 		return GetUnrealSourceFile().GetPackageDef();
 	}
-	return GTypeDefinitionInfoMap.FindChecked<FUnrealPackageDefinitionInfo>(GetObject()->GetPackage());
+	for (FUnrealTypeDefinitionInfo* TempOuter = GetOuter(); TempOuter; TempOuter = TempOuter->GetOuter())
+	{
+		if (FUnrealPackageDefinitionInfo* PackageDef = UHTCast<FUnrealPackageDefinitionInfo>(TempOuter))
+		{
+			return *PackageDef;
+		}
+	}
+	checkf(false, TEXT("Object does not have a package outer"));
+	return *(FUnrealPackageDefinitionInfo*)(nullptr);
 }
 
 FUnrealObjectDefinitionInfo::FUnrealObjectDefinitionInfo(UObject* InObject)
@@ -1542,7 +1558,6 @@ void FUnrealEnumDefinitionInfo::CreateUObjectEngineTypesInternal(ECreateEngineTy
 		Enum->CppType = CppType;
 		Enum->GetPackage()->GetMetaData()->SetObjectValues(Enum, GetMetaDataMap());
 		SetObject(Enum);
-		GTypeDefinitionInfoMap.AddObjectLookup(Enum, SharedThis(this));
 		break;
 	}
 
@@ -1762,7 +1777,6 @@ void FUnrealScriptStructDefinitionInfo::CreateUObjectEngineTypesInternal(ECreate
 			ScriptStruct->SetSuperStruct(SuperStructDef->GetStruct());
 		}
 		SetObject(ScriptStruct);
-		GTypeDefinitionInfoMap.AddObjectLookup(ScriptStruct, SharedThis(this));
 
 		// The structure needs to be prepared at this point.  
 		ScriptStruct->PrepareCppStructOps();
@@ -1871,24 +1885,7 @@ const TCHAR* FUnrealClassDefinitionInfo::GetPrefixCPP() const
 
 FUnrealClassDefinitionInfo* FUnrealClassDefinitionInfo::FindClass(const TCHAR* ClassName)
 {
-	FUnrealClassDefinitionInfo* ClassDef = nullptr;
-	{
-		ClassDef = GTypeDefinitionInfoMap.FindByName<FUnrealClassDefinitionInfo>(ClassName);
-	}
-
-	if (ClassDef != nullptr)
-	{
-		if (UObjectRedirector* RenamedClassRedirector = FindObject<UObjectRedirector>(ANY_PACKAGE, ClassName))
-		{
-			UClass* RedierClass = CastChecked<UClass>(RenamedClassRedirector->DestinationObject);
-			if (RedierClass != nullptr)
-			{
-				ClassDef = &GTypeDefinitionInfoMap.FindChecked<FUnrealClassDefinitionInfo>(RedierClass);
-			}
-		}
-	}
-
-	return ClassDef;
+	return GTypeDefinitionInfoMap.FindByName<FUnrealClassDefinitionInfo>(ClassName);
 }
 
 FUnrealClassDefinitionInfo* FUnrealClassDefinitionInfo::FindScriptClassOrThrow(const FHeaderParser& Parser, const FString& InClassName)
@@ -2003,9 +2000,6 @@ void FUnrealClassDefinitionInfo::CreateUObjectEngineTypesInternal(ECreateEngineT
 			}
 			SetObject(Class);
 		}
-
-		// Even if we already had an object, add it back to the types regardless
-		GTypeDefinitionInfoMap.AddObjectLookup(GetObjectSafe(), SharedThis(this));
 		break;
 	}
 
@@ -2136,6 +2130,10 @@ void FUnrealClassDefinitionInfo::InitializeFromExistingUObject(UClass* Class)
 	PropertiesSize = Class->PropertiesSize;
 	ClassConfigName = Class->ClassConfigName;
 	SetInternalFlags(Class->GetInternalFlags());
+
+	UPackage* Package = Class->GetOutermost();
+	FUnrealPackageDefinitionInfo& PackageDef = GTypeDefinitionInfoMap.FindByNameChecked<FUnrealPackageDefinitionInfo>(*Package->GetName());
+	SetOuter(&PackageDef);
 }
 
 void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>&& InClassSpecifiers, const FString& InRequiredAPIMacroIfPresent)
@@ -2760,7 +2758,6 @@ void FUnrealFunctionDefinitionInfo::CreateUObjectEngineTypesInternal(ECreateEngi
 		Function->GetPackage()->GetMetaData()->SetObjectValues(Function, GetMetaDataMap());
 
 		SetObject(Function);
-		GTypeDefinitionInfoMap.Add(Function, SharedThis(this));
 
 		if (FUnrealStructDefinitionInfo* StructDef = UHTCast<FUnrealStructDefinitionInfo>(GetOuter()))
 		{

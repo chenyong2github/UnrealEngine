@@ -1944,10 +1944,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedPackageInitCode(FOutputDevice& 
 
 void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& Out, FOutputDevice& OutDeclarations, FReferenceGatherers& OutReferenceGatherers, const FUnrealSourceFile& SourceFile, FUnrealClassDefinitionInfo& ClassDef, FUHTStringBuilder& OutFriendText) const
 {
-	UClass* Class = ClassDef.GetClass();
 	check(!OutFriendText.Len());
-
-	UE_CLOG(Class->ClassGeneratedBy, LogCompile, Fatal, TEXT("For intrinsic and compiled-in classes, ClassGeneratedBy should always be null"));
 
 	const bool   bIsNoExport  = ClassDef.HasAnyClassFlags(CLASS_NoExport);
 	const bool   bIsDynamic   = ClassDef.IsDynamic();
@@ -2113,25 +2110,33 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 
 		const TCHAR* InterfaceArray;
 		const TCHAR* InterfaceCount;
-		if (Class->Interfaces.Num() > 0)
+
+		// Check to see if we have any interfaces
+		bool bHasInterfaces = false;
+		for (FUnrealStructDefinitionInfo::FBaseStructInfo& BaseStruct : ClassDef.GetBaseStructInfos())
+		{
+			if (BaseStruct.Struct != nullptr && UHTCastChecked<FUnrealClassDefinitionInfo>(BaseStruct.Struct).IsInterface())
+			{
+				bHasInterfaces = true;
+				break;
+			}
+		}
+
+		if (bHasInterfaces)
 		{
 			GeneratedClassRegisterFunctionText.Log(TEXT("\t\tstatic const UECodeGen_Private::FImplementedInterfaceParams InterfaceParams[];\r\n"));
 
 			StaticDefinitions.Logf(TEXT("\t\tconst UECodeGen_Private::FImplementedInterfaceParams %s::InterfaceParams[] = {\r\n"), *StaticsStructName);
-			for (const FImplementedInterface& Inter : Class->Interfaces)
+			for (FUnrealStructDefinitionInfo::FBaseStructInfo& BaseStruct : ClassDef.GetBaseStructInfos())
 			{
-				check(Inter.Class);
-				FUnrealFieldDefinitionInfo& InterClassDef = GTypeDefinitionInfoMap.FindChecked<FUnrealFieldDefinitionInfo>(Inter.Class);
+				if (BaseStruct.Struct == nullptr || !UHTCastChecked<FUnrealClassDefinitionInfo>(BaseStruct.Struct).IsInterface())
+				{
+					continue;
+				}
+
+				FUnrealClassDefinitionInfo& InterClassDef = UHTCastChecked<FUnrealClassDefinitionInfo>(BaseStruct.Struct);
 				InterClassDef.AddCrossModuleReference(OutReferenceGatherers.UniqueCrossModuleReferences, false);
-				FString OffsetString;
-				if (Inter.PointerOffset)
-				{
-					OffsetString = FString::Printf(TEXT("(int32)VTABLE_OFFSET(%s, %s)"), *ClassNameCPP, *FNameLookupCPP::GetNameCPP(Inter.Class, true));
-				}
-				else
-				{
-					OffsetString = TEXT("0");
-				}
+				FString OffsetString = FString::Printf(TEXT("(int32)VTABLE_OFFSET(%s, %s)"), *ClassNameCPP, *InterClassDef.GetAlternateNameCPP(true));
 
 				FUHTStringBuilder IntHash;
 				InterClassDef.GetHashTag(ClassDef, IntHash);
@@ -2139,7 +2144,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 					TEXT("\t\t\t{ %s, %s, %s }, %s\r\n"),
 					*InterClassDef.GetSingletonNameChopped(false),
 					*OffsetString,
-					Inter.bImplementedByK2 ? TEXT("true") : TEXT("false"),
+					TEXT("false"),
 					*IntHash
 				);
 			}
@@ -2320,14 +2325,14 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 		FUHTStringBuilder ValidationBuilder;
 		ValidationBuilder.Log(TEXT("\t\tconst bool bIsValid = true"));
 
-		for (int32 i = Class->FirstOwnedClassRep; i < Class->ClassReps.Num(); ++i)
+		for (int32 i = ClassDef.GetFirstOwnedClassRep(); i < ClassDef.GetClassReps().Num(); ++i)
 		{
-			const FProperty* const Property = Class->ClassReps[i].Property;
-			const FString PropertyName = Property->GetName();
+			const FUnrealPropertyDefinitionInfo* PropertyDef = ClassDef.GetClassReps()[i];
+			const FString PropertyName = PropertyDef->GetName();
 
-			NameBuilder.Logf(TEXT("\t\tstatic const FName Name_%s(TEXT(\"%s\"));\r\n"), *PropertyName, *FNativeClassHeaderGenerator::GetOverriddenName(Property));
+			NameBuilder.Logf(TEXT("\t\tstatic const FName Name_%s(TEXT(\"%s\"));\r\n"), *PropertyName, *FNativeClassHeaderGenerator::GetOverriddenName(PropertyDef));
 
-			if (Property->ArrayDim == 1)
+			if (!PropertyDef->IsStaticArray())
 			{
 				ValidationBuilder.Logf(TEXT("\r\n\t\t\t&& Name_%s == ClassReps[(int32)ENetFields_Private::%s].Property->GetFName()"), *PropertyName, *PropertyName);
 			}
@@ -6361,7 +6366,7 @@ void PrepareModules(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, const FS
 		// Create the package definition
 		TSharedRef<FUnrealPackageDefinitionInfo> PackageDefRef = MakeShared<FUnrealPackageDefinitionInfo>(Module, Package);
 		FUnrealPackageDefinitionInfo& PackageDef = *PackageDefRef;
-		GTypeDefinitionInfoMap.Add(Package, PackageDefRef);
+		GTypeDefinitionInfoMap.AddNameLookup(PackageDef);
 		PackageDefs.Add(&PackageDef);
 
 		TArray<TSharedRef<FUnrealSourceFile>>& AllSourceFiles = PackageDef.GetAllSourceFiles();
@@ -6582,7 +6587,6 @@ void DefineTypes(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 		}
 	}
 	FResults::WaitForErrorTasks();
-	GTypeDefinitionInfoMap.Freeze();
 }
 
 void ResolveParents(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
@@ -6874,34 +6878,34 @@ void Export(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, TArray<FUnrealSo
 }
 
 // Exports the class to all available plugins
-void ExportClassToScriptPlugins(UClass* Class, const FManifestModule& Module, IScriptGeneratorPluginInterface& ScriptPlugin)
+void ExportClassToScriptPlugins(const TMap<UClass*, FUnrealSourceFile*>& SourceFileLookup, UClass* Class, const FManifestModule& Module, IScriptGeneratorPluginInterface& ScriptPlugin)
 {
-	TSharedRef<FUnrealTypeDefinitionInfo>* DefinitionInfoRef = GTypeDefinitionInfoMap.Find(Class);
-	if (DefinitionInfoRef == nullptr)
+	check(SourceFileLookup.Find(Class) != nullptr);
+	FUnrealSourceFile* const * SourceFile = SourceFileLookup.Find(Class);
+	if (SourceFile == nullptr)
 	{
 		const FString Empty = TEXT("");
 		ScriptPlugin.ExportClass(Class, Empty, Empty, false);
 	}
 	else
 	{
-		FUnrealSourceFile& SourceFile = (*DefinitionInfoRef)->GetUnrealSourceFile();
-		ScriptPlugin.ExportClass(Class, SourceFile.GetFilename(), SourceFile.GetGeneratedFilename(), SourceFile.HasChanged());
+		ScriptPlugin.ExportClass(Class, (*SourceFile)->GetFilename(), (*SourceFile)->GetGeneratedFilename(), (*SourceFile)->HasChanged());
 	}
 }
 
 // Exports class tree to all available plugins
-void ExportClassTreeToScriptPlugins(const FClassTree* Node, const FManifestModule& Module, IScriptGeneratorPluginInterface& ScriptPlugin)
+void ExportClassTreeToScriptPlugins(const TMap<UClass*, FUnrealSourceFile*>& SourceFileLookup, const FClassTree* Node, const FManifestModule& Module, IScriptGeneratorPluginInterface& ScriptPlugin)
 {
 	for (int32 ChildIndex = 0; ChildIndex < Node->NumChildren(); ++ChildIndex)
 	{
 		const FClassTree* ChildNode = Node->GetChild(ChildIndex);
-		ExportClassToScriptPlugins(ChildNode->GetClass(), Module, ScriptPlugin);
+		ExportClassToScriptPlugins(SourceFileLookup, ChildNode->GetClass(), Module, ScriptPlugin);
 	}
 
 	for (int32 ChildIndex = 0; ChildIndex < Node->NumChildren(); ++ChildIndex)
 	{
 		const FClassTree* ChildNode = Node->GetChild(ChildIndex);
-		ExportClassTreeToScriptPlugins(ChildNode, Module, ScriptPlugin);
+		ExportClassTreeToScriptPlugins(SourceFileLookup, ChildNode, Module, ScriptPlugin);
 	}
 }
 
@@ -6916,6 +6920,19 @@ void ExportToScriptPlugins(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, F
 	if (ScriptPlugins.Num() == 0)
 	{
 		return;
+	}
+
+	TMap<UClass*, FUnrealSourceFile*> SourceFileLookup;
+	for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
+	{
+		for (TSharedRef<FUnrealTypeDefinitionInfo> TypeDef : PackageDef->GetAllClasses())
+		{
+			if (TypeDef->HasSource())
+			{
+				UClass* Class = UHTCastChecked<FUnrealClassDefinitionInfo>(TypeDef).GetClass();
+				SourceFileLookup.Add(Class, &TypeDef->GetUnrealSourceFile());
+			}
+		}
 	}
 
 	for (FUnrealPackageDefinitionInfo* PackageDef : PackageDefs)
@@ -6933,8 +6950,8 @@ void ExportToScriptPlugins(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, F
 		{
 			if (Plugin->ShouldExportClassesForModule(Module.Name, Module.ModuleType, Module.GeneratedIncludeDirectory))
 			{
-				ExportClassToScriptPlugins(ClassTree.GetClass(), Module, *Plugin);
-				ExportClassTreeToScriptPlugins(&ClassTree, Module, *Plugin);
+				ExportClassToScriptPlugins(SourceFileLookup, ClassTree.GetClass(), Module, *Plugin);
+				ExportClassTreeToScriptPlugins(SourceFileLookup, &ClassTree, Module, *Plugin);
 			}
 		}
 	}
@@ -7003,6 +7020,15 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 	// The meta data keywords must be initialized prior to going wide
 	FBaseParser::InitMetadataKeywords();
 
+	// Load the manifest file, giving a list of all modules to be processed, pre-sorted by dependency ordering
+	FResults::Try([&ModuleInfoFilename]() { GManifest = FManifest::LoadFromFile(ModuleInfoFilename); });
+
+	TArray<FUnrealSourceFile*> OrderedSourceFiles;
+	TArray<FUnrealPackageDefinitionInfo*> PackageDefs;
+	PackageDefs.Reserve(GManifest.Modules.Num());
+
+	double TotalPrepareModuleTime = FResults::TimedTry([&PackageDefs, &ModuleInfoPath]() { PrepareModules(PackageDefs, ModuleInfoPath); });
+
 	// TEMPORARY!!!
 	// At this time, there is a collection of classes that aren't listed in the NoExport
 	// file.  This means that we don't have an associated type definition for them.
@@ -7016,14 +7042,6 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 		GEngineClasses.Add(ClassDefRef);
 	}
 
-	// Load the manifest file, giving a list of all modules to be processed, pre-sorted by dependency ordering
-	FResults::Try([&ModuleInfoFilename]() { GManifest = FManifest::LoadFromFile(ModuleInfoFilename); });
-
-	TArray<FUnrealSourceFile*> OrderedSourceFiles;
-	TArray<FUnrealPackageDefinitionInfo*> PackageDefs;
-	PackageDefs.Reserve(GManifest.Modules.Num());
-
-	double TotalPrepareModuleTime = FResults::TimedTry([&PackageDefs, &ModuleInfoPath]() { PrepareModules(PackageDefs, ModuleInfoPath); });
 	double TotalPreparseTime = FResults::TimedTry([&PackageDefs, &ModuleInfoPath]() { PreparseSources(PackageDefs, ModuleInfoPath); });
 	double TotalDefineTypesTime = FResults::TimedTry([&PackageDefs]() { DefineTypes(PackageDefs); });
 	double TotalResolveParentsTime = FResults::TimedTry([&PackageDefs]() { ResolveParents(PackageDefs); });
