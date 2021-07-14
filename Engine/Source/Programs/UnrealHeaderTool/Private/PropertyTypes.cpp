@@ -2717,9 +2717,6 @@ FProperty* FPropertyTraits::CreateEngineType(TSharedRef<FUnrealPropertyDefinitio
 		Property->Next = nullptr;
 		*Prev = Property;
 	}
-
-	// Add the property to the lookup map
-	GTypeDefinitionInfoMap.Add(PropDef.GetProperty(), PropDefRef);
 	return Property;
 }
 

@@ -604,6 +604,11 @@ protected:
 	 */
 	virtual void PostParseFinalizeInternal(EPostParseFinalizePhase Phase) {}
 
+	void SetOuter(FUnrealTypeDefinitionInfo* InOuter)
+	{
+		Outer = InOuter;
+	}
+
 private:
 	FString NameCPP;
 	FUnrealTypeDefinitionInfo* Outer = nullptr;

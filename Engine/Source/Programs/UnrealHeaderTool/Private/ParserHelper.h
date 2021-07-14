@@ -669,26 +669,6 @@ struct FScriptLocation
 };
 
 /////////////////////////////////////////////////////
-// FNameLookupCPP
-
-/**
- * Helper class used to cache UClass* -> TCHAR* name lookup for finding the named used for C++ declaration.
- */
-struct FNameLookupCPP
-{
-	/**
-	 * Returns the name used for declaring the passed in struct in C++
-	 *
-	 * @param	Struct	UStruct to obtain C++ name for
-	 * @return	Name used for C++ declaration
-	 */
-	static FString GetNameCPP(UStruct* Struct, bool bForceInterface = false)
-	{
-		return FString::Printf(TEXT("%s%s"), (bForceInterface ? TEXT("I") : Struct->GetPrefixCPP()), *Struct->GetName());
-	}
-};
-
-/////////////////////////////////////////////////////
 // FAdvancedDisplayParameterHandler - used by FHeaderParser::ParseParameterList, to check if a property if a function parameter has 'AdvancedDisplay' flag
 
 /** 

@@ -32,82 +32,11 @@ protected:
 };
 
 // Wrapper class around TypeDefinition map so we can maintain a parallel by name map
-struct FTypeDefinitionInfoMap : public FFreezableContainer
+struct FTypeDefinitionInfoMap
 {
-
-	//NOTE: UObjects are frozen after the preparsing phase
-	void Add(UObject* Object, TSharedRef<FUnrealTypeDefinitionInfo>&& Definition)
-	{
-		check(!bFrozen);
-		AddNameLookup(UHTCastChecked<FUnrealObjectDefinitionInfo>(Definition));
-		AddObjectLookup(Object, MoveTemp(Definition));
-	}
-
-	void Add(UObject* Object, TSharedRef<FUnrealTypeDefinitionInfo>& Definition)
-	{
-		check(!bFrozen);
-		AddNameLookup(UHTCastChecked<FUnrealObjectDefinitionInfo>(Definition));
-		AddObjectLookup(Object, Definition);
-	}
-
-	void AddObjectLookup(UObject* Object, TSharedRef<FUnrealTypeDefinitionInfo>&& Definition)
-	{
-		//check(!bFrozen);
-		DefinitionsByUObject.Add(Object, Definition);
-	}
-
-	void AddObjectLookup(UObject* Object, TSharedRef<FUnrealTypeDefinitionInfo>& Definition)
-	{
-		//check(!bFrozen);
-		DefinitionsByUObject.Add(Object, Definition);
-	}
-
 	void AddNameLookup(FUnrealObjectDefinitionInfo& Definition)
 	{
-		check(!bFrozen);
 		DefinitionsByName.Add(Definition.GetFName(), Definition.AsShared());
-	}
-
-	bool Contains(const UObject* Object)
-	{
-		check(bFrozen); 
-		return DefinitionsByUObject.Contains(Object); 
-	}
-
-	TSharedRef<FUnrealTypeDefinitionInfo>* Find(const UObject* Object)
-	{
-		check(bFrozen);
-		return DefinitionsByUObject.Find(Object);
-	}
-
-	template<typename To>
-	To* Find(const UObject* Object)
-	{
-		check(bFrozen);
-		return UHTCast<To>(DefinitionsByUObject.Find(Object));
-	}
-
-	TSharedRef<FUnrealTypeDefinitionInfo>& operator[](const UObject* Object)
-	{
-		check(bFrozen);
-		return DefinitionsByUObject[Object]; 
-	}
-
-	FUnrealTypeDefinitionInfo& FindChecked(const UObject* Object)
-	{
-		check(bFrozen);
-		TSharedRef<FUnrealTypeDefinitionInfo>* TypeDef = DefinitionsByUObject.Find(Object);
-		check(TypeDef);
-		return **TypeDef;
-	}
-
-	template<typename To>
-	To& FindChecked(const UObject* Object)
-	{
-		check(bFrozen);
-		To* TypeDef = Find<To>(Object);
-		check(TypeDef);
-		return *TypeDef;
 	}
 
 	// Finding by name must be done on the stripped name for classes and script structs
@@ -124,13 +53,11 @@ struct FTypeDefinitionInfoMap : public FFreezableContainer
 	template<typename To>
 	To* FindByName(const TCHAR* Name)
 	{
-		check(bFrozen);
 		return UHTCast<To>(FindByName(Name));
 	}
 
 	FUnrealTypeDefinitionInfo& FindByNameChecked(const TCHAR* Name)
 	{
-		check(bFrozen);
 		TSharedRef<FUnrealTypeDefinitionInfo>* TypeDef = FindByName(Name);
 		check(TypeDef);
 		return **TypeDef;
@@ -139,7 +66,6 @@ struct FTypeDefinitionInfoMap : public FFreezableContainer
 	template <typename To>
 	To& FindByNameChecked(const TCHAR* Name)
 	{
-		check(bFrozen);
 		To* TypeDef = FindByName<To>(Name);
 		check(TypeDef);
 		return *TypeDef;
@@ -154,60 +80,7 @@ struct FTypeDefinitionInfoMap : public FFreezableContainer
 		}
 	}
 
-	//NOTE: Currently UFunctions are created during the parsing phase and can not be frozen
-	void Add(UFunction* Object, TSharedRef<FUnrealTypeDefinitionInfo>&& Definition)
-	{
-		DefinitionsByUObject.Add(Object, Definition);
-		// At this point, do not add the name
-		//DefinitionsByName.Add(Object->GetFName(), Definition);
-	}
-
-	//NOTE: FFields (properties) are not frozen since they are added during the parsing phase
-	void Add(FField* Field, TSharedRef<FUnrealTypeDefinitionInfo>&& Definition)
-	{
-		DefinitionsByFField.Add(Field, MoveTemp(Definition));
-	}
-
-	bool Contains(const FField* Field) 
-	{
-		return DefinitionsByFField.Contains(Field);
-	}
-
-	TSharedRef<FUnrealTypeDefinitionInfo>* Find(const FField* Field)
-	{
-		return DefinitionsByFField.Find(Field);
-	}
-
-	template <typename To>
-	To* Find(const FField* Field)
-	{
-		return UHTCast<To>(DefinitionsByFField.Find(Field));
-	}
-
-	FUnrealTypeDefinitionInfo& FindChecked(const FField* Field)
-	{
-		TSharedRef<FUnrealTypeDefinitionInfo>* TypeDef = DefinitionsByFField.Find(Field);
-		check(TypeDef);
-		return **TypeDef;
-	}
-
-	template <typename To>
-	To& FindChecked(const FField* Field)
-	{
-		To* TypeDef = Find<To>(Field);
-		check(TypeDef);
-		return *TypeDef;
-	}
-
-	TSharedRef<FUnrealTypeDefinitionInfo>& operator[](const FField* Field)
-	{ 
-		return DefinitionsByFField[Field];
-	}
-
 private:
-
-	TMap<UObject*, TSharedRef<FUnrealTypeDefinitionInfo>> DefinitionsByUObject;
-	TMap<FField*, TSharedRef<FUnrealTypeDefinitionInfo>> DefinitionsByFField;
 	TMap<FName, TSharedRef<FUnrealTypeDefinitionInfo>> DefinitionsByName;
 };
 
