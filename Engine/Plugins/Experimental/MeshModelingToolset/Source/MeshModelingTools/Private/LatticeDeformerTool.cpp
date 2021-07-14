@@ -29,6 +29,78 @@ using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "ULatticeDeformerTool"
 
+
+namespace
+{
+	void MakeLatticeGraph(const FFFDLattice& Lattice, FDynamicGraph3d& Graph)
+	{
+		const FVector3i& Dims = Lattice.GetDimensions();
+		const FVector3d& CellSize = Lattice.GetCellSize();
+		const FAxisAlignedBox3d& InitialBounds = Lattice.GetInitialBounds();
+
+		// Add cell corners as vertices
+
+		for (int i = 0; i < Dims.X; ++i)
+		{
+			const double X = CellSize.X * i;
+			for (int j = 0; j < Dims.Y; ++j)
+			{
+				const double Y = CellSize.Y * j;
+				for (int k = 0; k < Dims.Z; ++k)
+				{
+					const double Z = CellSize.Z * k;
+
+					const FVector3d Position = InitialBounds.Min + FVector3d{ X,Y,Z };
+					const int P = Lattice.ControlPointIndexFromCoordinates(i, j, k);
+					const int VID = Graph.AppendVertex(Position);
+					ensure(VID == P);
+				}
+			}
+		}
+
+		// Connect cell corners with edges
+
+		for (int i = 0; i < Dims.X; ++i)
+		{
+			for (int j = 0; j < Dims.Y; ++j)
+			{
+				for (int k = 0; k < Dims.Z; ++k)
+				{
+					const int P = Lattice.ControlPointIndexFromCoordinates(i, j, k);
+					if (i + 1 < Dims.X)
+					{
+						const int Pi = Lattice.ControlPointIndexFromCoordinates(i + 1, j, k);
+						Graph.AppendEdge(P, Pi);
+					}
+
+					if (j + 1 < Dims.Y)
+					{
+						const int Pj = Lattice.ControlPointIndexFromCoordinates(i, j + 1, k);
+						Graph.AppendEdge(P, Pj);
+					}
+
+					if (k + 1 < Dims.Z)
+					{
+						const int Pk = Lattice.ControlPointIndexFromCoordinates(i, j, k + 1);
+						Graph.AppendEdge(P, Pk);
+					}
+				}
+			}
+		}
+	}
+}
+
+// Tool properties/actions
+
+void ULatticeDeformerToolProperties::PostAction(ELatticeDeformerToolAction Action)
+{
+	if (ParentTool.IsValid())
+	{
+		ParentTool->RequestAction(Action);
+	}
+}
+
+
 // Tool builder
 
 USingleSelectionMeshEditingTool* ULatticeDeformerToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
@@ -102,6 +174,7 @@ void ULatticeDeformerTool::Setup()
 	Converter.Convert(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription(), *OriginalMesh);
 
 	Settings = NewObject<ULatticeDeformerToolProperties>(this, TEXT("Lattice Deformer Tool Settings"));
+	Settings->Initialize(this);
 	Settings->RestoreProperties(this);
 	AddToolPropertySource(Settings);
 
@@ -126,7 +199,14 @@ void ULatticeDeformerTool::Setup()
 	{
 		ControlPointsMechanic->UpdateSetPivotMode(Settings->bSetPivotMode);
 	});
-	
+	Settings->WatchProperty(Settings->bSoftDeformation, [this](bool)
+	{
+		if (Settings->bSoftDeformation)
+		{
+			RebuildDeformer();
+		}
+	});
+
 
 	TArray<FVector3d> LatticePoints;
 	TArray<FVector2i> LatticeEdges;
@@ -141,16 +221,114 @@ void ULatticeDeformerTool::Setup()
 
 	auto OnPointsChangedLambda = [this]()
 	{
+		if (Settings->bSoftDeformation)
+		{
+			SoftDeformLattice();
+		}
 		Preview->InvalidateResult();
 		Settings->bCanChangeResolution = !ControlPointsMechanic->bHasChanged;
 	};
 	ControlPointsMechanic->OnPointsChanged.AddLambda(OnPointsChangedLambda);
+
+	ControlPointsMechanic->OnSelectionChanged.AddLambda([this]()
+	{
+		if (Settings->bSoftDeformation)
+		{
+			RebuildDeformer();
+		}
+	});
 
 	ControlPointsMechanic->SetCoordinateSystem(Settings->GizmoCoordinateSystem);
 	ControlPointsMechanic->UpdateSetPivotMode(Settings->bSetPivotMode);
 
 	StartPreview();
 }
+
+
+void ULatticeDeformerTool::RebuildDeformer()
+{
+	LatticeGraph = MakePimpl<UE::Geometry::FDynamicGraph3d>();
+	MakeLatticeGraph(*Lattice, *LatticeGraph);
+
+	const TArray<FVector3d>& CurrentLatticePoints = ControlPointsMechanic->GetControlPoints();
+	check(LatticeGraph->VertexCount() == CurrentLatticePoints.Num());
+
+	for (int VID : LatticeGraph->VertexIndicesItr())
+	{
+		LatticeGraph->SetVertex(VID, CurrentLatticePoints[VID]);
+	}
+
+	DeformationSolver = UE::MeshDeformation::ConstructUniformConstrainedMeshDeformer(*LatticeGraph);
+
+	for (int LatticePointIndex = 0; LatticePointIndex < CurrentLatticePoints.Num(); ++LatticePointIndex)
+	{
+		if(ConstrainedLatticePoints.Contains(LatticePointIndex))
+		{
+			// Pin constraint
+			DeformationSolver->AddConstraint(LatticePointIndex, 1.0, ConstrainedLatticePoints[LatticePointIndex], true);
+		}
+		else 
+		{
+			if (ControlPointsMechanic->ControlPointIsSelected(LatticePointIndex))
+			{
+				const FVector3d& MovePosition = CurrentLatticePoints[LatticePointIndex];
+				DeformationSolver->AddConstraint(LatticePointIndex, 1.0, MovePosition, true);
+			}
+		}
+	}
+}
+
+
+void ULatticeDeformerTool::SoftDeformLattice()
+{
+	if (!ensure(Lattice))
+	{
+		return;
+	}
+
+	if (!ensure(ControlPointsMechanic))
+	{
+		return;
+	}
+
+	if (!ensure(DeformationSolver))
+	{
+		return;
+	}
+	
+	const TArray<FVector3d>& CurrentLatticePoints = ControlPointsMechanic->GetControlPoints();
+
+	if (!ensure(LatticeGraph->VertexCount() == CurrentLatticePoints.Num()))
+	{
+		return;
+	}
+
+	for (int LatticePointIndex = 0; LatticePointIndex < CurrentLatticePoints.Num(); ++LatticePointIndex)
+	{
+		if (ControlPointsMechanic->ControlPointIsSelected(LatticePointIndex))
+		{
+			// Don't move pinned points
+			if (ConstrainedLatticePoints.Contains(LatticePointIndex))
+			{
+				continue;
+			}
+
+			if (!ensure(DeformationSolver->IsConstrained(LatticePointIndex)))
+			{
+				continue;
+			}
+
+			const FVector3d& MovePosition = CurrentLatticePoints[LatticePointIndex];
+			DeformationSolver->UpdateConstraintPosition(LatticePointIndex, MovePosition, true);
+		}
+	}
+
+	TArray<FVector3d> DeformedLatticePoints;
+	DeformationSolver->Deform(DeformedLatticePoints);
+
+	ControlPointsMechanic->UpdateControlPointPositions(DeformedLatticePoints);
+}
+
 
 void ULatticeDeformerTool::Shutdown(EToolShutdownType ShutdownType)
 {
@@ -219,8 +397,31 @@ void ULatticeDeformerTool::StartPreview()
 	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(false);
 }
 
+
+void ULatticeDeformerTool::ApplyAction(ELatticeDeformerToolAction Action)
+{
+	switch (Action)
+	{
+	case ELatticeDeformerToolAction::ClearConstraints:
+		ClearConstrainedPoints();
+		break;
+	case ELatticeDeformerToolAction::Constrain:
+		ConstrainSelectedPoints();
+		break;
+	default:
+		break;
+	}
+}
+
+
 void ULatticeDeformerTool::OnTick(float DeltaTime)
 {
+	if (PendingAction != ELatticeDeformerToolAction::NoAction)
+	{
+		ApplyAction(PendingAction);
+		PendingAction = ELatticeDeformerToolAction::NoAction;
+	}
+
 	if (Preview)
 	{
 		if (bShouldRebuild)
@@ -246,5 +447,88 @@ void ULatticeDeformerTool::Render(IToolsContextRenderAPI* RenderAPI)
 		ControlPointsMechanic->Render(RenderAPI);
 	}
 }
+
+void ULatticeDeformerTool::RequestAction(ELatticeDeformerToolAction Action)
+{
+	if (PendingAction == ELatticeDeformerToolAction::NoAction)
+	{
+		PendingAction = Action;
+	}
+}
+
+
+static const FText LatticeConstraintChangeTransactionText = LOCTEXT("LatticeConstraintChange", "Lattice Constraint Change");
+
+void ULatticeDeformerTool::ConstrainSelectedPoints()
+{
+	TMap<int, FVector3d> PrevConstrainedLatticePoints = ConstrainedLatticePoints;
+	const TArray<FVector3d>& CurrentControlPointPositions = ControlPointsMechanic->GetControlPoints();
+	for (int32 VID : ControlPointsMechanic->GetSelectedPointIDs())
+	{
+		ConstrainedLatticePoints.FindOrAdd(VID) = CurrentControlPointPositions[VID];
+	}
+	UpdateMechanicColorOverrides();
+
+	GetToolManager()->EmitObjectChange(this, MakeUnique<FLatticeDeformerToolConstrainedPointsChange>(PrevConstrainedLatticePoints,
+																									 ConstrainedLatticePoints, 
+																									 CurrentChangeStamp), 
+									   LatticeConstraintChangeTransactionText);
+}
+
+void ULatticeDeformerTool::ClearConstrainedPoints()
+{
+	TMap<int, FVector3d> PrevConstrainedLatticePoints = ConstrainedLatticePoints;
+	ConstrainedLatticePoints.Reset();
+	UpdateMechanicColorOverrides();
+
+	GetToolManager()->EmitObjectChange(this, MakeUnique<FLatticeDeformerToolConstrainedPointsChange>(PrevConstrainedLatticePoints,
+																									 ConstrainedLatticePoints,
+																									 CurrentChangeStamp),
+									   LatticeConstraintChangeTransactionText);
+}
+
+
+void ULatticeDeformerTool::UpdateMechanicColorOverrides()
+{
+	ControlPointsMechanic->ClearAllPointColorOverrides();
+	for ( const TPair<int32,FVector3d>& Constraint : ConstrainedLatticePoints)
+	{
+		ControlPointsMechanic->SetPointColorOverride(Constraint.Key, FColor::Cyan);
+	}
+	RebuildDeformer();
+	ControlPointsMechanic->UpdateDrawables();
+}
+
+
+
+void FLatticeDeformerToolConstrainedPointsChange::Apply(UObject* Object)
+{
+	ULatticeDeformerTool* Tool = Cast<ULatticeDeformerTool>(Object);
+	if (!ensure(Tool))
+	{
+		return;
+	}
+
+	Tool->ConstrainedLatticePoints = NewConstrainedLatticePoints;
+	Tool->UpdateMechanicColorOverrides();
+}
+
+void FLatticeDeformerToolConstrainedPointsChange::Revert(UObject* Object)
+{
+	ULatticeDeformerTool* Tool = Cast<ULatticeDeformerTool>(Object);
+	if (!ensure(Tool))
+	{
+		return;
+	}
+
+	Tool->ConstrainedLatticePoints = PrevConstrainedLatticePoints;
+	Tool->UpdateMechanicColorOverrides();
+}
+
+FString FLatticeDeformerToolConstrainedPointsChange::ToString() const
+{
+	return TEXT("FLatticeDeformerToolConstrainedPointsChange");
+}
+
 
 #undef LOCTEXT_NAMESPACE

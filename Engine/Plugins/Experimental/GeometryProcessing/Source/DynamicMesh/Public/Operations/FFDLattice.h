@@ -80,10 +80,41 @@ public:
 	/// Return the lattice edges by index. The indices refer to the array of lattice positions returned by GenerateInitialLatticePositions
 	void GenerateLatticeEdges(TArray<FVector2i>& OutLatticeEdges) const;
 
+	/// Number of lattice points in each dimension
+	const FVector3i& GetDimensions() const
+	{
+		return Dimensions;
+	}
+
+	/// 3D size of a lattice cell
+	const FVector3d& GetCellSize() const
+	{
+		return CellSize;
+	}
+
+	/// Extents of the lattice before it is deformed
+	const FAxisAlignedBox3d& GetInitialBounds() const
+	{
+		return InitialBounds;
+	}
+
+	/// Get the index into the flat TArray of positions given the (i,j,k) coordinates in the lattice
+	int ControlPointIndexFromCoordinates(int i, int j, int k) const
+	{
+		int Idx = k + Dimensions.Z * (j + Dimensions.Y * i);
+		return Idx;
+	}
+
+	/// Get the index into the flat TArray of positions given the (i,j,k) coordinates in the lattice
+	int ControlPointIndexFromCoordinates(const FVector3i& Index) const
+	{
+		return ControlPointIndexFromCoordinates(Index.X, Index.Y, Index.Z);
+	}
+
 protected:
 
 	// Number of lattice points in each dimension
-	FVector3i Dims;
+	FVector3i Dimensions;
 
 	// Extents of the lattice before it is deformed
 	FAxisAlignedBox3d InitialBounds;
@@ -93,20 +124,6 @@ protected:
 
 	// Interpolation weights and cell indices per vertex of the input FDynamicMesh3
 	TArray<FEmbedding> VertexEmbeddings;
-
-
-	/// Get the index into the flat TArray of positions given the (i,j,k) coordinates in the lattice
-	int ControlPointIndexFromCoordinates(int i, int j, int k) const
-	{
-		int Idx = k + Dims.Z * (j + Dims.Y * i);
-		return Idx;
-	}
-
-	/// Get the index into the flat TArray of positions given the (i,j,k) coordinates in the lattice
-	int ControlPointIndexFromCoordinates(const FVector3i& Index) const
-	{
-		return ControlPointIndexFromCoordinates(Index.X, Index.Y, Index.Z);
-	}
 
 	/// For each vertex in Mesh, compute the lattice cell it resides in and its weighting
 	void ComputeInitialEmbedding(const FDynamicMesh3& Mesh, FLatticeExecutionInfo ExecutionInfo = FLatticeExecutionInfo());

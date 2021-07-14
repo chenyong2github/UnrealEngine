@@ -226,6 +226,11 @@ void ULatticeControlPointsMechanic::RebuildDrawables()
 		}
 	}
 
+	for (const TPair<int32, FColor>& Override : ColorOverrides)
+	{
+		DrawnControlPoints->SetPointColor(Override.Key, Override.Value);
+	}
+
 	DrawnLatticeEdges->Clear();
 	for (int32 EdgeIndex = 0; EdgeIndex < LatticeEdges.Num(); ++EdgeIndex)
 	{
@@ -254,6 +259,11 @@ void ULatticeControlPointsMechanic::UpdateDrawables()
 		{
 			DrawnControlPoints->SetPointColor(PointID, SelectedColor);
 		}
+	}
+
+	for (const TPair<int32, FColor>& Override : ColorOverrides)
+	{
+		DrawnControlPoints->SetPointColor(Override.Key, Override.Value);
 	}
 
 	for (int32 EdgeIndex = 0; EdgeIndex < LatticeEdges.Num(); ++EdgeIndex)
@@ -405,6 +415,7 @@ void ULatticeControlPointsMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 void ULatticeControlPointsMechanic::ChangeSelection(int32 NewPointID, bool bAddToSelection)
 {
 	// If not adding to selection, clear it
+	bool bAnyChange = false;
 	if (!bAddToSelection && SelectedPointIDs.Num() > 0)
 	{
 		TSet<int32> PointsToDeselect;
@@ -427,6 +438,12 @@ void ULatticeControlPointsMechanic::ChangeSelection(int32 NewPointID, bool bAddT
 
 		ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FLatticeControlPointsMechanicSelectionChange>(
 			PointsToDeselect, false, PreviousTransform, NewTransform, CurrentChangeStamp), LatticePointDeselectionTransactionText);
+		bAnyChange = true;
+	}
+
+	for (const TPair<int32, FColor>& Override : ColorOverrides)
+	{
+		DrawnControlPoints->SetPointColor(Override.Key, Override.Value);
 	}
 
 	// We check for validity here because giving an invalid id (such as -1) with bAddToSelection == false
@@ -450,6 +467,12 @@ void ULatticeControlPointsMechanic::ChangeSelection(int32 NewPointID, bool bAddT
 			ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FLatticeControlPointsMechanicSelectionChange>(
 				NewPointID, true, PreviousTransform, NewTransform, CurrentChangeStamp), LatticePointSelectionTransactionText);
 		}
+		bAnyChange = true;
+	}
+
+	if (bAnyChange)
+	{
+		OnSelectionChanged.Broadcast();
 	}
 }
 
@@ -492,7 +515,14 @@ bool ULatticeControlPointsMechanic::DeselectPoint(int32 PointID)
 	
 	if (SelectedPointIDs.Remove(PointID) != 0)
 	{
-		DrawnControlPoints->SetPointColor(PointID, NormalPointColor);
+		if (ColorOverrides.Contains(PointID))
+		{
+			DrawnControlPoints->SetPointColor(PointID, ColorOverrides[PointID]);
+		}
+		else
+		{
+			DrawnControlPoints->SetPointColor(PointID, NormalPointColor);
+		}
 		PointFound = true;
 	}
 	
@@ -502,7 +532,15 @@ bool ULatticeControlPointsMechanic::DeselectPoint(int32 PointID)
 void ULatticeControlPointsMechanic::SelectPoint(int32 PointID)
 {
 	SelectedPointIDs.Add(PointID);
-	DrawnControlPoints->SetPointColor(PointID, SelectedColor);
+
+	if (ColorOverrides.Contains(PointID))
+	{
+		DrawnControlPoints->SetPointColor(PointID, ColorOverrides[PointID]);
+	}
+	else
+	{
+		DrawnControlPoints->SetPointColor(PointID, SelectedColor);
+	}
 }
 
 void ULatticeControlPointsMechanic::ClearSelection()
@@ -635,19 +673,28 @@ void ULatticeControlPointsMechanic::OnDragRectangleFinished()
 
 	FTransform NewTransform = PointTransformProxy->GetTransform();
 
+	bool bAnyChange = false;
+
 	if (PreDragSelection.Num() > 0)
 	{
 		ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FLatticeControlPointsMechanicSelectionChange>(
 			PreDragSelection, false, PreviousTransform, NewTransform, CurrentChangeStamp), LatticePointDeselectionTransactionText);
+		bAnyChange = true;
 	}
 
 	if (SelectedPointIDs.Num() > 0)
 	{
 		ParentTool->GetToolManager()->EmitObjectChange(this, MakeUnique<FLatticeControlPointsMechanicSelectionChange>(
 			SelectedPointIDs, true, PreviousTransform, NewTransform, CurrentChangeStamp), LatticePointSelectionTransactionText);
+		bAnyChange = true;
 	}
 
 	ParentTool->GetToolManager()->EndUndoTransaction();
+
+	if (bAnyChange)
+	{
+		OnSelectionChanged.Broadcast();
+	}
 
 	UpdateDrawables();
 }
@@ -656,6 +703,18 @@ const TArray<FVector3d>& ULatticeControlPointsMechanic::GetControlPoints() const
 {
 	return ControlPoints;
 }
+
+void ULatticeControlPointsMechanic::UpdateControlPointPositions(const TArray<FVector3d>& NewPoints)
+{
+	if (!ensure(NewPoints.Num() == ControlPoints.Num()))
+	{
+		return;
+	}
+
+	ControlPoints = NewPoints;
+	UpdateDrawables();
+}
+
 
 // ==================== Undo/redo object functions ====================
 
@@ -704,6 +763,7 @@ void FLatticeControlPointsMechanicSelectionChange::Apply(UObject* Object)
 
 	bool bAnyPointSelected = (Mechanic->SelectedPointIDs.Num() > 0);
 	Mechanic->PointTransformGizmo->SetVisibility(bAnyPointSelected);
+	Mechanic->OnSelectionChanged.Broadcast();
 }
 
 void FLatticeControlPointsMechanicSelectionChange::Revert(UObject* Object)
@@ -726,6 +786,7 @@ void FLatticeControlPointsMechanicSelectionChange::Revert(UObject* Object)
 
 	bool bAnyPointSelected = (Mechanic->SelectedPointIDs.Num() > 0);
 	Mechanic->PointTransformGizmo->SetVisibility(bAnyPointSelected);
+	Mechanic->OnSelectionChanged.Broadcast();
 }
 
 FString FLatticeControlPointsMechanicSelectionChange::ToString() const

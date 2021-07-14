@@ -9,7 +9,7 @@
 using namespace UE::Geometry;
 
 FFFDLattice::FFFDLattice(const FVector3i& InDims, const FDynamicMesh3& Mesh, float Padding) :
-	Dims(InDims)
+	Dimensions(InDims)
 {
 	check(InDims.X > 1 && InDims.Y > 1 && InDims.Z > 1);
 
@@ -31,23 +31,23 @@ FFFDLattice::FFFDLattice(const FVector3i& InDims, const FDynamicMesh3& Mesh, flo
 	InitialBounds.Max = Center + Extents;
 	
 	FVector3d Diag = InitialBounds.Diagonal();
-	CellSize = Diag / FVector3d(Dims - 1);
+	CellSize = Diag / FVector3d(Dimensions - 1);
 
 	ComputeInitialEmbedding(Mesh);
 }
 
 void FFFDLattice::GenerateInitialLatticePositions(TArray<FVector3d>& OutLatticePositions) const
 {
-	int TotalNumLatticePoints = Dims.X * Dims.Y * Dims.Z;
+	int TotalNumLatticePoints = Dimensions.X * Dimensions.Y * Dimensions.Z;
 	OutLatticePositions.SetNum(TotalNumLatticePoints);
 
-	for (int i = 0; i < Dims.X; ++i)
+	for (int i = 0; i < Dimensions.X; ++i)
 	{
 		double X = CellSize.X * i;
-		for (int j = 0; j < Dims.Y; ++j)
+		for (int j = 0; j < Dimensions.Y; ++j)
 		{
 			double Y = CellSize.Y * j;
-			for (int k = 0; k < Dims.Z; ++k)
+			for (int k = 0; k < Dimensions.Z; ++k)
 			{
 				int PointID = ControlPointIndexFromCoordinates(i, j, k);
 				double Z = CellSize.Z * k;
@@ -61,27 +61,27 @@ void FFFDLattice::GenerateInitialLatticePositions(TArray<FVector3d>& OutLatticeP
 
 void FFFDLattice::GenerateLatticeEdges(TArray<FVector2i>& OutLatticeEdges) const
 {
-	OutLatticeEdges.Reset(3 * Dims.X * Dims.Y * Dims.Z);
+	OutLatticeEdges.Reset(3 * Dimensions.X * Dimensions.Y * Dimensions.Z);
 
-	for (int i = 0; i < Dims.X; ++i)
+	for (int i = 0; i < Dimensions.X; ++i)
 	{
-		for (int j = 0; j < Dims.Y; ++j)
+		for (int j = 0; j < Dimensions.Y; ++j)
 		{
-			for (int k = 0; k < Dims.Z; ++k)
+			for (int k = 0; k < Dimensions.Z; ++k)
 			{
 				int PointID = ControlPointIndexFromCoordinates(i, j, k);
 
-				if (i + 1 < Dims.X)
+				if (i + 1 < Dimensions.X)
 				{
 					int IPlusOne = ControlPointIndexFromCoordinates(i + 1, j, k);
 					OutLatticeEdges.Add({ PointID, IPlusOne });
 				}
-				if (j + 1 < Dims.Y)
+				if (j + 1 < Dimensions.Y)
 				{
 					int JPlusOne = ControlPointIndexFromCoordinates(i, j + 1, k);
 					OutLatticeEdges.Add({ PointID, JPlusOne });
 				}
-				if (k + 1 < Dims.Z)
+				if (k + 1 < Dimensions.Z)
 				{
 					int KPlusOne = ControlPointIndexFromCoordinates(i, j, k + 1);
 					OutLatticeEdges.Add({ PointID, KPlusOne });
@@ -351,7 +351,7 @@ FVector3d FFFDLattice::InterpolatedPositionCubic(const FEmbedding& VertexEmbeddi
 				int k = VertexEmbedding.LatticeCell.Z + DK;
 
 				FVector3d LatticePoint;
-				if (i < 0 || i >= Dims.X || j < 0 || j >= Dims.Y || k < 0 || k >= Dims.Z)
+				if (i < 0 || i >= Dimensions.X || j < 0 || j >= Dimensions.Y || k < 0 || k >= Dimensions.Z)
 				{
 					// Get the extrapolated position for a "virtual" control point outside of the deformed lattice
 					LatticePoint = ExtrapolatedLatticePosition({ i,j,k }, LatticeControlPoints);
@@ -502,7 +502,7 @@ FMatrix3d FFFDLattice::CubicInterpolationJacobian(const FEmbedding& VertexEmbedd
 				int k = VertexEmbedding.LatticeCell.Z + DK;
 
 				FVector3d LatticePoint;
-				if (i < 0 || i >= Dims.X || j < 0 || j >= Dims.Y || k < 0 || k >= Dims.Z)
+				if (i < 0 || i >= Dimensions.X || j < 0 || j >= Dimensions.Y || k < 0 || k >= Dimensions.Z)
 				{
 					// Get the extrapolated position for a "virtual" control point outside of the deformed lattice
 					LatticePoint = ExtrapolatedLatticePosition({ i,j,k }, LatticeControlPoints);
@@ -524,7 +524,7 @@ FMatrix3d FFFDLattice::CubicInterpolationJacobian(const FEmbedding& VertexEmbedd
 FVector3d FFFDLattice::ClosestLatticePosition(const FVector3i& VirtualControlPointIndex, const TArray<FVector3d>& LatticeControlPoints) const
 {
 	// Clamp to valid lattice index
-	FVector3i NearestControlPointIndex = Max(Min(VirtualControlPointIndex, Dims - 1), FVector3i(0, 0, 0));
+	FVector3i NearestControlPointIndex = Max(Min(VirtualControlPointIndex, Dimensions - 1), FVector3i(0, 0, 0));
 
 	return LatticeControlPoints[ControlPointIndexFromCoordinates(NearestControlPointIndex)];
 }
@@ -534,14 +534,14 @@ FVector3d FFFDLattice::ExtrapolatedLatticePosition(const FVector3i& VirtualContr
 	// Use the location of the nearest control point and the location of a control point in the opposite direction of 
 	// the extrapolation to get the extrapolated location.
 
-	FVector3i NearestControlPointIndex = Max(Min(VirtualControlPointIndex, Dims - 1), FVector3i(0, 0, 0));
+	FVector3i NearestControlPointIndex = Max(Min(VirtualControlPointIndex, Dimensions - 1), FVector3i(0, 0, 0));
 	FVector3i Delta = VirtualControlPointIndex - NearestControlPointIndex;
 	check(Delta != FVector3i::Zero());
 
 	FVector3i TraceBackControlPointIndex = NearestControlPointIndex - Delta;
-	check(TraceBackControlPointIndex.X >= 0 && TraceBackControlPointIndex.X < Dims.X);
-	check(TraceBackControlPointIndex.Y >= 0 && TraceBackControlPointIndex.Y < Dims.Y);
-	check(TraceBackControlPointIndex.Z >= 0 && TraceBackControlPointIndex.Z < Dims.Z);
+	check(TraceBackControlPointIndex.X >= 0 && TraceBackControlPointIndex.X < Dimensions.X);
+	check(TraceBackControlPointIndex.Y >= 0 && TraceBackControlPointIndex.Y < Dimensions.Y);
+	check(TraceBackControlPointIndex.Z >= 0 && TraceBackControlPointIndex.Z < Dimensions.Z);
 
 	const FVector3d& A = LatticeControlPoints[ControlPointIndexFromCoordinates(TraceBackControlPointIndex)];
 	const FVector3d& B = LatticeControlPoints[ControlPointIndexFromCoordinates(NearestControlPointIndex)];
