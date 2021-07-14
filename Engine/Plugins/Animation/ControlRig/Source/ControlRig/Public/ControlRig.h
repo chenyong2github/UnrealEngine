@@ -365,6 +365,8 @@ public:
 	FControlRigExecuteEvent& OnInitialized_AnyThread() { return InitializedEvent; }
 	FControlRigExecuteEvent& OnPreSetup_AnyThread() { return PreSetupEvent; }
 	FControlRigExecuteEvent& OnPostSetup_AnyThread() { return PostSetupEvent; }
+	FControlRigExecuteEvent& OnPreForwardsSolve_AnyThread() { return PreForwardsSolveEvent; }
+	FControlRigExecuteEvent& OnPostForwardsSolve_AnyThread() { return PostForwardsSolveEvent; }
 	FControlRigExecuteEvent& OnExecuted_AnyThread() { return ExecutedEvent; }
 	FRigEventDelegate& OnRigEvent_AnyThread() { return RigEventDelegate; }
 
@@ -479,6 +481,12 @@ private:
 	/** Broadcasts a notification whenever the controlrig has been setup. */
 	FControlRigExecuteEvent PostSetupEvent;
 
+	/** Broadcasts a notification before a forward solve has been initiated */
+	FControlRigExecuteEvent PreForwardsSolveEvent;
+	
+	/** Broadcasts a notification after a forward solve has been initiated */
+	FControlRigExecuteEvent PostForwardsSolveEvent;
+	
 	/** Broadcasts a notification whenever the controlrig is executed / updated. */
 	FControlRigExecuteEvent ExecutedEvent;
 
@@ -605,6 +613,8 @@ protected:
 	int32 UpdateBracket;
 	int32 PreSetupBracket;
 	int32 PostSetupBracket;
+	int32 PreForwardsSolveBracket;
+	int32 PostForwardsSolveBracket;
 	int32 InteractionBracket;
 	int32 InterRigSyncBracket;
 
@@ -685,6 +695,22 @@ public:
 	URigVM* GetSnapshotVM(bool bCreateIfNeeded = true);
 #endif	
 
+private:
+
+	// Class used to temporarily cache all 
+	// current control values and reapply them
+	// on destruction, similar to UControlRigBlueprint::FControlValueScope
+	class FControlValueScope
+	{
+	public:
+		FControlValueScope(UControlRig* InControlRig);
+		~FControlValueScope();
+
+	private:
+
+		UControlRig* ControlRig;
+		TMap<FName, FRigControlValue> ControlValues;
+	};
 
 	friend class FControlRigBlueprintCompilerContext;
 	friend struct FRigHierarchyRef;

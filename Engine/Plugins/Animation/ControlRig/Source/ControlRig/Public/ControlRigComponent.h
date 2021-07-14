@@ -198,13 +198,13 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "ControlRig", meta = (DisplayName = "On Post Setup"))
 	FControlRigComponentDelegate OnPostSetupDelegate;
 
-	/** Event fired before this component's ControlRig is updated */
+	/** Event fired before this component's ControlRig's forwards solve */
 	UPROPERTY(BlueprintAssignable, Category = "ControlRig", meta = (DisplayName = "On Pre Forwards Solve"))
-	FControlRigComponentDelegate OnPreUpdateDelegate;
+	FControlRigComponentDelegate OnPreForwardsSolveDelegate;
 
-	/** Event fired after this component's ControlRig is updated */
+	/** Event fired after this component's ControlRig's forwards solve */
 	UPROPERTY(BlueprintAssignable, Category = "ControlRig", meta = (DisplayName = "On Post Forwards Solve"))
-	FControlRigComponentDelegate OnPostUpdateDelegate;
+	FControlRigComponentDelegate OnPostForwardsSolveDelegate;
 
 	//~ Begin UObject interface
 #if WITH_EDITOR
@@ -251,10 +251,10 @@ public:
 	void OnPostSetup(UControlRigComponent* Component);
 
 	UFUNCTION(BlueprintNativeEvent, Category = "ControlRig", CallInEditor, meta = (DisplayName = "On Pre Forwards Solve"))
-	void OnPreUpdate(UControlRigComponent* Component);
+	void OnPreForwardsSolve(UControlRigComponent* Component);
 
 	UFUNCTION(BlueprintNativeEvent, Category = "ControlRig", CallInEditor, meta = (DisplayName = "On Post Forwards Solve"))
-	void OnPostUpdate(UControlRigComponent* Component);
+	void OnPostForwardsSolve(UControlRigComponent* Component);
 
 	/** Initializes the rig's memory and calls the setup event */
 	UFUNCTION(BlueprintCallable, Category = "ControlRig")
@@ -617,6 +617,8 @@ private:
 	void HandleControlRigInitializedEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName);
 	void HandleControlRigPreSetupEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName);
 	void HandleControlRigPostSetupEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName);
+	void HandleControlRigPreForwardsSolveEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName);
+	void HandleControlRigPostForwardsSolveEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName);
 	void HandleControlRigExecutedEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName);
 
 	void ConvertTransformToRigSpace(FTransform& InOutTransform, EControlRigComponentSpace FromSpace);

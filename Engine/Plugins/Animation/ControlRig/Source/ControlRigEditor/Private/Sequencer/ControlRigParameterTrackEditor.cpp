@@ -1260,7 +1260,11 @@ void FControlRigParameterTrackEditor::AddControlRig(UClass* InClass, UObject* Bo
 			ControlRig->SetObjectBinding(MakeShared<FControlRigObjectBinding>());
 			ControlRig->GetObjectBinding()->BindToObject(BoundActor);
 			ControlRig->GetDataSourceRegistry()->RegisterDataSource(UControlRig::OwnerComponent, ControlRig->GetObjectBinding()->GetBoundObject());
-			ControlRig->Initialize();
+			// Do not re-initialize existing control rig
+			if (!InExistingControlRig)
+			{ 
+				ControlRig->Initialize();
+			}
 			ControlRig->Evaluate_AnyThread();
 
 			SequencerParent->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
