@@ -5,6 +5,7 @@
 #include "NiagaraDataInterfaceRW.h"
 #include "ClearQuad.h"
 #include "NiagaraComponent.h"
+#include "NiagaraGenerateMips.h"
 #include "NiagaraDataInterfaceRenderTarget2D.generated.h"
 
 class FNiagaraSystemInstance;
@@ -23,6 +24,7 @@ struct FRenderTarget2DRWInstanceData_GameThread
 	FIntPoint Size = FIntPoint(EForceInit::ForceInitToZero);
 	ETextureRenderTargetFormat Format = RTF_RGBA16f;
 	ENiagaraMipMapGeneration MipMapGeneration = ENiagaraMipMapGeneration::Disabled;
+	ENiagaraMipMapGenerationType MipMapGenerationType = ENiagaraMipMapGenerationType::Linear;
 	
 	UTextureRenderTarget2D* TargetTexture = nullptr;
 #if WITH_EDITORONLY_DATA
@@ -42,6 +44,7 @@ struct FRenderTarget2DRWInstanceData_RenderThread
 
 	FIntPoint Size = FIntPoint(EForceInit::ForceInitToZero);
 	ENiagaraMipMapGeneration MipMapGeneration = ENiagaraMipMapGeneration::Disabled;
+	ENiagaraMipMapGenerationType MipMapGenerationType = ENiagaraMipMapGenerationType::Linear;
 	bool bWasWrittenTo = false;
 
 	FSamplerStateRHIRef SamplerStateRHI;
@@ -139,6 +142,9 @@ public:
 	/** Controls if and when we generate mips for the render target. */
 	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (EditCondition = "!bInheritUserParameterSettings"))
 	ENiagaraMipMapGeneration MipMapGeneration = ENiagaraMipMapGeneration::Disabled;
+
+	UPROPERTY(EditAnywhere, Category = "Render Target")
+	ENiagaraMipMapGenerationType MipMapGenerationType = ENiagaraMipMapGenerationType::Linear;
 
 	/** When enabled overrides the format of the render target, otherwise uses the project default setting. */
 	UPROPERTY(EditAnywhere, Category = "Render Target", meta = (EditCondition = "!bInheritUserParameterSettings && bOverrideFormat"))

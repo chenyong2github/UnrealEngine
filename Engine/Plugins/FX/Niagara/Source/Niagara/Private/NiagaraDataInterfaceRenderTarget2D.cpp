@@ -16,7 +16,6 @@
 #if WITH_EDITOR
 #include "NiagaraGpuComputeDebug.h"
 #endif
-#include "NiagaraGenerateMips.h"
 #include "NiagaraStats.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceRenderTarget2D"
@@ -400,6 +399,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::Equals(const UNiagaraDataInterface* Ot
 		OtherTyped->RenderTargetUserParameter == RenderTargetUserParameter &&
 		OtherTyped->Size == Size &&
 		OtherTyped->MipMapGeneration == MipMapGeneration &&
+		OtherTyped->MipMapGenerationType == MipMapGenerationType &&
 		OtherTyped->OverrideRenderTargetFormat == OverrideRenderTargetFormat &&
 		OtherTyped->bInheritUserParameterSettings == bInheritUserParameterSettings &&
 		OtherTyped->bOverrideFormat == bOverrideFormat;
@@ -420,6 +420,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::CopyToInternal(UNiagaraDataInterface* 
 
 	DestinationTyped->Size = Size;
 	DestinationTyped->MipMapGeneration = MipMapGeneration;
+	DestinationTyped->MipMapGenerationType = MipMapGenerationType;
 	DestinationTyped->OverrideRenderTargetFormat = OverrideRenderTargetFormat;
 	DestinationTyped->bInheritUserParameterSettings = bInheritUserParameterSettings;
 	DestinationTyped->bOverrideFormat = bOverrideFormat;
@@ -542,6 +543,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::InitPerInstanceData(void* PerInstanceD
 	InstanceData->Size.X = FMath::Clamp<int>(int(float(Size.X) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxTextureDimensions);
 	InstanceData->Size.Y = FMath::Clamp<int>(int(float(Size.Y) * GNiagaraRenderTargetResolutionMultiplier), 1, GMaxTextureDimensions);
 	InstanceData->MipMapGeneration = MipMapGeneration;
+	InstanceData->MipMapGenerationType = MipMapGenerationType;
 	InstanceData->Format = bOverrideFormat ? OverrideRenderTargetFormat : GetDefault<UNiagaraSettings>()->DefaultRenderTargetFormat;
 	InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter);
 #if WITH_EDITORONLY_DATA
@@ -702,10 +704,12 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTick(void* PerInstanceData,
 			{
 				// We have to take a guess at user intention
 				InstanceData->MipMapGeneration = MipMapGeneration == ENiagaraMipMapGeneration::Disabled ? ENiagaraMipMapGeneration::PostStage : MipMapGeneration;
+				InstanceData->MipMapGenerationType = MipMapGenerationType;
 			}
 			else
 			{
 				InstanceData->MipMapGeneration = ENiagaraMipMapGeneration::Disabled;
+				InstanceData->MipMapGenerationType = ENiagaraMipMapGenerationType::Unfiltered;
 			}
 			InstanceData->Format = InstanceData->TargetTexture->RenderTargetFormat;
 		}
@@ -772,6 +776,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 				FRenderTarget2DRWInstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.FindOrAdd(RT_InstanceID);
 				TargetData->Size = RT_InstanceData.Size;
 				TargetData->MipMapGeneration = RT_InstanceData.MipMapGeneration;
+				TargetData->MipMapGenerationType = RT_InstanceData.MipMapGenerationType;
 			#if WITH_EDITORONLY_DATA
 				TargetData->bPreviewTexture = RT_InstanceData.bPreviewTexture;
 			#endif
@@ -804,7 +809,7 @@ void FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostStage(FRHICommandList& R
 		if (ProxyData->bWasWrittenTo && (ProxyData->MipMapGeneration == ENiagaraMipMapGeneration::PostStage))
 		{
 			ProxyData->bWasWrittenTo = false;
-			NiagaraGenerateMips::GenerateMips(RHICmdList, ProxyData->TextureRHI);
+			NiagaraGenerateMips::GenerateMips(RHICmdList, ProxyData->TextureRHI, ProxyData->MipMapGenerationType);
 		}
 	}
 }
@@ -816,7 +821,7 @@ void FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostSimulate(FRHICommandList
 		if (ProxyData->bWasWrittenTo && (ProxyData->MipMapGeneration == ENiagaraMipMapGeneration::PostSimulate))
 		{
 			ProxyData->bWasWrittenTo = false;
-			NiagaraGenerateMips::GenerateMips(RHICmdList, ProxyData->TextureRHI);
+			NiagaraGenerateMips::GenerateMips(RHICmdList, ProxyData->TextureRHI, ProxyData->MipMapGenerationType);
 		}
 
 #if NIAGARA_COMPUTEDEBUG_ENABLED
