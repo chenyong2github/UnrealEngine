@@ -14,12 +14,20 @@
 #include "PixelFormat.h"
 #include "EngineLogs.h"
 #include "Async/ParallelFor.h"
+#include "TextureBuildFunction.h"
+#include "DerivedDataBuildFunctionFactory.h"
 
 THIRD_PARTY_INCLUDES_START
 	#include "nvtt/nvtt.h"
 THIRD_PARTY_INCLUDES_END
 
 DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatDXT, Log, All);
+
+class FDXTTextureBuildFunction final : public FTextureBuildFunction
+{
+	FStringView GetName() const final { return TEXT("DXTTexture"); }
+	FGuid GetVersion() const final { return FGuid(TEXT("c2d5dbc5-131c-4525-a332-843230076d99")); }
+};
 
 /**
  * Macro trickery for supported format names.
@@ -546,6 +554,8 @@ public:
 		}
 		return Singleton;
 	}
+
+	static inline UE::DerivedData::TBuildFunctionFactory<FDXTTextureBuildFunction> BuildFunctionFactory;
 };
 
 IMPLEMENT_MODULE(FTextureFormatDXTModule, TextureFormatDXT);

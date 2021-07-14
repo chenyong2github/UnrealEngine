@@ -6,14 +6,28 @@ public class TextureFormatASTC : ModuleRules
 {
 	public TextureFormatASTC(ReadOnlyTargetRules Target) : base(Target)
 	{
-        PrivateIncludePathModuleNames.AddRange(new string[] { "TargetPlatform", "TextureCompressor", "Engine" });
-        PrivateDependencyModuleNames.AddRange(new string[] { "Core", "ImageCore", "ImageWrapper", "TextureFormatIntelISPCTexComp" });
-
-        if (Target.Platform == UnrealTargetPlatform.Win64)
+		PrivateIncludePathModuleNames.AddRange(new string[]
 		{
-            RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/ARM/Win32/astcenc.exe");
-        }
-        else if (Target.Platform == UnrealTargetPlatform.Mac)
+			"DerivedDataCache",
+			"Engine",
+			"TargetPlatform",
+			"TextureCompressor",
+		});
+		
+		PrivateDependencyModuleNames.AddRange(new string[]
+		{
+			"Core",
+			"ImageCore",
+			"ImageWrapper",
+			"TextureBuild",
+			"TextureFormatIntelISPCTexComp",
+		});
+
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/ARM/Win32/astcenc.exe");
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/ARM/Mac/astcenc");
 		}

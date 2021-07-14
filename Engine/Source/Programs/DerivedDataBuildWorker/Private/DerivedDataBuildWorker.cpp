@@ -26,6 +26,8 @@
 
 #include "RequiredProgramMainCPPInclude.h"
 
+IMPLEMENT_APPLICATION(DerivedDataBuildWorker, "DerivedDataBuildWorker");
+
 DEFINE_LOG_CATEGORY_STATIC(LogDerivedDataBuildWorker, Log, All);
 
 namespace UE::DerivedData

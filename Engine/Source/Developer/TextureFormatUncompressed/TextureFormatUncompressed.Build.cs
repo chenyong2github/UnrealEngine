@@ -6,21 +6,19 @@ public class TextureFormatUncompressed : ModuleRules
 {
 	public TextureFormatUncompressed(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePathModuleNames.AddRange(
-			new string[] {
-				"DerivedDataCache",
-				"Engine",
-				"TargetPlatform",
-				"TextureCompressor"
-			}
-			);
+		PrivateIncludePathModuleNames.AddRange(new string[]
+		{
+			"DerivedDataCache",
+			"Engine",
+			"TargetPlatform",
+			"TextureCompressor",
+		});
 
-		PrivateDependencyModuleNames.AddRange(
-			new string[] {
-				"Core",
-				"ImageCore",
-				"TextureBuild"
-			}
-			);
+		PrivateDependencyModuleNames.AddRange(new string[]
+		{
+			"Core",
+			"ImageCore",
+			"TextureBuild",
+		});
 	}
 }

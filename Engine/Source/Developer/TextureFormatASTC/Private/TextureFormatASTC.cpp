@@ -16,6 +16,10 @@
 #include "Interfaces/ITextureFormatModule.h"
 #include "TextureCompressorModule.h"
 #include "PixelFormat.h"
+#include "Serialization/CompactBinary.h"
+#include "Serialization/CompactBinaryWriter.h"
+#include "TextureBuildFunction.h"
+#include "DerivedDataBuildFunctionFactory.h"
 
 #if PLATFORM_WINDOWS || PLATFORM_LINUX || PLATFORM_MAC
 	#define SUPPORTS_ISPC_ASTC	1
@@ -32,6 +36,12 @@
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatASTC, Log, All);
+
+class FASTCTextureBuildFunction final : public FTextureBuildFunction
+{
+	FStringView GetName() const final { return TEXT("ASTCTexture"); }
+	FGuid GetVersion() const final { return FGuid(TEXT("4788dab5-b99c-479f-bc34-6d7df1cf30e3")); }
+};
 
 /**
  * Macro trickery for supported format names.
@@ -79,8 +89,18 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatASTC, Log, All);
 IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
 
 
-static int32 GetDefaultCompressionBySizeValue()
+static int32 GetDefaultCompressionBySizeValue(FCbObjectView InFormatConfigOverride)
 {
+	if (InFormatConfigOverride)
+	{
+		// If we have an explicit format config, then use it directly
+		FCbFieldView FieldView = InFormatConfigOverride.FindView("DefaultASTCQualityBySize");
+		checkf(FieldView.HasValue(), TEXT("Missing DefaultASTCQualityBySize key from FormatConfigOverride"));
+		int32 CompressionModeValue = FieldView.AsInt32();
+		checkf(!FieldView.HasError(), TEXT("Failed to parse DefaultASTCQualityBySize value from FormatConfigOverride"));
+		return CompressionModeValue;
+	}
+
 	// start at default quality, then lookup in .ini file
 	int32 CompressionModeValue = 0;
 	GConfig->GetInt(TEXT("/Script/UnrealEd.CookerSettings"), TEXT("DefaultASTCQualityBySize"), CompressionModeValue, GEngineIni);
@@ -91,8 +111,18 @@ static int32 GetDefaultCompressionBySizeValue()
 	return CompressionModeValue;
 }
 
-static int32 GetDefaultCompressionBySpeedValue()
+static int32 GetDefaultCompressionBySpeedValue(FCbObjectView InFormatConfigOverride)
 {
+	if (InFormatConfigOverride)
+	{
+		// If we have an explicit format config, then use it directly
+		FCbFieldView FieldView = InFormatConfigOverride.FindView("DefaultASTCQualityBySpeed");
+		checkf(FieldView.HasValue(), TEXT("Missing DefaultASTCQualityBySpeed key from FormatConfigOverride"));
+		int32 CompressionModeValue = FieldView.AsInt32();
+		checkf(!FieldView.HasError(), TEXT("Failed to parse DefaultASTCQualityBySpeed value from FormatConfigOverride"));
+		return CompressionModeValue;
+	}
+
 	// start at default quality, then lookup in .ini file
 	int32 CompressionModeValue = 0;
 	GConfig->GetInt(TEXT("/Script/UnrealEd.CookerSettings"), TEXT("DefaultASTCQualityBySpeed"), CompressionModeValue, GEngineIni);
@@ -103,11 +133,11 @@ static int32 GetDefaultCompressionBySpeedValue()
 	return CompressionModeValue;
 }
 
-static FString GetQualityString(int32 OverrideSizeValue=-1, int32 OverrideSpeedValue=-1)
+static FString GetQualityString(const FCbObjectView& InFormatConfigOverride, int32 OverrideSizeValue=-1, int32 OverrideSpeedValue=-1)
 {
 	// convert to a string
 	FString CompressionMode;
-	switch (OverrideSizeValue >= 0 ? OverrideSizeValue : GetDefaultCompressionBySizeValue())
+	switch (OverrideSizeValue >= 0 ? OverrideSizeValue : GetDefaultCompressionBySizeValue(InFormatConfigOverride))
 	{
 		case 0:	CompressionMode = TEXT("12x12"); break;
 		case 1:	CompressionMode = TEXT("10x10"); break;
@@ -117,7 +147,7 @@ static FString GetQualityString(int32 OverrideSizeValue=-1, int32 OverrideSpeedV
 		default: UE_LOG(LogTemp, Fatal, TEXT("ASTC size quality higher than expected"));
 	}
 	
-	switch (OverrideSpeedValue >= 0 ? OverrideSpeedValue : GetDefaultCompressionBySpeedValue())
+	switch (OverrideSpeedValue >= 0 ? OverrideSpeedValue : GetDefaultCompressionBySpeedValue(InFormatConfigOverride))
 	{
 		case 0:	CompressionMode += TEXT(" -veryfast"); break;
 		case 1:	CompressionMode += TEXT(" -fast"); break;
@@ -129,11 +159,11 @@ static FString GetQualityString(int32 OverrideSizeValue=-1, int32 OverrideSpeedV
 	return CompressionMode;
 }
 
-static EPixelFormat GetQualityFormat(int32 OverrideSizeValue=-1)
+static EPixelFormat GetQualityFormat(const FCbObjectView& InFormatConfigOverride, int32 OverrideSizeValue=-1)
 {
 	// convert to a string
 	EPixelFormat Format = PF_Unknown;
-	switch (OverrideSizeValue >= 0 ? OverrideSizeValue : GetDefaultCompressionBySizeValue())
+	switch (OverrideSizeValue >= 0 ? OverrideSizeValue : GetDefaultCompressionBySizeValue(InFormatConfigOverride))
 	{
 		case 0:	Format = PF_ASTC_12x12; break;
 		case 1:	Format = PF_ASTC_10x10; break;
@@ -146,10 +176,10 @@ static EPixelFormat GetQualityFormat(int32 OverrideSizeValue=-1)
 	return Format;
 }
 
-static uint16 GetQualityVersion(int32 OverrideSizeValue = -1)
+static uint16 GetQualityVersion(const FCbObjectView& InFormatConfigOverride, int32 OverrideSizeValue = -1)
 {
 	// top 3 bits for size compression value, and next 3 for speed
-	return ((OverrideSizeValue >= 0 ? OverrideSizeValue : GetDefaultCompressionBySizeValue()) << 13) | (GetDefaultCompressionBySpeedValue() << 10);
+	return ((OverrideSizeValue >= 0 ? OverrideSizeValue : GetDefaultCompressionBySizeValue(InFormatConfigOverride)) << 13) | (GetDefaultCompressionBySpeedValue(InFormatConfigOverride) << 10);
 }
 
 static bool CompressSliceToASTC(
@@ -322,6 +352,20 @@ public:
 #endif
 	}
 
+	virtual FCbObject ExportGlobalFormatConfig(const FTextureBuildSettings& BuildSettings) const override
+	{
+#if SUPPORTS_ISPC_ASTC
+		return IntelISPCTexCompFormat.ExportGlobalFormatConfig(BuildSettings);
+#else
+		FCbWriter Writer;
+		Writer.BeginObject("TextureFormatASTCSettings");
+		Writer.AddInteger("DefaultASTCQualityBySize", GetDefaultCompressionBySizeValue(FCbObjectView()));
+		Writer.AddInteger("DefaultASTCQualityBySpeed", GetDefaultCompressionBySpeedValue(FCbObjectView()));
+		Writer.EndObject();
+		return Writer.Save().AsObject();
+#endif
+	}
+
 	// Version for all ASTC textures, whether it's handled by the ARM encoder or the ISPC encoder.
 	virtual uint16 GetVersion(
 		FName Format,
@@ -333,7 +377,7 @@ public:
 
 	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& BuildSettings) const override
 	{
-		return FString::Printf(TEXT("ASTCCmpr_%d"), GetQualityVersion(BuildSettings.CompressionQuality));
+		return FString::Printf(TEXT("ASTCCmpr_%d"), GetQualityVersion(BuildSettings.FormatConfigOverride, BuildSettings.CompressionQuality));
 	}
 
 	virtual FTextureFormatCompressorCaps GetFormatCapabilities() const override
@@ -356,10 +400,10 @@ public:
 		// special case for normal maps
 		if (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalAG || BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalRG)
 		{
-			return GetQualityFormat(FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE);
+			return GetQualityFormat(BuildSettings.FormatConfigOverride, FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE);
 		}
 		
-		return GetQualityFormat(BuildSettings.CompressionQuality);
+		return GetQualityFormat(BuildSettings.FormatConfigOverride, BuildSettings.CompressionQuality);
 	}
 
 	virtual bool CompressImage(
@@ -390,19 +434,19 @@ public:
 
 		if (bIsRGBColor)
 		{
-			CompressionParameters = FString::Printf(TEXT("%s %s -esw bgra -ch 1 1 1 0"), *GetQualityString(BuildSettings.CompressionQuality), /*BuildSettings.bSRGB ? TEXT("-srgb") :*/ TEXT("") );
+			CompressionParameters = FString::Printf(TEXT("%s %s -esw bgra -ch 1 1 1 0"), *GetQualityString(BuildSettings.FormatConfigOverride, BuildSettings.CompressionQuality), /*BuildSettings.bSRGB ? TEXT("-srgb") :*/ TEXT("") );
 		}
 		else if (bIsRGBAColor)
 		{
-			CompressionParameters = FString::Printf(TEXT("%s %s -esw bgra -ch 1 1 1 1"), *GetQualityString(BuildSettings.CompressionQuality), /*BuildSettings.bSRGB ? TEXT("-srgb") :*/ TEXT("") );
+			CompressionParameters = FString::Printf(TEXT("%s %s -esw bgra -ch 1 1 1 1"), *GetQualityString(BuildSettings.FormatConfigOverride, BuildSettings.CompressionQuality), /*BuildSettings.bSRGB ? TEXT("-srgb") :*/ TEXT("") );
 		}
 		else if (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalAG)
 		{
-			CompressionParameters = FString::Printf(TEXT("%s -esw 0g0b -ch 0 1 0 1 -oplimit 1000 -mincorrel 0.99 -dblimit 60 -b 2.5 -v 3 1 1 0 50 0 -va 1 1 0 50"), *GetQualityString(FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE, -1));
+			CompressionParameters = FString::Printf(TEXT("%s -esw 0g0b -ch 0 1 0 1 -oplimit 1000 -mincorrel 0.99 -dblimit 60 -b 2.5 -v 3 1 1 0 50 0 -va 1 1 0 50"), *GetQualityString(BuildSettings.FormatConfigOverride, FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE, -1));
 		}
 		else if (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalRG)
 		{
-			CompressionParameters = FString::Printf(TEXT("%s -esw bg00 -ch 1 1 0 0 -oplimit 1000 -mincorrel 0.99 -dblimit 60 -b 2.5 -v 3 1 1 0 50 0 -va 1 1 0 50"), *GetQualityString(FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE, -1));
+			CompressionParameters = FString::Printf(TEXT("%s -esw bg00 -ch 1 1 0 0 -oplimit 1000 -mincorrel 0.99 -dblimit 60 -b 2.5 -v 3 1 1 0 50 0 -va 1 1 0 50"), *GetQualityString(BuildSettings.FormatConfigOverride, FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE, -1));
 		}
 
 		// Compress the image, slice by slice
@@ -459,6 +503,8 @@ public:
 		}
 		return Singleton;
 	}
+
+	static inline UE::DerivedData::TBuildFunctionFactory<FASTCTextureBuildFunction> BuildFunctionFactory;
 };
 
 IMPLEMENT_MODULE(FTextureFormatASTCModule, TextureFormatASTC);

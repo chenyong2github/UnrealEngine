@@ -14,10 +14,20 @@
 #include "TextureCompressorModule.h"
 #include "PixelFormat.h"
 #include "Async/ParallelFor.h"
+#include "Serialization/CompactBinary.h"
+#include "Serialization/CompactBinaryWriter.h"
+#include "TextureBuildFunction.h"
+#include "DerivedDataBuildFunctionFactory.h"
 
 #include "ispc_texcomp.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatIntelISPCTexComp, Log, All);
+
+class FIntelISPCTexCompTextureBuildFunction final : public FTextureBuildFunction
+{
+	FStringView GetName() const final { return TEXT("IntelISPCTexCompTexture"); }
+	FGuid GetVersion() const final { return FGuid(TEXT("19d413ad-f529-4687-902a-3b71919cfd72")); }
+};
 
 // increment this if you change anything that will affect compression in this file, including FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE
 #define BASE_ISPC_DX11_FORMAT_VERSION 4
@@ -376,8 +386,18 @@ static void IntelBC7CompressScans(bc7_enc_settings* pEncSettings, FImage* pInIma
 #define MAX_QUALITY_BY_SIZE 4
 #define FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE 3
 
-static uint16 GetDefaultCompressionBySizeValue()
+static uint16 GetDefaultCompressionBySizeValue(FCbObjectView InFormatConfigOverride)
 {
+	if (InFormatConfigOverride)
+	{
+		// If we have an explicit format config, then use it directly
+		FCbFieldView FieldView = InFormatConfigOverride.FindView("DefaultASTCQualityBySize");
+		checkf(FieldView.HasValue(), TEXT("Missing DefaultASTCQualityBySize key from FormatConfigOverride"));
+		int32 CompressionModeValue = FieldView.AsInt32();
+		checkf(!FieldView.HasError(), TEXT("Failed to parse DefaultASTCQualityBySize value from FormatConfigOverride"));
+		return CompressionModeValue;
+	}
+
 	// start at default quality, then lookup in .ini file
 	int32 CompressionModeValue = 0;
 	GConfig->GetInt(TEXT("/Script/UnrealEd.CookerSettings"), TEXT("DefaultASTCQualityBySize"), CompressionModeValue, GEngineIni);
@@ -388,12 +408,12 @@ static uint16 GetDefaultCompressionBySizeValue()
 	return CompressionModeValue;
 }
 
-static EPixelFormat GetQualityFormat(int& BlockWidth, int& BlockHeight, int32 OverrideSizeValue = -1)
+static EPixelFormat GetQualityFormat(int& BlockWidth, int& BlockHeight, const FCbObjectView& InFormatConfigOverride, int32 OverrideSizeValue = -1)
 {
 	// Note: ISPC only supports 8x8 and higher quality, and only one speed (fast)
 	// convert to a string
 	EPixelFormat Format = PF_Unknown;
-	switch (OverrideSizeValue >= 0 ? OverrideSizeValue : GetDefaultCompressionBySizeValue())
+	switch (OverrideSizeValue >= 0 ? OverrideSizeValue : GetDefaultCompressionBySizeValue(InFormatConfigOverride))
 	{
 		case 0:	//Format = PF_ASTC_12x12; BlockWidth = BlockHeight = 12; break;
 		case 1:	//Format = PF_ASTC_10x10; BlockWidth = BlockHeight = 10; break;
@@ -533,6 +553,15 @@ public:
 	virtual bool AllowParallelBuild() const override
 	{
 		return true;
+	}
+
+	virtual FCbObject ExportGlobalFormatConfig(const FTextureBuildSettings& BuildSettings) const override
+	{
+		FCbWriter Writer;
+		Writer.BeginObject("TextureFormatIntelISPCTexCompSettings");
+		Writer.AddInteger("DefaultASTCQualityBySize", GetDefaultCompressionBySizeValue(FCbObjectView()));
+		Writer.EndObject();
+		return Writer.Save().AsObject();
 	}
 
 	// Return the version for the DX11 formats BC6H and BC7 (not ASTC)
@@ -675,7 +704,7 @@ public:
 			bool bIsNormalMap = (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalAG ||
 				BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalRG);
 
-			return GetQualityFormat(_Width, _Height, bIsNormalMap ? FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE : BuildSettings.CompressionQuality);
+			return GetQualityFormat(_Width, _Height, BuildSettings.FormatConfigOverride, bIsNormalMap ? FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE : BuildSettings.CompressionQuality);
 		}
 	}
 
@@ -754,7 +783,7 @@ public:
 			}
 			else
 			{
-				 GetQualityFormat( BlockWidth, BlockHeight, bIsNormalMap ? FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE : BuildSettings.CompressionQuality );
+				 GetQualityFormat( BlockWidth, BlockHeight, BuildSettings.FormatConfigOverride, bIsNormalMap ? FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE : BuildSettings.CompressionQuality );
 			}
 			check(CompressedPixelFormat == PF_ASTC_4x4 || !BuildSettings.bVirtualStreamable);
 
@@ -904,6 +933,7 @@ public:
 		return Singleton;
 	}
 
+	static inline UE::DerivedData::TBuildFunctionFactory<FIntelISPCTexCompTextureBuildFunction> BuildFunctionFactory;
 	void* mDllHandle;
 };
 

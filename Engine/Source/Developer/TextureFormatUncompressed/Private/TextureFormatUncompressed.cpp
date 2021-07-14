@@ -14,6 +14,12 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatUncompressed, Log, All);
 
+class FUncompressedTextureBuildFunction final : public FTextureBuildFunction
+{
+	FStringView GetName() const final { return TEXT("UncompressedTexture"); }
+	FGuid GetVersion() const final { return FGuid(TEXT("c04fe27a-53f6-402e-85b3-648ac6b1ad87")); }
+};
+
 /**
  * Macro trickery for supported format names.
  */
@@ -318,12 +324,6 @@ class FTextureFormatUncompressed : public ITextureFormat
 	}
 };
 
-class FUncompressedTextureBuildFunction final : public FTextureBuildFunction
-{
-	FStringView GetName() const final { return TEXT("UncompressedTexture"); }
-	FGuid GetVersion() const final { return FGuid(TEXT("c04fe27a-53f6-402e-85b3-648ac6b1ad87")); }
-};
-
 /**
  * Module for uncompressed texture formats.
  */
@@ -346,10 +346,8 @@ public:
 		return Singleton;
 	}
 
-	static UE::DerivedData::TBuildFunctionFactory<FUncompressedTextureBuildFunction> BuildFunctionFactory;
+	static inline UE::DerivedData::TBuildFunctionFactory<FUncompressedTextureBuildFunction> BuildFunctionFactory;
 };
-
-UE::DerivedData::TBuildFunctionFactory<FUncompressedTextureBuildFunction> FTextureFormatUncompressedModule::BuildFunctionFactory;
 
 IMPLEMENT_MODULE(FTextureFormatUncompressedModule, TextureFormatUncompressed);
 

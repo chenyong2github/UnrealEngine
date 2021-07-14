@@ -11,9 +11,16 @@
 #include "PixelFormat.h"
 #include "TextureConverter.h"
 #include "HAL/PlatformProcess.h"
+#include "TextureBuildFunction.h"
+#include "DerivedDataBuildFunctionFactory.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatETC2, Log, All);
 
+class FETC2TextureBuildFunction final : public FTextureBuildFunction
+{
+	FStringView GetName() const final { return TEXT("ETC2Texture"); }
+	FGuid GetVersion() const final { return FGuid(TEXT("af5192f4-351f-422f-b539-f6bd4abadfae")); }
+};
 
 /**
  * Macro trickery for supported format names.
@@ -242,6 +249,8 @@ public:
 		}
 		return Singleton;
 	}
+
+	static inline UE::DerivedData::TBuildFunctionFactory<FETC2TextureBuildFunction> BuildFunctionFactory;
 };
 
 IMPLEMENT_MODULE(FTextureFormatETC2Module, TextureFormatETC2);

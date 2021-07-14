@@ -198,6 +198,12 @@ new texture, it shows the Oodle Texture encoded result in the texture preview.
 
 DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatOodle, Log, All);
 
+class FOodleTextureBuildFunction final : public FTextureBuildFunction
+{
+	FStringView GetName() const final { return TEXT("OodleTexture"); }
+	FGuid GetVersion() const final { return FGuid(TEXT("e6b8884f-923a-44a1-8da1-298fb48865b2")); }
+};
+
 // user data passed to Oodle Jobify system
 static int OodleJobifyNumThreads = 0;
 static void *OodleJobifyUserPointer = nullptr;
@@ -1266,12 +1272,6 @@ static void TFO_InstallPlugins()
 	OodleTex_Plugins_SetAllocators(TFO_OodleMallocAligned, TFO_OodleFree);
 }
 
-class FOodleTextureBuildFunction final : public FTextureBuildFunction
-{
-	FStringView GetName() const final { return TEXT("OodleTexture"); }
-	FGuid GetVersion() const final { return FGuid(TEXT("e6b8884f-923a-44a1-8da1-298fb48865b2")); }
-};
-
 class FTextureFormatOodleModule : public ITextureFormatModule
 {
 public:
@@ -1303,10 +1303,8 @@ public:
 		return Singleton;
 	}
 
-	static UE::DerivedData::TBuildFunctionFactory<FOodleTextureBuildFunction> BuildFunctionFactory;
+	static inline UE::DerivedData::TBuildFunctionFactory<FOodleTextureBuildFunction> BuildFunctionFactory;
 };
-
-UE::DerivedData::TBuildFunctionFactory<FOodleTextureBuildFunction> FTextureFormatOodleModule::BuildFunctionFactory;
 
 IMPLEMENT_MODULE(FTextureFormatOodleModule, TextureFormatOodle);
 
