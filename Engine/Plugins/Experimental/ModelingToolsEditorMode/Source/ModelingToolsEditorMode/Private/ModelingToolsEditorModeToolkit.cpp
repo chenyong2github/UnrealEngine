@@ -307,12 +307,6 @@ TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::MakeAssetConfigPanel()
 
 	});
 
-
-	// initialize combos
-	//UpdateAssetPanelFromSettings();
-	AssetLODMode->SetSelectedItem(AssetLODModes[0]);		// TODO read from settings?
-
-
 	AssetLODModeLabel = SNew(STextBlock).Text(LOCTEXT("ActiveLODLabel", "Editing LOD"));
 
 	TSharedPtr<SVerticalBox> Content = SNew(SVerticalBox)
@@ -377,6 +371,19 @@ TSharedPtr<SWidget> FModelingToolsEditorModeToolkit::MakeAssetConfigPanel()
 
 }
 
+
+void FModelingToolsEditorModeToolkit::InitializeAfterModeSetup()
+{
+	if (bFirstInitializeAfterModeSetup)
+	{
+		// force update of the active asset LOD mode, this is necessary because the update modifies
+		// ToolTarget Factories that are only available once ModelingToolsEditorMode has been initialized
+		AssetLODMode->SetSelectedItem(AssetLODModes[0]);
+
+		bFirstInitializeAfterModeSetup = false;
+	}
+
+}
 
 
 

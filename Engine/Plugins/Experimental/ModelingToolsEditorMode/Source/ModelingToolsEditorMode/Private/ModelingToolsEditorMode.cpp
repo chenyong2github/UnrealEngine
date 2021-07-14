@@ -690,6 +690,14 @@ void UModelingToolsEditorMode::Enter()
 			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.MeshModelingMode.ToolEnded"), Attributes);
 		}
 	});
+
+	// do any toolkit UI initialization that depends on the mode setup above
+	if (Toolkit.IsValid())
+	{
+		FModelingToolsEditorModeToolkit* ModelingToolkit = (FModelingToolsEditorModeToolkit*)Toolkit.Get();
+		ModelingToolkit->InitializeAfterModeSetup();
+	}
+
 }
 
 void UModelingToolsEditorMode::Exit()
