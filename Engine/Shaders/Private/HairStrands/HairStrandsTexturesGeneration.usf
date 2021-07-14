@@ -100,6 +100,7 @@ float3 Voxel_MinBound;
 float3 Voxel_MaxBound;
 int3 Voxel_Resolution;
 float Voxel_Size;
+uint Voxel_MaxSegmentPerVoxel;
 StructuredBuffer<uint2> Voxel_OffsetAndCount;
 StructuredBuffer<uint2> Voxel_Data;
 
@@ -202,9 +203,6 @@ bool Trace(
 			PageIndexCoord = clamp(uint3(Coords), uint3(0, 0, 0), Voxel_Resolution - 1);
 		}
 
-		// Page stepping is the walking quantity (i.e. number of voxel) for fine ray-marching within a valid page
-		float PageStepping = 1;
-
 		bool bLastStep = false;
 		const uint LoopCount = 256u;
 		for (uint LoopIt = 0; LoopIt < LoopCount; ++LoopIt)
@@ -251,15 +249,18 @@ bool Trace(
 				{
 					const uint LinearIndexCoord = CoordToIndex(VolumeCoord, Voxel_Resolution, 0);
 					OffsetAndCount = Voxel_OffsetAndCount[LinearIndexCoord];
+					OffsetAndCount.y = min(OffsetAndCount.y, Voxel_MaxSegmentPerVoxel);
 				}
 
 				if (OffsetAndCount.y > 0)
 				{
+					const uint MaxVoxelCount = Voxel_Resolution.x * Voxel_Resolution.y * Voxel_Resolution.z;
 					for (uint PointIt = 0; PointIt < OffsetAndCount.y; ++PointIt)
 					{
+						const uint VoxelIndex = clamp(OffsetAndCount.x + PointIt, 0, MaxVoxelCount);
 						const uint2 P0_P1 = Voxel_Data[OffsetAndCount.x + PointIt];
-						const uint P0 = P0_P1.x;
-						const uint P1 = P0_P1.y;
+						const uint P0 = clamp(P0_P1.x, 0, InVF_ControlPointCount);
+						const uint P1 = clamp(P0_P1.y, 0, InVF_ControlPointCount);
 
 						const uint4 PackedCP_P0 = InVF_PositionBuffer[P0];
 						const uint4 PackedCP_P1 = InVF_PositionBuffer[P1];
