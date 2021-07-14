@@ -33,6 +33,9 @@ struct CONTROLRIG_API FControlRigObjectVersion
 		// Hierarchy V2.0
 		RigHierarchyV2,
 
+		// RigHierarchy to support multi component parent constraints
+		RigHierarchyMultiParentConstraints,
+		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

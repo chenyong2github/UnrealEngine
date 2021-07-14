@@ -766,9 +766,9 @@ TArray<FRigBaseElement*> URigHierarchy::GetParents(const FRigBaseElement* InElem
 	}
 	else if(const FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InElement))
 	{
-		for(FRigTransformElement* ParentElement : MultiParentElement->ParentElements)
+		for(const FRigElementParentConstraint& ParentConstraint : MultiParentElement->ParentConstraints)
 		{
-			Parents.AddUnique(ParentElement);
+			Parents.AddUnique(ParentConstraint.ParentElement);
 		}
 	}
 
@@ -814,9 +814,9 @@ FRigBaseElement* URigHierarchy::GetFirstParent(const FRigBaseElement* InElement)
 	}
 	else if(const FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InElement))
 	{
-		if(MultiParentElement->ParentElements.Num() > 0)
+		if(MultiParentElement->ParentConstraints.Num() > 0)
 		{
-			return MultiParentElement->ParentElements[0];
+			return MultiParentElement->ParentConstraints[0].ParentElement;
 		}
 	}
 	
@@ -846,18 +846,18 @@ int32 URigHierarchy::GetNumberOfParents(const FRigBaseElement* InElement) const
 	}
 	else if(const FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InElement))
 	{
-		return MultiParentElement->ParentElements.Num();
+		return MultiParentElement->ParentConstraints.Num();
 	}
 
 	return 0;
 }
 
-float URigHierarchy::GetParentWeight(FRigElementKey InChild, FRigElementKey InParent, bool bInitial) const
+FRigElementWeight URigHierarchy::GetParentWeight(FRigElementKey InChild, FRigElementKey InParent, bool bInitial) const
 {
 	return GetParentWeight(Find(InChild), Find(InParent), bInitial);
 }
 
-float URigHierarchy::GetParentWeight(const FRigBaseElement* InChild, const FRigBaseElement* InParent, bool bInitial) const
+FRigElementWeight URigHierarchy::GetParentWeight(const FRigBaseElement* InChild, const FRigBaseElement* InParent, bool bInitial) const
 {
 	if(const FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InChild))
 	{
@@ -866,34 +866,34 @@ float URigHierarchy::GetParentWeight(const FRigBaseElement* InChild, const FRigB
 			return GetParentWeight(InChild, *ParentIndexPtr, bInitial);
 		}
 	}
-	return FLT_MAX;
+	return FRigElementWeight(FLT_MAX);
 }
 
-float URigHierarchy::GetParentWeight(const FRigBaseElement* InChild, int32 InParentIndex, bool bInitial) const
+FRigElementWeight URigHierarchy::GetParentWeight(const FRigBaseElement* InChild, int32 InParentIndex, bool bInitial) const
 {
 	if(const FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InChild))
 	{
-		if(MultiParentElement->ParentWeights.IsValidIndex(InParentIndex))
+		if(MultiParentElement->ParentConstraints.IsValidIndex(InParentIndex))
 		{
 			if(bInitial)
 			{
-				return MultiParentElement->ParentWeightsInitial[InParentIndex];
+				return MultiParentElement->ParentConstraints[InParentIndex].InitialWeight;
 			}
 			else
 			{
-				return MultiParentElement->ParentWeights[InParentIndex];
+				return MultiParentElement->ParentConstraints[InParentIndex].Weight;
 			}
 		}
 	}
-	return FLT_MAX;
+	return FRigElementWeight(FLT_MAX);
 }
 
-bool URigHierarchy::SetParentWeight(FRigElementKey InChild, FRigElementKey InParent, float InWeight, bool bInitial, bool bAffectChildren)
+bool URigHierarchy::SetParentWeight(FRigElementKey InChild, FRigElementKey InParent, FRigElementWeight InWeight, bool bInitial, bool bAffectChildren)
 {
 	return SetParentWeight(Find(InChild), Find(InParent), InWeight, bInitial, bAffectChildren);
 }
 
-bool URigHierarchy::SetParentWeight(FRigBaseElement* InChild, const FRigBaseElement* InParent, float InWeight, bool bInitial, bool bAffectChildren)
+bool URigHierarchy::SetParentWeight(FRigBaseElement* InChild, const FRigBaseElement* InParent, FRigElementWeight InWeight, bool bInitial, bool bAffectChildren)
 {
 	if(const FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InChild))
 	{
@@ -905,21 +905,25 @@ bool URigHierarchy::SetParentWeight(FRigBaseElement* InChild, const FRigBaseElem
 	return false;
 }
 
-bool URigHierarchy::SetParentWeight(FRigBaseElement* InChild, int32 InParentIndex, float InWeight, bool bInitial, bool bAffectChildren)
+bool URigHierarchy::SetParentWeight(FRigBaseElement* InChild, int32 InParentIndex, FRigElementWeight InWeight, bool bInitial, bool bAffectChildren)
 {
 	using namespace ERigTransformType;
 
 	if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InChild))
 	{
-		if(MultiParentElement->ParentWeights.IsValidIndex(InParentIndex))
+		if(MultiParentElement->ParentConstraints.IsValidIndex(InParentIndex))
 		{
-			const float InputWeight = FMath::Max(InWeight, 0.f);
+			InWeight.Location = FMath::Max(InWeight.Location, 0.f);
+			InWeight.Rotation = FMath::Max(InWeight.Rotation, 0.f);
+			InWeight.Scale = FMath::Max(InWeight.Scale, 0.f);
 
-			float& TargetWeight = bInitial?
-				MultiParentElement->ParentWeightsInitial[InParentIndex] :
-			MultiParentElement->ParentWeights[InParentIndex];
+			FRigElementWeight& TargetWeight = bInitial?
+				MultiParentElement->ParentConstraints[InParentIndex].InitialWeight :
+				MultiParentElement->ParentConstraints[InParentIndex].Weight;
 
-			if(FMath::IsNearlyZero(InputWeight - TargetWeight))
+			if(FMath::IsNearlyZero(InWeight.Location - TargetWeight.Location) &&
+				FMath::IsNearlyZero(InWeight.Rotation - TargetWeight.Rotation) &&
+				FMath::IsNearlyZero(InWeight.Scale - TargetWeight.Scale))
 			{
 				return false;
 			}
@@ -938,7 +942,7 @@ bool URigHierarchy::SetParentWeight(FRigBaseElement* InChild, int32 InParentInde
 				MultiParentElement->Pose.MarkDirty(LocalType);
 			}
 
-			TargetWeight = InputWeight;
+			TargetWeight = InWeight;
 			MultiParentElement->Parent.MarkDirty(GlobalType);
 
 			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(MultiParentElement))
@@ -1700,19 +1704,276 @@ FTransform URigHierarchy::GetParentTransform(FRigBaseElement* InElement, const E
 
 		if(Output.bDirty)
 		{
-			Output.Set(FTransform::Identity);
+			FTransform OutputTransform = FTransform::Identity;
 
 			const bool bInitial = IsInitial(InTransformType);
-			const TArray<float>& ParentWeights = bInitial ? MultiParentElement->ParentWeightsInitial : MultiParentElement->ParentWeights;
-			const TArray<FRigTransformElement*>& ParentElements = MultiParentElement->ParentElements;
+			const TArray<FRigElementParentConstraint>& ParentConstraints = MultiParentElement->ParentConstraints;
 
-			// if we have only one parent we behave like a single parent element
-			if(ParentElements.Num() == 1)
+			struct Local
 			{
-				Output.Set(GetTransform(ParentElements[0], InTransformType));
+				static float GetWeightForLerp(const float WeightA, const float WeightB)
+				{
+					float Weight = 0.f;
+					const float ClampedWeightA = FMath::Max(WeightA, 0.f);
+					const float ClampedWeightB = FMath::Max(WeightB, 0.f);
+					const float OverallWeight = ClampedWeightA + ClampedWeightB;
+					if(OverallWeight > SMALL_NUMBER)
+					{
+						Weight = ClampedWeightB / OverallWeight;
+					}
+					return Weight;
+				}
+			};
+
+			struct FTransformIndex
+			{
+				int32 Location;
+				int32 Rotation;
+				int32 Scale;
+
+				FTransformIndex()
+					: Location(INDEX_NONE)
+					, Rotation(INDEX_NONE)
+					, Scale(INDEX_NONE)
+				{}
+
+				FTransformIndex(int32 InIndex)
+					: Location(InIndex)
+					, Rotation(InIndex)
+					, Scale(InIndex)
+				{}
+			};
+
+			// collect all of the weights
+			FTransformIndex FirstConstraint;
+			FTransformIndex SecondConstraint;
+			FTransformIndex NumConstraintsAffecting(0);
+			FRigElementWeight TotalWeight(0.f);
+
+			// find all of the weights affecting this output
+			for(int32 ConstraintIndex = 0; ConstraintIndex < ParentConstraints.Num(); ConstraintIndex++)
+			{
+				const FRigElementWeight& Weight = ParentConstraints[ConstraintIndex].GetWeight(bInitial);
+				if(Weight.AffectsLocation())
+				{
+					NumConstraintsAffecting.Location++;
+					TotalWeight.Location += Weight.Location;
+
+					if(FirstConstraint.Location == INDEX_NONE)
+					{
+						FirstConstraint.Location = ConstraintIndex;
+					}
+					else if(SecondConstraint.Location == INDEX_NONE)
+					{
+						SecondConstraint.Location = ConstraintIndex;
+					}
+				}
+				if(Weight.AffectsRotation())
+				{
+					NumConstraintsAffecting.Rotation++;
+					TotalWeight.Rotation += Weight.Rotation;
+
+					if(FirstConstraint.Rotation == INDEX_NONE)
+					{
+						FirstConstraint.Rotation = ConstraintIndex;
+					}
+					else if(SecondConstraint.Rotation == INDEX_NONE)
+					{
+						SecondConstraint.Rotation = ConstraintIndex;
+					}
+				}
+				if(Weight.AffectsScale())
+				{
+					NumConstraintsAffecting.Scale++;
+					TotalWeight.Scale += Weight.Scale;
+
+					if(FirstConstraint.Scale == INDEX_NONE)
+					{
+						FirstConstraint.Scale = ConstraintIndex;
+					}
+					else if(SecondConstraint.Scale == INDEX_NONE)
+					{
+						SecondConstraint.Scale = ConstraintIndex;
+					}
+				}
+			}
+
+			if(NumConstraintsAffecting.Location == 1)
+			{
+				check(FirstConstraint.Location != INDEX_NONE);
+
+				const FRigElementParentConstraint& ParentConstraint = ParentConstraints[FirstConstraint.Location];
+				const FRigElementWeight& Weight = ParentConstraint.GetWeight(bInitial);
+				const FTransform ParentTransform = GetTransform(ParentConstraint.ParentElement, InTransformType);
+				check(Weight.AffectsLocation());
+				OutputTransform.SetLocation(ParentTransform.GetLocation());
+			}
+			else if(NumConstraintsAffecting.Location == 2)
+			{
+				check(FirstConstraint.Location != INDEX_NONE);
+				check(SecondConstraint.Location != INDEX_NONE);
+
+				const FRigElementParentConstraint& ParentConstraintA = ParentConstraints[FirstConstraint.Location];
+				const FRigElementParentConstraint& ParentConstraintB = ParentConstraints[SecondConstraint.Location];
+
+				const FRigElementWeight& WeightA = ParentConstraintA.GetWeight(bInitial); 
+				const FRigElementWeight& WeightB = ParentConstraintB.GetWeight(bInitial);
+				check(WeightA.AffectsLocation());
+				check(WeightB.AffectsLocation());
+				const float Weight = Local::GetWeightForLerp(WeightA.Location, WeightB.Location);
+
+				const FVector ParentLocationA = GetTransform(ParentConstraintA.ParentElement, InTransformType).GetLocation();
+				const FVector ParentLocationB = GetTransform(ParentConstraintB.ParentElement, InTransformType).GetLocation();
+				OutputTransform.SetLocation(FMath::Lerp<FVector>(ParentLocationA, ParentLocationB, Weight));
+			}
+			else if(NumConstraintsAffecting.Location > 2)
+			{
+				check(TotalWeight.Location > SMALL_NUMBER);
+				
+				FVector Location = FVector::ZeroVector;
+				
+				for(int32 ConstraintIndex = 0; ConstraintIndex < ParentConstraints.Num(); ConstraintIndex++)
+				{
+					const FRigElementParentConstraint& ParentConstraint = ParentConstraints[ConstraintIndex];
+					const FRigElementWeight& Weight = ParentConstraint.GetWeight(bInitial);
+					if(!Weight.AffectsLocation())
+					{
+						continue;
+					}
+
+					const FVector ParentLocation = GetTransform(ParentConstraint.ParentElement, InTransformType).GetLocation();
+					Location += ParentLocation * Weight.Location / TotalWeight.Location; 
+				}
+
+				OutputTransform.SetLocation(Location);
+			}
+
+			if(NumConstraintsAffecting.Rotation == 1)
+			{
+				check(FirstConstraint.Rotation != INDEX_NONE);
+
+				const FRigElementParentConstraint& ParentConstraint = ParentConstraints[FirstConstraint.Rotation];
+				const FRigElementWeight& Weight = ParentConstraint.GetWeight(bInitial);
+				const FTransform ParentTransform = GetTransform(ParentConstraint.ParentElement, InTransformType);
+				check(Weight.AffectsRotation());
+				OutputTransform.SetRotation(ParentTransform.GetRotation());
+			}
+			else if(NumConstraintsAffecting.Rotation == 2)
+			{
+				check(FirstConstraint.Rotation != INDEX_NONE);
+				check(SecondConstraint.Rotation != INDEX_NONE);
+
+				const FRigElementParentConstraint& ParentConstraintA = ParentConstraints[FirstConstraint.Rotation];
+				const FRigElementParentConstraint& ParentConstraintB = ParentConstraints[SecondConstraint.Rotation];
+
+				const FRigElementWeight& WeightA = ParentConstraintA.GetWeight(bInitial); 
+				const FRigElementWeight& WeightB = ParentConstraintB.GetWeight(bInitial);
+				check(WeightA.AffectsRotation());
+				check(WeightB.AffectsRotation());
+				const float Weight = Local::GetWeightForLerp(WeightA.Rotation, WeightB.Rotation);
+
+				const FQuat ParentRotationA = GetTransform(ParentConstraintA.ParentElement, InTransformType).GetRotation();
+				const FQuat ParentRotationB = GetTransform(ParentConstraintB.ParentElement, InTransformType).GetRotation();
+				OutputTransform.SetRotation(FQuat::Slerp(ParentRotationA, ParentRotationB, Weight));
+			}
+			else if(NumConstraintsAffecting.Rotation > 2)
+			{
+				check(TotalWeight.Rotation > SMALL_NUMBER);
+				
+				int NumMixedRotations = 0;
+				FQuat FirstRotation = FQuat::Identity;
+				FQuat MixedRotation = FQuat(0.f, 0.f, 0.f, 0.f);
+
+				for(int32 ConstraintIndex = 0; ConstraintIndex < ParentConstraints.Num(); ConstraintIndex++)
+				{
+					const FRigElementParentConstraint& ParentConstraint = ParentConstraints[ConstraintIndex];
+					const FRigElementWeight& Weight = ParentConstraint.GetWeight(bInitial);
+					if(!Weight.AffectsRotation())
+					{
+						continue;
+					}
+
+					FQuat ParentRotation = GetTransform(ParentConstraint.ParentElement, InTransformType).GetRotation().GetNormalized();
+
+					float NormalizedWeight = Weight.Rotation / TotalWeight.Rotation;
+
+					if(NumMixedRotations == 0)
+					{
+						FirstRotation = ParentRotation; 
+					}
+					else if ((ParentRotation | FirstRotation) <= 0.f)
+					{
+						NormalizedWeight = -NormalizedWeight;
+					}
+
+					MixedRotation.X += NormalizedWeight * ParentRotation.X;
+					MixedRotation.Y += NormalizedWeight * ParentRotation.Y;
+					MixedRotation.Z += NormalizedWeight * ParentRotation.Z;
+					MixedRotation.W += NormalizedWeight * ParentRotation.W;
+					NumMixedRotations++;
+				}
+
+				OutputTransform.SetRotation(MixedRotation.GetNormalized());
+			}
+
+			if(NumConstraintsAffecting.Scale == 1)
+			{
+				check(FirstConstraint.Scale != INDEX_NONE);
+
+				const FRigElementParentConstraint& ParentConstraint = ParentConstraints[FirstConstraint.Scale];
+				const FRigElementWeight& Weight = ParentConstraint.GetWeight(bInitial);
+				const FTransform ParentTransform = GetTransform(ParentConstraint.ParentElement, InTransformType);
+				check(Weight.AffectsScale());
+				OutputTransform.SetScale3D(ParentTransform.GetScale3D());
+			}
+			else if(NumConstraintsAffecting.Scale == 2)
+			{
+				check(FirstConstraint.Scale != INDEX_NONE);
+				check(SecondConstraint.Scale != INDEX_NONE);
+
+				const FRigElementParentConstraint& ParentConstraintA = ParentConstraints[FirstConstraint.Scale];
+				const FRigElementParentConstraint& ParentConstraintB = ParentConstraints[SecondConstraint.Scale];
+
+				const FRigElementWeight& WeightA = ParentConstraintA.GetWeight(bInitial); 
+				const FRigElementWeight& WeightB = ParentConstraintB.GetWeight(bInitial);
+				check(WeightA.AffectsScale());
+				check(WeightB.AffectsScale());
+				const float Weight = Local::GetWeightForLerp(WeightA.Scale, WeightB.Scale);
+
+				const FVector ParentScaleA = GetTransform(ParentConstraintA.ParentElement, InTransformType).GetScale3D();
+				const FVector ParentScaleB = GetTransform(ParentConstraintB.ParentElement, InTransformType).GetScale3D();
+				OutputTransform.SetScale3D(FMath::Lerp<FVector>(ParentScaleA, ParentScaleB, Weight));
+			}
+			else if(NumConstraintsAffecting.Scale > 2)
+			{
+				check(TotalWeight.Scale > SMALL_NUMBER);
+				
+				FVector Scale = FVector::ZeroVector;
+				
+				for(int32 ConstraintIndex = 0; ConstraintIndex < ParentConstraints.Num(); ConstraintIndex++)
+				{
+					const FRigElementParentConstraint& ParentConstraint = ParentConstraints[ConstraintIndex];
+					const FRigElementWeight& Weight = ParentConstraint.GetWeight(bInitial);
+					if(!Weight.AffectsScale())
+					{
+						continue;
+					}
+
+					const FVector ParentScale = GetTransform(ParentConstraint.ParentElement, InTransformType).GetScale3D();
+					Scale += ParentScale * Weight.Scale / TotalWeight.Scale; 
+				}
+
+				OutputTransform.SetScale3D(Scale);
+			}
+
+			/*
+			// if we have only one parent we behave like a single parent element
+			if(ParentConstraints.Num() == 1)
+			{
+				Output.Set(GetTransform(ParentConstraints[0], InTransformType));
 			}
 			// for exactly two parents we'll lerp
-			else if(ParentElements.Num() == 2)
+			else if(ParentConstraints.Num() == 2)
 			{
 				float Weight = 0.f;
 				const float WeightA = ParentWeights[0];
@@ -1727,22 +1988,22 @@ FTransform URigHierarchy::GetParentTransform(FRigBaseElement* InElement, const E
 
 				if(Weight <= SMALL_NUMBER)
 				{
-					Output.Set(GetTransform(ParentElements[0], InTransformType));
+					Output.Set(GetTransform(ParentConstraints[0], InTransformType));
 				}
 				else if(Weight >= (1.0f - SMALL_NUMBER))
 				{
-					Output.Set(GetTransform(ParentElements[1], InTransformType));
+					Output.Set(GetTransform(ParentConstraints[1], InTransformType));
 				}
 				else
 				{
-					const FTransform ParentTransformA = GetTransform(ParentElements[0], InTransformType);
-					const FTransform ParentTransformB = GetTransform(ParentElements[1], InTransformType);
+					const FTransform ParentTransformA = GetTransform(ParentConstraints[0], InTransformType);
+					const FTransform ParentTransformB = GetTransform(ParentConstraints[1], InTransformType);
 					Output.Set(FControlRigMathLibrary::LerpTransform(ParentTransformA, ParentTransformB, Weight));
 				}
 			}
-			else if(ParentElements.Num() > 2)
+			else if(ParentConstraints.Num() > 2)
 			{
-				ensure(ParentElements.Num() == ParentWeights.Num());
+				ensure(ParentConstraints.Num() == ParentWeights.Num());
 
 				// determine if there are more than one parent weighted
 				float OverallWeight = 0.f;
@@ -1772,7 +2033,7 @@ FTransform URigHierarchy::GetParentTransform(FRigBaseElement* InElement, const E
 				// if there is only weight on one parent, behave like a single parent element
 				if(NumWeightedParents == 1)
 				{
-					Output.Set(GetTransform(ParentElements[FirstWeightedParent], InTransformType));
+					Output.Set(GetTransform(ParentConstraints[FirstWeightedParent], InTransformType));
 				}
 				else if(NumWeightedParents == 2) // for two weighted parents, special case once more
 				{
@@ -1786,8 +2047,8 @@ FTransform URigHierarchy::GetParentTransform(FRigBaseElement* InElement, const E
 						Weight = ClampedWeightB / OverallWeight;
 					}
 
-					const FTransform ParentTransformA = GetTransform(ParentElements[FirstWeightedParent], InTransformType);
-					const FTransform ParentTransformB = GetTransform(ParentElements[SecondWeightedParent], InTransformType);
+					const FTransform ParentTransformA = GetTransform(ParentConstraints[FirstWeightedParent], InTransformType);
+					const FTransform ParentTransformB = GetTransform(ParentConstraints[SecondWeightedParent], InTransformType);
 					Output.Set(FControlRigMathLibrary::LerpTransform(ParentTransformA, ParentTransformB, Weight));
 				}
 				else if(OverallWeight > SMALL_NUMBER)
@@ -1809,7 +2070,7 @@ FTransform URigHierarchy::GetParentTransform(FRigBaseElement* InElement, const E
 						}
 						const float NormalizedWeight = ClampedWeight / OverallWeight;
 
-						const FTransform ParentTransform = GetTransform(ParentElements[ParentIndex], InTransformType);
+						const FTransform ParentTransform = GetTransform(ParentConstraints[ParentIndex], InTransformType);
 
 						// mix translation
 						MixedTranslation += ParentTransform.GetTranslation() * NormalizedWeight; 
@@ -1868,7 +2129,9 @@ FTransform URigHierarchy::GetParentTransform(FRigBaseElement* InElement, const E
 					Output.Set(MixedTransform);
 				}
 			}
+			*/
 
+			Output.Set(OutputTransform);
 			Output.bDirty = false;
 		}
 		return Output.Transform;
@@ -2123,13 +2386,13 @@ bool URigHierarchy::IsParentedTo(FRigBaseElement* InChild, FRigBaseElement* InPa
 
 	if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InChild))
 	{
-		for(FRigTransformElement* MultiParentElementParent : MultiParentElement->ParentElements)
+		for(const FRigElementParentConstraint& ParentConstraint : MultiParentElement->ParentConstraints)
 		{
-			if(MultiParentElementParent == InParent)
+			if(ParentConstraint.ParentElement == InParent)
 			{
 				return true;
 			}
-			if(IsParentedTo(MultiParentElementParent, InParent))
+			if(IsParentedTo(ParentConstraint.ParentElement, InParent))
 			{
 				return true;
 			}
@@ -2314,9 +2577,9 @@ void URigHierarchy::UpdateCachedChildren(const FRigBaseElement* InElement, bool 
 		}
 		else if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(Element))
 		{
-			for(FRigTransformElement* ParentElement : MultiParentElement->ParentElements)
+			for(const FRigElementParentConstraint& ParentConstraint : MultiParentElement->ParentConstraints)
 			{
-				if(ParentElement == InElement)
+				if(ParentConstraint.ParentElement == InElement)
 				{
 					InElement->CachedChildren.Add(MultiParentElement);
 					break;
@@ -2352,16 +2615,16 @@ void URigHierarchy::UpdateAllCachedChildren() const
 		}
 		else if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(Element))
 		{
-			for(FRigTransformElement* ParentElement : MultiParentElement->ParentElements)
+			for(const FRigElementParentConstraint& ParentConstraint : MultiParentElement->ParentConstraints)
 			{
-				if(ParentElement)
+				if(ParentConstraint.ParentElement)
 				{
-					if(!ParentVisited[ParentElement->Index])
+					if(!ParentVisited[ParentConstraint.ParentElement->Index])
 					{
-						ParentElement->CachedChildren.Reset();
-						ParentVisited[ParentElement->Index] = true;
+						ParentConstraint.ParentElement->CachedChildren.Reset();
+						ParentVisited[ParentConstraint.ParentElement->Index] = true;
 					}
-					ParentElement->CachedChildren.Add(Element);
+					ParentConstraint.ParentElement->CachedChildren.Add(Element);
 				}
 			}
 		}

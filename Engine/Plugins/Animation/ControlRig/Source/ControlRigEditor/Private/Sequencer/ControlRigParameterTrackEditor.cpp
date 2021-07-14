@@ -1914,12 +1914,18 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 	{
 		Hierarchy->ForEach<FRigControlElement>([ControlElement, Controller, bSelected](FRigControlElement* OtherControlElement) -> bool
 		{
-			if (OtherControlElement->ParentElements.Contains(ControlElement) &&
-                (OtherControlElement->Settings.ControlType == ERigControlType::Bool ||
+			if(OtherControlElement->Settings.ControlType == ERigControlType::Bool ||
                     OtherControlElement->Settings.ControlType == ERigControlType::Float ||
-                    OtherControlElement->Settings.ControlType == ERigControlType::Integer))
+                    OtherControlElement->Settings.ControlType == ERigControlType::Integer)
 			{
-				Controller->SelectElement(OtherControlElement->GetKey(), bSelected);
+				for(const FRigElementParentConstraint& ParentConstraint : OtherControlElement->ParentConstraints)
+				{
+					if(ParentConstraint.ParentElement == ControlElement)
+					{
+						Controller->SelectElement(OtherControlElement->GetKey(), bSelected);
+						break;
+					}
+				}
 			}
 
 			return true;
