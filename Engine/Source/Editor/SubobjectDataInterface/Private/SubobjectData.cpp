@@ -896,10 +896,11 @@ bool FSubobjectData::IsDefaultSceneRoot() const
 	// If this isn't a scene component, then we can check an SCS node for a flag. 
 	else if (const USCS_Node* SCS_Node = GetSCSNode())
 	{
-		USimpleConstructionScript* SCS = SCS_Node->GetSCS();
-		if (SCS != nullptr)
+		if (USimpleConstructionScript* SCS = SCS_Node->GetSCS())
 		{
-			return SCS_Node == SCS->GetDefaultSceneRootNode();
+			const USceneComponent* SCS_Root = SCS->GetSceneRootComponentTemplate();
+
+			return (SCS_Node == SCS->GetDefaultSceneRootNode()) || (SceneComponent && (SCS_Root == SceneComponent));
 		}
 	}
 	// As a last resort check the owning actor to see if the root component matches up with this
