@@ -3,6 +3,8 @@
 #include "Common.ush"
 #include "SceneData.ush"
 
+#define PACK_TEX_COORDS !VULKAN_PROFILE
+
 float3 TransformLocalToWorld(float3 LocalPosition, float4x4 LocalToWorld)
 {
 	//expand the matrix multiply to avoid a code-gen bug on PS4.
