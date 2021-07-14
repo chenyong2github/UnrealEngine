@@ -7,6 +7,7 @@
 #include "UObject/GCObject.h"
 #include "IConcertClientSequencerManager.h"
 #include "ConcertSequencerMessages.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 struct FConcertSessionContext;
 class IConcertSyncClient;
@@ -223,9 +224,12 @@ private:
 	float GetLatencyCompensationMs() const;
 
 	/** FGCObject interface*/
-	virtual void AddReferencedObjects(FReferenceCollector& Collector);
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
 private:
+	/** Called by the MovieScene object when the property changes of the object. */
+	void OnPlayerSignatureChanged();
+
 	/** Pointer to the sync client that owns us. */
 	IConcertSyncClient* OwnerSyncClient;
 
@@ -241,15 +245,21 @@ private:
 	/** List of all locally opened sequencer. */
 	TArray<FOpenSequencerData> OpenSequencers;
 
+	struct FSequencePlayer
+	{
+		TWeakObjectPtr<ALevelSequenceActor> Actor;
+		FDelegateHandle						SignatureChangedHandle;
+	};
+
 	/** Map of opened sequence players, if not in editor mode. */
-	TMap<FName, ALevelSequenceActor*> SequencePlayers;
+	TMap<FName, FSequencePlayer> SequencePlayers;
 
 	/** Boolean that is set when we are handling any transport event to prevent re-entrancy */
 	bool bRespondingToTransportEvent;
 
 	/** Delegate handle for the global sequencer created event registered with the sequencer module */
 	FDelegateHandle OnSequencerCreatedHandle;
-	
+
 	/** Weak pointer to the client session with which to send events. May be null or stale. */
 	TWeakPtr<IConcertClientSession> WeakSession;
 };
