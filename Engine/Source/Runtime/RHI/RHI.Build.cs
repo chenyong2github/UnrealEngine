@@ -10,7 +10,15 @@ public class RHI : ModuleRules
 		PrivateDependencyModuleNames.Add("Core");
 		PrivateDependencyModuleNames.Add("TraceLog");
 		PrivateDependencyModuleNames.Add("ApplicationCore");
-		PrivateDependencyModuleNames.Add("GeForceNOWWrapper");
+
+		if (Target.Type != TargetRules.TargetType.Server
+		&& Target.Type != TargetRules.TargetType.Program
+		&& Target.Configuration != UnrealTargetConfiguration.Unknown
+		&& Target.Configuration != UnrealTargetConfiguration.Debug
+		&& Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			PrivateDependencyModuleNames.Add("GeForceNOWWrapper");
+		}
 
 		if (Target.bCompileAgainstEngine)
 		{
