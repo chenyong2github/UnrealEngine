@@ -284,7 +284,7 @@ void FSequencerTrailHierarchy::UpdateControlRig(const FTrailEvaluateTimes& Evalu
 		ULevelSequence* LevelSequence = Cast<ULevelSequence>(Sequencer->GetFocusedMovieSceneSequence());
 
 		USceneComponent* Component = Cast<USceneComponent>(ObjectBinding->GetBoundObject());
-		if (Component)
+		if (Component && Player)
 		{
 			AActor* Actor = Component->GetTypedOuter< AActor >();
 			if (Actor)
