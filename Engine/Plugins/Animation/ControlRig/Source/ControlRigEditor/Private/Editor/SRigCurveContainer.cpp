@@ -205,6 +205,9 @@ void SRigCurveContainer::Construct(const FArguments& InArgs, TSharedRef<FControl
 
 SRigCurveContainer::~SRigCurveContainer()
 {
+	// Make sure we don't get called on editor exit if we've already been shut down.
+	GEditor->OnEditorClose().RemoveAll(this);
+
 	if (ControlRigEditor.IsValid())
 	{
 		ControlRigBlueprint = ControlRigEditor.Pin()->GetControlRigBlueprint();
