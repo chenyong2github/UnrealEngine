@@ -274,9 +274,9 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = PlayInEditor, meta = (DisplayName="Stream Sub-Levels during Play in Editor", ToolTip="Prefer to stream sub-levels from the disk instead of duplicating editor sub-levels"))
 	uint32 bPreferToStreamLevelsInPIE:1;
 
-	/** Whether to use Zen Loader/Storage server when running cook-on-the-fly. */
+	/** Whether to use Zen loader/storage server when running cook-on-the-fly. */
 	UPROPERTY(config, EditAnywhere, Category=PlayInEditor)
-	bool EnableIoStoreCookOnTheFlyMode;
+	bool EnableZenCookOnTheFlyMode;
 
 public:
 	/** The width of the new view port window in pixels (0 = use the desktop's screen resolution). */

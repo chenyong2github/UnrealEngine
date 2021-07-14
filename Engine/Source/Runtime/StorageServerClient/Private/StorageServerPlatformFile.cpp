@@ -3,6 +3,7 @@
 #include "StorageServerPlatformFile.h"
 #include "StorageServerIoDispatcherBackend.h"
 #include "HAL/IPlatformFileModule.h"
+#include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeRWLock.h"
 #include "StorageServerConnection.h"
@@ -239,25 +240,32 @@ FStorageServerPlatformFile::~FStorageServerPlatformFile()
 
 bool FStorageServerPlatformFile::ShouldBeUsed(IPlatformFile* Inner, const TCHAR* CmdLine) const
 {
-	FString StorageServerHost;
-	return FParse::Value(CmdLine, TEXT("-StorageServerHost="), StorageServerHost);
+	FString Host;
+	if (FParse::Value(FCommandLine::Get(), TEXT("-ZenStoreHost="), Host))
+	{
+		if (!Host.ParseIntoArray(HostAddrs, TEXT("+"), true))
+		{
+			HostAddrs.Add(Host);
+		}
+	}
+
+	return HostAddrs.Num() > 0;
 }
 
 bool FStorageServerPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 {
 	LowerLevel = Inner;
 	bool bResult = false;
-	FString StorageServerHost;
-	if (FParse::Value(CmdLine, TEXT("-StorageServerHost="), StorageServerHost))
+	if (HostAddrs.Num() > 0)
 	{
 		Connection.Reset(new FStorageServerConnection());
 		FString StorageServerProject;
-		FParse::Value(CmdLine, TEXT("-StorageServerProject="), StorageServerProject);
+		FParse::Value(CmdLine, TEXT("-ZenStoreProject="), StorageServerProject);
 		const TCHAR* ProjectOverride = StorageServerProject.IsEmpty() ? nullptr : *StorageServerProject;
 		FString StorageServerPlatform;
-		FParse::Value(CmdLine, TEXT("-StorageServerPlatform="), StorageServerPlatform);
+		FParse::Value(CmdLine, TEXT("-ZenStorePlatform="), StorageServerPlatform);
 		const TCHAR* PlatformOverride = StorageServerPlatform.IsEmpty() ? nullptr : *StorageServerPlatform;
-		if (Connection->Initialize(*StorageServerHost, 1337, ProjectOverride, PlatformOverride))
+		if (Connection->Initialize(HostAddrs, 1337, ProjectOverride, PlatformOverride))
 		{
 			if (SendGetFileListMessage())
 			{
@@ -278,17 +286,17 @@ bool FStorageServerPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* C
 				}
 				else
 				{
-					UE_LOG(LogStorageServerPlatformFile, Fatal, TEXT("Failed to initialize IoDispatcher"), *StorageServerHost);
+					UE_LOG(LogStorageServerPlatformFile, Fatal, TEXT("Failed to initialize IoDispatcher with Zen host '%s'"), *Connection->GetHostAddr());
 				}
 			}
 			else
 			{
-				UE_LOG(LogStorageServerPlatformFile, Fatal, TEXT("Failed to get file list"), *StorageServerHost);
+				UE_LOG(LogStorageServerPlatformFile, Fatal, TEXT("Failed to get file list from Zen at '%s'"), *Connection->GetHostAddr());
 			}
 		}
 		else
 		{
-			UE_LOG(LogStorageServerPlatformFile, Fatal, TEXT("Failed to initialize connection to %s"), *StorageServerHost);
+			UE_LOG(LogStorageServerPlatformFile, Fatal, TEXT("Failed to initialize connection"));
 		}
 	}
 	if (!bResult)

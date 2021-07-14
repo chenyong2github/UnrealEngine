@@ -1304,6 +1304,19 @@ public:
 	virtual bool IsUsingIoStore() const = 0;
 
 	/**
+	 * Sets whether to use the Zen storage server
+	 * @param bUseZenStore Whether to use the Zen storage server
+	 */
+	virtual void SetUseZenStore(bool bUseZenStore) = 0;
+
+	/**
+	 * Using Zen storage server or not.
+	 *
+	 * @return true if using Zen storage server
+	 */
+	virtual bool IsUsingZenStore() const = 0;
+
+	/**
 	 * Sets whether to make a binary config file during packaging
 	 * @param bMakeBinaryConfig Whether to make a binary config file during staging
 	 */

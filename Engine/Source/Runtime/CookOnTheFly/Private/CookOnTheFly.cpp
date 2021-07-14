@@ -65,15 +65,19 @@ bool GetCookOnTheFlyHost(UE::Cook::FCookOnTheFlyHostOptions& OutHostOptions)
 {
 	bool bOptionsOk = false;
 
-	FString Host;
-	if (FParse::Value(FCommandLine::Get(), TEXT("-CookOnTheFlyHost="), Host))
+	if (FParse::Param(FCommandLine::Get(), TEXT("CookOnTheFly")))
 	{
-		if (!Host.ParseIntoArray(OutHostOptions.Hosts, TEXT("+"), true))
+		// Cook-on-the-fly expects the same host as the Zen storage server
+		FString Host;
+		if (FParse::Value(FCommandLine::Get(), TEXT("-ZenStoreHost="), Host))
 		{
-			OutHostOptions.Hosts.Add(Host);
-		}
+			if (!Host.ParseIntoArray(OutHostOptions.Hosts, TEXT("+"), true))
+			{
+				OutHostOptions.Hosts.Add(Host);
+			}
 
-		bOptionsOk = true;
+			bOptionsOk = true;
+		}
 	}
 
 	double ServerWaitTimeInSeconds;

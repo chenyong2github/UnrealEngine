@@ -146,8 +146,8 @@ public:
 	{
 		/** Wether the network file server or the I/O store connection server should bind to any port */
 		bool bBindAnyPort = false;
-		/** Wether to cook for I/O store */
-		bool bIoStore = false;
+		/** Whether to save the cooked output to the Zen storage server. */
+		bool bZenStore = false;
 		/** Target platforms */
 		TArray<ITargetPlatform*> TargetPlatforms;
 	};

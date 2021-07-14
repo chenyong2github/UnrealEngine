@@ -105,6 +105,7 @@ private:
 	FStringView ServerProjectDirView = FStringView(TEXT("/{project}/"));
 	TUniquePtr<FStorageServerConnection> Connection;
 	FStorageServerFileSystemTOC ServerToc;
+	mutable TArray<FString> HostAddrs;
 };
 
 #endif

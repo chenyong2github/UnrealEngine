@@ -287,6 +287,7 @@ namespace AutomationTool
 			this.IgnorePaksFromDifferentCookSource = InParams.IgnorePaksFromDifferentCookSource;
 			this.IoStore = InParams.IoStore;
 			this.Cook4IoStore = InParams.Cook4IoStore;
+			this.ZenStore = InParams.ZenStore;
 			this.GenerateOptimizationData = InParams.GenerateOptimizationData;
 			this.SignPak = InParams.SignPak;
 			this.SignedPak = InParams.SignedPak;
@@ -372,7 +373,6 @@ namespace AutomationTool
 			this.bTreatNonShippingBinariesAsDebugFiles = InParams.bTreatNonShippingBinariesAsDebugFiles;
 			this.bUseExtraFlavor = InParams.bUseExtraFlavor;
 			this.AdditionalPackageOptions = InParams.AdditionalPackageOptions;
-			this.StorageServerHost = InParams.StorageServerHost;
 		}
 
 		/// <summary>
@@ -475,6 +475,7 @@ namespace AutomationTool
 			bool? IgnorePaksFromDifferentCookSource = null,
 			bool? IoStore = null,
 			bool? Cook4IoStore = null,
+			bool? ZenStore = null,
 			bool? SkipIoStore = null,
 			bool? GenerateOptimizationData = null,
 			bool? Prereqs = null,
@@ -524,8 +525,7 @@ namespace AutomationTool
 		    bool AutomaticSigning = false,
 			ParamList<string> InMapsToRebuildLightMaps = null,
             ParamList<string> InMapsToRebuildHLOD = null,
-            ParamList<string> TitleID = null,
-			string StorageServerhost = null
+            ParamList<string> TitleID = null
 			)
 		{
 			//
@@ -668,6 +668,11 @@ namespace AutomationTool
 			{
 				this.IoStore = true;
 				this.AdditionalCookerOptions += " -IoStore";
+			}
+			this.ZenStore = GetParamValueIfNotSpecified(Command, ZenStore, this.ZenStore, "zenstore");
+			if (this.ZenStore && this.Cook && !this.SkipCook)
+			{
+				this.AdditionalCookerOptions += " -ZenStore";
 			}
 			this.GenerateOptimizationData = GetParamValueIfNotSpecified(Command, GenerateOptimizationData, this.GenerateOptimizationData, "makebinaryconfig");
 			
@@ -877,7 +882,6 @@ namespace AutomationTool
 			this.SpecifiedArchitecture = ParseParamValueIfNotSpecified(Command, SpecifiedArchitecture, "specifiedarchitecture", String.Empty);
 			this.UbtArgs = ParseParamValueIfNotSpecified(Command, UbtArgs, "ubtargs", String.Empty);
 			this.AdditionalPackageOptions = ParseParamValueIfNotSpecified(Command, AdditionalPackageOptions, "AdditionalPackageOptions", String.Empty);
-			this.StorageServerHost = ParseParamValueIfNotSpecified(Command, StorageServerHost, "StorageServerHost", "localhost");
 
 			if (ClientConfigsToBuild == null)
 			{
@@ -1247,6 +1251,12 @@ namespace AutomationTool
 		/// </summary>
 		[Help("cook4iostore", "generate I/O store container file(s)")]
 		public bool Cook4IoStore { private set; get; }
+		
+		/// <summary>
+		/// Shared: True if the cooker should store the cooked output to the Zen storage server
+		/// </summary>
+		[Help("zenstore", "save cooked output data to the Zen storage server")]
+		public bool ZenStore { private set; get; }
 
 		/// <summary>
 		/// Shared: True if optimization data is generated during staging that can improve loadtimes
@@ -2073,9 +2083,6 @@ namespace AutomationTool
 
         [Help("IgnoreLightMapErrors", "Whether Light Map errors should be treated as critical")]
 		public bool IgnoreLightMapErrors { get; set; }
-
-		[Help("StorageServerHost", "Storage server host address")]
-		public string StorageServerHost { get; set; }
 
 		private List<SingleTargetProperties> DetectedTargets;
 		private Dictionary<UnrealTargetPlatform, ConfigHierarchy> LoadedEngineConfigs;
@@ -2957,6 +2964,7 @@ namespace AutomationTool
 				CommandUtils.LogLog("IoStore={0}", IoStore);
 				CommandUtils.LogLog("SkipIoStore={0}", SkipIoStore);
 				CommandUtils.LogLog("Cook4IoStore={0}", Cook4IoStore);
+				CommandUtils.LogLog("ZenStore={0}", ZenStore);
 				CommandUtils.LogLog("SkipEncryption={0}", SkipEncryption);
 				CommandUtils.LogLog("GenerateOptimizationData={0}", GenerateOptimizationData);
 				CommandUtils.LogLog("SkipPackage={0}", SkipPackage);

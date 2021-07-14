@@ -16,6 +16,33 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogStorageServerConnection, Log, All);
 
+static TArray<TSharedPtr<FInternetAddr>> GetAddressFromString(ISocketSubsystem& SocketSubsystem, TArrayView<const FString> HostAddresses, const int32 Port)
+{
+	TArray<TSharedPtr<FInternetAddr>> InterntAddresses;
+
+	for (const FString& HostAddr : HostAddresses)
+	{
+		TSharedPtr<FInternetAddr> Addr = SocketSubsystem.GetAddressFromString(HostAddr);
+
+		if (!Addr.IsValid() || !Addr->IsValid())
+		{
+			FAddressInfoResult GAIRequest = SocketSubsystem.GetAddressInfo(*HostAddr, nullptr, EAddressInfoFlags::Default, NAME_None);
+			if (GAIRequest.ReturnCode == SE_NO_ERROR && GAIRequest.Results.Num() > 0)
+			{
+				Addr = GAIRequest.Results[0].Address;
+			}
+		}
+
+		if (Addr.IsValid() && Addr->IsValid())
+		{
+			Addr->SetPort(Port);
+			InterntAddresses.Emplace(MoveTemp(Addr));
+		}
+	}
+
+	return InterntAddresses;
+}
+
 FStorageServerRequest::FStorageServerRequest(FAnsiStringView Verb, FAnsiStringView Resource, FAnsiStringView Hostname)
 {
 	SetIsSaving(true);
@@ -257,20 +284,16 @@ FStorageServerConnection::~FStorageServerConnection()
 	}
 }
 
-bool FStorageServerConnection::Initialize(const TCHAR* InHost, int32 InPort, const TCHAR* InProjectNameOverride, const TCHAR* InPlatformNameOverride)
+bool FStorageServerConnection::Initialize(TArrayView<const FString> InHostAddresses, int32 InPort, const TCHAR* InProjectNameOverride, const TCHAR* InPlatformNameOverride)
 {
-	FAddressInfoResult GAIRequest = SocketSubsystem.GetAddressInfo(InHost, nullptr, EAddressInfoFlags::Default, NAME_None);
-	if (GAIRequest.ReturnCode == SE_NO_ERROR && GAIRequest.Results.Num() > 0)
+	TArray<TSharedPtr<FInternetAddr>> HostAddresses = GetAddressFromString(SocketSubsystem, InHostAddresses, InPort);
+
+	if (!HostAddresses.Num())
 	{
-		ServerAddr = GAIRequest.Results[0].Address;
-	}
-	if (!ServerAddr.IsValid() || !ServerAddr->IsValid())
-	{
-		UE_LOG(LogStorageServerConnection, Fatal, TEXT("Failed to resolve storage server host %s."), InHost);
+		UE_LOG(LogStorageServerConnection, Fatal, TEXT("No valid Zen store host address specified"));
 		return false;
 	}
 	
-	ServerAddr->SetPort(InPort);
 	OplogPath.Append("/prj/");
 	if (InProjectNameOverride)
 	{
@@ -290,47 +313,56 @@ bool FStorageServerConnection::Initialize(const TCHAR* InHost, int32 InPort, con
 		OplogPath.Append(FPlatformProperties::PlatformName());
 	}
 
-	Hostname.Append(TCHAR_TO_ANSI(*ServerAddr->ToString(false)));
-
-	int32 ServerVersion = HandshakeRequest();
+	const int32 ServerVersion = HandshakeRequest(HostAddresses);
 	if (ServerVersion != 1)
 	{
 		return false;
 	}
 
-	UE_LOG(LogStorageServerConnection, Display, TEXT("Connected to storage server host %s."), *ServerAddr->ToString(true));
+	UE_LOG(LogStorageServerConnection, Display, TEXT("Connected to Zen storage server at '%s'"), *ServerAddr->ToString(true));
 
 	return true;
 }
 
-int32 FStorageServerConnection::HandshakeRequest()
+int32 FStorageServerConnection::HandshakeRequest(TArrayView<const TSharedPtr<FInternetAddr>> HostAddresses)
 {
 	TAnsiStringBuilder<256> ResourceBuilder;
 	ResourceBuilder.Append(OplogPath);
-	FStorageServerRequest Request("GET", *ResourceBuilder, Hostname);
-	FSocket* Socket = Request.Send(*this);
-	if (!Socket)
-	{
-		UE_LOG(LogStorageServerConnection, Fatal, TEXT("Failed to send handshake request to storage server at %s."), *ServerAddr->ToString(true));
-		return -1;
-	}
-	FStorageServerResponse Response(*this, *Socket);
 
-	if (Response.IsOk())
+	for (const TSharedPtr<FInternetAddr>& Addr : HostAddresses)
 	{
-		FCbObject ResponseObj = Response.GetResponseObject();
+		Hostname.Reset();
+		Hostname.Append(TCHAR_TO_ANSI(*Addr->ToString(false)));
+		ServerAddr = Addr;
+		
+		UE_LOG(LogStorageServerConnection, Display, TEXT("Trying to handshake with Zen at '%s'"), *Addr->ToString(true));
 
-		// we currently don't have any concept of protocol versioning, if
-		// we succeed in communicating with the endpoint we're good since
-		// any breaking API change would need to be done in a backward
-		// compatible manner
+		FStorageServerRequest Request("GET", *ResourceBuilder, Hostname);
+		if (FSocket* Socket = Request.Send(*this))
+		{
+			FStorageServerResponse Response(*this, *Socket);
 
-		return 1;
+			if (Response.IsOk())
+			{
+				FCbObject ResponseObj = Response.GetResponseObject();
+
+				// we currently don't have any concept of protocol versioning, if
+				// we succeed in communicating with the endpoint we're good since
+				// any breaking API change would need to be done in a backward
+				// compatible manner
+
+				return 1;
+			}
+			else
+			{
+				UE_LOG(LogStorageServerConnection, Fatal, TEXT("Failed to handshake with Zen at %s. '%s'"), *ServerAddr->ToString(true), *Response.GetErrorMessage());
+			}
+		}
 	}
-	else
-	{
-		UE_LOG(LogStorageServerConnection, Fatal, TEXT("Failed to handshake with storage server at %s. '%s'"), *ServerAddr->ToString(true), *Response.GetErrorMessage());
-	}
+
+	Hostname.Reset();
+	ServerAddr.Reset();
+	
 	return -1;
 }
 
@@ -562,6 +594,11 @@ FSocket* FStorageServerConnection::AcquireSocket()
 	UE_LOG(LogStorageServerConnection, Fatal, TEXT("Failed to connect to storage server at %s."), *ServerAddr->ToString(true));
 
 	return nullptr;
+}
+
+FString FStorageServerConnection::GetHostAddr() const
+{
+	return ServerAddr.IsValid() ? ServerAddr->ToString(false) : FString();
 }
 
 void FStorageServerConnection::ReleaseSocket(FSocket* Socket, bool bKeepAlive)

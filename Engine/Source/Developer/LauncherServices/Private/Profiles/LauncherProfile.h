@@ -2438,6 +2438,16 @@ public:
 		return bUseIoStore;
 	}
 
+	virtual void SetUseZenStore(bool bInUseZenStore) override
+	{
+		bUseZenStore = bInUseZenStore;
+	}
+
+	virtual bool IsUsingZenStore() const override
+	{
+		return bUseZenStore;
+	}
+
 	virtual void SetShouldUpdateDeviceFlash(bool bInShouldUpdateFlash) override
 	{
 		bShouldUpdateFlash = bInShouldUpdateFlash;
@@ -2914,6 +2924,9 @@ private:
 
 	// Use I/O store.
 	bool bUseIoStore;
+	
+	// Use Zen storage server
+	bool bUseZenStore;
 
 	// Make binary config.
 	bool bMakeBinaryConfig;

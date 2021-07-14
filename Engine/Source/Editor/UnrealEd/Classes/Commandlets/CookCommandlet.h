@@ -55,8 +55,6 @@ class UCookCommandlet
 	bool bPartialGC;
 	/** Do not cook any shaders.  Shader maps will be empty */
 	bool bNoShaderCooking;
-	/** Whether to cook for I/O store */
-	bool bUseIoStore;
 	/** All commandline tokens */
 	TArray<FString> Tokens;
 	/** All commandline switches */
