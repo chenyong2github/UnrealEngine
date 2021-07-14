@@ -68,9 +68,9 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 					return;
 				}
 
-				if (Node->GetAssetClass() != nullptr)
+				if (Node->GetObjectClass() != nullptr)
 				{
-					const UClass* RegisteredFactoryClass = InterchangeManager->GetRegisteredFactoryClass(Node->GetAssetClass());
+					const UClass* RegisteredFactoryClass = InterchangeManager->GetRegisteredFactoryClass(Node->GetObjectClass());
 					if (!RegisteredFactoryClass)
 					{
 						//nothing we can import from this element

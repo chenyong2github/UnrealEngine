@@ -57,7 +57,7 @@ public:
 
 	/** Get the class this node want to create */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
-	virtual class UClass* GetAssetClass() const override
+	virtual class UClass* GetObjectClass() const override
 	{
 		ensure(bIsMaterialNodeClassInitialized);
 #if WITH_ENGINE

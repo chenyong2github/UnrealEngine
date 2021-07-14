@@ -19,7 +19,7 @@ UObject* UInterchangePhysicsAssetFactory::CreateEmptyAsset(const FCreateAssetPar
 	UObject* PhysicsAsset = nullptr;
 
 #if WITH_EDITORONLY_DATA
-	if (!Arguments.AssetNode || !Arguments.AssetNode->GetAssetClass()->IsChildOf(GetFactoryClass()))
+	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
 		return nullptr;
 	}
@@ -65,7 +65,7 @@ UObject* UInterchangePhysicsAssetFactory::CreateAsset(const UInterchangePhysicsA
 
 #else
 
-	if (!Arguments.AssetNode || !Arguments.AssetNode->GetAssetClass()->IsChildOf(GetFactoryClass()))
+	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
 		return nullptr;
 	}
@@ -76,7 +76,7 @@ UObject* UInterchangePhysicsAssetFactory::CreateAsset(const UInterchangePhysicsA
 		return nullptr;
 	}
 
-	const UClass* PhysicsAssetClass = PhysicsAssetNode->GetAssetClass();
+	const UClass* PhysicsAssetClass = PhysicsAssetNode->GetObjectClass();
 	check(PhysicsAssetClass && PhysicsAssetClass->IsChildOf(GetFactoryClass()));
 
 	// create an asset if it doesn't exist

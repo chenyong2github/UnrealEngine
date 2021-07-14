@@ -177,7 +177,7 @@ FGuid UInterchangeBaseNode::GetHash() const
 	return Attributes->GetStorageHash();
 }
 
-class UClass* UInterchangeBaseNode::GetAssetClass() const
+UClass* UInterchangeBaseNode::GetObjectClass() const
 {
 	return nullptr;
 }

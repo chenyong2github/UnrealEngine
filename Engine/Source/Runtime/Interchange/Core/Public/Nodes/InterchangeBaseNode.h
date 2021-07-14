@@ -1089,9 +1089,9 @@ public:
 	virtual FGuid GetHash() const;
 
 	/**
-	 * Optional, Any node that can import/export an asset should return the UClass of the asset so we can find factory/writer
+	 * Optional, Any node that can import/export an object should return the UClass of the object so we can find factory/writer
 	 */
-	virtual class UClass* GetAssetClass() const;
+	virtual class UClass* GetObjectClass() const;
 
 	/**
 	 * Optional, Any node that can import/export an asset should set the proper name we will give to the asset.
