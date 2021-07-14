@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Retargeter/IKRetargeter.h"
+#include "Engine/SkeletalMesh.h"
 
 /*
 TODO:
