@@ -14,8 +14,8 @@
  * Run-time validation should be enabled using '-stomp2malloc' command line argument.
  */
 
-#if PLATFORM_WINDOWS
-	#include "Windows/WindowsHWrapper.h"
+#if PLATFORM_MICROSOFT
+	#include "Microsoft/WindowsHWrapper.h"
 #endif
 
 /**
