@@ -386,49 +386,6 @@ struct CONTROLRIG_API FRigCurrentAndInitialTransform
 	FRigLocalAndGlobalTransform Initial;
 };
 
-USTRUCT()
-struct CONTROLRIG_API FRigHierarchyCopyPasteContentPerElement
-{
-	GENERATED_USTRUCT_BODY()
-
-    UPROPERTY()
-	FRigElementKey Key;
-
-	UPROPERTY()
-	FString Content;
-
-	UPROPERTY()
-	TArray<FRigElementKey> Parents;
-
-	UPROPERTY()
-	TArray<float> ParentWeights;
-
-	UPROPERTY()
-	FRigCurrentAndInitialTransform Pose;
-};
-
-USTRUCT()
-struct CONTROLRIG_API FRigHierarchyCopyPasteContent
-{
-	GENERATED_USTRUCT_BODY()
-
-    UPROPERTY()
-	TArray<FRigHierarchyCopyPasteContentPerElement> Elements;
-
-	// Maintain properties below for backwards compatibility pre-5.0
-	UPROPERTY()
-	TArray<ERigElementType> Types;
-
-	UPROPERTY()
-	TArray<FString> Contents;
-
-	UPROPERTY()
-	TArray<FTransform> LocalTransforms;
-
-	UPROPERTY()
-	TArray<FTransform> GlobalTransforms;
-};
-
 USTRUCT(BlueprintType)
 struct CONTROLRIG_API FRigBaseElement
 {
@@ -654,6 +611,99 @@ protected:
 };
 
 USTRUCT(BlueprintType)
+struct CONTROLRIG_API FRigElementWeight
+{
+public:
+	GENERATED_BODY()
+
+	UPROPERTY()
+	float Location;
+
+	UPROPERTY()
+	float Rotation;
+
+	UPROPERTY()
+	float Scale;
+
+	FORCEINLINE FRigElementWeight()
+		: Location(1.f)
+		, Rotation(1.f)
+		, Scale(1.f)
+	{}
+
+	FORCEINLINE FRigElementWeight(float InWeight)
+		: Location(InWeight)
+		, Rotation(InWeight)
+		, Scale(InWeight)
+	{}
+
+	FORCEINLINE FRigElementWeight(float InLocation, float InRotation, float InScale)
+		: Location(InLocation)
+		, Rotation(InRotation)
+		, Scale(InScale)
+	{}
+
+	FORCEINLINE friend FArchive& operator <<(FArchive& Ar, FRigElementWeight& Weight)
+	{
+		Ar << Weight.Location;
+		Ar << Weight.Rotation;
+		Ar << Weight.Scale;
+		return Ar;
+	}
+
+	FORCEINLINE bool AffectsLocation() const
+	{
+		return Location > SMALL_NUMBER;
+	}
+
+	FORCEINLINE bool AffectsRotation() const
+	{
+		return Rotation > SMALL_NUMBER;
+	}
+
+	FORCEINLINE bool AffectsScale() const
+	{
+		return Scale > SMALL_NUMBER;
+	}
+
+	FORCEINLINE bool IsAlmostZero() const
+	{
+		return !AffectsLocation() && !AffectsRotation() && !AffectsScale();
+	}
+
+	FORCEINLINE friend FRigElementWeight operator *(FRigElementWeight Weight, float Scale)
+	{
+		return FRigElementWeight(Weight.Location * Scale, Weight.Rotation * Scale, Weight.Scale * Scale);
+	}
+
+	FORCEINLINE friend FRigElementWeight operator *(float Scale, FRigElementWeight Weight)
+	{
+		return FRigElementWeight(Weight.Location * Scale, Weight.Rotation * Scale, Weight.Scale * Scale);
+	}
+};
+
+USTRUCT()
+struct CONTROLRIG_API FRigElementParentConstraint
+{
+public:
+	GENERATED_BODY()
+
+	FRigTransformElement* ParentElement;
+	FRigElementWeight Weight;
+	FRigElementWeight InitialWeight;
+		
+	FORCEINLINE FRigElementParentConstraint()
+		: ParentElement(nullptr)
+	{
+	}
+
+	FORCEINLINE const FRigElementWeight& GetWeight(bool bInitial = false) const
+	{
+		return bInitial ? InitialWeight : Weight;
+	}
+};
+
+USTRUCT(BlueprintType)
 struct CONTROLRIG_API FRigMultiParentElement : public FRigTransformElement
 {
 public:
@@ -673,11 +723,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = RigElement)
 	FRigCurrentAndInitialTransform Parent;
 
-	TArray<FRigTransformElement*> ParentElements;
-	TArray<float> ParentWeights;
-	TArray<float> ParentWeightsInitial;
+	TArray<FRigElementParentConstraint> ParentConstraints;
 	TMap<FRigElementKey, int32> IndexLookup;
-
+	
 protected:
 
 	virtual void CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy) override;
@@ -1063,4 +1111,47 @@ protected:
 
 	friend struct FRigBaseElement;
 	friend class URigHierarchyController;
+};
+
+USTRUCT()
+struct CONTROLRIG_API FRigHierarchyCopyPasteContentPerElement
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	FRigElementKey Key;
+
+	UPROPERTY()
+	FString Content;
+
+	UPROPERTY()
+	TArray<FRigElementKey> Parents;
+
+	UPROPERTY()
+	TArray<FRigElementWeight> ParentWeights;
+
+	UPROPERTY()
+	FRigCurrentAndInitialTransform Pose;
+};
+
+USTRUCT()
+struct CONTROLRIG_API FRigHierarchyCopyPasteContent
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	TArray<FRigHierarchyCopyPasteContentPerElement> Elements;
+
+	// Maintain properties below for backwards compatibility pre-5.0
+	UPROPERTY()
+	TArray<ERigElementType> Types;
+
+	UPROPERTY()
+	TArray<FString> Contents;
+
+	UPROPERTY()
+	TArray<FTransform> LocalTransforms;
+
+	UPROPERTY()
+	TArray<FTransform> GlobalTransforms;
 };

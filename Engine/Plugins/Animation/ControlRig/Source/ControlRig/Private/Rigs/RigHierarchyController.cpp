@@ -709,8 +709,12 @@ FString URigHierarchyController::ExportToText(TArray<FRigElementKey> InKeys) con
 
 		if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(Element))
 		{
-			ensure(PerElementData.Parents.Num() == MultiParentElement->ParentWeights.Num());
-			PerElementData.ParentWeights = MultiParentElement->ParentWeights;
+			ensure(PerElementData.Parents.Num() == MultiParentElement->ParentConstraints.Num());
+
+			for(const FRigElementParentConstraint& ParentConstraint : MultiParentElement->ParentConstraints)
+			{
+				PerElementData.ParentWeights.Add(ParentConstraint.Weight);
+			}
 		}
 		else
 		{
@@ -1188,9 +1192,9 @@ TArray<FString> URigHierarchyController::GetAddNullPythonCommands(FRigNullElemen
 	FString TransformStr = RigVMPythonUtils::TransformToPythonString(Null->Pose.Initial.Local.Transform);
 
 	FString ParentKeyStr = "''";
-	if (Null->ParentElements.Num() > 0)
+	if (Null->ParentConstraints.Num() > 0)
 	{
-		ParentKeyStr = Null->ParentElements[0]->GetKey().ToPythonString();		
+		ParentKeyStr = Null->ParentConstraints[0].ParentElement->GetKey().ToPythonString();		
 	}
 		
 	// AddNull(FName InName, FRigElementKey InParent, FTransform InTransform, bool bTransformInGlobal = true, bool bSetupUndo = false);
@@ -1206,9 +1210,9 @@ TArray<FString> URigHierarchyController::GetAddControlPythonCommands(FRigControl
 	FString TransformStr = RigVMPythonUtils::TransformToPythonString(Control->Pose.Initial.Local.Transform);
 
 	FString ParentKeyStr = "''";
-	if (Control->ParentElements.Num() > 0)
+	if (Control->ParentConstraints.Num() > 0)
 	{
-		ParentKeyStr = Control->ParentElements[0]->GetKey().ToPythonString();
+		ParentKeyStr = Control->ParentConstraints[0].ParentElement->GetKey().ToPythonString();
 	}
 
 	FRigControlSettings& Settings = Control->Settings;
@@ -1491,9 +1495,13 @@ bool URigHierarchyController::RemoveElement(FRigBaseElement* InElement)
 			}
 			else if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(ElementToDirty.Element))
 			{
-				if(MultiParentElement->ParentElements.Contains(InElement))
+				for(const FRigElementParentConstraint& ParentConstraint : MultiParentElement->ParentConstraints)
 				{
-					RemoveParent(MultiParentElement, InElement, true);
+					if(ParentConstraint.ParentElement == InElement)
+					{
+						RemoveParent(MultiParentElement, InElement, true);
+						break;
+					}
 				}
 			}
 		}
@@ -1530,9 +1538,9 @@ bool URigHierarchyController::RemoveElement(FRigBaseElement* InElement)
 	}
 	else if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InElement))
 	{
-		for(FRigTransformElement* ParentElement : MultiParentElement->ParentElements)
+		for(const FRigElementParentConstraint& ParentConstraint : MultiParentElement->ParentConstraints)
 		{
-			RemoveElementToDirty(ParentElement, InElement);
+			RemoveElementToDirty(ParentConstraint.ParentElement, InElement);
 		}
 	}
 
@@ -1704,9 +1712,12 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 
 	else if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InChild))
 	{
-		if(MultiParentElement->ParentElements.Contains(InParent))
+		for(const FRigElementParentConstraint& ParentConstraint : MultiParentElement->ParentConstraints)
 		{
-			return false;
+			if(ParentConstraint.ParentElement == InParent)
+			{
+				return false;
+			}
 		}
 	}
 
@@ -1747,58 +1758,57 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 		Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::InitialLocal);
 	}
 
+	FRigElementParentConstraint Constraint;
+	Constraint.ParentElement = Cast<FRigTransformElement>(InParent);
+	if(Constraint.ParentElement == nullptr)
+	{
+		return false;
+	}
+
 	if(FRigSingleParentElement* SingleParentElement = Cast<FRigSingleParentElement>(InChild))
 	{
-		if(FRigTransformElement* NewTransformParent = Cast<FRigTransformElement>(InParent))
+		AddElementToDirty(Constraint.ParentElement, SingleParentElement);
+		SingleParentElement->ParentElement = Constraint.ParentElement;
+
+		Hierarchy->TopologyVersion++;
+
+		if(!bMaintainGlobalTransform)
 		{
-			AddElementToDirty(NewTransformParent, SingleParentElement);
-			SingleParentElement->ParentElement = NewTransformParent;
-
-			Hierarchy->TopologyVersion++;
-
-			if(!bMaintainGlobalTransform)
-			{
-				Hierarchy->PropagateDirtyFlags(SingleParentElement, true, true);
-				Hierarchy->PropagateDirtyFlags(SingleParentElement, false, true);
-			}
-
-			Notify(ERigHierarchyNotification::ParentChanged, SingleParentElement);
-			return true;
+			Hierarchy->PropagateDirtyFlags(SingleParentElement, true, true);
+			Hierarchy->PropagateDirtyFlags(SingleParentElement, false, true);
 		}
+
+		Notify(ERigHierarchyNotification::ParentChanged, SingleParentElement);
+		return true;
 	}
 	else if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InChild))
 	{
-		if(FRigTransformElement* NewTransformParent = Cast<FRigTransformElement>(InParent))
+		AddElementToDirty(Constraint.ParentElement, MultiParentElement);
+
+		const int32 ParentIndex = MultiParentElement->ParentConstraints.Add(Constraint);
+		MultiParentElement->IndexLookup.Add(Constraint.ParentElement->GetKey(), ParentIndex);
+
+		MultiParentElement->Parent.MarkDirty(ERigTransformType::CurrentGlobal);  
+		MultiParentElement->Parent.MarkDirty(ERigTransformType::InitialGlobal);
+
+		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(MultiParentElement))
 		{
-			AddElementToDirty(NewTransformParent, MultiParentElement);
-
-			const int32 ParentIndex = MultiParentElement->ParentElements.Add(NewTransformParent);
-			MultiParentElement->ParentWeights.Add(1.f);
-			MultiParentElement->ParentWeightsInitial.Add(1.f);
-			MultiParentElement->IndexLookup.Add(NewTransformParent->GetKey(), ParentIndex);
-
-			MultiParentElement->Parent.MarkDirty(ERigTransformType::CurrentGlobal);  
-			MultiParentElement->Parent.MarkDirty(ERigTransformType::InitialGlobal);
-
-			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(MultiParentElement))
-			{
-				ControlElement->Offset.MarkDirty(ERigTransformType::CurrentGlobal);  
-				ControlElement->Offset.MarkDirty(ERigTransformType::InitialGlobal);
-				ControlElement->Gizmo.MarkDirty(ERigTransformType::CurrentGlobal);  
-				ControlElement->Gizmo.MarkDirty(ERigTransformType::InitialGlobal);
-			}
-
-			Hierarchy->TopologyVersion++;
-
-			if(!bMaintainGlobalTransform)
-			{
-				Hierarchy->PropagateDirtyFlags(MultiParentElement, true, true);
-				Hierarchy->PropagateDirtyFlags(MultiParentElement, false, true);
-			}
-
-			Notify(ERigHierarchyNotification::ParentChanged, MultiParentElement);
-			return true;
+			ControlElement->Offset.MarkDirty(ERigTransformType::CurrentGlobal);  
+			ControlElement->Offset.MarkDirty(ERigTransformType::InitialGlobal);
+			ControlElement->Gizmo.MarkDirty(ERigTransformType::CurrentGlobal);  
+			ControlElement->Gizmo.MarkDirty(ERigTransformType::InitialGlobal);
 		}
+
+		Hierarchy->TopologyVersion++;
+
+		if(!bMaintainGlobalTransform)
+		{
+			Hierarchy->PropagateDirtyFlags(MultiParentElement, true, true);
+			Hierarchy->PropagateDirtyFlags(MultiParentElement, false, true);
+		}
+
+		Notify(ERigHierarchyNotification::ParentChanged, MultiParentElement);
+		return true;
 	}
 	
 	return false;
@@ -1903,8 +1913,17 @@ bool URigHierarchyController::RemoveParent(FRigBaseElement* InChild, FRigBaseEle
 	// single parent children can't be parented multiple times
 	else if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InChild))
 	{
-		const int32 ParentIndex = MultiParentElement->ParentElements.Find(ParentTransformElement);
-		if(MultiParentElement->ParentElements.IsValidIndex(ParentIndex))
+		int32 ParentIndex = INDEX_NONE;
+		for(int32 ConstraintIndex = 0; ConstraintIndex < MultiParentElement->ParentConstraints.Num(); ConstraintIndex++)
+		{
+			if(MultiParentElement->ParentConstraints[ConstraintIndex].ParentElement == ParentTransformElement)
+			{
+				ParentIndex = ConstraintIndex;
+				break;
+			}
+		}
+				
+		if(MultiParentElement->ParentConstraints.IsValidIndex(ParentIndex))
 		{
 			if(bMaintainGlobalTransform)
 			{
@@ -1924,12 +1943,10 @@ bool URigHierarchyController::RemoveParent(FRigBaseElement* InChild, FRigBaseEle
 			// remove the previous parent
 			RemoveElementToDirty(InParent, MultiParentElement); 
 
-			const FRigElementKey PreviousParentKey = MultiParentElement->ParentElements[ParentIndex]->GetKey();
+			const FRigElementKey PreviousParentKey = MultiParentElement->ParentConstraints[ParentIndex].ParentElement->GetKey();
 			Hierarchy->PreviousParentMap.FindOrAdd(MultiParentElement->GetKey()) = PreviousParentKey;
 
-			MultiParentElement->ParentElements.RemoveAt(ParentIndex);
-			MultiParentElement->ParentWeights.RemoveAt(ParentIndex);
-			MultiParentElement->ParentWeightsInitial.RemoveAt(ParentIndex);
+			MultiParentElement->ParentConstraints.RemoveAt(ParentIndex);
 			MultiParentElement->IndexLookup.Remove(ParentTransformElement->GetKey());
 			for(TPair<FRigElementKey, int32>& Pair : MultiParentElement->IndexLookup)
 			{
@@ -2013,10 +2030,10 @@ bool URigHierarchyController::RemoveAllParents(FRigBaseElement* InChild, bool bM
 	{
 		bool bSuccess = true;
 
-		TArray<FRigTransformElement*> Parents = MultiParentElement->ParentElements;
-		for(FRigTransformElement* Parent : Parents)
+		TArray<FRigElementParentConstraint> ParentConstraints = MultiParentElement->ParentConstraints;
+		for(const FRigElementParentConstraint& ParentConstraint : ParentConstraints)
 		{
-			if(!RemoveParent(MultiParentElement, Parent, bMaintainGlobalTransform))
+			if(!RemoveParent(MultiParentElement, ParentConstraint.ParentElement, bMaintainGlobalTransform))
 			{
 				bSuccess = false;
 			}

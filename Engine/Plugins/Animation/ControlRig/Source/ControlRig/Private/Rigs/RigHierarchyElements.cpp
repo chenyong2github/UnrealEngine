@@ -3,7 +3,7 @@
 #include "Rigs/RigHierarchyElements.h"
 #include "Rigs/RigHierarchy.h"
 #include "Units/RigUnitContext.h"
-#include "UObject/AnimObjectVersion.h"
+#include "ControlRigObjectVersion.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // FRigBaseElement
@@ -11,7 +11,7 @@
 
 void FRigBaseElement::Serialize(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase)
 {
-	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
+	Ar.UsingCustomVersion(FControlRigObjectVersion::GUID);
 
 	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector() || Ar.IsCountingMemory())
 	{
@@ -220,22 +220,22 @@ void FRigMultiParentElement::Save(FArchive& Ar, URigHierarchy* Hierarchy, ESeria
 	{
 		Parent.Save(Ar);
 
-		int32 NumParents = ParentElements.Num();
+		int32 NumParents = ParentConstraints.Num();
 		Ar << NumParents;
 	}
 	else if(SerializationPhase == ESerializationPhase::InterElementData)
 	{
-		for(int32 ParentIndex = 0; ParentIndex < ParentElements.Num(); ParentIndex++)
+		for(int32 ParentIndex = 0; ParentIndex < ParentConstraints.Num(); ParentIndex++)
 		{
 			FRigElementKey ParentKey;
-			if(ParentElements[ParentIndex])
+			if(ParentConstraints[ParentIndex].ParentElement)
 			{
-				ParentKey = ParentElements[ParentIndex]->GetKey();
+				ParentKey = ParentConstraints[ParentIndex].ParentElement->GetKey();
 			}
 
 			Ar << ParentKey;
-			Ar << ParentWeightsInitial[ParentIndex];
-			Ar << ParentWeights[ParentIndex];
+			Ar << ParentConstraints[ParentIndex].InitialWeight;
+			Ar << ParentConstraints[ParentIndex].Weight;
 		}
 	}
 }
@@ -251,22 +251,33 @@ void FRigMultiParentElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESeria
 		int32 NumParents = 0;
 		Ar << NumParents;
 
-		ParentElements.SetNumZeroed(NumParents);
-		ParentWeights.SetNumZeroed(NumParents);
-		ParentWeightsInitial.SetNumZeroed(NumParents);
+		ParentConstraints.SetNum(NumParents);
 	}
 	else if(SerializationPhase == ESerializationPhase::InterElementData)
 	{
-		for(int32 ParentIndex = 0; ParentIndex < ParentElements.Num(); ParentIndex++)
+		for(int32 ParentIndex = 0; ParentIndex < ParentConstraints.Num(); ParentIndex++)
 		{
 			FRigElementKey ParentKey;
 			Ar << ParentKey;
 			ensure(ParentKey.IsValid());
 
-			ParentElements[ParentIndex] = Hierarchy->FindChecked<FRigTransformElement>(ParentKey);
+			ParentConstraints[ParentIndex].ParentElement = Hierarchy->FindChecked<FRigTransformElement>(ParentKey);
 
-			Ar << ParentWeightsInitial[ParentIndex];
-			Ar << ParentWeights[ParentIndex];
+			if (Ar.CustomVer(FControlRigObjectVersion::GUID) >= FControlRigObjectVersion::RigHierarchyMultiParentConstraints)
+			{
+				Ar << ParentConstraints[ParentIndex].InitialWeight;
+				Ar << ParentConstraints[ParentIndex].Weight;
+			}
+			else
+			{
+				float InitialWeight = 0.f;
+				Ar << InitialWeight;
+				ParentConstraints[ParentIndex].InitialWeight = FRigElementWeight(InitialWeight);
+
+				float Weight = 0.f;
+				Ar << Weight;
+				ParentConstraints[ParentIndex].Weight = FRigElementWeight(Weight);
+			}
 
 			IndexLookup.Add(ParentKey, ParentIndex);
 		}
@@ -274,21 +285,21 @@ void FRigMultiParentElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESeria
 }
 
 void FRigMultiParentElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther,
-	URigHierarchy* InOtherHierarchy)
+                                      URigHierarchy* InOtherHierarchy)
 {
 	Super::CopyFrom(InHierarchy, InOther, InOtherHierarchy);
 	
 	const FRigMultiParentElement* Source = CastChecked<FRigMultiParentElement>(InOther);
 	Parent = Source->Parent;
-	ParentElements.Reset();
-	ParentWeights = Source->ParentWeights;
-	ParentWeightsInitial = Source->ParentWeightsInitial;
+	ParentConstraints.Reset();
 
-	for(int32 ParentIndex = 0; ParentIndex < Source->ParentElements.Num(); ParentIndex++)
+	for(int32 ParentIndex = 0; ParentIndex < Source->ParentConstraints.Num(); ParentIndex++)
 	{
-		const FRigTransformElement* SourceParentElement = Source->ParentElements[ParentIndex];
-		ParentElements.Add(CastChecked<FRigTransformElement>(InHierarchy->Get(SourceParentElement->Index)));
-		check(ParentElements[ParentIndex]->GetKey() == SourceParentElement->GetKey());
+		FRigElementParentConstraint ParentConstraint = Source->ParentConstraints[ParentIndex];
+		const FRigTransformElement* SourceParentElement = ParentConstraint.ParentElement;
+		ParentConstraint.ParentElement = CastChecked<FRigTransformElement>(InHierarchy->Get(SourceParentElement->Index));
+		ParentConstraints.Add(ParentConstraint);
+		check(ParentConstraints[ParentIndex].ParentElement->GetKey() == SourceParentElement->GetKey());
 	}
 }
 

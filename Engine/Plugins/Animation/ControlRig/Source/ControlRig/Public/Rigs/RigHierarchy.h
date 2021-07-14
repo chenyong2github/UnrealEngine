@@ -1607,7 +1607,7 @@ public:
 	 * @return Returns the weight of a parent below a multi parent element, or FLT_MAX if the parent is invalid
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
-    float GetParentWeight(FRigElementKey InChild, FRigElementKey InParent, bool bInitial = false) const;
+    FRigElementWeight GetParentWeight(FRigElementKey InChild, FRigElementKey InParent, bool bInitial = false) const;
 
 	/**
 	 * Returns the weight of a parent below a multi parent element
@@ -1616,7 +1616,7 @@ public:
 	 * @param bInitial If true the initial weights will be used
 	 * @return Returns the weight of a parent below a multi parent element, or FLT_MAX if the parent is invalid
 	 */
-    float GetParentWeight(const FRigBaseElement* InChild, const FRigBaseElement* InParent, bool bInitial = false) const;
+    FRigElementWeight GetParentWeight(const FRigBaseElement* InChild, const FRigBaseElement* InParent, bool bInitial = false) const;
 
 	/**
 	 * Returns the weight of a parent below a multi parent element
@@ -1625,7 +1625,7 @@ public:
 	 * @param bInitial If true the initial weights will be used
 	 * @return Returns the weight of a parent below a multi parent element, or FLT_MAX if the parent is invalid
 	 */
-	float GetParentWeight(const FRigBaseElement* InChild, int32 InParentIndex, bool bInitial = false) const;
+	FRigElementWeight GetParentWeight(const FRigBaseElement* InChild, int32 InParentIndex, bool bInitial = false) const;
 
 	/**
 	 * Sets the weight of a parent below a multi parent element
@@ -1637,7 +1637,7 @@ public:
 	 * @return Returns true if changing the weight was successful
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
-    bool SetParentWeight(FRigElementKey InChild, FRigElementKey InParent, float InWeight, bool bInitial = false, bool bAffectChildren = true);
+    bool SetParentWeight(FRigElementKey InChild, FRigElementKey InParent, FRigElementWeight InWeight, bool bInitial = false, bool bAffectChildren = true);
 
 	/**
 	 * Sets the weight of a parent below a multi parent element
@@ -1648,7 +1648,7 @@ public:
 	 * @param bAffectChildren If set to false children will not move (maintain global).
 	 * @return Returns true if changing the weight was successful
 	 */
-	bool SetParentWeight(FRigBaseElement* InChild, const FRigBaseElement* InParent, float InWeight, bool bInitial = false, bool bAffectChildren = true);
+	bool SetParentWeight(FRigBaseElement* InChild, const FRigBaseElement* InParent, FRigElementWeight InWeight, bool bInitial = false, bool bAffectChildren = true);
 
 	/**
 	 * Sets the weight of a parent below a multi parent element
@@ -1659,7 +1659,7 @@ public:
 	 * @param bAffectChildren If set to false children will not move (maintain global).
 	 * @return Returns true if changing the weight was successful
 	 */
-	bool SetParentWeight(FRigBaseElement* InChild, int32 InParentIndex, float InWeight, bool bInitial = false, bool bAffectChildren = true);
+	bool SetParentWeight(FRigBaseElement* InChild, int32 InParentIndex, FRigElementWeight InWeight, bool bInitial = false, bool bAffectChildren = true);
 
 	/**
 	 * Returns true if an element is parented to another element
