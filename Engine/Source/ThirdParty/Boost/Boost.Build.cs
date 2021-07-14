@@ -13,14 +13,13 @@ public class Boost : ModuleRules
 		string[] BoostLibraries = { "atomic", "chrono", "iostreams", "program_options", "python37", "regex", "system", "thread" };
 
 		string BoostVersionDir = "boost-" + BoostVersion;
+		string BoostPath = Path.Combine(Target.UEThirdPartySourceDirectory, "Boost", BoostVersionDir);
+		string BoostIncludePath = Path.Combine(BoostPath, "include");
+		PublicSystemIncludePaths.Add(BoostIncludePath);
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			string BoostToolsetVersion = "vc141";
-
-			string BoostPath = Path.Combine(Target.UEThirdPartySourceDirectory, "Boost", BoostVersionDir);
-			string BoostIncludePath = Path.Combine(BoostPath, "include");
-			PublicSystemIncludePaths.Add(BoostIncludePath);
 
 			string BoostLibPath = Path.Combine(BoostPath, "lib", "Win64");
 			string BoostVersionShort = BoostVersion.Substring(BoostVersion.Length - 2) == "_0" ? BoostVersion.Substring(0, BoostVersion.Length - 2) : BoostVersion;
@@ -34,12 +33,6 @@ public class Boost : ModuleRules
 
 			PublicDefinitions.Add("BOOST_LIB_TOOLSET=\"vc141\"");
 			PublicDefinitions.Add("BOOST_ALL_NO_LIB");
-		}
-		else
-		{
-			string Err = "Platform " + Target.Platform.ToString() + " not supported!";
-			System.Console.WriteLine(Err);
-			throw new BuildException(Err);
 		}
 	}
 }

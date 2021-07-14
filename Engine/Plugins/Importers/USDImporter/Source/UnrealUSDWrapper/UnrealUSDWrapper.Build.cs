@@ -14,6 +14,7 @@ namespace UnrealBuildTool.Rules
 
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
+					"Boost",
 					"Core",
 					"CoreUObject",
 					"Engine",
@@ -42,34 +43,16 @@ namespace UnrealBuildTool.Rules
 				{
 					PublicDefinitions.Add("USD_USES_SYSTEM_MALLOC=1");
 
-					// TBB
-					PublicAdditionalLibraries.Add(Path.Combine(IntelTBBLibs, "vc14", "tbb.lib"));
-					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbb.dll"), Path.Combine(IntelTBBBinaries, "tbb.dll"));
-
 					// Python3
 					PublicIncludePaths.Add(Path.Combine(PythonSourceTPSDir, "include"));
 					PublicSystemLibraryPaths.Add(Path.Combine(PythonSourceTPSDir, "libs"));
 					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "python37.dll"), Path.Combine(PythonBinaryTPSDir, "python37.dll"));
-
-					// Boost
-					// Stops Boost from using pragma link to choose which lib to link against.
-					// We explicitly link against the boost libs here to choose the correct CRT flavor.
-					PublicDefinitions.Add("BOOST_ALL_NO_LIB");
-					string BoostLibSearchPattern = "boost_*-mt-x64-*.lib";
-					foreach (string BoostLib in Directory.EnumerateFiles(USDLibsDir, BoostLibSearchPattern, SearchOption.AllDirectories))
-					{
-						PublicAdditionalLibraries.Add(BoostLib);
-					}
 
 					// USD
 					PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "..", "ThirdParty", "USD", "include"));
 					PublicSystemLibraryPaths.Add(USDLibsDir);
 					foreach (string UsdLib in Directory.EnumerateFiles(USDLibsDir, "*.lib", SearchOption.AllDirectories))
 					{
-						if(Path.GetFileName(UsdLib).StartsWith("boost"))
-						{
-							continue;
-						}
 
 						PublicAdditionalLibraries.Add(UsdLib);
 					}
