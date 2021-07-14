@@ -3282,7 +3282,7 @@ void UGroomAsset::CreateDebugData()
 		FGroomBuilder::BuildData(LocalHairDescriptionGroups.HairGroups[GroupIndex], HairGroupsInterpolation[GroupIndex], DummyInfo, StrandsData, GuidesData);
 
 		FHairGroupData& GroupData = HairGroupsData[GroupIndex];
-		CreateHairStrandsDebugDatas(StrandsData, 1.f, GroupData.Debug.Data);
+		CreateHairStrandsDebugDatas(StrandsData, GroupData.Debug.Data);
 
 		if (GroupData.Debug.Data.IsValid())
 		{

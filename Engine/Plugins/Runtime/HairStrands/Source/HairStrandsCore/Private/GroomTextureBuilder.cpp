@@ -583,6 +583,7 @@ class FHairStrandsTexturePS : public FGlobalShader
 		SHADER_PARAMETER(FVector3f, Voxel_MaxBound)
 		SHADER_PARAMETER(FIntVector, Voxel_Resolution)
 		SHADER_PARAMETER(float, Voxel_Size)
+		SHADER_PARAMETER(uint32, Voxel_MaxSegmentPerVoxel)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, Voxel_OffsetAndCount)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, Voxel_Data)
 
@@ -629,6 +630,7 @@ static void InternalGenerateHairStrandsTextures(
 	const FVector& VoxelMaxBound,
 	const FIntVector& VoxelResolution,
 	float VoxelSize,
+	uint32 VoxelMaxSegmentPerVoxel,
 	FRDGBufferRef VoxelOffsetAndCount,
 	FRDGBufferRef VoxelData,
 	
@@ -671,6 +673,7 @@ static void InternalGenerateHairStrandsTextures(
 	ParametersPS->Voxel_MaxBound = VoxelMaxBound;
 	ParametersPS->Voxel_Resolution = VoxelResolution;
 	ParametersPS->Voxel_Size = VoxelSize;
+	ParametersPS->Voxel_MaxSegmentPerVoxel = VoxelMaxSegmentPerVoxel;
 	ParametersPS->Voxel_OffsetAndCount = GraphBuilder.CreateSRV(VoxelOffsetAndCount);
 	ParametersPS->Voxel_Data = GraphBuilder.CreateSRV(VoxelData);
 
@@ -738,8 +741,10 @@ static void InternalGenerateHairStrandsTextures(
 				RHICmdList.DrawIndexedPrimitive(InMeshIndexBuffer, VertexBaseIndex, 0, VertexCount, IndexBaseIndex, PrimitiveCount, 1);
 
 				// Flush, to ensure that all texture generation is done (TDR)
+				#if 0
 				GDynamicRHI->RHISubmitCommandsAndFlushGPU();
 				GDynamicRHI->RHIBlockUntilGPUIdle();
+				#endif
 			}
 			else
 			{
@@ -754,8 +759,10 @@ static void InternalGenerateHairStrandsTextures(
 					RHICmdList.DrawIndexedPrimitive(InMeshIndexBuffer, VertexBaseIndex, 0, VertexCount, IndexBaseIndex, PrimitiveCount, 1);
 
 					// Flush, to ensure that all texture generation is done (TDR)
+					#if 0
 					GDynamicRHI->RHISubmitCommandsAndFlushGPU();
 					GDynamicRHI->RHIBlockUntilGPUIdle();
+					#endif
 				}
 			}
 		});
@@ -949,6 +956,9 @@ static void InternalBuildStrandsTextures_GPU(
 				VertexBaseIndex = 0;
 			}
 
+			// Ensure the rest resources are loaded when rendering the strands textures
+			if (GroupData.Strands.RestResource) { GroupData.Strands.RestResource->Allocate(GraphBuilder); }
+
 			InternalGenerateHairStrandsTextures(
 				GraphBuilder,
 				ShaderMap,
@@ -974,6 +984,7 @@ static void InternalBuildStrandsTextures_GPU(
 				GroupData.Debug.Resource->VoxelDescription.VoxelMaxBound,
 				GroupData.Debug.Resource->VoxelDescription.VoxelResolution,
 				GroupData.Debug.Resource->VoxelDescription.VoxelSize,
+				GroupData.Debug.Resource->VoxelDescription.MaxSegmentPerVoxel,
 				VoxelOffsetAndCount,
 				VoxelData,
 

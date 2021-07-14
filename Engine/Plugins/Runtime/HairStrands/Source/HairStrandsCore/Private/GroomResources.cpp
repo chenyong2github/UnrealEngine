@@ -33,6 +33,11 @@ static FAutoConsoleVariableRef CVarHairStrandsBulkData_ReleaseAfterUse(TEXT("r.H
 static int32 GHairStrandsBulkData_Validation = 1;
 static FAutoConsoleVariableRef CVarHairStrandsBulkData_Validation(TEXT("r.HairStrands.Strands.BulkData.Validation"), GHairStrandsBulkData_Validation, TEXT("Validate some hair strands data at serialization/loading time."));
 
+static float GHairStrandsDebugVoxel_WorldSize = 1.0f;
+static int32 GHairStrandsDebugVoxel_MaxSegmentPerVoxel = 512;
+static FAutoConsoleVariableRef CVarHairStrandsDebugVoxel_WorldSize(TEXT("r.HairStrands.DebugData.VoxelSize"), GHairStrandsDebugVoxel_WorldSize, TEXT("Voxel size use for creating debug data."));
+static FAutoConsoleVariableRef CVarHairStrandsDebugVoxel_MaxSegmentPerVoxel(TEXT("r.HairStrands.DebugData.MaxSegmentPerVoxel"), GHairStrandsDebugVoxel_MaxSegmentPerVoxel, TEXT("Max number of segments per Voxel size when creating debug data."));
+
 ////////////////////////////////////////////////////////////////////////////////////
 
 namespace HairTransition
@@ -1422,15 +1427,15 @@ static FIntVector ToCoord(const FVector& T, const FIntVector& Resolution, const 
 
 void CreateHairStrandsDebugDatas(
 	const FHairStrandsDatas& InData,
-	float WorldVoxelSize,
 	FHairStrandsDebugDatas& Out)
 {
 	const FVector BoundSize = InData.BoundingBox.Max - InData.BoundingBox.Min;
-	Out.VoxelDescription.VoxelSize = WorldVoxelSize;
-	Out.VoxelDescription.VoxelResolution = FIntVector(FMath::CeilToFloat(BoundSize.X / Out.VoxelDescription.VoxelSize), FMath::CeilToFloat(BoundSize.Y / Out.VoxelDescription.VoxelSize), FMath::CeilToFloat(BoundSize.Z / Out.VoxelDescription.VoxelSize));
+	Out.VoxelDescription.VoxelSize = FMath::Clamp(GHairStrandsDebugVoxel_WorldSize, 0.1f, 10.f);
+	Out.VoxelDescription.VoxelResolution = FIntVector(FMath::CeilToInt(BoundSize.X / Out.VoxelDescription.VoxelSize), FMath::CeilToInt(BoundSize.Y / Out.VoxelDescription.VoxelSize), FMath::CeilToInt(BoundSize.Z / Out.VoxelDescription.VoxelSize));
 	Out.VoxelDescription.VoxelMinBound = InData.BoundingBox.Min;
 	Out.VoxelDescription.VoxelMaxBound = FVector(Out.VoxelDescription.VoxelResolution) * Out.VoxelDescription.VoxelSize + InData.BoundingBox.Min;
 	Out.VoxelOffsetAndCount.Init(FHairStrandsDebugDatas::FOffsetAndCount(), Out.VoxelDescription.VoxelResolution.X * Out.VoxelDescription.VoxelResolution.Y * Out.VoxelDescription.VoxelResolution.Z);
+	Out.VoxelDescription.MaxSegmentPerVoxel = 0;
 
 	uint32 AllocationCount = 0;
 	TArray<TArray<FHairStrandsDebugDatas::FVoxel>> TempVoxelData;
@@ -1467,9 +1472,10 @@ void CreateHairStrandsDebugDatas(
 					}
 
 					const uint32 Offset = Out.VoxelOffsetAndCount[LinearCoord].Offset;
-					const uint32 LocalOffset = Out.VoxelOffsetAndCount[LinearCoord].Count;
 					Out.VoxelOffsetAndCount[LinearCoord].Count += 1;
 					TempVoxelData[Offset].Add({Index0, Index1});
+
+					Out.VoxelDescription.MaxSegmentPerVoxel = FMath::Max(Out.VoxelDescription.MaxSegmentPerVoxel, Out.VoxelOffsetAndCount[LinearCoord].Count);
 
 					PrevLinearCoord = LinearCoord;
 
@@ -1477,9 +1483,8 @@ void CreateHairStrandsDebugDatas(
 				}
 			}
 		}
-
 	}
-
+	Out.VoxelDescription.MaxSegmentPerVoxel = FMath::Min(Out.VoxelDescription.MaxSegmentPerVoxel, uint32(FMath::Clamp(GHairStrandsDebugVoxel_MaxSegmentPerVoxel, 16, 64000)));
 	Out.VoxelData.Reserve(AllocationCount);
 
 	for (int32 Index = 0, Count = Out.VoxelOffsetAndCount.Num(); Index < Count; ++Index)

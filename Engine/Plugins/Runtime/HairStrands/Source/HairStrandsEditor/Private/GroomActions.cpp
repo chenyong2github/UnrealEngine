@@ -436,9 +436,11 @@ void FGroomActions::ExecuteCreateStrandsTextures(TArray<TWeakObjectPtr<UGroomAss
 				case EStrandsTexturesMeshType::Static: StaticMesh = CurrentOptions->StaticMesh; break;
 				case EStrandsTexturesMeshType::Skeletal: SkeletalMesh = CurrentOptions->SkeletalMesh; break;
 				}
+				if (SkeletalMesh == nullptr && StaticMesh == nullptr)
+				{
+					return;
+				}
 				
-				EStrandsTexturesMeshType MeshType = EStrandsTexturesMeshType::Skeletal;
-
 				FStrandsTexturesInfo Info;
 				Info.GroomAsset   = GroomAsset.Get();
 				Info.TracingDirection = SignDirection;
@@ -460,7 +462,6 @@ void FGroomActions::ExecuteCreateStrandsTextures(TArray<TWeakObjectPtr<UGroomAss
 						Info.GroupIndices.Add(GroupIndex);
 					}
 				}
-
 				FStrandsTexturesOutput Output = FGroomTextureBuilder::CreateGroomStrandsTexturesTexture(GroomAsset.Get(), Info.Resolution);
 				if (Output.IsValid())
 				{
