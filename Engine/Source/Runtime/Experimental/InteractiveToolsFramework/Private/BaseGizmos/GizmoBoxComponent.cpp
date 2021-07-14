@@ -271,11 +271,14 @@ bool UGizmoBoxComponent::LineTraceComponent(FHitResult& OutHit, const FVector St
 	bool bFlippedY = false;
 	bool bFlippedZ = false;
 
+	FVector WorldOrigin; // Only used if bIsViewDependent
 	if (bIsViewDependent)
 	{
+		WorldOrigin = Transform.TransformPosition(FVector::ZeroVector);
+
 		FVector UseDirectionX, UseDirectionY, UseDirectionZ; // not used
 		GetBoxDirections(bIsViewDependent, ToRawPtr(GizmoViewContext),
-			Transform.TransformPosition(FVector::ZeroVector), // Origin
+			WorldOrigin,
 			Rotation * FVector(1, 0, 0), // DirectionX
 			Rotation * FVector(0, 1, 0), // DirectionY
 			Rotation * FVector(0, 0, 1), // DirectionZ
@@ -284,7 +287,7 @@ bool UGizmoBoxComponent::LineTraceComponent(FHitResult& OutHit, const FVector St
 			UseDirectionX, UseDirectionY, UseDirectionZ, bFlippedX, bFlippedY, bFlippedZ);
 	}
 
-	FVector UseOrigin(
+	FVector UseCenter(
 		(bEnableAxisFlip && bFlippedX) ? -Origin.X : Origin.X,
 		(bEnableAxisFlip && bFlippedY) ? -Origin.Y : Origin.Y,
 		(bEnableAxisFlip && bFlippedZ) ? -Origin.Z : Origin.Z
@@ -295,15 +298,14 @@ bool UGizmoBoxComponent::LineTraceComponent(FHitResult& OutHit, const FVector St
 	if (bIsViewDependent)
 	{
 		DynamicPixelToWorldScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(
-			GizmoViewContext, UseOrigin);
+			GizmoViewContext, WorldOrigin);
 	}
 
-	UseOrigin *= DynamicPixelToWorldScale;
+	UseCenter *= DynamicPixelToWorldScale;
 
 	FVector ScaledDims = DynamicPixelToWorldScale * Dimensions;
-	FBox Box(UseOrigin-0.5f*ScaledDims, UseOrigin+0.5f*ScaledDims);
+	FBox Box(UseCenter - 0.5f * ScaledDims, UseCenter + 0.5f * ScaledDims);
 
-	//FMath::LineBoxIntersection(Box, StartLocal, EndLocal, 
 	FVector Extent(SMALL_NUMBER, SMALL_NUMBER, SMALL_NUMBER);
 	FVector HitLocal, NormalLocal; float HitTime;
 	if (FMath::LineExtentBoxIntersection(Box, StartLocal, EndLocal, Extent, HitLocal, NormalLocal, HitTime) == false)

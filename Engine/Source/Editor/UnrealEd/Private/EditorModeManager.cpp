@@ -222,17 +222,13 @@ UWorld* FEditorModeTools::GetWorld() const
 
 FEditorViewportClient* FEditorModeTools::GetHoveredViewportClient() const
 {
-	// This is our best effort right now. However this is somewhat incorrect as if you Hover
-	// on other Viewports they get mouse events, but this value stays on the Focused viewport.
-	// Not sure what to do about this right now.
+	// Note: as per the comment in MouseLeave, this currently acts as LastHoveredViewportClient.
 	return HoveredViewportClient;
 }
 
 FEditorViewportClient* FEditorModeTools::GetFocusedViewportClient() const
 {
-	// This is our best effort right now. However this is somewhat incorrect as if you Hover
-	// on other Viewports they get mouse events, but this value stays on the Focused viewport.
-	// Not sure what to do about this right now.
+	// Note: as per the comment in LostFocus, this actually currently acts as LastFocusedViewportClient.
 	return FocusedViewportClient;
 }
 
@@ -1542,7 +1538,13 @@ bool FEditorModeTools::MouseEnter( FEditorViewportClient* InViewportClient, FVie
 
 bool FEditorModeTools::MouseLeave( FEditorViewportClient* InViewportClient, FViewport* Viewport )
 {
-	HoveredViewportClient = nullptr;
+	// TODO: HoveredViewportClient should be reset here, but there is currently a bug (UE-119516) 
+	// that makes it so that flying in viewports can create mismatches between MouseEnter and MouseLeave.
+	// For this reason, we currently use HoveredViewportClient as if it were LastHoveredViewportClient,
+	// which works for the purposes that we use it for.
+	// If we never fix the bug, we should probably just rename it.
+	//HoveredViewportClient = nullptr;
+	
 	bool bHandled = InteractiveToolsContext->MouseLeave(InViewportClient, Viewport);
 
 	ForEachEdMode<ILegacyEdModeViewportInterface>([&bHandled, InViewportClient, Viewport](ILegacyEdModeViewportInterface* Mode)
