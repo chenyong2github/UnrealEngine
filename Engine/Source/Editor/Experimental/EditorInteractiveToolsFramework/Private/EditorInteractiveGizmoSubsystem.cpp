@@ -34,11 +34,9 @@ void UEditorInteractiveGizmoSubsystem::Deinitialize()
 
 void UEditorInteractiveGizmoSubsystem::RegisterBuiltinGizmoSelectionTypes()
 {
-#if 0
 	// Register built-in gizmo types here
 	TObjectPtr<UEditorTransformGizmoBuilder> EditorTransformBuilder = NewObject<UEditorTransformGizmoBuilder>();
 	RegisterGizmoSelectionType(EditorTransformBuilder);
-#endif
 
 	RegisterEditorGizmoSelectionTypesDelegate.Broadcast();
 }

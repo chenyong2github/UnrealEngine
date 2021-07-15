@@ -19,6 +19,9 @@ class FViewport;
 class UMaterialInterface;
 class FPrimitiveDrawInterface;
 class FViewportClient;
+class ILevelEditor;
+class USelection;
+class UTypedElementSelectionSet;
 
 /**
  * EdModeInteractiveToolsContext is an extension/adapter of an InteractiveToolsContext which 
@@ -101,6 +104,19 @@ public:
 
 	/** @return true if HitProxy rendering will be allowed in ::Render() */
 	bool GetEnableRenderingDuringHitProxyPass() const { return bEnableRenderingDuringHitProxyPass; }
+
+	/**
+	 * Called upon Level Editor Created in order to bind to EditorElementSelectionPtr changed
+	 * event since global selection set is not initialized before the tools context.
+	 * @param InSelectionSet - typed element selection set which invoked this selection changed call
+	 */
+	void OnLevelEditorCreated(TSharedPtr<ILevelEditor> InLevelEditor);
+
+	/**
+	 * Handle Editor selection changes
+	 * @param InSelectionSet - typed element selection set which invoked this selection changed call
+	 */
+	void OnEditorSelectionSetChanged(const UTypedElementSelectionSet* InSelectionSet);
 
 protected:
 	// we hide these 
