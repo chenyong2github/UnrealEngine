@@ -426,7 +426,7 @@ namespace HordeServer.Services
 				{
 					Index++;
 				}
-				if (Index == -1)
+				if (Index == Agent.Leases.Count)
 				{
 					break;
 				}

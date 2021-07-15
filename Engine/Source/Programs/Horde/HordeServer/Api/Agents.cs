@@ -175,6 +175,10 @@ namespace HordeServer.Api
 		/// </summary>
 		public LeaseOutcome? Outcome { get; set; }
 
+		/// <summary>
+		/// State of the lease (for AgentLeases)
+		/// </summary>
+		public LeaseState? State { get; set; }
 
 		/// <summary>
 		/// Parameterless constructor for serialization
@@ -194,6 +198,7 @@ namespace HordeServer.Api
 			this.Id = Lease.Id.ToString();
 			this.Name = Lease.Name;
 			this.LogId = Lease.LogId?.ToString();
+			this.State = Lease.State;
 			this.StartTime = Lease.StartTime;
 			this.Executing = Lease.Active;
 			this.FinishTime = Lease.ExpiryTime;
