@@ -972,12 +972,6 @@ void FPerInstanceRenderData::UpdateBoundsTransforms()
 	PerInstanceTransforms.Empty();
 	PerInstanceTransforms.Reserve(InstanceCount);
 
-
-	if (!UpdateBoundsTask.IsValid())
-	{
-		return;
-	}
-
 	for (int InstanceIndex = 0; InstanceIndex < InstanceCount; InstanceIndex++)
 	{
 		FStaticMeshInstanceData* InstancedData = InstanceBuffer.GetInstanceData();
