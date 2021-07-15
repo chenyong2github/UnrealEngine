@@ -608,3 +608,55 @@ UDisplayClusterCameraComponent* ADisplayClusterRootActor::GetDefaultCamera() con
 {
 	return DefaultViewPoint;
 }
+
+bool ADisplayClusterRootActor::SetReplaceTextureFlagForAllViewports(bool bReplace)
+{
+	IDisplayCluster& Display = IDisplayCluster::Get();
+
+	UDisplayClusterConfigurationData* ConfigData = GetConfigData();
+
+	if (!ConfigData)
+	{
+		UE_LOG(LogDisplayClusterGame, Warning, TEXT("RootActor's ConfigData was null"));
+		return false;
+	}
+
+	const FString NodeId = Display.GetClusterMgr()->GetNodeId();
+	const UDisplayClusterConfigurationClusterNode* Node = ConfigData->GetClusterNode(NodeId);
+
+	if (Node)
+	{
+		for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportItem : Node->Viewports)
+		{
+			if (ViewportItem.Value)
+			{
+				ViewportItem.Value->RenderSettings.Override.bAllowOverride = bReplace;
+			}
+		}
+	}
+	else if (ConfigData->Cluster)
+	{
+		for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& NodeItem : ConfigData->Cluster->Nodes)
+		{
+			if (!NodeItem.Value)
+			{
+				continue;
+			}
+
+			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportItem : NodeItem.Value->Viewports)
+			{
+				if (ViewportItem.Value)
+				{
+					ViewportItem.Value->RenderSettings.Override.bAllowOverride = bReplace;
+				}
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogDisplayClusterGame, Warning, TEXT("ConfigData's Cluster was null"));
+		return false;
+	}
+
+	return true;
+}

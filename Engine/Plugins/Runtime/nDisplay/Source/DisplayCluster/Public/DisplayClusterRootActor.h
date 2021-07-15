@@ -104,6 +104,9 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Default Camera"), Category = "NDisplay|Components")
 	UDisplayClusterCameraComponent* GetDefaultCamera() const;
 
+	UFUNCTION(BlueprintCallable, Category = "NDisplay|Render")
+	bool SetReplaceTextureFlagForAllViewports(bool bReplace);
+
 	template <typename TComp>
 	TComp* GetComponentByName(const FString& ComponentName) const
 	{
