@@ -103,4 +103,27 @@ namespace MeshDebugDraw
 		float LineWidth, FColor Color, bool bDepthTested,
 		FPrimitiveDrawInterface* PDI, const FTransform& Transform);
 
+
+	/**
+	 * Draw a zoomable, hierarchical grid with configurable depth and density terms
+	 * @param BaseGridScale At 1.0 zoom, what is the distance between the top most (level 0) grid lines 
+	 * @param GridZoomFactor A pseudo zoom factor, where a value of 1.0 represents the baseline grid scaling with BaseScale the distance between coarsest grid lines.
+	 * @param MaxLevelDensity The maximum number of lines to draw at any given grid level
+	 * @param Levels Number of heirarchy levels to draw. 1 level is equivalent to a simple grid
+	 * @param Subdivisions Number of gridlines inserted between lines of a higher level
+	 * @param Colors Array containing colors to use for the grid levels. Must include at least one color. If fewer colors than levels are provided, last color will be repeated as needed.
+	 * @param LocalFrame Pre-transform frame of grid (grid lies in XY plane).
+	 * @param GridLines number of grid lines. If odd, there is a center-line, if even then frame center is at center of a grid square
+	 * @param GridLineSpacing spacing size between grid lines
+	 * @param LineWidth thickness of the lines in screen space
+	 * @param DepthPriority drawing depth priority
+	 * @param PDI drawing interface
+	 * @param Transform transform applied to LocalFrame. Pass as Identity() if you have world frame.		
+	*/
+	void MODELINGCOMPONENTS_API DrawHierarchicalGrid(
+		float BaseGridScale, float GridZoomFactor, int32 MaxLevelDensity,
+		const FVector& WorldMaxBounds, const FVector& WorldMinBounds,
+		int32 Levels, int32 Subdivisions, TArray<FColor>& Colors,
+		const FFrame3f& LocalFrame, float LineWidth, bool bDepthTested,
+		FPrimitiveDrawInterface* PDI, const FTransform& Transform);
 }

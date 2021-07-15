@@ -2,11 +2,14 @@
 
 #include "UVEditor2DViewportClient.h"
 
+#include "UVEditorMode.h"
 #include "BaseBehaviors/ClickDragBehavior.h"
 #include "BaseBehaviors/MouseWheelBehavior.h"
 //#include "Drawing/DensityAdjustingGrid.h"
 #include "EditorModeManager.h"
 #include "EdModeInteractiveToolsContext.h"
+#include "Drawing/MeshDebugDrawing.h"
+#include "FrameTypes.h"
 
 FUVEditor2DViewportClient::FUVEditor2DViewportClient(FEditorModeTools* InModeTools,
 	FPreviewScene* InPreviewScene, const TWeakPtr<SEditorViewport>& InEditorViewportWidget)
@@ -72,16 +75,52 @@ bool FUVEditor2DViewportClient::InputKey(FViewport* InViewport, int32 Controller
 // We don't override that top-level function so that it can do whatever view calculations it needs to do.
 void FUVEditor2DViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI)
 {
-	// Draw the axes
-	const float AxisThickness = 1.0;
-	PDI->DrawLine(FVector(-HALF_WORLD_MAX, 0, 0), FVector(HALF_WORLD_MAX, 0, 0), FLinearColor::Red, SDPG_World, AxisThickness, 0, true);
-	PDI->DrawLine(FVector(0, -HALF_WORLD_MAX, 0), FVector(0, HALF_WORLD_MAX, 0), FLinearColor::Green, SDPG_World, AxisThickness, 0, true);
+	// Basic scaling amount
+	const float UVScale = UUVEditorMode::GetUVMeshScalingFactor();
+	
+	// Line thickness parameters
+	const float AxisThickness = 2;
+	const float GridMajorThickness = 1.0;
 
-	// TODO: Eventually we want a proper grid. For now, draw the unit boundary
-	const float UVScale = 1000;
-	PDI->DrawLine(FVector(UVScale, 0, 0), FVector(UVScale, UVScale, 0), FLinearColor::Gray, SDPG_World, AxisThickness, 0, true);
-	PDI->DrawLine(FVector(0, UVScale, 0), FVector(UVScale, UVScale, 0), FLinearColor::Gray, SDPG_World, AxisThickness, 0, true);
-	//Grid->Render(View, PDI);
+    // Line color scheme parameters
+	const FLinearColor XAxisColor = FLinearColor::Red;
+	const FLinearColor YAxisColor = FLinearColor::Green;
+	const FLinearColor GridMajorColor = FLinearColor::Gray;
+	const FLinearColor GridMinorColor = FLinearColor::Gray;
+
+	// Determine important geometry of the viewport for creating grid lines
+	FVector WorldCenterPoint( 0,0,0 );
+	FVector4 WorldToScreenCenter = View->WorldToScreen(WorldCenterPoint);	
+	float ZoomFactor = WorldToScreenCenter.W;
+	FVector4 MaxScreen(1 * ZoomFactor, 1 * ZoomFactor, 0, 1);
+	FVector4 MinScreen(-1 * ZoomFactor, -1 * ZoomFactor, 0, 1);
+	FVector WorldBoundsMax = View->ScreenToWorld(MaxScreen);
+	FVector WorldBoundsMin = View->ScreenToWorld(MinScreen);
+	FVector ViewLoc = GetViewLocation();
+	ViewLoc.Z = 0.0; // We are treating the scene like a 2D plane, so we'll clamp the Z position here to 
+	               // 0 as a simple projection step just in case.
+
+	// Setup and call grid calling function
+	UE::Geometry::FFrame3f LocalFrame(ViewLoc);
+	FTransform Transform;
+	TArray<FColor> Colors;
+	Colors.Push(GridMajorColor.ToRGBE());
+	Colors.Push(GridMinorColor.ToRGBE());
+	MeshDebugDraw::DrawHierarchicalGrid(UVScale, ZoomFactor/UVScale,
+		500, // Maximum density of lines to draw per level before skipping the level
+		WorldBoundsMax, WorldBoundsMin,
+		3, // Number of levels to draw
+		4, // Number of subdivisions per level
+		Colors,
+		LocalFrame, GridMajorThickness, true,
+		PDI, Transform);
+
+
+	float AxisExtent = FMathf::Max(UVScale, FMathf::Min(WorldBoundsMax.Y, WorldBoundsMax.X));
+
+	// Draw colored axis lines
+	PDI->DrawLine(FVector(0, 0, 0), FVector(AxisExtent, 0, 0), FLinearColor::Red, SDPG_World, AxisThickness, 0, true);
+	PDI->DrawLine(FVector(0, 0, 0), FVector(0, AxisExtent, 0), FLinearColor::Green, SDPG_World, AxisThickness, 0, true);
 
 	// TODO: Draw a little UV axis thing in the lower left, like the XYZ things that normal viewports have.
 
