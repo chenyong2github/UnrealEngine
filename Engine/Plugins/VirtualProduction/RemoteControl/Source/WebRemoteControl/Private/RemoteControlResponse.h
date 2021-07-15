@@ -206,9 +206,10 @@ struct FRCPresetFieldsRenamedEvent
 
 	FRCPresetFieldsRenamedEvent() = default;
 
-	FRCPresetFieldsRenamedEvent(FName InPresetName, TArray<TTuple<FName, FName>> InRenamedFields)
+	FRCPresetFieldsRenamedEvent(FName InPresetName, FGuid InPresetId, TArray<TTuple<FName, FName>> InRenamedFields)
 		: Type(TEXT("PresetFieldsRenamed"))
 		, PresetName(InPresetName)
+		, PresetId(InPresetId.ToString())
 		, RenamedFields(MoveTemp(InRenamedFields))
 	{
 	}
@@ -218,6 +219,9 @@ struct FRCPresetFieldsRenamedEvent
 
 	UPROPERTY()
 	FName PresetName;
+
+	UPROPERTY()
+	FString PresetId;
 
 	UPROPERTY()
 	TArray<FRCPresetFieldRenamed> RenamedFields;
@@ -236,6 +240,7 @@ struct FRCPresetMetadataModified
 		if (InPreset)
 		{
 			PresetName = InPreset->GetFName();
+			PresetId = InPreset->GetPresetId().ToString();
 			Metadata = InPreset->Metadata;
 		}
 	}
@@ -247,7 +252,31 @@ struct FRCPresetMetadataModified
 	FName PresetName;
 
 	UPROPERTY()
+	FString PresetId;
+
+	UPROPERTY()
 	TMap<FString, FString> Metadata;
+};
+
+
+USTRUCT()
+struct FRCPresetLayoutModified
+{
+	GENERATED_BODY()
+
+	FRCPresetLayoutModified() = default;
+
+	FRCPresetLayoutModified(URemoteControlPreset* InPreset)
+		: Type(TEXT("PresetLayoutModified"))
+		, Preset(InPreset)
+	{
+	}
+
+	UPROPERTY()
+	FString Type;
+
+	UPROPERTY()
+	FRCPresetDescription Preset;
 };
 
 USTRUCT()
@@ -257,9 +286,10 @@ struct FRCPresetFieldsRemovedEvent
 
 	FRCPresetFieldsRemovedEvent() = default;
 
-	FRCPresetFieldsRemovedEvent(FName InPresetName, TArray<FName> InRemovedFields, const TArray<FGuid>& InRemovedFieldIDs)
+	FRCPresetFieldsRemovedEvent(FName InPresetName, FGuid InPresetId, TArray<FName> InRemovedFields, const TArray<FGuid>& InRemovedFieldIDs)
 		: Type(TEXT("PresetFieldsRemoved"))
 		, PresetName(InPresetName)
+		, PresetId(InPresetId.ToString())
 		, RemovedFields(MoveTemp(InRemovedFields))
 	{
 		Algo::Transform(InRemovedFieldIDs, RemovedFieldIds, [](const FGuid& Id){ return Id.ToString(); });
@@ -270,6 +300,9 @@ struct FRCPresetFieldsRemovedEvent
 
 	UPROPERTY()
 	FName PresetName;
+
+	UPROPERTY()
+	FString PresetId;
 
 	UPROPERTY()
 	TArray<FName> RemovedFields;
@@ -285,9 +318,10 @@ struct FRCPresetFieldsAddedEvent
 
 	FRCPresetFieldsAddedEvent() = default;
 
-	FRCPresetFieldsAddedEvent(FName InPresetName, FRCPresetDescription InPresetAddition)
+	FRCPresetFieldsAddedEvent(FName InPresetName, FGuid InPresetId, FRCPresetDescription InPresetAddition)
 		: Type(TEXT("PresetFieldsAdded"))
 		, PresetName(InPresetName)
+		, PresetId(InPresetId.ToString())
 		, Description(MoveTemp(InPresetAddition))
 	{
 	}
@@ -297,6 +331,9 @@ struct FRCPresetFieldsAddedEvent
 
 	UPROPERTY()
 	FName PresetName;
+
+	UPROPERTY()
+	FString PresetId;
 
 	UPROPERTY()
 	FRCPresetDescription Description;

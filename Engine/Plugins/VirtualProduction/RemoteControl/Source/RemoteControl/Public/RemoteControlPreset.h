@@ -755,6 +755,9 @@ public:
 	DECLARE_MULTICAST_DELEGATE_FourParams(FOnActorPropertyModified, URemoteControlPreset* /*Preset*/, FRemoteControlActor& /*Actor*/, UObject* /*ModifiedObject*/, FProperty* /*MemberProperty*/);
 	FOnActorPropertyModified& OnActorPropertyModified() { return OnActorPropertyModifiedDelegate; }
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPresetLayoutModified, URemoteControlPreset* /*Preset*/);
+	FOnPresetLayoutModified& OnPresetLayoutModified() { return OnPresetLayoutModifiedDelegate; }
+
 	UE_DEPRECATED(4.27, "This function is deprecated.")
 	void NotifyExposedPropertyChanged(FName PropertyLabel);
 
@@ -902,6 +905,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FOnPresetMetadataModified OnMetadataModifiedDelegate;
 	/** Delegate triggered when an exposed actor's property is modified. */
 	FOnActorPropertyModified OnActorPropertyModifiedDelegate;
+	/** Delegate triggered when the layout is modified. */
+	FOnPresetLayoutModified OnPresetLayoutModifiedDelegate;
 
 	struct FPreObjectsModifiedCache
 	{

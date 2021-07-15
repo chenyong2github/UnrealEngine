@@ -74,21 +74,28 @@ namespace WebRemoteControl
 			return nullptr;
 		}
 
-		FGuid Id{PropertyLabelOrId};
-        if (TSharedPtr<EntityType> Entity = Preset->GetExposedEntity<EntityType>(Id).Pin())
-        {
-        	return Entity;
-        }
+		FGuid Id;
+		if (FGuid::ParseExact(PropertyLabelOrId, EGuidFormats::Digits, Id))
+		{
+			if (TSharedPtr<EntityType> Entity = Preset->GetExposedEntity<EntityType>(Id).Pin())
+			{
+        		return Entity;
+			}
+		}
+
 
 		return Preset->GetExposedEntity<EntityType>(Preset->GetExposedEntityId(*PropertyLabelOrId)).Pin();
 	}
 
 	URemoteControlPreset* GetPreset(FString PresetNameOrId)
 	{
-		FGuid Id{PresetNameOrId};
-		if (URemoteControlPreset* ResolvedPreset = IRemoteControlModule::Get().ResolvePreset(Id))
+		FGuid Id;
+		if (FGuid::ParseExact(PresetNameOrId, EGuidFormats::Digits, Id))
 		{
-			return ResolvedPreset;
+			if (URemoteControlPreset* ResolvedPreset = IRemoteControlModule::Get().ResolvePreset(Id))
+			{
+				return ResolvedPreset;
+			}
 		}
 
 		return IRemoteControlModule::Get().ResolvePreset(*PresetNameOrId);

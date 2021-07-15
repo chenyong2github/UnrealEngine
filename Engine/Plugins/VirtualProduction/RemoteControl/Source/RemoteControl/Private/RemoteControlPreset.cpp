@@ -161,7 +161,7 @@ FRemoteControlPresetGroup& FRemoteControlPresetLayout::CreateGroup(FName GroupNa
 	FRemoteControlPresetGroup& Group = Groups.Emplace_GetRef(GroupName, GroupId);
 	Owner->CacheLayoutData();
 	OnGroupAddedDelegate.Broadcast(Group);
-
+	Owner->OnPresetLayoutModified().Broadcast(Owner.Get());
 	return Group;
 }
 
@@ -228,6 +228,7 @@ void FRemoteControlPresetLayout::SwapGroups(FGuid OriginGroupId, FGuid TargetGro
 		GroupIds.Reserve(Groups.Num());
 		Algo::Transform(Groups, GroupIds, &FRemoteControlPresetGroup::Id);
 		OnGroupOrderChangedDelegate.Broadcast(GroupIds);
+		Owner->OnPresetLayoutModified().Broadcast(Owner.Get());
 	}
 }
 
@@ -268,6 +269,7 @@ void FRemoteControlPresetLayout::SwapFields(const FFieldSwapArgs& FieldSwapArgs)
 	
 		Owner->CacheLayoutData();
 		OnFieldOrderChangedDelegate.Broadcast(FieldSwapArgs.TargetGroupId, Fields);
+		Owner->OnPresetLayoutModified().Broadcast(Owner.Get());
 	}
 	else
 	{
@@ -279,6 +281,7 @@ void FRemoteControlPresetLayout::SwapFields(const FFieldSwapArgs& FieldSwapArgs)
 		Owner->CacheLayoutData();
 		OnFieldDeletedDelegate.Broadcast(FieldSwapArgs.OriginGroupId, FieldSwapArgs.DraggedFieldId, DragOriginFieldIndex);
 		OnFieldAddedDelegate.Broadcast(FieldSwapArgs.TargetGroupId, FieldSwapArgs.DraggedFieldId, DragTargetFieldIndex);
+		Owner->OnPresetLayoutModified().Broadcast(Owner.Get());
 	}
 }
 
@@ -299,6 +302,7 @@ void FRemoteControlPresetLayout::DeleteGroup(FGuid GroupId)
 		Owner->CacheLayoutData();
 
 		OnGroupDeletedDelegate.Broadcast(MoveTemp(DeletedGroup));
+		Owner->OnPresetLayoutModified().Broadcast(Owner.Get());
 	}
 }
 
@@ -308,6 +312,7 @@ void FRemoteControlPresetLayout::RenameGroup(FGuid GroupId, FName NewGroupName)
 	{
 		Group->Name = NewGroupName;
 		OnGroupRenamedDelegate.Broadcast(GroupId, NewGroupName);
+		Owner->OnPresetLayoutModified().Broadcast(Owner.Get());
 	}
 }
 
@@ -327,6 +332,7 @@ void FRemoteControlPresetLayout::AddField(FGuid GroupId, FGuid FieldId)
 	{
 		Group->AccessFields().Add(FieldId);
 		OnFieldAddedDelegate.Broadcast(GroupId, FieldId, Group->AccessFields().Num() - 1);
+		Owner->OnPresetLayoutModified().Broadcast(Owner.Get());
 	}
 }
 
@@ -336,6 +342,7 @@ void FRemoteControlPresetLayout::InsertFieldAt(FGuid GroupId, FGuid FieldId, int
 	{
 		Group->AccessFields().Insert(FieldId, Index);
 		OnFieldAddedDelegate.Broadcast(GroupId, FieldId, Index);
+		Owner->OnPresetLayoutModified().Broadcast(Owner.Get());
 	}
 }
 
@@ -363,6 +370,7 @@ void FRemoteControlPresetLayout::RemoveFieldAt(FGuid GroupId, int32 Index)
 		Fields.RemoveAt(Index);
 
 		OnFieldDeletedDelegate.Broadcast(GroupId, FieldId, Index);
+		Owner->OnPresetLayoutModified().Broadcast(Owner.Get());
 	}
 }
 
@@ -1978,10 +1986,10 @@ void URemoteControlPreset::FRCPropertyWatcher::CheckForChange()
 	TRACE_CPUPROFILER_EVENT_SCOPE(FRCPropertyWatcher::CheckForChange);
 	if (TOptional<FRCFieldResolvedData> ResolvedData = GetWatchedPropertyResolvedData())
 	{
-		if (TSharedPtr<FRemoteControlProperty> RCProperty = WatchedProperty.Pin())
+		if (ensure(ResolvedData->Field && ResolvedData->ContainerAddress))
 		{
 			const void* NewValueAddress = ResolvedData->Field->ContainerPtrToValuePtr<void>(ResolvedData->ContainerAddress);
-			if (ResolvedData->Field->GetSize() != LastFrameValue.Num() || !ResolvedData->Field->Identical(LastFrameValue.GetData(), NewValueAddress))
+			if (NewValueAddress && (ResolvedData->Field->GetSize() != LastFrameValue.Num() || !ResolvedData->Field->Identical(LastFrameValue.GetData(), NewValueAddress)))
 			{
 				SetLastFrameValue(*ResolvedData);
 				OnWatchedValueChanged.ExecuteIfBound();

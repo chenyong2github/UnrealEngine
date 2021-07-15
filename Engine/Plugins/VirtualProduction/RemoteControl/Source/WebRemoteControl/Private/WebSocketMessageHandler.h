@@ -50,6 +50,7 @@ private:
 	void OnMetadataModified(URemoteControlPreset* Owner);
 	void OnActorPropertyChanged(URemoteControlPreset* Owner, FRemoteControlActor& Actor, UObject* ModifiedObject, FProperty* ModifiedProperty);
 	void OnEntitiesModified(URemoteControlPreset* Owner, const TSet<FGuid>& ModifiedEntities);
+	void OnLayoutModified(URemoteControlPreset* Owner);
 
 	/** Callback when a websocket connection was closed. Let us clean out registrations */
 	void OnConnectionClosedCallback(FGuid ClientId);
@@ -74,6 +75,9 @@ private:
 
 	/** If metadata was modified on a preset, notify listeners. */
 	void ProcessModifiedMetadata();
+
+	/** If a preset layout is modified, notify listeners. */
+	void ProcessModifiedPresetLayouts();
 
 	/** 
 	 * Send a payload to all clients bound to a certain preset.
@@ -138,7 +142,10 @@ private:
 	TMap<FName, TArray<TTuple<FName, FName>>> PerFrameRenamedFields;
 
 	/** Presets that had their metadata modified for a frame */
-	TArray<FName> PerFrameModifiedMetadata;
+	TSet<FName> PerFrameModifiedMetadata;
+
+	/** Presets that had their layout modified for a frame. */
+	TSet<FName> PerFrameModifiedPresetLayouts;
 	
 	/** Holds the ID of the client currently making a request. Used to prevent sending back notifications to it. */
 	const FGuid& ActingClientId;
