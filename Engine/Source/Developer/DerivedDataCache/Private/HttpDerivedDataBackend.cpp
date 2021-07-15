@@ -1354,8 +1354,6 @@ private:
 				
 				case OpResult::Ok:
 					{
-						TArray<uint8>* OutData = RequestOp.OutDatas[KeyIdx];
-
 						// Payload hash of the following payload data
 						FIoHash PayloadHash = *(FIoHash*)Response;
 						Response += sizeof(FIoHash);
@@ -1378,6 +1376,8 @@ private:
 							}
 							else
 							{
+								TArray<uint8>* OutData = RequestOp.OutDatas[KeyIdx];
+
 								OutData->Append(Response, PayloadSize);
 								Response += PayloadSize;
 								// Verify the recieved and parsed payload
