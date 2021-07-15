@@ -3,13 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
 #include "InteractiveToolBuilder.h"
 #include "MeshOpPreviewHelpers.h"
 #include "MultiSelectionTool.h"
-#include "ProxyLODVolume.h"
 #include "Properties/MeshStatisticsProperties.h"
 #include "PropertySets/OnAcceptProperties.h"
+#include "CompositionOps/VoxelBooleanMeshesOp.h"
 
 #include "VoxelCSGMeshesTool.generated.h"
 
@@ -126,7 +125,7 @@ protected:
 protected:
 	UWorld* TargetWorld;
 
-	TSharedPtr<TArray<IVoxelBasedCSG::FPlacedMesh>> InputMeshes;
+	TArray<UE::Geometry::FVoxelBooleanMeshesOp::FInputMesh> InputMeshes;
 	/** stash copies of the transforms and pointers to the meshes for consumption by the CSG Op*/
 	void CacheInputMeshes();
 

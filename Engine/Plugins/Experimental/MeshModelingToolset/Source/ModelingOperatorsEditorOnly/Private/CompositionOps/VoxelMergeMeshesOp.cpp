@@ -11,11 +11,24 @@
 #include "MeshConstraintsUtil.h"
 #include "CleaningOps/EditNormalsOp.h"
 
+// ProxyLOD currently only available on Windows. On other platforms we will make this a no-op
+#if PLATFORM_WINDOWS
+#define HAVE_PROXYLOD 1
+#else
+#define HAVE_PROXYLOD 0
+#endif
+
+#if HAVE_PROXYLOD
+#include "ProxyLODVolume.h"
+#endif
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void FVoxelMergeMeshesOp::CalculateResult(FProgressCancel* Progress)
 {
+#if HAVE_PROXYLOD
+
 	FMeshDescription MergedMeshesDescription;
 	FStaticMeshAttributes Attributes(MergedMeshesDescription);
 	Attributes.Register();
@@ -29,11 +42,20 @@ void FVoxelMergeMeshesOp::CalculateResult(FProgressCancel* Progress)
 	// Create CSGTool and merge the meshes.
 	TUniquePtr<IVoxelBasedCSG> VoxelCSGTool = IVoxelBasedCSG::CreateCSGTool(VoxelSizeD);
 
+	TArray<IVoxelBasedCSG::FPlacedMesh> PlacedMeshes;
+	for (const FInputMesh& InputMesh : InputMeshArray)
+	{
+		IVoxelBasedCSG::FPlacedMesh PlacedMesh;
+		PlacedMesh.Mesh = InputMesh.Mesh;
+		PlacedMesh.Transform = InputMesh.Transform;
+		PlacedMeshes.Add(PlacedMesh);
+	}
+
 	// world space units.
 	const double MaxNarrowBand = 3 * VoxelSizeD;
 	const double MaxIsoOffset = 2 * VoxelSizeD;
 	const double CSGIsoSurface = FMath::Clamp(IsoSurfaceD, 0., MaxIsoOffset); // the interior distance values maybe messed up when doing a union.
-	FVector MergedOrigin = VoxelCSGTool->ComputeUnion(*InputMeshArray, MergedMeshesDescription, AdaptivityD, CSGIsoSurface);
+	FVector MergedOrigin = VoxelCSGTool->ComputeUnion(PlacedMeshes, MergedMeshesDescription, AdaptivityD, CSGIsoSurface);
 	ResultTransform = FTransform3d(MergedOrigin);
 
 	if (Progress && Progress->Cancelled())
@@ -122,15 +144,22 @@ void FVoxelMergeMeshesOp::CalculateResult(FProgressCancel* Progress)
 		ResultMesh = EditNormalsOp.ExtractResult(); // return the edit normals operator copy to this tool.
 	}
 
+
+#else	// HAVE_PROXYLOD
+
+	FMeshDescriptionToDynamicMesh Converter;
+	Converter.Convert(InputMeshArray[0].Mesh, *ResultMesh);
+	ResultTransform = FTransform3d(InputMeshArray[0].Transform);
+
+#endif	// HAVE_PROXYLOD
+
 }
 
 
 float FVoxelMergeMeshesOp::ComputeVoxelSize() const
 {
-	const TArray<IVoxelBasedCSG::FPlacedMesh>& PlacedMeshes = *(InputMeshArray);
-
 	float Size = 0.f;
-	for (int32 i = 0; i < PlacedMeshes.Num(); ++i)
+	for (int32 i = 0; i < InputMeshArray.Num(); ++i)
 	{
 		//Bounding box
 		FVector BBoxMin(FLT_MAX, FLT_MAX, FLT_MAX);
@@ -138,8 +167,8 @@ float FVoxelMergeMeshesOp::ComputeVoxelSize() const
 
 		// Use the scale define by the transform.  We don't care about actual placement
 		// in the world for this.
-		FVector Scale = PlacedMeshes[i].Transform.GetScale3D();
-		const FMeshDescription&  MeshDescription = *PlacedMeshes[i].Mesh;
+		FVector Scale = InputMeshArray[i].Transform.GetScale3D();
+		const FMeshDescription&  MeshDescription = *InputMeshArray[i].Mesh;
 
 		TArrayView<const FVector3f> VertexPositions = MeshDescription.GetVertexPositions().GetRawArray();
 		for (const FVertexID VertexID : MeshDescription.Vertices().GetElementIDs())

@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"
-#include "ProxyLODVolume.h"
 
+struct FMeshDescription;
 
 namespace UE
 {
@@ -19,8 +19,14 @@ class MODELINGOPERATORSEDITORONLY_API FVoxelMergeMeshesOp : public FDynamicMeshO
 public:
 	virtual ~FVoxelMergeMeshesOp() {}
 
+	struct FInputMesh
+	{
+		const FMeshDescription* Mesh;
+		FTransform Transform;
+	};
+
 	// inputs
-	TSharedPtr<TArray<IVoxelBasedCSG::FPlacedMesh>> InputMeshArray;
+	TArray<FInputMesh> InputMeshArray;
 	int32 VoxelCount = 128;
 	double VoxelSizeD = 1.0;
 	double AdaptivityD = 0;

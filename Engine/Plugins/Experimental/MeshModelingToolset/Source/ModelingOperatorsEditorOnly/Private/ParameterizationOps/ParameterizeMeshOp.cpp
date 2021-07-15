@@ -3,7 +3,6 @@
 #include "ParameterizationOps/ParameterizeMeshOp.h"
 
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
-#include "ProxyLODParameterization.h"
 #include "Selections/MeshConnectedComponents.h"
 
 #include "Parameterization/MeshLocalParam.h"
@@ -12,6 +11,17 @@
 #include "DynamicMesh/MeshNormals.h"
 #include "DynamicSubmesh3.h"
 #include "XAtlasWrapper.h"
+
+// ProxyLOD currently only available on Windows. On other platforms we will make this a no-op
+#if PLATFORM_WINDOWS
+#define HAVE_PROXYLOD 1
+#else
+#define HAVE_PROXYLOD 0
+#endif
+
+#if HAVE_PROXYLOD
+#include "ProxyLODParameterization.h"
+#endif
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -184,7 +194,11 @@ bool FParameterizeMeshOp::ComputeUVs(FDynamicMesh3& Mesh,  TFunction<bool(float)
 	int32 MaxChartNumber = NumCharts;
 
 	bool bSuccess = true;
+#if HAVE_PROXYLOD
 	bool bUseXAtlas = (Method == EParamOpBackend::XAtlas);
+#else
+	bool bUseXAtlas = true;
+#endif
 
 	if (bUseXAtlas)
 	{
@@ -201,11 +215,15 @@ bool FParameterizeMeshOp::ComputeUVs(FDynamicMesh3& Mesh,  TFunction<bool(float)
 	}
 	else
 	{
+#if HAVE_PROXYLOD
 		TUniquePtr<IProxyLODParameterization> ParameterizationTool = IProxyLODParameterization::CreateTool();
 		bSuccess = ParameterizationTool->GenerateUVs(Width, Height, Gutter, LinearMesh.VertexBuffer, 
 													 LinearMesh.IndexBuffer, LinearMesh.AdjacencyBuffer, Interrupter, 
 													 UVVertexBuffer, UVIndexBuffer, VertexRemapArray, MaxStretch, 
 													 MaxChartNumber);
+#else
+		ensureMsgf(false, TEXT("ProxyLOD not available, this should not be called"));
+#endif
 	}
 	
 

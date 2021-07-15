@@ -39,7 +39,6 @@ public class MeshModelingToolsEditorOnly : ModuleRules
 				"ModelingComponentsEditorOnly",
 				"ModelingOperators",
 				"ModelingOperatorsEditorOnly",
-                "ProxyLODMeshReduction", // currently required to be public due to IVoxelBasedCSG API
 				// ... add other public dependencies that you statically link with here ...
 
 				"HairStrandsCore"		// required for Hair toolset
@@ -62,14 +61,22 @@ public class MeshModelingToolsEditorOnly : ModuleRules
 				"MeshBuilder",
 				"MeshUtilitiesCommon",  
 				"MeshReductionInterface", // for UE standard simplification 
-                "ProxyLODMeshReduction", // for mesh merging voxel-based csg
 				//"Slate",
 				//"SlateCore",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
-		
-		
+
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"ProxyLODMeshReduction", // currently Win64-only
+				}
+				);
+		}
+
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]
 			{

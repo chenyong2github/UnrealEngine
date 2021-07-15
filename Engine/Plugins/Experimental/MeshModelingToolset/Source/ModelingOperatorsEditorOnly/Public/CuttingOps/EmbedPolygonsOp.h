@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"
-#include "ProxyLODVolume.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Polygon2.h"
 

@@ -6,9 +6,9 @@
 #include "MultiSelectionTool.h"
 #include "InteractiveToolBuilder.h"
 #include "MeshOpPreviewHelpers.h"
-#include "ProxyLODVolume.h"
 #include "Properties/MeshStatisticsProperties.h"
 #include "PropertySets/OnAcceptProperties.h"
+#include "CompositionOps/VoxelMergeMeshesOp.h"
 #include "MergeMeshesTool.generated.h"
 
 /**
@@ -99,7 +99,7 @@ protected:
 protected:
 	UWorld* TargetWorld;
 
-	TSharedPtr<TArray<IVoxelBasedCSG::FPlacedMesh>> InputMeshes;
+	TArray<UE::Geometry::FVoxelMergeMeshesOp::FInputMesh> InputMeshes;
 	/** stash copies of the transforms and pointers to the meshes for consumption by merge Op*/
 	void CacheInputMeshes();
 
