@@ -697,19 +697,18 @@ public:
 
 private:
 
-	// Class used to temporarily cache all 
-	// current control values and reapply them
-	// on destruction, similar to UControlRigBlueprint::FControlValueScope
-	class FControlValueScope
+	// Class used to temporarily cache current pose of the hierarchy
+	// restore it on destruction, similar to UControlRigBlueprint::FControlValueScope
+	class FPoseScope
 	{
 	public:
-		FControlValueScope(UControlRig* InControlRig);
-		~FControlValueScope();
+		FPoseScope(UControlRig* InControlRig);
+		~FPoseScope();
 
 	private:
 
 		UControlRig* ControlRig;
-		TMap<FName, FRigControlValue> ControlValues;
+		FRigPose CachedPose;
 	};
 
 	friend class FControlRigBlueprintCompilerContext;
