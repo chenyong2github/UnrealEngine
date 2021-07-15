@@ -313,6 +313,10 @@ namespace ShaderDrawDebug
 
 	void SetParameters(FRDGBuilder& GraphBuilder, const FShaderDrawDebugData& Data, FShaderParameters& OutParameters)
 	{
+		// Early out if debug rendering is not enabled/supported
+		if (Data.Buffer == nullptr)
+			return;
+
 		FRDGBufferRef DataBuffer = Data.Buffer;
 		FRDGBufferRef IndirectBuffer = Data.IndirectBuffer;
 
