@@ -165,7 +165,7 @@ inline bool operator!=(const FXxHash128& A, const FXxHash128& B)
 
 inline bool operator<(const FXxHash128& A, const FXxHash128& B)
 {
-	return A.HashHigh != B.HashHigh ? A.HashHigh < B.HashHigh : A.HashLow < A.HashLow;
+	return A.HashHigh != B.HashHigh ? A.HashHigh < B.HashHigh : A.HashLow < B.HashLow;
 }
 
 inline uint32 GetTypeHash(const FXxHash128& Hash)
