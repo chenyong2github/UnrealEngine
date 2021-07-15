@@ -22,6 +22,12 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogTextureBuildFunction, Log, All);
 
+// Any edits to the texture compressor or this file that will change the output of texture builds
+// MUST have a corresponding change to this version. Individual texture formats have a version to
+// change that is specific to the format. A merge conflict affecting the version MUST be resolved
+// by generating a new version.
+static const FGuid TextureDerivedDataVersion(TEXT("a24fc8e0-42cb-49e8-bcd2-c8c4aa064bbd"));
+
 #ifndef CASE_ENUM_TO_TEXT
 #define CASE_ENUM_TO_TEXT(txt) case txt: return TEXT(#txt);
 #endif
@@ -252,6 +258,14 @@ static bool TryReadTextureSourceFromCompactBinary(FCbFieldView Source, UE::Deriv
 	}
 
 	return true;
+}
+
+FGuid FTextureBuildFunction::GetVersion() const
+{
+	UE::DerivedData::FBuildVersionBuilder Builder;
+	Builder << TextureDerivedDataVersion;
+	GetVersion(Builder);
+	return Builder.Build();
 }
 
 void FTextureBuildFunction::Configure(UE::DerivedData::FBuildConfigContext& Context) const

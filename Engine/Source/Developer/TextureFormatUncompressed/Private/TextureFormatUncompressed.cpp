@@ -17,7 +17,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatUncompressed, Log, All);
 class FUncompressedTextureBuildFunction final : public FTextureBuildFunction
 {
 	FStringView GetName() const final { return TEXT("UncompressedTexture"); }
-	FGuid GetVersion() const final { return FGuid(TEXT("c04fe27a-53f6-402e-85b3-648ac6b1ad87")); }
+
+	void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder) const final
+	{
+		static FGuid Version(TEXT("c04fe27a-53f6-402e-85b3-648ac6b1ad87"));
+		Builder << Version;
+	}
 };
 
 /**

@@ -40,7 +40,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatASTC, Log, All);
 class FASTCTextureBuildFunction final : public FTextureBuildFunction
 {
 	FStringView GetName() const final { return TEXT("ASTCTexture"); }
-	FGuid GetVersion() const final { return FGuid(TEXT("4788dab5-b99c-479f-bc34-6d7df1cf30e3")); }
+
+	void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder) const final
+	{
+		static FGuid Version(TEXT("4788dab5-b99c-479f-bc34-6d7df1cf30e3"));
+		Builder << Version;
+	}
 };
 
 /**
