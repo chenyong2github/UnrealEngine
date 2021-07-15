@@ -240,7 +240,7 @@ namespace ChaosTest {
 		for (int Step = 1; Step < 10; ++Step)
 		{
 			FVec3 Grav(0,0,-1);
-			Scene.SetUpForFrame(&Grav, 1,99999,99999,10,false);
+			Scene.SetUpForFrame(&Grav, 1,0,99999,99999,10,false);
 			Scene.StartFrame();
 			Scene.GetSolver()->GetEvolution()->FlushSpatialAcceleration();	//make sure we get a new tree every step
 			Scene.EndFrame();
@@ -260,7 +260,7 @@ namespace ChaosTest {
 		EXPECT_EQ(Scene.GetSpacialAcceleration()->GetSyncTimestamp(), 0);	//timestamp of 0 because we flush when scene is created
 
 		FVec3 Grav(0, 0, -1);
-		Scene.SetUpForFrame(&Grav, 1, 99999, 99999, 10, false);
+		Scene.SetUpForFrame(&Grav, 1, 0, 99999, 99999, 10, false);
 
 		// Game thread enqueues second solver task before first completes (we did not execute advance task)
 		Scene.StartFrame();
@@ -300,7 +300,7 @@ namespace ChaosTest {
 		EXPECT_EQ(Scene.GetSpacialAcceleration()->GetSyncTimestamp(), 0);	//timestamp of 0 because we flush when scene is created
 
 		FVec3 Grav(0,0,-1);
-		Scene.SetUpForFrame(&Grav, 1,99999,99999,10,false);
+		Scene.SetUpForFrame(&Grav, 1,0,99999,99999,10,false);
 
 		// PT not finished yet (we didn't execute solver task), should still be 0.
 		Scene.StartFrame();
@@ -347,7 +347,7 @@ namespace ChaosTest {
 		Scene.GetSolver()->SetStealAdvanceTasks_ForTesting(true); // prevents execution on StartFrame so we can execute task manually.
 
 		FVec3 Grav(0,0,-1);
-		Scene.SetUpForFrame(&Grav, 1,99999,99999,10,false);
+		Scene.SetUpForFrame(&Grav, 1,0,99999,99999,10,false);
 
 		FActorCreationParams Params;
 		Params.Scene = &Scene;
@@ -446,7 +446,7 @@ namespace ChaosTest {
 
 		float DeltaSeconds = PhysicsTimestep;
 		FVec3 Grav(0, 0, -1);
-		Scene.SetUpForFrame(&Grav, DeltaSeconds, 9999, 9999, 9999, false);
+		Scene.SetUpForFrame(&Grav, DeltaSeconds, 0, 9999, 9999, 9999, false);
 
 		// Raycast params, aimed to hit our particle at (0,0,0)
 		const FVector Start(0, 0, -5);
@@ -566,7 +566,7 @@ namespace ChaosTest {
 		float DeltaSeconds = PhysicsTimestep * PhysicsStepsInFrame;
 		FVec3 Grav(0, 0, -1);
 
-		Scene.SetUpForFrame(&Grav, DeltaSeconds, 9999, 9999, 9999, false);
+		Scene.SetUpForFrame(&Grav, DeltaSeconds, 0, 9999, 9999, 9999, false);
 		
 		// Raycast params, aimed to hit our kinematic target (10,0,0)
 		const FVector Start(10, 0, -5);
@@ -674,7 +674,7 @@ namespace ChaosTest {
 		//tick solver but don't call EndFrame (want to flush and swap manually)
 		{
 			FVec3 Grav(0,0,-1);
-			Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+			Scene.SetUpForFrame(&Grav,1,0,99999,99999,10,false);
 			Scene.StartFrame();
 		}
 
@@ -718,7 +718,7 @@ namespace ChaosTest {
 		//tick solver so that Proxy is created, but don't call EndFrame (want to flush and swap manually)
 		{
 			FVec3 Grav(0,0,-1);
-			Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+			Scene.SetUpForFrame(&Grav,1,0,99999,99999,10,false);
 			Scene.StartFrame();
 		}
 
@@ -762,7 +762,7 @@ namespace ChaosTest {
 		//tick solver so that Proxy is created, but don't call EndFrame (want to flush and swap manually)
 		{
 			FVec3 Grav(0,0,-1);
-			Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+			Scene.SetUpForFrame(&Grav,1,0,99999,99999,10,false);
 			Scene.StartFrame();
 		}
 
@@ -806,7 +806,7 @@ namespace ChaosTest {
 		{
 			//use 0 dt to make sure pending operations are not sensitive to 0 dt
 			FVec3 Grav(0,0,-1);
-			Scene.SetUpForFrame(&Grav,0,99999,99999,10,false);
+			Scene.SetUpForFrame(&Grav,0,0,99999,99999,10,false);
 			Scene.StartFrame();
 		}
 
@@ -836,7 +836,7 @@ namespace ChaosTest {
 		//tick solver, but don't call EndFrame (want to flush and swap manually)
 		{
 			FVec3 Grav(0,0,-1);
-			Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+			Scene.SetUpForFrame(&Grav,1,0,99999,99999,10,false);
 			Scene.StartFrame();
 		}
 
@@ -897,7 +897,7 @@ namespace ChaosTest {
 				//tick solver
 				{
 					FVec3 Grav(0,0,-1);
-					Scene.SetUpForFrame(&Grav,1,99999,99999,1,false);
+					Scene.SetUpForFrame(&Grav,1,0,99999,99999,1,false);
 					Scene.StartFrame();
 					Scene.EndFrame();
 				}
@@ -919,7 +919,7 @@ namespace ChaosTest {
 			//tick solver one last time
 			{
 				FVec3 Grav(0,0,-1);
-				Scene.SetUpForFrame(&Grav,1,99999,99999,1,false);
+				Scene.SetUpForFrame(&Grav,1,0,99999,99999,1,false);
 				Scene.StartFrame();
 				Scene.EndFrame();
 			}
@@ -938,7 +938,7 @@ namespace ChaosTest {
 				//tick solver
 				{
 					FVec3 Grav(0,0,-1);
-					Scene.SetUpForFrame(&Grav,1,99999,99999,1,false);
+					Scene.SetUpForFrame(&Grav,1,0,99999,99999,1,false);
 					Scene.StartFrame();
 					Scene.EndFrame();
 				}
@@ -955,7 +955,7 @@ namespace ChaosTest {
 			//tick solver one last time
 			{
 				FVec3 Grav(0,0,-1);
-				Scene.SetUpForFrame(&Grav,1,99999,99999,1,false);
+				Scene.SetUpForFrame(&Grav,1,0,99999,99999,1,false);
 				Scene.StartFrame();
 				Scene.EndFrame();
 			}
@@ -985,7 +985,7 @@ namespace ChaosTest {
 			{
 				//tick solver
 				FVec3 Grav(0,0,-1);
-				Scene.SetUpForFrame(&Grav,1,99999,99999,1,false);
+				Scene.SetUpForFrame(&Grav,1,0,99999,99999,1,false);
 				Scene.StartFrame();
 				Scene.EndFrame();
 
@@ -1043,7 +1043,7 @@ namespace ChaosTest {
 			{
 				{
 					FVec3 Grav(0,0,0);
-					Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+					Scene.SetUpForFrame(&Grav,1,0,99999,99999,10,false);
 					Scene.StartFrame();
 					Scene.EndFrame();
 				}
@@ -1056,7 +1056,7 @@ namespace ChaosTest {
 			//tick solver and see new position synced from sim
 			{
 				FVec3 Grav(0,0,0);
-				Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+				Scene.SetUpForFrame(&Grav,1,0,99999,99999,10,false);
 				Scene.StartFrame();
 				Scene.EndFrame();
 				EXPECT_NEAR(Particle.X()[2], -1, 1e-4);
@@ -1066,7 +1066,7 @@ namespace ChaosTest {
 			//tick solver and delete in between solver finishing and sync
 			{
 				FVec3 Grav(0,0,0);
-				Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+				Scene.SetUpForFrame(&Grav,1,0,99999,99999,10,false);
 				Scene.StartFrame();
 
 				//delete Proxy
@@ -1082,7 +1082,7 @@ namespace ChaosTest {
 			{
 				{
 					FVec3 Grav(0,0,0);
-					Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+					Scene.SetUpForFrame(&Grav,1,0,99999,99999,10,false);
 					Scene.StartFrame();
 					Scene.EndFrame();
 					EXPECT_NEAR(Particle2.X()[1], -3 - Repeat, 1e-4);	//other Proxy keeps moving
@@ -1125,7 +1125,7 @@ namespace ChaosTest {
 			{
 				{
 					FVec3 Grav(0,0,0);
-					Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+					Scene.SetUpForFrame(&Grav,1,0,99999,99999,10,false);
 					Scene.StartFrame();
 					Scene.EndFrame();
 				}
@@ -1137,7 +1137,7 @@ namespace ChaosTest {
 			//tick solver and see new position synced from sim
 			{
 				FVec3 Grav(0,0,0);
-				Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+				Scene.SetUpForFrame(&Grav,1,0,99999,99999,10,false);
 				Scene.StartFrame();
 				Scene.EndFrame();
 				EXPECT_NEAR(Particle.X()[2], -1, 1e-4);
@@ -1150,7 +1150,7 @@ namespace ChaosTest {
 			{
 				{
 					FVec3 Grav(0,0,0);
-					Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+					Scene.SetUpForFrame(&Grav,1,0,99999,99999,10,false);
 					Scene.StartFrame();
 					Scene.EndFrame();
 
@@ -1161,7 +1161,7 @@ namespace ChaosTest {
 			//tick solver one last time, should see sim results from the place we teleported to
 			{
 				FVec3 Grav(0,0,0);
-				Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+				Scene.SetUpForFrame(&Grav,1,0,99999,99999,10,false);
 				Scene.StartFrame();
 				Scene.EndFrame();
 				EXPECT_NEAR(Particle.X()[2], 9, 1e-4);
@@ -1170,7 +1170,7 @@ namespace ChaosTest {
 			//set x after sim but before EndFrame, make sure to see gt position since it was written after
 			{
 				FVec3 Grav(0,0,0);
-				Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+				Scene.SetUpForFrame(&Grav,1,0,99999,99999,10,false);
 				Scene.StartFrame();
 				FChaosEngineInterface::SetGlobalPose_AssumesLocked(Proxy, FTransform(FQuat::Identity, FVec3(0, 0, 100)));
 				Scene.EndFrame();
@@ -1181,7 +1181,7 @@ namespace ChaosTest {
 			{
 				{
 					FVec3 Grav(0,0,0);
-					Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+					Scene.SetUpForFrame(&Grav,1,0,99999,99999,10,false);
 					Scene.StartFrame();
 					Scene.EndFrame();
 
@@ -1192,7 +1192,7 @@ namespace ChaosTest {
 			//tick solver one last time, should see sim results from the place we teleported to
 			{
 				FVec3 Grav(0,0,0);
-				Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+				Scene.SetUpForFrame(&Grav,1,0,99999,99999,10,false);
 				Scene.StartFrame();
 				Scene.EndFrame();
 				EXPECT_NEAR(Particle.X()[2], 99, 1e-4);
@@ -1223,7 +1223,7 @@ namespace ChaosTest {
 		Particle.AddForce(FVec3(0, 0, 10) * Particle.M());
 
 		FVec3 Grav(0,0,0);
-		Scene.SetUpForFrame(&Grav,1,99999,99999,10,false);
+		Scene.SetUpForFrame(&Grav,1,0,99999,99999,10,false);
 		Scene.StartFrame();
 		Scene.EndFrame();
 
@@ -1306,7 +1306,7 @@ namespace ChaosTest {
 			//set force every external frame
 			Particle2.AddForce(ConstantForce);
 			FVec3 Grav(0, 0, 0);
-			Scene.SetUpForFrame(&Grav, GTDt, 99999, 99999, 1, false);
+			Scene.SetUpForFrame(&Grav, GTDt, 0, 99999, 99999, 1, false);
 			Scene.StartFrame();
 			Scene.EndFrame();
 
@@ -1390,7 +1390,7 @@ namespace ChaosTest {
 
 		auto AdvanceFrameAndRunTest = [&](const FVec3 &CorrectX, const FVec3 &CorrectV)
 		{
-			Scene.SetUpForFrame(&Grav, Dt, 99999, 99999, 10, false);
+			Scene.SetUpForFrame(&Grav, Dt, 0, 99999, 99999, 10, false);
 			Scene.StartFrame();
 			Scene.EndFrame();
 			// Test X and V on GT
@@ -1544,7 +1544,7 @@ namespace ChaosTest {
 			}
 
 			FVec3 Grav(0, 0, 0);
-			Scene.SetUpForFrame(&Grav, GTDt, 99999, 99999, 10, false);
+			Scene.SetUpForFrame(&Grav, GTDt, 0, 99999, 99999, 10, false);
 			Scene.StartFrame();
 			Scene.EndFrame();
 
@@ -1679,7 +1679,7 @@ namespace ChaosTest {
 			auto Callback = Scene.GetSolver()->CreateAndRegisterSimCallbackObject_External<FCallback>();
 
 			FVec3 Grav(0, 0, 0);
-			Scene.SetUpForFrame(&Grav, 0, 99999, 99999, 10, false);	//flush with dt 0
+			Scene.SetUpForFrame(&Grav, 0, 0, 99999, 99999, 10, false);	//flush with dt 0
 			Scene.StartFrame();
 			Scene.EndFrame();
 
@@ -1752,7 +1752,7 @@ namespace ChaosTest {
 			//set force every external frame
 			Particle.AddForce(FVec3(0, 0, 1 * Particle.M()));	//should counteract gravity
 			FVec3 Grav(0, 0, -1);
-			Scene.SetUpForFrame(&Grav, GTDt, 99999, 99999, 10, false);
+			Scene.SetUpForFrame(&Grav, GTDt, 0, 99999, 99999, 10, false);
 			Scene.StartFrame();
 			Scene.EndFrame();
 
@@ -1810,7 +1810,7 @@ namespace ChaosTest {
 		Scene.GetSolver()->UnregisterObject(Proxy);
 
 		FVec3 Grav(0, 0, -1);
-		Scene.SetUpForFrame(&Grav, FixedDT * 3, 99999, 99999, 10, false);
+		Scene.SetUpForFrame(&Grav, FixedDT * 3, 0, 99999, 99999, 10, false);
 		Scene.StartFrame();
 		Scene.EndFrame();
 	}

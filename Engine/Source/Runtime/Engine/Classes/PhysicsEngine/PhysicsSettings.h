@@ -161,6 +161,10 @@ class ENGINE_API UPhysicsSettings : public UPhysicsSettingsCore
 	UPROPERTY(config, EditAnywhere, Category = Simulation)
 	bool bSimulateAnimPhysicsAfterReset;
 
+	/** Min Physics Delta Time; the simulation will not step if the delta time is below this value */
+	UPROPERTY(config, EditAnywhere, meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "0.0001", UIMax = "0.0001"), Category = Framerate)
+	float MinPhysicsDeltaTime;
+
 	/** Max Physics Delta Time to be clamped. */
 	UPROPERTY(config, EditAnywhere, meta=(ClampMin="0.0013", UIMin = "0.0013", ClampMax="1.0", UIMax="1.0"), Category=Framerate)
 	float MaxPhysicsDeltaTime;

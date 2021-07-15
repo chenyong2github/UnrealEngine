@@ -325,7 +325,7 @@ void FChaosScene::SetGravity(const Chaos::FVec3& Acceleration)
 	SimCallback->GetProducerInputData_External()->Gravity = Acceleration;
 }
 
-void FChaosScene::SetUpForFrame(const FVector* NewGrav,float InDeltaSeconds /*= 0.0f*/,float InMaxPhysicsDeltaTime /*= 0.0f*/,float InMaxSubstepDeltaTime /*= 0.0f*/,int32 InMaxSubsteps,bool bSubstepping)
+void FChaosScene::SetUpForFrame(const FVector* NewGrav,float InDeltaSeconds /*= 0.0f*/,float InMinPhysicsDeltaTime /*= 0.0f*/,float InMaxPhysicsDeltaTime /*= 0.0f*/,float InMaxSubstepDeltaTime /*= 0.0f*/,int32 InMaxSubsteps,bool bSubstepping)
 {
 #if WITH_CHAOS
 	using namespace Chaos;
@@ -354,6 +354,7 @@ void FChaosScene::SetUpForFrame(const FVector* NewGrav,float InDeltaSeconds /*= 
 			Solver->SetMaxDeltaTime_External(InMaxPhysicsDeltaTime);
 			Solver->SetMaxSubSteps_External(1);
 		}
+		Solver->SetMinDeltaTime_External(InMinPhysicsDeltaTime);
 	}
 #endif
 }
