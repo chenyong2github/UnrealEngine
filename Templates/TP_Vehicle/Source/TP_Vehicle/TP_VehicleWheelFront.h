@@ -3,13 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ChaosVehicleWheel.h"
+#include "VehicleWheel.h"
 #include "TP_VehicleWheelFront.generated.h"
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 UCLASS()
-class UTP_VehicleWheelFront : public UChaosVehicleWheel
+class UTP_VehicleWheelFront : public UVehicleWheel
 {
 	GENERATED_BODY()
 

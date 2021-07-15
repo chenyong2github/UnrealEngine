@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "WheeledVehiclePawn.h"
+#include "WheeledVehicle.h"
 #include "TP_VehicleAdvPawn.generated.h"
 
 class UPhysicalMaterial;
@@ -16,7 +16,7 @@ class UAudioComponent;
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 UCLASS(config=Game)
-class ATP_VehicleAdvPawn : public AWheeledVehiclePawn
+class ATP_VehicleAdvPawn : public AWheeledVehicle
 {
 	GENERATED_BODY()
 
