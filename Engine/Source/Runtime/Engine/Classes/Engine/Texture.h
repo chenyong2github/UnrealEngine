@@ -680,7 +680,11 @@ public:
 	bool TryCancelCache();
 	void CancelCache();
 	ENGINE_API bool TryInlineMipData(int32 FirstMipToLoad = 0, UTexture* Texture = nullptr);
+	bool AreDerivedMipsAvailable(FStringView Context) const;
+	bool AreDerivedVTChunksAvailable(FStringView Context) const;
+	UE_DEPRECATED(5.00, "Use AreDerivedMipsAvailable with the context instead.")
 	bool AreDerivedMipsAvailable() const;
+	UE_DEPRECATED(5.00, "Use AreDerivedVTChunksAvailable with the context instead.")
 	bool AreDerivedVTChunksAvailable() const;
 #endif
 

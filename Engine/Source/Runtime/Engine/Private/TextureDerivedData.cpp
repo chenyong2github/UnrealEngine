@@ -1269,7 +1269,7 @@ EPixelFormat FTexturePlatformData::GetLayerPixelFormat(uint32 LayerIndex) const
 }
 
 #if WITH_EDITOR
-bool FTexturePlatformData::AreDerivedMipsAvailable() const
+bool FTexturePlatformData::AreDerivedMipsAvailable(FStringView Context) const
 {
 	TArray<FString, TInlineAllocator<16>> MipKeys;
 	for (const FTexture2DMipMap& Mip : Mips)
@@ -1290,10 +1290,10 @@ bool FTexturePlatformData::AreDerivedMipsAvailable() const
 		// to fetch the asset from a remote location once
 		// the mips needs to be accessed
 		TRACE_CPUPROFILER_EVENT_SCOPE(PrefetchMips);
-		return GetDerivedDataCacheRef().TryToPrefetch(MipKeys, TEXT("DerivedMips"_SV));
+		return GetDerivedDataCacheRef().TryToPrefetch(MipKeys, Context);
 	}
 }
-bool FTexturePlatformData::AreDerivedVTChunksAvailable() const
+bool FTexturePlatformData::AreDerivedVTChunksAvailable(FStringView Context) const
 {
 	check(VTData);
 	TArray<FString, TInlineAllocator<16>> ChunkKeys;
@@ -1315,9 +1315,20 @@ bool FTexturePlatformData::AreDerivedVTChunksAvailable() const
 		// to fetch the asset from a remote location once
 		// the VT chunks needs to be accessed
 		TRACE_CPUPROFILER_EVENT_SCOPE(PrefetchDerivedVTChunks);
-		return GetDerivedDataCacheRef().TryToPrefetch(ChunkKeys, TEXT("DerivedVTChunks"_SV));
+		return GetDerivedDataCacheRef().TryToPrefetch(ChunkKeys, Context);
 	}
 }
+
+bool FTexturePlatformData::AreDerivedMipsAvailable() const
+{
+	return AreDerivedMipsAvailable(TEXT("DerivedMips"_SV));
+}
+
+bool FTexturePlatformData::AreDerivedVTChunksAvailable() const
+{
+	return AreDerivedVTChunksAvailable(TEXT("DerivedVTChunks"_SV));
+}
+
 #endif // #if WITH_EDITOR
 
 // Transient flags used to control behavior of platform data serialization
