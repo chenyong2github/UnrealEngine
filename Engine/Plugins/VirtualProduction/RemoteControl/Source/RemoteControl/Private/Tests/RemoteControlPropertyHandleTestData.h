@@ -38,13 +38,13 @@ struct FRemoteControlTestStructInner
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = "RC")
-	int8 Int8Value;
+	int8 Int8Value = 36;
 
 	UPROPERTY(EditAnywhere, Category = "RC")
 	FRemoteControlTestStructInnerSimle InnerSimle;
 
 	UPROPERTY(EditAnywhere, Category = "RC")
-	int32 Int32Value;
+	int32 Int32Value = -791;
 
 	FGuid Id = FGuid::NewGuid();
 
@@ -65,13 +65,13 @@ struct FRemoteControlTestStructOuter
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = "RC")
-	int8 Int8Value;
+	int8 Int8Value = 12;
 
 	UPROPERTY(EditAnywhere, Category = "RC")
 	TSet<FRemoteControlTestStructInner> StructInnerSet;
 
 	UPROPERTY(EditAnywhere, Category = "RC")
-	int32 Int32Value;
+	int32 Int32Value = -55;
 
 	UPROPERTY(EditAnywhere, Category = "RC")
 	FRemoteControlTestStructInner RemoteControlTestStructInner;
@@ -121,19 +121,19 @@ public:
 	TArray<FVector> ArrayOfVectors;
 
 	UPROPERTY(EditAnywhere, Category = "RC")
-	int8 Int8Value;
+	int8 Int8Value = 5;
 
 	UPROPERTY(EditAnywhere, Category = "RC")
-	int16 Int16Value;
+	int16 Int16Value = 53;
 
 	UPROPERTY(EditAnywhere, Category = "RC")
-	int32 Int32Value;
+	int32 Int32Value = 533;
 
 	UPROPERTY(EditAnywhere, Category = "RC")
-	float FloatValue;
+	float FloatValue = 2.3f;
 
 	UPROPERTY(EditAnywhere, Category = "RC")
-	double DoubleValue;
+	double DoubleValue = 963.2f;;
 
 	UPROPERTY(EditAnywhere, Category = "RC")
 	FRemoteControlTestStructOuter RemoteControlTestStructOuter;
@@ -148,20 +148,20 @@ public:
 	FText TextValue;
 
 	UPROPERTY(EditAnywhere, Category = "RC")
-	bool bValue;
+	bool bValue = true;
 
 	UPROPERTY(EditAnywhere, Category = "RC")
-	uint8 ByteValue;
+	uint8 ByteValue = 4;
 
 	UPROPERTY(EditAnywhere, Category = "RC")
-	TEnumAsByte<ERemoteControlEnum::Type> RemoteControlEnumByteValue;
+	TEnumAsByte<ERemoteControlEnum::Type> RemoteControlEnumByteValue = ERemoteControlEnum::E_Two;
 
 	UPROPERTY(EditAnywhere, Category = "RC")
-	ERemoteControlEnumClass RemoteControlEnumValue;
+	ERemoteControlEnumClass RemoteControlEnumValue = ERemoteControlEnumClass::E_One;
 
 	UPROPERTY(EditAnywhere, Category = "RC")
-	FVector VectorValue;
+	FVector VectorValue = {12.2f, 4.33f, 9.1f};
 
 	UPROPERTY(EditAnywhere, Category = "RC")
-	FRotator RotatorValue;
+	FRotator RotatorValue = {45.1f, 96.2f, 184.5f};
 };

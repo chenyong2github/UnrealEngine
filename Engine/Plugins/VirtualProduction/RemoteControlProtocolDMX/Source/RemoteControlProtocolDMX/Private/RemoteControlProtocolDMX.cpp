@@ -8,7 +8,6 @@
 #include "Interfaces/IDMXProtocol.h"
 #include "IO/DMXInputPort.h"
 #include "IO/DMXPortManager.h"
-#include "Library/DMXEntityFixtureType.h"
 
 #if WITH_EDITOR
 #include "IRCProtocolBindingList.h"
