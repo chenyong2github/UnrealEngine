@@ -251,10 +251,9 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 		END_CATEGORY();
 
 		BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::LightcardCategory)
-			CREATE_NESTED_PROPERTY_EDITCONDITION_1ARG(ICVFXEnabledEditCondition,          NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable);
-			CREATE_NESTED_PROPERTY_EDITCONDITION_2ARG(ICVFXLightCardEnabledEditCondition, NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable, CurrentConfigData->StageSettings.Lightcard.bEnable);
+			CREATE_NESTED_PROPERTY_EDITCONDITION_1ARG(ICVFXLightCardEnabledEditCondition, NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.bEnable);
 
-			ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.bEnable, ICVFXEnabledEditCondition)
+			ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.bEnable)
 			ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.Lightcard.Blendingmode, ICVFXLightCardEnabledEditCondition)
 
 			BEGIN_GROUP(TEXT("LightCardActorsGroup"), LOCTEXT("LightCardActorsGroupLabel", "Light Cards Content"))
