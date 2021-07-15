@@ -98,7 +98,7 @@ void ULiveLinkComponentController::SetControllerClassForRole(TSubclassOf<ULiveLi
 {
 	if (ControllerMap.Contains(RoleClass))
 	{
-		ULiveLinkControllerBase*& CurrentController = ControllerMap.FindOrAdd(RoleClass);
+		UE_TRANSITIONAL_OBJECT_PTR(ULiveLinkControllerBase)& CurrentController = ControllerMap.FindOrAdd(RoleClass);
 		if (CurrentController == nullptr || CurrentController->GetClass() != DesiredControllerClass)
 		{
 			//Controller is about to change, cleanup current one before 
@@ -187,7 +187,7 @@ void ULiveLinkComponentController::TickComponent(float DeltaTime, ELevelTick Tic
 	const bool bHasValidData = bEvaluateLiveLink ? LiveLinkClient.EvaluateFrame_AnyThread(SubjectRepresentation.Subject, SubjectRepresentation.Role, SubjectData) : false;
 
 	//Go through each controllers and initialize them if we're dirty and tick them if there's valid data to process
-	for (TTuple<TSubclassOf<ULiveLinkRole>, ULiveLinkControllerBase*>& ControllerEntry : ControllerMap)
+	for (auto& ControllerEntry : ControllerMap)
 	{
 		ULiveLinkControllerBase* Controller = ControllerEntry.Value;
 		if (Controller)
@@ -291,7 +291,7 @@ bool ULiveLinkComponentController::IsControllerMapOutdated() const
 	//Check if all map matches class hierarchy
 	for (const TSubclassOf<ULiveLinkRole>& RoleClass : SelectedRoleHierarchy)
 	{
-		const ULiveLinkControllerBase* const* FoundController = ControllerMap.Find(RoleClass);
+		UE_TRANSITIONAL_OBJECT_PTR(ULiveLinkControllerBase) const* FoundController = ControllerMap.Find(RoleClass);
 
 		//If ControllerMap doesn't have an entry for one of the role class hierarchy, we need to update
 		if (FoundController == nullptr)
@@ -347,7 +347,7 @@ TSubclassOf<ULiveLinkControllerBase> ULiveLinkComponentController::GetController
 void ULiveLinkComponentController::CleanupControllersInMap()
 {
 	//Cleanup the currently active controllers in the map
-	for (TPair<TSubclassOf<ULiveLinkRole>, ULiveLinkControllerBase*>& ControllerPair : ControllerMap)
+	for (auto& ControllerPair : ControllerMap)
 	{
 		if (ControllerPair.Value)
 		{

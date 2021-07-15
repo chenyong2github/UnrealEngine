@@ -42,7 +42,7 @@ void UClothingSimulationInteractor::Sync(IClothingSimulation* Simulation, ICloth
 	LastNumSubsteps = Simulation->GetNumSubsteps();
 	LastSimulationTime = Simulation->GetSimulationTime();
 
-	for (const TPair<FName, UClothingInteractor*>& ClothingInteractor : UClothingSimulationInteractor::ClothingInteractors)
+	for (const auto& ClothingInteractor : UClothingSimulationInteractor::ClothingInteractors)
 	{
 		if (ClothingInteractor.Value)
 		{

@@ -2036,9 +2036,9 @@ void UControlRig::SetInteractionRig(UControlRig* InInteractionRig)
 		InteractionRig->OnInitialized_AnyThread().AddUObject(this, &UControlRig::HandleInteractionRigInitialized);
 		InteractionRig->OnExecuted_AnyThread().AddUObject(this, &UControlRig::HandleInteractionRigExecuted);
 		InteractionRig->ControlSelected().AddUObject(this, &UControlRig::HandleInteractionRigControlSelected, false);
-		OnInitialized_AnyThread().AddUObject(InteractionRig, &UControlRig::HandleInteractionRigInitialized);
-		OnExecuted_AnyThread().AddUObject(InteractionRig, &UControlRig::HandleInteractionRigExecuted);
-		ControlSelected().AddUObject(InteractionRig, &UControlRig::HandleInteractionRigControlSelected, true);
+		OnInitialized_AnyThread().AddUObject(ToRawPtr(InteractionRig), &UControlRig::HandleInteractionRigInitialized);
+		OnExecuted_AnyThread().AddUObject(ToRawPtr(InteractionRig), &UControlRig::HandleInteractionRigExecuted);
+		ControlSelected().AddUObject(ToRawPtr(InteractionRig), &UControlRig::HandleInteractionRigControlSelected, true);
 
 		FControlRigBracketScope BracketScope(InterRigSyncBracket);
 		InteractionRig->HandleInteractionRigExecuted(this, EControlRigState::Update, FRigUnit_BeginExecution::EventName);
@@ -2152,7 +2152,7 @@ void UControlRig::RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataCl
 
 const TArray<UAssetUserData*>* UControlRig::GetAssetUserDataArray() const
 {
-	return &AssetUserData;
+	return &ToRawPtrTArrayUnsafe(AssetUserData);
 }
 
 void UControlRig::CopyPoseFromOtherRig(UControlRig* Subject)
