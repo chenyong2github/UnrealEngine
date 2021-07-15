@@ -116,7 +116,9 @@ namespace HordeServer.Services
 					if (!AgentWorkspace.SetEquals(CurrentPool.Workspaces, NewWorkspaces) || CurrentPool.Workspaces.Count != NewWorkspaces.Count)
 					{
 						Logger.LogInformation("New workspaces for pool {Pool}:{Workspaces}", CurrentPool.Id, String.Join("", NewWorkspaces.Select(x => $"\n  Identifier=\"{x.Identifier}\", Stream={x.Stream}")));
-						if (await Pools.TryUpdateAsync(CurrentPool, NewWorkspaces: NewWorkspaces) == null)
+
+						IPool? Result = await Pools.TryUpdateAsync(CurrentPool, NewWorkspaces: NewWorkspaces);
+						if (Result == null)
 						{
 							Logger.LogInformation("Pool modified; will retry");
 							bRetryUpdate = true;
