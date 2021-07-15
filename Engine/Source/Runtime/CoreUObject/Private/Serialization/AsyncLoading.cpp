@@ -6817,6 +6817,15 @@ void FAsyncPackage::CallCompletionCallbacks(bool bInternal, EAsyncLoadingResult:
 	checkSlow(bInternal || !IsInAsyncLoadingThread());
 
 	UPackage* LoadedPackage = (!bLoadHasFailed) ? LinkerRoot : nullptr;
+#if WITH_EDITOR
+	if (!bInternal && GIsEditor && LoadedPackage)
+	{
+		// Call the global delegate for package endloads, which is a kind of external completioncallback,
+		// and set the bHasBeenLoaded flag that is used to check which packages have reached this state
+		LoadedPackage->bHasBeenEndLoaded = true;
+		FCoreUObjectDelegates::OnEndLoadPackage.Broadcast(TConstArrayView<UPackage*> { LoadedPackage });
+	}
+#endif
 	for (FCompletionCallback& CompletionCallback : CompletionCallbacks)
 	{
 		if (CompletionCallback.bIsInternal == bInternal && !CompletionCallback.bCalled)

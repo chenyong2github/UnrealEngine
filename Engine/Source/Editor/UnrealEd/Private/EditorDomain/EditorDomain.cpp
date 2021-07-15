@@ -25,6 +25,7 @@
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/PackageResourceManagerFile.h"
+#include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectIterator.h"
 
 DEFINE_LOG_CATEGORY(LogEditorDomain);
@@ -86,11 +87,13 @@ FEditorDomain::FEditorDomain()
 	{
 		OnPostEngineInit();
 	}
+	FCoreUObjectDelegates::OnEndLoadPackage.AddRaw(this, &FEditorDomain::OnEndLoadPackage);
 }
 
 FEditorDomain::~FEditorDomain()
 {
 	FScopeLock ScopeLock(&Locks->Lock);
+	FCoreUObjectDelegates::OnEndLoadPackage.RemoveAll(this);
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 	Locks->Owner = nullptr;
 	AssetRegistry = nullptr;
@@ -216,7 +219,7 @@ void FEditorDomain::MarkNeedsLoadFromWorkspace(const FPackagePath& PackagePath, 
 	{
 		SaveClient->RequestSave(PackagePath);
 	}
-	// Otherwise, we will note the need for save in OnEndLoad
+	// Otherwise, we will note the need for save in OnEndLoadPackage
 
 }
 
@@ -419,7 +422,7 @@ void FEditorDomain::Tick(float DeltaTime)
 	}
 }
 
-void FEditorDomain::OnEndLoad(TConstArrayView<UPackage*> LoadedPackages)
+void FEditorDomain::OnEndLoadPackage(TConstArrayView<UPackage*> LoadedPackages)
 {
 	if (bExternalSave)
 	{
