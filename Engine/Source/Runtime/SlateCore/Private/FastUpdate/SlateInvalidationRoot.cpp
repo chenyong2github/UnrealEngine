@@ -675,6 +675,10 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 
 						// We need to keep it to run the layout calculation in FWidgetProxy::ProcessPostInvalidation
 						//EnumRemoveFlags(InvalidationWidget.CurrentInvalidateReason, EInvalidateWidgetReason::ChildOrder);
+
+						// The child may change and may become invalid but not the parent.
+						checkf(WidgetPtr->GetProxyHandle().IsValid(WidgetPtr) && WidgetPtr->GetProxyHandle().GetWidgetIndex() == InvalidationWidget.Index
+							, TEXT("The widget '%s' should be valid after a ProcessChildOrderInvalidation."), *FReflectionMetaData::GetWidgetDebugInfo(WidgetPtr));
 					}
 
 					if (EnumHasAnyFlags(InvalidationWidget.CurrentInvalidateReason, EInvalidateWidgetReason::AttributeRegistration))
