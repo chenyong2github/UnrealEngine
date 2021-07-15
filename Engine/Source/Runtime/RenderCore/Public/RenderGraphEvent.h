@@ -273,8 +273,6 @@ public:
 
 	explicit FRDGEventName(const TCHAR* EventFormat, ...);
 
-	~FRDGEventName();
-
 	FRDGEventName(const FRDGEventName& Other);
 	FRDGEventName(FRDGEventName&& Other);
 	FRDGEventName& operator=(const FRDGEventName& Other);
@@ -288,8 +286,7 @@ private:
 	const TCHAR* EventFormat = TEXT("");
 
 #if RDG_EVENTS == RDG_EVENTS_STRING_COPY
-	// Formated event name if GetEmitRDGEvents() == true.
-	FString FormatedEventName;
+	FString FormattedEventName;
 #endif
 #endif
 };
