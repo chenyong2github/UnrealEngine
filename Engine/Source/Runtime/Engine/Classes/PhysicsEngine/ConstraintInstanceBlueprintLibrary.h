@@ -15,6 +15,24 @@ class ENGINE_API UConstraintInstanceBlueprintLibrary : public UBlueprintFunction
 
 public:
 	//---------------------------------------------------------------------------------------------------
+	// 	   
+	// CONSTRAINT BODIES
+	// 
+	//---------------------------------------------------------------------------------------------------
+
+	/** Gets Attached body names 
+	*	@param Accessor		Constraint accessor to query
+	*	@param ParentBody	Parent body name of the constraint
+	*	@param ChildBody	Child body name of the constraint
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "rigid body name name parent child"))
+		static void GetAttachedBodyNames(
+			UPARAM(ref) FConstraintInstanceAccessor& Accessor,
+			FName& ParentBody,
+			FName& ChildBody
+		);
+
+	//---------------------------------------------------------------------------------------------------
 	//
 	// CONSTRAINT BEHAVIOR 
 	//
@@ -34,7 +52,7 @@ public:
 	*	@param Accessor		Constraint accessor to query
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "disable enable collision"))
-	static bool GetDisableCollsion(FConstraintInstanceAccessor& Accessor);
+	static bool GetDisableCollsion(UPARAM(ref) FConstraintInstanceAccessor& Accessor);
 
 	/** Sets projection parameters of the constraint
 	*	@param Accessor					Constraint accessor to change
@@ -78,7 +96,7 @@ public:
 	*	@param Accessor Constraint accessor to query
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
-	static bool GetParentDominates(FConstraintInstanceAccessor& Accessor);
+	static bool GetParentDominates(UPARAM(ref) FConstraintInstanceAccessor& Accessor);
 
 	//---------------------------------------------------------------------------------------------------
 	//
