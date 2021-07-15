@@ -339,6 +339,23 @@ namespace HordeServer.Models
 			}
 			return false;
 		}
+		/// <summary>
+		/// Determines if this is a remote action lease
+		/// </summary>
+		/// <returns>True if this is nn action lease</returns>
+		public bool IsActionLease()
+		{
+			if (Payload != null)
+			{
+				Any BasePayload = Any.Parser.ParseFrom(Payload);
+				if (BasePayload.Is(ActionTask.Descriptor))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
 
 		/// <summary>
 		/// Gets user-readable payload information
@@ -377,6 +394,14 @@ namespace HordeServer.Models
 					Details["SoftwareId"] = UpgradeTask.SoftwareId;
 					Details["LogId"] = UpgradeTask.LogId;
 				}
+
+				ActionTask ActionTask;
+				if (BasePayload.TryUnpack(out ActionTask))
+				{
+					Details["Type"] = "Action";
+					Details["LogId"] = ActionTask.LogId;
+				}
+
 			}
 			return Details;
 		}

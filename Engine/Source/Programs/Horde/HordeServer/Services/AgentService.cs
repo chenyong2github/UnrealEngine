@@ -444,6 +444,35 @@ namespace HordeServer.Services
 		}
 
 		/// <summary>
+		/// Cancels the specified agent lease
+		/// </summary>
+		/// <param name="Agent">Agent to cancel the lease on</param>
+		/// <param name="LeaseId">The lease id to cancel</param>
+		/// <returns></returns>
+		public async Task<bool> CancelLeaseAsync(IAgent Agent, ObjectId LeaseId)
+		{		
+			int Index = 0;
+			while (Index < Agent.Leases.Count && Agent.Leases[Index].Id != LeaseId)
+			{
+				Index++;
+			}
+
+			if (Index == Agent.Leases.Count)
+			{
+				return false;
+			}
+
+			if (Agent.Leases[Index].State == LeaseState.Cancelled)
+			{
+				return false;
+			}
+
+			await Agents.TryCancelLeaseAsync(Agent, Index);
+
+			return true;
+		}
+
+		/// <summary>
 		/// Updates the state of the current agent session
 		/// </summary>
 		/// <param name="InAgent">The current agent state</param>

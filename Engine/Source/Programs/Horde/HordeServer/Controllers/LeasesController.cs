@@ -20,6 +20,7 @@ using System.Reflection;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
 using AgentSoftwareChannelName = HordeServer.Utilities.StringId<HordeServer.Services.AgentSoftwareChannels>;
@@ -45,14 +46,21 @@ namespace HordeServer.Controllers
 		AgentService AgentService;
 
 		/// <summary>
+		/// Logger instance
+		/// </summary>
+		private ILogger<LeasesController> Logger;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="AclService">The ACL service singleton</param>
 		/// <param name="AgentService">The agent service</param>
-		public LeasesController(AclService AclService, AgentService AgentService)
+		/// <param name="Logger">The controller logger</param>
+		public LeasesController(AclService AclService, AgentService AgentService, ILogger<LeasesController> Logger)
 		{
 			this.AclService = AclService;
 			this.AgentService = AgentService;
+			this.Logger = Logger;
 		}
 
 		/// <summary>
@@ -125,5 +133,58 @@ namespace HordeServer.Controllers
 
 			return new GetAgentLeaseResponse(Lease);
 		}
+
+		/// <summary>
+		/// Update a particular lease
+		/// </summary>
+		/// <param name="LeaseId">Unique id of the particular lease</param>
+		/// <returns>Lease matching the given id</returns>
+		[HttpPut]
+		[Route("/api/v1/leases/{LeaseId}")]
+		public async Task<ActionResult> UpdateLeaseAsync(string LeaseId, [FromBody] UpdateLeaseRequest Request)
+		{
+			ObjectId LeaseIdValue = LeaseId.ToObjectId();
+
+			// only update supported right now is abort
+			if (!Request.Aborted.HasValue || !Request.Aborted.Value)
+			{
+				return Ok();
+			}
+
+			ILease? Lease = await AgentService.GetLeaseAsync(LeaseIdValue);
+			if (Lease == null)
+			{
+				return NotFound();
+			}
+
+			IAgent? Agent = await AgentService.GetAgentAsync(Lease.AgentId);
+			if (Agent == null)
+			{
+				return NotFound();
+			}
+
+			if (!await AgentService.AuthorizeAsync(Agent, AclAction.AdminWrite, User, null))
+			{
+				return Forbid();
+			}
+
+			AgentLease? AgentLease = Agent.Leases.FirstOrDefault(x => x.Id == LeaseIdValue);
+
+			if (AgentLease == null)
+			{
+				return NotFound();
+			}
+
+			if (!AgentLease.IsActionLease() && !AgentLease.IsConformLease())
+			{
+				Logger.LogError("Lease abort only supported on action and conform leases for now, {LeaseId}", LeaseId);
+				return Ok();
+			}
+
+			await AgentService.CancelLeaseAsync(Agent, LeaseIdValue);
+
+			return Ok();
+		}
+
 	}
 }

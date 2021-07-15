@@ -287,7 +287,7 @@ export type IssueQuery = {
 
 export type UsersQuery = {
 	ids?: string[];
-	nameRegex? : string;
+	nameRegex?: string;
 	index?: number;
 	count?: number;
 	includeAvatar?: boolean;
@@ -410,21 +410,37 @@ export type BatchUpdatePoolRequest = {
 	deleted?: boolean;
 }
 
-export enum LeaseOutcome {
-    
-    /** Default value. */
-    Unspecified = "Unspecified",
-    
-    /** The lease was executed successfully */
-    Success = "Success",
-    
-    /** The lease was not executed succesfully, but cannot be run again. */
-    Failed = "Failed",
-    
-    /** The lease was cancelled by request */
-    Cancelled = "Cancelled"
+/** Lease state for agent leases */
+export enum LeaseState {
 
-  }
+	Unspecified = "Unspecified",
+
+	Pending = "Pending",
+
+	Active = "Active",
+
+	Completed = "Completed",
+
+	Cancelled = "Cancelled"
+
+}
+
+
+export enum LeaseOutcome {
+
+	/** Default value. */
+	Unspecified = "Unspecified",
+
+	/** The lease was executed successfully */
+	Success = "Success",
+
+	/** The lease was not executed succesfully, but cannot be run again. */
+	Failed = "Failed",
+
+	/** The lease was cancelled by request */
+	Cancelled = "Cancelled"
+
+}
 
 
 /**Response for queries to find a particular lease within an agent */
@@ -467,7 +483,9 @@ export type GetAgentLeaseResponse = {
 	batch?: GetBatchResponse;
 
 	/** Outcome of the lease */
-	outcome? : LeaseOutcome;
+	outcome?: LeaseOutcome;
+
+	state?: LeaseState;
 
 }
 
@@ -2748,21 +2766,21 @@ export type GetPerforceServerStatusResponse = {
 
 /** Get object response which describes a device platform */
 export type GetDevicePlatformResponse = {
-	
-	/** Unique id of device platform */	
+
+	/** Unique id of device platform */
 	id: string;
-	
+
 	/** Friendly name of device platform */
-	name:string;
+	name: string;
 
 	/** Platform vendor models */
-	modelIds:string[];
+	modelIds: string[];
 }
 
 
 /** Device pool response object */
 export type GetDevicePoolResponse = {
-	
+
 	/**  Id of  the device pool */
 	id: string;
 
@@ -2799,43 +2817,43 @@ export type CreateDeviceResponse = {
 	id: string;
 
 }
-	
+
 /** Get response object which describes a device */
 export type GetDeviceResponse = {
-	
+
 	/** The unique id of the device */
 	id: string;
-	
+
 	/** The platform of the device */
 	platformId: string;
-	
+
 	/** The pool the device belongs to */
 	poolId: string;
-	
+
 	/** The friendly name of the device */
 	name: string;
-	
+
 	/** Whether the device is currently enabled */
 	enabled: boolean;
-	
+
 	/**  The address of the device (if it allows network connections) */
 	address?: string;
-	
+
 	/** The vendor model id of the device */
 	modelId?: string;
 
 	/** Any notes provided for the device */
-	notes? : string;	
-	
-	/** The UTC time when a device problem was reported */		
+	notes?: string;
+
+	/** The UTC time when a device problem was reported */
 	problemTime?: Date | string;
 
-	/** The UTC time when a device was set for maintenance */		
+	/** The UTC time when a device was set for maintenance */
 	maintenanceTime?: Date | string;
-	
+
 }
 
-/** Request object for updating a device */		
+/** Request object for updating a device */
 export type UpdateDeviceRequest = {
 
 	/** The pool to assign device to */
@@ -2847,11 +2865,11 @@ export type UpdateDeviceRequest = {
 	/** Whether the device is enabled */
 	enabled?: boolean;
 
-	/** Whether to clear any problem state */ 
-	problem?:boolean;
+	/** Whether to clear any problem state */
+	problem?: boolean;
 
 	/** Whether the device should be put into maintenance mode */
-	maintenance?:boolean;
+	maintenance?: boolean;
 
 	/** New address or hostname of device */
 	address?: string;
@@ -2863,40 +2881,45 @@ export type UpdateDeviceRequest = {
 	notes?: string;
 }
 
-	
+
 /** A reservation containing one or more devices */
 
 export type GetDeviceReservationResponse = {
-		
+
 	/** Randomly generated unique id for this reservation */
 	id: string;
 
 	/** Which device pool the reservation is in	*/
 	poolId: string;
-	
+
 	/** The reserved device ids	*/
-	devices:string[];
-	
-	/** JobID holding reservation */		
+	devices: string[];
+
+	/** JobID holding reservation */
 	jobId?: string;
-	
+
 	/** Job step id holding reservation	*/
 	stepId?: string;
-	
+
 	/** Reservations held by a user	*/
 	userId?: string;
-	
+
 	/** The hostname of machine holding reservation	*/
-	hostname?:string;
+	hostname?: string;
 
 	/** The optional details of the reservation	*/
-	reservationDetails?:string;
-	
-	/** The UTC time when the reservation was created */		
+	reservationDetails?: string;
+
+	/** The UTC time when the reservation was created */
 	createTimeUtc: Date | string;
-	
+
 	/** The legacy reservation system guid, to be removed once can update Gauntlet client in all streams */
 	legacyGuid: string;
 }
 
+/** Updates an existing lease */
+export type UpdateLeaseRequest = {
+	/** Mark this lease as aborted */
+	aborted?: boolean
+}
 
