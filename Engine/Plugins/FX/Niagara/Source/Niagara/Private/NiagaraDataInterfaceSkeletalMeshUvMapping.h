@@ -34,6 +34,7 @@ struct FSkeletalMeshUvMapping
 	FSkeletalMeshUvMapping() = delete;
 	FSkeletalMeshUvMapping(const FSkeletalMeshUvMapping&) = delete;
 	FSkeletalMeshUvMapping(TWeakObjectPtr<USkeletalMesh> InMeshObject, int32 InLodIndex, int32 InUvSetIndex);
+	~FSkeletalMeshUvMapping();
 
 	bool IsUsed() const;
 	bool CanBeDestroyed() const;

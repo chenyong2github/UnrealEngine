@@ -10,7 +10,7 @@ struct FSkeletalMeshConnectivity;
 class FSkeletalMeshConnectivityProxy : public FRenderResource
 {
 public:
-	void Initialize(const FSkeletalMeshConnectivity& ConnectivityData);
+	bool Initialize(const FSkeletalMeshConnectivity& ConnectivityData);
 
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
@@ -36,6 +36,7 @@ struct FSkeletalMeshConnectivity
 	FSkeletalMeshConnectivity() = delete;
 	FSkeletalMeshConnectivity(const FSkeletalMeshConnectivity&) = delete;
 	FSkeletalMeshConnectivity(TWeakObjectPtr<USkeletalMesh> InMeshObject, int32 InLodIndex);
+	~FSkeletalMeshConnectivity();
 
 	bool IsUsed() const;
 	bool CanBeDestroyed() const;
@@ -55,6 +56,8 @@ struct FSkeletalMeshConnectivity
 
 private:
 	static const FSkeletalMeshLODRenderData* GetLodRenderData(const USkeletalMesh& Mesh, int32 LodIndex);
+
+	void Release();
 
 	TWeakObjectPtr<USkeletalMesh> MeshObject;
 	TUniquePtr<FSkeletalMeshConnectivityProxy> Proxy;
