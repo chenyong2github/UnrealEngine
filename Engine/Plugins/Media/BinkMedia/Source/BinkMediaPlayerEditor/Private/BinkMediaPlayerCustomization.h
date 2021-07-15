@@ -26,7 +26,7 @@ struct FBinkMediaPlayerCustomization : public IDetailCustomization
 	}
 	FString HandleUrlPickerFileTypeFilter() const 
 	{ 
-		return TEXT("Bink files (*.bik)|*.bik|Bink 2 files (*.bk2)|*.bk2"); 
+		return TEXT("Bink 2 files (*.bk2)|*.bk2"); 
 	}
 	void HandleUrlPickerPathPicked( const FString& PickedPath );
 	EVisibility HandleUrlWarningIconVisibility() const;
