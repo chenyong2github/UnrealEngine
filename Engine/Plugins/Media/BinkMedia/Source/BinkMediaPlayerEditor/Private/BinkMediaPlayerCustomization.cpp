@@ -58,7 +58,7 @@ private:
 
 			TSharedPtr<SWindow> ParentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
 			void* ParentWindowHandle = (ParentWindow.IsValid() && ParentWindow->GetNativeWindow().IsValid()) ? ParentWindow->GetNativeWindow()->GetOSWindowHandle() : nullptr;
-			FString Filter = TEXT("Bink files (*.bik)|*.bik|Bink 2 files (*.bk2)|*.bk2");
+			FString Filter = TEXT("Bink 2 files (*.bk2)|*.bk2");
 
 			TArray<FString> OutFiles;
 		
