@@ -19,7 +19,7 @@ class IAnalysisSession;
 class FAnalysisCache : public IAnalysisCache
 {
 public:
-	explicit FAnalysisCache(const TCHAR* Name);
+	explicit FAnalysisCache(const TCHAR* Path);
 	virtual ~FAnalysisCache() override;
 
 	virtual FCacheId GetCacheId(const TCHAR* Name, uint16 Flags) override;

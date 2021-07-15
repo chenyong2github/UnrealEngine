@@ -7,6 +7,7 @@
 #include "Logging/MessageLog.h"
 #include "MessageLog/Public/MessageLogModule.h"
 #include "Misc/CString.h"
+#include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 #include "Templates/UniquePtr.h"
 #include "Trace/StoreClient.h"
@@ -623,12 +624,13 @@ void FInsightsManager::LoadTrace(uint32 InTraceId, bool InAutoQuit)
 		return;
 	}
 
-	FString TraceName;
+	FString TraceName(StoreClient->GetStatus()->GetStoreDir());
 	const UE::Trace::FStoreClient::FTraceInfo* TraceInfo = StoreClient->GetTraceInfoById(InTraceId);
 	if (TraceInfo != nullptr)
 	{
 		FAnsiStringView Name = TraceInfo->GetName();
-		TraceName = FString(Name.Len(), Name.GetData());
+		TraceName = FPaths::Combine(TraceName, FString(Name.Len(), Name.GetData()));
+		TraceName = FPaths::SetExtension(TraceName, ".utrace");
 	}
 
 	Session = AnalysisService->StartAnalysis(*TraceName, MoveTemp(TraceData));
