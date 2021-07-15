@@ -43,13 +43,16 @@ void FDisplayClusterProjectionCameraPolicy::HandleEndScene(class IDisplayCluster
 
 APlayerCameraManager* const GetCurPlayerCameraManager(IDisplayClusterViewport* InViewport)
 {
-	UWorld* World = InViewport->GetOwner().GetCurrentWorld();
-	if (World)
+	if (InViewport)
 	{
-		APlayerController* const CurPlayerController = World->GetFirstPlayerController();
-		if (CurPlayerController)
+		UWorld* World = InViewport->GetOwner().GetCurrentWorld();
+		if (World)
 		{
-			return CurPlayerController->PlayerCameraManager;
+			APlayerController* const CurPlayerController = World->GetFirstPlayerController();
+			if (CurPlayerController)
+			{
+				return CurPlayerController->PlayerCameraManager;
+			}
 		}
 	}
 
@@ -91,12 +94,12 @@ bool FDisplayClusterProjectionCameraPolicy::CalculateView(class IDisplayClusterV
 	else
 	{
 		APlayerCameraManager* const CurPlayerCameraManager = GetCurPlayerCameraManager(InViewport);
-				if (CurPlayerCameraManager)
-				{
-					InOutViewLocation = CurPlayerCameraManager->GetCameraLocation();
-					InOutViewRotation = CurPlayerCameraManager->GetCameraRotation();
-				}
-			}
+		if (CurPlayerCameraManager)
+		{
+			InOutViewLocation = CurPlayerCameraManager->GetCameraLocation();
+			InOutViewRotation = CurPlayerCameraManager->GetCameraRotation();
+		}
+	}
 
 	// Fix camera lens deffects (prototype)
 	InOutViewLocation += CameraSettings.FrustumOffset;
