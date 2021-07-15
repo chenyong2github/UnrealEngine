@@ -268,6 +268,7 @@ void FStaticMeshCompilingManager::PostCompilation(UStaticMesh* StaticMesh)
 			// Do not do anything else if the staticmesh is being garbage collected
 			if (StaticMesh->IsUnreachable())
 			{
+				StaticMesh->ReleaseAsyncProperty();
 				return;
 			}
 

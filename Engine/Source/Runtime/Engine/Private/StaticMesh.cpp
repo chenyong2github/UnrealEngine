@@ -3884,6 +3884,7 @@ bool UStaticMesh::TryCancelAsyncTasks()
 		if (AsyncTask->IsDone() || AsyncTask->Cancel())
 		{
 			AsyncTask.Reset();
+			ReleaseAsyncProperty();
 		}
 	}
 
