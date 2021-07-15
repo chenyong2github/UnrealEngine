@@ -87,6 +87,17 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Duplicate this string
+		/// </summary>
+		/// <returns></returns>
+		public Utf8String Clone()
+		{
+			byte[] NewBuffer = new byte[Memory.Length];
+			Memory.CopyTo(NewBuffer);
+			return new Utf8String(NewBuffer);
+		}
+
+		/// <summary>
 		/// Tests two strings for equality
 		/// </summary>
 		/// <param name="A">The first string to compare</param>
