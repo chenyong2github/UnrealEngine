@@ -232,7 +232,8 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-		const uint8 NumMips = bEnableGenMips ? Params.NumMips : 1;
+		// Sample mips should override the mips set by settings (EXR provides mips automatically, independently from Mip settings)
+		const uint8 NumMips = bEnableGenMips && Sample->GetNumMips() == 1 ? Params.NumMips : Sample->GetNumMips();
 
 		// If real "external texture" support is in place and no mips are used the image will "bypass" any of this processing via the GUID-based lookup for "ExternalTextures" and will
 		// reach the reading material shader without any processing here...
@@ -580,6 +581,16 @@ void FMediaTextureResource::ReleaseDynamicRHI()
 
  bool FMediaTextureResource::RequiresConversion(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, uint8 InNumMips) const
  {
+	 // Resources that support mip maps, such as EXR, have to be presented in the right pixel format, but otherwise shouldn't need conversion.
+	 if (InNumMips != 1)
+	 {
+		 const EMediaTextureSampleFormat Format = Sample->GetFormat();
+		 check(Format == EMediaTextureSampleFormat::CharBGRA ||
+			 Format == EMediaTextureSampleFormat::FloatRGB ||
+			 Format == EMediaTextureSampleFormat::FloatRGBA);
+		 return false;
+	 }
+
 	 if (Owner.NewStyleOutput)
 	 {
 		 //
@@ -593,7 +604,7 @@ void FMediaTextureResource::ReleaseDynamicRHI()
 
 		 // If we have no mips in the sample, but want to have some in the output, we use the conversion pass
 		 // to setup level 0 and have a suitable output texture
-		 if (Texture && Texture->GetNumMips() == 1 && InNumMips != 1)
+		 if (Texture && Texture->GetNumMips() == 1)
 		 {
 			 return true;
 		 }
