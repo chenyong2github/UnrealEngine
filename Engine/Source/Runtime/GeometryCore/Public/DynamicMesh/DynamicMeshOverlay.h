@@ -506,7 +506,7 @@ protected:
 	void SetElementFromBary(int SetElement, int ElementA, int ElementB, int ElementC, const FVector3<double>& BaryCoords);
 
 	/** updates the triangles array and optionally the element reference counts */
-	void InternalSetTriangle(int TriangleID, const FIndex3i& TriElements, bool bIncrementRefCounts);
+	void InternalSetTriangle(int TriangleID, const FIndex3i& TriElements, bool bUpdateRefCounts);
 
 };
 

@@ -72,6 +72,8 @@ public:
 	inline void Fill(const Type& Value);
 	inline void Resize(size_t Count);
 	inline void Resize(size_t Count, const Type& InitValue);
+	/// Resize if Num() is less than Count; returns true if resize occurred
+	inline bool SetMinimumSize(size_t Count, const Type& InitValue);
 	inline void SetNum(size_t Count) { Resize(Count); }
 
 	inline bool IsEmpty() const { return CurBlock == 0 && CurBlockUsed == 0; }
@@ -85,6 +87,7 @@ public:
 	inline void PopBack();
 
 	inline void InsertAt(const Type& Data, unsigned int Index);
+	inline void InsertAt(const Type& Data, unsigned int Index, const Type& InitValue);
 	inline Type& ElementAt(unsigned int Index, Type InitialValue = Type{});
 
 	inline const Type& Front() const { return Blocks[0][0]; }
@@ -631,6 +634,22 @@ void TDynamicVector<Type>::Resize(size_t Count, const Type& InitValue)
 }
 
 template <class Type>
+bool TDynamicVector<Type>::SetMinimumSize(size_t Count, const Type& InitValue)
+{
+	size_t nCurSize = GetLength();
+	if (Count <= nCurSize)
+	{
+		return false;
+	}
+	Resize(Count);
+	for (size_t Index = nCurSize; Index < Count; ++Index)
+	{
+		this->operator[](Index) = InitValue;
+	}
+	return true;
+}
+
+template <class Type>
 void TDynamicVector<Type>::Add(const Type& Value)
 {
 	if (CurBlockUsed == BlockSize)
@@ -705,6 +724,18 @@ void TDynamicVector<Type>::InsertAt(const Type& AddData, unsigned int Index)
 	else
 	{
 		(*this)[Index] = AddData;
+	}
+}
+
+template <class Type>
+void TDynamicVector<Type>::InsertAt(const Type& AddData, unsigned int Index, const Type& InitValue)
+{
+	size_t nCurSize = GetLength();
+	InsertAt(AddData, Index);
+	// initialize all new values up to (but not including) the inserted index
+	for (size_t i = nCurSize; i < (size_t)Index; ++i)
+	{
+		this->operator[](Index) = InitValue;
 	}
 }
 
