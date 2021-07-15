@@ -61,44 +61,29 @@ struct FVertexFactoryInput
 
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
 	#if !MANUAL_VERTEX_FETCH
-		#if !PACK_TEX_COORDS
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 0
-				float2	TexCoords0 : ATTRIBUTE4;
-			#endif
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
-				float2	TexCoords1 : ATTRIBUTE5;
-			#endif
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 2
-				float2	TexCoords2 : ATTRIBUTE6;
-			#endif
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 3
-				float2	TexCoords3 : ATTRIBUTE7;
-			#endif
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 4
-				float2	TexCoords4 : ATTRIBUTE8;
-			#endif
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 5
-				float2	TexCoords5 : ATTRIBUTE9;
-			#endif
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 6
-				float2	TexCoords5 : ATTRIBUTE10;
-			#endif
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 7
-				float2	TexCoords5 : ATTRIBUTE11;
-			#endif
-		#else
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
-				float4	PackedTexCoords4[NUM_MATERIAL_TEXCOORDS_VERTEX/2] : ATTRIBUTE4;
-			#endif
-			#if NUM_MATERIAL_TEXCOORDS_VERTEX == 1
-				float2	PackedTexCoords2 : ATTRIBUTE4;
-			#elif NUM_MATERIAL_TEXCOORDS_VERTEX == 3
-				float2	PackedTexCoords2 : ATTRIBUTE5;
-			#elif NUM_MATERIAL_TEXCOORDS_VERTEX == 5
-				float2	PackedTexCoords2 : ATTRIBUTE6;
-			#elif NUM_MATERIAL_TEXCOORDS_VERTEX == 7
-				float2	PackedTexCoords2 : ATTRIBUTE7;
-			#endif
+		// These used to be packed texcoord arrays, but these cause problems with alighnment on some Vulkan drivers
+		#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
+			float4	TexCoords0 : ATTRIBUTE4;
+		#elif NUM_MATERIAL_TEXCOORDS_VERTEX == 1
+			float2	TexCoords0 : ATTRIBUTE4;
+		#endif
+
+		#if NUM_MATERIAL_TEXCOORDS_VERTEX > 3
+			float4	TexCoords1 : ATTRIBUTE5;
+		#elif NUM_MATERIAL_TEXCOORDS_VERTEX == 3
+			float2	TexCoords1 : ATTRIBUTE5;
+		#endif
+
+		#if NUM_MATERIAL_TEXCOORDS_VERTEX > 5
+			float4	TexCoords2 : ATTRIBUTE6;
+		#elif NUM_MATERIAL_TEXCOORDS_VERTEX == 5
+			float2	TexCoords2 : ATTRIBUTE6;
+		#endif
+
+		#if NUM_MATERIAL_TEXCOORDS_VERTEX > 7
+			float4	TexCoords3 : ATTRIBUTE7;
+		#elif NUM_MATERIAL_TEXCOORDS_VERTEX == 7
+			float2	TexCoords3 : ATTRIBUTE7;
 		#endif
 	#endif
 #elif USE_PARTICLE_SUBUVS && !MANUAL_VERTEX_FETCH
@@ -279,46 +264,29 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 		Result.TexCoords[CoordinateIndex] = GeometryCollectionVF.VertexFetch_TexCoordBuffer[NumFetchTexCoords * (GeometryCollectionVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId) + ClampedCoordinateIndex];
 	}
 #elif NUM_MATERIAL_TEXCOORDS_VERTEX
-	#if !PACK_TEX_COORDS
-		#if NUM_MATERIAL_TEXCOORDS_VERTEX > 0
-			Result.TexCoords[0] = Input.TexCoords0;
-		#endif
-		#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
-			Result.TexCoords[1] = Input.TexCoords1;
-		#endif
-		#if NUM_MATERIAL_TEXCOORDS_VERTEX > 2
-			Result.TexCoords[2] = Input.TexCoords2;
-		#endif
-		#if NUM_MATERIAL_TEXCOORDS_VERTEX > 3
-			Result.TexCoords[3] = Input.TexCoords3;
-		#endif
-		#if NUM_MATERIAL_TEXCOORDS_VERTEX > 4
-			Result.TexCoords[4] = Input.TexCoords4;
-		#endif
-		#if NUM_MATERIAL_TEXCOORDS_VERTEX > 5
-			Result.TexCoords[5] = Input.TexCoords5;
-		#endif
-		#if NUM_MATERIAL_TEXCOORDS_VERTEX > 6
-			Result.TexCoords[5] = Input.TexCoords5;
-		#endif
-		#if NUM_MATERIAL_TEXCOORDS_VERTEX > 7
-			Result.TexCoords[7] = Input.TexCoords7;
-		#endif
-	#else
-		#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
-			UNROLL
-			for(int CoordinateIndex = 0; CoordinateIndex < NUM_MATERIAL_TEXCOORDS_VERTEX-1; CoordinateIndex+=2)
-			{
-				Result.TexCoords[CoordinateIndex] = Input.PackedTexCoords4[CoordinateIndex/2].xy;
-				if( CoordinateIndex+1 < NUM_MATERIAL_TEXCOORDS_VERTEX )
-				{
-					Result.TexCoords[CoordinateIndex+1] = Input.PackedTexCoords4[CoordinateIndex/2].zw;
-				}
-			}
-		#endif	// NUM_MATERIAL_TEXCOORDS_VERTEX > 1
-		#if NUM_MATERIAL_TEXCOORDS_VERTEX % 2 == 1
-			Result.TexCoords[NUM_MATERIAL_TEXCOORDS_VERTEX-1] = Input.PackedTexCoords2;
-		#endif	// NUM_MATERIAL_TEXCOORDS_VERTEX % 2 == 1
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 0
+		Result.TexCoords[0] = Input.TexCoords0.xy;
+	#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
+		Result.TexCoords[1] = Input.TexCoords0.zw;
+	#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 2
+		Result.TexCoords[2] = Input.TexCoords1.xy;
+	#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 3
+		Result.TexCoords[3] = Input.TexCoords1.zw;
+	#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 4
+		Result.TexCoords[4] = Input.TexCoords2.xy;
+	#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 5
+		Result.TexCoords[5] = Input.TexCoords2.zw;
+	#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 6
+		Result.TexCoords[6] = Input.TexCoords3.xy;
+	#endif
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 7
+		Result.TexCoords[7] = Input.TexCoords3.zw;
 	#endif
 #endif  //MANUAL_VERTEX_FETCH && NUM_MATERIAL_TEXCOORDS_VERTEX
 
