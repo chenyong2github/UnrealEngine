@@ -3,6 +3,23 @@
 #include "PhysicsEngine/ConstraintInstanceBlueprintLibrary.h"
 
 //---------------------------------------------------------------------------------------------------
+// 	   
+// CONSTRAINT BODIES
+// 
+//---------------------------------------------------------------------------------------------------
+void UConstraintInstanceBlueprintLibrary::GetAttachedBodyNames(
+	FConstraintInstanceAccessor& Accessor,
+	FName& ParentBody,
+	FName& ChildBody
+)
+{
+	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
+	{
+		ParentBody = ConstraintInstance->GetParentBoneName();
+		ChildBody = ConstraintInstance->GetChildBoneName();
+	}
+}
+//---------------------------------------------------------------------------------------------------
 //
 // CONSTRAINT BEHAVIOR 
 //
