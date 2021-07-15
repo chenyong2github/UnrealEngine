@@ -34,6 +34,7 @@ struct SCENEOUTLINER_API FActorModeParams
 	TWeakObjectPtr<UWorld> SpecifiedWorldToDisplay = nullptr;
 	SSceneOutliner* SceneOutliner = nullptr;
 	bool bHideComponents = true;
+	bool bHideActorWithNoComponent = false;
 	bool bHideLevelInstanceHierarchy = true;
 	bool bHideUnloadedActors = true;
 };
@@ -84,6 +85,8 @@ protected:
 
 	/** Should components be hidden */
 	bool bHideComponents;
+	/** Should actor with no component be hidden. */
+	bool bHideActorWithNoComponent;
 	/** Should the level instance hierarchy be hidden */
 	bool bHideLevelInstanceHierarchy;
 	/** Should unloaded actors be hidden */

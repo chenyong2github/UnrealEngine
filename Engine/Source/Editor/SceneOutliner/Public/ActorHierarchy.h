@@ -25,6 +25,7 @@ public:
 	virtual FSceneOutlinerTreeItemPtr CreateParentItem(const FSceneOutlinerTreeItemPtr& Item) const override;
 
 	void SetShowingComponents(bool bInShowingComponents) { bShowingComponents = bInShowingComponents; }
+	void SetShowingOnlyActorWithValidComponents(bool bInShowingOnlyActorWithValidComponents) { bShowingOnlyActorWithValidComponents = bInShowingOnlyActorWithValidComponents; }
 	void SetShowingLevelInstances(bool bInShowingLevelInstances) { bShowingLevelInstances = bInShowingLevelInstances; }
 	void SetShowingUnloadedActors(bool bInShowingUnloadedActors) { bShowingUnloadedActors = bInShowingUnloadedActors; }
 private:
@@ -72,6 +73,7 @@ private:
 	TWeakObjectPtr<UWorld> RepresentingWorld;
 	
 	bool bShowingComponents = false;
+	bool bShowingOnlyActorWithValidComponents = false;
 	bool bShowingLevelInstances = false;
 	bool bShowingUnloadedActors = false;
 private:

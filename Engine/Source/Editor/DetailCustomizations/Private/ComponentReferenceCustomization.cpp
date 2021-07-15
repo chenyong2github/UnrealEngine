@@ -57,7 +57,23 @@ void FComponentReferenceCustomization::CustomizeHeader(TSharedRef<IPropertyHandl
 		BuildComboBox();
 
 		InPropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FComponentReferenceCustomization::OnPropertyValueChanged));
-		OnPropertyValueChanged();
+
+		// set cached values
+		{
+			CachedComponent.Reset();
+			CachedFirstOuterActor = GetFirstOuterActor();
+
+			FComponentReference TmpComponentReference;
+			CachedPropertyAccess = GetValue(TmpComponentReference);
+			if (CachedPropertyAccess == FPropertyAccess::Success)
+			{
+				CachedComponent = TmpComponentReference.GetComponent(CachedFirstOuterActor.Get());
+				if (!IsComponentReferenceValid(TmpComponentReference))
+				{
+					CachedComponent.Reset();
+				}
+			}
+		}
 
 		HeaderRow.NameContent()
 		[
@@ -558,7 +574,7 @@ void FComponentReferenceCustomization::OnMenuOpenChanged(bool bOpen)
 
 bool FComponentReferenceCustomization::IsFilteredActor(const AActor* const Actor) const
 {
-	return false;
+	return bAllowAnyActor || Actor == CachedFirstOuterActor.Get();
 }
 
 bool FComponentReferenceCustomization::IsFilteredComponent(const UActorComponent* const Component) const
