@@ -167,7 +167,7 @@ float Lumen::GetMaxTraceDistance()
 
 void FHemisphereDirectionSampleGenerator::GenerateSamples(int32 TargetNumSamples, int32 InPowerOfTwoDivisor, int32 InSeed, bool bInFullSphere, bool bInCosineDistribution)
 {
-	int32 NumThetaSteps = FMath::TruncToInt(FMath::Sqrt(TargetNumSamples / ((float)PI)));
+	int32 NumThetaSteps = FMath::Max(FMath::TruncToInt(FMath::Sqrt(TargetNumSamples / ((float)PI))), 1);
 	//int32 NumPhiSteps = FMath::TruncToInt(NumThetaSteps * (float)PI);
 	int32 NumPhiSteps = FMath::DivideAndRoundDown(TargetNumSamples, NumThetaSteps);
 	NumPhiSteps = FMath::Max(FMath::DivideAndRoundDown(NumPhiSteps, InPowerOfTwoDivisor), 1) * InPowerOfTwoDivisor;
