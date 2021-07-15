@@ -955,7 +955,7 @@ void SDetailsView::OnShowHiddenPropertiesWhilePlayingClicked()
 {
 	const bool bNewValue = !IsShowHiddenPropertiesWhilePlayingChecked();
 
-	GetMutableViewConfig().bShowAllAdvanced = bNewValue;
+	GetMutableViewConfig().bShowHiddenPropertiesWhilePlaying = bNewValue;
 	SaveViewConfig();
 
 	GConfig->SetBool(TEXT("/Script/EditorStyle.EditorStyleSettings"), TEXT("bShowHiddenPropertiesWhilePlaying"), bNewValue, GEditorPerProjectIni);
