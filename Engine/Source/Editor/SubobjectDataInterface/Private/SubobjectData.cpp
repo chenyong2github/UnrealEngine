@@ -190,6 +190,19 @@ UActorComponent* FSubobjectData::FindMutableComponentInstanceInActor(const AActo
 			InActor->GetComponents(Components);
 			ComponentInstance = FComponentEditorUtils::FindMatchingComponent(ComponentTemplate, Components); 
 		}
+
+		if (!ComponentInstance && SCS_Node)
+		{
+			TInlineComponentArray<UActorComponent*> Components;
+			InActor->GetComponents(Components);
+
+			UActorComponent** MatchingArchetype = Components.FindByPredicate([SCS_Node](const UActorComponent* A)
+			{
+				return A && A->GetArchetype() == SCS_Node->ComponentTemplate;
+			});
+
+			ComponentInstance = MatchingArchetype ? *MatchingArchetype : nullptr;
+		}
 	}
 
 	return ComponentInstance;
