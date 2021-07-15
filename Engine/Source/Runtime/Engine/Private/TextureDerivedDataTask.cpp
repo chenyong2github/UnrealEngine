@@ -794,7 +794,7 @@ void FTextureCacheDerivedDataWorker::DoWork()
 							ChunkKeys.Add(Chunk.DerivedDataKey);
 						}
 					}
-					GetDerivedDataCacheRef().TryToPrefetch(ChunkKeys, TEXT("DerivedVTChunks"_SV));
+					GetDerivedDataCacheRef().TryToPrefetch(ChunkKeys, Texture.GetPathName());
 				}
 			}
 
@@ -818,7 +818,7 @@ void FTextureCacheDerivedDataWorker::DoWork()
 			{
 				bSucceeded =	DerivedData->VTData != nullptr &&
 								DerivedData->VTData->IsInitialized() &&
-								DerivedData->AreDerivedVTChunksAvailable();
+								DerivedData->AreDerivedVTChunksAvailable(Texture.GetPathName());
 
 				if (!bSucceeded)
 				{
@@ -827,7 +827,7 @@ void FTextureCacheDerivedDataWorker::DoWork()
 			}
 			else
 			{
-				bSucceeded = DerivedData->AreDerivedMipsAvailable();
+				bSucceeded = DerivedData->AreDerivedMipsAvailable(Texture.GetPathName());
 				if (!bSucceeded)
 				{
 					UE_LOG(LogTexture, Display, TEXT("Texture %s is missing derived mips. The texture will be rebuilt."), *Texture.GetFullName());
