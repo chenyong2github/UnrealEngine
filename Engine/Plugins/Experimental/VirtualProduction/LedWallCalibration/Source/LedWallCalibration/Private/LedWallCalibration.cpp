@@ -10,6 +10,7 @@
 #include "Engine/Texture2D.h"
 #include "LedWallArucoGenerationOptions.h"
 #include "LedWallCalibrationLog.h"
+#include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
 
 
@@ -187,13 +188,10 @@ namespace LedWallCalibration
 		// Iterate over all the triangles
 		for (const FTriangleID& TriangleElementId : MeshDescription->Triangles().GetElementIDs())
 		{
-			// Get the triangle
-			const FMeshTriangle& MeshTriangle = MeshDescription->Triangles()[TriangleElementId];
-
 			// Get the 3 vertex instance ids of the triangle
-			const FVertexInstanceID& VI0 = MeshTriangle.GetVertexInstanceID(0);
-			const FVertexInstanceID& VI1 = MeshTriangle.GetVertexInstanceID(1);
-			const FVertexInstanceID& VI2 = MeshTriangle.GetVertexInstanceID(2);
+			const FVertexInstanceID& VI0 = MeshDescription->GetTriangleVertexInstance(TriangleElementId, 0);
+			const FVertexInstanceID& VI1 = MeshDescription->GetTriangleVertexInstance(TriangleElementId, 1);
+			const FVertexInstanceID& VI2 = MeshDescription->GetTriangleVertexInstance(TriangleElementId, 2);
 
 			// Get the 3 vertex ids of the triangle
 			const FVertexID& V0 = MeshDescription->GetVertexInstanceVertex(VI0);
