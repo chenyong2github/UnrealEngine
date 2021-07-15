@@ -154,7 +154,7 @@ void MeshDebugDraw::DrawHierarchicalGrid(
 	}
 	
 	//Determine the center of the drawing area for the grid, snapping to grid positions
-	FVector GridOrigin(
+	FVector3f GridOrigin(
 		FMath::GridSnap(LocalFrame.Origin.X, GridScales[0]),
 		FMath::GridSnap(LocalFrame.Origin.Y, GridScales[0]),
 		LocalFrame.Origin.Z);
