@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -119,7 +119,8 @@ public:
 		return PinType;
 	}
 
-	static bool CPPTypeFromPinType(const FEdGraphPinType& InPinType, FString& OutCPPType, UObject*& OutCPPTypeObject)
+	template <typename T>
+	static bool CPPTypeFromPinType(const FEdGraphPinType& InPinType, FString& OutCPPType, T& OutCPPTypeObject)
 	{
 		FString Prefix = "";
 		FString Suffix = "";
