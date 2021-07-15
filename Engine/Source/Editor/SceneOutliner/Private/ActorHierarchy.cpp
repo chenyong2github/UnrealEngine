@@ -278,10 +278,27 @@ void FActorHierarchy::CreateWorldChildren(UWorld* World, TArray<FSceneOutlinerTr
 
 		if (FSceneOutlinerTreeItemPtr ActorItem = Mode->CreateItemFor<FActorTreeItem>(Actor))
 		{
-			OutItems.Add(ActorItem);
+			if (bShowingOnlyActorWithValidComponents)
+			{
+				int32 InsertLocation = OutItems.Num();
 
-			// Create all component items
-			CreateComponentItems(Actor, OutItems);
+				// Create all component items
+				CreateComponentItems(Actor, OutItems);
+
+				if (OutItems.Num() != InsertLocation)
+				{
+					// Add the actor before the components
+					OutItems.Insert(ActorItem, InsertLocation);
+				}
+			}
+			else
+			{
+				OutItems.Add(ActorItem);
+
+				// Create all component items
+				CreateComponentItems(Actor, OutItems);
+			}
+
 		}
 	}
 

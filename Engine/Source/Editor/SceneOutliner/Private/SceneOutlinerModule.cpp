@@ -104,6 +104,7 @@ TSharedRef<ISceneOutliner> FSceneOutlinerModule::CreateComponentPicker(const FSc
 			Params.SceneOutliner = Outliner;
 			Params.SpecifiedWorldToDisplay = SpecifiedWorld;
 			Params.bHideComponents = false;
+			Params.bHideActorWithNoComponent = true;
 			Params.bHideLevelInstanceHierarchy = true;
 			Params.bHideUnloadedActors = true;
 			return new FActorPickingMode(Params, OnItemPicked);
