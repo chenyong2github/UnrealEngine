@@ -14,22 +14,28 @@
 	"IsBetaVersion": true,
 	"Installed": false,
 	"EnabledByDefault": false,
-	"WhitelistPlatforms": [
-		"Win64",
-		"Win32",
-		"Linux",
-		"Mac"
-	],
 	"Modules": [
 		{
 			"Name": "LedWallCalibrationEditor",
 			"Type": "Editor",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64",
+				"Win32",
+				"Linux",
+				"Mac"
+			]
 		},
 		{
 			"Name": "LedWallCalibration",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64",
+				"Win32",
+				"Linux",
+				"Mac"
+			]
 		}
 	],
 	"Plugins": [
