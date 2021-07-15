@@ -232,9 +232,6 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 		// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-		// Sample mips should override the mips set by settings (EXR provides mips automatically, independently from Mip settings)
-		const uint8 NumMips = bEnableGenMips && Sample->GetNumMips() == 1 ? Params.NumMips : Sample->GetNumMips();
-
 		// If real "external texture" support is in place and no mips are used the image will "bypass" any of this processing via the GUID-based lookup for "ExternalTextures" and will
 		// reach the reading material shader without any processing here...
 		// (note that if "new style output" is enabled we will ALWAYS see bUsesImageExternal as FALSE)
@@ -243,6 +240,9 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 			//
 			// Valid sample & Sample should be shown
 			//
+
+			// Sample mips should override the mips set by settings (EXR provides mips automatically, independently from Mip settings)
+			const uint8 NumMips = bEnableGenMips && Sample->GetNumMips() == 1 ? Params.NumMips : Sample->GetNumMips();
 
 			bool ConvertOrCopyNeeded = false;
 
