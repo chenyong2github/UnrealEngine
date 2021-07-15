@@ -3601,11 +3601,10 @@ void FAdaptiveStreamingPlayerWorkerThread::WorkerThreadFN()
 	{
 		HaveWorkSignal.WaitTimeoutAndReset(1000 * 20);
 
-		TArray<FAdaptiveStreamingPlayer*>	ActiveInstances(PlayerInstances);
 		SingletonLock.Lock();
-		for(int32 i=0; i<ActiveInstances.Num(); ++i)
+		for(int32 i=0; i<PlayerInstances.Num(); ++i)
 		{
-			ActiveInstances[i]->HandleOnce();
+			PlayerInstances[i]->HandleOnce();
 		}
 		SingletonLock.Unlock();
 	}
