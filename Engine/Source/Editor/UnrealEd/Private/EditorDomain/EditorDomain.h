@@ -75,7 +75,6 @@ public:
 		FPackageSegmentStatVisitor Callback) override;
 	virtual void IteratePackagesStatInLocalOnlyDirectory(FStringView RootDir, 
 		FPackageSegmentStatVisitor Callback) override;
-	virtual void OnEndLoad(TConstArrayView<UPackage*> LoadedPackages) override;
 
 	// FTickableEditorObject interface
 	virtual void Tick(float DeltaTime) override;
@@ -84,6 +83,7 @@ public:
 
 	// EditorDomain interface
 	void PrecachePackageDigest(FName PackageName);
+	void OnEndLoadPackage(TConstArrayView<UPackage*> LoadedPackages);
 
 private:
 	/**

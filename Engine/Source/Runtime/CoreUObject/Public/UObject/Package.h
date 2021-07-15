@@ -176,6 +176,11 @@ public:
 	/** Whether this package has been fully loaded (aka had all it's exports created) at some point.															*/
 	mutable uint8 bHasBeenFullyLoaded:1;
 
+#if WITH_EDITORONLY_DATA
+	/** Set to true after serialization and postload and before returning from LoadPackage or calling load completion delegate, for loaded packages.			*/
+	uint8 bHasBeenEndLoaded : 1;
+#endif
+
 	/**
 	 * Whether this package can be imported, i.e. its package name is a package that exists on disk.
 	 * Note: This includes all normal packages where the Name matches the FileName

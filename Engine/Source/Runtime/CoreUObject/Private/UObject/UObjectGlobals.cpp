@@ -148,6 +148,7 @@ FCoreUObjectDelegates::FOnObjectModified FCoreUObjectDelegates::OnObjectModified
 FCoreUObjectDelegates::FOnObjectTransacted FCoreUObjectDelegates::OnObjectTransacted;
 FCoreUObjectDelegates::FOnObjectsReplaced FCoreUObjectDelegates::OnObjectsReplaced;
 FCoreUObjectDelegates::FOnAssetLoaded FCoreUObjectDelegates::OnAssetLoaded;
+FCoreUObjectDelegates::FOnEndLoadPackage FCoreUObjectDelegates::OnEndLoadPackage;
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FCoreUObjectDelegates::FOnObjectSaved FCoreUObjectDelegates::OnObjectSaved;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1420,14 +1421,17 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 		Result->SetFlags(RF_WasLoaded);
 	}
 
-	if (GIsEditor)
+#if WITH_EDITOR
+	if (GIsEditor && !IsInAsyncLoadingThread() && GGameThreadLoadCounter == 0)
 	{
-		if (IsInGameThread() && !IsInAsyncLoadingThread() && GGameThreadLoadCounter == 0)
+		// check(IsInGameThread() was called above, but we still need to test !IsInAsyncLoadingThread to exclude that callsite when the engine is single-threaded
+		for (UPackage* LoadedPackage : LoadedPackages)
 		{
-			IPackageResourceManager::Get().OnEndLoad(LoadedPackages);
+			LoadedPackage->bHasBeenEndLoaded = true;
 		}
+		FCoreUObjectDelegates::OnEndLoadPackage.Broadcast(LoadedPackages);
 	}
-
+#endif
 	return Result;
 }
 

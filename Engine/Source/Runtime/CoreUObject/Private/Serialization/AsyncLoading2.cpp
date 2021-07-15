@@ -5734,6 +5734,15 @@ void FAsyncPackage2::CallCompletionCallbacks(EAsyncLoadingResult::Type LoadingRe
 	checkSlow(IsInGameThread());
 
 	UPackage* LoadedPackage = (!bLoadHasFailed) ? LinkerRoot : nullptr;
+#if WITH_EDITOR
+	if (GIsEditor && LoadedPackage)
+	{
+		// Call the global delegate for package endloads, which is a kind of completioncallback,
+		// and set the bHasBeenLoaded flag that is used to check which packages have reached this state
+		LoadedPackage->bHasBeenEndLoaded = true;
+		FCoreUObjectDelegates::OnEndLoadPackage.Broadcast(TConstArrayView<UPackage*> { LoadedPackage });
+	}
+#endif
 	for (FCompletionCallback& CompletionCallback : CompletionCallbacks)
 	{
 		CompletionCallback->ExecuteIfBound(Desc.GetUPackageName(), LoadedPackage, LoadingResult);

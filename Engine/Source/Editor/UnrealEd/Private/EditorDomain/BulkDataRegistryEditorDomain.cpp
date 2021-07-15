@@ -53,10 +53,12 @@ FBulkDataRegistryEditorDomain::FBulkDataRegistryEditorDomain()
 	SharedDataLock = new FTaskSharedDataLock();
 	// We piggyback on the BulkDataRegistry hook to set the pointer to tunnel in the pointer to the EditorBuildInputResolver as well
 	SetGlobalBuildInputResolver(&UE::DerivedData::FEditorBuildInputResolver::Get());
+	FCoreUObjectDelegates::OnEndLoadPackage.AddRaw(this, &FBulkDataRegistryEditorDomain::OnEndLoadPackage);
 }
 
 FBulkDataRegistryEditorDomain::~FBulkDataRegistryEditorDomain()
 {
+	FCoreUObjectDelegates::OnEndLoadPackage.RemoveAll(this);
 	SetGlobalBuildInputResolver(nullptr);
 
 	TMap<FGuid, FUpdatingPayload> LocalUpdatingPayloads;
@@ -112,6 +114,10 @@ void FBulkDataRegistryEditorDomain::Register(UPackage* Owner, const UE::Virtuali
 	FWriteScopeLock RegistryScopeLock(RegistryLock);
 	check(bActive); // Registrations should not come in after we destruct
 	Registry.Add(BulkData.GetIdentifier(), FRegisteredBulk(MoveTemp(CopyBulk), PackageNameToUpdate));
+}
+
+void FBulkDataRegistryEditorDomain::OnEndLoadPackage(TConstArrayView<UPackage*> LoadedPackages)
+{
 }
 
 void FBulkDataRegistryEditorDomain::OnExitMemory(const UE::Virtualization::FVirtualizedUntypedBulkData& BulkData)

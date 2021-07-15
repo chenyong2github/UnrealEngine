@@ -268,9 +268,6 @@ public:
 	 */
 	COREUOBJECT_API void IteratePackagesStatInLocalOnlyDirectory(FStringView RootDir, FPackagePathStatVisitor Callback);
 
-	/** Hook for notification of packages loaded during an outermost BeginLoad/EndLoad */
-	COREUOBJECT_API virtual void OnEndLoad(TConstArrayView<UPackage*> LoadedPackages) {}
-
 	/**
 	 * Call during engine startup to choose the appropriate PackageResourceManager for the current configuration and
 	 * construct it and bind it to be returned from Get
