@@ -523,8 +523,11 @@ void FFeedbackContextEditor::ProgressReported( const float TotalProgressInterp, 
 	{
 		// Get list of objects that are pending cleanup.
 		FPendingCleanupObjects* PendingCleanupObjects = GetPendingCleanupObjects();
-		// Flush rendering commands in the queue.
-		FlushRenderingCommands();
+		if (!PendingCleanupObjects->IsEmpty())
+		{
+			// Flush rendering commands in the queue.
+			FlushRenderingCommands();
+		}
 		// It is now safe to delete the pending clean objects.
 		delete PendingCleanupObjects;
 		// Keep track of time this operation was performed so we don't do it too often.
