@@ -126,6 +126,7 @@ namespace UnrealGameSync
 			{
 				Process.StartInfo.FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "mstsc.exe");
 				Process.StartInfo.ArgumentList.Add($"/v:{Host}");
+				Process.StartInfo.ArgumentList.Add($"/f");
 				Process.Start();
 			}
 
