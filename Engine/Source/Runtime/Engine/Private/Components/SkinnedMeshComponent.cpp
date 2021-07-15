@@ -3115,7 +3115,7 @@ bool USkinnedMeshComponent::UpdateLODStatus_Internal(int32 InMasterPoseComponent
 			// If no MeshObject - just assume lowest LOD.
 			else
 			{
-				NewPredictedLODLevel = MaxLODIndex;
+				NewPredictedLODLevel = MinLodIndex;
 			}
 
 			// now check to see if we have a MinLODLevel and apply it
