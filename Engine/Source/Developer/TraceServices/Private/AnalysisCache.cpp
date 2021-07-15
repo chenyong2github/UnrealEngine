@@ -372,17 +372,15 @@ IFileHandle* FAnalysisCache::FFileContents::GetFileHandleForRead()
 }
 	
 //////////////////////////////////////////////////////////////////////
-FAnalysisCache::FAnalysisCache(const TCHAR* Name)
+FAnalysisCache::FAnalysisCache(const TCHAR* Path)
 	: Stats()
 {
 	// Find the cache file path.
-	// todo: This assumes TraceSessions folder.
 	// todo: This will need to be refined as we move away from files
-	const FString& BaseDirectory = FPaths::ProjectSavedDir();
-	const FString BaseName(FPathViews::GetBaseFilename(Name));
-	FString CacheFilePath = FPaths::Combine(*BaseDirectory, TEXT("TraceSessions"), *BaseName);
-	CacheFilePath += TEXT(".ucache");
 
+	// We expect to receive the full path to the session file
+	FString CacheFilePath(Path);
+	CacheFilePath = FPaths::SetExtension(CacheFilePath, TEXT(".ucache"));
 	Contents = MakeUnique<FFileContents>(*CacheFilePath);
 
 	// Build a dictionary of number of blocks per cache id.
