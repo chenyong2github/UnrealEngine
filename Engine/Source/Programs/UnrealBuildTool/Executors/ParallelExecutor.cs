@@ -335,13 +335,12 @@ namespace UnrealBuildTool
 		{
 			try
 			{
-				DateTime StartTime = DateTime.Now;
 				using (ManagedProcess Process = new ManagedProcess(ProcessGroup, Action.Inner.CommandPath.FullName, Action.Inner.CommandArguments, Action.Inner.WorkingDirectory.FullName, null, null, ProcessPriorityClass.BelowNormal))
 				{
 					Action.LogLines.AddRange(Process.ReadAllLines());
 					Action.ExitCode = Process.ExitCode;
-					Action.ExecutionTime = DateTime.Now - StartTime;
 					Action.ProcessorTime = Process.TotalProcessorTime;
+					Action.ExecutionTime = Process.ExitTime - Process.StartTime;
 				}
 			}
 			catch (Exception Ex)
