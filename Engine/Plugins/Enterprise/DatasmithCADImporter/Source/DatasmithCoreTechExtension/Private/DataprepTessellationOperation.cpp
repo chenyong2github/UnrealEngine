@@ -30,8 +30,6 @@ void UDataprepTessellationOperation::PostLoad()
 		NormalTolerance = TessellationSettings_DEPRECATED.NormalTolerance;
 		// Mark TessellationSettings_DEPRECATED as non usable
 		TessellationSettings_DEPRECATED.ChordTolerance = -MAX_FLT;
-
-		MarkPackageDirty();
 	}
 
 	Super::PostLoad();
