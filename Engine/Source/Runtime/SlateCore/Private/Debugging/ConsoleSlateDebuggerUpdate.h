@@ -60,6 +60,7 @@ private:
 	bool bDisplayUpdateFromPaint;
 	bool bShowLegend;
 	bool bShowQuad;
+	bool bDebugGameWindowOnly;
 	EWidgetUpdateFlags WidgetUpdateFlagsFilter;
 	FLinearColor DrawVolatilePaintColor;
 	FLinearColor DrawRepaintColor;
@@ -69,6 +70,7 @@ private:
 	int32 MaxNumberOfWidgetInList;
 	int32 InvalidationRootIdFilter;
 	float CacheDuration;
+	FName PIEWindowTag;
 
 	//~ Console objects
 	FAutoConsoleCommand StartCommand;
@@ -79,6 +81,7 @@ private:
 	FAutoConsoleCommand ToogleDisplayUpdateFromPaintCommand;
 	FAutoConsoleCommand SetWidgetUpdateFlagsFilterCommand;
 	FAutoConsoleVariableRef InvalidationRootFilterRefCVar;
+	FAutoConsoleVariableRef OnlyGameWindow;
 
 	struct FWidgetInfo
 	{

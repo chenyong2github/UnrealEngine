@@ -14,6 +14,7 @@
 #include "Styling/CoreStyle.h"
 #include "Types/ReflectionMetadata.h"
 #include "Widgets/SWidget.h"
+#include "Widgets/SWindow.h"
 
 #define LOCTEXT_NAMESPACE "ConsoleSlateDebuggerUpdate"
 
@@ -25,6 +26,7 @@ FConsoleSlateDebuggerUpdate::FConsoleSlateDebuggerUpdate()
 	, bDisplayUpdateFromPaint(false)
 	, bShowLegend(false)
 	, bShowQuad(false)
+	, bDebugGameWindowOnly(true)
 	, WidgetUpdateFlagsFilter(EWidgetUpdateFlags::AnyUpdate)
 	, DrawVolatilePaintColor(FColorList::Red)
 	, DrawRepaintColor(FColorList::Yellow)
@@ -34,6 +36,7 @@ FConsoleSlateDebuggerUpdate::FConsoleSlateDebuggerUpdate()
 	, MaxNumberOfWidgetInList(20)
 	, InvalidationRootIdFilter(-1)
 	, CacheDuration(2.0f)
+	, PIEWindowTag("PIEWindow")
 	, StartCommand(
 		TEXT("SlateDebugger.Update.Start"),
 		TEXT("Start the update widget debug tool. It shows when widgets are updated."),
@@ -67,6 +70,10 @@ FConsoleSlateDebuggerUpdate::FConsoleSlateDebuggerUpdate()
 		TEXT("SlateDebugger.Update.SetInvalidationRootIdFilter"),
 		InvalidationRootIdFilter,
 		TEXT("Option to show only the widgets that are part of an invalidation root."))
+	, OnlyGameWindow(
+		TEXT("SlateDebugger.Update.OnlyGameWindow"),
+		bDebugGameWindowOnly,
+		TEXT("Option to only the debug the game window"))
 {
 	GConfig->GetBool(TEXT("SlateDebugger.Update"), TEXT("bDisplayWidgetsNameList"), bDisplayWidgetsNameList, *GEditorPerProjectIni);
 	GConfig->GetBool(TEXT("SlateDebugger.Update"), TEXT("bUseWidgetPathAsName"), bUseWidgetPathAsName, *GEditorPerProjectIni);
@@ -351,7 +358,15 @@ void FConsoleSlateDebuggerUpdate::HandleWidgetUpdate(const FSlateDebuggingWidget
 
 void FConsoleSlateDebuggerUpdate::HandlePaintDebugInfo(const FPaintArgs& InArgs, const FGeometry& InAllottedGeometry, FSlateWindowElementList& InOutDrawElements, int32& InOutLayerId)
 {
+
 	++InOutLayerId;
+
+	// Exclude all windows but the game window
+	SWindow* WindowToDrawIn = InOutDrawElements.GetPaintWindow();
+	if (bDebugGameWindowOnly && (WindowToDrawIn->GetType() != EWindowType::GameWindow && WindowToDrawIn->GetTag() != PIEWindowTag))
+	{
+		return;
+	}
 
 	const FConsoleSlateDebuggerUtility::TSWindowId PaintWindow = FConsoleSlateDebuggerUtility::GetId(InOutDrawElements.GetPaintWindow());
 	int32 NumberOfWidget = 0;
