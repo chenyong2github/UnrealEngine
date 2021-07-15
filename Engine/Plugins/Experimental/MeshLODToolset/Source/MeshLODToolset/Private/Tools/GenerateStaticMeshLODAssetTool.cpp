@@ -315,13 +315,13 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	});
 
 
-	PreviewWithBackgroundCompute->OnMeshUpdated.AddLambda([this](const UMeshOpPreviewWithBackgroundCompute* PreviewWithBackgroundCompute)
+	PreviewWithBackgroundCompute->OnMeshUpdated.AddLambda([this](const UMeshOpPreviewWithBackgroundCompute* PreviewCompute)
 	{
 		// GenerateProcess might be in use by an Op somewhere else
 		GenerateProcess->GraphEvalCriticalSection.Lock();
 
 		UE::Geometry::FMeshTangentsd Tangents = GenerateProcess->GetDerivedLOD0MeshTangents();
-		PreviewWithBackgroundCompute->PreviewMesh->EditMesh([&Tangents](FDynamicMesh3& Mesh)
+		PreviewCompute->PreviewMesh->EditMesh([&Tangents](FDynamicMesh3& Mesh)
 		{
 			if (Mesh.HasAttributes() && Tangents.GetTangents().Num() > 0 && Tangents.GetBitangents().Num() > 0)
 			{

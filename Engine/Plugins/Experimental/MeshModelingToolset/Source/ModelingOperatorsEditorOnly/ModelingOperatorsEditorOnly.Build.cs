@@ -34,7 +34,6 @@ public class ModelingOperatorsEditorOnly : ModuleRules
 				"DynamicMesh",
 				"MeshConversion",
 				"GeometryAlgorithms", // required for constrained Delaunay triangulation
-                "ProxyLODMeshReduction", // currently required to be public due to IVoxelBasedCSG API
 				"MeshUtilitiesCommon", // required by uvlayoutop
 				// ... add other public dependencies that you statically link with here ...
 			}
@@ -53,7 +52,16 @@ public class ModelingOperatorsEditorOnly : ModuleRules
 				"MeshUtilities",			// for tangents calculation
 			}
 			);
-		
+
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"ProxyLODMeshReduction", // currently Win64-only
+				}
+				);
+		}
 		
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]

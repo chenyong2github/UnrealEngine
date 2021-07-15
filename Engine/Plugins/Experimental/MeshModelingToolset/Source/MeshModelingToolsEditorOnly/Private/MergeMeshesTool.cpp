@@ -183,15 +183,15 @@ TUniquePtr<FDynamicMeshOperator> UMergeMeshesTool::MakeNewOperator()
 
 void UMergeMeshesTool::CacheInputMeshes()
 {
-	InputMeshes = MakeShared<TArray<IVoxelBasedCSG::FPlacedMesh>>();
+	InputMeshes.Reset();
 
 	// Package the selected meshes and transforms for consumption by the CSGTool
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		IVoxelBasedCSG::FPlacedMesh PlacedMesh;
-		PlacedMesh.Mesh = TargetMeshProviderInterface(ComponentIdx)->GetMeshDescription();
-		PlacedMesh.Transform = TargetComponentInterface(ComponentIdx)->GetWorldTransform();
-		InputMeshes->Add(PlacedMesh);
+		UE::Geometry::FVoxelMergeMeshesOp::FInputMesh InputMesh;
+		InputMesh.Mesh = TargetMeshProviderInterface(ComponentIdx)->GetMeshDescription();
+		InputMesh.Transform = TargetComponentInterface(ComponentIdx)->GetWorldTransform();
+		InputMeshes.Add(InputMesh);
 	}
 }
 
