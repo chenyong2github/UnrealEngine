@@ -48,7 +48,7 @@ namespace HordeServer.Utilities
 		/// <param name="ElectionTimeout"></param>
 		/// <param name="Logger">Logging device</param>
 		public ElectedBackgroundService(DatabaseService DatabaseService, ObjectId ServiceId, TimeSpan PollInterval, TimeSpan ElectionTimeout, ILogger Logger)
-			: base(null, Logger)
+			: base(TimeSpan.FromSeconds(10.0), Logger)
 		{
 			this.StateAccessor = new SingletonDocument<State>(DatabaseService, ServiceId);
 			this.PollInterval = PollInterval;
