@@ -11,6 +11,9 @@
 UComputeGraphComponent::UComputeGraphComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
+
+	// By default don't tick and allow any queuing of work to be handled by blueprint.
+	// Ticking can be turned on by some systems that need it (such as editor window).
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 }
 
@@ -31,6 +34,13 @@ void UComputeGraphComponent::QueueExecute()
 	}
 
 	MarkRenderDynamicDataDirty();
+}
+
+void UComputeGraphComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	QueueExecute();
 }
 
 void UComputeGraphComponent::SendRenderDynamicData_Concurrent()
