@@ -667,6 +667,30 @@ FORCEINLINE const TObjectPtr<UObject>& FObjectPtr::ToTObjectPtr() const
 	return *static_cast<const TObjectPtr<UObject>*>(this);
 }
 
+/** Swap variants between TObjectPtr<T> and raw pointer to T */
+template <typename T>
+inline void Swap(TObjectPtr<T>& A, T*& B)
+{
+	Swap((T*&)A, B);
+}
+template <typename T>
+inline void Swap(T*& A, TObjectPtr<T>& B)
+{
+	Swap(A, (T*&)B);
+}
+
+/** Swap variants between TArray<TObjectPtr<T>> and TArray<T*> */
+template <typename T>
+inline void Swap(TArray<TObjectPtr<T>>& A, TArray<T*>& B)
+{
+	Swap(ToRawPtrTArrayUnsafe(A), B);
+}
+template <typename T>
+inline void Swap(TArray<T*>& A, TArray<TObjectPtr<T>>& B)
+{
+	Swap(A, ToRawPtrTArrayUnsafe(B));
+}
+
 /** Exchange variants between TObjectPtr<T> and raw pointer to T */
 template <typename T>
 inline void Exchange(TObjectPtr<T>& A, T*& B)
