@@ -159,12 +159,12 @@ struct ENGINE_API FQuaternionSpringState
 	GENERATED_BODY()
 
 	FQuat   PrevTarget;
-	FVector Velocity; // Angular velocity
+	FVector AngularVelocity;
 	bool    bPrevTargetValid;
 
 	FQuaternionSpringState()
 	: PrevTarget(FQuat::Identity)
-	, Velocity(FVector::ZeroVector)
+	, AngularVelocity(FVector::ZeroVector)
 	, bPrevTargetValid(false)
 	{
 	}
@@ -172,7 +172,7 @@ struct ENGINE_API FQuaternionSpringState
 	void Reset()
 	{
 		PrevTarget = FQuat::Identity;
-		Velocity = FVector::ZeroVector;
+		AngularVelocity = FVector::ZeroVector;
 		bPrevTargetValid = false;
 	}
 };
@@ -3931,7 +3931,7 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 
 	/** Sets the state angular velocity of a quaternion spring */
 	UFUNCTION(BlueprintCallable, Category = "Math|Interpolation")
-	static void SetQuaternionSpringStateVelocity(UPARAM(ref) FQuaternionSpringState& SpringState, FVector Velocity);
+	static void SetQuaternionSpringStateAngularVelocity(UPARAM(ref) FQuaternionSpringState& SpringState, FVector AngularVelocity);
 
 	//
 	// Random stream functions

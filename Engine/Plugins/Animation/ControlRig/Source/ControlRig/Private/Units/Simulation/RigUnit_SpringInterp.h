@@ -16,12 +16,13 @@ struct CONTROLRIG_API FRigUnit_SpringInterp : public FRigUnit_SimBase
 
 	FRigUnit_SpringInterp()
 	{
-		bUseCurrentInput = true;
-		Current = Target = Result = 0.0f;
+		bUseCurrentInput = false;
+		Current = Target = Velocity = Result = 0.0f;
 		Strength = 4.0f;
 		CriticalDamping = 1.0f;
 		TargetVelocityAmount = 0.0f;
 		bInitializeFromTarget = false;
+		Force = 0.0f;
 		SpringState = FFloatSpringState();
 	}
 
@@ -31,18 +32,6 @@ struct CONTROLRIG_API FRigUnit_SpringInterp : public FRigUnit_SimBase
 	/** Rest/target position of the spring. */
 	UPROPERTY(meta=(Input))
 	float Target;
-
-	/**
-	 * If true, then the Current input will be used to initialize the state, and is required to be a variable that 
-	 * holds the current state. If false then the Target value will be used to initialize the state and the Current 
-	 * input will be ignored/unnecessary as a state will be maintained by this node.
-	 */
-	UPROPERTY(meta=(Input, Constant))
-	bool bUseCurrentInput;
-
-	/** Current position of the spring. */
-	UPROPERTY(meta = (Input, EditCondition = "bUseCurrentInput"))
-	float Current;
 
 	/**
 	 * The spring strength determines how hard it will pull towards the target. The value is the frequency
@@ -59,6 +48,24 @@ struct CONTROLRIG_API FRigUnit_SpringInterp : public FRigUnit_SimBase
 	 */
 	UPROPERTY(meta=(Input, ClampMin="0"))
 	float CriticalDamping;
+
+	/**
+	 * Extra force to apply (since the mass is 1, this is also the acceleration).
+	 */
+	UPROPERTY(meta = (Input))
+	float Force;
+
+	/**
+	 * If true, then the Current input will be used to initialize the state, and is required to be a variable that 
+	 * holds the current state. If false then the Target value will be used to initialize the state and the Current 
+	 * input will be ignored/unnecessary as a state will be maintained by this node.
+	 */
+	UPROPERTY(meta=(Input, Constant))
+	bool bUseCurrentInput;
+
+	/** Current position of the spring. */
+	UPROPERTY(meta = (Input, EditCondition = "bUseCurrentInput"))
+	float Current;
 
 	/**
 	 * The amount that the velocity should be passed through to the spring. A value of 1 will result in more
@@ -78,6 +85,10 @@ struct CONTROLRIG_API FRigUnit_SpringInterp : public FRigUnit_SimBase
 	UPROPERTY(meta=(Output))
 	float Result;
 
+	/** Velocity */
+	UPROPERTY(meta = (Output))
+	float Velocity;
+
 	UPROPERTY()
 	FFloatSpringState SpringState;
 };
@@ -92,12 +103,13 @@ struct CONTROLRIG_API FRigUnit_SpringInterpVector : public FRigUnit_SimBase
 	
 	FRigUnit_SpringInterpVector()
 	{
-		bUseCurrentInput = true;
-		Current = Target = Result = FVector::ZeroVector;
+		bUseCurrentInput = false;
+		Current = Target = Velocity = Result = FVector::ZeroVector;
 		Strength = 4.0f;
 		CriticalDamping = 1.0f;
 		TargetVelocityAmount = 0.0f;
 		bInitializeFromTarget = false;
+		Force = FVector::ZeroVector;
 		SpringState = FVectorSpringState();
 	}
 
@@ -107,18 +119,6 @@ struct CONTROLRIG_API FRigUnit_SpringInterpVector : public FRigUnit_SimBase
 	/** Rest/target position of the spring. */
 	UPROPERTY(meta=(Input))
 	FVector Target;
-
-	/**
-	 * If true, then the Current input will be used to initialize the state, and is required to be a variable that 
-	 * holds the current state. If false then the Target value will be used to initialize the state and the Current 
-	 * input will be ignored/unnecessary as a state will be maintained by this node.
-	 */
-	UPROPERTY(meta=(Input, Constant))
-	bool bUseCurrentInput;
-
-	/** Current position of the spring. */
-	UPROPERTY(meta = (Input, EditCondition = "bUseCurrentInput"))
-	FVector Current;
 
 	/**
 	 * The spring strength determines how hard it will pull towards the target. The value is the frequency
@@ -135,6 +135,24 @@ struct CONTROLRIG_API FRigUnit_SpringInterpVector : public FRigUnit_SimBase
 	 */
 	UPROPERTY(meta=(Input, ClampMin="0"))
 	float CriticalDamping;
+
+	/**
+	 * Extra force to apply (since the mass is 1, this is also the acceleration).
+	 */
+	UPROPERTY(meta = (Input))
+	FVector Force;
+
+	/**
+	 * If true, then the Current input will be used to initialize the state, and is required to be a variable that 
+	 * holds the current state. If false then the Target value will be used to initialize the state and the Current 
+	 * input will be ignored/unnecessary as a state will be maintained by this node.
+	 */
+	UPROPERTY(meta=(Input, Constant))
+	bool bUseCurrentInput;
+
+	/** Current position of the spring. */
+	UPROPERTY(meta = (Input, EditCondition = "bUseCurrentInput"))
+	FVector Current;
 
 	/**
 	 * The amount that the velocity should be passed through to the spring. A value of 1 will result in more
@@ -154,6 +172,10 @@ struct CONTROLRIG_API FRigUnit_SpringInterpVector : public FRigUnit_SimBase
 	UPROPERTY(meta=(Output))
 	FVector Result;
 
+	/** Velocity */
+	UPROPERTY(meta = (Output))
+	FVector Velocity;
+
 	UPROPERTY()
 	FVectorSpringState SpringState;
 };
@@ -168,12 +190,14 @@ struct CONTROLRIG_API FRigUnit_SpringInterpQuaternion : public FRigUnit_SimBase
 	
 	FRigUnit_SpringInterpQuaternion()
 	{
-		bUseCurrentInput = true;
+		bUseCurrentInput = false;
 		Current = Target = Result = FQuat::Identity;
+		AngularVelocity = FVector::ZeroVector;
 		Strength = 4.0f;
 		CriticalDamping = 1.0f;
 		TargetVelocityAmount = 0.0f;
 		bInitializeFromTarget = false;
+		Torque = FVector::ZeroVector;
 		SpringState = FQuaternionSpringState();
 	}
 
@@ -183,18 +207,6 @@ struct CONTROLRIG_API FRigUnit_SpringInterpQuaternion : public FRigUnit_SimBase
 	/** Rest/target position of the spring. */
 	UPROPERTY(meta=(Input))
 	FQuat Target;
-
-	/**
-	 * If true, then the Current input will be used to initialize the state, and is required to be a variable that 
-	 * holds the current state. If false then the Target value will be used to initialize the state and the Current 
-	 * input will be ignored/unnecessary as a state will be maintained by this node.
-	 */
-	UPROPERTY(meta=(Input, Constant))
-	bool bUseCurrentInput;
-
-	/** Current position of the spring. */
-	UPROPERTY(meta = (Input, EditCondition = "bUseCurrentInput"))
-	FQuat Current;
 
 	/**
 	 * The spring strength determines how hard it will pull towards the target. The value is the frequency
@@ -213,6 +225,24 @@ struct CONTROLRIG_API FRigUnit_SpringInterpQuaternion : public FRigUnit_SimBase
 	float CriticalDamping;
 
 	/**
+	 * Extra torque to apply (since the moment of inertia is 1, this is also the angular acceleration).
+	 */
+	UPROPERTY(meta = (Input))
+	FVector Torque;
+
+	/**
+	 * If true, then the Current input will be used to initialize the state, and is required to be a variable that 
+	 * holds the current state. If false then the Target value will be used to initialize the state and the Current 
+	 * input will be ignored/unnecessary as a state will be maintained by this node.
+	 */
+	UPROPERTY(meta=(Input, Constant))
+	bool bUseCurrentInput;
+
+	/** Current position of the spring. */
+	UPROPERTY(meta = (Input, EditCondition = "bUseCurrentInput"))
+	FQuat Current;
+
+	/**
 	 * The amount that the velocity should be passed through to the spring. A value of 1 will result in more
 	 * responsive output, but if the input is noisy or has step changes, these discontinuities will be passed 
 	 * through to the output much more than if a smaller value such as 0 is used.
@@ -229,6 +259,10 @@ struct CONTROLRIG_API FRigUnit_SpringInterpQuaternion : public FRigUnit_SimBase
 	/** New position of the spring after delta time. */
 	UPROPERTY(meta=(Output))
 	FQuat Result;
+
+	/** Angular velocity */
+	UPROPERTY(meta = (Output))
+	FVector AngularVelocity;
 
 	UPROPERTY()
 	FQuaternionSpringState SpringState;

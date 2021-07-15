@@ -451,7 +451,7 @@ FQuat UKismetMathLibrary::QuaternionSpringInterp(FQuat Current, FQuat Target, UP
 	{
 		Target = -Target;
 	}
-	FQuat VelocityQuat(SpringState.Velocity.X, SpringState.Velocity.Y, SpringState.Velocity.Z, 0.0f);
+	FQuat VelocityQuat(SpringState.AngularVelocity.X, SpringState.AngularVelocity.Y, SpringState.AngularVelocity.Z, 0.0f);
 	FQuat Velocity = 0.5f * Current * VelocityQuat;
 
   	GenericSpringInterp(Current, Target, SpringState.PrevTarget, SpringState.bPrevTargetValid, Velocity, Stiffness,
@@ -459,7 +459,7 @@ FQuat UKismetMathLibrary::QuaternionSpringInterp(FQuat Current, FQuat Target, UP
 	Current.Normalize();
 
 	VelocityQuat = Current.Inverse() * 2.0f * Velocity;
-	SpringState.Velocity.Set(VelocityQuat.X, VelocityQuat.Y, VelocityQuat.Z);
+	SpringState.AngularVelocity.Set(VelocityQuat.X, VelocityQuat.Y, VelocityQuat.Z);
 
 	return Current;
 }
@@ -490,9 +490,9 @@ void UKismetMathLibrary::SetVectorSpringStateVelocity(FVectorSpringState& Spring
 	SpringState.Velocity = Velocity;
 }
 
-void UKismetMathLibrary::SetQuaternionSpringStateVelocity(FQuaternionSpringState& SpringState, FVector Velocity)
+void UKismetMathLibrary::SetQuaternionSpringStateAngularVelocity(FQuaternionSpringState& SpringState, FVector AngularVelocity)
 {
-	SpringState.Velocity = Velocity;
+	SpringState.AngularVelocity = AngularVelocity;
 }
 
 FVector UKismetMathLibrary::RandomUnitVector()
