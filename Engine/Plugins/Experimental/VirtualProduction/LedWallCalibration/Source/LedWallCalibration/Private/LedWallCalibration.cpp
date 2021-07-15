@@ -376,7 +376,9 @@ bool FLedWallCalibration::GenerateArucosForCalibrationPoint(
 	int32& OutNextMarkerId,
 	cv::Mat& OutMat)
 {
-#if WITH_OPENCV
+#if WITH_OPENCV && WITH_EDITORONLY_DATA
+
+	// Note: UStaticMesh::GetMeshDescription is only available WITH_EDITORONLY_DATA
 
 	using namespace LedWallCalibration;
 
