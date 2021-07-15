@@ -74,7 +74,7 @@ EMeshResult TDynamicMeshOverlay<RealType, ElementSize>::InsertElement(int Elemen
 		Elements.InsertAt(Value[k], i + k);
 	}
 
-	ParentVertices.InsertAt(FDynamicMesh3::InvalidID, ElementID);
+	ParentVertices.InsertAt(FDynamicMesh3::InvalidID, ElementID, FDynamicMesh3::InvalidID);
 
 	//UpdateTimeStamp(true, true);
 	return EMeshResult::Ok;
@@ -152,9 +152,9 @@ void TDynamicMeshOverlay<RealType, ElementSize>::CreateFromPredicate(TFunctionRe
 				int VertSubIdx = IndexUtil::FindTriIndex(VertexID, TriVertIDs);
 				int i = 3 * TriID;
 				int ElementIndex = AppendedElements[TrisActiveSubGroup[TriSubIdx]];
-				ElementTriangles.InsertAt(ElementIndex, i + VertSubIdx);
+				ElementTriangles.InsertAt(ElementIndex, i + VertSubIdx, FDynamicMesh3::InvalidID);
 				ElementsRefCounts.Increment(ElementIndex);
-				ParentVertices.InsertAt(VertexID, ElementIndex);
+				ParentVertices.InsertAt(VertexID, ElementIndex); // elements were appended one-by-one above, so default initialization not needed here
 			}
 			GroupStart += GroupNum;
 		}
@@ -232,7 +232,7 @@ int TDynamicMeshOverlay<RealType, ElementSize>::SplitElementWithNewParent(int El
 			}
 		}
 	}
-	ParentVertices.InsertAt(NewParentID, NewElID);
+	ParentVertices.InsertAt(NewParentID, NewElID, FDynamicMesh3::InvalidID);
 
 	checkSlow(ElementsRefCounts.IsValid(ElementID));
 
@@ -405,7 +405,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::UnsetTriangle(int TriangleID)
 
 
 template<typename RealType, int ElementSize>
-void TDynamicMeshOverlay<RealType, ElementSize>::InternalSetTriangle(int tid, const FIndex3i& tv, bool bIncrementRefCounts)
+void TDynamicMeshOverlay<RealType, ElementSize>::InternalSetTriangle(int tid, const FIndex3i& tv, bool bUpdateRefCounts)
 {
 	if (ensure(ParentMesh) == false)
 	{
@@ -413,11 +413,17 @@ void TDynamicMeshOverlay<RealType, ElementSize>::InternalSetTriangle(int tid, co
 	}
 
 	int i = 3 * tid;
-	ElementTriangles.InsertAt(tv[2], i + 2);
-	ElementTriangles.InsertAt(tv[1], i + 1);
-	ElementTriangles.InsertAt(tv[0], i);
 
-	if (bIncrementRefCounts)
+	if (!ElementTriangles.SetMinimumSize(i + 3, FDynamicMesh3::InvalidID) && bUpdateRefCounts)
+	{
+		UnsetTriangle(tid);
+	}
+
+	ElementTriangles[i + 2] = tv[2];
+	ElementTriangles[i + 1] = tv[1];
+	ElementTriangles[i] = tv[0];
+
+	if (bUpdateRefCounts)
 	{
 		ElementsRefCounts.Increment(tv[0]);
 		ElementsRefCounts.Increment(tv[1]);
@@ -437,7 +443,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::InternalSetTriangle(int tid, co
 			// allowed to be used for multiple vertices.
 			checkSlow(ParentVertices[tv[VInd]] == ParentTriangle[VInd] || ParentVertices[tv[VInd]] == FDynamicMesh3::InvalidID);
 
-			ParentVertices.InsertAt(ParentTriangle[VInd], tv[VInd]);
+			ParentVertices.InsertAt(ParentTriangle[VInd], tv[VInd], FDynamicMesh3::InvalidID);
 		}
 	}
 }
@@ -448,9 +454,10 @@ template<typename RealType, int ElementSize>
 void TDynamicMeshOverlay<RealType, ElementSize>::InitializeNewTriangle(int tid)
 {
 	int i = 3 * tid;
-	ElementTriangles.InsertAt(FDynamicMesh3::InvalidID, i + 2);
-	ElementTriangles.InsertAt(FDynamicMesh3::InvalidID, i + 1);
-	ElementTriangles.InsertAt(FDynamicMesh3::InvalidID, i);
+	ElementTriangles.SetMinimumSize(i + 3, FDynamicMesh3::InvalidID);
+	ElementTriangles[i + 2] = FDynamicMesh3::InvalidID;
+	ElementTriangles[i + 1] = FDynamicMesh3::InvalidID;
+	ElementTriangles[i] = FDynamicMesh3::InvalidID;
 
 	//updateTimeStamp(true);
 }
