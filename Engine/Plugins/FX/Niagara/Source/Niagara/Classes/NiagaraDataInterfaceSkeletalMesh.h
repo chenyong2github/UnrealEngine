@@ -255,7 +255,7 @@ struct FSkeletalMeshUvMappingUsage
 	bool RequiresGpuAccess = false;
 };
 
-struct FSkeletalMeshUvMappingHandle
+struct NIAGARA_API FSkeletalMeshUvMappingHandle
 {
 	FSkeletalMeshUvMappingHandle();
 	FSkeletalMeshUvMappingHandle(FSkeletalMeshUvMappingUsage InUsage, const TSharedPtr<struct FSkeletalMeshUvMapping>& InUvMappingData, bool bNeedsDataImmediately);
@@ -276,6 +276,8 @@ struct FSkeletalMeshUvMappingHandle
 	int32 GetUvSetIndex() const;
 	int32 GetLodIndex() const;
 
+	void PinAndInvalidateHandle();
+
 private:
 	TSharedPtr<FSkeletalMeshUvMapping> UvMappingData;
 };
@@ -294,7 +296,7 @@ struct FSkeletalMeshConnectivityUsage
 	bool RequiresGpuAccess = false;
 };
 
-struct FSkeletalMeshConnectivityHandle
+struct NIAGARA_API FSkeletalMeshConnectivityHandle
 {
 	FSkeletalMeshConnectivityHandle();
 	FSkeletalMeshConnectivityHandle(FSkeletalMeshConnectivityUsage InUsage, const TSharedPtr<struct FSkeletalMeshConnectivity>& InConnectivityData, bool bNeedsDataImmediately);
@@ -312,11 +314,13 @@ struct FSkeletalMeshConnectivityHandle
 
 	const FSkeletalMeshConnectivityProxy* GetProxy() const;
 
+	void PinAndInvalidateHandle();
+
 private:
 	TSharedPtr<FSkeletalMeshConnectivity> ConnectivityData;
 };
 
-class FNDI_SkeletalMesh_GeneratedData : public FNDI_GeneratedData
+class NIAGARA_API FNDI_SkeletalMesh_GeneratedData : public FNDI_GeneratedData
 {
 	FRWLock CachedSkinningDataGuard;
 	TMap<TWeakObjectPtr<USkeletalMeshComponent>, TSharedPtr<FSkeletalMeshSkinningData> > CachedSkinningData;

@@ -6,6 +6,8 @@
 #include "NiagaraResourceArrayWriter.h"
 #include "NiagaraStats.h"
 
+DECLARE_CYCLE_STAT(TEXT("Niagara - SkelMesh - UvQuadTree Cpu"), STAT_NiagaraSkel_UvMapping_Cpu, STATGROUP_Niagara);
+DECLARE_CYCLE_STAT(TEXT("Niagara - SkelMesh - UvQuadTree Gpu"), STAT_NiagaraSkel_UvMapping_Gpu, STATGROUP_Niagara);
 
 template<bool UseFullPrecisionUv>
 struct FQuadTreeQueryHelper
@@ -277,6 +279,10 @@ int32 FSkeletalMeshUvMappingHandle::GetLodIndex() const
 	return 0;
 }
 
+void FSkeletalMeshUvMappingHandle::PinAndInvalidateHandle()
+{
+	UvMappingData.Reset();
+}
 
 FSkeletalMeshUvMapping::FSkeletalMeshUvMapping(TWeakObjectPtr<USkeletalMesh> InMeshObject, int32 InLodIndex, int32 InUvSetIndex)
 	: LodIndex(InLodIndex)
@@ -286,6 +292,12 @@ FSkeletalMeshUvMapping::FSkeletalMeshUvMapping(TWeakObjectPtr<USkeletalMesh> InM
 	, CpuQuadTreeUserCount(0)
 	, GpuQuadTreeUserCount(0)
 {
+}
+
+FSkeletalMeshUvMapping::~FSkeletalMeshUvMapping()
+{
+	ReleaseQuadTree();
+	ReleaseGpuQuadTree();
 }
 
 template<bool UseFullPrecisionUv>
@@ -318,6 +330,7 @@ void FSkeletalMeshUvMapping::BuildQuadTree()
 {
 	if (const FSkeletalMeshLODRenderData* LodRenderData = GetLodRenderData())
 	{
+		SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_UvMapping_Cpu);
 		if (LodRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetUseFullPrecisionUVs())
 		{
 			BuildQuadTreeHelper<true>(TriangleIndexQuadTree, LodRenderData, UvSetIndex);
@@ -342,6 +355,8 @@ void FSkeletalMeshUvMapping::ReleaseQuadTree()
 
 void FSkeletalMeshUvMapping::BuildGpuQuadTree()
 {
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_UvMapping_Gpu);
+
 	check(FrozenQuadTreeProxy == nullptr);
 	FrozenQuadTreeProxy.Reset(new FSkeletalMeshUvMappingBufferProxy());
 	FrozenQuadTreeProxy->Initialize(*this);
@@ -350,12 +365,14 @@ void FSkeletalMeshUvMapping::BuildGpuQuadTree()
 
 void FSkeletalMeshUvMapping::ReleaseGpuQuadTree()
 {
-	ENQUEUE_RENDER_COMMAND(BeginDestroyCommand)(
-		[RT_Proxy=FrozenQuadTreeProxy.Release()](FRHICommandListImmediate& RHICmdList)
+	if (FSkeletalMeshUvMappingBufferProxy* ProxyPtr = FrozenQuadTreeProxy.Release())
+	{
+		ENQUEUE_RENDER_COMMAND(BeginDestroyCommand)([RT_Proxy=ProxyPtr](FRHICommandListImmediate& RHICmdList)
 		{
 			RT_Proxy->ReleaseResource();
 			delete RT_Proxy;
 		});
+	}
 }
 
 bool FSkeletalMeshUvMapping::IsUsed() const
