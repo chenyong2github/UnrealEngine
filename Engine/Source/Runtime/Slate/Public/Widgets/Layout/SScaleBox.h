@@ -73,6 +73,8 @@ namespace EStretch
  */
 class SLATE_API SScaleBox : public SCompoundWidget
 {
+	SLATE_DECLARE_WIDGET(SScaleBox, SCompoundWidget)
+
 public:
 	SLATE_BEGIN_ARGS(SScaleBox)
 	: _Content()
@@ -111,13 +113,11 @@ public:
 
 	SLATE_END_ARGS()
 
+protected:
 	/** Constructor */
-	SScaleBox()
-	{
-		SetCanTick(false);
-		bCanSupportFocus = false;
-	}
+	SScaleBox();
 
+public:
 	virtual ~SScaleBox();
 
 	void Construct(const FArguments& InArgs);
@@ -164,23 +164,36 @@ protected:
 	float ComputeContentScale(const FGeometry& PaintGeometry) const;
 
 	void RefreshSafeZoneScale();
+	void HandleSafeFrameChangedEvent();
 
 #if WITH_EDITOR
 	void DebugSafeAreaUpdated(const FMargin& NewSafeZone, bool bShouldRecacheMetrics);
 #endif
 
 protected:
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.0, "Direct access to StretchDirection is now deprecated. Use the setter or getter.")
+	TSlateDeprecatedTAttribute<EStretchDirection::Type> StretchDirection;
+	UE_DEPRECATED(5.0, "Direct access to Stretch is now deprecated. Use the setter or getter.")
+	TSlateDeprecatedTAttribute<EStretch::Type> Stretch;
+	UE_DEPRECATED(5.0, "Direct access to UserSpecifiedScale is now deprecated. Use the setter or getter.")
+	TSlateDeprecatedTAttribute<float> UserSpecifiedScale;
+	UE_DEPRECATED(5.0, "Direct access to IgnoreInheritedScale is now deprecated. Use the setter or getter.")
+	TSlateDeprecatedTAttribute<bool> IgnoreInheritedScale;
+#endif
+
+private:
 	/** The allowed direction of stretching of the content */
-	TAttribute<EStretchDirection::Type> StretchDirection;
+	TSlateAttribute<EStretchDirection::Type> StretchDirectionAttribute;
 
 	/** The method of scaling that is applied to the content. */
-	TAttribute<EStretch::Type> Stretch;
+	TSlateAttribute<EStretch::Type> StretchAttribute;
 
 	/** Optional scale that can be specified by the User */
-	TAttribute<float> UserSpecifiedScale;
+	TSlateAttribute<float> UserSpecifiedScaleAttribute;
 
 	/** Optional bool to ignore the inherited scale */
-	TAttribute<bool> IgnoreInheritedScale;
+	TSlateAttribute<bool> IgnoreInheritedScaleAttribute;
 
 	/** Computed scale when scaled by safe zone padding */
 	float SafeZoneScale;
