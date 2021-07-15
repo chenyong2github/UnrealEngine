@@ -13,6 +13,7 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogEditorDomainSave, Log, All);
 
 class FAssetPackageData;
+class FCbWriter;
 class FPackagePath;
 class FSharedBuffer;
 class IAssetRegistry;
@@ -49,14 +50,12 @@ struct FClassDigestMap
  */
 EPackageDigestResult GetPackageDigest(IAssetRegistry& AssetRegistry, FName PackageName,
 	FPackageDigest& OutPackageDigest, FString& OutErrorMessage);
+/** Appends the fields to calculate the packagedigest; call Builder.Save().GetRangeHash() to get digest. */
+EPackageDigestResult AppendPackageDigest(IAssetRegistry& AssetRegistry, FName PackageName,
+	FCbWriter& Builder, FString& OutErrorMessage);
+
 /** For any ClassNames not already in ClassDigests, look up their UStruct and add them. */
 void PrecacheClassDigests(TConstArrayView<FName> ClassNames);
-
-/** Get the cachekey for the EditorDomainPackage for the given PackageDigest. */
-UE::DerivedData::FCacheKey GetEditorDomainPackageKey(const FPackageDigest& PackageDigest);
-
-/** Get the cachekey for the EditorDomainBulkDataList for the given PackageDigest. */
-UE::DerivedData::FCacheKey GetBulkDataListKey(const FPackageDigest& PackageDigest);
 
 /** Get the CacheRequest for the given package from the EditorDomain cache bucket. */
 UE::DerivedData::FRequest RequestEditorDomainPackage(const FPackagePath& PackagePath,
@@ -71,6 +70,11 @@ UE::DerivedData::FRequest GetBulkDataList(FName PackageName, TUniqueFunction<voi
 
 /** Write the data for the BulkDataList of the given package to the cache. */
 void PutBulkDataList(FName PackageName, FSharedBuffer Buffer);
+
+UE::DerivedData::FRequest GetBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId,
+	TUniqueFunction<void(FSharedBuffer Buffer)> && Callback);
+
+void PutBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, FSharedBuffer Buffer);
 
 /** Accessor for the global ClassDigest map shared by systems needing to calculate PackageDigests. */
 FClassDigestMap& GetClassDigests();

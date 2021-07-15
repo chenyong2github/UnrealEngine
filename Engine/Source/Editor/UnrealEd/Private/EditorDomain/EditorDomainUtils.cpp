@@ -36,14 +36,14 @@ FClassDigestMap& GetClassDigests()
 
 // Change to a new guid when EditorDomain needs to be invalidated
 const TCHAR* EditorDomainVersion = TEXT("C217EB656E9B4C04816D3DC0E21901F6");
-// Identifier of the CacheBucket for EditorDomainPackages
+// Identifier of the CacheBuckets for EditorDomain tables
 const TCHAR* EditorDomainPackageBucketName = TEXT("EditorDomainPackage");
 const TCHAR* EditorDomainBulkDataListBucketName = TEXT("EditorDomainBulkDataList");
+const TCHAR* EditorDomainBulkDataPayloadIdBucketName = TEXT("EditorDomainBulkDataPayloadId");
 
-EPackageDigestResult GetPackageDigest(FPackageDigest& OutDigest, FString& OutErrorMessage,
+EPackageDigestResult AppendPackageDigest(FCbWriter& Writer, FString& OutErrorMessage,
 	const FAssetPackageData& PackageData, FName PackageName)
 {
-	FCbWriter Writer;
 	int32 CurrentFileVersionUE = GPackageFileUEVersion;
 	int32 CurrentFileVersionLicenseeUE = GPackageFileLicenseeUEVersion;
 	Writer << EditorDomainVersion;
@@ -101,7 +101,6 @@ EPackageDigestResult GetPackageDigest(FPackageDigest& OutDigest, FString& OutErr
 			}
 		}
 	}
-	OutDigest = Writer.Save().GetRangeHash();
 	return EPackageDigestResult::Success;
 }
 
@@ -169,6 +168,15 @@ void PrecacheClassDigests(TConstArrayView<FName> ClassNames)
 EPackageDigestResult GetPackageDigest(IAssetRegistry& AssetRegistry, FName PackageName,
 	FPackageDigest& OutPackageDigest, FString& OutErrorMessage)
 {
+	FCbWriter Builder;
+	EPackageDigestResult Result = AppendPackageDigest(AssetRegistry, PackageName, Builder, OutErrorMessage);
+	OutPackageDigest = Builder.Save().GetRangeHash();
+	return Result;
+}
+
+EPackageDigestResult AppendPackageDigest(IAssetRegistry& AssetRegistry, FName PackageName,
+	FCbWriter& Builder, FString& OutErrorMessage)
+{
 	AssetRegistry.WaitForPackage(PackageName.ToString());
 	TOptional<FAssetPackageData> PackageData = AssetRegistry.GetAssetPackageDataCopy(PackageName);
 	if (!PackageData)
@@ -177,7 +185,7 @@ EPackageDigestResult GetPackageDigest(IAssetRegistry& AssetRegistry, FName Packa
 			*PackageName.ToString());
 		return EPackageDigestResult::FileDoesNotExist;
 	}
-	return GetPackageDigest(OutPackageDigest, OutErrorMessage, *PackageData, PackageName);
+	return AppendPackageDigest(Builder, OutErrorMessage, *PackageData, PackageName);
 }
 
 UE::DerivedData::FCacheKey GetEditorDomainPackageKey(const FPackageDigest& PackageDigest)
@@ -192,6 +200,14 @@ UE::DerivedData::FCacheKey GetBulkDataListKey(const FPackageDigest& PackageDiges
 	static UE::DerivedData::FCacheBucket EditorDomainBulkDataListBucket =
 		GetDerivedDataCacheRef().CreateBucket(EditorDomainBulkDataListBucketName);
 	return UE::DerivedData::FCacheKey{ EditorDomainBulkDataListBucket, PackageDigest };
+}
+
+UE::DerivedData::FCacheKey GetBulkDataPayloadIdKey(const FIoHash& PackageAndGuidDigest)
+{
+	static UE::DerivedData::FCacheBucket EditorDomainBulkDataPayloadIdBucket =
+		GetDerivedDataCacheRef().CreateBucket(EditorDomainBulkDataPayloadIdBucketName);
+
+	return UE::DerivedData::FCacheKey{ EditorDomainBulkDataPayloadIdBucket, PackageAndGuidDigest };
 }
 
 UE::DerivedData::FRequest RequestEditorDomainPackage(const FPackagePath& PackagePath,
@@ -335,6 +351,67 @@ void PutBulkDataList(FName PackageName, FSharedBuffer Buffer)
 	UE::DerivedData::FCacheRecord Record = RecordBuilder.Build();
 	Cache.Put(MakeArrayView(&Record, 1), WriteToString<128>(PackageName));
 }
+
+FIoHash GetPackageAndGuidDigest(FCbWriter& Builder, const FGuid& BulkDataId)
+{
+	Builder << BulkDataId;
+	return Builder.Save().GetRangeHash();
+}
+
+UE::DerivedData::FRequest GetBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId,
+	TUniqueFunction<void(FSharedBuffer Buffer)>&& Callback)
+{
+	UE::DerivedData::ICache& Cache = GetDerivedDataCacheRef();
+
+	FString ErrorMessage;
+	FCbWriter Builder;
+	EPackageDigestResult FindHashResult = AppendPackageDigest(*IAssetRegistry::Get(), PackageName, Builder, ErrorMessage);
+	switch (FindHashResult)
+	{
+	case EPackageDigestResult::Success:
+		break;
+	default:
+	{
+		Callback(FSharedBuffer());
+		return UE::DerivedData::FRequest();
+	}
+	}
+	FIoHash PackageAndGuidDigest = GetPackageAndGuidDigest(Builder, BulkDataId);
+
+	return Cache.Get({ GetBulkDataPayloadIdKey(PackageAndGuidDigest) },
+		WriteToString<192>(PackageName, TEXT("/"), BulkDataId), UE::DerivedData::ECachePolicy::Default, UE::DerivedData::EPriority::Low,
+		[InnerCallback = MoveTemp(Callback)](UE::DerivedData::FCacheGetCompleteParams&& Params)
+	{
+		bool bOk = Params.Status == UE::DerivedData::EStatus::Ok;
+		InnerCallback(bOk ? Params.Record.GetValue() : FSharedBuffer());
+	});
+}
+
+void PutBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, FSharedBuffer Buffer)
+{
+	UE::DerivedData::ICache& Cache = GetDerivedDataCacheRef();
+
+	FString ErrorMessage;
+	FCbWriter Builder;
+	EPackageDigestResult FindHashResult = AppendPackageDigest(*IAssetRegistry::Get(), PackageName, Builder, ErrorMessage);
+	switch (FindHashResult)
+	{
+	case EPackageDigestResult::Success:
+		break;
+	default:
+	{
+		return;
+	}
+	}
+	FIoHash PackageAndGuidDigest = GetPackageAndGuidDigest(Builder, BulkDataId);
+
+	UE::DerivedData::FCacheRecordBuilder RecordBuilder = Cache.CreateRecord(GetBulkDataPayloadIdKey(PackageAndGuidDigest));
+	RecordBuilder.SetValue(Buffer);
+	UE::DerivedData::FCacheRecord Record = RecordBuilder.Build();
+	Cache.Put(MakeArrayView(&Record, 1), WriteToString<128>(PackageName));
+}
+
+
 
 }
 }
