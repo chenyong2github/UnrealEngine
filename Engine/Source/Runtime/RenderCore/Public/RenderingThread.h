@@ -298,6 +298,7 @@ class FPendingCleanupObjects
 {
 	TArray<FDeferredCleanupInterface*> CleanupArray;
 public:
+	inline bool IsEmpty() const { return CleanupArray.IsEmpty(); }
 	FPendingCleanupObjects();
 	RENDERCORE_API ~FPendingCleanupObjects();
 };

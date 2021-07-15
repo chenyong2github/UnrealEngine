@@ -1359,20 +1359,23 @@ FPendingCleanupObjects::FPendingCleanupObjects()
 
 FPendingCleanupObjects::~FPendingCleanupObjects()
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FPendingCleanupObjects_Destruct);
+	if (CleanupArray.Num())
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FPendingCleanupObjects_Destruct);
 
-	const bool bBatchingEnabled = bEnablePendingCleanupObjectsCommandBatching;
-	if (bBatchingEnabled)
-	{
-		StartRenderCommandFenceBundler();
-	}
-	for (int32 ObjectIndex = 0; ObjectIndex < CleanupArray.Num(); ObjectIndex++)
-	{
-		delete CleanupArray[ObjectIndex];
-	}
-	if (bBatchingEnabled)
-	{
-		StopRenderCommandFenceBundler();
+		const bool bBatchingEnabled = bEnablePendingCleanupObjectsCommandBatching;
+		if (bBatchingEnabled)
+		{
+			StartRenderCommandFenceBundler();
+		}
+		for (int32 ObjectIndex = 0; ObjectIndex < CleanupArray.Num(); ObjectIndex++)
+		{
+			delete CleanupArray[ObjectIndex];
+		}
+		if (bBatchingEnabled)
+		{
+			StopRenderCommandFenceBundler();
+		}
 	}
 }
 
