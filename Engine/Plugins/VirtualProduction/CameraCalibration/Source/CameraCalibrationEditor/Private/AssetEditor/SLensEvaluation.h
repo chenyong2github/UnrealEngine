@@ -82,8 +82,6 @@ private:
 	bool bCameraControllerExists = false;
 
 	/** Flags used to know what data is valid or not and adjust UI */
-	bool bHasValidRawFocus = false;
-	bool bHasValidRawZoom = false;
 	bool bCouldEvaluateDistortion = false;
 	bool bCouldEvaluateFocalLength = false;
 	bool bCouldEvaluateImageCenter = false;

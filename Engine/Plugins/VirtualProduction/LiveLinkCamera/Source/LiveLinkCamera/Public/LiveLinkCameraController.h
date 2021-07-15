@@ -98,6 +98,12 @@ protected:
 	/** Verify base transform and apply nodal offset on top of everything else done in tick */
 	void OnPostActorTick(UWorld* World, ELevelTick TickType, float DeltaSeconds);
 
+	/** 
+	 * If part of FIZ is not streamed, verify that LensFile associated tables have only one entry 
+	 * Used to warn user of potential problem evaluating LensFile
+	 */
+	void VerifyFIZWithLensFileTables(ULensFile* LensFile, const FLiveLinkCameraStaticData* StaticData) const;
+
 public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -138,6 +144,10 @@ protected:
 	UPROPERTY(DuplicateTransient)
 	FGuid DistortionProducerID;
 
+	/** Original cinecamera filmback / sensor size used for evaluating LensFile */
+	UPROPERTY()
+	FVector2D OriginalFilmback;
+
 	/** Original cinecamera component rotation that we set back on when nodal offset isn't applied anymore */
 	UPROPERTY()
 	FRotator OriginalCameraRotation;
@@ -167,4 +177,5 @@ private:
 	FCameraFilmbackSettings LastFilmback;
 	FRotator LastRotation;
 	FVector LastLocation;
+	double LastLensTableVerificationTimestamp = 0.0;
 };

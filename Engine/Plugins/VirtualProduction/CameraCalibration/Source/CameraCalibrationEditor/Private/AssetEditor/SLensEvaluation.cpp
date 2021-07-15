@@ -106,23 +106,21 @@ void SLensEvaluation::CacheLiveLinkData()
 			CachedLiveLinkData.RawFocus = LensFileEvalData.Input.Focus;
 			if (LensFile->HasFocusEncoderMapping())
 			{
-				CachedLiveLinkData.EvaluatedFocus = LensFile->EvaluateNormalizedFocus(LensFileEvalData.Input.Focus.IsSet() ? LensFileEvalData.Input.Focus.GetValue() : 0.0f);
+				CachedLiveLinkData.EvaluatedFocus = LensFile->EvaluateNormalizedFocus(LensFileEvalData.Input.Focus);
 			}
 		}
 		{
 			CachedLiveLinkData.RawIris = LensFileEvalData.Input.Iris;
 			if (LensFile->HasIrisEncoderMapping())
 			{
-				CachedLiveLinkData.EvaluatedIris = LensFile->EvaluateNormalizedIris(LensFileEvalData.Input.Iris.IsSet() ? LensFileEvalData.Input.Iris.GetValue() : 0.0f);
+				CachedLiveLinkData.EvaluatedIris = LensFile->EvaluateNormalizedIris(LensFileEvalData.Input.Iris);
 			}
 		}
 		{
 			CachedLiveLinkData.RawZoom = LensFileEvalData.Input.Zoom;
 
 			FFocalLengthInfo FocalLength;
-			const float FocusValue = LensFileEvalData.Input.Focus.IsSet() ? LensFileEvalData.Input.Focus.GetValue() : 0.0f;
-			const float ZoomValue = LensFileEvalData.Input.Zoom.IsSet() ? LensFileEvalData.Input.Zoom.GetValue() : 0.0f;
-			if (LensFile->EvaluateFocalLength(FocusValue, ZoomValue, FocalLength))
+			if (LensFile->EvaluateFocalLength(LensFileEvalData.Input.Focus, LensFileEvalData.Input.Zoom, FocalLength))
 			{
 				CachedLiveLinkData.EvaluatedZoom = FocalLength.FxFy.X * LensFile->LensInfo.SensorDimensions.X;
 			}
@@ -136,9 +134,6 @@ void SLensEvaluation::CacheLiveLinkData()
 
 void SLensEvaluation::CacheLensFileData()
 {
-	bHasValidRawFocus = CachedLiveLinkData.RawFocus.IsSet();
-	bHasValidRawZoom = CachedLiveLinkData.RawZoom.IsSet();
-
 	//Evaluate LensFile independantly of valid FZ pair. Use default 0.0f like LiveLinkCamera if it's not present
 	{
 		const float Focus = CachedLiveLinkData.RawFocus.IsSet() ? CachedLiveLinkData.RawFocus.GetValue() : 0.0f;
@@ -189,38 +184,7 @@ TSharedRef<SWidget> SLensEvaluation::MakeTrackingWidget()
 				.ColorAndOpacity(this, &SLensEvaluation::GetLiveLinkCameraControllerLabelColor)
 				.AutoWrapText(true)
 			]
-			+ SGridPanel::Slot(0, 4)
-			.Padding(0.0f, 15.0f, 0.0f, 0.0f)
-			[
-				SNew(STextBlock)
-				.Text(MakeAttributeLambda([this]
-				{
-					if (!bHasValidRawFocus)
-					{
-						return LOCTEXT("CannotUseRawFocusToEvaluateWarning", "Used default raw Focus value (0.0) to evaluate LensFile.");
-					}
-					return LOCTEXT("EmptyString", "");
-				}))
-				.ColorAndOpacity(FLinearColor::Yellow)
-				.AutoWrapText(true)
-			]
-			+ SGridPanel::Slot(0, 5)
-			.Padding(0.0f, 15.0f, 0.0f, 0.0f)
-			[
-				SNew(STextBlock)
-				.Text(MakeAttributeLambda([this]
-				{
-					if (!bHasValidRawZoom)
-					{
-						return LOCTEXT("CannotUseRawZoomToEvaluateWarning", "Used default raw Zoom value (0.0) to evaluate LensFile.");
-					}
-					return LOCTEXT("EmptyString", "");
-				}))
-				.ColorAndOpacity(FLinearColor::Yellow)
-				.AutoWrapText(true)
-			]
 		];
-
 }
 
 FText SLensEvaluation::GetTrackedCameraLabel() const

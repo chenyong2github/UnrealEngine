@@ -542,12 +542,7 @@ bool UCameraNodalOffsetAlgoPoints::ValidateNewRow(TSharedPtr<FCalibrationRowData
 		return false;
 	}
 
-	// FZ inputs are valid
-	if ((!Row->CameraData.LensFileEvalData.Input.Focus.IsSet()) || (!Row->CameraData.LensFileEvalData.Input.Zoom.IsSet()))
-	{
-		OutErrorMessage = LOCTEXT("LutInputsNotValid", "FZ Lut inputs are not valid. Make sure you are providing Focus and Zoom values via LiveLink");
-		return false;
-	}
+	// FZ inputs are always valid, no need to verify them. They could be coming from LiveLink or fallback to a default one
 
 	// bApplyNodalOffset did not change.
 	//
@@ -911,11 +906,8 @@ bool UCameraNodalOffsetAlgoPoints::GetNodalOffsetSinglePose(
 
 	const TSharedPtr<FCalibrationRowData>& FirstRow = Rows[0];
 
-	checkSlow(FirstRow->CameraData.LensFileEvalData.Input.Focus.IsSet());
-	checkSlow(FirstRow->CameraData.LensFileEvalData.Input.Zoom.IsSet());
-
-	OutFocus = *FirstRow->CameraData.LensFileEvalData.Input.Focus;
-	OutZoom = *FirstRow->CameraData.LensFileEvalData.Input.Zoom;
+	OutFocus = FirstRow->CameraData.LensFileEvalData.Input.Focus;
+	OutZoom  = FirstRow->CameraData.LensFileEvalData.Input.Zoom;
 
 	// See if the camera already had an offset applied, in which case we need to account for it.
 

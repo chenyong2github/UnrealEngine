@@ -348,9 +348,7 @@ bool UCameraLensDistortionAlgoCheckerboard::AddCalibrationRow(FText& OutErrorMes
 
 	// Validate the new row, show a message if validation fails.
 	{
-		FText ErrorMessage;
-
-		if (!ValidateNewRow(Row, ErrorMessage))
+		if (!ValidateNewRow(Row, OutErrorMessage))
 		{
 			return false;
 		}
@@ -420,13 +418,8 @@ bool UCameraLensDistortionAlgoCheckerboard::ValidateNewRow(TSharedPtr<FCalibrati
 		OutErrorMessage = LOCTEXT("InvalidCameraData", "Invalid CameraData");
 		return false;
 	}
-
-	// FZ inputs are valid
-	if ((!Row->CameraData.LensFileEvalData.Input.Focus.IsSet()) || (!Row->CameraData.LensFileEvalData.Input.Zoom.IsSet()))
-	{
-		OutErrorMessage = LOCTEXT("LutInputsNotValid", "FZ Lut inputs are not valid. Make sure you are providing Focus and Zoom values via LiveLink");
-		return false;
-	}
+	
+	// FZ inputs are always valid, no need to verify them. They could be coming from LiveLink or fallback to a default one
 
 	// Valid image dimensions
 	if ((Row->ImageHeight < 1) || (Row->ImageWidth < 1))
@@ -625,17 +618,13 @@ bool UCameraLensDistortionAlgoCheckerboard::GetLensDistortion(
 	check(DistortionCoefficients.total() == 5);
 	check((CameraMatrix.rows == 3) && (CameraMatrix.cols == 3));
 
-	// Focus and Zoom validity were verified when adding the calibration rows.
-	checkSlow(LastRow->CameraData.LensFileEvalData.Input.Focus.IsSet());
-	checkSlow(LastRow->CameraData.LensFileEvalData.Input.Zoom.IsSet());
-
 	// Valid image sizes were verified when adding the calibration rows.
 	checkSlow(LastRow->ImageWidth > 0);
 	checkSlow(LastRow->ImageHeight > 0);
 
 	// FZ inputs to LUT
-	OutFocus = *LastRow->CameraData.LensFileEvalData.Input.Focus;
-	OutZoom = *LastRow->CameraData.LensFileEvalData.Input.Zoom;
+	OutFocus = LastRow->CameraData.LensFileEvalData.Input.Focus;
+	OutZoom = LastRow->CameraData.LensFileEvalData.Input.Zoom;
 
 	// FocalLengthInfo
 	OutFocalLengthInfo.FxFy = FVector2D(

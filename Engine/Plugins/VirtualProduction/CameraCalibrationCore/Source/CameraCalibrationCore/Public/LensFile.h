@@ -328,13 +328,13 @@ struct FLensFileEvalData
 	struct
 	{
 		/** Focus input */
-		TOptional<float> Focus;
+		float Focus;
 
 		/** Iris input */
-		TOptional<float> Iris;
+		float Iris;
 
 		/** Zoom input */
-		TOptional<float> Zoom;
+		float Zoom;
 	} Input;
 
 	/** Information about the camera associated with the lens evaluation */
@@ -362,9 +362,9 @@ struct FLensFileEvalData
 	{
 		LensFile = nullptr;
 
-		Input.Focus.Reset();
-		Input.Iris.Reset();
-		Input.Zoom.Reset();
+		Input.Focus = 0.0f;
+		Input.Iris = 0.0f;
+		Input.Zoom = 0.0f;
 
 		Camera.UniqueId = INDEX_NONE;
 		Distortion.bWasEvaluated = false;
