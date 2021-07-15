@@ -5,6 +5,8 @@
 #include "FrameTypes.h"
 #include "ToolSceneQueriesUtil.h"
 
+#include "MathUtil.h"
+
 #include "SceneManagement.h" // FPrimitiveDrawInterface
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
@@ -121,4 +123,65 @@ void MeshDebugDraw::DrawSimpleFixedScreenAreaGrid(
 	float GridWidth = ToolSceneQueriesUtil::CalculateDimensionFromVisualAngleD(CameraState, (FVector3d)WorldOrigin, VisualAngleSpan);
 	float GridLineSpacing = GridWidth / (float)NumGridLines;
 	DrawSimpleGrid(LocalFrame, NumGridLines, GridLineSpacing, LineWidth, Color, bDepthTested, PDI, Transform);
+}
+
+
+void MeshDebugDraw::DrawHierarchicalGrid(
+	float BaseScale, float GridZoomFactor, int32 MaxLevelDensity,
+	const FVector& WorldMaxBounds, const FVector& WorldMinBounds,
+	int32 Levels, int32 Subdivisions, TArray<FColor>& Colors,
+	const FFrame3f& LocalFrame, float LineWidth, bool bDepthTested,
+	FPrimitiveDrawInterface* PDI, const FTransform& Transform)
+{
+
+	// Determine the logrithmic scaling factor based on linear zoom factor.
+    // This allows us to track and discretely shift grid resolutions at certain zoom levels.
+	// This code assumes that we want the grid to remain stable with one logrithmic "unit"
+	// around the base zoom factor of 1.0
+	float LogZoom = FMath::LogX(Subdivisions, GridZoomFactor );
+	float LogZoomDirection = FMath::Sign(LogZoom);
+	LogZoom = FMath::Abs(LogZoom);
+	LogZoom = FMathf::Floor(LogZoom);
+	LogZoom = LogZoomDirection * LogZoom;
+
+	// Adjust grid scales based on current zoom levels
+	TArray<float> GridScales;
+	GridScales.SetNum(Levels);
+	for (int32 Level = 0; Level < Levels; ++Level)
+	{
+		GridScales[Level] = BaseScale * FMathf::Pow(Subdivisions, LogZoom - Level);
+		ensure(!FMath::IsNearlyZero(GridScales[Level]));
+	}
+	
+	//Determine the center of the drawing area for the grid, snapping to grid positions
+	FVector GridOrigin(
+		FMath::GridSnap(LocalFrame.Origin.X, GridScales[0]),
+		FMath::GridSnap(LocalFrame.Origin.Y, GridScales[0]),
+		LocalFrame.Origin.Z);
+	UE::Geometry::FFrame3f GridFrame(GridOrigin);
+
+	// Draw each level of the grid
+	for (int32 Level = 0; Level < Levels; ++Level)
+	{
+		// We automatically adjust down each level's thickness by half each time
+		float AdjustedLineWidth = LineWidth * FMathf::Pow(2, -Level);
+
+		// Compute the number of needed grid lines based on the coarsest grid's scale, this way we never "run out" of lines as we pan about
+		int32 GridLines = FMathf::Ceil(FMathf::Max(((WorldMaxBounds.X - WorldMinBounds.X + GridScales[0]*2) / GridScales[Level]),
+			                                        ((WorldMaxBounds.Y - WorldMinBounds.Y + GridScales[0]*2) / GridScales[Level])));
+
+		// If we ever have too many lines to draw, just bail. This preserves performance for large, deep grids.
+		if (GridLines > MaxLevelDensity)
+		{
+			break;
+		}
+
+		// Select our color, using the last grid color over again if we don't have enough.
+		FColor GridColor = Colors.Num() - 1 > Level ? Colors[Level] : Colors.Last();
+
+		// Finally draw one grid level.
+		MeshDebugDraw::DrawSimpleGrid(GridFrame, GridLines, GridScales[Level], AdjustedLineWidth,
+			GridColor, bDepthTested, PDI, Transform);
+	}	
+
 }
