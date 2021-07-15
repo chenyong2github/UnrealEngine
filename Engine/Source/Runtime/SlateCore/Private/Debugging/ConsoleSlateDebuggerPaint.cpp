@@ -26,11 +26,13 @@ FConsoleSlateDebuggerPaint::FConsoleSlateDebuggerPaint()
 	, bLogWidgetName(false)
 	, bLogWidgetNameOnce(false)
 	, bLogWarningIfWidgetIsPaintedMoreThanOnce(true)
+	, bDebugGameWindowOnly(true)
 	, DrawBoxColor(1.0f, 1.0f, 0.0f, 0.2f)
 	, DrawQuadColor(1.0f, 1.0f, 1.0f, 1.0f)
 	, DrawWidgetNameColor(FColorList::SpicyPink)
 	, MaxNumberOfWidgetInList(20)
 	, CacheDuration(2.0f)
+	, PIEWindowTag("PIEWindow")
 	, ShowPaintWidgetCommand(
 		TEXT("SlateDebugger.Paint.Start")
 		, TEXT("Start the painted widget debug tool. Use to show widget that have been painted this frame.")
@@ -60,6 +62,10 @@ FConsoleSlateDebuggerPaint::FConsoleSlateDebuggerPaint()
 		TEXT("SlateDebugger.Paint.LogWarningIfWidgetIsPaintedMoreThanOnce")
 		, bLogWarningIfWidgetIsPaintedMoreThanOnce
 		, TEXT("Option to log a warning if a widget is painted more than once in a single frame."))
+	, OnlyGameWindow(
+		TEXT("SlateDebugger.Paint.OnlyGameWindow"),
+		bDebugGameWindowOnly,
+		TEXT("Option to only the debug the game window"))
 {
 	GConfig->GetBool(TEXT("SlateDebugger.Paint"), TEXT("bDisplayWidgetsNameList"), bDisplayWidgetsNameList, *GEditorPerProjectIni);
 	GConfig->GetBool(TEXT("SlateDebugger.Paint"), TEXT("bUseWidgetPathAsName"), bUseWidgetPathAsName, *GEditorPerProjectIni);
@@ -178,6 +184,14 @@ void FConsoleSlateDebuggerPaint::HandleEndWidgetPaint(const SWidget* Widget, con
 	//We do not keep the widget alive or reuse it later, cache all the info that we need.
 	const FConsoleSlateDebuggerUtility::TSWidgetId WidgetId = FConsoleSlateDebuggerUtility::GetId(Widget);
 	const FConsoleSlateDebuggerUtility::TSWindowId WindowId = FConsoleSlateDebuggerUtility::GetId(OutDrawElements.GetPaintWindow());
+
+	// Exclude all windows but the game window
+	SWindow* WindowToDrawIn = OutDrawElements.GetPaintWindow();
+	if (bDebugGameWindowOnly && (WindowToDrawIn->GetType() != EWindowType::GameWindow && WindowToDrawIn->GetTag() != PIEWindowTag))
+	{
+		return;
+	}
+
 
 	FPaintInfo* FoundItem = PaintedWidgets.Find(WidgetId);
 	if (FoundItem == nullptr)

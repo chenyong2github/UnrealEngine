@@ -59,11 +59,13 @@ private:
 	bool bLogWidgetName;
 	bool bLogWidgetNameOnce;
 	bool bLogWarningIfWidgetIsPaintedMoreThanOnce;
+	bool bDebugGameWindowOnly;
 	FLinearColor DrawBoxColor;
 	FLinearColor DrawQuadColor;
 	FLinearColor DrawWidgetNameColor;
 	int32 MaxNumberOfWidgetInList;
 	float CacheDuration;
+	FName PIEWindowTag;
 
 	//~ Console objects
 	FAutoConsoleCommand ShowPaintWidgetCommand;
@@ -73,6 +75,7 @@ private:
 	FAutoConsoleCommand DisplayWidgetsNameListCommand;
 	FAutoConsoleVariableRef MaxNumberOfWidgetInListtRefCVar;
 	FAutoConsoleVariableRef LogWarningIfWidgetIsPaintedMoreThanOnceRefCVar;
+	FAutoConsoleVariableRef OnlyGameWindow;
 
 	struct FPaintInfo 
 	{

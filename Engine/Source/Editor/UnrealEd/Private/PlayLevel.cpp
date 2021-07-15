@@ -3094,6 +3094,7 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 		FText ViewportName = GeneratePIEViewportWindowTitle(InNetMode, PreviewPlatform.GetEffectivePreviewFeatureLevel(), InSessionParams, InWorldContext.PIEInstance, InWorldContext.PIEFixedTickSeconds);
 		PieWindow = SNew(SWindow)
 			.Title(ViewportName)
+			.Tag("PIEWindow")
 			.ScreenPosition(FVector2D(WindowPosition.X, WindowPosition.Y))
 			.ClientSize(FVector2D(WindowSize.X, WindowSize.Y))	
 			.AutoCenter(bCenterNewWindowOverride ? EAutoCenter::PreferredWorkArea : EAutoCenter::None)
@@ -3104,7 +3105,6 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 
 		PieWindow->SetAllowFastUpdate(true);
 	}
-
 
 	// Setup a delegate for switching to the play world on slate input events, drawing and ticking
 	FOnSwitchWorldHack OnWorldSwitch = FOnSwitchWorldHack::CreateUObject(this, &UEditorEngine::OnSwitchWorldForSlatePieWindow, InWorldContext.PIEInstance);
