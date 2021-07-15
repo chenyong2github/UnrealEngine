@@ -89,6 +89,18 @@ namespace TakesUtils
 		return true;
 	}
 
+	template<typename AssetType>
+	static bool CreateNewAssetPackage(FString& InPackageName, TObjectPtr<AssetType>& OutAsset, FText* OutError, AssetType* OptionalBase = nullptr)
+	{
+		AssetType* RawOutAsset = nullptr;
+		if (CreateNewAssetPackage(InPackageName, RawOutAsset, OutError, OptionalBase))
+		{
+			OutAsset = RawOutAsset;
+			return true;
+		}
+		return false;
+	}
+
 	/**
 	 * Utility function that creates an asset with the specified asset path and name.
 	 * If the asset cannot be created (as one already exists), we try to postfix the asset

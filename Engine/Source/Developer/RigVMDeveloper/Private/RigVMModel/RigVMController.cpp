@@ -4162,7 +4162,7 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 			}
 			FunctionLibrary->FunctionReferences.Remove(LibraryNode);
 
-			for(const TPair<FString, URigVMLibraryNode*>& Pair : FunctionLibrary->LocalizedFunctions)
+			for(const auto& Pair : FunctionLibrary->LocalizedFunctions)
 			{
 				if(Pair.Value == LibraryNode)
 				{

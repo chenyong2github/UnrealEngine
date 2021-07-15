@@ -245,7 +245,7 @@ bool FLiveLinkComponentDetailCustomization::IsControllerItemSelected(FName Item,
 	if (ULiveLinkComponentController* EditedObjectPtr = EditedObject.Get())
 	{
 
-		ULiveLinkControllerBase** CurrentClass = EditedObjectPtr->ControllerMap.Find(RoleClass);
+		UE_TRANSITIONAL_OBJECT_PTR(ULiveLinkControllerBase)* CurrentClass = EditedObjectPtr->ControllerMap.Find(RoleClass);
 		if (CurrentClass == nullptr || *CurrentClass == nullptr)
 		{
 			return Item.IsNone();
@@ -266,7 +266,7 @@ FSlateColor FLiveLinkComponentDetailCustomization::HandleControllerStatusColorAn
 
 	if (ULiveLinkComponentController* EditorObjectPtr = EditedObject.Get())
 	{
-		ULiveLinkControllerBase** AssociatedControllerPtr = EditorObjectPtr->ControllerMap.Find(RoleClassEntry);
+		UE_TRANSITIONAL_OBJECT_PTR(ULiveLinkControllerBase)* AssociatedControllerPtr = EditorObjectPtr->ControllerMap.Find(RoleClassEntry);
 		if (AssociatedControllerPtr && *AssociatedControllerPtr)
 		{
 			if (UActorComponent* SelectedComponent = EditorObjectPtr->ComponentToControl.GetComponent(EditorObjectPtr->GetOwner()))
@@ -301,7 +301,7 @@ FText FLiveLinkComponentDetailCustomization::HandleControllerStatusText(TSubclas
 
 	if (ULiveLinkComponentController* EditorObjectPtr = EditedObject.Get())
 	{
-		ULiveLinkControllerBase** AssociatedControllerPtr = EditorObjectPtr->ControllerMap.Find(RoleClassEntry);
+		UE_TRANSITIONAL_OBJECT_PTR(ULiveLinkControllerBase)* AssociatedControllerPtr = EditorObjectPtr->ControllerMap.Find(RoleClassEntry);
 		if (AssociatedControllerPtr && *AssociatedControllerPtr)
 		{
 			if (UActorComponent* SelectedComponent = EditorObjectPtr->ComponentToControl.GetComponent(EditorObjectPtr->GetOwner()))
@@ -336,7 +336,7 @@ FText FLiveLinkComponentDetailCustomization::HandleControllerStatusToolTipText(T
 
 	if (ULiveLinkComponentController* EditorObjectPtr = EditedObject.Get())
 	{
-		ULiveLinkControllerBase** AssociatedControllerPtr = EditorObjectPtr->ControllerMap.Find(RoleClassEntry);
+		UE_TRANSITIONAL_OBJECT_PTR(ULiveLinkControllerBase)* AssociatedControllerPtr = EditorObjectPtr->ControllerMap.Find(RoleClassEntry);
 		if (AssociatedControllerPtr && *AssociatedControllerPtr)
 		{
 			if (UActorComponent* SelectedComponent = EditorObjectPtr->ComponentToControl.GetComponent(EditorObjectPtr->GetOwner()))

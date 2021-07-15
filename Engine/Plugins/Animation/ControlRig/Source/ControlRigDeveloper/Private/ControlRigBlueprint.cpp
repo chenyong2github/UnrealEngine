@@ -1070,7 +1070,7 @@ URigVMController* UControlRigBlueprint::GetController(URigVMGraph* InGraph) cons
 		InGraph = Model;
 	}
 
-	URigVMController* const* ControllerPtr = Controllers.Find(InGraph);
+	UE_TRANSITIONAL_OBJECT_PTR(URigVMController) const* ControllerPtr = Controllers.Find(InGraph);
 	if (ControllerPtr)
 	{
 		return *ControllerPtr;

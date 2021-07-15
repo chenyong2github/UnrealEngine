@@ -187,7 +187,7 @@ void UChaosClothingSimulationInteractor::ClothConfigUpdated()
 void UChaosClothingSimulationInteractor::SetAnimDriveSpringStiffness(float Stiffness)
 {
 	// Set the anim drive stiffness through the ChaosClothInteractor to allow the value to be overridden by the cloth interactor if needed
-	for (const TPair<FName, UClothingInteractor*>& ClothingInteractor : UClothingSimulationInteractor::ClothingInteractors)
+	for (const auto& ClothingInteractor : UClothingSimulationInteractor::ClothingInteractors)
 	{
 		if (UChaosClothingInteractor* const ChaosClothingInteractor = Cast<UChaosClothingInteractor>(ClothingInteractor.Value))
 		{
