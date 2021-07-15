@@ -26,7 +26,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatIntelISPCTexComp, Log, All);
 class FIntelISPCTexCompTextureBuildFunction final : public FTextureBuildFunction
 {
 	FStringView GetName() const final { return TEXT("IntelISPCTexCompTexture"); }
-	FGuid GetVersion() const final { return FGuid(TEXT("19d413ad-f529-4687-902a-3b71919cfd72")); }
+
+	void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder) const final
+	{
+		static FGuid Version(TEXT("19d413ad-f529-4687-902a-3b71919cfd72"));
+		Builder << Version;
+	}
 };
 
 // increment this if you change anything that will affect compression in this file, including FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE

@@ -26,7 +26,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatDXT, Log, All);
 class FDXTTextureBuildFunction final : public FTextureBuildFunction
 {
 	FStringView GetName() const final { return TEXT("DXTTexture"); }
-	FGuid GetVersion() const final { return FGuid(TEXT("c2d5dbc5-131c-4525-a332-843230076d99")); }
+
+	void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder) const final
+	{
+		static FGuid Version(TEXT("c2d5dbc5-131c-4525-a332-843230076d99"));
+		Builder << Version;
+	}
 };
 
 /**

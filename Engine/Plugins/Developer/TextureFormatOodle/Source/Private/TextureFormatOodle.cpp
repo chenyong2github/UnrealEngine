@@ -201,7 +201,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatOodle, Log, All);
 class FOodleTextureBuildFunction final : public FTextureBuildFunction
 {
 	FStringView GetName() const final { return TEXT("OodleTexture"); }
-	FGuid GetVersion() const final { return FGuid(TEXT("e6b8884f-923a-44a1-8da1-298fb48865b2")); }
+
+	void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder) const final
+	{
+		static FGuid Version(TEXT("e6b8884f-923a-44a1-8da1-298fb48865b2"));
+		Builder << Version;
+	}
 };
 
 // user data passed to Oodle Jobify system

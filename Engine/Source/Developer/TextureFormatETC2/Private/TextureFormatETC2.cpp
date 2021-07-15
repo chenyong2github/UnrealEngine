@@ -19,7 +19,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatETC2, Log, All);
 class FETC2TextureBuildFunction final : public FTextureBuildFunction
 {
 	FStringView GetName() const final { return TEXT("ETC2Texture"); }
-	FGuid GetVersion() const final { return FGuid(TEXT("af5192f4-351f-422f-b539-f6bd4abadfae")); }
+
+	void GetVersion(UE::DerivedData::FBuildVersionBuilder& Builder) const final
+	{
+		static FGuid Version(TEXT("af5192f4-351f-422f-b539-f6bd4abadfae"));
+		Builder << Version;
+	}
 };
 
 /**
