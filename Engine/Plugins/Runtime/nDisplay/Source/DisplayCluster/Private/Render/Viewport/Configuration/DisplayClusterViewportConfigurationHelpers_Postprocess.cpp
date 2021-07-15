@@ -317,14 +317,20 @@ void FDisplayClusterViewportConfigurationHelpers_Postprocess::UpdatePerViewportP
 		} \
 	} \
 
+/* 
+* This will override the settings using the priority. 
+* bOverridePPSettings2 (any additional settings specified by the user) will be of highest priority.
+* bOverridePPSettings1 (which is nDisplay override settings) will be of highest priority.
+* following by Cumulative settings (bOverridePPSettings0).
+*/
 #define PP_CONDITIONAL_OVERRIDE(COLOR, OUTGROUP, INGROUP, NAME) \
 	{ \
 		bool bOverridePPSettings0 = PPSettings0.INGROUP bOverride_##NAME; \
 		bool bOverridePPSettings1 = PPSettings1 && PPSettings1->INGROUP bOverride_##NAME; \
 		bool bOverridePPSettings2 = PPSettings2 && PPSettings2->INGROUP bOverride_##NAME; \
-		if (bOverridePPSettings2) \
+		if (bOverridePPSettings0) \
 		{ \
-			OutputPP.COLOR##NAME##OUTGROUP = PPSettings2->INGROUP NAME; \
+			OutputPP.COLOR##NAME##OUTGROUP = PPSettings0.INGROUP NAME; \
 			OutputPP.bOverride_##COLOR##NAME##OUTGROUP = true; \
 		} \
 		if (bOverridePPSettings1) \
@@ -332,9 +338,9 @@ void FDisplayClusterViewportConfigurationHelpers_Postprocess::UpdatePerViewportP
 			OutputPP.COLOR##NAME##OUTGROUP = PPSettings1->INGROUP NAME; \
 			OutputPP.bOverride_##COLOR##NAME##OUTGROUP = true; \
 		} \
-		if (bOverridePPSettings0) \
+		if (bOverridePPSettings2) \
 		{ \
-			OutputPP.COLOR##NAME##OUTGROUP = PPSettings0.INGROUP NAME; \
+			OutputPP.COLOR##NAME##OUTGROUP = PPSettings2->INGROUP NAME; \
 			OutputPP.bOverride_##COLOR##NAME##OUTGROUP = true; \
 		} \
 	} \
@@ -345,7 +351,6 @@ static void ImplBlendPostProcessSettings(FPostProcessSettings& OutputPP, const F
 	PP_CONDITIONAL_BLEND(+, , , , ColorCorrectionHighlightsMin, , );
 	PP_CONDITIONAL_BLEND(+, , , , ColorCorrectionShadowsMax, , );
 
-	// Prioritize viewport post process settings over cluster.
 	PP_CONDITIONAL_OVERRIDE(, , WhiteBalance., TemperatureType);
 	PP_CONDITIONAL_BLEND(+, , , WhiteBalance., WhiteTemp, +, -6500.0f);
 	PP_CONDITIONAL_BLEND(+, , , WhiteBalance., WhiteTint, , );
