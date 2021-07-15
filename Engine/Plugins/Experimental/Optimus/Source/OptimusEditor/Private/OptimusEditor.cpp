@@ -531,12 +531,9 @@ void FOptimusEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewS
 	// Create the compute graph component that will drive the deformation.
 	ComputeGraphComponent = NewObject<UComputeGraphComponent>(Actor);
 	ComputeGraphComponent->ComputeGraph = DeformerObject;
+	ComputeGraphComponent->PrimaryComponentTick.SetTickFunctionEnable(true);
 
-	// Make sure we tick _after_ the skelmesh component is done.
-	ComputeGraphComponent->AddTickPrerequisiteComponent(SkeletalMeshComponent);
 	InPreviewScene->AddComponent(ComputeGraphComponent, FTransform::Identity);
-
-	InPreviewScene->RegisterOnPreTick(FSimpleDelegate::CreateSP(this, &FOptimusEditor::HandleViewportPreTick));
 }
 
 
@@ -562,17 +559,6 @@ void FOptimusEditor::HandleViewportCreated(
 	
 	// ViewportWidget->GetViewportClient().SetAdvancedShowFlagsForScene(false);
 }
-
-
-void FOptimusEditor::HandleViewportPreTick()
-{
-	if (ComputeGraphComponent)
-	{
-		ComputeGraphComponent->QueueExecute();
-	}	
-}
-
-
 
 
 void FOptimusEditor::CreateWidgets()

@@ -134,7 +134,6 @@ public:
 	void HandlePreviewMeshChanged(USkeletalMesh* InOldPreviewMesh, USkeletalMesh* InNewPreviewMesh);
 	void HandleDetailsCreated(const TSharedRef<IDetailsView>& InDetailsView);
 	void HandleViewportCreated(const TSharedRef<IPersonaViewport>& InPersonaViewport);
-	void HandleViewportPreTick();
 	
 	// KILL ME
 	TSharedPtr<SGraphEditor> GetGraphEditorWidget() const { return GraphEditorWidget; }
