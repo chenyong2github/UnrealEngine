@@ -688,6 +688,7 @@ namespace Chaos
 				Solver->SetGenerateCollisionData(true);
 				Solver->SetGenerateTrailingData(true);
 			});
+
 		
 		// We only need to register event handlers once, the first time we initialize.
 		if (CachedData.Num() == 0)
