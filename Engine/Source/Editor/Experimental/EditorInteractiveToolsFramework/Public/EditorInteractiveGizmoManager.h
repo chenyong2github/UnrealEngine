@@ -9,8 +9,9 @@
 class FEditorModeTools;
 class UEditorInteractiveGizmoSelectionBuilder;
 class UEdModeInteractiveToolsContext;
-class UinteractiveGizmo;
+class UInteractiveGizmo;
 class IToolsContextRenderAPI;
+class UTypedElementSelectionSet;
 
 USTRUCT()
 struct FActiveSelectionGizmo
@@ -92,22 +93,15 @@ public:
 
 	/**
 	 * Try to automatically activate a new Gizmo instance based on the current state
-	 * @param Owner void pointer to whatever "owns" this Gizmo. Allows Gizmo to later be deleted using DestroyAllGizmosByOwner()
 	 * @return array of new Gizmo instances that have been created and initialized
 	 */
-	virtual TArray<UInteractiveGizmo*> CreateSelectionGizmos(void* Owner = nullptr);
+	virtual TArray<UInteractiveGizmo*> CreateGizmosForCurrentSelectionState();
 
 	/**
 	 * Handle Editor selection changes
-	 * @param Tools - Mode Manager which invoked this selection changed call
-	 * @param NewSelection - Object which is undergoing selection change
+	 * @param InSelectionSet - typed element selection set which invoked this selection changed call
 	 */
-	virtual void OnEditorSelectionChanged();
-
-	/**
-	 * Handle case when selection has been cleared.
-	 */
-	virtual void OnEditorSelectNone();
+	void HandleEditorSelectionSetChanged(const UTypedElementSelectionSet* InSelectionSet);
 
 	/**
 	 * Shutdown and remove a selection-based Gizmo
@@ -116,7 +110,7 @@ public:
 	 */
 	virtual bool DestroySelectionGizmo(UInteractiveGizmo* Gizmo);
 
-		/**
+	/**
 	 * Shutdown and remove all active auto gizmos
 	 */
 	virtual void DestroyAllSelectionGizmos();

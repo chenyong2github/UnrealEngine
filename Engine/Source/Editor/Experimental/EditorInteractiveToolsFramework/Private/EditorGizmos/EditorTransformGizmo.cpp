@@ -10,6 +10,8 @@
 #include "BaseGizmos/TransformSources.h"
 #include "EditorGizmos/EditorAxisSources.h"
 #include "EditorGizmos/EditorParameterToTransformAdapters.h"
+#include "Elements/Interfaces/TypedElementObjectInterface.h"
+#include "Elements/Interfaces/TypedElementWorldInterface.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/Selection.h"
 #include "Engine/World.h"
@@ -47,61 +49,55 @@ constexpr FColor UEditorTransformGizmo::CurrentColor;
 
 UInteractiveGizmo* UEditorTransformGizmoBuilder::BuildGizmo(const FToolBuilderState& SceneState) const
 {
-	// @todo - remove global call
-	FEditorModeTools& ModeTools = GLevelEditorModeTools();
-
-	ETransformGizmoSubElements Elements  = ETransformGizmoSubElements::None;
-	bool bUseContextCoordinateSystem = true;
-	UE::Widget::EWidgetMode WidgetMode = ModeTools.GetWidgetMode();
-	switch ( WidgetMode )
-	{
-	case UE::Widget::EWidgetMode::WM_Translate:
-		Elements = ETransformGizmoSubElements::TranslateAllAxes | ETransformGizmoSubElements::TranslateAllPlanes;
-		break;
-	case UE::Widget::EWidgetMode::WM_Rotate:
-		Elements = ETransformGizmoSubElements::RotateAllAxes;
-		break;
-	case UE::Widget::EWidgetMode::WM_Scale:
-		Elements = ETransformGizmoSubElements::ScaleAllAxes | ETransformGizmoSubElements::ScaleAllPlanes;
-		bUseContextCoordinateSystem = false;
-		break;
-	case UE::Widget::EWidgetMode::WM_2D:
-		Elements = ETransformGizmoSubElements::RotateAxisY | ETransformGizmoSubElements::TranslatePlaneXZ;
-		break;
-	default:
-		Elements = ETransformGizmoSubElements::FullTranslateRotateScale;
-		break;
-	}
-
 	UEditorTransformGizmo* TransformGizmo = NewObject<UEditorTransformGizmo>(SceneState.GizmoManager);
 	TransformGizmo->Setup();
 
 	TransformGizmo->SetWorld(SceneState.World);
-	TransformGizmo->bUseContextCoordinateSystem = bUseContextCoordinateSystem;
 
-	// @todo - update to work with typed elements
-	TArray<AActor*> SelectedActors;
-	ModeTools.GetSelectedActors()->GetSelectedObjects<AActor>(SelectedActors);
-
-	UTransformProxy* TransformProxy = NewObject<UTransformProxy>();
-	for (auto Actor : SelectedActors)
-	{
-		USceneComponent* SceneComponent = Actor->GetRootComponent();
-		TransformProxy->AddComponent(SceneComponent);
-	}
-	TransformGizmo->SetActiveTarget( TransformProxy );
-	TransformGizmo->SetVisibility(SelectedActors.Num() > 0);
+	// @todo - remove this once transform is updated to take widget mode as a source
+	TransformGizmo->SetElements(ETransformGizmoSubElements::TranslateAllAxes | ETransformGizmoSubElements::TranslateAllPlanes);
+	TransformGizmo->bUseContextCoordinateSystem = false;
 
 	return TransformGizmo;
 }
 
-bool UEditorTransformGizmoBuilder::SatisfiesCondition(const FToolBuilderState& SceneState) const 
+void UEditorTransformGizmoBuilder::UpdateGizmoForSelection(UInteractiveGizmo* Gizmo, const FToolBuilderState& SceneState)
 {
-	if (UTypedElementSelectionSet* SelectionSet = SceneState.TypedElementSelectionSet.Get())
+	UEditorTransformGizmo* TransformGizmo = Cast<UEditorTransformGizmo>(Gizmo);
+
+	if (ensure(TransformGizmo))
 	{
-		return (SelectionSet->HasSelectedElements());
+		UTransformProxy* TransformProxy = NewObject<UTransformProxy>();
+		bool bVisibility = false;
+
+		ETypedElementWorldType WorldType = (SceneState.World->WorldType == EWorldType::PIE ? ETypedElementWorldType::Game : ETypedElementWorldType::Editor);
+
+		// @todo - once UTransformProxy supports typed elements, update this to use the normalized typed
+		// element selection set.
+		if (UTypedElementSelectionSet* SelectionSet = SceneState.TypedElementSelectionSet.Get())
+		{
+			SelectionSet->ForEachSelectedElement<UTypedElementWorldInterface>([TransformProxy, &bVisibility, SelectionSet, WorldType](const TTypedElement<UTypedElementWorldInterface>& InWorldElement)
+			{
+				if (InWorldElement.CanMoveElement(WorldType))
+				{
+					if (TTypedElement<UTypedElementObjectInterface> ObjectTypedElement = SelectionSet->GetElementList()->GetElement<UTypedElementObjectInterface>(InWorldElement))
+					{
+						if (AActor* Actor = ObjectTypedElement.GetObjectAs<AActor>())
+						{
+							USceneComponent* SceneComponent = Actor->GetRootComponent();
+							TransformProxy->AddComponent(SceneComponent);
+							bVisibility = true;
+						}
+						return true;
+					}
+				}
+				return false;
+			});
+		}
+
+		TransformGizmo->SetActiveTarget(TransformProxy);
+		TransformGizmo->SetVisibility(bVisibility);
 	}
-	return true;
 }
 
 void UEditorTransformGizmo::SetWorld(UWorld* WorldIn)

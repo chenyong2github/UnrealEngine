@@ -32,9 +32,15 @@ class EDITORINTERACTIVETOOLSFRAMEWORK_API UEditorTransformGizmoBuilder : public 
 
 public:
 
+	// UEditorInteractiveGizmoSelectionBuilder interface 
 	virtual UInteractiveGizmo* BuildGizmo(const FToolBuilderState& SceneState) const override;
+	virtual void UpdateGizmoForSelection(UInteractiveGizmo* Gizmo, const FToolBuilderState& SceneState) override;
 
-	virtual bool SatisfiesCondition(const FToolBuilderState& SceneState) const override;
+	// UEditorInteractiveGizmoConditionalBuilder interface 
+	virtual bool SatisfiesCondition(const FToolBuilderState& SceneState) const override
+	{
+		return true;
+	}
 };
 
 

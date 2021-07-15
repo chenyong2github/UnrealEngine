@@ -180,13 +180,17 @@ void FWidget::Render( const FSceneView* View,FPrimitiveDrawInterface* PDI, FEdit
 
 	const bool bShowFlagsSupportsWidgetDrawing = View->Family->EngineShowFlags.ModeWidgets;
 	const bool bEditorModeToolsSupportsWidgetDrawing = EditorModeTools ? EditorModeTools->GetShowWidget() : true;
+
+	static const auto UseLegacyWidgetCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("Gizmos.UseLegacyWidget"));
+	const bool bUseLegacyWidget = UseLegacyWidgetCVar->GetInt() > 0;
+
 	bool bDrawWidget;
 
 	// Because the movement routines use the widget axis to determine how to transform mouse movement into
 	// editor object movement, we need to still run through the Render routine even though widget drawing may be
 	// disabled.  So we keep a flag that is used to determine whether or not to actually render anything.  This way
 	// we can still update the widget axis' based on the Context's transform matrices, even though drawing is disabled.
-	if(bDefaultVisibility && bShowFlagsSupportsWidgetDrawing && bEditorModeToolsSupportsWidgetDrawing)
+	if(bDefaultVisibility && bShowFlagsSupportsWidgetDrawing && bEditorModeToolsSupportsWidgetDrawing && bUseLegacyWidget)
 	{
 		bDrawWidget = true;
 

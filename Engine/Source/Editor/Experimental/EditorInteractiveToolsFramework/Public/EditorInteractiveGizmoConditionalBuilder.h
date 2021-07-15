@@ -52,7 +52,13 @@ struct EDITORINTERACTIVETOOLSFRAMEWORK_API FEditorGizmoTypePriority
 	}
 };
 
-/** UInteractiveGizmoType provides actions and other information about gizmo types */
+/** 
+ * Gizmo builders which should be built once a condition is satisfied in the current scene state
+ * inherit from UEditorInteractiveGizmoConditionalBuilder or its derived classes. The SatisfiesCondition method
+ * should return true whenever the builder is buildable based on Editor scene state, usually based
+ * on selection. The builder's priority should be specified such that when more than one builder
+ * is discovered, the builder with highest priority will be built.
+ */
 UCLASS(Transient, Abstract)
 class EDITORINTERACTIVETOOLSFRAMEWORK_API UEditorInteractiveGizmoConditionalBuilder : public UInteractiveGizmoBuilder
 {
@@ -73,11 +79,7 @@ public:
 	}
 
 	/** Returns true if this gizmo is valid for creation based on the current state. */
-	virtual bool SatisfiesCondition(const FToolBuilderState& SceneState) const
-	{
-		unimplemented();
-		return false;
-	}
+	virtual bool SatisfiesCondition(const FToolBuilderState& SceneState) const  PURE_VIRTUAL(UEditorInteractiveGizmoConditionalBuilder::SatisfiesCondition, return false; );
 
 protected:
 

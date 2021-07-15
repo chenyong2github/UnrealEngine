@@ -630,6 +630,16 @@ void UEdModeInteractiveToolsContext::InitializeContextWithEditorModeManager(FEdi
 
 	// set up standard materials
 	StandardVertexColorMaterial = GEngine->VertexColorMaterial;
+
+	if (UTypedElementSelectionSet* TypedElementSelectionSet = EditorModeManager->GetEditorSelectionSet())
+	{
+		TypedElementSelectionSet->OnChanged().AddUObject(this, &UEdModeInteractiveToolsContext::OnEditorSelectionSetChanged);
+	}
+	else
+	{
+		FLevelEditorModule& LevelEditor = FModuleManager::Get().LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+		LevelEditor.OnLevelEditorCreated().AddUObject(this, &UEdModeInteractiveToolsContext::OnLevelEditorCreated);
+	}
 }
 
 
@@ -1274,8 +1284,24 @@ void UEdModeInteractiveToolsContext::OnToolPostBuild(UInteractiveToolManager* In
 	// todo: Add any shared tool targets for the mode toolkit
 }
 
-
 void UEdModeInteractiveToolsContext::SetEnableRenderingDuringHitProxyPass(bool bEnabled)
 {
 	bEnableRenderingDuringHitProxyPass = bEnabled;
 }
+
+void UEdModeInteractiveToolsContext::OnLevelEditorCreated(TSharedPtr<ILevelEditor> InLevelEditor)
+{
+	if (UTypedElementSelectionSet* TypedElementSelectionSet = EditorModeManager->GetEditorSelectionSet())
+	{
+		TypedElementSelectionSet->OnChanged().AddUObject(this, &UEdModeInteractiveToolsContext::OnEditorSelectionSetChanged);
+	}
+}
+
+void UEdModeInteractiveToolsContext::OnEditorSelectionSetChanged(const UTypedElementSelectionSet* InSelectionSet)
+{
+	if (UEditorInteractiveGizmoManager* EditorGizmoManager = Cast<UEditorInteractiveGizmoManager>(GizmoManager))
+	{
+		EditorGizmoManager->HandleEditorSelectionSetChanged(InSelectionSet);
+	}
+}
+

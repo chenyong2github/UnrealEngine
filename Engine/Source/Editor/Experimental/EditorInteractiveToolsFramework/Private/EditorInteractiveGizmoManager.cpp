@@ -2,21 +2,24 @@
 
 
 #include "EditorInteractiveGizmoManager.h"
+#include "EditorInteractiveGizmoConditionalBuilder.h"
 #include "EditorInteractiveGizmoSelectionBuilder.h"
 #include "EditorInteractiveGizmoSubsystem.h"
 #include "EdModeInteractiveToolsContext.h"
 #include "EditorModeManager.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
 #include "HAL/IConsoleManager.h"
+#include "LevelEditor.h"
 #include "InputRouter.h"
 #include "InteractiveGizmo.h"
 #include "InteractiveToolChange.h"
 #include "InteractiveToolsContext.h"
+#include "Selection.h"
 #include "ToolContextInterfaces.h"
 
 
 #define LOCTEXT_NAMESPACE "UEditorInteractiveGizmoManager"
 
-#if 0
 static TAutoConsoleVariable<int32> CVarUseLegacyWidget(
 	TEXT("Gizmos.UseLegacyWidget"),
 	1,
@@ -24,7 +27,6 @@ static TAutoConsoleVariable<int32> CVarUseLegacyWidget(
 	TEXT("0 = enable UE5 transform and other selection-based gizmos.\n")
 	TEXT("1 = enable legacy UE4 transform widget."),
 	ECVF_RenderThreadSafe);
-#endif
 
 
 UEditorInteractiveGizmoManager::UEditorInteractiveGizmoManager() :
@@ -38,7 +40,6 @@ void UEditorInteractiveGizmoManager::InitializeWithEditorModeManager(IToolsConte
 {
 	Super::Initialize(QueriesAPIIn, TransactionsAPIIn, InputRouterIn);
 	EditorModeManager = InEditorModeManager;
-
 }
 
 
@@ -132,50 +133,41 @@ TArray<TObjectPtr<UEditorInteractiveGizmoSelectionBuilder>> UEditorInteractiveGi
 	return FoundBuilders;
 }
 
-TArray<UInteractiveGizmo*> UEditorInteractiveGizmoManager::CreateSelectionGizmos(void* Owner)
+TArray<UInteractiveGizmo*> UEditorInteractiveGizmoManager::CreateGizmosForCurrentSelectionState()
 {
-	// always destroy the previous active auto gizmo
-	DestroyAllSelectionGizmos();
-
 	if (bShowSelectionGizmos)
 	{
+		TArray<UInteractiveGizmo*> NewGizmos;
+
 		FToolBuilderState CurrentSceneState;
 		QueriesAPI->GetCurrentSelectionState(CurrentSceneState);
 
-		if (UTypedElementSelectionSet* SelectionSet = CurrentSceneState.TypedElementSelectionSet.Get())
+		TArray<TObjectPtr<UEditorInteractiveGizmoSelectionBuilder>> FoundBuilders = GetQualifiedGizmoSelectionBuilders(CurrentSceneState);
+
+		for (TObjectPtr<UEditorInteractiveGizmoSelectionBuilder> FoundBuilder : FoundBuilders)
 		{
-			if (SelectionSet->HasSelectedElements())
+			UInteractiveGizmo* NewGizmo = FoundBuilder->BuildGizmoForSelection(CurrentSceneState);
+			if (NewGizmo == nullptr)
 			{
-				TArray<UInteractiveGizmo*> NewGizmos;
-
-				TArray<TObjectPtr<UEditorInteractiveGizmoSelectionBuilder>> FoundBuilders = GetQualifiedGizmoSelectionBuilders(CurrentSceneState);
-
-				for (TObjectPtr<UEditorInteractiveGizmoSelectionBuilder> FoundBuilder : FoundBuilders)
-				{
-					UInteractiveGizmo* NewGizmo = FoundBuilder->BuildGizmo(CurrentSceneState);
-					if (NewGizmo == nullptr)
-					{
-						DisplayMessage(LOCTEXT("CreateGizmoReturnNullMessage", "UEditorInteractiveGizmoManager::CreateGizmo: BuildGizmo() returned null"), EToolMessageLevel::Internal);
-						return NewGizmos;
-					}
-
-					// register new active input behaviors
-					InputRouter->RegisterSource(NewGizmo);
-
-					NewGizmos.Add(NewGizmo);
-				}
-
-				PostInvalidation();
-
-				for (UInteractiveGizmo* NewGizmo : NewGizmos)
-				{
-					FActiveSelectionGizmo ActiveGizmo = { NewGizmo, Owner };
-					ActiveSelectionGizmos.Add(ActiveGizmo);
-				}
-
+				DisplayMessage(LOCTEXT("CreateGizmoReturnNullMessage", "UEditorInteractiveGizmoManager::CreateGizmo: CreateGizmoForSelectionSet() returned null"), EToolMessageLevel::Internal);
 				return NewGizmos;
 			}
+
+			// register new active input behaviors
+			InputRouter->RegisterSource(NewGizmo);
+
+			NewGizmos.Add(NewGizmo);
 		}
+
+		PostInvalidation();
+
+		for (UInteractiveGizmo* NewGizmo : NewGizmos)
+		{
+			FActiveSelectionGizmo ActiveGizmo = { NewGizmo, nullptr };
+			ActiveSelectionGizmos.Add(ActiveGizmo);
+		}
+
+		return NewGizmos;
 	}
 
 	return TArray<UInteractiveGizmo*>();
@@ -219,15 +211,14 @@ void UEditorInteractiveGizmoManager::DestroyAllSelectionGizmos()
 	PostInvalidation();
 }
 
-
-void UEditorInteractiveGizmoManager::OnEditorSelectionChanged()
-{
-	CreateSelectionGizmos();
-}
-
-void UEditorInteractiveGizmoManager::OnEditorSelectNone()
+void UEditorInteractiveGizmoManager::HandleEditorSelectionSetChanged(const UTypedElementSelectionSet* InSelectionSet)
 {
 	DestroyAllSelectionGizmos();
+
+	if (InSelectionSet && InSelectionSet->HasSelectedElements())
+	{
+		CreateGizmosForCurrentSelectionState();
+	}
 }
 
 // @todo move this to a gizmo context object
@@ -246,20 +237,16 @@ bool UEditorInteractiveGizmoManager::GetShowSelectionGizmosForView(IToolsContext
 
 void UEditorInteractiveGizmoManager::UpdateActiveSelectionGizmos()
 {
-#if 0
 	const bool bEditorModeToolsSupportsWidgetDrawing = EditorModeManager ? EditorModeManager->GetShowWidget() : true;
 	const bool bEnableSelectionGizmos = (CVarUseLegacyWidget.GetValueOnGameThread() == 0);
 	const bool bNewShowSelectionGizmos = bEditorModeToolsSupportsWidgetDrawing && bEnableSelectionGizmos;
-#else
-	const bool bNewShowSelectionGizmos = EditorModeManager ? EditorModeManager->GetShowWidget() : true;
-#endif
 
 	if (bShowSelectionGizmos != bNewShowSelectionGizmos)
 	{
 		bShowSelectionGizmos = bNewShowSelectionGizmos;
 		if (bShowSelectionGizmos)
 		{
-			CreateSelectionGizmos();
+			CreateGizmosForCurrentSelectionState();
 		}
 		else
 		{
