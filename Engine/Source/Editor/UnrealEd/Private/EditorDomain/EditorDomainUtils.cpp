@@ -170,7 +170,10 @@ EPackageDigestResult GetPackageDigest(IAssetRegistry& AssetRegistry, FName Packa
 {
 	FCbWriter Builder;
 	EPackageDigestResult Result = AppendPackageDigest(AssetRegistry, PackageName, Builder, OutErrorMessage);
-	OutPackageDigest = Builder.Save().GetRangeHash();
+	if (Result == EPackageDigestResult::Success)
+	{
+		OutPackageDigest = Builder.Save().GetRangeHash();
+	}
 	return Result;
 }
 
