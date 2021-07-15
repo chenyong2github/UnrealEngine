@@ -73,14 +73,12 @@ FSharedBuffer FBuildJobContext::FindInput(FStringView Key) const
 		}
 		else
 		{
-			TStringBuilder<32> Category;
-			Category << ImplicitConv<FName>(LogDerivedDataBuild.GetCategoryName());
 			TStringBuilder<256> Error;
 			Error << TEXT("Input '") << Key << TEXT("' was expected to have raw hash ") << Input->GetRawHash()
 				<< TEXT(" and raw size ") << Input->GetRawSize() << TEXT(" but has raw hash ") << RawHash
 				<< TEXT(" and raw size ") << Buffer.GetSize() << TEXT(" after decompression for build of '")
 				<< Job.GetName() << TEXT("' by ") << Job.GetFunction() << TEXT(".");
-			OutputBuilder.AddError(Category, Error);
+			OutputBuilder.AddError(TEXT("LogDerivedDataBuild"_SV), Error);
 			UE_LOG(LogDerivedDataBuild, Error, TEXT("%.*s"), Error.Len(), Error.GetData());
 		}
 	}
