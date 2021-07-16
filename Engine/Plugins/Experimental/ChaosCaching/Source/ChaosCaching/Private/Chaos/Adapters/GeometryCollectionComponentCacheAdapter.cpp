@@ -591,11 +591,6 @@ namespace Chaos
 		return nullptr;
 	}
 
-	void FGeometryCollectionCacheAdapter::Initialize()
-	{
-		CachedData.Empty();
-	}
-
 	void FGeometryCollectionCacheAdapter::SetRestState(UPrimitiveComponent* InComponent, UChaosCache* InCache, const FTransform& InRootTransform, Chaos::FReal InTime) const
 	{
 		// Caches recorded previous to Version 1 may not scrub correctly as the MassToLocal transform has been burned in.
@@ -681,6 +676,10 @@ namespace Chaos
 			return false;
 		}
 
+		// In case commands have been issued that conflict with our requirement to generate data, flush the queue
+		Solver->AdvanceAndDispatch_External(0);
+		Solver->WaitOnPendingTasks_External();
+
 		// We need secondary event data to record event information into the cache
 		Solver->EnqueueCommandImmediate([Solver]()
 			{
@@ -717,7 +716,10 @@ namespace Chaos
 			TrailingDataArray = nullptr;
 		}
 
-		CachedData.Add(Proxy, FCachedEventData());
+		FCachedEventData& CachedEventData = CachedData.FindOrAdd(Proxy);
+		CachedEventData.ProxyBreakingDataIndices = nullptr;
+		CachedEventData.ProxyCollisionDataIndices = nullptr;
+		CachedEventData.ProxyTrailingDataIndices = nullptr;
 
 		return true;
 	}
