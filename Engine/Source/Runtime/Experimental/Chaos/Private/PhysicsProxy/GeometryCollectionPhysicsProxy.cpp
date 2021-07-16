@@ -1017,16 +1017,27 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 
 	if (Parameters.bUseSizeSpecificDamageThresholds)
 	{
-		const TManagedArray<FGeometryDynamicCollection::FSharedImplicit>& Implicit = DynamicCollection.Implicits;
-		if (Implicit[CollectionClusterIndex] && Implicit[CollectionClusterIndex]->HasBoundingBox())
+		// If RelativeSize is available, use that to determine SizeSpecific index, otherwise, fall back to bounds volume.
+		int32 SizeSpecificIdx = 0;
+		if (Parameters.RestCollection->HasAttribute("Size", FTransformCollection::TransformGroup))
 		{
-			FBox LocalBoundingBox(Implicit[CollectionClusterIndex]->BoundingBox().Min(), Implicit[CollectionClusterIndex]->BoundingBox().Max());
-			const int32 SizeSpecificIdx = FindSizeSpecificIdx(Parameters.Shared.SizeSpecificData, LocalBoundingBox);
-			if (0<= SizeSpecificIdx && SizeSpecificIdx < Parameters.Shared.SizeSpecificData.Num() )
+			const TManagedArray<float>& RelativeSize = Parameters.RestCollection->GetAttribute<float>("Size", FTransformCollection::TransformGroup);
+			SizeSpecificIdx = FindSizeSpecificIdx(Parameters.Shared.SizeSpecificData, RelativeSize[CollectionClusterIndex]);
+		}
+		else
+		{
+			const TManagedArray<FGeometryDynamicCollection::FSharedImplicit>& Implicit = DynamicCollection.Implicits;
+			if (Implicit[CollectionClusterIndex] && Implicit[CollectionClusterIndex]->HasBoundingBox())
 			{
-				const FSharedSimulationSizeSpecificData& SizeSpecificData = Parameters.Shared.SizeSpecificData[SizeSpecificIdx];
-				Damage = SizeSpecificData.DamageThreshold;
+				FBox LocalBoundingBox(Implicit[CollectionClusterIndex]->BoundingBox().Min(), Implicit[CollectionClusterIndex]->BoundingBox().Max());
+				SizeSpecificIdx = FindSizeSpecificIdx(Parameters.Shared.SizeSpecificData, LocalBoundingBox);
 			}
+		}
+
+		if (0 <= SizeSpecificIdx && SizeSpecificIdx < Parameters.Shared.SizeSpecificData.Num())
+		{
+			const FSharedSimulationSizeSpecificData& SizeSpecificData = Parameters.Shared.SizeSpecificData[SizeSpecificIdx];
+			Damage = SizeSpecificData.DamageThreshold;
 		}
 	}
 
@@ -1820,6 +1831,12 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	TManagedArray<TSet<int32>>* TransformToConvexIndices = RestCollection.FindAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup);
 	TManagedArray<TUniquePtr<Chaos::FConvex>>* ConvexGeometry = RestCollection.FindAttribute<TUniquePtr<Chaos::FConvex>>("ConvexHull", "Convex");
 
+	bool bUseRelativeSize = RestCollection.HasAttribute(TEXT("Size"), FTransformCollection::TransformGroup);
+	if (!bUseRelativeSize)
+	{
+		UE_LOG(LogChaos, Warning, TEXT("Relative Size not found on Rest Collection. Using bounds volume for SizeSpecificData indexing instead."));
+	}
+
 
 	// @todo(chaos_transforms) : do we still use this?
 	TManagedArray<FTransform>& CollectionMassToLocal =
@@ -2091,7 +2108,18 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 				InstanceBoundingBox = FBox(MassProperties.CenterOfMass, MassProperties.CenterOfMass);
 			}
 
-			const int32 SizeSpecificIdx = FindSizeSpecificIdx(SharedParams.SizeSpecificData, InstanceBoundingBox);
+			// If we have a normalized Size available, use that to determine SizeSpecific index, otherwise fall back on Bounds volume.
+			int32 SizeSpecificIdx;
+			if (bUseRelativeSize)
+			{
+				const TManagedArray<float>& RelativeSize = RestCollection.GetAttribute<float>(TEXT("Size"), FTransformCollection::TransformGroup);
+				SizeSpecificIdx = FindSizeSpecificIdx(SharedParams.SizeSpecificData, RelativeSize[TransformGroupIndex]);
+			}
+			else
+			{
+				SizeSpecificIdx = FindSizeSpecificIdx(SharedParams.SizeSpecificData, InstanceBoundingBox);
+			}
+			
 			const FSharedSimulationSizeSpecificData& SizeSpecificData = SharedParams.SizeSpecificData[SizeSpecificIdx];
 
 			if (SizeSpecificData.CollisionShapesData.Num())

@@ -1130,6 +1130,25 @@ void FFractureEditorModeToolkit::UpdateGeometryComponentAttributes(UGeometryColl
 					UpdateVolumes(GeometryCollection, MassSpaceParticles, Idx);
 				}
 			}
+
+			// Normalize Size
+			TManagedArray<float>& Size = GeometryCollection->GetAttribute<float>("Size", FTransformCollection::TransformGroup);
+			const TManagedArray<int32>& SimulationType = GeometryCollection->SimulationType;
+			float MaxSize = 0.0f;
+			for (int32 Idx = 0; Idx < Size.Num(); ++Idx)
+			{
+				if (SimulationType[Idx] == FGeometryCollection::ESimulationTypes::FST_Rigid)
+				{ 
+					MaxSize = FMath::Max(Size[Idx], MaxSize);
+				}
+			}
+			if (MaxSize > 0.0)
+			{ 
+				for (int32 Idx = 0; Idx < Size.Num(); ++Idx)
+				{ 
+					Size[Idx] /= MaxSize;
+				}
+			}
 		}
 	}
 	
@@ -1145,6 +1164,12 @@ void FFractureEditorModeToolkit::UpdateVolumes(FGeometryCollectionPtr GeometryCo
 	const TManagedArray<int32>& TransformToGeometryIndex = GeometryCollection->TransformToGeometryIndex;
 	const TManagedArray<FIntVector>& Indices = GeometryCollection->Indices;
 	TManagedArray<float>& Volumes = GeometryCollection->GetAttribute<float>("Volume", FTransformCollection::TransformGroup);
+	
+	if (!GeometryCollection->HasAttribute("Size", FTransformCollection::TransformGroup))
+	{
+		GeometryCollection->AddAttribute<float>("Size", FTransformCollection::TransformGroup);
+	}
+	TManagedArray<float>& Size = GeometryCollection->GetAttribute<float>("Size", FTransformCollection::TransformGroup);
 
 	if (SimulationType[TransformIndex] == FGeometryCollection::ESimulationTypes::FST_Rigid)
 	{
@@ -1166,19 +1191,23 @@ void FFractureEditorModeToolkit::UpdateVolumes(FGeometryCollectionPtr GeometryCo
 
 			// Since we're only interested in relative mass, we assume density = 1.0
 			Volumes[TransformIndex] = Volume; // todo(lwc) potential conversion from double to float
+			Size[TransformIndex] = FGenericPlatformMath::Pow(static_cast<float>(Volume), (1.0f/3.0f));
 		}	
 	}
 	else if (SimulationType[TransformIndex] == FGeometryCollection::ESimulationTypes::FST_Clustered)
 	{
 		// Recurse to children and sum the volumes for this node
 		float LocalVolume = 0.0;
+		float LocalSize = 0.0;
 		for (int32 ChildIndex : Children[TransformIndex])
 		{
 			UpdateVolumes(GeometryCollection, MassSpaceParticles, ChildIndex);
 			LocalVolume += Volumes[ChildIndex];
+			LocalSize += Size[ChildIndex];
 		}
 
 		Volumes[TransformIndex] = LocalVolume;
+		Size[TransformIndex] = LocalSize;
 	}
 	else
 	{
