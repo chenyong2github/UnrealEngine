@@ -191,7 +191,7 @@ void MainVisibility(
 
 #if HAIR_RENDER_MODE == RENDER_MODE_MSAA_VISIBILITY
   #if HAIR_STRAND_MESH_FACTORY
-	OutColor0 = PackHairVisSample(HairPrimitiveId, HairVisibilityPass_HairMaterialId);
+	OutColor0 = PackHairVisPrimitiveMaterialId(HairPrimitiveId, HairVisibilityPass_HairMaterialId);
   #else
 	OutColor0 = 0;
   #endif

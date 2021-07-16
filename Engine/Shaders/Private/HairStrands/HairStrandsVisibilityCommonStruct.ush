@@ -22,3 +22,9 @@ struct FPackedHairSample
 	uint  BaseColor_Roughness;
 	uint  Specular_LightChannels_Backlit;
 };
+
+struct FPackedHairVis
+{
+	uint Depth_Coverage8bit;
+	uint PrimitiveID_MaterialID;
+};
