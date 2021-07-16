@@ -52,6 +52,7 @@ public:
 	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::None; }
 
 	virtual bool IsHiddenEd() const override;
+	virtual bool IsHLODRelevant() const override;
 
 	void DestroyPackedComponents();
 	void GetPackedComponents(TArray<UActorComponent*>& OutPackedComponents) const;

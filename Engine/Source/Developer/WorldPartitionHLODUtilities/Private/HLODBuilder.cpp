@@ -80,6 +80,10 @@ TArray<UPrimitiveComponent*> FHLODBuilder::GatherPrimitiveComponents(const TArra
 	for (const FWorldPartitionReference& ActorRef : InActors)
 	{
 		AActor* Actor = ActorRef->GetActor();
+		if (!Actor->IsHLODRelevant())
+		{
+			continue;
+		}
 
 		// Gather primitives from the Actor
 		GatherPrimitivesFromActor(Actor);
