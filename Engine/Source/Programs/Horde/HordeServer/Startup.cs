@@ -421,6 +421,10 @@ namespace HordeServer
 			{
 				AwsOptions.Credentials = new AssumeRoleAWSCredentials(FallbackCredentialsFactory.GetCredentials(), Settings.S3AssumeArn, "Horde");
 			}
+			else if(Settings.S3CredentialType == "AssumeRoleWebIdentity")
+			{
+				AwsOptions.Credentials = AssumeRoleWithWebIdentityCredentials.FromEnvironmentVariables();
+			}
 			Services.AddSingleton(AwsOptions);
 
 			Services.AddSingleton(new StorageBackendSettings<PersistentLogStorage> { Type = Settings.ExternalStorageProviderType, BaseDir = Settings.LocalLogsDir, BucketName = Settings.S3LogBucketName });
