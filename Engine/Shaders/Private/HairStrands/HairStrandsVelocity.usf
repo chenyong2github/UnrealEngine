@@ -19,7 +19,7 @@ float CoverageThreshold;
 
 Texture2D<uint> NodeIndex;
 Buffer<float2> NodeVelocity;
-StructuredBuffer<FNodeVis> NodeVis; 
+StructuredBuffer<FPackedHairVis> NodeVis; 
 Texture2D<float> CoverageTexture;
 
 #define VELOCITY_TYPE_NONE 0
@@ -78,7 +78,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 				#endif			
 
 				#if PERMUTATION_VELOCITY == VELOCITY_TYPE_CLOSEST
-				const float NodeDepth = NodeVis[SampleIndex].Depth;
+				const float NodeDepth = UnpackHairVis(NodeVis[SampleIndex]).Depth;
 				if (NodeDepth > ClosestDepth) // Inverse-Z
 				{
 					ClosestEncodedVelocity = EncodedVelocity;

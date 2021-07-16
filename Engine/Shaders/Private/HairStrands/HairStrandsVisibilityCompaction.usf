@@ -3,6 +3,7 @@
 #pragma once
 
 #include "../Common.ush"
+#include "HairStrandsVisibilityCommonStruct.ush" 
 #include "HairStrandsVisibilityCommon.ush" 
 
 #if PERMUTATION_GROUPSIZE ==32
@@ -27,7 +28,7 @@ uint VelocityType;
 RWTexture2D<uint> OutCompactNodeCounter;
 RWTexture2D<uint> OutCompactNodeIndex;
 #if PERMUTATION_PPLL == 0
-	RWStructuredBuffer<FNodeVis> OutCompactNodeData;
+	RWStructuredBuffer<FPackedHairVis> OutCompactNodeVis;
 #else
 	RWStructuredBuffer<FPackedHairSample> OutCompactNodeData;
 #endif
@@ -477,19 +478,17 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			float ClosestDepth = 0; // Inverse-Z
 			for (uint OutIndex = 0; OutIndex < NodeDesc.Count; ++OutIndex)
 			{
-				const FHairVisSample VisSample = UnpackHairVisSample(Samples[OutIndex].x);
-
 				// VisibilityData.Coverage8bit is a weight normalising to 1 the contribution of all the compacted samples. Because later it is weighted by PixelCoverage.
-				FNodeVis OutNodeVis;
-				OutNodeVis.PrimitiveId	= VisSample.PrimitiveId;
+				FHairVis OutNodeVis;
+				OutNodeVis.PrimitiveId	= UnpackHairVisPrimitiveId(Samples[OutIndex].x);
 				OutNodeVis.Depth		= asfloat(Samples[OutIndex].w); // MSAA_DepthTexture.Load(PixelCoord, Samples[OutIndex].z);
 				OutNodeVis.Coverage8bit = To8bitCoverage(Samples[OutIndex].y / float(SampleDesc.ValidSampleCount));
-				OutNodeVis.MaterialId	= VisSample.MaterialId;
+				OutNodeVis.MaterialId	= UnpackHairVisMaterialId(Samples[OutIndex].x);
 
 				ClosestDepth = max(ClosestDepth, OutNodeVis.Depth); // Inverse-Z
 
 				const uint StoreIndex = NodeDesc.Offset + OutIndex;
-				OutCompactNodeData[StoreIndex] = OutNodeVis;
+				OutCompactNodeVis[StoreIndex] = PackHairVis(OutNodeVis);
 				OutCompactNodeCoord[StoreIndex] = PixelCoord;
 			}
 

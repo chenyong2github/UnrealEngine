@@ -170,8 +170,8 @@ void InternalRasterize(int2 Coords, float Ratio, float Depth, uint PrimitiveId, 
 		InterlockedAdd(OutHairCountTexture[uint2(Coords)], PackedViewTransmittance);
 
 		uint2 PackedVisibility;
-		PackedVisibility.x = PackHairVisSample(PrimitiveId, HairMaterialId);
-		PackedVisibility.y = PackHairVisSampleDepth(Depth, Ratio * Coverage);
+		PackedVisibility.x = PackHairVisPrimitiveMaterialId(PrimitiveId, HairMaterialId);
+		PackedVisibility.y = PackHairVisDepthCoverage(Depth, Ratio * Coverage);
 
 		PackedType In = ToPackedType(PackedVisibility);
 		PackedType Out = 0;

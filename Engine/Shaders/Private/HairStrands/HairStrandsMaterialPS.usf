@@ -20,7 +20,7 @@ void Main(
 	float3 Emissive = 0;
 	if (SampleIndex < TotalNodeCount)
 	{
-		const FNodeVis InNode = MaterialPassParameters.NodeVis[SampleIndex];
+		const FHairVis InNode = UnpackHairVis(MaterialPassParameters.NodeVis[SampleIndex]);
 		const float2 SamplePixelCoord = float2(MaterialPassParameters.NodeCoord[SampleIndex]) + float2(0.5f, 0.5f);
 
 		float SampleDepth = InNode.Depth;

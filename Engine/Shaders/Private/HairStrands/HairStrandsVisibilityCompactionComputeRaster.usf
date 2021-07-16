@@ -3,6 +3,7 @@
 #pragma once
 
 #include "../Common.ush"
+#include "HairStrandsVisibilityCommonStruct.ush" 
 #include "HairStrandsVisibilityCommon.ush" 
 
 #if PERMUTATION_GROUPSIZE == 0
@@ -36,11 +37,11 @@ uint MaxNodeCount;
 uint SamplerPerPixel;
 float CoverageThreshold;
 
-RWTexture2D<uint> 				OutCompactNodeCounter;
-RWTexture2D<uint> 				OutCompactNodeIndex;
-RWStructuredBuffer<FNodeVis> 	OutCompactNodeData;
-RWBuffer<uint2>					OutCompactNodeCoord;
-RWTexture2D<float> 				OutCoverageTexture;
+RWTexture2D<uint> 					OutCompactNodeCounter;
+RWTexture2D<uint> 					OutCompactNodeIndex;
+RWStructuredBuffer<FPackedHairVis> 	OutCompactNodeVis;
+RWBuffer<uint2>						OutCompactNodeCoord;
+RWTexture2D<float> 					OutCoverageTexture;
 
 groupshared uint AllocationNodeCount;
 groupshared uint AllocationNodeOffset;
@@ -99,64 +100,68 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	const float DepthThres = OpaqueDepth;
 	if (VisData0.y)
 	{
-		const FHairVisSample VisSample	= UnpackHairVisSample(VisData0.x);
-		const float2 Depth_Cov			= UnpackHairVisSampleDepth(VisData0.y);
+		const uint VisSamplePrimitiveId = UnpackHairVisPrimitiveId(VisData0.x);
+		const uint VisSampleMaterialId  = UnpackHairVisMaterialId(VisData0.x);
+		const float2 Depth_Cov = float2(UnpackHairVisDepth(VisData0.y), UnpackHairVisCoverage(VisData0.y));
 
-		Vis_PrimId_MatId[UniqueSampleCount]	= uint2(VisSample.PrimitiveId, VisSample.MaterialId);
+		Vis_PrimId_MatId[UniqueSampleCount]	= uint2(VisSamplePrimitiveId, VisSampleMaterialId);
 		Vis_Depth_Cov[UniqueSampleCount]	= Depth_Cov;
 
-		if (Depth_Cov.x > DepthThres && VisSample.PrimitiveId != CurrentPrimitiveId)
+		if (Depth_Cov.x > DepthThres && VisSamplePrimitiveId != CurrentPrimitiveId)
 		{
 			TotalCoverage += Vis_Depth_Cov[UniqueSampleCount].y;
-			CurrentPrimitiveId = VisSample.PrimitiveId;
+			CurrentPrimitiveId = VisSamplePrimitiveId;
 			UniqueSampleCount++;
 		}
 	}
 
 	if (VisData1.y && SamplerPerPixel > 1)
 	{
-		const FHairVisSample VisSample	= UnpackHairVisSample(VisData1.x);
-		const float2 Depth_Cov			= UnpackHairVisSampleDepth(VisData1.y);
+		const uint VisSamplePrimitiveId = UnpackHairVisPrimitiveId(VisData1.x);
+		const uint VisSampleMaterialId  = UnpackHairVisMaterialId(VisData1.x);
+		const float2 Depth_Cov			= float2(UnpackHairVisDepth(VisData1.y), UnpackHairVisCoverage(VisData1.y));
 
-		Vis_PrimId_MatId[UniqueSampleCount]	= uint2(VisSample.PrimitiveId, VisSample.MaterialId);
+		Vis_PrimId_MatId[UniqueSampleCount]	= uint2(VisSamplePrimitiveId, VisSampleMaterialId);
 		Vis_Depth_Cov[UniqueSampleCount]	= Depth_Cov;
 		
-		if (Depth_Cov.x > DepthThres && VisSample.PrimitiveId != CurrentPrimitiveId)
+		if (Depth_Cov.x > DepthThres && VisSamplePrimitiveId != CurrentPrimitiveId)
 		{
 			TotalCoverage += Vis_Depth_Cov[UniqueSampleCount].y;
-			CurrentPrimitiveId = VisSample.PrimitiveId;
+			CurrentPrimitiveId = VisSamplePrimitiveId;
 			UniqueSampleCount++;
 		}
 	}
 
 	if (VisData2.y && SamplerPerPixel > 2)
 	{
-		const FHairVisSample VisSample	= UnpackHairVisSample(VisData2.x);
-		const float2 Depth_Cov			= UnpackHairVisSampleDepth(VisData2.y);
+		const uint VisSamplePrimitiveId = UnpackHairVisPrimitiveId(VisData2.x);
+		const uint VisSampleMaterialId  = UnpackHairVisMaterialId(VisData2.x);
+		const float2 Depth_Cov			= float2(UnpackHairVisDepth(VisData2.y), UnpackHairVisCoverage(VisData2.y));
 
-		Vis_PrimId_MatId[UniqueSampleCount]	= uint2(VisSample.PrimitiveId, VisSample.MaterialId);
+		Vis_PrimId_MatId[UniqueSampleCount]	= uint2(VisSamplePrimitiveId, VisSampleMaterialId);
 		Vis_Depth_Cov[UniqueSampleCount]	= Depth_Cov;
 		
-		if (Depth_Cov.x > DepthThres && VisSample.PrimitiveId != CurrentPrimitiveId)
+		if (Depth_Cov.x > DepthThres && VisSamplePrimitiveId != CurrentPrimitiveId)
 		{
 			TotalCoverage += Vis_Depth_Cov[UniqueSampleCount].y;
-			CurrentPrimitiveId = VisSample.PrimitiveId;
+			CurrentPrimitiveId = VisSamplePrimitiveId;
 			UniqueSampleCount++;
 		}
 	}
 
 	if (VisData3.y && SamplerPerPixel > 3)
 	{
-		const FHairVisSample VisSample	= UnpackHairVisSample(VisData3.x);
-		const float2 Depth_Cov			= UnpackHairVisSampleDepth(VisData3.y);
+		const uint VisSamplePrimitiveId = UnpackHairVisPrimitiveId(VisData3.x);
+		const uint VisSampleMaterialId  = UnpackHairVisMaterialId(VisData3.x);
+		const float2 Depth_Cov			= float2(UnpackHairVisDepth(VisData3.y), UnpackHairVisCoverage(VisData3.y));
 
-		Vis_PrimId_MatId[UniqueSampleCount]	 = uint2(VisSample.PrimitiveId, VisSample.MaterialId);
+		Vis_PrimId_MatId[UniqueSampleCount]	 = uint2(VisSamplePrimitiveId, VisSampleMaterialId);
 		Vis_Depth_Cov[UniqueSampleCount]	 = Depth_Cov;
 		
-		if (Depth_Cov.x > DepthThres && VisSample.PrimitiveId != CurrentPrimitiveId)
+		if (Depth_Cov.x > DepthThres && VisSamplePrimitiveId != CurrentPrimitiveId)
 		{
 			TotalCoverage += Vis_Depth_Cov[UniqueSampleCount].y;
-			CurrentPrimitiveId = VisSample.PrimitiveId;
+			CurrentPrimitiveId = VisSamplePrimitiveId;
 			UniqueSampleCount++;
 		}
 	}
@@ -188,14 +193,14 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			for (uint OutIndex = 0; OutIndex < NodeDesc.Count; ++OutIndex)
 			{
 				// VisibilityData.Coverage8bit is a weight normalising to 1 the contribution of all the compacted samples. Because later it is weighted by Categorization.PixelCoverage.
-				FNodeVis OutNodeVis;
+				FHairVis OutNodeVis;
 				OutNodeVis.PrimitiveId	= Vis_PrimId_MatId[OutIndex].x;
 				OutNodeVis.MaterialId	= Vis_PrimId_MatId[OutIndex].y;
 				OutNodeVis.Depth		= Vis_Depth_Cov[OutIndex].x;
 				OutNodeVis.Coverage8bit = To8bitCoverage(Vis_Depth_Cov[OutIndex].y / TotalCoverage); 
 
 				const uint StoreIndex = NodeDesc.Offset + OutIndex;
-				OutCompactNodeData[StoreIndex] = OutNodeVis;
+				OutCompactNodeVis[StoreIndex] = PackHairVis(OutNodeVis);
 				OutCompactNodeCoord[StoreIndex] = PixelCoord;
 			}
 
