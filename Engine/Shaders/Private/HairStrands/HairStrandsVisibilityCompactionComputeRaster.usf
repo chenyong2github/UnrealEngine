@@ -66,8 +66,19 @@ Texture2D<PackedType> VisibilityTexture3;
 Texture2D<uint>  VisibilityHairCount;
 Texture2D<float> ViewTransmittanceTexture;
 
+#if PERMUTATION_TILE
+int2 TileCountXY;
+uint TileSize;
+Buffer<uint> TileCountBuffer;
+Buffer<uint2> TileDataBuffer;
+#endif // PERMUTATION_TILE
+
 [numthreads(TILE_PIXEL_SIZE_X, TILE_PIXEL_SIZE_Y, 1)]
-void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
+void MainCS(
+	uint  GroupIndex : SV_GroupIndex,
+	uint3 GroupId : SV_GroupID,
+	uint3 GroupThreadId : SV_GroupThreadID,
+	uint3 DispatchThreadId : SV_DispatchThreadID)
 {
 	if (GroupIndex == 0)
 	{
@@ -75,7 +86,19 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		AllocationNodeOffset = 0;
 	}
 
+#if PERMUTATION_TILE
+	const uint TileCount = TileCountBuffer[0];
+	const uint LinearIndex = GroupId.x + GroupId.y * TileCountXY.x;
+	if (LinearIndex >= TileCount)
+	{
+		return;
+	}
+	const uint2 TileCoord = TileDataBuffer[LinearIndex];
+	uint2 PixelCoord = TileCoord * TileSize + GroupThreadId;
+#else
 	uint2 PixelCoord = DispatchThreadId.xy;// +ResolutionOffset;
+#endif // PERMUTATION_TILE
+
 	if (PixelCoord.x >= uint(OutputResolution.x) || PixelCoord.y >= uint(OutputResolution.y))
 		PixelCoord = uint2(0, 0);
 

@@ -103,7 +103,9 @@ class FHairStrandsTileGenerationPassCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER(FIntPoint, BufferResolution)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, InputTexture)
+		SHADER_PARAMETER(uint32, bUintTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, InputFloatTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>,  InputUintTexture)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileCountBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileDataBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileClearBuffer)
@@ -148,10 +150,13 @@ FHairStrandsTiles AddHairStrandsGenerateTilesPass(
 	FRDGBufferUAVRef TileCountUAV = GraphBuilder.CreateUAV(Out.TileCountBuffer, PF_R32_UINT);
 	AddClearUAVPass(GraphBuilder, TileCountUAV, 0u);
 
+	const bool bUintTexture = InputTexture->Desc.Format == PF_R32_UINT;
 	TShaderMapRef<FHairStrandsTileGenerationPassCS> ComputeShader(View.ShaderMap);
 	FHairStrandsTileGenerationPassCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairStrandsTileGenerationPassCS::FParameters>();
 	PassParameters->BufferResolution = InputResolution;//View.ViewRect.Size();
-	PassParameters->InputTexture = InputTexture;
+	PassParameters->bUintTexture = bUintTexture ? 1u : 0u;
+	PassParameters->InputFloatTexture = InputTexture;
+	PassParameters->InputUintTexture  = InputTexture;
 	PassParameters->TileDataBuffer = GraphBuilder.CreateUAV(Out.TileDataBuffer, PF_R16G16_UINT);
 	PassParameters->TileClearBuffer = GraphBuilder.CreateUAV(Out.TileClearBuffer, PF_R16G16_UINT);
 	PassParameters->TileCountBuffer = TileCountUAV;

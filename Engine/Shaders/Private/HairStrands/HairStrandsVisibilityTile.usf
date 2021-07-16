@@ -12,7 +12,9 @@
 
 #if SHADER_TILE_GENERATION
 int2 BufferResolution;
-Texture2D<float> InputTexture;
+uint bUintTexture;
+Texture2D<float> InputFloatTexture;
+Texture2D<uint> InputUintTexture;
 RWBuffer<uint> TileCountBuffer;
 RWBuffer<uint2> TileDataBuffer;
 RWBuffer<uint2> TileClearBuffer;
@@ -27,7 +29,14 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 	bool bHasHairData = false;
 	if (all(PixelCoord < uint2(BufferResolution)))
 	{
-		bHasHairData = InputTexture.Load(uint3(PixelCoord, 0)) > 0.0f;
+		if (bUintTexture)
+		{
+			bHasHairData = InputUintTexture.Load(uint3(PixelCoord, 0)) > 0;
+		}
+		else
+		{
+			bHasHairData = InputFloatTexture.Load(uint3(PixelCoord, 0)) < 1.0f;
+		}
 	}
 	s_HasTileHair[LinearIndex] = bHasHairData;
 
