@@ -52,16 +52,10 @@ public:
 	virtual IBuild& GetBuild() const = 0;
 
 	/** Start the build by dispatching it to the scheduler. */
-	virtual void Schedule(IBuildScheduler& Scheduler, EBuildPolicy Policy, EPriority Priority, FOnBuildJobComplete&& OnComplete) = 0;
+	virtual void Start(IBuildScheduler& Scheduler, EBuildPolicy Policy, EPriority Priority, FOnBuildJobComplete&& OnComplete) = 0;
 
-	/** Called by the scheduler to begin execution for the corresponding state. */
-	virtual void BeginCacheQuery() = 0;
-	virtual void BeginCacheStore() = 0;
-	virtual void BeginResolveKey() = 0;
-	virtual void BeginResolveInputMeta() = 0;
-	virtual void BeginResolveInputData() = 0;
-	virtual void BeginExecuteRemote() = 0;
-	virtual void BeginExecuteLocal() = 0;
+	/** Called by the scheduler to continue this job on the calling thread. */
+	virtual void Schedule() = 0;
 
 	/** Called by the scheduler to skip remote execution and fall back to local execution if permitted. */
 	virtual void SkipExecuteRemote() = 0;

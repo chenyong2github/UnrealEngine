@@ -35,30 +35,30 @@ public:
 	/** Update the priority of the job if it is queued. May be called multiple times and/or concurrently. */
 	virtual void UpdateJobPriority(IBuildJob* Job) {}
 
-	/** Dispatch by calling BeginCacheQuery or SetOutput, either now or later. */
-	virtual void DispatchCacheQuery(IBuildJob* Job, const FBuildSchedulerParams& Params) { Job->BeginCacheQuery(); }
+	/** Dispatch by calling Schedule or SetOutput, either now or later. */
+	virtual void DispatchCacheQuery(IBuildJob* Job, const FBuildSchedulerParams& Params) { Job->Schedule(); }
 
-	/** Dispatch by calling BeginCacheStore, either now or later. */
-	virtual void DispatchCacheStore(IBuildJob* Job, const FBuildSchedulerParams& Params) { Job->BeginCacheStore(); }
+	/** Dispatch by calling Schedule, either now or later. */
+	virtual void DispatchCacheStore(IBuildJob* Job, const FBuildSchedulerParams& Params) { Job->Schedule(); }
 
-	/** Dispatch by calling BeginResolveKey, either now or later. */
-	virtual void DispatchResolveKey(IBuildJob* Job) { Job->BeginResolveKey(); }
+	/** Dispatch by calling Schedule, either now or later. */
+	virtual void DispatchResolveKey(IBuildJob* Job) { Job->Schedule(); }
 
-	/** Dispatch by calling BeginResolveInputMeta, either now or later. */
-	virtual void DispatchResolveInputMeta(IBuildJob* Job) { Job->BeginResolveInputMeta(); }
+	/** Dispatch by calling Schedule, either now or later. */
+	virtual void DispatchResolveInputMeta(IBuildJob* Job) { Job->Schedule(); }
 
 	/**
-	 * Dispatch by calling BeginResolveInputData, SetOutput, or SkipExecuteRemote, either now or later.
+	 * Dispatch by calling Schedule, SetOutput, or SkipExecuteRemote, either now or later.
 	 *
 	 * SkipExecuteRemote is only valid to call when MissingRemoteInputsSize is non-zero.
 	 */
-	virtual void DispatchResolveInputData(IBuildJob* Job, const FBuildSchedulerParams& Params) { Job->BeginResolveInputData(); }
+	virtual void DispatchResolveInputData(IBuildJob* Job, const FBuildSchedulerParams& Params) { Job->Schedule(); }
 
-	/** Dispatch by calling BeginExecuteRemote, SetOutput, or SkipExecuteRemote, either now or later. */
-	virtual void DispatchExecuteRemote(IBuildJob* Job, const FBuildSchedulerParams& Params) { Job->BeginExecuteRemote(); }
+	/** Dispatch by calling Schedule, SetOutput, or SkipExecuteRemote, either now or later. */
+	virtual void DispatchExecuteRemote(IBuildJob* Job, const FBuildSchedulerParams& Params) { Job->Schedule(); }
 
-	/** Dispatch by calling BeginExecuteLocal or SetOutput, either now or later. */
-	virtual void DispatchExecuteLocal(IBuildJob* Job, const FBuildSchedulerParams& Params) { Job->BeginExecuteLocal(); }
+	/** Dispatch by calling Schedule or SetOutput, either now or later. */
+	virtual void DispatchExecuteLocal(IBuildJob* Job, const FBuildSchedulerParams& Params) { Job->Schedule(); }
 
 	/** Set the output of the job. Always called once between BeginJob and EndJob unless canceled. */
 	virtual void SetJobOutput(IBuildJob* Job, const FBuildSchedulerParams& Params, const FBuildOutput& Output) {}

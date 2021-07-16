@@ -74,7 +74,7 @@ FRequest FBuildSessionInternal::Build(
 			OnComplete({Definition.GetKey(), MoveTemp(Params.Output), Params.Status});
 		};
 	}
-	Job->Schedule(Scheduler, Policy, Priority, MoveTemp(OnJobComplete));
+	Job->Start(Scheduler, Policy, Priority, MoveTemp(OnJobComplete));
 	return Job;
 }
 
@@ -94,7 +94,7 @@ FRequest FBuildSessionInternal::BuildAction(
 			OnComplete({Action.GetKey(), MoveTemp(Params.Output), Params.Status});
 		};
 	}
-	Job->Schedule(Scheduler, Policy, Priority, MoveTemp(OnJobComplete));
+	Job->Start(Scheduler, Policy, Priority, MoveTemp(OnJobComplete));
 	return Job;
 }
 
@@ -125,7 +125,7 @@ FRequest FBuildSessionInternal::BuildPayload(
 			OnComplete({PayloadKey.BuildKey, MoveTemp(Payload), Status});
 		};
 	}
-	Job->Schedule(Scheduler, Policy, Priority, MoveTemp(OnJobComplete));
+	Job->Start(Scheduler, Policy, Priority, MoveTemp(OnJobComplete));
 	return Job;
 }
 
