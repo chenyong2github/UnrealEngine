@@ -1269,6 +1269,19 @@ public:
 		return (CompressionSettings == TC_Normalmap);
 	}
 
+	/** @return true if the texture has an uncompressed texture setting */
+	bool IsUncompressed() const
+	{
+		return (CompressionSettings == TC_Grayscale ||
+				CompressionSettings == TC_Displacementmap ||
+				CompressionSettings == TC_VectorDisplacementmap ||
+				CompressionSettings == TC_HDR ||
+				CompressionSettings == TC_EditorIcon ||
+				CompressionSettings == TC_DistanceFieldFont ||
+				CompressionSettings == TC_HalfFloat
+			);
+	}
+
 	/**
 	 * Calculates the size of this texture if it had MipCount miplevels streamed in.
 	 *
