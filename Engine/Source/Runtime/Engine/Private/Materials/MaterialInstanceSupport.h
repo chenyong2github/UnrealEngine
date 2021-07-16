@@ -36,22 +36,24 @@ public:
 #else
 	FMICReentranceGuard(const UMaterialInstance* InMaterial)
 	{
+		bIsInGameThread = IsInGameThread();
 		Material = const_cast<UMaterialInstance*>(InMaterial);
 
-		if (Material->GetReentrantFlag() == true)
+		if (Material->GetReentrantFlag(bIsInGameThread) == true)
 		{
 			UE_LOG(LogMaterial, Warning, TEXT("InMaterial: %s GameThread: %d RenderThread: %d"), *InMaterial->GetFullName(), IsInGameThread(), IsInRenderingThread());
-			check(!Material->GetReentrantFlag());
+			check(!Material->GetReentrantFlag(bIsInGameThread));
 		}
-		Material->SetReentrantFlag(true);
+		Material->SetReentrantFlag(true, bIsInGameThread);
 	}
 
 	~FMICReentranceGuard()
 	{
-		Material->SetReentrantFlag(false);
+		Material->SetReentrantFlag(false, bIsInGameThread);
 	}
 
 private:
+	bool bIsInGameThread;
 	UMaterialInstance* Material;
 #endif // WITH_EDITOR
 };
