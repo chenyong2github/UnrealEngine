@@ -184,8 +184,12 @@ void ACameraRig_Rail::UpdateRailComponents()
 #if WITH_EDITOR
 	if (GIsEditor)
 	{
-		// set up preview mesh to match #todo
-		UpdatePreviewMeshes();
+		const UWorld* const MyWorld = GetWorld();
+		if (MyWorld && !MyWorld->IsGameWorld())
+		{
+			// set up preview mesh to match #todo
+			UpdatePreviewMeshes();
+		}
 	}
 #endif
 }
