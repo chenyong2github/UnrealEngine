@@ -461,6 +461,12 @@ namespace UnrealBuildTool
 			else
 			{
 				string ResponseFileString = VCToolChain.NormalizeCommandLinePath(ResponseFile, CompilerType, PreprocessedFile != null);
+
+				// cl.exe can't handle response files with a path longer than 260 characters, and relative paths can push it over the limit
+				if (!System.IO.Path.IsPathRooted(ResponseFileString) && System.IO.Path.Combine(WorkingDirectory.FullName, ResponseFileString).Length > 260)
+				{
+					ResponseFileString = ResponseFile.FullName;
+				}
 				return String.Format("@{0}", Utils.MakePathSafeToUseWithCommandLine(ResponseFileString));
 			}
 		}
