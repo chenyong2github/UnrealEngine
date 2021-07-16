@@ -94,8 +94,9 @@ enum class EMetalBufferFormat : uint8
 	RG11B10Half 			=51,
 	
 	R5G6B5Unorm         	=52,
-	
-	Max						=53
+	B5G5R5A1Unorm           =53,
+
+	Max						=54
 };
 
 struct FMetalShaderResourceTable : public FBaseShaderResourceTable

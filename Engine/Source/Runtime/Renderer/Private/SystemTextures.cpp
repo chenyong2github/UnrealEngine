@@ -955,7 +955,9 @@ enum class EDefaultInputType
 	SNorm,
 	UNorm10,
 	UNorm11,
-	UNorm2
+	UNorm2,
+	UNorm5,
+	UNorm1
 };
 
 // Convert input type into the final type. This function manages UNorm/SNorm type by assuming if the input if float, its value is normalized in [0..1].
@@ -974,7 +976,8 @@ template<>   int8 ConvertInputFormat<float,   int8, EDefaultInputType::SNorm>(co
 template<> uint32 ConvertInputFormat<float, uint32, EDefaultInputType::UNorm10>(const float& In) { return FMath::Clamp(In, 0.f, 1.f) * 1024u; }
 template<> uint32 ConvertInputFormat<float, uint32, EDefaultInputType::UNorm11>(const float& In) { return FMath::Clamp(In, 0.f, 1.f) * 2048u; }
 template<> uint32 ConvertInputFormat<float, uint32, EDefaultInputType::UNorm2> (const float& In) { return FMath::Clamp(In, 0.f, 1.f) * 3u; }
-
+template<> uint32 ConvertInputFormat<float, uint32, EDefaultInputType::UNorm1> (const float& In) { return uint32(In > 0.5f);}
+template<> uint32 ConvertInputFormat<float, uint32, EDefaultInputType::UNorm5>(const float& In) { return FMath::Clamp(In, 0.f, 1.f) * 31u; }
 // 4 components conversion with swizzling
 template <EDefaultInputType InputFormatType, typename TInType, typename TOutType, uint32 SwizzleX, uint32 SwizzleY, uint32 SwizzleZ, uint32 SwizzleW>
 void FormatData(const TInType& In, uint8* Out, uint32& OutByteCount)
@@ -1040,11 +1043,24 @@ void FormatData1010102(const TInType& In, uint8* Out, uint32& OutByteCount)
 	OutByteCount = 4;
 }
 
+template <typename TInType>
+void FormatData5551(const TInType& In, uint8* Out, uint32& OutByteCount)
+{
+	uint16* OutTyped = (uint16*)Out;
+	*OutTyped =
+		(
+		((31u & ConvertInputFormat<typename TFormatConversionTraits<TInType>::Type, uint32, EDefaultInputType::UNorm5>(In[0])) << 1) |
+		((31u & ConvertInputFormat<typename TFormatConversionTraits<TInType>::Type, uint32, EDefaultInputType::UNorm5>(In[1])) << 6) |
+		((31u & ConvertInputFormat<typename TFormatConversionTraits<TInType>::Type, uint32, EDefaultInputType::UNorm5>(In[2])) << 11) |
+		((1u & ConvertInputFormat<typename TFormatConversionTraits<TInType>::Type, uint32, EDefaultInputType::UNorm1>(In[3]))));
+	OutByteCount = 2;
+}
+
 template<typename TInType>
 void InitializeData(const TInType& InData, EPixelFormat InFormat, uint8* OutData, uint32& OutByteCount)
 {
 	// If a new format is added insure that it is either supported here, or at least flagged as not supported
-	static_assert(PF_MAX == 72);
+	static_assert(PF_MAX == 73);
 
 	switch (InFormat)
 	{
@@ -1097,6 +1113,7 @@ void InitializeData(const TInType& InData, EPixelFormat InFormat, uint8* OutData
 		case PF_FloatRGB:				{ FormatData111110<TInType>	(InData, OutData, OutByteCount); } break;
 		case PF_A2B10G10R10:			{ FormatData1010102<TInType>(InData, OutData, OutByteCount); } break;
 		case PF_FloatR11G11B10:			{ FormatData111110<TInType>	(InData, OutData, OutByteCount); } break;
+		case PF_B5G5R5A1_UNORM:         { FormatData5551<TInType>(InData, OutData, OutByteCount); } break;
 			return;
 
 		// Not supported

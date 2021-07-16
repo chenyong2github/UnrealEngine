@@ -353,6 +353,8 @@ static uint32 ComputeBytesPerPixel(DXGI_FORMAT Format)
 		case DXGI_FORMAT_R16_UINT:
 		case DXGI_FORMAT_R16_SNORM:
 		case DXGI_FORMAT_R16_SINT:
+		case DXGI_FORMAT_B5G6R5_UNORM:
+		case DXGI_FORMAT_B5G5R5A1_UNORM:
 			BytesPerPixel = 2;
 			break;
 		case DXGI_FORMAT_B8G8R8A8_TYPELESS:

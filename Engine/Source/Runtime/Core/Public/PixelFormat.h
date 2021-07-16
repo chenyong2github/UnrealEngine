@@ -84,7 +84,8 @@ enum EPixelFormat
 	PF_ETC2_R11_EAC			=69,
 	PF_ETC2_RG11_EAC		=70,
 	PF_R8		            =71,
-	PF_MAX					=72,
+	PF_B5G5R5A1_UNORM       =72,
+	PF_MAX					=73,
 };
 #define FOREACH_ENUM_EPIXELFORMAT(op) \
 	op(PF_Unknown) \
@@ -158,8 +159,8 @@ enum EPixelFormat
 	op(PF_R32G32_UINT) \
 	op(PF_ETC2_R11_EAC) \
 	op(PF_ETC2_RG11_EAC) \
-	op(PF_R8) 
-
+	op(PF_R8) \
+	op(PF_B5G5R5A1_UNORM)
 // Defines which channel is valid for each pixel format
 enum class EPixelFormatChannelFlags : uint8
 {
