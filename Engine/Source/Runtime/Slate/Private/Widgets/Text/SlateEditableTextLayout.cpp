@@ -1183,6 +1183,7 @@ FReply FSlateEditableTextLayout::HandleMouseButtonDown(const FGeometry& MyGeomet
 				{
 					// Deselect any text that was selected
 					ClearSelection();
+					MoveCursor(FMoveCursor::ViaScreenPointer(MyGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition()), MyGeometry.Scale, ECursorAction::MoveCursor));
 				}
 			}
 
