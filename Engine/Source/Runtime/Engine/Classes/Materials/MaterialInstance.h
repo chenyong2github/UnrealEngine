@@ -365,19 +365,19 @@ class UMaterialInstance : public UMaterialInterface
 	//Cached copies of the base property overrides or the value from the parent to avoid traversing the parent chain for each access.
 	float OpacityMaskClipValue;
 
-	FORCEINLINE bool GetReentrantFlag() const
+	FORCEINLINE bool GetReentrantFlag(bool bIsInGameThread = IsInGameThread()) const
 	{
 #if WITH_EDITOR
-		return ReentrantFlag[IsInGameThread() ? 0 : 1];
+		return ReentrantFlag[bIsInGameThread ? 0 : 1];
 #else
 		return false;
 #endif
 	}
 
-	FORCEINLINE void SetReentrantFlag(const bool bValue)
+	FORCEINLINE void SetReentrantFlag(const bool bValue, bool bIsInGameThread = IsInGameThread())
 	{
 #if WITH_EDITOR
-		ReentrantFlag[IsInGameThread() ? 0 : 1] = bValue;
+		ReentrantFlag[bIsInGameThread ? 0 : 1] = bValue;
 #endif
 	}
 
