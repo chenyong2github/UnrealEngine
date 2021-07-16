@@ -417,7 +417,7 @@ namespace HordeServer
 			Services.AddSingleton<DeviceService>();
 
 			AWSOptions AwsOptions = Configuration.GetAWSOptions();
-			if (Settings.S3AssumeArn != null)
+			if (Settings.S3CredentialType == "AssumeRole" && Settings.S3AssumeArn != null)
 			{
 				AwsOptions.Credentials = new AssumeRoleAWSCredentials(FallbackCredentialsFactory.GetCredentials(), Settings.S3AssumeArn, "Horde");
 			}
