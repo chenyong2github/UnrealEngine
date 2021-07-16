@@ -473,91 +473,94 @@ void TraceReflections(
 			CompactedTraceParameters,
 			IndirectTracingParameters.MaxTraceDistance);
 	}
-	else if (bTraceMeshSDFs)
+	else 
 	{
-		FLumenMeshSDFGridParameters MeshSDFGridParameters = InMeshSDFGridParameters;
-		if (!MeshSDFGridParameters.NumGridCulledMeshSDFObjects)
+		if (bTraceMeshSDFs)
 		{
-			CullForCardTracing(
-				GraphBuilder,
-				Scene, View,
-				TracingInputs,
-				IndirectTracingParameters,
-				/* out */ MeshSDFGridParameters);
-		}
-
-		if (MeshSDFGridParameters.TracingParameters.DistanceFieldObjectBuffers.NumSceneObjects > 0)
-		{
-			FCompactedReflectionTraceParameters CompactedTraceParameters = CompactTraces(
-				GraphBuilder,
-				View,
-				ReflectionTracingParameters,
-				ReflectionTileParameters,
-				IndirectTracingParameters.CardTraceEndDistanceFromCamera,
-				IndirectTracingParameters.MaxMeshSDFTraceDistance);
-
+			FLumenMeshSDFGridParameters MeshSDFGridParameters = InMeshSDFGridParameters;
+			if (!MeshSDFGridParameters.NumGridCulledMeshSDFObjects)
 			{
-				FReflectionTraceMeshSDFsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTraceMeshSDFsCS::FParameters>();
-				GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
-				PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
-				PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
-				PassParameters->IndirectTracingParameters = IndirectTracingParameters;
-				PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
-				PassParameters->CompactedTraceParameters = CompactedTraceParameters;
-				if (bNeedTraceHairVoxel)
-				{
-					PassParameters->HairStrandsVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
-				}
-
-				FReflectionTraceMeshSDFsCS::FPermutationDomain PermutationVector;
-				PermutationVector.Set< FReflectionTraceMeshSDFsCS::FHairStrands >(bNeedTraceHairVoxel);
-				auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceMeshSDFsCS>(PermutationVector);
-
-				FComputeShaderUtils::AddPass(
+				CullForCardTracing(
 					GraphBuilder,
-					RDG_EVENT_NAME("TraceMeshSDFs(%s)", bNeedTraceHairVoxel ? TEXT("Scene, HairStrands") : TEXT("Scene")),
-					ComputeShader,
-					PassParameters,
-					CompactedTraceParameters.IndirectArgs,
-					0);
-				bNeedTraceHairVoxel = false;
+					Scene, View,
+					TracingInputs,
+					IndirectTracingParameters,
+					/* out */ MeshSDFGridParameters);
+			}
+
+			if (MeshSDFGridParameters.TracingParameters.DistanceFieldObjectBuffers.NumSceneObjects > 0)
+			{
+				FCompactedReflectionTraceParameters CompactedTraceParameters = CompactTraces(
+					GraphBuilder,
+					View,
+					ReflectionTracingParameters,
+					ReflectionTileParameters,
+					IndirectTracingParameters.CardTraceEndDistanceFromCamera,
+					IndirectTracingParameters.MaxMeshSDFTraceDistance);
+
+				{
+					FReflectionTraceMeshSDFsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTraceMeshSDFsCS::FParameters>();
+					GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
+					PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
+					PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
+					PassParameters->IndirectTracingParameters = IndirectTracingParameters;
+					PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+					PassParameters->CompactedTraceParameters = CompactedTraceParameters;
+					if (bNeedTraceHairVoxel)
+					{
+						PassParameters->HairStrandsVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
+					}
+
+					FReflectionTraceMeshSDFsCS::FPermutationDomain PermutationVector;
+					PermutationVector.Set< FReflectionTraceMeshSDFsCS::FHairStrands >(bNeedTraceHairVoxel);
+					auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceMeshSDFsCS>(PermutationVector);
+
+					FComputeShaderUtils::AddPass(
+						GraphBuilder,
+						RDG_EVENT_NAME("TraceMeshSDFs(%s)", bNeedTraceHairVoxel ? TEXT("Scene, HairStrands") : TEXT("Scene")),
+						ComputeShader,
+						PassParameters,
+						CompactedTraceParameters.IndirectArgs,
+						0);
+					bNeedTraceHairVoxel = false;
+				}
 			}
 		}
-	}
 
-	FCompactedReflectionTraceParameters CompactedTraceParameters = CompactTraces(
-		GraphBuilder,
-		View,
-		ReflectionTracingParameters,
-		ReflectionTileParameters,
-		WORLD_MAX,
-		// Make sure the shader runs on all misses to apply radiance cache + skylight
-		IndirectTracingParameters.MaxTraceDistance + 1);
-
-	{
-		FReflectionTraceVoxelsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTraceVoxelsCS::FParameters>();
-		GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
-		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
-		PassParameters->IndirectTracingParameters = IndirectTracingParameters;
-		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
-		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
-		if (bNeedTraceHairVoxel)
-		{
-			PassParameters->HairStrandsVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
-		}
-
-		FReflectionTraceVoxelsCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set< FReflectionTraceVoxelsCS::FDynamicSkyLight >(Lumen::ShouldHandleSkyLight(Scene, *View.Family));
-		PermutationVector.Set< FReflectionTraceVoxelsCS::FHairStrands >(bNeedTraceHairVoxel);
-		auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceVoxelsCS>(PermutationVector);
-
-		FComputeShaderUtils::AddPass(
+		FCompactedReflectionTraceParameters CompactedTraceParameters = CompactTraces(
 			GraphBuilder,
-			RDG_EVENT_NAME("TraceVoxels(%s)", bNeedTraceHairVoxel ? TEXT("Scene, HairStrands") : TEXT("Scene")),
-			ComputeShader,
-			PassParameters,
-			CompactedTraceParameters.IndirectArgs,
-			0);
-		bNeedTraceHairVoxel = false;
+			View,
+			ReflectionTracingParameters,
+			ReflectionTileParameters,
+			WORLD_MAX,
+			// Make sure the shader runs on all misses to apply radiance cache + skylight
+			IndirectTracingParameters.MaxTraceDistance + 1);
+
+		{
+			FReflectionTraceVoxelsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTraceVoxelsCS::FParameters>();
+			GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
+			PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
+			PassParameters->IndirectTracingParameters = IndirectTracingParameters;
+			PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+			PassParameters->CompactedTraceParameters = CompactedTraceParameters;
+			if (bNeedTraceHairVoxel)
+			{
+				PassParameters->HairStrandsVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
+			}
+
+			FReflectionTraceVoxelsCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set< FReflectionTraceVoxelsCS::FDynamicSkyLight >(Lumen::ShouldHandleSkyLight(Scene, *View.Family));
+			PermutationVector.Set< FReflectionTraceVoxelsCS::FHairStrands >(bNeedTraceHairVoxel);
+			auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceVoxelsCS>(PermutationVector);
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("TraceVoxels(%s)", bNeedTraceHairVoxel ? TEXT("Scene, HairStrands") : TEXT("Scene")),
+				ComputeShader,
+				PassParameters,
+				CompactedTraceParameters.IndirectArgs,
+				0);
+			bNeedTraceHairVoxel = false;
+		}
 	}
 }

@@ -119,6 +119,18 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 		}
 	}
 
+	if (!bHit)
+	{
+		FConeTraceResult TraceResult;
+		TraceResult.Lighting = Radiance;
+		TraceResult.Transparency = 1;
+
+		EvaluateSkyRadianceForCone(RayData.Direction, tan(RayData.ConeHalfAngle), TraceResult);
+
+		Radiance = TraceResult.Lighting;
+		TraceHitDistance = MaxTraceDistance;
+	}
+
 	Radiance *= View.PreExposure;
 	RWTraceRadiance[ReflectionTracingCoord] = Radiance;
 	RWTraceHit[ReflectionTracingCoord] = EncodeRayDistance(TraceHitDistance, bHit);
