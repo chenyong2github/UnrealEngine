@@ -89,6 +89,8 @@ namespace HordeServer.Storage.Backends
 			this.Options = Options;
 			this.Semaphore = new SemaphoreSlim(16);
 			this.Logger = Logger;
+
+			Logger.LogInformation("Created AWS storage backend for bucket {BucketName} using credentials {Credentials} {CredentialsStr}", Options.BucketName, AwsOptions.Credentials.GetType(), AwsOptions.Credentials.ToString());
 		}
 
 		/// <inheritdoc/>
@@ -235,6 +237,7 @@ namespace HordeServer.Storage.Backends
 			long StreamLen = Stream.Length;
 			if (StreamLen < MinPartSize)
 			{
+				Logger.LogInformation("Writing to bucket {BucketName} key {FullPath}", Options.BucketName, FullPath);
 				PutObjectRequest UploadRequest = new PutObjectRequest();
 				UploadRequest.BucketName = Options.BucketName;
 				UploadRequest.Key = FullPath;
