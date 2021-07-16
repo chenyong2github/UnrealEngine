@@ -181,6 +181,12 @@ bool APackedLevelInstance::IsHiddenEd() const
 	return Super::IsHiddenEd() || bEditing || (ChildEditing > 0);
 }
 
+bool APackedLevelInstance::IsHLODRelevant() const
+{
+	// Bypass base class ALevelInstance (because it always returns true). We want the same implementation as AActor.
+	return AActor::IsHLODRelevant();
+}
+
 bool APackedLevelInstance::CanEditChange(const FProperty* InProperty) const
 {
 	if (!Super::CanEditChange(InProperty))
