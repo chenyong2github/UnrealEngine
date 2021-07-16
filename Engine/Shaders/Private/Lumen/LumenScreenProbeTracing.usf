@@ -525,7 +525,9 @@ void TraceVoxels(
 			TraceResult.Transparency = 1;
 			TraceResult.OpaqueHitDistance = TraceInput.MaxTraceDistance;
 
-			ConeTraceLumenSceneVoxels(TraceInput, TraceResult);
+			#if TRACE_VOXELS
+				ConeTraceLumenSceneVoxels(TraceInput, TraceResult);
+			#endif
 
 			// Trace against hair voxel structure, if enabled and not already done by other tracing method
 			#if USE_HAIRSTRANDS_VOXEL
