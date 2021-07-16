@@ -122,7 +122,8 @@ namespace Chaos
 								}
 							}
 
-							OutFaceIndices.Add({ Triangle[0], Triangle[1], Triangle[2] });
+							// Winding is backwards from what Chaos expects
+							OutFaceIndices.Add({ Triangle[0], Triangle[2], Triangle[1] });
 
 							UE::Geometry::THalfspace3<FReal> Halfspace(OutVertices[Triangle[0]], OutVertices[Triangle[1]], OutVertices[Triangle[2]]);
 							const FVec3& Normal = Halfspace.Normal;
