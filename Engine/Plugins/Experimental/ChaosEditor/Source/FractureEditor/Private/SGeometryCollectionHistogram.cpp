@@ -82,6 +82,11 @@ void FGeometryCollectionHistogramItem::SetInspectedAttribute(EInspectedAttribute
 				}
 				break;
 
+			case EInspectedAttributeEnum::Size:
+				InspectedValue = Collection->GetAttribute<float>(TEXT("Size"), TEXT("Transform"))[BoneIndex];
+				HoverString = FString::Printf(TEXT("%d: %.2f"), BoneIndex, InspectedValue);
+				break;
+
 			default:
 				// Invalid inspection attribute
 				check(false);

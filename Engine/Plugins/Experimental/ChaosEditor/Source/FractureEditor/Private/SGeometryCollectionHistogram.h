@@ -29,7 +29,8 @@ enum class EInspectedAttributeEnum : uint8
 {
 	Volume = 0					UMETA(DisplayName = "Volume"),
 	Level = 1					UMETA(DisplayName = "Level"),
-	InitialDynamicState = 3		UMETA(DisplayName = "InitialDynamicState")
+	InitialDynamicState = 3		UMETA(DisplayName = "InitialDynamicState"),
+	Size = 4					UMETA(DisplayName = "RelativeSize")
 };
 
 /** Settings for Histogram configuration. **/
