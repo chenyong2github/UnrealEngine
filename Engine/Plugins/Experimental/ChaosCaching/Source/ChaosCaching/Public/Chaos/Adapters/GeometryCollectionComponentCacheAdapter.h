@@ -220,7 +220,7 @@ namespace Chaos
 			: ProxyBreakingDataIndices(nullptr)
 			, ProxyCollisionDataIndices(nullptr)
 			, ProxyTrailingDataIndices(nullptr)
-		{}
+		{ }
 
 		const TArray<int32>* ProxyBreakingDataIndices;
 		const TArray<int32>* ProxyCollisionDataIndices;
@@ -240,7 +240,6 @@ namespace Chaos
 		FGuid                  GetGuid() const override;
 		Chaos::FPhysicsSolver* GetComponentSolver(UPrimitiveComponent* InComponent) const override;
 		bool                   ValidForPlayback(UPrimitiveComponent* InComponent, UChaosCache* InCache) const override;
-		void				   Initialize() override;
 		void				   SetRestState(UPrimitiveComponent* InComponent, UChaosCache* InCache, const FTransform& InRootTransform, Chaos::FReal InTime) const override;
 		bool                   InitializeForRecord(UPrimitiveComponent* InComponent, UChaosCache* InCache) override;
 		bool                   InitializeForPlayback(UPrimitiveComponent* InComponent, UChaosCache* InCache, float InTime) override;
