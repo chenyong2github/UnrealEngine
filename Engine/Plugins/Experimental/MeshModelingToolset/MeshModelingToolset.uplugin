@@ -23,7 +23,8 @@
 		{
 			"Name": "ModelingComponentsEditorOnly",
 			"Type": "Editor",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [ "Win64" ]
 		},		
 		{
 			"Name": "ModelingOperators",
@@ -33,7 +34,8 @@
 		{
 			"Name": "ModelingOperatorsEditorOnly",
 			"Type": "Editor",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [ "Win64" ]
 		},
 		{
 			"Name": "MeshModelingTools",
@@ -43,12 +45,14 @@
 		{
 			"Name": "MeshModelingToolsEditorOnly",
 			"Type": "Editor",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [ "Win64" ]
 		},
 		{
 			"Name": "GeometryProcessingAdapters",
 			"Type": "Editor",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [ "Win64" ]
 		}
 	],
 	"Plugins": [
@@ -58,10 +62,7 @@
 		},
 		{
 			"Name": "ProxyLODPlugin",
-			"Enabled": true,
-			"SupportedTargetPlatforms": [
-				"Win64"
-			]
+			"Enabled": true
 		},
 		{
 			"Name": "HairStrands",
