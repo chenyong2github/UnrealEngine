@@ -3,7 +3,7 @@
 #pragma once
 
 #include "../Common.ush"
-#include "HairStrandsVisibilityCommonStruct.ush" 
+#include "HairStrandsVisibilityCommonStruct.ush"
 #include "HairStrandsVisibilityCommon.ush" 
 
 #if PERMUTATION_GROUPSIZE ==32
@@ -420,22 +420,40 @@ float  GetDepthTexture(uint2 PixelCoord, uint SampleIt) { return MSAA_DepthTextu
 
 #endif // PERMUTATION_MSAACOUNT>1
 
+#if PERMUTATION_TILE
+int2 TileCountXY;
+uint TileSize;
+Buffer<uint> TileCountBuffer;
+Buffer<uint2> TileDataBuffer;
+#endif // PERMUTATION_TILE
 
-
-#if PERMUTATION_VIEWTRANSMITTANCE == 1
 Texture2D<float> ViewTransmittanceTexture;
-#endif
 
 [numthreads(TILE_PIXEL_SIZE_X, TILE_PIXEL_SIZE_Y, 1)]
-void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
+void MainCS(
+	uint  GroupIndex		: SV_GroupIndex, 
+	uint3 GroupId			: SV_GroupID, 
+	uint3 GroupThreadId		: SV_GroupThreadID, 
+	uint3 DispatchThreadId	: SV_DispatchThreadID)
 {
 	if (GroupIndex == 0)
 	{
 		AllocationNodeCount = 0;
 		AllocationNodeOffset = 0;
 	}
-
+#if PERMUTATION_TILE
+	const uint TileCount = TileCountBuffer[0];
+	const uint LinearIndex = GroupId.x + GroupId.y * TileCountXY.x;
+	if (LinearIndex >= TileCount)
+	{
+		return;
+	}
+	const uint2 TileCoord = TileDataBuffer[LinearIndex];
+	uint2 PixelCoord = TileCoord * TileSize + GroupThreadId;
+#else
 	uint2 PixelCoord = DispatchThreadId.xy + ResolutionOffset;
+#endif // PERMUTATION_TILE
+
 	if (PixelCoord.x >= uint(OutputResolution.x) || PixelCoord.y >= uint(OutputResolution.y))
 		PixelCoord = uint2(0, 0);
 
@@ -493,12 +511,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			}
 
 			NodeDesc.Count = NodeDesc.Count;
-
-		#if PERMUTATION_VIEWTRANSMITTANCE == 1
 			PixelCoverage = TransmittanceToCoverage(ViewTransmittanceTexture.Load(uint3(PixelCoord, 0)), CoverageThreshold);
-		#else
-			PixelCoverage = SampleDesc.ValidSampleCount / float(PERMUTATION_MSAACOUNT);
-		#endif
 		}
 	}
 
