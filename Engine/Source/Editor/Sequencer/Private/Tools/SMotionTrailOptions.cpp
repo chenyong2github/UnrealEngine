@@ -2,7 +2,7 @@
 
 #include "Tools/SMotionTrailOptions.h"
 #include "Tools/MotionTrailOptions.h"
-#include "Modules/moduleManager.h"
+#include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Widgets/Layout/SBorder.h"
 
