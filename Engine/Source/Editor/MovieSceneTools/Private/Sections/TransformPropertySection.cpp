@@ -4,6 +4,7 @@
 #include "ISectionLayoutBuilder.h"
 #include "Sections/MovieScene3DTransformSection.h"
 #include "SequencerSectionPainter.h"
+#include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
 #include "ISequencer.h"
