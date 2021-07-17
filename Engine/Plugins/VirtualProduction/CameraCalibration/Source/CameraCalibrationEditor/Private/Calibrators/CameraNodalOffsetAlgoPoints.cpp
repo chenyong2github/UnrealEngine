@@ -500,6 +500,14 @@ bool UCameraNodalOffsetAlgoPoints::ValidateNewRow(TSharedPtr<FCalibrationRowData
 		return true;
 	}
 
+	// Distortion was evaluated
+
+	if (!Row->CameraData.LensFileEvalData.Distortion.bWasEvaluated)
+	{
+		OutErrorMessage = LOCTEXT("DistortionNotEvaluated", "Distortion was not evaluated");
+		return false;
+	}
+
 	// Same LensFile
 
 	const TSharedPtr<FCalibrationRowData>& FirstRow = CalibrationRows[0];
