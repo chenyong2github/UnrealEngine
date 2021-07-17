@@ -955,6 +955,10 @@ FIoRequest& FIoRequest::operator=(const FIoRequest& Other)
 
 FIoRequest& FIoRequest::operator=(FIoRequest&& Other)
 {
+	if (Impl)
+	{
+		Impl->ReleaseRef();
+	}
 	Impl = Other.Impl;
 	Other.Impl = nullptr;
 	return *this;
