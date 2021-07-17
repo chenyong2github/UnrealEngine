@@ -127,25 +127,49 @@ void ULiveLinkCameraController::Tick(float DeltaTime, const FLiveLinkSubjectFram
 
 			if (UCineCameraComponent* CineCameraComponent = Cast<UCineCameraComponent>(CameraComponent))
 			{
-				if (StaticData->FilmBackWidth > 0.0f && UpdateFlags.bApplyFilmBack) { CineCameraComponent->Filmback.SensorWidth = StaticData->FilmBackWidth; }
-				if (StaticData->FilmBackHeight > 0.0f && UpdateFlags.bApplyFilmBack) { CineCameraComponent->Filmback.SensorHeight = StaticData->FilmBackHeight; }
-				
 				ULensFile* SelectedLensFile = LensFilePicker.GetLensFile();
 				LensFileEvalData.LensFile = SelectedLensFile;
 
+				// If we're using a lens file, use its sensor dimensions unless Live Link is streaming different values
+				if (SelectedLensFile)
+				{
+					if ((StaticData->FilmBackWidth > 0.0f) && UpdateFlags.bApplyFilmBack) 
+					{ 
+						LensFileEvalData.Distortion.Filmback.X = StaticData->FilmBackWidth;
+					}
+					else
+					{
+						LensFileEvalData.Distortion.Filmback.X = SelectedLensFile->LensInfo.SensorDimensions.X;
+					}
+
+					if ((StaticData->FilmBackHeight > 0.0f) && UpdateFlags.bApplyFilmBack)
+					{
+						LensFileEvalData.Distortion.Filmback.Y = StaticData->FilmBackHeight;
+					}
+					else
+					{
+						LensFileEvalData.Distortion.Filmback.Y = SelectedLensFile->LensInfo.SensorDimensions.Y;
+					}
+
+					CineCameraComponent->Filmback.SensorWidth = LensFileEvalData.Distortion.Filmback.X;
+					CineCameraComponent->Filmback.SensorHeight = LensFileEvalData.Distortion.Filmback.Y;
+				}
+				else
+				{
+					if (StaticData->FilmBackWidth > 0.0f && UpdateFlags.bApplyFilmBack) 
+					{ 
+						CineCameraComponent->Filmback.SensorWidth = StaticData->FilmBackWidth; 
+					}
+
+					if (StaticData->FilmBackHeight > 0.0f && UpdateFlags.bApplyFilmBack) 
+					{ 
+						CineCameraComponent->Filmback.SensorHeight = StaticData->FilmBackHeight; 
+					}
+				}
+
+				// If the filmback changed and there is a lens file selected, warn the user if it is incompatible with it
 				if (LastFilmback != CineCameraComponent->Filmback)
 				{
-					//Keep track of user changing the filmback
-					if (FMath::IsNearlyEqual(LastFilmback.SensorWidth, CineCameraComponent->Filmback.SensorWidth) == false)
-					{
-						OriginalFilmback.X = CineCameraComponent->Filmback.SensorWidth;
-					}
-
-					if (FMath::IsNearlyEqual(LastFilmback.SensorHeight, CineCameraComponent->Filmback.SensorHeight) == false)
-					{
-						OriginalFilmback.Y = CineCameraComponent->Filmback.SensorHeight;
-					}
-
 					if (SelectedLensFile && SelectedLensFile->IsCineCameraCompatible(CineCameraComponent) == false)
 					{
 						UE_LOG(LogLiveLinkCameraController, Warning, TEXT("LensFile '%s' has a smaller sensor size than the CameraComponent of '%s' (driven by LiveLinkCameraController '%s')")
@@ -322,15 +346,6 @@ void ULiveLinkCameraController::PostEditChangeProperty(struct FPropertyChangedEv
 						, *CineCameraComponent->GetName()
 						, *this->GetName());
 				}
-
-				//Cache original filmback values
-				OriginalFilmback = {CineCameraComponent->Filmback.SensorWidth, CineCameraComponent->Filmback.SensorHeight};
-			}
-			else
-			{
-				//No more LensFile, put back original filmback
-				CineCameraComponent->Filmback.SensorWidth = OriginalFilmback.X;
-				CineCameraComponent->Filmback.SensorHeight = OriginalFilmback.Y;
 			}
 		}
 
@@ -539,10 +554,10 @@ void ULiveLinkCameraController::ApplyDistortion(ULensFile* LensFile, UCineCamera
 			//Our handler's displacement map will get updated
 			LensFileEvalData.Distortion.bWasEvaluated = true;
 
-			//Evaluate distortion using original filmback not including SensorHeight modification based on Fy
+			//Evaluate distortion using filmback not including SensorHeight modification based on Fy
 			LensFile->EvaluateDistortionData(LensFileEvalData.Input.Focus
 											, LensFileEvalData.Input.Zoom
-											, OriginalFilmback
+											, LensFileEvalData.Distortion.Filmback
 											, LensDistortionHandler);
 
 			// Adjust overscan by the overscan multiplier

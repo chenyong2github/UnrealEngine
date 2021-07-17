@@ -144,10 +144,6 @@ protected:
 	UPROPERTY(DuplicateTransient)
 	FGuid DistortionProducerID;
 
-	/** Original cinecamera filmback / sensor size used for evaluating LensFile */
-	UPROPERTY()
-	FVector2D OriginalFilmback;
-
 	/** Original cinecamera component rotation that we set back on when nodal offset isn't applied anymore */
 	UPROPERTY()
 	FRotator OriginalCameraRotation;

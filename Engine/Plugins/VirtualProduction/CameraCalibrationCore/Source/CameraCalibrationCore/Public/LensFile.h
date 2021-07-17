@@ -348,6 +348,9 @@ struct FLensFileEvalData
 	{
 		/** True if distortion was applied (and the lens distortion handler updated its state) */
 		bool bWasEvaluated;
+
+		/** The filmback used when evaluating the distortion data */
+		FVector2D Filmback;
 	} Distortion;
 
 	/** Information about the nodal offset evaluation */
@@ -365,6 +368,8 @@ struct FLensFileEvalData
 		Input.Focus = 0.0f;
 		Input.Iris = 0.0f;
 		Input.Zoom = 0.0f;
+
+		Distortion.Filmback = FVector2D(0);
 
 		Camera.UniqueId = INDEX_NONE;
 		Distortion.bWasEvaluated = false;
