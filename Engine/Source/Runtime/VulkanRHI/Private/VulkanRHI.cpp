@@ -1384,41 +1384,37 @@ void FVulkanDescriptorSetsLayout::Compile(FVulkanDescriptorSetLayoutMap& DSetLay
 	// Check for maxDescriptorSetSamplers
 	check(		LayoutTypes[VK_DESCRIPTOR_TYPE_SAMPLER]
 			+	LayoutTypes[VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER]
-			<	Limits.maxDescriptorSetSamplers);
+			<=	Limits.maxDescriptorSetSamplers);
 
 	// Check for maxDescriptorSetUniformBuffers
 	check(		LayoutTypes[VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER]
 			+	LayoutTypes[VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC]
-			<	Limits.maxDescriptorSetUniformBuffers);
+			<=	Limits.maxDescriptorSetUniformBuffers);
 
 	// Check for maxDescriptorSetUniformBuffersDynamic
 	check(Device->GetVendorId() == EGpuVendorId::Amd ||
 				LayoutTypes[VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC]
-			<	Limits.maxDescriptorSetUniformBuffersDynamic);
+			<=	Limits.maxDescriptorSetUniformBuffersDynamic);
 
 	// Check for maxDescriptorSetStorageBuffers
 	check(		LayoutTypes[VK_DESCRIPTOR_TYPE_STORAGE_BUFFER]
 			+	LayoutTypes[VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC]
-			<	Limits.maxDescriptorSetStorageBuffers);
+			<=	Limits.maxDescriptorSetStorageBuffers);
 
 	// Check for maxDescriptorSetStorageBuffersDynamic
-	if (LayoutTypes[VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC] > Limits.maxDescriptorSetUniformBuffersDynamic)
-	{
-		//#todo-rco: Downgrade to non-dynamic
-	}
 	check(		LayoutTypes[VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC]
-			<	Limits.maxDescriptorSetStorageBuffersDynamic);
+			<=	Limits.maxDescriptorSetStorageBuffersDynamic);
 
 	// Check for maxDescriptorSetSampledImages
 	check(		LayoutTypes[VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER]
 			+	LayoutTypes[VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE]
 			+	LayoutTypes[VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER]
-			<	Limits.maxDescriptorSetSampledImages);
+			<=	Limits.maxDescriptorSetSampledImages);
 
 	// Check for maxDescriptorSetStorageImages
 	check(		LayoutTypes[VK_DESCRIPTOR_TYPE_STORAGE_IMAGE]
 			+	LayoutTypes[VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER]
-			<	Limits.maxDescriptorSetStorageImages);
+			<=	Limits.maxDescriptorSetStorageImages);
 
 	check(LayoutTypes[VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT] <= Limits.maxDescriptorSetInputAttachments);
 

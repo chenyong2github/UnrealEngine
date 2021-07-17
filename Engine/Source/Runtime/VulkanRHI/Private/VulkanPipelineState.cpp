@@ -18,9 +18,6 @@ enum
 	NumAllocationsPerPool = 8,
 };
 
-
-extern TAutoConsoleVariable<int32> GDynamicGlobalUBs;
-
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 static TAutoConsoleVariable<int32> GAlwaysWriteDS(
 	TEXT("r.Vulkan.AlwaysWriteDS"),
