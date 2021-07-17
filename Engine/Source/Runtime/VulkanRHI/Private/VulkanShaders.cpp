@@ -496,7 +496,7 @@ void FVulkanDescriptorSetsLayoutInfo::ProcessBindingsForStage(VkShaderStageFlagB
 			{
 				//#todo-rco: Only process constant data part of the UB
 				Found = (UBInfo.ConstantDataOriginalBindingIndex == UINT16_MAX) ? nullptr : OutUBGatherInfo.UBLayoutsToUsedStageMap.Find(UBInfo.LayoutHash);
-				if (Found)
+				if (Found && *Found != StageFlags)
 				{
 					// Move from per stage to common UBs
 					VkShaderStageFlags PrevStage = (VkShaderStageFlags)0;
