@@ -1,0 +1,6 @@
+1.70
+* add option to allow async checkout
+* resolved concurrent command issues
+* fix issue with P4V commands waiting for exit
+* resolve issue where Checkout on Edit was not honoring the user option
+
