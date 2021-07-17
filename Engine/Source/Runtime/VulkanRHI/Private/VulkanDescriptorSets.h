@@ -346,7 +346,7 @@ public:
 	void ProcessBindingsForStage(VkShaderStageFlagBits StageFlags, ShaderStage::EStage DescSetStage, const FVulkanShaderHeader& CodeHeader, FUniformBufferGatherInfo& OutUBGatherInfo) const;
 
 	template<bool bIsCompute>
-	void FinalizeBindings(const FUniformBufferGatherInfo& UBGatherInfo, const TArrayView<FRHISamplerState*>& ImmutableSamplers);
+	void FinalizeBindings(const FVulkanDevice& Device, const FUniformBufferGatherInfo& UBGatherInfo, const TArrayView<FRHISamplerState*>& ImmutableSamplers);
 
 	void GenerateHash(const TArrayView<FRHISamplerState*>& ImmutableSamplers);
 
@@ -738,6 +738,11 @@ public:
 		//OutDescriptorSet = RemappingUBInfos[Stage][ParameterIndex].Remapping.NewDescriptorSet;
 		return RemappingInfo->StageInfos[0].Globals;
 	}
+	
+	inline VkDescriptorType GetDescriptorType(uint8 DescriptorSet, int32 DescriptorIndex) const
+	{
+		return RemappingInfo->SetInfos[DescriptorSet].Types[DescriptorIndex];
+	}
 
 	inline bool IsInitialized() const
 	{
@@ -801,6 +806,11 @@ public:
 	{
 		//OutDescriptorSet = RemappingUBInfos[Stage][ParameterIndex].Remapping.NewDescriptorSet;
 		return RemappingInfo->StageInfos[Stage].Globals;
+	}
+
+	inline VkDescriptorType GetDescriptorType(uint8 DescriptorSet, int32 DescriptorIndex) const
+	{
+		return RemappingInfo->SetInfos[DescriptorSet].Types[DescriptorIndex];
 	}
 
 	inline bool IsInitialized() const

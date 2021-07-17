@@ -433,7 +433,6 @@ inline void FVulkanCommandListContext::SetShaderUniformBuffer(ShaderStage::EStag
 	if (!HeaderUBInfo.bOnlyHasResources)
 	{
 		checkSlow(UniformBuffer->GetLayout().ConstantBufferSize > 0);
-		extern TAutoConsoleVariable<int32> GDynamicGlobalUBs;
 
 		uint8 DescriptorSet;
 		uint32 BindingIndex;
@@ -442,12 +441,15 @@ inline void FVulkanCommandListContext::SetShaderUniformBuffer(ShaderStage::EStag
 			return;
 		}
 
-		if (GDynamicGlobalUBs.GetValueOnAnyThread() > 1)
+		const VkDescriptorType DescriptorType = DescriptorInfo.GetDescriptorType(DescriptorSet, BindingIndex);
+
+		if (DescriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
 		{
 			PendingGfxState->SetUniformBuffer<true>(DescriptorSet, BindingIndex, UniformBuffer);
 		}
 		else
 		{
+			check(DescriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 			PendingGfxState->SetUniformBuffer<false>(DescriptorSet, BindingIndex, UniformBuffer);
 		}
 	}
@@ -504,8 +506,7 @@ void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIComputeShader* Com
 	if (!HeaderUBInfo.bOnlyHasResources)
 	{
 		checkSlow(UniformBuffer->GetLayout().ConstantBufferSize > 0);
-		extern TAutoConsoleVariable<int32> GDynamicGlobalUBs;
-
+		
 		uint8 DescriptorSet;
 		uint32 BindingIndex;
 		if (!DescriptorInfo.GetDescriptorSetAndBindingIndex(FVulkanShaderHeader::UniformBuffer, BufferIndex, DescriptorSet, BindingIndex))
@@ -513,12 +514,15 @@ void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIComputeShader* Com
 			return;
 		}
 
-		if (GDynamicGlobalUBs.GetValueOnAnyThread() > 1)
+		const VkDescriptorType DescriptorType = DescriptorInfo.GetDescriptorType(DescriptorSet, BindingIndex);
+
+		if (DescriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
 		{
 			State.SetUniformBuffer<true>(DescriptorSet, BindingIndex, UniformBuffer);
 		}
 		else
 		{
+			check(DescriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 			State.SetUniformBuffer<false>(DescriptorSet, BindingIndex, UniformBuffer);
 		}
 	}
