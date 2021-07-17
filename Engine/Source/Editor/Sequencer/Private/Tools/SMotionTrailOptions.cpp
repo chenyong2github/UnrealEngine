@@ -2,6 +2,9 @@
 
 #include "Tools/SMotionTrailOptions.h"
 #include "Tools/MotionTrailOptions.h"
+#include "Modules/moduleManager.h"
+#include "PropertyEditorModule.h"
+#include "Widgets/Layout/SBorder.h"
 
 #define LOCTEXT_NAMESPACE "MotionTrail"
 

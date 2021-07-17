@@ -2,6 +2,7 @@
 
 #pragma once
 #include "CoreMinimal.h"
+#include "HAL/IConsoleManager.h"
 #include "MotionTrailOptions.generated.h"
 
 //if true still use old motion trails for sequencer objects.
