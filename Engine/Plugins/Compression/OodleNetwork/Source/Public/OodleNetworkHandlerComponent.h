@@ -25,7 +25,7 @@ DECLARE_LOG_CATEGORY_EXTERN(OodleNetworkHandlerComponentLog, Log, All);
  * Specifies when compression is enabled. Used to make compression optional, for some platforms/clients
  */
 UENUM()
-enum class EOodleEnableMode : uint8
+enum class EOodleNetworkEnableMode : uint8
 {
 	AlwaysEnabled,					// Oodle compression is always enabled - forces compression to be enabled remotely
 	WhenCompressedPacketReceived	// Oodle compression is only enabled if remotely requested
@@ -369,10 +369,10 @@ protected:
 	bool bEnableOodle;
 
 	/** When to enable compression on the server */
-	EOodleEnableMode ServerEnableMode;
+	EOodleNetworkEnableMode ServerEnableMode;
 
 	/** When to enable compression on the client */
-	EOodleEnableMode ClientEnableMode;
+	EOodleNetworkEnableMode ClientEnableMode;
 
 #if !UE_BUILD_SHIPPING || OODLE_DEV_SHIPPING
 	/** File to log input packets to */

@@ -63,6 +63,8 @@
 #include "Misc/NetworkVersion.h"
 #include "Templates/UniquePtr.h"
 
+#include "Compression/OodleDataCompression.h"
+
 #if !(IS_PROGRAM || WITH_EDITOR)
 #include "IPlatformFilePak.h"
 #endif
@@ -2379,6 +2381,9 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	GLogConsole = GScopedLogConsole.Get();
 #endif
 
+	// init Oodle here
+	OodleDataCompressionStartupPreInit();
+
 	{
 		SCOPED_BOOT_TIMING("LoadPreInitModules");
 		LoadPreInitModules();
@@ -2723,7 +2728,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	GIsDemoMode = FParse::Param(FCommandLine::Get(), TEXT("DEMOMODE"));
 #endif
 
-
+	// InitEngineTextLocalization loads Paks, needs Oodle to be setup before here
 	InitEngineTextLocalization();
 
 	bool bForceEnableHighDPI = false;

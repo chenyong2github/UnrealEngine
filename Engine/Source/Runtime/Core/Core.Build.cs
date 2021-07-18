@@ -20,6 +20,7 @@ public class Core : ModuleRules
 		}
 
 		PrivateDependencyModuleNames.Add("BLAKE3");
+		PrivateDependencyModuleNames.Add("OodleDataCompression");
 
 		PublicDependencyModuleNames.Add("TraceLog");
 		PublicIncludePaths.Add("Runtime/TraceLog/Public");

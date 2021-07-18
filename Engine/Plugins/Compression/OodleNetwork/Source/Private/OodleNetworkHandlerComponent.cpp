@@ -305,8 +305,8 @@ FOodleNetworkDictionary::~FOodleNetworkDictionary()
 OodleNetworkHandlerComponent::OodleNetworkHandlerComponent()
 	: HandlerComponent(FName(TEXT("OodleNetworkHandlerComponent")))
 	, bEnableOodle(false)
-	, ServerEnableMode(EOodleEnableMode::AlwaysEnabled)
-	, ClientEnableMode(EOodleEnableMode::AlwaysEnabled)
+	, ServerEnableMode(EOodleNetworkEnableMode::AlwaysEnabled)
+	, ClientEnableMode(EOodleNetworkEnableMode::AlwaysEnabled)
 #if !UE_BUILD_SHIPPING || OODLE_DEV_SHIPPING
 	, InPacketLog(nullptr)
 	, OutPacketLog(nullptr)
@@ -394,10 +394,10 @@ void OodleNetworkHandlerComponent::Initialize()
 	}
 
 	FString CurEnableModeStr;
-	UEnum* EnableModeEnum = StaticEnum<EOodleEnableMode>();
+	UEnum* EnableModeEnum = StaticEnum<EOodleNetworkEnableMode>();
 	bool bSetServerEnableMode = false;
 	bool bSetClientEnableMode = false;
-	auto SetEnableModeFromStr = [&EnableModeEnum](EOodleEnableMode& OutMode, FString ModeStr) -> bool
+	auto SetEnableModeFromStr = [&EnableModeEnum](EOodleNetworkEnableMode& OutMode, FString ModeStr) -> bool
 		{
 			bool bSuccess = false;
 
@@ -405,12 +405,12 @@ void OodleNetworkHandlerComponent::Initialize()
 
 			if (EnumVal != INDEX_NONE)
 			{
-				OutMode = (EOodleEnableMode)EnumVal;
+				OutMode = (EOodleNetworkEnableMode)EnumVal;
 				bSuccess = true;
 			}
 			else
 			{
-				UE_LOG(OodleNetworkHandlerComponentLog, Error, TEXT("Failed to parse EOodleEnableMode value '%s'"), *ModeStr);
+				UE_LOG(OodleNetworkHandlerComponentLog, Error, TEXT("Failed to parse EOodleNetworkEnableMode value '%s'"), *ModeStr);
 			}
 
 			return bSuccess;
@@ -482,9 +482,9 @@ void OodleNetworkHandlerComponent::Initialize()
 
 #endif
 
-		EOodleEnableMode EnableMode = (Handler->Mode == Handler::Mode::Server ? ServerEnableMode : ClientEnableMode);
+		EOodleNetworkEnableMode EnableMode = (Handler->Mode == Handler::Mode::Server ? ServerEnableMode : ClientEnableMode);
 
-		if (EnableMode == EOodleEnableMode::AlwaysEnabled)
+		if (EnableMode == EOodleNetworkEnableMode::AlwaysEnabled)
 		{
 			InitializeDictionaries();
 		}
@@ -954,8 +954,8 @@ void OodleNetworkHandlerComponent::Incoming(FBitReader& Packet)
 		{
 			const bool bIsServer = (Handler->Mode == Handler::Mode::Server);
 
-			// Lazy-loading of dictionary when EOodleEnableMode::WhenCompressedPacketReceived is active
-			if (!bInitializedDictionaries && (bIsServer ? ServerEnableMode : ClientEnableMode) == EOodleEnableMode::WhenCompressedPacketReceived)
+			// Lazy-loading of dictionary when EOodleNetworkEnableMode::WhenCompressedPacketReceived is active
+			if (!bInitializedDictionaries && (bIsServer ? ServerEnableMode : ClientEnableMode) == EOodleNetworkEnableMode::WhenCompressedPacketReceived)
 			{
 				RemoteInitializeDictionaries();
 			}
@@ -1144,7 +1144,7 @@ void OodleNetworkHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits
 #endif
 
 		// Skip compression when we are waiting on the remote side to enable compression
-		if (!bSkipCompression && (!bInitializedDictionaries && (bIsServer ? ServerEnableMode : ClientEnableMode) == EOodleEnableMode::WhenCompressedPacketReceived))
+		if (!bSkipCompression && (!bInitializedDictionaries && (bIsServer ? ServerEnableMode : ClientEnableMode) == EOodleNetworkEnableMode::WhenCompressedPacketReceived))
 		{
 			bSkipCompression = true;
 			bSkipCompressionClientDisabled = true;
@@ -1342,7 +1342,7 @@ bool OodleNetworkHandlerComponent::IsCompressionActive() const
 			(CurDict == nullptr && bCaptureMode) || bOodleCompressionDisabled ||
 #endif
 			// Skip compression when we are waiting on the remote side to enable compression
-			(!bInitializedDictionaries && (bIsServer ? ServerEnableMode : ClientEnableMode) == EOodleEnableMode::WhenCompressedPacketReceived)
+			(!bInitializedDictionaries && (bIsServer ? ServerEnableMode : ClientEnableMode) == EOodleNetworkEnableMode::WhenCompressedPacketReceived)
 			;
 
 		if (CurDict != nullptr && !bSkipCompression)
