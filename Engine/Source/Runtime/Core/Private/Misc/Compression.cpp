@@ -13,6 +13,9 @@
 #include "Misc/ICompressionFormat.h"
 
 #include "Misc/MemoryReadStream.h"
+
+#include "Compression/OodleDataCompression.h"
+
 // #include "TargetPlatformBase.h"
 THIRD_PARTY_INCLUDES_START
 #include "ThirdParty/zlib/zlib-1.2.5/Inc/zlib.h"
@@ -30,6 +33,7 @@ DECLARE_STATS_GROUP( TEXT( "Compression" ), STATGROUP_Compression, STATCAT_Advan
 
 PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
+// static class members for registered plugin/module compression formats :
 TMap<FName, struct ICompressionFormat*> FCompression::CompressionFormats;
 FCriticalSection FCompression::CompressionFormatsCriticalSection;
 
@@ -438,9 +442,19 @@ uint32 FCompression::GetCompressorVersion(FName FormatName)
 ICompressionFormat* FCompression::GetCompressionFormat(FName FormatName, bool bErrorOnFailure)
 {
 	FScopeLock Lock(&CompressionFormatsCriticalSection);
+
 	ICompressionFormat** ExistingFormat = CompressionFormats.Find(FormatName);
 	if (ExistingFormat == nullptr)
 	{
+		if ( FormatName == NAME_Oodle )
+		{
+			// Oodle ICompressionFormat is created on first use :
+			// inside CompressionFormatsCriticalSection lock
+			OodleDataCompressionFormatInitOnFirstUseFromLock();
+
+			// OodleDataCompressionFormatInitOnFirstUseFromLock added it to the ModularFeatures list
+		}
+
 		TArray<ICompressionFormat*> Features = IModularFeatures::Get().GetModularFeatureImplementations<ICompressionFormat>(COMPRESSION_FORMAT_FEATURE_NAME);
 
 		for (ICompressionFormat* CompressionFormat : Features)
@@ -482,7 +496,9 @@ FName FCompression::GetCompressionFormatFromDeprecatedFlags(ECompressionFlags Fl
 			return NAME_Gzip;
 		// COMPRESS_Custom was a temporary solution to third party compression before we had plugins working, and it was only ever used with oodle, we just assume Oodle with Custom
 		case COMPRESS_Custom:
-			return TEXT("Oodle");
+			return NAME_Oodle;
+		default:
+			break;
 	}
 
 	return NAME_None;
@@ -490,7 +506,6 @@ FName FCompression::GetCompressionFormatFromDeprecatedFlags(ECompressionFlags Fl
 
 int32 FCompression::CompressMemoryBound(FName FormatName, int32 UncompressedSize, ECompressionFlags Flags, int32 CompressionData)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FCompression::CompressMemoryBound);
 	int32 CompressionBound = UncompressedSize;
 
 	if (FormatName == NAME_Zlib)
@@ -541,23 +556,19 @@ bool FCompression::CompressMemoryIfWorthDecompressing(FName FormatName, int32 Mi
 		// if input size is smaller than the number of bytes we need to save
 		// no need to even try encoding
 		// also saves encode time
+		// NOTE : this check applies even for compressor who say "bNeedsWorthItCheck = false" , eg. Oodle
 		return false;
 	}
 	
 	bool bNeedsWorthItCheck = false;
-	if (FormatName == NAME_Zlib)
+	
+	if (FormatName == NAME_Oodle)
 	{
-		// hardcoded zlib
-		bNeedsWorthItCheck = true;
+		// Oodle does its own internal "worth it" check
+		bNeedsWorthItCheck = false;
 	}
-	else if (FormatName == NAME_Gzip)
+	else if (FormatName == NAME_Zlib || FormatName == NAME_Gzip || FormatName == NAME_LZ4)
 	{
-		// hardcoded gzip
-		bNeedsWorthItCheck = true;
-	}
-	else if (FormatName == NAME_LZ4)
-	{
-		// hardcoded lz4
 		bNeedsWorthItCheck = true;
 	}
 	else
@@ -707,6 +718,12 @@ bool FCompression::UncompressMemory(FName FormatName, void* UncompressedBuffer, 
 		// hardcoded lz4
 		bUncompressSucceeded = LZ4_decompress_safe((const char*)CompressedBuffer, (char*)UncompressedBuffer, CompressedSize, UncompressedSize) > 0;
 	}
+	else if (FormatName == NAME_Oodle)
+	{
+		// hardcoded Oodle
+		// can decode Oodle data without creating Oodle ICompressionFormat
+		bUncompressSucceeded = OodleDataDecompress(UncompressedBuffer,UncompressedSize,CompressedBuffer,CompressedSize);
+	}
 	else
 	{
 		// let the format module compress it
@@ -727,7 +744,11 @@ bool FCompression::UncompressMemory(FName FormatName, void* UncompressedBuffer, 
 			FFailOnUncompressErrors()
 				: Value(true) // fail by default
 			{
-				GConfig->GetBool(TEXT("Core.System"), TEXT("FailOnUncompressErrors"), Value, GEngineIni);
+				// very early decodes of first paks could be before this config is loaded
+				if ( GConfig )
+				{
+					GConfig->GetBool(TEXT("Core.System"), TEXT("FailOnUncompressErrors"), Value, GEngineIni);
+				}
 			}
 		} FailOnUncompressErrors;
 		if (!FailOnUncompressErrors.Value)
@@ -963,7 +984,7 @@ void* FCompressedGrowableBuffer::Access( int32 Offset )
 bool FCompression::IsFormatValid(FName FormatName)
 {
 	// build in formats are always valid
-	if (FormatName == NAME_Zlib || FormatName == NAME_Gzip)
+	if (FormatName == NAME_Zlib || FormatName == NAME_Gzip || FormatName == NAME_LZ4 || FormatName == NAME_Oodle)
 	{
 		return true;
 	}

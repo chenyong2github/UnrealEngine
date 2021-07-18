@@ -2,6 +2,7 @@
 
 #include "OodleNetworkArchives.h"
 #include "OodleNetworkHandlerComponent.h"
+#include "Compression/OodleDataCompression.h"
 
 // Maximum size of compress/decompress buffers (just under 2GB, due to max int32 value)
 #define MAX_COMPRESS_BUFFER (1024 * 1024 * 2047)
@@ -61,23 +62,54 @@ bool FOodleNetworkArchiveBase::SerializeOodleDecompressData(FOodleCompressedData
 	bSuccess = ensure(CompressedLength <= (InnerArchive.TotalSize() - DataOffset));
 	bSuccess = bSuccess && ensure(DecompressedLength <= MAX_COMPRESS_BUFFER);
 	bSuccess = bSuccess && ensure(CompressedLength <= MAX_COMPRESS_BUFFER);
-
-	// compression no longer supported here :
-	bSuccess = bSuccess && ensure(CompressedLength == DecompressedLength);
-
+	
 	if (bSuccess)
 	{
 		SeekPush(DataOffset);
 
 		uint8* DecompressedData = new uint8[DecompressedLength];
 
-		InnerArchive.Serialize(DecompressedData, DecompressedLength);
+		if (CompressedLength == DecompressedLength)
+		{
+			// uncompressed
 
-		OutData = DecompressedData;
-		OutDataBytes = DecompressedLength;
+			InnerArchive.Serialize(DecompressedData, DecompressedLength);
+		}
+		else
+		{
+			// all data should be uncompressed now
+			// but support decompressing legacy data here
+
+			uint8* CompressedData = new uint8[CompressedLength];
+		
+			InnerArchive.Serialize(CompressedData, CompressedLength);
+
+			if (!InnerArchive.IsError())
+			{
+				bSuccess = OodleDataDecompress(
+					(void*)DecompressedData, DecompressedLength,
+					(void*)CompressedData, CompressedLength);
+			}
+
+			delete[] CompressedData;
+		}
+
+		bSuccess = bSuccess && !InnerArchive.IsError();
+
+		if (bSuccess)
+		{
+			OutData = DecompressedData;
+			OutDataBytes = DecompressedLength;
+		}
+		else
+		{
+			delete[] DecompressedData;
+		}
 
 		SeekPop();
 	}
+	
+	bSuccess = bSuccess && !InnerArchive.IsError();
 
 	return bSuccess;
 }

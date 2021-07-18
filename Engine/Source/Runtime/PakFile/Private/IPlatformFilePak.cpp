@@ -37,6 +37,7 @@
 #include "IO/IoDispatcherBackend.h"
 
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#include "Compression/OodleDataCompression.h"
 
 DEFINE_LOG_CATEGORY(LogPakFile);
 
@@ -4856,9 +4857,22 @@ public:
 			TEXT("See ExtensionsToNotUsePluginCompression in [Pak] section of Engine.ini to add more extensions."),
 			*CompressionMethod.ToString(), TEXT("Unknown"));
 
-		// an amount to extra allocate, in case one block's compressed size is bigger than CompressMemoryBound
-		float SlopMultiplier = 1.1f;
-		int64 WorkingBufferRequiredSize = FCompression::CompressMemoryBound(CompressionMethod, CompressionBlockSize) * SlopMultiplier;
+		// @todo Oodle : make an FCompression::GetMaximumCompressedSize
+		//		avoid calling CompressMemoryBound in the Decoder because it creates an ICompressionFormat for Oodle
+		//		and initializes encoders
+		
+		int64 WorkingBufferRequiredSize;
+		if ( CompressionMethod == NAME_Oodle )
+		{
+			WorkingBufferRequiredSize = OodleDataGetMaximumCompressedSize(CompressionBlockSize);
+		}
+		else
+		{
+			// an amount to extra allocate, in case one block's compressed size is bigger than CompressMemoryBound
+			float SlopMultiplier = 1.1f;
+			WorkingBufferRequiredSize = FCompression::CompressMemoryBound(CompressionMethod, CompressionBlockSize) * SlopMultiplier;
+		}
+
 		WorkingBufferRequiredSize = EncryptionPolicy::AlignReadRequest(WorkingBufferRequiredSize);
 		const bool bExistingScratchBufferValid = ScratchSpace->TempBufferSize >= CompressionBlockSize;
 		ScratchSpace->EnsureBufferSpace(CompressionBlockSize, WorkingBufferRequiredSize * 2);
