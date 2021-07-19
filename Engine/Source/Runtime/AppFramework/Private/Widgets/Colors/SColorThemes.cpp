@@ -214,7 +214,7 @@ FReply SColorTrash::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& D
 const FSlateBrush* SColorTrash::GetBorderStyle() const
 {
 	return (bBorderActivated) ?
-		FCoreStyle::Get().GetBrush("FocusRectangle") :
+		FAppStyle::Get().GetBrush("FocusRectangle") :
 		FStyleDefaults::GetNoBrush();
 }
 
@@ -238,8 +238,8 @@ void SThemeColorBlock::Construct(const FArguments& InArgs )
 
 	DistanceDragged = 0;
 
-	const FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Regular", 9);
-	const FSlateFontInfo SmallLabelFont = FCoreStyle::GetDefaultFontStyle("Bold", 9);
+	const FSlateFontInfo SmallLayoutFont = FAppStyle::Get().GetFontStyle("Regular");
+	const FSlateFontInfo SmallLabelFont = FAppStyle::Get().GetFontStyle("Bold");
 
 	TSharedPtr<SToolTip> ColorTooltip =
 		SNew(SToolTip)
@@ -436,8 +436,8 @@ FSlateColor SThemeColorBlock::HandleBorderColor() const
 const FSlateBrush* SThemeColorBlock::HandleBorderImage() const
 {
 	return IsHovered() ?
-		FCoreStyle::Get().GetBrush("FocusRectangle") :
-		FCoreStyle::Get().GetBrush("GenericWhiteBox");
+		FAppStyle::Get().GetBrush("FocusRectangle") :
+		FAppStyle::Get().GetBrush("GenericWhiteBox");
 }
 
 #define LOCTEXT_NAMESPACE "ThemeColorBlock"
@@ -830,28 +830,29 @@ void SColorThemesViewer::Construct(const FArguments& InArgs)
 
 	LoadColorThemesFromIni();
 
-	const FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Regular", 10);
+	const FSlateFontInfo SmallLayoutFont = FAppStyle::Get().GetFontStyle("Regular");
+
 
 	// different menus that could be visible for the color themes menu
 	// standard menu with "new", "rename" and "delete"
 	MenuStandard =
 		SNew(SHorizontalBox)
-		+SHorizontalBox::Slot() .FillWidth(1) .Padding(3)
+		+SHorizontalBox::Slot() .AutoWidth().Padding(3)
 		[
 			SNew(SButton) .Text(LOCTEXT("NewButton", "New")) .HAlign(HAlign_Center)
 				.OnClicked(this, &SColorThemesViewer::NewColorTheme)
 		]
-		+SHorizontalBox::Slot() .FillWidth(1) .Padding(3)
+		+SHorizontalBox::Slot() .AutoWidth().Padding(3)
 		[
 			SNew(SButton) .Text(LOCTEXT("DuplicateButton", "Duplicate")) .HAlign(HAlign_Center)
 				.OnClicked(this, &SColorThemesViewer::DuplicateColorTheme)
 		]
-		+SHorizontalBox::Slot() .FillWidth(1) .Padding(3)
+		+SHorizontalBox::Slot() .AutoWidth().Padding(3)
 		[
 			SNew(SButton) .Text(LOCTEXT("RenameButton", "Rename")) .HAlign(HAlign_Center)
 				.OnClicked(this, &SColorThemesViewer::MenuToRename)
 		]
-		+SHorizontalBox::Slot() .FillWidth(1) .Padding(3)
+		+SHorizontalBox::Slot() .AutoWidth().Padding(3)
 		[
 			SNew(SButton) .Text(LOCTEXT("DeleteButton", "Delete")) .HAlign(HAlign_Center)
 				.OnClicked(this, &SColorThemesViewer::MenuToDelete)
@@ -925,6 +926,7 @@ void SColorThemesViewer::Construct(const FArguments& InArgs)
 			.Padding(0,15,0,0)
 		[
 			SAssignNew(Menu, SBorder)
+			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
 		]
 		+ SVerticalBox::Slot()
 			.AutoHeight()
