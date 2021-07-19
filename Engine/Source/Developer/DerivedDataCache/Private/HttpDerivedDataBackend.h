@@ -97,6 +97,11 @@ public:
 	{
 	}
 
+	static FHttpDerivedDataBackend* GetAny()
+	{
+		return AnyInstance;
+	}
+
 private:
 	ICacheFactory& Factory;
 	FString Domain;
@@ -114,6 +119,7 @@ private:
 	bool bReadOnly;
 	uint32 FailedLoginAttempts;
 	ESpeedClass SpeedClass;
+	static inline FHttpDerivedDataBackend* AnyInstance = nullptr;
 
 	bool IsServiceReady();
 	bool AcquireAccessToken();
