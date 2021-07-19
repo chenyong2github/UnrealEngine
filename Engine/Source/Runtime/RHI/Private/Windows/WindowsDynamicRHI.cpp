@@ -84,6 +84,11 @@ static bool ShouldPreferFeatureLevelES31()
 {
 	if (!GIsEditor)
 	{
+		if (FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES31")) || FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES3_1")))
+		{
+			return true;
+		}
+
 		bool bPreferFeatureLevelES31 = false;
 		bool bFoundPreference = GConfig->GetBool(TEXT("D3DRHIPreference"), TEXT("bPreferFeatureLevelES31"), bPreferFeatureLevelES31, GGameUserSettingsIni);
 
@@ -94,7 +99,7 @@ static bool ShouldPreferFeatureLevelES31()
 			bForceES31 = ShouldForceFeatureLevelES31();
 		}
 
-		if (bPreferFeatureLevelES31 || FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES31")) || FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES3_1")) || bForceES31)
+		if (bPreferFeatureLevelES31 || bForceES31)
 		{
 			if (!bFoundPreference)
 			{
