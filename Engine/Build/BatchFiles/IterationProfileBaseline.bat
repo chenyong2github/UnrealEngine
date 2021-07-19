@@ -1,1 +1,1 @@
-@call %~dp0RunUAT.bat BuildGraph -Script=Engine/Build/IterationProfile.xml -Target="Baseline Iteration Profile Results" -append:ProjectNames="EngineTest" -append:ProjectNames="Reverb" -append:ProjectNames="ShooterGame" -set:Win64=true %*
+@call %~dp0RunUAT.bat BuildGraph -Script=Engine/Build/IterationProfile.xml -Target="Baseline Iteration Profile Results" -set:Platforms=Win64 -append:Projects="EngineTest" -append:Projects="Reverb" -append:Projects="ShooterGame" %*
