@@ -86,11 +86,11 @@ namespace OculusAssetManager_Impl
 	{
 		{ ovrpNode_Head,      ovrpSystemHeadset_Rift_DK1, ovrpSystemHeadset_Rift_S, FOculusAssetDirectory::AssetListing[0] },
 #if PLATFORM_ANDROID
-		{ ovrpNode_HandLeft,  ovrpSystemHeadset_Oculus_Quest, ovrpSystemHeadset_Oculus_Quest, FOculusAssetDirectory::AssetListing[3] },
-		{ ovrpNode_HandRight, ovrpSystemHeadset_Oculus_Quest, ovrpSystemHeadset_Oculus_Quest, FOculusAssetDirectory::AssetListing[4] },
+		{ ovrpNode_HandLeft,  ovrpSystemHeadset_Oculus_Quest, ovrpSystemHeadset_Oculus_Quest_2, FOculusAssetDirectory::AssetListing[3] },
+		{ ovrpNode_HandRight, ovrpSystemHeadset_Oculus_Quest, ovrpSystemHeadset_Oculus_Quest_2, FOculusAssetDirectory::AssetListing[4] },
 #else 
-		{ ovrpNode_HandLeft,  ovrpSystemHeadset_Rift_S, ovrpSystemHeadset_Oculus_Link_Quest, FOculusAssetDirectory::AssetListing[3] },
-		{ ovrpNode_HandRight, ovrpSystemHeadset_Rift_S, ovrpSystemHeadset_Oculus_Link_Quest, FOculusAssetDirectory::AssetListing[4] },
+		{ ovrpNode_HandLeft,  ovrpSystemHeadset_Rift_S, ovrpSystemHeadset_Oculus_Link_Quest_2, FOculusAssetDirectory::AssetListing[3] },
+		{ ovrpNode_HandRight, ovrpSystemHeadset_Rift_S, ovrpSystemHeadset_Oculus_Link_Quest_2, FOculusAssetDirectory::AssetListing[4] },
 		{ ovrpNode_HandLeft,  ovrpSystemHeadset_Rift_DK1, ovrpSystemHeadset_Rift_CB, FOculusAssetDirectory::AssetListing[1] },
 		{ ovrpNode_HandRight, ovrpSystemHeadset_Rift_DK1, ovrpSystemHeadset_Rift_CB, FOculusAssetDirectory::AssetListing[2] },
 #endif
