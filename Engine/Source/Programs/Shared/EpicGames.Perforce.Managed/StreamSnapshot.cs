@@ -19,7 +19,7 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Empty snapshot instance
 		/// </summary>
-		public static StreamSnapshot Empty => new StreamSnapshotFromMemory(new StreamSnapshotBuilder());
+		public static StreamSnapshot Empty => new StreamSnapshotFromMemory(new StreamTreeBuilder());
 
 		/// <summary>
 		/// The root digest

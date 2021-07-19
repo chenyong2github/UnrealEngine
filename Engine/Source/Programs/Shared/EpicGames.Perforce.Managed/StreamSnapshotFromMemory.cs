@@ -47,7 +47,7 @@ namespace EpicGames.Perforce.Managed
 		/// Constructor
 		/// </summary>
 		/// <param name="Builder"></param>
-		public StreamSnapshotFromMemory(StreamSnapshotBuilder Builder)
+		public StreamSnapshotFromMemory(StreamTreeBuilder Builder)
 		{
 			Dictionary<IoHash, CbObject> HashToTree = new Dictionary<IoHash, CbObject>();
 			this.Root = Builder.Encode(HashToTree);

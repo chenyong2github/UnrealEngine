@@ -172,13 +172,12 @@ namespace EpicGames.Perforce.Managed
 		/// <summary>
 		/// Map of name to file within the directory
 		/// </summary>
-		public Dictionary<Utf8String, StreamFile> NameToFile = new Dictionary<Utf8String, StreamFile>();
+		public Dictionary<Utf8String, StreamFile> NameToFile { get; } = new Dictionary<Utf8String, StreamFile>();
 
 		/// <summary>
 		/// Map of name to subdirectory
 		/// </summary>
-		public Dictionary<Utf8String, StreamTreeRef> NameToTree = new Dictionary<Utf8String, StreamTreeRef>(FileUtils.PlatformPathComparerUtf8);
-
+		public Dictionary<Utf8String, StreamTreeRef> NameToTree { get; } = new Dictionary<Utf8String, StreamTreeRef>(FileUtils.PlatformPathComparerUtf8);
 
 		#region Field names
 		static Utf8String NameField = "name";
@@ -191,6 +190,15 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		public StreamTree()
 		{
+		}
+
+		/// <summary>
+		/// Default constructor
+		/// </summary>
+		public StreamTree(Dictionary<Utf8String, StreamFile> NameToFile, Dictionary<Utf8String, StreamTreeRef> NameToTree)
+		{
+			this.NameToFile = NameToFile;
+			this.NameToTree = NameToTree;
 		}
 
 		/// <summary>
