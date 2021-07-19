@@ -771,29 +771,36 @@ namespace UnrealBuildTool
 			return false;
 		}
 
+		bool TryGetBuildEnvironment(DirectoryReference BaseDir, out BuildEnvironment OutBuildEnvironment)
+		{
+			for (DirectoryReference CurrentDir = BaseDir; CurrentDir != null; CurrentDir = CurrentDir.ParentDirectory)
+			{
+				BuildEnvironment BuildEnvironment;
+				if (BaseDirToBuildEnvironment.TryGetValue(CurrentDir, out BuildEnvironment))
+				{
+					OutBuildEnvironment = BuildEnvironment;
+					return true;
+				}
+			}
+
+			OutBuildEnvironment = null;
+			return false;
+		}
+
 		/// <summary>
 		/// Append a list of include paths to a property list
 		/// </summary>
 		/// <param name="Builder">String builder for the property value</param>
-		/// <param name="BaseDir">Directory containing the source file</param>
-		/// <param name="BaseDirToIncludePaths">Map of base directory to set of include paths</param>
+		/// <param name="Collection">Collection of include paths</param>
 		/// <param name="IgnorePaths">Set of paths to ignore</param>
-		void AppendIncludePaths(StringBuilder Builder, DirectoryReference BaseDir, Dictionary<DirectoryReference, IncludePathsCollection> BaseDirToIncludePaths, HashSet<DirectoryReference> IgnorePaths)
+		void AppendIncludePaths(StringBuilder Builder, IncludePathsCollection Collection, HashSet<DirectoryReference> IgnorePaths)
 		{
-			for (DirectoryReference CurrentDir = BaseDir; CurrentDir != null; CurrentDir = CurrentDir.ParentDirectory)
+			foreach (DirectoryReference IncludePath in Collection.AbsolutePaths)
 			{
-				IncludePathsCollection Collection;
-				if (BaseDirToIncludePaths.TryGetValue(CurrentDir, out Collection))
+				if (!IgnorePaths.Contains(IncludePath) && !IncludePathIsFilteredOut(IncludePath))
 				{
-					foreach (DirectoryReference IncludePath in Collection.AbsolutePaths)
-					{
-						if (!IgnorePaths.Contains(IncludePath) && !IncludePathIsFilteredOut(IncludePath))
-						{
-							Builder.Append(NormalizeProjectPath(IncludePath.FullName));
-							Builder.Append(';');
-						}
-					}
-					break;
+					Builder.Append(NormalizeProjectPath(IncludePath.FullName));
+					Builder.Append(';');
 				}
 			}
 		}
@@ -831,10 +838,10 @@ namespace UnrealBuildTool
 				{
 					for (DirectoryReference CurrentDir = Pair.Key; CurrentDir != null; CurrentDir = CurrentDir.ParentDirectory)
 					{
-						IncludePathsCollection IncludePaths;
-						if (BaseDirToUserIncludePaths.TryGetValue(CurrentDir, out IncludePaths))
+						BuildEnvironment BuildEnvironment;
+						if (BaseDirToBuildEnvironment.TryGetValue(CurrentDir, out BuildEnvironment))
 						{
-							foreach (DirectoryReference IncludePath in IncludePaths.AbsolutePaths)
+							foreach (DirectoryReference IncludePath in BuildEnvironment.UserIncludePaths.AbsolutePaths)
 							{
 								int Count;
 								IncludePathToCount.TryGetValue(IncludePath, out Count);
@@ -1194,20 +1201,27 @@ namespace UnrealBuildTool
 
 
 						// Find the include search paths
-						string IncludeSearchPaths;
-						if (!DirectoryToIncludeSearchPaths.TryGetValue(Directory, out IncludeSearchPaths))
-						{
-							StringBuilder Builder = new StringBuilder();
-							AppendIncludePaths(Builder, Directory, BaseDirToUserIncludePaths, SharedIncludeSearchPathsSet);
-							AppendIncludePaths(Builder, Directory, BaseDirToSystemIncludePaths, SharedIncludeSearchPathsSet);
-							IncludeSearchPaths = Builder.ToString();
-
-							DirectoryToIncludeSearchPaths.Add(Directory, IncludeSearchPaths);
-						}
-
 						VCProjectFileContent.AppendLine("    <{0} Include=\"{1}\">", VCFileType, EscapeFileName(AliasedFile.FileSystemPath));
-						VCProjectFileContent.AppendLine("      <AdditionalIncludeDirectories>$(NMakeIncludeSearchPath);{0}</AdditionalIncludeDirectories>", IncludeSearchPaths);
-						VCProjectFileContent.AppendLine("      <ForcedIncludeFiles>$(NMakeForcedIncludes);{0}</ForcedIncludeFiles>", ForceIncludePaths);
+						if (TryGetBuildEnvironment(Directory, out BuildEnvironment BuildEnvironment))
+						{
+							string IncludeSearchPaths = String.Empty;
+							if (!DirectoryToIncludeSearchPaths.TryGetValue(Directory, out IncludeSearchPaths))
+							{
+								StringBuilder Builder = new StringBuilder();
+								AppendIncludePaths(Builder, BuildEnvironment.UserIncludePaths, SharedIncludeSearchPathsSet);
+								AppendIncludePaths(Builder, BuildEnvironment.SystemIncludePaths, SharedIncludeSearchPathsSet);
+								IncludeSearchPaths = Builder.ToString();
+
+								DirectoryToIncludeSearchPaths.Add(Directory, IncludeSearchPaths);
+							}
+							VCProjectFileContent.AppendLine("      <AdditionalIncludeDirectories>$(NMakeIncludeSearchPath);{0}</AdditionalIncludeDirectories>", IncludeSearchPaths);
+							VCProjectFileContent.AppendLine("      <ForcedIncludeFiles>$(NMakeForcedIncludes);{0}</ForcedIncludeFiles>", ForceIncludePaths);
+
+							if (BuildEnvironment.PchFile != null && BuildEnvironment.PchIncludeFile != null)
+							{
+								VCProjectFileContent.AppendLine("      <AdditionalOptions>$(AdditionalOptions);/Yu&quot;{0}&quot; /Fp&quot;{1}&quot;</AdditionalOptions>", BuildEnvironment.PchFile, BuildEnvironment.PchIncludeFile);
+							}
+						}
 						VCProjectFileContent.AppendLine("    </{0}>", VCFileType);
 					}
 
