@@ -239,7 +239,8 @@ void FAnimNode_BlendListBase::Update_AnyThread(const FAnimationUpdateContext& Co
 			{
 				FBlendSampleData& PoseSampleData = PerBoneSampleData[i];
 				PoseSampleData.TotalWeight = BlendWeights[i];
-				CurrentBlendProfile->UpdateBoneWeights(PoseSampleData, Blends[i], BlendStartAlphas[i], BlendWeights[i]);
+				const bool bInverse = (CurrentBlendProfile->Mode == EBlendProfileMode::WeightFactor) ? (ChildIndex != i) : false;
+				CurrentBlendProfile->UpdateBoneWeights(PoseSampleData, Blends[i], BlendStartAlphas[i], BlendWeights[i], bInverse);
 			}
 
 			FBlendSampleData::NormalizeDataWeight(PerBoneSampleData);

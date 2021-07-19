@@ -241,12 +241,12 @@ float UBlendProfile::CalculateBoneWeight(float BoneFactor, EBlendProfileMode Mod
 		{
 			if (!bInverse)
 			{
-				return FMath::Clamp(MainWeight * BoneFactor, ZERO_ANIMWEIGHT_THRESH, 1.0f);
+				return FMath::Max(MainWeight * BoneFactor, ZERO_ANIMWEIGHT_THRESH);
 			}
 
 			// We're inversing.
 			const float Weight = (BoneFactor > ZERO_ANIMWEIGHT_THRESH) ? MainWeight / BoneFactor : 1.0f;
-			return FMath::Clamp(Weight, ZERO_ANIMWEIGHT_THRESH, 1.0f);
+			return FMath::Max(Weight, ZERO_ANIMWEIGHT_THRESH);
 		}
 
 		// Handle unsupported modes.
