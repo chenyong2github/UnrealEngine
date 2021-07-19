@@ -22,12 +22,12 @@ namespace HordeServer.Services
 	/// <summary>
 	/// P4API implementation of the Perforce service
 	/// </summary>
-	public class P4APIPerforceService : IPerforceService
+	public class PerforceService : IPerforceService
 	{
 
 		IOptionsMonitor<ServerSettings> Settings;
 
-		ILogger<P4APIPerforceService> Logger;
+		ILogger<PerforceService> Logger;
 
 		P4.Server Server;
 
@@ -52,7 +52,7 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public P4APIPerforceService(IOptionsMonitor<ServerSettings> Settings, ILogger<P4APIPerforceService> Logger)
+		public PerforceService(IOptionsMonitor<ServerSettings> Settings, ILogger<PerforceService> Logger)
 		{
 			this.Settings = Settings;
 			this.Logger = Logger;

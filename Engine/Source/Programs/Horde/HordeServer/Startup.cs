@@ -373,7 +373,7 @@ namespace HordeServer
 			Services.AddSingleton<LifetimeService>();
 			Services.AddSingleton<ILogFileService, LogFileService>();
 			Services.AddSingleton<INotificationService, NotificationService>();
-			Services.AddSingleton<IPerforceService, P4APIPerforceService>();
+			Services.AddSingleton<IPerforceService, PerforceService>();
 
 			Services.AddSingleton<PerforceLoadBalancer>();
 			Services.AddSingleton<PoolService>();
