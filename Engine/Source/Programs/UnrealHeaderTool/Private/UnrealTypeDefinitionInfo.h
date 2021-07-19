@@ -92,6 +92,12 @@ enum class EPostParseFinalizePhase : uint8
 	MAX_Phases,
 };
 
+struct FDeclaration
+{
+	uint32 CurrentCompilerDirective;
+	TArray<FToken> Tokens;
+};
+
 /**
  * UHT Specific implementation of meta data support
  */
@@ -2285,6 +2291,22 @@ public:
 		return RigVMInfo;
 	}
 
+	/**
+	 * Add a declaration to the struct
+	 */
+	void AddDeclaration(uint32 CurrentCompilerDirective, TArray<FToken>&& Tokens)
+	{
+		Declarations.Emplace(FDeclaration{ CurrentCompilerDirective, MoveTemp(Tokens) });
+	}
+
+	/** 
+	 * Get all of the declarations
+	 */
+	const TArray<FDeclaration>& GetDeclarations() const
+	{
+		return Declarations;
+	}
+
 protected:
 	explicit FUnrealStructDefinitionInfo(UObject* Object)
 		: FUnrealFieldDefinitionInfo(Object)
@@ -2310,6 +2332,9 @@ private:
 
 	/** Functions of the structure */
 	TArray<TSharedRef<FUnrealFunctionDefinitionInfo>> Functions;
+
+	/** Other declarations */
+	TArray<FDeclaration> Declarations;
 
 	FBaseStructInfo SuperStructInfo;
 	TArray<FBaseStructInfo> BaseStructInfos;

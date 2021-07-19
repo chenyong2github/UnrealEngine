@@ -83,12 +83,29 @@ void ProcessParsedStruct(FUnrealScriptStructDefinitionInfo& ScriptStructDef);
 // Array of all the temporary header async file tasks so we can ensure they have completed before issuing our timings
 static FGraphEventArray GAsyncFileTasks;
 
-bool HasIdentifierExactMatch(const TCHAR* StringBegin, const TCHAR* StringEnd, const FString& Find);
-
 // Globals for common class definitions
 FUnrealClassDefinitionInfo* GUObjectDef = nullptr;
 FUnrealClassDefinitionInfo* GUClassDef = nullptr;
 FUnrealClassDefinitionInfo* GUInterfaceDef = nullptr;
+
+struct FFindDelcarationResults
+{
+	bool bVirtualFound = false;
+	const FDeclaration* Declaration = nullptr;
+	int FunctionNameTokenIndex = -1;
+
+	bool WasFound() const
+	{
+		return Declaration != nullptr;
+	}
+
+	bool IsVirtual() const
+	{
+		return bVirtualFound;
+	}
+};
+
+FFindDelcarationResults FindDeclaration(const FUnrealStructDefinitionInfo& StructDef, const FString& Identifier);
 
 namespace
 {
@@ -268,7 +285,7 @@ namespace
 		const FUnrealSourceFile& SourceFile,
 		EExportClassOutFlags& OutFlags)
 	{
-		const bool bHasGetLifetimeReplicatedProps = HasIdentifierExactMatch(ClassDef.GetDefinitionRange().Start, ClassDef.GetDefinitionRange().End, STRING_GetLifetimeReplicatedPropsStr);
+		const bool bHasGetLifetimeReplicatedProps = FindDeclaration(ClassDef, STRING_GetLifetimeReplicatedPropsStr).WasFound();
 
 		if (!bHasGetLifetimeReplicatedProps)
 		{
@@ -363,110 +380,36 @@ void FGeneratedCPP::AddExportTaskRef(FGraphEventArray& Events) const
 #define BEGIN_WRAP_EDITOR_ONLY(DoWrap) DoWrap ? BeginEditorOnlyGuard : TEXT("")
 #define END_WRAP_EDITOR_ONLY(DoWrap) DoWrap ? EndEditorOnlyGuard : TEXT("")
 
-/**
- * Finds exact match of Identifier in string. Returns nullptr if none is found.
- *
- * @param StringBegin Start of string to search.
- * @param StringEnd End of string to search.
- * @param Identifier Identifier to find.
- * @return Pointer to Identifier match within string. nullptr if none found.
- */
-const TCHAR* FindIdentifierExactMatch(const TCHAR* StringBegin, const TCHAR* StringEnd, const FString& Identifier)
+FFindDelcarationResults FindDeclaration(const FUnrealStructDefinitionInfo& StructDef, const FString& Identifier)
 {
-	int32 StringLen = UE_PTRDIFF_TO_INT32(StringEnd - StringBegin);
+	FFindDelcarationResults Results;
 
-	// Check for exact match first.
-	if (FCString::Strncmp(StringBegin, *Identifier, StringLen) == 0)
+	if (Identifier.IsEmpty())
 	{
-		return StringBegin;
+		return Results;
 	}
 
-	int32        FindLen        = Identifier.Len();
-	const TCHAR* StringToSearch = StringBegin;
-
-	for (;;)
+	for (const FDeclaration& Declaration : StructDef.GetDeclarations())
 	{
-		const TCHAR* IdentifierStart = FCString::Strstr(StringToSearch, *Identifier);
-		if (IdentifierStart == nullptr)
+		for (int32 Index = 0, EIndex = Declaration.Tokens.Num(); Index != EIndex; ++Index)
 		{
-			// Not found.
-			return nullptr;
+			const FToken& Token = Declaration.Tokens[Index];
+			if (Token.IsIdentifier())
+			{
+				if (Token.IsValue(TEXT("virtual"), ESearchCase::CaseSensitive))
+				{
+					Results.bVirtualFound = true;
+				}
+				else if (Token.IsValue(*Identifier, ESearchCase::CaseSensitive))
+				{
+					Results.Declaration = &Declaration;
+					Results.FunctionNameTokenIndex = Index;
+					return Results;
+				}
+			}
 		}
-
-		if (IdentifierStart > StringEnd || IdentifierStart + FindLen + 1 > StringEnd)
-		{
-			// Found match is out of string range.
-			return nullptr;
-		}
-
-		if (IdentifierStart == StringBegin && !FChar::IsIdentifier(*(IdentifierStart + FindLen + 1)))
-		{
-			// Found match is at the beginning of string.
-			return IdentifierStart;
-		}
-
-		if (IdentifierStart + FindLen == StringEnd && !FChar::IsIdentifier(*(IdentifierStart - 1)))
-		{
-			// Found match ends with end of string.
-			return IdentifierStart;
-		}
-
-		if (!FChar::IsIdentifier(*(IdentifierStart + FindLen)) && !FChar::IsIdentifier(*(IdentifierStart - 1)))
-		{
-			// Found match is in the middle of string
-			return IdentifierStart;
-		}
-
-		// Didn't find exact match, nor got to end of search string. Keep on searching.
-		StringToSearch = IdentifierStart + FindLen;
 	}
-
-	// We should never get here.
-	checkNoEntry();
-	return nullptr;
-}
-
-/**
- * Finds exact match of Identifier in string. Returns nullptr if none is found.
- *
- * @param String String to search.
- * @param Identifier Identifier to find.
- * @return Index to Identifier match within String. INDEX_NONE if none found.
- */
-int32 FindIdentifierExactMatch(const FString& String, const FString& Identifier)
-{
-	const TCHAR* IdentifierPtr = FindIdentifierExactMatch(*String, *String + String.Len(), Identifier);
-	if (IdentifierPtr == nullptr)
-	{
-		return INDEX_NONE;
-	}
-
-	return UE_PTRDIFF_TO_INT32(IdentifierPtr - *String);
-}
-
-/**
-* Checks if exact match of Identifier is in String.
-*
-* @param StringBegin Start of string to search.
-* @param StringEnd End of string to search.
-* @param Identifier Identifier to find.
-* @return true if Identifier is within string, false otherwise.
-*/
-bool HasIdentifierExactMatch(const TCHAR* StringBegin, const TCHAR* StringEnd, const FString& Find)
-{
-	return FindIdentifierExactMatch(StringBegin, StringEnd, Find) != nullptr;
-}
-
-/**
-* Checks if exact match of Identifier is in String.
-*
-* @param String String to search.
-* @param Identifier Identifier to find.
-* @return true if Identifier is within String, false otherwise.
-*/
-bool HasIdentifierExactMatch(const FString &String, const FString& Identifier)
-{
-	return FindIdentifierExactMatch(String, Identifier) != INDEX_NONE;
+	return Results;
 }
 
 void ConvertToBuildIncludePath(const FManifestModule& Module, FString& LocalPath)
@@ -2794,8 +2737,6 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 
 	FString PPOMacroName;
 
-	ClassDef.ValidateDefinitionRange();
-
 	FString GeneratedSerializeFunctionCPP;
 	FString GeneratedSerializeFunctionHeaderMacroName;
 
@@ -4489,22 +4430,10 @@ FString FNativeClassHeaderGenerator::GetFunctionReturnString(FUnrealFunctionDefi
 	return Result;
 }
 
-bool FNativeClassHeaderGenerator::IsMissingVirtualSpecifier(const FString& SourceFile, int32 FunctionNamePosition)
+void FNativeClassHeaderGenerator::CheckRPCFunctions(FReferenceGatherers& OutReferenceGatherers, FUnrealFunctionDefinitionInfo& FunctionDef, const FString& ClassName, const FFindDelcarationResults& Implementation, const FFindDelcarationResults& Validation, const FUnrealSourceFile& SourceFile) const
 {
-	auto IsEndOfSearchChar = [](TCHAR C) { return (C == TEXT('}')) || (C == TEXT('{')) || (C == TEXT(';')); };
-
-	// Find first occurrence of "}", ";", "{" going backwards from ImplementationPosition.
-	int32 EndOfSearchCharIndex = SourceFile.FindLastCharByPredicate(IsEndOfSearchChar, FunctionNamePosition);
-	check(EndOfSearchCharIndex != INDEX_NONE);
-
-	// Then find if there is "virtual" keyword starting from position of found character to ImplementationPosition
-	return !HasIdentifierExactMatch(&SourceFile[EndOfSearchCharIndex], &SourceFile[FunctionNamePosition], TEXT("virtual"));
-}
-
-void FNativeClassHeaderGenerator::CheckRPCFunctions(FReferenceGatherers& OutReferenceGatherers, FUnrealFunctionDefinitionInfo& FunctionDef, const FString& ClassName, int32 ImplementationPosition, int32 ValidatePosition, const FUnrealSourceFile& SourceFile) const
-{
-	bool bHasImplementation = ImplementationPosition != INDEX_NONE;
-	bool bHasValidate = ValidatePosition != INDEX_NONE;
+	bool bHasImplementation = Implementation.WasFound();
+	bool bHasValidate = Validation.WasFound();
 
 	const FFuncInfo& FunctionData = FunctionDef.GetFunctionData();
 	FString FunctionReturnType = GetFunctionReturnString(FunctionDef, OutReferenceGatherers);
@@ -4566,13 +4495,13 @@ void FNativeClassHeaderGenerator::CheckRPCFunctions(FReferenceGatherers& OutRefe
 	//
 	// If all needed functions are declared, check if they have virtual specifiers.
 	//
-	if (bNeedsImplementation && bHasImplementation && IsMissingVirtualSpecifier(FileContent, ImplementationPosition))
+	if (bNeedsImplementation && bHasImplementation && !Implementation.IsVirtual())
 	{
 		FString FunctionDecl = FString::Printf(TEXT("%s %s::%s(%s) %s"), *FunctionReturnType, *ClassName, *FunctionData.CppImplName, *ParameterString, *ConstModifier);
 		FunctionDef.Throwf(TEXT("Declared function %sis not marked as virtual."), *FunctionDecl);
 	}
 
-	if (bNeedsValidate && bHasValidate && IsMissingVirtualSpecifier(FileContent, ValidatePosition))
+	if (bNeedsValidate && bHasValidate && !Validation.IsVirtual())
 	{
 		FString FunctionDecl = FString::Printf(TEXT("bool %s::%s(%s) %s"), *ClassName, *FunctionData.CppValidationImplName, *ParameterString, *ConstModifier);
 		FunctionDef.Throwf(TEXT("Declared function %sis not marked as virtual."), *FunctionDecl);
@@ -4883,15 +4812,10 @@ void FNativeClassHeaderGenerator::ExportFunctionThunk(FUHTStringBuilder& RPCWrap
 	FUnrealClassDefinitionInfo* OwnerClassDef = FunctionDef.GetOwnerClass();
 	check(OwnerClassDef);
 
-	OwnerClassDef->ValidateDefinitionRange();
-	const TCHAR* ClassStart = OwnerClassDef->GetDefinitionRange().Start;
-	const TCHAR* ClassEnd = OwnerClassDef->GetDefinitionRange().End;
-	FString      ClassName  = OwnerClassDef->GetName();
+	FString ClassName = OwnerClassDef->GetName();
 
-	FString ClassDefinition(UE_PTRDIFF_TO_INT32(ClassEnd - ClassStart), ClassStart);
-
-	bool bHasImplementation = HasIdentifierExactMatch(ClassDefinition, FunctionData.CppImplName);
-	bool bHasValidate = HasIdentifierExactMatch(ClassDefinition, FunctionData.CppValidationImplName);
+	bool bHasImplementation = FindDeclaration(*OwnerClassDef, FunctionData.CppImplName).WasFound();
+	bool bHasValidate = FindDeclaration(*OwnerClassDef, FunctionData.CppValidationImplName).WasFound();
 
 	bool bShouldEnableImplementationDeprecation =
 		// Enable deprecation warnings only if GENERATED_BODY is used inside class or interface (not GENERATED_UCLASS_BODY etc.)
@@ -4996,10 +4920,6 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 
 	const FString ClassCPPName = ClassDef.GetAlternateNameCPP(ClassDef.HasAnyClassFlags(CLASS_Interface));
 
-	ClassDef.ValidateDefinitionRange();
-	const TCHAR* ClassStart = ClassDef.GetDefinitionRange().Start;
-	const TCHAR* ClassEnd = ClassDef.GetDefinitionRange().End;
-
 	// gather static class data
 	TArray<FString> SparseClassDataTypes;
 	ClassDef.GetSparseClassDataTypes(SparseClassDataTypes);
@@ -5093,24 +5013,10 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 
 		if (!bWillBeProgrammerTyped)
 		{
-			FString ClassDefinition(UE_PTRDIFF_TO_INT32(ClassEnd - ClassStart), ClassStart);
-
 			FString FunctionName = FunctionDef->GetName();
-			int32 ClassDefinitionStartPosition = UE_PTRDIFF_TO_INT32(ClassStart - *SourceFile.GetContent());
 
-			int32 ImplementationPosition = FindIdentifierExactMatch(ClassDefinition, FunctionData.CppImplName);
-			bool bHasImplementation = ImplementationPosition != INDEX_NONE;
-			if (bHasImplementation)
-			{
-				ImplementationPosition += ClassDefinitionStartPosition;
-			}
-
-			int32 ValidatePosition = FindIdentifierExactMatch(ClassDefinition, FunctionData.CppValidationImplName);
-			bool bHasValidate = ValidatePosition != INDEX_NONE;
-			if (bHasValidate)
-			{
-				ValidatePosition += ClassDefinitionStartPosition;
-			}
+			FFindDelcarationResults Implementation = FindDeclaration(ClassDef, FunctionData.CppImplName);
+			FFindDelcarationResults Validation = FindDeclaration(ClassDef, FunctionData.CppValidationImplName);
 
 			//Emit warning here if necessary
 			FUHTStringBuilder FunctionDeclaration;
@@ -5126,14 +5032,14 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 				FStringOutputDevice ValidDecl;
 				ValidDecl.Logf(TEXT("\t%s bool %s(%s);\r\n"), Virtual, *FunctionData.CppValidationImplName, *ParameterList);
 				FuncStringBuilders.AutogeneratedBlueprintFunctionDeclarations.Log(*ValidDecl);
-				if (!bHasValidate)
+				if (!Validation.WasFound())
 				{
 					FuncStringBuilders.AutogeneratedBlueprintFunctionDeclarationsOnlyNotDeclared.Logf(TEXT("%s"), *ValidDecl);
 				}
 			}
 
 			FuncStringBuilders.AutogeneratedBlueprintFunctionDeclarations.Log(*FunctionDeclaration);
-			if (!bHasImplementation && FunctionData.CppImplName != FunctionName)
+			if (!Implementation.WasFound() && FunctionData.CppImplName != FunctionName)
 			{
 				FuncStringBuilders.AutogeneratedBlueprintFunctionDeclarationsOnlyNotDeclared.Log(*FunctionDeclaration);
 			}
@@ -5141,7 +5047,7 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 			// Versions that skip function autodeclaration throw an error when a function is missing.
 			if (ClassDef.HasGeneratedBody() && (ClassDef.GetGeneratedCodeVersion() > EGeneratedCodeVersion::V1))
 			{
-				CheckRPCFunctions(OutReferenceGatherers, *FunctionDef, ClassCPPName, ImplementationPosition, ValidatePosition, SourceFile);
+				CheckRPCFunctions(OutReferenceGatherers, *FunctionDef, ClassCPPName, Implementation, Validation, SourceFile);
 			}
 		}
 

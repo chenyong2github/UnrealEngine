@@ -430,6 +430,7 @@ bool FBaseParser::GetToken(FToken& Token, bool bNoConsts/*=false*/, ESymbolParse
 		// If const values are allowed, determine whether the identifier represents a constant
 		Token.TokenType = ETokenType::Identifier;
 		Token.Value = FStringView(Start, int32(Pos - Start));
+		Token.InputLine = InputLine;
 		if (!bNoConsts)
 		{
 			// See if the identifier is part of a vector, rotation or other struct constant.
@@ -451,6 +452,10 @@ bool FBaseParser::GetToken(FToken& Token, bool bNoConsts/*=false*/, ESymbolParse
 		}
 
 		InputPos = int32(Pos - Input);
+		if (bRecordTokens)
+		{
+			RecordedTokens.Push(Token);
+		}
 		return true;
 	}
 
@@ -481,6 +486,7 @@ bool FBaseParser::GetToken(FToken& Token, bool bNoConsts/*=false*/, ESymbolParse
 
 		Token.TokenType = bIsFloat ? ETokenType::FloatConst : (bIsHex ? ETokenType::HexConst : ETokenType::DecimalConst);
 		Token.Value = FStringView(Start, int32(Pos - Start));
+		Token.InputLine = InputLine;
 
 		if (Token.Value.Len() >= NAME_SIZE)
 		{
@@ -488,6 +494,10 @@ bool FBaseParser::GetToken(FToken& Token, bool bNoConsts/*=false*/, ESymbolParse
 		}
 
 		InputPos = int32(Pos - Input);
+		if (bRecordTokens)
+		{
+			RecordedTokens.Push(Token);
+		}
 		return true;
 	}
 
@@ -506,7 +516,12 @@ bool FBaseParser::GetToken(FToken& Token, bool bNoConsts/*=false*/, ESymbolParse
 
 		Token.TokenType = ETokenType::CharConst;
 		Token.Value = FStringView(Start, int32(Pos - Start));
+		Token.InputLine = InputLine;
 		InputPos = int32(Pos - Input);
+		if (bRecordTokens)
+		{
+			RecordedTokens.Push(Token);
+		}
 		return true;
 	}
 
@@ -541,6 +556,7 @@ bool FBaseParser::GetToken(FToken& Token, bool bNoConsts/*=false*/, ESymbolParse
 
 		Token.TokenType = ETokenType::StringConst;
 		Token.Value = FStringView(Start, int32(Pos - Start));
+		Token.InputLine = InputLine;
 
 		if (!Token.Value.Len() - EscapeCount >= MAX_STRING_CONST_SIZE)
 		{
@@ -548,6 +564,10 @@ bool FBaseParser::GetToken(FToken& Token, bool bNoConsts/*=false*/, ESymbolParse
 		}
 
 		InputPos = int32(Pos - Input);
+		if (bRecordTokens)
+		{
+			RecordedTokens.Push(Token);
+		}
 		return true;
 	}
 	else
@@ -589,7 +609,12 @@ bool FBaseParser::GetToken(FToken& Token, bool bNoConsts/*=false*/, ESymbolParse
 
 		Token.TokenType = ETokenType::Symbol;
 		Token.Value = FStringView(Start, int32(Pos - Start));
+		Token.InputLine = InputLine;
 		InputPos = int32(Pos - Input);
+		if (bRecordTokens)
+		{
+			RecordedTokens.Push(Token);
+		}
 		return true;
 	}
 }
@@ -902,12 +927,26 @@ void FBaseParser::UngetToken( const FToken& Token )
 {
 	InputPos = Token.StartPos;
 	InputLine = Token.StartLine;
+	if (bRecordTokens)
+	{
+		while (!RecordedTokens.IsEmpty() && RecordedTokens.Last().StartPos >= InputPos)
+		{
+			RecordedTokens.RemoveAt(RecordedTokens.Num() - 1);
+		}
+	}
 }
 
 void FBaseParser::UngetToken(int32 StartLine, int32 StartPos)
 {
 	InputLine = StartLine;
 	InputPos = StartPos;
+	if (bRecordTokens)
+	{
+		while (!RecordedTokens.IsEmpty() && RecordedTokens.Last().StartPos >= InputPos)
+		{
+			RecordedTokens.RemoveAt(RecordedTokens.Num() - 1);
+		}
+	}
 }
 
 //

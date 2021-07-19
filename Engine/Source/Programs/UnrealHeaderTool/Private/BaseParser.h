@@ -122,6 +122,9 @@ public:
 	/** Starting line in script. */
 	int32 StartLine = 0;
 
+	/** Input line of the token */
+	int32 InputLine = 0;
+
 	/** The text of the token */
 	FStringView Value;
 
@@ -587,6 +590,9 @@ public:
 
 	// Initialize the metadata keywords prior to parsing
 	static void InitMetadataKeywords();
+
+	TArray<FToken> RecordedTokens;
+	bool bRecordTokens = false;
 };
 
 template <typename Lambda>
@@ -667,3 +673,72 @@ void FBaseParser::ParseInheritance(const TCHAR* What, Lambda&& InLambda)
 		InLambda(*InterfaceName, false);
 	}
 }
+
+class FTokenReplay
+{
+public:
+	explicit FTokenReplay(const TArray<FToken>& InTokens)
+		: Tokens(InTokens)
+	{
+	}
+
+	bool GetToken(FToken& Token)
+	{
+		if (CurrentIndex < Tokens.Num())
+		{
+			Token = Tokens[CurrentIndex++];
+			return true;
+		}
+		else
+		{
+			Token = FToken();
+			return false;
+		}
+	}
+
+	void UngetToken(const FToken& Token)
+	{
+		while (CurrentIndex > 0)
+		{
+			--CurrentIndex;
+			if (Tokens[CurrentIndex].StartPos == Token.StartPos)
+			{
+				break;
+			}
+		}
+	}
+
+	bool MatchIdentifier(const TCHAR* Match, ESearchCase::Type SearchCase)
+	{
+		if (CurrentIndex < Tokens.Num() && Tokens[CurrentIndex].IsIdentifier(Match, SearchCase))
+		{
+			++CurrentIndex;
+			return true;
+		}
+		return false;
+	}
+
+	bool MatchSymbol(const TCHAR Match)
+	{
+		if (CurrentIndex < Tokens.Num() && Tokens[CurrentIndex].IsSymbol(Match))
+		{
+			++CurrentIndex;
+			return true;
+		}
+		return false;
+	}
+
+	bool MatchSymbol(const TCHAR* Match)
+	{
+		if (CurrentIndex < Tokens.Num() && Tokens[CurrentIndex].IsSymbol(Match, ESearchCase::CaseSensitive))
+		{
+			++CurrentIndex;
+			return true;
+		}
+		return false;
+	}
+
+private:
+	const TArray<FToken>& Tokens;
+	int CurrentIndex = 0;
+};
