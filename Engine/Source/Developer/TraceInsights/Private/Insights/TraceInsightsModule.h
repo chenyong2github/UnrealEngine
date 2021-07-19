@@ -98,6 +98,8 @@ protected:
 
 	void OnWindowClosedEvent(const TSharedRef<SWindow>&);
 
+	void UpdateAppTitle();
+
 protected:
 #if WITH_TRACE_STORE
 	TUniquePtr<UE::Trace::FStoreService> StoreService;

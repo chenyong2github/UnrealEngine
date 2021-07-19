@@ -243,13 +243,12 @@ void FUserInterfaceCommand::Run()
 
 void FUserInterfaceCommand::InitializeSlateApplication(bool bOpenTraceFile, const TCHAR* TraceFile)
 {
-	//TODO: FSlateApplication::InitHighDPI(true);
+	FSlateApplication::InitHighDPI(true);
 
 	FModuleManager::Get().LoadModuleChecked("EditorStyle");
 
 	//const FSlateBrush* AppIcon = new FSlateImageBrush(FPaths::EngineContentDir() / "Editor/Slate/Icons/Insights/AppIcon_24x.png", FVector2D(24.0f, 24.0f));
 	//FSlateApplication::Get().SetAppIcon(AppIcon);
-
 
 	// Set the application name.
 	const FText ApplicationTitle = FText::Format(NSLOCTEXT("UnrealInsights", "AppTitle", "Unreal Insights {0}"), FText::FromString(TEXT(UNREAL_INSIGHTS_VERSION_STRING_EX)));
