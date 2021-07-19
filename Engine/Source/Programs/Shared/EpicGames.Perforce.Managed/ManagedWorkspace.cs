@@ -1394,7 +1394,7 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="CancellationToken">Cancellation token</param>
 		private async Task<StreamSnapshotFromMemory> FindClientContentsAsync(PerforceClientConnection PerforceClient, int ChangeNumber, bool bFakeSync, CancellationToken CancellationToken)
 		{
-			StreamSnapshotBuilder Builder = new StreamSnapshotBuilder();
+			StreamTreeBuilder Builder = new StreamTreeBuilder();
 
 			using (Trace("FetchMetadata"))
 			using (ILoggerProgress Scope = Logger.BeginProgressScope("Fetching metadata..."))
@@ -1406,7 +1406,7 @@ namespace EpicGames.Perforce.Managed
 
 				// List of the last path fragments. Since file records that are returned are typically sorted by their position in the tree, we can save quite a lot of processing by
 				// reusing as many fragemnts as possible.
-				List<(Utf8String, StreamSnapshotBuilder)> Fragments = new List<(Utf8String, StreamSnapshotBuilder)>();
+				List<(Utf8String, StreamTreeBuilder)> Fragments = new List<(Utf8String, StreamTreeBuilder)>();
 
 				// Handler for each returned record
 				FStatIndexedRecord Record = new FStatIndexedRecord();
@@ -1436,7 +1436,7 @@ namespace EpicGames.Perforce.Managed
 					ReadOnlySpan<byte> PathSpan = ClientFile.Span;
 
 					// Parse out the data
-					StreamSnapshotBuilder LastStreamDirectory = Builder;
+					StreamTreeBuilder LastStreamDirectory = Builder;
 
 					// Try to match up as many fragments from the last file.
 					int FragmentMinIdx = ClientPrefix.Length;
@@ -1475,11 +1475,11 @@ namespace EpicGames.Perforce.Managed
 						{
 							Utf8String UnescapedFragment = PerforceUtils.UnescapePath(Fragment);
 
-							StreamSnapshotBuilder? NextStreamDirectory;
-							if (!LastStreamDirectory.NameToSubDirectory.TryGetValue(UnescapedFragment, out NextStreamDirectory))
+							StreamTreeBuilder? NextStreamDirectory;
+							if (!LastStreamDirectory.NameToTreeBuilder.TryGetValue(UnescapedFragment, out NextStreamDirectory))
 							{
-								NextStreamDirectory = new StreamSnapshotBuilder();
-								LastStreamDirectory.NameToSubDirectory.Add(UnescapedFragment, NextStreamDirectory);
+								NextStreamDirectory = new StreamTreeBuilder();
+								LastStreamDirectory.NameToTreeBuilder.Add(UnescapedFragment, NextStreamDirectory);
 							}
 							LastStreamDirectory = NextStreamDirectory;
 
