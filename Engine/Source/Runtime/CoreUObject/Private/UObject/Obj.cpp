@@ -2594,7 +2594,7 @@ void UObject::SaveConfig( uint64 Flags, const TCHAR* InFilename, FConfigCacheIni
 			FArrayProperty* Array   = CastField<FArrayProperty>( Property );
 			if( Array )
 			{
-				FConfigSection* Sec = Config->GetSectionPrivate(*Section, 1, 0, *PropFileName);
+				FConfigSection* Sec = Config->GetSectionPrivate(*Section, 1, 0, PropFileName);
 				// Default ini's require the array syntax to be applied to the property name
 				FString CompleteKey = FString::Printf(TEXT("%s%s"), bIsADefaultIniWrite ? TEXT("+") : TEXT(""), *Key);
 				if (Sec)
@@ -2630,16 +2630,12 @@ void UObject::SaveConfig( uint64 Flags, const TCHAR* InFilename, FConfigCacheIni
 					{
 						FString	Value;
 						Property->ExportText_InContainer( Index, Value, this, this, this, PortFlags );
-						Config->SetString( *Section, *Key, *Value, *PropFileName );
+						Config->SetString( *Section, *Key, *Value, PropFileName );
 					}
 					else
 					{
 						// If we are not writing it to config above, we should make sure that this property isn't stagnant in the cache.
-						FConfigSection* Sec = Config->GetSectionPrivate( *Section, 1, 0, *PropFileName );
-						if( Sec )
-						{
-							Sec->Remove( *Key );
-						}
+						Config->RemoveKey( *Section, *Key, PropFileName );
 					}
 				}
 			}
