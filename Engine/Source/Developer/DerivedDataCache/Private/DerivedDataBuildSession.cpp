@@ -71,7 +71,7 @@ FRequest FBuildSessionInternal::Build(
 	{
 		OnJobComplete = [Definition, OnComplete = MoveTemp(OnComplete)](FBuildJobCompleteParams&& Params)
 		{
-			OnComplete({Definition.GetKey(), MoveTemp(Params.Output), Params.Status});
+			OnComplete({Definition.GetKey(), Params.CacheKey, MoveTemp(Params.Output), Params.BuildStatus, Params.Status});
 		};
 	}
 	Job->Start(Scheduler, Policy, Priority, MoveTemp(OnJobComplete));
@@ -91,7 +91,7 @@ FRequest FBuildSessionInternal::BuildAction(
 	{
 		OnJobComplete = [Action, OnComplete = MoveTemp(OnComplete)](FBuildJobCompleteParams&& Params)
 		{
-			OnComplete({Action.GetKey(), MoveTemp(Params.Output), Params.Status});
+			OnComplete({Action.GetKey(), Params.CacheKey, MoveTemp(Params.Output), Params.BuildStatus, Params.Status});
 		};
 	}
 	Job->Start(Scheduler, Policy, Priority, MoveTemp(OnJobComplete));

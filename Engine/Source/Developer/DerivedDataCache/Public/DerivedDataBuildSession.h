@@ -19,6 +19,7 @@ namespace UE::DerivedData { class FPayload; }
 namespace UE::DerivedData { struct FBuildActionCompleteParams; }
 namespace UE::DerivedData { struct FBuildCompleteParams; }
 namespace UE::DerivedData { struct FBuildPayloadCompleteParams; }
+namespace UE::DerivedData { struct FCacheKey; }
 
 namespace UE::DerivedData
 {
@@ -181,7 +182,10 @@ public:
 struct FBuildCompleteParams
 {
 	/** Key for the build request that completed or was canceled. */
-	FBuildKey Key;
+	const FBuildKey& BuildKey;
+
+	/** Key for the build in the cache. Empty if the build completes before the key is assigned. */
+	const FCacheKey& CacheKey;
 
 	/**
 	 * Output for the build request that completed or was canceled.
@@ -192,7 +196,10 @@ struct FBuildCompleteParams
 	 */
 	FBuildOutput&& Output;
 
-	/** Status of the build request. */
+	/** Detailed status of the build request. */
+	EBuildStatus BuildStatus = EBuildStatus::None;
+
+	/** Basic status of the build request. */
 	EStatus Status = EStatus::Error;
 };
 
@@ -200,7 +207,10 @@ struct FBuildCompleteParams
 struct FBuildActionCompleteParams
 {
 	/** Key for the build action request that completed or was canceled. */
-	FBuildActionKey Key;
+	FBuildActionKey BuildKey;
+
+	/** Key for the build in the cache. Empty if the build completes before the key is assigned. */
+	const FCacheKey& CacheKey;
 
 	/**
 	 * Output for the build action request that completed or was canceled.
@@ -211,7 +221,10 @@ struct FBuildActionCompleteParams
 	 */
 	FBuildOutput&& Output;
 
-	/** Status of the build request. */
+	/** Detailed status of the build request. */
+	EBuildStatus BuildStatus = EBuildStatus::None;
+
+	/** Basic status of the build request. */
 	EStatus Status = EStatus::Error;
 };
 
