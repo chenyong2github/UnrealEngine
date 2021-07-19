@@ -25,5 +25,12 @@ public class PLUGIN_NAMELibrary : ModuleRules
             PublicDelayLoadDLLs.Add(Path.Combine(ModuleDirectory, "Mac", "Release", "libExampleLibrary.dylib"));
             RuntimeDependencies.Add("$(PluginDir)/Source/ThirdParty/PLUGIN_NAMELibrary/Mac/Release/libExampleLibrary.dylib");
         }
+        else if (Target.Platform == UnrealTargetPlatform.Linux)
+		{
+			string ExampleSoPath = Path.Combine("$(PluginDir)", "Binaries", "ThirdParty", "PLUGIN_NAMELibrary", "Linux", "x86_64-unknown-linux-gnu", "libExampleLibrary.so");
+			PublicAdditionalLibraries.Add(ExampleSoPath);
+			PublicDelayLoadDLLs.Add(ExampleSoPath);
+			RuntimeDependencies.Add(ExampleSoPath);
+		}
 	}
 }
