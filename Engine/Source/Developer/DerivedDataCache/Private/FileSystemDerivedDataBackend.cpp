@@ -730,7 +730,7 @@ public:
 			// don't put anything we pretended didn't exist
 			if (ShouldSimulateMiss(CacheKey))
 			{
-				return EPutStatus::NotCached;
+				return EPutStatus::Skipped;
 			}
 
 			EPutStatus Status = EPutStatus::NotCached;

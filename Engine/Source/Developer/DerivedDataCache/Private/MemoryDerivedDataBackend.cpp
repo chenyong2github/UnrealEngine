@@ -117,7 +117,7 @@ FDerivedDataBackendInterface::EPutStatus FMemoryDerivedDataBackend::PutCachedDat
 
 	if (DidSimulateMiss(CacheKey))
 	{
-		return EPutStatus::NotCached;
+		return EPutStatus::Skipped;
 	}
 	
 	// Should never hit this as higher level code should be checking..

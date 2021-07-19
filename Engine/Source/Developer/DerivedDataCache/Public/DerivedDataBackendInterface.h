@@ -42,6 +42,8 @@ public:
 		NotCached,
 		/** The put completed synchronously and the data was cached. */
 		Cached,
+		/** The put was skipped and should not be retried. */
+		Skipped,
 	};
 
 	/*

@@ -82,7 +82,7 @@ public:
 		if (InflightCache)
 		{
 			// if the data was not cached synchronously, retry
-			if (Status != EPutStatus::Cached)
+			if (Status != EPutStatus::Cached && Status != EPutStatus::Skipped)
 			{
 				// retry after a brief wait
 				FPlatformProcess::SleepNoStats(0.2f);
@@ -99,8 +99,9 @@ public:
 
 			switch (Status)
 			{
+			case EPutStatus::Skipped:
 			case EPutStatus::Cached:
-				// remove this from the in-flight cache because the inner cache contains the data
+				// remove this from the in-flight cache because the inner cache contains the data or it was intentionally skipped
 				InflightCache->RemoveCachedData(*CacheKey, /*bTransient*/ false);
 				break;
 			case EPutStatus::NotCached:
