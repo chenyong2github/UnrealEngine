@@ -63,30 +63,6 @@ namespace HordeServer.Controllers
 		}
 
 		/// <summary>
-		/// Update Perforce server settings
-		/// </summary>
-		[HttpPut]
-		[Route("/api/v1/perforce/settings")]
-		public async Task<ActionResult> UpdatePerforceSettingsAsync([FromBody] List<PerforceCluster> Clusters)
-		{
-			if (!await AclService.AuthorizeAsync(AclAction.AdminWrite, User))
-			{
-				return Forbid();
-			}
-
-			for (; ; )
-			{
-				Globals Globals = await DatabaseService.GetGlobalsAsync();
-				Globals.PerforceClusters = Clusters;
-
-				if (await DatabaseService.TryUpdateSingletonAsync(Globals))
-				{
-					return Ok("Settings have been updated");
-				}
-			}
-		}
-
-		/// <summary>
 		/// Gets the current perforce settinsg
 		/// </summary>
 		/// <returns>List of Perforce clusters</returns>
