@@ -45,7 +45,7 @@ class UNiagaraScriptSource : public UNiagaraScriptSourceBase
 
 	virtual void PostLoadFromEmitter(UNiagaraEmitter& OwningEmitter) override;
 
-	virtual TMap<FName, UNiagaraDataInterface*> ComputeObjectNameMap(FString EmitterUniqueName) const override;
+	virtual TMap<FName, UNiagaraDataInterface*> ComputeObjectNameMap(UNiagaraSystem& System, ENiagaraScriptUsage Usage, FGuid UsageId, FString EmitterUniqueName) const override;
 
 	NIAGARAEDITOR_API virtual bool AddModuleIfMissing(FString ModulePath, ENiagaraScriptUsage Usage, bool& bOutFoundModule)override;
 
