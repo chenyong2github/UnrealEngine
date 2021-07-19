@@ -138,7 +138,7 @@ void FBuildJobContext::SetCacheBucket(FCacheBucket Bucket)
 void FBuildJobContext::SetCachePolicy(ECachePolicy Policy)
 {
 	checkf(!EnumHasAnyFlags(Policy, ECachePolicy::SkipData),
-		TEXT("SkipData flags not allowed on cache policy for build of '%s' by %s. ")
+		TEXT("SkipData flags not allowed on the cache policy for build of '%s' by %s. ")
 		TEXT("Flags for skipping data may be set indirectly through EBuildPolicy."),
 		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
 	CachePolicy = Policy;
@@ -146,13 +146,13 @@ void FBuildJobContext::SetCachePolicy(ECachePolicy Policy)
 
 void FBuildJobContext::SetBuildPolicy(EBuildPolicy Policy)
 {
-	checkf(!EnumHasAnyFlags(BuildPolicy ^ Policy, EBuildPolicy::SkipCacheGet | EBuildPolicy::SkipCachePut),
-		TEXT("SkipCache flags may not be modified on build policy for build of '%s' by %s. ")
-		TEXT("Flags for skipping cache operations may be set through ECachePolicy."),
+	checkf(!EnumHasAnyFlags(BuildPolicy ^ Policy, EBuildPolicy::Cache),
+		TEXT("Cache flags may not be modified on the build policy for build of '%s' by %s. ")
+		TEXT("Flags for modifying cache operations may be set through ECachePolicy."),
 		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
-	checkf(!EnumHasAnyFlags(BuildPolicy ^ Policy, EBuildPolicy::SkipBuild | EBuildPolicy::SkipData),
-		TEXT("Skip flags may not be modified on build policy for build of '%s' by %s. ")
-		TEXT("Flags for skipping the build or the data may only be set through the session."),
+	checkf(!EnumHasAnyFlags(BuildPolicy ^ Policy, EBuildPolicy::SkipData),
+		TEXT("SkipData flag may not be modified on the build policy for build of '%s' by %s. ")
+		TEXT("Flags for skipping the data may only be set through the build session."),
 		*WriteToString<128>(Job.GetName()), *WriteToString<32>(Job.GetFunction()));
 	BuildPolicy = Policy;
 }

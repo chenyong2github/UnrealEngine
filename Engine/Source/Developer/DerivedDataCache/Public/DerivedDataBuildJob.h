@@ -17,7 +17,9 @@ namespace UE::DerivedData { class ICache; }
 namespace UE::DerivedData { struct FBuildJobCompleteParams; }
 namespace UE::DerivedData { struct FBuildActionKey; }
 namespace UE::DerivedData { struct FBuildKey; }
+namespace UE::DerivedData { struct FCacheKey; }
 namespace UE::DerivedData { enum class EBuildPolicy : uint8; }
+namespace UE::DerivedData { enum class EBuildStatus : uint32; }
 
 namespace UE::DerivedData
 {
@@ -69,9 +71,13 @@ struct FBuildJobCompleteParams
 {
 	/** Job that is complete. */
 	const IBuildJob& Job;
+	/** Key for the job in the cache. Empty if the build completes before the key is assigned. */
+	const FCacheKey& CacheKey;
 	/** Output for the job that completed or was canceled. */
 	FBuildOutput&& Output;
-	/** Status of the job. */
+	/** Detailed status of the job. */
+	EBuildStatus BuildStatus{};
+	/** Basic status of the job. */
 	EStatus Status = EStatus::Error;
 };
 

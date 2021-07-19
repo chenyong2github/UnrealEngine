@@ -216,6 +216,9 @@ private:
 	/** True if the build action and inputs are being exported. */
 	bool bIsExportingBuild{};
 
+	/** Status flags that are added to as the job moves through its states. */
+	EBuildStatus BuildStatus{EBuildStatus::None};
+
 	mutable std::atomic<uint32> ReferenceCount{0};
 
 	/** Available in [ResolveKey, Complete] for jobs created from a key or definition. */
@@ -591,7 +594,7 @@ void FBuildJob::EnterCacheQuery()
 {
 	ECachePolicy CachePolicy = Context ? Context->GetCachePolicy() : ECachePolicy::None;
 	if (!EnumHasAnyFlags(CachePolicy, ECachePolicy::Query) ||
-		EnumHasAnyFlags(BuildPolicy, EBuildPolicy::SkipCacheGet))
+		!EnumHasAnyFlags(BuildPolicy, EBuildPolicy::CacheQuery))
 	{
 		return AdvanceToState(EBuildJobState::ExecuteRemote);
 	}
@@ -614,8 +617,10 @@ void FBuildJob::BeginCacheQuery()
 
 void FBuildJob::EndCacheQuery(FCacheGetCompleteParams&& Params)
 {
+	BuildStatus |= EBuildStatus::CacheQuery;
 	if (Params.Status == EStatus::Ok)
 	{
+		BuildStatus |= EBuildStatus::CacheQueryHit;
 		if (FOptionalBuildOutput CacheOutput = BuildSystem.LoadOutput(Name, FunctionName, Params.Record))
 		{
 			bIsCached = true;
@@ -632,7 +637,7 @@ void FBuildJob::EnterCacheStore()
 	ECachePolicy CachePolicy = Context ? Context->GetCachePolicy() : ECachePolicy::None;
 	if (bIsCached ||
 		!EnumHasAnyFlags(CachePolicy, ECachePolicy::Store) ||
-		EnumHasAnyFlags(BuildPolicy, EBuildPolicy::SkipCachePut) ||
+		!EnumHasAnyFlags(BuildPolicy, EBuildPolicy::CacheStore) ||
 		Output.Get().HasError())
 	{
 		return AdvanceToState(EBuildJobState::Complete);
@@ -830,11 +835,7 @@ void FBuildJob::EndResolveInputData(FBuildInputDataResolvedParams&& Params)
 
 void FBuildJob::EnterExecuteRemote()
 {
-	if (EnumHasAnyFlags(BuildPolicy, EBuildPolicy::SkipBuild))
-	{
-		return CompleteWithError(TEXT("Failed because build policy skipped building."_SV));
-	}
-	if (!EnumHasAnyFlags(BuildPolicy, EBuildPolicy::Remote) || bIsExportingBuild)
+	if (!EnumHasAnyFlags(BuildPolicy, EBuildPolicy::BuildRemote) || bIsExportingBuild)
 	{
 		return AdvanceToState(EBuildJobState::ResolveInputData);
 	}
@@ -871,6 +872,7 @@ void FBuildJob::EndExecuteRemote(FBuildWorkerActionCompleteParams&& Params)
 {
 	if (Params.Output)
 	{
+		BuildStatus |= EBuildStatus::BuildRemote;
 		return SetOutputNoCheck(MoveTemp(Params.Output).Get());
 	}
 	else
@@ -915,9 +917,13 @@ void FBuildJob::EnterExecuteLocal()
 	{
 		ExportBuild();
 	}
-	if (!EnumHasAnyFlags(BuildPolicy, EBuildPolicy::Local))
+	if (!EnumHasAnyFlags(BuildPolicy, EBuildPolicy::BuildLocal))
 	{
-		if (bTriedRemoteExecution)
+		if (!EnumHasAnyFlags(BuildPolicy, EBuildPolicy::BuildRemote))
+		{
+			return CompleteWithError(TEXT("Failed because build policy does not allow local or remote execution."_SV));
+		}
+		else if (bTriedRemoteExecution)
 		{
 			return CompleteWithError(TEXT("Failed because build policy does not allow local execution, ")
 				TEXT("and remote execution failed to build."_SV));
@@ -967,6 +973,7 @@ void FBuildJob::BeginExecuteLocal()
 
 void FBuildJob::EndExecuteLocal()
 {
+	BuildStatus |= EBuildStatus::BuildLocal;
 	return SetOutputNoCheck(OutputBuilder.Build());
 }
 
@@ -1060,8 +1067,9 @@ void FBuildJob::SetOutputNoCheck(FBuildOutput&& InOutput)
 
 	if (OnComplete)
 	{
+		const FCacheKey& CacheKey = Context ? Context->GetCacheKey() : FCacheKey::Empty;
 		const EStatus Status = bIsCanceled ? EStatus::Canceled : Output.Get().HasError() ? EStatus::Error : EStatus::Ok;
-		OnComplete({*this, FBuildOutput(Output.Get()), Status});
+		OnComplete({*this, CacheKey, FBuildOutput(Output.Get()), BuildStatus, Status});
 		OnComplete = nullptr;
 	}
 

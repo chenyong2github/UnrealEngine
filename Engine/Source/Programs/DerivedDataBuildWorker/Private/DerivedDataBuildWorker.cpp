@@ -233,8 +233,7 @@ bool FBuildWorkerProgram::Build()
 		}
 		else
 		{
-			Builds.Add(Session.BuildAction(Action.Get(), {},
-				EBuildPolicy::Local | EBuildPolicy::SkipCacheGet | EBuildPolicy::SkipCachePut, EPriority::Normal,
+			Builds.Add(Session.BuildAction(Action.Get(), {}, EBuildPolicy::BuildLocal, EPriority::Normal,
 				[this](FBuildActionCompleteParams&& Params) { BuildComplete(MoveTemp(Params)); }));
 		}
 	}
