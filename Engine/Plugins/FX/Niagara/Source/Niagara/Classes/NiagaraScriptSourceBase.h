@@ -103,7 +103,7 @@ class UNiagaraScriptSourceBase : public UObject
 
 	virtual void ComputeVMCompilationId(struct FNiagaraVMExecutableDataId& Id, ENiagaraScriptUsage InUsage, const FGuid& InUsageId, bool bForceRebuild = false) const {};
 
-	virtual TMap<FName, UNiagaraDataInterface*> ComputeObjectNameMap(FString EmitterUniqueName) const { return TMap<FName, UNiagaraDataInterface*>(); }
+	virtual TMap<FName, UNiagaraDataInterface*> ComputeObjectNameMap(UNiagaraSystem& System, ENiagaraScriptUsage Usage, FGuid UsageId, FString EmitterUniqueName) const { return TMap<FName, UNiagaraDataInterface*>(); }
 
 	virtual FGuid GetCompileBaseId(ENiagaraScriptUsage InUsage, const FGuid& InUsageId) const { return FGuid(); }
 
