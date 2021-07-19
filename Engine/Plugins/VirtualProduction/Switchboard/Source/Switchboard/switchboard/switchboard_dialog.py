@@ -4,6 +4,7 @@ import datetime
 import logging
 import os
 import threading
+from typing import List, Optional, Set
 
 from PySide2 import QtCore
 from PySide2 import QtGui
@@ -144,6 +145,7 @@ class SwitchboardDialog(QtCore.QObject):
         self.window.take_spin_box.valueChanged.connect(self._set_take)
         self.window.sequence_line_edit.textChanged.connect(self._set_sequence)
         self.window.level_combo_box.currentTextChanged.connect(self._set_level)
+        self.window.refresh_levels_button.clicked.connect(self.refresh_levels_incremental)
         self.window.project_cl_combo_box.currentTextChanged.connect(self._set_project_changelist)
         self.window.engine_cl_combo_box.currentTextChanged.connect(self._set_engine_changelist)
         self.window.logger_level_comboBox.currentTextChanged.connect(self.logger_level_comboBox_currentTextChanged)
@@ -1222,14 +1224,55 @@ class SwitchboardDialog(QtCore.QObject):
             self.window.refresh_engine_cl_button.setToolTip(tool_tip)
         self.window.engine_cl_combo_box.addItem(EMPTY_SYNC_ENTRY)
 
-    def refresh_levels(self):
+    def refresh_levels(self, levels: Optional[List[str]] = None):
+        if levels is None:
+            levels = CONFIG.maps()
+
         current_level = CONFIG.CURRENT_LEVEL
 
         self.window.level_combo_box.clear()
-        self.window.level_combo_box.addItems([DEFAULT_MAP_TEXT] + CONFIG.maps())
+        self.window.level_combo_box.addItems([DEFAULT_MAP_TEXT] + levels)
 
-        if current_level and current_level in CONFIG.maps():
+        if current_level and current_level in levels:
             self.level = current_level
+
+    def get_current_level_list(self):
+        level_combo = self.window.level_combo_box
+        return [level_combo.itemText(i) for i in range(1, level_combo.count())] # skip DEFAULT_MAP_TEXT
+
+    def refresh_levels_incremental(self):
+        ''' Wrapper around `refresh_levels` with the following differences:
+            - Only resaves config if the selected level was removed (as opposed
+              to always generating 2-3 change events/config saves).
+            - Logs messages indicating which levels were added/removed.
+        '''
+
+        current_level: str = CONFIG.CURRENT_LEVEL
+        prev_levels_list: List[str] = self.get_current_level_list()
+        updated_levels_list: List[str] = CONFIG.maps()
+
+        prev_levels: Set[str] = set(prev_levels_list)
+        updated_levels: Set[str] = set(updated_levels_list)
+        levels_added = updated_levels - prev_levels
+        levels_removed = prev_levels - updated_levels
+
+        if not (levels_added or levels_removed):
+            return
+
+        if levels_added:
+            LOGGER.info(f'Levels added: {", ".join(levels_added)}')
+
+        if levels_removed:
+            LOGGER.info(f'Levels removed: {", ".join(levels_removed)}')
+
+        if current_level in levels_removed:
+            LOGGER.warning(f'Selected level "{current_level}" was removed; reverting to default')
+            self.level = DEFAULT_MAP_TEXT
+
+        CONFIG.push_saving_allowed(False)
+        self.refresh_levels(updated_levels_list)
+        CONFIG.pop_saving_allowed()
+
 
     def toggle_p4_controls(self, enabled):
         self.window.engine_cl_label.setEnabled(enabled)
