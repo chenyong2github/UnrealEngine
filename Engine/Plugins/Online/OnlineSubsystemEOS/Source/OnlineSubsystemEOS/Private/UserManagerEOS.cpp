@@ -140,18 +140,22 @@ FUserManagerEOS::FUserManagerEOS(FOnlineSubsystemEOS* InSubsystem)
 	, PresenceNotificationId(0)
 	, PresenceNotificationCallback(nullptr)
 {
-	// Adding subscription to external ui display change event
-	EOS_UI_AddNotifyDisplaySettingsUpdatedOptions Options = {};
-	Options.ApiVersion = EOS_UI_ADDNOTIFYDISPLAYSETTINGSUPDATED_API_LATEST;
-
-	FOnDisplaySettingsUpdatedCallback* CallbackObj = new FOnDisplaySettingsUpdatedCallback();
-	DisplaySettingsUpdatedCallback = CallbackObj;
-	CallbackObj->CallbackLambda = [this](const EOS_UI_OnDisplaySettingsUpdatedCallbackInfo* Data)
+	// This delegate would cause a crash when running a dedicated server
+	if (!IsRunningDedicatedServer())
 	{
-		TriggerOnExternalUIChangeDelegates((bool)Data->bIsVisible);
-	};
+		// Adding subscription to external ui display change event
+		EOS_UI_AddNotifyDisplaySettingsUpdatedOptions Options = {};
+		Options.ApiVersion = EOS_UI_ADDNOTIFYDISPLAYSETTINGSUPDATED_API_LATEST;
 
-	DisplaySettingsUpdatedId = EOS_UI_AddNotifyDisplaySettingsUpdated(EOSSubsystem->UIHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
+		FOnDisplaySettingsUpdatedCallback* CallbackObj = new FOnDisplaySettingsUpdatedCallback();
+		DisplaySettingsUpdatedCallback = CallbackObj;
+		CallbackObj->CallbackLambda = [this](const EOS_UI_OnDisplaySettingsUpdatedCallbackInfo* Data)
+		{
+			TriggerOnExternalUIChangeDelegates((bool)Data->bIsVisible);
+		};
+
+		DisplaySettingsUpdatedId = EOS_UI_AddNotifyDisplaySettingsUpdated(EOSSubsystem->UIHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
+	}
 }
 
 FUserManagerEOS::~FUserManagerEOS()
