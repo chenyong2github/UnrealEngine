@@ -704,8 +704,8 @@ private:
 
 public:
 	/**
-	* When you use blend per bone, allows rotation to blend in mesh space. This only works if this does not contain additive animation samples
-	* This is more performance intensive
+	* When you use per bone sample smoothing, this makes blending happen in mesh space and can happen if this 
+	* contains additive animation samples. This is more performance intensive than blending in local space.
 	*/
 	UPROPERTY()
 	bool bRotationBlendInMeshSpace;
@@ -750,7 +750,6 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, Category = SampleSmoothing, meta = (DisplayName = "Smoothing"))
 	bool bTargetWeightInterpolationEaseInOut = true;
-
 
 #if WITH_EDITORONLY_DATA
 	/** Preview Base pose for additive BlendSpace **/
