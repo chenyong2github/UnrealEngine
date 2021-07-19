@@ -4369,7 +4369,7 @@ void UAssetManager::InitializeAssetBundlesFromMetadata_Recursive(const UStruct* 
 		}
 		else if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
 		{
-			if (ObjectProperty->PropertyFlags & CPF_InstancedReference || ObjectProperty->HasMetaData(IncludeAssetBundlesName))
+			if (ObjectProperty->PropertyFlags & CPF_InstancedReference || ObjectProperty->GetOwnerProperty()->HasMetaData(IncludeAssetBundlesName))
 			{
 				UObject* const* ObjectPtr = reinterpret_cast<UObject* const*>(PropertyValue);
 				if (ObjectPtr && *ObjectPtr)

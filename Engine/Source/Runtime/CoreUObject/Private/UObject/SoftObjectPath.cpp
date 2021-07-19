@@ -749,7 +749,7 @@ bool FSoftObjectPathThreadContext::GetSerializationOptions(FName& OutPackageName
 		bEditorOnly = Archive->IsEditorOnlyPropertyOnTheStack();
 
 		static FName UntrackedName = TEXT("Untracked");
-		if (CurrentProperty && CurrentProperty->HasMetaData(UntrackedName))
+		if (CurrentProperty && CurrentProperty->GetOwnerProperty()->HasMetaData(UntrackedName))
 		{
 			// Property has the Untracked metadata, so set to never collect references
 			CurrentCollectType = ESoftObjectPathCollectType::NeverCollect;
