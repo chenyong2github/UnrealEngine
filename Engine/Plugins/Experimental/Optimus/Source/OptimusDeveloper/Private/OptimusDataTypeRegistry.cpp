@@ -11,6 +11,30 @@
 #include "UObject/UnrealType.h"
 
 
+static bool IsStructHashable(const UScriptStruct* InStructType)
+{
+	if (InStructType->IsNative())
+	{
+		return InStructType->GetCppStructOps() && InStructType->GetCppStructOps()->HasGetTypeHash();
+	}
+	else
+	{
+		for (TFieldIterator<FProperty> It(InStructType); It; ++It)
+		{
+			if (CastField<FBoolProperty>(*It))
+			{
+				continue;
+			}
+			else if (!It->HasAllPropertyFlags(CPF_HasGetValueTypeHash))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+}
+
+
 void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 {
 	// Register standard UE types and their mappings to the compute framework types.
@@ -27,6 +51,11 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	Registry.RegisterType(
 	    *FBoolProperty::StaticClass(),
 	    FShaderValueType::Get(EShaderFundamentalType::Bool),
+		[](UStruct *InScope, FName InName) {
+		    auto Prop = new FBoolProperty(InScope, InName, RF_Public);
+		    Prop->SetBoolSize(sizeof(bool), true);
+			return Prop;
+		},
 	    FName(TEXT("bool")), {},
 	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
 
@@ -34,6 +63,11 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	Registry.RegisterType(
 	    *FIntProperty::StaticClass(),
 	    FShaderValueType::Get(EShaderFundamentalType::Int),
+	    [](UStruct* InScope, FName InName) {
+		    auto Prop = new FIntProperty(InScope, InName, RF_Public);
+			Prop->SetPropertyFlags(CPF_HasGetValueTypeHash);
+		    return Prop;
+	    },
 	    FName(TEXT("int")), {}, 
 	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
 
@@ -41,6 +75,11 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	Registry.RegisterType(
 		*FUInt32Property::StaticClass(),
 		FShaderValueType::Get(EShaderFundamentalType::Uint),
+		[](UStruct* InScope, FName InName) {
+			auto Prop = new FUInt32Property(InScope, InName, RF_Public);
+			Prop->SetPropertyFlags(CPF_HasGetValueTypeHash);
+			return Prop;
+		},
 		FName(TEXT("uint")), FLinearColor(0.0275f, 0.733, 0.820f, 1.0f), 
 		EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
 	
@@ -48,6 +87,11 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	Registry.RegisterType(
 	    *FFloatProperty::StaticClass(),
 	    FShaderValueType::Get(EShaderFundamentalType::Float),
+	    [](UStruct* InScope, FName InName) {
+		    auto Prop = new FFloatProperty(InScope, InName, RF_Public);
+		    Prop->SetPropertyFlags(CPF_HasGetValueTypeHash);
+		    return Prop;
+	    },
 	    FName(TEXT("float")), {}, 
 	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
 
@@ -55,6 +99,11 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	Registry.RegisterType(
 	    *FDoubleProperty::StaticClass(),
 	    FShaderValueType::Get(EShaderFundamentalType::Float),
+	    [](UStruct* InScope, FName InName) {
+		    auto Prop = new FDoubleProperty(InScope, InName, RF_Public);
+		    Prop->SetPropertyFlags(CPF_HasGetValueTypeHash);
+		    return Prop;
+	    },
 	    FName(TEXT("float")), {}, 
 	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
 
@@ -112,6 +161,11 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	Registry.RegisterType(
 	    *FNameProperty::StaticClass(),
 	    FShaderValueTypeHandle(),
+	    [](UStruct* InScope, FName InName) {
+		    auto Prop = new FNameProperty(InScope, InName, RF_Public);
+		    Prop->SetPropertyFlags(CPF_HasGetValueTypeHash);
+		    return Prop;
+	    },
 	    FName(TEXT("name")), 
 		{},
 	    EOptimusDataTypeUsageFlags::Variable);
@@ -119,6 +173,11 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	Registry.RegisterType(
 	    *FStrProperty::StaticClass(),
 	    FShaderValueTypeHandle(),
+	    [](UStruct* InScope, FName InName) {
+		    auto Prop = new FStrProperty(InScope, InName, RF_Public);
+		    Prop->SetPropertyFlags(CPF_HasGetValueTypeHash);
+		    return Prop;
+	    },
 	    FName(TEXT("string")),
 	    {},
 	    EOptimusDataTypeUsageFlags::Variable);
@@ -167,7 +226,8 @@ FOptimusDataTypeRegistry& FOptimusDataTypeRegistry::Get()
 
 bool FOptimusDataTypeRegistry::RegisterType(
 	FName InTypeName, 
-	TFunction<void(FOptimusDataType&)> InFillFunc
+	TFunction<void(FOptimusDataType&)> InFillFunc,
+	PropertyCreateFuncT InPropertyCreateFunc
 	)
 {
 	if (InTypeName == NAME_None)
@@ -182,9 +242,11 @@ bool FOptimusDataTypeRegistry::RegisterType(
 		return false;
 	}
 
-	FOptimusDataType* DataType = new FOptimusDataType;
+	auto DataType = MakeShared<FOptimusDataType>();
+
+	FTypeInfo Info{DataType, InPropertyCreateFunc};
 	InFillFunc(*DataType);
-	RegisteredTypes.Emplace(InTypeName, DataType);
+	RegisteredTypes.Add(InTypeName, Info);
 	RegistrationOrder.Add(InTypeName);
 	return true;
 }
@@ -193,6 +255,7 @@ bool FOptimusDataTypeRegistry::RegisterType(
 bool FOptimusDataTypeRegistry::RegisterType(
 	const FFieldClass &InFieldType,
 	FShaderValueTypeHandle InShaderValueType,
+    PropertyCreateFuncT InPropertyCreateFunc,
 	FName InPinCategory,
 	TOptional<FLinearColor> InPinColor,
 	EOptimusDataTypeUsageFlags InUsageFlags
@@ -208,7 +271,9 @@ bool FOptimusDataTypeRegistry::RegisterType(
 			InDataType.CustomPinColor = *InPinColor;
 		}
 		InDataType.UsageFlags = InUsageFlags;
-	});
+	},
+	InPropertyCreateFunc
+	);
 }
 
 
@@ -238,6 +303,23 @@ bool FOptimusDataTypeRegistry::RegisterType(
 
 		FName TypeName(*FString::Printf(TEXT("F%s"), *InStructType->GetName()));
 
+		PropertyCreateFuncT PropertyCreateFunc;
+		if (EnumHasAnyFlags(InUsageFlags, EOptimusDataTypeUsageFlags::Variable))
+		{
+			const bool bIsHashable = IsStructHashable(InStructType);
+
+			PropertyCreateFunc = [bIsHashable, InStructType](UStruct* InScope, FName InName) -> FProperty *
+			{
+				auto Prop = new FStructProperty(InScope, InName, RF_Public);
+				Prop->Struct = InStructType;
+				if (bIsHashable)
+				{
+					Prop->SetPropertyFlags(CPF_HasGetValueTypeHash);
+				}
+				return Prop;
+			};
+		}
+
 		return RegisterType(TypeName, [&](FOptimusDataType& InDataType) {
 			InDataType.TypeName = TypeName;
 			InDataType.ShaderValueType = InShaderValueType;
@@ -254,7 +336,7 @@ bool FOptimusDataTypeRegistry::RegisterType(
 			{
 				InDataType.TypeFlags |= EOptimusDataTypeFlags::ShowElements;
 			}
-		});
+			}, PropertyCreateFunc);
 	}
 	else
 	{
@@ -273,6 +355,17 @@ bool FOptimusDataTypeRegistry::RegisterType(
 	{
 		FName TypeName(*FString::Printf(TEXT("U%s"), *InClassType->GetName()));
 
+		PropertyCreateFuncT PropertyCreateFunc;
+		if (EnumHasAnyFlags(InUsageFlags, EOptimusDataTypeUsageFlags::Variable))
+		{
+			PropertyCreateFunc = [InClassType](UStruct* InScope, FName InName) -> FProperty* {
+				auto Prop = new FObjectProperty(InScope, InName, RF_Public);
+				Prop->SetPropertyClass(InClassType);
+				Prop->SetPropertyFlags(CPF_HasGetValueTypeHash);
+				return Prop;
+			};
+		}
+
 		return RegisterType(TypeName, [&](FOptimusDataType& InDataType) {
 				InDataType.TypeName = TypeName;
 				InDataType.TypeCategory = FName(TEXT("object"));
@@ -284,7 +377,7 @@ bool FOptimusDataTypeRegistry::RegisterType(
 				    InDataType.CustomPinColor = *InPinColor;
 			    }
 				InDataType.UsageFlags = InUsageFlags;
-			});
+			}, PropertyCreateFunc);
 	}
 	else
 	{
@@ -324,7 +417,7 @@ TArray<FOptimusDataTypeHandle> FOptimusDataTypeRegistry::GetAllTypes() const
 	TArray<FOptimusDataTypeHandle> Result;
 	for (const FName& TypeName : RegistrationOrder)
 	{
-		Result.Add(RegisteredTypes[TypeName]);
+		Result.Add(RegisteredTypes[TypeName].Handle);
 	}
 	return Result;
 }
@@ -379,8 +472,8 @@ FOptimusDataTypeHandle FOptimusDataTypeRegistry::FindType(const FFieldClass& InF
 
 FOptimusDataTypeHandle FOptimusDataTypeRegistry::FindType(FName InTypeName) const
 {
-	const FOptimusDataTypeHandle* ResultPtr = RegisteredTypes.Find(InTypeName);
-	return ResultPtr ? *ResultPtr : FOptimusDataTypeHandle();
+	const FTypeInfo* InfoPtr = RegisteredTypes.Find(InTypeName);
+	return InfoPtr ? InfoPtr->Handle : FOptimusDataTypeHandle();
 }
 
 
@@ -388,7 +481,7 @@ FOptimusDataTypeHandle FOptimusDataTypeRegistry::FindType(FShaderValueTypeHandle
 {
 	for (const FName& TypeName : RegistrationOrder)
 	{
-		const FOptimusDataTypeHandle Handle = RegisteredTypes[TypeName];
+		const FOptimusDataTypeHandle Handle = RegisteredTypes[TypeName].Handle;
 		if (Handle->ShaderValueType == InValueType)
 		{
 			return Handle;
@@ -403,4 +496,26 @@ void FOptimusDataTypeRegistry::UnregisterAllTypes()
 	FOptimusDataTypeRegistry& Registry = FOptimusDataTypeRegistry::Get();
 
 	Registry.RegisteredTypes.Reset();
+}
+
+
+FProperty* FOptimusDataTypeRegistry::CreateProperty(
+	FName InTypeName, 
+	UStruct* InScope, 
+	FName InName
+	) const
+{
+	const FTypeInfo* InfoPtr = RegisteredTypes.Find(InTypeName);
+	if (!InfoPtr)
+	{
+		UE_LOG(LogOptimusDeveloper, Fatal, TEXT("CreateProperty: Invalid type name."));
+		return nullptr;
+	}
+
+	if (!InfoPtr->PropertyCreateFunc)
+	{
+		return nullptr;
+	}
+
+	return InfoPtr->PropertyCreateFunc(InScope, InName);
 }

@@ -15,6 +15,8 @@ struct FShaderValueTypeHandle;
 class FOptimusDataTypeRegistry
 {
 public:
+	using PropertyCreateFuncT = TFunction<FProperty *(UStruct *InScope, FName InName)>;
+
 	~FOptimusDataTypeRegistry();
 
 	/** Get the singleton registry object */
@@ -24,6 +26,7 @@ public:
 	OPTIMUSDEVELOPER_API bool RegisterType(
 		const FFieldClass &InFieldType,
 	    FShaderValueTypeHandle InShaderValueType,
+		PropertyCreateFuncT InPropertyCreateFunc,
 	    FName InPinCategory,
 	    TOptional<FLinearColor> InPinColor,
 	    EOptimusDataTypeUsageFlags InUsageFlags
@@ -83,6 +86,7 @@ public:
 
 protected:
 	friend class FOptimusDeveloperModule;
+	friend struct FOptimusDataType;
 
 	/** Call during module init to register all known built-in types */
 	static void RegisterBuiltinTypes();
@@ -90,11 +94,24 @@ protected:
 	/** Call during module shutdown to release memory */
 	static void UnregisterAllTypes();
 
+	/** A helper function to create a property, using the property creator function */
+	FProperty* CreateProperty(FName InTypeName, UStruct* InScope, FName InName) const;
+
 private:
 	FOptimusDataTypeRegistry() = default;
 
-	bool RegisterType(FName InTypeName, TFunction<void(FOptimusDataType &)> InFillFunc);
+	bool RegisterType(
+		FName InTypeName, 
+		TFunction<void(FOptimusDataType &)> InFillFunc,
+	    PropertyCreateFuncT InPropertyCreateFunc = {}
+		);
 
-	TMap<FName /* TypeName */, FOptimusDataTypeHandle> RegisteredTypes;
+	struct FTypeInfo
+	{
+		FOptimusDataTypeHandle Handle;
+		TFunction<FProperty *(UStruct *InScope, FName InName)> PropertyCreateFunc;
+	};
+
+	TMap<FName /* TypeName */, FTypeInfo> RegisteredTypes;
 	TArray<FName> RegistrationOrder;
 };
