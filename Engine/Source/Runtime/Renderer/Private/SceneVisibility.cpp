@@ -2428,11 +2428,6 @@ struct FRelevancePacket
 							{
 								DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::Distortion);
 							}
-
-							if (ShadingPath == EShadingPath::Mobile && View.bIsSceneCapture)
-							{
-								DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::MobileInverseOpacity);
-							}
 						}
 
 #if WITH_EDITOR
@@ -2887,12 +2882,6 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 		{
 			PassMask.Set(EMeshPass::Distortion);
 			View.NumVisibleDynamicMeshElements[EMeshPass::Distortion] += NumElements;
-		}
-
-		if (ShadingPath == EShadingPath::Mobile && View.bIsSceneCapture)
-		{
-			PassMask.Set(EMeshPass::MobileInverseOpacity);
-			View.NumVisibleDynamicMeshElements[EMeshPass::MobileInverseOpacity] += NumElements;
 		}
 	}
 

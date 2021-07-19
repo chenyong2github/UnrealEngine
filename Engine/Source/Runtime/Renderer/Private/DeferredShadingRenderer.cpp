@@ -65,6 +65,7 @@
 #include "InstanceCulling/InstanceCullingManager.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Engine/SubsurfaceProfile.h"
+#include "SceneCaptureRendering.h"
 
 extern int32 GNaniteShowStats;
 
@@ -3117,7 +3118,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	FRDGTextureRef ViewFamilyTexture = TryCreateViewFamilyTexture(GraphBuilder, ViewFamily);
 
-	CopySceneCaptureComponentToTarget(GraphBuilder, SceneTextures.UniformBuffer, ViewFamilyTexture);
+	CopySceneCaptureComponentToTarget(GraphBuilder, SceneTextures, ViewFamilyTexture, ViewFamily, Views);
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{

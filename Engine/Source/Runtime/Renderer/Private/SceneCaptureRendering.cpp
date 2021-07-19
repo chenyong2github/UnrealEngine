@@ -3,8 +3,7 @@
 /*=============================================================================
 	
 =============================================================================*/
-
-#include "CoreMinimal.h"
+#include "SceneCaptureRendering.h"
 #include "Containers/ArrayView.h"
 #include "Misc/MemStack.h"
 #include "EngineDefines.h"
@@ -36,7 +35,6 @@
 #include "ScenePrivate.h"
 #include "PostProcess/SceneFilterRendering.h"
 #include "ScreenRendering.h"
-#include "MobileSceneCaptureRendering.h"
 #include "ClearQuad.h"
 #include "PipelineStateCache.h"
 #include "RendererModule.h"
@@ -53,7 +51,7 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -72,7 +70,7 @@ public:
 	class FSourceModeDimension : SHADER_PERMUTATION_ENUM_CLASS("SOURCE_MODE", ESourceMode);
 	using FPermutationDomain = TShaderPermutationDomain<FSourceModeDimension>;
 
-	static FPermutationDomain GetPermutationVector(ESceneCaptureSource CaptureSource)
+	static FPermutationDomain GetPermutationVector(ESceneCaptureSource CaptureSource, bool bIsMobilePlatform)
 	{
 		ESourceMode SourceMode = ESourceMode::MAX;
 		switch (CaptureSource)
@@ -101,14 +99,22 @@ public:
 		default:
 			checkf(false, TEXT("SceneCaptureSource not implemented."));
 		}
+
+		if (bIsMobilePlatform && (SourceMode == ESourceMode::Normal || SourceMode == ESourceMode::BaseColor))
+		{
+			SourceMode = ESourceMode::ColorAndOpacity;
+		}
 		FPermutationDomain PermutationVector;
 		PermutationVector.Set<FSourceModeDimension>(SourceMode);
 		return PermutationVector;
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) 
-	{ 
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		auto SourceModeDim = PermutationVector.Get<FSourceModeDimension>();
+		return !IsMobilePlatform(Parameters.Platform) || (SourceModeDim != ESourceMode::Normal && SourceModeDim != ESourceMode::BaseColor);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -157,10 +163,13 @@ static bool CaptureNeedsSceneColor(ESceneCaptureSource CaptureSource)
 
 static TFunction<void(FRHICommandList& RHICmdList)> CopyCaptureToTargetSetViewportFn;
 
-void FDeferredShadingSceneRenderer::CopySceneCaptureComponentToTarget(
+void CopySceneCaptureComponentToTarget(
 	FRDGBuilder& GraphBuilder,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-	FRDGTextureRef ViewFamilyTexture)
+	const FMinimalSceneTextures& SceneTextures,
+	FRDGTextureRef ViewFamilyTexture,
+	const FSceneViewFamily& ViewFamily,
+	const TArray<FViewInfo>& Views,
+	bool bNeedsFlippedRenderTarget)
 {
 	ESceneCaptureSource SceneCaptureSource = ViewFamily.SceneCaptureSource;
 
@@ -192,15 +201,15 @@ void FDeferredShadingSceneRenderer::CopySceneCaptureComponentToTarget(
 			GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
 		}
 
-		const FSceneCapturePS::FPermutationDomain PixelPermutationVector = FSceneCapturePS::GetPermutationVector(SceneCaptureSource);
+		const FSceneCapturePS::FPermutationDomain PixelPermutationVector = FSceneCapturePS::GetPermutationVector(SceneCaptureSource, IsMobilePlatform(ViewFamily.GetShaderPlatform()));
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
-			FViewInfo& View = Views[ViewIndex];
+			const FViewInfo& View = Views[ViewIndex];
 
 			FSceneCapturePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSceneCapturePS::FParameters>();
 			PassParameters->View = View.ViewUniformBuffer;
-			PassParameters->SceneTextures = SceneTexturesUniformBuffer;
+			PassParameters->SceneTextures = SceneTextures.GetSceneTextureShaderParameters(ViewFamily.GetFeatureLevel());
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(ViewFamilyTexture, ERenderTargetLoadAction::ENoAction);
 
 			TShaderMapRef<FScreenVS> VertexShader(View.ShaderMap);
@@ -215,7 +224,7 @@ void FDeferredShadingSceneRenderer::CopySceneCaptureComponentToTarget(
 				RDG_EVENT_NAME("View(%d)", ViewIndex),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[PassParameters, GraphicsPSOInit, VertexShader, PixelShader, &View] (FRHICommandList& RHICmdList)
+				[PassParameters, GraphicsPSOInit, VertexShader, PixelShader, &View, bNeedsFlippedRenderTarget] (FRHICommandList& RHICmdList)
 			{
 				FGraphicsPipelineStateInitializer LocalGraphicsPSOInit = GraphicsPSOInit;
 				RHICmdList.ApplyCachedRenderTargets(LocalGraphicsPSOInit);
@@ -224,16 +233,34 @@ void FDeferredShadingSceneRenderer::CopySceneCaptureComponentToTarget(
 				
 				CopyCaptureToTargetSetViewportFn(RHICmdList);
 
-				DrawRectangle(
-					RHICmdList,
-					View.ViewRect.Min.X, View.ViewRect.Min.Y,
-					View.ViewRect.Width(), View.ViewRect.Height(),
-					View.ViewRect.Min.X, View.ViewRect.Min.Y,
-					View.ViewRect.Width(), View.ViewRect.Height(),
-					View.UnconstrainedViewRect.Size(),
-					GetSceneTextureExtent(),
-					VertexShader,
-					EDRF_UseTriangleOptimization);
+				if (bNeedsFlippedRenderTarget)
+				{
+					CopyCaptureToTargetSetViewportFn(RHICmdList);
+					DrawRectangle(
+						RHICmdList,
+						View.ViewRect.Min.X, View.ViewRect.Min.Y,
+						View.ViewRect.Width(), View.ViewRect.Height(),
+						View.ViewRect.Min.X, View.ViewRect.Height() - View.ViewRect.Min.Y,
+						View.ViewRect.Width(), -View.ViewRect.Height(),
+						View.UnconstrainedViewRect.Size(),
+						GetSceneTextureExtent(),
+						VertexShader,
+						EDRF_UseTriangleOptimization);
+				}
+				else
+				{
+					CopyCaptureToTargetSetViewportFn(RHICmdList);
+					DrawRectangle(
+						RHICmdList,
+						View.ViewRect.Min.X, View.ViewRect.Min.Y,
+						View.ViewRect.Width(), View.ViewRect.Height(),
+						View.ViewRect.Min.X, View.ViewRect.Min.Y,
+						View.ViewRect.Width(), View.ViewRect.Height(),
+						View.UnconstrainedViewRect.Size(),
+						GetSceneTextureExtent(),
+						VertexShader,
+						EDRF_UseTriangleOptimization);
+				}
 			});
 		}
 	}
@@ -304,6 +331,174 @@ static void UpdateSceneCaptureContentDeferred_RenderThread(
 
 		FRDGTextureRef ResolveTexture = RegisterExternalTexture(GraphBuilder, RenderTargetTexture->TextureRHI, TEXT("SceneCaptureResolve"));
 		AddCopyToResolveTargetPass(GraphBuilder, TargetTexture, ResolveTexture, ResolveParams);
+
+		GraphBuilder.Execute();
+	}
+
+	SceneRenderer->RenderThreadEnd(RHICmdList);
+}
+
+void UpdateSceneCaptureContentMobile_RenderThread(
+	FRHICommandListImmediate& RHICmdList,
+	FSceneRenderer* SceneRenderer,
+	FRenderTarget* RenderTarget,
+	FTexture* RenderTargetTexture,
+	const FString& EventName,
+	const FResolveParams& ResolveParams,
+	bool bGenerateMips,
+	const FGenerateMipsParams& GenerateMipsParams,
+	bool bDisableFlipCopyGLES)
+{
+	SceneRenderer->RenderThreadBegin(RHICmdList);
+
+	// update any resources that needed a deferred update
+	FDeferredUpdateResource::UpdateResources(RHICmdList);
+	bool bUseSceneTextures = SceneRenderer->ViewFamily.SceneCaptureSource != SCS_FinalColorLDR &&
+		SceneRenderer->ViewFamily.SceneCaptureSource != SCS_FinalColorHDR;
+
+	{
+#if WANTS_DRAW_MESH_EVENTS
+		SCOPED_DRAW_EVENTF(RHICmdList, SceneCaptureMobile, TEXT("SceneCaptureMobile %s"), *EventName);
+		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("SceneCaptureMobile %s", *EventName));
+#else
+		SCOPED_DRAW_EVENT(RHICmdList, UpdateSceneCaptureContentMobile_RenderThread);
+		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("SceneCaptureMobile"));
+#endif
+
+		FViewInfo& View = SceneRenderer->Views[0];
+
+		const bool bIsMobileHDR = IsMobileHDR();
+		const bool bRHINeedsFlip = RHINeedsToSwitchVerticalAxis(GMaxRHIShaderPlatform) && !bDisableFlipCopyGLES;
+		// note that GLES code will flip the image when:
+		//	bIsMobileHDR && SceneCaptureSource == SCS_FinalColorLDR (flip performed during post processing)
+		//	!bIsMobileHDR (rendering is flipped by vertex shader)
+		// they need flipping again so it is correct for texture addressing.
+		const bool bNeedsFlippedCopy = (!bIsMobileHDR || !bUseSceneTextures) && bRHINeedsFlip;
+		const bool bNeedsFlippedFinalColor = bNeedsFlippedCopy && !bUseSceneTextures;
+
+		// Intermediate render target that will need to be flipped (needed on !IsMobileHDR())
+		FRDGTextureRef FlippedOutputTexture{};
+
+		const FRenderTarget* Target = SceneRenderer->ViewFamily.RenderTarget;
+		if (bNeedsFlippedFinalColor)
+		{
+			// We need to use an intermediate render target since the result will be flipped
+			auto& RenderTargetRHI = Target->GetRenderTargetTexture();
+			FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(
+				Target->GetSizeXY(),
+				RenderTargetRHI.GetReference()->GetFormat(),
+				RenderTargetRHI.GetReference()->GetClearBinding(),
+				TexCreate_RenderTargetable));
+			FlippedOutputTexture = GraphBuilder.CreateTexture(Desc, TEXT("SceneCaptureFlipped"));
+		}
+
+		// We don't support screen percentage in scene capture.
+		FIntRect ViewRect = View.UnscaledViewRect;
+		FIntRect UnconstrainedViewRect = View.UnconstrainedViewRect;
+
+		if (bNeedsFlippedFinalColor)
+		{
+			AddClearRenderTargetPass(GraphBuilder, FlippedOutputTexture, FLinearColor::Black, ViewRect);
+		}
+
+		if (ResolveParams.DestRect.IsValid())
+		{
+			CopyCaptureToTargetSetViewportFn = [ResolveParams, bNeedsFlippedFinalColor, &ViewRect, FlippedOutputTexture](FRHICommandList& RHICmdList)
+			{
+				RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
+
+				if (bNeedsFlippedFinalColor)
+				{
+					FResolveRect DestRect = ResolveParams.DestRect;
+					int32 TileYID = DestRect.Y1 / ViewRect.Height();
+					int32 TileYCount = (FlippedOutputTexture->Desc.GetSize().Y / ViewRect.Height()) - 1;
+					DestRect.Y1 = (TileYCount - TileYID) * ViewRect.Height();
+					DestRect.Y2 = DestRect.Y1 + ViewRect.Height();
+					RHICmdList.SetViewport
+					(
+						float(DestRect.X1),
+						float(DestRect.Y1),
+						0.0f,
+						float(DestRect.X2),
+						float(DestRect.Y2),
+						1.0f
+					);
+				}
+				else
+				{
+					RHICmdList.SetViewport
+					(
+						float(ResolveParams.DestRect.X1),
+						float(ResolveParams.DestRect.Y1),
+						0.0f,
+						float(ResolveParams.DestRect.X2),
+						float(ResolveParams.DestRect.Y2),
+						1.0f
+					);
+				}
+			};
+		}
+		else
+		{
+			CopyCaptureToTargetSetViewportFn = [](FRHICommandList& RHICmdList) {};
+		}
+
+		// Render the scene normally
+		{
+			RDG_RHI_EVENT_SCOPE(GraphBuilder, RenderScene);
+
+			if (bNeedsFlippedFinalColor)
+			{
+				// Helper class to allow setting render target
+				struct FRenderTargetOverride : public FRenderTarget
+				{
+					FRenderTargetOverride(const FRenderTarget* TargetIn, FRHITexture2D* OverrideTexture)
+					{
+						RenderTargetTextureRHI = OverrideTexture;
+						OriginalTarget = TargetIn;
+					}
+
+					virtual FIntPoint GetSizeXY() const override { return FIntPoint(RenderTargetTextureRHI->GetSizeX(), RenderTargetTextureRHI->GetSizeY()); }
+					virtual float GetDisplayGamma() const override { return OriginalTarget->GetDisplayGamma(); }
+
+					FTexture2DRHIRef GetTextureParamRef() { return RenderTargetTextureRHI; }
+					const FRenderTarget* OriginalTarget;
+				};
+
+				// Hijack the render target
+				FRHITexture2D* FlippedOutputTextureRHI = GraphBuilder.ConvertToExternalTexture(FlippedOutputTexture)->GetTargetableRHI()->GetTexture2D();
+				SceneRenderer->ViewFamily.RenderTarget = GraphBuilder.AllocObject<FRenderTargetOverride>(Target, FlippedOutputTextureRHI); //-V506
+			}
+
+			SceneRenderer->Render(GraphBuilder);
+
+			if (bNeedsFlippedFinalColor)
+			{
+				// And restore it
+				SceneRenderer->ViewFamily.RenderTarget = Target;
+			}
+		}
+
+		FRDGTextureRef OutputTexture = RegisterExternalTexture(GraphBuilder, Target->GetRenderTargetTexture(), TEXT("OutputTexture"));
+		const FMinimalSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
+
+		const FIntPoint TargetSize(UnconstrainedViewRect.Width(), UnconstrainedViewRect.Height());
+		{
+			// We need to flip this texture upside down (since we depended on tonemapping to fix this on the hdr path)
+			RDG_EVENT_SCOPE(GraphBuilder, "CaptureSceneColor");
+			CopySceneCaptureComponentToTarget(
+				GraphBuilder,
+				SceneTextures,
+				OutputTexture,
+				SceneRenderer->ViewFamily,
+				SceneRenderer->Views,
+				bNeedsFlippedFinalColor);
+		}
+
+		if (bGenerateMips)
+		{
+			FGenerateMips::Execute(GraphBuilder, OutputTexture, GenerateMipsParams);
+		}
 
 		GraphBuilder.Execute();
 	}
