@@ -57,7 +57,7 @@ export class Fetch {
 
                 if (challenge === ChallengeStatus.Unauthorized) {
                     
-                    this.login(window.location.toString());
+                    this.login(window.location.toString() + window.location.search);
                     return;
                 }
 
