@@ -115,7 +115,7 @@ UEdGraphNode* UControlRigVariableNodeSpawner::Invoke(UEdGraph* ParentGraph, FBin
 		TypeName = FString::Printf(TEXT("TArray<%s>"), *TypeName);
 	}
 
-	if (URigVMNode* ModelNode = Controller->AddVariableNodeFromObjectPath(ExternalVariable.Name, TypeName, ObjectPath, bIsGetter, FString(), Location, FString(), !bIsTemplateNode))
+	if (URigVMNode* ModelNode = Controller->AddVariableNodeFromObjectPath(ExternalVariable.Name, TypeName, ObjectPath, bIsGetter, FString(), Location, FString(), !bIsTemplateNode, !bIsTemplateNode))
 	{
 		for (UEdGraphNode* Node : ParentGraph->Nodes)
 		{

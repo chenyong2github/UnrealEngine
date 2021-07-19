@@ -226,7 +226,7 @@ FReply SControlRigGraphPinNameList::OnGetSelectedClicked()
 					{
 						if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetPinObj()->GetOwningNode()->GetGraph()))
 						{
-							Graph->GetController()->SetPinDefaultValue(ParentPin->GetPinPath(), *Result[0].Get());
+							Graph->GetController()->SetPinDefaultValue(ParentPin->GetPinPath(), *Result[0].Get(), true, true, false, true);
 							CurrentList = GetNameList();
 						}
 					}

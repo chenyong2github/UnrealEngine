@@ -147,27 +147,27 @@ public:
 	// UnitNode represent a RIGVM_METHOD declaration on a USTRUCT.
 	// This causes a NodeAdded modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMUnitNode* AddUnitNode(UScriptStruct* InScriptStruct, const FName& InMethodName = TEXT("Execute"), const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+	URigVMUnitNode* AddUnitNode(UScriptStruct* InScriptStruct, const FName& InMethodName = TEXT("Execute"), const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Adds a Function / Struct Node to the edited Graph given its struct object path name.
 	// UnitNode represent a RIGVM_METHOD declaration on a USTRUCT.
 	// This causes a NodeAdded modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMUnitNode* AddUnitNodeFromStructPath(const FString& InScriptStructPath, const FName& InMethodName = TEXT("Execute"), const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+	URigVMUnitNode* AddUnitNodeFromStructPath(const FString& InScriptStructPath, const FName& InMethodName = TEXT("Execute"), const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Adds a Variable Node to the edited Graph.
 	// Variables represent local work state for the function and
 	// can be read from and written to. 
 	// This causes a NodeAdded modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMVariableNode* AddVariableNode(const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, bool bIsGetter, const FString& InDefaultValue, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+	URigVMVariableNode* AddVariableNode(const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, bool bIsGetter, const FString& InDefaultValue, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Adds a Variable Node to the edited Graph given a struct object path name.
 	// Variables represent local work state for the function and
 	// can be read from (bIsGetter == true) or written to (bIsGetter == false). 
 	// This causes a NodeAdded modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMVariableNode* AddVariableNodeFromObjectPath(const FName& InVariableName, const FString& InCPPType, const FString& InCPPTypeObjectPath, bool bIsGetter, const FString& InDefaultValue, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+	URigVMVariableNode* AddVariableNodeFromObjectPath(const FName& InVariableName, const FString& InCPPType, const FString& InCPPTypeObjectPath, bool bIsGetter, const FString& InDefaultValue, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Refreshes the variable node with the new data
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
@@ -175,15 +175,17 @@ public:
 
 	// Removes all nodes related to a given variable
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	void OnExternalVariableRemoved(const FName& InVarName, bool bSetupUndoRedo);
+	void OnExternalVariableRemoved(const FName& InVarName, bool bSetupUndoRedo, bool bPrintPythonCommand = false);
 
 	// Renames the variable name in all relevant nodes
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	void OnExternalVariableRenamed(const FName& InOldVarName, const FName& InNewVarName, bool bSetupUndoRedo);
+	void OnExternalVariableRenamed(const FName& InOldVarName, const FName& InNewVarName, bool bSetupUndoRedo, bool bPrintPythonCommand = false);
 
 	// Changes the data type of all nodes matching a given variable name
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	void OnExternalVariableTypeChanged(const FName& InVarName, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo);
+	void OnExternalVariableTypeChanged(const FName& InVarName, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo, bool bPrintPythonCommand = false);
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	void OnExternalVariableTypeChangedFromObjectPath(const FName& InVarName, const FString& InCPPType, const FString& InCPPTypeObjectPath, bool bSetupUndoRedo);
 
 	// Refreshes the variable node with the new data
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
@@ -194,41 +196,41 @@ public:
 	// Input Parameters are constant values / literals.
 	// This causes a NodeAdded modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMParameterNode* AddParameterNode(const FName& InParameterName, const FString& InCPPType, UObject* InCPPTypeObject, bool bIsInput, const FString& InDefaultValue, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+	URigVMParameterNode* AddParameterNode(const FName& InParameterName, const FString& InCPPType, UObject* InCPPTypeObject, bool bIsInput, const FString& InDefaultValue, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Adds a Parameter Node to the edited Graph given a struct object path name.
 	// Parameters represent input or output arguments to the Graph / Function.
 	// Input Parameters are constant values / literals.
 	// This causes a NodeAdded modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMParameterNode* AddParameterNodeFromObjectPath(const FName& InParameterName, const FString& InCPPType, const FString& InCPPTypeObjectPath, bool bIsInput, const FString& InDefaultValue, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+	URigVMParameterNode* AddParameterNodeFromObjectPath(const FName& InParameterName, const FString& InCPPType, const FString& InCPPTypeObjectPath, bool bIsInput, const FString& InDefaultValue, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Adds a Comment Node to the edited Graph.
 	// Comments can be used to annotate the Graph.
 	// This causes a NodeAdded modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMCommentNode* AddCommentNode(const FString& InCommentText, const FVector2D& InPosition = FVector2D::ZeroVector, const FVector2D& InSize = FVector2D(400.f, 300.f), const FLinearColor& InColor = FLinearColor::Black, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+	URigVMCommentNode* AddCommentNode(const FString& InCommentText, const FVector2D& InPosition = FVector2D::ZeroVector, const FVector2D& InSize = FVector2D(400.f, 300.f), const FLinearColor& InColor = FLinearColor::Black, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Adds a Reroute Node on an existing Link to the edited Graph.
 	// Reroute Nodes can be used to visually improve the data flow,
 	// they don't require any additional memory though and are purely
 	// cosmetic. This causes a NodeAdded modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMRerouteNode* AddRerouteNodeOnLink(URigVMLink* InLink, bool bShowAsFullNode, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+	URigVMRerouteNode* AddRerouteNodeOnLink(URigVMLink* InLink, bool bShowAsFullNode, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Adds a Reroute Node on an existing Link to the edited Graph given the Link's string representation.
 	// Reroute Nodes can be used to visually improve the data flow,
 	// they don't require any additional memory though and are purely
 	// cosmetic. This causes a NodeAdded modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMRerouteNode* AddRerouteNodeOnLinkPath(const FString& InLinkPinPathRepresentation, bool bShowAsFullNode, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+	URigVMRerouteNode* AddRerouteNodeOnLinkPath(const FString& InLinkPinPathRepresentation, bool bShowAsFullNode, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Adds a Reroute Node on an existing Pin to the editor Graph.
 	// Reroute Nodes can be used to visually improve the data flow,
 	// they don't require any additional memory though and are purely
 	// cosmetic. This causes a NodeAdded modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMRerouteNode* AddRerouteNodeOnPin(const FString& InPinPath, bool bAsInput, bool bShowAsFullNode, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+	URigVMRerouteNode* AddRerouteNodeOnPin(const FString& InPinPath, bool bAsInput, bool bShowAsFullNode, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Adds a free Reroute Node
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
@@ -238,30 +240,30 @@ public:
 	// Branch nodes can be used to split the execution of into multiple branches,
 	// allowing to drive behavior by logic.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMBranchNode* AddBranchNode(const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+	URigVMBranchNode* AddBranchNode(const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Adds an if node to the graph.
 	// If nodes can be used to pick between two values based on a condition.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMIfNode* AddIfNode(const FString& InCPPType, const FName& InCPPTypeObjectPath, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+	URigVMIfNode* AddIfNode(const FString& InCPPType, const FName& InCPPTypeObjectPath, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Adds a select node to the graph.
 	// Select nodes can be used to pick between multiple values based on an index.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMSelectNode* AddSelectNode(const FString& InCPPType, const FName& InCPPTypeObjectPath, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+	URigVMSelectNode* AddSelectNode(const FString& InCPPType, const FName& InCPPTypeObjectPath, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	URigVMSelectNode* AddSelectNodeFromStruct(UScriptStruct* InScriptStruct, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
 
 
 	// Adds a prototype node to the graph.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMPrototypeNode* AddPrototypeNode(const FName& InNotation, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+	URigVMPrototypeNode* AddPrototypeNode(const FName& InNotation, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Adds a Function / Struct Node to the edited Graph as an injected node
 	// UnitNode represent a RIGVM_METHOD declaration on a USTRUCT.
 	// This causes a NodeAdded modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMInjectionInfo* AddInjectedNode(const FString& InPinPath, bool bAsInput, UScriptStruct* InScriptStruct, const FName& InMethodName, const FName& InInputPinName, const FName& InOutputPinName, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+	URigVMInjectionInfo* AddInjectedNode(const FString& InPinPath, bool bAsInput, UScriptStruct* InScriptStruct, const FName& InMethodName, const FName& InInputPinName, const FName& InOutputPinName, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Adds a Function / Struct Node to the edited Graph as an injected node
 	// UnitNode represent a RIGVM_METHOD declaration on a USTRUCT.
@@ -271,12 +273,12 @@ public:
 
 	// Ejects the last injected node on a pin
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMNode* EjectNodeFromPin(const FString& InPinPath, bool bSetupUndoRedo = true);
+	URigVMNode* EjectNodeFromPin(const FString& InPinPath, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Adds an enum node to the graph
 	// Enum nodes can be used to represent constant enum values within the graph
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMEnumNode* AddEnumNode(const FName& InCPPTypeObjectPath, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+	URigVMEnumNode* AddEnumNode(const FName& InCPPTypeObjectPath, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Un-does the last action on the stack.
 	// Note: This should really only be used for unit tests,
@@ -330,44 +332,47 @@ public:
     URigVMLibraryNode* LocalizeFunction(
     	URigVMLibraryNode* InFunctionDefinition,
 		bool bLocalizeDependentPrivateFunctions = true,
-    	bool bSetupUndoRedo = true);
+    	bool bSetupUndoRedo = true,
+    	bool bPrintPythonCommand = false);
 
 	// Copies a series of function declaratioms into this graph's local function library
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
     TMap<URigVMLibraryNode*, URigVMLibraryNode*> LocalizeFunctions(
         TArray<URigVMLibraryNode*> InFunctionDefinitions,
         bool bLocalizeDependentPrivateFunctions = true,
-        bool bSetupUndoRedo = true);
+        bool bSetupUndoRedo = true,
+        bool bPrintPythonCommand = false);
 
 	// Returns a unique name
 	static FName GetUniqueName(const FName& InName, TFunction<bool(const FName&)> IsNameAvailableFunction);
 
 	// Turns a series of nodes into a Collapse node
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMCollapseNode* CollapseNodes(const TArray<FName>& InNodeNames, const FString& InCollapseNodeName = TEXT(""), bool bSetupUndoRedo = true);
+	URigVMCollapseNode* CollapseNodes(const TArray<FName>& InNodeNames, const FString& InCollapseNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Turns a library node into its contained nodes
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	TArray<URigVMNode*> ExpandLibraryNode(const FName& InNodeName, bool bSetupUndoRedo = true);
+	TArray<URigVMNode*> ExpandLibraryNode(const FName& InNodeName, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Turns a collapse node into a function node
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	FName PromoteCollapseNodeToFunctionReferenceNode(const FName& InNodeName, bool bSetupUndoRedo = true);
+	FName PromoteCollapseNodeToFunctionReferenceNode(const FName& InNodeName, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Turns a collapse node into a function node
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	FName PromoteFunctionReferenceNodeToCollapseNode(const FName& InNodeName, bool bSetupUndoRedo = true);
+	FName PromoteFunctionReferenceNodeToCollapseNode(const FName& InNodeName, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 #endif
 
 	// Removes a node from the graph
 	// This causes a NodeRemoved modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo = true, bool bRecursive = false);
+	bool RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo = true, bool bRecursive = false, bool bPrintPythonCommand = false);
 
 	// Removes a node from the graph given the node's name.
 	// This causes a NodeRemoved modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool RemoveNodeByName(const FName& InNodeName, bool bSetupUndoRedo = true, bool bRecursive = false);
+	bool RemoveNodeByName(const FName& InNodeName, bool bSetupUndoRedo = true, bool bRecursive = false, bool bPrintPythonCommand = false);
 
 	// Renames a node in the graph
 	// This causes a NodeRenamed modified event.
@@ -377,7 +382,7 @@ public:
 	// Selects a single node in the graph.
 	// This causes a NodeSelected / NodeDeselected modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool SelectNode(URigVMNode* InNode, bool bSelect = true, bool bSetupUndoRedo = true);
+	bool SelectNode(URigVMNode* InNode, bool bSelect = true, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Selects a single node in the graph by name.
 	// This causes a NodeSelected / NodeDeselected modified event.
@@ -387,37 +392,37 @@ public:
 	// Deselects all currently selected nodes in the graph.
 	// This might cause several NodeDeselected modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool ClearNodeSelection(bool bSetupUndoRedo = true);
+	bool ClearNodeSelection(bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Selects the nodes given the selection
 	// This might cause several NodeDeselected modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool SetNodeSelection(const TArray<FName>& InNodeNames, bool bSetupUndoRedo = true);
+	bool SetNodeSelection(const TArray<FName>& InNodeNames, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Sets the position of a node in the graph.
 	// This causes a NodePositionChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool SetNodePosition(URigVMNode* InNode, const FVector2D& InPosition, bool bSetupUndoRedo = true, bool bMergeUndoAction = false);
+	bool SetNodePosition(URigVMNode* InNode, const FVector2D& InPosition, bool bSetupUndoRedo = true, bool bMergeUndoAction = false, bool bPrintPythonCommand = false);
 
 	// Sets the position of a node in the graph by name.
 	// This causes a NodePositionChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool SetNodePositionByName(const FName& InNodeName, const FVector2D& InPosition, bool bSetupUndoRedo = true, bool bMergeUndoAction = false);
+	bool SetNodePositionByName(const FName& InNodeName, const FVector2D& InPosition, bool bSetupUndoRedo = true, bool bMergeUndoAction = false, bool bPrintPythonCommand = false);
 
 	// Sets the size of a node in the graph.
 	// This causes a NodeSizeChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool SetNodeSize(URigVMNode* InNode, const FVector2D& InSize, bool bSetupUndoRedo = true, bool bMergeUndoAction = false);
+	bool SetNodeSize(URigVMNode* InNode, const FVector2D& InSize, bool bSetupUndoRedo = true, bool bMergeUndoAction = false, bool bPrintPythonCommand = false);
 
 	// Sets the size of a node in the graph by name.
 	// This causes a NodeSizeChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool SetNodeSizeByName(const FName& InNodeName, const FVector2D& InSize, bool bSetupUndoRedo = true, bool bMergeUndoAction = false);
+	bool SetNodeSizeByName(const FName& InNodeName, const FVector2D& InSize, bool bSetupUndoRedo = true, bool bMergeUndoAction = false, bool bPrintPythonCommand = false);
 
 	// Sets the color of a node in the graph.
 	// This causes a NodeColorChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool SetNodeColor(URigVMNode* InNode, const FLinearColor& InColor, bool bSetupUndoRedo = true, bool bMergeUndoAction = false);
+	bool SetNodeColor(URigVMNode* InNode, const FLinearColor& InColor, bool bSetupUndoRedo = true, bool bMergeUndoAction = false, bool bPrintPythonCommand = false);
 
 	// Sets the color of a node in the graph by name.
 	// This causes a NodeColorChanged modified event.
@@ -427,7 +432,7 @@ public:
 	// Sets the category of a node in the graph.
 	// This causes a NodeCategoryChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool SetNodeCategory(URigVMCollapseNode* InNode, const FString& InCategory, bool bSetupUndoRedo = true, bool bMergeUndoAction = false);
+	bool SetNodeCategory(URigVMCollapseNode* InNode, const FString& InCategory, bool bSetupUndoRedo = true, bool bMergeUndoAction = false, bool bPrintPythonCommand = false);
 
 	// Sets the category of a node in the graph.
 	// This causes a NodeCategoryChanged modified event.
@@ -437,7 +442,7 @@ public:
 	// Sets the keywords of a node in the graph.
 	// This causes a NodeKeywordsChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool SetNodeKeywords(URigVMCollapseNode* InNode, const FString& InKeywords, bool bSetupUndoRedo = true, bool bMergeUndoAction = false);
+	bool SetNodeKeywords(URigVMCollapseNode* InNode, const FString& InKeywords, bool bSetupUndoRedo = true, bool bMergeUndoAction = false, bool bPrintPythonCommand = false);
 
 	// Sets the keywords of a node in the graph.
 	// This causes a NodeKeywordsChanged modified event.
@@ -447,7 +452,7 @@ public:
 	// Sets the function description of a node in the graph.
 	// This causes a NodeDescriptionChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool SetNodeDescription(URigVMCollapseNode* InNode, const FString& InDescription, bool bSetupUndoRedo = true, bool bMergeUndoAction = false);
+	bool SetNodeDescription(URigVMCollapseNode* InNode, const FString& InDescription, bool bSetupUndoRedo = true, bool bMergeUndoAction = false, bool bPrintPythonCommand = false);
 
 	// Sets the keywords of a node in the graph.
 	// This causes a NodeDescriptionChanged modified event.
@@ -457,17 +462,17 @@ public:
 	// Sets the comment text of a comment node in the graph.
 	// This causes a CommentTextChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool SetCommentText(URigVMNode* InNode, const FString& InCommentText, bool bSetupUndoRedo = true);
+	bool SetCommentText(URigVMNode* InNode, const FString& InCommentText, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Sets the comment text of a comment node in the graph by name.
 	// This causes a CommentTextChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool SetCommentTextByName(const FName& InNodeName, const FString& InCommentText, bool bSetupUndoRedo = true);
+	bool SetCommentTextByName(const FName& InNodeName, const FString& InCommentText, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Sets the compactness of a reroute node in the graph.
 	// This causes a RerouteCompactnessChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool SetRerouteCompactness(URigVMNode* InNode, bool bShowAsFullNode, bool bSetupUndoRedo = true);
+	bool SetRerouteCompactness(URigVMNode* InNode, bool bShowAsFullNode, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Sets the compactness of a reroute node in the graph by name.
 	// This causes a RerouteCompactnessChanged modified event.
@@ -487,7 +492,7 @@ public:
 	// Sets the pin to be expanded or not
 	// This causes a PinExpansionChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool SetPinExpansion(const FString& InPinPath, bool bIsExpanded, bool bSetupUndoRedo = true);
+	bool SetPinExpansion(const FString& InPinPath, bool bIsExpanded, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Sets the pin to be watched (or not)
 	// This causes a PinWatchedChanged modified event.
@@ -501,103 +506,103 @@ public:
 	// Sets the default value of a pin given its pinpath.
 	// This causes a PinDefaultValueChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool SetPinDefaultValue(const FString& InPinPath, const FString& InDefaultValue, bool bResizeArrays = true, bool bSetupUndoRedo = true, bool bMergeUndoAction = false);
+	bool SetPinDefaultValue(const FString& InPinPath, const FString& InDefaultValue, bool bResizeArrays = true, bool bSetupUndoRedo = true, bool bMergeUndoAction = false, bool bPrintPythonCommand = false);
 
 	// Resets the default value of a pin given its pinpath.
 	// This causes a PinDefaultValueChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool ResetPinDefaultValue(const FString& InPinPath, bool bSetupUndoRedo = true);
+	bool ResetPinDefaultValue(const FString& InPinPath, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Adds an array element pin to the end of an array pin.
 	// This causes a PinArraySizeChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	FString AddArrayPin(const FString& InArrayPinPath, const FString& InDefaultValue = TEXT(""), bool bSetupUndoRedo = true);
+	FString AddArrayPin(const FString& InArrayPinPath, const FString& InDefaultValue = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Duplicates an array element pin.
 	// This causes a PinArraySizeChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	FString DuplicateArrayPin(const FString& InArrayElementPinPath, bool bSetupUndoRedo = true);
+	FString DuplicateArrayPin(const FString& InArrayElementPinPath, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Inserts an array element pin into an array pin.
 	// This causes a PinArraySizeChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	FString InsertArrayPin(const FString& InArrayPinPath, int32 InIndex = -1, const FString& InDefaultValue = TEXT(""), bool bSetupUndoRedo = true);
+	FString InsertArrayPin(const FString& InArrayPinPath, int32 InIndex = -1, const FString& InDefaultValue = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Removes an array element pin from an array pin.
 	// This causes a PinArraySizeChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool RemoveArrayPin(const FString& InArrayElementPinPath, bool bSetupUndoRedo = true);
+	bool RemoveArrayPin(const FString& InArrayElementPinPath, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Removes all (but one) array element pin from an array pin.
 	// This causes a PinArraySizeChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool ClearArrayPin(const FString& InArrayPinPath, bool bSetupUndoRedo = true);
+	bool ClearArrayPin(const FString& InArrayPinPath, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Sets the size of the array pin
 	// This causes a PinArraySizeChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool SetArrayPinSize(const FString& InArrayPinPath, int32 InSize, const FString& InDefaultValue = TEXT(""), bool bSetupUndoRedo = true);
+	bool SetArrayPinSize(const FString& InArrayPinPath, int32 InSize, const FString& InDefaultValue = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Binds a pin to a variable (or removes the binding given NAME_None)
 	// This causes a PinBoundVariableChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool BindPinToVariable(const FString& InPinPath, const FString& InNewBoundVariablePath, bool bSetupUndoRedo = true);
+	bool BindPinToVariable(const FString& InPinPath, const FString& InNewBoundVariablePath, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Removes the binging of a pin to a variable
 	// This causes a PinBoundVariableChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool UnbindPinFromVariable(const FString& InPinPath, bool bSetupUndoRedo = true);
+	bool UnbindPinFromVariable(const FString& InPinPath, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Turns a variable node into one or more bindings
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool MakeBindingsFromVariableNode(const FName& InNodeName, bool bSetupUndoRedo = true);
+	bool MakeBindingsFromVariableNode(const FName& InNodeName, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Turns a binding to a variable node
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool MakeVariableNodeFromBinding(const FString& InPinPath, const FVector2D& InNodePosition = FVector2D::ZeroVector, bool bSetupUndoRedo = true);
+	bool MakeVariableNodeFromBinding(const FString& InPinPath, const FVector2D& InNodePosition = FVector2D::ZeroVector, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Promotes a pin to a variable
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool PromotePinToVariable(const FString& InPinPath, bool bCreateVariableNode, const FVector2D& InNodePosition = FVector2D::ZeroVector, bool bSetupUndoRedo = true);
+	bool PromotePinToVariable(const FString& InPinPath, bool bCreateVariableNode, const FVector2D& InNodePosition = FVector2D::ZeroVector, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Adds a link to the graph.
 	// This causes a LinkAdded modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool AddLink(const FString& InOutputPinPath, const FString& InInputPinPath, bool bSetupUndoRedo = true);
+	bool AddLink(const FString& InOutputPinPath, const FString& InInputPinPath, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Removes a link from the graph.
 	// This causes a LinkRemoved modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool BreakLink(const FString& InOutputPinPath, const FString& InInputPinPath, bool bSetupUndoRedo = true);
+	bool BreakLink(const FString& InOutputPinPath, const FString& InInputPinPath, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Removes all links on a given pin from the graph.
 	// This might cause multiple LinkRemoved modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool BreakAllLinks(const FString& InPinPath, bool bAsInput = true, bool bSetupUndoRedo = true);
+	bool BreakAllLinks(const FString& InPinPath, bool bAsInput = true, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Adds an exposed pin to the graph controlled by this
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	FName AddExposedPin(const FName& InPinName, ERigVMPinDirection InDirection, const FString& InCPPType, const FName& InCPPTypeObjectPath, const FString& InDefaultValue, bool bSetupUndoRedo = true);
+	FName AddExposedPin(const FName& InPinName, ERigVMPinDirection InDirection, const FString& InCPPType, const FName& InCPPTypeObjectPath, const FString& InDefaultValue, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Removes an exposed pin from the graph controlled by this
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool RemoveExposedPin(const FName& InPinName, bool bSetupUndoRedo = true);
+	bool RemoveExposedPin(const FName& InPinName, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Renames an exposed pin in the graph controlled by this
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool RenameExposedPin(const FName& InOldPinName, const FName& InNewPinName, bool bSetupUndoRedo = true);
+	bool RenameExposedPin(const FName& InOldPinName, const FName& InNewPinName, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Changes the type of an exposed pin in the graph controlled by this
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool ChangeExposedPinType(const FName& InPinName, const FString& InCPPType, const FName& InCPPTypeObjectPath, UPARAM(ref) bool& bSetupUndoRedo, bool bSetupOrphanPins = true);
+	bool ChangeExposedPinType(const FName& InPinName, const FString& InCPPType, const FName& InCPPTypeObjectPath, UPARAM(ref) bool& bSetupUndoRedo, bool bSetupOrphanPins = true, bool bPrintPythonCommand = false);
 
 	// Sets the index for an exposed pin. This can be used to move the pin up and down on the node.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool SetExposedPinIndex(const FName& InPinName, int32 InNewIndex, bool bSetupUndoRedo = true);
+	bool SetExposedPinIndex(const FName& InPinName, int32 InNewIndex, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Adds a function reference / invocation to the graph
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMFunctionReferenceNode* AddFunctionReferenceNode(URigVMLibraryNode* InFunctionDefinition, const FVector2D& InNodePosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+	URigVMFunctionReferenceNode* AddFunctionReferenceNode(URigVMLibraryNode* InFunctionDefinition, const FVector2D& InNodePosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Sets the remapped variable on a function reference node
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
@@ -605,7 +610,7 @@ public:
 
 	// Adds a function definition to a function library graph
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMLibraryNode* AddFunctionToLibrary(const FName& InFunctionName, bool bMutable, const FVector2D& InNodePosition = FVector2D::ZeroVector, bool bSetupUndoRedo = true);
+	URigVMLibraryNode* AddFunctionToLibrary(const FName& InFunctionName, bool bMutable, const FVector2D& InNodePosition = FVector2D::ZeroVector, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Removes a function from a function library graph
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
@@ -613,7 +618,7 @@ public:
 
 	// Add a local variable to the graph
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	FRigVMGraphVariableDescription AddLocalVariable(const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, const FString& InDefaultValue, bool bSetupUndoRedo = true);
+	FRigVMGraphVariableDescription AddLocalVariable(const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, const FString& InDefaultValue, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Add a local variable to the graph given a struct object path name.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
@@ -621,15 +626,17 @@ public:
 
 	// Remove a local variable from the graph
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool RemoveLocalVariable(const FName& InVariableName, bool bSetupUndoRedo = true);
+	bool RemoveLocalVariable(const FName& InVariableName, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Rename a local variable from the graph
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool RenameLocalVariable(const FName& InVariableName, const FName& InNewVariableName, bool bSetupUndoRedo = true);
+	bool RenameLocalVariable(const FName& InVariableName, const FName& InNewVariableName, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Sets the type of the local variable
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	bool SetLocalVariableType(const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo = true);
+	bool SetLocalVariableType(const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool SetLocalVariableTypeFromObjectPath(const FName& InVariableName, const FString& InCPPType, const FString& InCPPTypeObjectPath, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Determine affected function references for a potential bulk edit on a library node
 	TArray<TSoftObjectPtr<URigVMFunctionReferenceNode>> GetAffectedReferences(ERigVMControllerBulkEditType InEditType, bool bForceLoad = false, bool bNotify = true);

@@ -116,7 +116,7 @@ public:
 	bool IsPinExpanded(const FString& InPinPath);
 
 	/** Propagate pin defaults to underlying properties if they have changed */
-	void CopyPinDefaultsToModel(UEdGraphPin* Pin, bool bUndo = false);
+	void CopyPinDefaultsToModel(UEdGraphPin* Pin, bool bUndo = false, bool bPrintPythonCommand = false);
 
 	/** Get the blueprint that this node is contained within */
 	UControlRigBlueprint* GetBlueprint() const;

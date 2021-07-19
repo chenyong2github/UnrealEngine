@@ -121,7 +121,7 @@ UEdGraphNode* UControlRigRerouteNodeSpawner::Invoke(UEdGraph* ParentGraph, FBind
 			}
 		}
 
-		if (URigVMNode* ModelNode = Controller->AddRerouteNodeOnPin(PinPath, bIsInput, true, Location, FString(), true))
+		if (URigVMNode* ModelNode = Controller->AddRerouteNodeOnPin(PinPath, bIsInput, true, Location, FString(), true, true))
 		{
 			for (UEdGraphNode* Node : ParentGraph->Nodes)
 			{

@@ -1280,7 +1280,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							LOCTEXT("RemoveArrayPin_Tooltip", "Removes the selected element from the array"),
 							FSlateIcon(),
 							FUIAction(FExecuteAction::CreateLambda([Controller, ModelPin]() {
-								Controller->RemoveArrayPin(ModelPin->GetPinPath());
+								Controller->RemoveArrayPin(ModelPin->GetPinPath(), true, true);
 							})
 						));
 						Section.AddMenuEntry(
@@ -1289,7 +1289,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							LOCTEXT("DuplicateArrayPin_Tooltip", "Duplicates the selected element"),
 							FSlateIcon(),
 							FUIAction(FExecuteAction::CreateLambda([Controller, ModelPin]() {
-								Controller->DuplicateArrayPin(ModelPin->GetPinPath());
+								Controller->DuplicateArrayPin(ModelPin->GetPinPath(), true, true);
 							})
 						));
 					}
@@ -1308,7 +1308,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 								LOCTEXT("MakeVariableNodeFromBinding_Tooltip", "Turns the variable binding on the pin to a variable node"),
 								FSlateIcon(),
 								FUIAction(FExecuteAction::CreateLambda([Controller, ModelPin, NodePosition]() {
-									Controller->MakeVariableNodeFromBinding(ModelPin->GetPinPath(), NodePosition);
+									Controller->MakeVariableNodeFromBinding(ModelPin->GetPinPath(), NodePosition, true, true);
 								})
 							));
 						}
@@ -1327,7 +1327,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 									FModifierKeysState KeyState = FSlateApplication::Get().GetModifierKeys();
 									bool bCreateVariableNode = !KeyState.IsAltDown();
 
-									Controller->PromotePinToVariable(ModelPin->GetPinPath(), bCreateVariableNode, NodePosition);
+									Controller->PromotePinToVariable(ModelPin->GetPinPath(), bCreateVariableNode, NodePosition, true, true);
 								})
 							));
 						}
@@ -1396,7 +1396,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 								LOCTEXT("EjectLastNode_Tooltip", "Eject the last injected node"),
 								FSlateIcon(),
 								FUIAction(FExecuteAction::CreateLambda([Controller, ModelPin]() {
-									Controller->EjectNodeFromPin(ModelPin->GetPinPath());
+									Controller->EjectNodeFromPin(ModelPin->GetPinPath(), true, true);
 								})
 							));
 						}
@@ -1443,7 +1443,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 									LOCTEXT("AddAlphaInterp_Tooltip", "Injects an interpolate node"),
 									FSlateIcon(),
 									FUIAction(FExecuteAction::CreateLambda([Controller, InGraphPin, ModelPin, ScriptStruct]() {
-										URigVMInjectionInfo* Injection = Controller->AddInjectedNode(ModelPin->GetPinPath(), ModelPin->GetDirection() != ERigVMPinDirection::Output, ScriptStruct, FRigUnit::GetMethodName(), TEXT("Value"), TEXT("Result"));
+										URigVMInjectionInfo* Injection = Controller->AddInjectedNode(ModelPin->GetPinPath(), ModelPin->GetDirection() != ERigVMPinDirection::Output, ScriptStruct, FRigUnit::GetMethodName(), TEXT("Value"), TEXT("Result"), FString(), true, true);
 										if (Injection)
 										{
 											TArray<FName> NodeNames;
@@ -1472,7 +1472,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 									LOCTEXT("RemoveAlphaInterp_Tooltip", "Removes the interpolate node"),
 									FSlateIcon(),
 									FUIAction(FExecuteAction::CreateLambda([Controller, InGraphPin, ModelPin, InterpNode]() {
-										Controller->RemoveNodeByName(InterpNode->GetFName());
+										Controller->RemoveNodeByName(InterpNode->GetFName(), true, false, true);
 									})
 								));
 							}
@@ -1525,7 +1525,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 									LOCTEXT("AddVisualDebug_Tooltip", "Injects a visual debugging node"),
 									FSlateIcon(),
 									FUIAction(FExecuteAction::CreateLambda([RigBlueprint, Controller, InGraphPin, ModelPin, ScriptStruct]() {
-										URigVMInjectionInfo* Injection = Controller->AddInjectedNode(ModelPin->GetPinPath(), ModelPin->GetDirection() != ERigVMPinDirection::Output, ScriptStruct, FRigUnit::GetMethodName(), TEXT("Value"), TEXT("Value"));
+										URigVMInjectionInfo* Injection = Controller->AddInjectedNode(ModelPin->GetPinPath(), ModelPin->GetDirection() != ERigVMPinDirection::Output, ScriptStruct, FRigUnit::GetMethodName(), TEXT("Value"), TEXT("Value"), FString(), true, true);
 										if (Injection)
 										{
 											TArray<FName> NodeNames;
@@ -1554,11 +1554,11 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 															if(URigVMPin* SpaceTypePin = SpacePin->FindSubPin(TEXT("Type")))
 															{
 																FString SpaceTypeStr = StaticEnum<ERigElementType>()->GetDisplayNameTextByValue((int64)SpaceKey.Type).ToString();
-																Controller->SetPinDefaultValue(SpaceTypePin->GetPinPath(), SpaceTypeStr);
+																Controller->SetPinDefaultValue(SpaceTypePin->GetPinPath(), SpaceTypeStr, true, true, false, true);
 															}
 															if(URigVMPin* SpaceNamePin = SpacePin->FindSubPin(TEXT("Name")))
 															{
-																Controller->SetPinDefaultValue(SpaceNamePin->GetPinPath(), SpaceKey.Name.ToString());
+																Controller->SetPinDefaultValue(SpaceNamePin->GetPinPath(), SpaceKey.Name.ToString(), true, true, false, true);
 															}
 														}
 													}
@@ -1589,7 +1589,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 									FUIAction(FExecuteAction::CreateLambda([Controller, VisualDebugNode]() {
 										URigVMPin* EnabledPin = VisualDebugNode->FindPin(TEXT("bEnabled"));
 										check(EnabledPin);
-										Controller->SetPinDefaultValue(EnabledPin->GetPinPath(), EnabledPin->GetDefaultValue() == TEXT("True") ? TEXT("False") : TEXT("True"), false);
+										Controller->SetPinDefaultValue(EnabledPin->GetPinPath(), EnabledPin->GetDefaultValue() == TEXT("True") ? TEXT("False") : TEXT("True"), false, true, false, true);
 									})
 								));
 								Section.AddMenuEntry(
@@ -1598,7 +1598,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 									LOCTEXT("RemoveVisualDebug_Tooltip", "Removes the visual debugging node"),
 									FSlateIcon(),
 										FUIAction(FExecuteAction::CreateLambda([Controller, InGraphPin, ModelPin, VisualDebugNode]() {
-										Controller->RemoveNodeByName(VisualDebugNode->GetFName());
+										Controller->RemoveNodeByName(VisualDebugNode->GetFName(), true, false, true);
 									})
 								));
 							}
@@ -1853,7 +1853,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 										Key.Name = *NewNameStr;
 										if(RigBlueprint->Hierarchy->GetIndex(Key) != INDEX_NONE)
 										{
-											Controller->SetPinDefaultValue(Pin->GetPinPath(), NewNameStr, false);
+											Controller->SetPinDefaultValue(Pin->GetPinPath(), NewNameStr, false, true, false, true);
 											ReplacedNames++;
 										}
 										else
@@ -1990,7 +1990,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						FSlateIcon(),
 						FUIAction(FExecuteAction::CreateLambda([Model, Controller]() {
 							TArray<FName> Nodes = Model->GetSelectNodes();
-							Controller->CollapseNodes(Nodes);
+							Controller->CollapseNodes(Nodes, FString(), true, true);
 						})
 					));
 					OrganizationSection.AddMenuEntry(
@@ -2001,8 +2001,8 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						FUIAction(FExecuteAction::CreateLambda([Model, Controller]() {
 							TArray<FName> Nodes = Model->GetSelectNodes();
 							Controller->OpenUndoBracket(TEXT("Collapse to Function"));
-							URigVMCollapseNode* CollapseNode = Controller->CollapseNodes(Nodes, TEXT("New Function"));
-							Controller->PromoteCollapseNodeToFunctionReferenceNode(CollapseNode->GetFName());
+							URigVMCollapseNode* CollapseNode = Controller->CollapseNodes(Nodes, TEXT("New Function"), true, true);
+							Controller->PromoteCollapseNodeToFunctionReferenceNode(CollapseNode->GetFName(), true, true);
 							Controller->CloseUndoBracket();
 						})
 					));
@@ -2015,7 +2015,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							LOCTEXT("PromoteToFunction_Tooltip", "Turns the Collapse Node into a Function"),
 							FSlateIcon(),
 							FUIAction(FExecuteAction::CreateLambda([Controller, CollapseNode]() {
-								Controller->PromoteCollapseNodeToFunctionReferenceNode(CollapseNode->GetFName());
+								Controller->PromoteCollapseNodeToFunctionReferenceNode(CollapseNode->GetFName(), true, true);
 							})
 						));
 					}
@@ -2107,7 +2107,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							FSlateIcon(),
 							FUIAction(FExecuteAction::CreateLambda([Controller, LibraryNode]() {
 								Controller->OpenUndoBracket(TEXT("Expand node"));
-								TArray<URigVMNode*> ExpandedNodes = Controller->ExpandLibraryNode(LibraryNode->GetFName());
+								TArray<URigVMNode*> ExpandedNodes = Controller->ExpandLibraryNode(LibraryNode->GetFName(), true, true);
 								if (ExpandedNodes.Num() > 0)
 								{
 									TArray<FName> ExpandedNodeNames;

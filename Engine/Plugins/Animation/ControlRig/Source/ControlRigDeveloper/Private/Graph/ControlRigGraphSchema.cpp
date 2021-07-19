@@ -59,7 +59,7 @@ void FControlRigGraphSchemaAction_LocalVar::ChangeVariableType(const FEdGraphPin
 		FString NewCPPType;
 		UObject* NewCPPTypeObject = nullptr;
 		FRigVMGraphVariableDescription::CPPTypeFromPinType(NewPinType, NewCPPType, NewCPPTypeObject);
-		Graph->GetController()->SetLocalVariableType(GetVariableName(), NewCPPType, NewCPPTypeObject);
+		Graph->GetController()->SetLocalVariableType(GetVariableName(), NewCPPType, NewCPPTypeObject, true, true);
 	}
 }
 
@@ -69,7 +69,7 @@ void FControlRigGraphSchemaAction_LocalVar::RenameVariable(const FName& NewName)
 	
 	if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetVariableScope()))
 	{
-		if (Graph->GetController()->RenameLocalVariable(OldName, NewName))
+		if (Graph->GetController()->RenameLocalVariable(OldName, NewName, true, true))
 		{
 			SetVariableInfo(NewName, GetVariableScope(), GetPinType().PinCategory == TEXT("bool"));		
 		}
@@ -104,7 +104,7 @@ void FControlRigGraphSchemaAction_LocalVar::DeleteVariable()
 {
 	if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetVariableScope()))
 	{
-		Graph->GetController()->RemoveLocalVariable(GetVariableName());
+		Graph->GetController()->RemoveLocalVariable(GetVariableName(), true, true);
 	}
 }
 
@@ -154,7 +154,7 @@ FReply FControlRigFunctionDragDropAction::DroppedOnPanel(const TSharedRef< class
 							FUIAction(
 							FExecuteAction::CreateLambda([Controller, LocalVariable, GraphPosition]()
 							{
-								Controller->AddVariableNode(LocalVariable.Name, LocalVariable.CPPType, LocalVariable.CPPTypeObject, true, LocalVariable.DefaultValue, GraphPosition);
+								Controller->AddVariableNode(LocalVariable.Name, LocalVariable.CPPType, LocalVariable.CPPTypeObject, true, LocalVariable.DefaultValue, GraphPosition, FString(), true, true);
 							}),
 							FCanExecuteAction()));
 
@@ -165,7 +165,7 @@ FReply FControlRigFunctionDragDropAction::DroppedOnPanel(const TSharedRef< class
 							FUIAction(
 							FExecuteAction::CreateLambda([Controller, LocalVariable, GraphPosition]()
 							{
-								Controller->AddVariableNode(LocalVariable.Name, LocalVariable.CPPType, LocalVariable.CPPTypeObject, false, LocalVariable.DefaultValue, GraphPosition);
+								Controller->AddVariableNode(LocalVariable.Name, LocalVariable.CPPType, LocalVariable.CPPTypeObject, false, LocalVariable.DefaultValue, GraphPosition, FString(), true, true);
 							}),
 							FCanExecuteAction()));
 
@@ -210,7 +210,7 @@ FReply FControlRigFunctionDragDropAction::DroppedOnPanel(const TSharedRef< class
 									}
 								}
 #endif
-								TargetController->AddFunctionReferenceNode(FunctionDefinitionNode, GraphPosition);
+								TargetController->AddFunctionReferenceNode(FunctionDefinitionNode, GraphPosition, FString(), true, true);
 							}
 						}
 					}
@@ -408,7 +408,7 @@ bool UControlRigGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin*
 			}
 #endif
 			
-			return Controller->AddLink(PinA->GetName(), PinB->GetName());
+			return Controller->AddLink(PinA->GetName(), PinB->GetName(), true, true);
 		}
 	}
 	return false;
@@ -632,7 +632,7 @@ void UControlRigGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNo
 	// cache this here, as BreakPinLinks can trigger a node reconstruction invalidating the TargetPin referenceS
 	if (UControlRigGraphNode* Node = Cast< UControlRigGraphNode>(TargetPin.GetOwningNode()))
 	{
-		Node->GetController()->BreakAllLinks(TargetPin.GetName(), TargetPin.Direction == EGPD_Input);
+		Node->GetController()->BreakAllLinks(TargetPin.GetName(), TargetPin.Direction == EGPD_Input, true, true);
 	}
 }
 
@@ -649,7 +649,7 @@ void UControlRigGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraph
 			SourcePin = Temp;
 		}
 		
-		Node->GetController()->BreakLink(SourcePin->GetName(), TargetPin->GetName());
+		Node->GetController()->BreakLink(SourcePin->GetName(), TargetPin->GetName(), true, true);
 	}
 }
 
@@ -760,7 +760,7 @@ void UControlRigGraphSchema::OnPinConnectionDoubleCicked(UEdGraphPin* PinA, UEdG
 	{
 		if (URigVMLink* Link = Node->GetModel()->FindLink(FString::Printf(TEXT("%s -> %s"), *PinA->GetName(), *PinB->GetName())))
 		{
-			Node->GetController()->AddRerouteNodeOnLink(Link, false, GraphPosition);
+			Node->GetController()->AddRerouteNodeOnLink(Link, false, GraphPosition, FString(), true, true);
 		}
 	}
 }
@@ -794,14 +794,14 @@ void UControlRigGraphSchema::SetNodePosition(UEdGraphNode* Node, const FVector2D
 
 	if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
 	{
-		RigNode->GetController()->SetNodePosition(RigNode->GetModelNode(), Position, bSetupUndo, false);
+		RigNode->GetController()->SetNodePosition(RigNode->GetModelNode(), Position, bSetupUndo, false, false);
 	}
 	
 	if (UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node))
 	{
 		if(UControlRigGraph* Graph = CommentNode->GetTypedOuter<UControlRigGraph>())
 		{
-			Graph->GetController()->SetNodePositionByName(CommentNode->GetFName(), Position, bSetupUndo, false);
+			Graph->GetController()->SetNodePositionByName(CommentNode->GetFName(), Position, bSetupUndo, false, false);
 		}
 	}
 }
@@ -906,7 +906,7 @@ FReply UControlRigGraphSchema::TrySetGraphCategory(const UEdGraph* InGraph, cons
 				{
 					if (URigVMController* Controller = RigBlueprint->GetOrCreateController(CollapseNode->GetGraph()))
 					{
-						if (Controller->SetNodeCategory(CollapseNode, InCategory.ToString()))
+						if (Controller->SetNodeCategory(CollapseNode, InCategory.ToString(), true, false, true))
 						{
 							return FReply::Handled();
 						}
@@ -1043,7 +1043,9 @@ UEdGraphPin* UControlRigGraphSchema::DropPinOnNode(UEdGraphNode* InTargetNode, c
 								PinDirection,
 								TypeName,
 								TypeObjectPathName,
-								DefaultValue
+								DefaultValue,
+								true,
+								true
 							);
 							
 							if (!ExposedPinName.IsNone())
@@ -1261,7 +1263,7 @@ bool UControlRigGraphSchema::SafeDeleteNodeFromGraph(UEdGraph* Graph, UEdGraphNo
 {
 	if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
 	{
-		return RigNode->GetController()->RemoveNode(RigNode->GetModelNode());
+		return RigNode->GetController()->RemoveNode(RigNode->GetModelNode(), true, false, true);
 	}
 	return false;
 }
@@ -1307,7 +1309,7 @@ bool UControlRigGraphSchema::RequestVariableDropOnPin(UEdGraph* InGraph, FProper
 					FModifierKeysState KeyState = FSlateApplication::Get().GetModifierKeys();
 					if (KeyState.IsAltDown())
 					{
-						return Graph->GetController()->BindPinToVariable(ModelPin->GetPinPath(), InVariableToDrop->GetName());
+						return Graph->GetController()->BindPinToVariable(ModelPin->GetPinPath(), InVariableToDrop->GetName(), true, true);
 					}
 					else
 					{
@@ -1397,7 +1399,7 @@ void UControlRigGraphSchema::EndGraphNodeInteraction(UEdGraphNode* InNode) const
 				Graph->GetController()->SetNodePositionByName(NodeName, *OldPosition, false, false);
 			}
 			
-			if(Graph->GetController()->SetNodePositionByName(NodeName, NewPosition, true, false))
+			if(Graph->GetController()->SetNodePositionByName(NodeName, NewPosition, true, false, true))
 			{
 				bMovedSomething = true;
 			}

@@ -447,7 +447,7 @@ void SRigCurveContainer::OnNameCommitted(const FText& InNewName, ETextCommit::Ty
 			{
 				FName NewName = FName(*InNewName.ToString());
 				FName OldName = Item->CurveName;
-				Controller->RenameElement(FRigElementKey(OldName, ERigElementType::Curve), NewName, true);
+				Controller->RenameElement(FRigElementKey(OldName, ERigElementType::Curve), NewName, true, true);
 			}
 		}
 	}
@@ -465,7 +465,7 @@ void SRigCurveContainer::OnDeleteNameClicked()
 		{
 			if(URigHierarchyController* Controller = Hierarchy->GetController())
 			{
-				Controller->RemoveElement(FRigElementKey(Item->CurveName, ERigElementType::Curve), true);
+				Controller->RemoveElement(FRigElementKey(Item->CurveName, ERigElementType::Curve), true, true);
 			}
 		}
 	}
@@ -507,7 +507,7 @@ void SRigCurveContainer::ChangeCurveName(const FName& OldName, const FName& NewN
 	{
 		if(URigHierarchyController* Controller = Hierarchy->GetController())
 		{
-			Controller->RenameElement(FRigElementKey(OldName, ERigElementType::Curve), NewName, true);
+			Controller->RenameElement(FRigElementKey(OldName, ERigElementType::Curve), NewName, true, true);
 		}
 	}
 }
@@ -682,7 +682,7 @@ void SRigCurveContainer::ImportCurve(const FAssetData& InAssetData)
 			if(URigHierarchyController* Controller = Hierarchy->GetController())
 			{
 				Controller->ClearSelection();
-				Controller->ImportCurves(Skeleton, NAME_None, false, true);
+				Controller->ImportCurves(Skeleton, NAME_None, false, true, true);
 			}
 
 			FSlateApplication::Get().DismissAllMenus();

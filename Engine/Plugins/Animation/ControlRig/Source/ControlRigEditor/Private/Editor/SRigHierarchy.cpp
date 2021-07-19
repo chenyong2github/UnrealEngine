@@ -1629,8 +1629,8 @@ void SRigHierarchy::RefreshHierarchy(const FAssetData& InAssetData)
 		URigHierarchyController* Controller = Hierarchy->GetController(true);
 		check(Controller);
 		
-		Controller->ImportBones(RefSkeleton, NAME_None, true, true, bSelectBones, true);
-		Controller->ImportCurves(Mesh->GetSkeleton(), NAME_None, false, true);
+		Controller->ImportBones(Mesh->GetSkeleton(), NAME_None, true, true, bSelectBones, true, true);
+		Controller->ImportCurves(Mesh->GetSkeleton(), NAME_None, false, true, true);
 	}
 
 	ControlRigBlueprint->PropagateHierarchyFromBPToInstances();
@@ -1697,12 +1697,10 @@ void SRigHierarchy::ImportHierarchy(const FAssetData& InAssetData)
 			bSelectBones = !CurrentRig->IsSetupModeEnabled();
 		}
 
-		const FReferenceSkeleton& RefSkeleton = Mesh->GetRefSkeleton();
-
 		URigHierarchyController* Controller = Hierarchy->GetController(true);
 		check(Controller);
 
-		TArray<FRigElementKey> ImportedBones = Controller->ImportBones(RefSkeleton, NAME_None, false, false, bSelectBones, true);
+		TArray<FRigElementKey> ImportedBones = Controller->ImportBones(Mesh->GetSkeleton(), NAME_None, false, false, bSelectBones, true, true);
 		Controller->ImportCurves(Mesh->GetSkeleton(), NAME_None, true, true);
 
 		ControlRigBlueprint->SourceHierarchyImport = Mesh->GetSkeleton();
@@ -1848,7 +1846,7 @@ void SRigHierarchy::HandleDeleteItem()
 				}
 			}
 
-			Controller->RemoveElement(SelectedKey, true);
+			Controller->RemoveElement(SelectedKey, true, true);
 			RemovedItems.Add(SelectedKey);
 		}
 	}
@@ -1902,7 +1900,7 @@ void SRigHierarchy::HandleNewItem(ERigElementType InElementType)
 			{
 				case ERigElementType::Bone:
 				{
-					NewItemKey = Controller->AddBone(NewElementName, ParentKey, ParentTransform, true, ERigBoneType::User, true);
+					NewItemKey = Controller->AddBone(NewElementName, ParentKey, ParentTransform, true, ERigBoneType::User, true, true);
 					break;
 				}
 				case ERigElementType::Control:
@@ -1910,12 +1908,12 @@ void SRigHierarchy::HandleNewItem(ERigElementType InElementType)
 					FRigControlSettings Settings;
 					Settings.ControlType = ERigControlType::EulerTransform;
 						
-					NewItemKey = Controller->AddControl(NewElementName, ParentKey, Settings, Settings.GetIdentityValue(), FTransform::Identity, FTransform::Identity, true);
+					NewItemKey = Controller->AddControl(NewElementName, ParentKey, Settings, Settings.GetIdentityValue(), FTransform::Identity, FTransform::Identity, true, true);
 					break;
 				}
 				case ERigElementType::Null:
 				{
-					NewItemKey = Controller->AddNull(NewElementName, ParentKey, ParentTransform, true, true);
+					NewItemKey = Controller->AddNull(NewElementName, ParentKey, ParentTransform, true, true, true);
 					break;
 				}
 				default:
@@ -2408,7 +2406,7 @@ FName SRigHierarchy::RenameElement(const FRigElementKey& OldKey, const FString& 
 		const FName SanitizedName = *SanitizedNameStr;
 		FName ResultingName = NAME_None;
 
-		ResultingName = Controller->RenameElement(OldKey, SanitizedName, true).Name;
+		ResultingName = Controller->RenameElement(OldKey, SanitizedName, true, true).Name;
 		ControlRigBlueprint->PropagateHierarchyFromBPToInstances();
 		return ResultingName;
 	}
@@ -2657,14 +2655,14 @@ void SRigHierarchy::HandleUnparent()
 
 				if (bUnparentImportedBones || !bIsImportedBone)
 				{
-					Controller->RemoveAllParents(SelectedKey, true, true);
+					Controller->RemoveAllParents(SelectedKey, true, true, true);
 				}
 				break;
 			}
 			case ERigElementType::Null:
 			case ERigElementType::Control:
 			{
-				Controller->RemoveAllParents(SelectedKey, true, true);
+				Controller->RemoveAllParents(SelectedKey, true, true, true);
 				break;
 			}
 			default:
@@ -2834,7 +2832,7 @@ FReply SRigHierarchy::ReparentOrMatchTransform(const TArray<FRigElementKey>& Dra
 			}
 			else
 			{
-				Controller->RemoveAllParents(DraggedKey, true, true);
+				Controller->RemoveAllParents(DraggedKey, true, true, true);
 			}
 
 			DebuggedHierarchy->SetInitialGlobalTransform(DraggedKey, InitialTransform, true, true);

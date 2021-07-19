@@ -78,10 +78,11 @@ public:
 	 * @param bTransformInGlobal Set this to true if the Transform passed is expressed in global space, false for local space.
 	 * @param InBoneType The type of bone to add. This can be used to differentiate between imported bones and user defined bones.
 	 * @param bSetupUndo If set to true the stack will record the change for undo / redo
+	 * @param bPrintPythonCommand If set to true a python command equivalent to this call will be printed out
 	 * @return The key for the newly created bone.
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
-	FRigElementKey AddBone(FName InName, FRigElementKey InParent, FTransform InTransform, bool bTransformInGlobal = true, ERigBoneType InBoneType = ERigBoneType::User, bool bSetupUndo = false);
+	FRigElementKey AddBone(FName InName, FRigElementKey InParent, FTransform InTransform, bool bTransformInGlobal = true, ERigBoneType InBoneType = ERigBoneType::User, bool bSetupUndo = false, bool bPrintPythonCommand = false);
 
 	/**
 	 * Adds a null to the hierarchy
@@ -90,10 +91,11 @@ public:
 	 * @param InTransform The transform for the new null - either in local or global null, based on bTransformInGlobal
 	 * @param bTransformInGlobal Set this to true if the Transform passed is expressed in global null, false for local null.
 	 * @param bSetupUndo If set to true the stack will record the change for undo / redo
+	 * @param bPrintPythonCommand If set to true a python command equivalent to this call will be printed out
 	 * @return The key for the newly created null.
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
-    FRigElementKey AddNull(FName InName, FRigElementKey InParent, FTransform InTransform, bool bTransformInGlobal = true, bool bSetupUndo = false);
+    FRigElementKey AddNull(FName InName, FRigElementKey InParent, FTransform InTransform, bool bTransformInGlobal = true, bool bSetupUndo = false, bool bPrintPythonCommand = false);
 
 	/**
 	 * Adds a control to the hierarchy
@@ -104,6 +106,7 @@ public:
 	 * @param InOffsetTransform The transform to use for the offset
 	 * @param InGizmoTransform The transform to use for the gizmo
 	 * @param bSetupUndo If set to true the stack will record the change for undo / redo
+	 * @param bPrintPythonCommand If set to true a python command equivalent to this call will be printed out
 	 * @return The key for the newly created control.
 	 */
     FRigElementKey AddControl(
@@ -113,7 +116,8 @@ public:
     	FRigControlValue InValue,
     	FTransform InOffsetTransform = FTransform::Identity,
         FTransform InGizmoTransform = FTransform::Identity,
-        bool bSetupUndo = true
+        bool bSetupUndo = true,
+        bool bPrintPythonCommand = false
         );
 
 	/**
@@ -142,13 +146,15 @@ public:
 	 * @param InName The suggested name of the new curve - will eventually be corrected by the namespace
 	 * @param InValue The value to use for the curve
 	 * @param bSetupUndo If set to true the stack will record the change for undo / redo
+	 * @param bPrintPythonCommand If set to true a python command equivalent to this call will be printed out
 	 * @return The key for the newly created curve.
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
     FRigElementKey AddCurve(
         FName InName,
         float InValue = 0.f,
-        bool bSetupUndo = true
+        bool bSetupUndo = true,
+		bool bPrintPythonCommand = false
         );
 
 	/**
@@ -158,6 +164,7 @@ public:
 	* @param InSettings All of the rigidbody's settings
 	* @param InLocalTransform The transform for the new rigidbody - in the space of the provided parent
 	* @param bSetupUndo If set to true the stack will record the change for undo / redo
+	* @param bPrintPythonCommand If set to true a python command equivalent to this call will be printed out
 	* @return The key for the newly created rigidbody.
 	*/
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
@@ -166,7 +173,8 @@ public:
     	FRigElementKey InParent,
         FRigRigidBodySettings InSettings,
     	FTransform InLocalTransform,
-    	bool bSetupUndo = false);
+    	bool bSetupUndo = false,
+		bool bPrintPythonCommand = false);
 
 	/**
 	* Adds an socket to the hierarchy
@@ -225,23 +233,18 @@ public:
 	 * @param bRemoveObsoleteBones If true bones non-existent in the skeleton will be removed from the hierarchy
 	 * @param bSelectBones If true the bones will be selected upon import
 	 * @param bSetupUndo If set to true the stack will record the change for undo / redo
+	 * @param bPrintPythonCommand If set to true a python command equivalent to this call will be printed out
 	 * @return The keys of the imported elements
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
-    FORCEINLINE TArray<FRigElementKey> ImportBones(
-        USkeleton* InSkeleton,
-        FName InNameSpace = NAME_None,
-        bool bReplaceExistingBones = true,
-        bool bRemoveObsoleteBones = true,
-        bool bSelectBones = false,
-        bool bSetupUndo = false)
-	{
-		if(InSkeleton == nullptr)
-		{
-			return TArray<FRigElementKey>();
-		}
-		return ImportBones(InSkeleton->GetReferenceSkeleton(), InNameSpace, bReplaceExistingBones, bRemoveObsoleteBones, bSelectBones, bSetupUndo);
-	}
+	TArray<FRigElementKey> ImportBones(
+		USkeleton* InSkeleton,
+		FName InNameSpace = NAME_None,
+		bool bReplaceExistingBones = true,
+		bool bRemoveObsoleteBones = true,
+		bool bSelectBones = false,
+		bool bSetupUndo = false,
+		bool bPrintPythonCommand = false);
 
 #if WITH_EDITOR
 	/**
@@ -277,7 +280,8 @@ public:
 		USkeleton* InSkeleton, 
 		FName InNameSpace = NAME_None,  
 		bool bSelectCurves = false,
-		bool bSetupUndo = false);
+		bool bSetupUndo = false,
+		bool bPrintPythonCommand = false);
 
 #if WITH_EDITOR
 	/**
@@ -336,20 +340,22 @@ public:
 	 * Removes an existing element from the hierarchy
 	 * @param InElement The key of the element to remove
 	 * @param bSetupUndo If set to true the stack will record the change for undo / redo
+	 * @param bPrintPythonCommand If set to true a python command equivalent to this call will be printed out
 	 * @return Returns true if successful.
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
-    bool RemoveElement(FRigElementKey InElement, bool bSetupUndo = false);
+	bool RemoveElement(FRigElementKey InElement, bool bSetupUndo = false, bool bPrintPythonCommand = false);
 
 	/**
 	 * Renames an existing element in the hierarchy
 	 * @param InElement The key of the element to rename
 	 * @param InName The new name to set for the element
 	 * @param bSetupUndo If set to true the stack will record the change for undo / redo
+	 * @param bPrintPythonCommand If set to true a python command equivalent to this call will be printed out
 	 * @return Returns the new element key used for the element
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
-    FRigElementKey RenameElement(FRigElementKey InElement, FName InName, bool bSetupUndo = false);
+    FRigElementKey RenameElement(FRigElementKey InElement, FName InName, bool bSetupUndo = false, bool bPrintPythonCommand = false);
 
 	/**
 	 * Adds a new parent to an element. For elements that allow only one parent the parent will be replaced (Same as ::SetParent).
@@ -368,20 +374,22 @@ public:
 	 * @param InParent The key of the parent to remove
 	 * @param bMaintainGlobalTransform If set to true the child will stay in the same place spatially, otherwise it will maintain it's local transform (and potential move).
 	 * @param bSetupUndo If set to true the stack will record the change for undo / redo
+	 * @param bPrintPythonCommand If set to true a python command equivalent to this call will be printed out
 	 * @return Returns true if successful.
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
-	bool RemoveParent(FRigElementKey InChild, FRigElementKey InParent, bool bMaintainGlobalTransform = true, bool bSetupUndo = false);
+	bool RemoveParent(FRigElementKey InChild, FRigElementKey InParent, bool bMaintainGlobalTransform = true, bool bSetupUndo = false, bool bPrintPythonCommand = false);
 
 	/**
  	 * Removes all parents from an element in the hierarchy.
  	 * @param InChild The key of the element to remove all parents for
  	 * @param bMaintainGlobalTransform If set to true the child will stay in the same place spatially, otherwise it will maintain it's local transform (and potential move).
 	 * @param bSetupUndo If set to true the stack will record the change for undo / redo
+	 * @param bPrintPythonCommand If set to true a python command equivalent to this call will be printed out
 	 * @return Returns true if successful.
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
-	bool RemoveAllParents(FRigElementKey InChild, bool bMaintainGlobalTransform = true, bool bSetupUndo = false);
+	bool RemoveAllParents(FRigElementKey InChild, bool bMaintainGlobalTransform = true, bool bSetupUndo = false, bool bPrintPythonCommand = false);
 
 	/**
 	 * Sets a new parent to an element. For elements that allow more than one parent the parent list will be replaced.
@@ -389,10 +397,11 @@ public:
 	 * @param InParent The key of the new parent to set
 	 * @param bMaintainGlobalTransform If set to true the child will stay in the same place spatially, otherwise it will maintain it's local transform (and potential move).
 	 * @param bSetupUndo If set to true the stack will record the change for undo / redo
+	 * @param bPrintPythonCommand If set to true a python command equivalent to this call will be printed out
 	 * @return Returns true if successful.
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
-	bool SetParent(FRigElementKey InChild, FRigElementKey InParent, bool bMaintainGlobalTransform = true, bool bSetupUndo = false);
+	bool SetParent(FRigElementKey InChild, FRigElementKey InParent, bool bMaintainGlobalTransform = true, bool bSetupUndo = false, bool bPrintPythonCommand = false);
 
 	/**
 	 * Duplicate the given elements
@@ -466,7 +475,7 @@ public:
 	 */
 	FORCEINLINE bool& GetSuspendNotificationsFlag() { return bSuspendNotifications; }
 
-
+#if WITH_EDITOR
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
 	TArray<FString> GeneratePythonCommands();
 
@@ -487,7 +496,8 @@ public:
 	TArray<FString> GetSetControlOffsetTransformPythonCommands(const FRigControlElement* Control, const FTransform& Offset, bool bInitial = false, bool bAffectChildren = true) const;
 	
 	TArray<FString> GetSetControlGizmoTransformPythonCommands(const FRigControlElement* Control, const FTransform& Transform, bool bInitial = false) const;
-
+#endif
+	
 private:
 
 	UPROPERTY(transient)

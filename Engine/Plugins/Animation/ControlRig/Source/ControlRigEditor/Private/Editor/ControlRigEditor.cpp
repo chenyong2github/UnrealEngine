@@ -1949,7 +1949,7 @@ void FControlRigEditor::OnAddNewLocalVariable()
 		return;
 	}
 
-	FRigVMGraphVariableDescription NewVar = GetFocusedController()->AddLocalVariable(TEXT("NewLocalVar"), TEXT("bool"), nullptr, TEXT("0"));
+	FRigVMGraphVariableDescription NewVar = GetFocusedController()->AddLocalVariable(TEXT("NewLocalVar"), TEXT("bool"), nullptr, TEXT("0"), true, true);
 	if(NewVar.Name.IsNone())
 	{
 		LogSimpleMessage( LOCTEXT("AddLocalVariable_Error", "Adding new local variable failed.") );
@@ -1985,14 +1985,14 @@ void FControlRigEditor::DeleteSelectedNodes()
 				AnalyticsTrackNodeEvent(GetBlueprintObj(), Node, true);
 				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
 				{
-					if(GetFocusedController()->RemoveNodeByName(*RigNode->ModelNodePath))
+					if(GetFocusedController()->RemoveNodeByName(*RigNode->ModelNodePath, true, false, true))
 					{
 						DeletedAnything = true;
 					}
 				}
 				else if (UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node))
 				{
-					if(GetFocusedController()->RemoveNodeByName(CommentNode->GetFName()))
+					if(GetFocusedController()->RemoveNodeByName(CommentNode->GetFName(), true, false, true))
 					{
 						DeletedAnything = true;
 					}
@@ -2049,31 +2049,31 @@ FReply FControlRigEditor::OnSpawnGraphNodeByShortcut(FInputChord InChord, const 
 			{
 				if(InChord.Key == EKeys::B)
 				{
-					Controller->AddBranchNode(InPosition);
+					Controller->AddBranchNode(InPosition, "", true, true);
 				}
 				else if(InChord.Key == EKeys::S)
 				{
-					Controller->AddUnitNode(FRigUnit_SequenceExecution::StaticStruct(), FRigUnit::GetMethodName(), InPosition);
+					Controller->AddUnitNode(FRigUnit_SequenceExecution::StaticStruct(), FRigUnit::GetMethodName(), InPosition, FString(), true, true);
 				}
 				else if(InChord.Key == EKeys::One)
 				{
-					Controller->AddUnitNode(FRigUnit_GetTransform::StaticStruct(), FRigUnit::GetMethodName(), InPosition);
+					Controller->AddUnitNode(FRigUnit_GetTransform::StaticStruct(), FRigUnit::GetMethodName(), InPosition, FString(), true, true);
 				}
 				else if(InChord.Key == EKeys::Two)
 				{
-					Controller->AddUnitNode(FRigUnit_SetTransform::StaticStruct(), FRigUnit::GetMethodName(), InPosition);
+					Controller->AddUnitNode(FRigUnit_SetTransform::StaticStruct(), FRigUnit::GetMethodName(), InPosition, FString(), true, true);
 				}
 				else if(InChord.Key == EKeys::Three)
 				{
-					Controller->AddUnitNode(FRigUnit_ParentConstraint::StaticStruct(), FRigUnit::GetMethodName(), InPosition);
+					Controller->AddUnitNode(FRigUnit_ParentConstraint::StaticStruct(), FRigUnit::GetMethodName(), InPosition, FString(), true, true);
 				}
 				else if(InChord.Key == EKeys::Four)
 				{
-					Controller->AddUnitNode(FRigUnit_GetControlFloat::StaticStruct(), FRigUnit::GetMethodName(), InPosition);
+					Controller->AddUnitNode(FRigUnit_GetControlFloat::StaticStruct(), FRigUnit::GetMethodName(), InPosition, FString(), true, true);
 				}
 				else if(InChord.Key == EKeys::Five)
 				{
-					Controller->AddUnitNode(FRigUnit_SetCurveValue::StaticStruct(), FRigUnit::GetMethodName(), InPosition);
+					Controller->AddUnitNode(FRigUnit_SetCurveValue::StaticStruct(), FRigUnit::GetMethodName(), InPosition, FString(), true, true);
 				}
 			}
 		}
@@ -2198,7 +2198,7 @@ void FControlRigEditor::PasteNodes()
 			check(Node);
 
 			FVector2D Position = Node->GetPosition();
-			GetFocusedController()->SetNodePositionByName(NodeName, PasteLocation + Position - Bounds.GetCenter());
+			GetFocusedController()->SetNodePositionByName(NodeName, PasteLocation + Position - Bounds.GetCenter(), true, false, true);
 		}
 
 		GetFocusedController()->SetNodeSelection(NodeNames);
@@ -2393,7 +2393,7 @@ void FControlRigEditor::NewDocument_OnClicked(ECreatedDocumentType GraphType)
 	{
 		if (URigVMController* Controller = Blueprint->GetOrCreateController(Blueprint->GetLocalFunctionLibrary()))
 		{
-			if (URigVMLibraryNode* FunctionNode = Controller->AddFunctionToLibrary(TEXT("New Function"), true))
+			if (URigVMLibraryNode* FunctionNode = Controller->AddFunctionToLibrary(TEXT("New Function"), true, FVector2D::ZeroVector, true, true))
 			{
 				if (UEdGraph* NewGraph = Blueprint->GetEdGraph(FunctionNode->GetContainedGraph()))
 				{
@@ -2841,13 +2841,13 @@ void FControlRigEditor::OnSelectedNodesChangedImpl(const TSet<class UObject*>& N
 						FVector2D NodePos(CommentNode->NodePosX, CommentNode->NodePosY);
 						FVector2D NodeSize(CommentNode->NodeWidth, CommentNode->NodeHeight);
 						FLinearColor NodeColor = CommentNode->CommentColor;
-						GetFocusedController()->AddCommentNode(CommentNode->NodeComment, NodePos, NodeSize, NodeColor, CommentNode->GetName(), true);
+						GetFocusedController()->AddCommentNode(CommentNode->NodeComment, NodePos, NodeSize, NodeColor, CommentNode->GetName(), true, true);
 					}
 				}
 				NodeNamesToSelect.Add(Node->GetFName());
 			}
 		}
-		GetFocusedController()->SetNodeSelection(NodeNamesToSelect, true);
+		GetFocusedController()->SetNodeSelection(NodeNamesToSelect, true, true);
 	}
 }
 
@@ -3894,7 +3894,7 @@ void FControlRigEditor::OnNodeTitleCommitted(const FText& NewText, ETextCommit::
 	{
 		if (UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint())
 		{
-			GetFocusedController()->SetCommentTextByName(CommentBeingChanged->GetFName(), NewText.ToString(), true);
+			GetFocusedController()->SetCommentTextByName(CommentBeingChanged->GetFName(), NewText.ToString(), true, true);
 		}
 	}
 }
@@ -4058,7 +4058,7 @@ void FControlRigEditor::OnFinishedChangingProperties(const FPropertyChangedEvent
 		if (!DefaultValue.IsEmpty())
 		{
 			FString PinPath = FString::Printf(TEXT("%s.%s"), *NodeDetailName.ToString(), *PropertyChangedEvent.MemberProperty->GetName());
-			GetFocusedController()->SetPinDefaultValue(PinPath, DefaultValue, true, true);
+			GetFocusedController()->SetPinDefaultValue(PinPath, DefaultValue, true, true, false, true);
 		}
 	}
 
@@ -4281,7 +4281,7 @@ void FControlRigEditor::OnRequestLocalizeFunctionDialog(URigVMLibraryNode* InFun
 
 						if (LocalizationDialog->ShowModal() != EAppReturnType::Cancel)
 						{
-							TargetController->LocalizeFunctions(LocalizationDialog->GetFunctionsToLocalize());
+							TargetController->LocalizeFunctions(LocalizationDialog->GetFunctionsToLocalize(), true, true, true);
 						}
 					}
 				}
@@ -4994,7 +4994,7 @@ void FControlRigEditor::OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp
 								{
 									Controller->OpenUndoBracket(TEXT("Create Collection from Items"));
 
-									if (URigVMNode* ItemsNode = Controller->AddUnitNode(FRigUnit_CollectionItems::StaticStruct(), FRigUnit::GetMethodName(), NodePosition))
+									if (URigVMNode* ItemsNode = Controller->AddUnitNode(FRigUnit_CollectionItems::StaticStruct(), FRigUnit::GetMethodName(), NodePosition, FString(), true, true))
 									{
 										if (URigVMPin* ItemsPin = ItemsNode->FindPin(TEXT("Items")))
 										{
@@ -5007,8 +5007,8 @@ void FControlRigEditor::OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp
 											{
 												FString DefaultValue;
 												FRigElementKey::StaticStruct()->ExportText(DefaultValue, &DraggedKeys[ItemIndex], nullptr, nullptr, PPF_None, nullptr);
-												Controller->SetPinDefaultValue(ItemPins[ItemIndex]->GetPinPath(), DefaultValue);
-												Controller->SetPinExpansion(ItemPins[ItemIndex]->GetPinPath(), true);
+												Controller->SetPinDefaultValue(ItemPins[ItemIndex]->GetPinPath(), DefaultValue, true, true, false, true);
+												Controller->SetPinExpansion(ItemPins[ItemIndex]->GetPinPath(), true, true, true);
 											}
 										}
 									}
@@ -5305,7 +5305,7 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 		}
 
 		FName Name = FControlRigBlueprintUtils::ValidateName(Blueprint, StructTemplate->GetName());
-		if (URigVMUnitNode* ModelNode = GetFocusedController()->AddUnitNode(StructTemplate, FRigUnit::GetMethodName(), NodePosition))
+		if (URigVMUnitNode* ModelNode = GetFocusedController()->AddUnitNode(StructTemplate, FRigUnit::GetMethodName(), NodePosition, FString(), true, true))
 		{
 			FString ItemTypeStr = StaticEnum<ERigElementType>()->GetDisplayNameTextByValue((int64)Key.Type).ToString();
 			NewNode.Name = ModelNode->GetFName();
@@ -5313,13 +5313,13 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 			
 			for (const FName& ItemPin : ItemPins)
 			{
-				GetFocusedController()->SetPinDefaultValue(FString::Printf(TEXT("%s.%s.Name"), *ModelNode->GetName(), *ItemPin.ToString()), Key.Name.ToString());
-				GetFocusedController()->SetPinDefaultValue(FString::Printf(TEXT("%s.%s.Type"), *ModelNode->GetName(), *ItemPin.ToString()), ItemTypeStr);
+				GetFocusedController()->SetPinDefaultValue(FString::Printf(TEXT("%s.%s.Name"), *ModelNode->GetName(), *ItemPin.ToString()), Key.Name.ToString(), true, true, false, true);
+				GetFocusedController()->SetPinDefaultValue(FString::Printf(TEXT("%s.%s.Type"), *ModelNode->GetName(), *ItemPin.ToString()), ItemTypeStr, true, true, false, true);
 			}
 
 			for (const FName& NamePin : NamePins)
 			{
-				GetFocusedController()->SetPinDefaultValue(FString::Printf(TEXT("%s.%s"), *ModelNode->GetName(), *NamePin.ToString()), Key.Name.ToString());
+				GetFocusedController()->SetPinDefaultValue(FString::Printf(TEXT("%s.%s"), *ModelNode->GetName(), *NamePin.ToString()), Key.Name.ToString(), true, true, false, true);
 			}
 
 			if (!NewNode.ValuePinName.IsNone())
@@ -5351,7 +5351,7 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 				}
 				if (!DefaultValue.IsEmpty())
 				{
-					GetFocusedController()->SetPinDefaultValue(FString::Printf(TEXT("%s.%s"), *ModelNode->GetName(), *NewNode.ValuePinName.ToString()), DefaultValue);
+					GetFocusedController()->SetPinDefaultValue(FString::Printf(TEXT("%s.%s"), *ModelNode->GetName(), *NewNode.ValuePinName.ToString()), DefaultValue, true, true, false, true);
 				}
 			}
 
@@ -5518,7 +5518,7 @@ void FControlRigEditor::HandleVariableDroppedFromBlueprint(UObject* InSubject, F
 		FUIAction(
 			FExecuteAction::CreateLambda([ExternalVariable, Controller, InDropPosition] {
 
-				Controller->AddVariableNode(ExternalVariable.Name, ExternalVariable.TypeName.ToString(), ExternalVariable.TypeObject, true, FString(), InDropPosition);
+				Controller->AddVariableNode(ExternalVariable.Name, ExternalVariable.TypeName.ToString(), ExternalVariable.TypeObject, true, FString(), InDropPosition, FString(), true, true);
 
 			}),
 			FCanExecuteAction()
@@ -5532,7 +5532,7 @@ void FControlRigEditor::HandleVariableDroppedFromBlueprint(UObject* InSubject, F
 		FUIAction(
 			FExecuteAction::CreateLambda([ExternalVariable, Controller, InDropPosition] {
 
-				Controller->AddVariableNode(ExternalVariable.Name, ExternalVariable.TypeName.ToString(), ExternalVariable.TypeObject, false, FString(), InDropPosition);
+				Controller->AddVariableNode(ExternalVariable.Name, ExternalVariable.TypeName.ToString(), ExternalVariable.TypeObject, false, FString(), InDropPosition, FString(), true, true);
 
 			}),
 			FCanExecuteAction()

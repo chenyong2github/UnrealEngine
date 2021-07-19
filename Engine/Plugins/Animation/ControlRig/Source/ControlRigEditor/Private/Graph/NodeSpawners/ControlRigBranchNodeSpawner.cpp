@@ -53,6 +53,7 @@ UEdGraphNode* UControlRigBranchNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindi
 
 	bool const bIsTemplateNode = FBlueprintNodeTemplateCache::IsTemplateOuter(ParentGraph);
 	bool const bUndo = !bIsTemplateNode;
+	bool const bPrintCommand = !bIsTemplateNode;
 
 	// First create a backing member for our node
 	UControlRigGraph* RigGraph = Cast<UControlRigGraph>(ParentGraph);
@@ -78,7 +79,7 @@ UEdGraphNode* UControlRigBranchNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindi
 		Controller->OpenUndoBracket(FString::Printf(TEXT("Add '%s' Node"), *Name.ToString()));
 	}
 
-	if (URigVMBranchNode* ModelNode = Controller->AddBranchNode(Location, Name.ToString(), bUndo))
+	if (URigVMBranchNode* ModelNode = Controller->AddBranchNode(Location, Name.ToString(), bUndo, bPrintCommand))
 	{
 		NewNode = Cast<UControlRigGraphNode>(RigGraph->FindNodeForModelNodeName(ModelNode->GetFName()));
 

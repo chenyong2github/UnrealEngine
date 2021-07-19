@@ -109,25 +109,28 @@ FLinearColor SControlRigVariableBinding::GetBindingColor() const
 			}
 		}
 
-		URigVMGraph* Model = ModelPin->GetGraph();
-		if(Model == nullptr)
+		if (ModelPin)
 		{
-			return  FLinearColor::Red;
-		}
-
-		const TArray<FRigVMGraphVariableDescription>& LocalVariables =  Model->GetLocalVariables();
-		for(const FRigVMGraphVariableDescription& LocalVariable : LocalVariables)
-		{
-			const FRigVMExternalVariable ExternalVariable = LocalVariable.ToExternalVariable();
-			if(!ExternalVariable.IsValid(true))
+			URigVMGraph* Model = ModelPin->GetGraph();
+			if(Model == nullptr)
 			{
-				continue;
+				return  FLinearColor::Red;
 			}
 
-			if (ExternalVariable.Name == BoundVariable)
+			const TArray<FRigVMGraphVariableDescription>& LocalVariables =  Model->GetLocalVariables();
+			for(const FRigVMGraphVariableDescription& LocalVariable : LocalVariables)
 			{
-				const FEdGraphPinType PinType = UControlRig::GetPinTypeFromExternalVariable(ExternalVariable);
-				return Schema->GetPinTypeColor(PinType);
+				const FRigVMExternalVariable ExternalVariable = LocalVariable.ToExternalVariable();
+				if(!ExternalVariable.IsValid(true))
+				{
+					continue;
+				}
+
+				if (ExternalVariable.Name == BoundVariable)
+				{
+					const FEdGraphPinType PinType = UControlRig::GetPinTypeFromExternalVariable(ExternalVariable);
+					return Schema->GetPinTypeColor(PinType);
+				}
 			}
 		}
 	}
@@ -202,7 +205,7 @@ void SControlRigVariableBinding::OnAddBinding(FName InPropertyName, const TArray
 
 		if(ModelPin)
 		{
-			Blueprint->GetController(ModelPin->GetGraph())->BindPinToVariable(ModelPin->GetPinPath(), FString::Join(Parts, TEXT(".")), true /* undo */);
+			Blueprint->GetController(ModelPin->GetGraph())->BindPinToVariable(ModelPin->GetPinPath(), FString::Join(Parts, TEXT(".")), true /* undo */, true /* python */);
 		}
 		else if(FunctionReferenceNode && !InnerVariableName.IsNone())
 		{
@@ -223,7 +226,7 @@ void SControlRigVariableBinding::OnRemoveBinding(FName InPropertyName)
 	{
 		if(ModelPin)
 		{
-			Blueprint->GetController(ModelPin->GetGraph())->UnbindPinFromVariable(ModelPin->GetPinPath(), true /* undo */);
+			Blueprint->GetController(ModelPin->GetGraph())->UnbindPinFromVariable(ModelPin->GetPinPath(), true /* undo */, true /* python */);
 		}
 		else if(FunctionReferenceNode && !InnerVariableName.IsNone())
 		{
@@ -338,7 +341,7 @@ void SControlRigVariableBinding::HandleBindToLocalVariable(FRigVMGraphVariableDe
 		return;
 	}
 
-	Controller->BindPinToVariable(ModelPin->GetPinPath(), InLocalVariable.Name.ToString());
+	Controller->BindPinToVariable(ModelPin->GetPinPath(), InLocalVariable.Name.ToString(), true, true);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -225,7 +225,7 @@ void FControlRigArgumentLayout::OnRemoveClicked()
 		{
 			if (URigVMController* Controller = Blueprint->GetController(LibraryNode->GetContainedGraph()))
 			{
-				Controller->RemoveExposedPin(Pin->GetFName(), true);
+				Controller->RemoveExposedPin(Pin->GetFName(), true, true);
 			}
 		}
 	}
@@ -241,7 +241,7 @@ FReply FControlRigArgumentLayout::OnArgMoveUp()
 		{
 			if (URigVMController* Controller = Blueprint->GetController(LibraryNode->GetContainedGraph()))
 			{
-				Controller->SetExposedPinIndex(Pin->GetFName(), Pin->GetPinIndex() - 1);
+				Controller->SetExposedPinIndex(Pin->GetFName(), Pin->GetPinIndex() - 1, true, true);
 				return FReply::Handled();
 			}
 		}
@@ -259,7 +259,7 @@ FReply FControlRigArgumentLayout::OnArgMoveDown()
 		{
 			if (URigVMController* Controller = Blueprint->GetController(LibraryNode->GetContainedGraph()))
 			{
-				Controller->SetExposedPinIndex(Pin->GetFName(), Pin->GetPinIndex() + 1);
+				Controller->SetExposedPinIndex(Pin->GetFName(), Pin->GetPinIndex() + 1, true, true);
 				return FReply::Handled();
 			}
 		}
@@ -313,7 +313,7 @@ void FControlRigArgumentLayout::OnArgNameTextCommitted(const FText& NewText, ETe
 			if (URigVMController* Controller = Blueprint->GetController(LibraryNode->GetContainedGraph()))
 			{
 				const FString& NewName = NewText.ToString();
-				Controller->RenameExposedPin(Pin->GetFName(), *NewName, true);
+				Controller->RenameExposedPin(Pin->GetFName(), *NewName, true, true);
 			}
 		}
 	}
@@ -362,7 +362,7 @@ void FControlRigArgumentLayout::PinInfoChanged(const FEdGraphPinType& PinType)
 				}
 
 				bool bSetupUndoRedo = true;
-				Controller->ChangeExposedPinType(Pin->GetFName(), CPPType, CPPTypeObjectName, bSetupUndoRedo);
+				Controller->ChangeExposedPinType(Pin->GetFName(), CPPType, CPPTypeObjectName, bSetupUndoRedo, true, true);
 
 				// If the controller has identified this as a bulk change, it has not added the actions to the action stack
 				// We need to disable the transaction from the UI as well to keep them synced
@@ -809,7 +809,7 @@ FReply FControlRigGraphDetails::OnAddNewInputClicked()
 				}
 			}
 
-			Controller->AddExposedPin(ArgumentName, ERigVMPinDirection::Input, CPPType, CPPTypeObjectPath, DefaultValue, true);
+			Controller->AddExposedPin(ArgumentName, ERigVMPinDirection::Input, CPPType, CPPTypeObjectPath, DefaultValue, true, true);
 		}
 	}
 	return FReply::Unhandled();
@@ -829,7 +829,7 @@ FReply FControlRigGraphDetails::OnAddNewOutputClicked()
 			FString DefaultValue = TEXT("False");
 			// todo: base decisions on types on last argument
 
-			Controller->AddExposedPin(ArgumentName, ERigVMPinDirection::Output, CPPType, CPPTypeObjectPath, DefaultValue, true);
+			Controller->AddExposedPin(ArgumentName, ERigVMPinDirection::Output, CPPType, CPPTypeObjectPath, DefaultValue, true, true);
 		}
 	}
 	return FReply::Unhandled();
@@ -863,7 +863,7 @@ void FControlRigGraphDetails::SetNodeCategory(const FText& InNewText, ETextCommi
 			{
 				if (URigVMController* Controller = Blueprint->GetOrCreateController(OuterNode->GetGraph()))
 				{
-					Controller->SetNodeCategory(OuterNode, InNewText.ToString());
+					Controller->SetNodeCategory(OuterNode, InNewText.ToString(), true, false, true);
 				}
 			}
 		}
@@ -898,7 +898,7 @@ void FControlRigGraphDetails::SetNodeKeywords(const FText& InNewText, ETextCommi
 			{
 				if (URigVMController* Controller = Blueprint->GetOrCreateController(OuterNode->GetGraph()))
 				{
-					Controller->SetNodeKeywords(OuterNode, InNewText.ToString());
+					Controller->SetNodeKeywords(OuterNode, InNewText.ToString(), true, false, true);
 				}
 			}
 		}
@@ -933,7 +933,7 @@ void FControlRigGraphDetails::SetNodeDescription(const FText& InNewText, ETextCo
 			{
 				if (URigVMController* Controller = Blueprint->GetOrCreateController(OuterNode->GetGraph()))
 				{
-					Controller->SetNodeDescription(OuterNode, InNewText.ToString());
+					Controller->SetNodeDescription(OuterNode, InNewText.ToString(), true, false, true);
 				}
 			}
 		}
@@ -969,7 +969,7 @@ void FControlRigGraphDetails::SetNodeColor(FLinearColor InColor, bool bSetupUndo
 			{
 				if (URigVMController* Controller = Blueprint->GetOrCreateController(OuterNode->GetGraph()))
 				{
-					Controller->SetNodeColor(OuterNode, TargetColor, bSetupUndoRedo, bIsPickingColor);
+					Controller->SetNodeColor(OuterNode, TargetColor, bSetupUndoRedo, bIsPickingColor, true);
 				}
 			}
 		}
