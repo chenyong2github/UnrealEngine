@@ -2247,7 +2247,6 @@ public:
 
 	virtual bool ShouldRenderPrePass() const override;
 
-	void RenderInverseOpacity(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 
 protected:
 	/** Finds the visible dynamic shadows for each view. */

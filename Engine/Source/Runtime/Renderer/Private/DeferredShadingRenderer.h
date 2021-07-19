@@ -811,11 +811,6 @@ private:
 
 	bool IsNaniteEnabled() const;
 
-	void CopySceneCaptureComponentToTarget(
-		FRDGBuilder& GraphBuilder,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-		FRDGTextureRef ViewFamilyTexture);
-
 	void SetupImaginaryReflectionTextureParameters(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,

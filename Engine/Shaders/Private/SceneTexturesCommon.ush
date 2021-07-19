@@ -111,6 +111,15 @@ float4 GatherSceneDepth(float2 UV, float2 InvBufferSize)
 	#define	VULKAN_SUBPASS_DEPTHFETCH	VULKAN_PROFILE
 #endif
 
+float3 CalcSceneColor(float2 ScreenUV)
+{
+#if SCENE_TEXTURES_DISABLED
+	return float3(0.0f, 0.0f, 0.0f);
+#else
+	return Texture2DSampleLevel(MobileSceneTextures.SceneColorTexture, MobileSceneTextures.SceneColorTextureSampler, ScreenUV, 0).rgb;
+#endif
+}
+
 /** return all channels of the scene lighting texture */
 float4 CalcFullSceneColor(float2 ScreenUV)
 {

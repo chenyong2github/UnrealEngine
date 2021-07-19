@@ -107,11 +107,11 @@ static EPixelFormat GetGBufferFFormat()
 	return NormalGBufferFormat;
 }
 
-static EPixelFormat GetMobileSceneColorFormat(EShaderPlatform ShaderPlatform)
+static EPixelFormat GetMobileSceneColorFormat(const FSceneView& View)
 {
 	const EPixelFormat DefaultLowPrecisionFormat = IHeadMountedDisplayModule::IsAvailable() && IHeadMountedDisplayModule::Get().IsStandaloneStereoOnlyDevice()
 		? PF_R8G8B8A8 : PF_B8G8R8A8;
-	const EPixelFormat DefaultPrecisionFormat = IsMobilePropagateAlphaEnabled(ShaderPlatform) ? PF_FloatRGBA : PF_FloatR11G11B10;
+	const EPixelFormat DefaultPrecisionFormat = IsMobilePropagateAlphaEnabled(View.GetShaderPlatform()) || View.bIsSceneCapture? PF_FloatRGBA : PF_FloatR11G11B10;
 
 	EPixelFormat DefaultColorFormat = (!IsMobileHDR() || !GSupportsRenderTargetFormat_PF_FloatRGBA) ? DefaultLowPrecisionFormat : DefaultPrecisionFormat;
 
@@ -535,7 +535,7 @@ FSceneTexturesConfig FSceneTexturesConfig::Create(const FSceneViewFamily& ViewFa
 
 	case EShadingPath::Mobile:
 	{
-		Config.ColorFormat = GetMobileSceneColorFormat(Config.ShaderPlatform);
+		Config.ColorFormat = GetMobileSceneColorFormat(*(ViewFamily.Views[0]));
 
 		// On mobile the scene depth is calculated from the alpha component of the scene color
 		// Use FarPlane for alpha to ensure un-rendered pixels have max depth...
