@@ -461,13 +461,24 @@ namespace EpicGames.Serialization
 		}
 
 		/// <summary>
+		/// Writes the payload for an object to the buffer
+		/// </summary>
+		/// <param name="Object"></param>
+		void WriteObjectPayload(CbObject Object)
+		{
+			CbField Field = Object.AsField();
+			Memory<byte> Buffer = Allocate(Field.Payload.Length);
+			Field.Payload.CopyTo(Buffer);
+		}
+
+		/// <summary>
 		/// Writes an object directly into the writer
 		/// </summary>
 		/// <param name="Object">Object to write</param>
 		public void WriteObject(CbObject Object)
 		{
 			WriteField(CbFieldType.Object);
-			WriteBinaryPayload(Object.AsField().Payload.Span);
+			WriteObjectPayload(Object);
 		}
 
 		/// <summary>
@@ -478,7 +489,7 @@ namespace EpicGames.Serialization
 		public void WriteObject(Utf8String Name, CbObject Object)
 		{
 			WriteField(CbFieldType.Object, Name);
-			WriteBinaryPayload(Object.AsField().Payload.Span);
+			WriteObjectPayload(Object);
 		}
 
 		/// <summary>
