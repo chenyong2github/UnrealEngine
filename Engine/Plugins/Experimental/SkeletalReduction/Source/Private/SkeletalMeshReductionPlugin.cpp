@@ -29,6 +29,9 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Misc/CoreMisc.h"
 
+#include "Animation/AnimSequence.h"
+#include "BonePose.h"
+
 #define LOCTEXT_NAMESPACE "SkeletalMeshReduction"
 
 
