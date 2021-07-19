@@ -775,8 +775,9 @@ namespace EpicGames.Perforce.Managed
 		/// </summary>
 		/// <param name="Perforce"></param>
 		/// <returns></returns>
-		public async Task LogFortniteStatsInfoAsync(PerforceClientConnection Perforce)
+		public async Task<bool> LogFortniteStatsInfoAsync(PerforceClientConnection Perforce)
 		{
+			bool bError = false;
 			FileReference LocalFile = FileReference.Combine(WorkspaceDir, "FortniteGame", "Content", "Backend", "StatsV2.json");
 
 			PerforceResponseList<FStatRecord> Record = await Perforce.TryFStatAsync(FStatOptions.None, new[] { LocalFile.FullName }, CancellationToken.None);
@@ -795,6 +796,7 @@ namespace EpicGames.Perforce.Managed
 				try
 				{
 					PerforceState = $"head {Record[0].Data.HeadRevision}, have {Record[0].Data.HaveRevision}";
+					bError = Record[0].Data.HaveRevision == 0;
 				}
 				catch (Exception Ex)
 				{
@@ -803,6 +805,7 @@ namespace EpicGames.Perforce.Managed
 			}
 
 			Logger.LogInformation("Check {File}: {State}, {Perforce}", LocalFile, FileReference.Exists(LocalFile) ? "exists" : "does not exist", PerforceState);
+			return bError;
 		}
 
 		/// <summary>
@@ -1925,7 +1928,7 @@ namespace EpicGames.Perforce.Managed
 						{
 							Logger.LogInformation("File: {DepotFile} {Revision} {Action}", Record.DepotFile, Record.Revision, Record.Action);
 						}
-						await LogFortniteStatsInfoAsync(Client);
+						bool bMissing = await LogFortniteStatsInfoAsync(Client);
 
 						Action<List<SyncRecord>> PrintSyncRecords = Records =>
 						{
@@ -1936,7 +1939,7 @@ namespace EpicGames.Perforce.Managed
 						};
 
 						FileReference LocalFile = FileReference.Combine(WorkspaceDir, "FortniteGame", "Content", "Backend", "StatsV2.json");
-						if (!FileReference.Exists(LocalFile))
+						if (!FileReference.Exists(LocalFile) || bMissing)
 						{
 							string[] Lines = await FileReference.ReadAllLinesAsync(SyncFileName);
 							foreach (string Line in Lines)
