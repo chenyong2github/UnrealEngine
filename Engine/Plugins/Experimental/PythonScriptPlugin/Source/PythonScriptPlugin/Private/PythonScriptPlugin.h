@@ -169,6 +169,10 @@ private:
 
 	void OnContentPathDismounted(const FString& InAssetPath, const FString& InFilesystemPath);
 
+	static void RegisterModulePaths(const FString& InFilesystemPath);
+
+	static void UnregisterModulePaths(const FString& InFilesystemPath);
+
 	static bool IsDeveloperModeEnabled();
 
 	void OnAssetRenamed(const FAssetData& Data, const FString& OldName);
