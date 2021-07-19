@@ -23,6 +23,7 @@ public:
 
 	const IBuildFunction* FindFunction(FStringView Function) const;
 	FGuid FindFunctionVersion(FStringView Function) const;
+	void IterateFunctionVersions(TFunctionRef<void(FStringView Function, const FGuid& Version)> Visitor) const;
 
 private:
 	void OnModularFeatureRegistered(const FName& Type, IModularFeature* ModularFeature);
@@ -111,6 +112,24 @@ FGuid FBuildFunctionRegistry::FindFunctionVersion(FStringView Function) const
 		return (**Factory).GetFunction().GetVersion();
 	}
 	return FGuid();
+}
+
+void FBuildFunctionRegistry::IterateFunctionVersions(TFunctionRef<void(FStringView Function, const FGuid& Version)> Visitor) const
+{
+	TArray<TPair<FStringView, FGuid>> FunctionVersions;
+	{
+		FReadScopeLock ReadLock(Lock);
+		FunctionVersions.Reserve(Functions.Num());
+		for (const TPair<FStringView, IBuildFunctionFactory*>& Function : Functions)
+		{
+			FunctionVersions.Emplace(Function.Key, Function.Value->GetFunction().GetVersion());
+		}
+	}
+
+	for (const TPair<FStringView, FGuid>& Function : FunctionVersions)
+	{
+		Visitor(Function.Key, Function.Value);
+	}
 }
 
 IBuildFunctionRegistry* CreateBuildFunctionRegistry()
