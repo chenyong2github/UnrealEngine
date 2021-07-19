@@ -327,8 +327,21 @@ namespace UnrealBuildTool
 
 			foreach (DirectoryReference BaseDir in Module.ModuleDirectories)
 			{
-				AddIntelliSenseIncludePaths(BaseDir, BaseDirToSystemIncludePaths, CompileEnvironment.SystemIncludePaths);
-				AddIntelliSenseIncludePaths(BaseDir, BaseDirToUserIncludePaths, CompileEnvironment.UserIncludePaths);
+				BuildEnvironment BuildEnvironment;
+				if (!BaseDirToBuildEnvironment.TryGetValue(BaseDir, out BuildEnvironment))
+				{
+					BuildEnvironment = new BuildEnvironment();
+					BaseDirToBuildEnvironment.Add(BaseDir, BuildEnvironment);
+				}
+
+				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
+				{
+					BuildEnvironment.PchFile = CompileEnvironment.PrecompiledHeaderFile?.Location;
+					BuildEnvironment.PchIncludeFile = CompileEnvironment.PrecompiledHeaderIncludeFilename;
+				}
+
+				AddIntelliSenseIncludePaths(BuildEnvironment.SystemIncludePaths, CompileEnvironment.SystemIncludePaths);
+				AddIntelliSenseIncludePaths(BuildEnvironment.UserIncludePaths, CompileEnvironment.UserIncludePaths);
 			}
 
 			SetIntelliSenseCppVersion(Module.Rules.CppStandard);
@@ -377,23 +390,6 @@ namespace UnrealBuildTool
 					}
 				}
 			}
-		}
-
-		/// <summary>
-		/// Adds all of the specified include paths to this VCProject's list of include paths for all modules in the project
-		/// </summary>
-		/// <param name="BaseDir">The base directory to which the include paths apply</param>
-		/// <param name="BaseDirToCollection">Map of base directory to include paths</param>
-		/// <param name="NewIncludePaths">List of include paths to add</param>
-		public void AddIntelliSenseIncludePaths(DirectoryReference BaseDir, Dictionary<DirectoryReference, IncludePathsCollection> BaseDirToCollection, IEnumerable<DirectoryReference> NewIncludePaths)
-		{
-			IncludePathsCollection ModuleUserPaths;
-			if (!BaseDirToCollection.TryGetValue(BaseDir, out ModuleUserPaths))
-			{
-				ModuleUserPaths = new IncludePathsCollection();
-				BaseDirToCollection.Add(BaseDir, ModuleUserPaths);
-			}
-			AddIntelliSenseIncludePaths(ModuleUserPaths, NewIncludePaths);
 		}
 
 		/// <summary>
@@ -570,6 +566,17 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Build environment for a particular module
+		/// </summary>
+		public class BuildEnvironment
+		{
+			public FileReference PchFile;
+			public FileReference PchIncludeFile;
+			public IncludePathsCollection UserIncludePaths = new IncludePathsCollection();
+			public IncludePathsCollection SystemIncludePaths = new IncludePathsCollection();
+		}
+
+		/// <summary>
 		/// Merged list of include paths for the project
 		/// </summary>
 		IncludePathsCollection UserIncludePaths = new IncludePathsCollection();
@@ -582,12 +589,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Map of base directory to user include paths
 		/// </summary>
-		protected Dictionary<DirectoryReference, IncludePathsCollection> BaseDirToUserIncludePaths = new Dictionary<DirectoryReference, IncludePathsCollection>();
-
-		/// <summary>
-		/// Map of base directory to system include paths
-		/// </summary>
-		protected Dictionary<DirectoryReference, IncludePathsCollection> BaseDirToSystemIncludePaths = new Dictionary<DirectoryReference, IncludePathsCollection>();
+		protected Dictionary<DirectoryReference, BuildEnvironment> BaseDirToBuildEnvironment = new Dictionary<DirectoryReference, BuildEnvironment>();
 
 		/// <summary>
 		/// Legacy accessor for user search paths
