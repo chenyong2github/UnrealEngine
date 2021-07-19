@@ -390,7 +390,7 @@ protected:
 	FUnrealFunctionDefinitionInfo& CreateFunction(const TCHAR* FuncName, FFuncInfo&& FuncInfo, EFunctionType InFunctionType) const;
 
 	FUnrealClassDefinitionInfo& CompileClassDeclaration();
-	FUnrealFunctionDefinitionInfo& CompileDelegateDeclaration(const TCHAR* DelegateIdentifier, EDelegateSpecifierAction::Type SpecifierAction = EDelegateSpecifierAction::DontParse);
+	FUnrealFunctionDefinitionInfo& CompileDelegateDeclaration(const FStringView& DelegateIdentifier, EDelegateSpecifierAction::Type SpecifierAction = EDelegateSpecifierAction::DontParse);
 	FUnrealFunctionDefinitionInfo& CompileFunctionDeclaration();
 	void CompileVariableDeclaration (FUnrealStructDefinitionInfo& StructDef);
 	void CompileInterfaceDeclaration();
@@ -615,14 +615,6 @@ public:
 	*/
 	static bool IsReservedTypeName(const FString& TypeName);
 
-	/**
-	* Checks if the given token uses one of the reserved type names.
-	*
-	* @param  Token		The token to check
-	* @return True if the Token is using a reserved name
-	*/
-	static bool IsReservedTypeName(const FToken& Token);
-	
 	static const FName NAME_InputText;
 	static const FName NAME_OutputText;
 	static const FName NAME_ConstantText;

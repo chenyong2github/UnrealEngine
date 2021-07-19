@@ -54,3 +54,23 @@ inline EGeneratedCodeVersion ToGeneratedCodeVersion(const FString& InString)
 
 	return EGeneratedCodeVersion::None;
 }
+
+inline EGeneratedCodeVersion ToGeneratedCodeVersion(const FStringView& InString)
+{
+	if (InString.Compare(TEXT("V1")) == 0)
+	{
+		return EGeneratedCodeVersion::V1;
+	}
+
+	if (InString.Compare(TEXT("V2")) == 0)
+	{
+		return EGeneratedCodeVersion::V2;
+	}
+
+	if (InString.Compare(TEXT("VLatest")) == 0)
+	{
+		return EGeneratedCodeVersion::VLatest;
+	}
+
+	return EGeneratedCodeVersion::None;
+}

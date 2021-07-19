@@ -131,10 +131,10 @@ namespace
 		}
 	}
 
-	FMetadataKeyword* GetMetadataKeyword(const TCHAR* Keyword)
+	FMetadataKeyword* GetMetadataKeyword(const FToken& Token)
 	{
 		check(MetadataDictionary.Num() > 0);
-		return MetadataDictionary.Find(Keyword);
+		return MetadataDictionary.Find(FString(Token.Value));
 	}
 }
 
@@ -212,75 +212,49 @@ void FBaseParser::ResetParser(const TCHAR* SourceBuffer, int32 StartingLineNumbe
 //
 TCHAR FBaseParser::GetChar(bool bLiteral)
 {
-	bool bInsideComment = false;
-
 	PrevPos = InputPos;
 	PrevLine = InputLine;
 
 Loop:
-	const TCHAR c = Input[InputPos++];
-	if (bInsideComment)
-	{
-		// Record the character as a comment.
-		PrevComment += c;
+	TCHAR Char = Input[InputPos++];
+	if (Char == 0)
+	{ 
+		--InputPos;
 	}
-
-	if (c == TEXT('\n'))
+	else if (Char == '\n')
 	{
-		InputLine++;
+		++InputLine;
 	}
-	else if (!bLiteral)
+	else if (Char == '/')
 	{
-		const TCHAR NextChar = PeekChar();
-		if ( c==TEXT('/') && NextChar==TEXT('*') )
-		{
-			if (!bInsideComment)
-			{
-				ClearComment();
-				// Record the slash and star.
-				PrevComment += c;
-				PrevComment += NextChar;
-				bInsideComment = true;
-
-				// Move past the star. Do it only when not in comment,
-				// otherwise end of comment might be missed e.g.
-				// /*/ Comment /*/
-				// ~~~~~~~~~~~~~^ Will report second /* as beginning of comment
-				// And throw error that end of file is found in comment.
-				InputPos++;
-			}
-
-			goto Loop;
-		}
-		else if( c==TEXT('*') && NextChar==TEXT('/') )
-		{
-			if (!bInsideComment)
-			{
-				ClearComment();
-				Throwf(TEXT("Unexpected '*/' outside of comment") );
-			}
-
-			/** Asterisk and slash always end comment. */
-			bInsideComment = false;
-
-			// Star already recorded; record the slash.
-			PrevComment += Input[InputPos];
-
-			InputPos++;
-			goto Loop;
-		}
-	}
-
-	if (bInsideComment)
-	{
-		if (c == 0)
+		if (!bLiteral && Input[InputPos] == '*')
 		{
 			ClearComment();
-			Throwf(TEXT("End of class header encountered inside comment") );
+			const TCHAR* CommentStart = &Input[InputPos - 1];
+			const TCHAR* CommentEnd = CommentStart + 2;
+			for (;;)
+			{
+				TCHAR CommentChar = *CommentEnd++;
+				if (CommentChar == 0)
+				{
+					ClearComment();
+					Throwf(TEXT("End of class header encountered inside comment"));
+				}
+				else if (CommentChar == '\n')
+				{
+					++InputLine;
+				}
+				else if (CommentChar == '*' && *CommentEnd == '/')
+				{
+					int32 Length = int32(CommentEnd - CommentStart);
+					PrevComment.AppendChars(CommentStart, Length + 1);
+					InputPos += Length;
+					goto Loop;
+				}
+			}
 		}
-		goto Loop;
 	}
-	return c;
+	return Char;
 }
 
 //
@@ -301,69 +275,110 @@ TCHAR FBaseParser::PeekChar()
 	return (InputPos < InputLen) ? Input[InputPos] : 0;
 }
 
+void FBaseParser::SkipWhitespaceAndComments()
+{
+	const TCHAR* Pos = &Input[InputPos];
+	bool bGotNewlineBetweenComments = false;
+	bool bGotInlineComment = false;
+
+	for (;;)
+	{
+		TCHAR Char = *Pos++;
+		if (Char == 0)
+		{
+			--Pos;
+			break;
+		}
+		else if (Char == '\n')
+		{
+			bGotNewlineBetweenComments |= bGotInlineComment;
+			++InputLine;
+		}
+		else if (Char == '\r' || Char == '\t' || Char == ' ')
+		{
+		}
+		else if (Char == '/')
+		{
+			TCHAR NextChar = *Pos;
+			if (NextChar == '*')
+			{
+				ClearComment();
+				const TCHAR* CommentStart = Pos - 1;
+				++Pos;
+				for (;;)
+				{
+					TCHAR CommentChar = *Pos++;
+					if (CommentChar == 0)
+					{
+						ClearComment();
+						Throwf(TEXT("End of class header encountered inside comment"));
+					}
+					else if (CommentChar == '\n')
+					{
+						++InputLine;
+					}
+					else if (CommentChar == '*' && *Pos == '/')
+					{
+						++Pos;
+						break;
+					}
+				}
+				PrevComment.AppendChars(CommentStart, int32(Pos - CommentStart));
+			}
+			else if (NextChar == '/')
+			{
+				if (bGotNewlineBetweenComments)
+				{
+					bGotNewlineBetweenComments = false;
+					ClearComment();
+				}
+				bGotInlineComment = true;
+				const TCHAR* CommentStart = Pos - 1;
+				Pos++;
+
+				// Scan to the end of the line
+				for (;;)
+				{
+					TCHAR CommentChar = *Pos++;
+					if (CommentChar == 0)
+					{
+						--Pos;
+						break;
+					}
+					if (CommentChar == '\r')
+					{
+					} 
+					else if (CommentChar == '\n')
+					{
+						++InputLine;
+						break;
+					}
+				}
+				PrevComment.AppendChars(CommentStart, int32(Pos - CommentStart));
+			}
+			else
+			{
+				--Pos;
+				break;
+			}
+		}
+		else
+		{
+			--Pos;
+			break;
+		}
+	}
+	InputPos = int32(Pos - Input);
+	return;
+}
+
 //
 // Skip past all spaces and tabs in the input stream.
 //
 TCHAR FBaseParser::GetLeadingChar()
 {
-	TCHAR TrailingCommentNewline = 0;
-
-	for (;;)
-	{
-		bool MultipleNewlines = false;
-
-		TCHAR c;
-
-		// Skip blanks.
-		do
-		{
-			c = GetChar();
-
-			// Check if we've encountered another newline since the last one
-			if (c == TrailingCommentNewline)
-			{
-				MultipleNewlines = true;
-			}
-		} while (IsWhitespace(c));
-
-		if (c != TEXT('/') || PeekChar() != TEXT('/'))
-		{
-			return c;
-		}
-
-		// Clear the comment if we've encountered newlines since the last comment
-		if (MultipleNewlines)
-		{
-			ClearComment();
-		}
-
-		// Record the first slash.  The first iteration of the loop will get the second slash.
-		PrevComment += c;
-
-		do
-		{
-			c = GetChar(true);
-			if (c == 0)
-				return c;
-			PrevComment += c;
-		} while (!IsEOL(c));
-
-		TrailingCommentNewline = c;
-
-		for (;;)
-		{
-			c = GetChar();
-			if (c == 0)
-				return c;
-			if (c == TrailingCommentNewline || !IsEOL(c))
-			{
-				UngetChar();
-				break;
-			}
-
-			PrevComment += c;
-		}
-	}
+	SkipWhitespaceAndComments();
+	return GetChar();
 }
 
 bool FBaseParser::IsEOL( TCHAR c )
@@ -381,148 +396,130 @@ bool FBaseParser::IsWhitespace( TCHAR c )
 -----------------------------------------------------------------------------*/
 
 // Gets the next token from the input stream, advancing the variables which keep track of the current input position and line.
-bool FBaseParser::GetToken( FToken& Token, bool bNoConsts/*=false*/, ESymbolParseOption bParseTemplateClosingBracket/*=ESymbolParseOption::Normal*/ )
+// NOTE: There is a slight difference between StartPos/StartLine handling here.  In the old version, the starting location would 
+// include any preceeding /**/ comments (but not // comments) while this version does not.  The only place in the code this
+// caused an issue was in the processing of default arguments.
+bool FBaseParser::GetToken(FToken& Token, bool bNoConsts/*=false*/, ESymbolParseOption ParseTemplateClosingBracket/*=ESymbolParseOption::Normal*/ )
 {
-	TCHAR c = GetLeadingChar();
-	if( c == 0 )
+	SkipWhitespaceAndComments();
+	PrevPos = InputPos;
+	PrevLine = InputLine;
+	if (Input[InputPos] == 0)
 	{
-		UngetChar();
-		return 0;
+		return false;
 	}
-	TCHAR p = PeekChar();
-	Token.StartPos		= PrevPos;
-	Token.StartLine		= PrevLine;
-	if( (c>='A' && c<='Z') || (c>='a' && c<='z') || (c=='_') )
+	Token.StartPos = InputPos;
+	Token.StartLine = InputLine;
+
+	const TCHAR* Start = &Input[InputPos];
+	const TCHAR* Pos = Start;
+	TCHAR c = *Pos++;
+
+	// Identifier
+	if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_')
 	{
-		// Alphanumeric token.
-		int32 Length=0;
-		do
+		for (;; ++Pos)
 		{
-			Token.Identifier[Length++] = c;
-			if( Length >= NAME_SIZE )
+			c = *Pos;
+			if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_'))
 			{
-				Throwf(TEXT("Identifer length exceeds maximum of %i"), (int32)NAME_SIZE);
-				Length = ((int32)NAME_SIZE) - 1;
 				break;
 			}
-			c = GetChar();
-		} while( ((c>='A')&&(c<='Z')) || ((c>='a')&&(c<='z')) || ((c>='0')&&(c<='9')) || (c=='_') );
-		UngetChar();
-		Token.Identifier[Length]=0;
-
-		// Assume this is an identifier unless we find otherwise.
-		Token.TokenType = TOKEN_Identifier;
+		}
 
 		// If const values are allowed, determine whether the identifier represents a constant
-		if ( !bNoConsts )
+		Token.TokenType = ETokenType::Identifier;
+		Token.Value = FStringView(Start, int32(Pos - Start));
+		if (!bNoConsts)
 		{
 			// See if the identifier is part of a vector, rotation or other struct constant.
 			// boolean true/false
-			if( Token.Matches(TEXT("true"), ESearchCase::IgnoreCase) )
+			int32 Length = int32(Pos - Start);
+			if (Length == 4 && Token.IsValue(TEXT("true"), ESearchCase::IgnoreCase))
 			{
-				Token.SetConstBool(true);
-				return true;
+				Token.TokenType = ETokenType::TrueConst;
 			}
-			else if( Token.Matches(TEXT("false"), ESearchCase::IgnoreCase) )
+			else if (Length == 5 && Token.IsValue(TEXT("false"), ESearchCase::IgnoreCase))
 			{
-				Token.SetConstBool(false);
-				return true;
+				Token.TokenType = ETokenType::FalseConst;
 			}
 		}
+
+		if (Token.Value.Len() >= NAME_SIZE)
+		{
+			Throwf(TEXT("Identifer length exceeds maximum of %i"), (int32)NAME_SIZE);
+		}
+
+		InputPos = int32(Pos - Input);
 		return true;
 	}
 
 	// if const values are allowed, determine whether the non-identifier token represents a const
-	else if ( !bNoConsts && ((c>='0' && c<='9') || ((c=='+' || c=='-') && (p>='0' && p<='9'))) )
+	else if (!bNoConsts && ((c >= '0' && c <= '9') || ((c == '+' || c == '-') && (*Pos >= '0' && *Pos <= '9'))))
 	{
 		// Integer or floating point constant.
+
 		bool  bIsFloat = 0;
-		int32 Length   = 0;
-		bool  bIsHex   = 0;
+		bool  bIsHex = 0;
 		do
 		{
-			if( c==TEXT('.') )
+			if (c == TEXT('.'))
 			{
 				bIsFloat = true;
 			}
-			if( c==TEXT('X') || c == TEXT('x') )
+			if (c == TEXT('X') || c == TEXT('x'))
 			{
 				bIsHex = true;
 			}
-
-			Token.Identifier[Length++] = c;
-			if( Length >= NAME_SIZE )
-			{
-				Throwf(TEXT("Number length exceeds maximum of %i "), (int32)NAME_SIZE );
-				Length = ((int32)NAME_SIZE) - 1;
-				break;
-			}
-			c = FChar::ToUpper(GetChar());
+			c = FChar::ToUpper(*Pos++);
 		} while ((c >= TEXT('0') && c <= TEXT('9')) || (!bIsFloat && c == TEXT('.')) || (!bIsHex && c == TEXT('X')) || (bIsHex && c >= TEXT('A') && c <= TEXT('F')));
 
-		Token.Identifier[Length]=0;
 		if (!bIsFloat || c != 'F')
 		{
-			UngetChar();
+			--Pos;
 		}
 
-		if (bIsFloat)
+		Token.TokenType = bIsFloat ? ETokenType::FloatConst : (bIsHex ? ETokenType::HexConst : ETokenType::DecimalConst);
+		Token.Value = FStringView(Start, int32(Pos - Start));
+
+		if (Token.Value.Len() >= NAME_SIZE)
 		{
-			Token.SetConstFloat( FCString::Atof(Token.Identifier) );
+			Throwf(TEXT("Number length exceeds maximum of %i "), (int32)NAME_SIZE);
 		}
-		else if (bIsHex)
-		{
-			TCHAR* End = Token.Identifier + FCString::Strlen(Token.Identifier);
-			Token.SetConstInt64( FCString::Strtoi64(Token.Identifier,&End,0) );
-		}
-		else
-		{
-			Token.SetConstInt64( FCString::Atoi64(Token.Identifier) );
-		}
+
+		InputPos = int32(Pos - Input);
 		return true;
 	}
+
+	// Escaped character constant
 	else if (c == '\'')
 	{
-		TCHAR ActualCharLiteral = GetChar(/*bLiteral=*/ true);
-
-		if (ActualCharLiteral == '\\')
+		if (*Pos++ == '\\')
 		{
-			ActualCharLiteral = GetChar(/*bLiteral=*/ true);
-			switch (ActualCharLiteral)
-			{
-			case TCHAR('t'):
-				ActualCharLiteral = '\t';
-				break;
-			case TCHAR('n'):
-				ActualCharLiteral = '\n';
-				break;
-			case TCHAR('r'):
-				ActualCharLiteral = '\r';
-				break;
-			}
+			*Pos++;
 		}
 
-		c = GetChar(/*bLiteral=*/ true);
-		if (c != '\'')
+		if (*Pos++ != '\'')
 		{
 			Throwf(TEXT("Unterminated character constant"));
-			UngetChar();
 		}
 
-		Token.SetConstChar(ActualCharLiteral);
+		Token.TokenType = ETokenType::CharConst;
+		Token.Value = FStringView(Start, int32(Pos - Start));
+		InputPos = int32(Pos - Input);
 		return true;
 	}
+
+	// String contant
 	else if (c == '"')
 	{
-		// String constant.
-		TCHAR Temp[MAX_STRING_CONST_SIZE];
-		int32 Length=0;
-		c = GetChar(/*bLiteral=*/ true);
+		c = *Pos++;
+		int32 EscapeCount = 0;
 		while( (c!='"') && !IsEOL(c) )
 		{
 			if( c=='\\' )
 			{
-				c = GetChar(/*bLiteral=*/ true);
+				c = *Pos++;
 				if( IsEOL(c) )
 				{
 					break;
@@ -532,40 +529,35 @@ bool FBaseParser::GetToken( FToken& Token, bool bNoConsts/*=false*/, ESymbolPars
 					// Newline escape sequence.
 					c = '\n';
 				}
+				++EscapeCount;
 			}
-			Temp[Length++] = c;
-			if( Length >= MAX_STRING_CONST_SIZE )
-			{
-				Throwf(TEXT("String constant exceeds maximum of %i characters"), (int32)MAX_STRING_CONST_SIZE );
-				c = TEXT('\"');
-				Length = ((int32)MAX_STRING_CONST_SIZE) - 1;
-				break;
-			}
-			c = GetChar(/*bLiteral=*/ true);
+			c = *Pos++;
 		}
-		Temp[Length]=0;
 
 		if( c != '"' )
 		{
-			Throwf(TEXT("Unterminated string constant: %s"), Temp);
-			UngetChar();
+			Throwf(TEXT("Unterminated string constant"));
 		}
 
-		Token.SetConstString(Temp);
+		Token.TokenType = ETokenType::StringConst;
+		Token.Value = FStringView(Start, int32(Pos - Start));
+
+		if (!Token.Value.Len() - EscapeCount >= MAX_STRING_CONST_SIZE)
+		{
+			Throwf(TEXT("String constant exceeds maximum of %i characters"), (int32)MAX_STRING_CONST_SIZE);
+		}
+
+		InputPos = int32(Pos - Input);
 		return true;
 	}
 	else
 	{
-		// Symbol.
-		int32 Length=0;
-		Token.Identifier[Length++] = c;
-
 		// Handle special 2-character symbols.
-		#define PAIR(cc,dd) ((c==cc)&&(d==dd)) /* Comparison macro for convenience */
-		TCHAR d = GetChar();
+#define PAIR(cc,dd) ((c==cc)&&(d==dd)) /* Comparison macro for convenience */
+		TCHAR d = *Pos++;
 		if
 		(	PAIR('<','<')
-		||	(PAIR('>','>') && (bParseTemplateClosingBracket != ESymbolParseOption::CloseTemplateBracket))
+		||	(PAIR('>','>') && (ParseTemplateClosingBracket != ESymbolParseOption::CloseTemplateBracket))
 		||	PAIR('!','=')
 		||	PAIR('<','=')
 		||	PAIR('>','=')
@@ -584,36 +576,27 @@ bool FBaseParser::GetToken( FToken& Token, bool bNoConsts/*=false*/, ESymbolPars
 		||	PAIR(':',':')
 		)
 		{
-			Token.Identifier[Length++] = d;
-			if( c=='>' && d=='>' )
+			if (c=='>' && d=='>' &&  *Pos == '>')
 			{
-				if (GetChar()=='>')
-				{
-					Token.Identifier[Length++] = '>';
-				}
-				else
-				{
-					UngetChar();
-				}
+				++Pos;
 			}
 		}
 		else
 		{
-			UngetChar();
+			--Pos;
 		}
 		#undef PAIR
 
-		Token.Identifier[Length] = 0;
-		Token.TokenType = TOKEN_Symbol;
-
+		Token.TokenType = ETokenType::Symbol;
+		Token.Value = FStringView(Start, int32(Pos - Start));
+		InputPos = int32(Pos - Input);
 		return true;
 	}
 }
 
-bool FBaseParser::GetRawTokenRespectingQuotes( FToken& Token, TCHAR StopChar /* = TCHAR('\n') */ )
+bool FBaseParser::GetRawStringRespectingQuotes(FTokenString& String, TCHAR StopChar /* = TCHAR('\n') */ )
 {
 	// Get token after whitespace.
-	TCHAR Temp[MAX_STRING_CONST_SIZE];
 	int32 Length=0;
 	TCHAR c = GetLeadingChar();
 
@@ -631,10 +614,10 @@ bool FBaseParser::GetRawTokenRespectingQuotes( FToken& Token, TCHAR StopChar /* 
 			bInQuote = !bInQuote;
 		}
 
-		Temp[Length++] = c;
-		if( Length >= MAX_STRING_CONST_SIZE )
+		String.String[Length++] = c;
+		if( Length >= MAX_STRING_CONST_SIZE)
 		{
-			Throwf(TEXT("Identifier exceeds maximum of %i characters"), (int32)MAX_STRING_CONST_SIZE );
+			Throwf(TEXT("Identifier exceeds maximum of %i characters"), (int32)MAX_STRING_CONST_SIZE);
 			c = GetChar(true);
 			Length = ((int32)MAX_STRING_CONST_SIZE) - 1;
 			break;
@@ -649,13 +632,11 @@ bool FBaseParser::GetRawTokenRespectingQuotes( FToken& Token, TCHAR StopChar /* 
 	}
 
 	// Get rid of trailing whitespace.
-	while( Length>0 && (Temp[Length-1]==' ' || Temp[Length-1]==9 ) )
+	while( Length>0 && (String.String[Length-1]==' ' || String.String[Length-1]==9 ) )
 	{
 		Length--;
 	}
-	Temp[Length]=0;
-
-	Token.SetConstString(Temp);
+	String.String[Length]=0;
 
 	return Length>0;
 }
@@ -669,10 +650,9 @@ bool FBaseParser::GetRawTokenRespectingQuotes( FToken& Token, TCHAR StopChar /* 
  *
  * @return	the number of character parsed
  */
-bool FBaseParser::GetRawToken( FToken& Token, TCHAR StopChar /* = TCHAR('\n') */ )
+bool FBaseParser::GetRawString( FTokenString& String, TCHAR StopChar /* = TCHAR('\n') */ )
 {
 	// Get token after whitespace.
-	TCHAR Temp[MAX_STRING_CONST_SIZE];
 	int32 Length=0;
 	TCHAR c = GetLeadingChar();
 	while( !IsEOL(c) && c != StopChar )
@@ -681,7 +661,7 @@ bool FBaseParser::GetRawToken( FToken& Token, TCHAR StopChar /* = TCHAR('\n') */
 		{
 			break;
 		}
-		Temp[Length++] = c;
+		String.String[Length++] = c;
 		if( Length >= MAX_STRING_CONST_SIZE )
 		{
 			Throwf(TEXT("Identifier exceeds maximum of %i characters"), (int32)MAX_STRING_CONST_SIZE );
@@ -691,13 +671,11 @@ bool FBaseParser::GetRawToken( FToken& Token, TCHAR StopChar /* = TCHAR('\n') */
 	UngetChar();
 
 	// Get rid of trailing whitespace.
-	while( Length>0 && (Temp[Length-1]==' ' || Temp[Length-1]==9 ) )
+	while( Length>0 && (String.String[Length-1]==' ' || String.String[Length-1]==9 ) )
 	{
 		Length--;
 	}
-	Temp[Length]=0;
-
-	Token.SetConstString(Temp);
+	String.String[Length]=0;
 
 	return Length>0;
 }
@@ -705,33 +683,14 @@ bool FBaseParser::GetRawToken( FToken& Token, TCHAR StopChar /* = TCHAR('\n') */
 //
 // Get an identifier token, return 1 if gotten, 0 if not.
 //
-bool FBaseParser::GetIdentifier( FToken& Token, bool bNoConsts )
+bool FBaseParser::GetIdentifier(FToken& Token, bool bNoConsts)
 {
 	if (!GetToken(Token, bNoConsts))
 	{
 		return false;
 	}
 
-	if (Token.TokenType == TOKEN_Identifier)
-	{
-		return true;
-	}
-
-	UngetToken(Token);
-	return false;
-}
-
-//
-// Get a symbol token, return 1 if gotten, 0 if not.
-//
-bool FBaseParser::GetSymbol( FToken& Token )
-{
-	if (!GetToken(Token))
-	{
-		return false;
-	}
-
-	if( Token.TokenType == TOKEN_Symbol )
+	if (Token.IsIdentifier())
 	{
 		return true;
 	}
@@ -743,12 +702,12 @@ bool FBaseParser::GetSymbol( FToken& Token )
 // Modify token to fix redirected types if needed
 void FBaseParser::RedirectTypeIdentifier(FToken& Token) const
 {
-	check(Token.TokenType == TOKEN_Identifier);
+	check(Token.IsIdentifier());
 
-	const FString* FoundRedirect = UHTConfig.TypeRedirectMap.Find(Token.Identifier);
+	const FString* FoundRedirect = UHTConfig.TypeRedirectMap.Find(FString(Token.Value));
 	if (FoundRedirect)
 	{
-		Token.SetIdentifier(**FoundRedirect);
+		Token.Value = *FoundRedirect;
 	}
 }
 
@@ -804,7 +763,7 @@ bool FBaseParser::MatchSymbol( const TCHAR Match, ESymbolParseOption bParseTempl
 
 	if (GetToken(Token, /*bNoConsts=*/ true, bParseTemplateClosingBracket))
 	{
-		if (Token.TokenType==TOKEN_Symbol && Token.Identifier[0] == Match && Token.Identifier[1] == 0)
+		if (Token.IsSymbol(Match))
 		{
 			return true;
 		}
@@ -823,7 +782,7 @@ bool FBaseParser::MatchSymbol(const TCHAR* Match, ESymbolParseOption bParseTempl
 
 	if (GetToken(Token, /*bNoConsts=*/ true, bParseTemplateClosingBracket))
 	{
-		if (Token.TokenType==TOKEN_Symbol && !FCString::Strcmp(Token.Identifier, Match))
+		if (Token.IsSymbol(Match, ESearchCase::CaseSensitive))
 		{
 			return true;
 		}
@@ -841,7 +800,7 @@ bool FBaseParser::MatchIdentifier( const TCHAR* Match, ESearchCase::Type SearchC
 	FToken Token;
 	if (GetToken(Token))
 	{
-		if (Token.TokenType==TOKEN_Identifier && ((SearchCase == ESearchCase::CaseSensitive) ? !FCString::Strcmp(Token.Identifier, Match) : !FCString::Stricmp(Token.Identifier, Match)))
+		if (Token.IsIdentifier(Match, SearchCase))
 		{
 			return true;
 		}
@@ -859,7 +818,7 @@ bool FBaseParser::MatchConstInt( const TCHAR* Match )
 	FToken Token;
 	if (GetToken(Token))
 	{
-		if( Token.TokenType==TOKEN_Const && (Token.ConstantType == CPT_Int || Token.ConstantType == CPT_Int64) && FCString::Strcmp(Token.Identifier,Match)==0 )
+		if (Token.IsConstInt(Match))
 		{
 			return true;
 		}
@@ -877,7 +836,7 @@ bool FBaseParser::MatchAnyConstInt()
 	FToken Token;
 	if (GetToken(Token))
 	{
-		if( Token.TokenType==TOKEN_Const && (Token.ConstantType == CPT_Int || Token.ConstantType == CPT_Int64) )
+		if (Token.IsConstInt())
 		{
 			return true;
 		}
@@ -897,7 +856,7 @@ void FBaseParser::MatchSemi()
 		FToken Token;
 		if( GetToken(Token) )
 		{
-			Throwf(TEXT("Missing ';' before '%s'"), Token.Identifier );
+			Throwf(TEXT("Missing ';' before '%s'"), *FString(Token.Value));
 		}
 		else
 		{
@@ -919,7 +878,7 @@ bool FBaseParser::PeekSymbol( const TCHAR Match )
 	}
 	UngetToken(Token);
 
-	return Token.TokenType==TOKEN_Symbol && Token.Identifier[0] == Match && Token.Identifier[1] == 0;
+	return Token.IsSymbol(Match);
 }
 
 //
@@ -933,7 +892,7 @@ bool FBaseParser::PeekIdentifier( const TCHAR* Match, ESearchCase::Type SearchCa
 		return false;
 	}
 	UngetToken(Token);
-	return Token.TokenType==TOKEN_Identifier && ((SearchCase == ESearchCase::CaseSensitive) ? !FCString::Strcmp(Token.Identifier, Match) : !FCString::Stricmp(Token.Identifier, Match));
+	return Token.IsIdentifier(Match, SearchCase);
 }
 
 //
@@ -959,6 +918,14 @@ void FBaseParser::RequireSymbol( const TCHAR Match, const TCHAR* Tag, ESymbolPar
 	if (!MatchSymbol(Match, bParseTemplateClosingBracket))
 	{
 		Throwf(TEXT("Missing '%c' in %s"), Match, Tag );
+	}
+}
+
+void FBaseParser::RequireSymbol(const TCHAR Match, const FStringView& Tag, ESymbolParseOption bParseTemplateClosingBracket/*=ESymbolParseOption::Normal*/)
+{
+	if (!MatchSymbol(Match, bParseTemplateClosingBracket))
+	{
+		Throwf(TEXT("Missing '%c' in %s"), Match, *FString(Tag));
 	}
 }
 
@@ -1018,24 +985,19 @@ FString FBaseParser::ReadNewStyleValue(const TCHAR* TypeOfSpecifier)
 
 	FString Result;
 
-	switch (ValueToken.TokenType)
+	if (ValueToken.IsIdentifier() || ValueToken.IsSymbol())
 	{
-		case TOKEN_Identifier:
-		case TOKEN_Symbol:
+		Result = FString(ValueToken.Value);
 
-			Result = ValueToken.Identifier;
-
-			if (MatchSymbol(TEXT('=')))
-			{
-				Result += TEXT("=");
-				Result += ReadNewStyleValue(TypeOfSpecifier);
-			}
-			break;
-
-		case TOKEN_Const:
-
-			Result = ValueToken.GetConstantValue();
-			break;
+		if (MatchSymbol(TEXT('=')))
+		{
+			Result += TEXT("=");
+			Result += ReadNewStyleValue(TypeOfSpecifier);
+		}
+	}
+	else
+	{
+		Result = ValueToken.GetConstantValue();
 	}
 
 	return Result;
@@ -1072,7 +1034,7 @@ void FBaseParser::ParseNameWithPotentialAPIMacroPrefix(FString& DeclaredName, FS
 	}
 
 	// Is the identifier the name or an DLL import/export API macro?
-	FString NameTokenStr = NameToken.Identifier;
+	FString NameTokenStr(NameToken.Value);
 	if (NameTokenStr.EndsWith(TEXT("_API"), ESearchCase::CaseSensitive))
 	{
 		RequiredAPIMacroIfPresent = MoveTemp(NameTokenStr);
@@ -1082,7 +1044,7 @@ void FBaseParser::ParseNameWithPotentialAPIMacroPrefix(FString& DeclaredName, FS
 		{
 			Throwf(TEXT("Missing %s name"), FailureMessage);
 		}
-		DeclaredName = NameToken.Identifier;
+		DeclaredName = FString(NameToken.Value);
 	}
 	else
 	{
@@ -1115,7 +1077,7 @@ void FBaseParser::ReadSpecifierSetInsideMacro(TArray<FPropertySpecifier>& Specif
 			Throwf(TEXT("Expected %s"), *ErrorMessageGetter());
 		}
 
-		if (Specifier.Matches(TEXT("meta"), ESearchCase::IgnoreCase))
+		if (Specifier.IsIdentifier(TEXT("meta"), ESearchCase::IgnoreCase))
 		{
 			RequireSymbol(TEXT('='), ErrorMessageGetter);
 			RequireSymbol(TEXT('('), ErrorMessageGetter);
@@ -1130,7 +1092,7 @@ void FBaseParser::ReadSpecifierSetInsideMacro(TArray<FPropertySpecifier>& Specif
 					Throwf(TEXT("Expected a metadata key"));
 				}
 
-				FString Key = MetaKeyToken.Identifier;
+				FString Key(MetaKeyToken.Value);
 
 				// Potentially read a value
 				FString Value;
@@ -1146,13 +1108,13 @@ void FBaseParser::ReadSpecifierSetInsideMacro(TArray<FPropertySpecifier>& Specif
 			RequireSymbol(TEXT(')'), ErrorMessageGetter);
 		}
 		// Look up specifier in metadata dictionary
-		else if (FMetadataKeyword* MetadataKeyword = GetMetadataKeyword(Specifier.Identifier))
+		else if (FMetadataKeyword* MetadataKeyword = GetMetadataKeyword(Specifier))
 		{
 			if (MatchSymbol(TEXT('=')))
 			{
 				if (MetadataKeyword->ValueArgument == EMetadataValueArgument::None)
 				{
-					Throwf(TEXT("Incorrect = after metadata specifier '%s'"), Specifier.Identifier);
+					Throwf(TEXT("Incorrect = after metadata specifier '%s'"), *Specifier.GetTokenValue());
 				}
 
 				FString Value = ReadNewStyleValue(TypeOfSpecifier);
@@ -1162,7 +1124,7 @@ void FBaseParser::ReadSpecifierSetInsideMacro(TArray<FPropertySpecifier>& Specif
 			{
 				if (MetadataKeyword->ValueArgument == EMetadataValueArgument::Required)
 				{
-					Throwf(TEXT("Missing = after metadata specifier '%s'"), Specifier.Identifier);
+					Throwf(TEXT("Missing = after metadata specifier '%s'"), *Specifier.GetTokenValue());
 				}
 
 				MetadataKeyword->ApplyToMetadata(*this, MetaData);
@@ -1171,7 +1133,7 @@ void FBaseParser::ReadSpecifierSetInsideMacro(TArray<FPropertySpecifier>& Specif
 		else
 		{
 			// Creating a new specifier
-			SpecifiersFound.Emplace(Specifier.Identifier);
+			SpecifiersFound.Emplace(FString(Specifier.Value));
 
 			// Look for a value for this specifier
 			if (MatchSymbol(TEXT('=')) || PeekSymbol(TEXT('(')))
@@ -1231,41 +1193,41 @@ EUnderlyingEnumType FBaseParser::ParseUnderlyingEnumType()
 			Throwf(TEXT("Missing enum base"));
 		}
 
-		if (!FCString::Strcmp(BaseToken.Identifier, TEXT("uint8")))
+		if (BaseToken.IsValue(TEXT("uint8"), ESearchCase::CaseSensitive))
 		{
 			UnderlyingType = EUnderlyingEnumType::uint8;
 		}
-		else if (!FCString::Strcmp(BaseToken.Identifier, TEXT("uint16")))
+		else if (BaseToken.IsValue(TEXT("uint16"), ESearchCase::CaseSensitive))
 		{
 			UnderlyingType = EUnderlyingEnumType::uint16;
 		}
-		else if (!FCString::Strcmp(BaseToken.Identifier, TEXT("uint32")))
+		else if (BaseToken.IsValue(TEXT("uint32"), ESearchCase::CaseSensitive))
 		{
 			UnderlyingType = EUnderlyingEnumType::uint32;
 		}
-		else if (!FCString::Strcmp(BaseToken.Identifier, TEXT("uint64")))
+		else if (BaseToken.IsValue(TEXT("uint64"), ESearchCase::CaseSensitive))
 		{
 			UnderlyingType = EUnderlyingEnumType::uint64;
 		}
-		else if (!FCString::Strcmp(BaseToken.Identifier, TEXT("int8")))
+		else if (BaseToken.IsValue(TEXT("int8"), ESearchCase::CaseSensitive))
 		{
 			UnderlyingType = EUnderlyingEnumType::int8;
 		}
-		else if (!FCString::Strcmp(BaseToken.Identifier, TEXT("int16")))
+		else if (BaseToken.IsValue(TEXT("int16"), ESearchCase::CaseSensitive))
 		{
 			UnderlyingType = EUnderlyingEnumType::int16;
 		}
-		else if (!FCString::Strcmp(BaseToken.Identifier, TEXT("int32")))
+		else if (BaseToken.IsValue(TEXT("int32"), ESearchCase::CaseSensitive))
 		{
 			UnderlyingType = EUnderlyingEnumType::int32;
 		}
-		else if (!FCString::Strcmp(BaseToken.Identifier, TEXT("int64")))
+		else if (BaseToken.IsValue(TEXT("int64"), ESearchCase::CaseSensitive))
 		{
 			UnderlyingType = EUnderlyingEnumType::int64;
 		}
 		else
 		{
-			Throwf(TEXT("Unsupported enum class base type: %s"), BaseToken.Identifier);
+			Throwf(TEXT("Unsupported enum class base type: %s"), *BaseToken.GetTokenValue());
 		}
 	}
 	else
