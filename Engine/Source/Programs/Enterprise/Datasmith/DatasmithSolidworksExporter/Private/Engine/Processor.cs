@@ -381,7 +381,7 @@ namespace SolidworksDatasmith.Engine
                                 // Add the configurations
                                 foreach (ConfigurationDataCommand.Configuration cfg in cmd.Configurations)
                                 {
-                                    processor.ConfigurationToDatasmith(cfg);
+                                    processor.ConfigurationToDatasmith(cmd.ConfigurationsSetName, cfg);
                                 }
                             }
                             break;
@@ -960,7 +960,7 @@ namespace SolidworksDatasmith.Engine
 			Dictionary<string, FDatasmithFacadeActorBinding> Bindings = new Dictionary<string, FDatasmithFacadeActorBinding>();
 		};
 
-		private void ConfigurationToDatasmith(ConfigurationDataCommand.Configuration cfg)
+		private void ConfigurationToDatasmith(string ConfigurationsSetName, ConfigurationDataCommand.Configuration cfg)
 		{
 #if DATASMITH_VARIANTS
 			// Request existing VariantSet, or create a new one
@@ -977,15 +977,22 @@ namespace SolidworksDatasmith.Engine
 				LevelVariantSets = DatasmithScene.GetLevelVariantSets(0);
             }
 
-			if (LevelVariantSets.GetVariantSetsCount() == 0)
+			int VariantSetsCount = LevelVariantSets.GetVariantSetsCount();
+			for (int VariantSetIndex = 0; VariantSetIndex < VariantSetsCount; ++VariantSetIndex)
 			{
-				VariantSet = new FDatasmithFacadeVariantSet("Configurations");
+				FDatasmithFacadeVariantSet VSet = LevelVariantSets.GetVariantSet(VariantSetIndex);
+
+				if (VSet.GetName() == ConfigurationsSetName){
+					VariantSet = VSet;
+					break;
+				}
+			}
+
+			if (VariantSet == null)
+			{
+				VariantSet = new FDatasmithFacadeVariantSet(ConfigurationsSetName);
 				LevelVariantSets.AddVariantSet(VariantSet);
 			}
-			else
-			{
-				VariantSet = LevelVariantSets.GetVariantSet(0);
-            }
 
 			// Add a new variant
 			FDatasmithFacadeVariant Variant = new FDatasmithFacadeVariant(cfg.Name);
