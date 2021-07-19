@@ -373,28 +373,7 @@ namespace HordeServer
 			Services.AddSingleton<LifetimeService>();
 			Services.AddSingleton<ILogFileService, LogFileService>();
 			Services.AddSingleton<INotificationService, NotificationService>();
-
-			if (Settings.P4UseRouter && !String.IsNullOrEmpty(Settings.PerforceBridge) && !String.IsNullOrEmpty(Settings.P4BridgeServer))
-			{
-				// using p4 service router, which will be removed along with the python p4 service
-				// once the p4 api service is hardened
-				Services.AddSingleton<IPerforceService, PerforceServiceRouter>();
-
-			}
-			else if (!String.IsNullOrEmpty(Settings.PerforceBridge))
-			{
-				// Python P4 bridge service
-				Services.AddSingleton<IPerforceService, BridgePerforceService>(SP => new BridgePerforceService(Settings.PerforceBridge!, SP.GetRequiredService<ILogger<BridgePerforceService>>()));
-			}
-			else if (!String.IsNullOrEmpty(Settings.P4BridgeServer))
-			{
-				// Native P4 API
-				Services.AddSingleton<IPerforceService, P4APIPerforceService>();
-			}
-			else
-			{
-				Services.AddSingleton<IPerforceService, LocalPerforceService>();
-			}
+			Services.AddSingleton<IPerforceService, P4APIPerforceService>();
 
 			Services.AddSingleton<PerforceLoadBalancer>();
 			Services.AddSingleton<PoolService>();

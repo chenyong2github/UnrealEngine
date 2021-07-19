@@ -15,13 +15,14 @@ using Microsoft.Extensions.Options;
 using System.Runtime.InteropServices;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using System.Diagnostics.CodeAnalysis;
 
 namespace HordeServer.Services
 {
 	/// <summary>
 	/// P4API implementation of the Perforce service
 	/// </summary>
-	public class P4APIPerforceService : PerforceServiceBase
+	public class P4APIPerforceService : IPerforceService
 	{
 
 		IOptionsMonitor<ServerSettings> Settings;
@@ -426,7 +427,7 @@ namespace HordeServer.Services
 
 
 		/// <inheritdoc/>
-		public override async Task<List<ChangeSummary>> GetChangesAsync(string StreamName, int? MinChange, int? MaxChange, int Results, string? ImpersonateUser)
+		public async Task<List<ChangeSummary>> GetChangesAsync(string StreamName, int? MinChange, int? MaxChange, int Results, string? ImpersonateUser)
 		{
 
 			return await Task.Run(() =>
@@ -460,7 +461,7 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc/>
-		public override async Task<List<ChangeDetails>> GetChangeDetailsAsync(string StreamName, IReadOnlyList<int> ChangeNumbers, string? ImpersonateUser)
+		public async Task<List<ChangeDetails>> GetChangeDetailsAsync(string StreamName, IReadOnlyList<int> ChangeNumbers, string? ImpersonateUser)
 		{
 			return await Task.Run(() =>
 			{
@@ -536,7 +537,7 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc />
-		public override async Task<string> CreateTicket(string ImpersonateUser)
+		public async Task<string> CreateTicket(string ImpersonateUser)
 		{
 			return await Task.Run(() =>
 			{
@@ -554,7 +555,7 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc/>
-		public override async Task<List<FileSummary>> FindFilesAsync(IEnumerable<string> Paths)
+		public async Task<List<FileSummary>> FindFilesAsync(IEnumerable<string> Paths)
 		{
 			return await Task.Run(() =>
 			{
@@ -592,7 +593,7 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc/>
-		public override async Task<byte[]> PrintAsync(string DepotPath)
+		public async Task<byte[]> PrintAsync(string DepotPath)
 		{
 			return await Task.Run(() =>
 			{
@@ -623,7 +624,7 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc/>
-		public override async Task<int> DuplicateShelvedChangeAsync(int ShelvedChange)
+		public async Task<int> DuplicateShelvedChangeAsync(int ShelvedChange)
 		{
 			return await Task.Run(() =>
 			{
@@ -673,7 +674,7 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc/>
-		public override async Task DeleteShelvedChangeAsync(int ShelvedChange)
+		public async Task DeleteShelvedChangeAsync(int ShelvedChange)
 		{
 			await Task.Run(() =>
 			{
@@ -710,7 +711,7 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc/>
-		public override async Task UpdateChangelistDescription(int Change, string Description)
+		public async Task UpdateChangelistDescription(int Change, string Description)
 		{
 			await Task.Run(() =>
 			{
@@ -739,7 +740,7 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc/>
-		public async override Task<int> CreateNewChangeAsync(string StreamName, string FilePath)
+		public async Task<int> CreateNewChangeAsync(string StreamName, string FilePath)
 		{
 			return await Task.Run(() =>
 			{
@@ -905,7 +906,7 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc/>
-		public override async Task<(int? Change, string Message)> SubmitShelvedChangeAsync(int Change, int OriginalChange)
+		public async Task<(int? Change, string Message)> SubmitShelvedChangeAsync(int Change, int OriginalChange)
 		{
 			return await Task.Run(() => 
 			{
@@ -1016,7 +1017,7 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc/>		
-		public override async Task<PerforceUserInfo?> GetUserInfoAsync(string UserName)
+		public async Task<PerforceUserInfo?> GetUserInfoAsync(string UserName)
 		{
 			return await Task.Run(() =>
 			{
@@ -1109,6 +1110,87 @@ namespace HordeServer.Services
 
 		}
 
+		/// <inheritdoc/>
+		public virtual async Task<int> GetCodeChangeAsync(string StreamName, int Change)
+		{
+			int MaxChange = Change;
+			for (; ; )
+			{
+				// Query for the changes before this point
+				List<ChangeSummary> Changes = await GetChangesAsync(StreamName, null, MaxChange, 10, null);
+				Serilog.Log.Logger.Information("Finding last code change in {Stream} before {MaxChange}: {NumResults}", StreamName, MaxChange, Changes.Count);
+				if (Changes.Count == 0)
+				{
+					return 0;
+				}
+
+				// Get the details for them
+				List<ChangeDetails> DetailsList = await GetChangeDetailsAsync(StreamName, Changes.ConvertAll(x => x.Number), null);
+				foreach (ChangeDetails Details in DetailsList.OrderByDescending(x => x.Number))
+				{
+					ChangeContentFlags ContentFlags = Details.GetContentFlags();
+					Serilog.Log.Logger.Information("Change {Change} = {Flags}", Details.Number, ContentFlags.ToString());
+					if ((Details.GetContentFlags() & ChangeContentFlags.ContainsCode) != 0)
+					{
+						return Details.Number;
+					}
+				}
+
+				// Loop round again, adjusting our maximum changelist number
+				MaxChange = Changes.Min(x => x.Number) - 1;
+			}
+		}
+
+		/// <summary>
+		/// Gets the wildcard filter for a particular range of changes
+		/// </summary>
+		/// <param name="BasePath">Base path to find files for</param>
+		/// <param name="MinChange">Minimum changelist number to query</param>
+		/// <param name="MaxChange">Maximum changelist number to query</param>
+		/// <returns>Filter string</returns>
+		public static string GetFilter(string BasePath, int? MinChange, int? MaxChange)
+		{
+			StringBuilder Filter = new StringBuilder(BasePath);
+			if (MinChange != null && MaxChange != null)
+			{
+				Filter.Append($"@{MinChange},{MaxChange}");
+			}
+			else if (MinChange != null)
+			{
+				Filter.Append($"@>={MinChange}");
+			}
+			else if (MaxChange != null)
+			{
+				Filter.Append($"@<={MaxChange}");
+			}
+			return Filter.ToString();
+		}
+
+		/// <summary>
+		/// Gets a stream-relative path from a depot path
+		/// </summary>
+		/// <param name="DepotFile">The depot file to check</param>
+		/// <param name="StreamName">Name of the stream</param>
+		/// <param name="RelativePath">Receives the relative path to the file</param>
+		/// <returns>True if the stream-relative path was returned</returns>
+		public static bool TryGetStreamRelativePath(string DepotFile, string StreamName, [NotNullWhen(true)] out string? RelativePath)
+		{
+			if (DepotFile.StartsWith(StreamName, StringComparison.OrdinalIgnoreCase) && DepotFile.Length > StreamName.Length && DepotFile[StreamName.Length] == '/')
+			{
+				RelativePath = DepotFile.Substring(StreamName.Length);
+				return true;
+			}
+
+			Match Match = Regex.Match(DepotFile, "^//[^/]+/[^/]+(/.*)$");
+			if (Match.Success)
+			{
+				RelativePath = Match.Groups[1].Value;
+				return true;
+			}
+
+			RelativePath = null;
+			return false;
+		}
 	}
 
 }
