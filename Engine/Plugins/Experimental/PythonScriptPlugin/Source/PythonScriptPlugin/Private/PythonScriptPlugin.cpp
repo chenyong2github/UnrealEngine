@@ -759,9 +759,7 @@ void FPythonScriptPlugin::InitializePython()
 		for (const FString& RootPath : RootPaths)
 		{
 			const FString RootFilesystemPath = FPackageName::LongPackageNameToFilename(RootPath);
-			const FString PythonContentPath = FPaths::ConvertRelativePathToFull(RootFilesystemPath / TEXT("Python"));
-			PyUtil::AddSystemPath(PythonContentPath);
-			PyUtil::GetOnDiskUnrealModulesCache().AddModules(*PythonContentPath);
+			RegisterModulePaths(RootFilesystemPath);
 		}
 
 		for (const FDirectoryPath& AdditionalPath : GetDefault<UPythonScriptPluginSettings>()->AdditionalPaths)
@@ -1377,9 +1375,7 @@ void FPythonScriptPlugin::OnContentPathMounted(const FString& InAssetPath, const
 {
 	{
 		FPyScopedGIL GIL;
-		const FString PythonContentPath = FPaths::ConvertRelativePathToFull(InFilesystemPath / TEXT("Python"));
-		PyUtil::AddSystemPath(PythonContentPath);
-		PyUtil::GetOnDiskUnrealModulesCache().AddModules(*PythonContentPath);
+		RegisterModulePaths(InFilesystemPath);
 	}
 
 #if WITH_EDITOR
@@ -1394,9 +1390,7 @@ void FPythonScriptPlugin::OnContentPathDismounted(const FString& InAssetPath, co
 {
 	{
 		FPyScopedGIL GIL;
-		const FString PythonContentPath = FPaths::ConvertRelativePathToFull(InFilesystemPath / TEXT("Python"));
-		PyUtil::RemoveSystemPath(PythonContentPath);
-		PyUtil::GetOnDiskUnrealModulesCache().RemoveModules(*PythonContentPath);
+		UnregisterModulePaths(InFilesystemPath);
 	}
 
 #if WITH_EDITOR
@@ -1405,6 +1399,32 @@ void FPythonScriptPlugin::OnContentPathDismounted(const FString& InAssetPath, co
 		PythonFileDataSource->RemoveFileMount(*(InAssetPath / TEXT("Python")));
 	}
 #endif	// WITH_EDITOR
+}
+
+void FPythonScriptPlugin::RegisterModulePaths(const FString& InFilesystemPath)
+{
+	const FString PythonContentPath = FPaths::ConvertRelativePathToFull(InFilesystemPath / TEXT("Python"));
+	PyUtil::AddSystemPath(PythonContentPath);
+
+	const FString PythonContentPlatformSitePackagesPath = PythonContentPath / TEXT("Lib") / FPlatformMisc::GetUBTPlatform() / TEXT("site-packages");
+	const FString PythonContentGeneralSitePackagesPath = PythonContentPath / TEXT("Lib") / TEXT("site-packages");
+	PyUtil::AddSitePackagesPath(PythonContentPlatformSitePackagesPath);
+	PyUtil::AddSitePackagesPath(PythonContentGeneralSitePackagesPath);
+
+	PyUtil::GetOnDiskUnrealModulesCache().AddModules(*PythonContentPath);
+}
+
+void FPythonScriptPlugin::UnregisterModulePaths(const FString& InFilesystemPath)
+{
+	const FString PythonContentPath = FPaths::ConvertRelativePathToFull(InFilesystemPath / TEXT("Python"));
+	PyUtil::RemoveSystemPath(PythonContentPath);
+
+	const FString PythonContentPlatformSitePackagesPath = PythonContentPath / TEXT("Lib") / FPlatformMisc::GetUBTPlatform() / TEXT("site-packages");
+	const FString PythonContentGeneralSitePackagesPath = PythonContentPath / TEXT("Lib") / TEXT("site-packages");
+	PyUtil::RemoveSystemPath(PythonContentPlatformSitePackagesPath);
+	PyUtil::RemoveSystemPath(PythonContentGeneralSitePackagesPath);
+
+	PyUtil::GetOnDiskUnrealModulesCache().RemoveModules(*PythonContentPath);
 }
 
 bool FPythonScriptPlugin::IsDeveloperModeEnabled()

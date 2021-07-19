@@ -794,7 +794,7 @@ UObject* GetOwnerObject(PyObject* InPyObj)
 	}
 
 	return nullptr;
-			}
+}
 
 PyObject* GetPropertyValue(const UStruct* InStruct, const void* InStructData, const FProperty* InProp, const char *InAttributeName, PyObject* InOwnerPyObject, const TCHAR* InErrorCtxt)
 {
@@ -1082,6 +1082,22 @@ FString GetInterpreterExecutablePath(bool* OutIsEnginePython)
 	PythonPath = FPaths::ConvertRelativePathToFull(PythonPath);
 
 	return PythonPath;
+}
+
+void AddSitePackagesPath(const FString& InPath)
+{
+	if (FPyObjectPtr PySiteModule = FPyObjectPtr::StealReference(PyImport_ImportModule("site")))
+	{
+		PyObject* PySiteDict = PyModule_GetDict(PySiteModule);
+		if (PyObject* PyAddSiteDirFunc = PyDict_GetItemString(PySiteDict, "addsitedir"))
+		{
+			FPyObjectPtr PyPath;
+			if (PyConversion::Pythonize(InPath, PyPath.Get(), PyConversion::ESetErrorState::No))
+			{
+				FPyObjectPtr PyAddSiteDirResult = FPyObjectPtr::StealReference(PyObject_CallFunctionObjArgs(PyAddSiteDirFunc, PyPath.Get(), nullptr));
+			}
+		}
+	}
 }
 
 void AddSystemPath(const FString& InPath)

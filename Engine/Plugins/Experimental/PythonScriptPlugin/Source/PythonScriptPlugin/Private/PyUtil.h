@@ -468,6 +468,11 @@ namespace PyUtil
 	FString GetInterpreterExecutablePath(bool* OutIsEnginePython = nullptr);
 
 	/**
+	 * Register the given path as a known site-packages path (@see site.addsitedir in Python).
+	 */
+	void AddSitePackagesPath(const FString& InPath);
+
+	/**
 	 * Ensure that the given path is on the sys.path list.
 	 */
 	void AddSystemPath(const FString& InPath);
