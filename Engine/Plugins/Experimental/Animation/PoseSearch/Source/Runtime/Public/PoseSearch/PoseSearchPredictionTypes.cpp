@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseSearchPredictionTypes.h"
+#include "Animation/AnimSequence.h"
 #include "Algo/AllOf.h"
 
 
@@ -9,6 +10,11 @@ float FPredictionPlayRateAdjustment::ComputePlayRate(float PlayRate, float Delta
 	PlayRate = RemappingCurve ? RemappingCurve->GetFloatValue(PlayRate) : PlayRate;
 	PlayRate = ScaleBiasClamp.ApplyTo(PlayRate, DeltaTime);
 	return PlayRate;
+}
+
+bool FPredictionTrajectoryState::IsZeroSample() const
+{
+	return LocalLinearVelocity == FVector::ZeroVector && LocalLinearAcceleration == FVector::ZeroVector && Position == FVector::ZeroVector && AccumulatedDistance == 0.f;
 }
 
 FPredictionTrajectoryState FPredictionTrajectoryState::Lerp(const FPredictionTrajectoryState& A, const FPredictionTrajectoryState& B, float Alpha)
@@ -28,12 +34,10 @@ bool FPredictionTrajectoryRange::HasSamples() const
 
 bool FPredictionTrajectoryRange::HasOnlyZeroSamples() const
 {
-	return Algo::AllOf(Samples, [](const FPredictionTrajectoryState& Sample) {
-		return Sample.LocalLinearVelocity == FVector::ZeroVector
-			&& Sample.LocalLinearAcceleration == FVector::ZeroVector
-			&& Sample.Position == FVector::ZeroVector
-			&& Sample.AccumulatedDistance == 0.f;
-		});
+	return Algo::AllOf(Samples, [](const FPredictionTrajectoryState& Sample) 
+	{
+		return Sample.IsZeroSample();
+	});
 }
 
 bool FPredictionSequenceState::HasSequence() const

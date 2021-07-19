@@ -67,7 +67,7 @@ void UAnimGraphNode_OrientationWarping::GetInputLinkAttributes(FNodeAttributeArr
 {
 	if (Node.Mode == EWarpingEvaluationMode::Graph)
 	{
-		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::RootMotionDeltaAttributeName);
+		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::AttributeName);
 	}
 }
 
@@ -75,7 +75,7 @@ void UAnimGraphNode_OrientationWarping::GetOutputLinkAttributes(FNodeAttributeAr
 {
 	if (Node.Mode == EWarpingEvaluationMode::Graph)
 	{
-		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::RootMotionDeltaAttributeName);
+		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::AttributeName);
 	}
 }
 

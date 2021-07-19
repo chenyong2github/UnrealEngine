@@ -8,7 +8,7 @@ namespace UE { namespace Anim {
 
 const FName IAnimRootMotionProvider::ModularFeatureName(TEXT("AnimationWarping"));
 
-const FName IAnimRootMotionProvider::RootMotionDeltaAttributeName(TEXT("RootMotionDelta"));
+const FName IAnimRootMotionProvider::AttributeName(TEXT("RootMotionDelta"));
 
 const IAnimRootMotionProvider* IAnimRootMotionProvider::Get()
 {

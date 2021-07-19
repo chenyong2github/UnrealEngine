@@ -29,7 +29,7 @@ void UAnimGraphNode_SlopeWarping::GetInputLinkAttributes(FNodeAttributeArray& Ou
 {
 	if (Node.Mode == EWarpingEvaluationMode::Graph)
 	{
-		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::RootMotionDeltaAttributeName);
+		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::AttributeName);
 	}
 }
 
@@ -37,7 +37,7 @@ void UAnimGraphNode_SlopeWarping::GetOutputLinkAttributes(FNodeAttributeArray& O
 {
 	if (Node.Mode == EWarpingEvaluationMode::Graph)
 	{
-		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::RootMotionDeltaAttributeName);
+		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::AttributeName);
 	}
 }
 

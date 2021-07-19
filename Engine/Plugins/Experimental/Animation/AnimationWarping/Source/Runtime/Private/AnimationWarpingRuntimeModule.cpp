@@ -14,7 +14,7 @@ class FAnimationWarpingRuntimeModule : public IAnimationWarpingRuntimeModule
 namespace UE { namespace AnimationWarping {
 
 // Root motion animation attribute data will always be accessible on the root bone's attribute container
-static const UE::Anim::FAttributeId RootMotionAttributeId = { UE::Anim::IAnimRootMotionProvider::RootMotionDeltaAttributeName , FCompactPoseBoneIndex(0) };
+static const UE::Anim::FAttributeId RootMotionAttributeId = { UE::Anim::IAnimRootMotionProvider::AttributeName , FCompactPoseBoneIndex(0) };
 
 class FModule : public IModuleInterface, public UE::Anim::IAnimRootMotionProvider
 {

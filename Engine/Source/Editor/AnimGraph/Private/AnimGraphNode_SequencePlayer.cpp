@@ -154,7 +154,7 @@ void UAnimGraphNode_SequencePlayer::GetOutputLinkAttributes(FNodeAttributeArray&
 
 	if (UE::Anim::IAnimRootMotionProvider::Get())
 	{
-		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::RootMotionDeltaAttributeName);
+		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::AttributeName);
 	}
 }
 
@@ -216,7 +216,6 @@ void UAnimGraphNode_SequencePlayer::ReplaceReferredAnimations(const TMap<UAnimat
 {
 	HandleAnimReferenceReplacement(Node.Sequence, AnimAssetReplacementMap);
 }
-
 
 bool UAnimGraphNode_SequencePlayer::DoesSupportTimeForTransitionGetter() const
 {

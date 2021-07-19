@@ -91,7 +91,7 @@ void UAnimGraphNode_BlendSpaceBase::GetOutputLinkAttributes(FNodeAttributeArray&
 
 	if (UE::Anim::IAnimRootMotionProvider::Get())
 	{
-		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::RootMotionDeltaAttributeName);
+		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::AttributeName);
 	}
 }
 

@@ -128,7 +128,7 @@ void FAnimGraphModule::StartupModule()
 
 		AnimGraphAttributes->Register(
 			FAnimGraphAttributeDesc(
-				UE::Anim::IAnimRootMotionProvider::RootMotionDeltaAttributeName,
+				UE::Anim::IAnimRootMotionProvider::AttributeName,
 				EAnimGraphAttributeBlend::Blendable,
 				*FEditorStyle::Get().GetBrush("AnimGraph.Attribute.RootMotionDelta.Icon"),
 				LOCTEXT("RootMotionDelta", "Root Motion Delta"),
