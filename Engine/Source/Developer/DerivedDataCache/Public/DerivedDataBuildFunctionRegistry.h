@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/StringFwd.h"
+#include "Templates/Function.h"
 
 struct FGuid;
 
@@ -23,6 +24,8 @@ public:
 	virtual const IBuildFunction* FindFunction(FStringView Function) const = 0;
 	/** Find a function version by name. Returns zero if not found. Safe to call from any thread. */
 	virtual FGuid FindFunctionVersion(FStringView Function) const = 0;
+	/** Iterate the complete list of build function versions. Safe to call from any thread. */
+	virtual void IterateFunctionVersions(TFunctionRef<void(FStringView Name, const FGuid& Version)> Visitor) const = 0;
 };
 
 } // UE::DerivedData
