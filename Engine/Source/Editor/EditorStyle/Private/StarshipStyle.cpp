@@ -287,6 +287,7 @@ void FStarshipEditorStyle::FStyle::Initialize()
 	SetupUMGEditorStyles();
 	SetupMyBlueprintStyles();
 	SetupStatusBarStyle();
+	SetupColorPickerStyle();
 
 //	LogUnusedBrushResources();
 
@@ -7785,6 +7786,11 @@ void FStarshipEditorStyle::FStyle::SetupStatusBarStyle()
 	Set("StatusBar.Message.HintText",
 		FTextBlockStyle(FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
 		.SetColorAndOpacity(FStyleColors::Primary));
+}
+
+void FStarshipEditorStyle::FStyle::SetupColorPickerStyle()
+{
+	Set("ColorPicker.ColorThemes", new IMAGE_BRUSH_SVG("Starship/ColorPicker/ColorThemes", Icon16x16));
 }
 
 #undef DEFAULT_FONT

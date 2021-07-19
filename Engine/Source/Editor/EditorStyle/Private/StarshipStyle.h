@@ -71,6 +71,7 @@ public:
 		void SetupUMGEditorStyles();
 		void SetupMyBlueprintStyles();
 		void SetupStatusBarStyle();
+		void SetupColorPickerStyle();
 
 		void SettingsChanged(UObject* ChangedObject, FPropertyChangedEvent& PropertyChangedEvent);
 		void SyncSettings();
