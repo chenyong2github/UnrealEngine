@@ -25,6 +25,7 @@ public class RigVMDeveloper : ModuleRules
 					"Slate",
 					"SlateCore",
 					"EditorStyle",
+					"MessageLog",
 				}
 			);
         }

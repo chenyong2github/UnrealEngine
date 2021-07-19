@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rigs/RigHierarchyController.h"
-#include "RigVMCore/RigVMPythonUtils.h"
 
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
@@ -9,6 +8,7 @@
 #include "EditorStyleSet.h"
 #include "ScopedTransaction.h"
 #include "Engine/SkeletalMesh.h"
+#include "RigVMPythonUtils.h"
 #endif
 
 #include "ControlRig.h"
@@ -134,7 +134,7 @@ bool URigHierarchyController::SetSelection(TArray<FRigElementKey> InKeys)
 }
 
 FRigElementKey URigHierarchyController::AddBone(FName InName, FRigElementKey InParent, FTransform InTransform,
-                                                bool bTransformInGlobal, ERigBoneType InBoneType, bool bSetupUndo)
+                                                bool bTransformInGlobal, ERigBoneType InBoneType, bool bSetupUndo, bool bPrintPythonCommand)
 {
 	if(!IsValid())
 	{
@@ -169,13 +169,22 @@ FRigElementKey URigHierarchyController::AddBone(FName InName, FRigElementKey InP
 
 #if WITH_EDITOR
 	TransactionPtr.Reset();
+
+	if (bPrintPythonCommand)
+	{
+		TArray<FString> Commands = GetAddBonePythonCommands(NewElement);
+		for (const FString& Command : Commands)
+		{
+			RigVMPythonUtils::Print(FString::Printf(TEXT("%s"), *Command));
+		}
+	}
 #endif
 
 	return NewElement->Key;
 }
 
 FRigElementKey URigHierarchyController::AddNull(FName InName, FRigElementKey InParent, FTransform InTransform,
-	bool bTransformInGlobal, bool bSetupUndo)
+                                                bool bTransformInGlobal, bool bSetupUndo, bool bPrintPythonCommand)
 {
 	if(!IsValid())
 	{
@@ -211,6 +220,15 @@ FRigElementKey URigHierarchyController::AddNull(FName InName, FRigElementKey InP
 
 #if WITH_EDITOR
 	TransactionPtr.Reset();
+
+	if (bPrintPythonCommand)
+	{
+		TArray<FString> Commands = GetAddNullPythonCommands(NewElement);
+		for (const FString& Command : Commands)
+		{
+			RigVMPythonUtils::Print(FString::Printf(TEXT("%s"), *Command));
+		}
+	}
 #endif
 
 	return NewElement->Key;
@@ -223,7 +241,7 @@ FRigElementKey URigHierarchyController::AddControl(
 	FRigControlValue InValue,
 	FTransform InOffsetTransform,
 	FTransform InGizmoTransform,
-	bool bSetupUndo)
+	bool bSetupUndo, bool bPrintPythonCommand)
 {
 	if(!IsValid())
 	{
@@ -260,12 +278,21 @@ FRigElementKey URigHierarchyController::AddControl(
 
 #if WITH_EDITOR
 	TransactionPtr.Reset();
+
+	if (bPrintPythonCommand)
+	{
+		TArray<FString> Commands = GetAddControlPythonCommands(NewElement);
+		for (const FString& Command : Commands)
+		{
+			RigVMPythonUtils::Print(FString::Printf(TEXT("%s"), *Command));
+		}
+	}
 #endif
 
 	return NewElement->Key;
 }
 
-FRigElementKey URigHierarchyController::AddCurve(FName InName, float InValue, bool bSetupUndo)
+FRigElementKey URigHierarchyController::AddCurve(FName InName, float InValue, bool bSetupUndo, bool bPrintPythonCommand)
 {
 	if(!IsValid())
 	{
@@ -289,13 +316,22 @@ FRigElementKey URigHierarchyController::AddCurve(FName InName, float InValue, bo
 
 #if WITH_EDITOR
 	TransactionPtr.Reset();
+
+	if (bPrintPythonCommand)
+	{
+		TArray<FString> Commands = GetAddCurvePythonCommands(NewElement);
+		for (const FString& Command : Commands)
+		{
+			RigVMPythonUtils::Print(FString::Printf(TEXT("%s"), *Command));
+		}
+	}
 #endif
 
 	return NewElement->Key;
 }
 
 FRigElementKey URigHierarchyController::AddRigidBody(FName InName, FRigElementKey InParent,
-	FRigRigidBodySettings InSettings, FTransform InLocalTransform, bool bSetupUndo)
+                                                     FRigRigidBodySettings InSettings, FTransform InLocalTransform, bool bSetupUndo, bool bPrintPythonCommand)
 {
 	if(!IsValid())
 	{
@@ -322,6 +358,15 @@ FRigElementKey URigHierarchyController::AddRigidBody(FName InName, FRigElementKe
 
 #if WITH_EDITOR
 	TransactionPtr.Reset();
+
+	if (bPrintPythonCommand)
+	{
+		TArray<FString> Commands = GetAddRigidBodyPythonCommands(NewElement);
+		for (const FString& Command : Commands)
+		{
+			RigVMPythonUtils::Print(FString::Printf(TEXT("%s"), *Command));
+		}
+	}
 #endif
 
 	return NewElement->Key;
@@ -585,6 +630,36 @@ TArray<FRigElementKey> URigHierarchyController::ImportBones(const FReferenceSkel
 	return AddedBones;
 }
 
+TArray<FRigElementKey> URigHierarchyController::ImportBones(USkeleton* InSkeleton, FName InNameSpace,
+                                                            bool bReplaceExistingBones, bool bRemoveObsoleteBones,
+                                                            bool bSelectBones, bool bSetupUndo,
+                                                            bool bPrintPythonCommand)
+{
+	if (InSkeleton == nullptr)
+	{
+		return TArray<FRigElementKey>();
+	}
+
+	const TArray<FRigElementKey> BoneKeys = ImportBones(InSkeleton->GetReferenceSkeleton(), InNameSpace, bReplaceExistingBones, bRemoveObsoleteBones,
+	                   bSelectBones, bSetupUndo);
+
+#if WITH_EDITOR
+	if (!BoneKeys.IsEmpty() && bPrintPythonCommand)
+	{
+		if (bPrintPythonCommand)
+		{
+			RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy_controller.import_bones_from_asset('%s', '%s', %s, %s, %s)"),
+				*InSkeleton->GetPathName(),
+				*InNameSpace.ToString(),
+				(bReplaceExistingBones) ? TEXT("True") : TEXT("False"),
+				(bRemoveObsoleteBones) ? TEXT("True") : TEXT("False"),
+				(bSelectBones) ? TEXT("True") : TEXT("False")));
+		}
+	}
+#endif
+	return BoneKeys;
+}
+
 #if WITH_EDITOR
 
 TArray<FRigElementKey> URigHierarchyController::ImportBonesFromAsset(FString InAssetPath, FName InNameSpace,
@@ -631,7 +706,7 @@ USkeleton* URigHierarchyController::GetSkeletonFromAssetPath(const FString& InAs
 #endif
 
 TArray<FRigElementKey> URigHierarchyController::ImportCurves(USkeleton* InSkeleton, FName InNameSpace,
-                                                             bool bSelectCurves, bool bSetupUndo)
+                                                             bool bSelectCurves, bool bSetupUndo, bool bPrintPythonCommand)
 {
 	check(InSkeleton);
 
@@ -669,6 +744,19 @@ TArray<FRigElementKey> URigHierarchyController::ImportCurves(USkeleton* InSkelet
 	{
 		SetSelection(Keys);
 	}
+	
+#if WITH_EDITOR
+	if (!Keys.IsEmpty() && bPrintPythonCommand)
+	{
+		if (bPrintPythonCommand)
+		{
+			RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy_controller.import_curves_from_asset('%s', '%s', %s)"),
+				*InSkeleton->GetPathName(),
+				*InNameSpace.ToString(),
+				(bSelectCurves) ? TEXT("True") : TEXT("False")));
+		}
+	}
+#endif
 
 	return Keys;
 }
@@ -1120,6 +1208,7 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromHierarchyContainer(con
 	return AddedKeys;
 }
 
+#if WITH_EDITOR
 TArray<FString> URigHierarchyController::GeneratePythonCommands()
 {
 	TArray<FString> Commands;
@@ -1381,6 +1470,7 @@ TArray<FString> URigHierarchyController::GetSetControlGizmoTransformPythonComman
 		*RigVMPythonUtils::TransformToPythonString(InTransform),
 		bInitial ? TEXT("True") : TEXT("False"))};
 }
+#endif
 
 void URigHierarchyController::Notify(ERigHierarchyNotification InNotifType, const FRigBaseElement* InElement)
 {
@@ -1428,7 +1518,7 @@ int32 URigHierarchyController::AddElement(FRigBaseElement* InElementToAdd, FRigB
 	return InElementToAdd->Index;
 }
 
-bool URigHierarchyController::RemoveElement(FRigElementKey InElement, bool bSetupUndo)
+bool URigHierarchyController::RemoveElement(FRigElementKey InElement, bool bSetupUndo, bool bPrintPythonCommand)
 {
 	if(!IsValid())
 	{
@@ -1459,6 +1549,12 @@ bool URigHierarchyController::RemoveElement(FRigElementKey InElement, bool bSetu
 		TransactionPtr->Cancel();
 	}
 	TransactionPtr.Reset();
+
+	if (bRemoved && bPrintPythonCommand)
+	{
+		RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy_controller.remove_element(%s)"),
+			*InElement.ToPythonString()));
+	}
 #endif
 	
 	return bRemoved;
@@ -1568,7 +1664,7 @@ bool URigHierarchyController::RemoveElement(FRigBaseElement* InElement)
 	return NumElementsRemoved == 1;
 }
 
-FRigElementKey URigHierarchyController::RenameElement(FRigElementKey InElement, FName InName, bool bSetupUndo)
+FRigElementKey URigHierarchyController::RenameElement(FRigElementKey InElement, FName InName, bool bSetupUndo, bool bPrintPythonCommand)
 {
 	if(!IsValid())
 	{
@@ -1603,6 +1699,13 @@ FRigElementKey URigHierarchyController::RenameElement(FRigElementKey InElement, 
 	if (bRenamed)
 	{
 		ClearSelection();
+	}
+
+	if (bRenamed && bPrintPythonCommand)
+	{
+		RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy_controller.rename_element(%s, '%s')"),
+			*InElement.ToPythonString(),
+			*InName.ToString()));
 	}
 #endif
 
@@ -1814,7 +1917,7 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 	return false;
 }
 
-bool URigHierarchyController::RemoveParent(FRigElementKey InChild, FRigElementKey InParent, bool bMaintainGlobalTransform, bool bSetupUndo)
+bool URigHierarchyController::RemoveParent(FRigElementKey InChild, FRigElementKey InParent, bool bMaintainGlobalTransform, bool bSetupUndo, bool bPrintPythonCommand)
 {
 	if(!IsValid())
 	{
@@ -1852,6 +1955,14 @@ bool URigHierarchyController::RemoveParent(FRigElementKey InChild, FRigElementKe
 		TransactionPtr->Cancel();
 	}
 	TransactionPtr.Reset();
+
+	if (bRemoved && bPrintPythonCommand)
+	{
+		RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy_controller.remove_parent(%s, %s, %s)"),
+			*InChild.ToPythonString(),
+			*InParent.ToPythonString(),
+			(bMaintainGlobalTransform) ? TEXT("True") : TEXT("False")));
+	}
 #endif
 	
 	return bRemoved;
@@ -1984,7 +2095,7 @@ bool URigHierarchyController::RemoveParent(FRigBaseElement* InChild, FRigBaseEle
 	return false;
 }
 
-bool URigHierarchyController::RemoveAllParents(FRigElementKey InChild, bool bMaintainGlobalTransform, bool bSetupUndo)
+bool URigHierarchyController::RemoveAllParents(FRigElementKey InChild, bool bMaintainGlobalTransform, bool bSetupUndo, bool bPrintPythonCommand)
 {
 	if(!IsValid())
 	{
@@ -2015,6 +2126,13 @@ bool URigHierarchyController::RemoveAllParents(FRigElementKey InChild, bool bMai
 		TransactionPtr->Cancel();
 	}
 	TransactionPtr.Reset();
+	
+	if (bRemoved && bPrintPythonCommand)
+	{
+		RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy_controller.remove_parent(%s, %s)"),
+			*InChild.ToPythonString(),
+			(bMaintainGlobalTransform) ? TEXT("True") : TEXT("False")));
+	}
 #endif
 
 	return bRemoved;
@@ -2044,7 +2162,7 @@ bool URigHierarchyController::RemoveAllParents(FRigBaseElement* InChild, bool bM
 	return false;
 }
 
-bool URigHierarchyController::SetParent(FRigElementKey InChild, FRigElementKey InParent, bool bMaintainGlobalTransform, bool bSetupUndo)
+bool URigHierarchyController::SetParent(FRigElementKey InChild, FRigElementKey InParent, bool bMaintainGlobalTransform, bool bSetupUndo, bool bPrintPythonCommand)
 {
 	if(!IsValid())
 	{
@@ -2082,6 +2200,14 @@ bool URigHierarchyController::SetParent(FRigElementKey InChild, FRigElementKey I
 		TransactionPtr->Cancel();
 	}
 	TransactionPtr.Reset();
+
+	if (bParentSet && bPrintPythonCommand)
+	{
+		RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy_controller.set_parent(%s, %s, %s)"),
+			*InChild.ToPythonString(),
+			*InParent.ToPythonString(),
+			(bMaintainGlobalTransform) ? TEXT("True") : TEXT("False")));
+	}
 #endif
 
 	return bParentSet;

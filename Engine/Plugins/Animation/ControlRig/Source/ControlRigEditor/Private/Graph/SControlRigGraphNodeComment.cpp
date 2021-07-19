@@ -45,8 +45,8 @@ FReply SControlRigGraphNodeComment::OnMouseButtonUp(const FGeometry& MyGeometry,
 					if (URigVMController* Controller = Blueprint->GetController(Graph))
 					{
 						Controller->OpenUndoBracket(TEXT("Resize Comment Box"));
-						Controller->SetNodePositionByName(CommentNode->GetFName(), Position, true);
-						Controller->SetNodeSizeByName(CommentNode->GetFName(), Size, true);
+						Controller->SetNodePositionByName(CommentNode->GetFName(), Position, true, false, true);
+						Controller->SetNodeSizeByName(CommentNode->GetFName(), Size, true, false, true);
 						Controller->CloseUndoBracket();
 					}
 				}
@@ -95,7 +95,7 @@ void SControlRigGraphNodeComment::Tick(const FGeometry& AllottedGeometry, const 
 				{
 					if (URigVMController* Controller = Blueprint->GetController(Graph))
 					{
-						Controller->SetCommentTextByName(CommentNode->GetFName(), CurrentCommentTitle, true);
+						Controller->SetCommentTextByName(CommentNode->GetFName(), CurrentCommentTitle, true, true);
 					}
 				}
 			}

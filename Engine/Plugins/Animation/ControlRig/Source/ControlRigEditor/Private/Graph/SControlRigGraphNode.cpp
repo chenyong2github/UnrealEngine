@@ -1162,7 +1162,7 @@ FReply SControlRigGraphNode::OnExpanderArrowClicked(int32 InPinInfoIndex)
 			Controller->OpenUndoBracket(PinInfo.bExpanded ? TEXT("Collapsing Pin") : TEXT("Expanding Pin"));
 			for(const FString& PinPathToModify : PinPathsToModify)
 			{
-				Controller->SetPinExpansion(PinPathToModify, !PinInfo.bExpanded, true);
+				Controller->SetPinExpansion(PinPathToModify, !PinInfo.bExpanded, true, true);
 			}
 			Controller->CloseUndoBracket();
 			return FReply::Handled();

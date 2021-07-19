@@ -81,6 +81,7 @@ namespace UnrealBuildTool.Rules
                     "SequencerScripting",
 					"PropertyAccessEditor",
 					"KismetWidgets",
+					"PythonScriptPlugin",
 				}
             );
 

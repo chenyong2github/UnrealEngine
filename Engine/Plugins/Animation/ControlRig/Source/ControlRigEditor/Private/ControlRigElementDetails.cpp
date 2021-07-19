@@ -781,7 +781,7 @@ void FRigBaseElementDetails::SetName(const FText& InNewText, ETextCommit::Type I
 	{
 		URigHierarchyController* Controller = Hierarchy->GetController(true);
 		check(Controller);
-		Controller->RenameElement(ElementKeyBeingCustomized, *InNewText.ToString(), true);
+		Controller->RenameElement(ElementKeyBeingCustomized, *InNewText.ToString(), true, true);
 	}
 }
 

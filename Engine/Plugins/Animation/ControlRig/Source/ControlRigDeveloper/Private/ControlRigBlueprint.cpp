@@ -25,7 +25,7 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "Misc/CoreDelegates.h"
 #include "AssetRegistryModule.h"
-#include "RigVMCore/RigVMPythonUtils.h"
+#include "RigVMPythonUtils.h"
 
 #if WITH_EDITOR
 #include "IControlRigEditorModule.h"
@@ -3404,7 +3404,7 @@ void UControlRigBlueprint::OnVariableRemoved(const FName& InVarName)
 	{
 		if (URigVMController* Controller = GetOrCreateController(Graph))
 		{
-			Controller->OnExternalVariableRemoved(InVarName, true);
+			Controller->OnExternalVariableRemoved(InVarName, true, true);
 		}
 	}
 	BroadcastExternalVariablesChangedEvent();
@@ -3417,7 +3417,7 @@ void UControlRigBlueprint::OnVariableRenamed(const FName& InOldVarName, const FN
 	{
 		if (URigVMController* Controller = GetOrCreateController(Graph))
 		{
-			Controller->OnExternalVariableRenamed(InOldVarName, InNewVarName, true);
+			Controller->OnExternalVariableRenamed(InOldVarName, InNewVarName, true, true);
 		}
 	}
 	BroadcastExternalVariablesChangedEvent();
@@ -3439,11 +3439,11 @@ void UControlRigBlueprint::OnVariableTypeChanged(const FName& InVarName, FEdGrap
 			FRigVMExternalVariable NewVariable = UControlRig::GetExternalVariableFromPinType(InVarName, InNewPinType);
 			if (NewVariable.IsValid(true)) // allow nullptr
 			{
-				Controller->OnExternalVariableTypeChanged(InVarName, NewVariable.TypeName.ToString(), NewVariable.TypeObject, bSetupUndoRedo);
+				Controller->OnExternalVariableTypeChanged(InVarName, NewVariable.TypeName.ToString(), NewVariable.TypeObject, bSetupUndoRedo, true);
 			}
 			else
 			{
-				Controller->OnExternalVariableRemoved(InVarName, bSetupUndoRedo);
+				Controller->OnExternalVariableRemoved(InVarName, bSetupUndoRedo, true);
 			}
 		}
 	}

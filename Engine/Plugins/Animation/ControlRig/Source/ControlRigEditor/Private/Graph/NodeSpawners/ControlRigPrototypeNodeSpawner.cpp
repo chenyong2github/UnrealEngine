@@ -124,7 +124,7 @@ UControlRigGraphNode* UControlRigPrototypeNodeSpawner::SpawnNode(UEdGraph* Paren
 			Controller->OpenUndoBracket(FString::Printf(TEXT("Add '%s' Node"), *Name.ToString()));
 		}
 
-		if (URigVMPrototypeNode* ModelNode = Controller->AddPrototypeNode(InNotation, Location, Name.ToString(), bUndo))
+		if (URigVMPrototypeNode* ModelNode = Controller->AddPrototypeNode(InNotation, Location, Name.ToString(), bUndo, !bIsTemplateNode))
 		{
 			NewNode = Cast<UControlRigGraphNode>(RigGraph->FindNodeForModelNodeName(ModelNode->GetFName()));
 

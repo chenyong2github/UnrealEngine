@@ -324,7 +324,7 @@ void UControlRigGraphNode::HandleAddArrayElement(FString InPinPath)
 	if (URigVMController* Controller = GetController())
 	{
 		Controller->OpenUndoBracket(TEXT("Add Array Pin"));
-		FString PinPath = Controller->AddArrayPin(InPinPath);
+		FString PinPath = Controller->AddArrayPin(InPinPath, FString(), true, true);
 		Controller->SetPinExpansion(InPinPath, true);
 		Controller->SetPinExpansion(PinPath, true);
 		Controller->CloseUndoBracket();
@@ -337,7 +337,7 @@ void UControlRigGraphNode::HandleRemoveArrayElement(FString InPinPath)
 
 	if (URigVMController* Controller = GetController())
 	{
-		Controller->RemoveArrayPin(InPinPath);
+		Controller->RemoveArrayPin(InPinPath, true, true);
 	}
 }
 
@@ -352,7 +352,7 @@ void UControlRigGraphNode::HandleInsertArrayElement(FString InPinPath)
 			if (URigVMPin* ArrayPin = ArrayElementPin->GetParentPin())
 				{
 				Controller->OpenUndoBracket(TEXT("Add Array Pin"));
-				FString PinPath = Controller->InsertArrayPin(InPinPath, ArrayElementPin->GetPinIndex() + 1, FString());
+				FString PinPath = Controller->InsertArrayPin(InPinPath, ArrayElementPin->GetPinIndex() + 1, FString(), true, true);
 				Controller->SetPinExpansion(InPinPath, true);
 				Controller->SetPinExpansion(PinPath, true);
 				Controller->CloseUndoBracket();
@@ -774,10 +774,10 @@ void UControlRigGraphNode::DestroyNode()
 
 void UControlRigGraphNode::PinDefaultValueChanged(UEdGraphPin* Pin)
 {
-	CopyPinDefaultsToModel(Pin, true);
+	CopyPinDefaultsToModel(Pin, true, true);
 }
 
-void UControlRigGraphNode::CopyPinDefaultsToModel(UEdGraphPin* Pin, bool bUndo)
+void UControlRigGraphNode::CopyPinDefaultsToModel(UEdGraphPin* Pin, bool bUndo, bool bPrintPythonCommand)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -804,7 +804,7 @@ void UControlRigGraphNode::CopyPinDefaultsToModel(UEdGraphPin* Pin, bool bUndo)
 		{
 			if (URigVMController* Controller = GetController())
 			{
-				Controller->SetPinDefaultValue(ModelPin->GetPinPath(), DefaultValue, false, true, false);
+				Controller->SetPinDefaultValue(ModelPin->GetPinPath(), DefaultValue, false, true, false, bPrintPythonCommand);
 			}
 		}
 	}
