@@ -34,15 +34,16 @@ enum class EOptimusDataTypeFlags : uint8
 ENUM_CLASS_FLAGS(EOptimusDataTypeFlags)
 
 
-
-
-
 USTRUCT()
 struct FOptimusDataType
 {
 	GENERATED_BODY()
 
 	FOptimusDataType() = default;
+
+	// Create an FProperty with the given scope and name, but only if the UsageFlags contains 
+	// EOptimusDataTypeUsageFLags::Variable. Otherwise it returns a nullptr.
+	OPTIMUSDEVELOPER_API FProperty* CreateProperty(UStruct *InScope, FName InName) const;
 
 	UPROPERTY()
 	FName TypeName;

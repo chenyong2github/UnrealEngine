@@ -5,13 +5,17 @@
 #include "OptimusDataTypeRegistry.h"
 
 
-FOptimusDataTypeRef::FOptimusDataTypeRef(FOptimusDataTypeHandle InTypeHandle)
+FOptimusDataTypeRef::FOptimusDataTypeRef(
+	FOptimusDataTypeHandle InTypeHandle
+	)
 {
 	Set(InTypeHandle);
 }
 
 
-void FOptimusDataTypeRef::Set(FOptimusDataTypeHandle InTypeHandle)
+void FOptimusDataTypeRef::Set(
+	FOptimusDataTypeHandle InTypeHandle
+	)
 {
 	if (InTypeHandle.IsValid())
 	{
@@ -28,4 +32,13 @@ void FOptimusDataTypeRef::Set(FOptimusDataTypeHandle InTypeHandle)
 FOptimusDataTypeHandle FOptimusDataTypeRef::Resolve() const
 {
 	return FOptimusDataTypeRegistry::Get().FindType(TypeName);
+}
+
+
+FProperty* FOptimusDataType::CreateProperty(
+	UStruct* InScope, 
+	FName InName
+	) const
+{
+	return FOptimusDataTypeRegistry::Get().CreateProperty(TypeName, InScope, InName);
 }
