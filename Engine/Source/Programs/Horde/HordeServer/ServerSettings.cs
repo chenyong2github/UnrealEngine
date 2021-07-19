@@ -334,11 +334,6 @@ namespace HordeServer
 		public string? ScheduleTimeZone { get; set; }
 
 		/// <summary>
-		/// Address of the Perforce bridge
-		/// </summary>
-		public string? PerforceBridge { get; set; }
-
-		/// <summary>
 		/// Token for interacting with Slack
 		/// </summary>
 		public string? SlackToken { get; set; }
@@ -374,27 +369,6 @@ namespace HordeServer
 		public Uri DashboardUrl { get; set; } = new Uri("https://localhost:3000");
 		
 		/// <summary>
-		/// The URL to Helix Swarm server
-		/// </summary>
-		public Uri? HelixSwarmServerUrl { get; set; }
-		
-		/// <summary>
-		/// Username to use when communicating with Helix Swarm
-		/// </summary>
-		public string? HelixSwarmUsername { get; set; }
-		
-		/// <summary>
-		/// Password to use when communicating with Helix Swarm
-		/// </summary>
-		public string? HelixSwarmPassword { get; set; }
-		
-		/// <summary>
-		/// Projects in Helix Swarm to monitor, including the state of reviews in each project
-		/// Multiple projects can be specified, separated by comma.
-		/// </summary>
-		public string? HelixSwarmProjects { get; set; }
-
-		/// <summary>
 		/// The p4 bridge server
 		/// </summary>
 		public string? P4BridgeServer { get; set; }
@@ -413,11 +387,6 @@ namespace HordeServer
 		/// Whether the p4 bridge service account can impersonate other users
 		/// </summary>
 		public bool P4BridgeCanImpersonate { get; set; } = false;
-
-		/// <summary>
-		/// Whether to use the (temporary) P4 router while transitioning to p4 api 
-		/// </summary>
-		public bool P4UseRouter { get; set; } = false;
 
 		/// <summary>
 		/// Set the minimum size of the global thread pool
@@ -458,23 +427,5 @@ namespace HordeServer
 		/// Whether to open a browser on startup
 		/// </summary>
 		public bool OpenBrowser { get; set; } = false;
-
-		/// <summary>
-		/// Check if Helix Swarm is enabled
-		/// </summary>
-		/// <returns>True if enabled</returns>
-		public bool IsSwarmEnabled()
-		{
-			return HelixSwarmServerUrl != null;
-		}
-		
-		/// <summary>
-		/// Parse the comma-separated string of Swarm projects into an actual array
-		/// </summary>
-		/// <returns>Array of Swarm projects</returns>
-		public string[] GetSwarmProjects()
-		{
-			return HelixSwarmProjects != null ? HelixSwarmProjects.Split(",") : Array.Empty<string>();
-		}
 	}
 }
