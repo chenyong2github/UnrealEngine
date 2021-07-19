@@ -187,6 +187,8 @@ void FMovieSceneSequenceHierarchy::AddRange(const TRange<FFrameNumber>& RootSpac
 
 FArchive& operator<<(FArchive& Ar, FMovieSceneSubSequenceTreeEntry& InOutEntry)
 {
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+
 	Ar << InOutEntry.SequenceID << InOutEntry.Flags;
 
 	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::AddedSubSequenceEntryWarpCounter)
