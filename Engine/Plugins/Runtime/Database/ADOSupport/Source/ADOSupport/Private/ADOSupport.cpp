@@ -28,7 +28,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogADODataBase, Log, All);
 
 #pragma warning(push)
 #pragma warning(disable: 4471) // a forward declaration of an unscoped enumeration must have an underlying type (int assumed)
-#import "System\ADO\msado15.dll" rename("EOF", "ADOEOF") //lint !e322
+#include "msado15.tlh"
 #pragma warning(pop)
 
 /*-----------------------------------------------------------------------------
