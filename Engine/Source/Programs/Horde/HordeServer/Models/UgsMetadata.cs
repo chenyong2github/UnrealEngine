@@ -33,12 +33,12 @@ namespace HordeServer.Models
 		/// <summary>
 		/// Whether the change is starred
 		/// </summary>
-		bool Starred { get; }
+		bool? Starred { get; }
 
 		/// <summary>
 		/// Whether the change is under investigation
 		/// </summary>
-		bool Investigating { get; }
+		bool? Investigating { get; }
 
 		/// <summary>
 		/// Comment text

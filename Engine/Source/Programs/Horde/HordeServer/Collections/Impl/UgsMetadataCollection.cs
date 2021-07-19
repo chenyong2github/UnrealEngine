@@ -42,8 +42,6 @@ namespace HordeServer.Collections.Impl
 
 			long? IUgsUserData.SyncTime => SyncTime;
 			UgsUserVote IUgsUserData.Vote => Vote ?? UgsUserVote.None;
-			bool IUgsUserData.Starred => Starred ?? false;
-			bool IUgsUserData.Investigating => Investigating ?? false;
 
 			public UgsUserDataDocument(string User)
 			{
