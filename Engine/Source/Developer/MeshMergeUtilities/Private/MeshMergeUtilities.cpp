@@ -76,11 +76,6 @@
 
 #include "ISMPartition/ISMComponentDescriptor.h"
 
-#if WITH_EDITOR
-#include "Widgets/Notifications/SNotificationList.h"
-#include "Framework/Notifications/NotificationManager.h"
-#endif // WITH_EDITOR
-
 #define LOCTEXT_NAMESPACE "MeshMergeUtils"
 
 DEFINE_LOG_CATEGORY(LogMeshMerging);
@@ -1966,79 +1961,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 
 bool FMeshMergeUtilities::IsValidBaseMaterial(const UMaterialInterface* InBaseMaterial, bool bShowToaster) const
 {
-	if (InBaseMaterial != nullptr)
-	{
-		TArray<FGuid> ParameterIds;
-		TArray<FString> MissingParameters;
-		auto NameCheckLambda = [&MissingParameters](const TArray<FMaterialParameterInfo>& InCheck, const TArray<FName>& InRequired)
-		{
-			for (const FName& Name : InRequired)
-			{
-				if (!InCheck.ContainsByPredicate([Name](const FMaterialParameterInfo& ParamInfo) { return (ParamInfo.Name == Name); }))
-				{
-					MissingParameters.Add(Name.ToString());
-				}
-			}
-		};
-
-		TArray<FMaterialParameterInfo> TextureParameterInfos;
-		TArray<FName> RequiredTextureNames = { TEXT("DiffuseTexture"), TEXT("NormalTexture"), TEXT("PackedTexture"), TEXT("MetallicTexture"), TEXT("SpecularTexture"), TEXT("RoughnessTexture"), TEXT("EmissiveTexture"), TEXT("OpacityTexture"), TEXT("OpacityMaskTexture"), TEXT("AmbientOcclusionTexture") };
-		InBaseMaterial->GetAllTextureParameterInfo(TextureParameterInfos, ParameterIds);
-		NameCheckLambda(TextureParameterInfos, RequiredTextureNames);
-
-		TArray<FMaterialParameterInfo> ScalarParameterInfos;
-		TArray<FName> RequiredScalarNames = { TEXT("MetallicConst"), TEXT("SpecularConst"), TEXT("RoughnessConst"), TEXT("OpacityConst"), TEXT("OpacityMaskConst"), TEXT("AmbientOcclusionConst"), TEXT("EmissiveScale") };
-		InBaseMaterial->GetAllScalarParameterInfo(ScalarParameterInfos, ParameterIds);
-		NameCheckLambda(ScalarParameterInfos, RequiredScalarNames);
-
-		TArray<FMaterialParameterInfo> VectorParameterInfos;
-		TArray<FName> RequiredVectorNames = { TEXT("DiffuseConst"), TEXT("EmissiveConst") };
-		InBaseMaterial->GetAllVectorParameterInfo(VectorParameterInfos, ParameterIds);
-		NameCheckLambda(VectorParameterInfos, RequiredVectorNames);
-
-		TArray<FMaterialParameterInfo> StaticSwitchParameterInfos;
-		TArray<FName> RequiredSwitchNames = { TEXT("UseDiffuse"), TEXT("PackMetallic"), TEXT("PackSpecular"), TEXT("PackRoughness"),TEXT("UseMetallic"), TEXT("UseSpecular"), TEXT("UseRoughness"), TEXT("UseEmissive"), TEXT("UseOpacity"), TEXT("UseOpacityMask"), TEXT("UseAmbientOcclusion") };
-		InBaseMaterial->GetAllStaticSwitchParameterInfo(StaticSwitchParameterInfos, ParameterIds);
-		NameCheckLambda(StaticSwitchParameterInfos, RequiredSwitchNames);
-
-		if (MissingParameters.Num() > 0)
-		{
-			FString MissingNamesString;
-			for (const FString& Name : MissingParameters)
-			{
-				if (!MissingNamesString.IsEmpty())
-				{
-					MissingNamesString += ", ";
-					MissingNamesString += Name;
-				}
-				else
-				{
-					MissingNamesString += Name;
-				}
-			}
-#if WITH_EDITOR
-			if (bShowToaster)
-			{
-				FFormatNamedArguments Arguments;
-				Arguments.Add(TEXT("MaterialName"), FText::FromString(InBaseMaterial->GetName()));
-				FText ErrorMessage = FText::Format(LOCTEXT("UHierarchicalLODSettings_PostEditChangeProperty", "Material {MaterialName} is missing required Material Parameters (check log for details)"), Arguments);
-				FNotificationInfo Info(ErrorMessage);
-				Info.ExpireDuration = 5.0f;
-				FSlateNotificationManager::Get().AddNotification(Info);
-			}
-
-			UE_LOG(LogMeshMerging, Error, TEXT("Material %s is missing required Material Parameters %s, resetting to default."), *InBaseMaterial->GetName(), *MissingNamesString);
-#endif // WITH_EDITOR
-
-			return false;
-		}
-		else
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return ProxyMaterialUtilities::IsValidBaseMaterial(InBaseMaterial, bShowToaster);
 }
 
 void FMeshMergeUtilities::RetrieveMeshDescription(const UStaticMeshComponent* InStaticMeshComponent, int32 LODIndex, FMeshDescription& InOutMeshDescription, bool bPropagateMeshData) const
