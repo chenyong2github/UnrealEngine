@@ -100,7 +100,7 @@ public:
 	~FD3D12Heap();
 
 	inline ID3D12Heap* GetHeap() const { return Heap.GetReference(); }
-	void SetHeap(ID3D12Heap* HeapIn, const TCHAR* const InName, bool bTrack = true);
+	void SetHeap(ID3D12Heap* HeapIn, const TCHAR* const InName, bool bTrack = true, bool bForceGetGPUAddress = false);
 
 	void UpdateResidency(FD3D12CommandListHandle& CommandList);
 	void BeginTrackingResidency(uint64 Size);

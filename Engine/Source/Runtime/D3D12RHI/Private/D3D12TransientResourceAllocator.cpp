@@ -84,8 +84,10 @@ FD3D12TransientHeap::FD3D12TransientHeap(const FRHITransientHeapInitializer& Ini
 	}
 
 	Heap = new FD3D12Heap(Device, VisibleNodeMask);
-	Heap->SetHeap(D3DHeap, TEXT("TransientResourceAllocator Backing Heap"));
+	Heap->SetHeap(D3DHeap, TEXT("TransientResourceAllocator Backing Heap"), true, true);
 	Heap->BeginTrackingResidency(Desc.SizeInBytes);
+
+	BaseGPUVirtualAddress = Heap->GetGPUVirtualAddress();
 }
 
 FD3D12TransientHeap::~FD3D12TransientHeap()
