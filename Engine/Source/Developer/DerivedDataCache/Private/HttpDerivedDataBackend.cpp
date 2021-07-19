@@ -945,14 +945,33 @@ struct FDataRequestHelper
 		{
 			// We have exceeded the threshold for concurrent connections, start or add this request
 			// to a batched request.
-			Request = QueueBatchRequest(
-				InPool, 
-				InNamespace,
-				InBucket, 
-				TConstArrayView<const TCHAR*>({ InCacheKey }),
-				OutData ? TConstArrayView<TArray<uint8>*>({ OutData }) : TConstArrayView<TArray<uint8>*>(),
-				bVerified
-			);
+			if (IsQueueCandidate(1, OutData && !OutData->IsEmpty()))
+			{
+				Request = QueueBatchRequest(
+					InPool,
+					InNamespace,
+					InBucket,
+					TConstArrayView<const TCHAR*>({InCacheKey}),
+					OutData ? TConstArrayView<TArray<uint8>*>({OutData}) : TConstArrayView<TArray<uint8>*>(),
+					bVerified
+				);
+			}
+
+			if (!Request)
+			{
+				Request = Pool->WaitForFreeRequest();
+
+				FQueuedBatchEntry Entry{
+					InNamespace,
+					InBucket,
+					TConstArrayView<const TCHAR*>({InCacheKey}),
+					OutData ? TConstArrayView<TArray<uint8>*>({OutData}) : TConstArrayView<TArray<uint8>*>(),
+					OutData && !OutData->IsEmpty() ? FHttpRequest::RequestVerb::Get : FHttpRequest::RequestVerb::Head,
+					&bVerified
+				};
+
+				PerformBatchQuery(Request, TArrayView<FQueuedBatchEntry>(&Entry, 1));
+			}
 		}
 	}
 
@@ -967,7 +986,8 @@ struct FDataRequestHelper
 		Algo::Transform(InCacheKeys, CacheKeys, [](const FString& Key) { return *Key; });
 		
 		Request = Pool->GetFreeRequest();
-		if (Request || InCacheKeys.Num() > UE_HTTPDDC_BATCH_SIZE)
+
+		if (Request || !IsQueueCandidate(InCacheKeys.Num(), false))
 		{
 			// If the request is too big for existing batches, wait for a free connection and create our own.
 			if (!Request)
@@ -996,6 +1016,22 @@ struct FDataRequestHelper
 				TConstArrayView<TArray<uint8>*>(), 
 				bVerified
 			);
+
+			if (!Request)
+			{
+				Request = Pool->WaitForFreeRequest();
+
+				FQueuedBatchEntry Entry{
+					InNamespace,
+					InBucket,
+					CacheKeys,
+					TConstArrayView<TArray<uint8>*>(),
+					FHttpRequest::RequestVerb::Head,
+					&bVerified
+				};
+
+				PerformBatchQuery(Request, TArrayView<FQueuedBatchEntry>(&Entry, 1));
+			}
 		}
 	}
 
@@ -1062,6 +1098,25 @@ private:
 	static std::atomic<uint32> FirstAvailableBatch;
 	static TStaticArray<FBatch, UE_HTTPDDC_BATCH_NUM> Batches;
 
+	static uint32 ComputeWeight(int32 NumKeys, bool bHasDatas)
+	{
+		return NumKeys * (bHasDatas ? UE_HTTPDDC_BATCH_GET_WEIGHT : UE_HTTPDDC_BATCH_HEAD_WEIGHT);
+	}
+
+	static bool IsQueueCandidate(int32 NumKeys, bool bHasDatas)
+	{
+		if (NumKeys > UE_HTTPDDC_BATCH_SIZE)
+		{
+			return false;
+		}
+		const uint32 Weight = ComputeWeight(NumKeys, bHasDatas);
+		if (Weight > UE_HTTPDDC_BATCH_WEIGHT_HINT)
+		{
+			return false;
+		}
+		return true;
+	}
+
 	/**
 	 * Queues up a request to be batched. Blocks until the query is made.
 	 */
@@ -1075,7 +1130,7 @@ private:
 		TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_BatchQuery);
 		check(InCacheKeys.Num() == OutDatas.Num() || OutDatas.Num() == 0);
 		const uint32 RequestNum = InCacheKeys.Num();
-		const uint32 RequestWeight = InCacheKeys.Num() * (OutDatas.Num() ? UE_HTTPDDC_BATCH_HEAD_WEIGHT : UE_HTTPDDC_BATCH_GET_WEIGHT);
+		const uint32 RequestWeight = ComputeWeight(InCacheKeys.Num(), !OutDatas.IsEmpty());
 
 		for (int32 i = 0; i < Batches.Num(); i++)
 		{
@@ -1793,10 +1848,16 @@ FHttpDerivedDataBackend::FHttpDerivedDataBackend(
 		PutRequestPools[1] = MakeUnique<FRequestPool>(InServiceUrl, Access.Get(), 1);
 		bIsUsable = true;
 	}
+
+	AnyInstance = this;
 }
 
 FHttpDerivedDataBackend::~FHttpDerivedDataBackend()
 {
+	if (AnyInstance == this)
+	{
+		AnyInstance = nullptr;
+	}
 }
 
 FString FHttpDerivedDataBackend::GetName() const
