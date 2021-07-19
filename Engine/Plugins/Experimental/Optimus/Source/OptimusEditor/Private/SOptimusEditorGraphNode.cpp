@@ -459,7 +459,7 @@ TSharedRef<ITableRow> SOptimusEditorGraphNode::MakeTableRowWidget(
 {
 	const bool bIsLeaf = InModelPin->GetSubPins().IsEmpty();
 	const bool bIsInput = InModelPin->GetDirection() == EOptimusNodePinDirection::Input;
-	const bool bIsValue = InModelPin->GetStorageType() == EOptimusNodePinStorageType::Value;
+	  const bool bIsValue = (InModelPin->GetStorageType() == EOptimusNodePinStorageType::Value && InModelPin->GetPropertyFromPin() != nullptr);
 
 	TSharedRef<SOptimusEditorGraphPinTreeRow> TreeRow = SNew(SOptimusEditorGraphPinTreeRow, OwnerTable)
 		.LeftAligned(bIsInput)
