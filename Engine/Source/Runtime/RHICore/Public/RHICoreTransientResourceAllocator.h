@@ -196,6 +196,8 @@ public:
 
 	FORCEINLINE const FRHITransientHeapInitializer& GetInitializer() const { return Initializer; }
 
+	FORCEINLINE uint64 GetBaseGPUVirtualAddress() const { return BaseGPUVirtualAddress; }
+
 	FORCEINLINE uint64 GetCapacity() const { return Initializer.Size; }
 
 	FORCEINLINE uint64 GetLastUsedGarbageCollectCycle() const { return LastUsedGarbageCollectCycle; }
@@ -204,6 +206,9 @@ public:
 	{
 		return Size <= Initializer.Size && EnumHasAnyFlags(Initializer.Flags, InFlags);
 	}
+
+protected:
+	uint64 BaseGPUVirtualAddress = 0;
 
 private:
 	template <typename CreateFunctionType>
@@ -394,7 +399,7 @@ struct FRHITransientHeapAllocation
 class RHICORE_API FRHITransientHeapAllocator final
 {
 public:
-	FRHITransientHeapAllocator(const FRHITransientHeapInitializer& Initializer, uint32 HeapIndex);
+	FRHITransientHeapAllocator(const FRHITransientHeapInitializer& Initializer, uint32 HeapIndex, uint64 InHeapBaseGPUAddress = 0);
 	~FRHITransientHeapAllocator();
 
 	FRHITransientHeapAllocation Allocate(uint64 Size, uint32 Alignment);
@@ -492,6 +497,8 @@ private:
 	uint64 AlignmentWaste{};
 	uint32 AllocationCount{};
 	uint32 HeapIndex{};
+
+	uint64 HeapBaseGPUAddress;
 
 	FRangeHandle HeadHandle = InvalidRangeHandle;
 	TArray<FRangeHandle, TInlineAllocator<4, TMemStackAllocator<>>> RangeFreeList;

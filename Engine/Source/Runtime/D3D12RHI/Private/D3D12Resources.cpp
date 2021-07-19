@@ -429,7 +429,7 @@ FD3D12Heap::~FD3D12Heap()
 	Heap.SafeRelease();
 }
 
-void FD3D12Heap::SetHeap(ID3D12Heap* HeapIn, const TCHAR* const InName, bool bInTrack)
+void FD3D12Heap::SetHeap(ID3D12Heap* HeapIn, const TCHAR* const InName, bool bInTrack, bool bForceGetGPUAddress)
 {
 	*Heap.GetInitReference() = HeapIn; 
 	bTrack = bInTrack;
@@ -441,7 +441,7 @@ void FD3D12Heap::SetHeap(ID3D12Heap* HeapIn, const TCHAR* const InName, bool bIn
 	// Create a buffer placed resource on the heap to extract the gpu virtual address
 	// if we are tracking all allocations
 	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();	
-	if (Adapter->IsTrackingAllAllocations() && HeapDesc.Properties.Type == D3D12_HEAP_TYPE_DEFAULT)
+	if ((bForceGetGPUAddress || Adapter->IsTrackingAllAllocations()) && HeapDesc.Properties.Type == D3D12_HEAP_TYPE_DEFAULT)
 	{
 		uint64 HeapSize = HeapDesc.SizeInBytes;
 		TRefCountPtr<ID3D12Resource> TempResource;

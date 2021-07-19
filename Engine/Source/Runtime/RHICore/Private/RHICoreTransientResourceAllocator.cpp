@@ -226,9 +226,10 @@ void FRHITransientResourceSystem::UpdateStats()
 
 //////////////////////////////////////////////////////////////////////////
 
-FRHITransientHeapAllocator::FRHITransientHeapAllocator(const FRHITransientHeapInitializer& InInitializer, uint32 InHeapIndex)
+FRHITransientHeapAllocator::FRHITransientHeapAllocator(const FRHITransientHeapInitializer& InInitializer, uint32 InHeapIndex, uint64 InHeapBaseGPUAddress)
 	: Initializer(InInitializer)
 	, HeapIndex(InHeapIndex)
+	, HeapBaseGPUAddress(InHeapBaseGPUAddress)
 {
 	HeadHandle = CreateRange();
 	InsertRange(HeadHandle, 0, Initializer.Size);
@@ -392,7 +393,7 @@ FRHITransientHeapAllocator::FFindResult FRHITransientHeapAllocator::FindFreeRang
 		FRange& Range = Ranges[Handle];
 
 		// Due to alignment we may have to shift the offset and expand the size accordingly.
-		const uint64 AlignmentPad = Align(Range.Offset, Alignment) - Range.Offset;
+		const uint64 AlignmentPad = Align(HeapBaseGPUAddress + Range.Offset, Alignment) - HeapBaseGPUAddress - Range.Offset;
 		const uint64 RequiredSize = Size + AlignmentPad;
 
 		if (RequiredSize <= Range.Size)
@@ -654,7 +655,7 @@ FRHITransientHeapAllocation FRHITransientResourceAllocator::Allocate(FMemoryStat
 		State.Heap = ParentSystem.AcquireHeap(Size, ResourceHeapFlags);
 		Heaps.Emplace(State);
 
-		FRHITransientHeapAllocator& HeapAllocator = HeapAllocators.Emplace_GetRef(State.Heap->GetInitializer(), HeapIndex);
+		FRHITransientHeapAllocator& HeapAllocator = HeapAllocators.Emplace_GetRef(State.Heap->GetInitializer(), HeapIndex, State.Heap->GetBaseGPUVirtualAddress());
 		Allocation = HeapAllocator.Allocate(Size, Alignment);
 
 		check(Allocation.IsValid());
