@@ -6,6 +6,7 @@
 #include "Hash/xxhash.h"
 #include "Misc/Guid.h"
 #include "Serialization/Archive.h"
+#include "UObject/NameTypes.h"
 #include <type_traits>
 
 namespace UE::DerivedData
