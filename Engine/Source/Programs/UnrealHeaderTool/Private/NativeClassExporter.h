@@ -11,6 +11,7 @@ class FUnrealPackageDefinitionInfo;
 class FUnrealPropertyDefinitionInfo;
 struct FFuncInfo;
 struct FGeneratedFileInfo;
+struct FFindDelcarationResults;
 
 //
 //	FNativeClassHeaderGenerator
@@ -507,7 +508,7 @@ private:
 	* @param	ValidatePosition		Position in source file of _Validate function for function described by FunctionData.
 	* @param	SourceFile				Currently analyzed source file.
 	*/
-	void CheckRPCFunctions(FReferenceGatherers& OutReferenceGatherers, FUnrealFunctionDefinitionInfo& FunctionDef, const FString& ClassName, int32 ImplementationPosition, int32 ValidatePosition, const FUnrealSourceFile& SourceFile) const;
+	void CheckRPCFunctions(FReferenceGatherers& OutReferenceGatherers, FUnrealFunctionDefinitionInfo& FunctionDef, const FString& ClassName, const FFindDelcarationResults& Implementation, const FFindDelcarationResults& Validation, const FUnrealSourceFile& SourceFile) const;
 
 	/**
 	 * Exports the native stubs for the list of functions specified
@@ -668,15 +669,6 @@ private:
 	* @return FString with function parameters.
 	*/
 	static FString GetFunctionParameterString(FUnrealFunctionDefinitionInfo& FunctionDef, FReferenceGatherers& OutReferenceGatherers);
-
-	/**
-	 * Checks if function is missing "virtual" specifier.
-	 *
-	 * @param SourceFile SourceFile where function is declared.
-	 * @param FunctionNamePosition Position of name of function in SourceFile.
-	 * @return true if function misses "virtual" specifier, false otherwise.
-	 */
-	static bool IsMissingVirtualSpecifier(const FString& SourceFile, int32 FunctionNamePosition);
 
 public:
 

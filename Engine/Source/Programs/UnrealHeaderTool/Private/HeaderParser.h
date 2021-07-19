@@ -20,6 +20,7 @@ class FStringOutputDevice;
 class FUnrealSourceFile;
 class FScope;
 class FHeaderProvider;
+struct FDeclaration;
 
 /*-----------------------------------------------------------------------------
 	Constants & types.
@@ -130,6 +131,8 @@ struct FDocumentationPolicy
 //
 class FHeaderParser : public FBaseParser
 {
+	friend class FRecordTokens;
+
 public:
 	// Performs a preliminary parse of the text in the specified buffer, pulling out:
 	//   Class name and parent class name
@@ -603,6 +606,12 @@ private:
 	// Checks if a valid range has been found on the provided metadata
 	void ConditionalLogPointerUsage(EPointerMemberBehavior PointerMemberBehavior, const TCHAR* PointerTypeDesc, FString&& PointerTypeDecl);
 
+	// Check to see if the declaration is a constructor
+	static bool CheckForConstructor(FUnrealStructDefinitionInfo& StructDef, const FDeclaration& Declaration);
+
+	// Check to see if the declaration is a serialize
+	static bool CheckForSerialize(FUnrealStructDefinitionInfo& StructDef, const FDeclaration& Declaration);
+
 	// Names that cannot be used enums, UStructs, or UClasses
 	static TArray<FString> ReservedTypeNames;
 
@@ -657,4 +666,17 @@ public:
 		const TCHAR* InputText,
 		int32 InLineNumber
 	);
+};
+
+class FRecordTokens
+{
+public:
+	explicit FRecordTokens(FHeaderParser& InParser, FUnrealStructDefinitionInfo* InStructDef, FToken* InToken);
+	~FRecordTokens();
+	bool Stop();
+
+private:
+	FHeaderParser& Parser;
+	FUnrealStructDefinitionInfo* StructDef;
+	uint32 CurrentCompilerDirective = 0;
 };

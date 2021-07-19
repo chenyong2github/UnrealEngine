@@ -4649,7 +4649,7 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 
 	if (Token.IsIdentifier(TEXT("UDELEGATE"), ESearchCase::CaseSensitive))
 	{
-		FUnrealFunctionDefinitionInfo &DelegateDef = CompileDelegateDeclaration(Token.Value, EDelegateSpecifierAction::Parse);
+		FUnrealFunctionDefinitionInfo& DelegateDef = CompileDelegateDeclaration(Token.Value, EDelegateSpecifierAction::Parse);
 		DelegatesToFixup.Add(&DelegateDef);
 		return true;
 	}
@@ -4754,152 +4754,281 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 		}
 	}
 
-	if (bEncounteredNewStyleClass_UnmatchedBrackets && IsInAClass())
-	{
-		FUnrealStructDefinitionInfo& StructDef = GetCurrentClassDef();
-		FToken ConstructorToken = Token;
-
-		// Allow explicit constructors
-		bool bFoundExplicit = ConstructorToken.IsIdentifier(TEXT("explicit"), ESearchCase::CaseSensitive);
-		if (bFoundExplicit)
-		{
-			GetToken(ConstructorToken);
-		}
-
-		bool bSkippedAPIToken = false;
-		if (ConstructorToken.Value.EndsWith(TEXT("_API"), ESearchCase::CaseSensitive))
-		{
-			if (!bFoundExplicit)
-			{
-				// Explicit can come before or after an _API
-				MatchIdentifier(TEXT("explicit"), ESearchCase::CaseSensitive);
-			}
-
-			GetToken(ConstructorToken);
-			bSkippedAPIToken = true;
-		}
-
-		if (ConstructorToken.IsIdentifier(*StructDef.GetAlternateNameCPP(), ESearchCase::IgnoreCase))
-		{
-			if (TryToMatchConstructorParameterList(ConstructorToken))
-			{
-				return true;
-			}
-		}
-		else if (bSkippedAPIToken)
-		{
-			// We skipped over an _API token, but this wasn't a constructor so we need to unget so that subsequent code and still process it
-			UngetToken(ConstructorToken);
-		}
-	}
-
 	// Skip anything that looks like a macro followed by no bracket that we don't know about
 	if (ProbablyAnUnknownObjectLikeMacro(*this, Token))
 	{
 		return true;
 	}
 
-	// Determine if this statement is a serialize function declaration
-	if (bEncounteredNewStyleClass_UnmatchedBrackets && IsInAClass() && TopNest->NestType == ENestType::Class)
+	FRecordTokens RecordTokens(*this, bEncounteredNewStyleClass_UnmatchedBrackets && IsInAClass() ? &GetCurrentClassDef() : nullptr, &Token);
+	bool Result = SkipDeclaration(Token);
+	if (RecordTokens.Stop())
 	{
-		while (Token.IsIdentifier(TEXT("virtual"), ESearchCase::CaseSensitive) || Token.Value.EndsWith(TEXT("_API"), ESearchCase::CaseSensitive))
+		FUnrealStructDefinitionInfo& StructDef = GetCurrentClassDef();
+		const FDeclaration& Declaration = StructDef.GetDeclarations().Last();
+		if (CheckForConstructor(StructDef, Declaration))
 		{
-			GetToken(Token);
+		}
+		else if (TopNest->NestType == ENestType::Class)
+		{
+			if (CheckForSerialize(StructDef, Declaration))
+			{
+			}
+		}
+	}
+	return Result;
+}
+
+bool FHeaderParser::CheckForConstructor(FUnrealStructDefinitionInfo& StructDef, const FDeclaration& Declaration)
+{
+	FTokenReplay Tokens(Declaration.Tokens);
+	FUnrealClassDefinitionInfo& ClassDef = StructDef.AsClassChecked();
+
+	FToken Token;
+	if (!Tokens.GetToken(Token))
+	{
+		return false;
+	}
+
+	// Allow explicit constructors
+	bool bFoundExplicit = Token.IsIdentifier(TEXT("explicit"), ESearchCase::CaseSensitive);
+	if (bFoundExplicit)
+	{
+		Tokens.GetToken(Token);
+	}
+
+	bool bSkippedAPIToken = false;
+	if (Token.Value.EndsWith(TEXT("_API"), ESearchCase::CaseSensitive))
+	{
+		if (!bFoundExplicit)
+		{
+			// Explicit can come before or after an _API
+			Tokens.MatchIdentifier(TEXT("explicit"), ESearchCase::CaseSensitive);
 		}
 
-		if (Token.IsIdentifier(TEXT("void"), ESearchCase::CaseSensitive))
+		Tokens.GetToken(Token);
+		bSkippedAPIToken = true;
+	}
+
+	if (!Token.IsIdentifier(*ClassDef.GetAlternateNameCPP(), ESearchCase::IgnoreCase))
+	{
+		return false;
+	}
+
+	Tokens.GetToken(Token);
+	if (!Token.IsSymbol(TEXT('(')))
+	{
+		return false;
+	}
+
+	bool bOICtor = false;
+	bool bVTCtor = false;
+
+	if (!ClassDef.IsDefaultConstructorDeclared() && Tokens.MatchSymbol(TEXT(')')))
+	{
+		ClassDef.MarkDefaultConstructorDeclared();
+	}
+	else if (!ClassDef.IsObjectInitializerConstructorDeclared()
+		|| !ClassDef.IsCustomVTableHelperConstructorDeclared())
+	{
+		bool bIsConst = false;
+		bool bIsRef = false;
+		int32 ParenthesesNestingLevel = 1;
+
+		while (ParenthesesNestingLevel && Tokens.GetToken(Token))
 		{
-			GetToken(Token);
-			if (Token.IsIdentifier(TEXT("Serialize"), ESearchCase::CaseSensitive))
+			// Template instantiation or additional parameter excludes ObjectInitializer constructor.
+			if (Token.IsSymbol(TEXT(',')) || Token.IsSymbol(TEXT('<')))
 			{
-				GetToken(Token);
-				if (Token.IsSymbol(TEXT('(')))
+				bOICtor = false;
+				bVTCtor = false;
+				break;
+			}
+
+			if (Token.IsSymbol(TEXT('(')))
+			{
+				ParenthesesNestingLevel++;
+				continue;
+			}
+
+			if (Token.IsSymbol(TEXT(')')))
+			{
+				ParenthesesNestingLevel--;
+				continue;
+			}
+
+			if (Token.IsIdentifier(TEXT("const"), ESearchCase::CaseSensitive))
+			{
+				bIsConst = true;
+				continue;
+			}
+
+			if (Token.IsSymbol(TEXT('&')))
+			{
+				bIsRef = true;
+				continue;
+			}
+
+			if (Token.IsIdentifier(TEXT("FObjectInitializer"), ESearchCase::CaseSensitive)
+				|| Token.IsIdentifier(TEXT("FPostConstructInitializeProperties"), ESearchCase::CaseSensitive) // Deprecated, but left here, so it won't break legacy code.
+				)
+			{
+				bOICtor = true;
+			}
+
+			if (Token.IsIdentifier(TEXT("FVTableHelper"), ESearchCase::CaseSensitive))
+			{
+				bVTCtor = true;
+			}
+		}
+
+		// Parse until finish.
+		while (ParenthesesNestingLevel && Tokens.GetToken(Token))
+		{
+			if (Token.IsSymbol(TEXT('(')))
+			{
+				ParenthesesNestingLevel++;
+				continue;
+			}
+
+			if (Token.IsSymbol(TEXT(')')))
+			{
+				ParenthesesNestingLevel--;
+				continue;
+			}
+		}
+
+		if (bOICtor && bIsRef && bIsConst)
+		{
+			ClassDef.MarkObjectInitializerConstructorDeclared();
+		}
+		if (bVTCtor && bIsRef)
+		{
+			ClassDef.MarkCustomVTableHelperConstructorDeclared();
+		}
+	}
+
+	if (!bVTCtor)
+	{
+		ClassDef.MarkConstructorDeclared();
+	}
+
+	return false;
+}
+
+bool FHeaderParser::CheckForSerialize(FUnrealStructDefinitionInfo& StructDef, const FDeclaration& Declaration)
+{
+	FTokenReplay Tokens(Declaration.Tokens);
+	FUnrealClassDefinitionInfo& ClassDef = StructDef.AsClassChecked();
+
+	FToken Token;
+	if (!Tokens.GetToken(Token))
+	{
+		return false;
+	}
+
+	while (Token.IsIdentifier(TEXT("virtual"), ESearchCase::CaseSensitive) || Token.Value.EndsWith(TEXT("_API"), ESearchCase::CaseSensitive))
+	{
+		Tokens.GetToken(Token);
+	}
+
+	if (!Token.IsIdentifier(TEXT("void"), ESearchCase::CaseSensitive))
+	{
+		return false;
+	}
+
+	Tokens.GetToken(Token);
+	if (!Token.IsIdentifier(TEXT("Serialize"), ESearchCase::CaseSensitive))
+	{
+		return false;
+	}
+
+	Tokens.GetToken(Token);
+	if (!Token.IsSymbol(TEXT('(')))
+	{
+		return false;
+	}
+
+	Tokens.GetToken(Token);
+
+	ESerializerArchiveType ArchiveType = ESerializerArchiveType::None;
+	if (Token.IsIdentifier(TEXT("FArchive"), ESearchCase::CaseSensitive))
+	{
+		Tokens.GetToken(Token);
+		if (Token.IsSymbol(TEXT('&')))
+		{
+			Tokens.GetToken(Token);
+
+			// Allow the declaration to not define a name for the archive parameter
+			if (!Token.IsSymbol(TEXT(')')))
+			{
+				Tokens.GetToken(Token);
+			}
+
+			if (Token.IsSymbol(TEXT(')')))
+			{
+				ArchiveType = ESerializerArchiveType::Archive;
+			}
+		}
+	}
+	else if (Token.IsIdentifier(TEXT("FStructuredArchive"), ESearchCase::CaseSensitive))
+	{
+		Tokens.GetToken(Token);
+		if (Token.IsSymbol(TEXT("::"), ESearchCase::CaseSensitive))
+		{
+			Tokens.GetToken(Token);
+
+			if (Token.IsIdentifier(TEXT("FRecord"), ESearchCase::CaseSensitive))
+			{
+				Tokens.GetToken(Token);
+
+				// Allow the declaration to not define a name for the slot parameter
+				if (!Token.IsSymbol(TEXT(')')))
 				{
-					GetToken(Token);
+					Tokens.GetToken(Token);
+				}
 
-					ESerializerArchiveType ArchiveType = ESerializerArchiveType::None;
-					if (Token.IsIdentifier(TEXT("FArchive"), ESearchCase::CaseSensitive))
-					{
-						GetToken(Token);
-						if (Token.IsSymbol(TEXT('&')))
-						{
-							GetToken(Token);
-
-							// Allow the declaration to not define a name for the archive parameter
-							if (!Token.IsSymbol(TEXT(')')))
-							{
-								GetToken(Token);
-							}
-
-							if (Token.IsSymbol(TEXT(')')))
-							{
-								ArchiveType = ESerializerArchiveType::Archive;
-							}
-						}
-					}
-					else if (Token.IsIdentifier(TEXT("FStructuredArchive"), ESearchCase::CaseSensitive))
-					{
-						GetToken(Token);
-						if (Token.IsSymbol(TEXT("::"), ESearchCase::CaseSensitive))
-						{
-							GetToken(Token);
-
-							if (Token.IsIdentifier(TEXT("FRecord"), ESearchCase::CaseSensitive))
-							{
-								GetToken(Token);
-
-								// Allow the declaration to not define a name for the slot parameter
-								if (!Token.IsSymbol(TEXT(')')))
-								{
-									GetToken(Token);
-								}
-
-								if (Token.IsSymbol(TEXT(')')))
-								{
-									ArchiveType = ESerializerArchiveType::StructuredArchiveRecord;
-								}
-							}
-						}
-					}
-					else if (Token.IsIdentifier(TEXT("FStructuredArchiveRecord"), ESearchCase::CaseSensitive))
-					{
-						GetToken(Token);
-
-						// Allow the declaration to not define a name for the slot parameter
-						if (!Token.IsSymbol(TEXT(')')))
-						{
-							GetToken(Token);
-						}
-
-						if (Token.IsSymbol(TEXT(')')))
-						{
-							ArchiveType = ESerializerArchiveType::StructuredArchiveRecord;
-						}
-					}
-
-					if (ArchiveType != ESerializerArchiveType::None)
-					{
-						// Found what we want!
-						if (uint32 CurrentCompilerDirective = GetCurrentCompilerDirective(); CurrentCompilerDirective == 0 || CurrentCompilerDirective == ECompilerDirective::WithEditorOnlyData)
-						{
-							FString EnclosingDefine = CurrentCompilerDirective != 0 ? TEXT("WITH_EDITORONLY_DATA") : TEXT("");
-
-							FUnrealClassDefinitionInfo& ClassDef = GetCurrentClassDef();
-							ClassDef.AddArchiveType(ArchiveType);
-							ClassDef.SetEnclosingDefine(MoveTemp(EnclosingDefine));
-						}
-						else
-						{
-							Throwf(TEXT("Serialize functions must not be inside preprocessor blocks, except for WITH_EDITORONLY_DATA"));
-						}
-					}
+				if (Token.IsSymbol(TEXT(')')))
+				{
+					ArchiveType = ESerializerArchiveType::StructuredArchiveRecord;
 				}
 			}
 		}
 	}
+	else if (Token.IsIdentifier(TEXT("FStructuredArchiveRecord"), ESearchCase::CaseSensitive))
+	{
+		Tokens.GetToken(Token);
 
-	// Ignore C++ declaration / function definition. 
-	return SkipDeclaration(Token);
+		// Allow the declaration to not define a name for the slot parameter
+		if (!Token.IsSymbol(TEXT(')')))
+		{
+			Tokens.GetToken(Token);
+		}
+
+		if (Token.IsSymbol(TEXT(')')))
+		{
+			ArchiveType = ESerializerArchiveType::StructuredArchiveRecord;
+		}
+	}
+
+	if (ArchiveType != ESerializerArchiveType::None)
+	{
+		// Found what we want!
+		if (Declaration.CurrentCompilerDirective == 0 || Declaration.CurrentCompilerDirective == ECompilerDirective::WithEditorOnlyData)
+		{
+			FString EnclosingDefine = Declaration.CurrentCompilerDirective != 0 ? TEXT("WITH_EDITORONLY_DATA") : TEXT("");
+
+			ClassDef.AddArchiveType(ArchiveType);
+			ClassDef.SetEnclosingDefine(MoveTemp(EnclosingDefine));
+		}
+		else
+		{
+			FUHTMessage(StructDef.GetUnrealSourceFile(), Token.InputLine).Throwf(TEXT("Serialize functions must not be inside preprocessor blocks, except for WITH_EDITORONLY_DATA"));
+		}
+		return true;
+	}
+	
+	return false;
 }
 
 bool FHeaderParser::SkipDeclaration(FToken& Token)
@@ -6110,6 +6239,9 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 		TypeOfFunction = (FuncInfo.FunctionFlags & FUNC_Native) ? TEXT("BlueprintNativeEvent") : TEXT("BlueprintImplementableEvent");
 		bAutomaticallyFinal = false;
 	}
+
+	// Record the tokens so we can detect this function as a declaration later (i.e. RPC)
+	FRecordTokens RecordTokens(*this, &GetCurrentClassDef(), nullptr);
 
 	bool bSawVirtual = false;
 
@@ -8759,3 +8891,36 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CreateFunction(const TCHAR* FuncNa
 
 	return FuncDef;
 }
+
+FRecordTokens::FRecordTokens(FHeaderParser& InParser, FUnrealStructDefinitionInfo* InStructDef, FToken* InToken)
+	: Parser(InParser)
+	, StructDef(InStructDef)
+	, CurrentCompilerDirective(Parser.GetCurrentCompilerDirective())
+{
+	if (StructDef != nullptr)
+	{
+		Parser.bRecordTokens = true;
+		if (InToken != nullptr)
+		{
+			Parser.RecordedTokens.Push(*InToken);
+		}
+	}
+}
+
+FRecordTokens::~FRecordTokens()
+{
+	Stop();
+}
+
+bool FRecordTokens::Stop()
+{
+	if (StructDef != nullptr)
+	{
+		Parser.bRecordTokens = false;
+		StructDef->AddDeclaration(CurrentCompilerDirective, MoveTemp(Parser.RecordedTokens));
+		StructDef = nullptr;
+		return true;
+	}
+	return false;
+}
+
