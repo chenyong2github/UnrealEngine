@@ -330,6 +330,7 @@ inline FObjectHandle MakeObjectHandle(UObject* Object) { return Object; }
 
 inline UObject* ResolveObjectHandleNoRead(FObjectHandle& Handle)
 {
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 	FObjectHandle LocalHandle = Handle;
 	if (IsObjectHandleResolved(LocalHandle))
 	{
@@ -343,13 +344,20 @@ inline UObject* ResolveObjectHandleNoRead(FObjectHandle& Handle)
 		Handle = LocalHandle;
 		return ResolvedObject;
 	}
+#else
+	return ReadObjectHandlePointerNoCheck(Handle);
+#endif
 }
 
 inline UObject* ResolveObjectHandle(FObjectHandle& Handle)
 {
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE || UE_WITH_OBJECT_HANDLE_TRACKING
 	UObject* ResolvedObject = ResolveObjectHandleNoRead(Handle);
 	ObjectHandle_Private::OnHandleRead(ResolvedObject);
 	return ResolvedObject;
+#else
+	return ReadObjectHandlePointerNoCheck(Handle);
+#endif
 }
 
 inline UClass* ResolveObjectHandleClass(FObjectHandle Handle)
