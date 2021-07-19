@@ -7,6 +7,7 @@
 #include "Containers/StringConv.h"
 #include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
+#include "Hash/xxhash.h"
 #include "IO/IoHash.h"
 #include "Memory/MemoryView.h"
 #include "String/BytesToHex.h"
@@ -146,7 +147,9 @@ inline FPayloadId FPayloadId::FromHash(const FIoHash& Hash)
 inline FPayloadId FPayloadId::FromName(const FAnsiStringView Name)
 {
 	checkf(!Name.IsEmpty(), TEXT("FPayloadId requires a non-empty name."));
-	return FPayloadId::FromHash(FIoHash::HashBuffer(Name.GetData(), Name.Len()));
+	uint8 HashBytes[16];
+	FXxHash128::HashBuffer(Name.GetData(), Name.Len()).ToByteArray(HashBytes);
+	return FPayloadId(MakeMemoryView(HashBytes, sizeof(ByteArray)));
 }
 
 inline FPayloadId FPayloadId::FromName(const FWideStringView Name)
