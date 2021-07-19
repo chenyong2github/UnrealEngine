@@ -43,6 +43,8 @@ struct POSESEARCH_API FPredictionTrajectoryState
 	UPROPERTY(BlueprintReadOnly, Category = Prediction)
 	float AccumulatedDistance = 0.0;
 
+	bool IsZeroSample() const;
+
 	static FPredictionTrajectoryState Lerp(const FPredictionTrajectoryState& A, const FPredictionTrajectoryState& B, float Alpha);
 };
 
@@ -76,12 +78,12 @@ struct POSESEARCH_API FPredictionTrajectorySettings
 
 	// Root motion angle threshold for determining significant changes in direction (pivots)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault, ClampMin = "0", ClampMax = "180"))
-	float RootMotionPivotAngleThreshold = 90.f;
+	float ZeroRootMotionAngleThreshold = 90.f;
 
 	// Root motion displacement error tolerance for identifying pivot false positives
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
-	float RootMotionPivotDisplacementError = 0.0004f;
-	
+	float ZeroRootMotionDisplacementError = 0.0004f;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = Debug)
 	bool bDebugDraw = false;
@@ -100,6 +102,11 @@ struct POSESEARCH_API FPredictionSequenceState
 	// Internal sequence accumulated time
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = State, meta = (PinShownByDefault))
 	float AccumulatedTime = 0.f;
+
+	// Internal sequence play rate
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = State, meta = (PinShownByDefault))
+	float PlayRate = 1.f;
+
 
 	// Looping or non-looping sequence
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = State, meta = (PinShownByDefault))

@@ -50,6 +50,11 @@ void UAnimGraphNode_StrideWarping::CustomizePinData(UEdGraphPin* Pin, FName Sour
 	{
 		Pin->bHidden = (Node.Mode == EWarpingEvaluationMode::Manual);
 	}
+
+	if (Pin->PinName == GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_StrideWarping, MinSpeedTolerance))
+	{
+		Pin->bHidden = (Node.Mode == EWarpingEvaluationMode::Manual);
+	}
 }
 
 void UAnimGraphNode_StrideWarping::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
@@ -68,6 +73,7 @@ void UAnimGraphNode_StrideWarping::CustomizeDetails(IDetailLayoutBuilder& Detail
 	if (Node.Mode == EWarpingEvaluationMode::Manual)
 	{
 		DetailBuilder.HideProperty(NodeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAnimNode_StrideWarping, LocomotionSpeed)));
+		DetailBuilder.HideProperty(NodeHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAnimNode_StrideWarping, MinSpeedTolerance)));
 	}
 }
 
@@ -126,6 +132,13 @@ void UAnimGraphNode_StrideWarping::PostEditChangeProperty(struct FPropertyChange
 						Pin->BreakAllPinLinks();
 					}
 				}
+				else if (Pin->PinName == GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_StrideWarping, MinSpeedTolerance))
+				{
+					if (Node.Mode == EWarpingEvaluationMode::Manual)
+					{
+						Pin->BreakAllPinLinks();
+					}
+				}
 			}
 
 			bRequiresNodeReconstruct = true;
@@ -143,7 +156,7 @@ void UAnimGraphNode_StrideWarping::GetInputLinkAttributes(FNodeAttributeArray& O
 {
 	if (Node.Mode == EWarpingEvaluationMode::Graph)
 	{
-		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::RootMotionDeltaAttributeName);
+		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::AttributeName);
 	}
 }
 
@@ -151,7 +164,7 @@ void UAnimGraphNode_StrideWarping::GetOutputLinkAttributes(FNodeAttributeArray& 
 {
 	if (Node.Mode == EWarpingEvaluationMode::Graph)
 	{
-		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::RootMotionDeltaAttributeName);
+		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::AttributeName);
 	}
 }
 

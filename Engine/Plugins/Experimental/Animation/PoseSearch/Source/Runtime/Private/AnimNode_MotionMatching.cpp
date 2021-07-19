@@ -164,7 +164,7 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 		ElapsedPoseJumpTime += DeltaTime;
 	}
 	 
-	const FPredictionSequenceState SequenceState = { SequencePlayerNode.GetSequence() , SequencePlayerNode.GetAccumulatedTime(), SequencePlayerNode.GetLoopAnimation() };
+	const FPredictionSequenceState SequenceState = { SequencePlayerNode.GetSequence() , SequencePlayerNode.GetAccumulatedTime(), SequencePlayerNode.GetPlayRate(), SequencePlayerNode.GetLoopAnimation() };
 	const float PlayRate = UPoseSearchPredictionDistanceMatching::ComputePlayRate(Context, Prediction, PredictionSettings, SequenceState);
 	SequencePlayerNode.SetPlayRate(PlayRate);
 
@@ -253,6 +253,7 @@ void FAnimNode_MotionMatching::JumpToPose(const FAnimationUpdateContext& Context
 	SequencePlayerNode.SetSequence(ResultDbSequence.Sequence);
 	SequencePlayerNode.SetAccumulatedTime(Result.TimeOffsetSeconds);
 	SequencePlayerNode.SetLoopAnimation(ResultDbSequence.bLoopAnimation);
+	SequencePlayerNode.SetPlayRate(1.f);
 
 	// Use inertial blending to smooth over the transition
 	// It would be cool in the future to adjust the blend time by amount of dissimilarity, but we'll need a standardized distance metric first.

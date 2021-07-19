@@ -20,7 +20,7 @@ class ENGINE_API IAnimRootMotionProvider : public IModularFeature
 {
 public:
 	static const FName ModularFeatureName; // "AnimationWarping"
-	static const FName RootMotionDeltaAttributeName;
+	static const FName AttributeName;
 
 	virtual ~IAnimRootMotionProvider() {}
 
