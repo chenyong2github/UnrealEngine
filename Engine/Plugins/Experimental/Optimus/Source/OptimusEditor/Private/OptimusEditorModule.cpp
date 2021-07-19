@@ -61,8 +61,7 @@ void FOptimusEditorModule::ShutdownModule()
 	FOptimusEditorGraphExplorerCommands::Unregister();
 	FOptimusEditorCommands::Unregister();
 
-	FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
-	if (AssetToolsModule)
+	if (FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools"))
 	{
 		IAssetTools& AssetTools = AssetToolsModule->Get();
 
@@ -86,28 +85,29 @@ void FOptimusEditorModule::RegisterPropertyCustomizations()
 {
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
-	PropertyModule.RegisterCustomPropertyTypeLayout(
-		FOptimusDataTypeRef::StaticStruct()->GetFName(), 
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FOptimusDataTypeRefCustomization::MakeInstance)
-		);
+	auto RegisterPropertyCustomization = [&](FName InStructName, auto InCustomizationFactory)
+	{
+		PropertyModule.RegisterCustomPropertyTypeLayout(
+			InStructName, 
+			FOnGetPropertyTypeCustomizationInstance::CreateStatic(InCustomizationFactory)
+			);
+		CustomizedProperties.Add(InStructName);
+	};
 
-	PropertyModule.RegisterCustomPropertyTypeLayout(
-	    FOptimusType_ShaderText::StaticStruct()->GetFName(),
-	    FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FOptimusType_ShaderTextCustomization::MakeInstance));
+	RegisterPropertyCustomization(FOptimusDataTypeRef::StaticStruct()->GetFName(), &FOptimusDataTypeRefCustomization::MakeInstance);
+	RegisterPropertyCustomization(FOptimusType_ShaderText::StaticStruct()->GetFName(), &FOptimusType_ShaderTextCustomization::MakeInstance);
 }
 
 
 void FOptimusEditorModule::UnregisterPropertyCustomizations()
 {
-	if (!FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
+	if (FPropertyEditorModule* PropertyModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor"))
 	{
-		return;
+		for (const FName& PropertyName: CustomizedProperties)
+		{
+			PropertyModule->UnregisterCustomPropertyTypeLayout(PropertyName);
+		}
 	}
-
-	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-
-	PropertyModule.UnregisterCustomPropertyTypeLayout(FOptimusDataTypeRef::StaticStruct()->GetFName());
-	PropertyModule.UnregisterCustomPropertyTypeLayout(FOptimusType_ShaderText::StaticStruct()->GetFName());
 }
 
 

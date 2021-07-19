@@ -32,4 +32,6 @@ private:
 
 	TSharedPtr<FOptimusEditorGraphNodeFactory> GraphNodeFactory;
 	TSharedPtr<FOptimusEditorGraphPinFactory> GraphPinFactory;
+
+	TArray<FName> CustomizedProperties; 
 };
