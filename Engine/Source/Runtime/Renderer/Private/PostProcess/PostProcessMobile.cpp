@@ -46,7 +46,7 @@ float GetMobileDepthOfFieldScale(const FViewInfo& View)
 
 bool IsMobileEyeAdaptationEnabled(const FViewInfo& View)
 {
-	return View.ViewState != nullptr && View.Family->EngineShowFlags.EyeAdaptation && CVarMobileEyeAdaptation.GetValueOnRenderThread() == 1;
+	return View.ViewState != nullptr && View.Family->EngineShowFlags.EyeAdaptation && CVarMobileEyeAdaptation.GetValueOnRenderThread() == 1 && IsMobileHDR();
 }
 
 //Following variations are always generated
