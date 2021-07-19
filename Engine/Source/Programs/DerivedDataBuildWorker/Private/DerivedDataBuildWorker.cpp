@@ -157,7 +157,7 @@ bool FBuildWorkerProgram::ReportVersions()
 	IBuild& BuildSystem = GetDerivedDataBuildRef();
 	FGuid BuildSystemVersion = BuildSystem.GetVersion();
 	IBuildFunctionRegistry& BuildFunctionRegistry = BuildSystem.GetFunctionRegistry();
-	TMap<FStringView, FGuid> Functions;
+	TMap<FString, FGuid> Functions;
 	BuildFunctionRegistry.IterateFunctionVersions([&Functions](FStringView Function, const FGuid& Version)
 	{
 		Functions.Emplace(Function, Version);
@@ -171,13 +171,13 @@ bool FBuildWorkerProgram::ReportVersions()
 	UE_LOG(LogDerivedDataBuildWorker, Display, TEXT("Functions:"));
 
 	Writer.BeginArray("Functions");
-	for (const TPair<FStringView, FGuid>& Function : Functions)
+	for (const TPair<FString, FGuid>& Function : Functions)
 	{
 		Writer.BeginObject();
 		Writer << "Name" << Function.Key;
 		Writer << "Version" << Function.Value;
 		Writer.EndObject();
-		UE_LOG(LogDerivedDataBuildWorker, Display, TEXT("%30.*s : '%s'"), Function.Key.Len(), Function.Key.GetData(), *WriteToString<64>(Function.Value));
+		UE_LOG(LogDerivedDataBuildWorker, Display, TEXT("%30s : '%s'"), *Function.Key, *WriteToString<64>(Function.Value));
 	}
 	Writer.EndArray();
 

@@ -116,17 +116,17 @@ FGuid FBuildFunctionRegistry::FindFunctionVersion(FStringView Function) const
 
 void FBuildFunctionRegistry::IterateFunctionVersions(TFunctionRef<void(FStringView Function, const FGuid& Version)> Visitor) const
 {
-	TArray<TPair<FStringView, FGuid>> FunctionVersions;
+	TArray<TPair<FString, FGuid>> FunctionVersions;
 	{
 		FReadScopeLock ReadLock(Lock);
 		FunctionVersions.Reserve(Functions.Num());
-		for (const TPair<FStringView, IBuildFunctionFactory*>& Function : Functions)
+		for (const TPair<FString, IBuildFunctionFactory*>& Function : Functions)
 		{
 			FunctionVersions.Emplace(Function.Key, Function.Value->GetFunction().GetVersion());
 		}
 	}
 
-	for (const TPair<FStringView, FGuid>& Function : FunctionVersions)
+	for (const TPair<FString, FGuid>& Function : FunctionVersions)
 	{
 		Visitor(Function.Key, Function.Value);
 	}
