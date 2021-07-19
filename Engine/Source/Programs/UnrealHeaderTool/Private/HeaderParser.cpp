@@ -87,8 +87,13 @@ TArray<FString> FHeaderParser::ReservedTypeNames = { TEXT("none") };
 
 namespace
 {
-	bool ProbablyAMacro(const TCHAR* Identifier)
+	bool ProbablyAMacro(const FStringView& Identifier)
 	{
+		if (Identifier.Len() == 0)
+		{
+			return false;
+
+		}
 		// Macros must start with a capitalized alphanumeric character or underscore
 		TCHAR FirstChar = Identifier[0];
 		if (FirstChar != TEXT('_') && (FirstChar < TEXT('A') || FirstChar > TEXT('Z')))
@@ -97,26 +102,15 @@ namespace
 		}
 
 		// Test for known delegate and event macros.
-		TCHAR MulticastDelegateStart[] = TEXT("DECLARE_MULTICAST_DELEGATE");
-		if (!FCString::Strncmp(Identifier, MulticastDelegateStart, UE_ARRAY_COUNT(MulticastDelegateStart) - 1))
-		{
-			return true;
-		}
-
-		TCHAR DelegateStart[] = TEXT("DECLARE_DELEGATE");
-		if (!FCString::Strncmp(Identifier, DelegateStart, UE_ARRAY_COUNT(DelegateStart) - 1))
-		{
-			return true;
-		}
-
-		TCHAR DelegateEvent[] = TEXT("DECLARE_EVENT");
-		if (!FCString::Strncmp(Identifier, DelegateEvent, UE_ARRAY_COUNT(DelegateEvent) - 1))
+		if (Identifier.StartsWith(TEXT("DECLARE_MULTICAST_DELEGATE")) ||
+			Identifier.StartsWith(TEXT("DECLARE_DELEGATE")) ||
+			Identifier.StartsWith(TEXT("DECLARE_EVENT")))
 		{
 			return true;
 		}
 
 		// Failing that, we'll guess about it being a macro based on it being a fully-capitalized identifier.
-		while (TCHAR Ch = *++Identifier)
+		for (TCHAR Ch : Identifier.RightChop(1))
 		{
 			if (Ch != TEXT('_') && (Ch < TEXT('A') || Ch > TEXT('Z')) && (Ch < TEXT('0') || Ch > TEXT('9')))
 			{
@@ -138,22 +132,21 @@ namespace
 	bool ProbablyAnUnknownObjectLikeMacro(FHeaderParser& HeaderParser, FToken Token)
 	{
 		// Non-identifiers are not macros
-		if (Token.TokenType != TOKEN_Identifier)
+		if (!Token.IsIdentifier())
 		{
 			return false;
 		}
 
 		// Macros must start with a capitalized alphanumeric character or underscore
-		TCHAR FirstChar = Token.Identifier[0];
+		TCHAR FirstChar = Token.Value[0];
 		if (FirstChar != TEXT('_') && (FirstChar < TEXT('A') || FirstChar > TEXT('Z')))
 		{
 			return false;
 		}
 
 		// We'll guess about it being a macro based on it being fully-capitalized with at least one underscore.
-		const TCHAR* IdentPtr = Token.Identifier;
 		int32 UnderscoreCount = 0;
-		while (TCHAR Ch = *++IdentPtr)
+		for (TCHAR Ch : Token.Value.RightChop(1))
 		{
 			if (Ch == TEXT('_'))
 			{
@@ -173,20 +166,15 @@ namespace
 		}
 
 		// Identifiers which end in _API are known
-		if (IdentPtr - Token.Identifier > 4 && IdentPtr[-4] == TEXT('_') && IdentPtr[-3] == TEXT('A') && IdentPtr[-2] == TEXT('P') && IdentPtr[-1] == TEXT('I'))
+		if (Token.Value.Len() > 4 && Token.Value.EndsWith(FStringView(TEXT("_API"), 4)))
 		{
 			return false;
 		}
 
 		// Ignore certain known macros or identifiers that look like macros.
-		// IMPORTANT: needs to be in lexicographical order.
-		static const TCHAR* Whitelist[] =
-		{
-			TEXT("FORCEINLINE_DEBUGGABLE"),
-			TEXT("FORCEINLINE_STATS"),
-			TEXT("SIZE_T")
-		};
-		if (Algo::FindSortedStringCaseInsensitive(Token.Identifier, Whitelist, UE_ARRAY_COUNT(Whitelist)) >= 0)
+		if (Token.IsValue(TEXT("FORCEINLINE_DEBUGGABLE"), ESearchCase::CaseSensitive) ||
+			Token.IsValue(TEXT("FORCEINLINE_STATS"), ESearchCase::CaseSensitive) ||
+			Token.IsValue(TEXT("SIZE_T"), ESearchCase::CaseSensitive))
 		{
 			return false;
 		}
@@ -201,8 +189,7 @@ namespace
 		HeaderParser.UngetToken(Token);
 		HeaderParser.GetToken(Token);
 
-		bool bResult = PossibleBracketToken.TokenType != TOKEN_Symbol || !PossibleBracketToken.Matches(TEXT('('));
-		return bResult;
+		return !PossibleBracketToken.IsSymbol(TEXT('('));
 	}
 
 	/**
@@ -628,26 +615,27 @@ namespace
 			return;
 		}
 
-		if (MacroToken.TokenType != TOKEN_Identifier || (FCString::Strcmp(MacroToken.Identifier, TEXT("DEPRECATED")) != 0 && FCString::Strcmp(MacroToken.Identifier, TEXT("UE_DEPRECATED")) != 0))
+		if (!MacroToken.IsIdentifier() || 
+			(!MacroToken.IsValue(TEXT("DEPRECATED"), ESearchCase::CaseSensitive) && !MacroToken.IsValue(TEXT("UE_DEPRECATED"), ESearchCase::CaseSensitive)))
 		{
 			Parser.UngetToken(MacroToken);
 			return;
 		}
 
-		auto ErrorMessageGetter = [&MacroToken]() { return FString::Printf(TEXT("%s macro"), MacroToken.Identifier); };
+		auto ErrorMessageGetter = [&MacroToken]() { return FString::Printf(TEXT("%s macro"), *MacroToken.GetTokenValue()); };
 
 		Parser.RequireSymbol(TEXT('('), ErrorMessageGetter);
 
 		FToken Token;
-		if (Parser.GetToken(Token) && (Token.ConstantType != CPT_Float || Token.TokenType != TOKEN_Const))
+		if (Parser.GetToken(Token) && !Token.IsConstFloat())
 		{
-			Parser.Throwf(TEXT("Expected engine version in %s macro"), MacroToken.Identifier);
+			Parser.Throwf(TEXT("Expected engine version in %s macro"), *MacroToken.GetTokenValue());
 		}
 
 		Parser.RequireSymbol(TEXT(','), ErrorMessageGetter);
-		if (Parser.GetToken(Token) && (Token.ConstantType != CPT_String || Token.TokenType != TOKEN_Const))
+		if (Parser.GetToken(Token) && !Token.IsConstString())
 		{
-			Parser.Throwf(TEXT("Expected deprecation message in %s macro"), MacroToken.Identifier);
+			Parser.Throwf(TEXT("Expected deprecation message in %s macro"), *MacroToken.GetTokenValue());
 		}
 
 		Parser.RequireSymbol(TEXT(')'), ErrorMessageGetter);
@@ -785,22 +773,16 @@ const FUHTConfig& FUHTConfig::Get()
 //
 FUnrealClassDefinitionInfo* FHeaderParser::GetQualifiedClass(const TCHAR* Thing)
 {
-	TCHAR ClassName[256]=TEXT("");
-
 	FToken Token;
 	if (GetIdentifier(Token))
 	{
 		RedirectTypeIdentifier(Token);
-
-		FCString::Strncat( ClassName, Token.Identifier, UE_ARRAY_COUNT(ClassName) );
+		return FUnrealClassDefinitionInfo::FindScriptClassOrThrow(*this, FString(Token.Value));
 	}
-
-	if (!ClassName[0])
+	else
 	{
 		Throwf(TEXT("%s: Missing class name"), Thing);
 	}
-
-	return FUnrealClassDefinitionInfo::FindScriptClassOrThrow(*this, ClassName);
 }
 
 /*-----------------------------------------------------------------------------
@@ -964,7 +946,7 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 		Throwf(TEXT("Missing identifier after UENUM()") );
 	}
 
-	if (EnumToken.Matches(TEXT("namespace"), ESearchCase::CaseSensitive))
+	if (EnumToken.IsValue(TEXT("namespace"), ESearchCase::CaseSensitive))
 	{
 		CppForm = UEnum::ECppForm::Namespaced;
 
@@ -972,14 +954,14 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 
 		bReadEnumName = GetIdentifier(EnumToken);
 	}
-	else if (EnumToken.Matches(TEXT("enum"), ESearchCase::CaseSensitive))
+	else if (EnumToken.IsValue(TEXT("enum"), ESearchCase::CaseSensitive))
 	{
 		if (!GetIdentifier(EnumToken))
 		{
 			Throwf(TEXT("Missing identifier after enum") );
 		}
 
-		if (EnumToken.Matches(TEXT("class"), ESearchCase::CaseSensitive) || EnumToken.Matches(TEXT("struct"), ESearchCase::CaseSensitive))
+		if (EnumToken.IsValue(TEXT("class"), ESearchCase::CaseSensitive) || EnumToken.IsValue(TEXT("struct"), ESearchCase::CaseSensitive))
 		{
 			CppForm = UEnum::ECppForm::EnumClass;
 		}
@@ -1006,10 +988,11 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 		Throwf(TEXT("Missing enumeration name") );
 	}
 
-	ParseFieldMetaData(EnumMetaData, EnumToken.Identifier);
+	FTokenValue EnumIdentifier = EnumToken.GetTokenValue();
+	ParseFieldMetaData(EnumMetaData, *EnumIdentifier);
 
 	// Create enum definition.
-	FUnrealEnumDefinitionInfo& EnumDef = GTypeDefinitionInfoMap.FindByNameChecked<FUnrealEnumDefinitionInfo>(EnumToken.Identifier);
+	FUnrealEnumDefinitionInfo& EnumDef = GTypeDefinitionInfoMap.FindByNameChecked<FUnrealEnumDefinitionInfo>(*EnumIdentifier);
 
 	Scope->AddType(EnumDef);
 
@@ -1082,7 +1065,7 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 				Throwf(TEXT("Missing enumeration name") );
 			}
 
-			EnumDef.SetCppType(FString::Printf(TEXT("%s::%s"), EnumToken.Identifier, InnerEnumToken.Identifier));
+			EnumDef.SetCppType(FString::Printf(TEXT("%s::%s"), *EnumIdentifier, *InnerEnumToken.GetTokenValue()));
 
 			RequireSymbol( TEXT('{'), TEXT("'Enum'") );
 		}
@@ -1091,7 +1074,7 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 		case UEnum::ECppForm::Regular:
 		case UEnum::ECppForm::EnumClass:
 		{
-			EnumDef.SetCppType(EnumToken.Identifier);
+			EnumDef.SetCppType(*EnumIdentifier);
 		}
 		break;
 	}
@@ -1112,6 +1095,7 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 	int64 CurrentEnumValue = 0;
 	while (GetIdentifier(TagToken))
 	{
+		FTokenValue TagIdentifier = TagToken.GetTokenValue();
 		AddFormattedPrevCommentAsTooltipMetaData(TagMetaData);
 
 		// Try to read an optional explicit enum value specification
@@ -1139,21 +1123,10 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 					Throwf(TEXT("Enumerator: end of file encountered while parsing the initializer"));
 				}
 
-				if (InitToken.TokenType == TOKEN_Symbol)
+				if (InitToken.IsSymbol(TEXT(',')) || InitToken.IsSymbol(TEXT('}')) || InitToken.IsIdentifier(TEXT("UMETA"), ESearchCase::IgnoreCase))
 				{
-					if (InitToken.Matches(TEXT(',')) || InitToken.Matches(TEXT('}')))
-					{
-						UngetToken(InitToken);
-						break;
-					}
-				}
-				else if (InitToken.TokenType == TOKEN_Identifier)
-				{
-					if (FCString::Stricmp(InitToken.Identifier, TEXT("UMETA")) == 0)
-					{
-						UngetToken(InitToken);
-						break;
-					}
+					UngetToken(InitToken);
+					break;
 				}
 
 				// There are tokens after the initializer so it's not a standalone literal,
@@ -1171,13 +1144,13 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 			case UEnum::ECppForm::Namespaced:
 			case UEnum::ECppForm::EnumClass:
 			{
-				NewTag = FName(*FString::Printf(TEXT("%s::%s"), EnumToken.Identifier, TagToken.Identifier), FNAME_Add);
+				NewTag = FName(*FString::Printf(TEXT("%s::%s"), *EnumIdentifier, *TagIdentifier), FNAME_Add);
 			}
 			break;
 
 			case UEnum::ECppForm::Regular:
 			{
-				NewTag = FName(TagToken.Identifier, FNAME_Add);
+				NewTag = FName(TagToken.Value, FNAME_Add);
 			}
 			break;
 		}
@@ -1195,11 +1168,11 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 		EntryMetaData.Add(TagMetaData);
 
 		// check for metadata on this enum value
-		ParseFieldMetaData(TagMetaData, TagToken.Identifier);
+		ParseFieldMetaData(TagMetaData, *TagIdentifier);
 		if (TagMetaData.Num() > 0)
 		{
 			// special case for enum value metadata - we need to prepend the key name with the enum value name
-			const FString TokenString = TagToken.Identifier;
+			const FString TokenString = *TagIdentifier;
 			for (const auto& MetaData : TagMetaData)
 			{
 				FString KeyString = TokenString + TEXT(".") + MetaData.Key.ToString();
@@ -1218,7 +1191,7 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 				Throwf(TEXT("UENUM: end of file encountered"));
 			}
 
-			if (ClosingBrace.TokenType == TOKEN_Symbol && ClosingBrace.Matches(TEXT('}')))
+			if (ClosingBrace.IsSymbol(TEXT('}')))
 			{
 				UngetToken(ClosingBrace);
 				break;
@@ -1662,13 +1635,16 @@ static const TCHAR* GetAccessSpecifierName(EAccessSpecifier AccessSpecifier)
 // Tries to parse the token as an access protection specifier (public:, protected:, or private:)
 EAccessSpecifier FHeaderParser::ParseAccessProtectionSpecifier(const FToken& Token)
 {
-	EAccessSpecifier ResultAccessSpecifier = ACCESS_NotAnAccessSpecifier;
+	if (!Token.IsIdentifier())
+	{
+		return ACCESS_NotAnAccessSpecifier;
+	}
 
 	for (EAccessSpecifier Test = EAccessSpecifier(ACCESS_NotAnAccessSpecifier + 1); Test != ACCESS_Num; Test = EAccessSpecifier(Test + 1))
 	{
-		if (Token.Matches(GetAccessSpecifierName(Test), ESearchCase::CaseSensitive))
+		if (Token.IsValue(GetAccessSpecifierName(Test), ESearchCase::CaseSensitive))
 		{
-			auto ErrorMessageGetter = [&Token]() { return FString::Printf(TEXT("after %s"), Token.Identifier);  };
+			auto ErrorMessageGetter = [&Token]() { return FString::Printf(TEXT("after %s"), *Token.GetTokenValue());  };
 
 			// Consume the colon after the specifier
 			RequireSymbol(TEXT(':'), ErrorMessageGetter);
@@ -1854,29 +1830,29 @@ FUnrealScriptStructDefinitionInfo& FHeaderParser::CompileStructDeclaration()
 		{
 			CurrentAccessSpecifier = AccessSpecifier;
 		}
-		else if (Token.Matches(TEXT("UPROPERTY"), ESearchCase::CaseSensitive))
+		else if (Token.IsIdentifier(TEXT("UPROPERTY"), ESearchCase::CaseSensitive))
 		{
 			CompileVariableDeclaration(StructDef);
 		}
-		else if (Token.Matches(TEXT("UFUNCTION"), ESearchCase::CaseSensitive))
+		else if (Token.IsIdentifier(TEXT("UFUNCTION"), ESearchCase::CaseSensitive))
 		{
 			Throwf(TEXT("USTRUCTs cannot contain UFUNCTIONs."));
 		}
-		else if (Token.Matches(TEXT("RIGVM_METHOD"), ESearchCase::CaseSensitive))
+		else if (Token.IsIdentifier(TEXT("RIGVM_METHOD"), ESearchCase::CaseSensitive))
 		{
 			CompileRigVMMethodDeclaration(StructDef);
 		}
-		else if (Token.Matches(TEXT("GENERATED_USTRUCT_BODY"), ESearchCase::CaseSensitive) || Token.Matches(TEXT("GENERATED_BODY"), ESearchCase::CaseSensitive))
+		else if (Token.IsIdentifier(TEXT("GENERATED_USTRUCT_BODY"), ESearchCase::CaseSensitive) || Token.IsIdentifier(TEXT("GENERATED_BODY"), ESearchCase::CaseSensitive))
 		{
 			// Match 'GENERATED_USTRUCT_BODY' '(' [StructName] ')' or 'GENERATED_BODY' '(' [StructName] ')'
 			if (CurrentAccessSpecifier != ACCESS_Public)
 			{
-				Throwf(TEXT("%s must be in the public scope of '%s', not private or protected."), Token.Identifier, *StructNameInScript);
+				Throwf(TEXT("%s must be in the public scope of '%s', not private or protected."), *Token.GetTokenValue(), *StructNameInScript);
 			}
 
 			if (StructDef.GetMacroDeclaredLineNumber() != INDEX_NONE)
 			{
-				Throwf(TEXT("Multiple %s declarations found in '%s'"), Token.Identifier, *StructNameInScript);
+				Throwf(TEXT("Multiple %s declarations found in '%s'"), *Token.GetTokenValue(), *StructNameInScript);
 			}
 
 			StructDef.SetMacroDeclaredLineNumber(InputLine);
@@ -1889,20 +1865,20 @@ FUnrealScriptStructDefinitionInfo& FHeaderParser::CompileStructDeclaration()
 			// Eat a semicolon if present (not required)
 			SafeMatchSymbol(TEXT(';'));
 		}
-		else if ( Token.Matches(TEXT('#')) && MatchIdentifier(TEXT("ifdef"), ESearchCase::CaseSensitive) )
+		else if ( Token.IsSymbol(TEXT('#')) && MatchIdentifier(TEXT("ifdef"), ESearchCase::CaseSensitive) )
 		{
 			PushCompilerDirective(ECompilerDirective::Insignificant);
 		}
-		else if ( Token.Matches(TEXT('#')) && MatchIdentifier(TEXT("ifndef"), ESearchCase::CaseSensitive) )
+		else if ( Token.IsSymbol(TEXT('#')) && MatchIdentifier(TEXT("ifndef"), ESearchCase::CaseSensitive) )
 		{
 			PushCompilerDirective(ECompilerDirective::Insignificant);
 		}
-		else if (Token.Matches(TEXT('#')) && MatchIdentifier(TEXT("endif"), ESearchCase::CaseSensitive))
+		else if (Token.IsSymbol(TEXT('#')) && MatchIdentifier(TEXT("endif"), ESearchCase::CaseSensitive))
 		{
 			PopCompilerDirective();
 			// Do nothing and hope that the if code below worked out OK earlier
 		}
-		else if ( Token.Matches(TEXT('#')) && MatchIdentifier(TEXT("if"), ESearchCase::CaseSensitive) )
+		else if ( Token.IsSymbol(TEXT('#')) && MatchIdentifier(TEXT("if"), ESearchCase::CaseSensitive) )
 		{
 			//@TODO: This parsing should be combined with CompileDirective and probably happen much much higher up!
 			bool bInvertConditional = MatchSymbol(TEXT('!'));
@@ -1963,7 +1939,7 @@ FUnrealScriptStructDefinitionInfo& FHeaderParser::CompileStructDeclaration()
 				}
 			}
 		}
-		else if (Token.Matches(TEXT('#')) && MatchIdentifier(TEXT("pragma"), ESearchCase::CaseSensitive))
+		else if (Token.IsSymbol(TEXT('#')) && MatchIdentifier(TEXT("pragma"), ESearchCase::CaseSensitive))
 		{
 			// skip it and skip over the text, it is not recorded or processed
 			TCHAR c;
@@ -1977,15 +1953,13 @@ FUnrealScriptStructDefinitionInfo& FHeaderParser::CompileStructDeclaration()
 		}
 		else
 		{
-			if (!Token.Matches( TEXT('}')))
+			if (!Token.IsSymbol( TEXT('}')))
 			{
 				// Skip declaration will destroy data in Token, so cache off the identifier in case we need to provfide an error
-				TCHAR FirstTokenIdentifier[NAME_SIZE];
-				FCString::Strncpy(FirstTokenIdentifier, Token.Identifier, NAME_SIZE);
-
+				FToken FirstToken = Token;
 				if (!SkipDeclaration(Token))
 				{
-					Throwf(TEXT("'struct': Unexpected '%s'"), FirstTokenIdentifier);
+					Throwf(TEXT("'struct': Unexpected '%s'"), *FirstToken.GetTokenValue());
 				}	
 			}
 			else
@@ -2607,18 +2581,18 @@ void FHeaderParser::CompileDirective()
 	{
 		Throwf(TEXT("Missing compiler directive after '#'") );
 	}
-	else if (Directive.Matches(TEXT("error"), ESearchCase::CaseSensitive))
+	else if (Directive.IsValue(TEXT("error"), ESearchCase::CaseSensitive))
 	{
 		Throwf(TEXT("#error directive encountered") );
 	}
-	else if (Directive.Matches(TEXT("pragma"), ESearchCase::CaseSensitive))
+	else if (Directive.IsValue(TEXT("pragma"), ESearchCase::CaseSensitive))
 	{
 		// Ignore all pragmas
 	}
-	else if (Directive.Matches(TEXT("linenumber"), ESearchCase::CaseSensitive))
+	else if (Directive.IsValue(TEXT("linenumber"), ESearchCase::CaseSensitive))
 	{
 		FToken Number;
-		if (!GetToken(Number) || (Number.TokenType != TOKEN_Const) || (Number.ConstantType != CPT_Int && Number.ConstantType != CPT_Int64))
+		if (!GetToken(Number) || !Number.IsConstInt())
 		{
 			Throwf(TEXT("Missing line number in line number directive"));
 		}
@@ -2629,19 +2603,20 @@ void FHeaderParser::CompileDirective()
 			InputLine = newInputLine;
 		}
 	}
-	else if (Directive.Matches(TEXT("include"), ESearchCase::CaseSensitive))
+	else if (Directive.IsValue(TEXT("include"), ESearchCase::CaseSensitive))
 	{
 		FToken IncludeName;
-		if (GetToken(IncludeName) && (IncludeName.TokenType == TOKEN_Const) && (IncludeName.ConstantType == CPT_String))
+		if (GetToken(IncludeName) && IncludeName.IsConstString())
 		{
+			FTokenString InludeNameString = IncludeName.GetTokenString();
 			const FString& ExpectedHeaderName = SourceFile.GetGeneratedHeaderFilename();
-			if (FCString::Stricmp(IncludeName.String, *ExpectedHeaderName) == 0)
+			if (FCString::Stricmp(*InludeNameString, *ExpectedHeaderName) == 0)
 			{
 				bSpottedAutogeneratedHeaderInclude = true;
 			}
 		}
 	}
-	else if (Directive.Matches(TEXT("if"), ESearchCase::CaseSensitive))
+	else if (Directive.IsValue(TEXT("if"), ESearchCase::CaseSensitive))
 	{
 		// Eat the ! if present
 		bool bNotDefined = MatchSymbol(TEXT('!'));
@@ -2660,48 +2635,48 @@ void FHeaderParser::CompileDirective()
 				Throwf(TEXT("Missing define name '#if'") );
 			}
 
-			if ( Define.Matches(TEXT("WITH_EDITORONLY_DATA"), ESearchCase::CaseSensitive) )
+			if ( Define.IsValue(TEXT("WITH_EDITORONLY_DATA"), ESearchCase::CaseSensitive) )
 			{
 				PushCompilerDirective(ECompilerDirective::WithEditorOnlyData);
 			}
-			else if ( Define.Matches(TEXT("WITH_EDITOR"), ESearchCase::CaseSensitive) )
+			else if ( Define.IsValue(TEXT("WITH_EDITOR"), ESearchCase::CaseSensitive) )
 			{
 				PushCompilerDirective(ECompilerDirective::WithEditor);
 			}
-			else if (Define.Matches(TEXT("WITH_HOT_RELOAD"), ESearchCase::CaseSensitive) || Define.Matches(TEXT("WITH_HOT_RELOAD_CTORS"), ESearchCase::CaseSensitive) || Define.Matches(TEXT('1')))
+			else if (Define.IsValue(TEXT("WITH_HOT_RELOAD"), ESearchCase::CaseSensitive) || Define.IsValue(TEXT("WITH_HOT_RELOAD_CTORS"), ESearchCase::CaseSensitive) || Define.IsSymbol(TEXT('1'))) // @TODO: This symbol test can never work after a GetIdentifier
 			{
 				PushCompilerDirective(ECompilerDirective::Insignificant);
 			}
-			else if ( Define.Matches(TEXT("CPP"), ESearchCase::CaseSensitive) && bNotDefined)
+			else if ( Define.IsValue(TEXT("CPP"), ESearchCase::CaseSensitive) && bNotDefined)
 			{
 				PushCompilerDirective(ECompilerDirective::Insignificant);
 			}
 			else
 			{
-				Throwf(TEXT("Unknown define '#if %s' in class or global scope"), Define.Identifier);
+				Throwf(TEXT("Unknown define '#if %s' in class or global scope"), *Define.GetTokenValue());
 			}
 		}
 	}
-	else if (Directive.Matches(TEXT("endif"), ESearchCase::CaseSensitive))
+	else if (Directive.IsValue(TEXT("endif"), ESearchCase::CaseSensitive))
 	{
 		PopCompilerDirective();
 	}
-	else if (Directive.Matches(TEXT("define"), ESearchCase::CaseSensitive))
+	else if (Directive.IsValue(TEXT("define"), ESearchCase::CaseSensitive))
 	{
 		// Ignore the define directive (can be multiline).
 		bDefineDirective = true;
 	}
-	else if (Directive.Matches(TEXT("ifdef"), ESearchCase::CaseSensitive) || Directive.Matches(TEXT("ifndef"), ESearchCase::CaseSensitive))
+	else if (Directive.IsValue(TEXT("ifdef"), ESearchCase::CaseSensitive) || Directive.IsValue(TEXT("ifndef"), ESearchCase::CaseSensitive))
 	{
 		PushCompilerDirective(ECompilerDirective::Insignificant);
 	}
-	else if (Directive.Matches(TEXT("undef"), ESearchCase::CaseSensitive) || Directive.Matches(TEXT("else"), ESearchCase::CaseSensitive))
+	else if (Directive.IsValue(TEXT("undef"), ESearchCase::CaseSensitive) || Directive.IsValue(TEXT("else"), ESearchCase::CaseSensitive))
 	{
 		// Ignore. UHT can only handle #if directive
 	}
 	else
 	{
-		Throwf(TEXT("Unrecognized compiler directive %s"), Directive.Identifier );
+		Throwf(TEXT("Unrecognized compiler directive %s"), *Directive.GetTokenValue() );
 	}
 
 	// Skip to end of line (or end of multiline #define).
@@ -3273,9 +3248,9 @@ void FHeaderParser::GetVarType(
 			Throwf(TEXT("%s: Missing variable type"), GetHintText(*this, VariableCategory));
 		}
 
-		if (FCString::Strcmp(InlineToken.Identifier, TEXT("inline")) != 0
-			&& FCString::Strcmp(InlineToken.Identifier, TEXT("FORCENOINLINE")) != 0
-			&& FCString::Strncmp(InlineToken.Identifier, TEXT("FORCEINLINE"), 11) != 0)
+		if (!InlineToken.IsValue(TEXT("inline"), ESearchCase::CaseSensitive) &&
+			!InlineToken.IsValue(TEXT("FORCENOINLINE"), ESearchCase::CaseSensitive) &&
+			!InlineToken.ValueStartsWith(TEXT("FORCEINLINE"), ESearchCase::CaseSensitive))
 		{
 			UngetToken(InlineToken);
 		}
@@ -3309,9 +3284,10 @@ void FHeaderParser::GetVarType(
 		FToken LayoutToken;
 		if (GetToken(LayoutToken))
 		{
-			if (LayoutToken.TokenType == TOKEN_Identifier)
+			if (LayoutToken.IsIdentifier())
 			{
-				LayoutMacroType = (ELayoutMacroType)Algo::FindSortedStringCaseInsensitive(LayoutToken.Identifier, GLayoutMacroNames, UE_ARRAY_COUNT(GLayoutMacroNames));
+				FTokenValue Name = LayoutToken.GetTokenValue();
+				LayoutMacroType = (ELayoutMacroType)Algo::FindSortedStringCaseInsensitive(*Name, GLayoutMacroNames, UE_ARRAY_COUNT(GLayoutMacroNames));
 				if (LayoutMacroType != ELayoutMacroType::None)
 				{
 					RequireSymbol(TEXT('('), GLayoutMacroNames[(int32)LayoutMacroType]);
@@ -3363,68 +3339,68 @@ void FHeaderParser::GetVarType(
 
 	//
 	FToken VarType;
-	if ( !GetIdentifier(VarType,1) )
+	if ( !GetIdentifier(VarType, true) )
 	{
 		Throwf(TEXT("%s: Missing variable type"), GetHintText(*this, VariableCategory));
 	}
 
 	RedirectTypeIdentifier(VarType);
 
-	if ( VariableCategory == EVariableCategory::Return && VarType.Matches(TEXT("void"), ESearchCase::CaseSensitive) )
+	if ( VariableCategory == EVariableCategory::Return && VarType.IsValue(TEXT("void"), ESearchCase::CaseSensitive) )
 	{
 		VarProperty = FPropertyBase(CPT_None);
 	}
-	else if ( VarType.Matches(TEXT("int8"), ESearchCase::CaseSensitive) )
+	else if ( VarType.IsValue(TEXT("int8"), ESearchCase::CaseSensitive) )
 	{
 		VarProperty = FPropertyBase(CPT_Int8);
 	}
-	else if ( VarType.Matches(TEXT("int16"), ESearchCase::CaseSensitive) )
+	else if ( VarType.IsValue(TEXT("int16"), ESearchCase::CaseSensitive) )
 	{
 		VarProperty = FPropertyBase(CPT_Int16);
 	}
-	else if ( VarType.Matches(TEXT("int32"), ESearchCase::CaseSensitive) )
+	else if ( VarType.IsValue(TEXT("int32"), ESearchCase::CaseSensitive) )
 	{
 		VarProperty = FPropertyBase(CPT_Int);
 	}
-	else if ( VarType.Matches(TEXT("int64"), ESearchCase::CaseSensitive) )
+	else if ( VarType.IsValue(TEXT("int64"), ESearchCase::CaseSensitive) )
 	{
 		VarProperty = FPropertyBase(CPT_Int64);
 	}
-	else if ( VarType.Matches(TEXT("uint64"), ESearchCase::CaseSensitive) && IsBitfieldProperty(LayoutMacroType) )
+	else if ( VarType.IsValue(TEXT("uint64"), ESearchCase::CaseSensitive) && IsBitfieldProperty(LayoutMacroType) )
 	{
 		// 64-bit bitfield (bool) type, treat it like 8 bit type
 		VarProperty = FPropertyBase(CPT_Bool8);
 	}
-	else if ( VarType.Matches(TEXT("uint32"), ESearchCase::CaseSensitive) && IsBitfieldProperty(LayoutMacroType) )
+	else if ( VarType.IsValue(TEXT("uint32"), ESearchCase::CaseSensitive) && IsBitfieldProperty(LayoutMacroType) )
 	{
 		// 32-bit bitfield (bool) type, treat it like 8 bit type
 		VarProperty = FPropertyBase(CPT_Bool8);
 	}
-	else if ( VarType.Matches(TEXT("uint16"), ESearchCase::CaseSensitive) && IsBitfieldProperty(LayoutMacroType) )
+	else if ( VarType.IsValue(TEXT("uint16"), ESearchCase::CaseSensitive) && IsBitfieldProperty(LayoutMacroType) )
 	{
 		// 16-bit bitfield (bool) type, treat it like 8 bit type.
 		VarProperty = FPropertyBase(CPT_Bool8);
 	}
-	else if ( VarType.Matches(TEXT("uint8"), ESearchCase::CaseSensitive) && IsBitfieldProperty(LayoutMacroType) )
+	else if ( VarType.IsValue(TEXT("uint8"), ESearchCase::CaseSensitive) && IsBitfieldProperty(LayoutMacroType) )
 	{
 		// 8-bit bitfield (bool) type
 		VarProperty = FPropertyBase(CPT_Bool8);
 	}
-	else if ( VarType.Matches(TEXT("int"), ESearchCase::CaseSensitive) )
+	else if ( VarType.IsValue(TEXT("int"), ESearchCase::CaseSensitive) )
 	{
 		VarProperty = FPropertyBase(CPT_Int, EIntType::Unsized);
 	}
-	else if ( VarType.Matches(TEXT("signed"), ESearchCase::CaseSensitive) )
+	else if ( VarType.IsValue(TEXT("signed"), ESearchCase::CaseSensitive) )
 	{
 		MatchIdentifier(TEXT("int"), ESearchCase::CaseSensitive);
 		VarProperty = FPropertyBase(CPT_Int, EIntType::Unsized);
 	}
-	else if (VarType.Matches(TEXT("unsigned"), ESearchCase::CaseSensitive))
+	else if (VarType.IsValue(TEXT("unsigned"), ESearchCase::CaseSensitive))
 	{
 		MatchIdentifier(TEXT("int"), ESearchCase::CaseSensitive);
 		VarProperty = FPropertyBase(CPT_UInt32, EIntType::Unsized);
 	}
-	else if ( VarType.Matches(TEXT("bool"), ESearchCase::CaseSensitive) )
+	else if ( VarType.IsValue(TEXT("bool"), ESearchCase::CaseSensitive) )
 	{
 		if (IsBitfieldProperty(LayoutMacroType))
 		{
@@ -3433,34 +3409,34 @@ void FHeaderParser::GetVarType(
 		// C++ bool type
 		VarProperty = FPropertyBase(CPT_Bool);
 	}
-	else if ( VarType.Matches(TEXT("uint8"), ESearchCase::CaseSensitive) )
+	else if ( VarType.IsValue(TEXT("uint8"), ESearchCase::CaseSensitive) )
 	{
 		// Intrinsic Byte type.
 		VarProperty = FPropertyBase(CPT_Byte);
 	}
-	else if ( VarType.Matches(TEXT("uint16"), ESearchCase::CaseSensitive) )
+	else if ( VarType.IsValue(TEXT("uint16"), ESearchCase::CaseSensitive) )
 	{
 		VarProperty = FPropertyBase(CPT_UInt16);
 	}
-	else if ( VarType.Matches(TEXT("uint32"), ESearchCase::CaseSensitive) )
+	else if ( VarType.IsValue(TEXT("uint32"), ESearchCase::CaseSensitive) )
 	{
 		VarProperty = FPropertyBase(CPT_UInt32);
 	}
-	else if ( VarType.Matches(TEXT("uint64"), ESearchCase::CaseSensitive) )
+	else if ( VarType.IsValue(TEXT("uint64"), ESearchCase::CaseSensitive) )
 	{
 		VarProperty = FPropertyBase(CPT_UInt64);
 	}
-	else if ( VarType.Matches(TEXT("float"), ESearchCase::CaseSensitive) )
+	else if ( VarType.IsValue(TEXT("float"), ESearchCase::CaseSensitive) )
 	{
 		// Intrinsic single precision floating point type.
 		VarProperty = FPropertyBase(CPT_Float);
 	}
-	else if ( VarType.Matches(TEXT("double"), ESearchCase::CaseSensitive) )
+	else if ( VarType.IsValue(TEXT("double"), ESearchCase::CaseSensitive) )
 	{
 		// Intrinsic double precision floating point type type.
 		VarProperty = FPropertyBase(CPT_Double);
 	}
-	else if (VarType.Matches(TEXT("FLargeWorldCoordinatesReal"), ESearchCase::CaseSensitive))		// LWC_TODO: Remove with UE_LARGE_WORLD_COORDINATES_DISABLED toggle.
+	else if (VarType.IsValue(TEXT("FLargeWorldCoordinatesReal"), ESearchCase::CaseSensitive))		// LWC_TODO: Remove with UE_LARGE_WORLD_COORDINATES_DISABLED toggle.
 	{
 		if (!SourceFile.GetFilename().EndsWith(TEXT("NoExportTypes.h")))
 		{
@@ -3468,12 +3444,12 @@ void FHeaderParser::GetVarType(
 		}
 		VarProperty = FPropertyBase(CPT_FLargeWorldCoordinatesReal);
 	}
-	else if ( VarType.Matches(TEXT("FName"), ESearchCase::CaseSensitive) )
+	else if ( VarType.IsValue(TEXT("FName"), ESearchCase::CaseSensitive) )
 	{
 		// Intrinsic Name type.
 		VarProperty = FPropertyBase(CPT_Name);
 	}
-	else if ( VarType.Matches(TEXT("TArray"), ESearchCase::CaseSensitive) )
+	else if ( VarType.IsValue(TEXT("TArray"), ESearchCase::CaseSensitive) )
 	{
 		RequireSymbol( TEXT('<'), TEXT("'tarray'") );
 
@@ -3497,12 +3473,12 @@ void FHeaderParser::GetVarType(
 			Throwf(TEXT("Missing token while parsing TArray."));
 		}
 
-		if (CloseTemplateToken.TokenType != TOKEN_Symbol || !CloseTemplateToken.Matches(TEXT('>')))
+		if (!CloseTemplateToken.IsSymbol(TEXT('>')))
 		{
 			// If we didn't find a comma, report it
-			if (!CloseTemplateToken.Matches(TEXT(',')))
+			if (!CloseTemplateToken.IsSymbol(TEXT(',')))
 			{
-				Throwf(TEXT("Expected '>' but found '%s'"), CloseTemplateToken.Identifier);
+				Throwf(TEXT("Expected '>' but found '%s'"), *CloseTemplateToken.GetTokenValue());
 			}
 
 			// If we found a comma, read the next thing, assume it's an allocator, and report that
@@ -3512,12 +3488,12 @@ void FHeaderParser::GetVarType(
 				Throwf(TEXT("Unexpected end of file when parsing TArray allocator."));
 			}
 
-			if (AllocatorToken.TokenType != TOKEN_Identifier)
+			if (!AllocatorToken.IsIdentifier())
 			{
-				Throwf(TEXT("Found '%s' - expected a '>' or ','."), AllocatorToken.Identifier);
+				Throwf(TEXT("Found '%s' - expected a '>' or ','."), *AllocatorToken.GetTokenValue());
 			}
 
-			if (FCString::Strcmp(AllocatorToken.Identifier, TEXT("FMemoryImageAllocator")) == 0)
+			if (AllocatorToken.IsValue(TEXT("FMemoryImageAllocator"), ESearchCase::CaseSensitive))
 			{
 				if (EnumHasAnyFlags(Flags, CPF_Net))
 				{
@@ -3528,7 +3504,7 @@ void FHeaderParser::GetVarType(
 
 				VarProperty.AllocatorType = EAllocatorType::MemoryImage;
 			}
-			else if (FCString::Strcmp(AllocatorToken.Identifier, TEXT("TMemoryImageAllocator")) == 0)
+			else if (AllocatorToken.IsValue(TEXT("TMemoryImageAllocator"), ESearchCase::CaseSensitive))
 			{
 				if (EnumHasAnyFlags(Flags, CPF_Net))
 				{
@@ -3545,7 +3521,7 @@ void FHeaderParser::GetVarType(
 						Throwf(TEXT("Unexpected end of file when parsing TMemoryImageAllocator template arguments."));
 					}
 
-					if (SkipToken.TokenType == TOKEN_Symbol && FCString::Strcmp(SkipToken.Identifier, TEXT(">")) == 0)
+					if (SkipToken.IsSymbol(TEXT('>')))
 					{
 						RequireSymbol(TEXT('>'), TEXT("TArray template arguments"), ESymbolParseOption::CloseTemplateBracket);
 						VarProperty.AllocatorType = EAllocatorType::MemoryImage;
@@ -3555,11 +3531,11 @@ void FHeaderParser::GetVarType(
 			}
 			else
 			{
-				Throwf(TEXT("Found '%s' - explicit allocators are not supported in TArray properties."), AllocatorToken.Identifier);
+				Throwf(TEXT("Found '%s' - explicit allocators are not supported in TArray properties."), *AllocatorToken.GetTokenValue());
 			}
 		}
 	}
-	else if ( VarType.Matches(TEXT("TMap"), ESearchCase::CaseSensitive) )
+	else if ( VarType.IsValue(TEXT("TMap"), ESearchCase::CaseSensitive) )
 	{
 		RequireSymbol( TEXT('<'), TEXT("'tmap'") );
 
@@ -3587,7 +3563,7 @@ void FHeaderParser::GetVarType(
 		}
 
 		FToken CommaToken;
-		if (!GetToken(CommaToken, /*bNoConsts=*/ true) || CommaToken.TokenType != TOKEN_Symbol || !CommaToken.Matches(TEXT(',')))
+		if (!GetToken(CommaToken, /*bNoConsts=*/ true) || !CommaToken.IsSymbol(TEXT(',')))
 		{
 			Throwf(TEXT("Missing value type while parsing TMap."));
 		}
@@ -3608,12 +3584,12 @@ void FHeaderParser::GetVarType(
 			Throwf(TEXT("Missing token while parsing TMap."));
 		}
 
-		if (CloseTemplateToken.TokenType != TOKEN_Symbol || !CloseTemplateToken.Matches(TEXT('>')))
+		if (!CloseTemplateToken.IsSymbol(TEXT('>')))
 		{
 			// If we didn't find a comma, report it
-			if (!CloseTemplateToken.Matches(TEXT(',')))
+			if (!CloseTemplateToken.IsSymbol(TEXT(',')))
 			{
-				Throwf(TEXT("Expected '>' but found '%s'"), CloseTemplateToken.Identifier);
+				Throwf(TEXT("Expected '>' but found '%s'"), *CloseTemplateToken.GetTokenValue());
 			}
 
 			// If we found a comma, read the next thing, assume it's an allocator, and report that
@@ -3623,12 +3599,12 @@ void FHeaderParser::GetVarType(
 				Throwf(TEXT("Unexpected end of file when parsing TArray allocator."));
 			}
 
-			if (AllocatorToken.TokenType != TOKEN_Identifier)
+			if (!AllocatorToken.IsIdentifier())
 			{
-				Throwf(TEXT("Found '%s' - expected a '>' or ','."), AllocatorToken.Identifier);
+				Throwf(TEXT("Found '%s' - expected a '>' or ','."), *AllocatorToken.GetTokenValue());
 			}
 
-			if (FCString::Strcmp(AllocatorToken.Identifier, TEXT("FMemoryImageSetAllocator")) == 0)
+			if (AllocatorToken.IsIdentifier(TEXT("FMemoryImageSetAllocator"), ESearchCase::CaseSensitive))
 			{
 				RequireSymbol(TEXT('>'), TEXT("TMap template arguments"), ESymbolParseOption::CloseTemplateBracket);
 
@@ -3636,11 +3612,11 @@ void FHeaderParser::GetVarType(
 			}
 			else
 			{
-				Throwf(TEXT("Found '%s' - explicit allocators are not supported in TMap properties."), AllocatorToken.Identifier);
+				Throwf(TEXT("Found '%s' - explicit allocators are not supported in TMap properties."), *AllocatorToken.GetTokenValue());
 			}
 		}
 	}
-	else if ( VarType.Matches(TEXT("TSet"), ESearchCase::CaseSensitive) )
+	else if ( VarType.IsValue(TEXT("TSet"), ESearchCase::CaseSensitive) )
 	{
 		RequireSymbol( TEXT('<'), TEXT("'tset'") );
 
@@ -3674,25 +3650,25 @@ void FHeaderParser::GetVarType(
 			Throwf(TEXT("Missing token while parsing TArray."));
 		}
 
-		if (CloseTemplateToken.TokenType != TOKEN_Symbol || !CloseTemplateToken.Matches(TEXT('>')))
+		if (!CloseTemplateToken.IsSymbol(TEXT('>')))
 		{
 			// If we didn't find a comma, report it
-			if (!CloseTemplateToken.Matches(TEXT(',')))
+			if (!CloseTemplateToken.IsSymbol(TEXT(',')))
 			{
-				Throwf(TEXT("Expected '>' but found '%s'"), CloseTemplateToken.Identifier);
+				Throwf(TEXT("Expected '>' but found '%s'"), *CloseTemplateToken.GetTokenValue());
 			}
 
 			// If we found a comma, read the next thing, assume it's a keyfuncs, and report that
 			FToken AllocatorToken;
 			if (!GetToken(AllocatorToken, /*bNoConsts=*/ true, ESymbolParseOption::CloseTemplateBracket))
 			{
-				Throwf(TEXT("Expected '>' but found '%s'"), CloseTemplateToken.Identifier);
+				Throwf(TEXT("Expected '>' but found '%s'"), *CloseTemplateToken.GetTokenValue());
 			}
 
-			Throwf(TEXT("Found '%s' - explicit KeyFuncs are not supported in TSet properties."), AllocatorToken.Identifier);
+			Throwf(TEXT("Found '%s' - explicit KeyFuncs are not supported in TSet properties."), *AllocatorToken.GetTokenValue());
 		}
 	}
-	else if ( VarType.Matches(TEXT("FString"), ESearchCase::CaseSensitive) || VarType.Matches(TEXT("FMemoryImageString"), ESearchCase::CaseSensitive))
+	else if ( VarType.IsValue(TEXT("FString"), ESearchCase::CaseSensitive) || VarType.IsValue(TEXT("FMemoryImageString"), ESearchCase::CaseSensitive))
 	{
 		VarProperty = FPropertyBase(CPT_String);
 
@@ -3719,17 +3695,17 @@ void FHeaderParser::GetVarType(
 			}
 		}
 	}
-	else if ( VarType.Matches(TEXT("Text"), ESearchCase::IgnoreCase) )
+	else if ( VarType.IsValue(TEXT("Text"), ESearchCase::IgnoreCase) )
 	{
-		Throwf(TEXT("%s' is missing a prefix, expecting 'FText'"), VarType.Identifier);
+		Throwf(TEXT("%s' is missing a prefix, expecting 'FText'"), *VarType.GetTokenValue());
 	}
-	else if ( VarType.Matches(TEXT("FText"), ESearchCase::CaseSensitive) )
+	else if ( VarType.IsValue(TEXT("FText"), ESearchCase::CaseSensitive) )
 	{
 		VarProperty = FPropertyBase(CPT_Text);
 	}
-	else if (VarType.Matches(TEXT("TEnumAsByte"), ESearchCase::CaseSensitive))
+	else if (VarType.IsValue(TEXT("TEnumAsByte"), ESearchCase::CaseSensitive))
 	{
-		RequireSymbol(TEXT('<'), VarType.Identifier);
+		RequireSymbol(TEXT('<'), VarType.Value);
 
 		// Eat the forward declaration enum text if present
 		MatchIdentifier(TEXT("enum"), ESearchCase::CaseSensitive);
@@ -3739,7 +3715,7 @@ void FHeaderParser::GetVarType(
 		FToken InnerEnumType;
 		if (GetIdentifier(InnerEnumType, true))
 		{
-			if (FUnrealEnumDefinitionInfo* EnumDef = GTypeDefinitionInfoMap.FindByName<FUnrealEnumDefinitionInfo>(InnerEnumType.Identifier))
+			if (FUnrealEnumDefinitionInfo* EnumDef = GTypeDefinitionInfoMap.FindByName<FUnrealEnumDefinitionInfo>(*InnerEnumType.GetTokenValue()))
 			{
 				// In-scope enumeration.
 				VarProperty = FPropertyBase(*EnumDef, CPT_Byte);
@@ -3763,9 +3739,9 @@ void FHeaderParser::GetVarType(
 			Throwf(TEXT("Expected the name of a previously defined enum"));
 		}
 
-		RequireSymbol(TEXT('>'), VarType.Identifier, ESymbolParseOption::CloseTemplateBracket);
+		RequireSymbol(TEXT('>'), VarType.Value, ESymbolParseOption::CloseTemplateBracket);
 	}
-	else if (VarType.Matches(TEXT("TFieldPath"), ESearchCase::CaseSensitive ))
+	else if (VarType.IsValue(TEXT("TFieldPath"), ESearchCase::CaseSensitive ))
 	{
 		RequireSymbol( TEXT('<'), TEXT("'TFieldPath'") );
 
@@ -3777,18 +3753,18 @@ void FHeaderParser::GetVarType(
 		}
 		else
 		{
-			FieldClassName = FName(PropertyTypeToken.Identifier + 1, FNAME_Add);
+			FieldClassName = FName(PropertyTypeToken.Value.RightChop(1), FNAME_Add);
 			if (!FPropertyTraits::IsValidFieldClass(FieldClassName))
 			{
-				Throwf(TEXT("Undefined property type: %s"), PropertyTypeToken.Identifier);
+				Throwf(TEXT("Undefined property type: %s"), *PropertyTypeToken.GetTokenValue());
 			}
 		}
 
-		RequireSymbol(TEXT('>'), VarType.Identifier, ESymbolParseOption::CloseTemplateBracket);
+		RequireSymbol(TEXT('>'), VarType.Value, ESymbolParseOption::CloseTemplateBracket);
 
 		VarProperty = FPropertyBase(FieldClassName, CPT_FieldPath);
 	}
-	else if (FUnrealEnumDefinitionInfo* EnumDef = GTypeDefinitionInfoMap.FindByName<FUnrealEnumDefinitionInfo>(VarType.Identifier))
+	else if (FUnrealEnumDefinitionInfo* EnumDef = GTypeDefinitionInfoMap.FindByName<FUnrealEnumDefinitionInfo>(*VarType.GetTokenValue()))
 	{
 		EPropertyType UnderlyingType = CPT_Byte;
 
@@ -3819,9 +3795,9 @@ void FHeaderParser::GetVarType(
 	{
 		// Check for structs/classes
 		bool bHandledType = false;
-		FString IdentifierStripped = GetClassNameWithPrefixRemoved(VarType.Identifier);
+		FString IdentifierStripped = GetClassNameWithPrefixRemoved(FString(VarType.Value));
 		bool bStripped = false;
-		FUnrealScriptStructDefinitionInfo* StructDef = GTypeDefinitionInfoMap.FindByName<FUnrealScriptStructDefinitionInfo>(VarType.Identifier);
+		FUnrealScriptStructDefinitionInfo* StructDef = GTypeDefinitionInfoMap.FindByName<FUnrealScriptStructDefinitionInfo>(*VarType.GetTokenValue());
 		if (!StructDef)
 		{
 			StructDef = GTypeDefinitionInfoMap.FindByName<FUnrealScriptStructDefinitionInfo>(*IdentifierStripped);
@@ -3844,7 +3820,7 @@ void FHeaderParser::GetVarType(
 			{
 				if (FUnrealClassDefinitionInfo* LocalOwnerClassDef = FUnrealClassDefinitionInfo::FindClass(*IdentifierStripped))
 				{
-					const FString DelegateIdentifierStripped = GetClassNameWithPrefixRemoved(DelegateName.Identifier);
+					const FString DelegateIdentifierStripped = GetClassNameWithPrefixRemoved(FString(DelegateName.Value));
 					if (FUnrealFieldDefinitionInfo* FoundDef = LocalOwnerClassDef->GetScope()->FindTypeByName(*(DelegateIdentifierStripped + HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX)))
 					{
 						if (FUnrealFunctionDefinitionInfo* DelegateFuncDef = FoundDef->AsFunction())
@@ -3856,7 +3832,7 @@ void FHeaderParser::GetVarType(
 				}
 				else
 				{
-					Throwf(TEXT("Cannot find class '%s', to resolve delegate '%s'"), *IdentifierStripped, DelegateName.Identifier);
+					Throwf(TEXT("Cannot find class '%s', to resolve delegate '%s'"), *IdentifierStripped, *DelegateName.GetTokenValue());
 				}
 			}
 		}
@@ -3870,15 +3846,15 @@ void FHeaderParser::GetVarType(
 			{
 				const TCHAR* PrefixCPP = UHTConfig.StructsWithTPrefix.Contains(IdentifierStripped) ? TEXT("T") : StructDef->GetPrefixCPP();
 				FString ExpectedStructName = FString::Printf(TEXT("%s%s"), PrefixCPP, *StructDef->GetName());
-				if (FString(VarType.Identifier) != ExpectedStructName)
+				if (!VarType.IsValue(*ExpectedStructName, ESearchCase::CaseSensitive))
 				{
-					Throwf(TEXT("Struct '%s' is missing or has an incorrect prefix, expecting '%s'"), VarType.Identifier, *ExpectedStructName);
+					Throwf(TEXT("Struct '%s' is missing or has an incorrect prefix, expecting '%s'"), *VarType.GetTokenValue(), *ExpectedStructName);
 				}
 			}
-			else if (!UHTConfig.StructsWithNoPrefix.Contains(VarType.Identifier))
+			else if (!UHTConfig.StructsWithNoPrefix.Contains(VarType.Value))
 			{
-				const TCHAR* PrefixCPP = UHTConfig.StructsWithTPrefix.Contains(VarType.Identifier) ? TEXT("T") : StructDef->GetPrefixCPP();
-				Throwf(TEXT("Struct '%s' is missing a prefix, expecting '%s'"), VarType.Identifier, *FString::Printf(TEXT("%s%s"), PrefixCPP, *StructDef->GetName()));
+				const TCHAR* PrefixCPP = UHTConfig.StructsWithTPrefix.Contains(VarType.Value) ? TEXT("T") : StructDef->GetPrefixCPP();
+				Throwf(TEXT("Struct '%s' is missing a prefix, expecting '%s'"), *VarType.GetTokenValue(), *FString::Printf(TEXT("%s%s"), PrefixCPP, *StructDef->GetName()));
 			}
 
 			bHandledType = true;
@@ -3909,35 +3885,35 @@ void FHeaderParser::GetVarType(
 				FUnrealClassDefinitionInfo* TempClassDef = nullptr;
 
 				EPropertyType PropertyType = CPT_ObjectReference;
-				const bool bIsSoftObjectPtrTemplate = VarType.Matches(TEXT("TSoftObjectPtr"), ESearchCase::CaseSensitive);
+				const bool bIsSoftObjectPtrTemplate = VarType.IsValue(TEXT("TSoftObjectPtr"), ESearchCase::CaseSensitive);
 
 				bool bWeakIsAuto = false;
 
-				if (VarType.Matches(TEXT("TSubclassOf"), ESearchCase::CaseSensitive))
+				if (VarType.IsValue(TEXT("TSubclassOf"), ESearchCase::CaseSensitive))
 				{
 					TempClassDef = GUClassDef;
 				}
-				else if (VarType.Matches(TEXT("FScriptInterface"), ESearchCase::CaseSensitive))
+				else if (VarType.IsValue(TEXT("FScriptInterface"), ESearchCase::CaseSensitive))
 				{
 					TempClassDef = GUInterfaceDef;
 					Flags |= CPF_UObjectWrapper;
 				}
-				else if (VarType.Matches(TEXT("TSoftClassPtr"), ESearchCase::CaseSensitive))
+				else if (VarType.IsValue(TEXT("TSoftClassPtr"), ESearchCase::CaseSensitive))
 				{
 					TempClassDef = GUClassDef;
 					PropertyType = CPT_SoftObjectReference;
 				}
 				else
 				{
-					const bool bIsLazyPtrTemplate = VarType.Matches(TEXT("TLazyObjectPtr"), ESearchCase::CaseSensitive);
-					const bool bIsObjectPtrTemplate = VarType.Matches(TEXT("TObjectPtr"), ESearchCase::CaseSensitive);
-					const bool bIsWeakPtrTemplate = VarType.Matches(TEXT("TWeakObjectPtr"), ESearchCase::CaseSensitive);
-					const bool bIsAutoweakPtrTemplate = VarType.Matches(TEXT("TAutoWeakObjectPtr"), ESearchCase::CaseSensitive);
-					const bool bIsScriptInterfaceWrapper = VarType.Matches(TEXT("TScriptInterface"), ESearchCase::CaseSensitive);
+					const bool bIsLazyPtrTemplate = VarType.IsValue(TEXT("TLazyObjectPtr"), ESearchCase::CaseSensitive);
+					const bool bIsObjectPtrTemplate = VarType.IsValue(TEXT("TObjectPtr"), ESearchCase::CaseSensitive);
+					const bool bIsWeakPtrTemplate = VarType.IsValue(TEXT("TWeakObjectPtr"), ESearchCase::CaseSensitive);
+					const bool bIsAutoweakPtrTemplate = VarType.IsValue(TEXT("TAutoWeakObjectPtr"), ESearchCase::CaseSensitive);
+					const bool bIsScriptInterfaceWrapper = VarType.IsValue(TEXT("TScriptInterface"), ESearchCase::CaseSensitive);
 
 					if (bIsLazyPtrTemplate || bIsObjectPtrTemplate || bIsWeakPtrTemplate || bIsAutoweakPtrTemplate || bIsScriptInterfaceWrapper || bIsSoftObjectPtrTemplate)
 					{
-						RequireSymbol(TEXT('<'), VarType.Identifier);
+						RequireSymbol(TEXT('<'), VarType.Value);
 
 						// Also consume const
 						bNativeConstTemplateArg |= MatchIdentifier(TEXT("const"), ESearchCase::CaseSensitive);
@@ -3951,10 +3927,11 @@ void FHeaderParser::GetVarType(
 						{
 							RedirectTypeIdentifier(InnerClass);
 
-							TempClassDef = FUnrealClassDefinitionInfo::FindScriptClass(InnerClass.Identifier);
+							TempClassDef = FUnrealClassDefinitionInfo::FindScriptClass(FString(InnerClass.Value));
 							if (TempClassDef == nullptr)
 							{
-								Throwf(TEXT("Unrecognized type '%s' (in expression %s<%s>) - type must be a UCLASS"), InnerClass.Identifier, VarType.Identifier, InnerClass.Identifier);
+								FTokenValue InnerClassName = InnerClass.GetTokenValue();
+								Throwf(TEXT("Unrecognized type '%s' (in expression %s<%s>) - type must be a UCLASS"), *InnerClassName, *VarType.GetTokenValue(), *InnerClassName);
 							}
 
 							if (bIsAutoweakPtrTemplate)
@@ -3983,17 +3960,17 @@ void FHeaderParser::GetVarType(
 						}
 						else
 						{
-							Throwf(TEXT("%s: Missing template type"), VarType.Identifier);
+							Throwf(TEXT("%s: Missing template type"), *VarType.GetTokenValue());
 						}
 
 						// Const after template argument type but before end of template symbol
 						bNativeConstTemplateArg |= MatchIdentifier(TEXT("const"), ESearchCase::CaseSensitive);
 
-						RequireSymbol(TEXT('>'), VarType.Identifier, ESymbolParseOption::CloseTemplateBracket);
+						RequireSymbol(TEXT('>'), VarType.Value, ESymbolParseOption::CloseTemplateBracket);
 					}
 					else
 					{
-						TempClassDef = FUnrealClassDefinitionInfo::FindScriptClass(VarType.Identifier);
+						TempClassDef = FUnrealClassDefinitionInfo::FindScriptClass(*VarType.GetTokenValue());
 					}
 				}
 
@@ -4031,7 +4008,7 @@ void FHeaderParser::GetVarType(
 
 							RedirectTypeIdentifier(Limitor);
 
-							VarProperty.MetaClassDef = FUnrealClassDefinitionInfo::FindScriptClassOrThrow(*this, Limitor.Identifier);
+							VarProperty.MetaClassDef = FUnrealClassDefinitionInfo::FindScriptClassOrThrow(*this, FString(Limitor.Value));
 
 							RequireSymbol(TEXT('>'), TEXT("'class limitor'"), ESymbolParseOption::CloseTemplateBracket);
 						}
@@ -4102,7 +4079,7 @@ void FHeaderParser::GetVarType(
 
 				if (!bHandledType)
 				{
-					Throwf(TEXT("Unrecognized type '%s' - type must be a UCLASS, USTRUCT or UENUM"), VarType.Identifier);
+					Throwf(TEXT("Unrecognized type '%s' - type must be a UCLASS, USTRUCT or UENUM"), *VarType.GetTokenValue());
 				}
 			}
 		}
@@ -4126,28 +4103,28 @@ void FHeaderParser::GetVarType(
 		}
 		else
 		{
-			Throwf(TEXT("Inappropriate keyword 'const' on variable of type '%s'"), VarType.Identifier);
+			Throwf(TEXT("Inappropriate keyword 'const' on variable of type '%s'"), *VarType.GetTokenValue());
 		}
 	}
 
 	if (bUnconsumedClassKeyword)
 	{
-		Throwf(TEXT("Inappropriate keyword 'class' on variable of type '%s'"), VarType.Identifier );
+		Throwf(TEXT("Inappropriate keyword 'class' on variable of type '%s'"), *VarType.GetTokenValue());
 	}
 
 	if (bUnconsumedStructKeyword)
 	{
-		Throwf(TEXT("Inappropriate keyword 'struct' on variable of type '%s'"), VarType.Identifier );
+		Throwf(TEXT("Inappropriate keyword 'struct' on variable of type '%s'"), *VarType.GetTokenValue());
 	}
 
 	if (bUnconsumedEnumKeyword)
 	{
-		Throwf(TEXT("Inappropriate keyword 'enum' on variable of type '%s'"), VarType.Identifier );
+		Throwf(TEXT("Inappropriate keyword 'enum' on variable of type '%s'"), *VarType.GetTokenValue());
 	}
 
 	if (MatchSymbol(TEXT('*')))
 	{
-		Throwf(TEXT("Inappropriate '*' on variable of type '%s', cannot have an exposed pointer to this type."), VarType.Identifier );
+		Throwf(TEXT("Inappropriate '*' on variable of type '%s', cannot have an exposed pointer to this type."), *VarType.GetTokenValue());
 	}
 
 	//@TODO: UCREMOVAL: 'const' member variables that will get written post-construction by defaultproperties
@@ -4179,7 +4156,7 @@ void FHeaderParser::GetVarType(
 			{
 				if (!(Flags & CPF_ConstParm))
 				{
-					Throwf(TEXT("Replicated %s parameters cannot be passed by non-const reference"), VarType.Identifier);
+					Throwf(TEXT("Replicated %s parameters cannot be passed by non-const reference"), *VarType.GetTokenValue());
 				}
 
 				Flags |= CPF_ReferenceParm;
@@ -4311,13 +4288,13 @@ FUnrealPropertyDefinitionInfo& FHeaderParser::GetVarNameAndDim
 	const TCHAR* HintText = GetHintText(*this, VariableCategory);
 
 	AddModuleRelativePathToMetadata(ParentStruct, VarProperty.MetaData);
-	TCHAR Identifier[NAME_SIZE];
+	FStringView Identifier;
 
 	// Get variable name.
 	if (VariableCategory == EVariableCategory::Return)
 	{
 		// Hard-coded variable name, such as with return value.
-		FCString::Strcpy( Identifier, TEXT("ReturnValue") );
+		Identifier = FStringView(TEXT("ReturnValue"));
 	}
 	else
 	{
@@ -4341,19 +4318,17 @@ FUnrealPropertyDefinitionInfo& FHeaderParser::GetVarNameAndDim
 				break;
 		}
 
-		FCString::Strcpy(Identifier, VarToken.Identifier);
+		Identifier = VarToken.Value;
 	}
 
 	// Check to see if the variable is deprecated, and if so set the flag
 	{
-		FString VarName(Identifier);
-
-		const int32 DeprecatedIndex = VarName.Find(TEXT("_DEPRECATED"));
-		const int32 NativizedPropertyPostfixIndex = VarName.Find(TEXT("__pf")); //TODO: check OverrideNativeName in Meta Data, to be sure it's not a random occurrence of the "__pf" string.
+		const int32 DeprecatedIndex = Identifier.Find(TEXT("_DEPRECATED"));
+		const int32 NativizedPropertyPostfixIndex = Identifier.Find(TEXT("__pf")); //TODO: check OverrideNativeName in Meta Data, to be sure it's not a random occurrence of the "__pf" string.
 		bool bIgnoreDeprecatedWord = (NativizedPropertyPostfixIndex != INDEX_NONE) && (NativizedPropertyPostfixIndex > DeprecatedIndex);
 		if ((DeprecatedIndex != INDEX_NONE) && !bIgnoreDeprecatedWord)
 		{
-			if (DeprecatedIndex != VarName.Len() - 11)
+			if (DeprecatedIndex != Identifier.Len() - 11)
 			{
 				Throwf(TEXT("Deprecated variables must end with _DEPRECATED"));
 			}
@@ -4365,12 +4340,12 @@ FUnrealPropertyDefinitionInfo& FHeaderParser::GetVarNameAndDim
 
 			if (bWarnOnGetter)
 			{
-				LogWarning(TEXT("%s: Deprecated property '%s' should not be marked as blueprint visible without having a BlueprintGetter"), HintText, *VarName);
+				LogWarning(TEXT("%s: Deprecated property '%s' should not be marked as blueprint visible without having a BlueprintGetter"), HintText, *FString(Identifier));
 			}
 
 			if (bWarnOnSetter)
 			{
-				LogWarning(TEXT("%s: Deprecated property '%s' should not be marked as blueprint writeable without having a BlueprintSetter"), HintText, *VarName);
+				LogWarning(TEXT("%s: Deprecated property '%s' should not be marked as blueprint writeable without having a BlueprintSetter"), HintText, *FString(Identifier));
 			}
 
 
@@ -4378,20 +4353,19 @@ FUnrealPropertyDefinitionInfo& FHeaderParser::GetVarNameAndDim
 			if (VarProperty.PropertyFlags & (CPF_Edit | CPF_EditConst) || // Property is marked as editable
 				(!bBlueprintVisible && (VarProperty.PropertyFlags & CPF_BlueprintReadOnly) && !(VarProperty.ImpliedPropertyFlags & CPF_BlueprintReadOnly)) ) // Is BPRO, but not via Implied Flags and not caught by Getter/Setter path above
 			{
-				LogWarning(TEXT("%s: Deprecated property '%s' should not be marked as visible or editable"), HintText, *VarName);
+				LogWarning(TEXT("%s: Deprecated property '%s' should not be marked as visible or editable"), HintText, *FString(Identifier));
 			}
 
 			VarProperty.PropertyFlags |= CPF_Deprecated;
-			VarName.MidInline(0, DeprecatedIndex, false);
-
-			FCString::Strcpy(Identifier, *VarName);
+			Identifier.MidInline(0, DeprecatedIndex);
 		}
 	}
 
 	// Make sure it doesn't conflict.
+	FString VarName(Identifier);
 	int32 OuterContextCount = 0;
-	FUnrealFunctionDefinitionInfo* ExistingFunctionDef = FindFunction(ParentStruct, Identifier, true, nullptr);
-	FUnrealPropertyDefinitionInfo* ExistingPropertyDef = FindProperty(ParentStruct, Identifier, true);
+	FUnrealFunctionDefinitionInfo* ExistingFunctionDef = FindFunction(ParentStruct, *VarName, true, nullptr);
+	FUnrealPropertyDefinitionInfo* ExistingPropertyDef = FindProperty(ParentStruct, *VarName, true);
 
 	if (ExistingFunctionDef != nullptr || ExistingPropertyDef != nullptr)
 	{
@@ -4420,14 +4394,14 @@ FUnrealPropertyDefinitionInfo& FHeaderParser::GetVarNameAndDim
 		{
 			Throwf(TEXT("%s: '%s' cannot be defined in '%s' as it is already defined in scope '%s' (shadowing is not allowed)"),
 				HintText,
-				Identifier,
+				*FString(Identifier),
 				*ParentStruct.GetName(),
 				ExistingFunctionDef ? *ExistingFunctionDef->GetOuter()->GetName() : *ExistingPropertyDef->GetFullName());
 		}
 	}
 
 	// Get optional dimension immediately after name.
-	FToken Dimensions;
+	FTokenString Dimensions;
 	if ((LayoutMacroType == ELayoutMacroType::None && MatchSymbol(TEXT('['))) || LayoutMacroType == ELayoutMacroType::Array || LayoutMacroType == ELayoutMacroType::ArrayEditorOnly)
 	{
 		switch (VariableCategory)
@@ -4457,17 +4431,17 @@ FUnrealPropertyDefinitionInfo& FHeaderParser::GetVarNameAndDim
 		if (LayoutMacroType == ELayoutMacroType::None)
 		{
 			// Ignore how the actual array dimensions are actually defined - we'll calculate those with the compiler anyway.
-			if (!GetRawToken(Dimensions, TEXT(']')))
+			if (!GetRawString(Dimensions, TEXT(']')))
 			{
-				Throwf(TEXT("%s %s: Missing ']'"), HintText, Identifier);
+				Throwf(TEXT("%s %s: Missing ']'"), HintText, *FString(Identifier));
 			}
 		}
 		else
 		{
 			// Ignore how the actual array dimensions are actually defined - we'll calculate those with the compiler anyway.
-			if (!GetRawToken(Dimensions, TEXT(')')))
+			if (!GetRawString(Dimensions, TEXT(')')))
 			{
-				Throwf(TEXT("%s %s: Missing ']'"), HintText, Identifier);
+				Throwf(TEXT("%s %s: Missing ']'"), HintText, *FString(Identifier));
 			}
 		}
 
@@ -4483,7 +4457,7 @@ FUnrealPropertyDefinitionInfo& FHeaderParser::GetVarNameAndDim
 	// Try gathering metadata for member fields
 	if (VariableCategory == EVariableCategory::Member)
 	{
-		ParseFieldMetaData(VarProperty.MetaData, Identifier);
+		ParseFieldMetaData(VarProperty.MetaData, *VarName);
 		AddFormattedPrevCommentAsTooltipMetaData(VarProperty.MetaData);
 	}
 	// validate UFunction parameters
@@ -4526,14 +4500,14 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 	{
 		if (!IsAllowedInThisNesting(ENestAllowFlags::VarDecl) && !IsAllowedInThisNesting(ENestAllowFlags::Function))
 		{
-			Throwf(TEXT("Access specifier %s not allowed here."), Token.Identifier);
+			Throwf(TEXT("Access specifier %s not allowed here."), *Token.GetTokenValue());
 		}
 		check(TopNest->NestType == ENestType::Class || TopNest->NestType == ENestType::Interface || TopNest->NestType == ENestType::NativeInterface);
 		CurrentAccessSpecifier = AccessSpecifier;
 		return true;
 	}
 
-	if (Token.Matches(TEXT("class"), ESearchCase::CaseSensitive) && (TopNest->NestType == ENestType::GlobalScope))
+	if (Token.IsIdentifier(TEXT("class"), ESearchCase::CaseSensitive) && (TopNest->NestType == ENestType::GlobalScope))
 	{
 		// Make sure the previous class ended with valid nesting.
 		if (bEncounteredNewStyleClass_UnmatchedBrackets)
@@ -4554,15 +4528,15 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 		return true;
 	}
 
-	if (Token.Matches(TEXT("GENERATED_IINTERFACE_BODY"), ESearchCase::CaseSensitive) || (Token.Matches(TEXT("GENERATED_BODY"), ESearchCase::CaseSensitive) && TopNest->NestType == ENestType::NativeInterface))
+	if (Token.IsIdentifier(TEXT("GENERATED_IINTERFACE_BODY"), ESearchCase::CaseSensitive) || (Token.IsIdentifier(TEXT("GENERATED_BODY"), ESearchCase::CaseSensitive) && TopNest->NestType == ENestType::NativeInterface))
 	{
 		if (TopNest->NestType != ENestType::NativeInterface)
 		{
-			Throwf(TEXT("%s must occur inside the native interface definition"), Token.Identifier);
+			Throwf(TEXT("%s must occur inside the native interface definition"), *Token.GetTokenValue());
 		}
-		RequireSymbol(TEXT('('), Token.Identifier);
+		RequireSymbol(TEXT('('), Token.Value);
 		CompileVersionDeclaration(GetCurrentClassDef());
-		RequireSymbol(TEXT(')'), Token.Identifier);
+		RequireSymbol(TEXT(')'), Token.Value);
 
 		FUnrealClassDefinitionInfo& ClassDef = GetCurrentClassDef();
 		if (ClassDef.GetParsedInterfaceState() == EParsedInterface::NotAnInterface)
@@ -4585,27 +4559,27 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 
 		bClassHasGeneratedIInterfaceBody = true;
 
-		if (Token.Matches(TEXT("GENERATED_IINTERFACE_BODY"), ESearchCase::CaseSensitive))
+		if (Token.IsIdentifier(TEXT("GENERATED_IINTERFACE_BODY"), ESearchCase::CaseSensitive))
 		{
 			CurrentAccessSpecifier = ACCESS_Public;
 		}
 
-		if (Token.Matches(TEXT("GENERATED_BODY"), ESearchCase::CaseSensitive))
+		if (Token.IsIdentifier(TEXT("GENERATED_BODY"), ESearchCase::CaseSensitive))
 		{
 			GetCurrentClassDef().MarkGeneratedBody();
 		}
 		return true;
 	}
 
-	if (Token.Matches(TEXT("GENERATED_UINTERFACE_BODY"), ESearchCase::CaseSensitive) || (Token.Matches(TEXT("GENERATED_BODY"), ESearchCase::CaseSensitive) && TopNest->NestType == ENestType::Interface))
+	if (Token.IsIdentifier(TEXT("GENERATED_UINTERFACE_BODY"), ESearchCase::CaseSensitive) || (Token.IsIdentifier(TEXT("GENERATED_BODY"), ESearchCase::CaseSensitive) && TopNest->NestType == ENestType::Interface))
 	{
 		if (TopNest->NestType != ENestType::Interface)
 		{
-			Throwf(TEXT("%s must occur inside the interface definition"), Token.Identifier);
+			Throwf(TEXT("%s must occur inside the interface definition"), *Token.GetTokenValue());
 		}
-		RequireSymbol(TEXT('('), Token.Identifier);
+		RequireSymbol(TEXT('('), Token.Value);
 		CompileVersionDeclaration(GetCurrentClassDef());
-		RequireSymbol(TEXT(')'), Token.Identifier);
+		RequireSymbol(TEXT(')'), Token.Value);
 
 		FUnrealClassDefinitionInfo& ClassDef = GetCurrentClassDef();
 
@@ -4614,23 +4588,23 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 
 		bClassHasGeneratedUInterfaceBody = true;
 
-		if (Token.Matches(TEXT("GENERATED_UINTERFACE_BODY"), ESearchCase::CaseSensitive))
+		if (Token.IsIdentifier(TEXT("GENERATED_UINTERFACE_BODY"), ESearchCase::CaseSensitive))
 		{
 			CurrentAccessSpecifier = ACCESS_Public;
 		}
 		return true;
 	}
 
-	if (Token.Matches(TEXT("GENERATED_UCLASS_BODY"), ESearchCase::CaseSensitive) || (Token.Matches(TEXT("GENERATED_BODY"), ESearchCase::CaseSensitive) && TopNest->NestType == ENestType::Class))
+	if (Token.IsIdentifier(TEXT("GENERATED_UCLASS_BODY"), ESearchCase::CaseSensitive) || (Token.IsIdentifier(TEXT("GENERATED_BODY"), ESearchCase::CaseSensitive) && TopNest->NestType == ENestType::Class))
 	{
 		if (TopNest->NestType != ENestType::Class)
 		{
-			Throwf(TEXT("%s must occur inside the class definition"), Token.Identifier);
+			Throwf(TEXT("%s must occur inside the class definition"), *Token.GetTokenValue());
 		}
 
 		FUnrealClassDefinitionInfo& ClassDef = GetCurrentClassDef();
 
-		if (Token.Matches(TEXT("GENERATED_BODY"), ESearchCase::CaseSensitive))
+		if (Token.IsIdentifier(TEXT("GENERATED_BODY"), ESearchCase::CaseSensitive))
 		{
 			GetCurrentClassDef().MarkGeneratedBody();
 
@@ -4641,9 +4615,9 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 			CurrentAccessSpecifier = ACCESS_Public;
 		}
 
-		RequireSymbol(TEXT('('), Token.Identifier);
+		RequireSymbol(TEXT('('), Token.Value);
 		CompileVersionDeclaration(GetCurrentClassDef());
-		RequireSymbol(TEXT(')'), Token.Identifier);
+		RequireSymbol(TEXT(')'), Token.Value);
 
 		ClassDef.SetGeneratedBodyLine(InputLine);
 
@@ -4651,7 +4625,7 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 		return true;
 	}
 
-	if (Token.Matches(TEXT("UCLASS"), ESearchCase::CaseSensitive))
+	if (Token.IsIdentifier(TEXT("UCLASS"), ESearchCase::CaseSensitive))
 	{
 		bHaveSeenUClass = true;
 		bEncounteredNewStyleClass_UnmatchedBrackets = true;
@@ -4659,7 +4633,7 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 		return true;
 	}
 
-	if (Token.Matches(TEXT("UINTERFACE"), ESearchCase::CaseSensitive))
+	if (Token.IsIdentifier(TEXT("UINTERFACE"), ESearchCase::CaseSensitive))
 	{
 		bHaveSeenUClass = true;
 		bEncounteredNewStyleClass_UnmatchedBrackets = true;
@@ -4667,27 +4641,27 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 		return true;
 	}
 
-	if (Token.Matches(TEXT("UFUNCTION"), ESearchCase::CaseSensitive))
+	if (Token.IsIdentifier(TEXT("UFUNCTION"), ESearchCase::CaseSensitive))
 	{
 		FUnrealFunctionDefinitionInfo& FunctionDef = CompileFunctionDeclaration();
 		return true;
 	}
 
-	if (Token.Matches(TEXT("UDELEGATE"), ESearchCase::CaseSensitive))
+	if (Token.IsIdentifier(TEXT("UDELEGATE"), ESearchCase::CaseSensitive))
 	{
-		FUnrealFunctionDefinitionInfo &DelegateDef = CompileDelegateDeclaration(Token.Identifier, EDelegateSpecifierAction::Parse);
+		FUnrealFunctionDefinitionInfo &DelegateDef = CompileDelegateDeclaration(Token.Value, EDelegateSpecifierAction::Parse);
 		DelegatesToFixup.Add(&DelegateDef);
 		return true;
 	}
 
 	if (IsValidDelegateDeclaration(Token)) // Legacy delegate parsing - it didn't need a UDELEGATE
 	{
-		FUnrealFunctionDefinitionInfo& DelegateDef = CompileDelegateDeclaration(Token.Identifier);
+		FUnrealFunctionDefinitionInfo& DelegateDef = CompileDelegateDeclaration(Token.Value);
 		DelegatesToFixup.Add(&DelegateDef);
 		return true;
 	}
 
-	if (Token.Matches(TEXT("UPROPERTY"), ESearchCase::CaseSensitive))
+	if (Token.IsIdentifier(TEXT("UPROPERTY"), ESearchCase::CaseSensitive))
 	{
 		CheckAllow(TEXT("'Member variable declaration'"), ENestAllowFlags::VarDecl);
 		check(TopNest->NestType == ENestType::Class);
@@ -4696,28 +4670,28 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 		return true;
 	}
 
-	if (Token.Matches(TEXT("UENUM"), ESearchCase::CaseSensitive))
+	if (Token.IsIdentifier(TEXT("UENUM"), ESearchCase::CaseSensitive))
 	{
 		// Enumeration definition.
 		CompileEnum();
 		return true;
 	}
 
-	if (Token.Matches(TEXT("USTRUCT"), ESearchCase::CaseSensitive))
+	if (Token.IsIdentifier(TEXT("USTRUCT"), ESearchCase::CaseSensitive))
 	{
 		// Struct definition.
 		CompileStructDeclaration();
 		return true;
 	}
 
-	if (Token.Matches(TEXT('#')))
+	if (Token.IsSymbol(TEXT('#')))
 	{
 		// Compiler directive.
 		CompileDirective();
 		return true;
 	}
 
-	if (bEncounteredNewStyleClass_UnmatchedBrackets && Token.Matches(TEXT('}')))
+	if (bEncounteredNewStyleClass_UnmatchedBrackets && Token.IsSymbol(TEXT('}')))
 	{
 		FUnrealClassDefinitionInfo& CurrentClassDef = GetCurrentClassDef();
 		CurrentClassDef.GetDefinitionRange().End = &Input[InputPos];
@@ -4768,11 +4742,11 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 		return true;
 	}
 
-	if (Token.Matches(TEXT(';')))
+	if (Token.IsSymbol(TEXT(';')))
 	{
 		if (GetToken(Token))
 		{
-			Throwf(TEXT("Extra ';' before '%s'"), Token.Identifier);
+			Throwf(TEXT("Extra ';' before '%s'"), *Token.GetTokenValue());
 		}
 		else
 		{
@@ -4786,14 +4760,14 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 		FToken ConstructorToken = Token;
 
 		// Allow explicit constructors
-		bool bFoundExplicit = ConstructorToken.Matches(TEXT("explicit"), ESearchCase::CaseSensitive);
+		bool bFoundExplicit = ConstructorToken.IsIdentifier(TEXT("explicit"), ESearchCase::CaseSensitive);
 		if (bFoundExplicit)
 		{
 			GetToken(ConstructorToken);
 		}
 
 		bool bSkippedAPIToken = false;
-		if (FString(ConstructorToken.Identifier).EndsWith(TEXT("_API"), ESearchCase::CaseSensitive))
+		if (ConstructorToken.Value.EndsWith(TEXT("_API"), ESearchCase::CaseSensitive))
 		{
 			if (!bFoundExplicit)
 			{
@@ -4805,7 +4779,7 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 			bSkippedAPIToken = true;
 		}
 
-		if (ConstructorToken.Matches(*StructDef.GetAlternateNameCPP(), ESearchCase::IgnoreCase))
+		if (ConstructorToken.IsIdentifier(*StructDef.GetAlternateNameCPP(), ESearchCase::IgnoreCase))
 		{
 			if (TryToMatchConstructorParameterList(ConstructorToken))
 			{
@@ -4828,76 +4802,76 @@ bool FHeaderParser::CompileDeclaration(TArray<FUnrealFunctionDefinitionInfo*>& D
 	// Determine if this statement is a serialize function declaration
 	if (bEncounteredNewStyleClass_UnmatchedBrackets && IsInAClass() && TopNest->NestType == ENestType::Class)
 	{
-		while (Token.Matches(TEXT("virtual"), ESearchCase::CaseSensitive) || FString(Token.Identifier).EndsWith(TEXT("_API"), ESearchCase::CaseSensitive))
+		while (Token.IsIdentifier(TEXT("virtual"), ESearchCase::CaseSensitive) || Token.Value.EndsWith(TEXT("_API"), ESearchCase::CaseSensitive))
 		{
 			GetToken(Token);
 		}
 
-		if (Token.Matches(TEXT("void"), ESearchCase::CaseSensitive))
+		if (Token.IsIdentifier(TEXT("void"), ESearchCase::CaseSensitive))
 		{
 			GetToken(Token);
-			if (Token.Matches(TEXT("Serialize"), ESearchCase::CaseSensitive))
+			if (Token.IsIdentifier(TEXT("Serialize"), ESearchCase::CaseSensitive))
 			{
 				GetToken(Token);
-				if (Token.Matches(TEXT('(')))
+				if (Token.IsSymbol(TEXT('(')))
 				{
 					GetToken(Token);
 
 					ESerializerArchiveType ArchiveType = ESerializerArchiveType::None;
-					if (Token.Matches(TEXT("FArchive"), ESearchCase::CaseSensitive))
+					if (Token.IsIdentifier(TEXT("FArchive"), ESearchCase::CaseSensitive))
 					{
 						GetToken(Token);
-						if (Token.Matches(TEXT('&')))
+						if (Token.IsSymbol(TEXT('&')))
 						{
 							GetToken(Token);
 
 							// Allow the declaration to not define a name for the archive parameter
-							if (!Token.Matches(TEXT(')')))
+							if (!Token.IsSymbol(TEXT(')')))
 							{
 								GetToken(Token);
 							}
 
-							if (Token.Matches(TEXT(')')))
+							if (Token.IsSymbol(TEXT(')')))
 							{
 								ArchiveType = ESerializerArchiveType::Archive;
 							}
 						}
 					}
-					else if (Token.Matches(TEXT("FStructuredArchive"), ESearchCase::CaseSensitive))
+					else if (Token.IsIdentifier(TEXT("FStructuredArchive"), ESearchCase::CaseSensitive))
 					{
 						GetToken(Token);
-						if (Token.Matches(TEXT("::"), ESearchCase::CaseSensitive))
+						if (Token.IsSymbol(TEXT("::"), ESearchCase::CaseSensitive))
 						{
 							GetToken(Token);
 
-							if (Token.Matches(TEXT("FRecord"), ESearchCase::CaseSensitive))
+							if (Token.IsIdentifier(TEXT("FRecord"), ESearchCase::CaseSensitive))
 							{
 								GetToken(Token);
 
 								// Allow the declaration to not define a name for the slot parameter
-								if (!Token.Matches(TEXT(')')))
+								if (!Token.IsSymbol(TEXT(')')))
 								{
 									GetToken(Token);
 								}
 
-								if (Token.Matches(TEXT(')')))
+								if (Token.IsSymbol(TEXT(')')))
 								{
 									ArchiveType = ESerializerArchiveType::StructuredArchiveRecord;
 								}
 							}
 						}
 					}
-					else if (Token.Matches(TEXT("FStructuredArchiveRecord"), ESearchCase::CaseSensitive))
+					else if (Token.IsIdentifier(TEXT("FStructuredArchiveRecord"), ESearchCase::CaseSensitive))
 					{
 						GetToken(Token);
 
 						// Allow the declaration to not define a name for the slot parameter
-						if (!Token.Matches(TEXT(')')))
+						if (!Token.IsSymbol(TEXT(')')))
 						{
 							GetToken(Token);
 						}
 
-						if (Token.Matches(TEXT(')')))
+						if (Token.IsSymbol(TEXT(')')))
 						{
 							ArchiveType = ESerializerArchiveType::StructuredArchiveRecord;
 						}
@@ -4935,10 +4909,10 @@ bool FHeaderParser::SkipDeclaration(FToken& Token)
 	// Consume all tokens until the end of declaration/definition has been found.
 	int32 NestedScopes = 0;
 	// Check if this is a class/struct declaration in which case it can be followed by member variable declaration.	
-	bool bPossiblyClassDeclaration = Token.Matches(TEXT("class"), ESearchCase::CaseSensitive) || Token.Matches(TEXT("struct"), ESearchCase::CaseSensitive);
+	bool bPossiblyClassDeclaration = Token.IsIdentifier(TEXT("class"), ESearchCase::CaseSensitive) || Token.IsIdentifier(TEXT("struct"), ESearchCase::CaseSensitive);
 	// (known) macros can end without ; or } so use () to find the end of the declaration.
 	// However, we don't want to use it with DECLARE_FUNCTION, because we need it to be treated like a function.
-	bool bMacroDeclaration      = ProbablyAMacro(Token.Identifier) && !Token.Matches(TEXT("DECLARE_FUNCTION"), ESearchCase::CaseSensitive);
+	bool bMacroDeclaration      = ProbablyAMacro(Token.Value) && !Token.IsIdentifier(TEXT("DECLARE_FUNCTION"), ESearchCase::CaseSensitive);
 	bool bEndOfDeclarationFound = false;
 	bool bDefinitionFound       = false;
 	TCHAR OpeningBracket = bMacroDeclaration ? TEXT('(') : TEXT('{');
@@ -4948,31 +4922,31 @@ bool FHeaderParser::SkipDeclaration(FToken& Token)
 	{
 		// If we find parentheses at top-level and we think it's a class declaration then it's more likely
 		// to be something like: class UThing* GetThing();
-		if (bPossiblyClassDeclaration && NestedScopes == 0 && Token.Matches(TEXT('(')))
+		if (bPossiblyClassDeclaration && NestedScopes == 0 && Token.IsSymbol(TEXT('(')))
 		{
 			bPossiblyClassDeclaration = false;
 		}
 
 		bRetestCurrentToken = false;
-		if (Token.Matches(TEXT(';')) && NestedScopes == 0)
+		if (Token.IsSymbol(TEXT(';')) && NestedScopes == 0)
 		{
 			bEndOfDeclarationFound = true;
 			break;
 		}
 
-		if (!bMacroDeclaration && Token.Matches(TEXT("PURE_VIRTUAL"), ESearchCase::CaseSensitive) && NestedScopes == 0)
+		if (!bMacroDeclaration && Token.IsIdentifier(TEXT("PURE_VIRTUAL"), ESearchCase::CaseSensitive) && NestedScopes == 0)
 		{
 			OpeningBracket = TEXT('(');
 			ClosingBracket = TEXT(')');
 		}
 
-		if (Token.Matches(OpeningBracket))
+		if (Token.IsSymbol(OpeningBracket))
 		{
 			// This is a function definition or class declaration.
 			bDefinitionFound = true;
 			NestedScopes++;
 		}
-		else if (Token.Matches(ClosingBracket))
+		else if (Token.IsSymbol(ClosingBracket))
 		{
 			NestedScopes--;
 			if (NestedScopes == 0)
@@ -4987,7 +4961,7 @@ bool FHeaderParser::SkipDeclaration(FToken& Token)
 					GetToken(Token);
 
 					// If Strcmp returns 0, it is probably a class, else a macro.
-					bReallyEndDeclaration = !PossibleBracketToken.Matches(TEXT('{'));
+					bReallyEndDeclaration = !PossibleBracketToken.IsSymbol(TEXT('{'));
 				}
 
 				if (bReallyEndDeclaration)
@@ -5022,14 +4996,14 @@ bool FHeaderParser::SkipDeclaration(FToken& Token)
 			{
 				return false;
 			}
-			if (VariableName.TokenType != TOKEN_Identifier)
+			if (!VariableName.IsIdentifier())
 			{
 				// Not a variable name.
 				UngetToken(VariableName);
 			}
 			else if (!SafeMatchSymbol(TEXT(';')))
 			{
-				Throwf(TEXT("Unexpected '%s'. Did you miss a semi-colon?"), VariableName.Identifier);
+				Throwf(TEXT("Unexpected '%s'. Did you miss a semi-colon?"), *VariableName.GetTokenValue());
 			}
 		}
 
@@ -5047,24 +5021,22 @@ bool FHeaderParser::SkipDeclaration(FToken& Token)
 
 bool FHeaderParser::SafeMatchSymbol( const TCHAR Match )
 {
-	FToken Token;
-
 	// Remember the position before the next token (this can include comments before the next symbol).
 	FScriptLocation LocationBeforeNextSymbol;
 	InitScriptLocation(LocationBeforeNextSymbol);
 
+	FToken Token;
 	if (GetToken(Token, /*bNoConsts=*/ true))
 	{
-		if (Token.TokenType==TOKEN_Symbol && Token.Identifier[0] == Match && Token.Identifier[1] == 0)
+		if (Token.IsSymbol(Match))
 		{
 			return true;
 		}
-
 		UngetToken(Token);
 	}
+
 	// Return to the stored position.
 	ReturnToLocation(LocationBeforeNextSymbol);
-
 	return false;
 }
 
@@ -5437,7 +5409,7 @@ void FHeaderParser::CompileRigVMMethodDeclaration(FUnrealStructDefinitionInfo& S
 		return;
 	}
 
-	if (FString(PrefixToken.Identifier).Equals(TEXT("virtual")))
+	if (PrefixToken.IsIdentifier(TEXT("virtual"), ESearchCase::CaseSensitive))
 	{
 		if (!GetToken(ReturnTypeToken))
 		{
@@ -5467,10 +5439,10 @@ void FHeaderParser::CompileRigVMMethodDeclaration(FUnrealStructDefinitionInfo& S
 		{
 			break;
 		}
-		ParamsContent.Add(FString(Token.Identifier));
+		ParamsContent.Add(FString(Token.Value));
 	}
 
-	while (!FString(PostfixToken.Identifier).Equals(TEXT(";")))
+	while (!PostfixToken.IsSymbol(TEXT(';')))
 	{
 		if (!GetToken(PostfixToken))
 		{
@@ -5479,8 +5451,8 @@ void FHeaderParser::CompileRigVMMethodDeclaration(FUnrealStructDefinitionInfo& S
 	}
 
 	FRigVMMethodInfo MethodInfo;
-	MethodInfo.ReturnType = ReturnTypeToken.Identifier;
-	MethodInfo.Name = NameToken.Identifier;
+	MethodInfo.ReturnType = FString(ReturnTypeToken.Value);
+	MethodInfo.Name = FString(NameToken.Value);
 	
 	FString ParamString = FString::Join(ParamsContent, TEXT(" "));
 	if (!ParamString.IsEmpty())
@@ -5638,7 +5610,7 @@ void FHeaderParser::ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& Stru
 // Returns true if the token is a dynamic delegate declaration
 bool FHeaderParser::IsValidDelegateDeclaration(const FToken& Token) const
 {
-	return (Token.TokenType == TOKEN_Identifier) && !FCString::Strncmp(Token.Identifier, TEXT("DECLARE_DYNAMIC_"), 16);
+	return Token.IsIdentifier() && Token.ValueStartsWith(TEXT("DECLARE_DYNAMIC_"), ESearchCase::CaseSensitive);
 }
 
 // Parse the parameter list of a function or delegate declaration
@@ -5783,18 +5755,18 @@ void FHeaderParser::ParseParameterList(FUnrealFunctionDefinitionInfo& FunctionDe
 					StartPos = SkipToken.StartPos;
 				}
 				if ( ParenthesisNestCount == 0
-					&& (SkipToken.Matches(TEXT(')')) || SkipToken.Matches(TEXT(','))) )
+					&& (SkipToken.IsSymbol(TEXT(')')) || SkipToken.IsSymbol(TEXT(','))) )
 				{
-					EndPos = SkipToken.StartPos;
 					// went too far
 					UngetToken(SkipToken);
 					break;
 				}
-				if ( SkipToken.Matches(TEXT('(')) )
+				EndPos = InputPos;
+				if ( SkipToken.IsSymbol(TEXT('(')) )
 				{
 					ParenthesisNestCount++;
 				}
-				else if ( SkipToken.Matches(TEXT(')')) )
+				else if ( SkipToken.IsSymbol(TEXT(')')) )
 				{
 					ParenthesisNestCount--;
 				}
@@ -5826,7 +5798,7 @@ void FHeaderParser::ParseParameterList(FUnrealFunctionDefinitionInfo& FunctionDe
 	} while( MatchSymbol(TEXT(',')) );
 	RequireSymbol( TEXT(')'), TEXT("parameter list") );
 }
-FUnrealFunctionDefinitionInfo& FHeaderParser::CompileDelegateDeclaration(const TCHAR* DelegateIdentifier, EDelegateSpecifierAction::Type SpecifierAction)
+FUnrealFunctionDefinitionInfo& FHeaderParser::CompileDelegateDeclaration(const FStringView& DelegateIdentifier, EDelegateSpecifierAction::Type SpecifierAction)
 {
 	const TCHAR* CurrentScopeName = TEXT("Delegate Declaration");
 
@@ -5849,10 +5821,10 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileDelegateDeclaration(const T
 		GetToken(Token);
 		if (!IsValidDelegateDeclaration(Token))
 		{
-			Throwf(TEXT("Unexpected token following UDELEGATE(): %s"), Token.Identifier);
+			Throwf(TEXT("Unexpected token following UDELEGATE(): %s"), *Token.GetTokenValue());
 		}
 
-		DelegateMacro = Token.Identifier;
+		DelegateMacro = FString(Token.Value);
 
 		//Workaround for UE-28897
 		const FStructScope* CurrentStructScope = TopNest->GetScope() ? TopNest->GetScope()->AsStructScope() : nullptr;
@@ -5916,7 +5888,7 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileDelegateDeclaration(const T
 	}
 
 	// Skip whitespaces to get InputPos exactly on beginning of function name.
-	while (FChar::IsWhitespace(PeekChar())) { GetChar(); }
+	SkipWhitespaceAndComments();
 
 	FuncInfo.InputPos = InputPos;
 
@@ -5926,6 +5898,7 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileDelegateDeclaration(const T
 	{
 		Throwf(TEXT("Missing name for %s"), CurrentScopeName );
 	}
+	FString FuncName(FuncNameToken.Value);
 
 	// If this is a delegate function then go ahead and mangle the name so we don't collide with
 	// actual functions or properties
@@ -5933,23 +5906,19 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileDelegateDeclaration(const T
 		//@TODO: UCREMOVAL: Eventually this mangling shouldn't occur
 
 		// Remove the leading F
-		FString Name(FuncNameToken.Identifier);
 
-		if (!Name.StartsWith(TEXT("F"), ESearchCase::CaseSensitive))
+		if (!FuncName.StartsWith(TEXT("F"), ESearchCase::CaseSensitive))
 		{
 			Throwf(TEXT("Delegate type declarations must start with F"));
 		}
 
-		Name.RightChopInline(1, false);
+		FuncName.RightChopInline(1, false);
 
 		// Append the signature goo
-		Name += HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX;
-
-		// Replace the name
-		FCString::Strcpy(FuncNameToken.Identifier, *Name );
+		FuncName += HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX;
 	}
 
-	FUnrealFunctionDefinitionInfo& DelegateSignatureFunctionDef = CreateFunction(FuncNameToken.Identifier, MoveTemp(FuncInfo), bIsSparse ? EFunctionType::SparseDelegate : EFunctionType::Delegate);
+	FUnrealFunctionDefinitionInfo& DelegateSignatureFunctionDef = CreateFunction(*FuncName, MoveTemp(FuncInfo), bIsSparse ? EFunctionType::SparseDelegate : EFunctionType::Delegate);
 	DelegateSignatureFunctionDef.GetDefinitionRange().Start = StartPos;
 
 	// determine whether this function should be 'const'
@@ -5976,8 +5945,8 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileDelegateDeclaration(const T
 			Throwf(TEXT("Missing Delegate Name."));
 		}
 
-		DelegateSignatureFunctionDef.SetSparseOwningClassName(*GetClassNameWithoutPrefix(FString(OwningClass.Identifier)));
-		DelegateSignatureFunctionDef.SetSparseDelegateName(DelegateName.Identifier);
+		DelegateSignatureFunctionDef.SetSparseOwningClassName(*GetClassNameWithoutPrefix(FString(OwningClass.Value)));
+		DelegateSignatureFunctionDef.SetSparseDelegateName(FName(DelegateName.Value, FNAME_Add));
 	}
 
 	DelegateSignatureFunctionDef.SetLineNumber(InputLine);
@@ -6202,9 +6171,9 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 		if (GetToken(Token, true))
 		{
 			bool bThrowTokenBack = true;
-			if (Token.TokenType == TOKEN_Identifier)
+			if (Token.IsIdentifier())
 			{
-				FString RequiredAPIMacroIfPresent(Token.Identifier);
+				FString RequiredAPIMacroIfPresent(Token.Value);
 				if (RequiredAPIMacroIfPresent.EndsWith(TEXT("_API"), ESearchCase::CaseSensitive))
 				{
 					//@TODO: Validate the module name for RequiredAPIMacroIfPresent
@@ -6296,7 +6265,7 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 	bool bHasReturnValue = ReturnType.Type != CPT_None;
 
 	// Skip whitespaces to get InputPos exactly on beginning of function name.
-	while (FChar::IsWhitespace(PeekChar())) { GetChar(); }
+	SkipWhitespaceAndComments();
 
 	FuncInfo.InputPos = InputPos;
 
@@ -6306,6 +6275,7 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 	{
 		Throwf(TEXT("Missing %s name"), TypeOfFunction);
 	}
+	FString FuncName(FuncNameToken.Value);
 
 	const TCHAR* StartPos = &Input[InputPos];
 
@@ -6329,7 +6299,7 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 				Throwf(TEXT("Function %s already uses identifier %d"), **ExistingFunc, FuncInfo.RPCId);
 			}
 
-			UsedRPCIds.Add(FuncInfo.RPCId, FuncNameToken.Identifier);
+			UsedRPCIds.Add(FuncInfo.RPCId, FuncName);
 			if (FuncInfo.FunctionFlags & FUNC_NetResponse)
 			{
 				// Look for another function expecting this response
@@ -6348,12 +6318,12 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 			if (ExistingFunc == NULL)
 			{
 				// If this list isn't empty at end of class, throw error
-				RPCsNeedingHookup.Add(FuncInfo.RPCResponseId, FuncNameToken.Identifier);
+				RPCsNeedingHookup.Add(FuncInfo.RPCResponseId, FuncName);
 			}
 		}
 	}
 
-	FUnrealFunctionDefinitionInfo& FuncDef = CreateFunction(FuncNameToken.Identifier, MoveTemp(FuncInfo), EFunctionType::Function);
+	FUnrealFunctionDefinitionInfo& FuncDef = CreateFunction(*FuncName, MoveTemp(FuncInfo), EFunctionType::Function);
 	FuncDef.GetDefinitionRange().Start = StartPos;
 	const FFuncInfo& FuncDefFuncInfo = FuncDef.GetFunctionData();
 	FUnrealFunctionDefinitionInfo* SuperFuncDef = FuncDef.GetSuperFunction();
@@ -6505,11 +6475,11 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 
 	// Optionally consume a semicolon
 	// This is optional to allow inline function definitions
-	if (Token.TokenType == TOKEN_Symbol && Token.Matches(TEXT(';')))
+	if (Token.IsSymbol(TEXT(';')))
 	{
 		// Do nothing (consume it)
 	}
-	else if (Token.TokenType == TOKEN_Symbol && Token.Matches(TEXT('{')))
+	else if (Token.IsSymbol(TEXT('{')))
 	{
 		// Skip inline function bodies
 		UngetToken(Token);
@@ -6530,7 +6500,7 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 /** Parses optional metadata text. */
 void FHeaderParser::ParseFieldMetaData(TMap<FName, FString>& MetaData, const TCHAR* FieldName)
 {
-	FToken PropertyMetaData;
+	FTokenString PropertyMetaData;
 	bool bMetadataPresent = false;
 	if (MatchIdentifier(TEXT("UMETA"), ESearchCase::CaseSensitive))
 	{
@@ -6538,7 +6508,7 @@ void FHeaderParser::ParseFieldMetaData(TMap<FName, FString>& MetaData, const TCH
 
 		bMetadataPresent = true;
 		RequireSymbol( TEXT('('), ErrorMessageGetter );
-		if (!GetRawTokenRespectingQuotes(PropertyMetaData, TCHAR(')')))
+		if (!GetRawStringRespectingQuotes(PropertyMetaData, TCHAR(')')))
 		{
 			Throwf(TEXT("'%s': No metadata specified"), FieldName);
 		}
@@ -6624,7 +6594,7 @@ bool FHeaderParser::IsBitfieldProperty(ELayoutMacroType LayoutMacroType)
 		FToken Token;
 		if (GetToken(Token, /*bNoConsts=*/ true))
 		{
-			if (Token.TokenType == TOKEN_Symbol && Token.Matches(TEXT(':')))
+			if (Token.IsSymbol(TEXT(':')))
 			{
 				bIsBitfield = true;
 			}
@@ -6884,11 +6854,11 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 		int Nesting = 1;
 		while (GetToken(SkipToken))
 		{
-			if (SkipToken.Matches(TEXT('(')))
+			if (SkipToken.IsSymbol(TEXT('(')))
 			{
 				++Nesting;
 			}
-			else if (SkipToken.Matches(TEXT(')')))
+			else if (SkipToken.IsSymbol(TEXT(')')))
 			{
 				--Nesting;
 				if (Nesting == 0)
@@ -6905,7 +6875,7 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 		FToken SkipToken;
 		while (GetToken(SkipToken))
 		{
-			if (SkipToken.Matches(TEXT(';')))
+			if (SkipToken.IsSymbol(TEXT(';')))
 			{
 				// went too far
 				UngetToken(SkipToken);
@@ -6920,11 +6890,11 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 		int BraceLevel = 1;
 		while (GetToken(SkipToken))
 		{
-			if (SkipToken.Matches(TEXT('{')))
+			if (SkipToken.IsSymbol(TEXT('{')))
 			{
 				++BraceLevel;
 			}
-			else if (SkipToken.Matches(TEXT('}')))
+			else if (SkipToken.IsSymbol(TEXT('}')))
 			{
 				--BraceLevel;
 				if (BraceLevel == 0)
@@ -6958,7 +6928,7 @@ void FHeaderParser::CompileVariableDeclaration(FUnrealStructDefinitionInfo& Stru
 			break;
 		}
 
-		if (Token.TokenType != TOKEN_Symbol || !Token.Matches(TEXT(';')))
+		if (!Token.IsSymbol(TEXT(';')))
 		{
 			InputPos  = CurrInputPos;
 			InputLine = CurrInputLine;
@@ -6982,7 +6952,7 @@ bool FHeaderParser::CompileStatement(TArray<FUnrealFunctionDefinitionInfo*>& Del
 	}
 	else if (!CompileDeclaration(DelegatesToFixup, Token))
 	{
-		Throwf(TEXT("'%s': Bad command or expression"), Token.Identifier );
+		Throwf(TEXT("'%s': Bad command or expression"), *Token.GetTokenValue() );
 	}
 	return true;
 }
@@ -7005,15 +6975,15 @@ void FHeaderParser::SkipStatements( int32 NestCount, const TCHAR* ErrorTag  )
 
 	while( GetToken( Token, true ) )
 	{
-		if ( Token.Matches(TEXT('{')) )
+		if ( Token.IsSymbol(TEXT('{')) )
 		{
 			NestCount++;
 		}
-		else if	( Token.Matches(TEXT('}')) )
+		else if	( Token.IsSymbol(TEXT('}')) )
 		{
 			NestCount--;
 		}
-		else if ( Token.Matches(TEXT(';')) && OriginalNestCount == 0 )
+		else if ( Token.IsSymbol(TEXT(';')) && OriginalNestCount == 0 )
 		{
 			break;
 		}
@@ -7972,7 +7942,7 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseEnumDeclaration(con
 		Throwf(TEXT("Missing identifier after UENUM()"));
 	}
 
-	if (EnumToken.Matches(TEXT("namespace"), ESearchCase::CaseSensitive))
+	if (EnumToken.IsValue(TEXT("namespace"), ESearchCase::CaseSensitive))
 	{
 		CppForm = UEnum::ECppForm::Namespaced;
 
@@ -7980,14 +7950,14 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseEnumDeclaration(con
 
 		bReadEnumName = GetIdentifier(EnumToken);
 	}
-	else if (EnumToken.Matches(TEXT("enum"), ESearchCase::CaseSensitive))
+	else if (EnumToken.IsValue(TEXT("enum"), ESearchCase::CaseSensitive))
 	{
 		if (!GetIdentifier(EnumToken))
 		{
 			Throwf(TEXT("Missing identifier after enum"));
 		}
 
-		if (EnumToken.Matches(TEXT("class"), ESearchCase::CaseSensitive) || EnumToken.Matches(TEXT("struct"), ESearchCase::CaseSensitive))
+		if (EnumToken.IsValue(TEXT("class"), ESearchCase::CaseSensitive) || EnumToken.IsValue(TEXT("struct"), ESearchCase::CaseSensitive))
 		{
 			CppForm = UEnum::ECppForm::EnumClass;
 		}
@@ -8021,7 +7991,7 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseEnumDeclaration(con
 		UnderlyingType = ParseUnderlyingEnumType();
 	}
 
-	TSharedRef<FUnrealEnumDefinitionInfo> EnumDef = MakeShareable(new FUnrealEnumDefinitionInfo(SourceFile, InLineNumber, EnumToken.Identifier, FName(EnumToken.Identifier, FNAME_Add), CppForm, UnderlyingType));
+	TSharedRef<FUnrealEnumDefinitionInfo> EnumDef = MakeShareable(new FUnrealEnumDefinitionInfo(SourceFile, InLineNumber, FString(EnumToken.Value), FName(EnumToken.Value, FNAME_Add), CppForm, UnderlyingType));
 	return EnumDef;
 }
 
@@ -8132,7 +8102,7 @@ bool FHeaderParser::TryToMatchConstructorParameterList(FToken Token)
 		return false;
 	}
 
-	if (!PotentialParenthesisToken.Matches(TEXT('(')))
+	if (!PotentialParenthesisToken.IsSymbol(TEXT('(')))
 	{
 		UngetToken(PotentialParenthesisToken);
 		return false;
@@ -8159,45 +8129,45 @@ bool FHeaderParser::TryToMatchConstructorParameterList(FToken Token)
 		while (ParenthesesNestingLevel && GetToken(ObjectInitializerParamParsingToken))
 		{
 			// Template instantiation or additional parameter excludes ObjectInitializer constructor.
-			if (ObjectInitializerParamParsingToken.Matches(TEXT(',')) || ObjectInitializerParamParsingToken.Matches(TEXT('<')))
+			if (ObjectInitializerParamParsingToken.IsSymbol(TEXT(',')) || ObjectInitializerParamParsingToken.IsSymbol(TEXT('<')))
 			{
 				bOICtor = false;
 				bVTCtor = false;
 				break;
 			}
 
-			if (ObjectInitializerParamParsingToken.Matches(TEXT('(')))
+			if (ObjectInitializerParamParsingToken.IsSymbol(TEXT('(')))
 			{
 				ParenthesesNestingLevel++;
 				continue;
 			}
 
-			if (ObjectInitializerParamParsingToken.Matches(TEXT(')')))
+			if (ObjectInitializerParamParsingToken.IsSymbol(TEXT(')')))
 			{
 				ParenthesesNestingLevel--;
 				continue;
 			}
 
-			if (ObjectInitializerParamParsingToken.Matches(TEXT("const"), ESearchCase::CaseSensitive))
+			if (ObjectInitializerParamParsingToken.IsIdentifier(TEXT("const"), ESearchCase::CaseSensitive))
 			{
 				bIsConst = true;
 				continue;
 			}
 
-			if (ObjectInitializerParamParsingToken.Matches(TEXT('&')))
+			if (ObjectInitializerParamParsingToken.IsSymbol(TEXT('&')))
 			{
 				bIsRef = true;
 				continue;
 			}
 
-			if (ObjectInitializerParamParsingToken.Matches(TEXT("FObjectInitializer"), ESearchCase::CaseSensitive)
-				|| ObjectInitializerParamParsingToken.Matches(TEXT("FPostConstructInitializeProperties"), ESearchCase::CaseSensitive) // Deprecated, but left here, so it won't break legacy code.
+			if (ObjectInitializerParamParsingToken.IsIdentifier(TEXT("FObjectInitializer"), ESearchCase::CaseSensitive)
+				|| ObjectInitializerParamParsingToken.IsIdentifier(TEXT("FPostConstructInitializeProperties"), ESearchCase::CaseSensitive) // Deprecated, but left here, so it won't break legacy code.
 				)
 			{
 				bOICtor = true;
 			}
 
-			if (ObjectInitializerParamParsingToken.Matches(TEXT("FVTableHelper"), ESearchCase::CaseSensitive))
+			if (ObjectInitializerParamParsingToken.IsIdentifier(TEXT("FVTableHelper"), ESearchCase::CaseSensitive))
 			{
 				bVTCtor = true;
 			}
@@ -8206,13 +8176,13 @@ bool FHeaderParser::TryToMatchConstructorParameterList(FToken Token)
 		// Parse until finish.
 		while (ParenthesesNestingLevel && GetToken(ObjectInitializerParamParsingToken))
 		{
-			if (ObjectInitializerParamParsingToken.Matches(TEXT('(')))
+			if (ObjectInitializerParamParsingToken.IsSymbol(TEXT('(')))
 			{
 				ParenthesesNestingLevel++;
 				continue;
 			}
 
-			if (ObjectInitializerParamParsingToken.Matches(TEXT(')')))
+			if (ObjectInitializerParamParsingToken.IsSymbol(TEXT(')')))
 			{
 				ParenthesesNestingLevel--;
 				continue;
@@ -8264,8 +8234,7 @@ void FHeaderParser::CompileVersionDeclaration(FUnrealStructDefinitionInfo& Struc
 		Version = PackageDef.GetModule().GeneratedCodeVersion;
 	}
 
-	if (Token.TokenType == ETokenType::TOKEN_Symbol
-		&& Token.Matches(TEXT(')')))
+	if (Token.IsSymbol(TEXT(')')))
 	{
 		StructDef.SetGeneratedCodeVersion(Version);
 		UngetToken(Token);
@@ -8273,7 +8242,7 @@ void FHeaderParser::CompileVersionDeclaration(FUnrealStructDefinitionInfo& Struc
 	}
 
 	// Overwrite with version specified by macro.
-	Version = ToGeneratedCodeVersion(Token.Identifier);
+	Version = ToGeneratedCodeVersion(Token.Value);
 	StructDef.SetGeneratedCodeVersion(Version);
 }
 
@@ -8701,18 +8670,6 @@ bool FHeaderParser::IsReservedTypeName(const FString& TypeName)
 	for(const FString& ReservedName : ReservedTypeNames)
 	{
 		if(TypeName == ReservedName)
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-bool FHeaderParser::IsReservedTypeName(const FToken& Token)
-{
-	for (const FString& ReservedName : ReservedTypeNames)
-	{
-		if (Token.Matches(*ReservedName, ESearchCase::IgnoreCase))
 		{
 			return true;
 		}

@@ -281,41 +281,6 @@ bool FPropertyBase::MatchesType(const FPropertyBase& Other, bool bDisallowGenera
 	}
 }
 
-
-/////////////////////////////////////////////////////
-// FToken
-
-/**
- * Copies the properties from this token into another.
- *
- * @param	Other	the token to copy this token's properties to.
- */
-FToken& FToken::operator=(const FToken& Other)
-{
-	ConstantType = Other.ConstantType;
-	TokenType = Other.TokenType;
-	StartPos = Other.StartPos;
-	StartLine = Other.StartLine;
-
-	FCString::Strncpy(Identifier, Other.Identifier, NAME_SIZE);
-	FMemory::Memcpy(String, Other.String, sizeof(String));
-
-	return *this;
-}
-
-FToken& FToken::operator=(FToken&& Other)
-{
-	ConstantType = Other.ConstantType;
-	TokenType = Other.TokenType;
-	StartPos = Other.StartPos;
-	StartLine = Other.StartLine;
-
-	FCString::Strncpy(Identifier, Other.Identifier, NAME_SIZE);
-	FMemory::Memcpy(String, Other.String, sizeof(String));
-
-	return *this;
-}
-
 /////////////////////////////////////////////////////
 // FFuncData
 
