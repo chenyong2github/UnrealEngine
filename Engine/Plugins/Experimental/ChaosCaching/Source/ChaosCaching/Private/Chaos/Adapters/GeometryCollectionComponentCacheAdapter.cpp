@@ -53,8 +53,6 @@ namespace Chaos
 		UGeometryCollectionComponent*    Comp  = CastChecked<UGeometryCollectionComponent>(InComp);
 		FGeometryCollectionPhysicsProxy* Proxy = Comp->GetPhysicsProxy();
 		
-		FPhysScene& Scene = *(Comp->GetWorld()->GetPhysicsScene());
-		
 		if(!Proxy)
 		{
 			return;
@@ -73,6 +71,12 @@ namespace Chaos
 		const FGeometryCollection*   RestCollection = Proxy->GetSimParameters().RestCollection;
 
 		if(!RestCollection || !Solver)
+		{
+			return;
+		}
+
+		const FPhysScene* Scene = static_cast<FPhysScene*>(Solver->PhysSceneHack);
+		if (!Scene)
 		{
 			return;
 		}
@@ -100,7 +104,7 @@ namespace Chaos
 		for(const FBreakingData& Break : Breaks)
 		{
 			// Is the proxy pending destruction? If they are no longer tracked by the PhysScene, the proxy is deleted or pending deletion.
-			if (Scene.GetOwningComponent<UPrimitiveComponent>(Break.Proxy) == nullptr)
+			if (Scene->GetOwningComponent<UPrimitiveComponent>(Break.Proxy) == nullptr)
 			{
 				continue;
 			}
