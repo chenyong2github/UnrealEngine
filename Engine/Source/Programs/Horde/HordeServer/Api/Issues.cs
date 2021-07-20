@@ -201,43 +201,6 @@ namespace HordeServer.Api
 	}
 
 	/// <summary>
-	/// Information about a suspect changelist that may have caused an issue
-	/// </summary>
-	public class GetIssueSuspectResponse
-	{
-		/// <summary>
-		/// Number of the changelist that was submitted
-		/// </summary>
-		public int Change { get; set; }
-
-		/// <summary>
-		/// Author of the changelist
-		/// </summary>
-		public string Author { get; set; }
-
-		/// <summary>
-		/// The originating change
-		/// </summary>
-		public int? OriginatingChange { get; set; }
-
-		/// <summary>
-		/// Time at which the user declined this issue
-		/// </summary>
-		public DateTime? DeclinedAt { get; set; }
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="IssueSuspect">The object to construct from</param>
-		public GetIssueSuspectResponse(IIssueSpanSuspect IssueSuspect)
-		{
-			this.Change = IssueSuspect.Change;
-			this.Author = IssueSuspect.Author;
-			this.OriginatingChange = IssueSuspect.OriginatingChange;
-		}
-	}
-
-	/// <summary>
 	/// Information about a diagnostic
 	/// </summary>
 	public class GetIssueDiagnosticResponse

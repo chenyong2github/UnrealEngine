@@ -126,13 +126,7 @@ namespace HordeServer.Collections.Impl
 			public IssueSeverity Severity { get; set; }
 
 			[BsonIgnoreIfNull]
-			public string? Owner { get; set; }
-
-			[BsonIgnoreIfNull]
 			public ObjectId? OwnerId { get; set; }
-
-			[BsonIgnoreIfNull]
-			public string? NominatedBy { get; set; }
 
 			[BsonIgnoreIfNull]
 			public ObjectId? NominatedById { get; set; }
@@ -371,20 +365,17 @@ namespace HordeServer.Collections.Impl
 		class IssueSpanSuspect : IIssueSpanSuspect
 		{
 			public int Change { get; set; }
-			public string Author { get; set; }
 			public ObjectId AuthorId { get; set; }
 			public int? OriginatingChange { get; set; }
 
 			[BsonConstructor]
 			private IssueSpanSuspect()
 			{
-				Author = String.Empty;
 			}
 
-			public IssueSpanSuspect(int Change, string Author, ObjectId AuthorId, int? OriginatingChange)
+			public IssueSpanSuspect(int Change, ObjectId AuthorId, int? OriginatingChange)
 			{
 				this.Change = Change;
-				this.Author = Author;
 				this.AuthorId = AuthorId;
 				this.OriginatingChange = OriginatingChange;
 			}
@@ -445,15 +436,8 @@ namespace HordeServer.Collections.Impl
 		IMongoCollection<IssueSuspect> IssueSuspects;
 		ILogger Logger;
 
-		// TODO: Temp upgrade path for switching user references to ids. Remove after resaving all issues.
-		IUserCollection UserCollection;
-		ConcurrentDictionary<string, ObjectId> UserNameToIdCache = new ConcurrentDictionary<string, ObjectId>(StringComparer.OrdinalIgnoreCase);
-		IPerforceService PerforceService;
-
-		public IssueCollection(DatabaseService DatabaseService, IUserCollection UserCollection, IPerforceService PerforceService, ILogger<IssueCollection> Logger)
+		public IssueCollection(DatabaseService DatabaseService, ILogger<IssueCollection> Logger)
 		{
-			this.UserCollection = UserCollection;
-			this.PerforceService = PerforceService;
 			this.Logger = Logger;
 
 			LedgerSingleton = new SingletonDocument<IssueLedger>(DatabaseService);
@@ -606,7 +590,6 @@ namespace HordeServer.Collections.Impl
 		public async Task<IIssue?> GetIssueAsync(int IssueId)
 		{
 			Issue Issue = await Issues.Find(x => x.Id == IssueId).FirstOrDefaultAsync();
-			await UpgradeIssueAsync(Issue);
 			return Issue;
 		}
 
@@ -626,7 +609,7 @@ namespace HordeServer.Collections.Impl
 		public async Task<List<IIssue>> FindIssuesAsync(IEnumerable<int>? Ids = null, ObjectId? UserId = null, StreamId? StreamId = null, int? MinChange = null, int? MaxChange = null, bool? Resolved = null, int? Index = null, int? Count = null)
 		{
 			List<Issue> Results = await FilterIssuesByUserIdAsync(Ids, UserId, StreamId, MinChange, MaxChange, Resolved ?? false, Index ?? 0, Count);
-			return await UpgradeIssuesAsync(Results);
+			return Results.ConvertAll<IIssue>(x => x);
 		}
 
 		async Task<List<Issue>> FilterIssuesByUserIdAsync(IEnumerable<int>? Ids, ObjectId? UserId, StreamId? StreamId, int? MinChange, int? MaxChange, bool? Resolved, int Index, int? Count)
@@ -776,100 +759,17 @@ namespace HordeServer.Collections.Impl
 				int MaxChange = Changes.Max();
 
 				List<Issue> BaseResults = await Issues.Find(x => x.MinSuspectChange <= MaxChange && x.MaxSuspectChange >= MinChange).ToListAsync();
-				await UpgradeIssuesAsync(BaseResults);
 				Results.AddRange(BaseResults.Where(x => x.Suspects.Any(y => Changes.Contains(y.Change))));
 			}
 			return Results;
 		}
 
-		async Task<ObjectId> FindOrAddUserIdAsync(string UserName)
-		{
-			ObjectId UserId;
-			if (!UserNameToIdCache.TryGetValue(UserName, out UserId))
-			{
-				PerforceUserInfo? Info = await PerforceService.GetUserInfoAsync(UserName);
-				if (Info == null)
-				{
-					Logger.LogWarning("No user '{UserName}' found", UserName);
-				}
-
-				IUser User = await UserCollection.FindOrAddUserByLoginAsync(UserName, Info?.Name, Info?.Email);
-				UserId = User.Id;
-
-				UserNameToIdCache.TryAdd(UserName, UserId);
-			}
-			return UserId;
-		}
-
-		async Task<IIssue> UpgradeIssueAsync(Issue Issue)
-		{
-			bool bModified = false;
-			if (Issue.Owner != null && Issue.OwnerId == null)
-			{
-				Issue.OwnerId = await FindOrAddUserIdAsync(Issue.Owner);
-				bModified = true;
-			}
-			if (Issue.NominatedBy != null && Issue.NominatedById == null)
-			{
-				Issue.NominatedById = await FindOrAddUserIdAsync(Issue.NominatedBy);
-				bModified = true;
-			}
-
-			if (bModified)
-			{
-				await Issues.ReplaceOneAsync(x => x.Id == Issue.Id && x.UpdateIndex == Issue.UpdateIndex, Issue);
-			}
-
-			return Issue;
-		}
-
-		async Task<List<IIssue>> UpgradeIssuesAsync(List<Issue> Issues)
-		{
-			List<IIssue> Results = new List<IIssue>();
-			foreach(Issue Issue in Issues)
-			{
-				Results.Add(await UpgradeIssueAsync(Issue));
-			}
-			return Results;
-		}
-
-		async Task<IIssueSpan> UpgradeIssueSpanAsync(IssueSpan IssueSpan)
-		{
-			bool bModified = false;
-			foreach (IssueSpanSuspect Suspect in IssueSpan.Suspects)
-			{
-				if (Suspect.AuthorId == ObjectId.Empty)
-				{
-					Suspect.AuthorId = await FindOrAddUserIdAsync(Suspect.Author);
-					bModified = true;
-				}
-			}
-
-			if (bModified)
-			{
-				await IssueSpans.ReplaceOneAsync(x => x.Id == IssueSpan.Id && x.UpdateIndex == IssueSpan.UpdateIndex, IssueSpan);
-			}
-
-			return IssueSpan;
-		}
-
-		async Task<List<IIssueSpan>> UpgradeIssueSpansAsync(List<IssueSpan> IssueSpans)
-		{
-			List<IIssueSpan> Results = new List<IIssueSpan>();
-			foreach (IssueSpan IssueSpan in IssueSpans)
-			{
-				Results.Add(await UpgradeIssueSpanAsync(IssueSpan));
-			}
-			return Results;
-		}
-
-		async Task<List<IssueSpanSuspect>> CreateSpanSuspectsAsync(List<NewIssueSpanSuspectData> Suspects)
+		static List<IssueSpanSuspect> CreateSpanSuspects(List<NewIssueSpanSuspectData> Suspects)
 		{
 			List<IssueSpanSuspect> NewSuspects = new List<IssueSpanSuspect>();
 			foreach (NewIssueSpanSuspectData Suspect in Suspects)
 			{
-				ObjectId AuthorId = await FindOrAddUserIdAsync(Suspect.Author);
-				NewSuspects.Add(new IssueSpanSuspect(Suspect.Change, Suspect.Author, AuthorId, Suspect.OriginatingChange));
+				NewSuspects.Add(new IssueSpanSuspect(Suspect.Change, Suspect.AuthorId, Suspect.OriginatingChange));
 			}
 			return NewSuspects;
 		}
@@ -905,28 +805,21 @@ namespace HordeServer.Collections.Impl
 			{
 				if (NewOwnerId.Value == ObjectId.Empty)
 				{
-					Transaction.Unset(x => x.Owner!);
 					Transaction.Unset(x => x.OwnerId!);
 					Transaction.Unset(x => x.NominatedAt!);
-					Transaction.Unset(x => x.NominatedBy!);
 					Transaction.Unset(x => x.NominatedById!);
 				}
 				else
 				{
-					IUser? NewOwner = await UserCollection.GetCachedUserAsync(NewOwnerId.Value);
-					Transaction.Set(x => x.Owner!, NewOwner?.Login);
 					Transaction.Set(x => x.OwnerId!, NewOwnerId.Value);
 
 					Transaction.Set(x => x.NominatedAt, DateTime.UtcNow);
 					if (NewNominatedById == null)
 					{
-						Transaction.Unset(x => x.NominatedBy!);
 						Transaction.Unset(x => x.NominatedById!);
 					}
 					else
 					{
-						IUser? NewNominatedBy = await UserCollection.GetCachedUserAsync(NewNominatedById.Value);
-						Transaction.Set(x => x.NominatedBy, NewNominatedBy?.Login);
 						Transaction.Set(x => x.NominatedById, NewNominatedById.Value);
 					}
 					NewAcknowledged = NewAcknowledged ?? false;
@@ -1176,7 +1069,7 @@ namespace HordeServer.Collections.Impl
 		/// <inheritdoc/>
 		public async Task<IIssueSpan?> AddSpanAsync(IIssueSequenceToken Token, IStream Stream, TemplateRefId TemplateRefId, string NodeName, NewIssueFingerprint Fingerprint, NewIssueStepData? LastSuccess, NewIssueStepData Failure, NewIssueStepData? NextSuccess, List<NewIssueSpanSuspectData> Suspects)
 		{
-			List<IssueSpanSuspect> NewSuspects = await CreateSpanSuspectsAsync(Suspects);
+			List<IssueSpanSuspect> NewSuspects = CreateSpanSuspects(Suspects);
 			IssueSpan NewSpan = new IssueSpan(Stream.Id, Stream.Name, TemplateRefId, NodeName, Fingerprint, LastSuccess, Failure, NextSuccess, NewSuspects);
 
 			IssueLedger Ledger = ((IssueSequenceToken)Token).Ledger;
@@ -1233,7 +1126,7 @@ namespace HordeServer.Collections.Impl
 			}
 			if (NewSuspects != null)
 			{
-				Transaction.Set(x => x.Suspects, await CreateSpanSuspectsAsync(NewSuspects));
+				Transaction.Set(x => x.Suspects, CreateSpanSuspects(NewSuspects));
 			}
 			if (NewModified != null)
 			{
@@ -1251,7 +1144,7 @@ namespace HordeServer.Collections.Impl
 		/// <inheritdoc/>
 		public async Task<List<IIssueSpan>> FindSpansAsync(int IssueId)
 		{
-			return await UpgradeIssueSpansAsync(await IssueSpans.Find(x => x.IssueId == IssueId).ToListAsync());
+			return await IssueSpans.Find(x => x.IssueId == IssueId).ToListAsync<IssueSpan, IIssueSpan>();
 		}
 
 		/// <inheritdoc/>

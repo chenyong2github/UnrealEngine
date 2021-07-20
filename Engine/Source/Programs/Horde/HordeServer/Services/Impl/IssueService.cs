@@ -1081,14 +1081,11 @@ namespace HordeServer.Services.Impl
 						Logger.LogDebug("Suspect CL: {Change}, Author: {Author}, Rank: {Rank}, MaxRank: {MaxRank}", SuspectChange.Details.Number, SuspectChange.Details.Author, SuspectChange.Rank, MaxRank);
 						if (SuspectChange.Rank == MaxRank)
 						{
-							NewIssueSpanSuspectData Suspect = new NewIssueSpanSuspectData(SuspectChange.Details.Number, SuspectChange.Details.Author);
-							Suspect.OriginatingChange = ParseRobomergeSource(SuspectChange.Details.Description);
+							string? Author = ParseRobomergeOwner(SuspectChange.Details.Description) ?? SuspectChange.Details.Author;
+							IUser User = await UserCollection.FindOrAddUserByLoginAsync(Author);
 
-							string? RobomergeOwner = ParseRobomergeOwner(SuspectChange.Details.Description);
-							if(!String.IsNullOrEmpty(RobomergeOwner))
-							{
-								Suspect.Author = RobomergeOwner;
-							}
+							NewIssueSpanSuspectData Suspect = new NewIssueSpanSuspectData(SuspectChange.Details.Number, User.Id);
+							Suspect.OriginatingChange = ParseRobomergeSource(SuspectChange.Details.Description);
 
 							Suspects.Add(Suspect);
 						}
@@ -1219,7 +1216,7 @@ namespace HordeServer.Services.Impl
 		/// <returns>The Robomerge owner, or null if no #ROBOMERGE-OWNER tag was present</returns>
 		static string? ParseRobomergeOwner(string Description)
 		{
-			// #ROBOMERGE-SOURCE: CL 13232051 in //Fortnite/Release-12.60/... via CL 13232062 via CL 13242953
+			// #ROBOMERGE-OWNER: ben.marsh
 			Match Match = Regex.Match(Description, @"^#ROBOMERGE-OWNER:\s*([^\s]+)", RegexOptions.Multiline);
 			if (Match.Success)
 			{

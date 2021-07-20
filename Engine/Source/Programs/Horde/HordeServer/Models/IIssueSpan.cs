@@ -100,11 +100,6 @@ namespace HordeServer.Models
 		public int Change { get; }
 
 		/// <summary>
-		/// Author of the changelist
-		/// </summary>
-		public string Author { get; }
-
-		/// <summary>
 		/// Id of the changelist's author
 		/// </summary>
 		public ObjectId AuthorId { get; }
