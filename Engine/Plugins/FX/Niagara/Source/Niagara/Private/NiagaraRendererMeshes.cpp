@@ -27,7 +27,6 @@ DECLARE_CYCLE_STAT(TEXT("Generate Mesh Vertex Data [GT]"), STAT_NiagaraGenMeshVe
 DECLARE_CYCLE_STAT(TEXT("Render Meshes [RT]"), STAT_NiagaraRenderMeshes, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Render Meshes - Allocate GPU Data [RT]"), STAT_NiagaraRenderMeshes_AllocateGPUData, STATGROUP_Niagara);
 
-
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumMeshesRenderer"), STAT_NiagaraNumMeshes, STATGROUP_Niagara);
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumMesheVerts"), STAT_NiagaraNumMeshVerts, STATGROUP_Niagara);
 
@@ -76,7 +75,7 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 	LockedAxisSpace = Properties->LockedAxisSpace;
 	SortMode = Properties->SortMode;
 	bSortOnlyWhenTranslucent = Properties->bSortOnlyWhenTranslucent;
-	bGpuLowLatencyTranslucency = false;//-TEMP: Need to add IndirectArgs update point.  Properties->bGpuLowLatencyTranslucency && (SortMode == ENiagaraSortMode::None);
+	bGpuLowLatencyTranslucency = Properties->bGpuLowLatencyTranslucency;
 	bOverrideMaterials = Properties->bOverrideMaterials;
 	SubImageSize = Properties->SubImageSize;
 	bSubImageBlend = Properties->bSubImageBlend;
@@ -405,7 +404,7 @@ void FNiagaraRendererMeshes::InitializeSortInfo(FParticleMeshRenderData& Particl
 
 	OutSortInfo.ParticleCount = ParticleMeshRenderData.SourceParticleData->GetNumInstances();
 	OutSortInfo.SortMode = SortMode;
-	OutSortInfo.SetSortFlags(GNiagaraGPUSortingUseMaxPrecision != 0, ParticleMeshRenderData.bHasTranslucentMaterials);
+	OutSortInfo.SetSortFlags(GNiagaraGPUSortingUseMaxPrecision != 0, ParticleMeshRenderData.SourceParticleData->GetGPUDataReadyStage());
 	OutSortInfo.bEnableCulling = ParticleMeshRenderData.bNeedsCull;
 	OutSortInfo.RendererVisTagAttributeOffset = ParticleMeshRenderData.RendererVisTagOffset;
 	OutSortInfo.MeshIndexAttributeOffset = ParticleMeshRenderData.MeshIndexOffset;
@@ -825,6 +824,7 @@ FNiagaraMeshUniformBufferRef FNiagaraRendererMeshes::CreatePerViewUniformBuffer(
 }
 
 void FNiagaraRendererMeshes::CreateMeshBatchForSection(
+	const FParticleMeshRenderData& ParticleMeshRenderData,
 	FMeshBatch& MeshBatch,
 	FVertexFactory& VertexFactory,
 	FMaterialRenderProxy& MaterialProxy,
@@ -837,8 +837,7 @@ void FNiagaraRendererMeshes::CreateMeshBatchForSection(
 	uint32 NumInstances,
 	uint32 GPUCountBufferOffset,
 	bool bIsWireframe,
-	bool bIsInstancedStereo,
-	bool bDoGPUCulling
+	bool bIsInstancedStereo
 ) const
 {
 	MeshBatch.VertexFactory = &VertexFactory;
@@ -898,7 +897,9 @@ void FNiagaraRendererMeshes::CreateMeshBatchForSection(
 			Section.NumTriangles * 3,
 			Section.FirstIndex,
 			bIsInstancedStereo,
-			bDoGPUCulling);
+			ParticleMeshRenderData.bNeedsCull && ParticleMeshRenderData.bSortCullOnGpu,
+			ParticleMeshRenderData.SourceParticleData->GetGPUDataReadyStage()
+		);
 
 		BatchElement.NumPrimitives = 0;
 		BatchElement.IndirectArgsBuffer = IndirectDraw.Buffer;
@@ -1046,9 +1047,9 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 						const uint32 GPUCountBufferOffset = SortInfo.CulledGPUParticleCountOffset != INDEX_NONE ? SortInfo.CulledGPUParticleCountOffset : ParticleMeshRenderData.SourceParticleData->GetGPUInstanceCountBufferOffset();
 						FMeshBatch& MeshBatch = Collector.AllocateMesh();
 						CreateMeshBatchForSection(
+							ParticleMeshRenderData,
 							MeshBatch, VertexFactory, *MaterialProxy, *SceneProxy, MeshData, LODModel, Section, *View, ViewIndex, NumInstances,
-							GPUCountBufferOffset, bIsWireframe, bIsInstancedStereo,
-							ParticleMeshRenderData.bNeedsCull && ParticleMeshRenderData.bSortCullOnGpu
+							GPUCountBufferOffset, bIsWireframe, bIsInstancedStereo
 						);
 
 						Collector.AddMesh(ViewIndex, MeshBatch);
@@ -1176,7 +1177,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 			}
 
 			FMeshBatch MeshBatch;
-			CreateMeshBatchForSection(MeshBatch, VertexFactory, *MaterialProxy, *SceneProxy, MeshData, LODModel, Section, *View, ViewIndex, NumInstances, INDEX_NONE, false, bIsInstancedStereo, ParticleMeshRenderData.bNeedsCull && ParticleMeshRenderData.bSortCullOnGpu);
+			CreateMeshBatchForSection(ParticleMeshRenderData, MeshBatch, VertexFactory, *MaterialProxy, *SceneProxy, MeshData, LODModel, Section, *View, ViewIndex, NumInstances, INDEX_NONE, false, bIsInstancedStereo);
 			MeshBatch.SegmentIndex = SectionIndex;
 			MeshBatch.LODIndex = LODIndex;
 

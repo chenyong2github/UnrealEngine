@@ -13,10 +13,19 @@ NiagaraDrawIndirect.h: Niagara shader to generate the draw indirect args for Nia
 
 #define NIAGARA_DRAW_INDIRECT_ARGS_GEN_THREAD_COUNT 64
 #define NIAGARA_DRAW_INDIRECT_ARGS_SIZE 5
-#define NIAGARA_DRAW_INDIRECT_TASK_INFO_SIZE 4
+#define NIAGARA_DRAW_INDIRECT_TASK_INFO_SIZE 5
 
 // #define NIAGARA_COPY_BUFFER_THREAD_COUNT 64
 // #define NIAGARA_COPY_BUFFER_BUFFER_COUNT 3
+
+enum class ENiagaraDrawIndirectArgGenTaskFlags : uint32
+{
+	None = 0,
+	UseCulledCounts = 1 << 0,
+	InstancedStereo = 1 << 1,
+	PostOpaque = 1 << 2,
+};
+ENUM_CLASS_FLAGS(ENiagaraDrawIndirectArgGenTaskFlags);
 
 /**
 * Task info when generating draw indirect frame buffer.
@@ -25,29 +34,16 @@ NiagaraDrawIndirect.h: Niagara shader to generate the draw indirect args for Nia
 */
 struct FNiagaraDrawIndirectArgGenTaskInfo
 {
-	enum Flags : uint32
-	{
-		Flag_UseCulledCounts = 1 << 0,
-		Flag_InstancedStereo = 1 << 1,
-	};
-
-	FNiagaraDrawIndirectArgGenTaskInfo(uint32 InInstanceCountBufferOffset, uint32 InNumIndicesPerInstance, uint32 InStartIndexLocation,
-		bool bInIsInstancedStereo, bool bInUseCulledCounts)
-		: InstanceCountBufferOffset(InInstanceCountBufferOffset)
+	explicit FNiagaraDrawIndirectArgGenTaskInfo(uint32 InInstanceCountBufferOffset, uint32 InNumIndicesPerInstance, uint32 InStartIndexLocation, ENiagaraDrawIndirectArgGenTaskFlags InFlags)
+		: IndirectArgsBufferOffset(INDEX_NONE)
+		, InstanceCountBufferOffset(InInstanceCountBufferOffset)
 		, NumIndicesPerInstance(InNumIndicesPerInstance)
 		, StartIndexLocation(InStartIndexLocation)
+		, Flags((uint32)InFlags)
 	{
-		Flags = 0;
-		if (bInUseCulledCounts)
-		{
-			Flags |= Flag_UseCulledCounts;
-		}
-		if (bInIsInstancedStereo)
-		{
-			Flags |= Flag_InstancedStereo;
-		}
 	}
 
+	uint32 IndirectArgsBufferOffset;	// Ignored in hash / comparison since we can de-duplicate the rest
 	uint32 InstanceCountBufferOffset;
 	uint32 NumIndicesPerInstance; // When -1 the counter needs to be reset to 0.
 	uint32 StartIndexLocation;

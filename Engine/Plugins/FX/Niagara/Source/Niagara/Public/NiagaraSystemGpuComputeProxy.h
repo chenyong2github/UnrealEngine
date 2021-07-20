@@ -10,19 +10,6 @@ struct FNiagaraComputeExecutionContext;
 class FNiagaraGPUInstanceCountManager;
 class FNiagaraGPUSystemTick;
 
-namespace ENiagaraGpuComputeTickStage
-{
-	enum Type
-	{
-		PreInitViews,
-		PostInitViews,
-		PostOpaqueRender,
-		Max,
-		First = PreInitViews,
-		Last = PostOpaqueRender,
-	};
-};
-
 class FNiagaraSystemGpuComputeProxy
 {
 	friend class NiagaraEmitterInstanceBatcher;

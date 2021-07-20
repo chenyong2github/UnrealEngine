@@ -199,12 +199,16 @@ NiagaraEmitterInstanceBatcher::NiagaraEmitterInstanceBatcher(ERHIFeatureLevel::T
 	// The registration also involves defining the list of flags possibly used in GPUSortManager::AddTask()
 	if (GPUSortManager)
 	{
-		GPUSortManager->Register(FGPUSortKeyGenDelegate::CreateLambda([this](FRHICommandListImmediate& RHICmdList, int32 BatchId, int32 NumElementsInBatch, EGPUSortFlags Flags, FRHIUnorderedAccessView* KeysUAV, FRHIUnorderedAccessView* ValuesUAV)
-		{
-			GenerateSortKeys(RHICmdList, BatchId, NumElementsInBatch, Flags, KeysUAV, ValuesUAV);
-		}),
-		EGPUSortFlags::AnyKeyPrecision | EGPUSortFlags::KeyGenAfterPreRender | EGPUSortFlags::AnySortLocation | EGPUSortFlags::ValuesAsInt32,
-		Name);
+		GPUSortManager->Register(
+			FGPUSortKeyGenDelegate::CreateLambda(
+				[this](FRHICommandListImmediate& RHICmdList, int32 BatchId, int32 NumElementsInBatch, EGPUSortFlags Flags, FRHIUnorderedAccessView* KeysUAV, FRHIUnorderedAccessView* ValuesUAV)
+				{
+					GenerateSortKeys(RHICmdList, BatchId, NumElementsInBatch, Flags, KeysUAV, ValuesUAV);
+				}
+			),
+			EGPUSortFlags::AnyKeyPrecision | EGPUSortFlags::AnyKeyGenLocation | EGPUSortFlags::AnySortLocation | EGPUSortFlags::ValuesAsInt32,
+			Name
+		);
 
 		if (FNiagaraUtilities::AllowComputeShaders(GetShaderPlatform()))
 		{
@@ -212,7 +216,7 @@ NiagaraEmitterInstanceBatcher::NiagaraEmitterInstanceBatcher(ERHIFeatureLevel::T
 			GPUSortManager->PostPreRenderEvent.AddLambda(
 				[this](FRHICommandListImmediate& RHICmdList)
 				{
-					GPUInstanceCounterManager.UpdateDrawIndirectBuffers(*this, RHICmdList, FeatureLevel);
+					GPUInstanceCounterManager.UpdateDrawIndirectBuffers(*this, RHICmdList, FeatureLevel, ENiagaraGPUCountUpdatePhase::PreOpaque);
 #if WITH_MGPU
 					// For PreInitViews we actually need to broadcast here and not in ExecuteAll since
 					// this is the last place the instance count buffer is written to.
@@ -221,6 +225,14 @@ NiagaraEmitterInstanceBatcher::NiagaraEmitterInstanceBatcher(ERHIFeatureLevel::T
 						BroadcastTemporalEffect(RHICmdList);
 					}
 #endif // WITH_MGPU
+				}
+			);
+
+			GPUSortManager->PostPostRenderEvent.AddLambda
+			(
+				[this](FRHICommandListImmediate& RHICmdList)
+				{
+					GPUInstanceCounterManager.UpdateDrawIndirectBuffers(*this, RHICmdList, FeatureLevel, ENiagaraGPUCountUpdatePhase::PostOpaque);
 				}
 			);
 		}
@@ -1145,6 +1157,7 @@ void NiagaraEmitterInstanceBatcher::PrepareTicksForProxy(FRHICommandListImmediat
 			FNiagaraDataBuffer* FinalBuffer = ComputeContext->GetPrevDataBuffer();
 			FinalBuffer->GPUInstanceCountBufferOffset = ComputeContext->CountOffset_RT;
 			FinalBuffer->SetNumInstances(ComputeContext->CurrentNumInstances_RT);
+			FinalBuffer->SetGPUDataReadyStage(ComputeProxy->GetComputeTickStage());
 			ComputeContext->SetDataToRender(FinalBuffer);
 #if WITH_MGPU
 			AddTemporalEffectBuffers(FinalBuffer);
@@ -1158,6 +1171,7 @@ void NiagaraEmitterInstanceBatcher::PrepareTicksForProxy(FRHICommandListImmediat
 			FNiagaraDataBuffer* FinalBuffer = ComputeContext->GetPrevDataBuffer();
 			FinalBuffer->GPUInstanceCountBufferOffset = ComputeContext->CountOffset_RT;
 			FinalBuffer->SetNumInstances(ComputeContext->CurrentNumInstances_RT);
+			FinalBuffer->SetGPUDataReadyStage(ComputeProxy->GetComputeTickStage());
 			ComputeContext->SetTranslucentDataToRender(FinalBuffer);
 		}
 	}
@@ -1872,9 +1886,6 @@ bool NiagaraEmitterInstanceBatcher::AddSortedGPUSimulation(FNiagaraGPUSortInfo& 
 
 void NiagaraEmitterInstanceBatcher::GenerateSortKeys(FRHICommandListImmediate& RHICmdList, int32 BatchId, int32 NumElementsInBatch, EGPUSortFlags Flags, FRHIUnorderedAccessView* KeysUAV, FRHIUnorderedAccessView* ValuesUAV)
 {
-	// Currently all Niagara KeyGen must execute after PreRender() - in between PreInitViews() and PostRenderOpaque(), when the GPU simulation are possibly ticked.
-	check(EnumHasAnyFlags(Flags, EGPUSortFlags::KeyGenAfterPreRender));
-
 	const FGPUSortManager::FKeyGenInfo KeyGenInfo((uint32)NumElementsInBatch, EnumHasAnyFlags(Flags, EGPUSortFlags::HighPrecisionKeys));
 
 	FNiagaraSortKeyGenCS::FPermutationDomain SortPermutationVector;

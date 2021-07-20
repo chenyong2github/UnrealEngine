@@ -30,9 +30,9 @@ void MainCS(uint TaskIndex : SV_DispatchThreadID)
 
 	if (TaskIndex < NumArgGenTasks)
 	{
-		const uint ArgOffset = NIAGARA_DRAW_INDIRECT_ARGS_SIZE * TaskIndex;
 		const uint InfoOffset = (ArgGenTaskOffset + TaskIndex) * NIAGARA_DRAW_INDIRECT_TASK_INFO_SIZE;
-		const uint Flags = TaskInfos[InfoOffset + 3];
+		const uint ArgOffset = TaskInfos[InfoOffset + 0];
+		const uint Flags = TaskInfos[InfoOffset + 4];
 		const bool bUseCulledCounts = (Flags & FLAG_USE_CULLED_COUNTS) != 0;
 		const bool bInstancedStereo = (Flags & FLAG_INSTANCED_STEREO) != 0;
 
@@ -40,11 +40,11 @@ void MainCS(uint TaskIndex : SV_DispatchThreadID)
 		BRANCH
 		if (bUseCulledCounts)
 		{
-			InstanceCount = CulledInstanceCounts[TaskInfos[InfoOffset + 0]];
+			InstanceCount = CulledInstanceCounts[TaskInfos[InfoOffset + 1]];
 		}
 		else
 		{
-			InstanceCount = RWInstanceCounts[TaskInfos[InfoOffset + 0]];
+			InstanceCount = RWInstanceCounts[TaskInfos[InfoOffset + 1]];
 		}
 
 		if (bInstancedStereo)
@@ -52,9 +52,9 @@ void MainCS(uint TaskIndex : SV_DispatchThreadID)
 			InstanceCount *= 2;
 		}
 
-		RWDrawIndirectArgs[ArgOffset + 0] = TaskInfos[InfoOffset + 1]; // NumIndicesPerInstance
+		RWDrawIndirectArgs[ArgOffset + 0] = TaskInfos[InfoOffset + 2]; // NumIndicesPerInstance
 		RWDrawIndirectArgs[ArgOffset + 1] = InstanceCount;
-		RWDrawIndirectArgs[ArgOffset + 2] = TaskInfos[InfoOffset + 2]; // StartIndexLocation
+		RWDrawIndirectArgs[ArgOffset + 2] = TaskInfos[InfoOffset + 3]; // StartIndexLocation
 		RWDrawIndirectArgs[ArgOffset + 3] = 0; // BaseVertexLocation
 		RWDrawIndirectArgs[ArgOffset + 4] = 0; // StartInstanceLocation
 	}
@@ -86,7 +86,7 @@ void MainCS(uint TaskIndex : SV_DispatchThreadID)
 		if (TaskIndex < NumTotalTasks && TaskIndex >= NumArgGenTasks)
 		{
 			const uint InfoOffset = (ArgGenTaskOffset + NumArgGenTasks) * NIAGARA_DRAW_INDIRECT_TASK_INFO_SIZE + (TaskIndex - NumArgGenTasks);
-			RWInstanceCounts[TaskInfos[InfoOffset + 0]] = 0;
+			RWInstanceCounts[TaskInfos[InfoOffset]] = 0;
 		}
 #endif
 }
@@ -100,6 +100,6 @@ void ResetCountsCS(uint TaskIndex : SV_DispatchThreadID)
 	if (TaskIndex < NumInstanceCountClearTasks)
 	{
 		const uint InfoOffset = (ArgGenTaskOffset + NumArgGenTasks) * NIAGARA_DRAW_INDIRECT_TASK_INFO_SIZE + (TaskIndex);
-		RWInstanceCounts[TaskInfos[InfoOffset + 0]] = 0;
+		RWInstanceCounts[TaskInfos[InfoOffset]] = 0;
 	}
 }

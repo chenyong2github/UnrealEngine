@@ -43,6 +43,7 @@ protected:
 		class FNiagaraDataBuffer*		SourceParticleData = nullptr;
 
 		bool							bHasTranslucentMaterials = false;
+		bool							bAllTranslucentMaterials = false;
 		bool							bSortCullOnGpu = false;
 		bool							bNeedsSort = false;
 		bool							bNeedsCull = false;
@@ -111,6 +112,7 @@ protected:
 	FNiagaraMeshUniformBufferRef CreatePerViewUniformBuffer(FParticleMeshRenderData& ParticleMeshRenderData, const FSceneView& View, const FMeshData& MeshData, const FNiagaraSceneProxy& SceneProxy) const;
 
 	void CreateMeshBatchForSection(
+		const FParticleMeshRenderData& ParticleMeshRenderData,
 		FMeshBatch& MeshBatch,
 		FVertexFactory& VertexFactory,
 		FMaterialRenderProxy& MaterialProxy,
@@ -123,8 +125,7 @@ protected:
 		uint32 NumInstances,
 		uint32 GPUCountBufferOffset,
 		bool bIsWireframe,
-		bool bIsInstancedStereo,
-		bool bDoGPUCulling
+		bool bIsInstancedStereo
 	) const;
 
 private:
