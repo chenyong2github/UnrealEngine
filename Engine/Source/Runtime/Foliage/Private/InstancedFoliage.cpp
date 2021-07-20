@@ -5157,7 +5157,7 @@ float AInstancedFoliageActor::InternalTakeRadialDamage(float Damage, struct FRad
 	return Damage;
 }
 
-TScriptInterface<ISMInstanceManager> AInstancedFoliageActor::GetSMInstanceManager(const FSMInstanceId& InstanceId)
+ISMInstanceManager* AInstancedFoliageActor::GetSMInstanceManager(const FSMInstanceId& InstanceId)
 {
 #if WITH_EDITOR
 	if (const FFoliageInfo* FoliageInfo = GetFoliageInfoForSMInstance(InstanceId))

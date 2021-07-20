@@ -34,7 +34,7 @@ bool USMInstanceElementEditorWorldInterface::DeleteElements(TArrayView<const FTy
 	if (SMInstancesToDelete.Num() > 0)
 	{
 		// Batch by the ISM manager
-		TMap<TScriptInterface<ISMInstanceManager>, TArray<FSMInstanceId>> BatchedInstancesToDelete;
+		TMap<ISMInstanceManager*, TArray<FSMInstanceId>> BatchedInstancesToDelete;
 		for (const FSMInstanceManager& SMInstance : SMInstancesToDelete)
 		{
 			if (SMInstance.CanDeleteSMInstance())
@@ -47,7 +47,7 @@ bool USMInstanceElementEditorWorldInterface::DeleteElements(TArrayView<const FTy
 		bool bDidDelete = false;
 
 		FTypedElementListLegacySyncScopedBatch LegacySyncBatch(*InSelectionSet->GetElementList());
-		for (TTuple<TScriptInterface<ISMInstanceManager>, TArray<FSMInstanceId>>& BatchedInstancesToDeletePair : BatchedInstancesToDelete)
+		for (TTuple<ISMInstanceManager*, TArray<FSMInstanceId>>& BatchedInstancesToDeletePair : BatchedInstancesToDelete)
 		{
 			for (const FSMInstanceId& InstanceId : BatchedInstancesToDeletePair.Value)
 			{
@@ -81,7 +81,7 @@ FTypedElementHandle USMInstanceElementEditorWorldInterface::DuplicateElement(con
 
 				if (!bOffsetIsZero)
 				{
-					const TScriptInterface<ISMInstanceManager>& InstanceManager = SMInstance.GetInstanceManager();
+					ISMInstanceManager* InstanceManager = SMInstance.GetInstanceManager();
 
 					FTransform NewInstanceTransform = FTransform::Identity;
 					InstanceManager->GetSMInstanceTransform(NewInstanceId, NewInstanceTransform, /*bWorldSpace*/false);
@@ -104,7 +104,7 @@ void USMInstanceElementEditorWorldInterface::DuplicateElements(TArrayView<const 
 	if (SMInstancesToDuplicate.Num() > 0)
 	{
 		// Batch by the ISM manager
-		TMap<TScriptInterface<ISMInstanceManager>, TArray<FSMInstanceId>> BatchedInstancesToDuplicate;
+		TMap<ISMInstanceManager*, TArray<FSMInstanceId>> BatchedInstancesToDuplicate;
 		for (const FSMInstanceManager& SMInstance : SMInstancesToDuplicate)
 		{
 			if (SMInstance.CanDuplicateSMInstance())
@@ -114,7 +114,7 @@ void USMInstanceElementEditorWorldInterface::DuplicateElements(TArrayView<const 
 			}
 		}
 
-		for (const TTuple<TScriptInterface<ISMInstanceManager>, TArray<FSMInstanceId>>& BatchedInstancesToDuplicatePair : BatchedInstancesToDuplicate)
+		for (const TTuple<ISMInstanceManager*, TArray<FSMInstanceId>>& BatchedInstancesToDuplicatePair : BatchedInstancesToDuplicate)
 		{
 			TArray<FSMInstanceId> NewInstanceIds;
 			if (BatchedInstancesToDuplicatePair.Key->DuplicateSMInstances(BatchedInstancesToDuplicatePair.Value, NewInstanceIds))

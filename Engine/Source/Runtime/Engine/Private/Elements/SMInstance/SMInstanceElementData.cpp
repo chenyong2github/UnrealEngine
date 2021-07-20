@@ -22,7 +22,7 @@ bool SMInstanceElementsEnabled()
 	return GEnableSMInstanceElements != 0;
 }
 
-TScriptInterface<ISMInstanceManager> GetSMInstanceManager(const FSMInstanceId& InstanceId)
+ISMInstanceManager* GetSMInstanceManager(const FSMInstanceId& InstanceId)
 {
 	if (!InstanceId)
 	{
@@ -40,7 +40,7 @@ TScriptInterface<ISMInstanceManager> GetSMInstanceManager(const FSMInstanceId& I
 		// If the owner actor is an instance manager, then just use that
 		if (ISMInstanceManager* InstanceManager = Cast<ISMInstanceManager>(OwnerActor))
 		{
-			return OwnerActor;
+			return InstanceManager;
 		}
 	}
 
