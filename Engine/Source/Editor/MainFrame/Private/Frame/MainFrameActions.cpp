@@ -172,6 +172,9 @@ void FMainFrameCommands::RegisterCommands()
 												FCanExecuteAction(),
 												FIsActionChecked::CreateStatic( &FMainFrameActionCallbacks::OpenSlateApp_IsChecked, FName("SessionFrontend" ) ) );
 
+	UI_COMMAND(OpenMarketplace, "Open Marketplace", "Opens the Marketplace", EUserInterfaceActionType::Button, FInputChord());
+	ActionList->MapAction(OpenMarketplace, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::OpenMarketplace));
+
 	UI_COMMAND(VisitOnlineLearning, "Online Learning...", "Learn Unreal Engine for free with easy-to-follow video courses and guided learning paths.", EUserInterfaceActionType::Button, FInputChord());
 	ActionList->MapAction(VisitOnlineLearning, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::VisitOnlineLearning));
 
@@ -307,6 +310,11 @@ void FMainFrameActionCallbacks::CacheProjectNames()
 {
 	// The switch project menu is filled with recently opened project files
 	RecentProjects = GetDefault<UEditorSettings>()->RecentlyOpenedProjectFiles;
+}
+
+void FMainFrameActionCallbacks::OpenMarketplace()
+{
+	FUnrealEdMisc::Get().OpenMarketplace();
 }
 
 void FMainFrameActionCallbacks::NewProject( bool bAllowProjectOpening, bool bAllowProjectCreate )
