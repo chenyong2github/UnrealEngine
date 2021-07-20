@@ -59,7 +59,7 @@ FRigUnit_CollectionNameSearch_Execute()
 	}
 
 	int32 CurrentHierarchyHash = Context.Hierarchy->GetTopologyVersion() * 17;
-	CurrentHierarchyHash += GetTypeHash(PartialName.ToString());
+	CurrentHierarchyHash += GetTypeHash(PartialName);
 	CurrentHierarchyHash += (int32)TypeToSearch * 8;
 
 	if (CachedHierarchyHash != CurrentHierarchyHash || CachedCollection.IsEmpty())
@@ -152,8 +152,8 @@ FRigUnit_CollectionReplaceItems_Execute()
 
 	int32 CurrentHierarchyHash = Context.Hierarchy->GetTopologyVersion() * 17;
 	CurrentHierarchyHash += GetTypeHash(Items);
-	CurrentHierarchyHash += 12 * GetTypeHash(Old.ToString());
-	CurrentHierarchyHash += 13 * GetTypeHash(New.ToString());
+	CurrentHierarchyHash += 12 * GetTypeHash(Old);
+	CurrentHierarchyHash += 13 * GetTypeHash(New);
 	CurrentHierarchyHash += RemoveInvalidItems ? 14 : 0;
 
 	if (CachedHierarchyHash != CurrentHierarchyHash || CachedCollection.IsEmpty())
