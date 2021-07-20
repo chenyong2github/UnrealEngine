@@ -143,6 +143,7 @@ void FWindowsPlatformApplicationMisc::PumpMessages(bool bFromMainLoop)
 	{
 		if( !HasFocus )
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE("EditorIsInBackgroundSleep");
 			// Sleep for a bit to not eat up all CPU time.
 			FPlatformProcess::Sleep(0.005f);
 		}
