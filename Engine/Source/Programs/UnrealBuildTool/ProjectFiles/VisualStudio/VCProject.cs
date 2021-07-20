@@ -1217,9 +1217,9 @@ namespace UnrealBuildTool
 							VCProjectFileContent.AppendLine("      <AdditionalIncludeDirectories>$(NMakeIncludeSearchPath);{0}</AdditionalIncludeDirectories>", IncludeSearchPaths);
 							VCProjectFileContent.AppendLine("      <ForcedIncludeFiles>$(NMakeForcedIncludes);{0}</ForcedIncludeFiles>", ForceIncludePaths);
 
-							if (BuildEnvironment.PchFile != null && BuildEnvironment.PchIncludeFile != null)
+							if (BuildEnvironment.PchIncludeFile != null)
 							{
-								VCProjectFileContent.AppendLine("      <AdditionalOptions>$(AdditionalOptions);/Yu&quot;{0}&quot; /Fp&quot;{1}&quot;</AdditionalOptions>", BuildEnvironment.PchFile, BuildEnvironment.PchIncludeFile);
+								VCProjectFileContent.AppendLine("      <AdditionalOptions>$(AdditionalOptions) /Yu&quot;{0}&quot;</AdditionalOptions>", BuildEnvironment.PchIncludeFile);
 							}
 						}
 						VCProjectFileContent.AppendLine("    </{0}>", VCFileType);

@@ -669,7 +669,7 @@ namespace UnrealBuildTool
 			CPPOutput Output;
 			if (ToolChain == null)
 			{
-				Output = GetDefaultPchOutput(WrapperLocation);
+				Output = new CPPOutput();
 			}
 			else
 			{
@@ -709,7 +709,7 @@ namespace UnrealBuildTool
 				CPPOutput Output;
 				if (ToolChain == null)
 				{
-					Output = GetDefaultPchOutput(WrapperLocation);
+					Output = new CPPOutput();
 				}
 				else
 				{
@@ -719,18 +719,6 @@ namespace UnrealBuildTool
 				Template.Instances.Add(Instance);
 			}
 			return Instance;
-		}
-
-		/// <summary>
-		/// Gets a default PCH output file when using intellisense. Saves having to construct every toolchain.
-		/// </summary>
-		/// <param name="PchIncludeFilename"></param>
-		/// <returns></returns>
-		static CPPOutput GetDefaultPchOutput(FileReference PchIncludeFilename)
-		{
-			CPPOutput Output = new CPPOutput();
-			Output.PrecompiledHeaderFile = FileItem.GetItemByFileReference(PchIncludeFilename.ChangeExtension(".pch"));
-			return Output;
 		}
 
 		/// <summary>
