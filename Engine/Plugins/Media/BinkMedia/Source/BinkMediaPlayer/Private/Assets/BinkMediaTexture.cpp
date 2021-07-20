@@ -143,5 +143,9 @@ void UBinkMediaTexture::HandleMediaPlayerMediaChanged()
 
 FTextureResource* UBinkMediaTexture::CreateResource() 
 { 
+	if (CachedDimensions.X == 0 || CachedDimensions.Y == 0)
+	{
+		return nullptr;
+	}
 	return new FBinkMediaTextureResource(this, PixelFormat); 
 }
