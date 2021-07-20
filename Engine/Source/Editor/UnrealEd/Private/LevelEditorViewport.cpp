@@ -99,8 +99,6 @@
 DEFINE_LOG_CATEGORY(LogEditorViewport);
 
 #define LOCTEXT_NAMESPACE "LevelEditorViewportClient"
-PRAGMA_DISABLE_OPTIMIZATION
-
 const FLevelViewportActorLock FLevelViewportActorLock::None(nullptr);
 
 TArray< TWeakObjectPtr< AActor > > FLevelEditorViewportClient::DropPreviewActors;
@@ -4984,4 +4982,3 @@ bool FLevelEditorViewportClient::GetPivotForOrbit(FVector& Pivot) const
 }
 
 #undef LOCTEXT_NAMESPACE
-PRAGMA_ENABLE_OPTIMIZATION
