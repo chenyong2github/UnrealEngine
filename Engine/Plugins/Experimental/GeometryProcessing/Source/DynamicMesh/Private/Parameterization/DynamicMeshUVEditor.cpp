@@ -63,7 +63,13 @@ void FDynamicMeshUVEditor::ResetUVs()
 	}
 }
 
-
+void FDynamicMeshUVEditor::ResetUVs(const TArray<int32>& Triangles)
+{
+	if (ensure(UVOverlay))
+	{
+		UVOverlay->ClearElements(Triangles);
+	}
+}
 
 void FDynamicMeshUVEditor::TransformUVElements(const TArray<int32>& ElementIDs, TFunctionRef<FVector2f(const FVector2f&)> TransformFunc)
 {
@@ -85,6 +91,8 @@ void InternalSetPerTriangleUVs(EnumerableType TriangleIDs, const FDynamicMesh3* 
 	TMap<int32, int32> BaseToOverlayVIDMap;
 	TArray<int32> NewUVIndices;
 
+	UVOverlay->ClearElements(TriangleIDs);
+	
 	for (int32 TriangleID : TriangleIDs)
 	{
 		FIndex3i MeshTri = Mesh->GetTriangle(TriangleID);
@@ -140,6 +148,8 @@ void FDynamicMeshUVEditor::SetTriangleUVsFromPlanarProjection(
 {
 	if (ensure(UVOverlay) == false) return;
 	if (!Triangles.Num()) return;
+
+	ResetUVs(Triangles);
 
 	double ScaleX = (FMathd::Abs(Dimensions.X) > FMathf::ZeroTolerance) ? (1.0 / Dimensions.X) : 1.0;
 	double ScaleY = (FMathd::Abs(Dimensions.Y) > FMathf::ZeroTolerance) ? (1.0 / Dimensions.Y) : 1.0;
@@ -241,6 +251,8 @@ bool FDynamicMeshUVEditor::SetTriangleUVsFromExpMap(const TArray<int32>& Triangl
 	if (ensure(UVOverlay) == false) return false;
 	if (Triangles.Num() == 0) return false;
 
+	ResetUVs(Triangles);
+
 	FDynamicSubmesh3 SubmeshCalc(Mesh, Triangles, (int)EMeshComponents::None, false);
 	FDynamicMesh3& Submesh = SubmeshCalc.GetSubmesh();
 	FMeshNormals::QuickComputeVertexNormals(Submesh);
@@ -307,6 +319,8 @@ bool FDynamicMeshUVEditor::SetTriangleUVsFromExpMap(
 {
 	if (ensure(UVOverlay) == false) return false;
 	if (Triangles.Num() == 0) return false;
+
+	ResetUVs(Triangles);
 
 	double ScaleX = (FMathd::Abs(Dimensions.X) > FMathf::ZeroTolerance) ? (1.0 / Dimensions.X) : 1.0;
 	double ScaleY = (FMathd::Abs(Dimensions.Y) > FMathf::ZeroTolerance) ? (1.0 / Dimensions.Y) : 1.0;
@@ -423,6 +437,8 @@ bool FDynamicMeshUVEditor::SetTriangleUVsFromFreeBoundaryConformal(const TArray<
 {
 	if (ensure(UVOverlay) == false) return false;
 	if (Triangles.Num() == 0) return false;
+
+	ResetUVs(Triangles);
 
 	FDynamicMesh3 Submesh(EMeshComponents::None);
 	TMap<int32, int32> BaseToSubmeshV;
@@ -770,6 +786,8 @@ void FDynamicMeshUVEditor::SetTriangleUVsFromBoxProjection(
 	int32 NumTriangles = Triangles.Num();
 	if (!NumTriangles) return;
 
+	ResetUVs(Triangles);
+
 	const int Minor1s[3] = { 1, 0, 0 };
 	const int Minor2s[3] = { 2, 2, 1 };
 	const int Minor1Flip[3] = { -1, 1, 1 };
@@ -873,6 +891,8 @@ void FDynamicMeshUVEditor::SetTriangleUVsFromCylinderProjection(
 	if (ensure(UVOverlay) == false) return;
 	int32 NumTriangles = Triangles.Num();
 	if (!NumTriangles) return;
+
+	ResetUVs(Triangles);
 
 	const int Minor1s[3] = { 1, 0, 0 };
 	const int Minor2s[3] = { 2, 2, 1 };

@@ -23,12 +23,13 @@ struct DYNAMICMESH_API FUVEditResult
  */
 class DYNAMICMESH_API FDynamicMeshUVEditor
 {
-public:
+private:
 	/** The mesh we will be editing */
 	FDynamicMesh3* Mesh = nullptr;
 	/** The UV Overlay we will be editing */
 	FDynamicMeshUVOverlay* UVOverlay = nullptr;
 
+public:
 	/**
 	 * Construct UV Editor for a UV Overlay of the given Mesh.
 	 * @param UVLayerIndex index of target UV layer
@@ -47,11 +48,15 @@ public:
 	 */
 	void CreateUVLayer(int32 UVLayerIndex);
 
-
 	/**
-	 * Clear UVs on active layer
+	 * Clear UVs for all triangles on active layer
 	 */
 	void ResetUVs();
+
+	/**
+	* Clear UVs for given triangles on active layer
+	*/
+	void ResetUVs(const TArray<int32>& Triangles);
 
 	/**
 	 * Create new UV island for each Triangle, by planar projection onto plane of Triangle. No transforms/etc are applied.
@@ -151,8 +156,6 @@ public:
 	 */
 	bool QuickPack(int32 TargetTextureResolution = 512, float GutterSize = 1.0f);
 
-
-public:
 
 	//
 	// Utility functions that could maybe go elsewhere but are mainly useful in parameterization context

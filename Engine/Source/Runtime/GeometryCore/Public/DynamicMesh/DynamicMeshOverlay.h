@@ -204,8 +204,18 @@ public:
 		checkSlow(IsCompact());
 	}
 
-	/** Discard current set of elements, but keep triangles */
+	/** Discard all elements. */
 	void ClearElements();
+
+	/** Discard elements for given triangles. */
+	template <typename EnumerableIntType>
+	void ClearElements(const EnumerableIntType& Triangles)
+	{
+		for (int32 TriID : Triangles)
+		{
+			UnsetTriangle(TriID);
+		}
+	}
 
 	/** @return the number of in-use Elements in the overlay */
 	int ElementCount() const { return (int)ElementsRefCounts.GetCount(); }

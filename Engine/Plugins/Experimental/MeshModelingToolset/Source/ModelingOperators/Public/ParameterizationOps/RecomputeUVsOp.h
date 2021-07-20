@@ -75,9 +75,6 @@ public:
 
 protected:
 
-	bool ComputeUVs_ExpMap(FDynamicMesh3& InOutMesh, TFunction<bool(float)>& Interrupter, float GlobalScale = 1.0f);
-	bool ComputeUVs_ConformalFreeBoundary(FDynamicMesh3& InOutMesh, TFunction<bool(float)>& Interrupter, float GlobalScale = 1.0f);
-
 	void NormalizeUVAreas(const FDynamicMesh3& Mesh, FDynamicMeshUVOverlay* Overlay, float GlobalScale = 1.0f);
 };
 
