@@ -1303,16 +1303,6 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 		}));
 	}
 
-	UToolMenu* SettingsToolBar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.MarketplaceToolBar", NAME_None, EMultiBoxType::SlimHorizontalToolBar);
-	SettingsToolBar->StyleName = "AssetEditorToolbar";
-	{
-		FToolMenuSection& SettingsSection = SettingsToolBar->AddSection("Settings");
-		if (FLauncherPlatformModule::Get()->CanOpenLauncher(true))
-		{
-			SettingsSection.AddEntry(FToolMenuEntry::InitToolBarButton(FLevelEditorCommands::Get().OpenMarketplace, LOCTEXT("Marketplace_Override", "Marketplace"), TAttribute<FText>(), TAttribute<FSlateIcon>(), "LevelToolbarMarketplace"));
-		}
-	}
-
 	UToolMenu* PlayToolBar = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.PlayToolBar", NAME_None, EMultiBoxType::SlimHorizontalToolBar);
 	PlayToolBar->StyleName = "AssetEditorToolbar";
 	{
@@ -1881,7 +1871,10 @@ void FLevelEditorToolBar::RegisterContentMenu()
 	{
 		FToolMenuSection& Section = ContentMenu->FindOrAddSection("ExternalContent");
 		Section.InitSection("ExternalContent", LOCTEXT("ExternalContent_Label", "Get Content"), FToolMenuInsert());
-		Section.AddMenuEntry(FLevelEditorCommands::Get().OpenMarketplace);
+		if (FLauncherPlatformModule::Get()->CanOpenLauncher(true))
+		{
+			Section.AddMenuEntry(FLevelEditorCommands::Get().OpenMarketplace);
+		}
 	}
 #undef LOCTEXT_NAMESPACE
 }

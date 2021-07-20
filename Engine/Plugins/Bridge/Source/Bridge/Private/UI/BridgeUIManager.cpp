@@ -52,6 +52,7 @@ void FBridgeUIManagerImpl::SetupMenuItem()
 {
 	FBridgeStyle::SetIcon("Logo", "Logo80x80");
 	FBridgeStyle::SetIcon("ContextLogo", "Logo32x32");
+	FBridgeStyle::SetSVGIcon("MenuLogo", "QuixelBridgeB");
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(LEVELEDITOR_MODULE_NAME);
 	TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender);
 	ToolbarExtender->AddToolBarExtension("Settings", EExtensionHook::After, nullptr, FToolBarExtensionDelegate::CreateRaw(this, &FBridgeUIManagerImpl::FillToolbar));
@@ -74,10 +75,22 @@ void FBridgeUIManagerImpl::SetupMenuItem()
 	Section.AddMenuEntry("OpenBridgeTab",
 		LOCTEXT("OpenBridgeTab_Label", "Quixel Bridge"),
 		LOCTEXT("OpenBridgeTab_Desc", "Opens the Quixel Bridge."),
-		FSlateIcon(FBridgeStyle::GetStyleSetName(), "Bridge.Logo"),
+		FSlateIcon(FBridgeStyle::GetStyleSetName(), "Bridge.MenuLogo"),
 		FUIAction(FExecuteAction::CreateRaw(this, &FBridgeUIManagerImpl::CreateWIndow), FCanExecuteAction())
 	);
-	//Section.AddSeparator(NAME_None);
+
+	UToolMenu* WindowMenu = UToolMenus::Get()->ExtendMenu("MainFrame.MainMenu.Window");
+	FToolMenuSection* ContentSectionPtr = WindowMenu->FindSection("GetContent");
+	if (!ContentSectionPtr)
+	{
+		ContentSectionPtr = &WindowMenu->AddSection("GetContent", NSLOCTEXT("MainAppMenu", "GetContentHeader", "Get Content"));
+	}
+	ContentSectionPtr->AddMenuEntry("OpenBridgeTab",
+		LOCTEXT("OpenBridgeTab_Label", "Quixel Bridge"),
+		LOCTEXT("OpenBridgeTab_Desc", "Opens the Quixel Bridge."),
+		FSlateIcon(FBridgeStyle::GetStyleSetName(), "Bridge.MenuLogo"),
+		FUIAction(FExecuteAction::CreateRaw(this, &FBridgeUIManagerImpl::CreateWIndow), FCanExecuteAction())
+	);
 
 	//Adding Bridge entry to Content Browser context and New menu.
 	UToolMenu* ContextMenu = UToolMenus::Get()->ExtendMenu("ContentBrowser.AddNewContextMenu");
@@ -88,16 +101,11 @@ void FBridgeUIManagerImpl::SetupMenuItem()
 		"GetMegascans",
 		LOCTEXT("OpenBridgeTabText", "Add Quixel Content"),
 		LOCTEXT("GetBridgeTooltip", "Add Megascans and DHI assets to project."),
-		FSlateIcon(FBridgeStyle::GetStyleSetName(), "Bridge.Logo"),
+		FSlateIcon(FBridgeStyle::GetStyleSetName(), "Bridge.MenuLogo"),
 		FUIAction(FExecuteAction::CreateRaw(this, &FBridgeUIManagerImpl::CreateWIndow), FCanExecuteAction())
 	);
 
-	/*TSharedPtr<FExtender> NewMenuExtender = MakeShareable(new FExtender);
-	NewMenuExtender->AddMenuExtension("LevelEditor",
-		EExtensionHook::After,
-		NULL,
-		FMenuExtensionDelegate::CreateRaw(this, &FBridgeUIManagerImpl::AddPluginMenu));
-	LevelEditorModule.GetMenuExtensibilityManager()->AddExtender(NewMenuExtender);*/
+
 }
 
 void FBridgeUIManagerImpl::AddPluginMenu(FMenuBuilder& MenuBuilder)

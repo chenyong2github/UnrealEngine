@@ -15,7 +15,7 @@ public:
 	static FName GetContextName();
 
 	static void SetIcon(const FString& StyleName, const FString& ResourcePath);
-
+	static void SetSVGIcon(const FString& StyleName, const FString& ResourcePath);
 private:
 	static TUniquePtr<FSlateStyleSet> Create();
 	static TUniquePtr<FSlateStyleSet> MSStyleInstance;

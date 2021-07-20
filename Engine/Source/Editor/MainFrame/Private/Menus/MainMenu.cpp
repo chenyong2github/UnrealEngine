@@ -29,6 +29,7 @@
 #include "UndoHistoryModule.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "ITranslationEditor.h"
+#include "LauncherPlatformModule.h"
 
 #define LOCTEXT_NAMESPACE "MainFileMenu"
 
@@ -213,6 +214,17 @@ void FMainMenu::RegisterWindowMenu()
 			}
 		}
 	}));
+
+	// Get content section
+	{
+		if (FLauncherPlatformModule::Get()->CanOpenLauncher(true))
+		{
+			FToolMenuSection& Section = Menu->AddSection("GetContent", NSLOCTEXT("MainAppMenu", "GetContentHeader", "Get Content"));
+			Section.AddMenuEntry(FMainFrameCommands::Get().OpenMarketplace);
+		}
+		
+	}
+
 
 	// Layout section
 	{

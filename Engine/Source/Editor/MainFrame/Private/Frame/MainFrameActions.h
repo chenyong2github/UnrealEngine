@@ -49,6 +49,7 @@ public:
 	TSharedPtr< FUICommandInfo > OpenDebugView;
 	TSharedPtr< FUICommandInfo > OpenClassViewer;
 	TSharedPtr< FUICommandInfo > OpenWidgetReflector;
+	TSharedPtr< FUICommandInfo > OpenMarketplace;
 
 	TSharedPtr< FUICommandInfo > VisitOnlineLearning;
 	TSharedPtr< FUICommandInfo > VisitForums;
@@ -231,7 +232,8 @@ public:
 	/** Gathers all available projects the user can switch to from main menu */
 	static void CacheProjectNames();
 
-
+	/** Opens the marketplace */
+	static void OpenMarketplace();
 public:
 
 	// List of projects that the user can switch to.
