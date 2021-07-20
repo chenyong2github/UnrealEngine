@@ -187,7 +187,7 @@ struct FTextureAsyncCacheDerivedDataTask
 	virtual ~FTextureAsyncCacheDerivedDataTask() = default;
 	virtual void Finalize(bool& bOutFoundInCache, uint64& OutProcessedByteCount) = 0;
 	virtual EQueuedWorkPriority GetPriority() const = 0;
-	virtual bool SetPriority(EQueuedWorkPriority InQueuedWorkPriority) = 0;
+	virtual bool SetPriority(EQueuedWorkPriority QueuedWorkPriority) = 0;
 	virtual bool Cancel() = 0;
 	virtual void Wait() = 0;
 	virtual bool WaitWithTimeout(float TimeLimitSeconds) = 0;
@@ -228,9 +228,9 @@ public:
 		return FAsyncTask<FTextureCacheDerivedDataWorker>::GetPriority();
 	}
 
-	bool SetPriority(EQueuedWorkPriority InQueuedWorkPriority) final
+	bool SetPriority(EQueuedWorkPriority QueuedWorkPriority) final
 	{
-		return FAsyncTask<FTextureCacheDerivedDataWorker>::Reschedule(QueuedPool, InQueuedWorkPriority);
+		return FAsyncTask<FTextureCacheDerivedDataWorker>::Reschedule(QueuedPool, QueuedWorkPriority);
 	}
 
 	bool Cancel() final
@@ -256,5 +256,12 @@ public:
 private:
 	FQueuedThreadPool* QueuedPool;
 };
+
+FTextureAsyncCacheDerivedDataTask* CreateTextureBuildTask(
+	UTexture& Texture,
+	FTexturePlatformData& DerivedData,
+	const FTextureBuildSettings& Settings,
+	EQueuedWorkPriority Priority,
+	ETextureCacheFlags Flags);
 
 #endif // WITH_EDITOR
