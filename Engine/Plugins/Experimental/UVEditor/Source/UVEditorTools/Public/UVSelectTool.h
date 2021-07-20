@@ -63,7 +63,6 @@ public:
 	//~ TODO: Make this only visible in transform mode
 	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
 	bool bUpdatePreviewDuringDrag = true;
-
 };
 
 /**
@@ -108,6 +107,8 @@ protected:
 	virtual void GizmoTransformStarted(UTransformProxy* Proxy);
 	virtual void GizmoTransformEnded(UTransformProxy* Proxy);
 
+
+	virtual void ApplyGizmoTransform();
 	virtual void UpdateGizmo();
 	virtual void UpdateLivePreviewLines();
 
@@ -134,7 +135,11 @@ protected:
 	ULineSetComponent* LivePreviewLineSet = nullptr;
 
 	UE::Geometry::FFrame3d InitialGizmoFrame;
+	FTransform UnappliedGizmoTransform;
+	bool bGizmoTransformNeedsApplication = false;
+
 	TArray<int32> MovingVids;
+	TArray<int32> SelectedTids;
 	TArray<FVector3d> MovingVertOriginalPositions;
 	int32 SelectionTargetIndex;
 	TArray<int32> BoundaryEids;

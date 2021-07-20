@@ -200,6 +200,7 @@ void UUVSelectTool::OnSelectionChanged()
 
 	SelectionTargetIndex = -1;
 	MovingVids.Reset();
+	SelectedTids.Reset();
 	BoundaryEids.Reset();
 	if (!Selection.IsEmpty())
 	{
@@ -216,6 +217,7 @@ void UUVSelectTool::OnSelectionChanged()
 
 		// Note the selected vids
 		TSet<int32> VidSet;
+		TSet<int32> TidSet;
 		if (Selection.Type == FDynamicMeshSelection::EType::Triangle)
 		{
 			const FDynamicMesh3* LivePreviewMesh = Targets[SelectionTargetIndex]->AppliedCanonical.Get();
@@ -229,6 +231,11 @@ void UUVSelectTool::OnSelectionChanged()
 						VidSet.Add(TriVids[i]);
 						MovingVids.Add(TriVids[i]);
 					}
+				}
+				if (!TidSet.Contains(Tid))
+				{
+					TidSet.Add(Tid);
+					SelectedTids.Add(Tid);
 				}
 
 				// Gather the boundary edges in the live preview
@@ -258,6 +265,17 @@ void UUVSelectTool::OnSelectionChanged()
 					{
 						VidSet.Add(EdgeVids[i]);
 						MovingVids.Add(EdgeVids[i]);
+					}
+
+					TArray<int> TidOneRing;
+					Selection.Mesh->GetVertexOneRingTriangles(EdgeVids[i], TidOneRing);
+					for (int32 Tid : TidOneRing)
+					{
+						if (!TidSet.Contains(Tid))
+						{
+							TidSet.Add(Tid);
+							SelectedTids.Add(Tid);
+						}
 					}
 				}
 			}
@@ -327,33 +345,8 @@ void UUVSelectTool::GizmoTransformChanged(UTransformProxy* Proxy, FTransform Tra
 
 	if (!DeltaTransform.GetTranslation().IsNearlyZero() || !DeltaTransform.GetRotation().IsIdentity() || Transform.GetScale3D() != FVector::One())
 	{
-		FTransform3d TransformToApply(Transform);
-
-		// TODO: The division here is a bit of a hack. Properly-speaking, the scaling handles should act relative to
-		// gizmo size, not the visible space across which we drag, otherwise it becomes dependent on the units we
-		// use and our absolute distance from the object. Since our UV unwrap is scaled by 1000 to make it
-		// easier to zoom in and out without running into issues, the measure of the distance across which we typically
-		// drag the handles is too high to be convenient. Until we make the scaling invariant to units/distance from
-		// target, we use this hack.
-		TransformToApply.SetScale(FVector::One() + (Transform.GetScale3D() - FVector::One()) / 10);
-
-		const FDynamicMeshSelection& Selection = SelectionMechanic->GetCurrentSelection();
-
-		Targets[SelectionTargetIndex]->UnwrapPreview->PreviewMesh->DeferredEditMesh([&TransformToApply,  &Transform, this](FDynamicMesh3& MeshIn)
-		{
-			for (int32 i = 0; i < MovingVids.Num(); ++i)
-			{
-				MeshIn.SetVertex(MovingVids[i], TransformToApply.TransformPosition(MovingVertOriginalPositions[i]));
-			}
-		}, false);
-		Targets[SelectionTargetIndex]->UpdateUnwrapPreviewOverlay(&MovingVids);
-
-		SelectionMechanic->SetDrawnElementsTransform((FTransform)TransformToApply);
-
-		if (Settings->bUpdatePreviewDuringDrag)
-		{
-			Targets[SelectionTargetIndex]->UpdateAppliedPreviewFromUnwrapPreview(&MovingVids);
-		}
+		UnappliedGizmoTransform = Transform;
+		bGizmoTransformNeedsApplication = true;
 	}	
 }
 
@@ -364,6 +357,9 @@ void UUVSelectTool::GizmoTransformEnded(UTransformProxy* Proxy)
 	//ChangeTracker.BeginChange();
 	//ChangeTracker.SaveTriangles(MovingVids, true);
 
+	// One final attempt to apply transforms if OnTick hasn't happened yet
+	ApplyGizmoTransform();
+
 	if (Settings->bUpdatePreviewDuringDrag)
 	{
 		// Both previews must already be updated, so only need to update canonical
@@ -371,7 +367,7 @@ void UUVSelectTool::GizmoTransformEnded(UTransformProxy* Proxy)
 	}
 	else
 	{
-		Targets[SelectionTargetIndex]->UpdateAllFromUnwrapPreview(&MovingVids);
+		Targets[SelectionTargetIndex]->UpdateAllFromUnwrapPreview(&MovingVids, nullptr, &SelectedTids);
 	}
 
 	if (!AABBTrees[SelectionTargetIndex]->IsValid())
@@ -383,6 +379,40 @@ void UUVSelectTool::GizmoTransformEnded(UTransformProxy* Proxy)
 	SelectionMechanic->RebuildDrawnElements(TransformGizmo->GetGizmoTransform());
 }
 
+void UUVSelectTool::ApplyGizmoTransform()
+{
+	if (bGizmoTransformNeedsApplication)
+	{
+		FTransform3d TransformToApply(UnappliedGizmoTransform);
+
+		// TODO: The division here is a bit of a hack. Properly-speaking, the scaling handles should act relative to
+		// gizmo size, not the visible space across which we drag, otherwise it becomes dependent on the units we
+		// use and our absolute distance from the object. Since our UV unwrap is scaled by 1000 to make it
+		// easier to zoom in and out without running into issues, the measure of the distance across which we typically
+		// drag the handles is too high to be convenient. Until we make the scaling invariant to units/distance from
+		// target, we use this hack.
+		TransformToApply.SetScale(FVector::One() + (UnappliedGizmoTransform.GetScale3D() - FVector::One()) / 10);
+
+		Targets[SelectionTargetIndex]->UnwrapPreview->PreviewMesh->DeferredEditMesh([&TransformToApply, this](FDynamicMesh3& MeshIn)
+			{
+				for (int32 i = 0; i < MovingVids.Num(); ++i)
+				{
+					MeshIn.SetVertex(MovingVids[i], TransformToApply.TransformPosition(MovingVertOriginalPositions[i]));
+				}
+			}, false);
+		Targets[SelectionTargetIndex]->UpdateUnwrapPreviewOverlay(&MovingVids, nullptr, &SelectedTids);
+
+		SelectionMechanic->SetDrawnElementsTransform((FTransform)TransformToApply);
+
+		if (Settings->bUpdatePreviewDuringDrag)
+		{
+			Targets[SelectionTargetIndex]->UpdateAppliedPreviewFromUnwrapPreview(&MovingVids, nullptr, &SelectedTids);
+		}
+
+		bGizmoTransformNeedsApplication = false;
+	}
+}
+
 void UUVSelectTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	SelectionMechanic->Render(RenderAPI);
@@ -390,6 +420,7 @@ void UUVSelectTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 void UUVSelectTool::OnTick(float DeltaTime)
 {
+	ApplyGizmoTransform();
 }
 
 
