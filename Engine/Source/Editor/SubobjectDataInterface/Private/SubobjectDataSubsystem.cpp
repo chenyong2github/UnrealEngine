@@ -2046,9 +2046,9 @@ void USubobjectDataSubsystem::PasteSubobjects(const FSubobjectDataHandle& PasteT
 					const FSubobjectData* SelectedData = SelectedNode.GetSharedDataPtr().Get();
 
 					// Only scene components can be attached to when pasting
-					if (SelectedData && SelectedData->IsSceneComponent())
+					if (SelectedData && SelectedData->IsSceneComponent() && SelectedData->HasParent())
 					{
-						TargetParentHandle = SelectedData->GetHandle();
+						TargetParentHandle = SelectedData->GetParentHandle();
 						break;
 					}
 				}
