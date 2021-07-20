@@ -577,7 +577,7 @@ public:
 	/**
 	 * Adds a primitive to the shadow's subject list.
 	 */
-	void AddSubjectPrimitive(FPrimitiveSceneInfo* PrimitiveSceneInfo, TArray<FViewInfo>* ViewArray, ERHIFeatureLevel::Type FeatureLevel, bool bRecordShadowSubjectForMobileShading);
+	void AddSubjectPrimitive(FPrimitiveSceneInfo* PrimitiveSceneInfo, TArray<FViewInfo>* ViewArray, bool bRecordShadowSubjectForMobileShading);
 
 	uint64 AddSubjectPrimitive_AnyThread(
 		const FPrimitiveSceneInfoCompact& PrimitiveSceneInfoCompact,
@@ -591,7 +591,6 @@ public:
 	void FinalizeAddSubjectPrimitive(
 		struct FAddSubjectPrimitiveOp const& Op,
 		TArray<FViewInfo>* ViewArray,
-		ERHIFeatureLevel::Type FeatureLevel,
 		struct FFinalizeAddSubjectPrimitiveContext& Context);
 
 	/**
@@ -685,7 +684,7 @@ public:
 	const FPrimitiveSceneInfo* GetParentSceneInfo() const { return ParentSceneInfo; }
 
 	/** Creates a new view from the pool and caches it in ShadowDepthView for depth rendering. */
-	void SetupShadowDepthView(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer);
+	void SetupShadowDepthView(FSceneRenderer* SceneRenderer);
 
 	FShadowDepthType GetShadowDepthType() const 
 	{
@@ -770,7 +769,7 @@ private:
 	/**
 	* Modifies the passed in view for this shadow
 	*/
-	void ModifyViewForShadow(FRHICommandList& RHICmdList, FViewInfo* FoundView) const;
+	void ModifyViewForShadow(FViewInfo* FoundView) const;
 
 	friend class FVirtualShadowMapArray;
 	void BeginRenderView(FRDGBuilder& GraphBuilder, FScene* Scene);

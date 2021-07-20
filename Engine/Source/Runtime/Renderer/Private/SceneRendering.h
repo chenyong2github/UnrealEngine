@@ -2019,7 +2019,6 @@ protected:
 
 	/** Creates a per object projected shadow for the given interaction. */
 	void CreatePerObjectProjectedShadow(
-		FRHICommandListImmediate& RHICmdList,
 		FLightPrimitiveInteraction* Interaction,
 		bool bCreateTranslucentObjectShadow,
 		bool bCreateInsetObjectShadow,
@@ -2028,7 +2027,6 @@ protected:
 
 	/** Creates shadows for the given interaction. */
 	void SetupInteractionShadows(
-		FRHICommandListImmediate& RHICmdList,
 		FLightPrimitiveInteraction* Interaction,
 		FVisibleLightInfo& VisibleLightInfo,
 		bool bStaticSceneOnly,
@@ -2087,7 +2085,7 @@ protected:
 	static void GatherSimpleLights(const FSceneViewFamily& ViewFamily, const TArray<FViewInfo>& Views, FSimpleLightArray& SimpleLights);
 
 	/** Calculates projected shadow visibility. */
-	void InitProjectedShadowVisibility(FRHICommandListImmediate& RHICmdList);	
+	void InitProjectedShadowVisibility();
 
 	/** Gathers dynamic mesh elements for all shadows. */
 	void GatherShadowDynamicMeshElements(FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer, FInstanceCullingManager& InstanceCullingManager);
