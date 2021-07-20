@@ -54,16 +54,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, meta = (ShowOnlyInnerProperties), Category = "Kernel")
 	FComputeKernelDefinitionsSet DefinitionsSetOverrides;
 
-#if WITH_EDITOR
-	DECLARE_EVENT_OneParam(UComputeKernel, FShaderResetEvent, const UComputeKernel*);
-
-	/*
-	 * Delegate is invoked when the shader or shader input/output list is changed.
-	 * All priorly retrieved bind points are invalid after this signal is raised.
-	 */
-	FShaderResetEvent ShaderResetSignal;
-#endif
-
 protected:
 #if WITH_EDITOR
 	//~ Begin UObject Interface.

@@ -5,6 +5,7 @@
 #include "Actions/OptimusNodeGraphActions.h"
 #include "Actions/OptimusResourceActions.h"
 #include "Actions/OptimusVariableActions.h"
+#include "Containers/Queue.h"
 #include "OptimusActionStack.h"
 #include "OptimusDataTypeRegistry.h"
 #include "OptimusNodeGraph.h"
@@ -529,18 +530,21 @@ static void CollectNodes(
 
 bool UOptimusDeformer::Compile()
 {
+	int32 UpdateGraphIndex = -1;
 	const UOptimusNodeGraph* UpdateGraph = nullptr;
-	for (const UOptimusNodeGraph* NodeGraph: GetGraphs())
+	for (int32 GraphIndex = 0; GraphIndex < Graphs.Num(); ++GraphIndex)
 	{
+		const UOptimusNodeGraph* NodeGraph = Graphs[GraphIndex];
 		if (NodeGraph->GetGraphType() == EOptimusNodeGraphType::Update)
 		{
 			UpdateGraph = NodeGraph;
+			UpdateGraphIndex = GraphIndex;
 			break;
 		}
 	}
 	if (!UpdateGraph)
 	{
-		UE_LOG(LogOptimusDeveloper, Error, TEXT("No update graph found. Compilation aborted."));
+		CompileResultsDelegate.Broadcast(nullptr, nullptr, TEXT("No update graph found. Compilation aborted."));
 		return false;
 	}
 	
@@ -571,7 +575,7 @@ bool UOptimusDeformer::Compile()
 
 	if (TerminalNodes.IsEmpty())
 	{
-		UE_LOG(LogOptimusDeveloper, Warning, TEXT("No data interface terminal nodes found. Compilation aborted."));
+		CompileResultsDelegate.Broadcast(UpdateGraph, nullptr, TEXT("No data interface terminal nodes found. Compilation aborted."));
 		return false;
 	}
 
@@ -584,6 +588,8 @@ bool UOptimusDeformer::Compile()
 	KernelInvocations.Reset();
 	DataInterfaces.Reset();
 	GraphEdges.Reset();
+	CompilingKernelToGraph.Reset();
+	CompilingKernelToNode.Reset();
 
 	TArray<const UOptimusNode *> ConnectedNodes;
 	CollectNodes(UpdateGraph, TerminalNodes, ConnectedNodes);
@@ -645,6 +651,7 @@ bool UOptimusDeformer::Compile()
 	// Loop through all kernels, create a kernel source, and create a compute kernel for it.
 	struct FKernelWithDataBindings
 	{
+		int32 KernelIndex;
 		UComputeKernel *Kernel;
 		FOptimus_InterfaceBindingMap InputDataBindings;
 		FOptimus_InterfaceBindingMap OutputDataBindings;
@@ -657,19 +664,29 @@ bool UOptimusDeformer::Compile()
 		{
 			FKernelWithDataBindings BoundKernel;
 
+			BoundKernel.KernelIndex = -1;
+			for (int32 KernelIndex = 0; KernelIndex < UpdateGraph->Nodes.Num(); ++KernelIndex)
+			{
+				if (UpdateGraph->Nodes[KernelIndex] == Node)
+				{
+					BoundKernel.KernelIndex = KernelIndex;
+					break;
+				}
+			}
+
 			BoundKernel.Kernel = NewObject<UComputeKernel>(this, *KernelNode->KernelName);
 			
 			UComputeKernelSource *KernelSource = KernelNode->CreateComputeKernel(
 				BoundKernel.Kernel, NodeDataInterfaceMap, LinkDataInterfaceMap, BoundKernel.InputDataBindings, BoundKernel.OutputDataBindings);
 			if (!KernelSource)
 			{
-				UE_LOG(LogOptimusDeveloper, Warning, TEXT("Unable to create compute kernel from kernel node. Compilation aborted."));
+				CompileResultsDelegate.Broadcast(UpdateGraph, KernelNode, TEXT("Unable to create compute kernel from kernel node. Compilation aborted."));
 				return false;
 			}
 
 			if (BoundKernel.InputDataBindings.IsEmpty() || BoundKernel.OutputDataBindings.IsEmpty())
 			{
-				UE_LOG(LogOptimusDeveloper, Warning, TEXT("Kernel has either no input or output bindings. Compilation aborted."));
+				CompileResultsDelegate.Broadcast(UpdateGraph, KernelNode, TEXT("Kernel has either no input or output bindings. Compilation aborted."));
 				return false;
 			}
 			
@@ -692,6 +709,9 @@ bool UOptimusDeformer::Compile()
 	for (FKernelWithDataBindings& BoundKernel: BoundKernels)
 	{
 		KernelInvocations.Add(BoundKernel.Kernel);
+		
+		CompilingKernelToGraph.Add(UpdateGraphIndex);
+		CompilingKernelToNode.Add(BoundKernel.KernelIndex);
 	}
 
 	// Create the graph edges.
@@ -761,6 +781,34 @@ bool UOptimusDeformer::Compile()
 	UpdateResources();
 	
 	return true;
+}
+
+
+void UOptimusDeformer::OnKernelCompilationComplete(int32 InKernelIndex, const TArray<FString>& InCompileErrors)
+{
+	// Find the Optimus objects from the raw kernel index.
+	if (CompilingKernelToGraph.IsValidIndex(InKernelIndex) && CompilingKernelToNode.IsValidIndex(InKernelIndex))
+	{
+		const int32 GraphIndex = CompilingKernelToGraph[InKernelIndex];
+		const int32 NodeIndex = CompilingKernelToNode[InKernelIndex];
+		
+		if (ensure(GraphIndex < Graphs.Num()))
+		{
+			UOptimusNodeGraph const* Graph = Graphs[GraphIndex];
+			if (ensure(Graph != nullptr && NodeIndex < Graph->Nodes.Num()))
+			{
+				UOptimusNode* Node = Graph->Nodes[NodeIndex];
+				if (ensure(Cast<const UOptimusNode_ComputeKernel>(Node) != nullptr))
+				{				
+					// This is a compute kernel as expected so broadcast the compile errors.
+					for (FString const& CompileError : InCompileErrors)
+					{
+						CompileResultsDelegate.Broadcast(Graph, Node, CompileError);
+					}
+				}
+			}
+		}
+	}
 }
 
 

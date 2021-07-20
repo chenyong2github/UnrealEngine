@@ -805,7 +805,7 @@ FString UOptimusNode_ComputeKernel::GetWrappedShaderSource() const
 	else
 	{
 		TArray<FString> Lines;
-		Source.ParseIntoArray(Lines, TEXT("\n"));
+		Source.ParseIntoArray(Lines, TEXT("\n"), false);
 		
 		for (FString& Line: Lines)
 		{
@@ -818,8 +818,9 @@ FString UOptimusNode_ComputeKernel::GetWrappedShaderSource() const
 			"%s\n"
 			"{\n"
 			"   uint Index = DTid.x;\n"
+			"#line 1 \"%s\"\n"
 			"%s\n"
 			"}\n"
-			), *KernelFunc, *FString::Join(Lines, TEXT("\n")));
+			), *KernelFunc, *GetName(), *FString::Join(Lines, TEXT("\n")));
 	}
 }

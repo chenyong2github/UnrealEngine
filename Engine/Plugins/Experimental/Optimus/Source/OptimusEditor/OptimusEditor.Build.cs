@@ -39,6 +39,7 @@ namespace UnrealBuildTool.Rules
 					"OptimusDeveloper",
 					"BlueprintGraph",		// For the graph pin colors
 					"Persona",
+					"MessageLog",
 				}
 			);
 

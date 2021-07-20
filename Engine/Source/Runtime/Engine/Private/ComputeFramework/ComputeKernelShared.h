@@ -13,9 +13,8 @@
 #include "SceneTypes.h"
 #include "Shader.h"
 #include "StaticParameterSet.h"
-#include "Templates/RefCounting.h"
 #include "ShaderCompiler.h"
-
+#include "Templates/RefCounting.h"
 
 class FComputeKernelResource;
 class FComputeKernelShaderMap;
@@ -23,7 +22,6 @@ class FComputeKernelShader;
 class FComputeKernelShaderMapId;
 class UComputeKernelSource;
 class FShaderParametersMetadata;
-
 
 /** Stores outputs from the  kernel compile that need to be saved. */
 class FComputeKernelCompilationOutput
@@ -282,6 +280,8 @@ private:
 	friend class FShaderCompilingManager;
 };
 
+/** Delegate for kernel compile completion. */
+DECLARE_DELEGATE_OneParam(FOnComputeKernelCompilationComplete, class FComputeKernelResource const*);
 
 /**
  * FComputeKernelResource represents a UComputeKernel to the shader compilation process
@@ -444,6 +444,8 @@ public:
 
 	uint32 GetKernelFlags() const { return KernelFlags; }
 
+	FOnComputeKernelCompilationComplete& OnCompilationComplete() { return OnCompilationCompleteDelegate; }
+
 protected:
 
 	/**
@@ -499,6 +501,8 @@ private:
 	uint32 bContainsInlineShaders : 1;
 	uint32 bLoadedCookedShaderMapId : 1;
 	FComputeKernelShaderMapId CookedShaderMapId;
+
+	FOnComputeKernelCompilationComplete OnCompilationCompleteDelegate;
 
 	/**
 	 * Compiles this kernel for InPlatform, storing the result in OutShaderMap if the compile was synchronous
