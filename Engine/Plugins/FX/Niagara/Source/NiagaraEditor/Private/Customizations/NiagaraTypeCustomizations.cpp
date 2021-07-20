@@ -10,6 +10,7 @@
 #include "NiagaraConstants.h"
 #include "NiagaraDataInterfaceRW.h"
 #include "NiagaraEditorModule.h"
+#include "Modules/ModuleManager.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraNodeOutput.h"
