@@ -43,6 +43,7 @@ void SInlineEditableTextBlock::Construct( const FArguments& InArgs )
 			.WrapTextAt( InArgs._WrapTextAt )
 			.Justification( InArgs._Justification )
 			.LineBreakPolicy( InArgs._LineBreakPolicy )
+			.OverflowPolicy(InArgs._OverflowPolicy)
 		]
 	];
 
@@ -53,7 +54,7 @@ void SInlineEditableTextBlock::Construct( const FArguments& InArgs )
 			.Text(InArgs._Text)
 			.Style(&InArgs._Style->EditableTextBoxStyle)
 			.Font(InArgs._Font)
-			.ToolTipText( InArgs._ToolTipText )
+			.ToolTipText(InArgs._ToolTipText)
 			.OnTextChanged(this, &SInlineEditableTextBlock::OnTextChanged)
 			.OnTextCommitted(this, &SInlineEditableTextBlock::OnTextBoxCommitted)
 			.WrapTextAt(InArgs._WrapTextAt)
@@ -61,7 +62,8 @@ void SInlineEditableTextBlock::Construct( const FArguments& InArgs )
 			.SelectAllTextWhenFocused(true)
 			.ClearKeyboardFocusOnCommit(true)
 			.RevertTextOnEscape(true)
-			.ModiferKeyForNewLine(InArgs._ModiferKeyForNewLine);
+			.ModiferKeyForNewLine(InArgs._ModiferKeyForNewLine)
+			.OverflowPolicy(InArgs._OverflowPolicy);
 	}
 	else
 #endif //WITH_FANCY_TEXT
@@ -70,11 +72,12 @@ void SInlineEditableTextBlock::Construct( const FArguments& InArgs )
 			.Text(InArgs._Text)
 			.Style(&InArgs._Style->EditableTextBoxStyle)
 			.Font(InArgs._Font)
-			.ToolTipText( InArgs._ToolTipText )
-			.OnTextChanged( this, &SInlineEditableTextBlock::OnTextChanged )
+			.ToolTipText(InArgs._ToolTipText)
+			.OnTextChanged(this, &SInlineEditableTextBlock::OnTextChanged)
 			.OnTextCommitted(this, &SInlineEditableTextBlock::OnTextBoxCommitted)
 			.SelectAllTextWhenFocused(true)
-			.ClearKeyboardFocusOnCommit(false);
+			.ClearKeyboardFocusOnCommit(false)
+			.OverflowPolicy(InArgs._OverflowPolicy);
 	}
 }
 
@@ -176,6 +179,11 @@ void SInlineEditableTextBlock::SetText( const FString& InText )
 void SInlineEditableTextBlock::SetWrapTextAt( const TAttribute<float>& InWrapTextAt )
 {
 	TextBlock->SetWrapTextAt( InWrapTextAt );
+}
+
+void SInlineEditableTextBlock::SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy)
+{
+	TextBlock->SetOverflowPolicy(InOverflowPolicy);
 }
 
 FReply SInlineEditableTextBlock::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )

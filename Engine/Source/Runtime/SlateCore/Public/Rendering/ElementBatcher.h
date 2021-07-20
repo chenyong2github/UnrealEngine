@@ -17,6 +17,7 @@ class FSlateWindowElementList;
 struct FShaderParams;
 struct FSlateCachedElementData;
 struct FSlateCachedElementList;
+enum class ETextOverflowDirection : uint8;
 
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Add Elements Time"), STAT_SlateAddElements, STATGROUP_Slate, SLATECORE_API);
 
@@ -350,6 +351,33 @@ private:
 
 	const FSlateClippingState* ResolveClippingState(const FSlateDrawElement& DrawElement) const;
 
+	struct FShapedTextBuildContext
+	{
+		const class FShapedGlyphSequence* ShapedGlyphSequence;
+		const class FShapedGlyphSequence* OverflowGlyphSequence;
+		const UObject* FontMaterial;
+		const UObject* OutlineFontMaterial;
+		const struct FFontOutlineSettings* OutlineSettings;
+		const FSlateDrawElement* DrawElement;
+		class FSlateFontCache* FontCache;
+		const FSlateRenderTransform* RenderTransform;
+		float TextBaseline;
+		float MaxHeight;
+		float StartLineX;
+		float StartLineY;
+		float LocalClipBoundingBoxLeft = 0;
+		float LocalClipBoundingBoxRight = 0;
+		int32 LayerId;
+		FColor FontTint;
+		ETextOverflowDirection OverflowDirection;
+		bool bEnableOutline : 1;
+		bool bEnableCulling : 1;
+		bool bForceEllipsis : 1;
+		
+	};
+
+	template<ESlateVertexRounding Rounding>
+	void BuildShapedTextSequence(const FShapedTextBuildContext& Context);
 private:
 	/** Uncached Batch data currently being filled in */
 	FSlateBatchData* BatchData;

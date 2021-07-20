@@ -77,6 +77,7 @@ FTextBlockStyle::FTextBlockStyle()
 	, SelectedBackgroundColor(FSlateColor::UseForeground())
 	, HighlightColor(FLinearColor::Black)
 	, TransformPolicy(ETextTransformPolicy::None)
+	, OverflowPolicy(ETextOverflowPolicy::Clip)
 {
 }
 

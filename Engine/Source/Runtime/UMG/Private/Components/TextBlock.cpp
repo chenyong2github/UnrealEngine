@@ -145,6 +145,16 @@ void UTextBlock::SetTextTransformPolicy(ETextTransformPolicy InTransformPolicy)
 	}
 }
 
+void UTextBlock::SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy)
+{
+	TextOverflowPolicy = InOverflowPolicy;
+
+	if (MyTextBlock.IsValid())
+	{
+		MyTextBlock->SetOverflowPolicy(TextOverflowPolicy);
+	}
+}
+
 UMaterialInstanceDynamic* UTextBlock::GetDynamicFontMaterial()
 {
 	if (Font.FontMaterial)
@@ -288,6 +298,8 @@ void UTextBlock::SynchronizeProperties()
 		MyTextBlock->SetShadowColorAndOpacity( ShadowColorAndOpacityBinding );
 		MyTextBlock->SetMinDesiredWidth( MinDesiredWidth );
 		MyTextBlock->SetTransformPolicy( TextTransformPolicy );
+		MyTextBlock->SetOverflowPolicy(TextOverflowPolicy);
+
 		Super::SynchronizeTextLayoutProperties( *MyTextBlock );
 	}
 }

@@ -1160,6 +1160,7 @@ FTextLayout::FTextLayout()
 	, GraphemeBreakIterator(FBreakIterator::CreateCharacterBoundaryIterator())
 	, WordBreakIterator(FBreakIterator::CreateWordBreakIterator())
 	, TextBiDiDetection(TextBiDi::CreateTextBiDi())
+	, TextOverflowPolicyOverride()
 {
 }
 
@@ -2558,6 +2559,17 @@ void FTextLayout::SetTextFlowDirection( const ETextFlowDirection InTextFlowDirec
 	// Clear out the entire cache so it gets regenerated on the text call to FlowLayout
 	// Also clear our the base direction for each line, as the flow direction can affect that
 	DirtyAllLineModels(ELineModelDirtyState::WrappingInformation | ELineModelDirtyState::TextBaseDirection | ELineModelDirtyState::ShapingCache);
+}
+
+void FTextLayout::SetTextOverflowPolicy(const TOptional<ETextOverflowPolicy> InTextOverflowPolicy)
+{
+	if (TextOverflowPolicyOverride == InTextOverflowPolicy)
+	{
+		return;
+	}
+
+	TextOverflowPolicyOverride = InTextOverflowPolicy;
+	DirtyFlags |= ETextLayoutDirtyState::Layout;
 }
 
 void FTextLayout::SetJustification( ETextJustify::Type Value )

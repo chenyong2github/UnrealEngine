@@ -135,6 +135,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetJustification, Category=Appearance)
 	TEnumAsByte<ETextJustify::Type> Justification;
 
+	/** Sets what should happen when text is clipped because the block does not have enough space */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetTextOverflowPolicy, Category = Appearance)
+	ETextOverflowPolicy OverflowPolicy;
+
+
 	/** Controls how the text within this widget should be shaped. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Localization, AdvancedDisplay, meta=(ShowOnlyInnerProperties))
 	FShapedTextOptions ShapedTextOptions;
@@ -182,6 +187,9 @@ public:
 
 	UFUNCTION(BlueprintSetter)
 	void SetJustification(ETextJustify::Type InJustification);
+
+	UFUNCTION(BlueprintSetter)
+	void SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy);
 
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetForegroundColor (Text Box)"))
 	void SetForegroundColor(FLinearColor color);

@@ -64,6 +64,7 @@ public:
 		, _TextShapingMethod()
 		, _TextFlowDirection()
 		, _LineBreakPolicy()
+		, _OverflowPolicy()
 		, _SimpleTextMode(false)
 		{
 			_Clipping = EWidgetClipping::OnDemand;
@@ -133,6 +134,9 @@ public:
 
 		/** The iterator to use to detect appropriate soft-wrapping points for lines (or null to use the default) */
 		SLATE_ARGUMENT( TSharedPtr<IBreakIterator>, LineBreakPolicy )
+
+		/** Determines what happens to text that is clipped and doesn't fit within the clip rect for this widget */
+		SLATE_ARGUMENT(TOptional<ETextOverflowPolicy>, OverflowPolicy)
 
 		/**
 		 * If this is enabled, text shaping, wrapping, justification are disabled in favor of much faster text layout and measurement.
@@ -214,6 +218,9 @@ public:
 	/** Get TransformPolicy attribute */
 	UE_DEPRECATED(5.0, "GetTransformPolicy is not accessible anymore since it's attribute value may not have been updated yet.")
 	ETextTransformPolicy GetTransformPolicy() const { return GetTransformPolicyImpl(); }
+
+	/** Sets the overflow policy for this text block */
+	void SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy);
 
 	/** See ShadowOffset attribute */
 	void SetShadowOffset(TAttribute<FVector2D> InShadowOffset);

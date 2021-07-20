@@ -810,6 +810,7 @@ FSlateFontCache::FSlateFontCache( TSharedRef<ISlateFontAtlasFactory> InFontAtlas
 	, FontAtlasFactory( InFontAtlasFactory )
 	, bFlushRequested( false )
 	, OwningThread(InOwningThread)
+	, EllipsisText(NSLOCTEXT("FontCache", "TextOverflowIndicator", "\u2026"))
 {
 	FInternationalization::Get().OnCultureChanged().AddRaw(this, &FSlateFontCache::HandleCultureChanged);
 }
@@ -820,6 +821,7 @@ FSlateFontCache::~FSlateFontCache()
 
 	// Make sure things get destroyed in the correct order
 	FontToCharacterListCache.Empty();
+	FontToOverflowGlyphSequence.Empty();
 	ShapedGlyphToAtlasData.Empty();
 	TextShaper.Reset();
 	FontRenderer.Reset();
@@ -991,25 +993,25 @@ FCharacterList& FSlateFontCache::GetCharacterList( const FSlateFontInfo &InFontI
 	// Create a key for looking up each character
 	const FSlateFontKey FontKey( InFontInfo, InOutlineSettings, FontScale );
 
-	TSharedRef< class FCharacterList >* CachedCharacterList = FontToCharacterListCache.Find( FontKey );
+	TUniquePtr<FCharacterList>* CachedCharacterList = FontToCharacterListCache.Find( FontKey );
 
-	if( CachedCharacterList )
+	if(CachedCharacterList)
 	{
 #if WITH_EDITORONLY_DATA
 		// Clear out this entry if it's stale so that we make a new one
-		if( (*CachedCharacterList)->IsStale() )
+		if((*CachedCharacterList)->IsStale())
 		{
-			FontToCharacterListCache.Remove( FontKey );
+			FontToCharacterListCache.Remove(FontKey);
 			FlushData();
 		}
 		else
 #endif	// WITH_EDITORONLY_DATA
 		{
-			return CachedCharacterList->Get();
+			return **CachedCharacterList;
 		}
 	}
 
-	return FontToCharacterListCache.Add( FontKey, MakeShareable( new FCharacterList( FontKey, *this ) ) ).Get();
+	return *FontToCharacterListCache.Add(FontKey, MakeUnique<FCharacterList>(FontKey, *this));
 }
 
 FShapedGlyphFontAtlasData FSlateFontCache::GetShapedGlyphFontAtlasData( const FShapedGlyphEntry& InShapedGlyph, const FFontOutlineSettings& InOutlineSettings )
@@ -1039,7 +1041,6 @@ FShapedGlyphFontAtlasData FSlateFontCache::GetShapedGlyphFontAtlasData( const FS
 		return **FoundAtlasData;
 	}
 
-
 	{
 
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_SlateFontCacheAddNewShapedEntry)
@@ -1056,6 +1057,22 @@ FShapedGlyphFontAtlasData FSlateFontCache::GetShapedGlyphFontAtlasData( const FS
 
 		return *NewAtlasData;
 	}
+}
+
+FShapedGlyphSequenceRef FSlateFontCache::GetOverflowEllipsisText(const FSlateFontInfo& InFontInfo, const float InFontScale)
+{
+	FSlateFontKey Key(InFontInfo, InFontInfo.OutlineSettings, InFontScale);
+
+	FShapedGlyphSequenceRef* FoundSequence = FontToOverflowGlyphSequence.Find(Key);
+
+	if (FoundSequence)
+	{
+		return *FoundSequence;
+	}
+
+	FShapedGlyphSequenceRef NewSequence = ShapeBidirectionalText(EllipsisText.ToString(), InFontInfo, InFontScale, TextBiDi::ETextDirection::LeftToRight, GetDefaultTextShapingMethod());
+
+	return FontToOverflowGlyphSequence.Add(Key, NewSequence);
 }
 
 const FFontData& FSlateFontCache::GetDefaultFontData( const FSlateFontInfo& InFontInfo ) const
@@ -1239,6 +1256,8 @@ void FSlateFontCache::FlushData()
 	}
 
 	FontToCharacterListCache.Empty();
+	FontToOverflowGlyphSequence.Empty();
+
 	ShapedGlyphToAtlasData.Empty();
 }
 

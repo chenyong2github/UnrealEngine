@@ -44,6 +44,7 @@ class SLATE_API SInlineEditableTextBlock: public SCompoundWidget
 		, _IsReadOnly(false)
 		, _MultiLine(false)
 		, _ModiferKeyForNewLine(EModifierKey::None)
+		, _OverflowPolicy()
 	{
 	}
 
@@ -103,6 +104,9 @@ class SLATE_API SInlineEditableTextBlock: public SCompoundWidget
 
 		/** Called whenever the text is changed programmatically or interactively by the user */
 		SLATE_EVENT( FOnVerifyTextChanged, OnVerifyTextChanged )
+
+		/** Determines what happens to text that is clipped and doesn't fit within the clip rect for this widget */
+		SLATE_ARGUMENT(TOptional<ETextOverflowPolicy>, OverflowPolicy)
 	SLATE_END_ARGS()
 
 	~SInlineEditableTextBlock();
@@ -148,6 +152,9 @@ class SLATE_API SInlineEditableTextBlock: public SCompoundWidget
 
 	/** Sets the wrap text at attribute.  See WrapTextAt attribute */
 	void SetWrapTextAt(const TAttribute<float>& InWrapTextAt);
+
+	/** Sets the overflow policy for this text block */
+	void SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy);
 
 protected:
 	/** Callback for the text box's OnTextChanged event */

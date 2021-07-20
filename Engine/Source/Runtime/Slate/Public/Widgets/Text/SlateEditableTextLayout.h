@@ -105,6 +105,9 @@ public:
 	/** Set the amount to scale each lines height by */
 	void SetLineHeightPercentage(const TAttribute<float>& InLineHeightPercentage);
 
+	/** Set the text overflow policy that should be used to determine what happens to clipped text */
+	void SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy);
+
 	/** Set the information used to help identify who owns this text layout in the case of an error */
 	void SetDebugSourceInfo(const TAttribute<FString>& InDebugSourceInfo);
 
@@ -626,6 +629,9 @@ private:
 
 	/** How the text was committed by the virtual keyboard */
 	ETextCommit::Type VirtualKeyboardTextCommitType;
+
+	/** Override for for the overflow policy. If this is not set the text style setting is used */
+	TOptional<ETextOverflowPolicy> OverflowPolicyOverride;
 
 	/** The last known size of the widget from the previous OnPaint, used to recalculate wrapping */
 	FVector2D CachedSize;
