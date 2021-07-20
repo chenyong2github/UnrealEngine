@@ -108,6 +108,9 @@ public:
 	/* Show dynamic hierarchy */
 	TSharedPtr< FUICommandInfo > ShowDynamicHierarchy;
 
+	/** Toggle Gizmo Transform Edit*/
+	TSharedPtr< FUICommandInfo > ToggleGizmoTransformEdit;
+	
 	/**
 	 * Initialize commands
 	 */
