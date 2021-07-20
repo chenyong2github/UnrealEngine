@@ -82,6 +82,7 @@ void SEditableTextBox::Construct( const FArguments& InArgs )
 					.VirtualKeyboardDismissAction( InArgs._VirtualKeyboardDismissAction )
 					.TextShapingMethod(InArgs._TextShapingMethod)
 					.TextFlowDirection( InArgs._TextFlowDirection )
+					.OverflowPolicy(InArgs._OverflowPolicy)
 				]
 			]
 		]
@@ -174,6 +175,11 @@ void SEditableTextBox::SetTextFlowDirection(const TOptional<ETextFlowDirection>&
 	EditableText->SetTextFlowDirection(InTextFlowDirection);
 }
 
+
+void SEditableTextBox::SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy)
+{
+	EditableText->SetOverflowPolicy(InOverflowPolicy);
+}
 
 bool SEditableTextBox::AnyTextSelected() const
 {

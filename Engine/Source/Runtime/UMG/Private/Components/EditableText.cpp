@@ -67,6 +67,7 @@ UEditableText::UEditableText(const FObjectInitializer& ObjectInitializer)
 	VirtualKeyboardTrigger = EVirtualKeyboardTrigger::OnFocusByPointer;
 	VirtualKeyboardDismissAction = EVirtualKeyboardDismissAction::TextChangeOnDismiss;
 	Clipping = EWidgetClipping::ClipToBounds;
+	OverflowPolicy = ETextOverflowPolicy::Clip;
 
 #if WITH_EDITORONLY_DATA
 	AccessibleBehavior = ESlateAccessibleBehavior::Auto;
@@ -83,21 +84,22 @@ void UEditableText::ReleaseSlateResources(bool bReleaseChildren)
 
 TSharedRef<SWidget> UEditableText::RebuildWidget()
 {
-	MyEditableText = SNew( SEditableText )
-		.Style( &WidgetStyle )
-		.MinDesiredWidth( MinimumDesiredWidth )
-		.IsCaretMovedWhenGainFocus( IsCaretMovedWhenGainFocus )
-		.SelectAllTextWhenFocused( SelectAllTextWhenFocused )
-		.RevertTextOnEscape( RevertTextOnEscape )
-		.ClearKeyboardFocusOnCommit( ClearKeyboardFocusOnCommit )
-		.SelectAllTextOnCommit( SelectAllTextOnCommit )
-		.OnTextChanged( BIND_UOBJECT_DELEGATE( FOnTextChanged, HandleOnTextChanged ) )
-		.OnTextCommitted( BIND_UOBJECT_DELEGATE( FOnTextCommitted, HandleOnTextCommitted ) )
-		.VirtualKeyboardType( EVirtualKeyboardType::AsKeyboardType( KeyboardType.GetValue() ) )
+	MyEditableText = SNew(SEditableText)
+		.Style(&WidgetStyle)
+		.MinDesiredWidth(MinimumDesiredWidth)
+		.IsCaretMovedWhenGainFocus(IsCaretMovedWhenGainFocus)
+		.SelectAllTextWhenFocused(SelectAllTextWhenFocused)
+		.RevertTextOnEscape(RevertTextOnEscape)
+		.ClearKeyboardFocusOnCommit(ClearKeyboardFocusOnCommit)
+		.SelectAllTextOnCommit(SelectAllTextOnCommit)
+		.OnTextChanged(BIND_UOBJECT_DELEGATE(FOnTextChanged, HandleOnTextChanged))
+		.OnTextCommitted(BIND_UOBJECT_DELEGATE(FOnTextCommitted, HandleOnTextCommitted))
+		.VirtualKeyboardType(EVirtualKeyboardType::AsKeyboardType(KeyboardType.GetValue()))
 		.VirtualKeyboardOptions(VirtualKeyboardOptions)
 		.VirtualKeyboardTrigger(VirtualKeyboardTrigger)
 		.VirtualKeyboardDismissAction(VirtualKeyboardDismissAction)
-		.Justification( Justification );
+		.Justification(Justification)
+		.OverflowPolicy(OverflowPolicy);
 	
 	return MyEditableText.ToSharedRef();
 }
@@ -116,6 +118,8 @@ void UEditableText::SynchronizeProperties()
 	MyEditableText->SetAllowContextMenu(AllowContextMenu);
 	MyEditableText->SetVirtualKeyboardDismissAction(VirtualKeyboardDismissAction);
 	MyEditableText->SetJustification(Justification);
+	MyEditableText->SetOverflowPolicy(OverflowPolicy);
+
 	// TODO UMG Complete making all properties settable on SEditableText
 
 	ShapedTextOptions.SynchronizeShapedTextProperties(*MyEditableText);
@@ -173,6 +177,15 @@ void UEditableText::SetJustification(ETextJustify::Type InJustification)
 	if (MyEditableText.IsValid())
 	{
 		MyEditableText->SetJustification(InJustification);
+	}
+}
+
+void UEditableText::SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy)
+{
+	OverflowPolicy = InOverflowPolicy;
+	if (MyEditableText.IsValid())
+	{
+		MyEditableText->SetOverflowPolicy(InOverflowPolicy);
 	}
 }
 

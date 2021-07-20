@@ -33,7 +33,10 @@ int32 FSlateTextHighlightRunRenderer::OnPaint( const FPaintArgs& Args, const FTe
 	FWidgetStyle WidgetStyle( InWidgetStyle );
 	WidgetStyle.SetForegroundColor( InvertedHighlightColor );
 
-	return Run->OnPaint( Args, Line, Block, DefaultStyle, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, WidgetStyle, bParentEnabled );
+	// When highlighting text we want the actual text so do not replace any of it with ellipsis
+	const ETextOverflowPolicy OverflowPolicy = ETextOverflowPolicy::Clip;
+
+	return Run->OnPaint( Args, FTextArgs(Line, Block, DefaultStyle, OverflowPolicy, ETextOverflowDirection::NoOverflow), AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, WidgetStyle, bParentEnabled );
 }
 
 TSharedRef< FSlateTextHighlightRunRenderer > FSlateTextHighlightRunRenderer::Create()

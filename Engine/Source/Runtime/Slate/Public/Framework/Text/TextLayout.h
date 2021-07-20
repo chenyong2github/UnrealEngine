@@ -411,6 +411,8 @@ public:
 	FORCEINLINE ETextFlowDirection GetTextFlowDirection() const { return TextFlowDirection; }
 	void SetTextFlowDirection( const ETextFlowDirection InTextFlowDirection );
 
+	void SetTextOverflowPolicy(const TOptional<ETextOverflowPolicy> InTextOverflowPolicy);
+
 	FORCEINLINE FMargin GetMargin() const { return Margin; }
 	void SetMargin( const FMargin& InMargin );
 
@@ -749,4 +751,8 @@ protected:
 
 	/** Information given to use by our an external source (typically our owner widget) to help identify who owns this text layout in the case of an error */
 	TAttribute<FString> DebugSourceInfo;
+
+	/** Override for the text overflow policy. If unset, the style is used */
+	TOptional<ETextOverflowPolicy> TextOverflowPolicyOverride;
+
 };

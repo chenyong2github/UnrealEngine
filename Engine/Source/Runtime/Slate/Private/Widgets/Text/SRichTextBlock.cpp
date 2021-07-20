@@ -183,6 +183,12 @@ void SRichTextBlock::SetDecoratorStyleSet(const ISlateStyle* NewDecoratorStyleSe
 	}
 }
 
+void SRichTextBlock::SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy)
+{
+	TextLayoutCache->SetTextOverflowPolicy(InOverflowPolicy);
+	Invalidate(EInvalidateWidget::Layout);
+}
+
 void SRichTextBlock::SetTextBlockScale(const float NewTextBlockScale)
 {
 	TextBlockScale = NewTextBlockScale;

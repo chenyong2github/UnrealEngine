@@ -121,6 +121,7 @@ void STextBlock::Construct( const FArguments& InArgs )
 		// We use a dummy style here (as it may not be safe to call the delegates used to compute the style), but the correct style is set by ComputeDesiredSize
 		TextLayoutCache = MakeUnique<FSlateTextBlockLayout>(this, FTextBlockStyle::GetDefault(), InArgs._TextShapingMethod, InArgs._TextFlowDirection, FCreateSlateTextLayout(), FPlainTextLayoutMarshaller::Create(), InArgs._LineBreakPolicy);
 		TextLayoutCache->SetDebugSourceInfo(TAttribute<FString>::Create(TAttribute<FString>::FGetter::CreateLambda([this] { return FReflectionMetaData::GetWidgetDebugInfo(this); })));
+		TextLayoutCache->SetTextOverflowPolicy(InArgs._OverflowPolicy.IsSet() ? InArgs._OverflowPolicy : TextStyle.OverflowPolicy);
 	}
 }
 
@@ -370,6 +371,12 @@ void STextBlock::SetTransformPolicy(TAttribute<ETextTransformPolicy> InTransform
 {
 	bIsAttributeTransformPolicySet = InTransformPolicy.IsSet();
 	TransformPolicy.Assign(*this, MoveTemp(InTransformPolicy));
+}
+
+void STextBlock::SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy)
+{
+	TextLayoutCache->SetTextOverflowPolicy(InOverflowPolicy);
+	InvalidateText(EInvalidateWidgetReason::Layout);
 }
 
 void STextBlock::SetShadowOffset(TAttribute<FVector2D> InShadowOffset)

@@ -1213,28 +1213,37 @@ void FSlateElementBatcher::AddShapedTextElement( const FSlateDrawElement& DrawEl
 {
 	const FSlateShapedTextPayload& DrawElementPayload = DrawElement.GetDataPayload<FSlateShapedTextPayload>();
 	const FShapedGlyphSequence* ShapedGlyphSequence = DrawElementPayload.GetShapedGlyphSequence().Get();
+
+	const FShapedGlyphSequence* OverflowGlyphSequence = DrawElementPayload.OverflowArgs.OverflowTextPtr.Get();
+
 	checkSlow(ShapedGlyphSequence);
 
 	const FFontOutlineSettings& OutlineSettings = ShapedGlyphSequence->GetFontOutlineSettings();
 
-	const TArray<FShapedGlyphEntry>& GlyphsToRender = ShapedGlyphSequence->GetGlyphsToRender();
-	ensure(GlyphsToRender.Num() > 0);
+	ensure(ShapedGlyphSequence->GetGlyphsToRender().Num() > 0);
 
 	const FColor BaseTint = PackVertexColor(DrawElementPayload.GetTint());
 
 	FSlateFontCache& FontCache = *RenderingPolicy->GetFontCache();
-	FSlateShaderResourceManager& ResourceManager = *RenderingPolicy->GetResourceManager();
+
 
 	const int16 TextBaseline = ShapedGlyphSequence->GetTextBaseline();
 	const uint16 MaxHeight = ShapedGlyphSequence->GetMaxTextHeight();
+
+	FShapedTextBuildContext BuildContext;
+
+	BuildContext.DrawElement = &DrawElement;
+	BuildContext.FontCache = &FontCache;
+	BuildContext.ShapedGlyphSequence = ShapedGlyphSequence;
+	BuildContext.OverflowGlyphSequence = OverflowGlyphSequence;
+	BuildContext.TextBaseline = TextBaseline;
+	BuildContext.MaxHeight = MaxHeight;
 
 	if (MaxHeight == 0)
 	{
 		// If the max text height is 0, we'll create NaN's further in the code, so avoid drawing text if this happens.
 		return;
 	}
-
-	ESlateDrawEffect InDrawEffects = DrawElement.GetDrawEffects();
 
 	const int32 Layer = DrawElement.GetLayer();
 
@@ -1245,8 +1254,9 @@ void FSlateElementBatcher::AddShapedTextElement( const FSlateDrawElement& DrawEl
 	// So we need to pull the layout scale out of the layout and render transform so we can apply them
 	// in local space with pre-scaled fonts.
 	const float FontScale = LayoutTransform.GetScale();
-	FSlateLayoutTransform InverseLayoutTransform = Inverse(Concatenate(Inverse(FontScale), LayoutTransform));
+
 	const FSlateRenderTransform RenderTransform = Concatenate(Inverse(FontScale), DrawElement.GetRenderTransform());
+	BuildContext.RenderTransform = &RenderTransform;
 
 	const UObject* BaseFontMaterial = ShapedGlyphSequence->GetFontMaterial();
 	const UObject* OutlineFontMaterial = OutlineSettings.OutlineMaterial;
@@ -1261,154 +1271,56 @@ void FSlateElementBatcher::AddShapedTextElement( const FSlateDrawElement& DrawEl
 		const float PosX = TopLeft.X+InHorizontalOffset;
 		float PosY = TopLeft.Y;
 
-		float LineX = PosX;
-		float LineY = PosY;
+		BuildContext.FontMaterial = FontMaterial;
+		BuildContext.OutlineFontMaterial = OutlineFontMaterial;
+	
+		BuildContext.OutlineSettings = &InOutlineSettings;
+		BuildContext.StartLineX = PosX;
+		BuildContext.StartLineY = PosY;
+		BuildContext.LayerId = InLayer;
+		BuildContext.FontTint = InTint;
 
-		int32 FontTextureIndex = -1;
-		FSlateShaderResource* FontAtlasTexture = nullptr;
-		FSlateShaderResource* FontShaderResource = nullptr;
-		FColor FontTint = InTint;
-
-		FSlateRenderBatch* RenderBatch = nullptr;
-
-		uint32 VertexOffset = 0;
-		uint32 IndexOffset = 0;
-
-		float InvTextureSizeX = 0;
-		float InvTextureSizeY = 0;
-
-		const bool bIsFontMaterial = FontMaterial != nullptr;
-		const bool bEnableOutline = InOutlineSettings.OutlineSize > 0;
+		BuildContext.bEnableOutline = InOutlineSettings.OutlineSize > 0;
 
 		// Optimize by culling
-		// Todo: this doesnt work with cached clipping
-		bool bEnableCulling = false;
-		float LocalClipBoundingBoxLeft = 0;
-		float LocalClipBoundingBoxRight = 0;
-		if (GlyphsToRender.Num() > 200)
+		// Todo: this doesn't work with cached clipping
+		BuildContext.bEnableCulling = false;
+		BuildContext.bForceEllipsis = DrawElementPayload.OverflowArgs.bForceEllipsisDueToClippedLine;
+		BuildContext.OverflowDirection = DrawElementPayload.OverflowArgs.OverflowDirection;
+
+		if (ShapedGlyphSequence->GetGlyphsToRender().Num() > 200 || (OverflowGlyphSequence && BuildContext.OverflowDirection != ETextOverflowDirection::NoOverflow))
 		{
 			const FSlateClippingState* ClippingState = ResolveClippingState(DrawElement);
 
 			if (ClippingState && ClippingState->ScissorRect.IsSet() && ClippingState->ScissorRect->IsAxisAligned() && RenderTransform.GetMatrix().IsIdentity())
 			{
-				bEnableCulling = true;
-				const FSlateRect LocalClipBoundingBox = TransformRect(RenderTransform.Inverse(), ClippingState->ScissorRect->GetBoundingBox());
-				LocalClipBoundingBoxLeft = LocalClipBoundingBox.Left;
-				LocalClipBoundingBoxRight = LocalClipBoundingBox.Right;
-			}
-		}
+				// Non-render transformed box;
+				const FSlateRect ScissorRectBox = ClippingState->ScissorRect->GetBoundingBox();
 
-		const int32 NumGlyphs = GlyphsToRender.Num();
-		for (int32 GlyphIndex = 0; GlyphIndex < NumGlyphs; ++GlyphIndex)
-		{
-			const FShapedGlyphEntry& GlyphToRender = GlyphsToRender[GlyphIndex];
+				const FSlateRect LocalClipBoundingBox = TransformRect(RenderTransform.Inverse(), ScissorRectBox);
+				BuildContext.LocalClipBoundingBoxLeft = LocalClipBoundingBox.Left;
+				BuildContext.LocalClipBoundingBoxRight = LocalClipBoundingBox.Right - (BuildContext.bForceEllipsis ? OverflowGlyphSequence->GetMeasuredWidth() : 0);
 
-			if (GlyphToRender.bIsVisible)
-			{
-				const FShapedGlyphFontAtlasData GlyphAtlasData = FontCache.GetShapedGlyphFontAtlasData(GlyphToRender, InOutlineSettings);
-				 
-				if (GlyphAtlasData.Valid && (!bEnableOutline || GlyphAtlasData.SupportsOutline))
+				const float TransformOffset = RenderTransform.GetTranslation().X - DrawElement.GetPosition().X;
+
+				if (OverflowGlyphSequence && BuildContext.LocalClipBoundingBoxLeft <= 0 && BuildContext.LocalClipBoundingBoxRight > ShapedGlyphSequence->GetMeasuredWidth() + TransformOffset)
 				{
-					const float X = LineX + GlyphAtlasData.HorizontalOffset + GlyphToRender.XOffset;
-					// Note PosX,PosY is the upper left corner of the bounding box representing the string.  This computes the Y position of the baseline where text will sit
-
-					if (bEnableCulling)
-					{
-						if (X + GlyphAtlasData.USize < LocalClipBoundingBoxLeft)
-						{
-							LineX += GlyphToRender.XAdvance;
-							LineY += GlyphToRender.YAdvance;
-							continue;
-						}
-						else if (X > LocalClipBoundingBoxRight)
-						{
-							break;
-						}
-					}
-
-					if (FontAtlasTexture == nullptr || GlyphAtlasData.TextureIndex != FontTextureIndex)
-					{
-						// Font has a new texture for this glyph. Refresh the batch we use and the index we are currently using
-						FontTextureIndex = GlyphAtlasData.TextureIndex;
-
-						ISlateFontTexture* SlateFontTexture = FontCache.GetFontTexture(FontTextureIndex);
-						check(SlateFontTexture);
-
-						FontAtlasTexture = SlateFontTexture->GetSlateTexture();
-						check(FontAtlasTexture);
-
-						FontShaderResource = ResourceManager.GetFontShaderResource(FontTextureIndex, FontAtlasTexture, FontMaterial);
-						check(FontShaderResource);
-
-						const bool bIsGrayscale = SlateFontTexture->IsGrayscale();
-						FontTint = bIsGrayscale ? InTint : FColor::White;
-
-						RenderBatch = &CreateRenderBatch(InLayer, FShaderParams(), FontShaderResource, ESlateDrawPrimitive::TriangleList, bIsGrayscale ? ESlateShader::GrayscaleFont : ESlateShader::ColorFont, InDrawEffects, ESlateBatchDrawFlag::None, DrawElement);
-
-						// Reserve memory for the glyphs.  This isn't perfect as the text could contain spaces and we might not render the rest of the text in this batch but its better than resizing constantly
-						const int32 GlyphsLeft = NumGlyphs - GlyphIndex;
-						RenderBatch->ReserveVertices(GlyphsLeft*4);
-						RenderBatch->ReserveIndices(GlyphsLeft*6);
-
-						InvTextureSizeX = 1.0f / FontAtlasTexture->GetWidth();
-						InvTextureSizeY = 1.0f / FontAtlasTexture->GetHeight();
-					}
-
-					const float BitmapRenderScale = GlyphToRender.GetBitmapRenderScale();
-					const float InvBitmapRenderScale = 1.0f / BitmapRenderScale;
-
-					const float Y = LineY - GlyphAtlasData.VerticalOffset + GlyphToRender.YOffset + ((MaxHeight + TextBaseline) * InvBitmapRenderScale);
-					const float U = GlyphAtlasData.StartU * InvTextureSizeX;
-					const float V = GlyphAtlasData.StartV * InvTextureSizeY;
-					const float SizeX = GlyphAtlasData.USize * BitmapRenderScale;
-					const float SizeY = GlyphAtlasData.VSize * BitmapRenderScale;
-					const float SizeU = GlyphAtlasData.USize * InvTextureSizeX;
-					const float SizeV = GlyphAtlasData.VSize * InvTextureSizeY;
-
-					{
-
-						const FVector2D UpperLeft(X, Y);
-						const FVector2D UpperRight(X + SizeX, Y);
-						const FVector2D LowerLeft(X, Y + SizeY);
-						const FVector2D LowerRight(X + SizeX, Y + SizeY);
-
-		
-						// The start index of these vertices in the index buffer
-						const uint32 IndexStart = RenderBatch->GetNumVertices();
-
-						float Ut = 0.0f, Vt = 0.0f, UtMax = 0.0f, VtMax = 0.0f;
-						if (bIsFontMaterial)
-						{
-							float DistAlpha = (float)GlyphIndex / NumGlyphs;
-							float DistAlphaNext = (float)(GlyphIndex + 1) / NumGlyphs;
-
-							// This creates a set of UV's that goes from 0-1, from left to right of the string in U and 0-1 baseline to baseline top to bottom in V
-							Ut = FMath::Lerp(0.0f, 1.0f, DistAlpha);
-							Vt = FMath::Lerp(0.0f, 1.0f, UpperLeft.Y / MaxHeight);
-
-							UtMax = FMath::Lerp(0.0f, 1.0f, DistAlphaNext);
-							VtMax = FMath::Lerp(0.0f, 1.0f, LowerLeft.Y / MaxHeight);
-						}
-
-						// Add four vertices to the list of verts to be added to the vertex buffer
-						RenderBatch->AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, UpperLeft,								FVector4(U, V, Ut, Vt),							FVector2D(0.0f, 0.0f), FontTint ));
-						RenderBatch->AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, FVector2D(LowerRight.X, UpperLeft.Y),	FVector4(U + SizeU, V, UtMax, Vt),				FVector2D(1.0f, 0.0f), FontTint ));
-						RenderBatch->AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, FVector2D(UpperLeft.X, LowerRight.Y),	FVector4(U, V + SizeV, Ut, VtMax),				FVector2D(0.0f, 1.0f), FontTint ));
-						RenderBatch->AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, LowerRight,								FVector4(U + SizeU, V + SizeV, UtMax, VtMax),	FVector2D(1.0f, 1.0f), FontTint ));
-
-						RenderBatch->AddIndex(IndexStart + 0);
-						RenderBatch->AddIndex(IndexStart + 1);
-						RenderBatch->AddIndex(IndexStart + 2);
-						RenderBatch->AddIndex(IndexStart + 1);
-						RenderBatch->AddIndex(IndexStart + 3);
-						RenderBatch->AddIndex(IndexStart + 2);
-					}
+					// Override overflow if the text is smaller than the clipping rect and wont be clipped
+					BuildContext.OverflowDirection = ETextOverflowDirection::NoOverflow;
+				}
+				else if(!OverflowGlyphSequence)
+				{
+					BuildContext.bEnableCulling = true;
 				}
 			}
-
-			LineX += GlyphToRender.XAdvance;
-			LineY += GlyphToRender.YAdvance;
+			else
+			{
+				// Overflow not supported on non-identity transforms
+				BuildContext.OverflowDirection = ETextOverflowDirection::NoOverflow;
+			}
 		}
+
+		BuildShapedTextSequence<Rounding>(BuildContext);
 	};
 
 	if (bOutlineFont)
@@ -2640,6 +2552,281 @@ const FSlateClippingState* FSlateElementBatcher::ResolveClippingState(const FSla
 	}
 
 	return nullptr;
+}
+
+template<ESlateVertexRounding Rounding>
+void FSlateElementBatcher::BuildShapedTextSequence(const FShapedTextBuildContext& Context)
+{
+	const FShapedGlyphSequence* GlyphSequenceToRender = Context.ShapedGlyphSequence;
+
+	FSlateShaderResourceManager& ResourceManager = *RenderingPolicy->GetResourceManager();
+
+	float InvTextureSizeX = 0;
+	float InvTextureSizeY = 0;
+
+	FSlateRenderBatch* RenderBatch = nullptr;
+
+	int32 FontTextureIndex = -1;
+	FSlateShaderResource* FontAtlasTexture = nullptr;
+	FSlateShaderResource* FontShaderResource = nullptr;
+
+	float LineX = Context.StartLineX;
+	float LineY = Context.StartLineY;
+
+	FSlateRenderTransform RenderTransform = *Context.RenderTransform;
+
+	FColor Tint = FColor::White;
+
+	ETextOverflowDirection OverflowDirection = Context.OverflowDirection;
+
+	float EllipsisLineX = 0;
+	float EllipsisLineY = 0;
+	bool bNeedEllipsis = false;
+	bool bChararcterWasClipped = false;
+
+	// For left to right overflow direction - Sum of total whitespace we're currently advancing through. Once a non-whitespace glyph is detected this will return to 0
+	// For right to left this value is unused. We just skip all leading whitespace
+	float PreviousWhitespaceAdvance = 0;
+
+	int32 NumGlyphs = GlyphSequenceToRender->GetGlyphsToRender().Num();
+	const TArray<FShapedGlyphEntry>& GlyphsToRender = GlyphSequenceToRender->GetGlyphsToRender();
+	for (int32 GlyphIndex = 0; GlyphIndex < NumGlyphs; ++GlyphIndex)
+	{
+		const FShapedGlyphEntry& GlyphToRender = GlyphsToRender[GlyphIndex];
+
+		const float BitmapRenderScale = GlyphToRender.GetBitmapRenderScale();
+		const float InvBitmapRenderScale = 1.0f / BitmapRenderScale;
+
+		float X = 0;
+		float SizeX = 0;
+		float Y = 0;
+		float U = 0;
+		float V = 0;
+		float SizeY = 0;
+		float SizeU = 0;
+		float SizeV = 0;
+
+		bool bCanRenderGlyph = GlyphToRender.bIsVisible;
+		if (bCanRenderGlyph)
+		{
+			// Get Sizing and atlas info
+			const FShapedGlyphFontAtlasData GlyphAtlasData = Context.FontCache->GetShapedGlyphFontAtlasData(GlyphToRender, *Context.OutlineSettings);
+			if (GlyphAtlasData.Valid && (!Context.bEnableOutline || GlyphAtlasData.SupportsOutline))
+			{
+				X = LineX + GlyphAtlasData.HorizontalOffset + GlyphToRender.XOffset;
+				// Note PosX,PosY is the upper left corner of the bounding box representing the string.  This computes the Y position of the baseline where text will sit
+
+				if (Context.bEnableCulling)
+				{
+					if (X + GlyphAtlasData.USize < Context.LocalClipBoundingBoxLeft)
+					{
+						LineX += GlyphToRender.XAdvance;
+						LineY += GlyphToRender.YAdvance;
+						continue;
+					}
+					else if (X > Context.LocalClipBoundingBoxRight)
+					{
+						break;
+					}
+				}
+
+				if (FontAtlasTexture == nullptr || GlyphAtlasData.TextureIndex != FontTextureIndex)
+				{
+					// Font has a new texture for this glyph. Refresh the batch we use and the index we are currently using
+					FontTextureIndex = GlyphAtlasData.TextureIndex;
+
+					ISlateFontTexture* SlateFontTexture = Context.FontCache->GetFontTexture(FontTextureIndex);
+					check(SlateFontTexture);
+
+					FontAtlasTexture = SlateFontTexture->GetSlateTexture();
+					check(FontAtlasTexture);
+
+					FontShaderResource = ResourceManager.GetFontShaderResource(FontTextureIndex, FontAtlasTexture, Context.FontMaterial);
+					check(FontShaderResource);
+
+					const bool bIsGrayscale = SlateFontTexture->IsGrayscale();
+					Tint = bIsGrayscale ? Context.FontTint : FColor::White;
+
+					RenderBatch = &CreateRenderBatch(Context.LayerId, FShaderParams(), FontShaderResource, ESlateDrawPrimitive::TriangleList, bIsGrayscale ? ESlateShader::GrayscaleFont : ESlateShader::ColorFont, Context.DrawElement->GetDrawEffects(), ESlateBatchDrawFlag::None, *Context.DrawElement);
+
+					// Reserve memory for the glyphs.  This isn't perfect as the text could contain spaces and we might not render the rest of the text in this batch but its better than resizing constantly
+					const int32 GlyphsLeft = NumGlyphs - GlyphIndex;
+					RenderBatch->ReserveVertices(GlyphsLeft * 4);
+					RenderBatch->ReserveIndices(GlyphsLeft * 6);
+
+					InvTextureSizeX = 1.0f / FontAtlasTexture->GetWidth();
+					InvTextureSizeY = 1.0f / FontAtlasTexture->GetHeight();
+				}
+
+
+				Y = LineY - GlyphAtlasData.VerticalOffset + GlyphToRender.YOffset + ((Context.MaxHeight + Context.TextBaseline) * InvBitmapRenderScale);
+				U = GlyphAtlasData.StartU * InvTextureSizeX;
+				V = GlyphAtlasData.StartV * InvTextureSizeY;
+				SizeX = GlyphAtlasData.USize * BitmapRenderScale;
+				SizeY = GlyphAtlasData.VSize * BitmapRenderScale;
+				SizeU = GlyphAtlasData.USize * InvTextureSizeX;
+				SizeV = GlyphAtlasData.VSize * InvTextureSizeY;
+			}
+			else
+			{
+				bCanRenderGlyph = false;
+			}
+
+		}
+		else
+		{
+			X = LineX;
+			SizeX = GlyphToRender.XAdvance;
+		}
+
+		// Overflow Detection
+		// First figure out the size of the glyph. If the glyph contains multiple characters we have to measure all of them and if clicked, omit them all. This is common in complex languages with lots of diacritics
+		float OverflowTestWidth = SizeX;
+		if (OverflowDirection != ETextOverflowDirection::NoOverflow && (GlyphToRender.NumGraphemeClustersInGlyph > 1 || GlyphToRender.NumCharactersInGlyph > 1))
+		{
+			const int32 StartIndex = GlyphIndex;
+			int32 EndIndex = GlyphIndex;
+			int32 NextIndex = GlyphIndex + 1;
+			const int32 SourceIndex = GlyphToRender.SourceIndex;
+			while (NextIndex < NumGlyphs && GlyphsToRender[NextIndex].SourceIndex == SourceIndex)
+			{
+				++EndIndex;
+				++NextIndex;
+			}
+			if (StartIndex < EndIndex)
+			{
+				OverflowTestWidth = GlyphSequenceToRender->GetMeasuredWidth(StartIndex, EndIndex).Get(SizeX);
+			}
+		}
+
+		// Left to right overflow - If the current pen position + the ellipsis cannot fit, we have reached the end of the possible area for drawing this text. 
+		if (OverflowDirection == ETextOverflowDirection::LeftToRight)
+		{
+			// If we are on the last glyph dont bother checking if the ellipsis can fit. If the last glyph can fit there is no need for ellipsis
+			float OverflowSequenceNeededSize = GlyphIndex < NumGlyphs - 1 ? Context.OverflowGlyphSequence->GetMeasuredWidth() : 0;
+			if(X + OverflowTestWidth + OverflowSequenceNeededSize >= Context.LocalClipBoundingBoxRight)
+			{
+				bNeedEllipsis = true;
+				// We subtract out any whitespace advance. This avoids the ellipsis from ever floating out in the middle of a block of whitespace.
+				// e.g without this something like "The quick brown		fox jumps over the lazy dog" could be clipped to "The quick brown	..." but we want it to be "The quick brown..."
+				EllipsisLineX = LineX - PreviousWhitespaceAdvance;
+				EllipsisLineY = LineY;
+				// No characters to render after the ellipsis on the right side
+				break;
+			}
+		}
+		else if(OverflowDirection == ETextOverflowDirection::RightToLeft)
+		{
+			bool bClipped = false;
+			// Right to left overflow
+			if (X < Context.LocalClipBoundingBoxLeft)
+			{
+				// This glyph is in the clipped region or is not visible so just advance. It cannot be shown
+				bClipped = true;
+				bChararcterWasClipped = true;
+			}
+			else if(bChararcterWasClipped)
+			{
+				// Can the ellipsis fit in the free spot by skipping the previous glyph(s)
+				float EllipsisWidth = Context.OverflowGlyphSequence->GetMeasuredWidth();
+				float AvailableX = X-Context.LocalClipBoundingBoxLeft;
+				if (AvailableX >= EllipsisWidth)
+				{
+					// The available area can fit the ellipsis. Mark that we need an ellipsis and stop checking for overflow. The rest of the text can be built normally
+					bNeedEllipsis = true;
+					EllipsisLineX = (LineX - EllipsisWidth);
+					EllipsisLineY = LineY;
+					OverflowDirection = ETextOverflowDirection::NoOverflow;
+				}
+				else
+				{
+					bClipped = true;
+					bChararcterWasClipped = true;
+				}
+
+			}
+			// If we just clipped a glyph omit all characters in said glyph. Otherwise floating diacritics would be visible above the ellipsis. This is common in complex languages.
+			if (bClipped && GlyphToRender.NumCharactersInGlyph > 1)
+			{
+				GlyphIndex += GlyphToRender.NumCharactersInGlyph - 1;
+				LineX += OverflowTestWidth;
+				continue;
+			}
+
+			bCanRenderGlyph = !bClipped;
+		}
+
+		if(bCanRenderGlyph)
+		{
+			const FVector2D UpperLeft(X, Y);
+			const FVector2D UpperRight(X + SizeX, Y);
+			const FVector2D LowerLeft(X, Y + SizeY);
+			const FVector2D LowerRight(X + SizeX, Y + SizeY);
+
+			// The start index of these vertices in the index buffer
+			const uint32 IndexStart = RenderBatch->GetNumVertices();
+
+			float Ut = 0.0f, Vt = 0.0f, UtMax = 0.0f, VtMax = 0.0f;
+			if (Context.FontMaterial)
+			{
+				float DistAlpha = (float)GlyphIndex / NumGlyphs;
+				float DistAlphaNext = (float)(GlyphIndex + 1) / NumGlyphs;
+
+				// This creates a set of UV's that goes from 0-1, from left to right of the string in U and 0-1 baseline to baseline top to bottom in V
+				Ut = FMath::Lerp(0.0f, 1.0f, DistAlpha);
+				Vt = FMath::Lerp(0.0f, 1.0f, UpperLeft.Y / Context.MaxHeight);
+
+				UtMax = FMath::Lerp(0.0f, 1.0f, DistAlphaNext);
+				VtMax = FMath::Lerp(0.0f, 1.0f, LowerLeft.Y / Context.MaxHeight);
+			}
+
+			// Add four vertices to the list of verts to be added to the vertex buffer
+			RenderBatch->AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, UpperLeft, FVector4(U, V, Ut, Vt), FVector2D(0.0f, 0.0f), Tint));
+			RenderBatch->AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, FVector2D(LowerRight.X, UpperLeft.Y), FVector4(U + SizeU, V, UtMax, Vt), FVector2D(1.0f, 0.0f), Tint));
+			RenderBatch->AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, FVector2D(UpperLeft.X, LowerRight.Y), FVector4(U, V + SizeV, Ut, VtMax), FVector2D(0.0f, 1.0f), Tint));
+			RenderBatch->AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, LowerRight, FVector4(U + SizeU, V + SizeV, UtMax, VtMax), FVector2D(1.0f, 1.0f), Tint));
+
+			RenderBatch->AddIndex(IndexStart + 0);
+			RenderBatch->AddIndex(IndexStart + 1);
+			RenderBatch->AddIndex(IndexStart + 2);
+			RenderBatch->AddIndex(IndexStart + 1);
+			RenderBatch->AddIndex(IndexStart + 3);
+			RenderBatch->AddIndex(IndexStart + 2);
+
+			// Reset whitespace advance to 0, this is a visible character
+			PreviousWhitespaceAdvance = 0;
+		}
+		else if(!GlyphToRender.bIsVisible)
+		{
+			// How much whitespace we are currently walking through
+			PreviousWhitespaceAdvance += GlyphToRender.XAdvance;
+		}
+
+		LineX += GlyphToRender.XAdvance;
+		LineY += GlyphToRender.YAdvance;
+	}
+
+	if (!bNeedEllipsis && Context.bForceEllipsis)
+	{
+		bNeedEllipsis = true;
+		EllipsisLineX = LineX;
+		EllipsisLineY = LineY;
+	}
+
+	if (bNeedEllipsis)
+	{
+		// Ellipsis can fit, place it at the current lineX
+		FShapedTextBuildContext EllipsisContext = Context;
+		EllipsisContext.bForceEllipsis = false;
+		EllipsisContext.ShapedGlyphSequence = Context.OverflowGlyphSequence;
+		EllipsisContext.OverflowGlyphSequence = nullptr;
+		EllipsisContext.bEnableCulling = false;
+		EllipsisContext.OverflowDirection = ETextOverflowDirection::NoOverflow;
+		EllipsisContext.StartLineX = EllipsisLineX;
+		EllipsisContext.StartLineY = EllipsisLineY;
+
+		BuildShapedTextSequence<Rounding>(EllipsisContext);
+	}
 }
 
 void FSlateElementBatcher::ResetBatches()

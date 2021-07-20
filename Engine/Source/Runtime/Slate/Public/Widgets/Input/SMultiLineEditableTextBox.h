@@ -73,6 +73,7 @@ public:
 		, _VirtualKeyboardDismissAction(EVirtualKeyboardDismissAction::TextChangeOnDismiss)
 		, _TextShapingMethod()
 		, _TextFlowDirection()
+		, _OverflowPolicy()
 		{}
 
 		/** The styling of the textbox */
@@ -236,6 +237,8 @@ public:
 		/** Which text flow direction should we use? (unset to use the default returned by GetDefaultTextFlowDirection) */
 		SLATE_ARGUMENT( TOptional<ETextFlowDirection>, TextFlowDirection )
 
+		/** Determines what happens to text that is clipped and doesn't fit within the allotted area for this widget */
+		SLATE_ARGUMENT(TOptional<ETextOverflowPolicy>, OverflowPolicy)
 	SLATE_END_ARGS()
 	
 	/**
@@ -359,6 +362,9 @@ public:
 
 	/** See Justification attribute */
 	void SetJustification(const TAttribute<ETextJustify::Type>& InJustification);
+
+	/** Sets the overflow policy for this text block */
+	void SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy);
 
 	/** See the AllowContextMenu attribute */
 	void SetAllowContextMenu(const TAttribute< bool >& InAllowContextMenu);

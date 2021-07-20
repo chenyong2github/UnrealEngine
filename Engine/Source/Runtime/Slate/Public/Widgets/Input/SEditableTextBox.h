@@ -56,6 +56,7 @@ public:
 		, _VirtualKeyboardOptions(FVirtualKeyboardOptions())
 		, _VirtualKeyboardTrigger(EVirtualKeyboardTrigger::OnFocusByPointer)
 		, _VirtualKeyboardDismissAction(EVirtualKeyboardDismissAction::TextChangeOnDismiss)
+		, _OverflowPolicy()
 		{
 		}
 
@@ -164,6 +165,8 @@ public:
 		/** Which text flow direction should we use? (unset to use the default returned by GetDefaultTextFlowDirection) */
 		SLATE_ARGUMENT(TOptional<ETextFlowDirection>, TextFlowDirection)
 
+		/** Determines what happens to text that is clipped and doesnt fit within the allotted area for this text box */
+		SLATE_ARGUMENT(TOptional<ETextOverflowPolicy>, OverflowPolicy)
 	SLATE_END_ARGS()
 
 	SEditableTextBox();
@@ -333,6 +336,9 @@ public:
 
 	/** See TextFlowDirection attribute */
 	void SetTextFlowDirection(const TOptional<ETextFlowDirection>& InTextFlowDirection);
+
+	/** Sets the overflow policy for this text block */
+	void SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy);
 
 	/** Query to see if any text is selected within the document */
 	bool AnyTextSelected() const;

@@ -42,6 +42,7 @@ UEditableTextBox::UEditableTextBox(const FObjectInitializer& ObjectInitializer)
 	SelectAllTextOnCommit = false;
 	AllowContextMenu = true;
 	VirtualKeyboardDismissAction = EVirtualKeyboardDismissAction::TextChangeOnDismiss;
+	OverflowPolicy = ETextOverflowPolicy::Clip;
 
 	if (DefaultEditableTextBoxStyle == nullptr)
 	{
@@ -98,7 +99,8 @@ TSharedRef<SWidget> UEditableTextBox::RebuildWidget()
 		.VirtualKeyboardOptions(VirtualKeyboardOptions)
 		.VirtualKeyboardTrigger(VirtualKeyboardTrigger)
 		.VirtualKeyboardDismissAction(VirtualKeyboardDismissAction)
-		.Justification(Justification);
+		.Justification(Justification)
+		.OverflowPolicy(OverflowPolicy);
 
 	return MyEditableTextBlock.ToSharedRef();
 }
@@ -124,6 +126,7 @@ void UEditableTextBox::SynchronizeProperties()
 	MyEditableTextBlock->SetAllowContextMenu(AllowContextMenu);
 	MyEditableTextBlock->SetVirtualKeyboardDismissAction(VirtualKeyboardDismissAction);
 	MyEditableTextBlock->SetJustification(Justification);
+	MyEditableTextBlock->SetOverflowPolicy(OverflowPolicy);
 
 	ShapedTextOptions.SynchronizeShapedTextProperties(*MyEditableTextBlock);
 }
@@ -215,6 +218,15 @@ void UEditableTextBox::SetJustification(ETextJustify::Type InJustification)
 	if (MyEditableTextBlock.IsValid())
 	{
 		MyEditableTextBlock->SetJustification(InJustification);
+	}
+}
+
+void UEditableTextBox::SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy)
+{
+	OverflowPolicy = InOverflowPolicy;
+	if (MyEditableTextBlock.IsValid())
+	{
+		MyEditableTextBlock->SetOverflowPolicy(InOverflowPolicy);
 	}
 }
 

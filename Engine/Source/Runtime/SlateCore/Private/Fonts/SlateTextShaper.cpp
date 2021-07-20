@@ -838,7 +838,7 @@ void FSlateTextShaper::PerformHarfBuzzTextShaping(const TCHAR* InText, const int
 
 bool FSlateTextShaper::InsertSubstituteGlyphs(const TCHAR* InText, const int32 InCharIndex, const TSharedRef<FShapedGlyphFaceData>& InShapedGlyphFaceData, const TSharedRef<FFreeTypeAdvanceCache>& AdvanceCache, TArray<FShapedGlyphEntry>& OutGlyphsToRender, const int16 InLetterSpacingScaled) const
 {
-	auto GetSpaceGlyphIndexAndAdvance = [this, &InShapedGlyphFaceData, &AdvanceCache](uint32& OutSpaceGlyphIndex, int16& OutSpaceXAdvance)
+	auto GetSpecifiedGlyphIndexAndAdvance = [this, &InShapedGlyphFaceData, &AdvanceCache](TCHAR Char, uint32& OutSpaceGlyphIndex, int16& OutSpaceXAdvance)
 	{
 		OutSpaceGlyphIndex = 0;
 		OutSpaceXAdvance = 0;
@@ -847,7 +847,7 @@ bool FSlateTextShaper::InsertSubstituteGlyphs(const TCHAR* InText, const int32 I
 			TSharedPtr<FFreeTypeFace> FTFace = InShapedGlyphFaceData->FontFace.Pin();
 			if (FTFace.IsValid())
 			{
-				OutSpaceGlyphIndex = FT_Get_Char_Index(FTFace->GetFace(), TEXT(' '));
+				OutSpaceGlyphIndex = FT_Get_Char_Index(FTFace->GetFace(), Char);
 
 				FT_Fixed CachedAdvanceData = 0;
 				if (AdvanceCache->FindOrCache(OutSpaceGlyphIndex, CachedAdvanceData))
@@ -884,7 +884,7 @@ bool FSlateTextShaper::InsertSubstituteGlyphs(const TCHAR* InText, const int32 I
 	{
 		uint32 SpaceGlyphIndex = 0;
 		int16 SpaceXAdvance = 0;
-		GetSpaceGlyphIndexAndAdvance(SpaceGlyphIndex, SpaceXAdvance);
+		GetSpecifiedGlyphIndexAndAdvance(TEXT(' '), SpaceGlyphIndex, SpaceXAdvance);
 
 		// We insert a spacer glyph with (up-to) the width of 4 space glyphs in-place of a tab character
 		const int16 NumSpacesToInsert = 4 - (OutGlyphsToRender.Num() % 4);
@@ -911,8 +911,8 @@ bool FSlateTextShaper::InsertSubstituteGlyphs(const TCHAR* InText, const int32 I
 	}
 
 	if (Char == TEXT('\u2009') ||	// Thin Space
-		Char == TEXT('\u202F')		// Narrow No-Break Space
-		)
+		Char == TEXT('\u202F') ||	// Narrow No-Break Space
+		Char == TEXT('\u2026'))		// Ellipsis character
 	{
 		// Not all fonts support these characters
 #if WITH_FREETYPE
@@ -930,24 +930,52 @@ bool FSlateTextShaper::InsertSubstituteGlyphs(const TCHAR* InText, const int32 I
 		}
 #endif // WITH_FREETYPE
 
-		// If it doesn't, then make these 2/3rd the width of a normal space
-		uint32 SpaceGlyphIndex = 0;
-		int16 SpaceXAdvance = 0;
-		GetSpaceGlyphIndexAndAdvance(SpaceGlyphIndex, SpaceXAdvance);
+		if (Char == TEXT('\u2026'))
+		{
+			// If the ellipsis character doesn't exist in the font replace with 3 dots
+			uint32 DotGlyphIndex = 0;
+			int16 DotXAdvance = 0;
+			GetSpecifiedGlyphIndexAndAdvance(TEXT('.'), DotGlyphIndex, DotXAdvance);
 
-		FShapedGlyphEntry& ShapedGlyphEntry = OutGlyphsToRender.AddDefaulted_GetRef();
-		ShapedGlyphEntry.FontFaceData = InShapedGlyphFaceData;
-		ShapedGlyphEntry.GlyphIndex = SpaceGlyphIndex;
-		ShapedGlyphEntry.SourceIndex = InCharIndex;
-		ShapedGlyphEntry.XAdvance = ((SpaceXAdvance + InLetterSpacingScaled) * 2) / 3;
-		ShapedGlyphEntry.YAdvance = 0;
-		ShapedGlyphEntry.XOffset = 0;
-		ShapedGlyphEntry.YOffset = 0;
-		ShapedGlyphEntry.Kerning = 0;
-		ShapedGlyphEntry.NumCharactersInGlyph = 1;
-		ShapedGlyphEntry.NumGraphemeClustersInGlyph = 1;
-		ShapedGlyphEntry.TextDirection = TextBiDi::ETextDirection::LeftToRight;
-		ShapedGlyphEntry.bIsVisible = false;
+			// Insert 3 dots
+			for (int32 Dot = 0; Dot < 3; ++Dot)
+			{
+				FShapedGlyphEntry& ShapedGlyphEntry = OutGlyphsToRender.AddDefaulted_GetRef();
+				ShapedGlyphEntry.FontFaceData = InShapedGlyphFaceData;
+				ShapedGlyphEntry.GlyphIndex = DotGlyphIndex;
+				ShapedGlyphEntry.SourceIndex = InCharIndex;
+				ShapedGlyphEntry.XAdvance = DotXAdvance + InLetterSpacingScaled;
+				ShapedGlyphEntry.YAdvance = 0;
+				ShapedGlyphEntry.XOffset = 0;
+				ShapedGlyphEntry.YOffset = 0;
+				ShapedGlyphEntry.Kerning = 0;
+				ShapedGlyphEntry.NumCharactersInGlyph = 1; // should this be 3 instead of a loop three times?
+				ShapedGlyphEntry.NumGraphemeClustersInGlyph = 1;
+				ShapedGlyphEntry.TextDirection = TextBiDi::ETextDirection::LeftToRight;
+				ShapedGlyphEntry.bIsVisible = true;
+			}
+		}
+		else
+		{
+			// If it doesn't, then make these 2/3rd the width of a normal space
+			uint32 SpaceGlyphIndex = 0;
+			int16 SpaceXAdvance = 0;
+			GetSpecifiedGlyphIndexAndAdvance(TEXT(' '), SpaceGlyphIndex, SpaceXAdvance);
+
+			FShapedGlyphEntry& ShapedGlyphEntry = OutGlyphsToRender.AddDefaulted_GetRef();
+			ShapedGlyphEntry.FontFaceData = InShapedGlyphFaceData;
+			ShapedGlyphEntry.GlyphIndex = SpaceGlyphIndex;
+			ShapedGlyphEntry.SourceIndex = InCharIndex;
+			ShapedGlyphEntry.XAdvance = ((SpaceXAdvance + InLetterSpacingScaled) * 2) / 3;
+			ShapedGlyphEntry.YAdvance = 0;
+			ShapedGlyphEntry.XOffset = 0;
+			ShapedGlyphEntry.YOffset = 0;
+			ShapedGlyphEntry.Kerning = 0;
+			ShapedGlyphEntry.NumCharactersInGlyph = 1;
+			ShapedGlyphEntry.NumGraphemeClustersInGlyph = 1;
+			ShapedGlyphEntry.TextDirection = TextBiDi::ETextDirection::LeftToRight;
+			ShapedGlyphEntry.bIsVisible = false;
+		}
 		return true;
 	}
 

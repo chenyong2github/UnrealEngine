@@ -493,6 +493,21 @@ void FSlateEditableTextLayout::SetLineHeightPercentage(const TAttribute<float>& 
 	OwnerWidget->GetSlateWidget()->Invalidate(EInvalidateWidget::LayoutAndVolatility);
 }
 
+void FSlateEditableTextLayout::SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy)
+{
+	if(OverflowPolicyOverride != InOverflowPolicy)
+	{
+		OverflowPolicyOverride = InOverflowPolicy;
+		TextLayout->SetTextOverflowPolicy(OverflowPolicyOverride);
+		if (HintTextLayout.IsValid())
+		{
+			HintTextLayout->SetTextOverflowPolicy(OverflowPolicyOverride);
+		}
+
+		OwnerWidget->GetSlateWidget()->Invalidate(EInvalidateWidget::LayoutAndVolatility);
+	}
+}
+
 void FSlateEditableTextLayout::SetDebugSourceInfo(const TAttribute<FString>& InDebugSourceInfo)
 {
 	DebugSourceInfo = InDebugSourceInfo;
@@ -3239,11 +3254,15 @@ void FSlateEditableTextLayout::Tick(const FGeometry& AllottedGeometry, const dou
 		(OwnerWidget->GetSlateWidget()->HasAnyUserFocus().IsSet() || HasActiveContextMenu());
 	if (bShouldAppearFocused)
 	{
+		// When focused the user is editing or selecting text. Never allow ellipsis to replace text
+		TextLayout->SetTextOverflowPolicy(ETextOverflowPolicy::Clip);
 		// If we have focus then we don't allow the editable text itself to update, but we do still need to refresh the password and marshaller state
 		RefreshImpl(nullptr);
 	}
 	else
 	{
+		TextLayout->SetTextOverflowPolicy(OverflowPolicyOverride);
+
 		// We don't have focus, so we can perform a full refresh
 		Refresh();
 	}

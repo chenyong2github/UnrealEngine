@@ -77,6 +77,7 @@ void SEditableText::Construct( const FArguments& InArgs )
 	EditableTextLayout->SetCompositionBrush(InArgs._BackgroundImageComposing.IsSet() ? InArgs._BackgroundImageComposing : &InArgs._Style->BackgroundImageComposing);
 	EditableTextLayout->SetDebugSourceInfo(TAttribute<FString>::Create(TAttribute<FString>::FGetter::CreateLambda([this]{ return FReflectionMetaData::GetWidgetDebugInfo(this); })));
 	EditableTextLayout->SetJustification(InArgs._Justification);
+	EditableTextLayout->SetOverflowPolicy(InArgs._OverflowPolicy);
 
 	// build context menu extender
 	MenuExtender = MakeShareable(new FExtender());
@@ -377,6 +378,11 @@ void SEditableText::SetTextShapingMethod(const TOptional<ETextShapingMethod>& In
 void SEditableText::SetTextFlowDirection(const TOptional<ETextFlowDirection>& InTextFlowDirection)
 {
 	EditableTextLayout->SetTextFlowDirection(InTextFlowDirection);
+}
+
+void SEditableText::SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy)
+{
+	EditableTextLayout->SetOverflowPolicy(InOverflowPolicy);
 }
 
 bool SEditableText::AnyTextSelected() const

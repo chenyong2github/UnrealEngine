@@ -51,6 +51,7 @@ public:
 		, _TextFlowDirection()
 		, _Decorators()
 		, _Parser()
+		, _OverflowPolicy()
 		, _MinDesiredWidth()
 	{
 		_Clipping = EWidgetClipping::OnDemand;
@@ -107,6 +108,9 @@ public:
 
 		/** The parser used to resolve any markup used in the provided string. */
 		SLATE_ARGUMENT( TSharedPtr< class IRichTextMarkupParser >, Parser )
+
+		/** Determines what happens to text that is clipped and doesn't fit within the clip rect for this widget */
+		SLATE_ARGUMENT(TOptional<ETextOverflowPolicy>, OverflowPolicy)
 
 		/** Minimum width that this text block should be */
 		SLATE_ATTRIBUTE(float, MinDesiredWidth)
@@ -217,6 +221,9 @@ public:
 
 	/**  */
 	void SetDecoratorStyleSet(const ISlateStyle* NewDecoratorStyleSet);
+
+	/** Sets the overflow policy for this text block */
+	void SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy);
 
 	/**
 	 * Causes the text to reflow it's layout

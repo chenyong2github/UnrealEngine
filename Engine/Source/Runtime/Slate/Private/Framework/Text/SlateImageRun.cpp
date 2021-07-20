@@ -143,23 +143,23 @@ FVector2D FSlateImageRun::GetLocationAt( const TSharedRef< ILayoutBlock >& Block
 	return Block->GetLocationOffset();
 }
 
-int32 FSlateImageRun::OnPaint( const FPaintArgs& Args, const FTextLayout::FLineView& Line, const TSharedRef< ILayoutBlock >& Block, const FTextBlockStyle& DefaultStyle, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const 
+int32 FSlateImageRun::OnPaint(const FPaintArgs& PaintArgs, const FTextArgs& TextArgs, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
 	// The block size and offset values are pre-scaled, so we need to account for that when converting the block offsets into paint geometry
 	const float InverseScale = Inverse(AllottedGeometry.Scale);
 
-	if ( Image->DrawAs != ESlateBrushDrawType::NoDrawType )
+	if (Image->DrawAs != ESlateBrushDrawType::NoDrawType)
 	{
-		const FLinearColor FinalColorAndOpacity( InWidgetStyle.GetColorAndOpacityTint() * Image->GetTint( InWidgetStyle ) );
+		const FLinearColor FinalColorAndOpacity(InWidgetStyle.GetColorAndOpacityTint() * Image->GetTint(InWidgetStyle));
 		const ESlateDrawEffect DrawEffects = bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
 		FSlateDrawElement::MakeBox(
-			OutDrawElements, 
-			++LayerId, 
-			AllottedGeometry.ToPaintGeometry(TransformVector(InverseScale, Block->GetSize()), FSlateLayoutTransform(TransformPoint(InverseScale, Block->GetLocationOffset()))), 
-			Image, 
-			DrawEffects, 
+			OutDrawElements,
+			++LayerId,
+			AllottedGeometry.ToPaintGeometry(TransformVector(InverseScale, TextArgs.Block->GetSize()), FSlateLayoutTransform(TransformPoint(InverseScale, TextArgs.Block->GetLocationOffset()))),
+			Image,
+			DrawEffects,
 			FinalColorAndOpacity
-			);
+		);
 	}
 
 	return LayerId;

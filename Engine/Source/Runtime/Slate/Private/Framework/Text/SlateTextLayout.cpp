@@ -67,14 +67,39 @@ int32 FSlateTextLayout::OnPaint( const FPaintArgs& Args, const FGeometry& Allott
 
 	int32 HighestLayerId = LayerId;
 
-	for (const FTextLayout::FLineView& LineView : LineViews)
+	auto IsLineViewVisible = [&AllottedGeometry, &InverseScale, &MyCullingRect](const FTextLayout::FLineView& LineView, bool bTestForVerticallyClippedLine = false)
 	{
 		// Is this line visible?  This checks if the culling rect, which represents the AABB around the last clipping rect, intersects the 
 		// line of text, this requires that we get the text line into render space.
 		// TODO perhaps save off this line view rect during text layout?
 		const FVector2D LocalLineOffset = LineView.Offset * InverseScale;
-		const FSlateRect LineViewRect(AllottedGeometry.GetRenderBoundingRect(FSlateRect(LocalLineOffset, LocalLineOffset + (LineView.Size * InverseScale))));
-		if ( !FSlateRect::DoRectanglesIntersect(LineViewRect, MyCullingRect))
+		FSlateRect LineViewRect(AllottedGeometry.GetRenderBoundingRect(FSlateRect(LocalLineOffset, LocalLineOffset + (LineView.Size * InverseScale))));
+
+		if (!bTestForVerticallyClippedLine)
+		{
+			return FSlateRect::DoRectanglesIntersect(LineViewRect, MyCullingRect);
+		}
+		else
+		{
+			// We only care about vertically clipped lines. Horizontal clipping will be replaced with an ellipsis
+			// So make the left and right side the same as the clip rect to avoid the test failing due to being larger horizontally
+
+			FSlateRect GeometryRect = AllottedGeometry.GetRenderBoundingRect();
+			LineViewRect.Left = GeometryRect.Left;
+			LineViewRect.Right = GeometryRect.Right;
+
+			return FSlateRect::IsRectangleContained(GeometryRect, LineViewRect);
+		}
+
+	};
+
+	for (int32 LineIndex = 0; LineIndex < LineViews.Num(); ++LineIndex)
+	{
+		const FTextLayout::FLineView& LineView = LineViews[LineIndex];
+
+		ETextOverflowPolicy OverflowPolicy = TextOverflowPolicyOverride.Get(DefaultTextStyle.OverflowPolicy);
+
+		if (!IsLineViewVisible(LineView))
 		{
 			continue;
 		}
@@ -85,6 +110,17 @@ int32 FSlateTextLayout::OnPaint( const FPaintArgs& Args, const FGeometry& Allott
 		const int32 BlockDebugLayer = HighestUnderlayLayerId;
 		const int32 TextLayer = BlockDebugLayer + 1;
 		int32 HighestBlockLayerId = TextLayer;
+
+		const ETextJustify::Type VisualJustification = CalculateLineViewVisualJustification(LineView);
+		ETextOverflowDirection OverflowDirection = VisualJustification == ETextJustify::Left ? ETextOverflowDirection::LeftToRight : (VisualJustification == ETextJustify::Right ? ETextOverflowDirection::RightToLeft : ETextOverflowDirection::NoOverflow);
+
+		bool bForceEllipsisDueToClippedLine = false;
+	
+		if (OverflowPolicy == ETextOverflowPolicy::Ellipsis && LineViews.Num() > 1)
+		{
+			// Force the ellipsis to be on when the next line in a multi line text layout is clipped. This forces an ellipsis on this line even when its not clipped to indicate that an entire line or more is clipped
+			bForceEllipsisDueToClippedLine = LineViews.IsValidIndex(LineIndex + 1) ? !IsLineViewVisible(LineViews[LineIndex + 1], true) : false;
+		}
 
 		// Render every block for this line
 		for (const TSharedRef< ILayoutBlock >& Block : LineView.Blocks)
@@ -105,6 +141,9 @@ int32 FSlateTextLayout::OnPaint( const FPaintArgs& Args, const FGeometry& Allott
 			}
 #endif
 
+			FTextArgs TextArgs(LineView, Block, DefaultTextStyle, OverflowPolicy, OverflowDirection);
+			TextArgs.bForceEllipsisDueToClippedLine = bForceEllipsisDueToClippedLine;
+
 			const TSharedRef< ISlateRun > Run = StaticCastSharedRef< ISlateRun >( Block->GetRun() );
 
 			int32 HighestRunLayerId = TextLayer;
@@ -115,7 +154,7 @@ int32 FSlateTextLayout::OnPaint( const FPaintArgs& Args, const FGeometry& Allott
 			}
 			else
 			{
-				HighestRunLayerId = Run->OnPaint( Args, LineView, Block, DefaultTextStyle, AllottedGeometry, MyCullingRect, OutDrawElements, TextLayer, InWidgetStyle, bParentEnabled );
+				HighestRunLayerId = Run->OnPaint( Args, TextArgs, AllottedGeometry, MyCullingRect, OutDrawElements, TextLayer, InWidgetStyle, bParentEnabled );
 			}
 
 			HighestBlockLayerId = FMath::Max( HighestBlockLayerId, HighestRunLayerId );

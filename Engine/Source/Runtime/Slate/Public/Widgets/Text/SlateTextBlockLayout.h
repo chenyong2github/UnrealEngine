@@ -158,6 +158,11 @@ public:
 	void SetTextFlowDirection(const TOptional<ETextFlowDirection>& InTextFlowDirection);
 
 	/**
+	 * Set the text overflow policy that the internal text layout should use
+	 */
+	void SetTextOverflowPolicy(const TOptional<ETextOverflowPolicy> InTextOverflowPolicy);
+
+	/**
 	 * Set the information used to help identify who owns this text layout in the case of an error
 	 */
 	void SetDebugSourceInfo(const TAttribute<FString>& InDebugSourceInfo);

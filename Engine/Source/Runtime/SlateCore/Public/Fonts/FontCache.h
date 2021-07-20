@@ -682,18 +682,12 @@ public:
 	 */
 	FShapedGlyphFontAtlasData GetShapedGlyphFontAtlasData( const FShapedGlyphEntry& InShapedGlyph, const FFontOutlineSettings& InOutlineSettings);
 
-	/** 
-	 * Add a new entries into a cache atlas
-	 *
-	 * @param InFontInfo	Information about the font being used for the characters
-	 * @param Characters	The characters to cache
-	 * @param FontScale		The font scale to use
-	 * @return true if the characters could be cached. false if the cache is full
+	/**
+	 * Gets the overflow glyph sequence for a given font. The overflow sequence is used to replace characters that are clipped
 	 */
-	bool AddNewEntry( const FShapedGlyphEntry& InShapedGlyph, const FFontOutlineSettings& InOutlineSettings, FShapedGlyphFontAtlasData& OutAtlasData );
+	FShapedGlyphSequenceRef GetOverflowEllipsisText(const FSlateFontInfo& InFontInfo, const float InFontScale);
 
-	bool AddNewEntry( const FCharacterRenderData InRenderData, uint8& OutTextureIndex, uint16& OutGlyphX, uint16& OutGlyphY, uint16& OutGlyphWidth, uint16& OutGlyphHeight );
-
+public:
 	/**
 	 * Flush the given object out of the cache
 	 */
@@ -868,6 +862,17 @@ private:
 	/** Called after the active culture has changed */
 	void HandleCultureChanged();
 
+	/**
+	 * Add a new entries into a cache atlas
+	 *
+	 * @param InFontInfo	Information about the font being used for the characters
+	 * @param Characters	The characters to cache
+	 * @param FontScale		The font scale to use
+	 * @return true if the characters could be cached. false if the cache is full
+	 */
+	bool AddNewEntry(const FShapedGlyphEntry& InShapedGlyph, const FFontOutlineSettings& InOutlineSettings, FShapedGlyphFontAtlasData& OutAtlasData);
+
+	bool AddNewEntry(const FCharacterRenderData InRenderData, uint8& OutTextureIndex, uint16& OutGlyphX, uint16& OutGlyphY, uint16& OutGlyphWidth, uint16& OutGlyphHeight);
 private:
 
 	/** FreeType library instance (owned by this font cache) */
@@ -886,7 +891,10 @@ private:
 	TUniquePtr<FSlateTextShaper> TextShaper;
 
 	/** Mapping Font keys to cached data */
-	TMap<FSlateFontKey, TSharedRef<class FCharacterList>, FDefaultSetAllocator, FSlateFontKeyFuncs<TSharedRef<class FCharacterList>>> FontToCharacterListCache;
+	TMap<FSlateFontKey, TUniquePtr<FCharacterList>, FDefaultSetAllocator, FSlateFontKeyFuncs<TUniquePtr<FCharacterList>>> FontToCharacterListCache;
+
+	/** Caches overflow text to display usually an ellipsis character for text elements that are clipped and request replacing clipped text with an ellipsis */
+	TMap<FSlateFontKey, FShapedGlyphSequenceRef, FDefaultSetAllocator, FSlateFontKeyFuncs<FShapedGlyphSequenceRef>> FontToOverflowGlyphSequence;
 
 	/** Mapping shaped glyphs to their cached atlas data */
 	TMap<FShapedGlyphEntryKey, TSharedRef<FShapedGlyphFontAtlasData>> ShapedGlyphToAtlasData;
@@ -919,4 +927,8 @@ private:
 	FOnReleaseFontResources OnReleaseResourcesDelegate;
 
 	ESlateTextureAtlasThreadId OwningThread;
+
+	/** Overflow text string to use to replace clipped characters */
+	FText EllipsisText;
+
 };

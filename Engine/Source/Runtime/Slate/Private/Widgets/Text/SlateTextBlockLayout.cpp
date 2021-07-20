@@ -257,6 +257,11 @@ void FSlateTextBlockLayout::SetTextFlowDirection(const TOptional<ETextFlowDirect
 	TextLayout->SetTextFlowDirection((InTextFlowDirection.IsSet()) ? InTextFlowDirection.GetValue() : GetDefaultTextFlowDirection());
 }
 
+void FSlateTextBlockLayout::SetTextOverflowPolicy(const TOptional<ETextOverflowPolicy> InTextOverflowPolicy)
+{
+	TextLayout->SetTextOverflowPolicy(InTextOverflowPolicy);
+}
+
 void FSlateTextBlockLayout::SetDebugSourceInfo(const TAttribute<FString>& InDebugSourceInfo)
 {
 	TextLayout->SetDebugSourceInfo(InDebugSourceInfo);

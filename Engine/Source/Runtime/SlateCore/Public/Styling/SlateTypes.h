@@ -70,6 +70,20 @@ enum class ECheckBoxState : uint8
 };
 
 /**
+ * The different methods that can be used to determine what happens to text when it is longer than its allowed length
+ */
+UENUM(BlueprintType)
+enum class ETextOverflowPolicy : uint8
+{
+	/** Overflowing text will be clipped */
+	Clip = 0,
+
+	/** Overflowing text will be replaced with an ellipsis */
+	Ellipsis,
+};
+
+
+/**
  * Represents the appearance of an SCheckBox
  */
 USTRUCT(BlueprintType)
@@ -360,6 +374,11 @@ struct SLATECORE_API FTextBlockStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance, AdvancedDisplay)
 	ETextTransformPolicy TransformPolicy;
 	FTextBlockStyle& SetTransformPolicy( const ETextTransformPolicy& InTransformPolicy ){ TransformPolicy = InTransformPolicy; return *this; }
+
+	/** Determines what happens to text that is clipped and doesn't fit within the clip rect of a text widget */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance, AdvancedDisplay)
+	ETextOverflowPolicy OverflowPolicy;
+	FTextBlockStyle& SetOverflowPolicy(const ETextOverflowPolicy& InOverflowPolicy) { OverflowPolicy = InOverflowPolicy; return *this; }
 
 	/**
 	 * Unlinks all colors in this style.

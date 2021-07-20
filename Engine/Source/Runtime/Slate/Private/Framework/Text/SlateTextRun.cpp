@@ -76,43 +76,56 @@ TSharedRef< ILayoutBlock > FSlateTextRun::CreateBlock( int32 BeginIndex, int32 E
 	return FDefaultLayoutBlock::Create( SharedThis( this ), FTextRange( BeginIndex, EndIndex ), Size, TextContext, Renderer );
 }
 
-int32 FSlateTextRun::OnPaint( const FPaintArgs& Args, const FTextLayout::FLineView& Line, const TSharedRef< ILayoutBlock >& Block, const FTextBlockStyle& DefaultStyle, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const 
+int32 FSlateTextRun::OnPaint(const FPaintArgs& PaintArgs, const FTextArgs& TextArgs, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
 	const ESlateDrawEffect DrawEffects = bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
+
+	const TSharedRef<ILayoutBlock>& Block = TextArgs.Block;
+	const FTextBlockStyle& DefaultStyle = TextArgs.DefaultStyle;
+	const FTextLayout::FLineView& Line = TextArgs.Line;
 
 	const bool ShouldDropShadow = Style.ShadowColorAndOpacity.A > 0.f && Style.ShadowOffset.SizeSquared() > 0.f;
 	const FVector2D BlockLocationOffset = Block->GetLocationOffset();
 	const FTextRange BlockRange = Block->GetTextRange();
 	const FLayoutBlockTextContext BlockTextContext = Block->GetTextContext();
-	
+
 	// The block size and offset values are pre-scaled, so we need to account for that when converting the block offsets into paint geometry
 	const float InverseScale = Inverse(AllottedGeometry.Scale);
 
 	// A negative shadow offset should be applied as a positive offset to the text to avoid clipping issues
 	const FVector2D DrawShadowOffset(
-		(Style.ShadowOffset.X > 0.0f) ? Style.ShadowOffset.X * AllottedGeometry.Scale : 0.0f, 
+		(Style.ShadowOffset.X > 0.0f) ? Style.ShadowOffset.X * AllottedGeometry.Scale : 0.0f,
 		(Style.ShadowOffset.Y > 0.0f) ? Style.ShadowOffset.Y * AllottedGeometry.Scale : 0.0f
-		);
+	);
 	const FVector2D DrawTextOffset(
-		(Style.ShadowOffset.X < 0.0f) ? -Style.ShadowOffset.X * AllottedGeometry.Scale : 0.0f, 
+		(Style.ShadowOffset.X < 0.0f) ? -Style.ShadowOffset.X * AllottedGeometry.Scale : 0.0f,
 		(Style.ShadowOffset.Y < 0.0f) ? -Style.ShadowOffset.Y * AllottedGeometry.Scale : 0.0f
-		);
+	);
 
 	// Make sure we have up-to-date shaped text to work with
 	// We use the full line view range (rather than the run range) so that text that spans runs will still be shaped correctly
 	FShapedGlyphSequenceRef ShapedText = ShapedTextCacheUtil::GetShapedTextSubSequence(
-		BlockTextContext.ShapedTextCache, 
-		FCachedShapedTextKey(Line.Range, AllottedGeometry.GetAccumulatedLayoutTransform().GetScale(), BlockTextContext, Style.Font), 
-		BlockRange, 
-		**Text,  
+		BlockTextContext.ShapedTextCache,
+		FCachedShapedTextKey(Line.Range, AllottedGeometry.GetAccumulatedLayoutTransform().GetScale(), BlockTextContext, Style.Font),
+		BlockRange,
+		**Text,
 		BlockTextContext.TextDirection
-		);
+	);
+
+	FTextOverflowArgs OverflowArgs;
+	if (TextArgs.OverflowPolicy == ETextOverflowPolicy::Ellipsis && TextArgs.OverflowDirection != ETextOverflowDirection::NoOverflow)
+	{
+		TSharedRef<FSlateFontCache> FontCache = FSlateApplication::Get().GetRenderer()->GetFontCache();
+		OverflowArgs.OverflowTextPtr = FontCache->GetOverflowEllipsisText(Style.Font, AllottedGeometry.GetAccumulatedLayoutTransform().GetScale());
+		OverflowArgs.OverflowDirection = TextArgs.OverflowDirection;
+		OverflowArgs.bForceEllipsisDueToClippedLine = TextArgs.bForceEllipsisDueToClippedLine;
+	}
 
 	// Draw the optional shadow
 	if (ShouldDropShadow)
 	{
 		FShapedGlyphSequenceRef ShadowShapedText = ShapedText;
-		if(Style.ShadowColorAndOpacity != Style.Font.OutlineSettings.OutlineColor)
+		if (Style.ShadowColorAndOpacity != Style.Font.OutlineSettings.OutlineColor)
 		{
 			// Copy font info for shadow to replace the outline color
 			FSlateFontInfo ShadowFontInfo = Style.Font;
@@ -140,8 +153,9 @@ int32 FSlateTextRun::OnPaint( const FPaintArgs& Args, const FTextLayout::FLineVi
 			ShadowShapedText,
 			DrawEffects,
 			InWidgetStyle.GetColorAndOpacityTint() * Style.ShadowColorAndOpacity,
-			InWidgetStyle.GetColorAndOpacityTint() * Style.Font.OutlineSettings.OutlineColor
-			);
+			InWidgetStyle.GetColorAndOpacityTint() * Style.Font.OutlineSettings.OutlineColor,
+			OverflowArgs
+		);
 	}
 
 	// Draw the text itself
@@ -152,8 +166,9 @@ int32 FSlateTextRun::OnPaint( const FPaintArgs& Args, const FTextLayout::FLineVi
 		ShapedText,
 		DrawEffects,
 		InWidgetStyle.GetColorAndOpacityTint() * Style.ColorAndOpacity.GetColor(InWidgetStyle),
-		InWidgetStyle.GetColorAndOpacityTint() * Style.Font.OutlineSettings.OutlineColor
-		);
+		InWidgetStyle.GetColorAndOpacityTint() * Style.Font.OutlineSettings.OutlineColor,
+		OverflowArgs
+	);
 
 	return LayerId;
 }

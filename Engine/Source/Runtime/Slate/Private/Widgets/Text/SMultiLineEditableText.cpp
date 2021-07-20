@@ -89,6 +89,7 @@ void SMultiLineEditableText::Construct( const FArguments& InArgs )
 	EditableTextLayout->SetJustification(InArgs._Justification);
 	EditableTextLayout->SetLineHeightPercentage(InArgs._LineHeightPercentage);
 	EditableTextLayout->SetDebugSourceInfo(TAttribute<FString>::Create(TAttribute<FString>::FGetter::CreateLambda([this]{ return FReflectionMetaData::GetWidgetDebugInfo(this); })));
+	EditableTextLayout->SetOverflowPolicy(InArgs._OverflowPolicy);
 
 	// build context menu extender
 	MenuExtender = MakeShareable(new FExtender);
@@ -199,6 +200,11 @@ void SMultiLineEditableText::SetMargin(const TAttribute<FMargin>& InMargin)
 void SMultiLineEditableText::SetJustification(const TAttribute<ETextJustify::Type>& InJustification)
 {
 	EditableTextLayout->SetJustification(InJustification);
+}
+
+void SMultiLineEditableText::SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy)
+{
+	EditableTextLayout->SetOverflowPolicy(InOverflowPolicy);
 }
 
 void SMultiLineEditableText::SetAllowContextMenu(const TAttribute< bool >& InAllowContextMenu)

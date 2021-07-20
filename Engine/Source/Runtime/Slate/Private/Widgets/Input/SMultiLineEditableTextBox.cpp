@@ -133,6 +133,7 @@ void SMultiLineEditableTextBox::Construct( const FArguments& InArgs )
 					.TextShapingMethod(InArgs._TextShapingMethod)
 					.TextFlowDirection(InArgs._TextFlowDirection)
 					.AllowContextMenu(InArgs._AllowContextMenu)
+					.OverflowPolicy(InArgs._OverflowPolicy)
 				]
 
 				+SVerticalBox::Slot()
@@ -354,6 +355,11 @@ void SMultiLineEditableTextBox::SetMargin(const TAttribute<FMargin>& InMargin)
 void SMultiLineEditableTextBox::SetJustification(const TAttribute<ETextJustify::Type>& InJustification)
 {
 	EditableText->SetJustification(InJustification);
+}
+
+void SMultiLineEditableTextBox::SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy)
+{
+	EditableText->SetOverflowPolicy(InOverflowPolicy);
 }
 
 void SMultiLineEditableTextBox::SetAllowContextMenu(const TAttribute< bool >& InAllowContextMenu)

@@ -41,26 +41,26 @@ int8 FSlatePasswordRun::GetKerning(int32 CurrentIndex, float Scale, const FRunTe
 	return FSlateApplication::Get().GetRenderer()->GetFontMeasureService()->GetKerning(Style.Font, Scale, GetPasswordChar(), GetPasswordChar());
 }
 
-int32 FSlatePasswordRun::OnPaint(const FPaintArgs& Args, const FTextLayout::FLineView& Line, const TSharedRef< ILayoutBlock >& Block, const FTextBlockStyle& DefaultStyle, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
+int32 FSlatePasswordRun::OnPaint(const FPaintArgs& PaintArgs, const FTextArgs& TextArgs, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
 	const ESlateDrawEffect DrawEffects = bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
 
 	const bool ShouldDropShadow = Style.ShadowColorAndOpacity.A > 0.f && Style.ShadowOffset.SizeSquared() > 0.f;
-	const FVector2D BlockLocationOffset = Block->GetLocationOffset();
-	const FTextRange BlockRange = Block->GetTextRange();
-	
+	const FVector2D BlockLocationOffset = TextArgs.Block->GetLocationOffset();
+	const FTextRange BlockRange = TextArgs.Block->GetTextRange();
+
 	// The block size and offset values are pre-scaled, so we need to account for that when converting the block offsets into paint geometry
 	const float InverseScale = Inverse(AllottedGeometry.Scale);
 
 	// A negative shadow offset should be applied as a positive offset to the text to avoid clipping issues
 	const FVector2D DrawShadowOffset(
-		(Style.ShadowOffset.X > 0.0f) ? Style.ShadowOffset.X * AllottedGeometry.Scale : 0.0f, 
+		(Style.ShadowOffset.X > 0.0f) ? Style.ShadowOffset.X * AllottedGeometry.Scale : 0.0f,
 		(Style.ShadowOffset.Y > 0.0f) ? Style.ShadowOffset.Y * AllottedGeometry.Scale : 0.0f
-		);
+	);
 	const FVector2D DrawTextOffset(
-		(Style.ShadowOffset.X < 0.0f) ? -Style.ShadowOffset.X * AllottedGeometry.Scale : 0.0f, 
+		(Style.ShadowOffset.X < 0.0f) ? -Style.ShadowOffset.X * AllottedGeometry.Scale : 0.0f,
 		(Style.ShadowOffset.Y < 0.0f) ? -Style.ShadowOffset.Y * AllottedGeometry.Scale : 0.0f
-		);
+	);
 
 	const FString PasswordString = BuildPasswordString(BlockRange.Len());
 
@@ -70,28 +70,28 @@ int32 FSlatePasswordRun::OnPaint(const FPaintArgs& Args, const FTextLayout::FLin
 		FSlateDrawElement::MakeText(
 			OutDrawElements,
 			++LayerId,
-			AllottedGeometry.ToPaintGeometry(TransformVector(InverseScale, Block->GetSize()), FSlateLayoutTransform(TransformPoint(InverseScale, Block->GetLocationOffset() + DrawShadowOffset))),
+			AllottedGeometry.ToPaintGeometry(TransformVector(InverseScale, TextArgs.Block->GetSize()), FSlateLayoutTransform(TransformPoint(InverseScale, TextArgs.Block->GetLocationOffset() + DrawShadowOffset))),
 			PasswordString,
 			0,
 			PasswordString.Len(),
-			DefaultStyle.Font,
+			TextArgs.DefaultStyle.Font,
 			DrawEffects,
 			InWidgetStyle.GetColorAndOpacityTint() * Style.ShadowColorAndOpacity
-			);
+		);
 	}
 
 	// Draw the text itself
 	FSlateDrawElement::MakeText(
 		OutDrawElements,
 		++LayerId,
-		AllottedGeometry.ToPaintGeometry(TransformVector(InverseScale, Block->GetSize()), FSlateLayoutTransform(TransformPoint(InverseScale, Block->GetLocationOffset() + DrawTextOffset))),
+		AllottedGeometry.ToPaintGeometry(TransformVector(InverseScale, TextArgs.Block->GetSize()), FSlateLayoutTransform(TransformPoint(InverseScale, TextArgs.Block->GetLocationOffset() + DrawTextOffset))),
 		PasswordString,
 		0,
 		PasswordString.Len(),
-		DefaultStyle.Font,
+		TextArgs.DefaultStyle.Font,
 		DrawEffects,
 		InWidgetStyle.GetColorAndOpacityTint() * Style.ColorAndOpacity.GetColor(InWidgetStyle)
-		);
+	);
 
 	return LayerId;
 }
