@@ -61,7 +61,7 @@ int NumDynamicPointLights;
 #define LightShadowType_PointLight	1
 #define LightShadowType_SpotLight	2
 #define LightShadowType_Shadow		4
-#define ValidLightType LightShadowType_PointLight | LightShadowType_SpotLight
+#define ValidLightType (LightShadowType_PointLight | LightShadowType_SpotLight)
 
 #endif
 
