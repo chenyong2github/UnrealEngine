@@ -28,13 +28,13 @@ class UNREALED_API UMirrorDataTableFactory : public UFactory
 	UMirrorDataTableFactory(const FObjectInitializer& ObjectInitializer);
 
 	UPROPERTY()
-	const class UScriptStruct* Struct;
+	TObjectPtr<const class UScriptStruct> Struct;
 
 	UPROPERTY()
-	class USkeleton* Skeleton;
+	TObjectPtr<class USkeleton> Skeleton;
 
 	UPROPERTY()
-	class UMirrorTableFindReplaceExpressions* MirrorFindReplaceExpressions;
+	TObjectPtr<class UMirrorTableFindReplaceExpressions> MirrorFindReplaceExpressions;
 
 public:
 	//~ Begin UFactory Interface

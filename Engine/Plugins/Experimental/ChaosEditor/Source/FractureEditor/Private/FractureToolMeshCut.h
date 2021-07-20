@@ -48,7 +48,7 @@ public:
 private:
 	// Slicing
 	UPROPERTY(EditAnywhere, Category = Slicing)
-	UFractureMeshCutSettings* MeshCutSettings;
+	TObjectPtr<UFractureMeshCutSettings> MeshCutSettings;
 
 	// check if the chosen actor can be used to cut the geometry collection (i.e. if it is a valid static mesh actor with a non-empty static mesh)
 	bool IsCuttingActorValid();

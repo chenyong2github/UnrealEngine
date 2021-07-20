@@ -197,7 +197,7 @@ protected:
 
 	// Preview object holds temporary Actor with preview mesh component
 	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* Preview = nullptr;
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview = nullptr;
 
 	UPreviewMesh* GetUPreviewMesh() const { return Preview->PreviewMesh; }
 	const FTransform& GetPreviewTransform() const { return OverrideTransform; }

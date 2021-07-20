@@ -123,15 +123,15 @@ public:
 public:
 	/** Visualization settings */
 	UPROPERTY()
-	UUVLayoutPreviewProperties* Settings;
+	TObjectPtr<UUVLayoutPreviewProperties> Settings;
 
 	/** PreviewMesh is initialized with a copy of an input mesh with UVs mapped to position, ie such that (X,Y,Z) = (U,V,0) */
 	UPROPERTY()
-	UPreviewMesh* PreviewMesh;
+	TObjectPtr<UPreviewMesh> PreviewMesh;
 
 	/** Set of additional triangles to draw, eg for backing rectangle, etc */
 	UPROPERTY()
-	UTriangleSetComponent* TriangleComponent;
+	TObjectPtr<UTriangleSetComponent> TriangleComponent;
 
 	/** Configure whether the backing rectangle should be shown */
 	UPROPERTY()
@@ -139,7 +139,7 @@ public:
 
 	/** Configure the backing rectangle material */
 	UPROPERTY()
-	UMaterialInterface* BackingRectangleMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> BackingRectangleMaterial = nullptr;
 
 
 protected:

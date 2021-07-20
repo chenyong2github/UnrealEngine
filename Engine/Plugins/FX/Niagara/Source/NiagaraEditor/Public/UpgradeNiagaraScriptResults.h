@@ -40,7 +40,7 @@ public:
 	UNiagaraPythonScriptModuleInput() {};
 
 	UPROPERTY()
-	const UNiagaraClipboardFunctionInput* Input = nullptr;
+	TObjectPtr<const UNiagaraClipboardFunctionInput> Input = nullptr;
 
 	UFUNCTION(BlueprintCallable, Category = "Scripting")
     bool IsSet() const;
@@ -95,10 +95,10 @@ public:
 	bool bCancelledByPythonError;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Scripting")
-	TArray<UNiagaraPythonScriptModuleInput*> OldInputs;
+	TArray<TObjectPtr<UNiagaraPythonScriptModuleInput>> OldInputs;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Scripting")
-	TArray<UNiagaraPythonScriptModuleInput*> NewInputs;
+	TArray<TObjectPtr<UNiagaraPythonScriptModuleInput>> NewInputs;
 
 	UFUNCTION(BlueprintCallable, Category = "Scripting")
     UNiagaraPythonScriptModuleInput* GetOldInput(const FString& InputName);
@@ -135,7 +135,7 @@ private:
 
 	// This is used as a placeholder object for python to interact with when a module input could not be found. Returning a nullptr instead would crash the script.
 	UPROPERTY(Transient)
-	UNiagaraPythonScriptModuleInput* DummyInput;
+	TObjectPtr<UNiagaraPythonScriptModuleInput> DummyInput;
 };
 
 struct NIAGARAEDITOR_API FNiagaraScriptVersionUpgradeContext {

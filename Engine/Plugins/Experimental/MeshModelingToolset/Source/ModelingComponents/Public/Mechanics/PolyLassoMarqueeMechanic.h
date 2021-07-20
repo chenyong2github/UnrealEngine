@@ -148,10 +148,10 @@ public:
 
 protected:
 	UPROPERTY()
-	UClickDragInputBehavior* ClickDragBehavior = nullptr;
+	TObjectPtr<UClickDragInputBehavior> ClickDragBehavior = nullptr;
 
 	UPROPERTY()
-	UMouseHoverBehavior* HoverBehavior = nullptr;
+	TObjectPtr<UMouseHoverBehavior> HoverBehavior = nullptr;
 
 	// camera state for currently active PolyLasso
 	FViewCameraState CachedCameraState;

@@ -79,7 +79,7 @@ public:
 	* The master track recorder we created.
 	*/
 	UPROPERTY()
-	UMovieSceneLiveLinkTrackRecorder* TrackRecorder;
+	TObjectPtr<UMovieSceneLiveLinkTrackRecorder> TrackRecorder;
 
 private:
 

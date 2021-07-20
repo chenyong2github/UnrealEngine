@@ -52,7 +52,7 @@ private:
 
 	// The function to call, recovered by looking for a function of name FunctionName
 	UPROPERTY(Transient)
-	UFunction* Function = nullptr;
+	TObjectPtr<UFunction> Function = nullptr;
 };
 
 namespace UE { namespace Anim {

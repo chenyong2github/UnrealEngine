@@ -92,13 +92,13 @@ public:
 private:
 
 	UPROPERTY()
-	TMap< URigVMLibraryNode*, FRigVMFunctionReferenceArray > FunctionReferences;
+	TMap< TObjectPtr<URigVMLibraryNode>, FRigVMFunctionReferenceArray > FunctionReferences;
 
 	// A map which stores a library node per original pathname.
 	// The source pathname is the full path of the source function that was localized
 	// to the local copy stored in the value of the pair.
 	UPROPERTY()
-	TMap< FString, URigVMLibraryNode* > LocalizedFunctions;
+	TMap< FString, TObjectPtr<URigVMLibraryNode> > LocalizedFunctions;
 
 	friend class URigVMController;
 	friend class URigVMCompiler;

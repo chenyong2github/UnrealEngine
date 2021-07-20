@@ -800,7 +800,7 @@ private:
 
 	/** The information of all the embedded instanced static meshes */
 	UPROPERTY()
-	TArray<UInstancedStaticMeshComponent*> EmbeddedGeometryComponents;
+	TArray<TObjectPtr<UInstancedStaticMeshComponent>> EmbeddedGeometryComponents;
 
 	bool IsEmbeddedGeometryValid() const;
 	void ClearEmbeddedGeometry();

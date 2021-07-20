@@ -77,12 +77,12 @@ protected:
 
 public:
 	UPROPERTY()
-	USeamSculptToolProperties* Settings;
+	TObjectPtr<USeamSculptToolProperties> Settings;
 
 
 protected:
 	UPROPERTY()
-	UPreviewGeometry* PreviewGeom;
+	TObjectPtr<UPreviewGeometry> PreviewGeom;
 
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
 	UE::Geometry::FTransform3d MeshTransform;

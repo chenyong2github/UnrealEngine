@@ -92,7 +92,7 @@ public:
 
 protected:
 	UPROPERTY()
-	UInteractiveGizmoManager* GizmoManager;
+	TObjectPtr<UInteractiveGizmoManager> GizmoManager;
 
 	IToolContextTransactionProvider* TransactionProvider;
 
@@ -112,15 +112,15 @@ protected:
 	bool bDisallowNegativeScaling = false;
 
 	UPROPERTY()
-	UTransformGizmo* TransformGizmo;
+	TObjectPtr<UTransformGizmo> TransformGizmo;
 
 	UPROPERTY()
-	UTransformProxy* TransformProxy;
+	TObjectPtr<UTransformProxy> TransformProxy;
 
 	// We have to hold on to the mechanic only because the MultiTransformer has the capacity to delete and
 	// recreate its gizmo, in which case we'll need to attach the alignment mechanic again.
 	UPROPERTY()
-	UDragAlignmentMechanic* DragAlignmentMechanic = nullptr;
+	TObjectPtr<UDragAlignmentMechanic> DragAlignmentMechanic = nullptr;
 
 	TUniqueFunction<bool()> EnableSnapToWorldGridFunc;
 	TFunction<bool()> IsNonUniformScaleAllowed;

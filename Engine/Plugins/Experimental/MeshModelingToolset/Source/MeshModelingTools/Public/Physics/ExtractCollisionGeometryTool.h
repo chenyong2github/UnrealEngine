@@ -84,23 +84,23 @@ protected:
 
 	/** Property set for type of output object (StaticMesh, Volume, etc) */
 	UPROPERTY()
-	UCreateMeshObjectTypeProperties* OutputTypeProperties;
+	TObjectPtr<UCreateMeshObjectTypeProperties> OutputTypeProperties;
 
 	UPROPERTY()
-	UExtractCollisionToolProperties* Settings;
+	TObjectPtr<UExtractCollisionToolProperties> Settings;
 
 	UPROPERTY()
-	UCollisionGeometryVisualizationProperties* VizSettings = nullptr;
+	TObjectPtr<UCollisionGeometryVisualizationProperties> VizSettings = nullptr;
 
 	UPROPERTY()
-	UPhysicsObjectToolPropertySet* ObjectProps;
+	TObjectPtr<UPhysicsObjectToolPropertySet> ObjectProps;
 
 protected:
 	UPROPERTY()
-	UPreviewGeometry* PreviewElements;
+	TObjectPtr<UPreviewGeometry> PreviewElements;
 
 	UPROPERTY()
-	UPreviewMesh* PreviewMesh;
+	TObjectPtr<UPreviewMesh> PreviewMesh;
 
 	// these are TSharedPtr because TPimplPtr cannot currently be added to a TArray?
 	TSharedPtr<FPhysicsDataCollection> PhysicsInfo;

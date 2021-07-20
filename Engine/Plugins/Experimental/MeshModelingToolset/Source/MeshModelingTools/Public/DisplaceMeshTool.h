@@ -100,7 +100,7 @@ class MESHMODELINGTOOLS_API UDisplaceMeshTextureMapProperties : public UInteract
 public:
 	/** Displacement map. Only the first channel is used. */
 	UPROPERTY(EditAnywhere, Category = Options)
-	UTexture2D* DisplacementMap = nullptr;
+	TObjectPtr<UTexture2D> DisplacementMap = nullptr;
 
 	//~ TODO: Consider making this an enum
 	/** Channel in the displacement map to use. 0-3 coresponding to the four channels (RGBA) */
@@ -132,7 +132,7 @@ public:
 
 	/** This curve is queried in the range [0,1] to adjust contrast of the displacement map. */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bApplyAdjustmentCurve", EditConditionHides))
-	UCurveFloat* AdjustmentCurve = nullptr;
+	TObjectPtr<UCurveFloat> AdjustmentCurve = nullptr;
 
 	/** Recalculate normals from displaced mesh. Disable this if you are applying Displacements that are paired with an existing Normal Map in your Material. */
 	UPROPERTY(EditAnywhere, Category = Options)
@@ -259,27 +259,27 @@ public:
 
 	/** Shared properties for all displacement modes. */
 	UPROPERTY()
-	UDisplaceMeshCommonProperties* CommonProperties;
+	TObjectPtr<UDisplaceMeshCommonProperties> CommonProperties;
 
 	/** Properties defining the directional filter. */
 	UPROPERTY()
-	UDisplaceMeshDirectionalFilterProperties* DirectionalFilterProperties;
+	TObjectPtr<UDisplaceMeshDirectionalFilterProperties> DirectionalFilterProperties;
 
 	/** Properties defining the texture map */
 	UPROPERTY()
-	UDisplaceMeshTextureMapProperties* TextureMapProperties;
+	TObjectPtr<UDisplaceMeshTextureMapProperties> TextureMapProperties;
 
 	/** Multi-layer Perlin noise frequencies and intensities */
 	UPROPERTY()
-	UDisplaceMeshPerlinNoiseProperties* NoiseProperties;
+	TObjectPtr<UDisplaceMeshPerlinNoiseProperties> NoiseProperties;
 
 	/** Sine wave parameters and direction of displacement */
 	UPROPERTY()
-	UDisplaceMeshSineWaveProperties* SineWaveProperties;
+	TObjectPtr<UDisplaceMeshSineWaveProperties> SineWaveProperties;
 
 	/** Contrast Curve we are actively listening to */
 	UPROPERTY()
-	UCurveFloat* ActiveContrastCurveTarget = nullptr;
+	TObjectPtr<UCurveFloat> ActiveContrastCurveTarget = nullptr;
 
 private:
 	void StartComputation();

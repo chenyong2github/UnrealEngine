@@ -55,11 +55,11 @@ public:
 
 	// this is the one holding transform for the controls
 	UPROPERTY()
-	class USceneComponent* ActorRootComponent;
+	TObjectPtr<class USceneComponent> ActorRootComponent;
 
 	// this is visual representation of the transform
 	UPROPERTY(Category = StaticMesh, VisibleAnywhere, BlueprintReadOnly, meta = (ExposeFunctionCategories = "Mesh,Rendering,Physics,Components|StaticMesh", AllowPrivateAccess = "true"))
-	class UStaticMeshComponent* StaticMeshComponent;
+	TObjectPtr<class UStaticMeshComponent> StaticMeshComponent;
 
 	// the name of the control this actor is referencing
 	UPROPERTY()

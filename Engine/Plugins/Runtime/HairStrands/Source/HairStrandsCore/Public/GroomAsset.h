@@ -62,7 +62,7 @@ struct HAIRSTRANDSCORE_API FHairGroupsMaterial
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = "Material")
-	UMaterialInterface* Material = nullptr;
+	TObjectPtr<UMaterialInterface> Material = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = "Material")
 	FName SlotName = NAME_None;
@@ -480,7 +480,7 @@ public:
 
 	/** Asset data to be used when re-importing */
 	UPROPERTY(VisibleAnywhere, Instanced, Category = ImportSettings)
-	class UAssetImportData* AssetImportData;
+	TObjectPtr<class UAssetImportData> AssetImportData;
 
 	/** Retrievde the asset tags*/
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
@@ -562,7 +562,7 @@ public:
 
 	/** Array of user data stored with the asset */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = Hidden)
-	TArray<UAssetUserData*> AssetUserData;
+	TArray<TObjectPtr<UAssetUserData>> AssetUserData;
 
 	/* Return the material slot index corresponding to the material name */
 	int32 GetMaterialIndex(FName MaterialSlotName) const;

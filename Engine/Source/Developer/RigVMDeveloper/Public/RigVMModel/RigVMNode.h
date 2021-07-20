@@ -241,10 +241,10 @@ protected:
 private:
 
 	UPROPERTY()
-	TArray<URigVMPin*> Pins;
+	TArray<TObjectPtr<URigVMPin>> Pins;
 
 	UPROPERTY()
-	TArray<URigVMPin*> OrphanedPins;
+	TArray<TObjectPtr<URigVMPin>> OrphanedPins;
 
 	friend class URigVMController;
 	friend class URigVMGraph;

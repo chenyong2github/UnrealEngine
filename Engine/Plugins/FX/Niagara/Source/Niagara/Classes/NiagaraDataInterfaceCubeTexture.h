@@ -19,7 +19,7 @@ public:
 	DECLARE_NIAGARA_DI_PARAMETER();
 
 	UPROPERTY(EditAnywhere, Category = "Texture")
-	UTextureCube* Texture;
+	TObjectPtr<UTextureCube> Texture;
 
 	//UObject Interface
 	virtual void PostInitProperties()override;

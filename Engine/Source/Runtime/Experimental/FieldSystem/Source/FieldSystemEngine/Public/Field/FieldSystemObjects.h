@@ -1020,11 +1020,11 @@ struct FIELDSYSTEMENGINE_API FFieldObjectCommands
 
 	/** Commands Root Node */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field", DisplayName = "Root Nodes")
-	TArray<UFieldNodeBase*> RootNodes;
+	TArray<TObjectPtr<UFieldNodeBase>> RootNodes;
 
 	/** Commands Meta Data*/
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Field", DisplayName = "Meta Datas")
-	TArray<UFieldSystemMetaData*> MetaDatas;
+	TArray<TObjectPtr<UFieldSystemMetaData>> MetaDatas;
 };
 
 

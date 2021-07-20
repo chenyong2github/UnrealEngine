@@ -262,30 +262,30 @@ public:
 public:
 	/** Properties that control brush size/etc*/
 	UPROPERTY()
-	USculptBrushProperties* BrushProperties;
+	TObjectPtr<USculptBrushProperties> BrushProperties;
 
 	/** Properties that control sculpting*/
 	UPROPERTY()
-	UBrushSculptProperties* SculptProperties;
+	TObjectPtr<UBrushSculptProperties> SculptProperties;
 
 	UPROPERTY()
-	USculptMaxBrushProperties* SculptMaxBrushProperties;
+	TObjectPtr<USculptMaxBrushProperties> SculptMaxBrushProperties;
 	
 	UPROPERTY()
-	UKelvinBrushProperties* KelvinBrushProperties;
+	TObjectPtr<UKelvinBrushProperties> KelvinBrushProperties;
 
 	/** Properties that control dynamic remeshing */
 	UPROPERTY()
-	UBrushRemeshProperties* RemeshProperties;
+	TObjectPtr<UBrushRemeshProperties> RemeshProperties;
 
 	UPROPERTY()
-	UFixedPlaneBrushProperties* GizmoProperties;
+	TObjectPtr<UFixedPlaneBrushProperties> GizmoProperties;
 
 	UPROPERTY()
-	UMeshEditingViewProperties* ViewProperties;
+	TObjectPtr<UMeshEditingViewProperties> ViewProperties;
 
 	UPROPERTY()
-	UDynamicSculptToolActions* SculptToolActions;
+	TObjectPtr<UDynamicSculptToolActions> SculptToolActions;
 
 public:
 	virtual void IncreaseBrushRadiusAction();
@@ -306,19 +306,19 @@ private:
 	FViewCameraState CameraState;
 
 	UPROPERTY()
-	UBrushStampIndicator* BrushIndicator;
+	TObjectPtr<UBrushStampIndicator> BrushIndicator;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* BrushIndicatorMaterial;
+	TObjectPtr<UMaterialInstanceDynamic> BrushIndicatorMaterial;
 
 	UPROPERTY()
-	UPreviewMesh* BrushIndicatorMesh;
+	TObjectPtr<UPreviewMesh> BrushIndicatorMesh;
 
 	UPROPERTY()
-	UOctreeDynamicMeshComponent* DynamicMeshComponent;
+	TObjectPtr<UOctreeDynamicMeshComponent> DynamicMeshComponent;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* ActiveOverrideMaterial;
+	TObjectPtr<UMaterialInstanceDynamic> ActiveOverrideMaterial;
 
 	UE::Geometry::FTransform3d InitialTargetTransform;
 	UE::Geometry::FTransform3d CurTargetTransform;
@@ -477,10 +477,10 @@ private:
 
 	// plane gizmo
 	UPROPERTY()
-	UTransformGizmo* PlaneTransformGizmo;
+	TObjectPtr<UTransformGizmo> PlaneTransformGizmo;
 
 	UPROPERTY()
-	UTransformProxy* PlaneTransformProxy;
+	TObjectPtr<UTransformProxy> PlaneTransformProxy;
 
 	void PlaneTransformChanged(UTransformProxy* Proxy, FTransform Transform);
 

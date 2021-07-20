@@ -16,7 +16,7 @@ USTRUCT()
 	 float GetSequenceLength() const;
 	/** The animation this section plays */
 	UPROPERTY(EditAnywhere, Category = GroomCache)
-	class UGroomCache* GroomCache;
+	TObjectPtr<class UGroomCache> GroomCache;
 
 	/** The offset for the first loop of the animation clip */
 	UPROPERTY(EditAnywhere, Category = GroomCache)

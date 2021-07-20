@@ -53,7 +53,7 @@ public:
 	virtual bool CanAccept() const override;
 
 	UPROPERTY()
-	UTransferMeshToolProperties* BasicProperties;
+	TObjectPtr<UTransferMeshToolProperties> BasicProperties;
 
 protected:
 	UWorld* TargetWorld;

@@ -145,19 +145,19 @@ public:
 
 protected:
 	UPROPERTY()
-	USmoothMeshToolProperties* SmoothProperties = nullptr;
+	TObjectPtr<USmoothMeshToolProperties> SmoothProperties = nullptr;
 
 	UPROPERTY()
-	UIterativeSmoothProperties* IterativeProperties = nullptr;
+	TObjectPtr<UIterativeSmoothProperties> IterativeProperties = nullptr;
 
 	UPROPERTY()
-	UDiffusionSmoothProperties* DiffusionProperties = nullptr;
+	TObjectPtr<UDiffusionSmoothProperties> DiffusionProperties = nullptr;
 
 	UPROPERTY()
-	UImplicitSmoothProperties* ImplicitProperties = nullptr;
+	TObjectPtr<UImplicitSmoothProperties> ImplicitProperties = nullptr;
 
 	UPROPERTY()
-	USmoothWeightMapSetProperties* WeightMapProperties = nullptr;
+	TObjectPtr<USmoothWeightMapSetProperties> WeightMapProperties = nullptr;
 };
 
 

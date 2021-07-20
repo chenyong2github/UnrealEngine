@@ -126,20 +126,20 @@ public:
 
 protected:
 	UPROPERTY()
-	UMeshUVChannelProperties* UVChannelProperties = nullptr;
+	TObjectPtr<UMeshUVChannelProperties> UVChannelProperties = nullptr;
 
 	UPROPERTY()
-	URecomputeUVsToolProperties* Settings = nullptr;
+	TObjectPtr<URecomputeUVsToolProperties> Settings = nullptr;
 
 	UPROPERTY()
-	UPolygroupLayersProperties* PolygroupLayerProperties = nullptr;
+	TObjectPtr<UPolygroupLayersProperties> PolygroupLayerProperties = nullptr;
 
 	UPROPERTY()
-	UExistingMeshMaterialProperties* MaterialSettings = nullptr;
+	TObjectPtr<UExistingMeshMaterialProperties> MaterialSettings = nullptr;
 
 protected:
 	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* Preview = nullptr;
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview = nullptr;
 
 protected:
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;

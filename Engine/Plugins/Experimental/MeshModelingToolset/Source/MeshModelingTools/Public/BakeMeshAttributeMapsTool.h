@@ -138,7 +138,7 @@ public:
 	TArray<FString> UVLayerNamesList;
 
 	UPROPERTY(VisibleAnywhere, Category = MapSettings, meta = (TransientToolProperty))
-	TArray<UTexture2D*> Result;
+	TArray<TObjectPtr<UTexture2D>> Result;
 
 };
 
@@ -172,25 +172,25 @@ protected:
 	// @todo setters/getters for these
 
 	UPROPERTY()
-	UBakeMeshAttributeMapsToolProperties* Settings;
+	TObjectPtr<UBakeMeshAttributeMapsToolProperties> Settings;
 
 	UPROPERTY()
-	UBakedNormalMapToolProperties* NormalMapProps;
+	TObjectPtr<UBakedNormalMapToolProperties> NormalMapProps;
 
 	UPROPERTY()
-	UBakedOcclusionMapToolProperties* OcclusionMapProps;
+	TObjectPtr<UBakedOcclusionMapToolProperties> OcclusionMapProps;
 
 	UPROPERTY()
-	UBakedCurvatureMapToolProperties* CurvatureMapProps;
+	TObjectPtr<UBakedCurvatureMapToolProperties> CurvatureMapProps;
 
 	UPROPERTY()
-	UBakedTexture2DImageProperties* Texture2DProps;
+	TObjectPtr<UBakedTexture2DImageProperties> Texture2DProps;
 
 	UPROPERTY()
-	UBakedMultiTexture2DImageProperties* MultiTextureProps;
+	TObjectPtr<UBakedMultiTexture2DImageProperties> MultiTextureProps;
 
 	UPROPERTY()
-	UBakedOcclusionMapVisualizationProperties* VisualizationProps;
+	TObjectPtr<UBakedOcclusionMapVisualizationProperties> VisualizationProps;
 
 
 protected:
@@ -199,13 +199,13 @@ protected:
 	UDynamicMeshComponent* DynamicMeshComponent;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* PreviewMaterial;
+	TObjectPtr<UMaterialInstanceDynamic> PreviewMaterial;
 
     UPROPERTY()
-	UMaterialInstanceDynamic* BentNormalPreviewMaterial;
+	TObjectPtr<UMaterialInstanceDynamic> BentNormalPreviewMaterial;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* WorkingPreviewMaterial;
+	TObjectPtr<UMaterialInstanceDynamic> WorkingPreviewMaterial;
 	float SecondsBeforeWorkingMaterial = 0.75;
 
 	TSharedPtr<UE::Geometry::TMeshTangents<double>, ESPMode::ThreadSafe> BaseMeshTangents;
@@ -255,7 +255,7 @@ protected:
 	EBakeOpState OpState = EBakeOpState::Evaluate;
 
 	UPROPERTY()
-	TArray<UTexture2D*> CachedMaps;
+	TArray<TObjectPtr<UTexture2D>> CachedMaps;
 	using CachedMapIndex = TMap<EBakeMapType, int32>;
 	CachedMapIndex CachedMapIndices;
 
@@ -281,13 +281,13 @@ protected:
 
 	// empty maps are shown when nothing is computed
 	UPROPERTY()
-	UTexture2D* EmptyNormalMap;
+	TObjectPtr<UTexture2D> EmptyNormalMap;
 
 	UPROPERTY()
-	UTexture2D* EmptyColorMapBlack;
+	TObjectPtr<UTexture2D> EmptyColorMapBlack;
 
 	UPROPERTY()
-	UTexture2D* EmptyColorMapWhite;
+	TObjectPtr<UTexture2D> EmptyColorMapWhite;
 
 	void InitializeEmptyMaps();
 

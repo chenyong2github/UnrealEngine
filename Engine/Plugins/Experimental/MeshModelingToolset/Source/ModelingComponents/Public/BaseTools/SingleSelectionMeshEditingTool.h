@@ -87,6 +87,6 @@ protected:
 	 * (optional) Stored Selection provided on Tool Input. This should never be modified after the Tool's Setup() is called
 	 */
 	UPROPERTY()
-	const UInteractiveToolStorableSelection* InputSelection = nullptr;
+	TObjectPtr<const UInteractiveToolStorableSelection> InputSelection = nullptr;
 
 };

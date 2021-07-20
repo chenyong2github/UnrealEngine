@@ -88,7 +88,7 @@ struct FISMComponentData
 	TArray<FISMClientData> ClientInstances;
 
 	UPROPERTY()
-	UInstancedStaticMeshComponent* Component;
+	TObjectPtr<UInstancedStaticMeshComponent> Component;
 
 	/** If Lighting cache should be invalidated at the end of a BeginUpdate/EndUpdate */
 	bool bInvalidateLightingCache;

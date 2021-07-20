@@ -58,7 +58,7 @@ public:
 	TArray<FActorRecordedProperty> Properties;
 
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, meta=(ShowInnerProperties, EditFixedOrder), Category = "Property")
-	TArray<UActorRecorderPropertyMap*> Children;
+	TArray<TObjectPtr<UActorRecorderPropertyMap>> Children;
 
 public:
 	struct Cache

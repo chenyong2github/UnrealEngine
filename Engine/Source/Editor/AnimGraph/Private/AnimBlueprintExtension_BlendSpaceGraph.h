@@ -26,7 +26,7 @@ class UAnimBlueprintExtension_BlendSpaceGraph : public UAnimBlueprintExtension
 private:
 	// The class that is being compiled
 	UPROPERTY(Transient)
-	UClass* Class;
+	TObjectPtr<UClass> Class;
 
 private:
 	UPROPERTY()

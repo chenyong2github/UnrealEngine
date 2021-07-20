@@ -181,7 +181,7 @@ private:
 	MetronomeDelegateGameThreadData MetronomeDelegates[static_cast<int32>(EQuartzCommandQuantization::Count)];
 
 	UPROPERTY(Transient)
-	UQuartzSubsystem* QuartzSubsystem;
+	TObjectPtr<UQuartzSubsystem> QuartzSubsystem;
 
 	FName ClockHandleId;
 
@@ -190,6 +190,6 @@ private:
 	bool bConnectedToClock{ false };
 
 	UPROPERTY(Transient)
-	UWorld* WorldPtr{ nullptr };
+	TObjectPtr<UWorld> WorldPtr{ nullptr };
 
 }; // class UClockHandleBlueprintLibrary

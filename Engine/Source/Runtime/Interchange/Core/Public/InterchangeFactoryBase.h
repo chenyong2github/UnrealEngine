@@ -168,5 +168,5 @@ public:
 
 
 	UPROPERTY()
-	UInterchangeResultsContainer* Results;
+	TObjectPtr<UInterchangeResultsContainer> Results;
 };

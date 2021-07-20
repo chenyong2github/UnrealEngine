@@ -160,16 +160,16 @@ protected:
 
 	/** Property set for type of output object (StaticMesh, Volume, etc) */
 	UPROPERTY()
-	UCreateMeshObjectTypeProperties* OutputTypeProperties;
+	TObjectPtr<UCreateMeshObjectTypeProperties> OutputTypeProperties;
 
 	UPROPERTY()
-	UDrawPolyPathProperties* TransformProps;
+	TObjectPtr<UDrawPolyPathProperties> TransformProps;
 
 	UPROPERTY()
-	UDrawPolyPathExtrudeProperties* ExtrudeProperties;
+	TObjectPtr<UDrawPolyPathExtrudeProperties> ExtrudeProperties;
 
 	UPROPERTY()
-	UNewMeshMaterialProperties* MaterialProperties;
+	TObjectPtr<UNewMeshMaterialProperties> MaterialProperties;
 
 protected:
 	// camera state at last render
@@ -179,7 +179,7 @@ protected:
 	// drawing plane and gizmo
 
 	UPROPERTY()
-	UConstructionPlaneMechanic* PlaneMechanic = nullptr;
+	TObjectPtr<UConstructionPlaneMechanic> PlaneMechanic = nullptr;
 
 	UE::Geometry::FFrame3d DrawPlaneWorld;
 
@@ -198,14 +198,14 @@ protected:
 	bool bPathIsClosed = false;		// If true, CurPathPoints are assumed to define a closed path
 
 	UPROPERTY()
-	UPolyEditPreviewMesh* EditPreview;
+	TObjectPtr<UPolyEditPreviewMesh> EditPreview;
 
 	UPROPERTY()
-	UPlaneDistanceFromHitMechanic* ExtrudeHeightMechanic = nullptr;
+	TObjectPtr<UPlaneDistanceFromHitMechanic> ExtrudeHeightMechanic = nullptr;
 	UPROPERTY()
-	USpatialCurveDistanceMechanic* CurveDistMechanic = nullptr;
+	TObjectPtr<USpatialCurveDistanceMechanic> CurveDistMechanic = nullptr;
 	UPROPERTY()
-	UCollectSurfacePathMechanic* SurfacePathMechanic = nullptr;
+	TObjectPtr<UCollectSurfacePathMechanic> SurfacePathMechanic = nullptr;
 
 	void InitializeNewSurfacePath();
 	void UpdateSurfacePathPlane();

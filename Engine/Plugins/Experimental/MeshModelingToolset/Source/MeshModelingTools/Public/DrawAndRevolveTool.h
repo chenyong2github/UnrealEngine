@@ -76,7 +76,7 @@ public:
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
-	UDrawAndRevolveTool* RevolveTool;
+	TObjectPtr<UDrawAndRevolveTool> RevolveTool;
 };
 
 
@@ -120,23 +120,23 @@ protected:
 	void UpdateRevolutionAxis();
 
 	UPROPERTY()
-	UCurveControlPointsMechanic* ControlPointsMechanic = nullptr;
+	TObjectPtr<UCurveControlPointsMechanic> ControlPointsMechanic = nullptr;
 
 	UPROPERTY()
-	UConstructionPlaneMechanic* PlaneMechanic = nullptr;
+	TObjectPtr<UConstructionPlaneMechanic> PlaneMechanic = nullptr;
 
 	/** Property set for type of output object (StaticMesh, Volume, etc) */
 	UPROPERTY()
-	UCreateMeshObjectTypeProperties* OutputTypeProperties;
+	TObjectPtr<UCreateMeshObjectTypeProperties> OutputTypeProperties;
 
 	UPROPERTY()
-	URevolveToolProperties* Settings = nullptr;
+	TObjectPtr<URevolveToolProperties> Settings = nullptr;
 
 	UPROPERTY()
-	UNewMeshMaterialProperties* MaterialProperties;
+	TObjectPtr<UNewMeshMaterialProperties> MaterialProperties;
 
 	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* Preview = nullptr;
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview = nullptr;
 
 	void StartPreview();
 

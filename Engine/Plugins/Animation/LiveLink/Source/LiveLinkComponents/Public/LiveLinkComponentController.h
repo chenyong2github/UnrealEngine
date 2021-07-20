@@ -25,12 +25,12 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Instanced, NoClear)
-	ULiveLinkControllerBase* Controller_DEPRECATED;
+	TObjectPtr<ULiveLinkControllerBase> Controller_DEPRECATED;
 #endif
 
 	/** Instanced controllers used to control the desired role */
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "LiveLink", Instanced, NoClear, meta = (ShowOnlyInnerProperties))
-	TMap<TSubclassOf<ULiveLinkRole>, ULiveLinkControllerBase*> ControllerMap;
+	TMap<TSubclassOf<ULiveLinkRole>, TObjectPtr<ULiveLinkControllerBase>> ControllerMap;
 
 	UPROPERTY(EditAnywhere, Category="LiveLink", AdvancedDisplay)
 	bool bUpdateInEditor;

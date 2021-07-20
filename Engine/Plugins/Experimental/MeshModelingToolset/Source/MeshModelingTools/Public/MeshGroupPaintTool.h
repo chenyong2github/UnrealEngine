@@ -305,20 +305,20 @@ public:
 public:
 
 	UPROPERTY()
-	UPolygroupLayersProperties* PolygroupLayerProperties;
+	TObjectPtr<UPolygroupLayersProperties> PolygroupLayerProperties;
 
 	/** Filters on paint brush */
 	UPROPERTY()
-	UGroupPaintBrushFilterProperties* FilterProperties;
+	TObjectPtr<UGroupPaintBrushFilterProperties> FilterProperties;
 
 
 private:
 	// This will be of type UGroupPaintBrushOpProps, we keep a ref so we can change active group ID on pick
 	UPROPERTY()
-	UGroupPaintBrushOpProps* PaintBrushOpProperties;
+	TObjectPtr<UGroupPaintBrushOpProps> PaintBrushOpProperties;
 
 	UPROPERTY()
-	UGroupEraseBrushOpProps* EraseBrushOpProperties;
+	TObjectPtr<UGroupEraseBrushOpProps> EraseBrushOpProperties;
 
 public:
 	void AllocateNewGroupAndSetAsCurrentAction();
@@ -357,7 +357,7 @@ public:
 	virtual void RequestAction(EMeshGroupPaintToolActions ActionType);
 
 	UPROPERTY()
-	UMeshGroupPaintToolFreezeActions* FreezeActions;
+	TObjectPtr<UMeshGroupPaintToolFreezeActions> FreezeActions;
 
 protected:
 	bool bHavePendingAction = false;
@@ -371,7 +371,7 @@ protected:
 	//
 public:
 	UPROPERTY()
-	UPolyLassoMarqueeMechanic* PolyLassoMechanic;
+	TObjectPtr<UPolyLassoMarqueeMechanic> PolyLassoMechanic;
 
 protected:
 	void OnPolyLassoFinished(const FCameraPolyLasso& Lasso, bool bCanceled);
@@ -383,10 +383,10 @@ protected:
 
 protected:
 	UPROPERTY()
-	UDynamicMeshComponent* DynamicMeshComponent;
+	TObjectPtr<UDynamicMeshComponent> DynamicMeshComponent;
 
 	UPROPERTY()
-	UMeshElementsVisualizer* MeshElementsDisplay;
+	TObjectPtr<UMeshElementsVisualizer> MeshElementsDisplay;
 
 	// realtime visualization
 	void OnDynamicMeshComponentChanged(UDynamicMeshComponent* Component, const FMeshVertexChange* Change, bool bRevert);

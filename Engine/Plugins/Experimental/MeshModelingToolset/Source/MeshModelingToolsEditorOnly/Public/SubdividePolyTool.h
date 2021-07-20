@@ -87,16 +87,16 @@ protected:
 	friend class USubdividePolyOperatorFactory;
 
 	UPROPERTY()
-	UPreviewMesh* PreviewMesh = nullptr;
+	TObjectPtr<UPreviewMesh> PreviewMesh = nullptr;
 
 	UPROPERTY()
-	USubdividePolyToolProperties* Properties = nullptr;
+	TObjectPtr<USubdividePolyToolProperties> Properties = nullptr;
 
 	// Input mesh
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 
 	UPROPERTY()
-	UPreviewGeometry* PreviewGeometry = nullptr;
+	TObjectPtr<UPreviewGeometry> PreviewGeometry = nullptr;
 
 	bool bPreviewGeometryNeedsUpdate;
 	void CreateOrUpdatePreviewGeometry();

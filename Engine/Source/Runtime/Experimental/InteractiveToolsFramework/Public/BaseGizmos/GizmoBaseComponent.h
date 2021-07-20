@@ -82,7 +82,7 @@ protected:
 	bool bWorld = false;
 
 	UPROPERTY()
-	UGizmoViewContext* GizmoViewContext = nullptr;
+	TObjectPtr<UGizmoViewContext> GizmoViewContext = nullptr;
 
 	// True when GizmoViewContext is not null. Here as a boolean so it
 	// can be pointed to by the proxy to see what it should do.

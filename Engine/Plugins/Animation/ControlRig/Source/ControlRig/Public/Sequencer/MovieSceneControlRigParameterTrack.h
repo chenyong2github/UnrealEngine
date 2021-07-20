@@ -115,15 +115,15 @@ private:
 
 	/** Control Rig we control*/
 	UPROPERTY()
-	UControlRig* ControlRig;
+	TObjectPtr<UControlRig> ControlRig;
 
 	/** Section we should Key */
 	UPROPERTY()
-	UMovieSceneSection* SectionToKey;
+	TObjectPtr<UMovieSceneSection> SectionToKey;
 
 	/** The sections owned by this track .*/
 	UPROPERTY()
-	TArray<UMovieSceneSection*> Sections;
+	TArray<TObjectPtr<UMovieSceneSection>> Sections;
 
 	/** Unique Name*/
 	UPROPERTY()

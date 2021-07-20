@@ -553,58 +553,58 @@ protected:
 	bool bTriangleMode;		
 
 	UPROPERTY()
-	UDynamicMeshComponent* DynamicMeshComponent = nullptr;
+	TObjectPtr<UDynamicMeshComponent> DynamicMeshComponent = nullptr;
 
 	UPROPERTY()
-	UPolyEditCommonProperties* CommonProps;
+	TObjectPtr<UPolyEditCommonProperties> CommonProps;
 
 	UPROPERTY()
-	UEditMeshPolygonsToolActions* EditActions;
+	TObjectPtr<UEditMeshPolygonsToolActions> EditActions;
 	UPROPERTY()
-	UEditMeshPolygonsToolActions_Triangles* EditActions_Triangles;
+	TObjectPtr<UEditMeshPolygonsToolActions_Triangles> EditActions_Triangles;
 
 	UPROPERTY()
-	UEditMeshPolygonsToolEdgeActions* EditEdgeActions;
+	TObjectPtr<UEditMeshPolygonsToolEdgeActions> EditEdgeActions;
 	UPROPERTY()
-	UEditMeshPolygonsToolEdgeActions_Triangles* EditEdgeActions_Triangles;
+	TObjectPtr<UEditMeshPolygonsToolEdgeActions_Triangles> EditEdgeActions_Triangles;
 
 	UPROPERTY()
-	UEditMeshPolygonsToolUVActions* EditUVActions;
+	TObjectPtr<UEditMeshPolygonsToolUVActions> EditUVActions;
 
 	UPROPERTY()
-	UPolyEditExtrudeProperties* ExtrudeProperties;
+	TObjectPtr<UPolyEditExtrudeProperties> ExtrudeProperties;
 
 	UPROPERTY()
-	UPolyEditOffsetProperties* OffsetProperties;
+	TObjectPtr<UPolyEditOffsetProperties> OffsetProperties;
 
 	UPROPERTY()
-	UPolyEditInsetProperties* InsetProperties;
+	TObjectPtr<UPolyEditInsetProperties> InsetProperties;
 
 	UPROPERTY()
-	UPolyEditOutsetProperties* OutsetProperties;
+	TObjectPtr<UPolyEditOutsetProperties> OutsetProperties;
 
 	UPROPERTY()
-	UPolyEditCutProperties* CutProperties;
+	TObjectPtr<UPolyEditCutProperties> CutProperties;
 
 	UPROPERTY()
-	UPolyEditSetUVProperties* SetUVProperties;
+	TObjectPtr<UPolyEditSetUVProperties> SetUVProperties;
 
 
 	UPROPERTY()
-	UPolygonSelectionMechanic* SelectionMechanic;
+	TObjectPtr<UPolygonSelectionMechanic> SelectionMechanic;
 
 	UPROPERTY()
-	const UGroupTopologyStorableSelection* StoredToolSelection = nullptr;
+	TObjectPtr<const UGroupTopologyStorableSelection> StoredToolSelection = nullptr;
 	bool IsStoredToolSelectionUsable(const UGroupTopologyStorableSelection* StoredSelection);
 
 	bool bSelectionStateDirty = false;
 	void OnSelectionModifiedEvent();
 
 	UPROPERTY()
-	UMultiTransformer* MultiTransformer = nullptr;
+	TObjectPtr<UMultiTransformer> MultiTransformer = nullptr;
 
 	UPROPERTY()
-	UDragAlignmentMechanic* DragAlignmentMechanic = nullptr;
+	TObjectPtr<UDragAlignmentMechanic> DragAlignmentMechanic = nullptr;
 
 	void OnMultiTransformerTransformBegin();
 	void OnMultiTransformerTransformUpdate();
@@ -711,7 +711,7 @@ protected:
 	bool bPreviewUpdatePending = false;
 
 	UPROPERTY()
-	UPolyEditPreviewMesh* EditPreview;
+	TObjectPtr<UPolyEditPreviewMesh> EditPreview;
 
 	enum class EPreviewMaterialType
 	{
@@ -721,11 +721,11 @@ protected:
 	EPreviewMaterialType CurrentPreviewMaterial;
 
 	UPROPERTY()
-	UPlaneDistanceFromHitMechanic* ExtrudeHeightMechanic = nullptr;
+	TObjectPtr<UPlaneDistanceFromHitMechanic> ExtrudeHeightMechanic = nullptr;
 	UPROPERTY()
-	USpatialCurveDistanceMechanic* CurveDistMechanic = nullptr;
+	TObjectPtr<USpatialCurveDistanceMechanic> CurveDistMechanic = nullptr;
 	UPROPERTY()
-	UCollectSurfacePathMechanic* SurfacePathMechanic = nullptr;
+	TObjectPtr<UCollectSurfacePathMechanic> SurfacePathMechanic = nullptr;
 
 	//
 	// data for current drag

@@ -120,7 +120,7 @@ public:
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
-	UPlaneCutTool *CutTool;
+	TObjectPtr<UPlaneCutTool> CutTool;
 
 	int ComponentIndex;
 };
@@ -166,13 +166,13 @@ public:
 protected:
 
 	UPROPERTY()
-	UPlaneCutToolProperties* BasicProperties;
+	TObjectPtr<UPlaneCutToolProperties> BasicProperties;
 
 	UPROPERTY()
-	UAcceptOutputProperties* AcceptProperties;
+	TObjectPtr<UAcceptOutputProperties> AcceptProperties;
 
 	UPROPERTY()
-	TArray<UMeshOpPreviewWithBackgroundCompute*> Previews;
+	TArray<TObjectPtr<UMeshOpPreviewWithBackgroundCompute>> Previews;
 
 
 	/// Action buttons.
@@ -196,10 +196,10 @@ protected:
 protected:
 
 	UPROPERTY()
-	TArray<UDynamicMeshReplacementChangeTarget*> MeshesToCut;
+	TArray<TObjectPtr<UDynamicMeshReplacementChangeTarget>> MeshesToCut;
 
 	UPROPERTY()
-	UConstructionPlaneMechanic* PlaneMechanic = nullptr;
+	TObjectPtr<UConstructionPlaneMechanic> PlaneMechanic = nullptr;
 
 	// Cutting plane
 	UE::Geometry::FFrame3d CutPlaneWorld;

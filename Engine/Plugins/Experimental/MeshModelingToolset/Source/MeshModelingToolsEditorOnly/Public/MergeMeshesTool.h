@@ -84,17 +84,17 @@ public:
 
 protected:
 	UPROPERTY()
-	UMergeMeshesToolProperties* MergeProps;
+	TObjectPtr<UMergeMeshesToolProperties> MergeProps;
 
 	UPROPERTY()
-	UMeshStatisticsProperties* MeshStatisticsProperties;
+	TObjectPtr<UMeshStatisticsProperties> MeshStatisticsProperties;
 
 	UPROPERTY()
-	UOnAcceptHandleSourcesProperties* HandleSourcesProperties;
+	TObjectPtr<UOnAcceptHandleSourcesProperties> HandleSourcesProperties;
 
 
 	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* Preview;
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview;
 
 protected:
 	UWorld* TargetWorld;

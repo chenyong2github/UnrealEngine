@@ -39,7 +39,7 @@ public:
 	TSubclassOf<ULiveLinkRetargetAsset> RetargetAsset;
 
 	UPROPERTY(transient)
-	ULiveLinkRetargetAsset* CurrentRetargetAsset;
+	TObjectPtr<ULiveLinkRetargetAsset> CurrentRetargetAsset;
 
 public:
 	FAnimNode_LiveLinkPose();

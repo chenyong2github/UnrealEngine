@@ -33,7 +33,7 @@ struct FAddNewSubobjectParams
 
 	/** The class of the new subobject that will be added */
 	UPROPERTY(BlueprintReadWrite, Category = "SubobjectDataSubsystem")
-	UClass* NewClass;
+	TObjectPtr<UClass> NewClass;
 
 	/** Specific asset to use instead of the selected asset in the content browser */
 	UObject* AssetOverride;
@@ -43,7 +43,7 @@ struct FAddNewSubobjectParams
 	 * this subobject is being added to an instance.
 	 */
 	UPROPERTY(BlueprintReadWrite, Category = "SubobjectDataSubsystem")
-	UBlueprint* BlueprintContext;
+	TObjectPtr<UBlueprint> BlueprintContext;
 	
 	/** Optionally skip marking this blueprint as modified (e.g. if we're handling that externally */
 	UPROPERTY(BlueprintReadWrite, Category = "SubobjectDataSubsystem")
@@ -71,14 +71,14 @@ struct FReparentSubobjectParams
 	* this subobject is being added to an instance.
 	*/
 	UPROPERTY(BlueprintReadWrite, Category = "SubobjectDataSubsystem")
-	UBlueprint* BlueprintContext = nullptr;
+	TObjectPtr<UBlueprint> BlueprintContext = nullptr;
 
 	/** 
 	* The preview actor context to be used if in a blueprint context. 
 	* This must have a value if BlueprintContext is needed. 
 	*/
 	UPROPERTY(BlueprintReadWrite, Category = "SubobjectDataSubsystem")
-	AActor* ActorPreviewContext = nullptr;
+	TObjectPtr<AActor> ActorPreviewContext = nullptr;
 };
 
 /**

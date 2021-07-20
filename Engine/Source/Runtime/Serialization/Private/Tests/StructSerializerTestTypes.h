@@ -131,7 +131,7 @@ struct FStructSerializerObjectTestStruct
 	GENERATED_BODY()
 
 	UPROPERTY()
-	UClass* RawClass;
+	TObjectPtr<UClass> RawClass;
 
 	UPROPERTY()
 	TObjectPtr<UClass> WrappedClass;
@@ -143,7 +143,7 @@ struct FStructSerializerObjectTestStruct
 	TSoftClassPtr<class UMetaData> SoftClass;
 
 	UPROPERTY()
-	class UObject* RawObject;
+	TObjectPtr<class UObject> RawObject;
 
 	UPROPERTY()
 	TObjectPtr<class UObject> WrappedObject;

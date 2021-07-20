@@ -190,22 +190,22 @@ protected:
 protected:
 
 	UPROPERTY()
-	UTransformInputsToolProperties* TransformProperties;
+	TObjectPtr<UTransformInputsToolProperties> TransformProperties;
 
 	UPROPERTY()
-	UCreateMeshObjectTypeProperties* OutputTypeProperties;
+	TObjectPtr<UCreateMeshObjectTypeProperties> OutputTypeProperties;
 
 	UPROPERTY()
-	UBaseCreateFromSelectedHandleSourceProperties* HandleSourcesProperties;
+	TObjectPtr<UBaseCreateFromSelectedHandleSourceProperties> HandleSourcesProperties;
 
 	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* Preview;
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview;
 
 	UPROPERTY()
-	TArray<UTransformProxy*> TransformProxies;
+	TArray<TObjectPtr<UTransformProxy>> TransformProxies;
 
 	UPROPERTY()
-	TArray<UTransformGizmo*> TransformGizmos;
+	TArray<TObjectPtr<UTransformGizmo>> TransformGizmos;
 
 	UWorld* TargetWorld = nullptr;
 };

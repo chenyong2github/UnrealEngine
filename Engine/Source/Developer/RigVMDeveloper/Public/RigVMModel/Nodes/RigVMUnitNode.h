@@ -56,7 +56,7 @@ protected:
 private:
 
 	UPROPERTY()
-	UScriptStruct* ScriptStruct;
+	TObjectPtr<UScriptStruct> ScriptStruct;
 
 	UPROPERTY()
 	FName MethodName;

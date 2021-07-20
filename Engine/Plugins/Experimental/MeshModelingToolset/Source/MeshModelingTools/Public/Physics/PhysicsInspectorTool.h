@@ -46,17 +46,17 @@ public:
 protected:
 
 	UPROPERTY()
-	UCollisionGeometryVisualizationProperties* VizSettings = nullptr;
+	TObjectPtr<UCollisionGeometryVisualizationProperties> VizSettings = nullptr;
 
 	UPROPERTY()
-	TArray<UPhysicsObjectToolPropertySet*> ObjectData;
+	TArray<TObjectPtr<UPhysicsObjectToolPropertySet>> ObjectData;
 
 	UPROPERTY()
-	UMaterialInterface* LineMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> LineMaterial = nullptr;
 
 protected:
 	UPROPERTY()
-	TArray<UPreviewGeometry*> PreviewElements;
+	TArray<TObjectPtr<UPreviewGeometry>> PreviewElements;
 
 	// these are TSharedPtr because TPimplPtr cannot currently be added to a TArray?
 	TArray<TSharedPtr<FPhysicsDataCollection>> PhysicsInfos;

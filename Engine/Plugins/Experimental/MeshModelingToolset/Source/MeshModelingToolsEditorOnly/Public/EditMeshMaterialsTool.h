@@ -42,7 +42,7 @@ public:
 	int32 GetSelectedMaterialIndex() const;
 
 	UPROPERTY(EditAnywhere, Category=Materials)
-	TArray<UMaterialInterface*> Materials;
+	TArray<TObjectPtr<UMaterialInterface>> Materials;
 };
 
 
@@ -96,7 +96,7 @@ public:
 
 protected:
 	UPROPERTY()
-	UEditMeshMaterialsToolProperties* MaterialProps;
+	TObjectPtr<UEditMeshMaterialsToolProperties> MaterialProps;
 
 	virtual UMeshSelectionToolActionPropertySet* CreateEditActions() override;
 	virtual void AddSubclassPropertySets() override;

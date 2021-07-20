@@ -180,7 +180,7 @@ class MESHMODELINGTOOLS_API UBakedTexture2DImageProperties : public UInteractive
 public:
 	/** The source texture that is to be resampled into a new texture map */
 	UPROPERTY(EditAnywhere, Category = Texture2D, meta = (TransientToolProperty))
-	UTexture2D* SourceTexture;
+	TObjectPtr<UTexture2D> SourceTexture;
 
 	/** The UV layer on the source mesh that corresponds to the SourceTexture */
 	UPROPERTY(EditAnywhere, Category = Texture2D)
@@ -196,7 +196,7 @@ public:
 
 	/** For each material ID, the source texture that will be resampled in that material's region*/
 	UPROPERTY(EditAnywhere, Category = MultiTexture, meta = (DisplayName = "Material IDs / Source Textures"))
-	TMap<int32, UTexture2D*> MaterialIDSourceTextureMap;
+	TMap<int32, TObjectPtr<UTexture2D>> MaterialIDSourceTextureMap;
 
 	/** UV layer to sample from on the input mesh */
 	UPROPERTY(EditAnywhere, Category = MultiTexture)
@@ -204,7 +204,7 @@ public:
 
 	/** The set of all source textures from all input materials */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = MultiTexture, meta = (DisplayName = "Source Textures"))
-	TArray<UTexture2D*> AllSourceTextures;
+	TArray<TObjectPtr<UTexture2D>> AllSourceTextures;
 
 };
 

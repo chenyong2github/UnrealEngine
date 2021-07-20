@@ -15,5 +15,5 @@ class HAIRSTRANDSCORE_API UGroomAssetImportData : public UAssetImportData
 public:
 
 	UPROPERTY()
-	class UGroomImportOptions* ImportOptions;
+	TObjectPtr<class UGroomImportOptions> ImportOptions;
 };

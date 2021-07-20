@@ -48,5 +48,5 @@ private:
 	friend class ULevelVariantSets;
 
 	UPROPERTY(Transient)
-	TMap<UBlueprintGeneratedClass*, ULevelVariantSetsFunctionDirector*> DirectorInstances;
+	TMap<TObjectPtr<UBlueprintGeneratedClass>, TObjectPtr<ULevelVariantSetsFunctionDirector>> DirectorInstances;
 };

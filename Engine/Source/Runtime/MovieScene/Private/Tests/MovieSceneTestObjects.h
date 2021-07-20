@@ -124,7 +124,7 @@ public:
 #endif
 
 	UPROPERTY()
-	TArray<UMovieSceneSection*> SectionArray;
+	TArray<TObjectPtr<UMovieSceneSection>> SectionArray;
 };
 
 UCLASS(MinimalAPI)

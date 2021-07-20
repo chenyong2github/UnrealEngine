@@ -217,7 +217,7 @@ public:
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
-	UUVProjectionTool *Tool;
+	TObjectPtr<UUVProjectionTool> Tool;
 };
 
 
@@ -248,41 +248,41 @@ public:
 protected:
 
 	UPROPERTY()
-	UMeshUVChannelProperties* UVChannelProperties = nullptr;
+	TObjectPtr<UMeshUVChannelProperties> UVChannelProperties = nullptr;
 
 	UPROPERTY()
-	UUVProjectionToolProperties* BasicProperties = nullptr;
+	TObjectPtr<UUVProjectionToolProperties> BasicProperties = nullptr;
 
 	UPROPERTY()
-	UUVProjectionToolExpMapProperties* ExpMapProperties = nullptr;
+	TObjectPtr<UUVProjectionToolExpMapProperties> ExpMapProperties = nullptr;
 
 	UPROPERTY()
-	UUVProjectionToolCylinderProperties* CylinderProperties = nullptr;
+	TObjectPtr<UUVProjectionToolCylinderProperties> CylinderProperties = nullptr;
 
 	UPROPERTY()
-	UUVProjectionToolEditActions* EditActions = nullptr;
+	TObjectPtr<UUVProjectionToolEditActions> EditActions = nullptr;
 
 	UPROPERTY()
-	UExistingMeshMaterialProperties* MaterialSettings = nullptr;
+	TObjectPtr<UExistingMeshMaterialProperties> MaterialSettings = nullptr;
 
 	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* Preview = nullptr;
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview = nullptr;
 
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* CheckerMaterial = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> CheckerMaterial = nullptr;
 
 	UPROPERTY()
-	UTransformGizmo* TransformGizmo = nullptr;
+	TObjectPtr<UTransformGizmo> TransformGizmo = nullptr;
 	
 	UPROPERTY()
-	UTransformProxy* TransformProxy = nullptr;
+	TObjectPtr<UTransformProxy> TransformProxy = nullptr;
 
 	UPROPERTY()
-	UUVProjectionOperatorFactory* OperatorFactory = nullptr;
+	TObjectPtr<UUVProjectionOperatorFactory> OperatorFactory = nullptr;
 
 	UPROPERTY()
-	UPreviewGeometry* EdgeRenderer = nullptr;
+	TObjectPtr<UPreviewGeometry> EdgeRenderer = nullptr;
 
 protected:
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
@@ -324,7 +324,7 @@ protected:
 	TUniquePtr<FSelectClickedAction> SetPlaneCtrlClickBehaviorTarget;
 
 	UPROPERTY()
-	USingleClickInputBehavior* ClickToSetPlaneBehavior;
+	TObjectPtr<USingleClickInputBehavior> ClickToSetPlaneBehavior;
 
 	void UpdatePlaneFromClick(const FVector3d& Position, const FVector3d& Normal, bool bTransationOnly);
 

@@ -494,7 +494,7 @@ private:
 	TWeakPtr<FNiagaraEmitterViewModel> EmitterViewModel;
 
 	UPROPERTY()
-	UNiagaraStackEditorData* StackEditorData;
+	TObjectPtr<UNiagaraStackEditorData> StackEditorData;
 
 	FString StackEditorDataKey;
 

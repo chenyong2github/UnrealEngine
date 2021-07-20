@@ -84,7 +84,7 @@ private:
 	FNiagaraVariableBase Parameter;
 		 
 	UPROPERTY(transient)
-	UNiagaraParameterDefinitions* ReservingDefinitionsAsset;
+	TObjectPtr<UNiagaraParameterDefinitions> ReservingDefinitionsAsset;
 };
 
 FORCEINLINE uint32 GetTypeHash(const FReservedParameter& ReservedParameter) { return GetTypeHash(ReservedParameter.GetParameter().GetName()); };

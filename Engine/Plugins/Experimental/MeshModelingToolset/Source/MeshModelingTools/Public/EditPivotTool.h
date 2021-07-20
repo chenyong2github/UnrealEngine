@@ -79,10 +79,10 @@ struct FEditPivotTarget
 	GENERATED_BODY()
 
 	UPROPERTY()
-	UTransformProxy* TransformProxy = nullptr;
+	TObjectPtr<UTransformProxy> TransformProxy = nullptr;
 
 	UPROPERTY()
-	UTransformGizmo* TransformGizmo = nullptr;
+	TObjectPtr<UTransformGizmo> TransformGizmo = nullptr;
 };
 
 
@@ -183,10 +183,10 @@ public:
 
 public:
 	UPROPERTY()
-	UEditPivotToolProperties* TransformProps;
+	TObjectPtr<UEditPivotToolProperties> TransformProps;
 
 	UPROPERTY()
-	UEditPivotToolActionPropertySet* EditPivotActions;
+	TObjectPtr<UEditPivotToolActionPropertySet> EditPivotActions;
 
 	virtual void RequestAction(EEditPivotToolActions ActionType);
 
@@ -205,7 +205,7 @@ protected:
 	TArray<FEditPivotTarget> ActiveGizmos;
 
 	UPROPERTY()
-	UDragAlignmentMechanic* DragAlignmentMechanic = nullptr;
+	TObjectPtr<UDragAlignmentMechanic> DragAlignmentMechanic = nullptr;
 
 	void UpdateSetPivotModes(bool bEnableSetPivot);
 	void SetActiveGizmos_Single(bool bLocalRotations);

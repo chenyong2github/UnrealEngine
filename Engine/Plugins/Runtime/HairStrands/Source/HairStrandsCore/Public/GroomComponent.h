@@ -26,26 +26,26 @@ public:
 
 	/** Groom asset . */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category = "Groom")
-	UGroomAsset* GroomAsset;
+	TObjectPtr<UGroomAsset> GroomAsset;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category = "GroomCache", meta = (EditCondition = "BindingAsset == nullptr"))
-	UGroomCache* GroomCache;
+	TObjectPtr<UGroomCache> GroomCache;
 
 	/** Niagara components that will be attached to the system*/
 	UPROPERTY(Transient)
-	TArray<class UNiagaraComponent*> NiagaraComponents;
+	TArray<TObjectPtr<class UNiagaraComponent>> NiagaraComponents;
 
 	// Kept for debugging mesh transfer
 	UPROPERTY()
-	class USkeletalMesh* SourceSkeletalMesh;
+	TObjectPtr<class USkeletalMesh> SourceSkeletalMesh;
 
 	/** Optional binding asset for binding a groom onto a skeletal mesh. If the binding asset is not provided the projection is done at runtime, which implies a large GPU cost at startup time. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Groom", meta = (EditCondition = "GroomCache == nullptr"))
-	class UGroomBindingAsset* BindingAsset;
+	TObjectPtr<class UGroomBindingAsset> BindingAsset;
 
 	/** Physics asset to be used for hair simulation */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulation")
-	class UPhysicsAsset* PhysicsAsset;
+	TObjectPtr<class UPhysicsAsset> PhysicsAsset;
 
 	/** Groom's simulation settings */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category = "Simulation")
@@ -53,19 +53,19 @@ public:
 
 	/* Reference of the default/debug materials for each geometric representation */
 	UPROPERTY()
-	UMaterialInterface* Strands_DebugMaterial;
+	TObjectPtr<UMaterialInterface> Strands_DebugMaterial;
 	UPROPERTY()
-	UMaterialInterface* Strands_DefaultMaterial;
+	TObjectPtr<UMaterialInterface> Strands_DefaultMaterial;
 	UPROPERTY()
-	UMaterialInterface* Cards_DefaultMaterial;
+	TObjectPtr<UMaterialInterface> Cards_DefaultMaterial;
 	UPROPERTY()
-	UMaterialInterface* Meshes_DefaultMaterial;
+	TObjectPtr<UMaterialInterface> Meshes_DefaultMaterial;
 
 	UPROPERTY()
-	class UNiagaraSystem* AngularSpringsSystem;
+	TObjectPtr<class UNiagaraSystem> AngularSpringsSystem;
 
 	UPROPERTY()
-	class UNiagaraSystem* CosseratRodsSystem;
+	TObjectPtr<class UNiagaraSystem> CosseratRodsSystem;
 
 	/** Optional socket name, where the groom component should be attached at, when parented with a skeletal mesh */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, interp, Category = "Groom")
@@ -248,10 +248,10 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient)
-	UGroomAsset* GroomAssetBeingLoaded;
+	TObjectPtr<UGroomAsset> GroomAssetBeingLoaded;
 
 	UPROPERTY(Transient)
-	UGroomBindingAsset* BindingAssetBeingLoaded;
+	TObjectPtr<UGroomBindingAsset> BindingAssetBeingLoaded;
 #endif
 
 protected:

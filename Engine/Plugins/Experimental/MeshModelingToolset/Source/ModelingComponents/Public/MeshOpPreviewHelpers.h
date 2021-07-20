@@ -197,23 +197,23 @@ public:
 public:
 	// preview of MeshOperator result
 	UPROPERTY()
-	UPreviewMesh* PreviewMesh = nullptr;
+	TObjectPtr<UPreviewMesh> PreviewMesh = nullptr;
 
 	// input set of materials to assign to PreviewMesh
 	UPROPERTY()
-	TArray<UMaterialInterface*> StandardMaterials;
+	TArray<TObjectPtr<UMaterialInterface>> StandardMaterials;
 
 	// override material to forward to PreviewMesh if set
 	UPROPERTY()
-	UMaterialInterface* OverrideMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> OverrideMaterial = nullptr;
 
 	// if non-null, this material is swapped in when a background compute is active
 	UPROPERTY()
-	UMaterialInterface* WorkingMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> WorkingMaterial = nullptr;
 	
 	// secondary render material to forward to PreviewMesh if set
 	UPROPERTY()
-	UMaterialInterface* SecondaryMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> SecondaryMaterial = nullptr;
 
 	UWorld* PreviewWorld;
 protected:

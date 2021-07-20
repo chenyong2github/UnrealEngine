@@ -35,7 +35,7 @@ protected:
 
 
 	UPROPERTY()
-	UVoxelProperties* VoxProperties;
+	TObjectPtr<UVoxelProperties> VoxProperties;
 
 	TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>> OriginalDynamicMeshes;
 };

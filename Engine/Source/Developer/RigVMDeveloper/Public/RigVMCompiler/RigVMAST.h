@@ -1115,7 +1115,7 @@ struct RIGVMDEVELOPER_API FRigVMParserASTSettings
 
 	// links to be ignored during the parse
 	UPROPERTY()
-	TArray<URigVMLink*> LinksToSkip;
+	TArray<TObjectPtr<URigVMLink>> LinksToSkip;
 
 	FRigVMReportDelegate ReportDelegate;
 

@@ -129,7 +129,7 @@ public:
 
 	/** Cloth interactors currently created. */
 	UPROPERTY()
-	TMap<FName, UClothingInteractor*> ClothingInteractors;
+	TMap<FName, TObjectPtr<UClothingInteractor>> ClothingInteractors;
 
 protected:
 	virtual UClothingInteractor* CreateClothingInteractor()

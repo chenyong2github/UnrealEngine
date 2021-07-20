@@ -45,7 +45,7 @@ protected:
 	UE::Geometry::FDynamicMeshAABBTree3 MeshSpatial;
 
 	UPROPERTY()
-	UPolygonSelectionMechanic* SelectionMechanic = nullptr;
+	TObjectPtr<UPolygonSelectionMechanic> SelectionMechanic = nullptr;
 
 
 	// A variant of group topology that considers all triangles one group, so that group edges are boundary

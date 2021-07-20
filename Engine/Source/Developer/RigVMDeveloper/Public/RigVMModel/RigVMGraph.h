@@ -140,10 +140,10 @@ private:
 	void Notify(ERigVMGraphNotifType InNotifType, UObject* InSubject);
 
 	UPROPERTY()
-	TArray<URigVMNode*> Nodes;
+	TArray<TObjectPtr<URigVMNode>> Nodes;
 
 	UPROPERTY()
-	TArray<URigVMLink*> Links;
+	TArray<TObjectPtr<URigVMLink>> Links;
 
 	UPROPERTY()
 	TArray<FName> SelectedNodes;

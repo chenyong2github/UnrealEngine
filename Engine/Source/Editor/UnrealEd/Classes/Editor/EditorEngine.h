@@ -2435,7 +2435,7 @@ protected:
 	virtual ULevelEditorDragDropHandler* CreateLevelEditorDragDropHandler();
 private:
 	UPROPERTY()
-	mutable ULevelEditorDragDropHandler* DragDropHandler;
+	mutable TObjectPtr<ULevelEditorDragDropHandler> DragDropHandler;
 
 protected:
 

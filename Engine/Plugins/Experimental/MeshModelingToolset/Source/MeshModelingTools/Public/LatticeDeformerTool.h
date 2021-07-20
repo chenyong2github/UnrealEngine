@@ -121,7 +121,7 @@ public:
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
-	ULatticeDeformerTool* LatticeDeformerTool;
+	TObjectPtr<ULatticeDeformerTool> LatticeDeformerTool;
 };
 
 
@@ -157,13 +157,13 @@ protected:
 	TSharedPtr<UE::Geometry::FFFDLattice, ESPMode::ThreadSafe> Lattice;
 
 	UPROPERTY()
-	ULatticeControlPointsMechanic* ControlPointsMechanic = nullptr;
+	TObjectPtr<ULatticeControlPointsMechanic> ControlPointsMechanic = nullptr;
 
 	UPROPERTY()
-	ULatticeDeformerToolProperties* Settings = nullptr;
+	TObjectPtr<ULatticeDeformerToolProperties> Settings = nullptr;
 
 	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* Preview = nullptr;
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview = nullptr;
 
 	UPROPERTY()
 	bool bLatticeDeformed = false;

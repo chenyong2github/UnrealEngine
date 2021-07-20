@@ -22,13 +22,13 @@ struct ENGINE_API FWorldPartitionRuntimeSpatialHashGridPreviewer
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	UMaterial* Material;
+	TObjectPtr<UMaterial> Material;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* MID;
+	TObjectPtr<UMaterialInstanceDynamic> MID;
 
 	UPROPERTY()
-	APostProcessVolume* Volume;
+	TObjectPtr<APostProcessVolume> Volume;
 
 	struct FGridParametersCache
 	{

@@ -147,10 +147,10 @@ struct FTransformMeshesTarget
 	GENERATED_BODY()
 
 	UPROPERTY()
-	UTransformProxy* TransformProxy = nullptr;
+	TObjectPtr<UTransformProxy> TransformProxy = nullptr;
 
 	UPROPERTY()
-	UTransformGizmo* TransformGizmo = nullptr;
+	TObjectPtr<UTransformGizmo> TransformGizmo = nullptr;
 };
 
 
@@ -188,7 +188,7 @@ public:
 
 protected:
 	UPROPERTY()
-	UTransformMeshesToolProperties* TransformProps;
+	TObjectPtr<UTransformMeshesToolProperties> TransformProps;
 
 protected:
 	UWorld* TargetWorld;
@@ -198,7 +198,7 @@ protected:
 	TArray<FTransformMeshesTarget> ActiveGizmos;
 
 	UPROPERTY()
-	UDragAlignmentMechanic* DragAlignmentMechanic = nullptr;
+	TObjectPtr<UDragAlignmentMechanic> DragAlignmentMechanic = nullptr;
 
 	ETransformMeshesTransformMode CurTransformMode;
 	void UpdateTransformMode(ETransformMeshesTransformMode NewMode);

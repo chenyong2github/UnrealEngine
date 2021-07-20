@@ -311,25 +311,25 @@ public:
 	virtual void RequestAction(EMeshSelectionToolActions ActionType);
 
 	UPROPERTY()
-	UMeshSelectionToolProperties* SelectionProps;
+	TObjectPtr<UMeshSelectionToolProperties> SelectionProps;
 
 	UPROPERTY()
-	UMeshSelectionEditActions* SelectionActions;
+	TObjectPtr<UMeshSelectionEditActions> SelectionActions;
 
 	UPROPERTY()
-	UMeshSelectionToolActionPropertySet* EditActions;
+	TObjectPtr<UMeshSelectionToolActionPropertySet> EditActions;
 
 	UPROPERTY()
-	UMeshStatisticsProperties* MeshStatisticsProperties;
+	TObjectPtr<UMeshStatisticsProperties> MeshStatisticsProperties;
 
 	UPROPERTY()
-	UMeshElementsVisualizer* MeshElementsDisplay;
+	TObjectPtr<UMeshElementsVisualizer> MeshElementsDisplay;
 
 	UPROPERTY()
-	UMeshUVChannelProperties* UVChannelProperties = nullptr;
+	TObjectPtr<UMeshUVChannelProperties> UVChannelProperties = nullptr;
 
 	UPROPERTY()
-	UPolygroupLayersProperties* PolygroupLayerProperties = nullptr;
+	TObjectPtr<UPolygroupLayersProperties> PolygroupLayerProperties = nullptr;
 
 protected:
 	virtual UMeshSelectionToolActionPropertySet* CreateEditActions();
@@ -343,10 +343,10 @@ protected:
 
 protected:
 	UPROPERTY()
-	UMeshSelectionSet* Selection;
+	TObjectPtr<UMeshSelectionSet> Selection;
 
 	UPROPERTY()
-	TArray<AActor*> SpawnedActors;
+	TArray<TObjectPtr<AActor>> SpawnedActors;
 
 	UWorld* TargetWorld;
 

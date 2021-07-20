@@ -106,7 +106,7 @@ struct FControlRigComponentMappedElement
 	EControlRigComponentSpace Space;
 
 	UPROPERTY(transient)
-	USceneComponent* SceneComponent;
+	TObjectPtr<USceneComponent> SceneComponent;
 
 	UPROPERTY(transient)
 	int32 ElementIndex;
@@ -130,7 +130,7 @@ struct FControlRigComponentMappedComponent
 	{}
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mapping")
-	USceneComponent* Component;
+	TObjectPtr<USceneComponent> Component;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mapping")
 	FName ElementName;
@@ -632,7 +632,7 @@ private:
 #endif
 
 	UPROPERTY(transient)
-	UControlRig* ControlRig;
+	TObjectPtr<UControlRig> ControlRig;
 
 	TMap<USkeletalMeshComponent*, FCachedSkeletalMeshComponentSettings> CachedSkeletalMeshComponentSettings;
 

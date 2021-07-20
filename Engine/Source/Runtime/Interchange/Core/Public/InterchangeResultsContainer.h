@@ -75,5 +75,5 @@ private:
 	mutable FCriticalSection Lock;
 
 	UPROPERTY()
-	TArray<UInterchangeResult*> Results;
+	TArray<TObjectPtr<UInterchangeResult>> Results;
 };

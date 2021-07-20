@@ -24,7 +24,7 @@ struct FInterchangeLodSceneNodeContainer
 	* Each scene node here represent a mesh scene node. Only if we represent a lod group we can have more then 1 mesh scene node for a specific lod index.
 	*/
 	UPROPERTY(EditAnywhere, Category = "Interchange | Pipeline | MeshesInstance")
-	TArray<UInterchangeSceneNode*> SceneNodes;
+	TArray<TObjectPtr<UInterchangeSceneNode>> SceneNodes;
 };
 
 /*
@@ -53,7 +53,7 @@ struct FInterchangeMeshInstance
 	* If this mesh instance represent a LodGroup this member will not be null, but will be null if the mesh instance do not represent a lod group
 	*/
 	UPROPERTY(EditAnywhere, Category = "Interchange | Pipeline | MeshesInstance")
-	UInterchangeSceneNode* LodGroupNode;
+	TObjectPtr<UInterchangeSceneNode> LodGroupNode;
 
 	UPROPERTY(EditAnywhere, Category = "Interchange | Pipeline | MeshesInstance")
 	bool bReferenceSkinnedMesh;
@@ -97,7 +97,7 @@ struct FInterchangeMeshGeometry
 	* The UInterchangeMeshNode pointer represent by this structure.
 	*/
 	UPROPERTY(EditAnywhere, Category = "Interchange | Pipeline | MeshesGeometry")
-	UInterchangeMeshNode* MeshNode = nullptr;
+	TObjectPtr<UInterchangeMeshNode> MeshNode = nullptr;
 
 	/**
 	* All mesh instance referencing this UInterchangeMeshNode pointer.

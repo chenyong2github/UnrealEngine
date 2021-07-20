@@ -880,7 +880,7 @@ struct CONTROLRIG_API FRigControlSettings
 
 	/** If the control is 4transient and only visible in the control rig editor */
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Control)
-	UEnum* ControlEnum;
+	TObjectPtr<UEnum> ControlEnum;
 
 	/** Applies the limits expressed by these settings to a value */
 	FORCEINLINE void ApplyLimits(FRigControlValue& InOutValue) const

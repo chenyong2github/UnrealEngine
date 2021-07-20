@@ -50,6 +50,6 @@ public:
 
 private:
 	UPROPERTY()
-	TArray<UNiagaraScriptVariable*> EditorOnlyScriptVars;
+	TArray<TObjectPtr<UNiagaraScriptVariable>> EditorOnlyScriptVars;
 #endif
 };

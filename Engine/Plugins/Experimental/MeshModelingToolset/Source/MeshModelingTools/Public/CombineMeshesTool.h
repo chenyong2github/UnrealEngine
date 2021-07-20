@@ -95,13 +95,13 @@ public:
 protected:
 
 	UPROPERTY()
-	UCombineMeshesToolProperties* BasicProperties;
+	TObjectPtr<UCombineMeshesToolProperties> BasicProperties;
 
 	UPROPERTY()
-	UCreateMeshObjectTypeProperties* OutputTypeProperties;
+	TObjectPtr<UCreateMeshObjectTypeProperties> OutputTypeProperties;
 
 	UPROPERTY()
-	UOnAcceptHandleSourcesProperties* HandleSourceProperties;
+	TObjectPtr<UOnAcceptHandleSourcesProperties> HandleSourceProperties;
 
 protected:
 	UWorld* TargetWorld;

@@ -253,7 +253,7 @@ struct RIGVM_API FRigVMRegister
 	// The resolved UScriptStruct / UObject (in the future)
 	// used for debugging.
 	UPROPERTY(transient)
-	UObject* BaseCPPTypeObject;
+	TObjectPtr<UObject> BaseCPPTypeObject;
 
 #endif
 
@@ -388,11 +388,11 @@ private:
 
 	// The c++ script struct of the resulting memory (for example FVector for Transform.Translation)
 	UPROPERTY()
-	UScriptStruct* ScriptStruct;
+	TObjectPtr<UScriptStruct> ScriptStruct;
 
 	// The c++ script struct of the source memory (for example FTransform for Transform.Translation)
 	UPROPERTY()
-	UScriptStruct* ParentScriptStruct;
+	TObjectPtr<UScriptStruct> ParentScriptStruct;
 
 	// The index of the element within an array (for example 3 for Transform[3])
 	UPROPERTY()
@@ -1465,7 +1465,7 @@ private:
 	TArray<uint8> Data;
 
 	UPROPERTY(transient)
-	TArray<UScriptStruct*> ScriptStructs;
+	TArray<TObjectPtr<UScriptStruct>> ScriptStructs;
 
 	UPROPERTY(transient)
 	TMap<FName, int32> NameMap;

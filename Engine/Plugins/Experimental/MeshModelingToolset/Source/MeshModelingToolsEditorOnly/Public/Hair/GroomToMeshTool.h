@@ -137,23 +137,23 @@ public:
 
 protected:
 	UPROPERTY()
-	UGroomToMeshToolProperties* Settings;
+	TObjectPtr<UGroomToMeshToolProperties> Settings;
 
 	UPROPERTY()
-	UPreviewMesh* PreviewMesh;
+	TObjectPtr<UPreviewMesh> PreviewMesh;
 
 	UPROPERTY()
 	TLazyObjectPtr<AGroomActor> TargetGroom;
 
 	UPROPERTY()
-	UPreviewGeometry* PreviewGeom;
+	TObjectPtr<UPreviewGeometry> PreviewGeom;
 
 protected:
 	UPROPERTY()
-	UMaterialInterface* MeshMaterial;
+	TObjectPtr<UMaterialInterface> MeshMaterial;
 
 	UPROPERTY()
-	UMaterialInterface* UVMaterial;
+	TObjectPtr<UMaterialInterface> UVMaterial;
 
 protected:
 	UWorld* TargetWorld = nullptr;

@@ -93,15 +93,15 @@ public:
 
 protected:
 	UPROPERTY()
-	UAddPatchToolProperties* ShapeSettings;
+	TObjectPtr<UAddPatchToolProperties> ShapeSettings;
 
 	UPROPERTY()
-	UNewMeshMaterialProperties* MaterialProperties;
+	TObjectPtr<UNewMeshMaterialProperties> MaterialProperties;
 
 
 
 	UPROPERTY()
-	UPreviewMesh* PreviewMesh;
+	TObjectPtr<UPreviewMesh> PreviewMesh;
 
 protected:
 	UWorld* TargetWorld;

@@ -156,7 +156,7 @@ class MESHMODELINGTOOLS_API UVertexBrushAlphaProperties : public UInteractiveToo
 public:
 	/** Alpha mask applied to brush stamp. Red channel is used. */
 	UPROPERTY(EditAnywhere, Category = Alpha, meta = (DisplayName = "Alpha Mask"))
-	UTexture2D* Alpha = nullptr;
+	TObjectPtr<UTexture2D> Alpha = nullptr;
 
 	/** Alpha is rotated by this angle, inside the brush stamp frame (vertically aligned) */
 	UPROPERTY(EditAnywhere, Category = Alpha, meta = (DisplayName = "Rotation", UIMin = "-180.0", UIMax = "180.0", ClampMin = "-360.0", ClampMax = "360.0"))
@@ -199,13 +199,13 @@ public:
 
 	/** Properties that control sculpting*/
 	UPROPERTY()
-	UVertexBrushSculptProperties* SculptProperties;
+	TObjectPtr<UVertexBrushSculptProperties> SculptProperties;
 
 	UPROPERTY()
-	UVertexBrushAlphaProperties* AlphaProperties;
+	TObjectPtr<UVertexBrushAlphaProperties> AlphaProperties;
 
 	UPROPERTY()
-	UTexture2D* BrushAlpha;
+	TObjectPtr<UTexture2D> BrushAlpha;
 
 public:
 	virtual void IncreaseBrushSpeedAction() override;
@@ -229,7 +229,7 @@ protected:
 
 protected:
 	UPROPERTY()
-	UDynamicMeshComponent* DynamicMeshComponent;
+	TObjectPtr<UDynamicMeshComponent> DynamicMeshComponent;
 
 	// realtime visualization
 	void OnDynamicMeshComponentChanged(UDynamicMeshComponent* Component, const FMeshVertexChange* Change, bool bRevert);

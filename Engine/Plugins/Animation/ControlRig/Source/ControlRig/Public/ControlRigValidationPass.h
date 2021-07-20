@@ -63,7 +63,7 @@ class CONTROLRIG_API UControlRigValidator : public UObject
 private:
 
 	UPROPERTY()
-	TArray<UControlRigValidationPass*> Passes;
+	TArray<TObjectPtr<UControlRigValidationPass>> Passes;
 
 	void OnControlRigInitialized(UControlRig* Subject, EControlRigState State, const FName& EventName);
 	void OnControlRigExecuted(UControlRig* Subject, EControlRigState State, const FName& EventName);

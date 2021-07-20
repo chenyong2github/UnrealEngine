@@ -20,19 +20,19 @@ public:
 		binding is done a different mesh than the one which it has been authored, i.e., only if the curves 
 		roots and the surface geometry don't aligned and need to be wrapped/transformed. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Conversion)
-	USkeletalMesh* SourceSkeletalMesh;
+	TObjectPtr<USkeletalMesh> SourceSkeletalMesh;
 
 	/** Skeletal mesh on which the groom is attached to. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BuildSettings)
-	USkeletalMesh* TargetSkeletalMesh;
+	TObjectPtr<USkeletalMesh> TargetSkeletalMesh;
 
 	/** GeometryCache on which the groom has been authored */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Conversion)
-	UGeometryCache* SourceGeometryCache;
+	TObjectPtr<UGeometryCache> SourceGeometryCache;
 
 	/** GeometryCache on which the groom is attached to. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BuildSettings)
-	UGeometryCache* TargetGeometryCache;
+	TObjectPtr<UGeometryCache> TargetGeometryCache;
 
 	/** Number of points used for the rbf interpolation */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ShowOnlyInnerProperties, ClampMin = "0", ClampMax = "100"), Category = HairInterpolation)

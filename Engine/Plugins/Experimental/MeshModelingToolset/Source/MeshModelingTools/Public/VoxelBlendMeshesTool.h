@@ -83,7 +83,7 @@ protected:
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
-	UVoxelBlendMeshesToolProperties* BlendProperties;
+	TObjectPtr<UVoxelBlendMeshesToolProperties> BlendProperties;
 };
 
 

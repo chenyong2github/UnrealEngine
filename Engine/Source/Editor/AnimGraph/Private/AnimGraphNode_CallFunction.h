@@ -20,11 +20,11 @@ class UAnimGraphNode_CallFunction : public UAnimGraphNode_Base
 private:
 	// Inner graph we maintain to hook into the function call machinery
 	UPROPERTY()
-	UEdGraph* InnerGraph;
+	TObjectPtr<UEdGraph> InnerGraph;
 
 	// Inner node we maintain to hook into the function call machinery
 	UPROPERTY()
-	UK2Node_CallFunction* CallFunctionPrototype;
+	TObjectPtr<UK2Node_CallFunction> CallFunctionPrototype;
 	
     UPROPERTY(EditAnywhere, Category=Settings)
 	FAnimNode_CallFunction Node;

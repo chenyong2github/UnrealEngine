@@ -42,7 +42,7 @@ protected:
 
 protected:
 	UPROPERTY()
-	UPreviewMesh* PreviewMesh;
+	TObjectPtr<UPreviewMesh> PreviewMesh;
 
 	// this function is called when the component inside the PreviewMesh is modified (eg via an undo/redo event)
 	virtual void OnBaseMeshComponentChanged() {}	

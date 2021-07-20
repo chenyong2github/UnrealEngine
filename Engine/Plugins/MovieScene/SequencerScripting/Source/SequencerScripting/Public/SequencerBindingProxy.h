@@ -31,5 +31,5 @@ struct FSequencerBindingProxy
 	FGuid BindingID;
 
 	UPROPERTY(BlueprintReadOnly, Category=Binding)
-	UMovieSceneSequence* Sequence;
+	TObjectPtr<UMovieSceneSequence> Sequence;
 };

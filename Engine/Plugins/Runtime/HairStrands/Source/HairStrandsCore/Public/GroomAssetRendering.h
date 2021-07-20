@@ -89,7 +89,7 @@ struct HAIRSTRANDSCORE_API FHairGroupsRendering
 
 	/* Deprecated */
 	UPROPERTY()
-	UMaterialInterface* Material = nullptr;
+	TObjectPtr<UMaterialInterface> Material = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = "GeometrySettings", meta = (ToolTip = "Geometry settings"))
 	FHairGeometrySettings GeometrySettings;

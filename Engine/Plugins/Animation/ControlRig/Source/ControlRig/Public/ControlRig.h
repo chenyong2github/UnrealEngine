@@ -405,10 +405,10 @@ public:
 private:
 
 	UPROPERTY()
-	URigVM* VM;
+	TObjectPtr<URigVM> VM;
 
 	UPROPERTY()
-	URigHierarchy *DynamicHierarchy;
+	TObjectPtr<URigHierarchy> DynamicHierarchy;
 
 	UPROPERTY()
 	TSoftObjectPtr<UControlRigGizmoLibrary> GizmoLibrary;
@@ -463,7 +463,7 @@ private:
 
 	/** The registry to access data source */
 	UPROPERTY(transient)
-	UAnimationDataSourceRegistry* DataSourceRegistry;
+	TObjectPtr<UAnimationDataSourceRegistry> DataSourceRegistry;
 
 	/** The event name used during an update */
 	UPROPERTY(transient)
@@ -543,7 +543,7 @@ private:
 	const FRigInfluenceMap* FindInfluenceMap(const FName& InEventName);
 
 	UPROPERTY(transient, BlueprintGetter = GetInteractionRig, BlueprintSetter = SetInteractionRig, Category = "Interaction")
-	UControlRig* InteractionRig;
+	TObjectPtr<UControlRig> InteractionRig;
 
 	UPROPERTY(EditAnywhere, transient, BlueprintGetter = GetInteractionRigClass, BlueprintSetter = SetInteractionRigClass, Category = "Interaction", Meta=(DisplayName="Interaction Rig"))
 	TSubclassOf<UControlRig> InteractionRigClass;
@@ -581,7 +581,7 @@ protected
 	:
 	/** Array of user data stored with the asset */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = "Default")
-	TArray<UAssetUserData*> AssetUserData;
+	TArray<TObjectPtr<UAssetUserData>> AssetUserData;
 
 private:
 
@@ -663,7 +663,7 @@ private:
 #if WITH_EDITORONLY_DATA
 
 	UPROPERTY(transient)
-	URigVM* VMSnapshotBeforeExecution;
+	TObjectPtr<URigVM> VMSnapshotBeforeExecution;
 
 	/** The current execution mode */
 	UPROPERTY(transient)

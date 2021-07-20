@@ -43,7 +43,7 @@ private:
 	TSubclassOf<UControlRig> ControlRigClass;
 
 	UPROPERTY(transient)
-	UControlRig* ControlRig;
+	TObjectPtr<UControlRig> ControlRig;
 
 	// alpha value handler
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinShownByDefault))

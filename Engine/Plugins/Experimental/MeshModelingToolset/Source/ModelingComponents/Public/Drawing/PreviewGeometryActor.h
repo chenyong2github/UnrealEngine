@@ -170,13 +170,13 @@ public:
 	 * Actor created and managed by the UPreviewGeometry
 	 */
 	UPROPERTY()
-	APreviewGeometryActor* ParentActor = nullptr;
+	TObjectPtr<APreviewGeometryActor> ParentActor = nullptr;
 
 	/**
 	 * LineSetComponents created and owned by the UPreviewGeometry, and added as child components of the ParentActor
 	 */
 	UPROPERTY()
-	TMap<FString, ULineSetComponent*> LineSets;
+	TMap<FString, TObjectPtr<ULineSetComponent>> LineSets;
 
 
 

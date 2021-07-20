@@ -154,11 +154,11 @@ private:
 
 	/** The sequence player we're interrogating */
 	UPROPERTY()
-	UMovieSceneSequencePlayer* SequencePlayer;
+	TObjectPtr<UMovieSceneSequencePlayer> SequencePlayer;
 
 	/** The target scene component we're interrogating */
 	UPROPERTY()
-	USceneComponent* SceneComponent;
+	TObjectPtr<USceneComponent> SceneComponent;
 
 	/** The time at which the interrogation should run */
 	FFrameTime RootPredictedTime;
@@ -195,8 +195,8 @@ private:
 	UE::MovieScene::FInterrogationChannels InterrogationChannels;
 
 	UPROPERTY()
-	TArray<UMovieSceneAsyncAction_SequencePrediction*> PendingPredictions;
+	TArray<TObjectPtr<UMovieSceneAsyncAction_SequencePrediction>> PendingPredictions;
 
 	UPROPERTY()
-	TArray<UMovieSceneAsyncAction_SequencePrediction*> ProcessingPredictions;
+	TArray<TObjectPtr<UMovieSceneAsyncAction_SequencePrediction>> ProcessingPredictions;
 };

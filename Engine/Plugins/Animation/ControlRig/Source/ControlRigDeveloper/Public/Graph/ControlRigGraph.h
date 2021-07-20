@@ -139,7 +139,7 @@ private:
 #if WITH_EDITORONLY_DATA
 
 	UPROPERTY(transient)
-	URigVMController* TemplateController;
+	TObjectPtr<URigVMController> TemplateController;
 
 #endif
 #if WITH_EDITOR
