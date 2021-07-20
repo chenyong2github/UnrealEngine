@@ -42,6 +42,8 @@ struct FCompression
 
 	/**
 	 * Thread-safe abstract compression routine to query memory requirements for a compression operation.
+	 * This is the minimize size to allocate the buffer for CompressMemory (encoding).
+	 * Use GetMaximumCompressedSize at decode to know how large a compressed buffer may be.
 	 *
 	 * @param	FormatName					Name of the compression format
 	 * @param	UncompressedSize			Size of uncompressed data in bytes
@@ -50,6 +52,18 @@ struct FCompression
 	 * @return The maximum possible bytes needed for compression of data buffer of size UncompressedSize
 	 */
 	CORE_API static int32 CompressMemoryBound(FName FormatName, int32 UncompressedSize, ECompressionFlags Flags=COMPRESS_NoFlags, int32 CompressionData=0);
+	
+	/**
+	 * Thread-safe abstract compression routine to query maximum compressed size that could be made.
+	 * CompressMemoryBound is strictly greater equal GetMaximumCompressedSize.
+	 *
+	 * @param	FormatName					Name of the compression format
+	 * @param	UncompressedSize			Size of uncompressed data in bytes
+	 * @param	Flags						Flags to control what method to use and optionally control memory vs speed
+	 * @param	CompressionData				Additional compression parameter (specifies BitWindow value for ZLIB compression format)
+	 * @return The maximum possible size of valid compressed data made by this format
+	 */
+	CORE_API static int32 GetMaximumCompressedSize(FName FormatName, int32 UncompressedSize, ECompressionFlags Flags=COMPRESS_NoFlags, int32 CompressionData=0);
 
 	/**
 	 * Thread-safe abstract compression routine. Compresses memory from uncompressed buffer and writes it to compressed

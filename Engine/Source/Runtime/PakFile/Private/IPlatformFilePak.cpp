@@ -4857,20 +4857,13 @@ public:
 			TEXT("See ExtensionsToNotUsePluginCompression in [Pak] section of Engine.ini to add more extensions."),
 			*CompressionMethod.ToString(), TEXT("Unknown"));
 
-		// @todo Oodle : make an FCompression::GetMaximumCompressedSize
-		//		avoid calling CompressMemoryBound in the Decoder because it creates an ICompressionFormat for Oodle
-		//		and initializes encoders
-		
-		int64 WorkingBufferRequiredSize;
-		if ( CompressionMethod == NAME_Oodle )
+		int64 WorkingBufferRequiredSize = FCompression::GetMaximumCompressedSize(CompressionMethod,CompressionBlockSize);
+		if ( CompressionMethod != NAME_Oodle )
 		{
-			WorkingBufferRequiredSize = OodleDataGetMaximumCompressedSize(CompressionBlockSize);
-		}
-		else
-		{
-			// an amount to extra allocate, in case one block's compressed size is bigger than CompressMemoryBound
+			// an amount to extra allocate, in case one block's compressed size is bigger than GetMaximumCompressedSize
+			// @todo this should not be needed, can it be removed?
 			float SlopMultiplier = 1.1f;
-			WorkingBufferRequiredSize = FCompression::CompressMemoryBound(CompressionMethod, CompressionBlockSize) * SlopMultiplier;
+			WorkingBufferRequiredSize = (int64)( WorkingBufferRequiredSize * SlopMultiplier );
 		}
 
 		WorkingBufferRequiredSize = EncryptionPolicy::AlignReadRequest(WorkingBufferRequiredSize);
