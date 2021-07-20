@@ -623,11 +623,11 @@ void FDisplayClusterDeviceBase::EndFinalPostprocessSettings(struct FPostProcessS
 			// Get the final overall cluster + per-viewport PPS from nDisplay
 			if (ViewportPtr->GetViewport_CustomPostProcessSettings().DoPostProcess(IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::FinalPerViewport, &RequestedFinalPerViewportPPS))
 			{
-				FDisplayClusterConfigurationViewport_PerViewportSettings InPPSnDisplay;
+				FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings InPPSnDisplay;
 				FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyPPSStructConditional(&InPPSnDisplay, &RequestedFinalPerViewportPPS);
 
 				// Get the passed-in cumulative PPS from the game/viewport (includes all PPVs affecting this viewport)
-				FDisplayClusterConfigurationViewport_PerViewportSettings InPPSCumulative;
+				FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings InPPSCumulative;
 				FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyPPSStruct(&InPPSCumulative, FinalPostProcessingSettings);
 
 				// Blend both together with our custom math instead of the default PPS blending

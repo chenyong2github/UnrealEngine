@@ -1451,16 +1451,14 @@ void FDisplayClusterConfiguratorOCIOProfileCustomization::CustomizeChildren(TSha
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// Post Process Profile Customization
+// Per viewport color grading customization
 //////////////////////////////////////////////////////////////////////////////////////////////
 
-void FDisplayClusterConfiguratorColorGradingProfileCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle,
+void FDisplayClusterConfiguratorPerViewportColorGradingCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle,
 	FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
 	FDisplayClusterConfiguratorTypeCustomization::CustomizeHeader(PropertyHandle, HeaderRow, CustomizationUtils);
-
-	Mode = FDisplayClusterConfiguratorNodeSelection::GetOperationModeFromProperty(PropertyHandle->GetProperty()->GetOwnerProperty());
-	NodeSelection = MakeShared<FDisplayClusterConfiguratorNodeSelection>(Mode, FindRootActor(), FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(EditingObject));
+	NodeSelection = MakeShared<FDisplayClusterConfiguratorNodeSelection>(FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports, FindRootActor(), FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(EditingObject));
 
 	HeaderRow.NameContent()
 		[
@@ -1468,27 +1466,13 @@ void FDisplayClusterConfiguratorColorGradingProfileCustomization::CustomizeHeade
 		];
 }
 
-void FDisplayClusterConfiguratorColorGradingProfileCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle,
+void FDisplayClusterConfiguratorPerViewportColorGradingCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle,
 	IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
-	GET_CHILD_PROPERTY_HANDLE(PropertyHandle, IsEnabledHandle, FDisplayClusterConfigurationViewport_ColorGradingProfile, bIsEnabled);
-
-	GET_CHILD_PROPERTY_HANDLE(PropertyHandle, ExcludeFromOverallClusterPostProcessHandle, FDisplayClusterConfigurationViewport_ColorGradingProfile, bExcludeFromOverallClusterPostProcess);
-	GET_CHILD_PROPERTY_HANDLE(PropertyHandle, ExcludeFromAllNodesPostProcessHandle, FDisplayClusterConfigurationViewport_ColorGradingProfile, bExcludeFromAllNodesPostProcess);
-	GET_CHILD_PROPERTY_HANDLE(PropertyHandle, PostProcessSettingsHandle, FDisplayClusterConfigurationViewport_ColorGradingProfile, PostProcessSettings);
-	GET_CHILD_PROPERTY_HANDLE(PropertyHandle, ArrayHandle, FDisplayClusterConfigurationViewport_ColorGradingProfile, ApplyPostProcessToObjects);
-
-	IsEnabledHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
-		LOCTEXT("EnablePostProcessViewportsDisplayName", "Enable Viewport Color Grading") : LOCTEXT("EnablePostProcessClusterDisplayName", "Enable Inner Frustum Color Grading"));
-
-	PostProcessSettingsHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
-		LOCTEXT("PostProcessViewportsModeDisplayName", "Color Grading") : LOCTEXT("PostProcessClusterModeDisplayName", "Color Grading"));
-
-	ArrayHandle->SetPropertyDisplayName(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
-		LOCTEXT("PostProcessDataViewportsModeDisplayName", "Apply Color Grading to Viewports") : LOCTEXT("PostProcessDataClusterModeDisplayName", "Apply Color Grading to Nodes"));
-	ArrayHandle->SetToolTipText(Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports ?
-		LOCTEXT("PostProcessDataViewportsModeToolTip", "Select viewports to receive this Color Grading profile.") :
-		LOCTEXT("PostProcessDataClusterModeToolTip", "Select cluster nodes to receive this Color Grading profile."));
+	GET_CHILD_PROPERTY_HANDLE(PropertyHandle, IsEnabledHandle, FDisplayClusterConfigurationViewport_PerViewportColorGrading, bIsEnabled);
+	GET_CHILD_PROPERTY_HANDLE(PropertyHandle, IsEntireClusterPostProcessHandle, FDisplayClusterConfigurationViewport_PerViewportColorGrading, bIsEntireClusterEnabled);	
+	GET_CHILD_PROPERTY_HANDLE(PropertyHandle, PostProcessSettingsHandle, FDisplayClusterConfigurationViewport_PerViewportColorGrading, ColorGradingSettings);
+	GET_CHILD_PROPERTY_HANDLE(PropertyHandle, ArrayHandle, FDisplayClusterConfigurationViewport_PerViewportColorGrading, ApplyPostProcessToObjects);
 
 	const TAttribute<bool> IsEnabledEditCondition = TAttribute<bool>::Create([this, IsEnabledHandle]()
 	{
@@ -1497,14 +1481,54 @@ void FDisplayClusterConfiguratorColorGradingProfileCustomization::CustomizeChild
 		return bCond1;
 	});
 
-	ChildBuilder.AddProperty(ExcludeFromOverallClusterPostProcessHandle.ToSharedRef());
+	ChildBuilder.AddProperty(IsEnabledHandle.ToSharedRef());
+	ChildBuilder.AddProperty(IsEntireClusterPostProcessHandle.ToSharedRef());	
+	ChildBuilder.AddProperty(PostProcessSettingsHandle.ToSharedRef()).EditCondition(IsEnabledEditCondition, nullptr);
 
-	if (Mode == FDisplayClusterConfiguratorNodeSelection::EOperationMode::ClusterNodes)
+	const TAttribute<bool> IsArrayHandleEnabledEditCondition = TAttribute<bool>::Create([this]()
 	{
-		ChildBuilder.AddProperty(ExcludeFromAllNodesPostProcessHandle.ToSharedRef());
-	}
+		return true;
+	});
+	NodeSelection->IsEnabled(IsArrayHandleEnabledEditCondition);
+	NodeSelection->CreateArrayBuilder(ArrayHandle.ToSharedRef(), ChildBuilder);
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+// Per node color grading customization
+//////////////////////////////////////////////////////////////////////////////////////////////
+
+void FDisplayClusterConfiguratorPerNodeColorGradingCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle,
+	FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
+{
+	FDisplayClusterConfiguratorTypeCustomization::CustomizeHeader(PropertyHandle, HeaderRow, CustomizationUtils);
+	NodeSelection = MakeShared<FDisplayClusterConfiguratorNodeSelection>(FDisplayClusterConfiguratorNodeSelection::EOperationMode::ClusterNodes, FindRootActor(), FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(EditingObject));
+
+	HeaderRow.NameContent()
+		[
+			PropertyHandle->CreatePropertyNameWidget()
+		];
+}
+
+void FDisplayClusterConfiguratorPerNodeColorGradingCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle,
+	IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
+{
+	GET_CHILD_PROPERTY_HANDLE(PropertyHandle, IsEnabledHandle, FDisplayClusterConfigurationViewport_PerNodeColorGrading, bIsEnabled);
+	GET_CHILD_PROPERTY_HANDLE(PropertyHandle, IsEntireClusterPostProcessHandle, FDisplayClusterConfigurationViewport_PerNodeColorGrading, bEntireClusterPostProcess);
+	GET_CHILD_PROPERTY_HANDLE(PropertyHandle, IsAllNodesPostProcessHandle, FDisplayClusterConfigurationViewport_PerNodeColorGrading, bAllNodesPostProcess);
+	GET_CHILD_PROPERTY_HANDLE(PropertyHandle, PostProcessSettingsHandle, FDisplayClusterConfigurationViewport_PerNodeColorGrading, ColorGradingSettings);
+	GET_CHILD_PROPERTY_HANDLE(PropertyHandle, ArrayHandle, FDisplayClusterConfigurationViewport_PerNodeColorGrading, ApplyPostProcessToObjects);
+
+	const TAttribute<bool> IsEnabledEditCondition = TAttribute<bool>::Create([this, IsEnabledHandle]()
+	{
+		bool bCond1 = false;
+		IsEnabledHandle->GetValue(bCond1);
+		return bCond1;
+	});
 
 	ChildBuilder.AddProperty(IsEnabledHandle.ToSharedRef());
+	ChildBuilder.AddProperty(IsEntireClusterPostProcessHandle.ToSharedRef());	
+	ChildBuilder.AddProperty(IsAllNodesPostProcessHandle.ToSharedRef());
 	ChildBuilder.AddProperty(PostProcessSettingsHandle.ToSharedRef()).EditCondition(IsEnabledEditCondition, nullptr);
 
 	const TAttribute<bool> IsArrayHandleEnabledEditCondition = TAttribute<bool>::Create([this]()

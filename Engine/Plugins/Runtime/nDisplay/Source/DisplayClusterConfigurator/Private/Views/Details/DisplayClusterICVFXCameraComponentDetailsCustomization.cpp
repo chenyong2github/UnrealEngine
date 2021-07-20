@@ -185,17 +185,8 @@ void FDisplayClusterICVFXCameraComponentDetailsCustomization::CustomizeDetails(I
 	END_CATEGORY();
 
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::CameraColorGradingCategory)
-		CREATE_NESTED_PROPERTY_EDITCONDITION_1ARG(ColorGradingEnabledEditCondition, NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bUseInnerFrustumColorGrading);
-		CREATE_NESTED_PROPERTY_EDITCONDITION_2ARG(AllNodesColorGradingEnabledEditCondition, NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bUseInnerFrustumColorGrading, CameraSettings.AllNodesColorGradingConfiguration.bIsEnabled);
-
-		RENAME_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.bUseInnerFrustumColorGrading, LOCTEXT("bEnableCameraColorGradingLabel", "Enable Inner Frustum Color Grading"))
-
-		RENAME_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesColorGradingConfiguration.bExcludeFromOverallClusterPostProcess, LOCTEXT("bExcludeAllNodesColorConfigurationGroupLabel", "Ignore Entire Cluster Color Grading"), ColorGradingEnabledEditCondition)
-
-		RENAME_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesColorGradingConfiguration.bIsEnabled, LOCTEXT("bEnableAllNodesCameraColorGradingLabel", "Enable All Nodes Color Grading"), ColorGradingEnabledEditCondition)
-		RENAME_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesColorGradingConfiguration.PostProcessSettings, LOCTEXT("AllNodesColorGradingGroupLabel", "All Nodes Color Grading"), AllNodesColorGradingEnabledEditCondition)
-
-		ADD_NESTED_PROPERTY_EDIT_CONDITION(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.PerNodeColorGradingProfiles, ColorGradingEnabledEditCondition)
+		RENAME_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.AllNodesColorGrading, LOCTEXT("AllNodesColorGrading", "All Nodes"))
+		ADD_NESTED_PROPERTY(NestedPropertyHelper, UDisplayClusterICVFXCameraComponent, CameraSettings.PerNodeColorGrading)
 	END_CATEGORY();
 
 	BEGIN_CATEGORY(DisplayClusterConfigurationStrings::categories::OverrideCategory)

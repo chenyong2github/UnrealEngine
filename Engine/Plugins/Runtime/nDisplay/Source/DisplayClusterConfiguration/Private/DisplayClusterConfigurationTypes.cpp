@@ -346,5 +346,5 @@ FDisplayClusterConfigurationOCIOProfile::FDisplayClusterConfigurationOCIOProfile
 
 FDisplayClusterConfigurationICVFX_CameraSettings::FDisplayClusterConfigurationICVFX_CameraSettings()
 {
-	AllNodesColorGradingConfiguration.bIsEnabled = true;
+	AllNodesColorGrading.bEnableEntireClusterColorGrading = true;
 }

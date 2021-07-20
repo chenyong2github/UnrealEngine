@@ -26,137 +26,177 @@ static void ImplRemoveCustomPostprocess(FDisplayClusterViewport& DstViewport, ID
 	DstViewport.CustomPostProcessSettings.RemoveCustomPostProcess(RenderPass);
 }
 
-static bool ImplUpdateICVFXColorGrading(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, const FDisplayClusterConfigurationViewport_ColorGradingConfiguration* InPP, const FDisplayClusterConfigurationViewport_ColorGradingProfile* InCustomPP)
+
+static bool ImplUpdatePerViewportColorGrading(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, const FDisplayClusterConfigurationViewport_PerViewportColorGrading PerViewportColorGrading)
 {
 	// Check and apply the overall cluster post process settings
 	const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings = RootActor.GetStageSettings();
 
-	// Handle blend logics stack
-	bool bUseOverallClusterPostProcess = InCustomPP ? (InCustomPP->bExcludeFromOverallClusterPostProcess == false) : (InPP==nullptr || InPP->bExcludeFromOverallClusterPostProcess == false);
-	bool bUseAllNodesPostProcess = InCustomPP ? (InCustomPP->bExcludeFromAllNodesPostProcess == false) : true;
-	bool bUsePerNodePostProcess = InCustomPP ? (InCustomPP->bIsEnabled) : false;
+	// enable entire cluster
+	bool bUseEntireClusterPostProcess = true;
 
-	if (InPP==nullptr || InPP->bIsEnabled==false)
+	// if entire cluster is disabled or disable per specific viewport - disable entire component too
+	if (!StageSettings.EntireClusterColorGrading.bEnableEntireClusterColorGrading || !PerViewportColorGrading.bIsEntireClusterEnabled)
 	{
-		bUseAllNodesPostProcess = false;
+		bUseEntireClusterPostProcess = false;
 	}
 
-	if (!StageSettings.bUseOverallClusterPostProcess)
+	FDisplayClusterConfigurationViewport_CustomPostprocessSettings FinalPerViewportColorGrading;
+	FinalPerViewportColorGrading.bIsEnabled = true;
+	FinalPerViewportColorGrading.bIsOneFrame = true;
+	FinalPerViewportColorGrading.BlendWeight = 1;
+
+	// blend with entire cluster
+	if (bUseEntireClusterPostProcess)
 	{
-		bUseOverallClusterPostProcess = false;
-	}
+		FinalPerViewportColorGrading.BlendWeight = StageSettings.EntireClusterColorGrading.ColorGradingSettings.BlendWeight;
 
-	FDisplayClusterConfigurationViewport_CustomPostprocessSettings CustomPPS;
-	CustomPPS.bIsEnabled = true;
-	CustomPPS.bIsOneFrame = true;
-	CustomPPS.BlendWeight = 1;
+		FDisplayClusterViewportConfigurationHelpers_Postprocess::BlendPostProcessSettings(FinalPerViewportColorGrading.PostProcessSettings, StageSettings.EntireClusterColorGrading.ColorGradingSettings, PerViewportColorGrading.ColorGradingSettings);
+		FinalPerViewportColorGrading.BlendWeight *= PerViewportColorGrading.ColorGradingSettings.BlendWeight;
 
-	if (bUseOverallClusterPostProcess && bUseAllNodesPostProcess)
-	{
-		CustomPPS.BlendWeight = StageSettings.OverallClusterPostProcessSettings.BlendWeight;
-
-		if (bUsePerNodePostProcess)
-		{
-			// This viewport should use a blend of the overall cluster and the per-viewport settings, so multiply the blend weights
-			FDisplayClusterViewportConfigurationHelpers_Postprocess::PerNodeBlendPostProcessSettings(CustomPPS.PostProcessSettings, StageSettings.OverallClusterPostProcessSettings, InPP->PostProcessSettings, InCustomPP->PostProcessSettings);
-			CustomPPS.BlendWeight *= InPP->PostProcessSettings.BlendWeight * InCustomPP->PostProcessSettings.BlendWeight;
-		}
-		else
-		{
-			// This viewport should use a blend of the overall cluster and the per-viewport settings, so multiply the blend weights
-			FDisplayClusterViewportConfigurationHelpers_Postprocess::BlendPostProcessSettings(CustomPPS.PostProcessSettings, StageSettings.OverallClusterPostProcessSettings, InPP->PostProcessSettings);
-			CustomPPS.BlendWeight *= InPP->PostProcessSettings.BlendWeight;
-		}
-
-		ImplUpdateCustomPostprocess(DstViewport, CustomPPS.bIsEnabled, CustomPPS, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::FinalPerViewport);
+		ImplUpdateCustomPostprocess(DstViewport, FinalPerViewportColorGrading.bIsEnabled, FinalPerViewportColorGrading, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::FinalPerViewport);
 		return true;
-	}
-
-	if (!bUseOverallClusterPostProcess && !bUseAllNodesPostProcess)
-	{
-		if (bUsePerNodePostProcess)
-		{
-			FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyBlendPostProcessSettings(CustomPPS.PostProcessSettings, InCustomPP->PostProcessSettings);
-			CustomPPS.BlendWeight *= InCustomPP->PostProcessSettings.BlendWeight;
-
-			ImplUpdateCustomPostprocess(DstViewport, CustomPPS.bIsEnabled, CustomPPS, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::FinalPerViewport);
-			return true;
-		}
 	}
 	else
 	{
-		if (bUseOverallClusterPostProcess)
-		{
-			CustomPPS.BlendWeight = StageSettings.OverallClusterPostProcessSettings.BlendWeight;
+		// pass color grading without blending with entire cluster
+		FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyBlendPostProcessSettings(FinalPerViewportColorGrading.PostProcessSettings, PerViewportColorGrading.ColorGradingSettings);
+		FinalPerViewportColorGrading.BlendWeight *= PerViewportColorGrading.ColorGradingSettings.BlendWeight;
 
-			if (bUsePerNodePostProcess)
-			{
-				FDisplayClusterViewportConfigurationHelpers_Postprocess::BlendPostProcessSettings(CustomPPS.PostProcessSettings, StageSettings.OverallClusterPostProcessSettings, InCustomPP->PostProcessSettings);
-				CustomPPS.BlendWeight *= InCustomPP->PostProcessSettings.BlendWeight;
-			}
-			else
-			{
-				// This viewport doesn't use per-viewport settings, so just use the overall cluster settings and blend weight
-				FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyBlendPostProcessSettings(CustomPPS.PostProcessSettings, StageSettings.OverallClusterPostProcessSettings);
-			}
-
-			ImplUpdateCustomPostprocess(DstViewport, CustomPPS.bIsEnabled, CustomPPS, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::FinalPerViewport);
-			return true;
-		}
-
-		if (bUseAllNodesPostProcess)
-		{
-			CustomPPS.BlendWeight = InPP->PostProcessSettings.BlendWeight;
-
-			if (bUsePerNodePostProcess)
-			{
-				FDisplayClusterViewportConfigurationHelpers_Postprocess::BlendPostProcessSettings(CustomPPS.PostProcessSettings, InPP->PostProcessSettings, InCustomPP->PostProcessSettings);
-				CustomPPS.BlendWeight *= InCustomPP->PostProcessSettings.BlendWeight;
-			}
-			else
-			{
-				// This viewport doesn't use per-viewport settings, so just use the All nodes cluster settings and blend weight
-				FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyBlendPostProcessSettings(CustomPPS.PostProcessSettings, InPP->PostProcessSettings);
-			}
-
-			ImplUpdateCustomPostprocess(DstViewport, CustomPPS.bIsEnabled, CustomPPS, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::FinalPerViewport);
-			return true;
-		}
+		ImplUpdateCustomPostprocess(DstViewport, FinalPerViewportColorGrading.bIsEnabled, FinalPerViewportColorGrading, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::FinalPerViewport);
+		return true;
 	}
 
-	// Not implemented cases:
-	// Disable all PP
 	return false;
+}
+
+static bool ImplUpdateEntireClusterColorGrading(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor)
+{
+	const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings = RootActor.GetStageSettings();
+	if (StageSettings.EntireClusterColorGrading.bEnableEntireClusterColorGrading)
+	{
+		FDisplayClusterConfigurationViewport_CustomPostprocessSettings FinalEntireClusterColorGrading;
+		FinalEntireClusterColorGrading.bIsEnabled = true;
+		FinalEntireClusterColorGrading.bIsOneFrame = true;
+		FinalEntireClusterColorGrading.BlendWeight = 1;
+
+		FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyBlendPostProcessSettings(FinalEntireClusterColorGrading.PostProcessSettings, StageSettings.EntireClusterColorGrading.ColorGradingSettings);
+		ImplUpdateCustomPostprocess(DstViewport, FinalEntireClusterColorGrading.bIsEnabled, FinalEntireClusterColorGrading, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::FinalPerViewport);
+		return true;
+	}
+	return false;
+}
+
+static bool ImplUpdateIncameraPerNodeColorGrading(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, const FDisplayClusterConfigurationViewport_AllNodesColorGrading AllNodesColorGrading, const FDisplayClusterConfigurationViewport_PerNodeColorGrading PerNodeColorGrading)
+{
+	const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings = RootActor.GetStageSettings();
+
+	FDisplayClusterConfigurationViewport_CustomPostprocessSettings FinalPerNodeColorGrading;
+	FinalPerNodeColorGrading.bIsEnabled = true;
+	FinalPerNodeColorGrading.bIsOneFrame = true;
+	FinalPerNodeColorGrading.BlendWeight = 1;
+
+
+	if (PerNodeColorGrading.bEntireClusterPostProcess)
+	{
+		if (PerNodeColorGrading.bAllNodesPostProcess)
+		{
+			// all three options are enabled - cluster + all + node
+			FDisplayClusterViewportConfigurationHelpers_Postprocess::PerNodeBlendPostProcessSettings(FinalPerNodeColorGrading.PostProcessSettings, StageSettings.EntireClusterColorGrading.ColorGradingSettings, AllNodesColorGrading.ColorGradingSettings, PerNodeColorGrading.ColorGradingSettings);
+			FinalPerNodeColorGrading.BlendWeight *= AllNodesColorGrading.ColorGradingSettings.BlendWeight * PerNodeColorGrading.ColorGradingSettings.BlendWeight;
+
+			ImplUpdateCustomPostprocess(DstViewport, FinalPerNodeColorGrading.bIsEnabled, FinalPerNodeColorGrading, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::FinalPerViewport);
+		}
+		else
+		{
+			// only cluster + node
+			FDisplayClusterViewportConfigurationHelpers_Postprocess::BlendPostProcessSettings(FinalPerNodeColorGrading.PostProcessSettings, StageSettings.EntireClusterColorGrading.ColorGradingSettings, PerNodeColorGrading.ColorGradingSettings);
+			FinalPerNodeColorGrading.BlendWeight *= PerNodeColorGrading.ColorGradingSettings.BlendWeight;
+			ImplUpdateCustomPostprocess(DstViewport, FinalPerNodeColorGrading.bIsEnabled, FinalPerNodeColorGrading, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::FinalPerViewport);
+		}
+
+		return true;
+	}
+	else
+	{
+		// entire cluster settings disabled, only all nodes cases
+		FinalPerNodeColorGrading.BlendWeight = AllNodesColorGrading.ColorGradingSettings.BlendWeight;
+
+		if (PerNodeColorGrading.bAllNodesPostProcess)
+		{
+			// all nodes + node
+			FDisplayClusterViewportConfigurationHelpers_Postprocess::BlendPostProcessSettings(FinalPerNodeColorGrading.PostProcessSettings, AllNodesColorGrading.ColorGradingSettings, PerNodeColorGrading.ColorGradingSettings);
+			FinalPerNodeColorGrading.BlendWeight *= PerNodeColorGrading.ColorGradingSettings.BlendWeight;
+		}
+		else
+		{
+			// node only
+			FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyBlendPostProcessSettings(FinalPerNodeColorGrading.PostProcessSettings, PerNodeColorGrading.ColorGradingSettings);
+		}
+
+		ImplUpdateCustomPostprocess(DstViewport, FinalPerNodeColorGrading.bIsEnabled, FinalPerNodeColorGrading, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::FinalPerViewport);
+		return true;
+	}
+
+	return false;
+}
+
+static bool ImplUpdateIncameraAllNodesColorGrading(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, const FDisplayClusterConfigurationViewport_AllNodesColorGrading AllNodesColorGrading)
+{
+	FDisplayClusterConfigurationViewport_CustomPostprocessSettings FinalAllNodesColorGrading;
+	FinalAllNodesColorGrading.bIsEnabled = true;
+	FinalAllNodesColorGrading.bIsOneFrame = true;
+	FinalAllNodesColorGrading.BlendWeight = 1;
+
+	const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings = RootActor.GetStageSettings();
+
+	if (AllNodesColorGrading.bEnableEntireClusterColorGrading)
+	{
+		FinalAllNodesColorGrading.BlendWeight = StageSettings.EntireClusterColorGrading.ColorGradingSettings.BlendWeight;
+		
+		FDisplayClusterViewportConfigurationHelpers_Postprocess::BlendPostProcessSettings(FinalAllNodesColorGrading.PostProcessSettings, StageSettings.EntireClusterColorGrading.ColorGradingSettings, AllNodesColorGrading.ColorGradingSettings);
+		FinalAllNodesColorGrading.BlendWeight *= AllNodesColorGrading.ColorGradingSettings.BlendWeight;
+	}
+	else
+	{
+		FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyBlendPostProcessSettings(FinalAllNodesColorGrading.PostProcessSettings, AllNodesColorGrading.ColorGradingSettings);
+	}
+
+	ImplUpdateCustomPostprocess(DstViewport, FinalAllNodesColorGrading.bIsEnabled, FinalAllNodesColorGrading, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::FinalPerViewport);
+
+	return true;
 }
 
 bool FDisplayClusterViewportConfigurationHelpers_Postprocess::ImplUpdateInnerFrustumColorGrading(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent)
 {
 	const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings = InCameraComponent.GetCameraSettingsICVFX();
-	if (CameraSettings.bUseInnerFrustumColorGrading)
+	if (CameraSettings.AllNodesColorGrading.bEnableInnerFrustumColorGrading)
 	{
 		const FDisplayClusterRenderFrameSettings& RenderFrameSettings = DstViewport.Owner.Configuration->GetRenderFrameSettings();
 
+		// per node color grading
 		const FString& ClusterNodeId = RenderFrameSettings.ClusterNodeId;
 		if (!ClusterNodeId.IsEmpty())
 		{
-			for (const FDisplayClusterConfigurationViewport_ColorGradingProfile& ColorGradingProfileIt : CameraSettings.PerNodeColorGradingProfiles)
+			for (const FDisplayClusterConfigurationViewport_PerNodeColorGrading& ColorGradingProfileIt : CameraSettings.PerNodeColorGrading)
 			{
 				// Only allowed profiles
-				if (ColorGradingProfileIt.bIsProfileEnabled)
+				if (ColorGradingProfileIt.bIsEnabled)
 				{
 					for (const FString& ClusterNodeIt : ColorGradingProfileIt.ApplyPostProcessToObjects)
 					{
 						if (ClusterNodeId.Compare(ClusterNodeIt, ESearchCase::IgnoreCase) == 0)
 						{
 							// Use cluster node PP
-							return ImplUpdateICVFXColorGrading(DstViewport, RootActor, &CameraSettings.AllNodesColorGradingConfiguration, &ColorGradingProfileIt);
+							return ImplUpdateIncameraPerNodeColorGrading(DstViewport, RootActor, CameraSettings.AllNodesColorGrading, ColorGradingProfileIt);
 						}
 					}
 				}
 			}
 		}
 
-		return ImplUpdateICVFXColorGrading(DstViewport, RootActor, &CameraSettings.AllNodesColorGradingConfiguration, nullptr);
+		// all nodes only color grading
+		return ImplUpdateIncameraAllNodesColorGrading(DstViewport, RootActor, CameraSettings.AllNodesColorGrading);
 	}
 
 	return false;
@@ -185,30 +225,25 @@ bool FDisplayClusterViewportConfigurationHelpers_Postprocess::UpdateLightcardPos
 bool FDisplayClusterViewportConfigurationHelpers_Postprocess::ImplUpdateViewportColorGrading(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, const FString& InClusterViewportId)
 {
 	const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings = RootActor.GetStageSettings();
-
-	for (const FDisplayClusterConfigurationViewport_ColorGradingProfile& ColorGradingProfileIt : StageSettings.PerViewportColorGradingProfiles)
+	
+	
+	for (const FDisplayClusterConfigurationViewport_PerViewportColorGrading& ColorGradingProfileIt : StageSettings.PerViewportColorGrading)
 	{
-		if (ColorGradingProfileIt.bIsProfileEnabled)
+		if (ColorGradingProfileIt.bIsEnabled)
 		{
 			for (const FString& ViewportNameIt : ColorGradingProfileIt.ApplyPostProcessToObjects)
 			{
 				if (InClusterViewportId.Compare(ViewportNameIt, ESearchCase::IgnoreCase) == 0)
 				{
-					// Use cluster node PP
-					return ImplUpdateICVFXColorGrading(DstViewport, RootActor, nullptr, &ColorGradingProfileIt);
+					// Use per viewport blending
+					return ImplUpdatePerViewportColorGrading(DstViewport, RootActor, ColorGradingProfileIt);
 				}
 			}
 		}
 	}
-
-	// cluster node PP override not found, use all viewports configuration
-	if (ImplUpdateICVFXColorGrading(DstViewport, RootActor, nullptr, nullptr))
-	{
-		return true;
-	}
-
-	// overall PP disabled
-	return false;
+	
+	// per viewport color grading is empty, entire cluster only
+	return ImplUpdateEntireClusterColorGrading(DstViewport, RootActor);
 }
 
 void FDisplayClusterViewportConfigurationHelpers_Postprocess::UpdateCameraPostProcessSettings(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent)
@@ -227,7 +262,6 @@ void FDisplayClusterViewportConfigurationHelpers_Postprocess::UpdateCameraPostPr
 		// Send camera postprocess to override
 		CameraPPS.bIsEnabled = true;
 		CameraPPS.PostProcessSettings = DesiredView.PostProcessSettings;
-
 	}
 
 	const FDisplayClusterConfigurationICVFX_CameraMotionBlurOverridePPS& OverrideMotionBlurPPS = CameraSettings.CameraMotionBlur.OverrideMotionBlurPPS;
@@ -345,7 +379,7 @@ void FDisplayClusterViewportConfigurationHelpers_Postprocess::UpdatePerViewportP
 		} \
 	} \
 
-static void ImplBlendPostProcessSettings(FPostProcessSettings& OutputPP, const FDisplayClusterConfigurationViewport_PerViewportSettings& PPSettings0, const FDisplayClusterConfigurationViewport_PerViewportSettings* PPSettings1, const FDisplayClusterConfigurationViewport_PerViewportSettings* PPSettings2)
+static void ImplBlendPostProcessSettings(FPostProcessSettings& OutputPP, const FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings& PPSettings0, const FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings* PPSettings1, const FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings* PPSettings2)
 {
 	PP_CONDITIONAL_BLEND(+, , , , AutoExposureBias, , );
 	PP_CONDITIONAL_BLEND(+, , , , ColorCorrectionHighlightsMin, , );
@@ -383,17 +417,17 @@ static void ImplBlendPostProcessSettings(FPostProcessSettings& OutputPP, const F
 	PP_CONDITIONAL_BLEND(+, , , Misc., ExpandGamut, , );
 	PP_CONDITIONAL_BLEND(+, , , Misc., SceneColorTint, , );
 }
-void FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyBlendPostProcessSettings(FPostProcessSettings& OutputPP, const FDisplayClusterConfigurationViewport_PerViewportSettings& InPPSettings)
+void FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyBlendPostProcessSettings(FPostProcessSettings& OutputPP, const FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings& InPPSettings)
 {
 	ImplBlendPostProcessSettings(OutputPP, InPPSettings, nullptr, nullptr);
 }
 
-void FDisplayClusterViewportConfigurationHelpers_Postprocess::PerNodeBlendPostProcessSettings(FPostProcessSettings& OutputPP, const FDisplayClusterConfigurationViewport_PerViewportSettings& ClusterPPSettings, const FDisplayClusterConfigurationViewport_PerViewportSettings& ViewportPPSettings, const FDisplayClusterConfigurationViewport_PerViewportSettings& PerNodePPSettings)
+void FDisplayClusterViewportConfigurationHelpers_Postprocess::PerNodeBlendPostProcessSettings(FPostProcessSettings& OutputPP, const FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings& ClusterPPSettings, const FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings& ViewportPPSettings, const FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings& PerNodePPSettings)
 {
 	ImplBlendPostProcessSettings(OutputPP, ClusterPPSettings, &ViewportPPSettings, &PerNodePPSettings);
 }
 
-void FDisplayClusterViewportConfigurationHelpers_Postprocess::BlendPostProcessSettings(FPostProcessSettings& OutputPP, const FDisplayClusterConfigurationViewport_PerViewportSettings& ClusterPPSettings, const FDisplayClusterConfigurationViewport_PerViewportSettings& ViewportPPSettings)
+void FDisplayClusterViewportConfigurationHelpers_Postprocess::BlendPostProcessSettings(FPostProcessSettings& OutputPP, const FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings& ClusterPPSettings, const FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings& ViewportPPSettings)
 {
 	ImplBlendPostProcessSettings(OutputPP, ClusterPPSettings, &ViewportPPSettings, nullptr);
 }
@@ -405,7 +439,7 @@ void FDisplayClusterViewportConfigurationHelpers_Postprocess::BlendPostProcessSe
 			OutViewportPPSettings->OUTGROUP bOverride_##NAME = true; \
 		}
 
-static void ImplCopyPPSStruct(bool bIsConditionalCopy, FDisplayClusterConfigurationViewport_PerViewportSettings* OutViewportPPSettings, FPostProcessSettings* InPPS)
+static void ImplCopyPPSStruct(bool bIsConditionalCopy, FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings* OutViewportPPSettings, FPostProcessSettings* InPPS)
 {
 	if ((OutViewportPPSettings != nullptr) && (InPPS != nullptr))
 	{
@@ -447,12 +481,12 @@ static void ImplCopyPPSStruct(bool bIsConditionalCopy, FDisplayClusterConfigurat
 	}
 }
 
-void FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyPPSStructConditional(FDisplayClusterConfigurationViewport_PerViewportSettings* OutViewportPPSettings, FPostProcessSettings* InPPS)
+void FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyPPSStructConditional(FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings* OutViewportPPSettings, FPostProcessSettings* InPPS)
 {
 	ImplCopyPPSStruct(true, OutViewportPPSettings, InPPS);
 }
 
-void FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyPPSStruct(FDisplayClusterConfigurationViewport_PerViewportSettings* OutViewportPPSettings, FPostProcessSettings* InPPS)
+void FDisplayClusterViewportConfigurationHelpers_Postprocess::CopyPPSStruct(FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings* OutViewportPPSettings, FPostProcessSettings* InPPS)
 {
 	ImplCopyPPSStruct(false, OutViewportPPSettings, InPPS);
 }

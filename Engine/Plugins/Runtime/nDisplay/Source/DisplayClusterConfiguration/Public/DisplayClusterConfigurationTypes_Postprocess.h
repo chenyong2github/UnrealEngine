@@ -160,11 +160,11 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_Colo
 };
 
 USTRUCT(BlueprintType)
-struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_PerViewportSettings
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings
 {
 	GENERATED_BODY()
 
-		FDisplayClusterConfigurationViewport_PerViewportSettings()
+		FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings()
 		: bOverride_AutoExposureBias(0)
 		, bOverride_ColorCorrectionHighlightsMin(0)
 		, bOverride_ColorCorrectionShadowsMax(0)
@@ -176,7 +176,7 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_PerV
 		, ColorCorrectionHighlightsMin(0)
 	{
 	}
-
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_AutoExposureBias:1;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides", meta = (PinHiddenByDefault, InlineEditConditionToggle))
@@ -223,52 +223,83 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_PerV
 	FDisplayClusterConfigurationViewport_ColorGradingMiscSettings Misc;
 };
 
+
 USTRUCT(Blueprintable)
-struct FDisplayClusterConfigurationViewport_ColorGradingConfiguration
+struct FDisplayClusterConfigurationViewport_EntireClusterColorGrading
 {
 	GENERATED_BODY()
 
-public:
-	// Allow using a separate post process for this viewport
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Enable Viewport Color Grading"))
-	bool bIsEnabled = false;
-
-	// Exclude this viewport from the global cluster post process
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Ignore Entire Cluster Color Grading"))
-	bool bExcludeFromOverallClusterPostProcess = false;
+	// Apply the global cluster post process settings to all viewports
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Enable Entire Cluster Color Grading"))
+	bool bEnableEntireClusterColorGrading = true;
 
 	// Color Grading look configuration
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (EditCondition = "bIsEnabled"))
-	FDisplayClusterConfigurationViewport_PerViewportSettings PostProcessSettings;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Color Grading", EditCondition = "bIsEnabled"))
+	FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings ColorGradingSettings;
 };
 
 USTRUCT(Blueprintable)
-struct FDisplayClusterConfigurationViewport_ColorGradingProfile
+struct FDisplayClusterConfigurationViewport_PerViewportColorGrading
 {
 	GENERATED_BODY()
-
-	// Allow using a profile for this viewport
-	UPROPERTY()
-	bool bIsProfileEnabled = true;
 
 	// Allow using a separate post process for this viewport
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Enable Viewport Color Grading"))
 	bool bIsEnabled = true;
 
 	// Exclude this viewport from the global cluster post process
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Ignore Entire Cluster Color Grading"))
-	bool bExcludeFromOverallClusterPostProcess = false;
-
-	// Exclude this viewport from the all-nodes cluster post process
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Ignore All-Nodes Cluster Color Grading"))
-	bool bExcludeFromAllNodesPostProcess = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Enable Entire Cluster Color Grading"))
+	bool bIsEntireClusterEnabled = true;
 
 	// Color Grading look configuration
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Color Grading", EditCondition = "bIsEnabled"))
-	FDisplayClusterConfigurationViewport_PerViewportSettings PostProcessSettings;
+	FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings ColorGradingSettings;
 
 	/** The data to receive the profile information. This will either be viewports or nodes. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Viewport Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Viewport Settings", meta = (DisplayName = "Apply Color Grading to Viewports"))
 	TArray<FString> ApplyPostProcessToObjects;
 };
 
+USTRUCT(Blueprintable)
+struct FDisplayClusterConfigurationViewport_AllNodesColorGrading
+{
+	GENERATED_BODY()
+
+	// Apply the global cluster post process settings to all viewports
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Enable Inner Frustum Color Grading"))
+	bool bEnableInnerFrustumColorGrading = true;
+
+	// Apply the global cluster post process settings to all viewports
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Enable Entire Cluster Color Grading"))
+	bool bEnableEntireClusterColorGrading = true;
+
+	// Color Grading look configuration
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (EditCondition = "bIsEnabled", DisplayName = "Color Grading"))
+	FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings ColorGradingSettings;
+};
+
+USTRUCT(Blueprintable)
+struct FDisplayClusterConfigurationViewport_PerNodeColorGrading
+{
+	GENERATED_BODY()
+
+	// Allow using a separate post process for this viewport
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Enable Inner Frustum Color Grading"))
+	bool bIsEnabled = true;
+
+	// Exclude this viewport from the global cluster post process
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Enable Entire Cluster Color Grading"))
+	bool bEntireClusterPostProcess = true;
+
+	// Exclude this viewport from the all-nodes cluster post process
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Enable All Nodes Color Grading"))
+	bool bAllNodesPostProcess = true;
+
+	// Color Grading look configuration
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Settings", meta = (DisplayName = "Color Grading", EditCondition = "bIsEnabled"))
+	FDisplayClusterConfigurationViewport_ColorGradingRenderingSettings ColorGradingSettings;
+
+	// Nodes where Color Grading needs to be applied
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Viewport Settings", meta = (DisplayName = "Apply Color Grading to Nodes"))
+	TArray<FString> ApplyPostProcessToObjects;
+};

@@ -426,17 +426,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "Per-Node OCIO Overrides", ConfigurationMode = "ClusterNodes", EditCondition = "bEnable"))
 	TArray<FDisplayClusterConfigurationOCIOProfile> PerNodeOCIOProfiles;
 
-	// Apply the global cluster post process settings to all viewports
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inner Frustum Color Grading", meta = (DisplayName = "Enable Inner Frustum Color Grading"))
-	bool bUseInnerFrustumColorGrading = false;
-
 	// Inner Frustum Color Grading look configuration
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inner Frustum Color Grading", meta = (DisplayName = "All Nodes Color Grading", EditCondition = "bEnable && bUseInnerFrustumColorGrading"))
-	FDisplayClusterConfigurationViewport_ColorGradingConfiguration AllNodesColorGradingConfiguration;
+		FDisplayClusterConfigurationViewport_AllNodesColorGrading AllNodesColorGrading;
 
 	// Define special per-node Inner Frustum Color Grading
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inner Frustum Color Grading", meta = (DisplayName = "Per-Node Color Grading Overrides", ConfigurationMode = "ClusterNodes", EditCondition = "bEnable && bUseInnerFrustumColorGrading"))
-	TArray<FDisplayClusterConfigurationViewport_ColorGradingProfile> PerNodeColorGradingProfiles;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inner Frustum Color Grading", meta = (DisplayName = "Per-Node Color Grading", ConfigurationMode = "ClusterNodes", EditCondition = "bEnable && bUseInnerFrustumColorGrading"))
+	TArray<FDisplayClusterConfigurationViewport_PerNodeColorGrading> PerNodeColorGrading;
 
 	// Special hide list for this camera viewport
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
@@ -478,17 +474,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
 	FDisplayClusterConfigurationICVFX_VisibilityList OuterViewportHideList;
 
-	// Apply the global cluster post process settings to all viewports
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Enable Entire Cluster Color Grading"))
-	bool bUseOverallClusterPostProcess = true;
-
 	// Global cluster post process settings
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Entire Cluster", EditCondition = "bUseOverallClusterPostProcess"))
-	FDisplayClusterConfigurationViewport_PerViewportSettings OverallClusterPostProcessSettings;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Entire Cluster"))
+	FDisplayClusterConfigurationViewport_EntireClusterColorGrading EntireClusterColorGrading;
 
 	// Define special per-viewport Color Grading
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Per-Viewport", ConfigurationMode = "Viewports", EditCondition = "bUseOverallClusterPostProcess"))
-	TArray<FDisplayClusterConfigurationViewport_ColorGradingProfile> PerViewportColorGradingProfiles;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Viewport Color Grading", meta = (DisplayName = "Per-Viewport Color Grading", ConfigurationMode = "Viewports"))
+	TArray<FDisplayClusterConfigurationViewport_PerViewportColorGrading> PerViewportColorGrading;
 
 	// Apply the global cluster OCIO settings to all viewports
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "OCIO", meta = (DisplayName = "Enable Viewport OCIO"))
