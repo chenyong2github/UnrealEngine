@@ -1934,10 +1934,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	FInstanceCullingManager& InstanceCullingManager = *GraphBuilder.AllocObject<FInstanceCullingManager>(Scene->GPUScene.IsEnabled());
 
-	bool bDoInitViewAftersPrepass = false;
+	bool bDoInitViewsAfterPrepass = false;
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
-		bDoInitViewAftersPrepass = InitViews(GraphBuilder, SceneTexturesConfig, BasePassDepthStencilAccess, ILCTaskData, InstanceCullingManager);
+		bDoInitViewsAfterPrepass = InitViews(GraphBuilder, SceneTexturesConfig, BasePassDepthStencilAccess, ILCTaskData, InstanceCullingManager);
 	}
 
 	// Compute & commit the final state of the entire dependency topology of the renderer.
@@ -2014,7 +2014,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			InstanceCullingManager.BeginDeferredCulling(GraphBuilder, Scene->GPUScene);
 		}
 
-		if (!bDoInitViewAftersPrepass)
+		if (!bDoInitViewsAfterPrepass)
 		{
 			PrepareDistanceFieldScene(GraphBuilder, false);
 		}
@@ -2097,7 +2097,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		DynamicVertexBufferForInitViews.Commit();
 		DynamicReadBufferForInitViews.Commit();
 
-		if (!bDoInitViewAftersPrepass)
+		if (!bDoInitViewsAfterPrepass)
 		{
 			DynamicVertexBufferForInitShadows.Commit();
 			DynamicIndexBufferForInitShadows.Commit();
@@ -2209,7 +2209,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	if (bDoInitViewAftersPrepass)
+	if (bDoInitViewsAfterPrepass)
 	{
 		GraphBuilder.Drain();
 

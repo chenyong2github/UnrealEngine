@@ -1229,7 +1229,7 @@ void FProjectedShadowInfo::RenderDepth(
 	}
 }
 
-void FProjectedShadowInfo::ModifyViewForShadow(FRHICommandList& RHICmdList, FViewInfo* FoundView) const
+void FProjectedShadowInfo::ModifyViewForShadow(FViewInfo* FoundView) const
 {
 	FIntRect OriginalViewRect = FoundView->ViewRect;
 	FoundView->ViewRect = GetOuterViewRect();
@@ -1286,7 +1286,7 @@ FViewInfo* FProjectedShadowInfo::FindViewForShadow(FSceneRenderer* SceneRenderer
 	return FoundView;
 }
 
-void FProjectedShadowInfo::SetupShadowDepthView(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer)
+void FProjectedShadowInfo::SetupShadowDepthView(FSceneRenderer* SceneRenderer)
 {
 	FViewInfo* FoundView = FindViewForShadow(SceneRenderer);
 	check(FoundView && IsInRenderingThread());
@@ -1294,7 +1294,7 @@ void FProjectedShadowInfo::SetupShadowDepthView(FRHICommandListImmediate& RHICmd
 	// We are starting a new collection of dynamic primitives for the shadow views.
 	DepthPassView->DynamicPrimitiveCollector = FGPUScenePrimitiveCollector(&SceneRenderer->GetGPUSceneDynamicContext());
 
-	ModifyViewForShadow(RHICmdList, DepthPassView);
+	ModifyViewForShadow(DepthPassView);
 	ShadowDepthView = DepthPassView;
 }
 
