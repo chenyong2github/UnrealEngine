@@ -1621,7 +1621,6 @@ struct FPropertyTypeTraitsSoftObjectReference : public FPropertyTypeTraitsObject
 		check(VarProperty.ClassDef);
 		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
 		{
-			UClass* MetaClass = VarProperty.MetaClassDef->GetClass();
 			return FString::Printf(TEXT("class %s%s;"), VarProperty.MetaClassDef->GetPrefixCPP(), *VarProperty.MetaClassDef->GetName());
 		}
 		else
@@ -1683,18 +1682,18 @@ struct FPropertyTypeTraitsInterface : public FPropertyTypeTraitsBase
 	{
 		if (ExtendedTypeText != NULL)
 		{
-			UClass* ExportClass = PropDef.GetPropertyBase().ClassDef->GetClass();
+			FUnrealClassDefinitionInfo* ExportClassDef = PropDef.GetPropertyBase().ClassDef;
 			if (0 == (CPPF_BlueprintCppBackend & CPPExportFlags))
 			{
-				while (ExportClass && !ExportClass->HasAnyClassFlags(CLASS_Native))
+				while (ExportClassDef && !ExportClassDef->HasAnyClassFlags(CLASS_Native))
 				{
-					ExportClass = ExportClass->GetSuperClass();
+					ExportClassDef = ExportClassDef->GetSuperClass();
 				}
 			}
-			check(ExportClass);
-			check(ExportClass->HasAnyClassFlags(CLASS_Interface) || 0 != (CPPF_BlueprintCppBackend & CPPExportFlags));
+			check(ExportClassDef);
+			check(ExportClassDef->HasAnyClassFlags(CLASS_Interface) || 0 != (CPPF_BlueprintCppBackend & CPPExportFlags));
 
-			*ExtendedTypeText = FString::Printf(TEXT("<I%s>"), *ExportClass->GetName());
+			*ExtendedTypeText = FString::Printf(TEXT("<I%s>"), *ExportClassDef->GetName());
 		}
 		return TEXT("TScriptInterface");
 	}
@@ -2235,8 +2234,8 @@ struct FPropertyTypeTraitsDelegate : public FPropertyTypeTraitsBase
 		}
 		else
 		{
-			FUnrealClassDefinitionInfo* OwnerClass = VarProperty.FunctionDef->GetOwnerClass();
-			const bool NonNativeClassOwner = OwnerClass && !OwnerClass->HasAnyClassFlags(CLASS_Native);
+			FUnrealClassDefinitionInfo* OwnerClassDef = VarProperty.FunctionDef->GetOwnerClass();
+			const bool NonNativeClassOwner = OwnerClassDef && !OwnerClassDef->HasAnyClassFlags(CLASS_Native);
 			if (bBlueprintCppBackend && NonNativeClassOwner)
 			{
 				// The name must be valid, this removes spaces, ?, etc from the user's function name. It could
@@ -2245,7 +2244,7 @@ struct FPropertyTypeTraitsDelegate : public FPropertyTypeTraitsBase
 				// identifier and collide:
 				UnmangledFunctionName = UnicodeToCPPIdentifier(UnmangledFunctionName, false, TEXT(""));
 				// the name must be unique
-				const FString OwnerName = UnicodeToCPPIdentifier(OwnerClass->GetName(), false, TEXT(""));
+				const FString OwnerName = UnicodeToCPPIdentifier(OwnerClassDef->GetName(), false, TEXT(""));
 				const FString NewUnmangledFunctionName = FString::Printf(TEXT("%s__%s"), *UnmangledFunctionName, *OwnerName);
 				UnmangledFunctionName = NewUnmangledFunctionName;
 			}

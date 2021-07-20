@@ -280,7 +280,6 @@ namespace
 		const TCHAR* ClassCPPName,
 		const TCHAR* API,
 		FUnrealClassDefinitionInfo& ClassDef,
-		UClass* SuperClass,
 		FOutputDevice& Writer,
 		const FUnrealSourceFile& SourceFile,
 		EExportClassOutFlags& OutFlags)
@@ -1088,8 +1087,7 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 	{
 		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
 
-		UClass* PropertyClass = PropertyBase.ClassDef->GetClass();
-		if (PropertyClass->IsChildOf(UClass::StaticClass()))
+		if (PropertyBase.ClassDef->IsChildOf(*GUClassDef))
 		{
 			DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FClassPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
@@ -1135,8 +1133,7 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 	{
 		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
 
-		UClass* PropertyClass = PropertyBase.ClassDef->GetClass();
-		if (PropertyClass->IsChildOf(UClass::StaticClass()))
+		if (PropertyBase.ClassDef->IsChildOf(*GUClassDef))
 		{
 			DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FClassPtrPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
@@ -1182,8 +1179,7 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 	{
 		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
 
-		UClass* PropertyClass = PropertyBase.ClassDef->GetClass();
-		if (PropertyClass->IsChildOf(UClass::StaticClass()))
+		if (PropertyBase.ClassDef->IsChildOf(*GUClassDef))
 		{
 			DeclOut.Logf(TEXT("%sstatic const UECodeGen_Private::FSoftClassPropertyParams %s;\r\n"), DeclSpaces, *NameWithoutScope);
 
@@ -2058,7 +2054,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 		bool bHasInterfaces = false;
 		for (FUnrealStructDefinitionInfo::FBaseStructInfo& BaseStruct : ClassDef.GetBaseStructInfos())
 		{
-			if (BaseStruct.Struct != nullptr && UHTCastChecked<FUnrealClassDefinitionInfo>(BaseStruct.Struct).IsInterface())
+			if (FUnrealClassDefinitionInfo* BaseClass = UHTCast<FUnrealClassDefinitionInfo>(BaseStruct.Struct); BaseClass != nullptr && BaseClass->IsInterface())
 			{
 				bHasInterfaces = true;
 				break;
@@ -2072,7 +2068,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 			StaticDefinitions.Logf(TEXT("\t\tconst UECodeGen_Private::FImplementedInterfaceParams %s::InterfaceParams[] = {\r\n"), *StaticsStructName);
 			for (FUnrealStructDefinitionInfo::FBaseStructInfo& BaseStruct : ClassDef.GetBaseStructInfos())
 			{
-				if (BaseStruct.Struct == nullptr || !UHTCastChecked<FUnrealClassDefinitionInfo>(BaseStruct.Struct).IsInterface())
+				if (FUnrealClassDefinitionInfo* BaseClass = UHTCast<FUnrealClassDefinitionInfo>(BaseStruct.Struct); BaseClass == nullptr || !BaseClass->IsInterface())
 				{
 					continue;
 				}
@@ -2661,10 +2657,8 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 	FUHTStringBuilder StandardUObjectConstructorsMacroCall;
 	FUHTStringBuilder EnhancedUObjectConstructorsMacroCall;
 
-	UClass* Class = ClassDef.GetClass();
 
 	FUnrealClassDefinitionInfo* SuperClassDef = ClassDef.GetSuperClass();
-	UClass* SuperClass = SuperClassDef ? SuperClassDef->GetClass() : nullptr;
 
 	// C++ -> VM stubs (native function execs)
 	FUHTStringBuilder ClassMacroCalls;
@@ -2790,7 +2784,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 		Boilerplate.Log(*FriendText);
 		Boilerplate.Logf(TEXT("public:\r\n"));
 
-		const bool bCastedClass = Class->HasAnyCastFlag(CASTCLASS_AllFlags) && SuperClassDef && Class->ClassCastFlags != SuperClass->ClassCastFlags;
+		const bool bCastedClass = ClassDef.HasAnyCastFlags(CASTCLASS_AllFlags) && SuperClassDef && ClassDef.GetClassCastFlags() != SuperClassDef->GetClassCastFlags();
 
 		Boilerplate.Logf(TEXT("\tDECLARE_CLASS(%s, %s, COMPILED_IN_FLAGS(%s%s), %s, TEXT(\"%s\"), %s_API)\r\n"),
 			*ClassCPPName,
@@ -2871,7 +2865,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 
 			// we'll need a way to get to the UObject portion of a native interface, so that we can safely pass native interfaces
 			// to script VM functions
-			if (SuperClass->IsChildOf(UInterface::StaticClass()))
+			if (SuperClassDef->IsChildOf(*GUInterfaceDef))
 			{
 				// Note: This used to be declared as a pure virtual function, but it was changed here in order to allow the Blueprint nativization process
 				// to detect C++ interface classes that explicitly declare pure virtual functions via type traits. This code will no longer trigger that check.
@@ -2880,7 +2874,7 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 
 			if (ClassHasReplicatedProperties(ClassDef))
 			{
-				WriteReplicatedMacroData(*ClassCPPName, *APIArg, ClassDef, SuperClass, InterfaceBoilerplate, SourceFile, OutFlags);
+				WriteReplicatedMacroData(*ClassCPPName, *APIArg, ClassDef, InterfaceBoilerplate, SourceFile, OutFlags);
 			}
 
 			FString NoPureDeclsMacroName = SourceFile.GetGeneratedMacroName(ClassDef.GetGeneratedBodyLine(), TEXT("_INCLASS_IINTERFACE_NO_PURE_DECLS"));
@@ -2900,14 +2894,18 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 			}
 
 			// export implementation of _getUObject for classes that implement interfaces
-			if (Class->Interfaces.Num() > 0)
+			for (FUnrealStructDefinitionInfo::FBaseStructInfo& BaseStruct : ClassDef.GetBaseStructInfos())
 			{
-				Boilerplate.Logf(TEXT("\tvirtual UObject* _getUObject() const override { return const_cast<%s*>(this); }\r\n"), *ClassCPPName);
+				if (FUnrealClassDefinitionInfo* BaseClass = UHTCast<FUnrealClassDefinitionInfo>(BaseStruct.Struct); BaseClass != nullptr && BaseClass->IsInterface())
+				{
+					Boilerplate.Logf(TEXT("\tvirtual UObject* _getUObject() const override { return const_cast<%s*>(this); }\r\n"), *ClassCPPName);
+					break;
+				}
 			}
 
 			if (ClassHasReplicatedProperties(ClassDef))
 			{
-				WriteReplicatedMacroData(*ClassCPPName, *APIArg, ClassDef, SuperClass, Boilerplate, SourceFile, OutFlags);
+				WriteReplicatedMacroData(*ClassCPPName, *APIArg, ClassDef, Boilerplate, SourceFile, OutFlags);
 			}
 
 			{

@@ -3012,6 +3012,18 @@ public:
 	}
 
 	/**
+	 * Used to safely check whether the passed in cast flag is set.
+	 *
+	 * @param	FlagsToCheck		Class flag(s) to check for
+	 * @return	true if the passed in flag is set, false otherwise
+	 *			(including no flag passed in, unless the FlagsToCheck is CLASS_AllFlags)
+	 */
+	bool HasAnyCastFlags(EClassCastFlags FlagsToCheck) const
+	{
+		return EnumHasAnyFlags(ClassCastFlags, FlagsToCheck);
+	}
+
+	/**
 	 * Return the flags that were parsed as part of the pre-parse phase
 	 */
 	EClassFlags GetParsedClassFlags() const
