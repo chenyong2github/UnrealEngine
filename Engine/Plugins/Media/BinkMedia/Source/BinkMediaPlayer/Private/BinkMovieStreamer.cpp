@@ -129,6 +129,8 @@ bool FBinkMovieStreamer::Tick(float DeltaTime)
 
 		auto &RHICmdList = GRHICommandList.GetImmediateCommandList();
 
+		RHICmdList.Transition(FRHITransitionInfo(tex, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+		RHICmdList.SubmitCommandsHint();
 		RHICmdList.EnqueueLambda([bnk=bnk, tex, binkw, binkh, ulx, uly, lrx, lry, is_hdr](FRHICommandListImmediate& RHICmdList) {
 			static const auto CVarHDROutputEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.EnableHDROutput"));
 			static const auto CVarDisplayOutputDevice = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.OutputDevice"));
@@ -218,7 +220,6 @@ bool FBinkMovieStreamer::OpenNextMovie()
 	FString MoviePathTbl[] = 
 	{
 		StoredMoviePaths[MovieIndex] + TEXT(".bk2"),
-		StoredMoviePaths[MovieIndex] + TEXT(".bik"),
 	};
 	for (int i = 0; i < sizeof(MoviePathTbl) / sizeof(MoviePathTbl[0]) && !bnk; ++i) 
 	{
