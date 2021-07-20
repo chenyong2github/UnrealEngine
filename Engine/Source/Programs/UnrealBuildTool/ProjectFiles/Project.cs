@@ -336,7 +336,6 @@ namespace UnrealBuildTool
 
 				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
 				{
-					BuildEnvironment.PchFile = CompileEnvironment.PrecompiledHeaderFile?.Location;
 					BuildEnvironment.PchIncludeFile = CompileEnvironment.PrecompiledHeaderIncludeFilename;
 				}
 
@@ -570,7 +569,6 @@ namespace UnrealBuildTool
 		/// </summary>
 		public class BuildEnvironment
 		{
-			public FileReference PchFile;
 			public FileReference PchIncludeFile;
 			public IncludePathsCollection UserIncludePaths = new IncludePathsCollection();
 			public IncludePathsCollection SystemIncludePaths = new IncludePathsCollection();
