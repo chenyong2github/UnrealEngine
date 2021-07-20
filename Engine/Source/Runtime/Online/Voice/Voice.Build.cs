@@ -20,11 +20,14 @@ public class Voice : ModuleRules
 			PublicDefinitions.Add("VOICE_MODULE_WITH_CAPTURE=1");
 		}
 
-		PublicIncludePathModuleNames.AddRange(
-			new string[] {
-				"AndroidPermission"
-			}
-			);
+		if (Target.Platform == UnrealTargetPlatform.Android)
+		{
+			PublicIncludePathModuleNames.AddRange(
+				new string[] {
+					"AndroidPermission"
+				}
+				);
+		}
 
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
