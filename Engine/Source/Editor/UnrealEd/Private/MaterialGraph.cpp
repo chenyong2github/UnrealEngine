@@ -9,6 +9,7 @@
 #include "MaterialGraph/MaterialGraphNode_PinBase.h"
 #include "MaterialGraph/MaterialGraphNode.h"
 #include "MaterialGraph/MaterialGraphNode_Root.h"
+#include "MaterialGraph/MaterialGraphSchema.h"
 
 #include "Materials/MaterialExpressionComment.h"
 #include "Materials/MaterialExpressionComposite.h"
@@ -336,25 +337,23 @@ void UMaterialGraph::LinkGraphNodesFromMaterial()
 		TArray<FExpressionExecOutputEntry> ExecOutputs;
 		Expression->GetExecOutputs(ExecOutputs);
 
-		for (const auto& It : MaterialGraphNode->PinInfoMap)
+		for (UEdGraphPin* Pin : MaterialGraphNode->Pins)
 		{
-			UEdGraphPin* Pin = It.Key;
-			const FMaterialGraphPinInfo& PinInfo = It.Value;
-			if (Pin->Direction == EGPD_Input && PinInfo.PinType == EMaterialGraphPinType::Data)
+			if (Pin->Direction == EGPD_Input && Pin->PinType.PinCategory != UMaterialGraphSchema::PC_Exec)
 			{
-				if (ExpressionInputs[PinInfo.Index]->Expression)
+				if (ExpressionInputs[Pin->SourceIndex]->Expression)
 				{
 					// Unclear why this is null sometimes outside of composite reroute, but this is safer than crashing
-					if (UMaterialGraphNode* GraphNode = Cast<UMaterialGraphNode>(ExpressionInputs[PinInfo.Index]->Expression->GraphNode))
+					if (UMaterialGraphNode* GraphNode = Cast<UMaterialGraphNode>(ExpressionInputs[Pin->SourceIndex]->Expression->GraphNode))
 					{
 						// if GraphNode is a material function call for a missing material function, it may not have any output pins
-						UEdGraphPin* OutputPin = GraphNode->TryGetOutputPin(GetValidOutputIndex(ExpressionInputs[PinInfo.Index]));
+						UEdGraphPin* OutputPin = GraphNode->GetOutputPin(GetValidOutputIndex(ExpressionInputs[Pin->SourceIndex]));
 						if (LIKELY(OutputPin))
 						{
 							Pin->MakeLinkTo(OutputPin);
 						}
 					}
-					else if (UMaterialExpressionReroute* CompositeReroute = Cast<UMaterialExpressionReroute>(ExpressionInputs[PinInfo.Index]->Expression))
+					else if (UMaterialExpressionReroute* CompositeReroute = Cast<UMaterialExpressionReroute>(ExpressionInputs[Pin->SourceIndex]->Expression))
 					{
 						// This is an unseen composite reroute expression, find the actual expression output to connect to.
 						UMaterialExpressionComposite* OwningComposite = CastChecked<UMaterialExpressionComposite>(CompositeReroute->SubgraphExpression);
@@ -375,9 +374,9 @@ void UMaterialGraph::LinkGraphNodesFromMaterial()
 					}
 				}
 			}
-			else if (Pin->Direction == EGPD_Output && PinInfo.PinType == EMaterialGraphPinType::Exec)
+			else if (Pin->Direction == EGPD_Output && Pin->PinType.PinCategory == UMaterialGraphSchema::PC_Exec)
 			{
-				FExpressionExecOutput* ExecOutput = ExecOutputs[PinInfo.Index].Output;
+				FExpressionExecOutput* ExecOutput = ExecOutputs[Pin->SourceIndex].Output;
 				UMaterialExpression* ConnectedExpression = ExecOutput->GetExpression();
 				if (ConnectedExpression)
 				{
@@ -410,31 +409,27 @@ void UMaterialGraph::LinkMaterialExpressionsFromGraph() const
 			Material->Modify();
 			Material->EditorX = RootNode->NodePosX;
 			Material->EditorY = RootNode->NodePosY;
-			check(RootNode->InputPins.Num() == MaterialInputs.Num());
-			for (int32 PinIndex = 0; PinIndex < RootNode->InputPins.Num() && PinIndex < MaterialInputs.Num(); ++PinIndex)
+			
+			for (UEdGraphPin* Pin : RootNode->Pins)
 			{
-				FExpressionInput& MaterialInput = MaterialInputs[PinIndex].GetExpressionInput(Material);
-
-				if (RootNode->InputPins[PinIndex]->LinkedTo.Num() > 0)
+				if (Pin->Direction == EGPD_Input && Pin->PinType.PinCategory != UMaterialGraphSchema::PC_Exec)
 				{
-					UMaterialGraphNode* ConnectedNode = CastChecked<UMaterialGraphNode>(RootNode->InputPins[PinIndex]->LinkedTo[0]->GetOwningNode());
-					// Work out the index of the connected pin
-					for (int32 OutPinIndex = 0; OutPinIndex < ConnectedNode->OutputPins.Num(); ++OutPinIndex)
+					FExpressionInput& MaterialInput = MaterialInputs[Pin->SourceIndex].GetExpressionInput(Material);
+					if (Pin->LinkedTo.Num() > 0)
 					{
-						if (ConnectedNode->OutputPins[OutPinIndex] == RootNode->InputPins[PinIndex]->LinkedTo[0])
+						UEdGraphPin* ConnectedPin = Pin->LinkedTo[0];
+						UMaterialGraphNode* ConnectedNode = CastChecked<UMaterialGraphNode>(ConnectedPin->GetOwningNode());
+
+						if (!ConnectedNode->MaterialExpression->IsExpressionConnected(&MaterialInput, ConnectedPin->SourceIndex))
 						{
-							if (!ConnectedNode->MaterialExpression->IsExpressionConnected(&MaterialInput, OutPinIndex))
-							{
-								ConnectedNode->MaterialExpression->Modify();
-								MaterialInput.Connect(OutPinIndex, ConnectedNode->MaterialExpression);
-							}
-							break;
+							ConnectedNode->MaterialExpression->Modify();
+							MaterialInput.Connect(ConnectedPin->SourceIndex, ConnectedNode->MaterialExpression);
 						}
 					}
-				}
-				else if (MaterialInput.Expression)
-				{
-					MaterialInput.Expression = NULL;
+					else if (MaterialInput.Expression)
+					{
+						MaterialInput.Expression = NULL;
+					}
 				}
 			}
 		}
@@ -467,36 +462,27 @@ void UMaterialGraph::LinkMaterialExpressionsFromGraph() const
 					TArray<FExpressionExecOutputEntry> ExecOutputs;
 					Expression->GetExecOutputs(ExecOutputs);
 
-					for (const auto& It : GraphNode->PinInfoMap)
+					for (UEdGraphPin* Pin : GraphNode->Pins)
 					{
-						UEdGraphPin* Pin = It.Key;
-						const FMaterialGraphPinInfo& PinInfo = It.Value;
-						if (Pin->Direction == EGPD_Input && PinInfo.PinType == EMaterialGraphPinType::Data)
+						if (Pin->Direction == EGPD_Input && Pin->PinType.PinCategory != UMaterialGraphSchema::PC_Exec)
 						{
 							// Wire up non-execution input pins
-							FExpressionInput* ExpressionInput = ExpressionInputs[PinInfo.Index];
+							FExpressionInput* ExpressionInput = ExpressionInputs[Pin->SourceIndex];
 							if (Pin->LinkedTo.Num() > 0)
 							{
-								UMaterialGraphNode* ConnectedNode = CastChecked<UMaterialGraphNode>(Pin->LinkedTo[0]->GetOwningNode());
+								UEdGraphPin* ConnectedPin = Pin->LinkedTo[0];
+								UMaterialGraphNode* ConnectedNode = CastChecked<UMaterialGraphNode>(ConnectedPin->GetOwningNode());
 
-								// Work out the index of the connected pin
-								for (int32 OutPinIndex = 0; OutPinIndex < ConnectedNode->OutputPins.Num(); ++OutPinIndex)
+								if (ExpressionInput && !ConnectedNode->MaterialExpression->IsExpressionConnected(ExpressionInput, ConnectedPin->SourceIndex))
 								{
-									if (ConnectedNode->OutputPins[OutPinIndex] == Pin->LinkedTo[0])
+									if (!bModifiedExpression)
 									{
-										if (ExpressionInput && !ConnectedNode->MaterialExpression->IsExpressionConnected(ExpressionInput, OutPinIndex))
-										{
-											if (!bModifiedExpression)
-											{
-												bModifiedExpression = true;
-												Expression->Modify();
-											}
-
-											ConnectedNode->MaterialExpression->Modify();
-											ExpressionInput->Connect(OutPinIndex, ConnectedNode->MaterialExpression);
-										}
-										break;
+										bModifiedExpression = true;
+										Expression->Modify();
 									}
+
+									ConnectedNode->MaterialExpression->Modify();
+									ExpressionInput->Connect(ConnectedPin->SourceIndex, ConnectedNode->MaterialExpression);
 								}
 							}
 							else if (ExpressionInput && ExpressionInput->Expression)
@@ -509,10 +495,10 @@ void UMaterialGraph::LinkMaterialExpressionsFromGraph() const
 								ExpressionInput->Expression = NULL;
 							}
 						}
-						else if (Pin->Direction == EGPD_Output && PinInfo.PinType == EMaterialGraphPinType::Exec)
+						else if (Pin->Direction == EGPD_Output && Pin->PinType.PinCategory == UMaterialGraphSchema::PC_Exec)
 						{
 							// Wire up execution output pins
-							FExpressionExecOutput* ExpressionOutput = ExecOutputs[PinInfo.Index].Output;
+							FExpressionExecOutput* ExpressionOutput = ExecOutputs[Pin->SourceIndex].Output;
 
 							if (Pin->LinkedTo.Num() > 0)
 							{
@@ -592,13 +578,13 @@ void UMaterialGraph::LinkMaterialExpressionsFromGraph() const
 
 bool UMaterialGraph::IsInputActive(UEdGraphPin* GraphPin) const
 {
-	if (Material && RootNode)
+	if (Material &&
+		RootNode && // No inputs without a root node
+		GraphPin->Direction == EGPD_Input &&
+		GraphPin->PinType.PinCategory != UMaterialGraphSchema::PC_Exec)
 	{
-		int32 Index = INDEX_NONE;
-		if (RootNode->InputPins.Find(GraphPin, Index))
-		{
-			return Material->IsPropertyActiveInEditor(MaterialInputs[Index].GetProperty());
-		}
+		
+		return Material->IsPropertyActiveInEditor(MaterialInputs[GraphPin->SourceIndex].GetProperty());
 	}
 	return true;
 }
@@ -611,12 +597,15 @@ void UMaterialGraph::GetUnusedExpressions(TArray<UEdGraphNode*>& UnusedNodes) co
 
 	if (RootNode)
 	{
-		for (int32 Index = 0; Index < RootNode->InputPins.Num(); ++Index)
+		for (UEdGraphPin* Pin : RootNode->Pins)
 		{
-			if (MaterialInputs[Index].IsVisiblePin(Material)
-				&& RootNode->InputPins[Index]->LinkedTo.Num() > 0 && RootNode->InputPins[Index]->LinkedTo[0])
+			if (Pin->Direction == EGPD_Input &&
+				Pin->PinType.PinCategory != UMaterialGraphSchema::PC_Exec &&
+				MaterialInputs[Pin->SourceIndex].IsVisiblePin(Material) &&
+				Pin->LinkedTo.Num() > 0 &&
+				Pin->LinkedTo[0])
 			{
-				NodesToCheck.Push(RootNode->InputPins[Index]->LinkedTo[0]->GetOwningNode());
+				NodesToCheck.Push(Pin->LinkedTo[0]->GetOwningNode());
 			}
 		}
 
@@ -665,11 +654,15 @@ void UMaterialGraph::GetUnusedExpressions(TArray<UEdGraphNode*>& UnusedNodes) co
 				UsedNodes.Add(GraphNode);
 
 				// Iterate over the expression's inputs and add them to the pending stack.
-				for (int32 Index = 0; Index < GraphNode->InputPins.Num(); ++Index)
+				for (UEdGraphPin* Pin : RootNode->Pins)
 				{
-					if (GraphNode->InputPins[Index]->LinkedTo.Num() > 0 && GraphNode->InputPins[Index]->LinkedTo[0])
+					if (Pin->Direction == EGPD_Input &&
+						Pin->PinType.PinCategory != UMaterialGraphSchema::PC_Exec &&
+						MaterialInputs[Pin->SourceIndex].IsVisiblePin(Material) &&
+						Pin->LinkedTo.Num() > 0 &&
+						Pin->LinkedTo[0])
 					{
-						NodesToCheck.Push(GraphNode->InputPins[Index]->LinkedTo[0]->GetOwningNode());
+						NodesToCheck.Push(Pin->LinkedTo[0]->GetOwningNode());
 					}
 				}
 

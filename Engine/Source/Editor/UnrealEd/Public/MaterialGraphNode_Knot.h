@@ -26,11 +26,11 @@ public:
 	
 	UEdGraphPin* GetInputPin() const
 	{
-		return InputPins[0];
+		return UMaterialGraphNode::GetInputPin(0);
 	}
 
 	UEdGraphPin* GetOutputPin() const
 	{
-		return OutputPins[0];
+		return UMaterialGraphNode::GetOutputPin(0);
 	}
 };

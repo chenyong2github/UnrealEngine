@@ -160,6 +160,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// No longer bake MassToLocal transform into recorded transform data in GeometryCollection caching
 		GeometryCollectionCacheRemovesMassToLocal,
 
+		// UEdGraphPin serializes SourceIndex
+		EdGraphPinSourceIndex,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -17,35 +17,79 @@ UMaterialGraphNode_Base::UMaterialGraphNode_Base(const FObjectInitializer& Objec
 {
 }
 
-const FMaterialGraphPinInfo& UMaterialGraphNode_Base::GetPinInfo(const class UEdGraphPin* Pin) const
+UEdGraphPin* UMaterialGraphNode_Base::GetInputPin(int32 InputIndex) const
 {
-	const FMaterialGraphPinInfo* PinInfo = PinInfoMap.Find(Pin);
-	checkf(PinInfo, TEXT("Missing info for pin %s, missing call to RegisterPin()?"), *Pin->GetName());
-	return *PinInfo;
+	for (UEdGraphPin* Pin : Pins)
+	{
+		if (Pin->PinType.PinCategory != UMaterialGraphSchema::PC_Exec &&
+			Pin->Direction == EGPD_Input &&
+			Pin->SourceIndex == InputIndex)
+		{
+			return Pin;
+		}
+	}
+	return nullptr;
+}
+
+UEdGraphPin* UMaterialGraphNode_Base::GetOutputPin(int32 OutputIndex) const
+{
+	for (UEdGraphPin* Pin : Pins)
+	{
+		if (Pin->PinType.PinCategory != UMaterialGraphSchema::PC_Exec &&
+			Pin->Direction == EGPD_Output &&
+			Pin->SourceIndex == OutputIndex)
+		{
+			return Pin;
+		}
+	}
+	return nullptr;
+}
+
+UEdGraphPin* UMaterialGraphNode_Base::GetExecInputPin() const
+{
+	for (UEdGraphPin* Pin : Pins)
+	{
+		if (Pin->PinType.PinCategory == UMaterialGraphSchema::PC_Exec &&
+			Pin->Direction == EGPD_Input)
+		{
+			check(Pin->SourceIndex == 0);
+			return Pin;
+		}
+	}
+	return nullptr;
+}
+
+UEdGraphPin* UMaterialGraphNode_Base::GetExecOutputPin(int32 OutputIndex) const
+{
+	for (UEdGraphPin* Pin : Pins)
+	{
+		if (Pin->PinType.PinCategory == UMaterialGraphSchema::PC_Exec &&
+			Pin->Direction == EGPD_Output &&
+			Pin->SourceIndex == OutputIndex)
+		{
+			return Pin;
+		}
+	}
+	return nullptr;
 }
 
 uint32 UMaterialGraphNode_Base::GetOutputType(const UEdGraphPin* OutputPin) const
 {
-	return GetPinMaterialType(OutputPin, GetPinInfo(OutputPin));
+	return GetPinMaterialType(OutputPin);
 }
 
 uint32 UMaterialGraphNode_Base::GetInputType(const UEdGraphPin* InputPin) const
 {
-	return GetPinMaterialType(InputPin, GetPinInfo(InputPin));
+	return GetPinMaterialType(InputPin);
 }
 
-uint32 UMaterialGraphNode_Base::GetPinMaterialType(const UEdGraphPin* Pin, const FMaterialGraphPinInfo& PinInfo) const
+uint32 UMaterialGraphNode_Base::GetPinMaterialType(const UEdGraphPin* Pin) const
 {
-	switch (PinInfo.PinType)
+	if (Pin->PinType.PinCategory == UMaterialGraphSchema::PC_Exec)
 	{
-	case EMaterialGraphPinType::Data:
-		return MCT_Unknown;
-	case EMaterialGraphPinType::Exec:
 		return MCT_Execution;
-	default:
-		checkNoEntry();
-		return 0u;
 	}
+	return MCT_Unknown;
 }
 
 void UMaterialGraphNode_Base::ReplaceNode(UMaterialGraphNode_Base* OldNode)
@@ -53,50 +97,57 @@ void UMaterialGraphNode_Base::ReplaceNode(UMaterialGraphNode_Base* OldNode)
 	check(OldNode);
 	check(OldNode != this);
 
-	// Copy Inputs from old node
-	for (int32 PinIndex = 0; PinIndex < OldNode->InputPins.Num(); PinIndex++)
+	for (int32 PinIndex = 0; PinIndex < OldNode->Pins.Num(); ++PinIndex)
 	{
-		if (PinIndex < InputPins.Num())
+		UEdGraphPin* OldPin = OldNode->Pins[PinIndex];
+		if (OldPin->Direction == EGPD_Input)
 		{
-			ModifyAndCopyPersistentPinData(*InputPins[PinIndex], *OldNode->InputPins[PinIndex]);
-		}
-	}
+			UEdGraphPin* NewPin = nullptr;
+			if(OldPin->PinType.PinCategory == UMaterialGraphSchema::PC_Exec) NewPin = GetExecInputPin();
+			else NewPin = GetInputPin(OldPin->SourceIndex);
 
-	// Copy Outputs from old node
-	for (int32 PinIndex = 0; PinIndex < OldNode->OutputPins.Num(); PinIndex++)
-	{
-		// Try to find an equivalent output in this node
-		int32 FoundPinIndex = -1;
-		{
-			// First check names
-			for (int32 NewPinIndex = 0; NewPinIndex < OutputPins.Num(); NewPinIndex++)
+			if (NewPin)
 			{
-				if (OldNode->OutputPins[PinIndex]->PinName == OutputPins[NewPinIndex]->PinName)
-				{
-					FoundPinIndex = NewPinIndex;
-					break;
-				}
+				ModifyAndCopyPersistentPinData(*NewPin, *OldPin);
 			}
 		}
-		if (FoundPinIndex == -1)
+		else
 		{
-			// Now check types
-			for (int32 NewPinIndex = 0; NewPinIndex < OutputPins.Num(); NewPinIndex++)
+			// Try to find an equivalent output in this node
+			int32 FoundPinIndex = -1;
 			{
-				if (OldNode->OutputPins[PinIndex]->PinType == OutputPins[NewPinIndex]->PinType)
+				// First check names
+				for (int32 NewPinIndex = 0; NewPinIndex < Pins.Num(); NewPinIndex++)
 				{
-					FoundPinIndex = NewPinIndex;
-					break;
+					UEdGraphPin* NewPin = Pins[NewPinIndex];
+					if (NewPin->Direction == EGPD_Output &&
+						NewPin->PinType.PinCategory == OldPin->PinType.PinCategory &&
+						NewPin->PinName == OldPin->PinName)
+					{
+						FoundPinIndex = NewPinIndex;
+						break;
+					}
 				}
 			}
-		}
+			if (FoundPinIndex == -1)
+			{
+				// Now check types
+				for (int32 NewPinIndex = 0; NewPinIndex < Pins.Num(); NewPinIndex++)
+				{
+					UEdGraphPin* NewPin = Pins[NewPinIndex];
+					if (NewPin->Direction == EGPD_Output &&
+						NewPin->PinType == OldPin->PinType)
+					{
+						FoundPinIndex = NewPinIndex;
+						break;
+					}
+				}
+			}
 
-		// If we can't find an equivalent output in this node, just use the first
-		// The user will have to fix up any issues from the mismatch
-		FoundPinIndex = FMath::Max(FoundPinIndex, 0);
-		if (FoundPinIndex < OutputPins.Num())
-		{
-			ModifyAndCopyPersistentPinData(*OutputPins[FoundPinIndex], *OldNode->OutputPins[PinIndex]);
+			// If we can't find an equivalent output in this node, just use the first
+			// The user will have to fix up any issues from the mismatch
+			FoundPinIndex = FMath::Max(FoundPinIndex, 0);
+			ModifyAndCopyPersistentPinData(*Pins[FoundPinIndex], *OldPin);
 		}
 	}
 
@@ -145,18 +196,12 @@ void UMaterialGraphNode_Base::InsertNewNode(UEdGraphPin* FromPin, UEdGraphPin* N
 void UMaterialGraphNode_Base::AllocateDefaultPins()
 {
 	check(Pins.Num() == 0);
-	check(InputPins.Num() == 0);
-	check(OutputPins.Num() == 0);
-	check(PinInfoMap.Num() == 0);
-
 	CreateInputPins();
 	CreateOutputPins();
 }
 
 void UMaterialGraphNode_Base::PostPasteNode()
 {
-	check(PinInfoMap.Num() == 0)
-
 	int32 NumInputDataPins = 0;
 	int32 NumOutputDataPins = 0;
 	int32 NumInputExecPins = 0;
@@ -164,75 +209,23 @@ void UMaterialGraphNode_Base::PostPasteNode()
 	for (UEdGraphPin* Pin : Pins)
 	{
 		int32 Index = INDEX_NONE;
-		EMaterialGraphPinType Type;
-
 		if (Pin->PinType.PinCategory == UMaterialGraphSchema::PC_Exec)
 		{
-			Type = EMaterialGraphPinType::Exec;
 			if (Pin->Direction == EGPD_Input) Index = NumInputExecPins++;
 			else Index = NumOutputExecPins++;
 		}
 		else
 		{
-			Type = EMaterialGraphPinType::Data;
 			if (Pin->Direction == EGPD_Input) Index = NumInputDataPins++;
 			else Index = NumOutputDataPins++;
 		}
-		RegisterPin(Pin, Type, Index);
-	}
-}
-
-void UMaterialGraphNode_Base::RegisterPin(UEdGraphPin* Pin, EMaterialGraphPinType Type, int32 Index)
-{
-	FMaterialGraphPinInfo& PinInfo = PinInfoMap.FindOrAdd(Pin);
-	PinInfo.PinType = Type;
-	PinInfo.Index = Index;
-
-	if (Type == EMaterialGraphPinType::Exec)
-	{
-		switch (Pin->Direction)
-		{
-		case EGPD_Input:
-			checkf(ExecInputPin == nullptr, TEXT("Only 1 exec input pin allowed"));
-			check(Index == 0);
-			ExecInputPin = Pin;
-			break;
-		case EGPD_Output: verify(ExecOutputPins.Add(Pin) == Index); break;
-		default: checkNoEntry(); break;
-		}
-	}
-	else
-	{
-		switch (Pin->Direction)
-		{
-		case EGPD_Input: verify(InputPins.Add(Pin) == Index); break;
-		case EGPD_Output: verify(OutputPins.Add(Pin) == Index); break;
-		default: checkNoEntry(); break;
-		}
+		Pin->SourceIndex = Index;
 	}
 }
 
 void UMaterialGraphNode_Base::EmptyPins()
 {
 	Pins.Reset();
-	PinInfoMap.Reset();
-	InputPins.Reset();
-	OutputPins.Reset();
-	ExecOutputPins.Reset();
-	ExecInputPin = nullptr;
-}
-
-static void TransferPinArray(const TArray<UEdGraphPin*>& NewPins, const TArray<UEdGraphPin*>& OldPins)
-{
-	const int32 Num = FMath::Min(NewPins.Num(), OldPins.Num());
-	for (int32 i = 0; i < Num; ++i)
-	{
-		UEdGraphPin* OldPin = OldPins[i];
-		UEdGraphPin* NewPin = NewPins[i];
-		ensure(OldPin->Direction == NewPin->Direction);
-		ensure(OldPin->PinType.PinCategory == NewPin->PinType.PinCategory);
-		NewPin->MovePersistentDataFromOldPin(*OldPin);
-	}
 }
 
 void UMaterialGraphNode_Base::ReconstructNode()
@@ -257,23 +250,30 @@ void UMaterialGraphNode_Base::ReconstructNode()
 
 	// Move the existing pins to a saved array
 	TArray<UEdGraphPin*> OldPins = MoveTemp(Pins);
-	TArray<UEdGraphPin*> OldInputPins = MoveTemp(InputPins);
-	TArray<UEdGraphPin*> OldOutputPins = MoveTemp(OutputPins);
-	TArray<UEdGraphPin*> OldExecOutputPins = MoveTemp(ExecOutputPins);
-	UEdGraphPin* OldExecInputPin = ExecInputPin;
 
 	EmptyPins();
 
 	// Recreate the new pins
 	AllocateDefaultPins();
 
-	// Transfer data to new pins
-	TransferPinArray(InputPins, OldInputPins);
-	TransferPinArray(OutputPins, OldOutputPins);
-	TransferPinArray(ExecOutputPins, OldExecOutputPins);
-	if (OldExecInputPin && ExecInputPin)
+	for (int32 OldPinIndex = 0; OldPinIndex < OldPins.Num(); ++OldPinIndex)
 	{
-		ExecInputPin->MovePersistentDataFromOldPin(*OldExecInputPin);
+		UEdGraphPin* OldPin = OldPins[OldPinIndex];
+		UEdGraphPin* NewPin = nullptr;
+		if (OldPin->PinType.PinCategory == UMaterialGraphSchema::PC_Exec)
+		{
+			if (OldPin->Direction == EGPD_Input) NewPin = GetExecInputPin();
+			else NewPin = GetExecOutputPin(OldPin->SourceIndex);
+		}
+		else
+		{
+			if (OldPin->Direction == EGPD_Input) NewPin = GetInputPin(OldPin->SourceIndex);
+			else NewPin = GetOutputPin(OldPin->SourceIndex);
+		}
+		if (NewPin)
+		{
+			NewPin->MovePersistentDataFromOldPin(*OldPin);
+		}
 	}
 
 	for (UEdGraphPin* OldPin : OldPins)
@@ -291,39 +291,14 @@ void UMaterialGraphNode_Base::RemovePinAt(const int32 PinIndex, const EEdGraphPi
 	UEdGraphPin* Pin = GetPinWithDirectionAt(PinIndex, PinDirection);
 	check(Pin);
 
-	FMaterialGraphPinInfo PinInfo;
-	verify(PinInfoMap.RemoveAndCopyValue(Pin, PinInfo));
-	switch (PinInfo.PinType)
-	{
-	case EMaterialGraphPinType::Data:
-		switch (Pin->Direction)
-		{
-		case EGPD_Input: InputPins.RemoveAt(PinInfo.Index); break;
-		case EGPD_Output: OutputPins.RemoveAt(PinInfo.Index); break;
-		default: checkNoEntry(); break;
-		}
-		break;
-	case EMaterialGraphPinType::Exec:
-		switch (Pin->Direction)
-		{
-		case EGPD_Input: check(ExecInputPin == Pin);  ExecInputPin = nullptr; break;
-		case EGPD_Output: ExecOutputPins.RemoveAt(PinInfo.Index); break;
-		default: checkNoEntry(); break;
-		}
-		break;
-	default:
-		checkNoEntry();
-		break;
-	}
-
 	// Shift down indices to account for the pin we removed
-	for (auto& It : PinInfoMap)
+	for (UEdGraphPin* CheckPin : Pins)
 	{
-		if (It.Value.PinType == PinInfo.PinType &&
-			It.Value.Index > PinInfo.Index &&
-			It.Key->Direction == PinDirection)
+		if (CheckPin->PinType.PinCategory == Pin->PinType.PinCategory &&
+			CheckPin->Direction == Pin->Direction &&
+			CheckPin->SourceIndex > Pin->SourceIndex)
 		{
-			It.Value.Index--;
+			CheckPin->SourceIndex--;
 		}
 	}
 

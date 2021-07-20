@@ -3334,19 +3334,22 @@ bool FMaterialEditor::IsToggleHideUnrelatedNodesChecked() const
 
 void FMaterialEditor::CollectDownstreamNodes(UMaterialGraphNode* CurrentNode, TArray<UMaterialGraphNode*>& CollectedNodes)
 {
-	for (auto& OutputPin : CurrentNode->OutputPins)
+	for (UEdGraphPin* OutputPin : CurrentNode->Pins)
 	{
-		for (auto& Link : OutputPin->LinkedTo)
+		if (OutputPin->Direction == EGPD_Output)
 		{
-			UMaterialGraphNode* LinkedNode = Cast<UMaterialGraphNode>(Link->GetOwningNode());
-			if (LinkedNode && !CollectedNodes.Contains(LinkedNode))
+			for (auto& Link : OutputPin->LinkedTo)
 			{
-				CollectedNodes.Add(LinkedNode);
-				CollectDownstreamNodes( LinkedNode, CollectedNodes );
-
-				if (bFocusWholeChain)
+				UMaterialGraphNode* LinkedNode = Cast<UMaterialGraphNode>(Link->GetOwningNode());
+				if (LinkedNode && !CollectedNodes.Contains(LinkedNode))
 				{
-					CollectUpstreamNodes( LinkedNode, CollectedNodes );
+					CollectedNodes.Add(LinkedNode);
+					CollectDownstreamNodes(LinkedNode, CollectedNodes);
+
+					if (bFocusWholeChain)
+					{
+						CollectUpstreamNodes(LinkedNode, CollectedNodes);
+					}
 				}
 			}
 		}
@@ -3355,15 +3358,18 @@ void FMaterialEditor::CollectDownstreamNodes(UMaterialGraphNode* CurrentNode, TA
 
 void FMaterialEditor::CollectUpstreamNodes(UMaterialGraphNode* CurrentNode, TArray<UMaterialGraphNode*>& CollectedNodes)
 {
-	for (auto& InputPin : CurrentNode->InputPins)
+	for (UEdGraphPin* InputPin : CurrentNode->Pins)
 	{
-		for (auto& Link : InputPin->LinkedTo)
+		if (InputPin->Direction == EGPD_Input)
 		{
-			UMaterialGraphNode* LinkedNode = Cast<UMaterialGraphNode>(Link->GetOwningNode());
-			if (LinkedNode && !CollectedNodes.Contains(LinkedNode))
+			for (auto& Link : InputPin->LinkedTo)
 			{
-				CollectedNodes.Add(LinkedNode);
-				CollectUpstreamNodes( LinkedNode, CollectedNodes );
+				UMaterialGraphNode* LinkedNode = Cast<UMaterialGraphNode>(Link->GetOwningNode());
+				if (LinkedNode && !CollectedNodes.Contains(LinkedNode))
+				{
+					CollectedNodes.Add(LinkedNode);
+					CollectUpstreamNodes(LinkedNode, CollectedNodes);
+				}
 			}
 		}
 	}
@@ -4100,20 +4106,23 @@ void FMaterialEditor::OnSelectDownstreamNodes()
 	while (NodesToCheck.Num() > 0)
 	{
 		UMaterialGraphNode* CurrentNode = NodesToCheck.Last();
-		for (int32 Index = 0; Index < CurrentNode->OutputPins.Num(); ++Index)
+		for (UEdGraphPin* Pin : CurrentNode->Pins)
 		{
-			for (int32 LinkIndex = 0; LinkIndex < CurrentNode->OutputPins[Index]->LinkedTo.Num(); ++LinkIndex)
+			if (Pin->Direction == EGPD_Output)
 			{
-				UMaterialGraphNode* LinkedNode = Cast<UMaterialGraphNode>(CurrentNode->OutputPins[Index]->LinkedTo[LinkIndex]->GetOwningNode());
-				if (LinkedNode)
+				for (int32 LinkIndex = 0; LinkIndex < Pin->LinkedTo.Num(); ++LinkIndex)
 				{
-					int32 FoundIndex = -1;
-					CheckedNodes.Find(LinkedNode, FoundIndex);
-
-					if (FoundIndex < 0)
+					UMaterialGraphNode* LinkedNode = Cast<UMaterialGraphNode>(Pin->LinkedTo[LinkIndex]->GetOwningNode());
+					if (LinkedNode)
 					{
-						NodesToSelect.Add(LinkedNode);
-						NodesToCheck.Add(LinkedNode);
+						int32 FoundIndex = -1;
+						CheckedNodes.Find(LinkedNode, FoundIndex);
+
+						if (FoundIndex < 0)
+						{
+							NodesToSelect.Add(LinkedNode);
+							NodesToCheck.Add(LinkedNode);
+						}
 					}
 				}
 			}
@@ -4153,20 +4162,23 @@ void FMaterialEditor::OnSelectUpstreamNodes()
 	while (NodesToCheck.Num() > 0)
 	{
 		UMaterialGraphNode* CurrentNode = NodesToCheck.Last();
-		for (int32 Index = 0; Index < CurrentNode->InputPins.Num(); ++Index)
+		for (UEdGraphPin* Pin : CurrentNode->Pins)
 		{
-			for (int32 LinkIndex = 0; LinkIndex < CurrentNode->InputPins[Index]->LinkedTo.Num(); ++LinkIndex)
+			if (Pin->Direction == EGPD_Input)
 			{
-				UMaterialGraphNode* LinkedNode = Cast<UMaterialGraphNode>(CurrentNode->InputPins[Index]->LinkedTo[LinkIndex]->GetOwningNode());
-				if (LinkedNode)
+				for (int32 LinkIndex = 0; LinkIndex < Pin->LinkedTo.Num(); ++LinkIndex)
 				{
-					int32 FoundIndex = -1;
-					CheckedNodes.Find(LinkedNode, FoundIndex);
-
-					if (FoundIndex < 0)
+					UMaterialGraphNode* LinkedNode = Cast<UMaterialGraphNode>(Pin->LinkedTo[LinkIndex]->GetOwningNode());
+					if (LinkedNode)
 					{
-						NodesToSelect.Add(LinkedNode);
-						NodesToCheck.Add(LinkedNode);
+						int32 FoundIndex = -1;
+						CheckedNodes.Find(LinkedNode, FoundIndex);
+
+						if (FoundIndex < 0)
+						{
+							NodesToSelect.Add(LinkedNode);
+							NodesToCheck.Add(LinkedNode);
+						}
 					}
 				}
 			}
