@@ -2478,7 +2478,7 @@ public:
 	 */
 	bool HasDefaults() const
 	{
-		return !!GetScriptStruct()->GetCppStructOps();
+		return UScriptStruct::FindDeferredCppStructOps(GetFName()) != nullptr;
 	}
 
 
