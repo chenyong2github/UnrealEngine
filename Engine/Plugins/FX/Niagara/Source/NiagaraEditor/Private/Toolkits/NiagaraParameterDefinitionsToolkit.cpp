@@ -18,6 +18,7 @@
 #include "Widgets/SNiagaraParameterPanel.h"
 #include "Widgets/SNiagaraSelectedObjectsDetails.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
+#include "ScopedTransaction.h"
 
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterDefinitionsToolkit"
