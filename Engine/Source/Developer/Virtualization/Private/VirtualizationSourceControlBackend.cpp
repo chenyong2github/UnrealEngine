@@ -123,6 +123,8 @@ public:
 
 	virtual FCompressedBuffer PullData(const FPayloadId& Id) override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FSourceControlBackend::PullData);
+
 		TStringBuilder<512> DepotPath;
 		CreateDepotPath(Id, DepotPath);
 
