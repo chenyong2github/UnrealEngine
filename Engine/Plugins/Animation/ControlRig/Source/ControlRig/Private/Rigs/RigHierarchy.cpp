@@ -2,7 +2,6 @@
 
 #include "Rigs/RigHierarchy.h"
 #include "ControlRig.h"
-#include "RigVMPythonUtils.h"
 
 #include "Rigs/RigHierarchyElements.h"
 #include "Rigs/RigHierarchyController.h"
@@ -13,7 +12,7 @@
 #include "Serialization/MemoryWriter.h"
 
 #if WITH_EDITOR
-
+#include "RigVMPythonUtils.h"
 #include "ScopedTransaction.h"
 #include "HAL/PlatformStackWalk.h"
 #include "HAL/PlatformFileManager.h"
