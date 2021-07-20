@@ -150,7 +150,7 @@ struct CORE_API FUE5MainStreamObjectVersion
 
 		// Removed the AtmosphericFog component with conversion to SkyAtmosphere component
 		RemovedAtmosphericFog,
-		
+
 		// The SkyAtmosphere now light up the heightfog by default, and by default the height fog has a black color.
 		SkyAtmosphereAffectsHeightFogWithBetterDefault,
 
@@ -162,6 +162,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 
 		// UEdGraphPin serializes SourceIndex
 		EdGraphPinSourceIndex,
+
+		// Change texture bulkdatas to have unique guids
+		VirtualizedBulkDataHaveUniqueGuids,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

@@ -198,6 +198,31 @@ void FVirtualizedUntypedBulkData::Unregister()
 #endif
 }
 
+static FGuid CreateUniqueGuid(const FGuid& NonUniqueGuid, const UObject* Owner, const TCHAR* DebugName)
+{
+	if (NonUniqueGuid.IsValid() && Owner)
+	{
+		TStringBuilder<256> PathName;
+		Owner->GetPathName(nullptr, PathName);
+		FBlake3 Builder;
+		Builder.Update(&NonUniqueGuid, sizeof(NonUniqueGuid));
+		Builder.Update(PathName.GetData(), PathName.Len() * sizeof(*PathName.GetData()));
+		FBlake3Hash Hash = Builder.Finalize();
+		// We use the first 16 bytes of the FIoHash to create the guid, there is
+		// no specific reason why these were chosen, we could take any pattern or combination
+		// of bytes.
+		uint32* HashBytes = (uint32*)Hash.GetBytes();
+		return FGuid(HashBytes[0], HashBytes[1], HashBytes[2], HashBytes[3]);
+	}
+	else
+	{
+		UE_LOG(LogVirtualization, Warning,
+			TEXT("CreateFromBulkData recieved an invalid FGuid. A temporary one will be generated until the package is next re-saved! Package: '%s'"),
+			DebugName);
+		return FGuid::NewGuid();
+	}
+}
+
 void FVirtualizedUntypedBulkData::CreateFromBulkData(FUntypedBulkData& InBulkData, const FGuid& InGuid, UObject* Owner)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::CreateFromBulkData);
@@ -212,20 +237,8 @@ void FVirtualizedUntypedBulkData::CreateFromBulkData(FUntypedBulkData& InBulkDat
 	bool bWasKeyGuidDerived = false;
 	if (InBulkData.GetBulkDataSize() > 0)
 	{
-		if (InGuid.IsValid())
-		{
-			BulkDataId = InGuid;
-		}
-		else
-		{
-			UE_LOG(LogVirtualization, Warning,
-				TEXT("CreateFromBulkData recieved an invalid FGuid. A temporary one will be generated until the package is next re-saved! Package: '%s'"),
-				*InBulkData.GetPackagePath().GetDebugName());
-
-			BulkDataId = FGuid::NewGuid();
-		}
-
-		PayloadContentId = FPayloadId(InGuid);
+		BulkDataId = CreateUniqueGuid(InGuid, Owner, *InBulkData.GetPackagePath().GetDebugName());
+		PayloadContentId = FPayloadId(BulkDataId);
 		bWasKeyGuidDerived = true;
 	}
 	
@@ -255,7 +268,17 @@ void FVirtualizedUntypedBulkData::CreateFromBulkData(FUntypedBulkData& InBulkDat
 	Register(Owner);
 }
 
-void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
+void FVirtualizedUntypedBulkData::CreateLegacyUniqueIdentifier(UObject* Owner)
+{
+	if (BulkDataId.IsValid())
+	{
+		Unregister();
+		BulkDataId = CreateUniqueGuid(BulkDataId, Owner, TEXT("Unknown"));
+		Register(Owner);
+	}
+}
+
+void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegister)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizedUntypedBulkData::Serialize);
 
@@ -528,7 +551,10 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner)
 					Payload = CompressedPayload.Decompress();
 				}
 			}
-			Register(Owner);
+			if (bAllowRegister)
+			{
+				Register(Owner);
+			}
 		}
 	}
 }
