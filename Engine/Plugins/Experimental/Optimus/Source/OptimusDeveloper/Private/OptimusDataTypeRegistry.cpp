@@ -188,21 +188,6 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	    FLinearColor::White,
 	    EOptimusDataTypeUsageFlags::Variable);
 
-	Registry.RegisterType(
-	    UOptimusType_MeshAttribute::StaticClass(),
-	    FLinearColor(0.4f, 0.4f, 0.8f, 1.0f),
-	    EOptimusDataTypeUsageFlags::Node);
-
-	Registry.RegisterType(
-	    UOptimusType_MeshSkinWeights::StaticClass(),
-	    FLinearColor(0.4f, 0.8f, 0.8f, 1.0f),
-	    EOptimusDataTypeUsageFlags::Node);
-
-	Registry.RegisterType(
-	    USkeleton::StaticClass(),
-	    FLinearColor(0.4f, 0.8f, 0.4f, 1.0f),
-	    EOptimusDataTypeUsageFlags::Node);
-
 	// HLSL types
 	Registry.RegisterType(
 		FName("3x4 Float"),

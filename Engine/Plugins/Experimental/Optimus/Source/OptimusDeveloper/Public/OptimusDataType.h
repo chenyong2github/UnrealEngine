@@ -15,7 +15,8 @@
 UENUM(meta = (Bitflags))
 enum class EOptimusDataTypeUsageFlags : uint8
 {
-	Node				= 0,
+	None				= 0,
+	
 	Resource			= 1 << 0,		/** This type can be used in a resource */
 	Variable			= 1 << 1,		/** This type can be used in a variable */
 };
@@ -65,7 +66,7 @@ struct FOptimusDataType
 	FLinearColor CustomPinColor;
 	
 	UPROPERTY()
-	EOptimusDataTypeUsageFlags UsageFlags = EOptimusDataTypeUsageFlags::Node;
+	EOptimusDataTypeUsageFlags UsageFlags = EOptimusDataTypeUsageFlags::None;
 
 	UPROPERTY()
 	EOptimusDataTypeFlags TypeFlags = EOptimusDataTypeFlags::None;
