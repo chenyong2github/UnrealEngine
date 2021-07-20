@@ -37,7 +37,7 @@ void FOptimusDataTypeRefCustomization::CustomizeHeader(
 	IPropertyTypeCustomizationUtils& InCustomizationUtils
 	)
 {
-	EOptimusDataTypeUsageFlags UsageMask = EOptimusDataTypeUsageFlags::Node;
+	EOptimusDataTypeUsageFlags UsageMask = EOptimusDataTypeUsageFlags::None;
 	
 	if (InPropertyHandle->HasMetaData(FName(TEXT("UseInResource"))))
 	{

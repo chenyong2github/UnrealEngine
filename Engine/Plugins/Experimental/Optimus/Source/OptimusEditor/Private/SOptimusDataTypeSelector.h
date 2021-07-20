@@ -37,7 +37,7 @@ public:
 	SLATE_BEGIN_ARGS( SOptimusDataTypeSelector ) : 
 		_ViewType(EViewType::IconAndText),
 		_bViewOnly(false),
-		_UsageMask(EOptimusDataTypeUsageFlags::Node), 
+		_UsageMask(EOptimusDataTypeUsageFlags::None), 
 		_Font(FEditorStyle::GetFontStyle(TEXT("NormalFont")))
 		{}
 		SLATE_ATTRIBUTE( FOptimusDataTypeHandle, CurrentDataType )

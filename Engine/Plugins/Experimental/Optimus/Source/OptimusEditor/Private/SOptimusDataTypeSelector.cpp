@@ -183,7 +183,7 @@ TSharedRef<SWidget> SOptimusDataTypeSelector::GetMenuContent()
 	FOptimusDataTypeHandle SelectedItem;
 	for (FOptimusDataTypeHandle DataType : FOptimusDataTypeRegistry::Get().GetAllTypes())
 	{
-		if (UsageMask == EOptimusDataTypeUsageFlags::Node || EnumHasAnyFlags(DataType->UsageFlags, UsageMask))
+		if (UsageMask == EOptimusDataTypeUsageFlags::None || EnumHasAnyFlags(DataType->UsageFlags, UsageMask))
 		{
 			AllDataTypeItems.Add(DataType);
 			if (DataType == CurrentDataType.Get())
