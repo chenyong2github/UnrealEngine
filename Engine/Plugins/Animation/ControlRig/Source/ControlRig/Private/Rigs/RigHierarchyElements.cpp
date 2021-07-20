@@ -9,6 +9,42 @@
 // FRigBaseElement
 ////////////////////////////////////////////////////////////////////////////////
 
+UScriptStruct* FRigBaseElement::GetElementStruct() const
+{
+	switch(GetType())
+	{
+		case ERigElementType::Bone:
+		{
+			return FRigBoneElement::StaticStruct();
+		}
+		case ERigElementType::Null:
+		{
+			return FRigNullElement::StaticStruct();
+		}
+		case ERigElementType::Control:
+		{
+			return FRigControlElement::StaticStruct();
+		}
+		case ERigElementType::Curve:
+		{
+			return FRigCurveElement::StaticStruct();
+		}
+		case ERigElementType::Socket:
+		{
+			return FRigSocketElement::StaticStruct();
+		}
+		case ERigElementType::RigidBody:
+		{
+			return FRigRigidBodyElement::StaticStruct();
+		}
+		default:
+		{
+				break;
+		}
+	}
+	return FRigBaseElement::StaticStruct();
+}
+
 void FRigBaseElement::Serialize(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase)
 {
 	Ar.UsingCustomVersion(FControlRigObjectVersion::GUID);

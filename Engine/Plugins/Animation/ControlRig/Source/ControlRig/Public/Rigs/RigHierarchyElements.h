@@ -22,6 +22,16 @@ template<typename T> \
 friend FORCEINLINE T* Cast(ElementType* InElement) \
 { \
    return Cast<T>((FRigBaseElement*) InElement); \
+} \
+template<typename T> \
+friend FORCEINLINE const T* CastChecked(const ElementType* InElement) \
+{ \
+	return CastChecked<T>((const FRigBaseElement*) InElement); \
+} \
+template<typename T> \
+friend FORCEINLINE T* CastChecked(ElementType* InElement) \
+{ \
+	return CastChecked<T>((FRigBaseElement*) InElement); \
 }
 
 UENUM()
@@ -430,6 +440,7 @@ protected:
 
 public:
 
+	UScriptStruct* GetElementStruct() const;
 	void Serialize(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase);
 	virtual void Save(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase);
 	virtual void Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase);

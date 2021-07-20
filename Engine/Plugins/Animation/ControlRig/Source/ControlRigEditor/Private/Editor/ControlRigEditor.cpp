@@ -193,14 +193,11 @@ struct FControlRigZoomLevelsContainer : public FZoomLevelsContainer
 	TArray<FControlRigZoomLevelEntry> ZoomLevels;
 };
 
-
 FControlRigEditor::FControlRigEditor()
 	: ControlRig(nullptr)
 	, ActiveController(nullptr)
 	, bControlRigEditorInitialized(false)
 	, bIsSettingObjectBeingDebugged(false)
-	, NodeDetailStruct(nullptr)
-	, NodeDetailName(NAME_None)
 	, bExecutionControlRig(true)
 	, bSetupModeEnabled(false)
 	, bFirstTimeSelecting(true)
@@ -216,6 +213,8 @@ FControlRigEditor::FControlRigEditor()
 
 FControlRigEditor::~FControlRigEditor()
 {
+	ClearDetailObject();
+
 	UControlRigBlueprint* RigBlueprint = GetControlRigBlueprint();
 	if (RigBlueprint)
 	{
@@ -234,7 +233,6 @@ FControlRigEditor::~FControlRigEditor()
 		RigBlueprint->OnBreakpointAdded().RemoveAll(this);
 		RigBlueprint->OnNodeDoubleClicked().RemoveAll(this);
 		RigBlueprint->OnGraphImported().RemoveAll(this);
-		RigBlueprint->OnPostEditChangeChainProperty().RemoveAll(this);
 		RigBlueprint->OnRequestLocalizeFunctionDialog().RemoveAll(this);
 		RigBlueprint->OnRequestBulkEditDialog().Unbind();
 		RigBlueprint->OnReportCompilerMessage().RemoveAll(this);
@@ -248,11 +246,6 @@ FControlRigEditor::~FControlRigEditor()
 			HaltedAtNode = nullptr;
 		}
 #endif
-	}
-
-	if (NodeDetailBuffer.Num() > 0 && NodeDetailStruct != nullptr)
-	{
-		NodeDetailStruct->DestroyStruct(NodeDetailBuffer.GetData(), 1);
 	}
 
 	if (UWorld* PreviewWorld = GetPersonaToolkit()->GetPreviewScene()->GetWorld())
@@ -488,7 +481,6 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 
 		InControlRigBlueprint->OnNodeDoubleClicked().AddSP(this, &FControlRigEditor::OnNodeDoubleClicked);
 		InControlRigBlueprint->OnGraphImported().AddSP(this, &FControlRigEditor::OnGraphImported);
-		InControlRigBlueprint->OnPostEditChangeChainProperty().AddSP(this, &FControlRigEditor::OnBlueprintPropertyChainEvent);
 		InControlRigBlueprint->OnRequestLocalizeFunctionDialog().AddSP(this, &FControlRigEditor::OnRequestLocalizeFunctionDialog);
 		InControlRigBlueprint->OnRequestBulkEditDialog().BindSP(this, &FControlRigEditor::OnRequestBulkEditDialog);
 	}
@@ -1022,9 +1014,7 @@ void FControlRigEditor::ToggleSetupMode()
 {
 	bSetupModeEnabled = !bSetupModeEnabled;
 
-	FRigElementKey PreviousRigElementInDetailPanel = RigElementInDetailPanel;
 	TArray<FRigElementKey> PreviousSelection;
-
 	if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
 	{
 		if (RigBlueprint->bAutoRecompileVM)
@@ -1072,12 +1062,7 @@ void FControlRigEditor::ToggleSetupMode()
 		{
 			RigBlueprint->GetHierarchyController()->SetSelection(PreviousSelection);
 		}
-	}
-
-	if (PreviousRigElementInDetailPanel.IsValid())
-	{
-		ClearDetailObject();
-		SetDetailStruct(PreviousRigElementInDetailPanel);
+		SetDetailViewForRigElements();
 	}
 }
 
@@ -1340,153 +1325,82 @@ void FControlRigEditor::SetDetailObjects(const TArray<UObject*>& InObjects)
 		}
 	}
 
-	RigElementInDetailPanel = FRigElementKey();
-	StructToDisplay.Reset();
-	SKismetInspector::FShowDetailsOptions Options;
-	Options.bForceRefresh = true;
-	Inspector->ShowDetailsForObjects(InObjects, Options);
-}
+	TArray<UObject*> FilteredObjects;
 
-void FControlRigEditor::SetDetailObject(UObject* Obj)
-{
-	if(bSuspendDetailsPanelRefresh)
+	for(UObject* InObject : InObjects)
 	{
-		return;
-	}
-
-	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Obj))
-	{
-		ClearDetailObject();
-		NodeDetailStruct = UnitNode->GetScriptStruct();
-		NodeDetailName = UnitNode->GetFName();
-
-		if (NodeDetailStruct)
+		if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InObject))
 		{
-			NodeDetailBuffer.AddUninitialized(NodeDetailStruct->GetStructureSize());
-			NodeDetailStruct->InitializeDefaultValue(NodeDetailBuffer.GetData());
+			UScriptStruct* NodeDetailStruct = UnitNode->GetScriptStruct();
+			const FName NodeDetailName = UnitNode->GetFName();
 
-			FString StructDefaultValue = UnitNode->GetStructDefaultValue();
-			NodeDetailStruct->ImportText(*StructDefaultValue, NodeDetailBuffer.GetData(), nullptr, PPF_None, nullptr, NodeDetailStruct->GetName());
-
-			StructToDisplay = MakeShareable(new FStructOnScope(NodeDetailStruct, (uint8*)NodeDetailBuffer.GetData()));
-			if (StructToDisplay.IsValid())
+			if (NodeDetailStruct)
 			{
-				StructToDisplay->SetPackage(GetControlRigBlueprint()->GetOutermost());
+				// create a struct matching this node
+				TSharedPtr<FStructOnScope> StructInstance  = UnitNode->ConstructStructInstance(false);
+
+				// create the wrapper object
+				UDetailsViewWrapperObject* WrapperObject = UDetailsViewWrapperObject::MakeInstance(
+					NodeDetailStruct, StructInstance->GetStructMemory(), UnitNode);
+				WrapperObject->GetWrappedPropertyChangedChainEvent().AddSP(this, &FControlRigEditor::OnWrappedPropertyChangedChainEvent);
+				
+				FilteredObjects.Add(WrapperObject);
+				continue;
 			}
-
-			// mark all input properties with editanywhere
-			for (TFieldIterator<FProperty> PropertyIt(NodeDetailStruct); PropertyIt; ++PropertyIt)
-			{
-				FProperty* Property = *PropertyIt;
-				if (!Property->HasMetaData(TEXT("Input")))
-				{
-					continue;
-				}
-
-				// filter out execute pins
-				if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
-				{
-					if (StructProperty->Struct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
-					{
-						continue;
-					}
-				}
-
-				bool bEditable = true;
-				if (URigVMPin* Pin = UnitNode->FindPin(Property->GetName()))
-				{
-					Pin = Pin->GetPinForLink();
-					if (Pin->GetDirection() == ERigVMPinDirection::Output)
-					{
-						if (Pin->GetTargetLinks().Num() > 0)
-						{
-							bEditable = false;
-						}
-					}
-					else if (Pin->GetDirection() == ERigVMPinDirection::Input ||
-						Pin->GetDirection() == ERigVMPinDirection::IO)
-					{
-						if (Pin->GetSourceLinks().Num() > 0)
-						{
-							bEditable = false;
-						}
-					}
-				}
-
-				Property->SetPropertyFlags(Property->GetPropertyFlags() | CPF_Edit);
-
-				if (bEditable)
-				{
-					Property->ClearPropertyFlags(CPF_EditConst);
-				}
-				else
-				{
-					Property->SetPropertyFlags(Property->GetPropertyFlags() | CPF_EditConst);
-				}
-			}
-
-			FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-			if (!PropertyEditorModule.GetClassNameToDetailLayoutNameMap().Contains(NodeDetailStruct->GetFName()))
-			{
-				PropertyEditorModule.RegisterCustomClassLayout(NodeDetailStruct->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FRigUnitDetails::MakeInstance));
-			}
-
-			Inspector->ShowSingleStruct(StructToDisplay);
 		}
-		return;
-	}
-	else if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Obj))
-	{
-		UEdGraph* EdGraph = GetControlRigBlueprint()->GetEdGraph(LibraryNode->GetContainedGraph());
-		if (EdGraph)
+		else if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InObject))
 		{
-			TArray<UObject*> Objects;
-			Objects.Add(EdGraph);
-			SetDetailObjects(Objects);
-			return;
+			UEdGraph* EdGraph = GetControlRigBlueprint()->GetEdGraph(LibraryNode->GetContainedGraph());
+			if (EdGraph)
+			{
+				FilteredObjects.AddUnique(EdGraph);
+				continue;
+			}
 		}
-	}
-	else if (Cast<URigVMFunctionEntryNode>(Obj) || Cast<URigVMFunctionReturnNode>(Obj))
-	{
-		UEdGraph* EdGraph = GetControlRigBlueprint()->GetEdGraph(CastChecked<URigVMNode>(Obj)->GetGraph());
-		if (EdGraph)
+		else if (Cast<URigVMFunctionEntryNode>(InObject) || Cast<URigVMFunctionReturnNode>(InObject))
 		{
-			TArray<UObject*> Objects;
-			Objects.Add(EdGraph);
-			SetDetailObjects(Objects);
-			return;
+			UEdGraph* EdGraph = GetControlRigBlueprint()->GetEdGraph(CastChecked<URigVMNode>(InObject)->GetGraph());
+			if (EdGraph)
+			{
+				FilteredObjects.AddUnique(EdGraph);
+				continue;
+			}
 		}
-	}
-
-	TArray<UObject*> Objects;
-	if (Obj)
-	{
-		if (URigVMNode* ModelNode = Cast<URigVMNode>(Obj))
+		else if (URigVMNode* ModelNode = Cast<URigVMNode>(InObject))
 		{
 			UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GetFocusedGraph());
 			if (UEdGraphNode* EdNode = RigGraph->FindNodeForModelNodeName(ModelNode->GetFName()))
 			{
-				Objects.Add(EdNode);
+				FilteredObjects.AddUnique(EdNode);
+				continue;
 			}
 		}
+
+		FilteredObjects.Add(InObject);
 	}
-	SetDetailObjects(Objects);
+
+	for(UObject* FilteredObject : FilteredObjects)
+	{
+		if(UDetailsViewWrapperObject* WrapperObject = Cast<UDetailsViewWrapperObject>(FilteredObject))
+		{
+			WrapperObjects.Add(WrapperObject);
+		}
+	}
+
+	SKismetInspector::FShowDetailsOptions Options;
+	Options.bForceRefresh = true;
+	Inspector->ShowDetailsForObjects(FilteredObjects, Options);
 }
 
-void FControlRigEditor::SetDetailStruct(const FRigElementKey& InElement)
+void FControlRigEditor::SetDetailViewForRigElements()
 {
 	if(bSuspendDetailsPanelRefresh)
-	{
-		return;
-	}
-
-	if (RigElementInDetailPanel == InElement)
 	{
 		return;
 	}
 
 	ClearDetailObject();
-	
+
 	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
 	URigHierarchy* Hierarchy = RigBlueprint->Hierarchy;
 	
@@ -1498,56 +1412,146 @@ void FControlRigEditor::SetDetailStruct(const FRigElementKey& InElement)
 		}
 	}
 
-	FRigBaseElement* Element = Hierarchy->Find(InElement);
-	if (Element == nullptr)
+	TArray<UObject*> Objects;
+
+	TArray<FRigElementKey> CurrentSelection = RigBlueprint->Hierarchy->GetSelectedKeys();
+	for(const FRigElementKey& SelectedKey : CurrentSelection)
+	{
+		FRigBaseElement* Element = Hierarchy->Find(SelectedKey);
+		if (Element == nullptr)
+		{
+			continue;
+		}
+
+		UDetailsViewWrapperObject* WrapperObject = UDetailsViewWrapperObject::MakeInstance(Element->GetElementStruct(), (uint8*)Element, Hierarchy);
+		WrapperObject->GetWrappedPropertyChangedChainEvent().AddSP(this, &FControlRigEditor::OnWrappedPropertyChangedChainEvent);
+
+		Objects.Add(WrapperObject);
+	}
+	
+	SetDetailObjects(Objects);
+}
+
+void FControlRigEditor::SetDetailViewForGraph(URigVMGraph* InGraph)
+{
+	check(InGraph);
+	
+	if(bSuspendDetailsPanelRefresh)
 	{
 		return;
 	}
 
-	switch (InElement.Type)
+	ClearDetailObject();
+
+	TArray<UObject*> SelectedNodes;
+	TArray<FName> SelectedNodeNames = InGraph->GetSelectNodes();
+	for(FName SelectedNodeName : SelectedNodeNames)
 	{
-		case ERigElementType::Bone:
+		if(URigVMNode* Node = InGraph->FindNodeByName(SelectedNodeName))
 		{
-			StructToDisplay = MakeShareable(new FStructOnScope(FRigBoneElement::StaticStruct(), (uint8*)Element));
-			break;
-		}
-		case ERigElementType::Control:
-		{
-			StructToDisplay = MakeShareable(new FStructOnScope(FRigControlElement::StaticStruct(), (uint8*)Element));
-			break;
-		}
-		case ERigElementType::Null:
-		{
-			StructToDisplay = MakeShareable(new FStructOnScope(FRigNullElement::StaticStruct(), (uint8*)Element));
-			break;
-		}
-		case ERigElementType::Curve:
-		{
-			StructToDisplay = MakeShareable(new FStructOnScope(FRigCurveElement::StaticStruct(), (uint8*)Element));
-			break;
-		}
-		case ERigElementType::RigidBody:
-		{
-			StructToDisplay = MakeShareable(new FStructOnScope(FRigRigidBodyElement::StaticStruct(), (uint8*)Element));
-			break;
-		}
-		case ERigElementType::Socket:
-		{
-			StructToDisplay = MakeShareable(new FStructOnScope(FRigSocketElement::StaticStruct(), (uint8*)Element));
-			break;
-		}
-		default:
-		{
-			break;
+			SelectedNodes.Add(Node);
 		}
 	}
 
-	RigElementInDetailPanel = InElement;
-	if (StructToDisplay.IsValid())
+	SetDetailObjects(SelectedNodes);
+}
+
+void FControlRigEditor::SetDetailViewForFocusedGraph()
+{
+	if(bSuspendDetailsPanelRefresh)
 	{
-		StructToDisplay->SetPackage(GetControlRigBlueprint()->GetOutermost());
+		return;
 	}
-	Inspector->ShowSingleStruct(StructToDisplay);
+
+	URigVMGraph* Model = GetFocusedModel();
+	if(Model == nullptr)
+	{
+		return;
+	}
+
+	SetDetailViewForGraph(Model);
+}
+
+void FControlRigEditor::RefreshDetailView()
+{
+	if(DetailViewShowsAnyRigElement())
+	{
+		SetDetailViewForRigElements();
+	}
+	else if(DetailViewShowsAnyRigUnit())
+	{
+		SetDetailViewForFocusedGraph();
+	}
+}
+
+bool FControlRigEditor::DetailViewShowsAnyRigElement() const
+{
+	return DetailViewShowsStruct(FRigBaseElement::StaticStruct());
+}
+
+bool FControlRigEditor::DetailViewShowsAnyRigUnit() const
+{
+	return DetailViewShowsStruct(FRigUnit::StaticStruct());
+}
+
+bool FControlRigEditor::DetailViewShowsStruct(UScriptStruct* InStruct) const
+{
+	TArray< TWeakObjectPtr<UObject> > SelectedObjects = Inspector->GetSelectedObjects();
+	for (TWeakObjectPtr<UObject> SelectedObject : SelectedObjects)
+	{
+		if (SelectedObject.IsValid())
+		{
+			if(UDetailsViewWrapperObject* WrapperObject = Cast<UDetailsViewWrapperObject>(SelectedObject.Get()))
+			{
+				if(WrapperObject->GetWrappedStruct()->IsChildOf(InStruct))
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+bool FControlRigEditor::DetailViewShowsRigElement(FRigElementKey InKey) const
+{
+	TArray< TWeakObjectPtr<UObject> > SelectedObjects = Inspector->GetSelectedObjects();
+	for (TWeakObjectPtr<UObject> SelectedObject : SelectedObjects)
+	{
+		if (SelectedObject.IsValid())
+		{
+			if(UDetailsViewWrapperObject* WrapperObject = Cast<UDetailsViewWrapperObject>(SelectedObject.Get()))
+			{
+				if(WrapperObject->GetWrappedStruct()->IsChildOf(FRigBaseElement::StaticStruct()))
+				{
+					if(WrapperObject->GetContent<FRigBaseElement>()->GetKey() == InKey)
+					{
+						return true;
+					}
+				}
+			}
+		}
+	}
+	return false;
+}
+
+bool FControlRigEditor::DetailViewShowsRigUnit(URigVMNode* InNode) const
+{
+	TArray< TWeakObjectPtr<UObject> > SelectedObjects = Inspector->GetSelectedObjects();
+	for (TWeakObjectPtr<UObject> SelectedObject : SelectedObjects)
+	{
+		if (SelectedObject.IsValid())
+		{
+			if(UDetailsViewWrapperObject* WrapperObject = Cast<UDetailsViewWrapperObject>(SelectedObject.Get()))
+			{
+				if(WrapperObject->GetOuter() == InNode)
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
 }
 
 void FControlRigEditor::ClearDetailObject()
@@ -1557,16 +1561,18 @@ void FControlRigEditor::ClearDetailObject()
 		return;
 	}
 
-	RigElementInDetailPanel = FRigElementKey();
-
-	if (NodeDetailBuffer.Num() > 0 && NodeDetailStruct != nullptr)
+	for(TWeakObjectPtr<UDetailsViewWrapperObject> WrapperObjectPtr : WrapperObjects)
 	{
-		NodeDetailStruct->DestroyStruct(NodeDetailBuffer.GetData(), 1);
-		NodeDetailBuffer.Reset();
-		NodeDetailStruct = nullptr;
+		if(WrapperObjectPtr.IsValid())
+		{
+			UDetailsViewWrapperObject* WrapperObject = WrapperObjectPtr.Get();
+			WrapperObject->RemoveFromRoot();
+			WrapperObject->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+			WrapperObject->MarkPendingKill();
+		}
 	}
-	NodeDetailName = NAME_None;
-
+	WrapperObjects.Reset();
+	
 	Inspector->ShowDetailsForObjects(TArray<UObject*>());
 	Inspector->ShowSingleStruct(TSharedPtr<FStructOnScope>());
 
@@ -1681,16 +1687,7 @@ void FControlRigEditor::Compile()
 		FString LastDebuggedObjectName = GetCustomDebugObjectLabel(RigBlueprint->GetObjectBeingDebugged());
 		RigBlueprint->SetObjectBeingDebugged(nullptr);
 
-		FRigElementKey SelectedKey = RigElementInDetailPanel;
-		TArray< TWeakObjectPtr<UObject> > SelectedObjects;
-		if (SelectedKey.IsValid())
-		{
-			ClearDetailObject();
-		}
-		else
-		{
-			SelectedObjects = Inspector->GetSelectedObjects();
-		}
+		TArray< TWeakObjectPtr<UObject> > SelectedObjects = Inspector->GetSelectedObjects();
 
 		if (ControlRig)
 		{
@@ -1780,20 +1777,9 @@ void FControlRigEditor::Compile()
 			UpdateDefaultValueForVariable(NewVariable, true);
 		}
 
-		if(SelectedKey.IsValid())
+		if (SelectedObjects.Num() > 0)
 		{
-			SetDetailStruct(SelectedKey);
-		}
-		else if (SelectedObjects.Num() > 0)
-		{
-			for (TWeakObjectPtr<UObject> SelectedObject : SelectedObjects)
-			{
-				if (SelectedObject.IsValid())
-				{
-					SetDetailObject(SelectedObject.Get());
-					break;
-				}
-			}
+			RefreshDetailView();
 		}
 
 		if (UControlRigEditorSettings::Get()->bResetControlTransformsOnCompile)
@@ -2213,7 +2199,7 @@ void FControlRigEditor::PasteNodes()
 void FControlRigEditor::PostUndo(bool bSuccess)
 {
 	IControlRigEditor::PostUndo(bSuccess);
-	EnsureValidRigElementInDetailPanel();
+	EnsureValidRigElementsInDetailPanel();
 
 	if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
 	{
@@ -2247,7 +2233,7 @@ void FControlRigEditor::PostUndo(bool bSuccess)
 void FControlRigEditor::PostRedo(bool bSuccess)
 {
 	IControlRigEditor::PostRedo(bSuccess);
-	EnsureValidRigElementInDetailPanel();
+	EnsureValidRigElementsInDetailPanel();
 
 	if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
 	{
@@ -2267,15 +2253,26 @@ void FControlRigEditor::PostRedo(bool bSuccess)
 	Compile();
 }
 
-void FControlRigEditor::EnsureValidRigElementInDetailPanel()
+void FControlRigEditor::EnsureValidRigElementsInDetailPanel()
 {
-	if (RigElementInDetailPanel.IsValid())
+	UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint();
+	URigHierarchy* Hierarchy = ControlRigBP->Hierarchy; 
+
+	TArray< TWeakObjectPtr<UObject> > SelectedObjects = Inspector->GetSelectedObjects();
+	for (TWeakObjectPtr<UObject> SelectedObject : SelectedObjects)
 	{
-		if (UControlRigBlueprint * RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
+		if (SelectedObject.IsValid())
 		{
-			if (RigBlueprint->Hierarchy->GetIndex(RigElementInDetailPanel) == INDEX_NONE)
+			if(UDetailsViewWrapperObject* WrapperObject = Cast<UDetailsViewWrapperObject>(SelectedObject.Get()))
 			{
-				ClearDetailObject();
+				if(WrapperObject->GetWrappedStruct()->IsChildOf(FRigBaseElement::StaticStruct()))
+				{
+					FRigElementKey Key = WrapperObject->GetContent<FRigBaseElement>()->GetKey();
+					if(!Hierarchy->Contains(Key))
+					{
+						ClearDetailObject();
+					}
+				}
 			}
 		}
 	}
@@ -2459,22 +2456,7 @@ void FControlRigEditor::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 
 				if (GraphEd.IsValid() && Node != nullptr)
 				{
-					if (InNotifType == ERigVMGraphNotifType::NodeSelected)
-					{
-						SetDetailObject(Node);
-					}
-
-					// if we used to have a rig unit selected, clear the details panel
-					else if(InGraph->GetSelectNodes().Num() == 0)
-					{
-						if (StructToDisplay.IsValid())
-						{
-							if (StructToDisplay->GetStruct()->IsChildOf(FRigUnit::StaticStruct()))
-							{
-								ClearDetailObject();
-							}
-						}
-					}
+					SetDetailViewForGraph(Node->GetGraph());
 
 					if (!RigGraph->bIsSelecting)
 					{
@@ -2495,24 +2477,33 @@ void FControlRigEditor::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 		{
 			URigVMPin* Pin = Cast<URigVMPin>(InSubject);
 
-			if (ControlRigBlueprint && NodeDetailBuffer.Num() > 0 && NodeDetailStruct != nullptr && !NodeDetailName.IsNone())
+			if(URigVMPin* RootPin = Pin->GetRootPin())
 			{
-				if (Pin->GetNode()->GetFName() == NodeDetailName)
+				const FString DefaultValue = RootPin->GetDefaultValue();
+				if(!DefaultValue.IsEmpty())
 				{
-					URigVMPin* RootPin = Pin->GetRootPin();
-					if (FProperty* Property = NodeDetailStruct->FindPropertyByName(RootPin->GetFName()))
+					// sync the value change with the unit(s) displayed 
+					TArray< TWeakObjectPtr<UObject> > SelectedObjects = Inspector->GetSelectedObjects();
+					for (TWeakObjectPtr<UObject> SelectedObject : SelectedObjects)
 					{
-						FString DefaultValue = RootPin->GetDefaultValue();
-						if (!DefaultValue.IsEmpty())
+						if (SelectedObject.IsValid())
 						{
-							uint8* PropertyValuePtr = (uint8*)NodeDetailBuffer.GetData();
-							PropertyValuePtr += Property->GetOffset_ReplaceWith_ContainerPtrToValuePtr();
-							Property->ImportText(*DefaultValue, PropertyValuePtr, PPF_None, nullptr);
+							if(UDetailsViewWrapperObject* WrapperObject = Cast<UDetailsViewWrapperObject>(SelectedObject.Get()))
+							{
+								if(WrapperObject->GetOuter() == Pin->GetNode())
+								{
+									uint8* PropertyStorage = WrapperObject->GetStructProperty()->ContainerPtrToValuePtr<uint8>(WrapperObject);
+									UScriptStruct* UnitStruct = WrapperObject->GetWrappedStruct();
+									FProperty* TargetProperty = UnitStruct->FindPropertyByName(RootPin->GetFName());
+									PropertyStorage += TargetProperty->GetOffset_ReplaceWith_ContainerPtrToValuePtr();
+									TargetProperty->ImportText(*DefaultValue, PropertyStorage, PPF_None, nullptr);
+								}
+							}
 						}
 					}
 				}
 			}
-
+	
 			break;
 		}
 		case ERigVMGraphNotifType::PinArraySizeChanged:
@@ -2520,15 +2511,12 @@ void FControlRigEditor::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 		{
 			URigVMPin* Pin = Cast<URigVMPin>(InSubject);
 
-			if (ControlRigBlueprint && NodeDetailBuffer.Num() > 0 && NodeDetailStruct != nullptr && !NodeDetailName.IsNone())
+			if(Pin->GetNode()->IsSelected())
 			{
-				if (Pin->GetNode()->GetFName() == NodeDetailName)
-				{
-					// refresh the details panel
-					SetDetailObject(Pin->GetNode());
-				}
+				TArray<UObject*> Objects;
+				Objects.Add(Pin->GetNode());
+				SetDetailObjects(Objects);
 			}
-
 			break;
 		}
 		case ERigVMGraphNotifType::NodeRemoved:
@@ -2570,49 +2558,62 @@ void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig,
 {
 	if (UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint())
 	{
-		if(RigElementInDetailPanel.IsValid())
+		URigHierarchy* Hierarchy = ControlRigBP->Hierarchy; 
+
+		if(!bSetupModeEnabled)
 		{
-			URigHierarchy* Hierarchy = ControlRigBP->Hierarchy; 
-
-			if(!bSetupModeEnabled)
+			UControlRig* DebuggedControlRig = Cast<UControlRig>(ControlRigBP->GetObjectBeingDebugged());
+			if (DebuggedControlRig == nullptr)
 			{
-				UControlRig* DebuggedControlRig = Cast<UControlRig>(ControlRigBP->GetObjectBeingDebugged());
-				if (DebuggedControlRig == nullptr)
-				{
-					DebuggedControlRig = ControlRig;
-				}
-				if(DebuggedControlRig)
-				{
-					Hierarchy = DebuggedControlRig->GetHierarchy();
-				}
+				DebuggedControlRig = ControlRig;
 			}
-
-			check(Hierarchy);
-
-			FRigBaseElement* ElementInDetailPanel = Hierarchy->Find(RigElementInDetailPanel);
-			if(FRigTransformElement* TransformElement = Cast<FRigTransformElement>(ElementInDetailPanel))
+			if(DebuggedControlRig)
 			{
-				// compute all transforms
-				Hierarchy->GetTransform(TransformElement, ERigTransformType::CurrentGlobal);
-				Hierarchy->GetTransform(TransformElement, ERigTransformType::CurrentLocal);
-				Hierarchy->GetTransform(TransformElement, ERigTransformType::InitialGlobal);
-				Hierarchy->GetTransform(TransformElement, ERigTransformType::InitialLocal);
-			}
-
-			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ElementInDetailPanel))
-			{
-				// compute all transforms
-				Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::CurrentGlobal);
-				Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::CurrentLocal);
-				Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::InitialGlobal);
-				Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::InitialLocal);
-				Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::CurrentGlobal);
-				Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::CurrentLocal);
-				Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::InitialGlobal);
-				Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::InitialLocal);
+				Hierarchy = DebuggedControlRig->GetHierarchy();
 			}
 		}
-		
+
+		TArray< TWeakObjectPtr<UObject> > SelectedObjects = Inspector->GetSelectedObjects();
+		for (TWeakObjectPtr<UObject> SelectedObject : SelectedObjects)
+		{
+			if (SelectedObject.IsValid())
+			{
+				if(UDetailsViewWrapperObject* WrapperObject = Cast<UDetailsViewWrapperObject>(SelectedObject.Get()))
+				{
+					UScriptStruct* Struct = WrapperObject->GetWrappedStruct(); 
+					if(Struct->IsChildOf(FRigBaseElement::StaticStruct()))
+					{
+						FRigElementKey Key = WrapperObject->GetContent<FRigBaseElement>()->GetKey();
+
+						FRigBaseElement* Element = Hierarchy->Find(Key);
+						if(FRigTransformElement* TransformElement = Cast<FRigTransformElement>(Element))
+						{
+							// compute all transforms
+							Hierarchy->GetTransform(TransformElement, ERigTransformType::CurrentGlobal);
+							Hierarchy->GetTransform(TransformElement, ERigTransformType::CurrentLocal);
+							Hierarchy->GetTransform(TransformElement, ERigTransformType::InitialGlobal);
+							Hierarchy->GetTransform(TransformElement, ERigTransformType::InitialLocal);
+						}
+
+						if(FRigControlElement* ControlElement = Cast<FRigControlElement>(Element))
+						{
+							// compute all transforms
+							Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::CurrentGlobal);
+							Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::CurrentLocal);
+							Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::InitialGlobal);
+							Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::InitialLocal);
+							Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::CurrentGlobal);
+							Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::CurrentLocal);
+							Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::InitialGlobal);
+							Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::InitialLocal);
+						}
+
+						Struct->CopyScriptStruct(WrapperObject->GetContent<FRigBaseElement>(), Element);
+					}
+				}
+			}
+		}
+
 		if(ControlRigBP->RigGraphDisplaySettings.NodeRunLimit > 1)
 		{
 			if(UControlRig* DebuggedControlRig = Cast<UControlRig>(ControlRigBP->GetObjectBeingDebugged()))
@@ -4017,10 +4018,7 @@ void FControlRigEditor::NotifyPreChange(FProperty* PropertyAboutToChange)
 
 	if (UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint())
 	{
-		if (RigElementInDetailPanel.IsValid())
-		{
-			ControlRigBP->Modify();
-		}
+		ControlRigBP->Modify();
 	}
 }
 
@@ -4050,64 +4048,6 @@ void FControlRigEditor::OnFinishedChangingProperties(const FPropertyChangedEvent
 		}
 	}
 
-	if (ControlRig && ControlRigBP && NodeDetailBuffer.Num() > 0 && NodeDetailStruct != nullptr && !NodeDetailName.IsNone())
-	{
-		const FRigUnit* RigUnitPtr = (const FRigUnit * )NodeDetailBuffer.GetData();
-		const uint8* MemberMemoryPtr = PropertyChangedEvent.MemberProperty->ContainerPtrToValuePtr<uint8>(RigUnitPtr);
-		FString DefaultValue = FRigVMStruct::ExportToFullyQualifiedText(PropertyChangedEvent.MemberProperty, MemberMemoryPtr);
-		if (!DefaultValue.IsEmpty())
-		{
-			FString PinPath = FString::Printf(TEXT("%s.%s"), *NodeDetailName.ToString(), *PropertyChangedEvent.MemberProperty->GetName());
-			GetFocusedController()->SetPinDefaultValue(PinPath, DefaultValue, true, true, false, true);
-		}
-	}
-
-	if (ControlRig && ControlRigBP && RigElementInDetailPanel)
-	{
-		UControlRig* DebuggedControlRig = Cast<UControlRig>(GetBlueprintObj()->GetObjectBeingDebugged());
-		check(DebuggedControlRig);
-
-		UScriptStruct* ScriptStruct = PropertyChangedEvent.Property->GetOwner<UScriptStruct>();
-		if (ScriptStruct == FRigControlSettings::StaticStruct())
-		{
-			URigHierarchy* Hierarchy = ControlRigBP->Hierarchy;
-
-			if(FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(RigElementInDetailPanel))
-			{
-				FRigControlElement* DebuggedControlElement = DebuggedControlRig->GetHierarchy()->Find<FRigControlElement>(RigElementInDetailPanel);
-				if(DebuggedControlElement)
-				{
-					if(bSetupModeEnabled)
-					{
-						DebuggedControlElement->Settings = ControlElement->Settings;
-					}
-					else
-					{
-						ControlElement->Settings = DebuggedControlElement->Settings;
-					}
-				}
-			
-				if (PropertyChangedEvent.Property->GetName() == TEXT("GizmoColor"))
-				{
-					ControlElement->Settings.GizmoColor.R = FMath::Clamp<float>(ControlElement->Settings.GizmoColor.R, 0.f, 1.f);
-					ControlElement->Settings.GizmoColor.G = FMath::Clamp<float>(ControlElement->Settings.GizmoColor.G, 0.f, 1.f);
-					ControlElement->Settings.GizmoColor.B = FMath::Clamp<float>(ControlElement->Settings.GizmoColor.B, 0.f, 1.f);
-					ControlElement->Settings.GizmoColor.A = FMath::Clamp<float>(ControlElement->Settings.GizmoColor.A, 0.f, 1.f);
-				}
-
-				Hierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
-				if(DebuggedControlElement)
-				{
-					DebuggedControlRig->GetHierarchy()->Notify(ERigHierarchyNotification::ControlSettingChanged, DebuggedControlElement);
-				}
-                //ControlRigBP->PropagateHierarchyFromBPToInstances();
-			}
-
-			ControlRigBP->Modify();
-			ControlRigBP->MarkPackageDirty();
-		}
-	}
-
 	// this might be a property value for a variable
 	if(ControlRig && ControlRigBP)
 	{
@@ -4123,127 +4063,137 @@ void FControlRigEditor::OnFinishedChangingProperties(const FPropertyChangedEvent
 	}
 }
 
-void FControlRigEditor::OnBlueprintPropertyChainEvent(FPropertyChangedChainEvent& PropertyChangedChainEvent)
+void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperObject* InWrapperObject, const FString& InPropertyPath, FPropertyChangedChainEvent& InPropertyChangedChainEvent)
 {
-	if(PropertyChangedChainEvent.PropertyChain.Num() < 4)
-	{
-		return;
-	}
-	
+	check(InWrapperObject);
+
+	const FString StoredStructString = TEXT("StoredStruct->");
+
 	UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint();
-	if (ControlRig && ControlRigBP && RigElementInDetailPanel)
+
+	FString PropertyPath = InPropertyPath;
+	if(InWrapperObject->GetWrappedStruct()->IsChildOf(FRigBaseElement::StaticStruct()))
 	{
-		UControlRig* DebuggedControlRig = Cast<UControlRig>(GetBlueprintObj()->GetObjectBeingDebugged());
-		check(DebuggedControlRig);
+		URigHierarchy* Hierarchy = CastChecked<URigHierarchy>(InWrapperObject->GetOuter());
+		check(PropertyPath.RemoveFromStart(StoredStructString));
 
-		const TDoubleLinkedList<FProperty*>::TDoubleLinkedListNode* HeadProperty = PropertyChangedChainEvent.PropertyChain.GetHead();
-		const TDoubleLinkedList<FProperty*>::TDoubleLinkedListNode* CurrentInitialProperty = HeadProperty->GetNextNode();
-		const TDoubleLinkedList<FProperty*>::TDoubleLinkedListNode* LocalGlobalProperty = CurrentInitialProperty->GetNextNode();
+		const FString PoseString = TEXT("Pose->");
+		const FString OffsetString = TEXT("Offset->");
+		const FString GizmoString = TEXT("Gizmo->");
+		const FString SettingsString = TEXT("Settings->");
 
-		const bool bIsInitial = CurrentInitialProperty->GetValue()->GetFName() == TEXT("Initial");
-		const bool bIsLocal = LocalGlobalProperty->GetValue()->GetFName() == TEXT("Local");
-
-		ERigTransformType::Type TransformType = ERigTransformType::CurrentGlobal;
-		if(bIsInitial)
+		struct Local
 		{
-			TransformType = ERigTransformType::MakeInitial(TransformType); 
-		}
-		
-		if(bIsLocal)
-		{
-			TransformType = ERigTransformType::MakeLocal(TransformType); 
-		}
-
-		UControlRig* DefaultRig = Cast<UControlRig>(ControlRigBP->GeneratedClass->GetDefaultObject(true /* create if needed */));
-		URigHierarchy* DefaultHierarchy = DefaultRig->GetHierarchy();
-		URigHierarchy* DebuggedHierarchy = DebuggedControlRig->GetHierarchy();
-		URigHierarchy* BlueprintHierarchy = ControlRigBP->Hierarchy;
-
-		FRigBaseElement* SourceElement = bSetupModeEnabled ?
-			BlueprintHierarchy->Find(RigElementInDetailPanel) :
-			DebuggedHierarchy->Find(RigElementInDetailPanel);
-
-		if(SourceElement == nullptr)
-		{
-			return;
-		}
-		
-		FRigBaseElement* TargetElement = BlueprintHierarchy->Find(RigElementInDetailPanel);
-		if(TargetElement == nullptr)
-		{
-			return;
-		}
-
-		// force propagation of any change from the blueprint hierarchy
-		FRigHierarchyListenerGuard PropagateToDefault(BlueprintHierarchy, true, true);
-		FRigHierarchyListenerGuard PropagateToDebugged(DefaultHierarchy, true, true, DebuggedHierarchy);
-		
-		if(HeadProperty->GetValue() == FRigTransformElement::StaticStruct()->FindPropertyByName(TEXT("Pose")))
-		{
-			if(FRigTransformElement* SourceTransformElement = Cast<FRigTransformElement>(SourceElement))
+			static ERigTransformType::Type GetTransformTypeFromPath(FString& PropertyPath)
 			{
-				if(FRigTransformElement* TargetTransformElement = Cast<FRigTransformElement>(TargetElement))
+				const FString InitialString = TEXT("Initial->");
+				const FString CurrentString = TEXT("Current->");
+				const FString GlobalString = TEXT("Global->");
+				const FString LocalString = TEXT("Local->");
+
+				ERigTransformType::Type TransformType = ERigTransformType::CurrentLocal;
+
+				if(PropertyPath.RemoveFromStart(InitialString))
 				{
-					const FTransform Transform = SourceTransformElement->Pose.Get(TransformType);
-					if(ERigTransformType::IsLocal(TransformType) && TargetElement->IsA<FRigControlElement>())
-					{
-						FRigControlElement* TargetControlElement = Cast<FRigControlElement>(TargetTransformElement);
-						check(TargetControlElement);
+					TransformType = ERigTransformType::MakeInitial(TransformType);
+				}
+				else
+				{
+					check(PropertyPath.RemoveFromStart(CurrentString));
+					TransformType = ERigTransformType::MakeCurrent(TransformType);
+				}
+
+				if(PropertyPath.RemoveFromStart(GlobalString))
+				{
+					TransformType = ERigTransformType::MakeGlobal(TransformType);
+				}
+				else
+				{
+					check(PropertyPath.RemoveFromStart(LocalString));
+					TransformType = ERigTransformType::MakeLocal(TransformType);
+				}
+
+				return TransformType;
+			}
+		};
+
+		bool bIsInitial = false;
+		FRigBaseElement* WrappedElement = InWrapperObject->GetContent<FRigBaseElement>();
+		if(PropertyPath.RemoveFromStart(PoseString))
+		{
+			const ERigTransformType::Type TransformType = Local::GetTransformTypeFromPath(PropertyPath);
+			bIsInitial = bIsInitial || ERigTransformType::IsInitial(TransformType);
+			
+			if(ERigTransformType::IsInitial(TransformType) || bSetupModeEnabled)
+			{
+				Hierarchy = ControlRigBP->Hierarchy;
+			}
+
+			FRigTransformElement* TransformElement = Hierarchy->Find<FRigTransformElement>(WrappedElement->GetKey());
+			if(TransformElement == nullptr)
+			{
+				return;
+			}
+			
+			const FTransform Transform = CastChecked<FRigTransformElement>(WrappedElement)->Pose.Get(TransformType);
+
+			if(ERigTransformType::IsLocal(TransformType) && TransformElement->IsA<FRigControlElement>())
+			{
+				FRigControlElement* ControlElement = Cast<FRigControlElement>(TransformElement);
 						
-						FRigControlValue Value;
-						Value.SetFromTransform(Transform, TargetControlElement->Settings.ControlType, TargetControlElement->Settings.PrimaryAxis);
+				FRigControlValue Value;
+				Value.SetFromTransform(Transform, ControlElement->Settings.ControlType, ControlElement->Settings.PrimaryAxis);
 						
-						if(ERigTransformType::IsInitial(TransformType) || bSetupModeEnabled)
-						{
-							BlueprintHierarchy->SetControlValue(TargetControlElement, Value, ERigControlValueType::Initial, true, true);
-							BlueprintHierarchy->SetControlValue(TargetControlElement, Value, ERigControlValueType::Current, true, true);
-						}
-						else
-						{
-							BlueprintHierarchy->SetControlValue(TargetControlElement, Value, ERigControlValueType::Current, true, true);
-						}
-					}
-					else
-					{
-						if(ERigTransformType::IsInitial(TransformType) || bSetupModeEnabled)
-						{
-							BlueprintHierarchy->SetTransform(TargetTransformElement, Transform, ERigTransformType::MakeInitial(TransformType), true, true, true);
-							BlueprintHierarchy->SetTransform(TargetTransformElement, Transform, ERigTransformType::MakeCurrent(TransformType), true, true, true);
-						}
-						else
-						{
-							BlueprintHierarchy->SetTransform(TargetTransformElement, Transform, TransformType, true, true, true);
-						}
-					}
+				if(ERigTransformType::IsInitial(TransformType) || bSetupModeEnabled)
+				{
+					Hierarchy->SetControlValue(ControlElement, Value, ERigControlValueType::Initial, true, true);
 				}
+				Hierarchy->SetControlValue(ControlElement, Value, ERigControlValueType::Current, true, true);
+			}
+			else
+			{
+				Hierarchy->SetTransform(TransformElement, Transform, TransformType, true, true, false);
 			}
 		}
-
-		if(HeadProperty->GetValue() == FRigControlElement::StaticStruct()->FindPropertyByName(TEXT("Offset")))
+		else if(PropertyPath.RemoveFromStart(OffsetString))
 		{
-			if(FRigControlElement* SourceControlElement = Cast<FRigControlElement>(SourceElement))
+			FRigControlElement* ControlElement = ControlRigBP->Hierarchy->Find<FRigControlElement>(WrappedElement->GetKey());
+			if(ControlElement == nullptr)
 			{
-				if(FRigControlElement* TargetControlElement = Cast<FRigControlElement>(TargetElement))
-				{
-					const FTransform Transform = SourceControlElement->Offset.Get(TransformType);
-					// this will call the current version internally as well
-					BlueprintHierarchy->SetControlOffsetTransform(TargetControlElement, Transform, ERigTransformType::MakeInitial(TransformType), true, true, true);
-				}
+				return;
 			}
+			
+			ERigTransformType::Type TransformType = Local::GetTransformTypeFromPath(PropertyPath);
+			bIsInitial = bIsInitial || ERigTransformType::IsInitial(TransformType);
+			const FTransform Transform = CastChecked<FRigControlElement>(WrappedElement)->Offset.Get(TransformType);
+			
+			ControlRigBP->Hierarchy->SetControlOffsetTransform(ControlElement, Transform, ERigTransformType::MakeInitial(TransformType), true, true, false);
 		}
-
-		if(HeadProperty->GetValue() == FRigControlElement::StaticStruct()->FindPropertyByName(TEXT("Gizmo")))
+		else if(PropertyPath.RemoveFromStart(GizmoString))
 		{
-			if(FRigControlElement* SourceControlElement = Cast<FRigControlElement>(SourceElement))
+			FRigControlElement* ControlElement = ControlRigBP->Hierarchy->Find<FRigControlElement>(WrappedElement->GetKey());
+			if(ControlElement == nullptr)
 			{
-				if(FRigControlElement* TargetControlElement = Cast<FRigControlElement>(TargetElement))
-				{
-					const FTransform Transform = SourceControlElement->Gizmo.Get(TransformType);
-					// this will call the current version internally as well
-					BlueprintHierarchy->SetControlGizmoTransform(TargetControlElement, Transform, ERigTransformType::MakeInitial(TransformType), false, true);
-					return;
-				}
+				return;
 			}
+
+			ERigTransformType::Type TransformType = Local::GetTransformTypeFromPath(PropertyPath);
+			bIsInitial = bIsInitial || ERigTransformType::IsInitial(TransformType);
+			const FTransform Transform = CastChecked<FRigControlElement>(WrappedElement)->Gizmo.Get(TransformType);
+			
+			ControlRigBP->Hierarchy->SetControlGizmoTransform(ControlElement, Transform, ERigTransformType::MakeInitial(TransformType), true, false);
+		}
+		else if(PropertyPath.RemoveFromStart(SettingsString))
+		{
+			const FRigControlSettings Settings = CastChecked<FRigControlElement>(WrappedElement)->Settings;
+
+			FRigControlElement* ControlElement = ControlRigBP->Hierarchy->Find<FRigControlElement>(WrappedElement->GetKey());
+			if(ControlElement == nullptr)
+			{
+				return;
+			}
+
+			ControlRigBP->Hierarchy->SetControlSettings(ControlElement, Settings, true, false);
 		}
 
 		if(bSetupModeEnabled || bIsInitial)
@@ -4251,6 +4201,26 @@ void FControlRigEditor::OnBlueprintPropertyChainEvent(FPropertyChangedChainEvent
 			ControlRigBP->PropagatePoseFromBPToInstances();
 			ControlRigBP->Modify();
 			ControlRigBP->MarkPackageDirty();
+		}
+	}
+	
+	if(InWrapperObject->GetWrappedStruct()->IsChildOf(FRigUnit::StaticStruct()))
+	{
+		uint8* PropertyStorage = InWrapperObject->GetStructProperty()->ContainerPtrToValuePtr<uint8>(InWrapperObject);
+		UScriptStruct* UnitStruct = InWrapperObject->GetWrappedStruct();
+		FName RootPinName = InPropertyChangedChainEvent.PropertyChain.GetHead()->GetNextNode()->GetValue()->GetFName();
+		FProperty* TargetProperty = UnitStruct->FindPropertyByName(RootPinName);
+
+		URigVMNode* Node = CastChecked<URigVMNode>(InWrapperObject->GetOuter());
+
+		PropertyStorage += TargetProperty->GetOffset_ReplaceWith_ContainerPtrToValuePtr();
+		FString DefaultValue = FRigVMStruct::ExportToFullyQualifiedText(TargetProperty, PropertyStorage);
+
+		TargetProperty->ImportText(*DefaultValue, PropertyStorage, PPF_None, nullptr);
+		if (!DefaultValue.IsEmpty())
+		{
+			FString PinPath = FString::Printf(TEXT("%s.%s"), *Node->GetName(), *RootPinName.ToString());
+			GetFocusedController()->SetPinDefaultValue(PinPath, DefaultValue, true, true, false, true);
 		}
 	}
 }
@@ -4381,29 +4351,7 @@ void FControlRigEditor::OnHierarchyChanged()
 			EditorSkelComp->RebuildDebugDrawSkeleton(); 
 		}
 
-		if (NodeDetailStruct != nullptr && NodeDetailBuffer.Num() > 0 && NodeDetailName != NAME_None)
-		{
-			if (URigVMNode* Node = ControlRigBP->Model->FindNode(NodeDetailName.ToString()))
-			{
-				SetDetailObject(Node);
-			}
-			else
-			{
-				ClearDetailObject();
-			}
-		}
-		else
-		{
-			// PropagateHierarchyFromBPToInstances() recreates the rig elements in a instance's hierarchy
-			// update the details viewer to observe the newly created elements
-			const FRigElementKey CurrentElementInDetailsPanel = RigElementInDetailPanel;
-			ClearDetailObject();
-
-			if (ControlRigBP->Hierarchy->Contains(CurrentElementInDetailsPanel))
-			{
-				SetDetailStruct(CurrentElementInDetailsPanel);
-			}
-		}
+		RefreshDetailView();
 	}
 	else
 	{
@@ -4607,7 +4555,7 @@ void FControlRigEditor::OnHierarchyModified(ERigHierarchyNotification InNotif, U
 
 			if (bSelected)
 			{
-				SetDetailStruct(InElement->GetKey());
+				SetDetailViewForRigElements();
 			}
 			else
 			{
@@ -4680,7 +4628,7 @@ void FControlRigEditor::OnHierarchyModified_AnyThread(ERigHierarchyNotification 
 			}
 			case ERigHierarchyNotification::ControlSettingChanged:
 			{
-				if(Key == RigElementInDetailPanel)
+				if(DetailViewShowsRigElement(Key))
 				{
 					UControlRigBlueprint* RigBlueprint = GetControlRigBlueprint();
 					check(RigBlueprint);
@@ -4697,7 +4645,7 @@ void FControlRigEditor::OnHierarchyModified_AnyThread(ERigHierarchyNotification 
 			}
 			case ERigHierarchyNotification::ControlGizmoTransformChanged:
 			{
-				if(Key == RigElementInDetailPanel)
+				if(DetailViewShowsRigElement(Key))
 				{
 					UControlRigBlueprint* RigBlueprint = GetControlRigBlueprint();
 					check(RigBlueprint);
@@ -5564,7 +5512,7 @@ void FControlRigEditor::OnGraphNodeClicked(UControlRigGraphNode* InNode)
 	{
 		if (InNode->IsSelectedInEditor())
 		{
-			SetDetailObject(InNode->GetModelNode());
+			SetDetailViewForGraph(InNode->GetModel());
 		}
 	}
 }

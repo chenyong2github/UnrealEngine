@@ -20,6 +20,7 @@
 #include "ScopedTransaction.h"
 #include "Graph/ControlRigGraphNode.h"
 #include "RigVMModel/RigVMController.h"
+#include "DetailsViewWrapperObject.h"
 
 class UControlRigBlueprint;
 class IPersonaToolkit;
@@ -124,7 +125,7 @@ public:
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
 
-	void EnsureValidRigElementInDetailPanel();
+	void EnsureValidRigElementsInDetailPanel();
 
 	virtual void OnStartWatchingPin();
 	virtual bool CanStartWatchingPin() const;
@@ -144,10 +145,15 @@ public:
 	UControlRigBlueprint* GetControlRigBlueprint() const;
 
 	void SetDetailObjects(const TArray<UObject*>& InObjects);
-
-	void SetDetailObject(UObject* Obj);
-
-	void SetDetailStruct(const FRigElementKey& InElement);
+	void SetDetailViewForRigElements();
+	void SetDetailViewForGraph(URigVMGraph* InGraph);
+	void SetDetailViewForFocusedGraph();
+	void RefreshDetailView();
+	bool DetailViewShowsAnyRigElement() const;
+	bool DetailViewShowsAnyRigUnit() const;
+	bool DetailViewShowsStruct(UScriptStruct* InStruct) const;
+	bool DetailViewShowsRigElement(FRigElementKey InKey) const;
+	bool DetailViewShowsRigUnit(URigVMNode* InNode) const;
 
 	void ClearDetailObject();
 
@@ -399,7 +405,7 @@ protected:
 	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 	/** delegate for changing property */
 	virtual void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent) override;
-	void OnBlueprintPropertyChainEvent(FPropertyChangedChainEvent& PropertyChangedChainEvent);
+	void OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperObject* InWrapperObject, const FString& InPropertyPath, FPropertyChangedChainEvent& InPropertyChangedChainEvent);
 	void OnRequestLocalizeFunctionDialog(URigVMLibraryNode* InFunction, UControlRigBlueprint* InTargetBlueprint, bool bForce);
 	FRigVMController_BulkEditResult OnRequestBulkEditDialog(UControlRigBlueprint* InBlueprint, URigVMController* InController, URigVMLibraryNode* InFunction, ERigVMControllerBulkEditType InEditType);
 	void UpdateDefaultValueForVariable(FBPVariableDescription& InVariable, bool bUseCDO);
@@ -418,12 +424,6 @@ protected:
 	URigVMController* ActiveController;
 	bool bControlRigEditorInitialized;
 	bool bIsSettingObjectBeingDebugged;
-	FRigElementKey RigElementInDetailPanel;
-	TSharedPtr<FStructOnScope> StructToDisplay;
-
-	TArray<uint8, TAlignedHeapAllocator<16>> NodeDetailBuffer;
-	UScriptStruct* NodeDetailStruct;
-	FName NodeDetailName;
 
 	/** Currently executing ControlRig or not - later maybe this will change to enum for whatever different mode*/
 	bool bExecutionControlRig;
@@ -464,7 +464,8 @@ protected:
 	bool bSuspendDetailsPanelRefresh;
 
 	TMap<int32, int32> CapsuleToHierarchyIndex;
-
+	TArray<TWeakObjectPtr<UDetailsViewWrapperObject>> WrapperObjects;
+	
 	friend class FControlRigEditorMode;
 	friend class SControlRigStackView;
 	friend class SRigHierarchy;

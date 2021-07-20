@@ -9,11 +9,13 @@
 #include "Rigs/RigHierarchy.h"
 #include "ControlRig.h"
 #include "ControlRigBlueprint.h"
+#include "DetailsViewWrapperObject.h"
 #include "Graph/ControlRigGraph.h"
 #include "Graph/SControlRigGraphPinNameListValueWidget.h"
 #include "Styling/SlateTypes.h"
 #include "IPropertyUtilities.h"
 #include "SSearchableComboBox.h"
+#include "DetailsViewWrapperObject.h"
 
 class IPropertyHandle;
 
@@ -118,38 +120,72 @@ protected:
 	void OnTransformChanged(FEditPropertyChain* InPropertyChain);
 };
 
-class FRigBaseElementDetails : public IDetailCustomization
+class FRigBaseElementDetails : public IPropertyTypeCustomization
 {
 public:
 
-	/** IDetailCustomization interface */
-	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+	/** IPropertyTypeCustomization interface */
+	virtual void CustomizeHeader(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 
-	FRigElementKey GetElementKey() const { return ElementKeyBeingCustomized; }
 	URigHierarchy* GetHierarchy() const { return HierarchyBeingCustomized; }
-	FText GetName() const { return FText::FromName(GetElementKey().Name); }
+	FRigElementKey GetElementKey() const;
+	FText GetName() const;
 	void SetName(const FText& InNewText, ETextCommit::Type InCommitType);
 
 	void OnStructContentsChanged(FProperty* InProperty, const TSharedRef<IPropertyUtilities> PropertyUtilities);
-	bool IsSetupModeEnabled() const; 
+	bool IsSetupModeEnabled() const;
+
+	TArray<FRigElementKey> GetElementKeys() const;
+
+	template<typename T>
+	TArray<T*> GetElementsInDetailsView() const
+	{
+		TArray<T*> Elements;
+		for(UDetailsViewWrapperObject* ObjectBeingCustomized : ObjectsBeingCustomized)
+		{
+			Elements.Add(Cast<T>(ObjectBeingCustomized->GetContent<FRigBaseElement>()));
+		}
+		return Elements;
+	}
+
+	template<typename T>
+	TArray<T*> GetElementsInHierarchy() const
+	{
+		TArray<T*> Elements;
+		if(HierarchyBeingCustomized)
+		{
+			for(UDetailsViewWrapperObject* ObjectBeingCustomized : ObjectsBeingCustomized)
+			{
+				Elements.Add(HierarchyBeingCustomized->Find<T>(ObjectBeingCustomized->GetContent<FRigBaseElement>()->GetKey()));
+			}
+		}
+		return Elements;
+	}
+
+	bool IsAnyElementOfType(ERigElementType InType) const;
+	bool IsAnyElementNotOfType(ERigElementType InType) const;
+	bool IsAnyControlOfType(ERigControlType InType) const;
+	bool IsAnyControlNotOfType(ERigControlType InType) const;
 
 protected:
 
-	FRigElementKey ElementKeyBeingCustomized;
 	UControlRigBlueprint* BlueprintBeingCustomized;
 	URigHierarchy* HierarchyBeingCustomized;
+	TArray<UDetailsViewWrapperObject*> ObjectsBeingCustomized;
 };
 
 class FRigTransformElementDetails : public FRigBaseElementDetails
 {
 public:
 
-	/** IDetailCustomization interface */
-	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+	/** IPropertyTypeCustomization interface */
+	virtual void CustomizeChildren(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 
 protected:
-	static void OnTransformChanged(FEditPropertyChain* InPropertyChain, UControlRigBlueprint* InBlueprint);
 
+	bool IsCurrentLocalEnabled() const;
+	
 	FEditPropertyChain PoseInitialGlobal;
 	FEditPropertyChain PoseInitialLocal;
 	FEditPropertyChain PoseCurrentGlobal;
@@ -161,40 +197,33 @@ class FRigBoneElementDetails : public FRigTransformElementDetails
 public:
 
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
-	static TSharedRef<IDetailCustomization> MakeInstance()
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
 	{
 		return MakeShareable(new FRigBoneElementDetails);
 	}
-
-	/** IDetailCustomization interface */
-	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailBuilder ) override;
-
-private:
-
-	TSharedPtr<FRigInfluenceEntryModifier> InfluenceModifier;
-	TSharedPtr<FStructOnScope> InfluenceModifierStruct;
 };
 
 class FRigControlElementDetails : public FRigTransformElementDetails
 {
 public:
 
-	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
-	static TSharedRef<IDetailCustomization> MakeInstance()
+	// Makes a new instance of this detail layout class for a specific detail view requesting it
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
 	{
 		return MakeShareable(new FRigControlElementDetails);
 	}
 
-	/** IDetailCustomization interface */
-	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+	/** IPropertyTypeCustomization interface */
+	virtual void CustomizeChildren(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 
-	FText GetDisplayName() const;
-	void SetDisplayName(const FText& InNewText, ETextCommit::Type InCommitType, const TSharedRef<IPropertyUtilities> PropertyUtilities);
 	bool IsGizmoEnabled() const;
 	bool IsEnabled(ERigControlValueType InValueType) const;
 
 	const TArray<TSharedPtr<FString>>& GetGizmoNameList() const;
 	const TArray<TSharedPtr<FString>>& GetControlTypeList() const;
+
+	FText GetDisplayName() const;
+	void SetDisplayName(const FText& InNewText, ETextCommit::Type InCommitType);
 
 private:
 	TArray<TSharedPtr<FString>> GizmoNameList;
@@ -210,12 +239,9 @@ class FRigNullElementDetails : public FRigTransformElementDetails
 {
 public:
 
-	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
-	static TSharedRef<IDetailCustomization> MakeInstance()
+	// Makes a new instance of this detail layout class for a specific detail view requesting it
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
 	{
 		return MakeShareable(new FRigNullElementDetails);
 	}
-
-	/** IDetailCustomization interface */
-	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 };
