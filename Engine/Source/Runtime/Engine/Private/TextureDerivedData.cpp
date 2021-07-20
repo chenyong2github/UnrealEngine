@@ -737,6 +737,19 @@ void FTexturePlatformData::Cache(
 
 	ETextureCacheFlags Flags = ETextureCacheFlags(InFlags);
 
+	static const bool bUseNewBuildPath = FParse::Param(FCommandLine::Get(), TEXT("DDC2AsyncTextureBuilds"));
+	if (bUseNewBuildPath && InTexture.Source.GetNumLayers() == 1 && !InSettingsPerLayer->bVirtualStreamable)
+	{
+		COOK_STAT(auto Timer = TextureCookStats::UsageStats.TimeSyncWork());
+		COOK_STAT(Timer.TrackCyclesOnly());
+		EQueuedWorkPriority Priority = FTextureCompilingManager::Get().GetBasePriority(&InTexture);
+		AsyncTask = CreateTextureBuildTask(InTexture, *this, *InSettingsPerLayer, Priority, Flags);
+		if (AsyncTask)
+		{
+			return;
+		}
+	}
+
 	static bool bForDDC = FString(FCommandLine::Get()).Contains(TEXT("Run=DerivedDataCache"));
 	if (bForDDC)
 	{
@@ -779,6 +792,8 @@ void FTexturePlatformData::Cache(
 		FQueuedThreadPool*  TextureThreadPool = FTextureCompilingManager::Get().GetThreadPool();
 		EQueuedWorkPriority BasePriority      = FTextureCompilingManager::Get().GetBasePriority(&InTexture);
 
+		COOK_STAT(auto Timer = TextureCookStats::UsageStats.TimeSyncWork());
+		COOK_STAT(Timer.TrackCyclesOnly());
 		FTextureAsyncCacheDerivedDataWorkerTask* LocalTask = new FTextureAsyncCacheDerivedDataWorkerTask(TextureThreadPool, Compressor, this, &InTexture, InSettingsPerLayer, Flags);
 		AsyncTask = LocalTask;
 		LocalTask->StartBackgroundTask(TextureThreadPool, BasePriority, EQueuedWorkFlags::DoNotRunInsideBusyWait, LocalTask->GetTask().GetRequiredMemoryEstimate());
