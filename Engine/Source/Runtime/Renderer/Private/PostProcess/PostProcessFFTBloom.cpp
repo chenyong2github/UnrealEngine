@@ -700,7 +700,7 @@ FSceneRenderTargetItem* InitDomainAndGetKernel(FRHICommandList& RHICmdList, cons
 		ResizeAndCenterTexture(RHICmdList, View, PhysicalSpaceKernelTextureRef, ImageSize, CenterUV, Intermediates.KernelSupportScale,
 			Intermediates.FrequencySize, SpectralKernelRTItem.UAV, PaddedFrequencySize, Intermediates.bHalfResolutionFFT);
 
-		RHICmdList.Transition(FRHITransitionInfo(SpectralKernelRTItem.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
+		RHICmdList.Transition(FRHITransitionInfo(SpectralKernelRTItem.ShaderResourceTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 
 		// Two Dimensional FFT of the physical space kernel.  
 		// Input: SpectralRTItem holds the physical space kernel, on return it will be the spectral space 
@@ -819,6 +819,9 @@ FRDGTextureRef AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 			// NB: In this case there is only one input, and the output has matching resolution
 			ConvolveWithKernel(RHICmdList, View, Intermediates, SpectralKernelTexture, Tint, Intermediates.OutputUAV);
 		}
+
+		// epilogue of the pass expects the resource to be in UAVCompute
+		RHICmdList.Transition(FRHITransitionInfo(Intermediates.OutputUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 	});
 
 	return OutputTexture;
