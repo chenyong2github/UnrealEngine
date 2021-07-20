@@ -1606,6 +1606,8 @@ public:
 
 	// Required by UHT makefiles for internal data serialization.
 	friend struct FScriptStructArchiveProxy;
+
+	static COREUOBJECT_API ICppStructOps* FindDeferredCppStructOps(FName StructName);
 #endif
 	bool CanSerializeAsAlias(const struct FPropertyTag& Tag) const;
 

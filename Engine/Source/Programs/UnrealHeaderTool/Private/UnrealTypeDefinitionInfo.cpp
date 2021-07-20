@@ -791,6 +791,11 @@ struct FUHTDisplayNameHelper
 	}
 };
 
+bool FUnrealPropertyDefinitionInfo::HasNoOpConstructor() const
+{
+	return PropertyBase.IsStructOrStructStaticArray() && PropertyBase.ScriptStructDef->HasNoOpConstructor();
+}
+
 FUnrealObjectDefinitionInfo* FUnrealPropertyDefinitionInfo::GetOwnerObject() const
 {
 	for (FUnrealTypeDefinitionInfo* TypeDef = GetOuter(); TypeDef; TypeDef = TypeDef->GetOuter())
@@ -1844,6 +1849,12 @@ void FUnrealScriptStructDefinitionInfo::SetHasInstancedReference()
 {
 	SetStructFlags(STRUCT_HasInstancedReference);
 	PostParseFinalizeReferencedProperties();
+}
+
+bool FUnrealScriptStructDefinitionInfo::HasNoOpConstructor() const
+{
+	UScriptStruct::ICppStructOps* CppStructOps = UScriptStruct::FindDeferredCppStructOps(GetFName());
+	return CppStructOps ? CppStructOps->HasNoopConstructor() : false;
 }
 
 FUnrealClassDefinitionInfo::FUnrealClassDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FName InName, bool bInIsInterface)

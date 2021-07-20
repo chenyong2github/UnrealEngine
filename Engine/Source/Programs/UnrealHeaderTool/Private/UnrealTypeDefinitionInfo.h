@@ -1031,14 +1031,7 @@ public:
 	/**
 	 * Return true if this is a structure and it has no op constructor
 	 */
-	bool HasNoOpConstructor() const
-	{
-		if (FStructProperty* StructProperty = CastField<FStructProperty>(GetProperty()))
-		{
-			return StructProperty->HasNoOpConstructor();
-		}
-		return false;
-	}
+	bool HasNoOpConstructor() const;
 
 	/**
 	 * Get the string that represents the array dimensions.  A nullptr is returned if the property doesn't have any dimensions
@@ -2505,6 +2498,8 @@ public:
 	{
 		MacroDeclaredLineNumber = InMacroDeclaredLineNumber;
 	}
+
+	bool HasNoOpConstructor() const;
 
 	/**
 	 * Handles the propagation of property flags

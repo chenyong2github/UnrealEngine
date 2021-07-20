@@ -2530,6 +2530,13 @@ void UScriptStruct::DeferCppStructOps(FName Target, ICppStructOps* InCppStructOp
 	DeferredStructOps.Add(Target,InCppStructOps);
 }
 
+#if HACK_HEADER_GENERATOR
+UScriptStruct::ICppStructOps* UScriptStruct::FindDeferredCppStructOps(FName StructName)
+{
+	return GetDeferredCppStructOps().FindRef(StructName);
+}
+#endif
+
 /** Look for the CppStructOps if we don't already have it and set the property size **/
 void UScriptStruct::PrepareCppStructOps()
 {

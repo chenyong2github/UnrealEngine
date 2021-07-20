@@ -40,7 +40,8 @@ public:
 		, Filename             (InFilename)
 		, PackageDef           (InPackageDef)
 	{
-		if (GetStrippedFilename() != "NoExportTypes")
+		bIsNoExportTypes = GetStrippedFilename() == "NoExportTypes";
+		if (!bIsNoExportTypes)
 		{
 			Includes.Emplace(FHeaderProvider(EHeaderProviderSourceType::FileName, "NoExportTypes.h"));
 		}
@@ -467,6 +468,14 @@ public:
 		return bIsReferenced || GetScope()->ContainsTypes();
 	}
 
+	/**
+	 * Return true if this is the NoExportTypes.h file 
+	 */
+	bool IsNoExportTypes() const
+	{
+		return bIsNoExportTypes;
+	}
+
 private:
 
 	// File scope.
@@ -519,6 +528,9 @@ private:
 
 	// Tells if this file is referenced by another
 	bool bIsReferenced = false;
+
+	// True if this is the NoExportTypes.h file
+	bool bIsNoExportTypes = false;
 
 	// Current topological sort state
 	ETopologicalState TopologicalState = ETopologicalState::Unmarked;
