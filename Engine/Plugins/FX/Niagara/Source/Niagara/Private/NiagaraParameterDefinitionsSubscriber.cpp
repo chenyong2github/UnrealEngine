@@ -147,7 +147,7 @@ void INiagaraParameterDefinitionsSubscriber::SynchronizeWithParameterDefinitions
 	for (const FDefinitionAndChangeIdHash& DefinitionAndChangeIdHash : AllDefinitionAndChangeIdHashes)
 	{
 		if (const FParameterDefinitionsSubscription* Subscription = Subscriptions.FindByPredicate(
-			[&DefinitionAndChangeIdHash](const FParameterDefinitionsSubscription& Subscription){ return Subscription.DefinitionsId == DefinitionAndChangeIdHash.Definition->GetDefinitionsUniqueId(); }))
+			[&DefinitionAndChangeIdHash](const FParameterDefinitionsSubscription& inSubscription){ return inSubscription.DefinitionsId == DefinitionAndChangeIdHash.Definition->GetDefinitionsUniqueId(); }))
 		{
 			if (Args.bForceSynchronizeDefinitions)
 			{
