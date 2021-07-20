@@ -7225,7 +7225,7 @@ bool UDataAssetFactory::ConfigureProperties()
 	Filter->DisallowedClassFlags = CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists | CLASS_HideDropDown;
 	Filter->AllowedChildrenOfClasses.Add(UDataAsset::StaticClass());
 
-	const FText TitleText = LOCTEXT("CreateDataAssetOptions", "Pick Data Asset Class");
+	const FText TitleText = LOCTEXT("CreateDataAssetOptions", "Pick Class For Data Asset Instance");
 	UClass* ChosenClass = nullptr;
 	const bool bPressedOk = SClassPickerDialog::PickClass(TitleText, Options, ChosenClass, UDataAsset::StaticClass());
 
