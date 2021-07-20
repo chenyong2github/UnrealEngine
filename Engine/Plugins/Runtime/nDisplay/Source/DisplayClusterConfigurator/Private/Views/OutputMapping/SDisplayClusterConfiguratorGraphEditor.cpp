@@ -450,6 +450,7 @@ void SDisplayClusterConfiguratorGraphEditor::DeleteSelectedNodes()
 		TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> Toolkit = ToolkitPtr.Pin();
 		Toolkit->GetEditorData()->MarkPackageDirty();
 		Toolkit->ClusterChanged();
+		ClearSelectionSet();
 	}
 }
 
