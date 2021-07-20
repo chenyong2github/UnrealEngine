@@ -22,6 +22,7 @@
 #include "ImageUtils.h"
 
 #include "AssetUtils/Texture2DBuilder.h"
+#include "AssetUtils/Texture2DUtil.h"
 #include "ModelingObjectsCreationAPI.h"
 
 #include "TargetInterfaces/MaterialProvider.h"
@@ -530,7 +531,7 @@ void UBakeMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 			int NumResults = Settings->Result.Num();
 			for (int ResultIdx = 0; ResultIdx < NumResults; ++ResultIdx)
 			{
-				FTexture2DBuilder::ETextureType TexType = FTexture2DBuilder::ETextureType::Color;
+				FTexture2DBuilder::ETextureType TexType = FTexture2DBuilder::ETextureType::ColorLinear;
 				FString TexName;
 				switch (ResultTypes[ResultIdx])
 				{
@@ -567,15 +568,14 @@ void UBakeMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 					break;
 				case EBakeMapType::PositionImage:
 					TexName = FString::Printf(TEXT("%s_PositionImg"), *BaseName);
-					TexType = FTexture2DBuilder::ETextureType::Color;
 					break;
 				case EBakeMapType::Texture2DImage:
 					TexName = FString::Printf(TEXT("%s_TextureImg"), *BaseName);
-					TexType = FTexture2DBuilder::ETextureType::Color;
+					TexType = CachedTexture2DImageSettings.bSRGB ? FTexture2DBuilder::ETextureType::Color : FTexture2DBuilder::ETextureType::ColorLinear;
 					break;
 				case EBakeMapType::MultiTexture:
 					TexName = FString::Printf(TEXT("%s_MultiTextureImg"), *BaseName);
-					TexType = FTexture2DBuilder::ETextureType::Color;
+					TexType = CachedTexture2DImageSettings.bSRGB ? FTexture2DBuilder::ETextureType::Color : FTexture2DBuilder::ETextureType::ColorLinear;
 					break;
 				}
 				FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result[ResultIdx], TexType);
@@ -1006,16 +1006,16 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_Texture2DImage()
 		return EBakeOpState::Invalid;
 	}
 
-
 	{
-		FTempTextureAccess TextureAccess(Texture2DProps->SourceTexture);
 		CachedTextureImage = MakeShared<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>();
-		CachedTextureImage->SetDimensions(TextureAccess.GetDimensions());
-		if (!TextureAccess.CopyTo(*CachedTextureImage))
+		if (!UE::AssetUtils::ReadTexture(Texture2DProps->SourceTexture, *CachedTextureImage, bPreferPlatformData))
 		{
 			GetToolManager()->DisplayMessage(LOCTEXT("CannotReadTextureWarning", "Cannot read from the source texture"), EToolMessageLevel::UserWarning);
 			return EBakeOpState::Invalid;
 		}
+
+		// The read texture data is always in linear space.
+		NewSettings.bSRGB = false; 
 	}
 
 	if (!(CachedTexture2DImageSettings == NewSettings))
@@ -1054,9 +1054,11 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_MultiTexture()
 		}
 	}
 
-
 	CachedMultiTextures.Reset();
 
+	// The read texture data is always in linear space.
+	NewSettings.bSRGB = false;
+	
 	for ( auto& InputTexture : MultiTextureProps->MaterialIDSourceTextureMap)
 	{
 		UTexture2D* Texture = InputTexture.Value;
@@ -1067,11 +1069,8 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_MultiTexture()
 		}
 
 		int32 MaterialID = InputTexture.Key;
-		FTempTextureAccess TextureAccess(Texture);
 		CachedMultiTextures.Add(MaterialID, MakeShared<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>());
-		CachedMultiTextures[MaterialID]->SetDimensions(TextureAccess.GetDimensions());
-
-		if (!TextureAccess.CopyTo(*CachedMultiTextures[MaterialID]))
+		if (!UE::AssetUtils::ReadTexture(Texture, *CachedMultiTextures[MaterialID], bPreferPlatformData))
 		{
 			GetToolManager()->DisplayMessage(LOCTEXT("CannotReadTextureWarning", "Cannot read from the source texture"), EToolMessageLevel::UserWarning);
 			return EBakeOpState::Invalid;
@@ -1240,7 +1239,7 @@ void UBakeMeshAttributeMapsTool::UpdateOnModeChange()
 void UBakeMeshAttributeMapsTool::OnMapsUpdated(const TUniquePtr<FMeshMapBaker>& NewResult)
 {
 	FImageDimensions BakeDimensions = NewResult->GetDimensions();
-	int32 NumBakers = NewResult->NumBakers();
+	const int32 NumBakers = NewResult->NumBakers();
 	for (int32 BakerIdx = 0; BakerIdx < NumBakers; ++BakerIdx)
 	{
 		FMeshMapEvaluator* Baker = NewResult->GetBaker(BakerIdx);
@@ -1284,7 +1283,7 @@ void UBakeMeshAttributeMapsTool::OnMapsUpdated(const TUniquePtr<FMeshMapBaker>& 
 		}
 		case EMeshMapEvaluatorType::Curvature:
 		{
-			UpdateCachedMap(EBakeMapType::Curvature, FTexture2DBuilder::ETextureType::Color, 0);
+			UpdateCachedMap(EBakeMapType::Curvature, FTexture2DBuilder::ETextureType::ColorLinear, 0);
 			break;
 		}
 		case EMeshMapEvaluatorType::Property:
@@ -1313,17 +1312,19 @@ void UBakeMeshAttributeMapsTool::OnMapsUpdated(const TUniquePtr<FMeshMapBaker>& 
 				break;
 			}
 
-			UpdateCachedMap(MapType, FTexture2DBuilder::ETextureType::Color, 0);
+			UpdateCachedMap(MapType, FTexture2DBuilder::ETextureType::ColorLinear, 0);
 			break;
 		}
 		case EMeshMapEvaluatorType::ResampleImage:
 		{
-			UpdateCachedMap(EBakeMapType::Texture2DImage, FTexture2DBuilder::ETextureType::Color, 0);
+			FTexture2DBuilder::ETextureType TexType = CachedTexture2DImageSettings.bSRGB ? FTexture2DBuilder::ETextureType::Color : FTexture2DBuilder::ETextureType::ColorLinear;
+			UpdateCachedMap(EBakeMapType::Texture2DImage, TexType, 0);
 			break;
 		}
 		case EMeshMapEvaluatorType::MultiResampleImage:
 		{
-			UpdateCachedMap(EBakeMapType::MultiTexture, FTexture2DBuilder::ETextureType::Color, 0);
+			FTexture2DBuilder::ETextureType TexType = CachedTexture2DImageSettings.bSRGB ? FTexture2DBuilder::ETextureType::Color : FTexture2DBuilder::ETextureType::ColorLinear;
+			UpdateCachedMap(EBakeMapType::MultiTexture, TexType, 0);
 			break;
 		}
 		}

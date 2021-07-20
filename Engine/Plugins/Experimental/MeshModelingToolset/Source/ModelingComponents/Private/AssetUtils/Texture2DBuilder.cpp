@@ -25,7 +25,8 @@ bool FTexture2DBuilder::Initialize(ETextureType BuildTypeIn, FImageDimensions Di
 	if (BuildType == ETextureType::ColorLinear 
 		|| BuildType == ETextureType::Roughness 
 		|| BuildType == ETextureType::Metallic 
-		|| BuildType == ETextureType::Specular)
+		|| BuildType == ETextureType::Specular
+		|| BuildType == ETextureType::AmbientOcclusion)
 	{
 		RawTexture2D->SRGB = false;
 		RawTexture2D->UpdateResource();

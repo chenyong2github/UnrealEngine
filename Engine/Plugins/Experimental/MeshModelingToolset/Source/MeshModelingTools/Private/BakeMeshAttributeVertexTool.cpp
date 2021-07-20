@@ -22,6 +22,7 @@
 #include "TargetInterfaces/StaticMeshBackedTarget.h"
 #include "ToolTargetManager.h"
 #include "ModelingToolTargetUtil.h"
+#include "AssetUtils/Texture2DUtil.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -866,11 +867,12 @@ EBakeOpState UBakeMeshAttributeVertexTool::UpdateResult_Texture2DImage()
 		return EBakeOpState::Invalid;
 	}
 
+	// The read texture data is always in linear space.
+	NewSettings.bSRGB = false;
+
 	{
-		FTempTextureAccess TextureAccess(TextureSettings->SourceTexture);
 		CachedTextureImage = MakeShared<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>();
-		CachedTextureImage->SetDimensions(TextureAccess.GetDimensions());
-		if (!TextureAccess.CopyTo(*CachedTextureImage))
+		if (!UE::AssetUtils::ReadTexture(TextureSettings->SourceTexture, *CachedTextureImage, /*bPreferPlatformData*/ false))
 		{
 			GetToolManager()->DisplayMessage(LOCTEXT("CannotReadTextureWarning", "Cannot read from the source texture"), EToolMessageLevel::UserWarning);
 			return EBakeOpState::Invalid;
@@ -910,6 +912,9 @@ EBakeOpState UBakeMeshAttributeVertexTool::UpdateResult_MultiTexture()
 
 	CachedMultiTextures.Reset();
 
+	// The read texture data is always in linear space.
+	NewSettings.bSRGB = false;
+	
 	for (auto& InputTexture : MultiTextureSettings->MaterialIDSourceTextureMap)
 	{
 		UTexture2D* Texture = InputTexture.Value;
@@ -920,11 +925,8 @@ EBakeOpState UBakeMeshAttributeVertexTool::UpdateResult_MultiTexture()
 		}
 
 		int32 MaterialID = InputTexture.Key;
-		FTempTextureAccess TextureAccess(Texture);
 		CachedMultiTextures.Add(MaterialID, MakeShared<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>());
-		CachedMultiTextures[MaterialID]->SetDimensions(TextureAccess.GetDimensions());
-
-		if (!TextureAccess.CopyTo(*CachedMultiTextures[MaterialID]))
+		if (!UE::AssetUtils::ReadTexture(Texture, *CachedMultiTextures[MaterialID], /*bPreferPlatformData*/ false))
 		{
 			GetToolManager()->DisplayMessage(LOCTEXT("CannotReadTextureWarning", "Cannot read from the source texture"), EToolMessageLevel::UserWarning);
 			return EBakeOpState::Invalid;

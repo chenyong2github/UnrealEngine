@@ -952,14 +952,13 @@ void UMeshVertexSculptTool::UpdateBrushAlpha(UTexture2D* NewAlpha)
 		if (this->BrushAlpha != nullptr)
 		{
 			TImageBuilder<FVector4f> AlphaValues;
-			FImageDimensions AlphaDimensions;
 
 			constexpr bool bPreferPlatformData = false;
-			bool bReadOK = UE::AssetUtils::ReadTexture(this->BrushAlpha, AlphaDimensions, AlphaValues, bPreferPlatformData);
+			const bool bReadOK = UE::AssetUtils::ReadTexture(this->BrushAlpha, AlphaValues, bPreferPlatformData);
 			if (bReadOK)
 			{
 				BrushAlphaValues = MoveTemp(AlphaValues);
-				BrushAlphaDimensions = AlphaDimensions;
+				BrushAlphaDimensions = AlphaValues.GetDimensions();
 				bHaveBrushAlpha = true;
 				return;
 			}

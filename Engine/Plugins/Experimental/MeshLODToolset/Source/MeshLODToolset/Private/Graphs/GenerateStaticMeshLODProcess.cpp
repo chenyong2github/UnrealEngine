@@ -374,7 +374,8 @@ bool UGenerateStaticMeshLODProcess::Initialize(UStaticMesh* StaticMeshIn, FProgr
 	//	{
 	//		FReadTextureJob job = ReadJobs[ji];
 	//		FTextureInfo& TexInfo = SourceMaterials[job.MatIndex].SourceTextures[job.TexIndex];
-	//		UE::AssetUtils::ReadTexture(TexInfo.Texture, TexInfo.Dimensions, TexInfo.Image);
+	//		UE::AssetUtils::ReadTexture(TexInfo.Texture, TexInfo.Image);
+	//		TexInfo.Dimensions = TexInfo.Image.GetDimensions();
 	//	});
 	//});
 
@@ -386,7 +387,8 @@ bool UGenerateStaticMeshLODProcess::Initialize(UStaticMesh* StaticMeshIn, FProgr
 		if (SourceMaterial.bIsPreviouslyGeneratedMaterial == false && SourceMaterial.bIsReusable == false)
 		{
 			FTextureInfo& TexInfo = SourceMaterials[job.MatIndex].SourceTextures[job.TexIndex];
-			UE::AssetUtils::ReadTexture(TexInfo.Texture, TexInfo.Dimensions, TexInfo.Image);
+			UE::AssetUtils::ReadTexture(TexInfo.Texture, TexInfo.Image);
+			TexInfo.Dimensions = TexInfo.Image.GetDimensions();
 		}
 	}
 

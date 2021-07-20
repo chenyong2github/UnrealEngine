@@ -665,8 +665,7 @@ namespace DisplaceMeshToolLocals{
 		}
 
 		TImageBuilder<FVector4f> DisplacementMapValues;
-		FImageDimensions DisplacementMapDimensions;
-		if (!UE::AssetUtils::ReadTexture(Parameters.DisplacementMap, DisplacementMapDimensions, DisplacementMapValues,
+		if (!UE::AssetUtils::ReadTexture(Parameters.DisplacementMap, DisplacementMapValues,
 			// need bPreferPlatformData to be true to respond to non-destructive changes to the texture in the editor
 			true)) 
 		{
@@ -675,6 +674,7 @@ namespace DisplaceMeshToolLocals{
 		}
 		else
 		{
+			const FImageDimensions DisplacementMapDimensions = DisplacementMapValues.GetDimensions();
 			int64 TextureWidth = DisplacementMapDimensions.GetWidth();
 			int64 TextureHeight = DisplacementMapDimensions.GetHeight();
 			Parameters.DisplaceField.Resize(TextureWidth, TextureHeight, 0.0f);
