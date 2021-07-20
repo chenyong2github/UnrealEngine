@@ -105,7 +105,7 @@ public:
 
 	FPipelinedShaderFilter(EShaderPlatform ShaderPlatform, TArray<FShaderPipelineType*> Pipelines)
 	{
-		if (GMaterialExcludeNonPipelinedShaders && RHISupportsShaderPipelines(ShaderPlatform))
+		if (ExcludeNonPipelinedShaderTypes(ShaderPlatform))
 		{
 			for (FShaderPipelineType* Pipeline : Pipelines)
 			{
