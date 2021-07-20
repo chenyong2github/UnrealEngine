@@ -75,6 +75,7 @@ public:
 	virtual void PostEditImport() override;
 	virtual void PostLoad() override;
 #if WITH_EDITOR
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif	
 	//~ End UObject interface
@@ -122,6 +123,17 @@ public:
 	/** Asset containing encoder and fiz mapping */
 	UPROPERTY(EditAnywhere, Category = "Camera Calibration")
 	FLensFilePicker LensFilePicker;
+
+	/** Whether to use the cropped filmback setting to drive the filmback of the attached camera component */
+	UPROPERTY(EditAnywhere, Category = "Camera Calibration")
+	bool bUseCroppedFilmback = false;
+
+	/** 
+	 * If a LensFile is being evaluated, the filmback saved in that LensFile will drive the attached camera component to ensure correct calibration.
+	 * If bUseCroppedFilmback is true, this value will be applied to the camera component and used to evaluate the LensFile instead.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Camera Calibration")
+	FCameraFilmbackSettings CroppedFilmback;
 
 	/** Apply nodal offset from lens file if enabled */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera Calibration")

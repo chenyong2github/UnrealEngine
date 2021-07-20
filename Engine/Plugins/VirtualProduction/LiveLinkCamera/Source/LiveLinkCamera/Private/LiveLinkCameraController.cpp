@@ -133,7 +133,11 @@ void ULiveLinkCameraController::Tick(float DeltaTime, const FLiveLinkSubjectFram
 				// If we're using a lens file, use its sensor dimensions unless Live Link is streaming different values
 				if (SelectedLensFile)
 				{
-					if ((StaticData->FilmBackWidth > 0.0f) && UpdateFlags.bApplyFilmBack) 
+					if (bUseCroppedFilmback)
+					{
+						LensFileEvalData.Distortion.Filmback.X = CroppedFilmback.SensorWidth;
+					}
+					else if ((StaticData->FilmBackWidth > 0.0f) && UpdateFlags.bApplyFilmBack) 
 					{ 
 						LensFileEvalData.Distortion.Filmback.X = StaticData->FilmBackWidth;
 					}
@@ -142,7 +146,11 @@ void ULiveLinkCameraController::Tick(float DeltaTime, const FLiveLinkSubjectFram
 						LensFileEvalData.Distortion.Filmback.X = SelectedLensFile->LensInfo.SensorDimensions.X;
 					}
 
-					if ((StaticData->FilmBackHeight > 0.0f) && UpdateFlags.bApplyFilmBack)
+					if (bUseCroppedFilmback)
+					{
+						LensFileEvalData.Distortion.Filmback.Y = CroppedFilmback.SensorHeight;
+					}
+					else if ((StaticData->FilmBackHeight > 0.0f) && UpdateFlags.bApplyFilmBack)
 					{
 						LensFileEvalData.Distortion.Filmback.Y = StaticData->FilmBackHeight;
 					}
@@ -308,6 +316,29 @@ void ULiveLinkCameraController::SetApplyNodalOffset(bool bInApplyNodalOffset)
 }
 
 #if WITH_EDITOR
+bool ULiveLinkCameraController::CanEditChange(const FProperty* InProperty) const
+{
+	const FName PropertyName = InProperty->GetFName();
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(ULiveLinkCameraController, bUseCroppedFilmback))
+	{
+		if (LensFilePicker.GetLensFile())
+		{
+			return true;
+		}
+		return false;
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULiveLinkCameraController, CroppedFilmback))
+	{
+		if (LensFilePicker.GetLensFile() && bUseCroppedFilmback)
+		{
+			return true;
+		}
+		return false;
+	}
+
+	return Super::CanEditChange(InProperty);
+}
+
 void ULiveLinkCameraController::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	const FName PropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
@@ -379,6 +410,9 @@ void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraCompone
 				//If focus is streamed in, query the mapping if there is one. Otherwise, assume focus is usable as is
 				CineCameraComponent->FocusSettings.ManualFocusDistance = LensFileEvalData.Input.Focus;
 			}
+
+			// Update the minimum focus of the camera (if needed)
+			CineCameraComponent->LensSettings.MinimumFocusDistance = FMath::Min(CineCameraComponent->LensSettings.MinimumFocusDistance, CineCameraComponent->FocusSettings.ManualFocusDistance);
 		}
 
 		if (UpdateFlags.bApplyAperture)
@@ -392,6 +426,10 @@ void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraCompone
 			{
 				CineCameraComponent->CurrentAperture = LensFileEvalData.Input.Iris;
 			}
+
+			// Update the minimum and maximum aperture of the camera (if needed)
+			CineCameraComponent->LensSettings.MinFStop = FMath::Min(CineCameraComponent->LensSettings.MinFStop, CineCameraComponent->CurrentAperture);
+			CineCameraComponent->LensSettings.MaxFStop = FMath::Max(CineCameraComponent->LensSettings.MaxFStop, CineCameraComponent->CurrentAperture);
 		}
 		
 		if (UpdateFlags.bApplyFocalLength)
@@ -417,6 +455,11 @@ void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraCompone
 					// Adjust FocalLength and Filmback to match FxFy (which has already been divided by resolution in pixels)
 					const float NewFocalLength = CineCameraComponent->CurrentFocalLength = FocalLengthInfo.FxFy[0] * CineCameraComponent->Filmback.SensorWidth;
 					CineCameraComponent->Filmback.SensorHeight = CineCameraComponent->CurrentFocalLength / FocalLengthInfo.FxFy[1];
+
+					// Update the minimum and maximum focal length of the camera (if needed)
+					CineCameraComponent->LensSettings.MinFocalLength = FMath::Min(CineCameraComponent->LensSettings.MinFocalLength, NewFocalLength);
+					CineCameraComponent->LensSettings.MaxFocalLength = FMath::Max(CineCameraComponent->LensSettings.MaxFocalLength, NewFocalLength);
+
 					CineCameraComponent->SetCurrentFocalLength(NewFocalLength);
 					bHasValidFocalLength = true;
 				}
@@ -425,6 +468,10 @@ void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraCompone
 			//If FocalLength could not be applied and it's streamed in, use LiveLink input directly without affecting filmback
 			if (StaticData->bIsFocalLengthSupported && bHasValidFocalLength == false)
 			{
+				// Update the minimum and maximum focal length of the camera (if needed)
+				CineCameraComponent->LensSettings.MinFocalLength = FMath::Min(CineCameraComponent->LensSettings.MinFocalLength, ZoomValue);
+				CineCameraComponent->LensSettings.MaxFocalLength = FMath::Max(CineCameraComponent->LensSettings.MaxFocalLength, ZoomValue);
+
 				CineCameraComponent->SetCurrentFocalLength(ZoomValue);
 			}
 		}
