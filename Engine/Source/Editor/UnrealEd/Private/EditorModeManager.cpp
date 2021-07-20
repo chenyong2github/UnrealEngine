@@ -180,7 +180,11 @@ USelection* FEditorModeTools::GetSelectedComponents() const
 
 UTypedElementSelectionSet* FEditorModeTools::GetEditorSelectionSet() const
 {
-	return GetSelectedActors()->GetElementSelectionSet();
+	if (USelection* SelectedActorsSet = GetSelectedActors())
+	{
+		return SelectedActorsSet->GetElementSelectionSet();
+	}
+	return nullptr;
 }
 
 void FEditorModeTools::StoreSelection(FName SelectionStoreKey, bool bClearSelection)
