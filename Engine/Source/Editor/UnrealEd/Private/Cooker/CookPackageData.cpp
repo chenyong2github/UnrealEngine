@@ -178,56 +178,32 @@ namespace Cook
 	void FPackageData::AddCookedPlatforms(const TArrayView<const ITargetPlatform* const>& New, const TArrayView<const bool>& Succeeded)
 	{
 		check(New.Num() == Succeeded.Num());
-		int32 Num = New.Num();
-		if (Num == 0)
+		for (int32 n = 0; n < New.Num(); ++n)
 		{
-			return;
+			AddCookedPlatform(New[n], Succeeded[n]);
 		}
-
-		const ITargetPlatform* const* NewData = New.GetData();
-		const bool* SucceededData = Succeeded.GetData();
-		for (int32 n = 0; n < Num; ++n)
-		{
-			const ITargetPlatform* TargetPlatform = NewData[n];
-			bool bSucceeded = SucceededData[n];
-
-			int32 ExistingIndex = CookedPlatforms.IndexOfByKey(TargetPlatform);
-			if (ExistingIndex != INDEX_NONE)
-			{
-				CookSucceeded[ExistingIndex] = bSucceeded;
-			}
-			else
-			{
-				CookedPlatforms.Add(TargetPlatform);
-				CookSucceeded.Add(bSucceeded);
-			}
-		}
-
-		PackageDatas.GetMonitor().OnCookedPlatformAdded(*this);
 	}
 
 	void FPackageData::AddCookedPlatforms(const TArrayView<const ITargetPlatform* const>& New, bool bSucceeded)
 	{
-		int32 Num = New.Num();
-		if (Num == 0)
-		{
-			return;
-		}
-
 		for (const ITargetPlatform* TargetPlatform : New)
 		{
-			int32 ExistingIndex = CookedPlatforms.IndexOfByKey(TargetPlatform);
-			if (ExistingIndex != INDEX_NONE)
-			{
-				CookSucceeded[ExistingIndex] = bSucceeded;
-			}
-			else
-			{
-				CookedPlatforms.Add(TargetPlatform);
-				CookSucceeded.Add(bSucceeded);
-			}
+			AddCookedPlatform(TargetPlatform, bSucceeded);
 		}
+	}
 
+	void FPackageData::AddCookedPlatform(const ITargetPlatform* TargetPlatform, bool bSucceeded)
+	{
+		int32 ExistingIndex = CookedPlatforms.IndexOfByKey(TargetPlatform);
+		if (ExistingIndex != INDEX_NONE)
+		{
+			CookSucceeded[ExistingIndex] = bSucceeded;
+		}
+		else
+		{
+			CookedPlatforms.Add(TargetPlatform);
+			CookSucceeded.Add(bSucceeded);
+		}
 		PackageDatas.GetMonitor().OnCookedPlatformAdded(*this);
 	}
 

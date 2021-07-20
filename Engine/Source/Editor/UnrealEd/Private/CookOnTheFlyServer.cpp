@@ -707,6 +707,7 @@ UCookOnTheFlyServer::UCookOnTheFlyServer(const FObjectInitializer& ObjectInitial
 	PlatformManager = MakeUnique<UE::Cook::FPlatformManager>();
 	ExternalRequests = MakeUnique<UE::Cook::FExternalRequests>();
 	PackageTracker = MakeUnique<UE::Cook::FPackageTracker>(*PackageDatas.Get());
+	DiffModeHelper = MakeUnique<FDiffModeCookServerUtils>();
 	bSaveAsyncAllowed = true;
 	FString Temp;
 	const TCHAR* CommandLine = FCommandLine::Get();
@@ -1948,7 +1949,7 @@ void UCookOnTheFlyServer::ProcessRequest(UE::Cook::FPackageData& PackageData, UE
 	if (PackageData.HasAllCookedPlatforms(PackageData.GetRequestedPlatforms(), true /* bIncludeFailed */))
 	{
 #if DEBUG_COOKONTHEFLY
-		UE_LOG(LogCook, Display, TEXT("Package for platform already cooked %s, discarding request"), *OutToBuild.GetFilename().ToString());
+		UE_LOG(LogCook, Display, TEXT("Package for platform already cooked %s, discarding request"), *PackageData.GetFileName().ToString());
 #endif
 		PackageData.SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
 		return;
@@ -2803,7 +2804,7 @@ bool UCookOnTheFlyServer::BeginPrepareSave(UE::Cook::FPackageData& PackageData, 
 	UE_SCOPED_HIERARCHICAL_COOKTIMER_AND_DURATION(BeginPrepareSave, DetailedCookStats::TickCookOnTheSideBeginPrepareSaveTimeSec);
 
 #if DEBUG_COOKONTHEFLY 
-	UE_LOG(LogCook, Display, TEXT("Caching objects for package %s"), *Package->GetFName().ToString());
+	UE_LOG(LogCook, Display, TEXT("Caching objects for package %s"), *PackageData.GetPackageName().ToString());
 #endif
 	UPackage* Package = PackageData.GetPackage();
 	check(Package && Package->IsFullyLoaded());
@@ -3226,9 +3227,52 @@ void UCookOnTheFlyServer::ProcessUnsolicitedPackages()
 	}
 }
 
-UE_TRACE_EVENT_BEGIN(UE_CUSTOM_COOKTIMER_LOG, SaveCookedPackage, NoSync)
-	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, PackageName)
-UE_TRACE_EVENT_END()
+namespace UE::Cook
+{
+
+/** Local parameters and helper functions used by SaveCookedPackage */
+class FSaveCookedPackageContext
+{
+private: // Used only by UCookOnTheFlyServer, which has private access
+
+	FSaveCookedPackageContext(UCookOnTheFlyServer& InCOTFS, UE::Cook::FPackageData& InPackageData,
+		TArrayView<const ITargetPlatform*> InPlatformsForPackage, UE::Cook::FTickStackData& StackData);
+
+	void SetupPackage();
+	void SetupPlatform(const ITargetPlatform* InTargetPlatform);
+	void FinishPlatform();
+	void FinishPackage();
+
+	// General Package Data
+	UCookOnTheFlyServer& COTFS;
+	UE::Cook::FPackageData& PackageData;
+	TArrayView<const ITargetPlatform*> PlatformsForPackage;
+	FTickStackData& StackData;
+	UPackage* Package;
+	const FString PackageName;
+	FString Filename;
+	uint32 SaveFlags = 0;
+	bool bReferencedOnlyByEditorOnlyData = false;
+	bool bHasFirstPlatformResults = false;
+
+	// General Package Data that is delay-loaded the first time we save a platform
+	UWorld* World = nullptr;
+	EObjectFlags FlagsToCook = RF_Public;
+	bool bHasDelayLoaded = false;
+	bool bContainsMap = false;
+
+	// Per-platform data, only valid in PerPlatform callbacks
+	const ITargetPlatform* TargetPlatform = nullptr;
+	FSavePackageContext* SavePackageContext = nullptr;
+	IPackageStoreWriter* PackageStoreWriter = nullptr;
+	FString PlatFilename;
+	FSavePackageResultStruct SavePackageResult;
+	bool bPlatformSetupSuccessful = false;
+	bool bEndianSwap = false;
+
+	friend class ::UCookOnTheFlyServer;
+};
+}
 
 void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 DesiredQueueLength, int32& OutNumPushed, bool& bOutBusy)
 {
@@ -3425,138 +3469,10 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 			}
 		}
 
-		TArray<bool> SucceededSavePackage;
-		TArray<FSavePackageResultStruct> SavePackageResults;
-		{
-			TStringBuilder<512> PackageDataFileName;
-			if (UE_TRACE_CHANNELEXPR_IS_ENABLED(CookChannel))
-			{
-				PackageData.GetFileName().ToString(PackageDataFileName);
-			}
-			UE_SCOPED_HIERARCHICAL_CUSTOM_COOKTIMER_AND_DURATION(SaveCookedPackage, DetailedCookStats::TickCookOnTheSideSaveCookedPackageTimeSec)
-				UE_ADD_CUSTOM_COOKTIMER_META(SaveCookedPackage, PackageName, *PackageDataFileName);
-
-			uint32 SaveFlags = SAVE_KeepGUID | (bSaveAsyncAllowed ? SAVE_Async : SAVE_None) | (IsCookFlagSet(ECookInitializationFlags::Unversioned) ? SAVE_Unversioned : 0);
-
-			bool KeepEditorOnlyPackages = false;
-			// removing editor only packages only works when cooking in commandlet and non iterative cooking
-			// also doesn't work in multiprocess cooking
-			KeepEditorOnlyPackages = !(IsCookByTheBookMode() && !IsCookingInEditor());
-			KeepEditorOnlyPackages |= IsCookFlagSet(ECookInitializationFlags::Iterative);
-			SaveFlags |= KeepEditorOnlyPackages ? SAVE_KeepEditorOnlyCookedPackages : SAVE_None;
-			SaveFlags |= CookByTheBookOptions ? SAVE_ComputeHash : SAVE_None;
-
-			GOutputCookingWarnings = IsCookFlagSet(ECookInitializationFlags::OutputVerboseCookerWarnings);
-
-			{
-				// SaveCookedPackage can CollectGarbage, so we need to store the currently-unqueued PackageData in a separate variable that we register for garbage collection
-				check(SavingPackageData == nullptr);
-				SavingPackageData = &PackageData;
-				try
-				{
-					SaveCookedPackage(PackageData, SaveFlags, PlatformsForPackage, SavePackageResults);
-				}
-				catch (std::exception&)
-				{
-					FString TargetPlatforms;
-					for (const ITargetPlatform* Platform : PlatformsForPackage)
-					{
-						TargetPlatforms += FString::Printf(TEXT("%s, "), *Platform->PlatformName());
-					}
-					UE_LOG(LogCook, Warning, TEXT("Tried to save package %s for target platforms %s but threw an exception"), *Package->GetName(), *TargetPlatforms);
-					SavePackageResults.Empty(PlatformsForPackage.Num());
-					for (int n = 0; n < PlatformsForPackage.Num(); ++n)
-					{
-						SavePackageResults.Add(ESavePackageResult::Error);
-					}
-				}
-				SavingPackageData = nullptr;
-			}
-
-			GOutputCookingWarnings = false;
-			check(PlatformsForPackage.Num() == SavePackageResults.Num());
-			for (int iResultIndex = 0; iResultIndex < SavePackageResults.Num(); iResultIndex++)
-			{
-				FSavePackageResultStruct& SavePackageResult = SavePackageResults[iResultIndex];
-
-				// Update asset registry
-				if (CookByTheBookOptions)
-				{
-					FAssetRegistryGenerator* Generator = PlatformManager->GetPlatformData(PlatformsForPackage[iResultIndex])->RegistryGenerator.Get();
-					UpdateAssetRegistryPackageData(Generator, *Package, SavePackageResult);
-				}
-
-				if (SavePackageResult.IsSuccessful())
-				{
-					SucceededSavePackage.Add(true);
-					// Update flags used to determine garbage collection.
-					if (Package->ContainsMap())
-					{
-						StackData.ResultFlags |= COSR_CookedMap;
-					}
-					else
-					{
-						++StackData.CookedPackageCount;
-						StackData.ResultFlags |= COSR_CookedPackage;
-					}
-				}
-				else
-				{
-					SucceededSavePackage.Add(false);
-				}
-			}
-			check(SavePackageResults.Num() == SucceededSavePackage.Num());
-			StackData.Timer.SavedPackage();
-		}
+		FSaveCookedPackageContext Context(*this, PackageData, PlatformsForPackage, StackData);
+		SaveCookedPackage(Context);
 
 		ReleaseCookedPlatformData(PackageData, true /* bCompletedSave */);
-
-		FName FileName = PackageData.GetFileName();
-
-		// We always want to mark package as processed unless it wasn't saved because it was referenced by editor-only data
-		// in which case we may still need to save it later when new content loads it through non editor-only references
-		if (!FileName.IsNone())
-		{
-			// mark the package as cooked
-			bool bWasReferencedOnlyByEditorOnlyData = false;
-			for (const FSavePackageResultStruct& SavePackageResult : SavePackageResults)
-			{
-				if (SavePackageResult == ESavePackageResult::ReferencedOnlyByEditorOnlyData)
-				{
-					bWasReferencedOnlyByEditorOnlyData = true;
-					// if this is the case all of the platforms should be referenced only by editor only data
-				}
-			}
-			if (!bWasReferencedOnlyByEditorOnlyData)
-			{
-				PackageData.AddCookedPlatforms(PackageData.GetRequestedPlatforms(), SucceededSavePackage);
-
-				if ((CurrentCookMode == ECookMode::CookOnTheFly) && !PackageData.GetIsUrgent())
-				{
-					// this is an unsolicited package
-					if (FPaths::FileExists(FileName.ToString()))
-					{
-						PackageTracker->UnsolicitedCookedPackages.AddCookedPackage(FFilePlatformRequest(FileName, PlatformsForPackage));
-
-#if DEBUG_COOKONTHEFLY
-						UE_LOG(LogCook, Display, TEXT("UnsolicitedCookedPackages: %s"), *FileName.ToString());
-#endif
-					}
-				}
-			}
-			else
-			{
-				PackageTracker->UncookedEditorOnlyPackages.AddUnique(Package->GetFName());
-			}
-		}
-		else
-		{
-			for (const bool bSucceededSavePackage : SucceededSavePackage)
-			{
-				check(bSucceededSavePackage == false);
-			}
-		}
-
 		PackageData.SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
 		++OutNumPushed;
 	}
@@ -4315,26 +4231,35 @@ public:
 
 private:
 	/** Misc / common settings */
-	bool bDiffEnabled;
-	ELinkerDiffMode LinkerDiffMode;
+	bool bInitialized = false;
+	bool bDiffEnabled = false;
+	ELinkerDiffMode LinkerDiffMode = LDM_None;
 	FString PackageFilter;
 
 	/** DumpObjList settings */
-	bool bDumpObjList;
+	bool bDumpObjList = false;
 	FString DumpObjListParams;
 
 	/** DumpObjects settings */
-	bool bDumpObjects;
-	bool bDumpObjectsSorted;
+	bool bDumpObjects = false;
+	bool bDumpObjectsSorted = false;
+
+	/* LinkerDiff settings */
+	IConsoleVariable* EnableNewSave = nullptr;
+	int32 PreviousCvarValue = 0;
 
 public:
 
 
-	FDiffModeCookServerUtils()
+	void Initialize(TConstArrayView<FSavePackageContext*> SavePackageContexts)
 	{
+		if (bInitialized)
+		{
+			return;
+		}
+
 		bDiffEnabled = FParse::Param(FCommandLine::Get(), TEXT("DIFFONLY"));
 
-		LinkerDiffMode = LDM_None;
 		FString DiffMode;
 		if (FParse::Value(FCommandLine::Get(), TEXT("-LINKERDIFF="), DiffMode))
 		{
@@ -4348,11 +4273,33 @@ public:
 			}
 		}
 
-		bDumpObjList = false;
-		bDumpObjects = false;
-		bDumpObjectsSorted = false;
-
 		ParseCmds();
+		InitializePlatformSettings(SavePackageContexts);
+		bInitialized = true;
+	}
+
+	void InitializePlatformSettings(TConstArrayView<FSavePackageContext*> SavePackageContexts)
+	{
+		if (IsRunningCookDiff() || IsRunningCookLinkerDiff())
+		{
+			bool bCompatible = true;
+			for (FSavePackageContext* SavePackageContext : SavePackageContexts)
+			{
+				if (SavePackageContext && SavePackageContext->PackageStoreWriter)
+				{
+					bCompatible = false;
+					break;
+				}
+			}
+			if (!bCompatible)
+			{
+				const TCHAR* CommandLineArg = IsRunningCookDiff() ? TEXT("-DIFFONLY") : TEXT("-LINKERDIFF");
+				UE_LOG(LogCook, Fatal, TEXT("%s was enabled, but PackageStoreWriter is also enabled and PackageStoreWriter does not support %s."),
+					CommandLineArg, CommandLineArg);
+				bDiffEnabled = false;
+				LinkerDiffMode = LDM_None;
+			}
+		}
 	}
 
 	bool IsRunningCookDiff() const
@@ -4374,6 +4321,39 @@ public:
 	{
 		ConditionallyDumpObjList(InPackage);
 		ConditionallyDumpObjects(InPackage);
+	}
+
+	void LinkerDiffSetup()
+	{
+		// Resave the package again using the other save algorithm
+		if (!EnableNewSave)
+		{
+			EnableNewSave = IConsoleManager::Get().FindConsoleVariable(TEXT("SavePackage.EnableNewSave"));
+		}
+		PreviousCvarValue = EnableNewSave->GetInt();
+
+		// If the linker diff is comparing the two save algo, switch the cvar to the other algo before saving again,
+		// Otherwise the linker diff mode is tracking if the save is consistent across multiple save
+		if (LinkerDiffMode == FDiffModeCookServerUtils::LDM_Algo)
+		{
+			// see CVarEnablePackageNewSave definition in SavePackageUtilities.cpp for value meaning
+			EnableNewSave->Set(PreviousCvarValue & 1 ? 0 : 1);
+		}
+	}
+	void LinkerDiffFinish(FSavePackageResultStruct& FirstResult, FSavePackageResultStruct& SecondResult)
+	{
+		if (LinkerDiffMode == FDiffModeCookServerUtils::LDM_Algo)
+		{
+			EnableNewSave->Set(PreviousCvarValue);
+		}
+
+		if (FirstResult.LinkerSave && SecondResult.LinkerSave)
+		{
+			FLinkerDiff LinkerDiff = FLinkerDiff::CompareLinkers(FirstResult.LinkerSave.Get(), SecondResult.LinkerSave.Get());
+			LinkerDiff.PrintDiff(*GWarn);
+		}
+		FirstResult.LinkerSave.Reset();
+		SecondResult.LinkerSave.Reset();
 	}
 
 private:
@@ -4503,260 +4483,342 @@ private:
 	}
 };
 
-void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData, uint32 SaveFlags, const TArrayView<const ITargetPlatform* const>& TargetPlatforms, TArray<FSavePackageResultStruct>& SavePackageResults)
+UE_TRACE_EVENT_BEGIN(UE_CUSTOM_COOKTIMER_LOG, SaveCookedPackage, NoSync)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, PackageName)
+UE_TRACE_EVENT_END()
+
+void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FSaveCookedPackageContext& Context)
 {
-	check( SavePackageResults.Num() == 0);
-	check( bIsSavingPackage == false );
-	bIsSavingPackage = true;
+	using namespace UE::Cook;
 
-	UPackage* Package = PackageData.GetPackage();
-	check(Package && Package->IsFullyLoaded());
-	const FString PackageName(Package->GetName());
-	check(Package->GetPathName().Equals(Package->GetName())); // We should only be saving outermost packages, so the path name should be the same as the package name
-	FString Filename(PackageData.GetFileName().ToString());
+	UE_SCOPED_HIERARCHICAL_CUSTOM_COOKTIMER_AND_DURATION(SaveCookedPackage, DetailedCookStats::TickCookOnTheSideSaveCookedPackageTimeSec)
+		UE_ADD_CUSTOM_COOKTIMER_META(SaveCookedPackage, PackageName, *WriteToString<256>(Context.PackageData.GetFileName()));
 
-	// Also request any localized variants of this package
-	if (IsCookByTheBookMode() && !CookByTheBookOptions->bSkipSoftReferences && !FPackageName::IsLocalizedPackage(PackageName))
+	UPackage* Package = Context.Package;
+	uint32 OriginalPackageFlags = Package->GetPackageFlags();
+
+	Context.SetupPackage();
+
+	ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
+	TGuardValue<bool> ScopedOutputCookerWarnings(GOutputCookingWarnings, IsCookFlagSet(ECookInitializationFlags::OutputVerboseCookerWarnings));
+	// SavePackage can CollectGarbage, so we need to store the currently-unqueued PackageData in a separate variable that we register for garbage collection
+	TGuardValue<UE::Cook::FPackageData*> ScopedSavingPackageData(SavingPackageData, &Context.PackageData);
+	TGuardValue<bool> ScopedIsSavingPackage(bIsSavingPackage, true);
+	// For legacy reasons we set GIsCookerLoadingPackage == true during save. Some classes use it to conditionally execute cook operations in both save and load
+	TGuardValue<bool> ScopedIsCookerLoadingPackage(GIsCookerLoadingPackage, true);
+	ON_SCOPE_EXIT{ Package->SetPackageFlagsTo(OriginalPackageFlags); };
+
+	for (const ITargetPlatform* TargetPlatform : Context.PlatformsForPackage)
 	{
-		const TArray<FName>* LocalizedVariants = CookByTheBookOptions->SourceToLocalizedPackageVariants.Find(Package->GetFName());
-		if (LocalizedVariants)
+		Context.SetupPlatform(TargetPlatform);
+		if (Context.bPlatformSetupSuccessful)
 		{
-			for (const FName& LocalizedPackageName : *LocalizedVariants)
+			UE_SCOPED_HIERARCHICAL_COOKTIMER(GEditorSavePackage);
+
+			try
 			{
-				UE::Cook::FPackageData* LocalizedPackageData = PackageDatas->TryAddPackageDataByPackageName(LocalizedPackageName);
-				if (LocalizedPackageData)
+				if (DiffModeHelper->IsRunningCookDiff())
 				{
-					bool bIsUrgent = false;
-					LocalizedPackageData->UpdateRequestData(PackageData.GetRequestedPlatforms(), bIsUrgent, UE::Cook::FCompletionCallback());
+					check(!Context.PackageStoreWriter); // IsRunningCookDiff should have been disabled by DiffModeHelper if we have any PackageStoreWriter
+					DiffModeHelper->ProcessPackage(Package);
+
+					// When looking for deterministic cook issues, first serialize the package to memory and do a simple diff with the existing package
+					uint32 DiffSaveFlags = Context.SaveFlags | SAVE_DiffOnly;
+					FArchiveDiffMap DiffMap;
+					Context.SavePackageResult = GEditor->Save(Package, Context.World, Context.FlagsToCook, *Context.PlatFilename,
+						GError, nullptr, Context.bEndianSwap, false, DiffSaveFlags, TargetPlatform,
+						FDateTime::MinValue(), false, &DiffMap, Context.SavePackageContext);
+					if (Context.SavePackageResult == ESavePackageResult::DifferentContent)
+					{
+						// If the simple memory diff was not identical, collect callstacks for all Serialize calls and dump differences to log
+						DiffSaveFlags = Context.SaveFlags | SAVE_DiffCallstack;
+						Context.SavePackageResult = GEditor->Save(Package, Context.World, Context.FlagsToCook, *Context.PlatFilename,
+							GError, nullptr, Context.bEndianSwap, false, DiffSaveFlags, TargetPlatform,
+							FDateTime::MinValue(), false, &DiffMap, Context.SavePackageContext);
+					}
+				}
+				else if (DiffModeHelper->IsRunningCookLinkerDiff())
+				{
+					check(!Context.PackageStoreWriter); // IsRunningCookLinkerDiff should have been disabled by DiffModeHelper if we have any PackageStoreWriter
+
+					Context.SavePackageResult = GEditor->Save(Package, Context.World, Context.FlagsToCook, *Context.PlatFilename,
+						GError, nullptr, Context.bEndianSwap, false, Context.SaveFlags, TargetPlatform,
+						FDateTime::MinValue(), false, /*DiffMap*/ nullptr, Context.SavePackageContext);
+
+					// Resave the package again using the other save algorithm
+					DiffModeHelper->LinkerDiffSetup();
+					FSavePackageResultStruct NewResult;
+					NewResult = GEditor->Save(Package, Context.World, Context.FlagsToCook, *Context.PlatFilename,
+						GError, nullptr, Context.bEndianSwap, false, Context.SaveFlags | SAVE_DiffOnly, TargetPlatform,
+						FDateTime::MinValue(), false, /*DiffMap*/ nullptr, Context.SavePackageContext);
+
+					DiffModeHelper->LinkerDiffFinish(Context.SavePackageResult, NewResult);
+				}
+				else
+				{
+					Context.SavePackageResult = GEditor->Save(Package, Context.World, Context.FlagsToCook, *Context.PlatFilename,
+						GError, nullptr, Context.bEndianSwap, false, Context.SaveFlags, TargetPlatform,
+						FDateTime::MinValue(), false, /*DiffMap*/ nullptr, Context.SavePackageContext);
 				}
 			}
+			catch (std::exception&)
+			{
+				UE_LOG(LogCook, Warning, TEXT("Tried to save package %s for target platform %s but threw an exception"),
+					*Package->GetName(), *TargetPlatform->PlatformName());
+				Context.SavePackageResult = ESavePackageResult::Error;
+			}
+
+			// If package was actually saved check with asset manager to make sure it wasn't excluded for being a
+			// development or never cook package. But skip sending the warnings from this check if it was editor-only.
+			if (Context.SavePackageResult == ESavePackageResult::Success && UAssetManager::IsValid())
+			{
+				UE_SCOPED_HIERARCHICAL_COOKTIMER(VerifyCanCookPackage);
+				if (!UAssetManager::Get().VerifyCanCookPackage(Package->GetFName()))
+				{
+					Context.SavePackageResult = ESavePackageResult::Error;
+				}
+			}
+
+			++this->StatSavedPackageCount;
+		}
+
+		Context.FinishPlatform();
+	}
+
+	Context.FinishPackage();
+	Context.StackData.Timer.SavedPackage();
+}
+
+namespace UE::Cook
+{
+FSaveCookedPackageContext::FSaveCookedPackageContext(UCookOnTheFlyServer& InCOTFS, UE::Cook::FPackageData& InPackageData,
+	TArrayView<const ITargetPlatform*> InPlatformsForPackage, UE::Cook::FTickStackData& InStackData)
+	: COTFS(InCOTFS)
+	, PackageData(InPackageData)
+	, PlatformsForPackage(InPlatformsForPackage)
+	, StackData(InStackData)
+	, Package(PackageData.GetPackage())
+	, PackageName(Package ? Package->GetName() : FString())
+	, Filename(PackageData.GetFileName().ToString())
+{
+}
+
+void FSaveCookedPackageContext::SetupPackage()
+{
+	COTFS.DiffModeHelper->Initialize(COTFS.SavePackageContexts);
+	check(Package && Package->IsFullyLoaded()); // PackageData should not be in the save state if Package is not fully loaded
+	check(Package->GetPathName().Equals(PackageName)); // We should only be saving outermost packages, so the path name should be the same as the package name
+	check(!Filename.IsEmpty()); // PackageData guarantees FileName is non-empty; if not found it should never make it into save state
+	if (Package->HasAnyPackageFlags(PKG_ReloadingForCooker))
+	{
+		UE_LOG(LogCook, Warning, TEXT("Package %s marked as reloading for cook by was requested to save"), *PackageName);
+		UE_LOG(LogCook, Fatal, TEXT("Package %s marked as reloading for cook by was requested to save"), *PackageName);
+	}
+
+	SaveFlags = SAVE_KeepGUID | (COTFS.bSaveAsyncAllowed ? SAVE_Async : SAVE_None)
+		| (COTFS.IsCookFlagSet(ECookInitializationFlags::Unversioned) ? SAVE_Unversioned : 0);
+
+	// removing editor only packages only works when cooking in commandlet and non iterative cooking
+	// also doesn't work in multiprocess cooking
+	bool bKeepEditorOnlyPackages = !(COTFS.IsCookByTheBookMode() && !COTFS.IsCookingInEditor());
+	bKeepEditorOnlyPackages |= COTFS.IsCookFlagSet(ECookInitializationFlags::Iterative);
+	SaveFlags |= bKeepEditorOnlyPackages ? SAVE_KeepEditorOnlyCookedPackages : SAVE_None;
+	SaveFlags |= COTFS.CookByTheBookOptions ? SAVE_ComputeHash : SAVE_None;
+	if (COTFS.DiffModeHelper->IsRunningCookLinkerDiff())
+	{
+		SaveFlags |= SAVE_CompareLinker;
+	}
+
+	// Use SandboxFile to do path conversion to properly handle sandbox paths (outside of standard paths in particular).
+	Filename = COTFS.ConvertToFullSandboxPath(*Filename, true);
+}
+
+void FSaveCookedPackageContext::SetupPlatform(const ITargetPlatform* InTargetPlatform)
+{
+	TargetPlatform = InTargetPlatform;
+	PlatFilename = Filename.Replace(TEXT("[Platform]"), *TargetPlatform->PlatformName());
+	bPlatformSetupSuccessful = false;
+
+	// don't save Editor resources from the Engine if the target doesn't have editoronly data
+	if (COTFS.IsCookFlagSet(ECookInitializationFlags::SkipEditorContent) &&
+		(PackageName.StartsWith(TEXT("/Engine/Editor")) || PackageName.StartsWith(TEXT("/Engine/VREditor"))) &&
+		!TargetPlatform->HasEditorOnlyData())
+	{
+		SavePackageResult = ESavePackageResult::ContainsEditorOnlyData;
+		return;
+	}
+	// Check whether or not game-specific behaviour should prevent this package from being cooked for the target platform
+	else if (UAssetManager::IsValid() && !UAssetManager::Get().ShouldCookForPlatform(Package, TargetPlatform))
+	{
+		SavePackageResult = ESavePackageResult::ContainsEditorOnlyData;
+		UE_LOG(LogCook, Display, TEXT("Excluding %s -> %s"), *PackageName, *PlatFilename);
+		return;
+	}
+	// check if this package is unsupported for the target platform (typically plugin content)
+	else
+	{
+		TSet<FName>* NeverCookPackages = COTFS.PackageTracker->PlatformSpecificNeverCookPackages.Find(TargetPlatform);
+		if (NeverCookPackages && NeverCookPackages->Find(Package->GetFName()))
+		{
+			SavePackageResult = ESavePackageResult::ContainsEditorOnlyData;
+			UE_LOG(LogCook, Display, TEXT("Excluding %s -> %s"), *PackageName, *PlatFilename);
+			return;
 		}
 	}
 
-	if (Filename.Len() != 0 )
+	const FString FullFilename = FPaths::ConvertRelativePathToFull(PlatFilename);
+	if (FullFilename.Len() >= FPlatformMisc::GetMaxPathLength())
 	{
-		if (Package->HasAnyPackageFlags(PKG_ReloadingForCooker))
+		LogCookerMessage(FString::Printf(TEXT("Couldn't save package, filename is too long (%d >= %d): %s"),
+			FullFilename.Len(), FPlatformMisc::GetMaxPathLength(), *FullFilename), EMessageSeverity::Error);
+		SavePackageResult = ESavePackageResult::Error;
+		return;
+	}
+
+	if (!bHasDelayLoaded)
+	{
+		// look for a world object in the package (if there is one, there's a map)
+		World = UWorld::FindWorldInPackage(Package);
+		if (World)
 		{
-			UE_LOG(LogCook, Warning, TEXT("Package %s marked as reloading for cook by was requested to save"), *Package->GetName());
-			UE_LOG(LogCook, Fatal, TEXT("Package %s marked as reloading for cook by was requested to save"), *Package->GetName());
+			FlagsToCook = RF_NoFlags;
 		}
+		bContainsMap = Package->ContainsMap();
+		bHasDelayLoaded = true;
+	}
 
-		// Use SandboxFile to do path conversion to properly handle sandbox paths (outside of standard paths in particular).
-		Filename = ConvertToFullSandboxPath(*Filename, true);
+	UE_CLOG(GCookProgressDisplay & (int32)ECookProgressDisplayMode::PackageNames, LogCook, Display, TEXT("Cooking %s -> %s"),
+		*PackageName, *PlatFilename);
 
-		uint32 OriginalPackageFlags = Package->GetPackageFlags();
-		UWorld* World = nullptr;
-		EObjectFlags FlagsToCook = RF_Public;
+	bEndianSwap = (!TargetPlatform->IsLittleEndian()) ^ (!PLATFORM_LITTLE_ENDIAN);
 
-		ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
-
-		static FDiffModeCookServerUtils DiffModeHelper;
-		if (DiffModeHelper.IsRunningCookLinkerDiff())
-		{
-			SaveFlags |= SAVE_CompareLinker;
-		}
-
-		for (int32 PlatformIndex = 0; PlatformIndex < TargetPlatforms.Num(); ++PlatformIndex)
-		{
-			SavePackageResults.Add(FSavePackageResultStruct(ESavePackageResult::Success));
-			const ITargetPlatform* Target = TargetPlatforms[PlatformIndex];
-			FString PlatFilename = Filename.Replace(TEXT("[Platform]"), *Target->PlatformName());
-
-			FSavePackageResultStruct& Result = SavePackageResults[PlatformIndex];
-
-			bool bCookPackage = true;
-
-			// don't save Editor resources from the Engine if the target doesn't have editoronly data
-			if (IsCookFlagSet(ECookInitializationFlags::SkipEditorContent) &&
-				(PackageName.StartsWith(TEXT("/Engine/Editor")) || PackageName.StartsWith(TEXT("/Engine/VREditor"))) &&
-				!Target->HasEditorOnlyData())
-			{
-				Result = ESavePackageResult::ContainsEditorOnlyData;
-				bCookPackage = false;
-			}
-			// Check whether or not game-specific behaviour should prevent this package from being cooked for the target platform
-			else if (UAssetManager::IsValid() && !UAssetManager::Get().ShouldCookForPlatform(Package, Target))
-			{
-				Result = ESavePackageResult::ContainsEditorOnlyData;
-				bCookPackage = false;
-				UE_LOG(LogCook, Display, TEXT("Excluding %s -> %s"), *Package->GetName(), *PlatFilename);
-			}
-			// check if this package is unsupported for the target platform (typically plugin content)
-			else 
-			{
-				TSet<FName>* NeverCookPackages = PackageTracker->PlatformSpecificNeverCookPackages.Find(Target);
-				if (NeverCookPackages && NeverCookPackages->Find(FName(*PackageName)))
-				{
-					Result = ESavePackageResult::ContainsEditorOnlyData;
-					bCookPackage = false;
-					UE_LOG(LogCook, Display, TEXT("Excluding %s -> %s"), *Package->GetName(), *PlatFilename);
-				}
-			}
-
-			if (bCookPackage == true)
-			{
-				// look for a world object in the package (if there is one, there's a map)
-				if (UWorld::FindWorldInPackage(Package))
-				{
-					FlagsToCook = RF_NoFlags;
-				}
-
-				UE_CLOG(GCookProgressDisplay & (int32)ECookProgressDisplayMode::PackageNames, LogCook, Display, TEXT("Cooking %s -> %s"), *Package->GetName(), *PlatFilename);
-
-				bool bSwap = (!Target->IsLittleEndian()) ^ (!PLATFORM_LITTLE_ENDIAN);
-
-
-				if (!Target->HasEditorOnlyData())
-				{
-					Package->SetPackageFlags(PKG_FilterEditorOnly);
-				}
-				else
-				{
-					Package->ClearPackageFlags(PKG_FilterEditorOnly);
-				}
-
-				if (World)
-				{
-					// Fixup legacy lightmaps before saving
-					// This should be done after loading, but Core loads UWorlds with LoadObject so there's no opportunity to handle this fixup on load
-					World->PersistentLevel->HandleLegacyMapBuildData();
-				}
-
-				const FString FullFilename = FPaths::ConvertRelativePathToFull(PlatFilename);
-				if (FullFilename.Len() >= FPlatformMisc::GetMaxPathLength())
-				{
-					LogCookerMessage(FString::Printf(TEXT("Couldn't save package, filename is too long (%d >= %d): %s"), FullFilename.Len(), FPlatformMisc::GetMaxPathLength(), *PlatFilename), EMessageSeverity::Error);
-					Result = ESavePackageResult::Error;
-				}
-				else
-				{
-					UE_SCOPED_HIERARCHICAL_COOKTIMER(GEditorSavePackage);
-					GIsCookerLoadingPackage = true;
-
-					if (DiffModeHelper.IsRunningCookDiff())
-					{
-						FSavePackageContext* const SavePackageContext = SavePackageContexts.Num() > 0 ? SavePackageContexts[PlatformIndex] : nullptr;
-
-						DiffModeHelper.ProcessPackage(Package);
-
-						// When looking for deterministic cook issues, first serialize the package to memory and do a simple diff with the existing package
-						uint32 DiffSaveFlags = SaveFlags | SAVE_DiffOnly;
-						FArchiveDiffMap DiffMap;
-						Result = GEditor->Save(Package, World, FlagsToCook, *PlatFilename, GError, NULL, bSwap, false, DiffSaveFlags, Target, FDateTime::MinValue(), false, &DiffMap, SavePackageContext);
-						if (Result == ESavePackageResult::DifferentContent)
-						{
-							// If the simple memory diff was not identical, collect callstacks for all Serialize calls and dump differences to log
-							DiffSaveFlags = SaveFlags | SAVE_DiffCallstack;
-							Result = GEditor->Save(Package, World, FlagsToCook, *PlatFilename, GError, NULL, bSwap, false, DiffSaveFlags, Target, FDateTime::MinValue(), false, &DiffMap, SavePackageContext);
-						}
-					}
-					else
-					{
-						FSavePackageContext* const SavePackageContext = SavePackageContexts.Num() > 0 ? SavePackageContexts[PlatformIndex] : nullptr;
-
-						IPackageStoreWriter* PackageStoreWriter = SavePackageContext ? SavePackageContext->PackageStoreWriter : nullptr;
-						if (PackageStoreWriter)
-						{
-							IPackageStoreWriter::FBeginPackageInfo Info;
-							Info.PackageName = Package->GetFName();
-							
-							PackageStoreWriter->BeginPackage(Info);
-						}
-
-						Result = GEditor->Save(	Package, World, FlagsToCook, *PlatFilename, 
-												GError, nullptr, bSwap, false, SaveFlags, Target,
-												FDateTime::MinValue(), false, /*DiffMap*/ nullptr, 
-												SavePackageContext);
-
-						if (PackageStoreWriter)
-						{
-							FAssetRegistryGenerator* Generator = PlatformManager->GetPlatformData(Target)->RegistryGenerator.Get();
-							FAssetPackageData* AssetPackageData = Generator->GetAssetPackageData(Package->GetFName());
-							check(AssetPackageData);
-
-							IPackageStoreWriter::FCommitPackageInfo Info;
-							Info.bSucceeded		= Result.IsSuccessful();
-							Info.PackageName	= Package->GetFName();
-							PRAGMA_DISABLE_DEPRECATION_WARNINGS
-							Info.PackageGuid	= AssetPackageData->PackageGuid;
-							PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-							PackageStoreWriter->CommitPackage(Info);
-						}
-					}
-
-					// if running linker diff, resave the package again using the other save algorithm
-					if (DiffModeHelper.IsRunningCookLinkerDiff())
-					{
-						static IConsoleVariable* EnableNewSave = IConsoleManager::Get().FindConsoleVariable(TEXT("SavePackage.EnableNewSave"));
-						int32 PreviousCvarValue = EnableNewSave->GetInt();
-
-						// If the linker diff is comparing the two save algo, switch the cvar to the other algo before saving again,
-						// Otherwise the linker diff mode is tracking if the save is consistent across multiple save
-						bool bAlgoLinkerDiff = DiffModeHelper.GetLinkerDiffMode() == FDiffModeCookServerUtils::LDM_Algo;
-						if (bAlgoLinkerDiff)
-						{
-							// see CVarEnablePackageNewSave definition in SavePackageUtilities.cpp for value meaning
-							EnableNewSave->Set(PreviousCvarValue & 1 ? 0 : 1);
-						}
-
-						FSavePackageResultStruct NewResult = GEditor->Save(Package, World, FlagsToCook, *PlatFilename,
-							GError, nullptr, bSwap, false, SaveFlags|SAVE_DiffOnly, Target,
-							FDateTime::MinValue(), false, /*DiffMap*/ nullptr,
-							nullptr);
-
-						if (bAlgoLinkerDiff)
-						{
-							EnableNewSave->Set(PreviousCvarValue);
-						}
-
-						if (Result.LinkerSave && NewResult.LinkerSave)
-						{
-							FLinkerDiff LinkerDiff = FLinkerDiff::CompareLinkers(Result.LinkerSave.Get(), NewResult.LinkerSave.Get());
-							LinkerDiff.PrintDiff(*GWarn);
-						}
-						Result.LinkerSave.Reset();
-						NewResult.LinkerSave.Reset();
-					}
-
-					GIsCookerLoadingPackage = false;
-					++this->StatSavedPackageCount;
-
-					// If package was actually saved check with asset manager to make sure it wasn't excluded for being a development or never cook package. We do this after Editor Only filtering
-					if (Result == ESavePackageResult::Success && UAssetManager::IsValid())
-					{
-						UE_SCOPED_HIERARCHICAL_COOKTIMER(VerifyCanCookPackage);
-						if (!UAssetManager::Get().VerifyCanCookPackage(Package->GetFName()))
-						{
-							Result = ESavePackageResult::Error;
-						}
-					}
-				}
-			}
-		}
-
-		Package->SetPackageFlagsTo(OriginalPackageFlags);
+	if (!TargetPlatform->HasEditorOnlyData())
+	{
+		Package->SetPackageFlags(PKG_FilterEditorOnly);
 	}
 	else
 	{
-		for (int32 PlatformIndex = 0; PlatformIndex < TargetPlatforms.Num(); ++PlatformIndex)
+		Package->ClearPackageFlags(PKG_FilterEditorOnly);
+	}
+
+	if (World)
+	{
+		// Fixup legacy lightmaps before saving
+		// This should be done after loading, but Core loads UWorlds with LoadObject so there's no opportunity to handle this fixup on load
+		World->PersistentLevel->HandleLegacyMapBuildData();
+	}
+
+	SavePackageContext = COTFS.GetSavePackageContext(TargetPlatform);
+	PackageStoreWriter = SavePackageContext ? SavePackageContext->PackageStoreWriter : nullptr;
+	if (PackageStoreWriter)
+	{
+		IPackageStoreWriter::FBeginPackageInfo Info;
+		Info.PackageName = Package->GetFName();
+
+		PackageStoreWriter->BeginPackage(Info);
+	}
+
+	// Indicate Setup was successful
+	bPlatformSetupSuccessful = true;
+	SavePackageResult = ESavePackageResult::Success;
+}
+
+void FSaveCookedPackageContext::FinishPlatform()
+{
+	bool bSuccessful = SavePackageResult.IsSuccessful();
+	bool bLocalReferencedOnlyByEditorOnlyData = SavePackageResult == ESavePackageResult::ReferencedOnlyByEditorOnlyData;
+
+	if (bPlatformSetupSuccessful && PackageStoreWriter)
+	{
+		FAssetRegistryGenerator* Generator = COTFS.PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator.Get();
+		FAssetPackageData* AssetPackageData = Generator->GetAssetPackageData(Package->GetFName());
+		check(AssetPackageData);
+
+		IPackageStoreWriter::FCommitPackageInfo Info;
+		Info.bSucceeded = bSuccessful;
+		Info.PackageName = Package->GetFName();
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		Info.PackageGuid = AssetPackageData->PackageGuid;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+		PackageStoreWriter->CommitPackage(Info);
+	}
+
+	// Update asset registry
+	if (COTFS.CookByTheBookOptions)
+	{
+		FAssetRegistryGenerator* Generator = COTFS.PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator.Get();
+		COTFS.UpdateAssetRegistryPackageData(Generator, *Package, SavePackageResult);
+	}
+
+	// In success or failure we want to mark the package as cooked, unless the failure was due to being referenced only
+	// by editor-only data; we may need to save it later when new content loads it through non editor-only references.
+	if (!bLocalReferencedOnlyByEditorOnlyData)
+	{
+		PackageData.AddCookedPlatform(TargetPlatform, bSuccessful);
+	}
+
+	// Update flags used to determine garbage collection.
+	if (bSuccessful)
+	{
+		if (bContainsMap)
 		{
-			SavePackageResults.Add(FSavePackageResultStruct(ESavePackageResult::MissingFile));
+			StackData.ResultFlags |= UCookOnTheFlyServer::COSR_CookedMap;
+		}
+		else
+		{
+			++StackData.CookedPackageCount;
+			StackData.ResultFlags |= UCookOnTheFlyServer::COSR_CookedPackage;
 		}
 	}
 
-	// Don't resolve, just add to request list as needed, do this after save to catch save permutations
-	TSet<FName> SoftObjectPackages;
-	if (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipSoftReferences)
+	// Accumulate results for SaveCookedPackage_Finish
+	if (bHasFirstPlatformResults && bLocalReferencedOnlyByEditorOnlyData != bReferencedOnlyByEditorOnlyData)
 	{
-		GRedirectCollector.ProcessSoftObjectPathPackageList(Package->GetFName(), false, SoftObjectPackages);
+		UE_LOG(LogCook, Error, TEXT("Package %s had different values for IsReferencedOnlyByEditorOnlyData from multiple platforms. ")
+			TEXT("Treading all platforms as IsReferencedOnlyByEditorOnlyData = true; this will cause the package to be ignored on the platforms that need it."),
+			*Package->GetName());
+		bReferencedOnlyByEditorOnlyData = true;
+	}
+	else
+	{
+		bReferencedOnlyByEditorOnlyData = bLocalReferencedOnlyByEditorOnlyData;
+	}
+	bHasFirstPlatformResults = true;
+}
 
+void FSaveCookedPackageContext::FinishPackage()
+{
+	// Add soft references discovered from the package
+	if (!COTFS.IsCookByTheBookMode() || !COTFS.CookByTheBookOptions->bSkipSoftReferences)
+	{
+		// Also request any localized variants of this package
+		if (COTFS.IsCookByTheBookMode() && !FPackageName::IsLocalizedPackage(Package->GetName()))
+		{
+			const TArray<FName>* LocalizedVariants = COTFS.CookByTheBookOptions->SourceToLocalizedPackageVariants.Find(Package->GetFName());
+			if (LocalizedVariants)
+			{
+				for (const FName& LocalizedPackageName : *LocalizedVariants)
+				{
+					UE::Cook::FPackageData* LocalizedPackageData = COTFS.PackageDatas->TryAddPackageDataByPackageName(LocalizedPackageName);
+					if (LocalizedPackageData)
+					{
+						bool bIsUrgent = false;
+						LocalizedPackageData->UpdateRequestData(PackageData.GetRequestedPlatforms(), bIsUrgent, UE::Cook::FCompletionCallback());
+					}
+				}
+			}
+		}
+
+		// Add SoftObjectPaths to the cook. This has to be done after the package save to catch any SoftObjectPaths that were added during save.
+		TSet<FName> SoftObjectPackages;
+		GRedirectCollector.ProcessSoftObjectPathPackageList(Package->GetFName(), false, SoftObjectPackages);
 		for (FName SoftObjectPackage : SoftObjectPackages)
 		{
 			TMap<FName, FName> RedirectedPaths;
 
 			// If this is a redirector, extract destination from asset registry
-			if (ContainsRedirector(SoftObjectPackage, RedirectedPaths))
+			if (COTFS.ContainsRedirector(SoftObjectPackage, RedirectedPaths))
 			{
 				for (TPair<FName, FName>& RedirectedPath : RedirectedPaths)
 				{
@@ -4764,10 +4826,9 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 				}
 			}
 
-			// Verify package actually exists
-			if (IsCookByTheBookMode())
+			if (COTFS.IsCookByTheBookMode())
 			{
-				UE::Cook::FPackageData* SoftObjectPackageData = PackageDatas->TryAddPackageDataByPackageName(SoftObjectPackage);
+				UE::Cook::FPackageData* SoftObjectPackageData = COTFS.PackageDatas->TryAddPackageDataByPackageName(SoftObjectPackage);
 				if (SoftObjectPackageData)
 				{
 					bool bIsUrgent = false;
@@ -4777,10 +4838,28 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 		}
 	}
 
-	check(bIsSavingPackage == true);
-	bIsSavingPackage = false;
+	if (!bReferencedOnlyByEditorOnlyData)
+	{
+		if ((COTFS.CurrentCookMode == ECookMode::CookOnTheFly) && !PackageData.GetIsUrgent())
+		{
+			// this is an unsolicited package
+			if (FPaths::FileExists(Filename))
+			{
+				COTFS.PackageTracker->UnsolicitedCookedPackages.AddCookedPackage(FFilePlatformRequest(PackageData.GetFileName(), PlatformsForPackage));
 
+#if DEBUG_COOKONTHEFLY
+				UE_LOG(LogCook, Display, TEXT("UnsolicitedCookedPackages: %s"), *Filename);
+#endif
+			}
+		}
+	}
+	else
+	{
+		COTFS.PackageTracker->UncookedEditorOnlyPackages.AddUnique(Package->GetFName());
+	}
 }
+
+} // namespace UE::Cook
 
 void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInitializationFlags InCookFlags, const FString &InOutputDirectoryOverride )
 {
@@ -9274,5 +9353,18 @@ IPackageStoreWriter* UCookOnTheFlyServer::GetPackageStoreWriter(const FName& Pla
 
 	return nullptr;
 }
+
+FSavePackageContext* UCookOnTheFlyServer::GetSavePackageContext(const ITargetPlatform* TargetPlatform) const
+{
+	for (FSavePackageContext* Context : SavePackageContexts)
+	{
+		if (Context->TargetPlatform == TargetPlatform)
+		{
+			return Context;
+		}
+	}
+	return nullptr;
+}
+
 
 #undef LOCTEXT_NAMESPACE
