@@ -137,6 +137,8 @@ namespace Cook
 		void AddCookedPlatforms(const TArrayView<const ITargetPlatform* const>& New, const TArrayView<const bool>& Succeeded);
 		/** Add each element of New to CookedPlatforms if it is not already present, succeeded set to bSucceeded. If a platform is already present in CookedPlatforms, its success flag is overwritten. */
 		void AddCookedPlatforms(const TArrayView<const ITargetPlatform* const>& New, bool bSucceeded);
+		/** Add TargetPlatform to CookedPlatforms if it is not already present, succeeded set to bSucceeded. If TargetPlatform is already present in CookedPlatforms, its success flag is overwritten. */
+		void AddCookedPlatform(const ITargetPlatform* TargetPlatform, bool bSucceeded);
 		/** Remove the given Platform and its succeeded flag from CookedPlatforms if it exists. */
 		void RemoveCookedPlatform(const ITargetPlatform* Platform);
 		/** Remove each element of Platforms and its succeeded flags from CookedPlatforms if it exists. */

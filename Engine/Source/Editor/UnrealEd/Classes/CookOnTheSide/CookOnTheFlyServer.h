@@ -20,14 +20,15 @@
 
 class FAssetRegistryGenerator;
 class FAsyncIODelete;
-struct FPackageNameCache;
-struct FPropertyChangedEvent;
+class FDiffModeCookServerUtils;
 class FReferenceCollector;
 class FSavePackageContext;
-class ITargetPlatform;
 class IAssetRegistry;
-class IPlugin;
 class IPackageStoreWriter;
+class IPlugin;
+class ITargetPlatform;
+struct FPackageNameCache;
+struct FPropertyChangedEvent;
 
 enum class ECookInitializationFlags
 {
@@ -107,26 +108,24 @@ enum class ECookTickFlags : uint8
 };
 ENUM_CLASS_FLAGS(ECookTickFlags);
 
-namespace UE
+namespace UE::Cook
 {
-namespace Cook
-{
-	namespace Private
-	{
-		class FRegisteredCookPackageSplitter;
-	}
-	struct FCookerTimer;
 	class FExternalRequests;
+	class FSaveCookedPackageContext;
+	class ICookOnTheFlyRequestManager;
+	struct FCookerTimer;
 	struct FPackageData;
-	struct FGeneratorPackage;
 	struct FPackageDatas;
 	struct FPackageTracker;
 	struct FPendingCookedPlatformData;
+	struct FGeneratorPackage;
 	struct FPlatformManager;
-	struct FTickStackData;
 	struct FPopulatePackageContext;
-	class ICookOnTheFlyRequestManager;
+	struct FTickStackData;
 }
+namespace UE::Cook::Private
+{
+	class FRegisteredCookPackageSplitter;
 }
 
 UCLASS()
@@ -134,8 +133,8 @@ class UNREALED_API UCookOnTheFlyServer : public UObject, public FTickableEditorO
 {
 	GENERATED_BODY()
 
-		UCookOnTheFlyServer(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-		UCookOnTheFlyServer(FVTableHelper& Helper); // Declare the FVTableHelper constructor manually so that we can forward-declare-only TUniquePtrs in the header without getting compile error in generated cpp
+	UCookOnTheFlyServer(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	UCookOnTheFlyServer(FVTableHelper& Helper); // Declare the FVTableHelper constructor manually so that we can forward-declare-only TUniquePtrs in the header without getting compile error in generated cpp
 
 public:
 	struct FCookByTheBookOptions;
@@ -1020,18 +1019,9 @@ private:
 		return (CookFlags & InCookFlags) != ECookInitializationFlags::None;
 	}
 
-	/**
-	*	Cook (save) the given package
-	*
-	*	@param	PackageData			The PackageData to cook/save
-	*	@param	SaveFlags			The flags to pass to the SavePackage function
-	*	@param	bOutWasUpToDate		Upon return, if true then the cooked package was cached (up to date)
-	*	@param  TargetPlatforms		Only cook for target platforms which are included in this array
-	*
-	*	@return	ESavePackageResult::Success if packages was cooked
-	*/
-	void SaveCookedPackage(UE::Cook::FPackageData& PackageData, uint32 SaveFlags, const TArrayView<const ITargetPlatform* const>& TargetPlatforms, TArray<FSavePackageResultStruct>& SavePackageResults);
-
+	/** Cook (save) a package and process the results */
+	void SaveCookedPackage(UE::Cook::FSaveCookedPackageContext& Context);
+	friend class UE::Cook::FSaveCookedPackageContext;
 
 	/**
 	*  Save the global shader map
@@ -1114,6 +1104,7 @@ private:
 	uint32 FullLoadAndSave(uint32& CookedPackageCount);
 
 	IPackageStoreWriter* GetPackageStoreWriter(const FName& PlatformName) const;
+	FSavePackageContext* GetSavePackageContext(const ITargetPlatform* TargetPlatform) const;
 
 	uint32		StatLoadedPackageCount = 0;
 	uint32		StatSavedPackageCount = 0;
@@ -1144,6 +1135,8 @@ private:
 	/** Objects that were collected during the single-threaded PreGarbageCollect callback and that should be reported as referenced in CookerAddReferencedObjects. */
 	TArray<UObject*> GCKeepObjects;
 	UE::Cook::FPackageData* SavingPackageData = nullptr;
+	/** Helper struct for running cooking in diagnostic modes */
+	TUniquePtr<FDiffModeCookServerUtils> DiffModeHelper;
 
 	// temporary -- should eliminate the need for this. Only required right now because FullLoadAndSave 
 	// accesses maps directly
