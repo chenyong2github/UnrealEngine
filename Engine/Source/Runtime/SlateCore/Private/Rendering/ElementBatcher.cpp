@@ -2756,7 +2756,7 @@ void FSlateElementBatcher::BuildShapedTextSequence(const FShapedTextBuildContext
 			bCanRenderGlyph = !bClipped;
 		}
 
-		if(bCanRenderGlyph)
+		if(bCanRenderGlyph && RenderBatch)
 		{
 			const FVector2D UpperLeft(X, Y);
 			const FVector2D UpperRight(X + SizeX, Y);
