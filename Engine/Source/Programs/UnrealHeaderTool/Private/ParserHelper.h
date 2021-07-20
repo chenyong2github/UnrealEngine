@@ -293,6 +293,32 @@ public:
 		return Type == CPT_Delegate && IsPrimitiveOrPrimitiveStaticArray();
 	}
 
+	bool PassCPPArgsByRef() const
+	{
+		if (ArrayType == EArrayType::Dynamic || ArrayType == EArrayType::Set || MapKeyProp.IsValid())
+		{
+			return true;
+		}
+		switch (Type)
+		{
+		//case CPT_Struct:
+		case CPT_String:
+		case CPT_Text:
+		case CPT_Delegate:
+		case CPT_MulticastDelegate:
+		case CPT_WeakObjectReference:
+		case CPT_LazyObjectReference:
+		case CPT_ObjectPtrReference:
+		case CPT_SoftObjectReference:
+		case CPT_Map:
+		case CPT_Set:
+			return true;
+
+		default:
+			return false;
+		}
+	}
+
 	FUnrealEnumDefinitionInfo* AsEnum() const;
 
 	bool IsEnum() const;

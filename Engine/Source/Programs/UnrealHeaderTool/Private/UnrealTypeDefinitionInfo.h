@@ -674,16 +674,9 @@ public:
 		Property = InProperty;
 	}
 
-	void ExportCppDeclaration(FOutputDevice& Out, EExportedDeclaration::Type DeclarationType, const TCHAR* ArrayDimOverride = NULL, uint32 AdditionalExportCPPFlags = 0
-		, bool bSkipParameterName = false, const FString* ActualCppType = nullptr, const FString* ActualExtendedType = nullptr, const FString* ActualParameterName = nullptr) const
-	{
-		GetProperty()->ExportCppDeclaration(Out, DeclarationType, ArrayDimOverride, AdditionalExportCPPFlags, bSkipParameterName, ActualCppType, ActualExtendedType, ActualParameterName);
-	}
+	void ExportCppDeclaration(FOutputDevice& Out, EExportedDeclaration::Type DeclarationType, const TCHAR* ArrayDimOverride = NULL, uint32 AdditionalExportCPPFlags = 0, bool bSkipParameterName = false) const;
 
-	FString GetCPPMacroType(FString& ExtendedTypeText) const
-	{
-		return GetProperty()->GetCPPMacroType(ExtendedTypeText);
-	}
+	FString GetCPPMacroType(FString& ExtendedTypeText) const;
 
 	/**
 	 * Returns the name of the property
