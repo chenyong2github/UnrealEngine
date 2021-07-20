@@ -95,67 +95,70 @@ public:
 	void Shutdown();
 
 	// Notes above the below convenience functions:
-	// 1. If BOTH ChangedVids/ChagnedElementIDs and ChangedTids are null, a complete update will be performed. If either
+	// 1. If BOTH ChangedVids/ChagnedElementIDs and ChangedConnectivityTids are null, a complete update will be performed. If either
 	//   is present, then only those vids/elements/tids will be updated.
 	// 2. Generally ChangedVids/ChangedElementIDs is allowed to have new elements, since it is natural to split UVs.
-	//   However, ChangedTids must not have new Tids, because the tids form our correspondence between the unwrap mesh and
+	//   However, ChangedConnectivityTids must not have new Tids, because the tids form our correspondence between the unwrap mesh and
 	//   the original layer.
-	// 3. If updating the preview objects, note that the functions do not try to cancel any active computations, so an active
+	// 3. FastRenderUpdateTids is an optional list of triangles whose render data needs updating, which can allow for faster preview
+	//  updates if the render buffers are properly split apart. If provided, it should be a superset of ChangedConnectivityTids,
+	//  and should contain the one-ring triangles of ChangedVids.
+	// 4. If updating the preview objects, note that the functions do not try to cancel any active computations, so an active
 	//   computation could reset things once it completes.
 
 	/**
 	 * Updates UnwrapPreview UV Overlay from UnwrapPreview vert positions. Issues a NotifyDeferredEditCompleted
 	 * for both positions and UVs.
 	 */
-	void UpdateUnwrapPreviewOverlay(const TArray<int32>* ChangedVids = nullptr, const TArray<int32>* ChangedTids = nullptr);
+	void UpdateUnwrapPreviewOverlay(const TArray<int32>* ChangedVids = nullptr, const TArray<int32>* ChangedConnectivityTids = nullptr, const TArray<int32>* FastRenderUpdateTids = nullptr);
 
 	/**
 	 * Updates UnwrapCanonical UV Overlay from UnwrapCanonical vert positions. Issues a NotifyDeferredEditCompleted
 	 * for both positions and UVs.
 	 */
-	void UpdateUnwrapCanonicalOverlay(const TArray<int32>* ChangedVids = nullptr, const TArray<int32>* ChangedTids = nullptr);
+	void UpdateUnwrapCanonicalOverlay(const TArray<int32>* ChangedVids = nullptr, const TArray<int32>* ChangedConnectivityTids = nullptr);
 
 	/**
 	 * Updates the AppliedPreview from UnwrapPreview, without updating the non-preview meshes. Useful for updates during
 	 * a drag, etc, when we only care about updating the visible items.
 	 * Assumes that the overlay in UnwrapPreview is already updated.
 	 */
-	void UpdateAppliedPreviewFromUnwrapPreview(const TArray<int32>* ChangedVids = nullptr, const TArray<int32>* ChangedTids = nullptr);
+	void UpdateAppliedPreviewFromUnwrapPreview(const TArray<int32>* ChangedVids = nullptr, const TArray<int32>* ChangedConnectivityTids = nullptr, const TArray<int32>* FastRenderUpdateTids = nullptr);
 
 	/**
 	 * Updates only the UnwrapPreview from AppliedPreview, without updating the non-preview meshes. Useful for updates during
 	 * a drag, etc, when we only care about updating the visible items.
 	 */
 	void UpdateUnwrapPreviewFromAppliedPreview(
-		const TArray<int32>* ChangedElementIDs = nullptr, const TArray<int32>* ChangedTids = nullptr);
+		const TArray<int32>* ChangedElementIDs = nullptr, const TArray<int32>* ChangedConnectivityTids = nullptr, const TArray<int32>* FastRenderUpdateTids = nullptr);
 
 	/**
 	 * Updates the non-preview meshes from their preview counterparts. Useful, for instance, after the completion of a drag
 	 * to update the canonical objects.
 	 */
-	void UpdateCanonicalFromPreviews(const TArray<int32>* ChangedVids = nullptr, const TArray<int32>* ChangedTids = nullptr);
+	void UpdateCanonicalFromPreviews(const TArray<int32>* ChangedVids = nullptr, const TArray<int32>* ChangedConnectivityTids = nullptr);
 
 	/**
 	 * Updates the other meshes using the mesh in UnwrapPreview. Assumes that the overlay in UnwrapPreview is updated.
 	 */
-	void UpdateAllFromUnwrapPreview(const TArray<int32>* ChangedVids = nullptr, const TArray<int32>* ChangedTids = nullptr);
+	void UpdateAllFromUnwrapPreview(const TArray<int32>* ChangedVids = nullptr, const TArray<int32>* ChangedConnectivityTids = nullptr, const TArray<int32>* FastRenderUpdateTids = nullptr);
 
 	/**
 	 * Updates the other meshes using the mesh in UnwrapCanonical. Assumes that overlay in UnwrapCanonical is updated.
 	 */
-	void UpdateAllFromUnwrapCanonical(const TArray<int32>* ChangedVids = nullptr, const TArray<int32>* ChangedTids = nullptr);
+	void UpdateAllFromUnwrapCanonical(const TArray<int32>* ChangedVids = nullptr, const TArray<int32>* ChangedConnectivityTids = nullptr, const TArray<int32>* FastRenderUpdateTids = nullptr);
 
 	/**
 	 * Updates the other meshes using the UV overlay in the live preview.
 	 */
-	void UpdateAllFromAppliedPreview(const TArray<int32>* ChangedElementIDs = nullptr, const TArray<int32>* ChangedTids = nullptr);
+	void UpdateAllFromAppliedPreview(const TArray<int32>* ChangedElementIDs = nullptr, const TArray<int32>* ChangedConnectivityTids = nullptr, const TArray<int32>* FastRenderUpdateTids = nullptr);
 
 	// UToolTarget
 	virtual bool IsValid() const override;
 protected:
 
 	void UpdateAppliedOverlays(const UE::Geometry::FDynamicMeshUVOverlay& SourceOverlay,
-		const TArray<int32>* ChangedVids, const TArray<int32>* ChangedTids);
+		const TArray<int32>* ChangedVids, const TArray<int32>* ChangedConnectivityTids, const TArray<int32>* FastRenderUpdateTids);
 	void UpdateOtherUnwrap(const UE::Geometry::FDynamicMesh3& SourceUnwrapMesh,
-		UE::Geometry::FDynamicMesh3& DestUnwrapMesh, const TArray<int32>* ChangedVids, const TArray<int32>* ChangedTids);
+		UE::Geometry::FDynamicMesh3& DestUnwrapMesh, const TArray<int32>* ChangedVids, const TArray<int32>* ChangedConnectivityTids);
 };
