@@ -2,6 +2,7 @@
 
 #include "Library/DMXEntityFixturePatch.h"
 
+#include "DMXConversions.h"
 #include "DMXProtocolConstants.h"
 #include "DMXRuntimeLog.h"
 #include "DMXStats.h"
@@ -669,14 +670,49 @@ void UDMXEntityFixturePatch::GetNormalizedAttributesValues(FDMXNormalizedAttribu
 
 bool UDMXEntityFixturePatch::SendMatrixCellValue(const FIntPoint& CellCoordinate, const FDMXAttributeName& Attribute, int32 Value)
 {
-	TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
-	GetMatrixCellChannelsAbsolute(CellCoordinate, AttributeNameChannelMap);
+	if (UDMXLibrary* DMXLibrary = ParentLibrary.Get())
+	{
+		if (const FDMXFixtureMatrix* const FixtureMatrixPtr = GetFixtureMatrix())
+		{
+			const int32 DistributedCellIndex = Cache.GetDistributedCellIndex(CellCoordinate);
+			const int32 AbsoluteMatrixStartingChannel = Cache.GetMatrixStartingChannelAbsolute();
+			const int32 AbsoluteCellStartingChannel = AbsoluteMatrixStartingChannel + DistributedCellIndex * Cache.GetCellSize();
 
-	return SendMatrixCellValueWithAttributeMap(CellCoordinate, Attribute, Value, AttributeNameChannelMap);
+			// Iterate over the cell attributes, increment the attribute offset until the right attribute is found, then send it.
+			int32 AttributeOffset = 0;
+			for (const FDMXFixtureCellAttribute& CellAttribute : Cache.GetCellAttributes())
+			{
+				if (CellAttribute.Attribute.Name == Attribute && Value >= 0)
+				{
+					TArray<uint8> ByteArray = FDMXConversions::UnsignedInt32ToByteArray(Value, CellAttribute.DataType, CellAttribute.bUseLSBMode);
+
+					TMap<int32, uint8> DMXChannelToValueMap;
+					DMXChannelToValueMap.Reserve(ByteArray.Num());
+					for (int32 ByteIndex = 0; ByteIndex < CellAttribute.GetNumChannels(); ByteIndex++)
+					{
+						DMXChannelToValueMap.Add(AbsoluteCellStartingChannel + AttributeOffset + ByteIndex, ByteArray[ByteIndex]);
+					}
+
+					// Send to the library's output ports
+					for (const FDMXOutputPortSharedRef& OutputPort : DMXLibrary->GetOutputPorts())
+					{
+						OutputPort->SendDMX(UniverseID, DMXChannelToValueMap);
+					}
+
+					return true;
+				}
+
+				AttributeOffset += CellAttribute.GetNumChannels();
+			}
+		}
+	}
+
+	return false;
 }
 
 bool UDMXEntityFixturePatch::SendMatrixCellValueWithAttributeMap(const FIntPoint& CellCoordinate, const FDMXAttributeName& Attribute, int32 Value, const TMap<FDMXAttributeName, int32>& InAttributeNameChannelMap)
 {
+	// DEPRECATED 4.27
 	const FDMXFixtureMatrix* const FixtureMatrixPtr = GetFixtureMatrix();
 
 	if (!FixtureMatrixPtr)
@@ -918,9 +954,9 @@ bool UDMXEntityFixturePatch::GetAllMatrixCells(TArray<FDMXCell>& Cells)
 		const int32 NumXCells = Cache.GetMatrixNumXCells();
 		const int32 NumYCells = Cache.GetMatrixNumYCells();
 		
-		for (int32 CellIndexX = 0; CellIndexX < NumXCells; CellIndexX++)
+		for (int32 CellIndexY = 0; CellIndexY < NumYCells; CellIndexY++)
 		{
-			for (int32 CellIndexY = 0; CellIndexY < NumYCells; CellIndexY++)
+			for (int32 CellIndexX = 0; CellIndexX < NumXCells; CellIndexX++)
 			{
 				FIntPoint CellCoordinate;
 				CellCoordinate.X = CellIndexX;

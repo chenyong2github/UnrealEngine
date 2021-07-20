@@ -67,7 +67,7 @@ bool FDMXFixtureMatrix::GetChannelsFromCell(FIntPoint CellCoordinate, FDMXAttrib
 	}
 
 	TArray<int32> OrderedChannels;
-	FDMXUtils::PixelMappingDistributionSort(PixelMappingDistribution, XCells, YCells, AllChannels, OrderedChannels);
+	FDMXRuntimeUtils::PixelMappingDistributionSort(PixelMappingDistribution, XCells, YCells, AllChannels, OrderedChannels);
 
 	check(AllChannels.Num() == OrderedChannels.Num());
 

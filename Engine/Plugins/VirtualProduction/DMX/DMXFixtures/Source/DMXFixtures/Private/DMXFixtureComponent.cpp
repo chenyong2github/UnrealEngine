@@ -19,7 +19,6 @@ UDMXFixtureComponent::UDMXFixtureComponent()
 void UDMXFixtureComponent::InitCells(int NumCells)
 {
 	Cells.Init(FCell(), NumCells);
-	CurrentCell = &Cells[0];
 	for (FCell& Cell : Cells)
 	{
 		Cell.ChannelInterpolation.Init(FInterpolationData(), 1);
@@ -52,7 +51,7 @@ void UDMXFixtureComponent::Initialize()
 
 void UDMXFixtureComponent::SetCurrentCell(int Index)
 {
-	if (Index < Cells.Num())
+	if (Cells.IsValidIndex(Index))
 	{
 		CurrentCell = &Cells[Index];
 	}

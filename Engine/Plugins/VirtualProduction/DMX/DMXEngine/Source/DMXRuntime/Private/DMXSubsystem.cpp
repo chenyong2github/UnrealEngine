@@ -5,7 +5,7 @@
 #include "DMXAttribute.h"
 #include "DMXProtocolSettings.h"
 #include "DMXProtocolTypes.h"
-#include "DMXUtils.h"
+#include "DMXRuntimeUtils.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "IO/DMXPortManager.h"
 #include "IO/DMXInputPort.h"
@@ -334,9 +334,8 @@ bool UDMXSubsystem::GetAllMatrixCells(UDMXEntityFixturePatch* FixturePatch, TArr
 
 void UDMXSubsystem::PixelMappingDistributionSort(EDMXPixelMappingDistribution InDistribution, int32 InNumXPanels, int32 InNumYPanels, const TArray<int32>& InUnorderedList, TArray<int32>& OutSortedList)
 {
-	FDMXUtils::PixelMappingDistributionSort(InDistribution, InNumXPanels, InNumYPanels, InUnorderedList, OutSortedList);
+	FDMXRuntimeUtils::PixelMappingDistributionSort(InDistribution, InNumXPanels, InNumYPanels, InUnorderedList, OutSortedList);
 }
-
 
 void UDMXSubsystem::GetAllFixturesOfType(const FDMXEntityFixtureTypeRef& FixtureType, TArray<UDMXEntityFixturePatch*>& OutResult)
 {

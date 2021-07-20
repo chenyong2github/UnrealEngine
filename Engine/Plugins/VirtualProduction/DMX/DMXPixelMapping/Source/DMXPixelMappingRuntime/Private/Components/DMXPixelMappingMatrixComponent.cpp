@@ -47,8 +47,6 @@ UDMXPixelMappingMatrixComponent::UDMXPixelMappingMatrixComponent()
 	AttributeBExpose = true;
 
 	bMonochromeExpose = true;
-
-	Distribution = EDMXPixelMappingDistribution::TopLeftToRight;
 }
 
 void UDMXPixelMappingMatrixComponent::Serialize(FArchive& Ar)
@@ -104,13 +102,9 @@ void UDMXPixelMappingMatrixComponent::LogInvalidProperties()
 		{
 			UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("%s has no valid Fixture Type set. %s will not receive DMX."), *FixturePatch->GetDisplayName(), *GetName());
 		}
-		else
+		else if(Children.Num() != ModePtr->FixtureMatrixConfig.XCells * ModePtr->FixtureMatrixConfig.YCells)
 		{
-			FIntPoint CoordinateGridInActiveMode = FIntPoint(ModePtr->FixtureMatrixConfig.XCells, ModePtr->FixtureMatrixConfig.YCells);
-			if (CoordinateGridInActiveMode != CoordinateGrid)
-			{
-				UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("Number of cells in %s no longer matches %s. %s will not function properly."), *GetName(), *FixturePatch->GetFixtureType()->Name, *GetName());
-			}
+			UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("Number of cells in %s no longer matches %s. %s will not function properly."), *GetName(), *FixturePatch->GetFixtureType()->Name, *GetName());
 		}
 	}
 	else
@@ -486,56 +480,27 @@ void UDMXPixelMappingMatrixComponent::HandleMatrixChanged()
 
 	if (UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.GetFixturePatch())
 	{
-		if (UDMXLibrary* DMXLibrary = FixturePatch->GetParentLibrary())
+		if (UDMXEntityFixtureType* FixtureType = FixturePatch->GetFixtureType())
 		{
-			if (UDMXEntityFixtureType* ParentFixtureType = FixturePatch->GetFixtureType())
+			if (FixtureType->bFixtureMatrixEnabled)
 			{
-				const FDMXFixtureMode* ModePtr = FixturePatch->GetActiveMode();
-				if (ModePtr && ParentFixtureType->bFixtureMatrixEnabled)
+				if (const FDMXFixtureMode* ModePtr = FixturePatch->GetActiveMode())
 				{
-					const FDMXFixtureMatrix& FixtureMatrixConfig = ModePtr->FixtureMatrixConfig;
-
-					// Set distribution
-					Distribution = ModePtr->FixtureMatrixConfig.PixelMappingDistribution;
-
-					// Set Num Cells
-					FIntPoint NewCoordinateGrid = FIntPoint(FixtureMatrixConfig.XCells, FixtureMatrixConfig.YCells);
-					if (NewCoordinateGrid != CoordinateGrid)
+					TArray<FDMXCell> MatrixCells;
+					if (FixturePatch->GetAllMatrixCells(MatrixCells))
 					{
-						CoordinateGrid = NewCoordinateGrid;
+						Distribution = ModePtr->FixtureMatrixConfig.PixelMappingDistribution;
+						CoordinateGrid = FIntPoint(ModePtr->FixtureMatrixConfig.XCells, ModePtr->FixtureMatrixConfig.YCells);
 
-						// Create cells
-						const int32 NumCells = FixtureMatrixConfig.XCells * FixtureMatrixConfig.YCells;
-						if (NumCells > 0)
+						for (const FDMXCell& Cell : MatrixCells)
 						{
-							TArray<int32> AllChannels;
-							const int32 MaxChannels = NumCells + 1;
-							for (int32 CellID = 1; CellID < MaxChannels; CellID++)
-							{
-								AllChannels.Add(CellID);
-							}
+							TSharedPtr<FDMXPixelMappingComponentTemplate> ComponentTemplate = MakeShared<FDMXPixelMappingComponentTemplate>(UDMXPixelMappingMatrixCellComponent::StaticClass());
+							UDMXPixelMappingMatrixCellComponent* Component = ComponentTemplate->CreateComponent<UDMXPixelMappingMatrixCellComponent>(GetPixelMapping()->GetRootComponent());
 
-							TArray<int32> OrderedChannels;
-							FDMXUtils::PixelMappingDistributionSort(ModePtr->FixtureMatrixConfig.PixelMappingDistribution, FixtureMatrixConfig.XCells, FixtureMatrixConfig.YCells, AllChannels, OrderedChannels);
-							check(AllChannels.Num() == OrderedChannels.Num());
+							Component->CellID = Cell.CellID;
+							Component->SetCellCoordinate(Cell.Coordinate);
 
-							int32 XYIndex = 0;
-							for (int32 IndexX = 0; IndexX < FixtureMatrixConfig.XCells; IndexX++)
-							{
-								for (int32 IndexY = 0; IndexY < FixtureMatrixConfig.YCells; IndexY++)
-								{
-									// Create or delete all matrix pixels
-									TSharedPtr<FDMXPixelMappingComponentTemplate> ComponentTemplate = MakeShared<FDMXPixelMappingComponentTemplate>(UDMXPixelMappingMatrixCellComponent::StaticClass());
-									UDMXPixelMappingMatrixCellComponent* Component = ComponentTemplate->CreateComponent<UDMXPixelMappingMatrixCellComponent>(GetPixelMapping()->GetRootComponent());
-
-									Component->CellID = OrderedChannels[XYIndex];
-									Component->SetCellCoordinate(FIntPoint(IndexX, IndexY));
-
-									XYIndex++;
-
-									AddChild(Component);
-								}
-							}
+							AddChild(Component);
 						}
 					}
 				}

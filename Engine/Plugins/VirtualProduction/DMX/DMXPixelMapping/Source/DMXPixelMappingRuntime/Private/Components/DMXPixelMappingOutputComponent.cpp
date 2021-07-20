@@ -210,7 +210,9 @@ TSharedRef<FDMXPixelMappingComponentWidget> UDMXPixelMappingOutputComponent::Bui
 		ComponentWidget->AddToCanvas(InCanvas, ZOrder);
 	}
 
-	UpdateComponentWidget();
+	EVisibility NewVisibility = IsVisible() ? EVisibility::Visible : EVisibility::Collapsed;
+
+	UpdateComponentWidget(NewVisibility);
 
 	return ComponentWidget.ToSharedRef();
 }

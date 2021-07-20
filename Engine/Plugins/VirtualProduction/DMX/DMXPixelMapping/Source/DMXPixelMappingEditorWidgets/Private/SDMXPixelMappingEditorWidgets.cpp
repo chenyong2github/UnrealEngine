@@ -1,19 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SDMXPixelMappingEditorWidgets.h"
-#include "DMXProtocolConstants.h"
-#include "DMXUtils.h"
-#include "DMXPixelMappingUtils.h"
+
 #include "DMXPixelMappingTypes.h"
+#include "DMXPixelMappingUtils.h"
+#include "DMXProtocolConstants.h"
+#include "DMXRuntimeUtils.h"
 
 #include "EditorStyleSet.h"
-#include "Widgets/Layout/SUniformGridPanel.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/SOverlay.h"
-#include "Widgets/Layout/SScaleBox.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
+#include "Widgets/SOverlay.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SScaleBox.h"
+#include "Widgets/Layout/SUniformGridPanel.h"
+#include "Widgets/Text/STextBlock.h"
+
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingScreenComponent"
 
@@ -29,17 +31,18 @@ void SDMXPixelMappingScreenLayout::Construct(const FArguments& InArgs)
 	PixelFormat = InArgs._PixelFormat;
 	Brush = InArgs._Brush;
 
-	uint32 DMXCellStep = FDMXPixelMappingUtils::GetNumChannelsPerCell(PixelFormat);
-	uint32 UniverseMaxChannels = FDMXPixelMappingUtils::GetUniverseMaxChannels(PixelFormat, StartAddress);
-	bool bShouldAddChannels = FDMXPixelMappingUtils::CanFitCellIntoChannels(PixelFormat, StartAddress);
-
-	// Prepare unsorted list
-	uint32 UniverseChannel = StartAddress;
-	uint32 UniverseIndex = 0;
-	const int32 TotalPixels = NumXCells * NumYCells;
+	const bool bShouldAddChannels = FDMXPixelMappingUtils::CanFitCellIntoChannels(PixelFormat, StartAddress);
 
 	if (bShouldAddChannels)
 	{
+		const uint32 DMXCellStep = FDMXPixelMappingUtils::GetNumChannelsPerCell(PixelFormat);
+		const uint32 UniverseMaxChannels = FDMXPixelMappingUtils::GetUniverseMaxChannels(PixelFormat, StartAddress);
+
+		// Prepare unsorted list
+		uint32 UniverseChannel = StartAddress;
+		uint32 UniverseIndex = 0;
+		const int32 TotalPixels = NumXCells * NumYCells;
+
 		for (int32 CellID = 0; CellID < TotalPixels; ++CellID)
 		{
 			if (UniverseChannel + (DMXCellStep - 1) > DMX_MAX_ADDRESS)
@@ -56,15 +59,15 @@ void SDMXPixelMappingScreenLayout::Construct(const FArguments& InArgs)
 			UniverseChannel += DMXCellStep;
 		}
 
-		FDMXUtils::PixelMappingDistributionSort<TPair<int32, int32>>(Distribution, NumXCells, NumYCells, UnorderedList, SortedList);
+		FDMXRuntimeUtils::PixelMappingDistributionSort<TPair<int32, int32>>(Distribution, NumXCells, NumYCells, UnorderedList, SortedList);
 	}
 
 	SAssignNew(GridPanel, SUniformGridPanel);
 
 	uint32 XYIndex = 0;
-	for (int32 XIndex = 0; XIndex < NumXCells; ++XIndex)
+	for (int32 YIndex = 0; YIndex < NumYCells; ++YIndex)
 	{
-		for (int32 YIndex = 0; YIndex < NumYCells; ++YIndex)
+		for (int32 XIndex = 0; XIndex < NumXCells; ++XIndex)
 		{
 			GridPanel->AddSlot(XIndex, YIndex)
 				.HAlign(HAlign_Fill)
