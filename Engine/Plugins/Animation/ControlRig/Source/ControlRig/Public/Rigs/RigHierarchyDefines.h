@@ -975,7 +975,7 @@ public:
 
 	friend FORCEINLINE uint32 GetTypeHash(const FRigElementKey& Key)
 	{
-		return GetTypeHash(Key.Name.ToString()) * 10 + (uint32)Key.Type;
+		return GetTypeHash(Key.Name) * 10 + (uint32)Key.Type;
 	}
 
 	FORCEINLINE bool operator ==(const FRigElementKey& Other) const
