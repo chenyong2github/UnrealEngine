@@ -3438,7 +3438,7 @@ void FHeaderParser::GetVarType(
 	}
 	else if (VarType.IsValue(TEXT("FLargeWorldCoordinatesReal"), ESearchCase::CaseSensitive))		// LWC_TODO: Remove with UE_LARGE_WORLD_COORDINATES_DISABLED toggle.
 	{
-		if (!SourceFile.GetFilename().EndsWith(TEXT("NoExportTypes.h")))
+		if (!SourceFile.IsNoExportTypes())
 		{
 			Throwf(TEXT("FLargeWorldCoordinatesReal is intended for LWC support only and should not be used outside of NoExportTypes.h"));
 		}
