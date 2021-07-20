@@ -512,6 +512,7 @@ namespace HordeServer.Controllers
 		/// <param name="MaxChange">The maximum changelist number</param>
 		/// <param name="IncludePreflight">Whether to include preflight jobs</param>
 		/// <param name="PreflightChange">The preflighted changelist</param>
+		/// <param name="StartedByUserId">User id for which to include jobs</param>
 		/// <param name="PreflightStartedByUserId">User id for which to include preflight jobs</param>
 		/// <param name="MinCreateTime">Minimum creation time</param>
 		/// <param name="MaxCreateTime">Maximum creation time</param>
@@ -537,6 +538,7 @@ namespace HordeServer.Controllers
 			[FromQuery] bool IncludePreflight = true,
 			[FromQuery] int? PreflightChange = null,
 			[FromQuery] string? PreflightStartedByUserId = null,
+			[FromQuery] string? StartedByUserId = null,
 			[FromQuery] DateTimeOffset? MinCreateTime = null,
 			[FromQuery] DateTimeOffset? MaxCreateTime = null,
 			[FromQuery] DateTimeOffset? ModifiedBefore = null,
@@ -550,7 +552,7 @@ namespace HordeServer.Controllers
 		{
 			ObjectId[]? JobIdValues = (Ids == null) ? (ObjectId[]?)null : Array.ConvertAll(Ids, x => x.ToObjectId());
 			StreamId? StreamIdValue = (StreamId == null)? (StreamId?)null : new StreamId(StreamId);
-
+			
 			TemplateRefId[]? TemplateRefIds = (Templates != null && Templates.Length > 0) ? Templates.Select(x => new TemplateRefId(x)).ToArray() : null;
 
 			if (IncludePreflight == false)
@@ -565,11 +567,18 @@ namespace HordeServer.Controllers
 				PreflightStartedByUserIdValue = new ObjectId(PreflightStartedByUserId);
 			}
 
+			ObjectId? StartedByUserIdValue = null;
+
+			if (StartedByUserId != null)
+			{
+				StartedByUserIdValue = new ObjectId(StartedByUserId);
+			}
+
 			List<IJob> Jobs;
 			using (Scope _ = Tracer.Instance.StartActive("FindJobs"))
 			{
 				Jobs = await JobService.FindJobsAsync(JobIdValues, StreamIdValue, Name, TemplateRefIds, MinChange,
-					MaxChange, PreflightChange, PreflightStartedByUserIdValue, MinCreateTime?.UtcDateTime, MaxCreateTime?.UtcDateTime, Target, State, Outcome,
+					MaxChange, PreflightChange, PreflightStartedByUserIdValue, StartedByUserIdValue, MinCreateTime?.UtcDateTime, MaxCreateTime?.UtcDateTime, Target, State, Outcome,
 					ModifiedBefore, ModifiedAfter, Index, Count);
 			}
 
