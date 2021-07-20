@@ -62,7 +62,7 @@ protected:
 
 	// Cache for GC
 	UPROPERTY(transient)
-	ULiveLinkRetargetAsset* CurrentRetargetAsset;
+	TObjectPtr<ULiveLinkRetargetAsset> CurrentRetargetAsset;
 
 	friend FLiveLinkInstanceProxy;
 };

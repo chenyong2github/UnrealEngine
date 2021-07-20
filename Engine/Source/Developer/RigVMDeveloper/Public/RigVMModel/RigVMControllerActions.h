@@ -1583,5 +1583,5 @@ public:
 	FString CPPType;
 
 	UPROPERTY()
-	UObject* CPPTypeObject;
+	TObjectPtr<UObject> CPPTypeObject;
 };

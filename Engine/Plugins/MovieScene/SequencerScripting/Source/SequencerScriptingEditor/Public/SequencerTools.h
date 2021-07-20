@@ -42,7 +42,7 @@ struct SEQUENCERSCRIPTINGEDITOR_API FSequencerBoundObjects
 	FSequencerBindingProxy BindingProxy;
 
 	UPROPERTY(BlueprintReadWrite, Category=Binding)
-	TArray<UObject*> BoundObjects;
+	TArray<TObjectPtr<UObject>> BoundObjects;
 };
 
 /** Wrapper around result of quick binding for event track in sequencer. */
@@ -55,7 +55,7 @@ struct FSequencerQuickBindingResult
 
 	/** Actual endpoint wrapped by this structure.  */
 	UPROPERTY()
-	UK2Node_CustomEvent* EventEndpoint;
+	TObjectPtr<UK2Node_CustomEvent> EventEndpoint;
 
 	/** Names of the payload variables of the event. */
 	UPROPERTY(BlueprintReadOnly, Category = Data)

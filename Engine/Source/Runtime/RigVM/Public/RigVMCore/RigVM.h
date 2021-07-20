@@ -113,7 +113,7 @@ private:
 	FString CPPType;
 
 	UPROPERTY(transient)
-	UScriptStruct* ScriptStruct;
+	TObjectPtr<UScriptStruct> ScriptStruct;
 
 	UPROPERTY()
 	FName ScriptStructPath;
@@ -682,7 +682,7 @@ private:
 	int32 ExecutingThreadId;
 
 	UPROPERTY(transient)
-	URigVM* DeferredVMToCopy;
+	TObjectPtr<URigVM> DeferredVMToCopy;
 
 	void CopyDeferredVMIfRequired();
 

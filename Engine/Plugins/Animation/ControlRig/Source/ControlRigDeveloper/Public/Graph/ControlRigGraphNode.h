@@ -40,10 +40,10 @@ private:
 	FString ModelNodePath;
 
 	UPROPERTY(transient)
-	URigVMNode* CachedModelNode;
+	TObjectPtr<URigVMNode> CachedModelNode;
 
 	UPROPERTY(transient)
-	TMap<FString, URigVMPin*> CachedModelPins;
+	TMap<FString, TObjectPtr<URigVMPin>> CachedModelPins;
 
 	/** The property we represent. For template nodes this represents the struct/property type name. */
 	UPROPERTY()

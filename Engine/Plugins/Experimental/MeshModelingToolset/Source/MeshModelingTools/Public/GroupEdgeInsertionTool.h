@@ -71,7 +71,7 @@ public:
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
-	UGroupEdgeInsertionTool* Tool;
+	TObjectPtr<UGroupEdgeInsertionTool> Tool;
 };
 
 /** Tool for inserting group edges into polygons of the mesh. */
@@ -120,10 +120,10 @@ public:
 protected:
 
 	UPROPERTY()
-	UGroupEdgeInsertionProperties* Settings = nullptr;
+	TObjectPtr<UGroupEdgeInsertionProperties> Settings = nullptr;
 
 	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* Preview;
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview;
 
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> CurrentMesh;
 	TSharedPtr<FGroupTopology, ESPMode::ThreadSafe> CurrentTopology;

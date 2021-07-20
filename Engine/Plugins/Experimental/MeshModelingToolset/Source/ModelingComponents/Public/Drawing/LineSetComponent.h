@@ -127,7 +127,7 @@ private:
 	//~ End USceneComponent Interface.
 
 	UPROPERTY()
-	const UMaterialInterface* LineMaterial;
+	TObjectPtr<const UMaterialInterface> LineMaterial;
 
 	UPROPERTY()
 	mutable FBoxSphereBounds Bounds;

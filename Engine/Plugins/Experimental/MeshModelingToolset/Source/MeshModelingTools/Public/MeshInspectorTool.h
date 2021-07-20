@@ -118,23 +118,23 @@ public:
 protected:
 
 	UPROPERTY()
-	UMeshInspectorProperties* Settings = nullptr;
+	TObjectPtr<UMeshInspectorProperties> Settings = nullptr;
 
 	UPROPERTY()
-	UExistingMeshMaterialProperties* MaterialSettings = nullptr;
+	TObjectPtr<UExistingMeshMaterialProperties> MaterialSettings = nullptr;
 
 
 	float LineWidthMultiplier = 1.0f;
 
 protected:
 	UPROPERTY()
-	UPreviewMesh* PreviewMesh;
+	TObjectPtr<UPreviewMesh> PreviewMesh;
 
 	UPROPERTY()
-	ULineSetComponent* DrawnLineSet;
+	TObjectPtr<ULineSetComponent> DrawnLineSet;
 
 	UPROPERTY()
-	UMaterialInterface* DefaultMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> DefaultMaterial = nullptr;
 
 	TArray<int> BoundaryEdges;
 	TArray<int> BoundaryBowties;

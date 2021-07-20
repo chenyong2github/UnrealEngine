@@ -83,22 +83,22 @@ public:
 
 	/** Groom to bind. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuildSettings")
-	UGroomAsset* Groom;
+	TObjectPtr<UGroomAsset> Groom;
 
 	/** Skeletal mesh on which the groom has been authored. This is optional, and used only if the hair
 		binding is done a different mesh than the one which it has been authored */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuildSettings")
-	USkeletalMesh* SourceSkeletalMesh;
+	TObjectPtr<USkeletalMesh> SourceSkeletalMesh;
 
 	/** Skeletal mesh on which the groom is attached to. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "BuildSettings")
-	USkeletalMesh* TargetSkeletalMesh;
+	TObjectPtr<USkeletalMesh> TargetSkeletalMesh;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings")
-	UGeometryCache* SourceGeometryCache;
+	TObjectPtr<UGeometryCache> SourceGeometryCache;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings")
-	UGeometryCache* TargetGeometryCache;
+	TObjectPtr<UGeometryCache> TargetGeometryCache;
 
 	/** Number of points used for the rbf interpolation */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings")

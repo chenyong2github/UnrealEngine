@@ -49,7 +49,7 @@ public:
 	ENDILandscape_SourceMode SourceMode = ENDILandscape_SourceMode::Default;
 
 	UPROPERTY(EditAnywhere, Category = "Landscape")
-	TArray<UPhysicalMaterial*> PhysicalMaterials;
+	TArray<TObjectPtr<UPhysicalMaterial>> PhysicalMaterials;
 
 	//UObject Interface
 	virtual void PostInitProperties() override;	

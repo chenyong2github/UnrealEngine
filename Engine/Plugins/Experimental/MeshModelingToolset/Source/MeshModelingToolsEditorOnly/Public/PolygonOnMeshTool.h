@@ -194,16 +194,16 @@ public:
 protected:
 
 	UPROPERTY()
-	UPolygonOnMeshToolProperties* BasicProperties;
+	TObjectPtr<UPolygonOnMeshToolProperties> BasicProperties;
 
 	UPROPERTY()
-	UPolygonOnMeshToolActionPropertySet* ActionProperties;
+	TObjectPtr<UPolygonOnMeshToolActionPropertySet> ActionProperties;
 
 	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* Preview;
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview;
 
 	UPROPERTY()
-	ULineSetComponent* DrawnLineSet;
+	TObjectPtr<ULineSetComponent> DrawnLineSet;
 
 	TArray<int> EdgesOnFailure;
 	TArray<int> EmbeddedEdges;
@@ -218,10 +218,10 @@ protected:
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalDynamicMesh;
 
 	UPROPERTY()
-	UConstructionPlaneMechanic* PlaneMechanic = nullptr;
+	TObjectPtr<UConstructionPlaneMechanic> PlaneMechanic = nullptr;
 
 	UPROPERTY()
-	UCollectSurfacePathMechanic* DrawPolygonMechanic = nullptr;
+	TObjectPtr<UCollectSurfacePathMechanic> DrawPolygonMechanic = nullptr;
 
 	EPolygonOnMeshToolActions PendingAction = EPolygonOnMeshToolActions::NoAction;
 

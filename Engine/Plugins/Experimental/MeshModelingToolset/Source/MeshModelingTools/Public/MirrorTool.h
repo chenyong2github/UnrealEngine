@@ -126,7 +126,7 @@ public:
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
-	UMirrorTool* MirrorTool;
+	TObjectPtr<UMirrorTool> MirrorTool;
 
 	/** Index of the component within MirrorTool->ComponentTargets that this factory creates an operator for. */
 	int ComponentIndex;
@@ -219,16 +219,16 @@ public:
 protected:
 
 	UPROPERTY()
-	UMirrorToolProperties* Settings = nullptr;
+	TObjectPtr<UMirrorToolProperties> Settings = nullptr;
 
 	UPROPERTY()
-	UMirrorToolActionPropertySet* ToolActions = nullptr;
+	TObjectPtr<UMirrorToolActionPropertySet> ToolActions = nullptr;
 
 	UPROPERTY()
-	TArray<UDynamicMeshReplacementChangeTarget*> MeshesToMirror;
+	TArray<TObjectPtr<UDynamicMeshReplacementChangeTarget>> MeshesToMirror;
 
 	UPROPERTY()
-	TArray<UMeshOpPreviewWithBackgroundCompute*> Previews;
+	TArray<TObjectPtr<UMeshOpPreviewWithBackgroundCompute>> Previews;
 
 	FVector3d MirrorPlaneOrigin = FVector3d::Zero();
 	FVector3d MirrorPlaneNormal = FVector3d::UnitZ();
@@ -240,7 +240,7 @@ protected:
 	bool bSnappingToggle = false;		// toggled by hotkey (shift)
 
 	UPROPERTY()
-	UConstructionPlaneMechanic* PlaneMechanic;
+	TObjectPtr<UConstructionPlaneMechanic> PlaneMechanic;
 
 	EMirrorToolAction PendingAction;
 	FBox CombinedBounds;

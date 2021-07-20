@@ -165,10 +165,10 @@ public:
 
 private:
 	UPROPERTY()
-	UGenerateLODMeshesToolProperties* SimplifyProperties;
+	TObjectPtr<UGenerateLODMeshesToolProperties> SimplifyProperties;
 
 	UPROPERTY()
-	TArray<UMeshOpPreviewWithBackgroundCompute*> Previews;
+	TArray<TObjectPtr<UMeshOpPreviewWithBackgroundCompute>> Previews;
 
 	TArray<TUniquePtr<FGenerateLODOperatorFactory>> PreviewFactories;
 	friend class FGenerateLODOperatorFactory;

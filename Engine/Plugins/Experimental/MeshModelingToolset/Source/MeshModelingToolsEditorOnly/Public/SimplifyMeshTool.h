@@ -108,16 +108,16 @@ public:
 
 private:
 	UPROPERTY()
-	USimplifyMeshToolProperties* SimplifyProperties;
+	TObjectPtr<USimplifyMeshToolProperties> SimplifyProperties;
 
 	UPROPERTY()
-	UMeshStatisticsProperties* MeshStatisticsProperties;
+	TObjectPtr<UMeshStatisticsProperties> MeshStatisticsProperties;
 
 	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* Preview;
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview;
 
 	UPROPERTY()
-	UMeshElementsVisualizer* MeshElementsDisplay;
+	TObjectPtr<UMeshElementsVisualizer> MeshElementsDisplay;
 
 	TSharedPtr<FMeshDescription, ESPMode::ThreadSafe> OriginalMeshDescription;
 	// Dynamic Mesh versions precomputed in Setup (rather than recomputed for every simplify op)

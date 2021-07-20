@@ -20,7 +20,7 @@ public:
 	UTakeRecorderLevelSequenceSource(const FObjectInitializer& ObjInit);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Source")
-	TArray<ULevelSequence*> LevelSequencesToTrigger;
+	TArray<TObjectPtr<ULevelSequence>> LevelSequencesToTrigger;
 
 private:
 

@@ -329,11 +329,11 @@ public:
 
 	/** Hair Strands Asset used to sample from when not overridden by a source actor from the scene. Also useful for previewing in the editor. */
 	UPROPERTY(EditAnywhere, Category = "Source")
-	UGroomAsset* DefaultSource;
+	TObjectPtr<UGroomAsset> DefaultSource;
 
 	/** The source actor from which to sample */
 	UPROPERTY(EditAnywhere, Category = "Source")
-	AActor* SourceActor;
+	TObjectPtr<AActor> SourceActor;
 
 	/** The source component from which to sample */
 	TWeakObjectPtr<class UGroomComponent> SourceComponent;

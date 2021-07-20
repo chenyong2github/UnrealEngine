@@ -13,7 +13,7 @@ class UControlRigObjectHolder : public UObject
 public:
 
 	UPROPERTY()
-	TArray<UObject*> Objects;
+	TArray<TObjectPtr<UObject>> Objects;
 };
 
 class CONTROLRIG_API FControlRigObjectSpawner : public IMovieSceneObjectSpawner

@@ -112,7 +112,7 @@ public:
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
-	UEditNormalsTool *Tool;
+	TObjectPtr<UEditNormalsTool> Tool;
 
 	int ComponentIndex;
 
@@ -153,14 +153,14 @@ public:
 protected:
 
 	UPROPERTY()
-	UEditNormalsToolProperties* BasicProperties;
+	TObjectPtr<UEditNormalsToolProperties> BasicProperties;
 
 	UPROPERTY()
-	UEditNormalsAdvancedProperties* AdvancedProperties;
+	TObjectPtr<UEditNormalsAdvancedProperties> AdvancedProperties;
 
 
 	UPROPERTY()
-	TArray<UMeshOpPreviewWithBackgroundCompute*> Previews;
+	TArray<TObjectPtr<UMeshOpPreviewWithBackgroundCompute>> Previews;
 
 
 protected:

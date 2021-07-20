@@ -501,7 +501,7 @@ public:
 private:
 
 	UPROPERTY(transient)
-	URigHierarchy* Hierarchy;
+	TObjectPtr<URigHierarchy> Hierarchy;
 
 	FRigHierarchyModifiedEvent ModifiedEvent;
 	void Notify(ERigHierarchyNotification InNotifType, const FRigBaseElement* InElement);

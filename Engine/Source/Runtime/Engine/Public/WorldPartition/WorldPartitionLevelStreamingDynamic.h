@@ -68,7 +68,7 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	UActorContainer* ActorContainer;
+	TObjectPtr<UActorContainer> ActorContainer;
 #endif
 
 	UPROPERTY()

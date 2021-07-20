@@ -58,7 +58,7 @@ public:
 	FString DestinationAssetName;
 
 	UPROPERTY()
-	const UClass* AssetType;
+	TObjectPtr<const UClass> AssetType;
 
 	UPROPERTY()
 	FString InterchangeKey;

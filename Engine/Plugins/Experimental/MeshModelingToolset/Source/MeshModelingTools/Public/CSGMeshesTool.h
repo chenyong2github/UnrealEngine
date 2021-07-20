@@ -129,22 +129,22 @@ protected:
 	void UpdateVisualization();
 
 	UPROPERTY()
-	UCSGMeshesToolProperties* CSGProperties;
+	TObjectPtr<UCSGMeshesToolProperties> CSGProperties;
 
 	UPROPERTY()
-	UTrimMeshesToolProperties* TrimProperties;
+	TObjectPtr<UTrimMeshesToolProperties> TrimProperties;
 
 	TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>> OriginalDynamicMeshes;
 
 	UPROPERTY()
-	TArray<UPreviewMesh*> OriginalMeshPreviews;
+	TArray<TObjectPtr<UPreviewMesh>> OriginalMeshPreviews;
 
 	// Material used to show the otherwise-invisible cutting/trimming mesh
 	UPROPERTY()
-	UMaterialInstanceDynamic* PreviewsGhostMaterial;
+	TObjectPtr<UMaterialInstanceDynamic> PreviewsGhostMaterial;
 
 	UPROPERTY()
-	ULineSetComponent* DrawnLineSet;
+	TObjectPtr<ULineSetComponent> DrawnLineSet;
 
 	// for visualization of any errors in the currently-previewed CSG operation
 	TArray<int> CreatedBoundaryEdges;

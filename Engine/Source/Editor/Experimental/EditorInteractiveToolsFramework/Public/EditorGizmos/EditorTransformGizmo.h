@@ -124,7 +124,7 @@ public:
 
 	/** The active target object for the Gizmo */
 	UPROPERTY()
-	UTransformProxy* ActiveTarget;
+	TObjectPtr<UTransformProxy> ActiveTarget;
 
 	/**
 	 * Repositions the gizmo without issuing undo/redo changes, triggering callbacks, 

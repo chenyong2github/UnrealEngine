@@ -40,7 +40,7 @@ public:
 	TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
-	URevolveBoundaryTool* RevolveBoundaryTool;
+	TObjectPtr<URevolveBoundaryTool> RevolveBoundaryTool;
 };
 
 UCLASS()
@@ -99,16 +99,16 @@ protected:
 	int32 AlignAxisModifier = 2;
 
 	UPROPERTY()
-	URevolveBoundaryToolProperties* Settings = nullptr;
+	TObjectPtr<URevolveBoundaryToolProperties> Settings = nullptr;
 
 	UPROPERTY()
-	UNewMeshMaterialProperties* MaterialProperties;
+	TObjectPtr<UNewMeshMaterialProperties> MaterialProperties;
 
 	UPROPERTY()
-	UConstructionPlaneMechanic* PlaneMechanic = nullptr;
+	TObjectPtr<UConstructionPlaneMechanic> PlaneMechanic = nullptr;
 
 	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* Preview = nullptr;
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview = nullptr;
 
 	FVector3d RevolutionAxisOrigin;
 	FVector3d RevolutionAxisDirection;

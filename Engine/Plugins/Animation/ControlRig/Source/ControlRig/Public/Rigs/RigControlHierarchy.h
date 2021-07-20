@@ -152,7 +152,7 @@ struct CONTROLRIG_API FRigControl : public FRigElement
 
 	/** If the control is transient and only visible in the control rig editor */
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Control)
-	UEnum* ControlEnum;
+	TObjectPtr<UEnum> ControlEnum;
 
 	FORCEINLINE_DEBUGGABLE virtual ERigElementType GetElementType() const override
 	{

@@ -665,7 +665,7 @@ public:
 
 	/** Use property in struct returned from GetScriptData() instead */
 	UPROPERTY(meta = (DeprecatedProperty))
-	UNiagaraScript* DeprecationRecommendation_DEPRECATED;
+	TObjectPtr<UNiagaraScript> DeprecationRecommendation_DEPRECATED;
 
 	/** Use property in struct returned from GetScriptData() instead */
 	UPROPERTY(meta = (DeprecatedProperty))
@@ -717,7 +717,7 @@ public:
 
 	/** 'Source' data/graphs for this script */
 	UPROPERTY(meta = (DeprecatedProperty))
-	class UNiagaraScriptSourceBase*	Source_DEPRECATED;
+	TObjectPtr<class UNiagaraScriptSourceBase>	Source_DEPRECATED;
 
 	NIAGARA_API static const FName NiagaraCustomVersionTagName;
 #endif

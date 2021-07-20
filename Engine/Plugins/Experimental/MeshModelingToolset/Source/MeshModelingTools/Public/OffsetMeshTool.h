@@ -125,16 +125,16 @@ public:
 
 protected:
 	UPROPERTY()
-	UOffsetMeshToolProperties* OffsetProperties = nullptr;
+	TObjectPtr<UOffsetMeshToolProperties> OffsetProperties = nullptr;
 
 	UPROPERTY()
-	UIterativeOffsetProperties* IterativeProperties = nullptr;
+	TObjectPtr<UIterativeOffsetProperties> IterativeProperties = nullptr;
 
 	UPROPERTY()
-	UImplicitOffsetProperties* ImplicitProperties = nullptr;
+	TObjectPtr<UImplicitOffsetProperties> ImplicitProperties = nullptr;
 
 	UPROPERTY()
-	UOffsetWeightMapSetProperties* WeightMapProperties = nullptr;
+	TObjectPtr<UOffsetWeightMapSetProperties> WeightMapProperties = nullptr;
 };
 
 

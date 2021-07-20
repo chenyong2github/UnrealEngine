@@ -46,7 +46,7 @@ public:
 private:
 	/** The unit type we will spawn */
 	UPROPERTY(Transient)
-	UScriptStruct* StructTemplate;
+	TObjectPtr<UScriptStruct> StructTemplate;
 
 	static UControlRigGraphNode* SpawnNode(UEdGraph* ParentGraph, UBlueprint* Blueprint, UScriptStruct* StructTemplate, FVector2D const Location);
 

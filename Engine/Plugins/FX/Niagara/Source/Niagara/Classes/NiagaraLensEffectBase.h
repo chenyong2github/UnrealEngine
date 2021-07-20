@@ -59,7 +59,7 @@ protected:
 	TArray<TSubclassOf<AActor>> EmittersToTreatAsSame;
 
 	UPROPERTY()
-	APlayerCameraManager* OwningCameraManager;
+	TObjectPtr<APlayerCameraManager> OwningCameraManager;
 
 protected:
 

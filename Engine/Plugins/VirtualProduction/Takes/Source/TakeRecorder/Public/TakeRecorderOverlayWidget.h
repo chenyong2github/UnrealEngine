@@ -28,5 +28,5 @@ protected:
 
 	/** The recorder that this overlay is reflecting */
 	UPROPERTY(BlueprintReadOnly, Category="Take Recorder")
-	UTakeRecorder* Recorder;
+	TObjectPtr<UTakeRecorder> Recorder;
 };

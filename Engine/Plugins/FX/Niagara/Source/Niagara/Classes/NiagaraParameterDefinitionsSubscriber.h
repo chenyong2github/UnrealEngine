@@ -28,7 +28,7 @@ public:
 	{};
 
 	UPROPERTY(meta = (DeprecatedProperty))
-	UNiagaraParameterDefinitionsBase* ParameterDefinitions_DEPRECATED;
+	TObjectPtr<UNiagaraParameterDefinitionsBase> ParameterDefinitions_DEPRECATED;
 
 	UPROPERTY()
 	FGuid DefinitionsId;

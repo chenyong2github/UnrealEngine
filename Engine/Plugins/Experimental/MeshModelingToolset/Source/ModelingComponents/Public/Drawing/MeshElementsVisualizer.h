@@ -136,11 +136,11 @@ public:
 public:
 	/** Visualization settings */
 	UPROPERTY()
-	UMeshElementsVisualizerProperties* Settings;
+	TObjectPtr<UMeshElementsVisualizerProperties> Settings;
 
 	/** Mesh Wireframe component, draws wireframe, boundaries, UV seams, normal seams, color seams */
 	UPROPERTY()
-	UMeshWireframeComponent* WireframeComponent;
+	TObjectPtr<UMeshWireframeComponent> WireframeComponent;
 
 
 protected:

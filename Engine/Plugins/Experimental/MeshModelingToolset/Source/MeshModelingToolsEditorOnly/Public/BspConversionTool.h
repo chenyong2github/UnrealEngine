@@ -150,10 +150,10 @@ public:
 	virtual void RequestAction(EBspConversionToolAction ActionType);
 
 	UPROPERTY()
-	UBspConversionToolProperties* Settings = nullptr;
+	TObjectPtr<UBspConversionToolProperties> Settings = nullptr;
 
 	UPROPERTY()
-	UBspConversionToolActionPropertySet* ToolActions = nullptr;
+	TObjectPtr<UBspConversionToolActionPropertySet> ToolActions = nullptr;
 
 protected:
 	bool bCanAccept = false;
@@ -162,7 +162,7 @@ protected:
 	EBspConversionToolAction PendingAction;
 
 	UPROPERTY()
-	UPreviewMesh *PreviewMesh;
+	TObjectPtr<UPreviewMesh> PreviewMesh;
 
 	TArray<ABrush*> BrushesToConvert;
 	TArray<ABrush*> BrushesToDelete;

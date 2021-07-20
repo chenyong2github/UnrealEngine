@@ -206,7 +206,7 @@ public:
 	TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
-	UHoleFillTool* FillTool;
+	TObjectPtr<UHoleFillTool> FillTool;
 };
 
 /*
@@ -241,22 +241,22 @@ protected:
 	friend UHoleFillStatisticsProperties;
 
 	UPROPERTY()
-	USmoothHoleFillProperties* SmoothHoleFillProperties = nullptr;
+	TObjectPtr<USmoothHoleFillProperties> SmoothHoleFillProperties = nullptr;
 
 	UPROPERTY()
-	UHoleFillToolProperties* Properties = nullptr;
+	TObjectPtr<UHoleFillToolProperties> Properties = nullptr;
 
 	UPROPERTY()
-	UHoleFillToolActions* Actions = nullptr;
+	TObjectPtr<UHoleFillToolActions> Actions = nullptr;
 
 	UPROPERTY()
-	UHoleFillStatisticsProperties* Statistics = nullptr;
+	TObjectPtr<UHoleFillStatisticsProperties> Statistics = nullptr;
 
 	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* Preview = nullptr;
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview = nullptr;
 
 	UPROPERTY()
-	UPolygonSelectionMechanic* SelectionMechanic = nullptr;
+	TObjectPtr<UPolygonSelectionMechanic> SelectionMechanic = nullptr;
 
 	// Input mesh. Ownership shared with Op.
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;

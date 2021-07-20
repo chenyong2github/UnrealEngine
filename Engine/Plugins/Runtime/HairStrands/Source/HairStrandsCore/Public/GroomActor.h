@@ -16,7 +16,7 @@ class HAIRSTRANDSCORE_API AGroomActor : public AActor
 
 	/** Strand hair component that performs simulation and rendering */
 	UPROPERTY(Category = StrandHair, VisibleAnywhere, BlueprintReadOnly)
-	class UGroomComponent* GroomComponent;
+	TObjectPtr<class UGroomComponent> GroomComponent;
 
 	//~ Begin AActor Interface
 #if WITH_EDITOR
@@ -28,7 +28,7 @@ class HAIRSTRANDSCORE_API AGroomActor : public AActor
 protected:
 	/** Billboard used to see the scene in the editor */
 	UPROPERTY()
-		UBillboardComponent* SpriteComponent;
+		TObjectPtr<UBillboardComponent> SpriteComponent;
 #endif
 
 public:

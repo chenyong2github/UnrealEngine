@@ -53,7 +53,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Import options used for this GroomCache */
 	UPROPERTY(Category = ImportSettings, VisibleAnywhere, Instanced)
-	class UAssetImportData* AssetImportData;	
+	TObjectPtr<class UAssetImportData> AssetImportData;	
 #endif
 
 protected:

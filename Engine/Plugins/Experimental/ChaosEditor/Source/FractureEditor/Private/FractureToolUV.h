@@ -82,7 +82,7 @@ public:
 
 	/** The resulting automatically-generated texture map */
 	UPROPERTY(VisibleAnywhere, Category = MapSettings)
-	UTexture2D* Result;
+	TObjectPtr<UTexture2D> Result;
 
 	/** Choose whether to texture only odd material IDs (corresponding to internal faces) or a custom selection */
 	UPROPERTY(EditAnywhere, Category = MapSettings)

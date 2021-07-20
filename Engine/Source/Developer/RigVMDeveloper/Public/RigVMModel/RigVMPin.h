@@ -33,16 +33,16 @@ public:
 	}
 
 	UPROPERTY()
-	URigVMUnitNode* UnitNode;
+	TObjectPtr<URigVMUnitNode> UnitNode;
 
 	UPROPERTY()
 	bool bInjectedAsInput;
 
 	UPROPERTY()
-	URigVMPin* InputPin;
+	TObjectPtr<URigVMPin> InputPin;
 
 	UPROPERTY()
-	URigVMPin* OutputPin;
+	TObjectPtr<URigVMPin> OutputPin;
 
 	// Returns the graph of this injected node.
 	UFUNCTION(BlueprintCallable, Category = RigVMInjectionInfo)
@@ -393,7 +393,7 @@ private:
 	FString CPPType;
 
 	UPROPERTY(transient)
-	UObject* CPPTypeObject;
+	TObjectPtr<UObject> CPPTypeObject;
 
 	UPROPERTY()
 	FName CPPTypeObjectPath;
@@ -405,13 +405,13 @@ private:
 	FName CustomWidgetName;
 
 	UPROPERTY()
-	TArray<URigVMPin*> SubPins;
+	TArray<TObjectPtr<URigVMPin>> SubPins;
 
 	UPROPERTY(transient)
-	TArray<URigVMLink*> Links;
+	TArray<TObjectPtr<URigVMLink>> Links;
 
 	UPROPERTY()
-	TArray<URigVMInjectionInfo*> InjectionInfos;
+	TArray<TObjectPtr<URigVMInjectionInfo>> InjectionInfos;
 
 	UPROPERTY()
 	FString BoundVariablePath;

@@ -143,7 +143,7 @@ public:
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
-	URemoveOccludedTrianglesTool *Tool;
+	TObjectPtr<URemoveOccludedTrianglesTool> Tool;
 
 	int PreviewIdx;
 };
@@ -183,21 +183,21 @@ public:
 
 protected:
 	UPROPERTY()
-	URemoveOccludedTrianglesToolProperties* BasicProperties;
+	TObjectPtr<URemoveOccludedTrianglesToolProperties> BasicProperties;
 
 	UPROPERTY()
-	UPolygroupLayersProperties* PolygroupLayersProperties;
+	TObjectPtr<UPolygroupLayersProperties> PolygroupLayersProperties;
 
 	UPROPERTY()
-	URemoveOccludedTrianglesAdvancedProperties* AdvancedProperties;
+	TObjectPtr<URemoveOccludedTrianglesAdvancedProperties> AdvancedProperties;
 
 	UPROPERTY()
-	TArray<UMeshOpPreviewWithBackgroundCompute*> Previews;
+	TArray<TObjectPtr<UMeshOpPreviewWithBackgroundCompute>> Previews;
 
 	// When multiple meshes in the selection correspond to the same asset, only one needs a PreviewWithBackgroundCompute
 	//  all others just get a plain PreviewMesh copy that is updated via OnMeshUpdated broadcast from the source Preview
 	UPROPERTY()
-	TArray<UPreviewMesh*> PreviewCopies;
+	TArray<TObjectPtr<UPreviewMesh>> PreviewCopies;
 
 
 protected:

@@ -88,7 +88,7 @@ class UActorContainer : public UObject
 
 public:
 	UPROPERTY()
-	TMap<FName, AActor*> Actors;
+	TMap<FName, TObjectPtr<AActor>> Actors;
 };
 
 /**
@@ -457,7 +457,7 @@ public:
 
 	/** List of modified, unsaved actors that needs to be duplicated for PIE */
 	UPROPERTY(NonPIEDuplicateTransient)
-	TMap<FName, AActor*> ActorsModifiedForPIE;
+	TMap<FName, TObjectPtr<AActor>> ActorsModifiedForPIE;
 
 	/** Use external actors, new actor spawned in this level will be external and existing external actors will be loaded on load. */
 	UPROPERTY(EditInstanceOnly, Category=World)

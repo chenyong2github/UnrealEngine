@@ -26,7 +26,7 @@ struct HAIRSTRANDSCORE_API FFollicleMaskOptions
 
 	/** Groom asset */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta = (ShowOnlyInnerProperties), Category = Groom)
-	UGroomAsset* Groom = nullptr;
+	TObjectPtr<UGroomAsset> Groom = nullptr;
 
 	/** Texture channel in which the groom's roots mask will be writtent to. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ShowOnlyInnerProperties), Category = Groom)

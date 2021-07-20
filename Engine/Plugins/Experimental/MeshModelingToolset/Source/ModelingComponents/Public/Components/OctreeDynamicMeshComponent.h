@@ -128,7 +128,7 @@ private:
 	//~ Begin USceneComponent Interface.
 
 	UPROPERTY()
-	UDynamicMesh* MeshObject;
+	TObjectPtr<UDynamicMesh> MeshObject;
 
 	FDelegateHandle MeshObjectChangedHandle;
 	void OnMeshObjectChanged(UDynamicMesh* ChangedMeshObject, FDynamicMeshChangeInfo ChangeInfo);

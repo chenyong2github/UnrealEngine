@@ -75,7 +75,7 @@ public:
 	TScriptInterface<IGizmoFloatParameterSource> ParameterSource;
 
 	UPROPERTY()
-	UGizmoViewContext* GizmoViewContext;
+	TObjectPtr<UGizmoViewContext> GizmoViewContext;
 
 	/** The HitTarget provides a hit-test against some 3D element (presumably a visual widget) that controls when interaction can start */
 	UPROPERTY()

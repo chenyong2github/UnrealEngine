@@ -366,28 +366,28 @@ public:
 protected:
 
 	UPROPERTY()
-	UAttributeEditorOptimizeActions* OptimizeActions;
+	TObjectPtr<UAttributeEditorOptimizeActions> OptimizeActions;
 
 	UPROPERTY()
-	UAttributeEditorNormalsActions* NormalsActions;
+	TObjectPtr<UAttributeEditorNormalsActions> NormalsActions;
 
 	UPROPERTY()
-	UAttributeEditorUVActions* UVActions;
+	TObjectPtr<UAttributeEditorUVActions> UVActions;
 
 	UPROPERTY()
-	UAttributeEditorLightmapUVActions* LightmapUVActions;
+	TObjectPtr<UAttributeEditorLightmapUVActions> LightmapUVActions;
 
 	UPROPERTY()
-	UAttributeEditorAttribProperties* AttributeProps;
+	TObjectPtr<UAttributeEditorAttribProperties> AttributeProps;
 
 	UPROPERTY()
-	UAttributeEditorNewAttributeActions* NewAttributeProps;
+	TObjectPtr<UAttributeEditorNewAttributeActions> NewAttributeProps;
 
 	UPROPERTY()
-	UAttributeEditorModifyAttributeActions* ModifyAttributeProps;
+	TObjectPtr<UAttributeEditorModifyAttributeActions> ModifyAttributeProps;
 
 	UPROPERTY()
-	UAttributeEditorCopyAttributeActions* CopyAttributeProps;
+	TObjectPtr<UAttributeEditorCopyAttributeActions> CopyAttributeProps;
 
 
 protected:

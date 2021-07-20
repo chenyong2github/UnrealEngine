@@ -317,7 +317,7 @@ public:
 	// allow the user to bundle in some FChanges into the normal callback?
 
 	UPROPERTY()
-	UPolygonSelectionMechanicProperties* Properties;
+	TObjectPtr<UPolygonSelectionMechanicProperties> Properties;
 
 protected:
 	const FDynamicMesh3* Mesh;
@@ -325,13 +325,13 @@ protected:
 	TFunction<FDynamicMeshAABBTree3*()> GetSpatialFunc;
 
 	UPROPERTY()
-	UMouseHoverBehavior* HoverBehavior;
+	TObjectPtr<UMouseHoverBehavior> HoverBehavior;
 
 	UPROPERTY()
-	USingleClickInputBehavior* ClickBehavior;
+	TObjectPtr<USingleClickInputBehavior> ClickBehavior;
 
 	UPROPERTY()
-	URectangleMarqueeMechanic* MarqueeMechanic;
+	TObjectPtr<URectangleMarqueeMechanic> MarqueeMechanic;
 
 	FInputCapturePriority BasePriority = FInputCapturePriority(FInputCapturePriority::DEFAULT_TOOL_PRIORITY);
 
@@ -371,15 +371,15 @@ protected:
 
 	/** The actor we create internally to own the DrawnTriangleSetComponent */
 	UPROPERTY()
-	APreviewGeometryActor* PreviewGeometryActor;
+	TObjectPtr<APreviewGeometryActor> PreviewGeometryActor;
 
 	UPROPERTY()
-	UTriangleSetComponent* DrawnTriangleSetComponent;
+	TObjectPtr<UTriangleSetComponent> DrawnTriangleSetComponent;
 
 	TSet<int> CurrentlyHighlightedGroups;
 
 	UPROPERTY()
-	UMaterialInterface* HighlightedFaceMaterial;
+	TObjectPtr<UMaterialInterface> HighlightedFaceMaterial;
 
 	FViewCameraState CameraState;
 

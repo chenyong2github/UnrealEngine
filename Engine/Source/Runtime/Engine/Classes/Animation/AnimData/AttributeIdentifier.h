@@ -74,7 +74,7 @@ protected:
 	int32 BoneIndex;
 
 	UPROPERTY(BlueprintReadOnly, Transient, Category = AttributeIdentifier)
-	UScriptStruct* ScriptStruct;
+	TObjectPtr<UScriptStruct> ScriptStruct;
 
 	UPROPERTY(BlueprintReadOnly, Category = AttributeIdentifier)
 	FSoftObjectPath ScriptStructPath;

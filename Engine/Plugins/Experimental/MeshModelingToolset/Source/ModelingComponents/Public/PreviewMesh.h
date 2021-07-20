@@ -427,7 +427,7 @@ protected:
 
 	/** This component is set as the root component of TemporaryParentActor */
 	UPROPERTY()
-	UDynamicMeshComponent* DynamicMeshComponent = nullptr;
+	TObjectPtr<UDynamicMeshComponent> DynamicMeshComponent = nullptr;
 
 	/** Spatial data structure that is initialized if bBuildSpatialDataStructure = true when UpdatePreview() is called */
 	UE::Geometry::FDynamicMeshAABBTree3 MeshAABBTree;

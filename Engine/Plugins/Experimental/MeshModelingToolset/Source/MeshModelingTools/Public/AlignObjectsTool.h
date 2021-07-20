@@ -133,7 +133,7 @@ public:
 
 public:
 	UPROPERTY()
-	UAlignObjectsToolProperties* AlignProps;
+	TObjectPtr<UAlignObjectsToolProperties> AlignProps;
 
 
 protected:

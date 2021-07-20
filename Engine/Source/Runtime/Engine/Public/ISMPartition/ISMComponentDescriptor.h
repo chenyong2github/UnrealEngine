@@ -56,13 +56,13 @@ public:
 	TSubclassOf<UInstancedStaticMeshComponent> ComponentClass;
 	
 	UPROPERTY()
-	UStaticMesh* StaticMesh = nullptr;
+	TObjectPtr<UStaticMesh> StaticMesh = nullptr;
 	
 	UPROPERTY()
-	TArray<UMaterialInterface*> OverrideMaterials;
+	TArray<TObjectPtr<UMaterialInterface>> OverrideMaterials;
 	
 	UPROPERTY()
-	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
+	TArray<TObjectPtr<URuntimeVirtualTexture>> RuntimeVirtualTextures;
 
 	UPROPERTY()
 	TEnumAsByte<EComponentMobility::Type> Mobility;

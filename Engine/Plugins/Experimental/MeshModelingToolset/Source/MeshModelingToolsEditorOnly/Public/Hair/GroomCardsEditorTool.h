@@ -182,38 +182,38 @@ public:
 
 protected:
 	UPROPERTY()
-	USelectGroomCardsToolActions* SelectActions;
+	TObjectPtr<USelectGroomCardsToolActions> SelectActions;
 
 	UPROPERTY()
-	UEditGroomCardsToolActions* EditActions;
+	TObjectPtr<UEditGroomCardsToolActions> EditActions;
 
 	UPROPERTY()
-	UGroomCardsInfoToolProperties* InfoProperties;
+	TObjectPtr<UGroomCardsInfoToolProperties> InfoProperties;
 
 	UPROPERTY()
-	UPreviewMesh* PreviewMesh;
+	TObjectPtr<UPreviewMesh> PreviewMesh;
 
 	UPROPERTY()
 	TLazyObjectPtr<AGroomActor> TargetGroom;
 
 	UPROPERTY()
-	UPreviewGeometry* PreviewGeom;
+	TObjectPtr<UPreviewGeometry> PreviewGeom;
 
 protected:		// materials
 
 	UPROPERTY()
-	UMaterialInterface* MeshMaterial;
+	TObjectPtr<UMaterialInterface> MeshMaterial;
 
 	UPROPERTY()
-	UMaterialInterface* UVMaterial;
+	TObjectPtr<UMaterialInterface> UVMaterial;
 
 protected:		// mechanics
 
 	UPROPERTY()
-	UPolygonSelectionMechanic* CardMeshSelectionMechanic;
+	TObjectPtr<UPolygonSelectionMechanic> CardMeshSelectionMechanic;
 
 	UPROPERTY()
-	USpaceCurveDeformationMechanic* ControlPointsMechanic;
+	TObjectPtr<USpaceCurveDeformationMechanic> ControlPointsMechanic;
 
 
 	bool bSelectionStateDirty = false;

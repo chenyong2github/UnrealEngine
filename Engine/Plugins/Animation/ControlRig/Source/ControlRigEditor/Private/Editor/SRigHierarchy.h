@@ -107,7 +107,7 @@ struct FRigHierarchyImportSettings
 	{}
 
 	UPROPERTY(EditAnywhere, Category = "Hierachy Import")
-	USkeletalMesh* Mesh;
+	TObjectPtr<USkeletalMesh> Mesh;
 };
 
 class SRigHierarchyTreeView : public STreeView<TSharedPtr<FRigTreeElement>>

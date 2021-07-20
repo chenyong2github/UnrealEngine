@@ -78,16 +78,16 @@ protected:
 	void UpdateVisualization();
 
 	UPROPERTY()
-	UCutMeshWithMeshToolProperties* CutProperties;
+	TObjectPtr<UCutMeshWithMeshToolProperties> CutProperties;
 
 	UPROPERTY()
-	UPreviewMesh* IntersectPreviewMesh;
+	TObjectPtr<UPreviewMesh> IntersectPreviewMesh;
 
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalTargetMesh;
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalCuttingMesh;
 
 	UPROPERTY()
-	ULineSetComponent* DrawnLineSet;
+	TObjectPtr<ULineSetComponent> DrawnLineSet;
 
 	// for visualization of any errors in the currently-previewed CSG operation
 	TArray<int> CreatedSubtractBoundaryEdges;

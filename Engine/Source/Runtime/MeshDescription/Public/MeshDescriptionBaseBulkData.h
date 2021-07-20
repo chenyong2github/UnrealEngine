@@ -48,10 +48,10 @@ protected:
 	TPimplPtr<FMeshDescriptionBulkData> BulkData;
 
 	UPROPERTY(Transient, Instanced)
-	UMeshDescriptionBase* PreallocatedMeshDescription;
+	TObjectPtr<UMeshDescriptionBase> PreallocatedMeshDescription;
 
 	UPROPERTY(Transient)
-	UMeshDescriptionBase* MeshDescription;
+	TObjectPtr<UMeshDescriptionBase> MeshDescription;
 
 #endif //WITH_EDITORONLY_DATA
 };

@@ -213,17 +213,17 @@ protected:
 
 	/** Property set for type of output object (StaticMesh, Volume, etc) */
 	UPROPERTY()
-	UCreateMeshObjectTypeProperties* OutputTypeProperties;
+	TObjectPtr<UCreateMeshObjectTypeProperties> OutputTypeProperties;
 
 	/** Properties that control polygon generation exposed to user via detailsview */
 	UPROPERTY()
-	UDrawPolygonToolStandardProperties* PolygonProperties;
+	TObjectPtr<UDrawPolygonToolStandardProperties> PolygonProperties;
 
 	UPROPERTY()
-	UDrawPolygonToolSnapProperties* SnapProperties;
+	TObjectPtr<UDrawPolygonToolSnapProperties> SnapProperties;
 
 	UPROPERTY()
-	UNewMeshMaterialProperties* MaterialProperties;
+	TObjectPtr<UNewMeshMaterialProperties> MaterialProperties;
 	
 
 	/** Origin of plane we will draw polygon on */
@@ -247,16 +247,16 @@ protected:
 	FViewCameraState CameraState;
 
 	UPROPERTY()
-	UPreviewMesh* PreviewMesh;
+	TObjectPtr<UPreviewMesh> PreviewMesh;
 
 	
 	// drawing plane gizmo
 
 	UPROPERTY()
-	UTransformGizmo* PlaneTransformGizmo;
+	TObjectPtr<UTransformGizmo> PlaneTransformGizmo;
 
 	UPROPERTY()
-	UTransformProxy* PlaneTransformProxy;
+	TObjectPtr<UTransformProxy> PlaneTransformProxy;
 
 	// called on PlaneTransformProxy.OnTransformChanged
 	void PlaneTransformChanged(UTransformProxy* Proxy, FTransform Transform);
@@ -304,7 +304,7 @@ protected:
 	bool bPreviewUpdatePending;
 
 	UPROPERTY()
-	UPlaneDistanceFromHitMechanic* HeightMechanic;
+	TObjectPtr<UPlaneDistanceFromHitMechanic> HeightMechanic;
 
 
 	UE::Geometry::FFrame3f HitPosFrameWorld;

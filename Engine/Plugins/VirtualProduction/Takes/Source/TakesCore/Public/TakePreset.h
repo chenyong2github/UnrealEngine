@@ -67,7 +67,7 @@ private:
 
 	/** Instanced level sequence template that is used to define a starting point for a new take recording */
 	UPROPERTY(Instanced)
-	ULevelSequence* LevelSequence;
+	TObjectPtr<ULevelSequence> LevelSequence;
 
 	FSimpleMulticastDelegate OnLevelSequenceChangedEvent;
 };

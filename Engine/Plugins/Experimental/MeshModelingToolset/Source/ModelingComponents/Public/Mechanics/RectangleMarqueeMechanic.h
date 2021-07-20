@@ -115,7 +115,7 @@ public:
 	
 protected:
 	UPROPERTY()
-	UClickDragInputBehavior* ClickDragBehavior = nullptr;
+	TObjectPtr<UClickDragInputBehavior> ClickDragBehavior = nullptr;
 
 	FViewCameraState CachedCameraState;
 

@@ -66,15 +66,15 @@ public:
 	 * recorded into a track in the resulting Level Sequence. 
 	 */
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, meta=(ShowInnerProperties), Category = "Actor Source")
-	UActorRecorderPropertyMap* RecordedProperties;
+	TObjectPtr<UActorRecorderPropertyMap> RecordedProperties;
 
 	/** The level sequence that this source is being recorded into. Set during PreRecording, null after PostRecording. */
 	UPROPERTY()
-	ULevelSequence* TargetLevelSequence;
+	TObjectPtr<ULevelSequence> TargetLevelSequence;
 
 	/** The master or uppermost level sequence that this source is being recorded into. Set during PreRecording, null after PostRecording. */
 	UPROPERTY()
-	ULevelSequence* MasterLevelSequence;
+	TObjectPtr<ULevelSequence> MasterLevelSequence;
 
 	/**
 	* Dynamically created list of settings objects for the different factories that are recording something 
@@ -83,14 +83,14 @@ public:
 	* instance.
 	*/
 	UPROPERTY()
-	TArray<UObject*> FactorySettings;
+	TArray<TObjectPtr<UObject>> FactorySettings;
 	
 	/**
 	* An array of section recorders created during the recording process that are capturing data about the actor/components.
 	* Will be an empty list when a recording is not in progress.
 	*/
 	UPROPERTY()
-	TArray<class UMovieSceneTrackRecorder*> TrackRecorders;
+	TArray<TObjectPtr<class UMovieSceneTrackRecorder>> TrackRecorders;
 
 
 public:

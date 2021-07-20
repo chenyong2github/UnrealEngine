@@ -51,11 +51,11 @@ public:
 
 	/** Mesh on which the groom strands will be projected on. If non empty and if the skeletal mesh entry is empty, the static mesh will be used for generating the textures. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ShowOnlyInnerProperties), Category = Options)
-	UStaticMesh* StaticMesh;
+	TObjectPtr<UStaticMesh> StaticMesh;
 
 	/** Mesh on which the groom strands will be projected on. If non empty, the skeletal mesh will be used for generating the textures.*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ShowOnlyInnerProperties), Category = Options)
-	USkeletalMesh* SkeletalMesh;
+	TObjectPtr<USkeletalMesh> SkeletalMesh;
 
 	/** LOD of the mesh, on which the texture projection is done */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ShowOnlyInnerProperties), Category = Options)

@@ -828,13 +828,13 @@ private:
 	static void SanitizeName(FString& InOutName);
 	
 	UPROPERTY(transient)
-	TArray<URigVMGraph*> Graphs;
+	TArray<TObjectPtr<URigVMGraph>> Graphs;
 
 	UPROPERTY()
-	UStruct* ExecuteContextStruct;
+	TObjectPtr<UStruct> ExecuteContextStruct;
 
 	UPROPERTY(transient)
-	URigVMActionStack* ActionStack;
+	TObjectPtr<URigVMActionStack> ActionStack;
 
 	bool bSuspendNotifications;
 	bool bReportWarningsAndErrors;

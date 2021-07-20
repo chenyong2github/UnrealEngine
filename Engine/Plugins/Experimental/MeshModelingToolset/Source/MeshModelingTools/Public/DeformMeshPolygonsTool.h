@@ -178,10 +178,10 @@ public:
 
 protected:
 	UPROPERTY()
-	UDynamicMeshComponent* DynamicMeshComponent;
+	TObjectPtr<UDynamicMeshComponent> DynamicMeshComponent;
 
 	UPROPERTY()
-	UDeformMeshPolygonsTransformProperties* TransformProps;
+	TObjectPtr<UDeformMeshPolygonsTransformProperties> TransformProps;
 
 	// realtime visualization
 	void OnDynamicMeshComponentChanged();

@@ -208,15 +208,15 @@ private:
 
 	/** The array of all sources contained within this list */
 	UPROPERTY(Instanced)
-	TArray<UTakeRecorderSource*> Sources;
+	TArray<TObjectPtr<UTakeRecorderSource>> Sources;
 
 	/** Maps each source to the level sequence that was created for that source, or to the master source if a subsequence was not created. */
 	UPROPERTY(Transient)
-	TMap<UTakeRecorderSource*, ULevelSequence*> SourceSubSequenceMap;
+	TMap<TObjectPtr<UTakeRecorderSource>, TObjectPtr<ULevelSequence>> SourceSubSequenceMap;
 
 	/** List of sub-sections that we're recording into. Needed to ensure they're all the right size at the end without re-adjusting every sub-section in a sequence. */
 	UPROPERTY(Transient)
-	TArray<class UMovieSceneSubSection*> ActiveSubSections;
+	TArray<TObjectPtr<class UMovieSceneSubSection>> ActiveSubSections;
 
 	/** Are we currently in a recording pass and should be ticking our Sources? */
 	bool bIsRecording;

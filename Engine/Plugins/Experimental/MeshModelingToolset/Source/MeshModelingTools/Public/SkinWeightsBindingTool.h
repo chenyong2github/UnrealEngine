@@ -106,10 +106,10 @@ public:
 	TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
-	USkinWeightsBindingToolProperties* Properties = nullptr;
+	TObjectPtr<USkinWeightsBindingToolProperties> Properties = nullptr;
 	
 	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* Preview = nullptr;
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview = nullptr;
 
 protected:
 	UWorld* TargetWorld = nullptr;

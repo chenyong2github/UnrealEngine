@@ -101,7 +101,7 @@ public:
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
-	UUVLayoutTool *Tool;
+	TObjectPtr<UUVLayoutTool> Tool;
 
 	int ComponentIndex;
 
@@ -143,16 +143,16 @@ public:
 protected:
 
 	UPROPERTY()
-	UMeshUVChannelProperties* UVChannelProperties = nullptr;
+	TObjectPtr<UMeshUVChannelProperties> UVChannelProperties = nullptr;
 
 	UPROPERTY()
-	UUVLayoutToolProperties* BasicProperties = nullptr;
+	TObjectPtr<UUVLayoutToolProperties> BasicProperties = nullptr;
 
 	UPROPERTY()
-	UExistingMeshMaterialProperties* MaterialSettings = nullptr;
+	TObjectPtr<UExistingMeshMaterialProperties> MaterialSettings = nullptr;
 
 	UPROPERTY()
-	TArray<UMeshOpPreviewWithBackgroundCompute*> Previews;
+	TArray<TObjectPtr<UMeshOpPreviewWithBackgroundCompute>> Previews;
 
 protected:
 	TArray<TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe>> OriginalDynamicMeshes;
@@ -172,5 +172,5 @@ protected:
 
 protected:
 	UPROPERTY()
-	UUVLayoutPreview* UVLayoutView = nullptr;
+	TObjectPtr<UUVLayoutPreview> UVLayoutView = nullptr;
 };

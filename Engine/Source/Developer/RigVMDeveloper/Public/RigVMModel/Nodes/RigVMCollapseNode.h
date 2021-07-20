@@ -34,7 +34,7 @@ public:
 private:
 
 	UPROPERTY()
-	URigVMGraph* ContainedGraph;
+	TObjectPtr<URigVMGraph> ContainedGraph;
 
 	UPROPERTY()
 	FString NodeCategory;

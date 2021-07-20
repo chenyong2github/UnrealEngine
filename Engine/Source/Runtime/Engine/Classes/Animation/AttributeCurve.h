@@ -172,7 +172,7 @@ protected:
 
 	/* Transient UScriptStruct instance representing the underlying value type for the curve */
 	UPROPERTY(EditAnywhere, Transient, Category = "Custom Attributes")
-	UScriptStruct* ScriptStruct;
+	TObjectPtr<UScriptStruct> ScriptStruct;
 
 	/** Whether or not to interpolate between keys of ScripStruct type */
 	UPROPERTY(EditAnywhere, Transient, Category = "Custom Attributes")

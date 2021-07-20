@@ -112,7 +112,7 @@ public:
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
-	UEdgeLoopInsertionTool* Tool;
+	TObjectPtr<UEdgeLoopInsertionTool> Tool;
 };
 
 /** Tool for inserting (group) edge loops into a mesh. */
@@ -152,7 +152,7 @@ public:
 protected:
 
 	UPROPERTY()
-	UEdgeLoopInsertionProperties* Settings = nullptr;
+	TObjectPtr<UEdgeLoopInsertionProperties> Settings = nullptr;
 
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> CurrentMesh;
 	TSharedPtr<FGroupTopology, ESPMode::ThreadSafe> CurrentTopology;
@@ -168,7 +168,7 @@ protected:
 	FViewCameraState CameraState;
 
 	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* Preview;
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview;
 
 	FToolDataVisualizer ExistingEdgesRenderer;
 	FToolDataVisualizer PreviewEdgeRenderer;

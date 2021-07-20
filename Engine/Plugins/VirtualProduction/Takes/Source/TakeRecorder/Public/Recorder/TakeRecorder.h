@@ -225,11 +225,11 @@ private:
 
 	/** The asset that we should output recorded data into */
 	UPROPERTY(transient)
-	ULevelSequence* SequenceAsset;
+	TObjectPtr<ULevelSequence> SequenceAsset;
 
 	/** The overlay widget for this recording */
 	UPROPERTY(transient)
-	UTakeRecorderOverlayWidget* OverlayWidget;
+	TObjectPtr<UTakeRecorderOverlayWidget> OverlayWidget;
 
 	/** The world that we are recording within */
 	UPROPERTY(transient)

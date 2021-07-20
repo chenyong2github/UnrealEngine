@@ -52,10 +52,10 @@ public:
 	virtual bool CanAccept() const override;
 
 	UPROPERTY()
-	USplitMeshesToolProperties* BasicProperties;
+	TObjectPtr<USplitMeshesToolProperties> BasicProperties;
 
 	UPROPERTY()
-	UCreateMeshObjectTypeProperties* OutputTypeProperties;
+	TObjectPtr<UCreateMeshObjectTypeProperties> OutputTypeProperties;
 
 protected:
 	UWorld* TargetWorld;

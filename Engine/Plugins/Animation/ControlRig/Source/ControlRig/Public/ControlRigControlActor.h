@@ -36,7 +36,7 @@ public:
 #endif
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Control Actor")
-	class AActor* ActorToTrack;
+	TObjectPtr<class AActor> ActorToTrack;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Control Actor")
 	TSubclassOf<UControlRig> ControlRigClass;
@@ -48,7 +48,7 @@ public:
 	bool bIsSelectable;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Materials")
-	UMaterialInterface* MaterialOverride;
+	TObjectPtr<UMaterialInterface> MaterialOverride;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Materials")
 	FString ColorParameter;
@@ -65,10 +65,10 @@ public:
 private:
 
 	UPROPERTY()
-	class USceneComponent* ActorRootComponent;
+	TObjectPtr<class USceneComponent> ActorRootComponent;
 
 	UPROPERTY(transient)
-	UControlRig * ControlRig;
+	TObjectPtr<UControlRig>  ControlRig;
 
 	UPROPERTY(transient)
 	TArray<FName> ControlNames;
@@ -77,10 +77,10 @@ private:
 	TArray<FTransform> GizmoTransforms;
 
 	UPROPERTY(transient)
-	TArray<UStaticMeshComponent*> Components;
+	TArray<TObjectPtr<UStaticMeshComponent>> Components;
 
 	UPROPERTY(transient)
-	TArray<UMaterialInstanceDynamic*> Materials;
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> Materials;
 
 	UPROPERTY(transient)
 	FName ColorParameterName;

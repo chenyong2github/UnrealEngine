@@ -90,10 +90,10 @@ protected:
 	bool InMultiSelectMode() const { return bShiftToggle; }
 
 	UPROPERTY()
-	APreviewGeometryActor* PreviewGeometryActor = nullptr;
+	TObjectPtr<APreviewGeometryActor> PreviewGeometryActor = nullptr;
 
 	UPROPERTY()
-	ULineSetComponent* LineSet = nullptr;
+	TObjectPtr<ULineSetComponent> LineSet = nullptr;
 
 
 	TArray<TSharedPtr<FDynamicMeshAABBTree3>> MeshSpatials;

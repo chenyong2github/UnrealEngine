@@ -35,6 +35,6 @@ class UWorldPartitionRuntimeSpatialHashCell : public UWorldPartitionRuntimeCell
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	UActorContainer* ActorContainer;
+	TObjectPtr<UActorContainer> ActorContainer;
 #endif
 };

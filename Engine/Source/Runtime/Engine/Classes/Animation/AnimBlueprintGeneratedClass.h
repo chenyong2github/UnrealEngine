@@ -410,7 +410,7 @@ private:
 
 	// Map from anim node struct to info about that struct (used to accelerate property name lookups)
 	UPROPERTY()
-	TMap<const UScriptStruct*, FAnimNodeStructData> NodeTypeMap;
+	TMap<TObjectPtr<const UScriptStruct>, FAnimNodeStructData> NodeTypeMap;
 
 	// Cached properties used to access 'folded' anim node properties
 	TArray<FProperty*> MutableProperties;

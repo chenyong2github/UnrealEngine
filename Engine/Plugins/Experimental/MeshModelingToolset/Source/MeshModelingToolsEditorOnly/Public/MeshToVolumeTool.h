@@ -87,16 +87,16 @@ public:
 
 protected:
 	UPROPERTY()
-	UMeshToVolumeToolProperties* Settings;
+	TObjectPtr<UMeshToVolumeToolProperties> Settings;
 
 	UPROPERTY()
-	UOnAcceptHandleSourcesProperties* HandleSourcesProperties;
+	TObjectPtr<UOnAcceptHandleSourcesProperties> HandleSourcesProperties;
 
 	UPROPERTY()
-	UPreviewMesh* PreviewMesh;
+	TObjectPtr<UPreviewMesh> PreviewMesh;
 
 	UPROPERTY()
-	ULineSetComponent* VolumeEdgesSet;
+	TObjectPtr<ULineSetComponent> VolumeEdgesSet;
 
 protected:
 	UE::Geometry::FDynamicMesh3 InputMesh;

@@ -72,7 +72,7 @@ public:
 protected:
 
 	UPROPERTY()
-	UVoxelSolidifyMeshesToolProperties* SolidifyProperties;
+	TObjectPtr<UVoxelSolidifyMeshesToolProperties> SolidifyProperties;
 
 };
 

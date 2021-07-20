@@ -156,23 +156,23 @@ public:
 protected:
 
 	UPROPERTY()
-	USetCollisionGeometryToolProperties* Settings = nullptr;
+	TObjectPtr<USetCollisionGeometryToolProperties> Settings = nullptr;
 
 	UPROPERTY()
-	UPolygroupLayersProperties* PolygroupLayerProperties = nullptr;
+	TObjectPtr<UPolygroupLayersProperties> PolygroupLayerProperties = nullptr;
 
 	UPROPERTY()
-	UCollisionGeometryVisualizationProperties* VizSettings = nullptr;
+	TObjectPtr<UCollisionGeometryVisualizationProperties> VizSettings = nullptr;
 
 	UPROPERTY()
-	UPhysicsObjectToolPropertySet* CollisionProps;
+	TObjectPtr<UPhysicsObjectToolPropertySet> CollisionProps;
 
 	UPROPERTY()
-	UMaterialInterface* LineMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> LineMaterial = nullptr;
 
 protected:
 	UPROPERTY()
-	UPreviewGeometry* PreviewGeom;
+	TObjectPtr<UPreviewGeometry> PreviewGeom;
 
 	TArray<int32> SourceObjectIndices;
 	bool bSourcesHidden = false;

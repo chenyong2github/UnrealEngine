@@ -229,10 +229,10 @@ protected:
 
 protected:
 	UPROPERTY()
-	UMeshAttributePaintBrushOperationProperties* BrushActionProps;
+	TObjectPtr<UMeshAttributePaintBrushOperationProperties> BrushActionProps;
 
 	UPROPERTY()
-	UMeshAttributePaintToolProperties* AttribProps;
+	TObjectPtr<UMeshAttributePaintToolProperties> AttribProps;
 
 	TValueWatcher<int32> SelectedAttributeWatcher;
 

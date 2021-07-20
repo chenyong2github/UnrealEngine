@@ -91,7 +91,7 @@ public:
 protected:
 
 	UPROPERTY()
-	UBakeTransformToolProperties* BasicProperties;
+	TObjectPtr<UBakeTransformToolProperties> BasicProperties;
 
 protected:
 	UWorld* TargetWorld;

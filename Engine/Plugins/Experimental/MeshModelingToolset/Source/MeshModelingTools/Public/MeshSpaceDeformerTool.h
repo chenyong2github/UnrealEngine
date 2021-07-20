@@ -181,7 +181,7 @@ public:
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
-	UMeshSpaceDeformerTool* SpaceDeformerTool;  // back pointer
+	TObjectPtr<UMeshSpaceDeformerTool> SpaceDeformerTool;  // back pointer
 };
 
 
@@ -215,48 +215,48 @@ public:
 protected:
 
 	UPROPERTY()
-	UMeshSpaceDeformerToolProperties* Settings;
+	TObjectPtr<UMeshSpaceDeformerToolProperties> Settings;
 
 	UPROPERTY()
-	UMeshSpaceDeformerToolActionPropertySet* ToolActions;
+	TObjectPtr<UMeshSpaceDeformerToolActionPropertySet> ToolActions;
 
 	UPROPERTY()
-	UGizmoTransformChangeStateTarget* StateTarget = nullptr;
+	TObjectPtr<UGizmoTransformChangeStateTarget> StateTarget = nullptr;
 	
 	UPROPERTY()
-	UDragAlignmentMechanic* DragAlignmentMechanic;
+	TObjectPtr<UDragAlignmentMechanic> DragAlignmentMechanic;
 
 protected:
 
 	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* Preview = nullptr;   
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview = nullptr;   
 
 protected:	
 
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalDynamicMesh;
 
 	UPROPERTY()
-	UPreviewMesh* OriginalMeshPreview;
+	TObjectPtr<UPreviewMesh> OriginalMeshPreview;
 
 	UPROPERTY()
-	UIntervalGizmo* IntervalGizmo;
+	TObjectPtr<UIntervalGizmo> IntervalGizmo;
 
 	UPROPERTY()
-	UTransformGizmo* TransformGizmo;
+	TObjectPtr<UTransformGizmo> TransformGizmo;
 
 	UPROPERTY()
-	UTransformProxy* TransformProxy;
+	TObjectPtr<UTransformProxy> TransformProxy;
 
 	/** Interval Parameter sources that reflect UI settings. */
 
 	UPROPERTY()
-	UGizmoLocalFloatParameterSource* UpIntervalSource;
+	TObjectPtr<UGizmoLocalFloatParameterSource> UpIntervalSource;
 
 	UPROPERTY()
-	UGizmoLocalFloatParameterSource* DownIntervalSource;
+	TObjectPtr<UGizmoLocalFloatParameterSource> DownIntervalSource;
 
 	UPROPERTY()
-	UGizmoLocalFloatParameterSource* ForwardIntervalSource;
+	TObjectPtr<UGizmoLocalFloatParameterSource> ForwardIntervalSource;
 
 	// Button click support
 	EMeshSpaceDeformerToolAction PendingAction;

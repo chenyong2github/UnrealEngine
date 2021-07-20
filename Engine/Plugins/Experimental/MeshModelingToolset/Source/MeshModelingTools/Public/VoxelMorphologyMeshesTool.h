@@ -66,7 +66,7 @@ protected:
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
-	UVoxelMorphologyMeshesToolProperties* MorphologyProperties;
+	TObjectPtr<UVoxelMorphologyMeshesToolProperties> MorphologyProperties;
 
 };
 

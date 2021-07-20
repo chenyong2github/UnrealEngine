@@ -388,9 +388,9 @@ public:
 protected:
 	/** Meshes in the pool that are available */
 	UPROPERTY()
-	TArray<UDynamicMesh*> CachedMeshes;
+	TArray<TObjectPtr<UDynamicMesh>> CachedMeshes;
 
 	/** All meshes the pool has allocated */
 	UPROPERTY()
-	TArray<UDynamicMesh*> AllCreatedMeshes;
+	TArray<TObjectPtr<UDynamicMesh>> AllCreatedMeshes;
 };

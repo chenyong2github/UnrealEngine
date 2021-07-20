@@ -37,7 +37,7 @@ public:
 	{};
 
 	UPROPERTY()
-	UNiagaraParameterDefinitions* SubscribedParameterDefinitions;
+	TObjectPtr<UNiagaraParameterDefinitions> SubscribedParameterDefinitions;
 
 	UPROPERTY()
 	TArray<FScriptVarBindingNameSubscription> BindingNameSubscriptions;
@@ -101,7 +101,7 @@ private:
 	int32 MenuSortOrder;
 
 	UPROPERTY()
-	TArray<UNiagaraScriptVariable*> ScriptVariables;
+	TArray<TObjectPtr<UNiagaraScriptVariable>> ScriptVariables;
 
 	UPROPERTY()
 	TArray<FParameterDefinitionsBindingNameSubscription> ExternalParameterDefinitionsSubscriptions;

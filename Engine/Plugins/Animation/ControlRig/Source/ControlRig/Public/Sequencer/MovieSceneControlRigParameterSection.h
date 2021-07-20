@@ -163,7 +163,7 @@ private:
 
 	/** Control Rig that controls us*/
 	UPROPERTY()
-	UControlRig* ControlRig;
+	TObjectPtr<UControlRig> ControlRig;
 
 public:
 

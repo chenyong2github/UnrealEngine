@@ -22,13 +22,13 @@ struct HAIRSTRANDSCORE_API FHairGroupsMeshesSourceDescription
 
 	/* Deprecated */
 	UPROPERTY()
-	UMaterialInterface* Material = nullptr;
+	TObjectPtr<UMaterialInterface> Material = nullptr;
 
 	UPROPERTY()
 	FName MaterialSlotName;
 
 	UPROPERTY(EditAnywhere, Category = "MeshSettings", meta = (ToolTip = "Mesh settings"))
-	class UStaticMesh* ImportedMesh;
+	TObjectPtr<class UStaticMesh> ImportedMesh;
 
 	UPROPERTY(EditAnywhere, Category = "MeshesSource")
 	FHairGroupCardsTextures Textures;

@@ -251,7 +251,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	UControlRigGraph* FunctionLibraryEdGraph;
+	TObjectPtr<UControlRigGraph> FunctionLibraryEdGraph;
 #endif
 
 	bool IsFunctionPublic(const FName& InFunctionName) const;
@@ -282,25 +282,25 @@ public:
 protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "VM")
-	URigVMGraph* Model;
+	TObjectPtr<URigVMGraph> Model;
 
 	UPROPERTY(BlueprintReadOnly, Category = "VM")
-	URigVMFunctionLibrary* FunctionLibrary;
+	TObjectPtr<URigVMFunctionLibrary> FunctionLibrary;
 
 	/** Asset searchable information about exposed public functions on this rig */
 	UPROPERTY(AssetRegistrySearchable)
 	TArray<FControlRigPublicFunctionData> PublicFunctions;
 
 	UPROPERTY(BlueprintReadOnly, transient, Category = "VM")
-	TMap<URigVMGraph*, URigVMController*> Controllers;
+	TMap<TObjectPtr<URigVMGraph>, TObjectPtr<URigVMController>> Controllers;
 
 #if WITH_EDITORONLY_DATA
 
 	UPROPERTY(transient)
-	URigVMGraph* TemplateModel;
+	TObjectPtr<URigVMGraph> TemplateModel;
 
 	UPROPERTY(transient)
-	URigVMController* TemplateController;
+	TObjectPtr<URigVMController> TemplateController;
 
 #endif
 
@@ -378,7 +378,7 @@ public:
 	FRigHierarchyContainer HierarchyContainer_DEPRECATED;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Hierarchy")
-	URigHierarchy* Hierarchy;
+	TObjectPtr<URigHierarchy> Hierarchy;
 
 	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
 	URigHierarchyController* GetHierarchyController() { return HierarchyController; }
@@ -426,7 +426,7 @@ private:
 	int32 VMRecompilationBracket;
 
 	UPROPERTY(transient)
-	URigHierarchyController* HierarchyController;
+	TObjectPtr<URigHierarchyController> HierarchyController;
 
 	FRigVMGraphModifiedEvent ModifiedEvent;
 	void Notify(ERigVMGraphNotifType InNotifType, UObject* InSubject);
@@ -485,7 +485,7 @@ public:
 private:
 
 	UPROPERTY()
-	UControlRigValidator* Validator;
+	TObjectPtr<UControlRigValidator> Validator;
 
 	FRigHierarchyModifiedEvent	HierarchyModifiedEvent;
 

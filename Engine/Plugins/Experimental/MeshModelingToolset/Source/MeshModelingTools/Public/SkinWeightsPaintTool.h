@@ -113,7 +113,7 @@ protected:
 	void CalculateVertexROI(const FBrushStampData& Stamp, TArray<int>& VertexROI);
 
 	UPROPERTY()
-	USkinWeightsPaintToolProperties* ToolProps;
+	TObjectPtr<USkinWeightsPaintToolProperties> ToolProps;
 
 	TValueWatcher<FBoneReference> CurrentBoneWatcher;
 

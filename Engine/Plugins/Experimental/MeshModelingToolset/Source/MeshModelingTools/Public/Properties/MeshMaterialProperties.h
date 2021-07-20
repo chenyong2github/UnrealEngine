@@ -76,10 +76,10 @@ public:
 	int UVChannel = 0;
 
 	UPROPERTY(EditAnywhere, Category = MaterialPreview, meta = (EditCondition = "MaterialMode == ESetMeshMaterialMode::Override"))
-	UMaterialInterface* OverrideMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> OverrideMaterial = nullptr;
 
 	UPROPERTY(meta = (TransientToolProperty))
-	UMaterialInstanceDynamic* CheckerMaterial = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> CheckerMaterial = nullptr;
 
 	// Needs custom restore in order to call setup
 	virtual void RestoreProperties(UInteractiveTool* RestoreToTool, const FString& CacheIdentifier = TEXT("")) override;
@@ -130,7 +130,7 @@ public:
 
 	/** Image used in Image-Based Material */
 	UPROPERTY(EditAnywhere, Category = Rendering, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshEditingMaterialModes::CustomImage", TransientToolProperty) )
-	UTexture2D* Image;
+	TObjectPtr<UTexture2D> Image;
 
 	//~ Could have used the same property as Color, above, but the user may want different saved values for the two
 	UPROPERTY(EditAnywhere, Category = Rendering, AdvancedDisplay, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshEditingMaterialModes::Transparent", DisplayName = "Color"))

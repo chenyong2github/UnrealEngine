@@ -153,5 +153,5 @@ protected:
 	static FNiagaraVariableBase ExposedRTVar;
 	
 	UPROPERTY(Transient, DuplicateTransient)
-	TMap<uint64, UTextureRenderTargetCube*> ManagedRenderTargets;
+	TMap<uint64, TObjectPtr<UTextureRenderTargetCube>> ManagedRenderTargets;
 };

@@ -89,23 +89,23 @@ public:
 
 public:
 	UPROPERTY()
-	UExistingMeshMaterialProperties* MaterialSettings = nullptr;
+	TObjectPtr<UExistingMeshMaterialProperties> MaterialSettings = nullptr;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* CheckerMaterial = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> CheckerMaterial = nullptr;
 
 protected:
 	UPROPERTY()
-	UDynamicMeshComponent* DynamicMeshComponent;
+	TObjectPtr<UDynamicMeshComponent> DynamicMeshComponent;
 
 	UPROPERTY()
-	UPolygonSelectionMechanic* SelectionMechanic;
+	TObjectPtr<UPolygonSelectionMechanic> SelectionMechanic;
 
 	bool bSelectionStateDirty = false;
 	void OnSelectionModifiedEvent();
 
 	UPROPERTY()
-	UMultiTransformer* MultiTransformer = nullptr;
+	TObjectPtr<UMultiTransformer> MultiTransformer = nullptr;
 
 	void OnMultiTransformerTransformBegin();
 	void OnMultiTransformerTransformUpdate();

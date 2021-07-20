@@ -84,7 +84,7 @@ public:
 	TArray<bool> ChannelMask;
 
 	UPROPERTY()
-	TArray<UMovieSceneLiveLinkSubSection*> SubSections;
+	TArray<TObjectPtr<UMovieSceneLiveLinkSubSection>> SubSections;
 
 	TSharedPtr<FLiveLinkStaticDataStruct> StaticData;
 

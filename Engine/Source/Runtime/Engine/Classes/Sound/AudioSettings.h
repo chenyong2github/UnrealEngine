@@ -225,13 +225,13 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 
 private:
 	UPROPERTY(Transient)
-	USoundClass* DefaultSoundClass;
+	TObjectPtr<USoundClass> DefaultSoundClass;
 
 	UPROPERTY(Transient)
-	USoundClass* DefaultMediaSoundClass;
+	TObjectPtr<USoundClass> DefaultMediaSoundClass;
 
 	UPROPERTY(Transient)
-	USoundConcurrency* DefaultSoundConcurrency;
+	TObjectPtr<USoundConcurrency> DefaultSoundConcurrency;
 
 public:
 	void LoadDefaultObjects();

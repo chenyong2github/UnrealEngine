@@ -103,7 +103,7 @@ private:
 	//~ Begin USceneComponent Interface.
 
 	UPROPERTY()
-	const UMaterialInterface* PointMaterial;
+	TObjectPtr<const UMaterialInterface> PointMaterial;
 
 	UPROPERTY()
 	mutable FBoxSphereBounds Bounds;

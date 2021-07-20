@@ -614,7 +614,7 @@ private:
 
 	/** Wrapper for editor only parameters. */
 	UPROPERTY()
-	UNiagaraEditorParametersAdapterBase* EditorParameters;
+	TObjectPtr<UNiagaraEditorParametersAdapterBase> EditorParameters;
 
 	/** A multicast delegate which is called whenever all the scripts for this emitter have been compiled (successfully or not). */
 	FOnEmitterCompiled OnVMScriptCompiledDelegate;

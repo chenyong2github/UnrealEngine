@@ -106,24 +106,24 @@ public:
 
 protected:
 	UPROPERTY()
-	UMeshUVChannelProperties* UVChannelProperties = nullptr;
+	TObjectPtr<UMeshUVChannelProperties> UVChannelProperties = nullptr;
 
 	UPROPERTY()
-	UParameterizeMeshToolProperties* Settings = nullptr;
+	TObjectPtr<UParameterizeMeshToolProperties> Settings = nullptr;
 
 	UPROPERTY()
-	UParameterizeMeshToolUVAtlasProperties* UVAtlasProperties = nullptr;
+	TObjectPtr<UParameterizeMeshToolUVAtlasProperties> UVAtlasProperties = nullptr;
 
 	UPROPERTY()
-	UParameterizeMeshToolXAtlasProperties* XAtlasProperties = nullptr;
+	TObjectPtr<UParameterizeMeshToolXAtlasProperties> XAtlasProperties = nullptr;
 
 
 	UPROPERTY()
-	UExistingMeshMaterialProperties* MaterialSettings = nullptr;
+	TObjectPtr<UExistingMeshMaterialProperties> MaterialSettings = nullptr;
 
 protected:
 	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* Preview = nullptr;
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview = nullptr;
 
 protected:
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;

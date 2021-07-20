@@ -62,7 +62,7 @@ struct FNiagaraBakerTextureSettings
 
 	/** Final texture generated, an existing entry will be updated with new capture data. */
 	UPROPERTY(EditAnywhere, Category = "Texture")
-	UTexture2D* GeneratedTexture = nullptr;
+	TObjectPtr<UTexture2D> GeneratedTexture = nullptr;
 
 	bool Equals(const FNiagaraBakerTextureSettings& Other) const;
 

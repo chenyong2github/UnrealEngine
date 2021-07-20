@@ -425,16 +425,16 @@ public:
 	FString Label = "";
 
 	UPROPERTY()
-	AActor* Actor = nullptr;
+	TObjectPtr<AActor> Actor = nullptr;
 
 	UPROPERTY()
-	UStaticMesh* StaticMesh = nullptr;
+	TObjectPtr<UStaticMesh> StaticMesh = nullptr;
 
 	UPROPERTY()
-	UProceduralShapeToolProperties* ShapeSettings;
+	TObjectPtr<UProceduralShapeToolProperties> ShapeSettings;
 
 	UPROPERTY()
-	UNewMeshMaterialProperties* MaterialProperties;
+	TObjectPtr<UNewMeshMaterialProperties> MaterialProperties;
 
 	bool IsInvalid()
 	{
@@ -482,13 +482,13 @@ protected:
 
 	/** Property set for type of output object (StaticMesh, Volume, etc) */
 	UPROPERTY()
-	UCreateMeshObjectTypeProperties* OutputTypeProperties;
+	TObjectPtr<UCreateMeshObjectTypeProperties> OutputTypeProperties;
 
 	UPROPERTY()
-	UProceduralShapeToolProperties* ShapeSettings;
+	TObjectPtr<UProceduralShapeToolProperties> ShapeSettings;
 
 	UPROPERTY()
-	UNewMeshMaterialProperties* MaterialProperties;
+	TObjectPtr<UNewMeshMaterialProperties> MaterialProperties;
 
 
 	/**
@@ -507,10 +507,10 @@ protected:
 
 
 	UPROPERTY()
-	UPreviewMesh* PreviewMesh;
+	TObjectPtr<UPreviewMesh> PreviewMesh;
 
 	UPROPERTY()
-	ULastActorInfo* LastGenerated;
+	TObjectPtr<ULastActorInfo> LastGenerated;
 
 	UPROPERTY()
 	FString AssetName = TEXT("GeneratedAsset");

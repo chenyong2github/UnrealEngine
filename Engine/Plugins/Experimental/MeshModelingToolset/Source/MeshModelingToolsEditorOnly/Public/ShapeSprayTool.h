@@ -46,7 +46,7 @@ public:
 	int NumSplats;
 
 	UPROPERTY(EditAnywhere, Category = Options)
-	UMaterialInterface* Material = nullptr;
+	TObjectPtr<UMaterialInterface> Material = nullptr;
 };
 
 
@@ -85,11 +85,11 @@ public:
 
 protected:
 	UPROPERTY()
-	UShapeSprayToolProperties* Settings;
+	TObjectPtr<UShapeSprayToolProperties> Settings;
 
 	// small meshes are accumulated here
 	UPROPERTY()
-	UDynamicMeshComponent* AccumMeshComponent;
+	TObjectPtr<UDynamicMeshComponent> AccumMeshComponent;
 
 
 protected:

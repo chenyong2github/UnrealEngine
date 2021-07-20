@@ -36,11 +36,11 @@ private:
 private:
 
 	UPROPERTY()
-	UWorld* World;
+	TObjectPtr<UWorld> World;
 
 	/** The master or uppermost level sequence that this source is being recorded into. Set during PreRecording, null after PostRecording. */
 	UPROPERTY()
-	ULevelSequence* MasterLevelSequence;
+	TObjectPtr<ULevelSequence> MasterLevelSequence;
 
 
 	struct FCameraCutData

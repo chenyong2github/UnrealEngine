@@ -134,7 +134,7 @@ public:
 #endif // WITH_EDITOR
 private:
 	UPROPERTY()
-	class UMaterialExpression* Expression = nullptr;
+	TObjectPtr<class UMaterialExpression> Expression = nullptr;
 };
 
 struct FExpressionExecOutputEntry

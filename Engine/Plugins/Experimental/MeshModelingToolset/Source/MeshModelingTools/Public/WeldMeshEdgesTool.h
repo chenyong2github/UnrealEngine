@@ -58,7 +58,7 @@ public:
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
-	UWeldMeshEdgesTool* WeldMeshEdgesTool;
+	TObjectPtr<UWeldMeshEdgesTool> WeldMeshEdgesTool;
 };
 
 

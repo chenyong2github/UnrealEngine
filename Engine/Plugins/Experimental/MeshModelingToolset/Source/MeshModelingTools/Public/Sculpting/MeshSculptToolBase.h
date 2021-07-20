@@ -198,11 +198,11 @@ protected:
 public:
 	/** Properties that control brush size/etc */
 	UPROPERTY()
-	USculptBrushProperties* BrushProperties;
+	TObjectPtr<USculptBrushProperties> BrushProperties;
 
 	/** Properties for 3D workplane / gizmo */
 	UPROPERTY()
-	UWorkPlaneProperties* GizmoProperties;
+	TObjectPtr<UWorkPlaneProperties> GizmoProperties;
 
 
 protected:
@@ -247,12 +247,12 @@ protected:
 	//
 protected:
 	UPROPERTY()
-	TMap<int32, UMeshSculptBrushOpProps*> BrushOpPropSets;
+	TMap<int32, TObjectPtr<UMeshSculptBrushOpProps>> BrushOpPropSets;
 
 	TMap<int32, TUniquePtr<FMeshSculptBrushOpFactory>> BrushOpFactories;
 
 	UPROPERTY()
-	TMap<int32, UMeshSculptBrushOpProps*> SecondaryBrushOpPropSets;
+	TMap<int32, TObjectPtr<UMeshSculptBrushOpProps>> SecondaryBrushOpPropSets;
 
 	TMap<int32, TUniquePtr<FMeshSculptBrushOpFactory>> SecondaryBrushOpFactories;
 
@@ -417,10 +417,10 @@ protected:
 	//
 public:
 	UPROPERTY()
-	UMeshEditingViewProperties* ViewProperties;
+	TObjectPtr<UMeshEditingViewProperties> ViewProperties;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* ActiveOverrideMaterial;
+	TObjectPtr<UMaterialInstanceDynamic> ActiveOverrideMaterial;
 
 protected:
 	virtual void SetViewPropertiesEnabled(bool bNewValue);
@@ -451,17 +451,17 @@ protected:
 
 protected:
 	UPROPERTY()
-	UBrushStampIndicator* BrushIndicator;
+	TObjectPtr<UBrushStampIndicator> BrushIndicator;
 
 	UPROPERTY()
 	bool bIsVolumetricIndicator;
 
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* BrushIndicatorMaterial;
+	TObjectPtr<UMaterialInstanceDynamic> BrushIndicatorMaterial;
 
 	UPROPERTY()
-	UPreviewMesh* BrushIndicatorMesh;
+	TObjectPtr<UPreviewMesh> BrushIndicatorMesh;
 
 	// creates default sphere indicator
 	UPreviewMesh* MakeDefaultIndicatorSphereMesh(UObject* Parent, UWorld* World, int Resolution = 32);
@@ -475,10 +475,10 @@ protected:
 public:
 	// plane gizmo
 	UPROPERTY()
-	UTransformGizmo* PlaneTransformGizmo;
+	TObjectPtr<UTransformGizmo> PlaneTransformGizmo;
 
 	UPROPERTY()
-	UTransformProxy* PlaneTransformProxy;
+	TObjectPtr<UTransformProxy> PlaneTransformProxy;
 
 protected:
 	virtual void UpdateWorkPlane();

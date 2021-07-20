@@ -66,7 +66,7 @@ struct FRenderableTriangle
 	}
 
 	UPROPERTY()
-	UMaterialInterface* Material;
+	TObjectPtr<UMaterialInterface> Material;
 
 	UPROPERTY()
 	FRenderableTriangleVertex Vertex0;

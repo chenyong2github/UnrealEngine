@@ -75,7 +75,7 @@ public:
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
-	UConvertToPolygonsTool* ConvertToPolygonsTool;  // back pointer
+	TObjectPtr<UConvertToPolygonsTool> ConvertToPolygonsTool;  // back pointer
 };
 
 /**
@@ -107,13 +107,13 @@ protected:
 
 protected:
 	UPROPERTY()
-	UConvertToPolygonsToolProperties* Settings;
+	TObjectPtr<UConvertToPolygonsToolProperties> Settings;
 
 	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* PreviewCompute = nullptr;
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> PreviewCompute = nullptr;
 
 	UPROPERTY()
-	UPreviewGeometry* PreviewGeometry = nullptr;
+	TObjectPtr<UPreviewGeometry> PreviewGeometry = nullptr;
 
 protected:
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalDynamicMesh;

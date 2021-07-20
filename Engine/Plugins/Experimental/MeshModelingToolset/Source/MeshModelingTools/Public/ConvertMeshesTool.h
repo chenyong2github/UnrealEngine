@@ -53,10 +53,10 @@ public:
 	virtual bool CanAccept() const override;
 
 	UPROPERTY()
-	UConvertMeshesToolProperties* BasicProperties;
+	TObjectPtr<UConvertMeshesToolProperties> BasicProperties;
 
 	UPROPERTY()
-	UCreateMeshObjectTypeProperties* OutputTypeProperties;
+	TObjectPtr<UCreateMeshObjectTypeProperties> OutputTypeProperties;
 
 protected:
 	UWorld* TargetWorld;

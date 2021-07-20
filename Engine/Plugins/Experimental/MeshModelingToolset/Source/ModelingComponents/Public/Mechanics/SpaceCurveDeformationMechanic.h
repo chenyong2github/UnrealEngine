@@ -98,9 +98,9 @@ public:
 
 	// Behaviors used for moving points around and hovering them
 	UPROPERTY()
-	USingleClickInputBehavior* ClickBehavior = nullptr;
+	TObjectPtr<USingleClickInputBehavior> ClickBehavior = nullptr;
 	UPROPERTY()
-	UMouseHoverBehavior* HoverBehavior = nullptr;
+	TObjectPtr<UMouseHoverBehavior> HoverBehavior = nullptr;
 
 	// This delegate is called every time the control point sequence is altered.
 	DECLARE_MULTICAST_DELEGATE(OnPointsChangedEvent);
@@ -144,7 +144,7 @@ public:
 
 public:
 	UPROPERTY()
-	USpaceCurveDeformationMechanicPropertySet* TransformProperties;
+	TObjectPtr<USpaceCurveDeformationMechanicPropertySet> TransformProperties;
 
 protected:
 
@@ -161,11 +161,11 @@ protected:
 
 	/** Used for displaying points/segments */
 	UPROPERTY()
-	APreviewGeometryActor* PreviewGeometryActor;
+	TObjectPtr<APreviewGeometryActor> PreviewGeometryActor;
 	UPROPERTY()
-	UPointSetComponent* RenderPoints;
+	TObjectPtr<UPointSetComponent> RenderPoints;
 	UPROPERTY()
-	ULineSetComponent* RenderSegments;
+	TObjectPtr<ULineSetComponent> RenderSegments;
 
 	bool bRenderGeometryValid = false;
 	void UpdateRenderGeometry();
@@ -189,9 +189,9 @@ protected:
 	// Support for gizmo. Since the points aren't individual components, we don't actually use UTransformProxy
 	// for the transform forwarding- we just use it for the callbacks.
 	UPROPERTY()
-	UTransformProxy* PointTransformProxy;
+	TObjectPtr<UTransformProxy> PointTransformProxy;
 	UPROPERTY()
-	UTransformGizmo* PointTransformGizmo;
+	TObjectPtr<UTransformGizmo> PointTransformGizmo;
 
 	// Used to make it easy to tell whether the gizmo was moved by the user or by undo/redo or
 	// some other change that we shoulnd't respond to. Basing our movement undo/redo on the

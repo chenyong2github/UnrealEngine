@@ -30,7 +30,7 @@ private:
 	TArray<FRigUnit_AddBoneTransform> AddBoneRigUnits;
 
 	UPROPERTY(transient)
-	URigHierarchyController* Controller;
+	TObjectPtr<URigHierarchyController> Controller;
 
 	/** Create RigElements - bone hierarchy and curves - from incoming skeleton */
 	void CreateRigElements(const USkeletalMesh* InReferenceMesh);

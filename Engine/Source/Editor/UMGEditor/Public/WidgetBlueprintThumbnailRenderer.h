@@ -23,6 +23,6 @@ private:
 	TTuple<FVector2D, FVector2D> GetScaledSizeAndOffset(float ImgWidth, float ImgHeight, float ThumbnailWidth, float ThumbnailHeight) const;
 
 	UPROPERTY(Transient)
-	UTextureRenderTarget2D* RenderTarget2D;
+	TObjectPtr<UTextureRenderTarget2D> RenderTarget2D;
 
 };

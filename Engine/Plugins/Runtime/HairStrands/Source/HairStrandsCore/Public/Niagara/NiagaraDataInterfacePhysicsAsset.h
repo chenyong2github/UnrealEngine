@@ -108,11 +108,11 @@ public:
 
 	/** Skeletal Mesh from which the Physics Asset will be found. */
 	UPROPERTY(EditAnywhere, Category = "Source")
-		UPhysicsAsset* DefaultSource;
+		TObjectPtr<UPhysicsAsset> DefaultSource;
 
 	/** The source actor from which to sample */
 	UPROPERTY(EditAnywhere, Category = "Source")
-		AActor* SourceActor;
+		TObjectPtr<AActor> SourceActor;
 
 	/** The source component from which to sample */
 	TArray<TWeakObjectPtr<class USkeletalMeshComponent>> SourceComponents;

@@ -87,10 +87,10 @@ protected:
 protected:
 
 	UPROPERTY()
-	USelfUnionMeshesToolProperties* Properties;
+	TObjectPtr<USelfUnionMeshesToolProperties> Properties;
 
 	UPROPERTY()
-	ULineSetComponent* DrawnLineSet;
+	TObjectPtr<ULineSetComponent> DrawnLineSet;
 
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> CombinedSourceMeshes;
 

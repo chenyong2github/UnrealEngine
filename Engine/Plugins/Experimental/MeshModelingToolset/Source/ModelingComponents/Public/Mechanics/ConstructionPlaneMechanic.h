@@ -64,10 +64,10 @@ public:
 
 public:
 	UPROPERTY()
-	UTransformGizmo* PlaneTransformGizmo;
+	TObjectPtr<UTransformGizmo> PlaneTransformGizmo;
 	
 	UPROPERTY()
-	UTransformProxy* PlaneTransformProxy;
+	TObjectPtr<UTransformProxy> PlaneTransformProxy;
 
 	/** 
 	 * This is the behavior target used for the Ctrl+click behavior that sets the plane
@@ -81,7 +81,7 @@ protected:
 	bool bEnableSnapToWorldRotGrid = false;
 
 	UPROPERTY()
-	USingleClickInputBehavior* ClickToSetPlaneBehavior;
+	TObjectPtr<USingleClickInputBehavior> ClickToSetPlaneBehavior;
 
 	void TransformChanged(UTransformProxy* Proxy, FTransform Transform);
 };

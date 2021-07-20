@@ -173,7 +173,7 @@ struct FControlRigEnumControlProxyValue
 	}
 	
 	UPROPERTY()
-	UEnum* EnumType;
+	TObjectPtr<UEnum> EnumType;
 
 	UPROPERTY(EditAnywhere, Category = Enum)
 	int32 EnumIndex;
@@ -302,10 +302,10 @@ class UControlRigDetailPanelControlProxies :public UObject
 protected:
 
 	UPROPERTY()
-	TMap<FName, UControlRigControlsProxy*> AllProxies;
+	TMap<FName, TObjectPtr<UControlRigControlsProxy>> AllProxies;
 
 	UPROPERTY()
-	TArray< UControlRigControlsProxy*> SelectedProxies;
+	TArray< TObjectPtr<UControlRigControlsProxy>> SelectedProxies;
 
 
 public:

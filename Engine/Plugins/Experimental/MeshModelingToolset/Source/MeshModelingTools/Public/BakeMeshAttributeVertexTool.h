@@ -180,40 +180,40 @@ public:
 
 protected:
 	UPROPERTY()
-	UBakeMeshAttributeVertexToolProperties* Settings;
+	TObjectPtr<UBakeMeshAttributeVertexToolProperties> Settings;
 
 	UPROPERTY()
-	UBakeMeshAttributeVertexToolColorProperties* ColorSettings;
+	TObjectPtr<UBakeMeshAttributeVertexToolColorProperties> ColorSettings;
 
 	UPROPERTY()
-	UBakeMeshAttributeVertexToolChannelProperties* PerChannelSettings;
+	TObjectPtr<UBakeMeshAttributeVertexToolChannelProperties> PerChannelSettings;
 
 	UPROPERTY()
-	UBakedOcclusionMapToolProperties* OcclusionSettings;
+	TObjectPtr<UBakedOcclusionMapToolProperties> OcclusionSettings;
 
 	UPROPERTY()
-	UBakedCurvatureMapToolProperties* CurvatureSettings;
+	TObjectPtr<UBakedCurvatureMapToolProperties> CurvatureSettings;
 
 	UPROPERTY()
-	UBakedTexture2DImageProperties* TextureSettings;
+	TObjectPtr<UBakedTexture2DImageProperties> TextureSettings;
 
 	UPROPERTY()
-	UBakedMultiTexture2DImageProperties* MultiTextureSettings;
+	TObjectPtr<UBakedMultiTexture2DImageProperties> MultiTextureSettings;
 
 protected:
 	friend class FMeshVertexBakerOp;
 	
 	UPROPERTY()
-	UPreviewMesh* PreviewMesh;
+	TObjectPtr<UPreviewMesh> PreviewMesh;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* PreviewMaterial;
+	TObjectPtr<UMaterialInstanceDynamic> PreviewMaterial;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* PreviewAlphaMaterial;
+	TObjectPtr<UMaterialInstanceDynamic> PreviewAlphaMaterial;
 
 	UPROPERTY()
-	UMaterialInstanceDynamic* WorkingPreviewMaterial;
+	TObjectPtr<UMaterialInstanceDynamic> WorkingPreviewMaterial;
 	float SecondsBeforeWorkingMaterial = 0.75;
 
 	UWorld* TargetWorld = nullptr;

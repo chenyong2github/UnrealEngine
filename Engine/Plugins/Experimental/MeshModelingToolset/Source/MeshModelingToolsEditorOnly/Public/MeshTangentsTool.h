@@ -102,17 +102,17 @@ public:
 
 protected:
 	UPROPERTY()
-	UMeshTangentsToolProperties* Settings = nullptr;
+	TObjectPtr<UMeshTangentsToolProperties> Settings = nullptr;
 
 protected:
 	UPROPERTY()
-	UMaterialInterface* DefaultMaterial = nullptr;
+	TObjectPtr<UMaterialInterface> DefaultMaterial = nullptr;
 
 	UPROPERTY()
-	UPreviewMesh* PreviewMesh = nullptr;
+	TObjectPtr<UPreviewMesh> PreviewMesh = nullptr;
 
 	UPROPERTY()
-	UPreviewGeometry* PreviewGeometry = nullptr;
+	TObjectPtr<UPreviewGeometry> PreviewGeometry = nullptr;
 
 	TUniquePtr<TGenericDataBackgroundCompute<UE::Geometry::FMeshTangentsd>> Compute = nullptr;
 

@@ -85,16 +85,16 @@ public:
 
 protected:
 	UPROPERTY()
-	UVolumeToMeshToolProperties* Settings;
+	TObjectPtr<UVolumeToMeshToolProperties> Settings;
 
 	UPROPERTY()
-	UPreviewMesh* PreviewMesh;
+	TObjectPtr<UPreviewMesh> PreviewMesh;
 
 	UPROPERTY()
 	TLazyObjectPtr<AVolume> TargetVolume;
 
 	UPROPERTY()
-	ULineSetComponent* VolumeEdgesSet;
+	TObjectPtr<ULineSetComponent> VolumeEdgesSet;
 
 protected:
 	UWorld* TargetWorld = nullptr;
