@@ -460,6 +460,7 @@ FReply SRCPanelExposedField::OnClickFunctionButton()
 			{
 				if (Function->FunctionArguments && Function->FunctionArguments->IsValid())
 				{
+					Object->Modify();
 					Object->ProcessEvent(Function->GetFunction(), Function->FunctionArguments->GetStructMemory());
 				}
 				else
