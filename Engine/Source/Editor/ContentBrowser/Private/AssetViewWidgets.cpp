@@ -436,11 +436,6 @@ void SAssetViewItem::Tick( const FGeometry& AllottedGeometry, const double InCur
 	{
 		const float WrapWidth = GetNameTextWrapWidth();
 		InlineRenameWidget->SetWrapTextAt(WrapWidth);
-
-		/*if (ClassTextWidget.IsValid())
-		{
-			ClassTextWidget->SetWrapTextAt(WrapWidth);
-		}*/
 	}
 
 	UpdateDirtyState();
@@ -1749,6 +1744,7 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 									.IsReadOnly(this, &SAssetTileItem::IsNameReadOnly)
 									.Justification(IsFolder() ? ETextJustify::Center : ETextJustify::Left)
 									.LineBreakPolicy(FBreakIterator::CreateCamelCaseBreakIterator())
+									.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
 								]
 							]
 							+ SVerticalBox::Slot()
