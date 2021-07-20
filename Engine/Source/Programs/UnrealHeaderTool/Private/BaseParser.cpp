@@ -504,9 +504,11 @@ bool FBaseParser::GetToken(FToken& Token, bool bNoConsts/*=false*/, ESymbolParse
 	// Escaped character constant
 	else if (c == '\'')
 	{
+
+		// We try to skip the character constant value. But if it is backslash, we have to skip another character
 		if (*Pos++ == '\\')
 		{
-			*Pos++;
+			++Pos;
 		}
 
 		if (*Pos++ != '\'')
