@@ -137,6 +137,8 @@ namespace DerivedDataCacheCookStats
 /** Whether we want to verify the DDC (pass in -VerifyDDC on the command line)*/
 bool GVerifyDDC = false;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 /**
  * Implementation of the derived data cache
  * This API is fully threadsafe
@@ -551,12 +553,10 @@ public:
 		GatherUsageStats()->GatherLegacyUsageStats(UsageStats, TEXT(" 0"));
 	}
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override
 	{
 		return FDerivedDataBackend::Get().GatherUsageStats();
 	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Get event delegate for data cache notifications */
 	virtual FOnDDCNotification& GetDDCNotificationEvent()
@@ -602,8 +602,6 @@ private:
 };
 
 static FDerivedDataCacheInterface* GDerivedDataCacheInstance;
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 /**
  * Module for the DDC
