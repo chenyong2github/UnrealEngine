@@ -391,38 +391,42 @@ TAtomic<uint64> FCompression::CompressorDstBytes(0);
 
 static ECompressionFlags CheckGlobalCompressionFlags(ECompressionFlags Flags)
 {
-	static bool GAlwaysBiasCompressionForSize = false;
+	// COMPRESS_BiasSpeed / COMPRESS_BiasMemory is not actually checked anywhere
+	//	so no point doing this
+	#if 0
 	if(FPlatformProperties::HasEditorOnlyData())
 	{
+		static bool GAlwaysBiasCompressionForSize = false;
 		static bool GTestedCmdLine = false;
+
 		if(!GTestedCmdLine && FCommandLine::IsInitialized())
 		{
 			GTestedCmdLine = true;
 			// Override compression settings wrt size.
 			GAlwaysBiasCompressionForSize = FParse::Param(FCommandLine::Get(),TEXT("BIASCOMPRESSIONFORSIZE"));
 		}
-	}
 
-	// Always bias for speed if option is set.
-	if(GAlwaysBiasCompressionForSize)
-	{
-		int32 NewFlags = Flags;
-		NewFlags &= ~COMPRESS_BiasSpeed;
-		NewFlags |= COMPRESS_BiasMemory;
-		Flags = (ECompressionFlags)NewFlags;
+		// Always bias for speed if option is set.
+		if(GAlwaysBiasCompressionForSize)
+		{
+			int32 NewFlags = Flags;
+			NewFlags &= ~COMPRESS_BiasSpeed;
+			NewFlags |= COMPRESS_BiasMemory;
+			Flags = (ECompressionFlags)NewFlags;
+		}
 	}
+	#endif
 
 	return Flags;
 }
 
-
 uint32 FCompression::GetCompressorVersion(FName FormatName)
 {
-	if (FormatName == NAME_Zlib)
+	if (FormatName == NAME_None || FormatName == NAME_LZ4)
 	{
-		return appZLIBVersion();
+		return 0;
 	}
-	else if (FormatName == NAME_Gzip)
+	else if (FormatName == NAME_Zlib || FormatName == NAME_Gzip)
 	{
 		return appZLIBVersion();
 	}
@@ -504,11 +508,34 @@ FName FCompression::GetCompressionFormatFromDeprecatedFlags(ECompressionFlags Fl
 	return NAME_None;
 }
 
+int32 FCompression::GetMaximumCompressedSize(FName FormatName, int32 UncompressedSize, ECompressionFlags Flags, int32 CompressionData)
+{
+	if (FormatName == NAME_None)
+	{
+		return UncompressedSize;
+	}
+	else if ( FormatName == NAME_Oodle )
+	{
+		//	avoid calling CompressMemoryBound in the Decoder because it creates an ICompressionFormat for Oodle
+		//	and initializes encoders
+
+		return OodleDataGetMaximumCompressedSize(UncompressedSize);
+	}
+	else
+	{
+		return CompressMemoryBound(FormatName,UncompressedSize,Flags,CompressionData);
+	}
+}
+
 int32 FCompression::CompressMemoryBound(FName FormatName, int32 UncompressedSize, ECompressionFlags Flags, int32 CompressionData)
 {
 	int32 CompressionBound = UncompressedSize;
-
-	if (FormatName == NAME_Zlib)
+	
+	if (FormatName == NAME_None)
+	{
+		return UncompressedSize;
+	}
+	else if (FormatName == NAME_Zlib)
 	{
 		// Zlib's compressBounds gives a better (smaller) value, but only for the default bit window.
 		if (CompressionData == 0 || CompressionData == DEFAULT_ZLIB_BIT_WINDOW)
@@ -539,6 +566,9 @@ int32 FCompression::CompressMemoryBound(FName FormatName, int32 UncompressedSize
 			CompressionBound = Format->GetCompressedBufferSize(UncompressedSize, CompressionData);
 		}
 	}
+
+	// this will fail if there was an int32 overflow (CompressionBound will be negative)
+	check( CompressionBound >= UncompressedSize );
 
 	return CompressionBound;
 }
@@ -643,6 +673,7 @@ bool FCompression::CompressMemory(FName FormatName, void* CompressedBuffer, int3
 	else
 	{
 		// let the format module compress it
+		// Oodle will make the OodleCompressionFormat here
 		ICompressionFormat* Format = GetCompressionFormat(FormatName);
 		if (Format)
 		{
@@ -669,13 +700,16 @@ FString FCompression::GetCompressorDDCSuffix(FName FormatName)
 {
 	FString DDCSuffix = FString::Printf(TEXT("%s_VER%D_"), *FormatName.ToString(), FCompression::GetCompressorVersion(FormatName));
 
-
-	if (FormatName == NAME_Zlib)
+	if (FormatName == NAME_None || FormatName == NAME_LZ4 )
+	{
+		// nothing
+	}
+	else if (FormatName == NAME_Zlib)
 	{
 		// hardcoded zlib
 		DDCSuffix += ZLIB_DERIVEDDATA_VER;
 	}
-	if (FormatName == NAME_Gzip)
+	else if (FormatName == NAME_Gzip)
 	{
 		DDCSuffix += GZIP_DERIVEDDATA_VER;
 	}
@@ -730,6 +764,8 @@ bool FCompression::UncompressMemory(FName FormatName, void* UncompressedBuffer, 
 		ICompressionFormat* Format = GetCompressionFormat(FormatName);
 		if (Format)
 		{
+			// @todo Oodle : UncompressedSize is read-write to Format->Uncompress but that's not actually used
+			//	-> get rid of that
 			bUncompressSucceeded = Format->Uncompress(UncompressedBuffer, UncompressedSize, CompressedBuffer, CompressedSize, CompressionData);
 		}
 	}

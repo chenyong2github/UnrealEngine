@@ -92,7 +92,7 @@ namespace PackFactoryHelper
 		}
 
 		int64 WorkingSize = Entry.CompressionBlockSize;
-		int32 MaxCompressionBlockSize = FCompression::CompressMemoryBound(PakFile.GetInfo().GetCompressionMethod(Entry.CompressionMethodIndex), WorkingSize);
+		int32 MaxCompressionBlockSize = FCompression::GetMaximumCompressedSize(PakFile.GetInfo().GetCompressionMethod(Entry.CompressionMethodIndex), WorkingSize);
 		WorkingSize += MaxCompressionBlockSize;
 		if (PersistentBuffer.Num() < WorkingSize)
 		{
