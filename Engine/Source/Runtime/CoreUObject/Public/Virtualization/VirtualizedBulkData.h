@@ -67,6 +67,8 @@ public:
 	 *					This MUST remain the same between sessions so that the payloads key remains consistent!
 	 */
 	void CreateFromBulkData(FUntypedBulkData& BulkData, const FGuid& Guid, UObject* Owner);
+	/** Fix legacy content that created the Id from non-unique Guids. */
+	void CreateLegacyUniqueIdentifier(UObject* Owner);
 
 	/** 
 	 * Used to serialize the bulkdata to/from a FArchive
@@ -75,8 +77,10 @@ public:
 	 * @param Owner	The UObject that contains the bulkdata object, if this is a nullptr then the bulkdata will
 	 *				assume that it must serialize the payload immediately to memory as it will not be able to
 	 *				identify it's package path.
+	 * @param bAllowRegistry Legacy parameter to skip registration when loading BulkData we know we will need to
+	 *				modify the identifier of. Should always be true for non-legacy serialization.
 	 */
-	void Serialize(FArchive& Ar, UObject* Owner);
+	void Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegister=true);
 
 	/** Reset to a truly empty state */
 	void Reset();

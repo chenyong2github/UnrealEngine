@@ -468,13 +468,22 @@ void UTexture::Serialize(FArchive& Ar)
 		FWriteScopeLock BulkDataExclusiveScope(Source.BulkDataLock.Get());
 #endif
 
-		if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::TextureSourceVirtualization)
+		if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::VirtualizedBulkDataHaveUniqueGuids)
 		{
-			FByteBulkData TempBulkData;
-			TempBulkData.Serialize(Ar, this);
+			if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::TextureSourceVirtualization)
+			{
+				FByteBulkData TempBulkData;
+				TempBulkData.Serialize(Ar, this);
 
-			FGuid LegacyPersistentId = Source.GetId();
-			Source.BulkData.CreateFromBulkData(TempBulkData, LegacyPersistentId, this);
+				FGuid LegacyPersistentId = Source.GetId();
+				Source.BulkData.CreateFromBulkData(TempBulkData, LegacyPersistentId, this);
+			}
+			else
+			{
+				Source.BulkData.Serialize(Ar, this, false /* bAllowRegister */);
+				Source.BulkData.CreateLegacyUniqueIdentifier(this);
+			}
+
 		}
 		else
 		{

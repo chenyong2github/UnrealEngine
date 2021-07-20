@@ -2006,11 +2006,19 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 
 	bool bSerializedOldDataTypes = false;
 	FByteBulkData TempBulkData;
-	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::MeshDescriptionVirtualization)
+	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::VirtualizedBulkDataHaveUniqueGuids)
 	{
-		// Serialize the old BulkData format and mark that we require a conversion after the guid has been serialized
-		TempBulkData.Serialize(Ar, Owner);
-		bSerializedOldDataTypes = true;
+		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::MeshDescriptionVirtualization)
+		{
+			// Serialize the old BulkData format and mark that we require a conversion after the guid has been serialized
+			TempBulkData.Serialize(Ar, Owner);
+			bSerializedOldDataTypes = true;
+		}
+		else
+		{
+			BulkData.Serialize(Ar, Owner, false /* bAllowRegister */);
+			BulkData.CreateLegacyUniqueIdentifier(Owner);
+		}
 	}
 	else
 	{
