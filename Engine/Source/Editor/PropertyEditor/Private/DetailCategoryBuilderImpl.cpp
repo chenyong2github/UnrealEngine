@@ -852,7 +852,8 @@ bool PassesInlineFilters(FDetailItemNode& Node)
 void FDetailCategoryImpl::GenerateNodesFromCustomizations(const TArray<FDetailLayoutCustomization>& InCustomizationList, FDetailNodeList& OutNodeList)
 {
 	TAttribute<bool> IsParentEnabled(this, &FDetailCategoryImpl::IsParentEnabled);
-	for (const FDetailLayoutCustomization& Customization : InCustomizationList)
+	TArray<FDetailLayoutCustomization> CustomizationList = InCustomizationList;
+	for (const FDetailLayoutCustomization& Customization : CustomizationList)
 	{
 		if (Customization.IsValidCustomization())
 		{

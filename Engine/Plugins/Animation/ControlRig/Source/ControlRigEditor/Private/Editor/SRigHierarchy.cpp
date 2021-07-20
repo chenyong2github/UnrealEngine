@@ -868,7 +868,7 @@ void SRigHierarchy::OnSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ES
 	{
 		if(LastSelectedElement.IsValid())
 		{
-			ControlRigEditor.Pin()->SetDetailStruct(LastSelectedElement);
+			ControlRigEditor.Pin()->SetDetailViewForRigElements();
 		}
 		else
 		{
@@ -1364,7 +1364,7 @@ void SRigHierarchy::OnItemClicked(TSharedPtr<FRigTreeElement> InItem)
 	{
 		if (ControlRigEditor.IsValid())
 		{
-			ControlRigEditor.Pin()->SetDetailStruct(InItem->Key);
+			ControlRigEditor.Pin()->SetDetailViewForRigElements();
 		}
 
 		if (InItem->Key.Type == ERigElementType::Bone)

@@ -23,6 +23,7 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, FRigControlElement* ControlElement, UControlRigBlueprint* InBlueprint);
+	void Construct(const FArguments& InArgs, TArray<FRigControlElement*> ControlElements, UControlRigBlueprint* InBlueprint);
 
 protected:
 
@@ -38,6 +39,6 @@ protected:
 	TSharedPtr<SControlRigGraphPinNameListValueWidget> NameListComboBox;
 	TArray<TSharedPtr<FString>> EmptyList;
 
-	FRigElementKey ControlKey;
+	TArray<FRigElementKey> ControlKeys;
 	UControlRigBlueprint* Blueprint;
 };

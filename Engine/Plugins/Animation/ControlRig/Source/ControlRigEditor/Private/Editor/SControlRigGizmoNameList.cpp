@@ -12,8 +12,20 @@
 
 void SControlRigGizmoNameList::Construct(const FArguments& InArgs, FRigControlElement* ControlElement, UControlRigBlueprint* InBlueprint)
 {
+	TArray<FRigControlElement*> ControlElements;
+	ControlElements.Add(ControlElement);
+	return Construct(InArgs, ControlElements, InBlueprint);
+}
+
+void SControlRigGizmoNameList::Construct(const FArguments& InArgs, TArray<FRigControlElement*> ControlElements, UControlRigBlueprint* InBlueprint)
+{
 	this->OnGetNameListContent = InArgs._OnGetNameListContent;
-	this->ControlKey = ControlElement->GetKey();
+	this->ControlKeys.Reset();
+
+	for(FRigControlElement* ControlElement : ControlElements)
+	{
+		this->ControlKeys.Add(ControlElement->GetKey());
+	}
 	this->Blueprint = InBlueprint;
 
 	SBox::Construct(SBox::FArguments());
@@ -58,33 +70,51 @@ const TArray<TSharedPtr<FString>>& SControlRigGizmoNameList::GetNameList() const
 
 FText SControlRigGizmoNameList::GetNameListText() const
 {
-	int32 ControlIndex = Blueprint->Hierarchy->GetIndex(ControlKey);
-	if (ControlIndex != INDEX_NONE)
+	FName FirstName = NAME_None;
+	FText Text;
+	for(int32 KeyIndex = 0; KeyIndex < ControlKeys.Num(); KeyIndex++)
 	{
-		return FText::FromName(Blueprint->Hierarchy->GetChecked<FRigControlElement>(ControlIndex)->Settings.GizmoName);
+		const int32 ControlIndex = Blueprint->Hierarchy->GetIndex(ControlKeys[KeyIndex]);
+		if (ControlIndex != INDEX_NONE)
+		{
+			const FName GizmoName = Blueprint->Hierarchy->GetChecked<FRigControlElement>(ControlIndex)->Settings.GizmoName; 
+			if(KeyIndex == 0)
+			{
+				Text = FText::FromName(GizmoName);
+				FirstName = GizmoName;
+			}
+			else if(FirstName != GizmoName)
+			{
+				static const FString MultipleValues = TEXT("Multiple Values");
+				Text = FText::FromString(MultipleValues);
+				break;
+			}
+		}
 	}
-	return FText();
+	return Text;
 }
 
 void SControlRigGizmoNameList::SetNameListText(const FText& NewTypeInValue, ETextCommit::Type /*CommitInfo*/)
 {
-	int32 ControlIndex = Blueprint->Hierarchy->GetIndex(ControlKey);
-	if (ControlIndex != INDEX_NONE)
+	const FScopedTransaction Transaction(NSLOCTEXT("ControlRigEditor", "ChangeGizmoName", "Change Gizmo Name"));
+
+	for(int32 KeyIndex = 0; KeyIndex < ControlKeys.Num(); KeyIndex++)
 	{
-		FName NewName = *NewTypeInValue.ToString();
-
-		bool bIsOnInstance = false;
-		URigHierarchy* Hierarchy = Blueprint->Hierarchy;
-
-		FRigControlElement* ControlElement = Hierarchy->Get<FRigControlElement>(ControlIndex);
-		if ((ControlElement != nullptr) && (ControlElement->Settings.GizmoName != NewName))
+		const int32 ControlIndex = Blueprint->Hierarchy->GetIndex(ControlKeys[KeyIndex]);
+		if (ControlIndex != INDEX_NONE)
 		{
-			const FScopedTransaction Transaction(NSLOCTEXT("ControlRigEditor", "ChangeGizmoName", "Change Gizmo Name"));
-			Hierarchy->Modify();
+			const FName NewName = *NewTypeInValue.ToString();
+			URigHierarchy* Hierarchy = Blueprint->Hierarchy;
 
-			FRigControlSettings Settings = ControlElement->Settings;
-			Settings.GizmoName = NewName;
-			Hierarchy->SetControlSettings(ControlElement, Settings, true, true);
+			FRigControlElement* ControlElement = Hierarchy->Get<FRigControlElement>(ControlIndex);
+			if ((ControlElement != nullptr) && (ControlElement->Settings.GizmoName != NewName))
+			{
+				Hierarchy->Modify();
+
+				FRigControlSettings Settings = ControlElement->Settings;
+				Settings.GizmoName = NewName;
+				Hierarchy->SetControlSettings(ControlElement, Settings, true, true);
+			}
 		}
 	}
 }
