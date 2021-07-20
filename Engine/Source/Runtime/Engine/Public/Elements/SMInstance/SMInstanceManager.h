@@ -125,7 +125,7 @@ public:
 	 * Attempt to get the instance manager associated with the given static mesh instance, if any.
 	 * @return The instance manager, or null if there is no instance manager associated with the given instance.
 	 */
-	virtual TScriptInterface<ISMInstanceManager> GetSMInstanceManager(const FSMInstanceId& InstanceId) = 0;
+	virtual ISMInstanceManager* GetSMInstanceManager(const FSMInstanceId& InstanceId) = 0;
 };
 
 /**
@@ -136,7 +136,7 @@ struct ENGINE_API FSMInstanceManager
 public:
 	FSMInstanceManager() = default;
 
-	FSMInstanceManager(const FSMInstanceId& InInstanceId, const TScriptInterface<ISMInstanceManager>& InInstanceManager)
+	FSMInstanceManager(const FSMInstanceId& InInstanceId, ISMInstanceManager* InInstanceManager)
 		: InstanceId(InInstanceId)
 		, InstanceManager(InInstanceManager)
 	{
@@ -165,7 +165,7 @@ public:
 	}
 
 	const FSMInstanceId& GetInstanceId() const { return InstanceId; }
-	const TScriptInterface<ISMInstanceManager>& GetInstanceManager() const { return InstanceManager; }
+	ISMInstanceManager* GetInstanceManager() const { return InstanceManager; }
 
 	UInstancedStaticMeshComponent* GetISMComponent() const { return InstanceId.ISMComponent; }
 	int32 GetISMInstanceIndex() const { return InstanceId.InstanceIndex; }
@@ -195,5 +195,5 @@ public:
 
 private:
 	FSMInstanceId InstanceId;
-	TScriptInterface<ISMInstanceManager> InstanceManager;
+	ISMInstanceManager* InstanceManager;
 };

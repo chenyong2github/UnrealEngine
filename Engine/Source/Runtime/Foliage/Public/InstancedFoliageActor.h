@@ -58,7 +58,7 @@ public:
 
 protected:
 	//~ ISMInstanceManagerProvider interface
-	virtual TScriptInterface<ISMInstanceManager> GetSMInstanceManager(const FSMInstanceId& InstanceId) override;
+	virtual ISMInstanceManager* GetSMInstanceManager(const FSMInstanceId& InstanceId) override;
 
 	//~ ISMInstanceManager interface
 	virtual bool CanEditSMInstance(const FSMInstanceId& InstanceId) const override;

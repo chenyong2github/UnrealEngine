@@ -68,7 +68,7 @@ private:
 
 protected:
 	//~ ISMInstanceManagerProvider interface
-	virtual TScriptInterface<ISMInstanceManager> GetSMInstanceManager(const FSMInstanceId& InstanceId) override;
+	virtual ISMInstanceManager* GetSMInstanceManager(const FSMInstanceId& InstanceId) override;
 
 private:
 #if WITH_EDITORONLY_DATA

@@ -30,7 +30,7 @@ ENGINE_API bool SMInstanceElementsEnabled();
  * Get the static mesh instance manager for the given instance.
  * @return The static mesh instance manager, or null if this instance cannot be managed.
  */
-ENGINE_API TScriptInterface<ISMInstanceManager> GetSMInstanceManager(const FSMInstanceId& InstanceId);
+ENGINE_API ISMInstanceManager* GetSMInstanceManager(const FSMInstanceId& InstanceId);
 
 /**
  * Attempt to get the static mesh instance ID from the given element handle.
