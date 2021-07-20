@@ -918,7 +918,7 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 	// if the client does not want remote change notifications.
 	if (ActingClientId.IsValid())
 	{
-		WebSocketHandler->NotifyPropertyChangedRemotely(ActingClientId, *Args.PresetName, RemoteControlProperty->GetId());
+		WebSocketHandler->NotifyPropertyChangedRemotely(ActingClientId, Preset->GetFName(), RemoteControlProperty->GetId());
 	}
 
 	RemoteControlProperty->EnableEditCondition();

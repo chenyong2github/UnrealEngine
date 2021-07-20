@@ -1254,6 +1254,14 @@ private:
 			return false;
 		}
 
+#if WITH_EDITOR
+		if (GEditor)
+		{
+			// Don't attempt finding a setter for a property if we are running inside the editor.
+			return false;
+		}
+#endif
+
 		return !!RemoteControlSetterUtils::FindSetterFunction(Property);
 	}
 

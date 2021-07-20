@@ -36,7 +36,7 @@ URemoteControlPreset::FOnPostLoadRemoteControlPreset URemoteControlPreset::OnPos
 
 #define LOCTEXT_NAMESPACE "RemoteControlPreset"
 
-static TAutoConsoleVariable<int32> CVarRemoteControlEnablePropertyWatchInEditor(TEXT("RemoteControl.EnablePropertyWatchInEditor"), 1, TEXT("Whether or not to manually compare certain properties to detect property changes while in editor."));
+static TAutoConsoleVariable<int32> CVarRemoteControlEnablePropertyWatchInEditor(TEXT("RemoteControl.EnablePropertyWatchInEditor"), 0, TEXT("Whether or not to manually compare certain properties to detect property changes while in editor."));
 static TAutoConsoleVariable<int32> CVarRemoteControlFramesBetweenPropertyWatch(TEXT("RemoteControl.FramesBetweenPropertyWatch"), 5, TEXT("The number of frames between every property value comparison when manually watching for property changes."));
 
 namespace
@@ -1012,6 +1012,14 @@ void URemoteControlPreset::CreatePropertyWatcher(const TSharedPtr<FRemoteControl
 
 bool URemoteControlPreset::PropertyShouldBeWatched(const TSharedPtr<FRemoteControlProperty>& RCProperty) const
 {
+#if WITH_EDITOR
+	if (GEditor && !CVarRemoteControlEnablePropertyWatchInEditor.GetValueOnAnyThread())
+	{
+		// Don't use property watchers in editor unless explicitely specified.
+		return false;
+	}
+#endif
+
 	// If we are not running in editor, we need to watch all properties as there is no object modified callback.
 	if (!GIsEditor)
 	{
@@ -1030,14 +1038,6 @@ bool URemoteControlPreset::PropertyShouldBeWatched(const TSharedPtr<FRemoteContr
 
 void URemoteControlPreset::CreatePropertyWatchers()
 {
-#if WITH_EDITOR
-	if (GEditor && !CVarRemoteControlEnablePropertyWatchInEditor.GetValueOnAnyThread())
-	{
-		// Don't use property watchers in editor unless specified.
-		return;
-	}
-#endif
-	
 	for (const TSharedPtr<FRemoteControlProperty>& ExposedProperty : Registry->GetExposedEntities<FRemoteControlProperty>())
 	{
 		if (PropertyShouldBeWatched(ExposedProperty))
