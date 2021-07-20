@@ -2685,11 +2685,27 @@ public:
 	FUnrealFunctionDefinitionInfo* GetSuperFunction() const;
 
 	/**
+	 * Get the name of the sparse owning class name
+	 */
+	FName GetSparseOwningClassName() const
+	{
+		return SparseOwningClassName;
+	}
+
+	/**
 	 * Set the name of the sparse owning class name
 	 */
 	void SetSparseOwningClassName(FName InSparseOwningClassName)
 	{
 		SparseOwningClassName = InSparseOwningClassName;
+	}
+
+	/**
+	 * Get the name of the sparse delegate name
+	 */
+	FName GetSparseDelegateName() const
+	{
+		return SparseDelegateName;
 	}
 
 	/**
