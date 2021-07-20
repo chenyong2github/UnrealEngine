@@ -263,6 +263,7 @@ export type JobQuery = {
 	preflightChange?: number;
 	includePreflight?: boolean,
 	preflightStartedByUserId?: string,
+	startedByUserId?: string,
 	minCreateTime?: string;
 	maxCreateTime?: string;
 	modifiedAfter?: string;
