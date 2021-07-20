@@ -317,7 +317,7 @@ namespace HordeServer.Collections
 		/// <summary>
 		/// Author of the changelist
 		/// </summary>
-		public string Author { get; set; }
+		public ObjectId AuthorId { get; set; }
 
 		/// <summary>
 		/// The original changelist number, if merged from another branch. For changes merged between several branches, this is the originally submitted change.
@@ -328,11 +328,11 @@ namespace HordeServer.Collections
 		/// Constructor
 		/// </summary>
 		/// <param name="Change">The changelist number</param>
-		/// <param name="Author">Author of the change</param>
-		public NewIssueSpanSuspectData(int Change, string Author)
+		/// <param name="AuthorId">Author of the change</param>
+		public NewIssueSpanSuspectData(int Change, ObjectId AuthorId)
 		{
 			this.Change = Change;
-			this.Author = Author;
+			this.AuthorId = AuthorId;
 		}
 	}
 
