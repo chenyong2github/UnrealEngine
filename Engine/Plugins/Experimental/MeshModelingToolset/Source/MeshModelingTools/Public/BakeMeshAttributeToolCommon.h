@@ -279,10 +279,11 @@ struct FTexture2DImageSettings
 {
 	FImageDimensions Dimensions;
 	int32 UVLayer = 0;
+	bool bSRGB = true;
 
 	bool operator==(const FTexture2DImageSettings& Other) const
 	{
-		return Dimensions == Other.Dimensions && UVLayer == Other.UVLayer;
+		return Dimensions == Other.Dimensions && UVLayer == Other.UVLayer && bSRGB == Other.bSRGB;
 	}
 };
 
@@ -298,32 +299,4 @@ enum class EBakeOpState
 };
 ENUM_CLASS_FLAGS(EBakeOpState);
 
-
-/**
- * Utility UTexture2D accessor
- */
-class FTempTextureAccess
-{
-public:
-	FTempTextureAccess(UTexture2D* DisplacementMap);
-	FTempTextureAccess(const FTempTextureAccess&) = delete;
-	FTempTextureAccess(FTempTextureAccess&&) = delete;
-	void operator=(const FTempTextureAccess&) = delete;
-	void operator=(FTempTextureAccess&&) = delete;
-
-	~FTempTextureAccess();
-
-	bool HasData() const;
-	const FColor* GetData() const;	
-	FImageDimensions GetDimensions() const;
-
-	bool CopyTo(TImageBuilder<FVector4f>& DestImage) const;
-
-private:
-	UTexture2D* DisplacementMap{ nullptr };
-	TextureCompressionSettings OldCompressionSettings{};
-	TextureMipGenSettings OldMipGenSettings{};
-	bool bOldSRGB{ false };
-	const FColor* FormattedImageData{ nullptr };
-};
 

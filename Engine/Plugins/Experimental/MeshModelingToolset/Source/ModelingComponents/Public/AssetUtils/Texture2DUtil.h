@@ -7,6 +7,7 @@
 #include "Image/ImageDimensions.h"
 #include "Image/ImageBuilder.h"
 #include "Engine/Texture2D.h"
+#include "Math/Color.h"
 
 
 
@@ -19,14 +20,15 @@ namespace AssetUtils
 	/**
 	 * Extract the Dimensions and image pixels from an input TextureMap
 	 * By default, the "Source" texture data is read. This is only available in-Editor. At runtime, only "Platform" data is available.
+	 * @param TextureMap the texture map to read
+	 * @param DestImageOut the result of the texture read
 	 * @param bPreferPlatformData if true, platform data will be returned even in-Editor.
 	 * @return true on success
 	 */
 	MODELINGCOMPONENTS_API bool ReadTexture(
 		UTexture2D* TextureMap,
-		FImageDimensions& DimensionsOut,
 		TImageBuilder<FVector4f>& DestImageOut,
-		bool bPreferPlatformData = false);
+		const bool bPreferPlatformData = false);
 
 	/**
 	 * Convert input UTexture2D to single-channel. Assumption is it has more than one channel. Red channel is used.

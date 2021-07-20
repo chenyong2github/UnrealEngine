@@ -13,7 +13,6 @@ using namespace UE::Geometry;
 
 static bool ReadTexture_PlatformData(
 	UTexture2D* TextureMap,
-	FImageDimensions& Dimensions,
 	TImageBuilder<FVector4f>& DestImage)
 {
 	// Read from PlatformData
@@ -25,39 +24,39 @@ static bool ReadTexture_PlatformData(
 	// which will check() if it's on the Game Thread
 
 	check(TextureMap->PlatformData);
-	int32 Width = TextureMap->PlatformData->Mips[0].SizeX;
-	int32 Height = TextureMap->PlatformData->Mips[0].SizeY;
-	Dimensions = FImageDimensions(Width, Height);
+	const int32 Width = TextureMap->PlatformData->Mips[0].SizeX;
+	const int32 Height = TextureMap->PlatformData->Mips[0].SizeY;
+	const FImageDimensions Dimensions = FImageDimensions(Width, Height);
 	DestImage.SetDimensions(Dimensions);
-	int64 Num = Dimensions.Num();
+	const int64 Num = Dimensions.Num();
 
 	// convert built platform texture data to uncompressed RGBA8 format
-	TextureCompressionSettings InitialCompressionSettings = TextureMap->CompressionSettings;
-	bool bWasSRGB = TextureMap->SRGB;
+	const TextureCompressionSettings InitialCompressionSettings = TextureMap->CompressionSettings;
 #if WITH_EDITOR
-	TextureMipGenSettings InitialMipGenSettings = TextureMap->MipGenSettings;
+	const TextureMipGenSettings InitialMipGenSettings = TextureMap->MipGenSettings;
 #endif
 	TextureMap->CompressionSettings = TextureCompressionSettings::TC_VectorDisplacementmap;
-	TextureMap->SRGB = false;
 #if WITH_EDITOR
 	TextureMap->MipGenSettings = TextureMipGenSettings::TMGS_NoMipmaps;
 #endif
 	TextureMap->UpdateResource();
 
-	// lock texture and represet as FColor
+	// lock texture and read as FColor
 	const FColor* FormattedImageData = reinterpret_cast<const FColor*>(TextureMap->PlatformData->Mips[0].BulkData.LockReadOnly());
 
 	// maybe could be done more quickly by row?
-	for (int32 i = 0; i < Num; ++i)
+	for (int64 i = 0; i < Num; ++i)
 	{
 		FColor ByteColor = FormattedImageData[i];
-		DestImage.SetPixel(i, FVector4f(ByteColor.ReinterpretAsLinear()));
+		FLinearColor FloatColor = (TextureMap->SRGB) ?
+				FLinearColor::FromSRGBColor(ByteColor) :
+				ByteColor.ReinterpretAsLinear();
+		DestImage.SetPixel(i, FVector4f(FloatColor));
 	}
 
 	// restore built platform texture data to initial state
 	TextureMap->PlatformData->Mips[0].BulkData.Unlock();
 	TextureMap->CompressionSettings = InitialCompressionSettings;
-	TextureMap->SRGB = bWasSRGB;
 #if WITH_EDITOR
 	TextureMap->MipGenSettings = InitialMipGenSettings;
 #endif
@@ -70,28 +69,27 @@ static bool ReadTexture_PlatformData(
 #if WITH_EDITOR
 static bool ReadTexture_SourceData(
 	UTexture2D* TextureMap,
-	FImageDimensions& Dimensions,
 	TImageBuilder<FVector4f>& DestImage)
 {
 	FTextureSource& TextureSource = TextureMap->Source;
 
-	int32 Width = TextureSource.GetSizeX();
-	int32 Height = TextureSource.GetSizeY();
-	Dimensions = FImageDimensions(Width, Height);
+	const int32 Width = TextureSource.GetSizeX();
+	const int32 Height = TextureSource.GetSizeY();
+	const FImageDimensions Dimensions = FImageDimensions(Width, Height);
 	DestImage.SetDimensions(Dimensions);
-	int64 Num = Dimensions.Num();
+	const int64 Num = Dimensions.Num();
 
 	TArray64<uint8> SourceData;
 	TextureMap->Source.GetMipData(SourceData, 0, 0, 0);
-	ETextureSourceFormat SourceFormat = TextureSource.GetFormat();
-	int32 BytesPerPixel = TextureSource.GetBytesPerPixel();
+	const ETextureSourceFormat SourceFormat = TextureSource.GetFormat();
+	const int32 BytesPerPixel = TextureSource.GetBytesPerPixel();
 	const uint8* SourceDataPtr = SourceData.GetData();
 
 	// code below is derived from UBlueprintMaterialTextureNodesBPLibrary::Texture2D_SampleUV_EditorOnly()
 	if ((SourceFormat == TSF_BGRA8 || SourceFormat == TSF_BGRE8))
 	{
 		check(BytesPerPixel == sizeof(FColor));
-		for (int32 i = 0; i < Num; ++i)
+		for (int64 i = 0; i < Num; ++i)
 		{
 			const uint8* PixelPtr = SourceDataPtr + (i * BytesPerPixel);
 			FColor PixelColor = *((FColor*)PixelPtr);
@@ -103,23 +101,50 @@ static bool ReadTexture_SourceData(
 			DestImage.SetPixel(i, FVector4f(FloatColor));
 		}
 	}
-	else if ((SourceFormat == TSF_RGBA16 || SourceFormat == TSF_RGBA16F))
+	// code below is also derived from FImage::CopyTo (CopyImage) - invoked during BuildTexture on import.
+	else if (SourceFormat == TSF_RGBA16)
+	{
+		check(BytesPerPixel == sizeof(uint16) * 4);
+		for (int64 i = 0; i < Num; ++i)
+		{
+			const uint8* SourcePtr = SourceDataPtr + (i * BytesPerPixel);
+			const uint16* PixelPtr = (const uint16*)SourcePtr;
+			DestImage.SetPixel(i, FVector4f(
+				PixelPtr[0] / 65535.0f,
+				PixelPtr[1] / 65535.0f,
+				PixelPtr[2] / 65535.0f,
+				PixelPtr[3] / 65535.0f
+				));
+		}
+	}
+	else if (SourceFormat == TSF_RGBA16F)
 	{
 		check(BytesPerPixel == sizeof(FFloat16Color));
-		for (int32 i = 0; i < Num; ++i)
+		for (int64 i = 0; i < Num; ++i)
 		{
 			const uint8* PixelPtr = SourceDataPtr + (i * BytesPerPixel);
 			DestImage.SetPixel(i, FVector4f( ((const FFloat16Color*)PixelPtr)->GetFloats() ));
 		}
 	}
+	else if ((SourceFormat == TSF_G16))
+	{
+		check(BytesPerPixel == 2);
+		for (int64 i = 0; i < Num; ++i)
+		{
+			const uint8* PixelPtr = SourceDataPtr + (i * BytesPerPixel);
+			const uint16 ByteColor = *((const uint16*)PixelPtr);
+			const float FloatColor = float(ByteColor) / 65535.0f;
+			DestImage.SetPixel(i, FVector4f(FloatColor, FloatColor, FloatColor, 1.0));
+		}
+	}
 	else if (SourceFormat == TSF_G8)
 	{
 		check(BytesPerPixel == 1);
-		for (int32 i = 0; i < Num; ++i)
+		for (int64 i = 0; i < Num; ++i)
 		{
 			const uint8* PixelPtr = SourceDataPtr + (i * BytesPerPixel);
-			uint8 PixelColor = *PixelPtr;
-			float PixelColorf = float(PixelColor) / 255.0f;
+			const uint8 PixelColor = *PixelPtr;
+			const float PixelColorf = float(PixelColor) / 255.0f;
 			FLinearColor FloatColor = (TextureMap->SRGB) ?
 				FLinearColor::FromSRGBColor(FColor(PixelColor, PixelColor, PixelColor, 255)) :
 				FLinearColor(PixelColorf, PixelColorf, PixelColorf, 1.0);
@@ -134,24 +159,23 @@ static bool ReadTexture_SourceData(
 
 bool UE::AssetUtils::ReadTexture(
 	UTexture2D* TextureMap,
-	FImageDimensions& Dimensions,
-	TImageBuilder<FVector4f>& DestImage,
-	bool bPreferPlatformData)
+	TImageBuilder<FVector4f>& DestImageOut,
+	const bool bPreferPlatformData)
 {
 	if (ensure(TextureMap) == false) return false;
 
 #if WITH_EDITOR
-	bool bHasVTData = TextureMap->GetPlatformData()->VTData != nullptr;
-	bool bHasMips = TextureMap->GetPlatformData()->Mips.Num() != 0;
+	const bool bHasVTData = TextureMap->GetPlatformData()->VTData != nullptr;
+	const bool bHasMips = TextureMap->GetPlatformData()->Mips.Num() != 0;
 	ensure(bHasVTData != bHasMips);		// should be one or the other
 
 	if (TextureMap->Source.IsValid() && (bPreferPlatformData == false || bHasMips == false))
 	{
-		return ReadTexture_SourceData(TextureMap, Dimensions, DestImage);
+		return ReadTexture_SourceData(TextureMap, DestImageOut);
 	}
 #endif
 
-	return ReadTexture_PlatformData(TextureMap, Dimensions, DestImage);
+	return ReadTexture_PlatformData(TextureMap, DestImageOut);
 }
 
 
