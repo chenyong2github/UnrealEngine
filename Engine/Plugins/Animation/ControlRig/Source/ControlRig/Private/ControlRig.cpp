@@ -1349,7 +1349,7 @@ FTransform UControlRig::GetControlGlobalTransform(const FName& InControlName) co
 	return DynamicHierarchy->GetGlobalTransform(FRigElementKey(InControlName, ERigElementType::Control), false);
 }
 
-bool UControlRig::SetControlGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform, bool bNotify, const FRigControlModifiedContext& Context, bool bSetupUndo)
+bool UControlRig::SetControlGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform, bool bNotify, const FRigControlModifiedContext& Context, bool bSetupUndo, bool bPrintPythonCommands)
 {
 	FTransform GlobalTransform = InGlobalTransform;
 	if (IsSetupModeEnabled())
@@ -1367,7 +1367,7 @@ bool UControlRig::SetControlGlobalTransform(const FName& InControlName, const FT
 		}
 	}
 
-	SetControlValue(InControlName, Value, bNotify, Context, bSetupUndo);
+	SetControlValue(InControlName, Value, bNotify, Context, bSetupUndo, bPrintPythonCommands);
 	return true;
 }
 

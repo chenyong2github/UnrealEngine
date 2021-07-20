@@ -4146,9 +4146,9 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 						
 				if(ERigTransformType::IsInitial(TransformType) || bSetupModeEnabled)
 				{
-					Hierarchy->SetControlValue(ControlElement, Value, ERigControlValueType::Initial, true, true);
+					Hierarchy->SetControlValue(ControlElement, Value, ERigControlValueType::Initial, true, true, true);
 				}
-				Hierarchy->SetControlValue(ControlElement, Value, ERigControlValueType::Current, true, true);
+				Hierarchy->SetControlValue(ControlElement, Value, ERigControlValueType::Current, true, true, true);
 			}
 			else
 			{

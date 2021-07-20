@@ -2190,11 +2190,11 @@ void SRigHierarchy::HandlePasteTransforms(ERigTransformType::Type InTransformTyp
 
 			if(FRigTransformElement* TransformElement = Hierarchy->Find<FRigTransformElement>(CurrentSelection[Index]))
 			{
-				Hierarchy->SetTransform(TransformElement, Transform, InTransformType, bAffectChildren, true);
+				Hierarchy->SetTransform(TransformElement, Transform, InTransformType, bAffectChildren, true, false, true);
 			}
 			if(FRigBoneElement* BoneElement = Hierarchy->Find<FRigBoneElement>(CurrentSelection[Index]))
 			{
-				Hierarchy->SetTransform(BoneElement, Transform, ERigTransformType::MakeInitial(InTransformType), bAffectChildren, true);
+				Hierarchy->SetTransform(BoneElement, Transform, ERigTransformType::MakeInitial(InTransformType), bAffectChildren, true, false, true);
 			}
 			
             if(DebuggedHierarchy && DebuggedHierarchy != Hierarchy)
@@ -2472,7 +2472,7 @@ void SRigHierarchy::HandleResetTransform(bool bSelectionOnly)
 				for (FRigElementKey Key : KeysToReset)
 				{
 					const FTransform InitialTransform = GetHierarchy()->GetInitialLocalTransform(Key);
-					GetHierarchy()->SetLocalTransform(Key, InitialTransform, false, true, true);
+					GetHierarchy()->SetLocalTransform(Key, InitialTransform, false, true, true, true);
 					DebuggedHierarchy->SetLocalTransform(Key, InitialTransform, false, true, true);
 
 					if (Key.Type == ERigElementType::Bone)
@@ -2515,10 +2515,10 @@ void SRigHierarchy::HandleSetInitialTransformFromCurrentTransform()
 					{
 						if(FRigControlElement* ControlElement = GetHierarchy()->Find<FRigControlElement>(SelectedKey))
 						{
-							GetHierarchy()->SetControlOffsetTransform(ControlElement, LocalTransform, ERigTransformType::InitialLocal, true, true);
-							GetHierarchy()->SetControlOffsetTransform(ControlElement, LocalTransform, ERigTransformType::CurrentLocal, true, true);
-							GetHierarchy()->SetTransform(ControlElement, FTransform::Identity, ERigTransformType::InitialLocal, true, true);
-							GetHierarchy()->SetTransform(ControlElement, FTransform::Identity, ERigTransformType::CurrentLocal, true, true);
+							GetHierarchy()->SetControlOffsetTransform(ControlElement, LocalTransform, ERigTransformType::InitialLocal, true, true, false, true);
+							GetHierarchy()->SetControlOffsetTransform(ControlElement, LocalTransform, ERigTransformType::CurrentLocal, true, true, false, true);
+							GetHierarchy()->SetTransform(ControlElement, FTransform::Identity, ERigTransformType::InitialLocal, true, true, false, true);
+							GetHierarchy()->SetTransform(ControlElement, FTransform::Identity, ERigTransformType::CurrentLocal, true, true, false, true);
 						}
 						if(FRigControlElement* ControlElement = DebuggedHierarchy->Find<FRigControlElement>(SelectedKey))
 						{
@@ -2544,8 +2544,8 @@ void SRigHierarchy::HandleSetInitialTransformFromCurrentTransform()
 
 						if(FRigTransformElement* TransformElement = GetHierarchy()->Find<FRigTransformElement>(SelectedKey))
 						{
-							GetHierarchy()->SetTransform(TransformElement, LocalTransform, ERigTransformType::InitialLocal, true, true);
-							GetHierarchy()->SetTransform(TransformElement, LocalTransform, ERigTransformType::CurrentLocal, true, true);
+							GetHierarchy()->SetTransform(TransformElement, LocalTransform, ERigTransformType::InitialLocal, true, true, false, true);
+							GetHierarchy()->SetTransform(TransformElement, LocalTransform, ERigTransformType::CurrentLocal, true, true, false, true);
 						}
 						if(FRigTransformElement* TransformElement = DebuggedHierarchy->Find<FRigTransformElement>(SelectedKey))
 						{
@@ -2810,10 +2810,10 @@ FReply SRigHierarchy::ReparentOrMatchTransform(const TArray<FRigElementKey>& Dra
 					FTransform ParentTransform = DebuggedHierarchy->GetParentTransformByIndex(ControlIndex, false);
 					FTransform OffsetTransform = TargetGlobalTransform.GetRelativeTransform(ParentTransform);
 
-					Hierarchy->SetControlOffsetTransformByIndex(ControlIndex, OffsetTransform, ERigTransformType::InitialLocal, true, true);
-					Hierarchy->SetControlOffsetTransformByIndex(ControlIndex, OffsetTransform, ERigTransformType::CurrentLocal, true, true);
-					Hierarchy->SetLocalTransform(DraggedKey, FTransform::Identity, true, true, true);
-					Hierarchy->SetInitialLocalTransform(DraggedKey, FTransform::Identity, true, true);
+					Hierarchy->SetControlOffsetTransformByIndex(ControlIndex, OffsetTransform, ERigTransformType::InitialLocal, true, true, true);
+					Hierarchy->SetControlOffsetTransformByIndex(ControlIndex, OffsetTransform, ERigTransformType::CurrentLocal, true, true, true);
+					Hierarchy->SetLocalTransform(DraggedKey, FTransform::Identity, true, true, true, true);
+					Hierarchy->SetInitialLocalTransform(DraggedKey, FTransform::Identity, true, true, true);
 					DebuggedHierarchy->SetControlOffsetTransformByIndex(ControlIndex, OffsetTransform, ERigTransformType::InitialLocal, true, true);
 					DebuggedHierarchy->SetControlOffsetTransformByIndex(ControlIndex, OffsetTransform, ERigTransformType::CurrentLocal, true, true);
 					DebuggedHierarchy->SetLocalTransform(DraggedKey, FTransform::Identity, true, true, true);
@@ -2909,10 +2909,10 @@ void SRigHierarchy::HandleSetInitialTransformFromClosestBone()
 					{
 						if(FRigControlElement* ControlElement = GetHierarchy()->Find<FRigControlElement>(SelectedKey))
 						{
-							GetHierarchy()->SetControlOffsetTransform(ControlElement, LocalTransform, ERigTransformType::InitialLocal, true, true);
-							GetHierarchy()->SetControlOffsetTransform(ControlElement, LocalTransform, ERigTransformType::CurrentLocal, true, true);
-							GetHierarchy()->SetTransform(ControlElement, FTransform::Identity, ERigTransformType::InitialLocal, true, true);
-							GetHierarchy()->SetTransform(ControlElement, FTransform::Identity, ERigTransformType::CurrentLocal, true, true);
+							GetHierarchy()->SetControlOffsetTransform(ControlElement, LocalTransform, ERigTransformType::InitialLocal, true, true, false, true);
+							GetHierarchy()->SetControlOffsetTransform(ControlElement, LocalTransform, ERigTransformType::CurrentLocal, true, true, false, true);
+							GetHierarchy()->SetTransform(ControlElement, FTransform::Identity, ERigTransformType::InitialLocal, true, true, false, true);
+							GetHierarchy()->SetTransform(ControlElement, FTransform::Identity, ERigTransformType::CurrentLocal, true, true, false, true);
 						}
 						if(FRigControlElement* ControlElement = DebuggedHierarchy->Find<FRigControlElement>(SelectedKey))
 						{
@@ -2929,8 +2929,8 @@ void SRigHierarchy::HandleSetInitialTransformFromClosestBone()
 
 						if(FRigTransformElement* TransformElement = GetHierarchy()->Find<FRigTransformElement>(SelectedKey))
 						{
-							GetHierarchy()->SetTransform(TransformElement, LocalTransform, ERigTransformType::InitialLocal, true, true);
-							GetHierarchy()->SetTransform(TransformElement, LocalTransform, ERigTransformType::CurrentLocal, true, true);
+							GetHierarchy()->SetTransform(TransformElement, LocalTransform, ERigTransformType::InitialLocal, true, true, false, true);
+							GetHierarchy()->SetTransform(TransformElement, LocalTransform, ERigTransformType::CurrentLocal, true, true, false, true);
 						}
 						if(FRigTransformElement* TransformElement = DebuggedHierarchy->Find<FRigTransformElement>(SelectedKey))
 						{
@@ -2974,8 +2974,8 @@ void SRigHierarchy::HandleSetGizmoTransformFromCurrent()
 
 							DebuggedHierarchy->SetLocalTransform(Key, FTransform::Identity, false, true, true);
 							DebuggedHierarchy->SetLocalTransform(Key, FTransform::Identity, true, true, true);
-							GetHierarchy()->SetLocalTransform(Key, FTransform::Identity, false, true, true);
-							GetHierarchy()->SetLocalTransform(Key, FTransform::Identity, true, true, true);
+							GetHierarchy()->SetLocalTransform(Key, FTransform::Identity, false, true, true, true);
+							GetHierarchy()->SetLocalTransform(Key, FTransform::Identity, true, true, true, true);
 						}
 
 						if (FControlRigEditorEditMode* EditMode = ControlRigEditor.Pin()->GetEditMode())

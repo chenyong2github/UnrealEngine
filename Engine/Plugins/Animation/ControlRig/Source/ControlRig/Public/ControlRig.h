@@ -277,9 +277,9 @@ public:
 	// Sets the relative value of a Control
 	template<class T>
 	FORCEINLINE_DEBUGGABLE void SetControlValue(const FName& InControlName, T InValue, bool bNotify = true,
-		const FRigControlModifiedContext& Context = FRigControlModifiedContext(), bool bSetupUndo = true)
+		const FRigControlModifiedContext& Context = FRigControlModifiedContext(), bool bSetupUndo = true, bool bPrintPythonCommnds = false)
 	{
-		SetControlValueImpl(InControlName, FRigControlValue::Make<T>(InValue), bNotify, Context, bSetupUndo);
+		SetControlValueImpl(InControlName, FRigControlValue::Make<T>(InValue), bNotify, Context, bSetupUndo, bPrintPythonCommnds);
 	}
 
 	// Returns the value of a Control
@@ -291,7 +291,7 @@ public:
 
 	// Sets the relative value of a Control
 	FORCEINLINE_DEBUGGABLE virtual void SetControlValueImpl(const FName& InControlName, const FRigControlValue& InValue, bool bNotify = true,
-		const FRigControlModifiedContext& Context = FRigControlModifiedContext(), bool bSetupUndo = true)
+		const FRigControlModifiedContext& Context = FRigControlModifiedContext(), bool bSetupUndo = true, bool bPrintPythonCommnds = false)
 	{
 		const FRigElementKey Key(InControlName, ERigElementType::Control);
 
@@ -301,7 +301,7 @@ public:
 			return;
 		}
 
-		DynamicHierarchy->SetControlValue(ControlElement, InValue, ERigControlValueType::Current, bSetupUndo);
+		DynamicHierarchy->SetControlValue(ControlElement, InValue, ERigControlValueType::Current, bSetupUndo, false, bPrintPythonCommnds);
 
 		if (bNotify && OnControlModified.IsBound())
 		{
@@ -309,7 +309,7 @@ public:
 		}
 	}
 
-	bool SetControlGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform, bool bNotify = true, const FRigControlModifiedContext& Context = FRigControlModifiedContext(), bool bSetupUndo = true);
+	bool SetControlGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform, bool bNotify = true, const FRigControlModifiedContext& Context = FRigControlModifiedContext(), bool bSetupUndo = true, bool bPrintPythonCommands = false);
 
 	virtual FRigControlValue GetControlValueFromGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform);
 

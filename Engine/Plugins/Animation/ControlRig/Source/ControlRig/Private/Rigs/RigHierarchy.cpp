@@ -2,6 +2,7 @@
 
 #include "Rigs/RigHierarchy.h"
 #include "ControlRig.h"
+#include "RigVMPythonUtils.h"
 
 #include "Rigs/RigHierarchyElements.h"
 #include "Rigs/RigHierarchyController.h"
@@ -1382,7 +1383,7 @@ FTransform URigHierarchy::GetTransform(FRigTransformElement* InTransformElement,
 	return InTransformElement->Pose.Get(InTransformType);
 }
 
-void URigHierarchy::SetTransform(FRigTransformElement* InTransformElement, const FTransform& InTransform, const ERigTransformType::Type InTransformType, bool bAffectChildren, bool bSetupUndo, bool bForce)
+void URigHierarchy::SetTransform(FRigTransformElement* InTransformElement, const FTransform& InTransform, const ERigTransformType::Type InTransformType, bool bAffectChildren, bool bSetupUndo, bool bForce, bool bPrintPythonCommands)
 {
 	if(InTransformElement == nullptr)
 	{
@@ -1458,6 +1459,33 @@ void URigHierarchy::SetTransform(FRigTransformElement* InTransformElement, const
 			}
 		}
 	}
+
+	if (bPrintPythonCommands)
+	{
+		FString MethodName;
+		switch (InTransformType)
+		{
+			case ERigTransformType::InitialLocal: 
+			case ERigTransformType::CurrentLocal:
+			{
+				MethodName = TEXT("set_local_transform");
+				break;
+			}
+			case ERigTransformType::InitialGlobal: 
+			case ERigTransformType::CurrentGlobal:
+			{
+				MethodName = TEXT("set_global_transform");
+				break;
+			}
+		}
+
+		RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy.%s(%s, %s, %s, %s)"),
+			*MethodName,
+			*InTransformElement->GetKey().ToPythonString(),
+			*RigVMPythonUtils::TransformToPythonString(InTransform),
+			(InTransformType == ERigTransformType::InitialGlobal || InTransformType == ERigTransformType::InitialLocal) ? TEXT("True") : TEXT("False"),
+			(bAffectChildren) ? TEXT("True") : TEXT("False")));
+	}
 #endif
 }
 
@@ -1489,7 +1517,7 @@ FTransform URigHierarchy::GetControlOffsetTransform(FRigControlElement* InContro
 }
 
 void URigHierarchy::SetControlOffsetTransform(FRigControlElement* InControlElement, const FTransform& InTransform,
-	const ERigTransformType::Type InTransformType, bool bAffectChildren, bool bSetupUndo, bool bForce)
+                                              const ERigTransformType::Type InTransformType, bool bAffectChildren, bool bSetupUndo, bool bForce, bool bPrintPythonCommands)
 {
 	if(InControlElement == nullptr)
 	{
@@ -1554,6 +1582,16 @@ void URigHierarchy::SetControlOffsetTransform(FRigControlElement* InControlEleme
 				}
 			}
 		}
+	}
+
+	if (bPrintPythonCommands)
+	{
+		//FRigElementKey InKey, FTransform InTransform, bool bInitial = false, bool bAffectChildren = true, bool bSetupUndo = false, bool bPrintPythonCommands = false)
+		RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy.set_control_offset_transform(%s, %s, %s, %s)"),
+			*InControlElement->GetKey().ToPythonString(),
+			*RigVMPythonUtils::TransformToPythonString(InTransform),
+			(ERigTransformType::IsInitial(InTransformType)) ? TEXT("True") : TEXT("False"),
+			(bAffectChildren) ? TEXT("True") : TEXT("False")));
 	}
 #endif
 }
@@ -2180,7 +2218,7 @@ FRigControlValue URigHierarchy::GetControlValue(FRigControlElement* InControlEle
 	return Value;
 }
 
-void URigHierarchy::SetControlValue(FRigControlElement* InControlElement, const FRigControlValue& InValue, ERigControlValueType InValueType, bool bSetupUndo, bool bForce)
+void URigHierarchy::SetControlValue(FRigControlElement* InControlElement, const FRigControlValue& InValue, ERigControlValueType InValueType, bool bSetupUndo, bool bForce, bool bPrintPythonCommands)
 {
 	using namespace ERigTransformType;
 
@@ -2194,16 +2232,17 @@ void URigHierarchy::SetControlValue(FRigControlElement* InControlElement, const 
 				InControlElement->Settings.ApplyLimits(Value);
 					
 				SetTransform(
-                    InControlElement,
-                    Value.GetAsTransform(
-                        InControlElement->Settings.ControlType,
-                        InControlElement->Settings.PrimaryAxis
-                    ),
-                    CurrentLocal,
-                    true,
-                    bSetupUndo,
-                    bForce
-                ); 
+					InControlElement,
+					Value.GetAsTransform(
+						InControlElement->Settings.ControlType,
+						InControlElement->Settings.PrimaryAxis
+					),
+					CurrentLocal,
+					true,
+					bSetupUndo,
+					bForce,
+					bPrintPythonCommands
+				); 
 				break;
 			}
 			case ERigControlValueType::Initial:
@@ -2212,16 +2251,17 @@ void URigHierarchy::SetControlValue(FRigControlElement* InControlElement, const 
 				InControlElement->Settings.ApplyLimits(Value);
 
 				SetTransform(
-                    InControlElement,
-                    Value.GetAsTransform(
-                        InControlElement->Settings.ControlType,
-                        InControlElement->Settings.PrimaryAxis
-                    ),
-                    InitialLocal,
-                    true,
-                    bSetupUndo,
-                    bForce
-                ); 
+					InControlElement,
+					Value.GetAsTransform(
+						InControlElement->Settings.ControlType,
+						InControlElement->Settings.PrimaryAxis
+					),
+					InitialLocal,
+					true,
+					bSetupUndo,
+					bForce,
+					bPrintPythonCommands
+				); 
 				break;
 			}
 			case ERigControlValueType::Minimum:
