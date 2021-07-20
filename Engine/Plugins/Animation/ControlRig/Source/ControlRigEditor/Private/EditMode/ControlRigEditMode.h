@@ -205,9 +205,13 @@ private:
 	/** Reset Gizmo Size */
 	void ResetGizmoSize();
 
+public:
+	
 	/** Toggle Gizmo Transform Edit*/
 	void ToggleGizmoTransformEdit();
 
+private:
+	
 	/** The hotkey text is passed to a viewport notification to inform users how to toggle gizmo edit*/
 	FText GetToggleGizmoTransformEditHotKey() const;
 

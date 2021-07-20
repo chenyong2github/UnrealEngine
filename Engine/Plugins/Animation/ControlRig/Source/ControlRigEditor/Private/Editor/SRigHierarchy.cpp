@@ -615,6 +615,14 @@ void SRigHierarchy::BindCommands()
 		}),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateLambda([this]() { return bShowDynamicHierarchy; }));
+
+	CommandList->MapAction(
+		Commands.ToggleGizmoTransformEdit,
+		FExecuteAction::CreateLambda([this]()
+		{
+			ControlRigEditor.Pin()->GetEditMode()->ToggleGizmoTransformEdit();
+		}));
+	
 }
 
 FReply SRigHierarchy::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
