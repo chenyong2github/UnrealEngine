@@ -309,6 +309,11 @@ UControlRigBlueprint* UControlRigBlueprintFactory::CreateControlRigFromSkeletalM
 
 void UControlRigBlueprintFactory::CreateRigGraphIfRequired(UControlRigBlueprint* InBlueprint)
 {
+	if(InBlueprint == nullptr)
+	{
+		return;
+	}
+	
 	for(UEdGraph* EdGraph : InBlueprint->UbergraphPages)
 	{
 		if(EdGraph->IsA<UControlRigGraph>())
