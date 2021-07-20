@@ -14,6 +14,7 @@
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
 #include "MaterialGraph/MaterialGraphNode.h"
+#include "MaterialGraph/MaterialGraphSchema.h"
 #include "GraphEditorSettings.h"
 #include "SGraphPanel.h"
 #include "TutorialMetaData.h"
@@ -278,10 +279,9 @@ void SGraphNodeMaterialBase::CreatePinWidgets()
 		
 			if ((bIsABreakAttrNode && CurPin->Direction == EGPD_Output) || (bIsAMakeAttrNode && CurPin->Direction == EGPD_Input))
 			{
-				const FMaterialGraphPinInfo& PinInfo = MaterialNode->GetPinInfo(CurPin);
-				if (PinInfo.PinType == EMaterialGraphPinType::Data)
+				if (CurPin->PinType.PinCategory != UMaterialGraphSchema::PC_Exec)
 				{
-					bPinDesiresToBeHidden |= !MaterialGraph->MaterialInputs[PinInfo.Index].IsVisiblePin(MaterialGraph->Material, true);
+					bPinDesiresToBeHidden |= !MaterialGraph->MaterialInputs[CurPin->SourceIndex].IsVisiblePin(MaterialGraph->Material, true);
 				}
 			}
 		}

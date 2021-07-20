@@ -5,6 +5,7 @@
 #include "UObject/BlueprintsObjectVersion.h"
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UnrealType.h"
 #include "UObject/TextProperty.h"
 #include "EdGraph/EdGraph.h"
@@ -1361,6 +1362,7 @@ UEdGraphPin::UEdGraphPin(UEdGraphNode* InOwningNode, const FGuid& PinIdGuid)
 	: OwningNode(InOwningNode)
 	, PinId(PinIdGuid)
 	, PinName()
+	, SourceIndex(INDEX_NONE)
 	, Direction(EGPD_Input)
 #if WITH_EDITORONLY_DATA
 	, bHidden(false)
@@ -1617,6 +1619,7 @@ void UEdGraphPin::DestroyImpl(bool bClearLinks)
 bool UEdGraphPin::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	// These properties are in every pin and are unlikely to be removed, so they are native serialized for speed.
 	Ar << OwningNode;
@@ -1639,6 +1642,11 @@ bool UEdGraphPin::Serialize(FArchive& Ar)
 		Ar << PinFriendlyName;
 	}
 #endif
+
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::EdGraphPinSourceIndex)
+	{
+		Ar << SourceIndex;
+	}
 
 	Ar << PinToolTip;
 	Ar << Direction;

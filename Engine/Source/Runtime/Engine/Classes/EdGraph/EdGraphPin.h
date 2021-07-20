@@ -302,6 +302,9 @@ public:
 	/** Name of this pin. */
 	FName PinName;
 
+	/** Index of the pin in the source data structure represented by the graph, INDEX_NONE if not used */
+	int32 SourceIndex;
+
 	/** Direction of flow of this pin (input or output) */
 	TEnumAsByte<enum EEdGraphPinDirection> Direction;
 
@@ -496,6 +499,7 @@ public:
 		PinType.ResetToDefaults();
 
 		PinName = NAME_None;
+		SourceIndex = INDEX_NONE;
 #if WITH_EDITORONLY_DATA
 		PinFriendlyName = FText::GetEmpty();
 #endif // WITH_EDITORONLY_DATA

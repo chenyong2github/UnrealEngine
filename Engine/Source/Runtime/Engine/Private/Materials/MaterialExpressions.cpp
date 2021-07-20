@@ -1490,11 +1490,13 @@ bool UMaterialExpression::HasConnectedOutputs() const
 		UMaterialGraphNode* MatGraphNode = Cast<UMaterialGraphNode>(GraphNode);
 		if (MatGraphNode)
 		{
-			for (UEdGraphPin* Pin : MatGraphNode->OutputPins)
+			for (UEdGraphPin* Pin : MatGraphNode->Pins)
 			{
-				if (Pin->LinkedTo.Num() > 0)
+				if (Pin->Direction == EGPD_Output &&
+					Pin->LinkedTo.Num() > 0)
 				{
 					bIsConnected = true;
+					break;
 				}
 			}
 		}

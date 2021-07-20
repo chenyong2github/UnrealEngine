@@ -10,33 +10,10 @@
 class UEdGraphPin;
 class UEdGraphSchema;
 
-enum class EMaterialGraphPinType
-{
-	Data,
-	Exec,
-};
-
-struct FMaterialGraphPinInfo
-{
-	EMaterialGraphPinType PinType;
-	int32 Index; // index into the expression's list of inputs/outputs (exec inputs/outpus are indexed separately)
-};
-
 UCLASS(MinimalAPI)
 class UMaterialGraphNode_Base : public UEdGraphNode
 {
 	GENERATED_UCLASS_BODY()
-
-	/** Contains additional information about material graph pins, avoid adding material-specific data to base pin type */
-	TMap<UEdGraphPin*, FMaterialGraphPinInfo> PinInfoMap;
-
-	/** Lists of pins that match up with the underlying UMaterialExpression's (non-exec) inputs and outputs */
-	TArray<UEdGraphPin*> InputPins;
-	TArray<UEdGraphPin*> OutputPins;
-
-	/** The exec input pin */
-	UEdGraphPin* ExecInputPin = nullptr;
-	TArray<UEdGraphPin*> ExecOutputPins;
 
 	/** Create all of the input pins required */
 	virtual void CreateInputPins() {};
@@ -45,17 +22,15 @@ class UMaterialGraphNode_Base : public UEdGraphNode
 	/** Is this the undeletable root node */
 	virtual bool IsRootNode() const {return false;}
 	/** Get a single Input Pin via its index */
-	class UEdGraphPin* GetInputPin(int32 InputIndex) const { return InputPins[InputIndex]; }
-	/** Get a single Output Pin via its index (trusting the caller to provide a valid index) */
-	class UEdGraphPin* GetOutputPin(int32 OutputIndex) const { return OutputPins[OutputIndex]; }
-	/** Get a single Output Pin via its index (can return null if an invalid index is provided) */
-	class UEdGraphPin* TryGetOutputPin(int32 OutputIndex) const { return (OutputIndex >= 0 && OutputIndex < OutputPins.Num()) ? OutputPins[OutputIndex] : nullptr; }
+	UNREALED_API class UEdGraphPin* GetInputPin(int32 InputIndex) const;
+	/** Get a single Output Pin via its index */
+	UNREALED_API class UEdGraphPin* GetOutputPin(int32 OutputIndex) const;
 	/** Gets the exec input pin */
-	class UEdGraphPin* GetExecInputPin() const { return ExecInputPin; }
+	UNREALED_API class UEdGraphPin* GetExecInputPin() const;
+	/** Get a single exec Output Pin via its index */
+	UNREALED_API class UEdGraphPin* GetExecOutputPin(int32 OutputIndex) const;
 	/** Replace a given node with this one, changing all pin links */
 	UNREALED_API void ReplaceNode(UMaterialGraphNode_Base* OldNode);
-
-	UNREALED_API const FMaterialGraphPinInfo& GetPinInfo(const class UEdGraphPin* Pin) const;
 
 	/** Get the Material value type of an input pin */
 	uint32 GetInputType(const UEdGraphPin* InputPin) const;
@@ -85,9 +60,7 @@ class UMaterialGraphNode_Base : public UEdGraphNode
 protected:
 	void ModifyAndCopyPersistentPinData(UEdGraphPin& TargetPin, const UEdGraphPin& SourcePin) const;
 
-	void RegisterPin(UEdGraphPin* Pin, EMaterialGraphPinType Type, int32 Index);
-
-	virtual uint32 GetPinMaterialType(const UEdGraphPin* Pin, const FMaterialGraphPinInfo& PinInfo) const;
+	virtual uint32 GetPinMaterialType(const UEdGraphPin* Pin) const;
 
 	void EmptyPins();
 };

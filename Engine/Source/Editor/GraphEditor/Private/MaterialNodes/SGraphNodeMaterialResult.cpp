@@ -3,6 +3,7 @@
 #include "MaterialNodes/SGraphNodeMaterialResult.h"
 #include "MaterialGraph/MaterialGraph.h"
 #include "MaterialGraph/MaterialGraphNode_Root.h"
+#include "MaterialGraph/MaterialGraphSchema.h"
 #include "SGraphPanel.h"
 #include "TutorialMetaData.h"
 #include "Widgets/SToolTip.h"
@@ -33,16 +34,14 @@ void SGraphNodeMaterialResult::CreatePinWidgets()
 		bHideNoConnectionPins = OwnerGraphPanelPtr.Pin()->GetPinVisibility() == SGraphEditor::Pin_HideNoConnection;
 	}
 
-	for(const auto& It : MaterialGraphNode->PinInfoMap)
+	for (UEdGraphPin* CurPin : MaterialGraphNode->Pins)
 	{
-		UEdGraphPin* CurPin = It.Key;
-		const FMaterialGraphPinInfo& PinInfo = It.Value;
 		const bool bPinHasConections = CurPin->LinkedTo.Num() > 0;
 
 		bool bPinDesiresToBeHidden = bHideNoConnectionPins && !bPinHasConections;
-		if (PinInfo.PinType == EMaterialGraphPinType::Data)
+		if (CurPin->PinType.PinCategory != UMaterialGraphSchema::PC_Exec)
 		{
-			if (!MaterialGraph->MaterialInputs[PinInfo.Index].IsVisiblePin(MaterialGraph->Material))
+			if (!MaterialGraph->MaterialInputs[CurPin->SourceIndex].IsVisiblePin(MaterialGraph->Material))
 			{
 				bPinDesiresToBeHidden = true;
 			}
@@ -53,9 +52,9 @@ void SGraphNodeMaterialResult::CreatePinWidgets()
 			TSharedPtr<SGraphPin> NewPin = CreatePinWidget(CurPin);
 			check(NewPin.IsValid());
 
-			if (PinInfo.PinType == EMaterialGraphPinType::Data)
+			if (CurPin->PinType.PinCategory != UMaterialGraphSchema::PC_Exec)
 			{
-				TSharedPtr<SToolTip> ToolTipWidget = IDocumentation::Get()->CreateToolTip(MaterialGraph->MaterialInputs[PinInfo.Index].GetToolTip(), nullptr, FString(TEXT("")), FString(TEXT("")));
+				TSharedPtr<SToolTip> ToolTipWidget = IDocumentation::Get()->CreateToolTip(MaterialGraph->MaterialInputs[CurPin->SourceIndex].GetToolTip(), nullptr, FString(TEXT("")), FString(TEXT("")));
 				NewPin->SetToolTip(ToolTipWidget.ToSharedRef());
 			}
 

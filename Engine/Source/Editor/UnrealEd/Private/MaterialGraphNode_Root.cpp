@@ -45,30 +45,31 @@ void UMaterialGraphNode_Root::PostPlacedNewNode()
 	}
 }
 
-uint32 UMaterialGraphNode_Root::GetPinMaterialType(const UEdGraphPin* Pin, const FMaterialGraphPinInfo& PinInfo) const
+uint32 UMaterialGraphNode_Root::GetPinMaterialType(const UEdGraphPin* Pin) const
 {
-	if (PinInfo.PinType == EMaterialGraphPinType::Data)
+	if (Pin->PinType.PinCategory == UMaterialGraphSchema::PC_Exec)
 	{
-		const UMaterialGraph* MaterialGraph = CastChecked<UMaterialGraph>(GetGraph());
-		const FMaterialInputInfo& MaterialInput = MaterialGraph->MaterialInputs[PinInfo.Index];
-		EMaterialProperty Property = MaterialInput.GetProperty();
-
-		uint32 MaterialType = 0u;
-		if (Property == MP_MaterialAttributes)
-		{
-			MaterialType = MCT_MaterialAttributes;
-		}
-		else if (Property == MP_FrontMaterial)
-		{
-			MaterialType = MCT_Strata;
-		}
-		else
-		{
-			MaterialType = FMaterialAttributeDefinitionMap::GetValueType(Property);
-		}
-		return MaterialType;
+		return MCT_Execution;
 	}
-	return MCT_Execution;
+
+	const UMaterialGraph* MaterialGraph = CastChecked<UMaterialGraph>(GetGraph());
+	const FMaterialInputInfo& MaterialInput = MaterialGraph->MaterialInputs[Pin->SourceIndex];
+	EMaterialProperty Property = MaterialInput.GetProperty();
+
+	uint32 MaterialType = 0u;
+	if (Property == MP_MaterialAttributes)
+	{
+		MaterialType = MCT_MaterialAttributes;
+	}
+	else if (Property == MP_FrontMaterial)
+	{
+		MaterialType = MCT_Strata;
+	}
+	else
+	{
+		MaterialType = FMaterialAttributeDefinitionMap::GetValueType(Property);
+	}
+	return MaterialType;
 }
 
 void UMaterialGraphNode_Root::CreateInputPins()
@@ -79,10 +80,10 @@ void UMaterialGraphNode_Root::CreateInputPins()
 	{
 		// Create the execution pin
 		UEdGraphPin* NewPin = CreatePin(EGPD_Input, UMaterialGraphSchema::PC_Exec, NAME_None, NAME_None);
+		NewPin->SourceIndex = 0;
 		// Makes sure pin has a name for lookup purposes but user will never see it
 		NewPin->PinName = CreateUniquePinName(TEXT("Input"));
 		NewPin->PinFriendlyName = LOCTEXT("Space", " ");
-		RegisterPin(NewPin, EMaterialGraphPinType::Exec, 0);
 	}
 
 	for (int32 Index = 0; Index < MaterialGraph->MaterialInputs.Num(); ++Index)
@@ -91,7 +92,7 @@ void UMaterialGraphNode_Root::CreateInputPins()
 		EMaterialProperty Property = MaterialInput.GetProperty();
 	
 		UEdGraphPin* InputPin = CreatePin(EGPD_Input, UMaterialGraphSchema::PC_MaterialInput, *FString::Printf(TEXT("%d"), (int32)Property), *MaterialInput.GetName().ToString());
-		RegisterPin(InputPin, EMaterialGraphPinType::Data, Index);
+		InputPin->SourceIndex = Index;
 	}
 
 }

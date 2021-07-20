@@ -605,24 +605,20 @@ FName UMaterialGraphNode::GetShortenPinName(const FName PinName)
 	return InputName;
 }
 
-uint32 UMaterialGraphNode::GetPinMaterialType(const UEdGraphPin* Pin, const FMaterialGraphPinInfo& PinInfo) const
+uint32 UMaterialGraphNode::GetPinMaterialType(const UEdGraphPin* Pin) const
 {
-	switch (PinInfo.PinType)
+	if (Pin->PinType.PinCategory == UMaterialGraphSchema::PC_Exec)
 	{
-	case EMaterialGraphPinType::Exec:
 		return MCT_Execution;
-	case EMaterialGraphPinType::Data:
-		if (Pin->Direction == EGPD_Input)
-		{
-			return MaterialExpression->GetInputType(PinInfo.Index);
-		}
-		else
-		{
-			return MaterialExpression->GetOutputType(PinInfo.Index);
-		}
-	default:
-		checkNoEntry();
-		return 0u;
+	}
+	
+	if (Pin->Direction == EGPD_Input)
+	{
+		return MaterialExpression->GetInputType(Pin->SourceIndex);
+	}
+	else
+	{
+		return MaterialExpression->GetOutputType(Pin->SourceIndex);
 	}
 }
 
@@ -631,11 +627,10 @@ void UMaterialGraphNode::CreateInputPins()
 	if (MaterialExpression->HasExecInput())
 	{
 		UEdGraphPin* NewPin = CreatePin(EGPD_Input, UMaterialGraphSchema::PC_Exec, NAME_None, NAME_None);
+		NewPin->SourceIndex = 0;
 		// Makes sure pin has a name for lookup purposes but user will never see it
 		NewPin->PinName = CreateUniquePinName(TEXT("Input"));
 		NewPin->PinFriendlyName = SpaceText;
-
-		RegisterPin(NewPin, EMaterialGraphPinType::Exec, 0);
 	}
 
 	const TArray<FExpressionInput*> ExpressionInputs = MaterialExpression->GetInputs();
@@ -656,14 +651,13 @@ void UMaterialGraphNode::CreateInputPins()
 		}
 
 		UEdGraphPin* NewPin = CreatePin(EGPD_Input, PinCategory, InputName);
+		NewPin->SourceIndex = Index;
 		if (NewPin->PinName.IsNone())
 		{
 			// Makes sure pin has a name for lookup purposes but user will never see it
 			NewPin->PinName = CreateUniquePinName(TEXT("Input"));
 			NewPin->PinFriendlyName = SpaceText;
 		}
-
-		RegisterPin(NewPin, EMaterialGraphPinType::Data, Index);
 	}
 }
 
@@ -709,14 +703,13 @@ void UMaterialGraphNode::CreateOutputPins()
 		}
 
 		UEdGraphPin* NewPin = CreatePin(EGPD_Output, PinCategory, PinSubCategory, OutputName);
+		NewPin->SourceIndex = Index;
 		if (NewPin->PinName.IsNone())
 		{
 			// Makes sure pin has a name for lookup purposes but user will never see it
 			NewPin->PinName = CreateUniquePinName(TEXT("Output"));
 			NewPin->PinFriendlyName = SpaceText;
 		}
-
-		RegisterPin(NewPin, EMaterialGraphPinType::Data, Index);
 	}
 
 	TArray<FExpressionExecOutputEntry> ExecOutputs;
@@ -732,14 +725,13 @@ void UMaterialGraphNode::CreateOutputPins()
 		}
 
 		UEdGraphPin* NewPin = CreatePin(EGPD_Output, UMaterialGraphSchema::PC_Exec, NAME_None, OutputName);
+		NewPin->SourceIndex = Index;
 		if (NewPin->PinName.IsNone())
 		{
 			// Makes sure pin has a name for lookup purposes but user will never see it
 			NewPin->PinName = CreateUniquePinName(TEXT("Output"));
 			NewPin->PinFriendlyName = SpaceText;
 		}
-
-		RegisterPin(NewPin, EMaterialGraphPinType::Exec, Index);
 	}
 }
 
