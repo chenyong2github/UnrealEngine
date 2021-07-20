@@ -1626,6 +1626,24 @@ RENDERCORE_API bool UseVirtualTextureLightmap(const FStaticFeatureLevel InFeatur
 	return bUseVirtualTextureLightmap;
 }
 
+RENDERCORE_API bool ExcludeNonPipelinedShaderTypes(EShaderPlatform ShaderPlatform)
+{
+	if (RHISupportsShaderPipelines(ShaderPlatform))
+	{
+		static const TConsoleVariableData<int32>* CVarShaderPipelines = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelines"));
+		bool bShaderPipelinesAreEnabled = CVarShaderPipelines && CVarShaderPipelines->GetValueOnAnyThread(IsInGameThread()) != 0;
+		if (bShaderPipelinesAreEnabled)
+		{
+			static const TConsoleVariableData<int32>* CVarExcludeNonPipelinedShaders = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Material.ExcludeNonPipelinedShaders"));
+			bool bExcludeNonPipelinedShaders = CVarExcludeNonPipelinedShaders && CVarExcludeNonPipelinedShaders->GetValueOnAnyThread(IsInGameThread()) != 0;
+
+			return bExcludeNonPipelinedShaders;
+		}
+	}
+
+	return false;
+}
+
 RENDERCORE_API bool PlatformSupportsVelocityRendering(const FStaticShaderPlatform Platform)
 {
 	if (IsMobilePlatform(Platform))

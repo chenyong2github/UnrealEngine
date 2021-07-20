@@ -1855,4 +1855,9 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		KeyString += TEXT("_Compr");
 		KeyString += GetShaderCompressionFormat().ToString();
 	}
+
+	{
+		// add whether or not non-pipelined shader types are included
+		KeyString += FString::Printf(TEXT("_ExclNonPipSh-%d"), ExcludeNonPipelinedShaderTypes(Platform));
+	}
 }
