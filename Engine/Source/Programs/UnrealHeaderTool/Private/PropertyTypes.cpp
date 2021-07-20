@@ -2222,23 +2222,21 @@ struct FPropertyTypeTraitsDelegate : public FPropertyTypeTraitsBase
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.FunctionDef);
-		UFunction* SignatureFunction = VarProperty.FunctionDef->GetFunction();
-		check(SignatureFunction);
 
-		FString UnmangledFunctionName = SignatureFunction->GetName().LeftChop(FString(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX).Len());
+		FString UnmangledFunctionName = VarProperty.FunctionDef->GetName().LeftChop(FString(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX).Len());
 		const bool bBlueprintCppBackend = (0 != (CPPExportFlags & EPropertyExportCPPFlags::CPPF_BlueprintCppBackend));
-		const bool bNative = SignatureFunction->IsNative();
+		const bool bNative = VarProperty.FunctionDef->IsNative();
 		if (bBlueprintCppBackend && bNative)
 		{
-			UStruct* StructOwner = Cast<UStruct>(SignatureFunction->GetOuter());
-			if (StructOwner)
+			if (FUnrealStructDefinitionInfo* StructOwnerDef = UHTCast<FUnrealStructDefinitionInfo>(VarProperty.FunctionDef->GetOuter()))
 			{
-				return FString::Printf(TEXT("%s%s::F%s"), StructOwner->GetPrefixCPP(), *StructOwner->GetName(), *UnmangledFunctionName);
+				return FString::Printf(TEXT("%s%s::F%s"), StructOwnerDef->GetPrefixCPP(), *StructOwnerDef->GetName(), *UnmangledFunctionName);
 			}
 		}
 		else
 		{
-			const bool NonNativeClassOwner = (SignatureFunction->GetOwnerClass() && !SignatureFunction->GetOwnerClass()->HasAnyClassFlags(CLASS_Native));
+			FUnrealClassDefinitionInfo* OwnerClass = VarProperty.FunctionDef->GetOwnerClass();
+			const bool NonNativeClassOwner = OwnerClass && !OwnerClass->HasAnyClassFlags(CLASS_Native);
 			if (bBlueprintCppBackend && NonNativeClassOwner)
 			{
 				// The name must be valid, this removes spaces, ?, etc from the user's function name. It could
@@ -2247,7 +2245,7 @@ struct FPropertyTypeTraitsDelegate : public FPropertyTypeTraitsBase
 				// identifier and collide:
 				UnmangledFunctionName = UnicodeToCPPIdentifier(UnmangledFunctionName, false, TEXT(""));
 				// the name must be unique
-				const FString OwnerName = UnicodeToCPPIdentifier(SignatureFunction->GetOwnerClass()->GetName(), false, TEXT(""));
+				const FString OwnerName = UnicodeToCPPIdentifier(OwnerClass->GetName(), false, TEXT(""));
 				const FString NewUnmangledFunctionName = FString::Printf(TEXT("%s__%s"), *UnmangledFunctionName, *OwnerName);
 				UnmangledFunctionName = NewUnmangledFunctionName;
 			}
@@ -2290,18 +2288,15 @@ struct FPropertyTypeTraitsMulticastDelegate : public FPropertyTypeTraitsBase
 	static FProperty* CreateEngineType(FUnrealPropertyDefinitionInfo& PropDef, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		UFunction* Function = PropDef.GetPropertyBase().FunctionDef->GetFunction();
 
-		FMulticastDelegateProperty* Result;
-		if (Function->IsA<USparseDelegateFunction>())
+		if (VarProperty.FunctionDef->GetFunctionType() == EFunctionType::SparseDelegate)
 		{
-			Result = new FMulticastSparseDelegateProperty(Scope, Name, ObjectFlags);
+			return new FMulticastSparseDelegateProperty(Scope, Name, ObjectFlags);
 		}
 		else
 		{
-			Result = new FMulticastInlineDelegateProperty(Scope, Name, ObjectFlags);
+			return new FMulticastInlineDelegateProperty(Scope, Name, ObjectFlags);
 		}
-		return Result;
 	}
 
 	static bool IsSupportedByBlueprint(const FUnrealPropertyDefinitionInfo& PropDef, bool bMemberVariable)
@@ -2312,8 +2307,7 @@ struct FPropertyTypeTraitsMulticastDelegate : public FPropertyTypeTraitsBase
 	static FString GetEngineClassName(const FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
-		UFunction* Function = PropDef.GetPropertyBase().FunctionDef->GetFunction();
-		if (Function->IsA<USparseDelegateFunction>())
+		if (VarProperty.FunctionDef->GetFunctionType() == EFunctionType::SparseDelegate)
 		{
 			return FMulticastSparseDelegateProperty::StaticClass()->GetName();
 		}
@@ -2327,31 +2321,29 @@ struct FPropertyTypeTraitsMulticastDelegate : public FPropertyTypeTraitsBase
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.FunctionDef);
-		UFunction* SignatureFunction = VarProperty.FunctionDef->GetFunction();
 
 		// We have this test because sometimes the delegate hasn't been set up by FixupDelegateProperties at the time
 		// we need the type for an error message.  We deliberately format it so that it's unambiguously not CPP code, but is still human-readable.
-		if (!SignatureFunction)
+		if (!VarProperty.FunctionDef)
 		{
 			return FString(TEXT("{multicast delegate type}"));
 		}
 
-		FString UnmangledFunctionName = SignatureFunction->GetName().LeftChop(FString(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX).Len());
-		const UClass* OwnerClass = SignatureFunction->GetOwnerClass();
+		FString UnmangledFunctionName = VarProperty.FunctionDef->GetName().LeftChop(FString(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX).Len());
+		FUnrealClassDefinitionInfo* OwnerClassDef = VarProperty.FunctionDef->GetOwnerClass();
 
 		const bool bBlueprintCppBackend = (0 != (CPPExportFlags & EPropertyExportCPPFlags::CPPF_BlueprintCppBackend));
-		const bool bNative = SignatureFunction->IsNative();
+		const bool bNative = VarProperty.FunctionDef->IsNative();
 		if (bBlueprintCppBackend && bNative)
 		{
-			UStruct* StructOwner = Cast<UStruct>(SignatureFunction->GetOuter());
-			if (StructOwner)
+			if (FUnrealStructDefinitionInfo* StructOwnerDef = UHTCast<FUnrealStructDefinitionInfo>(VarProperty.FunctionDef->GetOuter()))
 			{
-				return FString::Printf(TEXT("%s%s::F%s"), StructOwner->GetPrefixCPP(), *StructOwner->GetName(), *UnmangledFunctionName);
+				return FString::Printf(TEXT("%s%s::F%s"), StructOwnerDef->GetPrefixCPP(), *StructOwnerDef->GetName(), *UnmangledFunctionName);
 			}
 		}
 		else
 		{
-			if ((0 != (CPPExportFlags & EPropertyExportCPPFlags::CPPF_BlueprintCppBackend)) && OwnerClass && !OwnerClass->HasAnyClassFlags(CLASS_Native))
+			if ((0 != (CPPExportFlags & EPropertyExportCPPFlags::CPPF_BlueprintCppBackend)) && OwnerClassDef && !OwnerClassDef->HasAnyClassFlags(CLASS_Native))
 			{
 				// The name must be valid, this removes spaces, ?, etc from the user's function name. It could
 				// be slightly shorter because the postfix ("__pf") is not needed here because we further post-
@@ -2359,7 +2351,7 @@ struct FPropertyTypeTraitsMulticastDelegate : public FPropertyTypeTraitsBase
 				// identifier and collide:
 				UnmangledFunctionName = UnicodeToCPPIdentifier(UnmangledFunctionName, false, TEXT(""));
 				// the name must be unique
-				const FString OwnerName = UnicodeToCPPIdentifier(OwnerClass->GetName(), false, TEXT(""));
+				const FString OwnerName = UnicodeToCPPIdentifier(OwnerClassDef->GetName(), false, TEXT(""));
 				const FString NewUnmangledFunctionName = FString::Printf(TEXT("%s__%s"), *UnmangledFunctionName, *OwnerName);
 				UnmangledFunctionName = NewUnmangledFunctionName;
 			}

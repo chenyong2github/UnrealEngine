@@ -1474,7 +1474,7 @@ void FNativeClassHeaderGenerator::OutputProperty(FOutputDevice& DeclOut, FOutput
 
 	case EUHTPropertyType::MulticastDelegate:
 	{
-		bool bIsSparse = PropertyBase.FunctionDef->GetFunction()->IsA<USparseDelegateFunction>();
+		bool bIsSparse = PropertyBase.FunctionDef->GetFunctionType() == EFunctionType::SparseDelegate;
 
 		FString MetaDataParams = OutputMetaDataCodeForObject(DeclOut, Out, PropertyDef, *FString::Printf(TEXT("%s_MetaData"), *Name), DeclSpaces, Spaces);
 
@@ -2375,7 +2375,7 @@ void FNativeClassHeaderGenerator::ExportFunction(FOutputDevice& Out, FReferenceG
 		StructureSize = TEXT("0");
 	}
 
-	USparseDelegateFunction* SparseDelegateFunction = Cast<USparseDelegateFunction>(FunctionDef.GetFunction());
+	bool bIsSparse = FunctionDef.GetFunctionType() == EFunctionType::SparseDelegate;
 	const TCHAR* UFunctionObjectFlags = FunctionDef.IsOwnedByDynamicType() ? TEXT("RF_Public|RF_Transient") : TEXT("RF_Public|RF_Transient|RF_MarkAsNative");
 
 	TTuple<FString, FString> PropertyRange = OutputProperties(CurrentFunctionText, StaticDefinitions, OutReferenceGatherers, *FString::Printf(TEXT("%s::"), *StaticsStructName), FunctionDef, TEXT("\t\t"), TEXT("\t"));
@@ -2393,8 +2393,8 @@ void FNativeClassHeaderGenerator::ExportFunction(FOutputDevice& Out, FReferenceG
 		*OuterFunc,
 		*GetSingletonNameFuncAddr(SuperFunctionDef, OutReferenceGatherers.UniqueCrossModuleReferences),
 		*CreateUTF8LiteralString(FNativeClassHeaderGenerator::GetOverriddenName(FunctionDef)),
-		(SparseDelegateFunction ? *CreateUTF8LiteralString(SparseDelegateFunction->OwningClassName.ToString()) : TEXT("nullptr")),
-		(SparseDelegateFunction ? *CreateUTF8LiteralString(SparseDelegateFunction->DelegateName.ToString()) : TEXT("nullptr")),
+		(bIsSparse ? *CreateUTF8LiteralString(FunctionDef.GetSparseOwningClassName().ToString()) : TEXT("nullptr")),
+		(bIsSparse ? *CreateUTF8LiteralString(FunctionDef.GetSparseDelegateName().ToString()) : TEXT("nullptr")),
 		*StructureSize,
 		*PropertyRange.Get<0>(),
 		*PropertyRange.Get<1>(),
