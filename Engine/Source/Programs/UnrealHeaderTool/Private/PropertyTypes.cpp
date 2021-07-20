@@ -327,6 +327,15 @@ namespace
 	};
 
 	template<typename TraitsType>
+	struct GetCPPMacroTypeDispatch
+	{
+		FString operator()(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+		{
+			return TraitsType::GetCPPMacroType(PropDef, ExtendedTypeText);
+		}
+	};
+
+	template<typename TraitsType>
 	struct PostParseFinalizeDispatch
 	{
 		FPropertyFlagsChanges operator()(FUnrealPropertyDefinitionInfo& PropDef, EPropertyFlags& AddedFlags)
@@ -432,6 +441,8 @@ struct FPropertyTypeTraitsBase
 
 	//static FString GetCPPTypeForwardDeclaration(const FUnrealPropertyDefinitionInfo& PropDef);
 
+	//static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText);
+
 	/**
 	 * Handle any final initialization after parsing has completed
 	 *
@@ -456,6 +467,13 @@ struct FPropertyTypeTraitsNumericBase : public FPropertyTypeTraitsBase
 	static FString GetCPPTypeForwardDeclaration(const FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		return FString();
+	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		ExtendedTypeText = TEXT("F");
+		ExtendedTypeText += PropDef.GetEngineClassName();
+		return TEXT("PROPERTY");
 	}
 };
 
@@ -949,6 +967,11 @@ struct FPropertyTypeTraitsBool : public FPropertyTypeTraitsBooleanBase
 	{
 		return GetCPPTypeHelper(PropDef, ExtendedTypeText, CPPExportFlags, true, TEXT("bool"));
 	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		return TEXT("UBOOL");
+	}
 };
 
 struct FPropertyTypeTraitsBool8 : public FPropertyTypeTraitsBooleanBase
@@ -961,6 +984,11 @@ struct FPropertyTypeTraitsBool8 : public FPropertyTypeTraitsBooleanBase
 	static FString GetCPPType(const FUnrealPropertyDefinitionInfo& PropDef, FString* ExtendedTypeText, uint32 CPPExportFlags)
 	{
 		return GetCPPTypeHelper(PropDef, ExtendedTypeText, CPPExportFlags, false, TEXT("uint8"));
+	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		return TEXT("UBOOL8");
 	}
 };
 
@@ -975,6 +1003,11 @@ struct FPropertyTypeTraitsBool16 : public FPropertyTypeTraitsBooleanBase
 	{
 		return GetCPPTypeHelper(PropDef, ExtendedTypeText, CPPExportFlags, false, TEXT("uint16"));
 	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		return TEXT("UBOOL16");
+	}
 };
 
 struct FPropertyTypeTraitsBool32 : public FPropertyTypeTraitsBooleanBase
@@ -988,6 +1021,11 @@ struct FPropertyTypeTraitsBool32 : public FPropertyTypeTraitsBooleanBase
 	{
 		return GetCPPTypeHelper(PropDef, ExtendedTypeText, CPPExportFlags, false, TEXT("uint32"));
 	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		return TEXT("UBOOL32");
+	}
 };
 
 struct FPropertyTypeTraitsBool64 : public FPropertyTypeTraitsBooleanBase
@@ -1000,6 +1038,11 @@ struct FPropertyTypeTraitsBool64 : public FPropertyTypeTraitsBooleanBase
 	static FString GetCPPType(const FUnrealPropertyDefinitionInfo& PropDef, FString* ExtendedTypeText, uint32 CPPExportFlags)
 	{
 		return GetCPPTypeHelper(PropDef, ExtendedTypeText, CPPExportFlags, false, TEXT("uint64"));
+	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		return TEXT("UBOOL64");
 	}
 };
 
@@ -1149,6 +1192,18 @@ struct FPropertyTypeTraitsEnum : public FPropertyTypeTraitsBase
 
 		return FString::Printf(TEXT("enum class %s : %s;"), *VarProperty.EnumDef->GetName(), *PropDef.GetValuePropDef().GetCPPType());
 	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		FUnrealEnumDefinitionInfo* EnumDef = VarProperty.EnumDef;
+		if (EnumDef->GetCppForm() != UEnum::ECppForm::EnumClass)
+		{
+			return FPropertyTypeTraitsByte::GetCPPMacroType(PropDef, ExtendedTypeText);
+		}
+		ExtendedTypeText = EnumDef->GetName();
+		return TEXT("ENUM");
+	}
 };
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1292,6 +1347,21 @@ struct FPropertyTypeTraitsObjectReference : public FPropertyTypeTraitsObjectBase
 			return FString::Printf(TEXT("class %s%s;"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
 		}
 	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		check(VarProperty.ClassDef);
+		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
+		{
+			ExtendedTypeText = TEXT("UClass");
+		}
+		else
+		{
+			ExtendedTypeText =  FString::Printf(TEXT("%s%s"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
+		}
+		return TEXT("OBJECT");
+	}
 };
 
 struct FPropertyTypeTraitsWeakObjectReference : public FPropertyTypeTraitsObjectBase
@@ -1333,6 +1403,19 @@ struct FPropertyTypeTraitsWeakObjectReference : public FPropertyTypeTraitsObject
 		check(VarProperty.ClassDef);
 		return FString::Printf(TEXT("class %s%s;"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
 	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		check(VarProperty.ClassDef);
+		if (PropDef.HasAnyPropertyFlags(CPF_AutoWeak))
+		{
+			ExtendedTypeText = FString::Printf(TEXT("TAutoWeakObjectPtr<%s%s>"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
+			return TEXT("AUTOWEAKOBJECT");
+		}
+		ExtendedTypeText = FString::Printf(TEXT("TWeakObjectPtr<%s%s>"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
+		return TEXT("WEAKOBJECT");
+	}
 };
 
 struct FPropertyTypeTraitsLazyObjectReference : public FPropertyTypeTraitsObjectBase
@@ -1363,6 +1446,14 @@ struct FPropertyTypeTraitsLazyObjectReference : public FPropertyTypeTraitsObject
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		check(VarProperty.ClassDef);
 		return FString::Printf(TEXT("class %s%s;"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
+	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		check(VarProperty.ClassDef);
+		ExtendedTypeText = FString::Printf(TEXT("TLazyObjectPtr<%s%s>"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
+		return TEXT("LAZYOBJECT");
 	}
 };
 
@@ -1446,12 +1537,27 @@ struct FPropertyTypeTraitsObjectPtrReference : public FPropertyTypeTraitsObjectB
 		check(VarProperty.ClassDef);
 		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
 		{
-			return FString::Printf(TEXT("class %s%s;"), VarProperty.MetaClassDef->GetPrefixCPP(), *VarProperty.MetaClassDef->GetName());
+			return FString::Printf(TEXT("class %s%s;"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
 		}
 		else
 		{
 			return FString::Printf(TEXT("class %s%s;"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
 		}
+	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		check(VarProperty.ClassDef);
+		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
+		{
+			ExtendedTypeText = FString::Printf(TEXT("TObjectPtr<%s%s>"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
+		}
+		else
+		{
+			ExtendedTypeText = FString::Printf(TEXT("TObjectPtr<%s%s>"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
+		}
+		return TEXT("OBJECTPTR");
 	}
 };
 
@@ -1501,7 +1607,6 @@ struct FPropertyTypeTraitsSoftObjectReference : public FPropertyTypeTraitsObject
 		check(VarProperty.ClassDef);
 		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
 		{
-			UClass* MetaClass = VarProperty.MetaClassDef->GetClass();
 			return FString::Printf(TEXT("TSoftClassPtr<%s%s> "), VarProperty.MetaClassDef->GetPrefixCPP(), *VarProperty.MetaClassDef->GetName()); //@TODO - This has an extra space in it
 		}
 		else
@@ -1522,6 +1627,22 @@ struct FPropertyTypeTraitsSoftObjectReference : public FPropertyTypeTraitsObject
 		else
 		{
 			return FString::Printf(TEXT("class %s%s;"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
+		}
+	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		check(VarProperty.ClassDef);
+		if (VarProperty.ClassDef->IsChildOf(*GUClassDef))
+		{
+			ExtendedTypeText = FString::Printf(TEXT("TSoftClassPtr<%s%s> "), VarProperty.MetaClassDef->GetPrefixCPP(), *VarProperty.MetaClassDef->GetName()); //@TODO - This has an extra space in it
+			return TEXT("SOFTCLASS");
+		}
+		else
+		{
+			ExtendedTypeText = FString::Printf(TEXT("TSoftObjectPtr<%s%s>"), VarProperty.ClassDef->GetPrefixCPP(), *VarProperty.ClassDef->GetName());
+			return TEXT("SOFTOBJECT");
 		}
 	}
 };
@@ -1590,6 +1711,20 @@ struct FPropertyTypeTraitsInterface : public FPropertyTypeTraitsBase
 
 		return FString::Printf(TEXT("class I%s;"), *ExportClass->GetName());
 	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		FUnrealClassDefinitionInfo* ExportClass = PropDef.GetPropertyBase().ClassDef;
+		while (ExportClass && !ExportClass->HasAnyClassFlags(CLASS_Native))
+		{
+			ExportClass = ExportClass->GetSuperClass();
+		}
+		check(ExportClass);
+		check(ExportClass->HasAnyClassFlags(CLASS_Interface));
+
+		ExtendedTypeText = FString::Printf(TEXT("I%s"), *ExportClass->GetName());
+		return TEXT("TINTERFACE");
+	}
 };
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1639,6 +1774,13 @@ struct FPropertyTypeTraitsName : public FPropertyTypeTraitsBase
 	{
 		return FString();
 	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		ExtendedTypeText = TEXT("F");
+		ExtendedTypeText += PropDef.GetEngineClassName();
+		return TEXT("PROPERTY");
+	}
 };
 
 struct FPropertyTypeTraitsString : public FPropertyTypeTraitsBase
@@ -1676,6 +1818,13 @@ struct FPropertyTypeTraitsString : public FPropertyTypeTraitsBase
 	static FString GetCPPTypeForwardDeclaration(const FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		return FString();
+	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		ExtendedTypeText = TEXT("F");
+		ExtendedTypeText += PropDef.GetEngineClassName();
+		return TEXT("PROPERTY");
 	}
 };
 
@@ -1751,6 +1900,13 @@ struct FPropertyTypeTraitsText : public FPropertyTypeTraitsBase
 	static FString GetCPPTypeForwardDeclaration(const FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		return FString();
+	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		ExtendedTypeText = TEXT("F");
+		ExtendedTypeText += PropDef.GetEngineClassName();
+		return TEXT("PROPERTY");
 	}
 };
 
@@ -2020,6 +2176,12 @@ struct FPropertyTypeTraitsStruct : public FPropertyTypeTraitsBase
 			
 		return FString::Printf(TEXT("struct F%s;"), *PropDef.GetPropertyBase().ScriptStructDef->GetName());
 	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		ExtendedTypeText = GetCPPType(PropDef, nullptr, CPPF_None);
+		return TEXT("STRUCT");
+	}
 };
 
 struct FPropertyTypeTraitsDelegate : public FPropertyTypeTraitsBase
@@ -2101,6 +2263,13 @@ struct FPropertyTypeTraitsDelegate : public FPropertyTypeTraitsBase
 	static FString GetCPPTypeForwardDeclaration(const FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		return FString();
+	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		ExtendedTypeText = TEXT("F");
+		ExtendedTypeText += PropDef.GetEngineClassName();
+		return TEXT("PROPERTY");
 	}
 };
 
@@ -2207,6 +2376,13 @@ struct FPropertyTypeTraitsMulticastDelegate : public FPropertyTypeTraitsBase
 	{
 		return FString();
 	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		ExtendedTypeText = TEXT("F");
+		ExtendedTypeText += PropDef.GetEngineClassName();
+		return TEXT("PROPERTY");
+	}
 };
 
 struct FPropertyTypeTraitsFieldPath : public FPropertyTypeTraitsBase
@@ -2251,6 +2427,13 @@ struct FPropertyTypeTraitsFieldPath : public FPropertyTypeTraitsBase
 	static FString GetCPPTypeForwardDeclaration(const FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		return FString::Printf(TEXT("class F%s;"), *PropDef.GetPropertyBase().FieldClassName.ToString());
+	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
+		ExtendedTypeText = FString::Printf(TEXT("TFieldPath<F%s>"), *VarProperty.FieldClassName.ToString());
+		return TEXT("STRUCT");
 	}
 };
 
@@ -2362,6 +2545,11 @@ struct FPropertyTypeTraitsStaticArray : public FPropertyTypeTraitsBase
 	{
 		return PropertyTypeDispatch<GetCPPTypeForwardDeclarationDispatch, false, FString>(PropDef);
 	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		return PropertyTypeDispatch<GetCPPMacroTypeDispatch, false, FString>(PropDef, ExtendedTypeText);
+	}
 };
 
 struct FPropertyTypeTraitsDynamicArray : public FPropertyTypeTraitsBase
@@ -2443,6 +2631,12 @@ struct FPropertyTypeTraitsDynamicArray : public FPropertyTypeTraitsBase
 	{
 		return PropDef.GetValuePropDef().GetCPPTypeForwardDeclaration();
 	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		ExtendedTypeText = PropDef.GetValuePropDef().GetCPPType();
+		return TEXT("TARRAY");
+	}
 };
 
 struct FPropertyTypeTraitsSet : public FPropertyTypeTraitsBase
@@ -2520,6 +2714,12 @@ struct FPropertyTypeTraitsSet : public FPropertyTypeTraitsBase
 	static FString GetCPPTypeForwardDeclaration(const FUnrealPropertyDefinitionInfo& PropDef)
 	{
 		return PropDef.GetValuePropDef().GetCPPTypeForwardDeclaration();
+	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		ExtendedTypeText = PropDef.GetValuePropDef().GetCPPType();
+		return TEXT("TSET");
 	}
 };
 
@@ -2630,6 +2830,12 @@ struct FPropertyTypeTraitsMap : public FPropertyTypeTraitsBase
 	{
 		return FString::Printf(TEXT("%s %s"), *PropDef.GetKeyPropDef().GetCPPTypeForwardDeclaration(), *PropDef.GetValuePropDef().GetCPPTypeForwardDeclaration());
 	}
+
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+	{
+		ExtendedTypeText = FString::Printf(TEXT("%s,%s"), *PropDef.GetKeyPropDef().GetCPPType(), *PropDef.GetValuePropDef().GetCPPType());
+		return TEXT("TMAP");
+	}
 };
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2738,6 +2944,11 @@ FString FPropertyTraits::GetCPPType(const FUnrealPropertyDefinitionInfo& PropDef
 FString FPropertyTraits::GetCPPTypeForwardDeclaration(const FUnrealPropertyDefinitionInfo& PropDef)
 {
 	return PropertyTypeDispatch<GetCPPTypeForwardDeclarationDispatch, true, FString>(PropDef);
+}
+
+FString FPropertyTraits::GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText)
+{
+	return PropertyTypeDispatch<GetCPPMacroTypeDispatch, true, FString>(PropDef, ExtendedTypeText);
 }
 
 bool FPropertyTraits::SameType(const FUnrealPropertyDefinitionInfo& Lhs, const FUnrealPropertyDefinitionInfo& Rhs)

@@ -75,6 +75,8 @@ struct FPropertyTraits
 
 	static FString GetCPPTypeForwardDeclaration(const FUnrealPropertyDefinitionInfo& PropDef);
 
+	static FString GetCPPMacroType(const FUnrealPropertyDefinitionInfo& PropDef, FString& ExtendedTypeText);
+
 	/**
 	 * Tests to see if the two types are the same types
 	 */
