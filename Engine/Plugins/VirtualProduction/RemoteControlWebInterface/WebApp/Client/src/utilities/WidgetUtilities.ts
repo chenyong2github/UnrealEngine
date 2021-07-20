@@ -165,6 +165,7 @@ export class WidgetUtilities {
     const rgb = color as ColorProperty;
     const vector = color as VectorProperty;
 
+    max = max || 1;
     return {
       R: (vector?.X ?? rgb?.R) * 255 / max,
       G: (vector?.Y ?? rgb?.G) * 255 / max,

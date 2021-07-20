@@ -16,6 +16,7 @@ namespace UnrealApi {
     MetadataModified  = 'PresetMetadataModified',
     ActorModified     = 'PresetActorModified',
     EntitiesModified  = 'PresetEntitiesModified',
+    LayoutModified    = 'PresetLayoutModified',
   }
 
   export type Presets = { 
@@ -145,9 +146,22 @@ export namespace UnrealEngine {
   async function pullTimer() {
     try {
       const { Presets } = await get<UnrealApi.Presets>('/remote/presets');
+
+      // First check if there are any new presets
       for (const preset of Presets) {
         if (preset && !presets[preset.ID])
           await refreshPreset(preset.ID, preset.Name);
+      }
+
+      // Check for deleted presets
+      const deleted = _.difference(Object.keys(presets), Presets.map(p => p.ID));
+      if (deleted.length > 0) {
+        for (const id of deleted) {
+          delete presets[id];
+          delete payloads[id];
+        }
+        
+        Notify.emit('presets', Object.values(presets));
       }
     } catch (error) {
     }
@@ -202,17 +216,14 @@ export namespace UnrealEngine {
         }
 
         case UnrealApi.PresetEvent.FieldsRemoved: {
-          // No PresetId in message :(
-          // searching for all matching presets by name
-          const matches = _.filter(presets, p => p.Name === message.PresetName);
-          for (let preset of matches)
-            await refreshPreset(preset.ID, preset.Name);
+          await refreshPreset(message.PresetId, message.PresetName);
           break;
         }
 
-        case UnrealApi.PresetEvent.EntitiesModified:
+        case UnrealApi.PresetEvent.EntitiesModified: {
           await refreshPreset(message.PresetId, message.PresetName);
           break;
+        }
 
         case UnrealApi.PresetEvent.MetadataModified: {
           if (!message.Metadata.view)
@@ -222,10 +233,20 @@ export namespace UnrealEngine {
           await refreshView(message.PresetId, message.Metadata.view);
           break;
         }
+
+        case UnrealApi.PresetEvent.LayoutModified: {
+          const preset = populatePreset(message.Preset as IPreset);
+          if (preset?.ID) {
+            presets[preset.ID] = preset;
+            Notify.emit('presets', Object.values(presets));
+          }
+
+          break;
+        }
       }
 
     } catch (error) {
-      console.log('Failed to parse answer', error?.message, json);
+      console.log('Failed to process message', error?.message, json);
     }
   }
  
