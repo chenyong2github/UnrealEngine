@@ -651,6 +651,7 @@ void SDockTab::Construct( const FArguments& InArgs )
 						SAssignNew(LabelWidget, STextBlock)
 						.TextStyle(&GetCurrentStyle().TabTextStyle)
 						.Text(this, &SDockTab::GetTabLabel)
+						.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
 					]
 
 					// Tab Label Suffix
