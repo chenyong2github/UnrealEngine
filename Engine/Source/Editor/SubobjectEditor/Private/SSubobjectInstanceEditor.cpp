@@ -278,6 +278,7 @@ void SSubobjectInstanceEditor::PasteNodes()
 			{
 				if(FSubobjectEditorTreeNodePtrType SlateNode = FindSlateNodeForHandle(Handle))
 				{
+					TreeWidget->RequestScrollIntoView(SlateNode);
 					TreeWidget->SetItemSelection(SlateNode, true);	
 				}
 			}
