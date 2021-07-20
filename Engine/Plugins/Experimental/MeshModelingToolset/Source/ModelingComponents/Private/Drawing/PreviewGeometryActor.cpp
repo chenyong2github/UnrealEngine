@@ -67,7 +67,7 @@ void UPreviewGeometry::SetTransform(const FTransform& UseTransform)
 
 void UPreviewGeometry::SetAllVisible(bool bVisible)
 {
-	for (TPair<FString, ULineSetComponent*> Entry : LineSets)
+	for (TPair<FString, TObjectPtr<ULineSetComponent>> Entry : LineSets)
 	{
 		Entry.Value->SetVisibility(bVisible);
 	}
@@ -131,7 +131,7 @@ bool UPreviewGeometry::RemoveLineSet(const FString& LineSetIdentifier, bool bDes
 
 void UPreviewGeometry::RemoveAllLineSets(bool bDestroy)
 {
-	for (TPair<FString, ULineSetComponent*> Entry : LineSets)
+	for (TPair<FString, TObjectPtr<ULineSetComponent>> Entry : LineSets)
 	{
 		if (bDestroy)
 		{
@@ -170,7 +170,7 @@ bool UPreviewGeometry::SetLineSetMaterial(const FString& LineSetIdentifier, UMat
 
 void UPreviewGeometry::SetAllLineSetsMaterial(UMaterialInterface* Material)
 {
-	for (TPair<FString, ULineSetComponent*> Entry : LineSets)
+	for (TPair<FString, TObjectPtr<ULineSetComponent>> Entry : LineSets)
 	{
 		Entry.Value->SetLineMaterial(Material);
 	}

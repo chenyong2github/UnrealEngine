@@ -756,7 +756,7 @@ void UControlRigDetailPanelControlProxies::RemoveProxy(const FName& Name)
 
 void UControlRigDetailPanelControlProxies::RemoveAllProxies()
 {
-	for (TPair<FName, UControlRigControlsProxy * >Pair : AllProxies)
+	for (TPair<FName, TObjectPtr<UControlRigControlsProxy> >Pair : AllProxies)
 	{
 		UControlRigControlsProxy* ExistingProxy = Pair.Value;
 		ExistingProxy->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
