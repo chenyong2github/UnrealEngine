@@ -152,6 +152,8 @@ DECLARE_CYCLE_STAT(TEXT("NetDriver TickFlush GatherStatsPerfCounters"), STAT_Net
 
 DEFINE_LOG_CATEGORY_STATIC(LogNetSyncLoads, Log, All);
 
+CSV_DEFINE_CATEGORY(Networking, true);
+
 int32 GNumSaturatedConnections; // Counter for how many connections are skipped/early out due to bandwidth saturation
 int32 GNumSharedSerializationHit;
 int32 GNumSharedSerializationMiss;
@@ -1120,152 +1122,153 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 		DrawNetDriverDebug();
 	}
 
-	if ( CVarOptimizedRemapping.GetValueOnAnyThread() && GuidCache.IsValid() )
 	{
-		SCOPE_CYCLE_COUNTER( STAT_NetUpdateUnmappedObjectsTime );
+		CSV_SCOPED_TIMING_STAT(Networking, UpdateUnmappedObjects);
+		SCOPE_CYCLE_COUNTER(STAT_NetUpdateUnmappedObjectsTime);
 
-		// Go over recently imported network guids, and see if there are any replicators that need to map them
-		TSet< FNetworkGUID >& ImportedNetGuids = GuidCache->ImportedNetGuids;
-		TMap< FNetworkGUID, TSet< FNetworkGUID > >& PendingOuterNetGuids = GuidCache->PendingOuterNetGuids;
-
-		SET_DWORD_STAT( STAT_ImportedNetGuids, ImportedNetGuids.Num() );
-		SET_DWORD_STAT( STAT_PendingOuterNetGuids, PendingOuterNetGuids.Num() );
-		SET_DWORD_STAT( STAT_UnmappedReplicators, UnmappedReplicators.Num() );
-
-		TSet< FObjectReplicator* > ForceUpdateReplicators;
-
-		for (FObjectReplicator* Replicator : UnmappedReplicators)
+		if (CVarOptimizedRemapping.GetValueOnAnyThread() && GuidCache.IsValid())
 		{
-			if (Replicator->bForceUpdateUnmapped)
+			// Go over recently imported network guids, and see if there are any replicators that need to map them
+			TSet< FNetworkGUID >& ImportedNetGuids = GuidCache->ImportedNetGuids;
+			TMap< FNetworkGUID, TSet< FNetworkGUID > >& PendingOuterNetGuids = GuidCache->PendingOuterNetGuids;
+
+			SET_DWORD_STAT(STAT_ImportedNetGuids, ImportedNetGuids.Num());
+			SET_DWORD_STAT(STAT_PendingOuterNetGuids, PendingOuterNetGuids.Num());
+			SET_DWORD_STAT(STAT_UnmappedReplicators, UnmappedReplicators.Num());
+
+			TSet< FObjectReplicator* > ForceUpdateReplicators;
+
+			for (FObjectReplicator* Replicator : UnmappedReplicators)
 			{
-				Replicator->bForceUpdateUnmapped = false;
-				ForceUpdateReplicators.Add(Replicator);
+				if (Replicator->bForceUpdateUnmapped)
+				{
+					Replicator->bForceUpdateUnmapped = false;
+					ForceUpdateReplicators.Add(Replicator);
+				}
 			}
-		}
 
-		if ( ImportedNetGuids.Num() || ForceUpdateReplicators.Num() )
-		{
-			int32 NumRemapTests = 0;
-			int32 MaxRemaps = IsServer() ? 0 : CVarMaxClientGuidRemaps.GetValueOnAnyThread();
-			bool bFilterGuidRemapping = (CVarFilterGuidRemapping.GetValueOnAnyThread() > 0);
-
-			TArray< FNetworkGUID > UnmappedGuids;
-			TArray< FNetworkGUID > NewlyMappedGuids;
-
-			for ( auto It = ImportedNetGuids.CreateIterator(); It; ++It )
+			if (ImportedNetGuids.Num() || ForceUpdateReplicators.Num())
 			{
-				const FNetworkGUID NetworkGuid = *It;
-				bool bMappedOrBroken = false;
+				int32 NumRemapTests = 0;
+				int32 MaxRemaps = IsServer() ? 0 : CVarMaxClientGuidRemaps.GetValueOnAnyThread();
+				bool bFilterGuidRemapping = (CVarFilterGuidRemapping.GetValueOnAnyThread() > 0);
 
-				if ( GuidCache->GetObjectFromNetGUID( NetworkGuid, false ) != nullptr )
+				TArray< FNetworkGUID > UnmappedGuids;
+				TArray< FNetworkGUID > NewlyMappedGuids;
+
+				for (auto It = ImportedNetGuids.CreateIterator(); It; ++It)
 				{
-					NewlyMappedGuids.Add( NetworkGuid );
-					bMappedOrBroken = true;
-				}
+					const FNetworkGUID NetworkGuid = *It;
+					bool bMappedOrBroken = false;
 
-				if ( GuidCache->IsGUIDBroken( NetworkGuid, false ) )
-				{
-					bMappedOrBroken = true;
-				}
-
-				It.RemoveCurrent();
-
-				if (!bMappedOrBroken)
-				{
-					FNetworkGUID OuterGUID = GuidCache->GetOuterNetGUID(NetworkGuid);
-
-					// we're missing the outer, stop checking until we map it
-					if (bFilterGuidRemapping && OuterGUID.IsValid() && !OuterGUID.IsDefault() && !GuidCache->IsGUIDLoaded(OuterGUID) && !GuidCache->IsGUIDPending(OuterGUID))
+					if (GuidCache->GetObjectFromNetGUID(NetworkGuid, false) != nullptr)
 					{
-						UE_LOG(LogNetPackageMap, Log, TEXT("Missing outer (%s) for unmapped guid (%s), marking pending"), *GuidCache->FullNetGUIDPath(OuterGUID), *GuidCache->FullNetGUIDPath(NetworkGuid));
-
-						TSet<FNetworkGUID>& PendingGuids = PendingOuterNetGuids.FindOrAdd(OuterGUID);
-						PendingGuids.Add(NetworkGuid);
+						NewlyMappedGuids.Add(NetworkGuid);
+						bMappedOrBroken = true;
 					}
-					else
+
+					if (GuidCache->IsGUIDBroken(NetworkGuid, false))
 					{
-						if (ensure(NetworkGuid.IsValid()))
+						bMappedOrBroken = true;
+					}
+
+					It.RemoveCurrent();
+
+					if (!bMappedOrBroken)
+					{
+						FNetworkGUID OuterGUID = GuidCache->GetOuterNetGUID(NetworkGuid);
+
+						// we're missing the outer, stop checking until we map it
+						if (bFilterGuidRemapping && OuterGUID.IsValid() && !OuterGUID.IsDefault() && !GuidCache->IsGUIDLoaded(OuterGUID) && !GuidCache->IsGUIDPending(OuterGUID))
 						{
-							UnmappedGuids.Add(NetworkGuid);
+							UE_LOG(LogNetPackageMap, Log, TEXT("Missing outer (%s) for unmapped guid (%s), marking pending"), *GuidCache->FullNetGUIDPath(OuterGUID), *GuidCache->FullNetGUIDPath(NetworkGuid));
+
+							TSet<FNetworkGUID>& PendingGuids = PendingOuterNetGuids.FindOrAdd(OuterGUID);
+							PendingGuids.Add(NetworkGuid);
+						}
+						else
+						{
+							if (ensure(NetworkGuid.IsValid()))
+							{
+								UnmappedGuids.Add(NetworkGuid);
+							}
+						}
+					}
+
+					++NumRemapTests;
+
+					if ((MaxRemaps > 0) && (NumRemapTests >= MaxRemaps))
+					{
+						break;
+					}
+				}
+
+				// attempt to resolve dependent guids next tick (outer is now mapped)
+				for (const FNetworkGUID& NetGuid : NewlyMappedGuids)
+				{
+					TSet< FNetworkGUID >* DependentGuids = PendingOuterNetGuids.Find(NetGuid);
+					if (DependentGuids)
+					{
+						UE_LOG(LogNetPackageMap, Log, TEXT("Newly mapped outer (%s) removing from pending"), *GuidCache->FullNetGUIDPath(NetGuid));
+
+						ImportedNetGuids.Append(*DependentGuids);
+						PendingOuterNetGuids.Remove(NetGuid);
+					}
+				}
+
+				// any tested guids that could not yet be mapped are added back to the list
+				if (UnmappedGuids.Num())
+				{
+					ImportedNetGuids.CompactStable();
+					ImportedNetGuids.Append(UnmappedGuids);
+				}
+
+				if (NewlyMappedGuids.Num() || ForceUpdateReplicators.Num())
+				{
+					TSet< FObjectReplicator* > AllReplicators = ForceUpdateReplicators;
+
+					for (const FNetworkGUID& NetGuid : NewlyMappedGuids)
+					{
+						TSet< FObjectReplicator* >* Replicators = GuidToReplicatorMap.Find(NetGuid);
+
+						if (Replicators)
+						{
+							AllReplicators.Append(*Replicators);
+						}
+					}
+
+					for (FObjectReplicator* Replicator : AllReplicators)
+					{
+						if (UnmappedReplicators.Contains(Replicator))
+						{
+							bool bHasMoreUnmapped = false;
+							Replicator->UpdateUnmappedObjects(bHasMoreUnmapped);
+
+							if (!bHasMoreUnmapped)
+							{
+								UnmappedReplicators.Remove(Replicator);
+							}
 						}
 					}
 				}
-
-				++NumRemapTests;
-
- 				if ((MaxRemaps > 0) && (NumRemapTests >= MaxRemaps))
-				{
-					break;
-				}
-			}
-
-			// attempt to resolve dependent guids next tick (outer is now mapped)
-			for ( const FNetworkGUID& NetGuid : NewlyMappedGuids )
-			{
-				TSet< FNetworkGUID >* DependentGuids = PendingOuterNetGuids.Find( NetGuid );
-				if ( DependentGuids )
-				{
-					UE_LOG(LogNetPackageMap, Log, TEXT("Newly mapped outer (%s) removing from pending"), *GuidCache->FullNetGUIDPath(NetGuid));
-
-					ImportedNetGuids.Append( *DependentGuids );
-					PendingOuterNetGuids.Remove( NetGuid );
-				}
-			}
-
-			// any tested guids that could not yet be mapped are added back to the list
-			if (UnmappedGuids.Num())
-			{
-				ImportedNetGuids.CompactStable();
-				ImportedNetGuids.Append(UnmappedGuids);
-			}
-
-			if ( NewlyMappedGuids.Num() || ForceUpdateReplicators.Num() )
-			{
-				TSet< FObjectReplicator* > AllReplicators = ForceUpdateReplicators;
-
-				for ( const FNetworkGUID& NetGuid : NewlyMappedGuids )
-				{
-					TSet< FObjectReplicator* >* Replicators = GuidToReplicatorMap.Find( NetGuid );
-
-					if ( Replicators )
-					{
-						AllReplicators.Append( *Replicators );
-					}
-				}
-
-				for ( FObjectReplicator* Replicator : AllReplicators )
-				{
-					if ( UnmappedReplicators.Contains( Replicator ) )
-					{
-						bool bHasMoreUnmapped = false;
-						Replicator->UpdateUnmappedObjects( bHasMoreUnmapped );
-
-						if ( !bHasMoreUnmapped )
-						{
-							UnmappedReplicators.Remove( Replicator );
-						}
-					}
-				}
 			}
 		}
-	}
-	else
-	{
-		SCOPE_CYCLE_COUNTER( STAT_NetUpdateUnmappedObjectsTime );
-
-		// Update properties that are unmapped, try to hook up the object pointers if they exist now
-		for ( auto It = UnmappedReplicators.CreateIterator(); It; ++It )
+		else
 		{
-			FObjectReplicator* Replicator = *It;
-
-			bool bHasMoreUnmapped = false;
-
-			Replicator->UpdateUnmappedObjects( bHasMoreUnmapped );
-
-			if ( !bHasMoreUnmapped )
+			// Update properties that are unmapped, try to hook up the object pointers if they exist now
+			for (auto It = UnmappedReplicators.CreateIterator(); It; ++It)
 			{
-				// If there are no more unmapped objects, we can also stop checking
-				It.RemoveCurrent();
+				FObjectReplicator* Replicator = *It;
+
+				bool bHasMoreUnmapped = false;
+
+				Replicator->UpdateUnmappedObjects(bHasMoreUnmapped);
+
+				if (!bHasMoreUnmapped)
+				{
+					// If there are no more unmapped objects, we can also stop checking
+					It.RemoveCurrent();
+				}
 			}
 		}
 	}
