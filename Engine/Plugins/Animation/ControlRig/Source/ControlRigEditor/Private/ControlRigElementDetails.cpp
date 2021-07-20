@@ -1565,8 +1565,8 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 					}
 
 					this->HierarchyBeingCustomized->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
-					this->HierarchyBeingCustomized->SetControlValue(ControlElement, ValueToSet, ERigControlValueType::Initial, true);
-					this->HierarchyBeingCustomized->SetControlValue(ControlElement, ValueToSet, ERigControlValueType::Current, true);
+					this->HierarchyBeingCustomized->SetControlValue(ControlElement, ValueToSet, ERigControlValueType::Initial, true, false, true);
+					this->HierarchyBeingCustomized->SetControlValue(ControlElement, ValueToSet, ERigControlValueType::Current, true, false, true);
 
 					FRigControlElement::StaticStruct()->CopyScriptStruct(ViewElement, ControlElement);
 
@@ -1578,7 +1578,7 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 							this->BlueprintBeingCustomized->Hierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
 							this->BlueprintBeingCustomized->Hierarchy->SetControlValue(ControlElement, ValueToSet, ERigControlValueType::Initial, true);
 							this->BlueprintBeingCustomized->Hierarchy->SetControlValue(ControlElement, ValueToSet, ERigControlValueType::Current, true);
-					}
+						}
 					}
 				}
 				
@@ -1758,8 +1758,8 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 
 							ControlBeingCustomized->Settings.ApplyLimits(InitialValue);
 							ControlBeingCustomized->Settings.ApplyLimits(CurrentValue);
-							HierarchyBeingCustomized->SetControlValue(ControlBeingCustomized, InitialValue, ERigControlValueType::Initial);
-							HierarchyBeingCustomized->SetControlValue(ControlBeingCustomized, CurrentValue, ERigControlValueType::Current);
+							HierarchyBeingCustomized->SetControlValue(ControlBeingCustomized, InitialValue, ERigControlValueType::Initial, false, false, true);
+							HierarchyBeingCustomized->SetControlValue(ControlBeingCustomized, CurrentValue, ERigControlValueType::Current, false, false, true);
 
 							if (UControlRig* DebuggedRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
 							{

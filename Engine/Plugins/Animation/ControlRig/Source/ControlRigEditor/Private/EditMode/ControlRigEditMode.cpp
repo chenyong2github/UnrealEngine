@@ -2382,7 +2382,7 @@ void FControlRigEditMode::MoveGizmo(AControlRigGizmoActor* GizmoActor, const boo
 				{
 					InOutLocal = InteractionControlRig->GetControlLocalTransform(GizmoActor->ControlName);
 				}
-				InteractionControlRig->SetControlGlobalTransform(GizmoActor->ControlName, NewTransform, true, Context);			// assumes it's attached to actor
+				InteractionControlRig->SetControlGlobalTransform(GizmoActor->ControlName, NewTransform, true, Context, true, true);			// assumes it's attached to actor
 				GizmoActor->SetGlobalTransform(CurrentTransform);
 				if (bCalcLocal)
 				{

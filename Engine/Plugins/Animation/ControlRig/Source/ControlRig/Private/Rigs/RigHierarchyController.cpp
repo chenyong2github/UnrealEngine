@@ -2129,7 +2129,7 @@ bool URigHierarchyController::RemoveAllParents(FRigElementKey InChild, bool bMai
 	
 	if (bRemoved && bPrintPythonCommand)
 	{
-		RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy_controller.remove_parent(%s, %s)"),
+		RigVMPythonUtils::Print(FString::Printf(TEXT("hierarchy_controller.remove_all_parents(%s, %s)"),
 			*InChild.ToPythonString(),
 			(bMaintainGlobalTransform) ? TEXT("True") : TEXT("False")));
 	}
