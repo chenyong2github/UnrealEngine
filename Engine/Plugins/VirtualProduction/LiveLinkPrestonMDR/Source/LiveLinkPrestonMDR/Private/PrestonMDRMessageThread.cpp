@@ -459,7 +459,7 @@ void FPrestonMDRMessageThread::ParseDataMessage(const uint8* const InData, const
 	uint8 DataDescription = AsciiToHex(&InData[FMDRProtocol::FirstPayloadByte]);
 
 	// Each bit in the data description byte represents a data field that follows in the message
-	const uint32 NumDataFields = FGenericPlatformMath::CountBits(DataDescription & 0x7F); // Ignore the MDRStatus
+	const uint32 NumDataFields = FGenericPlatformMath::CountBits(DataDescription & 0x3F); // Ignore the MDRStatus
 	constexpr uint32 NumBytesPerDataField = 2;
 
 	ensureMsgf((NumDataFields * NumBytesPerDataField) == (InNumDataBytes - 1),
