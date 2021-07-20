@@ -86,7 +86,7 @@ namespace CameraCalibrationStepsController
 
 		for (const ULiveLinkComponentController* LLComponentController : LLComponentControllers)
 		{
-			for (const TPair<TSubclassOf<ULiveLinkRole>, ULiveLinkControllerBase*> Pair : LLComponentController->ControllerMap)
+			for (const TPair<TSubclassOf<ULiveLinkRole>, TObjectPtr<ULiveLinkControllerBase>> Pair : LLComponentController->ControllerMap)
 			{
 				if (ULiveLinkCameraController* CameraController = Cast<ULiveLinkCameraController>(Pair.Value))
 				{
