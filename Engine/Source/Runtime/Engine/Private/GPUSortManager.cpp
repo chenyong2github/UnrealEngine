@@ -399,12 +399,12 @@ void FGPUSortManager::FSortBatch::UpdateProcessingOrder()
 {
 	if (EnumHasAnyFlags(Flags, EGPUSortFlags::SortAfterPreRender))
 	{
-		checkSlow(!EnumHasAnyFlags(Flags, EGPUSortFlags::KeyGenAfterPostRenderOpaque));
+		check(!EnumHasAnyFlags(Flags, EGPUSortFlags::KeyGenAfterPostRenderOpaque));
 		ProcessingOrder = ESortBatchProcessingOrder::KeyGenAndSortAfterPreRender;
 	}
 	else // SortAfterPostRenderOpaque
 	{
-		checkSlow(EnumHasAnyFlags(Flags, EGPUSortFlags::SortAfterPostRenderOpaque));
+		check(EnumHasAnyFlags(Flags, EGPUSortFlags::SortAfterPostRenderOpaque));
 		if (EnumHasAnyFlags(Flags, EGPUSortFlags::KeyGenAfterPreRender))
 		{
 			ProcessingOrder = ESortBatchProcessingOrder::KeyGenAfterPreRenderAndSortAfterPostRenderOpaque;
@@ -817,6 +817,7 @@ void FGPUSortManager::OnPostRenderOpaque(FRDGBuilder& GraphBuilder)
 					SortBatch.SortBuffers = nullptr;
 				}
 			}
+			PostPostRenderEvent.Broadcast(RHICmdList);
 
 			ResetDynamicValuesBuffers();
 		}

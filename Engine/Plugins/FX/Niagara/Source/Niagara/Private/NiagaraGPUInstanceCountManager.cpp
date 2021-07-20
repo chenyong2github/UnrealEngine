@@ -163,13 +163,6 @@ void FNiagaraGPUInstanceCountManager::FreeEntry(uint32& BufferOffset)
 		checkf(!FreeEntries.Contains(BufferOffset), TEXT("BufferOffset %u exists in FreeEntries"), BufferOffset);
 		checkf(!InstanceCountClearTasks.Contains(BufferOffset), TEXT("BufferOffset %u exists in InstanceCountClearTasks"), BufferOffset);
 
-		//UE_LOG(LogNiagara, Warning, TEXT("FNiagaraGPUInstanceCountManager::FreeEntry %d"), BufferOffset);
-		// Add a reset to 0 task.
-		// The entry will only become available/reusable after being reset to 0 in UpdateDrawIndirectBuffer()
-		//if (InstanceCountClearTasks.Find(BufferOffset) != -1)
-		//{
-		//	UE_LOG(LogNiagara, Warning, TEXT("FNiagaraGPUInstanceCountManager::FreeEntry DUPLICATED!!!!!!!!!!!!!! %d"), BufferOffset);
-		//}
 		InstanceCountClearTasks.Add(BufferOffset);
 		BufferOffset = INDEX_NONE;
 	}
@@ -294,248 +287,277 @@ void FNiagaraGPUInstanceCountManager::FlushIndirectArgsPool()
 	if (GNiagaraIndirectArgsPoolAllowShrinking && DrawIndirectPool.Num() > 0 && DrawIndirectLowWaterFrames >= uint32(GNiagaraIndirectArgsPoolLowWaterFrames))
 	{
 		FIndirectArgsPoolEntryPtr& PoolEntry = DrawIndirectPool[0];
-		const uint32 NewSize = FMath::Max<uint32>(GNiagaraIndirectArgsPoolMinSize, PoolEntry->NumAllocated / GNiagaraIndirectArgsPoolBlockSizeFactor);
+		const uint32 NewSize = FMath::Max<uint32>(GNiagaraIndirectArgsPoolMinSize, PoolEntry->AllocatedEntries / GNiagaraIndirectArgsPoolBlockSizeFactor);
 
-		INDIRECT_ARG_POOL_LOG("Shrinking pool from size %d to %d", PoolEntry->NumAllocated, NewSize);
+		INDIRECT_ARG_POOL_LOG("Shrinking pool from size %d to %d", PoolEntry->AllocatedEntries, NewSize);
 
 		PoolEntry->Buffer.Release();
-		PoolEntry->NumAllocated = NewSize;
+		PoolEntry->AllocatedEntries = NewSize;
 
 		TResourceArray<uint32> InitData;
-		InitData.AddZeroed(PoolEntry->NumAllocated * NIAGARA_DRAW_INDIRECT_ARGS_SIZE);
-		PoolEntry->Buffer.Initialize(TEXT("NiagaraGPUDrawIndirectArgs"), sizeof(uint32), PoolEntry->NumAllocated * NIAGARA_DRAW_INDIRECT_ARGS_SIZE, EPixelFormat::PF_R32_UINT, ERHIAccess::IndirectArgs, BUF_Static | BUF_DrawIndirect, &InitData);
+		InitData.AddZeroed(PoolEntry->AllocatedEntries * NIAGARA_DRAW_INDIRECT_ARGS_SIZE);
+		PoolEntry->Buffer.Initialize(TEXT("NiagaraGPUDrawIndirectArgs"), sizeof(uint32), PoolEntry->AllocatedEntries * NIAGARA_DRAW_INDIRECT_ARGS_SIZE, EPixelFormat::PF_R32_UINT, ERHIAccess::IndirectArgs, BUF_Static | BUF_DrawIndirect, &InitData);
 
 		// Reset the timer
 		DrawIndirectLowWaterFrames = 0;
 	}
 }
 
-FNiagaraGPUInstanceCountManager::FIndirectArgSlot FNiagaraGPUInstanceCountManager::AddDrawIndirect(uint32 InstanceCountBufferOffset, uint32 NumIndicesPerInstance,
-	uint32 StartIndexLocation, bool bIsInstancedStereoEnabled, bool bCulled)
+FNiagaraGPUInstanceCountManager::FIndirectArgSlot FNiagaraGPUInstanceCountManager::AddDrawIndirect(uint32 InstanceCountBufferOffset, uint32 NumIndicesPerInstance, uint32 StartIndexLocation, bool bIsInstancedStereoEnabled, bool bCulled, ENiagaraGpuComputeTickStage::Type ReadyTickStage)
 {
 	checkSlow(IsInRenderingThread());
 
-	const FArgGenTaskInfo Info(InstanceCountBufferOffset, NumIndicesPerInstance, StartIndexLocation, bIsInstancedStereoEnabled, bCulled);
+	const ENiagaraDrawIndirectArgGenTaskFlags TaskFlags =
+		(bIsInstancedStereoEnabled ? ENiagaraDrawIndirectArgGenTaskFlags::InstancedStereo : ENiagaraDrawIndirectArgGenTaskFlags::None)
+		| (bCulled ? ENiagaraDrawIndirectArgGenTaskFlags::UseCulledCounts : ENiagaraDrawIndirectArgGenTaskFlags::None)
+		| (ReadyTickStage == ENiagaraGpuComputeTickStage::PostOpaqueRender ? ENiagaraDrawIndirectArgGenTaskFlags::PostOpaque : ENiagaraDrawIndirectArgGenTaskFlags::None);
+	FNiagaraDrawIndirectArgGenTaskInfo Info(InstanceCountBufferOffset, NumIndicesPerInstance, StartIndexLocation, TaskFlags);
 
-	static const FArgGenSlotInfo InvalidSlot(INDEX_NONE, INDEX_NONE);
-	FArgGenSlotInfo& CachedSlot = DrawIndirectArgMap.FindOrAdd(Info, InvalidSlot);
-	if (CachedSlot == InvalidSlot)
+	FNiagaraDrawIndirectArgGenSlotInfo* SlotInfo = DrawIndirectArgMap.Find(Info);
+	if ( SlotInfo == nullptr )
 	{
 		// Attempt to allocate a new slot from the pool, or add to the pool if it's full
 		FIndirectArgsPoolEntry* PoolEntry = DrawIndirectPool.Num() > 0 ? DrawIndirectPool.Last().Get() : nullptr;
-		if (PoolEntry == nullptr || PoolEntry->NumUsed >= PoolEntry->NumAllocated)
+		if (PoolEntry == nullptr || PoolEntry->UsedEntriesTotal >= PoolEntry->AllocatedEntries)
 		{
 			FIndirectArgsPoolEntryPtr NewEntry = MakeUnique<FIndirectArgsPoolEntry>();
-			NewEntry->NumAllocated = PoolEntry ? uint32(PoolEntry->NumAllocated * GNiagaraIndirectArgsPoolBlockSizeFactor) : uint32(GNiagaraIndirectArgsPoolMinSize);
+			NewEntry->AllocatedEntries = PoolEntry ? uint32(PoolEntry->AllocatedEntries * GNiagaraIndirectArgsPoolBlockSizeFactor) : uint32(GNiagaraIndirectArgsPoolMinSize);
 
-			INDIRECT_ARG_POOL_LOG("Increasing pool from size %d to %d", PoolEntry ? PoolEntry->NumAllocated : 0, NewEntry->NumAllocated);
+			INDIRECT_ARG_POOL_LOG("Increasing pool from size %d to %d", PoolEntry ? PoolEntry->AllocatedEntries : 0, NewEntry->AllocatedEntries);
 
 			TResourceArray<uint32> InitData;
-			InitData.AddZeroed(NewEntry->NumAllocated * NIAGARA_DRAW_INDIRECT_ARGS_SIZE);
-			NewEntry->Buffer.Initialize(TEXT("NiagaraGPUDrawIndirectArgs"), sizeof(uint32), NewEntry->NumAllocated * NIAGARA_DRAW_INDIRECT_ARGS_SIZE, EPixelFormat::PF_R32_UINT, ERHIAccess::IndirectArgs, BUF_Static | BUF_DrawIndirect, &InitData);
+			InitData.AddZeroed(NewEntry->AllocatedEntries * NIAGARA_DRAW_INDIRECT_ARGS_SIZE);
+			NewEntry->Buffer.Initialize(TEXT("NiagaraGPUDrawIndirectArgs"), sizeof(uint32), NewEntry->AllocatedEntries * NIAGARA_DRAW_INDIRECT_ARGS_SIZE, EPixelFormat::PF_R32_UINT, ERHIAccess::IndirectArgs, BUF_Static | BUF_DrawIndirect, &InitData);
 
 			PoolEntry = NewEntry.Get();
 			DrawIndirectPool.Emplace(MoveTemp(NewEntry));
 		}
 
-		DrawIndirectArgGenTasks.Add(Info);
-		CachedSlot.Key = DrawIndirectPool.Num() - 1;
-		CachedSlot.Value = PoolEntry->NumUsed * NIAGARA_DRAW_INDIRECT_ARGS_SIZE * sizeof(uint32);
-		++PoolEntry->NumUsed;
+		Info.IndirectArgsBufferOffset = PoolEntry->UsedEntriesTotal * NIAGARA_DRAW_INDIRECT_ARGS_SIZE;
+		++PoolEntry->UsedEntriesTotal;
+
+		SlotInfo = &DrawIndirectArgMap.Add(Info);
+		SlotInfo->PoolIndex = DrawIndirectPool.Num() - 1;
+		SlotInfo->BufferOffset = Info.IndirectArgsBufferOffset * sizeof(uint32);
+
+		const ENiagaraGPUCountUpdatePhase::Type CountPhase = ReadyTickStage == ENiagaraGpuComputeTickStage::PostOpaqueRender ? ENiagaraGPUCountUpdatePhase::PostOpaque : ENiagaraGPUCountUpdatePhase::PreOpaque;
+		DrawIndirectArgGenTasks[CountPhase].Add(Info);
+		++PoolEntry->UsedEntries[CountPhase];
 	}
 
-	return FIndirectArgSlot(DrawIndirectPool[CachedSlot.Key]->Buffer.Buffer, DrawIndirectPool[CachedSlot.Key]->Buffer.SRV, CachedSlot.Value);
+	return FIndirectArgSlot(DrawIndirectPool[SlotInfo->PoolIndex]->Buffer.Buffer, DrawIndirectPool[SlotInfo->PoolIndex]->Buffer.SRV, SlotInfo->BufferOffset);
 }
 
-void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(NiagaraEmitterInstanceBatcher& Batcher, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel)
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(NiagaraEmitterInstanceBatcher& Batcher, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, ENiagaraGPUCountUpdatePhase::Type CountPhase)
 {
-	INC_DWORD_STAT_BY(STAT_NiagaraIndirectDraws, DrawIndirectArgGenTasks.Num());
-
-	if (DrawIndirectArgGenTasks.Num() || InstanceCountClearTasks.Num())
+	// Anything to process?
+	TArray<FNiagaraDrawIndirectArgGenTaskInfo>& ArgTasks = DrawIndirectArgGenTasks[CountPhase];
+	const bool bClearCounts = (CountPhase == ENiagaraGPUCountUpdatePhase::PreOpaque) && (InstanceCountClearTasks.Num() > 0);
+	if ( (ArgTasks.Num() > 0 || bClearCounts) && FNiagaraUtilities::AllowComputeShaders(GShaderPlatformForFeatureLevel[FeatureLevel]) )
 	{
-		if (FNiagaraUtilities::AllowComputeShaders(GShaderPlatformForFeatureLevel[FeatureLevel]))
+		INC_DWORD_STAT_BY(STAT_NiagaraIndirectDraws, ArgTasks.Num());
+
+		SCOPED_DRAW_EVENT(RHICmdList, NiagaraUpdateDrawIndirectBuffers);
+
+		// Allocate task buffer
+		FReadBuffer TaskInfosBuffer;
 		{
-			SCOPED_DRAW_EVENT(RHICmdList, NiagaraUpdateDrawIndirectBuffers);
-			FReadBuffer TaskInfosBuffer;
+			const uint32 ArgGenSize = ArgTasks.Num() * sizeof(FNiagaraDrawIndirectArgGenTaskInfo);
+			const uint32 InstanceCountClearSize = InstanceCountClearTasks.Num() * sizeof(uint32);
+			const uint32 TaskBufferSize = ArgGenSize + InstanceCountClearSize;
+			TaskInfosBuffer.Initialize(TEXT("NiagaraTaskInfosBuffer"), sizeof(uint32), TaskBufferSize / sizeof(uint32), EPixelFormat::PF_R32_UINT, BUF_Volatile);
 
-			//for (int32 i = 0; i < InstanceCountClearTasks.Num(); i++)
-			//{
-			//		UE_LOG(LogNiagara, Log, TEXT("InstanceCountClearTasks[%d] = %d"), i, InstanceCountClearTasks[i]);
-			//}
-			{
-				// All draw indirect args task are run first because of the binding between the task ID and arg write offset.
-				const uint32 ArgGenSize = DrawIndirectArgGenTasks.Num() * sizeof(FArgGenTaskInfo);
-				const uint32 InstanceCountClearSize = InstanceCountClearTasks.Num() * sizeof(uint32);
-				const uint32 TaskBufferSize = ArgGenSize + InstanceCountClearSize;
-				TaskInfosBuffer.Initialize(TEXT("NiagaraTaskInfosBuffer"), sizeof(uint32), TaskBufferSize / sizeof(uint32), EPixelFormat::PF_R32_UINT, BUF_Volatile);
-				uint8* TaskBufferData = (uint8*)RHILockBuffer(TaskInfosBuffer.Buffer, 0, TaskBufferSize, RLM_WriteOnly);
-				FMemory::Memcpy(TaskBufferData, DrawIndirectArgGenTasks.GetData(), ArgGenSize);
-				FMemory::Memcpy(TaskBufferData + ArgGenSize, InstanceCountClearTasks.GetData(), InstanceCountClearSize);
-				RHIUnlockBuffer(TaskInfosBuffer.Buffer);
-			}
-			FNiagaraUAVPoolAccessScope UAVPoolAccessScope(Batcher);
-
-			FUnorderedAccessViewRHIRef CountsUAV = nullptr;
-			FShaderResourceViewRHIRef CulledCountsSRV = nullptr;
-			TArray<FRHITransitionInfo, TInlineAllocator<10>> Transitions;
-			for (auto& PoolEntry : DrawIndirectPool)
-			{
-				Transitions.Emplace(PoolEntry->Buffer.UAV, ERHIAccess::IndirectArgs, ERHIAccess::UAVCompute);
-			}
-
-			const bool bCountBufferIsValid = CountBuffer.UAV.IsValid();
-			if (bCountBufferIsValid)
-			{
-				Transitions.Emplace(CountBuffer.UAV, kCountBufferDefaultState, ERHIAccess::UAVCompute);
-				CountsUAV = CountBuffer.UAV;
-			}
-			else
-			{
-				// This can happen if there are no InstanceCountClearTasks and all DrawIndirectArgGenTasks are using culled counts
-				CountsUAV = Batcher.GetEmptyUAVFromPool(RHICmdList, PF_R32_UINT, ENiagaraEmptyUAVType::Buffer);
-			}
-
-			if (CulledCountBuffer.SRV.IsValid())
-			{
-				if (bAcquiredCulledCounts)
-				{
-					Transitions.Emplace(CulledCountBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute);
-				}
-				CulledCountsSRV = CulledCountBuffer.SRV.GetReference();
-			}
-			else
-			{
-				CulledCountsSRV = FNiagaraRenderer::GetDummyUIntBuffer();
-			}
-
-			RHICmdList.Transition(Transitions);
-
-			FNiagaraDrawIndirectArgsGenCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FNiagaraDrawIndirectArgsGenCS::FSupportsTextureRW>(GRHISupportsRWTextureBuffers ? 1 : 0);
-			TShaderMapRef<FNiagaraDrawIndirectArgsGenCS> DrawIndirectArgsGenCS(GetGlobalShaderMap(FeatureLevel), PermutationVector);
-
-			if (bCountBufferIsValid)
-			{
-				RHICmdList.BeginUAVOverlap(CountsUAV);
-			}
-
-			const int32 NumDispatches = FMath::Max(DrawIndirectPool.Num(), 1);
-			uint32 ArgGenTaskOffset = 0;
-			for (int32 DispatchIdx = 0; DispatchIdx < NumDispatches; ++DispatchIdx)
-			{
-				int32 NumArgGenTasks = 0;
-				FUnorderedAccessViewRHIRef ArgsUAV;
-				if (DrawIndirectPool.IsValidIndex(DispatchIdx))
-				{
-					FIndirectArgsPoolEntryPtr& PoolEntry = DrawIndirectPool[DispatchIdx];
-					ArgsUAV = PoolEntry->Buffer.UAV;
-					NumArgGenTasks = PoolEntry->NumUsed;
-				}
-				else
-				{
-					ArgsUAV = Batcher.GetEmptyUAVFromPool(RHICmdList, PF_R32_UINT, ENiagaraEmptyUAVType::Buffer);
-				}
-
-				const bool bIsLastDispatch = DispatchIdx == (NumDispatches - 1);
-				const int32 NumInstanceCountClearTasks = bIsLastDispatch ? InstanceCountClearTasks.Num() : 0;
-
-				SetComputePipelineState(RHICmdList, DrawIndirectArgsGenCS.GetComputeShader());
-				DrawIndirectArgsGenCS->SetOutput(RHICmdList, ArgsUAV, CountsUAV);
-				DrawIndirectArgsGenCS->SetParameters(RHICmdList, TaskInfosBuffer.SRV, CulledCountsSRV, ArgGenTaskOffset, NumArgGenTasks, NumInstanceCountClearTasks);
-
-				// If the device supports RW Texture buffers then we can use a single compute pass, otherwise we need to split into two passes
-				if (GRHISupportsRWTextureBuffers)
-				{
-					DispatchComputeShader(RHICmdList, DrawIndirectArgsGenCS.GetShader(), FMath::DivideAndRoundUp(NumArgGenTasks + NumInstanceCountClearTasks, NIAGARA_DRAW_INDIRECT_ARGS_GEN_THREAD_COUNT), 1, 1);
-					DrawIndirectArgsGenCS->UnbindBuffers(RHICmdList);
-				}
-				else
-				{
-					if (NumArgGenTasks > 0)
-					{
-						DispatchComputeShader(RHICmdList, DrawIndirectArgsGenCS.GetShader(), FMath::DivideAndRoundUp(NumArgGenTasks, NIAGARA_DRAW_INDIRECT_ARGS_GEN_THREAD_COUNT), 1, 1);
-						DrawIndirectArgsGenCS->UnbindBuffers(RHICmdList);
-					}
-
-					if (NumInstanceCountClearTasks > 0)
-					{
-						FNiagaraDrawIndirectResetCountsCS::FPermutationDomain PermutationVectorResetCounts;
-						TShaderMapRef<FNiagaraDrawIndirectResetCountsCS> DrawIndirectResetCountsArgsGenCS(GetGlobalShaderMap(FeatureLevel), PermutationVectorResetCounts);
-						SetComputePipelineState(RHICmdList, DrawIndirectResetCountsArgsGenCS.GetComputeShader());
-						DrawIndirectResetCountsArgsGenCS->SetOutput(RHICmdList, CountBuffer.UAV);
-						DrawIndirectResetCountsArgsGenCS->SetParameters(RHICmdList, TaskInfosBuffer.SRV, DrawIndirectArgGenTasks.Num(), NumInstanceCountClearTasks);
-						DispatchComputeShader(RHICmdList, DrawIndirectResetCountsArgsGenCS.GetShader(), FMath::DivideAndRoundUp(NumInstanceCountClearTasks, NIAGARA_DRAW_INDIRECT_ARGS_GEN_THREAD_COUNT), 1, 1);
-						DrawIndirectResetCountsArgsGenCS->UnbindBuffers(RHICmdList);
-					}
-				}
-
-				ArgGenTaskOffset += NumArgGenTasks;
-			}
-
-			if (bCountBufferIsValid)
-			{
-				RHICmdList.EndUAVOverlap(CountsUAV);
-			}
-
-			Transitions.Reset();
-			for (auto& PoolEntry : DrawIndirectPool)
-			{
-				Transitions.Emplace(PoolEntry->Buffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::IndirectArgs);
-			}
-			Transitions.Emplace(CountBuffer.UAV, ERHIAccess::UAVCompute, kCountBufferDefaultState);
-			RHICmdList.Transition(Transitions);
+			uint8* TaskBufferData = (uint8*)RHILockBuffer(TaskInfosBuffer.Buffer, 0, TaskBufferSize, RLM_WriteOnly);
+			FMemory::Memcpy(TaskBufferData, ArgTasks.GetData(), ArgGenSize);
+			FMemory::Memcpy(TaskBufferData + ArgGenSize, InstanceCountClearTasks.GetData(), InstanceCountClearSize);
+			RHIUnlockBuffer(TaskInfosBuffer.Buffer);
 		}
-		// Once cleared to 0, the count are reusable.
-		FreeEntries.Append(InstanceCountClearTasks);
 
-		//for (int32 i = 0; i < FreeEntries.Num(); i++)
-		//{
-		//	UE_LOG(LogNiagara, Log, TEXT("FreeEntries[%d] = %d"), i, FreeEntries[i]);
-		//}
+		FNiagaraUAVPoolAccessScope UAVPoolAccessScope(Batcher);
+		TArray<FRHITransitionInfo, TInlineAllocator<10>> Transitions;
+		Transitions.Reserve(DrawIndirectPool.Num() + 2);
 
-		DrawIndirectArgGenTasks.Empty();
-		DrawIndirectArgMap.Empty();
-		InstanceCountClearTasks.Empty();
-
-	}
-
-	// Release culled count buffers
-	// This is done outside of the above if as a mesh renderer could request a culled count but never add any indirect draws
-	if (bAcquiredCulledCounts && RequiredCulledCounts > 0)
-	{
-		CulledCountBuffer.DiscardTransientResource();
-	}
-	bAcquiredCulledCounts = false;
-	RequiredCulledCounts = 0; // reset this counter now that we're done with them
-
-	if (GNiagaraIndirectArgsPoolAllowShrinking)
-	{
-		if (DrawIndirectPool.Num() == 1 && DrawIndirectPool[0]->NumAllocated > uint32(GNiagaraIndirectArgsPoolMinSize))
+		// Get counts buffer
+		FUnorderedAccessViewRHIRef CountsUAV = nullptr;
+		const bool bCountBufferIsValid = CountBuffer.UAV.IsValid();
+		if (bCountBufferIsValid)
 		{
-			// See if this was a low water mark frame
-			FIndirectArgsPoolEntryPtr& PoolEntry = DrawIndirectPool[0];
-			const uint32 LowWaterCount = FMath::Max<uint32>(GNiagaraIndirectArgsPoolMinSize, PoolEntry->NumAllocated * GNiagaraIndirectArgsPoolLowWaterAmount);
-			if (PoolEntry->NumUsed < LowWaterCount)
-			{
-				++DrawIndirectLowWaterFrames;
-			}
-			else
-			{
-				// We've allocated above the low water amount, reset the timer
-				DrawIndirectLowWaterFrames = 0;
-			}
+			Transitions.Emplace(CountBuffer.UAV, kCountBufferDefaultState, ERHIAccess::UAVCompute);
+			CountsUAV = CountBuffer.UAV;
 		}
 		else
 		{
-			// Either the pool is empty, at the min size, or we had to increase the pool size this frame. Either way, reset the shrink timer
-			DrawIndirectLowWaterFrames = 0;
+			// This can happen if there are no InstanceCountClearTasks and all DrawIndirectArgGenTasks_PreOpaque are using culled counts
+			CountsUAV = Batcher.GetEmptyUAVFromPool(RHICmdList, PF_R32_UINT, ENiagaraEmptyUAVType::Buffer);
 		}
+
+		// Get culled counts buffer
+		FShaderResourceViewRHIRef CulledCountsSRV = nullptr;
+		if (CulledCountBuffer.SRV.IsValid())
+		{
+			if (bAcquiredCulledCounts)
+			{
+				Transitions.Emplace(CulledCountBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute);
+			}
+			CulledCountsSRV = CulledCountBuffer.SRV.GetReference();
+		}
+		else
+		{
+			CulledCountsSRV = FNiagaraRenderer::GetDummyUIntBuffer();
+		}
+
+		// Execute transitions
+		for (auto& PoolEntry : DrawIndirectPool)
+		{
+			Transitions.Emplace(PoolEntry->Buffer.UAV, ERHIAccess::IndirectArgs, ERHIAccess::UAVCompute);
+		}
+		RHICmdList.Transition(Transitions);
+
+		// Execute tasks
+		FNiagaraDrawIndirectArgsGenCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FNiagaraDrawIndirectArgsGenCS::FSupportsTextureRW>(GRHISupportsRWTextureBuffers ? 1 : 0);
+		TShaderMapRef<FNiagaraDrawIndirectArgsGenCS> DrawIndirectArgsGenCS(GetGlobalShaderMap(FeatureLevel), PermutationVector);
+
+		if (bCountBufferIsValid)
+		{
+			RHICmdList.BeginUAVOverlap(CountsUAV);
+		}
+
+		const int32 NumDispatches = FMath::Max(DrawIndirectPool.Num(), 1);
+		uint32 ArgGenTaskOffset = 0;
+		for (int32 DispatchIdx = 0; DispatchIdx < NumDispatches; ++DispatchIdx)
+		{
+			// Get draw indirect pool UAV
+			// Note: If we have counts to clear but no indirect args we won't have a DrawIndirectPool entry
+			FRHIUnorderedAccessView* ArgsUAV = nullptr;
+			int32 NumArgGenTasks = 0;
+			if (DrawIndirectPool.IsValidIndex(DispatchIdx))
+			{
+				FIndirectArgsPoolEntryPtr& PoolEntry = DrawIndirectPool[DispatchIdx];
+				ArgsUAV = PoolEntry->Buffer.UAV;
+				NumArgGenTasks = PoolEntry->UsedEntries[CountPhase];
+			}
+			else
+			{
+				ArgsUAV = Batcher.GetEmptyUAVFromPool(RHICmdList, PF_R32_UINT, ENiagaraEmptyUAVType::Buffer);
+			}
+
+			const bool bIsLastDispatch = DispatchIdx == (NumDispatches - 1);
+			const int32 NumInstanceCountClearTasks = bIsLastDispatch ? InstanceCountClearTasks.Num() : 0;
+
+			// Do we have anything to do for this pool?
+			if (NumArgGenTasks + NumInstanceCountClearTasks == 0)
+			{
+				continue;
+			}
+
+			SetComputePipelineState(RHICmdList, DrawIndirectArgsGenCS.GetComputeShader());
+			DrawIndirectArgsGenCS->SetOutput(RHICmdList, ArgsUAV, CountsUAV);
+			DrawIndirectArgsGenCS->SetParameters(RHICmdList, TaskInfosBuffer.SRV, CulledCountsSRV, ArgGenTaskOffset, NumArgGenTasks, NumInstanceCountClearTasks);
+
+			// If the device supports RW Texture buffers then we can use a single compute pass, otherwise we need to split into two passes
+			if (GRHISupportsRWTextureBuffers)
+			{
+				DispatchComputeShader(RHICmdList, DrawIndirectArgsGenCS.GetShader(), FMath::DivideAndRoundUp(NumArgGenTasks + NumInstanceCountClearTasks, NIAGARA_DRAW_INDIRECT_ARGS_GEN_THREAD_COUNT), 1, 1);
+				DrawIndirectArgsGenCS->UnbindBuffers(RHICmdList);
+			}
+			else
+			{
+				if (NumArgGenTasks > 0)
+				{
+					DispatchComputeShader(RHICmdList, DrawIndirectArgsGenCS.GetShader(), FMath::DivideAndRoundUp(NumArgGenTasks, NIAGARA_DRAW_INDIRECT_ARGS_GEN_THREAD_COUNT), 1, 1);
+					DrawIndirectArgsGenCS->UnbindBuffers(RHICmdList);
+				}
+
+				if (NumInstanceCountClearTasks > 0)
+				{
+					FNiagaraDrawIndirectResetCountsCS::FPermutationDomain PermutationVectorResetCounts;
+					TShaderMapRef<FNiagaraDrawIndirectResetCountsCS> DrawIndirectResetCountsArgsGenCS(GetGlobalShaderMap(FeatureLevel), PermutationVectorResetCounts);
+					SetComputePipelineState(RHICmdList, DrawIndirectResetCountsArgsGenCS.GetComputeShader());
+					DrawIndirectResetCountsArgsGenCS->SetOutput(RHICmdList, CountBuffer.UAV);
+					DrawIndirectResetCountsArgsGenCS->SetParameters(RHICmdList, TaskInfosBuffer.SRV, ArgTasks.Num(), NumInstanceCountClearTasks);
+					DispatchComputeShader(RHICmdList, DrawIndirectResetCountsArgsGenCS.GetShader(), FMath::DivideAndRoundUp(NumInstanceCountClearTasks, NIAGARA_DRAW_INDIRECT_ARGS_GEN_THREAD_COUNT), 1, 1);
+					DrawIndirectResetCountsArgsGenCS->UnbindBuffers(RHICmdList);
+				}
+			}
+
+			ArgGenTaskOffset += NumArgGenTasks;
+		}
+
+		if (bCountBufferIsValid)
+		{
+			RHICmdList.EndUAVOverlap(CountsUAV);
+		}
+
+		// Generate and execute transitions
+		Transitions.Reset();
+		for (auto& PoolEntry : DrawIndirectPool)
+		{
+			Transitions.Emplace(PoolEntry->Buffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::IndirectArgs);
+		}
+		Transitions.Emplace(CountBuffer.UAV, ERHIAccess::UAVCompute, kCountBufferDefaultState);
+		RHICmdList.Transition(Transitions);
 	}
 
-	// Clear indirect args pool counts
-	for (auto& Pool : DrawIndirectPool)
+	// Add free counts back to list as we have cleared them
+	if ( bClearCounts )
 	{
-		Pool->NumUsed = 0;
+		FreeEntries.Append(InstanceCountClearTasks);
+		InstanceCountClearTasks.Empty();
+	}
+
+	DrawIndirectArgGenTasks[CountPhase].Empty();
+
+	// Final phase we can do some booking keeping / clearing of data
+	if ( CountPhase == ENiagaraGPUCountUpdatePhase::PostOpaque )
+	{
+		// Clear indirect arg map
+		DrawIndirectArgMap.Empty();
+
+		// Release culled count buffers
+		if (bAcquiredCulledCounts && RequiredCulledCounts > 0)
+		{
+			CulledCountBuffer.DiscardTransientResource();
+		}
+		bAcquiredCulledCounts = false;
+		RequiredCulledCounts = 0;
+
+		// Optionally shrink the indirect arg pool
+		if (GNiagaraIndirectArgsPoolAllowShrinking)
+		{
+			if (DrawIndirectPool.Num() == 1 && DrawIndirectPool[0]->AllocatedEntries > uint32(GNiagaraIndirectArgsPoolMinSize))
+			{
+				// See if this was a low water mark frame
+				FIndirectArgsPoolEntryPtr& PoolEntry = DrawIndirectPool[0];
+				const uint32 LowWaterCount = FMath::Max<uint32>(GNiagaraIndirectArgsPoolMinSize, PoolEntry->AllocatedEntries * GNiagaraIndirectArgsPoolLowWaterAmount);
+				if (PoolEntry->UsedEntriesTotal < LowWaterCount)
+				{
+					++DrawIndirectLowWaterFrames;
+				}
+				else
+				{
+					// We've allocated above the low water amount, reset the timer
+					DrawIndirectLowWaterFrames = 0;
+				}
+			}
+			else
+			{
+				// Either the pool is empty, at the min size, or we had to increase the pool size this frame. Either way, reset the shrink timer
+				DrawIndirectLowWaterFrames = 0;
+			}
+		}
+
+		// Clear indirect args pool counts
+		for (auto& Pool : DrawIndirectPool)
+		{
+			Pool->UsedEntriesTotal = 0;
+			for ( uint32& UsedEntry : Pool->UsedEntries )
+			{
+				UsedEntry = 0;
+			}
+		}
 	}
 }
 

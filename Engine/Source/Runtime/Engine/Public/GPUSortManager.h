@@ -452,6 +452,12 @@ public:
 	DECLARE_EVENT_OneParam(FGPUSortManager, FPostPreRenderEvent, FRHICommandListImmediate&);
 	FPostPreRenderEvent PostPreRenderEvent;
 
+	/**
+	 * Event to register and receive post-postrender notification.
+	 */
+	DECLARE_EVENT_OneParam(FGPUSortManager, FPostPostRenderEvent, FRHICommandListImmediate&);
+	FPostPreRenderEvent PostPostRenderEvent;
+
 private:
 
 	/** A helper to test that a flag has one and exactly one of A or B. */

@@ -88,7 +88,7 @@ FNiagaraRendererSprites::FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureL
 	bSubImageBlend = Properties->bSubImageBlend;
 	bRemoveHMDRollInVR = Properties->bRemoveHMDRollInVR;
 	bSortOnlyWhenTranslucent = Properties->bSortOnlyWhenTranslucent;
-	bGpuLowLatencyTranslucency = Properties->bGpuLowLatencyTranslucency && (SortMode == ENiagaraSortMode::None);
+	bGpuLowLatencyTranslucency = Properties->bGpuLowLatencyTranslucency;
 	MinFacingCameraBlendDistance = Properties->MinFacingCameraBlendDistance;
 	MaxFacingCameraBlendDistance = Properties->MaxFacingCameraBlendDistance;
 	RendererVisibility = Properties->RendererVisibility;
@@ -346,7 +346,7 @@ void FNiagaraRendererSprites::InitializeSortInfo(FParticleSpriteRenderData& Part
 
 	OutSortInfo.ParticleCount = ParticleSpriteRenderData.SourceParticleData->GetNumInstances();
 	OutSortInfo.SortMode = SortMode;
-	OutSortInfo.SetSortFlags(GNiagaraGPUSortingUseMaxPrecision != 0, ParticleSpriteRenderData.bHasTranslucentMaterials);
+	OutSortInfo.SetSortFlags(GNiagaraGPUSortingUseMaxPrecision != 0, ParticleSpriteRenderData.SourceParticleData->GetGPUDataReadyStage());
 	OutSortInfo.bEnableCulling = ParticleSpriteRenderData.bNeedsCull;
 	OutSortInfo.RendererVisTagAttributeOffset = ParticleSpriteRenderData.RendererVisTagOffset;
 	OutSortInfo.RendererVisibility = RendererVisibility;
@@ -752,7 +752,14 @@ void FNiagaraRendererSprites::CreateMeshBatchForView(
 		NiagaraEmitterInstanceBatcher* Batcher = SceneProxy.GetBatcher();
 		check(Batcher);
 
-		IndirectDraw = Batcher->GetGPUInstanceCounterManager().AddDrawIndirect(GPUCountBufferOffset, NumIndicesPerInstance, 0, View.IsInstancedStereoPass(), bDoGPUCulling);
+		IndirectDraw = Batcher->GetGPUInstanceCounterManager().AddDrawIndirect(
+			GPUCountBufferOffset,
+			NumIndicesPerInstance,
+			0,
+			View.IsInstancedStereoPass(),
+			bDoGPUCulling,
+			ParticleSpriteRenderData.SourceParticleData->GetGPUDataReadyStage()
+		);
 	}
 
 	if (IndirectDraw.IsValid())

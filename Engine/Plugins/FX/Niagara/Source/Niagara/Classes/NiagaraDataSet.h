@@ -115,7 +115,7 @@ public:
 	void Allocate(uint32 NumInstances, bool bMaintainExisting = false);
 
 	void AllocateGPU(FRHICommandList& RHICmdList, uint32 InNumInstances, ERHIFeatureLevel::Type FeatureLevel, const TCHAR* DebugSimName);
-	void SwapGPU(FNiagaraDataBuffer* BufferToAlias);
+	void SwapGPU(FNiagaraDataBuffer* BufferToSwap);
 	void ReleaseGPU();
 
 	void SwapInstances(uint32 OldIndex, uint32 NewIndex);
@@ -162,6 +162,9 @@ public:
 
 	FORCEINLINE void SetNumInstances(uint32 InNumInstances) { check(InNumInstances <= NumInstancesAllocated); NumInstances = InNumInstances; }
 	FORCEINLINE void SetNumSpawnedInstances(uint32 InNumSpawnedInstances) { NumSpawnedInstances = InNumSpawnedInstances; }
+
+	FORCEINLINE void SetGPUDataReadyStage(ENiagaraGpuComputeTickStage::Type InReadyStage) { GPUDataReadyStage = InReadyStage; }
+	FORCEINLINE ENiagaraGpuComputeTickStage::Type GetGPUDataReadyStage() const { return GPUDataReadyStage; }
 	FORCEINLINE FRWBuffer& GetGPUBufferFloat() { return GPUBufferFloat; }
 	FORCEINLINE FRWBuffer& GetGPUBufferInt() { return GPUBufferInt; }
 	FORCEINLINE FRWBuffer& GetGPUBufferHalf() { return GPUBufferHalf; }
@@ -224,6 +227,8 @@ private:
 
 	//////////////////////////////////////////////////////////////////////////
 	// GPU Data
+	/** Location in the frame where GPU data will be ready, for CPU this is always the first group, for GPU is depends on the features used as to which phase. */
+	ENiagaraGpuComputeTickStage::Type GPUDataReadyStage;
 	/** The buffer offset where the instance count is accumulated. */
 	uint32 GPUInstanceCountBufferOffset;
 	/** GPU Buffer containing floating point values for GPU simulations. */

@@ -9,6 +9,7 @@ NiagaraGPUSortInfo.h: GPU particle sorting helper
 #include "RHI.h"
 #include "RHIResources.h"
 #include "GPUSortManager.h"
+#include "NiagaraCommon.h"
 #include "NiagaraGPUSortInfo.generated.h"
 
 UENUM()
@@ -70,10 +71,11 @@ struct FNiagaraGPUSortInfo
 	EGPUSortFlags SortFlags = EGPUSortFlags::None;
 
 	// Set the SortFlags based on the emitter and material constraints.
-	FORCEINLINE void SetSortFlags(bool bHighPrecisionKeys, bool bTranslucentMaterial)
+	FORCEINLINE void SetSortFlags(bool bHighPrecisionKeys, ENiagaraGpuComputeTickStage::Type ReadyTickStage)
 	{
-		SortFlags = EGPUSortFlags::KeyGenAfterPreRender | EGPUSortFlags::ValuesAsInt32 | 
+		SortFlags =
+			EGPUSortFlags::ValuesAsInt32 | 
 			(bHighPrecisionKeys ? EGPUSortFlags::HighPrecisionKeys : EGPUSortFlags::LowPrecisionKeys) |
-			(bTranslucentMaterial ? EGPUSortFlags::AnySortLocation : EGPUSortFlags::SortAfterPreRender);
+			(ReadyTickStage == ENiagaraGpuComputeTickStage::PostOpaqueRender ? EGPUSortFlags::SortAfterPostRenderOpaque | EGPUSortFlags::KeyGenAfterPostRenderOpaque : EGPUSortFlags::SortAfterPreRender | EGPUSortFlags::KeyGenAfterPreRender);
 	}
 };

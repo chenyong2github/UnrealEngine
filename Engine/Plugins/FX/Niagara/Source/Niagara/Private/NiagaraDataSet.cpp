@@ -841,24 +841,25 @@ void FNiagaraDataBuffer::AllocateGPU(FRHICommandList& RHICmdList, uint32 InNumIn
 #endif
 }
 
-void FNiagaraDataBuffer::SwapGPU(FNiagaraDataBuffer* BufferToAlias)
+void FNiagaraDataBuffer::SwapGPU(FNiagaraDataBuffer* BufferToSwap)
 {
 #if NIAGARA_MEMORY_TRACKING
-	Swap(AllocationSizeBytes, BufferToAlias->AllocationSizeBytes);
+	Swap(AllocationSizeBytes, BufferToSwap->AllocationSizeBytes);
 #endif
 
-	Swap(GPUInstanceCountBufferOffset, BufferToAlias->GPUInstanceCountBufferOffset);
-	Swap(GPUBufferFloat, BufferToAlias->GPUBufferFloat);
-	Swap(GPUBufferInt, BufferToAlias->GPUBufferInt);
-	Swap(GPUIDToIndexTable, BufferToAlias->GPUIDToIndexTable);
-	Swap(GPUBufferHalf, BufferToAlias->GPUBufferHalf);
-	Swap(NumInstances, BufferToAlias->NumInstances);
-	Swap(NumInstancesAllocated, BufferToAlias->NumInstancesAllocated);
-	Swap(FloatStride, BufferToAlias->FloatStride);
-	Swap(Int32Stride, BufferToAlias->Int32Stride);
-	Swap(HalfStride, BufferToAlias->HalfStride);
-	Swap(NumSpawnedInstances, BufferToAlias->NumSpawnedInstances);
-	Swap(IDAcquireTag, BufferToAlias->IDAcquireTag);
+	Swap(GPUDataReadyStage, BufferToSwap->GPUDataReadyStage);
+	Swap(GPUInstanceCountBufferOffset, BufferToSwap->GPUInstanceCountBufferOffset);
+	Swap(GPUBufferFloat, BufferToSwap->GPUBufferFloat);
+	Swap(GPUBufferInt, BufferToSwap->GPUBufferInt);
+	Swap(GPUIDToIndexTable, BufferToSwap->GPUIDToIndexTable);
+	Swap(GPUBufferHalf, BufferToSwap->GPUBufferHalf);
+	Swap(NumInstances, BufferToSwap->NumInstances);
+	Swap(NumInstancesAllocated, BufferToSwap->NumInstancesAllocated);
+	Swap(FloatStride, BufferToSwap->FloatStride);
+	Swap(Int32Stride, BufferToSwap->Int32Stride);
+	Swap(HalfStride, BufferToSwap->HalfStride);
+	Swap(NumSpawnedInstances, BufferToSwap->NumSpawnedInstances);
+	Swap(IDAcquireTag, BufferToSwap->IDAcquireTag);
 }
 
 void FNiagaraDataBuffer::ReleaseGPU()
