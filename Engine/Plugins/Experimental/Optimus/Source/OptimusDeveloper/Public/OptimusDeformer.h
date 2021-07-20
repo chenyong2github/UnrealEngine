@@ -22,6 +22,9 @@ class UOptimusVariableDescription;
 DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusCompileBegin, UOptimusDeformer *);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusCompileEnd, UOptimusDeformer *);
 
+// TODO: Possibly convert params to a single structure and extend with more info as required.
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOptimusGraphCompileResultsDelegate, UOptimusNodeGraph const*, UOptimusNode const*, FString const&);
+
 UCLASS()
 class OPTIMUSDEVELOPER_API UOptimusDeformer :
 	public UComputeGraph,
@@ -152,8 +155,12 @@ public:
 	/// Graph compilation
 	bool Compile();
 
+	/** Returns a multicast delegate that can be subscribed to listen for the start of compilation. */
 	FOptimusCompileBegin& GetCompileBeginDelegate()  { return CompileBeginDelegate; }
+	/** Returns a multicast delegate that can be subscribed to listen for the end of compilation but before shader compilation is complete. */
 	FOptimusCompileEnd& GetCompileEndDelegate() { return CompileEndDelegate; }
+	/** Returns a multicast delegate that can be subscribed to listen compilation results. Note that the shader compilation results are async and can be returned after the CompileEnd delegate. */
+	FOptimusGraphCompileResultsDelegate& GetCompileResultsDelegate() { return CompileResultsDelegate; }
 
 	// Create a set of data providers that the caller can then hook up, depending on its underlying
 	// type.
@@ -161,6 +168,9 @@ public:
 	// in from the data interfaces (e.g. transient buffers) but some from the caller side to
 	// link up with the objects they operate on.
 	TArray<TObjectPtr<UComputeDataProvider>> CreateDataProviders(UObject* InOuter) const;
+
+	/// UComputeGraph overrides
+	void OnKernelCompilationComplete(int32 InKernelIndex, const TArray<FString>& InCompileErrors) override;
 
 	/// IInterface_PreviewMeshProvider overrides
 	void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true) override;
@@ -223,8 +233,15 @@ private:
 	UOptimusActionStack *ActionStack;
 
 	FOptimusGlobalNotifyDelegate GlobalNotifyDelegate;
-	
+
 	FOptimusCompileBegin CompileBeginDelegate;
 	
 	FOptimusCompileEnd CompileEndDelegate;
+
+	FOptimusGraphCompileResultsDelegate CompileResultsDelegate;
+
+	// Lookup into Graphs array from the UComputeGraph kernel index. 
+	TArray<int32> CompilingKernelToGraph;
+	// Lookup into UOptimusNodeGraph::Nodes array from the UComputeGraph kernel index. 
+	TArray<int32> CompilingKernelToNode;
 };

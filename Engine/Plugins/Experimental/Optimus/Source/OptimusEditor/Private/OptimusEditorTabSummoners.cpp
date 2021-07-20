@@ -2,6 +2,7 @@
 
 #include "OptimusEditorTabSummoners.h"
 
+#include "GraphEditor.h"
 #include "OptimusEditor.h"
 #include "SOptimusEditorGraphExplorer.h"
 #include "SOptimusNodePalette.h"
@@ -104,8 +105,8 @@ FOptimusEditorCompilerOutputTabSummoner::FOptimusEditorCompilerOutputTabSummoner
 
 TSharedRef<SWidget> FOptimusEditorCompilerOutputTabSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
 {
-	// FIXME: When I grow up, I want to be a proper widget.
-	return SNullWidget::NullWidget;
+	// FIXME: Move to own widget.
+	return EditorPtr.Pin()->GetCompilerResultsWidget().ToSharedRef();
 }
 
 

@@ -8,6 +8,7 @@
 
 
 class FUICommandList;
+class IMessageLogListing;
 class IOptimusNodeGraphCollectionOwner;
 class IPersonaPreviewScene;
 class IPersonaToolkit;
@@ -21,6 +22,7 @@ class UDebugSkelMeshComponent;
 class UOptimusActionStack;
 class UOptimusDeformer;
 class UOptimusEditorGraph;
+class UOptimusNode;
 class UOptimusNodeGraph;
 class USkeletalMesh;
 enum class EOptimusGlobalNotifyType;
@@ -137,6 +139,7 @@ public:
 	
 	// KILL ME
 	TSharedPtr<SGraphEditor> GetGraphEditorWidget() const { return GraphEditorWidget; }
+	TSharedPtr<SWidget> GetCompilerResultsWidget() const { return CompilerResultsWidget; }
 
 private:
 	void CreateWidgets();
@@ -151,6 +154,9 @@ private:
 	// Called when the inspector has changed a value.
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 
+	// Called for every compilation result. There may be multiple calls for each Compile.
+	void OnCompileResults(UOptimusNodeGraph const* InGraph, UOptimusNode const* InNode, FString const& InMessage);
+
 private:
 	// Persona toolkit for the skelmesh preview
 	TSharedPtr<IPersonaToolkit> PersonaToolkit;
@@ -160,6 +166,8 @@ private:
 	TSharedPtr<SGraphEditor> GraphEditorWidget;
 	TSharedPtr<IDetailsView> PropertyDetailsWidget;
 	TSharedPtr<IDetailsView> PreviewDetailsWidget;
+	TSharedPtr<SWidget> CompilerResultsWidget;
+	TSharedPtr<IMessageLogListing> CompilerResultsListing;
 
 	UOptimusDeformer* DeformerObject = nullptr;
 	UOptimusEditorGraph* EditorGraph = nullptr;

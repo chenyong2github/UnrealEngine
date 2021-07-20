@@ -291,6 +291,8 @@ void UComputeGraph::CacheResourceShadersForRendering(uint32 CompilationFlags)
 			// Now we have all the information that the KernelResource will need for compilation.
 			KernelResource->SetupResource(CacheFeatureLevel, GetName(), ShaderEntryPoint, MoveTemp(ShaderSource), ShaderSourceHash, ShaderMetadata);
 
+			KernelResource->OnCompilationComplete().BindUObject(this, &UComputeGraph::ShaderCompileCompletionCallback);
+
 			CacheShadersForResource(ShaderPlatform, nullptr, CompilationFlags | uint32(EComputeKernelCompilationFlags::Force), KernelResource);
 		}
 	}
@@ -346,6 +348,19 @@ void UComputeGraph::CacheShadersForResource(
 		}
 	}
 }
+
+void UComputeGraph::ShaderCompileCompletionCallback(FComputeKernelResource const* KernelResource)
+{
+	// Find this FComputeKernelResource and call the virtual OnKernelCompilationComplete implementation. 
+	for (int32 KernelIndex = 0; KernelIndex < KernelResources.Num(); ++KernelIndex)
+	{
+		if (KernelResource == KernelResources[KernelIndex].Get())
+		{
+			OnKernelCompilationComplete(KernelIndex, KernelResource->GetCompileErrors());
+		}
+	}
+}
+
 
 void UComputeGraph::BeginCacheForCookedPlatformData(ITargetPlatform const* TargetPlatform)
 {

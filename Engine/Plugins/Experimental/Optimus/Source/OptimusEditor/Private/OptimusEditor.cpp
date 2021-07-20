@@ -20,9 +20,11 @@
 #include "IPersonaViewport.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Materials/Material.h"
+#include "MessageLogModule.h"
 #include "Modules/ModuleManager.h"
 #include "ToolMenus.h"
 #include "IAssetFamily.h"
+#include "IMessageLogListing.h"
 #include "IPersonaPreviewScene.h"
 #include "IPersonaToolkit.h"
 #include "OptimusEditorMode.h"
@@ -55,6 +57,7 @@ FOptimusEditor::~FOptimusEditor()
 	{
 		DeformerObject->GetCompileBeginDelegate().RemoveAll(this);
 		DeformerObject->GetCompileEndDelegate().RemoveAll(this);
+		DeformerObject->GetCompileResultsDelegate().RemoveAll(this);
 		DeformerObject->GetNotifyDelegate().RemoveAll(this);
 	}
 }
@@ -152,6 +155,7 @@ void FOptimusEditor::Construct(
 
 	DeformerObject->GetCompileBeginDelegate().AddRaw(this, &FOptimusEditor::CompileBegin);
 	DeformerObject->GetCompileEndDelegate().AddRaw(this, &FOptimusEditor::CompileEnd);
+	DeformerObject->GetCompileResultsDelegate().AddRaw(this, &FOptimusEditor::OnCompileResults);
 
 	if (PersonaToolkit->GetPreviewMesh())
 	{
@@ -275,6 +279,7 @@ bool FOptimusEditor::CanCompile() const
 void FOptimusEditor::CompileBegin(UOptimusDeformer* InDeformer)
 {
 	RemoveDataProviders();
+	CompilerResultsListing->ClearMessages();
 }
 
 
@@ -566,6 +571,21 @@ void FOptimusEditor::CreateWidgets()
 	// -- Graph editor
 	GraphEditorWidget = CreateGraphEditorWidget();
 	GraphEditorWidget->SetViewLocation(FVector2D::ZeroVector, 1);
+
+	// -- Compiler results
+	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
+	const FName LogName("LogComputeKernelShaderCompiler");
+	if (MessageLogModule.IsRegisteredLogListing(LogName))
+	{
+		CompilerResultsListing = MessageLogModule.GetLogListing(LogName);
+	}
+	else
+	{
+		FMessageLogInitializationOptions LogInitOptions;
+		LogInitOptions.bShowInLogWindow = false;
+		CompilerResultsListing = MessageLogModule.CreateLogListing(LogName, LogInitOptions);
+	}
+	CompilerResultsWidget = MessageLogModule.CreateLogListingWidget(CompilerResultsListing.ToSharedRef());
 }
 
 
@@ -777,5 +797,11 @@ void FOptimusEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& P
 	}
 }
 
+void FOptimusEditor::OnCompileResults(UOptimusNodeGraph const* InGraph, UOptimusNode const* InNode, FString const& InMessage)
+{
+	// TODO: Support warning/error/other message types.
+	// TODO: Create Optimus tokenized messages that can init UI operations when messages are clicked.
+	CompilerResultsListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::FromString(InMessage)));
+}
 
 #undef LOCTEXT_NAMESPACE

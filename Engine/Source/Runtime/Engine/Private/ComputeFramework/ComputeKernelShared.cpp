@@ -2,21 +2,21 @@
 
 #include "ComputeFramework/ComputeKernelShared.h"
 
-#include "Misc/App.h"
-#include "Modules/ModuleManager.h"
 #include "ComputeFramework/ComputeKernelShaderType.h"
 #include "ComputeFramework/ComputeKernelShader.h"
 #include "ComputeFramework/ComputeKernelShaderCompilationManager.h"
 #include "ComputeFramework/ComputeKernelSource.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Misc/App.h"
+#include "Modules/ModuleManager.h"
 #include "RendererInterface.h"
 #include "ShaderCompiler.h"
+#include "ShaderParameterMetadataBuilder.h"
 #include "Stats/StatsMisc.h"
 #include "TextureResource.h"
 #include "UObject/CoreObjectVersion.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
-#include "Interfaces/ITargetPlatform.h"
-#include "ShaderParameterMetadataBuilder.h"
 
 IMPLEMENT_TYPE_LAYOUT(FComputeKernelCompilationOutput);
 IMPLEMENT_TYPE_LAYOUT(FComputeKernelShaderMapId);
@@ -32,7 +32,6 @@ void FComputeKernelResource::SetupShaderCompilationEnvironment(EShaderPlatform I
 {
 }
 
-
 bool FComputeKernelResource::ShouldCache(EShaderPlatform InPlatform, const FShaderType* InShaderType) const
 {
 	check(InShaderType->GetComputeKernelShaderType() )
@@ -41,6 +40,7 @@ bool FComputeKernelResource::ShouldCache(EShaderPlatform InPlatform, const FShad
 
 void FComputeKernelResource::NotifyCompilationFinished()
 {
+	OnCompilationCompleteDelegate.ExecuteIfBound(this);
 }
 
 void FComputeKernelResource::CancelCompilation()
@@ -208,6 +208,7 @@ void FComputeKernelResource::SetupResource(
 	ShaderSource = MoveTemp(InShaderSource);
 	ShaderCodeHash = InShaderCodeHash;
 	ShaderMetadata.Reset(InShaderMetadata);
+	CompileErrors.Reset();
 }
 
 void FComputeKernelResource::SetRenderingThreadShaderMap(FComputeKernelShaderMap* InShaderMap)

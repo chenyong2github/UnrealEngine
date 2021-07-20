@@ -94,6 +94,9 @@ public:
 	UComputeGraph(FVTableHelper& Helper);
 	virtual ~UComputeGraph();
 
+	/** Called each time that a single kernel shader compilation is completed. */
+	virtual void OnKernelCompilationComplete(int32 InKernelIndex, const TArray<FString>& InCompileErrors) {}
+
 	/** 
 	 * Returns true if graph is valid. 
 	 * A valid graph should be guaranteed to compile, assuming the underlying shader code is well formed. 
@@ -157,6 +160,9 @@ private:
 		ITargetPlatform const* TargetPlatform,
 		uint32 CompilationFlags,
 		FComputeKernelResource* Kernel);
+
+	/** Callback to handle result of kernel shader compilations. */
+	void ShaderCompileCompletionCallback(FComputeKernelResource const* KernelResource);
 #endif
 
 private:
