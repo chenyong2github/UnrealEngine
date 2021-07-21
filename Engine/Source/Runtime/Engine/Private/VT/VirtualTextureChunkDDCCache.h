@@ -15,6 +15,7 @@ public:
 
 	bool MakeChunkAvailable(struct FVirtualTextureDataChunk* Chunk, bool bAsync, FString& OutChunkFileName, int64& OutOffsetInFile);
 
+	void MakeChunkAvailable_Concurrent(struct FVirtualTextureDataChunk* Chunk);
 private:
 	TArray<struct FVirtualTextureDataChunk*> ActiveChunks;
 	FString AbsoluteCachePath;
