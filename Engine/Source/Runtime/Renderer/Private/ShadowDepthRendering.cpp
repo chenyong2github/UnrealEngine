@@ -124,7 +124,6 @@ static FAutoConsoleVariableRef CVarShadowShadowUseGS(
 	TEXT("Use geometry shaders to render cube map shadows."),
 	ECVF_RenderThreadSafe);
 
-extern int32 GVirtualShadowMapAtomicWrites;
 extern int32 GNaniteShowStats;
 extern int32 GEnableNonNaniteVSM;
 
@@ -174,8 +173,6 @@ void SetupShadowDepthPassUniformBuffer(
 	}
 
 	ShadowDepthPassParameters.bRenderToVirtualShadowMap = false;
-	ShadowDepthPassParameters.bInstancePerPage = false;
-	ShadowDepthPassParameters.bAtomicWrites = false;
 	ShadowDepthPassParameters.VirtualSmPageTable = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(uint32)));
 	ShadowDepthPassParameters.PackedNaniteViews = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(Nanite::FPackedView)));
 	ShadowDepthPassParameters.PageRectBounds = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(FIntVector4)));
@@ -594,7 +591,6 @@ bool GetShadowDepthPassShaders(
 	bool bPositionOnlyVS,
 	bool bUsePerspectiveCorrectShadowDepths,
 	bool bVirtualShadowMap,
-	bool bAtomicWrites,
 	TShaderRef<FShadowDepthVS>& VertexShader,
 	TShaderRef<FShadowDepthBasePS>& PixelShader,
 	TShaderRef<FOnePassPointShadowDepthGS>& GeometryShader)
@@ -670,10 +666,10 @@ bool GetShadowDepthPassShaders(
 	}
 
 	// Pixel shaders
-	const bool bNullPixelShader = Material.WritesEveryPixel(true) && !bUsePerspectiveCorrectShadowDepths && !bAtomicWrites && VertexFactory->SupportsNullPixelShader();
+	const bool bNullPixelShader = Material.WritesEveryPixel(true) && !bUsePerspectiveCorrectShadowDepths && !bVirtualShadowMap && VertexFactory->SupportsNullPixelShader();
 	if (!bNullPixelShader)
 	{
-		if (bVirtualShadowMap && bAtomicWrites)
+		if (bVirtualShadowMap)
 		{
 			ShaderTypes.AddShaderType<TShadowDepthPS<PixelShadowDepth_VirtualShadowMap>>();
 		}
@@ -766,7 +762,7 @@ void SetStateForShadowDepth(bool bOnePassPointLightShadow, bool bDirectionalLigh
 	// Disable color writes
 	DrawRenderState.SetBlendState(TStaticBlendState<CW_NONE>::GetRHI());
 
-	if( InMeshPassTargetType == EMeshPass::VSMShadowDepth && GVirtualShadowMapAtomicWrites )
+	if( InMeshPassTargetType == EMeshPass::VSMShadowDepth )
 	{
 		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
 	}
@@ -1674,8 +1670,6 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 	ResourceAccessFinalizer.Finalize(GraphBuilder);
 }
 
-extern TAutoConsoleVariable<int32> CVarAllocatePagesUsingRects;
-
 void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceCullingManager &InstanceCullingManager)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderShadows);
@@ -1696,7 +1690,6 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 	const bool bHasVSMShadows = SortedShadowsForShadowDepthPass.VirtualShadowMapShadows.Num() > 0;
 	const bool bHasVSMClipMaps = SortedShadowsForShadowDepthPass.VirtualShadowMapClipmaps.Num() > 0;
 	const bool bNaniteEnabled = UseNanite(ShaderPlatform) && ViewFamily.EngineShowFlags.NaniteMeshes;
-	const bool bAllocatePageRectAtlas = CVarAllocatePagesUsingRects.GetValueOnRenderThread() != 0;
 
 	if (bNaniteEnabled && (bHasVSMShadows || bHasVSMClipMaps))
 	{
@@ -1711,24 +1704,16 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 			const FIntPoint VirtualShadowSize = VirtualShadowMapArray.GetPhysicalPoolSize();
 			const FIntRect VirtualShadowViewRect = FIntRect(0, 0, VirtualShadowSize.X, VirtualShadowSize.Y);
 
-			VirtualShadowMapArray.PhysicalPagePoolRDG = GraphBuilder.CreateTexture( 
-				FRDGTextureDesc::Create2D(VirtualShadowSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV),
-				TEXT("Shadow.Virtual.PhysicalTexture") );
+			check(VirtualShadowMapArray.PhysicalPagePoolRDG != nullptr);
 
 			Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(
 				GraphBuilder,
 				FeatureLevel,
 				VirtualShadowSize,
 				Nanite::EOutputBufferMode::DepthOnly,
-				bAllocatePageRectAtlas,	// Clear entire texture
+				false,	// Clear entire texture
 				nullptr, 0,
 				VirtualShadowMapArray.PhysicalPagePoolRDG );
-
-			if( !bAllocatePageRectAtlas )
-			{
-				// Clear only mapped pages
-				VirtualShadowMapArray.ClearPhysicalMemory(GraphBuilder, RasterContext.DepthBuffer);
-			}
 
 			const bool bUpdateStreaming = CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
 
@@ -1941,8 +1926,6 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 	{
 		VirtualShadowMapArray.RenderVirtualShadowMapsHw(GraphBuilder, SortedShadowsForShadowDepthPass.VirtualShadowMapShadows, *Scene);
 	}
-
-	VirtualShadowMapArray.SetupProjectionParameters(GraphBuilder);
 
 	// Render non-VSM shadows
 	FSceneRenderer::RenderShadowDepthMapAtlases(GraphBuilder);
@@ -2185,12 +2168,10 @@ bool FShadowDepthPassMeshProcessor::Process(
 	bool bOnePassPointLightShadow = ShadowDepthType.bOnePassPointLightShadow;
 	
 	bool bVirtualShadowMap = MeshPassTargetType == EMeshPass::VSMShadowDepth;
-	bool bAtomicWrites = false;
 	if (bVirtualShadowMap)
 	{
 		bUsePerspectiveCorrectShadowDepths = false;
 		bOnePassPointLightShadow = false;
-		bAtomicWrites = GVirtualShadowMapAtomicWrites != 0;
 	}
 
 	if (!GetShadowDepthPassShaders(
@@ -2202,7 +2183,6 @@ bool FShadowDepthPassMeshProcessor::Process(
 		bUsePositionOnlyVS,
 		bUsePerspectiveCorrectShadowDepths,
 		bVirtualShadowMap,
-		bAtomicWrites,
 		ShadowDepthPassShaders.VertexShader,
 		ShadowDepthPassShaders.PixelShader,
 		ShadowDepthPassShaders.GeometryShader))

@@ -125,7 +125,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualShadowMapUniformParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ProjectionData)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, PageTable)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, PhysicalPagePool)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, PhysicalPagePoolHw)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapSamplingParameters, )
@@ -174,9 +173,6 @@ public:
 
 	static void SetShaderDefines(FShaderCompilerEnvironment& OutEnvironment);
 
-	// Call after creating physical page pools and rendering
-	void SetupProjectionParameters(FRDGBuilder& GraphBuilder);
-
 	void ClearPhysicalMemory(FRDGBuilder& GraphBuilder, FRDGTextureRef& PhysicalTexture);
 	void MarkPhysicalPagesRendered(FRDGBuilder& GraphBuilder, const TArray<uint32, SceneRenderingAllocator> &VirtualShadowMapFlags);
 
@@ -202,8 +198,6 @@ public:
 	 */
 	void RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder, const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& VirtualSmMeshCommandPasses, FScene& Scene);
 
-	void AddInitializePhysicalPagesHwPass(FRDGBuilder& GraphBuilder);
-
 	// Draw debug info into render target 'VSMDebug' of screen-size, the mode is controlled by 'r.Shadow.Virtual.DebugVisualize'.
 	void RenderDebugInfo(FRDGBuilder& GraphBuilder);
 	// 
@@ -216,7 +210,7 @@ public:
 	// This data becomes valid after the shadow depths pass if VSMs are enabled
 	FVirtualShadowMapSamplingParameters GetSamplingParameters(FRDGBuilder& GraphBuilder) const;
 
-	bool HasAnyShadowData() const { return PhysicalPagePoolRDG != nullptr || PhysicalPagePoolHw != nullptr;  }
+	bool HasAnyShadowData() const { return PhysicalPagePoolRDG != nullptr;  }
 
 	void GetPageTableParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapPageTableParameters& OutParameters);
 
@@ -234,9 +228,6 @@ public:
 	FRDGBufferRef PageTableRDG = nullptr;
 	// Large physical texture of depth format, say 4096^2 or whatever we think is enough texels to go around
 	FRDGTextureRef PhysicalPagePoolRDG = nullptr;
-	// page pool for HW rasterized shadow data. 
-	// Mirrors the regular one, but uses a shadow depth target format
-	FRDGTextureRef PhysicalPagePoolHw = nullptr;
 		
 	// Buffer that stores flags (uints) marking each page that needs to be rendered and cache status, for all virtual shadow maps.
 	// Flag values defined in PageAccessCommon.ush: VSM_ALLOCATED_FLAG | VSM_INVALID_FLAG

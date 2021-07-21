@@ -198,10 +198,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FShadowDepthPassUniformParameters,)
 	SHADER_PARAMETER(float, bClampToNearPlane)
 	SHADER_PARAMETER_ARRAY(FMatrix44f, ShadowViewProjectionMatrices, [6])
 	SHADER_PARAMETER_ARRAY(FMatrix44f, ShadowViewMatrices, [6])
-	// GPUCULL_TODO: ?
 	SHADER_PARAMETER(int, bRenderToVirtualShadowMap)
-	SHADER_PARAMETER(int, bInstancePerPage)
-	SHADER_PARAMETER(int, bAtomicWrites)
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, VirtualSmPageTable)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FPackedNaniteView >, PackedNaniteViews)

@@ -189,15 +189,6 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(bool bEnableCaching, F
 		
 			GraphBuilder.QueueTextureExtraction(VirtualShadowMapArray.PhysicalPagePoolRDG, &PrevBuffers.PhysicalPagePool);
 
-			if( VirtualShadowMapArray.PhysicalPagePoolHw )
-			{
-				GraphBuilder.QueueTextureExtraction(VirtualShadowMapArray.PhysicalPagePoolHw, &PrevBuffers.PhysicalPagePoolHw);
-			}
-			else
-			{
-				PrevBuffers.PhysicalPagePoolHw = TRefCountPtr<IPooledRenderTarget>();
-			}
-
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PhysicalPageMetaDataRDG, &PrevBuffers.PhysicalPageMetaData);
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.DynamicCasterPageFlagsRDG, &PrevBuffers.DynamicCasterPageFlags);
 			GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.ShadowMapProjectionDataRDG, &PrevBuffers.ShadowMapProjectionDataBuffer);
@@ -223,7 +214,6 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(bool bEnableCaching, F
 	PrevUniformParameters.ProjectionData = nullptr;
 	PrevUniformParameters.PageTable = nullptr;
 	PrevUniformParameters.PhysicalPagePool = nullptr;
-	PrevUniformParameters.PhysicalPagePoolHw = nullptr;
 
 	FRDGBufferRef AccumulatedStatsBufferRDG = nullptr;
 
@@ -346,7 +336,7 @@ bool FVirtualShadowMapArrayCacheManager::IsValid()
 	return CVarCacheVirtualSMs.GetValueOnRenderThread() != 0
 		&& PrevBuffers.PageTable
 		&& PrevBuffers.PageFlags
-		&& (PrevBuffers.PhysicalPagePool || PrevBuffers.PhysicalPagePoolHw)
+		&& PrevBuffers.PhysicalPagePool
 		&& PrevBuffers.PhysicalPageMetaData
 		&& PrevBuffers.DynamicCasterPageFlags;
 }
@@ -491,7 +481,6 @@ void FVirtualShadowMapArrayCacheManager::ProcessInstanceRangeInvalidation(FRDGBu
 	PrevUniformParameters.PageTable = RegExtCreateSrv(PrevBuffers.PageTable, TEXT("Shadow.Virtual.PrevPageTable"));
 	// Unused in this path
 	PrevUniformParameters.PhysicalPagePool = GSystemTextures.GetZeroUIntDummy(GraphBuilder);
-	PrevUniformParameters.PhysicalPagePoolHw = GSystemTextures.GetBlackDummy(GraphBuilder);
 
 	FRDGBufferRef InstanceRangesSmallRDG = !InstanceRangesSmall.IsEmpty() ? CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.InstanceRangesSmall"), InstanceRangesSmall) : nullptr;
 	FRDGBufferRef InstanceRangesLargeRDG = !InstanceRangesLarge.IsEmpty() ? CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.InstanceRangesSmall"), InstanceRangesLarge) : nullptr;

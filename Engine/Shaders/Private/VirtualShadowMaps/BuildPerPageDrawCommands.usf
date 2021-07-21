@@ -44,7 +44,6 @@ uint FirstPrimaryView;
 uint NumPrimaryViews;
 RWStructuredBuffer<uint> VisibleInstanceCountBufferOut;
 uint InstanceSceneDataSOAStride;
-uint bInstancePerPage;
 uint DynamicInstanceIdOffset;
 uint DynamicInstanceIdMax;
 
@@ -140,33 +139,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 					RectPages.zw = min(RectPages.zw, AllocatedBounds.zw);
 					if (all(RectPages.zw >= RectPages.xy))
 					{
-						if (bInstancePerPage)
 						{
-							// Count commands for each overlapped page
-							uint PageTableLevelOffset = CalcPageTableLevelOffset(VirtualShadowMapId, MipLevel);
-							for (uint y = RectPages.y; y <= RectPages.w; y += 1U)
-							{
-								for (uint x = RectPages.x; x <= RectPages.z; x += 1U)
-								{
-									uint PageFlagOffset = PageTableLevelOffset + CalcPageOffsetInLevel(MipLevel, uint2(x, y));
-									uint PageFlag = PageFlags[PageFlagOffset];
-
-									if ((PageFlag & PageFlagMask) != 0)
-									{
-										++ThreadTotalForAllViews;
-										WriteCmd(uint2(x,y), MipViewId, InstanceId, IndirectArgIndex);
-
-										if (bHasMoved)
-										{
-											OutDynamicCasterFlags[PageFlagOffset] = 1;
-										}
-									}
-								}
-							}
-						}
-						else
-						{
-							// bInstancePerPage just one per rect
 							++ThreadTotalForAllViews;
 							WriteCmd(RectPages.xy, MipViewId, InstanceId, IndirectArgIndex);
 							if (bHasMoved)

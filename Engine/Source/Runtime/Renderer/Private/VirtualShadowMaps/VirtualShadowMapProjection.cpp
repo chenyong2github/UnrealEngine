@@ -168,7 +168,6 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 	
 	class FDirectionalLightDim		: SHADER_PERMUTATION_BOOL("DIRECTIONAL_LIGHT");
 	class FSMRTAdaptiveRayCountDim	: SHADER_PERMUTATION_BOOL("SMRT_ADAPTIVE_RAY_COUNT");
-	class FTwoPhysicalTexturesDim	: SHADER_PERMUTATION_BOOL("TWO_PHYSICAL_TEXTURES");
 	class FOnePassProjectionDim		: SHADER_PERMUTATION_BOOL("ONE_PASS_PROJECTION");
 	class FHairStrandsDim			: SHADER_PERMUTATION_BOOL("HAS_HAIR_STRANDS");
 	class FDebugOutputDim			: SHADER_PERMUTATION_BOOL("DEBUG_OUTPUT");
@@ -177,7 +176,6 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		FDirectionalLightDim,
 		FOnePassProjectionDim,
 		FSMRTAdaptiveRayCountDim,
-		FTwoPhysicalTexturesDim,
 		FHairStrandsDim,
 		FDebugOutputDim>;
 
@@ -247,8 +245,6 @@ static float GetNormalBiasForShader()
 {
 	return CVarNormalBias.GetValueOnRenderThread() / 1000.0f;
 }
-
-extern int32 GVirtualShadowMapAtomicWrites;
 
 static void RenderVirtualShadowMapProjectionCommon(
 	FRDGBuilder& GraphBuilder,
@@ -329,7 +325,6 @@ static void RenderVirtualShadowMapProjectionCommon(
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FDirectionalLightDim >( bDirectionalLight );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FOnePassProjectionDim >( bOnePassProjection );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FSMRTAdaptiveRayCountDim >( bAdaptiveRayCount );
-	PermutationVector.Set< FVirtualShadowMapProjectionCS::FTwoPhysicalTexturesDim >( GVirtualShadowMapAtomicWrites == 0 );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FHairStrandsDim >( bHasHairStrandsData ? 1 : 0 );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FDebugOutputDim >( bDebugOutput );
 
