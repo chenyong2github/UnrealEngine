@@ -933,7 +933,7 @@ void FSceneView::SetupAntiAliasingMethod()
 		}
 
 		// Overides the anti aliasing method to temporal AA when using a custom temporal upscaler.
-		if (Family->GetTemporalUpscalerInterface() != nullptr && Family->bRealtimeUpdate)
+		if (Family->GetTemporalUpscalerInterface() != nullptr)
 		{
 			AntiAliasingMethod = AAM_TemporalAA;
 		}
