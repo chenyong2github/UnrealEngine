@@ -1071,6 +1071,7 @@ static void CookSimpleWave(USoundWave* SoundWave, FName FormatName, const IAudio
 	bool bWasLocked = false;
 
 	int32 WaveSampleRate = 0;
+	int32 ImportSampleRate = 0;
 
 	// Don't need to cook source buses
 	if (USoundSourceBus* SourceBus = Cast<USoundSourceBus>(SoundWave))
@@ -1122,6 +1123,7 @@ static void CookSimpleWave(USoundWave* SoundWave, FName FormatName, const IAudio
 	else
 	{
 		WaveSampleRate = *WaveInfo.pSamplesPerSec;
+		ImportSampleRate = WaveSampleRate;
 
 		float SampleRateOverride = -1.0f;
 
@@ -1170,6 +1172,7 @@ static void CookSimpleWave(USoundWave* SoundWave, FName FormatName, const IAudio
 		if(Format.Cook(FormatName, Input, QualityInfo, Output))
 		{
 			SoundWave->SetSampleRate(QualityInfo.SampleRate);
+			SoundWave->SetImportedSampleRate(ImportSampleRate);
 
 			if (SoundWave->NumChannels != *WaveInfo.pChannels)
 			{

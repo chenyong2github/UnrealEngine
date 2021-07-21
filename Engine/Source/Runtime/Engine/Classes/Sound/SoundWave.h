@@ -706,9 +706,15 @@ public:
 
 protected:
 
-	/** Cached sample rate for displaying in the tools */
+	/** Cooked sample rate of the asset. Can be modified by sample rate override. */
 	UPROPERTY(Category = Info, AssetRegistrySearchable, VisibleAnywhere)
 	int32 SampleRate;
+
+#if WITH_EDITORONLY_DATA
+	/** Sample rate of the imported sound wave. */
+	UPROPERTY(Category = Info, AssetRegistrySearchable, VisibleAnywhere)
+	int32 ImportedSampleRate;
+#endif
 
 public:
 
@@ -887,10 +893,16 @@ public:
 		return bIsGeneratingAudio;
 	}
 
+	void SetImportedSampleRate(uint32 InImportedSampleRate)
+	{
+#if WITH_EDITORONLY_DATA
+		ImportedSampleRate = InImportedSampleRate;
+#endif
+	}
+
 	/**
 	* Overwrite sample rate. Used for procedural soundwaves, as well as sound waves that are resampled on compress/decompress.
 	*/
-
 	void SetSampleRate(uint32 InSampleRate)
 	{
 		SampleRate = InSampleRate;

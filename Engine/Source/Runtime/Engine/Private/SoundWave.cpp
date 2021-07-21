@@ -1393,6 +1393,14 @@ void USoundWave::InvalidateSoundWaveIfNeccessary()
 		return;
 	}
 
+	// This will cause a recook of the sample rate overrides have changed since it last played
+	int32 SampleRateOverride = (int32)GetSampleRateForCurrentPlatform();
+	if (SampleRate != SampleRateOverride)
+	{
+		InvalidateCompressedData(true);
+		SampleRate = SampleRateOverride;
+	}
+	
 	// if stream caching was enabled since the last time we invalidated the compressed audio, force a re-cook.
 	const bool bIsStreamCachingEnabled = FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching();
 	if (bWasStreamCachingEnabledOnLastCook != bIsStreamCachingEnabled)
@@ -2578,12 +2586,38 @@ float USoundWave::GetSampleRateForCurrentPlatform()
 		return SampleRate;
 	}
 
+#if WITH_EDITORONLY_DATA
+	// GIsEditor is false in standalone but WITH_EDITORONLY_DATA is true
 	if (GIsEditor)
 	{
 		float SampleRateOverride = FPlatformCompressionUtilities::GetTargetSampleRateForPlatform(SampleRateQuality);
-		return (SampleRateOverride > 0) ? FMath::Min(SampleRateOverride, (float)SampleRate) : SampleRate;
+		if (SampleRateOverride > 0)
+		{
+			// If we don't have an imported sample rate defined (i.e. old asset), just use the override. This will actually update the imported sample rate when it recooks.
+			if (!ImportedSampleRate)
+			{
+				return SampleRateOverride;
+			}
+			else
+			{
+				// Otherwise, use the min of the imported SR and the override
+				return FMath::Min(SampleRateOverride, (float)ImportedSampleRate);
+			}
+		}
+		else
+		{
+			if (!ImportedSampleRate)
+			{
+				return SampleRate;
+			}
+			else
+			{
+				return ImportedSampleRate;
+			}
+		}
 	}
 	else
+#endif
 	{
 		if (bCachedSampleRateFromPlatformSettings)
 		{
@@ -2615,7 +2649,14 @@ float USoundWave::GetSampleRateForCompressionOverrides(const FPlatformAudioCookO
 	const float* SampleRatePtr = CompressionOverrides->PlatformSampleRates.Find(SampleRateQuality);
 	if (SampleRatePtr && *SampleRatePtr > 0.0f)
 	{
-		return FMath::Min(*SampleRatePtr, static_cast<float>(SampleRate));
+		if (GIsEditor)
+		{
+			return GetSampleRateForCurrentPlatform();
+		}
+		else
+		{
+			return FMath::Min(*SampleRatePtr, static_cast<float>(SampleRate));
+		}
 	}
 	else
 	{
