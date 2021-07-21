@@ -9,19 +9,6 @@
 
 class SRewindDebugger;
 
-struct FDebugObjectInfo
-{
-	FDebugObjectInfo(uint64 Id, const FString& Name): ObjectId(Id), ObjectName(Name), bExpanded(true)
-	{
-	}
-
-	uint64 ObjectId;
-	FString ObjectName;
-	bool bExpanded;
-
-	TArray<TSharedPtr<FDebugObjectInfo>> Children;
-};
-
 class FRewindDebuggerModule : public IModuleInterface
 {
 public:

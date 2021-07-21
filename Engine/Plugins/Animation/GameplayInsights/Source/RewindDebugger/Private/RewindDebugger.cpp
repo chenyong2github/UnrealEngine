@@ -17,6 +17,19 @@
 FRewindDebugger* FRewindDebugger::InternalInstance = nullptr;
 const FName IRewindDebuggerExtension::ModularFeatureName = "RewindDebuggerExtension";
 
+static void IterateExtensions(TFunction<void(IRewindDebuggerExtension* Extension)> IteratorFunction)
+{
+	// update extensions
+	IModularFeatures& ModularFeatures = IModularFeatures::Get();
+
+	const int32 NumExtensions = ModularFeatures.GetModularFeatureImplementationCount(IRewindDebuggerExtension::ModularFeatureName);
+	for (int32 ExtensionIndex = 0; ExtensionIndex < NumExtensions; ++ExtensionIndex)
+	{
+		IRewindDebuggerExtension* Extension = static_cast<IRewindDebuggerExtension*>(ModularFeatures.GetModularFeatureImplementation(IRewindDebuggerExtension::ModularFeatureName, ExtensionIndex));
+		IteratorFunction(Extension);
+	}
+}
+
 FRewindDebugger::FRewindDebugger()  :
 	ControlState(FRewindDebugger::EControlState::Pause),
 	bPIEStarted(false),
@@ -291,6 +304,13 @@ void FRewindDebugger::StartRecording()
 	UE::Trace::ToggleChannel(TEXT("Animation"), true);
 	UE::Trace::ToggleChannel(TEXT("Frame"), true);
 
+	// update extensions
+	IterateExtensions([this](IRewindDebuggerExtension* Extension)
+		{
+			Extension->RecordingStarted(this);
+		}
+	);
+
 	RecordingDuration.Set(0);
 	RecordingIndex++;
 	bRecording = true;
@@ -310,6 +330,13 @@ void FRewindDebugger::StopRecording()
 		UE::Trace::ToggleChannel(TEXT("ObjectProperties"), false);
 		UE::Trace::ToggleChannel(TEXT("Animation"), false);
 		UE::Trace::ToggleChannel(TEXT("Frame"), false);
+
+		// update extensions
+		IterateExtensions([this](IRewindDebuggerExtension* Extension)
+			{
+				Extension->RecordingStopped(this);
+			}
+		);
 
 		bRecording = false;
 	}
@@ -616,18 +643,15 @@ void FRewindDebugger::Tick(float DeltaTime)
 							}
 						}
 					}
-
-					// update extensions
-					IModularFeatures& ModularFeatures = IModularFeatures::Get();
-					
-					const int32 NumExtensions = ModularFeatures.GetModularFeatureImplementationCount( IRewindDebuggerExtension::ModularFeatureName );
-					for (int32 ExtensionIndex = 0; ExtensionIndex < NumExtensions; ++ExtensionIndex)
-					{
-						IRewindDebuggerExtension* Extension = static_cast<IRewindDebuggerExtension *>(ModularFeatures.GetModularFeatureImplementation(IRewindDebuggerExtension::ModularFeatureName, ExtensionIndex));
-						Extension->UpdatePlayback(DeltaTime, this);
-					}
 				}
 			}
 		}
+
+		// update extensions
+		IterateExtensions([DeltaTime, this](IRewindDebuggerExtension* Extension)
+			{
+				Extension->Update(DeltaTime, this);
+			}
+		);
 	}
 }
