@@ -5,6 +5,7 @@
 #include "Editor.h"
 #include "IRemoteControlModule.h"
 #include "PropertyHandle.h"
+#include "Misc/DefaultValueHelper.h"
 
 #define LOCTEXT_NAMESPACE "ProtocolBindingViewModel"
 
@@ -67,10 +68,10 @@ void FProtocolRangeViewModel::Initialize()
 	}
 }
 
-void FProtocolRangeViewModel::UpdateInputValueRange() const
+void FProtocolRangeViewModel::UpdateInputValueRange()
 {
 	check(IsValid());
-	
+
 	// Early out if not yet initialized or stale
 	if(!InputProxyPropertyContainer.IsValid())
 	{
@@ -80,35 +81,72 @@ void FProtocolRangeViewModel::UpdateInputValueRange() const
 	if (const FProperty* Property = GetInputProperty())
 	{
 		// If there's a mismatch between the RangePropertySize and Property, clamp to RangePropertySize
-		const int32 PropertyTypeSize = Property->ElementSize;
-		const int32 RangeTypeSize = GetBinding()->GetRemoteControlProtocolEntityPtr()->Get()->GetRangePropertySize();
+		const int32 NewRangeTypeSize = GetBinding()->GetRemoteControlProtocolEntityPtr()->Get()->GetRangePropertySize();
 		FProperty* PropertyInContainer = InputProxyPropertyContainer->GetValueProperty();
+		int64 NewRangeMaxValue = 0;
 
 		// Set this metadata to indicate we set the ClampMax flag, not the user
 		static const FName RCSetKey = TEXT("RCSetClampMax");
-		if(PropertyTypeSize != RangeTypeSize || PropertyInContainer->HasMetaData(RCSetKey))
 		{
 			if(const FNumericProperty* NumericProperty = CastField<FNumericProperty>(Property))
 			{
-				// @note: Only works with ints!
+				// @note: Only works with ints, up to uint32
 				if(NumericProperty->IsInteger())
 				{
-					if(RangeTypeSize > 3)
+					const FString RangeMaxValueStr = GetBinding()->GetRemoteControlProtocolEntityPtr()->Get()->GetRangePropertyMaxValue();
+					if(!RangeMaxValueStr.IsEmpty())
+					{
+						FDefaultValueHelper::ParseInt64(RangeMaxValueStr, NewRangeMaxValue);
+						NewRangeMaxValue = FCString::Atoi64(*RangeMaxValueStr);
+					}
+					// Infer from RangeTypeSize
+					else
+					{
+						NewRangeMaxValue = NewRangeTypeSize < 4 ? (1 << (NewRangeTypeSize * 8)) - 1 : TNumericLimits<uint32>::Max();
+					}
+					
+					if(PreviousRangeMaxValue == 0)
+					{
+						PreviousRangeMaxValue = NewRangeMaxValue;
+					}
+
+					if(PreviousRangeMaxValue == NewRangeMaxValue)
+					{
+						return;
+					}
+
+					PreviousRangeMaxValue = RemoteControlTypeUtilities::GetMetadataValue(
+						NumericProperty,
+						RemoteControlTypeUtilities::ClampMaxKey,
+						RemoteControlTypeUtilities::GetMetadataValue(NumericProperty, RCSetKey, PreviousRangeMaxValue));
+
+					// Remaps values (eg. 0,64,255 for 8 bit remaps to 0, 16384, 65535 for 16 bit)
+					const uint32* PreviousValue = InputProxyPropertyContainer->GetValue<uint32>();
+					const float PreviousValueNormalized = static_cast<float>(*PreviousValue) / static_cast<float>(PreviousRangeMaxValue);
+
+					const uint32 NewValue = static_cast<uint32>(static_cast<double>(NewRangeMaxValue) * PreviousValueNormalized);
+
+					FScopedTransaction Transaction(LOCTEXT("SetPresetProtocolInputData", "Set Preset protocol binding input data"));
+					InputProxyPropertyContainer->SetValue(NewValue);
+
+					// 16777216 = 24bit, metadata breaks beyond >8 digits so remove
+					if(NewRangeMaxValue > 16777216)
 					{
 						PropertyInContainer->RemoveMetaData(RemoteControlTypeUtilities::ClampMaxKey);
 						PropertyInContainer->RemoveMetaData(RCSetKey);
 					}
 					else
 					{
-						const uint64 ClampMax = (1 << (RangeTypeSize * 8)) - 1;
 						FString ClampMaxStr;
-						ClampMaxStr.AppendInt(ClampMax);
+						ClampMaxStr.AppendInt(NewRangeMaxValue);
 						PropertyInContainer->SetMetaData(RemoteControlTypeUtilities::ClampMaxKey, *ClampMaxStr);
 						PropertyInContainer->SetMetaData(RCSetKey, *ClampMaxStr);
 					}
 				}
 			}
 		}
+
+		PreviousRangeMaxValue = NewRangeMaxValue;
 	}
 }
 

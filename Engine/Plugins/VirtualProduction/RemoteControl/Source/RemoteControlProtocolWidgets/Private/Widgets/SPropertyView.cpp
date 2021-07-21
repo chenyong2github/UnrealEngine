@@ -114,6 +114,7 @@ void SPropertyView::Construct(const FArguments& InArgs)
 	if (GEditor)
 	{
 		OnObjectReplacedHandle = GEditor->OnObjectsReplaced().AddSP(this, &SPropertyView::OnObjectReplaced);
+		OnObjectPropertyChangedHandle = FCoreUObjectDelegates::OnObjectPropertyChanged.AddSP(this, &SPropertyView::OnObjectPropertyChanged);
 		OnObjectTransactedHandle = FCoreUObjectDelegates::OnObjectTransacted.AddSP(this, &SPropertyView::OnObjectTransacted);
 	}
 
@@ -177,6 +178,7 @@ SPropertyView::~SPropertyView()
 	{
 		GEditor->OnObjectsReplaced().Remove(OnObjectReplacedHandle);
 		FCoreUObjectDelegates::OnObjectTransacted.Remove(OnObjectTransactedHandle);
+		FCoreUObjectDelegates::OnObjectPropertyChanged.Remove(OnObjectPropertyChangedHandle);
 	}
 }
 
@@ -508,6 +510,14 @@ void SPropertyView::CreateDefaultWidget(const FPropertyWidgetCreationArgs& InCre
 	];
 }
 
+// @note: this broadcasts, rather than overloads handling, for use cases where the object property is changed outside of this widget
+void SPropertyView::OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InEvent)
+{
+	if(IsValid(InObject) && InObject == Object.Get())
+	{
+		OnFinishedChangingProperties().Broadcast(InEvent);
+	}
+}
 
 void SPropertyView::OnPropertyChanged(const FPropertyChangedEvent& InEvent)
 {

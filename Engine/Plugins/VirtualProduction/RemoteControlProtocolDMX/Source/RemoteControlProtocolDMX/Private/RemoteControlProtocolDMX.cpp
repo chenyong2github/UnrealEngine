@@ -47,6 +47,39 @@ uint8 FRemoteControlDMXProtocolEntity::GetRangePropertySize() const
 	}
 }
 
+const FString& FRemoteControlDMXProtocolEntity::GetRangePropertyMaxValue() const
+{
+	switch (DataType)
+	{
+		default:
+		case EDMXFixtureSignalFormat::E8Bit:
+			{
+				static const FString UInt8Str = FString::FromInt(TNumericLimits<uint8>::Max());
+				return UInt8Str;
+			}
+				
+		case EDMXFixtureSignalFormat::E16Bit:
+			{
+				static const FString UInt16Str = FString::FromInt(TNumericLimits<uint16>::Max());
+				return UInt16Str;
+			}
+
+		// @note: This is for the UI so it can be anything, independent of serialization requirements.
+		case EDMXFixtureSignalFormat::E24Bit:
+			{
+				static const FString UInt24Str = FString::FromInt((1 << 24) - 1);
+				return UInt24Str;
+			}
+			
+		case EDMXFixtureSignalFormat::E32Bit:
+			{
+				// FString::FromInt doesn't support values beyond 32 bit signed ints, so use FText::AsNumber
+				static const FString UInt32Str = FText::AsNumber(TNumericLimits<uint32>::Max(), &FNumberFormattingOptions::DefaultNoGrouping()).ToString();
+				return UInt32Str;
+			}
+	}
+}
+
 void FRemoteControlDMXProtocolEntity::Initialize()
 {
 	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();

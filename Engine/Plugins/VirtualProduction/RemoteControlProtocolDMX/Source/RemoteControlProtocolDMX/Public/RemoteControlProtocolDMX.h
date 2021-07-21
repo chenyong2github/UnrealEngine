@@ -44,6 +44,7 @@ public:
 	//~ Begin FRemoteControlProtocolEntity interface
 	virtual FName GetRangePropertyName() const override { return NAME_UInt32Property; }
 	virtual uint8 GetRangePropertySize() const override;
+	virtual const FString& GetRangePropertyMaxValue() const override;
 	//~ End FRemoteControlProtocolEntity interface
 
 	/** Initialize struct and delegates */
