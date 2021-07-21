@@ -719,7 +719,7 @@ FSceneTextures& FSceneTextures::Create(FRDGBuilder& GraphBuilder, const FSceneTe
 	else
 	{
 		// Mobile Screen Space Ambient Occlusion
-		SceneTextures.ScreenSpaceAO = CreateMobileScreenSpaceAOTexture(GraphBuilder, Config.Extent);
+		SceneTextures.ScreenSpaceAO = CreateMobileScreenSpaceAOTexture(GraphBuilder, Config);
 
 		if (Config.MobilePixelProjectedReflectionExtent != FIntPoint::ZeroValue)
 		{

@@ -428,15 +428,26 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FGTAOMobile_SpatialFilterPS, "/Engine/Private/PostProcessAmbientOcclusionMobile.usf", "GTAOSpatialFilterPS", SF_Pixel);
 
-FRDGTextureRef CreateMobileScreenSpaceAOTexture(FRDGBuilder& GraphBuilder, FIntPoint SceneTextureExtent)
+FRDGTextureRef CreateMobileScreenSpaceAOTexture(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& Config)
 {
 	bool bGTAO = (CVarMobileAmbientOcclusionTechnique.GetValueOnRenderThread() == 0);
 	const uint32 DownsampleFactor = bGTAO ? 2 : 1;
 
-	const FIntPoint Extent = FIntPoint::DivideAndRoundUp(SceneTextureExtent, DownsampleFactor);
-	const bool bUsePixelShader = CVarMobileAmbientOcclusionShaderType.GetValueOnRenderThread() == 2;
+	const FIntPoint Extent = FIntPoint::DivideAndRoundUp(Config.Extent, DownsampleFactor);
+
+	EPixelFormat Format = PF_G8;
+
+	// G8 isn't supported as UAV on Android OpenGLES, fall back to RGBA8 for compute shader usage.
+	if (bGTAO
+		&& IsOpenGLPlatform(Config.ShaderPlatform)
+		&& ((GetMaxWorkGroupInvocations() >= 1024 && CVarMobileAmbientOcclusionShaderType.GetValueOnRenderThread() == 0) || CVarMobileAmbientOcclusionShaderType.GetValueOnRenderThread() == 1)
+		)
+	{
+		Format = PF_R8G8B8A8;
+	}
+
 	return GraphBuilder.CreateTexture(
-		FRDGTextureDesc::Create2D(Extent, bUsePixelShader ? PF_G8 : PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV),
+		FRDGTextureDesc::Create2D(Extent, Format, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV),
 		TEXT("ScreenSpaceAO"));
 }
 
