@@ -20,7 +20,7 @@ public:
 	/** Test the given value against the strings extracted from the current item */
 	virtual bool TestBasicStringExpression(const FTextFilterString& InValue, const ETextFilterTextComparisonMode InTextComparisonMode) const override
 	{
-		return TextFilterUtils::TestBasicStringExpression(Message->Message.ToString(), InValue, InTextComparisonMode);
+		return TextFilterUtils::TestBasicStringExpression(Message->GetMessageAsString(), InValue, InTextComparisonMode);
 	}
 
 	/**
@@ -107,7 +107,7 @@ bool FLogFilter::IsMessageAllowed(const FLogMessageRecord& Message)
 	// Filter by Verbosity
 	if (bIsFilterSetByVerbosity)
 	{
-		if (Message.Verbosity > VerbosityThreshold)
+		if (Message.GetVerbosity() > VerbosityThreshold)
 		{
 			return false;
 		}
@@ -116,7 +116,7 @@ bool FLogFilter::IsMessageAllowed(const FLogMessageRecord& Message)
 	// Filter by Category
 	if (bIsFilterSetByCategory)
 	{
-		if (!EnabledLogCategories.Contains(FName(*Message.Category.ToString())))
+		if (!EnabledLogCategories.Contains(FName(Message.GetCategory())))
 		{
 			return false;
 		}

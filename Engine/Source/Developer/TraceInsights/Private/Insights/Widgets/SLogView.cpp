@@ -152,7 +152,7 @@ public:
 			if (!SelectedLogMessage || SelectedLogMessage->GetIndex() != LogMessagePin->GetIndex()) // if row is not selected
 			{
 				FLogMessageRecord& CacheEntry = ParentWidgetPin->GetCache().Get(LogMessagePin->GetIndex());
-				const double Time = CacheEntry.Time;
+				const double Time = CacheEntry.GetTime();
 
 				TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
 				if (Window)
@@ -187,7 +187,7 @@ public:
 			}
 
 			FLogMessageRecord& CacheEntry = ParentWidgetPin->GetCache().Get(LogMessagePin->GetIndex());
-			const double Time = CacheEntry.Time;
+			const double Time = CacheEntry.GetTime();
 
 			TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
 			if (Window)
@@ -277,7 +277,7 @@ public:
 		if (ParentWidgetPin.IsValid() && LogMessagePin.IsValid())
 		{
 			FLogMessageRecord& CacheEntry = ParentWidgetPin->GetCache().Get(LogMessagePin->GetIndex());
-			return FSlateColor(FTimeMarkerTrackBuilder::GetColorByVerbosity(CacheEntry.Verbosity));
+			return FSlateColor(FTimeMarkerTrackBuilder::GetColorByVerbosity(CacheEntry.GetVerbosity()));
 		}
 		else
 		{
@@ -310,7 +310,7 @@ public:
 		if (ParentWidgetPin.IsValid() && LogMessagePin.IsValid())
 		{
 			FLogMessageRecord& CacheEntry = ParentWidgetPin->GetCache().Get(LogMessagePin->GetIndex());
-			return FSlateColor(FTimeMarkerTrackBuilder::GetColorByCategory(*CacheEntry.Category.ToString()));
+			return FSlateColor(FTimeMarkerTrackBuilder::GetColorByCategory(CacheEntry.GetCategory()));
 		}
 		else
 		{
@@ -932,7 +932,7 @@ void SLogView::SelectLogMessage(TSharedPtr<FLogMessage> LogMessage)
 			TSharedPtr<STimingView> TimingView = Window->GetTimingView();
 			if (TimingView)
 			{
-				const double Time = Cache.Get(LogMessage->GetIndex()).Time;
+				const double Time = Cache.Get(LogMessage->GetIndex()).GetTime();
 
 				if (FSlateApplication::Get().GetModifierKeys().IsShiftDown())
 				{
@@ -1056,11 +1056,11 @@ TSharedPtr<SWidget> SLogView::ListView_GetContextMenu()
 		if (SelectedLogMessage.IsValid())
 		{
 			FLogMessageRecord& Record = Cache.Get(SelectedLogMessage->GetIndex());
-			FName CategoryName(*Record.Category.ToString());
+			FName CategoryName(Record.GetCategory());
 
 			MenuBuilder.AddMenuEntry(
-				FText::Format(LOCTEXT("HideCategory", "Hide \"{0}\" Category"), Record.Category),
-				FText::Format(LOCTEXT("HideCategory_Tooltip", "Hide the \"{0}\" log category."), Record.Category),
+				FText::Format(LOCTEXT("HideCategory", "Hide \"{0}\" Category"), Record.GetCategoryAsText()),
+				FText::Format(LOCTEXT("HideCategory_Tooltip", "Hide the \"{0}\" log category."), Record.GetCategoryAsText()),
 				FSlateIcon(),
 				FUIAction(FExecuteAction::CreateSP(this, &SLogView::ToggleCategory_Execute, CategoryName)),
 				NAME_None,
@@ -1068,8 +1068,8 @@ TSharedPtr<SWidget> SLogView::ListView_GetContextMenu()
 			);
 
 			MenuBuilder.AddMenuEntry(
-				FText::Format(LOCTEXT("ShowOnlyCategory", "Show Only \"{0}\" Category"), Record.Category),
-				FText::Format(LOCTEXT("ShowOnlyCategory_Tooltip", "Show only the \"{0}\" log category (hide all other log categories)."), Record.Category),
+				FText::Format(LOCTEXT("ShowOnlyCategory", "Show Only \"{0}\" Category"), Record.GetCategoryAsText()),
+				FText::Format(LOCTEXT("ShowOnlyCategory_Tooltip", "Show only the \"{0}\" log category (hide all other log categories)."), Record.GetCategoryAsText()),
 				FSlateIcon(),
 				FUIAction(FExecuteAction::CreateSP(this, &SLogView::ShowOnlyCategory_Execute, CategoryName)),
 				NAME_None,
@@ -1187,7 +1187,8 @@ TSharedRef<SWidget> SLogView::MakeCategoryFilterMenu()
 	CreateCategoriesFilterMenuSection(MenuBuilder);
 	MenuBuilder.EndSection();
 
-	return MenuBuilder.MakeWidget();
+	const float MaxMenuHeight = FMath::Clamp(this->GetCachedGeometry().GetLocalSize().Y - 40.0f, 100.0f, 500.0f);
+	return MenuBuilder.MakeWidget(nullptr, MaxMenuHeight);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
