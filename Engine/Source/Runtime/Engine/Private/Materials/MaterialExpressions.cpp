@@ -12248,25 +12248,31 @@ void UMaterialFunctionInterface::GetAssetRegistryTags(TArray<FAssetRegistryTag>&
 #if WITH_EDITOR
 void UMaterialFunctionInterface::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	//@todo - recreate guid only when needed, not when a comment changes
+	StateId = FGuid::NewGuid();
+
 	// Go through all materials in memory and recompile them if they use this function
 	FMaterialUpdateContext UpdateContext;
-	for (TObjectIterator<UMaterial> It; It; ++It)
+	for (TObjectIterator<UMaterialInterface> It; It; ++It)
 	{
-		UMaterial* CurrentMaterial = *It;
+		UMaterialInterface* CurrentMaterial = *It;
 
 		bool bRecompile = false;
-		for (const FMaterialFunctionInfo& FunctionInfo : CurrentMaterial->GetCachedExpressionData().FunctionInfos)
-		{
-			if (FunctionInfo.Function == this)
+		UMaterialFunctionInterface* Self = this;
+		CurrentMaterial->IterateDependentFunctions(
+			[Self, &bRecompile](UMaterialFunctionInterface* InFunction)
 			{
-				bRecompile = true;
-				break;
-			}
-		}
+				if (InFunction == Self)
+				{
+					bRecompile = true;
+					return false;
+				}
+				return true;
+			});
 
 		if (bRecompile)
 		{
-			UpdateContext.AddMaterial(CurrentMaterial);
+			UpdateContext.AddMaterialInterface(CurrentMaterial);
 
 			// Propagate the change to this material
 			CurrentMaterial->PreEditChange(nullptr);
@@ -12395,9 +12401,6 @@ void UMaterialFunction::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 	UpdateInputOutputTypes();
 	UpdateDependentFunctionCandidates();
 #endif
-
-	//@todo - recreate guid only when needed, not when a comment changes
-	StateId = FGuid::NewGuid();
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
