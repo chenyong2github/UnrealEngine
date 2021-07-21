@@ -472,6 +472,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Game|Feedback")
 	uint32 bForceFeedbackEnabled:1;
 
+	/** Whether the PlayerController should be used as a World Partiton streaming source.  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WorldPartition)
+	uint32 bEnableStreamingSource:1;
+
 	/** Scale applied to force feedback values */
 	UPROPERTY(config)
 	float ForceFeedbackScale;
@@ -663,6 +667,14 @@ public:
 	 * This may then be modified by the PlayerCamera, and is passed to Pawn->FaceRotation().
 	 */
 	virtual void UpdateRotation(float DeltaTime);
+
+	/**
+	* Whether the PlayerController should be used as a World Partiton streaming source. 
+	* Default implementation returns bEnableStreamingSource but can be overriden in child classes.
+	* @return true if it should.
+	*/
+	UFUNCTION(BlueprintCallable, Category = WorldPartition)
+	virtual bool IsStreamingSourceEnabled() const { return bEnableStreamingSource; }
 
 protected:
 	/** Pawn has been possessed, so changing state to NAME_Playing. Start it walking and begin playing with it. */

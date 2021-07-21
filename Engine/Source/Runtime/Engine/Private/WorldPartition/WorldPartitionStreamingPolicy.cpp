@@ -107,7 +107,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 			for (int32 PlayerIndex = 0; PlayerIndex < NumPlayers; ++PlayerIndex)
 			{
 				ULocalPlayer* Player = GEngine->GetGamePlayer(World, PlayerIndex);
-				if (Player && Player->PlayerController)
+				if (Player && Player->PlayerController && Player->PlayerController->IsStreamingSourceEnabled())
 				{
 					FVector ViewLocation;
 					FRotator ViewRotation;
