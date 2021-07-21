@@ -200,7 +200,6 @@ FControlRigEditor::FControlRigEditor()
 	, bIsSettingObjectBeingDebugged(false)
 	, bExecutionControlRig(true)
 	, bSetupModeEnabled(false)
-	, bFirstTimeSelecting(true)
 	, bAnyErrorsLeft(false)
 	, LastEventQueue(EControlRigEditorEventQueue::Setup)
 	, ExecutionMode(EControlRigExecutionModeType::EControlRigExecutionModeType_Release)
@@ -2810,12 +2809,6 @@ void FControlRigEditor::OnSelectedNodesChangedImpl(const TSet<class UObject*>& N
 
 	if (RigGraph->bIsSelecting || GIsTransacting)
 	{
-		return;
-	}
-
-	if (bFirstTimeSelecting)
-	{
-		bFirstTimeSelecting = false;
 		return;
 	}
 

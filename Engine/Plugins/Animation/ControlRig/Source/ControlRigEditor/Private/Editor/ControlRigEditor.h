@@ -450,7 +450,6 @@ protected:
 	void OnPinControlNameListComboBox(const TArray<TSharedPtr<FString>>* InNameList);
 	void ToggleSetupMode();
 
-	bool bFirstTimeSelecting;
 	bool bAnyErrorsLeft;
 
 	EControlRigEditorEventQueue LastEventQueue;
