@@ -81,7 +81,7 @@ bool Audio::FAudioCaptureRtAudioStream::OpenCaptureStream(const FAudioCaptureDev
 	RtAudio::StreamParameters RtAudioStreamParams;
 	RtAudioStreamParams.deviceId = InputDeviceId;
 	RtAudioStreamParams.firstChannel = 0;
-	RtAudioStreamParams.nChannels = FMath::Min((int32)DeviceInfo.inputChannels, 2);
+	RtAudioStreamParams.nChannels = FMath::Min((int32)DeviceInfo.inputChannels, 8);
 
 	if (CaptureDevice.isStreamOpen())
 	{

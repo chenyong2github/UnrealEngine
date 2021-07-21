@@ -23,8 +23,7 @@ bool UAudioCaptureComponent::Init(int32& SampleRate)
 		SampleRate = DeviceInfo.PreferredSampleRate;
 		NumChannels = DeviceInfo.InputChannels;
 
-		// Only support mono and stereo mic inputs for now...
-		if (NumChannels == 1 || NumChannels == 2)
+		if (NumChannels > 0 && NumChannels <= 8)
 		{
 			// This may fail if capture synths aren't supported on a given platform or if something went wrong with the capture device
 			bIsStreamOpen = CaptureSynth.OpenDefaultStream();
@@ -32,7 +31,7 @@ bool UAudioCaptureComponent::Init(int32& SampleRate)
 		}
 		else
 		{
-			UE_LOG(LogAudio, Warning, TEXT("Audio capture components only support mono and stereo mic input."));
+			UE_LOG(LogAudio, Warning, TEXT("Attempted to open a device with the invalid NumChannels value of %i"), NumChannels);
 		}
 
 	}

@@ -223,12 +223,12 @@ void USynthComponent::Initialize(int32 SampleRateOverride)
 		// Initialize the synth component
 		Init(SampleRate);
 
-		if (NumChannels < 0 || NumChannels > 2)
+		if (NumChannels < 0 || NumChannels > 8)
 		{
-			UE_LOG(LogAudioMixer, Error, TEXT("Synthesis component '%s' has set an invalid channel count '%d' (only mono and stereo currently supported)."), *GetName(), NumChannels);
+			UE_LOG(LogAudioMixer, Error, TEXT("Synthesis component '%s' has set an invalid channel count '%d'."), *GetName(), NumChannels);
 		}
 
-		NumChannels = FMath::Clamp(NumChannels, 1, 2);
+		NumChannels = FMath::Clamp(NumChannels, 1, 8);
 #endif
 
 		if (!Synth)
