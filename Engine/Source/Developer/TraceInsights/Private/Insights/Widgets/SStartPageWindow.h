@@ -49,9 +49,9 @@ typedef TWeakPtr<class SNotificationItem> SNotificationItemWeak;
 struct FTraceViewModel
 {
 	uint32 TraceId = 0;
+	int32 TraceIndex = -1; // debug
 
 	uint64 ChangeSerial = 0;
-	int32 TraceIndex = -1; // debug
 
 	FText Name;
 	FText Uri;
@@ -59,18 +59,18 @@ struct FTraceViewModel
 	FDateTime Timestamp = 0;
 	uint64 Size = 0;
 
-	bool bIsLive = false;
-	uint32 IpAddress = 0;
-
-	bool bIsMetadataUpdated = false;
 	FText Platform;
 	FText AppName;
 	FText CommandLine;
 	FText Branch;
 	FText BuildVersion;
-	uint32 Changelist;
+	uint32 Changelist = 0;
 	EBuildConfiguration ConfigurationType = EBuildConfiguration::Unknown;
 	EBuildTargetType TargetType = EBuildTargetType::Unknown;
+
+	bool bIsMetadataUpdated = false;
+	bool bIsLive = false;
+	uint32 IpAddress = 0;
 
 	FTraceViewModel() = default;
 

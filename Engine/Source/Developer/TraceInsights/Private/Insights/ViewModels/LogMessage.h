@@ -17,27 +17,38 @@ namespace TraceServices
 class FLogMessageRecord
 {
 public:
-	FLogMessageRecord();
-	FLogMessageRecord(const TraceServices::FLogMessageInfo& Message);
+	FLogMessageRecord() = default;
+	explicit FLogMessageRecord(const TraceServices::FLogMessageInfo& Message);
+
+	uint32 GetIndex() const { return Index; }
+	double GetTime() const { return Time; }
+	ELogVerbosity::Type GetVerbosity() const { return Verbosity; }
+	const TCHAR* GetCategory() const { return *Category.ToString(); }
+	const TCHAR* GetMessage() const { return *Message.ToString(); }
+	const TCHAR* GetFile() const { return *File.ToString(); }
+	uint32 GetLine() const { return Line; }
+
+	FString GetCategoryAsString() const { return Category.ToString(); }
+	FString GetMessageAsString() const { return Message.ToString(); }
 
 	FText GetIndexAsText() const;
 	FText GetTimeAsText() const;
 	FText GetVerbosityAsText() const;
-	FText GetCategoryAsText() const;
-	FText GetMessageAsText() const;
-	FText GetFileAsText() const;
+	FText GetCategoryAsText() const { return Category; }
+	FText GetMessageAsText() const { return Message; }
+	FText GetFileAsText() const { return File; }
 	FText GetLineAsText() const;
 
 	FText ToDisplayString() const;
 
-public:
-	int32 Index;
-	double Time;
-	ELogVerbosity::Type Verbosity;
+private:
+	double Time = 0.0;
 	FText Category;
 	FText Message;
 	FText File;
-	uint32 Line;
+	uint32 Line = 0;
+	uint32 Index = 0;
+	ELogVerbosity::Type Verbosity = ELogVerbosity::Type::NoLogging;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
