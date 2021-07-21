@@ -4,9 +4,11 @@
 #include "MovieSceneSequence.h"
 #include "MovieSceneSequenceEditor.h"
 #include "MovieSceneEventUtils.h"
+#include "Channels/MovieSceneChannelHandle.h"
 #include "Sections/MovieSceneEventSectionBase.h"
 #include "ISequencerChannelInterface.h"
 #include "Widgets/SNullWidget.h"
+#include "IKeyArea.h"
 #include "ISequencer.h"
 #include "SequencerSettings.h"
 #include "MovieSceneCommonHelpers.h"
@@ -1039,25 +1041,41 @@ struct FFloatChannelSectionMenuExtension : FExtender, TSharedFromThis<FFloatChan
 	{
 		TSharedRef<FFloatChannelSectionMenuExtension> SharedThis = AsShared();
 
+		ISequencer* Sequencer = WeakSequencer.Pin().Get();
+		if (!Sequencer)
+		{
+			return;
+		}
+
+		USequencerSettings* Settings = Sequencer->GetSequencerSettings();
+		if (!Settings)
+		{
+			return;
+		}
+
 		// Menu entry for key area height
-		auto OnKeyAreaHeightChanged = [=](int32 NewValue) {
+		auto OnKeyAreaHeightChanged = [=](int32 NewValue) { Settings->SetKeyAreaHeightWithCurves((float)NewValue); };
+		auto GetKeyAreaHeight = [=]() { return (int)Settings->GetKeyAreaHeightWithCurves(); };
 
-			if (ISequencer* Sequencer = WeakSequencer.Pin().Get())
+		auto OnKeyAreaCurveNormalized = [=](FString KeyAreaName) 
+		{ 
+			if (Settings->HasKeyAreaCurveExtents(KeyAreaName))
+			{	
+				Settings->RemoveKeyAreaCurveExtents(KeyAreaName);
+			}
+			else
 			{
-				Sequencer->GetSequencerSettings()->SetKeyAreaHeightWithCurves((float)NewValue);
+				// Initialize to some arbitrary value
+				Settings->SetKeyAreaCurveExtents(KeyAreaName, 0.f, 6.f); 
 			}
 		};
+		auto GetKeyAreaCurveNormalized = [=](FString KeyAreaName) { return !Settings->HasKeyAreaCurveExtents(KeyAreaName); };
 
-		auto GetKeyAreaHeight = [=]() {
+		auto OnKeyAreaCurveMinChanged = [=](float NewValue, FString KeyAreaName) { float CurveMin = 0.f; float CurveMax = 0.f; Settings->GetKeyAreaCurveExtents(KeyAreaName, CurveMin, CurveMax); Settings->SetKeyAreaCurveExtents(KeyAreaName, NewValue, CurveMax); };
+		auto GetKeyAreaCurveMin = [=](FString KeyAreaName) { float CurveMin = 0.f; float CurveMax = 0.f; Settings->GetKeyAreaCurveExtents(KeyAreaName, CurveMin, CurveMax); return CurveMin; };
 
-			if (ISequencer* Sequencer = WeakSequencer.Pin().Get())
-			{
-				return (int)Sequencer->GetSequencerSettings()->GetKeyAreaHeightWithCurves();
-			}
-
-			return 15;
-		};
-
+		auto OnKeyAreaCurveMaxChanged = [=](float NewValue, FString KeyAreaName) { float CurveMin = 0.f; float CurveMax = 0.f; Settings->GetKeyAreaCurveExtents(KeyAreaName, CurveMin, CurveMax); Settings->SetKeyAreaCurveExtents(KeyAreaName, CurveMin, NewValue); };
+		auto GetKeyAreaCurveMax = [=](FString KeyAreaName) { float CurveMin = 0.f; float CurveMax = 0.f; Settings->GetKeyAreaCurveExtents(KeyAreaName, CurveMin, CurveMax); return CurveMax; };
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("ToggleShowCurve", "Show Curve"),
@@ -1067,6 +1085,31 @@ struct FFloatChannelSectionMenuExtension : FExtender, TSharedFromThis<FFloatChan
 				FExecuteAction::CreateLambda([SharedThis]{ SharedThis->ToggleShowCurve(); }),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateLambda([SharedThis]{ return SharedThis->IsShowCurve(); })
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);	
+		
+		FString KeyAreaName;
+		TArray<const IKeyArea*> SelectedKeyAreas;
+		Sequencer->GetSelectedKeyAreas(SelectedKeyAreas);
+		for (const IKeyArea* KeyArea : SelectedKeyAreas)
+		{			
+			if (KeyArea)
+			{
+				KeyAreaName = KeyArea->GetName().ToString();
+				break;
+			}
+		}
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ToggleKeyAreaCurveNormalized", "Key Area Curve Normalized"),
+			LOCTEXT("ToggleKeyAreaCurveNormalizedTooltip", "Toggle showing the curve in the track area as normalized"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([=] { OnKeyAreaCurveNormalized(KeyAreaName); }),
+				FCanExecuteAction(FCanExecuteAction::CreateLambda([SharedThis]{ return SharedThis->IsShowCurve(); })),
+				FIsActionChecked::CreateLambda([=] { return GetKeyAreaCurveNormalized(KeyAreaName); })
 			),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
@@ -1082,7 +1125,44 @@ struct FFloatChannelSectionMenuExtension : FExtender, TSharedFromThis<FFloatChan
 				.AutoWidth()
 				[
 					SNew(SBox)
-					.WidthOverride(30.f)
+					.WidthOverride(50.f)
+					.IsEnabled_Lambda([=]() { return SharedThis->IsShowCurve() && Settings->HasKeyAreaCurveExtents(KeyAreaName); })
+					[
+						SNew(SSpinBox<float>)
+						.Style(&FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+						.OnValueCommitted_Lambda([=](float NewValue, ETextCommit::Type CommitType) { OnKeyAreaCurveMinChanged(NewValue, KeyAreaName); })
+						.OnValueChanged_Lambda([=](float NewValue) { OnKeyAreaCurveMinChanged(NewValue, KeyAreaName); })
+						.Value_Lambda([=]() -> float { return GetKeyAreaCurveMin(KeyAreaName); })
+					]
+				]
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SBox)
+					.WidthOverride(50.f)
+					.IsEnabled_Lambda([=]() { return SharedThis->IsShowCurve() && Settings->HasKeyAreaCurveExtents(KeyAreaName); })
+					[
+						SNew(SSpinBox<float>)
+						.Style(&FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+						.OnValueCommitted_Lambda([=](float NewValue, ETextCommit::Type CommitType) { OnKeyAreaCurveMaxChanged(NewValue, KeyAreaName); })
+						.OnValueChanged_Lambda([=](float NewValue) { OnKeyAreaCurveMaxChanged(NewValue, KeyAreaName); })
+						.Value_Lambda([=]() -> float { return GetKeyAreaCurveMax(KeyAreaName); })
+					]
+				],
+				LOCTEXT("KeyAreaCurveRangeText", "Key Area Curve Range")
+		);		
+		
+		MenuBuilder.AddWidget(
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+				[
+					SNew(SSpacer)
+				]
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SBox)
+					.WidthOverride(50.f)
 					[
 						SNew(SSpinBox<int32>)
 						.Style(&FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
