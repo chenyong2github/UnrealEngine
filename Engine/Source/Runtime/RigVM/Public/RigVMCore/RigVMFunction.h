@@ -8,8 +8,18 @@
 #include "RigVMMemory.h"
 #include "Blueprint/BlueprintSupport.h"
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
 typedef FRigVMFixedArray<FRigVMMemoryHandle> FRigVMMemoryHandleArray;
 typedef FRigVMFixedArray<void*> FRigVMUserDataArray;
+
+#else
+
+typedef TArrayView<FRigVMMemoryHandle> FRigVMMemoryHandleArray;
+typedef TArrayView<void*> FRigVMUserDataArray;
+
+#endif
+
 typedef void (*FRigVMFunctionPtr)(FRigVMExecuteContext& RigVMExecuteContext, FRigVMMemoryHandleArray RigVMMemoryHandles);
 
 /**

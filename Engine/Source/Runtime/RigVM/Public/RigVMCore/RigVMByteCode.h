@@ -663,12 +663,25 @@ public:
 		return GetOperandsAt(ByteCodeIndex, ExecuteOp.GetOperandCount());
 	}
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
 	// returns the raw data of the byte code
 	FORCEINLINE const FRigVMFixedArray<uint8> GetByteCode() const
 	{
 		const uint8* Data = ByteCode.GetData();
 		return FRigVMFixedArray<uint8>((uint8*)Data, ByteCode.Num());
 	}
+
+#else
+
+	// returns the raw data of the byte code
+	FORCEINLINE const TArrayView<const uint8> GetByteCode() const
+	{
+		const uint8* Data = ByteCode.GetData();
+		return TArrayView<const uint8>((uint8*)Data, ByteCode.Num());
+	}
+
+#endif
 
 	// returns the statistics information
 	FRigVMByteCodeStatistics GetStatistics() const

@@ -245,7 +245,11 @@ struct RIGVM_API FRigVMExecuteContext
 	FName EventName;
 	FName FunctionName;
 	uint16 InstructionIndex;
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	FRigVMFixedArray<void*> OpaqueArguments;
+#else
+	TArrayView<void*> OpaqueArguments;
+#endif
 	TArray<FRigVMExternalVariable> ExternalVariables;
 	TArray<FRigVMSlice> Slices;
 	TArray<uint16> SliceOffsets;

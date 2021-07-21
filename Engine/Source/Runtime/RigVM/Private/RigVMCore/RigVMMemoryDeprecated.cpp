@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RigVMCore/RigVMMemory.h"
+#include "RigVMCore/RigVMMemoryDeprecated.h"
 #include "RigVMCore/RigVMUtilities.h"
 #include "UObject/AnimObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
@@ -8,18 +8,7 @@
 #include "UObject/Package.h"
 #include "RigVMModule.h"
 
-#if DEBUG_RIGVMMEMORY
-	DEFINE_LOG_CATEGORY(LogRigVMMemory);
-#endif
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FRigVMOperand::Serialize(FArchive& Ar)
-{
-	Ar << MemoryType;
-	Ar << RegisterIndex;
-	Ar << RegisterOffset;
-}
 
 void FRigVMRegister::Serialize(FArchive& Ar)
 {
@@ -362,6 +351,8 @@ FRigVMRegisterOffset::FRigVMRegisterOffset(UScriptStruct* InScriptStruct, const 
 	ensure(ElementSize > 0);
 }
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
 uint8* FRigVMRegisterOffset::GetData(uint8* InContainer) const
 {
 	uint8* Data = InContainer;
@@ -380,6 +371,8 @@ uint8* FRigVMRegisterOffset::GetData(uint8* InContainer) const
 	}
 	return Data;
 }
+
+#endif
 
 bool FRigVMRegisterOffset::ContainsArraySegment() const
 {
@@ -462,8 +455,12 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
 FRigVMByteArray FRigVMMemoryContainer::DefaultByteArray;
 FRigVMRegisterOffset FRigVMMemoryContainer::InvalidRegisterOffset;
+
+#endif
 
 FRigVMMemoryContainer::FRigVMMemoryContainer(bool bInUseNames)
 	: bUseNameMap(bInUseNames)
@@ -471,6 +468,8 @@ FRigVMMemoryContainer::FRigVMMemoryContainer(bool bInUseNames)
 	, bEncounteredErrorDuringLoad(false)
 {
 }
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 FRigVMMemoryContainer::FRigVMMemoryContainer(const FRigVMMemoryContainer& Other)
 {
@@ -536,6 +535,10 @@ FRigVMMemoryContainer& FRigVMMemoryContainer::operator= (const FRigVMMemoryConta
 	return *this;
 }
 
+#endif
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
 void FRigVMMemoryContainer::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
@@ -558,6 +561,17 @@ void FRigVMMemoryContainer::Serialize(FArchive& Ar)
 		checkNoEntry();
 	}
 }
+
+#else
+
+void FRigVMMemoryContainer::Serialize(FArchive& Ar)
+{
+	return;
+}
+
+#endif
+
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 void FRigVMMemoryContainer::Save(FArchive& Ar)
 {
@@ -1926,3 +1940,5 @@ int32 FRigVMMemoryContainer::FindOrAddScriptStruct(UScriptStruct* InScriptStruct
 	}
 	return ScriptStructs.Add(InScriptStruct);
 }
+
+#endif

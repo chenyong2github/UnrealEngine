@@ -450,6 +450,8 @@ struct RIGVM_API FRigVMExternalVariable
 			(bAllowNullPtr || Memory != nullptr);
 	}
 
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+
 	FORCEINLINE FRigVMMemoryHandle GetHandle() const
 	{
 		return FRigVMMemoryHandle(
@@ -458,6 +460,8 @@ struct RIGVM_API FRigVMExternalVariable
 			bIsArray ? FRigVMMemoryHandle::FType::Dynamic : FRigVMMemoryHandle::FType::Plain
 		);
 	}
+
+#endif
 
 	FORCEINLINE static void MergeExternalVariable(TArray<FRigVMExternalVariable>& OutVariables, const FRigVMExternalVariable& InVariable)
 	{
