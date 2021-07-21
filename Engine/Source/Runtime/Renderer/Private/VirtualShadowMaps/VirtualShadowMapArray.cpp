@@ -89,13 +89,6 @@ static TAutoConsoleVariable<float> CVarPageDilationBorderSize(
 	ECVF_RenderThreadSafe
 );
 
-TAutoConsoleVariable<int32> CVarAllocatePagesUsingRects(
-	TEXT("r.Shadow.Virtual.AllocatePagesUsingRects"),
-	0,
-	TEXT("If set to 1 then pages are allocated in a contigious block to support the bounding rectangle of allocated virtual pages leading to a trivial mapping but higher memory overhead."),
-	ECVF_RenderThreadSafe
-);
-
 TAutoConsoleVariable<int32> CVarMarkPixelPages(
 	TEXT("r.Shadow.Virtual.MarkPixelPages"),
 	1,
@@ -116,19 +109,6 @@ TAutoConsoleVariable<int32> CVarMarkCoarsePagesLocal(
 	1,
 	TEXT("Marks coarse pages in local light virtual shadow maps so that low resolution data is available everywhere.")
 	TEXT("Ability to disable is primarily for profiling and debugging."),
-	ECVF_RenderThreadSafe
-);
-
-int32 GVirtualShadowMapAtomicWrites = 1;
-FAutoConsoleVariableRef CVarAtomicWrites(
-	TEXT("r.Shadow.Virtual.AtomicWrites"),
-	GVirtualShadowMapAtomicWrites,
-	TEXT("Use per pixel page table routing and atomic writes instead of an instance per page."),
-	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
-	{
-		// Needed because the depth state changes with method (so cached draw commands must be re-created) see SetStateForShadowDepth
-		FGlobalComponentRecreateRenderStateContext Context;
-	}),
 	ECVF_RenderThreadSafe
 );
 
@@ -294,7 +274,6 @@ void FVirtualShadowMapArray::Initialize(FRDGBuilder& GraphBuilder, FVirtualShado
 	UniformParameters.ProjectionData = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(FVirtualShadowMapProjectionShaderData)));
 
 	UniformParameters.PhysicalPagePool = GSystemTextures.GetZeroUIntDummy(GraphBuilder);
-	UniformParameters.PhysicalPagePoolHw = GSystemTextures.GetBlackDummy(GraphBuilder);
 }
 
 FVirtualShadowMapArray::~FVirtualShadowMapArray()
@@ -712,59 +691,6 @@ class FInitPageRectBoundsCS : public FVirtualPageManagementShader
 IMPLEMENT_GLOBAL_SHADER(FInitPageRectBoundsCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "InitPageRectBounds", SF_Compute);
 
 
-
-
-
-class FCalculatePageRectsCS : public FVirtualPageManagementShader
-{
-	DECLARE_GLOBAL_SHADER(FCalculatePageRectsCS);
-	SHADER_USE_PARAMETER_STRUCT(FCalculatePageRectsCS, FVirtualPageManagementShader)
-
-		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
-
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, PageFlags)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FIntVector4>, PageRectBoundsOut)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutPageTable)
-	END_SHADER_PARAMETER_STRUCT()
-};
-IMPLEMENT_GLOBAL_SHADER(FCalculatePageRectsCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "CalculatePageRects", SF_Compute);
-
-
-class FAllocatePagesUsingRectsCS : public FVirtualPageManagementShader
-{
-	DECLARE_GLOBAL_SHADER(FAllocatePagesUsingRectsCS);
-	SHADER_USE_PARAMETER_STRUCT(FAllocatePagesUsingRectsCS, FVirtualPageManagementShader)
-
-	//class FHasCacheDataDim : SHADER_PERMUTATION_BOOL("HAS_CACHE_DATA");
-	//class FGenerateStatsDim : SHADER_PERMUTATION_BOOL("VSM_GENERATE_STATS");
-
-	//using FPermutationDomain = TShaderPermutationDomain<FHasCacheDataDim, FGenerateStatsDim>;
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FVirtualPageManagementShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-
-		// Ensure these are off for now.
-		OutEnvironment.SetDefine(TEXT("HAS_CACHE_DATA"), 0);
-		OutEnvironment.SetDefine(TEXT("VSM_GENERATE_STATS"), 0);
-	}
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, AllocatedPagesOffset)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutPageTable)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutStatsBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< FCachedPageInfo >, OutCachedPageInfos)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutPageFlags)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FIntVector4 >, PageRectBounds)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FIntVector4>, AllocatedPageRectBoundsOut)
-
-		//SHADER_PARAMETER_STRUCT_INCLUDE(FCacheDataParameters, CacheDataParameters)
-	END_SHADER_PARAMETER_STRUCT()
-};
-IMPLEMENT_GLOBAL_SHADER(FAllocatePagesUsingRectsCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "AllocatePagesUsingRects", SF_Compute);
-
 static FString GetLightNameForDebug(const FLightSceneProxy* Proxy)
 {
 	// TODO: ActorLabel is editor-only... need a better solution that goes right into Proxy->GetComponentName()
@@ -1123,51 +1049,6 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 			);
 		}
 		
-		const bool bAllocatePageRectAtlas = CVarAllocatePagesUsingRects.GetValueOnRenderThread() != 0;
-		if (bAllocatePageRectAtlas)
-		{
-			// 1. Build page rects from requested pages
-			{
-				FCalculatePageRectsCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FCalculatePageRectsCS::FParameters >();
-				PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
-				PassParameters->PageFlags = GraphBuilder.CreateSRV(PageRequestFlagsRDG);
-				PassParameters->PageRectBoundsOut = GraphBuilder.CreateUAV(PageRectBoundsRDG);
-				PassParameters->OutPageTable = GraphBuilder.CreateUAV(PageTableRDG);
-				AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(PageFlagsRDG), 0);
-
-				auto ComputeShader = Views[0].ShaderMap->GetShader< FCalculatePageRectsCS >();
-				FComputeShaderUtils::AddPass(
-					GraphBuilder,
-					RDG_EVENT_NAME("CalculatePageRequestRects"),
-					ComputeShader,
-					PassParameters,
-					FComputeShaderUtils::GetGroupCount(FIntVector(FVirtualShadowMap::Level0DimPagesXY, FVirtualShadowMap::Level0DimPagesXY, ShadowMaps.Num()), FIntVector(FCalculatePageRectsCS::DefaultCSGroupXY, FCalculatePageRectsCS::DefaultCSGroupXY, 1U))
-				);
-			}
-
-
-			// 2. Allocate and all that
-			{
-				FAllocatePagesUsingRectsCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FAllocatePagesUsingRectsCS::FParameters >();
-				PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
-				PassParameters->PageRectBounds = GraphBuilder.CreateSRV(PageRectBoundsRDG);
-
-				PassParameters->OutPageTable = GraphBuilder.CreateUAV(PageTableRDG);
-				PassParameters->OutCachedPageInfos = GraphBuilder.CreateUAV(CachedPageInfosRDG);
-				PassParameters->OutPageFlags = GraphBuilder.CreateUAV(PageFlagsRDG);
-				PassParameters->AllocatedPageRectBoundsOut = GraphBuilder.CreateUAV(AllocatedPageRectBoundsRDG);
-
-				auto ComputeShader = Views[0].ShaderMap->GetShader< FAllocatePagesUsingRectsCS >();
-				FComputeShaderUtils::AddPass(
-					GraphBuilder,
-					RDG_EVENT_NAME("AllocatePagesUsingRects"),
-					ComputeShader,
-					PassParameters,
-					FIntVector(1U, 1U, 1U)
-				);
-			}
-		}
-		else
 		{
 			// Note: does not actually need mip0 so can be trimmed down a bit
 			FRDGBufferRef CoverageSummary = GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateStructuredDesc( 4, NumPageFlags ), TEXT("Shadow.Virtual.CoverageSummary") );
@@ -1245,6 +1126,13 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 			);
 		}
 
+		// Allocate and clear physical page pool
+		PhysicalPagePoolRDG = GraphBuilder.CreateTexture(
+			FRDGTextureDesc::Create2D(GetPhysicalPoolSize(), PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV),
+			TEXT("Shadow.Virtual.PhysicalPagePool") );
+		ClearPhysicalMemory(GraphBuilder, PhysicalPagePoolRDG);
+
+		UniformParameters.PhysicalPagePool = PhysicalPagePoolRDG;
 		UniformParameters.PageTable = GraphBuilder.CreateSRV(PageTableRDG);
 	}
 
@@ -1252,12 +1140,6 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 	// Only dump one frame of light data
 	GDumpVSMLightNames = false;
 #endif
-}
-
-void FVirtualShadowMapArray::SetupProjectionParameters(FRDGBuilder& GraphBuilder)
-{
-	UniformParameters.PhysicalPagePool = PhysicalPagePoolRDG ? PhysicalPagePoolRDG : GSystemTextures.GetZeroUIntDummy(GraphBuilder);
-	UniformParameters.PhysicalPagePoolHw = PhysicalPagePoolHw ? PhysicalPagePoolHw : GSystemTextures.GetBlackDummy(GraphBuilder);
 }
 
 class FDebugVisualizeVirtualSmCS : public FVirtualPageManagementShader
@@ -1573,7 +1455,6 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, DrawIndirectArgsBufferOut)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, VisibleInstanceCountBufferOut)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutDynamicCasterFlags)
-		SHADER_PARAMETER(int32, bInstancePerPage)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FCullPerPageDrawCommandsCs, "/Engine/Private/VirtualShadowMaps/BuildPerPageDrawCommands.usf", "CullPerPageDrawCommandsCs", SF_Compute);
@@ -1665,26 +1546,8 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 
 	RDG_EVENT_SCOPE(GraphBuilder, "RenderVirtualShadowMaps(Non-Nanite)");
 
-	const bool bAllocatePageRectAtlas = CVarAllocatePagesUsingRects.GetValueOnRenderThread() != 0;
-	const bool bAtomicWrites = GVirtualShadowMapAtomicWrites != 0;
-
 	FGPUScene& GPUScene = Scene.GPUScene;
 	// Create that pass struct and whatever I guess.
-
-	// track whether the page pool was cleared
-	bool bWasCleared = bAtomicWrites;
-
-	if( !bAtomicWrites )
-	{
-		// Create physical page pool
-		PhysicalPagePoolHw = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(GetPhysicalPoolSize(), PF_DepthStencil, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource), TEXT("Shadow.Virtual.PhysicalPagePoolHw"));
-
-		if( !bAllocatePageRectAtlas )
-		{
-			AddInitializePhysicalPagesHwPass(GraphBuilder);
-			bWasCleared = true;
-		}
-	}
 
 	TArray<uint32, SceneRenderingAllocator> VirtualShadowMapFlags;
 	VirtualShadowMapFlags.AddZeroed(ShadowMaps.Num());
@@ -1833,7 +1696,6 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 				PassParameters->VisibleInstancesOut = GraphBuilder.CreateUAV(VisibleInstancesRdg);
 				PassParameters->VisibleInstanceCountBufferOut = GraphBuilder.CreateUAV(VisibleInstanceWriteOffsetRDG);
 				PassParameters->OutDynamicCasterFlags = GraphBuilder.CreateUAV(DynamicCasterPageFlagsRDG);
-				PassParameters->bInstancePerPage = !bAllocatePageRectAtlas && !bAtomicWrites;
 
 				FCullPerPageDrawCommandsCs::FPermutationDomain PermutationVector;
 				PermutationVector.Set< FCullPerPageDrawCommandsCs::FNearClipDim >( !Clipmap.IsValid() );
@@ -1899,21 +1761,10 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 				);
 			}
 
-			if( PhysicalPagePoolRDG == nullptr )
-			{
-				PhysicalPagePoolRDG = GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D( GetPhysicalPoolSize(), PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV ), TEXT("Shadow.Virtual.PhysicalPagePool") );
-
-				ClearPhysicalMemory(GraphBuilder, PhysicalPagePoolRDG);
-			}
+			check(PhysicalPagePoolRDG != nullptr);
 
 			FVirtualShadowDepthPassParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualShadowDepthPassParameters>();
 			PassParameters->View = ShadowDepthView->ViewUniformBuffer;
-
-			if( !bAtomicWrites )
-			{
-				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(PhysicalPagePoolHw, bWasCleared ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilNop);
-				bWasCleared = true;
-			}
 
 			FShadowDepthPassUniformParameters* ShadowDepthPassParameters = GraphBuilder.AllocParameters<FShadowDepthPassUniformParameters>();
 
@@ -1926,8 +1777,6 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 			ShadowDepthPassParameters->ViewMatrix = FMatrix::Identity;
 			ShadowDepthPassParameters->ShadowParams = FVector4(0.0f, 0.0f, 0.0f, 1.0f);
 			ShadowDepthPassParameters->bRenderToVirtualShadowMap = true;
-			ShadowDepthPassParameters->bInstancePerPage = !bAllocatePageRectAtlas && !bAtomicWrites;
-			ShadowDepthPassParameters->bAtomicWrites = bAtomicWrites;
 			
 			ShadowDepthPassParameters->VirtualSmPageTable	= GraphBuilder.CreateSRV( PageTableRDG );
 			ShadowDepthPassParameters->PackedNaniteViews	= GraphBuilder.CreateSRV( VirtualShadowViewsRDG );
@@ -1951,7 +1800,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 			InstanceCullingResult.GetDrawParameters(PassParameters->InstanceCullingDrawParams);
 
 			FIntRect ViewRect;
-			ViewRect.Max = bAtomicWrites ? FVirtualShadowMap::VirtualMaxResolutionXY : GetPhysicalPoolSize();
+			ViewRect.Max = FVirtualShadowMap::VirtualMaxResolutionXY;
 
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("RenderVirtualShadowMapsHw"),
@@ -2000,176 +1849,4 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 	}
 
 	MarkPhysicalPagesRendered(GraphBuilder, VirtualShadowMapFlags);
-
-	if (!bWasCleared)
-	{
-		AddClearDepthStencilPass(GraphBuilder, PhysicalPagePoolHw);
-	}
-}
-
-class FUpdatePhysicalPageMetaDataClearStateCS : public FVirtualPageManagementShader
-{
-	DECLARE_GLOBAL_SHADER(FUpdatePhysicalPageMetaDataClearStateCS);
-	SHADER_USE_PARAMETER_STRUCT(FUpdatePhysicalPageMetaDataClearStateCS, FVirtualPageManagementShader)
-
-	class FHasCacheDataDim : SHADER_PERMUTATION_BOOL("HAS_CACHE_DATA");
-	using FPermutationDomain = TShaderPermutationDomain<FHasCacheDataDim>;
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FCachedPageInfo >, CachedPageInfos)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FPhysicalPageMetaData >, PrevPhysicalPageMetaData)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, NumAllocatedPhysicalPages)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< FPhysicalPageMetaData >, PhysicalPageMetaDataOut)
-	END_SHADER_PARAMETER_STRUCT()
-};
-IMPLEMENT_GLOBAL_SHADER(FUpdatePhysicalPageMetaDataClearStateCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "UpdatePhysicalPageMetaDataClearState", SF_Compute);
-
-
-class FSetupClearHwPhysicalPagesDrawArgsCS : public FVirtualPageManagementShader
-{
-	DECLARE_GLOBAL_SHADER(FSetupClearHwPhysicalPagesDrawArgsCS);
-	SHADER_USE_PARAMETER_STRUCT(FSetupClearHwPhysicalPagesDrawArgsCS, FVirtualPageManagementShader)
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, NumAllocatedPhysicalPages)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer< uint >, ClearPhysicalPageDrawArgs)
-		SHADER_PARAMETER(int32, bRectPrimitive)
-	END_SHADER_PARAMETER_STRUCT()
-};
-IMPLEMENT_GLOBAL_SHADER(FSetupClearHwPhysicalPagesDrawArgsCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "SetupClearHwPhysicalPagesDrawArgs", SF_Compute);
-
-
-class FInitializePhysicalPagesVS : public FVirtualPageManagementShader
-{
-	DECLARE_GLOBAL_SHADER(FInitializePhysicalPagesVS);
-	SHADER_USE_PARAMETER_STRUCT(FInitializePhysicalPagesVS, FVirtualPageManagementShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
-	END_SHADER_PARAMETER_STRUCT()
-};
-
-class FInitializePhysicalPagesPS : public FVirtualPageManagementShader
-{
-	DECLARE_GLOBAL_SHADER(FInitializePhysicalPagesPS);
-	SHADER_USE_PARAMETER_STRUCT(FInitializePhysicalPagesPS, FVirtualPageManagementShader);
-	
-	class FHasCacheDataDim : SHADER_PERMUTATION_BOOL("HAS_CACHE_DATA");
-	using FPermutationDomain = TShaderPermutationDomain<FHasCacheDataDim>;
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D< float >, PrevPhysicalPagePoolHw)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FCachedPageInfo >, CachedPageInfos)
-		RDG_BUFFER_ACCESS(IndirectArgsBuffer, ERHIAccess::IndirectArgs)
-		SHADER_PARAMETER(int32, bCacheDataAvailable)
-		SHADER_PARAMETER(int32, bRectPrimitive)
-		RENDER_TARGET_BINDING_SLOTS()
-	END_SHADER_PARAMETER_STRUCT()
-};
-
-IMPLEMENT_GLOBAL_SHADER(FInitializePhysicalPagesVS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "InitializePhysicalPagesVS", SF_Vertex);
-IMPLEMENT_GLOBAL_SHADER(FInitializePhysicalPagesPS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "InitializePhysicalPagesPS", SF_Pixel);
-
-void FVirtualShadowMapArray::AddInitializePhysicalPagesHwPass(FRDGBuilder& GraphBuilder)
-{
-	FRDGBufferRef IndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(), TEXT("Shadow.Virtual.InitializePhysicalPagesArgs"));
-	{
-		FSetupClearHwPhysicalPagesDrawArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSetupClearHwPhysicalPagesDrawArgsCS::FParameters>();
-		PassParameters->NumAllocatedPhysicalPages = GraphBuilder.CreateSRV(AllocatedPagesOffsetRDG);
-		PassParameters->ClearPhysicalPageDrawArgs = GraphBuilder.CreateUAV(IndirectArgsBuffer, PF_R32_UINT);
-		PassParameters->bRectPrimitive = GRHISupportsRectTopology ? 1 : 0;
-
-		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FSetupClearHwPhysicalPagesDrawArgsCS>();
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("InitClearPhysicalPagesArgs"),
-			ComputeShader,
-			PassParameters,
-			FIntVector(1, 1, 1)
-		);
-	}
-
-	{
-		FInitializePhysicalPagesPS::FParameters* ParametersPS = GraphBuilder.AllocParameters<FInitializePhysicalPagesPS::FParameters>();
-		ParametersPS->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
-		ParametersPS->IndirectArgsBuffer = IndirectArgsBuffer;
-		ParametersPS->bRectPrimitive = GRHISupportsRectTopology ? 1 : 0;
-
-		bool bCacheDataAvailable = CacheManager && CacheManager->PrevBuffers.PhysicalPagePoolHw;
-		if (bCacheDataAvailable)
-		{
-			ParametersPS->PrevPhysicalPagePoolHw = GraphBuilder.RegisterExternalTexture(CacheManager->PrevBuffers.PhysicalPagePoolHw);
-			ParametersPS->CachedPageInfos = GraphBuilder.CreateSRV(CachedPageInfosRDG);
-		}
-
-
-		FInitializePhysicalPagesPS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FInitializePhysicalPagesPS::FHasCacheDataDim>(bCacheDataAvailable);
-
-		TShaderMapRef<FInitializePhysicalPagesVS> VertexShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
-		TShaderMapRef<FInitializePhysicalPagesPS> PixelShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
-
-		ParametersPS->RenderTargets.DepthStencil = FDepthStencilBinding(PhysicalPagePoolHw, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("InitializePhysicalPages"),
-			ParametersPS,
-			ERDGPassFlags::Raster,
-			[ParametersPS, VertexShader, PixelShader, PhysicalPagePoolSize = GetPhysicalPoolSize()](FRHICommandList& RHICmdList)
-		{
-			FInitializePhysicalPagesVS::FParameters ParametersVS;
-			ParametersVS.VirtualShadowMap = ParametersPS->VirtualShadowMap;
-
-			FGraphicsPipelineStateInitializer GraphicsPSOInit;
-			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-			GraphicsPSOInit.BlendState = TStaticBlendState<CW_NONE>::GetRHI();
-			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
-			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<true, CF_Always>::GetRHI();
-			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-			GraphicsPSOInit.PrimitiveType = ParametersPS->bRectPrimitive > 0 ? PT_RectList : PT_TriangleList;
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersVS);
-			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *ParametersPS);
-
-			RHICmdList.SetViewport(
-				0.0f,
-				0.0f,
-				0.0f,
-				PhysicalPagePoolSize.X,
-				PhysicalPagePoolSize.Y,
-				1.0f
-			);
-			RHICmdList.SetStreamSource(0, nullptr, 0);
-			RHICmdList.DrawPrimitiveIndirect(ParametersPS->IndirectArgsBuffer->GetRHI(), 0);
-		});
-	}
-	{
-		FUpdatePhysicalPageMetaDataClearStateCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FUpdatePhysicalPageMetaDataClearStateCS::FParameters>();
-		PassParameters->NumAllocatedPhysicalPages = GraphBuilder.CreateSRV(AllocatedPagesOffsetRDG);
-		PassParameters->PhysicalPageMetaDataOut = GraphBuilder.CreateUAV(PhysicalPageMetaDataRDG);
-		PassParameters->CachedPageInfos = GraphBuilder.CreateSRV(CachedPageInfosRDG);
-		PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
-
-		bool bCacheDataAvailable = CacheManager && CacheManager->PrevBuffers.PhysicalPageMetaData;
-		if (bCacheDataAvailable)
-		{
-			PassParameters->PrevPhysicalPageMetaData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.PhysicalPageMetaData));
-		}
-
-		FUpdatePhysicalPageMetaDataClearStateCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FUpdatePhysicalPageMetaDataClearStateCS::FHasCacheDataDim>(bCacheDataAvailable);
-
-		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FUpdatePhysicalPageMetaDataClearStateCS>(PermutationVector);
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("UpdatePhysicalPageMetaDataClearState"),
-			ComputeShader,
-			PassParameters,
-			FComputeShaderUtils::GetGroupCount(UniformParameters.MaxPhysicalPages, 64U)
-		);
-	}
 }

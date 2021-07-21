@@ -128,7 +128,6 @@ void ScaleBiasClipToPhysicalSmPage(FNaniteView NaniteView, inout float4 Position
 	float2 vUV = vClip * float2(0.5, -0.5) + 0.5 * PositionClip.w;
 	float2 vPixels = vUV * ( uint(VSM_VIRTUAL_MAX_RESOLUTION_XY) >> NaniteView.TargetMipLevel );
 
-	if( PassStruct.bAtomicWrites )
 	{
 		//PointClip.xy = NaniteView.ClipSpaceScaleOffset.xy * PointClip.xy + NaniteView.ClipSpaceScaleOffset.zw * PointClip.w;
 
@@ -136,26 +135,7 @@ void ScaleBiasClipToPhysicalSmPage(FNaniteView NaniteView, inout float4 Position
 		PositionClip.xy *= Scale;
 		PositionClip.xy += ( Scale * float2(1,-1) + float2(-1,1) ) * PositionClip.w;
 	}
-	else
-	{
-		uint2 pPage = ShadowDecodePageTable( PassStruct.VirtualSmPageTable[ CalcPageOffset( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, vPage ) ] ).PageIndex;
 
-		float2 pPixels = vPixels + ( (float2)pPage - (float2)vPage ) * VSM_PAGE_SIZE * PositionClip.w;
-		float2 pUV = pPixels * VirtualShadowMap.RecPhysicalPoolSize.xy;
-		float2 pClip = pUV * float2(2, -2) + float2(-1, 1) * PositionClip.w;
-
-		PositionClip.xy = pClip;
-	}
-
-	if( PassStruct.bInstancePerPage )
-	{
-		float2 MinClip =  vPixels - ( vPage + 0 ) * VSM_PAGE_SIZE * PositionClip.w;
-		float2 MaxClip = -vPixels + ( vPage + 1 ) * VSM_PAGE_SIZE * PositionClip.w;
-
-		ClipPlanesInOut.xy = MinClip;
-		ClipPlanesInOut.zw = MaxClip;
-	}
-	else
 	{
 		// Clip to allocated page rect
 		uint4 PageRect = PassStruct.PageRectBounds[ NaniteView.TargetLayerIndex * VSM_MAX_MIP_LEVELS + NaniteView.TargetMipLevel ];

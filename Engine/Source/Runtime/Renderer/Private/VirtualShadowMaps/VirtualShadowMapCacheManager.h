@@ -69,7 +69,6 @@ struct FVirtualShadowMapArrayFrameData
 	TRefCountPtr<FRDGPooledBuffer>		DynamicCasterPageFlags;
 
 	TRefCountPtr<IPooledRenderTarget>	PhysicalPagePool;
-	TRefCountPtr<IPooledRenderTarget>	PhysicalPagePoolHw;
 	TRefCountPtr<FRDGPooledBuffer>		PhysicalPageMetaData;
 
 	TRefCountPtr<IPooledRenderTarget>			HZBPhysical;
