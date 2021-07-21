@@ -139,8 +139,11 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 
 		for (EOptimusResourceContext Context: Contexts)
 		{
-			FString ContextName = StaticEnum<EOptimusResourceContext>()->GetAuthoredNameStringByIndex(static_cast<int64>(Context));
-			IndexNames.Add(FString::Printf(TEXT("%sIndex"), *ContextName));
+			if (Context != EOptimusResourceContext::Global)
+			{
+				FString ContextName = StaticEnum<EOptimusResourceContext>()->GetAuthoredNameStringByIndex(static_cast<int64>(Context));
+				IndexNames.Add(FString::Printf(TEXT("%sIndex"), *ContextName));
+			}
 		}
 		return IndexNames;
 	};
@@ -223,7 +226,10 @@ UOptimusKernelSource* UOptimusNode_ComputeKernel::CreateComputeKernel(
 
 					for (int32 Count = 0; Count < Contexts.Num(); Count++)
 					{
-						FuncDef.ParamTypes.Add(IndexParamDef);
+						if (Contexts[Count] != EOptimusResourceContext::Global)
+						{
+							FuncDef.ParamTypes.Add(IndexParamDef);
+						}
 					}
 				}
 
@@ -716,8 +722,11 @@ void UOptimusNode_ComputeKernel::UpdatePreamble()
 		TArray<FString> Indexes;
 		for (const auto& Context: Binding.Contexts)
 		{
-			FString ContextName = StaticEnum<EOptimusResourceContext>()->GetAuthoredNameStringByIndex(static_cast<int64>(Context));
-			Indexes.Add(FString::Printf(TEXT("uint %sIndex"), *ContextName));
+			if (Context != EOptimusResourceContext::Global)
+			{
+				FString ContextName = StaticEnum<EOptimusResourceContext>()->GetAuthoredNameStringByIndex(static_cast<int64>(Context));
+				Indexes.Add(FString::Printf(TEXT("uint %sIndex"), *ContextName));
+			}
 		}
 		
 		Declarations.Add(FString::Printf(TEXT("%s Read%s(%s);"),
