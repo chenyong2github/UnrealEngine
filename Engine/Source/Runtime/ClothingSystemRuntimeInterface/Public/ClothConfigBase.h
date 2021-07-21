@@ -17,19 +17,33 @@ public:
 	UClothConfigBase();
 	virtual ~UClothConfigBase();
 
-	/**
-	 * Return whether self collision is enabled for this config.
-	 */
-	UE_DEPRECATED(4.25, "This function is deprecated. Please use NeedsSelfCollisionIndices instead.")
-	virtual bool HasSelfCollision() const
-	{ unimplemented(); return false; }
+	/** Return the self collision radius if building self collision indices is required for this config, or 0.f otherwise. */
+	UE_DEPRECATED(5.0, "Use NeedsSelfCollisionData and GetSelfCollisionRadius instead.")
+	virtual float NeedsSelfCollisionIndices() const { return NeedsSelfCollisionData() ? GetSelfCollisionRadius() : 0.f; }
 
-	/**
-	 * Return the self collision radius if building self collision indices is required for this config.
-	 * Otherwise return 0.f.
-	 */
-	virtual float NeedsSelfCollisionIndices() const
-	{ return 0.f; }
+	/** Return wherether to pre-compute self collision data. */
+	virtual bool NeedsSelfCollisionData() const
+	PURE_VIRTUAL(UClothConfigBase::NeedsSelfCollisionData, return false;);
+
+	/** Return wherether to pre-compute inverse masses. */
+	virtual bool NeedsInverseMasses() const
+	PURE_VIRTUAL(UClothConfigBase::NeedsInverseMasses, return false;);
+
+	/** Return wherether to pre-compute the influences. */
+	virtual bool NeedsNumInfluences() const
+	PURE_VIRTUAL(UClothConfigBase::NeedsNumInfluences, return false;);
+
+	/** Return wherether to pre-compute the long range attachment tethers. */
+	virtual bool NeedsTethers() const
+	PURE_VIRTUAL(UClothConfigBase::NeedsTethers, return false;);
+
+	/** Return the self collision radius to precomute self collision data. */
+	virtual float GetSelfCollisionRadius() const
+	PURE_VIRTUAL(UClothConfigBase::GetSelfCollisionRadius, return 0.f;);
+
+	/** Return whether tethers need to be calculated using geodesic distances instead of eclidean. */
+	virtual bool TethersUseGeodesicDistance() const
+	PURE_VIRTUAL(UClothConfigBase::TethersUseGeodesicDistance, return false;);
 };
 
 /**

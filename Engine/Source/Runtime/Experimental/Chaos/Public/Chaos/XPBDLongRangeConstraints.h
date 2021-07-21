@@ -17,22 +17,24 @@ class FXPBDLongRangeConstraints final : public FPBDLongRangeConstraintsBase
 public:
 	typedef FPBDLongRangeConstraintsBase Base;
 	typedef typename Base::FTether FTether;
-	typedef typename Base::EMode EMode;
 
 	FXPBDLongRangeConstraints(
 		const FPBDParticles& Particles,
 		const int32 InParticleOffset,
 		const int32 InParticleCount,
-		const TMap<int32, TSet<int32>>& PointToNeighbors,
+		const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& InTethers,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const TConstArrayView<FRealSingle>& ScaleMultipliers,
-		const int32 MaxNumTetherIslands = 4,
 		const FVec2& InStiffness = FVec2::UnitVector,
-		const FVec2& Scale = FVec2::UnitVector,
-		const EMode InMode = EMode::Geodesic)
-	    : FPBDLongRangeConstraintsBase(Particles, InParticleOffset, InParticleCount, PointToNeighbors, StiffnessMultipliers, ScaleMultipliers, MaxNumTetherIslands, InStiffness, Scale, InMode)
+		const FVec2& InScale = FVec2::UnitVector)
+	    : FPBDLongRangeConstraintsBase(Particles, InParticleOffset, InParticleCount, InTethers, StiffnessMultipliers, ScaleMultipliers, InStiffness, InScale)
 	{
-		Lambdas.Reserve(Tethers.Num());
+		int32 NumTethers = 0;
+		for (const TConstArrayView<FTether>& TetherBatch : Tethers)
+		{
+			NumTethers += TetherBatch.Num();
+		}
+		Lambdas.Reserve(NumTethers);
 	}
 
 	virtual ~FXPBDLongRangeConstraints() {}
@@ -47,68 +49,100 @@ public:
 	{
 		SCOPE_CYCLE_COUNTER(STAT_XPBD_LongRange);
 		// Run particles in parallel, and ranges in sequence to avoid a race condition when updating the same particle from different tethers
-		static const int32 MinParallelSize = 500;
-		if (Stiffness.HasWeightMap())
-		{
-			TethersView.ParallelFor([this, &Particles, Dt](TArray<FTether>& /*InTethers*/, int32 Index)
-				{
-					const FReal ExpStiffnessValue = Stiffness[Index - ParticleOffset];
-					Apply(Particles, Dt, Index, ExpStiffnessValue);
-				}, MinParallelSize);
-		}
-		else
-		{
-			const FReal ExpStiffnessValue = (FReal)Stiffness;
-			TethersView.ParallelFor([this, &Particles, Dt, ExpStiffnessValue](TArray<FTether>& /*InTethers*/, int32 Index)
-				{
-					Apply(Particles, Dt, Index, ExpStiffnessValue);
-				}, MinParallelSize);
-		}
-	}
+		const int32 MinParallelSize = GetMinParallelBatchSize();
 
-	void Apply(FPBDParticles& Particles, const FReal Dt, const TArray<int32>& ConstraintIndices) const
-	{
-		SCOPE_CYCLE_COUNTER(STAT_XPBD_LongRange);
 		if (Stiffness.HasWeightMap())
 		{
-			for (const int32 Index : ConstraintIndices)
+			if (HasScaleWeightMap())
 			{
-				const FReal ExpStiffnessValue = Stiffness[Index - ParticleOffset];
-				Apply(Particles, Dt, Index, ExpStiffnessValue);
+				int32 ConstraintOffset = 0;
+				for (const TConstArrayView<FTether>& TetherBatch : Tethers)
+				{
+					PhysicsParallelFor(TetherBatch.Num(), [this, &Particles, Dt, &TetherBatch, ConstraintOffset](int32 Index)
+						{
+							const FTether& Tether = TetherBatch[Index];
+							const int32 LocalParticleIndex = GetEndIndex(Tether);
+							const FReal Scale = ScaleTable[ScaleIndices[LocalParticleIndex]];
+							const FReal ExpStiffnessValue = Stiffness[LocalParticleIndex];
+							Apply(Particles, Dt, Tether, ConstraintOffset + Index, ExpStiffnessValue, Scale);
+						}, TetherBatch.Num() < MinParallelSize);
+					ConstraintOffset += TetherBatch.Num();
+				}
+			}
+			else
+			{
+				const FReal ScaleValue = ScaleTable[0];
+				int32 ConstraintOffset = 0;
+				for (const TConstArrayView<FTether>& TetherBatch : Tethers)
+				{
+					PhysicsParallelFor(TetherBatch.Num(), [this, &Particles, Dt, &TetherBatch, ScaleValue, ConstraintOffset](int32 Index)
+						{
+							const FTether& Tether = TetherBatch[Index];
+							const int32 LocalParticleIndex = GetEndIndex(Tether);
+							const FReal ExpStiffnessValue = Stiffness[LocalParticleIndex];
+							Apply(Particles, Dt, Tether, ConstraintOffset + Index, ExpStiffnessValue, ScaleValue);
+						}, TetherBatch.Num() < MinParallelSize);
+					ConstraintOffset += TetherBatch.Num();
+				}
 			}
 		}
 		else
 		{
 			const FReal ExpStiffnessValue = (FReal)Stiffness;
-			for (const int32 Index : ConstraintIndices)
+
+			if (HasScaleWeightMap())
 			{
-				Apply(Particles, Dt, Index, ExpStiffnessValue);
+				int32 ConstraintOffset = 0;
+				for (const TConstArrayView<FTether>& TetherBatch : Tethers)
+				{
+					PhysicsParallelFor(TetherBatch.Num(), [this, &Particles, Dt, &TetherBatch, ExpStiffnessValue, ConstraintOffset](int32 Index)
+						{
+							const FTether& Tether = TetherBatch[Index];
+							const int32 LocalParticleIndex = GetEndIndex(Tether);
+							const FReal Scale = ScaleTable[ScaleIndices[LocalParticleIndex]];
+							Apply(Particles, Dt, Tether, ConstraintOffset + Index, ExpStiffnessValue, Scale);
+						}, TetherBatch.Num() < MinParallelSize);
+					ConstraintOffset += TetherBatch.Num();
+				}
+			}
+			else
+			{
+				const FReal ScaleValue = ScaleTable[0];
+				int32 ConstraintOffset = 0;
+				for (const TConstArrayView<FTether>& TetherBatch : Tethers)
+				{
+					PhysicsParallelFor(TetherBatch.Num(), [this, &Particles, Dt, &TetherBatch, ExpStiffnessValue, ScaleValue, ConstraintOffset](int32 Index)
+						{
+							const FTether& Tether = TetherBatch[Index];
+							Apply(Particles, Dt, Tether, ConstraintOffset + Index, ExpStiffnessValue, ScaleValue);
+						}, TetherBatch.Num() < MinParallelSize);
+					ConstraintOffset += TetherBatch.Num();
+				}
 			}
 		}
 	}
 
 private:
-	void Apply(FPBDParticles& Particles, const FReal Dt, int32 Index, const FReal InStiffness) const
+	void Apply(FPBDParticles& Particles, const FReal Dt, const FTether& Tether, int32 ConstraintIndex, const FReal InStiffness, const FReal InScale) const
 	{
-		const FTether& Tether = Tethers[Index];
-
 		FVec3 Direction;
 		FReal Offset;
-		Tether.GetDelta(Particles, Direction, Offset);
+		GetDelta(Particles, Tether, InScale, Direction, Offset);
 
-		FReal& Lambda = Lambdas[Index];
+		FReal& Lambda = Lambdas[ConstraintIndex];
 		const FReal Alpha = (FReal)XPBDLongRangeMaxCompliance / (InStiffness * Dt * Dt);
 
 		const FReal DLambda = (Offset - Alpha * Lambda) / ((FReal)1. + Alpha);
-		Particles.P(Tether.End) += DLambda * Direction;
+		Particles.P(GetEndParticle(Tether)) += DLambda * Direction;
 		Lambda += DLambda;
 	}
 
 private:
 	using Base::Tethers;
-	using Base::TethersView;
 	using Base::Stiffness;
 	using Base::ParticleOffset;
+	using Base::ScaleTable;
+	using Base::ScaleIndices;
 
 	mutable TArray<FReal> Lambdas;
 };

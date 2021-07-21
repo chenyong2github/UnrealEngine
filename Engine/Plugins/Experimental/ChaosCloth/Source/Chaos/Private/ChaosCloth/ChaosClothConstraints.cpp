@@ -390,13 +390,13 @@ void FClothConstraints::SetVolumeConstraints(TArray<TVec3<int32>>&& SurfaceEleme
 	++NumConstraintRules;
 }
 
-void FClothConstraints::SetLongRangeConstraints(const TMap<int32, TSet<int32>>& PointToNeighborsMap,
-	const TConstArrayView<FRealSingle>& TetherStiffnessMultipliers, const TConstArrayView<FRealSingle>& TetherScaleMultipliers,
-	const FVec2& TetherScale, ETetherMode TetherMode, bool bUseXPBDConstraints)
+void FClothConstraints::SetLongRangeConstraints(
+	const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& Tethers,
+	const TConstArrayView<FRealSingle>& TetherStiffnessMultipliers,
+	const TConstArrayView<FRealSingle>& TetherScaleMultipliers,
+	const FVec2& TetherScale, bool bUseXPBDConstraints)
 {
 	check(Evolution);
-
-	static const int32 MaxNumTetherIslands = 4;  // The max number of connected neighbors per particle.
 
 	if (bUseXPBDConstraints)
 	{
@@ -404,13 +404,11 @@ void FClothConstraints::SetLongRangeConstraints(const TMap<int32, TSet<int32>>& 
 			Evolution->Particles(),
 			ParticleOffset,
 			NumParticles,
-			PointToNeighborsMap,
+			Tethers,
 			TetherStiffnessMultipliers,
 			TetherScaleMultipliers,
-			MaxNumTetherIslands,
 			/*InStiffness =*/ FVec2::UnitVector,
-			TetherScale,
-			TetherMode);
+			TetherScale);
 	}
 	else
 	{
@@ -418,13 +416,11 @@ void FClothConstraints::SetLongRangeConstraints(const TMap<int32, TSet<int32>>& 
 			Evolution->Particles(),
 			ParticleOffset,
 			NumParticles,
-			PointToNeighborsMap,
+			Tethers,
 			TetherStiffnessMultipliers,
 			TetherScaleMultipliers,
-			MaxNumTetherIslands,
 			/*InStiffness =*/ FVec2::UnitVector,
-			TetherScale,
-			TetherMode);
+			TetherScale);
 	}
 	++NumConstraintInits;  // Uses init to update the property tables
 	++NumConstraintRules;
@@ -545,15 +541,17 @@ void FClothConstraints::SetVolumeProperties(FReal VolumeStiffness)
 	}
 }
 
-void FClothConstraints::SetLongRangeAttachmentProperties(const FVec2& TetherStiffness)
+void FClothConstraints::SetLongRangeAttachmentProperties(const FVec2& TetherStiffness, const FVec2& TetherScale)
 {
 	if (LongRangeConstraints)
 	{
 		LongRangeConstraints->SetStiffness(TetherStiffness);
+		LongRangeConstraints->SetScale(TetherScale);
 	}
 	if (XLongRangeConstraints)
 	{
 		XLongRangeConstraints->SetStiffness(TetherStiffness);
+		XLongRangeConstraints->SetScale(TetherScale);
 	}
 }
 

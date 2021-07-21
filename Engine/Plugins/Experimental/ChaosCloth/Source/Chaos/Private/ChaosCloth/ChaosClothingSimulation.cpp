@@ -1740,113 +1740,45 @@ void FClothingSimulation::DebugDrawLongRangeConstraint(FPrimitiveDrawInterface* 
 			continue;
 		}
 
-		// Recompute islands
-		const FTriangleMesh& TriangleMesh = Cloth->GetTriangleMesh(Solver.Get());
-		const TConstArrayView<FReal> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
-
-		const TMap<int32, TSet<int32>>& PointToNeighborsMap = TriangleMesh.GetPointToNeighborsMap();
-
-		static TArray<int32> KinematicIndices;  // Make static to prevent constant allocations
-		KinematicIndices.Reset();
-		for (const TPair<int32, TSet<int32>>& PointNeighbors : PointToNeighborsMap)
-		{
-			const int32 Index = PointNeighbors.Key;
-			if (InvMasses[Index - Offset] == 0.f)  // TODO: Triangle indices should ideally be starting at 0 to avoid these mix-ups
-			{
-				KinematicIndices.Add(Index);
-			}
-		}
-
-		const TArray<TArray<int32>> IslandElements = FPBDLongRangeConstraints::ComputeIslands(PointToNeighborsMap, KinematicIndices);
-
 		// Draw constraints
 		const FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
-		
 		const TConstArrayView<FVec3> Positions = Cloth->GetParticlePositions(Solver.Get());
 
 		if (const FPBDLongRangeConstraints* const LongRangeConstraints = ClothConstraints.GetLongRangeConstraints().Get())
 		{
-			for (const FPBDLongRangeConstraints::FTether& Tether : LongRangeConstraints->GetTethers())
+			const TArray<TConstArrayView<FPBDLongRangeConstraints::FTether>>& Tethers = LongRangeConstraints->GetTethers();
+
+			for (int32 BatchIndex = 0; BatchIndex < Tethers.Num(); ++BatchIndex)
 			{
-				const int32 KinematicIndex = Tether.Start;
-				const int32 DynamicIndex = Tether.End;
-				const FReal RefLength = Tether.RefLength;
-				// Find Island
-				int32 ColorIndex = 0;
-				for (int32 IslandIndex = 0; IslandIndex < IslandElements.Num(); ++IslandIndex)
+				const FLinearColor Color = PseudoRandomColor(ColorOffset + BatchIndex);
+
+				const TConstArrayView<FPBDLongRangeConstraints::FTether>& TetherBatch = Tethers[BatchIndex];
+
+				// Draw tethers
+				for (const FPBDLongRangeConstraints::FTether& Tether : TetherBatch)
 				{
-					if (IslandElements[IslandIndex].Find(KinematicIndex) != INDEX_NONE)  // TODO: This is O(n^2), it'll be nice to make this faster, even if it is only debug viz. Maybe binary search if the kinematic indices are ordered?
+					const int32 KinematicIndex = LongRangeConstraints->GetStartIndex(Tether);
+					const int32 DynamicIndex = LongRangeConstraints->GetEndIndex(Tether);
+					const FReal TargetLength = LongRangeConstraints->GetTargetLength(Tether);
+
+					const FVec3 Pos0 = Positions[KinematicIndex] + LocalSpaceLocation;
+					const FVec3 Pos1 = Positions[DynamicIndex] + LocalSpaceLocation;
+
+					DrawLine(PDI, Pos0, Pos1, Color);
+
+					FVec3 Direction = Pos1 - Pos0;
+					const float Length = Direction.SafeNormalize();
+					if (Length > SMALL_NUMBER)
 					{
-						ColorIndex = ColorOffset + IslandIndex;
-						break;
+						const FVec3 Pos2 = Pos1 + Direction * (TargetLength - Length);
+						DrawLine(PDI, Pos1, Pos2, FLinearColor::Black);  // Color.Desaturate(1.f));
 					}
 				}
-				const FLinearColor Color = PseudoRandomColor(ColorIndex);
-				const FVec3 Pos0 = Positions[KinematicIndex - Offset] + LocalSpaceLocation;
-				const FVec3 Pos1 = Positions[DynamicIndex - Offset] + LocalSpaceLocation;
-
-				DrawLine(PDI, Pos0, Pos1, Color);
-
-				FVec3 Direction = Pos1 - Pos0;
-				const float Length = Direction.SafeNormalize();
-				if (Length > SMALL_NUMBER)
-				{
-					const FVec3 Pos2 = Pos1 + Direction * (Tether.RefLength - Length);
-					DrawLine(PDI, Pos1, Pos2, FLinearColor::Black);  // Color.Desaturate(1.f));
-				}
 			}
+
+			// Rotate the colors for each cloth
+			ColorOffset += Tethers.Num();
 		}
-
-		// Draw islands
-		const TConstArrayView<TVec3<int32>> Elements = Cloth->GetTriangleMesh(Solver.Get()).GetElements();
-
-		for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
-		{
-			const auto& Element = Elements[ElementIndex];
-
-			const bool bIsKinematic0 = (InvMasses[Element.X - Offset] == 0.f);
-			const bool bIsKinematic1 = (InvMasses[Element.Y - Offset] == 0.f);
-			const bool bIsKinematic2 = (InvMasses[Element.Z - Offset] == 0.f);
-
-			// Lookup for any kinematic point on the triangle element to use for finding the island (it doesn't matter which one, if two kinematic points are on the same triangle they have to be on the same island)
-			const int32 KinematicIndex = bIsKinematic0 ? Element.X : bIsKinematic1 ? Element.Y : bIsKinematic2 ? Element.Z : INDEX_NONE;
-			if (KinematicIndex == INDEX_NONE)
-			{
-				continue;
-			}
-
-			// Find island Color
-			int32 ColorIndex = 0;
-			for (int32 IslandIndex = 0; IslandIndex < IslandElements.Num(); ++IslandIndex)
-			{
-				if (IslandElements[IslandIndex].Find(KinematicIndex) != INDEX_NONE)  // TODO: This is O(n^2), it'll be nice to make this faster, even if it is only debug viz. Maybe binary search if the kinematic indices are ordered?
-				{
-					ColorIndex = ColorOffset + IslandIndex;
-					break;
-				}
-			}
-			const FLinearColor Color = PseudoRandomColor(ColorIndex);
-
-			const FVector Pos0 = LocalSpaceLocation + Positions[Element.X - Offset];
-			const FVector Pos1 = LocalSpaceLocation + Positions[Element.Y - Offset];
-			const FVector Pos2 = LocalSpaceLocation + Positions[Element.Z - Offset];
-
-			if (bIsKinematic0 && bIsKinematic1)
-			{
-				DrawLine(PDI, Pos0, Pos1, Color);
-			}
-			if (bIsKinematic1 && bIsKinematic2)
-			{
-				DrawLine(PDI, Pos1, Pos2, Color);
-			}
-			if (bIsKinematic2 && bIsKinematic0)
-			{
-				DrawLine(PDI, Pos2, Pos0, Color);
-			}
-		}
-
-		// Rotate the colors for each cloth
-		ColorOffset += IslandElements.Num();
 	}
 }
 

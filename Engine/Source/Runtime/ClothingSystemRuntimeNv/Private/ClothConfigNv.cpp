@@ -138,14 +138,3 @@ bool UClothConfigNv::MigrateTo(FClothConfig_Legacy& ClothConfig) const
 
 	return true;
 }
-
-
-bool UClothConfigNv::UseSelfCollisions() const
-{
-	return SelfCollisionRadius > 0.0f && SelfCollisionStiffness > 0.0f;
-}
-
-float UClothConfigNv::NeedsSelfCollisionIndices() const
-{
-	return UseSelfCollisions() ? SelfCollisionRadius * SelfCollisionCullScale : 0.0f;
-}

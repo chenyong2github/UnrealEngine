@@ -7,7 +7,7 @@
 #include "ClothConfig_Legacy.h"
 #include "ClothLODData_Legacy.h"
 #include "ClothingSimulationInteractor.h"
-
+#include "Algo/AnyOf.h"
 #include "ClothingAsset.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogClothingAsset, Log, All);
@@ -60,16 +60,9 @@ namespace ClothingAssetUtils
 
 /**
  * Custom data wrapper for clothing assets.
- * If writing a new clothing asset importer, creating a new derived custom data 
- * is how to store importer (and possibly simulation) data that importer will 
- * create. This needs to be set to the \c CustomData member on the asset your 
- * factory creates.
- *
- * Testing whether a UClothingAssetCommon was made from a custom plugin can be 
- * achieved with:
- * \code if(AssetPtr->CustomData->IsA(UMyCustomData::StaticClass())) \endcode
  */
-UCLASS(abstract, MinimalAPI)
+class UE_DEPRECATED(5.0, "Redundant class.") UClothingAssetCustomData;
+UCLASS(Abstract, MinimalAPI)
 class UClothingAssetCustomData : public UObject
 {
 	GENERATED_BODY()
@@ -77,6 +70,20 @@ public:
 	virtual void BindToSkeletalMesh(USkeletalMesh* InSkelMesh, int32 InMeshLodIndex, int32 InSectionIndex, int32 InAssetLodIndex)
 	{}
 };
+
+/**
+ * Common flags used by InvalidateCachedData.
+ */
+enum class EClothingCachedDataFlagsCommon : uint8
+{
+	None = 0,
+	InverseMasses = 1 << 0,
+	NumInfluences = 1 << 1,
+	SelfCollisionData = 1 << 2,
+	Tethers = 1 << 3,
+	All = 0xFF
+};
+ENUM_CLASS_FLAGS(EClothingCachedDataFlagsCommon);
 
 /**
  * Implementation of non-solver specific, but common Engine related functionality.
@@ -140,15 +147,23 @@ public:
 	/** Returns the number of valid LOD's (length of the \c ClothLodData array). */
 	virtual int32 GetNumLods() const override;
 
+#if WITH_EDITORONLY_DATA
+	/**
+	 * Called on the clothing asset when the base data (physical mesh, config etc.)
+	 * has changed, so any intermediate generated data can be regenerated.
+	 */
+	virtual void InvalidateAllCachedData() override { InvalidateFlaggedCachedData(EClothingCachedDataFlagsCommon::All); }
+
+	/**
+	 * Called on the clothing asset when the base data (physical mesh, config etc.)
+	 * has changed, so any intermediate generated data can be regenerated.
+	 */
+	void InvalidateFlaggedCachedData(EClothingCachedDataFlagsCommon Flags);
+#endif // WITH_EDITORONLY_DATA
+
 #if WITH_EDITOR
 	/** * Add a new LOD class instance. */
 	virtual int32 AddNewLod() override;
-
-	/**
-	 * Called on the clothing asset when the base data (physical mesh etc.) has
-	 * changed, so any intermediate generated data can be regenerated.
-	 */
-	virtual void InvalidateCachedData() override;
 
 	/* Called after changes in any of the asset properties. */
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& ChainEvent) override;
@@ -160,7 +175,13 @@ public:
 	 * are enabled, it envokes \c BuildSelfCollisionData() on each \c ClothLodData's
 	 * \c ClothPhysicalMeshData member.
 	 */
-	virtual void BuildSelfCollisionData() override;
+	UE_DEPRECATED(5.0, "Cached data are now all rebuilt by calling InvalidateCachedData")
+	virtual void BuildSelfCollisionData() override
+	{
+#if WITH_EDITORONLY_DATA
+		InvalidateFlaggedCachedData(EClothingCachedDataFlagsCommon::SelfCollisionData);
+#endif // WITH_EDITORONLY_DATA
+	}
 
 	/** Return a const cloth config pointer of the desired cloth config type, or nullptr if there isn't any suitable. */
 	template<typename ClothConfigType, typename = typename TEnableIf<TIsDerivedFrom<ClothConfigType, UClothConfigBase>::IsDerived>::Type>
@@ -240,9 +261,11 @@ public:
 	UPROPERTY()
 	int32 ReferenceBoneIndex;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Custom data applied by the importer depending on where the asset was imported from.
 	UPROPERTY()
 	TObjectPtr<UClothingAssetCustomData> CustomData;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITORONLY_DATA
 	/** 
@@ -266,12 +289,24 @@ private:
 	// Create and add any missing cloth configs.
 	// If a config from a different factory exists already, the newly
 	// created config will attempt to initialize its parameters from it.
-	void AddClothConfigs();
+	// Return true when at least one config has been added, false otherwise.
+	bool AddClothConfigs();
 
 	// Propagate the shared simulation configs between assets.
 	// Also migrate all deprecated shared parameters which have been moved to the per cloth configs if required.
 	// Called after a cloth asset is created or loaded.
 	void PropagateSharedConfigs(bool bMigrateSharedConfigToConfig=false);
+
+	// Return true when any one of the cloth configs fullfill the predicate.
+	// Used to select which type of data to cache.
+	template<typename PredicateType>
+	bool AnyOfClothConfigs(PredicateType Predicate) const
+	{
+		return Algo::AnyOf(ClothConfigs, [&Predicate](const TPair<FName, TObjectPtr<UClothConfigBase>>& ClothConfig)
+			{
+				return Predicate(*ClothConfig.Value);
+			});
+	}
 
 #if WITH_EDITOR
 	// Helper functions used in PostPropertyChangeCb

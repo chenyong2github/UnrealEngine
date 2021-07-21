@@ -266,7 +266,7 @@ UClothingAssetBase* UClothingAssetFactory::CreateFromSkeletalMesh(USkeletalMesh*
 		NewAsset->RefreshBoneMapping(TargetMesh);
 
 		// Invalidate cached data as the mesh has changed
-		NewAsset->InvalidateCachedData();
+		NewAsset->InvalidateAllCachedData();
 
 		return NewAsset;
 	}
@@ -290,7 +290,7 @@ UClothingAssetBase* UClothingAssetFactory::CreateFromExistingCloth(USkeletalMesh
 	//Need to empty LODMap to remove previous mappings from cloth LOD to SkelMesh LOD
 	NewAsset->LodMap.Empty();
 	NewAsset->RefreshBoneMapping(TargetMesh);
-	NewAsset->InvalidateCachedData();
+	NewAsset->InvalidateAllCachedData();
 
 	return NewAsset;
 }
@@ -374,7 +374,7 @@ UClothingAssetBase* UClothingAssetFactory::ImportLodToClothing(USkeletalMesh* Ta
 				ConcreteTarget->BuildLodTransitionData();
 
 				// Invalidate cached data as the mesh has changed
-				ConcreteTarget->InvalidateCachedData();
+				ConcreteTarget->InvalidateAllCachedData();
 
 				return ConcreteTarget;
 			}
@@ -463,10 +463,9 @@ UClothingAssetBase* UClothingAssetFactory::CreateFromApexAsset(nvidia::apex::Clo
 	FName ConvertedBoneName(*FString(InApexAsset->getBoneName(AssetInternalRootBoneIndex)).Replace(TEXT(" "), TEXT("-")));
 
 	NewClothingAsset->AssetGuid = FGuid::NewGuid();
-	NewClothingAsset->InvalidateCachedData();
+	NewClothingAsset->InvalidateCachedData(ClothingCachedData_All);
 
 	NewClothingAsset->BuildLodTransitionData();
-	NewClothingAsset->BuildSelfCollisionData();
 	NewClothingAsset->CalculateReferenceBoneIndex();
 
 	// Add masks for parameters

@@ -18,6 +18,9 @@ struct CORE_API FUE5PrivateFrostyStreamObjectVersion
 		// Serialize scene components static bounds
 		SerializeSceneComponentStaticBounds,
 
+		// Add the long range attachment tethers to the cloth asset to avoid a large hitch during the cloth's initialization.
+		ChaosClothAddTethersToCachedData,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
