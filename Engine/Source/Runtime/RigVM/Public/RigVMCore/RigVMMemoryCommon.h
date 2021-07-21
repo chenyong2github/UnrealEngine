@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "RigVMDefines.h"
 #include "RigVMTraits.h"
 #include "RigVMArray.h"
 #include "RigVMMemoryCommon.generated.h"

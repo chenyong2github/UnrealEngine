@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Class.h"
-
 #include "Templates/Models.h"
+#include "RigVMDefines.h"
 
 struct CRigVMUStruct
 {
