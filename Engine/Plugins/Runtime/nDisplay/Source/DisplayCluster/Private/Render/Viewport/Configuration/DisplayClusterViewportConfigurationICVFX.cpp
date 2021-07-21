@@ -296,81 +296,78 @@ void FDisplayClusterViewportConfigurationICVFX::Update()
 	if (ViewportManager)
 	{
 		ImplBeginReallocateViewports(*ViewportManager);
+		
+		TArray<FDisplayClusterViewport*> TargetViewports;
+		const EDisplayClusterViewportICVFXFlags TargetViewportsFlags = ImplGetTargetViewports(*ViewportManager, TargetViewports);
 
-		if (StageSettings.bEnable)
+		// Find ICVFX target viewports
+		if (TargetViewports.Num() > 0)
 		{
-			TArray<FDisplayClusterViewport*> TargetViewports;
-			const EDisplayClusterViewportICVFXFlags TargetViewportsFlags = ImplGetTargetViewports(*ViewportManager, TargetViewports);
+			// ICVFX used
 
-			// Find ICVFX target viewports
-			if (TargetViewports.Num() > 0)
+			// If not all viewports disable camera:
+			// Collect all ICVFX cameras from stage
+			if ((TargetViewportsFlags & ViewportICVFX_DisableCamera) == 0)
 			{
-				// ICVFX used
+				ImplGetCameras();
+			}
 
-				// If not all viewports disable camera:
-				// Collect all ICVFX cameras from stage
-				if ((TargetViewportsFlags & ViewportICVFX_DisableCamera) == 0)
-				{
-					ImplGetCameras();
-				}
-
-				// Allocate and assign camera resources
-				if (StageCameras.Num() > 0)
-				{
-					// Collect visible targets for cameras:
-					for (FDisplayClusterViewport* TargetIt : TargetViewports)
-					{
-						// Target viewpot must support camera render:
-						if ((TargetIt->RenderSettingsICVFX.Flags & ViewportICVFX_DisableCamera) == 0)
-						{
-							// Add this target to all cameras visible on it
-							for (FDisplayClusterViewportConfigurationCameraICVFX& CameraIt : StageCameras)
-							{
-								if (CameraIt.IsCameraProjectionVisibleOnViewport(TargetIt))
-								{
-									CameraIt.VisibleTargets.Add(TargetIt);
-								}
-							}
-						}
-					}
-
-					// Create camera resources and initialize target ICVFX viewports
-					for (FDisplayClusterViewportConfigurationCameraICVFX& CameraIt : StageCameras)
-					{
-						if (CameraIt.VisibleTargets.Num() > 0)
-						{
-							CameraIt.Update();
-						}
-					}
-				}
-
-				// If not all viewports disable lightcard
-				if ((TargetViewportsFlags & ViewportICVFX_DisableLightcard) == 0)
-				{
-					// Allocate and assign lightcard resources
-					if (FDisplayClusterViewportConfigurationHelpers_ICVFX::IsShouldUseLightcard(StageSettings.Lightcard))
-					{
-						for (FDisplayClusterViewport* TargetIt : TargetViewports)
-						{
-							// only for support targets
-							if (TargetIt && (TargetIt->RenderSettingsICVFX.Flags & ViewportICVFX_DisableLightcard) == 0)
-							{
-								CreateLightcardViewport(*TargetIt);
-							}
-						}
-					}
-				}
-
-				// Sort cameras by render order for each target
+			// Allocate and assign camera resources
+			if (StageCameras.Num() > 0)
+			{
+				// Collect visible targets for cameras:
 				for (FDisplayClusterViewport* TargetIt : TargetViewports)
 				{
-					if (TargetIt)
+					// Target viewpot must support camera render:
+					if ((TargetIt->RenderSettingsICVFX.Flags & ViewportICVFX_DisableCamera) == 0)
 					{
-						TargetIt->RenderSettingsICVFX.ICVFX.SortCamerasRenderOrder();
+						// Add this target to all cameras visible on it
+						for (FDisplayClusterViewportConfigurationCameraICVFX& CameraIt : StageCameras)
+						{
+							if (CameraIt.IsCameraProjectionVisibleOnViewport(TargetIt))
+							{
+								CameraIt.VisibleTargets.Add(TargetIt);
+							}
+						}
+					}
+				}
+
+				// Create camera resources and initialize target ICVFX viewports
+				for (FDisplayClusterViewportConfigurationCameraICVFX& CameraIt : StageCameras)
+				{
+					if (CameraIt.VisibleTargets.Num() > 0)
+					{
+						CameraIt.Update();
 					}
 				}
 			}
-		}
+
+			// If not all viewports disable lightcard
+			if ((TargetViewportsFlags & ViewportICVFX_DisableLightcard) == 0)
+			{
+				// Allocate and assign lightcard resources
+				if (FDisplayClusterViewportConfigurationHelpers_ICVFX::IsShouldUseLightcard(StageSettings.Lightcard))
+				{
+					for (FDisplayClusterViewport* TargetIt : TargetViewports)
+					{
+						// only for support targets
+						if (TargetIt && (TargetIt->RenderSettingsICVFX.Flags & ViewportICVFX_DisableLightcard) == 0)
+						{
+							CreateLightcardViewport(*TargetIt);
+						}
+					}
+				}
+			}
+
+			// Sort cameras by render order for each target
+			for (FDisplayClusterViewport* TargetIt : TargetViewports)
+			{
+				if (TargetIt)
+				{
+					TargetIt->RenderSettingsICVFX.ICVFX.SortCamerasRenderOrder();
+				}
+			}
+		}		
 
 		ImplFinishReallocateViewports(*ViewportManager);
 	}
@@ -383,14 +380,11 @@ void FDisplayClusterViewportConfigurationICVFX::PostUpdate()
 	FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(RootActor);
 	if (ViewportManager)
 	{
-		if (StageSettings.bEnableICVFXVisibility)
-		{
-			// Update visibility for icvfx viewports and cameras
-			UpdateHideList(*ViewportManager);
+		// Update visibility for icvfx viewports and cameras
+		UpdateHideList(*ViewportManager);
 
-			// Support additional hide list for icvfx cameras:
-			UpdateCameraHideList(*ViewportManager);
-		}
+		// Support additional hide list for icvfx cameras:
+		UpdateCameraHideList(*ViewportManager);
 	}
 }
 

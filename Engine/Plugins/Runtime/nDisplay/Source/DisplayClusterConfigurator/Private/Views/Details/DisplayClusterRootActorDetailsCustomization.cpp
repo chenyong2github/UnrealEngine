@@ -147,17 +147,17 @@ void FDisplayClusterRootActorDetailsCustomization::BuildLayout(IDetailLayoutBuil
 		InLayoutBuilder.AddObjectPropertyData({EditedObject->DisplayClusterRootComponent}, USceneComponent::GetRelativeRotationPropertyName());
 		InLayoutBuilder.AddObjectPropertyData({EditedObject->DisplayClusterRootComponent}, USceneComponent::GetRelativeScale3DPropertyName());
 
-		CREATE_NESTED_PROPERTY_EDITCONDITION_1ARG(EnableICVFXEditCondition, NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable);
+		CREATE_NESTED_PROPERTY_EDITCONDITION_1ARG(EnableICVFXEditCondition, NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnableInnerFrustums);
 
 		// Manually labeling the ICVFX category because UE4 will automatically put a space after the dash if the label is generated automatically
 		BEGIN_LABELED_CATEGORY(DisplayClusterConfigurationStrings::categories::ICVFXCategory, LOCTEXT("ICVFXCategoryLabel", "In-Camera VFX"))
 			if (bIsCDO)
 			{
-				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable);
+				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnableInnerFrustums);
 			}
 			else
 			{
-				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnable)
+				ADD_NESTED_PROPERTY(NestedPropertyHelper, ADisplayClusterRootActor, CurrentConfigData->StageSettings.bEnableInnerFrustums)
 
 				if (ViewportNames.Num() > 0)
 				{

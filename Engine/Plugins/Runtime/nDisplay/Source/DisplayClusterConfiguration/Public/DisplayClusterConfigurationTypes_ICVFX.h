@@ -447,16 +447,7 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_StageSe
 public:
 	// Allow ICVFX features
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Inner Frustum"))
-	bool bEnable = true;
-
-	// Allow Inner frustums rendering
-	UPROPERTY()
 	bool bEnableInnerFrustums = true;
-
-	// Allow to use ICVFX visibility rules (hide chromakey, lightcards, other stuff and visualization components)
-	// this rules ignore flag [bEnable=false]
-	UPROPERTY()
-	bool bEnableICVFXVisibility = true;
 
 	// Default incameras RTT texture size.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
