@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RigVMDefines.h"
 #include "RigVMTraits.h"
 
 #if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED

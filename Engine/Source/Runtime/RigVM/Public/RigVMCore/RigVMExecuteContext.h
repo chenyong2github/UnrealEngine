@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RigVMDefines.h"
 #include "RigVMArray.h"
 #include "RigVMExternalVariable.h"
 #include "RigVMExecuteContext.generated.h"
