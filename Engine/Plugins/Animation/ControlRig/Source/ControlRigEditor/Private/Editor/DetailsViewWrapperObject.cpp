@@ -125,6 +125,9 @@ UClass* UDetailsViewWrapperObject::GetClassForStruct(UScriptStruct* InStruct)
 	// Update the class
 	WrapperClass->Bind();
 	WrapperClass->StaticLink(true);
+	
+	// Similar to FConfigPropertyHelperDetails::CustomizeDetails, this is required for GC to work properly
+	WrapperClass->AssembleReferenceTokenStream();
 
 	StructToClass.Add(InStruct, WrapperClass);
 	ClassToStruct.Add(WrapperClass, InStruct);
