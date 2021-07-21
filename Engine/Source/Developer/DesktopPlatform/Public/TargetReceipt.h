@@ -89,9 +89,10 @@ struct DESKTOPPLATFORM_API FTargetReceipt
 	 * Read a target receipt from disk
 	 *
 	 * @param FileName The file to read from
+	 * @param bExpandVariables Whether variables should be expanded in paths or not
 	 * @return True if the file was read successfully
 	 */
-	bool Read(const FString& FileName);
+	bool Read(const FString& FileName, bool bExpandVariables = true);
 
 	/**
 	 * Gets the default path for a target receipt

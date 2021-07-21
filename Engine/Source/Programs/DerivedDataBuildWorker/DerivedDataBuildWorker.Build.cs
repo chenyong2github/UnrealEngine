@@ -75,6 +75,7 @@ public class DerivedDataBuildWorker : ModuleRules
 			PrivateDependencyModuleNames.Add("ApplicationCore");
 		}
 
-		AdditionalPropertiesForReceipt.Add("DerivedDataBuildWorker", "true");
+		// This needs to match the version defined in TargetReceiptBuildWorkerFactory.cpp
+		AdditionalPropertiesForReceipt.Add("DerivedDataBuildWorkerReceiptVersion", "a547b2fa-e2f9-47c6-80c8-df688fb99f34");
 	}
 }

@@ -8,6 +8,8 @@ public class DesktopPlatform : ModuleRules
 	{
 		PrivateIncludePaths.Add("Developer/DesktopPlatform/Private");
 
+		PrivateIncludePathModuleNames.Add("DerivedDataCache");
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",

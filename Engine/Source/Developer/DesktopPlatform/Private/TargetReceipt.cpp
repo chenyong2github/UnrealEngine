@@ -22,7 +22,7 @@ bool TryParseBuildVersion(const FJsonObject& Object, FBuildVersion& OutVersion)
 	return false;
 }
 
-bool FTargetReceipt::Read(const FString& FileName)
+bool FTargetReceipt::Read(const FString& FileName, bool bExpandVariables)
 {
 	// Read the file from disk
 	FString FileContents;
@@ -87,7 +87,10 @@ bool FTargetReceipt::Read(const FString& FileName)
 	{
 		return false;
 	}
-	ExpandVariables(Launch);
+	if (bExpandVariables)
+	{
+		ExpandVariables(Launch);
+	}
 
 	// Read the list of build products
 	const TArray<TSharedPtr<FJsonValue>>* BuildProductsArray;
@@ -107,7 +110,10 @@ bool FTargetReceipt::Read(const FString& FileName)
 				return false;
 			}
 
-			ExpandVariables(BuildProduct.Path);
+			if (bExpandVariables)
+			{
+				ExpandVariables(BuildProduct.Path);
+			}
 
 			BuildProducts.Add(MoveTemp(BuildProduct));
 		}
@@ -131,7 +137,10 @@ bool FTargetReceipt::Read(const FString& FileName)
 				return false;
 			}
 
-			ExpandVariables(RuntimeDependency.Path);
+			if (bExpandVariables)
+			{
+				ExpandVariables(RuntimeDependency.Path);
+			}
 
 			RuntimeDependencies.Add(MoveTemp(RuntimeDependency));
 		}
@@ -178,7 +187,10 @@ bool FTargetReceipt::Read(const FString& FileName)
 				return false;
 			}
 
-			ExpandVariables(Property.Value);
+			if (bExpandVariables)
+			{
+				ExpandVariables(Property.Value);
+			}
 
 			AdditionalProperties.Add(MoveTemp(Property));
 		}
