@@ -8,6 +8,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Engine/Canvas.h"
 #include "Engine/Console.h"
+#include "Engine/CoreSettings.h"
 #include "ConsoleSettings.h"
 #include "Debug/DebugDrawService.h"
 
@@ -48,6 +49,14 @@ static FAutoConsoleCommand CVarDrawDataLayers(
 	TEXT("wp.Runtime.ToggleDrawDataLayers"),
 	TEXT("Toggles debug display of active data layers."),
 	FConsoleCommandDelegate::CreateLambda([] { GDrawDataLayers = !GDrawDataLayers; }));
+
+int32 GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurgeForWP = 64;
+static FAutoConsoleVariableRef CVarGLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurgeForWP(
+	TEXT("wp.Runtime.LevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurgeForWP"),
+	GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurgeForWP,
+	TEXT("Force a GC update when there's more than the number of specified pending purge levels."),
+	ECVF_Default
+);
 
 UWorldPartitionSubsystem::UWorldPartitionSubsystem()
 {}
@@ -100,16 +109,14 @@ void UWorldPartitionSubsystem::PostInitialize()
 			DrawHandle = UDebugDrawService::Register(TEXT("Game"), FDebugDrawDelegate::CreateUObject(this, &UWorldPartitionSubsystem::Draw));
 		}
 
-		// For now, enforce some GC settings when using World Partition
+		// Enforce some GC settings when using World Partition
 		if (GetWorld()->IsGameWorld())
 		{
-			PreviousCVarValues.ReadFromCVars();
+			LevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge = GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge;
+			LevelStreamingForceGCAfterLevelStreamedOut = GLevelStreamingForceGCAfterLevelStreamedOut;
 
-			FWorldPartitionCVars OverrideCVars;
-			OverrideCVars.ContinuouslyIncremental = 0;
-			OverrideCVars.ForceGCAfterLevelStreamedOut = 0;
-			OverrideCVars.TimeBetweenPurgingPendingKillObjects = 120.f;
-			OverrideCVars.WriteToCVars();
+			GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge = GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurgeForWP;
+			GLevelStreamingForceGCAfterLevelStreamedOut = 0;
 		}
 	}
 }
@@ -119,7 +126,8 @@ void UWorldPartitionSubsystem::Deinitialize()
 	UWorldPartition* MainPartition = GetMainWorldPartition();
 	if (MainPartition && GetWorld()->IsGameWorld())
 	{
-		PreviousCVarValues.WriteToCVars();
+		GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge = LevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge;
+		GLevelStreamingForceGCAfterLevelStreamedOut = LevelStreamingForceGCAfterLevelStreamedOut;
 	}
 
 	if (DrawHandle.IsValid())
@@ -264,6 +272,13 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 			}
 			CurrentOffset.X = CanvasBottomRightPadding.X;
 		}
+
+		FString StatusText;
+		if (IsIncrementalPurgePending()) { StatusText += TEXT("(Purging) "); }
+		if (IsAsyncLoading()) { StatusText += TEXT("(AsyncLoading) "); }
+		if (StatusText.IsEmpty()) { StatusText = TEXT("(Idle)"); }
+		const FString Text = FString::Printf(TEXT("Streaming Status: %s"), *StatusText);
+		FWorldPartitionDebugHelper::DrawText(Canvas, Text, GEngine->GetSmallFont(), FColor::White, CurrentOffset);
 	}
 
 	if (GDrawStreamingSources || GDrawRuntimeHash2D)
@@ -312,59 +327,6 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 		if (UWorldPartition* Partition = GetMainWorldPartition())
 		{
 			Partition->DrawRuntimeCellsDetails(Canvas, CurrentOffset);
-		}
-	}
-}
-
-//
-// UWorldPartitionSubsystem::FWorldPartitionCVars
-//
-
-const TCHAR* UWorldPartitionSubsystem::FWorldPartitionCVars::ContinuouslyIncrementalText = TEXT("s.ContinuouslyIncrementalGCWhileLevelsPendingPurge");
-const TCHAR* UWorldPartitionSubsystem::FWorldPartitionCVars::ForceGCAfterLevelStreamedOutText = TEXT("s.ForceGCAfterLevelStreamedOut");
-const TCHAR* UWorldPartitionSubsystem::FWorldPartitionCVars::TimeBetweenPurgingPendingKillObjectsText = TEXT("gc.TimeBetweenPurgingPendingKillObjects");
-
-void UWorldPartitionSubsystem::FWorldPartitionCVars::ReadFromCVars()
-{
-	if (IConsoleVariable* ContinuouslyIncrementalGCCVar = IConsoleManager::Get().FindConsoleVariable(ContinuouslyIncrementalText))
-	{
-		ContinuouslyIncremental = ContinuouslyIncrementalGCCVar->GetInt();
-	}
-
-	if (IConsoleVariable* ForceGCAfterLevelStreamedOutCVar = IConsoleManager::Get().FindConsoleVariable(ForceGCAfterLevelStreamedOutText))
-	{
-		ForceGCAfterLevelStreamedOut = ForceGCAfterLevelStreamedOutCVar->GetInt();
-	}
-
-	if (IConsoleVariable* TimeBetweenPurgingPendingKillObjectsCVar = IConsoleManager::Get().FindConsoleVariable(TimeBetweenPurgingPendingKillObjectsText))
-	{
-		TimeBetweenPurgingPendingKillObjects = TimeBetweenPurgingPendingKillObjectsCVar->GetFloat();
-	}
-}
-
-void UWorldPartitionSubsystem::FWorldPartitionCVars::WriteToCVars() const
-{
-	if (ContinuouslyIncremental.IsSet())
-	{
-		if (IConsoleVariable* ContinuouslyIncrementalGCCVar = IConsoleManager::Get().FindConsoleVariable(ContinuouslyIncrementalText))
-		{
-			ContinuouslyIncrementalGCCVar->Set(ContinuouslyIncremental.GetValue(), ECVF_SetByCode);
-		}
-	}
-
-	if (ForceGCAfterLevelStreamedOut.IsSet())
-	{
-		if (IConsoleVariable* ForceGCAfterLevelStreamedOutCVar = IConsoleManager::Get().FindConsoleVariable(ForceGCAfterLevelStreamedOutText))
-		{
-			ForceGCAfterLevelStreamedOutCVar->Set(ForceGCAfterLevelStreamedOut.GetValue(), ECVF_SetByCode);
-		}
-	}
-
-	if (TimeBetweenPurgingPendingKillObjects.IsSet())
-	{
-		if (IConsoleVariable* TimeBetweenPurgingPendingKillObjectsCVar = IConsoleManager::Get().FindConsoleVariable(TimeBetweenPurgingPendingKillObjectsText))
-		{
-			TimeBetweenPurgingPendingKillObjectsCVar->Set(TimeBetweenPurgingPendingKillObjects.GetValue(), ECVF_SetByCode);
 		}
 	}
 }
