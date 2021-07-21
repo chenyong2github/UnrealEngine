@@ -100,6 +100,12 @@ namespace UnrealGameSync
 			string UpdateConfigFile = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "AutoUpdate.ini");
 			MergeUpdateSettings(UpdateConfigFile, ref UpdatePath, ref UpdateSpawn);
 
+			// Set the current working directory to the update directory to prevent child-process file handles from disrupting auto-updates
+			if (UpdateSpawn != null)
+			{
+				Directory.SetCurrentDirectory(Path.GetDirectoryName(UpdateSpawn));
+			}
+
 			string SyncVersionFile = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "SyncVersion.txt");
 			if(File.Exists(SyncVersionFile))
 			{
