@@ -49,6 +49,7 @@
 #include "ProfilingDebugging/CookStats.h"
 #include "Serialization/BulkDataRegistry.h"
 #include "TextureDerivedDataBuildUtils.h"
+#include "VT/VirtualTextureChunkDDCCache.h"
 #include "VT/VirtualTextureDataBuilder.h"
 #include <atomic>
 
@@ -954,6 +955,12 @@ void FTextureCacheDerivedDataWorker::DoWork()
 	{
 		TextureData.ReleaseMemory();
 		CompositeTextureData.ReleaseMemory();
+
+		// Populate the VT DDC Cache now if we're asynchronously loading to avoid too many high prio/synchronous request on the render thread
+		if (!IsInGameThread() && DerivedData->VTData)
+		{
+			GetVirtualTextureChunkDDCCache()->MakeChunkAvailable_Concurrent(&DerivedData->VTData->Chunks.Last());
+		}
 	}
 }
 
