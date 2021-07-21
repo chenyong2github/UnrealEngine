@@ -140,7 +140,11 @@ struct ENGINE_API FStreamedAudioPlatformData
 	void FinishCache();
 	bool IsFinishedCache() const;
 	bool TryInlineChunkData();
+
+	UE_DEPRECATED(5.00, "Use AreDerivedChunksAvailable with the context instead.")
 	bool AreDerivedChunksAvailable() const;
+	
+	bool AreDerivedChunksAvailable(FStringView Context) const;
 #endif // WITH_EDITORONLY_DATA
 
 private:
