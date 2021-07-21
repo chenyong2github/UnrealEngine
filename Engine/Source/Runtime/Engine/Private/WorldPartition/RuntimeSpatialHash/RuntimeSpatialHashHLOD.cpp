@@ -91,20 +91,45 @@ static void DeletePackage(UWorldPartition* WorldPartition, FWorldPartitionActorD
 	}
 }
 
+static void GameTick(UWorld* InWorld)
+{
+	static int32 TickRendering = 0;
+	static const int32 FlushRenderingFrequency = 256;
+
+	// Perform a GC when memory usage exceeds a given threshold
+	if (FWorldPartitionHelpers::HasExceededMaxMemory())
+	{
+		FWorldPartitionHelpers::DoCollectGarbage();
+	}
+
+	// When running with -AllowCommandletRendering we want to flush
+	if (((++TickRendering % FlushRenderingFrequency) == 0) && IsAllowCommandletRendering())
+	{
+		if (FSceneInterface* Scene = InWorld->Scene)
+		{
+			// BeingFrame/EndFrame (taken from FEngineLoop)
+			uint64 CurrentFrameCounter = GFrameCounter;
+
+			ENQUEUE_RENDER_COMMAND(BeginFrame)([CurrentFrameCounter](FRHICommandListImmediate& RHICmdList)
+			{ 
+				GFrameNumberRenderThread++;
+				RHICmdList.BeginFrame();
+				FCoreDelegates::OnBeginFrameRT.Broadcast(); 
+			});
+
+			ENQUEUE_RENDER_COMMAND(EndFrame)([CurrentFrameCounter](FRHICommandListImmediate& RHICmdList)
+			{
+				FCoreDelegates::OnEndFrameRT.Broadcast();
+				RHICmdList.EndFrame(); 
+			});
+
+			FlushRenderingCommands();
+		}
+	}
+}
+
 static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const FActorContainerInstance& MainContainerInstance, const FSpatialHashRuntimeGrid& RuntimeGrid, uint32 HLODLevel, FHLODCreationContext& Context, ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly, const TArray<const FActorClusterInstance*>& ClusterInstances)
 {
-	auto DoCollectGarbage = []()
-	{
-		const FPlatformMemoryStats MemStatsBefore = FPlatformMemory::GetStats();
-		CollectGarbage(RF_NoFlags, true);
-		const FPlatformMemoryStats MemStatsAfter = FPlatformMemory::GetStats();
-
-		UE_LOG(LogWorldPartitionRuntimeSpatialHashHLOD, Display, TEXT("GC Performed - Freed Physical: %.2fGB, Freed Virtual: %.2fGB"),
-			((int64)MemStatsAfter.AvailablePhysical - (int64)MemStatsBefore.AvailablePhysical) / (1024.0 * 1024.0 * 1024.0),
-			((int64)MemStatsAfter.AvailableVirtual - (int64)MemStatsBefore.AvailableVirtual) / (1024.0 * 1024.0 * 1024.0)
-		);
-	};
-
 	const FBox WorldBounds = MainContainerInstance.Bounds;
 
 	const FSquare2DGridHelper PartitionedActors = GetPartitionedActors(WorldPartition, WorldBounds, RuntimeGrid, ClusterInstances);
@@ -152,6 +177,9 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 
 		for (const FSquare2DGridHelper::FGridLevel::FGridCellDataChunk& GridCellDataChunk : GridCell.GetDataChunks())
 		{
+			// Fake tick
+			GameTick(WorldPartition->GetWorld());
+
 			const bool bShouldGenerateHLODs = ShouldGenerateHLODs(GridCell, GridCellDataChunk);
 			if (bShouldGenerateHLODs)
 			{
@@ -197,13 +225,6 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 					{
 						if (!bCreateActorsOnly)
 						{
-							FStaticMeshCompilingManager::Get().FinishAllCompilation();
-
-							if (FWorldPartitionHelpers::HasExceededMaxMemory())
-							{
-								DoCollectGarbage();
-							}
-
 							CellHLODActor->BuildHLOD();
 						}
 
@@ -243,7 +264,7 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 
 	// Need to collect garbage here since some HLOD actors have been marked pending kill when destroying them
 	// and they may be loaded when generating the next HLOD layer.
-	DoCollectGarbage();
+	FWorldPartitionHelpers::DoCollectGarbage();
 
 	return GridHLODActors;
 }

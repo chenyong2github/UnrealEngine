@@ -372,7 +372,7 @@ bool UWorldPartitionHLODsBuilder::SetupHLODActors(bool bCreateOnly)
 				// When running distributed builds, we wanna leave the machine clean, so added files are deleted, check'd out files are reverted
 				// and deleted files are restored.
 				WorldPartition->Uninitialize();
-				DoCollectGarbage();
+				FWorldPartitionHelpers::DoCollectGarbage();
 
 				ModifiedFiles.Append(SourceControlHelper->GetModifiedFiles());
 
@@ -474,7 +474,7 @@ bool UWorldPartitionHLODsBuilder::BuildHLODActors()
 
 		if (FWorldPartitionHelpers::HasExceededMaxMemory())
 		{
-			DoCollectGarbage();
+			FWorldPartitionHelpers::DoCollectGarbage();
 		}
 	}
 
@@ -487,7 +487,7 @@ bool UWorldPartitionHLODsBuilder::BuildHLODActors()
 		// When running distributed builds, we wanna leave the machine clean, so added files are deleted, check'd out files are reverted
 		// and deleted files are restored.
 		WorldPartition->Uninitialize();
-		DoCollectGarbage();
+		FWorldPartitionHelpers::DoCollectGarbage();
 
 		ModifiedFiles.Append(SourceControlHelper->GetModifiedFiles());
 
@@ -529,7 +529,7 @@ bool UWorldPartitionHLODsBuilder::DeleteHLODActors()
 	// When running distributed builds, we wanna leave the machine clean, so added files are deleted, checked out files are reverted
 	// and deleted files are restored.
 	WorldPartition->Uninitialize();
-	DoCollectGarbage();
+	FWorldPartitionHelpers::DoCollectGarbage();
 
 	int32 NumDeleted = 0;
 	for (const FString& PackageName : PackagesToDelete)

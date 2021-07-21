@@ -242,7 +242,8 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 						WorldPartition->UnloadEditorCells(LoadedBounds);
 						// Reset Loaded Bounds
 						LoadedBounds.Init();
-						DoCollectGarbage();
+
+						FWorldPartitionHelpers::DoCollectGarbage();
 					}
 				}
 			}
@@ -262,15 +263,3 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 		return RunInternal(World, BoundsToLoad, PackageHelper);
 	}
 }
-
-void UWorldPartitionBuilder::DoCollectGarbage() const
-{
-	const FPlatformMemoryStats MemStatsBefore = FPlatformMemory::GetStats();
-	CollectGarbage(RF_NoFlags, true);
-	const FPlatformMemoryStats MemStatsAfter = FPlatformMemory::GetStats();
-
-	UE_LOG(LogWorldPartitionBuilder, Display, TEXT("GC Performed - Freed Physical: %.2fGB, Freed Virtual: %.2fGB"),
-		((int64)MemStatsAfter.AvailablePhysical - (int64)MemStatsBefore.AvailablePhysical) / (1024.0 * 1024.0 * 1024.0),
-		((int64)MemStatsAfter.AvailableVirtual - (int64)MemStatsBefore.AvailableVirtual) / (1024.0 * 1024.0 * 1024.0)
-	);
-};
