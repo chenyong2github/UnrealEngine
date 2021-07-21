@@ -5,8 +5,8 @@
 #include "IRewindDebugger.h"
 #include "BindableProperty.h"
 #include "UObject/WeakObjectPtr.h"
-#include "RewindDebuggerModule.h"
 
+class USkeletalMeshComponent;
 
 namespace TraceServices
 {
@@ -31,6 +31,9 @@ public:
 	virtual uint64 GetTargetActorId() const override;
 	virtual bool GetTargetActorPosition(FVector& OutPosition) const override;
 	virtual UWorld* GetWorldToVisualize() const override;
+	virtual bool IsRecording() const override { return bRecording; }
+	virtual bool IsPIESimulating() const override { return bPIESimulating; }
+	virtual double GetRecordingDuration() const override { return RecordingDuration.Get(); }
 
 	// create singleton instance
 	static void Initialize();
@@ -44,7 +47,6 @@ public:
 	// Start a new Recording:  Start tracing Object + Animation data, increment the current recording index, and reset the recording elapsed time to 0
 	void StartRecording();
 
-	bool IsRecording() const { return bRecording; }
 	bool CanStartRecording() const { return !IsRecording() && bPIESimulating; }
 
 	bool AutoRecord() const { return bAutoRecord; }
@@ -81,7 +83,7 @@ public:
 	// update the list of components for the currently selected debug target
 	void RefreshDebugComponents();
 
-	TArray<TSharedPtr<FDebugObjectInfo>>& GetDebugComponents() { return DebugComponents; };
+	TArray<TSharedPtr<FDebugObjectInfo>>& GetDebugComponents() override { return DebugComponents; };
 
 	DECLARE_DELEGATE(FOnComponentListChanged)
 	void OnComponentListChanged(const FOnComponentListChanged& ComponentListChangedCallback);

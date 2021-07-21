@@ -80,10 +80,16 @@ void FRewindDebuggerCamera::SetCameraMode(ECameraMode InMode)
 	Mode = InMode;
 }
 
-void FRewindDebuggerCamera::UpdatePlayback(float DeltaTime, IRewindDebugger* RewindDebugger)
+void FRewindDebuggerCamera::Update(float DeltaTime, IRewindDebugger* RewindDebugger)
 {
+	if (RewindDebugger->IsPIESimulating() || RewindDebugger->GetRecordingDuration() == 0.0)
+	{
+		return;
+	}
+
 	if (const TraceServices::IAnalysisSession* Session = RewindDebugger->GetAnalysisSession())
 	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session);
 		double CurrentTraceTime = RewindDebugger->CurrentTraceTime();
 		
 		static double LastCameraScrubTime = 0.0f;
@@ -130,9 +136,10 @@ void FRewindDebuggerCamera::UpdatePlayback(float DeltaTime, IRewindDebugger* Rew
 						if (!CameraActor.IsValid())
 						{
 							FActorSpawnParameters SpawnParameters;
-							SpawnParameters.Name = "RewindDebuggerCamera"; 
+							SpawnParameters.ObjectFlags |= RF_Transient;
 							CameraActor = RewindDebugger->GetWorldToVisualize()->SpawnActor<ACameraActor>(ViewMessage.Position, ViewMessage.Rotation, SpawnParameters);
 							UCameraComponent* Camera = CameraActor->GetCameraComponent();
+							CameraActor->SetActorLabel("RewindDebuggerCamera"); 
 						}
 
 						UCameraComponent* Camera = CameraActor->GetCameraComponent();

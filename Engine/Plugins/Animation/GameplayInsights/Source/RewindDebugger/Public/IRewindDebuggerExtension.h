@@ -13,11 +13,17 @@
 
 class IRewindDebugger;
 
-class IRewindDebuggerExtension : public IModularFeature
+class REWINDDEBUGGER_API IRewindDebuggerExtension : public IModularFeature
 {
 public:
-	static REWINDDEBUGGER_API const FName ModularFeatureName;
+	static const FName ModularFeatureName;
 
 	// called while scrubbing, playing back, or paused
-	virtual void UpdatePlayback(float DeltaTime, IRewindDebugger* RewindDebugger) {};
+	virtual void Update(float DeltaTime, IRewindDebugger* RewindDebugger) {};
+
+	// called when recording has started
+	virtual void RecordingStarted(IRewindDebugger* RewindDebugger) {};
+
+	// called when recording has ended
+	virtual void RecordingStopped(IRewindDebugger* RewindDebugger) {};
 };

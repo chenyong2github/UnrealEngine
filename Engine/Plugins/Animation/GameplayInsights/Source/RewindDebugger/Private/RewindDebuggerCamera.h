@@ -25,7 +25,7 @@ public:
 	FRewindDebuggerCamera();
 	virtual ~FRewindDebuggerCamera() {};
 
-	virtual void UpdatePlayback(float DeltaTime, IRewindDebugger* RewindDebugger) override;
+	virtual void Update(float DeltaTime, IRewindDebugger* RewindDebugger) override;
 
 	ECameraMode CameraMode();
 	void SetCameraMode(ECameraMode Mode);
