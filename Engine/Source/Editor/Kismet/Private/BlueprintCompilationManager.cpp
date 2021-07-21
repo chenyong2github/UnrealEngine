@@ -1399,10 +1399,13 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 					BP->BlueprintSystemVersion = UBlueprint::GetCurrentBlueprintSystemVersion();
 
 					// Reapply breakpoints to the bytecode of the new class
-					for (UBreakpoint* Breakpoint  : BP->Breakpoints)
-					{
-						FKismetDebugUtilities::ReapplyBreakpoint(Breakpoint);
-					}
+					FKismetDebugUtilities::ForeachBreakpoint(
+						BP,
+						[](FBreakpoint& Breakpoint)
+						{
+							FKismetDebugUtilities::ReapplyBreakpoint(Breakpoint);
+						}
+					);
 				}
 				else
 				{

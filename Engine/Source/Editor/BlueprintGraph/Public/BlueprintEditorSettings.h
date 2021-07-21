@@ -6,7 +6,9 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Engine/Blueprint.h"
+#include "Kismet2/Breakpoint.h"
 #include "Engine/DeveloperSettings.h"
+#include "Kismet2/KismetDebugUtilities.h"
 #include "BlueprintEditorSettings.generated.h"
 
 UENUM()
@@ -16,7 +18,19 @@ enum ESaveOnCompile
 	SoC_SuccessOnly UMETA(DisplayName="On Success Only"),
 	SoC_Always UMETA(DisplayName = "Always"),
 };
- 
+
+/** Blueprint Editor settings that are different for each
+*	blueprint.
+*/
+USTRUCT()
+struct BLUEPRINTGRAPH_API FPerBlueprintSettings 
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	TArray<FBreakpoint> Breakpoints;
+};
+
 UCLASS(config=EditorPerProjectUserSettings)
 class BLUEPRINTGRAPH_API UBlueprintEditorSettings
 	:	public UObject
@@ -186,6 +200,10 @@ public:
 	UPROPERTY(config)
 	TArray<FBPEditorBookmarkNode> BookmarkNodes;
 
+	/** Maps Blueprint path to settings such as breakpoints */
+	UPROPERTY(config)
+	TMap<FString, FPerBlueprintSettings> PerBlueprintSettings;
+
 	/** If enabled, comment nodes will be included in the tree view display in the Bookmarks tab. */
 	UPROPERTY(config)
 	bool bIncludeCommentNodesInBookmarksTab;
@@ -211,9 +229,14 @@ public:
 	{
 		OnSettingsChange.Remove(Object);
 	}
+	
 
 protected:
 	//~ Begin UObject Interface
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	//~ End UObject Interface
+	
+	void OnAssetRenamed(FAssetData const& AssetInfo, const FString& InOldName);
+	
+	void OnAssetRemoved(UObject* Object);
 };

@@ -1191,12 +1191,8 @@ void UK2Node_CallFunction::PostReconstructNode()
 
 	if (IsNodePure())
 	{
-		// Remove any pre-existing breakpoint on this node since pure nodes cannot have breakpoints
-		if (UBreakpoint* ExistingBreakpoint = FKismetDebugUtilities::FindBreakpointForNode(GetBlueprint(), this))
-		{
-			// Remove the breakpoint
-			FKismetDebugUtilities::StartDeletingBreakpoint(ExistingBreakpoint, GetBlueprint());
-		}
+		// Remove the breakpoint
+		FKismetDebugUtilities::RemoveBreakpointFromNode(this, GetBlueprint());
 	}
 }
 
