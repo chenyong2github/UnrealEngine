@@ -620,12 +620,8 @@ FMeshPassProcessor* CreateLumenCardNaniteMeshProcessor(
 FLumenCard::FLumenCard()
 {
 	bVisible = false;
-	WorldBounds.Init();
-	Origin = FVector::ZeroVector;
-	LocalExtent = FVector::ZeroVector;
-	LocalToWorldRotationX = FVector::ZeroVector;
-	LocalToWorldRotationY = FVector::ZeroVector;
-	LocalToWorldRotationZ = FVector::ZeroVector;
+	LocalOBB.Reset();
+	WorldOBB.Reset();
 	IndexInMeshCards = -1;
 }
 
@@ -682,57 +678,39 @@ const static FVector LumenMeshCardRotationFrame[6][3] =
 	}
 };
 
-void FLumenCard::Initialize(float InResolutionScale, const FMatrix& LocalToWorld, const FLumenCardBuildData& CardBuildData, int32 InIndexInMeshCards, int32 InMeshCardsIndex)
+void FLumenCard::Initialize(float InResolutionScale, const FMatrix& LocalToWorld, const FLumenCardBuildData& CardBuildData, int32 InIndexInMeshCards, int32 InMeshCardsIndex, uint8 InIndexInBuildData)
 {
+	check(CardBuildData.AxisAlignedDirectionIndex < Lumen::NumAxisAlignedDirections);
+
 	IndexInMeshCards = InIndexInMeshCards;
 	MeshCardsIndex = InMeshCardsIndex;
+	IndexInBuildData = InIndexInBuildData;
 	ResolutionScale = InResolutionScale;
+	AxisAlignedDirectionIndex = CardBuildData.AxisAlignedDirectionIndex;
 
-	SetTransform(LocalToWorld, CardBuildData.Center, CardBuildData.Extent, CardBuildData.Orientation);
+	SetTransform(LocalToWorld, CardBuildData.OBB);
 }
 
-void FLumenCard::SetTransform(const FMatrix& LocalToWorld, FVector CardLocalCenter, FVector CardLocalExtent, int32 InOrientation)
+void FLumenCard::SetTransform(const FMatrix44f& LocalToWorld, const FLumenCardOBB& InLocalOBB)
 {
-	check(InOrientation < 6);
+	LocalOBB = InLocalOBB;
 
-	Orientation = InOrientation;
-	const FVector& CardToLocalRotationX = LumenMeshCardRotationFrame[Orientation][0];
-	const FVector& CardToLocalRotationY = LumenMeshCardRotationFrame[Orientation][1];
-	const FVector& CardToLocalRotationZ = LumenMeshCardRotationFrame[Orientation][2];
+	WorldOBB.Origin = LocalToWorld.TransformPosition(InLocalOBB.Origin);
 
-	SetTransform(LocalToWorld, CardLocalCenter, CardToLocalRotationX, CardToLocalRotationY, CardToLocalRotationZ, CardLocalExtent);
-}
-
-void FLumenCard::SetTransform(
-	const FMatrix& LocalToWorld,
-	const FVector& LocalOrigin,
-	const FVector& CardToLocalRotationX,
-	const FVector& CardToLocalRotationY,
-	const FVector& CardToLocalRotationZ,
-	const FVector& InLocalExtent)
-{
-	Origin = LocalToWorld.TransformPosition(LocalOrigin);
-
-	const FVector ScaledXAxis = LocalToWorld.TransformVector(CardToLocalRotationX);
-	const FVector ScaledYAxis = LocalToWorld.TransformVector(CardToLocalRotationY);
-	const FVector ScaledZAxis = LocalToWorld.TransformVector(CardToLocalRotationZ);
+	const FVector3f ScaledXAxis = LocalToWorld.TransformVector(InLocalOBB.AxisX);
+	const FVector3f ScaledYAxis = LocalToWorld.TransformVector(InLocalOBB.AxisY);
+	const FVector3f ScaledZAxis = LocalToWorld.TransformVector(InLocalOBB.AxisZ);
 	const float XAxisLength = ScaledXAxis.Size();
 	const float YAxisLength = ScaledYAxis.Size();
 	const float ZAxisLength = ScaledZAxis.Size();
 
-	LocalToWorldRotationY = ScaledYAxis / FMath::Max(YAxisLength, DELTA);
-	LocalToWorldRotationZ = ScaledZAxis / FMath::Max(ZAxisLength, DELTA);
-	LocalToWorldRotationX = FVector::CrossProduct(LocalToWorldRotationZ, LocalToWorldRotationY);
-	LocalToWorldRotationX.Normalize();
+	WorldOBB.AxisY = ScaledYAxis / FMath::Max(YAxisLength, DELTA);
+	WorldOBB.AxisZ = ScaledZAxis / FMath::Max(ZAxisLength, DELTA);
+	WorldOBB.AxisX = FVector::CrossProduct(WorldOBB.AxisZ, WorldOBB.AxisY);
+	FVector3f::CreateOrthonormalBasis(WorldOBB.AxisX, WorldOBB.AxisY, WorldOBB.AxisZ);
 
-	LocalExtent = InLocalExtent * FVector(XAxisLength, YAxisLength, ZAxisLength);
-	LocalExtent.Z = FMath::Max(LocalExtent.Z, 1.0f);
-
-	FMatrix CardToWorld = FMatrix::Identity;
-	CardToWorld.SetAxes(&LocalToWorldRotationX, &LocalToWorldRotationY, &LocalToWorldRotationZ);
-	CardToWorld.SetOrigin(Origin);
-	FBox LocalBounds(-LocalExtent, LocalExtent);
-	WorldBounds = LocalBounds.TransformBy(CardToWorld);
+	WorldOBB.Extent = InLocalOBB.Extent * FVector(XAxisLength, YAxisLength, ZAxisLength);
+	WorldOBB.Extent.Z = FMath::Max(WorldOBB.Extent.Z, 1.0f);
 }
 
 FCardPageRenderData::FCardPageRenderData(const FViewInfo& InMainView,
@@ -750,11 +728,7 @@ FCardPageRenderData::FCardPageRenderData(const FViewInfo& InMainView,
 	, CardUVRect(InCardUVRect)
 	, CardCaptureAtlasRect(InCardCaptureAtlasRect)
 	, SurfaceCacheAtlasRect(InSurfaceCacheAtlasRect)
-	, Origin(InCardData.Origin)
-	, LocalExtent(InCardData.LocalExtent)
-	, LocalToWorldRotationX(InCardData.LocalToWorldRotationX)
-	, LocalToWorldRotationY(InCardData.LocalToWorldRotationY)
-	, LocalToWorldRotationZ(InCardData.LocalToWorldRotationZ)
+	, CardWorldOBB(InCardData.WorldOBB)
 {
 	ensure(CardIndex >= 0 && PageTableIndex >= 0);
 
@@ -768,18 +742,17 @@ FCardPageRenderData::FCardPageRenderData(const FViewInfo& InMainView,
 
 void FCardPageRenderData::UpdateViewMatrices(const FViewInfo& MainView)
 {
-	ensureMsgf(FVector::DotProduct(LocalToWorldRotationX, FVector::CrossProduct(LocalToWorldRotationY, LocalToWorldRotationZ)) < 0.0f, TEXT("Card has wrong handedness"));
+	ensureMsgf(FVector::DotProduct(CardWorldOBB.AxisX, FVector::CrossProduct(CardWorldOBB.AxisY, CardWorldOBB.AxisZ)) < 0.0f, TEXT("Card has wrong handedness"));
 
 	FMatrix ViewRotationMatrix = FMatrix::Identity;
-	ViewRotationMatrix.SetColumn(0, LocalToWorldRotationX);
-	ViewRotationMatrix.SetColumn(1, LocalToWorldRotationY);
-	ViewRotationMatrix.SetColumn(2, -LocalToWorldRotationZ);
+	ViewRotationMatrix.SetColumn(0, CardWorldOBB.AxisX);
+	ViewRotationMatrix.SetColumn(1, CardWorldOBB.AxisY);
+	ViewRotationMatrix.SetColumn(2, -CardWorldOBB.AxisZ);
 
-	FVector ViewLocation = Origin;
-
-	FVector FaceLocalExtent = LocalExtent;
-	// Pull the view location back so the entire preview box is in front of the near plane
-	ViewLocation += FaceLocalExtent.Z * LocalToWorldRotationZ;
+	FVector ViewLocation = CardWorldOBB.Origin;
+	FVector FaceLocalExtent = CardWorldOBB.Extent;
+	// Pull the view location back so the entire box is in front of the near plane
+	ViewLocation += FaceLocalExtent.Z * CardWorldOBB.AxisZ;
 
 	const float NearPlane = 0.0f;
 	const float FarPlane = NearPlane + FaceLocalExtent.Z * 2.0f;
@@ -1132,13 +1105,10 @@ public:
 				{
 					const FLumenCard& LumenCard = LumenCards[CardIndex];
 
-					const FVector CardSpaceViewOrigin = LumenCard.TransformWorldPositionToCardLocal(ViewOrigin);
-					const FBox CardBox(-LumenCard.LocalExtent, LumenCard.LocalExtent);
-
-					const float ViewerDistance = FMath::Max(FMath::Sqrt(CardBox.ComputeSquaredDistanceToPoint(CardSpaceViewOrigin)), 1.0f);
+					const float ViewerDistance = FMath::Max(FMath::Sqrt(LumenCard.WorldOBB.ComputeSquaredDistanceToPoint(ViewOrigin)), 1.0f);
 
 					// Compute resolution based on its largest extent
-					float MaxExtent = FMath::Max(LumenCard.LocalExtent.X, LumenCard.LocalExtent.Y);
+					float MaxExtent = FMath::Max(LumenCard.WorldOBB.Extent.X, LumenCard.WorldOBB.Extent.Y);
 					float MaxProjectedSize = FMath::Min(TexelDensityScale * MaxExtent * LumenCard.ResolutionScale / ViewerDistance, GLumenSceneCardMaxTexelDensity * MaxExtent);
 
 					if (GLumenSceneCardFixedDebugTexelDensity > 0)

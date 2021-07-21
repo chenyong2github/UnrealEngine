@@ -10,6 +10,9 @@
 
 struct FLumenCardData
 {
+	float3 MeshCardsBoundsCenter;
+	float3 MeshCardsBoundsExtent;
+
 	float3x3 WorldToLocalRotation;
 	float3 Origin;
 	float3 LocalExtent;
@@ -27,7 +30,7 @@ struct FLumenCardData
 };
 
 // Stride of a single cards's data in float4's, must match C++
-#define PROXY_CARD_DATA_STRIDE 5
+#define LUMEN_CARD_DATA_STRIDE 7
 #define LUMEN_CARD_TILE_DATA_STRIDE 3
 
 void GetLumenCardSharedDataInternal(uint BaseOffset, StructuredBuffer<float4> CardBuffer, inout FLumenCardData CardData)
@@ -42,6 +45,8 @@ void GetLumenCardSharedDataInternal(uint BaseOffset, StructuredBuffer<float4> Ca
 	float4 Vector2 = CardBuffer[BaseOffset + 2];
 	float4 Vector3 = CardBuffer[BaseOffset + 3];
 	float4 Vector4 = CardBuffer[BaseOffset + 4];
+	float4 Vector5 = CardBuffer[BaseOffset + 5];
+	float4 Vector6 = CardBuffer[BaseOffset + 6];
 
 	CardData.WorldToLocalRotation[0] = Vector0.xyz;
 	CardData.WorldToLocalRotation[1] = Vector1.xyz;
@@ -59,18 +64,21 @@ void GetLumenCardSharedDataInternal(uint BaseOffset, StructuredBuffer<float4> Ca
 	CardData.HiResSizeInPages.x = (asuint(Vector4.z) >> 0) & 0xFFFF;
 	CardData.HiResSizeInPages.y = (asuint(Vector4.z) >> 16) & 0xFFFF;
 	CardData.HiResPageTableOffset = asuint(Vector4.w);
+
+	CardData.MeshCardsBoundsCenter = Vector5.xyz;
+	CardData.MeshCardsBoundsExtent = Vector6.xyz;
 }
 
 bool IsCardVisible(uint CardId)
 {
-	return LumenCardScene.CardData[CardId * PROXY_CARD_DATA_STRIDE + 3].y > 0.0f;
+	return LumenCardScene.CardData[CardId * LUMEN_CARD_DATA_STRIDE + 3].y > 0.0f;
 }
 
 // Fetch from scene card buffer
 FLumenCardData GetLumenCardData(uint CardId) 
 {
 	FLumenCardData CardData;
-	uint BaseOffset = CardId * PROXY_CARD_DATA_STRIDE;
+	uint BaseOffset = CardId * LUMEN_CARD_DATA_STRIDE;
 	
 	GetLumenCardSharedDataInternal(BaseOffset, LumenCardScene.CardData, CardData);
 
@@ -80,7 +88,7 @@ FLumenCardData GetLumenCardData(uint CardId)
 FLumenCardData GetLumenCardData(uint CardId, StructuredBuffer<float4> CardBuffer) 
 {
 	FLumenCardData CardData;
-	uint BaseOffset = CardId * PROXY_CARD_DATA_STRIDE;
+	uint BaseOffset = CardId * LUMEN_CARD_DATA_STRIDE;
 	
 	GetLumenCardSharedDataInternal(BaseOffset, CardBuffer, CardData);
 
@@ -189,25 +197,19 @@ struct FCardVSToPS
 };
 
 // Stride of mesh cards data, must match C++
-#define LUMEN_MESH_CARDS_DATA_STRIDE 4
+#define LUMEN_MESH_CARDS_DATA_STRIDE 8
 #define LUMEN_INVALID_CARD_INDEX 0xFFFFFFFF
 
 struct FLumenMeshCardsData
 {
+	float4x4 LocalToWorld;
 	float4x4 WorldToLocal;
 
-	// Per orientation
-	uint NumCards[6];
-	uint CardOffset[6];
+	uint NumCards;
+	uint CardOffset;
+
+	uint CardLookup[6];
 };
-
-void UnpackCardNumAndOffset(inout uint NumCards, inout uint CardOffset, uint BaseCardOffset, uint PackedData, uint PackedDataOffset)
-{
-	NumCards = (PackedData >> (PackedDataOffset + 0)) & 0xFF;
-	CardOffset = (PackedData >> (PackedDataOffset + 8)) & 0xFF;
-
-	CardOffset += BaseCardOffset;
-}
 
 // Note: layout must match FLumenMeshCardsData in C++
 FLumenMeshCardsData GetLumenMeshCardsData(uint MeshCardsId)
@@ -219,22 +221,23 @@ FLumenMeshCardsData GetLumenMeshCardsData(uint MeshCardsId)
 	float4 M0 = LumenCardScene.MeshCardsData[BaseOffset + 0];
 	float4 M1 = LumenCardScene.MeshCardsData[BaseOffset + 1];
 	float4 M2 = LumenCardScene.MeshCardsData[BaseOffset + 2];
+	MeshCardsData.LocalToWorld = transpose(float4x4(M0, M1, M2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
+
+	M0 = LumenCardScene.MeshCardsData[BaseOffset + 3];
+	M1 = LumenCardScene.MeshCardsData[BaseOffset + 4];
+	M2 = LumenCardScene.MeshCardsData[BaseOffset + 5];
 	MeshCardsData.WorldToLocal = transpose(float4x4(M0, M1, M2, float4(0.0f, 0.0f, 0.0f, 1.0f)));
 
-	uint4 PackedData;
-	PackedData.x = asuint(LumenCardScene.MeshCardsData[BaseOffset + 3].x);
-	PackedData.y = asuint(LumenCardScene.MeshCardsData[BaseOffset + 3].y);
-	PackedData.z = asuint(LumenCardScene.MeshCardsData[BaseOffset + 3].z);
-	PackedData.w = asuint(LumenCardScene.MeshCardsData[BaseOffset + 3].w);
-
-	uint BaseCardOffset = PackedData.w;
-
-	UnpackCardNumAndOffset(MeshCardsData.NumCards[0], MeshCardsData.CardOffset[0], BaseCardOffset, PackedData.x, 0);
-	UnpackCardNumAndOffset(MeshCardsData.NumCards[1], MeshCardsData.CardOffset[1], BaseCardOffset, PackedData.x, 16);
-	UnpackCardNumAndOffset(MeshCardsData.NumCards[2], MeshCardsData.CardOffset[2], BaseCardOffset, PackedData.y, 0);
-	UnpackCardNumAndOffset(MeshCardsData.NumCards[3], MeshCardsData.CardOffset[3], BaseCardOffset, PackedData.y, 16);
-	UnpackCardNumAndOffset(MeshCardsData.NumCards[4], MeshCardsData.CardOffset[4], BaseCardOffset, PackedData.z, 0);
-	UnpackCardNumAndOffset(MeshCardsData.NumCards[5], MeshCardsData.CardOffset[5], BaseCardOffset, PackedData.z, 16);
+	uint4 V3 = asuint(LumenCardScene.MeshCardsData[BaseOffset + 6]);
+	uint4 V4 = asuint(LumenCardScene.MeshCardsData[BaseOffset + 7]);
+	MeshCardsData.CardOffset = V3.x;
+	MeshCardsData.NumCards = V3.y;
+	MeshCardsData.CardLookup[0] = V3.z;
+	MeshCardsData.CardLookup[1] = V3.w;
+	MeshCardsData.CardLookup[2] = V4.x;
+	MeshCardsData.CardLookup[3] = V4.y;
+	MeshCardsData.CardLookup[4] = V4.z;
+	MeshCardsData.CardLookup[5] = V4.w;
 
 	return MeshCardsData;
 }

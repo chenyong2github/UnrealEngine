@@ -33,11 +33,8 @@ public:
 	FVector4 CardUVRect;
 	FIntRect CardCaptureAtlasRect;
 	FIntRect SurfaceCacheAtlasRect;
-	FVector Origin;
-	FVector LocalExtent;
-	FVector LocalToWorldRotationX;
-	FVector LocalToWorldRotationY;
-	FVector LocalToWorldRotationZ;
+
+	FLumenCardOBB CardWorldOBB;
 
 	FViewMatrices ViewMatrices;
 	FMatrix ProjectionMatrixUnadjustedForRHI;

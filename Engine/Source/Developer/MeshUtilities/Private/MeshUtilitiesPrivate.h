@@ -243,5 +243,5 @@ DECLARE_LOG_CATEGORY_EXTERN(LogMeshUtilities, Verbose, All);
 namespace MeshUtilities
 {
 	/** Generates unit length, stratified and uniformly distributed direction samples in a hemisphere. */
-	void GenerateStratifiedUniformHemisphereSamples(int32 NumSamples, FRandomStream& RandomStream, TArray<FVector4>& Samples);
+	void GenerateStratifiedUniformHemisphereSamples(int32 NumSamples, FRandomStream& RandomStream, TArray<FVector3f>& Samples);
 };

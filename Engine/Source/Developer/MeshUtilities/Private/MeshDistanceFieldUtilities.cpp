@@ -74,7 +74,7 @@ class FSparseMeshDistanceFieldAsyncTask
 public:
 	FSparseMeshDistanceFieldAsyncTask(
 		const FEmbreeScene& InEmbreeScene,
-		const TArray<FVector4>* InSampleDirections,
+		const TArray<FVector3f>* InSampleDirections,
 		float InLocalSpaceTraceDistance,
 		FBox InVolumeBounds,
 		float InLocalToVolumeScale,
@@ -100,7 +100,7 @@ public:
 
 	// Readonly inputs
 	const FEmbreeScene& EmbreeScene;
-	const TArray<FVector4>* SampleDirections;
+	const TArray<FVector3f>* SampleDirections;
 	float LocalSpaceTraceDistance;
 	FBox VolumeBounds;
 	float LocalToVolumeScale;
@@ -298,18 +298,18 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 		// Whether to use an Embree Point Query to compute the closest unsigned distance.  Rays will only be traced to determine backfaces visible for sign.
 		const bool bUsePointQuery = true;
 
-		TArray<FVector4> SampleDirections;
+		TArray<FVector3f> SampleDirections;
 		{
 			const int32 NumVoxelDistanceSamples = bUsePointQuery ? 120 : 1200;
 			FRandomStream RandomStream(0);
 			MeshUtilities::GenerateStratifiedUniformHemisphereSamples(NumVoxelDistanceSamples, RandomStream, SampleDirections);
-			TArray<FVector4> OtherHemisphereSamples;
+			TArray<FVector3f> OtherHemisphereSamples;
 			MeshUtilities::GenerateStratifiedUniformHemisphereSamples(NumVoxelDistanceSamples, RandomStream, OtherHemisphereSamples);
 
 			for (int32 i = 0; i < OtherHemisphereSamples.Num(); i++)
 			{
-				FVector4 Sample = OtherHemisphereSamples[i];
-				Sample.Z *= -1;
+				FVector3f Sample = OtherHemisphereSamples[i];
+				Sample.Z *= -1.0f;
 				SampleDirections.Add(Sample);
 			}
 		}
