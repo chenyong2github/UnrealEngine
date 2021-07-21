@@ -2,7 +2,7 @@
 
 using Build.Bazel.Remote.Execution.V2;
 using Google.Protobuf;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -13,33 +13,36 @@ namespace EpicGames.Horde.Common.RemoteExecution
 	/// </summary>
 	public class UploadList
 	{
-		public Dictionary<string, BatchUpdateBlobsRequest.Types.Request> Blobs = new Dictionary<string, BatchUpdateBlobsRequest.Types.Request>();
+		public ConcurrentDictionary<string, BatchUpdateBlobsRequest.Types.Request> Blobs = new ConcurrentDictionary<string, BatchUpdateBlobsRequest.Types.Request>();
 
-		public Digest Add<T>(IMessage<T> Message) where T : IMessage<T>
+		public async Task<Digest> AddAsync(ByteString ByteString)
 		{
-			ByteString ByteString = Message.ToByteString();
-
-			Digest Digest = StorageExtensions.GetDigest(ByteString);
+			Digest Digest = await StorageExtensions.GetDigestAsync(ByteString);
 			if (!Blobs.ContainsKey(Digest.Hash))
 			{
 				BatchUpdateBlobsRequest.Types.Request Request = new BatchUpdateBlobsRequest.Types.Request();
 				Request.Data = ByteString;
 				Request.Digest = Digest;
-				Blobs.Add(Digest.Hash, Request);
+				Blobs.TryAdd(Digest.Hash, Request);
 			}
+
 			return Digest;
+		}
+
+		public async Task<Digest> AddAsync<T>(IMessage<T> Message) where T : IMessage<T>
+		{
+			return await AddAsync(Message.ToByteString());
 		}
 
 		public async Task<Digest> AddFileAsync(string LocalFile)
 		{
-			BatchUpdateBlobsRequest.Types.Request Content = new BatchUpdateBlobsRequest.Types.Request();
+			ByteString ByteString;
 			using (FileStream Stream = File.Open(LocalFile, FileMode.Open, FileAccess.Read, FileShare.Read))
 			{
-				Content.Data = await ByteString.FromStreamAsync(Stream);
-				Content.Digest = StorageExtensions.GetDigest(Content.Data);
+				ByteString = await ByteString.FromStreamAsync(Stream);
 			}
-			Blobs[Content.Digest.Hash] = Content;
-			return Content.Digest;
+
+			return await AddAsync(ByteString);
 		}
 	}
 }
