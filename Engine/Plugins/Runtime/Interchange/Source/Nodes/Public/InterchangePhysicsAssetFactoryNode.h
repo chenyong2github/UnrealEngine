@@ -70,7 +70,7 @@ public:
 	{
 		ensure(bIsNodeClassInitialized);
 #if WITH_ENGINE
-		return AssetClass.Get() != nullptr ? AssetClass.Get() : USkeleton::StaticClass();
+		return AssetClass.Get() != nullptr ? AssetClass.Get() : UPhysicsAsset::StaticClass();
 #else
 		return nullptr;
 #endif
