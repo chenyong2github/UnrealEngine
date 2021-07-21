@@ -10,6 +10,7 @@
 
 // Insights
 #include "Insights/Common/TimeUtils.h"
+#include "Insights/ContextSwitches/ContextSwitchesProfilerManager.h"
 #include "Insights/ContextSwitches/ViewModels/ContextSwitchTimingEvent.h"
 #include "Insights/ITimingViewSession.h"
 #include "Insights/InsightsManager.h"
@@ -46,11 +47,17 @@ public:
 	PRAGMA_DISABLE_OPTIMIZATION
 	virtual void RegisterCommands() override
 	{
-		UI_COMMAND(Command_ShowContextSwitches, "Show Context Switches ", "Show/hide context switches events as header tracks", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Shift, EKeys::C));
+		UI_COMMAND(Command_ShowCoreTracks, "Core Tracks", "Show/hide the Cpu Core tracks.", EUserInterfaceActionType::ToggleButton, FInputChord());
+		UI_COMMAND(Command_ShowContextSwitches, "Context Switches", "Show/hide context switches on top of cpu timing tracks.", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Shift, EKeys::C));
+		UI_COMMAND(Command_ShowOverlays, "Overlays", "Extend the visualisation of context switches over the cpu timing tracks.", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Shift, EKeys::O));
+		UI_COMMAND(Command_ShowExtendedLines, "Extended Lines", "Show/hide the extended vertical lines at edges of each context switch event.", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Shift, EKeys::L));
 	}
 	PRAGMA_ENABLE_OPTIMIZATION
 
+	TSharedPtr<FUICommandInfo> Command_ShowCoreTracks;
 	TSharedPtr<FUICommandInfo> Command_ShowContextSwitches;
+	TSharedPtr<FUICommandInfo> Command_ShowOverlays;
+	TSharedPtr<FUICommandInfo> Command_ShowExtendedLines;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -58,7 +65,12 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FContextSwitchesSharedState::FContextSwitchesSharedState(STimingView* InTimingView) 
-	: TimingView(InTimingView) 
+	: TimingView(InTimingView)
+	, bAreContextSwitchesVisible(true)
+	, bAreCoreTracksVisible(true)
+	, bAreOverlaysVisible(true)
+	, bAreExtendedLinesVisible(true)
+	, bSyncWithProviders(true)
 {
 }
 
@@ -70,6 +82,13 @@ void FContextSwitchesSharedState::OnBeginSession(Insights::ITimingViewSession& I
 	{
 		return;
 	}
+
+	bAreCoreTracksVisible = true;
+	bAreContextSwitchesVisible = true;
+	bAreOverlaysVisible = true;
+	bAreExtendedLinesVisible = true;
+
+	bSyncWithProviders = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -81,7 +100,12 @@ void FContextSwitchesSharedState::OnEndSession(Insights::ITimingViewSession& InS
 		return;
 	}
 
-	AddContextSwitchesChildTracks();
+	bAreCoreTracksVisible = true;
+	bAreContextSwitchesVisible = true;
+	bAreOverlaysVisible = true;
+	bAreExtendedLinesVisible = true;
+
+	bSyncWithProviders = false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -93,36 +117,60 @@ void FContextSwitchesSharedState::Tick(Insights::ITimingViewSession& InSession, 
 		return;
 	}
 
-	if (!FInsightsManager::Get()->IsAnalysisComplete() && bShowContextSwitchesTrack)
+	if (bSyncWithProviders && AreContextSwitchesAvailable())
 	{
-		AddContextSwitchesChildTracks();
+		if (bAreCoreTracksVisible)
+		{
+			AddCoreTracks();
+		}
+
+		if (bAreContextSwitchesVisible)
+		{
+			AddContextSwitchesChildTracks();
+		}
+
+		if (FInsightsManager::Get()->IsAnalysisComplete())
+		{
+			// No need to sync anymore when analysis is completed.
+			bSyncWithProviders = false;
+		}
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FContextSwitchesSharedState::ExtendFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InOutMenuBuilder)
+void FContextSwitchesSharedState::ExtendFilterMenu(Insights::ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder)
 {
 	if (&InSession != TimingView)
 	{
 		return;
 	}
+
+	InMenuBuilder.BeginSection("ContextSwitches");
+	{
+		InMenuBuilder.AddSubMenu(
+			LOCTEXT("ContextSwitches_SubMenu", "Context Switches"),
+			LOCTEXT("ContextSwitches_SubMenu_Desc", "Context Switch track options"),
+			FNewMenuDelegate::CreateSP(this, &FContextSwitchesSharedState::BuildSubMenu),
+			false,
+			FSlateIcon()
+		);
+	}
+	InMenuBuilder.EndSection();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FContextSwitchesSharedState::ExtendGlobalContextMenu(ITimingViewSession& InSession, FMenuBuilder& InMenuBuilder)
+void FContextSwitchesSharedState::BuildSubMenu(FMenuBuilder& InMenuBuilder)
 {
-	InMenuBuilder.AddMenuEntry
-	(
-		FContextSwitchesStateCommands::Get().Command_ShowContextSwitches,
-		NAME_None,
-		TAttribute<FText>(),
-		TAttribute<FText>(),
-		FSlateIcon()
-	);
-
-	return true;
+	InMenuBuilder.BeginSection("ContextSwitches", LOCTEXT("ContextSwitchesHeading", "Context Switches"));
+	{
+		//TODO: InMenuBuilder.AddMenuEntry(FContextSwitchesStateCommands::Get().Command_ShowCoreTracks);
+		InMenuBuilder.AddMenuEntry(FContextSwitchesStateCommands::Get().Command_ShowContextSwitches);
+		InMenuBuilder.AddMenuEntry(FContextSwitchesStateCommands::Get().Command_ShowOverlays);
+		InMenuBuilder.AddMenuEntry(FContextSwitchesStateCommands::Get().Command_ShowExtendedLines);
+	}
+	InMenuBuilder.EndSection();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -135,10 +183,49 @@ void FContextSwitchesSharedState::AddCommands()
 	ensure(CommandList.IsValid());
 
 	CommandList->MapAction(
+		FContextSwitchesStateCommands::Get().Command_ShowCoreTracks,
+		FExecuteAction::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowCoreTracks_Execute),
+		FCanExecuteAction::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowCoreTracks_CanExecute),
+		FIsActionChecked::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowCoreTracks_IsChecked));
+
+	CommandList->MapAction(
 		FContextSwitchesStateCommands::Get().Command_ShowContextSwitches,
 		FExecuteAction::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowContextSwitches_Execute),
 		FCanExecuteAction::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowContextSwitches_CanExecute),
 		FIsActionChecked::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowContextSwitches_IsChecked));
+
+	CommandList->MapAction(
+		FContextSwitchesStateCommands::Get().Command_ShowOverlays,
+		FExecuteAction::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowOverlays_Execute),
+		FCanExecuteAction::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowOverlays_CanExecute),
+		FIsActionChecked::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowOverlays_IsChecked));
+
+	CommandList->MapAction(
+		FContextSwitchesStateCommands::Get().Command_ShowExtendedLines,
+		FExecuteAction::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowExtendedLines_Execute),
+		FCanExecuteAction::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowExtendedLines_CanExecute),
+		FIsActionChecked::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowExtendedLines_IsChecked));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FContextSwitchesSharedState::AreContextSwitchesAvailable() const
+{
+	return FContextSwitchesProfilerManager::Get()->IsAvailable();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FContextSwitchesSharedState::AddCoreTracks()
+{
+	//TODO
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FContextSwitchesSharedState::RemoveCoreTracks()
+{
+	//TODO
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -156,11 +243,12 @@ void FContextSwitchesSharedState::AddContextSwitchesChildTracks()
 
 	for (const TPair<uint32, TSharedPtr<FCpuTimingTrack>>& MapEntry : CpuTracks)
 	{
-		if (MapEntry.Value.IsValid() && !MapEntry.Value->GetChildTrack().IsValid())
+		const TSharedPtr<FCpuTimingTrack>& CpuTrack = MapEntry.Value;
+		if (CpuTrack.IsValid() && !CpuTrack->GetChildTrack().IsValid())
 		{
-			TSharedPtr<FContextSwitchesTimingTrack> ContextSwitchesTrack = MakeShared<FContextSwitchesTimingTrack>(*this, TEXT("Context Switches"), MapEntry.Value->GetTimelineIndex(), MapEntry.Value->GetThreadId());
-			ContextSwitchesTrack->SetParentTrack(MapEntry.Value);
-			MapEntry.Value->SetChildTrack(ContextSwitchesTrack);
+			TSharedPtr<FContextSwitchesTimingTrack> ContextSwitchesTrack = MakeShared<FContextSwitchesTimingTrack>(*this, TEXT("Context Switches"), CpuTrack->GetTimelineIndex(), CpuTrack->GetThreadId());
+			ContextSwitchesTrack->SetParentTrack(CpuTrack);
+			CpuTrack->SetChildTrack(ContextSwitchesTrack);
 		}
 	}
 }
@@ -180,41 +268,64 @@ void FContextSwitchesSharedState::RemoveContextSwitchesChildTracks()
 
 	for (const TPair<uint32, TSharedPtr<FCpuTimingTrack>>& MapEntry : CpuTracks)
 	{
-		if (MapEntry.Value.IsValid() && MapEntry.Value->GetChildTrack().IsValid() && MapEntry.Value->GetChildTrack()->Is<FContextSwitchesTimingTrack>())
+		const TSharedPtr<FCpuTimingTrack>& CpuTrack = MapEntry.Value;
+		if (CpuTrack.IsValid() && CpuTrack->GetChildTrack().IsValid() && CpuTrack->GetChildTrack()->Is<FContextSwitchesTimingTrack>())
 		{
-			MapEntry.Value->SetChildTrack(nullptr);
+			CpuTrack->SetChildTrack(nullptr);
 		}
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FContextSwitchesSharedState::ContextMenu_ShowContextSwitches_Execute()
+void FContextSwitchesSharedState::SetCoreTracksVisible(bool bOnOff)
 {
-	SetContextSwitchesToggle(!bShowContextSwitchesTrack);
+	if (bAreCoreTracksVisible != bOnOff)
+	{
+		bAreCoreTracksVisible = bOnOff;
 
-	if (bShowContextSwitchesTrack)
-	{
-		AddContextSwitchesChildTracks();
-	}
-	else
-	{
-		RemoveContextSwitchesChildTracks();
+		if (bAreCoreTracksVisible)
+		{
+			AddCoreTracks();
+		}
+		else
+		{
+			RemoveCoreTracks();
+		}
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FContextSwitchesSharedState::ContextMenu_ShowContextSwitches_CanExecute()
+void FContextSwitchesSharedState::SetContextSwitchesVisible(bool bOnOff)
 {
-	return true;
+	if (bAreContextSwitchesVisible != bOnOff)
+	{
+		bAreContextSwitchesVisible = bOnOff;
+
+		if (bAreContextSwitchesVisible)
+		{
+			AddContextSwitchesChildTracks();
+		}
+		else
+		{
+			RemoveContextSwitchesChildTracks();
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FContextSwitchesSharedState::ContextMenu_ShowContextSwitches_IsChecked()
+void FContextSwitchesSharedState::SetOverlaysVisible(bool bOnOff)
 {
-	return IsContextSwitchesToggleOn();
+	bAreOverlaysVisible = bOnOff;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FContextSwitchesSharedState::SetExtendedLinesVisible(bool bOnOff)
+{
+	bAreExtendedLinesVisible = bOnOff;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -294,75 +405,78 @@ void FContextSwitchesTimingTrack::DrawLineEvents(const ITimingTrackDrawContext& 
 
 void FContextSwitchesTimingTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 {
-	float LineY1 = 0.0f;
-	float LineY2 = 0.0f;
-	ETimingTrackLocation LocalLocation = ETimingTrackLocation::None;
-	TSharedPtr<FBaseTimingTrack> LocalParentTrack = GetParentTrack().Pin();
-	if (LocalParentTrack)
+	if (SharedState.AreOverlaysVisible())
 	{
-		LineY1 = LocalParentTrack->GetPosY();
-		LineY2 = LineY1 + LocalParentTrack->GetHeight();
-		LocalLocation = LocalParentTrack->GetLocation();
-	}
-	else
-	{
-		LineY1 = GetPosY();
-		LineY2 = LineY1 + GetHeight();
-		LocalLocation = GetLocation();
-	}
+		float LineY1 = 0.0f;
+		float LineY2 = 0.0f;
+		ETimingTrackLocation LocalLocation = ETimingTrackLocation::None;
+		TSharedPtr<FBaseTimingTrack> LocalParentTrack = GetParentTrack().Pin();
+		if (LocalParentTrack)
+		{
+			LineY1 = LocalParentTrack->GetPosY();
+			LineY2 = LineY1 + LocalParentTrack->GetHeight();
+			LocalLocation = LocalParentTrack->GetLocation();
+		}
+		else
+		{
+			LineY1 = GetPosY();
+			LineY2 = LineY1 + GetHeight();
+			LocalLocation = GetLocation();
+		}
 
-	const FTimingTrackViewport& Viewport = Context.GetViewport();
-	switch (LocalLocation)
-	{
-		case ETimingTrackLocation::Scrollable:
+		const FTimingTrackViewport& Viewport = Context.GetViewport();
+		switch (LocalLocation)
 		{
-			const float TopY = Viewport.GetTopOffset();
-			if (LineY1 < TopY)
+			case ETimingTrackLocation::Scrollable:
 			{
-				LineY1 = TopY;
+				const float TopY = Viewport.GetTopOffset();
+				if (LineY1 < TopY)
+				{
+					LineY1 = TopY;
+				}
+				const float BottomY = Viewport.GetHeight() - Viewport.GetBottomOffset();
+				if (LineY2 > BottomY)
+				{
+					LineY2 = BottomY;
+				}
+				break;
 			}
-			const float BottomY = Viewport.GetHeight() - Viewport.GetBottomOffset();
-			if (LineY2 > BottomY)
+			case ETimingTrackLocation::TopDocked:
 			{
-				LineY2 = BottomY;
+				const float TopY = 0.0f;
+				if (LineY1 < TopY)
+				{
+					LineY1 = TopY;
+				}
+				const float BottomY = Viewport.GetTopOffset();
+				if (LineY2 > BottomY)
+				{
+					LineY2 = BottomY;
+				}
+				break;
 			}
-			break;
+			case ETimingTrackLocation::BottomDocked:
+			{
+				const float TopY = Viewport.GetHeight() - Viewport.GetBottomOffset();
+				if (LineY1 < TopY)
+				{
+					LineY1 = TopY;
+				}
+				const float BottomY = Viewport.GetHeight();
+				if (LineY2 > BottomY)
+				{
+					LineY2 = BottomY;
+				}
+				break;
+			}
 		}
-		case ETimingTrackLocation::TopDocked:
-		{
-			const float TopY = 0.0f;
-			if (LineY1 < TopY)
-			{
-				LineY1 = TopY;
-			}
-			const float BottomY = Viewport.GetTopOffset();
-			if (LineY2 > BottomY)
-			{
-				LineY2 = BottomY;
-			}
-			break;
-		}
-		case ETimingTrackLocation::BottomDocked:
-		{
-			const float TopY = Viewport.GetHeight() - Viewport.GetBottomOffset();
-			if (LineY1 < TopY)
-			{
-				LineY1 = TopY;
-			}
-			const float BottomY = Viewport.GetHeight();
-			if (LineY2 > BottomY)
-			{
-				LineY2 = BottomY;
-			}
-			break;
-		}
-	}
 
-	const float LineH = LineY2 - LineY1;
-	if (LineH > 0.0f)
-	{
-		const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
-		Helper.DrawContextSwitchMarkers(GetDrawState(), LineY1, LineH, 0.25f);
+		const float LineH = LineY2 - LineY1;
+		if (LineH > 0.0f)
+		{
+			const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
+			Helper.DrawContextSwitchMarkers(GetDrawState(), LineY1, LineH, 0.25f, SharedState.AreExtendedLinesVisible());
+		}
 	}
 }
 

@@ -2467,51 +2467,60 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 {
 	if (InKeyEvent.GetKey() == EKeys::B)
 	{
-		// Toggle Bookmarks.
-		if (MarkersTrack->IsVisible())
+		if (!InKeyEvent.GetModifierKeys().IsControlDown() && !InKeyEvent.GetModifierKeys().IsShiftDown())
 		{
-			if (!MarkersTrack->IsBookmarksTrack())
+			// Toggle Bookmarks.
+			if (MarkersTrack->IsVisible())
 			{
-				SetDrawOnlyBookmarks(true);
+				if (!MarkersTrack->IsBookmarksTrack())
+				{
+					SetDrawOnlyBookmarks(true);
+				}
+				else
+				{
+					SetTimeMarkersVisible(false);
+				}
 			}
 			else
 			{
-				SetTimeMarkersVisible(false);
+				SetTimeMarkersVisible(true);
+				SetDrawOnlyBookmarks(true);
 			}
+			return FReply::Handled();
 		}
-		else
-		{
-			SetTimeMarkersVisible(true);
-			SetDrawOnlyBookmarks(true);
-		}
-		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::M)
 	{
-		// Toggle Time Markers.
-		if (MarkersTrack->IsVisible())
+		if (!InKeyEvent.GetModifierKeys().IsControlDown() && !InKeyEvent.GetModifierKeys().IsShiftDown())
 		{
-			if (MarkersTrack->IsBookmarksTrack())
+			// Toggle Time Markers.
+			if (MarkersTrack->IsVisible())
 			{
-				SetDrawOnlyBookmarks(false);
+				if (MarkersTrack->IsBookmarksTrack())
+				{
+					SetDrawOnlyBookmarks(false);
+				}
+				else
+				{
+					SetTimeMarkersVisible(false);
+				}
 			}
 			else
 			{
-				SetTimeMarkersVisible(false);
+				SetTimeMarkersVisible(true);
+				SetDrawOnlyBookmarks(false);
 			}
-		}
-		else
-		{
-			SetTimeMarkersVisible(true);
-			SetDrawOnlyBookmarks(false);
-		}
 
-		return FReply::Handled();
+			return FReply::Handled();
+		}
 	}
 	else if (InKeyEvent.GetKey() == EKeys::F)
 	{
-		FrameSelection();
-		return FReply::Handled();
+		if (!InKeyEvent.GetModifierKeys().IsControlDown() && !InKeyEvent.GetModifierKeys().IsShiftDown())
+		{
+			FrameSelection();
+			return FReply::Handled();
+		}
 	}
 	else if (InKeyEvent.GetKey() == EKeys::C)
 	{
@@ -2619,39 +2628,60 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 	}
 	else if (InKeyEvent.GetKey() == EKeys::D) // debug: toggles down-sampling on/off
 	{
-		FTimingEventsTrack::bUseDownSampling = !FTimingEventsTrack::bUseDownSampling;
-		Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
-		return FReply::Handled();
+		if (!InKeyEvent.GetModifierKeys().IsControlDown() && !InKeyEvent.GetModifierKeys().IsShiftDown())
+		{
+			FTimingEventsTrack::bUseDownSampling = !FTimingEventsTrack::bUseDownSampling;
+			Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
+			return FReply::Handled();
+		}
 	}
 	else if (InKeyEvent.GetKey() == EKeys::R)
 	{
-		FrameSharedState->ShowHideAllFrameTracks();
-		return FReply::Handled();
+		if (!InKeyEvent.GetModifierKeys().IsControlDown() && !InKeyEvent.GetModifierKeys().IsShiftDown())
+		{
+			FrameSharedState->ShowHideAllFrameTracks();
+			return FReply::Handled();
+		}
 	}
 	else if (InKeyEvent.GetKey() == EKeys::Y)
 	{
-		ThreadTimingSharedState->ShowHideAllGpuTracks();
-		return FReply::Handled();
+		if (!InKeyEvent.GetModifierKeys().IsControlDown() && !InKeyEvent.GetModifierKeys().IsShiftDown())
+		{
+			ThreadTimingSharedState->ShowHideAllGpuTracks();
+			return FReply::Handled();
+		}
 	}
 	else if (InKeyEvent.GetKey() == EKeys::U)
 	{
-		ThreadTimingSharedState->ShowHideAllCpuTracks();
-		return FReply::Handled();
+		if (!InKeyEvent.GetModifierKeys().IsControlDown() && !InKeyEvent.GetModifierKeys().IsShiftDown())
+		{
+			ThreadTimingSharedState->ShowHideAllCpuTracks();
+			return FReply::Handled();
+		}
 	}
 	else if (InKeyEvent.GetKey() == EKeys::L)
 	{
-		LoadingSharedState->ShowHideAllLoadingTracks();
-		return FReply::Handled();
+		if (!InKeyEvent.GetModifierKeys().IsControlDown() && !InKeyEvent.GetModifierKeys().IsShiftDown())
+		{
+			LoadingSharedState->ShowHideAllLoadingTracks();
+			return FReply::Handled();
+		}
 	}
 	else if (InKeyEvent.GetKey() == EKeys::I)
 	{
-		FileActivitySharedState->ShowHideAllIoTracks();
-		return FReply::Handled();
+		if (!InKeyEvent.GetModifierKeys().IsControlDown() && !InKeyEvent.GetModifierKeys().IsShiftDown())
+		{
+			FileActivitySharedState->ShowHideAllIoTracks();
+			return FReply::Handled();
+		}
 	}
 	else if (InKeyEvent.GetKey() == EKeys::O)
 	{
-		FileActivitySharedState->ToggleBackgroundEvents();
-		return FReply::Handled();
+		if (!InKeyEvent.GetModifierKeys().IsControlDown() && !InKeyEvent.GetModifierKeys().IsShiftDown())
+		{
+			FileActivitySharedState->ToggleBackgroundEvents();
+			return FReply::Handled();
+		}
 	}
 	else if (InKeyEvent.GetKey() == EKeys::A)
 	{
@@ -2696,7 +2726,18 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 	else if (InKeyEvent.GetKey() == EKeys::X)
 	{
 		uint32 DepthLimit = FTimingProfilerManager::Get()->GetEventDepthLimit();
-		DepthLimit = (DepthLimit != 4) ? 4 : 1000;
+		if (DepthLimit == 1)
+		{
+			DepthLimit = 4;
+		}
+		else if (DepthLimit == 4)
+		{
+			DepthLimit = 1000;
+		}
+		else
+		{
+			DepthLimit = 1;
+		}
 		FTimingProfilerManager::Get()->SetEventDepthLimit(DepthLimit);
 		Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
 		return FReply::Handled();
