@@ -148,7 +148,7 @@ public:
 	template<typename UpdateFuncType>
 	void UpdateAllLineSets(UpdateFuncType UpdateFunc)
 	{
-		for (TPair<FString, ULineSetComponent*> Entry : LineSets)
+		for (TPair<FString, TObjectPtr<ULineSetComponent>> Entry : LineSets)
 		{
 			UpdateFunc(Entry.Value);
 		}
