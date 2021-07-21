@@ -159,8 +159,8 @@ public:
 	float NoiseFloorDb;
 
 	//VM function overrides:
-	void GetSpectrumValue(FVectorVMContext& Context);
-	void GetNumChannels(FVectorVMContext& Context);
+	void GetSpectrumValue(FVectorVMExternalFunctionContext& Context);
+	void GetNumChannels(FVectorVMExternalFunctionContext& Context);
 
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;

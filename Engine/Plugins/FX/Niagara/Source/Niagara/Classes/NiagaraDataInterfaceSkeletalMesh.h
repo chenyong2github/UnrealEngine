@@ -882,45 +882,45 @@ public:
 	void BindTriangleSamplingFunction(const FVMExternalFunctionBindingInfo& BindingInfo, FNDISkeletalMesh_InstanceData* InstData, FVMExternalFunction &OutFunc);
 
 	template<typename FilterMode, typename AreaWeightingMode>
-	void GetFilteredTriangleCount(FVectorVMContext& Context);
+	void GetFilteredTriangleCount(FVectorVMExternalFunctionContext& Context);
 
 	template<typename FilterMode, typename AreaWeightingMode>
-	void GetFilteredTriangleAt(FVectorVMContext& Context);
+	void GetFilteredTriangleAt(FVectorVMExternalFunctionContext& Context);
 
 	template<typename FilterMode, typename AreaWeightingMode>
-	void RandomTriCoord(FVectorVMContext& Context);
+	void RandomTriCoord(FVectorVMExternalFunctionContext& Context);
 
 	template<typename FilterMode, typename AreaWeightingMode>
-	void IsValidTriCoord(FVectorVMContext& Context);
+	void IsValidTriCoord(FVectorVMExternalFunctionContext& Context);
 
 	template<typename SkinningHandlerType, typename TransformHandlerType, typename VertexAccessorType, typename bInterpolated>
-	void GetTriCoordSkinnedData(FVectorVMContext& Context);
+	void GetTriCoordSkinnedData(FVectorVMExternalFunctionContext& Context);
 
 	template<typename TransformHandlerType, typename bInterpolated>
-	void GetTriCoordSkinnedDataFallback(FVectorVMContext& Context);
+	void GetTriCoordSkinnedDataFallback(FVectorVMExternalFunctionContext& Context);
 
-	void GetTriCoordColor(FVectorVMContext& Context);
+	void GetTriCoordColor(FVectorVMExternalFunctionContext& Context);
 
-	void GetTriCoordColorFallback(FVectorVMContext& Context);
+	void GetTriCoordColorFallback(FVectorVMExternalFunctionContext& Context);
 
 	template<typename VertexAccessorType>
-	void GetTriCoordUV(FVectorVMContext& Context);
+	void GetTriCoordUV(FVectorVMExternalFunctionContext& Context);
 
 	template<typename SkinningHandlerType>
-	void GetTriCoordVertices(FVectorVMContext& Context);
+	void GetTriCoordVertices(FVectorVMExternalFunctionContext& Context);
 
 	template<typename VertexAccessorType>
-	void GetTriangleCoordAtUV(FVectorVMContext& Context);
+	void GetTriangleCoordAtUV(FVectorVMExternalFunctionContext& Context);
 
 	template<typename VertexAccessorType>
-	void GetTriangleCoordInAabb(FVectorVMContext& Context);
+	void GetTriangleCoordInAabb(FVectorVMExternalFunctionContext& Context);
 
 private:
 	template<typename FilterMode, typename AreaWeightingMode>
 	FORCEINLINE int32 RandomTriIndex(FNDIRandomHelper& RandHelper, FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData, int32 InstanceIndex);
 
-	void RandomTriangle(FVectorVMContext& Context);
-	void GetTriangleCount(FVectorVMContext& Context);
+	void RandomTriangle(FVectorVMExternalFunctionContext& Context);
+	void GetTriangleCount(FVectorVMExternalFunctionContext& Context);
 
 	template<typename FilterMode, typename AreaWeightingMode>
 	FORCEINLINE int32 GetFilteredTriangleCount(FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData);
@@ -938,28 +938,28 @@ public:
 	void GetVertexSamplingFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions);
 	void BindVertexSamplingFunction(const FVMExternalFunctionBindingInfo& BindingInfo, FNDISkeletalMesh_InstanceData* InstData, FVMExternalFunction &OutFunc);
 
-	void IsValidVertex(FVectorVMContext& Context);
-	void RandomVertex(FVectorVMContext& Context);
-	void GetVertexCount(FVectorVMContext& Context);
+	void IsValidVertex(FVectorVMExternalFunctionContext& Context);
+	void RandomVertex(FVectorVMExternalFunctionContext& Context);
+	void GetVertexCount(FVectorVMExternalFunctionContext& Context);
 
 	template<typename FilterMode>
-	void IsValidFilteredVertex(FVectorVMContext& Context);
+	void IsValidFilteredVertex(FVectorVMExternalFunctionContext& Context);
 	template<typename FilterMode>
-	void RandomFilteredVertex(FVectorVMContext& Context);
+	void RandomFilteredVertex(FVectorVMExternalFunctionContext& Context);
 	template<typename FilterMode>
-	void GetFilteredVertexCount(FVectorVMContext& Context);
+	void GetFilteredVertexCount(FVectorVMExternalFunctionContext& Context);
 	template<typename FilterMode>
-	void GetFilteredVertexAt(FVectorVMContext& Context);
+	void GetFilteredVertexAt(FVectorVMExternalFunctionContext& Context);
 
 	template<typename SkinningHandlerType, typename TransformHandlerType, typename VertexAccessorType>
-	void GetVertexSkinnedData(FVectorVMContext& Context);
+	void GetVertexSkinnedData(FVectorVMExternalFunctionContext& Context);
 
-	void GetVertexColor(FVectorVMContext& Context);
+	void GetVertexColor(FVectorVMExternalFunctionContext& Context);
 
-	void GetVertexColorFallback(FVectorVMContext& Context);
+	void GetVertexColorFallback(FVectorVMExternalFunctionContext& Context);
 
 	template<typename VertexAccessorType>
-	void GetVertexUV(FVectorVMContext& Context);
+	void GetVertexUV(FVectorVMExternalFunctionContext& Context);
 
 private:
 	template<typename FilterMode>
@@ -982,28 +982,28 @@ public:
 	void BindSkeletonSamplingFunction(const FVMExternalFunctionBindingInfo& BindingInfo, FNDISkeletalMesh_InstanceData* InstData, FVMExternalFunction &OutFunc);
 
 	template<typename SkinningHandlerType, typename TransformHandlerType, typename bInterpolated>
-	void GetSkinnedBoneData(FVectorVMContext& Context);
+	void GetSkinnedBoneData(FVectorVMExternalFunctionContext& Context);
 
-	void IsValidBone(FVectorVMContext& Context);
-	void RandomBone(FVectorVMContext& Context);
-	void GetBoneCount(FVectorVMContext& Context);
+	void IsValidBone(FVectorVMExternalFunctionContext& Context);
+	void RandomBone(FVectorVMExternalFunctionContext& Context);
+	void GetBoneCount(FVectorVMExternalFunctionContext& Context);
 
-	void GetFilteredBoneCount(FVectorVMContext& Context);
-	void GetFilteredBoneAt(FVectorVMContext& Context);
-	void RandomFilteredBone(FVectorVMContext& Context);
+	void GetFilteredBoneCount(FVectorVMExternalFunctionContext& Context);
+	void GetFilteredBoneAt(FVectorVMExternalFunctionContext& Context);
+	void RandomFilteredBone(FVectorVMExternalFunctionContext& Context);
 
-	void GetUnfilteredBoneCount(FVectorVMContext& Context);
-	void GetUnfilteredBoneAt(FVectorVMContext& Context);
-	void RandomUnfilteredBone(FVectorVMContext& Context);
+	void GetUnfilteredBoneCount(FVectorVMExternalFunctionContext& Context);
+	void GetUnfilteredBoneAt(FVectorVMExternalFunctionContext& Context);
+	void RandomUnfilteredBone(FVectorVMExternalFunctionContext& Context);
 
-	void GetFilteredSocketCount(FVectorVMContext& Context);
-	void GetFilteredSocketBoneAt(FVectorVMContext& Context);
-	void GetFilteredSocketTransform(FVectorVMContext& Context);
-	void RandomFilteredSocket(FVectorVMContext& Context);
+	void GetFilteredSocketCount(FVectorVMExternalFunctionContext& Context);
+	void GetFilteredSocketBoneAt(FVectorVMExternalFunctionContext& Context);
+	void GetFilteredSocketTransform(FVectorVMExternalFunctionContext& Context);
+	void RandomFilteredSocket(FVectorVMExternalFunctionContext& Context);
 
-	void RandomFilteredSocketOrBone(FVectorVMContext& Context);
-	void GetFilteredSocketOrBoneCount(FVectorVMContext& Context);
-	void GetFilteredSocketOrBoneBoneAt(FVectorVMContext& Context);
+	void RandomFilteredSocketOrBone(FVectorVMExternalFunctionContext& Context);
+	void GetFilteredSocketOrBoneCount(FVectorVMExternalFunctionContext& Context);
+	void GetFilteredSocketOrBoneBoneAt(FVectorVMExternalFunctionContext& Context);
 	// End of Direct Bone + Socket Sampling
 	//////////////////////////////////////////////////////////////////////////
 

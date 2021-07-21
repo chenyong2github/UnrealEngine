@@ -142,25 +142,25 @@ bool UNiagaraDataInterfaceCubeTexture::PerInstanceTick(void* PerInstanceData, FN
 	return false;
 }
 
-void UNiagaraDataInterfaceCubeTexture::GetTextureDimensions(FVectorVMContext& Context)
+void UNiagaraDataInterfaceCubeTexture::GetTextureDimensions(FVectorVMExternalFunctionContext& Context)
 {
 	FNDIOutputParam<int32> OutWidth(Context);
 	FNDIOutputParam<int32> OutHeight(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		OutWidth.SetAndAdvance(TextureSize.X);
 		OutHeight.SetAndAdvance(TextureSize.Y);
 	}
 }
 
-void UNiagaraDataInterfaceCubeTexture::SampleCubeTexture(FVectorVMContext& Context)
+void UNiagaraDataInterfaceCubeTexture::SampleCubeTexture(FVectorVMExternalFunctionContext& Context)
 {
 	FNDIInputParam<FVector3f> InCoord(Context);
 	FNDIInputParam<float> InMipLevel(Context);
 	FNDIOutputParam<FVector4> OutColor(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		OutColor.SetAndAdvance(FVector4(1.0f, 0.0f, 1.0f, 1.0f));
 	}

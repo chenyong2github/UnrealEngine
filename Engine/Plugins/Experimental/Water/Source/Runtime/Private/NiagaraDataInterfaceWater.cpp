@@ -152,7 +152,7 @@ bool UNiagaraDataInterfaceWater::PerInstanceTick(void* PerInstanceData, FNiagara
 	return false;
 }
 
-void UNiagaraDataInterfaceWater::GetWaterDataAtPoint(FVectorVMContext& Context)
+void UNiagaraDataInterfaceWater::GetWaterDataAtPoint(FVectorVMExternalFunctionContext& Context)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(NiagaraDataInterfaceWater_GetWaterDataAtPoint);
 
@@ -187,7 +187,7 @@ void UNiagaraDataInterfaceWater::GetWaterDataAtPoint(FVectorVMContext& Context)
 		UE_LOG(LogWater, Warning, TEXT("NiagaraDataInterfaceWater: GetWaterData called with no water body actor set"));
 	}
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		FWaterBodyQueryResult QueryResult;
 		
@@ -230,7 +230,7 @@ void UNiagaraDataInterfaceWater::GetWaterDataAtPoint(FVectorVMContext& Context)
 	}
 }
 
-void UNiagaraDataInterfaceWater::GetWaveParamLookupTableOffset(FVectorVMContext& Context)
+void UNiagaraDataInterfaceWater::GetWaveParamLookupTableOffset(FVectorVMExternalFunctionContext& Context)
 {
 	// Inputs
 	VectorVM::FUserPtrHandler<FNDIWater_InstanceData> InstData(Context);
@@ -239,14 +239,14 @@ void UNiagaraDataInterfaceWater::GetWaveParamLookupTableOffset(FVectorVMContext&
 	VectorVM::FExternalFuncRegisterHandler<int> OutLookupTableOffset(Context);
 	if (AWaterBody* Actor = InstData->WaterBodyActor.Get())
 	{
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			*OutLookupTableOffset.GetDestAndAdvance() = Actor->WaterBodyIndex;
 		}
 	}
 	else
 	{
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			*OutLookupTableOffset.GetDestAndAdvance() = 0;
 		}

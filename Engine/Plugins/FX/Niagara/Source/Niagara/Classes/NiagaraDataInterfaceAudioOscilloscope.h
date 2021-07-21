@@ -111,8 +111,8 @@ public:
 	float ScopeInMilliseconds;
 
 	//VM function overrides:
-	void SampleAudio(FVectorVMContext& Context);
-	void GetNumChannels(FVectorVMContext& Context);
+	void SampleAudio(FVectorVMExternalFunctionContext& Context);
+	void GetNumChannels(FVectorVMExternalFunctionContext& Context);
 
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)override;
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;

@@ -49,29 +49,29 @@ public:
 	virtual bool HasInternalAttributeReads(const UNiagaraEmitter* OwnerEmitter, const UNiagaraEmitter* Provider) const override;
 	//UNiagaraDataInterface Interface End
 
-	void GetNumSpawnedParticles(FVectorVMContext& Context);
-	void GetSpawnedIDAtIndex(FVectorVMContext& Context);
-	void GetNumParticles(FVectorVMContext& Context);
-	void GetParticleIndex(FVectorVMContext& Context);
-	void GetParticleIndexFromIDTable(FVectorVMContext& Context);
-	void ReadInt(FVectorVMContext& Context, FName AttributeToRead);
-	void ReadBool(FVectorVMContext& Context, FName AttributeToRead);
-	void ReadFloat(FVectorVMContext& Context, FName AttributeToRead);
-	void ReadVector2(FVectorVMContext& Context, FName AttributeToRead);
-	void ReadVector3(FVectorVMContext& Context, FName AttributeToRead);
-	void ReadVector4(FVectorVMContext& Context, FName AttributeToRead);
-	void ReadColor(FVectorVMContext& Context, FName AttributeToRead);
-	void ReadQuat(FVectorVMContext& Context, FName AttributeToRead);
-	void ReadID(FVectorVMContext& Context, FName AttributeToRead);
-	void ReadIntByIndex(FVectorVMContext& Context, FName AttributeToRead);
-	void ReadBoolByIndex(FVectorVMContext& Context, FName AttributeToRead);
-	void ReadFloatByIndex(FVectorVMContext& Context, FName AttributeToRead);
-	void ReadVector2ByIndex(FVectorVMContext& Context, FName AttributeToRead);
-	void ReadVector3ByIndex(FVectorVMContext& Context, FName AttributeToRead);
-	void ReadVector4ByIndex(FVectorVMContext& Context, FName AttributeToRead);
-	void ReadColorByIndex(FVectorVMContext& Context, FName AttributeToRead);
-	void ReadQuatByIndex(FVectorVMContext& Context, FName AttributeToRead);
-	void ReadIDByIndex(FVectorVMContext& Context, FName AttributeToRead);
+	void GetNumSpawnedParticles(FVectorVMExternalFunctionContext& Context);
+	void GetSpawnedIDAtIndex(FVectorVMExternalFunctionContext& Context);
+	void GetNumParticles(FVectorVMExternalFunctionContext& Context);
+	void GetParticleIndex(FVectorVMExternalFunctionContext& Context);
+	void GetParticleIndexFromIDTable(FVectorVMExternalFunctionContext& Context);
+	void ReadInt(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
+	void ReadBool(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
+	void ReadFloat(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
+	void ReadVector2(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
+	void ReadVector3(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
+	void ReadVector4(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
+	void ReadColor(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
+	void ReadQuat(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
+	void ReadID(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
+	void ReadIntByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
+	void ReadBoolByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
+	void ReadFloatByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
+	void ReadVector2ByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
+	void ReadVector3ByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
+	void ReadVector4ByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
+	void ReadColorByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
+	void ReadQuatByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
+	void ReadIDByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
 
 protected:
 	void GetPersistentIDFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions);

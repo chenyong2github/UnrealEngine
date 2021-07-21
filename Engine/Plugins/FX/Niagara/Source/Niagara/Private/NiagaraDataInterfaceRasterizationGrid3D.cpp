@@ -384,7 +384,7 @@ void UNiagaraDataInterfaceRasterizationGrid3D::GetVMExternalFunction(const FVMEx
 	if (BindingInfo.Name == UNiagaraDataInterfaceRWBase::NumCellsFunctionName)
 	{
 		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 3);
-		OutFunc = FVMExternalFunction::CreateLambda([&](FVectorVMContext& Context) { GetNumCells(Context); });
+		OutFunc = FVMExternalFunction::CreateLambda([&](FVectorVMExternalFunctionContext& Context) { GetNumCells(Context); });
 	}
 	else if (BindingInfo.Name == SetNumCellsFunctionName)
 	{
@@ -399,7 +399,7 @@ void UNiagaraDataInterfaceRasterizationGrid3D::GetVMExternalFunction(const FVMEx
 }
 
 
-void UNiagaraDataInterfaceRasterizationGrid3D::GetNumCells(FVectorVMContext& Context)
+void UNiagaraDataInterfaceRasterizationGrid3D::GetNumCells(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<RasterizationGrid3DRWInstanceData> InstData(Context);
 
@@ -407,7 +407,7 @@ void UNiagaraDataInterfaceRasterizationGrid3D::GetNumCells(FVectorVMContext& Con
 	FNDIOutputParam<int32> NumCellsY(Context);
 	FNDIOutputParam<int32> NumCellsZ(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		NumCellsX.SetAndAdvance(NumCells.X);
 		NumCellsY.SetAndAdvance(NumCells.Y);
@@ -645,7 +645,7 @@ bool UNiagaraDataInterfaceRasterizationGrid3D::InitPerInstanceData(void* PerInst
 	return true;
 }
 
-void UNiagaraDataInterfaceRasterizationGrid3D::SetNumCells(FVectorVMContext& Context)
+void UNiagaraDataInterfaceRasterizationGrid3D::SetNumCells(FVectorVMExternalFunctionContext& Context)
 {
 	// This should only be called from a system or emitter script due to a need for only setting up initially.
 	VectorVM::FUserPtrHandler<RasterizationGrid3DRWInstanceData> InstData(Context);
@@ -654,12 +654,12 @@ void UNiagaraDataInterfaceRasterizationGrid3D::SetNumCells(FVectorVMContext& Con
 	VectorVM::FExternalFuncInputHandler<int> InNumCellsZ(Context);	
 	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> OutSuccess(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		int NewNumCellsX = InNumCellsX.GetAndAdvance();
 		int NewNumCellsY = InNumCellsY.GetAndAdvance();
 		int NewNumCellsZ = InNumCellsZ.GetAndAdvance();		
-		bool bSuccess = (InstData.Get() != nullptr && Context.NumInstances == 1 && NumCells.X >= 0 && NumCells.Y >= 0 && NumCells.Z >= 0);
+		bool bSuccess = (InstData.Get() != nullptr && Context.GetNumInstances() == 1 && NumCells.X >= 0 && NumCells.Y >= 0 && NumCells.Z >= 0);
 		*OutSuccess.GetDestAndAdvance() = bSuccess;
 		if (bSuccess)
 		{
@@ -674,16 +674,16 @@ void UNiagaraDataInterfaceRasterizationGrid3D::SetNumCells(FVectorVMContext& Con
 	}
 }
 
-void UNiagaraDataInterfaceRasterizationGrid3D::SetFloatResetValue(FVectorVMContext& Context)
+void UNiagaraDataInterfaceRasterizationGrid3D::SetFloatResetValue(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<RasterizationGrid3DRWInstanceData> InstData(Context);
 	VectorVM::FExternalFuncInputHandler<float> InResetValue(Context);
 	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> OutSuccess(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		float NewResetValue = InResetValue.GetAndAdvance();
-		bool bSuccess = InstData.Get() != nullptr && Context.NumInstances == 1;
+		bool bSuccess = InstData.Get() != nullptr && Context.GetNumInstances() == 1;
 		*OutSuccess.GetDestAndAdvance() = bSuccess;
 		if (bSuccess)
 		{

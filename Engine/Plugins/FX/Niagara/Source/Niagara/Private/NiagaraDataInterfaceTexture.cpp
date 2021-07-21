@@ -228,19 +228,19 @@ bool UNiagaraDataInterfaceTexture::PerInstanceTick(void* PerInstanceData, FNiaga
 	return false;
 }
 
-void UNiagaraDataInterfaceTexture::GetTextureDimensions(FVectorVMContext& Context)
+void UNiagaraDataInterfaceTexture::GetTextureDimensions(FVectorVMExternalFunctionContext& Context)
 {
 	FNDIOutputParam<float> OutWidth(Context);
 	FNDIOutputParam<float> OutHeight(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		OutWidth.SetAndAdvance(TextureSize.X);
 		OutHeight.SetAndAdvance(TextureSize.Y);
 	}
 }
 
-void UNiagaraDataInterfaceTexture::SampleTexture(FVectorVMContext& Context)
+void UNiagaraDataInterfaceTexture::SampleTexture(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FExternalFuncInputHandler<float> XParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> YParam(Context);
@@ -249,7 +249,7 @@ void UNiagaraDataInterfaceTexture::SampleTexture(FVectorVMContext& Context)
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleB(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleA(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		float X = XParam.GetAndAdvance();
 		float Y = YParam.GetAndAdvance();
@@ -261,7 +261,7 @@ void UNiagaraDataInterfaceTexture::SampleTexture(FVectorVMContext& Context)
 
 }
 
-void UNiagaraDataInterfaceTexture::SamplePseudoVolumeTexture(FVectorVMContext& Context)
+void UNiagaraDataInterfaceTexture::SamplePseudoVolumeTexture(FVectorVMExternalFunctionContext& Context)
 {
 	// Noop handler which just returns magenta since this doesn't run on CPU.
 	VectorVM::FExternalFuncInputHandler<float> UVW_UParam(Context);
@@ -288,7 +288,7 @@ void UNiagaraDataInterfaceTexture::SamplePseudoVolumeTexture(FVectorVMContext& C
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleB(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleA(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		UVW_UParam.Advance();
 		UVW_VParam.Advance();

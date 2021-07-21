@@ -382,220 +382,220 @@ public:
 		FTransform& OutLocalToWorld);
 
 	/** Get the number of strands */
-	void GetNumStrands(FVectorVMContext& Context);
+	void GetNumStrands(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the groom asset datas  */
-	void GetStrandSize(FVectorVMContext& Context);
+	void GetStrandSize(FVectorVMExternalFunctionContext& Context);
 
-	void GetSubSteps(FVectorVMContext& Context);
+	void GetSubSteps(FVectorVMExternalFunctionContext& Context);
 
-	void GetIterationCount(FVectorVMContext& Context);
+	void GetIterationCount(FVectorVMExternalFunctionContext& Context);
 
-	void GetGravityVector(FVectorVMContext& Context);
+	void GetGravityVector(FVectorVMExternalFunctionContext& Context);
 
-	void GetAirDrag(FVectorVMContext& Context);
+	void GetAirDrag(FVectorVMExternalFunctionContext& Context);
 
-	void GetAirVelocity(FVectorVMContext& Context);
+	void GetAirVelocity(FVectorVMExternalFunctionContext& Context);
 
-	void GetSolveBend(FVectorVMContext& Context);
+	void GetSolveBend(FVectorVMExternalFunctionContext& Context);
 
-	void GetProjectBend(FVectorVMContext& Context);
+	void GetProjectBend(FVectorVMExternalFunctionContext& Context);
 
-	void GetBendDamping(FVectorVMContext& Context);
+	void GetBendDamping(FVectorVMExternalFunctionContext& Context);
 
-	void GetBendStiffness(FVectorVMContext& Context);
+	void GetBendStiffness(FVectorVMExternalFunctionContext& Context);
 
-	void GetBendScale(FVectorVMContext& Context);
+	void GetBendScale(FVectorVMExternalFunctionContext& Context);
 
-	void GetSolveStretch(FVectorVMContext& Context);
+	void GetSolveStretch(FVectorVMExternalFunctionContext& Context);
 
-	void GetProjectStretch(FVectorVMContext& Context);
+	void GetProjectStretch(FVectorVMExternalFunctionContext& Context);
 
-	void GetStretchDamping(FVectorVMContext& Context);
+	void GetStretchDamping(FVectorVMExternalFunctionContext& Context);
 
-	void GetStretchStiffness(FVectorVMContext& Context);
+	void GetStretchStiffness(FVectorVMExternalFunctionContext& Context);
 
-	void GetStretchScale(FVectorVMContext& Context);
+	void GetStretchScale(FVectorVMExternalFunctionContext& Context);
 
-	void GetSolveCollision(FVectorVMContext& Context);
+	void GetSolveCollision(FVectorVMExternalFunctionContext& Context);
 
-	void GetProjectCollision(FVectorVMContext& Context);
+	void GetProjectCollision(FVectorVMExternalFunctionContext& Context);
 
-	void GetStaticFriction(FVectorVMContext& Context);
+	void GetStaticFriction(FVectorVMExternalFunctionContext& Context);
 
-	void GetKineticFriction(FVectorVMContext& Context);
+	void GetKineticFriction(FVectorVMExternalFunctionContext& Context);
 
-	void GetStrandsViscosity(FVectorVMContext& Context);
+	void GetStrandsViscosity(FVectorVMExternalFunctionContext& Context);
 
-	void GetGridDimension(FVectorVMContext& Context);
+	void GetGridDimension(FVectorVMExternalFunctionContext& Context);
 
-	void GetCollisionRadius(FVectorVMContext& Context);
+	void GetCollisionRadius(FVectorVMExternalFunctionContext& Context);
 
-	void GetRadiusScale(FVectorVMContext& Context);
+	void GetRadiusScale(FVectorVMExternalFunctionContext& Context);
 
-	void GetStrandsSmoothing(FVectorVMContext& Context);
+	void GetStrandsSmoothing(FVectorVMExternalFunctionContext& Context);
 
-	void GetStrandsDensity(FVectorVMContext& Context);
+	void GetStrandsDensity(FVectorVMExternalFunctionContext& Context);
 
-	void GetStrandsThickness(FVectorVMContext& Context);
+	void GetStrandsThickness(FVectorVMExternalFunctionContext& Context);
 
-	void GetThicknessScale(FVectorVMContext& Context);
+	void GetThicknessScale(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the world transform */
-	void GetWorldTransform(FVectorVMContext& Context);
+	void GetWorldTransform(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the world inverse */
-	void GetWorldInverse(FVectorVMContext& Context);
+	void GetWorldInverse(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the strand vertex position in world space*/
-	void GetPointPosition(FVectorVMContext& Context);
+	void GetPointPosition(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the strand node position in world space*/
-	void ComputeNodePosition(FVectorVMContext& Context);
+	void ComputeNodePosition(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the strand node orientation in world space*/
-	void ComputeNodeOrientation(FVectorVMContext& Context);
+	void ComputeNodeOrientation(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the strand node mass */
-	void ComputeNodeMass(FVectorVMContext& Context);
+	void ComputeNodeMass(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the strand node inertia */
-	void ComputeNodeInertia(FVectorVMContext& Context);
+	void ComputeNodeInertia(FVectorVMExternalFunctionContext& Context);
 
 	/** Compute the edge length (diff between 2 nodes positions)*/
-	void ComputeEdgeLength(FVectorVMContext& Context);
+	void ComputeEdgeLength(FVectorVMExternalFunctionContext& Context);
 
 	/** Compute the edge orientation (diff between 2 nodes orientations) */
-	void ComputeEdgeRotation(FVectorVMContext& Context);
+	void ComputeEdgeRotation(FVectorVMExternalFunctionContext& Context);
 
 	/** Compute the rest local position */
-	void ComputeRestPosition(FVectorVMContext& Context);
+	void ComputeRestPosition(FVectorVMExternalFunctionContext& Context);
 
 	/** Compute the rest local orientation */
-	void ComputeRestOrientation(FVectorVMContext& Context);
+	void ComputeRestOrientation(FVectorVMExternalFunctionContext& Context);
 
 	/** Update the root node orientation based on the current transform */
-	void AttachNodePosition(FVectorVMContext& Context);
+	void AttachNodePosition(FVectorVMExternalFunctionContext& Context);
 
 	/** Update the root node position based on the current transform */
-	void AttachNodeOrientation(FVectorVMContext& Context);
+	void AttachNodeOrientation(FVectorVMExternalFunctionContext& Context);
 
 	/** Report the node displacement onto the points position*/
-	void UpdatePointPosition(FVectorVMContext& Context);
+	void UpdatePointPosition(FVectorVMExternalFunctionContext& Context);
 
 	/** Reset the point position to be the rest one */
-	void ResetPointPosition(FVectorVMContext& Context);
+	void ResetPointPosition(FVectorVMExternalFunctionContext& Context);
 
 	/** Add external force to the linear velocity and advect node position */
-	void AdvectNodePosition(FVectorVMContext& Context);
+	void AdvectNodePosition(FVectorVMExternalFunctionContext& Context);
 
 	/** Add external torque to the angular velocity and advect node orientation*/
-	void AdvectNodeOrientation(FVectorVMContext& Context);
+	void AdvectNodeOrientation(FVectorVMExternalFunctionContext& Context);
 
 	/** Update the node linear velocity based on the node position difference */
-	void UpdateLinearVelocity(FVectorVMContext& Context);
+	void UpdateLinearVelocity(FVectorVMExternalFunctionContext& Context);
 
 	/** Update the node angular velocity based on the node orientation difference */
-	void UpdateAngularVelocity(FVectorVMContext& Context);
+	void UpdateAngularVelocity(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the bounding box center */
-	void GetBoundingBox(FVectorVMContext& Context);
+	void GetBoundingBox(FVectorVMExternalFunctionContext& Context);
 
 	/** Reset the bounding box extent */
-	void ResetBoundingBox(FVectorVMContext& Context);
+	void ResetBoundingBox(FVectorVMExternalFunctionContext& Context);
 
 	/** Build the groom bounding box */
-	void BuildBoundingBox(FVectorVMContext& Context);
+	void BuildBoundingBox(FVectorVMExternalFunctionContext& Context);
 
 	/** Setup the distance spring material */
-	void SetupDistanceSpringMaterial(FVectorVMContext& Context);
+	void SetupDistanceSpringMaterial(FVectorVMExternalFunctionContext& Context);
 
 	/** Solve the distance spring material */
-	void SolveDistanceSpringMaterial(FVectorVMContext& Context);
+	void SolveDistanceSpringMaterial(FVectorVMExternalFunctionContext& Context);
 
 	/** Project the distance spring material */
-	void ProjectDistanceSpringMaterial(FVectorVMContext& Context);
+	void ProjectDistanceSpringMaterial(FVectorVMExternalFunctionContext& Context);
 
 	/** Setup the angular spring material */
-	void SetupAngularSpringMaterial(FVectorVMContext& Context);
+	void SetupAngularSpringMaterial(FVectorVMExternalFunctionContext& Context);
 
 	/** Solve the angular spring material */
-	void SolveAngularSpringMaterial(FVectorVMContext& Context);
+	void SolveAngularSpringMaterial(FVectorVMExternalFunctionContext& Context);
 
 	/** Project the angular spring material */
-	void ProjectAngularSpringMaterial(FVectorVMContext& Context);
+	void ProjectAngularSpringMaterial(FVectorVMExternalFunctionContext& Context);
 
 	/** Setup the stretch rod material */
-	void SetupStretchRodMaterial(FVectorVMContext& Context);
+	void SetupStretchRodMaterial(FVectorVMExternalFunctionContext& Context);
 
 	/** Solve the stretch rod material */
-	void SolveStretchRodMaterial(FVectorVMContext& Context);
+	void SolveStretchRodMaterial(FVectorVMExternalFunctionContext& Context);
 
 	/** Project the stretch rod material */
-	void ProjectStretchRodMaterial(FVectorVMContext& Context);
+	void ProjectStretchRodMaterial(FVectorVMExternalFunctionContext& Context);
 
 	/** Setup the bend rod material */
-	void SetupBendRodMaterial(FVectorVMContext& Context);
+	void SetupBendRodMaterial(FVectorVMExternalFunctionContext& Context);
 
 	/** Solve the bend rod material */
-	void SolveBendRodMaterial(FVectorVMContext& Context);
+	void SolveBendRodMaterial(FVectorVMExternalFunctionContext& Context);
 
 	/** Project the bend rod material */
-	void ProjectBendRodMaterial(FVectorVMContext& Context);
+	void ProjectBendRodMaterial(FVectorVMExternalFunctionContext& Context);
 
 	/** Solve the static collision constraint */
-	void SolveHardCollisionConstraint(FVectorVMContext& Context);
+	void SolveHardCollisionConstraint(FVectorVMExternalFunctionContext& Context);
 
 	/** Project the static collision constraint */
-	void ProjectHardCollisionConstraint(FVectorVMContext& Context);
+	void ProjectHardCollisionConstraint(FVectorVMExternalFunctionContext& Context);
 
 	/** Solve the soft collision constraint */
-	void SolveSoftCollisionConstraint(FVectorVMContext& Context);
+	void SolveSoftCollisionConstraint(FVectorVMExternalFunctionContext& Context);
 
 	/** Project the soft collision constraint */
-	void ProjectSoftCollisionConstraint(FVectorVMContext& Context);
+	void ProjectSoftCollisionConstraint(FVectorVMExternalFunctionContext& Context);
 
 	/** Setup the soft collision constraint */
-	void SetupSoftCollisionConstraint(FVectorVMContext& Context);
+	void SetupSoftCollisionConstraint(FVectorVMExternalFunctionContext& Context);
 
 	/** Compute the rest direction*/
-	void ComputeEdgeDirection(FVectorVMContext& Context);
+	void ComputeEdgeDirection(FVectorVMExternalFunctionContext& Context);
 
 	/** Update the strands material frame */
-	void UpdateMaterialFrame(FVectorVMContext& Context);
+	void UpdateMaterialFrame(FVectorVMExternalFunctionContext& Context);
 
 	/** Compute the strands material frame */
-	void ComputeMaterialFrame(FVectorVMContext& Context);
+	void ComputeMaterialFrame(FVectorVMExternalFunctionContext& Context);
 
 	/** Compute the air drag force */
-	void ComputeAirDragForce(FVectorVMContext& Context);
+	void ComputeAirDragForce(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the rest position and orientation relative to the transform or to the skin cache */
-	void ComputeLocalState(FVectorVMContext& Context);
+	void ComputeLocalState(FVectorVMExternalFunctionContext& Context);
 
 	/** Attach the node position and orientation to the transform or to the skin cache */
-	void AttachNodeState(FVectorVMContext& Context);
+	void AttachNodeState(FVectorVMExternalFunctionContext& Context);
 
 	/** Update the node position and orientation based on rbf transfer */
-	void UpdateNodeState(FVectorVMContext& Context);
+	void UpdateNodeState(FVectorVMExternalFunctionContext& Context);
 
 	/** Check if we need or not a simulation reset*/
-	void NeedSimulationReset(FVectorVMContext& Context);
+	void NeedSimulationReset(FVectorVMExternalFunctionContext& Context);
 
 	/** Check if we have a global interpolation */
-	void HasGlobalInterpolation(FVectorVMContext& Context);
+	void HasGlobalInterpolation(FVectorVMExternalFunctionContext& Context);
 
 	/** Check if we need a rest pose update */
-	void NeedRestUpdate(FVectorVMContext& Context);
+	void NeedRestUpdate(FVectorVMExternalFunctionContext& Context);
 
 	/** Eval the skinned position given a rest position*/
-	void EvalSkinnedPosition(FVectorVMContext& Context);
+	void EvalSkinnedPosition(FVectorVMExternalFunctionContext& Context);
 
 	/** Init the samples along the strands that will be used to transfer informations to the grid */
-	void InitGridSamples(FVectorVMContext& Context);
+	void InitGridSamples(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the sample state given an index */
-	void GetSampleState(FVectorVMContext& Context);
+	void GetSampleState(FVectorVMExternalFunctionContext& Context);
 
 	/** Name of the world transform */
 	static const FString WorldTransformName;

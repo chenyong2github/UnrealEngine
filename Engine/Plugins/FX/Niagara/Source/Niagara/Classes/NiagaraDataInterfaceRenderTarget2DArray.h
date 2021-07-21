@@ -114,8 +114,8 @@ public:
 	virtual bool GetExposedVariableValue(const FNiagaraVariableBase& InVariable, void* InPerInstanceData, FNiagaraSystemInstance* InSystemInstance, void* OutData) const override;
 
 	//~ UNiagaraDataInterface interface END
-	void GetSize(FVectorVMContext& Context); 
-	void SetSize(FVectorVMContext& Context);
+	void GetSize(FVectorVMExternalFunctionContext& Context); 
+	void SetSize(FVectorVMExternalFunctionContext& Context);
 
 	static const FName SetValueFunctionName;
 	static const FName GetValueFunctionName;

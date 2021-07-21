@@ -660,7 +660,7 @@ struct FVectorKernelFastDot4
 		return FString();
 	}
 
-	static void Exec(FVectorVMContext& Context)
+	static void Exec(FVectorVMExternalFunctionContext& Context)
 	{
 		//SCOPE_CYCLE_COUNTER(STAT_NiagaraFastDot4);
 
@@ -753,7 +753,7 @@ struct FVectorKernelFastTransformPosition
 		return FString();
 	}
 
-	static void Exec(FVectorVMContext& Context)
+	static void Exec(FVectorVMExternalFunctionContext& Context)
 	{
 #if 0
 		TArray<VectorVM::FExternalFuncInputHandler<float>, TInlineAllocator<16>> InMatrix;
@@ -933,7 +933,7 @@ struct FVectorKernelFastMatrixToQuaternion
 		return FunctionHLSL;
 	}
 
-	static void Exec(FVectorVMContext& Context)
+	static void Exec(FVectorVMExternalFunctionContext& Context)
 	{
 		TArray<VectorVM::FExternalFuncInputHandler<float>, TInlineAllocator<16>> InMatrix;
 		for (int i=0; i < 16; i++)
@@ -1064,7 +1064,7 @@ struct FVectorKernel_EmitterLifeCycle
 		return FString();
 	}
 
-	static void Exec(FVectorVMContext& Context)
+	static void Exec(FVectorVMExternalFunctionContext& Context)
 	{
 		VectorVM::FExternalFuncInputHandler<float> InEngineDeltaTime(Context);
 		VectorVM::FExternalFuncInputHandler<int>   InEngineNumParticles(Context);
@@ -1230,7 +1230,7 @@ struct FVectorKernel_SpawnRate
 		return FString();
 	}
 
-	static void Exec(FVectorVMContext& Context)
+	static void Exec(FVectorVMExternalFunctionContext& Context)
 	{
 		VectorVM::FExternalFuncInputHandler<float> InEngineDeltaTime(Context);
 		VectorVM::FExternalFuncInputHandler<float> InModuleSpawnRate(Context);
@@ -1318,7 +1318,7 @@ struct FVectorKernel_SpawnBurstInstantaneous
 		return FString();
 	}
 
-	static void Exec(FVectorVMContext& Context)
+	static void Exec(FVectorVMExternalFunctionContext& Context)
 	{
 		VectorVM::FExternalFuncInputHandler<float> InEngineDeltaTime(Context);
 		VectorVM::FExternalFuncInputHandler<float> InScalabilityEmitterSpawnCountScale(Context);
@@ -1392,7 +1392,7 @@ struct FVectorKernel_SolveVelocitiesAndForces
 		return FString();
 	}
 
-	static void Exec(FVectorVMContext& Context)
+	static void Exec(FVectorVMExternalFunctionContext& Context)
 	{
 		VectorVM::FExternalFuncInputHandler<float> InEngineDeltaTime(Context);
 		VectorVM::FExternalFuncInputHandler<float> InPhysicsForceX(Context);
@@ -1523,7 +1523,7 @@ struct FVectorKernel_SolveVelocitiesAndForces
 	}
 
 	template<bool bForceConstant, bool bDragConstant, bool bMassConstant>
-	FORCEINLINE static void ExecOptimized(FVectorVMContext& Context)
+	FORCEINLINE static void ExecOptimized(FVectorVMExternalFunctionContext& Context)
 	{
 #if 0
 		const VectorRegister4Float MassMin = VectorSetFloat1(0.0001f);

@@ -38,7 +38,7 @@ public:
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 	//UNiagaraDataInterface Interface End
 
-	void SampleNoiseField(FVectorVMContext& Context);
+	void SampleNoiseField(FVectorVMExternalFunctionContext& Context);
 
 	// GPU sim functionality
 #if WITH_EDITORONLY_DATA

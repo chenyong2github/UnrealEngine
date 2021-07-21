@@ -137,14 +137,14 @@ bool UNiagaraDataInterfaceVolumeTexture::PerInstanceTick(void* PerInstanceData, 
 	return false;
 }
 
-void UNiagaraDataInterfaceVolumeTexture::GetTextureDimensions(FVectorVMContext& Context)
+void UNiagaraDataInterfaceVolumeTexture::GetTextureDimensions(FVectorVMExternalFunctionContext& Context)
 {
 	FNDIOutputParam<float> OutWidth(Context);
 	FNDIOutputParam<float> OutHeight(Context);
 	FNDIOutputParam<float> OutDepth(Context);
 
 	FVector FloatTextureSize(TextureSize.X, TextureSize.Y, TextureSize.Z);
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		OutWidth.SetAndAdvance(FloatTextureSize.X);
 		OutHeight.SetAndAdvance(FloatTextureSize.Y);
@@ -152,7 +152,7 @@ void UNiagaraDataInterfaceVolumeTexture::GetTextureDimensions(FVectorVMContext& 
 	}
 }
 
-void UNiagaraDataInterfaceVolumeTexture::SampleVolumeTexture(FVectorVMContext& Context)
+void UNiagaraDataInterfaceVolumeTexture::SampleVolumeTexture(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FExternalFuncInputHandler<float> XParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> YParam(Context);
@@ -163,7 +163,7 @@ void UNiagaraDataInterfaceVolumeTexture::SampleVolumeTexture(FVectorVMContext& C
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleB(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleA(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		float X = XParam.GetAndAdvance();
 		float Y = YParam.GetAndAdvance();

@@ -58,10 +58,10 @@ public:
 	virtual void PushToRenderThreadImpl() override;
 
 	// VM functions
-	void PerformQuerySyncCPU(FVectorVMContext& Context);
-	void PerformQueryAsyncCPU(FVectorVMContext& Context);
-	void QuerySceneDepth(FVectorVMContext& Context);
-	void QueryMeshDistanceField(FVectorVMContext& Context);
+	void PerformQuerySyncCPU(FVectorVMExternalFunctionContext& Context);
+	void PerformQueryAsyncCPU(FVectorVMExternalFunctionContext& Context);
+	void QuerySceneDepth(FVectorVMExternalFunctionContext& Context);
+	void QueryMeshDistanceField(FVectorVMExternalFunctionContext& Context);
 
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return true; }
 	virtual bool RequiresDistanceFieldData() const override { return true; }

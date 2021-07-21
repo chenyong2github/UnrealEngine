@@ -2046,14 +2046,19 @@ struct FKernelExternalFunctionCall
 
 	static void Exec(FVectorVMContext& Context)
 	{
+#ifdef NIAGARA_EXP_VM
+		check(false);
+#else
 		const uint32 ExternalFuncIdx = Context.DecodeU8();
 		const FVMExternalFunction* ExternalFunction = Context.ExternalFunctionTable[ExternalFuncIdx];
 		check(ExternalFunction);
 
 		if (ExternalFunction)
 		{
-			ExternalFunction->Execute(Context);
+			FVectorVMExternalFunctionContext DataInterfaceFunctionContext(&Context);
+			ExternalFunction->Execute(DataInterfaceFunctionContext);
 		}
+#endif
 	}
 };
 

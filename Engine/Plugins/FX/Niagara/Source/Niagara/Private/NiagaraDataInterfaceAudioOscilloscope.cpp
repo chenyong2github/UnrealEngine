@@ -150,7 +150,7 @@ float FNiagaraDataInterfaceProxyOscilloscope::SampleAudio(float NormalizedPositi
 	return FMath::Lerp<float>(LowerFrameAmplitude, HigherFrameAmplitude, Fraction);
 }
 
-void UNiagaraDataInterfaceAudioOscilloscope::SampleAudio(FVectorVMContext& Context)
+void UNiagaraDataInterfaceAudioOscilloscope::SampleAudio(FVectorVMExternalFunctionContext& Context)
 {
 	const int32 NumFramesInDownsampledBuffer = GetProxyAs<FNiagaraDataInterfaceProxyOscilloscope>()->DownsampleAudioToBuffer();
 
@@ -160,7 +160,7 @@ void UNiagaraDataInterfaceAudioOscilloscope::SampleAudio(FVectorVMContext& Conte
 
 	const int32 NumChannelsInDownsampledBuffer = GetProxyAs<FNiagaraDataInterfaceProxyOscilloscope>()->GetNumChannels();
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		float Position = InNormalizedPos.Get();
 		int32 Channel = InChannel.Get();
@@ -177,11 +177,11 @@ int32 FNiagaraDataInterfaceProxyOscilloscope::GetNumChannels()
 	return NumChannelsInDownsampledBuffer.GetValue();
 }
 
-void UNiagaraDataInterfaceAudioOscilloscope::GetNumChannels(FVectorVMContext& Context)
+void UNiagaraDataInterfaceAudioOscilloscope::GetNumChannels(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FExternalFuncRegisterHandler<int32> OutChannel(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutChannel.GetDestAndAdvance() = GetProxyAs<FNiagaraDataInterfaceProxyOscilloscope>()->GetNumChannels();
 	}

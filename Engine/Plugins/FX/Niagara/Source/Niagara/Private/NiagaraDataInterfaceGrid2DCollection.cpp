@@ -2291,43 +2291,43 @@ void UNiagaraDataInterfaceGrid2DCollection::GetTextureSize(const UNiagaraCompone
 	SizeY = Grid2DInstanceData->NumCells.Y;
 }
 
-void UNiagaraDataInterfaceGrid2DCollection::GetWorldBBoxSize(FVectorVMContext& Context)
+void UNiagaraDataInterfaceGrid2DCollection::GetWorldBBoxSize(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FGrid2DCollectionRWInstanceData_GameThread> InstData(Context);
 	FNDIOutputParam<FVector2D> OutWorldBounds(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		OutWorldBounds.SetAndAdvance(InstData->WorldBBoxSize);
 	}
 }
 
 
-void UNiagaraDataInterfaceGrid2DCollection::GetCellSize(FVectorVMContext& Context)
+void UNiagaraDataInterfaceGrid2DCollection::GetCellSize(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FGrid2DCollectionRWInstanceData_GameThread> InstData(Context);
 	FNDIOutputParam<FVector2D> OutCellSize(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		OutCellSize.SetAndAdvance(InstData->CellSize);
 	}
 }
 
-void UNiagaraDataInterfaceGrid2DCollection::GetNumCells(FVectorVMContext& Context)
+void UNiagaraDataInterfaceGrid2DCollection::GetNumCells(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FGrid2DCollectionRWInstanceData_GameThread> InstData(Context);
 	FNDIOutputParam<int> OutNumCellsX(Context);
 	FNDIOutputParam<int> OutNumCellsY(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		OutNumCellsX.SetAndAdvance(InstData->NumCells.X);
 		OutNumCellsY.SetAndAdvance(InstData->NumCells.Y);
 	}
 }
 
-void UNiagaraDataInterfaceGrid2DCollection::SetNumCells(FVectorVMContext& Context)
+void UNiagaraDataInterfaceGrid2DCollection::SetNumCells(FVectorVMExternalFunctionContext& Context)
 {
 	// This should only be called from a system or emitter script due to a need for only setting up initially.
 	VectorVM::FUserPtrHandler<FGrid2DCollectionRWInstanceData_GameThread> InstData(Context);
@@ -2335,11 +2335,11 @@ void UNiagaraDataInterfaceGrid2DCollection::SetNumCells(FVectorVMContext& Contex
 	VectorVM::FExternalFuncInputHandler<int> InNumCellsY(Context);
 	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> OutSuccess(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		int NewNumCellsX = InNumCellsX.GetAndAdvance();
 		int NewNumCellsY = InNumCellsY.GetAndAdvance();
-		bool bSuccess = (InstData.Get() != nullptr && Context.NumInstances == 1 && NumCellsX >= 0 && NumCellsY >= 0);
+		bool bSuccess = (InstData.Get() != nullptr && Context.GetNumInstances() == 1 && NumCellsX >= 0 && NumCellsY >= 0);
 		*OutSuccess.GetDestAndAdvance() = bSuccess;
 		if (bSuccess)
 		{
@@ -2413,7 +2413,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::PerInstanceTickPostSimulate(void* Pe
 }
 
 
-void UNiagaraDataInterfaceGrid2DCollection::GetAttributeIndex(FVectorVMContext& Context, const FName& InName, int32 NumChannels)
+void UNiagaraDataInterfaceGrid2DCollection::GetAttributeIndex(FVectorVMExternalFunctionContext& Context, const FName& InName, int32 NumChannels)
 {
 	VectorVM::FUserPtrHandler<FGrid2DCollectionRWInstanceData_GameThread> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int> OutIndex(Context);
@@ -2421,7 +2421,7 @@ void UNiagaraDataInterfaceGrid2DCollection::GetAttributeIndex(FVectorVMContext& 
 	if (InstData.Get())
 		Index = InstData.Get()->FindAttributeIndexByName(InName, NumChannels);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutIndex.GetDestAndAdvance() = Index;
 	}

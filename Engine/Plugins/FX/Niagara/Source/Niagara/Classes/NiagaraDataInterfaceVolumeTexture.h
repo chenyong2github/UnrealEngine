@@ -38,8 +38,8 @@ public:
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	//UNiagaraDataInterface Interface End
 
-	void SampleVolumeTexture(FVectorVMContext& Context);
-	void GetTextureDimensions(FVectorVMContext& Context);
+	void SampleVolumeTexture(FVectorVMExternalFunctionContext& Context);
+	void GetTextureDimensions(FVectorVMExternalFunctionContext& Context);
 
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 

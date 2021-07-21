@@ -205,17 +205,17 @@ void UNiagaraDataInterfaceSkeletalMesh::BindVertexSamplingFunction(const FVMExte
 	else if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::IsValidVertexName)
 	{
 		check(BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 1);
-		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMContext& Context) { this->IsValidVertex(Context); });
+		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { this->IsValidVertex(Context); });
 	}
 	else if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::RandomVertexName)
 	{
 		check(BindingInfo.GetNumInputs() == 4 && BindingInfo.GetNumOutputs() == 1);
-		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMContext& Context) { this->RandomVertex(Context); });
+		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { this->RandomVertex(Context); });
 	}
 	else if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::GetVertexCountName)
 	{
 		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 1);
-		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMContext& Context) { this->GetVertexCount(Context); });
+		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { this->GetVertexCount(Context); });
 	}
 	//////////////////////////////////////////////////////////////////////////
 	else if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::IsValidFilteredVertexName)
@@ -242,7 +242,7 @@ void UNiagaraDataInterfaceSkeletalMesh::BindVertexSamplingFunction(const FVMExte
 
 //////////////////////////////////////////////////////////////////////////
 
-void UNiagaraDataInterfaceSkeletalMesh::IsValidVertex(FVectorVMContext& Context)
+void UNiagaraDataInterfaceSkeletalMesh::IsValidVertex(FVectorVMExternalFunctionContext& Context)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_Vertex_Sample);
 
@@ -254,14 +254,14 @@ void UNiagaraDataInterfaceSkeletalMesh::IsValidVertex(FVectorVMContext& Context)
 	MeshAccessor.Init<TNDISkelMesh_FilterModeNone, TNDISkelMesh_AreaWeightingOff>(InstData);
 
 	const int32 MaxVertex = MeshAccessor.IsLODAccessible() ? MeshAccessor.LODData->GetNumVertices() : 0;
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		const int32 VertexIndex = VertexParam.GetAndAdvance();
 		OutValid.SetAndAdvance(VertexIndex < MaxVertex);
 	}
 }
 
-void UNiagaraDataInterfaceSkeletalMesh::RandomVertex(FVectorVMContext& Context)
+void UNiagaraDataInterfaceSkeletalMesh::RandomVertex(FVectorVMExternalFunctionContext& Context)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_Vertex_Sample);
 
@@ -275,7 +275,7 @@ void UNiagaraDataInterfaceSkeletalMesh::RandomVertex(FVectorVMContext& Context)
 	const int32 MaxVertex = MeshAccessor.IsLODAccessible() ? MeshAccessor.LODData->GetNumVertices() - 1 : -1;
 	if (MaxVertex >= 0)
 	{
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			RandHelper.GetAndAdvance();
 			OutVertex.SetAndAdvance(RandHelper.RandRange(i, 0, MaxVertex));
@@ -283,14 +283,14 @@ void UNiagaraDataInterfaceSkeletalMesh::RandomVertex(FVectorVMContext& Context)
 	}
 	else
 	{
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			OutVertex.SetAndAdvance(-1);
 		}
 	}
 }
 
-void UNiagaraDataInterfaceSkeletalMesh::GetVertexCount(FVectorVMContext& Context)
+void UNiagaraDataInterfaceSkeletalMesh::GetVertexCount(FVectorVMExternalFunctionContext& Context)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_Vertex_Sample);
 
@@ -301,7 +301,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexCount(FVectorVMContext& Context
 	MeshAccessor.Init<TNDISkelMesh_FilterModeNone, TNDISkelMesh_AreaWeightingOff>(InstData);
 
 	const int32 MaxVertex = MeshAccessor.IsLODAccessible() ? MeshAccessor.LODData->GetNumVertices() : 0;
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		OutVertexCount.SetAndAdvance(MaxVertex);
 	}
@@ -346,7 +346,7 @@ FORCEINLINE int32 UNiagaraDataInterfaceSkeletalMesh::RandomFilteredVertIndex<TIn
 }
 
 template<typename FilterMode>
-void UNiagaraDataInterfaceSkeletalMesh::RandomFilteredVertex(FVectorVMContext& Context)
+void UNiagaraDataInterfaceSkeletalMesh::RandomFilteredVertex(FVectorVMExternalFunctionContext& Context)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_Vertex_Sample);
 
@@ -361,7 +361,7 @@ void UNiagaraDataInterfaceSkeletalMesh::RandomFilteredVertex(FVectorVMContext& C
 
 	if (MeshAccessor.IsLODAccessible())
 	{
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			RandHelper.GetAndAdvance();
 			OutVert.SetAndAdvance(RandomFilteredVertIndex<FilterMode>(RandHelper, i, MeshAccessor, InstData));
@@ -369,7 +369,7 @@ void UNiagaraDataInterfaceSkeletalMesh::RandomFilteredVertex(FVectorVMContext& C
 	}
 	else
 	{
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			OutVert.SetAndAdvance(-1);
 		}
@@ -377,7 +377,7 @@ void UNiagaraDataInterfaceSkeletalMesh::RandomFilteredVertex(FVectorVMContext& C
 }
 
 template<typename FilterMode>
-void UNiagaraDataInterfaceSkeletalMesh::IsValidFilteredVertex(FVectorVMContext& Context)
+void UNiagaraDataInterfaceSkeletalMesh::IsValidFilteredVertex(FVectorVMExternalFunctionContext& Context)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_Vertex_Sample);
 
@@ -393,7 +393,7 @@ void UNiagaraDataInterfaceSkeletalMesh::IsValidFilteredVertex(FVectorVMContext& 
 
 	const int32 MaxVertex = MeshAccessor.IsLODAccessible() ? MeshAccessor.LODData->GetNumVertices() : 0;
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		const int32 RequestedIndex = VertexParam.GetAndAdvance();
 		OutValid.SetAndAdvance(RequestedIndex < MaxVertex);
@@ -442,7 +442,7 @@ FORCEINLINE_DEBUGGABLE int32 UNiagaraDataInterfaceSkeletalMesh::GetFilteredVerte
 }
 
 template<typename FilterMode>
-void UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexCount(FVectorVMContext& Context)
+void UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexCount(FVectorVMExternalFunctionContext& Context)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_Vertex_Sample);
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
@@ -454,7 +454,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexCount(FVectorVMContext&
 	MeshAccessor.Init<FilterMode, TNDISkelMesh_AreaWeightingOff>(InstData);
 
 	const int32 Count = MeshAccessor.IsLODAccessible() ? GetFilteredVertexCount<FilterMode>(MeshAccessor, InstData) : 0;
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		OutVert.SetAndAdvance(Count);
 	}
@@ -508,7 +508,7 @@ FORCEINLINE_DEBUGGABLE int32 UNiagaraDataInterfaceSkeletalMesh::GetFilteredVerte
 }
 
 template<typename FilterMode>
-void UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexAt(FVectorVMContext& Context)
+void UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexAt(FVectorVMExternalFunctionContext& Context)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_Vertex_Sample);
 
@@ -523,7 +523,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexAt(FVectorVMContext& Co
 
 	if (Accessor.IsLODAccessible())
 	{
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			const int32 FilteredVert = FilteredVertexParam.GetAndAdvance();
 			const int32 RealIdx = GetFilteredVertexAt<FilterMode>(Accessor, InstData, FilteredVert);
@@ -532,7 +532,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexAt(FVectorVMContext& Co
 	}
 	else
 	{
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			OutVert.SetAndAdvance(-1);
 		}
@@ -541,7 +541,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFilteredVertexAt(FVectorVMContext& Co
 
 //////////////////////////////////////////////////////////////////////////
 
-void UNiagaraDataInterfaceSkeletalMesh::GetVertexColor(FVectorVMContext& Context)
+void UNiagaraDataInterfaceSkeletalMesh::GetVertexColor(FVectorVMExternalFunctionContext& Context)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_Vertex_Sample);
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
@@ -560,7 +560,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexColor(FVectorVMContext& Context
 		const int32 VertMax = LODData->GetNumVertices() - 1;
 		if ( VertMax >= 0 )
 		{
-			for (int32 i = 0; i < Context.NumInstances; ++i)
+			for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 			{
 				int32 Vertex = VertParam.GetAndAdvance();
 				Vertex = FMath::Clamp(VertMax, 0, Vertex);
@@ -573,27 +573,27 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexColor(FVectorVMContext& Context
 	}
 
 	// Fall though for bad data
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		OutColor.SetAndAdvance(FLinearColor::White);
 	}
 }
 
-void UNiagaraDataInterfaceSkeletalMesh::GetVertexColorFallback(FVectorVMContext& Context)
+void UNiagaraDataInterfaceSkeletalMesh::GetVertexColorFallback(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
 	FNDIInputParam<int32> VertParam(Context);
 
 	FNDIOutputParam<FLinearColor> OutColor(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		OutColor.SetAndAdvance(FLinearColor::White);
 	}
 }
 
 template<typename VertexAccessorType>
-void UNiagaraDataInterfaceSkeletalMesh::GetVertexUV(FVectorVMContext& Context)
+void UNiagaraDataInterfaceSkeletalMesh::GetVertexUV(FVectorVMExternalFunctionContext& Context)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_Vertex_Sample);
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
@@ -614,7 +614,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexUV(FVectorVMContext& Context)
 		const int32 VertMax = LODData->GetNumVertices() - 1;
 		if (VertMax >= 0)
 		{
-			for (int32 i = 0; i < Context.NumInstances; ++i)
+			for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 			{
 				const int32 Vert = FMath::Clamp(VertParam.GetAndAdvance(), 0, VertMax);
 				const int32 UVSet = UVSetParam.GetAndAdvance();
@@ -627,7 +627,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexUV(FVectorVMContext& Context)
 	}
 
 	// Fall though for bad data
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		OutUV.SetAndAdvance(FVector2D::ZeroVector);
 	}
@@ -635,7 +635,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexUV(FVectorVMContext& Context)
 
 // Stub specialization for no valid mesh data on the data interface
 template<>
-void UNiagaraDataInterfaceSkeletalMesh::GetVertexUV<FSkelMeshVertexAccessorNoop>(FVectorVMContext& Context)
+void UNiagaraDataInterfaceSkeletalMesh::GetVertexUV<FSkelMeshVertexAccessorNoop>(FVectorVMExternalFunctionContext& Context)
 {
 	FNDIInputParam<int32> VertParam(Context);
 	FNDIInputParam<int32> UVSetParam(Context);
@@ -643,7 +643,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexUV<FSkelMeshVertexAccessorNoop>
 
 	FNDIOutputParam<FVector2D> OutUV(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		OutUV.SetAndAdvance(FVector2D::ZeroVector);
 	}
@@ -651,7 +651,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexUV<FSkelMeshVertexAccessorNoop>
 
 struct FGetVertexSkinnedDataOutputHandler
 {
-	FGetVertexSkinnedDataOutputHandler(FVectorVMContext& Context)
+	FGetVertexSkinnedDataOutputHandler(FVectorVMExternalFunctionContext& Context)
 		: Position(Context)
 		, Velocity(Context)
 		, TangentZ(Context)
@@ -678,7 +678,7 @@ struct FGetVertexSkinnedDataOutputHandler
 };
 
 template<typename SkinningHandlerType, typename TransformHandlerType, typename VertexAccessorType>
-void UNiagaraDataInterfaceSkeletalMesh::GetVertexSkinnedData(FVectorVMContext& Context)
+void UNiagaraDataInterfaceSkeletalMesh::GetVertexSkinnedData(FVectorVMExternalFunctionContext& Context)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_Vertex_Sample);
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
@@ -704,7 +704,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexSkinnedData(FVectorVMContext& C
 			const float InvDt = 1.0f / InstData->DeltaSeconds;
 			const bool bNeedsTangentBasis = Output.bNeedsTangentX || Output.bNeedsTangentY || Output.bNeedsTangentZ;
 
-			for (int32 i = 0; i < Context.NumInstances; ++i)
+			for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 			{
 				const int32 Vertex = FMath::Clamp(VertParam.GetAndAdvance(), 0, VertMax);
 
@@ -756,7 +756,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexSkinnedData(FVectorVMContext& C
 	}
 
 	// Fall though for bad data
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		FVector3f Position = FVector3f::ZeroVector;
 		if (Output.bNeedsPosition || Output.bNeedsVelocity)

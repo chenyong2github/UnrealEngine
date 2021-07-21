@@ -99,12 +99,12 @@ void UNiagaraDataInterfaceSimpleCounter::GetVMExternalFunction(const FVMExternal
 	}
 }
 
-void UNiagaraDataInterfaceSimpleCounter::GetNextValue(FVectorVMContext& Context)
+void UNiagaraDataInterfaceSimpleCounter::GetNextValue(FVectorVMExternalFunctionContext& Context)
 {	
 	VectorVM::FUserPtrHandler<CounterInstanceData> InstanceData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutValue(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		*OutValue.GetDest() = FPlatformAtomics::InterlockedIncrement(&InstanceData->Counter);
 		OutValue.Advance();

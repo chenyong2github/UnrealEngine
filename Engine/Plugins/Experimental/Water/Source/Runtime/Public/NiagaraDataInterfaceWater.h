@@ -28,9 +28,9 @@ public:
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual bool HasPreSimulateTick() const override { return true; }
 
-	void GetWaterDataAtPoint(FVectorVMContext& Context);
+	void GetWaterDataAtPoint(FVectorVMExternalFunctionContext& Context);
 
-	void GetWaveParamLookupTableOffset(FVectorVMContext& Context);
+	void GetWaveParamLookupTableOffset(FVectorVMExternalFunctionContext& Context);
 
 	/** Sets the current water body to be used by this data interface */
 	void SetWaterBody(AWaterBody* InWaterBody) { SourceBody = InWaterBody; }

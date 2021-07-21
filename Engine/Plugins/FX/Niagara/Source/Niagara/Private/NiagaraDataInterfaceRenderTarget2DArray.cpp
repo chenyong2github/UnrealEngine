@@ -575,7 +575,7 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::GetExposedVariableValue(const FNi
 	return false;
 }
 
-void UNiagaraDataInterfaceRenderTarget2DArray::SetSize(FVectorVMContext& Context)
+void UNiagaraDataInterfaceRenderTarget2DArray::SetSize(FVectorVMExternalFunctionContext& Context)
 {
 	// This should only be called from a system or emitter script due to a need for only setting up initially.
 	VectorVM::FUserPtrHandler<FRenderTarget2DArrayRWInstanceData_GameThread> InstData(Context);
@@ -585,12 +585,12 @@ void UNiagaraDataInterfaceRenderTarget2DArray::SetSize(FVectorVMContext& Context
 	FNDIOutputParam<FNiagaraBool> OutSuccess(Context);
 
 	extern float GNiagaraRenderTargetResolutionMultiplier;
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		const int SizeX = InSizeX.GetAndAdvance();
 		const int SizeY = InSizeY.GetAndAdvance();
 		const int Slices = InSlices.GetAndAdvance();
-		const bool bSuccess = (InstData.Get() != nullptr && Context.NumInstances == 1 && SizeX > 0 && SizeY > 0 && Slices > 0);
+		const bool bSuccess = (InstData.Get() != nullptr && Context.GetNumInstances() == 1 && SizeX > 0 && SizeY > 0 && Slices > 0);
 		OutSuccess.SetAndAdvance(bSuccess);
 		if (bSuccess)
 		{
@@ -601,14 +601,14 @@ void UNiagaraDataInterfaceRenderTarget2DArray::SetSize(FVectorVMContext& Context
 	}
 }
 
-void UNiagaraDataInterfaceRenderTarget2DArray::GetSize(FVectorVMContext& Context)
+void UNiagaraDataInterfaceRenderTarget2DArray::GetSize(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FRenderTarget2DArrayRWInstanceData_GameThread> InstData(Context);
 	FNDIOutputParam<int> OutSizeX(Context);
 	FNDIOutputParam<int> OutSizeY(Context);
 	FNDIOutputParam<int> OutSlices(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		OutSizeX.SetAndAdvance(InstData->Size.X);
 		OutSizeY.SetAndAdvance(InstData->Size.Y);

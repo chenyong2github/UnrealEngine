@@ -66,19 +66,19 @@ public:
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 
 	/** Sample the vector field */
-	void SamplePhysicsVectorField(FVectorVMContext& Context);
+	void SamplePhysicsVectorField(FVectorVMExternalFunctionContext& Context);
 
 	/** Sample the scalar field */
-	void SamplePhysicsScalarField(FVectorVMContext& Context);
+	void SamplePhysicsScalarField(FVectorVMExternalFunctionContext& Context);
 
 	/** Sample the integer field */
-	void SamplePhysicsIntegerField(FVectorVMContext& Context);
+	void SamplePhysicsIntegerField(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the field resolution */
-	void GetPhysicsFieldResolution(FVectorVMContext& Context);
+	void GetPhysicsFieldResolution(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the field bounds */
-	void GetPhysicsFieldBounds(FVectorVMContext& Context);
+	void GetPhysicsFieldBounds(FVectorVMExternalFunctionContext& Context);
 
 	/** Shader attributes names */
 	static const FString ClipmapBufferName;

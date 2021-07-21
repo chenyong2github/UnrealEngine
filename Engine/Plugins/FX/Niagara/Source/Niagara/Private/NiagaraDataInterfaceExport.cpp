@@ -506,7 +506,7 @@ void UNiagaraDataInterfaceExport::GetVMExternalFunction(const FVMExternalFunctio
 	}
 }
 
-void UNiagaraDataInterfaceExport::StoreData(FVectorVMContext& Context)
+void UNiagaraDataInterfaceExport::StoreData(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIExportInstanceData_GameThread> InstData(Context);
 
@@ -520,7 +520,7 @@ void UNiagaraDataInterfaceExport::StoreData(FVectorVMContext& Context)
 	checkfSlow(InstData.Get(), TEXT("Export data interface has invalid instance data. %s"), *GetPathName());
 	bool ValidHandlerData = InstData->UserParamBinding.BoundVariable.IsValid() && InstData->CallbackHandler.IsValid();
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		const bool ShouldStore = StoreDataParam.GetAndAdvance();
 
@@ -538,7 +538,7 @@ void UNiagaraDataInterfaceExport::StoreData(FVectorVMContext& Context)
 	}
 }
 
-void UNiagaraDataInterfaceExport::ExportData(FVectorVMContext& Context)
+void UNiagaraDataInterfaceExport::ExportData(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIExportInstanceData_GameThread> InstData(Context);
 
@@ -552,7 +552,7 @@ void UNiagaraDataInterfaceExport::ExportData(FVectorVMContext& Context)
 	checkfSlow(InstData.Get(), TEXT("Export data interface has invalid instance data. %s"), *GetPathName());
 	bool ValidHandlerData = InstData->UserParamBinding.BoundVariable.IsValid() && InstData->CallbackHandler.IsValid();
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		const bool ShouldStore = StoreDataParam.GetAndAdvance();
 

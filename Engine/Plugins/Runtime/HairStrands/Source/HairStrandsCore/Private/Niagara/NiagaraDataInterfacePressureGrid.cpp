@@ -249,46 +249,46 @@ void UNiagaraDataInterfacePressureGrid::GetVMExternalFunction(const FVMExternalF
 	}
 }
 
-void UNiagaraDataInterfacePressureGrid::BuildDistanceField(FVectorVMContext& Context)
+void UNiagaraDataInterfacePressureGrid::BuildDistanceField(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu 
 }
 
-void UNiagaraDataInterfacePressureGrid::BuildDensityField(FVectorVMContext& Context)
+void UNiagaraDataInterfacePressureGrid::BuildDensityField(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu 
 }
 
-void UNiagaraDataInterfacePressureGrid::SolveGridPressure(FVectorVMContext& Context)
+void UNiagaraDataInterfacePressureGrid::SolveGridPressure(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu 
 }
 
-void UNiagaraDataInterfacePressureGrid::ComputeBoundaryWeights(FVectorVMContext& Context)
+void UNiagaraDataInterfacePressureGrid::ComputeBoundaryWeights(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu 
 }
 
-void UNiagaraDataInterfacePressureGrid::SetSolidBoundary(FVectorVMContext& Context)
+void UNiagaraDataInterfacePressureGrid::SetSolidBoundary(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu 
 }
 
-void UNiagaraDataInterfacePressureGrid::ScaleCellFields(FVectorVMContext& Context)
+void UNiagaraDataInterfacePressureGrid::ScaleCellFields(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu 
 }
 
-void UNiagaraDataInterfacePressureGrid::GetNodePosition(FVectorVMContext& Context)
+void UNiagaraDataInterfacePressureGrid::GetNodePosition(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu 
 }
 
-void UNiagaraDataInterfacePressureGrid::GetDensityField(FVectorVMContext& Context)
+void UNiagaraDataInterfacePressureGrid::GetDensityField(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu 
 }
-void UNiagaraDataInterfacePressureGrid::UpdateDeformationGradient(FVectorVMContext& Context)
+void UNiagaraDataInterfacePressureGrid::UpdateDeformationGradient(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu 
 }

@@ -144,19 +144,19 @@ public:
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 
 	/** Build the velocity field */
-	void BuildVelocityField(FVectorVMContext& Context);
+	void BuildVelocityField(FVectorVMExternalFunctionContext& Context);
 
 	/** Sample the grid */
-	void SampleVelocityField(FVectorVMContext& Context);
+	void SampleVelocityField(FVectorVMExternalFunctionContext& Context);
 
 	/** Compute the grid Size (Origin and length) */
-	void ComputeGridSize(FVectorVMContext& Context);
+	void ComputeGridSize(FVectorVMExternalFunctionContext& Context);
 
 	/** Update the grid transform */
-	void UpdateGridTransform(FVectorVMContext& Context);
+	void UpdateGridTransform(FVectorVMExternalFunctionContext& Context);
 
 	/** Set the grid dimension */
-	void SetGridDimension(FVectorVMContext& Context);
+	void SetGridDimension(FVectorVMExternalFunctionContext& Context);
 
 	/** Name of the grid current buffer */
 	static const FString GridCurrentBufferName;

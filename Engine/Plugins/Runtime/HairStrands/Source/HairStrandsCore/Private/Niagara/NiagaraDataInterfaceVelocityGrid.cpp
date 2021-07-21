@@ -435,22 +435,22 @@ void UNiagaraDataInterfaceVelocityGrid::GetVMExternalFunction(const FVMExternalF
 	}
 }
 
-void UNiagaraDataInterfaceVelocityGrid::BuildVelocityField(FVectorVMContext& Context)
+void UNiagaraDataInterfaceVelocityGrid::BuildVelocityField(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu 
 }
 
-void UNiagaraDataInterfaceVelocityGrid::SampleVelocityField(FVectorVMContext& Context)
+void UNiagaraDataInterfaceVelocityGrid::SampleVelocityField(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu 
 }
 
-void UNiagaraDataInterfaceVelocityGrid::ComputeGridSize(FVectorVMContext& Context)
+void UNiagaraDataInterfaceVelocityGrid::ComputeGridSize(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceVelocityGrid::SetGridDimension(FVectorVMContext& Context)
+void UNiagaraDataInterfaceVelocityGrid::SetGridDimension(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIVelocityGridData> InstData(Context);
 	VectorVM::FExternalFuncInputHandler<float> GridDimensionX(Context);
@@ -459,7 +459,7 @@ void UNiagaraDataInterfaceVelocityGrid::SetGridDimension(FVectorVMContext& Conte
 
 	VectorVM::FExternalFuncRegisterHandler<bool> OutFunctionStatus(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		FIntVector GridDimension;
 		GridDimension.X = *GridDimensionX.GetDestAndAdvance();
@@ -473,7 +473,7 @@ void UNiagaraDataInterfaceVelocityGrid::SetGridDimension(FVectorVMContext& Conte
 	}
 }
 
-void UNiagaraDataInterfaceVelocityGrid::UpdateGridTransform(FVectorVMContext& Context)
+void UNiagaraDataInterfaceVelocityGrid::UpdateGridTransform(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIVelocityGridData> InstData(Context);
 
@@ -499,7 +499,7 @@ void UNiagaraDataInterfaceVelocityGrid::UpdateGridTransform(FVectorVMContext& Co
 
 	VectorVM::FExternalFuncRegisterHandler<bool> OutTransformStatus(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		FMatrix Transform;
 		Transform.M[0][0] = *Out00.GetDestAndAdvance();

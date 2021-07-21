@@ -1322,7 +1322,7 @@ void UNiagaraDataInterfaceParticleRead::GetVMExternalFunction(const FVMExternalF
 	}
 }
 
-void UNiagaraDataInterfaceParticleRead::GetNumSpawnedParticles(FVectorVMContext& Context)
+void UNiagaraDataInterfaceParticleRead::GetNumSpawnedParticles(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIParticleRead_InstanceData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutNumSpawned(Context);
@@ -1331,13 +1331,13 @@ void UNiagaraDataInterfaceParticleRead::GetNumSpawnedParticles(FVectorVMContext&
 	const FNiagaraDataBuffer* CurrentData = EmitterInstance ? EmitterInstance->GetData().GetCurrentData() : nullptr;
 	const int32 NumSpawned = CurrentData ? CurrentData->GetNumSpawnedInstances() : 0;
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutNumSpawned.GetDestAndAdvance() = NumSpawned;
 	}
 }
 
-void UNiagaraDataInterfaceParticleRead::GetSpawnedIDAtIndex(FVectorVMContext& Context)
+void UNiagaraDataInterfaceParticleRead::GetSpawnedIDAtIndex(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIParticleRead_InstanceData> InstData(Context);
 	VectorVM::FExternalFuncInputHandler<int32> InIndex(Context);
@@ -1351,7 +1351,7 @@ void UNiagaraDataInterfaceParticleRead::GetSpawnedIDAtIndex(FVectorVMContext& Co
 	int32 NumSpawned = SpawnedIDsTable ? SpawnedIDsTable->Num() : 0;
 	int32 IDAcquireTag = EmitterInstance ? EmitterInstance->GetData().GetIDAcquireTag() : 0;
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		FNiagaraBool ValidValue;
 		FNiagaraID IDValue;
@@ -1376,7 +1376,7 @@ void UNiagaraDataInterfaceParticleRead::GetSpawnedIDAtIndex(FVectorVMContext& Co
 	}
 }
 
-void UNiagaraDataInterfaceParticleRead::GetNumParticles(FVectorVMContext& Context)
+void UNiagaraDataInterfaceParticleRead::GetNumParticles(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIParticleRead_InstanceData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutNumParticles (Context);
@@ -1385,13 +1385,13 @@ void UNiagaraDataInterfaceParticleRead::GetNumParticles(FVectorVMContext& Contex
 	const FNiagaraDataBuffer* CurrentData = EmitterInstance ? EmitterInstance->GetData().GetCurrentData() : nullptr;
 	const int32 NumParticles = CurrentData ? CurrentData->GetNumInstances() : 0;
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutNumParticles.GetDestAndAdvance() = NumParticles;
 	}
 }
 
-void UNiagaraDataInterfaceParticleRead::GetParticleIndex(FVectorVMContext& Context)
+void UNiagaraDataInterfaceParticleRead::GetParticleIndex(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIParticleRead_InstanceData> InstData(Context);
 	VectorVM::FExternalFuncInputHandler<int32> ParticleIDIndexParam(Context);
@@ -1403,7 +1403,7 @@ void UNiagaraDataInterfaceParticleRead::GetParticleIndex(FVectorVMContext& Conte
 
 	if (!CurrentData)
 	{
-		for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+		for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 		{
 			*OutIndex.GetDestAndAdvance() = -1;
 		}
@@ -1413,7 +1413,7 @@ void UNiagaraDataInterfaceParticleRead::GetParticleIndex(FVectorVMContext& Conte
 	const auto IDData = FNiagaraDataSetAccessor<FNiagaraID>::CreateReader(EmitterInstance->GetData(), ParticleReadIDName);
 	const TArray<int32>& IDTable = CurrentData->GetIDTable();
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		FNiagaraID ParticleID = { ParticleIDIndexParam.GetAndAdvance(), ParticleIDAcquireTagParam.GetAndAdvance() };
 
@@ -1435,7 +1435,7 @@ void UNiagaraDataInterfaceParticleRead::GetParticleIndex(FVectorVMContext& Conte
 	}
 }
 
-void UNiagaraDataInterfaceParticleRead::GetParticleIndexFromIDTable(FVectorVMContext& Context)
+void UNiagaraDataInterfaceParticleRead::GetParticleIndexFromIDTable(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIParticleRead_InstanceData> InstData(Context);
 	FNDIInputParam<int32> InIDTableIndex(Context);
@@ -1447,7 +1447,7 @@ void UNiagaraDataInterfaceParticleRead::GetParticleIndexFromIDTable(FVectorVMCon
 
 	if ( !CurrentData )
 	{
-		for ( int32 i=0; i < Context.NumInstances; ++i )
+		for ( int32 i=0; i < Context.GetNumInstances(); ++i )
 		{
 			OutValid.SetAndAdvance(false);
 			OutParticleIndex.SetAndAdvance(INDEX_NONE);
@@ -1456,7 +1456,7 @@ void UNiagaraDataInterfaceParticleRead::GetParticleIndexFromIDTable(FVectorVMCon
 	}
 
 	const TArray<int32>& IDTable = CurrentData->GetIDTable();
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		const int32 IDTableIndex = InIDTableIndex.GetAndAdvance();
 		if ( IDTable.IsValidIndex(IDTableIndex) )
@@ -1478,7 +1478,7 @@ void UNiagaraDataInterfaceParticleRead::GetParticleIndexFromIDTable(FVectorVMCon
 template<typename T>
 struct FDirectReadParamHandler
 {
-	FDirectReadParamHandler(FVectorVMContext& Context)
+	FDirectReadParamHandler(FVectorVMExternalFunctionContext& Context)
 		: InstanceData(Context)
 		, ParticleIDIndexParam(Context)
 		, ParticleIDAcquireTagParam(Context)
@@ -1502,7 +1502,7 @@ struct FDirectReadParamHandler
 };
 
 template <typename T>
-FORCEINLINE void ReadWithCheck(FVectorVMContext& Context, FName AttributeToRead, T Default)
+FORCEINLINE void ReadWithCheck(FVectorVMExternalFunctionContext& Context, FName AttributeToRead, T Default)
 {
 	FDirectReadParamHandler<T> Params(Context);
 	bool bWriteDummyData = true;
@@ -1523,7 +1523,7 @@ FORCEINLINE void ReadWithCheck(FVectorVMContext& Context, FName AttributeToRead,
 				{
 					bWriteDummyData = false;
 
-					for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+					for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 					{
 						FNiagaraID ParticleID = Params.GetID();
 						bool bValid = false;
@@ -1554,7 +1554,7 @@ FORCEINLINE void ReadWithCheck(FVectorVMContext& Context, FName AttributeToRead,
 	// Do we need to write dummy data due to not being in a valid state?
 	if (bWriteDummyData)
 	{
-		for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+		for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 		{
 			Params.SetValid(false);
 			Params.SetValue(Default);
@@ -1563,47 +1563,47 @@ FORCEINLINE void ReadWithCheck(FVectorVMContext& Context, FName AttributeToRead,
 }
 
 //TODO: We can remove all this boiler plate and bind directly to ReadWithCheck.
-void UNiagaraDataInterfaceParticleRead::ReadInt(FVectorVMContext& Context, FName AttributeToRead)
+void UNiagaraDataInterfaceParticleRead::ReadInt(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
 	ReadWithCheck<int32>(Context, AttributeToRead, 0);
 }
 
-void UNiagaraDataInterfaceParticleRead::ReadBool(FVectorVMContext& Context, FName AttributeToRead)
+void UNiagaraDataInterfaceParticleRead::ReadBool(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
 	ReadWithCheck<FNiagaraBool>(Context, AttributeToRead, FNiagaraBool(false));
 }
 
-void UNiagaraDataInterfaceParticleRead::ReadFloat(FVectorVMContext& Context, FName AttributeToRead)
+void UNiagaraDataInterfaceParticleRead::ReadFloat(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
 	ReadWithCheck<float>(Context, AttributeToRead, 0.0f);
 }
 
-void UNiagaraDataInterfaceParticleRead::ReadVector2(FVectorVMContext& Context, FName AttributeToRead)
+void UNiagaraDataInterfaceParticleRead::ReadVector2(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
 	ReadWithCheck<FVector2D>(Context, AttributeToRead, FVector2D::ZeroVector);
 }
 
-void UNiagaraDataInterfaceParticleRead::ReadVector3(FVectorVMContext& Context, FName AttributeToRead)
+void UNiagaraDataInterfaceParticleRead::ReadVector3(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
 	ReadWithCheck<FVector3f>(Context, AttributeToRead, FVector3f::ZeroVector);
 }
 
-void UNiagaraDataInterfaceParticleRead::ReadVector4(FVectorVMContext& Context, FName AttributeToRead)
+void UNiagaraDataInterfaceParticleRead::ReadVector4(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
 	ReadWithCheck<FVector4>(Context, AttributeToRead, FVector4(ForceInit));
 }
 
-void UNiagaraDataInterfaceParticleRead::ReadColor(FVectorVMContext& Context, FName AttributeToRead)
+void UNiagaraDataInterfaceParticleRead::ReadColor(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
 	ReadWithCheck<FLinearColor>(Context, AttributeToRead, FLinearColor::White);
 }
 
-void UNiagaraDataInterfaceParticleRead::ReadQuat(FVectorVMContext& Context, FName AttributeToRead)
+void UNiagaraDataInterfaceParticleRead::ReadQuat(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
 	ReadWithCheck<FQuat>(Context, AttributeToRead, FQuat::Identity);
 }
 
-void UNiagaraDataInterfaceParticleRead::ReadID(FVectorVMContext& Context, FName AttributeToRead)
+void UNiagaraDataInterfaceParticleRead::ReadID(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
 	ReadWithCheck<FNiagaraID>(Context, AttributeToRead, FNiagaraID());
 }
@@ -1613,7 +1613,7 @@ void UNiagaraDataInterfaceParticleRead::ReadID(FVectorVMContext& Context, FName 
 template<typename T>
 struct FDirectReadByIndexParamHandler
 {
-	FDirectReadByIndexParamHandler(FVectorVMContext& Context)
+	FDirectReadByIndexParamHandler(FVectorVMExternalFunctionContext& Context)
 		: InstanceData(Context)
 		, ParticleIndexParam(Context)
 		, OutValid(Context)
@@ -1635,7 +1635,7 @@ struct FDirectReadByIndexParamHandler
 };
 
 template<typename T>
-FORCEINLINE void ReadByIndexWithCheck(FVectorVMContext& Context, FName AttributeToRead, T Default)
+FORCEINLINE void ReadByIndexWithCheck(FVectorVMExternalFunctionContext& Context, FName AttributeToRead, T Default)
 {
 	FDirectReadByIndexParamHandler<T> Params(Context);
 
@@ -1652,7 +1652,7 @@ FORCEINLINE void ReadByIndexWithCheck(FVectorVMContext& Context, FName Attribute
 			{
 				bWriteDummyData = false;
 
-				for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+				for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 				{
 					int32 ParticleIndex = Params.GetIndex();
 
@@ -1674,7 +1674,7 @@ FORCEINLINE void ReadByIndexWithCheck(FVectorVMContext& Context, FName Attribute
 	// Do we need to write dummy data due to not being in a valid state?
 	if (bWriteDummyData)
 	{
-		for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+		for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 		{
 			Params.SetValid(false);
 			Params.SetValue(Default);
@@ -1683,47 +1683,47 @@ FORCEINLINE void ReadByIndexWithCheck(FVectorVMContext& Context, FName Attribute
 }
 
 //TODO: We can remove all this boiler plate and bind directly to ReadByIndexWithCheck.
-void UNiagaraDataInterfaceParticleRead::ReadIntByIndex(FVectorVMContext& Context, FName AttributeToRead)
+void UNiagaraDataInterfaceParticleRead::ReadIntByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
 	ReadByIndexWithCheck<int32>(Context, AttributeToRead, 0);
 }
 
-void UNiagaraDataInterfaceParticleRead::ReadBoolByIndex(FVectorVMContext& Context, FName AttributeToRead)
+void UNiagaraDataInterfaceParticleRead::ReadBoolByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
 	ReadByIndexWithCheck<FNiagaraBool>(Context, AttributeToRead, FNiagaraBool(false));
 }
 
-void UNiagaraDataInterfaceParticleRead::ReadFloatByIndex(FVectorVMContext& Context, FName AttributeToRead)
+void UNiagaraDataInterfaceParticleRead::ReadFloatByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
 	ReadByIndexWithCheck<float>(Context, AttributeToRead, 0.0f);
 }
 
-void UNiagaraDataInterfaceParticleRead::ReadVector2ByIndex(FVectorVMContext& Context, FName AttributeToRead)
+void UNiagaraDataInterfaceParticleRead::ReadVector2ByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
 	ReadByIndexWithCheck<FVector2D>(Context, AttributeToRead, FVector2D::ZeroVector);
 }
 
-void UNiagaraDataInterfaceParticleRead::ReadVector3ByIndex(FVectorVMContext& Context, FName AttributeToRead)
+void UNiagaraDataInterfaceParticleRead::ReadVector3ByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
 	ReadByIndexWithCheck<FVector3f>(Context, AttributeToRead, FVector3f::ZeroVector);
 }
 
-void UNiagaraDataInterfaceParticleRead::ReadVector4ByIndex(FVectorVMContext& Context, FName AttributeToRead)
+void UNiagaraDataInterfaceParticleRead::ReadVector4ByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
 	ReadByIndexWithCheck<FVector4>(Context, AttributeToRead, FVector4(ForceInit));
 }
 
-void UNiagaraDataInterfaceParticleRead::ReadColorByIndex(FVectorVMContext& Context, FName AttributeToRead)
+void UNiagaraDataInterfaceParticleRead::ReadColorByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
 	ReadByIndexWithCheck<FLinearColor>(Context, AttributeToRead, FLinearColor::White);
 }
 
-void UNiagaraDataInterfaceParticleRead::ReadQuatByIndex(FVectorVMContext& Context, FName AttributeToRead)
+void UNiagaraDataInterfaceParticleRead::ReadQuatByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
 	ReadByIndexWithCheck<FQuat>(Context, AttributeToRead, FQuat::Identity);
 }
 
-void UNiagaraDataInterfaceParticleRead::ReadIDByIndex(FVectorVMContext& Context, FName AttributeToRead)
+void UNiagaraDataInterfaceParticleRead::ReadIDByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
 	ReadByIndexWithCheck<FNiagaraID>(Context, AttributeToRead, FNiagaraID());
 }

@@ -1088,43 +1088,43 @@ void UNiagaraDataInterfacePhysicsAsset::GetVMExternalFunction(const FVMExternalF
 	}
 }
 
-void UNiagaraDataInterfacePhysicsAsset::GetNumBoxes(FVectorVMContext& Context)
+void UNiagaraDataInterfacePhysicsAsset::GetNumBoxes(FVectorVMExternalFunctionContext& Context)
 {
 }
 
-void UNiagaraDataInterfacePhysicsAsset::GetNumSpheres(FVectorVMContext& Context)
+void UNiagaraDataInterfacePhysicsAsset::GetNumSpheres(FVectorVMExternalFunctionContext& Context)
 {
 }
 
-void UNiagaraDataInterfacePhysicsAsset::GetNumCapsules(FVectorVMContext& Context)
+void UNiagaraDataInterfacePhysicsAsset::GetNumCapsules(FVectorVMExternalFunctionContext& Context)
 {
 }
 
-void UNiagaraDataInterfacePhysicsAsset::GetClosestPoint(FVectorVMContext& Context)
+void UNiagaraDataInterfacePhysicsAsset::GetClosestPoint(FVectorVMExternalFunctionContext& Context)
 {
 }
 
-void UNiagaraDataInterfacePhysicsAsset::GetClosestElement(FVectorVMContext& Context)
+void UNiagaraDataInterfacePhysicsAsset::GetClosestElement(FVectorVMExternalFunctionContext& Context)
 {
 }
 
-void UNiagaraDataInterfacePhysicsAsset::GetElementPoint(FVectorVMContext& Context)
+void UNiagaraDataInterfacePhysicsAsset::GetElementPoint(FVectorVMExternalFunctionContext& Context)
 {
 }
 
-void UNiagaraDataInterfacePhysicsAsset::GetElementDistance(FVectorVMContext& Context)
+void UNiagaraDataInterfacePhysicsAsset::GetElementDistance(FVectorVMExternalFunctionContext& Context)
 {
 }
 
-void UNiagaraDataInterfacePhysicsAsset::GetClosestDistance(FVectorVMContext& Context)
+void UNiagaraDataInterfacePhysicsAsset::GetClosestDistance(FVectorVMExternalFunctionContext& Context)
 {
 }
 
-void UNiagaraDataInterfacePhysicsAsset::GetTexturePoint(FVectorVMContext& Context)
+void UNiagaraDataInterfacePhysicsAsset::GetTexturePoint(FVectorVMExternalFunctionContext& Context)
 {
 }
 
-void UNiagaraDataInterfacePhysicsAsset::GetProjectionPoint(FVectorVMContext& Context)
+void UNiagaraDataInterfacePhysicsAsset::GetProjectionPoint(FVectorVMExternalFunctionContext& Context)
 {
 }
 

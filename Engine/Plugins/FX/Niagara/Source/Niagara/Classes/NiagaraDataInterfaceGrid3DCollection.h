@@ -198,13 +198,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Niagara)
 	virtual void GetTextureSize(const UNiagaraComponent *Component, int &SizeX, int &SizeY, int &SizeZ);	
 
-	void GetWorldBBoxSize(FVectorVMContext& Context);
-	void GetCellSize(FVectorVMContext& Context);
+	void GetWorldBBoxSize(FVectorVMExternalFunctionContext& Context);
+	void GetCellSize(FVectorVMExternalFunctionContext& Context);
 
-	void GetNumCells(FVectorVMContext& Context);
-	void SetNumCells(FVectorVMContext& Context);
+	void GetNumCells(FVectorVMExternalFunctionContext& Context);
+	void SetNumCells(FVectorVMExternalFunctionContext& Context);
 
-	void GetAttributeIndex(FVectorVMContext& Context, const FName& InName, int32 NumChannels);
+	void GetAttributeIndex(FVectorVMExternalFunctionContext& Context, const FName& InName, int32 NumChannels);
 
 	static const FString NumTilesName;
 	static const FString OneOverNumTilesName;

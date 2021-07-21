@@ -403,7 +403,7 @@ void UNiagaraDataInterfaceCurlNoise::GetVMExternalFunction(const FVMExternalFunc
 	NDI_FUNC_BINDER(UNiagaraDataInterfaceCurlNoise, SampleNoiseField)::Bind(this, OutFunc);
 }
 
-void UNiagaraDataInterfaceCurlNoise::SampleNoiseField(FVectorVMContext& Context)
+void UNiagaraDataInterfaceCurlNoise::SampleNoiseField(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FExternalFuncInputHandler<float> XParam(Context);
 	VectorVM::FExternalFuncInputHandler<float> YParam(Context);
@@ -412,7 +412,7 @@ void UNiagaraDataInterfaceCurlNoise::SampleNoiseField(FVectorVMContext& Context)
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleZ(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		FVector InCoords = FVector(XParam.GetAndAdvance(), YParam.GetAndAdvance(), ZParam.GetAndAdvance());
 

@@ -202,11 +202,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Niagara)
 	virtual void GetTextureSize(const UNiagaraComponent *Component, int &SizeX, int &SizeY);
 
-	void GetWorldBBoxSize(FVectorVMContext& Context);
-	void GetCellSize(FVectorVMContext& Context);
-	void GetNumCells(FVectorVMContext& Context);
-	void SetNumCells(FVectorVMContext& Context);
-	void GetAttributeIndex(FVectorVMContext& Context, const FName& InName, int32 NumChannels);
+	void GetWorldBBoxSize(FVectorVMExternalFunctionContext& Context);
+	void GetCellSize(FVectorVMExternalFunctionContext& Context);
+	void GetNumCells(FVectorVMExternalFunctionContext& Context);
+	void SetNumCells(FVectorVMExternalFunctionContext& Context);
+	void GetAttributeIndex(FVectorVMExternalFunctionContext& Context, const FName& InName, int32 NumChannels);
 
 	static const FString GridName;
 	static const FString OutputGridName;
