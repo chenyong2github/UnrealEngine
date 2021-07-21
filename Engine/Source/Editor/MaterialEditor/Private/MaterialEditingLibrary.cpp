@@ -881,6 +881,8 @@ void UMaterialEditingLibrary::UpdateMaterialFunction(UMaterialFunctionInterface*
 				if (Functions.Contains(MaterialFunction))
 				{
 					FunctionInstance->UpdateParameterSet();
+					FunctionInstance->PreEditChange(nullptr);
+					FunctionInstance->PostEditChange();
 					FunctionInstance->MarkPackageDirty();
 				}
 			}
