@@ -3874,27 +3874,7 @@ struct ENGINE_API FComponentReference
 	{
 		return OtherActor == Other.OtherActor && ComponentProperty == Other.ComponentProperty && PathToComponent == Other.PathToComponent && OverrideComponent == Other.OverrideComponent;
 	}
-
-	///** Serialize natively, is much faster due to volume of these records. Must stay in sync with fields */
-	//bool Serialize(FArchive& Ar)
-	//{
-	//	Ar << OtherActor;
-	//	Ar << ComponentProperty;
-	//	Ar << PathToComponent;
-	//	Ar << OverrideComponent;
-
-	//	return true;
-	//}
 };
-
-//template<>
-//struct TStructOpsTypeTraits<FComponentReference> : public TStructOpsTypeTraitsBase2<FComponentReference>
-//{
-//	enum
-//	{
-//		WithSerializer = true
-//	};
-//};
 
 /** Types of valid physical material mask colors which may be associated with a physical material */
 UENUM(BlueprintType)
