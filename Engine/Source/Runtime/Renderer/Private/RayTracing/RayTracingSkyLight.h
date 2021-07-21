@@ -42,6 +42,4 @@ bool SetupSkyLightParameters(
 
 void SetupSkyLightVisibilityRaysParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FSkyLightVisibilityRaysData* OutSkyLightVisibilityRaysData);
 
-extern RENDERER_API void BuildSkyLightCdfs(FRHICommandListImmediate& RHICmdList, class FSkyLightSceneProxy* SkyLight);
-
 #endif // RHI_RAYTRACING
