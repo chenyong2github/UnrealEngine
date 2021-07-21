@@ -58,13 +58,19 @@ public:
 
 	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
 	{
+		static FName NAME_SaveToComponentInstanceDataCache = "SaveToComponentInstanceDataCache";
+
 		// Immutable structs expect to serialize all properties so don't skip regardless of other conditions
 		UScriptStruct* ScriptStruct = InProperty->GetOwner<UScriptStruct>();
 		const bool bPropertyInImmutableStruct = ScriptStruct && ((ScriptStruct->StructFlags & STRUCT_Immutable) != 0);
 
 		return (!bPropertyInImmutableStruct
 			&& (InProperty->HasAnyPropertyFlags(CPF_Transient)
+#if WITH_EDITORONLY_DATA
+				|| (!InProperty->HasAnyPropertyFlags(CPF_Edit | CPF_Interp) && !InProperty->HasMetaData(NAME_SaveToComponentInstanceDataCache))
+#else
 				|| !InProperty->HasAnyPropertyFlags(CPF_Edit | CPF_Interp)
+#endif
 				|| InProperty->IsA<FMulticastDelegateProperty>()
 				|| PropertiesToSkip.Contains(InProperty)
 				)
