@@ -221,7 +221,6 @@ private:
 	const FSlateBrush* HoveredEventBorderBrush;
 	const FSlateBrush* SelectedEventBorderBrush;
 	const FSlateBrush* BackgroundAreaBrush;
-	const FSlateBrush* IdleAreaBrush;
 	const FLinearColor ValidAreaColor;
 	const FLinearColor InvalidAreaColor;
 	const FLinearColor EdgeColor;
