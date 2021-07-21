@@ -70,6 +70,8 @@ struct FStructTracker
 		return DebugStructTypeNamesList.IsValidIndex(StructTypeIndex) ? DebugStructTypeNamesList[StructTypeIndex] : FName();
 	}
 
+	TConstArrayView<TWeakObjectPtr<const UScriptStruct>> DebugGetAllStructTypes() const { return StructTypesList; }
+
 	void DebugNukeStructTypeMappingInfo()
 	{
 		StructTypeToIndexSet.Reset();
@@ -420,6 +422,11 @@ public:
 				OutFNames.Add(StructTracker.DebugGetStructTypeName(Index));
 			}
 		}
+	}
+
+	static TConstArrayView<TWeakObjectPtr<const UScriptStruct>> DebugGetAllStructTypes()
+	{
+		return StructTracker.DebugGetAllStructTypes();
 	}
 
 	/**
