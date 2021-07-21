@@ -108,6 +108,27 @@ namespace Audio
 		OutMean /= static_cast<float>(Num);
 	}
 
+	void ArrayMeanSquared(TArrayView<const float> InView, float& OutMean)
+	{
+		OutMean = 0.0f;
+
+		const int32 Num = InView.Num();
+
+		if (Num < 1)
+		{
+			return;
+		}
+
+		const float* DataPtr = InView.GetData();
+
+		for (int32 i = 0; i < Num; i++)
+		{
+			OutMean += DataPtr[i] * DataPtr[i];
+		}
+
+		OutMean /= static_cast<float>(Num);
+	}
+
 	void ArrayMeanFilter(TArrayView<const float> InView, int32 WindowSize, int32 WindowOrigin, TArray<float>& OutData)
 	{
 		// a quick but sinful implementation of a mean filter. encourages floating point rounding errors. 
