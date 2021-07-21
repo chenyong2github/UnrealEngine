@@ -16,6 +16,7 @@
 #include "Misc/Guid.h"
 #include "UObject/NameTypes.h"
 
+#include <atomic>
 #include <type_traits>
 
 /**
@@ -243,7 +244,8 @@ namespace Metasound
 			return NumAliveSenders.GetValue();
 		}
 
-		virtual int64 GetPayloadID() const { return 0; }
+		virtual int64 GetPayloadID() const { return INDEX_NONE; }
+		virtual int64 CreateNewPayloadID() = 0;
 		virtual bool PushOpaque(ISender& InSender) { return true; };
 		virtual void PopOpaque(IReceiver& InReceiver) {};
 		virtual bool IsEmpty() const { return true; };
@@ -299,6 +301,7 @@ namespace Metasound
 
 		TNonOperationalDataChannel(const FOperatorSettings& InOperatorSettings)
 			: IDataChannel(FName())
+			, PayloadIDCounter(0)
 		{}
 
 		virtual bool PushOpaque(ISender& InSender) override 
@@ -309,6 +312,12 @@ namespace Metasound
 		virtual void PopOpaque(IReceiver& InReceiver) override
 		{
 
+		}
+
+		virtual int64 CreateNewPayloadID() override
+		{
+			// Atomic return and post increment.
+			return PayloadIDCounter++;
 		}
 
 		virtual bool IsEmpty() const override
@@ -336,6 +345,8 @@ namespace Metasound
 		{
 			return TUniquePtr<ISender>();
 		}
+	private:
+		std::atomic<int64> PayloadIDCounter;
 	};
 
 	// Specializations for trivially copyable types:
@@ -423,7 +434,7 @@ namespace Metasound
 		// Push from the SenderBuffer to the data channel.
 		bool PushToDataChannel()
 		{
-			++PayloadID;
+			PayloadID = DataChannel->CreateNewPayloadID();
 			if (!Payload.IsValid())
 			{
 				Payload = MakeUnique<TDataType>(SenderBuffer.Pop());
@@ -537,11 +548,18 @@ namespace Metasound
 		TCopyableDataChannel(const FOperatorSettings& InOperatorSettings)
 			: IDataChannel(GetDataTypeName())
 			, OperatorSettings(InOperatorSettings)
+			, PayloadIDCounter(0)
 		{}
 
 		virtual int64 GetPayloadID() const override
 		{
 			return PayloadID;
+		}
+
+		virtual int64 CreateNewPayloadID() override
+		{
+			// Atomic return and post increment.
+			return PayloadIDCounter++;
 		}
 
 		virtual bool PushOpaque(ISender& InSender) override
@@ -632,9 +650,11 @@ namespace Metasound
 		TUniquePtr<TDataType> AtomicData;
 		FCriticalSection AtomicDataLock;
 
-		int64 PayloadID = 0;
+		int64 PayloadID = INDEX_NONE;
 
 		FOperatorSettings OperatorSettings;
+
+		std::atomic<int64> PayloadIDCounter;
 	};
 
 	// AUDIO SPECIALIZATIONS:
@@ -670,7 +690,7 @@ namespace Metasound
 
 		int64 GetPayloadID() const override
 		{
-			return 0;
+			return INDEX_NONE;
 		}
 
 		bool PushLiteral(const FLiteral& InLiteral) override
@@ -789,6 +809,7 @@ namespace Metasound
 	public:
 		TAudioDataChannel(const FOperatorSettings& InOperatorSettings)
 			: IDataChannel(GetDataTypeName())
+			, PayloadIDCounter(0)
 		{
 			AudioBuses.AddDefaulted(MaxChannels);
 		}
@@ -804,6 +825,12 @@ namespace Metasound
 			{
 				Bus.ProcessAudio();
 			}
+		}
+
+		virtual int64 CreateNewPayloadID() override
+		{
+			// Atomic return and post increment.
+			return PayloadIDCounter++;
 		}
 
 		virtual bool IsEmpty() const override
@@ -846,6 +873,7 @@ namespace Metasound
 
 	private:
 		TArray<Audio::FPatchMixerSplitter> AudioBuses;
+		std::atomic<int64> PayloadIDCounter;
 	};
 
 
