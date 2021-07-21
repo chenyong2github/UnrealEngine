@@ -9,6 +9,9 @@ class FArchive;
 class FName;
 struct FBlake3Hash;
 
+namespace FOodleDataCompression { enum class ECompressionLevel : int8; }
+namespace FOodleDataCompression { enum class ECompressor : uint8; }
+
 /**
  * A compressed buffer stores compressed data in a self-contained format.
  *
@@ -18,6 +21,38 @@ struct FBlake3Hash;
 class FCompressedBuffer
 {
 public:
+	/**
+	 * Compress the buffer using a balanced level of compression.
+	 *
+	 * @return An owned compressed buffer, or null on error.
+	 */
+	[[nodiscard]] CORE_API static FCompressedBuffer Compress(const FCompositeBuffer& RawData);
+	[[nodiscard]] CORE_API static FCompressedBuffer Compress(const FSharedBuffer& RawData);
+
+	/**
+	 * Compress the buffer using the specified compressor and compression level.
+	 *
+	 * Data that does not compress will be return uncompressed, as if with level None.
+	 *
+	 * @note Using a level of None will return a buffer that references owned raw data.
+	 *
+	 * @param RawData            The raw data to be compressed.
+	 * @param Compressor         The compressor to encode with. May use NotSet if level is None.
+	 * @param CompressionLevel   The compression level to encode with.
+	 * @param BlockSize          The power-of-two block size to encode raw data in. 0 is default.
+	 * @return An owned compressed buffer, or null on error.
+	 */
+	[[nodiscard]] CORE_API static FCompressedBuffer Compress(
+		const FCompositeBuffer& RawData,
+		FOodleDataCompression::ECompressor Compressor,
+		FOodleDataCompression::ECompressionLevel CompressionLevel,
+		uint64 BlockSize = 0);
+	[[nodiscard]] CORE_API static FCompressedBuffer Compress(
+		const FSharedBuffer& RawData,
+		FOodleDataCompression::ECompressor Compressor,
+		FOodleDataCompression::ECompressionLevel CompressionLevel,
+		uint64 BlockSize = 0);
+
 	/**
 	 * Compress the buffer using the requested compression format.
 	 *
@@ -78,6 +113,19 @@ public:
 	 * @return The format name, or NAME_None if this null, or NAME_Error if the format is unknown.
 	 */
 	[[nodiscard]] CORE_API FName GetFormatName() const;
+
+	/**
+	 * Returns the compressor and compression level used by this buffer.
+	 *
+	 * The compressor and compression level may differ from those specified when creating the buffer
+	 * because an incompressible buffer is stored with no compression. Parameters cannot be accessed
+	 * if this is null or uses a method other than Oodle, in which case this returns false.
+	 *
+	 * @return True if parameters were written, otherwise false.
+	 */
+	[[nodiscard]] CORE_API bool TryGetCompressParameters(
+		FOodleDataCompression::ECompressor& OutCompressor,
+		FOodleDataCompression::ECompressionLevel& OutCompressionLevel) const;
 
 	/**
 	 * Decompress into a memory view that is exactly GetRawSize() bytes.
