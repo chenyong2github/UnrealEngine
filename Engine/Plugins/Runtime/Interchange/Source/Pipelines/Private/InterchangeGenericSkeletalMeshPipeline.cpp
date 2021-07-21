@@ -3,6 +3,7 @@
 
 #include "Animation/Skeleton.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Async/Async.h"
 #include "CoreMinimal.h"
 #include "InterchangeMaterialFactoryNode.h"
 #include "InterchangeMeshNode.h"
