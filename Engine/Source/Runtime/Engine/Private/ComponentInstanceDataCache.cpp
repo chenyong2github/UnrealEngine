@@ -58,7 +58,9 @@ public:
 
 	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
 	{
+#if WITH_EDITORONLY_DATA
 		static FName NAME_SaveToComponentInstanceDataCache = "SaveToComponentInstanceDataCache";
+#endif
 
 		// Immutable structs expect to serialize all properties so don't skip regardless of other conditions
 		UScriptStruct* ScriptStruct = InProperty->GetOwner<UScriptStruct>();
