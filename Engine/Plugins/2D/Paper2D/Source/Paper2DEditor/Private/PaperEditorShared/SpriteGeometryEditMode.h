@@ -64,6 +64,7 @@ public:
 	static void DrawGeometryStats(FViewport& InViewport, FSceneView& View, FCanvas& Canvas, const FSpriteGeometryCollection& Geometry, bool bIsRenderGeometry, int32& YPos);
 	static void DrawCollisionStats(FViewport& InViewport, FSceneView& View, FCanvas& Canvas, class UBodySetup* BodySetup, int32& YPos);
 
+	virtual bool UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const override;
 protected:
 	FBox2D BoundsForNewShapes;
 	FLinearColor GeometryVertexColor;
