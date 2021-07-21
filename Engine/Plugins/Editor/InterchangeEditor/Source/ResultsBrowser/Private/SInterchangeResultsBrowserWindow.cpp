@@ -7,7 +7,6 @@
 #include "IDocumentation.h"
 #include "Modules/ModuleManager.h"
 #include "Styling/SlateIconFinder.h"
-#include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"

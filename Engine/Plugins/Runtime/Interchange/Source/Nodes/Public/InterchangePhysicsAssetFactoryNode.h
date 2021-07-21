@@ -6,6 +6,7 @@
 #include "Nodes/InterchangeBaseNode.h"
 
 #if WITH_ENGINE
+#include "Animation/Skeleton.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #endif
 
