@@ -106,11 +106,11 @@ FAutoConsoleVariableRef CVarLumenMeshCardsCullFaces(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenMeshCardsCullOrientation = -1;
-FAutoConsoleVariableRef CVarLumenMeshCardsCullOrientation(
-	TEXT("r.LumenScene.SurfaceCache.MeshCardsCullOrientation"),
-	GLumenMeshCardsCullOrientation,
-	TEXT("Cull all mesh cards to a single orientation for debugging."),
+int32 GLumenMeshCardsDebugSingleCard = -1;
+FAutoConsoleVariableRef CVarLumenMeshCardsDebugSingleCard(
+	TEXT("r.LumenScene.SurfaceCache.MeshCardsDebugSingleCard"),
+	GLumenMeshCardsDebugSingleCard,
+	TEXT("Spawn only a specified card on mesh. Useful for debugging."),
 	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
 	{
 		FGlobalComponentRecreateRenderStateContext Context;
@@ -124,7 +124,7 @@ class FLumenCardGPUData
 {
 public:
 	// Must match usf
-	enum { DataStrideInFloat4s = 5 };
+	enum { DataStrideInFloat4s = 7 };
 	enum { DataStrideInBytes = DataStrideInFloat4s * sizeof(FVector4) };
 
 	static void PackSurfaceMipMap(const FLumenCard& Card, int32 ResLevel, uint32& PackedSizeInPages, uint32& PackedPageTableOffset)
@@ -148,9 +148,9 @@ public:
 	{
 		// Note: layout must match GetLumenCardData in usf
 
-		OutData[0] = FVector4(Card.LocalToWorldRotationX[0], Card.LocalToWorldRotationY[0], Card.LocalToWorldRotationZ[0], Card.Origin.X);
-		OutData[1] = FVector4(Card.LocalToWorldRotationX[1], Card.LocalToWorldRotationY[1], Card.LocalToWorldRotationZ[1], Card.Origin.Y);
-		OutData[2] = FVector4(Card.LocalToWorldRotationX[2], Card.LocalToWorldRotationY[2], Card.LocalToWorldRotationZ[2], Card.Origin.Z);
+		OutData[0] = FVector4(Card.WorldOBB.AxisX[0], Card.WorldOBB.AxisY[0], Card.WorldOBB.AxisZ[0], Card.WorldOBB.Origin.X);
+		OutData[1] = FVector4(Card.WorldOBB.AxisX[1], Card.WorldOBB.AxisY[1], Card.WorldOBB.AxisZ[1], Card.WorldOBB.Origin.Y);
+		OutData[2] = FVector4(Card.WorldOBB.AxisX[2], Card.WorldOBB.AxisY[2], Card.WorldOBB.AxisZ[2], Card.WorldOBB.Origin.Z);
 
 		const FIntPoint ResLevelBias = Card.ResLevelToResLevelXYBias();
 		uint32 Packed3W = 0;
@@ -158,7 +158,7 @@ public:
 		Packed3W |= (uint8(ResLevelBias.Y) & 0xFF) << 8;
 		Packed3W |= Card.bVisible && Card.IsAllocated() ? (1 << 16) : 0;
 
-		OutData[3] = FVector4(Card.LocalExtent.X, Card.LocalExtent.Y, Card.LocalExtent.Z, 0.0f);
+		OutData[3] = FVector4(Card.WorldOBB.Extent.X, Card.WorldOBB.Extent.Y, Card.WorldOBB.Extent.Z, 0.0f);
 		OutData[3].W = *((float*)&Packed3W);
 
 		// Map low-res level for diffuse
@@ -176,25 +176,20 @@ public:
 		OutData[4].Z = *((float*)&PackedHiResSizeInPages);
 		OutData[4].W = *((float*)&PackedHiResPageTableOffset);
 
-		static_assert(DataStrideInFloat4s == 5, "Data stride doesn't match");
+		FVector3f MeshCardsBoundsCenter = Card.LocalOBB.Origin;
+		FVector3f MeshCardsBoundsExtent = Card.LocalOBB.RotateCardToLocal(Card.LocalOBB.Extent).GetAbs();
+
+		OutData[5] = FVector4(MeshCardsBoundsCenter.X, MeshCardsBoundsCenter.Y, MeshCardsBoundsCenter.Z, 0.0f);
+		OutData[6] = FVector4(MeshCardsBoundsExtent.X, MeshCardsBoundsExtent.Y, MeshCardsBoundsExtent.Z, 0.0f);
+
+		static_assert(DataStrideInFloat4s == 7, "Data stride doesn't match");
 	}
 };
 
-uint32 PackOffsetAndNum(const FLumenMeshCards& RESTRICT MeshCards, uint32 BaseOffset)
-{
-	const uint32 Packed = 
-		((MeshCards.NumCardsPerOrientation[BaseOffset + 0] & 0xFF) << 0)
-		| ((MeshCards.CardOffsetPerOrientation[BaseOffset + 0] & 0xFF) << 8)
-		| ((MeshCards.NumCardsPerOrientation[BaseOffset + 1] & 0xFF) << 16)
-		| ((MeshCards.CardOffsetPerOrientation[BaseOffset + 1] & 0xFF) << 24);
-
-	return Packed;
-}
-
 struct FLumenMeshCardsGPUData
 {
-	// Must match LUMEN_MESH_CARDS_DATA_STRIDE in usf
-	enum { DataStrideInFloat4s = 4 };
+	// Must match LUMEN_MESH_CARDS_DATA_STRIDE in LumenCardCommon.ush
+	enum { DataStrideInFloat4s = 8 };
 	enum { DataStrideInBytes = DataStrideInFloat4s * 16 };
 
 	static void FillData(const class FLumenMeshCards& RESTRICT MeshCards, FVector4* RESTRICT OutData);
@@ -205,21 +200,31 @@ void FLumenMeshCardsGPUData::FillData(const FLumenMeshCards& RESTRICT MeshCards,
 	// Note: layout must match GetLumenMeshCardsData in usf
 
 	const FMatrix44f WorldToLocal = MeshCards.LocalToWorld.Inverse();
-
+	const FMatrix44f TransposedLocalToWorld = MeshCards.LocalToWorld.GetTransposed();
 	const FMatrix44f TransposedWorldToLocal = WorldToLocal.GetTransposed();
 
-	OutData[0] = *(FVector4*)&TransposedWorldToLocal.M[0];
-	OutData[1] = *(FVector4*)&TransposedWorldToLocal.M[1];
-	OutData[2] = *(FVector4*)&TransposedWorldToLocal.M[2];
-	
-	uint32 PackedData[4];
-	PackedData[0] = PackOffsetAndNum(MeshCards, 0);
-	PackedData[1] = PackOffsetAndNum(MeshCards, 2);
-	PackedData[2] = PackOffsetAndNum(MeshCards, 4);
-	PackedData[3] = MeshCards.FirstCardIndex;
-	OutData[3] = *(FVector4*)&PackedData;
+	OutData[0] = *(FVector4*)&TransposedLocalToWorld.M[0];
+	OutData[1] = *(FVector4*)&TransposedLocalToWorld.M[1];
+	OutData[2] = *(FVector4*)&TransposedLocalToWorld.M[2];
 
-	static_assert(DataStrideInFloat4s == 4, "Data stride doesn't match");
+	OutData[3] = *(FVector4*)&TransposedWorldToLocal.M[0];
+	OutData[4] = *(FVector4*)&TransposedWorldToLocal.M[1];
+	OutData[5] = *(FVector4*)&TransposedWorldToLocal.M[2];
+
+	uint32 PackedData[4];
+	PackedData[0] = MeshCards.FirstCardIndex;
+	PackedData[1] = MeshCards.NumCards;
+	PackedData[2] = MeshCards.CardLookup[0];
+	PackedData[3] = MeshCards.CardLookup[1];
+	OutData[6] = *(FVector4*)&PackedData;
+
+	PackedData[0] = MeshCards.CardLookup[2];
+	PackedData[1] = MeshCards.CardLookup[3];
+	PackedData[2] = MeshCards.CardLookup[4];
+	PackedData[3] = MeshCards.CardLookup[5];
+	OutData[7] = *(FVector4*)&PackedData;
+
+	static_assert(DataStrideInFloat4s == 8, "Data stride doesn't match");
 }
 
 void Lumen::UpdateCardSceneBuffer(FRHICommandListImmediate& RHICmdList, const FSceneViewFamily& ViewFamily, FScene* Scene)
@@ -486,13 +491,27 @@ void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveG
 		MeshCardsBuildData.MaxLODLevel = 0;
 		MeshCardsBuildData.Bounds = MergedMeshCardsBounds;
 
-		MeshCardsBuildData.CardBuildData.SetNum(6);
-		for (uint32 Orientation = 0; Orientation < 6; ++Orientation)
+		MeshCardsBuildData.CardBuildData.SetNum(Lumen::NumAxisAlignedDirections);
+		for (int32 AxisAlignedDirectionIndex = 0; AxisAlignedDirectionIndex < Lumen::NumAxisAlignedDirections; ++AxisAlignedDirectionIndex)
 		{
-			FLumenCardBuildData& CardBuildData = MeshCardsBuildData.CardBuildData[Orientation];
-			CardBuildData.Center = MergedMeshCardsBounds.GetCenter();
-			CardBuildData.Extent = FLumenCardBuildData::TransformFaceExtent(MergedMeshCardsBounds.GetExtent() + FVector(1.0f), Orientation);
-			CardBuildData.Orientation = Orientation;
+			FLumenCardBuildData& CardBuildData = MeshCardsBuildData.CardBuildData[AxisAlignedDirectionIndex];
+
+			// Set rotation
+			{
+				const int32 AxisIndex = AxisAlignedDirectionIndex / 2;
+
+				CardBuildData.OBB.AxisZ = FVector3f(0.0f, 0.0f, 0.0f);
+				CardBuildData.OBB.AxisZ[AxisIndex] = AxisAlignedDirectionIndex & 1 ? 1.0f : -1.0f;
+
+				CardBuildData.OBB.AxisZ.FindBestAxisVectors(CardBuildData.OBB.AxisX, CardBuildData.OBB.AxisY);
+				CardBuildData.OBB.AxisX = FVector::CrossProduct(CardBuildData.OBB.AxisZ, CardBuildData.OBB.AxisY);
+				CardBuildData.OBB.AxisX.Normalize();
+			}
+			
+			CardBuildData.OBB.Origin = MergedMeshCardsBounds.GetCenter();
+			CardBuildData.OBB.Extent = CardBuildData.OBB.RotateLocalToCard(MergedMeshCardsBounds.GetExtent() + FVector(1.0f)).GetAbs();
+
+			CardBuildData.AxisAlignedDirectionIndex = AxisAlignedDirectionIndex;
 			CardBuildData.LODLevel = 0;
 		}
 	}
@@ -568,19 +587,19 @@ bool IsMatrixOrthogonal(const FMatrix& Matrix)
 	return false;
 }
 
-bool MeshCardCullTest(const FLumenCardBuildData& CardBuildData, const int32 LODLevel, const FVector FaceSurfaceArea, float MinFaceSurfaceArea)
+bool MeshCardCullTest(const FLumenCardBuildData& CardBuildData, const FVector3f LocalToWorldScale, const int32 LODLevel, float MinFaceSurfaceArea, int32 CardIndex)
 {
-	const int32 AxisIndex = CardBuildData.Orientation / 2;
-	const float AxisSurfaceArea = FaceSurfaceArea[AxisIndex];
-	const bool bCardPassedCulling = (!GLumenMeshCardsCullFaces || AxisSurfaceArea > MinFaceSurfaceArea);
-	const bool bCardPassedLODTest = CardBuildData.LODLevel == LODLevel;
-
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
-	if (GLumenMeshCardsCullOrientation >= 0 && CardBuildData.Orientation != GLumenMeshCardsCullOrientation)
+	if (GLumenMeshCardsDebugSingleCard >= 0)
 	{
-		return false;
+		return GLumenMeshCardsDebugSingleCard == CardIndex;
 	}
 #endif
+
+	const FVector3f ScaledBoundsSize = 2.0f * CardBuildData.OBB.Extent * LocalToWorldScale;
+	const float SurfaceArea = ScaledBoundsSize.X * ScaledBoundsSize.Y;
+	const bool bCardPassedCulling = (!GLumenMeshCardsCullFaces || SurfaceArea > MinFaceSurfaceArea);
+	const bool bCardPassedLODTest = CardBuildData.LODLevel == LODLevel;
 
 	return bCardPassedCulling && bCardPassedLODTest;
 }
@@ -589,9 +608,9 @@ int32 FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, cons
 {
 	const FLumenPrimitiveGroup& PrimitiveGroup = PrimitiveGroups[PrimitiveGroupIndex];
 
-	const FVector LocalToWorldScale = LocalToWorld.GetScaleVector();
-	const FVector ScaledBoundSize = MeshCardsBuildData.Bounds.GetSize() * LocalToWorldScale;
-	const FVector FaceSurfaceArea(ScaledBoundSize.Y * ScaledBoundSize.Z, ScaledBoundSize.X * ScaledBoundSize.Z, ScaledBoundSize.Y * ScaledBoundSize.X);
+	const FVector3f LocalToWorldScale = LocalToWorld.GetScaleVector();
+	const FVector3f ScaledBoundSize = MeshCardsBuildData.Bounds.GetSize() * LocalToWorldScale;
+	const FVector3f FaceSurfaceArea(ScaledBoundSize.Y * ScaledBoundSize.Z, ScaledBoundSize.X * ScaledBoundSize.Z, ScaledBoundSize.Y * ScaledBoundSize.X);
 	const float LargestFaceArea = FaceSurfaceArea.GetMax();
 	const float MinFaceSurfaceArea = GLumenMeshCardsMinSize * GLumenMeshCardsMinSize;
 	const int32 LODLevel = FMath::Clamp(GLumenMeshCardsMaxLOD, 0, MeshCardsBuildData.MaxLODLevel);
@@ -602,23 +621,15 @@ int32 FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, cons
 		const int32 NumBuildDataCards = MeshCardsBuildData.CardBuildData.Num();
 
 		uint32 NumCards = 0;
-		uint32 NumCardsPerOrientation[6] = { 0 };
-		uint32 CardOffsetPerOrientation[6] = { 0 };
 
-		for (int32 CardIndex = 0; CardIndex < NumBuildDataCards; ++CardIndex)
+		for (int32 CardIndexInBuildData = 0; CardIndexInBuildData < NumBuildDataCards; ++CardIndexInBuildData)
 		{
-			const FLumenCardBuildData& CardBuildData = MeshCardsBuildData.CardBuildData[CardIndex];
+			const FLumenCardBuildData& CardBuildData = MeshCardsBuildData.CardBuildData[CardIndexInBuildData];
 
-			if (MeshCardCullTest(CardBuildData, LODLevel, FaceSurfaceArea, MinFaceSurfaceArea))
+			if (MeshCardCullTest(CardBuildData, LocalToWorldScale, LODLevel, MinFaceSurfaceArea, CardIndexInBuildData))
 			{
-				++NumCardsPerOrientation[CardBuildData.Orientation];
 				++NumCards;
 			}
-		}
-
-		for (uint32 Orientation = 1; Orientation < 6; ++Orientation)
-		{
-			CardOffsetPerOrientation[Orientation] = CardOffsetPerOrientation[Orientation - 1] + NumCardsPerOrientation[Orientation - 1];
 		}
 
 		if (NumCards > 0)
@@ -631,26 +642,28 @@ int32 FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, cons
 				MeshCardsBuildData.Bounds,
 				PrimitiveGroupIndex,
 				FirstCardIndex,
-				NumCards,
-				NumCardsPerOrientation,
-				CardOffsetPerOrientation);
+				NumCards);
 
 			MeshCardsIndicesToUpdateInBuffer.Add(MeshCardsIndex);
 
 			// Add cards
-			for (int32 CardIndex = 0; CardIndex < NumBuildDataCards; ++CardIndex)
+			int32 LocalCardIndex = 0;
+			for (int32 CardIndexInBuildData = 0; CardIndexInBuildData < NumBuildDataCards; ++CardIndexInBuildData)
 			{	
-				const FLumenCardBuildData& CardBuildData = MeshCardsBuildData.CardBuildData[CardIndex];
+				const FLumenCardBuildData& CardBuildData = MeshCardsBuildData.CardBuildData[CardIndexInBuildData];
 
-				if (MeshCardCullTest(CardBuildData, LODLevel, FaceSurfaceArea, MinFaceSurfaceArea))
+				if (MeshCardCullTest(CardBuildData, LocalToWorldScale, LODLevel, MinFaceSurfaceArea, CardIndexInBuildData))
 				{
-					const int32 CardInsertIndex = FirstCardIndex + CardOffsetPerOrientation[CardBuildData.Orientation];
-					++CardOffsetPerOrientation[CardBuildData.Orientation];
+					const int32 CardInsertIndex = FirstCardIndex + LocalCardIndex;
 
-					Cards[CardInsertIndex].Initialize(ResolutionScale, LocalToWorld, CardBuildData, CardIndex, MeshCardsIndex);
+					Cards[CardInsertIndex].Initialize(ResolutionScale, LocalToWorld, CardBuildData, LocalCardIndex, MeshCardsIndex, CardIndexInBuildData);
 					CardIndicesToUpdateInBuffer.Add(CardInsertIndex);
+
+					++LocalCardIndex;
 				}
 			}
+
+			MeshCards[MeshCardsIndex].UpdateLookup(Cards);
 
 			return MeshCardsIndex;
 		}
@@ -692,16 +705,6 @@ void FLumenSceneData::UpdateMeshCards(const FMatrix& LocalToWorld, int32 MeshCar
 		FLumenMeshCards& MeshCardsInstance = MeshCards[MeshCardsIndex];
 		MeshCardsInstance.SetTransform(LocalToWorld);
 		MeshCardsIndicesToUpdateInBuffer.Add(MeshCardsIndex);
-
-		for (uint32 RelativeCardIndex = 0; RelativeCardIndex < MeshCardsInstance.NumCards; RelativeCardIndex++)
-		{
-			const int32 CardIndex = RelativeCardIndex + MeshCardsInstance.FirstCardIndex;
-			FLumenCard& Card = Cards[CardIndex];
-
-			const FLumenCardBuildData& CardBuildData = MeshCardsBuildData.CardBuildData[Card.IndexInMeshCards];
-			Card.SetTransform(LocalToWorld, CardBuildData.Center, CardBuildData.Extent, CardBuildData.Orientation);
-			CardIndicesToUpdateInBuffer.Add(CardIndex);
-		}
 	}
 }
 
@@ -711,4 +714,21 @@ void FLumenSceneData::RemoveCardFromAtlas(int32 CardIndex)
 	Card.DesiredLockedResLevel = 0;
 	FreeVirtualSurface(Card, Card.MinAllocatedResLevel, Card.MaxAllocatedResLevel);
 	CardIndicesToUpdateInBuffer.Add(CardIndex);
+}
+
+void FLumenMeshCards::UpdateLookup(const TSparseSpanArray<FLumenCard>& Cards)
+{
+	for (int32 AxisAlignedDirectionIndex = 0; AxisAlignedDirectionIndex < Lumen::NumAxisAlignedDirections; ++AxisAlignedDirectionIndex)
+	{
+		CardLookup[AxisAlignedDirectionIndex] = 0;
+	}
+
+	for (uint32 LocalCardIndex = 0; LocalCardIndex < NumCards; ++LocalCardIndex)
+	{
+		const uint32 CardIndex = FirstCardIndex + LocalCardIndex;
+		const FLumenCard& Card = Cards[CardIndex];
+		
+		const uint32 BitMask = (1 << LocalCardIndex);
+		CardLookup[Card.AxisAlignedDirectionIndex] |= BitMask;
+	}
 }

@@ -11,13 +11,16 @@
 #include "MeshCardRepresentation.h"
 #include "LumenSparseSpanArray.h"
 
-class FPrimitiveSceneInfo;
 class FLumenCard;
+class FPrimitiveSceneInfo;
 
 namespace Lumen
 {
+	constexpr uint32 NumAxisAlignedDirections = 6;
+
 	void UpdateCardSceneBuffer(FRHICommandListImmediate& RHICmdList, const FSceneViewFamily& ViewFamily, FScene* Scene);
 };
+
 
 class FLumenMeshCards
 {
@@ -27,9 +30,7 @@ public:
 		const FBox& InBounds,
 		int32 InPrimitiveGroupIndex,
 		uint32 InFirstCardIndex,
-		uint32 InNumCards,
-		uint32 InNumCardsPerOrientation[6],
-		uint32 InCardOffsetPerOrientation[6])
+		uint32 InNumCards)
 	{
 		PrimitiveGroupIndex = InPrimitiveGroupIndex;
 
@@ -37,13 +38,9 @@ public:
 		SetTransform(InLocalToWorld);
 		FirstCardIndex = InFirstCardIndex;
 		NumCards = InNumCards;
-
-		for (uint32 OrientationIndex = 0; OrientationIndex < 6; ++OrientationIndex)
-		{
-			NumCardsPerOrientation[OrientationIndex] = InNumCardsPerOrientation[OrientationIndex];
-			CardOffsetPerOrientation[OrientationIndex] = InCardOffsetPerOrientation[OrientationIndex];
-		}
 	}
+
+	void UpdateLookup(const TSparseSpanArray<FLumenCard>& Cards);
 
 	void SetTransform(const FMatrix& InLocalToWorld)
 	{
@@ -57,6 +54,5 @@ public:
 
 	uint32 FirstCardIndex = 0;
 	uint32 NumCards = 0;
-	uint32 NumCardsPerOrientation[6];
-	uint32 CardOffsetPerOrientation[6];
+	uint32 CardLookup[Lumen::NumAxisAlignedDirections];
 };

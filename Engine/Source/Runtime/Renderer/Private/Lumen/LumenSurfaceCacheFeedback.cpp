@@ -461,7 +461,7 @@ void FLumenSceneData::UpdateSurfaceCacheFeedback(FVector LumenSceneCameraOrigin,
 				}
 				else
 				{
-					const float DistanceSquared = ComputeSquaredDistanceFromBoxToPoint(Card.WorldBounds.Min, Card.WorldBounds.Max, LumenSceneCameraOrigin);
+					const float DistanceSquared = Card.WorldOBB.ComputeSquaredDistanceToPoint(LumenSceneCameraOrigin);
 					float Distance = FMath::Sqrt(DistanceSquared);
 
 					// Change priority based on the normalized number of hits and make those request less important than low res resident pages

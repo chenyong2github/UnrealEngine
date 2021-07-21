@@ -914,13 +914,13 @@ FIntPoint FLumenCard::ResLevelToResLevelXYBias() const
 	FIntPoint Bias(0, 0);
 
 	// ResLevel bias to account for card's aspect
-	if (LocalExtent.X >= LocalExtent.Y)
+	if (WorldOBB.Extent.X >= WorldOBB.Extent.Y)
 	{
-		Bias.Y = FMath::FloorLog2(FMath::RoundToInt(LocalExtent.X / LocalExtent.Y));
+		Bias.Y = FMath::FloorLog2(FMath::RoundToInt(WorldOBB.Extent.X / WorldOBB.Extent.Y));
 	}
 	else
 	{
-		Bias.X = FMath::FloorLog2(FMath::RoundToInt(LocalExtent.Y / LocalExtent.X));
+		Bias.X = FMath::FloorLog2(FMath::RoundToInt(WorldOBB.Extent.Y / WorldOBB.Extent.X));
 	}
 
 	return Bias;

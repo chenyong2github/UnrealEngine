@@ -61,6 +61,12 @@ private:
 struct FEmbreeTriangleDesc
 {
 	int16 ElementIndex;
+
+	bool IsTwoSided() const
+	{
+		// MaterialIndex on the build triangles was set to 1 if two-sided, or 0 if one-sided
+		return ElementIndex == 1;
+	}
 };
 
 // Mapping between Embree Geometry Id and engine Mesh/LOD Id
@@ -144,7 +150,7 @@ namespace MeshRepresentation
 	/**
 	 *	[Frisvad 2012, "Building an Orthonormal Basis from a 3D Unit Vector Without Normalization"]
 	 */
-	FMatrix GetTangentBasisFrisvad(FVector TangentZ);
+	FMatrix44f GetTangentBasisFrisvad(FVector3f TangentZ);
 
 	void SetupEmbreeScene(FString MeshName,
 		const FSourceMeshDataForDerivedDataTask& SourceMeshData,

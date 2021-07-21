@@ -20,6 +20,7 @@
 #include "LumenSurfaceCacheFeedback.h"
 #include "Containers/BinaryHeap.h"
 #include "Lumen.h"
+#include "MeshCardRepresentation.h"
 
 class FLumenMeshCards;
 class FMeshCardsBuildData;
@@ -95,12 +96,9 @@ public:
 	FLumenCard();
 	~FLumenCard();
 
-	FBox WorldBounds;
-	FVector LocalToWorldRotationX;
-	FVector LocalToWorldRotationY;
-	FVector LocalToWorldRotationZ;
-	FVector Origin;
-	FVector LocalExtent;
+	FLumenCardOBB LocalOBB;
+	FLumenCardOBB WorldOBB;
+
 	bool bVisible = false;
 	bool bDistantScene = false;
 
@@ -114,26 +112,15 @@ public:
 	// Surface cache allocations per mip map, indexed by [ResLevel - Lumen::MinResLevel]
 	FLumenSurfaceMipMap SurfaceMipMaps[Lumen::NumResLevels];
 
-	int32 Orientation = -1;
-	int32 IndexInMeshCards = -1;
 	int32 MeshCardsIndex = -1;
+	int32 IndexInMeshCards = -1;
+	uint8 IndexInBuildData = UINT8_MAX;
+	uint8 AxisAlignedDirectionIndex = UINT8_MAX;
 	float ResolutionScale = 1.0f;
 
-	void Initialize(float InResolutionScale, const FMatrix& LocalToWorld, const FLumenCardBuildData& CardBuildData, int32 InIndexInMeshCards, int32 InMeshCardsIndex);
+	void Initialize(float InResolutionScale, const FMatrix& LocalToWorld, const FLumenCardBuildData& CardBuildData, int32 InIndexInMeshCards, int32 InMeshCardsIndex, uint8 InIndexInBuildData);
 
-	void SetTransform(
-		const FMatrix& LocalToWorld,
-		FVector CardLocalCenter,
-		FVector CardLocalExtent,
-		int32 InOrientation);
-
-	void SetTransform(
-		const FMatrix& LocalToWorld,
-		const FVector& LocalOrigin,
-		const FVector& CardToLocalRotationX,
-		const FVector& CardToLocalRotationY,
-		const FVector& CardToLocalRotationZ,
-		const FVector& InLocalExtent);
+	void SetTransform(const FMatrix44f& LocalToWorld, const FLumenCardOBB& InLocalOBB);
 
 	void UpdateMinMaxAllocatedLevel();
 
@@ -168,17 +155,6 @@ public:
 		const int32 MipIndex = ResLevel - Lumen::MinResLevel;
 		check(MipIndex >= 0 && MipIndex < UE_ARRAY_COUNT(SurfaceMipMaps));
 		return SurfaceMipMaps[MipIndex];
-	}
-
-	inline FVector TransformWorldPositionToCardLocal(FVector WorldPosition) const
-	{
-		FVector Offset = WorldPosition - Origin;
-		return FVector(Offset | LocalToWorldRotationX, Offset | LocalToWorldRotationY, Offset | LocalToWorldRotationZ);
-	}
-
-	inline FVector TransformCardLocalPositionToWorld(FVector CardPosition) const
-	{
-		return Origin + CardPosition.X * LocalToWorldRotationX + CardPosition.Y * LocalToWorldRotationY + CardPosition.Z * LocalToWorldRotationZ;
 	}
 };
 

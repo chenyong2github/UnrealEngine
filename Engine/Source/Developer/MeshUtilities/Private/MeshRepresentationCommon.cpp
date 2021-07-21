@@ -5,7 +5,7 @@
 #include "MeshUtilitiesPrivate.h"
 #include "DerivedMeshDataTaskUtils.h"
 
-void MeshUtilities::GenerateStratifiedUniformHemisphereSamples(int32 NumSamples, FRandomStream& RandomStream, TArray<FVector4>& Samples)
+void MeshUtilities::GenerateStratifiedUniformHemisphereSamples(int32 NumSamples, FRandomStream& RandomStream, TArray<FVector3f>& Samples)
 {
 	const int32 NumThetaSteps = FMath::TruncToInt(FMath::Sqrt(NumSamples / (2.0f * (float)PI)));
 	const int32 NumPhiSteps = FMath::TruncToInt(NumThetaSteps * (float)PI);
@@ -25,31 +25,31 @@ void MeshUtilities::GenerateStratifiedUniformHemisphereSamples(int32 NumSamples,
 
 			const float Phi = 2.0f * (float)PI * Fraction2;
 			// Convert to Cartesian
-			Samples.Add(FVector4(FMath::Cos(Phi) * R, FMath::Sin(Phi) * R, Fraction1));
+			Samples.Add(FVector3f(FMath::Cos(Phi) * R, FMath::Sin(Phi) * R, Fraction1));
 		}
 	}
 }
 
 // [Frisvad 2012, "Building an Orthonormal Basis from a 3D Unit Vector Without Normalization"]
-FMatrix MeshRepresentation::GetTangentBasisFrisvad(FVector TangentZ)
+FMatrix44f MeshRepresentation::GetTangentBasisFrisvad(FVector3f TangentZ)
 {
-	FVector TangentX;
-	FVector TangentY;
+	FVector3f TangentX;
+	FVector3f TangentY;
 
 	if (TangentZ.Z < -0.9999999f)
 	{
-		TangentX = FVector(0, -1, 0);
-		TangentY = FVector(-1, 0, 0);
+		TangentX = FVector3f(0, -1, 0);
+		TangentY = FVector3f(-1, 0, 0);
 	}
 	else
 	{
 		float A = 1.0f / (1.0f + TangentZ.Z);
 		float B = -TangentZ.X * TangentZ.Y * A;
-		TangentX = FVector(1.0f - TangentZ.X * TangentZ.X * A, B, -TangentZ.X);
-		TangentY = FVector(B, 1.0f - TangentZ.Y * TangentZ.Y * A, -TangentZ.Y);
+		TangentX = FVector3f(1.0f - TangentZ.X * TangentZ.X * A, B, -TangentZ.X);
+		TangentY = FVector3f(B, 1.0f - TangentZ.Y * TangentZ.Y * A, -TangentZ.Y);
 	}
 
-	FMatrix LocalBasis;
+	FMatrix44f LocalBasis;
 	LocalBasis.SetIdentity();
 	LocalBasis.SetAxis(0, TangentX);
 	LocalBasis.SetAxis(1, TangentY);

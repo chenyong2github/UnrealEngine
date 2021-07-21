@@ -22,57 +22,131 @@
 template <class T> class TLockFreePointerListLIFO;
 class FSignedDistanceFieldBuildMaterialData;
 
-class FLumenCardBuildData
+class FLumenCardOBB
 {
 public:
-	FVector Center;
-	FVector Extent;
+	FVector3f Origin;
+	FVector3f AxisX;
+	FVector3f AxisY;
+	FVector3f AxisZ;
+	FVector3f Extent;
 
-	// -X, +X, -Y, +Y, -Z, +Z
-	int32 Orientation;
-	int32 LODLevel;
-
-	static FVector TransformFaceExtent(FVector Extent, int32 Orientation)
+	void Reset()
 	{
-		if (Orientation / 2 == 2)
-		{
-			return FVector(Extent.Y, Extent.X, Extent.Z);
-		}
-		else if (Orientation / 2 == 1)
-		{
-			return FVector(Extent.Z, Extent.X, Extent.Y);
-		}
-		else
-		{
-			return FVector(Extent.Y, Extent.Z, Extent.X);
-		}
+		Origin = FVector3f::ZeroVector;
+		AxisX = FVector3f::ZeroVector;
+		AxisY = FVector3f::ZeroVector;
+		AxisZ = FVector3f::ZeroVector;
+		Extent = FVector3f::ZeroVector;
 	}
 
-	friend FArchive& operator<<(FArchive& Ar, FLumenCardBuildData& Data)
+	FVector3f GetDirection() const
 	{
-		// Note: this is derived data, no need for versioning (bump the DDC guid)
-		Ar << Data.Center;
+		return AxisZ;
+	}
+
+	FMatrix44f GetCardToLocal() const
+	{
+		FMatrix44f CardToLocal;
+		CardToLocal.SetIdentity();
+		CardToLocal.SetAxes(&AxisX, &AxisY, &AxisZ, &Origin);
+		return CardToLocal;
+	}
+
+	inline FVector3f RotateCardToLocal(FVector3f Vector3) const
+	{
+		return Vector3.X * AxisX + Vector3.Y * AxisY + Vector3.Z * AxisZ;
+	}
+
+	inline FVector3f RotateLocalToCard(FVector3f Vector3) const
+	{
+		return FVector3f(Vector3 | AxisX, Vector3 | AxisY, Vector3 | AxisZ);
+	}
+
+	inline FVector3f TransformLocalToCard(FVector3f LocalPosition) const
+	{
+		FVector3f Offset = LocalPosition - Origin;
+		return FVector3f(Offset | AxisX, Offset | AxisY, Offset | AxisZ);
+	}
+
+	inline FVector3f TransformCardToLocal(FVector3f CardPosition) const
+	{
+		return Origin + CardPosition.X * AxisX + CardPosition.Y * AxisY + CardPosition.Z * AxisZ;
+	}
+
+	float ComputeSquaredDistanceToPoint(FVector3f WorldPosition) const
+	{
+		FVector3f CardPositon = TransformLocalToCard(WorldPosition);
+		return ::ComputeSquaredDistanceFromBoxToPoint(-Extent, Extent, CardPositon);
+	}
+
+	friend FArchive& operator<<(FArchive& Ar, FLumenCardOBB& Data)
+	{
+		Ar << Data.AxisX;
+		Ar << Data.AxisY;
+		Ar << Data.AxisZ;
+		Ar << Data.Origin;
 		Ar << Data.Extent;
-		Ar << Data.Orientation;
-		Ar << Data.LODLevel;
 		return Ar;
 	}
 };
 
-class FLumenCardBuildDebugPoint
+class FLumenCardBuildData
 {
 public:
-	FVector Origin;
-	int32 Orientation;
-	bool bValid;
+	FLumenCardOBB OBB;
+	uint8 LODLevel;
+	uint8 AxisAlignedDirectionIndex;
+
+	friend FArchive& operator<<(FArchive& Ar, FLumenCardBuildData& Data)
+	{
+		// Note: this is derived data, no need for versioning (bump the DDC guid)
+		Ar << Data.OBB;
+		Ar << Data.LODLevel;
+		Ar << Data.AxisAlignedDirectionIndex;
+		return Ar;
+	}
 };
 
-class FLumenCardBuildDebugLine
+class FLumenCardBuildDebugData
 {
 public:
-	FVector Origin;
-	FVector EndPoint;
-	int32 Orientation;
+	enum class ESurfelType : uint8
+	{
+		Valid,
+		Invalid,
+
+		Seed,
+		Seed2,
+		Idle,
+		Cluster,
+		Used
+	};
+
+	struct FRay
+	{
+		FVector3f RayStart;
+		FVector3f RayEnd;
+		bool bHit;
+	};
+
+	struct FSurfel
+	{
+		FVector3f Position;
+		FVector3f Normal;
+		int32 SourceSurfelIndex = -1;
+		ESurfelType Type;
+	};
+
+	struct FSurfelCluster
+	{
+		TArray<FSurfel> Surfels;
+		TArray<FRay> Rays;
+	};
+
+	TArray<FSurfel> Surfels;
+	TArray<FRay> SurfelRays;
+	TArray<FSurfelCluster> Clusters;
 };
 
 class FMeshCardsBuildData
@@ -82,9 +156,8 @@ public:
 	int32 MaxLODLevel;
 	TArray<FLumenCardBuildData> CardBuildData;
 
-	// Temporary debug visualization data
-	TArray<FLumenCardBuildDebugPoint> DebugPoints;
-	TArray<FLumenCardBuildDebugLine> DebugLines;
+	// Temporary debug visualization data, don't serialize
+	FLumenCardBuildDebugData DebugData;
 
 	friend FArchive& operator<<(FArchive& Ar, FMeshCardsBuildData& Data)
 	{
