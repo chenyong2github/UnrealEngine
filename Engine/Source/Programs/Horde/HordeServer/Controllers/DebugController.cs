@@ -630,7 +630,7 @@ namespace HordeServer.Controllers
 				return BadRequest();
 			}
 
-			return await Perforce.CreateTicket(Username);
+			return await Perforce.CreateTicket(PerforceCluster.DefaultName, Username);
 		}
 
 		/// <summary>
@@ -655,8 +655,8 @@ namespace HordeServer.Controllers
 			// ParallelTest.ForAsync doesn't seem to handle async lambdas
 			IEnumerable<Task> Tasks = Enumerable.Range(0, 16).Select(async (Idx) => {
 
-				int LatestChange = await Perforce.GetLatestChangeAsync(DevBuild, PerforceUser);
-				int CodeChange = await Perforce.GetCodeChangeAsync(DevBuild, LatestChange);				
+				int LatestChange = await Perforce.GetLatestChangeAsync(PerforceCluster.DefaultName, DevBuild, PerforceUser);
+				int CodeChange = await Perforce.GetCodeChangeAsync(PerforceCluster.DefaultName, DevBuild, LatestChange);				
 
 				lock (UpdateLock)
 				{
@@ -668,8 +668,8 @@ namespace HordeServer.Controllers
 
 			Tasks = Enumerable.Range(0, 16).Select(async (Idx) => {
 
-				int LatestChange = await Perforce.GetLatestChangeAsync(DevBuild, PerforceUser);
-				int CodeChange = await Perforce.GetCodeChangeAsync(DevBuild, LatestChange);				
+				int LatestChange = await Perforce.GetLatestChangeAsync(PerforceCluster.DefaultName, DevBuild, PerforceUser);
+				int CodeChange = await Perforce.GetCodeChangeAsync(PerforceCluster.DefaultName, DevBuild, LatestChange);				
 
 				lock (UpdateLock)
 				{
@@ -720,25 +720,25 @@ namespace HordeServer.Controllers
 			Dictionary<string, string> Results = new Dictionary<string, string>();
 
 			// NOTE: This is in Private-Build not DevBuild
-			int NewChangeId = await Perforce.CreateNewChangeAsync("//UE4/Private-Build", "Counter.txt");
+			int NewChangeId = await Perforce.CreateNewChangeAsync(PerforceCluster.DefaultName, "//UE4/Private-Build", "Counter.txt");
 
-			List<ChangeDetails> ChangeDetails = await Perforce.GetChangeDetailsAsync("//UE4/Private-Build", new int[] { NewChangeId }, PerforceUser);
+			List<ChangeDetails> ChangeDetails = await Perforce.GetChangeDetailsAsync(PerforceCluster.DefaultName, "//UE4/Private-Build", new int[] { NewChangeId }, PerforceUser);
 
 			Results.Add("CreateNewChangeAsync", $"{NewChangeId} : {ChangeDetails[0].Description}");
 
-			await Perforce.UpdateChangelistDescription(TestCL, $"Updated Description: New Change CL was {NewChangeId}");
+			await Perforce.UpdateChangelistDescription(PerforceCluster.DefaultName, TestCL, $"Updated Description: New Change CL was {NewChangeId}");
 
-			ChangeDetails = await Perforce.GetChangeDetailsAsync(DevBuild, new int[] { TestCL }, PerforceUser);
+			ChangeDetails = await Perforce.GetChangeDetailsAsync(PerforceCluster.DefaultName, DevBuild, new int[] { TestCL }, PerforceUser);
 
 			Results.Add("UpdateChangelistDescription", $"{TestCL} : {ChangeDetails[0].Description}");
 
-			int LatestChange = await Perforce.GetLatestChangeAsync(DevBuild, PerforceUser);
+			int LatestChange = await Perforce.GetLatestChangeAsync(PerforceCluster.DefaultName, DevBuild, PerforceUser);
 			Results.Add("GetLatestChangeAsync", LatestChange.ToString(CultureInfo.InvariantCulture));
 
-			int CodeChange = await Perforce.GetCodeChangeAsync(DevBuild, LatestChange);
+			int CodeChange = await Perforce.GetCodeChangeAsync(PerforceCluster.DefaultName, DevBuild, LatestChange);
 			Results.Add("GetCodeChangeAsync", CodeChange.ToString(CultureInfo.InvariantCulture));
 
-			PerforceUserInfo? UserInfo = await Perforce.GetUserInfoAsync(PerforceUser);
+			PerforceUserInfo? UserInfo = await Perforce.GetUserInfoAsync(PerforceCluster.DefaultName, PerforceUser);
 
 			if (UserInfo == null)
 			{
@@ -750,14 +750,14 @@ namespace HordeServer.Controllers
 			}
 
 			// changes
-			List<ChangeSummary> Changes = await Perforce.GetChangesAsync(DevBuild, null, LatestChange, 10, PerforceUser);
+			List<ChangeSummary> Changes = await Perforce.GetChangesAsync(PerforceCluster.DefaultName, DevBuild, null, LatestChange, 10, PerforceUser);
 			int Count = 0;
 			foreach (ChangeSummary Summary in Changes)
 			{
 				Results.Add($"GetChangesAsync Result {Count++}", $"{Summary.Number} : {Summary.Author} - {Summary.Description}");
 			}
 
-			ChangeDetails = await Perforce.GetChangeDetailsAsync(DevBuild, Changes.Select(Change => Change.Number).ToArray(), PerforceUser);
+			ChangeDetails = await Perforce.GetChangeDetailsAsync(PerforceCluster.DefaultName, DevBuild, Changes.Select(Change => Change.Number).ToArray(), PerforceUser);
 			Count = 0;
 			foreach (ChangeDetails Details in ChangeDetails)
 			{
@@ -767,7 +767,7 @@ namespace HordeServer.Controllers
 			String Ticket = "Failed (Expected if not running service account)";
 			try
 			{
-				await Perforce.CreateTicket(PerforceUser);
+				await Perforce.CreateTicket(PerforceCluster.DefaultName, PerforceUser);
 				Ticket = "Success";
 			}
 			catch
@@ -776,7 +776,7 @@ namespace HordeServer.Controllers
 			}
 
 			Results.Add($"CreateTicket", $"{Ticket}");
-			List<FileSummary> FileSummaries = await Perforce.FindFilesAsync(ChangeDetails.SelectMany(Details => Details.Files).Select(File => $"{DevBuild}{File}"));
+			List<FileSummary> FileSummaries = await Perforce.FindFilesAsync(PerforceCluster.DefaultName, ChangeDetails.SelectMany(Details => Details.Files).Select(File => $"{DevBuild}{File}"));
 			Count = 0;
 			foreach (FileSummary File in FileSummaries)
 			{
@@ -785,10 +785,10 @@ namespace HordeServer.Controllers
 
 			// print async
 
-			byte[] Bytes = await Perforce.PrintAsync($"{DevBuild}/RunUAT.bat");
+			byte[] Bytes = await Perforce.PrintAsync(PerforceCluster.DefaultName, $"{DevBuild}/RunUAT.bat");
 			Results.Add($"PrintAsync: {DevBuild}/RunUAT.bat ", $"{System.Text.Encoding.Default.GetString(Bytes)}");
 
-			Bytes = await Perforce.PrintAsync($"{DevBuild}/RunUAT.bat@13916380");
+			Bytes = await Perforce.PrintAsync(PerforceCluster.DefaultName, $"{DevBuild}/RunUAT.bat@13916380");
 			Results.Add($"PrintAsync: {DevBuild}/RunUAT.bat@13916380", $"{System.Text.Encoding.Default.GetString(Bytes)}");
 
 			// need to be running as service account for these
@@ -799,7 +799,7 @@ namespace HordeServer.Controllers
 
 			try 
 			{
-				DuplicateCL = await Perforce.DuplicateShelvedChangeAsync(ShelvedChangeOnDevBuild);
+				DuplicateCL = await Perforce.DuplicateShelvedChangeAsync(PerforceCluster.DefaultName, ShelvedChangeOnDevBuild);
 				Results.Add("DuplicateShelvedChangeAsync", $"Duplicated CL {DuplicateCL} from Shelved CL {ShelvedChangeOnDevBuild}");
 			}
 			catch 
@@ -810,15 +810,15 @@ namespace HordeServer.Controllers
 			if (DuplicateCL.HasValue)
 			{
 				// Note change client much exist for the update
-				ChangeDetails = await Perforce.GetChangeDetailsAsync(DevBuild, new int[]{ DuplicateCL.Value}, PerforceUser);
+				ChangeDetails = await Perforce.GetChangeDetailsAsync(PerforceCluster.DefaultName, DevBuild, new int[]{ DuplicateCL.Value}, PerforceUser);
 
 				Results.Add("UpdateChangelistDescription - PreUpdate", $"{DuplicateCL} : {ChangeDetails[0].Description}"); 
 
 				try 
 				{
-					await Perforce.UpdateChangelistDescription(DuplicateCL.Value, "Updated Description from Horde");
+					await Perforce.UpdateChangelistDescription(PerforceCluster.DefaultName, DuplicateCL.Value, "Updated Description from Horde");
 
-					ChangeDetails = await Perforce.GetChangeDetailsAsync(DevBuild, new int[]{ DuplicateCL.Value}, PerforceUser);
+					ChangeDetails = await Perforce.GetChangeDetailsAsync(PerforceCluster.DefaultName, DevBuild, new int[]{ DuplicateCL.Value}, PerforceUser);
 
 					Results.Add("UpdateChangelistDescription - PostUpdate", $"{DuplicateCL} : {ChangeDetails[0].Description}"); 
 				}
@@ -827,15 +827,15 @@ namespace HordeServer.Controllers
 					Results.Add("UpdateChangelistDescription - Faile", $"Client from change {DuplicateCL} must exist"); 
 				}
 
-				await Perforce.DeleteShelvedChangeAsync(DuplicateCL.Value);
+				await Perforce.DeleteShelvedChangeAsync(PerforceCluster.DefaultName, DuplicateCL.Value);
 
-				ChangeDetails = await Perforce.GetChangeDetailsAsync(DevBuild,new int[] {DuplicateCL.Value} , PerforceUser);
+				ChangeDetails = await Perforce.GetChangeDetailsAsync(PerforceCluster.DefaultName, DevBuild, new int[] {DuplicateCL.Value} , PerforceUser);
 
 				Results.Add("GetChangeDetailsAsync - After Delete", $"ChangeDetails.Count: {ChangeDetails.Count}"); 
 
 			}
 
-			byte[] ImageBytes = await Perforce.PrintAsync($"{DevBuild}/Samples/Games/ShooterGame/ShooterGame.png");
+			byte[] ImageBytes = await Perforce.PrintAsync(PerforceCluster.DefaultName, $"{DevBuild}/Samples/Games/ShooterGame/ShooterGame.png");
 
 			Content.AppendLine("<html><body><pre>");
 			foreach (KeyValuePair<string, string> Pair in Results)

@@ -204,7 +204,7 @@ namespace HordeServer.Controllers
 				return Forbid();
 			}
 
-			List<ChangeSummary> Commits = await PerforceService.GetChangesAsync(Stream.Name, Min, Max, Results, PerforceUser);
+			List<ChangeSummary> Commits = await PerforceService.GetChangesAsync(Stream.ClusterName, Stream.Name, Min, Max, Results, PerforceUser);
 			return Commits.ConvertAll(x => PropertyFilter.Apply(new GetChangeSummaryResponse(x), Filter));
 		}
 
@@ -238,7 +238,7 @@ namespace HordeServer.Controllers
 				return Forbid();
 			}
 
-			ChangeDetails? ChangeDetails = await PerforceService.GetChangeDetailsAsync(Stream.Name, Number, PerforceUser);
+			ChangeDetails? ChangeDetails = await PerforceService.GetChangeDetailsAsync(Stream.ClusterName, Stream.Name, Number, PerforceUser);
 			if(ChangeDetails == null)
 			{
 				return NotFound();

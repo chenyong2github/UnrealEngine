@@ -174,16 +174,37 @@ namespace HordeServer.Services
 		}
 
 		/// <summary>
+		/// Select a Perforce server to use by the Horde server
+		/// </summary>
+		/// <param name="Cluster"></param>
+		/// <returns></returns>
+		public Task<IPerforceServer?> SelectServerAsync(PerforceCluster Cluster)
+		{
+			HashSet<string> Properties = new HashSet<string>{ "HordeServer=1" };
+			return SelectServerAsync(Cluster, Properties);
+		}
+
+		/// <summary>
 		/// Select a Perforce server to use
 		/// </summary>
 		/// <param name="Cluster"></param>
 		/// <param name="Agent"></param>
 		/// <returns></returns>
-		public async Task<IPerforceServer?> SelectServerAsync(PerforceCluster Cluster, IAgent Agent)
+		public Task<IPerforceServer?> SelectServerAsync(PerforceCluster Cluster, IAgent Agent)
 		{
 			// Get the set of properties to use for checking server validity
 			HashSet<string>? Properties = Agent.Capabilities.Devices[0].Properties;
+			return SelectServerAsync(Cluster, Properties);
+		}
 
+		/// <summary>
+		/// Select a Perforce server to use
+		/// </summary>
+		/// <param name="Cluster"></param>
+		/// <param name="Properties"></param>
+		/// <returns></returns>
+		public async Task<IPerforceServer?> SelectServerAsync(PerforceCluster Cluster, HashSet<string>? Properties)
+		{
 			// Find all the valid servers for this agent
 			HashSet<string> ValidServers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 			if (Properties != null)

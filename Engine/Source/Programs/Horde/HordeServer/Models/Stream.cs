@@ -498,6 +498,11 @@ namespace HordeServer.Models
 		public string Name { get; }
 
 		/// <summary>
+		/// Name of the perforce cluster
+		/// </summary>
+		public string ClusterName { get; }
+
+		/// <summary>
 		/// Path to the configuration file for this stream
 		/// </summary>
 		public string ConfigPath { get; }

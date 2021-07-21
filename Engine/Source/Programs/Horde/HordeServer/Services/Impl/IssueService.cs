@@ -151,7 +151,7 @@ namespace HordeServer.Services.Impl
 		/// <summary>
 		/// Collection of stream documents
 		/// </summary>
-		IStreamCollection Streams;
+		StreamService Streams;
 
 		/// <summary>
 		/// Collection of user documents
@@ -215,7 +215,7 @@ namespace HordeServer.Services.Impl
 		/// <param name="Perforce">The perforce service instance</param>
 		/// <param name="LogFileService">Collection of event documents</param>
 		/// <param name="Logger">The logger instance</param>
-		public IssueService(DatabaseService DatabaseService, IIssueCollection IssueCollection, IJobCollection Jobs, IJobStepRefCollection JobStepRefs, IStreamCollection Streams, IUserCollection UserCollection, IPerforceService Perforce, ILogFileService LogFileService, ILogger<IssueService> Logger)
+		public IssueService(DatabaseService DatabaseService, IIssueCollection IssueCollection, IJobCollection Jobs, IJobStepRefCollection JobStepRefs, StreamService Streams, IUserCollection UserCollection, IPerforceService Perforce, ILogFileService LogFileService, ILogger<IssueService> Logger)
 			: base(DatabaseService, ObjectId.Parse("609542152fb0794700a6c3df"), Logger)
 		{
 			Type[] IssueTypes = Assembly.GetExecutingAssembly().GetTypes().Where(x => !x.IsAbstract && typeof(IIssue).IsAssignableFrom(x)).ToArray();
@@ -261,7 +261,7 @@ namespace HordeServer.Services.Impl
 
 			Dictionary<StreamId, HashSet<TemplateRefId>> NewCachedDesktopAlerts = new Dictionary<StreamId, HashSet<TemplateRefId>>();
 
-			List<IStream> CachedStreams = await Streams.FindAllAsync();
+			List<IStream> CachedStreams = await Streams.StreamCollection.FindAllAsync();
 			foreach(IStream CachedStream in CachedStreams)
 			{
 				HashSet<TemplateRefId> Templates = new HashSet<TemplateRefId>(CachedStream.Templates.Where(x => x.Value.ShowUgsAlerts).Select(x => x.Key));
@@ -540,7 +540,7 @@ namespace HordeServer.Services.Impl
 			Scope.Span.SetTag("BatchId", BatchId.ToString());
 			Scope.Span.SetTag("StepId", StepId.ToString());
 
-			IStream? Stream = await Streams.GetAsync(Job.StreamId);
+			IStream? Stream = await Streams.GetStreamAsync(Job.StreamId);
 			if (Stream == null)
 			{
 				throw new Exception($"Invalid stream id '{Job.StreamId}' on job '{Job.Id}'");
@@ -1027,12 +1027,16 @@ namespace HordeServer.Services.Impl
 			{
 				if (!NextFixStreamIds.ContainsKey(Span.StreamId))
 				{
-					bool ContainsFix;
+					bool ContainsFix = false;
 					if (PrevFixStreamIds == null || !PrevFixStreamIds.TryGetValue(Span.StreamId, out ContainsFix))
 					{
-						Logger.LogInformation("Querying fix changelist {FixChange} for issue {IssueId} in {StreamId} (prev={HavePrev})", FixChange, IssueId, Span.StreamId, PrevFixStreamIds != null);
-						List<ChangeSummary> Changes = await Perforce.GetChangesAsync(Span.StreamName, FixChange, FixChange, 1, null);
-						ContainsFix = Changes.Count > 0;
+						IStream? Stream = await Streams.GetCachedStream(Span.StreamId);
+						if (Stream != null)
+						{
+							Logger.LogInformation("Querying fix changelist {FixChange} for issue {IssueId} in {StreamId} (prev={HavePrev})", FixChange, IssueId, Span.StreamId, PrevFixStreamIds != null);
+							List<ChangeSummary> Changes = await Perforce.GetChangesAsync(Stream.ClusterName, Span.StreamName, FixChange, FixChange, 1, null);
+							ContainsFix = Changes.Count > 0;
+						}
 					}
 					NextFixStreamIds[Span.StreamId] = ContainsFix;
 				}
@@ -1065,7 +1069,7 @@ namespace HordeServer.Services.Impl
 				Logger.LogDebug("Querying for changes in {StreamName} between {MinChange} and {MaxChange}", Stream.Name, MinChange, MaxChange);
 
 				// Get the submitted changes before this job
-				List<ChangeDetails> Changes = await PerforceServiceExtensions.GetChangeDetailsAsync(Perforce, Stream.Name, MinChange, MaxChange, MaxChanges, null);
+				List<ChangeDetails> Changes = await PerforceServiceExtensions.GetChangeDetailsAsync(Perforce, Stream.ClusterName, Stream.Name, MinChange, MaxChange, MaxChanges, null);
 				Logger.LogDebug("Found {NumResults} changes", Changes.Count);
 
 				// Get the handler to rank them

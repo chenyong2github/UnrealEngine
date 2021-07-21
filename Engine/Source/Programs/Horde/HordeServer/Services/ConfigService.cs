@@ -17,6 +17,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -30,6 +31,9 @@ namespace HordeServer.Services
 	/// </summary>
 	public class ConfigService : ElectedBackgroundService
 	{
+		const string FileScheme = "file";
+		const string PerforceScheme = "p4-cluster";
+
 		/// <summary>
 		/// Config file version number
 		/// </summary>
@@ -97,13 +101,13 @@ namespace HordeServer.Services
 		Dictionary<ProjectId, ProjectConfig> CachedProjectConfigs = new Dictionary<ProjectId, ProjectConfig>();
 		Dictionary<ProjectId, string?> CachedLogoRevisions = new Dictionary<ProjectId, string?>();
 
-		async Task UpdateConfigAsync(string ConfigPath)
+		async Task UpdateConfigAsync(Uri ConfigPath)
 		{
 			// Update the globals singleton
 			GlobalConfig GlobalConfig;
 			for (; ; )
 			{
-				Dictionary<string, string> GlobalRevisions = await FindRevisionsAsync(new[] { ConfigPath });
+				Dictionary<Uri, string> GlobalRevisions = await FindRevisionsAsync(new[] { ConfigPath });
 				if (GlobalRevisions.Count == 0)
 				{
 					throw new Exception($"Invalid config path: {ConfigPath}");
@@ -146,24 +150,24 @@ namespace HordeServer.Services
 			List<IProject> Projects = await ProjectService.GetProjectsAsync();
 
 			// Get the path to all the project configs
-			List<(ProjectConfigRef ProjectRef, string Path)> ProjectConfigs = GlobalConfig.Projects.Select(x => (x, CombinePaths(ConfigPath, x.Path))).ToList();
+			List<(ProjectConfigRef ProjectRef, Uri Path)> ProjectConfigs = GlobalConfig.Projects.Select(x => (x, CombinePaths(ConfigPath, x.Path))).ToList();
 
 			Dictionary<ProjectId, ProjectConfig> PrevCachedProjectConfigs = CachedProjectConfigs;
 			CachedProjectConfigs = new Dictionary<ProjectId, ProjectConfig>();
 
-			List<(ProjectId ProjectId, string Path)> ProjectLogos = new List<(ProjectId ProjectId, string Path)>();
+			List<(ProjectId ProjectId, Uri Path)> ProjectLogos = new List<(ProjectId ProjectId, Uri Path)>();
 
-			List<(ProjectId ProjectId, StreamConfigRef StreamRef, string Path)> StreamConfigs = new List<(ProjectId, StreamConfigRef, string)>();
+			List<(ProjectId ProjectId, StreamConfigRef StreamRef, Uri Path)> StreamConfigs = new List<(ProjectId, StreamConfigRef, Uri)>();
 
 			// List of project ids that were not able to be updated. We will avoid removing any existing project or stream definitions for these.
 			HashSet<ProjectId> SkipProjectIds = new HashSet<ProjectId>();
 
 			// Update any existing projects
-			Dictionary<string, string> ProjectRevisions = await FindRevisionsAsync(ProjectConfigs.Select(x => x.Path));
+			Dictionary<Uri, string> ProjectRevisions = await FindRevisionsAsync(ProjectConfigs.Select(x => x.Path));
 			for (int Idx = 0; Idx < ProjectConfigs.Count; Idx++)
 			{
 				// Make sure we were able to fetch metadata for 
-				(ProjectConfigRef ProjectRef, string ProjectPath) = ProjectConfigs[Idx];
+				(ProjectConfigRef ProjectRef, Uri ProjectPath) = ProjectConfigs[Idx];
 				if (!ProjectRevisions.TryGetValue(ProjectPath, out string? Revision))
 				{
 					Logger.LogWarning("Unable to update project {ProjectId} due to missing revision information", ProjectRef.Id);
@@ -172,7 +176,7 @@ namespace HordeServer.Services
 				}
 
 				IProject? Project = Projects.FirstOrDefault(x => x.Id == ProjectRef.Id);
-				bool Update = (Project == null || Project.ConfigPath != ConfigPath || Project.ConfigRevision != Revision);
+				bool Update = (Project == null || Project.ConfigPath != ProjectPath.ToString() || Project.ConfigRevision != Revision);
 
 				ProjectConfig? ProjectConfig;
 				if (Update || !PrevCachedProjectConfigs.TryGetValue(ProjectRef.Id, out ProjectConfig))
@@ -187,7 +191,7 @@ namespace HordeServer.Services
 					if (Update)
 					{
 						Logger.LogInformation("Updating configuration for project {ProjectId} ({Revision})", ProjectRef.Id, Revision);
-						await ProjectService.Collection.AddOrUpdateAsync(ProjectRef.Id, ProjectPath, Revision, Idx, ProjectConfig);
+						await ProjectService.Collection.AddOrUpdateAsync(ProjectRef.Id, ProjectPath.ToString(), Revision, Idx, ProjectConfig);
 					}
 				}
 
@@ -201,10 +205,10 @@ namespace HordeServer.Services
 			}
 
 			// Get the logo revisions
-			Dictionary<string, string> LogoRevisions = await FindRevisionsAsync(ProjectLogos.Select(x => x.Path));
+			Dictionary<Uri, string> LogoRevisions = await FindRevisionsAsync(ProjectLogos.Select(x => x.Path));
 			for (int Idx = 0; Idx < ProjectLogos.Count; Idx++)
 			{
-				(ProjectId ProjectId, string Path) = ProjectLogos[Idx];
+				(ProjectId ProjectId, Uri Path) = ProjectLogos[Idx];
 				if (LogoRevisions.TryGetValue(Path, out string? Revision))
 				{
 					string? CurrentRevision;
@@ -216,7 +220,7 @@ namespace HordeServer.Services
 					if (Revision != CurrentRevision)
 					{
 						Logger.LogInformation("Updating logo for project {ProjectId} ({Revision})", ProjectId, Revision);
-						await ProjectService.Collection.SetLogoAsync(ProjectId, Path, Revision, GetMimeTypeFromPath(Path), await ReadDataAsync(Path));
+						await ProjectService.Collection.SetLogoAsync(ProjectId, Path.ToString(), Revision, GetMimeTypeFromPath(Path), await ReadDataAsync(Path));
 						CachedLogoRevisions[ProjectId] = Revision;
 					}
 				}
@@ -226,23 +230,23 @@ namespace HordeServer.Services
 			List<IStream> Streams = await StreamService.GetStreamsAsync();
 
 			// Get the revisions for all the stream documents
-			Dictionary<string, string> StreamRevisions = await FindRevisionsAsync(StreamConfigs.Select(x => x.Path));
+			Dictionary<Uri, string> StreamRevisions = await FindRevisionsAsync(StreamConfigs.Select(x => x.Path));
 			for (int Idx = 0; Idx < StreamConfigs.Count; Idx++)
 			{
-				(ProjectId ProjectId, StreamConfigRef StreamRef, string Path) = StreamConfigs[Idx];
-				if (StreamRevisions.TryGetValue(Path, out string? Revision))
+				(ProjectId ProjectId, StreamConfigRef StreamRef, Uri StreamPath) = StreamConfigs[Idx];
+				if (StreamRevisions.TryGetValue(StreamPath, out string? Revision))
 				{
 					IStream? Stream = Streams.FirstOrDefault(x => x.Id == StreamRef.Id);
-					if (Stream == null || Stream.ConfigPath != Path || Stream.ConfigRevision != Revision)
+					if (Stream == null || Stream.ConfigPath != StreamPath.ToString() || Stream.ConfigRevision != Revision)
 					{
 						Logger.LogInformation("Updating configuration for stream {StreamRef} ({Revision})", StreamRef.Id, Revision);
 
-						StreamConfig? StreamConfig = await ReadDataAsync<StreamConfig>(Path);
+						StreamConfig? StreamConfig = await ReadDataAsync<StreamConfig>(StreamPath);
 						if (StreamConfig != null)
 						{
 							for (; ; )
 							{
-								Stream = await StreamService.StreamCollection.TryCreateOrReplaceAsync(StreamRef.Id, Stream, Path, Revision, ProjectId, StreamConfig);
+								Stream = await StreamService.StreamCollection.TryCreateOrReplaceAsync(StreamRef.Id, Stream, StreamPath.ToString(), Revision, ProjectId, StreamConfig);
 
 								if (Stream != null)
 								{
@@ -279,59 +283,64 @@ namespace HordeServer.Services
 
 		static FileExtensionContentTypeProvider ContentTypeProvider = new FileExtensionContentTypeProvider();
 
-		static string GetMimeTypeFromPath(string Path)
+		static string GetMimeTypeFromPath(Uri Path)
 		{
 			string ContentType;
-			if (!ContentTypeProvider.TryGetContentType(Path, out ContentType))
+			if (!ContentTypeProvider.TryGetContentType(Path.AbsolutePath, out ContentType))
 			{
 				ContentType = "application/octet-stream";
 			}
 			return ContentType;
 		}
 
-		static string CombinePaths(string BasePath, string RelativePath)
+		static Uri CombinePaths(Uri BaseUri, string Path)
 		{
-			// Handle Perforce paths
-			if (RelativePath.StartsWith("//", StringComparison.Ordinal))
+			if (Path.StartsWith("//", StringComparison.Ordinal))
 			{
-				return RelativePath;
+				if (BaseUri.Scheme == PerforceScheme)
+				{
+					return new Uri($"{PerforceScheme}://{BaseUri.Host}{Path}");
+				}
+				else
+				{
+					return new Uri($"{PerforceScheme}://{PerforceCluster.DefaultName}{Path}");
+				}
 			}
-			if (BasePath.StartsWith("//", StringComparison.Ordinal))
-			{
-				return BasePath.Substring(0, BasePath.LastIndexOf('/') + 1) + RelativePath;
-			}
-
-			// Handle filesystem paths
-			return Path.GetFullPath(Path.Combine(Path.GetDirectoryName(BasePath)!, RelativePath));
+			return new Uri(BaseUri, Path);
 		}
 
-		async Task<Dictionary<string, string>> FindRevisionsAsync(IEnumerable<string> Paths)
+		async Task<Dictionary<Uri, string>> FindRevisionsAsync(IEnumerable<Uri> Paths)
 		{
-			Dictionary<string, string> Revisions = new Dictionary<string, string>();
+			Dictionary<Uri, string> Revisions = new Dictionary<Uri, string>();
 
 			// Find all the Perforce uris
-			List<string> PerforcePaths = new List<string>();
-			foreach (string Path in Paths)
+			List<Uri> PerforcePaths = new List<Uri>();
+			foreach (Uri Path in Paths)
 			{
-				if (Path.StartsWith("//", StringComparison.Ordinal))
+				if (Path.Scheme == FileScheme)
+				{
+					Revisions[Path] = $"ver={Version},md5={ContentHash.MD5(new FileReference(Path.LocalPath))}";
+				}
+				else if (Path.Scheme == PerforceScheme)
 				{
 					PerforcePaths.Add(Path);
 				}
 				else
 				{
-					Revisions[Path] = $"ver={Version},md5={ContentHash.MD5(new FileReference(Path))}";
+					throw new Exception($"Invalid path format: {Path}");
 				}
 			}
 
 			// Query all the Perforce revisions
-			if (PerforcePaths.Count > 0)
+			foreach (IGrouping<string, Uri> PerforcePath in PerforcePaths.GroupBy(x => x.Host, StringComparer.OrdinalIgnoreCase))
 			{
-				List<FileSummary> Files = await PerforceService.FindFilesAsync(PerforcePaths);
+				List<FileSummary> Files = await PerforceService.FindFilesAsync(PerforcePath.Key, PerforcePath.Select(x => x.AbsolutePath));
 				foreach (FileSummary File in Files)
 				{
+					Uri FileUri = new Uri($"{PerforceScheme}://{PerforcePath.Key}{File.DepotPath}");
 					if (File.Error == null)
 					{
-						Revisions[File.DepotPath] = $"ver={Version},p4={File.DepotPath}@{File.Change}";
+						Revisions[FileUri] = $"ver={Version},chg={File.Change},path={FileUri}";
 					}
 					else
 					{
@@ -343,7 +352,7 @@ namespace HordeServer.Services
 			return Revisions;
 		}
 
-		async Task<T?> ReadDataAsync<T>(string ConfigPath) where T : class
+		async Task<T?> ReadDataAsync<T>(Uri ConfigPath) where T : class
 		{
 			try
 			{
@@ -361,15 +370,16 @@ namespace HordeServer.Services
 			}
 		}
 
-		Task<byte[]> ReadDataAsync(string ConfigPath)
+		Task<byte[]> ReadDataAsync(Uri ConfigPath)
 		{
-			if (ConfigPath.StartsWith("//", StringComparison.Ordinal))
+			switch(ConfigPath.Scheme)
 			{
-				return PerforceService.PrintAsync(ConfigPath);
-			}
-			else
-			{
-				return File.ReadAllBytesAsync(ConfigPath);
+				case FileScheme:
+					return File.ReadAllBytesAsync(ConfigPath.AbsolutePath);
+				case PerforceScheme:
+					return PerforceService.PrintAsync(ConfigPath.Host, ConfigPath.AbsolutePath);
+				default:
+					throw new Exception($"Invalid config path: {ConfigPath}");
 			}
 		}
 
@@ -378,7 +388,8 @@ namespace HordeServer.Services
 		{
 			if (Settings.ConfigPath != null)
 			{
-				await UpdateConfigAsync(Settings.ConfigPath);
+				Uri ConfigUri = CombinePaths(new Uri(FileReference.Combine(Program.DataDir, "_").FullName), Settings.ConfigPath);
+				await UpdateConfigAsync(ConfigUri);
 			}
 			return DateTime.UtcNow + TimeSpan.FromMinutes(1.0);
 		}

@@ -281,7 +281,7 @@ namespace HordeServer.Services
 				}
 				else
 				{
-					(Change, CodeChange) = await GetNextChangeAsync(Stream.Name, MinChangeNumber, MaxChangeNumber);
+					(Change, CodeChange) = await GetNextChangeAsync(Stream.ClusterName, Stream.Name, MinChangeNumber, MaxChangeNumber);
 				}
 
 				// Quit if we didn't find anything
@@ -295,7 +295,7 @@ namespace HordeServer.Services
 				}
 
 				// Adjust the changelist for the desired filter
-				if(await ShouldBuildChangeAsync(Stream.Name, Change, FilterFlags))
+				if(await ShouldBuildChangeAsync(Stream.ClusterName, Stream.Name, Change, FilterFlags))
 				{
 					TriggerChanges.Add((Change, CodeChange));
 				}
@@ -340,7 +340,7 @@ namespace HordeServer.Services
 			if (Template.SubmitNewChange != null)
 			{
 				int NewChange = await Perforce.CreateNewChangeForTemplateAsync(Stream, Template);
-				int NewCodeChange = await Perforce.GetCodeChangeAsync(Stream.Name, NewChange);
+				int NewCodeChange = await Perforce.GetCodeChangeAsync(Stream.ClusterName, Stream.Name, NewChange);
 				TriggerChanges = new List<(int, int)> { (NewChange, NewCodeChange) };
 			}
 
@@ -348,7 +348,7 @@ namespace HordeServer.Services
 			foreach ((int Change, int CodeChange) in TriggerChanges.OrderBy(x => x.Change))
 			{
 				List<string> DefaultArguments = Template.GetDefaultArguments();
-				IJob NewJob = await JobService.CreateJobAsync(null, Stream.Id, TemplateRefId, Template.Id, Graph, Template.Name, Change, CodeChange, null, null, null, null, Template.Priority, null, null, TemplateRef.ChainedJobs, TemplateRef.ShowUgsBadges, TemplateRef.ShowUgsAlerts, TemplateRef.NotificationChannel, TemplateRef.NotificationChannelFilter, null, Template.Counters, DefaultArguments);
+				IJob NewJob = await JobService.CreateJobAsync(null, Stream, TemplateRefId, Template.Id, Graph, Template.Name, Change, CodeChange, null, null, null, null, Template.Priority, null, null, TemplateRef.ChainedJobs, TemplateRef.ShowUgsBadges, TemplateRef.ShowUgsAlerts, TemplateRef.NotificationChannel, TemplateRef.NotificationChannelFilter, null, Template.Counters, DefaultArguments);
 				Logger.LogInformation("Started new job for {StreamName} template {TemplateName} at CL {Change} (Code CL {CodeChange}): {JobId}", Stream.Id, TemplateRef.Name, Change, CodeChange, NewJob.Id);
 				await StreamService.UpdateScheduleTriggerAsync(Stream, TemplateRefId, Now, Change, new List<ObjectId> { NewJob.Id }, new List<ObjectId>());
 			}
@@ -357,15 +357,16 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Tests whether a schedule should build a particular change, based on its requested change filters
 		/// </summary>
+		/// <param name="ClusterName"></param>
 		/// <param name="StreamName"></param>
 		/// <param name="Change"></param>
 		/// <param name="FilterFlags"></param>
 		/// <returns></returns>
-		private async Task<bool> ShouldBuildChangeAsync(string StreamName, int Change, ChangeContentFlags? FilterFlags)
+		private async Task<bool> ShouldBuildChangeAsync(string ClusterName, string StreamName, int Change, ChangeContentFlags? FilterFlags)
 		{
 			if (FilterFlags != null && FilterFlags.Value != 0)
 			{
-				ChangeDetails Details = await Perforce.GetChangeDetailsAsync(StreamName, Change, null);
+				ChangeDetails Details = await Perforce.GetChangeDetailsAsync(ClusterName, StreamName, Change, null);
 				if ((Details.GetContentFlags() & FilterFlags.Value) == 0)
 				{
 					Logger.LogDebug("Not building change {Change} ({ChangeFlags}) due to filter flags ({FilterFlags})", Change, Details.GetContentFlags().ToString(), FilterFlags.Value.ToString());
@@ -379,13 +380,13 @@ namespace HordeServer.Services
 		/// Get the next change to build in this stream, between a given range
 		/// </summary>
 		/// <returns>The new change and code change to build, or 0.</returns>
-		private async Task<(int Change, int CodeChange)> GetNextChangeAsync(string StreamName, int? MinChange, int? MaxChange)
+		private async Task<(int Change, int CodeChange)> GetNextChangeAsync(string ClusterName, string StreamName, int? MinChange, int? MaxChange)
 		{
-			List<ChangeSummary> Changes = await Perforce.GetChangesAsync(StreamName, MinChange, MaxChange, 1, null);
+			List<ChangeSummary> Changes = await Perforce.GetChangesAsync(ClusterName, StreamName, MinChange, MaxChange, 1, null);
 			if (Changes.Count > 0)
 			{
 				int Change = Changes[0].Number;
-				int CodeChange = await Perforce.GetCodeChangeAsync(StreamName, Change);
+				int CodeChange = await Perforce.GetCodeChangeAsync(ClusterName, StreamName, Change);
 				return (Change, CodeChange);
 			}
 			return default;
