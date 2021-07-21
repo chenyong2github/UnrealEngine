@@ -244,6 +244,11 @@ PyTypeObject InitializePyWrapperTextType()
 			return PyUnicode_FromString(TCHAR_TO_UTF8(*InSelf->Value.ToString()));
 		}
 
+		static PyObject* Repr(FPyWrapperText* InSelf)
+		{
+			return PyUnicode_FromString(TCHAR_TO_UTF8(*FString::Printf(TEXT("Text(\"%s\")"), *InSelf->Value.ToString())));
+		}
+
 		static PyObject* RichCmp(FPyWrapperText* InSelf, PyObject* InOther, int InOp)
 		{
 			FText Other;
@@ -469,6 +474,7 @@ PyTypeObject InitializePyWrapperTextType()
 
 	PyType.tp_init = (initproc)&FFuncs::Init;
 	PyType.tp_str = (reprfunc)&FFuncs::Str;
+	PyType.tp_repr = (reprfunc)&FFuncs::Repr;
 	PyType.tp_richcompare = (richcmpfunc)&FFuncs::RichCmp;
 	PyType.tp_hash = (hashfunc)&FFuncs::Hash;
 

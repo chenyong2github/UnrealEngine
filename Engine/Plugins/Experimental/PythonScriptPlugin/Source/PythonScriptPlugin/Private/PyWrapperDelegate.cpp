@@ -774,6 +774,7 @@ PyTypeObject InitializePyWrapperDelegateType()
 	PyType.tp_dealloc = (destructor)&FFuncs::Dealloc;
 	PyType.tp_init = (initproc)&FFuncs::Init;
 	PyType.tp_str = (reprfunc)&FFuncs::Str;
+	PyType.tp_repr = (reprfunc)&FFuncs::Str;
 	PyType.tp_call = (ternaryfunc)&FFuncs::Call;
 
 	PyType.tp_methods = PyMethods;
@@ -1202,6 +1203,7 @@ PyTypeObject InitializePyWrapperMulticastDelegateType()
 	PyType.tp_dealloc = (destructor)&FFuncs::Dealloc;
 	PyType.tp_init = (initproc)&FFuncs::Init;
 	PyType.tp_str = (reprfunc)&FFuncs::Str;
+	PyType.tp_repr = (reprfunc)&FFuncs::Str;
 	PyType.tp_call = (ternaryfunc)&FFuncs::Call;
 
 	PyType.tp_methods = PyMethods;

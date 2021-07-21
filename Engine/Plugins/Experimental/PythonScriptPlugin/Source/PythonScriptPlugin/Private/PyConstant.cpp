@@ -155,6 +155,7 @@ PyTypeObject InitializePyConstantDescrType()
 
 	PyType.tp_dealloc = (destructor)&FFuncs::Dealloc;
 	PyType.tp_str = (reprfunc)&FFuncs::Str;
+	PyType.tp_repr = (reprfunc)&FFuncs::Str;
 	PyType.tp_descr_get = (descrgetfunc)&FFuncs::DescrGet;
 	PyType.tp_descr_set = (descrsetfunc)&FFuncs::DescrSet;
 	PyType.tp_getattro = (getattrofunc)&PyObject_GenericGetAttr;
