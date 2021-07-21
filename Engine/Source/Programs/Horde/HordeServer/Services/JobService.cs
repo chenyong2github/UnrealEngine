@@ -212,7 +212,7 @@ namespace HordeServer.Services
 		/// Creates a new job
 		/// </summary>
 		/// <param name="JobId">A requested job id</param>
-		/// <param name="StreamId">Unique id of the stream that this job belongs to</param>
+		/// <param name="Stream">The stream that this job belongs to</param>
 		/// <param name="TemplateRefId">Name of the template ref</param>
 		/// <param name="TemplateHash">Template for this job</param>
 		/// <param name="Graph">The graph for the new job</param>
@@ -235,14 +235,14 @@ namespace HordeServer.Services
 		/// <param name="Counters">Counters for the job</param>
 		/// <param name="Arguments">Arguments for the job</param>
 		/// <returns>Unique id representing the job</returns>
-		public async Task<IJob> CreateJobAsync(ObjectId? JobId, StreamId StreamId, TemplateRefId TemplateRefId, ContentHash TemplateHash, IGraph Graph, string Name, int Change, int CodeChange, int? PreflightChange, int? ClonedPreflightChange, ObjectId? StartedByUserId, string? StartedByUserName, Priority? Priority, bool? AutoSubmit, bool? UpdateIssues, List<ChainedJobTemplate>? JobTriggers, bool ShowUgsBadges, bool ShowUgsAlerts, string? NotificationChannel, string? NotificationChannelFilter, string? HelixSwarmCallbackUrl, IReadOnlyList<ITemplateCounter> Counters, IReadOnlyList<string> Arguments)
+		public async Task<IJob> CreateJobAsync(ObjectId? JobId, IStream Stream, TemplateRefId TemplateRefId, ContentHash TemplateHash, IGraph Graph, string Name, int Change, int CodeChange, int? PreflightChange, int? ClonedPreflightChange, ObjectId? StartedByUserId, string? StartedByUserName, Priority? Priority, bool? AutoSubmit, bool? UpdateIssues, List<ChainedJobTemplate>? JobTriggers, bool ShowUgsBadges, bool ShowUgsAlerts, string? NotificationChannel, string? NotificationChannelFilter, string? HelixSwarmCallbackUrl, IReadOnlyList<ITemplateCounter> Counters, IReadOnlyList<string> Arguments)
 		{
 			ObjectId JobIdValue = JobId ?? ObjectId.GenerateNewId();
 			using IDisposable Scope = Logger.BeginScope("CreateJobAsync({JobId})", JobIdValue);
 
-			if (PreflightChange != null && ShouldClonePreflightChange(StreamId))
+			if (PreflightChange != null && ShouldClonePreflightChange(Stream.Id))
 			{
-				ClonedPreflightChange = await CloneShelvedChangeAsync(ClonedPreflightChange ?? PreflightChange.Value);
+				ClonedPreflightChange = await CloneShelvedChangeAsync(Stream.ClusterName, ClonedPreflightChange ?? PreflightChange.Value);
 			}
 
 			Logger.LogInformation("Creating job at CL {Change}, code CL {CodeChange}, preflight CL {PreflightChange}, cloned CL {ClonedPreflightChange}", Change, CodeChange, PreflightChange, ClonedPreflightChange);
@@ -252,7 +252,7 @@ namespace HordeServer.Services
 			Properties["CodeChange"] = CodeChange.ToString(CultureInfo.InvariantCulture);
 			Properties["PreflightChange"] = PreflightChange?.ToString(CultureInfo.InvariantCulture) ?? String.Empty;
 			Properties["ClonedPreflightChange"] = ClonedPreflightChange?.ToString(CultureInfo.InvariantCulture) ?? String.Empty;
-			Properties["StreamId"] = StreamId.ToString();
+			Properties["StreamId"] = Stream.Id.ToString();
 			Properties["TemplateId"] = TemplateRefId.ToString();
 			Properties["JobId"] = JobIdValue.ToString();
 
@@ -276,7 +276,7 @@ namespace HordeServer.Services
 
 			Name = StringUtils.ExpandProperties(Name, Properties);
 
-			IJob NewJob = await Jobs.AddAsync(JobIdValue, StreamId, TemplateRefId, TemplateHash, Graph, Name, Change, CodeChange, PreflightChange, ClonedPreflightChange, StartedByUserId, StartedByUserName, Priority, AutoSubmit, UpdateIssues, JobTriggers, ShowUgsBadges, ShowUgsAlerts, NotificationChannel, NotificationChannelFilter, HelixSwarmCallbackUrl, ExpandedArguments);
+			IJob NewJob = await Jobs.AddAsync(JobIdValue, Stream.Id, TemplateRefId, TemplateHash, Graph, Name, Change, CodeChange, PreflightChange, ClonedPreflightChange, StartedByUserId, StartedByUserName, Priority, AutoSubmit, UpdateIssues, JobTriggers, ShowUgsBadges, ShowUgsAlerts, NotificationChannel, NotificationChannelFilter, HelixSwarmCallbackUrl, ExpandedArguments);
 			JobTaskSource.UpdateQueuedJob(NewJob, Graph);
 
 			await JobTaskSource.UpdateUgsBadges(NewJob, Graph, new List<(LabelState, LabelOutcome)>());
@@ -896,7 +896,11 @@ namespace HordeServer.Services
 							}
 							else if (Job.ClonedPreflightChange != 0)
 							{
-								await DeleteShelvedChangeAsync(Job.ClonedPreflightChange);
+								IStream? Stream = await StreamService.GetCachedStream(Job.StreamId);
+								if (Stream != null)
+								{
+									await DeleteShelvedChangeAsync(Stream.ClusterName, Job.ClonedPreflightChange);
+								}
 							}
 						}
 					}
@@ -979,58 +983,56 @@ namespace HordeServer.Services
 			string Message;
 			try
 			{
-				int ClonedPreflightChange = Job.ClonedPreflightChange;
-				if (ClonedPreflightChange == 0)
+				IStream? Stream = await StreamService.GetCachedStream(Job.StreamId);
+				if (Stream != null)
 				{
+					int ClonedPreflightChange = Job.ClonedPreflightChange;
+					if (ClonedPreflightChange == 0)
+					{
+						if (ShouldClonePreflightChange(Job.StreamId))
+						{
+							ClonedPreflightChange = await CloneShelvedChangeAsync(Stream.ClusterName, Job.PreflightChange);
+						}
+						else
+						{
+							ClonedPreflightChange = Job.PreflightChange;
+						}
+					}
+
+					Logger.LogInformation("Updating description for {ClonedPreflightChange}", ClonedPreflightChange);
+
+					ChangeDetails Details = await PerforceService.GetChangeDetailsAsync(Stream.ClusterName, Stream.Name, ClonedPreflightChange, null);
+					await PerforceService.UpdateChangelistDescription(Stream.ClusterName, ClonedPreflightChange, Details.Description.TrimEnd() + $"\n#preflight {Job.Id}");
+
+					Logger.LogInformation("Submitting change {Change} (through {ChangeCopy}) after successful completion of {JobId}", Job.PreflightChange, ClonedPreflightChange, Job.Id);
+					(Change, Message) = await PerforceService.SubmitShelvedChangeAsync(Stream.ClusterName, ClonedPreflightChange, Job.PreflightChange);
+
+					Logger.LogInformation("Attempt to submit {Change} (through {ChangeCopy}): {Message}", Job.PreflightChange, ClonedPreflightChange, Message);
+
 					if (ShouldClonePreflightChange(Job.StreamId))
 					{
-						ClonedPreflightChange = await CloneShelvedChangeAsync(Job.PreflightChange);
+						if (Change != null && Job.ClonedPreflightChange != 0)
+						{
+							await DeleteShelvedChangeAsync(Stream.ClusterName, Job.PreflightChange);
+						}
 					}
 					else
 					{
-						ClonedPreflightChange = Job.PreflightChange;
+						if (Change != null && Job.PreflightChange != 0)
+						{
+							await DeleteShelvedChangeAsync(Stream.ClusterName, Job.PreflightChange);
+						}
 					}
 				}
-
-				Logger.LogInformation("Updating description for {ClonedPreflightChange}", ClonedPreflightChange);
-				try
+				else
 				{
-					IStream? Stream = await StreamService.GetCachedStream(Job.StreamId);
-					if (Stream != null)
-					{
-						ChangeDetails Details = await PerforceService.GetChangeDetailsAsync(Stream.Name, ClonedPreflightChange, null);
-						await PerforceService.UpdateChangelistDescription(ClonedPreflightChange, Details.Description.TrimEnd() + $"\n#preflight {Job.Id}");
-					}
+					(Change, Message) = ((int?)null, "Stream not found");
 				}
-				catch (Exception Ex)
-				{
-					Logger.LogError(Ex, "Unable to update description for changelist {Change}", ClonedPreflightChange);
-				}
-
-				Logger.LogInformation("Submitting change {Change} (through {ChangeCopy}) after successful completion of {JobId}", Job.PreflightChange, ClonedPreflightChange, Job.Id);
-				(Change, Message) = await PerforceService.SubmitShelvedChangeAsync(ClonedPreflightChange, Job.PreflightChange);
-
-				Logger.LogInformation("Attempt to submit {Change} (through {ChangeCopy}): {Message}", Job.PreflightChange, ClonedPreflightChange, Message);
 			}
 			catch (Exception Ex)
 			{
 				(Change, Message) = ((int?)null, "Internal error");
 				Logger.LogError(Ex, "Unable to submit shelved change");
-			}
-
-			if (ShouldClonePreflightChange(Job.StreamId))
-			{
-				if (Change != null && Job.ClonedPreflightChange != 0)
-				{
-					await DeleteShelvedChangeAsync(Job.PreflightChange);
-				}
-			}
-			else
-			{
-				if (Change != null && Job.PreflightChange != 0)
-				{
-					await DeleteShelvedChangeAsync(Job.PreflightChange);
-				}
 			}
 
 			for (; ; )
@@ -1053,14 +1055,15 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Clone a shelved changelist for running a preflight
 		/// </summary>
+		/// <param name="ClusterName">Name of the Perforce cluster</param>
 		/// <param name="Change">The changelist to clone</param>
 		/// <returns></returns>
-		private async Task<int> CloneShelvedChangeAsync(int Change)
+		private async Task<int> CloneShelvedChangeAsync(string ClusterName, int Change)
 		{
 			int ClonedChange;
 			try
 			{
-				ClonedChange = await PerforceService.DuplicateShelvedChangeAsync(Change);
+				ClonedChange = await PerforceService.DuplicateShelvedChangeAsync(ClusterName, Change);
 				Logger.LogInformation("CL {Change} was duplicated into {ClonedChange}", Change, ClonedChange);
 			}
 			catch (Exception Ex)
@@ -1074,15 +1077,16 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Deletes a shelved changelist, catching and logging any exceptions
 		/// </summary>
+		/// <param name="ClusterName"></param>
 		/// <param name="Change">The changelist to delete</param>
 		/// <returns>True if the change was deleted successfully, false otherwise</returns>
 		[SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "<Pending>")]
-		private async Task<bool> DeleteShelvedChangeAsync(int Change)
+		private async Task<bool> DeleteShelvedChangeAsync(string ClusterName, int Change)
 		{
 			Logger.LogInformation("Removing shelf {Change}", Change);
 			try
 			{
-				await PerforceService.DeleteShelvedChangeAsync(Change);
+				await PerforceService.DeleteShelvedChangeAsync(ClusterName, Change);
 				return true;
 			}
 			catch (Exception Ex)
@@ -1131,7 +1135,7 @@ namespace HordeServer.Services
 					IGraph TriggerGraph = await Graphs.AddAsync(Template);
 					Logger.LogInformation("Creating downstream job {ChainedJobId} from job {JobId}", ChainedJobId, Job.Id);
 
-					await CreateJobAsync(ChainedJobId, Job.StreamId, JobTrigger.TemplateRefId, TemplateRef.Hash, TriggerGraph, TemplateRef.Name, Job.Change, Job.CodeChange, Job.PreflightChange, Job.ClonedPreflightChange, Job.StartedByUserId, Job.StartedByUser, Template.Priority, null, Job.UpdateIssues, TemplateRef.ChainedJobs, false, false, TemplateRef.NotificationChannel, TemplateRef.NotificationChannelFilter, null, Template.Counters, Template.Arguments);
+					await CreateJobAsync(ChainedJobId, Stream, JobTrigger.TemplateRefId, TemplateRef.Hash, TriggerGraph, TemplateRef.Name, Job.Change, Job.CodeChange, Job.PreflightChange, Job.ClonedPreflightChange, Job.StartedByUserId, Job.StartedByUser, Template.Priority, null, Job.UpdateIssues, TemplateRef.ChainedJobs, false, false, TemplateRef.NotificationChannel, TemplateRef.NotificationChannelFilter, null, Template.Counters, Template.Arguments);
 					break;
 				}
 

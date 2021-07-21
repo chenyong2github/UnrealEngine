@@ -41,6 +41,7 @@ namespace HordeServer.Collections.Impl
 			[BsonRequired]
 			public string Name { get; set; }
 
+			public string? ClusterName { get; set; }
 			public string ConfigPath { get; set; } = String.Empty;
 			public string ConfigRevision { get; set; } = String.Empty;
 
@@ -60,6 +61,7 @@ namespace HordeServer.Collections.Impl
 			public int UpdateIndex { get; set; }
 			public bool Deleted { get; set; }
 
+			string IStream.ClusterName => ClusterName ?? PerforceCluster.DefaultName;
 			IReadOnlyList<StreamTab> IStream.Tabs => Tabs;
 			IReadOnlyDictionary<string, AgentType> IStream.AgentTypes => AgentTypes;
 			IReadOnlyDictionary<string, WorkspaceType> IStream.WorkspaceTypes => WorkspaceTypes;
@@ -204,6 +206,7 @@ namespace HordeServer.Collections.Impl
 		public async Task<IStream?> TryCreateAsync(StreamId Id, ProjectId ProjectId, string ConfigPath, string ConfigRevision, StreamConfig Config, DefaultPreflight? DefaultPreflight, List<StreamTab>? Tabs, Dictionary<string, AgentType>? AgentTypes, Dictionary<string, WorkspaceType>? WorkspaceTypes, Dictionary<TemplateRefId, TemplateRef>? TemplateRefs, Acl? Acl)
 		{
 			StreamDocument NewStream = new StreamDocument(Id, Config.Name, ProjectId);
+			NewStream.ClusterName = Config.ClusterName;
 			NewStream.ConfigPath = ConfigPath;
 			NewStream.ConfigRevision = ConfigRevision;
 			NewStream.Order = Config.Order ?? StreamDocument.DefaultOrder;
@@ -269,6 +272,9 @@ namespace HordeServer.Collections.Impl
 
 			Stream.ProjectId = ProjectId;
 			Updates.Add(UpdateBuilder.Set(x => x.ProjectId, Stream.ProjectId));
+
+			Stream.ClusterName = Config.ClusterName;
+			Updates.Add(UpdateBuilder.Set(x => x.ClusterName, Stream.ClusterName));
 
 			Stream.ConfigPath = ConfigPath;
 			Updates.Add(UpdateBuilder.Set(x => x.ConfigPath, Stream.ConfigPath));

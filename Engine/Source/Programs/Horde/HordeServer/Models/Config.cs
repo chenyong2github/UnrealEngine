@@ -141,6 +141,11 @@ namespace HordeServer.Models
 		public string Name { get; set; } = String.Empty;
 
 		/// <summary>
+		/// The perforce cluster containing the stream
+		/// </summary>
+		public string? ClusterName { get; set; }
+
+		/// <summary>
 		/// Order for this stream
 		/// </summary>
 		public int? Order { get; set; }

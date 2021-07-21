@@ -269,6 +269,16 @@ namespace HordeServer.Models
 		public string Name { get; set; } = null!;
 
 		/// <summary>
+		/// Username for Horde to log in to this server
+		/// </summary>
+		public string ServiceAccount { get; set; } = "buildmachine";
+
+		/// <summary>
+		/// Whether the service account can impersonate other users
+		/// </summary>
+		public bool CanImpersonate { get; set; } = true;
+
+		/// <summary>
 		/// List of servers
 		/// </summary>
 		public List<PerforceServer> Servers { get; set; } = new List<PerforceServer>();

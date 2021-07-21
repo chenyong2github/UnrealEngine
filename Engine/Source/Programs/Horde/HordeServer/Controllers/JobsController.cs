@@ -197,17 +197,17 @@ namespace HordeServer.Controllers
 			}
 			else
 			{
-				Change = await Perforce.GetLatestChangeAsync(Stream.Name, null);
+				Change = await Perforce.GetLatestChangeAsync(Stream.ClusterName, Stream.Name, null);
 			}
 
 			// And get the matching code changelist
-			int CodeChange = await Perforce.GetCodeChangeAsync(Stream.Name, Change);
+			int CodeChange = await Perforce.GetCodeChangeAsync(Stream.ClusterName, Stream.Name, Change);
 
 			// New properties for the job
 			List<string> Arguments = Create.Arguments ?? Template.GetDefaultArguments();
 
 			// Create the job
-			IJob Job = await JobService.CreateJobAsync(null, Stream.Id, TemplateRefId, Template.Id, Graph, Name, Change, CodeChange, Create.PreflightChange, null, User.GetUserId(), User.GetUserName(), Priority, Create.AutoSubmit, Create.UpdateIssues, TemplateRef.ChainedJobs, TemplateRef.ShowUgsBadges, TemplateRef.ShowUgsAlerts, TemplateRef.NotificationChannel, TemplateRef.NotificationChannelFilter, null, Template.Counters, Arguments);
+			IJob Job = await JobService.CreateJobAsync(null, Stream, TemplateRefId, Template.Id, Graph, Name, Change, CodeChange, Create.PreflightChange, null, User.GetUserId(), User.GetUserName(), Priority, Create.AutoSubmit, Create.UpdateIssues, TemplateRef.ChainedJobs, TemplateRef.ShowUgsBadges, TemplateRef.ShowUgsAlerts, TemplateRef.NotificationChannel, TemplateRef.NotificationChannelFilter, null, Template.Counters, Arguments);
 			await UpdateNotificationsAsync(Job.Id.ToString(), new UpdateNotificationsRequest { Slack = true });
 			return new CreateJobResponse(Job.Id.ToString());
 		}
@@ -226,7 +226,7 @@ namespace HordeServer.Controllers
 			if (Jobs.Count == 0)
 			{
 				Logger.LogInformation("Unable to find successful build of {TemplateRefId} target {Target}. Using latest change instead", TemplateId, Target);
-				return await Perforce.GetLatestChangeAsync(Stream.Name, null);
+				return await Perforce.GetLatestChangeAsync(Stream.ClusterName, Stream.Name, null);
 			}
 			else
 			{
