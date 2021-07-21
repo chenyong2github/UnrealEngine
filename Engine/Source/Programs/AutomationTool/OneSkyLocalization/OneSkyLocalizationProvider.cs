@@ -8,6 +8,7 @@ using UnrealBuildTool;
 using OneSky;
 using EpicGames.Localization;
 using EpicGames.OneSkyLocalization.Config;
+using System.Threading.Tasks;
 
 namespace EpicGames.OneSkyLocalization
 {
@@ -45,7 +46,7 @@ namespace EpicGames.OneSkyLocalization
 			return StaticGetLocalizationProviderId();
 		}
 
-		public override void DownloadProjectFromLocalizationProvider(string ProjectName, ProjectImportExportInfo ProjectImportInfo)
+		public async override Task DownloadProjectFromLocalizationProvider(string ProjectName, ProjectImportExportInfo ProjectImportInfo)
 		{
 			var OneSkyProject = GetOneSkyProject(ProjectName);
 			DownloadLatestPOFiles(OneSkyProject, null, ProjectImportInfo);
@@ -53,6 +54,8 @@ namespace EpicGames.OneSkyLocalization
 			{
 				DownloadLatestPOFiles(OneSkyProject, Platform, ProjectImportInfo);
 			}
+
+			await Task.CompletedTask;
 		}
 
 		private void DownloadLatestPOFiles(Project OneSkyProject, string Platform, ProjectImportExportInfo ProjectImportInfo)
@@ -193,7 +196,7 @@ namespace EpicGames.OneSkyLocalization
 			}
 		}
 
-		public override void UploadProjectToLocalizationProvider(string ProjectName, ProjectImportExportInfo ProjectExportInfo)
+		public async override Task UploadProjectToLocalizationProvider(string ProjectName, ProjectImportExportInfo ProjectExportInfo)
 		{
 			var OneSkyProject = GetOneSkyProject(ProjectName);
 
@@ -220,6 +223,8 @@ namespace EpicGames.OneSkyLocalization
 					}
 				}
 			}
+
+			await Task.CompletedTask;
 		}
 
 		private UploadedFile UploadOneSkyTranslationWithRetry(OneSky.Project OneSkyProject, string OneSkyFileName, string Culture, FileStream FileStream)
