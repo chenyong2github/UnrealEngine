@@ -11,6 +11,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Sound/SoundWave.h"
+#include "Async/Async.h"
 #include "Sound/SoundEffectBase.h"
 #include "DerivedDataCacheInterface.h"
 #include "ProfilingDebugging/CookStats.h"
@@ -560,7 +561,7 @@ public:
 			}
 			else
 			{
-				bSucceeded = DerivedData->AreDerivedChunksAvailable();
+				bSucceeded = DerivedData->AreDerivedChunksAvailable(SoundWave.GetPathName());
 			}
 			bLoadedFromDDC = true;
 		}
@@ -882,7 +883,7 @@ int32 FStreamedAudioPlatformData::GetChunkFromDDC(int32 ChunkIndex, uint8** OutC
 }
 
 #if WITH_EDITORONLY_DATA
-bool FStreamedAudioPlatformData::AreDerivedChunksAvailable() const
+bool FStreamedAudioPlatformData::AreDerivedChunksAvailable(FStringView InContext) const
 {
 	TArray<FString> ChunkKeys;
 	for (const FStreamedAudioChunk& Chunk : Chunks)
@@ -892,8 +893,33 @@ bool FStreamedAudioPlatformData::AreDerivedChunksAvailable() const
 			ChunkKeys.Add(Chunk.DerivedDataKey);
 		}
 	}
-	return GetDerivedDataCacheRef().AllCachedDataProbablyExists(ChunkKeys);
+	
+	const bool bAllCachedDataProbablyExists = GetDerivedDataCacheRef().AllCachedDataProbablyExists(ChunkKeys);
+
+	// If this is called from the game thread, try to prefetch chunks locally on background thread
+	// to avoid doing high latency remote calls every time we reload this data.
+	if (bAllCachedDataProbablyExists && GDDCIOThreadPool && IsInGameThread())
+	{
+		FString Context{ InContext };
+		AsyncPool(
+			*GDDCIOThreadPool,
+			[ChunkKeys, Context]()
+			{
+				GetDerivedDataCacheRef().TryToPrefetch(ChunkKeys, Context);
+			},
+			nullptr,
+			EQueuedWorkPriority::Low
+		);
+	}
+
+	return bAllCachedDataProbablyExists;
 }
+
+bool FStreamedAudioPlatformData::AreDerivedChunksAvailable() const
+{
+	return AreDerivedChunksAvailable(TEXT("DerivedAudioChunks"_SV));
+}
+
 #endif // #if WITH_EDITORONLY_DATA
 
 void FStreamedAudioPlatformData::Serialize(FArchive& Ar, USoundWave* Owner)

@@ -385,14 +385,14 @@ auto Async(EAsyncExecution Execution, CallableType&& Callable, TUniqueFunction<v
  * @result A TFuture object that will receive the return value from the function.
  */
 template<typename CallableType>
-auto AsyncPool(FQueuedThreadPool& ThreadPool, CallableType&& Callable, TUniqueFunction<void()> CompletionCallback = nullptr) -> TFuture<decltype(Forward<CallableType>(Callable)())>
+auto AsyncPool(FQueuedThreadPool& ThreadPool, CallableType&& Callable, TUniqueFunction<void()> CompletionCallback = nullptr, EQueuedWorkPriority InQueuedWorkPriority = EQueuedWorkPriority::Normal) -> TFuture<decltype(Forward<CallableType>(Callable)())>
 {
 	using ResultType = decltype(Forward<CallableType>(Callable)());
 	TUniqueFunction<ResultType()> Function(Forward<CallableType>(Callable));
 	TPromise<ResultType> Promise(MoveTemp(CompletionCallback));
 	TFuture<ResultType> Future = Promise.GetFuture();
 
-	ThreadPool.AddQueuedWork(new TAsyncQueuedWork<ResultType>(MoveTemp(Function), MoveTemp(Promise)));
+	ThreadPool.AddQueuedWork(new TAsyncQueuedWork<ResultType>(MoveTemp(Function), MoveTemp(Promise)), InQueuedWorkPriority);
 
 	return MoveTemp(Future);
 }
