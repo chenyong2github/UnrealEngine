@@ -38,18 +38,90 @@ class RIGVM_API URigVMMemoryStorage : public UObject
 	GENERATED_BODY()
 
 public:
-	
-	struct FPropertyDescription
+
+	//////////////////////////////////////////////////////////////////////////////
+	/// Property Management
+	//////////////////////////////////////////////////////////////////////////////
+	struct RIGVM_API FPropertyDescription
 	{
 		FName Name;
 		const FProperty* Property;
-		FEdGraphPinType PinType;
+		FString CPPType;
+		UObject* CPPTypeObject;
+		EPinContainerType ContainerType;
 		FString DefaultValue;
 		
 		FPropertyDescription(const FProperty* InProperty, const FString& InDefaultValue, const FName& InName = NAME_None);
-		FPropertyDescription(const FName& InName, const FEdGraphPinType& InPinType, const FString& InDefaultValue);
+		FPropertyDescription(const FName& InName, const FString& InCPPType, UObject* InCPPTypeObject, const FString& InDefaultValue);
+
+		static FName SanitizedName(const FName& InName);
+		void SanitizeName();
+
+		bool HasContainer() const { return ContainerType != EPinContainerType::None; }
+		bool IsArray() const { return ContainerType == EPinContainerType::Array; }
+		bool IsMap() const { return ContainerType == EPinContainerType::Map; }
+		bool IsSet() const { return ContainerType == EPinContainerType::Set; }
+
+		FString GetBaseCPPType() const;
+		FString GetArrayElementCPPType() const;
+		FString GetSetElementCPPType() const;
+		FString GetMapKeyCPPType() const;
+		FString GetMapValueCPPType() const;
+
+		static const FString ArrayPrefix;
+		static const FString MapPrefix;
+		static const FString SetPrefix;
+		static const FString ContainerSuffix;
 	};
 
-	static UClass* CreateStorageClass(UObject* InOuter, const TArray<FPropertyDescription>& InProperties);
-	static URigVMMemoryStorage* CreateStorage(UObject* InOuter, const TArray<FPropertyDescription>& InProperties);
+	static UClass* GetStorageClass(UObject* InOuter, ERigVMMemoryType InMemoryType);
+	static UClass* CreateStorageClass(UObject* InOuter, ERigVMMemoryType InMemoryType, const TArray<FPropertyDescription>& InProperties);
+	static URigVMMemoryStorage* CreateStorage(UObject* InOuter, ERigVMMemoryType InMemoryType);
+
+	//////////////////////////////////////////////////////////////////////////////
+	/// Memory Access
+	//////////////////////////////////////////////////////////////////////////////
+
+protected:
+
+	void RefreshCache();
+	TArray<uint8*> Cache;
+
+private:
+	
+	struct FClassInfo
+	{
+		UClass* LiteralStorageClass;
+		UClass* WorkStorageClass;
+		UClass* DebugStorageClass;
+		
+		FClassInfo()
+			: LiteralStorageClass(nullptr)
+			, WorkStorageClass(nullptr)
+			, DebugStorageClass(nullptr)
+		{
+		}
+
+		UClass** GetClassPtr(ERigVMMemoryType InMemoryType)
+		{
+			switch(InMemoryType)
+			{
+				case ERigVMMemoryType::Literal:
+				{
+					return &LiteralStorageClass;
+				}
+				case ERigVMMemoryType::Debug:
+				{
+					return &DebugStorageClass;
+				}
+				default:
+				{
+					break;
+				}
+			}
+			return &WorkStorageClass;
+		}
+	};
+	
+	static TMap<FString, FClassInfo> PackageToInfo;
 };
