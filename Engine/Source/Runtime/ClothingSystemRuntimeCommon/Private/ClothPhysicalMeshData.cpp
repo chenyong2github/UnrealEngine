@@ -91,7 +91,7 @@ void FClothPhysicalMeshData::BuildSelfCollisionData(const TMap<FName, TObjectPtr
 	float SelfCollisionRadius = 0.f;
 	for (const TPair<FName, TObjectPtr<UClothConfigBase>>& ClothConfig : ClothConfigs)
 	{
-		SelfCollisionRadius = FMath::Max(SelfCollisionRadius, ClothConfig.Value->NeedsSelfCollisionData());
+		SelfCollisionRadius = FMath::Max(SelfCollisionRadius, ClothConfig.Value->GetSelfCollisionRadius());
 	}
 	if (SelfCollisionRadius)
 	{
