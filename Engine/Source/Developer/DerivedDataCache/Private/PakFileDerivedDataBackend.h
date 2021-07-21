@@ -97,7 +97,7 @@ public:
 
 	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override
 	{
-		return GetSpeedClass() >= ESpeedClass::Fast && CachedDataProbablyExistsBatch(CacheKeys).CountSetBits() == CacheKeys.Num();
+		return CachedDataProbablyExistsBatch(CacheKeys).CountSetBits() == CacheKeys.Num();
 	}
 
 	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override { return true; }

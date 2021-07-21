@@ -1244,7 +1244,7 @@ TSharedRef<FDerivedDataCacheStatsNode> FZenDerivedDataBackend::GatherUsageStats(
 
 bool FZenDerivedDataBackend::TryToPrefetch(TConstArrayView<FString> CacheKeys)
 {
-	return GetSpeedClass() >= ESpeedClass::Fast && CachedDataProbablyExistsBatch(CacheKeys).CountSetBits() == CacheKeys.Num();
+	return CachedDataProbablyExistsBatch(CacheKeys).CountSetBits() == CacheKeys.Num();
 }
 
 bool FZenDerivedDataBackend::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)
