@@ -68,12 +68,12 @@ bool UNiagaraDataInterfacePlatformSet::CopyToInternal(UNiagaraDataInterface* Des
 	return true;
 }
 
-void UNiagaraDataInterfacePlatformSet::IsActive(FVectorVMContext& Context)
+void UNiagaraDataInterfacePlatformSet::IsActive(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> OutValue(Context);
 
 	bool bIsActive = Platforms.IsActive();
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		*OutValue.GetDestAndAdvance() = FNiagaraBool(bIsActive);
 	}

@@ -1026,7 +1026,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetVMExternalFunction(const FVMExter
 	}
 }
 
-void UNiagaraDataInterfaceGrid3DCollection::GetNumCells(FVectorVMContext& Context)
+void UNiagaraDataInterfaceGrid3DCollection::GetNumCells(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FGrid3DCollectionRWInstanceData_GameThread> InstData(Context);
 
@@ -1034,7 +1034,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetNumCells(FVectorVMContext& Contex
 	FNDIOutputParam<int32> NumCellsY(Context);
 	FNDIOutputParam<int32> NumCellsZ(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		NumCellsX.SetAndAdvance(InstData->NumCells.X);
 		NumCellsY.SetAndAdvance(InstData->NumCells.Y);
@@ -2316,14 +2316,14 @@ void UNiagaraDataInterfaceGrid3DCollection::GetTextureSize(const UNiagaraCompone
 	SizeZ = Grid3DInstanceData->NumCells.Z;
 }
 
-void UNiagaraDataInterfaceGrid3DCollection::GetWorldBBoxSize(FVectorVMContext& Context)
+void UNiagaraDataInterfaceGrid3DCollection::GetWorldBBoxSize(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FGrid3DCollectionRWInstanceData_GameThread> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutWorldBoundsX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutWorldBoundsY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutWorldBoundsZ(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutWorldBoundsX.GetDestAndAdvance() = InstData->WorldBBoxSize.X;
 		*OutWorldBoundsY.GetDestAndAdvance() = InstData->WorldBBoxSize.Y;
@@ -2331,7 +2331,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetWorldBBoxSize(FVectorVMContext& C
 	}
 }
 
-void UNiagaraDataInterfaceGrid3DCollection::SetNumCells(FVectorVMContext& Context)
+void UNiagaraDataInterfaceGrid3DCollection::SetNumCells(FVectorVMExternalFunctionContext& Context)
 {
 	// This should only be called from a system or emitter script due to a need for only setting up initially.
 	VectorVM::FUserPtrHandler<FGrid3DCollectionRWInstanceData_GameThread> InstData(Context);
@@ -2340,13 +2340,13 @@ void UNiagaraDataInterfaceGrid3DCollection::SetNumCells(FVectorVMContext& Contex
 	VectorVM::FExternalFuncInputHandler<int> InNumCellsZ(Context);
 	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> OutSuccess(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		int NewNumCellsX = InNumCellsX.GetAndAdvance();
 		int NewNumCellsY = InNumCellsY.GetAndAdvance();
 		int NewNumCellsZ = InNumCellsZ.GetAndAdvance();
 
-		bool bSuccess = (InstData.Get() != nullptr && Context.NumInstances == 1 && NumCells.X >= 0 && NumCells.Y >= 0 && NumCells.Z >= 0);
+		bool bSuccess = (InstData.Get() != nullptr && Context.GetNumInstances() == 1 && NumCells.X >= 0 && NumCells.Y >= 0 && NumCells.Z >= 0);
 		*OutSuccess.GetDestAndAdvance() = bSuccess;
 		if (bSuccess)
 		{
@@ -2435,14 +2435,14 @@ bool UNiagaraDataInterfaceGrid3DCollection::PerInstanceTickPostSimulate(void* Pe
 	return false;
 }
 
-void UNiagaraDataInterfaceGrid3DCollection::GetCellSize(FVectorVMContext& Context)
+void UNiagaraDataInterfaceGrid3DCollection::GetCellSize(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FGrid3DCollectionRWInstanceData_GameThread> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutCellSizeX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutCellSizeY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutCellSizeZ(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutCellSizeX.GetDestAndAdvance() = InstData->CellSize.X;
 		*OutCellSizeY.GetDestAndAdvance() = InstData->CellSize.Y;
@@ -2450,7 +2450,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetCellSize(FVectorVMContext& Contex
 	}
 }
 
-void UNiagaraDataInterfaceGrid3DCollection::GetAttributeIndex(FVectorVMContext& Context, const FName& InName, int32 NumChannels)
+void UNiagaraDataInterfaceGrid3DCollection::GetAttributeIndex(FVectorVMExternalFunctionContext& Context, const FName& InName, int32 NumChannels)
 {
 	VectorVM::FUserPtrHandler<FGrid3DCollectionRWInstanceData_GameThread> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int> OutIndex(Context);
@@ -2458,7 +2458,7 @@ void UNiagaraDataInterfaceGrid3DCollection::GetAttributeIndex(FVectorVMContext& 
 	if (InstData.Get())
 		Index = InstData.Get()->FindAttributeIndexByName(InName, NumChannels);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutIndex.GetDestAndAdvance() = Index;
 	}

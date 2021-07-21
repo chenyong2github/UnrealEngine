@@ -103,16 +103,16 @@ public:
 	virtual bool HasPostSimulateTick() const override { return true; }
 	//UNiagaraDataInterface Interface
 
-	virtual void PlayOneShotAudio(FVectorVMContext& Context);
-	virtual void PlayPersistentAudio(FVectorVMContext& Context);
-	virtual void SetParameterBool(FVectorVMContext& Context);
-	virtual void SetParameterInteger(FVectorVMContext& Context);
-	virtual void SetParameterFloat(FVectorVMContext& Context);
-	virtual void UpdateVolume(FVectorVMContext& Context);
-	virtual void UpdatePitch(FVectorVMContext& Context);
-	virtual void UpdateLocation(FVectorVMContext& Context);
-	virtual void UpdateRotation(FVectorVMContext& Context);
-	virtual void SetPausedState(FVectorVMContext& Context);
+	virtual void PlayOneShotAudio(FVectorVMExternalFunctionContext& Context);
+	virtual void PlayPersistentAudio(FVectorVMExternalFunctionContext& Context);
+	virtual void SetParameterBool(FVectorVMExternalFunctionContext& Context);
+	virtual void SetParameterInteger(FVectorVMExternalFunctionContext& Context);
+	virtual void SetParameterFloat(FVectorVMExternalFunctionContext& Context);
+	virtual void UpdateVolume(FVectorVMExternalFunctionContext& Context);
+	virtual void UpdatePitch(FVectorVMExternalFunctionContext& Context);
+	virtual void UpdateLocation(FVectorVMExternalFunctionContext& Context);
+	virtual void UpdateRotation(FVectorVMExternalFunctionContext& Context);
+	virtual void SetPausedState(FVectorVMExternalFunctionContext& Context);
 
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;

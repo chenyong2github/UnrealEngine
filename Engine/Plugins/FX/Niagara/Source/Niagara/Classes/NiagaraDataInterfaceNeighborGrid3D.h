@@ -106,10 +106,10 @@ public:
 	virtual bool HasPreSimulateTick() const override { return true; }
 	//~ UNiagaraDataInterface interface END
 
-	void GetWorldBBoxSize(FVectorVMContext& Context);
-	void GetNumCells(FVectorVMContext& Context);
-	void GetMaxNeighborsPerCell(FVectorVMContext& Context);
-	void SetNumCells(FVectorVMContext& Context);
+	void GetWorldBBoxSize(FVectorVMExternalFunctionContext& Context);
+	void GetNumCells(FVectorVMExternalFunctionContext& Context);
+	void GetMaxNeighborsPerCell(FVectorVMExternalFunctionContext& Context);
+	void SetNumCells(FVectorVMExternalFunctionContext& Context);
 
 	static const FName SetNumCellsFunctionName;
 

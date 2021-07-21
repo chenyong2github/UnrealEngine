@@ -196,12 +196,12 @@ FORCEINLINE_DEBUGGABLE float UNiagaraDataInterfaceCurve::SampleCurveInternal<TIn
 }
 
 template<typename UseLUT>
-void UNiagaraDataInterfaceCurve::SampleCurve(FVectorVMContext& Context)
+void UNiagaraDataInterfaceCurve::SampleCurve(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FExternalFuncInputHandler<float> XParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSample(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		*OutSample.GetDest() = SampleCurveInternal<UseLUT>(XParam.Get());
 		XParam.Advance();

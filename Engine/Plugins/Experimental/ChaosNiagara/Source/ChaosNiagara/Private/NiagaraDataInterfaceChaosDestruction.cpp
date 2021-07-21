@@ -2687,7 +2687,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetVMExternalFunction(const FVMExter
 }
 
 template<typename ParticleIDParamType>
-void UNiagaraDataInterfaceChaosDestruction::GetPosition(FVectorVMContext& Context)
+void UNiagaraDataInterfaceChaosDestruction::GetPosition(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
 	ParticleIDParamType ParticleIDParam(Context);
@@ -2695,7 +2695,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetPosition(FVectorVMContext& Contex
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleZ(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		//		if (InstData->ParticleDataArray.Num())
 		if (InstData->PositionArray.Num())
@@ -2718,7 +2718,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetPosition(FVectorVMContext& Contex
 }
 
 template<typename ParticleIDParamType>
-void UNiagaraDataInterfaceChaosDestruction::GetNormal(FVectorVMContext& Context)
+void UNiagaraDataInterfaceChaosDestruction::GetNormal(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
 	ParticleIDParamType ParticleIDParam(Context);
@@ -2726,7 +2726,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetNormal(FVectorVMContext& Context)
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleZ(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		if (InstData->IncomingNormalArray.Num())
 		{
@@ -2748,7 +2748,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetNormal(FVectorVMContext& Context)
 }
 
 template<typename ParticleIDParamType>
-void UNiagaraDataInterfaceChaosDestruction::GetVelocity(FVectorVMContext& Context)
+void UNiagaraDataInterfaceChaosDestruction::GetVelocity(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
 	ParticleIDParamType ParticleIDParam(Context);
@@ -2756,7 +2756,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetVelocity(FVectorVMContext& Contex
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleZ(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		//		if (InstData->ParticleDataArray.Num())
 		if (InstData->VelocityArray.Num())
@@ -2778,7 +2778,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetVelocity(FVectorVMContext& Contex
 }
 
 template<typename ParticleIDParamType>
-void UNiagaraDataInterfaceChaosDestruction::GetAngularVelocity(FVectorVMContext& Context)
+void UNiagaraDataInterfaceChaosDestruction::GetAngularVelocity(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
 	ParticleIDParamType ParticleIDParam(Context);
@@ -2786,7 +2786,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetAngularVelocity(FVectorVMContext&
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleZ(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		if (InstData->IncomingAngularVelocity1Array.Num())
 		{
@@ -2808,13 +2808,13 @@ void UNiagaraDataInterfaceChaosDestruction::GetAngularVelocity(FVectorVMContext&
 }
 
 template<typename ParticleIDParamType>
-void UNiagaraDataInterfaceChaosDestruction::GetExtentMin(FVectorVMContext& Context)
+void UNiagaraDataInterfaceChaosDestruction::GetExtentMin(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
 	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutValue(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		if (InstData->ExtentMinArray.Num())
 		{
@@ -2832,13 +2832,13 @@ void UNiagaraDataInterfaceChaosDestruction::GetExtentMin(FVectorVMContext& Conte
 }
 
 template<typename ParticleIDParamType>
-void UNiagaraDataInterfaceChaosDestruction::GetExtentMax(FVectorVMContext& Context)
+void UNiagaraDataInterfaceChaosDestruction::GetExtentMax(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
 	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutValue(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		if (InstData->ExtentMaxArray.Num())
 		{
@@ -2856,13 +2856,13 @@ void UNiagaraDataInterfaceChaosDestruction::GetExtentMax(FVectorVMContext& Conte
 }
 
 template<typename ParticleIDParamType>
-void UNiagaraDataInterfaceChaosDestruction::GetVolume(FVectorVMContext& Context)
+void UNiagaraDataInterfaceChaosDestruction::GetVolume(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
 	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutValue(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		if (InstData->VolumeArray.Num())
 		{
@@ -2880,7 +2880,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetVolume(FVectorVMContext& Context)
 }
 
 template<typename TimeParamType>
-void UNiagaraDataInterfaceChaosDestruction::GetParticleIdsToSpawnAtTime(FVectorVMContext& Context)
+void UNiagaraDataInterfaceChaosDestruction::GetParticleIdsToSpawnAtTime(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
 	TimeParamType TimeParam(Context);
@@ -2910,13 +2910,13 @@ void UNiagaraDataInterfaceChaosDestruction::GetParticleIdsToSpawnAtTime(FVectorV
 }
 
 template<typename ParticleIDParamType>
-void UNiagaraDataInterfaceChaosDestruction::GetPointType(FVectorVMContext& Context)
+void UNiagaraDataInterfaceChaosDestruction::GetPointType(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
 	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutValue(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		if (InstData->PositionArray.Num())
 		{
@@ -2935,7 +2935,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetPointType(FVectorVMContext& Conte
 }
 
 template<typename ParticleIDParamType>
-void UNiagaraDataInterfaceChaosDestruction::GetColor(FVectorVMContext& Context)
+void UNiagaraDataInterfaceChaosDestruction::GetColor(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
 	ParticleIDParamType ParticleIDParam(Context);
@@ -2944,7 +2944,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetColor(FVectorVMContext& Context)
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleB(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSampleA(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		if (InstData->ColorArray.Num())
 		{
@@ -2968,7 +2968,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetColor(FVectorVMContext& Context)
 }
 
 template<typename ParticleIDParamType>
-void UNiagaraDataInterfaceChaosDestruction::GetSolverTime(FVectorVMContext& Context)
+void UNiagaraDataInterfaceChaosDestruction::GetSolverTime(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutValue(Context);
@@ -2979,13 +2979,13 @@ void UNiagaraDataInterfaceChaosDestruction::GetSolverTime(FVectorVMContext& Cont
 }
 
 template<typename ParticleIDParamType>
-void UNiagaraDataInterfaceChaosDestruction::GetDensity(FVectorVMContext& Context)
+void UNiagaraDataInterfaceChaosDestruction::GetDensity(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
 	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutValue(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		if (InstData->DensityArray.Num())
 		{
@@ -3003,13 +3003,13 @@ void UNiagaraDataInterfaceChaosDestruction::GetDensity(FVectorVMContext& Context
 }
 
 template<typename ParticleIDParamType>
-void UNiagaraDataInterfaceChaosDestruction::GetFriction(FVectorVMContext& Context)
+void UNiagaraDataInterfaceChaosDestruction::GetFriction(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
 	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutValue(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		if (InstData->FrictionArray.Num())
 		{
@@ -3027,13 +3027,13 @@ void UNiagaraDataInterfaceChaosDestruction::GetFriction(FVectorVMContext& Contex
 }
 
 template<typename ParticleIDParamType>
-void UNiagaraDataInterfaceChaosDestruction::GetRestitution(FVectorVMContext& Context)
+void UNiagaraDataInterfaceChaosDestruction::GetRestitution(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
 	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutValue(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		if (InstData->RestitutionArray.Num())
 		{
@@ -3051,7 +3051,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetRestitution(FVectorVMContext& Con
 }
 
 template<typename ParticleIDParamType>
-void UNiagaraDataInterfaceChaosDestruction::GetTransform(FVectorVMContext& Context)
+void UNiagaraDataInterfaceChaosDestruction::GetTransform(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
 	ParticleIDParamType ParticleIDParam(Context);
@@ -3066,7 +3066,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetTransform(FVectorVMContext& Conte
 	VectorVM::FExternalFuncRegisterHandler<float> OutScaleY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutScaleZ(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		if (InstData->TransformTranslationArray.Num())
 		{
@@ -3108,7 +3108,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetTransform(FVectorVMContext& Conte
 }
 
 template<typename ParticleIDParamType>
-void UNiagaraDataInterfaceChaosDestruction::GetSize(FVectorVMContext& Context)
+void UNiagaraDataInterfaceChaosDestruction::GetSize(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
 	ParticleIDParamType ParticleIDParam(Context);
@@ -3116,7 +3116,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetSize(FVectorVMContext& Context)
 	VectorVM::FExternalFuncRegisterHandler<float> OutSizeY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSizeZ(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		if (InstData->TransformTranslationArray.Num())
 		{
@@ -3138,13 +3138,13 @@ void UNiagaraDataInterfaceChaosDestruction::GetSize(FVectorVMContext& Context)
 }
 
 template<typename ParticleIDParamType>
-void UNiagaraDataInterfaceChaosDestruction::GetSurfaceType(FVectorVMContext& Context)
+void UNiagaraDataInterfaceChaosDestruction::GetSurfaceType(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
 	ParticleIDParamType ParticleIDParam(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutValue(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		if (InstData->SurfaceTypeArray.Num())
 		{
@@ -3162,7 +3162,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetSurfaceType(FVectorVMContext& Con
 }
 
 template<typename ParticleIDParamType>
-void UNiagaraDataInterfaceChaosDestruction::GetCollisionData(FVectorVMContext& Context)
+void UNiagaraDataInterfaceChaosDestruction::GetCollisionData(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
 	ParticleIDParamType ParticleIDParam(Context);
@@ -3191,7 +3191,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetCollisionData(FVectorVMContext& C
 	VectorVM::FExternalFuncRegisterHandler<float> OutMass2(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutTime(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		if (InstData->IncomingLocationArray.Num())
 		{
@@ -3276,7 +3276,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetCollisionData(FVectorVMContext& C
 }
 
 template<typename ParticleIDParamType>
-void UNiagaraDataInterfaceChaosDestruction::GetBreakingData(FVectorVMContext& Context)
+void UNiagaraDataInterfaceChaosDestruction::GetBreakingData(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
 	ParticleIDParamType ParticleIDParam(Context);
@@ -3292,7 +3292,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetBreakingData(FVectorVMContext& Co
 	VectorVM::FExternalFuncRegisterHandler<float> OutMass(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutTime(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		if (InstData->IncomingLocationArray.Num())
 		{
@@ -3341,7 +3341,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetBreakingData(FVectorVMContext& Co
 }
 
 template<typename ParticleIDParamType>
-void UNiagaraDataInterfaceChaosDestruction::GetTrailingData(FVectorVMContext& Context)
+void UNiagaraDataInterfaceChaosDestruction::GetTrailingData(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIChaosDestruction_InstanceData> InstData(Context);
 	ParticleIDParamType ParticleIDParam(Context);
@@ -3357,7 +3357,7 @@ void UNiagaraDataInterfaceChaosDestruction::GetTrailingData(FVectorVMContext& Co
 	VectorVM::FExternalFuncRegisterHandler<float> OutMass(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutTime(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		if (InstData->IncomingLocationArray.Num())
 		{

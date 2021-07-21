@@ -16,7 +16,7 @@
 #define VECTOR_WIDTH_BYTES (16)
 #define VECTOR_WIDTH_FLOATS (4)
 
-DECLARE_DELEGATE_OneParam(FVMExternalFunction, struct FVectorVMContext& /*Context*/);
+DECLARE_DELEGATE_OneParam(FVMExternalFunction, class FVectorVMExternalFunctionContext& /*Context*/);
 
 UENUM()
 enum class EVectorVMBaseTypes : uint8
@@ -478,6 +478,36 @@ public:
 	}
 };
 
+class FVectorVMExternalFunctionContext {
+	friend struct FNiagaraSystemScriptExecutionContext; //@NOTE(smcgrath): required for the PerInstanceFunctionHook() in the non-experimental version of VectorVM
+public:
+	FVectorVMExternalFunctionContext(FVectorVMContext *InVectorVMContext) : VectorVMContext(InVectorVMContext) { }
+	FORCEINLINE int32 GetStartInstance() const { return VectorVMContext->GetStartInstance(); }
+	FORCEINLINE int32 GetNumInstances() const { return VectorVMContext->GetNumInstances(); }
+	FORCEINLINE TArray<int32> &GetRandCounters() { return VectorVMContext->RandCounters; }
+	FORCEINLINE FRandomStream &GetRandStream() { return VectorVMContext->RandStream; }
+
+#ifndef NIAGARA_EXP_VM
+	FORCEINLINE uint8 *RESTRICT GetTempRegister(int32 RegisterIndex) { return VectorVMContext->GetTempRegister(RegisterIndex); }
+	FORCEINLINE uint8 DecodeU8() { return VectorVMContext->DecodeU8(); }
+	FORCEINLINE uint16 DecodeU16() { return VectorVMContext->DecodeU16(); }
+	FORCEINLINE uint32 DecodeU32() { return VectorVMContext->DecodeU32(); }
+	FORCEINLINE uint64 DecodeU64() { return VectorVMContext->DecodeU64(); }
+	template<typename T = uint8>
+	FORCEINLINE const T* GetConstant(int32 TableIndex, int32 TableOffset) const { return VectorVMContext->GetConstant<T>(TableIndex, TableOffset); }
+	template<typename T = uint8>
+	FORCEINLINE const T* GetConstant(int32 Offset) const { return VectorVMContext->GetConstant<T>(Offset); }
+	FORCEINLINE void *GetUserPtrTable(int32 UserPtrIdx) { return VectorVMContext->UserPtrTable[UserPtrIdx]; }
+	FORCEINLINE int32 GetExternalFunctionInstanceOffset() const { return VectorVMContext->ExternalFunctionInstanceOffset; }
+	FORCEINLINE int32 GetNumTempRegisters() const { return VectorVMContext->NumTempRegisters; }
+#endif
+
+	template<uint32 InstancesPerOp>
+	FORCEINLINE int32 GetNumLoops() const { return VectorVMContext->GetNumLoops<InstancesPerOp>(); }
+private:
+	FVectorVMContext *VectorVMContext;
+};
+
 namespace VectorVM
 {
 	/** Get total number of op-codes */
@@ -527,8 +557,11 @@ namespace VectorVM
 	{
 		int32 UserPtrIdx;
 		T* Ptr;
-		FUserPtrHandler(FVectorVMContext& Context)
+		FUserPtrHandler(FVectorVMExternalFunctionContext& Context)
 		{
+#ifdef NIAGARA_EXP_VM
+			check(false);
+#else
 			const uint16 VariableOffset = Context.DecodeU16();
 			check(!(VariableOffset & VVM_EXT_FUNC_INPUT_LOC_BIT));
 
@@ -536,7 +569,8 @@ namespace VectorVM
 			UserPtrIdx = *Context.GetConstant<int32>(ConstantTableOffset);
 			check(UserPtrIdx != INDEX_NONE);
 
-			Ptr = reinterpret_cast<T*>(Context.UserPtrTable[UserPtrIdx]);
+			Ptr = reinterpret_cast<T*>(Context.GetUserPtrTable(UserPtrIdx));
+#endif
 		}
 
 		FORCEINLINE T* Get() { return Ptr; }
@@ -561,13 +595,16 @@ namespace VectorVM
 			, AdvanceOffset(0)
 		{}
 
-		FORCEINLINE FExternalFuncInputHandler(FVectorVMContext& Context)
+		FORCEINLINE FExternalFuncInputHandler(FVectorVMExternalFunctionContext& Context)
 		{
 			Init(Context);
 		}
 
-		void Init(FVectorVMContext& Context)
+		void Init(FVectorVMExternalFunctionContext& Context)
 		{
+#ifdef NIAGARA_EXP_VM
+			check(false);
+#else
 			InputOffset = Context.DecodeU16();
 
 			const int32 Offset = GetOffset();
@@ -575,7 +612,8 @@ namespace VectorVM
 			AdvanceOffset = IsConstant() ? 0 : 1;
 
 			//Hack: Offset into the buffer by the instance offset.
-			InputPtr += Context.ExternalFunctionInstanceOffset * AdvanceOffset;
+			InputPtr += Context.GetExternalFunctionInstanceOffset() * AdvanceOffset;
+#endif
 		}
 
 		FORCEINLINE bool IsConstant()const { return !IsRegister(); }
@@ -608,24 +646,29 @@ namespace VectorVM
 		T Dummy;
 		T* RESTRICT Register;
 	public:
-		FORCEINLINE FExternalFuncRegisterHandler(FVectorVMContext& Context)
+#ifdef NIAGARA_EXP_VM
+		FORCEINLINE FExternalFuncRegisterHandler(FVectorVMExternalFunctionContext& Context) {
+			check(false);
+		}
+#else
+		FORCEINLINE FExternalFuncRegisterHandler(FVectorVMExternalFunctionContext& Context)
 			: RegisterIndex(Context.DecodeU16() & VVM_EXT_FUNC_INPUT_LOC_MASK)
 			, AdvanceOffset(IsValid() ? 1 : 0)
 		{
 			if (IsValid())
 			{
-				checkSlow(RegisterIndex < Context.NumTempRegisters);
+				checkSlow(RegisterIndex < Context.GetNumTempRegisters());
 				Register = (T*)Context.GetTempRegister(RegisterIndex);
 
 				//Hack: Offset into the buffer by the instance offset.
-				Register += Context.ExternalFunctionInstanceOffset * AdvanceOffset;
+				Register += Context.GetExternalFunctionInstanceOffset() * AdvanceOffset;
 			}
 			else
 			{
 				Register = &Dummy;
 			}
 		}
-
+#endif
 		FORCEINLINE bool IsValid() const { return RegisterIndex != (uint16)VVM_EXT_FUNC_INPUT_LOC_MASK; }
 
 		FORCEINLINE const T Get() { return *Register; }
@@ -650,10 +693,16 @@ namespace VectorVM
 	{
 		uint16 ConstantIndex;
 		T Constant;
-		FExternalFuncConstHandler(FVectorVMContext& Context)
+#ifdef NIAGARA_EXP_VM
+		FExternalFuncConstHandler(FVectorVMExternalFunctionContext& Context) {
+			check(false);
+		}
+#else
+		FExternalFuncConstHandler(FVectorVMExternalFunctionContext& Context)
 			: ConstantIndex(Context.DecodeU16() & VVM_EXT_FUNC_INPUT_LOC_MASK)
 			, Constant(*Context.GetConstant<T>(ConstantIndex))
 		{}
+#endif
 		FORCEINLINE const T& Get() { return Constant; }
 		FORCEINLINE const T& GetAndAdvance() { return Constant; }
 		FORCEINLINE void Advance() { }

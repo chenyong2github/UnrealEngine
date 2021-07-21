@@ -148,34 +148,34 @@ public:
 	void ExtractSourceComponent(FNiagaraSystemInstance* SystemInstance, FTransform& LocalTransform);
 
 	/** Get the number of boxes*/
-	void GetNumBoxes(FVectorVMContext& Context);
+	void GetNumBoxes(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the number of spheres  */
-	void GetNumSpheres(FVectorVMContext& Context);
+	void GetNumSpheres(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the number of capsules */
-	void GetNumCapsules(FVectorVMContext& Context);
+	void GetNumCapsules(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the element point */
-	void GetElementPoint(FVectorVMContext& Context);
+	void GetElementPoint(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the element distance */
-	void GetElementDistance(FVectorVMContext& Context);
+	void GetElementDistance(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the closest element */
-	void GetClosestElement(FVectorVMContext& Context);
+	void GetClosestElement(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the closest point */
-	void GetClosestPoint(FVectorVMContext& Context);
+	void GetClosestPoint(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the closest distance */
-	void GetClosestDistance(FVectorVMContext& Context);
+	void GetClosestDistance(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the closest texture point */
-	void GetTexturePoint(FVectorVMContext& Context);
+	void GetTexturePoint(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the projection point */
-	void GetProjectionPoint(FVectorVMContext& Context);
+	void GetProjectionPoint(FVectorVMExternalFunctionContext& Context);
 
 	/** Name of element offsets */
 	static const FString ElementOffsetsName;

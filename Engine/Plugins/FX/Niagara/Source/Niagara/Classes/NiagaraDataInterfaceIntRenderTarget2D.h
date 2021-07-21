@@ -45,8 +45,8 @@ public:
 
 	bool UpdateInstanceTexture(FNiagaraSystemInstance* SystemInstance, struct FNDIIntRenderTarget2DInstanceData_GameThread* InstanceData);
 
-	void VMGetSize(FVectorVMContext& Context);
-	void VMSetSize(FVectorVMContext& Context);
+	void VMGetSize(FVectorVMExternalFunctionContext& Context);
+	void VMSetSize(FVectorVMExternalFunctionContext& Context);
 
 	UPROPERTY(EditAnywhere, Category = "Render Target")
 	FIntPoint Size = FIntPoint::ZeroValue;

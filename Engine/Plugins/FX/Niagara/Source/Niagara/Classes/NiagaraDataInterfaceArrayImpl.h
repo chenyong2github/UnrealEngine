@@ -266,48 +266,48 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 		if (BindingInfo.Name == FNiagaraDataInterfaceArrayImplHelper::Function_LengthName)
 		{
 			check(BindingInfo.GetNumInputs() == 0 && BindingInfo.GetNumOutputs() == 1);
-			OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMContext& Context) { this->GetLength(Context); });
+			OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { this->GetLength(Context); });
 		}
 		else if (BindingInfo.Name == FNiagaraDataInterfaceArrayImplHelper::Function_IsValidIndexName)
 		{
 			check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 1);
-			OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMContext& Context) { this->IsValidIndex(Context); });
+			OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { this->IsValidIndex(Context); });
 		}
 		else if (BindingInfo.Name == FNiagaraDataInterfaceArrayImplHelper::Function_LastIndexName)
 		{
 			check(BindingInfo.GetNumInputs() == 0 && BindingInfo.GetNumOutputs() == 1);
-			OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMContext& Context) { this->GetLastIndex(Context); });
+			OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { this->GetLastIndex(Context); });
 		}
 		else if (BindingInfo.Name == FNiagaraDataInterfaceArrayImplHelper::Function_GetName)
 		{
 			// Note: Outputs is variable based upon type
 			//check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 1);
-			OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMContext& Context) { this->GetValue(Context); });
+			OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { this->GetValue(Context); });
 		}
 		// Mutable functions
 		else if (BindingInfo.Name == FNiagaraDataInterfaceArrayImplHelper::Function_ClearName)
 		{
 			check(BindingInfo.GetNumInputs() == 0 && BindingInfo.GetNumOutputs() == 0);
-			OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMContext& Context) { this->Clear(Context); });
+			OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { this->Clear(Context); });
 		}
 		else if (BindingInfo.Name == FNiagaraDataInterfaceArrayImplHelper::Function_ResizeName)
 		{
 			check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 0);
-			OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMContext& Context) { this->Resize(Context); });
+			OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { this->Resize(Context); });
 		}
 		else if (BindingInfo.Name == FNiagaraDataInterfaceArrayImplHelper::Function_SetArrayElemName)
 		{
-			OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMContext& Context) { this->SetValue(Context); });
+			OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { this->SetValue(Context); });
 		}
 		else if (BindingInfo.Name == FNiagaraDataInterfaceArrayImplHelper::Function_AddName)
 		{
 			// Note: Inputs is variable based upon type
-			OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMContext& Context) { this->PushValue(Context); });
+			OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { this->PushValue(Context); });
 		}
 		else if (BindingInfo.Name == FNiagaraDataInterfaceArrayImplHelper::Function_RemoveLastElemName)
 		{
 			// Note: Outputs is variable based upon type
-			OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMContext& Context) { this->PopValue(Context); });
+			OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { this->PopValue(Context); });
 		}
 	}
 
@@ -502,20 +502,20 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 		//static_cast<const FNiagaraDataInterfaceParametersCS_ArrayImpl*>(Base)->Unset(RHICmdList, Context);
 	}
 
-	void GetLength(FVectorVMContext& Context)
+	void GetLength(FVectorVMExternalFunctionContext& Context)
 	{
 		FNDIOutputParam<int32> OutValue(Context);
 
 		Owner->ArrayRWGuard.ReadLock();
 		const int32 Num = Data.Num();
 		Owner->ArrayRWGuard.ReadUnlock();
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			OutValue.SetAndAdvance(Num);
 		}
 	}
 
-	void IsValidIndex(FVectorVMContext& Context)
+	void IsValidIndex(FVectorVMExternalFunctionContext& Context)
 	{
 		FNDIInputParam<int32> IndexParam(Context);
 		FNDIOutputParam<FNiagaraBool> OutValue(Context);
@@ -523,27 +523,27 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 		Owner->ArrayRWGuard.ReadLock();
 		const int32 Num = Data.Num();
 		Owner->ArrayRWGuard.ReadUnlock();
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			const int32 Index = IndexParam.GetAndAdvance();
 			OutValue.SetAndAdvance((Index >= 0) && (Index < Num));
 		}
 	}
 
-	void GetLastIndex(FVectorVMContext& Context)
+	void GetLastIndex(FVectorVMExternalFunctionContext& Context)
 	{
 		FNDIOutputParam<int32> OutValue(Context);
 
 		Owner->ArrayRWGuard.ReadLock();
 		const int32 Num = Data.Num() - 1;
 		Owner->ArrayRWGuard.ReadUnlock();
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			OutValue.SetAndAdvance(Num);
 		}
 	}
 
-	void GetValue(FVectorVMContext& Context)
+	void GetValue(FVectorVMExternalFunctionContext& Context)
 	{
 		FNDIInputParam<int32> IndexParam(Context);
 		FNDIOutputParam<typename FNDIArrayImplHelper<TArrayType>::TVMArrayType> OutValue(Context);
@@ -552,7 +552,7 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 		const int32 Num = Data.Num() - 1;
 		if (Num >= 0)
 		{
-			for (int32 i = 0; i < Context.NumInstances; ++i)
+			for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 			{
 				const int32 Index = FMath::Clamp(IndexParam.GetAndAdvance(), 0, Num);
 				OutValue.SetAndAdvance(Data[Index]);
@@ -561,28 +561,28 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 		else
 		{
 			const TArrayType DefaultValue = FNDIArrayImplHelper<TArrayType>::GetDefaultValue();
-			for (int32 i = 0; i < Context.NumInstances; ++i)
+			for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 			{
 				OutValue.SetAndAdvance(DefaultValue);
 			}
 		}
 	}
 
-	void Clear(FVectorVMContext& Context)
+	void Clear(FVectorVMExternalFunctionContext& Context)
 	{
 		//-TODO: This dirties the GPU data
-		ensureMsgf(Context.NumInstances == 1, TEXT("Setting the number of values in an array with more than one instance, which doesn't make sense"));
+		ensureMsgf(Context.GetNumInstances() == 1, TEXT("Setting the number of values in an array with more than one instance, which doesn't make sense"));
 
 		FRWScopeLock WriteLock(Owner->ArrayRWGuard, SLT_Write);
 		Data.Reset();
 	}
 
-	void Resize(FVectorVMContext& Context)
+	void Resize(FVectorVMExternalFunctionContext& Context)
 	{
 		//-TODO: This dirties the GPU data
 		FNDIInputParam<int32> NewNumParam(Context);
 
-		ensureMsgf(Context.NumInstances == 1, TEXT("Setting the number of values in an array with more than one instance, which doesn't make sense"));
+		ensureMsgf(Context.GetNumInstances() == 1, TEXT("Setting the number of values in an array with more than one instance, which doesn't make sense"));
 
 		FRWScopeLock WriteLock(Owner->ArrayRWGuard, SLT_Write);
 		const int32 OldNum = Data.Num();
@@ -599,14 +599,14 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 		}
 	}
 
-	void SetValue(FVectorVMContext& Context)
+	void SetValue(FVectorVMExternalFunctionContext& Context)
 	{
 		//-TODO: This dirties the GPU data
 		FNDIInputParam<int32> IndexParam(Context);
 		FNDIInputParam<typename FNDIArrayImplHelper<TArrayType>::TVMArrayType> InValue(Context);
 
 		FRWScopeLock WriteLock(Owner->ArrayRWGuard, SLT_Write);
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			const int32 Index = IndexParam.GetAndAdvance();
 			const TArrayType Value = InValue.GetAndAdvance();
@@ -618,7 +618,7 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 		}
 	}
 
-	void PushValue(FVectorVMContext& Context)
+	void PushValue(FVectorVMExternalFunctionContext& Context)
 	{
 		//-TODO: This dirties the GPU data
 		FNDIInputParam<FNiagaraBool> InSkipExecute(Context);
@@ -627,7 +627,7 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 		const int32 MaxElements = Owner->MaxElements > 0 ? Owner->MaxElements : kSafeMaxElements;
 
 		FRWScopeLock WriteLock(Owner->ArrayRWGuard, SLT_Write);
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			const bool bSkipExecute = InSkipExecute.GetAndAdvance();
 			const TArrayType Value = InValue.GetAndAdvance();
@@ -638,7 +638,7 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 		}
 	}
 
-	void PopValue(FVectorVMContext& Context)
+	void PopValue(FVectorVMExternalFunctionContext& Context)
 	{
 		//-TODO: This dirties the GPU data
 		FNDIInputParam<FNiagaraBool> InSkipExecute(Context);
@@ -647,7 +647,7 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 		const TArrayType DefaultValue = FNDIArrayImplHelper<TArrayType>::GetDefaultValue();
 
 		FRWScopeLock WriteLock(Owner->ArrayRWGuard, SLT_Write);
-		for (int32 i=0; i < Context.NumInstances; ++i)
+		for (int32 i=0; i < Context.GetNumInstances(); ++i)
 		{
 			const bool bSkipExecute = InSkipExecute.GetAndAdvance();
 			if (bSkipExecute || (Data.Num() == 0))

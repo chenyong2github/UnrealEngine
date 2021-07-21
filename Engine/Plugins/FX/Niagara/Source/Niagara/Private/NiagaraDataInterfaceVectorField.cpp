@@ -492,14 +492,14 @@ IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceVectorField, FNiagaraDataInt
 
 /*--------------------------------------------------------------------------------------------------------------------------*/
 
-void UNiagaraDataInterfaceVectorField::GetFieldTilingAxes(FVectorVMContext& Context)
+void UNiagaraDataInterfaceVectorField::GetFieldTilingAxes(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FExternalFuncRegisterHandler<float> OutSizeX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSizeY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSizeZ(Context);
 
 	FVector Tilings = GetTilingAxes();
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		*OutSizeX.GetDest() = Tilings.X;
 		*OutSizeY.GetDest() = Tilings.Y;
@@ -511,14 +511,14 @@ void UNiagaraDataInterfaceVectorField::GetFieldTilingAxes(FVectorVMContext& Cont
 	}
 }
 
-void UNiagaraDataInterfaceVectorField::GetFieldDimensions(FVectorVMContext& Context)
+void UNiagaraDataInterfaceVectorField::GetFieldDimensions(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FExternalFuncRegisterHandler<float> OutSizeX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSizeY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutSizeZ(Context);
 
 	FVector Dim = GetDimensions();
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		*OutSizeX.GetDest() = Dim.X;
 		*OutSizeY.GetDest() = Dim.Y;
@@ -530,7 +530,7 @@ void UNiagaraDataInterfaceVectorField::GetFieldDimensions(FVectorVMContext& Cont
 	}
 }
 
-void UNiagaraDataInterfaceVectorField::GetFieldBounds(FVectorVMContext& Context)
+void UNiagaraDataInterfaceVectorField::GetFieldBounds(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FExternalFuncRegisterHandler<float> OutMinX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutMinY(Context);
@@ -541,7 +541,7 @@ void UNiagaraDataInterfaceVectorField::GetFieldBounds(FVectorVMContext& Context)
 
 	FVector MinBounds = GetMinBounds();
 	FVector MaxBounds = GetMaxBounds();
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		*OutMinX.GetDest() = MinBounds.X;
 		*OutMinY.GetDest() = MinBounds.Y;
@@ -559,7 +559,7 @@ void UNiagaraDataInterfaceVectorField::GetFieldBounds(FVectorVMContext& Context)
 	}
 }
 
-void UNiagaraDataInterfaceVectorField::SampleVectorField(FVectorVMContext& Context)
+void UNiagaraDataInterfaceVectorField::SampleVectorField(FVectorVMExternalFunctionContext& Context)
 {
 	// Input arguments...
 	VectorVM::FExternalFuncInputHandler<float> XParam(Context);
@@ -601,12 +601,12 @@ void UNiagaraDataInterfaceVectorField::SampleVectorField(FVectorVMContext& Conte
 					XParam.IsConstant(), YParam.IsConstant(), ZParam.IsConstant(),
 					OutSampleX.GetDest(), OutSampleY.GetDest(), OutSampleZ.GetDest(),
 					(ispc::FHalfVector*) FieldSamples.GetData(), FieldSamples.Num() - sizeof(ispc::FHalfVector), (ispc::FVector&)MinBounds, (ispc::FVector&)OneOverBoundSize,
-					(ispc::FVector&)Size, (ispc::FVector&)TilingAxes, Context.NumInstances);
+					(ispc::FVector&)Size, (ispc::FVector&)TilingAxes, Context.GetNumInstances());
 			}
 			else
 #endif
 			{
-				for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+				for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 				{
 					// Position in Volume Space
 					FVector Pos(XParam.Get(), YParam.Get(), ZParam.Get());
@@ -658,7 +658,7 @@ void UNiagaraDataInterfaceVectorField::SampleVectorField(FVectorVMContext& Conte
 
 		// Set the default vector to positive X axis corresponding to a velocity of 100 cm/s
 		// Rationale: Setting to the zero vector can be visually confusing and likely to cause problems elsewhere
-		for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+		for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 		{
 			*OutSampleX.GetDest() = 0.0f;
 			*OutSampleY.GetDest() = 0.0f;

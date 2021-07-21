@@ -434,20 +434,20 @@ void UNiagaraDataInterfaceCamera::GetVMExternalFunction(const FVMExternalFunctio
 	}
 }
 
-void UNiagaraDataInterfaceCamera::GetCameraFOV(FVectorVMContext& Context)
+void UNiagaraDataInterfaceCamera::GetCameraFOV(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FCameraDataInterface_InstanceData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutFov(Context);
 
 	float Fov = InstData.Get()->CameraFOV;
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		*OutFov.GetDestAndAdvance() = Fov;
 	}
 }
 
-void UNiagaraDataInterfaceCamera::GetCameraProperties(FVectorVMContext& Context)
+void UNiagaraDataInterfaceCamera::GetCameraProperties(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FCameraDataInterface_InstanceData> InstData(Context);
 
@@ -477,7 +477,7 @@ void UNiagaraDataInterfaceCamera::GetCameraProperties(FVectorVMContext& Context)
 	const FVector Up = RotationMatrix.GetScaledAxis(EAxis::Z);
 	const FVector Right = RotationMatrix.GetScaledAxis(EAxis::Y);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		*CamPosX.GetDestAndAdvance() = XPos;
 		*CamPosY.GetDestAndAdvance() = YPos;
@@ -497,7 +497,7 @@ void UNiagaraDataInterfaceCamera::GetCameraProperties(FVectorVMContext& Context)
 	}
 }
 
-void UNiagaraDataInterfaceCamera::GetClosestParticles(FVectorVMContext& Context)
+void UNiagaraDataInterfaceCamera::GetClosestParticles(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FCameraDataInterface_InstanceData> InstData(Context);
 
@@ -505,10 +505,10 @@ void UNiagaraDataInterfaceCamera::GetClosestParticles(FVectorVMContext& Context)
 	FNDIInputParam<int32> CountParam(Context);
 	FNDIOutputParam<FNiagaraBool> ResultOutParam(Context);
 
-	int32 Count = Context.NumInstances > 0 ? CountParam.GetAndAdvance() : 0;
+	int32 Count = Context.GetNumInstances() > 0 ? CountParam.GetAndAdvance() : 0;
 	if (Count == 0 || InstData->ParticlesSortedByDistance.Num() == 0)
 	{
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			ResultOutParam.SetAndAdvance(false);
 		}
@@ -523,14 +523,14 @@ void UNiagaraDataInterfaceCamera::GetClosestParticles(FVectorVMContext& Context)
 	}
 
 	// Assign each particles their result
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		FNiagaraID ParticleID = ParticleIDParam.GetAndAdvance();
 		ResultOutParam.SetAndAdvance(ClosestParticleIDs.Contains(ParticleID));
 	}
 }
 
-void UNiagaraDataInterfaceCamera::CalculateParticleDistances(FVectorVMContext& Context)
+void UNiagaraDataInterfaceCamera::CalculateParticleDistances(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FCameraDataInterface_InstanceData> InstData(Context);
 
@@ -538,7 +538,7 @@ void UNiagaraDataInterfaceCamera::CalculateParticleDistances(FVectorVMContext& C
 	FNDIInputParam<FVector3f> ParticlePosParam(Context);
 
 	FVector CameraPos = InstData->CameraLocation;
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		FDistanceData DistanceData;
 		FVector ParticlePos = ParticlePosParam.GetAndAdvance();
@@ -622,7 +622,7 @@ void UNiagaraDataInterfaceCamera::GetFeedback(UNiagaraSystem* Asset, UNiagaraCom
 
 // ------- Dummy implementations for CPU execution ------------
 
-void UNiagaraDataInterfaceCamera::GetViewPropertiesGPU(FVectorVMContext& Context)
+void UNiagaraDataInterfaceCamera::GetViewPropertiesGPU(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FCameraDataInterface_InstanceData> InstData(Context);
 	TArray<VectorVM::FExternalFuncRegisterHandler<float>> OutParams;
@@ -632,7 +632,7 @@ void UNiagaraDataInterfaceCamera::GetViewPropertiesGPU(FVectorVMContext& Context
 		OutParams.Emplace(Context);
 	}
 
-	for (int32 k = 0; k < Context.NumInstances; ++k)
+	for (int32 k = 0; k < Context.GetNumInstances(); ++k)
 	{
 		for (int i = 0; i < 24; i++)
 		{
@@ -641,7 +641,7 @@ void UNiagaraDataInterfaceCamera::GetViewPropertiesGPU(FVectorVMContext& Context
 	}
 }
 
-void UNiagaraDataInterfaceCamera::GetClipSpaceTransformsGPU(FVectorVMContext& Context)
+void UNiagaraDataInterfaceCamera::GetClipSpaceTransformsGPU(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FCameraDataInterface_InstanceData> InstData(Context);
 	TArray<VectorVM::FExternalFuncRegisterHandler<float>> OutParams;
@@ -651,7 +651,7 @@ void UNiagaraDataInterfaceCamera::GetClipSpaceTransformsGPU(FVectorVMContext& Co
 		OutParams.Emplace(Context);
 	}
 
-	for (int32 k = 0; k < Context.NumInstances; ++k)
+	for (int32 k = 0; k < Context.GetNumInstances(); ++k)
 	{
 		for (int i = 0; i < 128; i++)
 		{
@@ -660,7 +660,7 @@ void UNiagaraDataInterfaceCamera::GetClipSpaceTransformsGPU(FVectorVMContext& Co
 	}
 }
 
-void UNiagaraDataInterfaceCamera::GetViewSpaceTransformsGPU(FVectorVMContext& Context)
+void UNiagaraDataInterfaceCamera::GetViewSpaceTransformsGPU(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FCameraDataInterface_InstanceData> InstData(Context);
 	TArray<VectorVM::FExternalFuncRegisterHandler<float>> OutParams;
@@ -670,7 +670,7 @@ void UNiagaraDataInterfaceCamera::GetViewSpaceTransformsGPU(FVectorVMContext& Co
 		OutParams.Emplace(Context);
 	}
 
-	for (int32 k = 0; k < Context.NumInstances; ++k)
+	for (int32 k = 0; k < Context.GetNumInstances(); ++k)
 	{
 		for (int i = 0; i < 96; i++)
 		{
@@ -680,7 +680,7 @@ void UNiagaraDataInterfaceCamera::GetViewSpaceTransformsGPU(FVectorVMContext& Co
 }
 
 
-void UNiagaraDataInterfaceCamera::GetTAAJitter(FVectorVMContext& Context)
+void UNiagaraDataInterfaceCamera::GetTAAJitter(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FCameraDataInterface_InstanceData> InstData(Context);
 	TArray<VectorVM::FExternalFuncRegisterHandler<float>> OutParams;
@@ -692,7 +692,7 @@ void UNiagaraDataInterfaceCamera::GetTAAJitter(FVectorVMContext& Context)
 		OutParams.Emplace(Context);
 	}
 
-	for (int32 k = 0; k < Context.NumInstances; ++k)
+	for (int32 k = 0; k < Context.GetNumInstances(); ++k)
 	{
 		for (int i = 0; i < ElementCount; i++)
 		{

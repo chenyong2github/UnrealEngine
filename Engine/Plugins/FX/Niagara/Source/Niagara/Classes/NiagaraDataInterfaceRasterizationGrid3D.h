@@ -106,9 +106,9 @@ public:
 	virtual bool HasPreSimulateTick() const override { return true; }
 	//~ UNiagaraDataInterface interface END
 
-	void GetNumCells(FVectorVMContext& Context);
-	void SetNumCells(FVectorVMContext& Context);
-	void SetFloatResetValue(FVectorVMContext& Context);
+	void GetNumCells(FVectorVMExternalFunctionContext& Context);
+	void SetNumCells(FVectorVMExternalFunctionContext& Context);
+	void SetFloatResetValue(FVectorVMExternalFunctionContext& Context);
 
 	static const FName SetNumCellsFunctionName;
 	static const FName SetFloatResetValueFunctionName;	

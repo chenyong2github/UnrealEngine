@@ -433,11 +433,11 @@ void UNiagaraDataInterfaceIntRenderTarget2D::GetVMExternalFunction(const FVMExte
 	Super::GetVMExternalFunction(BindingInfo, InstanceData, OutFunc);
 	if (BindingInfo.Name == NDIIntRenderTarget2DLocal::GetSizeFunctionName)
 	{
-		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMContext& Context) { VMGetSize(Context); });
+		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { VMGetSize(Context); });
 	}
 	else if (BindingInfo.Name == NDIIntRenderTarget2DLocal::SetSizeFunctionName)
 	{
-		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMContext& Context) { VMSetSize(Context); });
+		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { VMSetSize(Context); });
 	}
 }
 
@@ -726,20 +726,20 @@ bool UNiagaraDataInterfaceIntRenderTarget2D::UpdateInstanceTexture(FNiagaraSyste
 	return bHasChanged;
 }
 
-void UNiagaraDataInterfaceIntRenderTarget2D::VMGetSize(FVectorVMContext& Context)
+void UNiagaraDataInterfaceIntRenderTarget2D::VMGetSize(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIIntRenderTarget2DInstanceData_GameThread> InstData(Context);
 	FNDIOutputParam<int32> OutSizeX(Context);
 	FNDIOutputParam<int32> OutSizeY(Context);
 	
-	for (int32 i=0; i < Context.NumInstances; ++i)
+	for (int32 i=0; i < Context.GetNumInstances(); ++i)
 	{
 		OutSizeX.SetAndAdvance(InstData->Size.X);
 		OutSizeY.SetAndAdvance(InstData->Size.Y);
 	}
 }
 
-void UNiagaraDataInterfaceIntRenderTarget2D::VMSetSize(FVectorVMContext& Context)
+void UNiagaraDataInterfaceIntRenderTarget2D::VMSetSize(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIIntRenderTarget2DInstanceData_GameThread> InstData(Context);
 	FNDIInputParam<int32> InSizeX(Context);
@@ -747,11 +747,11 @@ void UNiagaraDataInterfaceIntRenderTarget2D::VMSetSize(FVectorVMContext& Context
 	FNDIOutputParam<FNiagaraBool> OutSuccess(Context);
 
 	extern float GNiagaraRenderTargetResolutionMultiplier;
-	for (int32 i=0; i < Context.NumInstances; ++i)
+	for (int32 i=0; i < Context.GetNumInstances(); ++i)
 	{
 		const int SizeX = InSizeX.GetAndAdvance();
 		const int SizeY = InSizeY.GetAndAdvance();
-		const bool bSuccess = (InstData.Get() != nullptr && Context.NumInstances == 1 && SizeX >= 0 && SizeY >= 0);
+		const bool bSuccess = (InstData.Get() != nullptr && Context.GetNumInstances() == 1 && SizeX >= 0 && SizeY >= 0);
 		OutSuccess.SetAndAdvance(bSuccess);
 		if (bSuccess)
 		{

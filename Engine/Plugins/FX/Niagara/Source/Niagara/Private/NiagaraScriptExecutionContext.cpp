@@ -366,28 +366,28 @@ void FNiagaraScriptExecutionContextBase::PostTick()
 
 //////////////////////////////////////////////////////////////////////////
 
-void FNiagaraSystemScriptExecutionContext::PerInstanceFunctionHook(FVectorVMContext& Context, int32 PerInstFunctionIndex, int32 UserPtrIndex)
+void FNiagaraSystemScriptExecutionContext::PerInstanceFunctionHook(FVectorVMExternalFunctionContext& Context, int32 PerInstFunctionIndex, int32 UserPtrIndex)
 {
 	check(SystemInstances);
 	
 	//This is a bit of a hack. We grab the base offset into the instance data from the primary dataset.
 	//TODO: Find a cleaner way to do this.
-	int32 InstanceOffset = Context.GetDataSetMeta(0).InstanceOffset;
+	int32 InstanceOffset = Context.VectorVMContext->GetDataSetMeta(0).InstanceOffset;
 
 	//Cache context state.
-	int32 CachedContextStartInstance = Context.StartInstance;
-	int32 CachedContextNumInstances = Context.NumInstances;
-	uint8 const* CachedCodeLocation = Context.Code;
+	int32 CachedContextStartInstance = Context.VectorVMContext->GetStartInstance();
+	int32 CachedContextNumInstances = Context.VectorVMContext->GetNumInstances();
+	uint8 const* CachedCodeLocation = Context.VectorVMContext->Code;
 
 	//Hack context so we can run the DI calls one by one.
-	Context.NumInstances = 1;
+	Context.VectorVMContext->NumInstances = 1;
 
 	for (int32 i = 0; i < CachedContextNumInstances; ++i)
 	{
 		//Reset the code each iteration.
-		Context.Code = CachedCodeLocation;
+		Context.VectorVMContext->Code = CachedCodeLocation;
 		//Offset buffer I/O to the correct instance's data.
-		Context.ExternalFunctionInstanceOffset = i;
+		Context.VectorVMContext->ExternalFunctionInstanceOffset = i;
 
 		int32 InstanceIndex = InstanceOffset + CachedContextStartInstance + i;
 		FNiagaraSystemInstance* Instance = (*SystemInstances)[InstanceIndex];
@@ -397,10 +397,10 @@ void FNiagaraSystemScriptExecutionContext::PerInstanceFunctionHook(FVectorVMCont
 		//Do this way for now to reduce overall complexity of the initial change. Doing this needs extensive boiler plate changes to most DI classes and a script recompile.
 		if(UserPtrIndex != INDEX_NONE)
 		{
-			Context.UserPtrTable[UserPtrIndex] = FuncInfo.InstData;
+			Context.VectorVMContext->UserPtrTable[UserPtrIndex] = FuncInfo.InstData;
 		}
 
-		Context.StartInstance = InstanceIndex;
+		Context.VectorVMContext->StartInstance = InstanceIndex;
 
 		//TODO: In future for DIs where more perf is needed here we could split the DI func into an args gen and a execution.
 		//The this path could gen args from the bytecode once and just run the execution func per instance.
@@ -409,9 +409,9 @@ void FNiagaraSystemScriptExecutionContext::PerInstanceFunctionHook(FVectorVMCont
 	}
 
 	//Restore the context state.
-	Context.ExternalFunctionInstanceOffset = 0;
-	Context.StartInstance = CachedContextStartInstance;
-	Context.NumInstances = CachedContextNumInstances;
+	Context.VectorVMContext->ExternalFunctionInstanceOffset = 0;
+	Context.VectorVMContext->StartInstance = CachedContextStartInstance;
+	Context.VectorVMContext->NumInstances = CachedContextNumInstances;
 }
 
 bool FNiagaraSystemScriptExecutionContext::Init(UNiagaraScript* InScript, ENiagaraSimTarget InTarget)
@@ -471,7 +471,7 @@ bool FNiagaraSystemScriptExecutionContext::Tick(class FNiagaraSystemInstance* In
 						if (ScriptDIInfo.NeedsPerInstanceBinding())
 						{
 							//This DI needs a binding per instance so we just bind to the external function hook which will call the correct binding for each instance.
-							auto PerInstFunctionHookLambda = [ExecContext = this, NumPerInstanceFunctions, UserPtrIndex = ScriptDIInfo.UserPtrIdx](FVectorVMContext& Context)
+							auto PerInstFunctionHookLambda = [ExecContext = this, NumPerInstanceFunctions, UserPtrIndex = ScriptDIInfo.UserPtrIdx](FVectorVMExternalFunctionContext& Context)
 							{
 								ExecContext->PerInstanceFunctionHook(Context, NumPerInstanceFunctions, UserPtrIndex);
 							};

@@ -566,64 +566,64 @@ public:
 	//----------------------------------------------------------------------------
 	// EXPOSED FUNCTIONS
 	template<typename ParticleIDParamType>
-	void GetPosition(FVectorVMContext& Context);
+	void GetPosition(FVectorVMExternalFunctionContext& Context);
 
 	template<typename ParticleIDParamType>
-	void GetNormal(FVectorVMContext& Context);
+	void GetNormal(FVectorVMExternalFunctionContext& Context);
 
 	template<typename ParticleIDParamType>
-	void GetVelocity(FVectorVMContext& Context);
+	void GetVelocity(FVectorVMExternalFunctionContext& Context);
 
 	template<typename ParticleIDParamType>
-	void GetAngularVelocity(FVectorVMContext& Context);
+	void GetAngularVelocity(FVectorVMExternalFunctionContext& Context);
 
 	template<typename ParticleIDParamType>
-	void GetExtentMin(FVectorVMContext& Context);
+	void GetExtentMin(FVectorVMExternalFunctionContext& Context);
 
 	template<typename ParticleIDParamType>
-	void GetExtentMax(FVectorVMContext& Context);
+	void GetExtentMax(FVectorVMExternalFunctionContext& Context);
 
 	template<typename ParticleIDParamType>
-	void GetVolume(FVectorVMContext& Context);
+	void GetVolume(FVectorVMExternalFunctionContext& Context);
 
 	template<typename TimeParamType>
-	void GetParticleIdsToSpawnAtTime(FVectorVMContext& Context);
+	void GetParticleIdsToSpawnAtTime(FVectorVMExternalFunctionContext& Context);
 
 	template<typename ParticleIDParamType>
-	void GetPointType(FVectorVMContext& Context);
+	void GetPointType(FVectorVMExternalFunctionContext& Context);
 
 	template<typename ParticleIDParamType>
-	void GetColor(FVectorVMContext& Context);
+	void GetColor(FVectorVMExternalFunctionContext& Context);
 
 	template<typename ParticleIDParamType>
-	void GetSolverTime(FVectorVMContext& Context);
+	void GetSolverTime(FVectorVMExternalFunctionContext& Context);
 
 	template<typename ParticleIDParamType>
-	void GetDensity(FVectorVMContext& Context);
+	void GetDensity(FVectorVMExternalFunctionContext& Context);
 
 	template<typename ParticleIDParamType>
-	void GetFriction(FVectorVMContext& Context);
+	void GetFriction(FVectorVMExternalFunctionContext& Context);
 
 	template<typename ParticleIDParamType>
-	void GetRestitution(FVectorVMContext& Context);
+	void GetRestitution(FVectorVMExternalFunctionContext& Context);
 
 	template<typename ParticleIDParamType>
-	void GetSize(FVectorVMContext& Context);
+	void GetSize(FVectorVMExternalFunctionContext& Context);
 
 	template<typename ParticleIDParamType>
-	void GetTransform(FVectorVMContext& Context);
+	void GetTransform(FVectorVMExternalFunctionContext& Context);
 
 	template<typename ParticleIDParamType>
-	void GetSurfaceType(FVectorVMContext& Context);
+	void GetSurfaceType(FVectorVMExternalFunctionContext& Context);
 
 	template<typename ParticleIDParamType>
-	void GetCollisionData(FVectorVMContext& Context);
+	void GetCollisionData(FVectorVMExternalFunctionContext& Context);
 
 	template<typename ParticleIDParamType>
-	void GetBreakingData(FVectorVMContext& Context);
+	void GetBreakingData(FVectorVMExternalFunctionContext& Context);
 
 	template<typename ParticleIDParamType>
-	void GetTrailingData(FVectorVMContext& Context);
+	void GetTrailingData(FVectorVMExternalFunctionContext& Context);
 
 	// Sort predicates to sort data
 	inline static bool CollisionDataSortByMassPredicateMaxToMin(const Chaos::FCollidingDataExt& Lhs, const Chaos::FCollidingDataExt& Rhs)

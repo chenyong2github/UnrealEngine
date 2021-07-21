@@ -236,7 +236,7 @@ FORCEINLINE_DEBUGGABLE FVector4 UNiagaraDataInterfaceVector4Curve::SampleCurveIn
 
 
 template<typename UseLUT>
-void UNiagaraDataInterfaceVector4Curve::SampleCurve(FVectorVMContext& Context)
+void UNiagaraDataInterfaceVector4Curve::SampleCurve(FVectorVMExternalFunctionContext& Context)
 {
 	//TODO: Create some SIMDable optimized representation of the curve to do this faster.
 	VectorVM::FExternalFuncInputHandler<float> XParam(Context);
@@ -245,7 +245,7 @@ void UNiagaraDataInterfaceVector4Curve::SampleCurve(FVectorVMContext& Context)
 	VectorVM::FExternalFuncRegisterHandler<float> SamplePtrB(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> SamplePtrA(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		float X = XParam.GetAndAdvance();
 		FVector4 Sample = SampleCurveInternal<UseLUT>(X);

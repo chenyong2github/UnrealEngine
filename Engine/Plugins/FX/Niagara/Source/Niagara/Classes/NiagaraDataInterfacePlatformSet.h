@@ -35,6 +35,6 @@ protected:
 	//~ UNiagaraDataInterface interface
 
 public:
-	void IsActive(FVectorVMContext& Context);
+	void IsActive(FVectorVMExternalFunctionContext& Context);
 };
 

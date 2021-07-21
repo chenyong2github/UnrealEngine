@@ -344,52 +344,52 @@ public:
 public:
 	UStaticMesh* GetStaticMesh(TWeakObjectPtr<USceneComponent>& OutComponent, class FNiagaraSystemInstance* SystemInstance = nullptr);
 
-	void IsValid(FVectorVMContext& Context);
+	void IsValid(FVectorVMExternalFunctionContext& Context);
 
 	template<typename TSampleMode>
-	void RandomSection(FVectorVMContext& Context);
+	void RandomSection(FVectorVMExternalFunctionContext& Context);
 
 	template<typename TSampleMode>
-	void RandomTriCoord(FVectorVMContext& Context);
+	void RandomTriCoord(FVectorVMExternalFunctionContext& Context);
 
 	template<typename TSampleMode>
-	void RandomTriCoordOnSection(FVectorVMContext& Context);
+	void RandomTriCoordOnSection(FVectorVMExternalFunctionContext& Context);
 
- 	void RandomTriCoordVertexColorFiltered(FVectorVMContext& Context);
+ 	void RandomTriCoordVertexColorFiltered(FVectorVMExternalFunctionContext& Context);
 	
 	template<typename TransformHandlerType>
-	void GetTriCoordPosition(FVectorVMContext& Context);
+	void GetTriCoordPosition(FVectorVMExternalFunctionContext& Context);
 
 	template<typename TransformHandlerType>
-	void GetTriCoordNormal(FVectorVMContext& Context);
+	void GetTriCoordNormal(FVectorVMExternalFunctionContext& Context);
 
 	template<typename VertexAccessorType, typename TransformHandlerType>
-	void GetTriCoordTangents(FVectorVMContext& Context);
+	void GetTriCoordTangents(FVectorVMExternalFunctionContext& Context);
 
-	void GetTriCoordColor(FVectorVMContext& Context);
+	void GetTriCoordColor(FVectorVMExternalFunctionContext& Context);
 
 	template<typename VertexAccessorType>
-	void GetTriCoordUV(FVectorVMContext& Context);
+	void GetTriCoordUV(FVectorVMExternalFunctionContext& Context);
 
-	void GetTriCoordPositionAndVelocity(FVectorVMContext& Context);
+	void GetTriCoordPositionAndVelocity(FVectorVMExternalFunctionContext& Context);
 
-	void GetLocalToWorld(FVectorVMContext& Context);
-	void GetLocalToWorldInverseTransposed(FVectorVMContext& Context);
-	void GetWorldVelocity(FVectorVMContext& Context);
+	void GetLocalToWorld(FVectorVMExternalFunctionContext& Context);
+	void GetLocalToWorldInverseTransposed(FVectorVMExternalFunctionContext& Context);
+	void GetWorldVelocity(FVectorVMExternalFunctionContext& Context);
 
 	template<typename TransformHandlerType>
-	void GetVertexPosition(FVectorVMContext& Context);
+	void GetVertexPosition(FVectorVMExternalFunctionContext& Context);
 
 	// Socket Functions
-	void GetSocketCount(FVectorVMContext& Context);
-	void GetFilteredSocketCount(FVectorVMContext& Context);
-	void GetUnfilteredSocketCount(FVectorVMContext& Context);
+	void GetSocketCount(FVectorVMExternalFunctionContext& Context);
+	void GetFilteredSocketCount(FVectorVMExternalFunctionContext& Context);
+	void GetUnfilteredSocketCount(FVectorVMExternalFunctionContext& Context);
 	template<bool bWorldSpace>
-	void GetSocketTransform(FVectorVMContext& Context);
+	void GetSocketTransform(FVectorVMExternalFunctionContext& Context);
 	template<bool bWorldSpace>
-	void GetFilteredSocketTransform(FVectorVMContext& Context);
+	void GetFilteredSocketTransform(FVectorVMExternalFunctionContext& Context);
 	template<bool bWorldSpace>
-	void GetUnfilteredSocketTransform(FVectorVMContext& Context);
+	void GetUnfilteredSocketTransform(FVectorVMExternalFunctionContext& Context);
 
 	void SetSourceComponentFromBlueprints(UStaticMeshComponent* ComponentToUse);
 	void SetDefaultMeshFromBlueprints(UStaticMesh* MeshToUse);
@@ -413,7 +413,7 @@ private:
 	template<typename TSampleMode>
 	FORCEINLINE_DEBUGGABLE int32 RandomTriIndexOnSection(FRandomStream& RandStream, const FStaticMeshLODResources& Res, int32 SectionIdx, FNDIStaticMesh_InstanceData* InstData);
 
-	void WriteTransform(const FMatrix& ToWrite, FVectorVMContext& Context);
+	void WriteTransform(const FMatrix& ToWrite, FVectorVMExternalFunctionContext& Context);
 };
 
 //TODO: IMO this should be generalized fuhrer if possible and extended to a system allowing filtering based on texture color etc too.

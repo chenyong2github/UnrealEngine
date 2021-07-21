@@ -87,7 +87,7 @@ struct NDI_FUNC_BINDER(ClassName, FuncName)\
 	template<typename ... ParamTypes>\
 	static void Bind(UNiagaraDataInterface* Interface, const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)\
 	{\
-		auto Lambda = [Interface](FVectorVMContext& Context) { static_cast<ClassName*>(Interface)->FuncName<ParamTypes...>(Context); };\
+		auto Lambda = [Interface](FVectorVMExternalFunctionContext& Context) { static_cast<ClassName*>(Interface)->FuncName<ParamTypes...>(Context); };\
 		OutFunc = FVMExternalFunction::CreateLambda(Lambda);\
 	}\
 };
@@ -97,7 +97,7 @@ struct NDI_FUNC_BINDER(ClassName, FuncName)\
 {\
 	static void Bind(UNiagaraDataInterface* Interface, FVMExternalFunction &OutFunc)\
 	{\
-		auto Lambda = [Interface](FVectorVMContext& Context) { static_cast<ClassName*>(Interface)->FuncName(Context); };\
+		auto Lambda = [Interface](FVectorVMExternalFunctionContext& Context) { static_cast<ClassName*>(Interface)->FuncName(Context); };\
 		OutFunc = FVMExternalFunction::CreateLambda(Lambda);\
 	}\
 };
@@ -108,7 +108,7 @@ struct NDI_FUNC_BINDER(ClassName, FuncName)\
 	template <typename ... VarTypes>\
 	static void Bind(UNiagaraDataInterface* Interface, FVMExternalFunction &OutFunc, VarTypes... Var)\
 	{\
-		auto Lambda = [Interface, Var...](FVectorVMContext& Context) { static_cast<ClassName*>(Interface)->FuncName(Context, Var...); };\
+		auto Lambda = [Interface, Var...](FVectorVMExternalFunctionContext& Context) { static_cast<ClassName*>(Interface)->FuncName(Context, Var...); };\
 		OutFunc = FVMExternalFunction::CreateLambda(Lambda);\
 	}\
 };
@@ -508,7 +508,7 @@ private:
 template<typename T>
 struct FNDIParameter
 {
-	FNDIParameter(FVectorVMContext& Context) = delete;
+	FNDIParameter(FVectorVMExternalFunctionContext& Context) = delete;
 	FORCEINLINE void GetAndAdvance(T& OutValue) = delete;
 	FORCEINLINE bool IsConstant() const = delete;
 };
@@ -520,9 +520,9 @@ struct FNDIParameter<FNiagaraRandInfo>
 	VectorVM::FExternalFuncInputHandler<int32> Seed2Param;
 	VectorVM::FExternalFuncInputHandler<int32> Seed3Param;
 	
-	FVectorVMContext& Context;
+	FVectorVMExternalFunctionContext& Context;
 
-	FNDIParameter(FVectorVMContext& InContext)
+	FNDIParameter(FVectorVMExternalFunctionContext& InContext)
 		: Context(InContext)
 	{
 		Seed1Param.Init(Context);
@@ -546,7 +546,7 @@ struct FNDIParameter<FNiagaraRandInfo>
 
 struct FNDIRandomHelper
 {
-	FNDIRandomHelper(FVectorVMContext& InContext)
+	FNDIRandomHelper(FVectorVMExternalFunctionContext& InContext)
 		: Context(InContext)
 		, RandParam(Context)
 	{
@@ -569,7 +569,7 @@ struct FNDIRandomHelper
 	{
 		if (IsDeterministic())
 		{
-			int32 RandomCounter = Context.RandCounters[InstanceIndex]++;
+			int32 RandomCounter = Context.GetRandCounters()[InstanceIndex]++;
 
 			FIntVector4 v = FIntVector4(RandomCounter, RandInfo.Seed1, RandInfo.Seed2, RandInfo.Seed3) * 1664525 + FIntVector4(1013904223);
 
@@ -592,7 +592,7 @@ struct FNDIRandomHelper
 		}
 		else
 		{
-			return FVector4(Context.RandStream.GetFraction(), Context.RandStream.GetFraction(), Context.RandStream.GetFraction(), Context.RandStream.GetFraction());
+			return FVector4(Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction());
 		}
 	}
 
@@ -600,7 +600,7 @@ struct FNDIRandomHelper
 	{
 		if (IsDeterministic())
 		{
-			int32 RandomCounter = Context.RandCounters[InstanceIndex]++;
+			int32 RandomCounter = Context.GetRandCounters()[InstanceIndex]++;
 
 			FIntVector v = FIntVector(RandInfo.Seed1, RandInfo.Seed2, RandomCounter | (RandInfo.Seed3 << 16)) * 1664525 + FIntVector(1013904223);
 
@@ -615,7 +615,7 @@ struct FNDIRandomHelper
 		}
 		else
 		{
-			return FVector(Context.RandStream.GetFraction(), Context.RandStream.GetFraction(), Context.RandStream.GetFraction());
+			return FVector(Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction());
 		}
 	}
 
@@ -628,7 +628,7 @@ struct FNDIRandomHelper
 		}
 		else
 		{
-			return FVector2D(Context.RandStream.GetFraction(), Context.RandStream.GetFraction());
+			return FVector2D(Context.GetRandStream().GetFraction(), Context.GetRandStream().GetFraction());
 		}
 	}
 
@@ -640,7 +640,7 @@ struct FNDIRandomHelper
 		}
 		else
 		{
-			return Context.RandStream.GetFraction();
+			return Context.GetRandStream().GetFraction();
 		}
 	}
 
@@ -687,7 +687,7 @@ struct FNDIRandomHelper
 		return FVector(1.0f - sqrt0, sqrt0 * (1.0 - r.Y), r.Y * sqrt0);
 	}
 
-	FVectorVMContext& Context;
+	FVectorVMExternalFunctionContext& Context;
 	FNDIParameter<FNiagaraRandInfo> RandParam;
 
 	FNiagaraRandInfo RandInfo;
@@ -698,7 +698,7 @@ template<typename T>
 struct FNDIInputParam
 {
 	VectorVM::FExternalFuncInputHandler<T> Data;
-	FORCEINLINE FNDIInputParam(FVectorVMContext& Context) : Data(Context) {}
+	FORCEINLINE FNDIInputParam(FVectorVMExternalFunctionContext& Context) : Data(Context) {}
 	FORCEINLINE T GetAndAdvance() { return Data.GetAndAdvance(); }
 };
 
@@ -706,7 +706,7 @@ template<>
 struct FNDIInputParam<FNiagaraBool>
 {
 	VectorVM::FExternalFuncInputHandler<FNiagaraBool> Data;
-	FORCEINLINE FNDIInputParam(FVectorVMContext& Context) : Data(Context) {}
+	FORCEINLINE FNDIInputParam(FVectorVMExternalFunctionContext& Context) : Data(Context) {}
 	FORCEINLINE bool GetAndAdvance() { return Data.GetAndAdvance().GetValue(); }
 };
 
@@ -714,7 +714,7 @@ template<>
 struct FNDIInputParam<bool>
 {
 	VectorVM::FExternalFuncInputHandler<FNiagaraBool> Data;
-	FORCEINLINE FNDIInputParam(FVectorVMContext& Context) : Data(Context) {}
+	FORCEINLINE FNDIInputParam(FVectorVMExternalFunctionContext& Context) : Data(Context) {}
 	FORCEINLINE bool GetAndAdvance() { return Data.GetAndAdvance().GetValue(); }
 };
 
@@ -723,7 +723,7 @@ struct FNDIInputParam<FVector2D>
 {
 	VectorVM::FExternalFuncInputHandler<float> X;
 	VectorVM::FExternalFuncInputHandler<float> Y;
-	FORCEINLINE FNDIInputParam(FVectorVMContext& Context) : X(Context), Y(Context) {}
+	FORCEINLINE FNDIInputParam(FVectorVMExternalFunctionContext& Context) : X(Context), Y(Context) {}
 	FORCEINLINE FVector2D GetAndAdvance() { return FVector2D(X.GetAndAdvance(), Y.GetAndAdvance()); }
 };
 
@@ -733,7 +733,7 @@ struct FNDIInputParam<FVector3f>
 	VectorVM::FExternalFuncInputHandler<float> X;
 	VectorVM::FExternalFuncInputHandler<float> Y;
 	VectorVM::FExternalFuncInputHandler<float> Z;
-	FNDIInputParam(FVectorVMContext& Context) : X(Context), Y(Context), Z(Context) {}
+	FNDIInputParam(FVectorVMExternalFunctionContext& Context) : X(Context), Y(Context), Z(Context) {}
 	FORCEINLINE FVector3f GetAndAdvance() { return FVector3f(X.GetAndAdvance(), Y.GetAndAdvance(), Z.GetAndAdvance()); }
 };
 
@@ -746,7 +746,7 @@ struct FNDIInputParam<FVector4>
 	VectorVM::FExternalFuncInputHandler<float> Y;
 	VectorVM::FExternalFuncInputHandler<float> Z;
 	VectorVM::FExternalFuncInputHandler<float> W;
-	FORCEINLINE FNDIInputParam(FVectorVMContext& Context) : X(Context), Y(Context), Z(Context), W(Context) {}
+	FORCEINLINE FNDIInputParam(FVectorVMExternalFunctionContext& Context) : X(Context), Y(Context), Z(Context), W(Context) {}
 	FORCEINLINE FVector4 GetAndAdvance() { return FVector4(X.GetAndAdvance(), Y.GetAndAdvance(), Z.GetAndAdvance(), W.GetAndAdvance()); }
 };
 
@@ -757,7 +757,7 @@ struct FNDIInputParam<FQuat>
 	VectorVM::FExternalFuncInputHandler<float> Y;
 	VectorVM::FExternalFuncInputHandler<float> Z;
 	VectorVM::FExternalFuncInputHandler<float> W;
-	FORCEINLINE FNDIInputParam(FVectorVMContext& Context) : X(Context), Y(Context), Z(Context), W(Context) {}
+	FORCEINLINE FNDIInputParam(FVectorVMExternalFunctionContext& Context) : X(Context), Y(Context), Z(Context), W(Context) {}
 	FORCEINLINE FQuat GetAndAdvance() { return FQuat(X.GetAndAdvance(), Y.GetAndAdvance(), Z.GetAndAdvance(), W.GetAndAdvance()); }
 };
 
@@ -768,7 +768,7 @@ struct FNDIInputParam<FLinearColor>
 	VectorVM::FExternalFuncInputHandler<float> G;
 	VectorVM::FExternalFuncInputHandler<float> B;
 	VectorVM::FExternalFuncInputHandler<float> A;
-	FORCEINLINE FNDIInputParam(FVectorVMContext& Context) : R(Context), G(Context), B(Context), A(Context) {}
+	FORCEINLINE FNDIInputParam(FVectorVMExternalFunctionContext& Context) : R(Context), G(Context), B(Context), A(Context) {}
 	FORCEINLINE FLinearColor GetAndAdvance() { return FLinearColor(R.GetAndAdvance(), G.GetAndAdvance(), B.GetAndAdvance(), A.GetAndAdvance()); }
 };
 
@@ -777,7 +777,7 @@ struct FNDIInputParam<FNiagaraID>
 {
 	VectorVM::FExternalFuncInputHandler<int32> Index;
 	VectorVM::FExternalFuncInputHandler<int32> AcquireTag;
-	FORCEINLINE FNDIInputParam(FVectorVMContext& Context) : Index(Context), AcquireTag(Context) {}
+	FORCEINLINE FNDIInputParam(FVectorVMExternalFunctionContext& Context) : Index(Context), AcquireTag(Context) {}
 	FORCEINLINE FNiagaraID GetAndAdvance() { return FNiagaraID(Index.GetAndAdvance(), AcquireTag.GetAndAdvance()); }
 };
 
@@ -786,7 +786,7 @@ template<typename T>
 struct FNDIOutputParam
 {
 	VectorVM::FExternalFuncRegisterHandler<T> Data;
-	FORCEINLINE FNDIOutputParam(FVectorVMContext& Context) : Data(Context) {}
+	FORCEINLINE FNDIOutputParam(FVectorVMExternalFunctionContext& Context) : Data(Context) {}
 	FORCEINLINE bool IsValid() const { return Data.IsValid();  }
 	FORCEINLINE void SetAndAdvance(T Val) { *Data.GetDestAndAdvance() = Val; }
 };
@@ -795,7 +795,7 @@ template<>
 struct FNDIOutputParam<FNiagaraBool>
 {
 	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> Data;
-	FORCEINLINE FNDIOutputParam(FVectorVMContext& Context) : Data(Context) {}
+	FORCEINLINE FNDIOutputParam(FVectorVMExternalFunctionContext& Context) : Data(Context) {}
 	FORCEINLINE bool IsValid() const { return Data.IsValid(); }
 	FORCEINLINE void SetAndAdvance(bool Val) { Data.GetDestAndAdvance()->SetValue(Val); }
 };
@@ -804,7 +804,7 @@ template<>
 struct FNDIOutputParam<bool>
 {
 	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> Data;
-	FORCEINLINE FNDIOutputParam(FVectorVMContext& Context) : Data(Context) {}
+	FORCEINLINE FNDIOutputParam(FVectorVMExternalFunctionContext& Context) : Data(Context) {}
 	FORCEINLINE bool IsValid() const { return Data.IsValid(); }
 	FORCEINLINE void SetAndAdvance(bool Val) { Data.GetDestAndAdvance()->SetValue(Val); }
 };
@@ -814,7 +814,7 @@ struct FNDIOutputParam<FVector2D>
 {
 	VectorVM::FExternalFuncRegisterHandler<float> X;
 	VectorVM::FExternalFuncRegisterHandler<float> Y;
-	FORCEINLINE FNDIOutputParam(FVectorVMContext& Context) : X(Context), Y(Context) {}
+	FORCEINLINE FNDIOutputParam(FVectorVMExternalFunctionContext& Context) : X(Context), Y(Context) {}
 	FORCEINLINE bool IsValid() const { return X.IsValid() || Y.IsValid(); }
 	FORCEINLINE void SetAndAdvance(FVector2D Val)
 	{
@@ -829,7 +829,7 @@ struct FNDIOutputParam<FVector3f>
 	VectorVM::FExternalFuncRegisterHandler<float> X;
 	VectorVM::FExternalFuncRegisterHandler<float> Y;
 	VectorVM::FExternalFuncRegisterHandler<float> Z;
-	FNDIOutputParam(FVectorVMContext& Context) : X(Context), Y(Context), Z(Context) {}
+	FNDIOutputParam(FVectorVMExternalFunctionContext& Context) : X(Context), Y(Context), Z(Context) {}
 	FORCEINLINE bool IsValid() const { return X.IsValid() || Y.IsValid() || Z.IsValid(); }
 	FORCEINLINE void SetAndAdvance(FVector3f Val)
 	{
@@ -847,7 +847,7 @@ struct FNDIOutputParam<FVector4>
 	VectorVM::FExternalFuncRegisterHandler<float> Y;
 	VectorVM::FExternalFuncRegisterHandler<float> Z;
 	VectorVM::FExternalFuncRegisterHandler<float> W;
-	FORCEINLINE FNDIOutputParam(FVectorVMContext& Context) : X(Context), Y(Context), Z(Context), W(Context) {}
+	FORCEINLINE FNDIOutputParam(FVectorVMExternalFunctionContext& Context) : X(Context), Y(Context), Z(Context), W(Context) {}
 	FORCEINLINE bool IsValid() const { return X.IsValid() || Y.IsValid() || Z.IsValid() || W.IsValid(); }
 	FORCEINLINE void SetAndAdvance(FVector4 Val)
 	{
@@ -865,7 +865,7 @@ struct FNDIOutputParam<FQuat>
 	VectorVM::FExternalFuncRegisterHandler<float> Y;
 	VectorVM::FExternalFuncRegisterHandler<float> Z;
 	VectorVM::FExternalFuncRegisterHandler<float> W;
-	FORCEINLINE FNDIOutputParam(FVectorVMContext& Context) : X(Context), Y(Context), Z(Context), W(Context) {}
+	FORCEINLINE FNDIOutputParam(FVectorVMExternalFunctionContext& Context) : X(Context), Y(Context), Z(Context), W(Context) {}
 	FORCEINLINE bool IsValid() const { return X.IsValid() || Y.IsValid() || Z.IsValid() || W.IsValid(); }
 	FORCEINLINE void SetAndAdvance(FQuat Val)
 	{
@@ -896,7 +896,7 @@ struct FNDIOutputParam<FMatrix44f>
 	VectorVM::FExternalFuncRegisterHandler<float> Out14;
 	VectorVM::FExternalFuncRegisterHandler<float> Out15;
 
-	FORCEINLINE FNDIOutputParam(FVectorVMContext& Context) : Out00(Context), Out01(Context), Out02(Context), Out03(Context), Out04(Context), Out05(Context),
+	FORCEINLINE FNDIOutputParam(FVectorVMExternalFunctionContext& Context) : Out00(Context), Out01(Context), Out02(Context), Out03(Context), Out04(Context), Out05(Context),
 		Out06(Context), Out07(Context), Out08(Context), Out09(Context), Out10(Context), Out11(Context), Out12(Context), Out13(Context), Out14(Context), Out15(Context)	{}
 	FORCEINLINE bool IsValid() const { return Out00.IsValid(); }
 	FORCEINLINE void SetAndAdvance(const FMatrix44f& Val)
@@ -927,7 +927,7 @@ struct FNDIOutputParam<FLinearColor>
 	VectorVM::FExternalFuncRegisterHandler<float> G;
 	VectorVM::FExternalFuncRegisterHandler<float> B;
 	VectorVM::FExternalFuncRegisterHandler<float> A;
-	FORCEINLINE FNDIOutputParam(FVectorVMContext& Context) : R(Context), G(Context), B(Context), A(Context) {}
+	FORCEINLINE FNDIOutputParam(FVectorVMExternalFunctionContext& Context) : R(Context), G(Context), B(Context), A(Context) {}
 	FORCEINLINE bool IsValid() const { return R.IsValid() || G.IsValid() || B.IsValid() || A.IsValid(); }
 	FORCEINLINE void SetAndAdvance(FLinearColor Val)
 	{
@@ -943,7 +943,7 @@ struct FNDIOutputParam<FNiagaraID>
 {
 	VectorVM::FExternalFuncRegisterHandler<int32> Index;
 	VectorVM::FExternalFuncRegisterHandler<int32> AcquireTag;
-	FORCEINLINE FNDIOutputParam(FVectorVMContext& Context) : Index(Context), AcquireTag(Context) {}
+	FORCEINLINE FNDIOutputParam(FVectorVMExternalFunctionContext& Context) : Index(Context), AcquireTag(Context) {}
 	FORCEINLINE bool IsValid() const { return Index.IsValid() || AcquireTag.IsValid(); }
 	FORCEINLINE void SetAndAdvance(FNiagaraID Val)
 	{

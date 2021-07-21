@@ -33,31 +33,31 @@ public:
 #endif
 
 	/** Build the velocity field */
-	void BuildDistanceField(FVectorVMContext& Context);
+	void BuildDistanceField(FVectorVMExternalFunctionContext& Context);
 
 	/** Project the velocity field to be divergence free */
-	void SolveGridPressure(FVectorVMContext& Context);
+	void SolveGridPressure(FVectorVMExternalFunctionContext& Context);
 
 	/** Scale Cell Fields */
-	void ScaleCellFields(FVectorVMContext& Context);
+	void ScaleCellFields(FVectorVMExternalFunctionContext& Context);
 
 	/** Set the solid boundary */
-	void SetSolidBoundary(FVectorVMContext& Context);
+	void SetSolidBoundary(FVectorVMExternalFunctionContext& Context);
 
 	/** Compute the solid weights */
-	void ComputeBoundaryWeights(FVectorVMContext& Context);
+	void ComputeBoundaryWeights(FVectorVMExternalFunctionContext& Context);
 
 	/** Get Node Position */
-	void GetNodePosition(FVectorVMContext& Context);
+	void GetNodePosition(FVectorVMExternalFunctionContext& Context);
 
 	/** Get Density Field */
-	void GetDensityField(FVectorVMContext& Context);
+	void GetDensityField(FVectorVMExternalFunctionContext& Context);
 
 	/** Build the Density Field */
-	void BuildDensityField(FVectorVMContext& Context);
+	void BuildDensityField(FVectorVMExternalFunctionContext& Context);
 
 	/** Update the deformation gradient */
-	void UpdateDeformationGradient(FVectorVMContext& Context);
+	void UpdateDeformationGradient(FVectorVMExternalFunctionContext& Context);
 
 };
 

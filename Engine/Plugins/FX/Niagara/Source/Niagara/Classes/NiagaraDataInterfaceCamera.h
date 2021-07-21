@@ -64,14 +64,14 @@ public:
 #endif
 	//UNiagaraDataInterface Interface
 
-	void CalculateParticleDistances(FVectorVMContext& Context);
-	void GetClosestParticles(FVectorVMContext& Context);
-	void GetCameraFOV(FVectorVMContext& Context);
-	void GetCameraProperties(FVectorVMContext& Context);
-	void GetViewPropertiesGPU(FVectorVMContext& Context);
-	void GetClipSpaceTransformsGPU(FVectorVMContext& Context);
-	void GetViewSpaceTransformsGPU(FVectorVMContext& Context);
-	void GetTAAJitter(FVectorVMContext& Context);
+	void CalculateParticleDistances(FVectorVMExternalFunctionContext& Context);
+	void GetClosestParticles(FVectorVMExternalFunctionContext& Context);
+	void GetCameraFOV(FVectorVMExternalFunctionContext& Context);
+	void GetCameraProperties(FVectorVMExternalFunctionContext& Context);
+	void GetViewPropertiesGPU(FVectorVMExternalFunctionContext& Context);
+	void GetClipSpaceTransformsGPU(FVectorVMExternalFunctionContext& Context);
+	void GetViewSpaceTransformsGPU(FVectorVMExternalFunctionContext& Context);
+	void GetTAAJitter(FVectorVMExternalFunctionContext& Context);
 
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;

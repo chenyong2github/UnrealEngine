@@ -1464,7 +1464,7 @@ namespace NDIDebugDrawLocal
 	{
 		struct VMBindings
 		{
-			VMBindings(FVectorVMContext& Context)
+			VMBindings(FVectorVMExternalFunctionContext& Context)
 				: LineStartParam(Context)
 				, LineEndParam(Context)
 				, ColorParam(Context)
@@ -1478,7 +1478,7 @@ namespace NDIDebugDrawLocal
 
 		struct PersistentVMBindings
 		{
-			PersistentVMBindings(FVectorVMContext& Context)
+			PersistentVMBindings(FVectorVMExternalFunctionContext& Context)
 				: StartLocationParam(Context)
 				, StartLocationWSParam(Context)
 				, EndLocationParam(Context)
@@ -1514,7 +1514,7 @@ namespace NDIDebugDrawLocal
 	{
 		struct VMBindings
 		{
-			VMBindings(FVectorVMContext& Context)
+			VMBindings(FVectorVMExternalFunctionContext& Context)
 				: LocationParam(Context)
 				, XAxisParam(Context)
 				, YAxisParam(Context)
@@ -1538,7 +1538,7 @@ namespace NDIDebugDrawLocal
 
 		struct PersistentVMBindings
 		{
-			PersistentVMBindings(FVectorVMContext& Context)
+			PersistentVMBindings(FVectorVMExternalFunctionContext& Context)
 				: LocationParam(Context)
 				, LocationWSParam(Context)
 				, OffsetParam(Context)
@@ -1595,7 +1595,7 @@ namespace NDIDebugDrawLocal
 	{
 		struct VMBindings
 		{
-			VMBindings(FVectorVMContext& Context)
+			VMBindings(FVectorVMExternalFunctionContext& Context)
 				: LocationParam(Context)
 				, XAxisParam(Context)
 				, YAxisParam(Context)
@@ -1615,7 +1615,7 @@ namespace NDIDebugDrawLocal
 
 		struct PersistentVMBindings
 		{
-			PersistentVMBindings(FVectorVMContext& Context)
+			PersistentVMBindings(FVectorVMExternalFunctionContext& Context)
 				: LocationParam(Context)
 				, LocationWSParam(Context)
 				, OffsetParam(Context)
@@ -1664,7 +1664,7 @@ namespace NDIDebugDrawLocal
 	{
 		struct VMBindings
 		{
-			VMBindings(FVectorVMContext& Context)
+			VMBindings(FVectorVMExternalFunctionContext& Context)
 				: LocationParam(Context)
 				, RotationParam(Context)
 				, ExtentsParam(Context)
@@ -1680,7 +1680,7 @@ namespace NDIDebugDrawLocal
 
 		struct PersistentVMBindings
 		{
-			PersistentVMBindings(FVectorVMContext& Context)
+			PersistentVMBindings(FVectorVMExternalFunctionContext& Context)
 				: LocationParam(Context)
 				, LocationWSParam(Context)
 				, OffsetParam(Context)
@@ -1727,7 +1727,7 @@ namespace NDIDebugDrawLocal
 	{
 		struct VMBindings
 		{
-			VMBindings(FVectorVMContext& Context)
+			VMBindings(FVectorVMExternalFunctionContext& Context)
 				: LocationParam(Context)
 				, RadiusParam(Context)
 				, SegmentsParam(Context)
@@ -1743,7 +1743,7 @@ namespace NDIDebugDrawLocal
 
 		struct PersistentVMBindings
 		{
-			PersistentVMBindings(FVectorVMContext& Context)
+			PersistentVMBindings(FVectorVMExternalFunctionContext& Context)
 				: CenterParam(Context)
 				, CenterWSParam(Context)
 				, OffsetParam(Context)
@@ -1799,7 +1799,7 @@ namespace NDIDebugDrawLocal
 	{
 		struct VMBindings
 		{
-			VMBindings(FVectorVMContext& Context)
+			VMBindings(FVectorVMExternalFunctionContext& Context)
 				: LocationParam(Context)
 				, AxisParam(Context)
 				, HeightParam(Context)
@@ -1821,7 +1821,7 @@ namespace NDIDebugDrawLocal
 
 		struct PersistentVMBindings
 		{
-			PersistentVMBindings(FVectorVMContext& Context)
+			PersistentVMBindings(FVectorVMExternalFunctionContext& Context)
 				: LocationParam(Context)
 				, LocationWSParam(Context)
 				, OffsetParam(Context)
@@ -1882,7 +1882,7 @@ namespace NDIDebugDrawLocal
 	{
 		struct VMBindings
 		{
-			VMBindings(FVectorVMContext& Context)
+			VMBindings(FVectorVMExternalFunctionContext& Context)
 				: LocationParam(Context)
 				, AxisParam(Context)
 				, HeightParam(Context)
@@ -1906,7 +1906,7 @@ namespace NDIDebugDrawLocal
 
 		struct PersistentVMBindings
 		{
-			PersistentVMBindings(FVectorVMContext& Context)
+			PersistentVMBindings(FVectorVMExternalFunctionContext& Context)
 				: LocationParam(Context)
 				, LocationWSParam(Context)
 				, OffsetParam(Context)
@@ -1961,7 +1961,7 @@ namespace NDIDebugDrawLocal
 	{
 		struct VMBindings
 		{
-			VMBindings(FVectorVMContext& Context)
+			VMBindings(FVectorVMExternalFunctionContext& Context)
 				: LocationParam(Context)
 				, AxisParam(Context)
 				, MajorRadiusParam(Context)
@@ -1983,7 +1983,7 @@ namespace NDIDebugDrawLocal
 
 		struct PersistentVMBindings
 		{
-			PersistentVMBindings(FVectorVMContext& Context)
+			PersistentVMBindings(FVectorVMExternalFunctionContext& Context)
 				: LocationParam(Context)
 				, LocationWSParam(Context)
 				, OffsetParam(Context)
@@ -2037,7 +2037,7 @@ namespace NDIDebugDrawLocal
 	{
 		struct VMBindings
 		{
-			VMBindings(FVectorVMContext& Context)
+			VMBindings(FVectorVMExternalFunctionContext& Context)
 				: LocationParam(Context)
 				, RotationParam(Context)
 				, ScaleParam(Context)
@@ -2051,7 +2051,7 @@ namespace NDIDebugDrawLocal
 		
 		struct PersistentVMBindings
 		{
-			PersistentVMBindings(FVectorVMContext& Context)
+			PersistentVMBindings(FVectorVMExternalFunctionContext& Context)
 				: LocationParam(Context)
 				, LocationWSParam(Context)
 				, OffsetParam(Context)
@@ -2092,7 +2092,7 @@ namespace NDIDebugDrawLocal
 	{
 		struct VMBindings
 		{
-			VMBindings(FVectorVMContext& Context)
+			VMBindings(FVectorVMExternalFunctionContext& Context)
 				: CenterParam(Context)
 				, RotationParam(Context)
 				, ExtentsParam(Context)
@@ -2112,7 +2112,7 @@ namespace NDIDebugDrawLocal
 
 		struct PersistentVMBindings
 		{
-			PersistentVMBindings(FVectorVMContext& Context)
+			PersistentVMBindings(FVectorVMExternalFunctionContext& Context)
 				: LocationParam(Context)
 				, LocationWSParam(Context)
 				, OffsetParam(Context)
@@ -2160,7 +2160,7 @@ namespace NDIDebugDrawLocal
 	{
 		struct VMBindings
 		{
-			VMBindings(FVectorVMContext& Context)
+			VMBindings(FVectorVMExternalFunctionContext& Context)
 				: CenterParam(Context)
 				, RotationParam(Context)
 				, ExtentsParam(Context)
@@ -2182,7 +2182,7 @@ namespace NDIDebugDrawLocal
 
 		struct PersistentVMBindings
 		{
-			PersistentVMBindings(FVectorVMContext& Context)
+			PersistentVMBindings(FVectorVMExternalFunctionContext& Context)
 				: LocationParam(Context)
 				, LocationWSParam(Context)
 				, OffsetParam(Context)
@@ -2231,7 +2231,7 @@ namespace NDIDebugDrawLocal
 
 
 	template<typename TPrimType>
-	void DrawDebug(FVectorVMContext& Context)
+	void DrawDebug(FVectorVMExternalFunctionContext& Context)
 	{
 		VectorVM::FUserPtrHandler<FNDIDebugDrawInstanceData_GameThread> InstanceData(Context);
 		FNDIInputParam<FNiagaraBool> ExecuteParam(Context);
@@ -2243,7 +2243,7 @@ namespace NDIDebugDrawLocal
 			return;
 		}
 
-		for ( int i=0; i < Context.NumInstances; ++i )
+		for ( int i=0; i < Context.GetNumInstances(); ++i )
 		{
 			const bool bExecute = ExecuteParam.GetAndAdvance();
 			TPrimType::Draw(InstanceData, Bindings, bExecute);
@@ -2252,7 +2252,7 @@ namespace NDIDebugDrawLocal
 	}
 
 	template<typename TPrimType>
-	void DrawDebugPersistent(FVectorVMContext& Context)
+	void DrawDebugPersistent(FVectorVMExternalFunctionContext& Context)
 	{
 		VectorVM::FUserPtrHandler<FNDIDebugDrawInstanceData_GameThread> InstanceData(Context);
 		typename TPrimType::PersistentVMBindings Bindings(Context);

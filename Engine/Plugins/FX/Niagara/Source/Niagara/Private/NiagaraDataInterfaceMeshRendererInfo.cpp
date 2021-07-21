@@ -589,7 +589,7 @@ void UNiagaraDataInterfaceMeshRendererInfo::PushToRenderThreadImpl()
 	}
 }
 
-void UNiagaraDataInterfaceMeshRendererInfo::GetNumMeshes(FVectorVMContext& Context)
+void UNiagaraDataInterfaceMeshRendererInfo::GetNumMeshes(FVectorVMExternalFunctionContext& Context)
 {
 	FNDIOutputParam<int32> OutNum(Context);
 
@@ -600,7 +600,7 @@ void UNiagaraDataInterfaceMeshRendererInfo::GetNumMeshes(FVectorVMContext& Conte
 	}
 }
 
-void UNiagaraDataInterfaceMeshRendererInfo::GetMeshLocalBounds(FVectorVMContext& Context)
+void UNiagaraDataInterfaceMeshRendererInfo::GetMeshLocalBounds(FVectorVMExternalFunctionContext& Context)
 {
 	FNDIInputParam<int32> InMeshIdx(Context);
 	FNDIOutputParam<FVector3f> OutMinBounds(Context);

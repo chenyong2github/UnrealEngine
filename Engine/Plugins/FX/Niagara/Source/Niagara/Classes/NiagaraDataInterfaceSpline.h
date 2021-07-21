@@ -86,22 +86,22 @@ public:
 	//UNiagaraDataInterface Interface End
 
 	template<typename TransformHandlerType, typename SplineSampleType>
-	void SampleSplinePositionByUnitDistance(FVectorVMContext& Context);
+	void SampleSplinePositionByUnitDistance(FVectorVMExternalFunctionContext& Context);
 	template<typename TransformHandlerType, typename SplineSampleType>
-	void SampleSplineRotationByUnitDistance(FVectorVMContext& Context);
+	void SampleSplineRotationByUnitDistance(FVectorVMExternalFunctionContext& Context);
 	template<typename TransformHandlerType, typename SplineSampleType>
-	void SampleSplineUpVectorByUnitDistance(FVectorVMContext& Context);
+	void SampleSplineUpVectorByUnitDistance(FVectorVMExternalFunctionContext& Context);
 	template<typename TransformHandlerType, typename SplineSampleType>
-	void SampleSplineRightVectorByUnitDistance(FVectorVMContext& Context);
+	void SampleSplineRightVectorByUnitDistance(FVectorVMExternalFunctionContext& Context);
 	template<typename TransformHandlerType, typename SplineSampleType>
-	void SampleSplineDirectionByUnitDistance(FVectorVMContext& Context);
+	void SampleSplineDirectionByUnitDistance(FVectorVMExternalFunctionContext& Context);
 	template<typename TransformHandlerType, typename SplineSampleType>
-	void SampleSplineTangentByUnitDistance(FVectorVMContext& Context);
+	void SampleSplineTangentByUnitDistance(FVectorVMExternalFunctionContext& Context);
 	template<typename PosXType, typename PosYType, typename PosZType>
-	void FindClosestUnitDistanceFromPositionWS(FVectorVMContext& Context);
+	void FindClosestUnitDistanceFromPositionWS(FVectorVMExternalFunctionContext& Context);
 	
-	void GetLocalToWorld(FVectorVMContext& Context);
-	void GetLocalToWorldInverseTransposed(FVectorVMContext& Context);
+	void GetLocalToWorld(FVectorVMExternalFunctionContext& Context);
+	void GetLocalToWorldInverseTransposed(FVectorVMExternalFunctionContext& Context);
 
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
 	{
@@ -113,6 +113,6 @@ protected:
 
 private:
 	
-	void WriteTransform(const FMatrix& ToWrite, FVectorVMContext& Context);
+	void WriteTransform(const FMatrix& ToWrite, FVectorVMExternalFunctionContext& Context);
 	//Cached ComponentToWorld.
 };

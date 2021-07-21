@@ -28,8 +28,8 @@ public:
 	virtual bool RequiresDepthBuffer() const override { return true; }
 	//UNiagaraDataInterface Interface
 
-	void QueryOcclusionFactorGPU(FVectorVMContext& Context);
-	void QueryOcclusionFactorCircleGPU(FVectorVMContext& Context);
+	void QueryOcclusionFactorGPU(FVectorVMExternalFunctionContext& Context);
+	void QueryOcclusionFactorCircleGPU(FVectorVMExternalFunctionContext& Context);
 	
 private:
 	static const FName GetCameraOcclusionRectangleName;

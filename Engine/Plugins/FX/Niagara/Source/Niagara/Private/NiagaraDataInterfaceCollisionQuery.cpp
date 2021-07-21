@@ -720,7 +720,7 @@ void UNiagaraDataInterfaceCollisionQuery::ModifyCompilationEnvironment(EShaderPl
 
 #endif
 
-void UNiagaraDataInterfaceCollisionQuery::PerformQuerySyncCPU(FVectorVMContext & Context)
+void UNiagaraDataInterfaceCollisionQuery::PerformQuerySyncCPU(FVectorVMExternalFunctionContext & Context)
 {
 	VectorVM::FUserPtrHandler<CQDIPerInstanceData> InstanceData(Context);
 
@@ -749,7 +749,7 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQuerySyncCPU(FVectorVMContext &
 	VectorVM::FExternalFuncRegisterHandler<int32> OutPhysicalMaterialIdx(Context);
 
 	FScopeLock ScopeLock(&CriticalSection);
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		FVector Pos(StartPosParamX.GetAndAdvance(), StartPosParamY.GetAndAdvance(), StartPosParamZ.GetAndAdvance());
 		FVector Dir(EndPosParamX.GetAndAdvance(), EndPosParamY.GetAndAdvance(), EndPosParamZ.GetAndAdvance());
@@ -789,7 +789,7 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQuerySyncCPU(FVectorVMContext &
 	}
 }
 
-void UNiagaraDataInterfaceCollisionQuery::PerformQueryAsyncCPU(FVectorVMContext & Context)
+void UNiagaraDataInterfaceCollisionQuery::PerformQueryAsyncCPU(FVectorVMExternalFunctionContext & Context)
 {
 	VectorVM::FUserPtrHandler<CQDIPerInstanceData> InstanceData(Context);
 
@@ -821,7 +821,7 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQueryAsyncCPU(FVectorVMContext 
 	VectorVM::FExternalFuncRegisterHandler<int32> OutPhysicalMaterialIdx(Context);
 
 	FScopeLock ScopeLock(&CriticalSection);
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		FVector Pos(StartPosParamX.GetAndAdvance(), StartPosParamY.GetAndAdvance(), StartPosParamZ.GetAndAdvance());
 		FVector End(EndPosParamX.GetAndAdvance(), EndPosParamY.GetAndAdvance(), EndPosParamZ.GetAndAdvance());
@@ -865,7 +865,7 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQueryAsyncCPU(FVectorVMContext 
 	}
 }
 
-void UNiagaraDataInterfaceCollisionQuery::QuerySceneDepth(FVectorVMContext & Context)
+void UNiagaraDataInterfaceCollisionQuery::QuerySceneDepth(FVectorVMExternalFunctionContext & Context)
 {
 	UE_LOG(LogNiagara, Error, TEXT("GPU only function 'QuerySceneDepthGPU' called on CPU VM, check your module code to fix."));
 
@@ -888,7 +888,7 @@ void UNiagaraDataInterfaceCollisionQuery::QuerySceneDepth(FVectorVMContext & Con
 	VectorVM::FExternalFuncRegisterHandler<float> OutWorldNormZ(Context);
 
 	FScopeLock ScopeLock(&CriticalSection);
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		*OutSceneDepth.GetDestAndAdvance() = -1;
 		*OutIsInsideView.GetDestAndAdvance() = 0;
@@ -904,7 +904,7 @@ void UNiagaraDataInterfaceCollisionQuery::QuerySceneDepth(FVectorVMContext & Con
 	}
 }
 
-void UNiagaraDataInterfaceCollisionQuery::QueryMeshDistanceField(FVectorVMContext& Context)
+void UNiagaraDataInterfaceCollisionQuery::QueryMeshDistanceField(FVectorVMExternalFunctionContext& Context)
 {
 	UE_LOG(LogNiagara, Error, TEXT("GPU only function 'QueryMeshDistanceFieldGPU' called on CPU VM, check your module code to fix."));
 
@@ -921,7 +921,7 @@ void UNiagaraDataInterfaceCollisionQuery::QueryMeshDistanceField(FVectorVMContex
 	FNDIOutputParam<FNiagaraBool> OutIsFieldValid(Context);
 
 	FScopeLock ScopeLock(&CriticalSection);
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		*OutSurfaceDistance.GetDestAndAdvance() = -1;
 		*OutFieldGradientX.GetDestAndAdvance() = 0.0f;

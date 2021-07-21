@@ -2663,7 +2663,7 @@ void UNiagaraDataInterfaceHairStrands::GetVMExternalFunction(const FVMExternalFu
 	}
 }
 
-void WriteTransform(const FMatrix& ToWrite, FVectorVMContext& Context)
+void WriteTransform(const FMatrix& ToWrite, FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FExternalFuncRegisterHandler<float> Out00(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> Out01(Context);
@@ -2682,7 +2682,7 @@ void WriteTransform(const FMatrix& ToWrite, FVectorVMContext& Context)
 	VectorVM::FExternalFuncRegisterHandler<float> Out14(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> Out15(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		*Out00.GetDest() = ToWrite.M[0][0]; Out00.Advance();
 		*Out01.GetDest() = ToWrite.M[0][1]; Out01.Advance();
@@ -2703,58 +2703,58 @@ void WriteTransform(const FMatrix& ToWrite, FVectorVMContext& Context)
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetNumStrands(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetNumStrands(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutNumStrands(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutNumStrands.GetDestAndAdvance() = InstData->NumStrands;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetStrandSize(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetStrandSize(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutStrandSize(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutStrandSize.GetDestAndAdvance() = InstData->StrandsSize;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetSubSteps(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetSubSteps(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutSubSteps(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutSubSteps.GetDestAndAdvance() = InstData->SubSteps;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetIterationCount(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetIterationCount(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutIterationCount(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutIterationCount.GetDestAndAdvance() = InstData->IterationCount;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetGravityVector(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetGravityVector(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutGravityVectorX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutGravityVectorY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutGravityVectorZ(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutGravityVectorX.GetDestAndAdvance() = InstData->GravityVector.X;
 		*OutGravityVectorY.GetDestAndAdvance() = InstData->GravityVector.Y;
@@ -2762,25 +2762,25 @@ void UNiagaraDataInterfaceHairStrands::GetGravityVector(FVectorVMContext& Contex
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetAirDrag(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetAirDrag(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutAirDrag(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutAirDrag.GetDestAndAdvance() = InstData->AirDrag;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetAirVelocity(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetAirVelocity(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutAirVelocityX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutAirVelocityY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutAirVelocityZ(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutAirVelocityX.GetDestAndAdvance() = InstData->AirVelocity.X;
 		*OutAirVelocityY.GetDestAndAdvance() = InstData->AirVelocity.Y;
@@ -2788,224 +2788,224 @@ void UNiagaraDataInterfaceHairStrands::GetAirVelocity(FVectorVMContext& Context)
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetSolveBend(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetSolveBend(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutSolveBend(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutSolveBend.GetDestAndAdvance() = InstData->SolveBend;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetProjectBend(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetProjectBend(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutProjectBend(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutProjectBend.GetDestAndAdvance() = InstData->ProjectBend;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetBendDamping(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetBendDamping(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutBendDamping(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutBendDamping.GetDestAndAdvance() = InstData->BendDamping;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetBendStiffness(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetBendStiffness(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutBendStiffness(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutBendStiffness.GetDestAndAdvance() = InstData->BendStiffness;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetBendScale(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetBendScale(FVectorVMExternalFunctionContext& Context)
 {}
 
-void UNiagaraDataInterfaceHairStrands::GetSolveStretch(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetSolveStretch(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutSolveStretch(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutSolveStretch.GetDestAndAdvance() = InstData->SolveStretch;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetProjectStretch(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetProjectStretch(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutProjectStretch(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutProjectStretch.GetDestAndAdvance() = InstData->ProjectStretch;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetStretchDamping(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetStretchDamping(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutStretchDamping(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutStretchDamping.GetDestAndAdvance() = InstData->StretchDamping;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetStretchStiffness(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetStretchStiffness(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutStretchStiffness(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutStretchStiffness.GetDestAndAdvance() = InstData->StretchStiffness;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetStretchScale(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetStretchScale(FVectorVMExternalFunctionContext& Context)
 {
 }
 
 
-void UNiagaraDataInterfaceHairStrands::GetSolveCollision(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetSolveCollision(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutSolveCollision(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutSolveCollision.GetDestAndAdvance() = InstData->SolveCollision;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetProjectCollision(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetProjectCollision(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutProjectCollision(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutProjectCollision.GetDestAndAdvance() = InstData->ProjectCollision;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetStaticFriction(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetStaticFriction(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutStaticFriction(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutStaticFriction.GetDestAndAdvance() = InstData->StaticFriction;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetKineticFriction(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetKineticFriction(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutKineticFriction(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutKineticFriction.GetDestAndAdvance() = InstData->KineticFriction;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetStrandsViscosity(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetStrandsViscosity(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutStrandsViscosity(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutStrandsViscosity.GetDestAndAdvance() = InstData->StrandsViscosity;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetGridDimension(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetGridDimension(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutGridDimensionX(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutGridDimensionY(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutGridDimensionZ(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutGridDimensionX.GetDestAndAdvance() = InstData->GridDimension.X;
 		*OutGridDimensionY.GetDestAndAdvance() = InstData->GridDimension.Y;
 		*OutGridDimensionZ.GetDestAndAdvance() = InstData->GridDimension.Z;
 	}
 }
-void UNiagaraDataInterfaceHairStrands::GetCollisionRadius(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetCollisionRadius(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionRadius(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutCollisionRadius.GetDestAndAdvance() = InstData->CollisionRadius;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetRadiusScale(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetRadiusScale(FVectorVMExternalFunctionContext& Context)
 {
 }
 
-void UNiagaraDataInterfaceHairStrands::GetStrandsSmoothing(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetStrandsSmoothing(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutStrandsSmoothing(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutStrandsSmoothing.GetDestAndAdvance() = InstData->StrandsSmoothing;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetStrandsDensity(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetStrandsDensity(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutStrandsDensity(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutStrandsDensity.GetDestAndAdvance() = InstData->StrandsDensity;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetStrandsThickness(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetStrandsThickness(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutStrandsThickness(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutStrandsThickness.GetDestAndAdvance() = InstData->StrandsThickness;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::GetThicknessScale(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetThicknessScale(FVectorVMExternalFunctionContext& Context)
 {
 }
 
-void UNiagaraDataInterfaceHairStrands::GetWorldTransform(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetWorldTransform(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	FMatrix WorldTransform = InstData->WorldTransform.ToMatrixWithScale();
@@ -3013,7 +3013,7 @@ void UNiagaraDataInterfaceHairStrands::GetWorldTransform(FVectorVMContext& Conte
 	WriteTransform(WorldTransform, Context);
 }
 
-void UNiagaraDataInterfaceHairStrands::GetWorldInverse(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetWorldInverse(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	FMatrix WorldInverse = InstData->WorldTransform.ToMatrixWithScale().Inverse();
@@ -3021,258 +3021,258 @@ void UNiagaraDataInterfaceHairStrands::GetWorldInverse(FVectorVMContext& Context
 	WriteTransform(WorldInverse, Context);
 }
 
-void UNiagaraDataInterfaceHairStrands::GetBoundingBox(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetBoundingBox(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::ResetBoundingBox(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::ResetBoundingBox(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::BuildBoundingBox(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::BuildBoundingBox(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::GetPointPosition(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetPointPosition(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::ComputeNodePosition(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::ComputeNodePosition(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::ComputeNodeOrientation(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::ComputeNodeOrientation(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::ComputeNodeMass(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::ComputeNodeMass(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::ComputeNodeInertia(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::ComputeNodeInertia(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::ComputeEdgeLength(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::ComputeEdgeLength(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::ComputeEdgeRotation(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::ComputeEdgeRotation(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::ComputeRestPosition(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::ComputeRestPosition(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::ComputeRestOrientation(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::ComputeRestOrientation(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::ComputeLocalState(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::ComputeLocalState(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::UpdatePointPosition(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::UpdatePointPosition(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::ResetPointPosition(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::ResetPointPosition(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::AttachNodePosition(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::AttachNodePosition(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::EvalSkinnedPosition(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::EvalSkinnedPosition(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::AttachNodeOrientation(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::AttachNodeOrientation(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::AttachNodeState(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::AttachNodeState(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::UpdateNodeState(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::UpdateNodeState(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::AdvectNodePosition(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::AdvectNodePosition(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::AdvectNodeOrientation(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::AdvectNodeOrientation(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::UpdateLinearVelocity(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::UpdateLinearVelocity(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::UpdateAngularVelocity(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::UpdateAngularVelocity(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::SetupDistanceSpringMaterial(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::SetupDistanceSpringMaterial(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::SolveDistanceSpringMaterial(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::SolveDistanceSpringMaterial(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::ProjectDistanceSpringMaterial(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::ProjectDistanceSpringMaterial(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::SetupAngularSpringMaterial(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::SetupAngularSpringMaterial(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::SolveAngularSpringMaterial(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::SolveAngularSpringMaterial(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::ProjectAngularSpringMaterial(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::ProjectAngularSpringMaterial(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
 
-void UNiagaraDataInterfaceHairStrands::SetupStretchRodMaterial(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::SetupStretchRodMaterial(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::SolveStretchRodMaterial(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::SolveStretchRodMaterial(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::ProjectStretchRodMaterial(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::ProjectStretchRodMaterial(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::SetupBendRodMaterial(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::SetupBendRodMaterial(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::SolveBendRodMaterial(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::SolveBendRodMaterial(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::ProjectBendRodMaterial(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::ProjectBendRodMaterial(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::ComputeEdgeDirection(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::ComputeEdgeDirection(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::UpdateMaterialFrame(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::UpdateMaterialFrame(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::ComputeMaterialFrame(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::ComputeMaterialFrame(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::SolveHardCollisionConstraint(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::SolveHardCollisionConstraint(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::ProjectHardCollisionConstraint(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::ProjectHardCollisionConstraint(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::SolveSoftCollisionConstraint(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::SolveSoftCollisionConstraint(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::ProjectSoftCollisionConstraint(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::ProjectSoftCollisionConstraint(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
-void UNiagaraDataInterfaceHairStrands::SetupSoftCollisionConstraint(FVectorVMContext& Context)
-{
-	// @todo : implement function for cpu
-}
-
-void UNiagaraDataInterfaceHairStrands::ComputeAirDragForce(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::SetupSoftCollisionConstraint(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::NeedSimulationReset(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::ComputeAirDragForce(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::InitGridSamples(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::NeedSimulationReset(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::GetSampleState(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::InitGridSamples(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu
 }
 
-void UNiagaraDataInterfaceHairStrands::HasGlobalInterpolation(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::GetSampleState(FVectorVMExternalFunctionContext& Context)
+{
+	// @todo : implement function for cpu
+}
+
+void UNiagaraDataInterfaceHairStrands::HasGlobalInterpolation(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int32> OutGlobalInterpolation(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutGlobalInterpolation.GetDestAndAdvance() = InstData->GlobalInterpolation;
 	}
 }
 
-void UNiagaraDataInterfaceHairStrands::NeedRestUpdate(FVectorVMContext& Context)
+void UNiagaraDataInterfaceHairStrands::NeedRestUpdate(FVectorVMExternalFunctionContext& Context)
 {
 	// @todo : implement function for cpu 
 }

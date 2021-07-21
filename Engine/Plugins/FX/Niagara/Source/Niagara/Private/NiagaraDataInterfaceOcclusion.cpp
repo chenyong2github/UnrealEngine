@@ -135,7 +135,7 @@ void UNiagaraDataInterfaceOcclusion::GetVMExternalFunction(const FVMExternalFunc
 
 // ------- Dummy implementations for CPU execution ------------
 
-void UNiagaraDataInterfaceOcclusion::QueryOcclusionFactorGPU(FVectorVMContext& Context)
+void UNiagaraDataInterfaceOcclusion::QueryOcclusionFactorGPU(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FExternalFuncInputHandler<float> PosParamX(Context);
 	VectorVM::FExternalFuncInputHandler<float> PosParamY(Context);
@@ -147,7 +147,7 @@ void UNiagaraDataInterfaceOcclusion::QueryOcclusionFactorGPU(FVectorVMContext& C
 	VectorVM::FExternalFuncRegisterHandler<float> OutOcclusion(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutFactor(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		PosParamX.GetAndAdvance();
 		PosParamY.GetAndAdvance();
@@ -161,7 +161,7 @@ void UNiagaraDataInterfaceOcclusion::QueryOcclusionFactorGPU(FVectorVMContext& C
 	}
 }
 
-void UNiagaraDataInterfaceOcclusion::QueryOcclusionFactorCircleGPU(FVectorVMContext& Context)
+void UNiagaraDataInterfaceOcclusion::QueryOcclusionFactorCircleGPU(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FExternalFuncInputHandler<float> PosParamX(Context);
 	VectorVM::FExternalFuncInputHandler<float> PosParamY(Context);
@@ -173,7 +173,7 @@ void UNiagaraDataInterfaceOcclusion::QueryOcclusionFactorCircleGPU(FVectorVMCont
 	VectorVM::FExternalFuncRegisterHandler<float> OutOcclusion(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutFactor(Context);
 
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		PosParamX.GetAndAdvance();
 		PosParamY.GetAndAdvance();

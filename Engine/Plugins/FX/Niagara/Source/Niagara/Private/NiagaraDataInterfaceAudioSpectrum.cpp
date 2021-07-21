@@ -564,7 +564,7 @@ UNiagaraDataInterfaceAudioSpectrum::UNiagaraDataInterfaceAudioSpectrum(FObjectIn
 }
 
 
-void UNiagaraDataInterfaceAudioSpectrum::GetSpectrumValue(FVectorVMContext& Context)
+void UNiagaraDataInterfaceAudioSpectrum::GetSpectrumValue(FVectorVMExternalFunctionContext& Context)
 {
 	GetProxyAs<FNiagaraDataInterfaceProxySpectrum>()->UpdateSpectrum();
 
@@ -572,7 +572,7 @@ void UNiagaraDataInterfaceAudioSpectrum::GetSpectrumValue(FVectorVMContext& Cont
 	VectorVM::FExternalFuncInputHandler<int32> InChannel(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutValue(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		float Position = InNormalizedPos.Get();
 		int32 Channel = InChannel.Get();
@@ -584,11 +584,11 @@ void UNiagaraDataInterfaceAudioSpectrum::GetSpectrumValue(FVectorVMContext& Cont
 	}
 }
 
-void UNiagaraDataInterfaceAudioSpectrum::GetNumChannels(FVectorVMContext& Context)
+void UNiagaraDataInterfaceAudioSpectrum::GetNumChannels(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FExternalFuncRegisterHandler<int32> OutChannel(Context);
 
-	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
 		*OutChannel.GetDestAndAdvance() = GetProxyAs<FNiagaraDataInterfaceProxySpectrum>()->GetNumChannels();
 	}
