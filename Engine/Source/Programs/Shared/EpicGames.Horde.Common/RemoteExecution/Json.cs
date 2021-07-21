@@ -43,7 +43,7 @@ namespace EpicGames.Horde.Common.RemoteExecution
 			{
 				Directory.Directories.Add(await DirectoryNode.BuildAsync(UploadList));
 			}
-			return UploadList.Add(Directory);
+			return await UploadList.AddAsync(Directory);
 		}
 	}
 
@@ -67,7 +67,7 @@ namespace EpicGames.Horde.Common.RemoteExecution
 		public Dictionary<string, string> EnvVars { get; set; } = new Dictionary<string, string>();
 		public string WorkingDirectory { get; set; } = String.Empty;
 
-		public Digest Build(UploadList UploadList)
+		public async Task<Digest> BuildAsync(UploadList UploadList)
 		{
 			RpcCommand Command = new RpcCommand();
 			Command.Arguments.Add(Arguments);
@@ -79,7 +79,7 @@ namespace EpicGames.Horde.Common.RemoteExecution
 				Command.EnvironmentVariables.Add(new RpcCommand.Types.EnvironmentVariable { Name = Pair.Key, Value = Pair.Value });
 			}
 
-			return UploadList.Add(Command);
+			return await UploadList.AddAsync(Command);
 		}
 	}
 
@@ -91,11 +91,11 @@ namespace EpicGames.Horde.Common.RemoteExecution
 		public async Task<Digest> BuildAsync(UploadList UploadList, ByteString? Salt, bool DoNotCache)
 		{
 			Action NewAction = new Action();
-			NewAction.CommandDigest = Command.Build(UploadList);
+			NewAction.CommandDigest = await Command.BuildAsync(UploadList);
 			NewAction.InputRootDigest = await Workspace.BuildAsync(UploadList);
 			NewAction.Salt = Salt;
 			NewAction.DoNotCache = DoNotCache;
-			return UploadList.Add(NewAction);
+			return await UploadList.AddAsync(NewAction);
 		}
 	}
 }

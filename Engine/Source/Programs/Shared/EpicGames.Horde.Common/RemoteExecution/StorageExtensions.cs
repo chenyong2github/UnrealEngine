@@ -27,7 +27,7 @@ namespace EpicGames.Horde.Common.RemoteExecution
 		{
 			BatchUpdateBlobsRequest.Types.Request BlobRequest = new BatchUpdateBlobsRequest.Types.Request();
 			BlobRequest.Data = ByteString.CopyFrom(Data);
-			BlobRequest.Digest = GetDigest(Data);
+			BlobRequest.Digest = await GetDigestAsync(Data);
 
 			BatchUpdateBlobsRequest Request = new BatchUpdateBlobsRequest();
 			Request.InstanceName = InstanceName;
@@ -45,7 +45,7 @@ namespace EpicGames.Horde.Common.RemoteExecution
 			Request.Digests.Add(Digest);
 
 			BatchReadBlobsResponse Response = await Storage.BatchReadBlobsAsync(Request);
-			if (Response.Responses[0].Status.Code != (int) Google.Rpc.Code.Ok)
+			if (Response.Responses[0].Status.Code != (int)Google.Rpc.Code.Ok)
 			{
 				throw new Exception($"Failed getting digest {Digest}. Code={Response.Responses[0].Status.Code} Message={Response.Responses[0].Status.Message}");
 			}
@@ -59,7 +59,7 @@ namespace EpicGames.Horde.Common.RemoteExecution
 		{
 			BatchUpdateBlobsRequest.Types.Request BlobRequest = new BatchUpdateBlobsRequest.Types.Request();
 			BlobRequest.Data = Message.ToByteString();
-			BlobRequest.Digest = GetDigest(BlobRequest.Data.ToByteArray());
+			BlobRequest.Digest = await GetDigestAsync(BlobRequest.Data);
 
 			BatchUpdateBlobsRequest Request = new BatchUpdateBlobsRequest();
 			Request.InstanceName = InstanceName;
@@ -69,45 +69,54 @@ namespace EpicGames.Horde.Common.RemoteExecution
 			//??
 			return BlobRequest.Digest;
 		}
-		
-		public static Digest GetDigest(ByteString Data)
+
+		public static async Task<Digest> GetDigestAsync(ByteString Data)
 		{
-			return GetDigest(Data.ToByteArray(), DigestFunction.Types.Value.Epiciohash);
+			return await GetDigestAsync(Data.ToByteArray(), DigestFunction.Types.Value.Epiciohash);
 		}
 
-		public static Digest GetDigest(byte[] Data)
+		public static async Task<Digest> GetDigestAsync(byte[] Data)
 		{
-			return GetDigest(Data, DigestFunction.Types.Value.Epiciohash);
+			return await GetDigestAsync(Data, DigestFunction.Types.Value.Epiciohash);
 		}
 
-		public static Digest GetDigest(ByteString Data, DigestFunction.Types.Value DigestFunction)
+		public static async Task<Digest> GetDigestAsync(ByteString Data, DigestFunction.Types.Value DigestFunction)
 		{
-			return GetDigest(Data.ToByteArray(), DigestFunction);
+			return await GetDigestAsync(Data.ToByteArray(), DigestFunction);
 		}
 
-		public static Digest GetDigest(byte[] Data, DigestFunction.Types.Value DigestFunction)
+		public static async Task<Digest> GetDigestAsync(byte[] Data, DigestFunction.Types.Value DigestFunction)
 		{
 			switch (DigestFunction)
 			{
-				case Build.Bazel.Remote.Execution.V2.DigestFunction.Types.Value.Sha256: return GetDigestSha256(Data);
-				case Build.Bazel.Remote.Execution.V2.DigestFunction.Types.Value.Epiciohash: return GetDigestIoHash(Data);
-				default: throw new Exception("Unknown digest function " + DigestFunction);
+				case Build.Bazel.Remote.Execution.V2.DigestFunction.Types.Value.Sha256: return await GetDigestSha256Async(Data);
+				case Build.Bazel.Remote.Execution.V2.DigestFunction.Types.Value.Epiciohash: return await GetDigestIoHashAsync(Data);
+				default: throw new NotImplementedException($"Unsupported digest function {DigestFunction}");
 			}
 		}
-		
-		public static Digest GetDigestSha256(byte[] Data)
+
+		public static async Task<Digest> GetDigestSha256Async(byte[] Data)
 		{
-			using (SHA256 Algorithm = SHA256.Create())
+			string Hash = await Task.Run(() =>
 			{
-				byte[] Hash = Algorithm.ComputeHash(Data);
-				return new Digest { Hash = StringUtils.FormatHexString(Hash), SizeBytes = Data.Length };
-			}
+				byte[] Result;
+				using (SHA256 Algorithm = SHA256.Create())
+				{
+					Result = Algorithm.ComputeHash(Data);
+				}
+				return StringUtils.FormatHexString(Result);
+			});
+			return new Digest { Hash = Hash, SizeBytes = Data.Length };
 		}
-		
-		public static Digest GetDigestIoHash(byte[] Data)
+
+		public static async Task<Digest> GetDigestIoHashAsync(byte[] Data)
 		{
-			IoHash Hash = IoHash.Compute(Data.AsSpan());
-			return new Digest { Hash = StringUtils.FormatHexString(Hash.Span).ToUpper(), SizeBytes = Data.Length };
+			string Hash = await Task.Run(() =>
+			{
+				IoHash Result = IoHash.Compute(Data.AsSpan());
+				return StringUtils.FormatHexString(Result.Span).ToUpper();
+			});
+			return new Digest { Hash = Hash, SizeBytes = Data.Length };
 		}
 	}
 }
