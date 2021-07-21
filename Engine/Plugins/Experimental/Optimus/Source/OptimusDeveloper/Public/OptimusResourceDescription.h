@@ -14,6 +14,7 @@
 UENUM()
 enum class EOptimusResourceContext : uint8
 {
+	Global,
 	Vertex,
 	Triangle,
 	Bone,
