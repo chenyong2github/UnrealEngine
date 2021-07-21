@@ -43,7 +43,7 @@ void FComputeGraphScheduler::EnqueueForExecution(const FComputeGraphProxy* Compu
 	int32 FirstProvider = -1;
 	for (int32 ProviderIndex = 0; ProviderIndex < ComputeDataProviders.Num(); ++ProviderIndex)
 	{
-		if (ComputeDataProviders[ProviderIndex] != nullptr)
+		if (ComputeDataProviders[ProviderIndex] != nullptr && ComputeDataProviders[ProviderIndex]->GetInvocationCount() > 0)
 		{
 			FirstProvider = ProviderIndex;
 			break;
