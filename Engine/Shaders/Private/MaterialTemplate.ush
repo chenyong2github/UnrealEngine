@@ -2448,7 +2448,14 @@ half GetMaterialMaskedOpacity(FPixelMaterialInputs PixelMaterialInputs)
 }
 #endif
 
-float3 GetMaterialWorldPositionOffset(FMaterialVertexParameters Parameters)
+// UE-102725: Workaround for precision issue that only occurs with world position offsets in DXBC shaders.
+#if IR_LANGUAGE_DXBC
+#define WPO_PRECISE(T) precise T
+#else
+#define WPO_PRECISE(T) T
+#endif
+
+WPO_PRECISE(float3) GetMaterialWorldPositionOffset(FMaterialVertexParameters Parameters)
 {
 	#if USE_INSTANCING || USE_INSTANCE_CULLING
 		// skip if this instance is hidden
@@ -2460,7 +2467,7 @@ float3 GetMaterialWorldPositionOffset(FMaterialVertexParameters Parameters)
 %s;
 }
 
-float3 GetMaterialPreviousWorldPositionOffset(FMaterialVertexParameters Parameters)
+WPO_PRECISE(float3) GetMaterialPreviousWorldPositionOffset(FMaterialVertexParameters Parameters)
 {
 	#if USE_INSTANCING || USE_INSTANCE_CULLING
 		// skip if this instance is hidden

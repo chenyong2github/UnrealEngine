@@ -1046,6 +1046,10 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 		AdditionalDefines.SetDefine(TEXT("PLATFORM_SUPPORTS_DIAGNOSTIC_BUFFER"), 1);
 		AdditionalDefines.SetDefine(TEXT("COMPILER_SUPPORTS_NOINLINE"), 1);
 	}
+	else
+	{
+		AdditionalDefines.SetDefine(TEXT("IR_LANGUAGE_DXBC"), 1);
+	}
 
 	if (Input.bSkipPreprocessedCache)
 	{
