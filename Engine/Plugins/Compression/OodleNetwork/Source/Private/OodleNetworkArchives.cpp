@@ -86,7 +86,7 @@ bool FOodleNetworkArchiveBase::SerializeOodleDecompressData(FOodleCompressedData
 
 			if (!InnerArchive.IsError())
 			{
-				bSuccess = OodleDataDecompress(
+				bSuccess = FOodleDataCompression::Decompress(
 					(void*)DecompressedData, DecompressedLength,
 					(void*)CompressedData, CompressedLength);
 			}

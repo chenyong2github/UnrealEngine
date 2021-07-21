@@ -6,7 +6,7 @@
 
 // OodleDataCompressionUtil : utilities for common Unreal actions built on top of OodleDataCompression
 
-namespace OodleDataCompressionUtil
+namespace FOodleDataCompressionUtil
 {
 	/**
 	* Decompress replay data using Oodle, for use by INetworkReplayStreamer streamers

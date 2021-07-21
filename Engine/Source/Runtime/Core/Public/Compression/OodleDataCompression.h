@@ -21,10 +21,13 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(OodleDataCompression, Log, All);
 
+namespace FOodleDataCompression
+{
+
 /**
- * EOodleDataCompressor : Choose the Oodle Compressor
+ * ECompressor : Choose the Oodle Compressor
  *  this mostly trades decompression speed vs compression ratio
- * encode speed is determined by EOodleDataCompressionLevel , not the compressor choice.
+ * encode speed is determined by ECompressionLevel , not the compressor choice.
  * 
  * From fastest to slowest (to decode) : Selkie, Mermaid, Kraken, Leviathan
  *  
@@ -39,7 +42,7 @@ Leviathan4    :  2.62:1 ,    961.8 dec MB/s
  */
 //UENUM() // @todo Oodle might be nice if these were UENUM but can't pull UObject from inside Core?
 // enum values should not change, they may be persisted
-enum class EOodleDataCompressor : uint8
+enum class ECompressor : uint8
 {
 	NotSet = 0,
 	Selkie = 1,
@@ -50,9 +53,9 @@ enum class EOodleDataCompressor : uint8
 
 
 /**
- * EOodleDataCompressionLevel : Choose the Oodle Compression Level
+ * ECompressionLevel : Choose the Oodle Compression Level
  *  this mostly trades encode speed vs compression ratio
- *  decode speed is determined by choice of compressor (EOodleDataCompressor)
+ *  decode speed is determined by choice of compressor (ECompressor)
  * 
  * If in doubt start with "Normal" (level 4) then move up or down from there
  * 
@@ -79,8 +82,8 @@ Kraken7       :  2.64:1 ,    3.7 enc MB/s
 
  */
 //UENUM() // @todo Oodle might be nice if these were UENUM but can't pull UObject from inside Core?
-// EOodleDataCompressionLevel must numerically match the Oodle internal enum values
-enum class EOodleDataCompressionLevel : int8
+// ECompressionLevel must numerically match the Oodle internal enum values
+enum class ECompressionLevel : int8
 {
 	HyperFast4 = -4,
 	HyperFast3 = -3,
@@ -97,7 +100,7 @@ enum class EOodleDataCompressionLevel : int8
 	Optimal4 = 8,
 };
 
-enum class EOodleDataCompressionCommonUsage : uint8
+enum class ECompressionCommonUsage : uint8
 {
 	Default = 0,
 	FastRealtimeEncode = 1,
@@ -106,16 +109,16 @@ enum class EOodleDataCompressionCommonUsage : uint8
 };
 
 /**
-* Translate legacy CompressionFlags to an EOodleDataCompressionCommonUsage
+* Translate legacy CompressionFlags to an ECompressionCommonUsage
 *   CompressionFlags is not encouraged for new code; prefer directly calling to Oodle
 *
 * @param	Flags				ECompressionFlags (BiasSpeed,BiasSize,ForPackaging)
-* @return						EOodleDataCompressionCommonUsage
+* @return						ECompressionCommonUsage
 */
-EOodleDataCompressionCommonUsage CORE_API GetCommonUsageFromLegacyCompressionFlags(ECompressionFlags Flags);
+ECompressionCommonUsage CORE_API GetCommonUsageFromLegacyCompressionFlags(ECompressionFlags Flags);
 
 /**
-* Translate OodleDataCompressionCommonUsage to a Compressor & Level selection
+* Translate CompressionCommonUsage to a Compressor & Level selection
 *   usually prefer the more expressive choice of {Compressor,Level}
 *
 * @param	Usage				Your intended compression use case
@@ -123,48 +126,48 @@ EOodleDataCompressionCommonUsage CORE_API GetCommonUsageFromLegacyCompressionFla
 * @param	OutLevel			Output reference
 * @return						
 */
-void CORE_API GetCompressorAndLevelForCommonUsage(EOodleDataCompressionCommonUsage Usage,EOodleDataCompressor & OutCompressor,EOodleDataCompressionLevel & OutLevel);
+void CORE_API GetCompressorAndLevelForCommonUsage(ECompressionCommonUsage Usage,ECompressor & OutCompressor,ECompressionLevel & OutLevel);
 
 
 /**
-* What size of compressed output buffer is needed to encode into for OodleDataCompress()
+* What size of compressed output buffer is needed to encode into for Compress()
 *
 * @param	UncompressedSize			Length of uncompressed data that will fit in this output buffer
 * @return								Minimum size to allocate compressed output buffer
 */
-int64 CORE_API OodleDataCompressedBufferSizeNeeded(int64 UncompressedSize);
+int64 CORE_API CompressedBufferSizeNeeded(int64 UncompressedSize);
 
 /**
 * What is the maximum size of compressed data made after encoding
 *  For pre-allocating buffers at decode time or to check the length of compressed data at load time
-*  NOTE : OodleDataCompressedBufferSizeNeeded() >= OodleDataGetMaximumCompressedSize()
-* this is not the size to allocate compressed buffers at encode time; see OodleDataCompressedBufferSizeNeeded
+*  NOTE : CompressedBufferSizeNeeded() >= GetMaximumCompressedSize()
+* this is not the size to allocate compressed buffers at encode time; see CompressedBufferSizeNeeded
 *
 * @param	UncompressedSize			Length of uncompressed data that could have been encoded
-* @return								Maximum size of compressed data that OodleDataCompress() could have made
+* @return								Maximum size of compressed data that Compress() could have made
 */
-int64 CORE_API OodleDataGetMaximumCompressedSize(int64 UncompressedSize);
+int64 CORE_API GetMaximumCompressedSize(int64 UncompressedSize);
 
 /**
 * Encode provided data with chosen Compressor and Level
-* CompressedBufferSize must be >= OodleDataCompressedBufferSizeNeeded(UncompressedSize)
+* CompressedBufferSize must be >= CompressedBufferSizeNeeded(UncompressedSize)
 *
 * @param	OutCompressedData			output buffer where compressed data is written
 * @param	CompressedBufferSize		bytes available to write in OutCompressedData
 * @param	InUncompressedData			input buffer containing data to compress
 * @param	UncompressedSize			number of bytes in InUncompressedData to read
-* @param	Compressor					EOodleDataCompressor to encode with (this is saved in the stream)
-* @param	Level						EOodleDataCompressionLevel to encode with (this is not saved in the stream)
+* @param	Compressor					ECompressor to encode with (this is saved in the stream)
+* @param	Level						ECompressionLevel to encode with (this is not saved in the stream)
 * @return								Compressed size written or zero for failure
 */
-int64 CORE_API OodleDataCompress(
+int64 CORE_API Compress(
 							void * OutCompressedData, int64 CompressedBufferSize,
 							const void * InUncompressedData, int64 UncompressedSize,
-							EOodleDataCompressor Compressor,
-							EOodleDataCompressionLevel Level);
+							ECompressor Compressor,
+							ECompressionLevel Level);
 
 /**
-* Decode compressed data that was made by OodleDataCompress
+* Decode compressed data that was made by Compress
 *
 * UncompressedSize must match exactly the uncompressed size that was used at encode time.  No partial decodes.
 *
@@ -174,7 +177,7 @@ int64 CORE_API OodleDataCompress(
 * @param	CompressedSize			size of the input buffer, must be greater or equal to the number of compressed bytes needed
 * @return							boolean success
 */
-bool CORE_API OodleDataDecompress(
+bool CORE_API Decompress(
 						void * OutUncompressedData, int64 UncompressedSize,
 						const void * InCompressedData, int64 CompressedSize
 						);
@@ -183,7 +186,9 @@ bool CORE_API OodleDataDecompress(
 // For Compression to/from TArray and such higher level actions use OodleDataCompressionUtil.h
 
 // from Compression.cpp :
-void CORE_API OodleDataCompressionFormatInitOnFirstUseFromLock();
+void CORE_API CompressionFormatInitOnFirstUseFromLock();
 
 // from LaunchEngineLoop :
-void CORE_API OodleDataCompressionStartupPreInit();
+void CORE_API StartupPreInit();
+
+};

@@ -9,6 +9,11 @@
 
 DEFINE_LOG_CATEGORY(OodleDataCompression);
 
+extern ICompressionFormat * CreateOodleDataCompressionFormat();
+
+namespace FOodleDataCompression
+{
+
 struct OodleDataCompressionDecoders
 {
 	OO_SINTa OodleDecoderMemorySize = 0;
@@ -154,19 +159,19 @@ struct OodleDataCompressionDecoders
 
 
 
-static OodleLZ_Compressor OodleDataCompressorToOodleLZ_Compressor(EOodleDataCompressor Compressor)
+static OodleLZ_Compressor CompressorToOodleLZ_Compressor(ECompressor Compressor)
 {
 	switch(Compressor)
 	{
-	case EOodleDataCompressor::Selkie:
+	case ECompressor::Selkie:
 		return OodleLZ_Compressor_Selkie;
-	case EOodleDataCompressor::Mermaid:
+	case ECompressor::Mermaid:
 		return OodleLZ_Compressor_Mermaid;
-	case EOodleDataCompressor::Kraken:
+	case ECompressor::Kraken:
 		return OodleLZ_Compressor_Kraken;
-	case EOodleDataCompressor::Leviathan:
+	case ECompressor::Leviathan:
 		return OodleLZ_Compressor_Leviathan;
-	case EOodleDataCompressor::NotSet:
+	case ECompressor::NotSet:
 		return OodleLZ_Compressor_Invalid;
 	default:
 		UE_LOG(OodleDataCompression,Error,TEXT("Invalid Compressor: %d\n"),(int)Compressor);
@@ -174,7 +179,7 @@ static OodleLZ_Compressor OodleDataCompressorToOodleLZ_Compressor(EOodleDataComp
 	}
 }
 
-static OodleLZ_CompressionLevel OodleDataCompressionLevelToOodleLZ_CompressionLevel(EOodleDataCompressionLevel Level)
+static OodleLZ_CompressionLevel CompressionLevelToOodleLZ_CompressionLevel(ECompressionLevel Level)
 {
 	int IntLevel = (int)Level;
 	
@@ -187,76 +192,76 @@ static OodleLZ_CompressionLevel OodleDataCompressionLevelToOodleLZ_CompressionLe
 	return (OodleLZ_CompressionLevel) IntLevel;
 }
 
-EOodleDataCompressionCommonUsage CORE_API GetCommonUsageFromLegacyCompressionFlags(ECompressionFlags Flags)
+ECompressionCommonUsage CORE_API GetCommonUsageFromLegacyCompressionFlags(ECompressionFlags Flags)
 {
 	switch(Flags)
 	{
 		case 0:
-			return EOodleDataCompressionCommonUsage::Default;
+			return ECompressionCommonUsage::Default;
 		case COMPRESS_BiasSpeed:
-			return EOodleDataCompressionCommonUsage::FastRealtimeEncode;
+			return ECompressionCommonUsage::FastRealtimeEncode;
 		case COMPRESS_BiasSize:
-			return EOodleDataCompressionCommonUsage::SlowerSmallerEncode;
+			return ECompressionCommonUsage::SlowerSmallerEncode;
 		case COMPRESS_ForPackaging:
-			return EOodleDataCompressionCommonUsage::SlowestOfflineDistributionEncode;
+			return ECompressionCommonUsage::SlowestOfflineDistributionEncode;
 
 		default:
 			UE_LOG(OodleDataCompression,Error,TEXT("Invalid ECompressionFlags : %04X\n"),Flags);
-			return EOodleDataCompressionCommonUsage::Default;
+			return ECompressionCommonUsage::Default;
 	}
 }
 
-void CORE_API GetCompressorAndLevelForCommonUsage(EOodleDataCompressionCommonUsage Usage,EOodleDataCompressor & OutCompressor,EOodleDataCompressionLevel & OutLevel)
+void CORE_API GetCompressorAndLevelForCommonUsage(ECompressionCommonUsage Usage,ECompressor & OutCompressor,ECompressionLevel & OutLevel)
 {
 	switch(Usage)
 	{
-		case EOodleDataCompressionCommonUsage::Default:
-			OutCompressor = EOodleDataCompressor::Kraken;
-			OutLevel = EOodleDataCompressionLevel::Fast;
+		case ECompressionCommonUsage::Default:
+			OutCompressor = ECompressor::Kraken;
+			OutLevel = ECompressionLevel::Fast;
 			break;
-		case EOodleDataCompressionCommonUsage::FastRealtimeEncode:
-			OutCompressor = EOodleDataCompressor::Mermaid;
-			OutLevel = EOodleDataCompressionLevel::HyperFast2;
+		case ECompressionCommonUsage::FastRealtimeEncode:
+			OutCompressor = ECompressor::Mermaid;
+			OutLevel = ECompressionLevel::HyperFast2;
 			break;
-		case EOodleDataCompressionCommonUsage::SlowerSmallerEncode:
-			OutCompressor = EOodleDataCompressor::Kraken;
-			OutLevel = EOodleDataCompressionLevel::Normal;
+		case ECompressionCommonUsage::SlowerSmallerEncode:
+			OutCompressor = ECompressor::Kraken;
+			OutLevel = ECompressionLevel::Normal;
 			break;
-		case EOodleDataCompressionCommonUsage::SlowestOfflineDistributionEncode:
-			OutCompressor = EOodleDataCompressor::Kraken;
-			OutLevel = EOodleDataCompressionLevel::Optimal2;
+		case ECompressionCommonUsage::SlowestOfflineDistributionEncode:
+			OutCompressor = ECompressor::Kraken;
+			OutLevel = ECompressionLevel::Optimal2;
 			break;
 		default:
 			UE_LOG(OodleDataCompression,Error,TEXT("Invalid ECompressionFlags : %d\n"),(int)Usage);
-			OutCompressor = EOodleDataCompressor::Selkie;
-			OutLevel = EOodleDataCompressionLevel::None;
+			OutCompressor = ECompressor::Selkie;
+			OutLevel = ECompressionLevel::None;
 			return;
 	}
 }
 
 
-int64 CORE_API OodleDataCompressedBufferSizeNeeded(int64 InUncompressedSize)
+int64 CORE_API CompressedBufferSizeNeeded(int64 InUncompressedSize)
 {
 	// size needed is the same for all newlz's
 	//	so don't bother with a compressor arg here
 	return OodleLZ_GetCompressedBufferSizeNeeded(OodleLZ_Compressor_Kraken, TCheckValueCast<OO_SINTa>(InUncompressedSize));
 }
 
-int64 CORE_API OodleDataGetMaximumCompressedSize(int64 InUncompressedSize)
+int64 CORE_API GetMaximumCompressedSize(int64 InUncompressedSize)
 {
 	int64 NumBlocks = (InUncompressedSize+ OODLELZ_BLOCK_LEN-1)/OODLELZ_BLOCK_LEN;
 	int64 MaxCompressedSize = InUncompressedSize + NumBlocks * OODLELZ_BLOCK_MAXIMUM_EXPANSION;
 	return MaxCompressedSize;
 }
 
-int64 CORE_API OodleDataCompress(
+int64 CORE_API Compress(
 							void * OutCompressedData, int64 InCompressedBufferSize,
 							const void * InUncompressedData, int64 InUncompressedSize,
-							EOodleDataCompressor Compressor,
-							EOodleDataCompressionLevel Level)
+							ECompressor Compressor,
+							ECompressionLevel Level)
 {
-	OodleLZ_Compressor LZCompressor = OodleDataCompressorToOodleLZ_Compressor(Compressor);
-	OodleLZ_CompressionLevel LZLevel = OodleDataCompressionLevelToOodleLZ_CompressionLevel(Level);
+	OodleLZ_Compressor LZCompressor = CompressorToOodleLZ_Compressor(Compressor);
+	OodleLZ_CompressionLevel LZLevel = CompressionLevelToOodleLZ_CompressionLevel(Level);
 
 	if ( InCompressedBufferSize < (int64) OodleLZ_GetCompressedBufferSizeNeeded(LZCompressor,TCheckValueCast<OO_SINTa>(InUncompressedSize)) )
 	{
@@ -280,9 +285,8 @@ static OodleDataCompressionDecoders * GetGlobalOodleDataCompressionDecoders()
 
 
 static ICompressionFormat * GlobalOodleDataCompressionFormat = nullptr;
-extern ICompressionFormat * CreateOodleDataCompressionFormat();
 
-void CORE_API OodleDataCompressionFormatInitOnFirstUseFromLock()
+void CORE_API CompressionFormatInitOnFirstUseFromLock()
 {
 	// called from inside a critical section lock 
 	//	from Compression.cpp / GetCompressionFormat
@@ -293,7 +297,7 @@ void CORE_API OodleDataCompressionFormatInitOnFirstUseFromLock()
 }
 
 
-bool CORE_API OodleDataDecompress(
+bool CORE_API Decompress(
 						void * OutUncompressedData, int64 InUncompressedSize,
 						const void * InCompressedData, int64 InCompressedSize)
 {
@@ -310,7 +314,7 @@ bool CORE_API OodleDataDecompress(
 	return true;
 }
 					
-void CORE_API OodleDataCompressionStartupPreInit(void)
+void CORE_API StartupPreInit(void)
 {
 	// called from LaunchEngineLoop at "PreInit" time
 	// not all Engine services may be set up yet, be careful what you use
@@ -324,3 +328,5 @@ void CORE_API OodleDataCompressionStartupPreInit(void)
 	OodleConfig.m_OodleLZ_BackwardsCompatible_MajorVersion = 9;
 	Oodle_SetConfigValues(&OodleConfig);
 }
+
+};

@@ -6,7 +6,7 @@
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 
-namespace OodleDataCompressionUtil
+namespace FOodleDataCompressionUtil
 {
 	bool CORE_API DecompressReplayData(const TArray<uint8>& InCompressed, TArray< uint8 >& OutBuffer)
 	{
@@ -22,7 +22,7 @@ namespace OodleDataCompressionUtil
 		if ( Reader.Tell() + CompressedSize > InCompressed.Num() )
 			return false;
 
-		return OodleDataDecompress(OutBuffer.GetData(), OutBuffer.Num(), InCompressed.GetData() + Reader.Tell(), CompressedSize );
+		return FOodleDataCompression::Decompress(OutBuffer.GetData(), OutBuffer.Num(), InCompressed.GetData() + Reader.Tell(), CompressedSize );
 	}
 
 	bool CORE_API CompressReplayData(const TArray<uint8>& InBuffer, TArray< uint8 >& OutCompressed)
@@ -33,14 +33,14 @@ namespace OodleDataCompressionUtil
 
 		int32 ReservedBytes = sizeof(int32)*2;
 				
-		const EOodleDataCompressor			Compressor = EOodleDataCompressor::Selkie;
-		const EOodleDataCompressionLevel	Level = EOodleDataCompressionLevel::VeryFast;
+		const FOodleDataCompression::ECompressor		Compressor = FOodleDataCompression::ECompressor::Selkie;
+		const FOodleDataCompression::ECompressionLevel	Level = FOodleDataCompression::ECompressionLevel::VeryFast;
 		
-		int32 CompSizeNeeded = (int32) OodleDataCompressedBufferSizeNeeded(InSize);
+		int32 CompSizeNeeded = (int32) FOodleDataCompression::CompressedBufferSizeNeeded(InSize);
 		OutCompressed.SetNum( TCheckValueCast<int32>( ReservedBytes + CompSizeNeeded) );
 		void * CompPtr = OutCompressed.GetData() + ReservedBytes;
 
-		CompressedSize = (int32) OodleDataCompress(CompPtr,CompSizeNeeded,InPtr,InSize,Compressor,Level);
+		CompressedSize = (int32) FOodleDataCompression::Compress(CompPtr,CompSizeNeeded,InPtr,InSize,Compressor,Level);
 		if ( CompressedSize <= 0 )
 		{
 			return false;

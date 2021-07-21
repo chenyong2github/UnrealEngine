@@ -423,7 +423,7 @@ ICompressionFormat* FCompression::GetCompressionFormat(FName FormatName, bool bE
 		{
 			// Oodle ICompressionFormat is created on first use :
 			// inside CompressionFormatsCriticalSection lock
-			OodleDataCompressionFormatInitOnFirstUseFromLock();
+			FOodleDataCompression::CompressionFormatInitOnFirstUseFromLock();
 
 			// OodleDataCompressionFormatInitOnFirstUseFromLock added it to the ModularFeatures list
 		}
@@ -488,7 +488,7 @@ int32 FCompression::GetMaximumCompressedSize(FName FormatName, int32 Uncompresse
 		//	avoid calling CompressMemoryBound in the Decoder because it creates an ICompressionFormat for Oodle
 		//	and initializes encoders
 
-		return OodleDataGetMaximumCompressedSize(UncompressedSize);
+		return FOodleDataCompression::GetMaximumCompressedSize(UncompressedSize);
 	}
 	else
 	{
@@ -723,7 +723,7 @@ bool FCompression::UncompressMemory(FName FormatName, void* UncompressedBuffer, 
 	{
 		// hardcoded Oodle
 		// can decode Oodle data without creating Oodle ICompressionFormat
-		bUncompressSucceeded = OodleDataDecompress(UncompressedBuffer,UncompressedSize,CompressedBuffer,CompressedSize);
+		bUncompressSucceeded = FOodleDataCompression::Decompress(UncompressedBuffer,UncompressedSize,CompressedBuffer,CompressedSize);
 	}
 	else
 	{
