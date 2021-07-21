@@ -27,6 +27,7 @@ enum ECompressionFlags
 	COMPRESS_NoFlags = 0x00,
 	/** Prefer compression that compresses smaller (ONLY VALID FOR COMPRESSION)		*/
 	COMPRESS_BiasMemory = 0x10,
+	COMPRESS_BiasSize = COMPRESS_BiasMemory,
 	/** Prefer compression that compresses faster (ONLY VALID FOR COMPRESSION)		*/
 	COMPRESS_BiasSpeed = 0x20,
 	/** Is the source buffer padded out	(ONLY VALID FOR UNCOMPRESS)					*/
@@ -34,5 +35,9 @@ enum ECompressionFlags
 
 	/** Set of flags that are options are still allowed								*/
 	COMPRESS_OptionsFlagsMask = 0xF0,
+
+	/** Indicate this compress call is for Packaging (pak/iostore) */
+	COMPRESS_ForPackaging = 0x100,
+	COMPRESS_ForPurposeMask = 0xF00,
 };
 

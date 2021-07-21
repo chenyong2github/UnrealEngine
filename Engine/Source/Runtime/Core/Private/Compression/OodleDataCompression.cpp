@@ -187,6 +187,54 @@ static OodleLZ_CompressionLevel OodleDataCompressionLevelToOodleLZ_CompressionLe
 	return (OodleLZ_CompressionLevel) IntLevel;
 }
 
+EOodleDataCompressionCommonUsage CORE_API GetCommonUsageFromLegacyCompressionFlags(ECompressionFlags Flags)
+{
+	switch(Flags)
+	{
+		case 0:
+			return EOodleDataCompressionCommonUsage::Default;
+		case COMPRESS_BiasSpeed:
+			return EOodleDataCompressionCommonUsage::FastRealtimeEncode;
+		case COMPRESS_BiasSize:
+			return EOodleDataCompressionCommonUsage::SlowerSmallerEncode;
+		case COMPRESS_ForPackaging:
+			return EOodleDataCompressionCommonUsage::SlowestOfflineDistributionEncode;
+
+		default:
+			UE_LOG(OodleDataCompression,Error,TEXT("Invalid ECompressionFlags : %04X\n"),Flags);
+			return EOodleDataCompressionCommonUsage::Default;
+	}
+}
+
+void CORE_API GetCompressorAndLevelForCommonUsage(EOodleDataCompressionCommonUsage Usage,EOodleDataCompressor & OutCompressor,EOodleDataCompressionLevel & OutLevel)
+{
+	switch(Usage)
+	{
+		case EOodleDataCompressionCommonUsage::Default:
+			OutCompressor = EOodleDataCompressor::Kraken;
+			OutLevel = EOodleDataCompressionLevel::Fast;
+			break;
+		case EOodleDataCompressionCommonUsage::FastRealtimeEncode:
+			OutCompressor = EOodleDataCompressor::Mermaid;
+			OutLevel = EOodleDataCompressionLevel::HyperFast2;
+			break;
+		case EOodleDataCompressionCommonUsage::SlowerSmallerEncode:
+			OutCompressor = EOodleDataCompressor::Kraken;
+			OutLevel = EOodleDataCompressionLevel::Normal;
+			break;
+		case EOodleDataCompressionCommonUsage::SlowestOfflineDistributionEncode:
+			OutCompressor = EOodleDataCompressor::Kraken;
+			OutLevel = EOodleDataCompressionLevel::Optimal2;
+			break;
+		default:
+			UE_LOG(OodleDataCompression,Error,TEXT("Invalid ECompressionFlags : %d\n"),(int)Usage);
+			OutCompressor = EOodleDataCompressor::Selkie;
+			OutLevel = EOodleDataCompressionLevel::None;
+			return;
+	}
+}
+
+
 int64 CORE_API OodleDataCompressedBufferSizeNeeded(int64 InUncompressedSize)
 {
 	// size needed is the same for all newlz's

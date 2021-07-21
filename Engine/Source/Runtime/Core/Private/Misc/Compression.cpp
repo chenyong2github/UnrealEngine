@@ -389,37 +389,6 @@ TAtomic<uint64> FCompression::CompressorSrcBytes(0);
 /** Nubmer of bytes after compression.		*/
 TAtomic<uint64> FCompression::CompressorDstBytes(0);
 
-static ECompressionFlags CheckGlobalCompressionFlags(ECompressionFlags Flags)
-{
-	// COMPRESS_BiasSpeed / COMPRESS_BiasMemory is not actually checked anywhere
-	//	so no point doing this
-	#if 0
-	if(FPlatformProperties::HasEditorOnlyData())
-	{
-		static bool GAlwaysBiasCompressionForSize = false;
-		static bool GTestedCmdLine = false;
-
-		if(!GTestedCmdLine && FCommandLine::IsInitialized())
-		{
-			GTestedCmdLine = true;
-			// Override compression settings wrt size.
-			GAlwaysBiasCompressionForSize = FParse::Param(FCommandLine::Get(),TEXT("BIASCOMPRESSIONFORSIZE"));
-		}
-
-		// Always bias for speed if option is set.
-		if(GAlwaysBiasCompressionForSize)
-		{
-			int32 NewFlags = Flags;
-			NewFlags &= ~COMPRESS_BiasSpeed;
-			NewFlags |= COMPRESS_BiasMemory;
-			Flags = (ECompressionFlags)NewFlags;
-		}
-	}
-	#endif
-
-	return Flags;
-}
-
 uint32 FCompression::GetCompressorVersion(FName FormatName)
 {
 	if (FormatName == NAME_None || FormatName == NAME_LZ4)
@@ -652,8 +621,6 @@ bool FCompression::CompressMemory(FName FormatName, void* CompressedBuffer, int3
 
 	bool bCompressSucceeded = false;
 
-	Flags = CheckGlobalCompressionFlags(Flags);
-
 	if (FormatName == NAME_Zlib)
 	{
 		// hardcoded zlib
@@ -677,7 +644,7 @@ bool FCompression::CompressMemory(FName FormatName, void* CompressedBuffer, int3
 		ICompressionFormat* Format = GetCompressionFormat(FormatName);
 		if (Format)
 		{
-			bCompressSucceeded = Format->Compress(CompressedBuffer, CompressedSize, UncompressedBuffer, UncompressedSize, CompressionData);
+			bCompressSucceeded = Format->Compress(CompressedBuffer, CompressedSize, UncompressedBuffer, UncompressedSize, CompressionData, Flags);
 		}
 	}
 
@@ -1019,8 +986,11 @@ void* FCompressedGrowableBuffer::Access( int32 Offset )
 
 bool FCompression::IsFormatValid(FName FormatName)
 {
+	//@todo Oodle make NAME_None a valid compressor
+	// FormatName == NAME_None || 
+
 	// build in formats are always valid
-	if (FormatName == NAME_Zlib || FormatName == NAME_Gzip || FormatName == NAME_LZ4 || FormatName == NAME_Oodle)
+	if ( FormatName == NAME_Zlib || FormatName == NAME_Gzip || FormatName == NAME_LZ4 || FormatName == NAME_Oodle)
 	{
 		return true;
 	}
@@ -1031,7 +1001,7 @@ bool FCompression::IsFormatValid(FName FormatName)
 
 bool FCompression::VerifyCompressionFlagsValid(int32 InCompressionFlags)
 {
-	const int32 CompressionFlagsMask = COMPRESS_DeprecatedFormatFlagsMask | COMPRESS_OptionsFlagsMask;
+	const int32 CompressionFlagsMask = COMPRESS_DeprecatedFormatFlagsMask | COMPRESS_OptionsFlagsMask | COMPRESS_ForPurposeMask;
 	if (InCompressionFlags & (~CompressionFlagsMask))
 	{
 		return false;
