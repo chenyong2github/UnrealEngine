@@ -47,14 +47,16 @@ void FJointConstraintPhysicsProxy::BufferPhysicsResults(Chaos::FDirtyJointConstr
 	Buffer.SetProxy(*this);
 	if (Constraint != nullptr && Constraint->IsValid() )
 	{
-		if (Handle != nullptr && (Handle->IsValid() || Handle->IsConstraintBreaking()))
+		if (Handle != nullptr && (Handle->IsValid() || Handle->IsConstraintBreaking() || Handle->IsDriveTargetChanged()))
 		{
 			Buffer.OutputData.bIsBreaking = Handle->IsConstraintBreaking();
 			Buffer.OutputData.bIsBroken = !Handle->IsConstraintEnabled();
+			Buffer.OutputData.bDriveTargetChanged = Handle->IsDriveTargetChanged();
 			Buffer.OutputData.Force = Handle->GetLinearImpulse();
 			Buffer.OutputData.Torque = Handle->GetAngularImpulse();
 
 			Handle->ClearConstraintBreaking(); // it's a single frame event, so reset
+			Handle->ClearDriveTargetChanged(); // it's a single frame event, so reset
 		}
 	}
 }
@@ -64,10 +66,11 @@ bool FJointConstraintPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyJoint
 {
 	if (Constraint != nullptr && Constraint->IsValid())
 	{
-		if (Handle != nullptr && (Handle->IsValid() || Buffer.OutputData.bIsBreaking))
+		if (Handle != nullptr && (Handle->IsValid() || Buffer.OutputData.bIsBreaking || Buffer.OutputData.bDriveTargetChanged))
 		{
 			Constraint->GetOutputData().bIsBreaking = Buffer.OutputData.bIsBreaking;
 			Constraint->GetOutputData().bIsBroken = Buffer.OutputData.bIsBroken;
+			Constraint->GetOutputData().bDriveTargetChanged = Buffer.OutputData.bDriveTargetChanged;
 			Constraint->GetOutputData().Force = Buffer.OutputData.Force;
 			Constraint->GetOutputData().Torque = Buffer.OutputData.Torque;
 		}

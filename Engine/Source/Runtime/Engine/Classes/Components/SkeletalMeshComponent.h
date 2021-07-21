@@ -816,6 +816,10 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FConstraintBrokenSignature OnConstraintBroken;
 
+	/** Notification when constraint plasticity drive target changes. */
+	UPROPERTY(BlueprintAssignable)
+	FPlasticDeformationEventSignature OnPlasticDeformation;
+
 	/** Class of the object responsible for  */
 	UPROPERTY(EditAnywhere, Category = Clothing)
 	TSubclassOf<class UClothingSimulationFactory> ClothingSimulationFactory;
@@ -1486,6 +1490,9 @@ private:
 
 	/** Wrapper that calls our constraint broken delegate */
 	void OnConstraintBrokenWrapper(int32 ConstraintIndex);
+
+	/** Wrapper that calls our constraint plasticity delegate */
+	void OnPlasticDeformationWrapper(int32 ConstraintIndex);
 
 	/** 
 	 * Morph Target Curves. This will override AnimInstance MorphTargetCurves

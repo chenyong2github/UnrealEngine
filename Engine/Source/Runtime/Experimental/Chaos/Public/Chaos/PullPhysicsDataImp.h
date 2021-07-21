@@ -64,6 +64,7 @@ struct FDirtyGeometryCollectionData : public TBasePullData<FGeometryCollectionPh
 struct FJointConstraintOutputData {
 	bool bIsBreaking = false;
 	bool bIsBroken = false;
+	bool bDriveTargetChanged = false;
 	FVector Force = FVector(0);
 	FVector Torque = FVector(0);
 };

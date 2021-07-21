@@ -458,7 +458,7 @@ void FConstraintInstance::UpdateAverageMass_AssumesLocked(const FPhysicsActorHan
 /** 
  *	Create physics engine constraint.
  */
-void FConstraintInstance::InitConstraint(FBodyInstance* Body1, FBodyInstance* Body2, float InScale, UObject* DebugOwner, FOnConstraintBroken InConstraintBrokenDelegate)
+void FConstraintInstance::InitConstraint(FBodyInstance* Body1, FBodyInstance* Body2, float InScale, UObject* DebugOwner, FOnConstraintBroken InConstraintBrokenDelegate, FOnPlasticDeformation InPlasticDeformationDelegate)
 {
 	FPhysicsActorHandle Actor1;
 	FPhysicsActorHandle Actor2;
@@ -472,15 +472,16 @@ void FConstraintInstance::InitConstraint(FBodyInstance* Body1, FBodyInstance* Bo
 
 		FPhysicsCommand::ExecuteWrite(Actor1, Actor2, [&](const FPhysicsActorHandle& ActorA, const FPhysicsActorHandle& ActorB)
 		{
-			InitConstraint_AssumesLocked(ActorA, ActorB, InScale, InConstraintBrokenDelegate);
+			InitConstraint_AssumesLocked(ActorA, ActorB, InScale, InConstraintBrokenDelegate, InPlasticDeformationDelegate);
 		});
 	}
 
 }
 
-void FConstraintInstance::InitConstraint_AssumesLocked(const FPhysicsActorHandle& ActorRef1, const FPhysicsActorHandle& ActorRef2, float InScale, FOnConstraintBroken InConstraintBrokenDelegate)
+void FConstraintInstance::InitConstraint_AssumesLocked(const FPhysicsActorHandle& ActorRef1, const FPhysicsActorHandle& ActorRef2, float InScale, FOnConstraintBroken InConstraintBrokenDelegate, FOnPlasticDeformation InPlasticDeformationDelegate)
 {
 	OnConstraintBrokenDelegate = InConstraintBrokenDelegate;
+	OnPlasticDeformationDelegate = InPlasticDeformationDelegate;
 	LastKnownScale = InScale;
 
 	UserData = FChaosUserData(this);

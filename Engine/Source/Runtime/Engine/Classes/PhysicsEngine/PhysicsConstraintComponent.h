@@ -58,6 +58,10 @@ class ENGINE_API UPhysicsConstraintComponent : public USceneComponent
 	UPROPERTY(BlueprintAssignable)
 	FConstraintBrokenSignature OnConstraintBroken;
 
+	/** Notification when constraint plasticity drive target changes. */
+	UPROPERTY(BlueprintAssignable)
+	FPlasticDeformationEventSignature OnPlasticDeformation;
+
 public:
 	/** All constraint settings */
 	UPROPERTY(EditAnywhere, Category=ConstraintComponent, meta=(ShowOnlyInnerProperties))
@@ -362,11 +366,17 @@ protected:
 	/** Routes the FConstraint callback to the dynamic delegate */
 	void OnConstraintBrokenHandler(FConstraintInstance* BrokenConstraint);
 
+	/** Routes the FConstraint callback to the dynamic delegate */
+	void OnPlasticDeformationHandler(FConstraintInstance* Constraint);
+
 	/** Returns the scale of the constraint as it will be passed into the ConstraintInstance*/
 	float GetConstraintScale() const;
 
 private:
 	/** Wrapper that calls our constraint broken delegate */
 	void OnConstraintBrokenWrapper(int32 ConstraintIndex);
+
+	/** Wrapper that calls our constraint plasticity delegate */
+	void OnPlasticDeformationWrapper(int32 ConstraintIndex);
 };
 

@@ -169,12 +169,17 @@ struct ENGINE_API FConstraintInstanceBase
 	/** Set the constraint broken delegate. */
 	void SetConstraintBrokenDelegate(FOnConstraintBroken InConstraintBrokenDelegate);
 
+	/** Set the plastic deformation delegate. */
+	void SetPlasticDeformationDelegate(FOnPlasticDeformation InPlasticDeformationDelegate);
+
 	protected:
 
 		FOnConstraintBroken OnConstraintBrokenDelegate;
+		FOnPlasticDeformation OnPlasticDeformationDelegate;
 
 		friend struct FConstraintBrokenDelegateData;
 		friend struct FConstraintBrokenDelegateWrapper;
+		friend struct FPlasticDeformationDelegateWrapper;
 
 };
 
@@ -810,10 +815,10 @@ public:
 	void SetLinearLimitSize(float NewLimitSize);
 
 	/** Create physics engine constraint. */
-	void InitConstraint(FBodyInstance* Body1, FBodyInstance* Body2, float Scale, UObject* DebugOwner, FOnConstraintBroken InConstraintBrokenDelegate = FOnConstraintBroken());
+	void InitConstraint(FBodyInstance* Body1, FBodyInstance* Body2, float Scale, UObject* DebugOwner, FOnConstraintBroken InConstraintBrokenDelegate = FOnConstraintBroken(), FOnPlasticDeformation InPlasticDeformationDelegate = FOnPlasticDeformation());
 
 	/** Create physics engine constraint using physx actors. */
-	void InitConstraint_AssumesLocked(const FPhysicsActorHandle& ActorRef1, const FPhysicsActorHandle& ActorRef2, float InScale, FOnConstraintBroken InConstraintBrokenDelegate = FOnConstraintBroken());
+	void InitConstraint_AssumesLocked(const FPhysicsActorHandle& ActorRef1, const FPhysicsActorHandle& ActorRef2, float InScale, FOnConstraintBroken InConstraintBrokenDelegate = FOnConstraintBroken(), FOnPlasticDeformation InPlasticDeformationDelegate = FOnPlasticDeformation());
 
 	/** Terminate physics engine constraint */
 	void TermConstraint();

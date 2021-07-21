@@ -84,6 +84,16 @@ namespace Chaos
 		return ConcreteContainer()->ClearConstraintBreaking(ConstraintIndex);
 	}
 
+	bool FPBDJointConstraintHandle::IsDriveTargetChanged() const
+	{
+		return ConcreteContainer()->IsDriveTargetChanged(ConstraintIndex);
+	}
+
+	void FPBDJointConstraintHandle::ClearDriveTargetChanged()
+	{
+		return ConcreteContainer()->ClearDriveTargetChanged(ConstraintIndex);
+	}
+
 	FVec3 FPBDJointConstraintHandle::GetLinearImpulse() const
 	{
 		return ConcreteContainer()->GetConstraintLinearImpulse(ConstraintIndex);
@@ -269,6 +279,8 @@ namespace Chaos
 		, Color(INDEX_NONE)
 		, IslandSize(0)
 		, bDisabled(false)
+		, bBreaking(false)
+		, bDriveTargetChanged(false)
 		, LinearImpulse(FVec3(0))
 		, AngularImpulse(FVec3(0))
 	{
@@ -520,6 +532,16 @@ namespace Chaos
 		ConstraintStates[ConstraintIndex].bBreaking = false;
 	}
 
+	bool FPBDJointConstraints::IsDriveTargetChanged(int32 ConstraintIndex) const
+	{
+		return ConstraintStates[ConstraintIndex].bDriveTargetChanged;
+	}
+
+	void FPBDJointConstraints::ClearDriveTargetChanged(int32 ConstraintIndex)
+	{
+		ConstraintStates[ConstraintIndex].bDriveTargetChanged = false;
+	}
+
 	void FPBDJointConstraints::SetConstraintEnabled(int32 ConstraintIndex, bool bEnabled)
 	{
 		const FGenericParticleHandle Particle0 = FGenericParticleHandle(ConstraintParticles[ConstraintIndex][0]);
@@ -544,6 +566,11 @@ namespace Chaos
 	void FPBDJointConstraints::SetConstraintBreaking(int32 ConstraintIndex, bool bBreaking)
 	{
 		ConstraintStates[ConstraintIndex].bBreaking = bBreaking;
+	}
+
+	void FPBDJointConstraints::SetDriveTargetChanged(int32 ConstraintIndex, bool bTargetChanged)
+	{
+		ConstraintStates[ConstraintIndex].bDriveTargetChanged = bTargetChanged;
 	}
 
 	void FPBDJointConstraints::BreakConstraint(int32 ConstraintIndex)
@@ -1267,6 +1294,7 @@ namespace Chaos
 				if (JointSettings.LinearPlasticityType == EPlasticityType::Free)
 				{
 					JointSettings.LinearDrivePositionTarget = LinearDisplacement;
+					SetDriveTargetChanged(ConstraintIndex, true);
 				}
 				else // EPlasticityType::Shrink || EPlasticityType::Grow
 				{
@@ -1278,10 +1306,12 @@ namespace Chaos
 					if (JointSettings.LinearPlasticityType == EPlasticityType::Shrink && CurrentDelta.SizeSquared() < StartDelta.SizeSquared())
 					{
 						JointSettings.LinearDrivePositionTarget = LinearDisplacement;
+						SetDriveTargetChanged(ConstraintIndex, true);
 					}
 					else if (JointSettings.LinearPlasticityType == EPlasticityType::Grow && CurrentDelta.SizeSquared() > StartDelta.SizeSquared())
 					{
 						JointSettings.LinearDrivePositionTarget = LinearDisplacement;
+						SetDriveTargetChanged(ConstraintIndex, true);
 					}
 				}
 			}
@@ -1307,6 +1337,7 @@ namespace Chaos
 			if (AngleDeg > JointSettings.AngularPlasticityLimit)
 			{
 				JointSettings.AngularDrivePositionTarget = AngularDisplacement;
+				SetDriveTargetChanged(ConstraintIndex, true);
 			}
 		}
 	}

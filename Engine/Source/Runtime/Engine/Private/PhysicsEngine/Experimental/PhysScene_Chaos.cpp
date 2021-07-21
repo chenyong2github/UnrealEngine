@@ -1677,6 +1677,17 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 				Constraint->GetOutputData().bIsBreaking = false;
 			}
 
+			if (Constraint->GetOutputData().bDriveTargetChanged)
+			{
+				if (FConstraintInstanceBase* ConstraintInstance = (Constraint) ? FPhysicsUserData_Chaos::Get<FConstraintInstanceBase>(Constraint->GetUserData()) : nullptr)
+				{
+					FPlasticDeformationDelegateWrapper CPD(ConstraintInstance);
+					CPD.DispatchPlasticDeformation();
+				}
+
+				Constraint->GetOutputData().bDriveTargetChanged = false;
+			}
+
 		};
 
 		Solver->PullPhysicsStateForEachDirtyProxy_External(RigidLambda, ConstraintLambda);
@@ -1732,6 +1743,18 @@ FConstraintBrokenDelegateWrapper::FConstraintBrokenDelegateWrapper(FConstraintIn
 void FConstraintBrokenDelegateWrapper::DispatchOnBroken()
 {
 	OnConstraintBrokenDelegate.ExecuteIfBound(ConstraintIndex);
+}
+
+FPlasticDeformationDelegateWrapper::FPlasticDeformationDelegateWrapper(FConstraintInstanceBase* ConstraintInstance)
+	: OnPlasticDeformationDelegate(ConstraintInstance->OnPlasticDeformationDelegate)
+	, ConstraintIndex(ConstraintInstance->ConstraintIndex)
+{
+
+}
+
+void FPlasticDeformationDelegateWrapper::DispatchPlasticDeformation()
+{
+	OnPlasticDeformationDelegate.ExecuteIfBound(ConstraintIndex);
 }
 
 void FPhysScene_Chaos::ResimNFrames(const int32 NumFramesRequested)
