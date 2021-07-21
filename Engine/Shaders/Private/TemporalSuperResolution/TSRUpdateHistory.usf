@@ -63,6 +63,7 @@ float4 HistoryPixelPosToScreenPos;
 float4 HistoryPixelPosToPPCo;
 float3 HistoryQuantizationError;
 float MinTranslucencyRejection;
+float InvWeightClampingPixelSpeed;
 uint ResponsiveStencilMask;
 
 Texture2D<taa_half3> PrevHistory_LowFrequency;
@@ -716,7 +717,7 @@ void MainCS(
 		taa_half2 RejectionConfidentEnough = taa_half(1); // saturate(RejectionValidity * MAX_SAMPLE_COUNT - 3.0);
 
 		// Clamp the validity due to motion to maintain better sharpness.
-		taa_half2 ClampedPrevHistoryValidity = min(PrevHistoryValidity, taa_half(1.0) - (taa_half(1.0) - PredictionOnlyValidity) * saturate(OutputPixelVelocity * rcp(taa_half(40.0))));
+		taa_half2 ClampedPrevHistoryValidity = min(PrevHistoryValidity, taa_half(1.0) - (taa_half(1.0) - PredictionOnlyValidity) * saturate(OutputPixelVelocity * taa_half(InvWeightClampingPixelSpeed)));
 
 		// Compute the newly rejected validity
 		taa_half2 RejectedValidity = (
