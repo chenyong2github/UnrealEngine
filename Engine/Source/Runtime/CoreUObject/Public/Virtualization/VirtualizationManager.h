@@ -52,11 +52,18 @@ class IVirtualizationBackendFactory;
 /** Profiling data containing all activity relating to payloads. */
 struct FPayloadActivityInfo
 {
-	int64 PayloadsPulled = 0;
-	int64 PayloadsPushed = 0;
+	struct FActivity
+	{
+		/** The number of payloads that have been involved by the activity. */
+		int64 PayloadCount = 0;
+		/** The total size of all payloads involved in the activity, in bytes. */
+		int64 TotalBytes = 0;
+		/** The total number of cycles spent on the activity across all threads. */
+		int64 CyclesSpent = 0;
+	};
 
-	int64 TotalSizePulled = 0;
-	int64 TotalSizePushed = 0;
+	FActivity Pull;
+	FActivity Push;
 };
 
 /** This is used as a wrapper around the various potential back end implementations. 
