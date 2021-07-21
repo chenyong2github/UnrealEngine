@@ -633,6 +633,18 @@ void FSpriteGeometryEditMode::DrawCollisionStats(FViewport& InViewport, FSceneVi
 	YPos = (int32)TextItem.Position.Y;
 }
 
+bool FSpriteGeometryEditMode::UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const
+{
+	switch(CheckMode)
+	{
+	case UE::Widget::WM_None:
+	case UE::Widget::WM_Translate:
+		return true;
+	default:
+		return false;
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
