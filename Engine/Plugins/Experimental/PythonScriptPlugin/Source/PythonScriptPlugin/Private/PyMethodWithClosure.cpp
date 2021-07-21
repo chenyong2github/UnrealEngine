@@ -484,6 +484,7 @@ PyTypeObject InitializePyCFunctionWithClosureType()
 	PyType.tp_traverse = (traverseproc)&FFuncs::Traverse;
 	PyType.tp_clear = (inquiry)&FFuncs::Clear;
 	PyType.tp_str = (reprfunc)&FFuncs::Str;
+	PyType.tp_repr = (reprfunc)&FFuncs::Str;
 	PyType.tp_richcompare = (richcmpfunc)&FFuncs::RichCmp;
 	PyType.tp_hash = (hashfunc)&FFuncs::Hash;
 	PyType.tp_call = (ternaryfunc)&FFuncs::Call;
@@ -606,6 +607,7 @@ PyTypeObject InitializePyMethodWithClosureDescrType()
 	PyType.tp_traverse = (traverseproc)&FFuncs::Traverse;
 	PyType.tp_clear = (inquiry)&FFuncs::Clear;
 	PyType.tp_str = (reprfunc)&FFuncs::Str;
+	PyType.tp_repr = (reprfunc)&FFuncs::Str;
 	PyType.tp_call = (ternaryfunc)&FFuncs::Call;
 	PyType.tp_descr_get = (descrgetfunc)&FFuncs::DescrGet;
 	PyType.tp_getattro = (getattrofunc)&PyObject_GenericGetAttr;
@@ -710,6 +712,7 @@ PyTypeObject InitializePyClassMethodWithClosureDescrType()
 	PyType.tp_traverse = (traverseproc)&FFuncs::Traverse;
 	PyType.tp_clear = (inquiry)&FFuncs::Clear;
 	PyType.tp_str = (reprfunc)&FFuncs::Str;
+	PyType.tp_repr = (reprfunc)&FFuncs::Str;
 	PyType.tp_call = (ternaryfunc)&FFuncs::Call;
 	PyType.tp_descr_get = (descrgetfunc)&FFuncs::DescrGet;
 	PyType.tp_getattro = (getattrofunc)&PyObject_GenericGetAttr;
