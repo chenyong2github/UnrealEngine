@@ -2070,6 +2070,10 @@ void FOpenXRHMD::DestroySession()
 		PipelinedLayerStateRHI.DepthSwapchain.Reset();
 		PipelinedLayerStateRHI.QuadSwapchains.Reset();
 
+		// VRFocus must be reset so FWindowsApplication::PollGameDeviceState does not incorrectly short-circuit.
+		FApp::SetUseVRFocus(false);
+		FApp::SetHasVRFocus(false);
+
 		// Destroy device spaces, they will be recreated
 		// when the session is created again.
 		for (FDeviceSpace& Device : DeviceSpaces)
