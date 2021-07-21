@@ -540,25 +540,28 @@ void FTimingViewDrawHelper::DrawFadedLineEvents(const FTimingEventsTrackDrawStat
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimingViewDrawHelper::DrawContextSwitchMarkers(const FTimingEventsTrackDrawState& DrawState, float LineY, float LineH, float Opacity) const
+void FTimingViewDrawHelper::DrawContextSwitchMarkers(const FTimingEventsTrackDrawState& DrawState, float LineY, float LineH, float Opacity, bool bShowVerticalLines) const
 {
 	if (LineH > 0.0f)
 	{
 		const int32 LayerId = ReservedLayerId + ToInt32(EDrawLayer::EventHighlight);
 
-		// Draw vertical lines (merged into large boxes).
-		for (const FTimingEventsTrackDrawState::FBoxPrimitive& Box : DrawState.Boxes)
+		if (bShowVerticalLines)
 		{
-			const FLinearColor Color = Box.Color.CopyWithNewOpacity(Opacity);
-			DrawContext.DrawBox(LayerId, Box.X, LineY, Box.W, LineH, WhiteBrush, Color);
-		}
+			// Draw vertical lines (merged into large boxes).
+			for (const FTimingEventsTrackDrawState::FBoxPrimitive& Box : DrawState.Boxes)
+			{
+				const FLinearColor Color = Box.Color.CopyWithNewOpacity(Opacity);
+				DrawContext.DrawBox(LayerId, Box.X, LineY, Box.W, LineH, WhiteBrush, Color);
+			}
 
-		// Draw vertical lines (edges of larger events).
-		for (const FTimingEventsTrackDrawState::FBoxPrimitive& Box : DrawState.Borders)
-		{
-			const FLinearColor Color = Box.Color.CopyWithNewOpacity(Opacity);
-			DrawContext.DrawBox(LayerId, Box.X, LineY, 1.0f, LineH, WhiteBrush, Color);
-			DrawContext.DrawBox(LayerId, Box.X + Box.W - 1.0f, LineY, 1.0f, LineH, WhiteBrush, Color);
+			// Draw vertical lines (edges of larger events).
+			for (const FTimingEventsTrackDrawState::FBoxPrimitive& Box : DrawState.Borders)
+			{
+				const FLinearColor Color = Box.Color.CopyWithNewOpacity(Opacity);
+				DrawContext.DrawBox(LayerId, Box.X, LineY, 1.0f, LineH, WhiteBrush, Color);
+				DrawContext.DrawBox(LayerId, Box.X + Box.W - 1.0f, LineY, 1.0f, LineH, WhiteBrush, Color);
+			}
 		}
 
 		// Draw overlay for idle areas.

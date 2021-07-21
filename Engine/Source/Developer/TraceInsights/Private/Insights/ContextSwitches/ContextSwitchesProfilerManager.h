@@ -44,7 +44,8 @@ public:
 	virtual void UnregisterMajorTabs() override;
 
 	//////////////////////////////////////////////////
-	bool GetIsAvailable() { return bIsAvailable; }
+
+	bool IsAvailable() const { return bIsAvailable; }
 
 	void OnSessionChanged();
 
@@ -75,4 +76,3 @@ private:
 };
 
 } // namespace Insights
-
