@@ -104,6 +104,11 @@ struct FIOSPlatformProperties
 	{
 		return true;
 	}
+
+	static FORCEINLINE bool SupportsVirtualTextureStreaming()
+	{
+		return true;
+	}
 };
 
 struct FTVOSPlatformProperties : public FIOSPlatformProperties
