@@ -257,12 +257,12 @@ struct FOodleDataCompressionFormat : ICompressionFormat
 			// this supports legacy users
 
 			// Compressor and CompressionLevel are member vars, watch out
-			EOodleDataCompressor CurCompressor;
-			EOodleDataCompressionLevel CurCompressionLevel;
-			EOodleDataCompressionCommonUsage Usage = GetCommonUsageFromLegacyCompressionFlags(Flags);
+			FOodleDataCompression::ECompressor CurCompressor;
+			FOodleDataCompression::ECompressionLevel CurCompressionLevel;
+			FOodleDataCompression::ECompressionCommonUsage Usage = FOodleDataCompression::GetCommonUsageFromLegacyCompressionFlags(Flags);
 			GetCompressorAndLevelForCommonUsage(Usage,CurCompressor,CurCompressionLevel);
 
-			int64 Result = OodleDataCompress(
+			int64 Result = FOodleDataCompression::Compress(
 							OutCompressedBuffer,CompressedBufferSize,
 							InUncompressedBuffer,InUncompressedSize,
 							CurCompressor,CurCompressionLevel);
@@ -284,7 +284,7 @@ struct FOodleDataCompressionFormat : ICompressionFormat
 	virtual bool Uncompress(void* OutUncompressedBuffer, int32& OutUncompressedSize, const void* InCompressedBuffer, int32 InCompressedSize, int32 CompressionData) override
 	{
 		// OutUncompressedSize is read-write
-		return OodleDataDecompress(
+		return FOodleDataCompression::Decompress(
 			OutUncompressedBuffer, OutUncompressedSize,
 			InCompressedBuffer,InCompressedSize);
 	}

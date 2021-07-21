@@ -2382,7 +2382,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 #endif
 
 	// init Oodle here
-	OodleDataCompressionStartupPreInit();
+	FOodleDataCompression::StartupPreInit();
 
 	{
 		SCOPED_BOOT_TIMING("LoadPreInitModules");
