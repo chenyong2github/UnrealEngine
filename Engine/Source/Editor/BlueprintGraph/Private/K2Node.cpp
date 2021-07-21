@@ -18,7 +18,7 @@
 #include "Editor/EditorEngine.h"
 #include "Misc/OutputDeviceNull.h"
 
-#include "Engine/Breakpoint.h"
+#include "Kismet2/Breakpoint.h"
 #include "Kismet2/KismetDebugUtilities.h"
 #include "KismetCompiler.h"
 #include "PropertyCustomizationHelpers.h"
@@ -289,7 +289,7 @@ FText UK2Node::GetToolTipHeading() const
 
 	if (Blueprint)
 	{
-		if (UBreakpoint* ExistingBreakpoint = FKismetDebugUtilities::FindBreakpointForNode(Blueprint, this))
+		if (FBreakpoint* ExistingBreakpoint = FKismetDebugUtilities::FindBreakpointForNode(this, Blueprint))
 		{
 			if (ExistingBreakpoint->IsEnabled())
 			{

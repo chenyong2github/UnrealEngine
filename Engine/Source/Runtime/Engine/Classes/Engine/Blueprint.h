@@ -630,10 +630,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	UPROPERTY()
 	TArray<FBPEditorBookmarkNode> BookmarkNodes;
 
-	/** Persistent debugging options */
-	UPROPERTY()
-	TArray<TObjectPtr<class UBreakpoint>> Breakpoints;
-
 	UPROPERTY()
 	TArray<FEdGraphPinReference> WatchedPins;
 

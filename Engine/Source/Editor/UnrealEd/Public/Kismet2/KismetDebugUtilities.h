@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
 #include "UObject/Object.h"
 #include "UObject/Class.h"
 #include "Engine/Selection.h"
@@ -10,7 +11,7 @@
 static_assert(DO_BLUEPRINT_GUARD, "KismetDebugUtilities assumes BP exception tracking is enabled");
 
 class UBlueprint;
-class UBreakpoint;
+struct FBreakpoint;
 template<typename ElementType> class TSimpleRingBuffer;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogBlueprintDebug, Log, All);
@@ -165,35 +166,63 @@ public:
 	// Breakpoint utils
 
 	/** Is the node a valid breakpoint target? (i.e., the node is impure and ended up generating code) */
-	static bool IsBreakpointValid(UBreakpoint* Breakpoint);
+	static bool IsBreakpointValid(const FBreakpoint& Breakpoint);
 
 	/** Set the node that the breakpoint should focus on */
-	static void SetBreakpointLocation(UBreakpoint* Breakpoint, UEdGraphNode* NewNode);
+	static void SetBreakpointLocation(FBreakpoint& Breakpoint, UEdGraphNode* NewNode);
 
 	/** Set or clear the enabled flag for the breakpoint */
-	static void SetBreakpointEnabled(UBreakpoint* Breakpoint, bool bIsEnabled);
+	static void SetBreakpointEnabled(FBreakpoint& Breakpoint, bool bIsEnabled);
+	static void SetBreakpointEnabled(const UEdGraphNode* OwnerNode, const UBlueprint* OwnerBlueprint, bool bIsEnabled);
 
 	/** Sets this breakpoint up as a single-step breakpoint (will disable or delete itself after one go if the breakpoint wasn't already enabled) */
-	static void SetBreakpointEnabledForSingleStep(UBreakpoint* Breakpoint, bool bDeleteAfterStep);
+	static void SetBreakpointEnabledForSingleStep(FBreakpoint& Breakpoint, bool bDeleteAfterStep);
 
 	/** Reapplies the breakpoint (used after recompiling to ensure it is set if needed) */
-	static void ReapplyBreakpoint(UBreakpoint* Breakpoint);
+	static void ReapplyBreakpoint(FBreakpoint& Breakpoint);
 
 	/** Start the process of deleting this breakpoint */
-	static void StartDeletingBreakpoint(UBreakpoint* Breakpoint, UBlueprint* OwnerBlueprint);
+	static void RemoveBreakpointFromNode(const UEdGraphNode* OwnerNode, const UBlueprint* OwnerBlueprint);
 
 	/** Update the internal state of the breakpoint when it got hit */
-	static void UpdateBreakpointStateWhenHit(UBreakpoint* Breakpoint, UBlueprint* OwnerBlueprint);
+	static void UpdateBreakpointStateWhenHit(const UEdGraphNode* OwnerNode, const UBlueprint* OwnerBlueprint);
 
 	/** Returns the installation site(s); don't cache these pointers! */
-	static void GetBreakpointInstallationSites(UBreakpoint* Breakpoint, TArray<uint8*>& InstallSites);
+	static void GetBreakpointInstallationSites(const FBreakpoint& Breakpoint, TArray<uint8*>& InstallSites);
 
 	/** Install/uninstall the breakpoint into/from the script code for the generated class that contains the node */
-	static void SetBreakpointInternal(UBreakpoint* Breakpoint, bool bShouldBeEnabled);
+	static void SetBreakpointInternal(FBreakpoint& Breakpoint, bool bShouldBeEnabled);
 
 	/** Returns the set of valid macro source node breakpoint location(s) for the given macro instance node. The set may be empty. */
 	static void GetValidBreakpointLocations(const class UK2Node_MacroInstance* MacroInstanceNode, TArray<const UEdGraphNode*>& BreakpointLocations);
 
+	/** Adds a breakpoint to the provided node */
+	static void CreateBreakpoint(const UBlueprint* Blueprint, UEdGraphNode* Node, bool bIsEnabled = true);
+
+	/**
+	 * Performs a task on every breakpoint in the provided blueprint
+	 * @param Blueprint The owning blueprint of the breakpoints to iterate
+	 * @param Task function to be called on every element
+	 */
+	static void ForeachBreakpoint(const UBlueprint* Blueprint, TFunctionRef<void(FBreakpoint &)> Task);
+
+	/**
+	* Removes any breakpoint that matches the provided predicate
+	* @param Blueprint The owning blueprint of the breakpoints to iterate
+	* @param Predicate function that returns true if a breakpoint should be removed
+	*/
+	static void RemoveBreakpointsByPredicate(const UBlueprint* Blueprint, const TFunctionRef<bool(const FBreakpoint&)> Predicate);
+
+	/**
+	* Returns the first breakpoint that matches the provided predicate or nullptr if nothing matched
+	* @param Blueprint The owning blueprint of the breakpoints to iterate
+	* @param Predicate function that returns true for the found breakpoint
+	*/
+	static FBreakpoint* FindBreakpointByPredicate(const UBlueprint* Blueprint, const TFunctionRef<bool(const FBreakpoint&)> Predicate);
+
+	/** Queries whether a blueprint has breakpoints in it */
+	static bool BlueprintHasBreakpoints(const UBlueprint* Blueprint);
+	
 	// Blueprint utils 
 
 	// Looks thru the debugging data for any class variables associated with the pin
@@ -206,10 +235,11 @@ public:
 	static bool HasDebuggingData(const UBlueprint* Blueprint);
 
 	/** Returns the breakpoint associated with a node, or NULL */
-	static UBreakpoint* FindBreakpointForNode(UBlueprint* Blueprint, const UEdGraphNode* Node, bool bCheckSubLocations = false);
+	static FBreakpoint* FindBreakpointForNode(const UEdGraphNode* OwnerNode, const UBlueprint* OwnerBlueprint, bool bCheckSubLocations = false);
 
 	/** Deletes all breakpoints in this blueprint */
-	static void ClearBreakpoints(UBlueprint* Blueprint);
+	static void ClearBreakpoints(const UBlueprint* Blueprint);
+	static void ClearBreakpointsForPath(const FString &BlueprintPath);
 
 	// Notifies listeners when a watched pin is added or removed
 	static FOnWatchedPinsListChanged WatchedPinsListChangedEvent;
@@ -267,7 +297,16 @@ protected:
 	* @return	EWTR_Valid if the debug data could be found, otherwise an appropriate error code
 	*/
 	static EWatchTextResult FindDebuggingData(UBlueprint* Blueprint, UObject* ActiveObject, const UEdGraphPin* WatchPin, FProperty*& OutProperty, void*& OutData, void*& OutDelta, UObject*& OutParent, TArray<UObject*>& SeenObjects, bool* bOutIsDirectPtr = nullptr);
+	
 
+	/**	Retrieve the Array of breakpoints associated with a blueprint.
+	*	returns null if there are no breakpoints associated with this blueprint */
+	static TArray<FBreakpoint>* GetBreakpoints(const UBlueprint* Blueprint);
+	
+	/** Save any modifications made to breakpoints */
+	static void SaveBreakpoints();
+
+	static void CleanupBreakpoints(const UBlueprint* Blueprint);
 private:
 	FKismetDebugUtilities() {}
 };
