@@ -282,11 +282,14 @@ void Main(
 		BRANCH
 		if (bIsSubsurfaceCompatible && bHasSubsurface)
 		{
+			#if STRATA_ENABLED
+			const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(SVPos.xy, 0)));
+			#endif
+
 			float Density = 1;
 			if (!bIsEyeOrHair)
 			{
 			#if STRATA_ENABLED
-				const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(SVPos.xy, 0)));
 				if (SSSData.bIsValid)
 				{
 					float Opacity = SSSData.bIsProfile ? SSSData.ProfileRadiusScale : 1.0f;
@@ -296,7 +299,7 @@ void Main(
 				Density = SubsurfaceDensityFromOpacity(GBufferData.CustomData.a);
 			#endif // STRATA_ENABLED
 			}
-								
+			
 			FPCFSamplerSettings Settings;
 				
 			Settings.ShadowDepthTexture = ShadowDepthTexture;
