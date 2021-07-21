@@ -15,13 +15,14 @@ VirtualShadowMaps/TransmissionCommon.ush:
 #define STRATA_ENABLED 0
 #endif
 
-// TODO: Once strata is set up this function should be shared with ShadowProjectionPixelShader
-// and possibly also the contact shadow trace
 half GetSubsurfaceOpacityFromGbuffer(uint2 PixelPos)
 {
 	half Opacity = 1.0;
 
-#if STRATA_ENABLED
+	// TODO: Support strata
+	// TODO: Once strata is set up this function should be shared with ShadowProjectionPixelShader
+	// and possibly also the contact shadow trace
+#if STRATA_ENABLED && 0
 	// TODO: VSM projection shaders are not set up for strata yet, but added a skeleton of the logic
 	const FStrataClassification StrataData = StrataUnpackClassificationData(Strata.ClassificationTexture.Load(PixelPos));
 	if (StrataData.bIsStrataMaterial)
