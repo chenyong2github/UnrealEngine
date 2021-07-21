@@ -192,6 +192,9 @@ public:
 
 	void SetEditorTreeViewVisualizationMode(EChildActorComponentTreeViewVisualizationMode InMode);
 #endif
+
+private:
+	bool IsChildActorReplicated() const;
 };
 
 struct FActorParentComponentSetter
