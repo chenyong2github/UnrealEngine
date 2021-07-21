@@ -39,12 +39,36 @@ public:
 
 	virtual TSharedRef<SWidget> GetChildAt(int32 Index) override
 	{
-		return GetChildRefAt(Index).GetWidgetRef();
+		int32 TotalNum = 0;
+		for (FChildren* Children : LinkedChildren)
+		{
+			const int32 NewTotal = TotalNum + Children->Num();
+			if (NewTotal > Index)
+			{
+				return Children->GetChildAt(Index - TotalNum);
+			}
+			TotalNum = NewTotal;
+		}
+		// This result should never occur users should always access a valid index for child slots.
+		check(false);
+		return SNullWidget::NullWidget;
 	}
 
 	virtual TSharedRef<const SWidget> GetChildAt(int32 Index) const override
 	{
-		return GetChildRefAt(Index).GetWidgetRef();
+		int32 TotalNum = 0;
+		for (const FChildren* Children : LinkedChildren)
+		{
+			const int32 NewTotal = TotalNum + Children->Num();
+			if (NewTotal > Index)
+			{
+				return Children->GetChildAt(Index - TotalNum);
+			}
+			TotalNum = NewTotal;
+		}
+		// This result should never occur users should always access a valid index for child slots.
+		check(false);
+		return SNullWidget::NullWidget;
 	}
 
 protected:
@@ -92,7 +116,7 @@ protected:
 		}
 		// This result should never occur users should always access a valid index for child slots.
 		check(false);
-		return FWidgetRef(ReferenceConstruct, SNullWidget::NullWidget);
+		return FWidgetRef(ReferenceConstruct, SNullWidget::NullWidget.Get());
 	}
 
 	virtual FConstWidgetRef GetChildRefAt(int32 Index) const override
@@ -109,7 +133,7 @@ protected:
 		}
 		// This result should never occur users should always access a valid index for child slots.
 		check(false);
-		return FConstWidgetRef(ReferenceConstruct, SNullWidget::NullWidget);
+		return FConstWidgetRef(ReferenceConstruct, SNullWidget::NullWidget.Get());
 	}
 
 protected:
@@ -170,13 +194,13 @@ private:
 	virtual FWidgetRef GetChildRefAt(int32 Index) override
 	{
 		check(false);
-		return FWidgetRef(ReferenceConstruct, SNullWidget::NullWidget);
+		return FWidgetRef(ReferenceConstruct, SNullWidget::NullWidget.Get());
 	}
 	
 	virtual FConstWidgetRef GetChildRefAt(int32 Index) const override
 	{
 		check(false);
-		return FConstWidgetRef(ReferenceConstruct, SNullWidget::NullWidget);
+		return FConstWidgetRef(ReferenceConstruct, SNullWidget::NullWidget.Get());
 	}
 };
 
@@ -221,12 +245,12 @@ private:
 	virtual FWidgetRef GetChildRefAt(int32 ChildIndex) override
 	{
 		check(ChildIndex == 0);
-		return FWidgetRef(ReferenceConstruct, FSlotBase::GetWidget());
+		return FWidgetRef(ReferenceConstruct, FSlotBase::GetWidget().Get());
 	}
 	virtual FConstWidgetRef GetChildRefAt(int32 ChildIndex) const override
 	{
 		check(ChildIndex == 0);
-		return FConstWidgetRef(ReferenceConstruct, FSlotBase::GetWidget());
+		return FConstWidgetRef(ReferenceConstruct, FSlotBase::GetWidget().Get());
 	}
 };
 
@@ -276,13 +300,13 @@ private:
 	{
 		check(ChildIndex == 0);
 		TSharedPtr<SWidget> Widget = WidgetPtr.Pin();
-		return (Widget.IsValid()) ? FWidgetRef(CopyConstruct, Widget.ToSharedRef()) : FWidgetRef(ReferenceConstruct, SNullWidget::NullWidget);
+		return (Widget.IsValid()) ? FWidgetRef(CopyConstruct, Widget.ToSharedRef()) : FWidgetRef(ReferenceConstruct, SNullWidget::NullWidget.Get());
 	}
 	virtual FConstWidgetRef GetChildRefAt(int32 ChildIndex) const override
 	{
 		check(ChildIndex == 0);
 		TSharedPtr<SWidget> Widget = WidgetPtr.Pin();
-		return (Widget.IsValid()) ? FConstWidgetRef(CopyConstruct, Widget.ToSharedRef()) : FConstWidgetRef(ReferenceConstruct, SNullWidget::NullWidget);
+		return (Widget.IsValid()) ? FConstWidgetRef(CopyConstruct, Widget.ToSharedRef()) : FConstWidgetRef(ReferenceConstruct, SNullWidget::NullWidget.Get());
 	}
 
 public:
@@ -424,12 +448,12 @@ private:
 	virtual FWidgetRef GetChildRefAt(int32 ChildIndex) override
 	{
 		check(ChildIndex == 0);
-		return FWidgetRef(ReferenceConstruct, this->GetWidget());
+		return FWidgetRef(ReferenceConstruct, this->GetWidget().Get());
 	}
 	virtual FConstWidgetRef GetChildRefAt(int32 ChildIndex) const override
 	{
 		check(ChildIndex == 0);
-		return FConstWidgetRef(ReferenceConstruct, this->GetWidget());
+		return FConstWidgetRef(ReferenceConstruct, this->GetWidget().Get());
 	}
 };
 
@@ -521,12 +545,12 @@ protected:
 
 	virtual FWidgetRef GetChildRefAt(int32 ChildIndex) override
 	{
-		return FWidgetRef(ReferenceConstruct, Children[ChildIndex]->GetWidget());
+		return FWidgetRef(ReferenceConstruct, Children[ChildIndex]->GetWidget().Get());
 	}
 
 	virtual FConstWidgetRef GetChildRefAt(int32 ChildIndex) const override
 	{
-		return FConstWidgetRef(ReferenceConstruct, Children[ChildIndex]->GetWidget());
+		return FConstWidgetRef(ReferenceConstruct, Children[ChildIndex]->GetWidget().Get());
 	}
 
 public:
@@ -920,12 +944,12 @@ private:
 
 	virtual FWidgetRef GetChildRefAt(int32 ChildIndex) override
 	{
-		return FWidgetRef(ReferenceConstruct, Children[ChildIndex]);
+		return FWidgetRef(ReferenceConstruct, Children[ChildIndex].Get());
 	}
 	
 	virtual FConstWidgetRef GetChildRefAt(int32 ChildIndex) const override
 	{
-		return FConstWidgetRef(ReferenceConstruct, Children[ChildIndex]);
+		return FConstWidgetRef(ReferenceConstruct, Children[ChildIndex].Get());
 	}
 
 public:

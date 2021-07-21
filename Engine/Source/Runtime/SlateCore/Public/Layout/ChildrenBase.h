@@ -104,34 +104,30 @@ protected:
 	{
 	private:
 		TOptional<TSharedRef<SWidget>> WidgetCopy;
-		const TSharedRef<SWidget>& WidgetReference;
+		SWidget& WidgetReference;
 
 	public:
 		FWidgetRef(ECopyConstruct, TSharedRef<SWidget> InWidgetCopy)
 			: WidgetCopy(MoveTemp(InWidgetCopy))
-			, WidgetReference(WidgetCopy.GetValue())
+			, WidgetReference(WidgetCopy.GetValue().Get())
 		{}
-		FWidgetRef(ERefConstruct, const TSharedRef<SWidget>& InWidgetRef)
+		FWidgetRef(ERefConstruct, SWidget& InWidgetRef)
 			: WidgetCopy()
 			, WidgetReference(InWidgetRef)
 		{}
 		FWidgetRef(const FWidgetRef& Other)
 			: WidgetCopy(Other.WidgetCopy)
-			, WidgetReference(WidgetCopy.IsSet() ? WidgetCopy.GetValue() : Other.WidgetReference)
+			, WidgetReference(WidgetCopy.IsSet() ? WidgetCopy.GetValue().Get() : Other.WidgetReference)
 		{}
 		FWidgetRef(FWidgetRef&& Other)
 			: WidgetCopy(MoveTemp(Other.WidgetCopy))
-			, WidgetReference(WidgetCopy.IsSet() ? WidgetCopy.GetValue() : Other.WidgetReference)
+			, WidgetReference(WidgetCopy.IsSet() ? WidgetCopy.GetValue().Get() : Other.WidgetReference)
 		{}
 		FWidgetRef& operator=(const FWidgetRef&) = delete;
 		FWidgetRef& operator=(FWidgetRef&&) = delete;
-		const TSharedRef<SWidget>& GetWidgetRef() const
-		{
-			return WidgetReference;
-		}
 		SWidget& GetWidget() const
 		{
-			return WidgetReference.Get();
+			return WidgetReference;
 		}
 	};
 
@@ -139,34 +135,30 @@ protected:
 	{
 	private:
 		TOptional<TSharedRef<const SWidget>> WidgetCopy;
-		const TSharedRef<const SWidget>& WidgetReference;
+		const SWidget& WidgetReference;
 
 	public:
 		FConstWidgetRef(ECopyConstruct, TSharedRef<const SWidget> InWidgetCopy)
 			: WidgetCopy(MoveTemp(InWidgetCopy))
-			, WidgetReference(WidgetCopy.GetValue())
+			, WidgetReference(WidgetCopy.GetValue().Get())
 		{}
-		FConstWidgetRef(ERefConstruct, const TSharedRef<const SWidget>& InWidgetRef)
+		FConstWidgetRef(ERefConstruct, const SWidget& InWidgetRef)
 			: WidgetCopy()
 			, WidgetReference(InWidgetRef)
 		{}
 		FConstWidgetRef(const FConstWidgetRef& Other)
 			: WidgetCopy(Other.WidgetCopy)
-			, WidgetReference(WidgetCopy.IsSet() ? WidgetCopy.GetValue() : Other.WidgetReference)
+			, WidgetReference(WidgetCopy.IsSet() ? WidgetCopy.GetValue().Get() : Other.WidgetReference)
 		{}
 		FConstWidgetRef(FConstWidgetRef&& Other)
 			: WidgetCopy(MoveTemp(Other.WidgetCopy))
-			, WidgetReference(WidgetCopy.IsSet() ? WidgetCopy.GetValue() : Other.WidgetReference)
+			, WidgetReference(WidgetCopy.IsSet() ? WidgetCopy.GetValue().Get() : Other.WidgetReference)
 		{}
 		FConstWidgetRef& operator=(const FConstWidgetRef&) = delete;
 		FConstWidgetRef& operator=(FConstWidgetRef&&) = delete;
-		const TSharedRef<const SWidget>& GetWidgetRef() const
-		{
-			return WidgetReference;
-		}
 		const SWidget& GetWidget() const
 		{
-			return WidgetReference.Get();
+			return WidgetReference;
 		}
 	};
 
