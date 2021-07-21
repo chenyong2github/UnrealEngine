@@ -34,7 +34,7 @@ namespace HordeServerTests.Stubs.Services
 			StreamChanges.Add(Number, new ChangeDetails(Number, Author, Description, Files.ToList()));
 		}
 
-		public Task<List<ChangeSummary>> GetChangesAsync(string StreamName, int? MinChange, int? MaxChange, int NumResults, string? ImpersonateUser)
+		public Task<List<ChangeSummary>> GetChangesAsync(string ClusterName, string StreamName, int? MinChange, int? MaxChange, int NumResults, string? ImpersonateUser)
 		{
 			List<ChangeSummary> Results = new List<ChangeSummary>();
 
@@ -61,12 +61,12 @@ namespace HordeServerTests.Stubs.Services
 			return Task.FromResult(Results);
 		}
 
-		public Task<PerforceUserInfo?> GetUserInfoAsync(string UserName)
+		public Task<PerforceUserInfo?> GetUserInfoAsync(string ClusterName, string UserName)
 		{
 			return Task.FromResult<PerforceUserInfo?>(new PerforceUserInfo { Name = UserName, Email = $"{UserName}@epicgames.com" });
 		}
 
-		public Task<List<ChangeDetails>> GetChangeDetailsAsync(string StreamName, IReadOnlyList<int> ChangeNumbers, string? ImpersonateUser)
+		public Task<List<ChangeDetails>> GetChangeDetailsAsync(string ClusterName, string StreamName, IReadOnlyList<int> ChangeNumbers, string? ImpersonateUser)
 		{
 			List<ChangeDetails> Results = new List<ChangeDetails>();
 			foreach (int ChangeNumber in ChangeNumbers)
@@ -76,12 +76,12 @@ namespace HordeServerTests.Stubs.Services
 			return Task.FromResult(Results);
 		}
 
-		public Task<string> CreateTicket(string ImpersonateUser)
+		public Task<string> CreateTicket(string ClusterName, string ImpersonateUser)
 		{
 			return Task.FromResult("bogus-ticket");
 		}
 
-		public Task<int> GetCodeChangeAsync(string StreamName, int Change)
+		public Task<int> GetCodeChangeAsync(string ClusterName, string StreamName, int Change)
 		{
 			int CodeChange = 0;
 
@@ -101,39 +101,39 @@ namespace HordeServerTests.Stubs.Services
 			return Task.FromResult(CodeChange);
 		}
 
-		public Task<int> CreateNewChangeAsync(string StreamName, string Path)
+		public Task<int> CreateNewChangeAsync(string ClusterName, string StreamName, string Path)
 		{
 			ChangeDetails NewChange = new ChangeDetails(Changes[StreamName].First().Key + 1, "", "", new List<string> { Path });
 			Changes[StreamName].Add(NewChange.Number, NewChange);
 			return Task.FromResult(NewChange.Number);
 		}
 
-		public Task<List<FileSummary>> FindFilesAsync(IEnumerable<string> Paths)
+		public Task<List<FileSummary>> FindFilesAsync(string ClusterName, IEnumerable<string> Paths)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<byte[]> PrintAsync(string Path)
+		public Task<byte[]> PrintAsync(string ClusterName, string Path)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<(int? Change, string Message)> SubmitShelvedChangeAsync(int ShelvedChange, int OriginalChange)
+		public Task<(int? Change, string Message)> SubmitShelvedChangeAsync(string ClusterName, int ShelvedChange, int OriginalChange)
 		{
 			throw new NotImplementedException();
 		}
 
-		public Task<int> DuplicateShelvedChangeAsync(int ShelvedChange)
+		public Task<int> DuplicateShelvedChangeAsync(string ClusterName, int ShelvedChange)
 		{
 			return Task.FromResult(ShelvedChange);
 		}
 
-		public Task DeleteShelvedChangeAsync(int ShelvedChange)
+		public Task DeleteShelvedChangeAsync(string ClusterName, int ShelvedChange)
 		{
 			return Task.CompletedTask;
 		}
 
-		public Task UpdateChangelistDescription(int Change, string Description)
+		public Task UpdateChangelistDescription(string ClusterName, int Change, string Description)
 		{
 			return Task.CompletedTask;
 		}
