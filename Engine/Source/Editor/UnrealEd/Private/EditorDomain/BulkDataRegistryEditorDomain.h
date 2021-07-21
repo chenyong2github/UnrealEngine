@@ -74,7 +74,6 @@ private:
 	FName PackageName;
 	TArray<UE::Virtualization::FVirtualizedUntypedBulkData> BulkDatas;
 	TArray<UE::Virtualization::FVirtualizedUntypedBulkData> CachedBulkDatas;
-	TArray<UE::DerivedData::FRequest> PayloadIdCacheRequests;
 	UE::DerivedData::FRequest BulkDataListCacheRequest;
 	FBulkDataRegistryEditorDomain* Owner;
 	/**

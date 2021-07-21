@@ -506,7 +506,7 @@ void FPendingPackage::Cancel()
 	// Called from outside Owner->PendingPackagesLock, so OnBulkDataList can complete on other thread while we wait
 	// Called after removing this from Owner->PendingPackages under a previous cover of the lock
 	// If OnBulkDataList is running on other thread its attempt to remove from PendingPackages will be a noop
-	if (!BulkDataListCacheRequest->Poll())
+	if (!BulkDataListCacheRequest.Poll())
 	{
 		// Optimization: prevent WriteCache from running at all if we reach here first
 		PendingOperations.fetch_or(Flag_Canceled);
