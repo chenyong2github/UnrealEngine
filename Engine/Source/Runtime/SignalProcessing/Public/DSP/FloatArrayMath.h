@@ -24,6 +24,13 @@ namespace Audio
 	 */
 	SIGNALPROCESSING_API void ArrayMean(TArrayView<const float> InView, float& OutMean);
 
+	/** Mean Squared of array. Equivalent to Sum(InView * InView) / InView.Num()
+	 *
+	 *  InArray contains data to be analyzed.
+	 *  OutMean contains the result.
+	 */
+	SIGNALPROCESSING_API void ArrayMeanSquared(TArrayView<const float> InView, float& OutMean);
+
 	/** Mean filter of array.
 	 *
 	 *  Note: Uses standard biased mean estimator of Sum(x) / Count(x).

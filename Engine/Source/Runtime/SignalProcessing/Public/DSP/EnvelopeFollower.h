@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "SlidingWindow.h"
 
 namespace Audio
 {
@@ -24,13 +25,29 @@ namespace Audio
 	{
 	public:
 
+		static constexpr int32 DefaultWindowSize = 100;
+		static constexpr int32 DefaultHopSize = DefaultWindowSize / 2;
+		static_assert(DefaultHopSize > 0);
+
 		FEnvelopeFollower();
-		FEnvelopeFollower(const float InSampleRate, const float InAttackTimeMsec = 10.0f, const float InReleaseTimeMSec = 100.0f, const EPeakMode::Type InMode = EPeakMode::Peak, const bool bInIsAnalg = true);
+		FEnvelopeFollower(const float InSampleRate,
+			const float InAttackTimeMsec = 10.0f,
+			const float InReleaseTimeMSec = 100.0f,
+			const EPeakMode::Type InMode = EPeakMode::RootMeanSquared,
+			const int32 InWindowSizeForMean = DefaultWindowSize,
+			const int32 InHopSizeForMean = DefaultHopSize,
+			const bool bInIsAnalg = true);
 
 		virtual ~FEnvelopeFollower();
 
 		// Initialize the envelope follower
-		void Init(const float InSampleRate, const float InAttackTimeMsec = 10.0f, const float InReleaseTimeMSec = 100.0f, const EPeakMode::Type InMode = EPeakMode::Peak, const bool bInIsAnalg = true);
+		void Init(const float InSampleRate,
+			const float InAttackTimeMsec = 10.0f,
+			const float InReleaseTimeMSec = 100.0f,
+			const EPeakMode::Type InMode = EPeakMode::RootMeanSquared,
+			const int32 InWindowSizeForMean = DefaultWindowSize,
+			const int32 InHopSizeForMean = DefaultHopSize,
+			const bool bInIsAnalg = true);
 
 		// Resets the state of the envelope follower
 		void Reset();
@@ -67,6 +84,10 @@ namespace Audio
 
 	protected:
 		EPeakMode::Type EnvMode;
+		int32 MeanWindowSize;
+		int32 MeanHopSize;
+		TSlidingBuffer<float> SumBuffer;
+		TArray<float> ScratchBuffer;
 		float SampleRate;
 		float AttackTimeMsec;
 		float AttackTimeSamples;

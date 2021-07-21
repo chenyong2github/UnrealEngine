@@ -12,7 +12,10 @@ namespace Audio
 	static const float DigitalTimeConstant = 4.60517019f;
 
 	FEnvelopeFollower::FEnvelopeFollower()
-		: EnvMode(EPeakMode::Peak)	
+		: EnvMode(EPeakMode::Peak)
+		, MeanWindowSize(DefaultWindowSize)
+		, MeanHopSize(DefaultHopSize)
+		, SumBuffer(DefaultWindowSize, DefaultHopSize)
 		, SampleRate(44100.0f)
 		, AttackTimeMsec(0.0f)
 		, AttackTimeSamples(0.0f)
@@ -23,21 +26,35 @@ namespace Audio
 	{
 	}
 
-	FEnvelopeFollower::FEnvelopeFollower(const float InSampleRate, const float InAttackTimeMsec, const float InReleaseTimeMSec, const EPeakMode::Type InMode, const bool bInIsAnalg)
+	FEnvelopeFollower::FEnvelopeFollower(const float InSampleRate,
+		const float InAttackTimeMsec,
+		const float InReleaseTimeMSec,
+		const EPeakMode::Type InMode,
+		const int32 InWindowSizeForMean,
+		const int32 InHopSizeForMean,
+		const bool bInIsAnalog) : SumBuffer(InWindowSizeForMean, InHopSizeForMean)
 	{
-		Init(InSampleRate, InAttackTimeMsec, InReleaseTimeMSec, InMode, bInIsAnalg);
+		Init(InSampleRate, InAttackTimeMsec, InReleaseTimeMSec, InMode, InWindowSizeForMean, InHopSizeForMean, bInIsAnalog);
 	}
 
 	FEnvelopeFollower::~FEnvelopeFollower()
 	{
 	}
 
-	void FEnvelopeFollower::Init(const float InSampleRate, const float InAttackTimeMsec, const float InReleaseTimeMSec, const EPeakMode::Type InMode, const bool bInIsAnalog)
+	void FEnvelopeFollower::Init(const float InSampleRate, 
+		const float InAttackTimeMsec, 
+		const float InReleaseTimeMSec, 
+		const EPeakMode::Type InMode, 
+		const int32 InWindowSizeForMean,
+		const int32 InHopSizeForMean,
+		const bool bInIsAnalog)
 	{
 		SampleRate = InSampleRate;
 
 		bIsAnalog = bInIsAnalog;
 		EnvMode = InMode;
+
+		SumBuffer = TSlidingBuffer<float>(InWindowSizeForMean, InHopSizeForMean);
 
 		// Set the attack and release times using the default values
 		SetAttackTime(InAttackTimeMsec);
@@ -77,30 +94,77 @@ namespace Audio
 
 	float FEnvelopeFollower::ProcessAudio(const float InAudioSample)
 	{
-		float Sample = (EnvMode != EPeakMode::Peak) ? InAudioSample * InAudioSample : FMath::Abs(InAudioSample);
-		float TimeSamples = (Sample > CurrentEnvelopeValue) ? AttackTimeSamples : ReleaseTimeSamples;
-		float NewEnvelopeValue = TimeSamples * (CurrentEnvelopeValue - Sample) + Sample;;
-		NewEnvelopeValue = Audio::UnderflowClamp(NewEnvelopeValue);
-		NewEnvelopeValue = FMath::Clamp(NewEnvelopeValue, 0.0f, 1.0f);
+		ProcessAudio(&InAudioSample, 1);
 
 		// Update and return the envelope value
-		return CurrentEnvelopeValue = NewEnvelopeValue;
+		return CurrentEnvelopeValue;
 	}
 
 	float FEnvelopeFollower::ProcessAudio(const float* InAudioBuffer, int32 InNumSamples)
 	{
-		for (int32 SampleIndex = 0; SampleIndex < InNumSamples; ++SampleIndex)
+		// MS/RMS
+		if (EnvMode == EPeakMode::MeanSquared || EnvMode == EPeakMode::RootMeanSquared)
 		{
-			ProcessAudioNonClamped(InAudioBuffer[SampleIndex]);
+			TAutoSlidingWindow<float> SlidingWindow(SumBuffer, TArrayView<const float>(InAudioBuffer, InNumSamples), ScratchBuffer, false);
+
+			for (auto& Window : SlidingWindow)
+			{
+				float CurrentMean;
+				
+				ArrayMeanSquared(Window, CurrentMean);
+
+				if (EnvMode == EPeakMode::RootMeanSquared)
+				{
+					CurrentMean = FMath::Sqrt(CurrentMean);
+				}
+
+				for (int j = 0; j < MeanWindowSize; ++j)
+				{
+					ProcessAudioNonClamped(CurrentMean);
+				}
+			}
 		}
-		return FMath::Clamp(CurrentEnvelopeValue, 0.0f, 1.0f);
+		// Peak mode
+		else
+		{
+			for (int32 SampleIndex = 0; SampleIndex < InNumSamples; ++SampleIndex)
+			{
+				ProcessAudioNonClamped(FMath::Abs(InAudioBuffer[SampleIndex]));
+			}
+		}
+		return CurrentEnvelopeValue = FMath::Clamp(CurrentEnvelopeValue, 0.0f, 1.0f);
 	}
 
 	float FEnvelopeFollower::ProcessAudio(const float* InAudioBuffer, float* OutAudioBuffer, int32 InNumSamples)
 	{
-		for (int32 SampleIndex = 0; SampleIndex < InNumSamples; ++SampleIndex)
+		// MS/RMS
+		if (EnvMode == EPeakMode::MeanSquared || EnvMode == EPeakMode::RootMeanSquared)
 		{
-			OutAudioBuffer[SampleIndex] = ProcessAudioNonClamped(InAudioBuffer[SampleIndex]);
+			TAutoSlidingWindow<float> SlidingWindow(SumBuffer, TArrayView<const float>(InAudioBuffer, InNumSamples), ScratchBuffer, false);
+
+			for (auto& Window : SlidingWindow)
+			{
+				float CurrentMean;
+				ArrayMeanSquared(Window, CurrentMean);
+
+				if (EnvMode == EPeakMode::RootMeanSquared)
+				{
+					CurrentMean = FMath::Sqrt(CurrentMean);
+				}
+
+				for (int j = 0; j < MeanWindowSize; ++j)
+				{
+					ProcessAudioNonClamped(CurrentMean);
+				}
+			}
+		}
+		// Peak
+		else
+		{
+			for (int32 SampleIndex = 0; SampleIndex < InNumSamples; ++SampleIndex)
+			{
+				OutAudioBuffer[SampleIndex] = ProcessAudioNonClamped(FMath::Abs(InAudioBuffer[SampleIndex]));
+			}
 		}
 
 		Audio::BufferRangeClampFast(OutAudioBuffer, InNumSamples, 0.0f, 1.0f);
@@ -109,9 +173,8 @@ namespace Audio
 
 	float FEnvelopeFollower::ProcessAudioNonClamped(const float InAudioSample)
 	{
-		float Sample = (EnvMode != EPeakMode::Peak) ? InAudioSample * InAudioSample : FMath::Abs(InAudioSample);
-		float TimeSamples = (Sample > CurrentEnvelopeValue) ? AttackTimeSamples : ReleaseTimeSamples;
-		float NewEnvelopeValue = TimeSamples * (CurrentEnvelopeValue - Sample) + Sample;;
+		float TimeSamples = (InAudioSample > CurrentEnvelopeValue) ? AttackTimeSamples : ReleaseTimeSamples;
+		float NewEnvelopeValue = TimeSamples * (CurrentEnvelopeValue - InAudioSample) + InAudioSample;
 		NewEnvelopeValue = Audio::UnderflowClamp(NewEnvelopeValue);
 
 		// Update and return the envelope value
