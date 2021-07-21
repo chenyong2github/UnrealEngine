@@ -42,6 +42,8 @@ namespace Chaos
 		bool IsConstraintEnabled() const;
 		bool IsConstraintBreaking() const;
 		void ClearConstraintBreaking();
+		bool IsDriveTargetChanged() const;
+		void ClearDriveTargetChanged();
 		FVec3 GetLinearImpulse() const;
 		FVec3 GetAngularImpulse() const;
 
@@ -66,6 +68,7 @@ namespace Chaos
 		int32 IslandSize;
 		bool bDisabled;
 		bool bBreaking;
+		bool bDriveTargetChanged;
 		FVec3 LinearImpulse;
 		FVec3 AngularImpulse;
 	};
@@ -144,6 +147,16 @@ namespace Chaos
 		void ClearConstraintBreaking(int32 ConstraintIndex);
 
 		/*
+		 * Whether the drive target has changed
+		 */
+		bool IsDriveTargetChanged(int32 ConstraintIndex) const;
+
+		/*
+		 * Clear the drive target state
+		 */
+		void ClearDriveTargetChanged(int32 ConstraintIndex);
+
+		/*
 		 * Enable or disable a constraints
 		 */
 		void SetConstraintEnabled(int32 ConstraintIndex, bool bEnabled);
@@ -152,6 +165,11 @@ namespace Chaos
 		 * Set Breaking State
 		 */
 		void SetConstraintBreaking(int32 ConstraintIndex, bool bBreaking);
+
+		/*
+		* Set Drive Target Changed State
+		*/
+		void SetDriveTargetChanged(int32 ConstraintIndex, bool bTargetChanged);
 
 		/*
 		 * Force a constraints to break

@@ -304,6 +304,7 @@ namespace Chaos
 			// Output properties
 			bool bIsBreaking = false;
 			bool bIsBroken = false;
+			bool bDriveTargetChanged = false;
 			FVector Force = FVector(0);
 			FVector Torque = FVector(0);
 		};

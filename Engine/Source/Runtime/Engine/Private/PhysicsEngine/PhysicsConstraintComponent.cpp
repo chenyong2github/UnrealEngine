@@ -244,6 +244,12 @@ void UPhysicsConstraintComponent::OnConstraintBrokenWrapper(int32 ConstraintInde
 	OnConstraintBroken.Broadcast(ConstraintIndex);
 }
 
+/** Wrapper that calls our plasticity delegate */
+void UPhysicsConstraintComponent::OnPlasticDeformationWrapper(int32 ConstraintIndex)
+{
+	OnPlasticDeformation.Broadcast(ConstraintIndex);
+}
+
 void UPhysicsConstraintComponent::InitComponentConstraint()
 {
 	// First we convert world space position of constraint into local space frames
@@ -268,6 +274,12 @@ void UPhysicsConstraintComponent::OnConstraintBrokenHandler(FConstraintInstance*
 {
 	OnConstraintBroken.Broadcast(BrokenConstraint->ConstraintIndex);
 }
+
+void UPhysicsConstraintComponent::OnPlasticDeformationHandler(FConstraintInstance* Constraint)
+{
+	OnPlasticDeformation.Broadcast(Constraint->ConstraintIndex);
+}
+
 
 float UPhysicsConstraintComponent::GetConstraintScale() const
 {
