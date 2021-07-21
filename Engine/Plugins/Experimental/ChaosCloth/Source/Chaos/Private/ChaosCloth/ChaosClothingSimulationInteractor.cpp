@@ -48,21 +48,23 @@ void UChaosClothingInteractor::SetMaterial(FVector2D EdgeStiffness, FVector2D Be
 	}));
 }
 
-void UChaosClothingInteractor::SetLongRangeAttachmentLinear(float TetherStiffnessLinear)
+void UChaosClothingInteractor::SetLongRangeAttachmentLinear(float TetherStiffnessLinear, float TetherScale)
 {
 	// Deprecated
 	const TVec2<FRealSingle> TetherStiffness((FMath::Clamp(FMath::Loge(TetherStiffnessLinear) * ChaosClothingInteractor::InvStiffnessLogBase + 1.f, 0.f, 1.f)), 1.f);
-	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([TetherStiffness](FClothingSimulationCloth* Cloth)
+	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([TetherStiffness, TetherScale](FClothingSimulationCloth* Cloth)
 	{
-		Cloth->SetLongRangeAttachmentProperties(TetherStiffness);
+		Cloth->SetLongRangeAttachmentProperties(TetherStiffness, TVec2<FRealSingle>(TetherScale, TetherScale));
 	}));
 }
 
-void UChaosClothingInteractor::SetLongRangeAttachment(FVector2D TetherStiffness)
+void UChaosClothingInteractor::SetLongRangeAttachment(FVector2D TetherStiffness, FVector2D TetherScale)
 {
-	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([TetherStiffness](FClothingSimulationCloth* Cloth)
+	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([TetherStiffness, TetherScale](FClothingSimulationCloth* Cloth)
 	{
-		Cloth->SetLongRangeAttachmentProperties(TVec2<FRealSingle>(TetherStiffness[0], TetherStiffness[1]));
+		Cloth->SetLongRangeAttachmentProperties(
+			TVec2<FRealSingle>(TetherStiffness[0], TetherStiffness[1]),
+			TVec2<FRealSingle>(TetherScale[0], TetherScale[1]));
 	}));
 }
 

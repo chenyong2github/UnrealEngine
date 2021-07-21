@@ -40,6 +40,26 @@ public:
 	 * @return true when the migration is possible, false otherwise.
 	 */
 	virtual bool MigrateTo(FClothConfig_Legacy&) const { return false; }
+
+	//~ Begin UClothConfigBase Interface
+	/** Return whether to pre-compute self collision data. */
+	virtual bool NeedsSelfCollisionData() const override { return false; }
+
+	/** Return whether to pre-compute inverse masses. */
+	virtual bool NeedsInverseMasses() const override { return false; }
+
+	/** Return whether to pre-compute the influences. */
+	virtual bool NeedsNumInfluences() const override { return true; }
+
+	/** Return whether to pre-compute the long range attachment tethers. */
+	virtual bool NeedsTethers() const override { return false; }
+
+	/** Return the self collision radius to precomute self collision data. */
+	virtual float GetSelfCollisionRadius() const override { return 0.f; }
+
+	/** Return whether tethers need to be calculated using geodesic distances instead of eclidean. */
+	virtual bool TethersUseGeodesicDistance() const override { return false; }
+	//~ End UClothConfigBase Interface
 };
 
 /** Common shared configuration base class. */

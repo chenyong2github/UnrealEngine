@@ -36,8 +36,9 @@ namespace Chaos
 		int32 GetLODIndex() const;
 		int32 GetNumLODs() const;
 		int32 GetNumPoints(int32 LODIndex) const;
-		TConstArrayView<const uint32> GetIndices(int32 LODIndex) const;
-		TArray<TConstArrayView<const FRealSingle>> GetWeightMaps(int32 LODIndex) const;
+		TConstArrayView<uint32> GetIndices(int32 LODIndex) const;
+		TArray<TConstArrayView<FRealSingle>> GetWeightMaps(int32 LODIndex) const;
+		TArray<TConstArrayView<TTuple<int32, int32, float>>> GetTethers(int32 LODIndex, bool bUseGeodesicTethers) const;
 		int32 GetReferenceBoneIndex() const;
 		FRigidTransform3 GetReferenceBoneTransform() const;
 

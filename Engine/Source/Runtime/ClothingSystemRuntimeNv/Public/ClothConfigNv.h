@@ -72,16 +72,21 @@ public:
 	// Migrate to the legacy FClothConfig structure.
 	virtual bool MigrateTo(FClothConfig_Legacy& ClothConfig) const override;
 
-	// Return whether self collision is enabled for this config.
-	UE_DEPRECATED(4.25, "This function is deprecated. Please use NeedsSelfCollisionIndices or UseSelfCollisions instead.")
-	virtual bool HasSelfCollision() const override
-	{ return UseSelfCollisions(); }
+	/** Return whether to pre-compute self collision data. */
+	virtual bool NeedsSelfCollisionData() const override { return SelfCollisionRadius > 0.0f && SelfCollisionStiffness > 0.0f; }
+
+	/** Return whether to pre-compute inverse masses. */
+	virtual bool NeedsInverseMasses() const override { return true; }
+
+	/** Return whether to pre-compute the long range attachment tethers. */
+	virtual bool NeedsTethers() const override { return false; }
 
 	// Return the collision radius required to calculate the self collision indices, or 0.f if self collision is disabled.
-	virtual float NeedsSelfCollisionIndices() const override;
+	virtual float GetSelfCollisionRadius() const override { return NeedsSelfCollisionData() ? SelfCollisionRadius * SelfCollisionCullScale : 0.0f; }
 
 	// Return whether this Nv config has self collision.
-	bool UseSelfCollisions() const;
+	UE_DEPRECATED(5.0, "Use NeedsSelfCollisionData instead.")
+	bool UseSelfCollisions() const { return NeedsSelfCollisionData(); }
 
 	// How wind should be processed, Accurate uses drag and lift to make the cloth react differently, legacy applies similar forces to all clothing without drag and lift (similar to APEX)
 	UPROPERTY(EditAnywhere, Category = ClothConfig)

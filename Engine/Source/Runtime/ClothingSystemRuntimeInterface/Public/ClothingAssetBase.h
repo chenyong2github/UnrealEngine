@@ -8,8 +8,10 @@
 
 class USkeletalMesh;
 
-// An interface object for any clothing asset the engine can use. Any
-// clothing asset concrete object should derive from this.
+/**
+ * An interface object for any clothing asset the engine can use.
+ * Any clothing asset concrete object should derive from this.
+ */
 UCLASS(Abstract)
 class CLOTHINGSYSTEMRUNTIMEINTERFACE_API UClothingAssetBase : public UObject
 {
@@ -46,8 +48,13 @@ public:
 	 * Called on the clothing asset when the base data (physical mesh etc.) has
 	 * changed, so any intermediate generated data can be regenerated.
 	 */
+	UE_DEPRECATED(5.0, "Use InvalidateAllCachedData() instead")
 	virtual void InvalidateCachedData()
-	PURE_VIRTUAL(UClothingAssetBase::InvalidateCachedData(), );
+	{
+#if WITH_EDITORONLY_DATA
+		InvalidateAllCachedData();
+#endif
+	}
 
 	/** Add a new LOD class instance. */
 	virtual int32 AddNewLod()
@@ -61,6 +68,15 @@ public:
 	virtual void BuildLodTransitionData()
 	PURE_VIRTUAL(UClothingAssetBase::BuildLodTransitionData(), );
 #endif
+
+#if WITH_EDITORONLY_DATA
+	/**
+	 * Called on the clothing asset when the base data (physical mesh, config etc.)
+	 * has changed, so any intermediate generated data can be regenerated.
+	 */
+	virtual void InvalidateAllCachedData()
+	PURE_VIRTUAL(UClothingAssetBase::InvalidateCachedData(),);
+#endif // WITH_EDITORONLY_DATA
 
 	/** 
 	 * Messages to the clothing asset that the bones in the parent mesh have
@@ -80,6 +96,7 @@ public:
 	PURE_VIRTUAL(UClothingAssetBase::GetNumLods(), return 0;);
 
 	/** Builds self collision data */
+	UE_DEPRECATED(5.0, "Cached data are now all rebuilt by calling InvalidateCachedData()")
 	virtual void BuildSelfCollisionData()
 	PURE_VIRTUAL(UClothingAssetBase::BuildSelfCollisionData(), );
 

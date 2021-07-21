@@ -97,6 +97,25 @@ TArray<TConstArrayView<FRealSingle>> FClothingSimulationMesh::GetWeightMaps(int3
 	return WeightMaps;
 }
 
+TArray<TConstArrayView<TTuple<int32, int32, float>>> FClothingSimulationMesh::GetTethers(int32 LODIndex, bool bUseGeodesicTethers) const
+{
+	TArray<TConstArrayView<TTuple<int32, int32, float>>> Tethers;
+	if (Asset && Asset->LodData.IsValidIndex(LODIndex))
+	{
+		const FClothLODDataCommon& ClothLODData = Asset->LodData[LODIndex];
+		const FClothPhysicalMeshData& ClothPhysicalMeshData = ClothLODData.PhysicalMeshData;
+		const FClothTetherData& ClothTetherData = bUseGeodesicTethers ? ClothPhysicalMeshData.GeodesicTethers : ClothPhysicalMeshData.EuclideanTethers;
+		
+		const int32 NumTetherBatches = ClothTetherData.Tethers.Num();
+		Tethers.Reserve(NumTetherBatches);
+		for (int32 Index = 0; Index < NumTetherBatches; ++Index)
+		{
+			Tethers.Emplace(TConstArrayView<TTuple<int32, int32, float>>(ClothTetherData.Tethers[Index]));
+		}
+	}
+	return Tethers;
+}
+
 int32 FClothingSimulationMesh::GetReferenceBoneIndex() const
 {
 	return Asset ? Asset->ReferenceBoneIndex : INDEX_NONE;

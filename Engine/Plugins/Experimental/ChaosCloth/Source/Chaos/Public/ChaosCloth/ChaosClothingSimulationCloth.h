@@ -77,7 +77,7 @@ namespace Chaos
 		void SetMaxDistancesMultiplier(FRealSingle InMaxDistancesMultiplier) { MaxDistancesMultiplier = InMaxDistancesMultiplier; }
 
 		void SetMaterialProperties(const TVec2<FRealSingle>& InEdgeStiffness, const TVec2<FRealSingle>& InBendingStiffness, const TVec2<FRealSingle>& InAreaStiffness) { EdgeStiffness = InEdgeStiffness; BendingStiffness = InBendingStiffness; AreaStiffness = InAreaStiffness; }
-		void SetLongRangeAttachmentProperties(const TVec2<FRealSingle>& InTetherStiffness) { TetherStiffness = InTetherStiffness; }
+		void SetLongRangeAttachmentProperties(const TVec2<FRealSingle>& InTetherStiffness, const TVec2<FRealSingle>& InTetherScale) { TetherStiffness = InTetherStiffness; TetherScale = InTetherScale;  }
 		void SetCollisionProperties(FRealSingle InCollisionThickness, FRealSingle InFrictionCoefficient, bool bInUseCCD, FRealSingle InSelfCollisionThickness) { CollisionThickness = InCollisionThickness; FrictionCoefficient = InFrictionCoefficient; bUseCCD = bInUseCCD; SelfCollisionThickness = InSelfCollisionThickness; }
 		void SetDampingProperties(FRealSingle InDampingCoefficient) { DampingCoefficient = InDampingCoefficient; }
 		void SetAerodynamicsProperties(const TVec2<FRealSingle>& InDrag, const TVec2<FRealSingle>& InLift, FRealSingle InAirDensity, const FVec3& InWindVelocity) { Drag = InDrag; Lift = InLift; InAirDensity = AirDensity; WindVelocity = InWindVelocity; }
@@ -118,15 +118,17 @@ namespace Chaos
 		FVec3 GetGravity(const FClothingSimulationSolver* Solver) const;
 		// Return the current bounding box based on a given solver, not thread safe, call must be done right after the solver update.
 		FAABB3 CalculateBoundingBox(const FClothingSimulationSolver* Solver) const;
-		// Return the current LOD Offset in the solver's particle array, or INDEX_NONE if no LOD is currently selected
+		// Return the current LOD offset in the solver's particle array, or INDEX_NONE if no LOD is currently selected.
 		int32 GetOffset(const FClothingSimulationSolver* Solver) const;
-		// Return the current LOD Mesh
+		// Return the current LOD mesh.
 		const FTriangleMesh& GetTriangleMesh(const FClothingSimulationSolver* Solver) const;
-		// Return the current LOD Weightmaps
+		// Return the current LOD weightmaps.
 		const TArray<TConstArrayView<FRealSingle>>& GetWeightMaps(const FClothingSimulationSolver* Solver) const;
-		// Return the reference bone index for this cloth
+		// Return the current LOD tethers.
+		const TArray<TConstArrayView<TTuple<int32, int32, float>>>& GetTethers(const FClothingSimulationSolver* Solver) const;
+		// Return the reference bone index for this cloth.
 		int32 GetReferenceBoneIndex() const;
-		// Return the local reference space transform for this cloth
+		// Return the local reference space transform for this cloth.
 		const FRigidTransform3& GetReferenceSpaceTransform() const { return ReferenceSpaceTransform;  }
 		// ---- End of the debugging/visualization functions
 
@@ -150,6 +152,7 @@ namespace Chaos
 			const int32 NumParticles;
 			const TConstArrayView<uint32> Indices;
 			const TArray<TConstArrayView<FRealSingle>> WeightMaps;
+			const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>> Tethers;
 
 			// Per Solver data
 			struct FSolverData
@@ -163,7 +166,11 @@ namespace Chaos
 			int32 NumKinenamicParticles;
 			int32 NumDynammicParticles;
 
-			FLODData(int32 InNumParticles, const TConstArrayView<uint32>& InIndices, const TArray<TConstArrayView<FRealSingle>>& InWeightMaps);
+			FLODData(
+				int32 InNumParticles,
+				const TConstArrayView<uint32>& InIndices,
+				const TArray<TConstArrayView<FRealSingle>>& InWeightMaps,
+				const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& InTethers);
 
 			void Add(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth, int32 LODIndex);
 			void Remove(FClothingSimulationSolver* Solver);

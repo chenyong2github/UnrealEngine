@@ -70,6 +70,15 @@ public:
 	/** PostLoad override used to deal with updates/changes in properties. */
 	virtual void PostLoad() override;
 
+	/** Return wherether to pre-compute Inverse Masses. */
+	virtual bool NeedsInverseMasses() const override { return false; }  // TODO: Chaos Cloth uses the mass mode enum, and this will require a little refactor to work
+
+	/** Return wherether to pre-compute the Long Range Attachment tethers. */
+	virtual bool NeedsTethers() const override { return TetherStiffness.Low > 0.f || TetherStiffness.High > 0.f; }
+
+	/** Return whether tethers need to be calculated using geodesic distances instead of eclidean. */
+	virtual bool TethersUseGeodesicDistance() const override { return bUseGeodesicDistance; }
+
 	/** Return the mass value, from whichever mass mode (Density, UniformMass, or TotalMass) is selected. */
 	float GetMassValue() const;
 

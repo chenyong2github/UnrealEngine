@@ -16,10 +16,15 @@ namespace ChaosClothingSimulationClothConsoleVariables
 	TAutoConsoleVariable<bool> CVarLegacyDisablesAccurateWind(TEXT("p.ChaosCloth.LegacyDisablesAccurateWind"), true, TEXT("Whether using the Legacy wind model switches off the accurate wind model, or adds up to it"));
 }
 
-FClothingSimulationCloth::FLODData::FLODData(int32 InNumParticles, const TConstArrayView<uint32>& InIndices, const TArray<TConstArrayView<FRealSingle>>& InWeightMaps)
+FClothingSimulationCloth::FLODData::FLODData(
+	int32 InNumParticles,
+	const TConstArrayView<uint32>& InIndices,
+	const TArray<TConstArrayView<FRealSingle>>& InWeightMaps,
+	const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& InTethers)
 	: NumParticles(InNumParticles)
 	, Indices(InIndices)
 	, WeightMaps(InWeightMaps)
+	, Tethers(InTethers)
 {
 }
 
@@ -119,14 +124,14 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 
 	// Edge constraints
 	const TConstArrayView<FRealSingle>& EdgeStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::EdgeStiffness];
-	if (Cloth->EdgeStiffness[0] > (FReal)0. || (Cloth->EdgeStiffness[1] > (FReal)0. && EdgeStiffnessMultipliers.Num()))
+	if (Cloth->EdgeStiffness[0] > (FRealSingle)0. || (Cloth->EdgeStiffness[1] > (FRealSingle)0. && EdgeStiffnessMultipliers.Num() == NumParticles))
 	{
 		ClothConstraints.SetEdgeConstraints(SurfaceElements, EdgeStiffnessMultipliers, Cloth->bUseXPBDConstraints);
 	}
 
 	// Bending constraints
 	const TConstArrayView<FRealSingle>& BendingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BendingStiffness];
-	if (Cloth->BendingStiffness[0] > 0.f || (Cloth->BendingStiffness[1] > (FReal)0. && BendingStiffnessMultipliers.Num()))
+	if (Cloth->BendingStiffness[0] > (FRealSingle)0. || (Cloth->BendingStiffness[1] > (FRealSingle)0. && BendingStiffnessMultipliers.Num() == NumParticles))
 	{
 		if (Cloth->bUseBendingElements)
 		{
@@ -142,13 +147,13 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 
 	// Area constraints
 	const TConstArrayView<FRealSingle>& AreaStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::AreaStiffness];
-	if (Cloth->AreaStiffness[0] > 0.f || (Cloth->AreaStiffness[1] > (FReal)0. && AreaStiffnessMultipliers.Num()))
+	if (Cloth->AreaStiffness[0] > (FRealSingle)0. || (Cloth->AreaStiffness[1] > (FRealSingle)0. && AreaStiffnessMultipliers.Num() == NumParticles))
 	{
 		ClothConstraints.SetAreaConstraints(SurfaceElements, AreaStiffnessMultipliers, Cloth->bUseXPBDConstraints);
 	}
 
 	// Volume constraints
-	if (Cloth->VolumeStiffness)
+	if (Cloth->VolumeStiffness > (FRealSingle)0.)
 	{
 		if (Cloth->bUseThinShellVolumeConstraints)
 		{
@@ -192,23 +197,21 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	}
 
 	// Long range constraints
-	if (Cloth->TetherStiffness[0] > 0.f || Cloth->TetherStiffness[1] > 0.f)
+	const TConstArrayView<FRealSingle>& TetherStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::TetherStiffness];
+	if (Cloth->TetherStiffness[0] > (FRealSingle)0. || (Cloth->TetherStiffness[1] > (FRealSingle)0. && TetherStiffnessMultipliers.Num() == NumParticles))
 	{
-		const TMap<int32, TSet<int32>>& PointToNeighborsMap = TriangleMesh.GetPointToNeighborsMap();
-		const TConstArrayView<FRealSingle>& TetherStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::TetherStiffness];
 		const TConstArrayView<FRealSingle>& TetherScaleMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::TetherScale];
 
 		ClothConstraints.SetLongRangeConstraints(
-			PointToNeighborsMap,
+			Tethers,
 			TetherStiffnessMultipliers,
 			TetherScaleMultipliers,
 			FVec2((FReal)Cloth->TetherScale[0], (FReal)Cloth->TetherScale[1]),
-			Cloth->TetherMode,
 			Cloth->bUseXPBDConstraints);
 	}
 
 	// Max distances
-	if (MaxDistances.Num())
+	if (MaxDistances.Num() == NumParticles)
 	{
 		ClothConstraints.SetMaximumDistanceConstraints(MaxDistances);
 	}
@@ -216,21 +219,21 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	// Backstop Constraints
 	const TConstArrayView<FRealSingle>& BackstopDistances = WeightMaps[(int32)EChaosWeightMapTarget::BackstopDistance];
 	const TConstArrayView<FRealSingle>& BackstopRadiuses = WeightMaps[(int32)EChaosWeightMapTarget::BackstopRadius];
-	if (BackstopRadiuses.Num() && BackstopDistances.Num())
+	if (BackstopRadiuses.Num() == NumParticles && BackstopDistances.Num() == NumParticles)
 	{
 		ClothConstraints.SetBackstopConstraints(BackstopDistances, BackstopRadiuses, Cloth->bUseLegacyBackstop);
 	}
 
 	// Animation Drive Constraints
 	const TConstArrayView<FRealSingle>& AnimDriveStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::AnimDriveStiffness];
-	if (Cloth->AnimDriveStiffness[0] > 0.f || (AnimDriveStiffnessMultipliers.Num() == NumParticles && Cloth->AnimDriveStiffness[1] > 0.f))
+	if (Cloth->AnimDriveStiffness[0] > (FRealSingle)0. || (Cloth->AnimDriveStiffness[1] > (FRealSingle)0. && AnimDriveStiffnessMultipliers.Num() == NumParticles))
 	{
 		const TConstArrayView<FRealSingle>& AnimDriveDampingMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::AnimDriveDamping];
 		ClothConstraints.SetAnimDriveConstraints(AnimDriveStiffnessMultipliers, AnimDriveDampingMultipliers);
 	}
 
 	// Shape target constraint
-	if (Cloth->ShapeTargetStiffness)
+	if (Cloth->ShapeTargetStiffness > (FRealSingle)0.)
 	{
 		ClothConstraints.SetShapeTargetConstraints((FReal)Cloth->ShapeTargetStiffness);
 	}
@@ -274,7 +277,9 @@ void FClothingSimulationCloth::FLODData::Update(FClothingSimulationSolver* Solve
 	ClothConstraints.SetEdgeProperties(FVec2((FReal)Cloth->EdgeStiffness[0], (FReal)Cloth->EdgeStiffness[1]));
 	ClothConstraints.SetBendingProperties(FVec2((FReal)Cloth->BendingStiffness[0], (FReal)Cloth->BendingStiffness[1]));
 	ClothConstraints.SetAreaProperties(FVec2((FReal)Cloth->AreaStiffness[0], (FReal)Cloth->AreaStiffness[1]));
-	ClothConstraints.SetLongRangeAttachmentProperties(FVec2((FReal)Cloth->TetherStiffness[0], (FReal)Cloth->TetherStiffness[1]));
+	ClothConstraints.SetLongRangeAttachmentProperties(
+		FVec2((FReal)Cloth->TetherStiffness[0], (FReal)Cloth->TetherStiffness[1]),
+		FVec2((FReal)Cloth->TetherScale[0], (FReal)Cloth->TetherScale[1]));
 	ClothConstraints.SetSelfCollisionProperties((FReal)Cloth->SelfCollisionThickness);
 	ClothConstraints.SetAnimDriveProperties(
 		FVec2((FReal)Cloth->AnimDriveStiffness[0], (FReal)Cloth->AnimDriveStiffness[1]),
@@ -429,9 +434,14 @@ void FClothingSimulationCloth::SetMesh(FClothingSimulationMesh* InMesh)
 	// Reset LODs
 	const int32 NumLODs = Mesh ? Mesh->GetNumLODs() : 0;
 	LODData.Reset(NumLODs);
+	const bool bUseGeodesicTethers = (TetherMode == ETetherMode::Geodesic);
 	for (int32 Index = 0; Index < NumLODs; ++Index)
 	{
-		LODData.Emplace(Mesh->GetNumPoints(Index), Mesh->GetIndices(Index), Mesh->GetWeightMaps(Index));
+		LODData.Emplace(
+			Mesh->GetNumPoints(Index),
+			Mesh->GetIndices(Index),
+			Mesh->GetWeightMaps(Index),
+			Mesh->GetTethers(Index, bUseGeodesicTethers));
 	}
 
 	// Iterate all known solvers
@@ -625,6 +635,13 @@ const TArray<TConstArrayView<FRealSingle>>& FClothingSimulationCloth::GetWeightM
 	const int32 LODIndex = LODIndices.FindChecked(Solver);
 	static const TArray<TConstArrayView<FRealSingle>> EmptyWeightMaps;
 	return LODData.IsValidIndex(LODIndex) ? LODData[LODIndex].WeightMaps : EmptyWeightMaps;
+}
+
+const TArray<TConstArrayView<TTuple<int32, int32, float>>>& FClothingSimulationCloth::GetTethers(const FClothingSimulationSolver* Solver) const
+{
+	const int32 LODIndex = LODIndices.FindChecked(Solver);
+	static const TArray<TConstArrayView<TTuple<int32, int32, float>>> EmptyTethers;
+	return LODData.IsValidIndex(LODIndex) ? LODData[LODIndex].Tethers : EmptyTethers;
 }
 
 int32 FClothingSimulationCloth::GetReferenceBoneIndex() const

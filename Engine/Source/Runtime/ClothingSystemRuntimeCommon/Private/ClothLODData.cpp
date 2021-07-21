@@ -34,6 +34,7 @@ bool FClothLODDataCommon::Serialize(FArchive& Ar)
 	Ar << TransitionUpSkinData
 	   << TransitionDownSkinData;
 
+#if WITH_EDITORONLY_DATA
 	const int32 ClothingCustomVersion = Ar.CustomVer(FClothingAssetCustomVersion::GUID);
 	if (ClothingCustomVersion < FClothingAssetCustomVersion::MovePropertiesToCommonBaseClasses)
 	{
@@ -43,7 +44,6 @@ bool FClothLODDataCommon::Serialize(FArchive& Ar)
 		PhysicalMeshData.GetWeightMap(EWeightMapTargetCommon::BackstopRadius).Values = MoveTemp(PhysicalMeshData.BackstopRadiuses_DEPRECATED);
 		PhysicalMeshData.GetWeightMap(EWeightMapTargetCommon::AnimDriveStiffness).Values = MoveTemp(PhysicalMeshData.AnimDriveMultipliers_DEPRECATED);
 
-#if WITH_EDITORONLY_DATA
 		// Migrate editor maps
 		PointWeightMaps.SetNum(ParameterMasks_DEPRECATED.Num());
 		for (int32 i = 0; i < PointWeightMaps.Num(); ++i)
@@ -68,8 +68,8 @@ bool FClothLODDataCommon::Serialize(FArchive& Ar)
 				Convex.Planes_DEPRECATED.Empty();
 			}
 		}
-#endif // WITH_EDITORONLY_DATA
 	}
+#endif // WITH_EDITORONLY_DATA
 	return true;
 }
 
